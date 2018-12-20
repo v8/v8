@@ -81,7 +81,7 @@ void SamplingHeapProfiler::SampleObject(Address soon_object, size_t size) {
   DisallowHeapAllocation no_allocation;
 
   HandleScope scope(isolate_);
-  HeapObject* heap_object = HeapObject::FromAddress(soon_object);
+  HeapObject heap_object = HeapObject::FromAddress(soon_object);
   Handle<Object> obj(heap_object, isolate_);
 
   // Mark the new block as FreeSpace to make sure the heap is iterable while we

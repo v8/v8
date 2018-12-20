@@ -465,13 +465,12 @@ void MipsDebugger::Debug() {
         while (cur < end) {
           PrintF("  0x%012" PRIxPTR " :  0x%016" PRIx64 "  %14" PRId64 " ",
                  reinterpret_cast<intptr_t>(cur), *cur, *cur);
-          HeapObject* obj = reinterpret_cast<HeapObject*>(*cur);
-          int64_t value = *cur;
+          ObjectPtr obj(*cur);
           Heap* current_heap = sim_->isolate_->heap();
-          if (((value & 1) == 0) || current_heap->Contains(obj)) {
+          if (obj.IsSmi() || current_heap->Contains(HeapObject::cast(obj))) {
             PrintF(" (");
-            if ((value & 1) == 0) {
-              PrintF("smi %d", static_cast<int>(value >> 32));
+            if (obj.IsSmi()) {
+              PrintF("smi %d", Smi::ToInt(obj));
             } else {
               obj->ShortPrint();
             }

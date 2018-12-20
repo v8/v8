@@ -16,13 +16,13 @@
 namespace v8 {
 namespace internal {
 
-void Scavenger::PromotionList::View::PushRegularObject(HeapObject* object,
+void Scavenger::PromotionList::View::PushRegularObject(HeapObject object,
                                                        int size) {
   promotion_list_->PushRegularObject(task_id_, object, size);
 }
 
-void Scavenger::PromotionList::View::PushLargeObject(HeapObject* object,
-                                                     Map map, int size) {
+void Scavenger::PromotionList::View::PushLargeObject(HeapObject object, Map map,
+                                                     int size) {
   promotion_list_->PushLargeObject(task_id_, object, map, size);
 }
 
@@ -46,12 +46,12 @@ bool Scavenger::PromotionList::View::ShouldEagerlyProcessPromotionList() {
   return promotion_list_->ShouldEagerlyProcessPromotionList(task_id_);
 }
 
-void Scavenger::PromotionList::PushRegularObject(int task_id,
-                                                 HeapObject* object, int size) {
+void Scavenger::PromotionList::PushRegularObject(int task_id, HeapObject object,
+                                                 int size) {
   regular_object_promotion_list_.Push(task_id, ObjectAndSize(object, size));
 }
 
-void Scavenger::PromotionList::PushLargeObject(int task_id, HeapObject* object,
+void Scavenger::PromotionList::PushLargeObject(int task_id, HeapObject object,
                                                Map map, int size) {
   large_object_promotion_list_.Push(task_id, {object, map, size});
 }
@@ -114,7 +114,7 @@ void Scavenger::PageMemoryFence(MaybeObject object) {
 #ifdef THREAD_SANITIZER
   // Perform a dummy acquire load to tell TSAN that there is no data race
   // with  page initialization.
-  HeapObject* heap_object;
+  HeapObject heap_object;
   if (object->GetHeapObject(&heap_object)) {
     MemoryChunk* chunk = MemoryChunk::FromAddress(heap_object->address());
     CHECK_NOT_NULL(chunk->synchronized_heap());
@@ -122,7 +122,7 @@ void Scavenger::PageMemoryFence(MaybeObject object) {
 #endif
 }
 
-bool Scavenger::MigrateObject(Map map, HeapObject* source, HeapObject* target,
+bool Scavenger::MigrateObject(Map map, HeapObject source, HeapObject target,
                               int size) {
   // Copy the content of source to target.
   target->set_map_word(MapWord::FromMap(map));
@@ -150,7 +150,7 @@ bool Scavenger::MigrateObject(Map map, HeapObject* source, HeapObject* target,
 template <typename THeapObjectSlot>
 CopyAndForwardResult Scavenger::SemiSpaceCopyObject(Map map,
                                                     THeapObjectSlot slot,
-                                                    HeapObject* object,
+                                                    HeapObject object,
                                                     int object_size) {
   static_assert(std::is_same<THeapObjectSlot, FullHeapObjectSlot>::value ||
                     std::is_same<THeapObjectSlot, HeapObjectSlot>::value,
@@ -160,7 +160,7 @@ CopyAndForwardResult Scavenger::SemiSpaceCopyObject(Map map,
   AllocationResult allocation =
       allocator_.Allocate(NEW_SPACE, object_size, alignment);
 
-  HeapObject* target = nullptr;
+  HeapObject target;
   if (allocation.To(&target)) {
     DCHECK(heap()->incremental_marking()->non_atomic_marking_state()->IsWhite(
         target));
@@ -185,7 +185,7 @@ CopyAndForwardResult Scavenger::SemiSpaceCopyObject(Map map,
 
 template <typename THeapObjectSlot>
 CopyAndForwardResult Scavenger::PromoteObject(Map map, THeapObjectSlot slot,
-                                              HeapObject* object,
+                                              HeapObject object,
                                               int object_size) {
   static_assert(std::is_same<THeapObjectSlot, FullHeapObjectSlot>::value ||
                     std::is_same<THeapObjectSlot, HeapObjectSlot>::value,
@@ -194,7 +194,7 @@ CopyAndForwardResult Scavenger::PromoteObject(Map map, THeapObjectSlot slot,
   AllocationResult allocation =
       allocator_.Allocate(OLD_SPACE, object_size, alignment);
 
-  HeapObject* target = nullptr;
+  HeapObject target;
   if (allocation.To(&target)) {
     DCHECK(heap()->incremental_marking()->non_atomic_marking_state()->IsWhite(
         target));
@@ -225,8 +225,7 @@ SlotCallbackResult Scavenger::RememberedSetEntryNeeded(
                                                                   : REMOVE_SLOT;
 }
 
-bool Scavenger::HandleLargeObject(Map map, HeapObject* object,
-                                  int object_size) {
+bool Scavenger::HandleLargeObject(Map map, HeapObject object, int object_size) {
   // TODO(hpayer): Make this check size based, i.e.
   // object_size > kMaxRegularHeapObjectSize
   if (V8_UNLIKELY(
@@ -250,7 +249,7 @@ bool Scavenger::HandleLargeObject(Map map, HeapObject* object,
 template <typename THeapObjectSlot>
 SlotCallbackResult Scavenger::EvacuateObjectDefault(Map map,
                                                     THeapObjectSlot slot,
-                                                    HeapObject* object,
+                                                    HeapObject object,
                                                     int object_size) {
   static_assert(std::is_same<THeapObjectSlot, FullHeapObjectSlot>::value ||
                     std::is_same<THeapObjectSlot, HeapObjectSlot>::value,
@@ -325,7 +324,7 @@ SlotCallbackResult Scavenger::EvacuateShortcutCandidate(Map map,
   DCHECK(IsShortcutCandidate(map->instance_type()));
   if (!is_incremental_marking_ &&
       object->unchecked_second() == ReadOnlyRoots(heap()).empty_string()) {
-    HeapObject* first = HeapObject::cast(object->unchecked_first());
+    HeapObject first = HeapObject::cast(object->unchecked_first());
 
     slot.StoreHeapObject(first);
 
@@ -337,7 +336,7 @@ SlotCallbackResult Scavenger::EvacuateShortcutCandidate(Map map,
 
     MapWord first_word = first->synchronized_map_word();
     if (first_word.IsForwardingAddress()) {
-      HeapObject* target = first_word.ToForwardingAddress();
+      HeapObject target = first_word.ToForwardingAddress();
 
       slot.StoreHeapObject(target);
       object->map_slot().Release_Store(
@@ -357,7 +356,7 @@ SlotCallbackResult Scavenger::EvacuateShortcutCandidate(Map map,
 
 template <typename THeapObjectSlot>
 SlotCallbackResult Scavenger::EvacuateObject(THeapObjectSlot slot, Map map,
-                                             HeapObject* source) {
+                                             HeapObject source) {
   static_assert(std::is_same<THeapObjectSlot, FullHeapObjectSlot>::value ||
                     std::is_same<THeapObjectSlot, HeapObjectSlot>::value,
                 "Only FullHeapObjectSlot and HeapObjectSlot are expected here");
@@ -384,7 +383,7 @@ SlotCallbackResult Scavenger::EvacuateObject(THeapObjectSlot slot, Map map,
 
 template <typename THeapObjectSlot>
 SlotCallbackResult Scavenger::ScavengeObject(THeapObjectSlot p,
-                                             HeapObject* object) {
+                                             HeapObject object) {
   static_assert(std::is_same<THeapObjectSlot, FullHeapObjectSlot>::value ||
                     std::is_same<THeapObjectSlot, HeapObjectSlot>::value,
                 "Only FullHeapObjectSlot and HeapObjectSlot are expected here");
@@ -396,7 +395,7 @@ SlotCallbackResult Scavenger::ScavengeObject(THeapObjectSlot p,
   // If the first word is a forwarding address, the object has already been
   // copied.
   if (first_word.IsForwardingAddress()) {
-    HeapObject* dest = first_word.ToForwardingAddress();
+    HeapObject dest = first_word.ToForwardingAddress();
     DCHECK(Heap::InFromSpace(*p));
     if ((*p)->IsWeak()) {
       p.store(HeapObjectReference::Weak(dest));
@@ -428,8 +427,7 @@ SlotCallbackResult Scavenger::CheckAndScavengeObject(Heap* heap, TSlot slot) {
   using THeapObjectSlot = typename TSlot::THeapObjectSlot;
   MaybeObject object = *slot;
   if (Heap::InFromSpace(object)) {
-    HeapObject* heap_object = object->GetHeapObject();
-    DCHECK(heap_object->IsHeapObject());
+    HeapObject heap_object = object->GetHeapObject();
 
     SlotCallbackResult result =
         ScavengeObject(THeapObjectSlot(slot), heap_object);
@@ -446,12 +444,12 @@ SlotCallbackResult Scavenger::CheckAndScavengeObject(Heap* heap, TSlot slot) {
   return REMOVE_SLOT;
 }
 
-void ScavengeVisitor::VisitPointers(HeapObject* host, ObjectSlot start,
+void ScavengeVisitor::VisitPointers(HeapObject host, ObjectSlot start,
                                     ObjectSlot end) {
   return VisitPointersImpl(host, start, end);
 }
 
-void ScavengeVisitor::VisitPointers(HeapObject* host, MaybeObjectSlot start,
+void ScavengeVisitor::VisitPointers(HeapObject host, MaybeObjectSlot start,
                                     MaybeObjectSlot end) {
   return VisitPointersImpl(host, start, end);
 }
@@ -468,9 +466,9 @@ void ScavengeVisitor::VisitCodeTarget(Code host, RelocInfo* rinfo) {
 }
 
 void ScavengeVisitor::VisitEmbeddedPointer(Code host, RelocInfo* rinfo) {
-  HeapObject* heap_object = rinfo->target_object();
+  HeapObject heap_object = rinfo->target_object();
 #ifdef DEBUG
-  HeapObject* old_heap_object = heap_object;
+  HeapObject old_heap_object = heap_object;
 #endif
   FullObjectSlot slot(&heap_object);
   VisitHeapObjectImpl(slot, heap_object);
@@ -480,18 +478,18 @@ void ScavengeVisitor::VisitEmbeddedPointer(Code host, RelocInfo* rinfo) {
 }
 
 template <typename TSlot>
-void ScavengeVisitor::VisitHeapObjectImpl(TSlot slot, HeapObject* heap_object) {
+void ScavengeVisitor::VisitHeapObjectImpl(TSlot slot, HeapObject heap_object) {
   if (Heap::InNewSpace(heap_object)) {
     scavenger_->ScavengeObject(HeapObjectSlot(slot), heap_object);
   }
 }
 
 template <typename TSlot>
-void ScavengeVisitor::VisitPointersImpl(HeapObject* host, TSlot start,
+void ScavengeVisitor::VisitPointersImpl(HeapObject host, TSlot start,
                                         TSlot end) {
   for (TSlot slot = start; slot < end; ++slot) {
     typename TSlot::TObject object = slot.load();
-    HeapObject* heap_object;
+    HeapObject heap_object;
     // Treat weak references as strong.
     if (object.GetHeapObject(&heap_object)) {
       VisitHeapObjectImpl(slot, heap_object);

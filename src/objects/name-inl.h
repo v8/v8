@@ -17,7 +17,7 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(Name, HeapObjectPtr)
+OBJECT_CONSTRUCTORS_IMPL(Name, HeapObject)
 OBJECT_CONSTRUCTORS_IMPL(Symbol, Name)
 
 CAST_ACCESSOR2(Name)

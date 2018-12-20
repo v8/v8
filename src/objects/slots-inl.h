@@ -10,7 +10,7 @@
 #include "src/base/atomic-utils.h"
 #include "src/memcopy.h"
 #include "src/objects.h"
-#include "src/objects/heap-object.h"
+#include "src/objects/heap-object-inl.h"
 #include "src/objects/maybe-object.h"
 
 #ifdef V8_COMPRESS_POINTERS
@@ -116,6 +116,15 @@ HeapObjectReference FullHeapObjectSlot::operator*() const {
 
 void FullHeapObjectSlot::store(HeapObjectReference value) const {
   *location() = value.ptr();
+}
+
+HeapObject FullHeapObjectSlot::ToHeapObject() const {
+  DCHECK((*location() & kHeapObjectTagMask) == kHeapObjectTag);
+  return HeapObject::cast(ObjectPtr(*location()));
+}
+
+void FullHeapObjectSlot::StoreHeapObject(HeapObject value) const {
+  *location() = value->ptr();
 }
 
 //

@@ -17,7 +17,7 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(PropertyArray, HeapObjectPtr)
+OBJECT_CONSTRUCTORS_IMPL(PropertyArray, HeapObject)
 CAST_ACCESSOR2(PropertyArray)
 
 Object* PropertyArray::get(int index) const {

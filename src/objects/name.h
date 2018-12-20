@@ -16,7 +16,7 @@ namespace internal {
 
 // The Name abstract class captures anything that can be used as a property
 // name, i.e., strings and symbols.  All names store a hash value.
-class Name : public HeapObjectPtr {
+class Name : public HeapObject {
  public:
   // Get and set the hash field of the name.
   inline uint32_t hash_field();
@@ -131,7 +131,7 @@ class Name : public HeapObjectPtr {
  protected:
   static inline bool IsHashFieldComputed(uint32_t field);
 
-  OBJECT_CONSTRUCTORS(Name, HeapObjectPtr);
+  OBJECT_CONSTRUCTORS(Name, HeapObject);
 };
 
 // ES6 symbols.

@@ -89,7 +89,7 @@ void Serializer::OutputStatistics(const char* name) {
 
 void Serializer::SerializeDeferredObjects() {
   while (!deferred_objects_.empty()) {
-    HeapObject* obj = deferred_objects_.back();
+    HeapObject obj = deferred_objects_.back();
     deferred_objects_.pop_back();
     ObjectSerializer obj_serializer(this, obj, &sink_, kPlain, kStartOfObject);
     obj_serializer.SerializeDeferred();
@@ -97,7 +97,7 @@ void Serializer::SerializeDeferredObjects() {
   sink_.Put(kSynchronize, "Finished with deferred objects");
 }
 
-bool Serializer::MustBeDeferred(HeapObject* object) { return false; }
+bool Serializer::MustBeDeferred(HeapObject object) { return false; }
 
 void Serializer::VisitRootPointers(Root root, const char* description,
                                    FullObjectSlot start, FullObjectSlot end) {
@@ -123,7 +123,7 @@ void Serializer::PrintStack() {
 }
 #endif  // DEBUG
 
-bool Serializer::SerializeRoot(HeapObject* obj, HowToCode how_to_code,
+bool Serializer::SerializeRoot(HeapObject obj, HowToCode how_to_code,
                                WhereToPoint where_to_point, int skip) {
   RootIndex root_index;
   // Derived serializers are responsible for determining if the root has
@@ -135,7 +135,7 @@ bool Serializer::SerializeRoot(HeapObject* obj, HowToCode how_to_code,
   return false;
 }
 
-bool Serializer::SerializeHotObject(HeapObject* obj, HowToCode how_to_code,
+bool Serializer::SerializeHotObject(HeapObject obj, HowToCode how_to_code,
                                     WhereToPoint where_to_point, int skip) {
   if (how_to_code != kPlain || where_to_point != kStartOfObject) return false;
   // Encode a reference to a hot object by its index in the working set.
@@ -156,7 +156,7 @@ bool Serializer::SerializeHotObject(HeapObject* obj, HowToCode how_to_code,
   return true;
 }
 
-bool Serializer::SerializeBackReference(HeapObject* obj, HowToCode how_to_code,
+bool Serializer::SerializeBackReference(HeapObject obj, HowToCode how_to_code,
                                         WhereToPoint where_to_point, int skip) {
   SerializerReference reference = reference_map_.LookupReference(obj);
   if (!reference.is_valid()) return false;
@@ -193,12 +193,12 @@ bool Serializer::SerializeBackReference(HeapObject* obj, HowToCode how_to_code,
   return true;
 }
 
-bool Serializer::ObjectIsBytecodeHandler(HeapObject* obj) const {
+bool Serializer::ObjectIsBytecodeHandler(HeapObject obj) const {
   if (!obj->IsCode()) return false;
   return (Code::cast(obj)->kind() == Code::BYTECODE_HANDLER);
 }
 
-void Serializer::PutRoot(RootIndex root, HeapObject* object,
+void Serializer::PutRoot(RootIndex root, HeapObject object,
                          SerializerDeserializer::HowToCode how_to_code,
                          SerializerDeserializer::WhereToPoint where_to_point,
                          int skip) {
@@ -238,7 +238,7 @@ void Serializer::PutSmi(Smi smi) {
   for (int i = 0; i < kPointerSize; i++) sink_.Put(bytes[i], "Byte");
 }
 
-void Serializer::PutBackReference(HeapObject* object,
+void Serializer::PutBackReference(HeapObject object,
                                   SerializerReference reference) {
   DCHECK(allocator()->BackReferenceIsAlreadyAllocated(reference));
   switch (reference.space()) {
@@ -270,7 +270,7 @@ void Serializer::PutAttachedReference(SerializerReference reference,
   sink_.PutInt(reference.attached_reference_index(), "AttachedRefIndex");
 }
 
-int Serializer::PutAlignmentPrefix(HeapObject* object) {
+int Serializer::PutAlignmentPrefix(HeapObject object) {
   AllocationAlignment alignment = HeapObject::RequiredAlignment(object->map());
   if (alignment != kWordAligned) {
     DCHECK(1 <= alignment && alignment <= 3);
@@ -523,8 +523,7 @@ void Serializer::ObjectSerializer::SerializeExternalStringAsSequentialString() {
 // TODO(all): replace this with proper iteration of weak slots in serializer.
 class UnlinkWeakNextScope {
  public:
-  explicit UnlinkWeakNextScope(Heap* heap, HeapObject* object)
-      : object_(nullptr) {
+  explicit UnlinkWeakNextScope(Heap* heap, HeapObject object) {
     if (object->IsAllocationSite() &&
         AllocationSite::cast(object)->HasWeakNext()) {
       object_ = object;
@@ -542,7 +541,7 @@ class UnlinkWeakNextScope {
   }
 
  private:
-  HeapObject* object_;
+  HeapObject object_;
   Object* next_;
   DISALLOW_HEAP_ALLOCATION(no_gc_);
 };
@@ -663,13 +662,13 @@ void Serializer::ObjectSerializer::SerializeContent(Map map, int size) {
   }
 }
 
-void Serializer::ObjectSerializer::VisitPointers(HeapObject* host,
+void Serializer::ObjectSerializer::VisitPointers(HeapObject host,
                                                  ObjectSlot start,
                                                  ObjectSlot end) {
   VisitPointers(host, MaybeObjectSlot(start), MaybeObjectSlot(end));
 }
 
-void Serializer::ObjectSerializer::VisitPointers(HeapObject* host,
+void Serializer::ObjectSerializer::VisitPointers(HeapObject host,
                                                  MaybeObjectSlot start,
                                                  MaybeObjectSlot end) {
   MaybeObjectSlot current = start;
@@ -687,7 +686,7 @@ void Serializer::ObjectSerializer::VisitPointers(HeapObject* host,
       bytes_processed_so_far_ += kPointerSize;
       ++current;
     }
-    HeapObject* current_contents;
+    HeapObject current_contents;
     HeapObjectReferenceType reference_type;
     while (current < end &&
            (*current)->GetHeapObject(&current_contents, &reference_type)) {

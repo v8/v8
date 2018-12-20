@@ -49,32 +49,32 @@ class MaybeObject {
 
   // If this MaybeObject is a strong pointer to a HeapObject, returns true and
   // sets *result. Otherwise returns false.
-  inline bool GetHeapObjectIfStrong(HeapObject** result) const;
+  inline bool GetHeapObjectIfStrong(HeapObject* result) const;
 
   // DCHECKs that this MaybeObject is a strong pointer to a HeapObject and
   // returns the HeapObject.
-  inline HeapObject* GetHeapObjectAssumeStrong() const;
+  inline HeapObject GetHeapObjectAssumeStrong() const;
 
   inline bool IsWeak() const;
   inline bool IsWeakOrCleared() const;
 
   // If this MaybeObject is a weak pointer to a HeapObject, returns true and
   // sets *result. Otherwise returns false.
-  inline bool GetHeapObjectIfWeak(HeapObject** result) const;
+  inline bool GetHeapObjectIfWeak(HeapObject* result) const;
 
   // DCHECKs that this MaybeObject is a weak pointer to a HeapObject and
   // returns the HeapObject.
-  inline HeapObject* GetHeapObjectAssumeWeak() const;
+  inline HeapObject GetHeapObjectAssumeWeak() const;
 
   // If this MaybeObject is a strong or weak pointer to a HeapObject, returns
   // true and sets *result. Otherwise returns false.
-  inline bool GetHeapObject(HeapObject** result) const;
-  inline bool GetHeapObject(HeapObject** result,
+  inline bool GetHeapObject(HeapObject* result) const;
+  inline bool GetHeapObject(HeapObject* result,
                             HeapObjectReferenceType* reference_type) const;
 
   // DCHECKs that this MaybeObject is a strong or a weak pointer to a HeapObject
   // and returns the HeapObject.
-  inline HeapObject* GetHeapObject() const;
+  inline HeapObject GetHeapObject() const;
 
   // DCHECKs that this MaybeObject is a strong or a weak pointer to a HeapObject
   // or a SMI and returns the HeapObject or SMI.
@@ -159,7 +159,7 @@ class HeapObjectReference : public MaybeObject {
   V8_INLINE static HeapObjectReference ClearedValue(Isolate* isolate);
 
   template <typename THeapObjectSlot>
-  V8_INLINE static void Update(THeapObjectSlot slot, HeapObject* value);
+  V8_INLINE static void Update(THeapObjectSlot slot, HeapObject value);
 };
 
 }  // namespace internal

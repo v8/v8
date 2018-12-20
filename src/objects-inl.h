@@ -130,10 +130,10 @@ HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DEF)
     return IsHeapObject() && HeapObject::cast(this)->Is##Type(); \
   }                                                              \
   bool HeapObject::Is##Type(Isolate* isolate) const {            \
-    return Object::Is##Type(isolate);                            \
+    return reinterpret_cast<Object*>(ptr())->Is##Type(isolate);  \
   }                                                              \
   bool HeapObject::Is##Type(ReadOnlyRoots roots) const {         \
-    return Object::Is##Type(roots);                              \
+    return reinterpret_cast<Object*>(ptr())->Is##Type(roots);    \
   }                                                              \
   bool HeapObject::Is##Type() const { return Is##Type(GetReadOnlyRoots()); }
 ODDBALL_LIST(IS_TYPE_FUNCTION_DEF)
@@ -152,11 +152,11 @@ bool Object::IsNullOrUndefined() const {
 }
 
 bool HeapObject::IsNullOrUndefined(Isolate* isolate) const {
-  return Object::IsNullOrUndefined(isolate);
+  return reinterpret_cast<Object*>(ptr())->IsNullOrUndefined(isolate);
 }
 
 bool HeapObject::IsNullOrUndefined(ReadOnlyRoots roots) const {
-  return Object::IsNullOrUndefined(roots);
+  return reinterpret_cast<Object*>(ptr())->IsNullOrUndefined(roots);
 }
 
 bool HeapObject::IsNullOrUndefined() const {
@@ -186,51 +186,51 @@ bool HeapObject::IsTemplateInfo() const {
 
 bool HeapObject::IsConsString() const {
   if (!IsString()) return false;
-  return StringShape(String::cast(this)).IsCons();
+  return StringShape(String::cast(*this)).IsCons();
 }
 
 bool HeapObject::IsThinString() const {
   if (!IsString()) return false;
-  return StringShape(String::cast(this)).IsThin();
+  return StringShape(String::cast(*this)).IsThin();
 }
 
 bool HeapObject::IsSlicedString() const {
   if (!IsString()) return false;
-  return StringShape(String::cast(this)).IsSliced();
+  return StringShape(String::cast(*this)).IsSliced();
 }
 
 bool HeapObject::IsSeqString() const {
   if (!IsString()) return false;
-  return StringShape(String::cast(this)).IsSequential();
+  return StringShape(String::cast(*this)).IsSequential();
 }
 
 bool HeapObject::IsSeqOneByteString() const {
   if (!IsString()) return false;
-  return StringShape(String::cast(this)).IsSequential() &&
-         String::cast(this)->IsOneByteRepresentation();
+  return StringShape(String::cast(*this)).IsSequential() &&
+         String::cast(*this)->IsOneByteRepresentation();
 }
 
 bool HeapObject::IsSeqTwoByteString() const {
   if (!IsString()) return false;
-  return StringShape(String::cast(this)).IsSequential() &&
-         String::cast(this)->IsTwoByteRepresentation();
+  return StringShape(String::cast(*this)).IsSequential() &&
+         String::cast(*this)->IsTwoByteRepresentation();
 }
 
 bool HeapObject::IsExternalString() const {
   if (!IsString()) return false;
-  return StringShape(String::cast(this)).IsExternal();
+  return StringShape(String::cast(*this)).IsExternal();
 }
 
 bool HeapObject::IsExternalOneByteString() const {
   if (!IsString()) return false;
-  return StringShape(String::cast(this)).IsExternal() &&
-         String::cast(this)->IsOneByteRepresentation();
+  return StringShape(String::cast(*this)).IsExternal() &&
+         String::cast(*this)->IsOneByteRepresentation();
 }
 
 bool HeapObject::IsExternalTwoByteString() const {
   if (!IsString()) return false;
-  return StringShape(String::cast(this)).IsExternal() &&
-         String::cast(this)->IsTwoByteRepresentation();
+  return StringShape(String::cast(*this)).IsExternal() &&
+         String::cast(*this)->IsTwoByteRepresentation();
 }
 
 bool Object::IsNumber() const { return IsSmi() || IsHeapNumber(); }
@@ -258,7 +258,7 @@ bool HeapObject::IsFrameArray() const { return IsFixedArrayExact(); }
 
 bool HeapObject::IsArrayList() const {
   return map() == GetReadOnlyRoots().array_list_map() ||
-         this == GetReadOnlyRoots().empty_fixed_array();
+         *this == GetReadOnlyRoots().empty_fixed_array();
 }
 
 bool HeapObject::IsRegExpMatchInfo() const { return IsFixedArrayExact(); }
@@ -273,7 +273,7 @@ bool HeapObject::IsDeoptimizationData() const {
   // a deoptimization data array.  Since this is used for asserts we can
   // check that the length is zero or else the fixed size plus a multiple of
   // the entry size.
-  int length = FixedArray::cast(this)->length();
+  int length = FixedArray::cast(*this)->length();
   if (length == 0) return true;
 
   length -= DeoptimizationData::kFirstDeoptEntryIndex;
@@ -291,7 +291,7 @@ bool HeapObject::IsTemplateList() const {
   if (!IsFixedArrayExact()) return false;
   // There's actually no way to see the difference between a fixed array and
   // a template list.
-  if (FixedArray::cast(this)->length() < 1) return false;
+  if (FixedArray::cast(*this)->length() < 1) return false;
   return true;
 }
 
@@ -307,32 +307,32 @@ bool HeapObject::IsAbstractCode() const {
 }
 
 bool HeapObject::IsStringWrapper() const {
-  return IsJSValue() && JSValue::cast(this)->value()->IsString();
+  return IsJSValue() && JSValue::cast(*this)->value()->IsString();
 }
 
 bool HeapObject::IsBooleanWrapper() const {
-  return IsJSValue() && JSValue::cast(this)->value()->IsBoolean();
+  return IsJSValue() && JSValue::cast(*this)->value()->IsBoolean();
 }
 
 bool HeapObject::IsScriptWrapper() const {
-  return IsJSValue() && JSValue::cast(this)->value()->IsScript();
+  return IsJSValue() && JSValue::cast(*this)->value()->IsScript();
 }
 
 bool HeapObject::IsNumberWrapper() const {
-  return IsJSValue() && JSValue::cast(this)->value()->IsNumber();
+  return IsJSValue() && JSValue::cast(*this)->value()->IsNumber();
 }
 
 bool HeapObject::IsBigIntWrapper() const {
-  return IsJSValue() && JSValue::cast(this)->value()->IsBigInt();
+  return IsJSValue() && JSValue::cast(*this)->value()->IsBigInt();
 }
 
 bool HeapObject::IsSymbolWrapper() const {
-  return IsJSValue() && JSValue::cast(this)->value()->IsSymbol();
+  return IsJSValue() && JSValue::cast(*this)->value()->IsSymbol();
 }
 
 bool HeapObject::IsBoolean() const {
   return IsOddball() &&
-         ((Oddball::cast(this)->kind() & Oddball::kNotBooleanMask) == 0);
+         ((Oddball::cast(*this)->kind() & Oddball::kNotBooleanMask) == 0);
 }
 
 bool HeapObject::IsJSArrayBufferView() const {
@@ -344,7 +344,7 @@ bool HeapObject::IsStringSet() const { return IsHashTable(); }
 bool HeapObject::IsObjectHashSet() const { return IsHashTable(); }
 
 bool HeapObject::IsNormalizedMapCache() const {
-  return NormalizedMapCache::IsNormalizedMapCache(this);
+  return NormalizedMapCache::IsNormalizedMapCache(*this);
 }
 
 bool HeapObject::IsCompilationCacheTable() const { return IsHashTable(); }
@@ -375,7 +375,7 @@ bool HeapObject::IsUndetectable() const { return map()->is_undetectable(); }
 
 bool HeapObject::IsAccessCheckNeeded() const {
   if (IsJSGlobalProxy()) {
-    const JSGlobalProxy proxy = JSGlobalProxy::cast(this);
+    const JSGlobalProxy proxy = JSGlobalProxy::cast(*this);
     JSGlobalObject global = proxy->GetIsolate()->context()->global_object();
     return proxy->IsDetachedFrom(global);
   }
@@ -429,6 +429,7 @@ bool Object::IsMinusZero() const {
          i::IsMinusZero(HeapNumber::cast(this)->value());
 }
 
+OBJECT_CONSTRUCTORS_IMPL(HeapObject, ObjectPtr)
 OBJECT_CONSTRUCTORS_IMPL(HashTableBase, FixedArray)
 
 template <typename Derived, typename Shape>
@@ -463,7 +464,7 @@ NormalizedMapCache::NormalizedMapCache(Address ptr) : WeakFixedArray(ptr) {
   // OBJECT_CONSTRUCTORS_IMPL macro?
 }
 
-OBJECT_CONSTRUCTORS_IMPL(BigIntBase, HeapObjectPtr)
+OBJECT_CONSTRUCTORS_IMPL(BigIntBase, HeapObject)
 OBJECT_CONSTRUCTORS_IMPL(BigInt, BigIntBase)
 OBJECT_CONSTRUCTORS_IMPL(FreshlyAllocatedBigInt, BigIntBase)
 
@@ -475,7 +476,7 @@ OBJECT_CONSTRUCTORS_IMPL(TemplateObjectDescription, Tuple2)
 CAST_ACCESSOR2(BigInt)
 CAST_ACCESSOR2(ObjectBoilerplateDescription)
 CAST_ACCESSOR2(EphemeronHashTable)
-CAST_ACCESSOR(HeapObject)
+CAST_ACCESSOR2(HeapObject)
 CAST_ACCESSOR2(NormalizedMapCache)
 CAST_ACCESSOR(Object)
 CAST_ACCESSOR2(ObjectHashSet)
@@ -703,7 +704,7 @@ ObjectSlot HeapObject::RawField(int byte_offset) const {
   return ObjectSlot(FIELD_ADDR(this, byte_offset));
 }
 
-ObjectSlot HeapObject::RawField(const HeapObject* obj, int byte_offset) {
+ObjectSlot HeapObject::RawField(const HeapObject obj, int byte_offset) {
   return ObjectSlot(FIELD_ADDR(obj, byte_offset));
 }
 
@@ -711,8 +712,7 @@ MaybeObjectSlot HeapObject::RawMaybeWeakField(int byte_offset) const {
   return MaybeObjectSlot(FIELD_ADDR(this, byte_offset));
 }
 
-MaybeObjectSlot HeapObject::RawMaybeWeakField(HeapObject* obj,
-                                              int byte_offset) {
+MaybeObjectSlot HeapObject::RawMaybeWeakField(HeapObject obj, int byte_offset) {
   return MaybeObjectSlot(FIELD_ADDR(obj, byte_offset));
 }
 
@@ -722,16 +722,14 @@ Map MapWord::ToMap() const { return Map::unchecked_cast(ObjectPtr(value_)); }
 
 bool MapWord::IsForwardingAddress() const { return HAS_SMI_TAG(value_); }
 
-MapWord MapWord::FromForwardingAddress(HeapObject* object) {
+MapWord MapWord::FromForwardingAddress(HeapObject object) {
   return MapWord(object->ptr() - kHeapObjectTag);
 }
 
-
-HeapObject* MapWord::ToForwardingAddress() {
+HeapObject MapWord::ToForwardingAddress() {
   DCHECK(IsForwardingAddress());
   return HeapObject::FromAddress(value_);
 }
-
 
 #ifdef VERIFY_HEAP
 void HeapObject::VerifyObjectField(Isolate* isolate, int offset) {
@@ -751,7 +749,7 @@ void HeapObject::VerifySmiField(int offset) {
 ReadOnlyRoots HeapObject::GetReadOnlyRoots() const {
   // TODO(v8:7464): When RO_SPACE is embedded, this will access a global
   // variable instead.
-  return ReadOnlyRoots(MemoryChunk::FromHeapObject(this)->heap());
+  return ReadOnlyRoots(MemoryChunk::FromHeapObject(*this)->heap());
 }
 
 Heap* NeverReadOnlySpaceObject::GetHeap() const {
@@ -773,7 +771,7 @@ Map HeapObject::map() const { return map_word().ToMap(); }
 void HeapObject::set_map(Map value) {
   if (!value.is_null()) {
 #ifdef VERIFY_HEAP
-    Heap::FromWritableHeapObject(this)->VerifyObjectLayoutChange(this, value);
+    Heap::FromWritableHeapObject(this)->VerifyObjectLayoutChange(*this, value);
 #endif
   }
   set_map_word(MapWord::FromMap(value));
@@ -791,7 +789,7 @@ Map HeapObject::synchronized_map() const {
 void HeapObject::synchronized_set_map(Map value) {
   if (!value.is_null()) {
 #ifdef VERIFY_HEAP
-    Heap::FromWritableHeapObject(this)->VerifyObjectLayoutChange(this, value);
+    Heap::FromWritableHeapObject(this)->VerifyObjectLayoutChange(*this, value);
 #endif
   }
   synchronized_set_map_word(MapWord::FromMap(value));
@@ -807,7 +805,7 @@ void HeapObject::synchronized_set_map(Map value) {
 void HeapObject::set_map_no_write_barrier(Map value) {
   if (!value.is_null()) {
 #ifdef VERIFY_HEAP
-    Heap::FromWritableHeapObject(this)->VerifyObjectLayoutChange(this, value);
+    Heap::FromWritableHeapObject(this)->VerifyObjectLayoutChange(*this, value);
 #endif
   }
   set_map_word(MapWord::FromMap(value));
@@ -935,7 +933,7 @@ WriteBarrierMode HeapObject::GetWriteBarrierMode(
     const DisallowHeapAllocation& promise) {
   Heap* heap = Heap::FromWritableHeapObject(this);
   if (heap->incremental_marking()->IsMarking()) return UPDATE_WRITE_BARRIER;
-  if (Heap::InNewSpace(this)) return SKIP_WRITE_BARRIER;
+  if (Heap::InNewSpace(*this)) return SKIP_WRITE_BARRIER;
   return UPDATE_WRITE_BARRIER;
 }
 
@@ -954,13 +952,13 @@ AllocationAlignment HeapObject::RequiredAlignment(Map map) {
 bool HeapObject::NeedsRehashing() const {
   switch (map()->instance_type()) {
     case DESCRIPTOR_ARRAY_TYPE:
-      return DescriptorArray::cast(this)->number_of_descriptors() > 1;
+      return DescriptorArray::cast(*this)->number_of_descriptors() > 1;
     case TRANSITION_ARRAY_TYPE:
-      return TransitionArray::cast(this)->number_of_entries() > 1;
+      return TransitionArray::cast(*this)->number_of_entries() > 1;
     case ORDERED_HASH_MAP_TYPE:
-      return OrderedHashMap::cast(this)->NumberOfElements() > 0;
+      return OrderedHashMap::cast(*this)->NumberOfElements() > 0;
     case ORDERED_HASH_SET_TYPE:
-      return OrderedHashSet::cast(this)->NumberOfElements() > 0;
+      return OrderedHashSet::cast(*this)->NumberOfElements() > 0;
     case NAME_DICTIONARY_TYPE:
     case GLOBAL_DICTIONARY_TYPE:
     case NUMBER_DICTIONARY_TYPE:
@@ -1002,97 +1000,97 @@ int HeapObject::SizeFromMap(Map map) const {
   InstanceType instance_type = map->instance_type();
   if (IsInRange(instance_type, FIRST_FIXED_ARRAY_TYPE, LAST_FIXED_ARRAY_TYPE)) {
     return FixedArray::SizeFor(
-        FixedArray::unchecked_cast(this)->synchronized_length());
+        FixedArray::unchecked_cast(*this)->synchronized_length());
   }
   if (IsInRange(instance_type, FIRST_CONTEXT_TYPE, LAST_CONTEXT_TYPE)) {
     // Native context has fixed size.
     DCHECK_NE(instance_type, NATIVE_CONTEXT_TYPE);
-    return Context::SizeFor(Context::unchecked_cast(this)->length());
+    return Context::SizeFor(Context::unchecked_cast(*this)->length());
   }
   if (instance_type == ONE_BYTE_STRING_TYPE ||
       instance_type == ONE_BYTE_INTERNALIZED_STRING_TYPE) {
     // Strings may get concurrently truncated, hence we have to access its
     // length synchronized.
     return SeqOneByteString::SizeFor(
-        SeqOneByteString::unchecked_cast(this)->synchronized_length());
+        SeqOneByteString::unchecked_cast(*this)->synchronized_length());
   }
   if (instance_type == BYTE_ARRAY_TYPE) {
     return ByteArray::SizeFor(
-        ByteArray::unchecked_cast(this)->synchronized_length());
+        ByteArray::unchecked_cast(*this)->synchronized_length());
   }
   if (instance_type == BYTECODE_ARRAY_TYPE) {
     return BytecodeArray::SizeFor(
-        BytecodeArray::unchecked_cast(this)->synchronized_length());
+        BytecodeArray::unchecked_cast(*this)->synchronized_length());
   }
   if (instance_type == FREE_SPACE_TYPE) {
-    return FreeSpace::unchecked_cast(this)->relaxed_read_size();
+    return FreeSpace::unchecked_cast(*this)->relaxed_read_size();
   }
   if (instance_type == STRING_TYPE ||
       instance_type == INTERNALIZED_STRING_TYPE) {
     // Strings may get concurrently truncated, hence we have to access its
     // length synchronized.
     return SeqTwoByteString::SizeFor(
-        SeqTwoByteString::unchecked_cast(this)->synchronized_length());
+        SeqTwoByteString::unchecked_cast(*this)->synchronized_length());
   }
   if (instance_type == FIXED_DOUBLE_ARRAY_TYPE) {
     return FixedDoubleArray::SizeFor(
-        FixedDoubleArray::unchecked_cast(this)->synchronized_length());
+        FixedDoubleArray::unchecked_cast(*this)->synchronized_length());
   }
   if (instance_type == FEEDBACK_METADATA_TYPE) {
     return FeedbackMetadata::SizeFor(
-        FeedbackMetadata::unchecked_cast(this)->synchronized_slot_count());
+        FeedbackMetadata::unchecked_cast(*this)->synchronized_slot_count());
   }
   if (instance_type == DESCRIPTOR_ARRAY_TYPE) {
     return DescriptorArray::SizeFor(
-        DescriptorArray::unchecked_cast(this)->number_of_all_descriptors());
+        DescriptorArray::unchecked_cast(*this)->number_of_all_descriptors());
   }
   if (IsInRange(instance_type, FIRST_WEAK_FIXED_ARRAY_TYPE,
                 LAST_WEAK_FIXED_ARRAY_TYPE)) {
     return WeakFixedArray::SizeFor(
-        WeakFixedArray::unchecked_cast(this)->synchronized_length());
+        WeakFixedArray::unchecked_cast(*this)->synchronized_length());
   }
   if (instance_type == WEAK_ARRAY_LIST_TYPE) {
     return WeakArrayList::SizeForCapacity(
-        WeakArrayList::unchecked_cast(this)->synchronized_capacity());
+        WeakArrayList::unchecked_cast(*this)->synchronized_capacity());
   }
   if (IsInRange(instance_type, FIRST_FIXED_TYPED_ARRAY_TYPE,
                 LAST_FIXED_TYPED_ARRAY_TYPE)) {
-    return FixedTypedArrayBase::unchecked_cast(this)->TypedArraySize(
+    return FixedTypedArrayBase::unchecked_cast(*this)->TypedArraySize(
         instance_type);
   }
   if (instance_type == SMALL_ORDERED_HASH_SET_TYPE) {
     return SmallOrderedHashSet::SizeFor(
-        SmallOrderedHashSet::unchecked_cast(this)->Capacity());
+        SmallOrderedHashSet::unchecked_cast(*this)->Capacity());
   }
   if (instance_type == SMALL_ORDERED_HASH_MAP_TYPE) {
     return SmallOrderedHashMap::SizeFor(
-        SmallOrderedHashMap::unchecked_cast(this)->Capacity());
+        SmallOrderedHashMap::unchecked_cast(*this)->Capacity());
   }
   if (instance_type == SMALL_ORDERED_NAME_DICTIONARY_TYPE) {
     return SmallOrderedNameDictionary::SizeFor(
-        SmallOrderedNameDictionary::unchecked_cast(this)->Capacity());
+        SmallOrderedNameDictionary::unchecked_cast(*this)->Capacity());
   }
   if (instance_type == PROPERTY_ARRAY_TYPE) {
     return PropertyArray::SizeFor(
-        PropertyArray::cast(this)->synchronized_length());
+        PropertyArray::cast(*this)->synchronized_length());
   }
   if (instance_type == FEEDBACK_VECTOR_TYPE) {
     return FeedbackVector::SizeFor(
-        FeedbackVector::unchecked_cast(this)->length());
+        FeedbackVector::unchecked_cast(*this)->length());
   }
   if (instance_type == BIGINT_TYPE) {
-    return BigInt::SizeFor(BigInt::unchecked_cast(this)->length());
+    return BigInt::SizeFor(BigInt::unchecked_cast(*this)->length());
   }
   if (instance_type == PRE_PARSED_SCOPE_DATA_TYPE) {
     return PreParsedScopeData::SizeFor(
-        PreParsedScopeData::unchecked_cast(this)->length());
+        PreParsedScopeData::unchecked_cast(*this)->length());
   }
   if (instance_type == CODE_TYPE) {
-    return Code::unchecked_cast(this)->CodeSize();
+    return Code::unchecked_cast(*this)->CodeSize();
   }
   DCHECK_EQ(instance_type, EMBEDDER_DATA_ARRAY_TYPE);
   return EmbedderDataArray::SizeFor(
-      EmbedderDataArray::unchecked_cast(this)->length());
+      EmbedderDataArray::unchecked_cast(*this)->length());
 }
 
 ACCESSORS2(TemplateObjectDescription, raw_strings, FixedArray,
@@ -1262,7 +1260,7 @@ Relocatable::~Relocatable() {
   isolate_->set_relocatable_top(prev_);
 }
 
-// Predictably converts HeapObject* or Address to uint32 by calculating
+// Predictably converts HeapObject or Address to uint32 by calculating
 // offset of the address in respective MemoryChunk.
 static inline uint32_t ObjectAddressForHashing(void* object) {
   uint32_t value = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(object));

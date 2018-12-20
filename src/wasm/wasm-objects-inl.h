@@ -256,7 +256,7 @@ ImportedFunctionEntry::ImportedFunctionEntry(
 // WasmExceptionObject
 ACCESSORS2(WasmExceptionObject, serialized_signature, PodArray<wasm::ValueType>,
            kSerializedSignatureOffset)
-ACCESSORS(WasmExceptionObject, exception_tag, HeapObject, kExceptionTagOffset)
+ACCESSORS2(WasmExceptionObject, exception_tag, HeapObject, kExceptionTagOffset)
 
 // WasmExportedFunction
 WasmExportedFunction::WasmExportedFunction(Address ptr) : JSFunction(ptr) {

@@ -956,7 +956,7 @@ TEST(Regress436816) {
   Handle<JSObject> object = factory->NewJSObjectFromMap(map, TENURED);
 
   Address fake_address = static_cast<Address>(~kHeapObjectTagMask);
-  HeapObject* fake_object = HeapObject::FromAddress(fake_address);
+  HeapObject fake_object = HeapObject::FromAddress(fake_address);
   CHECK(fake_object->IsHeapObject());
 
   uint64_t boom_value = bit_cast<uint64_t>(fake_object);
@@ -1467,7 +1467,7 @@ static void TestWriteBarrier(Handle<Map> map, Handle<Map> new_map,
   // |boom_value| to the slot that was earlier recorded by write barrier.
   JSObject::MigrateToMap(obj, new_map);
 
-  Address fake_object = reinterpret_cast<Address>(*obj_value) + kPointerSize;
+  Address fake_object = obj_value->ptr() + kPointerSize;
   uint64_t boom_value = bit_cast<uint64_t>(fake_object);
 
   FieldIndex double_field_index =

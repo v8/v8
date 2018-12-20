@@ -3207,7 +3207,7 @@ bool ShouldUseCallICFeedback(Node* node) {
 
 base::Optional<HeapObjectRef> GetHeapObjectFeedback(
     JSHeapBroker* broker, const FeedbackNexus& nexus) {
-  HeapObject* object;
+  HeapObject object;
   if (!nexus.GetFeedback()->GetHeapObject(&object)) return base::nullopt;
   return HeapObjectRef(broker, handle(object, broker->isolate()));
 }

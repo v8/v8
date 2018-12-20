@@ -15,7 +15,7 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(FreeSpace, HeapObjectPtr)
+OBJECT_CONSTRUCTORS_IMPL(FreeSpace, HeapObject)
 
 SMI_ACCESSORS(FreeSpace, size, kSizeOffset)
 RELAXED_SMI_ACCESSORS(FreeSpace, size, kSizeOffset)
@@ -46,10 +46,10 @@ void FreeSpace::set_next(FreeSpace next) {
   ObjectSlot(address() + kNextOffset).Relaxed_Store(next);
 }
 
-FreeSpace FreeSpace::cast(HeapObject* o) {
-  SLOW_DCHECK(!Heap::FromWritableHeapObject(o)->deserialization_complete() ||
+FreeSpace FreeSpace::cast(HeapObject o) {
+  SLOW_DCHECK(!Heap::FromWritableHeapObject(&o)->deserialization_complete() ||
               o->IsFreeSpace());
-  return bit_cast<FreeSpace>(ObjectPtr(o->ptr()));
+  return bit_cast<FreeSpace>(o);
 }
 
 FreeSpace FreeSpace::unchecked_cast(const Object* o) {

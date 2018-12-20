@@ -89,7 +89,7 @@ int RelocInfo::target_address_size() {
   return Assembler::kSpecialTargetSize;
 }
 
-HeapObject* RelocInfo::target_object() {
+HeapObject RelocInfo::target_object() {
   DCHECK(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
   return HeapObject::cast(Memory<Object*>(pc_));
 }
@@ -99,19 +99,18 @@ Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
   return Handle<HeapObject>::cast(Memory<Handle<Object>>(pc_));
 }
 
-void RelocInfo::set_target_object(Heap* heap, HeapObject* target,
+void RelocInfo::set_target_object(Heap* heap, HeapObject target,
                                   WriteBarrierMode write_barrier_mode,
                                   ICacheFlushMode icache_flush_mode) {
   DCHECK(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
-  Memory<Object*>(pc_) = target;
+  Memory<Address>(pc_) = target->ptr();
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
     Assembler::FlushICache(pc_, sizeof(Address));
   }
-  if (write_barrier_mode == UPDATE_WRITE_BARRIER && host() != nullptr) {
+  if (write_barrier_mode == UPDATE_WRITE_BARRIER && !host().is_null()) {
     WriteBarrierForCode(host(), this, target);
   }
 }
-
 
 Address RelocInfo::target_external_reference() {
   DCHECK(rmode_ == RelocInfo::EXTERNAL_REFERENCE);
@@ -277,7 +276,8 @@ Address Assembler::target_address_from_return_address(Address pc) {
 void Assembler::deserialization_set_special_target_at(
     Address instruction_payload, Code code, Address target) {
   set_target_address_at(instruction_payload,
-                        code ? code->constant_pool() : kNullAddress, target);
+                        !code.is_null() ? code->constant_pool() : kNullAddress,
+                        target);
 }
 
 int Assembler::deserialization_special_target_size(

@@ -21,7 +21,7 @@ CAST_ACCESSOR2(EmbedderDataArray)
 
 SMI_ACCESSORS(EmbedderDataArray, length, kLengthOffset)
 
-OBJECT_CONSTRUCTORS_IMPL(EmbedderDataArray, HeapObjectPtr)
+OBJECT_CONSTRUCTORS_IMPL(EmbedderDataArray, HeapObject)
 
 Address EmbedderDataArray::slots_start() {
   return FIELD_ADDR(this, OffsetOfElementAt(0));

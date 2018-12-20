@@ -27,7 +27,7 @@ class WasmExportedFunctionData;
 
 // Data collected by the pre-parser storing information about scopes and inner
 // functions.
-class PreParsedScopeData : public HeapObjectPtr {
+class PreParsedScopeData : public HeapObject {
  public:
   DECL_ACCESSORS2(scope_data, PodArray<uint8_t>)
   DECL_INT_ACCESSORS(length)
@@ -63,12 +63,12 @@ class PreParsedScopeData : public HeapObjectPtr {
     return kChildDataStartOffset + length * kTaggedSize;
   }
 
-  OBJECT_CONSTRUCTORS(PreParsedScopeData, HeapObjectPtr);
+  OBJECT_CONSTRUCTORS(PreParsedScopeData, HeapObject);
 };
 
 // Abstract class representing extra data for an uncompiled function, which is
 // not stored in the SharedFunctionInfo.
-class UncompiledData : public HeapObjectPtr {
+class UncompiledData : public HeapObject {
  public:
   DECL_ACCESSORS2(inferred_name, String)
   DECL_INT32_ACCESSORS(start_position)
@@ -80,12 +80,11 @@ class UncompiledData : public HeapObjectPtr {
   inline static void Initialize(
       UncompiledData data, String inferred_name, int start_position,
       int end_position, int function_literal_id,
-      std::function<void(HeapObjectPtr object, ObjectSlot slot,
-                         HeapObjectPtr target)>
-          gc_notify_updated_slot = [](HeapObjectPtr object, ObjectSlot slot,
-                                      HeapObjectPtr target) {});
+      std::function<void(HeapObject object, ObjectSlot slot, HeapObject target)>
+          gc_notify_updated_slot =
+              [](HeapObject object, ObjectSlot slot, HeapObject target) {});
 
-// Layout description.
+  // Layout description.
 
 #define UNCOMPILED_DATA_FIELDS(V)                                         \
   V(kStartOfPointerFieldsOffset, 0)                                       \
@@ -109,7 +108,7 @@ class UncompiledData : public HeapObjectPtr {
   // Clear uninitialized padding space.
   inline void clear_padding();
 
-  OBJECT_CONSTRUCTORS(UncompiledData, HeapObjectPtr);
+  OBJECT_CONSTRUCTORS(UncompiledData, HeapObject);
 };
 
 // Class representing data for an uncompiled function that does not have any
@@ -143,12 +142,11 @@ class UncompiledDataWithPreParsedScope : public UncompiledData {
       UncompiledDataWithPreParsedScope data, String inferred_name,
       int start_position, int end_position, int function_literal_id,
       PreParsedScopeData scope_data,
-      std::function<void(HeapObjectPtr object, ObjectSlot slot,
-                         HeapObjectPtr target)>
-          gc_notify_updated_slot = [](HeapObjectPtr object, ObjectSlot slot,
-                                      HeapObjectPtr target) {});
+      std::function<void(HeapObject object, ObjectSlot slot, HeapObject target)>
+          gc_notify_updated_slot =
+              [](HeapObject object, ObjectSlot slot, HeapObject target) {});
 
-// Layout description.
+  // Layout description.
 
 #define UNCOMPILED_DATA_WITH_PRE_PARSED_SCOPE_FIELDS(V) \
   V(kStartOfPointerFieldsOffset, 0)                     \
@@ -197,7 +195,7 @@ class InterpreterData : public Struct {
 
 // SharedFunctionInfo describes the JSFunction information that can be
 // shared by multiple instances of the function.
-class SharedFunctionInfo : public HeapObjectPtr {
+class SharedFunctionInfo : public HeapObject {
  public:
   NEVER_READ_ONLY_SPACE
   static constexpr ObjectPtr const kNoSharedNameSentinel = Smi::kZero;
@@ -251,7 +249,7 @@ class SharedFunctionInfo : public HeapObjectPtr {
 
   // [outer scope info | feedback metadata] Shared storage for outer scope info
   // (on uncompiled functions) and feedback metadata (on compiled functions).
-  DECL_ACCESSORS2(raw_outer_scope_info_or_feedback_metadata, HeapObjectPtr)
+  DECL_ACCESSORS2(raw_outer_scope_info_or_feedback_metadata, HeapObject)
 
   // Get the outer scope info whether this function is compiled or not.
   inline bool HasOuterScopeInfo() const;
@@ -529,10 +527,9 @@ class SharedFunctionInfo : public HeapObjectPtr {
   // |gc_notify_updated_slot| should be used to record any slot updates.
   void DiscardCompiledMetadata(
       Isolate* isolate,
-      std::function<void(HeapObjectPtr object, ObjectSlot slot,
-                         HeapObjectPtr target)>
-          gc_notify_updated_slot = [](HeapObjectPtr object, ObjectSlot slot,
-                                      HeapObjectPtr target) {});
+      std::function<void(HeapObject object, ObjectSlot slot, HeapObject target)>
+          gc_notify_updated_slot =
+              [](HeapObject object, ObjectSlot slot, HeapObject target) {});
 
   // Returns true if the function has old bytecode that could be flushed.
   inline bool ShouldFlushBytecode();
@@ -698,7 +695,7 @@ class SharedFunctionInfo : public HeapObjectPtr {
 
   // [outer scope info] The outer scope info, needed to lazily parse this
   // function.
-  DECL_ACCESSORS2(outer_scope_info, HeapObjectPtr)
+  DECL_ACCESSORS2(outer_scope_info, HeapObject)
 
   inline void set_kind(FunctionKind kind);
 
@@ -714,7 +711,7 @@ class SharedFunctionInfo : public HeapObjectPtr {
   // FunctionLiteralId.
   int FindIndexInScript(Isolate* isolate) const;
 
-  OBJECT_CONSTRUCTORS(SharedFunctionInfo, HeapObjectPtr);
+  OBJECT_CONSTRUCTORS(SharedFunctionInfo, HeapObject);
 };
 
 // Printing support.

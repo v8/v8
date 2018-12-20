@@ -18,7 +18,7 @@ namespace internal {
 // the heap remains iterable.  They have a size and a next pointer.
 // The next pointer is the raw address of the next FreeSpace object (or NULL)
 // in the free list.
-class FreeSpace : public HeapObjectPtr {
+class FreeSpace : public HeapObject {
  public:
   // [size]: size of the free space including the header.
   inline int size() const;
@@ -33,7 +33,7 @@ class FreeSpace : public HeapObjectPtr {
   inline FreeSpace next();
   inline void set_next(FreeSpace next);
 
-  inline static FreeSpace cast(HeapObject* obj);
+  inline static FreeSpace cast(HeapObject obj);
   inline static FreeSpace unchecked_cast(const Object* obj);
 
   // Dispatched behavior.
@@ -46,7 +46,7 @@ class FreeSpace : public HeapObjectPtr {
   static const int kNextOffset = POINTER_SIZE_ALIGN(kSizeOffset + kPointerSize);
   static const int kSize = kNextOffset + kPointerSize;
 
-  OBJECT_CONSTRUCTORS(FreeSpace, HeapObjectPtr);
+  OBJECT_CONSTRUCTORS(FreeSpace, HeapObject);
 };
 
 }  // namespace internal

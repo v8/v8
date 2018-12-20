@@ -27,15 +27,15 @@ class PartialSerializer : public Serializer {
   bool can_be_rehashed() const { return can_be_rehashed_; }
 
  private:
-  void SerializeObject(HeapObject* o, HowToCode how_to_code,
+  void SerializeObject(HeapObject o, HowToCode how_to_code,
                        WhereToPoint where_to_point, int skip) override;
 
-  bool ShouldBeInThePartialSnapshotCache(HeapObject* o);
+  bool ShouldBeInThePartialSnapshotCache(HeapObject o);
 
   bool SerializeJSObjectWithEmbedderFields(Object* obj, HowToCode how_to_code,
                                            WhereToPoint where_to_point);
 
-  void CheckRehashability(HeapObject* obj);
+  void CheckRehashability(HeapObject obj);
 
   StartupSerializer* startup_serializer_;
   v8::SerializeEmbedderFieldsCallback serialize_embedder_fields_;

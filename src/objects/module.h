@@ -75,7 +75,7 @@ class Module : public Struct {
   SharedFunctionInfo GetSharedFunctionInfo() const;
 
   // The namespace object (or undefined).
-  DECL_ACCESSORS(module_namespace, HeapObject)
+  DECL_ACCESSORS2(module_namespace, HeapObject)
 
   // Modules imported or re-exported by this module.
   // Corresponds 1-to-1 to the module specifier strings in

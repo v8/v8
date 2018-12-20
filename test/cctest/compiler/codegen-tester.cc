@@ -472,10 +472,11 @@ TEST(RunHeapConstant) {
 
 
 TEST(RunHeapNumberConstant) {
-  RawMachineAssemblerTester<HeapObject*> m;
+  RawMachineAssemblerTester<void*> m;
   Handle<HeapObject> number = m.isolate()->factory()->NewHeapNumber(100.5);
   m.Return(m.HeapConstant(number));
-  HeapObject* result = m.Call();
+  HeapObject result =
+      HeapObject::cast(ObjectPtr(reinterpret_cast<Address>(m.Call())));
   CHECK_EQ(result, *number);
 }
 

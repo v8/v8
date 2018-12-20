@@ -898,9 +898,7 @@ class FixedArrayBaseData : public HeapObjectData {
  public:
   FixedArrayBaseData(JSHeapBroker* broker, ObjectData** storage,
                      Handle<FixedArrayBase> object)
-      // TODO(3770): Drop explicit cast after migrating HeapObject*.
-      : HeapObjectData(broker, storage, Handle<HeapObject>(object.location())),
-        length_(object->length()) {}
+      : HeapObjectData(broker, storage, object), length_(object->length()) {}
 
   int length() const { return length_; }
 

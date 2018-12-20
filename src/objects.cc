@@ -2367,7 +2367,7 @@ Map Object::GetPrototypeChainRootMap(Isolate* isolate) const {
     return native_context->number_function()->initial_map();
   }
 
-  const HeapObject* heap_object = HeapObject::cast(this);
+  const HeapObject heap_object = HeapObject::cast(this);
   return heap_object->map()->GetPrototypeChainRootMap(isolate);
 }
 
@@ -2581,6 +2581,10 @@ void Object::ShortPrint(StringStream* accumulator) {
   accumulator->Add(os.str().c_str());
 }
 
+void ObjectPtr::ShortPrint(StringStream* accumulator) {
+  reinterpret_cast<Object*>(ptr())->ShortPrint(accumulator);
+}
+
 void Object::ShortPrint(std::ostream& os) { os << Brief(this); }
 
 void ObjectPtr::ShortPrint(std::ostream& os) const { os << Brief(*this); }
@@ -2609,7 +2613,7 @@ Brief::Brief(const MaybeObject v) : value(v.ptr()) {}
 std::ostream& operator<<(std::ostream& os, const Brief& v) {
   MaybeObject maybe_object(v.value);
   Smi smi;
-  HeapObject* heap_object;
+  HeapObject heap_object;
   if (maybe_object->ToSmi(&smi)) {
     smi->SmiPrint(os);
   } else if (maybe_object->IsCleared()) {
@@ -3446,7 +3450,7 @@ void JSObject::PrintInstanceMigration(FILE* file, Map original_map,
 bool JSObject::IsUnmodifiedApiObject(FullObjectSlot o) {
   Object* object = *o;
   if (object->IsSmi()) return false;
-  HeapObject* heap_object = HeapObject::cast(object);
+  HeapObject heap_object = HeapObject::cast(object);
   if (!object->IsJSObject()) return false;
   JSObject js_object = JSObject::cast(object);
   if (!js_object->IsDroppableApiWrapper()) return false;
@@ -3464,21 +3468,21 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
   if (IsString()) {
     HeapStringAllocator allocator;
     StringStream accumulator(&allocator);
-    String::cast(this)->StringShortPrint(&accumulator);
+    String::cast(*this)->StringShortPrint(&accumulator);
     os << accumulator.ToCString().get();
     return;
   }
   if (IsJSObject()) {
     HeapStringAllocator allocator;
     StringStream accumulator(&allocator);
-    JSObject::cast(this)->JSObjectShortPrint(&accumulator);
+    JSObject::cast(*this)->JSObjectShortPrint(&accumulator);
     os << accumulator.ToCString().get();
     return;
   }
   switch (map()->instance_type()) {
     case MAP_TYPE: {
       os << "<Map";
-      Map mapInstance = Map::cast(this);
+      Map mapInstance = Map::cast(*this);
       if (mapInstance->IsJSObjectMap()) {
         os << "(" << ElementsKindToString(mapInstance->elements_kind()) << ")";
       } else if (mapInstance->instance_size() != kVariableSizeSentinel) {
@@ -3490,97 +3494,97 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
       os << "<AwaitContext generator= ";
       HeapStringAllocator allocator;
       StringStream accumulator(&allocator);
-      Context::cast(this)->extension()->ShortPrint(&accumulator);
+      Context::cast(*this)->extension()->ShortPrint(&accumulator);
       os << accumulator.ToCString().get();
       os << '>';
       break;
     }
     case BLOCK_CONTEXT_TYPE:
-      os << "<BlockContext[" << Context::cast(this)->length() << "]>";
+      os << "<BlockContext[" << Context::cast(*this)->length() << "]>";
       break;
     case CATCH_CONTEXT_TYPE:
-      os << "<CatchContext[" << Context::cast(this)->length() << "]>";
+      os << "<CatchContext[" << Context::cast(*this)->length() << "]>";
       break;
     case DEBUG_EVALUATE_CONTEXT_TYPE:
-      os << "<DebugEvaluateContext[" << Context::cast(this)->length() << "]>";
+      os << "<DebugEvaluateContext[" << Context::cast(*this)->length() << "]>";
       break;
     case EVAL_CONTEXT_TYPE:
-      os << "<EvalContext[" << Context::cast(this)->length() << "]>";
+      os << "<EvalContext[" << Context::cast(*this)->length() << "]>";
       break;
     case FUNCTION_CONTEXT_TYPE:
-      os << "<FunctionContext[" << Context::cast(this)->length() << "]>";
+      os << "<FunctionContext[" << Context::cast(*this)->length() << "]>";
       break;
     case MODULE_CONTEXT_TYPE:
-      os << "<ModuleContext[" << Context::cast(this)->length() << "]>";
+      os << "<ModuleContext[" << Context::cast(*this)->length() << "]>";
       break;
     case NATIVE_CONTEXT_TYPE:
-      os << "<NativeContext[" << Context::cast(this)->length() << "]>";
+      os << "<NativeContext[" << Context::cast(*this)->length() << "]>";
       break;
     case SCRIPT_CONTEXT_TYPE:
-      os << "<ScriptContext[" << Context::cast(this)->length() << "]>";
+      os << "<ScriptContext[" << Context::cast(*this)->length() << "]>";
       break;
     case WITH_CONTEXT_TYPE:
-      os << "<WithContext[" << Context::cast(this)->length() << "]>";
+      os << "<WithContext[" << Context::cast(*this)->length() << "]>";
       break;
     case SCRIPT_CONTEXT_TABLE_TYPE:
-      os << "<ScriptContextTable[" << FixedArray::cast(this)->length() << "]>";
+      os << "<ScriptContextTable[" << FixedArray::cast(*this)->length() << "]>";
       break;
     case HASH_TABLE_TYPE:
-      os << "<HashTable[" << FixedArray::cast(this)->length() << "]>";
+      os << "<HashTable[" << FixedArray::cast(*this)->length() << "]>";
       break;
     case ORDERED_HASH_MAP_TYPE:
-      os << "<OrderedHashMap[" << FixedArray::cast(this)->length() << "]>";
+      os << "<OrderedHashMap[" << FixedArray::cast(*this)->length() << "]>";
       break;
     case ORDERED_HASH_SET_TYPE:
-      os << "<OrderedHashSet[" << FixedArray::cast(this)->length() << "]>";
+      os << "<OrderedHashSet[" << FixedArray::cast(*this)->length() << "]>";
       break;
     case ORDERED_NAME_DICTIONARY_TYPE:
-      os << "<OrderedNameDictionary[" << FixedArray::cast(this)->length()
+      os << "<OrderedNameDictionary[" << FixedArray::cast(*this)->length()
          << "]>";
       break;
     case NAME_DICTIONARY_TYPE:
-      os << "<NameDictionary[" << FixedArray::cast(this)->length() << "]>";
+      os << "<NameDictionary[" << FixedArray::cast(*this)->length() << "]>";
       break;
     case GLOBAL_DICTIONARY_TYPE:
-      os << "<GlobalDictionary[" << FixedArray::cast(this)->length() << "]>";
+      os << "<GlobalDictionary[" << FixedArray::cast(*this)->length() << "]>";
       break;
     case NUMBER_DICTIONARY_TYPE:
-      os << "<NumberDictionary[" << FixedArray::cast(this)->length() << "]>";
+      os << "<NumberDictionary[" << FixedArray::cast(*this)->length() << "]>";
       break;
     case SIMPLE_NUMBER_DICTIONARY_TYPE:
-      os << "<SimpleNumberDictionary[" << FixedArray::cast(this)->length()
+      os << "<SimpleNumberDictionary[" << FixedArray::cast(*this)->length()
          << "]>";
       break;
     case STRING_TABLE_TYPE:
-      os << "<StringTable[" << FixedArray::cast(this)->length() << "]>";
+      os << "<StringTable[" << FixedArray::cast(*this)->length() << "]>";
       break;
     case FIXED_ARRAY_TYPE:
-      os << "<FixedArray[" << FixedArray::cast(this)->length() << "]>";
+      os << "<FixedArray[" << FixedArray::cast(*this)->length() << "]>";
       break;
     case OBJECT_BOILERPLATE_DESCRIPTION_TYPE:
-      os << "<ObjectBoilerplateDescription[" << FixedArray::cast(this)->length()
-         << "]>";
+      os << "<ObjectBoilerplateDescription["
+         << FixedArray::cast(*this)->length() << "]>";
       break;
     case FIXED_DOUBLE_ARRAY_TYPE:
-      os << "<FixedDoubleArray[" << FixedDoubleArray::cast(this)->length()
+      os << "<FixedDoubleArray[" << FixedDoubleArray::cast(*this)->length()
          << "]>";
       break;
     case BYTE_ARRAY_TYPE:
-      os << "<ByteArray[" << ByteArray::cast(this)->length() << "]>";
+      os << "<ByteArray[" << ByteArray::cast(*this)->length() << "]>";
       break;
     case BYTECODE_ARRAY_TYPE:
-      os << "<BytecodeArray[" << BytecodeArray::cast(this)->length() << "]>";
+      os << "<BytecodeArray[" << BytecodeArray::cast(*this)->length() << "]>";
       break;
     case DESCRIPTOR_ARRAY_TYPE:
       os << "<DescriptorArray["
-         << DescriptorArray::cast(this)->number_of_descriptors() << "]>";
+         << DescriptorArray::cast(*this)->number_of_descriptors() << "]>";
       break;
     case TRANSITION_ARRAY_TYPE:
-      os << "<TransitionArray[" << TransitionArray::cast(this)->length()
+      os << "<TransitionArray[" << TransitionArray::cast(*this)->length()
          << "]>";
       break;
     case PROPERTY_ARRAY_TYPE:
-      os << "<PropertyArray[" << PropertyArray::cast(this)->length() << "]>";
+      os << "<PropertyArray[" << PropertyArray::cast(*this)->length() << "]>";
       break;
     case FEEDBACK_CELL_TYPE: {
       {
@@ -3602,29 +3606,29 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
       break;
     }
     case FEEDBACK_VECTOR_TYPE:
-      os << "<FeedbackVector[" << FeedbackVector::cast(this)->length() << "]>";
+      os << "<FeedbackVector[" << FeedbackVector::cast(*this)->length() << "]>";
       break;
     case FREE_SPACE_TYPE:
-      os << "<FreeSpace[" << FreeSpace::cast(this)->size() << "]>";
+      os << "<FreeSpace[" << FreeSpace::cast(*this)->size() << "]>";
       break;
-#define TYPED_ARRAY_SHORT_PRINT(Type, type, TYPE, ctype)                      \
-  case FIXED_##TYPE##_ARRAY_TYPE:                                             \
-    os << "<Fixed" #Type "Array[" << Fixed##Type##Array::cast(this)->length() \
-       << "]>";                                                               \
+#define TYPED_ARRAY_SHORT_PRINT(Type, type, TYPE, ctype)                       \
+  case FIXED_##TYPE##_ARRAY_TYPE:                                              \
+    os << "<Fixed" #Type "Array[" << Fixed##Type##Array::cast(*this)->length() \
+       << "]>";                                                                \
     break;
 
       TYPED_ARRAYS(TYPED_ARRAY_SHORT_PRINT)
 #undef TYPED_ARRAY_SHORT_PRINT
 
     case PRE_PARSED_SCOPE_DATA_TYPE: {
-      PreParsedScopeData data = PreParsedScopeData::cast(this);
+      PreParsedScopeData data = PreParsedScopeData::cast(*this);
       os << "<PreParsedScopeData[" << data->length() << "]>";
       break;
     }
 
     case UNCOMPILED_DATA_WITHOUT_PRE_PARSED_SCOPE_TYPE: {
       UncompiledDataWithoutPreParsedScope data =
-          UncompiledDataWithoutPreParsedScope::cast(this);
+          UncompiledDataWithoutPreParsedScope::cast(*this);
       os << "<UncompiledDataWithoutPreParsedScope (" << data->start_position()
          << ", " << data->end_position() << ")]>";
       break;
@@ -3632,7 +3636,7 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
 
     case UNCOMPILED_DATA_WITH_PRE_PARSED_SCOPE_TYPE: {
       UncompiledDataWithPreParsedScope data =
-          UncompiledDataWithPreParsedScope::cast(this);
+          UncompiledDataWithPreParsedScope::cast(*this);
       os << "<UncompiledDataWithPreParsedScope (" << data->start_position()
          << ", " << data->end_position()
          << ") preparsed=" << Brief(data->pre_parsed_scope_data()) << ">";
@@ -3640,7 +3644,7 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
     }
 
     case SHARED_FUNCTION_INFO_TYPE: {
-      SharedFunctionInfo shared = SharedFunctionInfo::cast(this);
+      SharedFunctionInfo shared = SharedFunctionInfo::cast(*this);
       std::unique_ptr<char[]> debug_name = shared->DebugName()->ToCString();
       if (debug_name[0] != 0) {
         os << "<SharedFunctionInfo " << debug_name.get() << ">";
@@ -3652,29 +3656,29 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
     case JS_MESSAGE_OBJECT_TYPE:
       os << "<JSMessageObject>";
       break;
-#define MAKE_STRUCT_CASE(TYPE, Name, name)   \
-  case TYPE:                                 \
-    os << "<" #Name;                         \
-    Name::cast(this)->BriefPrintDetails(os); \
-    os << ">";                               \
+#define MAKE_STRUCT_CASE(TYPE, Name, name)    \
+  case TYPE:                                  \
+    os << "<" #Name;                          \
+    Name::cast(*this)->BriefPrintDetails(os); \
+    os << ">";                                \
     break;
       STRUCT_LIST(MAKE_STRUCT_CASE)
 #undef MAKE_STRUCT_CASE
     case ALLOCATION_SITE_TYPE: {
       os << "<AllocationSite";
-      AllocationSite::cast(this)->BriefPrintDetails(os);
+      AllocationSite::cast(*this)->BriefPrintDetails(os);
       os << ">";
       break;
     }
     case SCOPE_INFO_TYPE: {
-      ScopeInfo scope = ScopeInfo::cast(this);
+      ScopeInfo scope = ScopeInfo::cast(*this);
       os << "<ScopeInfo";
       if (scope->length()) os << " " << scope->scope_type() << " ";
       os << "[" << scope->length() << "]>";
       break;
     }
     case CODE_TYPE: {
-      Code code = Code::cast(this);
+      Code code = Code::cast(*this);
       os << "<Code " << Code::Kind2String(code->kind());
       if (code->is_builtin()) {
         os << " " << Builtins::name(code->builtin_index());
@@ -3695,31 +3699,31 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
         os << "<false>";
       } else {
         os << "<Odd Oddball: ";
-        os << Oddball::cast(this)->to_string()->ToCString().get();
+        os << Oddball::cast(*this)->to_string()->ToCString().get();
         os << ">";
       }
       break;
     }
     case SYMBOL_TYPE: {
-      Symbol symbol = Symbol::cast(this);
+      Symbol symbol = Symbol::cast(*this);
       symbol->SymbolShortPrint(os);
       break;
     }
     case HEAP_NUMBER_TYPE: {
       os << "<HeapNumber ";
-      HeapNumber::cast(this)->HeapNumberPrint(os);
+      HeapNumber::cast(*this)->HeapNumberPrint(os);
       os << ">";
       break;
     }
     case MUTABLE_HEAP_NUMBER_TYPE: {
       os << "<MutableHeapNumber ";
-      MutableHeapNumber::cast(this)->MutableHeapNumberPrint(os);
+      MutableHeapNumber::cast(*this)->MutableHeapNumberPrint(os);
       os << '>';
       break;
     }
     case BIGINT_TYPE: {
       os << "<BigInt ";
-      BigInt::cast(this)->BigIntShortPrint(os);
+      BigInt::cast(*this)->BigIntShortPrint(os);
       os << ">";
       break;
     }
@@ -3733,13 +3737,13 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
       os << "<Cell value= ";
       HeapStringAllocator allocator;
       StringStream accumulator(&allocator);
-      Cell::cast(this)->value()->ShortPrint(&accumulator);
+      Cell::cast(*this)->value()->ShortPrint(&accumulator);
       os << accumulator.ToCString().get();
       os << '>';
       break;
     }
     case PROPERTY_CELL_TYPE: {
-      PropertyCell cell = PropertyCell::cast(this);
+      PropertyCell cell = PropertyCell::cast(*this);
       os << "<PropertyCell name=";
       cell->name()->ShortPrint(os);
       os << " value=";
@@ -3751,7 +3755,7 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
       break;
     }
     case CALL_HANDLER_INFO_TYPE: {
-      CallHandlerInfo info = CallHandlerInfo::cast(this);
+      CallHandlerInfo info = CallHandlerInfo::cast(*this);
       os << "<CallHandlerInfo ";
       os << "callback= " << Brief(info->callback());
       os << ", js_callback= " << Brief(info->js_callback());
@@ -3803,7 +3807,7 @@ void HeapObject::IterateBody(Map map, int object_size, ObjectVisitor* v) {
 
 struct CallIsValidSlot {
   template <typename BodyDescriptor>
-  static bool apply(Map map, HeapObject* obj, int offset, int) {
+  static bool apply(Map map, HeapObject obj, int offset, int) {
     return BodyDescriptor::IsValidSlot(map, obj, offset);
   }
 };
@@ -3811,7 +3815,7 @@ struct CallIsValidSlot {
 bool HeapObject::IsValidSlot(Map map, int offset) {
   DCHECK_NE(0, offset);
   return BodyDescriptorApply<CallIsValidSlot, bool>(map->instance_type(), map,
-                                                    this, offset, 0);
+                                                    *this, offset, 0);
 }
 
 String JSReceiver::class_name() {
@@ -3895,11 +3899,11 @@ bool HeapObject::CanBeRehashed() const {
     case TRANSITION_ARRAY_TYPE:
       return true;
     case SMALL_ORDERED_HASH_MAP_TYPE:
-      return SmallOrderedHashMap::cast(this)->NumberOfElements() == 0;
+      return SmallOrderedHashMap::cast(*this)->NumberOfElements() == 0;
     case SMALL_ORDERED_HASH_SET_TYPE:
-      return SmallOrderedHashMap::cast(this)->NumberOfElements() == 0;
+      return SmallOrderedHashMap::cast(*this)->NumberOfElements() == 0;
     case SMALL_ORDERED_NAME_DICTIONARY_TYPE:
-      return SmallOrderedNameDictionary::cast(this)->NumberOfElements() == 0;
+      return SmallOrderedNameDictionary::cast(*this)->NumberOfElements() == 0;
     default:
       return false;
   }
@@ -3912,35 +3916,35 @@ void HeapObject::RehashBasedOnMap(Isolate* isolate) {
       UNREACHABLE();
       break;
     case NAME_DICTIONARY_TYPE:
-      NameDictionary::cast(this)->Rehash(isolate);
+      NameDictionary::cast(*this)->Rehash(isolate);
       break;
     case GLOBAL_DICTIONARY_TYPE:
-      GlobalDictionary::cast(this)->Rehash(isolate);
+      GlobalDictionary::cast(*this)->Rehash(isolate);
       break;
     case NUMBER_DICTIONARY_TYPE:
-      NumberDictionary::cast(this)->Rehash(isolate);
+      NumberDictionary::cast(*this)->Rehash(isolate);
       break;
     case SIMPLE_NUMBER_DICTIONARY_TYPE:
-      SimpleNumberDictionary::cast(this)->Rehash(isolate);
+      SimpleNumberDictionary::cast(*this)->Rehash(isolate);
       break;
     case STRING_TABLE_TYPE:
-      StringTable::cast(this)->Rehash(isolate);
+      StringTable::cast(*this)->Rehash(isolate);
       break;
     case DESCRIPTOR_ARRAY_TYPE:
-      DCHECK_LE(1, DescriptorArray::cast(this)->number_of_descriptors());
-      DescriptorArray::cast(this)->Sort();
+      DCHECK_LE(1, DescriptorArray::cast(*this)->number_of_descriptors());
+      DescriptorArray::cast(*this)->Sort();
       break;
     case TRANSITION_ARRAY_TYPE:
-      TransitionArray::cast(this)->Sort();
+      TransitionArray::cast(*this)->Sort();
       break;
     case SMALL_ORDERED_HASH_MAP_TYPE:
-      DCHECK_EQ(0, SmallOrderedHashMap::cast(this)->NumberOfElements());
+      DCHECK_EQ(0, SmallOrderedHashMap::cast(*this)->NumberOfElements());
       break;
     case SMALL_ORDERED_HASH_SET_TYPE:
-      DCHECK_EQ(0, SmallOrderedHashSet::cast(this)->NumberOfElements());
+      DCHECK_EQ(0, SmallOrderedHashSet::cast(*this)->NumberOfElements());
       break;
     case SMALL_ORDERED_NAME_DICTIONARY_TYPE:
-      DCHECK_EQ(0, SmallOrderedNameDictionary::cast(this)->NumberOfElements());
+      DCHECK_EQ(0, SmallOrderedNameDictionary::cast(*this)->NumberOfElements());
       break;
     default:
       break;
@@ -4057,7 +4061,7 @@ FieldType Map::UnwrapFieldType(MaybeObject wrapped_type) {
   if (wrapped_type->IsCleared()) {
     return FieldType::None();
   }
-  HeapObject* heap_object;
+  HeapObject heap_object;
   if (wrapped_type->GetHeapObjectIfWeak(&heap_object)) {
     return FieldType::cast(heap_object);
   }
@@ -6622,7 +6626,7 @@ MaybeHandle<Map> NormalizedMapCache::Get(Handle<Map> fast_map,
                                          PropertyNormalizationMode mode) {
   DisallowHeapAllocation no_gc;
   MaybeObject value = WeakFixedArray::Get(GetIndex(fast_map));
-  HeapObject* heap_object;
+  HeapObject heap_object;
   if (!value->GetHeapObjectIfWeak(&heap_object)) {
     return MaybeHandle<Map>();
   }
@@ -6896,7 +6900,7 @@ Handle<NumberDictionary> JSObject::NormalizeElements(Handle<JSObject> object) {
 
 namespace {
 
-Object* SetHashAndUpdateProperties(HeapObject* properties, int hash) {
+Object* SetHashAndUpdateProperties(HeapObject properties, int hash) {
   DCHECK_NE(PropertyArray::kNoHashSentinel, hash);
   DCHECK(PropertyArray::HashField::is_valid(hash));
 
@@ -6957,13 +6961,13 @@ void JSReceiver::SetIdentityHash(int hash) {
   DCHECK_NE(PropertyArray::kNoHashSentinel, hash);
   DCHECK(PropertyArray::HashField::is_valid(hash));
 
-  HeapObject* existing_properties = HeapObject::cast(raw_properties_or_hash());
+  HeapObject existing_properties = HeapObject::cast(raw_properties_or_hash());
   Object* new_properties =
       SetHashAndUpdateProperties(existing_properties, hash);
   set_raw_properties_or_hash(new_properties);
 }
 
-void JSReceiver::SetProperties(HeapObject* properties) {
+void JSReceiver::SetProperties(HeapObject properties) {
   DCHECK_IMPLIES(properties->IsPropertyArray() &&
                      PropertyArray::cast(properties)->length() == 0,
                  properties == GetReadOnlyRoots().empty_property_array());
@@ -10309,7 +10313,7 @@ Handle<DescriptorArray> DescriptorArray::CopyUpToAddAttributes(
       if (!key->IsPrivate()) {
         int mask = DONT_DELETE | DONT_ENUM;
         // READ_ONLY is an invalid attribute for JS setters/getters.
-        HeapObject* heap_object;
+        HeapObject heap_object;
         if (details.kind() != kAccessor ||
             !(value_or_field_type->GetHeapObjectIfStrong(&heap_object) &&
               heap_object->IsAccessorPair())) {
@@ -10478,7 +10482,7 @@ void FixedArray::CopyTo(int pos, FixedArray dest, int dest_pos, int len) const {
   }
 }
 
-void JSObject::PrototypeRegistryCompactionCallback(HeapObject* value,
+void JSObject::PrototypeRegistryCompactionCallback(HeapObject value,
                                                    int old_index,
                                                    int new_index) {
   DCHECK(value->IsMap() && Map::cast(value)->is_prototype_map());
@@ -10693,7 +10697,7 @@ WeakArrayList PrototypeUsers::Compact(Handle<WeakArrayList> array, Heap* heap,
   int copy_to = kFirstIndex;
   for (int i = kFirstIndex; i < array->length(); i++) {
     MaybeObject element = array->Get(i);
-    HeapObject* value;
+    HeapObject value;
     if (element->GetHeapObjectIfWeak(&value)) {
       callback(value, i, copy_to);
       new_array->Set(copy_to++, element);
@@ -10776,7 +10780,7 @@ Handle<DescriptorArray> DescriptorArray::Allocate(Isolate* isolate,
 }
 
 void DescriptorArray::Initialize(EnumCache enum_cache,
-                                 HeapObject* undefined_value,
+                                 HeapObject undefined_value,
                                  int nof_descriptors, int slack) {
   DCHECK_GE(nof_descriptors, 0);
   DCHECK_GE(slack, 0);
@@ -13012,7 +13016,7 @@ void InvalidatePrototypeChainsInternal(Map map) {
   // For now, only maps register themselves as users.
   for (int i = PrototypeUsers::kFirstIndex; i < prototype_users->length();
        ++i) {
-    HeapObject* heap_object;
+    HeapObject heap_object;
     if (prototype_users->Get(i)->GetHeapObjectIfWeak(&heap_object) &&
         heap_object->IsMap()) {
       // Walk the prototype chain (backwards, towards leaf objects) if
@@ -13922,7 +13926,7 @@ MaybeHandle<SharedFunctionInfo> Script::FindSharedFunctionInfo(
   // triggers the mismatch.
   CHECK_LT(fun->function_literal_id(), shared_function_infos()->length());
   MaybeObject shared = shared_function_infos()->Get(fun->function_literal_id());
-  HeapObject* heap_object;
+  HeapObject heap_object;
   if (!shared->GetHeapObject(&heap_object) ||
       heap_object->IsUndefined(isolate)) {
     return MaybeHandle<SharedFunctionInfo>();
@@ -14002,7 +14006,7 @@ SharedFunctionInfo::ScriptIterator::ScriptIterator(
 SharedFunctionInfo SharedFunctionInfo::ScriptIterator::Next() {
   while (index_ < shared_function_infos_->length()) {
     MaybeObject raw = shared_function_infos_->Get(index_++);
-    HeapObject* heap_object;
+    HeapObject heap_object;
     if (!raw->GetHeapObject(&heap_object) ||
         heap_object->IsUndefined(isolate_)) {
       continue;
@@ -14023,11 +14027,11 @@ SharedFunctionInfo::GlobalIterator::GlobalIterator(Isolate* isolate)
       sfi_iterator_(isolate, script_iterator_.Next()) {}
 
 SharedFunctionInfo SharedFunctionInfo::GlobalIterator::Next() {
-  HeapObject* next = noscript_sfi_iterator_.Next();
-  if (next != nullptr) return SharedFunctionInfo::cast(next);
+  HeapObject next = noscript_sfi_iterator_.Next();
+  if (!next.is_null()) return SharedFunctionInfo::cast(next);
   for (;;) {
     next = sfi_iterator_.Next();
-    if (next != nullptr) return SharedFunctionInfo::cast(next);
+    if (!next.is_null()) return SharedFunctionInfo::cast(next);
     Script next_script = script_iterator_.Next();
     if (next_script.is_null()) return SharedFunctionInfo();
     sfi_iterator_.Reset(next_script);
@@ -14058,7 +14062,7 @@ void SharedFunctionInfo::SetScript(Handle<SharedFunctionInfo> shared,
 #ifdef DEBUG
     DCHECK_LT(function_literal_id, list->length());
     MaybeObject maybe_object = list->Get(function_literal_id);
-    HeapObject* heap_object;
+    HeapObject heap_object;
     if (maybe_object->GetHeapObjectIfWeak(&heap_object)) {
       DCHECK_EQ(heap_object, *shared);
     }
@@ -14077,8 +14081,8 @@ void SharedFunctionInfo::SetScript(Handle<SharedFunctionInfo> shared,
 #ifdef DEBUG
     if (FLAG_enable_slow_asserts) {
       WeakArrayList::Iterator iterator(*list);
-      HeapObject* next;
-      while ((next = iterator.Next()) != nullptr) {
+      for (HeapObject next = iterator.Next(); !next.is_null();
+           next = iterator.Next()) {
         DCHECK_NE(next, *shared);
       }
     }
@@ -14098,7 +14102,7 @@ void SharedFunctionInfo::SetScript(Handle<SharedFunctionInfo> shared,
     if (function_literal_id < infos->length()) {
       MaybeObject raw =
           old_script->shared_function_infos()->Get(function_literal_id);
-      HeapObject* heap_object;
+      HeapObject heap_object;
       if (raw->GetHeapObjectIfWeak(&heap_object) && heap_object == *shared) {
         old_script->shared_function_infos()->Set(
             function_literal_id, HeapObjectReference::Strong(
@@ -14157,12 +14161,12 @@ bool SharedFunctionInfo::HasSourceCode() const {
 }
 
 void SharedFunctionInfo::DiscardCompiledMetadata(
-    Isolate* isolate, std::function<void(HeapObjectPtr object, ObjectSlot slot,
-                                         HeapObjectPtr target)>
-                          gc_notify_updated_slot) {
+    Isolate* isolate,
+    std::function<void(HeapObject object, ObjectSlot slot, HeapObject target)>
+        gc_notify_updated_slot) {
   DisallowHeapAllocation no_gc;
   if (is_compiled()) {
-    HeapObjectPtr outer_scope_info;
+    HeapObject outer_scope_info;
     if (scope_info()->HasOuterScopeInfo()) {
       outer_scope_info = scope_info()->OuterScopeInfo();
     } else {
@@ -14610,7 +14614,7 @@ void ObjectVisitor::VisitRelocInfo(RelocIterator* it) {
 }
 
 void Code::ClearEmbeddedObjects(Heap* heap) {
-  HeapObject* undefined = ReadOnlyRoots(heap).undefined_value();
+  HeapObject undefined = ReadOnlyRoots(heap).undefined_value();
   int mode_mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
   for (RelocIterator it(*this, mode_mask); !it.done(); it.next()) {
     RelocInfo::Mode mode = it.rinfo()->rmode();
@@ -16638,7 +16642,7 @@ Handle<Object> JSPromise::TriggerPromiseReactions(Isolate* isolate,
               PromiseFulfillReactionJobTask::kPromiseOrCapabilityOffset));
     } else {
       DisallowHeapAllocation no_gc;
-      HeapObject* handler = reaction->reject_handler();
+      HeapObject handler = reaction->reject_handler();
       task->synchronized_set_map(
           ReadOnlyRoots(isolate).promise_reject_reaction_job_task_map());
       Handle<PromiseRejectReactionJobTask>::cast(task)->set_argument(*argument);

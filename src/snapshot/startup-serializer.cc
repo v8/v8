@@ -37,7 +37,7 @@ namespace {
 // serialization. This ensures that we only serialize the canonical version of
 // each builtin.
 // See also CreateOffHeapTrampolines().
-HeapObject* MaybeCanonicalizeBuiltin(Isolate* isolate, HeapObject* obj) {
+HeapObject MaybeCanonicalizeBuiltin(Isolate* isolate, HeapObject obj) {
   if (!obj->IsCode()) return obj;
 
   const int builtin_index = Code::cast(obj)->builtin_index();
@@ -48,7 +48,7 @@ HeapObject* MaybeCanonicalizeBuiltin(Isolate* isolate, HeapObject* obj) {
 
 }  // namespace
 
-void StartupSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
+void StartupSerializer::SerializeObject(HeapObject obj, HowToCode how_to_code,
                                         WhereToPoint where_to_point, int skip) {
   DCHECK(!obj->IsJSFunction());
 
@@ -143,14 +143,14 @@ SerializedHandleChecker::SerializedHandleChecker(Isolate* isolate,
 }
 
 bool StartupSerializer::SerializeUsingReadOnlyObjectCache(
-    SnapshotByteSink* sink, HeapObject* obj, HowToCode how_to_code,
+    SnapshotByteSink* sink, HeapObject obj, HowToCode how_to_code,
     WhereToPoint where_to_point, int skip) {
   return read_only_serializer_->SerializeUsingReadOnlyObjectCache(
       sink, obj, how_to_code, where_to_point, skip);
 }
 
 void StartupSerializer::SerializeUsingPartialSnapshotCache(
-    SnapshotByteSink* sink, HeapObject* obj, HowToCode how_to_code,
+    SnapshotByteSink* sink, HeapObject obj, HowToCode how_to_code,
     WhereToPoint where_to_point, int skip) {
   FlushSkip(sink, skip);
 

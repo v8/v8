@@ -26,7 +26,7 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(JSReceiver, HeapObjectPtr)
+OBJECT_CONSTRUCTORS_IMPL(JSReceiver, HeapObject)
 OBJECT_CONSTRUCTORS_IMPL(JSObject, JSReceiver)
 OBJECT_CONSTRUCTORS_IMPL(JSAsyncFromSyncIterator, JSObject)
 OBJECT_CONSTRUCTORS_IMPL(JSBoundFunction, JSObject)
@@ -107,9 +107,9 @@ V8_WARN_UNUSED_RESULT MaybeHandle<FixedArray> JSReceiver::OwnPropertyKeys(
 
 bool JSObject::PrototypeHasNoElements(Isolate* isolate, JSObject object) {
   DisallowHeapAllocation no_gc;
-  HeapObject* prototype = HeapObject::cast(object->map()->prototype());
+  HeapObject prototype = HeapObject::cast(object->map()->prototype());
   ReadOnlyRoots roots(isolate);
-  HeapObject* null = roots.null_value();
+  HeapObject null = roots.null_value();
   FixedArrayBase empty_fixed_array = roots.empty_fixed_array();
   FixedArrayBase empty_slow_element_dictionary =
       roots.empty_slow_element_dictionary();

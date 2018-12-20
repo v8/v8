@@ -514,7 +514,8 @@ std::unique_ptr<Coverage> Coverage::Collect(
                   ->IsArrayList());
       DCHECK_EQ(v8::debug::Coverage::kBestEffort, collectionMode);
       HeapIterator heap_iterator(isolate->heap());
-      while (HeapObject* current_obj = heap_iterator.next()) {
+      for (HeapObject current_obj = heap_iterator.next();
+           !current_obj.is_null(); current_obj = heap_iterator.next()) {
         if (!current_obj->IsFeedbackVector()) continue;
         FeedbackVector vector = FeedbackVector::cast(current_obj);
         SharedFunctionInfo shared = vector->shared_function_info();
@@ -631,7 +632,8 @@ void Coverage::SelectMode(Isolate* isolate, debug::Coverage::Mode mode) {
       isolate->MaybeInitializeVectorListFromHeap();
 
       HeapIterator heap_iterator(isolate->heap());
-      while (HeapObject* o = heap_iterator.next()) {
+      for (HeapObject o = heap_iterator.next(); !o.is_null();
+           o = heap_iterator.next()) {
         if (IsBinaryMode(mode) && o->IsSharedFunctionInfo()) {
           // If collecting binary coverage, reset
           // SFI::has_reported_binary_coverage to avoid optimizing / inlining

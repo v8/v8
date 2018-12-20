@@ -95,18 +95,18 @@ class WasmInstanceObject;
 template <typename ResultType, typename ConcreteVisitor>
 class HeapVisitor : public ObjectVisitor {
  public:
-  V8_INLINE ResultType Visit(HeapObject* object);
-  V8_INLINE ResultType Visit(Map map, HeapObject* object);
+  V8_INLINE ResultType Visit(HeapObject object);
+  V8_INLINE ResultType Visit(Map map, HeapObject object);
 
  protected:
   // A guard predicate for visiting the object.
   // If it returns false then the default implementations of the Visit*
   // functions bailout from iterating the object pointers.
-  V8_INLINE bool ShouldVisit(HeapObject* object) { return true; }
+  V8_INLINE bool ShouldVisit(HeapObject object) { return true; }
   // Guard predicate for visiting the objects map pointer separately.
   V8_INLINE bool ShouldVisitMapPointer() { return true; }
   // A callback for visiting the map pointer in the object header.
-  V8_INLINE void VisitMapPointer(HeapObject* host, MapWordSlot map_slot);
+  V8_INLINE void VisitMapPointer(HeapObject host, MapWordSlot map_slot);
   // If this predicate returns false, then the heap visitor will fail
   // in default Visit implemention for subclasses of JSObject.
   V8_INLINE bool AllowDefaultJSObjectVisit() { return true; }
@@ -116,20 +116,15 @@ class HeapVisitor : public ObjectVisitor {
   TYPED_VISITOR_ID_LIST(VISIT)
 #undef VISIT
   V8_INLINE ResultType VisitShortcutCandidate(Map map, ConsString object);
-  V8_INLINE ResultType VisitDataObject(Map map, HeapObject* object);
+  V8_INLINE ResultType VisitDataObject(Map map, HeapObject object);
   V8_INLINE ResultType VisitJSObjectFast(Map map, JSObject object);
   V8_INLINE ResultType VisitJSApiObject(Map map, JSObject object);
-  V8_INLINE ResultType VisitStruct(Map map, HeapObject* object);
+  V8_INLINE ResultType VisitStruct(Map map, HeapObject object);
   V8_INLINE ResultType VisitFreeSpace(Map map, FreeSpace object);
-  V8_INLINE ResultType VisitWeakArray(Map map, HeapObject* object);
+  V8_INLINE ResultType VisitWeakArray(Map map, HeapObject object);
 
-  template <typename T, typename = typename std::enable_if<
-                            std::is_base_of<Object, T>::value>::type>
-  static V8_INLINE T* Cast(HeapObject* object);
-
-  template <typename T, typename = typename std::enable_if<
-                            std::is_base_of<ObjectPtr, T>::value>::type>
-  static V8_INLINE T Cast(HeapObject* object);
+  template <typename T>
+  static V8_INLINE T Cast(HeapObject object);
 };
 
 template <typename ConcreteVisitor>

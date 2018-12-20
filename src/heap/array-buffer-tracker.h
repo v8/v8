@@ -76,7 +76,7 @@ class LocalArrayBufferTracker {
   // Frees up array buffers.
   //
   // Sample usage:
-  // Free([](HeapObject* array_buffer) {
+  // Free([](HeapObject array_buffer) {
   //    if (should_free_internal(array_buffer)) return true;
   //    return false;
   // });

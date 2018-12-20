@@ -1081,7 +1081,7 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
     Handle<WeakArrayList> instances(memory_object->instances(), isolate);
     for (int i = 0; i < instances->length(); i++) {
       MaybeObject elem = instances->Get(i);
-      HeapObject* heap_object;
+      HeapObject heap_object;
       if (elem->GetHeapObjectIfWeak(&heap_object)) {
         Handle<WasmInstanceObject> instance(
             WasmInstanceObject::cast(heap_object), isolate);

@@ -762,7 +762,8 @@ StartupData SnapshotCreator::CreateBlob(
 
     {  // Heap allocation is disallowed within this scope.
       i::HeapIterator heap_iterator(isolate->heap());
-      while (i::HeapObject* current_obj = heap_iterator.next()) {
+      for (i::HeapObject current_obj = heap_iterator.next();
+           !current_obj.is_null(); current_obj = heap_iterator.next()) {
         if (current_obj->IsSharedFunctionInfo()) {
           i::SharedFunctionInfo shared =
               i::SharedFunctionInfo::cast(current_obj);
@@ -807,7 +808,8 @@ StartupData SnapshotCreator::CreateBlob(
   CHECK(handle_checker.CheckGlobalAndEternalHandles());
 
   i::HeapIterator heap_iterator(isolate->heap());
-  while (i::HeapObject* current_obj = heap_iterator.next()) {
+  for (i::HeapObject current_obj = heap_iterator.next(); !current_obj.is_null();
+       current_obj = heap_iterator.next()) {
     if (current_obj->IsJSFunction()) {
       i::JSFunction fun = i::JSFunction::cast(current_obj);
 
@@ -1108,7 +1110,8 @@ i::Address* HandleScope::CreateHandle(i::Isolate* isolate, i::Address value) {
 
 i::Address* HandleScope::CreateHandle(
     i::NeverReadOnlySpaceObject* writable_object, i::Address value) {
-  DCHECK(reinterpret_cast<i::HeapObject*>(writable_object)->IsHeapObject());
+  DCHECK(i::ObjectPtr(reinterpret_cast<i::Address>(writable_object))
+             .IsHeapObject());
   return i::HandleScope::CreateHandle(writable_object->GetIsolate(), value);
 }
 
@@ -8630,8 +8633,8 @@ void Isolate::LowMemoryNotification() {
   }
   {
     i::HeapIterator iterator(isolate->heap());
-    i::HeapObject* obj;
-    while ((obj = iterator.next()) != nullptr) {
+    for (i::HeapObject obj = iterator.next(); !obj.is_null();
+         obj = iterator.next()) {
       if (obj->IsAbstractCode()) {
         i::AbstractCode::cast(obj)->DropStackFrameCache();
       }

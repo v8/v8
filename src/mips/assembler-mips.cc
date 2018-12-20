@@ -4055,10 +4055,9 @@ Address Assembler::target_address_at(Address pc) {
 // qNaN is a MIPS sNaN, and ia32 sNaN is MIPS qNaN. If running from a heap
 // snapshot generated on ia32, the resulting MIPS sNaN must be quieted.
 // OS::nan_value() returns a qNaN.
-void Assembler::QuietNaN(HeapObject* object) {
+void Assembler::QuietNaN(HeapObject object) {
   HeapNumber::cast(object)->set_value(std::numeric_limits<double>::quiet_NaN());
 }
-
 
 // On Mips, a target address is stored in a lui/ori instruction pair, each
 // of which load 16 bits of the 32-bit address to a register.

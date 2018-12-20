@@ -159,10 +159,10 @@ Address Assembler::return_address_from_call_start(Address pc) {
   return pc + (len + 2) * kInstrSize;
 }
 
-HeapObject* RelocInfo::target_object() {
+HeapObject RelocInfo::target_object() {
   DCHECK(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
-  return HeapObject::cast(reinterpret_cast<Object*>(
-      Assembler::target_address_at(pc_, constant_pool_)));
+  return HeapObject::cast(
+      ObjectPtr(Assembler::target_address_at(pc_, constant_pool_)));
 }
 
 Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
@@ -171,18 +171,16 @@ Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
       Assembler::target_address_at(pc_, constant_pool_)));
 }
 
-void RelocInfo::set_target_object(Heap* heap, HeapObject* target,
+void RelocInfo::set_target_object(Heap* heap, HeapObject target,
                                   WriteBarrierMode write_barrier_mode,
                                   ICacheFlushMode icache_flush_mode) {
   DCHECK(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
-  Assembler::set_target_address_at(pc_, constant_pool_,
-                                   reinterpret_cast<Address>(target),
+  Assembler::set_target_address_at(pc_, constant_pool_, target->ptr(),
                                    icache_flush_mode);
-  if (write_barrier_mode == UPDATE_WRITE_BARRIER && host() != nullptr) {
+  if (write_barrier_mode == UPDATE_WRITE_BARRIER && !host().is_null()) {
     WriteBarrierForCode(host(), this, target);
   }
 }
-
 
 Address RelocInfo::target_external_reference() {
   DCHECK(rmode_ == EXTERNAL_REFERENCE);
@@ -426,7 +424,8 @@ Address Assembler::target_constant_pool_address_at(
 void Assembler::deserialization_set_special_target_at(
     Address instruction_payload, Code code, Address target) {
   set_target_address_at(instruction_payload,
-                        code ? code->constant_pool() : kNullAddress, target);
+                        !code.is_null() ? code->constant_pool() : kNullAddress,
+                        target);
 }
 
 int Assembler::deserialization_special_target_size(

@@ -112,8 +112,6 @@ class CompressedMaybeObjectSlot
       : SlotBase(reinterpret_cast<Address>(ptr)) {}
   explicit CompressedMaybeObjectSlot(Object** ptr)
       : SlotBase(reinterpret_cast<Address>(ptr)) {}
-  explicit CompressedMaybeObjectSlot(HeapObject** ptr)
-      : SlotBase(reinterpret_cast<Address>(ptr)) {}
   template <typename T>
   explicit CompressedMaybeObjectSlot(SlotBase<T, TData, kSlotDataSize> slot)
       : SlotBase(slot.address()) {}
@@ -142,8 +140,6 @@ class CompressedHeapObjectSlot
   explicit CompressedHeapObjectSlot(Address ptr) : SlotBase(ptr) {}
   explicit CompressedHeapObjectSlot(ObjectPtr* ptr)
       : SlotBase(reinterpret_cast<Address>(ptr)) {}
-  explicit CompressedHeapObjectSlot(HeapObject** ptr)
-      : SlotBase(reinterpret_cast<Address>(ptr)) {}
   template <typename T>
   explicit CompressedHeapObjectSlot(SlotBase<T, TData, kSlotDataSize> slot)
       : SlotBase(slot.address()) {}
@@ -151,14 +147,9 @@ class CompressedHeapObjectSlot
   inline HeapObjectReference operator*() const;
   inline void store(HeapObjectReference value) const;
 
-  HeapObject* ToHeapObject() const {
-    DCHECK((*location() & kHeapObjectTagMask) == kHeapObjectTag);
-    return reinterpret_cast<HeapObject*>(*location());
-  }
+  inline HeapObject ToHeapObject() const;
 
-  void StoreHeapObject(HeapObject* value) const {
-    *reinterpret_cast<HeapObject**>(address()) = value;
-  }
+  inline void StoreHeapObject(HeapObject value) const;
 };
 
 }  // namespace internal

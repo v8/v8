@@ -69,7 +69,7 @@ enum FixedArraySubInstanceType {
 
 // Common superclass for FixedArrays that allow implementations to share
 // common accessors and some code paths.
-class FixedArrayBase : public HeapObjectPtr {
+class FixedArrayBase : public HeapObject {
  public:
   // [length]: length of the array.
   inline int length() const;
@@ -111,7 +111,7 @@ class FixedArrayBase : public HeapObjectPtr {
   // their ptr() is a Smi.
   inline FixedArrayBase(Address ptr, AllowInlineSmiStorage allow_smi);
 
-  OBJECT_CONSTRUCTORS(FixedArrayBase, HeapObjectPtr)
+  OBJECT_CONSTRUCTORS(FixedArrayBase, HeapObject)
 };
 
 // FixedArray describes fixed-sized arrays with element type Object*.
@@ -270,7 +270,7 @@ class FixedDoubleArray : public FixedArrayBase {
 
 // WeakFixedArray describes fixed-sized arrays with element type
 // MaybeObject.
-class WeakFixedArray : public HeapObjectPtr {
+class WeakFixedArray : public HeapObject {
  public:
   DECL_CAST2(WeakFixedArray)
 
@@ -327,7 +327,7 @@ class WeakFixedArray : public HeapObjectPtr {
 
   static const int kFirstIndex = 1;
 
-  OBJECT_CONSTRUCTORS(WeakFixedArray, HeapObjectPtr);
+  OBJECT_CONSTRUCTORS(WeakFixedArray, HeapObject);
 };
 
 // WeakArrayList is like a WeakFixedArray with static convenience methods for
@@ -335,7 +335,7 @@ class WeakFixedArray : public HeapObjectPtr {
 // capacity() returns the allocated size. The number of elements is stored at
 // kLengthOffset and is updated with every insertion. The array grows
 // dynamically with O(1) amortized insertion.
-class WeakArrayList : public HeapObjectPtr {
+class WeakArrayList : public HeapObject {
  public:
   NEVER_READ_ONLY_SPACE
   DECL_CAST2(WeakArrayList)
@@ -406,14 +406,14 @@ class WeakArrayList : public HeapObjectPtr {
     return kHeaderSize + index * kTaggedSize;
   }
 
-  OBJECT_CONSTRUCTORS(WeakArrayList, HeapObjectPtr);
+  OBJECT_CONSTRUCTORS(WeakArrayList, HeapObject);
 };
 
 class WeakArrayList::Iterator {
  public:
   explicit Iterator(WeakArrayList array) : index_(0), array_(array) {}
 
-  inline HeapObject* Next();
+  inline HeapObject Next();
 
  private:
   int index_;

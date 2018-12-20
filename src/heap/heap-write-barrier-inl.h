@@ -26,14 +26,15 @@ namespace heap_internals {
 
 struct MemoryChunk {
   static constexpr uintptr_t kFlagsOffset = sizeof(size_t);
+  static constexpr uintptr_t kHeapOffset =
+      kFlagsOffset + kUIntptrSize + 4 * kSystemPointerSize;
   static constexpr uintptr_t kMarkingBit = uintptr_t{1} << 18;
   static constexpr uintptr_t kFromSpaceBit = uintptr_t{1} << 3;
   static constexpr uintptr_t kToSpaceBit = uintptr_t{1} << 4;
 
   V8_INLINE static heap_internals::MemoryChunk* FromHeapObject(
-      HeapObject* object) {
-    return reinterpret_cast<MemoryChunk*>(reinterpret_cast<Address>(object) &
-                                          ~kPageAlignmentMask);
+      HeapObject object) {
+    return reinterpret_cast<MemoryChunk*>(object->ptr() & ~kPageAlignmentMask);
   }
 
   V8_INLINE bool IsMarking() const { return GetFlags() & kMarkingBit; }
@@ -44,13 +45,20 @@ struct MemoryChunk {
   }
 
   V8_INLINE uintptr_t GetFlags() const {
-    return *reinterpret_cast<const uintptr_t*>(
-        reinterpret_cast<const uint8_t*>(this) + kFlagsOffset);
+    return *reinterpret_cast<const uintptr_t*>(reinterpret_cast<Address>(this) +
+                                               kFlagsOffset);
+  }
+
+  V8_INLINE Heap* GetHeap() {
+    Heap* heap = *reinterpret_cast<Heap**>(reinterpret_cast<Address>(this) +
+                                           kHeapOffset);
+    SLOW_DCHECK(heap != nullptr);
+    return heap;
   }
 };
 
-inline void GenerationalBarrierInternal(HeapObject* object, Address slot,
-                                        HeapObject* value) {
+inline void GenerationalBarrierInternal(HeapObject object, Address slot,
+                                        HeapObject value) {
   DCHECK(Heap::PageFlagsAreConsistent(object));
   heap_internals::MemoryChunk* value_chunk =
       heap_internals::MemoryChunk::FromHeapObject(value);
@@ -62,8 +70,8 @@ inline void GenerationalBarrierInternal(HeapObject* object, Address slot,
   Heap::GenerationalBarrierSlow(object, slot, value);
 }
 
-inline void MarkingBarrierInternal(HeapObject* object, Address slot,
-                                   HeapObject* value) {
+inline void MarkingBarrierInternal(HeapObject object, Address slot,
+                                   HeapObject value) {
   DCHECK(Heap::PageFlagsAreConsistent(object));
   heap_internals::MemoryChunk* value_chunk =
       heap_internals::MemoryChunk::FromHeapObject(value);
@@ -78,7 +86,7 @@ inline void MarkingBarrierInternal(HeapObject* object, Address slot,
 inline void WriteBarrierForCode(Code host, RelocInfo* rinfo, Object* value) {
   DCHECK(!HasWeakHeapObjectTag(value));
   if (!value->IsHeapObject()) return;
-  HeapObject* object = HeapObject::cast(value);
+  HeapObject object = HeapObject::cast(value);
   GenerationalBarrierForCode(host, rinfo, object);
   MarkingBarrierForCode(host, rinfo, object);
 }
@@ -87,7 +95,7 @@ inline void WriteBarrierForCode(Code host) {
   Heap::WriteBarrierForCodeSlow(host);
 }
 
-inline void GenerationalBarrier(HeapObject* object, ObjectSlot slot,
+inline void GenerationalBarrier(HeapObject object, ObjectSlot slot,
                                 Object* value) {
   DCHECK(!HasWeakHeapObjectTag(*slot));
   DCHECK(!HasWeakHeapObjectTag(value));
@@ -96,31 +104,17 @@ inline void GenerationalBarrier(HeapObject* object, ObjectSlot slot,
                                               HeapObject::cast(value));
 }
 
+inline void GenerationalBarrier(HeapObject* object, ObjectSlot slot,
+                                Object* value) {
+  GenerationalBarrier(*object, slot, value);
+}
+
 inline void GenerationalBarrier(HeapObject* object, MaybeObjectSlot slot,
                                 MaybeObject value) {
-  HeapObject* value_heap_object;
+  HeapObject value_heap_object;
   if (!value->GetHeapObject(&value_heap_object)) return;
-  heap_internals::GenerationalBarrierInternal(object, slot.address(),
+  heap_internals::GenerationalBarrierInternal(*object, slot.address(),
                                               value_heap_object);
-}
-
-inline void GenerationalBarrier(HeapObjectPtr* object, ObjectSlot slot,
-                                Object* value) {
-  DCHECK(!HasWeakHeapObjectTag(*slot));
-  DCHECK(!HasWeakHeapObjectTag(value));
-  if (!value->IsHeapObject()) return;
-  heap_internals::GenerationalBarrierInternal(
-      reinterpret_cast<HeapObject*>(object->ptr()), slot.address(),
-      HeapObject::cast(value));
-}
-
-inline void GenerationalBarrier(HeapObjectPtr* object, MaybeObjectSlot slot,
-                                MaybeObject value) {
-  HeapObject* value_heap_object;
-  if (!value->GetHeapObject(&value_heap_object)) return;
-  heap_internals::GenerationalBarrierInternal(
-      reinterpret_cast<HeapObject*>(object->ptr()), slot.address(),
-      value_heap_object);
 }
 
 inline void GenerationalBarrierForElements(Heap* heap, FixedArray array,
@@ -133,14 +127,14 @@ inline void GenerationalBarrierForElements(Heap* heap, FixedArray array,
 }
 
 inline void GenerationalBarrierForCode(Code host, RelocInfo* rinfo,
-                                       HeapObject* object) {
+                                       HeapObject object) {
   heap_internals::MemoryChunk* object_chunk =
       heap_internals::MemoryChunk::FromHeapObject(object);
   if (!object_chunk->InNewSpace()) return;
   Heap::GenerationalBarrierForCodeSlow(host, rinfo, object);
 }
 
-inline void MarkingBarrier(HeapObject* object, ObjectSlot slot, Object* value) {
+inline void MarkingBarrier(HeapObject object, ObjectSlot slot, Object* value) {
   DCHECK_IMPLIES(slot.address() != kNullAddress, !HasWeakHeapObjectTag(*slot));
   DCHECK(!HasWeakHeapObjectTag(value));
   if (!value->IsHeapObject()) return;
@@ -148,34 +142,19 @@ inline void MarkingBarrier(HeapObject* object, ObjectSlot slot, Object* value) {
                                          HeapObject::cast(value));
 }
 
+inline void MarkingBarrier(HeapObject* object, ObjectSlot slot, Object* value) {
+  MarkingBarrier(*object, slot, value);
+}
+
 inline void MarkingBarrier(HeapObject* object, MaybeObjectSlot slot,
                            MaybeObject value) {
-  HeapObject* value_heap_object;
+  HeapObject value_heap_object;
   if (!value->GetHeapObject(&value_heap_object)) return;
-  heap_internals::MarkingBarrierInternal(object, slot.address(),
+  heap_internals::MarkingBarrierInternal(*object, slot.address(),
                                          value_heap_object);
 }
 
-inline void MarkingBarrier(HeapObjectPtr* object, ObjectSlot slot,
-                           Object* value) {
-  DCHECK_IMPLIES(slot.address() != kNullAddress, !HasWeakHeapObjectTag(*slot));
-  DCHECK(!HasWeakHeapObjectTag(value));
-  if (!value->IsHeapObject()) return;
-  heap_internals::MarkingBarrierInternal(
-      reinterpret_cast<HeapObject*>(object->ptr()), slot.address(),
-      HeapObject::cast(value));
-}
-
-inline void MarkingBarrier(HeapObjectPtr* object, MaybeObjectSlot slot,
-                           MaybeObject value) {
-  HeapObject* value_heap_object;
-  if (!value->GetHeapObject(&value_heap_object)) return;
-  heap_internals::MarkingBarrierInternal(
-      reinterpret_cast<HeapObject*>(object->ptr()), slot.address(),
-      value_heap_object);
-}
-
-inline void MarkingBarrierForElements(Heap* heap, HeapObject* object) {
+inline void MarkingBarrierForElements(Heap* heap, HeapObject object) {
   heap_internals::MemoryChunk* object_chunk =
       heap_internals::MemoryChunk::FromHeapObject(object);
   if (!object_chunk->IsMarking()) return;
@@ -184,8 +163,8 @@ inline void MarkingBarrierForElements(Heap* heap, HeapObject* object) {
 }
 
 inline void MarkingBarrierForCode(Code host, RelocInfo* rinfo,
-                                  HeapObject* object) {
-  DCHECK(!HasWeakHeapObjectTag(object));
+                                  HeapObject object) {
+  DCHECK(!HasWeakHeapObjectTag(object.ptr()));
   heap_internals::MemoryChunk* object_chunk =
       heap_internals::MemoryChunk::FromHeapObject(object);
   if (!object_chunk->IsMarking()) return;
@@ -193,7 +172,7 @@ inline void MarkingBarrierForCode(Code host, RelocInfo* rinfo,
 }
 
 inline void MarkingBarrierForDescriptorArray(Heap* heap,
-                                             HeapObject* descriptor_array,
+                                             HeapObject descriptor_array,
                                              int number_of_own_descriptors) {
   heap_internals::MemoryChunk* chunk =
       heap_internals::MemoryChunk::FromHeapObject(descriptor_array);
@@ -201,6 +180,12 @@ inline void MarkingBarrierForDescriptorArray(Heap* heap,
 
   Heap::MarkingBarrierForDescriptorArraySlow(heap, descriptor_array,
                                              number_of_own_descriptors);
+}
+
+inline Heap* GetHeapFromWritableObject(const HeapObject object) {
+  heap_internals::MemoryChunk* chunk =
+      heap_internals::MemoryChunk::FromHeapObject(object);
+  return chunk->GetHeap();
 }
 
 }  // namespace internal

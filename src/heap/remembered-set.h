@@ -333,10 +333,10 @@ class UpdateTypedSlotHelper {
   static SlotCallbackResult UpdateEmbeddedPointer(Heap* heap, RelocInfo* rinfo,
                                                   Callback callback) {
     DCHECK(rinfo->rmode() == RelocInfo::EMBEDDED_OBJECT);
-    HeapObject* old_target = rinfo->target_object();
-    HeapObject* new_target = old_target;
+    HeapObject old_target = rinfo->target_object();
+    HeapObject new_target = old_target;
     SlotCallbackResult result = callback(FullMaybeObjectSlot(&new_target));
-    DCHECK(!HasWeakHeapObjectTag(new_target));
+    DCHECK(!HasWeakHeapObjectTag(new_target->ptr()));
     if (new_target != old_target) {
       rinfo->set_target_object(heap, HeapObject::cast(new_target));
     }

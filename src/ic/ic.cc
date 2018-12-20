@@ -2786,7 +2786,7 @@ RUNTIME_FUNCTION(Runtime_LoadAccessorProperty) {
 
   // Call the accessor without additional arguments.
   FunctionCallbackArguments custom(isolate, call_handler_info->data(),
-                                   *receiver, holder, nullptr, nullptr, 0);
+                                   *receiver, holder, HeapObject(), nullptr, 0);
   Handle<Object> result_handle = custom.Call(*call_handler_info);
   RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
   if (result_handle.is_null()) return ReadOnlyRoots(isolate).undefined_value();

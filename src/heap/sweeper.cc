@@ -286,7 +286,7 @@ int Sweeper::RawSweep(Page* p, FreeListRebuildingMode free_list_mode,
 
   for (auto object_and_size :
        LiveObjectRange<kBlackObjects>(p, marking_state_->bitmap(p))) {
-    HeapObject* const object = object_and_size.first;
+    HeapObject const object = object_and_size.first;
     DCHECK(marking_state_->IsBlack(object));
     Address free_end = object->address();
     if (free_end != free_start) {

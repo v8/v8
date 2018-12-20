@@ -695,7 +695,7 @@ bool GetStackTraceLimit(Isolate* isolate, int* result) {
 
 bool NoExtension(const v8::FunctionCallbackInfo<v8::Value>&) { return false; }
 
-bool IsBuiltinFunction(Isolate* isolate, HeapObject* object,
+bool IsBuiltinFunction(Isolate* isolate, HeapObject object,
                        Builtins::Name builtin_index) {
   if (!object->IsJSFunction()) return false;
   JSFunction const function = JSFunction::cast(object);
@@ -3540,7 +3540,8 @@ void Isolate::MaybeInitializeVectorListFromHeap() {
 
   {
     HeapIterator heap_iterator(heap());
-    while (HeapObject* current_obj = heap_iterator.next()) {
+    for (HeapObject current_obj = heap_iterator.next(); !current_obj.is_null();
+         current_obj = heap_iterator.next()) {
       if (!current_obj->IsFeedbackVector()) continue;
 
       FeedbackVector vector = FeedbackVector::cast(current_obj);

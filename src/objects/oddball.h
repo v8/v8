@@ -14,7 +14,7 @@ namespace v8 {
 namespace internal {
 
 // The Oddball describes objects null, undefined, true, and false.
-class Oddball : public HeapObjectPtr {
+class Oddball : public HeapObject {
  public:
   // [to_number_raw]: Cached raw to_number computed at startup.
   inline double to_number_raw() const;
@@ -77,7 +77,7 @@ class Oddball : public HeapObjectPtr {
   STATIC_ASSERT(kNull == Internals::kNullOddballKind);
   STATIC_ASSERT(kUndefined == Internals::kUndefinedOddballKind);
 
-  OBJECT_CONSTRUCTORS(Oddball, HeapObjectPtr);
+  OBJECT_CONSTRUCTORS(Oddball, HeapObject);
 };
 
 }  // namespace internal

@@ -21,7 +21,7 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(PreParsedScopeData, HeapObjectPtr)
+OBJECT_CONSTRUCTORS_IMPL(PreParsedScopeData, HeapObject)
 
 CAST_ACCESSOR2(PreParsedScopeData)
 ACCESSORS2(PreParsedScopeData, scope_data, PodArray<uint8_t>, kScopeDataOffset)
@@ -55,7 +55,7 @@ void PreParsedScopeData::clear_padding() {
   }
 }
 
-OBJECT_CONSTRUCTORS_IMPL(UncompiledData, HeapObjectPtr)
+OBJECT_CONSTRUCTORS_IMPL(UncompiledData, HeapObject)
 OBJECT_CONSTRUCTORS_IMPL(UncompiledDataWithoutPreParsedScope, UncompiledData)
 OBJECT_CONSTRUCTORS_IMPL(UncompiledDataWithPreParsedScope, UncompiledData)
 CAST_ACCESSOR2(UncompiledData)
@@ -85,7 +85,7 @@ ACCESSORS2(InterpreterData, bytecode_array, BytecodeArray, kBytecodeArrayOffset)
 ACCESSORS2(InterpreterData, interpreter_trampoline, Code,
            kInterpreterTrampolineOffset)
 
-OBJECT_CONSTRUCTORS_IMPL(SharedFunctionInfo, HeapObjectPtr)
+OBJECT_CONSTRUCTORS_IMPL(SharedFunctionInfo, HeapObject)
 NEVER_READ_ONLY_SPACE_IMPL(SharedFunctionInfo)
 CAST_ACCESSOR2(SharedFunctionInfo)
 DEFINE_DEOPT_ELEMENT_ACCESSORS(SharedFunctionInfo, Object)
@@ -328,9 +328,9 @@ void SharedFunctionInfo::set_scope_info(ScopeInfo scope_info,
 }
 
 ACCESSORS2(SharedFunctionInfo, raw_outer_scope_info_or_feedback_metadata,
-           HeapObjectPtr, kOuterScopeInfoOrFeedbackMetadataOffset)
+           HeapObject, kOuterScopeInfoOrFeedbackMetadataOffset)
 
-HeapObjectPtr SharedFunctionInfo::outer_scope_info() const {
+HeapObject SharedFunctionInfo::outer_scope_info() const {
   DCHECK(!is_compiled());
   DCHECK(!HasFeedbackMetadata());
   return raw_outer_scope_info_or_feedback_metadata();
@@ -354,7 +354,7 @@ ScopeInfo SharedFunctionInfo::GetOuterScopeInfo() const {
   return scope_info()->OuterScopeInfo();
 }
 
-void SharedFunctionInfo::set_outer_scope_info(HeapObjectPtr value,
+void SharedFunctionInfo::set_outer_scope_info(HeapObject value,
                                               WriteBarrierMode mode) {
   DCHECK(!is_compiled());
   DCHECK(raw_outer_scope_info_or_feedback_metadata()->IsTheHole());
@@ -583,7 +583,7 @@ void SharedFunctionInfo::ClearPreParsedScopeData() {
   // Trim off the pre-parsed scope data from the uncompiled data by swapping the
   // map, leaving only an uncompiled data without pre-parsed scope.
   DisallowHeapAllocation no_gc;
-  Heap* heap = Heap::FromWritableHeapObject(data);
+  Heap* heap = Heap::FromWritableHeapObject(&data);
 
   // Swap the map.
   heap->NotifyObjectLayoutChange(data, UncompiledDataWithPreParsedScope::kSize,
@@ -610,8 +610,7 @@ void SharedFunctionInfo::ClearPreParsedScopeData() {
 void UncompiledData::Initialize(
     UncompiledData data, String inferred_name, int start_position,
     int end_position, int function_literal_id,
-    std::function<void(HeapObjectPtr object, ObjectSlot slot,
-                       HeapObjectPtr target)>
+    std::function<void(HeapObject object, ObjectSlot slot, HeapObject target)>
         gc_notify_updated_slot) {
   data->set_inferred_name(inferred_name);
   gc_notify_updated_slot(
@@ -626,8 +625,7 @@ void UncompiledDataWithPreParsedScope::Initialize(
     UncompiledDataWithPreParsedScope data, String inferred_name,
     int start_position, int end_position, int function_literal_id,
     PreParsedScopeData scope_data,
-    std::function<void(HeapObjectPtr object, ObjectSlot slot,
-                       HeapObjectPtr target)>
+    std::function<void(HeapObject object, ObjectSlot slot, HeapObject target)>
         gc_notify_updated_slot) {
   UncompiledData::Initialize(data, inferred_name, start_position, end_position,
                              function_literal_id, gc_notify_updated_slot);

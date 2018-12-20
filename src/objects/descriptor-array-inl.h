@@ -23,7 +23,7 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(DescriptorArray, HeapObjectPtr)
+OBJECT_CONSTRUCTORS_IMPL(DescriptorArray, HeapObject)
 OBJECT_CONSTRUCTORS_IMPL(EnumCache, Tuple2)
 
 CAST_ACCESSOR2(DescriptorArray)

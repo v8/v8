@@ -13,7 +13,7 @@ namespace internal {
 
 void TransitionsAccessor::Initialize() {
   raw_transitions_ = map_->raw_transitions();
-  HeapObject* heap_object;
+  HeapObject heap_object;
   if (raw_transitions_->IsSmi() || raw_transitions_->IsCleared()) {
     encoding_ = kUninitialized;
   } else if (raw_transitions_->IsWeak()) {
@@ -402,7 +402,7 @@ Handle<Map> TransitionsAccessor::GetPrototypeTransition(
     MaybeObject target =
         cache->Get(TransitionArray::kProtoTransitionHeaderSize + i);
     DCHECK(target->IsWeakOrCleared());
-    HeapObject* heap_object;
+    HeapObject heap_object;
     if (target->GetHeapObjectIfWeak(&heap_object)) {
       Map map = Map::cast(heap_object);
       if (map->prototype() == *prototype) {
@@ -533,7 +533,7 @@ void TransitionsAccessor::TraverseTransitionTreeInternal(
         for (int i = 0; i < length; ++i) {
           int index = TransitionArray::kProtoTransitionHeaderSize + i;
           MaybeObject target = proto_trans->Get(index);
-          HeapObject* heap_object;
+          HeapObject heap_object;
           if (target->GetHeapObjectIfWeak(&heap_object)) {
             TransitionsAccessor(isolate_, Map::cast(heap_object), no_gc)
                 .TraverseTransitionTreeInternal(callback, data, no_gc);

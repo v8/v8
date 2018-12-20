@@ -17,13 +17,13 @@ namespace internal {
 // An abstract superclass, a marker class really, for simple structure classes.
 // It doesn't carry much functionality but allows struct classes to be
 // identified in the type system.
-class Struct : public HeapObjectPtr {
+class Struct : public HeapObject {
  public:
   inline void InitializeBody(int object_size);
   DECL_CAST2(Struct)
   void BriefPrintDetails(std::ostream& os);
 
-  OBJECT_CONSTRUCTORS(Struct, HeapObjectPtr)
+  OBJECT_CONSTRUCTORS(Struct, HeapObject)
 };
 
 class Tuple2 : public Struct {

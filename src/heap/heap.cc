@@ -436,7 +436,7 @@ void Heap::AddRetainingPathTarget(Handle<HeapObject> object,
   }
 }
 
-bool Heap::IsRetainingPathTarget(HeapObject* object,
+bool Heap::IsRetainingPathTarget(HeapObject object,
                                  RetainingPathOption* option) {
   WeakArrayList targets = retaining_path_targets();
   int length = targets->length();
@@ -453,12 +453,12 @@ bool Heap::IsRetainingPathTarget(HeapObject* object,
   return false;
 }
 
-void Heap::PrintRetainingPath(HeapObject* target, RetainingPathOption option) {
+void Heap::PrintRetainingPath(HeapObject target, RetainingPathOption option) {
   PrintF("\n\n\n");
   PrintF("#################################################\n");
-  PrintF("Retaining path for %p:\n", static_cast<void*>(target));
-  HeapObject* object = target;
-  std::vector<std::pair<HeapObject*, bool>> retaining_path;
+  PrintF("Retaining path for %p:\n", reinterpret_cast<void*>(target->ptr()));
+  HeapObject object = target;
+  std::vector<std::pair<HeapObject, bool>> retaining_path;
   Root root = Root::kUnknown;
   bool ephemeron = false;
   while (true) {
@@ -479,7 +479,7 @@ void Heap::PrintRetainingPath(HeapObject* target, RetainingPathOption option) {
   }
   int distance = static_cast<int>(retaining_path.size());
   for (auto node : retaining_path) {
-    HeapObject* object = node.first;
+    HeapObject object = node.first;
     bool ephemeron = node.second;
     PrintF("\n");
     PrintF("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n");
@@ -499,7 +499,7 @@ void Heap::PrintRetainingPath(HeapObject* target, RetainingPathOption option) {
   PrintF("-------------------------------------------------\n");
 }
 
-void Heap::AddRetainer(HeapObject* retainer, HeapObject* object) {
+void Heap::AddRetainer(HeapObject retainer, HeapObject object) {
   if (retainer_.count(object)) return;
   retainer_[object] = retainer;
   RetainingPathOption option = RetainingPathOption::kDefault;
@@ -513,7 +513,7 @@ void Heap::AddRetainer(HeapObject* retainer, HeapObject* object) {
   }
 }
 
-void Heap::AddEphemeronRetainer(HeapObject* retainer, HeapObject* object) {
+void Heap::AddEphemeronRetainer(HeapObject retainer, HeapObject object) {
   if (ephemeron_retainer_.count(object)) return;
   ephemeron_retainer_[object] = retainer;
   RetainingPathOption option = RetainingPathOption::kDefault;
@@ -526,7 +526,7 @@ void Heap::AddEphemeronRetainer(HeapObject* retainer, HeapObject* object) {
   }
 }
 
-void Heap::AddRetainingRoot(Root root, HeapObject* object) {
+void Heap::AddRetainingRoot(Root root, HeapObject object) {
   if (retaining_root_.count(object)) return;
   retaining_root_[object] = root;
   RetainingPathOption option = RetainingPathOption::kDefault;
@@ -1070,7 +1070,7 @@ void Heap::CollectAllGarbage(int flags, GarbageCollectionReason gc_reason,
 
 namespace {
 
-intptr_t CompareWords(int size, HeapObject* a, HeapObject* b) {
+intptr_t CompareWords(int size, HeapObject a, HeapObject b) {
   int slots = size / kTaggedSize;
   DCHECK_EQ(a->Size(), size);
   DCHECK_EQ(b->Size(), size);
@@ -1086,17 +1086,17 @@ intptr_t CompareWords(int size, HeapObject* a, HeapObject* b) {
   return 0;
 }
 
-void ReportDuplicates(int size, std::vector<HeapObject*>& objects) {
+void ReportDuplicates(int size, std::vector<HeapObject>& objects) {
   if (objects.size() == 0) return;
 
-  sort(objects.begin(), objects.end(), [size](HeapObject* a, HeapObject* b) {
+  sort(objects.begin(), objects.end(), [size](HeapObject a, HeapObject b) {
     intptr_t c = CompareWords(size, a, b);
     if (c != 0) return c < 0;
     return a < b;
   });
 
-  std::vector<std::pair<int, HeapObject*>> duplicates;
-  HeapObject* current = objects[0];
+  std::vector<std::pair<int, HeapObject>> duplicates;
+  HeapObject current = objects[0];
   int count = 1;
   for (size_t i = 1; i < objects.size(); i++) {
     if (CompareWords(size, current, objects[i]) == 0) {
@@ -1170,18 +1170,18 @@ void Heap::CollectAllAvailableGarbage(GarbageCollectionReason gc_reason) {
   EagerlyFreeExternalMemory();
 
   if (FLAG_trace_duplicate_threshold_kb) {
-    std::map<int, std::vector<HeapObject*>> objects_by_size;
+    std::map<int, std::vector<HeapObject>> objects_by_size;
     PagedSpaces spaces(this);
     for (PagedSpace* space = spaces.next(); space != nullptr;
          space = spaces.next()) {
       HeapObjectIterator it(space);
-      for (HeapObject* obj = it.Next(); obj != nullptr; obj = it.Next()) {
+      for (HeapObject obj = it.Next(); !obj.is_null(); obj = it.Next()) {
         objects_by_size[obj->Size()].push_back(obj);
       }
     }
     {
       LargeObjectIterator it(lo_space());
-      for (HeapObject* obj = it.Next(); obj != nullptr; obj = it.Next()) {
+      for (HeapObject obj = it.Next(); !obj.is_null(); obj = it.Next()) {
         objects_by_size[obj->Size()].push_back(obj);
       }
     }
@@ -1458,20 +1458,20 @@ class StringTableVerifier : public ObjectVisitor {
  public:
   explicit StringTableVerifier(Isolate* isolate) : isolate_(isolate) {}
 
-  void VisitPointers(HeapObject* host, ObjectSlot start,
+  void VisitPointers(HeapObject host, ObjectSlot start,
                      ObjectSlot end) override {
     // Visit all HeapObject pointers in [start, end).
     for (ObjectSlot p = start; p < end; ++p) {
       DCHECK(!HasWeakHeapObjectTag(*p));
       if ((*p)->IsHeapObject()) {
-        HeapObject* object = HeapObject::cast(*p);
+        HeapObject object = HeapObject::cast(*p);
         // Check that the string is actually internalized.
         CHECK(object->IsTheHole(isolate_) || object->IsUndefined(isolate_) ||
               object->IsInternalizedString());
       }
     }
   }
-  void VisitPointers(HeapObject* host, MaybeObjectSlot start,
+  void VisitPointers(HeapObject host, MaybeObjectSlot start,
                      MaybeObjectSlot end) override {
     UNREACHABLE();
   }
@@ -1519,7 +1519,7 @@ bool Heap::ReserveSpace(Reservation* reservations, std::vector<Address>* maps) {
           // The deserializer will update the skip list.
           AllocationResult allocation = map_space()->AllocateRawUnaligned(
               Map::kSize, PagedSpace::IGNORE_SKIP_LIST);
-          HeapObject* free_space = nullptr;
+          HeapObject free_space;
           if (allocation.To(&free_space)) {
             // Mark with a free list node, in case we have a GC before
             // deserializing.
@@ -1552,7 +1552,7 @@ bool Heap::ReserveSpace(Reservation* reservations, std::vector<Address>* maps) {
             allocation = paged_space(space)->AllocateRawUnaligned(
                 size, PagedSpace::IGNORE_SKIP_LIST);
           }
-          HeapObject* free_space = nullptr;
+          HeapObject free_space;
           if (allocation.To(&free_space)) {
             // Mark with a free list node, in case we have a GC before
             // deserializing.
@@ -2029,7 +2029,7 @@ void Heap::UnprotectAndRegisterMemoryChunk(MemoryChunk* chunk) {
   }
 }
 
-void Heap::UnprotectAndRegisterMemoryChunk(HeapObject* object) {
+void Heap::UnprotectAndRegisterMemoryChunk(HeapObject object) {
   UnprotectAndRegisterMemoryChunk(MemoryChunk::FromAddress(object->address()));
 }
 
@@ -2367,16 +2367,14 @@ int Heap::GetFillToAlign(Address address, AllocationAlignment alignment) {
   return 0;
 }
 
-
-HeapObject* Heap::PrecedeWithFiller(HeapObject* object, int filler_size) {
+HeapObject Heap::PrecedeWithFiller(HeapObject object, int filler_size) {
   CreateFillerObjectAt(object->address(), filler_size, ClearRecordedSlots::kNo);
   return HeapObject::FromAddress(object->address() + filler_size);
 }
 
-
-HeapObject* Heap::AlignWithFiller(HeapObject* object, int object_size,
-                                  int allocation_size,
-                                  AllocationAlignment alignment) {
+HeapObject Heap::AlignWithFiller(HeapObject object, int object_size,
+                                 int allocation_size,
+                                 AllocationAlignment alignment) {
   int filler_size = allocation_size - object_size;
   DCHECK_LT(0, filler_size);
   int pre_filler = GetFillToAlign(object->address(), alignment);
@@ -2384,9 +2382,10 @@ HeapObject* Heap::AlignWithFiller(HeapObject* object, int object_size,
     object = PrecedeWithFiller(object, pre_filler);
     filler_size -= pre_filler;
   }
-  if (filler_size)
+  if (filler_size) {
     CreateFillerObjectAt(object->address() + object_size, filler_size,
                          ClearRecordedSlots::kNo);
+  }
   return object;
 }
 
@@ -2418,11 +2417,11 @@ void Heap::FlushNumberStringCache() {
   }
 }
 
-HeapObject* Heap::CreateFillerObjectAt(Address addr, int size,
-                                       ClearRecordedSlots clear_slots_mode,
-                                       ClearFreedMemoryMode clear_memory_mode) {
-  if (size == 0) return nullptr;
-  HeapObject* filler = HeapObject::FromAddress(addr);
+HeapObject Heap::CreateFillerObjectAt(Address addr, int size,
+                                      ClearRecordedSlots clear_slots_mode,
+                                      ClearFreedMemoryMode clear_memory_mode) {
+  if (size == 0) return HeapObject();
+  HeapObject filler = HeapObject::FromAddress(addr);
   if (size == kTaggedSize) {
     filler->set_map_after_allocation(
         Map::unchecked_cast(isolate()->root(RootIndex::kOnePointerFillerMap)),
@@ -2458,8 +2457,7 @@ HeapObject* Heap::CreateFillerObjectAt(Address addr, int size,
   return filler;
 }
 
-
-bool Heap::CanMoveObjectStart(HeapObject* object) {
+bool Heap::CanMoveObjectStart(HeapObject object) {
   if (!FLAG_move_object_start) return false;
 
   // Sampling heap profiler may have a reference to the object.
@@ -2473,12 +2471,12 @@ bool Heap::CanMoveObjectStart(HeapObject* object) {
   return Page::FromAddress(address)->SweepingDone();
 }
 
-bool Heap::IsImmovable(HeapObject* object) {
+bool Heap::IsImmovable(HeapObject object) {
   MemoryChunk* chunk = MemoryChunk::FromAddress(object->address());
   return chunk->NeverEvacuate() || IsLargeObject(object);
 }
 
-bool Heap::IsLargeObject(HeapObject* object) {
+bool Heap::IsLargeObject(HeapObject object) {
   return IsLargeMemoryChunk(MemoryChunk::FromHeapObject(object));
 }
 
@@ -2488,7 +2486,7 @@ bool Heap::IsLargeMemoryChunk(MemoryChunk* chunk) {
          chunk->owner()->identity() == CODE_LO_SPACE;
 }
 
-bool Heap::IsInYoungGeneration(HeapObject* object) {
+bool Heap::IsInYoungGeneration(HeapObject object) {
   if (MemoryChunk::FromHeapObject(object)->IsInNewLargeObjectSpace()) {
     return !object->map_word().IsForwardingAddress();
   }
@@ -2519,7 +2517,7 @@ class LeftTrimmerVerifierRootVisitor : public RootVisitor {
 #endif  // ENABLE_SLOW_DCHECKS
 
 namespace {
-bool MayContainRecordedSlots(HeapObject* object) {
+bool MayContainRecordedSlots(HeapObject object) {
   // New space object do not have recorded slots.
   if (MemoryChunk::FromHeapObject(object)->InNewSpace()) return false;
   // Whitelist objects that definitely do not have pointers.
@@ -2569,7 +2567,7 @@ FixedArrayBase Heap::LeftTrimFixedArray(FixedArrayBase object,
   // Technically in new space this write might be omitted (except for
   // debug mode which iterates through the heap), but to play safer
   // we still do it.
-  HeapObject* filler =
+  HeapObject filler =
       CreateFillerObjectAt(old_start, bytes_to_trim, ClearRecordedSlots::kYes);
 
   // Initialize header of the trimmed array. Since left trimming is only
@@ -2691,9 +2689,9 @@ void Heap::CreateFillerForArray(T object, int elements_to_trim,
   // we still do it.
   // We do not create a filler for objects in a large object space.
   if (!IsLargeObject(object)) {
-    HeapObject* filler =
+    HeapObject filler =
         CreateFillerObjectAt(new_end, bytes_to_trim, ClearRecordedSlots::kYes);
-    DCHECK_NOT_NULL(filler);
+    DCHECK(!filler.is_null());
     // Clear the mark bits of the black area that belongs now to the filler.
     // This is an optimization. The sweeper will release black fillers anyway.
     if (incremental_marking()->black_allocation() &&
@@ -2928,7 +2926,7 @@ void Heap::FinalizeIncrementalMarkingIncrementally(
 }
 
 void Heap::RegisterDeserializedObjectsForBlackAllocation(
-    Reservation* reservations, const std::vector<HeapObject*>& large_objects,
+    Reservation* reservations, const std::vector<HeapObject>& large_objects,
     const std::vector<Address>& maps) {
   // TODO(ulan): pause black allocation during deserialization to avoid
   // iterating all these objects in one go.
@@ -2944,7 +2942,7 @@ void Heap::RegisterDeserializedObjectsForBlackAllocation(
     for (auto& chunk : res) {
       Address addr = chunk.start;
       while (addr < chunk.end) {
-        HeapObject* obj = HeapObject::FromAddress(addr);
+        HeapObject obj = HeapObject::FromAddress(addr);
         // Objects can have any color because incremental marking can
         // start in the middle of Heap::ReserveSpace().
         if (marking_state->IsBlack(obj)) {
@@ -2956,7 +2954,7 @@ void Heap::RegisterDeserializedObjectsForBlackAllocation(
   }
 
   // Large object space doesn't use reservations, so it needs custom handling.
-  for (HeapObject* object : large_objects) {
+  for (HeapObject object : large_objects) {
     incremental_marking()->ProcessBlackAllocatedObject(object);
   }
 
@@ -2967,7 +2965,7 @@ void Heap::RegisterDeserializedObjectsForBlackAllocation(
   }
 }
 
-void Heap::NotifyObjectLayoutChange(HeapObject* object, int size,
+void Heap::NotifyObjectLayoutChange(HeapObject object, int size,
                                     const DisallowHeapAllocation&) {
   if (incremental_marking()->IsMarking()) {
     incremental_marking()->MarkBlackAndPush(object);
@@ -2989,11 +2987,11 @@ void Heap::NotifyObjectLayoutChange(HeapObject* object, int size,
 // Helper class for collecting slot addresses.
 class SlotCollectingVisitor final : public ObjectVisitor {
  public:
-  void VisitPointers(HeapObject* host, ObjectSlot start,
+  void VisitPointers(HeapObject host, ObjectSlot start,
                      ObjectSlot end) override {
     VisitPointers(host, MaybeObjectSlot(start), MaybeObjectSlot(end));
   }
-  void VisitPointers(HeapObject* host, MaybeObjectSlot start,
+  void VisitPointers(HeapObject host, MaybeObjectSlot start,
                      MaybeObjectSlot end) final {
     for (MaybeObjectSlot p = start; p < end; ++p) {
       slots_.push_back(p);
@@ -3014,7 +3012,7 @@ class SlotCollectingVisitor final : public ObjectVisitor {
   std::vector<MaybeObjectSlot> slots_;
 };
 
-void Heap::VerifyObjectLayoutChange(HeapObject* object, Map new_map) {
+void Heap::VerifyObjectLayoutChange(HeapObject object, Map new_map) {
   if (!FLAG_verify_heap) return;
 
   // Check that Heap::NotifyObjectLayout was called for object transitions
@@ -3042,7 +3040,7 @@ void Heap::VerifyObjectLayoutChange(HeapObject* object, Map new_map) {
     }
   } else {
     DCHECK_EQ(pending_layout_change_object_, object);
-    pending_layout_change_object_ = nullptr;
+    pending_layout_change_object_ = HeapObject();
   }
 }
 #endif
@@ -3401,7 +3399,7 @@ const char* Heap::GarbageCollectionReasonToString(
   UNREACHABLE();
 }
 
-bool Heap::Contains(HeapObject* value) {
+bool Heap::Contains(HeapObject value) {
   if (memory_allocator()->IsOutsideAllocatedSpace(value->address())) {
     return false;
   }
@@ -3412,7 +3410,7 @@ bool Heap::Contains(HeapObject* value) {
           code_lo_space_->Contains(value) || new_lo_space_->Contains(value));
 }
 
-bool Heap::InSpace(HeapObject* value, AllocationSpace space) {
+bool Heap::InSpace(HeapObject value, AllocationSpace space) {
   if (memory_allocator()->IsOutsideAllocatedSpace(value->address())) {
     return false;
   }
@@ -3489,15 +3487,15 @@ class VerifyReadOnlyPointersVisitor : public VerifyPointersVisitor {
       : VerifyPointersVisitor(heap) {}
 
  protected:
-  void VerifyPointers(HeapObject* host, MaybeObjectSlot start,
+  void VerifyPointers(HeapObject host, MaybeObjectSlot start,
                       MaybeObjectSlot end) override {
-    if (host != nullptr) {
+    if (!host.is_null()) {
       CHECK(heap_->InReadOnlySpace(host->map()));
     }
     VerifyPointersVisitor::VerifyPointers(host, start, end);
 
     for (MaybeObjectSlot current = start; current < end; ++current) {
-      HeapObject* heap_object;
+      HeapObject heap_object;
       if ((*current)->GetHeapObject(&heap_object)) {
         CHECK(heap_->InReadOnlySpace(heap_object));
       }
@@ -3540,14 +3538,9 @@ class SlotVerifyingVisitor : public ObjectVisitor {
                        std::set<std::pair<SlotType, Address> >* typed)
       : untyped_(untyped), typed_(typed) {}
 
-  virtual bool ShouldHaveBeenRecorded(HeapObject* host, MaybeObject target) = 0;
-  // TODO(3770): Drop this after the migration.
-  bool ShouldHaveBeenRecorded(Code host, MaybeObject target) {
-    return ShouldHaveBeenRecorded(reinterpret_cast<HeapObject*>(host.ptr()),
-                                  target);
-  }
+  virtual bool ShouldHaveBeenRecorded(HeapObject host, MaybeObject target) = 0;
 
-  void VisitPointers(HeapObject* host, ObjectSlot start,
+  void VisitPointers(HeapObject host, ObjectSlot start,
                      ObjectSlot end) override {
 #ifdef DEBUG
     for (ObjectSlot slot = start; slot < end; ++slot) {
@@ -3557,7 +3550,7 @@ class SlotVerifyingVisitor : public ObjectVisitor {
     VisitPointers(host, MaybeObjectSlot(start), MaybeObjectSlot(end));
   }
 
-  void VisitPointers(HeapObject* host, MaybeObjectSlot start,
+  void VisitPointers(HeapObject host, MaybeObjectSlot start,
                      MaybeObjectSlot end) final {
     for (MaybeObjectSlot slot = start; slot < end; ++slot) {
       if (ShouldHaveBeenRecorded(host, *slot)) {
@@ -3599,7 +3592,7 @@ class OldToNewSlotVerifyingVisitor : public SlotVerifyingVisitor {
                                std::set<std::pair<SlotType, Address>>* typed)
       : SlotVerifyingVisitor(untyped, typed) {}
 
-  bool ShouldHaveBeenRecorded(HeapObject* host, MaybeObject target) override {
+  bool ShouldHaveBeenRecorded(HeapObject host, MaybeObject target) override {
     DCHECK_IMPLIES(target->IsStrongOrWeak() && Heap::InNewSpace(target),
                    Heap::InToSpace(target));
     return target->IsStrongOrWeak() && Heap::InNewSpace(target) &&
@@ -3629,7 +3622,7 @@ void CollectSlots(MemoryChunk* chunk, Address start, Address end,
       });
 }
 
-void Heap::VerifyRememberedSetFor(HeapObject* object) {
+void Heap::VerifyRememberedSetFor(HeapObject object) {
   MemoryChunk* chunk = MemoryChunk::FromAddress(object->address());
   DCHECK_IMPLIES(chunk->mutex() == nullptr, InReadOnlySpace(object));
   // In RO_SPACE chunk->mutex() may be nullptr, so just ignore it.
@@ -3759,13 +3752,13 @@ class FixStaleLeftTrimmedHandlesVisitor : public RootVisitor {
  private:
   inline void FixHandle(FullObjectSlot p) {
     if (!(*p)->IsHeapObject()) return;
-    HeapObject* current = reinterpret_cast<HeapObject*>(*p);
+    HeapObject current = HeapObject::cast(*p);
     const MapWord map_word = current->map_word();
     if (!map_word.IsForwardingAddress() && current->IsFiller()) {
 #ifdef DEBUG
       // We need to find a FixedArrayBase map after walking the fillers.
       while (current->IsFiller()) {
-        Address next = reinterpret_cast<Address>(current);
+        Address next = current->ptr();
         if (current->map() == ReadOnlyRoots(heap_).one_pointer_filler_map()) {
           next += kTaggedSize;
         } else if (current->map() ==
@@ -3774,7 +3767,7 @@ class FixStaleLeftTrimmedHandlesVisitor : public RootVisitor {
         } else {
           next += current->Size();
         }
-        current = reinterpret_cast<HeapObject*>(next);
+        current = HeapObject::cast(ObjectPtr(next));
       }
       DCHECK(current->IsFixedArrayBase());
 #endif  // DEBUG
@@ -4061,7 +4054,7 @@ void Heap::RecordStats(HeapStats* stats, bool take_snapshot) {
   *stats->malloced_peak_memory = isolate_->allocator()->GetMaxMemoryUsage();
   if (take_snapshot) {
     HeapIterator iterator(this);
-    for (HeapObject* obj = iterator.next(); obj != nullptr;
+    for (HeapObject obj = iterator.next(); !obj.is_null();
          obj = iterator.next()) {
       InstanceType type = obj->map()->instance_type();
       DCHECK(0 <= type && type <= LAST_TYPE);
@@ -4252,12 +4245,11 @@ void Heap::DisableInlineAllocation() {
   }
 }
 
-HeapObject* Heap::EnsureImmovableCode(HeapObject* heap_object,
-                                      int object_size) {
+HeapObject Heap::EnsureImmovableCode(HeapObject heap_object, int object_size) {
   // Code objects which should stay at a fixed address are allocated either
   // in the first page of code space, in large object space, or (during
   // snapshot creation) the containing page is marked as immovable.
-  DCHECK(heap_object);
+  DCHECK(!heap_object.is_null());
   DCHECK(code_space_->Contains(heap_object));
   DCHECK_GE(object_size, 0);
   if (!Heap::IsImmovable(heap_object)) {
@@ -4278,9 +4270,9 @@ HeapObject* Heap::EnsureImmovableCode(HeapObject* heap_object,
   return heap_object;
 }
 
-HeapObject* Heap::AllocateRawWithLightRetry(int size, AllocationSpace space,
-                                            AllocationAlignment alignment) {
-  HeapObject* result;
+HeapObject Heap::AllocateRawWithLightRetry(int size, AllocationSpace space,
+                                           AllocationAlignment alignment) {
+  HeapObject result;
   AllocationResult alloc = AllocateRaw(size, space, alignment);
   if (alloc.To(&result)) {
     DCHECK(result != ReadOnlyRoots(this).exception());
@@ -4296,14 +4288,14 @@ HeapObject* Heap::AllocateRawWithLightRetry(int size, AllocationSpace space,
       return result;
     }
   }
-  return nullptr;
+  return HeapObject();
 }
 
-HeapObject* Heap::AllocateRawWithRetryOrFail(int size, AllocationSpace space,
-                                             AllocationAlignment alignment) {
+HeapObject Heap::AllocateRawWithRetryOrFail(int size, AllocationSpace space,
+                                            AllocationAlignment alignment) {
   AllocationResult alloc;
-  HeapObject* result = AllocateRawWithLightRetry(size, space, alignment);
-  if (result) return result;
+  HeapObject result = AllocateRawWithLightRetry(size, space, alignment);
+  if (!result.is_null()) return result;
 
   isolate()->counters()->gc_last_resort_from_handles()->Increment();
   CollectAllAvailableGarbage(GarbageCollectionReason::kLastResort);
@@ -4317,14 +4309,14 @@ HeapObject* Heap::AllocateRawWithRetryOrFail(int size, AllocationSpace space,
   }
   // TODO(1181417): Fix this.
   FatalProcessOutOfMemory("CALL_AND_RETRY_LAST");
-  return nullptr;
+  return HeapObject();
 }
 
 // TODO(jkummerow): Refactor this. AllocateRaw should take an "immovability"
 // parameter and just do what's necessary.
-HeapObject* Heap::AllocateRawCodeInLargeObjectSpace(int size) {
+HeapObject Heap::AllocateRawCodeInLargeObjectSpace(int size) {
   AllocationResult alloc = code_lo_space()->AllocateRaw(size);
-  HeapObject* result;
+  HeapObject result;
   if (alloc.To(&result)) {
     DCHECK(result != ReadOnlyRoots(this).exception());
     return result;
@@ -4351,7 +4343,7 @@ HeapObject* Heap::AllocateRawCodeInLargeObjectSpace(int size) {
   }
   // TODO(1181417): Fix this.
   FatalProcessOutOfMemory("CALL_AND_RETRY_LAST");
-  return nullptr;
+  return HeapObject();
 }
 
 void Heap::SetUp() {
@@ -4564,7 +4556,7 @@ void Heap::RegisterExternallyReferencedObject(Address* location) {
   // objects are just passed around as Smis.
   ObjectPtr object(*location);
   if (!object->IsHeapObject()) return;
-  HeapObject* heap_object = HeapObject::cast(object);
+  HeapObject heap_object = HeapObject::cast(object);
   DCHECK(Contains(heap_object));
   if (FLAG_incremental_marking_wrappers && incremental_marking()->IsMarking()) {
     incremental_marking()->WhiteToGreyAndPush(heap_object);
@@ -4793,7 +4785,7 @@ void Heap::CompactWeakArrayLists(PretenureFlag pretenure) {
   std::vector<Handle<PrototypeInfo>> prototype_infos;
   {
     HeapIterator iterator(this);
-    for (HeapObject* o = iterator.next(); o != nullptr; o = iterator.next()) {
+    for (HeapObject o = iterator.next(); !o.is_null(); o = iterator.next()) {
       if (o->IsPrototypeInfo()) {
         PrototypeInfo prototype_info = PrototypeInfo::cast(o);
         if (prototype_info->prototype_users()->IsWeakArrayList()) {
@@ -4871,7 +4863,7 @@ void Heap::CompactRetainedMaps(WeakArrayList retained_maps) {
     new_length += 2;
   }
   number_of_disposed_maps_ = new_number_of_disposed_maps;
-  HeapObject* undefined = ReadOnlyRoots(this).undefined_value();
+  HeapObject undefined = ReadOnlyRoots(this).undefined_value();
   for (int i = new_length; i < length; i++) {
     retained_maps->Set(i, HeapObjectReference::Strong(undefined));
   }
@@ -4937,7 +4929,7 @@ Address Heap::store_buffer_overflow_function_address() {
   return FUNCTION_ADDR(StoreBuffer::StoreBufferOverflow);
 }
 
-void Heap::ClearRecordedSlot(HeapObject* object, ObjectSlot slot) {
+void Heap::ClearRecordedSlot(HeapObject object, ObjectSlot slot) {
   Page* page = Page::FromAddress(slot.address());
   if (!page->InNewSpace()) {
     DCHECK_EQ(page->owner()->identity(), OLD_SPACE);
@@ -4946,7 +4938,7 @@ void Heap::ClearRecordedSlot(HeapObject* object, ObjectSlot slot) {
 }
 
 #ifdef DEBUG
-void Heap::VerifyClearedSlot(HeapObject* object, ObjectSlot slot) {
+void Heap::VerifyClearedSlot(HeapObject object, ObjectSlot slot) {
   if (InNewSpace(object)) return;
   Page* page = Page::FromAddress(slot.address());
   DCHECK_EQ(page->owner()->identity(), OLD_SPACE);
@@ -5002,7 +4994,7 @@ Space* SpaceIterator::next() {
 class HeapObjectsFilter {
  public:
   virtual ~HeapObjectsFilter() = default;
-  virtual bool SkipObject(HeapObject* object) = 0;
+  virtual bool SkipObject(HeapObject object) = 0;
 };
 
 
@@ -5019,7 +5011,7 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
     }
   }
 
-  bool SkipObject(HeapObject* object) override {
+  bool SkipObject(HeapObject object) override {
     if (object->IsFiller()) return true;
     MemoryChunk* chunk = MemoryChunk::FromAddress(object->address());
     if (reachable_.count(chunk) == 0) return true;
@@ -5027,10 +5019,11 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
   }
 
  private:
-  bool MarkAsReachable(HeapObject* object) {
+  bool MarkAsReachable(HeapObject object) {
     MemoryChunk* chunk = MemoryChunk::FromAddress(object->address());
     if (reachable_.count(chunk) == 0) {
-      reachable_[chunk] = new std::unordered_set<HeapObject*>();
+      reachable_[chunk] =
+          new std::unordered_set<HeapObject, HeapObject::Hasher>();
     }
     if (reachable_[chunk]->count(object)) return false;
     reachable_[chunk]->insert(object);
@@ -5042,12 +5035,12 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
     explicit MarkingVisitor(UnreachableObjectsFilter* filter)
         : filter_(filter) {}
 
-    void VisitPointers(HeapObject* host, ObjectSlot start,
+    void VisitPointers(HeapObject host, ObjectSlot start,
                        ObjectSlot end) override {
       MarkPointers(MaybeObjectSlot(start), MaybeObjectSlot(end));
     }
 
-    void VisitPointers(HeapObject* host, MaybeObjectSlot start,
+    void VisitPointers(HeapObject host, MaybeObjectSlot start,
                        MaybeObjectSlot end) final {
       MarkPointers(start, end);
     }
@@ -5067,7 +5060,7 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
 
     void TransitiveClosure() {
       while (!marking_stack_.empty()) {
-        HeapObject* obj = marking_stack_.back();
+        HeapObject obj = marking_stack_.back();
         marking_stack_.pop_back();
         obj->Iterate(this);
       }
@@ -5083,21 +5076,21 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
       // Treat weak references as strong.
       for (TSlot p = start; p < end; ++p) {
         typename TSlot::TObject object = p.load();
-        HeapObject* heap_object;
+        HeapObject heap_object;
         if (object.GetHeapObject(&heap_object)) {
           MarkHeapObject(heap_object);
         }
       }
     }
 
-    V8_INLINE void MarkHeapObject(HeapObject* heap_object) {
+    V8_INLINE void MarkHeapObject(HeapObject heap_object) {
       if (filter_->MarkAsReachable(heap_object)) {
         marking_stack_.push_back(heap_object);
       }
     }
 
     UnreachableObjectsFilter* filter_;
-    std::vector<HeapObject*> marking_stack_;
+    std::vector<HeapObject> marking_stack_;
   };
 
   friend class MarkingVisitor;
@@ -5110,7 +5103,9 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
 
   Heap* heap_;
   DisallowHeapAllocation no_allocation_;
-  std::unordered_map<MemoryChunk*, std::unordered_set<HeapObject*>*> reachable_;
+  std::unordered_map<MemoryChunk*,
+                     std::unordered_set<HeapObject, HeapObject::Hasher>*>
+      reachable_;
 };
 
 HeapIterator::HeapIterator(Heap* heap,
@@ -5148,37 +5143,36 @@ HeapIterator::~HeapIterator() {
   delete filter_;
 }
 
-
-HeapObject* HeapIterator::next() {
+HeapObject HeapIterator::next() {
   if (filter_ == nullptr) return NextObject();
 
-  HeapObject* obj = NextObject();
-  while ((obj != nullptr) && (filter_->SkipObject(obj))) obj = NextObject();
+  HeapObject obj = NextObject();
+  while (!obj.is_null() && (filter_->SkipObject(obj))) obj = NextObject();
   return obj;
 }
 
-
-HeapObject* HeapIterator::NextObject() {
+HeapObject HeapIterator::NextObject() {
   // No iterator means we are done.
-  if (object_iterator_.get() == nullptr) return nullptr;
+  if (object_iterator_.get() == nullptr) return HeapObject();
 
-  if (HeapObject* obj = object_iterator_.get()->Next()) {
+  HeapObject obj = object_iterator_.get()->Next();
+  if (!obj.is_null()) {
     // If the current iterator has more objects we are fine.
     return obj;
   } else {
     // Go though the spaces looking for one that has objects.
     while (space_iterator_->has_next()) {
       object_iterator_ = space_iterator_->next()->GetObjectIterator();
-      if (HeapObject* obj = object_iterator_.get()->Next()) {
+      obj = object_iterator_.get()->Next();
+      if (!obj.is_null()) {
         return obj;
       }
     }
   }
   // Done with the last space.
   object_iterator_.reset(nullptr);
-  return nullptr;
+  return HeapObject();
 }
-
 
 void Heap::UpdateTotalGCTime(double duration) {
   if (FLAG_trace_gc_verbose) {
@@ -5299,7 +5293,7 @@ void Heap::SetInterpreterEntryTrampolineForProfiling(Code code) {
 
 void Heap::AddDirtyJSWeakFactory(
     JSWeakFactory weak_factory,
-    std::function<void(HeapObject* object, ObjectSlot slot, Object* target)>
+    std::function<void(HeapObject object, ObjectSlot slot, Object* target)>
         gc_notify_updated_slot) {
   DCHECK(dirty_js_weak_factories()->IsUndefined(isolate()) ||
          dirty_js_weak_factories()->IsJSWeakFactory());
@@ -5415,12 +5409,12 @@ const char* AllocationSpaceName(AllocationSpace space) {
   return nullptr;
 }
 
-void VerifyPointersVisitor::VisitPointers(HeapObject* host, ObjectSlot start,
+void VerifyPointersVisitor::VisitPointers(HeapObject host, ObjectSlot start,
                                           ObjectSlot end) {
   VerifyPointers(host, MaybeObjectSlot(start), MaybeObjectSlot(end));
 }
 
-void VerifyPointersVisitor::VisitPointers(HeapObject* host,
+void VerifyPointersVisitor::VisitPointers(HeapObject host,
                                           MaybeObjectSlot start,
                                           MaybeObjectSlot end) {
   VerifyPointers(host, start, end);
@@ -5433,7 +5427,7 @@ void VerifyPointersVisitor::VisitRootPointers(Root root,
   VerifyPointersImpl(start, end);
 }
 
-void VerifyPointersVisitor::VerifyHeapObjectImpl(HeapObject* heap_object) {
+void VerifyPointersVisitor::VerifyHeapObjectImpl(HeapObject heap_object) {
   CHECK(heap_->Contains(heap_object));
   CHECK(heap_object->map()->IsMap());
 }
@@ -5442,7 +5436,7 @@ template <typename TSlot>
 void VerifyPointersVisitor::VerifyPointersImpl(TSlot start, TSlot end) {
   for (TSlot slot = start; slot < end; ++slot) {
     typename TSlot::TObject object = slot.load();
-    HeapObject* heap_object;
+    HeapObject heap_object;
     if (object.GetHeapObject(&heap_object)) {
       VerifyHeapObjectImpl(heap_object);
     } else {
@@ -5451,7 +5445,7 @@ void VerifyPointersVisitor::VerifyPointersImpl(TSlot start, TSlot end) {
   }
 }
 
-void VerifyPointersVisitor::VerifyPointers(HeapObject* host,
+void VerifyPointersVisitor::VerifyPointers(HeapObject host,
                                            MaybeObjectSlot start,
                                            MaybeObjectSlot end) {
   VerifyPointersImpl(start, end);
@@ -5474,7 +5468,7 @@ void VerifySmisVisitor::VisitRootPointers(Root root, const char* description,
   }
 }
 
-bool Heap::AllowedToBeMigrated(HeapObject* obj, AllocationSpace dst) {
+bool Heap::AllowedToBeMigrated(HeapObject obj, AllocationSpace dst) {
   // Object migration is governed by the following rules:
   //
   // 1) Objects in new-space can be migrated to the old space
@@ -5532,17 +5526,17 @@ void AllocationObserver::AllocationStep(int bytes_allocated,
 
 namespace {
 
-Map GcSafeMapOfCodeSpaceObject(HeapObject* object) {
+Map GcSafeMapOfCodeSpaceObject(HeapObject object) {
   MapWord map_word = object->map_word();
   return map_word.IsForwardingAddress() ? map_word.ToForwardingAddress()->map()
                                         : map_word.ToMap();
 }
 
-int GcSafeSizeOfCodeSpaceObject(HeapObject* object) {
+int GcSafeSizeOfCodeSpaceObject(HeapObject object) {
   return object->SizeFromMap(GcSafeMapOfCodeSpaceObject(object));
 }
 
-Code GcSafeCastToCode(Heap* heap, HeapObject* object, Address inner_pointer) {
+Code GcSafeCastToCode(Heap* heap, HeapObject object, Address inner_pointer) {
   Code code = Code::unchecked_cast(object);
   DCHECK(!code.is_null());
   DCHECK(heap->GcSafeCodeContains(code, inner_pointer));
@@ -5588,7 +5582,7 @@ Code Heap::GcSafeFindCodeForInnerPointer(Address inner_pointer) {
       continue;
     }
 
-    HeapObject* obj = HeapObject::FromAddress(addr);
+    HeapObject obj = HeapObject::FromAddress(addr);
     int obj_size = GcSafeSizeOfCodeSpaceObject(obj);
     Address next_addr = addr + obj_size;
     if (next_addr > inner_pointer) {
@@ -5606,9 +5600,9 @@ void Heap::WriteBarrierForCodeSlow(Code code) {
   }
 }
 
-void Heap::GenerationalBarrierSlow(HeapObject* object, Address slot,
-                                   HeapObject* value) {
-  Heap* heap = Heap::FromWritableHeapObject(object);
+void Heap::GenerationalBarrierSlow(HeapObject object, Address slot,
+                                   HeapObject value) {
+  Heap* heap = Heap::FromWritableHeapObject(&object);
   heap->store_buffer()->InsertEntry(slot);
 }
 
@@ -5622,7 +5616,7 @@ void Heap::GenerationalBarrierForElementsSlow(Heap* heap, FixedArray array,
 }
 
 void Heap::GenerationalBarrierForCodeSlow(Code host, RelocInfo* rinfo,
-                                          HeapObject* object) {
+                                          HeapObject object) {
   DCHECK(InNewSpace(object));
   Page* source_page = Page::FromAddress(host.ptr());
   RelocInfo::Mode rmode = rinfo->rmode();
@@ -5643,14 +5637,14 @@ void Heap::GenerationalBarrierForCodeSlow(Code host, RelocInfo* rinfo,
                                          static_cast<uint32_t>(offset));
 }
 
-void Heap::MarkingBarrierSlow(HeapObject* object, Address slot,
-                              HeapObject* value) {
-  Heap* heap = Heap::FromWritableHeapObject(object);
+void Heap::MarkingBarrierSlow(HeapObject object, Address slot,
+                              HeapObject value) {
+  Heap* heap = Heap::FromWritableHeapObject(&object);
   heap->incremental_marking()->RecordWriteSlow(object, HeapObjectSlot(slot),
                                                value);
 }
 
-void Heap::MarkingBarrierForElementsSlow(Heap* heap, HeapObject* object) {
+void Heap::MarkingBarrierForElementsSlow(Heap* heap, HeapObject object) {
   if (FLAG_concurrent_marking ||
       heap->incremental_marking()->marking_state()->IsBlack(object)) {
     heap->incremental_marking()->RevisitObject(object);
@@ -5658,15 +5652,15 @@ void Heap::MarkingBarrierForElementsSlow(Heap* heap, HeapObject* object) {
 }
 
 void Heap::MarkingBarrierForCodeSlow(Code host, RelocInfo* rinfo,
-                                     HeapObject* object) {
-  Heap* heap = Heap::FromWritableHeapObject(host);
+                                     HeapObject object) {
+  Heap* heap = Heap::FromWritableHeapObject(&host);
   DCHECK(heap->incremental_marking()->IsMarking());
   heap->incremental_marking()->RecordWriteIntoCode(host, rinfo, object);
 }
 
-void Heap::MarkingBarrierForDescriptorArraySlow(
-    Heap* heap, HeapObject* raw_descriptor_array,
-    int number_of_own_descriptors) {
+void Heap::MarkingBarrierForDescriptorArraySlow(Heap* heap,
+                                                HeapObject raw_descriptor_array,
+                                                int number_of_own_descriptors) {
   DCHECK(heap->incremental_marking()->IsMarking());
   DescriptorArray descriptor_array =
       DescriptorArray::cast(raw_descriptor_array);
@@ -5679,7 +5673,7 @@ void Heap::MarkingBarrierForDescriptorArraySlow(
   }
 }
 
-bool Heap::PageFlagsAreConsistent(HeapObject* object) {
+bool Heap::PageFlagsAreConsistent(HeapObject object) {
   Heap* heap = Heap::FromWritableHeapObject(object);
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
   heap_internals::MemoryChunk* slim_chunk =
@@ -5708,6 +5702,9 @@ static_assert(MemoryChunk::Flag::IN_TO_SPACE ==
 static_assert(MemoryChunk::kFlagsOffset ==
                   heap_internals::MemoryChunk::kFlagsOffset,
               "Flag offset inconsistent");
+static_assert(MemoryChunk::kHeapOffset ==
+                  heap_internals::MemoryChunk::kHeapOffset,
+              "Heap offset inconsistent");
 
 void Heap::SetEmbedderStackStateForNextFinalizaton(
     EmbedderHeapTracer::EmbedderStackState stack_state) {

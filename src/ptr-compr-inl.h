@@ -7,6 +7,7 @@
 
 #if V8_TARGET_ARCH_64_BIT
 
+#include "src/objects/heap-object-inl.h"
 #include "src/ptr-compr.h"
 
 namespace v8 {
@@ -253,6 +254,15 @@ HeapObjectReference CompressedHeapObjectSlot::operator*() const {
 
 void CompressedHeapObjectSlot::store(HeapObjectReference value) const {
   *location() = CompressTagged(value.ptr());
+}
+
+HeapObject CompressedHeapObjectSlot::ToHeapObject() const {
+  DCHECK((*location() & kHeapObjectTagMask) == kHeapObjectTag);
+  return HeapObject::cast(ObjectPtr(*location()));
+}
+
+void CompressedHeapObjectSlot::StoreHeapObject(HeapObject value) const {
+  *location() = value->ptr();
 }
 
 }  // namespace internal

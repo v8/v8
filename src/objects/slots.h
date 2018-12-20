@@ -104,8 +104,6 @@ class FullObjectSlot
   inline explicit FullObjectSlot(ObjectPtr* object);
   explicit FullObjectSlot(Object const* const* ptr)
       : SlotBase(reinterpret_cast<Address>(ptr)) {}
-  explicit FullObjectSlot(HeapObject** ptr)
-      : SlotBase(reinterpret_cast<Address>(ptr)) {}
   template <typename T>
   explicit FullObjectSlot(SlotBase<T, TData, kSlotDataSize> slot)
       : SlotBase(slot.address()) {}
@@ -153,8 +151,6 @@ class FullMaybeObjectSlot
       : SlotBase(reinterpret_cast<Address>(ptr)) {}
   explicit FullMaybeObjectSlot(Object** ptr)
       : SlotBase(reinterpret_cast<Address>(ptr)) {}
-  explicit FullMaybeObjectSlot(HeapObject** ptr)
-      : SlotBase(reinterpret_cast<Address>(ptr)) {}
   template <typename T>
   explicit FullMaybeObjectSlot(SlotBase<T, TData, kSlotDataSize> slot)
       : SlotBase(slot.address()) {}
@@ -183,8 +179,6 @@ class FullHeapObjectSlot
   explicit FullHeapObjectSlot(Address ptr) : SlotBase(ptr) {}
   explicit FullHeapObjectSlot(ObjectPtr* ptr)
       : SlotBase(reinterpret_cast<Address>(ptr)) {}
-  explicit FullHeapObjectSlot(HeapObject** ptr)
-      : SlotBase(reinterpret_cast<Address>(ptr)) {}
   template <typename T>
   explicit FullHeapObjectSlot(SlotBase<T, TData, kSlotDataSize> slot)
       : SlotBase(slot.address()) {}
@@ -192,14 +186,9 @@ class FullHeapObjectSlot
   inline HeapObjectReference operator*() const;
   inline void store(HeapObjectReference value) const;
 
-  HeapObject* ToHeapObject() const {
-    DCHECK((*location() & kHeapObjectTagMask) == kHeapObjectTag);
-    return reinterpret_cast<HeapObject*>(*location());
-  }
+  inline HeapObject ToHeapObject() const;
 
-  void StoreHeapObject(HeapObject* value) const {
-    *reinterpret_cast<HeapObject**>(address()) = value;
-  }
+  inline void StoreHeapObject(HeapObject value) const;
 };
 
 }  // namespace internal

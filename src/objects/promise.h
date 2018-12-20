@@ -28,10 +28,10 @@ class PromiseReactionJobTask : public Microtask {
  public:
   DECL_ACCESSORS(argument, Object)
   DECL_ACCESSORS2(context, Context)
-  DECL_ACCESSORS(handler, HeapObject)
+  DECL_ACCESSORS2(handler, HeapObject)
   // [promise_or_capability]: Either a JSPromise (in case of native promises),
   // a PromiseCapability (general case), or undefined (in case of await).
-  DECL_ACCESSORS(promise_or_capability, HeapObject)
+  DECL_ACCESSORS2(promise_or_capability, HeapObject)
 
 // Layout description.
 #define PROMISE_REACTION_JOB_FIELDS(V)       \
@@ -107,7 +107,7 @@ class PromiseResolveThenableJobTask : public Microtask {
 // Struct to hold the state of a PromiseCapability.
 class PromiseCapability : public Struct {
  public:
-  DECL_ACCESSORS(promise, HeapObject)
+  DECL_ACCESSORS2(promise, HeapObject)
   DECL_ACCESSORS(resolve, Object)
   DECL_ACCESSORS(reject, Object)
 
@@ -152,11 +152,11 @@ class PromiseReaction : public Struct {
   enum Type { kFulfill, kReject };
 
   DECL_ACCESSORS(next, Object)
-  DECL_ACCESSORS(reject_handler, HeapObject)
-  DECL_ACCESSORS(fulfill_handler, HeapObject)
+  DECL_ACCESSORS2(reject_handler, HeapObject)
+  DECL_ACCESSORS2(fulfill_handler, HeapObject)
   // [promise_or_capability]: Either a JSPromise (in case of native promises),
   // a PromiseCapability (general case), or undefined (in case of await).
-  DECL_ACCESSORS(promise_or_capability, HeapObject)
+  DECL_ACCESSORS2(promise_or_capability, HeapObject)
 
 // Layout description.
 #define PROMISE_REACTION_FIELDS(V)           \

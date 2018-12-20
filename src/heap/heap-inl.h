@@ -54,7 +54,7 @@ AllocationSpace AllocationResult::RetrySpace() {
   return static_cast<AllocationSpace>(Smi::ToInt(object_));
 }
 
-HeapObject* AllocationResult::ToObjectChecked() {
+HeapObject AllocationResult::ToObjectChecked() {
   CHECK(!IsRetry());
   return HeapObject::cast(object_);
 }
@@ -179,7 +179,7 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationSpace space,
 
   bool large_object = size_in_bytes > kMaxRegularHeapObjectSize;
 
-  HeapObject* object = nullptr;
+  HeapObject object;
   AllocationResult allocation;
   if (NEW_SPACE == space) {
     if (large_object) {
@@ -243,7 +243,7 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationSpace space,
   return allocation;
 }
 
-void Heap::OnAllocationEvent(HeapObject* object, int size_in_bytes) {
+void Heap::OnAllocationEvent(HeapObject object, int size_in_bytes) {
   for (auto& tracker : allocation_trackers_) {
     tracker->AllocationEvent(object->address(), size_in_bytes);
   }
@@ -269,8 +269,7 @@ void Heap::OnAllocationEvent(HeapObject* object, int size_in_bytes) {
   }
 }
 
-
-void Heap::OnMoveEvent(HeapObject* target, HeapObject* source,
+void Heap::OnMoveEvent(HeapObject target, HeapObject source,
                        int size_in_bytes) {
   HeapProfiler* heap_profiler = isolate_->heap_profiler();
   if (heap_profiler->is_tracking_object_moves()) {
@@ -308,7 +307,7 @@ bool Heap::CanAllocateInReadOnlySpace() {
           !isolate()->initialized_from_snapshot());
 }
 
-void Heap::UpdateAllocationsHash(HeapObject* object) {
+void Heap::UpdateAllocationsHash(HeapObject object) {
   Address object_address = object->address();
   MemoryChunk* memory_chunk = MemoryChunk::FromAddress(object_address);
   AllocationSpace allocation_space = memory_chunk->owner()->identity();
@@ -320,7 +319,6 @@ void Heap::UpdateAllocationsHash(HeapObject* object) {
 
   UpdateAllocationsHash(value);
 }
-
 
 void Heap::UpdateAllocationsHash(uint32_t value) {
   uint16_t c1 = static_cast<uint16_t>(value);
@@ -380,28 +378,13 @@ bool Heap::InNewSpace(Object* object) {
 
 // static
 bool Heap::InNewSpace(MaybeObject object) {
-  HeapObject* heap_object;
+  HeapObject heap_object;
   return object->GetHeapObject(&heap_object) && InNewSpace(heap_object);
 }
 
 // static
-bool Heap::InNewSpace(HeapObject* heap_object) {
+bool Heap::InNewSpace(HeapObject heap_object) {
   // Inlined check from NewSpace::Contains.
-  bool result = MemoryChunk::FromHeapObject(heap_object)->InNewSpace();
-#ifdef DEBUG
-  // If in NEW_SPACE, then check we're either not in the middle of GC or the
-  // object is in to-space.
-  if (result) {
-    // If the object is in NEW_SPACE, then it's not in RO_SPACE so this is safe.
-    Heap* heap = Heap::FromWritableHeapObject(heap_object);
-    DCHECK(heap->gc_state_ != NOT_IN_GC || InToSpace(heap_object));
-  }
-#endif
-  return result;
-}
-
-// static
-bool Heap::InNewSpace(HeapObjectPtr heap_object) {
   bool result = MemoryChunk::FromHeapObject(heap_object)->InNewSpace();
 #ifdef DEBUG
   // If in NEW_SPACE, then check we're either not in the middle of GC or the
@@ -423,12 +406,12 @@ bool Heap::InFromSpace(Object* object) {
 
 // static
 bool Heap::InFromSpace(MaybeObject object) {
-  HeapObject* heap_object;
+  HeapObject heap_object;
   return object->GetHeapObject(&heap_object) && InFromSpace(heap_object);
 }
 
 // static
-bool Heap::InFromSpace(HeapObject* heap_object) {
+bool Heap::InFromSpace(HeapObject heap_object) {
   return MemoryChunk::FromHeapObject(heap_object)
       ->IsFlagSet(Page::IN_FROM_SPACE);
 }
@@ -441,17 +424,12 @@ bool Heap::InToSpace(Object* object) {
 
 // static
 bool Heap::InToSpace(MaybeObject object) {
-  HeapObject* heap_object;
+  HeapObject heap_object;
   return object->GetHeapObject(&heap_object) && InToSpace(heap_object);
 }
 
 // static
-bool Heap::InToSpace(HeapObject* heap_object) {
-  return MemoryChunk::FromHeapObject(heap_object)->IsFlagSet(Page::IN_TO_SPACE);
-}
-
-// static
-bool Heap::InToSpace(HeapObjectPtr heap_object) {
+bool Heap::InToSpace(HeapObject heap_object) {
   return MemoryChunk::FromHeapObject(heap_object)->IsFlagSet(Page::IN_TO_SPACE);
 }
 
@@ -462,7 +440,7 @@ bool Heap::InReadOnlySpace(Object* object) {
 }
 
 // static
-Heap* Heap::FromWritableHeapObject(const HeapObject* obj) {
+Heap* Heap::FromWritableHeapObject(const HeapObject obj) {
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(obj);
   // RO_SPACE can be shared between heaps, so we can't use RO_SPACE objects to
   // find a heap. The exception is when the ReadOnlySpace is writeable, during
@@ -475,16 +453,8 @@ Heap* Heap::FromWritableHeapObject(const HeapObject* obj) {
 }
 
 // static
-Heap* Heap::FromWritableHeapObject(const HeapObjectPtr* obj) {
-  MemoryChunk* chunk = MemoryChunk::FromHeapObject(*obj);
-  // RO_SPACE can be shared between heaps, so we can't use RO_SPACE objects to
-  // find a heap. The exception is when the ReadOnlySpace is writeable, during
-  // bootstrapping, so explicitly allow this case.
-  SLOW_DCHECK(chunk->owner()->identity() != RO_SPACE ||
-              static_cast<ReadOnlySpace*>(chunk->owner())->writable());
-  Heap* heap = chunk->heap();
-  SLOW_DCHECK(heap != nullptr);
-  return heap;
+Heap* Heap::FromWritableHeapObject(const HeapObject* obj) {
+  return FromWritableHeapObject(*obj);
 }
 
 bool Heap::ShouldBePromoted(Address old_address) {
@@ -501,7 +471,7 @@ void Heap::CopyBlock(Address dst, Address src, int byte_size) {
 }
 
 template <Heap::FindMementoMode mode>
-AllocationMemento Heap::FindAllocationMemento(Map map, HeapObject* object) {
+AllocationMemento Heap::FindAllocationMemento(Map map, HeapObject object) {
   Address object_address = object->address();
   Address memento_address = object_address + object->SizeFromMap(map);
   Address last_memento_word_address = memento_address + kTaggedSize;
@@ -509,7 +479,7 @@ AllocationMemento Heap::FindAllocationMemento(Map map, HeapObject* object) {
   if (!Page::OnSamePage(object_address, last_memento_word_address)) {
     return AllocationMemento();
   }
-  HeapObject* candidate = HeapObject::FromAddress(memento_address);
+  HeapObject candidate = HeapObject::FromAddress(memento_address);
   MapWordSlot candidate_map_slot = candidate->map_slot();
   // This fast check may peek at an uninitialized word. However, the slow check
   // below (memento_address == top) ensures that this is safe. Mark the word as
@@ -562,7 +532,7 @@ AllocationMemento Heap::FindAllocationMemento(Map map, HeapObject* object) {
   UNREACHABLE();
 }
 
-void Heap::UpdateAllocationSite(Map map, HeapObject* object,
+void Heap::UpdateAllocationSite(Map map, HeapObject object,
                                 PretenuringFeedbackMap* pretenuring_feedback) {
   DCHECK_NE(pretenuring_feedback, &global_pretenuring_feedback_);
   DCHECK(

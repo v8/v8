@@ -62,7 +62,7 @@ TEST(WeakReferencesBasic) {
     CHECK(code->IsCode());
 
     fv->set_optimized_code_weak_or_smi(HeapObjectReference::Weak(*code));
-    HeapObject* code_heap_object;
+    HeapObject code_heap_object;
     CHECK(fv->optimized_code_weak_or_smi()->GetHeapObjectIfWeak(
         &code_heap_object));
     CHECK_EQ(*code, code_heap_object);
@@ -103,7 +103,7 @@ TEST(WeakReferencesOldToOld) {
   CcTest::CollectAllGarbage();
   CHECK(heap->InOldSpace(*fixed_array));
 
-  HeapObject* heap_object;
+  HeapObject heap_object;
   CHECK(fv->optimized_code_weak_or_smi()->GetHeapObjectIfWeak(&heap_object));
   CHECK_EQ(heap_object, *fixed_array);
 }
@@ -128,7 +128,7 @@ TEST(WeakReferencesOldToNew) {
 
   CcTest::CollectAllGarbage();
 
-  HeapObject* heap_object;
+  HeapObject heap_object;
   CHECK(fv->optimized_code_weak_or_smi()->GetHeapObjectIfWeak(&heap_object));
   CHECK_EQ(heap_object, *fixed_array);
 }
@@ -153,7 +153,7 @@ TEST(WeakReferencesOldToNewScavenged) {
 
   CcTest::CollectGarbage(NEW_SPACE);
 
-  HeapObject* heap_object;
+  HeapObject heap_object;
   CHECK(fv->optimized_code_weak_or_smi()->GetHeapObjectIfWeak(&heap_object));
   CHECK_EQ(heap_object, *fixed_array);
 }
@@ -278,7 +278,7 @@ TEST(ObjectWithWeakReferencePromoted) {
   CHECK(heap->InOldSpace(*fv));
   CHECK(heap->InOldSpace(*fixed_array));
 
-  HeapObject* heap_object;
+  HeapObject heap_object;
   CHECK(fv->optimized_code_weak_or_smi()->GetHeapObjectIfWeak(&heap_object));
   CHECK_EQ(heap_object, *fixed_array);
 }
@@ -377,7 +377,7 @@ TEST(WeakArraysBasic) {
   CHECK(Heap::InNewSpace(*array));
 
   for (int i = 0; i < length; ++i) {
-    HeapObject* heap_object;
+    HeapObject heap_object;
     CHECK(array->Get(i)->GetHeapObjectIfStrong(&heap_object));
     CHECK_EQ(heap_object, ReadOnlyRoots(heap).undefined_value());
   }
@@ -409,7 +409,7 @@ TEST(WeakArraysBasic) {
   // TODO(marja): update this when/if we do handle weak references in the new
   // space.
   CcTest::CollectGarbage(NEW_SPACE);
-  HeapObject* heap_object;
+  HeapObject heap_object;
   CHECK(array->Get(0)->GetHeapObjectIfWeak(&heap_object));
   CHECK_EQ(Smi::cast(FixedArray::cast(heap_object)->get(0))->value(), 2016);
   CHECK(array->Get(1)->GetHeapObjectIfWeak(&heap_object));
@@ -503,7 +503,7 @@ TEST(WeakArrayListBasic) {
   // TODO(marja): update this when/if we do handle weak references in the new
   // space.
   CcTest::CollectGarbage(NEW_SPACE);
-  HeapObject* heap_object;
+  HeapObject heap_object;
   CHECK_EQ(array->length(), 8);
   CHECK(array->Get(0)->GetHeapObjectIfWeak(&heap_object));
   CHECK_EQ(Smi::cast(FixedArray::cast(heap_object)->get(0))->value(), 2016);
@@ -712,9 +712,9 @@ TEST(PrototypeUsersBasic) {
 
 namespace {
 
-HeapObject* saved_heap_object = nullptr;
+HeapObject saved_heap_object;
 
-static void TestCompactCallback(HeapObject* value, int old_index,
+static void TestCompactCallback(HeapObject value, int old_index,
                                 int new_index) {
   saved_heap_object = value;
   CHECK_EQ(old_index, 2);

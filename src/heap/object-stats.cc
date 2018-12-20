@@ -39,7 +39,7 @@ class FieldStatsCollector : public ObjectVisitor {
         unboxed_double_fields_count_(unboxed_double_fields_count),
         raw_fields_count_(raw_fields_count) {}
 
-  void RecordStats(HeapObject* host) {
+  void RecordStats(HeapObject host) {
     size_t old_pointer_fields_count = *tagged_fields_count_;
     host->Iterate(this);
     size_t tagged_fields_count_in_object =
@@ -68,11 +68,11 @@ class FieldStatsCollector : public ObjectVisitor {
     *raw_fields_count_ += raw_fields_count_in_object;
   }
 
-  void VisitPointers(HeapObject* host, ObjectSlot start,
+  void VisitPointers(HeapObject host, ObjectSlot start,
                      ObjectSlot end) override {
     *tagged_fields_count_ += (end - start);
   }
-  void VisitPointers(HeapObject* host, MaybeObjectSlot start,
+  void VisitPointers(HeapObject host, MaybeObjectSlot start,
                      MaybeObjectSlot end) override {
     *tagged_fields_count_ += (end - start);
   }
@@ -342,7 +342,7 @@ class ObjectStatsCollectorImpl {
   void CollectGlobalStatistics();
 
   enum class CollectFieldStats { kNo, kYes };
-  void CollectStatistics(HeapObject* obj, Phase phase,
+  void CollectStatistics(HeapObject obj, Phase phase,
                          CollectFieldStats collect_field_stats);
 
  private:
@@ -353,7 +353,7 @@ class ObjectStatsCollectorImpl {
 
   Isolate* isolate() { return heap_->isolate(); }
 
-  bool RecordVirtualObjectStats(HeapObject* parent, HeapObject* obj,
+  bool RecordVirtualObjectStats(HeapObject parent, HeapObject obj,
                                 ObjectStats::VirtualInstanceType type,
                                 size_t size, size_t over_allocated,
                                 CowMode check_cow_array = kCheckCow);
@@ -361,28 +361,28 @@ class ObjectStatsCollectorImpl {
                                    ObjectStats::VirtualInstanceType type,
                                    size_t size);
   // Gets size from |ob| and assumes no over allocating.
-  bool RecordSimpleVirtualObjectStats(HeapObject* parent, HeapObject* obj,
+  bool RecordSimpleVirtualObjectStats(HeapObject parent, HeapObject obj,
                                       ObjectStats::VirtualInstanceType type);
   // For HashTable it is possible to compute over allocated memory.
-  void RecordHashTableVirtualObjectStats(HeapObject* parent,
+  void RecordHashTableVirtualObjectStats(HeapObject parent,
                                          FixedArray hash_table,
                                          ObjectStats::VirtualInstanceType type);
 
-  bool SameLiveness(HeapObject* obj1, HeapObject* obj2);
+  bool SameLiveness(HeapObject obj1, HeapObject obj2);
   bool CanRecordFixedArray(FixedArrayBase array);
   bool IsCowArray(FixedArrayBase array);
 
   // Blacklist for objects that should not be recorded using
   // VirtualObjectStats and RecordSimpleVirtualObjectStats. For recording those
   // objects dispatch to the low level ObjectStats::RecordObjectStats manually.
-  bool ShouldRecordObject(HeapObject* object, CowMode check_cow_array);
+  bool ShouldRecordObject(HeapObject object, CowMode check_cow_array);
 
-  void RecordObjectStats(HeapObject* obj, InstanceType type, size_t size);
+  void RecordObjectStats(HeapObject obj, InstanceType type, size_t size);
 
   // Specific recursion into constant pool or embedded code objects. Records
   // FixedArrays and Tuple2.
   void RecordVirtualObjectsForConstantPoolOrEmbeddedObjects(
-      HeapObject* parent, HeapObject* object,
+      HeapObject parent, HeapObject object,
       ObjectStats::VirtualInstanceType type);
 
   // Details.
@@ -407,7 +407,7 @@ class ObjectStatsCollectorImpl {
   Heap* heap_;
   ObjectStats* stats_;
   MarkCompactCollector::NonAtomicMarkingState* marking_state_;
-  std::unordered_set<HeapObject*> virtual_objects_;
+  std::unordered_set<HeapObject, HeapObject::Hasher> virtual_objects_;
   std::unordered_set<Address> external_resources_;
   FieldStatsCollector field_stats_collector_;
 };
@@ -422,7 +422,7 @@ ObjectStatsCollectorImpl::ObjectStatsCollectorImpl(Heap* heap,
           &stats->tagged_fields_count_, &stats->embedder_fields_count_,
           &stats->unboxed_double_fields_count_, &stats->raw_fields_count_) {}
 
-bool ObjectStatsCollectorImpl::ShouldRecordObject(HeapObject* obj,
+bool ObjectStatsCollectorImpl::ShouldRecordObject(HeapObject obj,
                                                   CowMode check_cow_array) {
   if (obj->IsFixedArrayExact()) {
     FixedArray fixed_array = FixedArray::cast(obj);
@@ -434,7 +434,7 @@ bool ObjectStatsCollectorImpl::ShouldRecordObject(HeapObject* obj,
 }
 
 void ObjectStatsCollectorImpl::RecordHashTableVirtualObjectStats(
-    HeapObject* parent, FixedArray hash_table,
+    HeapObject parent, FixedArray hash_table,
     ObjectStats::VirtualInstanceType type) {
   CHECK(hash_table->IsHashTable());
   // TODO(mlippautz): Implement over allocation for hash tables.
@@ -443,14 +443,13 @@ void ObjectStatsCollectorImpl::RecordHashTableVirtualObjectStats(
 }
 
 bool ObjectStatsCollectorImpl::RecordSimpleVirtualObjectStats(
-    HeapObject* parent, HeapObject* obj,
-    ObjectStats::VirtualInstanceType type) {
+    HeapObject parent, HeapObject obj, ObjectStats::VirtualInstanceType type) {
   return RecordVirtualObjectStats(parent, obj, type, obj->Size(),
                                   ObjectStats::kNoOverAllocation, kCheckCow);
 }
 
 bool ObjectStatsCollectorImpl::RecordVirtualObjectStats(
-    HeapObject* parent, HeapObject* obj, ObjectStats::VirtualInstanceType type,
+    HeapObject parent, HeapObject obj, ObjectStats::VirtualInstanceType type,
     size_t size, size_t over_allocated, CowMode check_cow_array) {
   if (!SameLiveness(parent, obj) || !ShouldRecordObject(obj, check_cow_array)) {
     return false;
@@ -638,7 +637,7 @@ void ObjectStatsCollectorImpl::RecordVirtualFeedbackVectorDetails(
       // Log the monomorphic/polymorphic helper objects that this slot owns.
       for (int i = 0; i < it.entry_size(); i++) {
         MaybeObject raw_object = vector->get(slot.ToInt() + i);
-        HeapObject* object;
+        HeapObject object;
         if (raw_object->GetHeapObject(&object)) {
           if (object->IsCell() || object->IsWeakFixedArray()) {
             RecordSimpleVirtualObjectStats(
@@ -655,14 +654,14 @@ void ObjectStatsCollectorImpl::RecordVirtualFeedbackVectorDetails(
 void ObjectStatsCollectorImpl::RecordVirtualFixedArrayDetails(
     FixedArray array) {
   if (IsCowArray(array)) {
-    RecordVirtualObjectStats(nullptr, array, ObjectStats::COW_ARRAY_TYPE,
+    RecordVirtualObjectStats(HeapObject(), array, ObjectStats::COW_ARRAY_TYPE,
                              array->Size(), ObjectStats::kNoOverAllocation,
                              kIgnoreCow);
   }
 }
 
 void ObjectStatsCollectorImpl::CollectStatistics(
-    HeapObject* obj, Phase phase, CollectFieldStats collect_field_stats) {
+    HeapObject obj, Phase phase, CollectFieldStats collect_field_stats) {
   Map map = obj->map();
   switch (phase) {
     case kPhase1:
@@ -725,30 +724,31 @@ void ObjectStatsCollectorImpl::CollectGlobalStatistics() {
   }
 
   // FixedArray.
-  RecordSimpleVirtualObjectStats(nullptr, heap_->serialized_objects(),
+  RecordSimpleVirtualObjectStats(HeapObject(), heap_->serialized_objects(),
                                  ObjectStats::SERIALIZED_OBJECTS_TYPE);
-  RecordSimpleVirtualObjectStats(nullptr, heap_->number_string_cache(),
+  RecordSimpleVirtualObjectStats(HeapObject(), heap_->number_string_cache(),
                                  ObjectStats::NUMBER_STRING_CACHE_TYPE);
   RecordSimpleVirtualObjectStats(
-      nullptr, heap_->single_character_string_cache(),
+      HeapObject(), heap_->single_character_string_cache(),
       ObjectStats::SINGLE_CHARACTER_STRING_CACHE_TYPE);
-  RecordSimpleVirtualObjectStats(nullptr, heap_->string_split_cache(),
+  RecordSimpleVirtualObjectStats(HeapObject(), heap_->string_split_cache(),
                                  ObjectStats::STRING_SPLIT_CACHE_TYPE);
-  RecordSimpleVirtualObjectStats(nullptr, heap_->regexp_multiple_cache(),
+  RecordSimpleVirtualObjectStats(HeapObject(), heap_->regexp_multiple_cache(),
                                  ObjectStats::REGEXP_MULTIPLE_CACHE_TYPE);
-  RecordSimpleVirtualObjectStats(nullptr, heap_->retained_maps(),
+  RecordSimpleVirtualObjectStats(HeapObject(), heap_->retained_maps(),
                                  ObjectStats::RETAINED_MAPS_TYPE);
 
   // WeakArrayList.
   RecordSimpleVirtualObjectStats(
-      nullptr, WeakArrayList::cast(heap_->noscript_shared_function_infos()),
+      HeapObject(),
+      WeakArrayList::cast(heap_->noscript_shared_function_infos()),
       ObjectStats::NOSCRIPT_SHARED_FUNCTION_INFOS_TYPE);
-  RecordSimpleVirtualObjectStats(nullptr,
+  RecordSimpleVirtualObjectStats(HeapObject(),
                                  WeakArrayList::cast(heap_->script_list()),
                                  ObjectStats::SCRIPT_LIST_TYPE);
 }
 
-void ObjectStatsCollectorImpl::RecordObjectStats(HeapObject* obj,
+void ObjectStatsCollectorImpl::RecordObjectStats(HeapObject obj,
                                                  InstanceType type,
                                                  size_t size) {
   if (virtual_objects_.find(obj) == virtual_objects_.end()) {
@@ -768,9 +768,8 @@ bool ObjectStatsCollectorImpl::IsCowArray(FixedArrayBase array) {
   return array->map() == ReadOnlyRoots(heap_).fixed_cow_array_map();
 }
 
-bool ObjectStatsCollectorImpl::SameLiveness(HeapObject* obj1,
-                                            HeapObject* obj2) {
-  return obj1 == nullptr || obj2 == nullptr ||
+bool ObjectStatsCollectorImpl::SameLiveness(HeapObject obj1, HeapObject obj2) {
+  return obj1.is_null() || obj2.is_null() ||
          marking_state_->Color(obj1) == marking_state_->Color(obj2);
 }
 
@@ -849,7 +848,7 @@ void ObjectStatsCollectorImpl::RecordVirtualSharedFunctionInfoDetails(
   // Uncompiled SharedFunctionInfo gets its own category.
   if (!info->is_compiled()) {
     RecordSimpleVirtualObjectStats(
-        nullptr, info, ObjectStats::UNCOMPILED_SHARED_FUNCTION_INFO_TYPE);
+        HeapObject(), info, ObjectStats::UNCOMPILED_SHARED_FUNCTION_INFO_TYPE);
   }
 }
 
@@ -857,7 +856,7 @@ void ObjectStatsCollectorImpl::RecordVirtualJSFunctionDetails(
     JSFunction function) {
   // Uncompiled JSFunctions get their own category.
   if (!function->is_compiled()) {
-    RecordSimpleVirtualObjectStats(nullptr, function,
+    RecordSimpleVirtualObjectStats(HeapObject(), function,
                                    ObjectStats::UNCOMPILED_JS_FUNCTION_TYPE);
   }
 }
@@ -870,7 +869,7 @@ void ObjectStatsCollectorImpl::RecordVirtualArrayBoilerplateDescription(
 
 void ObjectStatsCollectorImpl::
     RecordVirtualObjectsForConstantPoolOrEmbeddedObjects(
-        HeapObject* parent, HeapObject* object,
+        HeapObject parent, HeapObject object,
         ObjectStats::VirtualInstanceType type) {
   if (!RecordSimpleVirtualObjectStats(parent, object, type)) return;
   if (object->IsFixedArrayExact()) {
@@ -926,7 +925,7 @@ ObjectStats::VirtualInstanceType CodeKindToVirtualInstanceType(
 }  // namespace
 
 void ObjectStatsCollectorImpl::RecordVirtualCodeDetails(Code code) {
-  RecordSimpleVirtualObjectStats(nullptr, code,
+  RecordSimpleVirtualObjectStats(HeapObject(), code,
                                  CodeKindToVirtualInstanceType(code->kind()));
   RecordSimpleVirtualObjectStats(code, code->deoptimization_data(),
                                  ObjectStats::DEOPTIMIZATION_DATA_TYPE);
@@ -972,7 +971,7 @@ void ObjectStatsCollectorImpl::RecordVirtualContext(Context context) {
   } else if (context->IsFunctionContext()) {
     RecordObjectStats(context, FUNCTION_CONTEXT_TYPE, context->Size());
   } else {
-    RecordSimpleVirtualObjectStats(nullptr, context,
+    RecordSimpleVirtualObjectStats(HeapObject(), context,
                                    ObjectStats::OTHER_CONTEXT_TYPE);
   }
 }
@@ -988,7 +987,7 @@ class ObjectStatsVisitor {
             heap->mark_compact_collector()->non_atomic_marking_state()),
         phase_(phase) {}
 
-  bool Visit(HeapObject* obj, int size) {
+  bool Visit(HeapObject obj, int size) {
     if (marking_state_->IsBlack(obj)) {
       live_collector_->CollectStatistics(
           obj, phase_, ObjectStatsCollectorImpl::CollectFieldStats::kYes);
@@ -1011,11 +1010,11 @@ namespace {
 
 void IterateHeap(Heap* heap, ObjectStatsVisitor* visitor) {
   SpaceIterator space_it(heap);
-  HeapObject* obj = nullptr;
+  HeapObject obj;
   while (space_it.has_next()) {
     std::unique_ptr<ObjectIterator> it(space_it.next()->GetObjectIterator());
     ObjectIterator* obj_it = it.get();
-    while ((obj = obj_it->Next()) != nullptr) {
+    for (obj = obj_it->Next(); !obj.is_null(); obj = obj_it->Next()) {
       visitor->Visit(obj, obj->Size());
     }
   }

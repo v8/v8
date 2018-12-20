@@ -216,7 +216,7 @@ class RootVisitor;
   V(HeapNumber, minus_zero_value, MinusZeroValue)                              \
   V(HeapNumber, minus_infinity_value, MinusInfinityValue)                      \
   /* Marker for self-references during code-generation */                      \
-  V(HeapObject*, self_reference_marker, SelfReferenceMarker)                   \
+  V(HeapObject, self_reference_marker, SelfReferenceMarker)                    \
   /* Canonical trampoline RelocInfo */                                         \
   V(ByteArray, off_heap_trampoline_relocation_info,                            \
     OffHeapTrampolineRelocationInfo)                                           \
@@ -282,12 +282,12 @@ class RootVisitor;
   V(FixedArray, serialized_global_proxy_sizes, SerializedGlobalProxySizes) \
   V(TemplateList, message_listeners, MessageListeners)                     \
   /* Support for async stack traces */                                     \
-  V(HeapObject*, current_microtask, CurrentMicrotask)                      \
+  V(HeapObject, current_microtask, CurrentMicrotask)                       \
   /* JSWeakFactory objects which need cleanup */                           \
   V(Object*, dirty_js_weak_factories, DirtyJSWeakFactories)                \
   /* KeepDuringJob set for JS WeakRefs */                                  \
-  V(HeapObject*, weak_refs_keep_during_job, WeakRefsKeepDuringJob)         \
-  V(HeapObject*, interpreter_entry_trampoline_for_profiling,               \
+  V(HeapObject, weak_refs_keep_during_job, WeakRefsKeepDuringJob)          \
+  V(HeapObject, interpreter_entry_trampoline_for_profiling,                \
     InterpreterEntryTrampolineForProfiling)
 
 // Entries in this list are limited to Smis and are not visited during GC.

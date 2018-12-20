@@ -169,20 +169,16 @@ struct MachineTypeOf<Smi> {
   static constexpr MachineType value = MachineType::TaggedSigned();
 };
 template <class HeapObjectSubtype>
-struct MachineTypeOf<
-    HeapObjectSubtype,
-    typename std::enable_if<
-        std::is_base_of<HeapObject, HeapObjectSubtype>::value ||
-        std::is_base_of<HeapObjectPtr, HeapObjectSubtype>::value>::type> {
+struct MachineTypeOf<HeapObjectSubtype,
+                     typename std::enable_if<std::is_base_of<
+                         HeapObject, HeapObjectSubtype>::value>::type> {
   static constexpr MachineType value = MachineType::TaggedPointer();
 };
 
 template <class HeapObjectSubtype>
 constexpr MachineType MachineTypeOf<
-    HeapObjectSubtype,
-    typename std::enable_if<
-        std::is_base_of<HeapObject, HeapObjectSubtype>::value ||
-        std::is_base_of<HeapObjectPtr, HeapObjectSubtype>::value>::type>::value;
+    HeapObjectSubtype, typename std::enable_if<std::is_base_of<
+                           HeapObject, HeapObjectSubtype>::value>::type>::value;
 
 template <class Type, class Enable = void>
 struct MachineRepresentationOf {
@@ -363,15 +359,15 @@ typedef ZoneVector<CodeAssemblerVariable*> CodeAssemblerVariableList;
 
 typedef std::function<void()> CodeAssemblerCallback;
 
-// TODO(3770): The HeapObject/HeapObjectPtr dance is temporary (while the
+// TODO(3770): The Object/HeapObject dance is temporary (while the
 // incremental transition is in progress, we want to pretend that subclasses
-// of HeapObjectPtr are also subclasses of Object/HeapObject); it can be
+// of HeapObject are also subclasses of Object); it can be
 // removed when the migration is complete.
 template <class T, class U>
 struct is_subtype {
-  static const bool value = std::is_base_of<U, T>::value ||
-                            (std::is_base_of<U, HeapObject>::value &&
-                             std::is_base_of<HeapObjectPtr, T>::value);
+  static const bool value =
+      std::is_base_of<U, T>::value ||
+      (std::is_same<U, Object>::value && std::is_base_of<HeapObject, T>::value);
 };
 // TODO(3770): Temporary; remove after migration.
 template <>

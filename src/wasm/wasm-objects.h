@@ -512,7 +512,7 @@ class WasmExceptionObject : public JSObject {
   DECL_CAST2(WasmExceptionObject)
 
   DECL_ACCESSORS2(serialized_signature, PodArray<wasm::ValueType>)
-  DECL_ACCESSORS(exception_tag, HeapObject)
+  DECL_ACCESSORS2(exception_tag, HeapObject)
 
 // Layout description.
 #define WASM_EXCEPTION_OBJECT_FIELDS(V)      \

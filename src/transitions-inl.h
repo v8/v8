@@ -153,7 +153,7 @@ void TransitionArray::SetRawTarget(int transition_number, MaybeObject value) {
 bool TransitionArray::GetTargetIfExists(int transition_number, Isolate* isolate,
                                         Map* target) {
   MaybeObject raw = GetRawTarget(transition_number);
-  HeapObject* heap_object;
+  HeapObject heap_object;
   if (raw->GetHeapObjectIfStrong(&heap_object) &&
       heap_object->IsUndefined(isolate)) {
     return false;

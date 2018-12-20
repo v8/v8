@@ -147,7 +147,7 @@ class FeedbackMetadata;
 //  - optimized code cell (weak cell or Smi marker)
 // followed by an array of feedback slots, of length determined by the feedback
 // metadata.
-class FeedbackVector : public HeapObjectPtr {
+class FeedbackVector : public HeapObject {
  public:
   NEVER_READ_ONLY_SPACE
 
@@ -306,7 +306,7 @@ class FeedbackVector : public HeapObjectPtr {
   static void AddToVectorsForProfilingTools(Isolate* isolate,
                                             Handle<FeedbackVector> vector);
 
-  OBJECT_CONSTRUCTORS(FeedbackVector, HeapObjectPtr);
+  OBJECT_CONSTRUCTORS(FeedbackVector, HeapObject);
 };
 
 class V8_EXPORT_PRIVATE FeedbackVectorSpec {
@@ -451,7 +451,7 @@ class SharedFeedbackSlot {
 // of int32 data. The length is never stored - it is always calculated from
 // slot_count. All instances are created through the static New function, and
 // the number of slots is static once an instance is created.
-class FeedbackMetadata : public HeapObjectPtr {
+class FeedbackMetadata : public HeapObject {
  public:
   DECL_CAST2(FeedbackMetadata)
 
@@ -517,7 +517,7 @@ class FeedbackMetadata : public HeapObjectPtr {
                          kInt32Size * kBitsPerByte, uint32_t>
       VectorICComputer;
 
-  OBJECT_CONSTRUCTORS(FeedbackMetadata, HeapObjectPtr);
+  OBJECT_CONSTRUCTORS(FeedbackMetadata, HeapObject);
 };
 
 // Verify that an empty hash field looks like a tagged object, but can't

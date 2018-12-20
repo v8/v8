@@ -56,7 +56,7 @@ bool JSGeneratorObject::is_executing() const {
 
 ACCESSORS2(JSAsyncFunctionObject, promise, JSPromise, kPromiseOffset)
 
-ACCESSORS(JSAsyncGeneratorObject, queue, HeapObject, kQueueOffset)
+ACCESSORS2(JSAsyncGeneratorObject, queue, HeapObject, kQueueOffset)
 SMI_ACCESSORS(JSAsyncGeneratorObject, is_awaiting, kIsAwaitingOffset)
 
 }  // namespace internal

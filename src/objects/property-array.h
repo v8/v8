@@ -13,7 +13,7 @@
 namespace v8 {
 namespace internal {
 
-class PropertyArray : public HeapObjectPtr {
+class PropertyArray : public HeapObject {
  public:
   // [length]: length of the array.
   inline int length() const;
@@ -67,7 +67,7 @@ class PropertyArray : public HeapObjectPtr {
 
   static const int kNoHashSentinel = 0;
 
-  OBJECT_CONSTRUCTORS(PropertyArray, HeapObjectPtr);
+  OBJECT_CONSTRUCTORS(PropertyArray, HeapObject);
 };
 
 }  // namespace internal

@@ -27,7 +27,7 @@ bool HandleBase::IsDereferenceAllowed(DereferenceCheckMode mode) const {
   DCHECK_NOT_NULL(location_);
   Object* object = reinterpret_cast<Object*>(*location_);
   if (object->IsSmi()) return true;
-  HeapObject* heap_object = HeapObject::cast(object);
+  HeapObject heap_object = HeapObject::cast(object);
   Isolate* isolate;
   if (!Isolate::FromWritableHeapObject(heap_object, &isolate)) return true;
   RootIndex root_index;

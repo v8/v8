@@ -18,8 +18,7 @@ namespace v8 {
 namespace internal {
 
 template <typename ConcreteState, AccessMode access_mode>
-bool MarkingStateBase<ConcreteState, access_mode>::GreyToBlack(
-    HeapObject* obj) {
+bool MarkingStateBase<ConcreteState, access_mode>::GreyToBlack(HeapObject obj) {
   MemoryChunk* p = MemoryChunk::FromAddress(obj->address());
   MarkBit markbit = MarkBitFrom(p, obj->address());
   if (!Marking::GreyToBlack<access_mode>(markbit)) return false;
@@ -28,14 +27,13 @@ bool MarkingStateBase<ConcreteState, access_mode>::GreyToBlack(
 }
 
 template <typename ConcreteState, AccessMode access_mode>
-bool MarkingStateBase<ConcreteState, access_mode>::WhiteToGrey(
-    HeapObject* obj) {
+bool MarkingStateBase<ConcreteState, access_mode>::WhiteToGrey(HeapObject obj) {
   return Marking::WhiteToGrey<access_mode>(MarkBitFrom(obj));
 }
 
 template <typename ConcreteState, AccessMode access_mode>
 bool MarkingStateBase<ConcreteState, access_mode>::WhiteToBlack(
-    HeapObject* obj) {
+    HeapObject obj) {
   return WhiteToGrey(obj) && GreyToBlack(obj);
 }
 
@@ -154,7 +152,7 @@ int MarkingVisitor<fixed_array_mode, retaining_path_mode, MarkingState>::
   for (int i = 0; i < table->Capacity(); i++) {
     ObjectSlot key_slot =
         table->RawFieldOfElementAt(EphemeronHashTable::EntryToIndex(i));
-    HeapObject* key = HeapObject::cast(table->KeyAt(i));
+    HeapObject key = HeapObject::cast(table->KeyAt(i));
     collector_->RecordSlot(table, key_slot, key);
 
     ObjectSlot value_slot =
@@ -167,7 +165,7 @@ int MarkingVisitor<fixed_array_mode, retaining_path_mode, MarkingState>::
       Object* value_obj = *value_slot;
 
       if (value_obj->IsHeapObject()) {
-        HeapObject* value = HeapObject::cast(value_obj);
+        HeapObject value = HeapObject::cast(value_obj);
         collector_->RecordSlot(table, value_slot, value);
 
         // Revisit ephemerons with both key and value unreachable at end
@@ -215,7 +213,7 @@ template <FixedArrayVisitationMode fixed_array_mode,
 int MarkingVisitor<fixed_array_mode, retaining_path_mode,
                    MarkingState>::VisitJSWeakRef(Map map, JSWeakRef weak_ref) {
   if (weak_ref->target()->IsHeapObject()) {
-    HeapObject* target = HeapObject::cast(weak_ref->target());
+    HeapObject target = HeapObject::cast(weak_ref->target());
     if (marking_state()->IsBlackOrGrey(target)) {
       // Record the slot inside the JSWeakRef, since the IterateBody below
       // won't visit it.
@@ -239,7 +237,7 @@ int MarkingVisitor<fixed_array_mode, retaining_path_mode,
                    MarkingState>::VisitJSWeakCell(Map map,
                                                   JSWeakCell weak_cell) {
   if (weak_cell->target()->IsHeapObject()) {
-    HeapObject* target = HeapObject::cast(weak_cell->target());
+    HeapObject target = HeapObject::cast(weak_cell->target());
     if (marking_state()->IsBlackOrGrey(target)) {
       // Record the slot inside the JSWeakCell, since the IterateBody below
       // won't visit it.
@@ -263,13 +261,13 @@ template <FixedArrayVisitationMode fixed_array_mode,
 // method template arguments
 template <typename TSlot>
 void MarkingVisitor<fixed_array_mode, retaining_path_mode,
-                    MarkingState>::VisitPointerImpl(HeapObject* host,
+                    MarkingState>::VisitPointerImpl(HeapObject host,
                                                     TSlot slot) {
   static_assert(std::is_same<TSlot, ObjectSlot>::value ||
                     std::is_same<TSlot, MaybeObjectSlot>::value,
                 "Only ObjectSlot and MaybeObjectSlot are expected here");
   typename TSlot::TObject object = slot.load();
-  HeapObject* target_object;
+  HeapObject target_object;
   if (object.GetHeapObjectIfStrong(&target_object)) {
     collector_->RecordSlot(host, HeapObjectSlot(slot), target_object);
     MarkObject(host, target_object);
@@ -293,7 +291,7 @@ template <FixedArrayVisitationMode fixed_array_mode,
 // method template arguments
 template <typename TSlot>
 void MarkingVisitor<fixed_array_mode, retaining_path_mode,
-                    MarkingState>::VisitPointersImpl(HeapObject* host,
+                    MarkingState>::VisitPointersImpl(HeapObject host,
                                                      TSlot start, TSlot end) {
   for (TSlot p = start; p < end; ++p) {
     VisitPointer(host, p);
@@ -306,7 +304,7 @@ void MarkingVisitor<fixed_array_mode, retaining_path_mode,
                     MarkingState>::VisitEmbeddedPointer(Code host,
                                                         RelocInfo* rinfo) {
   DCHECK(rinfo->rmode() == RelocInfo::EMBEDDED_OBJECT);
-  HeapObject* object = HeapObject::cast(rinfo->target_object());
+  HeapObject object = HeapObject::cast(rinfo->target_object());
   collector_->RecordRelocSlot(host, rinfo, object);
   if (!marking_state()->IsBlackOrGrey(object)) {
     if (host->IsWeakObject(object)) {
@@ -331,8 +329,8 @@ void MarkingVisitor<fixed_array_mode, retaining_path_mode,
 template <FixedArrayVisitationMode fixed_array_mode,
           TraceRetainingPathMode retaining_path_mode, typename MarkingState>
 bool MarkingVisitor<fixed_array_mode, retaining_path_mode,
-                    MarkingState>::MarkObjectWithoutPush(HeapObject* host,
-                                                         HeapObject* object) {
+                    MarkingState>::MarkObjectWithoutPush(HeapObject host,
+                                                         HeapObject object) {
   if (marking_state()->WhiteToBlack(object)) {
     if (retaining_path_mode == TraceRetainingPathMode::kEnabled &&
         V8_UNLIKELY(FLAG_track_retaining_path)) {
@@ -346,8 +344,8 @@ bool MarkingVisitor<fixed_array_mode, retaining_path_mode,
 template <FixedArrayVisitationMode fixed_array_mode,
           TraceRetainingPathMode retaining_path_mode, typename MarkingState>
 void MarkingVisitor<fixed_array_mode, retaining_path_mode,
-                    MarkingState>::MarkObject(HeapObject* host,
-                                              HeapObject* object) {
+                    MarkingState>::MarkObject(HeapObject host,
+                                              HeapObject object) {
   if (marking_state()->WhiteToGrey(object)) {
     marking_worklist()->Push(object);
     if (retaining_path_mode == TraceRetainingPathMode::kEnabled &&
@@ -444,7 +442,7 @@ void MarkingVisitor<fixed_array_mode, retaining_path_mode, MarkingState>::
   }
 }
 
-void MarkCompactCollector::MarkObject(HeapObject* host, HeapObject* obj) {
+void MarkCompactCollector::MarkObject(HeapObject host, HeapObject obj) {
   if (marking_state()->WhiteToGrey(obj)) {
     marking_worklist()->Push(obj);
     if (V8_UNLIKELY(FLAG_track_retaining_path)) {
@@ -453,7 +451,7 @@ void MarkCompactCollector::MarkObject(HeapObject* host, HeapObject* obj) {
   }
 }
 
-void MarkCompactCollector::MarkRootObject(Root root, HeapObject* obj) {
+void MarkCompactCollector::MarkRootObject(Root root, HeapObject obj) {
   if (marking_state()->WhiteToGrey(obj)) {
     marking_worklist()->Push(obj);
     if (V8_UNLIKELY(FLAG_track_retaining_path)) {
@@ -464,7 +462,7 @@ void MarkCompactCollector::MarkRootObject(Root root, HeapObject* obj) {
 
 #ifdef ENABLE_MINOR_MC
 
-void MinorMarkCompactCollector::MarkRootObject(HeapObject* obj) {
+void MinorMarkCompactCollector::MarkRootObject(HeapObject obj) {
   if (Heap::InNewSpace(obj) && non_atomic_marking_state_.WhiteToGrey(obj)) {
     worklist_->Push(kMainThread, obj);
   }
@@ -472,7 +470,7 @@ void MinorMarkCompactCollector::MarkRootObject(HeapObject* obj) {
 
 #endif
 
-void MarkCompactCollector::MarkExternallyReferencedObject(HeapObject* obj) {
+void MarkCompactCollector::MarkExternallyReferencedObject(HeapObject obj) {
   if (marking_state()->WhiteToGrey(obj)) {
     marking_worklist()->Push(obj);
     if (V8_UNLIKELY(FLAG_track_retaining_path)) {
@@ -481,15 +479,15 @@ void MarkCompactCollector::MarkExternallyReferencedObject(HeapObject* obj) {
   }
 }
 
-void MarkCompactCollector::RecordSlot(HeapObject* object, ObjectSlot slot,
-                                      HeapObject* target) {
+void MarkCompactCollector::RecordSlot(HeapObject object, ObjectSlot slot,
+                                      HeapObject target) {
   RecordSlot(object, HeapObjectSlot(slot), target);
 }
 
-void MarkCompactCollector::RecordSlot(HeapObject* object, HeapObjectSlot slot,
-                                      HeapObject* target) {
-  Page* target_page = Page::FromAddress(reinterpret_cast<Address>(target));
-  Page* source_page = Page::FromAddress(reinterpret_cast<Address>(object));
+void MarkCompactCollector::RecordSlot(HeapObject object, HeapObjectSlot slot,
+                                      HeapObject target) {
+  Page* target_page = Page::FromHeapObject(target);
+  Page* source_page = Page::FromHeapObject(object);
   if (target_page->IsEvacuationCandidate<AccessMode::ATOMIC>() &&
       !source_page->ShouldSkipEvacuationSlotRecording<AccessMode::ATOMIC>()) {
     RememberedSet<OLD_TO_OLD>::Insert(source_page, slot.address());
@@ -521,8 +519,6 @@ LiveObjectRange<mode>::iterator::iterator(MemoryChunk* chunk, Bitmap* bitmap,
     cell_base_ = it_.CurrentCellBase();
     current_cell_ = *it_.CurrentCell();
     AdvanceToNextValidObject();
-  } else {
-    current_object_ = nullptr;
   }
 }
 
@@ -544,7 +540,7 @@ operator++(int) {
 template <LiveObjectIterationMode mode>
 void LiveObjectRange<mode>::iterator::AdvanceToNextValidObject() {
   while (!it_.Done()) {
-    HeapObject* object = nullptr;
+    HeapObject object;
     int size = 0;
     while (current_cell_ != 0) {
       uint32_t trailing_zeros = base::bits::CountTrailingZeros(current_cell_);
@@ -563,7 +559,7 @@ void LiveObjectRange<mode>::iterator::AdvanceToNextValidObject() {
         // that case we can return immediately.
         if (!it_.Advance()) {
           DCHECK(HeapObject::FromAddress(addr)->map() == one_word_filler_map_);
-          current_object_ = nullptr;
+          current_object_ = HeapObject();
           return;
         }
         cell_base_ = it_.CurrentCellBase();
@@ -577,7 +573,7 @@ void LiveObjectRange<mode>::iterator::AdvanceToNextValidObject() {
         // We found a black object. If the black object is within a black area,
         // make sure that we skip all set bits in the black area until the
         // object ends.
-        HeapObject* black_object = HeapObject::FromAddress(addr);
+        HeapObject black_object = HeapObject::FromAddress(addr);
         map = Map::cast(ObjectSlot(addr).Acquire_Load());
         size = black_object->SizeFromMap(map);
         Address end = addr + size - kTaggedSize;
@@ -611,7 +607,7 @@ void LiveObjectRange<mode>::iterator::AdvanceToNextValidObject() {
       }
 
       // We found a live object.
-      if (object != nullptr) {
+      if (!object.is_null()) {
         // Do not use IsFiller() here. This may cause a data race for reading
         // out the instance type when a new map concurrently is written into
         // this object while iterating over the object.
@@ -623,7 +619,7 @@ void LiveObjectRange<mode>::iterator::AdvanceToNextValidObject() {
           // 2) Left trimming may leave black or grey fillers behind because we
           // do not clear the old location of the object start.
           // We filter these objects out in the iterator.
-          object = nullptr;
+          object = HeapObject();
         } else {
           break;
         }
@@ -636,13 +632,13 @@ void LiveObjectRange<mode>::iterator::AdvanceToNextValidObject() {
         current_cell_ = *it_.CurrentCell();
       }
     }
-    if (object != nullptr) {
+    if (!object.is_null()) {
       current_object_ = object;
       current_size_ = size;
       return;
     }
   }
-  current_object_ = nullptr;
+  current_object_ = HeapObject();
 }
 
 template <LiveObjectIterationMode mode>

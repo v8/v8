@@ -239,7 +239,7 @@ class OrderedHashSet : public OrderedHashTable<OrderedHashSet, 1> {
                                        int new_capacity);
   static Handle<OrderedHashSet> Allocate(Isolate* isolate, int capacity,
                                          PretenureFlag pretenure = NOT_TENURED);
-  static HeapObject* GetEmpty(ReadOnlyRoots ro_roots);
+  static HeapObject GetEmpty(ReadOnlyRoots ro_roots);
   static inline RootIndex GetMapRootIndex();
   static inline bool Is(Handle<HeapObject> table);
   static const int kPrefixSize = 0;
@@ -266,7 +266,7 @@ class OrderedHashMap : public OrderedHashTable<OrderedHashMap, 2> {
 
   static Object* GetHash(Isolate* isolate, Object* key);
 
-  static HeapObject* GetEmpty(ReadOnlyRoots ro_roots);
+  static HeapObject GetEmpty(ReadOnlyRoots ro_roots);
   static inline RootIndex GetMapRootIndex();
   static inline bool Is(Handle<HeapObject> table);
 
@@ -324,7 +324,7 @@ class OrderedHashMap : public OrderedHashTable<OrderedHashMap, 2> {
 //    [45] : empty
 //
 template <class Derived>
-class SmallOrderedHashTable : public HeapObjectPtr {
+class SmallOrderedHashTable : public HeapObject {
  public:
   // Offset points to a relative location in the table
   typedef int Offset;
@@ -564,7 +564,7 @@ class SmallOrderedHashTable : public HeapObjectPtr {
   friend class OrderedNameDictionaryHandler;
   friend class CodeStubAssembler;
 
-  OBJECT_CONSTRUCTORS(SmallOrderedHashTable, HeapObjectPtr)
+  OBJECT_CONSTRUCTORS(SmallOrderedHashTable, HeapObject)
 };
 
 class SmallOrderedHashSet : public SmallOrderedHashTable<SmallOrderedHashSet> {
@@ -690,7 +690,7 @@ class OrderedNameDictionary
   inline void SetHash(int hash);
   inline int Hash();
 
-  static HeapObject* GetEmpty(ReadOnlyRoots ro_roots);
+  static HeapObject GetEmpty(ReadOnlyRoots ro_roots);
   static inline RootIndex GetMapRootIndex();
 
   static const int kValueOffset = 1;
@@ -709,23 +709,22 @@ class OrderedNameDictionaryHandler
                                 Handle<Name> key, Handle<Object> value,
                                 PropertyDetails details);
 
-  static int FindEntry(Isolate* isolate, HeapObjectPtr table, Object* key);
+  static int FindEntry(Isolate* isolate, HeapObject table, Object* key);
 
   // Returns the value for entry.
-  static Object* ValueAt(HeapObjectPtr table, int entry);
+  static Object* ValueAt(HeapObject table, int entry);
 
   // Set the value for entry.
-  static void ValueAtPut(HeapObjectPtr table, int entry, Object* value);
+  static void ValueAtPut(HeapObject table, int entry, Object* value);
 
   // Returns the property details for the property at entry.
-  static PropertyDetails DetailsAt(HeapObjectPtr table, int entry);
+  static PropertyDetails DetailsAt(HeapObject table, int entry);
 
   // Set the details for entry.
-  static void DetailsAtPut(HeapObjectPtr table, int entry,
-                           PropertyDetails value);
+  static void DetailsAtPut(HeapObject table, int entry, PropertyDetails value);
 
-  static void SetHash(HeapObjectPtr table, int hash);
-  static int Hash(HeapObjectPtr table);
+  static void SetHash(HeapObject table, int hash);
+  static int Hash(HeapObject table);
 
   static const int kNotFound = -1;
 

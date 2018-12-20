@@ -34,8 +34,8 @@ ACCESSORS(FunctionTemplateInfo, class_name, Object, kClassNameOffset)
 ACCESSORS(FunctionTemplateInfo, signature, Object, kSignatureOffset)
 ACCESSORS(FunctionTemplateInfo, shared_function_info, Object,
           kSharedFunctionInfoOffset)
-ACCESSORS(FunctionTemplateInfo, rare_data, HeapObject,
-          kFunctionTemplateRareDataOffset)
+ACCESSORS2(FunctionTemplateInfo, rare_data, HeapObject,
+           kFunctionTemplateRareDataOffset)
 ACCESSORS(FunctionTemplateInfo, cached_property_name, Object,
           kCachedPropertyNameOffset)
 SMI_ACCESSORS(FunctionTemplateInfo, length, kLengthOffset)
@@ -56,7 +56,7 @@ SMI_ACCESSORS(FunctionTemplateInfo, flag, kFlagOffset)
 // static
 FunctionTemplateRareData FunctionTemplateInfo::EnsureFunctionTemplateRareData(
     Isolate* isolate, Handle<FunctionTemplateInfo> function_template_info) {
-  HeapObject* extra = function_template_info->rare_data();
+  HeapObject extra = function_template_info->rare_data();
   if (extra->IsUndefined(isolate)) {
     return AllocateFunctionTemplateRareData(isolate, function_template_info);
   } else {
@@ -66,8 +66,8 @@ FunctionTemplateRareData FunctionTemplateInfo::EnsureFunctionTemplateRareData(
 
 #define RARE_ACCESSORS(Name, CamelName, Type)                                  \
   Type* FunctionTemplateInfo::Get##CamelName() {                               \
-    HeapObject* extra = rare_data();                                           \
-    HeapObject* undefined = GetReadOnlyRoots().undefined_value();              \
+    HeapObject extra = rare_data();                                            \
+    HeapObject undefined = GetReadOnlyRoots().undefined_value();               \
     return extra == undefined ? undefined                                      \
                               : FunctionTemplateRareData::cast(extra)->Name(); \
   }                                                                            \

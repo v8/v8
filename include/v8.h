@@ -881,7 +881,7 @@ class V8_EXPORT HandleScope {
   template<class F> friend class Local;
 
   // Object::GetInternalField and Context::GetEmbedderData use CreateHandle with
-  // a HeapObject* in their shortcuts.
+  // a HeapObject in their shortcuts.
   friend class Object;
   friend class Context;
 };

@@ -43,7 +43,7 @@ void IncrementalMarking::Observer::Step(int bytes_allocated, Address addr,
   if (incremental_marking_.black_allocation() && addr != kNullAddress) {
     // AdvanceIncrementalMarkingOnAllocation can start black allocation.
     // Ensure that the new object is marked black.
-    HeapObject* object = HeapObject::FromAddress(addr);
+    HeapObject object = HeapObject::FromAddress(addr);
     if (incremental_marking_.marking_state()->IsWhite(object) &&
         !(Heap::InNewSpace(object) || heap->new_lo_space()->Contains(object))) {
       if (heap->IsLargeObject(object)) {
@@ -78,8 +78,8 @@ IncrementalMarking::IncrementalMarking(
   SetState(STOPPED);
 }
 
-bool IncrementalMarking::BaseRecordWrite(HeapObject* obj, Object* value) {
-  HeapObject* value_heap_obj = HeapObject::cast(value);
+bool IncrementalMarking::BaseRecordWrite(HeapObject obj, Object* value) {
+  HeapObject value_heap_obj = HeapObject::cast(value);
   DCHECK(!marking_state()->IsImpossible(value_heap_obj));
   DCHECK(!marking_state()->IsImpossible(obj));
 #ifdef V8_CONCURRENT_MARKING
@@ -96,7 +96,7 @@ bool IncrementalMarking::BaseRecordWrite(HeapObject* obj, Object* value) {
   return is_compacting_ && need_recording;
 }
 
-void IncrementalMarking::RecordWriteSlow(HeapObject* obj, HeapObjectSlot slot,
+void IncrementalMarking::RecordWriteSlow(HeapObject obj, HeapObjectSlot slot,
                                          Object* value) {
   if (BaseRecordWrite(obj, value) && slot.address() != kNullAddress) {
     // Object is not going to be rescanned we need to record the slot.
@@ -105,10 +105,10 @@ void IncrementalMarking::RecordWriteSlow(HeapObject* obj, HeapObjectSlot slot,
   }
 }
 
-int IncrementalMarking::RecordWriteFromCode(HeapObject* obj,
+int IncrementalMarking::RecordWriteFromCode(Address raw_obj,
                                             Address slot_address,
                                             Isolate* isolate) {
-  DCHECK(obj->IsHeapObject());
+  HeapObject obj = HeapObject::cast(ObjectPtr(raw_obj));
   MaybeObjectSlot slot(slot_address);
   isolate->heap()->incremental_marking()->RecordMaybeWeakWrite(obj, slot,
                                                                *slot);
@@ -117,7 +117,7 @@ int IncrementalMarking::RecordWriteFromCode(HeapObject* obj,
 }
 
 void IncrementalMarking::RecordWriteIntoCode(Code host, RelocInfo* rinfo,
-                                             HeapObject* value) {
+                                             HeapObject value) {
   DCHECK(IsMarking());
   if (BaseRecordWrite(host, value)) {
     // Object is not going to be rescanned.  We need to record the slot.
@@ -125,7 +125,7 @@ void IncrementalMarking::RecordWriteIntoCode(Code host, RelocInfo* rinfo,
   }
 }
 
-bool IncrementalMarking::WhiteToGreyAndPush(HeapObject* obj) {
+bool IncrementalMarking::WhiteToGreyAndPush(HeapObject obj) {
   if (marking_state()->WhiteToGrey(obj)) {
     marking_worklist()->Push(obj);
     return true;
@@ -133,7 +133,7 @@ bool IncrementalMarking::WhiteToGreyAndPush(HeapObject* obj) {
   return false;
 }
 
-void IncrementalMarking::MarkBlackAndPush(HeapObject* obj) {
+void IncrementalMarking::MarkBlackAndPush(HeapObject obj) {
   // Marking left-trimmable fixed array black is unsafe because left-trimming
   // re-pushes only grey arrays onto the marking worklist.
   DCHECK(!obj->IsFixedArray() && !obj->IsFixedDoubleArray());
@@ -148,7 +148,7 @@ void IncrementalMarking::MarkBlackAndPush(HeapObject* obj) {
   }
 }
 
-void IncrementalMarking::NotifyLeftTrimming(HeapObject* from, HeapObject* to) {
+void IncrementalMarking::NotifyLeftTrimming(HeapObject from, HeapObject to) {
   DCHECK(IsMarking());
   DCHECK(MemoryChunk::FromAddress(from->address())->SweepingDone());
   DCHECK_EQ(MemoryChunk::FromAddress(from->address()),
@@ -506,7 +506,7 @@ void IncrementalMarking::RetainMaps() {
   int number_of_disposed_maps = heap()->number_of_disposed_maps_;
   for (int i = 0; i < length; i += 2) {
     MaybeObject value = retained_maps->Get(i);
-    HeapObject* map_heap_object;
+    HeapObject map_heap_object;
     if (!value->GetHeapObjectIfWeak(&map_heap_object)) {
       continue;
     }
@@ -586,11 +586,11 @@ void IncrementalMarking::UpdateMarkingWorklistAfterScavenge() {
 
   marking_worklist()->Update([
 #ifdef DEBUG
-                              // this is referred inside DCHECK.
+                                 // this is referred inside DCHECK.
                                  this,
 #endif
                                  filler_map, minor_marking_state](
-                                 HeapObject* obj, HeapObject** out) -> bool {
+                                 HeapObject obj, HeapObject* out) -> bool {
     DCHECK(obj->IsHeapObject());
     // Only pointers to from space have to be updated.
     if (Heap::InFromSpace(obj)) {
@@ -603,7 +603,7 @@ void IncrementalMarking::UpdateMarkingWorklistAfterScavenge() {
         // them.
         return false;
       }
-      HeapObject* dest = map_word.ToForwardingAddress();
+      HeapObject dest = map_word.ToForwardingAddress();
       DCHECK_IMPLIES(marking_state()->IsWhite(obj), obj->IsFiller());
       *out = dest;
       return true;
@@ -646,23 +646,7 @@ void IncrementalMarking::UpdateMarkingWorklistAfterScavenge() {
 }
 
 namespace {
-template <typename T, typename = typename std::enable_if<
-                          std::is_base_of<HeapObject, T>::value>::type>
-T* ForwardingAddress(T* heap_obj) {
-  MapWord map_word = heap_obj->map_word();
-
-  if (map_word.IsForwardingAddress()) {
-    return T::cast(map_word.ToForwardingAddress());
-  } else if (Heap::InNewSpace(heap_obj)) {
-    return nullptr;
-  } else {
-    return heap_obj;
-  }
-}
-
-// TODO(3770): Replacement for the above.
-template <typename T, typename = typename std::enable_if<
-                          std::is_base_of<HeapObjectPtr, T>::value>::type>
+template <typename T>
 T ForwardingAddress(T heap_obj) {
   MapWord map_word = heap_obj->map_word();
 
@@ -678,16 +662,15 @@ T ForwardingAddress(T heap_obj) {
 
 void IncrementalMarking::UpdateWeakReferencesAfterScavenge() {
   weak_objects_->weak_references.Update(
-      [](std::pair<HeapObject*, HeapObjectSlot> slot_in,
-         std::pair<HeapObject*, HeapObjectSlot>* slot_out) -> bool {
-        HeapObject* heap_obj = slot_in.first;
-        HeapObject* forwarded = ForwardingAddress(heap_obj);
+      [](std::pair<HeapObject, HeapObjectSlot> slot_in,
+         std::pair<HeapObject, HeapObjectSlot>* slot_out) -> bool {
+        HeapObject heap_obj = slot_in.first;
+        HeapObject forwarded = ForwardingAddress(heap_obj);
 
-        if (forwarded) {
-          ptrdiff_t distance_to_slot = slot_in.second.address() -
-                                       reinterpret_cast<Address>(slot_in.first);
-          Address new_slot =
-              reinterpret_cast<Address>(forwarded) + distance_to_slot;
+        if (!forwarded.is_null()) {
+          ptrdiff_t distance_to_slot =
+              slot_in.second.address() - slot_in.first.ptr();
+          Address new_slot = forwarded.ptr() + distance_to_slot;
           slot_out->first = forwarded;
           slot_out->second = HeapObjectSlot(new_slot);
           return true;
@@ -696,12 +679,12 @@ void IncrementalMarking::UpdateWeakReferencesAfterScavenge() {
         return false;
       });
   weak_objects_->weak_objects_in_code.Update(
-      [](std::pair<HeapObject*, Code> slot_in,
-         std::pair<HeapObject*, Code>* slot_out) -> bool {
-        HeapObject* heap_obj = slot_in.first;
-        HeapObject* forwarded = ForwardingAddress(heap_obj);
+      [](std::pair<HeapObject, Code> slot_in,
+         std::pair<HeapObject, Code>* slot_out) -> bool {
+        HeapObject heap_obj = slot_in.first;
+        HeapObject forwarded = ForwardingAddress(heap_obj);
 
-        if (forwarded) {
+        if (!forwarded.is_null()) {
           slot_out->first = forwarded;
           slot_out->second = slot_in.second;
           return true;
@@ -722,12 +705,12 @@ void IncrementalMarking::UpdateWeakReferencesAfterScavenge() {
       });
 
   auto ephemeron_updater = [](Ephemeron slot_in, Ephemeron* slot_out) -> bool {
-    HeapObject* key = slot_in.key;
-    HeapObject* value = slot_in.value;
-    HeapObject* forwarded_key = ForwardingAddress(key);
-    HeapObject* forwarded_value = ForwardingAddress(value);
+    HeapObject key = slot_in.key;
+    HeapObject value = slot_in.value;
+    HeapObject forwarded_key = ForwardingAddress(key);
+    HeapObject forwarded_value = ForwardingAddress(value);
 
-    if (forwarded_key && forwarded_value) {
+    if (!forwarded_key.is_null() && !forwarded_value.is_null()) {
       *slot_out = Ephemeron{forwarded_key, forwarded_value};
       return true;
     }
@@ -753,13 +736,13 @@ void IncrementalMarking::UpdateMarkedBytesAfterScavenge(
       Min(bytes_marked_ahead_of_schedule_, dead_bytes_in_new_space);
 }
 
-bool IncrementalMarking::IsFixedArrayWithProgressBar(HeapObject* obj) {
+bool IncrementalMarking::IsFixedArrayWithProgressBar(HeapObject obj) {
   if (!obj->IsFixedArray()) return false;
   MemoryChunk* chunk = MemoryChunk::FromAddress(obj->address());
   return chunk->IsFlagSet(MemoryChunk::HAS_PROGRESS_BAR);
 }
 
-int IncrementalMarking::VisitObject(Map map, HeapObject* obj) {
+int IncrementalMarking::VisitObject(Map map, HeapObject obj) {
   DCHECK(marking_state()->IsGrey(obj) || marking_state()->IsBlack(obj));
   if (!marking_state()->GreyToBlack(obj)) {
     // The object can already be black in these cases:
@@ -780,13 +763,13 @@ int IncrementalMarking::VisitObject(Map map, HeapObject* obj) {
   return visitor.Visit(map, obj);
 }
 
-void IncrementalMarking::ProcessBlackAllocatedObject(HeapObject* obj) {
+void IncrementalMarking::ProcessBlackAllocatedObject(HeapObject obj) {
   if (IsMarking() && marking_state()->IsBlack(obj)) {
     RevisitObject(obj);
   }
 }
 
-void IncrementalMarking::RevisitObject(HeapObject* obj) {
+void IncrementalMarking::RevisitObject(HeapObject obj) {
   DCHECK(IsMarking());
   DCHECK(FLAG_concurrent_marking || marking_state()->IsBlack(obj));
   Page* page = Page::FromAddress(obj->address());
@@ -812,13 +795,13 @@ intptr_t IncrementalMarking::ProcessMarkingWorklist(
     intptr_t bytes_to_process, ForceCompletionAction completion) {
   intptr_t bytes_processed = 0;
   while (bytes_processed < bytes_to_process || completion == FORCE_COMPLETION) {
-    HeapObject* obj;
+    HeapObject obj;
     if (worklist_to_process == WorklistToProcess::kBailout) {
       obj = marking_worklist()->PopBailout();
     } else {
       obj = marking_worklist()->Pop();
     }
-    if (obj == nullptr) break;
+    if (obj.is_null()) break;
     // Left trimming may result in white, grey, or black filler objects on the
     // marking deque. Ignore these objects.
     if (obj->IsFiller()) {
@@ -842,7 +825,7 @@ void IncrementalMarking::EmbedderStep(double duration_ms) {
     {
       LocalEmbedderHeapTracer::ProcessingScope scope(
           heap_->local_embedder_heap_tracer());
-      HeapObject* object;
+      HeapObject object;
       size_t cnt = 0;
       empty_worklist = true;
       while (marking_worklist()->embedder()->Pop(0, &object)) {

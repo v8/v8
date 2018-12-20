@@ -97,7 +97,7 @@ void Deserializer::Initialize(Isolate* isolate) {
 
 void Deserializer::Rehash() {
   DCHECK(can_rehash() || deserializing_user_code());
-  for (const auto& item : to_rehash_) item->RehashBasedOnMap(isolate());
+  for (HeapObject item : to_rehash_) item->RehashBasedOnMap(isolate());
 }
 
 Deserializer::~Deserializer() {
@@ -142,7 +142,7 @@ void Deserializer::DeserializeDeferredObjects() {
         int space = code & kSpaceMask;
         DCHECK_LE(space, kNumberOfSpaces);
         DCHECK_EQ(code - space, kNewObject);
-        HeapObject* object = GetBackReferencedObject(space);
+        HeapObject object = GetBackReferencedObject(space);
         int size = source_.GetInt() << kPointerSizeLog2;
         Address obj_address = object->address();
         UnalignedSlot start(obj_address + kPointerSize);
@@ -207,7 +207,7 @@ uint32_t StringTableInsertionKey::ComputeHashField(String string) {
   return string->hash_field();
 }
 
-HeapObject* Deserializer::PostProcessNewObject(HeapObject* obj, int space) {
+HeapObject Deserializer::PostProcessNewObject(HeapObject obj, int space) {
   if ((FLAG_rehash_snapshot && can_rehash_) || deserializing_user_code()) {
     if (obj->IsString()) {
       // Uninitialize hash field as we need to recompute the hash.
@@ -331,8 +331,8 @@ HeapObject* Deserializer::PostProcessNewObject(HeapObject* obj, int space) {
   return obj;
 }
 
-HeapObject* Deserializer::GetBackReferencedObject(int space) {
-  HeapObject* obj;
+HeapObject Deserializer::GetBackReferencedObject(int space) {
+  HeapObject obj;
   switch (space) {
     case LO_SPACE:
       obj = allocator()->GetLargeObject(source_.GetInt());
@@ -371,7 +371,7 @@ HeapObject* Deserializer::GetBackReferencedObject(int space) {
   }
 
   hot_objects_.Add(obj);
-  DCHECK(!HasWeakHeapObjectTag(obj));
+  DCHECK(!HasWeakHeapObjectTag(obj->ptr()));
   return obj;
 }
 
@@ -385,7 +385,7 @@ void Deserializer::ReadObject(int space_number, UnalignedSlot write_back,
 
   Address address =
       allocator()->Allocate(static_cast<AllocationSpace>(space_number), size);
-  HeapObject* obj = HeapObject::FromAddress(address);
+  HeapObject obj = HeapObject::FromAddress(address);
 
   isolate_->heap()->OnAllocationEvent(obj, size);
   UnalignedSlot current(address);
@@ -609,7 +609,7 @@ bool Deserializer::ReadData(UnalignedSlot current, UnalignedSlot limit,
       case kDeferred: {
         // Deferred can only occur right after the heap object header.
         DCHECK_EQ(current.address(), current_object_address + kPointerSize);
-        HeapObject* obj = HeapObject::FromAddress(current_object_address);
+        HeapObject obj = HeapObject::FromAddress(current_object_address);
         // If the deferred object is a map, its instance type may be used
         // during deserialization. Initialize it with a temporary value.
         if (obj->IsMap()) Map::cast(obj)->set_instance_type(FILLER_TYPE);
@@ -744,8 +744,10 @@ bool Deserializer::ReadData(UnalignedSlot current, UnalignedSlot limit,
 
         UnalignedCopy(current, hot_maybe_object);
         if (write_barrier_needed && Heap::InNewSpace(hot_object)) {
-          GenerationalBarrier(HeapObject::FromAddress(current_object_address),
-                              current.Slot(), hot_maybe_object);
+          HeapObject current_object =
+              HeapObject::FromAddress(current_object_address);
+          GenerationalBarrier(&current_object, current.Slot(),
+                              hot_maybe_object);
         }
         current.Advance();
         break;
@@ -893,9 +895,9 @@ UnalignedSlot Deserializer::ReadDataCase(Isolate* isolate,
     }
   }
   if (emit_write_barrier && write_barrier_needed) {
-    HeapObject* object = HeapObject::FromAddress(current_object_address);
+    HeapObject object = HeapObject::FromAddress(current_object_address);
     SLOW_DCHECK(isolate->heap()->Contains(object));
-    GenerationalBarrier(object, current.Slot(), current.Read());
+    GenerationalBarrier(&object, current.Slot(), current.Read());
   }
   if (!current_was_incremented) {
     current.Advance();

@@ -20,8 +20,8 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(FeedbackVector, HeapObjectPtr)
-OBJECT_CONSTRUCTORS_IMPL(FeedbackMetadata, HeapObjectPtr)
+OBJECT_CONSTRUCTORS_IMPL(FeedbackVector, HeapObject)
+OBJECT_CONSTRUCTORS_IMPL(FeedbackMetadata, HeapObject)
 
 NEVER_READ_ONLY_SPACE_IMPL(FeedbackVector)
 
@@ -115,7 +115,7 @@ void FeedbackVector::increment_deopt_count() {
 Code FeedbackVector::optimized_code() const {
   MaybeObject slot = optimized_code_weak_or_smi();
   DCHECK(slot->IsSmi() || slot->IsWeakOrCleared());
-  HeapObject* heap_object;
+  HeapObject heap_object;
   return slot->GetHeapObject(&heap_object) ? Code::cast(heap_object) : Code();
 }
 
@@ -276,7 +276,7 @@ void FeedbackVector::ComputeCounts(int* with_type_info, int* generic,
       case FeedbackSlotKind::kStoreInArrayLiteral:
       case FeedbackSlotKind::kStoreDataPropertyInLiteral:
       case FeedbackSlotKind::kTypeProfile: {
-        HeapObject* heap_object;
+        HeapObject heap_object;
         if (obj->IsWeakOrCleared() ||
             (obj->GetHeapObjectIfStrong(&heap_object) &&
              (heap_object->IsWeakFixedArray() || heap_object->IsString()))) {

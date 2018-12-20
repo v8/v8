@@ -23,18 +23,18 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(FixedArrayBase, HeapObjectPtr)
+OBJECT_CONSTRUCTORS_IMPL(FixedArrayBase, HeapObject)
 OBJECT_CONSTRUCTORS_IMPL(FixedArray, FixedArrayBase)
 OBJECT_CONSTRUCTORS_IMPL(FixedDoubleArray, FixedArrayBase)
 OBJECT_CONSTRUCTORS_IMPL(FixedTypedArrayBase, FixedArrayBase)
 OBJECT_CONSTRUCTORS_IMPL(ArrayList, FixedArray)
 OBJECT_CONSTRUCTORS_IMPL(ByteArray, FixedArrayBase)
 OBJECT_CONSTRUCTORS_IMPL(TemplateList, FixedArray)
-OBJECT_CONSTRUCTORS_IMPL(WeakFixedArray, HeapObjectPtr)
-OBJECT_CONSTRUCTORS_IMPL(WeakArrayList, HeapObjectPtr)
+OBJECT_CONSTRUCTORS_IMPL(WeakFixedArray, HeapObject)
+OBJECT_CONSTRUCTORS_IMPL(WeakArrayList, HeapObject)
 
 FixedArrayBase::FixedArrayBase(Address ptr, AllowInlineSmiStorage allow_smi)
-    : HeapObjectPtr(ptr, allow_smi) {
+    : HeapObject(ptr, allow_smi) {
   SLOW_DCHECK(
       (allow_smi == AllowInlineSmiStorage::kAllowBeingASmi && IsSmi()) ||
       IsFixedArrayBase());
@@ -420,7 +420,7 @@ MaybeObjectSlot WeakArrayList::data_start() {
   return RawMaybeWeakField(kHeaderSize);
 }
 
-HeapObject* WeakArrayList::Iterator::Next() {
+HeapObject WeakArrayList::Iterator::Next() {
   if (!array_.is_null()) {
     while (index_ < array_->length()) {
       MaybeObject item = array_->Get(index_++);
@@ -429,7 +429,7 @@ HeapObject* WeakArrayList::Iterator::Next() {
     }
     array_ = WeakArrayList();
   }
-  return nullptr;
+  return HeapObject();
 }
 
 int ArrayList::Length() const {

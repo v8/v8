@@ -934,7 +934,7 @@ class V8_EXPORT_PRIVATE Factory {
 
   Handle<CallHandlerInfo> NewCallHandlerInfo(bool has_no_side_effect = false);
 
-  HeapObject* NewForTest(Handle<Map> map, PretenureFlag pretenure) {
+  HeapObject NewForTest(Handle<Map> map, PretenureFlag pretenure) {
     return New(map, pretenure);
   }
 
@@ -947,17 +947,17 @@ class V8_EXPORT_PRIVATE Factory {
     return (Isolate*)this;  // NOLINT(readability/casting)
   }
 
-  HeapObject* AllocateRawWithImmortalMap(
+  HeapObject AllocateRawWithImmortalMap(
       int size, PretenureFlag pretenure, Map map,
       AllocationAlignment alignment = kWordAligned);
-  HeapObject* AllocateRawWithAllocationSite(
+  HeapObject AllocateRawWithAllocationSite(
       Handle<Map> map, PretenureFlag pretenure,
       Handle<AllocationSite> allocation_site);
 
   // Allocate memory for an uninitialized array (e.g., a FixedArray or similar).
-  HeapObject* AllocateRawArray(int size, PretenureFlag pretenure);
-  HeapObject* AllocateRawFixedArray(int length, PretenureFlag pretenure);
-  HeapObject* AllocateRawWeakArrayList(int length, PretenureFlag pretenure);
+  HeapObject AllocateRawArray(int size, PretenureFlag pretenure);
+  HeapObject AllocateRawFixedArray(int length, PretenureFlag pretenure);
+  HeapObject AllocateRawWeakArrayList(int length, PretenureFlag pretenure);
   Handle<FixedArray> NewFixedArrayWithFiller(RootIndex map_root_index,
                                              int length, Object* filler,
                                              PretenureFlag pretenure);
@@ -974,7 +974,7 @@ class V8_EXPORT_PRIVATE Factory {
 
   // Creates a heap object based on the map. The fields of the heap object are
   // not initialized, it's the responsibility of the caller to do that.
-  HeapObject* New(Handle<Map> map, PretenureFlag pretenure);
+  HeapObject New(Handle<Map> map, PretenureFlag pretenure);
 
   template <typename T>
   Handle<T> CopyArrayWithMap(Handle<T> src, Handle<Map> map);

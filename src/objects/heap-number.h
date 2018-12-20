@@ -17,7 +17,7 @@ namespace internal {
 // represented in a Smi (small integer). MutableHeapNumber is the same, but its
 // number value can change over time (it is used only as property storage).
 // HeapNumberBase merely exists to avoid code duplication.
-class HeapNumberBase : public HeapObjectPtr {
+class HeapNumberBase : public HeapObject {
  public:
   // [value]: number value.
   inline double value() const;
@@ -62,7 +62,7 @@ class HeapNumberBase : public HeapObjectPtr {
   // perform their own proper type checking.
   inline bool IsHeapNumberBase() const { return true; }
 
-  OBJECT_CONSTRUCTORS(HeapNumberBase, HeapObjectPtr);
+  OBJECT_CONSTRUCTORS(HeapNumberBase, HeapObject);
 };
 
 class HeapNumber : public HeapNumberBase {

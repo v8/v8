@@ -358,9 +358,11 @@ class MemoryChunk {
 
   static const intptr_t kSizeOffset = 0;
   static const intptr_t kFlagsOffset = kSizeOffset + kSizetSize;
-  static const intptr_t kMarkBitmapOffset = kFlagsOffset + kSystemPointerSize;
+  static const intptr_t kMarkBitmapOffset = kFlagsOffset + kUIntptrSize;
   static const intptr_t kReservationOffset =
       kMarkBitmapOffset + kSystemPointerSize;
+  static const intptr_t kHeapOffset =
+      kReservationOffset + 3 * kSystemPointerSize;
 
   static const size_t kHeaderSize =
       kSizeOffset               // NOLINT
@@ -368,10 +370,10 @@ class MemoryChunk {
       + kUIntptrSize            // uintptr_t flags_
       + kSystemPointerSize      // Bitmap* marking_bitmap_
       + 3 * kSystemPointerSize  // VirtualMemory reservation_
+      + kSystemPointerSize      // Heap* heap_
       + kSystemPointerSize      // Address area_start_
       + kSystemPointerSize      // Address area_end_
       + kSystemPointerSize      // Address owner_
-      + kSystemPointerSize      // Heap* heap_
       + kIntptrSize             // intptr_t progress_bar_
       + kIntptrSize             // std::atomic<intptr_t> live_byte_count_
       + kSystemPointerSize * NUMBER_OF_REMEMBERED_SET_TYPES  // SlotSet* array
@@ -408,12 +410,7 @@ class MemoryChunk {
     return reinterpret_cast<MemoryChunk*>(a & ~kAlignmentMask);
   }
   // Only works if the object is in the first kPageSize of the MemoryChunk.
-  static MemoryChunk* FromHeapObject(const HeapObject* o) {
-    return reinterpret_cast<MemoryChunk*>(reinterpret_cast<Address>(o) &
-                                          ~kAlignmentMask);
-  }
-  // Only works if the object is in the first kPageSize of the MemoryChunk.
-  static MemoryChunk* FromHeapObject(const HeapObjectPtr o) {
+  static MemoryChunk* FromHeapObject(const HeapObject o) {
     return reinterpret_cast<MemoryChunk*>(o.ptr() & ~kAlignmentMask);
   }
 
@@ -513,11 +510,11 @@ class MemoryChunk {
 
   InvalidatedSlots* AllocateInvalidatedSlots();
   void ReleaseInvalidatedSlots();
-  void RegisterObjectWithInvalidatedSlots(HeapObject* object, int size);
+  void RegisterObjectWithInvalidatedSlots(HeapObject object, int size);
   // Updates invalidated_slots after array left-trimming.
-  void MoveObjectWithInvalidatedSlots(HeapObject* old_start,
-                                      HeapObject* new_start);
-  bool RegisteredObjectWithInvalidatedSlots(HeapObject* object);
+  void MoveObjectWithInvalidatedSlots(HeapObject old_start,
+                                      HeapObject new_start);
+  bool RegisteredObjectWithInvalidatedSlots(HeapObject object);
   InvalidatedSlots* invalidated_slots() { return invalidated_slots_; }
 
   void ReleaseLocalTracker();
@@ -673,14 +670,14 @@ class MemoryChunk {
   // If the chunk needs to remember its memory reservation, it is stored here.
   VirtualMemory reservation_;
 
+  Heap* heap_;
+
   // Start and end of allocatable memory on this chunk.
   Address area_start_;
   Address area_end_;
 
   // The space owning this memory chunk.
   std::atomic<Space*> owner_;
-
-  Heap* heap_;
 
   // Used by the incremental marker to keep track of the scanning progress in
   // large objects that have a progress bar and are scanned in increments.
@@ -781,9 +778,8 @@ class Page : public MemoryChunk {
   static Page* FromAddress(Address addr) {
     return reinterpret_cast<Page*>(addr & ~kPageAlignmentMask);
   }
-  static Page* FromHeapObject(const HeapObject* o) {
-    return reinterpret_cast<Page*>(reinterpret_cast<Address>(o) &
-                                   ~kAlignmentMask);
+  static Page* FromHeapObject(const HeapObject o) {
+    return reinterpret_cast<Page*>(o.ptr() & ~kAlignmentMask);
   }
 
   // Returns the page containing the address provided. The address can
@@ -909,11 +905,11 @@ class LargePage : public MemoryChunk {
   // x64 and ia32 architectures.
   static const int kMaxCodePageSize = 512 * MB;
 
-  static LargePage* FromHeapObject(const HeapObject* o) {
+  static LargePage* FromHeapObject(const HeapObject o) {
     return static_cast<LargePage*>(MemoryChunk::FromHeapObject(o));
   }
 
-  HeapObject* GetObject() { return HeapObject::FromAddress(area_start()); }
+  inline HeapObject GetObject();
 
   inline LargePage* next_page() {
     return static_cast<LargePage*>(list_node_.next());
@@ -1530,7 +1526,7 @@ MemoryAllocator::AllocatePage<MemoryAllocator::kPooled, SemiSpace>(
 class V8_EXPORT_PRIVATE ObjectIterator : public Malloced {
  public:
   virtual ~ObjectIterator() = default;
-  virtual HeapObject* Next() = 0;
+  virtual HeapObject Next() = 0;
 };
 
 template <class PAGE_TYPE>
@@ -1589,11 +1585,11 @@ class V8_EXPORT_PRIVATE HeapObjectIterator : public ObjectIterator {
   // Advance to the next object, skipping free spaces and other fillers and
   // skipping the special garbage section of which there is one per space.
   // Returns nullptr when the iteration has ended.
-  inline HeapObject* Next() override;
+  inline HeapObject Next() override;
 
  private:
   // Fast (inlined) path of next().
-  inline HeapObject* FromCurrentPage();
+  inline HeapObject FromCurrentPage();
 
   // Slow path of next(), goes into the next page.  Returns false if the
   // iteration has ended.
@@ -1996,7 +1992,7 @@ class LocalAllocationBuffer {
   // Returns true if the merge was successful, false otherwise.
   inline bool TryMerge(LocalAllocationBuffer* other);
 
-  inline bool TryFreeLast(HeapObject* object, int object_size);
+  inline bool TryFreeLast(HeapObject object, int object_size);
 
   // Close a LAB, effectively invalidating it. Returns the unused area.
   LinearAllocationArea Close();
@@ -2175,7 +2171,7 @@ class V8_EXPORT_PRIVATE PagedSpace
     return size_in_bytes - wasted;
   }
 
-  inline bool TryFreeLast(HeapObject* object, int object_size);
+  inline bool TryFreeLast(HeapObject object, int object_size);
 
   void ResetFreeList();
 
@@ -2223,7 +2219,7 @@ class V8_EXPORT_PRIVATE PagedSpace
 
   // Overridden by subclasses to verify space-specific object
   // properties (e.g., only maps or free-list nodes are in map space).
-  virtual void VerifyObject(HeapObject* obj) {}
+  virtual void VerifyObject(HeapObject obj) {}
 #endif
 
 #ifdef DEBUG
@@ -2313,13 +2309,13 @@ class V8_EXPORT_PRIVATE PagedSpace
   inline bool EnsureLinearAllocationArea(int size_in_bytes);
   // Allocates an object from the linear allocation area. Assumes that the
   // linear allocation area is large enought to fit the object.
-  inline HeapObject* AllocateLinearly(int size_in_bytes);
+  inline HeapObject AllocateLinearly(int size_in_bytes);
   // Tries to allocate an aligned object from the linear allocation area.
   // Returns nullptr if the linear allocation area does not fit the object.
   // Otherwise, returns the object pointer and writes the allocation size
   // (object size + alignment filler size) to the size_in_bytes.
-  inline HeapObject* TryAllocateLinearlyAligned(int* size_in_bytes,
-                                                AllocationAlignment alignment);
+  inline HeapObject TryAllocateLinearlyAligned(int* size_in_bytes,
+                                               AllocationAlignment alignment);
 
   V8_WARN_UNUSED_RESULT bool RefillLinearAllocationAreaFromFreeList(
       size_t size_in_bytes);
@@ -2386,7 +2382,7 @@ class SemiSpace : public Space {
         current_page_(nullptr),
         pages_used_(0) {}
 
-  inline bool Contains(HeapObject* o);
+  inline bool Contains(HeapObject o);
   inline bool Contains(Object* o);
   inline bool ContainsSlow(Address a);
 
@@ -2546,7 +2542,7 @@ class SemiSpaceIterator : public ObjectIterator {
   // Create an iterator over the allocated objects in the given to-space.
   explicit SemiSpaceIterator(NewSpace* space);
 
-  inline HeapObject* Next() override;
+  inline HeapObject Next() override;
 
  private:
   void Initialize(Address start, Address end);
@@ -2572,10 +2568,9 @@ class NewSpace : public SpaceWithLinearArea {
 
   ~NewSpace() override { TearDown(); }
 
-  inline bool Contains(HeapObject* o);
   inline bool ContainsSlow(Address a);
   inline bool Contains(Object* o);
-  inline bool Contains(HeapObjectPtr o);
+  inline bool Contains(HeapObject o);
 
   // Tears down the space.  Heap memory was not allocated by the space, so it
   // is not deallocated here.
@@ -2910,7 +2905,7 @@ class MapSpace : public PagedSpace {
   }
 
 #ifdef VERIFY_HEAP
-  void VerifyObject(HeapObject* obj) override;
+  void VerifyObject(HeapObject obj) override;
 #endif
 };
 
@@ -3006,7 +3001,7 @@ class LargeObjectSpace : public Space {
   void PromoteNewLargeObject(LargePage* page);
 
   // Checks whether a heap object is in this space; O(1).
-  bool Contains(HeapObject* obj);
+  bool Contains(HeapObject obj);
   // Checks whether an address is in the object area in this space. Iterates
   // all objects in the space. May be slow.
   bool ContainsSlow(Address addr) { return FindObject(addr)->IsHeapObject(); }
@@ -3085,7 +3080,7 @@ class LargeObjectIterator : public ObjectIterator {
  public:
   explicit LargeObjectIterator(LargeObjectSpace* space);
 
-  HeapObject* Next() override;
+  HeapObject Next() override;
 
  private:
   LargePage* current_;

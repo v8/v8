@@ -76,12 +76,12 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
                                            bool record_slots)
       : heap_(heap), scavenger_(scavenger), record_slots_(record_slots) {}
 
-  V8_INLINE void VisitPointers(HeapObject* host, ObjectSlot start,
+  V8_INLINE void VisitPointers(HeapObject host, ObjectSlot start,
                                ObjectSlot end) final {
     VisitPointersImpl(host, start, end);
   }
 
-  V8_INLINE void VisitPointers(HeapObject* host, MaybeObjectSlot start,
+  V8_INLINE void VisitPointers(HeapObject host, MaybeObjectSlot start,
                                MaybeObjectSlot end) final {
     VisitPointersImpl(host, start, end);
   }
@@ -91,19 +91,19 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
     HandleSlot(host, FullHeapObjectSlot(&target), target);
   }
   V8_INLINE void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) final {
-    HeapObject* heap_object = rinfo->target_object();
+    HeapObject heap_object = rinfo->target_object();
     HandleSlot(host, FullHeapObjectSlot(&heap_object), heap_object);
   }
 
  private:
   template <typename TSlot>
-  V8_INLINE void VisitPointersImpl(HeapObject* host, TSlot start, TSlot end) {
+  V8_INLINE void VisitPointersImpl(HeapObject host, TSlot start, TSlot end) {
     using THeapObjectSlot = typename TSlot::THeapObjectSlot;
     // Treat weak references as strong.
     // TODO(marja): Proper weakness handling in the young generation.
     for (TSlot slot = start; slot < end; ++slot) {
       typename TSlot::TObject object = slot.load();
-      HeapObject* heap_object;
+      HeapObject heap_object;
       if (object.GetHeapObject(&heap_object)) {
         HandleSlot(host, THeapObjectSlot(slot), heap_object);
       }
@@ -111,8 +111,8 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
   }
 
   template <typename THeapObjectSlot>
-  V8_INLINE void HandleSlot(HeapObject* host, THeapObjectSlot slot,
-                            HeapObject* target) {
+  V8_INLINE void HandleSlot(HeapObject host, THeapObjectSlot slot,
+                            HeapObject target) {
     static_assert(
         std::is_same<THeapObjectSlot, FullHeapObjectSlot>::value ||
             std::is_same<THeapObjectSlot, HeapObjectSlot>::value,
@@ -304,7 +304,7 @@ void ScavengerCollector::CollectGarbage() {
 void ScavengerCollector::HandleSurvivingNewLargeObjects() {
   for (SurvivingNewLargeObjectMapEntry update_info :
        surviving_new_large_objects_) {
-    HeapObject* object = update_info.first;
+    HeapObject object = update_info.first;
     Map map = update_info.second;
     // Order is important here. We have to re-install the map to have access
     // to meta-data like size during page promotion.
@@ -354,7 +354,7 @@ Scavenger::Scavenger(ScavengerCollector* collector, Heap* heap, bool is_logging,
       is_incremental_marking_(heap->incremental_marking()->IsMarking()),
       is_compacting_(heap->incremental_marking()->IsCompacting()) {}
 
-void Scavenger::IterateAndScavengePromotedObject(HeapObject* target, Map map,
+void Scavenger::IterateAndScavengePromotedObject(HeapObject target, Map map,
                                                  int size) {
   // We are not collecting slots on new space objects during mutation thus we
   // have to scan for pointers to evacuation candidates when we promote
@@ -419,7 +419,7 @@ void Scavenger::Process(OneshotBarrier* barrier) {
 
     struct PromotionListEntry entry;
     while (promotion_list_.Pop(&entry)) {
-      HeapObject* target = entry.heap_object;
+      HeapObject target = entry.heap_object;
       DCHECK(!target->IsMap());
       IterateAndScavengePromotedObject(target, entry.map, entry.size);
       done = false;
@@ -458,8 +458,7 @@ void RootScavengeVisitor::ScavengePointer(FullObjectSlot p) {
   DCHECK(!HasWeakHeapObjectTag(object));
   if (!Heap::InNewSpace(object)) return;
 
-  scavenger_->ScavengeObject(FullHeapObjectSlot(p),
-                             reinterpret_cast<HeapObject*>(object));
+  scavenger_->ScavengeObject(FullHeapObjectSlot(p), HeapObject::cast(object));
 }
 
 RootScavengeVisitor::RootScavengeVisitor(Scavenger* scavenger)

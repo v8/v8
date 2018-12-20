@@ -537,7 +537,7 @@ typedef ByteArray ByteArrayArgType;
 typedef FixedArray FixedArrayArgType;
 typedef FixedDoubleArray FixedDoubleArrayArgType;
 typedef Foreign ForeignArgType;
-typedef HeapObject* HeapObjectArgType;
+typedef HeapObject HeapObjectArgType;
 typedef JSArray JSArrayArgType;
 typedef JSAsyncGeneratorObject JSAsyncGeneratorObjectArgType;
 typedef JSFunction JSFunctionArgType;
@@ -1013,10 +1013,10 @@ class MapWord {
   inline bool IsForwardingAddress() const;
 
   // Create a map word from a forwarding address.
-  static inline MapWord FromForwardingAddress(HeapObject* object);
+  static inline MapWord FromForwardingAddress(HeapObject object);
 
   // View this map word as a forwarding address.
-  inline HeapObject* ToForwardingAddress();
+  inline HeapObject ToForwardingAddress();
 
   static inline MapWord FromRawValue(uintptr_t value) {
     return MapWord(value);
@@ -1029,7 +1029,6 @@ class MapWord {
  private:
   // HeapObject calls the private constructor and directly reads the value.
   friend class HeapObject;
-  friend class HeapObjectPtr;
 
   explicit MapWord(Address value) : value_(value) {}
 

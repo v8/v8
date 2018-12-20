@@ -176,7 +176,7 @@ typedef std::vector<Handle<Map>> MapHandles;
 // | TaggedPointer | [dependent_code]                            |
 // +---------------+---------------------------------------------+
 
-class Map : public HeapObjectPtr {
+class Map : public HeapObject {
  public:
   // Instance size.
   // Size in bytes or kVariableSizeSentinel if instances do not have
@@ -978,7 +978,7 @@ class Map : public HeapObjectPtr {
 
   friend class MapUpdater;
 
-  OBJECT_CONSTRUCTORS(Map, HeapObjectPtr);
+  OBJECT_CONSTRUCTORS(Map, HeapObject);
 };
 
 // The cache for maps used by normalized (dictionary mode) objects.
@@ -995,7 +995,7 @@ class NormalizedMapCache : public WeakFixedArray {
 
   DECL_CAST2(NormalizedMapCache)
 
-  static inline bool IsNormalizedMapCache(const HeapObject* obj);
+  static inline bool IsNormalizedMapCache(const HeapObject obj);
 
   DECL_VERIFIER(NormalizedMapCache)
 

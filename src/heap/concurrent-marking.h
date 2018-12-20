@@ -63,8 +63,8 @@ class ConcurrentMarking {
   // Worklist::kMaxNumTasks being maxed at 8 (concurrent marking doesn't use
   // task 0, reserved for the main thread).
   static constexpr int kMaxTasks = 7;
-  using MarkingWorklist = Worklist<HeapObject*, 64 /* segment size */>;
-  using EmbedderTracingWorklist = Worklist<HeapObject*, 16 /* segment size */>;
+  using MarkingWorklist = Worklist<HeapObject, 64 /* segment size */>;
+  using EmbedderTracingWorklist = Worklist<HeapObject, 16 /* segment size */>;
 
   ConcurrentMarking(Heap* heap, MarkingWorklist* shared,
                     MarkingWorklist* bailout, MarkingWorklist* on_hold,

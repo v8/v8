@@ -207,7 +207,7 @@ TEST(VectorCallFeedback) {
   FeedbackNexus nexus(feedback_vector, slot);
 
   CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
-  HeapObject* heap_object;
+  HeapObject heap_object;
   CHECK(nexus.GetFeedback()->GetHeapObjectIfWeak(&heap_object));
   CHECK_EQ(*foo, heap_object);
 
@@ -234,7 +234,7 @@ TEST(VectorCallFeedbackForArray) {
   FeedbackNexus nexus(feedback_vector, slot);
 
   CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
-  HeapObject* heap_object;
+  HeapObject heap_object;
   CHECK(nexus.GetFeedback()->GetHeapObjectIfWeak(&heap_object));
   CHECK_EQ(*isolate->array_function(), heap_object);
 

@@ -418,12 +418,10 @@ void S390Debugger::Debug() {
         while (cur < end) {
           PrintF("  0x%08" V8PRIxPTR ":  0x%08" V8PRIxPTR " %10" V8PRIdPTR,
                  reinterpret_cast<intptr_t>(cur), *cur, *cur);
-          HeapObject* obj = reinterpret_cast<HeapObject*>(*cur);
-          intptr_t value = *cur;
+          ObjectPtr obj(*cur);
           Heap* current_heap = sim_->isolate_->heap();
-          if (((value & 1) == 0) || current_heap->Contains(obj)) {
-            PrintF("(smi %d)", PlatformSmiTagging::SmiToInt(
-                                   reinterpret_cast<Address>(obj)));
+          if (obj.IsSmi()) {
+            PrintF(" (smi %d)", Smi::ToInt(obj));
           } else if (current_heap->Contains(obj)) {
             PrintF(" (");
             obj->ShortPrint();

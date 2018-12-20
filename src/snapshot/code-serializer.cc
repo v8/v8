@@ -95,7 +95,7 @@ ScriptData* CodeSerializer::SerializeSharedFunctionInfo(
   return data.GetScriptData();
 }
 
-bool CodeSerializer::SerializeReadOnlyObject(HeapObject* obj,
+bool CodeSerializer::SerializeReadOnlyObject(HeapObject obj,
                                              HowToCode how_to_code,
                                              WhereToPoint where_to_point,
                                              int skip) {
@@ -120,7 +120,7 @@ bool CodeSerializer::SerializeReadOnlyObject(HeapObject* obj,
   return true;
 }
 
-void CodeSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
+void CodeSerializer::SerializeObject(HeapObject obj, HowToCode how_to_code,
                                      WhereToPoint where_to_point, int skip) {
   if (SerializeHotObject(obj, how_to_code, where_to_point, skip)) return;
 
@@ -227,7 +227,7 @@ void CodeSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
   SerializeGeneric(obj, how_to_code, where_to_point);
 }
 
-void CodeSerializer::SerializeGeneric(HeapObject* heap_object,
+void CodeSerializer::SerializeGeneric(HeapObject heap_object,
                                       HowToCode how_to_code,
                                       WhereToPoint where_to_point) {
   // Object has not yet been serialized.  Serialize it here.

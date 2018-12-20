@@ -16,7 +16,7 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(Struct, HeapObjectPtr)
+OBJECT_CONSTRUCTORS_IMPL(Struct, HeapObject)
 // TODO(jkummerow): Fix IsTuple2() and IsTuple3() to be subclassing-aware,
 // or rethink this more generally (see crbug.com/v8/8516).
 Tuple2::Tuple2(Address ptr) : Struct(ptr) {}

@@ -100,7 +100,7 @@ HEAP_TEST(NoPromotion) {
 // allocation failure.
 AllocationResult HeapTester::AllocateMapForTest(Isolate* isolate) {
   Heap* heap = isolate->heap();
-  HeapObject* obj;
+  HeapObject obj;
   AllocationResult alloc = heap->AllocateRaw(Map::kSize, MAP_SPACE);
   if (!alloc.To(&obj)) return alloc;
   obj->set_map_after_allocation(ReadOnlyRoots(heap).meta_map(),
@@ -117,7 +117,7 @@ AllocationResult HeapTester::AllocateFixedArrayForTest(
   DCHECK(length >= 0 && length <= FixedArray::kMaxLength);
   int size = FixedArray::SizeFor(length);
   AllocationSpace space = heap->SelectSpace(pretenure);
-  HeapObject* obj;
+  HeapObject obj;
   {
     AllocationResult result = heap->AllocateRaw(size, space);
     if (!result.To(&obj)) return result;

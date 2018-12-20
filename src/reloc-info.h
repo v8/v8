@@ -227,10 +227,10 @@ class RelocInfo {
   // this relocation applies to;
   // can only be called if IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_)
   V8_INLINE Address target_address();
-  V8_INLINE HeapObject* target_object();
+  V8_INLINE HeapObject target_object();
   V8_INLINE Handle<HeapObject> target_object_handle(Assembler* origin);
   V8_INLINE void set_target_object(
-      Heap* heap, HeapObject* target,
+      Heap* heap, HeapObject target,
       WriteBarrierMode write_barrier_mode = UPDATE_WRITE_BARRIER,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
   V8_INLINE Address target_runtime_entry(Assembler* origin);

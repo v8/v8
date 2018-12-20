@@ -19,7 +19,7 @@ namespace internal {
 // It's basically an "array of EmbedderDataSlots".
 // Note, if the pointer compression is enabled the embedder data slot also
 // contains a raw data part in addition to tagged part.
-class EmbedderDataArray : public HeapObjectPtr {
+class EmbedderDataArray : public HeapObject {
  public:
   // [length]: length of the array in an embedder data slots.
   V8_INLINE int length() const;
@@ -67,7 +67,7 @@ class EmbedderDataArray : public HeapObjectPtr {
  private:
   STATIC_ASSERT(kHeaderSize == Internals::kFixedArrayHeaderSize);
 
-  OBJECT_CONSTRUCTORS(EmbedderDataArray, HeapObjectPtr);
+  OBJECT_CONSTRUCTORS(EmbedderDataArray, HeapObject);
 };
 
 }  // namespace internal

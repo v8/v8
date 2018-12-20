@@ -22,7 +22,7 @@ class ValueSerializer;
 
 // BigIntBase is just the raw data object underlying a BigInt. Use with care!
 // Most code should be using BigInts instead.
-class BigIntBase : public HeapObjectPtr {
+class BigIntBase : public HeapObject {
  public:
   inline int length() const {
     int32_t bitfield = RELAXED_READ_INT32_FIELD(this, kBitfieldOffset);
@@ -96,7 +96,7 @@ class BigIntBase : public HeapObjectPtr {
   // Only serves to make macros happy; other code should use IsBigInt.
   bool IsBigIntBase() const { return true; }
 
-  OBJECT_CONSTRUCTORS(BigIntBase, HeapObjectPtr);
+  OBJECT_CONSTRUCTORS(BigIntBase, HeapObject);
 };
 
 class FreshlyAllocatedBigInt : public BigIntBase {

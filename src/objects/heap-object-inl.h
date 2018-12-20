@@ -53,19 +53,19 @@ bool ObjectPtr::IsSmallOrderedHashTable() const {
          IsSmallOrderedNameDictionary();
 }
 
-bool ObjectPtr::GetHeapObjectIfStrong(HeapObject** result) const {
+bool ObjectPtr::GetHeapObjectIfStrong(HeapObject* result) const {
   return GetHeapObject(result);
 }
 
-bool ObjectPtr::GetHeapObject(HeapObject** result) const {
+bool ObjectPtr::GetHeapObject(HeapObject* result) const {
   if (!IsHeapObject()) return false;
-  *result = reinterpret_cast<HeapObject*>(ptr());
+  *result = HeapObject::cast(*this);
   return true;
 }
 
-HeapObject* ObjectPtr::GetHeapObject() const {
+HeapObject ObjectPtr::GetHeapObject() const {
   DCHECK(IsHeapObject());
-  return reinterpret_cast<HeapObject*>(ptr());
+  return HeapObject::cast(*this);
 }
 
 double ObjectPtr::Number() const {
@@ -106,135 +106,23 @@ void ObjectPtr::Print(std::ostream& os) const {
   reinterpret_cast<Object*>(ptr())->Print(os);
 }
 
-OBJECT_CONSTRUCTORS_IMPL(HeapObjectPtr, ObjectPtr)
-HeapObjectPtr::HeapObjectPtr(Address ptr, AllowInlineSmiStorage allow_smi)
+HeapObject::HeapObject(Address ptr, AllowInlineSmiStorage allow_smi)
     : ObjectPtr(ptr) {
   SLOW_DCHECK(
       (allow_smi == AllowInlineSmiStorage::kAllowBeingASmi && IsSmi()) ||
       IsHeapObject());
 }
 
-CAST_ACCESSOR2(HeapObjectPtr)
-
-#define TYPE_CHECK_FORWARDER(Type)                           \
-  bool HeapObjectPtr::Is##Type() const {                     \
-    return reinterpret_cast<HeapObject*>(ptr())->Is##Type(); \
-  }
-HEAP_OBJECT_TYPE_LIST(TYPE_CHECK_FORWARDER)
-#undef TYPE_CHECK_FORWARDER
-
-Map HeapObjectPtr::map() const {
-  return Map::cast(READ_FIELD(this, kMapOffset));
+HeapObject HeapObject::FromAddress(Address address) {
+  DCHECK_TAG_ALIGNED(address);
+  return HeapObject(address + kHeapObjectTag);
 }
 
-void HeapObjectPtr::set_map(Map value) {
-  reinterpret_cast<HeapObject*>(ptr())->set_map(value);
+Heap* NeverReadOnlySpaceObjectPtr::GetHeap(const HeapObject object) {
+  return GetHeapFromWritableObject(object);
 }
 
-void HeapObjectPtr::set_map_no_write_barrier(Map value) {
-  reinterpret_cast<HeapObject*>(ptr())->set_map_no_write_barrier(value);
-}
-
-void HeapObjectPtr::set_map_after_allocation(Map value, WriteBarrierMode mode) {
-  reinterpret_cast<HeapObject*>(ptr())->set_map_after_allocation(value, mode);
-}
-
-MapWordSlot HeapObjectPtr::map_slot() const {
-  return MapWordSlot(FIELD_ADDR(this, kMapOffset));
-}
-
-MapWord HeapObjectPtr::map_word() const {
-  return MapWord(map_slot().Relaxed_Load().ptr());
-}
-
-void HeapObjectPtr::set_map_word(MapWord map_word) {
-  map_slot().Relaxed_Store(ObjectPtr(map_word.value_));
-}
-
-void HeapObjectPtr::synchronized_set_map(Map value) {
-  if (!value.is_null()) {
-#ifdef VERIFY_HEAP
-    Heap::FromWritableHeapObject(this)->VerifyObjectLayoutChange(*this, value);
-#endif
-  }
-  synchronized_set_map_word(MapWord::FromMap(value));
-  if (!value.is_null()) {
-    // TODO(1600) We are passing kNullAddress as a slot because maps can never
-    // be on an evacuation candidate.
-    MarkingBarrier(this, ObjectSlot(kNullAddress), value);
-  }
-}
-
-void HeapObjectPtr::synchronized_set_map_word(MapWord map_word) {
-  map_slot().Release_Store(ObjectPtr(map_word.value_));
-}
-
-WriteBarrierMode HeapObjectPtr::GetWriteBarrierMode(
-    const DisallowHeapAllocation& promise) {
-  Heap* heap = Heap::FromWritableHeapObject(this);
-  if (heap->incremental_marking()->IsMarking()) return UPDATE_WRITE_BARRIER;
-  if (Heap::InNewSpace(*this)) return SKIP_WRITE_BARRIER;
-  return UPDATE_WRITE_BARRIER;
-}
-
-ReadOnlyRoots HeapObjectPtr::GetReadOnlyRoots() const {
-  // TODO(v8:7464): When RO_SPACE is embedded, this will access a global
-  // variable instead.
-  return ReadOnlyRoots(MemoryChunk::FromHeapObject(*this)->heap());
-}
-
-bool HeapObjectPtr::IsExternal(Isolate* isolate) const {
-  return map()->FindRootMap(isolate) == isolate->heap()->external_map();
-}
-
-int HeapObjectPtr::Size() const {
-  return reinterpret_cast<HeapObject*>(ptr())->Size();
-}
-int HeapObjectPtr::SizeFromMap(Map map) const {
-  return reinterpret_cast<HeapObject*>(ptr())->SizeFromMap(map);
-}
-
-ObjectSlot HeapObjectPtr::RawField(int byte_offset) const {
-  return ObjectSlot(FIELD_ADDR(this, byte_offset));
-}
-
-MaybeObjectSlot HeapObjectPtr::RawMaybeWeakField(int byte_offset) const {
-  return MaybeObjectSlot(FIELD_ADDR(this, byte_offset));
-}
-
-#ifdef VERIFY_HEAP
-void HeapObjectPtr::VerifyObjectField(Isolate* isolate, int offset) {
-  HeapObject::VerifyPointer(isolate, READ_FIELD(this, offset));
-}
-
-void HeapObjectPtr::VerifyMaybeObjectField(Isolate* isolate, int offset) {
-  MaybeObject::VerifyMaybeObjectPointer(isolate, READ_WEAK_FIELD(this, offset));
-}
-
-void HeapObjectPtr::VerifySmiField(int offset) {
-  CHECK(READ_FIELD(this, offset)->IsSmi());
-}
-
-#endif
-
-Address HeapObjectPtr::GetFieldAddress(int field_offset) const {
-  return FIELD_ADDR(this, field_offset);
-}
-
-bool HeapObjectPtr::NeedsRehashing() const {
-  return reinterpret_cast<HeapObject*>(ptr())->NeedsRehashing();
-}
-
-Heap* NeverReadOnlySpaceObjectPtr::GetHeap(const HeapObjectPtr object) {
-  MemoryChunk* chunk = MemoryChunk::FromAddress(object.ptr());
-  // Make sure we are not accessing an object in RO space.
-  SLOW_DCHECK(chunk->owner()->identity() != RO_SPACE);
-  Heap* heap = chunk->heap();
-  SLOW_DCHECK(heap != nullptr);
-  return heap;
-}
-
-Isolate* NeverReadOnlySpaceObjectPtr::GetIsolate(const HeapObjectPtr object) {
+Isolate* NeverReadOnlySpaceObjectPtr::GetIsolate(const HeapObject object) {
   return GetHeap(object)->isolate();
 }
 

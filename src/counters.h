@@ -1151,7 +1151,7 @@ class RuntimeCallTimerScope {
                                RuntimeCallCounterId counter_id);
   // This constructor is here just to avoid calling GetIsolate() when the
   // stats are disabled and the isolate is not directly available.
-  inline RuntimeCallTimerScope(Isolate* isolate, HeapObject* heap_object,
+  inline RuntimeCallTimerScope(Isolate* isolate, HeapObject heap_object,
                                RuntimeCallCounterId counter_id);
   inline RuntimeCallTimerScope(RuntimeCallStats* stats,
                                RuntimeCallCounterId counter_id) {

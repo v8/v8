@@ -53,7 +53,7 @@ class EnumCache : public Tuple2 {
 // The "value" fields store either values or field types. A field type is either
 // FieldType::None(), FieldType::Any() or a weak reference to a Map. All other
 // references are strong.
-class DescriptorArray : public HeapObjectPtr {
+class DescriptorArray : public HeapObject {
  public:
   DECL_INT16_ACCESSORS(number_of_all_descriptors)
   DECL_INT16_ACCESSORS(number_of_descriptors)
@@ -127,7 +127,7 @@ class DescriptorArray : public HeapObjectPtr {
       Isolate* isolate, int nof_descriptors, int slack,
       PretenureFlag pretenure = NOT_TENURED);
 
-  void Initialize(EnumCache enum_cache, HeapObject* undefined_value,
+  void Initialize(EnumCache enum_cache, HeapObject undefined_value,
                   int nof_descriptors, int slack);
 
   DECL_CAST2(DescriptorArray)
@@ -226,7 +226,7 @@ class DescriptorArray : public HeapObjectPtr {
   // Swap first and second descriptor.
   inline void SwapSortedKeys(int first, int second);
 
-  OBJECT_CONSTRUCTORS(DescriptorArray, HeapObjectPtr);
+  OBJECT_CONSTRUCTORS(DescriptorArray, HeapObject);
 };
 
 class NumberOfMarkedDescriptors {

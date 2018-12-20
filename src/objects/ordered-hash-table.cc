@@ -173,11 +173,11 @@ Handle<FixedArray> OrderedHashSet::ConvertToKeysArray(
   return FixedArray::ShrinkOrEmpty(isolate, result, length);
 }
 
-HeapObject* OrderedHashSet::GetEmpty(ReadOnlyRoots ro_roots) {
+HeapObject OrderedHashSet::GetEmpty(ReadOnlyRoots ro_roots) {
   return ro_roots.empty_ordered_hash_set();
 }
 
-HeapObject* OrderedHashMap::GetEmpty(ReadOnlyRoots ro_roots) {
+HeapObject OrderedHashMap::GetEmpty(ReadOnlyRoots ro_roots) {
   return ro_roots.empty_ordered_hash_map();
 }
 
@@ -970,8 +970,8 @@ Handle<HeapObject> OrderedNameDictionaryHandler::Add(Isolate* isolate,
       isolate, Handle<OrderedNameDictionary>::cast(table), key, value, details);
 }
 
-int OrderedNameDictionaryHandler::FindEntry(Isolate* isolate,
-                                            HeapObjectPtr table, Object* key) {
+int OrderedNameDictionaryHandler::FindEntry(Isolate* isolate, HeapObject table,
+                                            Object* key) {
   if (table->IsSmallOrderedNameDictionary()) {
     int entry =
         SmallOrderedNameDictionary::cast(table)->FindEntry(isolate, key);
@@ -987,7 +987,7 @@ int OrderedNameDictionaryHandler::FindEntry(Isolate* isolate,
              : entry;
 }
 
-Object* OrderedNameDictionaryHandler::ValueAt(HeapObjectPtr table, int entry) {
+Object* OrderedNameDictionaryHandler::ValueAt(HeapObject table, int entry) {
   if (table->IsSmallOrderedNameDictionary()) {
     return SmallOrderedNameDictionary::cast(table)->ValueAt(entry);
   }
@@ -996,7 +996,7 @@ Object* OrderedNameDictionaryHandler::ValueAt(HeapObjectPtr table, int entry) {
   return OrderedNameDictionary::cast(table)->ValueAt(entry);
 }
 
-void OrderedNameDictionaryHandler::ValueAtPut(HeapObjectPtr table, int entry,
+void OrderedNameDictionaryHandler::ValueAtPut(HeapObject table, int entry,
                                               Object* value) {
   if (table->IsSmallOrderedNameDictionary()) {
     return SmallOrderedNameDictionary::cast(table)->ValueAtPut(entry, value);
@@ -1006,7 +1006,7 @@ void OrderedNameDictionaryHandler::ValueAtPut(HeapObjectPtr table, int entry,
   OrderedNameDictionary::cast(table)->ValueAtPut(entry, value);
 }
 
-PropertyDetails OrderedNameDictionaryHandler::DetailsAt(HeapObjectPtr table,
+PropertyDetails OrderedNameDictionaryHandler::DetailsAt(HeapObject table,
                                                         int entry) {
   if (table->IsSmallOrderedNameDictionary()) {
     return SmallOrderedNameDictionary::cast(table)->DetailsAt(entry);
@@ -1016,7 +1016,7 @@ PropertyDetails OrderedNameDictionaryHandler::DetailsAt(HeapObjectPtr table,
   return OrderedNameDictionary::cast(table)->DetailsAt(entry);
 }
 
-void OrderedNameDictionaryHandler::DetailsAtPut(HeapObjectPtr table, int entry,
+void OrderedNameDictionaryHandler::DetailsAtPut(HeapObject table, int entry,
                                                 PropertyDetails details) {
   if (table->IsSmallOrderedNameDictionary()) {
     return SmallOrderedNameDictionary::cast(table)->DetailsAtPut(entry,
@@ -1027,7 +1027,7 @@ void OrderedNameDictionaryHandler::DetailsAtPut(HeapObjectPtr table, int entry,
   OrderedNameDictionary::cast(table)->DetailsAtPut(entry, details);
 }
 
-int OrderedNameDictionaryHandler::Hash(HeapObjectPtr table) {
+int OrderedNameDictionaryHandler::Hash(HeapObject table) {
   if (table->IsSmallOrderedNameDictionary()) {
     return SmallOrderedNameDictionary::cast(table)->Hash();
   }
@@ -1036,7 +1036,7 @@ int OrderedNameDictionaryHandler::Hash(HeapObjectPtr table) {
   return OrderedNameDictionary::cast(table)->Hash();
 }
 
-void OrderedNameDictionaryHandler::SetHash(HeapObjectPtr table, int hash) {
+void OrderedNameDictionaryHandler::SetHash(HeapObject table, int hash) {
   if (table->IsSmallOrderedNameDictionary()) {
     return SmallOrderedNameDictionary::cast(table)->SetHash(hash);
   }

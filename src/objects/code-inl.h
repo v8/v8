@@ -24,9 +24,9 @@ namespace internal {
 
 OBJECT_CONSTRUCTORS_IMPL(DeoptimizationData, FixedArray)
 OBJECT_CONSTRUCTORS_IMPL(BytecodeArray, FixedArrayBase)
-OBJECT_CONSTRUCTORS_IMPL(AbstractCode, HeapObjectPtr)
+OBJECT_CONSTRUCTORS_IMPL(AbstractCode, HeapObject)
 OBJECT_CONSTRUCTORS_IMPL(DependentCode, WeakFixedArray)
-OBJECT_CONSTRUCTORS_IMPL(CodeDataContainer, HeapObjectPtr)
+OBJECT_CONSTRUCTORS_IMPL(CodeDataContainer, HeapObject)
 OBJECT_CONSTRUCTORS_IMPL(SourcePositionTableWithFrameCache, Tuple2)
 
 NEVER_READ_ONLY_SPACE_IMPL(AbstractCode)
@@ -190,7 +190,7 @@ void DependentCode::copy(int from, int to) {
   Set(kCodesStartIndex + to, Get(kCodesStartIndex + from));
 }
 
-OBJECT_CONSTRUCTORS_IMPL(Code, HeapObjectPtr)
+OBJECT_CONSTRUCTORS_IMPL(Code, HeapObject)
 NEVER_READ_ONLY_SPACE_IMPL(Code)
 
 INT_ACCESSORS(Code, raw_instruction_size, kInstructionSizeOffset)
@@ -594,7 +594,7 @@ Code Code::GetCodeFromTargetAddress(Address address) {
     CHECK(address < start || address >= end);
   }
 
-  HeapObject* code = HeapObject::FromAddress(address - Code::kHeaderSize);
+  HeapObject code = HeapObject::FromAddress(address - Code::kHeaderSize);
   // Unchecked cast because we can't rely on the map currently
   // not being a forwarding pointer.
   return Code::unchecked_cast(code);
@@ -602,7 +602,7 @@ Code Code::GetCodeFromTargetAddress(Address address) {
 
 Code Code::GetObjectFromEntryAddress(Address location_of_address) {
   Address code_entry = Memory<Address>(location_of_address);
-  HeapObject* code = HeapObject::FromAddress(code_entry - Code::kHeaderSize);
+  HeapObject code = HeapObject::FromAddress(code_entry - Code::kHeaderSize);
   // Unchecked cast because we can't rely on the map currently
   // not being a forwarding pointer.
   return Code::unchecked_cast(code);
@@ -612,11 +612,11 @@ bool Code::CanContainWeakObjects() {
   return is_optimized_code() && can_have_weak_objects();
 }
 
-bool Code::IsWeakObject(HeapObject* object) {
+bool Code::IsWeakObject(HeapObject object) {
   return (CanContainWeakObjects() && IsWeakObjectInOptimizedCode(object));
 }
 
-bool Code::IsWeakObjectInOptimizedCode(HeapObject* object) {
+bool Code::IsWeakObjectInOptimizedCode(HeapObject object) {
   Map map = object->synchronized_map();
   InstanceType instance_type = map->instance_type();
   if (InstanceTypeChecker::IsMap(instance_type)) {

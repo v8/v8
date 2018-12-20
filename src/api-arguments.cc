@@ -23,7 +23,7 @@ PropertyCallbackArguments::PropertyCallbackArguments(Isolate* isolate,
 
   // Here the hole is set as default value.
   // It cannot escape into js as it's removed in Call below.
-  HeapObject* the_hole = ReadOnlyRoots(isolate).the_hole_value();
+  HeapObject the_hole = ReadOnlyRoots(isolate).the_hole_value();
   slot_at(T::kReturnValueDefaultValueIndex).store(the_hole);
   slot_at(T::kReturnValueIndex).store(the_hole);
   DCHECK((*slot_at(T::kHolderIndex))->IsHeapObject());
@@ -32,8 +32,8 @@ PropertyCallbackArguments::PropertyCallbackArguments(Isolate* isolate,
 
 FunctionCallbackArguments::FunctionCallbackArguments(
     internal::Isolate* isolate, internal::Object* data,
-    internal::HeapObject* callee, internal::Object* holder,
-    internal::HeapObject* new_target, internal::Address* argv, int argc)
+    internal::HeapObject callee, internal::Object* holder,
+    internal::HeapObject new_target, internal::Address* argv, int argc)
     : Super(isolate), argv_(argv), argc_(argc) {
   slot_at(T::kDataIndex).store(data);
   slot_at(T::kHolderIndex).store(holder);
@@ -41,7 +41,7 @@ FunctionCallbackArguments::FunctionCallbackArguments(
   slot_at(T::kIsolateIndex).store(reinterpret_cast<internal::Object*>(isolate));
   // Here the hole is set as default value.
   // It cannot escape into js as it's remove in Call below.
-  HeapObject* the_hole = ReadOnlyRoots(isolate).the_hole_value();
+  HeapObject the_hole = ReadOnlyRoots(isolate).the_hole_value();
   slot_at(T::kReturnValueDefaultValueIndex).store(the_hole);
   slot_at(T::kReturnValueIndex).store(the_hole);
   DCHECK((*slot_at(T::kHolderIndex))->IsHeapObject());

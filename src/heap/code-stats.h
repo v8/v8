@@ -31,13 +31,13 @@ class CodeStatistics {
 #endif
 
  private:
-  static void RecordCodeAndMetadataStatistics(HeapObject* object,
+  static void RecordCodeAndMetadataStatistics(HeapObject object,
                                               Isolate* isolate);
 
 #ifdef DEBUG
   static void CollectCommentStatistics(Isolate* isolate,
                                        CodeCommentsIterator* it);
-  static void CollectCodeCommentStatistics(HeapObject* obj, Isolate* isolate);
+  static void CollectCodeCommentStatistics(HeapObject obj, Isolate* isolate);
   static void EnterComment(Isolate* isolate, const char* comment, int delta);
   static void ResetCodeStatistics(Isolate* isolate);
 #endif

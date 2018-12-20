@@ -13,7 +13,7 @@
 namespace v8 {
 namespace internal {
 
-class PropertyCell : public HeapObjectPtr {
+class PropertyCell : public HeapObject {
  public:
   // [name]: the name of the global property.
   DECL_ACCESSORS2(name, Name)
@@ -70,7 +70,7 @@ class PropertyCell : public HeapObjectPtr {
 
   typedef FixedBodyDescriptor<kNameOffset, kSize, kSize> BodyDescriptor;
 
-  OBJECT_CONSTRUCTORS(PropertyCell, HeapObjectPtr);
+  OBJECT_CONSTRUCTORS(PropertyCell, HeapObject);
 };
 
 }  // namespace internal

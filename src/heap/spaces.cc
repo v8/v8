@@ -942,7 +942,7 @@ size_t Page::AvailableInFreeList() {
 namespace {
 // Skips filler starting from the given filler until the end address.
 // Returns the first address after the skipped fillers.
-Address SkipFillers(HeapObject* filler, Address end) {
+Address SkipFillers(HeapObject filler, Address end) {
   Address addr = filler->address();
   while (addr < end) {
     filler = HeapObject::FromAddress(addr);
@@ -962,7 +962,7 @@ size_t Page::ShrinkToHighWaterMark() {
 
   // Shrink pages to high water mark. The water mark points either to a filler
   // or the area_end.
-  HeapObject* filler = HeapObject::FromAddress(HighWaterMark());
+  HeapObject filler = HeapObject::FromAddress(HighWaterMark());
   if (filler->address() == area_end()) return 0;
   CHECK(filler->IsFiller());
   // Ensure that no objects were allocated in [filler, area_end) region.
@@ -1364,7 +1364,7 @@ void MemoryChunk::ReleaseInvalidatedSlots() {
   }
 }
 
-void MemoryChunk::RegisterObjectWithInvalidatedSlots(HeapObject* object,
+void MemoryChunk::RegisterObjectWithInvalidatedSlots(HeapObject object,
                                                      int size) {
   if (!ShouldSkipEvacuationSlotRecording()) {
     if (invalidated_slots() == nullptr) {
@@ -1375,7 +1375,7 @@ void MemoryChunk::RegisterObjectWithInvalidatedSlots(HeapObject* object,
   }
 }
 
-bool MemoryChunk::RegisteredObjectWithInvalidatedSlots(HeapObject* object) {
+bool MemoryChunk::RegisteredObjectWithInvalidatedSlots(HeapObject object) {
   if (ShouldSkipEvacuationSlotRecording()) {
     // Invalidated slots do not matter if we are not recording slots.
     return true;
@@ -1386,8 +1386,8 @@ bool MemoryChunk::RegisteredObjectWithInvalidatedSlots(HeapObject* object) {
   return invalidated_slots()->find(object) != invalidated_slots()->end();
 }
 
-void MemoryChunk::MoveObjectWithInvalidatedSlots(HeapObject* old_start,
-                                                 HeapObject* new_start) {
+void MemoryChunk::MoveObjectWithInvalidatedSlots(HeapObject old_start,
+                                                 HeapObject new_start) {
   DCHECK_LT(old_start, new_start);
   DCHECK_EQ(MemoryChunk::FromHeapObject(old_start),
             MemoryChunk::FromHeapObject(new_start));
@@ -1936,8 +1936,7 @@ void PagedSpace::Verify(Isolate* isolate, ObjectVisitor* visitor) {
     Address end_of_previous_object = page->area_start();
     Address top = page->area_end();
 
-    for (HeapObject* object = it.Next(); object != nullptr;
-         object = it.Next()) {
+    for (HeapObject object = it.Next(); !object.is_null(); object = it.Next()) {
       CHECK(end_of_previous_object <= object->address());
 
       // The first word should be a map, and we expect all map pointers to
@@ -1998,8 +1997,7 @@ void PagedSpace::VerifyLiveBytes() {
     CHECK(page->SweepingDone());
     HeapObjectIterator it(page);
     int black_size = 0;
-    for (HeapObject* object = it.Next(); object != nullptr;
-         object = it.Next()) {
+    for (HeapObject object = it.Next(); !object.is_null(); object = it.Next()) {
       // All the interior pointers should be contained in the heap.
       if (marking_state->IsBlack(object)) {
         black_size += object->Size();
@@ -2019,8 +2017,7 @@ void PagedSpace::VerifyCountersAfterSweeping() {
     total_capacity += page->area_size();
     HeapObjectIterator it(page);
     size_t real_allocated = 0;
-    for (HeapObject* object = it.Next(); object != nullptr;
-         object = it.Next()) {
+    for (HeapObject object = it.Next(); !object.is_null(); object = it.Next()) {
       if (!object->IsFiller()) {
         real_allocated += object->Size();
       }
@@ -2435,7 +2432,7 @@ void NewSpace::Verify(Isolate* isolate) {
       CHECK(!Page::FromAllocationAreaAddress(current)->ContainsLimit(top()) ||
             current < top());
 
-      HeapObject* object = HeapObject::FromAddress(current);
+      HeapObject object = HeapObject::FromAddress(current);
 
       // The first word should be a map, and we expect all map pointers to
       // be in map space or read-only space.
@@ -2871,7 +2868,7 @@ void FreeListCategory::RepairFreeList(Heap* heap) {
     MapWordSlot map_location = n.map_slot();
     // We can't use .is_null() here because ObjectSlot.load() returns an
     // ObjectPtr (for which "is null" is not defined, as it would be
-    // indistinguishable from "is Smi(0)"). Only HeapObjectPtr has "is_null()".
+    // indistinguishable from "is Smi(0)"). Only HeapObject has "is_null()".
     if (map_location.load() == Map()) {
       map_location.store(ReadOnlyRoots(heap).free_space_map());
     } else {
@@ -3242,7 +3239,7 @@ bool PagedSpace::RawSlowRefillLinearAllocationArea(int size_in_bytes) {
 // MapSpace implementation
 
 #ifdef VERIFY_HEAP
-void MapSpace::VerifyObject(HeapObject* object) { CHECK(object->IsMap()); }
+void MapSpace::VerifyObject(HeapObject object) { CHECK(object->IsMap()); }
 #endif
 
 ReadOnlySpace::ReadOnlySpace(Heap* heap)
@@ -3299,7 +3296,7 @@ void ReadOnlySpace::RepairFreeListsAfterDeserialization() {
     Address end = page->area_end();
     if (start < end - size) {
       // A region at the high watermark is already in free list.
-      HeapObject* filler = HeapObject::FromAddress(start);
+      HeapObject filler = HeapObject::FromAddress(start);
       CHECK(filler->IsFiller());
       start += filler->Size();
     }
@@ -3314,7 +3311,7 @@ void ReadOnlySpace::ClearStringPaddingIfNeeded() {
   WritableScope writable_scope(this);
   for (Page* page : *this) {
     HeapObjectIterator iterator(page);
-    for (HeapObject* o = iterator.Next(); o != nullptr; o = iterator.Next()) {
+    for (HeapObject o = iterator.Next(); !o.is_null(); o = iterator.Next()) {
       if (o->IsSeqOneByteString()) {
         SeqOneByteString::cast(o)->clear_padding();
       } else if (o->IsSeqTwoByteString()) {
@@ -3367,15 +3364,13 @@ LargeObjectIterator::LargeObjectIterator(LargeObjectSpace* space) {
   current_ = space->first_page();
 }
 
+HeapObject LargeObjectIterator::Next() {
+  if (current_ == nullptr) return HeapObject();
 
-HeapObject* LargeObjectIterator::Next() {
-  if (current_ == nullptr) return nullptr;
-
-  HeapObject* object = current_->GetObject();
+  HeapObject object = current_->GetObject();
   current_ = current_->next_page();
   return object;
 }
-
 
 // -----------------------------------------------------------------------------
 // LargeObjectSpace
@@ -3417,7 +3412,7 @@ AllocationResult LargeObjectSpace::AllocateRaw(int object_size,
   LargePage* page = AllocateLargePage(object_size, executable);
   if (page == nullptr) return AllocationResult::Retry(identity());
   page->SetOldGenerationPageFlags(heap()->incremental_marking()->IsMarking());
-  HeapObject* object = page->GetObject();
+  HeapObject object = page->GetObject();
   heap()->StartIncrementalMarkingIfAllocationLimitIsReached(
       heap()->GCFlagsForIncrementalMarking(),
       kGCCallbackScheduleIdleGarbageCollection);
@@ -3440,7 +3435,7 @@ LargePage* LargeObjectSpace::AllocateLargePage(int object_size,
 
   Register(page, object_size);
 
-  HeapObject* object = page->GetObject();
+  HeapObject object = page->GetObject();
 
   heap()->CreateFillerObjectAt(object->address(), object_size,
                                ClearRecordedSlots::kNo);
@@ -3483,7 +3478,7 @@ void LargeObjectSpace::ClearMarkingStateOfLiveObjects() {
   IncrementalMarking::NonAtomicMarkingState* marking_state =
       heap()->incremental_marking()->non_atomic_marking_state();
   LargeObjectIterator it(this);
-  for (HeapObject* obj = it.Next(); obj != nullptr; obj = it.Next()) {
+  for (HeapObject obj = it.Next(); !obj.is_null(); obj = it.Next()) {
     if (marking_state->IsBlackOrGrey(obj)) {
       Marking::MarkWhite(marking_state->MarkBitFrom(obj));
       MemoryChunk* chunk = MemoryChunk::FromAddress(obj->address());
@@ -3561,7 +3556,7 @@ void LargeObjectSpace::FreeUnmarkedObjects() {
   objects_size_ = 0;
   while (current) {
     LargePage* next_current = current->next_page();
-    HeapObject* object = current->GetObject();
+    HeapObject object = current->GetObject();
     DCHECK(!marking_state->IsGrey(object));
     if (marking_state->IsBlack(object)) {
       Address free_start;
@@ -3596,7 +3591,7 @@ void LargeObjectSpace::FreeUnmarkedObjects() {
   }
 }
 
-bool LargeObjectSpace::Contains(HeapObject* object) {
+bool LargeObjectSpace::Contains(HeapObject object) {
   Address address = object->address();
   MemoryChunk* chunk = MemoryChunk::FromAddress(address);
 
@@ -3625,7 +3620,7 @@ void LargeObjectSpace::Verify(Isolate* isolate) {
        chunk = chunk->next_page()) {
     // Each chunk contains an object that starts at the large object page's
     // object area start.
-    HeapObject* object = chunk->GetObject();
+    HeapObject object = chunk->GetObject();
     Page* page = Page::FromAddress(object->address());
     CHECK(object->address() == page->area_start());
 
@@ -3663,7 +3658,7 @@ void LargeObjectSpace::Verify(Isolate* isolate) {
       for (int j = 0; j < array->length(); j++) {
         Object* element = array->get(j);
         if (element->IsHeapObject()) {
-          HeapObject* element_object = HeapObject::cast(element);
+          HeapObject element_object = HeapObject::cast(element);
           CHECK(heap()->Contains(element_object));
           CHECK(element_object->map()->IsMap());
         }
@@ -3673,7 +3668,7 @@ void LargeObjectSpace::Verify(Isolate* isolate) {
       for (int j = 0; j < array->length(); j++) {
         Object* property = array->get(j);
         if (property->IsHeapObject()) {
-          HeapObject* property_object = HeapObject::cast(property);
+          HeapObject property_object = HeapObject::cast(property);
           CHECK(heap()->Contains(property_object));
           CHECK(property_object->map()->IsMap());
         }
@@ -3695,7 +3690,7 @@ void LargeObjectSpace::Verify(Isolate* isolate) {
 void LargeObjectSpace::Print() {
   StdoutStream os;
   LargeObjectIterator it(this);
-  for (HeapObject* obj = it.Next(); obj != nullptr; obj = it.Next()) {
+  for (HeapObject obj = it.Next(); !obj.is_null(); obj = it.Next()) {
     obj->Print(os);
   }
 }
@@ -3707,7 +3702,7 @@ void Page::Print() {
   printf(" --------------------------------------\n");
   HeapObjectIterator objects(this);
   unsigned mark_size = 0;
-  for (HeapObject* object = objects.Next(); object != nullptr;
+  for (HeapObject object = objects.Next(); !object.is_null();
        object = objects.Next()) {
     bool is_marked =
         heap()->incremental_marking()->marking_state()->IsBlackOrGrey(object);

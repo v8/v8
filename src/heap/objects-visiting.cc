@@ -49,7 +49,7 @@ Object* VisitWeakList(Heap* heap, Object* list, WeakObjectRetainer* retainer) {
         DCHECK(!tail.is_null());
         WeakListVisitor<T>::SetWeakNext(tail, retained);
         if (record_slots) {
-          HeapObject* slot_holder = WeakListVisitor<T>::WeakNextHolder(tail);
+          HeapObject slot_holder = WeakListVisitor<T>::WeakNextHolder(tail);
           int slot_offset = WeakListVisitor<T>::WeakNextOffset();
           ObjectSlot slot = HeapObject::RawField(slot_holder, slot_offset);
           MarkCompactCollector::RecordSlot(slot_holder, slot,
@@ -95,7 +95,7 @@ struct WeakListVisitor<Code> {
     return code->code_data_container()->next_code_link();
   }
 
-  static HeapObject* WeakNextHolder(Code code) {
+  static HeapObject WeakNextHolder(Code code) {
     return code->code_data_container();
   }
 
@@ -121,7 +121,7 @@ struct WeakListVisitor<Context> {
     return context->next_context_link();
   }
 
-  static HeapObject* WeakNextHolder(Context context) { return context; }
+  static HeapObject WeakNextHolder(Context context) { return context; }
 
   static int WeakNextOffset() {
     return FixedArray::SizeFor(Context::NEXT_CONTEXT_LINK);
@@ -176,7 +176,7 @@ struct WeakListVisitor<AllocationSite> {
 
   static Object* WeakNext(AllocationSite obj) { return obj->weak_next(); }
 
-  static HeapObject* WeakNextHolder(AllocationSite obj) { return obj; }
+  static HeapObject WeakNextHolder(AllocationSite obj) { return obj; }
 
   static int WeakNextOffset() { return AllocationSite::kWeakNextOffset; }
 

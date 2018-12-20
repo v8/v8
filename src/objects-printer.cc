@@ -84,20 +84,6 @@ void Object::Print(std::ostream& os) {  // NOLINT
 }
 
 void HeapObject::PrintHeader(std::ostream& os, const char* id) {  // NOLINT
-  os << reinterpret_cast<void*>(this) << ": [";
-  if (id != nullptr) {
-    os << id;
-  } else {
-    os << map()->instance_type();
-  }
-  os << "]";
-  MemoryChunk* chunk = MemoryChunk::FromAddress(
-      reinterpret_cast<Address>(const_cast<HeapObject*>(this)));
-  if (chunk->owner()->identity() == OLD_SPACE) os << " in OldSpace";
-  if (!IsMap()) os << "\n - map: " << Brief(map());
-}
-
-void HeapObjectPtr::PrintHeader(std::ostream& os, const char* id) {  // NOLINT
   os << reinterpret_cast<void*>(ptr()) << ": [";
   if (id != nullptr) {
     os << id;
@@ -114,39 +100,39 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
   InstanceType instance_type = map()->instance_type();
 
   if (instance_type < FIRST_NONSTRING_TYPE) {
-    String::cast(this)->StringPrint(os);
+    String::cast(*this)->StringPrint(os);
     os << "\n";
     return;
   }
 
   switch (instance_type) {
     case SYMBOL_TYPE:
-      Symbol::cast(this)->SymbolPrint(os);
+      Symbol::cast(*this)->SymbolPrint(os);
       break;
     case MAP_TYPE:
-      Map::cast(this)->MapPrint(os);
+      Map::cast(*this)->MapPrint(os);
       break;
     case HEAP_NUMBER_TYPE:
-      HeapNumber::cast(this)->HeapNumberPrint(os);
+      HeapNumber::cast(*this)->HeapNumberPrint(os);
       os << "\n";
       break;
     case MUTABLE_HEAP_NUMBER_TYPE:
       os << "<mutable ";
-      MutableHeapNumber::cast(this)->MutableHeapNumberPrint(os);
+      MutableHeapNumber::cast(*this)->MutableHeapNumberPrint(os);
       os << ">\n";
       break;
     case BIGINT_TYPE:
-      BigInt::cast(this)->BigIntPrint(os);
+      BigInt::cast(*this)->BigIntPrint(os);
       os << "\n";
       break;
     case EMBEDDER_DATA_ARRAY_TYPE:
-      EmbedderDataArray::cast(this)->EmbedderDataArrayPrint(os);
+      EmbedderDataArray::cast(*this)->EmbedderDataArrayPrint(os);
       break;
     case FIXED_DOUBLE_ARRAY_TYPE:
-      FixedDoubleArray::cast(this)->FixedDoubleArrayPrint(os);
+      FixedDoubleArray::cast(*this)->FixedDoubleArrayPrint(os);
       break;
     case FIXED_ARRAY_TYPE:
-      FixedArray::cast(this)->FixedArrayPrint(os);
+      FixedArray::cast(*this)->FixedArrayPrint(os);
       break;
     case AWAIT_CONTEXT_TYPE:
     case BLOCK_CONTEXT_TYPE:
@@ -158,10 +144,10 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case SCRIPT_CONTEXT_TYPE:
     case WITH_CONTEXT_TYPE:
     case SCRIPT_CONTEXT_TABLE_TYPE:
-      Context::cast(this)->ContextPrint(os);
+      Context::cast(*this)->ContextPrint(os);
       break;
     case NATIVE_CONTEXT_TYPE:
-      NativeContext::cast(this)->NativeContextPrint(os);
+      NativeContext::cast(*this)->NativeContextPrint(os);
       break;
     case HASH_TABLE_TYPE:
     case ORDERED_HASH_MAP_TYPE:
@@ -171,46 +157,46 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case GLOBAL_DICTIONARY_TYPE:
     case SIMPLE_NUMBER_DICTIONARY_TYPE:
     case STRING_TABLE_TYPE:
-      ObjectHashTable::cast(this)->ObjectHashTablePrint(os);
+      ObjectHashTable::cast(*this)->ObjectHashTablePrint(os);
       break;
     case NUMBER_DICTIONARY_TYPE:
-      NumberDictionary::cast(this)->NumberDictionaryPrint(os);
+      NumberDictionary::cast(*this)->NumberDictionaryPrint(os);
       break;
     case EPHEMERON_HASH_TABLE_TYPE:
-      EphemeronHashTable::cast(this)->EphemeronHashTablePrint(os);
+      EphemeronHashTable::cast(*this)->EphemeronHashTablePrint(os);
       break;
     case OBJECT_BOILERPLATE_DESCRIPTION_TYPE:
-      ObjectBoilerplateDescription::cast(this)
+      ObjectBoilerplateDescription::cast(*this)
           ->ObjectBoilerplateDescriptionPrint(os);
       break;
     case PROPERTY_ARRAY_TYPE:
-      PropertyArray::cast(this)->PropertyArrayPrint(os);
+      PropertyArray::cast(*this)->PropertyArrayPrint(os);
       break;
     case BYTE_ARRAY_TYPE:
-      ByteArray::cast(this)->ByteArrayPrint(os);
+      ByteArray::cast(*this)->ByteArrayPrint(os);
       break;
     case BYTECODE_ARRAY_TYPE:
-      BytecodeArray::cast(this)->BytecodeArrayPrint(os);
+      BytecodeArray::cast(*this)->BytecodeArrayPrint(os);
       break;
     case DESCRIPTOR_ARRAY_TYPE:
-      DescriptorArray::cast(this)->DescriptorArrayPrint(os);
+      DescriptorArray::cast(*this)->DescriptorArrayPrint(os);
       break;
     case TRANSITION_ARRAY_TYPE:
-      TransitionArray::cast(this)->TransitionArrayPrint(os);
+      TransitionArray::cast(*this)->TransitionArrayPrint(os);
       break;
     case FEEDBACK_CELL_TYPE:
-      FeedbackCell::cast(this)->FeedbackCellPrint(os);
+      FeedbackCell::cast(*this)->FeedbackCellPrint(os);
       break;
     case FEEDBACK_VECTOR_TYPE:
-      FeedbackVector::cast(this)->FeedbackVectorPrint(os);
+      FeedbackVector::cast(*this)->FeedbackVectorPrint(os);
       break;
     case FREE_SPACE_TYPE:
-      FreeSpace::cast(this)->FreeSpacePrint(os);
+      FreeSpace::cast(*this)->FreeSpacePrint(os);
       break;
 
-#define PRINT_FIXED_TYPED_ARRAY(Type, type, TYPE, ctype)      \
-  case Fixed##Type##Array::kInstanceType:                     \
-    Fixed##Type##Array::cast(this)->FixedTypedArrayPrint(os); \
+#define PRINT_FIXED_TYPED_ARRAY(Type, type, TYPE, ctype)       \
+  case Fixed##Type##Array::kInstanceType:                      \
+    Fixed##Type##Array::cast(*this)->FixedTypedArrayPrint(os); \
     break;
 
       TYPED_ARRAYS(PRINT_FIXED_TYPED_ARRAY)
@@ -232,196 +218,196 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case WASM_GLOBAL_TYPE:
     case WASM_MEMORY_TYPE:
     case WASM_TABLE_TYPE:
-      JSObject::cast(this)->JSObjectPrint(os);
+      JSObject::cast(*this)->JSObjectPrint(os);
       break;
     case WASM_MODULE_TYPE:
-      WasmModuleObject::cast(this)->WasmModuleObjectPrint(os);
+      WasmModuleObject::cast(*this)->WasmModuleObjectPrint(os);
       break;
     case WASM_INSTANCE_TYPE:
-      WasmInstanceObject::cast(this)->WasmInstanceObjectPrint(os);
+      WasmInstanceObject::cast(*this)->WasmInstanceObjectPrint(os);
       break;
     case JS_GENERATOR_OBJECT_TYPE:
-      JSGeneratorObject::cast(this)->JSGeneratorObjectPrint(os);
+      JSGeneratorObject::cast(*this)->JSGeneratorObjectPrint(os);
       break;
     case JS_PROMISE_TYPE:
-      JSPromise::cast(this)->JSPromisePrint(os);
+      JSPromise::cast(*this)->JSPromisePrint(os);
       break;
     case JS_ARRAY_TYPE:
-      JSArray::cast(this)->JSArrayPrint(os);
+      JSArray::cast(*this)->JSArrayPrint(os);
       break;
     case JS_REGEXP_TYPE:
-      JSRegExp::cast(this)->JSRegExpPrint(os);
+      JSRegExp::cast(*this)->JSRegExpPrint(os);
       break;
     case JS_REGEXP_STRING_ITERATOR_TYPE:
-      JSRegExpStringIterator::cast(this)->JSRegExpStringIteratorPrint(os);
+      JSRegExpStringIterator::cast(*this)->JSRegExpStringIteratorPrint(os);
       break;
     case ODDBALL_TYPE:
-      Oddball::cast(this)->to_string()->Print(os);
+      Oddball::cast(*this)->to_string()->Print(os);
       break;
     case JS_BOUND_FUNCTION_TYPE:
-      JSBoundFunction::cast(this)->JSBoundFunctionPrint(os);
+      JSBoundFunction::cast(*this)->JSBoundFunctionPrint(os);
       break;
     case JS_FUNCTION_TYPE:
-      JSFunction::cast(this)->JSFunctionPrint(os);
+      JSFunction::cast(*this)->JSFunctionPrint(os);
       break;
     case JS_GLOBAL_PROXY_TYPE:
-      JSGlobalProxy::cast(this)->JSGlobalProxyPrint(os);
+      JSGlobalProxy::cast(*this)->JSGlobalProxyPrint(os);
       break;
     case JS_GLOBAL_OBJECT_TYPE:
-      JSGlobalObject::cast(this)->JSGlobalObjectPrint(os);
+      JSGlobalObject::cast(*this)->JSGlobalObjectPrint(os);
       break;
     case JS_VALUE_TYPE:
-      JSValue::cast(this)->JSValuePrint(os);
+      JSValue::cast(*this)->JSValuePrint(os);
       break;
     case JS_DATE_TYPE:
-      JSDate::cast(this)->JSDatePrint(os);
+      JSDate::cast(*this)->JSDatePrint(os);
       break;
     case CODE_TYPE:
-      Code::cast(this)->CodePrint(os);
+      Code::cast(*this)->CodePrint(os);
       break;
     case CODE_DATA_CONTAINER_TYPE:
-      CodeDataContainer::cast(this)->CodeDataContainerPrint(os);
+      CodeDataContainer::cast(*this)->CodeDataContainerPrint(os);
       break;
     case JS_PROXY_TYPE:
-      JSProxy::cast(this)->JSProxyPrint(os);
+      JSProxy::cast(*this)->JSProxyPrint(os);
       break;
     case JS_SET_TYPE:
-      JSSet::cast(this)->JSSetPrint(os);
+      JSSet::cast(*this)->JSSetPrint(os);
       break;
     case JS_MAP_TYPE:
-      JSMap::cast(this)->JSMapPrint(os);
+      JSMap::cast(*this)->JSMapPrint(os);
       break;
     case JS_SET_KEY_VALUE_ITERATOR_TYPE:
     case JS_SET_VALUE_ITERATOR_TYPE:
-      JSSetIterator::cast(this)->JSSetIteratorPrint(os);
+      JSSetIterator::cast(*this)->JSSetIteratorPrint(os);
       break;
     case JS_MAP_KEY_ITERATOR_TYPE:
     case JS_MAP_KEY_VALUE_ITERATOR_TYPE:
     case JS_MAP_VALUE_ITERATOR_TYPE:
-      JSMapIterator::cast(this)->JSMapIteratorPrint(os);
+      JSMapIterator::cast(*this)->JSMapIteratorPrint(os);
       break;
     case JS_WEAK_CELL_TYPE:
-      JSWeakCell::cast(this)->JSWeakCellPrint(os);
+      JSWeakCell::cast(*this)->JSWeakCellPrint(os);
       break;
     case JS_WEAK_REF_TYPE:
-      JSWeakRef::cast(this)->JSWeakRefPrint(os);
+      JSWeakRef::cast(*this)->JSWeakRefPrint(os);
       break;
     case JS_WEAK_FACTORY_TYPE:
-      JSWeakFactory::cast(this)->JSWeakFactoryPrint(os);
+      JSWeakFactory::cast(*this)->JSWeakFactoryPrint(os);
       break;
     case JS_WEAK_FACTORY_CLEANUP_ITERATOR_TYPE:
-      JSWeakFactoryCleanupIterator::cast(this)
+      JSWeakFactoryCleanupIterator::cast(*this)
           ->JSWeakFactoryCleanupIteratorPrint(os);
       break;
     case JS_WEAK_MAP_TYPE:
-      JSWeakMap::cast(this)->JSWeakMapPrint(os);
+      JSWeakMap::cast(*this)->JSWeakMapPrint(os);
       break;
     case JS_WEAK_SET_TYPE:
-      JSWeakSet::cast(this)->JSWeakSetPrint(os);
+      JSWeakSet::cast(*this)->JSWeakSetPrint(os);
       break;
     case JS_MODULE_NAMESPACE_TYPE:
-      JSModuleNamespace::cast(this)->JSModuleNamespacePrint(os);
+      JSModuleNamespace::cast(*this)->JSModuleNamespacePrint(os);
       break;
     case FOREIGN_TYPE:
-      Foreign::cast(this)->ForeignPrint(os);
+      Foreign::cast(*this)->ForeignPrint(os);
       break;
     case CALL_HANDLER_INFO_TYPE:
-      CallHandlerInfo::cast(this)->CallHandlerInfoPrint(os);
+      CallHandlerInfo::cast(*this)->CallHandlerInfoPrint(os);
       break;
     case PRE_PARSED_SCOPE_DATA_TYPE:
-      PreParsedScopeData::cast(this)->PreParsedScopeDataPrint(os);
+      PreParsedScopeData::cast(*this)->PreParsedScopeDataPrint(os);
       break;
     case UNCOMPILED_DATA_WITHOUT_PRE_PARSED_SCOPE_TYPE:
-      UncompiledDataWithoutPreParsedScope::cast(this)
+      UncompiledDataWithoutPreParsedScope::cast(*this)
           ->UncompiledDataWithoutPreParsedScopePrint(os);
       break;
     case UNCOMPILED_DATA_WITH_PRE_PARSED_SCOPE_TYPE:
-      UncompiledDataWithPreParsedScope::cast(this)
+      UncompiledDataWithPreParsedScope::cast(*this)
           ->UncompiledDataWithPreParsedScopePrint(os);
       break;
     case SHARED_FUNCTION_INFO_TYPE:
-      SharedFunctionInfo::cast(this)->SharedFunctionInfoPrint(os);
+      SharedFunctionInfo::cast(*this)->SharedFunctionInfoPrint(os);
       break;
     case JS_MESSAGE_OBJECT_TYPE:
-      JSMessageObject::cast(this)->JSMessageObjectPrint(os);
+      JSMessageObject::cast(*this)->JSMessageObjectPrint(os);
       break;
     case CELL_TYPE:
-      Cell::cast(this)->CellPrint(os);
+      Cell::cast(*this)->CellPrint(os);
       break;
     case PROPERTY_CELL_TYPE:
-      PropertyCell::cast(this)->PropertyCellPrint(os);
+      PropertyCell::cast(*this)->PropertyCellPrint(os);
       break;
     case JS_ARRAY_BUFFER_TYPE:
-      JSArrayBuffer::cast(this)->JSArrayBufferPrint(os);
+      JSArrayBuffer::cast(*this)->JSArrayBufferPrint(os);
       break;
     case JS_ARRAY_ITERATOR_TYPE:
-      JSArrayIterator::cast(this)->JSArrayIteratorPrint(os);
+      JSArrayIterator::cast(*this)->JSArrayIteratorPrint(os);
       break;
     case JS_TYPED_ARRAY_TYPE:
-      JSTypedArray::cast(this)->JSTypedArrayPrint(os);
+      JSTypedArray::cast(*this)->JSTypedArrayPrint(os);
       break;
     case JS_DATA_VIEW_TYPE:
-      JSDataView::cast(this)->JSDataViewPrint(os);
+      JSDataView::cast(*this)->JSDataViewPrint(os);
       break;
 #ifdef V8_INTL_SUPPORT
     case JS_INTL_V8_BREAK_ITERATOR_TYPE:
-      JSV8BreakIterator::cast(this)->JSV8BreakIteratorPrint(os);
+      JSV8BreakIterator::cast(*this)->JSV8BreakIteratorPrint(os);
       break;
     case JS_INTL_COLLATOR_TYPE:
-      JSCollator::cast(this)->JSCollatorPrint(os);
+      JSCollator::cast(*this)->JSCollatorPrint(os);
       break;
     case JS_INTL_DATE_TIME_FORMAT_TYPE:
-      JSDateTimeFormat::cast(this)->JSDateTimeFormatPrint(os);
+      JSDateTimeFormat::cast(*this)->JSDateTimeFormatPrint(os);
       break;
     case JS_INTL_LIST_FORMAT_TYPE:
-      JSListFormat::cast(this)->JSListFormatPrint(os);
+      JSListFormat::cast(*this)->JSListFormatPrint(os);
       break;
     case JS_INTL_LOCALE_TYPE:
-      JSLocale::cast(this)->JSLocalePrint(os);
+      JSLocale::cast(*this)->JSLocalePrint(os);
       break;
     case JS_INTL_NUMBER_FORMAT_TYPE:
-      JSNumberFormat::cast(this)->JSNumberFormatPrint(os);
+      JSNumberFormat::cast(*this)->JSNumberFormatPrint(os);
       break;
     case JS_INTL_PLURAL_RULES_TYPE:
-      JSPluralRules::cast(this)->JSPluralRulesPrint(os);
+      JSPluralRules::cast(*this)->JSPluralRulesPrint(os);
       break;
     case JS_INTL_RELATIVE_TIME_FORMAT_TYPE:
-      JSRelativeTimeFormat::cast(this)->JSRelativeTimeFormatPrint(os);
+      JSRelativeTimeFormat::cast(*this)->JSRelativeTimeFormatPrint(os);
       break;
     case JS_INTL_SEGMENT_ITERATOR_TYPE:
-      JSSegmentIterator::cast(this)->JSSegmentIteratorPrint(os);
+      JSSegmentIterator::cast(*this)->JSSegmentIteratorPrint(os);
       break;
     case JS_INTL_SEGMENTER_TYPE:
-      JSSegmenter::cast(this)->JSSegmenterPrint(os);
+      JSSegmenter::cast(*this)->JSSegmenterPrint(os);
       break;
 #endif  // V8_INTL_SUPPORT
 #define MAKE_STRUCT_CASE(TYPE, Name, name) \
   case TYPE:                               \
-    Name::cast(this)->Name##Print(os);     \
+    Name::cast(*this)->Name##Print(os);    \
     break;
       STRUCT_LIST(MAKE_STRUCT_CASE)
 #undef MAKE_STRUCT_CASE
 
     case ALLOCATION_SITE_TYPE:
-      AllocationSite::cast(this)->AllocationSitePrint(os);
+      AllocationSite::cast(*this)->AllocationSitePrint(os);
       break;
     case LOAD_HANDLER_TYPE:
-      LoadHandler::cast(this)->LoadHandlerPrint(os);
+      LoadHandler::cast(*this)->LoadHandlerPrint(os);
       break;
     case STORE_HANDLER_TYPE:
-      StoreHandler::cast(this)->StoreHandlerPrint(os);
+      StoreHandler::cast(*this)->StoreHandlerPrint(os);
       break;
     case SCOPE_INFO_TYPE:
-      ScopeInfo::cast(this)->ScopeInfoPrint(os);
+      ScopeInfo::cast(*this)->ScopeInfoPrint(os);
       break;
     case FEEDBACK_METADATA_TYPE:
-      FeedbackMetadata::cast(this)->FeedbackMetadataPrint(os);
+      FeedbackMetadata::cast(*this)->FeedbackMetadataPrint(os);
       break;
     case WEAK_FIXED_ARRAY_TYPE:
-      WeakFixedArray::cast(this)->WeakFixedArrayPrint(os);
+      WeakFixedArray::cast(*this)->WeakFixedArrayPrint(os);
       break;
     case WEAK_ARRAY_LIST_TYPE:
-      WeakArrayList::cast(this)->WeakArrayListPrint(os);
+      WeakArrayList::cast(*this)->WeakArrayListPrint(os);
       break;
     case INTERNALIZED_STRING_TYPE:
     case EXTERNAL_INTERNALIZED_STRING_TYPE:
@@ -2299,7 +2285,7 @@ void MaybeObject::Print() {
 
 void MaybeObject::Print(std::ostream& os) {
   Smi smi;
-  HeapObject* heap_object;
+  HeapObject heap_object;
   if (ToSmi(&smi)) {
     smi->SmiPrint(os);
   } else if (IsCleared()) {
@@ -2417,14 +2403,13 @@ void Map::MapPrint(std::ostream& os) {  // NOLINT
   Isolate* isolate;
   // Read-only maps can't have transitions, which is fortunate because we need
   // the isolate to iterate over the transitions.
-  if (Isolate::FromWritableHeapObject(reinterpret_cast<HeapObject*>(ptr()),
-                                      &isolate)) {
+  if (Isolate::FromWritableHeapObject(*this, &isolate)) {
     DisallowHeapAllocation no_gc;
     TransitionsAccessor transitions(isolate, *this, &no_gc);
     int nof_transitions = transitions.NumberOfTransitions();
     if (nof_transitions > 0) {
       os << "\n - transitions #" << nof_transitions << ": ";
-      HeapObject* heap_object;
+      HeapObject heap_object;
       Smi smi;
       if (raw_transitions()->ToSmi(&smi)) {
         os << Brief(smi);

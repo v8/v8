@@ -315,9 +315,9 @@ int RelocInfo::target_address_size() {
   }
 }
 
-HeapObject* RelocInfo::target_object() {
+HeapObject RelocInfo::target_object() {
   DCHECK(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
-  return HeapObject::cast(Memory<Object*>(pc_));
+  return HeapObject::cast(ObjectPtr(Memory<Address>(pc_)));
 }
 
 Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
@@ -354,11 +354,11 @@ Address RelocInfo::target_internal_reference_address() {
   return pc_;
 }
 
-void RelocInfo::set_target_object(Heap* heap, HeapObject* target,
+void RelocInfo::set_target_object(Heap* heap, HeapObject target,
                                   WriteBarrierMode write_barrier_mode,
                                   ICacheFlushMode icache_flush_mode) {
   DCHECK(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
-  Memory<Object*>(pc_) = target;
+  Memory<Address>(pc_) = target->ptr();
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
     Assembler::FlushICache(pc_, sizeof(Address));
   }
@@ -366,7 +366,6 @@ void RelocInfo::set_target_object(Heap* heap, HeapObject* target,
     WriteBarrierForCode(host(), this, target);
   }
 }
-
 
 Address RelocInfo::target_runtime_entry(Assembler* origin) {
   DCHECK(IsRuntimeEntry(rmode_));

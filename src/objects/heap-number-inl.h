@@ -15,7 +15,7 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(HeapNumberBase, HeapObjectPtr)
+OBJECT_CONSTRUCTORS_IMPL(HeapNumberBase, HeapObject)
 OBJECT_CONSTRUCTORS_IMPL(HeapNumber, HeapNumberBase)
 OBJECT_CONSTRUCTORS_IMPL(MutableHeapNumber, HeapNumberBase)
 

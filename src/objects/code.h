@@ -28,7 +28,7 @@ class Register;
 }
 
 // Code describes objects with on-the-fly generated machine code.
-class Code : public HeapObjectPtr {
+class Code : public HeapObject {
  public:
   NEVER_READ_ONLY_SPACE
   // Opaque data type for encapsulating code flags like kind, inline
@@ -349,9 +349,9 @@ class Code : public HeapObjectPtr {
 
   inline bool CanContainWeakObjects();
 
-  inline bool IsWeakObject(HeapObject* object);
+  inline bool IsWeakObject(HeapObject object);
 
-  static inline bool IsWeakObjectInOptimizedCode(HeapObject* object);
+  static inline bool IsWeakObjectInOptimizedCode(HeapObject object);
 
   // Return true if the function is inlined in the code.
   bool Inlines(SharedFunctionInfo sfi);
@@ -456,7 +456,7 @@ class Code : public HeapObjectPtr {
   bool is_promise_rejection() const;
   bool is_exception_caught() const;
 
-  OBJECT_CONSTRUCTORS(Code, HeapObjectPtr);
+  OBJECT_CONSTRUCTORS(Code, HeapObject);
 };
 
 class Code::OptimizedCodeIterator {
@@ -478,7 +478,7 @@ class Code::OptimizedCodeIterator {
 // pages within the heap, its header fields need to be immutable. There always
 // is a 1-to-1 relation between {Code} and {CodeDataContainer}, the referencing
 // field {Code::code_data_container} itself is immutable.
-class CodeDataContainer : public HeapObjectPtr {
+class CodeDataContainer : public HeapObject {
  public:
   NEVER_READ_ONLY_SPACE
   DECL_ACCESSORS(next_code_link, Object)
@@ -511,10 +511,10 @@ class CodeDataContainer : public HeapObjectPtr {
 
   class BodyDescriptor;
 
-  OBJECT_CONSTRUCTORS(CodeDataContainer, HeapObjectPtr);
+  OBJECT_CONSTRUCTORS(CodeDataContainer, HeapObject);
 };
 
-class AbstractCode : public HeapObjectPtr {
+class AbstractCode : public HeapObject {
  public:
   NEVER_READ_ONLY_SPACE
   // All code kinds and INTERPRETED_FUNCTION.
@@ -586,7 +586,7 @@ class AbstractCode : public HeapObjectPtr {
   // nesting that is deeper than 5 levels into account.
   static const int kMaxLoopNestingMarker = 6;
 
-  OBJECT_CONSTRUCTORS(AbstractCode, HeapObjectPtr)
+  OBJECT_CONSTRUCTORS(AbstractCode, HeapObject)
 };
 
 // Dependent code is a singly linked list of weak fixed arrays. Each array

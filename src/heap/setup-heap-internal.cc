@@ -105,7 +105,7 @@ AllocationResult Heap::AllocateMap(InstanceType instance_type,
                      !Map::CanHaveFastTransitionableElementsKind(instance_type),
                  IsDictionaryElementsKind(elements_kind) ||
                      IsTerminalElementsKind(elements_kind));
-  HeapObject* result = nullptr;
+  HeapObject result;
   // JSObjects have maps with a mutable prototype_validity_cell, so they cannot
   // go in RO_SPACE.
   AllocationResult allocation =
@@ -169,7 +169,7 @@ void Heap::FinalizePartialMap(Map map) {
 AllocationResult Heap::Allocate(Map map, AllocationSpace space) {
   DCHECK(map->instance_type() != MAP_TYPE);
   int size = map->instance_size();
-  HeapObject* result = nullptr;
+  HeapObject result;
   AllocationResult allocation = AllocateRaw(size, space);
   if (!allocation.To(&result)) return allocation;
   // New space objects are allocated white.
@@ -183,7 +183,7 @@ AllocationResult Heap::AllocateEmptyFixedTypedArray(
     ExternalArrayType array_type) {
   int size = OBJECT_POINTER_ALIGN(FixedTypedArrayBase::kDataOffset);
 
-  HeapObject* object = nullptr;
+  HeapObject object;
   AllocationResult allocation = AllocateRaw(
       size, RO_SPACE,
       array_type == kExternalFloat64Array ? kDoubleAligned : kWordAligned);
@@ -203,7 +203,7 @@ AllocationResult Heap::AllocateEmptyFixedTypedArray(
 }
 
 bool Heap::CreateInitialMaps() {
-  HeapObject* obj = nullptr;
+  HeapObject obj;
   {
     AllocationResult allocation = AllocatePartialMap(MAP_TYPE, Map::kSize);
     if (!allocation.To(&obj)) return false;

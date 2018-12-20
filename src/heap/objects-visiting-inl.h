@@ -21,25 +21,19 @@ namespace v8 {
 namespace internal {
 
 template <typename ResultType, typename ConcreteVisitor>
-template <typename T, typename>
-T* HeapVisitor<ResultType, ConcreteVisitor>::Cast(HeapObject* object) {
+template <typename T>
+T HeapVisitor<ResultType, ConcreteVisitor>::Cast(HeapObject object) {
   return T::cast(object);
 }
 
 template <typename ResultType, typename ConcreteVisitor>
-template <typename T, typename>
-T HeapVisitor<ResultType, ConcreteVisitor>::Cast(HeapObject* object) {
-  return T::cast(object);
-}
-
-template <typename ResultType, typename ConcreteVisitor>
-ResultType HeapVisitor<ResultType, ConcreteVisitor>::Visit(HeapObject* object) {
+ResultType HeapVisitor<ResultType, ConcreteVisitor>::Visit(HeapObject object) {
   return Visit(object->map(), object);
 }
 
 template <typename ResultType, typename ConcreteVisitor>
 ResultType HeapVisitor<ResultType, ConcreteVisitor>::Visit(Map map,
-                                                           HeapObject* object) {
+                                                           HeapObject object) {
   ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
   switch (map->visitor_id()) {
 #define CASE(TypeName, Type)         \
@@ -75,7 +69,7 @@ ResultType HeapVisitor<ResultType, ConcreteVisitor>::Visit(Map map,
 
 template <typename ResultType, typename ConcreteVisitor>
 void HeapVisitor<ResultType, ConcreteVisitor>::VisitMapPointer(
-    HeapObject* host, MapWordSlot map_slot) {
+    HeapObject host, MapWordSlot map_slot) {
   DCHECK(!host->map_word().IsForwardingAddress());
   static_cast<ConcreteVisitor*>(this)->VisitPointer(host, ObjectSlot(map_slot));
 }
@@ -108,12 +102,13 @@ ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitShortcutCandidate(
 
 template <typename ResultType, typename ConcreteVisitor>
 ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitDataObject(
-    Map map, HeapObject* object) {
+    Map map, HeapObject object) {
   ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
   if (!visitor->ShouldVisit(object)) return ResultType();
   int size = map->instance_size();
-  if (visitor->ShouldVisitMapPointer())
+  if (visitor->ShouldVisitMapPointer()) {
     visitor->VisitMapPointer(object, object->map_slot());
+  }
   return static_cast<ResultType>(size);
 }
 
@@ -143,12 +138,13 @@ ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitJSApiObject(
 
 template <typename ResultType, typename ConcreteVisitor>
 ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitStruct(
-    Map map, HeapObject* object) {
+    Map map, HeapObject object) {
   ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
   if (!visitor->ShouldVisit(object)) return ResultType();
   int size = map->instance_size();
-  if (visitor->ShouldVisitMapPointer())
+  if (visitor->ShouldVisitMapPointer()) {
     visitor->VisitMapPointer(object, object->map_slot());
+  }
   StructBodyDescriptor::IterateBody(map, object, size, visitor);
   return static_cast<ResultType>(size);
 }
@@ -196,12 +192,13 @@ int NewSpaceVisitor<ConcreteVisitor>::VisitJSWeakCell(Map map,
 
 template <typename ResultType, typename ConcreteVisitor>
 ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitWeakArray(
-    Map map, HeapObject* object) {
+    Map map, HeapObject object) {
   ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
   if (!visitor->ShouldVisit(object)) return ResultType();
   int size = WeakArrayBodyDescriptor::SizeOf(map, object);
-  if (visitor->ShouldVisitMapPointer())
+  if (visitor->ShouldVisitMapPointer()) {
     visitor->VisitMapPointer(object, object->map_slot());
+  }
   WeakArrayBodyDescriptor::IterateBody(map, object, size, visitor);
   return size;
 }

@@ -91,7 +91,7 @@ Context Context::closure_context() {
 JSObject Context::extension_object() {
   DCHECK(IsNativeContext() || IsFunctionContext() || IsBlockContext() ||
          IsEvalContext() || IsCatchContext());
-  HeapObject* object = extension();
+  HeapObject object = extension();
   if (object->IsTheHole()) return JSObject();
   DCHECK(object->IsJSContextExtensionObject() ||
          (IsNativeContext() && object->IsJSGlobalObject()));

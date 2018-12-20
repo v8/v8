@@ -456,7 +456,7 @@ class ThreadLocalTop {
   V(int, suffix_table, (kBMMaxShift + 1))                                      \
   ISOLATE_INIT_DEBUG_ARRAY_LIST(V)
 
-typedef std::vector<HeapObject*> DebugObjectCache;
+typedef std::vector<HeapObject> DebugObjectCache;
 
 #define ISOLATE_INIT_LIST(V)                                                  \
   /* Assembler state. */                                                      \
@@ -613,7 +613,7 @@ class Isolate final : private HiddenFactory {
   // Get the isolate that the given HeapObject lives in, returning true on
   // success. If the object is not writable (i.e. lives in read-only space),
   // return false.
-  inline static bool FromWritableHeapObject(HeapObject* obj, Isolate** isolate);
+  inline static bool FromWritableHeapObject(HeapObject obj, Isolate** isolate);
 
   // Usually called by Init(), but can be called early e.g. to allow
   // testing components that require logging but not the whole

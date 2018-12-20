@@ -71,7 +71,7 @@ class RepresentationChangerTester : public HandleAndZoneScope,
     CHECK_FLOAT_EQ(expected, fval);
   }
 
-  void CheckHeapConstant(Node* n, HeapObject* expected) {
+  void CheckHeapConstant(Node* n, HeapObject expected) {
     HeapObjectMatcher m(n);
     CHECK(m.HasValue());
     CHECK_EQ(expected, *m.Value());

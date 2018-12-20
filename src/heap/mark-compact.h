@@ -13,6 +13,7 @@
 #include "src/heap/spaces.h"
 #include "src/heap/sweeper.h"
 #include "src/heap/worklist.h"
+#include "src/objects/heap-object.h"   // For Worklist<HeapObject, ...>
 #include "src/objects/js-weak-refs.h"  // For Worklist<JSWeakCell, ...>
 
 namespace v8 {
@@ -30,7 +31,7 @@ class YoungGenerationMarkingVisitor;
 template <typename ConcreteState, AccessMode access_mode>
 class MarkingStateBase {
  public:
-  V8_INLINE MarkBit MarkBitFrom(HeapObject* obj) {
+  V8_INLINE MarkBit MarkBitFrom(HeapObject obj) {
     return MarkBitFrom(MemoryChunk::FromAddress(obj->address()),
                        obj->address());
   }
@@ -40,33 +41,33 @@ class MarkingStateBase {
         p->AddressToMarkbitIndex(addr));
   }
 
-  Marking::ObjectColor Color(HeapObject* obj) {
+  Marking::ObjectColor Color(HeapObject obj) {
     return Marking::Color(MarkBitFrom(obj));
   }
 
-  V8_INLINE bool IsImpossible(HeapObject* obj) {
+  V8_INLINE bool IsImpossible(HeapObject obj) {
     return Marking::IsImpossible<access_mode>(MarkBitFrom(obj));
   }
 
-  V8_INLINE bool IsBlack(HeapObject* obj) {
+  V8_INLINE bool IsBlack(HeapObject obj) {
     return Marking::IsBlack<access_mode>(MarkBitFrom(obj));
   }
 
-  V8_INLINE bool IsWhite(HeapObject* obj) {
+  V8_INLINE bool IsWhite(HeapObject obj) {
     return Marking::IsWhite<access_mode>(MarkBitFrom(obj));
   }
 
-  V8_INLINE bool IsGrey(HeapObject* obj) {
+  V8_INLINE bool IsGrey(HeapObject obj) {
     return Marking::IsGrey<access_mode>(MarkBitFrom(obj));
   }
 
-  V8_INLINE bool IsBlackOrGrey(HeapObject* obj) {
+  V8_INLINE bool IsBlackOrGrey(HeapObject obj) {
     return Marking::IsBlackOrGrey<access_mode>(MarkBitFrom(obj));
   }
 
-  V8_INLINE bool WhiteToGrey(HeapObject* obj);
-  V8_INLINE bool WhiteToBlack(HeapObject* obj);
-  V8_INLINE bool GreyToBlack(HeapObject* obj);
+  V8_INLINE bool WhiteToGrey(HeapObject obj);
+  V8_INLINE bool WhiteToBlack(HeapObject obj);
+  V8_INLINE bool GreyToBlack(HeapObject obj);
 
   void ClearLiveness(MemoryChunk* chunk) {
     static_cast<ConcreteState*>(this)->bitmap(chunk)->Clear();
@@ -145,7 +146,7 @@ class LiveObjectRange {
  public:
   class iterator {
    public:
-    using value_type = std::pair<HeapObject*, int /* size */>;
+    using value_type = std::pair<HeapObject, int /* size */>;
     using pointer = const value_type*;
     using reference = const value_type&;
     using iterator_category = std::forward_iterator_tag;
@@ -175,7 +176,7 @@ class LiveObjectRange {
     MarkBitCellIterator it_;
     Address cell_base_;
     MarkBit::CellType current_cell_;
-    HeapObject* current_object_;
+    HeapObject current_object_;
     int current_size_;
   };
 
@@ -208,7 +209,7 @@ class LiveObjectVisitor : AllStatic {
   template <class Visitor, typename MarkingState>
   static bool VisitBlackObjects(MemoryChunk* chunk, MarkingState* state,
                                 Visitor* visitor, IterationMode iteration_mode,
-                                HeapObject** failed_object);
+                                HeapObject* failed_object);
 
   // Visits black objects on a MemoryChunk. The visitor is not allowed to fail
   // visitation for an object.
@@ -407,8 +408,8 @@ class MajorNonAtomicMarkingState final
 };
 
 struct Ephemeron {
-  HeapObject* key;
-  HeapObject* value;
+  HeapObject key;
+  HeapObject value;
 };
 
 typedef Worklist<Ephemeron, 64> EphemeronWorklist;
@@ -441,8 +442,8 @@ struct WeakObjects {
 
   // TODO(marja): For old space, we only need the slot, not the host
   // object. Optimize this by adding a different storage for old space.
-  Worklist<std::pair<HeapObject*, HeapObjectSlot>, 64> weak_references;
-  Worklist<std::pair<HeapObject*, Code>, 64> weak_objects_in_code;
+  Worklist<std::pair<HeapObject, HeapObjectSlot>, 64> weak_references;
+  Worklist<std::pair<HeapObject, Code>, 64> weak_objects_in_code;
 
   Worklist<JSWeakRef, 64> js_weak_refs;
   Worklist<JSWeakCell, 64> js_weak_cells;
@@ -451,7 +452,7 @@ struct WeakObjects {
 };
 
 struct EphemeronMarking {
-  std::vector<HeapObject*> newly_discovered;
+  std::vector<HeapObject> newly_discovered;
   bool newly_discovered_overflowed;
   size_t newly_discovered_limit;
 };
@@ -470,26 +471,26 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   // Wrapper for the shared and bailout worklists.
   class MarkingWorklist {
    public:
-    using ConcurrentMarkingWorklist = Worklist<HeapObject*, 64>;
-    using EmbedderTracingWorklist = Worklist<HeapObject*, 16>;
+    using ConcurrentMarkingWorklist = Worklist<HeapObject, 64>;
+    using EmbedderTracingWorklist = Worklist<HeapObject, 16>;
 
     // The heap parameter is not used but needed to match the sequential case.
     explicit MarkingWorklist(Heap* heap) {}
 
-    void Push(HeapObject* object) {
+    void Push(HeapObject object) {
       bool success = shared_.Push(kMainThread, object);
       USE(success);
       DCHECK(success);
     }
 
-    void PushBailout(HeapObject* object) {
+    void PushBailout(HeapObject object) {
       bool success = bailout_.Push(kMainThread, object);
       USE(success);
       DCHECK(success);
     }
 
-    HeapObject* Pop() {
-      HeapObject* result;
+    HeapObject Pop() {
+      HeapObject result;
 #ifdef V8_CONCURRENT_MARKING
       if (bailout_.Pop(kMainThread, &result)) return result;
 #endif
@@ -499,15 +500,15 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
       // and we can thus avoid the emptiness checks by putting it last.
       if (on_hold_.Pop(kMainThread, &result)) return result;
 #endif
-      return nullptr;
+      return HeapObject();
     }
 
-    HeapObject* PopBailout() {
+    HeapObject PopBailout() {
 #ifdef V8_CONCURRENT_MARKING
-      HeapObject* result;
+      HeapObject result;
       if (bailout_.Pop(kMainThread, &result)) return result;
 #endif
-      return nullptr;
+      return HeapObject();
     }
 
     void Clear() {
@@ -541,7 +542,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
     // Calls the specified callback on each element of the deques and replaces
     // the element with the result of the callback. If the callback returns
     // nullptr then the element is removed from the deque.
-    // The callback must accept HeapObject* and return HeapObject*.
+    // The callback must accept HeapObject and return HeapObject.
     template <typename Callback>
     void Update(Callback callback) {
       bailout_.Update(callback);
@@ -635,12 +636,12 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
     uint32_t offset;
   };
   static RecordRelocSlotInfo PrepareRecordRelocSlot(Code host, RelocInfo* rinfo,
-                                                    HeapObject* target);
-  static void RecordRelocSlot(Code host, RelocInfo* rinfo, HeapObject* target);
-  V8_INLINE static void RecordSlot(HeapObject* object, ObjectSlot slot,
-                                   HeapObject* target);
-  V8_INLINE static void RecordSlot(HeapObject* object, HeapObjectSlot slot,
-                                   HeapObject* target);
+                                                    HeapObject target);
+  static void RecordRelocSlot(Code host, RelocInfo* rinfo, HeapObject target);
+  V8_INLINE static void RecordSlot(HeapObject object, ObjectSlot slot,
+                                   HeapObject target);
+  V8_INLINE static void RecordSlot(HeapObject object, HeapObjectSlot slot,
+                                   HeapObject target);
   void RecordLiveSlotsOnPage(Page* page);
 
   void UpdateSlots(SlotsBuffer* buffer);
@@ -670,16 +671,16 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
     weak_objects_.ephemeron_hash_tables.Push(kMainThread, table);
   }
 
-  void AddEphemeron(HeapObject* key, HeapObject* value) {
+  void AddEphemeron(HeapObject key, HeapObject value) {
     weak_objects_.discovered_ephemerons.Push(kMainThread,
                                              Ephemeron{key, value});
   }
 
-  void AddWeakReference(HeapObject* host, HeapObjectSlot slot) {
+  void AddWeakReference(HeapObject host, HeapObjectSlot slot) {
     weak_objects_.weak_references.Push(kMainThread, std::make_pair(host, slot));
   }
 
-  void AddWeakObjectInCode(HeapObject* object, Code code) {
+  void AddWeakObjectInCode(HeapObject object, Code code) {
     weak_objects_.weak_objects_in_code.Push(kMainThread,
                                             std::make_pair(object, code));
   }
@@ -694,7 +695,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
   inline void AddBytecodeFlushingCandidate(SharedFunctionInfo flush_candidate);
 
-  void AddNewlyDiscovered(HeapObject* object) {
+  void AddNewlyDiscovered(HeapObject object) {
     if (ephemeron_marking_.newly_discovered_overflowed) return;
 
     if (ephemeron_marking_.newly_discovered.size() <
@@ -747,14 +748,14 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
   // Marks the object black and adds it to the marking work list.
   // This is for non-incremental marking only.
-  V8_INLINE void MarkObject(HeapObject* host, HeapObject* obj);
+  V8_INLINE void MarkObject(HeapObject host, HeapObject obj);
 
   // Marks the object black and adds it to the marking work list.
   // This is for non-incremental marking only.
-  V8_INLINE void MarkRootObject(Root root, HeapObject* obj);
+  V8_INLINE void MarkRootObject(Root root, HeapObject obj);
 
   // Used by wrapper tracing.
-  V8_INLINE void MarkExternallyReferencedObject(HeapObject* obj);
+  V8_INLINE void MarkExternallyReferencedObject(HeapObject obj);
 
   // Mark the heap roots and all objects reachable from them.
   void MarkRoots(RootVisitor* root_visitor,
@@ -786,7 +787,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
   // Implements ephemeron semantics: Marks value if key is already reachable.
   // Returns true if value was actually marked.
-  bool VisitEphemeron(HeapObject* key, HeapObject* value);
+  bool VisitEphemeron(HeapObject key, HeapObject value);
 
   // Marks ephemerons and drains marking worklist iteratively
   // until a fixpoint is reached.
@@ -870,7 +871,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
   void ReleaseEvacuationCandidates();
   void PostProcessEvacuationCandidates();
-  void ReportAbortedEvacuationCandidate(HeapObject* failed_object,
+  void ReportAbortedEvacuationCandidate(HeapObject failed_object,
                                         MemoryChunk* chunk);
 
   static const int kEphemeronChunkSize = 8 * KB;
@@ -918,7 +919,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   // Pages that are actually processed during evacuation.
   std::vector<Page*> old_space_evacuation_pages_;
   std::vector<Page*> new_space_evacuation_pages_;
-  std::vector<std::pair<HeapObject*, Page*>> aborted_evacuation_candidates_;
+  std::vector<std::pair<HeapObject, Page*>> aborted_evacuation_candidates_;
 
   Sweeper* sweeper_;
 
@@ -967,17 +968,17 @@ class MarkingVisitor final
   V8_INLINE int VisitJSWeakRef(Map map, JSWeakRef object);
 
   // ObjectVisitor implementation.
-  V8_INLINE void VisitPointer(HeapObject* host, ObjectSlot p) final {
+  V8_INLINE void VisitPointer(HeapObject host, ObjectSlot p) final {
     VisitPointerImpl(host, p);
   }
-  V8_INLINE void VisitPointer(HeapObject* host, MaybeObjectSlot p) final {
+  V8_INLINE void VisitPointer(HeapObject host, MaybeObjectSlot p) final {
     VisitPointerImpl(host, p);
   }
-  V8_INLINE void VisitPointers(HeapObject* host, ObjectSlot start,
+  V8_INLINE void VisitPointers(HeapObject host, ObjectSlot start,
                                ObjectSlot end) final {
     VisitPointersImpl(host, start, end);
   }
-  V8_INLINE void VisitPointers(HeapObject* host, MaybeObjectSlot start,
+  V8_INLINE void VisitPointers(HeapObject host, MaybeObjectSlot start,
                                MaybeObjectSlot end) final {
     VisitPointersImpl(host, start, end);
   }
@@ -986,7 +987,7 @@ class MarkingVisitor final
 
   // Weak list pointers should be ignored during marking. The lists are
   // reconstructed after GC.
-  void VisitCustomWeakPointers(HeapObject* host, ObjectSlot start,
+  void VisitCustomWeakPointers(HeapObject host, ObjectSlot start,
                                ObjectSlot end) final {}
 
   V8_INLINE void VisitDescriptors(DescriptorArray descriptor_array,
@@ -998,10 +999,10 @@ class MarkingVisitor final
   static const int kProgressBarScanningChunk = 32 * 1024;
 
   template <typename TSlot>
-  V8_INLINE void VisitPointerImpl(HeapObject* host, TSlot p);
+  V8_INLINE void VisitPointerImpl(HeapObject host, TSlot p);
 
   template <typename TSlot>
-  V8_INLINE void VisitPointersImpl(HeapObject* host, TSlot start, TSlot end);
+  V8_INLINE void VisitPointersImpl(HeapObject host, TSlot start, TSlot end);
 
   V8_INLINE int VisitFixedArrayIncremental(Map map, FixedArray object);
 
@@ -1012,10 +1013,10 @@ class MarkingVisitor final
 
   // Marks the object black without pushing it on the marking work list. Returns
   // true if the object needed marking and false otherwise.
-  V8_INLINE bool MarkObjectWithoutPush(HeapObject* host, HeapObject* object);
+  V8_INLINE bool MarkObjectWithoutPush(HeapObject host, HeapObject object);
 
   // Marks the object grey and pushes it on the marking work list.
-  V8_INLINE void MarkObject(HeapObject* host, HeapObject* obj);
+  V8_INLINE void MarkObject(HeapObject host, HeapObject obj);
 
   MarkingState* marking_state() { return marking_state_; }
 
@@ -1068,7 +1069,7 @@ class MinorMarkCompactCollector final : public MarkCompactCollectorBase {
   void CleanupSweepToIteratePages();
 
  private:
-  using MarkingWorklist = Worklist<HeapObject*, 64 /* segment size */>;
+  using MarkingWorklist = Worklist<HeapObject, 64 /* segment size */>;
   class RootMarkingVisitor;
 
   static const int kNumMarkers = 8;
@@ -1082,7 +1083,7 @@ class MinorMarkCompactCollector final : public MarkCompactCollectorBase {
 
   void MarkLiveObjects() override;
   void MarkRootSetInParallel(RootMarkingVisitor* root_visitor);
-  V8_INLINE void MarkRootObject(HeapObject* obj);
+  V8_INLINE void MarkRootObject(HeapObject obj);
   void ProcessMarkingWorklist() override;
   void ClearNonLiveReferences() override;
 

@@ -14,7 +14,7 @@ namespace v8 {
 namespace internal {
 
 // Foreign describes objects pointing from JavaScript to C structures.
-class Foreign : public HeapObjectPtr {
+class Foreign : public HeapObject {
  public:
   // [address]: field containing the address.
   inline Address foreign_address();
@@ -43,7 +43,7 @@ class Foreign : public HeapObjectPtr {
 
   inline void set_foreign_address(Address value);
 
-  OBJECT_CONSTRUCTORS(Foreign, HeapObjectPtr);
+  OBJECT_CONSTRUCTORS(Foreign, HeapObject);
 };
 
 }  // namespace internal

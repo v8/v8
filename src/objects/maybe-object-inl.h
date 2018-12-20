@@ -36,7 +36,7 @@ bool MaybeObject::IsStrongOrWeak() const {
   return true;
 }
 
-bool MaybeObject::GetHeapObject(HeapObject** result) const {
+bool MaybeObject::GetHeapObject(HeapObject* result) const {
   if (IsSmi() || IsCleared()) {
     return false;
   }
@@ -44,7 +44,7 @@ bool MaybeObject::GetHeapObject(HeapObject** result) const {
   return true;
 }
 
-bool MaybeObject::GetHeapObject(HeapObject** result,
+bool MaybeObject::GetHeapObject(HeapObject* result,
                                 HeapObjectReferenceType* reference_type) const {
   if (IsSmi() || IsCleared()) {
     return false;
@@ -60,17 +60,17 @@ bool MaybeObject::IsStrong() const {
   return !HasWeakHeapObjectTag(ptr_) && !IsSmi();
 }
 
-bool MaybeObject::GetHeapObjectIfStrong(HeapObject** result) const {
+bool MaybeObject::GetHeapObjectIfStrong(HeapObject* result) const {
   if (!HasWeakHeapObjectTag(ptr_) && !IsSmi()) {
-    *result = reinterpret_cast<HeapObject*>(ptr_);
+    *result = HeapObject::cast(ObjectPtr(ptr_));
     return true;
   }
   return false;
 }
 
-HeapObject* MaybeObject::GetHeapObjectAssumeStrong() const {
+HeapObject MaybeObject::GetHeapObjectAssumeStrong() const {
   DCHECK(IsStrong());
-  return reinterpret_cast<HeapObject*>(ptr_);
+  return HeapObject::cast(ObjectPtr(ptr_));
 }
 
 bool MaybeObject::IsWeak() const {
@@ -79,7 +79,7 @@ bool MaybeObject::IsWeak() const {
 
 bool MaybeObject::IsWeakOrCleared() const { return HasWeakHeapObjectTag(ptr_); }
 
-bool MaybeObject::GetHeapObjectIfWeak(HeapObject** result) const {
+bool MaybeObject::GetHeapObjectIfWeak(HeapObject* result) const {
   if (IsWeak()) {
     *result = GetHeapObject();
     return true;
@@ -87,15 +87,15 @@ bool MaybeObject::GetHeapObjectIfWeak(HeapObject** result) const {
   return false;
 }
 
-HeapObject* MaybeObject::GetHeapObjectAssumeWeak() const {
+HeapObject MaybeObject::GetHeapObjectAssumeWeak() const {
   DCHECK(IsWeak());
   return GetHeapObject();
 }
 
-HeapObject* MaybeObject::GetHeapObject() const {
+HeapObject MaybeObject::GetHeapObject() const {
   DCHECK(!IsSmi());
   DCHECK(!IsCleared());
-  return reinterpret_cast<HeapObject*>(ptr_ & ~kWeakHeapObjectMask);
+  return HeapObject::cast(ObjectPtr(ptr_ & ~kWeakHeapObjectMask));
 }
 
 Object* MaybeObject::GetHeapObjectOrSmi() const {
@@ -130,7 +130,7 @@ HeapObjectReference HeapObjectReference::ClearedValue(Isolate* isolate) {
 }
 
 template <typename THeapObjectSlot>
-void HeapObjectReference::Update(THeapObjectSlot slot, HeapObject* value) {
+void HeapObjectReference::Update(THeapObjectSlot slot, HeapObject value) {
   static_assert(std::is_same<THeapObjectSlot, FullHeapObjectSlot>::value ||
                     std::is_same<THeapObjectSlot, HeapObjectSlot>::value,
                 "Only FullHeapObjectSlot and HeapObjectSlot are expected here");

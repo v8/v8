@@ -256,6 +256,16 @@ void RunLoadImmIndex(MachineType rep, TestAlignment t) {
 }
 
 template <typename CType>
+CType NullValue() {
+  return CType{0};
+}
+
+template <>
+HeapObject NullValue<HeapObject>() {
+  return HeapObject();
+}
+
+template <typename CType>
 void RunLoadStore(MachineType rep, TestAlignment t) {
   const int kNumElems = 16;
   CType in_buffer[kNumElems];
@@ -287,7 +297,7 @@ void RunLoadStore(MachineType rep, TestAlignment t) {
     CHECK_EQ(OK, m.Call());
     CHECK_EQ(in_buffer[x], out_buffer[y]);
     for (int32_t z = 0; z < kNumElems; z++) {
-      if (z != y) CHECK_EQ(CType{0}, out_buffer[z]);
+      if (z != y) CHECK_EQ(NullValue<CType>(), out_buffer[z]);
     }
   }
 }
@@ -338,8 +348,8 @@ TEST(RunLoadImmIndex) {
   RunLoadImmIndex<uint32_t>(MachineType::Uint32(), TestAlignment::kAligned);
   RunLoadImmIndex<void*>(MachineType::Pointer(), TestAlignment::kAligned);
   RunLoadImmIndex<Smi>(MachineType::TaggedSigned(), TestAlignment::kAligned);
-  RunLoadImmIndex<HeapObject*>(MachineType::TaggedPointer(),
-                               TestAlignment::kAligned);
+  RunLoadImmIndex<HeapObject>(MachineType::TaggedPointer(),
+                              TestAlignment::kAligned);
   RunLoadImmIndex<Object*>(MachineType::AnyTagged(), TestAlignment::kAligned);
   RunLoadImmIndex<float>(MachineType::Float32(), TestAlignment::kAligned);
   RunLoadImmIndex<double>(MachineType::Float64(), TestAlignment::kAligned);
@@ -356,8 +366,8 @@ TEST(RunUnalignedLoadImmIndex) {
   RunLoadImmIndex<uint32_t>(MachineType::Uint32(), TestAlignment::kUnaligned);
   RunLoadImmIndex<void*>(MachineType::Pointer(), TestAlignment::kUnaligned);
   RunLoadImmIndex<Smi>(MachineType::TaggedSigned(), TestAlignment::kUnaligned);
-  RunLoadImmIndex<HeapObject*>(MachineType::TaggedPointer(),
-                               TestAlignment::kUnaligned);
+  RunLoadImmIndex<HeapObject>(MachineType::TaggedPointer(),
+                              TestAlignment::kUnaligned);
   RunLoadImmIndex<Object*>(MachineType::AnyTagged(), TestAlignment::kUnaligned);
   RunLoadImmIndex<float>(MachineType::Float32(), TestAlignment::kUnaligned);
   RunLoadImmIndex<double>(MachineType::Float64(), TestAlignment::kUnaligned);
@@ -376,8 +386,8 @@ TEST(RunLoadStore) {
   RunLoadStore<uint32_t>(MachineType::Uint32(), TestAlignment::kAligned);
   RunLoadStore<void*>(MachineType::Pointer(), TestAlignment::kAligned);
   RunLoadStore<Smi>(MachineType::TaggedSigned(), TestAlignment::kAligned);
-  RunLoadStore<HeapObject*>(MachineType::TaggedPointer(),
-                            TestAlignment::kAligned);
+  RunLoadStore<HeapObject>(MachineType::TaggedPointer(),
+                           TestAlignment::kAligned);
   RunLoadStore<Object*>(MachineType::AnyTagged(), TestAlignment::kAligned);
   RunLoadStore<float>(MachineType::Float32(), TestAlignment::kAligned);
   RunLoadStore<double>(MachineType::Float64(), TestAlignment::kAligned);
@@ -393,8 +403,8 @@ TEST(RunUnalignedLoadStore) {
   RunLoadStore<uint32_t>(MachineType::Uint32(), TestAlignment::kUnaligned);
   RunLoadStore<void*>(MachineType::Pointer(), TestAlignment::kUnaligned);
   RunLoadStore<Smi>(MachineType::TaggedSigned(), TestAlignment::kUnaligned);
-  RunLoadStore<HeapObject*>(MachineType::TaggedPointer(),
-                            TestAlignment::kUnaligned);
+  RunLoadStore<HeapObject>(MachineType::TaggedPointer(),
+                           TestAlignment::kUnaligned);
   RunLoadStore<Object*>(MachineType::AnyTagged(), TestAlignment::kUnaligned);
   RunLoadStore<float>(MachineType::Float32(), TestAlignment::kUnaligned);
   RunLoadStore<double>(MachineType::Float64(), TestAlignment::kUnaligned);
@@ -410,7 +420,7 @@ TEST(RunUnalignedLoadStoreUnalignedAccess) {
   RunUnalignedLoadStoreUnalignedAccess<uint32_t>(MachineType::Uint32());
   RunUnalignedLoadStoreUnalignedAccess<void*>(MachineType::Pointer());
   RunUnalignedLoadStoreUnalignedAccess<Smi>(MachineType::TaggedSigned());
-  RunUnalignedLoadStoreUnalignedAccess<HeapObject*>(
+  RunUnalignedLoadStoreUnalignedAccess<HeapObject>(
       MachineType::TaggedPointer());
   RunUnalignedLoadStoreUnalignedAccess<Object*>(MachineType::AnyTagged());
   RunUnalignedLoadStoreUnalignedAccess<float>(MachineType::Float32());

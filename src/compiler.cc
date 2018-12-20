@@ -362,7 +362,7 @@ void InstallUnoptimizedCode(UnoptimizedCompilationInfo* compilation_info,
       // Clear the feedback metadata field. In lite mode we don't need feedback
       // metadata since we never allocate feedback vectors.
       shared_info->set_raw_outer_scope_info_or_feedback_metadata(
-          HeapObjectPtr::cast(ReadOnlyRoots(isolate).undefined_value()));
+          ReadOnlyRoots(isolate).undefined_value());
     } else {
       Handle<FeedbackMetadata> feedback_metadata = FeedbackMetadata::New(
           isolate, compilation_info->feedback_vector_spec());

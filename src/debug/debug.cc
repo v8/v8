@@ -1251,7 +1251,8 @@ void Debug::InstallDebugBreakTrampoline() {
   std::vector<Handle<JSFunction>> needs_compile;
   {
     HeapIterator iterator(isolate_->heap());
-    while (HeapObject* obj = iterator.next()) {
+    for (HeapObject obj = iterator.next(); !obj.is_null();
+         obj = iterator.next()) {
       if (needs_to_clear_ic && obj->IsFeedbackVector()) {
         FeedbackVector::cast(obj)->ClearSlots(isolate_);
         continue;

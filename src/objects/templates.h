@@ -105,7 +105,7 @@ class FunctionTemplateInfo : public TemplateInfo {
   // If any of the setters below declared by DECL_RARE_ACCESSORS are used then
   // a FunctionTemplateRareData will be stored here. Until then this contains
   // undefined.
-  DECL_ACCESSORS(rare_data, HeapObject)
+  DECL_ACCESSORS2(rare_data, HeapObject)
 
 #define DECL_RARE_ACCESSORS(Name, CamelName, Type)                           \
   inline Type* Get##CamelName();                                             \

@@ -23,7 +23,7 @@ RootsSerializer::RootsSerializer(Isolate* isolate,
   }
 }
 
-int RootsSerializer::SerializeInObjectCache(HeapObject* heap_object) {
+int RootsSerializer::SerializeInObjectCache(HeapObject heap_object) {
   int index;
   if (!object_cache_index_map_.LookupOrInsert(heap_object, &index)) {
     // This object is not part of the object cache yet. Add it to the cache so
@@ -56,7 +56,7 @@ void RootsSerializer::VisitRootPointers(Root root, const char* description,
   }
 }
 
-void RootsSerializer::CheckRehashability(HeapObject* obj) {
+void RootsSerializer::CheckRehashability(HeapObject obj) {
   if (!can_be_rehashed_) return;
   if (!obj->NeedsRehashing()) return;
   if (obj->CanBeRehashed()) return;

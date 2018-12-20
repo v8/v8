@@ -486,7 +486,7 @@ class LowLevelLogger : public CodeEventLogger {
   void CodeMoveEvent(AbstractCode from, AbstractCode to) override;
   void CodeDisableOptEvent(AbstractCode code,
                            SharedFunctionInfo shared) override {}
-  void SnapshotPositionEvent(HeapObject* obj, int pos);
+  void SnapshotPositionEvent(HeapObject obj, int pos);
   void CodeMovingGCEvent() override;
 
  private:
@@ -1668,7 +1668,7 @@ void Logger::ICEvent(const char* type, bool keyed, Map map, Object* key,
 }
 
 void Logger::MapEvent(const char* type, Map from, Map to, const char* reason,
-                      HeapObject* name_or_sfi) {
+                      HeapObject name_or_sfi) {
   DisallowHeapAllocation no_gc;
   if (!log_->IsEnabled() || !FLAG_trace_maps) return;
   if (!to.is_null()) MapDetails(to);
@@ -1686,7 +1686,7 @@ void Logger::MapEvent(const char* type, Map from, Map to, const char* reason,
       << reinterpret_cast<void*>(pc) << kNext << line << kNext << column
       << kNext << reason << kNext;
 
-  if (name_or_sfi) {
+  if (!name_or_sfi.is_null()) {
     if (name_or_sfi->IsName()) {
       msg << Name::cast(name_or_sfi);
     } else if (name_or_sfi->IsSharedFunctionInfo()) {
@@ -1758,7 +1758,7 @@ static int EnumerateCompiledFunctions(Heap* heap,
 
   // Iterate the heap to find shared function info objects and record
   // the unoptimized code for them.
-  for (HeapObject* obj = iterator.next(); obj != nullptr;
+  for (HeapObject obj = iterator.next(); !obj.is_null();
        obj = iterator.next()) {
     if (obj->IsSharedFunctionInfo()) {
       SharedFunctionInfo sfi = SharedFunctionInfo::cast(obj);
@@ -1798,7 +1798,7 @@ static int EnumerateWasmModuleObjects(
   DisallowHeapAllocation no_gc;
   int module_objects_count = 0;
 
-  for (HeapObject* obj = iterator.next(); obj != nullptr;
+  for (HeapObject obj = iterator.next(); !obj.is_null();
        obj = iterator.next()) {
     if (obj->IsWasmModuleObject()) {
       WasmModuleObject module = WasmModuleObject::cast(obj);
@@ -1830,7 +1830,7 @@ void Logger::LogAccessorCallbacks() {
   Heap* heap = isolate_->heap();
   HeapIterator iterator(heap);
   DisallowHeapAllocation no_gc;
-  for (HeapObject* obj = iterator.next(); obj != nullptr;
+  for (HeapObject obj = iterator.next(); !obj.is_null();
        obj = iterator.next()) {
     if (!obj->IsAccessorInfo()) continue;
     AccessorInfo ai = AccessorInfo::cast(obj);
@@ -1857,7 +1857,7 @@ void Logger::LogAllMaps() {
   DisallowHeapAllocation no_gc;
   Heap* heap = isolate_->heap();
   HeapIterator iterator(heap);
-  for (HeapObject* obj = iterator.next(); obj != nullptr;
+  for (HeapObject obj = iterator.next(); !obj.is_null();
        obj = iterator.next()) {
     if (!obj->IsMap()) continue;
     Map map = Map::cast(obj);
@@ -2090,7 +2090,7 @@ void ExistingCodeLogger::LogCodeObjects() {
   Heap* heap = isolate_->heap();
   HeapIterator iterator(heap);
   DisallowHeapAllocation no_gc;
-  for (HeapObject* obj = iterator.next(); obj != nullptr;
+  for (HeapObject obj = iterator.next(); !obj.is_null();
        obj = iterator.next()) {
     if (obj->IsCode()) LogCodeObject(obj);
     if (obj->IsBytecodeArray()) LogCodeObject(obj);

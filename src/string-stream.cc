@@ -365,8 +365,9 @@ void StringStream::PrintMentionedObjectCache(Isolate* isolate) {
       isolate->string_stream_debug_object_cache();
   Add("==== Key         ============================================\n\n");
   for (size_t i = 0; i < debug_object_cache->size(); i++) {
-    HeapObject* printee = (*debug_object_cache)[i];
-    Add(" #%d# %p: ", static_cast<int>(i), printee);
+    HeapObject printee = (*debug_object_cache)[i];
+    Add(" #%d# %p: ", static_cast<int>(i),
+        reinterpret_cast<void*>(printee->ptr()));
     printee->ShortPrint(this);
     Add("\n");
     if (printee->IsJSObject()) {

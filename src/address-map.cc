@@ -6,6 +6,7 @@
 #include "src/heap/heap.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
+#include "src/objects/heap-object-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -23,7 +24,7 @@ RootIndexMap::RootIndexMap(Isolate* isolate) {
     // Since we map the raw address of an root item to its root list index, the
     // raw address must be constant, i.e. the object must be immovable.
     if (RootsTable::IsImmortalImmovable(root_index)) {
-      HeapObject* heap_object = HeapObject::cast(root);
+      HeapObject heap_object = HeapObject::cast(root);
       Maybe<uint32_t> maybe_index = map_->Get(heap_object);
       uint32_t index = static_cast<uint32_t>(root_index);
       if (maybe_index.IsJust()) {
@@ -35,6 +36,10 @@ RootIndexMap::RootIndexMap(Isolate* isolate) {
     }
   }
   isolate->set_root_index_map(map_);
+}
+
+bool RootIndexMap::Lookup(Address obj, RootIndex* out_root_list) const {
+  return Lookup(HeapObject::cast(ObjectPtr(obj)), out_root_list);
 }
 
 }  // namespace internal

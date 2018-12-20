@@ -40,7 +40,7 @@ Handle<Context> ScriptContextTable::GetContext(Isolate* isolate,
       FixedArray::get(*table, i + kFirstContextSlotIndex, isolate));
 }
 
-OBJECT_CONSTRUCTORS_IMPL(Context, HeapObjectPtr)
+OBJECT_CONSTRUCTORS_IMPL(Context, HeapObject)
 NEVER_READ_ONLY_SPACE_IMPL(Context)
 CAST_ACCESSOR2(Context)
 SMI_ACCESSORS(Context, length, kLengthOffset)
@@ -83,12 +83,10 @@ void Context::set_previous(Context context) { set(PREVIOUS_INDEX, context); }
 Object* Context::next_context_link() { return get(Context::NEXT_CONTEXT_LINK); }
 
 bool Context::has_extension() { return !extension()->IsTheHole(); }
-HeapObject* Context::extension() {
+HeapObject Context::extension() {
   return HeapObject::cast(get(EXTENSION_INDEX));
 }
-void Context::set_extension(HeapObject* object) {
-  set(EXTENSION_INDEX, object);
-}
+void Context::set_extension(HeapObject object) { set(EXTENSION_INDEX, object); }
 
 NativeContext Context::native_context() const {
   Object* result = get(NATIVE_CONTEXT_INDEX);

@@ -44,7 +44,7 @@ OrderedNameDictionary::OrderedNameDictionary(Address ptr)
 
 template <class Derived>
 SmallOrderedHashTable<Derived>::SmallOrderedHashTable(Address ptr)
-    : HeapObjectPtr(ptr) {}
+    : HeapObject(ptr) {}
 
 OBJECT_CONSTRUCTORS_IMPL(SmallOrderedHashSet,
                          SmallOrderedHashTable<SmallOrderedHashSet>)

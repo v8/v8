@@ -19,7 +19,7 @@ OBJECT_CONSTRUCTORS_IMPL(FeedbackCell, Struct)
 
 CAST_ACCESSOR2(FeedbackCell)
 
-ACCESSORS(FeedbackCell, value, HeapObject, kValueOffset)
+ACCESSORS2(FeedbackCell, value, HeapObject, kValueOffset)
 
 }  // namespace internal
 }  // namespace v8

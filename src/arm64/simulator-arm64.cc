@@ -3291,15 +3291,12 @@ void Simulator::Debug() {
         while (cur < end) {
           PrintF("  0x%016" PRIx64 ":  0x%016" PRIx64 " %10" PRId64,
                  reinterpret_cast<uint64_t>(cur), *cur, *cur);
-          HeapObject* obj = reinterpret_cast<HeapObject*>(*cur);
-          int64_t value = *cur;
+          ObjectPtr obj(*cur);
           Heap* current_heap = isolate_->heap();
-          if (((value & 1) == 0) || current_heap->Contains(obj)) {
+          if (obj.IsSmi() || current_heap->Contains(HeapObject::cast(obj))) {
             PrintF(" (");
-            if ((value & kSmiTagMask) == 0) {
-              DCHECK(SmiValuesAre32Bits() || SmiValuesAre31Bits());
-              int32_t untagged = (value >> kSmiShift) & 0xFFFFFFFF;
-              PrintF("smi %" PRId32, untagged);
+            if (obj.IsSmi()) {
+              PrintF("smi %" PRId32, Smi::ToInt(obj));
             } else {
               obj->ShortPrint();
             }

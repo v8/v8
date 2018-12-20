@@ -442,7 +442,7 @@ class ScriptContextTable : public FixedArray {
 // Script contexts from all top-level scripts are gathered in
 // ScriptContextTable.
 
-class Context : public HeapObjectPtr {
+class Context : public HeapObject {
  public:
   NEVER_READ_ONLY_SPACE
 
@@ -553,8 +553,8 @@ class Context : public HeapObjectPtr {
   inline Object* next_context_link();
 
   inline bool has_extension();
-  inline HeapObject* extension();
-  inline void set_extension(HeapObject* object);
+  inline HeapObject extension();
+  inline void set_extension(HeapObject object);
   JSObject extension_object();
   JSReceiver extension_receiver();
   ScopeInfo scope_info();
@@ -675,7 +675,7 @@ class Context : public HeapObjectPtr {
   static bool IsBootstrappingOrValidParentContext(Object* object, Context kid);
 #endif
 
-  OBJECT_CONSTRUCTORS(Context, HeapObjectPtr)
+  OBJECT_CONSTRUCTORS(Context, HeapObject)
 };
 
 class NativeContext : public Context {

@@ -226,7 +226,7 @@ static void CheckFindCodeObject(Isolate* isolate) {
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
   CHECK(code->IsCode());
 
-  HeapObject* obj = HeapObject::cast(*code);
+  HeapObject obj = HeapObject::cast(*code);
   Address obj_addr = obj->address();
 
   for (int i = 0; i < obj->Size(); i += kTaggedSize) {
@@ -236,7 +236,7 @@ static void CheckFindCodeObject(Isolate* isolate) {
 
   Handle<Code> copy =
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
-  HeapObject* obj_copy = HeapObject::cast(*copy);
+  HeapObject obj_copy = HeapObject::cast(*copy);
   Object* not_right = isolate->FindCodeObject(obj_copy->address() +
                                               obj_copy->Size() / 2);
   CHECK(not_right != *code);
@@ -1230,7 +1230,7 @@ static int ObjectsFoundInHeap(Heap* heap, Handle<Object> objs[], int size) {
   // Count the number of objects found in the heap.
   int found_count = 0;
   HeapIterator iterator(heap);
-  for (HeapObject* obj = iterator.next(); obj != nullptr;
+  for (HeapObject obj = iterator.next(); !obj.is_null();
        obj = iterator.next()) {
     for (int i = 0; i < size; i++) {
       if (*objs[i] == obj) {
@@ -1785,18 +1785,16 @@ TEST(TestAlignmentCalculations) {
   CHECK_EQ(0, fill);
 }
 
-
-static HeapObject* NewSpaceAllocateAligned(int size,
-                                           AllocationAlignment alignment) {
+static HeapObject NewSpaceAllocateAligned(int size,
+                                          AllocationAlignment alignment) {
   Heap* heap = CcTest::heap();
   AllocationResult allocation =
       heap->new_space()->AllocateRawAligned(size, alignment);
-  HeapObject* obj = nullptr;
+  HeapObject obj;
   allocation.To(&obj);
   heap->CreateFillerObjectAt(obj->address(), size, ClearRecordedSlots::kNo);
   return obj;
 }
-
 
 // Get new space allocation into the desired alignment.
 static Address AlignNewSpace(AllocationAlignment alignment, int offset) {
@@ -1815,8 +1813,8 @@ TEST(TestAlignedAllocation) {
   const intptr_t double_misalignment = kDoubleSize - kTaggedSize;
   Address* top_addr = CcTest::heap()->new_space()->allocation_top_address();
   Address start;
-  HeapObject* obj;
-  HeapObject* filler;
+  HeapObject obj;
+  HeapObject filler;
   if (double_misalignment) {
     // Allocate a pointer sized object that must be double aligned at an
     // aligned address.
@@ -1851,18 +1849,16 @@ TEST(TestAlignedAllocation) {
   }
 }
 
-
-static HeapObject* OldSpaceAllocateAligned(int size,
-                                           AllocationAlignment alignment) {
+static HeapObject OldSpaceAllocateAligned(int size,
+                                          AllocationAlignment alignment) {
   Heap* heap = CcTest::heap();
   AllocationResult allocation =
       heap->old_space()->AllocateRawAligned(size, alignment);
-  HeapObject* obj = nullptr;
+  HeapObject obj;
   allocation.To(&obj);
   heap->CreateFillerObjectAt(obj->address(), size, ClearRecordedSlots::kNo);
   return obj;
 }
-
 
 // Get old space allocation into the desired alignment.
 static Address AlignOldSpace(AllocationAlignment alignment, int offset) {
@@ -1896,8 +1892,8 @@ TEST(TestAlignedOverAllocation) {
   // is enabled, 0 on 64-bit ones when pointer compression is disabled.
   const intptr_t double_misalignment = kDoubleSize - kTaggedSize;
   Address start;
-  HeapObject* obj;
-  HeapObject* filler;
+  HeapObject obj;
+  HeapObject filler;
   if (double_misalignment) {
     start = AlignOldSpace(kDoubleAligned, 0);
     obj = OldSpaceAllocateAligned(kTaggedSize, kDoubleAligned);
@@ -1933,7 +1929,7 @@ TEST(TestSizeOfObjectsVsHeapIteratorPrecision) {
   HeapIterator iterator(CcTest::heap());
   intptr_t size_of_objects_1 = CcTest::heap()->SizeOfObjects();
   intptr_t size_of_objects_2 = 0;
-  for (HeapObject* obj = iterator.next(); obj != nullptr;
+  for (HeapObject obj = iterator.next(); !obj.is_null();
        obj = iterator.next()) {
     if (!obj->IsFreeSpace()) {
       size_of_objects_2 += obj->Size();
@@ -2046,7 +2042,7 @@ TEST(CollectingAllAvailableGarbageShrinksNewSpace) {
 static int NumberOfGlobalObjects() {
   int count = 0;
   HeapIterator iterator(CcTest::heap());
-  for (HeapObject* obj = iterator.next(); obj != nullptr;
+  for (HeapObject obj = iterator.next(); !obj.is_null();
        obj = iterator.next()) {
     if (obj->IsJSGlobalObject()) count++;
   }
@@ -3551,7 +3547,7 @@ TEST(Regress169928) {
 
   // We need filler the size of AllocationMemento object, plus an extra
   // fill pointer value.
-  HeapObject* obj = nullptr;
+  HeapObject obj;
   AllocationResult allocation =
       CcTest::heap()->new_space()->AllocateRawUnaligned(
           AllocationMemento::kSize + kTaggedSize);
@@ -4749,7 +4745,7 @@ TEST(Regress507979) {
   // way the filler object shares the mark bits with the following live object.
   o1->Shrink(isolate, kFixedArrayLen - 1);
 
-  for (HeapObject* obj = it.next(); obj != nullptr; obj = it.next()) {
+  for (HeapObject obj = it.next(); !obj.is_null(); obj = it.next()) {
     // Let's not optimize the loop away.
     CHECK_NE(obj->address(), kNullAddress);
   }
@@ -4831,7 +4827,7 @@ TEST(Regress3631) {
   Handle<JSReceiver> obj =
       v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(result));
   Handle<JSWeakCollection> weak_map(JSWeakCollection::cast(*obj), isolate);
-  HeapObject* weak_map_table = HeapObject::cast(weak_map->table());
+  HeapObject weak_map_table = HeapObject::cast(weak_map->table());
   IncrementalMarking::MarkingState* marking_state = marking->marking_state();
   while (!marking_state->IsBlack(weak_map_table) && !marking->IsStopped()) {
     marking->Step(MB, IncrementalMarking::NO_GC_VIA_STACK_GUARD,
@@ -5208,7 +5204,7 @@ TEST(ScriptIterator) {
   int script_count = 0;
   {
     HeapIterator it(heap);
-    for (HeapObject* obj = it.next(); obj != nullptr; obj = it.next()) {
+    for (HeapObject obj = it.next(); !obj.is_null(); obj = it.next()) {
       if (obj->IsScript()) script_count++;
     }
   }
@@ -5238,7 +5234,7 @@ TEST(SharedFunctionInfoIterator) {
   int sfi_count = 0;
   {
     HeapIterator it(heap);
-    for (HeapObject* obj = it.next(); obj != nullptr; obj = it.next()) {
+    for (HeapObject obj = it.next(); !obj.is_null(); obj = it.next()) {
       if (!obj->IsSharedFunctionInfo()) continue;
       sfi_count++;
     }
@@ -5259,7 +5255,7 @@ AllocationResult HeapTester::AllocateByteArrayForTest(Heap* heap, int length,
   DCHECK(length >= 0 && length <= ByteArray::kMaxLength);
   int size = ByteArray::SizeFor(length);
   AllocationSpace space = heap->SelectSpace(pretenure);
-  HeapObject* result = nullptr;
+  HeapObject result;
   {
     AllocationResult allocation = heap->AllocateRaw(size, space);
     if (!allocation.To(&result)) return allocation;
@@ -5437,7 +5433,7 @@ TEST(Regress598319) {
   IncrementalMarking::MarkingState* marking_state = marking->marking_state();
   CHECK(marking_state->IsWhite(arr.get()));
   for (int i = 0; i < arr.get()->length(); i++) {
-    HeapObject* arr_value = HeapObject::cast(arr.get()->get(i));
+    HeapObject arr_value = HeapObject::cast(arr.get()->get(i));
     CHECK(marking_state->IsWhite(arr_value));
   }
 
@@ -5451,7 +5447,7 @@ TEST(Regress598319) {
 
   // Check that we have not marked the interesting array during root scanning.
   for (int i = 0; i < arr.get()->length(); i++) {
-    HeapObject* arr_value = HeapObject::cast(arr.get()->get(i));
+    HeapObject arr_value = HeapObject::cast(arr.get()->get(i));
     CHECK(marking_state->IsWhite(arr_value));
   }
 
@@ -5487,7 +5483,7 @@ TEST(Regress598319) {
   // All objects need to be black after marking. If a white object crossed the
   // progress bar, we would fail here.
   for (int i = 0; i < arr.get()->length(); i++) {
-    HeapObject* arr_value = HeapObject::cast(arr.get()->get(i));
+    HeapObject arr_value = HeapObject::cast(arr.get()->get(i));
     CHECK(marking_state->IsBlack(arr_value));
   }
 }
@@ -5721,7 +5717,7 @@ TEST(ContinuousLeftTrimFixedArrayInBlackArea) {
   // First trim in one word steps.
   for (int i = 0; i < 10; i++) {
     trimmed = heap->LeftTrimFixedArray(previous, 1);
-    HeapObject* filler = HeapObject::FromAddress(previous->address());
+    HeapObject filler = HeapObject::FromAddress(previous->address());
     CHECK(filler->IsFiller());
     CHECK(marking_state->IsBlack(trimmed));
     CHECK(marking_state->IsBlack(previous));
@@ -5732,7 +5728,7 @@ TEST(ContinuousLeftTrimFixedArrayInBlackArea) {
   for (int i = 2; i <= 3; i++) {
     for (int j = 0; j < 10; j++) {
       trimmed = heap->LeftTrimFixedArray(previous, i);
-      HeapObject* filler = HeapObject::FromAddress(previous->address());
+      HeapObject filler = HeapObject::FromAddress(previous->address());
       CHECK(filler->IsFiller());
       CHECK(marking_state->IsBlack(trimmed));
       CHECK(marking_state->IsBlack(previous));
@@ -5788,7 +5784,7 @@ TEST(ContinuousRightTrimFixedArrayInBlackArea) {
   Address previous = end_address - kTaggedSize;
   isolate->heap()->RightTrimFixedArray(*array, 1);
 
-  HeapObject* filler = HeapObject::FromAddress(previous);
+  HeapObject filler = HeapObject::FromAddress(previous);
   CHECK(filler->IsFiller());
   CHECK(marking_state->IsImpossible(filler));
 
@@ -5797,7 +5793,7 @@ TEST(ContinuousRightTrimFixedArrayInBlackArea) {
     for (int j = 0; j < 10; j++) {
       previous -= kTaggedSize * i;
       isolate->heap()->RightTrimFixedArray(*array, i);
-      HeapObject* filler = HeapObject::FromAddress(previous);
+      HeapObject filler = HeapObject::FromAddress(previous);
       CHECK(filler->IsFiller());
       CHECK(marking_state->IsWhite(filler));
     }

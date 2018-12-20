@@ -7,6 +7,7 @@
 
 #include "src/globals.h"
 #include "src/heap/heap.h"
+#include "src/objects/heap-object.h"
 #include "src/snapshot/serializer-common.h"
 
 namespace v8 {
@@ -46,10 +47,10 @@ class DeserializerAllocator final {
   bool next_reference_is_weak() const { return next_reference_is_weak_; }
 #endif
 
-  HeapObject* GetMap(uint32_t index);
-  HeapObject* GetLargeObject(uint32_t index);
-  HeapObject* GetObject(AllocationSpace space, uint32_t chunk_index,
-                        uint32_t chunk_offset);
+  HeapObject GetMap(uint32_t index);
+  HeapObject GetLargeObject(uint32_t index);
+  HeapObject GetObject(AllocationSpace space, uint32_t chunk_index,
+                       uint32_t chunk_offset);
 
   // ------- Reservation Methods -------
   // Methods related to memory reservations (prior to deserialization).
@@ -94,7 +95,7 @@ class DeserializerAllocator final {
 
   // Allocated large objects are kept in this map and may be fetched later as
   // back-references.
-  std::vector<HeapObject*> deserialized_large_objects_;
+  std::vector<HeapObject> deserialized_large_objects_;
 
   // The current deserializer.
   Deserializer* const deserializer_;

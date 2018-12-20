@@ -237,7 +237,8 @@ void SetupIsolateDelegate::ReplacePlaceholders(Isolate* isolate) {
       RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
       RelocInfo::ModeMask(RelocInfo::RELATIVE_CODE_TARGET);
   HeapIterator iterator(isolate->heap());
-  while (HeapObject* obj = iterator.next()) {
+  for (HeapObject obj = iterator.next(); !obj.is_null();
+       obj = iterator.next()) {
     if (!obj->IsCode()) continue;
     Code code = Code::cast(obj);
     bool flush_icache = false;

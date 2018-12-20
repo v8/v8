@@ -68,7 +68,7 @@ class Deserializer : public SerializerDeserializer {
 
   // This returns the address of an object that has been described in the
   // snapshot by chunk index and offset.
-  HeapObject* GetBackReferencedObject(int space);
+  HeapObject GetBackReferencedObject(int space);
 
   // Add an object to back an attached reference. The order to add objects must
   // mirror the order they are added in the serializer.
@@ -140,7 +140,7 @@ class Deserializer : public SerializerDeserializer {
                   HeapObjectReferenceType reference_type);
 
   // Special handling for serialized code like hooking up internalized strings.
-  HeapObject* PostProcessNewObject(HeapObject* obj, int space);
+  HeapObject PostProcessNewObject(HeapObject obj, int space);
 
   // Objects from the attached object descriptions in the serialized user code.
   std::vector<Handle<HeapObject>> attached_objects_;
@@ -164,7 +164,7 @@ class Deserializer : public SerializerDeserializer {
 
   // TODO(6593): generalize rehashing, and remove this flag.
   bool can_rehash_;
-  std::vector<HeapObject*> to_rehash_;
+  std::vector<HeapObject> to_rehash_;
 
 #ifdef DEBUG
   uint32_t num_api_references_;

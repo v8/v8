@@ -19,7 +19,7 @@ AllocationSpace GetSpaceFromObject(Object* object) {
 }  // namespace
 
 #define CHECK_IN_RO_SPACE(type, name, CamelName) \
-  HeapObject* name = roots.name();               \
+  HeapObject name = roots.name();                \
   CHECK_EQ(RO_SPACE, GetSpaceFromObject(name));
 
 // The following tests check that all the roots accessible via ReadOnlyRoots are
@@ -69,8 +69,7 @@ bool IsInitiallyMutable(Factory* factory, Address object_address) {
   Handle<Object> name = factory->name();                                   \
   CHECK_EQ(*name, heap->name());                                           \
   if (name->IsHeapObject() && IsInitiallyMutable(factory, name.address())) \
-    CHECK_NE(RO_SPACE,                                                     \
-             GetSpaceFromObject(reinterpret_cast<HeapObject*>(*name)));
+    CHECK_NE(RO_SPACE, GetSpaceFromObject(HeapObject::cast(*name)));
 
 // The following tests check that all the roots accessible via public Heap
 // accessors are not in RO_SPACE with the exception of the objects listed in

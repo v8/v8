@@ -12,7 +12,7 @@ namespace v8 {
 namespace internal {
 
 // Record code statisitcs.
-void CodeStatistics::RecordCodeAndMetadataStatistics(HeapObject* object,
+void CodeStatistics::RecordCodeAndMetadataStatistics(HeapObject object,
                                                      Isolate* isolate) {
   if (object->IsScript()) {
     Script script = Script::cast(object);
@@ -61,7 +61,7 @@ void CodeStatistics::ResetCodeAndMetadataStatistics(Isolate* isolate) {
 void CodeStatistics::CollectCodeStatistics(PagedSpace* space,
                                            Isolate* isolate) {
   HeapObjectIterator obj_it(space);
-  for (HeapObject* obj = obj_it.Next(); obj != nullptr; obj = obj_it.Next()) {
+  for (HeapObject obj = obj_it.Next(); !obj.is_null(); obj = obj_it.Next()) {
     RecordCodeAndMetadataStatistics(obj, isolate);
   }
 }
@@ -73,7 +73,7 @@ void CodeStatistics::CollectCodeStatistics(PagedSpace* space,
 void CodeStatistics::CollectCodeStatistics(LargeObjectSpace* space,
                                            Isolate* isolate) {
   LargeObjectIterator obj_it(space);
-  for (HeapObject* obj = obj_it.Next(); obj != nullptr; obj = obj_it.Next()) {
+  for (HeapObject obj = obj_it.Next(); !obj.is_null(); obj = obj_it.Next()) {
     RecordCodeAndMetadataStatistics(obj, isolate);
   }
 }
@@ -192,7 +192,7 @@ void CodeStatistics::CollectCommentStatistics(Isolate* isolate,
 }
 
 // Collects code comment statistics
-void CodeStatistics::CollectCodeCommentStatistics(HeapObject* obj,
+void CodeStatistics::CollectCodeCommentStatistics(HeapObject obj,
                                                   Isolate* isolate) {
   // Bytecode objects do not contain RelocInfo. Only process code objects
   // for code comment statistics.

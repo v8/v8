@@ -32,7 +32,7 @@ Address DeserializerAllocator::AllocateRaw(AllocationSpace space, int size) {
     // objects.
     LargeObjectSpace* lo_space = isolate()->heap()->lo_space();
     AllocationResult result = lo_space->AllocateRaw(size);
-    HeapObject* obj = result.ToObjectChecked();
+    HeapObject obj = result.ToObjectChecked();
     deserialized_large_objects_.push_back(obj);
     return obj->address();
   } else if (space == MAP_SPACE) {
@@ -56,7 +56,7 @@ Address DeserializerAllocator::AllocateRaw(AllocationSpace space, int size) {
 
 Address DeserializerAllocator::Allocate(AllocationSpace space, int size) {
   Address address;
-  HeapObject* obj;
+  HeapObject obj;
 
   if (next_alignment_ != kWordAligned) {
     const int reserved = size + Heap::GetMaximumFillToAlign(next_alignment_);
@@ -90,19 +90,19 @@ void DeserializerAllocator::MoveToNextChunk(AllocationSpace space) {
   high_water_[space] = reservation[chunk_index].start;
 }
 
-HeapObject* DeserializerAllocator::GetMap(uint32_t index) {
+HeapObject DeserializerAllocator::GetMap(uint32_t index) {
   DCHECK_LT(index, next_map_index_);
   return HeapObject::FromAddress(allocated_maps_[index]);
 }
 
-HeapObject* DeserializerAllocator::GetLargeObject(uint32_t index) {
+HeapObject DeserializerAllocator::GetLargeObject(uint32_t index) {
   DCHECK_LT(index, deserialized_large_objects_.size());
   return deserialized_large_objects_[index];
 }
 
-HeapObject* DeserializerAllocator::GetObject(AllocationSpace space,
-                                             uint32_t chunk_index,
-                                             uint32_t chunk_offset) {
+HeapObject DeserializerAllocator::GetObject(AllocationSpace space,
+                                            uint32_t chunk_index,
+                                            uint32_t chunk_offset) {
   DCHECK_LT(space, kNumberOfPreallocatedSpaces);
   DCHECK_LE(chunk_index, current_chunk_[space]);
   Address address = reservations_[space][chunk_index].start + chunk_offset;

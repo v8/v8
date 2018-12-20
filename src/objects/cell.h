@@ -13,7 +13,7 @@
 namespace v8 {
 namespace internal {
 
-class Cell : public HeapObjectPtr {
+class Cell : public HeapObject {
  public:
   // [value]: value of the cell.
   DECL_ACCESSORS(value, Object)
@@ -35,7 +35,7 @@ class Cell : public HeapObjectPtr {
   typedef FixedBodyDescriptor<kValueOffset, kValueOffset + kPointerSize, kSize>
       BodyDescriptor;
 
-  OBJECT_CONSTRUCTORS(Cell, HeapObjectPtr);
+  OBJECT_CONSTRUCTORS(Cell, HeapObject);
 };
 
 }  // namespace internal

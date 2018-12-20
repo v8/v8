@@ -15,7 +15,7 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(Oddball, HeapObjectPtr)
+OBJECT_CONSTRUCTORS_IMPL(Oddball, HeapObject)
 
 CAST_ACCESSOR2(Oddball)
 

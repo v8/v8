@@ -22,9 +22,10 @@ enum class CopyAndForwardResult {
   FAILURE
 };
 
-using ObjectAndSize = std::pair<HeapObject*, int>;
-using SurvivingNewLargeObjectsMap = std::unordered_map<HeapObject*, Map>;
-using SurvivingNewLargeObjectMapEntry = std::pair<HeapObject*, Map>;
+using ObjectAndSize = std::pair<HeapObject, int>;
+using SurvivingNewLargeObjectsMap =
+    std::unordered_map<HeapObject, Map, HeapObject::Hasher>;
+using SurvivingNewLargeObjectMapEntry = std::pair<HeapObject, Map>;
 
 class ScavengerCollector {
  public:
@@ -54,7 +55,7 @@ class ScavengerCollector {
 class Scavenger {
  public:
   struct PromotionListEntry {
-    HeapObject* heap_object;
+    HeapObject heap_object;
     Map map;
     int size;
   };
@@ -66,8 +67,8 @@ class Scavenger {
       View(PromotionList* promotion_list, int task_id)
           : promotion_list_(promotion_list), task_id_(task_id) {}
 
-      inline void PushRegularObject(HeapObject* object, int size);
-      inline void PushLargeObject(HeapObject* object, Map map, int size);
+      inline void PushRegularObject(HeapObject object, int size);
+      inline void PushLargeObject(HeapObject object, Map map, int size);
       inline bool IsEmpty();
       inline size_t LocalPushSegmentSize();
       inline bool Pop(struct PromotionListEntry* entry);
@@ -83,8 +84,8 @@ class Scavenger {
         : regular_object_promotion_list_(num_tasks),
           large_object_promotion_list_(num_tasks) {}
 
-    inline void PushRegularObject(int task_id, HeapObject* object, int size);
-    inline void PushLargeObject(int task_id, HeapObject* object, Map map,
+    inline void PushRegularObject(int task_id, HeapObject object, int size);
+    inline void PushLargeObject(int task_id, HeapObject object, Map map,
                                 int size);
     inline bool IsEmpty();
     inline size_t LocalPushSegmentSize(int task_id);
@@ -148,10 +149,10 @@ class Scavenger {
   // to be in from space.
   template <typename THeapObjectSlot>
   inline SlotCallbackResult ScavengeObject(THeapObjectSlot p,
-                                           HeapObject* object);
+                                           HeapObject object);
 
   // Copies |source| to |target| and sets the forwarding pointer in |source|.
-  V8_INLINE bool MigrateObject(Map map, HeapObject* source, HeapObject* target,
+  V8_INLINE bool MigrateObject(Map map, HeapObject source, HeapObject target,
                                int size);
 
   V8_INLINE SlotCallbackResult
@@ -160,26 +161,25 @@ class Scavenger {
   template <typename THeapObjectSlot>
   V8_INLINE CopyAndForwardResult SemiSpaceCopyObject(Map map,
                                                      THeapObjectSlot slot,
-                                                     HeapObject* object,
+                                                     HeapObject object,
                                                      int object_size);
 
   template <typename THeapObjectSlot>
   V8_INLINE CopyAndForwardResult PromoteObject(Map map, THeapObjectSlot slot,
-                                               HeapObject* object,
+                                               HeapObject object,
                                                int object_size);
 
   template <typename THeapObjectSlot>
   V8_INLINE SlotCallbackResult EvacuateObject(THeapObjectSlot slot, Map map,
-                                              HeapObject* source);
+                                              HeapObject source);
 
-  V8_INLINE bool HandleLargeObject(Map map, HeapObject* object,
-                                   int object_size);
+  V8_INLINE bool HandleLargeObject(Map map, HeapObject object, int object_size);
 
   // Different cases for object evacuation.
   template <typename THeapObjectSlot>
   V8_INLINE SlotCallbackResult EvacuateObjectDefault(Map map,
                                                      THeapObjectSlot slot,
-                                                     HeapObject* object,
+                                                     HeapObject object,
                                                      int object_size);
 
   template <typename THeapObjectSlot>
@@ -193,7 +193,7 @@ class Scavenger {
                                                       ConsString object,
                                                       int object_size);
 
-  void IterateAndScavengePromotedObject(HeapObject* target, Map map, int size);
+  void IterateAndScavengePromotedObject(HeapObject target, Map map, int size);
 
   static inline bool ContainsOnlyData(VisitorId visitor_id);
 
@@ -236,10 +236,10 @@ class ScavengeVisitor final : public NewSpaceVisitor<ScavengeVisitor> {
  public:
   explicit ScavengeVisitor(Scavenger* scavenger);
 
-  V8_INLINE void VisitPointers(HeapObject* host, ObjectSlot start,
+  V8_INLINE void VisitPointers(HeapObject host, ObjectSlot start,
                                ObjectSlot end) final;
 
-  V8_INLINE void VisitPointers(HeapObject* host, MaybeObjectSlot start,
+  V8_INLINE void VisitPointers(HeapObject host, MaybeObjectSlot start,
                                MaybeObjectSlot end) final;
 
   V8_INLINE void VisitCodeTarget(Code host, RelocInfo* rinfo) final;
@@ -247,10 +247,10 @@ class ScavengeVisitor final : public NewSpaceVisitor<ScavengeVisitor> {
 
  private:
   template <typename TSlot>
-  V8_INLINE void VisitHeapObjectImpl(TSlot slot, HeapObject* heap_object);
+  V8_INLINE void VisitHeapObjectImpl(TSlot slot, HeapObject heap_object);
 
   template <typename TSlot>
-  V8_INLINE void VisitPointersImpl(HeapObject* host, TSlot start, TSlot end);
+  V8_INLINE void VisitPointersImpl(HeapObject host, TSlot start, TSlot end);
 
   Scavenger* const scavenger_;
 };

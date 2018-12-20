@@ -21,7 +21,7 @@ namespace internal {
 class FeedbackCell : public Struct {
  public:
   // [value]: value of the cell.
-  DECL_ACCESSORS(value, HeapObject)
+  DECL_ACCESSORS2(value, HeapObject)
 
   DECL_CAST2(FeedbackCell)
 

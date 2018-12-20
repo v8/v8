@@ -632,7 +632,7 @@ struct SlotTraits<SlotLocation::kOnHeap> {
 using ObjectSlot = SlotTraits<SlotLocation::kOnHeap>::TObjectSlot;
 
 // An MapWordSlot instance describes a kTaggedSize-sized on-heap field ("slot")
-// holding HeapObjectPtr (strong heap object) value or a forwarding pointer.
+// holding HeapObject (strong heap object) value or a forwarding pointer.
 using MapWordSlot = SlotTraits<SlotLocation::kOnHeap>::TMapWordSlot;
 
 // A MaybeObjectSlot instance describes a kTaggedSize-sized on-heap field

@@ -67,7 +67,7 @@ void PartialSerializer::Serialize(Context* o, bool include_global_proxy) {
   Pad();
 }
 
-void PartialSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
+void PartialSerializer::SerializeObject(HeapObject obj, HowToCode how_to_code,
                                         WhereToPoint where_to_point, int skip) {
   DCHECK(!ObjectIsBytecodeHandler(obj));  // Only referenced in dispatch table.
 
@@ -124,7 +124,7 @@ void PartialSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
   serializer.Serialize();
 }
 
-bool PartialSerializer::ShouldBeInThePartialSnapshotCache(HeapObject* o) {
+bool PartialSerializer::ShouldBeInThePartialSnapshotCache(HeapObject o) {
   // Scripts should be referred only through shared function infos.  We can't
   // allow them to be part of the partial snapshot because they contain a
   // unique ID, and deserializing several partial snapshots containing script
@@ -226,7 +226,7 @@ bool PartialSerializer::SerializeJSObjectWithEmbedderFields(
   return true;
 }
 
-void PartialSerializer::CheckRehashability(HeapObject* obj) {
+void PartialSerializer::CheckRehashability(HeapObject obj) {
   if (!can_be_rehashed_) return;
   if (!obj->NeedsRehashing()) return;
   if (obj->CanBeRehashed()) return;

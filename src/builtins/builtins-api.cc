@@ -255,7 +255,7 @@ V8_WARN_UNUSED_RESULT static Object* HandleApiCallAsFunctionOrConstructor(
   JSObject obj = JSObject::cast(*receiver);
 
   // Set the new target.
-  HeapObject* new_target;
+  HeapObject new_target;
   if (is_construct_call) {
     // TODO(adamk): This should be passed through in args instead of
     // being patched in here. We need to set a non-undefined value

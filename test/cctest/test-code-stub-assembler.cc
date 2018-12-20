@@ -2115,7 +2115,7 @@ class AppendJSArrayCodeStubAssembler : public CodeStubAssembler {
     CHECK_EQ(result_size, Handle<Smi>::cast(result)->value());
     CHECK_EQ(result_size, Smi::ToInt(array->length()));
     Object* obj = *JSObject::GetElement(isolate, array, 2).ToHandleChecked();
-    HeapObject* undefined_value = ReadOnlyRoots(isolate).undefined_value();
+    HeapObject undefined_value = ReadOnlyRoots(isolate).undefined_value();
     CHECK_EQ(result_size < 3 ? undefined_value : o1, obj);
     obj = *JSObject::GetElement(isolate, array, 3).ToHandleChecked();
     CHECK_EQ(result_size < 4 ? undefined_value : o2, obj);

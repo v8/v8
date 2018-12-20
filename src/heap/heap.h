@@ -63,7 +63,6 @@ class GCIdleTimeHeapState;
 class GCTracer;
 class HeapController;
 class HeapObjectAllocationTracker;
-class HeapObjectPtr;
 class HeapObjectsFilter;
 class HeapStats;
 class HistogramTimer;
@@ -171,7 +170,7 @@ class AllocationResult {
   AllocationResult() : object_(Smi::FromInt(NEW_SPACE)) {}
 
   inline bool IsRetry() { return object_->IsSmi(); }
-  inline HeapObject* ToObjectChecked();
+  inline HeapObject ToObjectChecked();
   inline AllocationSpace RetrySpace();
 
   template <typename T, typename = typename std::enable_if<
@@ -227,7 +226,7 @@ class Heap {
   };
 
   using PretenuringFeedbackMap =
-      std::unordered_map<AllocationSite, size_t, HeapObjectPtr::Hasher>;
+      std::unordered_map<AllocationSite, size_t, HeapObject::Hasher>;
 
   // Taking this mutex prevents the GC from entering a phase that relocates
   // object references.
@@ -341,24 +340,24 @@ class Heap {
   static inline void CopyBlock(Address dst, Address src, int byte_size);
 
   V8_EXPORT_PRIVATE static void WriteBarrierForCodeSlow(Code host);
-  V8_EXPORT_PRIVATE static void GenerationalBarrierSlow(HeapObject* object,
+  V8_EXPORT_PRIVATE static void GenerationalBarrierSlow(HeapObject object,
                                                         Address slot,
-                                                        HeapObject* value);
+                                                        HeapObject value);
   V8_EXPORT_PRIVATE static void GenerationalBarrierForElementsSlow(
       Heap* heap, FixedArray array, int offset, int length);
   V8_EXPORT_PRIVATE static void GenerationalBarrierForCodeSlow(
-      Code host, RelocInfo* rinfo, HeapObject* value);
-  V8_EXPORT_PRIVATE static void MarkingBarrierSlow(HeapObject* object,
+      Code host, RelocInfo* rinfo, HeapObject value);
+  V8_EXPORT_PRIVATE static void MarkingBarrierSlow(HeapObject object,
                                                    Address slot,
-                                                   HeapObject* value);
+                                                   HeapObject value);
   V8_EXPORT_PRIVATE static void MarkingBarrierForElementsSlow(
-      Heap* heap, HeapObject* object);
+      Heap* heap, HeapObject object);
   V8_EXPORT_PRIVATE static void MarkingBarrierForCodeSlow(Code host,
                                                           RelocInfo* rinfo,
-                                                          HeapObject* value);
+                                                          HeapObject value);
   V8_EXPORT_PRIVATE static void MarkingBarrierForDescriptorArraySlow(
-      Heap* heap, HeapObject* descriptor_array, int number_of_own_descriptors);
-  V8_EXPORT_PRIVATE static bool PageFlagsAreConsistent(HeapObject* object);
+      Heap* heap, HeapObject descriptor_array, int number_of_own_descriptors);
+  V8_EXPORT_PRIVATE static bool PageFlagsAreConsistent(HeapObject object);
 
   // Notifies the heap that is ok to start marking or other activities that
   // should not happen during deserialization.
@@ -380,7 +379,7 @@ class Heap {
   // pass ClearRecordedSlots::kNo. If the memory after the object header of
   // the filler should be cleared, pass in kClearFreedMemory. The default is
   // kDontClearFreedMemory.
-  V8_EXPORT_PRIVATE HeapObject* CreateFillerObjectAt(
+  V8_EXPORT_PRIVATE HeapObject CreateFillerObjectAt(
       Address addr, int size, ClearRecordedSlots clear_slots_mode,
       ClearFreedMemoryMode clear_memory_mode =
           ClearFreedMemoryMode::kDontClearFreedMemory);
@@ -388,15 +387,15 @@ class Heap {
   template <typename T>
   void CreateFillerForArray(T object, int elements_to_trim, int bytes_to_trim);
 
-  bool CanMoveObjectStart(HeapObject* object);
+  bool CanMoveObjectStart(HeapObject object);
 
-  bool IsImmovable(HeapObject* object);
+  bool IsImmovable(HeapObject object);
 
-  bool IsLargeObject(HeapObject* object);
+  bool IsLargeObject(HeapObject object);
   bool IsLargeMemoryChunk(MemoryChunk* chunk);
   inline bool IsWithinLargeObject(Address address);
 
-  bool IsInYoungGeneration(HeapObject* object);
+  bool IsInYoungGeneration(HeapObject object);
 
   // Trim the given array from the left. Note that this relocates the object
   // start and hence is only valid if there is only a single reference to it.
@@ -437,7 +436,7 @@ class Heap {
 
   // Checks whether the given object is allowed to be migrated from it's
   // current space into the given destination space. Used for debugging.
-  bool AllowedToBeMigrated(HeapObject* object, AllocationSpace dest);
+  bool AllowedToBeMigrated(HeapObject object, AllocationSpace dest);
 
   void CheckHandleCount();
 
@@ -462,7 +461,7 @@ class Heap {
   }
 
   void UnprotectAndRegisterMemoryChunk(MemoryChunk* chunk);
-  void UnprotectAndRegisterMemoryChunk(HeapObject* object);
+  void UnprotectAndRegisterMemoryChunk(HeapObject object);
   void UnregisterUnprotectedMemoryChunk(MemoryChunk* chunk);
   V8_EXPORT_PRIVATE void ProtectUnprotectedMemoryChunks();
 
@@ -487,7 +486,7 @@ class Heap {
   // If an object has an AllocationMemento trailing it, return it, otherwise
   // return a null AllocationMemento.
   template <FindMementoMode mode>
-  inline AllocationMemento FindAllocationMemento(Map map, HeapObject* object);
+  inline AllocationMemento FindAllocationMemento(Map map, HeapObject object);
 
   // Returns false if not able to reserve.
   bool ReserveSpace(Reservation* reservations, std::vector<Address>* maps);
@@ -554,10 +553,10 @@ class Heap {
   // by runtime. Allocations of target space for object evacuation do not
   // trigger the event. In order to track ALL allocations one must turn off
   // FLAG_inline_new.
-  inline void OnAllocationEvent(HeapObject* object, int size_in_bytes);
+  inline void OnAllocationEvent(HeapObject object, int size_in_bytes);
 
   // This event is triggered after object is moved to a new place.
-  inline void OnMoveEvent(HeapObject* target, HeapObject* source,
+  inline void OnMoveEvent(HeapObject target, HeapObject source,
                           int size_in_bytes);
 
   inline bool CanAllocateInReadOnlySpace();
@@ -704,7 +703,7 @@ class Heap {
   // Add weak_factory into the dirty_js_weak_factories list.
   void AddDirtyJSWeakFactory(
       JSWeakFactory weak_factory,
-      std::function<void(HeapObject* object, ObjectSlot slot, Object* target)>
+      std::function<void(HeapObject object, ObjectSlot slot, Object* target)>
           gc_notify_updated_slot);
 
   void AddKeepDuringJobTarget(Handle<JSReceiver> target);
@@ -808,11 +807,11 @@ class Heap {
   static intptr_t store_buffer_mask_constant();
   static Address store_buffer_overflow_function_address();
 
-  void ClearRecordedSlot(HeapObject* object, ObjectSlot slot);
+  void ClearRecordedSlot(HeapObject object, ObjectSlot slot);
   void ClearRecordedSlotRange(Address start, Address end);
 
 #ifdef DEBUG
-  void VerifyClearedSlot(HeapObject* object, ObjectSlot slot);
+  void VerifyClearedSlot(HeapObject object, ObjectSlot slot);
 #endif
 
   // ===========================================================================
@@ -845,7 +844,7 @@ class Heap {
   void FinalizeIncrementalMarkingAtomically(GarbageCollectionReason gc_reason);
 
   void RegisterDeserializedObjectsForBlackAllocation(
-      Reservation* reservations, const std::vector<HeapObject*>& large_objects,
+      Reservation* reservations, const std::vector<HeapObject>& large_objects,
       const std::vector<Address>& maps);
 
   IncrementalMarking* incremental_marking() { return incremental_marking_; }
@@ -859,14 +858,14 @@ class Heap {
   // The runtime uses this function to notify potentially unsafe object layout
   // changes that require special synchronization with the concurrent marker.
   // The old size is the size of the object before layout change.
-  void NotifyObjectLayoutChange(HeapObject* object, int old_size,
+  void NotifyObjectLayoutChange(HeapObject object, int old_size,
                                 const DisallowHeapAllocation&);
 
 #ifdef VERIFY_HEAP
   // This function checks that either
   // - the map transition is safe,
   // - or it was communicated to GC using NotifyObjectLayoutChange.
-  void VerifyObjectLayoutChange(HeapObject* object, Map new_map);
+  void VerifyObjectLayoutChange(HeapObject object, Map new_map);
 #endif
 
   // ===========================================================================
@@ -928,15 +927,13 @@ class Heap {
   // Returns whether the object resides in new space.
   static inline bool InNewSpace(Object* object);
   static inline bool InNewSpace(MaybeObject object);
-  static inline bool InNewSpace(HeapObject* heap_object);
-  static inline bool InNewSpace(HeapObjectPtr heap_object);
+  static inline bool InNewSpace(HeapObject heap_object);
   static inline bool InFromSpace(Object* object);
   static inline bool InFromSpace(MaybeObject object);
-  static inline bool InFromSpace(HeapObject* heap_object);
+  static inline bool InFromSpace(HeapObject heap_object);
   static inline bool InToSpace(Object* object);
   static inline bool InToSpace(MaybeObject object);
-  static inline bool InToSpace(HeapObject* heap_object);
-  static inline bool InToSpace(HeapObjectPtr heap_object);
+  static inline bool InToSpace(HeapObject heap_object);
 
   // Returns whether the object resides in old space.
   inline bool InOldSpace(Object* object);
@@ -946,24 +943,22 @@ class Heap {
 
   // Checks whether an address/object in the heap (including auxiliary
   // area and unused area).
-  bool Contains(HeapObject* value);
+  bool Contains(HeapObject value);
 
   // Checks whether an address/object in a space.
   // Currently used by tests, serialization and heap verification only.
-  bool InSpace(HeapObject* value, AllocationSpace space);
+  bool InSpace(HeapObject value, AllocationSpace space);
 
   // Slow methods that can be used for verification as they can also be used
   // with off-heap Addresses.
   bool InSpaceSlow(Address addr, AllocationSpace space);
 
-  // Find the heap which owns this HeapObject. Should never be called for
-  // objects in RO space.
+  // This takes a HeapObject* (as opposed to a plain HeapObject)
+  // to keep the WRITE_BARRIER macro syntax-compatible to the old HeapObject*
+  // version.
+  // TODO(3770): This should probably take a HeapObject eventually.
   static inline Heap* FromWritableHeapObject(const HeapObject* obj);
-  // This takes a HeapObjectPtr* (as opposed to a plain HeapObjectPtr)
-  // to keep the WRITE_BARRIER macro syntax-compatible to the HeapObject*
-  // version above.
-  // TODO(3770): This should probably take a HeapObjectPtr eventually.
-  static inline Heap* FromWritableHeapObject(const HeapObjectPtr* obj);
+  static inline Heap* FromWritableHeapObject(const HeapObject obj);
 
   // ===========================================================================
   // Object statistics tracking. ===============================================
@@ -1166,15 +1161,15 @@ class Heap {
   // ===========================================================================
 
   // Creates a filler object and returns a heap object immediately after it.
-  V8_WARN_UNUSED_RESULT HeapObject* PrecedeWithFiller(HeapObject* object,
-                                                      int filler_size);
+  V8_WARN_UNUSED_RESULT HeapObject PrecedeWithFiller(HeapObject object,
+                                                     int filler_size);
 
   // Creates a filler object if needed for alignment and returns a heap object
   // immediately after it. If any space is left after the returned object,
   // another filler object is created so the over allocated memory is iterable.
-  V8_WARN_UNUSED_RESULT HeapObject* AlignWithFiller(
-      HeapObject* object, int object_size, int allocation_size,
-      AllocationAlignment alignment);
+  V8_WARN_UNUSED_RESULT HeapObject
+  AlignWithFiller(HeapObject object, int object_size, int allocation_size,
+                  AllocationAlignment alignment);
 
   // ===========================================================================
   // ArrayBuffer tracking. =====================================================
@@ -1194,8 +1189,7 @@ class Heap {
   // Updates the AllocationSite of a given {object}. The entry (including the
   // count) is cached on the local pretenuring feedback.
   inline void UpdateAllocationSite(
-      Map map, HeapObject* object,
-      PretenuringFeedbackMap* pretenuring_feedback);
+      Map map, HeapObject object, PretenuringFeedbackMap* pretenuring_feedback);
 
   // Merges local pretenuring feedback into the global one. Note that this
   // method needs to be called after evacuation, as allocation sites may be
@@ -1256,7 +1250,7 @@ class Heap {
 #ifdef VERIFY_HEAP
   // Verify the heap is in its normal state before or after a GC.
   void Verify();
-  void VerifyRememberedSetFor(HeapObject* object);
+  void VerifyRememberedSetFor(HeapObject object);
 #endif
 
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT
@@ -1507,7 +1501,7 @@ class Heap {
                                 double deadline_in_ms);
 
   int NextAllocationTimeout(int current_timeout = 0);
-  inline void UpdateAllocationsHash(HeapObject* object);
+  inline void UpdateAllocationsHash(HeapObject object);
   inline void UpdateAllocationsHash(uint32_t value);
   void PrintAllocationsHash();
 
@@ -1711,7 +1705,7 @@ class Heap {
   // triggered and the allocation is retried. This is performed multiple times.
   // If after that retry procedure the allocation still fails nullptr is
   // returned.
-  HeapObject* AllocateRawWithLightRetry(
+  HeapObject AllocateRawWithLightRetry(
       int size, AllocationSpace space,
       AllocationAlignment alignment = kWordAligned);
 
@@ -1721,10 +1715,10 @@ class Heap {
   // If after that retry procedure the allocation still fails a "hammer"
   // garbage collection is triggered which tries to significantly reduce memory.
   // If the allocation still fails after that a fatal error is thrown.
-  HeapObject* AllocateRawWithRetryOrFail(
+  HeapObject AllocateRawWithRetryOrFail(
       int size, AllocationSpace space,
       AllocationAlignment alignment = kWordAligned);
-  HeapObject* AllocateRawCodeInLargeObjectSpace(int size);
+  HeapObject AllocateRawCodeInLargeObjectSpace(int size);
 
   // Allocates a heap object based on the map.
   V8_WARN_UNUSED_RESULT AllocationResult Allocate(Map map,
@@ -1733,7 +1727,7 @@ class Heap {
   // Takes a code object and checks if it is on memory which is not subject to
   // compaction. This method will return a new code object on an immovable
   // memory location if the original code object was movable.
-  HeapObject* EnsureImmovableCode(HeapObject* heap_object, int object_size);
+  HeapObject EnsureImmovableCode(HeapObject heap_object, int object_size);
 
   // Allocates a partial map for bootstrapping.
   V8_WARN_UNUSED_RESULT AllocationResult
@@ -1751,13 +1745,13 @@ class Heap {
   // Retaining path tracing ====================================================
   // ===========================================================================
 
-  void AddRetainer(HeapObject* retainer, HeapObject* object);
-  void AddEphemeronRetainer(HeapObject* retainer, HeapObject* object);
-  void AddRetainingRoot(Root root, HeapObject* object);
+  void AddRetainer(HeapObject retainer, HeapObject object);
+  void AddEphemeronRetainer(HeapObject retainer, HeapObject object);
+  void AddRetainingRoot(Root root, HeapObject object);
   // Returns true if the given object is a target of retaining path tracking.
   // Stores the option corresponding to the object in the provided *option.
-  bool IsRetainingPathTarget(HeapObject* object, RetainingPathOption* option);
-  void PrintRetainingPath(HeapObject* object, RetainingPathOption option);
+  bool IsRetainingPathTarget(HeapObject object, RetainingPathOption* option);
+  void PrintRetainingPath(HeapObject object, RetainingPathOption option);
 
 #ifdef DEBUG
   void IncrementObjectCounters();
@@ -1998,7 +1992,7 @@ class Heap {
   bool force_oom_ = false;
   bool delay_sweeper_tasks_for_testing_ = false;
 
-  HeapObject* pending_layout_change_object_ = nullptr;
+  HeapObject pending_layout_change_object_;
 
   base::Mutex unprotected_memory_chunks_mutex_;
   std::unordered_set<MemoryChunk*> unprotected_memory_chunks_;
@@ -2011,11 +2005,11 @@ class Heap {
   int allocation_timeout_ = 0;
 #endif  // V8_ENABLE_ALLOCATION_TIMEOUT
 
-  std::map<HeapObject*, HeapObject*> retainer_;
-  std::map<HeapObject*, Root> retaining_root_;
+  std::map<HeapObject, HeapObject, HeapObject::Compare> retainer_;
+  std::map<HeapObject, Root, HeapObject::Compare> retaining_root_;
   // If an object is retained by an ephemeron, then the retaining key of the
   // ephemeron is stored in this map.
-  std::map<HeapObject*, HeapObject*> ephemeron_retainer_;
+  std::map<HeapObject, HeapObject, HeapObject::Compare> ephemeron_retainer_;
   // For each index inthe retaining_path_targets_ array this map
   // stores the option of the corresponding target.
   std::map<int, RetainingPathOption> retaining_path_target_option_;
@@ -2161,9 +2155,9 @@ class CodePageMemoryModificationScope {
 class VerifyPointersVisitor : public ObjectVisitor, public RootVisitor {
  public:
   explicit VerifyPointersVisitor(Heap* heap) : heap_(heap) {}
-  void VisitPointers(HeapObject* host, ObjectSlot start,
+  void VisitPointers(HeapObject host, ObjectSlot start,
                      ObjectSlot end) override;
-  void VisitPointers(HeapObject* host, MaybeObjectSlot start,
+  void VisitPointers(HeapObject host, MaybeObjectSlot start,
                      MaybeObjectSlot end) override;
   void VisitCodeTarget(Code host, RelocInfo* rinfo) override;
   void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) override;
@@ -2172,12 +2166,12 @@ class VerifyPointersVisitor : public ObjectVisitor, public RootVisitor {
                          FullObjectSlot start, FullObjectSlot end) override;
 
  protected:
-  V8_INLINE void VerifyHeapObjectImpl(HeapObject* heap_object);
+  V8_INLINE void VerifyHeapObjectImpl(HeapObject heap_object);
 
   template <typename TSlot>
   V8_INLINE void VerifyPointersImpl(TSlot start, TSlot end);
 
-  virtual void VerifyPointers(HeapObject* host, MaybeObjectSlot start,
+  virtual void VerifyPointers(HeapObject host, MaybeObjectSlot start,
                               MaybeObjectSlot end);
 
   Heap* heap_;
@@ -2245,10 +2239,10 @@ class HeapIterator {
                         HeapObjectsFiltering filtering = kNoFiltering);
   ~HeapIterator();
 
-  HeapObject* next();
+  HeapObject next();
 
  private:
-  HeapObject* NextObject();
+  HeapObject NextObject();
 
   DISALLOW_HEAP_ALLOCATION(no_heap_allocation_);
 

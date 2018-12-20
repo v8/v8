@@ -92,34 +92,27 @@ class ConcurrentMarkingVisitor final
         embedder_tracing_enabled_(embedder_tracing_enabled),
         mark_compact_epoch_(mark_compact_epoch) {}
 
-  template <typename T, typename = typename std::enable_if<
-                            std::is_base_of<Object, T>::value>::type>
-  static V8_INLINE T* Cast(HeapObject* object) {
+  template <typename T>
+  static V8_INLINE T Cast(HeapObject object) {
     return T::cast(object);
   }
 
-  template <typename T, typename = typename std::enable_if<
-                            std::is_base_of<ObjectPtr, T>::value>::type>
-  static V8_INLINE T Cast(HeapObject* object) {
-    return T::cast(object);
-  }
-
-  bool ShouldVisit(HeapObject* object) {
+  bool ShouldVisit(HeapObject object) {
     return marking_state_.GreyToBlack(object);
   }
 
   bool AllowDefaultJSObjectVisit() { return false; }
 
   template <typename THeapObjectSlot>
-  void ProcessStrongHeapObject(HeapObject* host, THeapObjectSlot slot,
-                               HeapObject* heap_object) {
+  void ProcessStrongHeapObject(HeapObject host, THeapObjectSlot slot,
+                               HeapObject heap_object) {
     MarkObject(heap_object);
     MarkCompactCollector::RecordSlot(host, slot, heap_object);
   }
 
   template <typename THeapObjectSlot>
-  void ProcessWeakHeapObject(HeapObject* host, THeapObjectSlot slot,
-                             HeapObject* heap_object) {
+  void ProcessWeakHeapObject(HeapObject host, THeapObjectSlot slot,
+                             HeapObject heap_object) {
 #ifdef THREAD_SANITIZER
     // Perform a dummy acquire load to tell TSAN that there is no data race
     // in mark-bit initialization. See MemoryChunk::Initialize for the
@@ -140,22 +133,22 @@ class ConcurrentMarkingVisitor final
     }
   }
 
-  void VisitPointers(HeapObject* host, ObjectSlot start,
+  void VisitPointers(HeapObject host, ObjectSlot start,
                      ObjectSlot end) override {
     VisitPointersImpl(host, start, end);
   }
 
-  void VisitPointers(HeapObject* host, MaybeObjectSlot start,
+  void VisitPointers(HeapObject host, MaybeObjectSlot start,
                      MaybeObjectSlot end) override {
     VisitPointersImpl(host, start, end);
   }
 
   template <typename TSlot>
-  V8_INLINE void VisitPointersImpl(HeapObject* host, TSlot start, TSlot end) {
+  V8_INLINE void VisitPointersImpl(HeapObject host, TSlot start, TSlot end) {
     using THeapObjectSlot = typename TSlot::THeapObjectSlot;
     for (TSlot slot = start; slot < end; ++slot) {
       typename TSlot::TObject object = slot.Relaxed_Load();
-      HeapObject* heap_object;
+      HeapObject heap_object;
       if (object.GetHeapObjectIfStrong(&heap_object)) {
         // If the reference changes concurrently from strong to weak, the write
         // barrier will treat the weak reference as strong, so we won't miss the
@@ -170,12 +163,12 @@ class ConcurrentMarkingVisitor final
 
   // Weak list pointers should be ignored during marking. The lists are
   // reconstructed after GC.
-  void VisitCustomWeakPointers(HeapObject* host, ObjectSlot start,
+  void VisitCustomWeakPointers(HeapObject host, ObjectSlot start,
                                ObjectSlot end) final {}
 
   void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) final {
     DCHECK(rinfo->rmode() == RelocInfo::EMBEDDED_OBJECT);
-    HeapObject* object = HeapObject::cast(rinfo->target_object());
+    HeapObject object = rinfo->target_object();
     RecordRelocSlot(host, rinfo, object);
     if (!marking_state_.IsBlackOrGrey(object)) {
       if (host->IsWeakObject(object)) {
@@ -194,13 +187,13 @@ class ConcurrentMarkingVisitor final
     MarkObject(target);
   }
 
-  void VisitPointersInSnapshot(HeapObject* host, const SlotSnapshot& snapshot) {
+  void VisitPointersInSnapshot(HeapObject host, const SlotSnapshot& snapshot) {
     for (int i = 0; i < snapshot.number_of_slots(); i++) {
       ObjectSlot slot = snapshot.slot(i);
       Object* object = snapshot.value(i);
       DCHECK(!HasWeakHeapObjectTag(object));
       if (!object->IsHeapObject()) continue;
-      HeapObject* heap_object = HeapObject::cast(object);
+      HeapObject heap_object = HeapObject::cast(object);
       MarkObject(heap_object);
       MarkCompactCollector::RecordSlot(host, slot, heap_object);
     }
@@ -228,7 +221,7 @@ class ConcurrentMarkingVisitor final
       return 0;
     }
     if (weak_ref->target()->IsHeapObject()) {
-      HeapObject* target = HeapObject::cast(weak_ref->target());
+      HeapObject target = HeapObject::cast(weak_ref->target());
       if (marking_state_.IsBlackOrGrey(target)) {
         // Record the slot inside the JSWeakRef, since the
         // VisitJSObjectSubclass above didn't visit it.
@@ -251,7 +244,7 @@ class ConcurrentMarkingVisitor final
     }
 
     if (weak_cell->target()->IsHeapObject()) {
-      HeapObject* target = HeapObject::cast(weak_cell->target());
+      HeapObject target = HeapObject::cast(weak_cell->target());
       if (marking_state_.IsBlackOrGrey(target)) {
         // Record the slot inside the JSWeakCell, since the
         // VisitJSObjectSubclass above didn't visit it.
@@ -424,7 +417,7 @@ class ConcurrentMarkingVisitor final
     for (int i = 0; i < table->Capacity(); i++) {
       ObjectSlot key_slot =
           table->RawFieldOfElementAt(EphemeronHashTable::EntryToIndex(i));
-      HeapObject* key = HeapObject::cast(table->KeyAt(i));
+      HeapObject key = HeapObject::cast(table->KeyAt(i));
       MarkCompactCollector::RecordSlot(table, key_slot, key);
 
       ObjectSlot value_slot =
@@ -437,7 +430,7 @@ class ConcurrentMarkingVisitor final
         Object* value_obj = table->ValueAt(i);
 
         if (value_obj->IsHeapObject()) {
-          HeapObject* value = HeapObject::cast(value_obj);
+          HeapObject value = HeapObject::cast(value_obj);
           MarkCompactCollector::RecordSlot(table, value_slot, value);
 
           // Revisit ephemerons with both key and value unreachable at end
@@ -455,7 +448,7 @@ class ConcurrentMarkingVisitor final
 
   // Implements ephemeron semantics: Marks value if key is already reachable.
   // Returns true if value was actually marked.
-  bool VisitEphemeron(HeapObject* key, HeapObject* value) {
+  bool VisitEphemeron(HeapObject key, HeapObject value) {
     if (marking_state_.IsBlackOrGrey(key)) {
       if (marking_state_.WhiteToGrey(value)) {
         shared_.Push(value);
@@ -469,7 +462,7 @@ class ConcurrentMarkingVisitor final
     return false;
   }
 
-  void MarkObject(HeapObject* object) {
+  void MarkObject(HeapObject object) {
 #ifdef THREAD_SANITIZER
     // Perform a dummy acquire load to tell TSAN that there is no data race
     // in mark-bit initialization. See MemoryChunk::Initialize for the
@@ -491,7 +484,7 @@ class ConcurrentMarkingVisitor final
       slot_snapshot_->clear();
     }
 
-    void VisitPointers(HeapObject* host, ObjectSlot start,
+    void VisitPointers(HeapObject host, ObjectSlot start,
                        ObjectSlot end) override {
       for (ObjectSlot p = start; p < end; ++p) {
         Object* object = p.Relaxed_Load();
@@ -499,7 +492,7 @@ class ConcurrentMarkingVisitor final
       }
     }
 
-    void VisitPointers(HeapObject* host, MaybeObjectSlot start,
+    void VisitPointers(HeapObject host, MaybeObjectSlot start,
                        MaybeObjectSlot end) override {
       // This should never happen, because we don't use snapshotting for objects
       // which contain weak references.
@@ -518,7 +511,7 @@ class ConcurrentMarkingVisitor final
       UNREACHABLE();
     }
 
-    void VisitCustomWeakPointers(HeapObject* host, ObjectSlot start,
+    void VisitCustomWeakPointers(HeapObject host, ObjectSlot start,
                                  ObjectSlot end) override {
       DCHECK(host->IsJSWeakCell() || host->IsJSWeakRef());
     }
@@ -596,7 +589,7 @@ class ConcurrentMarkingVisitor final
     return slot_snapshot_;
   }
 
-  void RecordRelocSlot(Code host, RelocInfo* rinfo, HeapObject* target) {
+  void RecordRelocSlot(Code host, RelocInfo* rinfo, HeapObject target) {
     MarkCompactCollector::RecordRelocSlotInfo info =
         MarkCompactCollector::PrepareRecordRelocSlot(host, rinfo, target);
     if (info.should_record) {
@@ -623,33 +616,33 @@ class ConcurrentMarkingVisitor final
 // Strings can change maps due to conversion to thin string or external strings.
 // Use unchecked cast to avoid data race in slow dchecks.
 template <>
-ConsString ConcurrentMarkingVisitor::Cast(HeapObject* object) {
+ConsString ConcurrentMarkingVisitor::Cast(HeapObject object) {
   return ConsString::unchecked_cast(object);
 }
 
 template <>
-SlicedString ConcurrentMarkingVisitor::Cast(HeapObject* object) {
+SlicedString ConcurrentMarkingVisitor::Cast(HeapObject object) {
   return SlicedString::unchecked_cast(object);
 }
 
 template <>
-ThinString ConcurrentMarkingVisitor::Cast(HeapObject* object) {
+ThinString ConcurrentMarkingVisitor::Cast(HeapObject object) {
   return ThinString::unchecked_cast(object);
 }
 
 template <>
-SeqOneByteString ConcurrentMarkingVisitor::Cast(HeapObject* object) {
+SeqOneByteString ConcurrentMarkingVisitor::Cast(HeapObject object) {
   return SeqOneByteString::unchecked_cast(object);
 }
 
 template <>
-SeqTwoByteString ConcurrentMarkingVisitor::Cast(HeapObject* object) {
+SeqTwoByteString ConcurrentMarkingVisitor::Cast(HeapObject object) {
   return SeqTwoByteString::unchecked_cast(object);
 }
 
 // Fixed array can become a free space during left trimming.
 template <>
-FixedArray ConcurrentMarkingVisitor::Cast(HeapObject* object) {
+FixedArray ConcurrentMarkingVisitor::Cast(HeapObject object) {
   return FixedArray::unchecked_cast(object);
 }
 
@@ -729,7 +722,7 @@ void ConcurrentMarking::Run(int task_id, TaskState* task_state) {
       int objects_processed = 0;
       while (current_marked_bytes < kBytesUntilInterruptCheck &&
              objects_processed < kObjectsUntilInterrupCheck) {
-        HeapObject* object;
+        HeapObject object;
         if (!shared_->Pop(task_id, &object)) {
           done = true;
           break;

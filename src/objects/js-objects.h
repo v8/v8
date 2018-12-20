@@ -21,7 +21,7 @@ class JSGlobalProxy;
 
 // JSReceiver includes types on which properties can be defined, i.e.,
 // JSObject and JSProxy.
-class JSReceiver : public HeapObjectPtr {
+class JSReceiver : public HeapObject {
  public:
   NEVER_READ_ONLY_SPACE
   // Returns true if there is no slow (ie, dictionary) backing store.
@@ -39,7 +39,7 @@ class JSReceiver : public HeapObjectPtr {
   // Sets the properties backing store and makes sure any existing hash is moved
   // to the new properties store. To clear out the properties store, pass in the
   // empty_fixed_array(), the hash will be maintained in this case as well.
-  void SetProperties(HeapObject* properties);
+  void SetProperties(HeapObject properties);
 
   // There are five possible values for the properties offset.
   // 1) EmptyFixedArray/EmptyPropertyDictionary - This is the standard
@@ -268,7 +268,7 @@ class JSReceiver : public HeapObjectPtr {
 
   bool HasComplexElements();
 
-  OBJECT_CONSTRUCTORS(JSReceiver, HeapObjectPtr);
+  OBJECT_CONSTRUCTORS(JSReceiver, HeapObject);
 };
 
 // The JSObject describes real heap allocated JavaScript objects with
@@ -459,7 +459,7 @@ class JSObject : public JSReceiver {
   static inline bool PrototypeHasNoElements(Isolate* isolate, JSObject object);
 
   // To be passed to PrototypeUsers::Compact.
-  static void PrototypeRegistryCompactionCallback(HeapObject* value,
+  static void PrototypeRegistryCompactionCallback(HeapObject value,
                                                   int old_index, int new_index);
 
   // Retrieve interceptors.

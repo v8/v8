@@ -15,6 +15,7 @@
 #include "src/objects.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/hash-table.h"
+#include "src/objects/heap-object.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/literal-objects.h"
 #include "src/profiler/strings-storage.h"
@@ -335,16 +336,15 @@ class V8HeapExplorer : public HeapEntriesAllocator {
  private:
   void MarkVisitedField(int offset);
 
-  HeapEntry* AddEntry(HeapObject* object);
-  HeapEntry* AddEntry(HeapObject* object,
-                      HeapEntry::Type type,
+  HeapEntry* AddEntry(HeapObject object);
+  HeapEntry* AddEntry(HeapObject object, HeapEntry::Type type,
                       const char* name);
 
-  const char* GetSystemEntryName(HeapObject* object);
+  const char* GetSystemEntryName(HeapObject object);
 
-  void ExtractLocation(HeapEntry* entry, HeapObject* object);
+  void ExtractLocation(HeapEntry* entry, HeapObject object);
   void ExtractLocationForJSFunction(HeapEntry* entry, JSFunction func);
-  void ExtractReferences(HeapEntry* entry, HeapObject* obj);
+  void ExtractReferences(HeapEntry* entry, HeapObject obj);
   void ExtractJSGlobalProxyReferences(HeapEntry* entry, JSGlobalProxy proxy);
   void ExtractJSObjectReferences(HeapEntry* entry, JSObject js_obj);
   void ExtractStringReferences(HeapEntry* entry, String obj);
@@ -399,7 +399,7 @@ class V8HeapExplorer : public HeapEntriesAllocator {
                             Object* child, int field_offset = -1);
   void SetInternalReference(HeapEntry* parent_entry, int index, Object* child,
                             int field_offset = -1);
-  void SetHiddenReference(HeapObject* parent_obj, HeapEntry* parent_entry,
+  void SetHiddenReference(HeapObject parent_obj, HeapEntry* parent_entry,
                           int index, Object* child, int field_offset);
   void SetWeakReference(HeapEntry* parent_entry, const char* reference_name,
                         Object* child_obj, int field_offset);
@@ -460,12 +460,12 @@ class NativeObjectsExplorer {
  private:
   void FillRetainedObjects();
   void FillEdges();
-  std::vector<HeapObject*>* GetVectorMaybeDisposeInfo(
+  std::vector<HeapObject>* GetVectorMaybeDisposeInfo(
       v8::RetainedObjectInfo* info);
   void SetNativeRootReference(v8::RetainedObjectInfo* info);
   void SetRootNativeRootsReference();
-  void SetWrapperNativeReferences(HeapObject* wrapper,
-                                      v8::RetainedObjectInfo* info);
+  void SetWrapperNativeReferences(HeapObject wrapper,
+                                  v8::RetainedObjectInfo* info);
   void VisitSubtreeWrapper(Handle<Object> p, uint16_t class_id);
 
   struct RetainedInfoHasher {
@@ -489,7 +489,7 @@ class NativeObjectsExplorer {
   StringsStorage* names_;
   bool embedder_queried_;
   std::unordered_set<Object*> in_groups_;
-  std::unordered_map<v8::RetainedObjectInfo*, std::vector<HeapObject*>*,
+  std::unordered_map<v8::RetainedObjectInfo*, std::vector<HeapObject>*,
                      RetainedInfoHasher, RetainedInfoEquals>
       objects_by_info_;
   std::unordered_map<const char*, NativeGroupRetainedObjectInfo*,

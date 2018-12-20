@@ -24,7 +24,7 @@ ReadOnlySerializer::~ReadOnlySerializer() {
   OutputStatistics("ReadOnlySerializer");
 }
 
-void ReadOnlySerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
+void ReadOnlySerializer::SerializeObject(HeapObject obj, HowToCode how_to_code,
                                          WhereToPoint where_to_point,
                                          int skip) {
   CHECK(isolate()->heap()->read_only_space()->Contains(obj));
@@ -67,7 +67,7 @@ void ReadOnlySerializer::FinalizeSerialization() {
   Pad();
 }
 
-bool ReadOnlySerializer::MustBeDeferred(HeapObject* object) {
+bool ReadOnlySerializer::MustBeDeferred(HeapObject object) {
   if (root_has_been_serialized(RootIndex::kFreeSpaceMap) &&
       root_has_been_serialized(RootIndex::kOnePointerFillerMap) &&
       root_has_been_serialized(RootIndex::kTwoPointerFillerMap)) {
@@ -84,7 +84,7 @@ bool ReadOnlySerializer::MustBeDeferred(HeapObject* object) {
 }
 
 bool ReadOnlySerializer::SerializeUsingReadOnlyObjectCache(
-    SnapshotByteSink* sink, HeapObject* obj, HowToCode how_to_code,
+    SnapshotByteSink* sink, HeapObject obj, HowToCode how_to_code,
     WhereToPoint where_to_point, int skip) {
   if (!isolate()->heap()->read_only_space()->Contains(obj)) return false;
 

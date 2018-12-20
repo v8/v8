@@ -21,7 +21,7 @@ MaybeObjectHandle::MaybeObjectHandle()
       handle_(Handle<Object>::null()) {}
 
 MaybeObjectHandle::MaybeObjectHandle(MaybeObject object, Isolate* isolate) {
-  HeapObject* heap_object;
+  HeapObject heap_object;
   DCHECK(!object->IsCleared());
   if (object->GetHeapObjectIfWeak(&heap_object)) {
     handle_ = handle(heap_object, isolate);

@@ -27,7 +27,7 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(Map, HeapObjectPtr)
+OBJECT_CONSTRUCTORS_IMPL(Map, HeapObject)
 CAST_ACCESSOR2(Map)
 
 ACCESSORS2(Map, raw_instance_descriptors, DescriptorArray, kDescriptorsOffset)
@@ -779,7 +779,7 @@ int NormalizedMapCache::GetIndex(Handle<Map> map) {
   return map->Hash() % NormalizedMapCache::kEntries;
 }
 
-bool NormalizedMapCache::IsNormalizedMapCache(const HeapObject* obj) {
+bool NormalizedMapCache::IsNormalizedMapCache(const HeapObject obj) {
   if (!obj->IsWeakFixedArray()) return false;
   if (WeakFixedArray::cast(obj)->length() != NormalizedMapCache::kEntries) {
     return false;

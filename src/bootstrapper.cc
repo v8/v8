@@ -4073,7 +4073,7 @@ void Genesis::ConfigureUtilsObject() {
   }
 
   // The utils object can be removed for cases that reach this point.
-  HeapObject* undefined = ReadOnlyRoots(heap()).undefined_value();
+  HeapObject undefined = ReadOnlyRoots(heap()).undefined_value();
   native_context()->set_natives_utils_object(undefined);
   native_context()->set_extras_utils_object(undefined);
 }

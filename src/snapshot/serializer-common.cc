@@ -124,7 +124,7 @@ void SerializerDeserializer::Iterate(Isolate* isolate, RootVisitor* visitor) {
   }
 }
 
-bool SerializerDeserializer::CanBeDeferred(HeapObject* o) {
+bool SerializerDeserializer::CanBeDeferred(HeapObject o) {
   return !o->IsString() && !o->IsScript() && !o->IsJSTypedArray();
 }
 

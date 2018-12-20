@@ -118,7 +118,7 @@ class JSAsyncGeneratorObject : public JSGeneratorObject {
   // [queue]
   // Pointer to the head of a singly linked list of AsyncGeneratorRequest, or
   // undefined.
-  DECL_ACCESSORS(queue, HeapObject)
+  DECL_ACCESSORS2(queue, HeapObject)
 
   // [is_awaiting]
   // Whether or not the generator is currently awaiting.

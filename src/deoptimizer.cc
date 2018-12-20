@@ -2246,7 +2246,7 @@ Handle<FixedArray> MaterializedObjectStore::EnsureStackEntries(int length) {
   for (int i = 0; i < array->length(); i++) {
     new_array->set(i, array->get(i));
   }
-  HeapObject* undefined_value = ReadOnlyRoots(isolate()).undefined_value();
+  HeapObject undefined_value = ReadOnlyRoots(isolate()).undefined_value();
   for (int i = array->length(); i < length; i++) {
     new_array->set(i, undefined_value);
   }

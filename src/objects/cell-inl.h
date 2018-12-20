@@ -15,7 +15,7 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(Cell, HeapObjectPtr)
+OBJECT_CONSTRUCTORS_IMPL(Cell, HeapObject)
 
 CAST_ACCESSOR2(Cell)
 

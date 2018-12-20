@@ -99,19 +99,19 @@ class ObjectPtr {
 
   // If this Object is a strong pointer to a HeapObject, returns true and
   // sets *result. Otherwise returns false.
-  inline bool GetHeapObjectIfStrong(HeapObject** result) const;
+  inline bool GetHeapObjectIfStrong(HeapObject* result) const;
 
   // If this Object is a strong pointer to a HeapObject (weak pointers are not
   // expected), returns true and sets *result. Otherwise returns false.
-  inline bool GetHeapObject(HeapObject** result) const;
+  inline bool GetHeapObject(HeapObject* result) const;
 
   // DCHECKs that this Object is a strong pointer to a HeapObject and returns
   // the HeapObject.
-  inline HeapObject* GetHeapObject() const;
+  inline HeapObject GetHeapObject() const;
 
   // Always returns false because Object is not expected to be a weak pointer
   // to a HeapObject.
-  inline bool GetHeapObjectIfWeak(HeapObject** result) const {
+  inline bool GetHeapObjectIfWeak(HeapObject* result) const {
     DCHECK(!HasWeakHeapObjectTag(ptr()));
     return false;
   }
@@ -131,6 +131,7 @@ class ObjectPtr {
 
   inline void ShortPrint(FILE* out = stdout) const;
   void ShortPrint(std::ostream& os) const;  // NOLINT
+  void ShortPrint(StringStream* accumulator);
   inline void Print() const;
   inline void Print(std::ostream& os) const;
 
@@ -138,6 +139,13 @@ class ObjectPtr {
   struct Hasher {
     size_t operator()(const ObjectPtr o) const {
       return std::hash<v8::internal::Address>{}(o.ptr());
+    }
+  };
+
+  // For use with std::map.
+  struct Compare {
+    bool operator()(const ObjectPtr a, const ObjectPtr b) const {
+      return a.ptr() < b.ptr();
     }
   };
 
@@ -159,8 +167,10 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
 
 // HeapObject is the superclass for all classes describing heap allocated
 // objects.
-class HeapObject : public Object {
+class HeapObject : public ObjectPtr {
  public:
+  bool is_null() const { return ptr() == kNullAddress; }
+
   // [map]: Contains a map which contains the object's reflective
   // information.
   inline Map map() const;
@@ -222,15 +232,10 @@ class HeapObject : public Object {
 #undef DECL_STRUCT_PREDICATE
 
   // Converts an address to a HeapObject pointer.
-  static inline HeapObject* FromAddress(Address address) {
-    DCHECK_TAG_ALIGNED(address);
-    return reinterpret_cast<HeapObject*>(address + kHeapObjectTag);
-  }
+  static inline HeapObject FromAddress(Address address);
 
   // Returns the address of this HeapObject.
-  inline Address address() const {
-    return reinterpret_cast<Address>(this) - kHeapObjectTag;
-  }
+  inline Address address() const { return ptr() - kHeapObjectTag; }
 
   // Iterates over pointers contained in the object (including the Map).
   // If it's not performance critical iteration use the non-templatized
@@ -273,11 +278,11 @@ class HeapObject : public Object {
   // Does not invoke write barrier, so should only be assigned to
   // during marking GC.
   inline ObjectSlot RawField(int byte_offset) const;
-  static inline ObjectSlot RawField(const HeapObject* obj, int offset);
+  static inline ObjectSlot RawField(const HeapObject obj, int offset);
   inline MaybeObjectSlot RawMaybeWeakField(int byte_offset) const;
-  static inline MaybeObjectSlot RawMaybeWeakField(HeapObject* obj, int offset);
+  static inline MaybeObjectSlot RawMaybeWeakField(HeapObject obj, int offset);
 
-  DECL_CAST(HeapObject)
+  DECL_CAST2(HeapObject)
 
   // Return the write barrier mode for this. Callers of this function
   // must be able to present a reference to an DisallowHeapAllocation
@@ -328,87 +333,13 @@ class HeapObject : public Object {
 
   inline Address GetFieldAddress(int field_offset) const;
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(HeapObject);
-};
-
-// Replacement for HeapObject; temporarily separate for incremental transition:
-class HeapObjectPtr : public ObjectPtr {
- public:
-  inline Map map() const;
-  inline void set_map(Map value);
-  inline void set_map_after_allocation(
-      Map value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  // The no-write-barrier version.  This is OK if the object is white and in
-  // new space, or if the value is an immortal immutable object, like the maps
-  // of primitive (non-JS) objects like strings, heap numbers etc.
-  inline void set_map_no_write_barrier(Map value);
-
-  inline MapWordSlot map_slot() const;
-  inline MapWord map_word() const;
-  inline void set_map_word(MapWord map_word);
-
-  // Set the map using release store
-  inline void synchronized_set_map(Map value);
-  inline void synchronized_set_map_word(MapWord map_word);
-
-  inline WriteBarrierMode GetWriteBarrierMode(
-      const DisallowHeapAllocation& promise);
-
-  // Enable incremental transition.
-  operator HeapObject*() { return reinterpret_cast<HeapObject*>(ptr()); }
-  operator const HeapObject*() const {
-    return reinterpret_cast<const HeapObject*>(ptr());
-  }
-
-  bool is_null() const { return ptr() == kNullAddress; }
-
-  bool IsHeapObjectPtr() const { return IsHeapObject(); }
-
-  inline ReadOnlyRoots GetReadOnlyRoots() const;
-
-#define IS_TYPE_FUNCTION_DECL(Type) V8_INLINE bool Is##Type() const;
-  HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
-#undef IS_TYPE_FUNCTION_DECL
-
-  V8_INLINE bool IsExternal(Isolate* isolate) const;
-
-  // Untagged aligned address.
-  inline Address address() const { return ptr() - kHeapObjectTag; }
-
-  inline int Size() const;
-  inline int SizeFromMap(Map map) const;
-
-  inline ObjectSlot RawField(int byte_offset) const;
-  inline MaybeObjectSlot RawMaybeWeakField(int byte_offset) const;
-
-#ifdef OBJECT_PRINT
-  void PrintHeader(std::ostream& os, const char* id);  // NOLINT
-#endif
-  void HeapObjectVerify(Isolate* isolate);
-#ifdef VERIFY_HEAP
-  inline void VerifyObjectField(Isolate* isolate, int offset);
-  inline void VerifySmiField(int offset);
-  inline void VerifyMaybeObjectField(Isolate* isolate, int offset);
-  static void VerifyHeapPointer(Isolate* isolate, Object* p);
-#endif
-
-  static const int kMapOffset = HeapObject::kMapOffset;
-  static const int kHeaderSize = HeapObject::kHeaderSize;
-
-  inline Address GetFieldAddress(int field_offset) const;
-
-  DECL_CAST2(HeapObjectPtr)
-
-  inline bool NeedsRehashing() const;
-
  protected:
   // Special-purpose constructor for subclasses that have fast paths where
   // their ptr() is a Smi.
   enum class AllowInlineSmiStorage { kRequireHeapObjectTag, kAllowBeingASmi };
-  inline HeapObjectPtr(Address ptr, AllowInlineSmiStorage allow_smi);
+  inline HeapObject(Address ptr, AllowInlineSmiStorage allow_smi);
 
-  OBJECT_CONSTRUCTORS(HeapObjectPtr, ObjectPtr)
+  OBJECT_CONSTRUCTORS(HeapObject, ObjectPtr);
 };
 
 // Replacement for NeverReadOnlySpaceObject, temporarily separate for
@@ -420,10 +351,10 @@ class HeapObjectPtr : public ObjectPtr {
 class NeverReadOnlySpaceObjectPtr {
  public:
   // The Heap the object was allocated in. Used also to access Isolate.
-  static inline Heap* GetHeap(const HeapObjectPtr object);
+  static inline Heap* GetHeap(const HeapObject object);
 
   // Convenience method to get current isolate.
-  static inline Isolate* GetIsolate(const HeapObjectPtr object);
+  static inline Isolate* GetIsolate(const HeapObject object);
 };
 
 }  // namespace internal

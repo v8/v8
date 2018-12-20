@@ -1497,7 +1497,7 @@ int CountBuiltins() {
   HeapIterator iterator(CcTest::heap());
   DisallowHeapAllocation no_allocation;
   int counter = 0;
-  for (HeapObject* obj = iterator.next(); obj != nullptr;
+  for (HeapObject obj = iterator.next(); !obj.is_null();
        obj = iterator.next()) {
     if (obj->IsCode() && Code::cast(obj)->kind() == Code::BUILTIN) counter++;
   }
@@ -3744,7 +3744,7 @@ void CheckSFIsAreWeak(WeakFixedArray sfis, Isolate* isolate) {
   int no_of_weak = 0;
   for (int i = 0; i < sfis->length(); ++i) {
     MaybeObject maybe_object = sfis->Get(i);
-    HeapObject* heap_object;
+    HeapObject heap_object;
     CHECK(maybe_object->IsWeakOrCleared() ||
           (maybe_object->GetHeapObjectIfStrong(&heap_object) &&
            heap_object->IsUndefined(isolate)));
