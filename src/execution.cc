@@ -253,7 +253,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
   }
 
   // Placeholder for return value.
-  Object* value = nullptr;
+  ObjectPtr value;
 
   Handle<Code> code =
       JSEntry(isolate, params.execution_target, params.is_construct);
@@ -270,9 +270,11 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
     SaveContext save(isolate);
     SealHandleScope shs(isolate);
     // clang-format off
-    using JSEntryFunction = GeneratedCode<Object*(
-        Object* new_target, Object* target, Object* receiver, int argc,
-        Object*** argv, Address root_register_value)>;
+    // {new_target}, {target}, {receiver}, return value: tagged pointers
+    // {argv}: pointer to array of tagged pointers
+    using JSEntryFunction = GeneratedCode<Address(
+        Address new_target, Address target, Address receiver, int argc,
+        Address** argv, Address root_register_value)>;
     // clang-format on
     JSEntryFunction stub_entry =
         JSEntryFunction::FromAddress(isolate, code->InstructionStart());
@@ -280,16 +282,16 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
     if (FLAG_clear_exceptions_on_js_entry) isolate->clear_pending_exception();
 
     // Call the function through the right JS entry stub.
-    Object* orig_func = *params.new_target;
-    Object* func = *params.target;
-    Object* recv = *params.receiver;
-    Object*** argv = reinterpret_cast<Object***>(params.argv);
+    Address orig_func = params.new_target->ptr();
+    Address func = params.target->ptr();
+    Address recv = params.receiver->ptr();
+    Address** argv = reinterpret_cast<Address**>(params.argv);
     if (FLAG_profile_deserialization && params.target->IsJSFunction()) {
       PrintDeserializedCodeInfo(Handle<JSFunction>::cast(params.target));
     }
     RuntimeCallTimerScope timer(isolate, RuntimeCallCounterId::kJS_Execution);
-    value = stub_entry.Call(orig_func, func, recv, params.argc, argv,
-                            isolate->isolate_data()->isolate_root());
+    value = ObjectPtr(stub_entry.Call(orig_func, func, recv, params.argc, argv,
+                                      isolate->isolate_data()->isolate_root()));
   }
 
 #ifdef VERIFY_HEAP

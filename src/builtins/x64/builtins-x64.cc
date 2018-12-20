@@ -367,9 +367,9 @@ namespace {
 // Called with the native C calling convention. The corresponding function
 // signature is:
 //
-//  using JSEntryFunction = GeneratedCode<Object*(
-//      Object * new_target, Object * target, Object * receiver, int argc,
-//      Object*** args, Address root_register_value)>;
+//  using JSEntryFunction = GeneratedCode<Address(
+//      Address new_target, Address target, Address receiver, int argc,
+//      Address** args, Address root_register_value)>;
 void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
                              Builtins::Name entry_trampoline) {
   Label invoke, handler_entry, exit;
@@ -555,11 +555,11 @@ void Builtins::Generate_JSRunMicrotasksEntry(MacroAssembler* masm) {
 static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
                                              bool is_construct) {
   // Expects five C++ function parameters.
-  // - Object* new_target
-  // - JSFunction function
-  // - Object* receiver
+  // - Address new_target (tagged Object pointer)
+  // - Address function (tagged JSFunction pointer)
+  // - Address receiver (tagged Object pointer)
   // - int argc
-  // - Object*** argv
+  // - Address** argv (pointer to array of tagged Object pointers)
   // (see Handle::Invoke in execution.cc).
 
   // Open a C++ scope for the FrameScope.
