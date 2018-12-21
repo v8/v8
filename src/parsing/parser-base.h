@@ -5411,7 +5411,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForStatement(
 
     if (CheckInOrOf(&for_info.mode)) {
       return ParseForEachStatementWithDeclarations(stmt_pos, &for_info, labels,
-                                                   own_labels, nullptr);
+                                                   own_labels, scope());
     }
 
     init = impl()->BuildInitializationBlock(&for_info.parsing_result, nullptr);
@@ -5506,18 +5506,14 @@ ParserBase<Impl>::ParseForEachStatementWithDeclarations(
 
   Expect(Token::RPAREN);
 
-  Scope* for_scope = nullptr;
-  if (inner_block_scope != nullptr) {
-    for_scope = inner_block_scope->outer_scope();
-    DCHECK_EQ(for_scope, scope());
-    inner_block_scope->set_start_position(scanner()->location().beg_pos);
+  if (IsLexicalVariableMode(for_info->parsing_result.descriptor.mode)) {
+    inner_block_scope->set_start_position(position());
   }
 
   ExpressionT each_variable = impl()->NullExpression();
   BlockT body_block = impl()->NullBlock();
   {
-    BlockState block_state(
-        &scope_, inner_block_scope != nullptr ? inner_block_scope : scope_);
+    BlockState block_state(&scope_, inner_block_scope);
 
     SourceRange body_range;
     StatementT body = impl()->NullStatement();
@@ -5531,9 +5527,9 @@ ParserBase<Impl>::ParseForEachStatementWithDeclarations(
                                              &each_variable);
     body_block->statements()->Add(body, zone());
 
-    if (inner_block_scope != nullptr) {
-      inner_block_scope->set_end_position(end_position());
-      body_block->set_scope(inner_block_scope->FinalizeBlockScope());
+    if (IsLexicalVariableMode(for_info->parsing_result.descriptor.mode)) {
+      scope()->set_end_position(end_position());
+      body_block->set_scope(scope()->FinalizeBlockScope());
     }
   }
 
@@ -5542,19 +5538,16 @@ ParserBase<Impl>::ParseForEachStatementWithDeclarations(
 
   init_block = impl()->CreateForEachStatementTDZ(init_block, *for_info);
 
-  if (for_scope != nullptr) {
-    for_scope->set_end_position(end_position());
-    for_scope = for_scope->FinalizeBlockScope();
-  }
-
   // Parsed for-in loop w/ variable declarations.
   if (!impl()->IsNull(init_block)) {
     init_block->statements()->Add(final_loop, zone());
-    init_block->set_scope(for_scope);
+    if (IsLexicalVariableMode(for_info->parsing_result.descriptor.mode)) {
+      scope()->set_end_position(end_position());
+      init_block->set_scope(scope()->FinalizeBlockScope());
+    }
     return init_block;
   }
 
-  DCHECK_NULL(for_scope);
   return final_loop;
 }
 
