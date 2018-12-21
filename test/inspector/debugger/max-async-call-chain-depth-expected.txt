@@ -46,7 +46,7 @@ Running test: testConsoleTraceWithEmptySync
     callFrames : [
         [0] : {
             columnNumber : 66
-            functionName : 
+            functionName : Promise.then
             lineNumber : 0
             scriptId : <scriptId>
             url : 
