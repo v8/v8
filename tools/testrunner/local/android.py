@@ -164,7 +164,6 @@ class _Driver(object):
             env=env,
             timeout=timeout,
             retries=0,
-            large_output=True,
         )
         return '\n'.join(output)
       except device_errors.AdbCommandFailedError as e:
