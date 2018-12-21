@@ -576,9 +576,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   Statement* FinalizeForOfStatement(ForOfStatement* loop, Variable* completion,
                                     IteratorType type, int pos);
-  void BuildIteratorClose(ZonePtrList<Statement>* statements,
-                          Variable* iterator, Variable* input, Variable* output,
-                          IteratorType type);
   void BuildIteratorCloseForCompletion(ZonePtrList<Statement>* statements,
                                        Variable* iterator,
                                        Expression* completion,
