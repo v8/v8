@@ -128,7 +128,7 @@ class StackTransferRecipe {
           ++next_spill_slot;
           executed_moves = 1;
         }
-        register_moves_.pop(executed_moves);
+        register_moves_.pop_back(executed_moves);
       }
     }
 
@@ -276,7 +276,7 @@ void LiftoffAssembler::CacheState::InitMerge(const CacheState& source,
   uint32_t stack_base = stack_depth + num_locals;
   DCHECK(stack_state.empty());
   DCHECK_GE(source.stack_height(), stack_base);
-  stack_state.resize(stack_base + arity, VarState(kWasmStmt));
+  stack_state.resize_no_init(stack_base + arity);
 
   // |------locals------|---(in between)----|--(discarded)--|----merge----|
   //  <-- num_locals --> <-- stack_depth -->^stack_base      <-- arity -->
@@ -565,8 +565,7 @@ void LiftoffAssembler::PrepareCall(FunctionSig* sig,
   stack_transfers.Execute();
 
   // Pop parameters from the value stack.
-  auto stack_end = cache_state_.stack_state.end();
-  cache_state_.stack_state.erase(stack_end - num_params, stack_end);
+  cache_state_.stack_state.pop_back(num_params);
 
   // Reset register use counters.
   cache_state_.reset_used_registers();

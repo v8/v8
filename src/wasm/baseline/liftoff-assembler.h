@@ -117,8 +117,7 @@ class LiftoffAssembler : public TurboAssembler {
     CacheState(CacheState&&) = default;
     CacheState& operator=(CacheState&&) = default;
 
-    // TODO(clemensh): Improve memory management here; avoid std::vector.
-    std::vector<VarState> stack_state;
+    base::SmallVector<VarState, 8> stack_state;
     LiftoffRegList used_registers;
     uint32_t register_use_count[kAfterMaxLiftoffRegCode] = {0};
     LiftoffRegList last_spilled_regs;
