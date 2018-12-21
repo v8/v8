@@ -300,17 +300,15 @@ class ConcurrentMarkingVisitor final
   // ===========================================================================
 
   int VisitSeqOneByteString(Map map, SeqOneByteString object) {
-    int size = SeqOneByteString::SizeFor(object->synchronized_length());
     if (!ShouldVisit(object)) return 0;
     VisitMapPointer(object, object->map_slot());
-    return size;
+    return SeqOneByteString::SizeFor(object->synchronized_length());
   }
 
   int VisitSeqTwoByteString(Map map, SeqTwoByteString object) {
-    int size = SeqTwoByteString::SizeFor(object->synchronized_length());
     if (!ShouldVisit(object)) return 0;
     VisitMapPointer(object, object->map_slot());
-    return size;
+    return SeqTwoByteString::SizeFor(object->synchronized_length());
   }
 
   // ===========================================================================
