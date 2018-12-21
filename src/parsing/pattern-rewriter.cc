@@ -183,15 +183,15 @@ Expression* PatternRewriter::RewriteDestructuringAssignment(
   return rewriter.Rewrite(to_rewrite);
 }
 
-void PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
+void PatternRewriter::VisitVariableProxy(VariableProxy* proxy) {
   Expression* value = current_value_;
 
   if (IsAssignmentContext()) {
     // In an assignment context, simply perform the assignment
-    Assignment* assignment = factory()->NewAssignment(
-        Token::ASSIGN, pattern, value, pattern->position());
+    Assignment* assignment = factory()->NewAssignment(Token::ASSIGN, proxy,
+                                                      value, proxy->position());
     block_->statements()->Add(
-        factory()->NewExpressionStatement(assignment, pattern->position()),
+        factory()->NewExpressionStatement(assignment, proxy->position()),
         zone());
     return;
   }
@@ -199,12 +199,15 @@ void PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
   DCHECK_NOT_NULL(block_);
   DCHECK_NOT_NULL(descriptor_);
 
-  Scope* outer_function_scope = nullptr;
+  // scope() isn't guaranteed to be the same as parser_->scope(). scope() is
+  // where the pattern was parsed, whereas parser_->scope() is where the pattern
+  // is rewritten into as a declaration.
+  Scope* target_scope = parser_->scope();
   if (declares_parameter_containing_sloppy_eval_) {
-    outer_function_scope = scope()->outer_scope();
-    outer_function_scope->DeleteUnresolved(pattern);
+    target_scope = scope()->outer_scope();
+    target_scope->DeleteUnresolved(proxy);
   } else {
-    scope()->DeleteUnresolved(pattern);
+    scope()->DeleteUnresolved(proxy);
   }
 
   // Declare variable.
@@ -215,44 +218,34 @@ void PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
   // which the variable or constant is declared. Only function variables have
   // an initial value in the declaration (because they are initialized upon
   // entering the function).
-  const AstRawString* name = pattern->raw_name();
-  VariableProxy* proxy = pattern;
-  Declaration* declaration;
-  if (descriptor_->mode == VariableMode::kVar &&
-      !scope()->is_declaration_scope()) {
-    DCHECK(scope()->is_block_scope() || scope()->is_with_scope());
-    declaration = factory()->NewNestedVariableDeclaration(
-        proxy, scope(), descriptor_->declaration_pos);
-  } else {
-    declaration =
-        factory()->NewVariableDeclaration(proxy, descriptor_->declaration_pos);
-  }
-
   // When an extra declaration scope needs to be inserted to account for
   // a sloppy eval in a default parameter or function body, the parameter
   // needs to be declared in the function's scope, not in the varblock
   // scope which will be used for the initializer expression.
-  Variable* var = parser_->Declare(
-      declaration, descriptor_->declaration_kind, descriptor_->mode,
-      Variable::DefaultInitializationFlag(descriptor_->mode),
-      outer_function_scope);
+  parser_->DeclareVariable(
+      proxy, descriptor_->declaration_kind, descriptor_->mode,
+      Variable::DefaultInitializationFlag(descriptor_->mode), target_scope,
+      descriptor_->declaration_pos);
+
   if (parser_->has_error()) return;
+  Variable* var = proxy->var();
   DCHECK_NOT_NULL(var);
   DCHECK(proxy->is_resolved());
   DCHECK_NE(initializer_position_, kNoSourcePosition);
   var->set_initializer_position(initializer_position_);
-
-  Scope* declaration_scope = outer_function_scope != nullptr
-                                 ? outer_function_scope
-                                 : (IsLexicalVariableMode(descriptor_->mode)
-                                        ? scope()
-                                        : scope()->GetDeclarationScope());
+  Scope* declaration_scope = var->scope();
+  DCHECK_EQ(declaration_scope,
+            declares_parameter_containing_sloppy_eval_
+                ? scope()->outer_scope()
+                : (IsLexicalVariableMode(descriptor_->mode)
+                       ? parser_->scope()
+                       : parser_->scope()->GetDeclarationScope()));
   if (declaration_scope->num_var() > kMaxNumFunctionLocals) {
     parser_->ReportMessage(MessageTemplate::kTooManyVariables);
     return;
   }
   if (names_) {
-    names_->Add(name, zone());
+    names_->Add(proxy->raw_name(), zone());
   }
 
   // If there's no initializer, we're done.
@@ -279,7 +272,7 @@ void PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
   // scope we need to do a new lookup.
   if (descriptor_->mode == VariableMode::kVar &&
       var_init_scope != declaration_scope) {
-    proxy = var_init_scope->NewUnresolved(factory(), name);
+    proxy = var_init_scope->NewUnresolved(factory(), proxy->raw_name());
   } else {
     DCHECK_NOT_NULL(proxy);
     DCHECK_NOT_NULL(proxy->var());
@@ -287,7 +280,7 @@ void PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
   // Add break location for destructured sub-pattern.
   int pos = value_beg_position_;
   if (pos == kNoSourcePosition) {
-    pos = IsSubPattern() ? pattern->position() : value->position();
+    pos = IsSubPattern() ? proxy->position() : value->position();
   }
   Assignment* assignment =
       factory()->NewAssignment(Token::INIT, proxy, value, pos);

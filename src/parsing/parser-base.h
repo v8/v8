@@ -5358,7 +5358,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForStatement(
     // The initializer contains lexical declarations,
     // so create an in-between scope.
     BlockState for_state(zone(), &scope_);
-    scope()->set_start_position(scanner()->location().beg_pos);
+    scope()->set_start_position(position());
 
     // Also record whether inner functions or evals are found inside
     // this loop, as this information is used to simplify the desugaring
@@ -5375,7 +5375,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForStatement(
                                 nullptr);
     }
     DCHECK(IsLexicalVariableMode(for_info.parsing_result.descriptor.mode));
-    for_info.position = scanner()->location().beg_pos;
+    for_info.position = position();
 
     if (CheckInOrOf(&for_info.mode)) {
       scope()->set_is_hidden();

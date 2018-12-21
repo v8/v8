@@ -440,15 +440,18 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   VariableProxy* NewUnresolved(const AstRawString* name, int begin_pos,
                                VariableKind kind = NORMAL_VARIABLE);
   VariableProxy* NewUnresolved(const AstRawString* name);
-  Variable* Declare(Declaration* declaration,
-                    DeclarationDescriptor::Kind declaration_kind,
-                    VariableMode mode, InitializationFlag init,
-                    Scope* declaration_scope = nullptr,
-                    int var_end_pos = kNoSourcePosition);
-  Declaration* DeclareVariable(const AstRawString* name, VariableMode mode,
-                               int pos);
-  Declaration* DeclareVariable(const AstRawString* name, VariableMode mode,
-                               InitializationFlag init, int pos);
+  VariableProxy* DeclareVariable(const AstRawString* name, VariableMode mode,
+                                 int pos);
+  VariableProxy* DeclareVariable(const AstRawString* name, VariableMode mode,
+                                 InitializationFlag init, int pos);
+  void DeclareVariable(VariableProxy* proxy, DeclarationDescriptor::Kind,
+                       VariableMode mode, InitializationFlag init,
+                       Scope* declaration_scope, int begin,
+                       int end = kNoSourcePosition);
+  void Declare(Declaration* declaration,
+               DeclarationDescriptor::Kind declaration_kind, VariableMode mode,
+               InitializationFlag init, Scope* declaration_scope,
+               int var_end_pos = kNoSourcePosition);
 
   bool TargetStackContainsLabel(const AstRawString* label);
   BreakableStatement* LookupBreakTarget(const AstRawString* label);

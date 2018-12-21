@@ -1028,9 +1028,10 @@ Variable* Scope::DeclareLocal(const AstRawString* name, VariableMode mode,
   return Declare(zone(), name, mode, NORMAL_VARIABLE, init_flag);
 }
 
-Variable* Scope::DeclareVariable(
-    Declaration* declaration, VariableMode mode, InitializationFlag init,
-    bool* sloppy_mode_block_scope_function_redefinition, bool* ok) {
+void Scope::DeclareVariable(Declaration* declaration, VariableMode mode,
+                            InitializationFlag init,
+                            bool* sloppy_mode_block_scope_function_redefinition,
+                            bool* ok) {
   DCHECK(IsDeclaredVariableMode(mode));
   DCHECK(!already_resolved_);
   DCHECK(!GetDeclarationScope()->is_being_lazily_parsed());
@@ -1124,7 +1125,6 @@ Variable* Scope::DeclareVariable(
   // lead to repeated DeclareEvalVar or DeclareEvalFunction calls.
   decls_.Add(declaration);
   proxy->BindTo(var);
-  return var;
 }
 
 Variable* Scope::DeclareVariableName(const AstRawString* name,
