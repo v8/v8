@@ -9,6 +9,7 @@
 #include "src/codegen.h"
 #include "src/compiler/code-assembler.h"
 #include "src/counters.h"
+#include "src/cpu-features.h"
 #include "src/date.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer.h"
@@ -767,41 +768,6 @@ static Address InvalidatePrototypeChainsWrapper(Address raw_map) {
 
 FUNCTION_REFERENCE(invalidate_prototype_chains_function,
                    InvalidatePrototypeChainsWrapper)
-
-double power_helper(double x, double y) {
-  int y_int = static_cast<int>(y);
-  if (y == y_int) {
-    return power_double_int(x, y_int);  // Returns 1 if exponent is 0.
-  }
-  if (y == 0.5) {
-    lazily_initialize_fast_sqrt();
-    return (std::isinf(x)) ? V8_INFINITY
-                           : fast_sqrt(x + 0.0);  // Convert -0 to +0.
-  }
-  if (y == -0.5) {
-    lazily_initialize_fast_sqrt();
-    return (std::isinf(x)) ? 0 : 1.0 / fast_sqrt(x + 0.0);  // Convert -0 to +0.
-  }
-  return power_double_double(x, y);
-}
-
-// Helper function to compute x^y, where y is known to be an
-// integer. Uses binary decomposition to limit the number of
-// multiplications; see the discussion in "Hacker's Delight" by Henry
-// S. Warren, Jr., figure 11-6, page 213.
-double power_double_int(double x, int y) {
-  double m = (y < 0) ? 1 / x : x;
-  unsigned n = (y < 0) ? -y : y;
-  double p = 1;
-  while (n != 0) {
-    if ((n & 1) != 0) p *= m;
-    m *= m;
-    if ((n & 2) != 0) p *= m;
-    m *= m;
-    n >>= 2;
-  }
-  return p;
-}
 
 double power_double_double(double x, double y) {
   // The checks for special cases can be dropped in ia32 because it has already

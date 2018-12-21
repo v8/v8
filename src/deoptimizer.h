@@ -15,10 +15,12 @@
 #include "src/deoptimize-reason.h"
 #include "src/feedback-vector.h"
 #include "src/frame-constants.h"
+#include "src/frames.h"
 #include "src/globals.h"
 #include "src/isolate.h"
-#include "src/macro-assembler.h"
+#include "src/label.h"
 #include "src/objects/shared-function-info.h"
+#include "src/register-arch.h"
 #include "src/source-position.h"
 #include "src/zone/zone-chunk-list.h"
 
@@ -30,6 +32,7 @@ class TranslationIterator;
 class DeoptimizedFrameInfo;
 class TranslatedState;
 class RegisterValues;
+class MacroAssembler;
 
 class TranslatedValue {
  public:
@@ -514,29 +517,6 @@ class Deoptimizer : public Malloced {
 
   static const int kNotDeoptimizationEntry = -1;
 
-  // Generators for the deoptimization entry code.
-  class TableEntryGenerator {
-   public:
-    TableEntryGenerator(MacroAssembler* masm, DeoptimizeKind kind, int count)
-        : masm_(masm), deopt_kind_(kind), count_(count) {}
-
-    void Generate();
-
-   protected:
-    MacroAssembler* masm() const { return masm_; }
-    DeoptimizeKind deopt_kind() const { return deopt_kind_; }
-    Isolate* isolate() const { return masm_->isolate(); }
-
-    void GeneratePrologue();
-
-   private:
-    int count() const { return count_; }
-
-    MacroAssembler* masm_;
-    DeoptimizeKind deopt_kind_;
-    int count_;
-  };
-
   static void EnsureCodeForDeoptimizationEntry(Isolate* isolate,
                                                DeoptimizeKind kind);
   static void EnsureCodeForMaxDeoptimizationEntries(Isolate* isolate);
@@ -592,8 +572,11 @@ class Deoptimizer : public Malloced {
   static unsigned ComputeIncomingArgumentSize(SharedFunctionInfo shared);
   static unsigned ComputeOutgoingArgumentSize(Code code, unsigned bailout_id);
 
-  static void GenerateDeoptimizationEntries(MacroAssembler* masm, int count,
+  static void GenerateDeoptimizationEntries(MacroAssembler* masm,
+                                            Isolate* isolate, int count,
                                             DeoptimizeKind kind);
+  static void GenerateDeoptimizationEntriesPrologue(MacroAssembler* masm,
+                                                    int count);
 
   // Marks all the code in the given context for deoptimization.
   static void MarkAllCodeForContext(Context native_context);

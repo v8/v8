@@ -373,15 +373,6 @@ class CpuFeatureScope {
 #endif
 };
 
-
-// -----------------------------------------------------------------------------
-// Utility functions
-
-// Computes pow(x, y) with the special cases in the spec for Math.pow.
-double power_helper(double x, double y);
-double power_double_int(double x, int y);
-double power_double_double(double x, double y);
-
 }  // namespace internal
 }  // namespace v8
 #endif  // V8_ASSEMBLER_H_

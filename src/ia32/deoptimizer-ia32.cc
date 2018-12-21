@@ -4,9 +4,9 @@
 
 #if V8_TARGET_ARCH_IA32
 
-#include "src/assembler-inl.h"
 #include "src/deoptimizer.h"
 #include "src/frame-constants.h"
+#include "src/macro-assembler.h"
 #include "src/register-configuration.h"
 #include "src/safepoint-table.h"
 
@@ -15,10 +15,13 @@ namespace internal {
 
 const int Deoptimizer::table_entry_size_ = 10;
 
-#define __ masm()->
+#define __ masm->
 
-void Deoptimizer::TableEntryGenerator::Generate() {
-  GeneratePrologue();
+void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
+                                                Isolate* isolate, int count,
+                                                DeoptimizeKind deopt_kind) {
+  NoRootArrayScope no_root_array(masm);
+  GenerateDeoptimizationEntriesPrologue(masm, count);
 
   // Save all general purpose registers before messing with them.
   const int kNumberOfRegisters = Register::kNumRegisters;
@@ -46,8 +49,8 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   __ pushad();
 
   ExternalReference c_entry_fp_address =
-      ExternalReference::Create(IsolateAddressId::kCEntryFPAddress, isolate());
-  __ mov(masm()->ExternalReferenceAsOperand(c_entry_fp_address, esi), ebp);
+      ExternalReference::Create(IsolateAddressId::kCEntryFPAddress, isolate);
+  __ mov(masm->ExternalReferenceAsOperand(c_entry_fp_address, esi), ebp);
 
   const int kSavedRegistersAreaSize =
       kNumberOfRegisters * kPointerSize + kDoubleRegsSize + kFloatRegsSize;
@@ -73,14 +76,14 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   __ bind(&context_check);
   __ mov(Operand(esp, 0 * kPointerSize), eax);  // Function.
   __ mov(Operand(esp, 1 * kPointerSize),
-         Immediate(static_cast<int>(deopt_kind())));
+         Immediate(static_cast<int>(deopt_kind)));
   __ mov(Operand(esp, 2 * kPointerSize), esi);  // Bailout id.
   __ mov(Operand(esp, 3 * kPointerSize), ecx);  // Code address or 0.
   __ mov(Operand(esp, 4 * kPointerSize), edx);  // Fp-to-sp delta.
   __ mov(Operand(esp, 5 * kPointerSize),
-         Immediate(ExternalReference::isolate_address(isolate())));
+         Immediate(ExternalReference::isolate_address(isolate)));
   {
-    AllowExternalCallThatCantCauseGC scope(masm());
+    AllowExternalCallThatCantCauseGC scope(masm);
     __ CallCFunction(ExternalReference::new_deoptimizer_function(), 6);
   }
 
@@ -143,7 +146,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   __ PrepareCallCFunction(1, esi);
   __ mov(Operand(esp, 0 * kPointerSize), eax);
   {
-    AllowExternalCallThatCantCauseGC scope(masm());
+    AllowExternalCallThatCantCauseGC scope(masm);
     __ CallCFunction(ExternalReference::compute_output_frames_function(), 1);
   }
   __ pop(eax);
@@ -203,16 +206,16 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   __ ret(0);
 }
 
-
-void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
+void Deoptimizer::GenerateDeoptimizationEntriesPrologue(MacroAssembler* masm,
+                                                        int count) {
   // Create a sequence of deoptimization entries.
   Label done;
-  for (int i = 0; i < count(); i++) {
-    int start = masm()->pc_offset();
+  for (int i = 0; i < count; i++) {
+    int start = masm->pc_offset();
     USE(start);
     __ push_imm32(i);
     __ jmp(&done);
-    DCHECK(masm()->pc_offset() - start == table_entry_size_);
+    DCHECK(masm->pc_offset() - start == table_entry_size_);
   }
   __ bind(&done);
 }

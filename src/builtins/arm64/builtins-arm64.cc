@@ -5,13 +5,13 @@
 #if V8_TARGET_ARCH_ARM64
 
 #include "src/api-arguments.h"
-#include "src/arm64/macro-assembler-arm64-inl.h"
 #include "src/code-factory.h"
 #include "src/counters.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer.h"
 #include "src/frame-constants.h"
 #include "src/frames.h"
+#include "src/macro-assembler-inl.h"
 #include "src/objects-inl.h"
 #include "src/objects/cell.h"
 #include "src/objects/foreign.h"

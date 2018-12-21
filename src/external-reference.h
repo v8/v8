@@ -334,6 +334,9 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, ExternalReference);
 
 void abort_with_reason(int reason);
 
+// Computes pow(x, y) with the special cases in the spec for Math.pow.
+double power_double_double(double x, double y);
+
 }  // namespace internal
 }  // namespace v8
 

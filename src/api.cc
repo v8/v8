@@ -31,6 +31,7 @@
 #include "src/contexts.h"
 #include "src/conversions-inl.h"
 #include "src/counters.h"
+#include "src/cpu-features.h"
 #include "src/date.h"
 #include "src/debug/debug-coverage.h"
 #include "src/debug/debug-evaluate.h"

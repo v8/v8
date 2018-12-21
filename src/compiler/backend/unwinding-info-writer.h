@@ -5,6 +5,8 @@
 #ifndef V8_COMPILER_BACKEND_UNWINDING_INFO_WRITER_H_
 #define V8_COMPILER_BACKEND_UNWINDING_INFO_WRITER_H_
 
+#include "src/flags.h"
+
 #if V8_TARGET_ARCH_ARM
 #include "src/compiler/backend/arm/unwinding-info-writer-arm.h"
 #elif V8_TARGET_ARCH_ARM64
