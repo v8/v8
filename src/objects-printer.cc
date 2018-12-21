@@ -444,8 +444,10 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
 }
 
 void ByteArray::ByteArrayPrint(std::ostream& os) {  // NOLINT
-  os << "byte array, data starts at "
-     << static_cast<void*>(GetDataStartAddress());
+  PrintHeader(os, "ByteArray");
+  os << "\n - length: " << length()
+     << "\n - data-start: " << static_cast<void*>(GetDataStartAddress())
+     << "\n";
 }
 
 void BytecodeArray::BytecodeArrayPrint(std::ostream& os) {  // NOLINT

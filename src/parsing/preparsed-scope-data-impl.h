@@ -105,11 +105,10 @@ class BaseConsumedPreParsedScopeData : public ConsumedPreParsedScopeData {
       DCHECK_GE(RemainingBytes(), kUint32Size);
       // Check that there indeed is an integer following.
       DCHECK_EQ(data_.get(index_++), kUint32Size);
-      int32_t result = 0;
-      byte* p = reinterpret_cast<byte*>(&result);
-      for (int i = 0; i < 4; ++i) {
-        *p++ = data_.get(index_++);
-      }
+      int32_t result = data_.get(index_) + (data_.get(index_ + 1) << 8) +
+                       (data_.get(index_ + 2) << 16) +
+                       (data_.get(index_ + 3) << 24);
+      index_ += 4;
       stored_quarters_ = 0;
       return result;
     }
@@ -216,8 +215,7 @@ class ZoneVectorWrapper {
 class ZonePreParsedScopeData : public ZoneObject {
  public:
   ZonePreParsedScopeData(Zone* zone,
-                         ZoneChunkList<uint8_t>::iterator byte_data_begin,
-                         ZoneChunkList<uint8_t>::iterator byte_data_end,
+                         PreParsedScopeDataBuilder::ByteData* byte_data,
                          int child_length);
 
   Handle<PreParsedScopeData> Serialize(Isolate* isolate);

@@ -126,8 +126,8 @@ class PreParsedScopeDataBuilder : public ZoneObject {
  private:
   friend class BuilderProducedPreParsedScopeData;
 
-  virtual MaybeHandle<PreParsedScopeData> Serialize(Isolate* isolate);
-  virtual ZonePreParsedScopeData* Serialize(Zone* zone);
+  MaybeHandle<PreParsedScopeData> Serialize(Isolate* isolate);
+  ZonePreParsedScopeData* Serialize(Zone* zone);
 
   void SaveDataForScope(Scope* scope);
   void SaveDataForVariable(Variable* var);

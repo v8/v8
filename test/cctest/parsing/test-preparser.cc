@@ -840,8 +840,7 @@ TEST(ProducingAndConsumingByteData) {
 
   {
     // Serialize as a ZoneConsumedPreParsedScopeData, and read back data.
-    i::ZonePreParsedScopeData zone_serialized(&zone, bytes.begin(), bytes.end(),
-                                              0);
+    i::ZonePreParsedScopeData zone_serialized(&zone, &bytes, 0);
     i::ZoneConsumedPreParsedScopeData::ByteData bytes_for_reading;
     i::ZoneVectorWrapper wrapper(zone_serialized.byte_data());
     i::ZoneConsumedPreParsedScopeData::ByteData::ReadingScope reading_scope(

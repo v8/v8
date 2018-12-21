@@ -83,10 +83,10 @@ void PreParsedScopeDataBuilder::ByteData::WriteUint32(uint32_t data) {
   // Save expected item size in debug mode.
   backing_store_.push_back(kUint32Size);
 #endif
-  const uint8_t* d = reinterpret_cast<uint8_t*>(&data);
-  for (int i = 0; i < 4; ++i) {
-    backing_store_.push_back(*d++);
-  }
+  backing_store_.push_back(data & 0xFF);
+  backing_store_.push_back((data >> 8) & 0xFF);
+  backing_store_.push_back((data >> 16) & 0xFF);
+  backing_store_.push_back((data >> 24) & 0xFF);
   free_quarters_in_last_byte_ = 0;
 }
 
@@ -97,10 +97,10 @@ void PreParsedScopeDataBuilder::ByteData::OverwriteFirstUint32(uint32_t data) {
   DCHECK_GE(backing_store_.size(), kUint32Size);
   DCHECK_EQ(*it, kUint32Size);
   ++it;
-  const uint8_t* d = reinterpret_cast<uint8_t*>(&data);
-  for (size_t i = 0; i < 4; ++i) {
-    *it++ = *d++;
-  }
+  *it++ = data & 0xFF;
+  *it++ = (data >> 8) & 0xFF;
+  *it++ = (data >> 16) & 0xFF;
+  *it++ = (data >> 24) & 0xFF;
 }
 #endif
 
@@ -209,14 +209,12 @@ void PreParsedScopeDataBuilder::SaveScopeAllocationData(
 
   if (bailed_out_) return;
 
-  uint32_t scope_data_start = static_cast<uint32_t>(byte_data_->size());
 
   // If there are no skippable inner functions, we don't need to save anything.
-  if (scope_data_start == ByteData::kPlaceholderSize) {
-    return;
-  }
+  if (!ContainsInnerFunctions()) return;
 
 #ifdef DEBUG
+  uint32_t scope_data_start = static_cast<uint32_t>(byte_data_->size());
   byte_data_->OverwriteFirstUint32(scope_data_start);
 
   // For a data integrity check, write a value between data about skipped inner
@@ -239,7 +237,7 @@ MaybeHandle<PreParsedScopeData> PreParsedScopeDataBuilder::Serialize(
 
   DCHECK(!ThisOrParentBailedOut());
 
-  if (byte_data_->size() <= ByteData::kPlaceholderSize) {
+  if (!ContainsInnerFunctions()) {
     // The data contains only the placeholder.
     return MaybeHandle<PreParsedScopeData>();
   }
@@ -270,14 +268,11 @@ ZonePreParsedScopeData* PreParsedScopeDataBuilder::Serialize(Zone* zone) {
 
   DCHECK(!ThisOrParentBailedOut());
 
-  if (byte_data_->size() <= ByteData::kPlaceholderSize) {
-    // The data contains only the placeholder.
-    return nullptr;
-  }
+  if (!ContainsInnerFunctions()) return nullptr;
 
   int child_length = static_cast<int>(data_for_inner_functions_.size());
-  ZonePreParsedScopeData* result = new (zone) ZonePreParsedScopeData(
-      zone, byte_data_->begin(), byte_data_->end(), child_length);
+  ZonePreParsedScopeData* result =
+      new (zone) ZonePreParsedScopeData(zone, byte_data_, child_length);
 
   int i = 0;
   for (const auto& item : data_for_inner_functions_) {
@@ -628,9 +623,9 @@ OnHeapConsumedPreParsedScopeData::OnHeapConsumedPreParsedScopeData(
 }
 
 ZonePreParsedScopeData::ZonePreParsedScopeData(
-    Zone* zone, ZoneChunkList<uint8_t>::iterator byte_data_begin,
-    ZoneChunkList<uint8_t>::iterator byte_data_end, int child_length)
-    : byte_data_(byte_data_begin, byte_data_end, zone),
+    Zone* zone, PreParsedScopeDataBuilder::ByteData* byte_data,
+    int child_length)
+    : byte_data_(byte_data->begin(), byte_data->end(), zone),
       children_(child_length, zone) {}
 
 Handle<PreParsedScopeData> ZonePreParsedScopeData::Serialize(Isolate* isolate) {
