@@ -53,37 +53,53 @@ class _Driver(object):
     self.device = device_utils.DeviceUtils.HealthyDevices(
         retries=5, enable_usb_resets=True, device_arg=device)[0]
 
+    # This remembers what we have already pushed to the device.
+    self.pushed = set()
+
   def tear_down(self):
     """Clean up files after running all tests."""
     self.device.RemovePath(DEVICE_DIR, force=True, recursive=True)
 
-  def push_files(self, file_tuples, skip_if_missing=False):
-    """Push multiple files/dirs to the device.
+  def push_file(self, host_dir, file_name, target_rel='.',
+                skip_if_missing=False):
+    """Push a single file to the device (cached).
 
     Args:
-      file_tuples: List of 3-tuples (host_dir, file_name, target_rel), where
-          host_dir is absolute parent directory of the files/dirs to be pushed,
-          file_name is file or dir path to be pushed (relative to host_dir), and
-          target_rel is parent directory of the target location on the device
-          relative to the device's base dir for testing.
+      host_dir: Absolute parent directory of the file to push.
+      file_name: Name of the file to push.
+      target_rel: Parent directory of the target location on the device
+          (relative to the device's base dir for testing).
       skip_if_missing: Keeps silent about missing files when set. Otherwise logs
           error.
     """
-    host_device_tuples = []
-    for host_dir, file_name, target_rel in file_tuples:
-      file_on_host = os.path.join(host_dir, file_name)
-      if not os.path.exists(file_on_host):
-        if not skip_if_missing:
-          logging.critical('Missing file on host: %s' % file_on_host)
-        continue
+    # TODO(sergiyb): Implement this method using self.device.PushChangedFiles to
+    # avoid accessing low-level self.device.adb.
+    file_on_host = os.path.join(host_dir, file_name)
 
-      file_on_device = os.path.join(DEVICE_DIR, target_rel, file_name)
-      host_device_tuples.append((file_on_host, file_on_device))
+    # Only push files not yet pushed in one execution.
+    if file_on_host in self.pushed:
+      return
 
-    try:
-      self.device.PushChangedFiles(host_device_tuples)
-    except device_errors.CommandFailedError as e:
-      logging.critical('PUSH FAILED: %s', e.message)
+    file_on_device_tmp = os.path.join(DEVICE_DIR, '_tmp_', file_name)
+    file_on_device = os.path.join(DEVICE_DIR, target_rel, file_name)
+    folder_on_device = os.path.dirname(file_on_device)
+
+    # Only attempt to push files that exist.
+    if not os.path.exists(file_on_host):
+      if not skip_if_missing:
+        logging.critical('Missing file on host: %s' % file_on_host)
+      return
+
+    # Work-around for 'text file busy' errors. Push the files to a temporary
+    # location and then copy them with a shell command.
+    output = self.device.adb.Push(file_on_host, file_on_device_tmp)
+    # Success looks like this: '3035 KB/s (12512056 bytes in 4.025s)'.
+    # Errors look like this: 'failed to copy  ... '.
+    if output and not re.search('^[0-9]', output.splitlines()[-1]):
+      logging.critical('PUSH FAILED: ' + output)
+    self.device.adb.Shell('mkdir -p %s' % folder_on_device)
+    self.device.adb.Shell('cp %s %s' % (file_on_device_tmp, file_on_device))
+    self.pushed.add(file_on_host)
 
   def push_executable(self, shell_dir, target_dir, binary):
     """Push files required to run a V8 executable.
@@ -94,16 +110,34 @@ class _Driver(object):
           devices' base dir for testing).
       binary: Name of the binary to push.
     """
-    self.push_files([(shell_dir, binary, target_dir)])
+    self.push_file(shell_dir, binary, target_dir)
 
     # Push external startup data. Backwards compatible for revisions where
     # these files didn't exist. Or for bots that don't produce these files.
-    self.push_files([
-      (shell_dir, 'natives_blob.bin', target_dir),
-      (shell_dir, 'snapshot_blob.bin', target_dir),
-      (shell_dir, 'snapshot_blob_trusted.bin', target_dir),
-      (shell_dir, 'icudtl.dat', target_dir),
-    ], skip_if_missing=True)
+    self.push_file(
+        shell_dir,
+        'natives_blob.bin',
+        target_dir,
+        skip_if_missing=True,
+    )
+    self.push_file(
+        shell_dir,
+        'snapshot_blob.bin',
+        target_dir,
+        skip_if_missing=True,
+    )
+    self.push_file(
+        shell_dir,
+        'snapshot_blob_trusted.bin',
+        target_dir,
+        skip_if_missing=True,
+    )
+    self.push_file(
+        shell_dir,
+        'icudtl.dat',
+        target_dir,
+        skip_if_missing=True,
+    )
 
   def run(self, target_dir, binary, args, rel_path, timeout, env=None,
           logcat_file=False):
