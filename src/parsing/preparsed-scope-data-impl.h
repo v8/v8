@@ -93,16 +93,24 @@ class BaseConsumedPreParsedScopeData : public ConsumedPreParsedScopeData {
       DISALLOW_HEAP_ALLOCATION(no_gc);
     };
 
-    void SetPosition(int position) { index_ = position; }
+    void SetPosition(int position) {
+      DCHECK_LE(position, data_.length());
+      index_ = position;
+    }
 
     size_t RemainingBytes() const {
       DCHECK(has_data_);
+      DCHECK_LE(index_, data_.length());
       return data_.length() - index_;
     }
 
-    int32_t ReadUint32() {
+    bool HasRemainingBytes(size_t bytes) const {
       DCHECK(has_data_);
-      DCHECK_GE(RemainingBytes(), kUint32Size);
+      return index_ <= data_.length() && bytes <= RemainingBytes();
+    }
+
+    int32_t ReadUint32() {
+      DCHECK(HasRemainingBytes(kUint32Size));
       // Check that there indeed is an integer following.
       DCHECK_EQ(data_.get(index_++), kUint32Size);
       int32_t result = data_.get(index_) + (data_.get(index_ + 1) << 8) +
@@ -115,7 +123,7 @@ class BaseConsumedPreParsedScopeData : public ConsumedPreParsedScopeData {
 
     uint8_t ReadUint8() {
       DCHECK(has_data_);
-      DCHECK_GE(RemainingBytes(), kUint8Size);
+      DCHECK(HasRemainingBytes(kUint8Size));
       // Check that there indeed is a byte following.
       DCHECK_EQ(data_.get(index_++), kUint8Size);
       stored_quarters_ = 0;
@@ -125,7 +133,7 @@ class BaseConsumedPreParsedScopeData : public ConsumedPreParsedScopeData {
     uint8_t ReadQuarter() {
       DCHECK(has_data_);
       if (stored_quarters_ == 0) {
-        DCHECK_GE(RemainingBytes(), kUint8Size);
+        DCHECK(HasRemainingBytes(kUint8Size));
         // Check that there indeed are quarters following.
         DCHECK_EQ(data_.get(index_++), kQuarterMarker);
         stored_byte_ = data_.get(index_++);

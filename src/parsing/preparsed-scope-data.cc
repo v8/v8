@@ -152,9 +152,7 @@ PreParsedScopeDataBuilder::PreParsedScopeDataBuilder(
       byte_data_(new (zone) ByteData(zone)),
       data_for_inner_functions_(zone),
       bailed_out_(false) {
-  if (parent != nullptr) {
-    parent->data_for_inner_functions_.push_back(this);
-  }
+  if (parent != nullptr) parent->data_for_inner_functions_.push_back(this);
 #ifdef DEBUG
   // Reserve space for scope_data_start, written later:
   byte_data_->WriteUint32(0);
@@ -208,8 +206,6 @@ void PreParsedScopeDataBuilder::SaveScopeAllocationData(
             ByteData::kPlaceholderSize);
 
   if (bailed_out_) return;
-
-
   // If there are no skippable inner functions, we don't need to save anything.
   if (!ContainsInnerFunctions()) return;
 
@@ -234,13 +230,8 @@ bool PreParsedScopeDataBuilder::ContainsInnerFunctions() const {
 MaybeHandle<PreParsedScopeData> PreParsedScopeDataBuilder::Serialize(
     Isolate* isolate) {
   if (bailed_out_) return MaybeHandle<PreParsedScopeData>();
-
   DCHECK(!ThisOrParentBailedOut());
-
-  if (!ContainsInnerFunctions()) {
-    // The data contains only the placeholder.
-    return MaybeHandle<PreParsedScopeData>();
-  }
+  if (!ContainsInnerFunctions()) return MaybeHandle<PreParsedScopeData>();
 
   int child_data_length = static_cast<int>(data_for_inner_functions_.size());
   Handle<PreParsedScopeData> data =
@@ -265,9 +256,7 @@ MaybeHandle<PreParsedScopeData> PreParsedScopeDataBuilder::Serialize(
 
 ZonePreParsedScopeData* PreParsedScopeDataBuilder::Serialize(Zone* zone) {
   if (bailed_out_) return nullptr;
-
   DCHECK(!ThisOrParentBailedOut());
-
   if (!ContainsInnerFunctions()) return nullptr;
 
   int child_length = static_cast<int>(data_for_inner_functions_.size());
@@ -331,15 +320,11 @@ void PreParsedScopeDataBuilder::SaveDataForScope(Scope* scope) {
 
   if (scope->scope_type() == ScopeType::FUNCTION_SCOPE) {
     Variable* function = scope->AsDeclarationScope()->function_var();
-    if (function != nullptr) {
-      SaveDataForVariable(function);
-    }
+    if (function != nullptr) SaveDataForVariable(function);
   }
 
   for (Variable* var : *scope->locals()) {
-    if (IsDeclaredVariableMode(var->mode())) {
-      SaveDataForVariable(var);
-    }
+    if (IsDeclaredVariableMode(var->mode())) SaveDataForVariable(var);
   }
 
   SaveDataForInnerScopes(scope);
@@ -457,7 +442,7 @@ BaseConsumedPreParsedScopeData<Data>::GetDataForSkippableFunction(
   // The skippable function *must* be the next function in the data. Use the
   // start position as a sanity check.
   typename ByteData::ReadingScope reading_scope(this);
-  CHECK_GE(scope_data_->RemainingBytes(), ByteData::kSkippableFunctionDataSize);
+  CHECK(scope_data_->HasRemainingBytes(ByteData::kSkippableFunctionDataSize));
   int start_position_from_data = scope_data_->ReadUint32();
   CHECK_EQ(start_position, start_position_from_data);
 
@@ -512,16 +497,12 @@ void BaseConsumedPreParsedScopeData<Data>::RestoreDataForScope(Scope* scope) {
   if (!PreParsedScopeDataBuilder::ScopeNeedsData(scope)) return;
 
   // scope_type is stored only in debug mode.
-  CHECK_GE(scope_data_->RemainingBytes(), ByteData::kUint8Size);
   DCHECK_EQ(scope_data_->ReadUint8(), scope->scope_type());
 
+  CHECK(scope_data_->HasRemainingBytes(ByteData::kUint8Size));
   uint32_t eval = scope_data_->ReadUint8();
-  if (ScopeCallsSloppyEvalField::decode(eval)) {
-    scope->RecordEvalCall();
-  }
-  if (InnerScopeCallsEvalField::decode(eval)) {
-    scope->RecordInnerScopeEvalCall();
-  }
+  if (ScopeCallsSloppyEvalField::decode(eval)) scope->RecordEvalCall();
+  if (InnerScopeCallsEvalField::decode(eval)) scope->RecordInnerScopeEvalCall();
 
   if (scope->scope_type() == ScopeType::FUNCTION_SCOPE) {
     Variable* function = scope->AsDeclarationScope()->function_var();
@@ -529,9 +510,7 @@ void BaseConsumedPreParsedScopeData<Data>::RestoreDataForScope(Scope* scope) {
   }
 
   for (Variable* var : *scope->locals()) {
-    if (IsDeclaredVariableMode(var->mode())) {
-      RestoreDataForVariable(var);
-    }
+    if (IsDeclaredVariableMode(var->mode())) RestoreDataForVariable(var);
   }
 
   RestoreDataForInnerScopes(scope);
@@ -602,9 +581,7 @@ ProducedPreParsedScopeData* OnHeapConsumedPreParsedScopeData::GetChildData(
     Zone* zone, int child_index) {
   CHECK_GT(data_->length(), child_index);
   Object* child_data = data_->child_data(child_index);
-  if (!child_data->IsPreParsedScopeData()) {
-    return nullptr;
-  }
+  if (!child_data->IsPreParsedScopeData()) return nullptr;
   Handle<PreParsedScopeData> child_data_handle(
       PreParsedScopeData::cast(child_data), isolate_);
   return ProducedPreParsedScopeData::For(child_data_handle, zone);
