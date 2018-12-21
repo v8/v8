@@ -147,6 +147,24 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
           outer_scope_and_calls_eval_.GetPayload();
     }
 
+    Snapshot& operator=(Snapshot&& source) V8_NOEXCEPT {
+      outer_scope_and_calls_eval_.SetPointer(
+          source.outer_scope_and_calls_eval_.GetPointer());
+      outer_scope_and_calls_eval_.SetPayload(
+          outer_scope_and_calls_eval_->scope_calls_eval_);
+      top_inner_scope_ = source.top_inner_scope_;
+      top_unresolved_ = source.top_unresolved_;
+      top_local_ = source.top_local_;
+
+      // We are in the arrow function case. The calls eval we may have recorded
+      // is intended for the inner scope and we should simply restore the
+      // original "calls eval" flag of the outer scope.
+      source.RestoreEvalFlag();
+      source.Clear();
+
+      return *this;
+    }
+
     void Reparent(DeclarationScope* new_parent);
     bool IsCleared() const {
       return outer_scope_and_calls_eval_.GetPointer() == nullptr;
