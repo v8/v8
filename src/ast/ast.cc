@@ -70,15 +70,6 @@ IterationStatement* AstNode::AsIterationStatement() {
   }
 }
 
-BreakableStatement* AstNode::AsBreakableStatement() {
-  switch (node_type()) {
-    BREAKABLE_NODE_LIST(RETURN_NODE);
-    ITERATION_NODE_LIST(RETURN_NODE);
-    default:
-      return nullptr;
-  }
-}
-
 MaterializedLiteral* AstNode::AsMaterializedLiteral() {
   switch (node_type()) {
     LITERAL_NODE_LIST(RETURN_NODE);

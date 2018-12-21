@@ -161,7 +161,6 @@ class AstNode: public ZoneObject {
   FAILURE_NODE_LIST(DECLARE_NODE_FUNCTIONS)
 #undef DECLARE_NODE_FUNCTIONS
 
-  BreakableStatement* AsBreakableStatement();
   IterationStatement* AsIterationStatement();
   MaterializedLiteral* AsMaterializedLiteral();
 
