@@ -3980,9 +3980,8 @@ void TurboAssembler::CallBuiltinPointer(Register builtin_pointer) {
   STATIC_ASSERT(kSmiTag == 0);
 
   // The builtin_pointer register contains the builtin index as a Smi.
-  // Untagging is folded into the indexing operand below.
-  Lsa(builtin_pointer, kRootRegister, builtin_pointer,
-      kSystemPointerSize - kSmiTagSize);
+  SmiUntag(builtin_pointer, builtin_pointer);
+  Lsa(builtin_pointer, kRootRegister, builtin_pointer, kSystemPointerSizeLog2);
   lw(builtin_pointer,
      MemOperand(builtin_pointer, IsolateData::builtin_entry_table_offset()));
   Call(builtin_pointer);

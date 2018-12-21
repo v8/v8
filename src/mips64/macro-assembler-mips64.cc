@@ -4308,7 +4308,7 @@ void TurboAssembler::CallBuiltinPointer(Register builtin_pointer) {
 
   // The builtin_pointer register contains the builtin index as a Smi.
   SmiUntag(builtin_pointer, builtin_pointer);
-  Lsa(builtin_pointer, kRootRegister, builtin_pointer, kSystemPointerSizeLog2);
+  Dlsa(builtin_pointer, kRootRegister, builtin_pointer, kSystemPointerSizeLog2);
   Ld(builtin_pointer,
      MemOperand(builtin_pointer, IsolateData::builtin_entry_table_offset()));
   Call(builtin_pointer);
