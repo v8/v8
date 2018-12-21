@@ -316,12 +316,8 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
     } else {
       // TODO(arm): Use vld1 for f32 when implemented in simulator as used for
       // f64. It supports unaligned access.
-      Register scratch = no_reg;
-      if (temps.CanAcquire()) {
-        scratch = temps.Acquire();
-      } else {
-        scratch = GetUnusedRegister(kGpReg, pinned).gp();
-      }
+      Register scratch =
+          (actual_src_addr == src_addr) ? temps.Acquire() : actual_src_addr;
       ldr(scratch, MemOperand(actual_src_addr));
       vmov(liftoff::GetFloatRegister(dst.fp()), scratch);
     }
@@ -400,26 +396,25 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
     return;
   }
   UseScratchRegisterScope temps(this);
-  if (type.value() == StoreType::kF64Store ||
-      type.value() == StoreType::kF32Store) {
+  if (type.value() == StoreType::kF64Store) {
     Register actual_dst_addr = liftoff::CalculateActualAddress(
         this, &temps, dst_addr, offset_reg, offset_imm);
-    if (type.value() == StoreType::kF64Store) {
-      // Armv6 is not supported so Neon can be used to avoid alignment issues.
-      CpuFeatureScope scope(this, NEON);
-      vst1(Neon64, NeonListOperand(src.fp()), NeonMemOperand(actual_dst_addr));
-    } else {
-      // TODO(arm): Use vst1 for f32 when implemented in simulator as used for
-      // f64. It supports unaligned access.
-      Register scratch = no_reg;
-      if (temps.CanAcquire()) {
-        scratch = temps.Acquire();
-      } else {
-        scratch = GetUnusedRegister(kGpReg, pinned).gp();
-      }
-      vmov(scratch, liftoff::GetFloatRegister(src.fp()));
-      str(scratch, MemOperand(actual_dst_addr));
-    }
+    // Armv6 is not supported so Neon can be used to avoid alignment issues.
+    CpuFeatureScope scope(this, NEON);
+    vst1(Neon64, NeonListOperand(src.fp()), NeonMemOperand(actual_dst_addr));
+  } else if (type.value() == StoreType::kF32Store) {
+    // TODO(arm): Use vst1 for f32 when implemented in simulator as used for
+    // f64. It supports unaligned access.
+    // CalculateActualAddress will only not use a scratch register if the
+    // following condition holds, otherwise another register must be
+    // retrieved.
+    Register scratch = (offset_reg == no_reg && offset_imm == 0)
+                           ? temps.Acquire()
+                           : GetUnusedRegister(kGpReg, pinned).gp();
+    Register actual_dst_addr = liftoff::CalculateActualAddress(
+        this, &temps, dst_addr, offset_reg, offset_imm);
+    vmov(scratch, liftoff::GetFloatRegister(src.fp()));
+    str(scratch, MemOperand(actual_dst_addr));
   } else {
     MemOperand dst_op =
         liftoff::GetMemOp(this, &temps, dst_addr, offset_reg, offset_imm);
@@ -671,13 +666,13 @@ bool LiftoffAssembler::emit_i32_ctz(Register dst, Register src) {
 bool LiftoffAssembler::emit_i32_popcnt(Register dst, Register src) {
   {
     UseScratchRegisterScope temps(this);
-    Register scratch = temps.Acquire();
+    LiftoffRegList pinned;
+    pinned.set(dst);
+    Register scratch = GetUnusedRegister(kGpReg, pinned).gp();
+    Register scratch_2 = temps.Acquire();
     // x = x - ((x & (0x55555555 << 1)) >> 1)
     and_(scratch, src, Operand(0xaaaaaaaa));
     sub(dst, src, Operand(scratch, LSR, 1));
-    LiftoffRegList pinned;
-    pinned.set(dst);
-    Register scratch_2 = GetUnusedRegister(kGpReg, pinned).gp();
     // x = (x & 0x33333333) + ((x & (0x33333333 << 2)) >> 2)
     mov(scratch, Operand(0x33333333));
     and_(scratch_2, dst, Operand(scratch, LSL, 2));
@@ -970,8 +965,8 @@ void LiftoffAssembler::emit_f32_copysign(DoubleRegister dst, DoubleRegister lhs,
                                          DoubleRegister rhs) {
   constexpr uint32_t kF32SignBit = uint32_t{1} << 31;
   UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
-  Register scratch2 = GetUnusedRegister(kGpReg).gp();
+  Register scratch = GetUnusedRegister(kGpReg).gp();
+  Register scratch2 = temps.Acquire();
   VmovLow(scratch, lhs);
   // Clear sign bit in {scratch}.
   bic(scratch, scratch, Operand(kF32SignBit));
@@ -989,8 +984,8 @@ void LiftoffAssembler::emit_f64_copysign(DoubleRegister dst, DoubleRegister lhs,
   // On arm, we cannot hold the whole f64 value in a gp register, so we just
   // operate on the upper half (UH).
   UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
-  Register scratch2 = GetUnusedRegister(kGpReg).gp();
+  Register scratch = GetUnusedRegister(kGpReg).gp();
+  Register scratch2 = temps.Acquire();
   VmovHigh(scratch, lhs);
   // Clear sign bit in {scratch}.
   bic(scratch, scratch, Operand(kF64SignBitHighWord));
