@@ -157,8 +157,7 @@ void StreamingDecoder::NotifyRuntimeObjectsCreated(
   auto* comp_state = module_object->native_module()->compilation_state();
   comp_state->AddCallback(TopTierCompiledCallback{
       std::move(native_module), std::move(module_compiled_callback_)});
-  // The callback took ownership of the callback:
-  DCHECK_NULL(module_compiled_callback_);
+  module_compiled_callback_ = {};
 }
 
 // An abstract class to share code among the states which decode VarInts. This

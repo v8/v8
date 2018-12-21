@@ -4453,6 +4453,19 @@ class V8_EXPORT WasmStreaming final {
  public:
   class WasmStreamingImpl;
 
+  /**
+   * Client to receive streaming event notifications.
+   */
+  class Client {
+   public:
+    virtual ~Client() = default;
+    /**
+     * Passes the fully compiled module to the client. This can be used to
+     * implement code caching.
+     */
+    virtual void OnModuleCompiled(CompiledWasmModule compiled_module) = 0;
+  };
+
   explicit WasmStreaming(std::unique_ptr<WasmStreamingImpl> impl);
 
   ~WasmStreaming();
@@ -4478,27 +4491,19 @@ class V8_EXPORT WasmStreaming final {
   void Abort(MaybeLocal<Value> exception);
 
   /**
-   * Callback for module compiled notifications. |data| is the identifier
-   * passed to {SetModuleCompiledCallback}, |compiled_module| is the result.
-   */
-  typedef void (*ModuleCompiledCallback)(intptr_t data,
-                                         CompiledWasmModule compiled_module);
-
-  /**
-   * Sets a callback for when compilation of the Wasm module has been completed
-   * to the highest tier. |data| will be passed as the first callback parameter.
-   */
-  void SetModuleCompiledCallback(ModuleCompiledCallback callback,
-                                 intptr_t data);
-
-  /**
-   * Passes previously compiled module bytes. This must be called before calling
-   * any non-static methods of this class. Returns true if the module bytes can
-   * be used, false otherwise. The buffer passed into {SetCompiledModuleBytes}
+   * Passes previously compiled module bytes. This must be called before
+   * {OnBytesReceived}, {Finish}, or {Abort}. Returns true if the module bytes
+   * can be used, false otherwise. The buffer passed via {bytes} and {size}
    * is owned by the caller. If {SetCompiledModuleBytes} returns true, the
    * buffer must remain valid until either {Finish} or {Abort} completes.
    */
   bool SetCompiledModuleBytes(const uint8_t* bytes, size_t size);
+
+  /**
+   * Sets the client object that will receive streaming event notifications.
+   * This must be called before {OnBytesReceived}, {Finish}, or {Abort}.
+   */
+  void SetClient(std::shared_ptr<Client> client);
 
   /**
    * Unpacks a {WasmStreaming} object wrapped in a  {Managed} for the embedder.

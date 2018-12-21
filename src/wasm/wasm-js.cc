@@ -59,20 +59,18 @@ class WasmStreaming::WasmStreamingImpl {
         Utils::OpenHandle(*exception.ToLocalChecked()));
   }
 
-  void SetModuleCompiledCallback(ModuleCompiledCallback callback,
-                                 intptr_t data) {
-    // Wrap the embedder callback here so we can also wrap the result as a
-    // Local<WasmModuleObject> here.
-    streaming_decoder_->SetModuleCompiledCallback(
-        [callback,
-         data](const std::shared_ptr<i::wasm::NativeModule>& native_module) {
-          callback(data, Utils::Convert(native_module));
-        });
-  }
-
   bool SetCompiledModuleBytes(const uint8_t* bytes, size_t size) {
     if (!i::wasm::IsSupportedVersion({bytes, size})) return false;
     return streaming_decoder_->SetCompiledModuleBytes({bytes, size});
+  }
+
+  void SetClient(std::shared_ptr<Client> client) {
+    // There are no other event notifications so just pass client to decoder.
+    // Wrap the client with a callback here so we can also wrap the result.
+    streaming_decoder_->SetModuleCompiledCallback(
+        [client](const std::shared_ptr<i::wasm::NativeModule>& native_module) {
+          client->OnModuleCompiled(Utils::Convert(native_module));
+        });
   }
 
  private:
@@ -98,13 +96,12 @@ void WasmStreaming::Abort(MaybeLocal<Value> exception) {
   impl_->Abort(exception);
 }
 
-void WasmStreaming::SetModuleCompiledCallback(ModuleCompiledCallback callback,
-                                              intptr_t data) {
-  impl_->SetModuleCompiledCallback(callback, data);
-}
-
 bool WasmStreaming::SetCompiledModuleBytes(const uint8_t* bytes, size_t size) {
   return impl_->SetCompiledModuleBytes(bytes, size);
+}
+
+void WasmStreaming::SetClient(std::shared_ptr<Client> client) {
+  impl_->SetClient(client);
 }
 
 // static
