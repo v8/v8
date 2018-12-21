@@ -22,14 +22,6 @@
 namespace v8 {
 namespace internal {
 
-namespace {
-bool IsLexical(Variable* variable) {
-  if (variable == Scope::kDummyPreParserLexicalVariable) return true;
-  if (variable == Scope::kDummyPreParserVariable) return false;
-  return IsLexicalVariableMode(variable->mode());
-}
-}  // namespace
-
 // ----------------------------------------------------------------------------
 // Implementation of LocalsMap
 //
@@ -61,21 +53,6 @@ Variable* VariableMap::Declare(Zone* zone, Scope* scope,
         scope, name, mode, kind, initialization_flag, maybe_assigned_flag);
     if (variable_list) variable_list->Add(variable);
     p->value = variable;
-  }
-  return reinterpret_cast<Variable*>(p->value);
-}
-
-Variable* VariableMap::DeclareName(Zone* zone, const AstRawString* name,
-                                   VariableMode mode) {
-  Entry* p =
-      ZoneHashMap::LookupOrInsert(const_cast<AstRawString*>(name), name->Hash(),
-                                  ZoneAllocationPolicy(zone));
-  if (p->value == nullptr) {
-    // The variable has not been declared yet -> insert it.
-    DCHECK_EQ(name, p->key);
-    p->value = mode == VariableMode::kVar
-                   ? Scope::kDummyPreParserVariable
-                   : Scope::kDummyPreParserLexicalVariable;
   }
   return reinterpret_cast<Variable*>(p->value);
 }
@@ -564,7 +541,7 @@ void DeclarationScope::HoistSloppyBlockFunctions(AstNodeFactory* factory) {
       // `{ let e; try {} catch (e) { function e(){} } }`
       do {
         var = query_scope->LookupInScopeOrScopeInfo(name);
-        if (var != nullptr && IsLexical(var)) {
+        if (var != nullptr && IsLexicalVariableMode(var->mode())) {
           should_hoist = false;
           break;
         }
@@ -610,10 +587,7 @@ void DeclarationScope::HoistSloppyBlockFunctions(AstNodeFactory* factory) {
     } else {
       DCHECK(is_being_lazily_parsed_);
       Variable* var = DeclareVariableName(name, VariableMode::kVar);
-      if (var != kDummyPreParserVariable &&
-          var != kDummyPreParserLexicalVariable) {
-        var->set_maybe_assigned();
-      }
+      var->set_maybe_assigned();
     }
   }
 }
@@ -717,7 +691,7 @@ void DeclarationScope::DeclareArguments(AstValueFactory* ast_value_factory) {
     // allocated during variable allocation.
     arguments_ = Declare(zone(), ast_value_factory->arguments_string(),
                          VariableMode::kVar);
-  } else if (IsLexical(arguments_)) {
+  } else if (IsLexicalVariableMode(arguments_->mode())) {
     // Check if there's lexically declared variable named arguments to avoid
     // redeclaration. See ES#sec-functiondeclarationinstantiation, step 20.
     arguments_ = nullptr;
@@ -1138,8 +1112,6 @@ Variable* Scope::DeclareVariableName(const AstRawString* name,
 
   // Declare the variable in the declaration scope.
   Variable* var = LookupLocal(name);
-  DCHECK_NE(var, kDummyPreParserLexicalVariable);
-  DCHECK_NE(var, kDummyPreParserVariable);
   if (var == nullptr) {
     var = DeclareLocal(name, mode);
   } else if (IsLexicalVariableMode(mode) ||
@@ -1236,13 +1208,6 @@ const AstRawString* Scope::FindVariableDeclaredIn(Scope* scope,
     if (var != nullptr && var->mode() <= mode_limit) return name;
   }
   return nullptr;
-}
-
-Declaration* Scope::DeclarationFor(const AstRawString* name) {
-  for (Declaration* decl : decls_) {
-    if (decl->proxy()->raw_name() == name) return decl;
-  }
-  UNREACHABLE();
 }
 
 bool DeclarationScope::AllocateVariables(ParseInfo* info) {
@@ -1425,8 +1390,7 @@ void Scope::AnalyzePartially(DeclarationScope* max_outer_scope,
         VariableProxy* copy = ast_node_factory->CopyVariableProxy(proxy);
         new_unresolved_list->Add(copy);
       }
-    } else if (var != Scope::kDummyPreParserVariable &&
-               var != Scope::kDummyPreParserLexicalVariable) {
+    } else {
       var->set_is_used();
       if (proxy->is_assigned()) var->set_maybe_assigned();
     }
@@ -1617,10 +1581,6 @@ void PrintMap(int indent, const char* label, VariableMap* map, bool locals,
   for (VariableMap::Entry* p = map->Start(); p != nullptr; p = map->Next(p)) {
     Variable* var = reinterpret_cast<Variable*>(p->value);
     if (var == function_var) continue;
-    if (var == Scope::kDummyPreParserVariable ||
-        var == Scope::kDummyPreParserLexicalVariable) {
-      continue;
-    }
     bool local = !IsDynamicVariableMode(var->mode());
     if ((locals ? local : !local) &&
         (var->is_used() || !var->IsUnallocated())) {
@@ -1864,13 +1824,6 @@ namespace {
 bool CanBeShadowed(Scope* scope, Variable* var) {
   if (var == nullptr) return false;
 
-  // TODO(marja): Separate Lookup for preparsed scopes better.
-  if (var == Scope::kDummyPreParserVariable ||
-      var == Scope::kDummyPreParserLexicalVariable) {
-    DCHECK(scope->GetDeclarationScope()->is_being_lazily_parsed());
-    return false;
-  }
-
   // "this" can't be shadowed by "eval"-introduced bindings or by "with" scopes.
   // TODO(wingo): There are other variables in this category; add them.
   return !var->is_this();
@@ -2097,9 +2050,6 @@ bool Scope::ResolveVariablesRecursively(ParseInfo* info) {
 }
 
 bool Scope::MustAllocate(Variable* var) {
-  if (var == kDummyPreParserLexicalVariable || var == kDummyPreParserVariable) {
-    return true;
-  }
   DCHECK(var->location() != VariableLocation::MODULE);
   // Give var a read/write use if there is a chance it might be accessed
   // via an eval() call.  This is only possible if the variable has a
@@ -2364,14 +2314,6 @@ void DeclarationScope::AllocateScopeInfos(ParseInfo* info, Isolate* isolate) {
   }
 }
 
-int Scope::StackLocalCount() const {
-  Variable* function =
-      is_function_scope() ? AsDeclarationScope()->function_var() : nullptr;
-  return num_stack_slots() -
-         (function != nullptr && function->IsStackLocal() ? 1 : 0);
-}
-
-
 int Scope::ContextLocalCount() const {
   if (num_heap_slots() == 0) return 0;
   Variable* function =
@@ -2381,10 +2323,6 @@ int Scope::ContextLocalCount() const {
   return num_heap_slots() - Context::MIN_CONTEXT_SLOTS -
          (is_function_var_in_context ? 1 : 0);
 }
-
-void* const Scope::kDummyPreParserVariable = reinterpret_cast<void*>(0x1);
-void* const Scope::kDummyPreParserLexicalVariable =
-    reinterpret_cast<void*>(0x2);
 
 }  // namespace internal
 }  // namespace v8

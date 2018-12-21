@@ -39,11 +39,6 @@ class VariableMap: public ZoneHashMap {
       MaybeAssignedFlag maybe_assigned_flag = kNotAssigned,
       base::ThreadedList<Variable>* variable_list = nullptr);
 
-  // Records that "name" exists (if not recorded yet) but doesn't create a
-  // Variable. Useful for preparsing.
-  Variable* DeclareName(Zone* zone, const AstRawString* name,
-                        VariableMode mode);
-
   Variable* Lookup(const AstRawString* name);
   void Remove(Variable* var);
   void Add(Zone* zone, Variable* var);
@@ -297,9 +292,6 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   const AstRawString* FindVariableDeclaredIn(Scope* scope,
                                              VariableMode mode_limit);
 
-  // Find the declaration that introduced |name|.
-  Declaration* DeclarationFor(const AstRawString* name);
-
   // ---------------------------------------------------------------------------
   // Scope-specific info.
 
@@ -460,7 +452,6 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   int num_stack_slots() const { return num_stack_slots_; }
   int num_heap_slots() const { return num_heap_slots_; }
 
-  int StackLocalCount() const;
   int ContextLocalCount() const;
 
   // Determine if we can parse a function literal in this scope lazily without
@@ -548,9 +539,6 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
     }
     return nullptr;
   }
-
-  static void* const kDummyPreParserVariable;
-  static void* const kDummyPreParserLexicalVariable;
 
  protected:
   explicit Scope(Zone* zone);
