@@ -91,11 +91,6 @@ declare_args() {
   # Enable code comments for builtins in the snapshot (impacts performance).
   v8_enable_snapshot_code_comments = false
 
-  # Build-time flag for enabling nojit mode.
-  # TODO(v8:7777): Remove the build-time flag once the --jitless runtime flag
-  # does everything we need.
-  v8_enable_jitless_mode = false
-
   # Enable code-generation-time checking of types in the CodeStubAssembler.
   v8_enable_verify_csa = false
 
@@ -223,10 +218,10 @@ if (v8_check_microtasks_scopes_consistency == "") {
 assert(v8_current_cpu != "x86" || !v8_untrusted_code_mitigations,
        "Untrusted code mitigations are unsupported on ia32")
 
-assert(!v8_enable_jitless_mode || v8_enable_embedded_builtins,
-       "JIT-less mode requires embedded builtins")
-assert(!v8_enable_jitless_mode || v8_use_snapshot,
-       "JIT-less mode requires a snapshot build")
+assert(!v8_enable_lite_mode || v8_enable_embedded_builtins,
+       "Lite mode requires embedded builtins")
+assert(!v8_enable_lite_mode || v8_use_snapshot,
+       "Lite mode requires a snapshot build")
 
 v8_random_seed = "314159265"
 v8_toolset_for_shell = "host"
@@ -334,6 +329,10 @@ config("features") {
   }
   if (v8_enable_lite_mode) {
     defines += [ "V8_LITE_MODE" ]
+
+    # TODO(v8:7777): Remove the define once the --jitless runtime flag does
+    # everything we need.
+    defines += [ "V8_JITLESS_MODE" ]
   }
   if (v8_enable_gdbjit) {
     defines += [ "ENABLE_GDB_JIT_INTERFACE" ]
@@ -404,9 +403,6 @@ config("features") {
   }
   if (v8_enable_embedded_builtins) {
     defines += [ "V8_EMBEDDED_BUILTINS" ]
-  }
-  if (v8_enable_jitless_mode) {
-    defines += [ "V8_JITLESS_MODE" ]
   }
   if (v8_use_multi_snapshots) {
     defines += [ "V8_MULTI_SNAPSHOTS" ]
@@ -1216,7 +1212,6 @@ action("v8_dump_build_config") {
     "v8_target_cpu=\"$v8_target_cpu\"",
     "v8_use_snapshot=$v8_use_snapshot",
     "v8_enable_embedded_builtins=$v8_enable_embedded_builtins",
-    "v8_enable_jitless_mode=$v8_enable_jitless_mode",
     "v8_enable_verify_csa=$v8_enable_verify_csa",
     "v8_enable_lite_mode=$v8_enable_lite_mode",
     "v8_enable_pointer_compression=$v8_enable_pointer_compression",
