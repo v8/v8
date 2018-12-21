@@ -4,7 +4,6 @@
 
 #include "src/assembler-inl.h"
 #include "src/deoptimizer.h"
-#include "src/macro-assembler.h"
 #include "src/objects-inl.h"
 #include "src/register-configuration.h"
 #include "src/safepoint-table.h"
@@ -14,15 +13,12 @@ namespace internal {
 
 const int Deoptimizer::table_entry_size_ = 8;
 
-#define __ masm->
+#define __ masm()->
 
 // This code tries to be close to ia32 code so that any changes can be
 // easily ported.
-void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
-                                                Isolate* isolate, int count,
-                                                DeoptimizeKind deopt_kind) {
-  NoRootArrayScope no_root_array(masm);
-  GenerateDeoptimizationEntriesPrologue(masm, count);
+void Deoptimizer::TableEntryGenerator::Generate() {
+  GeneratePrologue();
 
   // Save all general purpose registers before messing with them.
   const int kNumberOfRegisters = Register::kNumRegisters;
@@ -36,9 +32,9 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
   // Save all allocatable VFP registers before messing with them.
   {
     // We use a run-time check for VFP32DREGS.
-    CpuFeatureScope scope(masm, VFP32DREGS,
+    CpuFeatureScope scope(masm(), VFP32DREGS,
                           CpuFeatureScope::kDontCheckSupported);
-    UseScratchRegisterScope temps(masm);
+    UseScratchRegisterScope temps(masm());
     Register scratch = temps.Acquire();
 
     // Check CPU flags for number of registers, setting the Z condition flag.
@@ -60,10 +56,10 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
   __ stm(db_w, sp, restored_regs  | sp.bit() | lr.bit() | pc.bit());
 
   {
-    UseScratchRegisterScope temps(masm);
+    UseScratchRegisterScope temps(masm());
     Register scratch = temps.Acquire();
     __ mov(scratch, Operand(ExternalReference::Create(
-                        IsolateAddressId::kCEntryFPAddress, isolate)));
+                        IsolateAddressId::kCEntryFPAddress, isolate())));
     __ str(fp, MemOperand(scratch));
   }
 
@@ -90,15 +86,15 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
   __ JumpIfSmi(r1, &context_check);
   __ ldr(r0, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
   __ bind(&context_check);
-  __ mov(r1, Operand(static_cast<int>(deopt_kind)));
+  __ mov(r1, Operand(static_cast<int>(deopt_kind())));
   // r2: bailout id already loaded.
   // r3: code address or 0 already loaded.
   __ str(r4, MemOperand(sp, 0 * kPointerSize));  // Fp-to-sp delta.
-  __ mov(r5, Operand(ExternalReference::isolate_address(isolate)));
+  __ mov(r5, Operand(ExternalReference::isolate_address(isolate())));
   __ str(r5, MemOperand(sp, 1 * kPointerSize));  // Isolate.
   // Call Deoptimizer::New().
   {
-    AllowExternalCallThatCantCauseGC scope(masm);
+    AllowExternalCallThatCantCauseGC scope(masm());
     __ CallCFunction(ExternalReference::new_deoptimizer_function(), 6);
   }
 
@@ -167,7 +163,7 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
   __ PrepareCallCFunction(1);
   // Call Deoptimizer::ComputeOutputFrames().
   {
-    AllowExternalCallThatCantCauseGC scope(masm);
+    AllowExternalCallThatCantCauseGC scope(masm());
     __ CallCFunction(ExternalReference::compute_output_frames_function(), 1);
   }
   __ pop(r0);  // Restore deoptimizer object (class Deoptimizer).
@@ -228,7 +224,7 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
   // Remove sp, lr and pc.
   __ Drop(3);
   {
-    UseScratchRegisterScope temps(masm);
+    UseScratchRegisterScope temps(masm());
     Register scratch = temps.Acquire();
     __ pop(scratch);  // get continuation, leave pc on stack
     __ pop(lr);
@@ -237,8 +233,8 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
   __ stop("Unreachable.");
 }
 
-void Deoptimizer::GenerateDeoptimizationEntriesPrologue(MacroAssembler* masm,
-                                                        int count) {
+
+void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
   // Create a sequence of deoptimization entries.
   // Note that registers are still live when jumping to an entry.
 
@@ -246,17 +242,17 @@ void Deoptimizer::GenerateDeoptimizationEntriesPrologue(MacroAssembler* masm,
   // ARMv7, we can use movw (with a maximum immediate of 0xFFFF). On ARMv6, we
   // need two instructions.
   STATIC_ASSERT((kMaxNumberOfEntries - 1) <= 0xFFFF);
-  UseScratchRegisterScope temps(masm);
+  UseScratchRegisterScope temps(masm());
   Register scratch = temps.Acquire();
   if (CpuFeatures::IsSupported(ARMv7)) {
-    CpuFeatureScope scope(masm, ARMv7);
+    CpuFeatureScope scope(masm(), ARMv7);
     Label done;
-    for (int i = 0; i < count; i++) {
-      int start = masm->pc_offset();
+    for (int i = 0; i < count(); i++) {
+      int start = masm()->pc_offset();
       USE(start);
       __ movw(scratch, i);
       __ b(&done);
-      DCHECK_EQ(table_entry_size_, masm->pc_offset() - start);
+      DCHECK_EQ(table_entry_size_, masm()->pc_offset() - start);
     }
     __ bind(&done);
   } else {
@@ -265,14 +261,14 @@ void Deoptimizer::GenerateDeoptimizationEntriesPrologue(MacroAssembler* masm,
     // this, we set the low byte in the main table, and then set the high byte
     // in a separate table if necessary.
     Label high_fixes[256];
-    int high_fix_max = (count - 1) >> 8;
+    int high_fix_max = (count() - 1) >> 8;
     DCHECK_GT(arraysize(high_fixes), static_cast<size_t>(high_fix_max));
-    for (int i = 0; i < count; i++) {
-      int start = masm->pc_offset();
+    for (int i = 0; i < count(); i++) {
+      int start = masm()->pc_offset();
       USE(start);
       __ mov(scratch, Operand(i & 0xFF));  // Set the low byte.
       __ b(&high_fixes[i >> 8]);      // Jump to the secondary table.
-      DCHECK_EQ(table_entry_size_, masm->pc_offset() - start);
+      DCHECK_EQ(table_entry_size_, masm()->pc_offset() - start);
     }
     // Generate the secondary table, to set the high byte.
     for (int high = 1; high <= high_fix_max; high++) {

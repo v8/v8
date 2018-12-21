@@ -19,7 +19,6 @@
 #include "src/api-natives.h"
 #include "src/api.h"
 #include "src/arguments.h"
-#include "src/assembler-inl.h"
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
 #include "src/base/bits.h"
@@ -48,6 +47,7 @@
 #include "src/keys.h"
 #include "src/log.h"
 #include "src/lookup-inl.h"
+#include "src/macro-assembler.h"
 #include "src/map-updater.h"
 #include "src/message-template.h"
 #include "src/microtask-queue.h"
@@ -85,7 +85,6 @@
 #include "src/objects/js-segment-iterator.h"
 #include "src/objects/js-segmenter.h"
 #endif  // V8_INTL_SUPPORT
-#include "src/code-comments.h"
 #include "src/objects/js-weak-refs-inl.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/map.h"
@@ -14640,7 +14639,7 @@ void Code::Relocate(intptr_t delta) {
   for (RelocIterator it(*this, RelocInfo::kApplyMask); !it.done(); it.next()) {
     it.rinfo()->apply(delta);
   }
-  FlushICache();
+  Assembler::FlushICache(raw_instruction_start(), raw_instruction_size());
 }
 
 void Code::FlushICache() const {

@@ -6,7 +6,6 @@
 #define V8_COMPILER_BACKEND_X64_UNWINDING_INFO_WRITER_X64_H_
 
 #include "src/eh-frame.h"
-#include "src/flags.h"
 
 namespace v8 {
 namespace internal {

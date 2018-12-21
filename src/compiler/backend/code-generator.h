@@ -11,7 +11,6 @@
 #include "src/compiler/backend/unwinding-info-writer.h"
 #include "src/compiler/osr.h"
 #include "src/deoptimizer.h"
-#include "src/macro-assembler.h"
 #include "src/safepoint-table.h"
 #include "src/source-position-table.h"
 #include "src/trap-handler/trap-handler.h"

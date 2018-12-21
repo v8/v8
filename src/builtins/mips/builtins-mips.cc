@@ -11,7 +11,6 @@
 #include "src/deoptimizer.h"
 #include "src/frame-constants.h"
 #include "src/frames.h"
-#include "src/macro-assembler-inl.h"
 #include "src/mips/constants-mips.h"
 #include "src/objects-inl.h"
 #include "src/objects/cell.h"

@@ -55,7 +55,6 @@
 #include "src/label.h"
 #include "src/objects/smi.h"
 #include "src/s390/constants-s390.h"
-#include "src/s390/register-s390.h"
 
 #define ABI_USES_FUNCTION_DESCRIPTORS 0
 

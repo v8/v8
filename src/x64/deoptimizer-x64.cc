@@ -5,7 +5,6 @@
 #if V8_TARGET_ARCH_X64
 
 #include "src/deoptimizer.h"
-#include "src/macro-assembler.h"
 #include "src/objects-inl.h"
 #include "src/register-configuration.h"
 #include "src/safepoint-table.h"
@@ -15,16 +14,13 @@ namespace internal {
 
 const int Deoptimizer::table_entry_size_ = 5;
 
-#define __ masm->
+#define __ masm()->
 
-void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
-                                                Isolate* isolate, int count,
-                                                DeoptimizeKind deopt_kind) {
-  NoRootArrayScope no_root_array(masm);
+void Deoptimizer::TableEntryGenerator::Generate() {
   Label deopt_table_entry;
   __ bind(&deopt_table_entry);
 
-  GenerateDeoptimizationEntriesPrologue(masm, count);
+  GeneratePrologue();
 
   // Save all general purpose registers before messing with them.
   const int kNumberOfRegisters = Register::kNumRegisters;
@@ -61,7 +57,7 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
       kNumberOfRegisters * kRegisterSize + kDoubleRegsSize + kFloatRegsSize;
 
   __ Store(
-      ExternalReference::Create(IsolateAddressId::kCEntryFPAddress, isolate),
+      ExternalReference::Create(IsolateAddressId::kCEntryFPAddress, isolate()),
       rbp);
 
   // We use this to keep the value of the fifth argument temporarily.
@@ -105,22 +101,21 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
   __ movp(rax, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
   __ bind(&context_check);
   __ movp(arg_reg_1, rax);
-  __ Set(arg_reg_2, static_cast<int>(deopt_kind));
+  __ Set(arg_reg_2, static_cast<int>(deopt_kind()));
   // Args 3 and 4 are already in the right registers.
 
   // On windows put the arguments on the stack (PrepareCallCFunction
   // has created space for this). On linux pass the arguments in r8 and r9.
 #ifdef _WIN64
   __ movq(Operand(rsp, 4 * kRegisterSize), arg5);
-  __ LoadAddress(arg5, ExternalReference::isolate_address(isolate));
+  __ LoadAddress(arg5, ExternalReference::isolate_address(isolate()));
   __ movq(Operand(rsp, 5 * kRegisterSize), arg5);
 #else
   __ movp(r8, arg5);
-  __ LoadAddress(r9, ExternalReference::isolate_address(isolate));
+  __ LoadAddress(r9, ExternalReference::isolate_address(isolate()));
 #endif
 
-  {
-    AllowExternalCallThatCantCauseGC scope(masm);
+  { AllowExternalCallThatCantCauseGC scope(masm());
     __ CallCFunction(ExternalReference::new_deoptimizer_function(), 6);
   }
   // Preserve deoptimizer object in register rax and get the input
@@ -176,9 +171,9 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
   __ pushq(rax);
   __ PrepareCallCFunction(2);
   __ movp(arg_reg_1, rax);
-  __ LoadAddress(arg_reg_2, ExternalReference::isolate_address(isolate));
+  __ LoadAddress(arg_reg_2, ExternalReference::isolate_address(isolate()));
   {
-    AllowExternalCallThatCantCauseGC scope(masm);
+    AllowExternalCallThatCantCauseGC scope(masm());
     __ CallCFunction(ExternalReference::compute_output_frames_function(), 2);
   }
   __ popq(rax);
@@ -243,15 +238,15 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
   __ ret(0);
 }
 
-void Deoptimizer::GenerateDeoptimizationEntriesPrologue(MacroAssembler* masm,
-                                                        int count) {
+
+void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
   // Create a sequence of deoptimization entries.
   Label done;
-  for (int i = 0; i < count; i++) {
-    int start = masm->pc_offset();
+  for (int i = 0; i < count(); i++) {
+    int start = masm()->pc_offset();
     USE(start);
     __ call(&done);
-    DCHECK(masm->pc_offset() - start == table_entry_size_);
+    DCHECK(masm()->pc_offset() - start == table_entry_size_);
   }
   __ bind(&done);
 }
