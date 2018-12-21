@@ -6461,6 +6461,48 @@ TEST(Regress8014) {
   CHECK_LE(heap->ms_count(), ms_count + 10);
 }
 
+TEST(Regress8617) {
+  ManualGCScope manual_gc_scope;
+  FLAG_manual_evacuation_candidates_selection = true;
+  LocalContext env;
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+  HandleScope scope(isolate);
+  heap::SimulateFullSpace(heap->old_space());
+  // Step 1. Create a function and ensure that it is in the old space.
+  Handle<Object> foo =
+      v8::Utils::OpenHandle(*CompileRun("function foo() { return 42; };"
+                                        "foo;"));
+  if (heap->InNewSpace(*foo)) {
+    CcTest::CollectGarbage(NEW_SPACE);
+    CcTest::CollectGarbage(NEW_SPACE);
+  }
+  // Step 2. Create an object with a reference to foo in the descriptor array.
+  CompileRun(
+      "var obj = {};"
+      "obj.method = foo;"
+      "obj;");
+  // Step 3. Make sure that foo moves during Mark-Compact.
+  Page* ec_page = Page::FromAddress(HeapObject::cast(*foo)->address());
+  heap::ForceEvacuationCandidate(ec_page);
+  // Step 4. Start incremental marking.
+  heap::SimulateIncrementalMarking(heap, false);
+  CHECK(ec_page->IsEvacuationCandidate());
+  // Step 5. Install a new descriptor array on the map of the object.
+  // This runs the marking barrier for the descriptor array.
+  // In the bad case it sets the number of marked descriptors but does not
+  // change the color of the descriptor array.
+  CompileRun("obj.bar = 10;");
+  // Step 6. Promote the descriptor array to old space. During promotion
+  // the Scavenger will not record the slot of foo in the descriptor array.
+  CcTest::CollectGarbage(NEW_SPACE);
+  CcTest::CollectGarbage(NEW_SPACE);
+  // Step 7. Complete the Mark-Compact.
+  CcTest::CollectAllGarbage();
+  // Step 8. Use the descriptor for foo, which contains a stale pointer.
+  CompileRun("obj.method()");
+}
+
 }  // namespace heap
 }  // namespace internal
 }  // namespace v8

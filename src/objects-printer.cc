@@ -850,6 +850,10 @@ void DescriptorArray::DescriptorArrayPrint(std::ostream& os) {
   }
   os << "\n - nof slack descriptors: " << number_of_slack_descriptors();
   os << "\n - nof descriptors: " << number_of_descriptors();
+  int16_t raw_marked = raw_number_of_marked_descriptors();
+  os << "\n - raw marked descriptors: mc epoch "
+     << NumberOfMarkedDescriptors::Epoch::decode(raw_marked) << ", marked "
+     << NumberOfMarkedDescriptors::Marked::decode(raw_marked);
   PrintDescriptors(os);
 }
 
