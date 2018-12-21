@@ -2432,43 +2432,28 @@ MaybeLocal<Module> ScriptCompiler::CompileModule(
   return ToApiHandle<Module>(i_isolate->factory()->NewModule(shared));
 }
 
-
-class IsIdentifierHelper {
- public:
-  IsIdentifierHelper() : is_identifier_(false), first_char_(true) {}
-
-  bool Check(i::String string) {
-    i::ConsString cons_string = i::String::VisitFlat(this, string, 0);
-    if (cons_string.is_null()) return is_identifier_;
-    // We don't support cons strings here.
-    return false;
-  }
-  void VisitOneByteString(const uint8_t* chars, int length) {
-    for (int i = 0; i < length; ++i) {
-      if (first_char_) {
-        first_char_ = false;
-        is_identifier_ = i::IsIdentifierStart(chars[0]);
-      } else {
-        is_identifier_ &= i::IsIdentifierPart(chars[i]);
-      }
+namespace {
+bool IsIdentifier(i::Isolate* isolate, i::Handle<i::String> string) {
+  string = i::String::Flatten(isolate, string);
+  const int length = string->length();
+  if (length == 0) return false;
+  if (!i::IsIdentifierStart(string->Get(0))) return false;
+  i::DisallowHeapAllocation no_gc;
+  i::String::FlatContent flat = string->GetFlatContent(no_gc);
+  if (flat.IsOneByte()) {
+    auto vector = flat.ToOneByteVector();
+    for (int i = 1; i < length; i++) {
+      if (!i::IsIdentifierPart(vector[i])) return false;
+    }
+  } else {
+    auto vector = flat.ToUC16Vector();
+    for (int i = 1; i < length; i++) {
+      if (!i::IsIdentifierPart(vector[i])) return false;
     }
   }
-  void VisitTwoByteString(const uint16_t* chars, int length) {
-    for (int i = 0; i < length; ++i) {
-      if (first_char_) {
-        first_char_ = false;
-        is_identifier_ = i::IsIdentifierStart(chars[0]);
-      } else {
-        is_identifier_ &= i::IsIdentifierPart(chars[i]);
-      }
-    }
-  }
-
- private:
-  bool is_identifier_;
-  bool first_char_;
-  DISALLOW_COPY_AND_ASSIGN(IsIdentifierHelper);
-};
+  return true;
+}
+}  // anonymous namespace
 
 MaybeLocal<Function> ScriptCompiler::CompileFunctionInContext(
     Local<Context> v8_context, Source* source, size_t arguments_count,
@@ -2493,9 +2478,8 @@ MaybeLocal<Function> ScriptCompiler::CompileFunctionInContext(
   i::Handle<i::FixedArray> arguments_list =
       isolate->factory()->NewFixedArray(static_cast<int>(arguments_count));
   for (int i = 0; i < static_cast<int>(arguments_count); i++) {
-    IsIdentifierHelper helper;
     i::Handle<i::String> argument = Utils::OpenHandle(*arguments[i]);
-    if (!helper.Check(*argument)) return Local<Function>();
+    if (!IsIdentifier(isolate, argument)) return Local<Function>();
     arguments_list->set(i, *argument);
   }
 
