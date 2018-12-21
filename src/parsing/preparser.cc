@@ -434,14 +434,14 @@ void PreParser::DeclareAndInitializeVariables(
     ZonePtrList<const AstRawString>* names) {
   if (declaration->pattern.variables_ != nullptr) {
     for (auto variable : *(declaration->pattern.variables_)) {
-      declaration_descriptor->scope->DeleteUnresolved(variable);
+      scope()->DeleteUnresolved(variable);
       Variable* var = scope()->DeclareVariableName(
           variable->raw_name(), declaration_descriptor->mode);
       if (var == nullptr) {
         ReportUnidentifiableError();
         return;
       }
-      MarkLoopVariableAsAssigned(declaration_descriptor->scope, var,
+      MarkLoopVariableAsAssigned(scope(), var,
                                  declaration_descriptor->declaration_kind);
       // This is only necessary if there is an initializer, but we don't have
       // that information here.  Consequently, the preparser sometimes says

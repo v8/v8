@@ -1574,7 +1574,6 @@ Block* Parser::RewriteCatchPattern(CatchInfo* catch_info) {
   DCHECK_NOT_NULL(catch_info->pattern);
   DeclarationDescriptor descriptor;
   descriptor.declaration_kind = DeclarationDescriptor::NORMAL;
-  descriptor.scope = scope();
   descriptor.mode = VariableMode::kLet;
   descriptor.declaration_pos = catch_info->pattern->position();
   descriptor.initialization_pos = catch_info->pattern->position();
@@ -1885,7 +1884,6 @@ void Parser::DesugarBindingInForEachStatement(ForInfo* for_info,
     auto descriptor = for_info->parsing_result.descriptor;
     descriptor.declaration_pos = kNoSourcePosition;
     descriptor.initialization_pos = kNoSourcePosition;
-    descriptor.scope = scope();
     decl.initializer = factory()->NewVariableProxy(temp);
 
     bool is_for_var_of =
@@ -2819,7 +2817,6 @@ Block* Parser::BuildParameterInitializationBlock(
   for (auto parameter : parameters.params) {
     DeclarationDescriptor descriptor;
     descriptor.declaration_kind = DeclarationDescriptor::PARAMETER;
-    descriptor.scope = scope();
     descriptor.mode = VariableMode::kLet;
     descriptor.declaration_pos = parameter->pattern->position();
     // The position that will be used by the AssignmentExpression
@@ -2856,9 +2853,6 @@ Block* Parser::BuildParameterInitializationBlock(
       param_scope->RecordEvalCall();
       param_block = factory()->NewBlock(8, true);
       param_block->set_scope(param_scope);
-      // Pass the appropriate scope in so that PatternRewriter can appropriately
-      // rewrite inner initializers of the pattern to param_scope
-      descriptor.scope = param_scope;
       // Rewrite the outer initializer to point to param_scope
       ReparentExpressionScope(stack_limit(), initial_value, param_scope);
     }

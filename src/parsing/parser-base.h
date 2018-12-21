@@ -483,7 +483,6 @@ class ParserBase {
 
   struct DeclarationDescriptor {
     enum Kind { NORMAL, PARAMETER, FOR_EACH };
-    Scope* scope;
     VariableMode mode;
     int declaration_pos;
     int initialization_pos;
@@ -3522,8 +3521,6 @@ typename ParserBase<Impl>::BlockT ParserBase<Impl>::ParseVariableDeclarations(
       break;
   }
 
-  parsing_result->descriptor.scope = scope();
-
   int bindings_start = peek_position();
   do {
     // Parse binding pattern.
@@ -5385,15 +5382,23 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForStatement(
 
     Expect(Token::SEMICOLON);
 
-    StatementT init = impl()->BuildInitializationBlock(&for_info.parsing_result,
-                                                       &for_info.bound_names);
+    // Parse the remaining code in the inner block scope since the declaration
+    // above was parsed there. We'll finalize the unnecessary outer block scope
+    // after parsing the rest of the loop.
+    StatementT result = impl()->NullStatement();
+    inner_block_scope->set_start_position(scope()->start_position());
+    {
+      BlockState inner_state(&scope_, inner_block_scope);
+      StatementT init = impl()->BuildInitializationBlock(
+          &for_info.parsing_result, &for_info.bound_names);
 
-    Scope* finalized = inner_block_scope->FinalizeBlockScope();
-    // No variable declarations will have been created in inner_block_scope.
+      result = ParseStandardForLoopWithLexicalDeclarations(
+          stmt_pos, init, &for_info, labels, own_labels);
+    }
+    Scope* finalized = scope()->FinalizeBlockScope();
     DCHECK_NULL(finalized);
     USE(finalized);
-    return ParseStandardForLoopWithLexicalDeclarations(
-        stmt_pos, init, &for_info, labels, own_labels);
+    return result;
   }
 
   StatementT init = impl()->NullStatement();
