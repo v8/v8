@@ -68,7 +68,7 @@ interface Inlining {
   sourceId: number;
 }
 interface OtherPhase {
-  type: "disassembly"|"sequence"|"schedule";
+  type: "disassembly" | "sequence" | "schedule";
   name: string;
   data: any;
 }
@@ -77,9 +77,9 @@ interface InstructionsPhase {
   type: "instructions";
   name: string;
   data: any;
-  instructionOffsetToPCOffset: any;
-  blockIdtoInstructionRange: any;
-  nodeIdToInstructionRange: any;
+  instructionOffsetToPCOffset?: any;
+  blockIdtoInstructionRange?: any;
+  nodeIdToInstructionRange?: any;
 }
 
 interface GraphPhase {
@@ -320,7 +320,7 @@ export class SourceResolver {
     return inliningStack;
   }
 
-  recordOrigins(phase:GraphPhase) {
+  recordOrigins(phase: GraphPhase) {
     if (phase.type != "graph") return;
     for (const node of phase.data.nodes) {
       phase.highestNodeId = Math.max(phase.highestNodeId, node.id)
@@ -436,29 +436,37 @@ export class SourceResolver {
 
   parsePhases(phases) {
     for (const [phaseId, phase] of Object.entries<Phase>(phases)) {
-      if (phase.type == 'disassembly') {
-        this.disassemblyPhase = phase;
-      } else if (phase.type == 'schedule') {
-        this.phases.push(this.parseSchedule(phase));
-        this.phaseNames.set(phase.name, this.phases.length);
-      } else if (phase.type == 'sequence') {
-        this.phases.push(this.parseSequence(phase));
-        this.phaseNames.set(phase.name, this.phases.length);
-      } else if (phase.type == 'instructions') {
-        if (phase.nodeIdToInstructionRange) {
-          this.readNodeIdToInstructionRange(phase.nodeIdToInstructionRange);
-        }
-        if (phase.blockIdtoInstructionRange) {
-          this.readBlockIdToInstructionRange(phase.blockIdtoInstructionRange);
-        }
-        if (phase.instructionOffsetToPCOffset) {
-          this.readInstructionOffsetToPCOffset(phase.instructionOffsetToPCOffset);
-        }
-      } else {
-        const graphPhase: GraphPhase = Object.assign({highestNodeId: 0});
-        this.phases.push(graphPhase);
-        this.recordOrigins(graphPhase);
-        this.phaseNames.set(graphPhase.name, this.phases.length);
+      switch (phase.type) {
+        case 'disassembly':
+          this.disassemblyPhase = phase;
+          break;
+        case 'schedule':
+          this.phases.push(this.parseSchedule(phase));
+          this.phaseNames.set(phase.name, this.phases.length);
+          break;
+        case 'sequence':
+          this.phases.push(this.parseSequence(phase));
+          this.phaseNames.set(phase.name, this.phases.length);
+          break;
+        case 'instructions':
+          if (phase.nodeIdToInstructionRange) {
+            this.readNodeIdToInstructionRange(phase.nodeIdToInstructionRange);
+          }
+          if (phase.blockIdtoInstructionRange) {
+            this.readBlockIdToInstructionRange(phase.blockIdtoInstructionRange);
+          }
+          if (phase.instructionOffsetToPCOffset) {
+            this.readInstructionOffsetToPCOffset(phase.instructionOffsetToPCOffset);
+          }
+          break;
+        case 'graph':
+          const graphPhase: GraphPhase = Object.assign(phase, { highestNodeId: 0 });
+          this.phases.push(graphPhase);
+          this.recordOrigins(graphPhase);
+          this.phaseNames.set(graphPhase.name, this.phases.length);
+          break;
+        default:
+          throw "Unsupported phase type";
       }
     }
   }
@@ -475,7 +483,7 @@ export class SourceResolver {
     return this.phaseNames.get(phaseName);
   }
 
-  forEachPhase(f:(value: Phase, index: number, array: Phase[]) => void) {
+  forEachPhase(f: (value: Phase, index: number, array: Phase[]) => void) {
     this.phases.forEach(f);
   }
 

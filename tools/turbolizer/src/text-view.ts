@@ -59,11 +59,12 @@ export abstract class TextView extends View {
     };
     this.selectionHandler = selectionHandler;
     broker.addNodeHandler(selectionHandler);
-    view.divNode.onmouseup = function (e) {
+    view.divNode.addEventListener('click', (e) => {
       if (!e.shiftKey) {
         view.selectionHandler.clear();
       }
-    }
+      e.stopPropagation();
+    });
     const blockSelectionHandler = {
       clear: function () {
         view.blockSelection.clear();
@@ -138,18 +139,6 @@ export abstract class TextView extends View {
     const elementsToSelect = view.divNode.querySelectorAll(`[data-pc-offset]`)
     for (const el of elementsToSelect) {
       el.classList.toggle("selected", false);
-    }
-    let keyPcOffsets = view.sourceResolver.nodesToKeyPcOffsets(view.selection.selectedKeys());
-    if (view.offsetSelection) {
-      for (const key of view.offsetSelection.selectedKeys()) {
-        keyPcOffsets.push(Number(key))
-      }
-    }
-    for (const keyPcOffset of keyPcOffsets) {
-      const elementsToSelect = view.divNode.querySelectorAll(`[data-pc-offset='${keyPcOffset}']`)
-      for (const el of elementsToSelect) {
-        el.classList.toggle("selected", true);
-      }
     }
     for (const key of this.nodeIdToHtmlElementsMap.keys()) {
       for (const element of this.nodeIdToHtmlElementsMap.get(key)) {

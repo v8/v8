@@ -118,6 +118,7 @@ export class DisassemblyView extends TextView {
     const linkHandler = (e) => {
       const offset = e.target.dataset.pcOffset;
       if (typeof offset != "undefined" && !Number.isNaN(offset)) {
+        view.offsetSelection.select([offset], true);
         const [nodes, blockId] = view.sourceResolver.nodesForPCOffset(offset)
         if (nodes.length > 0) {
           e.stopPropagation();
@@ -125,6 +126,8 @@ export class DisassemblyView extends TextView {
             view.selectionHandler.clear();
           }
           view.selectionHandler.select(nodes, true);
+        } else {
+          view.updateSelection();
         }
       }
       return undefined;
@@ -168,6 +171,22 @@ export class DisassemblyView extends TextView {
     };
     this.instructionSelectionHandler = instructionSelectionHandler;
     broker.addInstructionHandler(instructionSelectionHandler);
+  }
+
+  updateSelection(scrollIntoView: boolean = false) {
+    super.updateSelection(scrollIntoView);
+    let keyPcOffsets = this.sourceResolver.nodesToKeyPcOffsets(this.selection.selectedKeys());
+    if (this.offsetSelection) {
+      for (const key of this.offsetSelection.selectedKeys()) {
+        keyPcOffsets.push(Number(key))
+      }
+    }
+    for (const keyPcOffset of keyPcOffsets) {
+      const elementsToSelect = this.divNode.querySelectorAll(`[data-pc-offset='${keyPcOffset}']`)
+      for (const el of elementsToSelect) {
+        el.classList.toggle("selected", true);
+      }
+    }
   }
 
   initializeCode(sourceText, sourcePosition) {
