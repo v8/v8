@@ -616,13 +616,12 @@ class EmbeddedVector : public Vector<T> {
   }
 
   // When copying, make underlying Vector to reference our buffer.
-  EmbeddedVector(const EmbeddedVector& rhs)
-      : Vector<T>(rhs) {
+  EmbeddedVector(const EmbeddedVector& rhs) V8_NOEXCEPT : Vector<T>(rhs) {
     MemCopy(buffer_, rhs.buffer_, sizeof(T) * kSize);
     this->set_start(buffer_);
   }
 
-  EmbeddedVector& operator=(const EmbeddedVector& rhs) {
+  EmbeddedVector& operator=(const EmbeddedVector& rhs) V8_NOEXCEPT {
     if (this == &rhs) return *this;
     Vector<T>::operator=(rhs);
     MemCopy(buffer_, rhs.buffer_, sizeof(T) * kSize);
