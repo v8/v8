@@ -23,11 +23,11 @@ export abstract class TextView extends View {
   sourceResolver: SourceResolver;
   broker: SelectionBroker;
 
-  constructor(id, broker, patterns) {
+  constructor(id, broker) {
     super(id);
     let view = this;
     view.textListNode = view.divNode.getElementsByTagName('ul')[0];
-    view.patterns = patterns;
+    view.patterns = null;
     view.nodeIdToHtmlElementsMap = new Map();
     view.blockIdToHtmlElementsMap = new Map();
     view.blockIdtoNodeIds = new Map();
@@ -157,8 +157,7 @@ export abstract class TextView extends View {
   }
 
   setPatterns(patterns) {
-    let view = this;
-    view.patterns = patterns;
+    this.patterns = patterns;
   }
 
   clearText() {
@@ -172,25 +171,18 @@ export abstract class TextView extends View {
     let view = this;
     let fragment = document.createElement("SPAN");
 
-    if (typeof style.link == 'function') {
-      fragment.classList.add('linkable-text');
-      fragment.onmouseup = function (e) {
-        e.stopPropagation();
-        style.link(text)
-      };
-    }
-
     if (typeof style.associateData == 'function') {
       style.associateData(text, fragment);
+    } else {
+      if (style.css != undefined) {
+        const css = isIterable(style.css) ? style.css : [style.css];
+        for (const cls of css) {
+          fragment.classList.add(cls);
+        }
+      }
+      fragment.innerHTML = text;
     }
 
-    if (style.css != undefined) {
-      const css = isIterable(style.css) ? style.css : [style.css];
-      for (const cls of css) {
-        fragment.classList.add(cls);
-      }
-    }
-    fragment.innerHTML = text;
     return fragment;
   }
 

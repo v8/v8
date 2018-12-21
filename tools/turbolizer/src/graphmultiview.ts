@@ -12,7 +12,7 @@ import { View, PhaseView } from "../src/view"
 const multiviewID = "multiview";
 
 const toolboxHTML = `
-<div id="graph-toolbox">
+<div class="graph-toolbox">
   <input id="layout" type="image" title="layout graph" src="layout-icon.png" alt="layout graph" class="button-input">
   <input id="show-all" type="image" title="show all nodes" src="expand-all.jpg" alt="show all nodes" class="button-input">
   <input id="toggle-hide-dead" type="image" title="show only live nodes" src="live.png" alt="only live nodes"
@@ -53,7 +53,7 @@ export class GraphMultiView extends View {
     view.sourceResolver = sourceResolver;
     view.selectionBroker = selectionBroker;
     const toolbox = document.createElement("div")
-    toolbox.id = "graph-toolbox-anchor";
+    toolbox.className = "toolbox-anchor";
     toolbox.innerHTML = toolboxHTML
     view.divNode.appendChild(toolbox);
     const searchInput = toolbox.querySelector("#search-input") as HTMLInputElement;

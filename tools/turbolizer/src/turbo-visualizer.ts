@@ -226,9 +226,9 @@ window.onload = function () {
 
       const jsonObj = JSON.parse(txtRes);
 
-      let fnc = Object.assign(jsonObj.function, {backwardsCompatibility: false});
+      let fnc = null
       // Backwards compatibility.
-      if (typeof fnc == 'string') {
+      if (typeof jsonObj.function == 'string') {
         fnc = {
           functionName: fnc,
           sourceId: -1,
@@ -237,6 +237,8 @@ window.onload = function () {
           sourceText: jsonObj.source,
           backwardsCompatibility: true
         };
+      } else {
+        fnc = Object.assign(jsonObj.function, {backwardsCompatibility: false});
       }
 
       sourceResolver.setInlinings(jsonObj.inlinings);

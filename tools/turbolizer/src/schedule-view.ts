@@ -18,7 +18,7 @@ export class ScheduleView extends TextView implements PhaseView {
   }
 
   constructor(parentId, broker) {
-    super(parentId, broker, null);
+    super(parentId, broker);
     this.sourceResolver = broker.sourceResolver;
   }
 

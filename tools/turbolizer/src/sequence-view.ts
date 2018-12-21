@@ -19,7 +19,7 @@ export class SequenceView extends TextView implements PhaseView {
   }
 
   constructor(parentId, broker) {
-    super(parentId, broker, null);
+    super(parentId, broker);
   }
 
   attachSelection(s) {
