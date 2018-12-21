@@ -455,8 +455,17 @@
 #define READ_UINT32_FIELD(p, offset) \
   (*reinterpret_cast<const uint32_t*>(FIELD_ADDR(p, offset)))
 
+#define RELAXED_READ_UINT32_FIELD(p, offset) \
+  static_cast<uint32_t>(base::Relaxed_Load(  \
+      reinterpret_cast<const base::Atomic32*>(FIELD_ADDR(p, offset))))
+
 #define WRITE_UINT32_FIELD(p, offset, value) \
   (*reinterpret_cast<uint32_t*>(FIELD_ADDR(p, offset)) = value)
+
+#define RELAXED_WRITE_UINT32_FIELD(p, offset, value)            \
+  base::Relaxed_Store(                                          \
+      reinterpret_cast<base::Atomic32*>(FIELD_ADDR(p, offset)), \
+      static_cast<base::Atomic32>(value));
 
 #define READ_INT32_FIELD(p, offset) \
   (*reinterpret_cast<const int32_t*>(FIELD_ADDR(p, offset)))
@@ -468,13 +477,13 @@
 #define WRITE_INT32_FIELD(p, offset, value) \
   (*reinterpret_cast<int32_t*>(FIELD_ADDR(p, offset)) = value)
 
-#define RELAXED_WRITE_INT32_FIELD(p, offset, value)             \
-  base::Relaxed_Store(                                          \
-      reinterpret_cast<base::Atomic32*>(FIELD_ADDR(p, offset)), \
-      static_cast<base::Atomic32>(value));
-
 #define RELEASE_WRITE_INT32_FIELD(p, offset, value)             \
   base::Release_Store(                                          \
+      reinterpret_cast<base::Atomic32*>(FIELD_ADDR(p, offset)), \
+      static_cast<base::Atomic32>(value))
+
+#define RELAXED_WRITE_INT32_FIELD(p, offset, value)             \
+  base::Relaxed_Store(                                          \
       reinterpret_cast<base::Atomic32*>(FIELD_ADDR(p, offset)), \
       static_cast<base::Atomic32>(value));
 

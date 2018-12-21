@@ -575,6 +575,7 @@ class Map : public HeapObject {
 
   // [instance descriptors]: describes the object.
   inline DescriptorArray instance_descriptors() const;
+  inline DescriptorArray synchronized_instance_descriptors() const;
   void SetInstanceDescriptors(Isolate* isolate, DescriptorArray descriptors,
                               int number_of_own_descriptors);
 
@@ -971,7 +972,8 @@ class Map : public HeapObject {
       MaybeHandle<FieldType> new_field_type, MaybeHandle<Object> new_value);
 
   // Use the high-level instance_descriptors/SetInstanceDescriptors instead.
-  DECL_ACCESSORS2(raw_instance_descriptors, DescriptorArray)
+  inline void set_synchronized_instance_descriptors(
+      DescriptorArray array, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   static const int kFastPropertiesSoftLimit = 12;
   static const int kMaxFastProperties = 128;

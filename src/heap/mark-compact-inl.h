@@ -184,17 +184,29 @@ int MarkingVisitor<fixed_array_mode, retaining_path_mode, MarkingState>::
 template <FixedArrayVisitationMode fixed_array_mode,
           TraceRetainingPathMode retaining_path_mode, typename MarkingState>
 int MarkingVisitor<fixed_array_mode, retaining_path_mode,
-                   MarkingState>::VisitMap(Map map, Map object) {
-  // When map collection is enabled we have to mark through map's transitions
-  // and back pointers in a special way to make these links weak.
-  int size = Map::BodyDescriptor::SizeOf(map, object);
-  if (object->CanTransition()) {
+                   MarkingState>::VisitMap(Map meta_map, Map map) {
+  int size = Map::BodyDescriptor::SizeOf(meta_map, map);
+  if (map->CanTransition()) {
     // Maps that can transition share their descriptor arrays and require
     // special visiting logic to avoid memory leaks.
-    MarkMapContents(object);
-  } else {
-    Map::BodyDescriptor::IterateBody(map, object, size, this);
+    // Since descriptor arrays are potentially shared, ensure that only the
+    // descriptors that belong to this map are marked. The first time a
+    // non-empty descriptor array is marked, its header is also visited. The
+    // slot holding the descriptor array will be implicitly recorded when the
+    // pointer fields of this map are visited.
+    DescriptorArray descriptors = map->instance_descriptors();
+    MarkDescriptorArrayBlack(map, descriptors);
+    int number_of_own_descriptors = map->NumberOfOwnDescriptors();
+    if (number_of_own_descriptors) {
+      DCHECK_LE(number_of_own_descriptors,
+                descriptors->number_of_descriptors());
+      VisitDescriptors(descriptors, number_of_own_descriptors);
+    }
+    // Mark the pointer fields of the Map. Since the transitions array has
+    // been marked already, it is fine that one of these fields contains a
+    // pointer to it.
   }
+  Map::BodyDescriptor::IterateBody(meta_map, map, size, this);
   return size;
 }
 
@@ -404,30 +416,6 @@ int MarkingVisitor<fixed_array_mode, retaining_path_mode, MarkingState>::
     FixedArray::BodyDescriptor::IterateBody(map, object, object_size, this);
   }
   return object_size;
-}
-
-template <FixedArrayVisitationMode fixed_array_mode,
-          TraceRetainingPathMode retaining_path_mode, typename MarkingState>
-void MarkingVisitor<fixed_array_mode, retaining_path_mode,
-                    MarkingState>::MarkMapContents(Map map) {
-  // Since descriptor arrays are potentially shared, ensure that only the
-  // descriptors that belong to this map are marked. The first time a non-empty
-  // descriptor array is marked, its header is also visited. The slot holding
-  // the descriptor array will be implicitly recorded when the pointer fields of
-  // this map are visited.
-
-  DescriptorArray descriptors = map->instance_descriptors();
-  MarkDescriptorArrayBlack(map, descriptors);
-  int number_of_own_descriptors = map->NumberOfOwnDescriptors();
-  if (number_of_own_descriptors) {
-    VisitDescriptors(descriptors, number_of_own_descriptors);
-  }
-
-  // Mark the pointer fields of the Map. Since the transitions array has
-  // been marked already, it is fine that one of these fields contains a
-  // pointer to it.
-  Map::BodyDescriptor::IterateBody(
-      map->map(), map, Map::BodyDescriptor::SizeOf(map->map(), map), this);
 }
 
 template <FixedArrayVisitationMode fixed_array_mode,

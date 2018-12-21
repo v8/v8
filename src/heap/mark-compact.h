@@ -1013,8 +1013,6 @@ class MarkingVisitor final
   template <typename T>
   V8_INLINE int VisitEmbedderTracingSubclass(Map map, T object);
 
-  V8_INLINE void MarkMapContents(Map map);
-
   // Marks the object grey and pushes it on the marking work list.
   V8_INLINE void MarkObject(HeapObject host, HeapObject obj);
 

@@ -30,7 +30,20 @@ namespace internal {
 OBJECT_CONSTRUCTORS_IMPL(Map, HeapObject)
 CAST_ACCESSOR2(Map)
 
-ACCESSORS2(Map, raw_instance_descriptors, DescriptorArray, kDescriptorsOffset)
+DescriptorArray Map::instance_descriptors() const {
+  return DescriptorArray::cast(READ_FIELD(this, kDescriptorsOffset));
+}
+
+DescriptorArray Map::synchronized_instance_descriptors() const {
+  return DescriptorArray::cast(ACQUIRE_READ_FIELD(this, kDescriptorsOffset));
+}
+
+void Map::set_synchronized_instance_descriptors(DescriptorArray value,
+                                                WriteBarrierMode mode) {
+  RELEASE_WRITE_FIELD(this, kDescriptorsOffset, value);
+  CONDITIONAL_WRITE_BARRIER(this, kDescriptorsOffset, value, mode);
+}
+
 // A freshly allocated layout descriptor can be set on an existing map.
 // We need to use release-store and acquire-load accessor pairs to ensure
 // that the concurrent marking thread observes initializing stores of the
@@ -76,10 +89,6 @@ BIT_FIELD_ACCESSORS(Map, bit_field3, may_have_interesting_symbols,
                     Map::MayHaveInterestingSymbolsBit)
 BIT_FIELD_ACCESSORS(Map, bit_field3, construction_counter,
                     Map::ConstructionCounterBits)
-
-DescriptorArray Map::instance_descriptors() const {
-  return raw_instance_descriptors();
-}
 
 InterceptorInfo Map::GetNamedInterceptor() {
   DCHECK(has_named_interceptor());
@@ -623,13 +632,13 @@ void Map::InitializeDescriptors(Isolate* isolate, DescriptorArray descriptors,
 
 void Map::set_bit_field3(uint32_t bits) {
   if (kInt32Size != kTaggedSize) {
-    WRITE_UINT32_FIELD(this, kBitField3Offset + kInt32Size, 0);
+    RELAXED_WRITE_UINT32_FIELD(this, kBitField3Offset + kInt32Size, 0);
   }
-  WRITE_UINT32_FIELD(this, kBitField3Offset, bits);
+  RELAXED_WRITE_UINT32_FIELD(this, kBitField3Offset, bits);
 }
 
 uint32_t Map::bit_field3() const {
-  return READ_UINT32_FIELD(this, kBitField3Offset);
+  return RELAXED_READ_UINT32_FIELD(this, kBitField3Offset);
 }
 
 LayoutDescriptor Map::GetLayoutDescriptor() const {

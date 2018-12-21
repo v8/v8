@@ -356,20 +356,36 @@ class ConcurrentMarkingVisitor final
   }
 
   int VisitMap(Map meta_map, Map map) {
-    if (marking_state_.IsGrey(map)) {
-      // Maps have ad-hoc weakness for descriptor arrays. They also clear the
-      // code-cache. Conservatively visit strong fields skipping the
-      // descriptor array field and the code cache field.
-      VisitMapPointer(map, map->map_slot());
-      VisitPointer(map, HeapObject::RawField(map, Map::kPrototypeOffset));
-      VisitPointer(
-          map, HeapObject::RawField(map, Map::kConstructorOrBackPointerOffset));
-      VisitPointer(map, HeapObject::RawMaybeWeakField(
-                            map, Map::kTransitionsOrPrototypeInfoOffset));
-      VisitPointer(map, HeapObject::RawField(map, Map::kDependentCodeOffset));
-      bailout_.Push(map);
+    if (!ShouldVisit(map)) return 0;
+    int size = Map::BodyDescriptor::SizeOf(meta_map, map);
+    if (map->CanTransition()) {
+      // Maps that can transition share their descriptor arrays and require
+      // special visiting logic to avoid memory leaks.
+      // Since descriptor arrays are potentially shared, ensure that only the
+      // descriptors that belong to this map are marked. The first time a
+      // non-empty descriptor array is marked, its header is also visited. The
+      // slot holding the descriptor array will be implicitly recorded when the
+      // pointer fields of this map are visited.
+      DescriptorArray descriptors = map->synchronized_instance_descriptors();
+      MarkDescriptorArrayBlack(descriptors);
+      int number_of_own_descriptors = map->NumberOfOwnDescriptors();
+      if (number_of_own_descriptors) {
+        // It is possible that the concurrent marker observes the
+        // number_of_own_descriptors out of sync with the descriptors. In that
+        // case the marking write barrier for the descriptor array will ensure
+        // that all required descriptors are marked. The concurrent marker
+        // just should avoid crashing in that case. That's why we need the
+        // std::min<int>() below.
+        VisitDescriptors(descriptors,
+                         std::min<int>(number_of_own_descriptors,
+                                       descriptors->number_of_descriptors()));
+      }
+      // Mark the pointer fields of the Map. Since the transitions array has
+      // been marked already, it is fine that one of these fields contains a
+      // pointer to it.
     }
-    return 0;
+    Map::BodyDescriptor::IterateBody(meta_map, map, size, this);
+    return size;
   }
 
   void VisitDescriptors(DescriptorArray descriptor_array,
@@ -470,6 +486,14 @@ class ConcurrentMarkingVisitor final
 #endif
     if (marking_state_.WhiteToGrey(object)) {
       shared_.Push(object);
+    }
+  }
+
+  void MarkDescriptorArrayBlack(DescriptorArray descriptors) {
+    marking_state_.WhiteToGrey(descriptors);
+    if (marking_state_.GreyToBlack(descriptors)) {
+      VisitPointers(descriptors, descriptors->GetFirstPointerSlot(),
+                    descriptors->GetDescriptorSlot(0));
     }
   }
 
