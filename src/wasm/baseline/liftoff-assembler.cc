@@ -266,6 +266,43 @@ class StackTransferRecipe {
   DISALLOW_COPY_AND_ASSIGN(StackTransferRecipe);
 };
 
+enum MergeKeepStackSlots : bool {
+  kKeepStackSlots = true,
+  kTurnStackSlotsIntoRegisters = false
+};
+enum MergeAllowConstants : bool {
+  kConstantsAllowed = true,
+  kConstantsNotAllowed = false
+};
+void InitMergeRegion(LiftoffAssembler::CacheState* state,
+                     const VarState* source, VarState* target, uint32_t count,
+                     MergeKeepStackSlots keep_stack_slots,
+                     MergeAllowConstants allow_constants,
+                     LiftoffRegList used_regs) {
+  for (const VarState* source_end = source + count; source < source_end;
+       ++source, ++target) {
+    if ((source->is_stack() && keep_stack_slots) ||
+        (source->is_const() && allow_constants)) {
+      *target = *source;
+      continue;
+    }
+    if (source->is_reg() && state->is_free(source->reg())) {
+      *target = *source;
+      state->inc_used(source->reg());
+      continue;
+    }
+    RegClass rc = reg_class_for(source->type());
+    if (state->has_unused_register(rc, used_regs)) {
+      LiftoffRegister reg = state->unused_register(rc, used_regs);
+      state->inc_used(reg);
+      *target = VarState(source->type(), reg);
+      continue;
+    }
+    // Otherwise make this a stack slot.
+    *target = VarState(source->type());
+  }
+}
+
 }  // namespace
 
 // TODO(clemensh): Don't copy the full parent state (this makes us N^2).
@@ -273,63 +310,52 @@ void LiftoffAssembler::CacheState::InitMerge(const CacheState& source,
                                              uint32_t num_locals,
                                              uint32_t arity,
                                              uint32_t stack_depth) {
-  uint32_t stack_base = stack_depth + num_locals;
-  DCHECK(stack_state.empty());
-  DCHECK_GE(source.stack_height(), stack_base);
-  stack_state.resize_no_init(stack_base + arity);
-
   // |------locals------|---(in between)----|--(discarded)--|----merge----|
   //  <-- num_locals --> <-- stack_depth -->^stack_base      <-- arity -->
 
-  // First, initialize merge slots and locals. Keep them in the registers which
-  // are being used in {source}, but avoid using a register multiple times. Use
-  // unused registers where necessary and possible.
-  for (int range = 0; range < 2; ++range) {
-    auto src_idx = range ? 0 : source.stack_state.size() - arity;
-    auto src_end = range ? num_locals : source.stack_state.size();
-    auto dst_idx = range ? 0 : stack_state.size() - arity;
-    for (; src_idx < src_end; ++src_idx, ++dst_idx) {
-      auto& dst = stack_state[dst_idx];
-      auto& src = source.stack_state[src_idx];
-      // Just initialize to any register; will be overwritten before use.
-      LiftoffRegister reg = kGpCacheRegList.GetFirstRegSet();
-      RegClass rc = src.is_reg() ? src.reg_class() : reg_class_for(src.type());
-      if (src.is_reg() && is_free(src.reg())) {
-        reg = src.reg();
-      } else if (has_unused_register(rc)) {
-        reg = unused_register(rc);
-      } else {
-        // Make this a stack slot.
-        dst = VarState(src.type());
-        continue;
-      }
-      dst = VarState(src.type(), reg);
-      inc_used(reg);
-    }
+  uint32_t stack_base = stack_depth + num_locals;
+  uint32_t target_height = stack_base + arity;
+  uint32_t discarded = source.stack_height() - target_height;
+  DCHECK(stack_state.empty());
+
+  DCHECK_GE(source.stack_height(), stack_base);
+  stack_state.resize_no_init(target_height);
+
+  const VarState* source_begin = source.stack_state.data();
+  VarState* target_begin = stack_state.data();
+
+  // Try to keep locals and the merge region in their registers. Register used
+  // multiple times need to be copied to another free register. Compute the list
+  // of used registers.
+  LiftoffRegList used_regs;
+  for (auto& src : Vector<const VarState>{source_begin, num_locals}) {
+    if (src.is_reg()) used_regs.set(src.reg());
   }
+  for (auto& src :
+       Vector<const VarState>{source_begin + stack_base + discarded, arity}) {
+    if (src.is_reg()) used_regs.set(src.reg());
+  }
+
+  // Initialize the merge region. If this region moves, try to turn stack slots
+  // into registers since we need to load the value anyways.
+  MergeKeepStackSlots keep_merge_stack_slots =
+      discarded == 0 ? kKeepStackSlots : kTurnStackSlotsIntoRegisters;
+  InitMergeRegion(this, source_begin + stack_base + discarded,
+                  target_begin + stack_base, arity, keep_merge_stack_slots,
+                  kConstantsNotAllowed, used_regs);
+
+  // Initialize the locals region. Here, stack slots stay stack slots (because
+  // they do not move). Try to keep register in registers, but avoid duplicates.
+  InitMergeRegion(this, source_begin, target_begin, num_locals, kKeepStackSlots,
+                  kConstantsNotAllowed, used_regs);
+  // Sanity check: All the {used_regs} are really in use now.
+  DCHECK_EQ(used_regs, used_registers & used_regs);
+
   // Last, initialize the section in between. Here, constants are allowed, but
   // registers which are already used for the merge region or locals must be
   // spilled.
-  for (uint32_t i = num_locals; i < stack_base; ++i) {
-    auto& dst = stack_state[i];
-    auto& src = source.stack_state[i];
-    if (src.is_reg()) {
-      if (is_used(src.reg())) {
-        // Make this a stack slot.
-        dst = VarState(src.type());
-      } else {
-        dst = VarState(src.type(), src.reg());
-        inc_used(src.reg());
-      }
-    } else if (src.is_const()) {
-      dst = src;
-    } else {
-      DCHECK(src.is_stack());
-      // Make this a stack slot.
-      dst = VarState(src.type());
-    }
-  }
-  last_spilled_regs = source.last_spilled_regs;
+  InitMergeRegion(this, source_begin + num_locals, target_begin + num_locals,
+                  stack_depth, kKeepStackSlots, kConstantsAllowed, used_regs);
 }
 
 void LiftoffAssembler::CacheState::Steal(const CacheState& source) {

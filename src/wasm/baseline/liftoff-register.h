@@ -317,7 +317,7 @@ static constexpr LiftoffRegList kFpCacheRegList =
     LiftoffRegList::FromBits<LiftoffRegList::kFpMask>();
 
 static constexpr LiftoffRegList GetCacheRegList(RegClass rc) {
-  return rc == kGpReg ? kGpCacheRegList : kFpCacheRegList;
+  return rc == kFpReg ? kFpCacheRegList : kGpCacheRegList;
 }
 
 inline std::ostream& operator<<(std::ostream& os, LiftoffRegList reglist) {
