@@ -70,8 +70,7 @@ static void GenerateTailCallToReturnedCode(MacroAssembler* masm,
     __ SmiUntag(rax, rax);
   }
   static_assert(kJavaScriptCallCodeStartRegister == rcx, "ABI mismatch");
-  __ leap(rcx, FieldOperand(rcx, Code::kHeaderSize));
-  __ jmp(rcx);
+  __ JumpCodeObject(rcx);
 }
 
 namespace {
@@ -834,8 +833,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
     static_assert(kJavaScriptCallCodeStartRegister == rcx, "ABI mismatch");
     __ LoadTaggedPointerField(rcx, FieldOperand(rdi, JSFunction::kCodeOffset),
                               decompr_scratch_for_debug);
-    __ addp(rcx, Immediate(Code::kHeaderSize - kHeapObjectTag));
-    __ jmp(rcx);
+    __ JumpCodeObject(rcx);
   }
 
   __ bind(&prepare_step_in_if_stepping);
@@ -1010,8 +1008,7 @@ static void MaybeTailCallOptimizedCodeSlot(MacroAssembler* masm,
                                         scratch2, scratch3, feedback_vector);
     static_assert(kJavaScriptCallCodeStartRegister == rcx, "ABI mismatch");
     __ Move(rcx, optimized_code_entry);
-    __ addp(rcx, Immediate(Code::kHeaderSize - kHeapObjectTag));
-    __ jmp(rcx);
+    __ JumpCodeObject(rcx);
 
     // Optimized code slot contains deoptimized code, evict it and re-enter the
     // closure's code.
@@ -1424,6 +1421,7 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   __ jmp(&trampoline_loaded, Label::kNear);
 
   __ bind(&builtin_trampoline);
+  // TODO(jgruber): Replace this by a lookup in the builtin entry table.
   __ movp(rbx,
           __ ExternalReferenceAsOperand(
               ExternalReference::
@@ -1574,8 +1572,7 @@ void Builtins::Generate_InstantiateAsmJs(MacroAssembler* masm) {
       COMPRESS_POINTERS_BOOL ? kScratchRegister : no_reg;
   __ LoadTaggedPointerField(rcx, FieldOperand(rdi, JSFunction::kCodeOffset),
                             decompr_scratch_for_debug);
-  __ addp(rcx, Immediate(Code::kHeaderSize - kHeapObjectTag));
-  __ jmp(rcx);
+  __ JumpCodeObject(rcx);
 }
 
 namespace {
@@ -2012,8 +2009,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   static_assert(kJavaScriptCallCodeStartRegister == rcx, "ABI mismatch");
   __ LoadTaggedPointerField(rcx, FieldOperand(rdi, JSFunction::kCodeOffset),
                             decompr_scratch_for_debug);
-  __ addp(rcx, Immediate(Code::kHeaderSize - kHeapObjectTag));
-  __ call(rcx);
+  __ CallCodeObject(rcx);
 
   // Store offset of return address for deoptimizer.
   masm->isolate()->heap()->SetArgumentsAdaptorDeoptPCOffset(masm->pc_offset());
@@ -2029,8 +2025,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   static_assert(kJavaScriptCallCodeStartRegister == rcx, "ABI mismatch");
   __ LoadTaggedPointerField(rcx, FieldOperand(rdi, JSFunction::kCodeOffset),
                             decompr_scratch_for_debug);
-  __ addp(rcx, Immediate(Code::kHeaderSize - kHeapObjectTag));
-  __ jmp(rcx);
+  __ JumpCodeObject(rcx);
 
   __ bind(&stack_overflow);
   {

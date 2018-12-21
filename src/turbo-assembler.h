@@ -43,6 +43,15 @@ class V8_EXPORT_PRIVATE TurboAssemblerBase : public Assembler {
   // object on the heap is not used.
   virtual void CallBuiltinPointer(Register builtin_pointer) = 0;
 
+  // Calls/jumps to the given Code object. If builtins are embedded, the
+  // trampoline Code object on the heap is not used.
+  virtual void CallCodeObject(Register code_object) = 0;
+  virtual void JumpCodeObject(Register code_object) = 0;
+
+  // Loads the given Code object's entry point into the destination register.
+  virtual void LoadCodeObjectEntry(Register destination,
+                                   Register code_object) = 0;
+
   // Loads the given constant or external reference without embedding its direct
   // pointer. The produced code is isolate-independent.
   void IndirectLoadConstant(Register destination, Handle<HeapObject> object);

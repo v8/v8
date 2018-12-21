@@ -692,7 +692,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         DCHECK_IMPLIES(
             HasCallDescriptorFlag(instr, CallDescriptor::kFixedTargetRegister),
             reg == kJavaScriptCallCodeStartRegister);
-        __ addp(reg, Immediate(Code::kHeaderSize - kHeapObjectTag));
+        __ LoadCodeObjectEntry(reg, reg);
         if (HasCallDescriptorFlag(instr, CallDescriptor::kRetpoline)) {
           __ RetpolineCall(reg);
         } else {
@@ -751,7 +751,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         DCHECK_IMPLIES(
             HasCallDescriptorFlag(instr, CallDescriptor::kFixedTargetRegister),
             reg == kJavaScriptCallCodeStartRegister);
-        __ addp(reg, Immediate(Code::kHeaderSize - kHeapObjectTag));
+        __ LoadCodeObjectEntry(reg, reg);
         if (HasCallDescriptorFlag(instr, CallDescriptor::kRetpoline)) {
           __ RetpolineJump(reg);
         } else {
@@ -812,8 +812,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       static_assert(kJavaScriptCallCodeStartRegister == rcx, "ABI mismatch");
       __ LoadTaggedPointerField(rcx,
                                 FieldOperand(func, JSFunction::kCodeOffset));
-      __ addp(rcx, Immediate(Code::kHeaderSize - kHeapObjectTag));
-      __ call(rcx);
+      __ CallCodeObject(rcx);
       frame_access_state()->ClearSPDelta();
       RecordCallPosition(instr);
       break;

@@ -641,7 +641,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         DCHECK_IMPLIES(
             HasCallDescriptorFlag(instr, CallDescriptor::kFixedTargetRegister),
             reg == kJavaScriptCallCodeStartRegister);
-        __ add(reg, Immediate(Code::kHeaderSize - kHeapObjectTag));
+        __ LoadCodeObjectEntry(reg, reg);
         if (HasCallDescriptorFlag(instr, CallDescriptor::kRetpoline)) {
           __ RetpolineCall(reg);
         } else {
@@ -659,7 +659,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         Operand virtual_call_target_register(
             kRootRegister, IsolateData::virtual_call_target_register_offset());
         __ mov(eax, i.InputOperand(0));
-        __ add(eax, Immediate(Code::kHeaderSize - kHeapObjectTag));
+        __ LoadCodeObjectEntry(eax, eax);
         __ mov(virtual_call_target_register, eax);
         __ pop(eax);
         frame_access_state()->IncreaseSPDelta(-1);
@@ -716,7 +716,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         DCHECK_IMPLIES(
             HasCallDescriptorFlag(instr, CallDescriptor::kFixedTargetRegister),
             reg == kJavaScriptCallCodeStartRegister);
-        __ add(reg, Immediate(Code::kHeaderSize - kHeapObjectTag));
+        __ LoadCodeObjectEntry(reg, reg);
         if (HasCallDescriptorFlag(instr, CallDescriptor::kRetpoline)) {
           __ RetpolineJump(reg);
         } else {
@@ -768,8 +768,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       static_assert(kJavaScriptCallCodeStartRegister == ecx, "ABI mismatch");
       __ mov(ecx, FieldOperand(func, JSFunction::kCodeOffset));
-      __ add(ecx, Immediate(Code::kHeaderSize - kHeapObjectTag));
-      __ call(ecx);
+      __ CallCodeObject(ecx);
       RecordCallPosition(instr);
       frame_access_state()->ClearSPDelta();
       break;
