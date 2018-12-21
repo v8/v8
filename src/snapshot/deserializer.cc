@@ -323,6 +323,10 @@ HeapObject Deserializer::PostProcessNewObject(HeapObject obj, int space) {
     bytecode_array->set_interrupt_budget(
         interpreter::Interpreter::InterruptBudget());
     bytecode_array->set_osr_loop_nesting_level(0);
+  } else if (obj->IsDescriptorArray()) {
+    // Reset the marking state of the descriptor array.
+    DescriptorArray descriptor_array = DescriptorArray::cast(obj);
+    descriptor_array->set_raw_number_of_marked_descriptors(0);
   }
 
   // Check alignment.
