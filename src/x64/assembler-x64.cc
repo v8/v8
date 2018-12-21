@@ -1656,12 +1656,12 @@ void Assembler::emit_lea(Register dst, Operand src, int size) {
 
 void Assembler::load_rax(Address value, RelocInfo::Mode mode) {
   EnsureSpace ensure_space(this);
-  if (kPointerSize == kInt64Size) {
+  if (kSystemPointerSize == kInt64Size) {
     emit(0x48);  // REX.W
     emit(0xA1);
     emitp(value, mode);
   } else {
-    DCHECK_EQ(kPointerSize, kInt32Size);
+    DCHECK_EQ(kSystemPointerSize, kInt32Size);
     emit(0xA1);
     emitp(value, mode);
     // In 64-bit mode, need to zero extend the operand to 8 bytes.
@@ -1805,11 +1805,11 @@ void Assembler::movp(Register dst, Address value, RelocInfo::Mode rmode) {
   if (constpool_.TryRecordEntry(value, rmode)) {
     // Emit rip-relative move with offset = 0
     Label label;
-    emit_mov(dst, Operand(&label, 0), kPointerSize);
+    emit_mov(dst, Operand(&label, 0), kSystemPointerSize);
     bind(&label);
   } else {
     EnsureSpace ensure_space(this);
-    emit_rex(dst, kPointerSize);
+    emit_rex(dst, kSystemPointerSize);
     emit(0xB8 | dst.low_bits());
     emitp(value, rmode);
   }
@@ -1817,7 +1817,7 @@ void Assembler::movp(Register dst, Address value, RelocInfo::Mode rmode) {
 
 void Assembler::movp_heap_number(Register dst, double value) {
   EnsureSpace ensure_space(this);
-  emit_rex(dst, kPointerSize);
+  emit_rex(dst, kSystemPointerSize);
   emit(0xB8 | dst.low_bits());
   RequestHeapObject(HeapObjectRequest(value));
   emitp(0, RelocInfo::EMBEDDED_OBJECT);
@@ -1825,7 +1825,7 @@ void Assembler::movp_heap_number(Register dst, double value) {
 
 void Assembler::movp_string(Register dst, const StringConstantBase* str) {
   EnsureSpace ensure_space(this);
-  emit_rex(dst, kPointerSize);
+  emit_rex(dst, kSystemPointerSize);
   emit(0xB8 | dst.low_bits());
   RequestHeapObject(HeapObjectRequest(str));
   emitp(0, RelocInfo::EMBEDDED_OBJECT);
@@ -1835,7 +1835,7 @@ void Assembler::movq(Register dst, int64_t value, RelocInfo::Mode rmode) {
   if (constpool_.TryRecordEntry(value, rmode)) {
     // Emit rip-relative move with offset = 0
     Label label;
-    emit_mov(dst, Operand(&label, 0), kPointerSize);
+    emit_mov(dst, Operand(&label, 0), kInt64Size);
     bind(&label);
   } else {
     EnsureSpace ensure_space(this);
@@ -2329,12 +2329,12 @@ void Assembler::emit_xchg(Register dst, Operand src, int size) {
 
 void Assembler::store_rax(Address dst, RelocInfo::Mode mode) {
   EnsureSpace ensure_space(this);
-  if (kPointerSize == kInt64Size) {
+  if (kSystemPointerSize == kInt64Size) {
     emit(0x48);  // REX.W
     emit(0xA3);
     emitp(dst, mode);
   } else {
-    DCHECK_EQ(kPointerSize, kInt32Size);
+    DCHECK_EQ(kSystemPointerSize, kInt32Size);
     emit(0xA3);
     emitp(dst, mode);
     // In 64-bit mode, need to zero extend the operand to 8 bytes.

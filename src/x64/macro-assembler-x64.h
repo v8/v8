@@ -625,13 +625,14 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // sets up the number of arguments in register rdi and the pointer
   // to the first argument in register rsi.
   //
-  // Allocates arg_stack_space * kPointerSize memory (not GCed) on the stack
-  // accessible via StackSpaceOperand.
+  // Allocates arg_stack_space * kSystemPointerSize memory (not GCed) on the
+  // stack accessible via StackSpaceOperand.
   void EnterExitFrame(int arg_stack_space = 0, bool save_doubles = false,
                       StackFrame::Type frame_type = StackFrame::EXIT);
 
-  // Enter specific kind of exit frame. Allocates arg_stack_space * kPointerSize
-  // memory (not GCed) on the stack accessible via StackSpaceOperand.
+  // Enter specific kind of exit frame. Allocates
+  // (arg_stack_space * kSystemPointerSize) memory (not GCed) on the stack
+  // accessible via StackSpaceOperand.
   void EnterApiExitFrame(int arg_stack_space);
 
   // Leave the current exit frame. Expects/provides the return value in
@@ -712,8 +713,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // Converts, if necessary, a smi to a combination of number and
   // multiplier to be used as a scaled index.
   // The src register contains a *positive* smi value. The shift is the
-  // power of two to multiply the index value by (e.g.
-  // to index by smi-value * kPointerSize, pass the smi and kPointerSizeLog2).
+  // power of two to multiply the index value by (e.g. to index by
+  // smi-value * kSystemPointerSize, pass the smi and kSystemPointerSizeLog2).
   // The returned index register may be either src or dst, depending
   // on what is most efficient. If src and dst are different registers,
   // src is always unchanged.
@@ -889,8 +890,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
 
   void EnterExitFramePrologue(bool save_rax, StackFrame::Type frame_type);
 
-  // Allocates arg_stack_space * kPointerSize memory (not GCed) on the stack
-  // accessible via StackSpaceOperand.
+  // Allocates arg_stack_space * kSystemPointerSize memory (not GCed) on the
+  // stack accessible via StackSpaceOperand.
   void EnterExitFrameEpilogue(int arg_stack_space, bool save_doubles);
 
   void LeaveExitFrameEpilogue();
@@ -949,9 +950,9 @@ inline Operand NativeContextOperand() {
 inline Operand StackSpaceOperand(int index) {
 #ifdef _WIN64
   const int kShaddowSpace = 4;
-  return Operand(rsp, (index + kShaddowSpace) * kPointerSize);
+  return Operand(rsp, (index + kShaddowSpace) * kSystemPointerSize);
 #else
-  return Operand(rsp, index * kPointerSize);
+  return Operand(rsp, index * kSystemPointerSize);
 #endif
 }
 

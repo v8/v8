@@ -311,7 +311,7 @@ int RelocInfo::target_address_size() {
   if (IsCodedSpecially()) {
     return Assembler::kSpecialTargetSize;
   } else {
-    return kPointerSize;
+    return kSystemPointerSize;
   }
 }
 

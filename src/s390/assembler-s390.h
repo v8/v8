@@ -325,16 +325,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Patch will be appiled to other FIXED_SEQUENCE call
   static constexpr int kCallTargetAddressOffset = 6;
 
-// The length of FIXED_SEQUENCE call
-// iihf    r8, <address_hi>  // <64-bit only>
-// iilf    r8, <address_lo>
-// basr    r14, r8
-#if V8_TARGET_ARCH_S390X
-  static constexpr int kCallSequenceLength = 14;
-#else
-  static constexpr int kCallSequenceLength = 8;
-#endif
-
   // ---------------------------------------------------------------------------
   // Code generation
 

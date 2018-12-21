@@ -729,7 +729,7 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
   __ j(below_equal, &stack_limit_hit);
   // Check if there is room for the variable number of registers above
   // the stack limit.
-  __ cmpp(rcx, Immediate(num_registers_ * kPointerSize));
+  __ cmpp(rcx, Immediate(num_registers_ * kSystemPointerSize));
   __ j(above_equal, &stack_ok);
   // Exit with OutOfMemory exception. There is not enough space on the stack
   // for our working registers.
@@ -746,7 +746,7 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
   __ bind(&stack_ok);
 
   // Allocate space on stack for registers.
-  __ subp(rsp, Immediate(num_registers_ * kPointerSize));
+  __ subp(rsp, Immediate(num_registers_ * kSystemPointerSize));
   // Load string length.
   __ movp(rsi, Operand(rbp, kInputEnd));
   // Load input position.
@@ -770,7 +770,7 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
   // Ensure that we have written to each stack page, in order. Skipping a page
   // on Windows can cause segmentation faults. Assuming page size is 4k.
   const int kPageSize = 4096;
-  const int kRegistersPerPage = kPageSize / kPointerSize;
+  const int kRegistersPerPage = kPageSize / kSystemPointerSize;
   for (int i = num_saved_registers_ + kRegistersPerPage - 1;
       i < num_registers_;
       i += kRegistersPerPage) {
@@ -804,9 +804,9 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
       Label init_loop;
       __ bind(&init_loop);
       __ movp(Operand(rbp, rcx, times_1, 0), rax);
-      __ subq(rcx, Immediate(kPointerSize));
-      __ cmpq(rcx,
-              Immediate(kRegisterZero - num_saved_registers_ * kPointerSize));
+      __ subq(rcx, Immediate(kSystemPointerSize));
+      __ cmpq(rcx, Immediate(kRegisterZero -
+                             num_saved_registers_ * kSystemPointerSize));
       __ j(greater, &init_loop);
     } else {  // Unroll the loop.
       for (int i = 0; i < num_saved_registers_; i++) {
@@ -1093,12 +1093,11 @@ void RegExpMacroAssemblerX64::PushRegister(int register_index,
   if (check_stack_limit) CheckStackLimit();
 }
 
-
-STATIC_ASSERT(kPointerSize == kInt64Size || kPointerSize == kInt32Size);
-
+STATIC_ASSERT(kSystemPointerSize == kInt64Size ||
+              kSystemPointerSize == kInt32Size);
 
 void RegExpMacroAssemblerX64::ReadCurrentPositionFromRegister(int reg) {
-  if (kPointerSize == kInt64Size) {
+  if (kSystemPointerSize == kInt64Size) {
     __ movq(rdi, register_location(reg));
   } else {
     // Need sign extension for x32 as rdi might be used as an index register.
@@ -1108,7 +1107,7 @@ void RegExpMacroAssemblerX64::ReadCurrentPositionFromRegister(int reg) {
 
 
 void RegExpMacroAssemblerX64::ReadPositionFromRegister(Register dst, int reg) {
-  if (kPointerSize == kInt64Size) {
+  if (kSystemPointerSize == kInt64Size) {
     __ movq(dst, register_location(reg));
   } else {
     // Need sign extension for x32 as dst might be used as an index register.
@@ -1189,7 +1188,7 @@ void RegExpMacroAssemblerX64::CallCheckStackGuardState() {
   __ movp(r8, rbp);
   // First argument: Next address on the stack (will be address of
   // return address).
-  __ leap(rcx, Operand(rsp, -kPointerSize));
+  __ leap(rcx, Operand(rsp, -kSystemPointerSize));
 #else
   // Third argument: RegExp code frame pointer.
   __ movp(rdx, rbp);
@@ -1236,7 +1235,7 @@ Operand RegExpMacroAssemblerX64::register_location(int register_index) {
   if (num_registers_ <= register_index) {
     num_registers_ = register_index + 1;
   }
-  return Operand(rbp, kRegisterZero - register_index * kPointerSize);
+  return Operand(rbp, kRegisterZero - register_index * kSystemPointerSize);
 }
 
 

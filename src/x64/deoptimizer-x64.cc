@@ -124,7 +124,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
 
   // Fill in the input registers.
   for (int i = kNumberOfRegisters -1; i >= 0; i--) {
-    int offset = (i * kPointerSize) + FrameDescription::registers_offset();
+    int offset = (i * kRegisterSize) + FrameDescription::registers_offset();
     __ PopQuad(Operand(rbx, offset));
   }
 
@@ -200,7 +200,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   __ bind(&inner_loop_header);
   __ testp(rcx, rcx);
   __ j(not_zero, &inner_push_loop);
-  __ addp(rax, Immediate(kPointerSize));
+  __ addp(rax, Immediate(kSystemPointerSize));
   __ bind(&outer_loop_header);
   __ cmpp(rax, rdx);
   __ j(below, &outer_push_loop);
@@ -218,7 +218,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
 
   // Push the registers from the last output frame.
   for (int i = 0; i < kNumberOfRegisters; i++) {
-    int offset = (i * kPointerSize) + FrameDescription::registers_offset();
+    int offset = (i * kRegisterSize) + FrameDescription::registers_offset();
     __ PushQuad(Operand(rbx, offset));
   }
 
@@ -254,18 +254,18 @@ void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
 bool Deoptimizer::PadTopOfStackRegister() { return false; }
 
 void FrameDescription::SetCallerPc(unsigned offset, intptr_t value) {
-  if (kPCOnStackSize == 2 * kPointerSize) {
+  if (kPCOnStackSize == 2 * kSystemPointerSize) {
     // Zero out the high-32 bit of PC for x32 port.
-    SetFrameSlot(offset + kPointerSize, 0);
+    SetFrameSlot(offset + kSystemPointerSize, 0);
   }
   SetFrameSlot(offset, value);
 }
 
 
 void FrameDescription::SetCallerFp(unsigned offset, intptr_t value) {
-  if (kFPOnStackSize == 2 * kPointerSize) {
+  if (kFPOnStackSize == 2 * kSystemPointerSize) {
     // Zero out the high-32 bit of FP for x32 port.
-    SetFrameSlot(offset + kPointerSize, 0);
+    SetFrameSlot(offset + kSystemPointerSize, 0);
   }
   SetFrameSlot(offset, value);
 }

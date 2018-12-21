@@ -41,18 +41,19 @@ Operand StackArgumentsAccessor::GetArgumentOperand(int index) {
   displacement_to_last_argument += extra_displacement_to_last_argument_;
   if (argument_count_reg_ == no_reg) {
     // argument[0] is at base_reg_ + displacement_to_last_argument +
-    // (argument_count_immediate_ + receiver - 1) * kPointerSize.
+    // (argument_count_immediate_ + receiver - 1) * kSystemPointerSize.
     DCHECK_GT(argument_count_immediate_ + receiver, 0);
-    return Operand(
-        base_reg_,
-        displacement_to_last_argument +
-            (argument_count_immediate_ + receiver - 1 - index) * kPointerSize);
+    return Operand(base_reg_,
+                   displacement_to_last_argument +
+                       (argument_count_immediate_ + receiver - 1 - index) *
+                           kSystemPointerSize);
   } else {
     // argument[0] is at base_reg_ + displacement_to_last_argument +
-    // argument_count_reg_ * times_pointer_size + (receiver - 1) * kPointerSize.
-    return Operand(
-        base_reg_, argument_count_reg_, times_pointer_size,
-        displacement_to_last_argument + (receiver - 1 - index) * kPointerSize);
+    // argument_count_reg_ * times_pointer_size + (receiver - 1) *
+    // kSystemPointerSize.
+    return Operand(base_reg_, argument_count_reg_, times_pointer_size,
+                   displacement_to_last_argument +
+                       (receiver - 1 - index) * kSystemPointerSize);
   }
 }
 
@@ -377,13 +378,13 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
   }
 
   // Although the object register is tagged, the offset is relative to the start
-  // of the object, so so offset must be a multiple of kPointerSize.
-  DCHECK(IsAligned(offset, kPointerSize));
+  // of the object, so the offset must be a multiple of kTaggedSize.
+  DCHECK(IsAligned(offset, kTaggedSize));
 
   leap(dst, FieldOperand(object, offset));
   if (emit_debug_code()) {
     Label ok;
-    testb(dst, Immediate(kPointerSize - 1));
+    testb(dst, Immediate(kTaggedSize - 1));
     j(zero, &ok, Label::kNear);
     int3();
     bind(&ok);
@@ -572,7 +573,7 @@ void TurboAssembler::Check(Condition cc, AbortReason reason) {
 void TurboAssembler::CheckStackAlignment() {
   int frame_alignment = base::OS::ActivationFrameAlignment();
   int frame_alignment_mask = frame_alignment - 1;
-  if (frame_alignment > kPointerSize) {
+  if (frame_alignment > kSystemPointerSize) {
     DCHECK(base::bits::IsPowerOfTwo(frame_alignment));
     Label alignment_as_expected;
     testp(rsp, Immediate(frame_alignment_mask));
@@ -694,7 +695,7 @@ int TurboAssembler::RequiredStackSizeForCallerSaved(SaveFPRegsMode fp_mode,
   for (int i = 0; i < kNumberOfSavedRegs; i++) {
     Register reg = saved_regs[i];
     if (reg != exclusion1 && reg != exclusion2 && reg != exclusion3) {
-      bytes += kPointerSize;
+      bytes += kSystemPointerSize;
     }
   }
 
@@ -716,7 +717,7 @@ int TurboAssembler::PushCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
     Register reg = saved_regs[i];
     if (reg != exclusion1 && reg != exclusion2 && reg != exclusion3) {
       pushq(reg);
-      bytes += kPointerSize;
+      bytes += kSystemPointerSize;
     }
   }
 
@@ -751,7 +752,7 @@ int TurboAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
     Register reg = saved_regs[i];
     if (reg != exclusion1 && reg != exclusion2 && reg != exclusion3) {
       popq(reg);
-      bytes += kPointerSize;
+      bytes += kSystemPointerSize;
     }
   }
 
@@ -1130,7 +1131,7 @@ void TurboAssembler::Set(Register dst, int64_t x) {
 }
 
 void TurboAssembler::Set(Operand dst, intptr_t x) {
-  if (kPointerSize == kInt64Size) {
+  if (kSystemPointerSize == kInt64Size) {
     if (is_int32(x)) {
       movp(dst, Immediate(static_cast<int32_t>(x)));
     } else {
@@ -1296,7 +1297,7 @@ void MacroAssembler::SmiAddConstant(Operand dst, Smi constant) {
            Immediate(constant->value()));
     } else {
       DCHECK(SmiValuesAre31Bits());
-      if (kPointerSize == kInt64Size) {
+      if (kSystemPointerSize == kInt64Size) {
         // Sign-extend value after addition
         movl(kScratchRegister, dst);
         addl(kScratchRegister, Immediate(constant));
@@ -1354,7 +1355,7 @@ void TurboAssembler::Push(Smi source) {
   }
   int first_byte_set = base::bits::CountTrailingZeros64(smi) / 8;
   int last_byte_set = (63 - base::bits::CountLeadingZeros64(smi)) / 8;
-  if (first_byte_set == last_byte_set && kPointerSize == kInt64Size) {
+  if (first_byte_set == last_byte_set && kSystemPointerSize == kInt64Size) {
     // This sequence has only 7 bytes, compared to the 12 bytes below.
     Push(Immediate(0));
     movb(Operand(rsp, first_byte_set),
@@ -1498,7 +1499,7 @@ void TurboAssembler::MoveStringConstant(Register result,
 
 void MacroAssembler::Drop(int stack_elements) {
   if (stack_elements > 0) {
-    addp(rsp, Immediate(stack_elements * kPointerSize));
+    addp(rsp, Immediate(stack_elements * kSystemPointerSize));
   }
 }
 
@@ -1506,7 +1507,7 @@ void MacroAssembler::Drop(int stack_elements) {
 void MacroAssembler::DropUnderReturnAddress(int stack_elements,
                                             Register scratch) {
   DCHECK_GT(stack_elements, 0);
-  if (kPointerSize == kInt64Size && stack_elements == 1) {
+  if (kSystemPointerSize == kInt64Size && stack_elements == 1) {
     popq(MemOperand(rsp, 0));
     return;
   }
@@ -1517,7 +1518,7 @@ void MacroAssembler::DropUnderReturnAddress(int stack_elements,
 }
 
 void TurboAssembler::Push(Register src) {
-  if (kPointerSize == kInt64Size) {
+  if (kSystemPointerSize == kInt64Size) {
     pushq(src);
   } else {
     // x32 uses 64-bit push for rbp in the prologue.
@@ -1528,7 +1529,7 @@ void TurboAssembler::Push(Register src) {
 }
 
 void TurboAssembler::Push(Operand src) {
-  if (kPointerSize == kInt64Size) {
+  if (kSystemPointerSize == kInt64Size) {
     pushq(src);
   } else {
     movp(kScratchRegister, src);
@@ -1538,7 +1539,7 @@ void TurboAssembler::Push(Operand src) {
 }
 
 void MacroAssembler::PushQuad(Operand src) {
-  if (kPointerSize == kInt64Size) {
+  if (kSystemPointerSize == kInt64Size) {
     pushq(src);
   } else {
     movp(kScratchRegister, src);
@@ -1547,7 +1548,7 @@ void MacroAssembler::PushQuad(Operand src) {
 }
 
 void TurboAssembler::Push(Immediate value) {
-  if (kPointerSize == kInt64Size) {
+  if (kSystemPointerSize == kInt64Size) {
     pushq(value);
   } else {
     leal(rsp, Operand(rsp, -4));
@@ -1557,7 +1558,7 @@ void TurboAssembler::Push(Immediate value) {
 
 
 void MacroAssembler::PushImm32(int32_t imm32) {
-  if (kPointerSize == kInt64Size) {
+  if (kSystemPointerSize == kInt64Size) {
     pushq_imm32(imm32);
   } else {
     leal(rsp, Operand(rsp, -4));
@@ -1567,7 +1568,7 @@ void MacroAssembler::PushImm32(int32_t imm32) {
 
 
 void MacroAssembler::Pop(Register dst) {
-  if (kPointerSize == kInt64Size) {
+  if (kSystemPointerSize == kInt64Size) {
     popq(dst);
   } else {
     // x32 uses 64-bit pop for rbp in the epilogue.
@@ -1578,7 +1579,7 @@ void MacroAssembler::Pop(Register dst) {
 }
 
 void MacroAssembler::Pop(Operand dst) {
-  if (kPointerSize == kInt64Size) {
+  if (kSystemPointerSize == kInt64Size) {
     popq(dst);
   } else {
     Register scratch = dst.AddressUsesRegister(kScratchRegister)
@@ -1594,7 +1595,7 @@ void MacroAssembler::Pop(Operand dst) {
 }
 
 void MacroAssembler::PopQuad(Operand dst) {
-  if (kPointerSize == kInt64Size) {
+  if (kSystemPointerSize == kInt64Size) {
     popq(dst);
   } else {
     popq(kScratchRegister);
@@ -1608,7 +1609,7 @@ void TurboAssembler::Jump(ExternalReference ext) {
 }
 
 void TurboAssembler::Jump(Operand op) {
-  if (kPointerSize == kInt64Size) {
+  if (kSystemPointerSize == kInt64Size) {
     jmp(op);
   } else {
     movp(kScratchRegister, op);
@@ -1677,7 +1678,7 @@ void TurboAssembler::Call(ExternalReference ext) {
 }
 
 void TurboAssembler::Call(Operand op) {
-  if (kPointerSize == kInt64Size && !CpuFeatures::IsSupported(ATOM)) {
+  if (kSystemPointerSize == kInt64Size && !CpuFeatures::IsSupported(ATOM)) {
     call(op);
   } else {
     movp(kScratchRegister, op);
@@ -1996,16 +1997,16 @@ void MacroAssembler::Pushad() {
   Push(r15);
   STATIC_ASSERT(12 == kNumSafepointSavedRegisters);
   // Use lea for symmetry with Popad.
-  int sp_delta =
-      (kNumSafepointRegisters - kNumSafepointSavedRegisters) * kPointerSize;
+  int sp_delta = (kNumSafepointRegisters - kNumSafepointSavedRegisters) *
+                 kSystemPointerSize;
   leap(rsp, Operand(rsp, -sp_delta));
 }
 
 
 void MacroAssembler::Popad() {
   // Popad must not change the flags, so use lea instead of addq.
-  int sp_delta =
-      (kNumSafepointRegisters - kNumSafepointSavedRegisters) * kPointerSize;
+  int sp_delta = (kNumSafepointRegisters - kNumSafepointSavedRegisters) *
+                 kSystemPointerSize;
   leap(rsp, Operand(rsp, sp_delta));
   Pop(r15);
   Pop(r14);
@@ -2046,7 +2047,7 @@ MacroAssembler::kSafepointPushRegisterIndices[Register::kNumRegisters] = {
 
 void MacroAssembler::PushStackHandler() {
   // Adjust this code if not the case.
-  STATIC_ASSERT(StackHandlerConstants::kSize == 2 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kSize == 2 * kSystemPointerSize);
   STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
 
   Push(Immediate(0));  // Padding.
@@ -2066,7 +2067,7 @@ void MacroAssembler::PopStackHandler() {
   ExternalReference handler_address =
       ExternalReference::Create(IsolateAddressId::kHandlerAddress, isolate());
   Pop(ExternalReferenceAsOperand(handler_address));
-  addp(rsp, Immediate(StackHandlerConstants::kSize - kPointerSize));
+  addp(rsp, Immediate(StackHandlerConstants::kSize - kSystemPointerSize));
 }
 
 void TurboAssembler::Ret() { ret(0); }
@@ -2282,9 +2283,10 @@ void TurboAssembler::PrepareForTailCall(const ParameterCount& callee_args_count,
     leap(new_sp_reg, Operand(rbp, caller_args_count_reg, times_pointer_size,
                              StandardFrameConstants::kCallerPCOffset));
   } else {
-    leap(new_sp_reg, Operand(rbp, caller_args_count_reg, times_pointer_size,
-                             StandardFrameConstants::kCallerPCOffset -
-                                 callee_args_count.immediate() * kPointerSize));
+    leap(new_sp_reg,
+         Operand(rbp, caller_args_count_reg, times_pointer_size,
+                 StandardFrameConstants::kCallerPCOffset -
+                     callee_args_count.immediate() * kSystemPointerSize));
   }
 
   if (FLAG_debug_code) {
@@ -2536,13 +2538,13 @@ void MacroAssembler::EnterExitFramePrologue(bool save_rax,
   DCHECK_EQ(kFPOnStackSize + kPCOnStackSize,
             ExitFrameConstants::kCallerSPDisplacement);
   DCHECK_EQ(kFPOnStackSize, ExitFrameConstants::kCallerPCOffset);
-  DCHECK_EQ(0 * kPointerSize, ExitFrameConstants::kCallerFPOffset);
+  DCHECK_EQ(0 * kSystemPointerSize, ExitFrameConstants::kCallerFPOffset);
   pushq(rbp);
   movp(rbp, rsp);
 
   // Reserve room for entry stack pointer and push the code object.
   Push(Immediate(StackFrame::TypeToMarker(frame_type)));
-  DCHECK_EQ(-2 * kPointerSize, ExitFrameConstants::kSPOffset);
+  DCHECK_EQ(-2 * kSystemPointerSize, ExitFrameConstants::kSPOffset);
   Push(Immediate(0));  // Saved entry sp, patched before call.
   Move(kScratchRegister, CodeObject(), RelocInfo::EMBEDDED_OBJECT);
   Push(kScratchRegister);  // Accessed from ExitFrame::code_slot.
@@ -2603,7 +2605,7 @@ void MacroAssembler::EnterExitFrame(int arg_stack_space, bool save_doubles,
 
   // Set up argv in callee-saved register r15. It is reused in LeaveExitFrame,
   // so it must be retained across the C-call.
-  int offset = StandardFrameConstants::kCallerSPOffset - kPointerSize;
+  int offset = StandardFrameConstants::kCallerSPOffset - kSystemPointerSize;
   leap(r15, Operand(rbp, r14, times_pointer_size, offset));
 
   EnterExitFrameEpilogue(arg_stack_space, save_doubles);
@@ -2632,11 +2634,11 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles, bool pop_arguments) {
   if (pop_arguments) {
     // Get the return address from the stack and restore the frame pointer.
     movp(rcx, Operand(rbp, kFPOnStackSize));
-    movp(rbp, Operand(rbp, 0 * kPointerSize));
+    movp(rbp, Operand(rbp, 0 * kSystemPointerSize));
 
     // Drop everything up to and including the arguments and the receiver
     // from the caller stack.
-    leap(rsp, Operand(r15, 1 * kPointerSize));
+    leap(rsp, Operand(r15, 1 * kSystemPointerSize));
 
     PushReturnAddressFrom(rcx);
   } else {

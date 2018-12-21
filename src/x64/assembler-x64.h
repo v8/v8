@@ -192,7 +192,7 @@ class V8_EXPORT_PRIVATE Operand {
   const Data data_;
 };
 ASSERT_TRIVIALLY_COPYABLE(Operand);
-static_assert(sizeof(Operand) <= 2 * kPointerSize,
+static_assert(sizeof(Operand) <= 2 * kSystemPointerSize,
               "Operand must be small enough to pass it by value");
 
 #define ASSEMBLER_INSTRUCTION_LIST(V) \
@@ -219,8 +219,8 @@ static_assert(sizeof(Operand) <= 2 * kPointerSize,
   V(xchg)                             \
   V(xor)
 
-// Shift instructions on operands/registers with kPointerSize, kInt32Size and
-// kInt64Size.
+// Shift instructions on operands/registers with kSystemPointerSize, kInt32Size
+// and kInt64Size.
 #define SHIFT_INSTRUCTION_LIST(V) \
   V(rol, 0x0)                     \
   V(ror, 0x1)                     \
@@ -366,15 +366,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Distance between the address of the code target in the call instruction
   // and the return address pushed on the stack.
   static constexpr int kCallTargetAddressOffset = 4;  // 32-bit displacement.
-  // The length of call(kScratchRegister).
-  static constexpr int kCallScratchRegisterInstructionLength = 3;
-  // The length of movq(kScratchRegister, address).
-  static constexpr int kMoveAddressIntoScratchRegisterInstructionLength =
-      2 + kPointerSize;
-  // The length of movq(kScratchRegister, address) and call(kScratchRegister).
-  static constexpr int kCallSequenceLength =
-      kMoveAddressIntoScratchRegisterInstructionLength +
-      kCallScratchRegisterInstructionLength;
 
   // One byte opcode for test eax,0xXXXXXXXX.
   static constexpr byte kTestEaxByte = 0xA9;
@@ -566,7 +557,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   void repmovsb();
   void repmovsw();
-  void repmovsp() { emit_repmovs(kPointerSize); }
+  void repmovsp() { emit_repmovs(kSystemPointerSize); }
   void repmovsl() { emit_repmovs(kInt32Size); }
   void repmovsq() { emit_repmovs(kInt64Size); }
 
@@ -645,41 +636,45 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Multiply rax by src, put the result in rdx:rax.
   void mulq(Register src);
 
-#define DECLARE_SHIFT_INSTRUCTION(instruction, subcode)                       \
-  void instruction##p(Register dst, Immediate imm8) {                         \
-    shift(dst, imm8, subcode, kPointerSize);                                  \
-  }                                                                           \
-                                                                              \
-  void instruction##l(Register dst, Immediate imm8) {                         \
-    shift(dst, imm8, subcode, kInt32Size);                                    \
-  }                                                                           \
-                                                                              \
-  void instruction##q(Register dst, Immediate imm8) {                         \
-    shift(dst, imm8, subcode, kInt64Size);                                    \
-  }                                                                           \
-                                                                              \
-  void instruction##p(Operand dst, Immediate imm8) {                          \
-    shift(dst, imm8, subcode, kPointerSize);                                  \
-  }                                                                           \
-                                                                              \
-  void instruction##l(Operand dst, Immediate imm8) {                          \
-    shift(dst, imm8, subcode, kInt32Size);                                    \
-  }                                                                           \
-                                                                              \
-  void instruction##q(Operand dst, Immediate imm8) {                          \
-    shift(dst, imm8, subcode, kInt64Size);                                    \
-  }                                                                           \
-                                                                              \
-  void instruction##p_cl(Register dst) { shift(dst, subcode, kPointerSize); } \
-                                                                              \
-  void instruction##l_cl(Register dst) { shift(dst, subcode, kInt32Size); }   \
-                                                                              \
-  void instruction##q_cl(Register dst) { shift(dst, subcode, kInt64Size); }   \
-                                                                              \
-  void instruction##p_cl(Operand dst) { shift(dst, subcode, kPointerSize); }  \
-                                                                              \
-  void instruction##l_cl(Operand dst) { shift(dst, subcode, kInt32Size); }    \
-                                                                              \
+#define DECLARE_SHIFT_INSTRUCTION(instruction, subcode)                     \
+  void instruction##p(Register dst, Immediate imm8) {                       \
+    shift(dst, imm8, subcode, kSystemPointerSize);                          \
+  }                                                                         \
+                                                                            \
+  void instruction##l(Register dst, Immediate imm8) {                       \
+    shift(dst, imm8, subcode, kInt32Size);                                  \
+  }                                                                         \
+                                                                            \
+  void instruction##q(Register dst, Immediate imm8) {                       \
+    shift(dst, imm8, subcode, kInt64Size);                                  \
+  }                                                                         \
+                                                                            \
+  void instruction##p(Operand dst, Immediate imm8) {                        \
+    shift(dst, imm8, subcode, kSystemPointerSize);                          \
+  }                                                                         \
+                                                                            \
+  void instruction##l(Operand dst, Immediate imm8) {                        \
+    shift(dst, imm8, subcode, kInt32Size);                                  \
+  }                                                                         \
+                                                                            \
+  void instruction##q(Operand dst, Immediate imm8) {                        \
+    shift(dst, imm8, subcode, kInt64Size);                                  \
+  }                                                                         \
+                                                                            \
+  void instruction##p_cl(Register dst) {                                    \
+    shift(dst, subcode, kSystemPointerSize);                                \
+  }                                                                         \
+                                                                            \
+  void instruction##l_cl(Register dst) { shift(dst, subcode, kInt32Size); } \
+                                                                            \
+  void instruction##q_cl(Register dst) { shift(dst, subcode, kInt64Size); } \
+                                                                            \
+  void instruction##p_cl(Operand dst) {                                     \
+    shift(dst, subcode, kSystemPointerSize);                                \
+  }                                                                         \
+                                                                            \
+  void instruction##l_cl(Operand dst) { shift(dst, subcode, kInt32Size); }  \
+                                                                            \
   void instruction##q_cl(Operand dst) { shift(dst, subcode, kInt64Size); }
   SHIFT_INSTRUCTION_LIST(DECLARE_SHIFT_INSTRUCTION)
 #undef DECLARE_SHIFT_INSTRUCTION
