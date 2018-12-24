@@ -534,7 +534,6 @@ class Shell : public i::AllStatic {
   static char* ReadCharsFromTcpPort(const char* name, int* size_out);
 
   static void set_script_executed() { script_executed_.store(true); }
-  static bool script_executed() { return script_executed_.load(); }
   static bool use_interactive_shell() {
     return (options.interactive_shell || !script_executed_.load()) &&
            !options.test_shell;
