@@ -96,6 +96,8 @@ function TestArrayPrototypeUnscopables() {
   var fill = 'local fill';
   var find = 'local find';
   var findIndex = 'local findIndex';
+  var flat = 'local flat';
+  var flatMap = 'local flatMap';
   var keys = 'local keys';
   var values = 'local values';
 
@@ -108,6 +110,8 @@ function TestArrayPrototypeUnscopables() {
     assertEquals('local fill', fill);
     assertEquals('local find', find);
     assertEquals('local findIndex', findIndex);
+    assertEquals('local flat', flat);
+    assertEquals('local flatMap', flatMap);
     assertEquals('local keys', keys);
     assertEquals('local values', values);
     assertEquals(42, toString);

@@ -1776,6 +1776,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     InstallTrueValuedProperty(isolate_, unscopables, "fill");
     InstallTrueValuedProperty(isolate_, unscopables, "find");
     InstallTrueValuedProperty(isolate_, unscopables, "findIndex");
+    InstallTrueValuedProperty(isolate_, unscopables, "flat");
+    InstallTrueValuedProperty(isolate_, unscopables, "flatMap");
     InstallTrueValuedProperty(isolate_, unscopables, "includes");
     InstallTrueValuedProperty(isolate_, unscopables, "keys");
     InstallTrueValuedProperty(isolate_, unscopables, "values");
