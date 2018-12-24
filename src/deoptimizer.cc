@@ -1288,7 +1288,7 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
 
   // The constructor function was mentioned explicitly in the
   // CONSTRUCT_STUB_FRAME.
-  frame_writer.PushTranslatedValue(function_iterator, "constuctor function\n");
+  frame_writer.PushTranslatedValue(function_iterator, "constructor function\n");
 
   // The deopt info contains the implicit receiver or the new target at the
   // position of the receiver. Copy it to the top of stack, with the hole value

@@ -169,7 +169,7 @@ namespace internal {
     "'construct' on proxy: trap returned non-object ('%')")                    \
   T(ProxyDefinePropertyNonConfigurable,                                        \
     "'defineProperty' on proxy: trap returned truish for defining "            \
-    "non-configurable property '%' which is either non-existant or "           \
+    "non-configurable property '%' which is either non-existent or "           \
     "configurable in the proxy target")                                        \
   T(ProxyDefinePropertyNonExtensible,                                          \
     "'defineProperty' on proxy: trap returned truish for adding property '%' " \
@@ -197,7 +197,7 @@ namespace internal {
     "undefined for property '%'")                                              \
   T(ProxyGetOwnPropertyDescriptorNonConfigurable,                              \
     "'getOwnPropertyDescriptor' on proxy: trap reported non-configurability "  \
-    "for property '%' which is either non-existant or configurable in the "    \
+    "for property '%' which is either non-existent or configurable in the "    \
     "proxy target")                                                            \
   T(ProxyGetOwnPropertyDescriptorNonExtensible,                                \
     "'getOwnPropertyDescriptor' on proxy: trap returned undefined for "        \
