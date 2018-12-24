@@ -2932,6 +2932,25 @@ bool Shell::SetOptions(int argc, char* argv[]) {
   return true;
 }
 
+namespace {
+
+void SeasonalGreetings() {
+  if (Shell::script_executed()) return;
+  // clang-format off
+  printf(
+    "  .-\"\"-.                                                                                       \n"
+    " /,..___\\     __  __                         ____ _          _     _                            \n"
+    "() {_____}   |  \\/  | ___ _ __ _ __ _   _   / ___| |__  _ __(_)___| |_ _ __ ___   __ _ ___      \n"
+    "  (/-@-@-\\)  | |\\/| |/ _ \\ '__| '__| | | | | |   | '_ \\| '__| / __| __| '_ ` _ \\ / _` / __| \n"
+    "  {`-=^=-'}  | |  | |  __/ |  | |  | |_| | | |___| | | | |  | \\__ \\ |_| | | | | | (_| \\__ \\  \n"
+    "  {  `-'  }  |_|  |_|\\___|_|  |_|   \\__, |  \\____|_| |_|_|  |_|___/\\__|_| |_| |_|\\__,_|___/ \n"
+    "   {     }                          |___/                                                        \n"
+    "    `---'                                                                                        \n");
+  // clang-format on
+}
+
+}  // namespace
+
 int Shell::RunMain(Isolate* isolate, int argc, char* argv[], bool last_run) {
   for (int i = 1; i < options.num_isolates; ++i) {
     options.isolate_sources[i].StartExecuteInThread();
@@ -2953,6 +2972,7 @@ int Shell::RunMain(Isolate* isolate, int argc, char* argv[], bool last_run) {
       InspectorClient inspector_client(context, options.enable_inspector);
       PerIsolateData::RealmScope realm_scope(PerIsolateData::Get(isolate));
       options.isolate_sources[0].Execute(isolate);
+      SeasonalGreetings();
       CompleteMessageLoop(isolate);
     }
     if (!use_existing_context) {
