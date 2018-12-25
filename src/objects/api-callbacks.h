@@ -64,7 +64,7 @@ class AccessorInfo : public Struct {
   // Checks whether the given receiver is compatible with this accessor.
   static bool IsCompatibleReceiverMap(Handle<AccessorInfo> info,
                                       Handle<Map> map);
-  inline bool IsCompatibleReceiver(Object* receiver);
+  inline bool IsCompatibleReceiver(Object receiver);
 
   DECL_CAST2(AccessorInfo)
 

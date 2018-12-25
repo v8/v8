@@ -59,11 +59,11 @@ class RawMachineAssemblerTester : public HandleAndZoneScope,
 
   ~RawMachineAssemblerTester() override = default;
 
-  void CheckNumber(double expected, Object* number) {
+  void CheckNumber(double expected, Object number) {
     CHECK(this->isolate()->factory()->NewNumber(expected)->SameValue(number));
   }
 
-  void CheckString(const char* expected, Object* string) {
+  void CheckString(const char* expected, Object string) {
     CHECK(
         this->isolate()->factory()->InternalizeUtf8String(expected)->SameValue(
             string));

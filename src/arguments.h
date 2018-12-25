@@ -22,7 +22,7 @@ namespace internal {
 // that inside the C++ function, the parameters passed can
 // be accessed conveniently:
 //
-//   Object* Runtime_function(Arguments args) {
+//   Object Runtime_function(Arguments args) {
 //     ... use args[i] here ...
 //   }
 //
@@ -47,7 +47,7 @@ class Arguments {
 
   inline double number_at(int index);
 
-  inline void set_at(int index, Object* value) {
+  inline void set_at(int index, Object value) {
     *address_of_arg_at(index) = value->ptr();
   }
 
@@ -117,7 +117,7 @@ double ClobberDoubleRegisters(double x1, double x2, double x3, double x4);
 #define CONVERT_OBJECTPAIR(x) (x)
 
 #define RUNTIME_FUNCTION(Name) \
-  RUNTIME_FUNCTION_RETURNS_TYPE(Address, Object*, CONVERT_OBJECT, Name)
+  RUNTIME_FUNCTION_RETURNS_TYPE(Address, Object, CONVERT_OBJECT, Name)
 
 #define RUNTIME_FUNCTION_RETURN_PAIR(Name)                                  \
   RUNTIME_FUNCTION_RETURNS_TYPE(ObjectPair, ObjectPair, CONVERT_OBJECTPAIR, \

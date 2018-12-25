@@ -179,7 +179,7 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
   // cast it back to the raw pointer.
   CHECK(!arg_buffer_obj->IsHeapObject());
   CHECK(arg_buffer_obj->IsSmi());
-  Address arg_buffer = reinterpret_cast<Address>(*arg_buffer_obj);
+  Address arg_buffer = arg_buffer_obj->ptr();
 
   ClearThreadInWasmScope wasm_flag;
 
@@ -252,7 +252,7 @@ RUNTIME_FUNCTION(Runtime_WasmCompileLazy) {
 
   Address entrypoint = wasm::CompileLazy(
       isolate, instance->module_object()->native_module(), func_index);
-  return reinterpret_cast<Object*>(entrypoint);
+  return Object(entrypoint);
 }
 
 // Should be called from within a handle scope

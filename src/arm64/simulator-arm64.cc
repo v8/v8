@@ -473,7 +473,7 @@ void Simulator::DoRuntimeCall(Instruction* instr) {
     case ExternalReference::BUILTIN_CALL:
 #if defined(V8_OS_WIN)
     {
-      // Object* f(v8::internal::Arguments).
+      // Object f(v8::internal::Arguments).
       TraceSim("Type: BUILTIN_CALL\n");
 
       // When this simulator runs on Windows x64 host, function with ObjectPair
@@ -513,7 +513,7 @@ void Simulator::DoRuntimeCall(Instruction* instr) {
     }
 #endif
     case ExternalReference::BUILTIN_CALL_PAIR: {
-      // Object* f(v8::internal::Arguments) or
+      // Object f(v8::internal::Arguments) or
       // ObjectPair f(v8::internal::Arguments).
       TraceSim("Type: BUILTIN_CALL\n");
 
@@ -3238,7 +3238,7 @@ void Simulator::Debug() {
           int64_t value;
           StdoutStream os;
           if (GetValue(arg1, &value)) {
-            Object* obj = reinterpret_cast<Object*>(value);
+            Object obj(value);
             os << arg1 << ": \n";
 #ifdef DEBUG
             obj->Print(os);

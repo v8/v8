@@ -166,12 +166,12 @@ void FeedbackVector::set(int index, MaybeObject value, WriteBarrierMode mode) {
   CONDITIONAL_WEAK_WRITE_BARRIER(this, offset, value, mode);
 }
 
-void FeedbackVector::Set(FeedbackSlot slot, Object* value,
+void FeedbackVector::Set(FeedbackSlot slot, Object value,
                          WriteBarrierMode mode) {
   set(GetIndex(slot), MaybeObject::FromObject(value), mode);
 }
 
-void FeedbackVector::set(int index, Object* value, WriteBarrierMode mode) {
+void FeedbackVector::set(int index, Object value, WriteBarrierMode mode) {
   set(index, MaybeObject::FromObject(value), mode);
 }
 
@@ -401,7 +401,7 @@ MaybeObject FeedbackNexus::GetFeedbackExtra() const {
   return vector()->get(extra_index);
 }
 
-void FeedbackNexus::SetFeedback(Object* feedback, WriteBarrierMode mode) {
+void FeedbackNexus::SetFeedback(Object feedback, WriteBarrierMode mode) {
   SetFeedback(MaybeObject::FromObject(feedback));
 }
 
@@ -410,7 +410,7 @@ void FeedbackNexus::SetFeedback(MaybeObject feedback, WriteBarrierMode mode) {
   vector()->Set(slot(), feedback, mode);
 }
 
-void FeedbackNexus::SetFeedbackExtra(Object* feedback_extra,
+void FeedbackNexus::SetFeedbackExtra(Object feedback_extra,
                                      WriteBarrierMode mode) {
 #ifdef DEBUG
   FeedbackSlotKind kind = vector()->GetKind(slot());

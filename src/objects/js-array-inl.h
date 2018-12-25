@@ -25,7 +25,7 @@ ACCESSORS(JSArray, length, Object, kLengthOffset)
 
 void JSArray::set_length(Smi length) {
   // Don't need a write barrier for a Smi.
-  set_length(static_cast<Object*>(length), SKIP_WRITE_BARRIER);
+  set_length(Object(length.ptr()), SKIP_WRITE_BARRIER);
 }
 
 bool JSArray::SetLengthWouldNormalize(Heap* heap, uint32_t new_length) {

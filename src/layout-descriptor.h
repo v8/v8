@@ -41,14 +41,14 @@ class LayoutDescriptor : public ByteArray {
 
   // Returns true if this is a layout of the object having only tagged fields.
   V8_INLINE bool IsFastPointerLayout();
-  V8_INLINE static bool IsFastPointerLayout(Object* layout_descriptor);
+  V8_INLINE static bool IsFastPointerLayout(Object layout_descriptor);
 
   // Returns true if the layout descriptor is in non-Smi form.
   V8_INLINE bool IsSlowLayout();
 
   DECL_CAST2(LayoutDescriptor)
 
-  V8_INLINE static LayoutDescriptor cast_gc_safe(Object* object);
+  V8_INLINE static LayoutDescriptor cast_gc_safe(Object object);
 
   // Builds layout descriptor optimized for given |map| by |num_descriptors|
   // elements of given descriptors array. The |map|'s descriptors could be

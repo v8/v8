@@ -28,11 +28,11 @@ class PropertyArray : public HeapObject {
   inline void SetHash(int hash);
   inline int Hash() const;
 
-  inline Object* get(int index) const;
+  inline Object get(int index) const;
 
-  inline void set(int index, Object* value);
+  inline void set(int index, Object value);
   // Setter with explicit barrier mode.
-  inline void set(int index, Object* value, WriteBarrierMode mode);
+  inline void set(int index, Object value, WriteBarrierMode mode);
 
   // Gives access to raw memory which stores the array's data.
   inline ObjectSlot data_start();

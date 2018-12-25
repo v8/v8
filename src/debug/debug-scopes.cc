@@ -185,7 +185,7 @@ void ScopeIterator::UnwrapEvaluationContext() {
   if (!context_->IsDebugEvaluateContext()) return;
   Context current = *context_;
   do {
-    Object* wrapped = current->get(Context::WRAPPED_CONTEXT_INDEX);
+    Object wrapped = current->get(Context::WRAPPED_CONTEXT_INDEX);
     if (wrapped->IsContext()) {
       current = Context::cast(wrapped);
     } else {

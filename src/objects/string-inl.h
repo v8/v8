@@ -220,7 +220,7 @@ class OneByteStringKey : public SequentialStringKey<uint8_t> {
   OneByteStringKey(Vector<const uint8_t> str, uint64_t seed)
       : SequentialStringKey<uint8_t>(str, seed) {}
 
-  bool IsMatch(Object* string) override {
+  bool IsMatch(Object string) override {
     return String::cast(string)->IsOneByteEqualTo(string_);
   }
 
@@ -254,7 +254,7 @@ class SeqOneByteSubStringKey : public StringTableKey {
 #pragma warning(pop)
 #endif
 
-  bool IsMatch(Object* string) override;
+  bool IsMatch(Object string) override;
   Handle<String> AsHandle(Isolate* isolate) override;
 
  private:
@@ -268,7 +268,7 @@ class TwoByteStringKey : public SequentialStringKey<uc16> {
   explicit TwoByteStringKey(Vector<const uc16> str, uint64_t seed)
       : SequentialStringKey<uc16>(str, seed) {}
 
-  bool IsMatch(Object* string) override {
+  bool IsMatch(Object string) override {
     return String::cast(string)->IsTwoByteEqualTo(string_);
   }
 
@@ -282,7 +282,7 @@ class Utf8StringKey : public StringTableKey {
       : StringTableKey(StringHasher::ComputeUtf8Hash(string, seed, &chars_)),
         string_(string) {}
 
-  bool IsMatch(Object* string) override {
+  bool IsMatch(Object string) override {
     return String::cast(string)->IsUtf8EqualTo(string_);
   }
 
@@ -458,7 +458,7 @@ inline Vector<const uc16> String::GetCharVector(
   return flat.ToUC16Vector();
 }
 
-uint32_t String::ToValidIndex(Object* number) {
+uint32_t String::ToValidIndex(Object number) {
   uint32_t index = PositiveNumberToUint32(number);
   uint32_t length_value = static_cast<uint32_t>(length());
   if (index > length_value) return length_value;
@@ -529,7 +529,7 @@ String ConsString::first() {
   return String::cast(READ_FIELD(this, kFirstOffset));
 }
 
-Object* ConsString::unchecked_first() { return READ_FIELD(this, kFirstOffset); }
+Object ConsString::unchecked_first() { return READ_FIELD(this, kFirstOffset); }
 
 void ConsString::set_first(Isolate* isolate, String value,
                            WriteBarrierMode mode) {
@@ -541,7 +541,7 @@ String ConsString::second() {
   return String::cast(READ_FIELD(this, kSecondOffset));
 }
 
-Object* ConsString::unchecked_second() {
+Object ConsString::unchecked_second() {
   return RELAXED_READ_FIELD(this, kSecondOffset);
 }
 

@@ -98,9 +98,9 @@ HeapObject MaybeObject::GetHeapObject() const {
   return HeapObject::cast(ObjectPtr(ptr_ & ~kWeakHeapObjectMask));
 }
 
-Object* MaybeObject::GetHeapObjectOrSmi() const {
+Object MaybeObject::GetHeapObjectOrSmi() const {
   if (IsSmi()) {
-    return reinterpret_cast<Object*>(ptr_);
+    return Object(ptr_);
   }
   return GetHeapObject();
 }

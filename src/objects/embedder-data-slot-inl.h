@@ -24,7 +24,7 @@ EmbedderDataSlot::EmbedderDataSlot(JSObject object, int embedder_field_index)
     : SlotBase(FIELD_ADDR(
           object, object->GetEmbedderFieldOffset(embedder_field_index))) {}
 
-Object* EmbedderDataSlot::load_tagged() const {
+Object EmbedderDataSlot::load_tagged() const {
   return ObjectSlot(address() + kTaggedPayloadOffset).Relaxed_Load();
 }
 
@@ -37,10 +37,10 @@ void EmbedderDataSlot::store_smi(Smi value) {
 
 // static
 void EmbedderDataSlot::store_tagged(EmbedderDataArray array, int entry_index,
-                                    Object* value) {
+                                    Object value) {
   int slot_offset = EmbedderDataArray::OffsetOfElementAt(entry_index);
   ObjectSlot(FIELD_ADDR(array, slot_offset + kTaggedPayloadOffset))
-      .Relaxed_Store(ObjectPtr(value->ptr()));
+      .Relaxed_Store(value);
   WRITE_BARRIER(array, slot_offset, value);
 #ifdef V8_COMPRESS_POINTERS
   ObjectSlot(FIELD_ADDR(array, slot_offset + kRawPayloadOffset))
@@ -50,10 +50,10 @@ void EmbedderDataSlot::store_tagged(EmbedderDataArray array, int entry_index,
 
 // static
 void EmbedderDataSlot::store_tagged(JSObject object, int embedder_field_index,
-                                    Object* value) {
+                                    Object value) {
   int slot_offset = object->GetEmbedderFieldOffset(embedder_field_index);
   ObjectSlot(FIELD_ADDR(object, slot_offset + kTaggedPayloadOffset))
-      .Relaxed_Store(ObjectPtr(value->ptr()));
+      .Relaxed_Store(value);
   WRITE_BARRIER(object, slot_offset, value);
 #ifdef V8_COMPRESS_POINTERS
   ObjectSlot(FIELD_ADDR(object, slot_offset + kRawPayloadOffset))
@@ -62,7 +62,7 @@ void EmbedderDataSlot::store_tagged(JSObject object, int embedder_field_index,
 }
 
 bool EmbedderDataSlot::ToAlignedPointer(void** out_pointer) const {
-  Object* tagged_value =
+  Object tagged_value =
       ObjectSlot(address() + kTaggedPayloadOffset).Relaxed_Load();
   if (!tagged_value->IsSmi()) return false;
 #ifdef V8_COMPRESS_POINTERS
@@ -75,7 +75,7 @@ bool EmbedderDataSlot::ToAlignedPointer(void** out_pointer) const {
   Address value = value_lo | (value_hi << 32);
   *out_pointer = reinterpret_cast<void*>(value);
 #else
-  *out_pointer = reinterpret_cast<void*>(tagged_value);
+  *out_pointer = reinterpret_cast<void*>(tagged_value->ptr());
 #endif
   return true;
 }

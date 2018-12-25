@@ -58,16 +58,16 @@ class SlotSnapshot {
   SlotSnapshot() : number_of_slots_(0) {}
   int number_of_slots() const { return number_of_slots_; }
   ObjectSlot slot(int i) const { return snapshot_[i].first; }
-  Object* value(int i) const { return snapshot_[i].second; }
+  Object value(int i) const { return snapshot_[i].second; }
   void clear() { number_of_slots_ = 0; }
-  void add(ObjectSlot slot, Object* value) {
+  void add(ObjectSlot slot, Object value) {
     snapshot_[number_of_slots_++] = {slot, value};
   }
 
  private:
   static const int kMaxSnapshotSize = JSObject::kMaxInstanceSize / kTaggedSize;
   int number_of_slots_;
-  std::pair<ObjectSlot, Object*> snapshot_[kMaxSnapshotSize];
+  std::pair<ObjectSlot, Object> snapshot_[kMaxSnapshotSize];
   DISALLOW_COPY_AND_ASSIGN(SlotSnapshot);
 };
 
@@ -190,7 +190,7 @@ class ConcurrentMarkingVisitor final
   void VisitPointersInSnapshot(HeapObject host, const SlotSnapshot& snapshot) {
     for (int i = 0; i < snapshot.number_of_slots(); i++) {
       ObjectSlot slot = snapshot.slot(i);
-      Object* object = snapshot.value(i);
+      Object object = snapshot.value(i);
       DCHECK(!HasWeakHeapObjectTag(object));
       if (!object->IsHeapObject()) continue;
       HeapObject heap_object = HeapObject::cast(object);
@@ -441,7 +441,7 @@ class ConcurrentMarkingVisitor final
         VisitPointer(table, value_slot);
 
       } else {
-        Object* value_obj = table->ValueAt(i);
+        Object value_obj = table->ValueAt(i);
 
         if (value_obj->IsHeapObject()) {
           HeapObject value = HeapObject::cast(value_obj);
@@ -509,7 +509,7 @@ class ConcurrentMarkingVisitor final
     void VisitPointers(HeapObject host, ObjectSlot start,
                        ObjectSlot end) override {
       for (ObjectSlot p = start; p < end; ++p) {
-        Object* object = p.Relaxed_Load();
+        Object object = p.Relaxed_Load();
         slot_snapshot_->add(p, object);
       }
     }
@@ -575,7 +575,7 @@ class ConcurrentMarkingVisitor final
   int VisitLeftTrimmableArray(Map map, T object) {
     // The synchronized_length() function checks that the length is a Smi.
     // This is not necessarily the case if the array is being left-trimmed.
-    Object* length = object->unchecked_synchronized_length();
+    Object length = object->unchecked_synchronized_length();
     if (!ShouldVisit(object)) return 0;
     // The cached length must be the actual length as the array is not black.
     // Left trimming marks the array black before over-writing the length.

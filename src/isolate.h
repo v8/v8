@@ -161,7 +161,7 @@ class WasmEngine;
   } while (false)
 
 /**
- * RETURN_RESULT_OR_FAILURE is used in functions with return type Object* (such
+ * RETURN_RESULT_OR_FAILURE is used in functions with return type Object (such
  * as "RUNTIME_FUNCTION(...) {...}" or "BUILTIN(...) {...}" ) to return either
  * the contents of a MaybeHandle<X>, or the "exception" sentinel value.
  * Example usage:
@@ -254,7 +254,7 @@ class WasmEngine;
  *
  * If inside a function with return type MaybeHandle<X>, use RETURN_ON_EXCEPTION
  * instead.
- * If inside a function with return type Object*, use
+ * If inside a function with return type Object, use
  * RETURN_FAILURE_ON_EXCEPTION instead.
  */
 #define RETURN_ON_EXCEPTION_VALUE(isolate, call, value)            \
@@ -268,7 +268,7 @@ class WasmEngine;
 /**
  * RETURN_FAILURE_ON_EXCEPTION conditionally returns the "exception" sentinel if
  * the given MaybeHandle is empty; so it can only be used in functions with
- * return type Object*, such as RUNTIME_FUNCTION(...) {...} or BUILTIN(...)
+ * return type Object, such as RUNTIME_FUNCTION(...) {...} or BUILTIN(...)
  * {...}. Example usage:
  *
  * RUNTIME_FUNCTION(Runtime_Func) {
@@ -307,7 +307,7 @@ class WasmEngine;
  *   ...
  * }
  *
- * If inside a function with return type Object*, use
+ * If inside a function with return type Object, use
  * RETURN_FAILURE_ON_EXCEPTION instead.
  * If inside a function with return type
  * Maybe<X> or Handle<X>, use RETURN_ON_EXCEPTION_VALUE instead.
@@ -383,7 +383,7 @@ class ThreadLocalTop {
   STATIC_ASSERT(sizeof(Context) == kPointerSize);
   Context context_;
   ThreadId thread_id_ = ThreadId::Invalid();
-  Object* pending_exception_ = nullptr;
+  Object pending_exception_;
 
   // Communication channel between Isolate::FindHandler and the CEntry.
   Context pending_handler_context_;
@@ -394,12 +394,12 @@ class ThreadLocalTop {
 
   // Communication channel between Isolate::Throw and message consumers.
   bool rethrowing_message_ = false;
-  Object* pending_message_obj_ = nullptr;
+  Object pending_message_obj_;
 
   // Use a separate value for scheduled exceptions to preserve the
   // invariants that hold about pending_exception.  We may want to
   // unify them later.
-  Object* scheduled_exception_ = nullptr;
+  Object scheduled_exception_;
   bool external_caught_exception_ = false;
   SaveContext* save_context_ = nullptr;
 
@@ -473,7 +473,7 @@ typedef std::vector<HeapObject> DebugObjectCache;
   /* State for Relocatable. */                                                \
   V(Relocatable*, relocatable_top, nullptr)                                   \
   V(DebugObjectCache*, string_stream_debug_object_cache, nullptr)             \
-  V(Object*, string_stream_current_security_token, nullptr)                   \
+  V(Object, string_stream_current_security_token, Object())                   \
   V(const intptr_t*, api_external_references, nullptr)                        \
   V(AddressToIndexHashMap*, external_reference_map, nullptr)                  \
   V(HeapObjectToIndexHashMap*, root_index_map, nullptr)                       \
@@ -686,13 +686,13 @@ class Isolate final : private HiddenFactory {
   THREAD_LOCAL_TOP_ACCESSOR(ThreadId, thread_id)
 
   // Interface to pending exception.
-  inline Object* pending_exception();
-  inline void set_pending_exception(Object* exception_obj);
+  inline Object pending_exception();
+  inline void set_pending_exception(Object exception_obj);
   inline void clear_pending_exception();
 
   bool AreWasmThreadsEnabled(Handle<Context> context);
 
-  THREAD_LOCAL_TOP_ADDRESS(Object*, pending_exception)
+  THREAD_LOCAL_TOP_ADDRESS(Object, pending_exception)
 
   inline bool has_pending_exception();
 
@@ -711,21 +711,21 @@ class Isolate final : private HiddenFactory {
     return &thread_local_top_.external_caught_exception_;
   }
 
-  THREAD_LOCAL_TOP_ADDRESS(Object*, scheduled_exception)
+  THREAD_LOCAL_TOP_ADDRESS(Object, scheduled_exception)
 
   inline void clear_pending_message();
   Address pending_message_obj_address() {
     return reinterpret_cast<Address>(&thread_local_top_.pending_message_obj_);
   }
 
-  inline Object* scheduled_exception();
+  inline Object scheduled_exception();
   inline bool has_scheduled_exception();
   inline void clear_scheduled_exception();
 
-  bool IsJavaScriptHandlerOnTop(Object* exception);
-  bool IsExternalHandlerOnTop(Object* exception);
+  bool IsJavaScriptHandlerOnTop(Object exception);
+  bool IsExternalHandlerOnTop(Object exception);
 
-  inline bool is_catchable_by_javascript(Object* exception);
+  inline bool is_catchable_by_javascript(Object exception);
 
   // JS execution stack (see frames.h).
   static Address c_entry_fp(ThreadLocalTop* thread) {
@@ -834,8 +834,8 @@ class Isolate final : private HiddenFactory {
 
   // Exception throwing support. The caller should use the result
   // of Throw() as its return value.
-  Object* Throw(Object* exception, MessageLocation* location = nullptr);
-  Object* ThrowIllegalOperation();
+  Object Throw(Object exception, MessageLocation* location = nullptr);
+  Object ThrowIllegalOperation();
 
   template <typename T>
   V8_WARN_UNUSED_RESULT MaybeHandle<T> Throw(
@@ -858,11 +858,11 @@ class Isolate final : private HiddenFactory {
 
   // Re-throw an exception.  This involves no error reporting since error
   // reporting was handled when the exception was thrown originally.
-  Object* ReThrow(Object* exception);
+  Object ReThrow(Object exception);
 
   // Find the correct handler for the current pending exception. This also
   // clears and returns the current pending exception.
-  Object* UnwindAndFindHandler();
+  Object UnwindAndFindHandler();
 
   // Tries to predict whether an exception will be caught. Note that this can
   // only produce an estimate, because it is undecidable whether a finally
@@ -877,7 +877,7 @@ class Isolate final : private HiddenFactory {
   };
   CatchType PredictExceptionCatcher();
 
-  V8_EXPORT_PRIVATE void ScheduleThrow(Object* exception);
+  V8_EXPORT_PRIVATE void ScheduleThrow(Object exception);
   // Re-set pending message, script and positions reported to the TryCatch
   // back to the TLS for re-use when rethrowing.
   void RestorePendingMessageFromTryCatch(v8::TryCatch* handler);
@@ -893,7 +893,7 @@ class Isolate final : private HiddenFactory {
   MessageLocation GetMessageLocation();
 
   // Promote a scheduled exception to pending. Asserts has_scheduled_exception.
-  Object* PromoteScheduledException();
+  Object PromoteScheduledException();
 
   // Attempts to compute the current source location, storing the
   // result in the target out parameter. The source location is attached to a
@@ -909,8 +909,8 @@ class Isolate final : private HiddenFactory {
                                         MessageLocation* location);
 
   // Out of resource exception helpers.
-  Object* StackOverflow();
-  Object* TerminateExecution();
+  Object StackOverflow();
+  Object TerminateExecution();
   void CancelTerminateExecution();
 
   void RequestInterrupt(InterruptCallback callback, void* data);
@@ -1009,7 +1009,7 @@ class Isolate final : private HiddenFactory {
                                sizeof(IsolateData));
   }
 
-  Object* root(RootIndex index) { return roots_table()[index]; }
+  Object root(RootIndex index) { return Object(roots_table()[index]); }
 
   Handle<Object> root_handle(RootIndex index) {
     return Handle<Object>(&roots_table()[index]);
@@ -1189,7 +1189,7 @@ class Isolate final : private HiddenFactory {
   // needed anymore. This keeps many feedback vectors alive, but code
   // coverage or type profile are used for debugging only and increase in
   // memory usage is expected.
-  void SetFeedbackVectorsForProfilingTools(Object* value);
+  void SetFeedbackVectorsForProfilingTools(Object value);
 
   void MaybeInitializeVectorListFromHeap();
 
@@ -1235,7 +1235,7 @@ class Isolate final : private HiddenFactory {
   bool IsNoElementsProtectorIntact(Context context);
   bool IsNoElementsProtectorIntact();
 
-  bool IsArrayOrObjectOrStringPrototype(Object* object);
+  bool IsArrayOrObjectOrStringPrototype(Object object);
 
   inline bool IsArraySpeciesLookupChainIntact();
   inline bool IsTypedArraySpeciesLookupChainIntact();
@@ -1462,11 +1462,11 @@ class Isolate final : private HiddenFactory {
   void AddDetachedContext(Handle<Context> context);
   void CheckDetachedContextsAfterGC();
 
-  std::vector<Object*>* read_only_object_cache() {
+  std::vector<Object>* read_only_object_cache() {
     return &read_only_object_cache_;
   }
 
-  std::vector<Object*>* partial_snapshot_cache() {
+  std::vector<Object>* partial_snapshot_cache() {
     return &partial_snapshot_cache_;
   }
 
@@ -1524,7 +1524,7 @@ class Isolate final : private HiddenFactory {
     return compiler_dispatcher_;
   }
 
-  bool IsInAnyContext(Object* object, uint32_t index);
+  bool IsInAnyContext(Object object, uint32_t index);
 
   void SetHostImportModuleDynamicallyCallback(
       HostImportModuleDynamicallyCallback callback);
@@ -1852,8 +1852,8 @@ class Isolate final : private HiddenFactory {
 
   v8::Isolate::UseCounterCallback use_counter_callback_ = nullptr;
 
-  std::vector<Object*> read_only_object_cache_;
-  std::vector<Object*> partial_snapshot_cache_;
+  std::vector<Object> read_only_object_cache_;
+  std::vector<Object> partial_snapshot_cache_;
 
   // Used during builtins compilation to build the builtins constants table,
   // which is stored on the root list prior to serialization.

@@ -136,9 +136,7 @@ bool JSArrayBufferView::WasDetached() const {
   return JSArrayBuffer::cast(buffer())->was_detached();
 }
 
-Object* JSTypedArray::length() const {
-  return Object::cast(READ_FIELD(this, kLengthOffset));
-}
+Object JSTypedArray::length() const { return READ_FIELD(this, kLengthOffset); }
 
 size_t JSTypedArray::length_value() const {
   double val = length()->Number();
@@ -149,7 +147,7 @@ size_t JSTypedArray::length_value() const {
   return static_cast<size_t>(val);
 }
 
-void JSTypedArray::set_length(Object* value, WriteBarrierMode mode) {
+void JSTypedArray::set_length(Object value, WriteBarrierMode mode) {
   WRITE_FIELD(this, kLengthOffset, value);
   CONDITIONAL_WRITE_BARRIER(this, kLengthOffset, value, mode);
 }

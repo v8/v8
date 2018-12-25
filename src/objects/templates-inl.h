@@ -65,7 +65,7 @@ FunctionTemplateRareData FunctionTemplateInfo::EnsureFunctionTemplateRareData(
 }
 
 #define RARE_ACCESSORS(Name, CamelName, Type)                                  \
-  Type* FunctionTemplateInfo::Get##CamelName() {                               \
+  Type FunctionTemplateInfo::Get##CamelName() {                                \
     HeapObject extra = rare_data();                                            \
     HeapObject undefined = GetReadOnlyRoots().undefined_value();               \
     return extra == undefined ? undefined                                      \
@@ -119,7 +119,7 @@ bool FunctionTemplateInfo::instantiated() {
 }
 
 bool FunctionTemplateInfo::BreakAtEntry() {
-  Object* maybe_shared = shared_function_info();
+  Object maybe_shared = shared_function_info();
   if (maybe_shared->IsSharedFunctionInfo()) {
     SharedFunctionInfo shared = SharedFunctionInfo::cast(maybe_shared);
     return shared->BreakAtEntry();
@@ -128,19 +128,19 @@ bool FunctionTemplateInfo::BreakAtEntry() {
 }
 
 FunctionTemplateInfo FunctionTemplateInfo::GetParent(Isolate* isolate) {
-  Object* parent = GetParentTemplate();
+  Object parent = GetParentTemplate();
   return parent->IsUndefined(isolate) ? FunctionTemplateInfo()
                                       : FunctionTemplateInfo::cast(parent);
 }
 
 ObjectTemplateInfo ObjectTemplateInfo::GetParent(Isolate* isolate) {
-  Object* maybe_ctor = constructor();
+  Object maybe_ctor = constructor();
   if (maybe_ctor->IsUndefined(isolate)) return ObjectTemplateInfo();
   FunctionTemplateInfo constructor = FunctionTemplateInfo::cast(maybe_ctor);
   while (true) {
     constructor = constructor->GetParent(isolate);
     if (constructor.is_null()) return ObjectTemplateInfo();
-    Object* maybe_obj = constructor->GetInstanceTemplate();
+    Object maybe_obj = constructor->GetInstanceTemplate();
     if (!maybe_obj->IsUndefined(isolate)) {
       return ObjectTemplateInfo::cast(maybe_obj);
     }
@@ -149,7 +149,7 @@ ObjectTemplateInfo ObjectTemplateInfo::GetParent(Isolate* isolate) {
 }
 
 int ObjectTemplateInfo::embedder_field_count() const {
-  Object* value = data();
+  Object value = data();
   DCHECK(value->IsSmi());
   return EmbedderFieldCount::decode(Smi::ToInt(value));
 }
@@ -161,7 +161,7 @@ void ObjectTemplateInfo::set_embedder_field_count(int count) {
 }
 
 bool ObjectTemplateInfo::immutable_proto() const {
-  Object* value = data();
+  Object value = data();
   DCHECK(value->IsSmi());
   return IsImmutablePrototype::decode(Smi::ToInt(value));
 }

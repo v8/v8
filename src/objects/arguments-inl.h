@@ -44,11 +44,11 @@ uint32_t SloppyArgumentsElements::parameter_map_length() {
   return length() - kParameterMapStart;
 }
 
-Object* SloppyArgumentsElements::get_mapped_entry(uint32_t entry) {
+Object SloppyArgumentsElements::get_mapped_entry(uint32_t entry) {
   return get(entry + kParameterMapStart);
 }
 
-void SloppyArgumentsElements::set_mapped_entry(uint32_t entry, Object* object) {
+void SloppyArgumentsElements::set_mapped_entry(uint32_t entry, Object object) {
   set(entry + kParameterMapStart, object);
 }
 
@@ -67,7 +67,7 @@ bool JSSloppyArgumentsObject::GetSloppyArgumentsLength(Isolate* isolate,
     return false;
   }
   DCHECK(object->HasFastElements() || object->HasFastArgumentsElements());
-  Object* len_obj =
+  Object len_obj =
       object->InObjectPropertyAt(JSArgumentsObjectWithLength::kLengthIndex);
   if (!len_obj->IsSmi()) return false;
   *out = Max(0, Smi::ToInt(len_obj));

@@ -10,7 +10,7 @@
 #include "src/base/logging.h"
 #include "src/handles-inl.h"
 #include "src/isolate.h"
-#include "src/objects/microtask.h"
+#include "src/objects/microtask-inl.h"
 #include "src/roots-inl.h"
 #include "src/visitors.h"
 
@@ -64,12 +64,13 @@ MicrotaskQueue::~MicrotaskQueue() {
 }
 
 // static
-Object* MicrotaskQueue::CallEnqueueMicrotask(Isolate* isolate,
+Address MicrotaskQueue::CallEnqueueMicrotask(Isolate* isolate,
                                              intptr_t microtask_queue_pointer,
-                                             Microtask microtask) {
+                                             Address raw_microtask) {
+  Microtask microtask = Microtask::cast(Object(raw_microtask));
   reinterpret_cast<MicrotaskQueue*>(microtask_queue_pointer)
       ->EnqueueMicrotask(microtask);
-  return ReadOnlyRoots(isolate).undefined_value();
+  return ReadOnlyRoots(isolate).undefined_value().ptr();
 }
 
 void MicrotaskQueue::EnqueueMicrotask(Microtask microtask) {

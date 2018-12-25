@@ -37,7 +37,7 @@ void ReadOnlyDeserializer::DeserializeInto(Isolate* isolate) {
     isolate->heap()->read_only_space()->RepairFreeListsAfterDeserialization();
 
     // Deserialize the Read-only Object Cache.
-    std::vector<Object*>* cache = isolate->read_only_object_cache();
+    std::vector<Object>* cache = isolate->read_only_object_cache();
     for (size_t i = 0;; ++i) {
       // Extend the array ready to get a value when deserializing.
       if (cache->size() <= i) cache->push_back(Smi::kZero);

@@ -3453,7 +3453,7 @@ size_t LargeObjectSpace::CommittedPhysicalMemory() {
 
 
 // GC support
-Object* LargeObjectSpace::FindObject(Address a) {
+Object LargeObjectSpace::FindObject(Address a) {
   LargePage* page = FindPage(a);
   if (page != nullptr) {
     return page->GetObject();
@@ -3656,7 +3656,7 @@ void LargeObjectSpace::Verify(Isolate* isolate) {
     } else if (object->IsFixedArray()) {
       FixedArray array = FixedArray::cast(object);
       for (int j = 0; j < array->length(); j++) {
-        Object* element = array->get(j);
+        Object element = array->get(j);
         if (element->IsHeapObject()) {
           HeapObject element_object = HeapObject::cast(element);
           CHECK(heap()->Contains(element_object));
@@ -3666,7 +3666,7 @@ void LargeObjectSpace::Verify(Isolate* isolate) {
     } else if (object->IsPropertyArray()) {
       PropertyArray array = PropertyArray::cast(object);
       for (int j = 0; j < array->length(); j++) {
-        Object* property = array->get(j);
+        Object property = array->get(j);
         if (property->IsHeapObject()) {
           HeapObject property_object = HeapObject::cast(property);
           CHECK(heap()->Contains(property_object));

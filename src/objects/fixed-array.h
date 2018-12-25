@@ -79,7 +79,7 @@ class FixedArrayBase : public HeapObject {
   inline int synchronized_length() const;
   inline void synchronized_set_length(int value);
 
-  inline Object* unchecked_synchronized_length() const;
+  inline Object unchecked_synchronized_length() const;
 
   DECL_CAST2(FixedArrayBase)
 
@@ -114,11 +114,11 @@ class FixedArrayBase : public HeapObject {
   OBJECT_CONSTRUCTORS(FixedArrayBase, HeapObject)
 };
 
-// FixedArray describes fixed-sized arrays with element type Object*.
+// FixedArray describes fixed-sized arrays with element type Object.
 class FixedArray : public FixedArrayBase {
  public:
   // Setter and getter for elements.
-  inline Object* get(int index) const;
+  inline Object get(int index) const;
   static inline Handle<Object> get(FixedArray array, int index,
                                    Isolate* isolate);
   template <class T>
@@ -134,13 +134,13 @@ class FixedArray : public FixedArrayBase {
                                        PretenureFlag pretenure = NOT_TENURED);
 
   // Setter that uses write barrier.
-  inline void set(int index, Object* value);
+  inline void set(int index, Object value);
   inline bool is_the_hole(Isolate* isolate, int index);
 
   // Setter that doesn't need write barrier.
   inline void set(int index, Smi value);
   // Setter with explicit barrier mode.
-  inline void set(int index, Object* value, WriteBarrierMode mode);
+  inline void set(int index, Object value, WriteBarrierMode mode);
 
   // Setters for frequently used oddballs located in old space.
   inline void set_undefined(int index);
@@ -206,7 +206,7 @@ class FixedArray : public FixedArrayBase {
   // Set operation on FixedArray without using write barriers. Can
   // only be used for storing old space objects or smis.
   static inline void NoWriteBarrierSet(FixedArray array, int index,
-                                       Object* value);
+                                       Object value);
 
  private:
   STATIC_ASSERT(kHeaderSize == Internals::kFixedArrayHeaderSize);
@@ -446,16 +446,16 @@ class ArrayList : public FixedArray {
   // Sets the Length() as used by Elements(). Does not change the underlying
   // storage capacity, i.e., length().
   inline void SetLength(int length);
-  inline Object* Get(int index) const;
+  inline Object Get(int index) const;
   inline ObjectSlot Slot(int index);
 
   // Set the element at index to obj. The underlying array must be large enough.
   // If you need to grow the ArrayList, use the static Add() methods instead.
-  inline void Set(int index, Object* obj,
+  inline void Set(int index, Object obj,
                   WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // Set the element at index to undefined. This does not change the Length().
-  inline void Clear(int index, Object* undefined);
+  inline void Clear(int index, Object undefined);
 
   // Return a copy of the list of size Length() without the first entry. The
   // number returned by Length() is stored in the first entry.
@@ -583,7 +583,7 @@ class FixedTypedArrayBase : public FixedArrayBase {
   // [external_pointer]: Contains the offset between base_pointer and the start
   // of the data. If the base_pointer is a nullptr, the external_pointer
   // therefore points to the actual backing store.
-  DECL_ACCESSORS(external_pointer, void)
+  DECL_ACCESSORS(external_pointer, void*)
 
   // Dispatched behavior.
   DECL_CAST2(FixedTypedArrayBase)
@@ -660,7 +660,7 @@ class FixedTypedArray : public FixedTypedArrayBase {
 
   // This accessor applies the correct conversion from Smi, HeapNumber
   // and undefined.
-  inline void SetValue(uint32_t index, Object* value);
+  inline void SetValue(uint32_t index, Object value);
 
   DECL_PRINTER(FixedTypedArray)
   DECL_VERIFIER(FixedTypedArray)
@@ -691,8 +691,8 @@ class TemplateList : public FixedArray {
  public:
   static Handle<TemplateList> New(Isolate* isolate, int size);
   inline int length() const;
-  inline Object* get(int index) const;
-  inline void set(int index, Object* value);
+  inline Object get(int index) const;
+  inline void set(int index, Object value);
   static Handle<TemplateList> Add(Isolate* isolate, Handle<TemplateList> list,
                                   Handle<Object> value);
   DECL_CAST2(TemplateList)

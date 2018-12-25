@@ -959,7 +959,7 @@ class V8_EXPORT_PRIVATE Factory {
   HeapObject AllocateRawFixedArray(int length, PretenureFlag pretenure);
   HeapObject AllocateRawWeakArrayList(int length, PretenureFlag pretenure);
   Handle<FixedArray> NewFixedArrayWithFiller(RootIndex map_root_index,
-                                             int length, Object* filler,
+                                             int length, Object filler,
                                              PretenureFlag pretenure);
 
   // Allocates new context with given map, sets length and initializes the
@@ -997,7 +997,7 @@ class V8_EXPORT_PRIVATE Factory {
 
   // Attempt to find the number in a small cache.  If we finds it, return
   // the string representation of the number.  Otherwise return undefined.
-  Handle<Object> NumberToStringCacheGet(Object* number, int hash);
+  Handle<Object> NumberToStringCacheGet(Object number, int hash);
 
   // Update the cache with a new number-string pair.
   Handle<String> NumberToStringCacheSet(Handle<Object> number, int hash,

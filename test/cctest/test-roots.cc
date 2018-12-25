@@ -10,7 +10,7 @@ namespace v8 {
 namespace internal {
 
 namespace {
-AllocationSpace GetSpaceFromObject(Object* object) {
+AllocationSpace GetSpaceFromObject(Object object) {
   DCHECK(object->IsHeapObject());
   return MemoryChunk::FromHeapObject(HeapObject::cast(object))
       ->owner()

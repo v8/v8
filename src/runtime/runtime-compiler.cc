@@ -291,13 +291,13 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
   if (!function->IsOptimized()) {
     function->set_code(function->shared()->GetCode());
   }
-  return nullptr;
+  return Object();
 }
 
-static Object* CompileGlobalEval(Isolate* isolate, Handle<String> source,
-                                 Handle<SharedFunctionInfo> outer_info,
-                                 LanguageMode language_mode,
-                                 int eval_scope_position, int eval_position) {
+static Object CompileGlobalEval(Isolate* isolate, Handle<String> source,
+                                Handle<SharedFunctionInfo> outer_info,
+                                LanguageMode language_mode,
+                                int eval_scope_position, int eval_position) {
   Handle<Context> context(isolate->context(), isolate);
   Handle<Context> native_context(context->native_context(), isolate);
 
@@ -327,7 +327,6 @@ static Object* CompileGlobalEval(Isolate* isolate, Handle<String> source,
       ReadOnlyRoots(isolate).exception());
   return *compiled;
 }
-
 
 RUNTIME_FUNCTION(Runtime_ResolvePossiblyDirectEval) {
   HandleScope scope(isolate);

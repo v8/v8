@@ -83,7 +83,7 @@ inline void MarkingBarrierInternal(HeapObject object, Address slot,
 
 }  // namespace heap_internals
 
-inline void WriteBarrierForCode(Code host, RelocInfo* rinfo, Object* value) {
+inline void WriteBarrierForCode(Code host, RelocInfo* rinfo, Object value) {
   DCHECK(!HasWeakHeapObjectTag(value));
   if (!value->IsHeapObject()) return;
   HeapObject object = HeapObject::cast(value);
@@ -96,7 +96,7 @@ inline void WriteBarrierForCode(Code host) {
 }
 
 inline void GenerationalBarrier(HeapObject object, ObjectSlot slot,
-                                Object* value) {
+                                Object value) {
   DCHECK(!HasWeakHeapObjectTag(*slot));
   DCHECK(!HasWeakHeapObjectTag(value));
   if (!value->IsHeapObject()) return;
@@ -105,7 +105,7 @@ inline void GenerationalBarrier(HeapObject object, ObjectSlot slot,
 }
 
 inline void GenerationalBarrier(HeapObject* object, ObjectSlot slot,
-                                Object* value) {
+                                Object value) {
   GenerationalBarrier(*object, slot, value);
 }
 
@@ -134,7 +134,7 @@ inline void GenerationalBarrierForCode(Code host, RelocInfo* rinfo,
   Heap::GenerationalBarrierForCodeSlow(host, rinfo, object);
 }
 
-inline void MarkingBarrier(HeapObject object, ObjectSlot slot, Object* value) {
+inline void MarkingBarrier(HeapObject object, ObjectSlot slot, Object value) {
   DCHECK_IMPLIES(slot.address() != kNullAddress, !HasWeakHeapObjectTag(*slot));
   DCHECK(!HasWeakHeapObjectTag(value));
   if (!value->IsHeapObject()) return;
@@ -142,7 +142,7 @@ inline void MarkingBarrier(HeapObject object, ObjectSlot slot, Object* value) {
                                          HeapObject::cast(value));
 }
 
-inline void MarkingBarrier(HeapObject* object, ObjectSlot slot, Object* value) {
+inline void MarkingBarrier(HeapObject* object, ObjectSlot slot, Object value) {
   MarkingBarrier(*object, slot, value);
 }
 

@@ -68,18 +68,18 @@ namespace internal {
 
 #ifdef OBJECT_PRINT
 
-void Object::Print() {
+void Object::Print() const {
   StdoutStream os;
   this->Print(os);
   os << std::flush;
 }
 
-void Object::Print(std::ostream& os) {  // NOLINT
+void Object::Print(std::ostream& os) const {  // NOLINT
   if (IsSmi()) {
-    os << "Smi: " << std::hex << "0x" << Smi::ToInt(this);
-    os << std::dec << " (" << Smi::ToInt(this) << ")\n";
+    os << "Smi: " << std::hex << "0x" << Smi::ToInt(*this);
+    os << std::dec << " (" << Smi::ToInt(*this) << ")\n";
   } else {
-    HeapObject::cast(this)->HeapObjectPrint(os);
+    HeapObject::cast(*this)->HeapObjectPrint(os);
   }
 }
 
@@ -530,7 +530,7 @@ double GetScalarElement(T array, int index) {
 }
 
 template <class T>
-void DoPrintElements(std::ostream& os, Object* object) {  // NOLINT
+void DoPrintElements(std::ostream& os, Object object) {  // NOLINT
   const bool print_the_hole = std::is_same<T, FixedDoubleArray>::value;
   T array = T::cast(object);
   if (array->length() == 0) return;
@@ -565,8 +565,8 @@ void DoPrintElements(std::ostream& os, Object* object) {  // NOLINT
 template <typename T>
 void PrintFixedArrayElements(std::ostream& os, T array) {
   // Print in array notation for non-sparse arrays.
-  Object* previous_value = array->length() > 0 ? array->get(0) : nullptr;
-  Object* value = nullptr;
+  Object previous_value = array->length() > 0 ? array->get(0) : Object();
+  Object value;
   int previous_index = 0;
   int i;
   for (i = 1; i <= array->length(); i++) {
@@ -605,7 +605,7 @@ void PrintSloppyArgumentElements(std::ostream& os, ElementsKind kind,
      << "\n    parameter to context slot map:";
   for (uint32_t i = 0; i < elements->parameter_map_length(); i++) {
     uint32_t raw_index = i + SloppyArgumentsElements::kParameterMapStart;
-    Object* mapped_entry = elements->get_mapped_entry(i);
+    Object mapped_entry = elements->get_mapped_entry(i);
     os << "\n    " << raw_index << ": param(" << i
        << "): " << Brief(mapped_entry);
     if (mapped_entry->IsTheHole()) {
@@ -628,7 +628,7 @@ void PrintSloppyArgumentElements(std::ostream& os, ElementsKind kind,
 
 void PrintEmbedderData(std::ostream& os, EmbedderDataSlot slot) {
   DisallowHeapAllocation no_gc;
-  Object* value = slot.load_tagged();
+  Object value = slot.load_tagged();
   os << Brief(value);
   void* raw_pointer;
   if (slot.ToAlignedPointer(&raw_pointer)) {
@@ -702,7 +702,7 @@ static void JSObjectPrintHeader(std::ostream& os, JSObject obj,
      << ElementsKindToString(obj->map()->elements_kind());
   if (obj->elements()->IsCowArray()) os << " (COW)";
   os << "]";
-  Object* hash = obj->GetHash();
+  Object hash = obj->GetHash();
   if (hash->IsSmi()) {
     os << "\n - hash: " << Brief(hash);
   }
@@ -715,7 +715,7 @@ static void JSObjectPrintBody(std::ostream& os,
                               JSObject obj,  // NOLINT
                               bool print_elements = true) {
   os << "\n - properties: ";
-  Object* properties_or_hash = obj->raw_properties_or_hash();
+  Object properties_or_hash = obj->raw_properties_or_hash();
   if (!properties_or_hash->IsSmi()) {
     os << Brief(properties_or_hash);
   }
@@ -2461,7 +2461,7 @@ void DescriptorArray::PrintDescriptorDetails(std::ostream& os, int descriptor,
       break;
     }
     case kDescriptor:
-      Object* value = GetStrongValue(descriptor);
+      Object value = GetStrongValue(descriptor);
       os << Brief(value);
       if (value->IsAccessorPair()) {
         AccessorPair pair = AccessorPair::cast(value);
@@ -2616,7 +2616,7 @@ void JSObject::PrintTransitions(std::ostream& os) {  // NOLINT
 // The following functions are used by our gdb macros.
 //
 V8_EXPORT_PRIVATE extern void _v8_internal_Print_Object(void* object) {
-  reinterpret_cast<i::Object*>(object)->Print();
+  i::Object(reinterpret_cast<i::Address>(object))->Print();
 }
 
 V8_EXPORT_PRIVATE extern void _v8_internal_Print_Code(void* object) {
@@ -2656,7 +2656,7 @@ V8_EXPORT_PRIVATE extern void _v8_internal_Print_Code(void* object) {
 
 V8_EXPORT_PRIVATE extern void _v8_internal_Print_LayoutDescriptor(
     void* object) {
-  i::Object* o = reinterpret_cast<i::Object*>(object);
+  i::Object o(reinterpret_cast<i::Address>(object));
   if (!o->IsLayoutDescriptor()) {
     printf("Please provide a layout descriptor\n");
   } else {
@@ -2670,7 +2670,7 @@ V8_EXPORT_PRIVATE extern void _v8_internal_Print_StackTrace() {
 }
 
 V8_EXPORT_PRIVATE extern void _v8_internal_Print_TransitionTree(void* object) {
-  i::Object* o = reinterpret_cast<i::Object*>(object);
+  i::Object o(reinterpret_cast<i::Address>(object));
   if (!o->IsMap()) {
     printf("Please provide a valid Map\n");
   } else {

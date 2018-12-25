@@ -124,7 +124,7 @@ bool SemiSpace::Contains(HeapObject o) {
              : MemoryChunk::FromAddress(o->address())->InFromSpace();
 }
 
-bool SemiSpace::Contains(Object* o) {
+bool SemiSpace::Contains(Object o) {
   return o->IsHeapObject() && Contains(HeapObject::cast(o));
 }
 
@@ -138,7 +138,7 @@ bool SemiSpace::ContainsSlow(Address a) {
 // --------------------------------------------------------------------------
 // NewSpace
 
-bool NewSpace::Contains(Object* o) {
+bool NewSpace::Contains(Object o) {
   return o->IsHeapObject() && Contains(HeapObject::cast(o));
 }
 
@@ -154,17 +154,12 @@ bool NewSpace::ToSpaceContainsSlow(Address a) {
   return to_space_.ContainsSlow(a);
 }
 
-bool NewSpace::ToSpaceContains(Object* o) { return to_space_.Contains(o); }
-bool NewSpace::FromSpaceContains(Object* o) { return from_space_.Contains(o); }
+bool NewSpace::ToSpaceContains(Object o) { return to_space_.Contains(o); }
+bool NewSpace::FromSpaceContains(Object o) { return from_space_.Contains(o); }
 
 bool PagedSpace::Contains(Address addr) {
   if (heap()->IsWithinLargeObject(addr)) return false;
   return MemoryChunk::FromAnyPointerAddress(heap(), addr)->owner() == this;
-}
-
-bool PagedSpace::Contains(Object* o) {
-  if (!o->IsHeapObject()) return false;
-  return Page::FromAddress(HeapObject::cast(o)->address())->owner() == this;
 }
 
 bool PagedSpace::Contains(ObjectPtr o) {

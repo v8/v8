@@ -47,13 +47,13 @@ SMI_ACCESSORS(Context, length, kLengthOffset)
 
 CAST_ACCESSOR2(NativeContext)
 
-Object* Context::get(int index) const {
+Object Context::get(int index) const {
   DCHECK_LT(static_cast<unsigned>(index),
             static_cast<unsigned>(this->length()));
   return RELAXED_READ_FIELD(this, OffsetOfElementAt(index));
 }
 
-void Context::set(int index, Object* value) {
+void Context::set(int index, Object value) {
   DCHECK_LT(static_cast<unsigned>(index),
             static_cast<unsigned>(this->length()));
   int offset = OffsetOfElementAt(index);
@@ -61,7 +61,7 @@ void Context::set(int index, Object* value) {
   WRITE_BARRIER(this, offset, value);
 }
 
-void Context::set(int index, Object* value, WriteBarrierMode mode) {
+void Context::set(int index, Object value, WriteBarrierMode mode) {
   DCHECK_LT(static_cast<unsigned>(index),
             static_cast<unsigned>(this->length()));
   int offset = OffsetOfElementAt(index);
@@ -74,13 +74,13 @@ void Context::set_scope_info(ScopeInfo scope_info) {
 }
 
 Context Context::previous() {
-  Object* result = get(PREVIOUS_INDEX);
+  Object result = get(PREVIOUS_INDEX);
   DCHECK(IsBootstrappingOrValidParentContext(result, *this));
   return Context::unchecked_cast(result);
 }
 void Context::set_previous(Context context) { set(PREVIOUS_INDEX, context); }
 
-Object* Context::next_context_link() { return get(Context::NEXT_CONTEXT_LINK); }
+Object Context::next_context_link() { return get(Context::NEXT_CONTEXT_LINK); }
 
 bool Context::has_extension() { return !extension()->IsTheHole(); }
 HeapObject Context::extension() {
@@ -89,7 +89,7 @@ HeapObject Context::extension() {
 void Context::set_extension(HeapObject object) { set(EXTENSION_INDEX, object); }
 
 NativeContext Context::native_context() const {
-  Object* result = get(NATIVE_CONTEXT_INDEX);
+  Object result = get(NATIVE_CONTEXT_INDEX);
   DCHECK(IsBootstrappingOrNativeContext(this->GetIsolate(), result));
   return NativeContext::unchecked_cast(result);
 }
@@ -227,7 +227,7 @@ Map Context::GetInitialJSArrayMap(ElementsKind kind) const {
   DCHECK(IsNativeContext());
   if (!IsFastElementsKind(kind)) return Map();
   DisallowHeapAllocation no_gc;
-  Object* const initial_js_array_map = get(Context::ArrayMapIndex(kind));
+  Object const initial_js_array_map = get(Context::ArrayMapIndex(kind));
   DCHECK(!initial_js_array_map->IsUndefined());
   return Map::cast(initial_js_array_map);
 }

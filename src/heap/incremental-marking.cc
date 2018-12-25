@@ -78,7 +78,7 @@ IncrementalMarking::IncrementalMarking(
   SetState(STOPPED);
 }
 
-bool IncrementalMarking::BaseRecordWrite(HeapObject obj, Object* value) {
+bool IncrementalMarking::BaseRecordWrite(HeapObject obj, Object value) {
   HeapObject value_heap_obj = HeapObject::cast(value);
   DCHECK(!marking_state()->IsImpossible(value_heap_obj));
   DCHECK(!marking_state()->IsImpossible(obj));
@@ -97,7 +97,7 @@ bool IncrementalMarking::BaseRecordWrite(HeapObject obj, Object* value) {
 }
 
 void IncrementalMarking::RecordWriteSlow(HeapObject obj, HeapObjectSlot slot,
-                                         Object* value) {
+                                         Object value) {
   if (BaseRecordWrite(obj, value) && slot.address() != kNullAddress) {
     // Object is not going to be rescanned we need to record the slot.
     heap_->mark_compact_collector()->RecordSlot(obj, slot,
@@ -230,7 +230,7 @@ class IncrementalMarkingRootMarkingVisitor : public RootVisitor {
 
  private:
   void MarkObjectByPointer(FullObjectSlot p) {
-    Object* obj = *p;
+    Object obj = *p;
     if (!obj->IsHeapObject()) return;
 
     heap_->incremental_marking()->WhiteToGreyAndPush(HeapObject::cast(obj));
@@ -481,7 +481,7 @@ bool IncrementalMarking::ShouldRetainMap(Map map, int age) {
     // The map has aged. Do not retain this map.
     return false;
   }
-  Object* constructor = map->GetConstructor();
+  Object constructor = map->GetConstructor();
   if (!constructor->IsHeapObject() ||
       marking_state()->IsWhite(HeapObject::cast(constructor))) {
     // The constructor is dead, no new objects with this map can
@@ -518,7 +518,7 @@ void IncrementalMarking::RetainMaps() {
       if (ShouldRetainMap(map, age)) {
         WhiteToGreyAndPush(map);
       }
-      Object* prototype = map->prototype();
+      Object prototype = map->prototype();
       if (age > 0 && prototype->IsHeapObject() &&
           marking_state()->IsWhite(HeapObject::cast(prototype))) {
         // The prototype is not marked, age the map.

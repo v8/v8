@@ -37,8 +37,8 @@ class V8_EXPORT_PRIVATE RegExpMatchInfo : NON_EXPORTED_BASE(public FixedArray) {
   inline void SetLastSubject(String value);
 
   // Like LastSubject, but modifiable by the user.
-  inline Object* LastInput();
-  inline void SetLastInput(Object* value);
+  inline Object LastInput();
+  inline void SetLastInput(Object value);
 
   // Returns the i'th capture index, 0 <= i < NumberOfCaptures(). Capture(0) and
   // Capture(1) determine the start- and endpoint of the match itself.

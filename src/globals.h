@@ -596,6 +596,10 @@ class Struct;
 class Symbol;
 class Variable;
 
+// Allow smaller incremental CLs.
+// TODO(3770): Drop this ASAP.
+#define ObjectPtr Object
+
 enum class SlotLocation { kOnHeap, kOffHeap };
 
 template <SlotLocation slot_location>
@@ -1609,13 +1613,6 @@ enum IsolateAddressId {
 V8_INLINE static bool HasWeakHeapObjectTag(Address value) {
   // TODO(jkummerow): Consolidate integer types here.
   return ((static_cast<intptr_t>(value) & kHeapObjectTagMask) ==
-          kWeakHeapObjectTag);
-}
-
-// Object* should never have the weak tag; this variant is for overzealous
-// checking.
-V8_INLINE static bool HasWeakHeapObjectTag(const Object* value) {
-  return ((reinterpret_cast<intptr_t>(value) & kHeapObjectTagMask) ==
           kWeakHeapObjectTag);
 }
 

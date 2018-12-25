@@ -60,7 +60,7 @@ void ReadOnlySerializer::FinalizeSerialization() {
   // This comes right after serialization of the other snapshots, where we
   // add entries to the read-only object cache. Add one entry with 'undefined'
   // to terminate the read-only object cache.
-  Object* undefined = ReadOnlyRoots(isolate()).undefined_value();
+  Object undefined = ReadOnlyRoots(isolate()).undefined_value();
   VisitRootPointer(Root::kReadOnlyObjectCache, nullptr,
                    FullObjectSlot(&undefined));
   SerializeDeferredObjects();

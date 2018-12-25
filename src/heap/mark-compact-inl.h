@@ -163,7 +163,7 @@ int MarkingVisitor<fixed_array_mode, retaining_path_mode, MarkingState>::
       VisitPointer(table, value_slot);
 
     } else {
-      Object* value_obj = *value_slot;
+      Object value_obj = *value_slot;
 
       if (value_obj->IsHeapObject()) {
         HeapObject value = HeapObject::cast(value_obj);

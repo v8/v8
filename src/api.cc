@@ -638,7 +638,7 @@ size_t SnapshotCreator::AddData(i::Address object) {
   DCHECK(!data->created_);
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(data->isolate_);
   i::HandleScope scope(isolate);
-  i::Handle<i::Object> obj(reinterpret_cast<i::Object*>(object), isolate);
+  i::Handle<i::Object> obj(i::Object(object), isolate);
   i::Handle<i::ArrayList> list;
   if (!isolate->heap()->serialized_objects()->IsArrayList()) {
     list = i::ArrayList::New(isolate, 1);
@@ -658,7 +658,7 @@ size_t SnapshotCreator::AddData(Local<Context> context, i::Address object) {
   i::Handle<i::Context> ctx = Utils::OpenHandle(*context);
   i::Isolate* isolate = ctx->GetIsolate();
   i::HandleScope scope(isolate);
-  i::Handle<i::Object> obj(reinterpret_cast<i::Object*>(object), isolate);
+  i::Handle<i::Object> obj(i::Object(object), isolate);
   i::Handle<i::ArrayList> list;
   if (!ctx->serialized_objects()->IsArrayList()) {
     list = i::ArrayList::New(isolate, 1);
@@ -1038,7 +1038,7 @@ void V8::DisposeGlobal(i::Address* location) {
 
 Value* V8::Eternalize(Isolate* v8_isolate, Value* value) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-  i::Object* object = *Utils::OpenHandle(value);
+  i::Object object = *Utils::OpenHandle(value);
   int index = -1;
   isolate->eternal_handles()->Create(isolate, object, &index);
   return reinterpret_cast<Value*>(
@@ -1126,9 +1126,8 @@ EscapableHandleScope::EscapableHandleScope(Isolate* v8_isolate) {
 
 i::Address* EscapableHandleScope::Escape(i::Address* escape_value) {
   i::Heap* heap = reinterpret_cast<i::Isolate*>(GetIsolate())->heap();
-  Utils::ApiCheck(
-      reinterpret_cast<i::Object*>(*escape_slot_)->IsTheHole(heap->isolate()),
-      "EscapableHandleScope::Escape", "Escape value set twice");
+  Utils::ApiCheck(i::Object(*escape_slot_)->IsTheHole(heap->isolate()),
+                  "EscapableHandleScope::Escape", "Escape value set twice");
   if (escape_value == nullptr) {
     *escape_slot_ = i::ReadOnlyRoots(heap).undefined_value()->ptr();
     return nullptr;
@@ -1458,7 +1457,7 @@ MaybeLocal<FunctionTemplate> FunctionTemplate::FromSnapshot(Isolate* isolate,
   i::FixedArray serialized_objects = i_isolate->heap()->serialized_objects();
   int int_index = static_cast<int>(index);
   if (int_index < serialized_objects->length()) {
-    i::Object* info = serialized_objects->get(int_index);
+    i::Object info = serialized_objects->get(int_index);
     if (info->IsFunctionTemplateInfo()) {
       return Utils::ToLocal(i::Handle<i::FunctionTemplateInfo>(
           i::FunctionTemplateInfo::cast(info), i_isolate));
@@ -1674,7 +1673,7 @@ MaybeLocal<ObjectTemplate> ObjectTemplate::FromSnapshot(Isolate* isolate,
   i::FixedArray serialized_objects = i_isolate->heap()->serialized_objects();
   int int_index = static_cast<int>(index);
   if (int_index < serialized_objects->length()) {
-    i::Object* info = serialized_objects->get(int_index);
+    i::Object info = serialized_objects->get(int_index);
     if (info->IsObjectTemplateInfo()) {
       return Utils::ToLocal(i::Handle<i::ObjectTemplateInfo>(
           i::ObjectTemplateInfo::cast(info), i_isolate));
@@ -1688,7 +1687,7 @@ MaybeLocal<ObjectTemplate> ObjectTemplate::FromSnapshot(Isolate* isolate,
 static i::Handle<i::FunctionTemplateInfo> EnsureConstructor(
     i::Isolate* isolate,
     ObjectTemplate* object_template) {
-  i::Object* obj = Utils::OpenHandle(object_template)->constructor();
+  i::Object obj = Utils::OpenHandle(object_template)->constructor();
   if (!obj->IsUndefined(isolate)) {
     i::FunctionTemplateInfo info = i::FunctionTemplateInfo::cast(obj);
     return i::Handle<i::FunctionTemplateInfo>(info, isolate);
@@ -1907,8 +1906,8 @@ void ObjectTemplate::SetAccessCheckCallback(AccessCheckCallback callback,
       i::Handle<i::AccessCheckInfo>::cast(struct_info);
 
   SET_FIELD_WRAPPED(isolate, info, set_callback, callback);
-  info->set_named_interceptor(nullptr);
-  info->set_indexed_interceptor(nullptr);
+  info->set_named_interceptor(i::Object());
+  info->set_indexed_interceptor(i::Object());
 
   if (data.IsEmpty()) {
     data = v8::Undefined(reinterpret_cast<v8::Isolate*>(isolate));
@@ -2092,7 +2091,7 @@ Local<Value> UnboundScript::GetScriptName() {
   i::Isolate* isolate = obj->GetIsolate();
   LOG_API(isolate, UnboundScript, GetName);
   if (obj->script()->IsScript()) {
-    i::Object* name = i::Script::cast(obj->script())->name();
+    i::Object name = i::Script::cast(obj->script())->name();
     return Utils::ToLocal(i::Handle<i::Object>(name, isolate));
   } else {
     return Local<String>();
@@ -2106,7 +2105,7 @@ Local<Value> UnboundScript::GetSourceURL() {
   i::Isolate* isolate = obj->GetIsolate();
   LOG_API(isolate, UnboundScript, GetSourceURL);
   if (obj->script()->IsScript()) {
-    i::Object* url = i::Script::cast(obj->script())->source_url();
+    i::Object url = i::Script::cast(obj->script())->source_url();
     return Utils::ToLocal(i::Handle<i::Object>(url, isolate));
   } else {
     return Local<String>();
@@ -2120,7 +2119,7 @@ Local<Value> UnboundScript::GetSourceMappingURL() {
   i::Isolate* isolate = obj->GetIsolate();
   LOG_API(isolate, UnboundScript, GetSourceMappingURL);
   if (obj->script()->IsScript()) {
-    i::Object* url = i::Script::cast(obj->script())->source_mapping_url();
+    i::Object url = i::Script::cast(obj->script())->source_mapping_url();
     return Utils::ToLocal(i::Handle<i::Object>(url, isolate));
   } else {
     return Local<String>();
@@ -2692,7 +2691,8 @@ void v8::TryCatch::operator delete(void*, size_t) { base::OS::Abort(); }
 void v8::TryCatch::operator delete[](void*, size_t) { base::OS::Abort(); }
 
 bool v8::TryCatch::HasCaught() const {
-  return !reinterpret_cast<i::Object*>(exception_)->IsTheHole(isolate_);
+  return !i::Object(reinterpret_cast<i::Address>(exception_))
+              ->IsTheHole(isolate_);
 }
 
 
@@ -2716,7 +2716,7 @@ v8::Local<v8::Value> v8::TryCatch::ReThrow() {
 v8::Local<Value> v8::TryCatch::Exception() const {
   if (HasCaught()) {
     // Check for out of memory exception.
-    i::Object* exception = reinterpret_cast<i::Object*>(exception_);
+    i::Object exception(reinterpret_cast<i::Address>(exception_));
     return v8::Utils::ToLocal(i::Handle<i::Object>(exception, isolate_));
   } else {
     return v8::Local<Value>();
@@ -2726,7 +2726,7 @@ v8::Local<Value> v8::TryCatch::Exception() const {
 
 MaybeLocal<Value> v8::TryCatch::StackTrace(Local<Context> context) const {
   if (!HasCaught()) return v8::Local<Value>();
-  i::Object* raw_obj = reinterpret_cast<i::Object*>(exception_);
+  i::Object raw_obj(reinterpret_cast<i::Address>(exception_));
   if (!raw_obj->IsJSObject()) return v8::Local<Value>();
   PREPARE_FOR_EXECUTION(context, TryCatch, StackTrace, Value);
   i::Handle<i::JSObject> obj(i::JSObject::cast(raw_obj), isolate_);
@@ -2744,7 +2744,7 @@ MaybeLocal<Value> v8::TryCatch::StackTrace(Local<Context> context) const {
 
 
 v8::Local<v8::Message> v8::TryCatch::Message() const {
-  i::Object* message = reinterpret_cast<i::Object*>(message_obj_);
+  i::Object message(reinterpret_cast<i::Address>(message_obj_));
   DCHECK(message->IsJSMessageObject() || message->IsTheHole(isolate_));
   if (HasCaught() && !message->IsTheHole(isolate_)) {
     return v8::Utils::MessageToLocal(i::Handle<i::Object>(message, isolate_));
@@ -2766,9 +2766,9 @@ void v8::TryCatch::Reset() {
 
 
 void v8::TryCatch::ResetInternal() {
-  i::Object* the_hole = i::ReadOnlyRoots(isolate_).the_hole_value();
-  exception_ = the_hole;
-  message_obj_ = the_hole;
+  i::Object the_hole = i::ReadOnlyRoots(isolate_).the_hole_value();
+  exception_ = reinterpret_cast<void*>(the_hole->ptr());
+  message_obj_ = reinterpret_cast<void*>(the_hole->ptr());
 }
 
 
@@ -4947,7 +4947,7 @@ MaybeLocal<Object> Function::NewInstanceWithSideEffectType(
   if (should_set_has_no_side_effect) {
     CHECK(self->IsJSFunction() &&
           i::JSFunction::cast(*self)->shared()->IsApiFunction());
-    i::Object* obj =
+    i::Object obj =
         i::JSFunction::cast(*self)->shared()->get_api_func_data()->call_code();
     if (obj->IsCallHandlerInfo()) {
       i::CallHandlerInfo handler_info = i::CallHandlerInfo::cast(obj);
@@ -4961,7 +4961,7 @@ MaybeLocal<Object> Function::NewInstanceWithSideEffectType(
   has_pending_exception = !ToLocal<Object>(
       i::Execution::New(isolate, self, self, argc, args), &result);
   if (should_set_has_no_side_effect) {
-    i::Object* obj =
+    i::Object obj =
         i::JSFunction::cast(*self)->shared()->get_api_func_data()->call_code();
     if (obj->IsCallHandlerInfo()) {
       i::CallHandlerInfo handler_info = i::CallHandlerInfo::cast(obj);
@@ -5743,15 +5743,14 @@ void v8::Object::SetAlignedPointerInInternalFields(int argc, int indices[],
   }
 }
 
-static void* ExternalValue(i::Object* obj) {
+static void* ExternalValue(i::Object obj) {
   // Obscure semantics for undefined, but somehow checked in our unit tests...
   if (obj->IsUndefined()) {
     return nullptr;
   }
-  i::Object* foreign = i::JSObject::cast(obj)->GetEmbedderField(0);
+  i::Object foreign = i::JSObject::cast(obj)->GetEmbedderField(0);
   return reinterpret_cast<void*>(i::Foreign::cast(foreign)->foreign_address());
 }
-
 
 // --- E n v i r o n m e n t ---
 
@@ -6080,7 +6079,7 @@ MaybeLocal<Object> v8::Context::NewRemoteContext(
   i::Handle<i::AccessCheckInfo> access_check_info = i::handle(
       i::AccessCheckInfo::cast(global_constructor->GetAccessCheckInfo()),
       isolate);
-  Utils::ApiCheck(access_check_info->named_interceptor() != nullptr,
+  Utils::ApiCheck(access_check_info->named_interceptor() != i::Object(),
                   "v8::Context::NewRemoteContext",
                   "Global template needs to have access check handlers.");
   i::Handle<i::JSGlobalProxy> global_proxy =
@@ -6111,7 +6110,7 @@ void v8::Context::UseDefaultSecurityToken() {
 Local<Value> v8::Context::GetSecurityToken() {
   i::Handle<i::Context> env = Utils::OpenHandle(this);
   i::Isolate* isolate = env->GetIsolate();
-  i::Object* security_token = env->security_token();
+  i::Object security_token = env->security_token();
   i::Handle<i::Object> token_handle(security_token, isolate);
   return Utils::ToLocal(token_handle);
 }
@@ -6180,7 +6179,7 @@ i::Address* GetSerializedDataFromFixedArray(i::Isolate* isolate,
                                             i::FixedArray list, size_t index) {
   if (index < static_cast<size_t>(list->length())) {
     int int_index = static_cast<int>(index);
-    i::Object* object = list->get(int_index);
+    i::Object object = list->get(int_index);
     if (!object->IsTheHole(isolate)) {
       list->set_the_hole(isolate, int_index);
       // Shrink the list so that the last element is not the hole (unless it's
@@ -6275,7 +6274,7 @@ MaybeLocal<v8::Object> FunctionTemplate::NewRemoteInstance() {
                   "InstanceTemplate needs to have access checks enabled.");
   i::Handle<i::AccessCheckInfo> access_check_info = i::handle(
       i::AccessCheckInfo::cast(constructor->GetAccessCheckInfo()), isolate);
-  Utils::ApiCheck(access_check_info->named_interceptor() != nullptr,
+  Utils::ApiCheck(access_check_info->named_interceptor() != i::Object(),
                   "v8::FunctionTemplate::NewRemoteInstance",
                   "InstanceTemplate needs to have access check handlers.");
   i::Handle<i::JSObject> object;
@@ -6881,7 +6880,7 @@ Local<v8::Array> v8::Array::New(Isolate* isolate, Local<Value>* elements,
 
 uint32_t v8::Array::Length() const {
   i::Handle<i::JSArray> obj = Utils::OpenHandle(this);
-  i::Object* length = obj->length();
+  i::Object length = obj->length();
   if (length->IsSmi()) {
     return i::Smi::ToInt(length);
   } else {
@@ -6978,7 +6977,7 @@ enum class MapAsArrayKind {
   kValues = i::JS_MAP_VALUE_ITERATOR_TYPE
 };
 
-i::Handle<i::JSArray> MapAsArray(i::Isolate* isolate, i::Object* table_obj,
+i::Handle<i::JSArray> MapAsArray(i::Isolate* isolate, i::Object table_obj,
                                  int offset, MapAsArrayKind kind) {
   i::Factory* factory = isolate->factory();
   i::Handle<i::OrderedHashMap> table(i::OrderedHashMap::cast(table_obj),
@@ -6996,7 +6995,7 @@ i::Handle<i::JSArray> MapAsArray(i::Isolate* isolate, i::Object* table_obj,
     i::DisallowHeapAllocation no_gc;
     i::Oddball the_hole = i::ReadOnlyRoots(isolate).the_hole_value();
     for (int i = offset; i < capacity; ++i) {
-      i::Object* key = table->KeyAt(i);
+      i::Object key = table->KeyAt(i);
       if (key == the_hole) continue;
       if (collect_keys) result->set(result_index++, key);
       if (collect_values) result->set(result_index++, table->ValueAt(i));
@@ -7086,7 +7085,7 @@ Maybe<bool> Set::Delete(Local<Context> context, Local<Value> key) {
 }
 
 namespace {
-i::Handle<i::JSArray> SetAsArray(i::Isolate* isolate, i::Object* table_obj,
+i::Handle<i::JSArray> SetAsArray(i::Isolate* isolate, i::Object table_obj,
                                  int offset) {
   i::Factory* factory = isolate->factory();
   i::Handle<i::OrderedHashSet> table(i::OrderedHashSet::cast(table_obj),
@@ -7101,7 +7100,7 @@ i::Handle<i::JSArray> SetAsArray(i::Isolate* isolate, i::Object* table_obj,
     i::DisallowHeapAllocation no_gc;
     i::Oddball the_hole = i::ReadOnlyRoots(isolate).the_hole_value();
     for (int i = offset; i < capacity; ++i) {
-      i::Object* key = table->KeyAt(i);
+      i::Object key = table->KeyAt(i);
       if (key == the_hole) continue;
       result->set(result_index++, key);
     }
@@ -8971,7 +8970,7 @@ String::Value::~Value() {
     i::Isolate* isolate = i::Isolate::Current();                         \
     LOG_API(isolate, NAME, New);                                         \
     ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);                            \
-    i::Object* error;                                                    \
+    i::Object error;                                                     \
     {                                                                    \
       i::HandleScope scope(isolate);                                     \
       i::Handle<i::String> message = Utils::OpenHandle(*raw_message);    \
@@ -9019,7 +9018,7 @@ void debug::SetContextId(Local<Context> context, int id) {
 }
 
 int debug::GetContextId(Local<Context> context) {
-  i::Object* value = Utils::OpenHandle(*context)->debug_context_id();
+  i::Object value = Utils::OpenHandle(*context)->debug_context_id();
   return (value->IsSmi()) ? i::Smi::ToInt(value) : 0;
 }
 
@@ -9180,7 +9179,7 @@ Maybe<int> debug::Script::ContextId() const {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   i::HandleScope handle_scope(isolate);
   i::Handle<i::Script> script = Utils::OpenHandle(this);
-  i::Object* value = script->context_data();
+  i::Object value = script->context_data();
   if (value->IsSmi()) return Just(i::Smi::ToInt(value));
   return Nothing<int>();
 }
@@ -9609,7 +9608,7 @@ v8::Local<v8::StackTrace> debug::GetDetailedStackTrace(
 
 MaybeLocal<debug::Script> debug::GeneratorObject::Script() {
   i::Handle<i::JSGeneratorObject> obj = Utils::OpenHandle(this);
-  i::Object* maybe_script = obj->function()->shared()->script();
+  i::Object maybe_script = obj->function()->shared()->script();
   if (!maybe_script->IsScript()) return MaybeLocal<debug::Script>();
   i::Handle<i::Script> script(i::Script::cast(maybe_script), obj->GetIsolate());
   return ToApiHandle<debug::Script>(script);
@@ -9623,7 +9622,7 @@ Local<Function> debug::GeneratorObject::Function() {
 debug::Location debug::GeneratorObject::SuspendedLocation() {
   i::Handle<i::JSGeneratorObject> obj = Utils::OpenHandle(this);
   CHECK(obj->is_suspended());
-  i::Object* maybe_script = obj->function()->shared()->script();
+  i::Object maybe_script = obj->function()->shared()->script();
   if (!maybe_script->IsScript()) return debug::Location();
   i::Handle<i::Script> script(i::Script::cast(maybe_script), obj->GetIsolate());
   i::Script::PositionInfo info;

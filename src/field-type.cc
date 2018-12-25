@@ -37,7 +37,7 @@ Handle<FieldType> FieldType::Class(Handle<Map> map, Isolate* isolate) {
 }
 
 // static
-FieldType FieldType::cast(Object* object) {
+FieldType FieldType::cast(Object object) {
   DCHECK(object == None() || object == Any() || object->IsMap());
   return FieldType(object->ptr());
 }
@@ -72,11 +72,11 @@ void FieldType::PrintTo(std::ostream& os) const {
     os << "None";
   } else {
     DCHECK(IsClass());
-    os << "Class(" << static_cast<void*>(AsClass()) << ")";
+    os << "Class(" << reinterpret_cast<void*>(AsClass()->ptr()) << ")";
   }
 }
 
-bool FieldType::NowContains(Object* value) const {
+bool FieldType::NowContains(Object value) const {
   if (*this == Any()) return true;
   if (*this == None()) return false;
   if (!value->IsHeapObject()) return false;

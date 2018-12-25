@@ -20,7 +20,7 @@ namespace internal {
 
 namespace {
 
-bool IsUninitializedLiteralSite(Object* literal_site) {
+bool IsUninitializedLiteralSite(Object literal_site) {
   return literal_site == Smi::kZero;
 }
 
@@ -121,7 +121,7 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
         DCHECK_EQ(kData, descriptors->GetDetails(i).kind());
         FieldIndex index = FieldIndex::ForDescriptor(copy->map(), i);
         if (copy->IsUnboxedDoubleField(index)) continue;
-        Object* raw = copy->RawFastPropertyAt(index);
+        Object raw = copy->RawFastPropertyAt(index);
         if (raw->IsJSObject()) {
           Handle<JSObject> value(JSObject::cast(raw), isolate);
           ASSIGN_RETURN_ON_EXCEPTION(
@@ -138,7 +138,7 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
     } else {
       Handle<NameDictionary> dict(copy->property_dictionary(), isolate);
       for (int i = 0; i < dict->Capacity(); i++) {
-        Object* raw = dict->ValueAt(i);
+        Object raw = dict->ValueAt(i);
         if (!raw->IsJSObject()) continue;
         DCHECK(dict->KeyAt(i)->IsName());
         Handle<JSObject> value(JSObject::cast(raw), isolate);
@@ -165,7 +165,7 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
 #endif
       } else {
         for (int i = 0; i < elements->length(); i++) {
-          Object* raw = elements->get(i);
+          Object raw = elements->get(i);
           if (!raw->IsJSObject()) continue;
           Handle<JSObject> value(JSObject::cast(raw), isolate);
           ASSIGN_RETURN_ON_EXCEPTION(
@@ -180,7 +180,7 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
                                                   isolate);
       int capacity = element_dictionary->Capacity();
       for (int i = 0; i < capacity; i++) {
-        Object* raw = element_dictionary->ValueAt(i);
+        Object raw = element_dictionary->ValueAt(i);
         if (!raw->IsJSObject()) continue;
         Handle<JSObject> value(JSObject::cast(raw), isolate);
         ASSIGN_RETURN_ON_EXCEPTION(
@@ -253,7 +253,7 @@ class AllocationSiteCreationContext : public AllocationSiteContext {
       scope_site = Handle<AllocationSite>(*top(), isolate());
       if (FLAG_trace_creation_allocation_sites) {
         PrintF("*** Creating top level %s AllocationSite %p\n", "Fat",
-               static_cast<void*>(*scope_site));
+               reinterpret_cast<void*>(scope_site->ptr()));
       }
     } else {
       DCHECK(!current().is_null());
@@ -263,8 +263,9 @@ class AllocationSiteCreationContext : public AllocationSiteContext {
             "*** Creating nested %s AllocationSite (top, current, new) (%p, "
             "%p, "
             "%p)\n",
-            "Slim", static_cast<void*>(*top()), static_cast<void*>(*current()),
-            static_cast<void*>(*scope_site));
+            "Slim", reinterpret_cast<void*>(top()->ptr()),
+            reinterpret_cast<void*>(current()->ptr()),
+            reinterpret_cast<void*>(scope_site->ptr()));
       }
       current()->set_nested_site(*scope_site);
       update_current_site(*scope_site);
@@ -280,11 +281,13 @@ class AllocationSiteCreationContext : public AllocationSiteContext {
           !scope_site.is_null() && top().is_identical_to(scope_site);
       if (top_level) {
         PrintF("*** Setting AllocationSite %p transition_info %p\n",
-               static_cast<void*>(*scope_site), static_cast<void*>(*object));
+               reinterpret_cast<void*>(scope_site->ptr()),
+               reinterpret_cast<void*>(object->ptr()));
       } else {
         PrintF("*** Setting AllocationSite (%p, %p) transition_info %p\n",
-               static_cast<void*>(*top()), static_cast<void*>(*scope_site),
-               static_cast<void*>(*object));
+               reinterpret_cast<void*>(top()->ptr()),
+               reinterpret_cast<void*>(scope_site->ptr()),
+               reinterpret_cast<void*>(object->ptr()));
       }
     }
   }

@@ -85,7 +85,7 @@ bool CallOptimization::IsCompatibleReceiverMap(Handle<Map> map,
       {
         JSObject object = *api_holder;
         while (true) {
-          Object* prototype = object->map()->prototype();
+          Object prototype = object->map()->prototype();
           if (!prototype->IsJSObject()) return false;
           if (prototype == *holder) return true;
           object = JSObject::cast(prototype);

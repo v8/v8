@@ -112,7 +112,7 @@ constexpr uint32_t SerializedData::kMagicNumber;
 //  - not during serialization. The partial serializer adds to it explicitly.
 DISABLE_CFI_PERF
 void SerializerDeserializer::Iterate(Isolate* isolate, RootVisitor* visitor) {
-  std::vector<Object*>* cache = isolate->partial_snapshot_cache();
+  std::vector<Object>* cache = isolate->partial_snapshot_cache();
   for (size_t i = 0;; ++i) {
     // Extend the array ready to get a value when deserializing.
     if (cache->size() <= i) cache->push_back(Smi::kZero);

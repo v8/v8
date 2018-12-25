@@ -126,9 +126,10 @@ class JSReceiver : public HeapObject {
       Handle<JSReceiver> object, uint32_t index,
       LanguageMode language_mode = LanguageMode::kSloppy);
 
-  V8_WARN_UNUSED_RESULT static Object* DefineProperty(
-      Isolate* isolate, Handle<Object> object, Handle<Object> name,
-      Handle<Object> attributes);
+  V8_WARN_UNUSED_RESULT static Object DefineProperty(Isolate* isolate,
+                                                     Handle<Object> object,
+                                                     Handle<Object> name,
+                                                     Handle<Object> attributes);
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> DefineProperties(
       Isolate* isolate, Handle<Object> object, Handle<Object> properties);
 
@@ -227,7 +228,7 @@ class JSReceiver : public HeapObject {
 
   // Retrieves a permanent object identity hash code. The undefined value might
   // be returned in case no hash was created yet.
-  Object* GetIdentityHash();
+  Object GetIdentityHash();
 
   // Retrieves a permanent object identity hash code. May create and store a
   // hash code if needed and none exists.
@@ -566,8 +567,8 @@ class JSObject : public JSReceiver {
   static inline int GetEmbedderFieldCount(const Map map);
   inline int GetEmbedderFieldCount() const;
   inline int GetEmbedderFieldOffset(int index);
-  inline Object* GetEmbedderField(int index);
-  inline void SetEmbedderField(int index, Object* value);
+  inline Object GetEmbedderField(int index);
+  inline void SetEmbedderField(int index, Object value);
   inline void SetEmbedderField(int index, Smi value);
 
   // Returns true when the object is potentially a wrapper that gets special
@@ -621,21 +622,21 @@ class JSObject : public JSReceiver {
   static Handle<Object> FastPropertyAt(Handle<JSObject> object,
                                        Representation representation,
                                        FieldIndex index);
-  inline Object* RawFastPropertyAt(FieldIndex index);
+  inline Object RawFastPropertyAt(FieldIndex index);
   inline double RawFastDoublePropertyAt(FieldIndex index);
   inline uint64_t RawFastDoublePropertyAsBitsAt(FieldIndex index);
 
-  inline void FastPropertyAtPut(FieldIndex index, Object* value);
-  inline void RawFastPropertyAtPut(FieldIndex index, Object* value);
+  inline void FastPropertyAtPut(FieldIndex index, Object value);
+  inline void RawFastPropertyAtPut(FieldIndex index, Object value);
   inline void RawFastDoublePropertyAsBitsAtPut(FieldIndex index, uint64_t bits);
   inline void WriteToField(int descriptor, PropertyDetails details,
-                           Object* value);
+                           Object value);
 
   // Access to in object properties.
   inline int GetInObjectPropertyOffset(int index);
-  inline Object* InObjectPropertyAt(int index);
-  inline Object* InObjectPropertyAtPut(
-      int index, Object* value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline Object InObjectPropertyAt(int index);
+  inline Object InObjectPropertyAtPut(
+      int index, Object value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // Set the object's prototype (only JSReceiver and null are allowed values).
   V8_WARN_UNUSED_RESULT static Maybe<bool> SetPrototype(
@@ -652,10 +653,10 @@ class JSObject : public JSReceiver {
   // Note: this call does not update write barrier, the caller is responsible
   // to ensure that |filler_value| can be collected without WB here.
   inline void InitializeBody(Map map, int start_offset,
-                             Object* pre_allocated_value, Object* filler_value);
+                             Object pre_allocated_value, Object filler_value);
 
   // Check whether this object references another object
-  bool ReferencesObject(Object* obj);
+  bool ReferencesObject(Object obj);
 
   V8_WARN_UNUSED_RESULT static Maybe<bool> TestIntegrityLevel(
       Handle<JSObject> object, IntegrityLevel lvl);
@@ -716,7 +717,7 @@ class JSObject : public JSReceiver {
   bool ElementsAreSafeToExamine() const;
 #endif
 
-  Object* SlowReverseLookup(Object* value);
+  Object SlowReverseLookup(Object value);
 
   // Maximal number of elements (numbered 0 .. kMaxElementCount - 1).
   // Also maximal value of JSArray's length property.
@@ -804,7 +805,7 @@ class JSObject : public JSReceiver {
       LookupIterator* it, ShouldThrow should_throw);
 
   bool ReferencesObjectFromElements(FixedArray elements, ElementsKind kind,
-                                    Object* object);
+                                    Object object);
 
   // Helper for fast versions of preventExtensions, seal, and freeze.
   // attrs is one of NONE, SEALED, or FROZEN (depending on the operation).
@@ -906,7 +907,7 @@ class JSIteratorResult : public JSObject {
 class JSBoundFunction : public JSObject {
  public:
   // [bound_target_function]: The wrapped function object.
-  inline Object* raw_bound_target_function() const;
+  inline Object raw_bound_target_function() const;
   DECL_ACCESSORS2(bound_target_function, JSReceiver)
 
   // [bound_this]: The value that is always passed as the this value when
@@ -966,7 +967,7 @@ class JSFunction : public JSObject {
   // [context]: The context for this function.
   inline Context context();
   inline bool has_context() const;
-  inline void set_context(Object* context);
+  inline void set_context(Object context);
   inline JSGlobalProxy global_proxy();
   inline Context native_context();
 
@@ -1078,8 +1079,8 @@ class JSFunction : public JSObject {
   // until an initial map is needed.
   inline bool has_prototype();
   inline bool has_instance_prototype();
-  inline Object* prototype();
-  inline Object* instance_prototype();
+  inline Object prototype();
+  inline Object instance_prototype();
   inline bool has_prototype_property();
   inline bool PrototypeRequiresRuntimeLookup();
   static void SetPrototype(Handle<JSFunction> function, Handle<Object> value);
@@ -1294,12 +1295,16 @@ class JSDate : public JSObject {
 
   // Returns the date field with the specified index.
   // See FieldIndex for the list of date fields.
-  // {smi_index} is a raw Address because this is called via ExternalReference.
-  static Object* GetField(Object* date, Address smi_index);
+  // Arguments and result are raw Address values because this is called
+  // via ExternalReference.
+  // {raw_date} is a tagged Object pointer.
+  // {smi_index} is a tagged Smi.
+  // The return value is a tagged Object pointer.
+  static Address GetField(Address raw_date, Address smi_index);
 
   static Handle<Object> SetValue(Handle<JSDate> date, double v);
 
-  void SetValue(Object* value, bool is_value_nan);
+  void SetValue(Object value, bool is_value_nan);
 
   // Dispatched behavior.
   DECL_PRINTER(JSDate)
@@ -1352,9 +1357,9 @@ class JSDate : public JSObject {
 #undef JS_DATE_FIELDS
 
  private:
-  inline Object* DoGetField(FieldIndex index);
+  inline Object DoGetField(FieldIndex index);
 
-  Object* GetUTCField(FieldIndex index, double value, DateCache* date_cache);
+  Object GetUTCField(FieldIndex index, double value, DateCache* date_cache);
 
   // Computes and caches the cacheable fields of the date.
   inline void SetCachedFields(int64_t local_time_ms, DateCache* date_cache);

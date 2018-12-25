@@ -380,7 +380,7 @@ class ExitFrame: public StackFrame {
 
   Code unchecked_code() const override;
 
-  Object*& code_slot() const;
+  Address& code_slot() const;
 
   // Garbage collection support.
   void Iterate(RootVisitor* v) const override;
@@ -422,7 +422,7 @@ class BuiltinExitFrame : public ExitFrame {
   }
 
   JSFunction function() const;
-  Object* receiver() const;
+  Object receiver() const;
 
   bool IsConstructor() const;
 
@@ -433,13 +433,13 @@ class BuiltinExitFrame : public ExitFrame {
   inline explicit BuiltinExitFrame(StackFrameIteratorBase* iterator);
 
  private:
-  Object* GetParameter(int i) const;
+  Object GetParameter(int i) const;
   int ComputeParametersCount() const;
 
-  inline Object* receiver_slot_object() const;
-  inline Object* argc_slot_object() const;
-  inline Object* target_slot_object() const;
-  inline Object* new_target_slot_object() const;
+  inline Object receiver_slot_object() const;
+  inline Object argc_slot_object() const;
+  inline Object target_slot_object() const;
+  inline Object new_target_slot_object() const;
 
   friend class StackFrameIteratorBase;
 };
@@ -474,7 +474,7 @@ class FrameSummary {
 
   class JavaScriptFrameSummary : public FrameSummaryBase {
    public:
-    JavaScriptFrameSummary(Isolate* isolate, Object* receiver,
+    JavaScriptFrameSummary(Isolate* isolate, Object receiver,
                            JSFunction function, AbstractCode abstract_code,
                            int code_offset, bool is_constructor);
 
@@ -604,18 +604,18 @@ class StandardFrame : public StackFrame {
   bool is_standard() const override { return true; }
 
   // Accessors.
-  virtual Object* receiver() const;
+  virtual Object receiver() const;
   virtual Script script() const;
-  virtual Object* context() const;
+  virtual Object context() const;
   virtual int position() const;
 
   // Access the expressions in the stack frame including locals.
-  inline Object* GetExpression(int index) const;
-  inline void SetExpression(int index, Object* value);
+  inline Object GetExpression(int index) const;
+  inline void SetExpression(int index, Object value);
   int ComputeExpressionsCount() const;
 
   // Access the parameters.
-  virtual Object* GetParameter(int index) const;
+  virtual Object GetParameter(int index) const;
   virtual int ComputeParametersCount() const;
 
   // Check if this frame is a constructor frame invoked through 'new'.
@@ -679,20 +679,20 @@ class JavaScriptFrame : public StandardFrame {
 
   // Accessors.
   virtual JSFunction function() const;
-  Object* unchecked_function() const;
-  Object* receiver() const override;
-  Object* context() const override;
+  Object unchecked_function() const;
+  Object receiver() const override;
+  Object context() const override;
   Script script() const override;
 
-  inline void set_receiver(Object* value);
+  inline void set_receiver(Object value);
 
   // Access the parameters.
   inline Address GetParameterSlot(int index) const;
-  Object* GetParameter(int index) const override;
+  Object GetParameter(int index) const override;
   int ComputeParametersCount() const override;
 
   // Debugger access.
-  void SetParameterValue(int index, Object* value) const;
+  void SetParameterValue(int index, Object value) const;
 
   // Check if this frame is a constructor frame invoked through 'new'.
   bool IsConstructor() const override;
@@ -760,7 +760,7 @@ class JavaScriptFrame : public StandardFrame {
   virtual void PrintFrameKind(StringStream* accumulator) const {}
 
  private:
-  inline Object* function_slot_object() const;
+  inline Object function_slot_object() const;
 
   friend class StackFrameIteratorBase;
 };
@@ -813,7 +813,7 @@ class OptimizedFrame : public JavaScriptFrame {
 
   DeoptimizationData GetDeoptimizationData(int* deopt_index) const;
 
-  Object* receiver() const override;
+  Object receiver() const override;
 
   static int StackSlotOffsetRelativeToFp(int slot_index);
 
@@ -825,7 +825,7 @@ class OptimizedFrame : public JavaScriptFrame {
  private:
   friend class StackFrameIteratorBase;
 
-  Object* StackSlotAt(int index) const;
+  Object StackSlotAt(int index) const;
 };
 
 
@@ -855,8 +855,8 @@ class InterpretedFrame : public JavaScriptFrame {
   void PatchBytecodeArray(BytecodeArray bytecode_array);
 
   // Access to the interpreter register file for this frame.
-  Object* ReadInterpreterRegister(int register_index) const;
-  void WriteInterpreterRegister(int register_index, Object* value);
+  Object ReadInterpreterRegister(int register_index) const;
+  void WriteInterpreterRegister(int register_index, Object value);
 
   // Build a list with summaries for this frame including all inlined frames.
   void Summarize(std::vector<FrameSummary>* frames) const override;
@@ -992,7 +992,7 @@ class WasmInterpreterEntryFrame final : public StandardFrame {
 
   Script script() const override;
   int position() const override;
-  Object* context() const override;
+  Object context() const override;
 
   static WasmInterpreterEntryFrame* cast(StackFrame* frame) {
     DCHECK(frame->is_wasm_interpreter_entry());
@@ -1138,7 +1138,7 @@ class JavaScriptBuiltinContinuationFrame : public JavaScriptFrame {
   int ComputeParametersCount() const override;
   intptr_t GetSPToFPDelta() const;
 
-  Object* context() const override;
+  Object context() const override;
 
  protected:
   inline explicit JavaScriptBuiltinContinuationFrame(
@@ -1162,7 +1162,7 @@ class JavaScriptBuiltinContinuationWithCatchFrame
 
   // Patch in the exception object at the appropriate location into the stack
   // frame.
-  void SetException(Object* exception);
+  void SetException(Object exception);
 
  protected:
   inline explicit JavaScriptBuiltinContinuationWithCatchFrame(

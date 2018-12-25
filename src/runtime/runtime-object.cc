@@ -74,7 +74,7 @@ bool DeleteObjectPropertyFast(Isolate* isolate, Handle<JSReceiver> receiver,
   PropertyDetails details = descriptors->GetDetails(descriptor);
   if (!details.IsConfigurable()) return false;
   // (4) The map must have a back pointer.
-  Object* backpointer = map->GetBackPointer();
+  Object backpointer = map->GetBackPointer();
   if (!backpointer->IsMap()) return false;
   // (5) The last transition must have been caused by adding a property
   // (and not any kind of special transition).
@@ -94,7 +94,7 @@ bool DeleteObjectPropertyFast(Isolate* isolate, Handle<JSReceiver> receiver,
       // Clear out the properties backing store.
       receiver->SetProperties(ReadOnlyRoots(isolate).empty_fixed_array());
     } else {
-      Object* filler = ReadOnlyRoots(isolate).one_pointer_filler_map();
+      Object filler = ReadOnlyRoots(isolate).one_pointer_filler_map();
       JSObject::cast(*receiver)->RawFastPropertyAtPut(index, filler);
       // We must clear any recorded slot for the deleted property, because
       // subsequent object modifications might put a raw double there.
@@ -493,7 +493,7 @@ RUNTIME_FUNCTION(Runtime_GetProperty) {
         if (entry != GlobalDictionary::kNotFound) {
           PropertyCell cell = dictionary->CellAt(entry);
           if (cell->property_details().kind() == kData) {
-            Object* value = cell->value();
+            Object value = cell->value();
             if (!value->IsTheHole(isolate)) return value;
             // If value is the hole (meaning, absent) do the general lookup.
           }
@@ -600,8 +600,8 @@ RUNTIME_FUNCTION(Runtime_StoreDataPropertyInLiteral) {
 namespace {
 
 // ES6 section 12.5.4.
-Object* DeleteProperty(Isolate* isolate, Handle<Object> object,
-                       Handle<Object> key, LanguageMode language_mode) {
+Object DeleteProperty(Isolate* isolate, Handle<Object> object,
+                      Handle<Object> key, LanguageMode language_mode) {
   Handle<JSReceiver> receiver;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, receiver,
                                      Object::ToObject(isolate, object));

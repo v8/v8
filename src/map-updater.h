@@ -116,7 +116,7 @@ class MapUpdater {
 
   // Returns value of a |descriptor| with kDescriptor location in "updated"
   // |old_descrtiptors_| array.
-  inline Object* GetValue(int descriptor) const;
+  inline Object GetValue(int descriptor) const;
 
   // Returns field type for a |descriptor| with kField location in "updated"
   // |old_descrtiptors_| array.

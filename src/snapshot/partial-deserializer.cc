@@ -41,7 +41,7 @@ MaybeHandle<Object> PartialDeserializer::Deserialize(
   // code objects were unserialized
   CodeSpace* code_space = isolate->heap()->code_space();
   Address start_address = code_space->top();
-  Object* root;
+  Object root;
   VisitRootPointer(Root::kPartialSnapshotCache, nullptr, FullObjectSlot(&root));
   DeserializeDeferredObjects();
   DeserializeEmbedderFields(embedder_fields_deserializer);

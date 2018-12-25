@@ -954,7 +954,7 @@ class MarkCompactCollector::CustomRootBodyMarkingVisitor final
   }
 
  private:
-  V8_INLINE void MarkObject(HeapObject host, Object* object) {
+  V8_INLINE void MarkObject(HeapObject host, Object object) {
     if (!object->IsHeapObject()) return;
     collector_->MarkObject(host, HeapObject::cast(object));
   }
@@ -970,11 +970,11 @@ class InternalizedStringTableCleaner : public ObjectVisitor {
   void VisitPointers(HeapObject host, ObjectSlot start,
                      ObjectSlot end) override {
     // Visit all HeapObject pointers in [start, end).
-    Object* the_hole = ReadOnlyRoots(heap_).the_hole_value();
+    Object the_hole = ReadOnlyRoots(heap_).the_hole_value();
     MarkCompactCollector::NonAtomicMarkingState* marking_state =
         heap_->mark_compact_collector()->non_atomic_marking_state();
     for (ObjectSlot p = start; p < end; ++p) {
-      Object* o = *p;
+      Object o = *p;
       if (o->IsHeapObject()) {
         HeapObject heap_object = HeapObject::cast(o);
         if (marking_state->IsWhite(heap_object)) {
@@ -1020,9 +1020,9 @@ class ExternalStringTableCleaner : public RootVisitor {
     // Visit all HeapObject pointers in [start, end).
     MarkCompactCollector::NonAtomicMarkingState* marking_state =
         heap_->mark_compact_collector()->non_atomic_marking_state();
-    Object* the_hole = ReadOnlyRoots(heap_).the_hole_value();
+    Object the_hole = ReadOnlyRoots(heap_).the_hole_value();
     for (FullObjectSlot p = start; p < end; ++p) {
-      Object* o = *p;
+      Object o = *p;
       if (o->IsHeapObject()) {
         HeapObject heap_object = HeapObject::cast(o);
         if (marking_state->IsWhite(heap_object)) {
@@ -1051,7 +1051,7 @@ class MarkCompactWeakObjectRetainer : public WeakObjectRetainer {
       MarkCompactCollector::NonAtomicMarkingState* marking_state)
       : marking_state_(marking_state) {}
 
-  Object* RetainAs(Object* object) override {
+  Object RetainAs(Object object) override {
     HeapObject heap_object = HeapObject::cast(object);
     DCHECK(!marking_state_->IsGrey(heap_object));
     if (marking_state_->IsBlack(heap_object)) {
@@ -1061,7 +1061,7 @@ class MarkCompactWeakObjectRetainer : public WeakObjectRetainer {
       // "dead" AllocationSites need to live long enough for a traversal of new
       // space. These sites get a one-time reprieve.
 
-      Object* nested = object;
+      Object nested = object;
       while (nested->IsAllocationSite()) {
         AllocationSite current_site = AllocationSite::cast(nested);
         // MarkZombie will override the nested_site, read it first before
@@ -1073,7 +1073,7 @@ class MarkCompactWeakObjectRetainer : public WeakObjectRetainer {
 
       return object;
     } else {
-      return nullptr;
+      return Object();
     }
   }
 
@@ -1462,7 +1462,7 @@ class EvacuateRecordOnlyVisitor final : public HeapObjectVisitor {
 };
 
 bool MarkCompactCollector::IsUnmarkedHeapObject(Heap* heap, FullObjectSlot p) {
-  Object* o = *p;
+  Object o = *p;
   if (!o->IsHeapObject()) return false;
   HeapObject heap_object = HeapObject::cast(o);
   return heap->mark_compact_collector()->non_atomic_marking_state()->IsWhite(
@@ -1573,8 +1573,7 @@ void MarkCompactCollector::ProcessEphemeronsLinear() {
   TRACE_GC(heap()->tracer(),
            GCTracer::Scope::MC_MARK_WEAK_CLOSURE_EPHEMERON_LINEAR);
   CHECK(heap()->concurrent_marking()->IsStopped());
-  std::unordered_multimap<HeapObject, HeapObject, HeapObject::Hasher>
-      key_to_values;
+  std::unordered_multimap<HeapObject, HeapObject, Object::Hasher> key_to_values;
   Ephemeron ephemeron;
 
   DCHECK(weak_objects_.current_ephemerons.IsEmpty());
@@ -1959,7 +1958,7 @@ void MarkCompactCollector::MarkDependentCodeForDeoptimization() {
 
 void MarkCompactCollector::ClearPotentialSimpleMapTransition(Map dead_target) {
   DCHECK(non_atomic_marking_state()->IsWhite(dead_target));
-  Object* potential_parent = dead_target->constructor_or_backpointer();
+  Object potential_parent = dead_target->constructor_or_backpointer();
   if (potential_parent->IsMap()) {
     Map parent = Map::cast(potential_parent);
     DisallowHeapAllocation no_gc_obviously;
@@ -2225,7 +2224,7 @@ void MarkCompactCollector::ClearWeakCollections() {
     for (int i = 0; i < table->Capacity(); i++) {
       HeapObject key = HeapObject::cast(table->KeyAt(i));
 #ifdef VERIFY_HEAP
-      Object* value = table->ValueAt(i);
+      Object value = table->ValueAt(i);
 
       if (value->IsHeapObject()) {
         CHECK_IMPLIES(
@@ -2295,7 +2294,7 @@ void MarkCompactCollector::ClearJSWeakCells() {
       if (!weak_factory->scheduled_for_cleanup()) {
         heap()->AddDirtyJSWeakFactory(
             weak_factory,
-            [](HeapObject object, ObjectSlot slot, Object* target) {
+            [](HeapObject object, ObjectSlot slot, Object target) {
               if (target->IsHeapObject()) {
                 RecordSlot(object, slot, HeapObject::cast(target));
               }
@@ -2304,12 +2303,12 @@ void MarkCompactCollector::ClearJSWeakCells() {
       // We're modifying the pointers in JSWeakCell and JSWeakFactory during GC;
       // thus we need to record the slots it writes. The normal write barrier is
       // not enough, since it's disabled before GC.
-      weak_cell->Nullify(
-          isolate(), [](HeapObject object, ObjectSlot slot, Object* target) {
-            if (target->IsHeapObject()) {
-              RecordSlot(object, slot, HeapObject::cast(target));
-            }
-          });
+      weak_cell->Nullify(isolate(),
+                         [](HeapObject object, ObjectSlot slot, Object target) {
+                           if (target->IsHeapObject()) {
+                             RecordSlot(object, slot, HeapObject::cast(target));
+                           }
+                         });
       DCHECK(weak_factory->NeedsCleanup());
       DCHECK(weak_factory->scheduled_for_cleanup());
     } else {
@@ -2561,8 +2560,7 @@ static String UpdateReferenceInExternalStringTableEntry(Heap* heap,
     if (new_string->IsExternalString()) {
       MemoryChunk::MoveExternalBackingStoreBytes(
           ExternalBackingStoreType::kExternalString,
-          Page::FromAddress(reinterpret_cast<Address>(*p)),
-          Page::FromHeapObject(new_string),
+          Page::FromAddress((*p).ptr()), Page::FromHeapObject(new_string),
           ExternalString::cast(new_string)->ExternalPayloadSize());
     }
     return new_string;
@@ -2949,7 +2947,7 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
 
 class EvacuationWeakObjectRetainer : public WeakObjectRetainer {
  public:
-  Object* RetainAs(Object* object) override {
+  Object RetainAs(Object object) override {
     if (object->IsHeapObject()) {
       HeapObject heap_object = HeapObject::cast(object);
       MapWord map_word = heap_object->map_word();
@@ -4275,7 +4273,7 @@ class YoungGenerationExternalStringTableCleaner : public RootVisitor {
               static_cast<int>(Root::kExternalStringsTable));
     // Visit all HeapObject pointers in [start, end).
     for (FullObjectSlot p = start; p < end; ++p) {
-      Object* o = *p;
+      Object o = *p;
       if (o->IsHeapObject()) {
         HeapObject heap_object = HeapObject::cast(o);
         if (marking_state_->IsWhite(heap_object)) {
@@ -4305,7 +4303,7 @@ class MinorMarkCompactWeakObjectRetainer : public WeakObjectRetainer {
       MinorMarkCompactCollector* collector)
       : marking_state_(collector->non_atomic_marking_state()) {}
 
-  Object* RetainAs(Object* object) override {
+  Object RetainAs(Object object) override {
     HeapObject heap_object = HeapObject::cast(object);
     if (!Heap::InNewSpace(heap_object)) return object;
 
@@ -4314,7 +4312,7 @@ class MinorMarkCompactWeakObjectRetainer : public WeakObjectRetainer {
     if (marking_state_->IsGrey(heap_object)) {
       return object;
     }
-    return nullptr;
+    return Object();
   }
 
  private:
@@ -4420,7 +4418,7 @@ class YoungGenerationMarkingTask : public ItemParallelJob::Task {
     }
   };
 
-  void MarkObject(Object* object) {
+  void MarkObject(Object object) {
     if (!Heap::InNewSpace(object)) return;
     HeapObject heap_object = HeapObject::cast(object);
     if (marking_state_->WhiteToGrey(heap_object)) {

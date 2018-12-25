@@ -14,6 +14,7 @@
 #include "src/compiler/node-properties.h"
 #include "src/compiler/operator-properties.h"
 #include "src/feedback-vector.h"
+#include "src/objects/feedback-cell.h"
 #include "src/objects/scope-info.h"
 
 namespace v8 {

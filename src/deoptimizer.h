@@ -39,7 +39,7 @@ class TranslatedValue {
   // Allocation-less getter of the value.
   // Returns ReadOnlyRoots::arguments_marker() if allocation would be necessary
   // to get the value.
-  Object* GetRawValue() const;
+  Object GetRawValue() const;
 
   // Getter for the value, takes care of materializing the subgraph
   // reachable from this value.
@@ -95,7 +95,7 @@ class TranslatedValue {
   static TranslatedValue NewInt64(TranslatedState* container, int64_t value);
   static TranslatedValue NewUInt32(TranslatedState* container, uint32_t value);
   static TranslatedValue NewBool(TranslatedState* container, uint32_t value);
-  static TranslatedValue NewTagged(TranslatedState* container, Object* literal);
+  static TranslatedValue NewTagged(TranslatedState* container, Object literal);
   static TranslatedValue NewInvalid(TranslatedState* container);
 
   Isolate* isolate() const;
@@ -128,7 +128,7 @@ class TranslatedValue {
 
   union {
     // kind kTagged. After handlification it is always nullptr.
-    Object* raw_literal_;
+    Object raw_literal_;
     // kind is kUInt32 or kBoolBit.
     uint32_t uint32_value_;
     // kind is kInt32.
@@ -144,7 +144,7 @@ class TranslatedValue {
   };
 
   // Checked accessors for the union members.
-  Object* raw_literal() const;
+  Object raw_literal() const;
   int32_t int32_value() const;
   int64_t int64_value() const;
   uint32_t uint32_value() const;
@@ -525,7 +525,7 @@ class Deoptimizer : public Malloced {
 
  private:
   friend class FrameWriter;
-  void QueueValueForMaterialization(Address output_address, Object* obj,
+  void QueueValueForMaterialization(Address output_address, Object obj,
                                     const TranslatedFrame::iterator& iterator);
 
   static const int kMinNumberOfEntries = 64;

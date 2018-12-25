@@ -15,156 +15,6 @@
 namespace v8 {
 namespace internal {
 
-// This is the new way to represent the Object class. It is temporarily
-// separate to allow an incremental transition.
-// For a design overview, see https://goo.gl/Ph4CGz.
-class ObjectPtr {
- public:
-  constexpr ObjectPtr() : ptr_(kNullAddress) {}
-  explicit constexpr ObjectPtr(Address ptr) : ptr_(ptr) {}
-  static ObjectPtr cast(Object* obj) { return ObjectPtr(obj->ptr()); }
-
-  // Enable incremental transition.
-  operator Object*() const { return reinterpret_cast<Object*>(ptr()); }
-  // Make clang on Linux catch what MSVC complains about on Windows:
-  operator bool() const = delete;
-
-  bool operator==(const ObjectPtr other) const {
-    return this->ptr() == other.ptr();
-  }
-  bool operator!=(const ObjectPtr other) const {
-    return this->ptr() != other.ptr();
-  }
-  // Usage in std::set requires operator<.
-  bool operator<(const ObjectPtr other) const {
-    return this->ptr() < other.ptr();
-  }
-
-  // Returns the tagged "(heap) object pointer" representation of this object.
-  constexpr Address ptr() const { return ptr_; }
-
-  ObjectPtr* operator->() { return this; }
-  const ObjectPtr* operator->() const { return this; }
-
-#define IS_TYPE_FUNCTION_DECL(Type) V8_INLINE bool Is##Type() const;
-  OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
-  HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
-#undef IS_TYPE_FUNCTION_DECL
-#define DECL_STRUCT_PREDICATE(NAME, Name, name) V8_INLINE bool Is##Name() const;
-  STRUCT_LIST(DECL_STRUCT_PREDICATE)
-#undef DECL_STRUCT_PREDICATE
-#define IS_TYPE_FUNCTION_DECL(Type, Value)            \
-  V8_INLINE bool Is##Type(Isolate* isolate) const;    \
-  V8_INLINE bool Is##Type(ReadOnlyRoots roots) const; \
-  V8_INLINE bool Is##Type() const;
-  ODDBALL_LIST(IS_TYPE_FUNCTION_DECL)
-#undef IS_TYPE_FUNCTION_DECL
-  inline bool IsHashTableBase() const;
-  V8_INLINE bool IsSmallOrderedHashTable() const;
-
-  inline bool IsObject() const { return true; }
-  inline double Number() const;
-  inline bool ToInt32(int32_t* value) const;
-  inline bool ToUint32(uint32_t* value) const;
-
-  // ECMA-262 9.2.
-  bool BooleanValue(Isolate* isolate);
-
-  inline bool FilterKey(PropertyFilter filter);
-
-  // Returns the permanent hash code associated with this object. May return
-  // undefined if not yet created.
-  inline Object* GetHash();
-
-  // Returns the permanent hash code associated with this object depending on
-  // the actual object type. May create and store a hash code if needed and none
-  // exists.
-  Smi GetOrCreateHash(Isolate* isolate);
-
-  // Checks whether this object has the same value as the given one.  This
-  // function is implemented according to ES5, section 9.12 and can be used
-  // to implement the Object.is function.
-  V8_EXPORT_PRIVATE bool SameValue(Object* other);
-
-  // Tries to convert an object to an array index. Returns true and sets the
-  // output parameter if it succeeds. Equivalent to ToArrayLength, but does not
-  // allow kMaxUInt32.
-  V8_WARN_UNUSED_RESULT inline bool ToArrayIndex(uint32_t* index) const;
-
-  //
-  // The following GetHeapObjectXX methods mimic corresponding functionality
-  // in MaybeObject. Having them here allows us to unify code that processes
-  // ObjectSlots and MaybeObjectSlots.
-  //
-
-  // If this Object is a strong pointer to a HeapObject, returns true and
-  // sets *result. Otherwise returns false.
-  inline bool GetHeapObjectIfStrong(HeapObject* result) const;
-
-  // If this Object is a strong pointer to a HeapObject (weak pointers are not
-  // expected), returns true and sets *result. Otherwise returns false.
-  inline bool GetHeapObject(HeapObject* result) const;
-
-  // DCHECKs that this Object is a strong pointer to a HeapObject and returns
-  // the HeapObject.
-  inline HeapObject GetHeapObject() const;
-
-  // Always returns false because Object is not expected to be a weak pointer
-  // to a HeapObject.
-  inline bool GetHeapObjectIfWeak(HeapObject* result) const {
-    DCHECK(!HasWeakHeapObjectTag(ptr()));
-    return false;
-  }
-  // Always returns false because Object is not expected to be a weak pointer
-  // to a HeapObject.
-  inline bool IsCleared() const { return false; }
-
-#ifdef VERIFY_HEAP
-  void ObjectVerify(Isolate* isolate) {
-    reinterpret_cast<Object*>(ptr())->ObjectVerify(isolate);
-  }
-  // Verify a pointer is a valid object pointer.
-  static void VerifyPointer(Isolate* isolate, Object* p);
-#endif
-
-  inline void VerifyApiCallResultType();
-
-  inline void ShortPrint(FILE* out = stdout) const;
-  void ShortPrint(std::ostream& os) const;  // NOLINT
-  void ShortPrint(StringStream* accumulator);
-  inline void Print() const;
-  inline void Print(std::ostream& os) const;
-
-  // For use with std::unordered_set.
-  struct Hasher {
-    size_t operator()(const ObjectPtr o) const {
-      return std::hash<v8::internal::Address>{}(o.ptr());
-    }
-  };
-
-  // For use with std::map.
-  struct Compare {
-    bool operator()(const ObjectPtr a, const ObjectPtr b) const {
-      return a.ptr() < b.ptr();
-    }
-  };
-
- private:
-  friend class FullObjectSlot;
-  friend class CompressedObjectSlot;
-  Address ptr_;
-};
-
-// In heap-objects.h to be usable without heap-objects-inl.h inclusion.
-bool ObjectPtr::IsSmi() const { return HAS_SMI_TAG(ptr()); }
-bool ObjectPtr::IsHeapObject() const {
-  DCHECK_EQ(!IsSmi(), Internals::HasHeapObjectTag(ptr()));
-  return !IsSmi();
-}
-
-V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
-                                           const ObjectPtr& obj);
-
 // HeapObject is the superclass for all classes describing heap allocated
 // objects.
 class HeapObject : public ObjectPtr {
@@ -273,7 +123,7 @@ class HeapObject : public ObjectPtr {
   // GC internal.
   inline int SizeFromMap(Map map) const;
 
-  // Returns the field at offset in obj, as a read/write Object* reference.
+  // Returns the field at offset in obj, as a read/write Object reference.
   // Does no checking, and is safe to use during GC, while maps are invalid.
   // Does not invoke write barrier, so should only be assigned to
   // during marking GC.
@@ -306,7 +156,7 @@ class HeapObject : public ObjectPtr {
 
   // Verify a pointer is a valid HeapObject pointer that points to object
   // areas in the heap.
-  static void VerifyHeapPointer(Isolate* isolate, Object* p);
+  static void VerifyHeapPointer(Isolate* isolate, Object p);
 #endif
 
   static inline AllocationAlignment RequiredAlignment(Map map);

@@ -237,8 +237,8 @@ TEST(SmallOrderedHashMapDuplicateHashCode) {
   CopyHashCode(key1, key2);
 
   CHECK(!key1->SameValue(*key2));
-  Object* hash1 = key1->GetHash();
-  Object* hash2 = key2->GetHash();
+  Object hash1 = key1->GetHash();
+  Object hash2 = key2->GetHash();
   CHECK_EQ(hash1, hash2);
 
   map = SmallOrderedHashMap::Add(isolate, map, key2, value).ToHandleChecked();

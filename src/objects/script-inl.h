@@ -103,7 +103,7 @@ void Script::set_origin_options(ScriptOriginOptions origin_options) {
 }
 
 bool Script::HasValidSource() {
-  Object* src = this->source();
+  Object src = this->source();
   if (!src->IsString()) return true;
   String src_str = String::cast(src);
   if (!StringShape(src_str).IsExternal()) return true;

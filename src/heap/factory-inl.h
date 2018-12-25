@@ -18,11 +18,9 @@
 namespace v8 {
 namespace internal {
 
-// TODO(jkummerow): Drop std::remove_pointer after the migration to ObjectPtr.
-#define ROOT_ACCESSOR(Type, name, CamelName)                           \
-  Handle<std::remove_pointer<Type>::type> Factory::name() {            \
-    return Handle<std::remove_pointer<Type>::type>(bit_cast<Address*>( \
-        &isolate()->roots_table()[RootIndex::k##CamelName]));          \
+#define ROOT_ACCESSOR(Type, name, CamelName)                                 \
+  Handle<Type> Factory::name() {                                             \
+    return Handle<Type>(&isolate()->roots_table()[RootIndex::k##CamelName]); \
   }
 ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR

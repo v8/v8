@@ -33,7 +33,7 @@ class UnalignedSlot {
   explicit UnalignedSlot(Address address) : ptr_(address) {}
   explicit UnalignedSlot(MaybeObject* slot)
       : ptr_(reinterpret_cast<Address>(slot)) {}
-  explicit UnalignedSlot(Object** slot)
+  explicit UnalignedSlot(Object* slot)
       : ptr_(reinterpret_cast<Address>(slot)) {}
 
   inline bool operator<(const UnalignedSlot& other) const {
@@ -189,7 +189,7 @@ StringTableInsertionKey::StringTableInsertionKey(String string)
   DCHECK(string->IsInternalizedString());
 }
 
-bool StringTableInsertionKey::IsMatch(Object* string) {
+bool StringTableInsertionKey::IsMatch(Object string) {
   // We know that all entries in a hash table had their hash keys created.
   // Use that knowledge to have fast failure.
   if (Hash() != String::cast(string)->Hash()) return false;
@@ -740,7 +740,7 @@ bool Deserializer::ReadData(UnalignedSlot current, UnalignedSlot limit,
       FOUR_CASES(kHotObject)
       FOUR_CASES(kHotObject + 4) {
         int index = data & kHotObjectMask;
-        Object* hot_object = hot_objects_.Get(index);
+        Object hot_object = hot_objects_.Get(index);
         MaybeObject hot_maybe_object = MaybeObject::FromObject(hot_object);
         if (allocator()->GetAndClearNextReferenceIsWeak()) {
           hot_maybe_object = MaybeObject::MakeWeak(hot_maybe_object);
@@ -836,7 +836,7 @@ UnalignedSlot Deserializer::ReadDataCase(Isolate* isolate,
     ReadObject(space_number, current, reference_type);
     emit_write_barrier = (space_number == NEW_SPACE);
   } else {
-    Object* new_object = nullptr; /* May not be a real Object pointer. */
+    Object new_object; /* May not be a real Object pointer. */
     if (where == kNewObject) {
       ReadObject(space_number, UnalignedSlot(&new_object),
                  HeapObjectReferenceType::STRONG);
@@ -872,11 +872,10 @@ UnalignedSlot Deserializer::ReadDataCase(Isolate* isolate,
     if (within == kInnerPointer) {
       DCHECK_EQ(how, kFromCode);
       if (new_object->IsCode()) {
-        new_object = reinterpret_cast<Object*>(
-            Code::cast(new_object)->raw_instruction_start());
+        new_object = Object(Code::cast(new_object)->raw_instruction_start());
       } else {
         Cell cell = Cell::cast(new_object);
-        new_object = reinterpret_cast<Object*>(cell->ValueAddress());
+        new_object = Object(cell->ValueAddress());
       }
     }
     if (how == kFromCode) {
@@ -887,7 +886,7 @@ UnalignedSlot Deserializer::ReadDataCase(Isolate* isolate,
       Assembler::deserialization_set_special_target_at(
           location_of_branch_data,
           Code::cast(HeapObject::FromAddress(current_object_address)),
-          reinterpret_cast<Address>(new_object));
+          new_object->ptr());
       current.Advance(skip);
       current_was_incremented = true;
     } else {

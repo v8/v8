@@ -71,11 +71,8 @@ class StringStream final {
     FmtElm(const Vector<const uc16>& value) : FmtElm(LC_STR) {  // NOLINT
       data_.u_lc_str_ = &value;
     }
-    FmtElm(Object* value) : FmtElm(OBJ) {  // NOLINT
-      data_.u_obj_ = value;
-    }
-    FmtElm(ObjectPtr value) : FmtElm(OBJ) {  // NOLINT
-      data_.u_obj_ = reinterpret_cast<Object*>(value.ptr());
+    FmtElm(Object value) : FmtElm(OBJ) {  // NOLINT
+      data_.u_obj_ = value.ptr();
     }
     FmtElm(Handle<Object> value) : FmtElm(HANDLE) {  // NOLINT
       data_.u_handle_ = value.location();
@@ -100,7 +97,7 @@ class StringStream final {
       double u_double_;
       const char* u_c_str_;
       const Vector<const uc16>* u_lc_str_;
-      Object* u_obj_;
+      Address u_obj_;
       Address* u_handle_;
       void* u_pointer_;
     } data_;
@@ -144,14 +141,14 @@ class StringStream final {
   int length() const { return length_; }
 
   // Object printing support.
-  void PrintName(Object* o);
+  void PrintName(Object o);
   void PrintFixedArray(FixedArray array, unsigned int limit);
   void PrintByteArray(ByteArray ba);
   void PrintUsingMap(JSObject js_object);
-  void PrintPrototype(JSFunction fun, Object* receiver);
+  void PrintPrototype(JSFunction fun, Object receiver);
   void PrintSecurityTokenIfChanged(JSFunction function);
   // NOTE: Returns the code in the output parameter.
-  void PrintFunction(JSFunction function, Object* receiver, Code* code);
+  void PrintFunction(JSFunction function, Object receiver, Code* code);
 
   // Reset the stream.
   void Reset() {
@@ -170,7 +167,7 @@ class StringStream final {
 
  private:
   void Add(Vector<const char> format, Vector<FmtElm> elms);
-  void PrintObject(Object* obj);
+  void PrintObject(Object obj);
 
   StringAllocator* allocator_;
   ObjectPrintMode object_print_mode_;

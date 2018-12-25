@@ -117,7 +117,7 @@ class ElementsAccessor {
   static void InitializeOncePerProcess();
   static void TearDown();
 
-  virtual void Set(Handle<JSObject> holder, uint32_t entry, Object* value) = 0;
+  virtual void Set(Handle<JSObject> holder, uint32_t entry, Object value) = 0;
 
   virtual void Add(Handle<JSObject> object, uint32_t index,
                    Handle<Object> value, PropertyAttributes attributes,
@@ -144,8 +144,8 @@ class ElementsAccessor {
   virtual uint32_t GetCapacity(JSObject holder,
                                FixedArrayBase backing_store) = 0;
 
-  virtual Object* Fill(Handle<JSObject> receiver, Handle<Object> obj_value,
-                       uint32_t start, uint32_t end) = 0;
+  virtual Object Fill(Handle<JSObject> receiver, Handle<Object> obj_value,
+                      uint32_t start, uint32_t end) = 0;
 
   // Check an Object's own elements for an element (using SameValueZero
   // semantics)
@@ -170,9 +170,9 @@ class ElementsAccessor {
                             ElementsKind source_kind,
                             Handle<FixedArrayBase> destination, int size) = 0;
 
-  virtual Object* CopyElements(Handle<Object> source,
-                               Handle<JSObject> destination, size_t length,
-                               uint32_t offset = 0) = 0;
+  virtual Object CopyElements(Handle<Object> source,
+                              Handle<JSObject> destination, size_t length,
+                              uint32_t offset = 0) = 0;
 
   virtual Handle<FixedArray> CreateListFromArrayLike(Isolate* isolate,
                                                      Handle<JSObject> object,

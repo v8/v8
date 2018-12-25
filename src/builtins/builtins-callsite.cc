@@ -24,7 +24,7 @@ namespace internal {
 
 namespace {
 
-Object* PositiveNumberOrNull(int value, Isolate* isolate) {
+Object PositiveNumberOrNull(int value, Isolate* isolate) {
   if (value >= 0) return *isolate->factory()->NewNumberFromInt(value);
   return ReadOnlyRoots(isolate).null_value();
 }

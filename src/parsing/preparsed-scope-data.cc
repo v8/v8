@@ -580,7 +580,7 @@ PodArray<uint8_t> OnHeapConsumedPreParsedScopeData::GetScopeData() {
 ProducedPreParsedScopeData* OnHeapConsumedPreParsedScopeData::GetChildData(
     Zone* zone, int child_index) {
   CHECK_GT(data_->length(), child_index);
-  Object* child_data = data_->child_data(child_index);
+  Object child_data = data_->child_data(child_index);
   if (!child_data->IsPreParsedScopeData()) return nullptr;
   Handle<PreParsedScopeData> child_data_handle(
       PreParsedScopeData::cast(child_data), isolate_);

@@ -99,11 +99,9 @@ class FullObjectSlot
 
   FullObjectSlot() : SlotBase(kNullAddress) {}
   explicit FullObjectSlot(Address ptr) : SlotBase(ptr) {}
-  explicit FullObjectSlot(Address* ptr)
+  explicit FullObjectSlot(const Address* ptr)
       : SlotBase(reinterpret_cast<Address>(ptr)) {}
-  inline explicit FullObjectSlot(ObjectPtr* object);
-  explicit FullObjectSlot(Object const* const* ptr)
-      : SlotBase(reinterpret_cast<Address>(ptr)) {}
+  inline explicit FullObjectSlot(Object* object);
   template <typename T>
   explicit FullObjectSlot(SlotBase<T, TData, kSlotDataSize> slot)
       : SlotBase(slot.address()) {}
@@ -112,11 +110,10 @@ class FullObjectSlot
   // raw value.
   inline bool contains_value(Address raw_value) const;
 
-  inline Object* operator*() const;
+  inline Object operator*() const;
   // TODO(3770): drop this in favor of operator* once migration is complete.
   inline ObjectPtr load() const;
-  inline void store(Object* value) const;
-  inline void store(ObjectPtr value) const;
+  inline void store(Object value) const;
 
   inline ObjectPtr Acquire_Load() const;
   inline ObjectPtr Relaxed_Load() const;
@@ -124,12 +121,6 @@ class FullObjectSlot
   inline void Release_Store(ObjectPtr value) const;
   inline ObjectPtr Release_CompareAndSwap(ObjectPtr old,
                                           ObjectPtr target) const;
-  // Old-style alternative for the above, temporarily separate to allow
-  // incremental transition.
-  // TODO(3770): Get rid of the duplication when the migration is complete.
-  inline Object* Acquire_Load1() const;
-  inline void Relaxed_Store1(Object* value) const;
-  inline void Release_Store1(Object* value) const;
 };
 
 // A FullMaybeObjectSlot instance describes a kSystemPointerSize-sized field
@@ -147,9 +138,7 @@ class FullMaybeObjectSlot
 
   FullMaybeObjectSlot() : SlotBase(kNullAddress) {}
   explicit FullMaybeObjectSlot(Address ptr) : SlotBase(ptr) {}
-  explicit FullMaybeObjectSlot(ObjectPtr* ptr)
-      : SlotBase(reinterpret_cast<Address>(ptr)) {}
-  explicit FullMaybeObjectSlot(Object** ptr)
+  explicit FullMaybeObjectSlot(Object* ptr)
       : SlotBase(reinterpret_cast<Address>(ptr)) {}
   template <typename T>
   explicit FullMaybeObjectSlot(SlotBase<T, TData, kSlotDataSize> slot)

@@ -64,9 +64,9 @@
   inline uint8_t name() const;     \
   inline void set_##name(int value);
 
-#define DECL_ACCESSORS(name, type)    \
-  inline type* name() const;          \
-  inline void set_##name(type* value, \
+#define DECL_ACCESSORS(name, type)   \
+  inline type name() const;          \
+  inline void set_##name(type value, \
                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
 // Replacement for the above, temporarily separate to allow incremental
@@ -83,13 +83,10 @@
 
 // TODO(3770): Replacement for the above, temporarily separate for
 // incremental transition.
-#define DECL_CAST2(Type)                                      \
-  V8_INLINE static Type cast(Object* object);                 \
-  V8_INLINE static const Type cast(const Object* object);     \
-  V8_INLINE static Type cast(ObjectPtr object);               \
-  V8_INLINE static Type unchecked_cast(const Object* object); \
-  V8_INLINE static Type unchecked_cast(ObjectPtr object) {    \
-    return bit_cast<Type>(object);                            \
+#define DECL_CAST2(Type)                                \
+  V8_INLINE static Type cast(Object object);            \
+  V8_INLINE static Type unchecked_cast(Object object) { \
+    return bit_cast<Type>(object);                      \
   }
 
 #define CAST_ACCESSOR(type)                       \
@@ -104,13 +101,8 @@
 
 // TODO(3770): Replacement for the above, temporarily separate for
 // incremental transition.
-#define CAST_ACCESSOR2(Type)                                                  \
-  Type Type::cast(Object* object) { return Type(object->ptr()); }             \
-  const Type Type::cast(const Object* object) { return Type(object->ptr()); } \
-  Type Type::cast(ObjectPtr object) { return Type(object.ptr()); }            \
-  Type Type::unchecked_cast(const Object* object) {                           \
-    return bit_cast<Type>(ObjectPtr(object->ptr()));                          \
-  }
+#define CAST_ACCESSOR2(Type) \
+  Type Type::cast(ObjectPtr object) { return Type(object.ptr()); }
 
 #define INT_ACCESSORS(holder, name, offset)                         \
   int holder::name() const { return READ_INT_FIELD(this, offset); } \
@@ -148,12 +140,12 @@
 
 #define ACCESSORS_CHECKED2(holder, name, type, offset, get_condition, \
                            set_condition)                             \
-  type* holder::name() const {                                        \
-    type* value = type::cast(READ_FIELD(this, offset));               \
+  type holder::name() const {                                         \
+    type value = type::cast(READ_FIELD(this, offset));                \
     DCHECK(get_condition);                                            \
     return value;                                                     \
   }                                                                   \
-  void holder::set_##name(type* value, WriteBarrierMode mode) {       \
+  void holder::set_##name(type value, WriteBarrierMode mode) {        \
     DCHECK(set_condition);                                            \
     WRITE_FIELD(this, offset, value);                                 \
     CONDITIONAL_WRITE_BARRIER(this, offset, value, mode);             \
@@ -230,7 +222,7 @@
 #define SMI_ACCESSORS_CHECKED(holder, name, offset, condition) \
   int holder::name() const {                                   \
     DCHECK(condition);                                         \
-    Object* value = READ_FIELD(this, offset);                  \
+    Object value = READ_FIELD(this, offset);                   \
     return Smi::ToInt(value);                                  \
   }                                                            \
   void holder::set_##name(int value) {                         \
@@ -243,7 +235,7 @@
 
 #define SYNCHRONIZED_SMI_ACCESSORS(holder, name, offset)    \
   int holder::synchronized_##name() const {                 \
-    Object* value = ACQUIRE_READ_FIELD(this, offset);       \
+    Object value = ACQUIRE_READ_FIELD(this, offset);        \
     return Smi::ToInt(value);                               \
   }                                                         \
   void holder::synchronized_set_##name(int value) {         \
@@ -252,7 +244,7 @@
 
 #define RELAXED_SMI_ACCESSORS(holder, name, offset)         \
   int holder::relaxed_read_##name() const {                 \
-    Object* value = RELAXED_READ_FIELD(this, offset);       \
+    Object value = RELAXED_READ_FIELD(this, offset);        \
     return Smi::ToInt(value);                               \
   }                                                         \
   void holder::relaxed_write_##name(int value) {            \
@@ -301,7 +293,7 @@
 #define READ_WEAK_FIELD(p, offset) (*MaybeObjectSlot(FIELD_ADDR(p, offset)))
 
 #define ACQUIRE_READ_FIELD(p, offset) \
-  ObjectSlot(FIELD_ADDR(p, offset)).Acquire_Load1()
+  ObjectSlot(FIELD_ADDR(p, offset)).Acquire_Load()
 
 #define RELAXED_READ_FIELD(p, offset) \
   ObjectSlot(FIELD_ADDR(p, offset)).Relaxed_Load()
@@ -311,7 +303,7 @@
 
 #ifdef V8_CONCURRENT_MARKING
 #define WRITE_FIELD(p, offset, value) \
-  ObjectSlot(FIELD_ADDR(p, offset)).Relaxed_Store1(value)
+  ObjectSlot(FIELD_ADDR(p, offset)).Relaxed_Store(value)
 #define WRITE_WEAK_FIELD(p, offset, value) \
   MaybeObjectSlot(FIELD_ADDR(p, offset)).Relaxed_Store(value)
 #else
@@ -322,10 +314,10 @@
 #endif
 
 #define RELEASE_WRITE_FIELD(p, offset, value) \
-  ObjectSlot(FIELD_ADDR(p, offset)).Release_Store1(value)
+  ObjectSlot(FIELD_ADDR(p, offset)).Release_Store(value)
 
 #define RELAXED_WRITE_FIELD(p, offset, value) \
-  ObjectSlot(FIELD_ADDR(p, offset)).Relaxed_Store1(value)
+  ObjectSlot(FIELD_ADDR(p, offset)).Relaxed_Store(value)
 
 #define RELAXED_WRITE_WEAK_FIELD(p, offset, value) \
   MaybeObjectSlot(FIELD_ADDR(p, offset)).Relaxed_Store(value)
@@ -525,13 +517,11 @@
 #define DECL_VERIFIER(Name)
 #endif
 
-#define DEFINE_DEOPT_ELEMENT_ACCESSORS(name, type)  \
-  type* DeoptimizationData::name() const {          \
-    return type::cast(get(k##name##Index));         \
-  }                                                 \
-  void DeoptimizationData::Set##name(type* value) { \
-    set(k##name##Index, value);                     \
-  }
+#define DEFINE_DEOPT_ELEMENT_ACCESSORS(name, type) \
+  type DeoptimizationData::name() const {          \
+    return type::cast(get(k##name##Index));        \
+  }                                                \
+  void DeoptimizationData::Set##name(type value) { set(k##name##Index, value); }
 
 // Replacement for the above, temporarily separate for incremental transition.
 // TODO(3770): Eliminate the duplication.

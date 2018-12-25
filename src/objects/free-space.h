@@ -34,7 +34,7 @@ class FreeSpace : public HeapObject {
   inline void set_next(FreeSpace next);
 
   inline static FreeSpace cast(HeapObject obj);
-  inline static FreeSpace unchecked_cast(const Object* obj);
+  inline static FreeSpace unchecked_cast(const Object obj);
 
   // Dispatched behavior.
   DECL_PRINTER(FreeSpace)

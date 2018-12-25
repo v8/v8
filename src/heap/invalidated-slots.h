@@ -20,7 +20,7 @@ namespace internal {
 // that potentially invalidates slots recorded concurrently. The second part
 // of each element is the size of the corresponding object before the layout
 // change.
-using InvalidatedSlots = std::map<HeapObject, int, HeapObject::Compare>;
+using InvalidatedSlots = std::map<HeapObject, int, Object::Comparer>;
 
 // This class provides IsValid predicate that takes into account the set
 // of invalidated objects in the given memory chunk.

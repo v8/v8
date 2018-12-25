@@ -10,14 +10,14 @@ namespace v8 {
 namespace internal {
 
 PropertyCallbackArguments::PropertyCallbackArguments(Isolate* isolate,
-                                                     Object* data, Object* self,
+                                                     Object data, Object self,
                                                      JSObject holder,
                                                      ShouldThrow should_throw)
     : Super(isolate) {
   slot_at(T::kThisIndex).store(self);
   slot_at(T::kHolderIndex).store(holder);
   slot_at(T::kDataIndex).store(data);
-  slot_at(T::kIsolateIndex).store(reinterpret_cast<Object*>(isolate));
+  slot_at(T::kIsolateIndex).store(Object(reinterpret_cast<Address>(isolate)));
   slot_at(T::kShouldThrowOnErrorIndex)
       .store(Smi::FromInt(should_throw == kThrowOnError ? 1 : 0));
 
@@ -31,14 +31,14 @@ PropertyCallbackArguments::PropertyCallbackArguments(Isolate* isolate,
 }
 
 FunctionCallbackArguments::FunctionCallbackArguments(
-    internal::Isolate* isolate, internal::Object* data,
-    internal::HeapObject callee, internal::Object* holder,
+    internal::Isolate* isolate, internal::Object data,
+    internal::HeapObject callee, internal::Object holder,
     internal::HeapObject new_target, internal::Address* argv, int argc)
     : Super(isolate), argv_(argv), argc_(argc) {
   slot_at(T::kDataIndex).store(data);
   slot_at(T::kHolderIndex).store(holder);
   slot_at(T::kNewTargetIndex).store(new_target);
-  slot_at(T::kIsolateIndex).store(reinterpret_cast<internal::Object*>(isolate));
+  slot_at(T::kIsolateIndex).store(Object(reinterpret_cast<Address>(isolate)));
   // Here the hole is set as default value.
   // It cannot escape into js as it's remove in Call below.
   HeapObject the_hole = ReadOnlyRoots(isolate).the_hole_value();

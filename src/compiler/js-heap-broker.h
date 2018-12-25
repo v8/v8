@@ -20,6 +20,7 @@ namespace internal {
 
 class BytecodeArray;
 class FixedDoubleArray;
+class HeapNumber;
 class InternalizedString;
 class JSBoundFunction;
 class JSDataView;
@@ -614,7 +615,7 @@ class V8_EXPORT_PRIVATE JSHeapBroker : public NON_EXPORTED_BASE(ZoneObject) {
   // Never returns nullptr.
   ObjectData* GetOrCreateData(Handle<Object>);
   // Like the previous but wraps argument in handle first (for convenience).
-  ObjectData* GetOrCreateData(Object*);
+  ObjectData* GetOrCreateData(Object);
 
   // Check if {object} is any native context's %ArrayPrototype% or
   // %ObjectPrototype%.

@@ -91,7 +91,7 @@ int RelocInfo::target_address_size() {
 
 HeapObject RelocInfo::target_object() {
   DCHECK(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
-  return HeapObject::cast(Memory<Object*>(pc_));
+  return HeapObject::cast(Object(Memory<Address>(pc_)));
 }
 
 Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {

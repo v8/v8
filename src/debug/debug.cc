@@ -137,9 +137,8 @@ JSGeneratorObject BreakLocation::GetGeneratorObjectForSuspendedFrame(
   DCHECK(IsSuspend());
   DCHECK_GE(generator_obj_reg_index_, 0);
 
-  Object* generator_obj =
-      InterpretedFrame::cast(frame)->ReadInterpreterRegister(
-          generator_obj_reg_index_);
+  Object generator_obj = InterpretedFrame::cast(frame)->ReadInterpreterRegister(
+      generator_obj_reg_index_);
 
   return JSGeneratorObject::cast(generator_obj);
 }
@@ -1954,8 +1953,8 @@ void Debug::HandleDebugBreak(IgnoreBreakMode ignore_break_mode) {
 
   { JavaScriptFrameIterator it(isolate_);
     DCHECK(!it.done());
-    Object* fun = it.frame()->function();
-    if (fun && fun->IsJSFunction()) {
+    Object fun = it.frame()->function();
+    if (fun->IsJSFunction()) {
       HandleScope scope(isolate_);
       Handle<JSFunction> function(JSFunction::cast(fun), isolate_);
       // Don't stop in builtin and blackboxed functions.

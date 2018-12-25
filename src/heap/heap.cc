@@ -142,7 +142,7 @@ Heap::Heap()
   // Ensure old_generation_size_ is a multiple of kPageSize.
   DCHECK_EQ(0, max_old_generation_size_ & (Page::kPageSize - 1));
 
-  set_native_contexts_list(nullptr);
+  set_native_contexts_list(Smi::kZero);
   set_allocation_sites_list(Smi::kZero);
   // Put a dummy entry in the remembered pages so we can find the list the
   // minidump even if there are no real unmapped pages.
@@ -2081,8 +2081,7 @@ String Heap::UpdateNewSpaceReferenceInExternalStringTableEntry(
   } else if (new_string->IsExternalString()) {
     MemoryChunk::MoveExternalBackingStoreBytes(
         ExternalBackingStoreType::kExternalString,
-        Page::FromAddress(reinterpret_cast<Address>(*p)),
-        Page::FromHeapObject(new_string),
+        Page::FromAddress((*p).ptr()), Page::FromHeapObject(new_string),
         ExternalString::cast(new_string)->ExternalPayloadSize());
     return new_string;
   }
@@ -2234,14 +2233,14 @@ void Heap::ProcessYoungWeakReferences(WeakObjectRetainer* retainer) {
 
 
 void Heap::ProcessNativeContexts(WeakObjectRetainer* retainer) {
-  Object* head = VisitWeakList<Context>(this, native_contexts_list(), retainer);
+  Object head = VisitWeakList<Context>(this, native_contexts_list(), retainer);
   // Update the head of the list of contexts.
   set_native_contexts_list(head);
 }
 
 
 void Heap::ProcessAllocationSites(WeakObjectRetainer* retainer) {
-  Object* allocation_site_obj =
+  Object allocation_site_obj =
       VisitWeakList<AllocationSite>(this, allocation_sites_list(), retainer);
   set_allocation_sites_list(allocation_site_obj);
 }
@@ -2252,13 +2251,13 @@ void Heap::ProcessWeakListRoots(WeakObjectRetainer* retainer) {
 }
 
 void Heap::ForeachAllocationSite(
-    Object* list, const std::function<void(AllocationSite)>& visitor) {
+    Object list, const std::function<void(AllocationSite)>& visitor) {
   DisallowHeapAllocation disallow_heap_allocation;
-  Object* current = list;
+  Object current = list;
   while (current->IsAllocationSite()) {
     AllocationSite site = AllocationSite::cast(current);
     visitor(site);
-    Object* current_nested = site->nested_site();
+    Object current_nested = site->nested_site();
     while (current_nested->IsAllocationSite()) {
       AllocationSite nested_site = AllocationSite::cast(current_nested);
       visitor(nested_site);
@@ -2977,7 +2976,7 @@ void Heap::NotifyObjectLayoutChange(HeapObject object, int size,
   }
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
-    DCHECK_NULL(pending_layout_change_object_);
+    DCHECK(pending_layout_change_object_.is_null());
     pending_layout_change_object_ = object;
   }
 #endif
@@ -3019,7 +3018,7 @@ void Heap::VerifyObjectLayoutChange(HeapObject object, Map new_map) {
   // that are not safe for concurrent marking.
   // If you see this check triggering for a freshly allocated object,
   // use object->set_map_after_allocation() to initialize its map.
-  if (pending_layout_change_object_ == nullptr) {
+  if (pending_layout_change_object_.is_null()) {
     if (object->IsJSObject()) {
       DCHECK(!object->map()->TransitionRequiresSynchronizationWithGC(new_map));
     } else {
@@ -3560,7 +3559,7 @@ class SlotVerifyingVisitor : public ObjectVisitor {
   }
 
   void VisitCodeTarget(Code host, RelocInfo* rinfo) override {
-    Object* target = Code::GetCodeFromTargetAddress(rinfo->target_address());
+    Object target = Code::GetCodeFromTargetAddress(rinfo->target_address());
     if (ShouldHaveBeenRecorded(host, MaybeObject::FromObject(target))) {
       CHECK(
           InTypedSet(CODE_TARGET_SLOT, rinfo->pc()) ||
@@ -3570,7 +3569,7 @@ class SlotVerifyingVisitor : public ObjectVisitor {
   }
 
   void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) override {
-    Object* target = rinfo->target_object();
+    Object target = rinfo->target_object();
     if (ShouldHaveBeenRecorded(host, MaybeObject::FromObject(target))) {
       CHECK(InTypedSet(EMBEDDED_OBJECT_SLOT, rinfo->pc()) ||
             (rinfo->IsInConstantPool() &&
@@ -3771,7 +3770,7 @@ class FixStaleLeftTrimmedHandlesVisitor : public RootVisitor {
       }
       DCHECK(current->IsFixedArrayBase());
 #endif  // DEBUG
-      p.store(nullptr);
+      p.store(Smi::kZero);
     }
   }
 
@@ -4483,15 +4482,15 @@ void Heap::SetStackLimits() {
 
   // Set up the special root array entries containing the stack limits.
   // These are actually addresses, but the tag makes the GC ignore it.
-  roots_table()[RootIndex::kStackLimit] = reinterpret_cast<Object*>(
-      (isolate_->stack_guard()->jslimit() & ~kSmiTagMask) | kSmiTag);
-  roots_table()[RootIndex::kRealStackLimit] = reinterpret_cast<Object*>(
-      (isolate_->stack_guard()->real_jslimit() & ~kSmiTagMask) | kSmiTag);
+  roots_table()[RootIndex::kStackLimit] =
+      (isolate_->stack_guard()->jslimit() & ~kSmiTagMask) | kSmiTag;
+  roots_table()[RootIndex::kRealStackLimit] =
+      (isolate_->stack_guard()->real_jslimit() & ~kSmiTagMask) | kSmiTag;
 }
 
 void Heap::ClearStackLimits() {
-  roots_table()[RootIndex::kStackLimit] = Smi::kZero;
-  roots_table()[RootIndex::kRealStackLimit] = Smi::kZero;
+  roots_table()[RootIndex::kStackLimit] = kNullAddress;
+  roots_table()[RootIndex::kRealStackLimit] = kNullAddress;
 }
 
 int Heap::NextAllocationTimeout(int current_timeout) {
@@ -4881,7 +4880,8 @@ class PrintHandleVisitor : public RootVisitor {
   void VisitRootPointers(Root root, const char* description,
                          FullObjectSlot start, FullObjectSlot end) override {
     for (FullObjectSlot p = start; p < end; ++p)
-      PrintF("  handle %p to %p\n", p.ToVoidPtr(), reinterpret_cast<void*>(*p));
+      PrintF("  handle %p to %p\n", p.ToVoidPtr(),
+             reinterpret_cast<void*>((*p).ptr()));
   }
 };
 
@@ -5022,8 +5022,7 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
   bool MarkAsReachable(HeapObject object) {
     MemoryChunk* chunk = MemoryChunk::FromAddress(object->address());
     if (reachable_.count(chunk) == 0) {
-      reachable_[chunk] =
-          new std::unordered_set<HeapObject, HeapObject::Hasher>();
+      reachable_[chunk] = new std::unordered_set<HeapObject, Object::Hasher>();
     }
     if (reachable_[chunk]->count(object)) return false;
     reachable_[chunk]->insert(object);
@@ -5104,7 +5103,7 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
   Heap* heap_;
   DisallowHeapAllocation no_allocation_;
   std::unordered_map<MemoryChunk*,
-                     std::unordered_set<HeapObject, HeapObject::Hasher>*>
+                     std::unordered_set<HeapObject, Object::Hasher>*>
       reachable_;
 };
 
@@ -5184,7 +5183,7 @@ void Heap::ExternalStringTable::CleanUpNewSpaceStrings() {
   int last = 0;
   Isolate* isolate = heap_->isolate();
   for (size_t i = 0; i < new_space_strings_.size(); ++i) {
-    Object* o = new_space_strings_[i];
+    Object o = new_space_strings_[i];
     if (o->IsTheHole(isolate)) {
       continue;
     }
@@ -5206,7 +5205,7 @@ void Heap::ExternalStringTable::CleanUpAll() {
   int last = 0;
   Isolate* isolate = heap_->isolate();
   for (size_t i = 0; i < old_space_strings_.size(); ++i) {
-    Object* o = old_space_strings_[i];
+    Object o = old_space_strings_[i];
     if (o->IsTheHole(isolate)) {
       continue;
     }
@@ -5227,14 +5226,14 @@ void Heap::ExternalStringTable::CleanUpAll() {
 
 void Heap::ExternalStringTable::TearDown() {
   for (size_t i = 0; i < new_space_strings_.size(); ++i) {
-    Object* o = new_space_strings_[i];
+    Object o = new_space_strings_[i];
     // Dont finalize thin strings.
     if (o->IsThinString()) continue;
     heap_->FinalizeExternalString(ExternalString::cast(o));
   }
   new_space_strings_.clear();
   for (size_t i = 0; i < old_space_strings_.size(); ++i) {
-    Object* o = old_space_strings_[i];
+    Object o = old_space_strings_[i];
     // Dont finalize thin strings.
     if (o->IsThinString()) continue;
     heap_->FinalizeExternalString(ExternalString::cast(o));
@@ -5293,7 +5292,7 @@ void Heap::SetInterpreterEntryTrampolineForProfiling(Code code) {
 
 void Heap::AddDirtyJSWeakFactory(
     JSWeakFactory weak_factory,
-    std::function<void(HeapObject object, ObjectSlot slot, Object* target)>
+    std::function<void(HeapObject object, ObjectSlot slot, Object target)>
         gc_notify_updated_slot) {
   DCHECK(dirty_js_weak_factories()->IsUndefined(isolate()) ||
          dirty_js_weak_factories()->IsJSWeakFactory());
@@ -5373,7 +5372,7 @@ bool Heap::GetObjectTypeName(size_t index, const char** object_type,
 
 size_t Heap::NumberOfNativeContexts() {
   int result = 0;
-  Object* context = native_contexts_list();
+  Object context = native_contexts_list();
   while (!context->IsUndefined(isolate())) {
     ++result;
     Context native_context = Context::cast(context);

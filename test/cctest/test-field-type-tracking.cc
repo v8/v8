@@ -281,7 +281,7 @@ class Expectations {
     Representation expected_representation = representations_[descriptor];
     if (!details.representation().Equals(expected_representation)) return false;
 
-    Object* expected_value = *values_[descriptor];
+    Object expected_value = *values_[descriptor];
     if (details.location() == kField) {
       if (details.kind() == kData) {
         FieldType type = descriptors->GetFieldType(descriptor);
@@ -291,7 +291,7 @@ class Expectations {
         UNREACHABLE();
       }
     } else {
-      Object* value = descriptors->GetStrongValue(descriptor);
+      Object value = descriptors->GetStrongValue(descriptor);
       // kDescriptor
       if (details.kind() == kData) {
         CHECK(!FLAG_track_constant_fields);
@@ -584,7 +584,7 @@ TEST(ReconfigureAccessorToNonExistingDataFieldHeavy) {
   // Check that the property contains |value|.
   CHECK_EQ(1, obj->map()->NumberOfOwnDescriptors());
   FieldIndex index = FieldIndex::ForDescriptor(obj->map(), 0);
-  Object* the_value = obj->RawFastPropertyAt(index);
+  Object the_value = obj->RawFastPropertyAt(index);
   CHECK(the_value->IsSmi());
   CHECK_EQ(42, Smi::ToInt(the_value));
 }
@@ -708,7 +708,7 @@ static void TestGeneralizeField(int detach_property_at_index,
     // Check that all previous maps are not stable.
     Map tmp = *new_map;
     while (true) {
-      Object* back = tmp->GetBackPointer();
+      Object back = tmp->GetBackPointer();
       if (back->IsUndefined(isolate)) break;
       tmp = Map::cast(back);
       CHECK(!tmp->is_stable());

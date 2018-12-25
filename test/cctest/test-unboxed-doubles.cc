@@ -70,13 +70,13 @@ static double GetDoubleFieldValue(JSObject obj, FieldIndex field_index) {
   if (obj->IsUnboxedDoubleField(field_index)) {
     return obj->RawFastDoublePropertyAt(field_index);
   } else {
-    Object* value = obj->RawFastPropertyAt(field_index);
+    Object value = obj->RawFastPropertyAt(field_index);
     CHECK(value->IsMutableHeapNumber());
     return MutableHeapNumber::cast(value)->value();
   }
 }
 
-void WriteToField(JSObject object, int descriptor, Object* value) {
+void WriteToField(JSObject object, int descriptor, Object value) {
   DescriptorArray descriptors = object->map()->instance_descriptors();
   PropertyDetails details = descriptors->GetDetails(descriptor);
   object->WriteToField(descriptor, details, value);
@@ -799,7 +799,7 @@ static Handle<LayoutDescriptor> TestLayoutDescriptorAppendIfFastOrUseFull(
     Map map = *last_map;
     for (int i = 0; i < descriptors_length; i++) {
       maps[descriptors_length - 1 - i] = handle(map, isolate);
-      Object* maybe_map = map->GetBackPointer();
+      Object maybe_map = map->GetBackPointer();
       CHECK(maybe_map->IsMap());
       map = Map::cast(maybe_map);
       CHECK(!map->is_stable());

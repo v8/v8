@@ -124,7 +124,7 @@ void LogFunctionCompilation(CodeEventListener::LogEventsAndTags tag,
                              shared->DebugName()));
 }
 
-ScriptOriginOptions OriginOptionsForEval(Object* script) {
+ScriptOriginOptions OriginOptionsForEval(Object script) {
   if (!script->IsScript()) return ScriptOriginOptions();
 
   const auto outer_origin_options = Script::cast(script)->origin_options();

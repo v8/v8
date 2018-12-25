@@ -31,10 +31,10 @@ class JSPromise : public JSObject {
   DECL_ACCESSORS(reactions_or_result, Object)
 
   // [result]: Checks that the promise is settled and returns the result.
-  inline Object* result() const;
+  inline Object result() const;
 
   // [reactions]: Checks that the promise is pending and returns the reactions.
-  inline Object* reactions() const;
+  inline Object reactions() const;
 
   DECL_INT_ACCESSORS(flags)
 

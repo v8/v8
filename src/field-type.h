@@ -23,12 +23,12 @@ class FieldType : public ObjectPtr {
   static Handle<FieldType> Any(Isolate* isolate);
   static FieldType Class(Map map);
   static Handle<FieldType> Class(Handle<Map> map, Isolate* isolate);
-  static FieldType cast(Object* object);
+  static FieldType cast(Object object);
   static FieldType unchecked_cast(ObjectPtr object) {
     return FieldType(object.ptr());
   }
 
-  bool NowContains(Object* value) const;
+  bool NowContains(Object value) const;
 
   bool NowContains(Handle<Object> value) const { return NowContains(*value); }
 

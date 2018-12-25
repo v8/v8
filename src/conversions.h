@@ -157,19 +157,19 @@ inline bool IsUint32Double(double value);
 inline bool DoubleToUint32IfEqualToSelf(double value, uint32_t* uint32_value);
 
 // Convert from Number object to C integer.
-inline uint32_t PositiveNumberToUint32(Object* number);
-inline int32_t NumberToInt32(Object* number);
-inline uint32_t NumberToUint32(Object* number);
-inline int64_t NumberToInt64(Object* number);
-inline uint64_t PositiveNumberToUint64(Object* number);
+inline uint32_t PositiveNumberToUint32(Object number);
+inline int32_t NumberToInt32(Object number);
+inline uint32_t NumberToUint32(Object number);
+inline int64_t NumberToInt64(Object number);
+inline uint64_t PositiveNumberToUint64(Object number);
 
 double StringToDouble(Isolate* isolate, Handle<String> string, int flags,
                       double empty_string_val = 0.0);
 
-inline bool TryNumberToSize(Object* number, size_t* result);
+inline bool TryNumberToSize(Object number, size_t* result);
 
 // Converts a number into size_t.
-inline size_t NumberToSize(Object* number);
+inline size_t NumberToSize(Object number);
 
 // returns DoubleToString(StringToDouble(string)) == string
 bool IsSpecialIndex(String string);

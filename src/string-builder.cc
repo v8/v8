@@ -17,7 +17,7 @@ void StringBuilderConcatHelper(String special, sinkchar* sink,
   DisallowHeapAllocation no_gc;
   int position = 0;
   for (int i = 0; i < array_length; i++) {
-    Object* element = fixed_array->get(i);
+    Object element = fixed_array->get(i);
     if (element->IsSmi()) {
       // Smi encoding of position and length.
       int encoded_slice = Smi::ToInt(element);
@@ -29,7 +29,7 @@ void StringBuilderConcatHelper(String special, sinkchar* sink,
         len = StringBuilderSubstringLength::decode(encoded_slice);
       } else {
         // Position and length encoded in two smis.
-        Object* obj = fixed_array->get(++i);
+        Object obj = fixed_array->get(++i);
         DCHECK(obj->IsSmi());
         pos = Smi::ToInt(obj);
         len = -encoded_slice;
@@ -59,7 +59,7 @@ int StringBuilderConcatLength(int special_length, FixedArray fixed_array,
   int position = 0;
   for (int i = 0; i < array_length; i++) {
     int increment = 0;
-    Object* elt = fixed_array->get(i);
+    Object elt = fixed_array->get(i);
     if (elt->IsSmi()) {
       // Smi encoding of position and length.
       int smi_value = Smi::ToInt(elt);
@@ -75,7 +75,7 @@ int StringBuilderConcatLength(int special_length, FixedArray fixed_array,
         // Get the position and check that it is a positive smi.
         i++;
         if (i >= array_length) return -1;
-        Object* next_smi = fixed_array->get(i);
+        Object next_smi = fixed_array->get(i);
         if (!next_smi->IsSmi()) return -1;
         pos = Smi::ToInt(next_smi);
         if (pos < 0) return -1;
@@ -139,7 +139,7 @@ void FixedArrayBuilder::EnsureCapacity(Isolate* isolate, int elements) {
   }
 }
 
-void FixedArrayBuilder::Add(Object* value) {
+void FixedArrayBuilder::Add(Object value) {
   DCHECK(!value->IsSmi());
   DCHECK(length_ < capacity());
   array_->set(length_, value);
@@ -223,7 +223,7 @@ MaybeHandle<String> ReplacementStringBuilder::ToString() {
   return joined_string;
 }
 
-void ReplacementStringBuilder::AddElement(Object* element) {
+void ReplacementStringBuilder::AddElement(Object element) {
   DCHECK(element->IsSmi() || element->IsString());
   DCHECK(array_builder_.capacity() > array_builder_.length());
   array_builder_.Add(element);

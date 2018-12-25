@@ -233,7 +233,7 @@ class V8_EXPORT_PRIVATE LookupIterator final {
   template <bool is_element>
   void RestartInternal(InterceptorState interceptor_state);
   Handle<Object> FetchValue() const;
-  bool IsConstFieldValueEqualTo(Object* value) const;
+  bool IsConstFieldValueEqualTo(Object value) const;
   template <bool is_element>
   void ReloadPropertyInformation();
 

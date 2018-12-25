@@ -9,6 +9,7 @@
 #include "src/globals.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/smi.h"
+#include "src/roots.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -32,11 +33,11 @@ namespace internal {
 //   class ExampleShape {
 //    public:
 //     // Tells whether key matches other.
-//     static bool IsMatch(Key key, Object* other);
+//     static bool IsMatch(Key key, Object other);
 //     // Returns the hash value for key.
 //     static uint32_t Hash(Isolate* isolate, Key key);
 //     // Returns the hash value for object.
-//     static uint32_t HashForObject(Isolate* isolate, Object* object);
+//     static uint32_t HashForObject(Isolate* isolate, Object object);
 //     // Convert key to an object.
 //     static inline Handle<Object> AsHandle(Isolate* isolate, Key key);
 //     // The prefix size indicates number of elements in the beginning
@@ -58,9 +59,9 @@ class BaseShape {
   typedef KeyT Key;
   static inline RootIndex GetMapRootIndex();
   static const bool kNeedsHoleCheck = true;
-  static Object* Unwrap(Object* key) { return key; }
-  static inline bool IsKey(ReadOnlyRoots roots, Object* key);
-  static inline bool IsLive(ReadOnlyRoots roots, Object* key);
+  static Object Unwrap(Object key) { return key; }
+  static inline bool IsKey(ReadOnlyRoots roots, Object key);
+  static inline bool IsLive(ReadOnlyRoots roots, Object key);
 };
 
 class V8_EXPORT_PRIVATE HashTableBase : public NON_EXPORTED_BASE(FixedArray) {
@@ -153,12 +154,12 @@ class HashTable : public HashTableBase {
 
   // Tells whether k is a real key.  The hole and undefined are not allowed
   // as keys and can be used to indicate missing or deleted elements.
-  static bool IsKey(ReadOnlyRoots roots, Object* k);
+  static bool IsKey(ReadOnlyRoots roots, Object k);
 
-  inline bool ToKey(ReadOnlyRoots roots, int entry, Object** out_k);
+  inline bool ToKey(ReadOnlyRoots roots, int entry, Object* out_k);
 
   // Returns the key at entry.
-  Object* KeyAt(int entry) { return get(EntryToIndex(entry) + kEntryKeyIndex); }
+  Object KeyAt(int entry) { return get(EntryToIndex(entry) + kEntryKeyIndex); }
 
   static const int kElementsStartIndex = kPrefixStartIndex + Shape::kPrefixSize;
   static const int kEntrySize = Shape::kEntrySize;
@@ -232,7 +233,7 @@ class HashTable : public HashTableBase {
   // Returns _expected_ if one of entries given by the first _probe_ probes is
   // equal to  _expected_. Otherwise, returns the entry given by the probe
   // number _probe_.
-  uint32_t EntryForProbe(Isolate* isolate, Object* k, int probe,
+  uint32_t EntryForProbe(Isolate* isolate, Object k, int probe,
                          uint32_t expected);
 
   void Swap(uint32_t entry1, uint32_t entry2, WriteBarrierMode mode);
@@ -249,7 +250,7 @@ class HashTableKey {
   explicit HashTableKey(uint32_t hash) : hash_(hash) {}
 
   // Returns whether the other object matches this key.
-  virtual bool IsMatch(Object* other) = 0;
+  virtual bool IsMatch(Object other) = 0;
   // Returns the hash value for this key.
   // Required.
   virtual ~HashTableKey() = default;
@@ -268,9 +269,9 @@ class HashTableKey {
 
 class ObjectHashTableShape : public BaseShape<Handle<Object>> {
  public:
-  static inline bool IsMatch(Handle<Object> key, Object* other);
+  static inline bool IsMatch(Handle<Object> key, Object other);
   static inline uint32_t Hash(Isolate* isolate, Handle<Object> key);
-  static inline uint32_t HashForObject(Isolate* isolate, Object* object);
+  static inline uint32_t HashForObject(Isolate* isolate, Object object);
   static inline Handle<Object> AsHandle(Handle<Object> key);
   static const int kPrefixSize = 0;
   static const int kEntryValueIndex = 1;
@@ -283,12 +284,12 @@ class ObjectHashTableBase : public HashTable<Derived, Shape> {
  public:
   // Looks up the value associated with the given key. The hole value is
   // returned in case the key is not present.
-  Object* Lookup(Handle<Object> key);
-  Object* Lookup(Handle<Object> key, int32_t hash);
-  Object* Lookup(ReadOnlyRoots roots, Handle<Object> key, int32_t hash);
+  Object Lookup(Handle<Object> key);
+  Object Lookup(Handle<Object> key, int32_t hash);
+  Object Lookup(ReadOnlyRoots roots, Handle<Object> key, int32_t hash);
 
   // Returns the value at entry.
-  Object* ValueAt(int entry);
+  Object ValueAt(int entry);
 
   // Overwrite all keys and values with the hole value.
   static void FillEntriesWithHoles(Handle<Derived>);
@@ -314,7 +315,7 @@ class ObjectHashTableBase : public HashTable<Derived, Shape> {
   }
 
  protected:
-  void AddEntry(int entry, Object* key, Object* value);
+  void AddEntry(int entry, Object key, Object value);
   void RemoveEntry(int entry);
 
   OBJECT_CONSTRUCTORS(ObjectHashTableBase, HashTable<Derived, Shape>)

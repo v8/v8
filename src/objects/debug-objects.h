@@ -188,7 +188,7 @@ class DebugInfo : public Struct {
 
  private:
   // Get the break point info object for a source position.
-  Object* GetBreakPointInfo(Isolate* isolate, int source_position);
+  Object GetBreakPointInfo(Isolate* isolate, int source_position);
 
   OBJECT_CONSTRUCTORS(DebugInfo, Struct);
 };

@@ -145,17 +145,16 @@ TEST(InitialObjects) {
            *v8::Utils::OpenHandle(*CompileRun("Object.prototype")));
 }
 
-static void CheckOddball(Isolate* isolate, Object* obj, const char* string) {
+static void CheckOddball(Isolate* isolate, Object obj, const char* string) {
   CHECK(obj->IsOddball());
   Handle<Object> handle(obj, isolate);
-  Object* print_string = *Object::ToString(isolate, handle).ToHandleChecked();
+  Object print_string = *Object::ToString(isolate, handle).ToHandleChecked();
   CHECK(String::cast(print_string)->IsUtf8EqualTo(CStrVector(string)));
 }
 
-
 static void CheckSmi(Isolate* isolate, int value, const char* string) {
   Handle<Object> handle(Smi::FromInt(value), isolate);
-  Object* print_string = *Object::ToString(isolate, handle).ToHandleChecked();
+  Object print_string = *Object::ToString(isolate, handle).ToHandleChecked();
   CHECK(String::cast(print_string)->IsUtf8EqualTo(CStrVector(string)));
 }
 
@@ -230,15 +229,15 @@ static void CheckFindCodeObject(Isolate* isolate) {
   Address obj_addr = obj->address();
 
   for (int i = 0; i < obj->Size(); i += kTaggedSize) {
-    Object* found = isolate->FindCodeObject(obj_addr + i);
+    Object found = isolate->FindCodeObject(obj_addr + i);
     CHECK_EQ(*code, found);
   }
 
   Handle<Code> copy =
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
   HeapObject obj_copy = HeapObject::cast(*copy);
-  Object* not_right = isolate->FindCodeObject(obj_copy->address() +
-                                              obj_copy->Size() / 2);
+  Object not_right =
+      isolate->FindCodeObject(obj_copy->address() + obj_copy->Size() / 2);
   CHECK(not_right != *code);
 }
 
@@ -248,7 +247,7 @@ TEST(HandleNull) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope outer_scope(isolate);
   LocalContext context;
-  Handle<Object> n(static_cast<Object*>(nullptr), isolate);
+  Handle<Object> n(Object(0), isolate);
   CHECK(!n.is_null());
 }
 
@@ -1550,7 +1549,7 @@ static void OptimizeEmptyFunction(const char* name) {
 // Count the number of native contexts in the weak list of native contexts.
 int CountNativeContexts() {
   int count = 0;
-  Object* object = CcTest::heap()->native_contexts_list();
+  Object object = CcTest::heap()->native_contexts_list();
   while (!object->IsUndefined(CcTest::i_isolate())) {
     count++;
     object = Context::cast(object)->next_context_link();
@@ -3698,8 +3697,7 @@ TEST(DisableInlineAllocation) {
 
 static int AllocationSitesCount(Heap* heap) {
   int count = 0;
-  for (Object* site = heap->allocation_sites_list();
-       site->IsAllocationSite();) {
+  for (Object site = heap->allocation_sites_list(); site->IsAllocationSite();) {
     AllocationSite cur = AllocationSite::cast(site);
     CHECK(cur->HasWeakNext());
     site = cur->weak_next();
@@ -3710,10 +3708,10 @@ static int AllocationSitesCount(Heap* heap) {
 
 static int SlimAllocationSiteCount(Heap* heap) {
   int count = 0;
-  for (Object* weak_list = heap->allocation_sites_list();
+  for (Object weak_list = heap->allocation_sites_list();
        weak_list->IsAllocationSite();) {
     AllocationSite weak_cur = AllocationSite::cast(weak_list);
-    for (Object* site = weak_cur->nested_site(); site->IsAllocationSite();) {
+    for (Object site = weak_cur->nested_site(); site->IsAllocationSite();) {
       AllocationSite cur = AllocationSite::cast(site);
       CHECK(!cur->HasWeakNext());
       site = cur->nested_site();

@@ -86,7 +86,7 @@ void MessageHandler::ReportMessage(Isolate* isolate, const MessageLocation* loc,
     // and ignore scheduled exceptions callbacks can throw.
 
     // We pass the exception object into the message handler callback though.
-    Object* exception_object = ReadOnlyRoots(isolate).undefined_value();
+    Object exception_object = ReadOnlyRoots(isolate).undefined_value();
     if (isolate->has_pending_exception()) {
       exception_object = isolate->pending_exception();
     }
@@ -191,7 +191,7 @@ std::unique_ptr<char[]> MessageHandler::GetLocalizedMessage(
 
 namespace {
 
-Object* EvalFromFunctionName(Isolate* isolate, Handle<Script> script) {
+Object EvalFromFunctionName(Isolate* isolate, Handle<Script> script) {
   if (!script->has_eval_from_shared()) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
@@ -205,7 +205,7 @@ Object* EvalFromFunctionName(Isolate* isolate, Handle<Script> script) {
   return shared->inferred_name();
 }
 
-Object* EvalFromScript(Isolate* isolate, Handle<Script> script) {
+Object EvalFromScript(Isolate* isolate, Handle<Script> script) {
   if (!script->has_eval_from_shared()) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
@@ -367,7 +367,7 @@ bool CheckMethodName(Isolate* isolate, Handle<JSReceiver> receiver,
 }
 
 Handle<Object> ScriptNameOrSourceUrl(Handle<Script> script, Isolate* isolate) {
-  Object* name_or_url = script->source_url();
+  Object name_or_url = script->source_url();
   if (!name_or_url->IsString()) name_or_url = script->name();
   return handle(name_or_url, isolate);
 }

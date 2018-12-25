@@ -41,8 +41,8 @@ inline JSObject PropertyCallbackArguments::holder() {
   return JSObject::cast(*slot_at(T::kHolderIndex));
 }
 
-inline Object* PropertyCallbackArguments::receiver() {
-  return Object::cast(*slot_at(T::kThisIndex));
+inline Object PropertyCallbackArguments::receiver() {
+  return *slot_at(T::kThisIndex);
 }
 
 inline JSObject FunctionCallbackArguments::holder() {

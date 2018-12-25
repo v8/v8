@@ -63,8 +63,8 @@ Maybe<uint32_t> FindNextFreePosition(Isolate* isolate,
 // Dictionary (requires_slow_elements() is true), proxies and objects that
 // might have accessors.
 V8_WARN_UNUSED_RESULT
-Object* RemoveArrayHolesGeneric(Isolate* isolate, Handle<JSReceiver> receiver,
-                                uint32_t limit) {
+Object RemoveArrayHolesGeneric(Isolate* isolate, Handle<JSReceiver> receiver,
+                               uint32_t limit) {
   HandleScope scope(isolate);
 
   // For proxies, we do not collect the keys, instead we use all indices in
@@ -170,8 +170,8 @@ Object* RemoveArrayHolesGeneric(Isolate* isolate, Handle<JSReceiver> receiver,
 // converted to fast elements mode.  Undefined values are placed after
 // non-undefined values.  Returns the number of non-undefined values.
 V8_WARN_UNUSED_RESULT
-Object* RemoveArrayHoles(Isolate* isolate, Handle<JSReceiver> receiver,
-                         uint32_t limit) {
+Object RemoveArrayHoles(Isolate* isolate, Handle<JSReceiver> receiver,
+                        uint32_t limit) {
   if (receiver->IsJSProxy()) {
     return RemoveArrayHolesGeneric(isolate, receiver, limit);
   }
@@ -268,7 +268,7 @@ Object* RemoveArrayHoles(Isolate* isolate, Handle<JSReceiver> receiver,
     // Assume most arrays contain no holes and undefined values, so minimize the
     // number of stores of non-undefined, non-the-hole values.
     for (unsigned int i = 0; i < undefs; i++) {
-      Object* current = elements->get(i);
+      Object current = elements->get(i);
       if (current->IsTheHole(isolate)) {
         holes--;
         undefs--;

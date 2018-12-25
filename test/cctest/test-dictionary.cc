@@ -103,7 +103,7 @@ static void TestHashMap(Handle<HashMap> table) {
   for (int i = 0; i < 100; i++) {
     Handle<JSReceiver> key = factory->NewJSArray(7);
     CHECK_EQ(table->Lookup(key), roots.the_hole_value());
-    Object* identity_hash = key->GetIdentityHash();
+    Object identity_hash = key->GetIdentityHash();
     CHECK_EQ(roots.undefined_value(), identity_hash);
   }
 }
@@ -173,7 +173,7 @@ static void TestHashSet(Handle<HashSet> table) {
   for (int i = 0; i < 100; i++) {
     Handle<JSReceiver> key = factory->NewJSArray(7);
     CHECK(!table->Has(isolate, key));
-    Object* identity_hash = key->GetIdentityHash();
+    Object identity_hash = key->GetIdentityHash();
     CHECK_EQ(ReadOnlyRoots(CcTest::heap()).undefined_value(), identity_hash);
   }
 }

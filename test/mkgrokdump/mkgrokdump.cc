@@ -48,7 +48,7 @@ class MockArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
 static void DumpMaps(i::PagedSpace* space) {
   i::HeapObjectIterator it(space);
   i::ReadOnlyRoots roots(space->heap());
-  for (i::Object* o = it.Next(); o != nullptr; o = it.Next()) {
+  for (i::HeapObject o = it.Next(); !o.is_null(); o = it.Next()) {
     if (!o->IsMap()) continue;
     i::Map m = i::Map::cast(o);
     const char* n = nullptr;
@@ -113,12 +113,12 @@ static int DumpHeapConstants(const char* argv0) {
       if (s->identity() == i::CODE_SPACE || s->identity() == i::MAP_SPACE)
         continue;
       const char* sname = s->name();
-      for (i::Object* o = it.Next(); o != nullptr; o = it.Next()) {
+      for (i::HeapObject o = it.Next(); !o.is_null(); o = it.Next()) {
         // Skip maps in RO_SPACE since they will be reported elsewhere.
         if (o->IsMap()) continue;
         const char* n = nullptr;
         i::RootIndex i = i::RootIndex::kFirstSmiRoot;
-        intptr_t p = reinterpret_cast<intptr_t>(o) & 0x7FFFF;
+        intptr_t p = o.ptr() & 0x7FFFF;
         STRONG_READ_ONLY_ROOT_LIST(RO_ROOT_LIST_CASE)
         MUTABLE_ROOT_LIST(ROOT_LIST_CASE)
         if (n == nullptr) continue;

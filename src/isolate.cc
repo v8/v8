@@ -466,7 +466,8 @@ StackTraceFailureMessage::StackTraceFailureMessage(Isolate* isolate, void* ptr1,
   StackFrameIterator it(isolate);
   for (; !it.done() && i < code_objects_length; it.Advance()) {
     if (it.frame()->type() == StackFrame::INTERNAL) continue;
-    code_objects_[i++] = it.frame()->unchecked_code();
+    code_objects_[i++] =
+        reinterpret_cast<void*>(it.frame()->unchecked_code().ptr());
   }
 }
 
@@ -969,7 +970,7 @@ Address Isolate::GetAbstractPC(int* line, int* column) {
   DCHECK(!frame->is_builtin());
   int position = frame->position();
 
-  Object* maybe_script = frame->function()->shared()->script();
+  Object maybe_script = frame->function()->shared()->script();
   if (maybe_script->IsScript()) {
     Handle<Script> script(Script::cast(maybe_script), this);
     Script::PositionInfo info;
@@ -1223,7 +1224,7 @@ bool Isolate::MayAccess(Handle<Context> accessing_context,
     DisallowHeapAllocation no_gc;
 
     if (receiver->IsJSGlobalProxy()) {
-      Object* receiver_context =
+      Object receiver_context =
           JSGlobalProxy::cast(*receiver)->native_context();
       if (!receiver_context->IsContext()) return false;
 
@@ -1245,7 +1246,7 @@ bool Isolate::MayAccess(Handle<Context> accessing_context,
   { DisallowHeapAllocation no_gc;
     AccessCheckInfo access_check_info = AccessCheckInfo::Get(this, receiver);
     if (access_check_info.is_null()) return false;
-    Object* fun_obj = access_check_info->callback();
+    Object fun_obj = access_check_info->callback();
     callback = v8::ToCData<v8::AccessCheckCallback>(fun_obj);
     data = handle(access_check_info->data(), this);
   }
@@ -1260,8 +1261,7 @@ bool Isolate::MayAccess(Handle<Context> accessing_context,
   }
 }
 
-
-Object* Isolate::StackOverflow() {
+Object Isolate::StackOverflow() {
   if (FLAG_abort_on_stack_or_string_length_overflow) {
     FATAL("Aborting on stack overflow");
   }
@@ -1290,11 +1290,9 @@ Object* Isolate::StackOverflow() {
   return ReadOnlyRoots(heap()).exception();
 }
 
-
-Object* Isolate::TerminateExecution() {
+Object Isolate::TerminateExecution() {
   return Throw(ReadOnlyRoots(this).termination_exception(), nullptr);
 }
-
 
 void Isolate::CancelTerminateExecution() {
   if (try_catch_handler()) {
@@ -1394,7 +1392,7 @@ void ReportBootstrappingException(Handle<Object> exception,
 #endif
 }
 
-Object* Isolate::Throw(Object* raw_exception, MessageLocation* location) {
+Object Isolate::Throw(Object raw_exception, MessageLocation* location) {
   DCHECK(!has_pending_exception());
 
   HandleScope scope(this);
@@ -1502,8 +1500,7 @@ Object* Isolate::Throw(Object* raw_exception, MessageLocation* location) {
   return ReadOnlyRoots(heap()).exception();
 }
 
-
-Object* Isolate::ReThrow(Object* exception) {
+Object Isolate::ReThrow(Object exception) {
   DCHECK(!has_pending_exception());
 
   // Set the exception being re-thrown.
@@ -1511,9 +1508,8 @@ Object* Isolate::ReThrow(Object* exception) {
   return ReadOnlyRoots(heap()).exception();
 }
 
-
-Object* Isolate::UnwindAndFindHandler() {
-  Object* exception = pending_exception();
+Object Isolate::UnwindAndFindHandler() {
+  Object exception = pending_exception();
 
   auto FoundHandler = [&](Context context, Address instruction_start,
                           intptr_t handler_offset,
@@ -1785,7 +1781,7 @@ Isolate::CatchType ToCatchType(HandlerTable::CatchPrediction prediction) {
 
 Isolate::CatchType Isolate::PredictExceptionCatcher() {
   Address external_handler = thread_local_top()->try_catch_handler_address();
-  if (IsExternalHandlerOnTop(nullptr)) return CAUGHT_BY_EXTERNAL;
+  if (IsExternalHandlerOnTop(Object())) return CAUGHT_BY_EXTERNAL;
 
   // Search for an exception handler by performing a full walk over the stack.
   for (StackFrameIterator iter(this); !iter.done(); iter.Advance()) {
@@ -1843,13 +1839,12 @@ Isolate::CatchType Isolate::PredictExceptionCatcher() {
   return NOT_CAUGHT;
 }
 
-Object* Isolate::ThrowIllegalOperation() {
+Object Isolate::ThrowIllegalOperation() {
   if (FLAG_stack_trace_on_illegal) PrintStack(stdout);
   return Throw(ReadOnlyRoots(heap()).illegal_access_string());
 }
 
-
-void Isolate::ScheduleThrow(Object* exception) {
+void Isolate::ScheduleThrow(Object exception) {
   // When scheduling a throw we first throw the exception to get the
   // error reporting if it is uncaught before rescheduling it.
   Throw(exception);
@@ -1861,13 +1856,12 @@ void Isolate::ScheduleThrow(Object* exception) {
   }
 }
 
-
 void Isolate::RestorePendingMessageFromTryCatch(v8::TryCatch* handler) {
   DCHECK(handler == try_catch_handler());
   DCHECK(handler->HasCaught());
   DCHECK(handler->rethrow_);
   DCHECK(handler->capture_message_);
-  Object* message = reinterpret_cast<Object*>(handler->message_obj_);
+  Object message(reinterpret_cast<Address>(handler->message_obj_));
   DCHECK(message->IsJSMessageObject() || message->IsTheHole(this));
   thread_local_top()->pending_message_obj_ = message;
 }
@@ -1875,7 +1869,8 @@ void Isolate::RestorePendingMessageFromTryCatch(v8::TryCatch* handler) {
 
 void Isolate::CancelScheduledExceptionFromTryCatch(v8::TryCatch* handler) {
   DCHECK(has_scheduled_exception());
-  if (scheduled_exception() == handler->exception_) {
+  if (reinterpret_cast<void*>(scheduled_exception().ptr()) ==
+      handler->exception_) {
     DCHECK_NE(scheduled_exception(),
               ReadOnlyRoots(heap()).termination_exception());
     clear_scheduled_exception();
@@ -1888,19 +1883,18 @@ void Isolate::CancelScheduledExceptionFromTryCatch(v8::TryCatch* handler) {
       clear_scheduled_exception();
     }
   }
-  if (thread_local_top_.pending_message_obj_ == handler->message_obj_) {
+  if (reinterpret_cast<void*>(thread_local_top_.pending_message_obj_.ptr()) ==
+      handler->message_obj_) {
     clear_pending_message();
   }
 }
 
-
-Object* Isolate::PromoteScheduledException() {
-  Object* thrown = scheduled_exception();
+Object Isolate::PromoteScheduledException() {
+  Object thrown = scheduled_exception();
   clear_scheduled_exception();
   // Re-throw the exception to avoid getting repeated error reporting.
   return ReThrow(thrown);
 }
-
 
 void Isolate::PrintCurrentStackTrace(FILE* out) {
   for (StackTraceFrameIterator it(this); !it.done(); it.Advance()) {
@@ -2023,7 +2017,7 @@ bool Isolate::ComputeLocationFromStackTrace(MessageLocation* target,
     Handle<JSFunction> fun = handle(elements->Function(i), this);
     if (!fun->shared()->IsSubjectToDebugging()) continue;
 
-    Object* script = fun->shared()->script();
+    Object script = fun->shared()->script();
     if (script->IsScript() &&
         !(Script::cast(script)->source()->IsUndefined(this))) {
       AbstractCode abstract_code = elements->Code(i);
@@ -2071,8 +2065,7 @@ Handle<JSMessageObject> Isolate::CreateMessage(Handle<Object> exception,
       stack_trace_object);
 }
 
-
-bool Isolate::IsJavaScriptHandlerOnTop(Object* exception) {
+bool Isolate::IsJavaScriptHandlerOnTop(Object exception) {
   DCHECK_NE(ReadOnlyRoots(heap()).the_hole_value(), exception);
 
   // For uncatchable exceptions, the JavaScript handler cannot be on top.
@@ -2096,8 +2089,7 @@ bool Isolate::IsJavaScriptHandlerOnTop(Object* exception) {
   return (entry_handler < external_handler);
 }
 
-
-bool Isolate::IsExternalHandlerOnTop(Object* exception) {
+bool Isolate::IsExternalHandlerOnTop(Object exception) {
   DCHECK_NE(ReadOnlyRoots(heap()).the_hole_value(), exception);
 
   // Get the address of the external handler so we can compare the address to
@@ -2122,10 +2114,10 @@ bool Isolate::IsExternalHandlerOnTop(Object* exception) {
 }
 
 void Isolate::ReportPendingMessagesImpl(bool report_externally) {
-  Object* exception = pending_exception();
+  Object exception = pending_exception();
 
   // Clear the pending message object early to avoid endless recursion.
-  Object* message_obj = thread_local_top_.pending_message_obj_;
+  Object message_obj = thread_local_top_.pending_message_obj_;
   clear_pending_message();
 
   // For uncatchable exceptions we do nothing. If needed, the exception and the
@@ -2162,7 +2154,7 @@ void Isolate::ReportPendingMessages() {
   // The embedder might run script in response to an exception.
   AllowJavascriptExecutionDebugOnly allow_script(this);
 
-  Object* exception = pending_exception();
+  Object exception = pending_exception();
 
   // Try to propagate the exception to an external v8::TryCatch handler. If
   // propagation was unsuccessful, then we will get another chance at reporting
@@ -2222,11 +2214,12 @@ void Isolate::ReportPendingMessagesFromJavaScript() {
            thread_local_top_.pending_message_obj_->IsTheHole(this));
     handler->can_continue_ = true;
     handler->has_terminated_ = false;
-    handler->exception_ = pending_exception();
+    handler->exception_ = reinterpret_cast<void*>(pending_exception().ptr());
     // Propagate to the external try-catch only if we got an actual message.
     if (thread_local_top_.pending_message_obj_->IsTheHole(this)) return true;
 
-    handler->message_obj_ = thread_local_top_.pending_message_obj_;
+    handler->message_obj_ =
+        reinterpret_cast<void*>(thread_local_top_.pending_message_obj_.ptr());
     return true;
   };
 
@@ -3025,11 +3018,12 @@ void Isolate::SetTerminationOnExternalTryCatch() {
   if (try_catch_handler() == nullptr) return;
   try_catch_handler()->can_continue_ = false;
   try_catch_handler()->has_terminated_ = true;
-  try_catch_handler()->exception_ = ReadOnlyRoots(heap()).null_value();
+  try_catch_handler()->exception_ =
+      reinterpret_cast<void*>(ReadOnlyRoots(heap()).null_value().ptr());
 }
 
 bool Isolate::PropagatePendingExceptionToExternalTryCatch() {
-  Object* exception = pending_exception();
+  Object exception = pending_exception();
 
   if (IsJavaScriptHandlerOnTop(exception)) {
     thread_local_top_.external_caught_exception_ = false;
@@ -3050,11 +3044,12 @@ bool Isolate::PropagatePendingExceptionToExternalTryCatch() {
            thread_local_top_.pending_message_obj_->IsTheHole(this));
     handler->can_continue_ = true;
     handler->has_terminated_ = false;
-    handler->exception_ = pending_exception();
+    handler->exception_ = reinterpret_cast<void*>(pending_exception().ptr());
     // Propagate to the external try-catch only if we got an actual message.
     if (thread_local_top_.pending_message_obj_->IsTheHole(this)) return true;
 
-    handler->message_obj_ = thread_local_top_.pending_message_obj_;
+    handler->message_obj_ =
+        reinterpret_cast<void*>(thread_local_top_.pending_message_obj_.ptr());
   }
   return true;
 }
@@ -3523,7 +3518,7 @@ bool Isolate::NeedsSourcePositionsForProfiling() const {
          debug_->is_active() || logger_->is_logging() || FLAG_trace_maps;
 }
 
-void Isolate::SetFeedbackVectorsForProfilingTools(Object* value) {
+void Isolate::SetFeedbackVectorsForProfilingTools(Object value) {
   DCHECK(value->IsUndefined(this) || value->IsArrayList());
   heap()->set_feedback_vectors_for_profiling_tools(value);
 }
@@ -3568,8 +3563,8 @@ void Isolate::set_date_cache(DateCache* date_cache) {
   date_cache_ = date_cache;
 }
 
-bool Isolate::IsArrayOrObjectOrStringPrototype(Object* object) {
-  Object* context = heap()->native_contexts_list();
+bool Isolate::IsArrayOrObjectOrStringPrototype(Object object) {
+  Object context = heap()->native_contexts_list();
   while (!context->IsUndefined(this)) {
     Context current_context = Context::cast(context);
     if (current_context->initial_object_prototype() == object ||
@@ -3582,9 +3577,9 @@ bool Isolate::IsArrayOrObjectOrStringPrototype(Object* object) {
   return false;
 }
 
-bool Isolate::IsInAnyContext(Object* object, uint32_t index) {
+bool Isolate::IsInAnyContext(Object object, uint32_t index) {
   DisallowHeapAllocation no_gc;
-  Object* context = heap()->native_contexts_list();
+  Object context = heap()->native_contexts_list();
   while (!context->IsUndefined(this)) {
     Context current_context = Context::cast(context);
     if (current_context->get(index) == object) {

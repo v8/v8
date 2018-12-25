@@ -42,7 +42,7 @@ class CustomArguments : public CustomArgumentsBase {
   Handle<V> GetReturnValue(Isolate* isolate);
 
   inline Isolate* isolate() {
-    return reinterpret_cast<Isolate*>(*slot_at(T::kIsolateIndex));
+    return reinterpret_cast<Isolate*>((*slot_at(T::kIsolateIndex)).ptr());
   }
 
   inline FullObjectSlot slot_at(int index) {
@@ -71,7 +71,7 @@ class PropertyCallbackArguments
   static const int kIsolateIndex = T::kIsolateIndex;
   static const int kShouldThrowOnErrorIndex = T::kShouldThrowOnErrorIndex;
 
-  PropertyCallbackArguments(Isolate* isolate, Object* data, Object* self,
+  PropertyCallbackArguments(Isolate* isolate, Object data, Object self,
                             JSObject holder, ShouldThrow should_throw);
 
   // -------------------------------------------------------------------------
@@ -140,7 +140,7 @@ class PropertyCallbackArguments
       Handle<Object> info, Handle<Object> receiver = Handle<Object>());
 
   inline JSObject holder();
-  inline Object* receiver();
+  inline Object receiver();
 
   // Don't copy PropertyCallbackArguments, because they would both have the
   // same prev_ pointer.
@@ -160,9 +160,9 @@ class FunctionCallbackArguments
   static const int kIsolateIndex = T::kIsolateIndex;
   static const int kNewTargetIndex = T::kNewTargetIndex;
 
-  FunctionCallbackArguments(internal::Isolate* isolate, internal::Object* data,
+  FunctionCallbackArguments(internal::Isolate* isolate, internal::Object data,
                             internal::HeapObject callee,
-                            internal::Object* holder,
+                            internal::Object holder,
                             internal::HeapObject new_target,
                             internal::Address* argv, int argc);
 

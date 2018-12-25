@@ -68,7 +68,7 @@ class Module : public Struct {
   };
 
   // The exception in the case {status} is kErrored.
-  Object* GetException();
+  Object GetException();
 
   // The shared function info in case {status} is not kEvaluating, kEvaluated or
   // kErrored.

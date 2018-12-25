@@ -499,7 +499,7 @@ void RelocInfo::Verify(Isolate* isolate) {
       CHECK_NE(addr, kNullAddress);
       // Check that we can find the right code object.
       Code code = Code::GetCodeFromTargetAddress(addr);
-      Object* found = isolate->FindCodeObject(addr);
+      Object found = isolate->FindCodeObject(addr);
       CHECK(found->IsCode());
       CHECK(code->address() == HeapObject::cast(found)->address());
       break;

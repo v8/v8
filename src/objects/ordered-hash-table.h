@@ -9,6 +9,7 @@
 #include "src/objects/fixed-array.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/smi.h"
+#include "src/roots.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -20,7 +21,7 @@ namespace internal {
 // insertion order. There are Map and Set interfaces (OrderedHashMap
 // and OrderedHashTable, below). It is meant to be used by JSMap/JSSet.
 //
-// Only Object* keys are supported, with Object::SameValueZero() used as the
+// Only Object keys are supported, with Object::SameValueZero() used as the
 // equality operator and Object::GetHash() for the hash function.
 //
 // Based on the "Deterministic Hash Table" as described by Jason Orendorff at
@@ -74,13 +75,13 @@ class OrderedHashTable : public FixedArray {
   static Handle<Derived> Clear(Isolate* isolate, Handle<Derived> table);
 
   // Returns true if the OrderedHashTable contains the key
-  static bool HasKey(Isolate* isolate, Derived table, Object* key);
+  static bool HasKey(Isolate* isolate, Derived table, Object key);
 
   // Returns a true value if the OrderedHashTable contains the key and
   // the key has been deleted. This does not shrink the table.
-  static bool Delete(Isolate* isolate, Derived table, Object* key);
+  static bool Delete(Isolate* isolate, Derived table, Object key);
 
-  int FindEntry(Isolate* isolate, Object* key);
+  int FindEntry(Isolate* isolate, Object key);
 
   int NumberOfElements() const {
     return Smi::ToInt(get(NumberOfElementsIndex()));
@@ -109,17 +110,17 @@ class OrderedHashTable : public FixedArray {
 
   int HashToEntry(int hash) {
     int bucket = HashToBucket(hash);
-    Object* entry = this->get(HashTableStartIndex() + bucket);
+    Object entry = this->get(HashTableStartIndex() + bucket);
     return Smi::ToInt(entry);
   }
 
   int NextChainEntry(int entry) {
-    Object* next_entry = get(EntryToIndex(entry) + kChainOffset);
+    Object next_entry = get(EntryToIndex(entry) + kChainOffset);
     return Smi::ToInt(next_entry);
   }
 
   // use KeyAt(i)->IsTheHole(isolate) to determine if this is a deleted entry.
-  Object* KeyAt(int entry) {
+  Object KeyAt(int entry) {
     DCHECK_LT(entry, this->UsedCapacity());
     return get(EntryToIndex(entry));
   }
@@ -262,9 +263,11 @@ class OrderedHashMap : public OrderedHashTable<OrderedHashMap, 2> {
   static Handle<OrderedHashMap> Rehash(Isolate* isolate,
                                        Handle<OrderedHashMap> table,
                                        int new_capacity);
-  Object* ValueAt(int entry);
+  Object ValueAt(int entry);
 
-  static Object* GetHash(Isolate* isolate, Object* key);
+  // This takes and returns raw Address values containing tagged Object
+  // pointers because it is called via ExternalReference.
+  static Address GetHash(Isolate* isolate, Address raw_key);
 
   static HeapObject GetEmpty(ReadOnlyRoots ro_roots);
   static inline RootIndex GetMapRootIndex();
@@ -343,14 +346,14 @@ class SmallOrderedHashTable : public HeapObject {
 
   // Returns a true value if the table contains the key and
   // the key has been deleted. This does not shrink the table.
-  static bool Delete(Isolate* isolate, Derived table, Object* key);
+  static bool Delete(Isolate* isolate, Derived table, Object key);
 
   // Returns an SmallOrderedHashTable (possibly |table|) with enough
   // space to add at least one new element. Returns empty handle if
   // we've already reached MaxCapacity.
   static MaybeHandle<Derived> Grow(Isolate* isolate, Handle<Derived> table);
 
-  int FindEntry(Isolate* isolate, Object* key);
+  int FindEntry(Isolate* isolate, Object key);
 
   // Iterates only fields in the DataTable.
   class BodyDescriptor;
@@ -425,7 +428,7 @@ class SmallOrderedHashTable : public HeapObject {
   static Handle<Derived> Rehash(Isolate* isolate, Handle<Derived> table,
                                 int new_capacity);
 
-  void SetDataEntry(int entry, int relative_index, Object* value);
+  void SetDataEntry(int entry, int relative_index, Object value);
 
   // TODO(gsathya): Calculate all the various possible values for this
   // at compile time since capacity can only be 4 different values.
@@ -474,14 +477,14 @@ class SmallOrderedHashTable : public HeapObject {
     return getByte(GetChainTableOffset(), entry);
   }
 
-  Object* GetDataEntry(int entry, int relative_index) {
+  Object GetDataEntry(int entry, int relative_index) {
     DCHECK_LT(entry, Capacity());
     DCHECK_LE(static_cast<unsigned>(relative_index), Derived::kEntrySize);
     Offset entry_offset = GetDataEntryOffset(entry, relative_index);
     return READ_FIELD(this, entry_offset);
   }
 
-  Object* KeyAt(int entry) const {
+  Object KeyAt(int entry) const {
     DCHECK_LT(entry, Capacity());
     Offset entry_offset = GetDataEntryOffset(entry, Derived::kKeyIndex);
     return READ_FIELD(this, entry_offset);
@@ -676,10 +679,10 @@ class OrderedNameDictionary
       Isolate* isolate, Handle<OrderedNameDictionary> table, int new_capacity);
 
   // Returns the value for entry.
-  inline Object* ValueAt(int entry);
+  inline Object ValueAt(int entry);
 
   // Set the value for entry.
-  inline void ValueAtPut(int entry, Object* value);
+  inline void ValueAtPut(int entry, Object value);
 
   // Returns the property details for the property at entry.
   inline PropertyDetails DetailsAt(int entry);
@@ -709,13 +712,13 @@ class OrderedNameDictionaryHandler
                                 Handle<Name> key, Handle<Object> value,
                                 PropertyDetails details);
 
-  static int FindEntry(Isolate* isolate, HeapObject table, Object* key);
+  static int FindEntry(Isolate* isolate, HeapObject table, Object key);
 
   // Returns the value for entry.
-  static Object* ValueAt(HeapObject table, int entry);
+  static Object ValueAt(HeapObject table, int entry);
 
   // Set the value for entry.
-  static void ValueAtPut(HeapObject table, int entry, Object* value);
+  static void ValueAtPut(HeapObject table, int entry, Object value);
 
   // Returns the property details for the property at entry.
   static PropertyDetails DetailsAt(HeapObject table, int entry);
@@ -741,14 +744,14 @@ class SmallOrderedNameDictionary
   DECL_PRINTER(SmallOrderedNameDictionary)
 
   // Returns the value for entry.
-  inline Object* ValueAt(int entry);
+  inline Object ValueAt(int entry);
 
   static Handle<SmallOrderedNameDictionary> Rehash(
       Isolate* isolate, Handle<SmallOrderedNameDictionary> table,
       int new_capacity);
 
   // Set the value for entry.
-  inline void ValueAtPut(int entry, Object* value);
+  inline void ValueAtPut(int entry, Object value);
 
   // Returns the property details for the property at entry.
   inline PropertyDetails DetailsAt(int entry);
@@ -825,7 +828,7 @@ class OrderedHashTableIterator : public JSCollectionIterator {
 
   // Returns the current key of the iterator. This should only be called when
   // |HasMore| returns true.
-  inline Object* CurrentKey();
+  inline Object CurrentKey();
 
  private:
   // Transitions the iterator to the non obsolete backing store. This is a NOP

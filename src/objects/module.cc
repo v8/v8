@@ -142,7 +142,7 @@ void Module::CreateExport(Isolate* isolate, Handle<Module> module,
 
 Cell Module::GetCell(int cell_index) {
   DisallowHeapAllocation no_gc;
-  Object* cell;
+  Object cell;
   switch (ModuleDescriptor::GetCellIndexKind(cell_index)) {
     case ModuleDescriptor::kImport:
       cell = regular_imports()->get(ImportIndex(cell_index));
@@ -248,7 +248,7 @@ void Module::Reset(Isolate* isolate, Handle<Module> module) {
 void Module::RecordError(Isolate* isolate) {
   DisallowHeapAllocation no_alloc;
   DCHECK(exception()->IsTheHole(isolate));
-  Object* the_exception = isolate->pending_exception();
+  Object the_exception = isolate->pending_exception();
   DCHECK(!the_exception->IsTheHole(isolate));
 
   set_code(info());
@@ -259,7 +259,7 @@ void Module::RecordError(Isolate* isolate) {
   set_exception(the_exception);
 }
 
-Object* Module::GetException() {
+Object Module::GetException() {
   DisallowHeapAllocation no_alloc;
   DCHECK_EQ(status(), Module::kErrored);
   DCHECK(!exception()->IsTheHole());
@@ -792,7 +792,7 @@ void FetchStarExports(Isolate* isolate, Handle<Module> module, Zone* zone,
     Handle<ObjectHashTable> requested_exports(requested_module->exports(),
                                               isolate);
     for (int i = 0, n = requested_exports->Capacity(); i < n; ++i) {
-      Object* key;
+      Object key;
       if (!requested_exports->ToKey(roots, i, &key)) continue;
       Handle<String> name(String::cast(key), isolate);
 
@@ -853,7 +853,7 @@ Handle<JSModuleNamespace> Module::GetModuleNamespace(Isolate* isolate,
   ZoneVector<Handle<String>> names(&zone);
   names.reserve(exports->NumberOfElements());
   for (int i = 0, n = exports->Capacity(); i < n; ++i) {
-    Object* key;
+    Object key;
     if (!exports->ToKey(roots, i, &key)) continue;
     names.push_back(handle(String::cast(key), isolate));
   }

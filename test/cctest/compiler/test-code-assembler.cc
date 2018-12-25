@@ -69,8 +69,7 @@ TEST(SimpleIntPtrReturn) {
       m.IntPtrConstant(reinterpret_cast<intptr_t>(&test))));
   FunctionTester ft(asm_tester.GenerateCode());
   MaybeHandle<Object> result = ft.Call();
-  CHECK_EQ(reinterpret_cast<intptr_t>(&test),
-           reinterpret_cast<intptr_t>(*result.ToHandleChecked()));
+  CHECK_EQ(reinterpret_cast<Address>(&test), result.ToHandleChecked()->ptr());
 }
 
 TEST(SimpleDoubleReturn) {

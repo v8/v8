@@ -124,7 +124,7 @@ class TransitionsAccessor {
 #endif
 #if DEBUG
   void CheckNewTransitionsAreConsistent(TransitionArray old_transitions,
-                                        Object* transitions);
+                                        Object transitions);
   bool IsConsistentWithBackPointers();
   bool IsSortedNoDuplicates();
 #endif

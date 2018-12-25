@@ -19,7 +19,7 @@ class Foreign : public HeapObject {
   // [address]: field containing the address.
   inline Address foreign_address();
 
-  static inline bool IsNormalized(Object* object);
+  static inline bool IsNormalized(Object object);
 
   DECL_CAST2(Foreign)
 

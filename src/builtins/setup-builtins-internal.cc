@@ -254,7 +254,7 @@ void SetupIsolateDelegate::ReplacePlaceholders(Isolate* isolate) {
                                   UPDATE_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
       } else {
         DCHECK(RelocInfo::IsEmbeddedObject(rinfo->rmode()));
-        Object* object = rinfo->target_object();
+        Object object = rinfo->target_object();
         if (!object->IsCode()) continue;
         Code target = Code::cast(object);
         if (!target->is_builtin()) continue;

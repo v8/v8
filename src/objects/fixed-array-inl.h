@@ -68,7 +68,7 @@ SMI_ACCESSORS(WeakArrayList, capacity, kCapacityOffset)
 SYNCHRONIZED_SMI_ACCESSORS(WeakArrayList, capacity, kCapacityOffset)
 SMI_ACCESSORS(WeakArrayList, length, kLengthOffset)
 
-Object* FixedArrayBase::unchecked_synchronized_length() const {
+Object FixedArrayBase::unchecked_synchronized_length() const {
   return ACQUIRE_READ_FIELD(this, kLengthOffset);
 }
 
@@ -79,16 +79,16 @@ ObjectSlot FixedArray::GetFirstElementAddress() {
 }
 
 bool FixedArray::ContainsOnlySmisOrHoles() {
-  Object* the_hole = GetReadOnlyRoots().the_hole_value();
+  Object the_hole = GetReadOnlyRoots().the_hole_value();
   ObjectSlot current = GetFirstElementAddress();
   for (int i = 0; i < length(); ++i, ++current) {
-    Object* candidate = *current;
+    Object candidate = *current;
     if (!candidate->IsSmi() && candidate != the_hole) return false;
   }
   return true;
 }
 
-Object* FixedArray::get(int index) const {
+Object FixedArray::get(int index) const {
   DCHECK(index >= 0 && index < this->length());
   return RELAXED_READ_FIELD(this, kHeaderSize + index * kTaggedSize);
 }
@@ -99,14 +99,14 @@ Handle<Object> FixedArray::get(FixedArray array, int index, Isolate* isolate) {
 
 template <class T>
 MaybeHandle<T> FixedArray::GetValue(Isolate* isolate, int index) const {
-  Object* obj = get(index);
+  Object obj = get(index);
   if (obj->IsUndefined(isolate)) return MaybeHandle<T>();
   return Handle<T>(T::cast(obj), isolate);
 }
 
 template <class T>
 Handle<T> FixedArray::GetValueChecked(Isolate* isolate, int index) const {
-  Object* obj = get(index);
+  Object obj = get(index);
   CHECK(!obj->IsUndefined(isolate));
   return Handle<T>(T::cast(obj), isolate);
 }
@@ -123,7 +123,7 @@ void FixedArray::set(int index, Smi value) {
   RELAXED_WRITE_FIELD(this, offset, value);
 }
 
-void FixedArray::set(int index, Object* value) {
+void FixedArray::set(int index, Object value) {
   DCHECK_NE(GetReadOnlyRoots().fixed_cow_array_map(), map());
   DCHECK(IsFixedArray());
   DCHECK_GE(index, 0);
@@ -133,7 +133,7 @@ void FixedArray::set(int index, Object* value) {
   WRITE_BARRIER(this, offset, value);
 }
 
-void FixedArray::set(int index, Object* value, WriteBarrierMode mode) {
+void FixedArray::set(int index, Object value, WriteBarrierMode mode) {
   DCHECK_NE(map(), GetReadOnlyRoots().fixed_cow_array_map());
   DCHECK_GE(index, 0);
   DCHECK_LT(index, this->length());
@@ -142,7 +142,7 @@ void FixedArray::set(int index, Object* value, WriteBarrierMode mode) {
   CONDITIONAL_WRITE_BARRIER(this, offset, value, mode);
 }
 
-void FixedArray::NoWriteBarrierSet(FixedArray array, int index, Object* value) {
+void FixedArray::NoWriteBarrierSet(FixedArray array, int index, Object value) {
   DCHECK_NE(array->map(), array->GetReadOnlyRoots().fixed_cow_array_map());
   DCHECK_GE(index, 0);
   DCHECK_LT(index, array->length());
@@ -441,7 +441,7 @@ void ArrayList::SetLength(int length) {
   return FixedArray::cast(*this)->set(kLengthIndex, Smi::FromInt(length));
 }
 
-Object* ArrayList::Get(int index) const {
+Object ArrayList::Get(int index) const {
   return FixedArray::cast(*this)->get(kFirstIndex + index);
 }
 
@@ -449,11 +449,11 @@ ObjectSlot ArrayList::Slot(int index) {
   return RawField(OffsetOfElementAt(kFirstIndex + index));
 }
 
-void ArrayList::Set(int index, Object* obj, WriteBarrierMode mode) {
+void ArrayList::Set(int index, Object obj, WriteBarrierMode mode) {
   FixedArray::cast(*this)->set(kFirstIndex + index, obj, mode);
 }
 
-void ArrayList::Clear(int index, Object* undefined) {
+void ArrayList::Clear(int index, Object undefined) {
   DCHECK(undefined->IsUndefined());
   FixedArray::cast(*this)->set(kFirstIndex + index, undefined,
                                SKIP_WRITE_BARRIER);
@@ -531,11 +531,6 @@ template <class T>
 PodArray<T>::PodArray(Address ptr) : ByteArray(ptr) {}
 
 template <class T>
-PodArray<T> PodArray<T>::cast(Object* object) {
-  return PodArray<T>(object->ptr());
-}
-
-template <class T>
 PodArray<T> PodArray<T>::cast(ObjectPtr object) {
   return PodArray<T>(object.ptr());
 }
@@ -566,8 +561,7 @@ void FixedTypedArrayBase::set_external_pointer(void* value,
 
 void* FixedTypedArrayBase::DataPtr() {
   return reinterpret_cast<void*>(
-      reinterpret_cast<intptr_t>(base_pointer()) +
-      reinterpret_cast<intptr_t>(external_pointer()));
+      base_pointer()->ptr() + reinterpret_cast<intptr_t>(external_pointer()));
 }
 
 int FixedTypedArrayBase::ElementSize(InstanceType type) {
@@ -810,7 +804,7 @@ Handle<Object> FixedTypedArray<Traits>::get(Isolate* isolate,
 }
 
 template <class Traits>
-void FixedTypedArray<Traits>::SetValue(uint32_t index, Object* value) {
+void FixedTypedArray<Traits>::SetValue(uint32_t index, Object value) {
   ElementType cast_value = Traits::defaultValue();
   if (value->IsSmi()) {
     int int_value = Smi::ToInt(value);
@@ -828,14 +822,14 @@ void FixedTypedArray<Traits>::SetValue(uint32_t index, Object* value) {
 
 template <>
 inline void FixedTypedArray<BigInt64ArrayTraits>::SetValue(uint32_t index,
-                                                           Object* value) {
+                                                           Object value) {
   DCHECK(value->IsBigInt());
   set(index, BigInt::cast(value)->AsInt64());
 }
 
 template <>
 inline void FixedTypedArray<BigUint64ArrayTraits>::SetValue(uint32_t index,
-                                                            Object* value) {
+                                                            Object value) {
   DCHECK(value->IsBigInt());
   set(index, BigInt::cast(value)->AsUint64());
 }
@@ -898,11 +892,6 @@ FixedTypedArray<Traits>::FixedTypedArray(Address ptr)
 }
 
 template <class Traits>
-FixedTypedArray<Traits> FixedTypedArray<Traits>::cast(Object* object) {
-  return FixedTypedArray<Traits>(object->ptr());
-}
-
-template <class Traits>
 FixedTypedArray<Traits> FixedTypedArray<Traits>::cast(ObjectPtr object) {
   return FixedTypedArray<Traits>(object.ptr());
 }
@@ -911,11 +900,11 @@ int TemplateList::length() const {
   return Smi::ToInt(FixedArray::cast(*this)->get(kLengthIndex));
 }
 
-Object* TemplateList::get(int index) const {
+Object TemplateList::get(int index) const {
   return FixedArray::cast(*this)->get(kFirstElementIndex + index);
 }
 
-void TemplateList::set(int index, Object* value) {
+void TemplateList::set(int index, Object value) {
   FixedArray::cast(*this)->set(kFirstElementIndex + index, value);
 }
 

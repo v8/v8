@@ -35,9 +35,9 @@ static void PrintDeserializedCodeInfo(Handle<JSFunction> function) {
   if (function->code() == function->shared()->GetCode() &&
       function->shared()->deserialized()) {
     PrintF("[Running deserialized script");
-    Object* script = function->shared()->script();
+    Object script = function->shared()->script();
     if (script->IsScript()) {
-      Object* name = Script::cast(script)->name();
+      Object name = Script::cast(script)->name();
       if (name->IsString()) {
         PrintF(": %s", String::cast(name)->ToCString().get());
       }
@@ -627,8 +627,7 @@ void StackGuard::InitThread(const ExecutionAccess& lock) {
 
 // --- C a l l s   t o   n a t i v e s ---
 
-
-Object* StackGuard::HandleInterrupts() {
+Object StackGuard::HandleInterrupts() {
   if (FLAG_verify_predictable) {
     // Advance synthetic time by making a time request.
     isolate_->heap()->MonotonicallyIncreasingTimeInMs();

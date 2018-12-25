@@ -16,7 +16,7 @@ namespace internal {
 
 namespace {
 
-inline bool EqualImmutableValues(Object* obj1, Object* obj2) {
+inline bool EqualImmutableValues(Object obj1, Object obj2) {
   if (obj1 == obj2) return true;  // Valid for both kData and kAccessor kinds.
   // TODO(ishell): compare AccessorPairs.
   return false;
@@ -51,7 +51,7 @@ PropertyDetails MapUpdater::GetDetails(int descriptor) const {
   return old_descriptors_->GetDetails(descriptor);
 }
 
-Object* MapUpdater::GetValue(int descriptor) const {
+Object MapUpdater::GetValue(int descriptor) const {
   DCHECK_LE(0, descriptor);
   if (descriptor == modified_descriptor_) {
     DCHECK_EQ(kDescriptor, new_location_);

@@ -20,13 +20,13 @@ namespace internal {
 OBJECT_CONSTRUCTORS_IMPL(PropertyArray, HeapObject)
 CAST_ACCESSOR2(PropertyArray)
 
-Object* PropertyArray::get(int index) const {
+Object PropertyArray::get(int index) const {
   DCHECK_LT(static_cast<unsigned>(index),
             static_cast<unsigned>(this->length()));
   return RELAXED_READ_FIELD(this, OffsetOfElementAt(index));
 }
 
-void PropertyArray::set(int index, Object* value) {
+void PropertyArray::set(int index, Object value) {
   DCHECK(IsPropertyArray());
   DCHECK_LT(static_cast<unsigned>(index),
             static_cast<unsigned>(this->length()));
@@ -35,7 +35,7 @@ void PropertyArray::set(int index, Object* value) {
   WRITE_BARRIER(this, offset, value);
 }
 
-void PropertyArray::set(int index, Object* value, WriteBarrierMode mode) {
+void PropertyArray::set(int index, Object value, WriteBarrierMode mode) {
   DCHECK_LT(static_cast<unsigned>(index),
             static_cast<unsigned>(this->length()));
   int offset = OffsetOfElementAt(index);
@@ -46,7 +46,7 @@ void PropertyArray::set(int index, Object* value, WriteBarrierMode mode) {
 ObjectSlot PropertyArray::data_start() { return RawField(kHeaderSize); }
 
 int PropertyArray::length() const {
-  Object* value_obj = READ_FIELD(this, kLengthAndHashOffset);
+  Object value_obj = READ_FIELD(this, kLengthAndHashOffset);
   int value = Smi::ToInt(value_obj);
   return LengthField::decode(value);
 }
@@ -58,19 +58,19 @@ void PropertyArray::initialize_length(int len) {
 }
 
 int PropertyArray::synchronized_length() const {
-  Object* value_obj = ACQUIRE_READ_FIELD(this, kLengthAndHashOffset);
+  Object value_obj = ACQUIRE_READ_FIELD(this, kLengthAndHashOffset);
   int value = Smi::ToInt(value_obj);
   return LengthField::decode(value);
 }
 
 int PropertyArray::Hash() const {
-  Object* value_obj = READ_FIELD(this, kLengthAndHashOffset);
+  Object value_obj = READ_FIELD(this, kLengthAndHashOffset);
   int value = Smi::ToInt(value_obj);
   return HashField::decode(value);
 }
 
 void PropertyArray::SetHash(int hash) {
-  Object* value_obj = READ_FIELD(this, kLengthAndHashOffset);
+  Object value_obj = READ_FIELD(this, kLengthAndHashOffset);
   int value = Smi::ToInt(value_obj);
   value = HashField::update(value, hash);
   WRITE_FIELD(this, kLengthAndHashOffset, Smi::FromInt(value));

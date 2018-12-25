@@ -17,7 +17,7 @@ void CodeStatistics::RecordCodeAndMetadataStatistics(HeapObject object,
   if (object->IsScript()) {
     Script script = Script::cast(object);
     // Log the size of external source code.
-    Object* source = script->source();
+    Object source = script->source();
     if (source->IsExternalString()) {
       ExternalString external_source_string = ExternalString::cast(source);
       int size = isolate->external_script_source_size();

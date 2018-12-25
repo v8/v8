@@ -87,7 +87,7 @@ JSWeakCell JSWeakFactory::PopClearedCell(Isolate* isolate) {
 
 void JSWeakCell::Nullify(
     Isolate* isolate,
-    std::function<void(HeapObject object, ObjectSlot slot, Object* target)>
+    std::function<void(HeapObject object, ObjectSlot slot, Object target)>
         gc_notify_updated_slot) {
   DCHECK(target()->IsJSReceiver());
   set_target(ReadOnlyRoots(isolate).undefined_value());
@@ -116,7 +116,7 @@ void JSWeakCell::Nullify(
   }
 
   set_prev(ReadOnlyRoots(isolate).undefined_value());
-  Object* cleared_head = weak_factory->cleared_cells();
+  Object cleared_head = weak_factory->cleared_cells();
   if (cleared_head->IsJSWeakCell()) {
     JSWeakCell cleared_head_cell = JSWeakCell::cast(cleared_head);
     cleared_head_cell->set_prev(*this);

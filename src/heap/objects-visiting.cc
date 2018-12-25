@@ -25,9 +25,9 @@ template <class T>
 struct WeakListVisitor;
 
 template <class T>
-Object* VisitWeakList(Heap* heap, Object* list, WeakObjectRetainer* retainer) {
-  Object* undefined = ReadOnlyRoots(heap).undefined_value();
-  Object* head = undefined;
+Object VisitWeakList(Heap* heap, Object list, WeakObjectRetainer* retainer) {
+  Object undefined = ReadOnlyRoots(heap).undefined_value();
+  Object head = undefined;
   T tail;
   bool record_slots = MustRecordSlots(heap);
 
@@ -35,12 +35,12 @@ Object* VisitWeakList(Heap* heap, Object* list, WeakObjectRetainer* retainer) {
     // Check whether to keep the candidate in the list.
     T candidate = T::cast(list);
 
-    Object* retained = retainer->RetainAs(list);
+    Object retained = retainer->RetainAs(list);
 
     // Move to the next element before the WeakNext is cleared.
     list = WeakListVisitor<T>::WeakNext(candidate);
 
-    if (retained != nullptr) {
+    if (retained != Object()) {
       if (head == undefined) {
         // First element in the list.
         head = retained;
@@ -75,8 +75,8 @@ Object* VisitWeakList(Heap* heap, Object* list, WeakObjectRetainer* retainer) {
 }
 
 template <class T>
-static void ClearWeakList(Heap* heap, Object* list) {
-  Object* undefined = ReadOnlyRoots(heap).undefined_value();
+static void ClearWeakList(Heap* heap, Object list) {
+  Object undefined = ReadOnlyRoots(heap).undefined_value();
   while (list != undefined) {
     T candidate = T::cast(list);
     list = WeakListVisitor<T>::WeakNext(candidate);
@@ -86,12 +86,12 @@ static void ClearWeakList(Heap* heap, Object* list) {
 
 template <>
 struct WeakListVisitor<Code> {
-  static void SetWeakNext(Code code, Object* next) {
+  static void SetWeakNext(Code code, Object next) {
     code->code_data_container()->set_next_code_link(next,
                                                     UPDATE_WEAK_WRITE_BARRIER);
   }
 
-  static Object* WeakNext(Code code) {
+  static Object WeakNext(Code code) {
     return code->code_data_container()->next_code_link();
   }
 
@@ -113,11 +113,11 @@ struct WeakListVisitor<Code> {
 
 template <>
 struct WeakListVisitor<Context> {
-  static void SetWeakNext(Context context, Object* next) {
+  static void SetWeakNext(Context context, Object next) {
     context->set(Context::NEXT_CONTEXT_LINK, next, UPDATE_WEAK_WRITE_BARRIER);
   }
 
-  static Object* WeakNext(Context context) {
+  static Object WeakNext(Context context) {
     return context->next_context_link();
   }
 
@@ -148,7 +148,7 @@ struct WeakListVisitor<Context> {
   static void DoWeakList(Heap* heap, Context context,
                          WeakObjectRetainer* retainer, int index) {
     // Visit the weak list, removing dead intermediate elements.
-    Object* list_head = VisitWeakList<T>(heap, context->get(index), retainer);
+    Object list_head = VisitWeakList<T>(heap, context->get(index), retainer);
 
     // Update the list head.
     context->set(index, list_head, UPDATE_WRITE_BARRIER);
@@ -170,11 +170,11 @@ struct WeakListVisitor<Context> {
 
 template <>
 struct WeakListVisitor<AllocationSite> {
-  static void SetWeakNext(AllocationSite obj, Object* next) {
+  static void SetWeakNext(AllocationSite obj, Object next) {
     obj->set_weak_next(next, UPDATE_WEAK_WRITE_BARRIER);
   }
 
-  static Object* WeakNext(AllocationSite obj) { return obj->weak_next(); }
+  static Object WeakNext(AllocationSite obj) { return obj->weak_next(); }
 
   static HeapObject WeakNextHolder(AllocationSite obj) { return obj; }
 
@@ -185,10 +185,10 @@ struct WeakListVisitor<AllocationSite> {
   static void VisitPhantomObject(Heap*, AllocationSite) {}
 };
 
-template Object* VisitWeakList<Context>(Heap* heap, Object* list,
-                                        WeakObjectRetainer* retainer);
+template Object VisitWeakList<Context>(Heap* heap, Object list,
+                                       WeakObjectRetainer* retainer);
 
-template Object* VisitWeakList<AllocationSite>(Heap* heap, Object* list,
-                                               WeakObjectRetainer* retainer);
+template Object VisitWeakList<AllocationSite>(Heap* heap, Object list,
+                                              WeakObjectRetainer* retainer);
 }  // namespace internal
 }  // namespace v8

@@ -30,7 +30,7 @@ class RelocInfo;
   } while (false)
 
 // Combined write barriers.
-void WriteBarrierForCode(Code host, RelocInfo* rinfo, Object* value);
+void WriteBarrierForCode(Code host, RelocInfo* rinfo, Object value);
 void WriteBarrierForCode(Code host);
 
 // Generational write barrier.
@@ -38,8 +38,8 @@ void WriteBarrierForCode(Code host);
 // to keep the WRITE_BARRIER macro syntax-compatible to the old HeapObject*
 // version.
 // TODO(3770): This should probably take a HeapObject eventually.
-void GenerationalBarrier(HeapObject* object, ObjectSlot slot, Object* value);
-void GenerationalBarrier(HeapObject object, ObjectSlot slot, Object* value);
+void GenerationalBarrier(HeapObject* object, ObjectSlot slot, Object value);
+void GenerationalBarrier(HeapObject object, ObjectSlot slot, Object value);
 void GenerationalBarrier(HeapObject* object, MaybeObjectSlot slot,
                          MaybeObject value);
 void GenerationalBarrierForElements(Heap* heap, FixedArray array, int offset,
@@ -51,8 +51,8 @@ void GenerationalBarrierForCode(Code host, RelocInfo* rinfo, HeapObject object);
 // to keep the WRITE_BARRIER macro syntax-compatible to the old HeapObject*
 // version.
 // TODO(3770): This should probably take a HeapObject eventually.
-void MarkingBarrier(HeapObject* object, ObjectSlot slot, Object* value);
-void MarkingBarrier(HeapObject object, ObjectSlot slot, Object* value);
+void MarkingBarrier(HeapObject* object, ObjectSlot slot, Object value);
+void MarkingBarrier(HeapObject object, ObjectSlot slot, Object value);
 void MarkingBarrier(HeapObject* object, MaybeObjectSlot slot,
                     MaybeObject value);
 void MarkingBarrierForElements(Heap* heap, HeapObject object);

@@ -32,7 +32,8 @@ PartialSerializer::~PartialSerializer() {
 void PartialSerializer::Serialize(Context* o, bool include_global_proxy) {
   context_ = *o;
   DCHECK(context_->IsNativeContext());
-  reference_map()->AddAttachedReference(context_->global_proxy());
+  reference_map()->AddAttachedReference(
+      reinterpret_cast<void*>(context_->global_proxy()->ptr()));
   // The bootstrap snapshot has a code-stub context. When serializing the
   // partial snapshot, it is chained into the weak context list on the isolate
   // and it's next context pointer may point to the code-stub context.  Clear
@@ -142,7 +143,7 @@ bool DataIsEmpty(const StartupData& data) { return data.raw_size == 0; }
 }  // anonymous namespace
 
 bool PartialSerializer::SerializeJSObjectWithEmbedderFields(
-    Object* obj, HowToCode how_to_code, WhereToPoint where_to_point) {
+    Object obj, HowToCode how_to_code, WhereToPoint where_to_point) {
   if (!obj->IsJSObject()) return false;
   JSObject js_obj = JSObject::cast(obj);
   int embedder_fields_count = js_obj->GetEmbedderFieldCount();
@@ -169,7 +170,7 @@ bool PartialSerializer::SerializeJSObjectWithEmbedderFields(
   for (int i = 0; i < embedder_fields_count; i++) {
     EmbedderDataSlot embedder_data_slot(js_obj, i);
     original_embedder_values.emplace_back(embedder_data_slot.load_raw(no_gc));
-    Object* object = embedder_data_slot.load_tagged();
+    Object object = embedder_data_slot.load_tagged();
     if (object->IsHeapObject()) {
       DCHECK(isolate()->heap()->Contains(HeapObject::cast(object)));
       serialized_data.push_back({nullptr, 0});
@@ -197,7 +198,8 @@ bool PartialSerializer::SerializeJSObjectWithEmbedderFields(
       .Serialize();
 
   // 4) Obtain back reference for the serialized object.
-  SerializerReference reference = reference_map()->LookupReference(js_obj);
+  SerializerReference reference =
+      reference_map()->LookupReference(reinterpret_cast<void*>(js_obj->ptr()));
   DCHECK(reference.is_back_reference());
 
   // 5) Write data returned by the embedder callbacks into a separate sink,

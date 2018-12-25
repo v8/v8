@@ -32,7 +32,7 @@ class PartialSerializer : public Serializer {
 
   bool ShouldBeInThePartialSnapshotCache(HeapObject o);
 
-  bool SerializeJSObjectWithEmbedderFields(Object* obj, HowToCode how_to_code,
+  bool SerializeJSObjectWithEmbedderFields(Object obj, HowToCode how_to_code,
                                            WhereToPoint where_to_point);
 
   void CheckRehashability(HeapObject obj);

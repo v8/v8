@@ -64,7 +64,7 @@ bool DebugInfo::CanBreakAtEntry() const {
 bool DebugInfo::HasBreakPoint(Isolate* isolate, int source_position) {
   DCHECK(HasBreakInfo());
   // Get the break point info object for this code offset.
-  Object* break_point_info = GetBreakPointInfo(isolate, source_position);
+  Object break_point_info = GetBreakPointInfo(isolate, source_position);
 
   // If there is no break point info object or no break points in the break
   // point info object there is no break point at this code offset.
@@ -74,7 +74,7 @@ bool DebugInfo::HasBreakPoint(Isolate* isolate, int source_position) {
 }
 
 // Get the break point info object for this source position.
-Object* DebugInfo::GetBreakPointInfo(Isolate* isolate, int source_position) {
+Object DebugInfo::GetBreakPointInfo(Isolate* isolate, int source_position) {
   DCHECK(HasBreakInfo());
   for (int i = 0; i < break_points()->length(); i++) {
     if (!break_points()->get(i)->IsUndefined(isolate)) {
@@ -152,7 +152,7 @@ void DebugInfo::SetBreakPoint(Isolate* isolate, Handle<DebugInfo> debug_info,
 Handle<Object> DebugInfo::GetBreakPoints(Isolate* isolate,
                                          int source_position) {
   DCHECK(HasBreakInfo());
-  Object* break_point_info = GetBreakPointInfo(isolate, source_position);
+  Object break_point_info = GetBreakPointInfo(isolate, source_position);
   if (break_point_info->IsUndefined(isolate)) {
     return isolate->factory()->undefined_value();
   }

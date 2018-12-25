@@ -123,7 +123,7 @@ AllocationResult Heap::AllocateMap(InstanceType instance_type,
 
 AllocationResult Heap::AllocatePartialMap(InstanceType instance_type,
                                           int instance_size) {
-  Object* result = nullptr;
+  Object result;
   AllocationResult allocation = AllocateRaw(Map::kSize, RO_SPACE);
   if (!allocation.To(&result)) return allocation;
   // Map::cast cannot be used due to uninitialized map field.
@@ -299,7 +299,7 @@ bool Heap::CreateInitialMaps() {
     const StructTable& entry = struct_table[i];
     Map map;
     if (!AllocatePartialMap(entry.type, entry.size).To(&map)) return false;
-    roots_table()[entry.index] = map;
+    roots_table()[entry.index] = map->ptr();
   }
 
   // Allocate the empty enum cache.
@@ -336,7 +336,7 @@ bool Heap::CreateInitialMaps() {
   FinalizePartialMap(roots.the_hole_map());
   for (unsigned i = 0; i < arraysize(struct_table); ++i) {
     const StructTable& entry = struct_table[i];
-    FinalizePartialMap(Map::cast(roots_table()[entry.index]));
+    FinalizePartialMap(Map::cast(Object(roots_table()[entry.index])));
   }
 
   {  // Map allocation
@@ -388,7 +388,7 @@ bool Heap::CreateInitialMaps() {
       // Mark cons string maps as unstable, because their objects can change
       // maps during GC.
       if (StringShape(entry.type).IsCons()) map->mark_unstable();
-      roots_table()[entry.index] = map;
+      roots_table()[entry.index] = map->ptr();
     }
 
     {  // Create a separate external one byte string map for native sources.
@@ -648,7 +648,7 @@ void Heap::CreateInitialObjects() {
   for (unsigned i = 0; i < arraysize(constant_string_table); i++) {
     Handle<String> str =
         factory->InternalizeUtf8String(constant_string_table[i].contents);
-    roots_table()[constant_string_table[i].index] = *str;
+    roots_table()[constant_string_table[i].index] = str->ptr();
   }
 
   // Allocate
@@ -716,7 +716,7 @@ void Heap::CreateInitialObjects() {
   {                                                                 \
     Handle<Symbol> symbol(                                          \
         isolate()->factory()->NewPrivateSymbol(TENURED_READ_ONLY)); \
-    roots_table()[RootIndex::k##name] = *symbol;                    \
+    roots_table()[RootIndex::k##name] = symbol->ptr();              \
   }
     PRIVATE_SYMBOL_LIST_GENERATOR(SYMBOL_INIT, /* not used */)
 #undef SYMBOL_INIT
@@ -728,7 +728,7 @@ void Heap::CreateInitialObjects() {
   Handle<Symbol> name = factory->NewSymbol(TENURED_READ_ONLY);           \
   Handle<String> name##d = factory->InternalizeUtf8String(#description); \
   name->set_name(*name##d);                                              \
-  roots_table()[RootIndex::k##name] = *name;
+  roots_table()[RootIndex::k##name] = name->ptr();
     PUBLIC_SYMBOL_LIST_GENERATOR(SYMBOL_INIT, /* not used */)
 #undef SYMBOL_INIT
 
@@ -737,7 +737,7 @@ void Heap::CreateInitialObjects() {
   Handle<String> name##d = factory->InternalizeUtf8String(#description); \
   name->set_is_well_known_symbol(true);                                  \
   name->set_name(*name##d);                                              \
-  roots_table()[RootIndex::k##name] = *name;
+  roots_table()[RootIndex::k##name] = name->ptr();
     WELL_KNOWN_SYMBOL_LIST_GENERATOR(SYMBOL_INIT, /* not used */)
 #undef SYMBOL_INIT
 
@@ -927,19 +927,21 @@ void Heap::CreateInitialObjects() {
 void Heap::CreateInternalAccessorInfoObjects() {
   Isolate* isolate = this->isolate();
   HandleScope scope(isolate);
-  Handle<AccessorInfo> acessor_info;
+  Handle<AccessorInfo> accessor_info;
 
 #define INIT_ACCESSOR_INFO(_, accessor_name, AccessorName, ...) \
-  acessor_info = Accessors::Make##AccessorName##Info(isolate);  \
-  roots_table()[RootIndex::k##AccessorName##Accessor] = *acessor_info;
+  accessor_info = Accessors::Make##AccessorName##Info(isolate); \
+  roots_table()[RootIndex::k##AccessorName##Accessor] = accessor_info->ptr();
   ACCESSOR_INFO_LIST_GENERATOR(INIT_ACCESSOR_INFO, /* not used */)
 #undef INIT_ACCESSOR_INFO
 
 #define INIT_SIDE_EFFECT_FLAG(_, accessor_name, AccessorName, GetterType, \
                               SetterType)                                 \
-  AccessorInfo::cast(roots_table()[RootIndex::k##AccessorName##Accessor]) \
+  AccessorInfo::cast(                                                     \
+      Object(roots_table()[RootIndex::k##AccessorName##Accessor]))        \
       ->set_getter_side_effect_type(SideEffectType::GetterType);          \
-  AccessorInfo::cast(roots_table()[RootIndex::k##AccessorName##Accessor]) \
+  AccessorInfo::cast(                                                     \
+      Object(roots_table()[RootIndex::k##AccessorName##Accessor]))        \
       ->set_setter_side_effect_type(SideEffectType::SetterType);
   ACCESSOR_INFO_LIST_GENERATOR(INIT_SIDE_EFFECT_FLAG, /* not used */)
 #undef INIT_SIDE_EFFECT_FLAG

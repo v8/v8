@@ -297,7 +297,7 @@ Handle<PropertyArray> Factory::NewPropertyArray(int length,
 }
 
 Handle<FixedArray> Factory::NewFixedArrayWithFiller(RootIndex map_root_index,
-                                                    int length, Object* filler,
+                                                    int length, Object filler,
                                                     PretenureFlag pretenure) {
   HeapObject result = AllocateRawFixedArray(length, pretenure);
   DCHECK(RootsTable::IsImmortalImmovable(map_root_index));
@@ -818,8 +818,9 @@ Handle<SeqOneByteString> Factory::AllocateRawOneByteInternalizedString(
     int length, uint32_t hash_field) {
   CHECK_GE(String::kMaxLength, length);
   // The canonical empty_string is the only zero-length string we allow.
-  DCHECK_IMPLIES(length == 0,
-                 isolate()->roots_table()[RootIndex::kempty_string] == nullptr);
+  DCHECK_IMPLIES(
+      length == 0,
+      isolate()->roots_table()[RootIndex::kempty_string] == kNullAddress);
 
   Map map = *one_byte_internalized_string_map();
   int size = SeqOneByteString::SizeFor(length);
@@ -1033,7 +1034,7 @@ Handle<String> Factory::LookupSingleCharacterStringFromCode(uint32_t code) {
   if (code <= String::kMaxOneByteCharCodeU) {
     {
       DisallowHeapAllocation no_allocation;
-      Object* value = single_character_string_cache()->get(code);
+      Object value = single_character_string_cache()->get(code);
       if (value != *undefined_value()) {
         return handle(String::cast(value), isolate());
       }
@@ -3022,7 +3023,7 @@ void Factory::InitializeJSObjectBody(Handle<JSObject> obj, Handle<Map> map,
   // In case of Array subclassing the |map| could already be transitioned
   // to different elements kind from the initial map on which we track slack.
   bool in_progress = map->IsInobjectSlackTrackingInProgress();
-  Object* filler;
+  Object filler;
   if (in_progress) {
     filler = *one_pointer_filler_map();
   } else {
@@ -3718,9 +3719,9 @@ Handle<String> Factory::NumberToStringCacheSet(Handle<Object> number, int hash,
   return js_string;
 }
 
-Handle<Object> Factory::NumberToStringCacheGet(Object* number, int hash) {
+Handle<Object> Factory::NumberToStringCacheGet(Object number, int hash) {
   DisallowHeapAllocation no_gc;
-  Object* key = number_string_cache()->get(hash * 2);
+  Object key = number_string_cache()->get(hash * 2);
   if (key == number || (key->IsHeapNumber() && number->IsHeapNumber() &&
                         key->Number() == number->Number())) {
     return Handle<String>(
@@ -4245,7 +4246,7 @@ Handle<CallHandlerInfo> Factory::NewCallHandlerInfo(bool has_no_side_effect) {
                         : side_effect_call_handler_info_map();
   Handle<CallHandlerInfo> info(CallHandlerInfo::cast(New(map, TENURED)),
                                isolate());
-  Object* undefined_value = ReadOnlyRoots(isolate()).undefined_value();
+  Object undefined_value = ReadOnlyRoots(isolate()).undefined_value();
   info->set_callback(undefined_value);
   info->set_js_callback(undefined_value);
   info->set_data(undefined_value);

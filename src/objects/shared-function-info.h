@@ -32,8 +32,8 @@ class PreParsedScopeData : public HeapObject {
   DECL_ACCESSORS2(scope_data, PodArray<uint8_t>)
   DECL_INT_ACCESSORS(length)
 
-  inline Object* child_data(int index) const;
-  inline void set_child_data(int index, Object* value,
+  inline Object child_data(int index) const;
+  inline void set_child_data(int index, Object value,
                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   inline ObjectSlot child_data_start() const;
@@ -396,8 +396,8 @@ class SharedFunctionInfo : public HeapObject {
   //  - a DebugInfo which holds the actual script [HasDebugInfo()].
   DECL_ACCESSORS(script_or_debug_info, Object)
 
-  inline Object* script() const;
-  inline void set_script(Object* script);
+  inline Object script() const;
+  inline void set_script(Object script);
 
   // The function is subject to debugging if a debug info is attached.
   inline bool HasDebugInfo() const;

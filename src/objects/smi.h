@@ -41,8 +41,7 @@ class Smi : public ObjectPtr {
   }
 
   // Convert a Smi object to an int.
-  static inline int ToInt(const Object* object);
-  static inline int ToInt(ObjectPtr object);
+  static inline int ToInt(const Object object);
 
   // TODO(3770): Drop this when merging Object and ObjectPtr.
   bool ToInt32(int32_t* value) {

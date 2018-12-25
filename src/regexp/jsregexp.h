@@ -1505,10 +1505,10 @@ class RegExpEngine: public AllStatic {
  public:
   struct CompilationResult {
     inline CompilationResult(Isolate* isolate, const char* error_message);
-    CompilationResult(Object* code, int registers)
+    CompilationResult(Object code, int registers)
         : code(code), num_registers(registers) {}
     const char* const error_message = nullptr;
-    Object* const code;
+    Object const code;
     int const num_registers = 0;
   };
 
@@ -1531,8 +1531,8 @@ class RegExpResultsCache : public AllStatic {
 
   // Attempt to retrieve a cached result.  On failure, 0 is returned as a Smi.
   // On success, the returned result is guaranteed to be a COW-array.
-  static Object* Lookup(Heap* heap, String key_string, Object* key_pattern,
-                        FixedArray* last_match_out, ResultsCacheType type);
+  static Object Lookup(Heap* heap, String key_string, Object key_pattern,
+                       FixedArray* last_match_out, ResultsCacheType type);
   // Attempt to add value_array to the cache specified by type.  On success,
   // value_array is turned into a COW-array.
   static void Enter(Isolate* isolate, Handle<String> key_string,

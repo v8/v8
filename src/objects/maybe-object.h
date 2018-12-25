@@ -78,19 +78,10 @@ class MaybeObject {
 
   // DCHECKs that this MaybeObject is a strong or a weak pointer to a HeapObject
   // or a SMI and returns the HeapObject or SMI.
-  inline Object* GetHeapObjectOrSmi() const;
+  inline Object GetHeapObjectOrSmi() const;
 
   inline bool IsObject() const;
-  template <typename T, typename = typename std::enable_if<
-                            std::is_base_of<Object, T>::value>::type>
-  T* cast() const {
-    DCHECK(!HasWeakHeapObjectTag(ptr_));
-    return T::cast(reinterpret_cast<Object*>(ptr_));
-  }
-  // Replacement for the above, temporarily separate for incremental transition.
-  // TODO(3770): Get rid of the duplication.
-  template <typename T, typename = typename std::enable_if<
-                            std::is_base_of<ObjectPtr, T>::value>::type>
+  template <typename T>
   T cast() const {
     DCHECK(!HasWeakHeapObjectTag(ptr_));
     return T::cast(ObjectPtr(ptr_));
@@ -99,11 +90,6 @@ class MaybeObject {
   static MaybeObject FromSmi(Smi smi) {
     DCHECK(HAS_SMI_TAG(smi->ptr()));
     return MaybeObject(smi->ptr());
-  }
-
-  static MaybeObject FromObject(Object* object) {
-    DCHECK(!HasWeakHeapObjectTag(object));
-    return MaybeObject(object->ptr());
   }
 
   static MaybeObject FromObject(ObjectPtr object) {
@@ -142,15 +128,15 @@ class MaybeObject {
 class HeapObjectReference : public MaybeObject {
  public:
   explicit HeapObjectReference(Address address) : MaybeObject(address) {}
-  explicit HeapObjectReference(Object* object) : MaybeObject(object->ptr()) {}
+  explicit HeapObjectReference(Object object) : MaybeObject(object->ptr()) {}
 
-  static HeapObjectReference Strong(Object* object) {
+  static HeapObjectReference Strong(Object object) {
     DCHECK(!object->IsSmi());
     DCHECK(!HasWeakHeapObjectTag(object));
     return HeapObjectReference(object);
   }
 
-  static HeapObjectReference Weak(Object* object) {
+  static HeapObjectReference Weak(Object object) {
     DCHECK(!object->IsSmi());
     DCHECK(!HasWeakHeapObjectTag(object));
     return HeapObjectReference(object->ptr() | kWeakHeapObjectMask);

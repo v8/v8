@@ -28,9 +28,12 @@ class V8_EXPORT_PRIVATE MicrotaskQueue {
 
   ~MicrotaskQueue();
 
-  static Object* CallEnqueueMicrotask(Isolate* isolate,
+  // Uses raw Address values because it's called via ExternalReference.
+  // {raw_microtask} is a tagged Microtask pointer.
+  // Returns a tagged Object pointer.
+  static Address CallEnqueueMicrotask(Isolate* isolate,
                                       intptr_t microtask_queue_pointer,
-                                      Microtask microtask);
+                                      Address raw_microtask);
 
   void EnqueueMicrotask(Microtask microtask);
 

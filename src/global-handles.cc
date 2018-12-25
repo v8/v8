@@ -280,7 +280,7 @@ class GlobalHandles::Node {
     }
 
     // Zap with something dangerous.
-    location().store(reinterpret_cast<Object*>(0x6057CA11));
+    location().store(Object(0x6057CA11));
 
     pending_phantom_callbacks->push_back(PendingPhantomCallback(
         this, weak_callback_, parameter(), embedder_fields));
@@ -541,10 +541,6 @@ Handle<Object> GlobalHandles::Create(ObjectPtr value) {
     result->set_in_new_space_list(true);
   }
   return result->handle();
-}
-
-Handle<Object> GlobalHandles::Create(Object* value) {
-  return Create(ObjectPtr(reinterpret_cast<Address>(value)));
 }
 
 Handle<Object> GlobalHandles::Create(Address value) {
@@ -1119,11 +1115,10 @@ void EternalHandles::PostGarbageCollectionProcessing() {
   new_space_indices_.resize(last);
 }
 
-
-void EternalHandles::Create(Isolate* isolate, Object* object, int* index) {
+void EternalHandles::Create(Isolate* isolate, Object object, int* index) {
   DCHECK_EQ(kInvalidIndex, *index);
-  if (object == nullptr) return;
-  Object* the_hole = ReadOnlyRoots(isolate).the_hole_value();
+  if (object == Object()) return;
+  Object the_hole = ReadOnlyRoots(isolate).the_hole_value();
   DCHECK_NE(the_hole, object);
   int block = size_ >> kShift;
   int offset = size_ & kMask;
@@ -1140,7 +1135,6 @@ void EternalHandles::Create(Isolate* isolate, Object* object, int* index) {
   }
   *index = size_++;
 }
-
 
 }  // namespace internal
 }  // namespace v8

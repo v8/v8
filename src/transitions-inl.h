@@ -34,7 +34,7 @@ bool TransitionArray::HasPrototypeTransitions() {
 
 WeakFixedArray TransitionArray::GetPrototypeTransitions() {
   DCHECK(HasPrototypeTransitions());  // Callers must check first.
-  Object* prototype_transitions =
+  Object prototype_transitions =
       Get(kPrototypeTransitionsIndex)->GetHeapObjectAssumeStrong();
   return WeakFixedArray::cast(prototype_transitions);
 }

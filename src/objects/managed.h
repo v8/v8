@@ -58,7 +58,7 @@ class Managed : public Foreign {
   // Get a copy of the shared pointer to the C++ object.
   V8_INLINE std::shared_ptr<CppType> get() { return *GetSharedPtrPtr(); }
 
-  static Managed cast(Object* obj) { return Managed(obj->ptr()); }
+  static Managed cast(Object obj) { return Managed(obj->ptr()); }
   static Managed unchecked_cast(ObjectPtr obj) {
     return bit_cast<Managed>(obj);
   }

@@ -112,29 +112,29 @@ bool HeapObject::IsExternal(Isolate* isolate) const {
   return map()->FindRootMap(isolate) == isolate->heap()->external_map();
 }
 
-#define IS_TYPE_FUNCTION_DEF(type_)                               \
-  bool Object::Is##type_() const {                                \
-    return IsHeapObject() && HeapObject::cast(this)->Is##type_(); \
+#define IS_TYPE_FUNCTION_DEF(type_)                                \
+  bool Object::Is##type_() const {                                 \
+    return IsHeapObject() && HeapObject::cast(*this)->Is##type_(); \
   }
 HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DEF)
 #undef IS_TYPE_FUNCTION_DEF
 
-#define IS_TYPE_FUNCTION_DEF(Type, Value)                        \
-  bool Object::Is##Type(Isolate* isolate) const {                \
-    return Is##Type(ReadOnlyRoots(isolate->heap()));             \
-  }                                                              \
-  bool Object::Is##Type(ReadOnlyRoots roots) const {             \
-    return this == roots.Value();                                \
-  }                                                              \
-  bool Object::Is##Type() const {                                \
-    return IsHeapObject() && HeapObject::cast(this)->Is##Type(); \
-  }                                                              \
-  bool HeapObject::Is##Type(Isolate* isolate) const {            \
-    return reinterpret_cast<Object*>(ptr())->Is##Type(isolate);  \
-  }                                                              \
-  bool HeapObject::Is##Type(ReadOnlyRoots roots) const {         \
-    return reinterpret_cast<Object*>(ptr())->Is##Type(roots);    \
-  }                                                              \
+#define IS_TYPE_FUNCTION_DEF(Type, Value)                         \
+  bool Object::Is##Type(Isolate* isolate) const {                 \
+    return Is##Type(ReadOnlyRoots(isolate->heap()));              \
+  }                                                               \
+  bool Object::Is##Type(ReadOnlyRoots roots) const {              \
+    return *this == roots.Value();                                \
+  }                                                               \
+  bool Object::Is##Type() const {                                 \
+    return IsHeapObject() && HeapObject::cast(*this)->Is##Type(); \
+  }                                                               \
+  bool HeapObject::Is##Type(Isolate* isolate) const {             \
+    return Object::Is##Type(isolate);                             \
+  }                                                               \
+  bool HeapObject::Is##Type(ReadOnlyRoots roots) const {          \
+    return Object::Is##Type(roots);                               \
+  }                                                               \
   bool HeapObject::Is##Type() const { return Is##Type(GetReadOnlyRoots()); }
 ODDBALL_LIST(IS_TYPE_FUNCTION_DEF)
 #undef IS_TYPE_FUNCTION_DEF
@@ -148,15 +148,15 @@ bool Object::IsNullOrUndefined(ReadOnlyRoots roots) const {
 }
 
 bool Object::IsNullOrUndefined() const {
-  return IsHeapObject() && HeapObject::cast(this)->IsNullOrUndefined();
+  return IsHeapObject() && HeapObject::cast(*this)->IsNullOrUndefined();
 }
 
 bool HeapObject::IsNullOrUndefined(Isolate* isolate) const {
-  return reinterpret_cast<Object*>(ptr())->IsNullOrUndefined(isolate);
+  return Object::IsNullOrUndefined(isolate);
 }
 
 bool HeapObject::IsNullOrUndefined(ReadOnlyRoots roots) const {
-  return reinterpret_cast<Object*>(ptr())->IsNullOrUndefined(roots);
+  return Object::IsNullOrUndefined(roots);
 }
 
 bool HeapObject::IsNullOrUndefined() const {
@@ -353,13 +353,15 @@ bool HeapObject::IsMapCache() const { return IsHashTable(); }
 
 bool HeapObject::IsObjectHashTable() const { return IsHashTable(); }
 
+bool Object::IsHashTableBase() const { return IsHashTable(); }
+
 bool Object::IsSmallOrderedHashTable() const {
   return IsSmallOrderedHashSet() || IsSmallOrderedHashMap() ||
          IsSmallOrderedNameDictionary();
 }
 
 bool Object::IsPrimitive() const {
-  return IsSmi() || HeapObject::cast(this)->map()->IsPrimitiveMap();
+  return IsSmi() || HeapObject::cast(*this)->map()->IsPrimitiveMap();
 }
 
 // static
@@ -406,10 +408,10 @@ bool HeapObject::IsStruct() const {
   }
 }
 
-#define MAKE_STRUCT_PREDICATE(NAME, Name, name)                  \
-  bool Object::Is##Name() const {                                \
-    return IsHeapObject() && HeapObject::cast(this)->Is##Name(); \
-  }                                                              \
+#define MAKE_STRUCT_PREDICATE(NAME, Name, name)                   \
+  bool Object::Is##Name() const {                                 \
+    return IsHeapObject() && HeapObject::cast(*this)->Is##Name(); \
+  }                                                               \
   TYPE_CHECKER(Name)
 STRUCT_LIST(MAKE_STRUCT_PREDICATE)
 #undef MAKE_STRUCT_PREDICATE
@@ -417,16 +419,16 @@ STRUCT_LIST(MAKE_STRUCT_PREDICATE)
 double Object::Number() const {
   DCHECK(IsNumber());
   return IsSmi() ? static_cast<double>(Smi(this->ptr())->value())
-                 : HeapNumber::unchecked_cast(this)->value();
+                 : HeapNumber::unchecked_cast(*this)->value();
 }
 
 bool Object::IsNaN() const {
-  return this->IsHeapNumber() && std::isnan(HeapNumber::cast(this)->value());
+  return this->IsHeapNumber() && std::isnan(HeapNumber::cast(*this)->value());
 }
 
 bool Object::IsMinusZero() const {
   return this->IsHeapNumber() &&
-         i::IsMinusZero(HeapNumber::cast(this)->value());
+         i::IsMinusZero(HeapNumber::cast(*this)->value());
 }
 
 OBJECT_CONSTRUCTORS_IMPL(HeapObject, ObjectPtr)
@@ -478,7 +480,7 @@ CAST_ACCESSOR2(ObjectBoilerplateDescription)
 CAST_ACCESSOR2(EphemeronHashTable)
 CAST_ACCESSOR2(HeapObject)
 CAST_ACCESSOR2(NormalizedMapCache)
-CAST_ACCESSOR(Object)
+CAST_ACCESSOR2(Object)
 CAST_ACCESSOR2(ObjectHashSet)
 CAST_ACCESSOR2(ObjectHashTable)
 CAST_ACCESSOR2(RegExpMatchInfo)
@@ -490,11 +492,11 @@ bool Object::HasValidElements() {
   return IsFixedArray() || IsFixedDoubleArray() || IsFixedTypedArrayBase();
 }
 
-bool Object::KeyEquals(Object* second) {
-  Object* first = this;
+bool Object::KeyEquals(Object second) {
+  Object first = *this;
   if (second->IsNumber()) {
     if (first->IsNumber()) return first->Number() == second->Number();
-    Object* temp = first;
+    Object temp = first;
     first = second;
     second = temp;
   }
@@ -511,7 +513,7 @@ bool Object::FilterKey(PropertyFilter filter) {
   DCHECK(!IsPropertyCell());
   if (IsSymbol()) {
     if (filter & SKIP_SYMBOLS) return true;
-    if (Symbol::cast(this)->is_private()) return true;
+    if (Symbol::cast(*this)->is_private()) return true;
   } else {
     if (filter & SKIP_STRINGS) return true;
   }
@@ -584,13 +586,13 @@ bool Object::FitsRepresentation(Representation representation) {
 
 bool Object::ToUint32(uint32_t* value) const {
   if (IsSmi()) {
-    int num = Smi::ToInt(this);
+    int num = Smi::ToInt(*this);
     if (num < 0) return false;
     *value = static_cast<uint32_t>(num);
     return true;
   }
   if (IsHeapNumber()) {
-    double num = HeapNumber::cast(this)->value();
+    double num = HeapNumber::cast(*this)->value();
     return DoubleToUint32IfEqualToSelf(num, value);
   }
   return false;
@@ -875,6 +877,20 @@ bool Object::ToArrayIndex(uint32_t* index) const {
   return Object::ToUint32(index) && *index != kMaxUInt32;
 }
 
+bool Object::GetHeapObjectIfStrong(HeapObject* result) const {
+  return GetHeapObject(result);
+}
+
+bool Object::GetHeapObject(HeapObject* result) const {
+  if (!IsHeapObject()) return false;
+  *result = HeapObject::cast(*this);
+  return true;
+}
+
+HeapObject Object::GetHeapObject() const {
+  DCHECK(IsHeapObject());
+  return HeapObject::cast(*this);
+}
 
 void Object::VerifyApiCallResultType() {
 #if DEBUG
@@ -889,7 +905,7 @@ void Object::VerifyApiCallResultType() {
 
 int RegExpMatchInfo::NumberOfCaptureRegisters() {
   DCHECK_GE(length(), kLastMatchOverhead);
-  Object* obj = get(kNumberOfCapturesIndex);
+  Object obj = get(kNumberOfCapturesIndex);
   return Smi::ToInt(obj);
 }
 
@@ -908,19 +924,19 @@ void RegExpMatchInfo::SetLastSubject(String value) {
   set(kLastSubjectIndex, value);
 }
 
-Object* RegExpMatchInfo::LastInput() {
+Object RegExpMatchInfo::LastInput() {
   DCHECK_GE(length(), kLastMatchOverhead);
   return get(kLastInputIndex);
 }
 
-void RegExpMatchInfo::SetLastInput(Object* value) {
+void RegExpMatchInfo::SetLastInput(Object value) {
   DCHECK_GE(length(), kLastMatchOverhead);
   set(kLastInputIndex, value);
 }
 
 int RegExpMatchInfo::Capture(int i) {
   DCHECK_LT(i, NumberOfCaptureRegisters());
-  Object* obj = get(kFirstCaptureIndex + i);
+  Object obj = get(kFirstCaptureIndex + i);
   return Smi::ToInt(obj);
 }
 
@@ -1198,7 +1214,7 @@ MaybeHandle<Object> Object::GetPropertyOrElement(Handle<Object> receiver,
 
 
 // static
-Object* Object::GetSimpleHash(Object* object) {
+Object Object::GetSimpleHash(Object object) {
   DisallowHeapAllocation no_gc;
   if (object->IsSmi()) {
     uint32_t hash = ComputeUnseededHash(Smi::ToInt(object));
@@ -1234,13 +1250,13 @@ Object* Object::GetSimpleHash(Object* object) {
   return object;
 }
 
-Object* Object::GetHash() {
+Object Object::GetHash() {
   DisallowHeapAllocation no_gc;
-  Object* hash = GetSimpleHash(this);
+  Object hash = GetSimpleHash(*this);
   if (hash->IsSmi()) return hash;
 
   DCHECK(IsJSReceiver());
-  JSReceiver receiver = JSReceiver::cast(this);
+  JSReceiver receiver = JSReceiver::cast(*this);
   return receiver->GetIdentityHash();
 }
 
@@ -1262,8 +1278,8 @@ Relocatable::~Relocatable() {
 
 // Predictably converts HeapObject or Address to uint32 by calculating
 // offset of the address in respective MemoryChunk.
-static inline uint32_t ObjectAddressForHashing(void* object) {
-  uint32_t value = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(object));
+static inline uint32_t ObjectAddressForHashing(Address object) {
+  uint32_t value = static_cast<uint32_t>(object);
   return value & MemoryChunk::kAlignmentMask;
 }
 
@@ -1312,7 +1328,7 @@ bool ScopeInfo::HasSimpleParameters() const {
 FOR_EACH_SCOPE_INFO_NUMERIC_FIELD(FIELD_ACCESSORS)
 #undef FIELD_ACCESSORS
 
-FreshlyAllocatedBigInt FreshlyAllocatedBigInt::cast(Object* object) {
+FreshlyAllocatedBigInt FreshlyAllocatedBigInt::cast(Object object) {
   SLOW_DCHECK(object->IsBigInt());
   return FreshlyAllocatedBigInt(object->ptr());
 }

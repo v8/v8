@@ -41,18 +41,16 @@ NativeContext Isolate::raw_native_context() {
   return context()->native_context();
 }
 
-Object* Isolate::pending_exception() {
+Object Isolate::pending_exception() {
   DCHECK(has_pending_exception());
   DCHECK(!thread_local_top_.pending_exception_->IsException(this));
   return thread_local_top_.pending_exception_;
 }
 
-
-void Isolate::set_pending_exception(Object* exception_obj) {
+void Isolate::set_pending_exception(Object exception_obj) {
   DCHECK(!exception_obj->IsException(this));
   thread_local_top_.pending_exception_ = exception_obj;
 }
-
 
 void Isolate::clear_pending_exception() {
   DCHECK(!thread_local_top_.pending_exception_->IsException(this));
@@ -70,13 +68,11 @@ void Isolate::clear_pending_message() {
   thread_local_top_.pending_message_obj_ = ReadOnlyRoots(this).the_hole_value();
 }
 
-
-Object* Isolate::scheduled_exception() {
+Object Isolate::scheduled_exception() {
   DCHECK(has_scheduled_exception());
   DCHECK(!thread_local_top_.scheduled_exception_->IsException(this));
   return thread_local_top_.scheduled_exception_;
 }
-
 
 bool Isolate::has_scheduled_exception() {
   DCHECK(!thread_local_top_.scheduled_exception_->IsException(this));
@@ -90,7 +86,7 @@ void Isolate::clear_scheduled_exception() {
   thread_local_top_.scheduled_exception_ = ReadOnlyRoots(this).the_hole_value();
 }
 
-bool Isolate::is_catchable_by_javascript(Object* exception) {
+bool Isolate::is_catchable_by_javascript(Object exception) {
   return exception != ReadOnlyRoots(heap()).termination_exception();
 }
 

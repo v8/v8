@@ -158,11 +158,11 @@ Handle<Code> BuildSetupFunction(Isolate* isolate,
 // ~~~
 // FixedArray teardown(CodeObject* /* unused  */, FixedArray result,
 //                     // Tagged registers.
-//                     Object* r0, Object* r1, ...,
+//                     Object r0, Object r1, ...,
 //                     // FP registers.
 //                     Float32 s0, Float64 d1, ...,
 //                     // Mixed stack slots.
-//                     Float64 mem0, Object* mem1, Float32 mem2, ...) {
+//                     Float64 mem0, Object mem1, Float32 mem2, ...) {
 //   result[0] = r0;
 //   result[1] = r1;
 //   ...
@@ -399,11 +399,11 @@ class TestEnvironment : public HandleAndZoneScope {
     // ~~~
     // FixedArray f(CodeObject* teardown, FixedArray preallocated_result,
     //              // Tagged registers.
-    //              Object*, Object*, ...,
+    //              Object, Object, ...,
     //              // FP registers.
     //              Float32, Float64, Simd128, ...,
     //              // Mixed stack slots.
-    //              Float64, Object*, Float32, Simd128, ...);
+    //              Float64, Object, Float32, Simd128, ...);
     // ~~~
     LocationSignature::Builder test_signature(
         main_zone(), 1,

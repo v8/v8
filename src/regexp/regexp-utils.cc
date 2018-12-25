@@ -160,7 +160,7 @@ bool RegExpUtils::IsUnmodifiedRegExp(Isolate* isolate, Handle<Object> obj) {
   if (recv->map() != regexp_function->initial_map()) return false;
 
   // Check the receiver's prototype's map.
-  Object* proto = recv->map()->prototype();
+  Object proto = recv->map()->prototype();
   if (!proto->IsJSReceiver()) return false;
 
   Handle<Map> initial_proto_initial_map = isolate->regexp_prototype_map();
@@ -187,7 +187,7 @@ bool RegExpUtils::IsUnmodifiedRegExp(Isolate* isolate, Handle<Object> obj) {
 
   // The smi check is required to omit ToLength(lastIndex) calls with possible
   // user-code execution on the fast path.
-  Object* last_index = JSRegExp::cast(recv)->last_index();
+  Object last_index = JSRegExp::cast(recv)->last_index();
   return last_index->IsSmi() && Smi::ToInt(last_index) >= 0;
 }
 

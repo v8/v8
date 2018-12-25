@@ -77,8 +77,8 @@ class AccessorPair : public Struct {
 
   static Handle<AccessorPair> Copy(Isolate* isolate, Handle<AccessorPair> pair);
 
-  inline Object* get(AccessorComponent component);
-  inline void set(AccessorComponent component, Object* value);
+  inline Object get(AccessorComponent component);
+  inline void set(AccessorComponent component, Object value);
 
   // Note: Returns undefined if the component is not set.
   static Handle<Object> GetComponent(Isolate* isolate,
@@ -86,9 +86,9 @@ class AccessorPair : public Struct {
                                      AccessorComponent component);
 
   // Set both components, skipping arguments which are a JavaScript null.
-  inline void SetComponents(Object* getter, Object* setter);
+  inline void SetComponents(Object getter, Object setter);
 
-  inline bool Equals(Object* getter_value, Object* setter_value);
+  inline bool Equals(Object getter_value, Object setter_value);
 
   // Dispatched behavior.
   DECL_PRINTER(AccessorPair)

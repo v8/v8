@@ -85,8 +85,8 @@ BUILTIN(ErrorPrototypeToString) {
 
 namespace {
 
-Object* MakeGenericError(Isolate* isolate, BuiltinArguments args,
-                         Handle<JSFunction> constructor) {
+Object MakeGenericError(Isolate* isolate, BuiltinArguments args,
+                        Handle<JSFunction> constructor) {
   Handle<Object> template_index = args.atOrUndefined(isolate, 1);
   Handle<Object> arg0 = args.atOrUndefined(isolate, 2);
   Handle<Object> arg1 = args.atOrUndefined(isolate, 3);

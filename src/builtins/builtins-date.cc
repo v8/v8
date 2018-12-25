@@ -180,8 +180,8 @@ void ToDateString(double time_val, Vector<char> str, DateCache* date_cache,
   UNREACHABLE();
 }
 
-Object* SetLocalDateValue(Isolate* isolate, Handle<JSDate> date,
-                          double time_val) {
+Object SetLocalDateValue(Isolate* isolate, Handle<JSDate> date,
+                         double time_val) {
   if (time_val >= -DateCache::kMaxTimeBeforeUTCInMs &&
       time_val <= DateCache::kMaxTimeBeforeUTCInMs) {
     time_val = isolate->date_cache()->ToUTC(static_cast<int64_t>(time_val));

@@ -177,7 +177,7 @@ int NativeRegExpMacroAssembler::CheckStackGuardState(
     isolate->StackOverflow();
     return_value = EXCEPTION;
   } else {
-    Object* result = isolate->stack_guard()->HandleInterrupts();
+    Object result = isolate->stack_guard()->HandleInterrupts();
     if (result->IsException(isolate)) return_value = EXCEPTION;
   }
 

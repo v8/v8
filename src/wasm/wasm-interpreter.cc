@@ -2776,11 +2776,10 @@ class ThreadImpl {
 
     // Wrap the arg_buffer and the code target data pointers in handles. As
     // these are aligned pointers, to the GC it will look like Smis.
-    Handle<Object> arg_buffer_obj(reinterpret_cast<Object*>(arg_buffer.data()),
-                                  isolate);
+    Handle<Object> arg_buffer_obj(
+        Object(reinterpret_cast<Address>(arg_buffer.data())), isolate);
     DCHECK(!arg_buffer_obj->IsHeapObject());
-    Handle<Object> code_entry_obj(
-        reinterpret_cast<Object*>(code->instruction_start()), isolate);
+    Handle<Object> code_entry_obj(Object(code->instruction_start()), isolate);
     DCHECK(!code_entry_obj->IsHeapObject());
 
     static_assert(compiler::CWasmEntryParameters::kNumParameters == 3,

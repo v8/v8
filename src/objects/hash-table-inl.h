@@ -81,11 +81,11 @@ int HashTable<Derived, Shape>::FindEntry(ReadOnlyRoots roots, Key key,
   uint32_t entry = FirstProbe(hash, capacity);
   uint32_t count = 1;
   // EnsureCapacity will guarantee the hash table is never full.
-  Object* undefined = roots.undefined_value();
-  Object* the_hole = roots.the_hole_value();
+  Object undefined = roots.undefined_value();
+  Object the_hole = roots.the_hole_value();
   USE(the_hole);
   while (true) {
-    Object* element = KeyAt(entry);
+    Object element = KeyAt(entry);
     // Empty entry. Uses raw unchecked accessors because it is called by the
     // string table during bootstrapping.
     if (element == undefined) break;
@@ -98,26 +98,26 @@ int HashTable<Derived, Shape>::FindEntry(ReadOnlyRoots roots, Key key,
 }
 
 template <typename Derived, typename Shape>
-bool HashTable<Derived, Shape>::IsKey(ReadOnlyRoots roots, Object* k) {
+bool HashTable<Derived, Shape>::IsKey(ReadOnlyRoots roots, Object k) {
   return Shape::IsKey(roots, k);
 }
 
 template <typename Derived, typename Shape>
 bool HashTable<Derived, Shape>::ToKey(ReadOnlyRoots roots, int entry,
-                                      Object** out_k) {
-  Object* k = KeyAt(entry);
+                                      Object* out_k) {
+  Object k = KeyAt(entry);
   if (!IsKey(roots, k)) return false;
   *out_k = Shape::Unwrap(k);
   return true;
 }
 
 template <typename KeyT>
-bool BaseShape<KeyT>::IsKey(ReadOnlyRoots roots, Object* key) {
+bool BaseShape<KeyT>::IsKey(ReadOnlyRoots roots, Object key) {
   return IsLive(roots, key);
 }
 
 template <typename KeyT>
-bool BaseShape<KeyT>::IsLive(ReadOnlyRoots roots, Object* k) {
+bool BaseShape<KeyT>::IsLive(ReadOnlyRoots roots, Object k) {
   return k != roots.the_hole_value() && k != roots.undefined_value();
 }
 
@@ -126,12 +126,12 @@ bool ObjectHashSet::Has(Isolate* isolate, Handle<Object> key, int32_t hash) {
 }
 
 bool ObjectHashSet::Has(Isolate* isolate, Handle<Object> key) {
-  Object* hash = key->GetHash();
+  Object hash = key->GetHash();
   if (!hash->IsSmi()) return false;
   return FindEntry(ReadOnlyRoots(isolate), key, Smi::ToInt(hash)) != kNotFound;
 }
 
-bool ObjectHashTableShape::IsMatch(Handle<Object> key, Object* other) {
+bool ObjectHashTableShape::IsMatch(Handle<Object> key, Object other) {
   return key->SameValue(other);
 }
 
@@ -139,7 +139,7 @@ uint32_t ObjectHashTableShape::Hash(Isolate* isolate, Handle<Object> key) {
   return Smi::ToInt(key->GetHash());
 }
 
-uint32_t ObjectHashTableShape::HashForObject(Isolate* isolate, Object* other) {
+uint32_t ObjectHashTableShape::HashForObject(Isolate* isolate, Object other) {
   return Smi::ToInt(other->GetHash());
 }
 

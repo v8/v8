@@ -1891,8 +1891,10 @@ CodeAssemblerScopedExceptionHandler::~CodeAssemblerScopedExceptionHandler() {
 
 }  // namespace compiler
 
-Address CheckObjectType(Object* value, Address raw_type, Address raw_location) {
+Address CheckObjectType(Address raw_value, Address raw_type,
+                        Address raw_location) {
 #ifdef DEBUG
+  Object value(raw_value);
   Smi type(raw_type);
   String location = String::cast(ObjectPtr(raw_location));
   const char* expected;

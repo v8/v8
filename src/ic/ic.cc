@@ -127,8 +127,8 @@ void IC::TraceIC(const char* type, Handle<Object> name, State old_state,
   ic_info.type = keyed_prefix ? "Keyed" : "";
   ic_info.type += type;
 
-  Object* maybe_function =
-      Memory<Object*>(fp_ + JavaScriptFrameConstants::kFunctionOffset);
+  Object maybe_function =
+      Object(Memory<Address>(fp_ + JavaScriptFrameConstants::kFunctionOffset));
   DCHECK(maybe_function->IsJSFunction());
   JSFunction function = JSFunction::cast(maybe_function);
   int code_offset = 0;
@@ -2777,7 +2777,7 @@ RUNTIME_FUNCTION(Runtime_LoadAccessorProperty) {
   int handler_kind = args.smi_at(1);
   Handle<CallHandlerInfo> call_handler_info = args.at<CallHandlerInfo>(2);
 
-  Object* holder = *receiver;
+  Object holder = *receiver;
   if (handler_kind == LoadHandler::kApiGetterHolderIsPrototype) {
     holder = receiver->map()->prototype();
   } else {

@@ -65,7 +65,7 @@ Handle<JSWeakCell> MakeCell(Isolate* isolate, Handle<JSObject> js_object,
 }
 
 void NullifyWeakCell(Handle<JSWeakCell> weak_cell, Isolate* isolate) {
-  auto empty_func = [](HeapObject object, ObjectSlot slot, Object* target) {};
+  auto empty_func = [](HeapObject object, ObjectSlot slot, Object target) {};
   weak_cell->Nullify(isolate, empty_func);
 #ifdef VERIFY_HEAP
   weak_cell->JSWeakCellVerify(isolate);

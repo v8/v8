@@ -66,7 +66,7 @@ class SerializedHandleChecker : public RootVisitor {
   void AddToSet(FixedArray serialized);
 
   Isolate* isolate_;
-  std::unordered_set<Object*> serialized_;
+  std::unordered_set<Object, Object::Hasher> serialized_;
   bool ok_ = true;
 };
 

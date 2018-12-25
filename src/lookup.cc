@@ -230,7 +230,7 @@ Handle<JSReceiver> LookupIterator::GetRootForNonJSReceiver(
   auto root =
       handle(receiver->GetPrototypeChainRootMap(isolate)->prototype(), isolate);
   if (root->IsNull(isolate)) {
-    isolate->PushStackTraceAndDie(*receiver);
+    isolate->PushStackTraceAndDie(reinterpret_cast<void*>(receiver->ptr()));
   }
   return Handle<JSReceiver>::cast(root);
 }
@@ -886,7 +886,7 @@ bool LookupIterator::HolderIsReceiverOrHiddenPrototype() const {
 
 
 Handle<Object> LookupIterator::FetchValue() const {
-  Object* result = nullptr;
+  Object result;
   if (IsElement()) {
     Handle<JSObject> holder = GetHolder<JSObject>();
     ElementsAccessor* accessor = holder->GetElementsAccessor();
@@ -908,7 +908,7 @@ Handle<Object> LookupIterator::FetchValue() const {
   return handle(result, isolate_);
 }
 
-bool LookupIterator::IsConstFieldValueEqualTo(Object* value) const {
+bool LookupIterator::IsConstFieldValueEqualTo(Object value) const {
   DCHECK(!IsElement());
   DCHECK(holder_->HasFastProperties());
   DCHECK_EQ(kField, property_details_.location());
@@ -921,7 +921,7 @@ bool LookupIterator::IsConstFieldValueEqualTo(Object* value) const {
     if (holder->IsUnboxedDoubleField(field_index)) {
       bits = holder->RawFastDoublePropertyAsBitsAt(field_index);
     } else {
-      Object* current_value = holder->RawFastPropertyAt(field_index);
+      Object current_value = holder->RawFastPropertyAt(field_index);
       DCHECK(current_value->IsMutableHeapNumber());
       bits = MutableHeapNumber::cast(current_value)->value_as_bits();
     }
@@ -936,7 +936,7 @@ bool LookupIterator::IsConstFieldValueEqualTo(Object* value) const {
     }
     return bit_cast<double>(bits) == value->Number();
   } else {
-    Object* current_value = holder->RawFastPropertyAt(field_index);
+    Object current_value = holder->RawFastPropertyAt(field_index);
     return current_value->IsUninitialized(isolate()) || current_value == value;
   }
 }
@@ -1198,9 +1198,9 @@ Handle<InterceptorInfo> LookupIterator::GetInterceptorForFailedAccessCheck()
   AccessCheckInfo access_check_info =
       AccessCheckInfo::Get(isolate_, Handle<JSObject>::cast(holder_));
   if (!access_check_info.is_null()) {
-    Object* interceptor = IsElement() ? access_check_info->indexed_interceptor()
-                                      : access_check_info->named_interceptor();
-    if (interceptor) {
+    Object interceptor = IsElement() ? access_check_info->indexed_interceptor()
+                                     : access_check_info->named_interceptor();
+    if (interceptor != Object()) {
       return handle(InterceptorInfo::cast(interceptor), isolate_);
     }
   }

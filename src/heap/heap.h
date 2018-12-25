@@ -27,6 +27,7 @@
 #include "src/objects/heap-object.h"
 #include "src/objects/smi.h"
 #include "src/objects/string-table.h"
+#include "src/roots.h"
 #include "src/visitors.h"
 
 namespace v8 {
@@ -150,16 +151,7 @@ class AllocationResult {
     return AllocationResult(space);
   }
 
-  // Implicit constructor from Object*.
-  // TODO(3770): This constructor should go away eventually, replaced by
-  // the ObjectPtr alternative below.
-  AllocationResult(Object* object)  // NOLINT
-      : object_(ObjectPtr(object->ptr())) {
-    // AllocationResults can't return Smis, which are used to represent
-    // failure and the space to retry in.
-    CHECK(!object->IsSmi());
-  }
-
+  // Implicit constructor from Object.
   AllocationResult(ObjectPtr object)  // NOLINT
       : object_(object) {
     // AllocationResults can't return Smis, which are used to represent
@@ -173,16 +165,7 @@ class AllocationResult {
   inline HeapObject ToObjectChecked();
   inline AllocationSpace RetrySpace();
 
-  template <typename T, typename = typename std::enable_if<
-                            std::is_base_of<Object, T>::value>::type>
-  bool To(T** obj) {
-    if (IsRetry()) return false;
-    *obj = T::cast(object_);
-    return true;
-  }
-
-  template <typename T, typename = typename std::enable_if<
-                            std::is_base_of<ObjectPtr, T>::value>::type>
+  template <typename T>
   bool To(T* obj) {
     if (IsRetry()) return false;
     *obj = T::cast(object_);
@@ -226,7 +209,7 @@ class Heap {
   };
 
   using PretenuringFeedbackMap =
-      std::unordered_map<AllocationSite, size_t, HeapObject::Hasher>;
+      std::unordered_map<AllocationSite, size_t, Object::Hasher>;
 
   // Taking this mutex prevents the GC from entering a phase that relocates
   // object references.
@@ -412,15 +395,15 @@ class Heap {
   // Notify the heap that a context has been disposed.
   int NotifyContextDisposed(bool dependant_context);
 
-  void set_native_contexts_list(Object* object) {
+  void set_native_contexts_list(Object object) {
     native_contexts_list_ = object;
   }
-  Object* native_contexts_list() const { return native_contexts_list_; }
+  Object native_contexts_list() const { return native_contexts_list_; }
 
-  void set_allocation_sites_list(Object* object) {
+  void set_allocation_sites_list(Object object) {
     allocation_sites_list_ = object;
   }
-  Object* allocation_sites_list() { return allocation_sites_list_; }
+  Object allocation_sites_list() { return allocation_sites_list_; }
 
   // Used in CreateAllocationSiteStub and the (de)serializer.
   Address allocation_sites_list_address() {
@@ -430,7 +413,7 @@ class Heap {
   // Traverse all the allocaions_sites [nested_site and weak_next] in the list
   // and foreach call the visitor
   void ForeachAllocationSite(
-      Object* list, const std::function<void(AllocationSite)>& visitor);
+      Object list, const std::function<void(AllocationSite)>& visitor);
 
   // Number of mark-sweeps.
   int ms_count() const { return ms_count_; }
@@ -674,9 +657,9 @@ class Heap {
 #undef ROOT_ACCESSOR
 
   V8_INLINE void SetRootMaterializedObjects(FixedArray objects);
-  V8_INLINE void SetRootScriptList(Object* value);
+  V8_INLINE void SetRootScriptList(Object value);
   V8_INLINE void SetRootStringTable(StringTable value);
-  V8_INLINE void SetRootNoScriptSharedFunctionInfos(Object* value);
+  V8_INLINE void SetRootNoScriptSharedFunctionInfos(Object value);
   V8_INLINE void SetMessageListeners(TemplateList value);
 
   // Set the stack limit in the roots table.  Some architectures generate
@@ -704,7 +687,7 @@ class Heap {
   // Add weak_factory into the dirty_js_weak_factories list.
   void AddDirtyJSWeakFactory(
       JSWeakFactory weak_factory,
-      std::function<void(HeapObject object, ObjectSlot slot, Object* target)>
+      std::function<void(HeapObject object, ObjectSlot slot, Object target)>
           gc_notify_updated_slot);
 
   void AddKeepDuringJobTarget(Handle<JSReceiver> target);
@@ -926,21 +909,21 @@ class Heap {
   // ===========================================================================
 
   // Returns whether the object resides in new space.
-  static inline bool InNewSpace(Object* object);
+  static inline bool InNewSpace(Object object);
   static inline bool InNewSpace(MaybeObject object);
   static inline bool InNewSpace(HeapObject heap_object);
-  static inline bool InFromSpace(Object* object);
+  static inline bool InFromSpace(Object object);
   static inline bool InFromSpace(MaybeObject object);
   static inline bool InFromSpace(HeapObject heap_object);
-  static inline bool InToSpace(Object* object);
+  static inline bool InToSpace(Object object);
   static inline bool InToSpace(MaybeObject object);
   static inline bool InToSpace(HeapObject heap_object);
 
   // Returns whether the object resides in old space.
-  inline bool InOldSpace(Object* object);
+  inline bool InOldSpace(Object object);
 
   // Returns whether the object resides in read-only space.
-  inline bool InReadOnlySpace(Object* object);
+  inline bool InReadOnlySpace(Object object);
 
   // Checks whether an address/object in the heap (including auxiliary
   // area and unused area).
@@ -1336,8 +1319,8 @@ class Heap {
 
     // To speed up scavenge collections new space string are kept
     // separate from old space strings.
-    std::vector<Object*> new_space_strings_;
-    std::vector<Object*> old_space_strings_;
+    std::vector<Object> new_space_strings_;
+    std::vector<Object> old_space_strings_;
 
     DISALLOW_COPY_AND_ASSIGN(ExternalStringTable);
   };
@@ -1880,8 +1863,8 @@ class Heap {
 
   // Weak list heads, threaded through the objects.
   // List heads are initialized lazily and contain the undefined_value at start.
-  Object* native_contexts_list_;
-  Object* allocation_sites_list_;
+  Object native_contexts_list_;
+  Object allocation_sites_list_;
 
   std::vector<GCCallbackTuple> gc_epilogue_callbacks_;
   std::vector<GCCallbackTuple> gc_prologue_callbacks_;
@@ -2006,11 +1989,11 @@ class Heap {
   int allocation_timeout_ = 0;
 #endif  // V8_ENABLE_ALLOCATION_TIMEOUT
 
-  std::map<HeapObject, HeapObject, HeapObject::Compare> retainer_;
-  std::map<HeapObject, Root, HeapObject::Compare> retaining_root_;
+  std::map<HeapObject, HeapObject, Object::Comparer> retainer_;
+  std::map<HeapObject, Root, Object::Comparer> retaining_root_;
   // If an object is retained by an ephemeron, then the retaining key of the
   // ephemeron is stored in this map.
-  std::map<HeapObject, HeapObject, HeapObject::Compare> ephemeron_retainer_;
+  std::map<HeapObject, HeapObject, Object::Comparer> ephemeron_retainer_;
   // For each index inthe retaining_path_targets_ array this map
   // stores the option of the corresponding target.
   std::map<int, RetainingPathOption> retaining_path_target_option_;
@@ -2264,7 +2247,7 @@ class WeakObjectRetainer {
   // Return whether this object should be retained. If nullptr is returned the
   // object has no references. Otherwise the address of the retained object
   // should be returned as in some GC situations the object has been moved.
-  virtual Object* RetainAs(Object* object) = 0;
+  virtual Object RetainAs(Object object) = 0;
 };
 
 // -----------------------------------------------------------------------------

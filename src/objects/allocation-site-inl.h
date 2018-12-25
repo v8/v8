@@ -104,7 +104,7 @@ void AllocationSite::SetDoNotInlineCall() {
 }
 
 bool AllocationSite::PointsToLiteral() const {
-  Object* raw_value = transition_info_or_boilerplate();
+  Object raw_value = transition_info_or_boilerplate();
   DCHECK_EQ(!raw_value->IsSmi(),
             raw_value->IsJSArray() || raw_value->IsJSObject());
   return !raw_value->IsSmi();
@@ -191,7 +191,7 @@ AllocationSite AllocationMemento::GetAllocationSite() const {
 }
 
 Address AllocationMemento::GetAllocationSiteUnchecked() const {
-  return reinterpret_cast<Address>(allocation_site());
+  return allocation_site()->ptr();
 }
 
 }  // namespace internal

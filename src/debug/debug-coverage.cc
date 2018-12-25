@@ -18,7 +18,7 @@ namespace internal {
 
 class SharedToCounterMap
     : public base::TemplateHashMapImpl<SharedFunctionInfo, uint32_t,
-                                       base::KeyEqualityMatcher<void*>,
+                                       base::KeyEqualityMatcher<Object>,
                                        base::DefaultAllocationPolicy> {
  public:
   typedef base::TemplateHashMapEntry<SharedFunctionInfo, uint32_t> Entry;

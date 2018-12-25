@@ -1116,7 +1116,7 @@ TIMER_EVENTS_LIST(V)
 #undef V
 
 void Logger::ApiNamedPropertyAccess(const char* tag, JSObject holder,
-                                    Object* property_name) {
+                                    Object property_name) {
   DCHECK(property_name->IsName());
   if (!log_->IsEnabled() || !FLAG_log_api) return;
   Log::MessageBuilder msg(log_);
@@ -1291,7 +1291,7 @@ void Logger::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
   }
 
   if (!FLAG_log_source_code) return;
-  Object* script_object = shared->script();
+  Object script_object = shared->script();
   if (!script_object->IsScript()) return;
   Script script = Script::cast(script_object);
   if (!EnsureLogScriptSource(script)) return;
@@ -1475,7 +1475,7 @@ void Logger::ResourceEvent(const char* name, const char* tag) {
   msg.WriteToLogFile();
 }
 
-void Logger::SuspectReadEvent(Name name, Object* obj) {
+void Logger::SuspectReadEvent(Name name, Object obj) {
   if (!log_->IsEnabled() || !FLAG_log_suspect) return;
   Log::MessageBuilder msg(log_);
   String class_name = obj->IsJSObject()
@@ -1590,7 +1590,7 @@ bool Logger::EnsureLogScriptSource(Script script) {
   }
   // This script has not been logged yet.
   logged_source_code_.insert(script_id);
-  Object* source_object = script->source();
+  Object source_object = script->source();
   if (!source_object->IsString()) return false;
   String source_code = String::cast(source_object);
   msg << "script-source" << kNext << script_id << kNext;
@@ -1641,7 +1641,7 @@ void Logger::TickEvent(v8::TickSample* sample, bool overflow) {
   msg.WriteToLogFile();
 }
 
-void Logger::ICEvent(const char* type, bool keyed, Map map, Object* key,
+void Logger::ICEvent(const char* type, bool keyed, Map map, Object key,
                      char old_state, char new_state, const char* modifier,
                      const char* slow_stub_reason) {
   if (!log_->IsEnabled() || !FLAG_trace_ic) return;
@@ -1774,7 +1774,7 @@ static int EnumerateCompiledFunctions(Heap* heap,
       // to take care of this here.
       JSFunction function = JSFunction::cast(obj);
       SharedFunctionInfo sfi = SharedFunctionInfo::cast(function->shared());
-      Object* maybe_script = sfi->script();
+      Object maybe_script = sfi->script();
       if (maybe_script->IsScript() &&
           !Script::cast(maybe_script)->HasValidSource()) {
         continue;
@@ -1811,7 +1811,7 @@ static int EnumerateWasmModuleObjects(
   return module_objects_count;
 }
 
-void Logger::LogCodeObject(Object* object) {
+void Logger::LogCodeObject(Object object) {
   existing_code_logger_.LogCodeObject(object);
 }
 
@@ -2032,7 +2032,7 @@ FILE* Logger::TearDown() {
   return log_->Close();
 }
 
-void ExistingCodeLogger::LogCodeObject(Object* object) {
+void ExistingCodeLogger::LogCodeObject(Object object) {
   AbstractCode abstract_code = AbstractCode::cast(object);
   CodeEventListener::LogEventsAndTags tag = CodeEventListener::STUB_TAG;
   const char* description = "Unknown code from before profiling";
@@ -2159,10 +2159,10 @@ void ExistingCodeLogger::LogExistingFunction(
   } else if (shared->IsApiFunction()) {
     // API function.
     FunctionTemplateInfo fun_data = shared->get_api_func_data();
-    Object* raw_call_data = fun_data->call_code();
+    Object raw_call_data = fun_data->call_code();
     if (!raw_call_data->IsUndefined(isolate_)) {
       CallHandlerInfo call_data = CallHandlerInfo::cast(raw_call_data);
-      Object* callback_obj = call_data->callback();
+      Object callback_obj = call_data->callback();
       Address entry_point = v8::ToCData<Address>(callback_obj);
 #if USES_FUNCTION_DESCRIPTORS
       entry_point = *FUNCTION_ENTRYPOINT_ADDRESS(entry_point);

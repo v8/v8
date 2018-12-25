@@ -92,23 +92,19 @@ namespace internal {
 void Object::ObjectVerify(Isolate* isolate) {
   RuntimeCallTimerScope timer(isolate, RuntimeCallCounterId::kObjectVerify);
   if (IsSmi()) {
-    Smi::cast(this)->SmiVerify(isolate);
+    Smi::cast(*this)->SmiVerify(isolate);
   } else {
-    HeapObject::cast(this)->HeapObjectVerify(isolate);
+    HeapObject::cast(*this)->HeapObjectVerify(isolate);
   }
   CHECK(!IsConstructor() || IsCallable());
 }
 
-void Object::VerifyPointer(Isolate* isolate, Object* p) {
+void Object::VerifyPointer(Isolate* isolate, Object p) {
   if (p->IsHeapObject()) {
     HeapObject::VerifyHeapPointer(isolate, p);
   } else {
     CHECK(p->IsSmi());
   }
-}
-
-void ObjectPtr::VerifyPointer(Isolate* isolate, Object* p) {
-  Object::VerifyPointer(isolate, p);
 }
 
 void MaybeObject::VerifyMaybeObjectPointer(Isolate* isolate, MaybeObject p) {
@@ -121,7 +117,7 @@ void MaybeObject::VerifyMaybeObjectPointer(Isolate* isolate, MaybeObject p) {
 }
 
 namespace {
-void VerifyForeignPointer(Isolate* isolate, HeapObject host, Object* foreign) {
+void VerifyForeignPointer(Isolate* isolate, HeapObject host, Object foreign) {
   host->VerifyPointer(isolate, foreign);
   CHECK(foreign->IsUndefined(isolate) || Foreign::IsNormalized(foreign));
 }
@@ -464,7 +460,7 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
   }
 }
 
-void HeapObject::VerifyHeapPointer(Isolate* isolate, Object* p) {
+void HeapObject::VerifyHeapPointer(Isolate* isolate, Object p) {
   CHECK(p->IsHeapObject());
   HeapObject ho = HeapObject::cast(p);
   CHECK(isolate->heap()->Contains(ho));
@@ -549,12 +545,12 @@ void VerifyJSObjectElements(Isolate* isolate, JSObject object) {
     // We might have a partially initialized backing store, in which case we
     // allow the hole + smi values.
     for (int i = 0; i < elements->length(); i++) {
-      Object* value = elements->get(i);
+      Object value = elements->get(i);
       CHECK(value->IsSmi() || value->IsTheHole(isolate));
     }
   } else if (object->HasObjectElements()) {
     for (int i = 0; i < elements->length(); i++) {
-      Object* element = elements->get(i);
+      Object element = elements->get(i);
       CHECK_IMPLIES(!element->IsSmi(), !HasWeakHeapObjectTag(element));
     }
   }
@@ -595,7 +591,7 @@ void JSObject::JSObjectVerify(Isolate* isolate) {
           DCHECK(r.IsDouble());
           continue;
         }
-        Object* value = RawFastPropertyAt(index);
+        Object value = RawFastPropertyAt(index);
         if (r.IsDouble()) DCHECK(value->IsMutableHeapNumber());
         if (value->IsUninitialized(isolate)) continue;
         if (r.IsSmi()) DCHECK(value->IsSmi());
@@ -697,14 +693,14 @@ void EmbedderDataArray::EmbedderDataArrayVerify(Isolate* isolate) {
   EmbedderDataSlot start(*this, 0);
   EmbedderDataSlot end(*this, length());
   for (EmbedderDataSlot slot = start; slot < end; ++slot) {
-    Object* e = slot.load_tagged();
+    Object e = slot.load_tagged();
     Object::VerifyPointer(isolate, e);
   }
 }
 
 void FixedArray::FixedArrayVerify(Isolate* isolate) {
   for (int i = 0; i < length(); i++) {
-    Object* e = get(i);
+    Object e = get(i);
     VerifyPointer(isolate, e);
   }
 }
@@ -729,7 +725,7 @@ void PropertyArray::PropertyArrayVerify(Isolate* isolate) {
   // There are no empty PropertyArrays.
   CHECK_LT(0, length());
   for (int i = 0; i < length(); i++) {
-    Object* e = get(i);
+    Object e = get(i);
     Object::VerifyPointer(isolate, e);
   }
 }
@@ -799,7 +795,7 @@ void DescriptorArray::DescriptorArrayVerify(Isolate* isolate) {
     // Check that properties with private symbols names are non-enumerable.
     for (int descriptor = 0; descriptor < number_of_descriptors();
          descriptor++) {
-      Object* key = get(ToKeyIndex(descriptor))->cast<Object>();
+      Object key = get(ToKeyIndex(descriptor))->cast<Object>();
       // number_of_descriptors() may be out of sync with the actual descriptors
       // written during descriptor array construction.
       if (key->IsUndefined(isolate)) continue;
@@ -876,7 +872,7 @@ void SloppyArgumentsElements::SloppyArgumentsElementsVerify(Isolate* isolate,
   for (int i = 0; i < nofMappedParameters; i++) {
     // Verify that each context-mapped argument is either the hole or a valid
     // Smi within context length range.
-    Object* mapped = get_mapped_entry(i);
+    Object mapped = get_mapped_entry(i);
     if (mapped->IsTheHole(isolate)) {
       // Slow sloppy arguments can be holey.
       if (!is_fast) continue;
@@ -889,7 +885,7 @@ void SloppyArgumentsElements::SloppyArgumentsElementsVerify(Isolate* isolate,
     nofMappedParameters++;
     CHECK_LE(maxMappedIndex, mappedIndex);
     maxMappedIndex = mappedIndex;
-    Object* value = context_object->get(mappedIndex);
+    Object value = context_object->get(mappedIndex);
     CHECK(value->IsObject());
     // None of the context-mapped entries should exist in the arguments
     // elements.
@@ -927,7 +923,7 @@ void JSAsyncGeneratorObject::JSAsyncGeneratorObjectVerify(Isolate* isolate) {
 }
 
 void JSValue::JSValueVerify(Isolate* isolate) {
-  Object* v = value();
+  Object v = value();
   if (v->IsHeapObject()) {
     VerifyHeapPointer(isolate, v);
   }
@@ -1076,7 +1072,7 @@ void SharedFunctionInfo::SharedFunctionInfoVerify(Isolate* isolate) {
   VerifyObjectField(isolate, kScriptOrDebugInfoOffset);
   VerifyObjectField(isolate, kNameOrScopeInfoOffset);
 
-  Object* value = name_or_scope_info();
+  Object value = name_or_scope_info();
   CHECK(value == kNoSharedNameSentinel || value->IsString() ||
         value->IsScopeInfo());
   if (value->IsScopeInfo()) {
@@ -1147,7 +1143,7 @@ void Oddball::OddballVerify(Isolate* isolate) {
   CHECK(IsOddball());
   Heap* heap = isolate->heap();
   VerifyHeapPointer(isolate, to_string());
-  Object* number = to_number();
+  Object number = to_number();
   if (number->IsHeapObject()) {
     CHECK(number == ReadOnlyRoots(heap).nan_value() ||
           number == ReadOnlyRoots(heap).hole_nan_value());
@@ -1514,7 +1510,7 @@ void SmallOrderedHashTable<Derived>::SmallOrderedHashTableVerify(
 
   for (int entry = 0; entry < NumberOfElements(); entry++) {
     for (int offset = 0; offset < Derived::kEntrySize; offset++) {
-      Object* val = GetDataEntry(entry, offset);
+      Object val = GetDataEntry(entry, offset);
       VerifyPointer(isolate, val);
     }
   }
@@ -1522,7 +1518,7 @@ void SmallOrderedHashTable<Derived>::SmallOrderedHashTableVerify(
   for (int entry = NumberOfElements(); entry < NumberOfDeletedElements();
        entry++) {
     for (int offset = 0; offset < Derived::kEntrySize; offset++) {
-      Object* val = GetDataEntry(entry, offset);
+      Object val = GetDataEntry(entry, offset);
       CHECK(val->IsTheHole(isolate));
     }
   }
@@ -1530,7 +1526,7 @@ void SmallOrderedHashTable<Derived>::SmallOrderedHashTableVerify(
   for (int entry = NumberOfElements() + NumberOfDeletedElements();
        entry < Capacity(); entry++) {
     for (int offset = 0; offset < Derived::kEntrySize; offset++) {
-      Object* val = GetDataEntry(entry, offset);
+      Object val = GetDataEntry(entry, offset);
       CHECK(val->IsTheHole(isolate));
     }
   }
@@ -1556,14 +1552,14 @@ void JSRegExp::JSRegExpVerify(Isolate* isolate) {
       bool is_native = RegExpImpl::UsesNativeRegExp();
 
       FixedArray arr = FixedArray::cast(data());
-      Object* one_byte_data = arr->get(JSRegExp::kIrregexpLatin1CodeIndex);
+      Object one_byte_data = arr->get(JSRegExp::kIrregexpLatin1CodeIndex);
       // Smi : Not compiled yet (-1).
       // Code/ByteArray: Compiled code.
       CHECK(
           (one_byte_data->IsSmi() &&
            Smi::ToInt(one_byte_data) == JSRegExp::kUninitializedValue) ||
           (is_native ? one_byte_data->IsCode() : one_byte_data->IsByteArray()));
-      Object* uc16_data = arr->get(JSRegExp::kIrregexpUC16CodeIndex);
+      Object uc16_data = arr->get(JSRegExp::kIrregexpUC16CodeIndex);
       CHECK((uc16_data->IsSmi() &&
              Smi::ToInt(uc16_data) == JSRegExp::kUninitializedValue) ||
             (is_native ? uc16_data->IsCode() : uc16_data->IsByteArray()));
@@ -1711,7 +1707,7 @@ void Module::ModuleVerify(Isolate* isolate) {
 
 void PrototypeInfo::PrototypeInfoVerify(Isolate* isolate) {
   CHECK(IsPrototypeInfo());
-  Object* module_ns = module_namespace();
+  Object module_ns = module_namespace();
   CHECK(module_ns->IsJSModuleNamespace() || module_ns->IsUndefined(isolate));
   if (prototype_users()->IsWeakArrayList()) {
     PrototypeUsers::Verify(WeakArrayList::cast(prototype_users()));
@@ -2019,7 +2015,7 @@ void PreParsedScopeData::PreParsedScopeDataVerify(Isolate* isolate) {
   CHECK_GE(length(), 0);
 
   for (int i = 0; i < length(); ++i) {
-    Object* child = child_data(i);
+    Object child = child_data(i);
     CHECK(child->IsPreParsedScopeData() || child->IsNull());
     VerifyPointer(isolate, child);
   }
@@ -2298,7 +2294,7 @@ bool TransitionsAccessor::IsSortedNoDuplicates() {
   return transitions()->IsSortedNoDuplicates();
 }
 
-static bool CheckOneBackPointer(Map current_map, Object* target) {
+static bool CheckOneBackPointer(Map current_map, Object target) {
   return !target->IsMap() || Map::cast(target)->GetBackPointer() == current_map;
 }
 

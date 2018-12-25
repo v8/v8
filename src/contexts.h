@@ -449,10 +449,10 @@ class Context : public HeapObject {
   V8_INLINE void set_length(int value);
 
   // Setter and getter for elements.
-  V8_INLINE Object* get(int index) const;
-  V8_INLINE void set(int index, Object* value);
+  V8_INLINE Object get(int index) const;
+  V8_INLINE void set(int index, Object value);
   // Setter with explicit barrier mode.
-  V8_INLINE void set(int index, Object* value, WriteBarrierMode mode);
+  V8_INLINE void set(int index, Object value, WriteBarrierMode mode);
 
   // Layout description.
 #define CONTEXT_FIELDS(V)                                             \
@@ -546,7 +546,7 @@ class Context : public HeapObject {
   inline Context previous();
   inline void set_previous(Context context);
 
-  inline Object* next_context_link();
+  inline Object next_context_link();
 
   inline bool has_extension();
   inline HeapObject extension();
@@ -598,10 +598,10 @@ class Context : public HeapObject {
   // The native context also stores a list of all optimized code and a
   // list of all deoptimized code, which are needed by the deoptimizer.
   void AddOptimizedCode(Code code);
-  void SetOptimizedCodeListHead(Object* head);
-  Object* OptimizedCodeListHead();
-  void SetDeoptimizedCodeListHead(Object* head);
-  Object* DeoptimizedCodeListHead();
+  void SetOptimizedCodeListHead(Object head);
+  Object OptimizedCodeListHead();
+  void SetDeoptimizedCodeListHead(Object head);
+  Object DeoptimizedCodeListHead();
 
   Handle<Object> ErrorMessageForCodeGenerationFromStrings();
 
@@ -666,8 +666,8 @@ class Context : public HeapObject {
 #ifdef DEBUG
   // Bootstrapping-aware type checks.
   V8_EXPORT_PRIVATE static bool IsBootstrappingOrNativeContext(Isolate* isolate,
-                                                               Object* object);
-  static bool IsBootstrappingOrValidParentContext(Object* object, Context kid);
+                                                               Object object);
+  static bool IsBootstrappingOrValidParentContext(Object object, Context kid);
 #endif
 
   OBJECT_CONSTRUCTORS(Context, HeapObject)

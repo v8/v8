@@ -100,10 +100,10 @@ class JSRegExp : public JSObject {
   inline int CaptureCount();
   inline Flags GetFlags();
   inline String Pattern();
-  inline Object* CaptureNameMap();
-  inline Object* DataAt(int index) const;
+  inline Object CaptureNameMap();
+  inline Object DataAt(int index) const;
   // Set implementation data after the object has been prepared.
-  inline void SetDataAt(int index, Object* value);
+  inline void SetDataAt(int index, Object value);
 
   static int code_index(bool is_latin1) {
     if (is_latin1) {

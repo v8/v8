@@ -63,7 +63,8 @@ ScriptCompiler::CachedData* CodeSerializer::Serialize(
   CodeSerializer cs(isolate, SerializedCodeData::SourceHash(
                                  source, script->origin_options()));
   DisallowHeapAllocation no_gc;
-  cs.reference_map()->AddAttachedReference(*source);
+  cs.reference_map()->AddAttachedReference(
+      reinterpret_cast<void*>(source->ptr()));
   ScriptData* script_data = cs.SerializeSharedFunctionInfo(info);
 
   if (FLAG_profile_deserialization) {
@@ -115,7 +116,7 @@ bool CodeSerializer::SerializeReadOnlyObject(HeapObject obj,
   uint32_t chunk_offset = static_cast<uint32_t>(page->Offset(address));
   SerializerReference back_reference =
       SerializerReference::BackReference(RO_SPACE, chunk_index, chunk_offset);
-  reference_map()->Add(obj, back_reference);
+  reference_map()->Add(reinterpret_cast<void*>(obj->ptr()), back_reference);
   CHECK(SerializeBackReference(obj, how_to_code, where_to_point, skip));
   return true;
 }
@@ -160,7 +161,7 @@ void CodeSerializer::SerializeObject(HeapObject obj, HowToCode how_to_code,
     // We want to differentiate between undefined and uninitialized_symbol for
     // context_data for now. It is hack to allow debugging for scripts that are
     // included as a part of custom snapshot. (see debug::Script::IsEmbedded())
-    Object* context_data = script_obj->context_data();
+    Object context_data = script_obj->context_data();
     if (context_data != roots.undefined_value() &&
         context_data != roots.uninitialized_symbol()) {
       script_obj->set_context_data(roots.undefined_value());

@@ -27,14 +27,14 @@ CAST_ACCESSOR2(PreParsedScopeData)
 ACCESSORS2(PreParsedScopeData, scope_data, PodArray<uint8_t>, kScopeDataOffset)
 INT_ACCESSORS(PreParsedScopeData, length, kLengthOffset)
 
-Object* PreParsedScopeData::child_data(int index) const {
+Object PreParsedScopeData::child_data(int index) const {
   DCHECK_GE(index, 0);
   DCHECK_LT(index, this->length());
   int offset = kChildDataStartOffset + index * kTaggedSize;
   return RELAXED_READ_FIELD(this, offset);
 }
 
-void PreParsedScopeData::set_child_data(int index, Object* value,
+void PreParsedScopeData::set_child_data(int index, Object value,
                                         WriteBarrierMode mode) {
   DCHECK_GE(index, 0);
   DCHECK_LT(index, this->length());
@@ -109,7 +109,7 @@ UINT16_ACCESSORS(SharedFunctionInfo, raw_function_token_offset,
 RELAXED_INT32_ACCESSORS(SharedFunctionInfo, flags, kFlagsOffset)
 
 bool SharedFunctionInfo::HasSharedName() const {
-  Object* value = name_or_scope_info();
+  Object value = name_or_scope_info();
   if (value->IsScopeInfo()) {
     return ScopeInfo::cast(value)->HasSharedFunctionName();
   }
@@ -118,7 +118,7 @@ bool SharedFunctionInfo::HasSharedName() const {
 
 String SharedFunctionInfo::Name() const {
   if (!HasSharedName()) return GetReadOnlyRoots().empty_string();
-  Object* value = name_or_scope_info();
+  Object value = name_or_scope_info();
   if (value->IsScopeInfo()) {
     if (ScopeInfo::cast(value)->HasFunctionName()) {
       return String::cast(ScopeInfo::cast(value)->FunctionName());
@@ -129,7 +129,7 @@ String SharedFunctionInfo::Name() const {
 }
 
 void SharedFunctionInfo::SetName(String name) {
-  Object* maybe_scope_info = name_or_scope_info();
+  Object maybe_scope_info = name_or_scope_info();
   if (maybe_scope_info->IsScopeInfo()) {
     ScopeInfo::cast(maybe_scope_info)->SetFunctionName(name);
   } else {
@@ -148,12 +148,11 @@ AbstractCode SharedFunctionInfo::abstract_code() {
   }
 }
 
-Object* SharedFunctionInfo::function_data() const {
+Object SharedFunctionInfo::function_data() const {
   return RELAXED_READ_FIELD(this, kFunctionDataOffset);
 }
 
-void SharedFunctionInfo::set_function_data(Object* data,
-                                           WriteBarrierMode mode) {
+void SharedFunctionInfo::set_function_data(Object data, WriteBarrierMode mode) {
   RELAXED_WRITE_FIELD(this, kFunctionDataOffset, data);
   CONDITIONAL_WRITE_BARRIER(this, kFunctionDataOffset, data, mode);
 }
@@ -303,7 +302,7 @@ void SharedFunctionInfo::DontAdaptArguments() {
 bool SharedFunctionInfo::IsInterpreted() const { return HasBytecodeArray(); }
 
 ScopeInfo SharedFunctionInfo::scope_info() const {
-  Object* maybe_scope_info = name_or_scope_info();
+  Object maybe_scope_info = name_or_scope_info();
   if (maybe_scope_info->IsScopeInfo()) {
     return ScopeInfo::cast(maybe_scope_info);
   }
@@ -313,7 +312,7 @@ ScopeInfo SharedFunctionInfo::scope_info() const {
 void SharedFunctionInfo::set_scope_info(ScopeInfo scope_info,
                                         WriteBarrierMode mode) {
   // Move the existing name onto the ScopeInfo.
-  Object* name = name_or_scope_info();
+  Object name = name_or_scope_info();
   if (name->IsScopeInfo()) {
     name = ScopeInfo::cast(name)->FunctionName();
   }
@@ -379,7 +378,7 @@ void SharedFunctionInfo::set_feedback_metadata(FeedbackMetadata value,
 }
 
 bool SharedFunctionInfo::is_compiled() const {
-  Object* data = function_data();
+  Object data = function_data();
   return data != Smi::FromEnum(Builtins::kCompileLazy) &&
          !data->IsUncompiledData();
 }
@@ -477,7 +476,7 @@ bool SharedFunctionInfo::ShouldFlushBytecode() {
   // Get a snapshot of the function data field, and if it is a bytecode array,
   // check if it is old. Note, this is done this way since this function can be
   // called by the concurrent marker.
-  Object* data = function_data();
+  Object data = function_data();
   if (!data->IsBytecodeArray()) return false;
 
   if (FLAG_stress_flush_bytecode) return true;
@@ -641,16 +640,16 @@ bool SharedFunctionInfo::HasWasmExportedFunctionData() const {
   return function_data()->IsWasmExportedFunctionData();
 }
 
-Object* SharedFunctionInfo::script() const {
-  Object* maybe_script = script_or_debug_info();
+Object SharedFunctionInfo::script() const {
+  Object maybe_script = script_or_debug_info();
   if (maybe_script->IsDebugInfo()) {
     return DebugInfo::cast(maybe_script)->script();
   }
   return maybe_script;
 }
 
-void SharedFunctionInfo::set_script(Object* script) {
-  Object* maybe_debug_info = script_or_debug_info();
+void SharedFunctionInfo::set_script(Object script) {
+  Object maybe_debug_info = script_or_debug_info();
   if (maybe_debug_info->IsDebugInfo()) {
     DebugInfo::cast(maybe_debug_info)->set_script(script);
   } else {
@@ -686,7 +685,7 @@ void SharedFunctionInfo::set_builtin_function_id(BuiltinFunctionId id) {
 }
 
 bool SharedFunctionInfo::HasInferredName() {
-  Object* scope_info = name_or_scope_info();
+  Object scope_info = name_or_scope_info();
   if (scope_info->IsScopeInfo()) {
     return ScopeInfo::cast(scope_info)->HasInferredFunctionName();
   }
@@ -694,11 +693,11 @@ bool SharedFunctionInfo::HasInferredName() {
 }
 
 String SharedFunctionInfo::inferred_name() {
-  Object* maybe_scope_info = name_or_scope_info();
+  Object maybe_scope_info = name_or_scope_info();
   if (maybe_scope_info->IsScopeInfo()) {
     ScopeInfo scope_info = ScopeInfo::cast(maybe_scope_info);
     if (scope_info->HasInferredFunctionName()) {
-      Object* name = ScopeInfo::cast(maybe_scope_info)->InferredFunctionName();
+      Object name = ScopeInfo::cast(maybe_scope_info)->InferredFunctionName();
       if (name->IsString()) return String::cast(name);
     }
   } else if (HasUncompiledData()) {
@@ -708,7 +707,7 @@ String SharedFunctionInfo::inferred_name() {
 }
 
 bool SharedFunctionInfo::IsUserJavaScript() {
-  Object* script_obj = script();
+  Object script_obj = script();
   if (script_obj->IsUndefined()) return false;
   Script script = Script::cast(script_obj);
   return script->IsUserJavaScript();

@@ -308,7 +308,7 @@ TEST(LargeObjectSpace) {
 
   int lo_size = Page::kPageSize;
 
-  Object* obj = lo->AllocateRaw(lo_size).ToObjectChecked();
+  Object obj = lo->AllocateRaw(lo_size).ToObjectChecked();
   CHECK(obj->IsHeapObject());
 
   HeapObject ho = HeapObject::cast(obj);

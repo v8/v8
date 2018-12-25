@@ -24,7 +24,6 @@
 #include "src/message-template.h"
 #include "src/objects-definitions.h"
 #include "src/property-details.h"
-#include "src/roots.h"
 #include "src/utils.h"
 
 #ifdef V8_COMPRESS_POINTERS
@@ -179,7 +178,7 @@
 //       - UncompiledDataWithoutPreParsedScope
 //       - UncompiledDataWithPreParsedScope
 //
-// Formats of Object*:
+// Formats of Object::ptr_:
 //  Smi:        [31 bit signed int] 0
 //  HeapObject: [32 bit direct pointer] (4 byte aligned) | 01
 
@@ -287,6 +286,7 @@ class PropertyArray;
 class PropertyCell;
 class PropertyDescriptor;
 class PrototypeInfo;
+class ReadOnlyRoots;
 class RegExpMatchInfo;
 class RootVisitor;
 class SafepointEntry;
@@ -546,7 +546,7 @@ typedef JSObject JSObjectArgType;
 typedef JSPromise JSPromiseArgType;
 typedef JSProxy JSProxyArgType;
 typedef Map MapArgType;
-typedef Object* ObjectArgType;
+typedef Object ObjectArgType;
 typedef RegExpMatchInfo RegExpMatchInfoArgType;
 typedef ScriptContextTable ScriptContextTableArgType;
 typedef SharedFunctionInfo SharedFunctionInfoArgType;
@@ -562,23 +562,36 @@ typedef WasmMemoryObject WasmMemoryObjectArgType;
 // object hierarchy.
 // Object does not use any virtual functions to avoid the
 // allocation of the C++ vtable.
-// Since both Smi and HeapObject are subclasses of Object no
-// data members can be present in Object.
+// There must only be a single data member in Object: the Address ptr,
+// containing the tagged heap pointer that this Object instance refers to.
+// For a design overview, see https://goo.gl/Ph4CGz.
 class Object {
  public:
+  constexpr Object() : ptr_(kNullAddress) {}
+  explicit constexpr Object(Address ptr) : ptr_(ptr) {}
+
+  // Make clang on Linux catch what MSVC complains about on Windows:
+  operator bool() const = delete;
+
+  bool operator==(const Object that) const { return this->ptr() == that.ptr(); }
+  bool operator!=(const Object that) const { return this->ptr() != that.ptr(); }
+  // Usage in std::set requires operator<.
+  bool operator<(const Object that) const { return this->ptr() < that.ptr(); }
+
+  // Returns the tagged "(heap) object pointer" representation of this object.
+  constexpr Address ptr() const { return ptr_; }
+
+  // These operator->() overloads are required for handlified code.
+  Object* operator->() { return this; }
+  const Object* operator->() const { return this; }
+
   // Type testing.
   bool IsObject() const { return true; }
-
-  // Syntax compatibility with ObjectPtr, so the same macros can consume
-  // arguments of either type.
-  Address ptr() const { return reinterpret_cast<Address>(this); }
 
 #define IS_TYPE_FUNCTION_DECL(Type) V8_INLINE bool Is##Type() const;
   OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
   HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
 #undef IS_TYPE_FUNCTION_DECL
-
-  V8_INLINE bool IsExternal(Isolate* isolate) const;
 
 // Oddball checks are faster when they are raw pointer comparisons, so the
 // isolate/read-only roots overloads should be preferred where possible.
@@ -629,6 +642,7 @@ class Object {
   V8_INLINE
   V8_WARN_UNUSED_RESULT static Maybe<bool> IsArray(Handle<Object> object);
 
+  V8_INLINE bool IsHashTableBase() const;
   V8_INLINE bool IsSmallOrderedHashTable() const;
 
   // Extract the number.
@@ -647,7 +661,7 @@ class Object {
   // Checks whether two valid primitive encodings of a property name resolve to
   // the same logical property. E.g., the smi 1, the string "1" and the double
   // 1 all refer to the same property, so this helper will return true.
-  inline bool KeyEquals(Object* other);
+  inline bool KeyEquals(Object other);
 
   inline bool FilterKey(PropertyFilter filter);
 
@@ -679,7 +693,7 @@ class Object {
                                                   Handle<Object> y);
 
   // ES6 section 7.2.13 Strict Equality Comparison
-  bool StrictEquals(Object* that);
+  bool StrictEquals(Object that);
 
   // ES6 section 7.1.13 ToObject
   // Convert to a JSObject if needed.
@@ -855,7 +869,7 @@ class Object {
 
   // Returns the permanent hash code associated with this object. May return
   // undefined if not yet created.
-  inline Object* GetHash();
+  inline Object GetHash();
 
   // Returns the permanent hash code associated with this object depending on
   // the actual object type. May create and store a hash code if needed and none
@@ -865,13 +879,13 @@ class Object {
   // Checks whether this object has the same value as the given one.  This
   // function is implemented according to ES5, section 9.12 and can be used
   // to implement the Object.is function.
-  V8_EXPORT_PRIVATE bool SameValue(Object* other);
+  V8_EXPORT_PRIVATE bool SameValue(Object other);
 
   // Checks whether this object has the same value as the given one.
   // +0 and -0 are treated equal. Everything else is the same as SameValue.
   // This function is implemented according to ES6, section 7.2.4 and is used
   // by ES6 Map and Set.
-  bool SameValueZero(Object* other);
+  bool SameValueZero(Object other);
 
   // ES6 section 9.4.2.3 ArraySpeciesCreate (part of it)
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> ArraySpeciesConstructor(
@@ -896,39 +910,84 @@ class Object {
   // and length.
   bool IterationHasObservableEffects();
 
+  //
+  // The following GetHeapObjectXX methods mimic corresponding functionality
+  // in MaybeObject. Having them here allows us to unify code that processes
+  // ObjectSlots and MaybeObjectSlots.
+  //
+
+  // If this Object is a strong pointer to a HeapObject, returns true and
+  // sets *result. Otherwise returns false.
+  inline bool GetHeapObjectIfStrong(HeapObject* result) const;
+
+  // If this Object is a strong pointer to a HeapObject (weak pointers are not
+  // expected), returns true and sets *result. Otherwise returns false.
+  inline bool GetHeapObject(HeapObject* result) const;
+
+  // DCHECKs that this Object is a strong pointer to a HeapObject and returns
+  // the HeapObject.
+  inline HeapObject GetHeapObject() const;
+
+  // Always returns false because Object is not expected to be a weak pointer
+  // to a HeapObject.
+  inline bool GetHeapObjectIfWeak(HeapObject* result) const {
+    DCHECK(!HasWeakHeapObjectTag(ptr()));
+    return false;
+  }
+  // Always returns false because Object is not expected to be a weak pointer
+  // to a HeapObject.
+  inline bool IsCleared() const { return false; }
+
   DECL_VERIFIER(Object)
+
 #ifdef VERIFY_HEAP
   // Verify a pointer is a valid object pointer.
-  static void VerifyPointer(Isolate* isolate, Object* p);
+  static void VerifyPointer(Isolate* isolate, Object p);
 #endif
 
   inline void VerifyApiCallResultType();
 
   // Prints this object without details.
-  void ShortPrint(FILE* out = stdout);
+  void ShortPrint(FILE* out = stdout) const;
 
   // Prints this object without details to a message accumulator.
-  void ShortPrint(StringStream* accumulator);
+  void ShortPrint(StringStream* accumulator) const;
 
-  void ShortPrint(std::ostream& os);  // NOLINT
+  void ShortPrint(std::ostream& os) const;  // NOLINT
 
-  DECL_CAST(Object)
+  DECL_CAST2(Object)
 
   // Layout description.
   static const int kHeaderSize = 0;  // Object does not take up any space.
 
 #ifdef OBJECT_PRINT
   // For our gdb macros, we should perhaps change these in the future.
-  void Print();
+  void Print() const;
 
   // Prints this object with details.
-  void Print(std::ostream& os);  // NOLINT
+  void Print(std::ostream& os) const;  // NOLINT
 #else
-  void Print() { ShortPrint(); }
-  void Print(std::ostream& os) { ShortPrint(os); }  // NOLINT
+  void Print() const { ShortPrint(); }
+  void Print(std::ostream& os) const { ShortPrint(os); }  // NOLINT
 #endif
 
+  // For use with std::unordered_set.
+  struct Hasher {
+    size_t operator()(const Object o) const {
+      return std::hash<v8::internal::Address>{}(o.ptr());
+    }
+  };
+
+  // For use with std::map.
+  struct Comparer {
+    bool operator()(const Object a, const Object b) const {
+      return a.ptr() < b.ptr();
+    }
+  };
+
  private:
+  friend class CompressedObjectSlot;
+  friend class FullObjectSlot;
   friend class LookupIterator;
   friend class StringStream;
 
@@ -942,7 +1001,7 @@ class Object {
   //
   // Despite its size, this needs to be inlined for performance
   // reasons.
-  static inline Object* GetSimpleHash(Object* object);
+  static inline Object GetSimpleHash(Object object);
 
   // Helper for SetProperty and SetSuperProperty.
   // Return value is only meaningful if [found] is set to true on return.
@@ -969,8 +1028,11 @@ class Object {
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> ConvertToIndex(
       Isolate* isolate, Handle<Object> input, MessageTemplate error_index);
 
-  DISALLOW_IMPLICIT_CONSTRUCTORS(Object);
+  Address ptr_;
 };
+
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           const ObjectPtr& obj);
 
 // In objects.h to be usable without objects-inl.h inclusion.
 bool Object::IsSmi() const { return HAS_SMI_TAG(ptr()); }
@@ -980,7 +1042,7 @@ bool Object::IsHeapObject() const {
 }
 
 struct Brief {
-  V8_EXPORT_PRIVATE explicit Brief(const Object* v);
+  V8_EXPORT_PRIVATE explicit Brief(const Object v);
   explicit Brief(const MaybeObject v);
   // {value} is a tagged heap object reference (weak or strong), equivalent to
   // a MaybeObject's payload. It has a plain Address type to keep #includes
@@ -989,6 +1051,12 @@ struct Brief {
 };
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os, const Brief& v);
+
+// Objects should never have the weak tag; this variant is for overzealous
+// checking.
+V8_INLINE static bool HasWeakHeapObjectTag(const Object value) {
+  return ((value->ptr() & kHeapObjectTagMask) == kWeakHeapObjectTag);
+}
 
 // Heap objects typically have a map pointer in their first word.  However,
 // during GC other data (e.g. mark bits, forwarding addresses) is sometimes

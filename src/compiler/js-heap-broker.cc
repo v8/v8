@@ -1596,11 +1596,11 @@ void JSHeapBroker::CollectArrayAndObjectPrototypes() {
   CHECK_EQ(mode(), kSerializing);
   CHECK(array_and_object_prototypes_.empty());
 
-  Object* maybe_context = isolate()->heap()->native_contexts_list();
+  Object maybe_context = isolate()->heap()->native_contexts_list();
   while (!maybe_context->IsUndefined(isolate())) {
     Context context = Context::cast(maybe_context);
-    Object* array_prot = context->get(Context::INITIAL_ARRAY_PROTOTYPE_INDEX);
-    Object* object_prot = context->get(Context::INITIAL_OBJECT_PROTOTYPE_INDEX);
+    Object array_prot = context->get(Context::INITIAL_ARRAY_PROTOTYPE_INDEX);
+    Object object_prot = context->get(Context::INITIAL_OBJECT_PROTOTYPE_INDEX);
     array_and_object_prototypes_.emplace(JSObject::cast(array_prot), isolate());
     array_and_object_prototypes_.emplace(JSObject::cast(object_prot),
                                          isolate());
@@ -1749,7 +1749,7 @@ ObjectData* JSHeapBroker::GetOrCreateData(Handle<Object> object) {
 }
 // clang-format on
 
-ObjectData* JSHeapBroker::GetOrCreateData(Object* object) {
+ObjectData* JSHeapBroker::GetOrCreateData(Object object) {
   return GetOrCreateData(handle(object, isolate()));
 }
 

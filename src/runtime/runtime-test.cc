@@ -462,7 +462,7 @@ RUNTIME_FUNCTION(Runtime_GetUndetectable) {
   desc->SetCallAsFunctionHandler(ReturnThis);
   Local<v8::Object> obj;
   if (!desc->NewInstance(v8_isolate->GetCurrentContext()).ToLocal(&obj)) {
-    return nullptr;
+    return Object();
   }
   return *Utils::OpenHandle(*obj);
 }
@@ -568,7 +568,7 @@ RUNTIME_FUNCTION(Runtime_DebugPrint) {
   if (maybe_object->IsCleared()) {
     os << "[weak cleared]";
   } else {
-    Object* object = maybe_object.GetHeapObjectOrSmi();
+    Object object = maybe_object.GetHeapObjectOrSmi();
     bool weak = maybe_object.IsWeak();
 
 #ifdef DEBUG
@@ -714,7 +714,7 @@ RUNTIME_FUNCTION(Runtime_AbortJS) {
   CONVERT_ARG_HANDLE_CHECKED(String, message, 0);
   if (FLAG_disable_abortjs) {
     base::OS::PrintError("[disabled] abort: %s\n", message->ToCString().get());
-    return nullptr;
+    return Object();
   }
   base::OS::PrintError("abort: %s\n", message->ToCString().get());
   isolate->PrintStack(stderr);
@@ -1048,7 +1048,7 @@ RUNTIME_FUNCTION(Runtime_WasmNumInterpretedCalls) {
   DCHECK_EQ(1, args.length());
   HandleScope scope(isolate);
   CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
-  if (!instance->has_debug_info()) return nullptr;
+  if (!instance->has_debug_info()) return Object();
   uint64_t num = instance->debug_info()->NumInterpretedCalls();
   return *isolate->factory()->NewNumberFromSize(static_cast<size_t>(num));
 }

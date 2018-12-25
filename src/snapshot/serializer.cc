@@ -106,7 +106,7 @@ void Serializer::VisitRootPointers(Root root, const char* description,
   }
 }
 
-void Serializer::SerializeRootObject(Object* object) {
+void Serializer::SerializeRootObject(Object object) {
   if (object->IsSmi()) {
     PutSmi(Smi::cast(object));
   } else {
@@ -158,7 +158,8 @@ bool Serializer::SerializeHotObject(HeapObject obj, HowToCode how_to_code,
 
 bool Serializer::SerializeBackReference(HeapObject obj, HowToCode how_to_code,
                                         WhereToPoint where_to_point, int skip) {
-  SerializerReference reference = reference_map_.LookupReference(obj);
+  SerializerReference reference =
+      reference_map_.LookupReference(reinterpret_cast<void*>(obj.ptr()));
   if (!reference.is_valid()) return false;
   // Encode the location of an already deserialized object in order to write
   // its location into a later object.  We can encode the location as an
@@ -351,7 +352,8 @@ void Serializer::ObjectSerializer::SerializePrologue(AllocationSpace space,
 #endif  // OBJECT_PRINT
 
   // Mark this object as already serialized.
-  serializer_->reference_map()->Add(object_, back_reference);
+  serializer_->reference_map()->Add(reinterpret_cast<void*>(object_.ptr()),
+                                    back_reference);
 
   // Serialize the map (first word of the object).
   serializer_->SerializeObject(map, kPlain, kStartOfObject, 0);
@@ -400,14 +402,15 @@ void Serializer::ObjectSerializer::SerializeJSTypedArray() {
       // The external_pointer is the backing_store + typed_array->byte_offset.
       // To properly share the buffer, we set the backing store ref here. On
       // deserialization we re-add the byte_offset to external_pointer.
-      elements->set_external_pointer(Smi::FromInt(ref));
+      elements->set_external_pointer(
+          reinterpret_cast<void*>(Smi::FromInt(ref).ptr()));
     }
   } else {
     // When a JSArrayBuffer is detached, the FixedTypedArray that points to the
     // same backing store does not know anything about it. This fixup step finds
     // detached TypedArrays and clears the values in the FixedTypedArray so that
     // we don't try to serialize the now invalid backing store.
-    elements->set_external_pointer(Smi::kZero);
+    elements->set_external_pointer(reinterpret_cast<void*>(Smi::kZero.ptr()));
     elements->set_length(0);
   }
   SerializeObject();
@@ -423,7 +426,7 @@ void Serializer::ObjectSerializer::SerializeJSArrayBuffer() {
   // The embedder-allocated backing store only exists for the off-heap case.
   if (backing_store != nullptr) {
     int32_t ref = SerializeBackingStore(backing_store, byte_length);
-    buffer->set_backing_store(Smi::FromInt(ref));
+    buffer->set_backing_store(reinterpret_cast<void*>(Smi::FromInt(ref).ptr()));
   }
   SerializeObject();
   buffer->set_backing_store(backing_store);
@@ -534,7 +537,7 @@ class UnlinkWeakNextScope {
   }
 
   ~UnlinkWeakNextScope() {
-    if (object_ != nullptr) {
+    if (!object_.is_null()) {
       AllocationSite::cast(object_)->set_weak_next(next_,
                                                    UPDATE_WEAK_WRITE_BARRIER);
     }
@@ -542,7 +545,7 @@ class UnlinkWeakNextScope {
 
  private:
   HeapObject object_;
-  Object* next_;
+  Object next_;
   DISALLOW_HEAP_ALLOCATION(no_gc_);
 };
 
@@ -581,7 +584,7 @@ void Serializer::ObjectSerializer::Serialize() {
 
   if (object_->IsScript()) {
     // Clear cached line ends.
-    Object* undefined = ReadOnlyRoots(serializer_->isolate()).undefined_value();
+    Object undefined = ReadOnlyRoots(serializer_->isolate()).undefined_value();
     Script::cast(object_)->set_line_ends(undefined);
   }
 
@@ -626,7 +629,8 @@ void Serializer::ObjectSerializer::SerializeDeferred() {
   int size = object_->Size();
   Map map = object_->map();
   SerializerReference back_reference =
-      serializer_->reference_map()->LookupReference(object_);
+      serializer_->reference_map()->LookupReference(
+          reinterpret_cast<void*>(object_.ptr()));
   DCHECK(back_reference.is_back_reference());
 
   // Serialize the rest of the object.
@@ -726,7 +730,7 @@ void Serializer::ObjectSerializer::VisitEmbeddedPointer(Code host,
                                                         RelocInfo* rinfo) {
   int skip = SkipTo(rinfo->target_address_address());
   HowToCode how_to_code = rinfo->IsCodedSpecially() ? kFromCode : kPlain;
-  Object* object = rinfo->target_object();
+  Object object = rinfo->target_object();
   serializer_->SerializeObject(HeapObject::cast(object), how_to_code,
                                kStartOfObject, skip);
   bytes_processed_so_far_ += rinfo->target_address_size();

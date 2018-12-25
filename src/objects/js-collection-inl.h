@@ -55,10 +55,10 @@ CAST_ACCESSOR2(JSWeakCollection)
 CAST_ACCESSOR2(JSWeakMap)
 CAST_ACCESSOR2(JSWeakSet)
 
-Object* JSMapIterator::CurrentValue() {
+Object JSMapIterator::CurrentValue() {
   OrderedHashMap table = OrderedHashMap::cast(this->table());
   int index = Smi::ToInt(this->index());
-  Object* value = table->ValueAt(index);
+  Object value = table->ValueAt(index);
   DCHECK(!value->IsTheHole());
   return value;
 }

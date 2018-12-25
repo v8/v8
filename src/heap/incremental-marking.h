@@ -196,8 +196,8 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
   // No slots in white objects should be recorded, as some slots are typed and
   // cannot be interpreted correctly if the underlying object does not survive
   // the incremental cycle (stays white).
-  V8_INLINE bool BaseRecordWrite(HeapObject obj, Object* value);
-  V8_INLINE void RecordWrite(HeapObject obj, ObjectSlot slot, Object* value);
+  V8_INLINE bool BaseRecordWrite(HeapObject obj, Object value);
+  V8_INLINE void RecordWrite(HeapObject obj, ObjectSlot slot, Object value);
   V8_INLINE void RecordMaybeWeakWrite(HeapObject obj, MaybeObjectSlot slot,
                                       MaybeObject value);
   void RevisitObject(HeapObject obj);
@@ -206,7 +206,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
   void VisitDescriptors(HeapObject host, DescriptorArray array,
                         int number_of_own_descriptors);
 
-  void RecordWriteSlow(HeapObject obj, HeapObjectSlot slot, Object* value);
+  void RecordWriteSlow(HeapObject obj, HeapObjectSlot slot, Object value);
   void RecordWriteIntoCode(Code host, RelocInfo* rinfo, HeapObject value);
 
   // Returns true if the function succeeds in transitioning the object

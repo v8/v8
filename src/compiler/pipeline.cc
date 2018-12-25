@@ -563,7 +563,7 @@ void PrintFunctionSource(OptimizedCompilationInfo* info, Isolate* isolate,
 
     if (!script->source()->IsUndefined(isolate)) {
       CodeTracer::Scope tracing_scope(isolate->GetCodeTracer());
-      Object* source_name = script->name();
+      Object source_name = script->name();
       OFStream os(tracing_scope.file());
       os << "--- FUNCTION SOURCE (";
       if (source_name->IsString()) {

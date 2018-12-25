@@ -9,6 +9,7 @@
 #include "src/assert-scope.h"
 #include "src/base/hashmap.h"
 #include "src/objects/heap-object.h"
+#include "src/roots.h"
 
 namespace v8 {
 namespace internal {

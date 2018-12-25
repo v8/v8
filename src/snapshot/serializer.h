@@ -166,7 +166,9 @@ class Serializer : public SerializerDeserializer {
   const std::vector<byte>* Payload() const { return sink_.data(); }
 
   bool ReferenceMapContains(HeapObject o) {
-    return reference_map()->LookupReference(o).is_valid();
+    return reference_map()
+        ->LookupReference(reinterpret_cast<void*>(o->ptr()))
+        .is_valid();
   }
 
   Isolate* isolate() const { return isolate_; }
@@ -196,7 +198,7 @@ class Serializer : public SerializerDeserializer {
 
   void VisitRootPointers(Root root, const char* description,
                          FullObjectSlot start, FullObjectSlot end) override;
-  void SerializeRootObject(Object* object);
+  void SerializeRootObject(Object object);
 
   void PutRoot(RootIndex root_index, HeapObject object, HowToCode how,
                WhereToPoint where, int skip);
@@ -247,7 +249,8 @@ class Serializer : public SerializerDeserializer {
   Code CopyCode(Code code);
 
   void QueueDeferredObject(HeapObject obj) {
-    DCHECK(reference_map_.LookupReference(obj).is_back_reference());
+    DCHECK(reference_map_.LookupReference(reinterpret_cast<void*>(obj->ptr()))
+               .is_back_reference());
     deferred_objects_.push_back(obj);
   }
 

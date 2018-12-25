@@ -24,7 +24,7 @@ enum class CopyAndForwardResult {
 
 using ObjectAndSize = std::pair<HeapObject, int>;
 using SurvivingNewLargeObjectsMap =
-    std::unordered_map<HeapObject, Map, HeapObject::Hasher>;
+    std::unordered_map<HeapObject, Map, Object::Hasher>;
 using SurvivingNewLargeObjectMapEntry = std::pair<HeapObject, Map>;
 
 class ScavengerCollector {

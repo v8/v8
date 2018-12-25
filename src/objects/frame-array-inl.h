@@ -21,7 +21,7 @@ CAST_ACCESSOR2(FrameArray)
 
 #define DEFINE_FRAME_ARRAY_ACCESSORS(name, type)                              \
   type##ArgType FrameArray::name(int frame_ix) const {                        \
-    Object* obj =                                                             \
+    Object obj =                                                              \
         get(kFirstIndex + frame_ix * kElementsPerFrame + k##name##Offset);    \
     return type::cast(obj);                                                   \
   }                                                                           \

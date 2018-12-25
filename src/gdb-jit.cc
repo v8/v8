@@ -1838,7 +1838,7 @@ extern "C" {
   JITDescriptor __jit_debug_descriptor = {1, 0, nullptr, nullptr};
 
 #ifdef OBJECT_PRINT
-  void __gdb_print_v8_object(Object* object) {
+  void __gdb_print_v8_object(Object object) {
     StdoutStream os;
     object->Print(os);
     os << std::flush;

@@ -9,6 +9,7 @@
 #include "src/globals.h"
 #include "src/heap-symbols.h"
 #include "src/objects-definitions.h"
+#include "src/objects.h"
 #include "src/objects/slots.h"
 
 namespace v8 {
@@ -274,7 +275,7 @@ class RootVisitor;
   V(WeakArrayList, retaining_path_targets, RetainingPathTargets)           \
   V(WeakArrayList, retained_maps, RetainedMaps)                            \
   /* Feedback vectors that we need for code coverage or type profile */    \
-  V(Object*, feedback_vectors_for_profiling_tools,                         \
+  V(Object, feedback_vectors_for_profiling_tools,                          \
     FeedbackVectorsForProfilingTools)                                      \
   V(WeakArrayList, noscript_shared_function_infos,                         \
     NoScriptSharedFunctionInfos)                                           \
@@ -284,7 +285,7 @@ class RootVisitor;
   /* Support for async stack traces */                                     \
   V(HeapObject, current_microtask, CurrentMicrotask)                       \
   /* JSWeakFactory objects which need cleanup */                           \
-  V(Object*, dirty_js_weak_factories, DirtyJSWeakFactories)                \
+  V(Object, dirty_js_weak_factories, DirtyJSWeakFactories)                 \
   /* KeepDuringJob set for JS WeakRefs */                                  \
   V(HeapObject, weak_refs_keep_during_job, WeakRefsKeepDuringJob)          \
   V(HeapObject, interpreter_entry_trampoline_for_profiling,                \
@@ -409,7 +410,7 @@ class RootsTable {
   template <typename T>
   bool IsRootHandle(Handle<T> handle, RootIndex* index) const;
 
-  Object* const& operator[](RootIndex root_index) const {
+  Address const& operator[](RootIndex root_index) const {
     size_t index = static_cast<size_t>(root_index);
     DCHECK_LT(index, kEntriesCount);
     return roots_[index];
@@ -492,13 +493,13 @@ class RootsTable {
         &roots_[static_cast<size_t>(RootIndex::kLastSmiRoot) + 1]);
   }
 
-  Object*& operator[](RootIndex root_index) {
+  Address& operator[](RootIndex root_index) {
     size_t index = static_cast<size_t>(root_index);
     DCHECK_LT(index, kEntriesCount);
     return roots_[index];
   }
 
-  Object* roots_[kEntriesCount];
+  Address roots_[kEntriesCount];
   static const char* root_names_[kEntriesCount];
 
   friend class Isolate;

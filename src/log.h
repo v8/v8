@@ -102,7 +102,7 @@ class ExistingCodeLogger {
                            Handle<AbstractCode> code,
                            CodeEventListener::LogEventsAndTags tag =
                                CodeEventListener::LAZY_COMPILE_TAG);
-  void LogCodeObject(Object* object);
+  void LogCodeObject(Object object);
 
  private:
   Isolate* isolate_;
@@ -161,7 +161,7 @@ class Logger : public CodeEventListener {
 
   // Emits an event that an undefined property was read from an
   // object.
-  void SuspectReadEvent(Name name, Object* obj);
+  void SuspectReadEvent(Name name, Object obj);
 
   // ==== Events logged by --log-function-events ====
   void FunctionEvent(const char* reason, int script_id, double time_delta_ms,
@@ -179,7 +179,7 @@ class Logger : public CodeEventListener {
 
   // ==== Events logged by --log-api. ====
   void ApiSecurityCheck();
-  void ApiNamedPropertyAccess(const char* tag, JSObject holder, Object* name);
+  void ApiNamedPropertyAccess(const char* tag, JSObject holder, Object name);
   void ApiIndexedPropertyAccess(const char* tag, JSObject holder,
                                 uint32_t index);
   void ApiObjectAccess(const char* tag, JSObject obj);
@@ -228,7 +228,7 @@ class Logger : public CodeEventListener {
   void CodeDeoptEvent(Code code, DeoptimizeKind kind, Address pc,
                       int fp_to_sp_delta) override;
 
-  void ICEvent(const char* type, bool keyed, Map map, Object* key,
+  void ICEvent(const char* type, bool keyed, Map map, Object key,
                char old_state, char new_state, const char* modifier,
                const char* slow_stub_reason);
 
@@ -284,7 +284,7 @@ class Logger : public CodeEventListener {
   void LogFailure();
 
   // Used for logging stubs found in the snapshot.
-  void LogCodeObject(Object* code_object);
+  void LogCodeObject(Object code_object);
 
  private:
   explicit Logger(Isolate* isolate);

@@ -96,7 +96,7 @@ RUNTIME_FUNCTION_RETURN_PAIR(Runtime_DebugBreakOnBytecode) {
     return MakePair(ReadOnlyRoots(isolate).exception(),
                     Smi::FromInt(static_cast<uint8_t>(bytecode)));
   }
-  Object* interrupt_object = isolate->stack_guard()->HandleInterrupts();
+  Object interrupt_object = isolate->stack_guard()->HandleInterrupts();
   if (interrupt_object->IsException(isolate)) {
     return MakePair(interrupt_object,
                     Smi::FromInt(static_cast<uint8_t>(bytecode)));

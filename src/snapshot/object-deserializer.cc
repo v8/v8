@@ -39,7 +39,7 @@ MaybeHandle<HeapObject> ObjectDeserializer::Deserialize(Isolate* isolate) {
   Handle<HeapObject> result;
   {
     DisallowHeapAllocation no_gc;
-    Object* root;
+    Object root;
     VisitRootPointer(Root::kPartialSnapshotCache, nullptr,
                      FullObjectSlot(&root));
     DeserializeDeferredObjects();

@@ -65,8 +65,8 @@ RUNTIME_FUNCTION(Runtime_ThrowSuperNotCalled) {
 
 namespace {
 
-Object* ThrowNotSuperConstructor(Isolate* isolate, Handle<Object> constructor,
-                                 Handle<JSFunction> function) {
+Object ThrowNotSuperConstructor(Isolate* isolate, Handle<Object> constructor,
+                                Handle<JSFunction> function) {
   Handle<String> super_name;
   if (constructor->IsJSFunction()) {
     super_name = handle(Handle<JSFunction>::cast(constructor)->shared()->Name(),
@@ -184,9 +184,9 @@ MaybeHandle<Object> GetMethodAndSetHomeObjectAndName(
 // This is a simplified version of GetMethodWithSharedNameAndSetHomeObject()
 // function above that is used when it's guaranteed that the method has
 // shared name.
-Object* GetMethodWithSharedNameAndSetHomeObject(Isolate* isolate,
-                                                Arguments& args, Object* index,
-                                                JSObject home_object) {
+Object GetMethodWithSharedNameAndSetHomeObject(Isolate* isolate,
+                                               Arguments& args, Object index,
+                                               JSObject home_object) {
   DisallowHeapAllocation no_gc;
   int int_index = Smi::ToInt(index);
 
@@ -213,7 +213,7 @@ Handle<Dictionary> ShallowCopyDictionaryTemplate(
   // Clone all AccessorPairs in the dictionary.
   int capacity = dictionary->Capacity();
   for (int i = 0; i < capacity; i++) {
-    Object* value = dictionary->ValueAt(i);
+    Object value = dictionary->ValueAt(i);
     if (value->IsAccessorPair()) {
       Handle<AccessorPair> pair(AccessorPair::cast(value), isolate);
       pair = AccessorPair::Copy(isolate, pair);
@@ -233,7 +233,7 @@ bool SubstituteValues(Isolate* isolate, Handle<Dictionary> dictionary,
   int capacity = dictionary->Capacity();
   ReadOnlyRoots roots(isolate);
   for (int i = 0; i < capacity; i++) {
-    Object* maybe_key = dictionary->KeyAt(i);
+    Object maybe_key = dictionary->KeyAt(i);
     if (!Dictionary::IsKey(roots, maybe_key)) continue;
     if (install_name_accessor && *install_name_accessor &&
         (maybe_key == *name_string)) {
@@ -243,7 +243,7 @@ bool SubstituteValues(Isolate* isolate, Handle<Dictionary> dictionary,
     Handle<Object> value(dictionary->ValueAt(i), isolate);
     if (value->IsAccessorPair()) {
       Handle<AccessorPair> pair = Handle<AccessorPair>::cast(value);
-      Object* tmp = pair->getter();
+      Object tmp = pair->getter();
       if (tmp->IsSmi()) {
         Handle<Object> result;
         ASSIGN_RETURN_ON_EXCEPTION_VALUE(
@@ -316,7 +316,7 @@ bool AddDescriptorsByTemplate(
   // values into "instantiated" |descriptors| array.
   int field_index = 0;
   for (int i = 0; i < nof_descriptors; i++) {
-    Object* value = descriptors_template->GetStrongValue(i);
+    Object value = descriptors_template->GetStrongValue(i);
     if (value->IsAccessorPair()) {
       Handle<AccessorPair> pair = AccessorPair::Copy(
           isolate, handle(AccessorPair::cast(value), isolate));
@@ -338,7 +338,7 @@ bool AddDescriptorsByTemplate(
         DCHECK_EQ(kAccessor, details.kind());
         if (value->IsAccessorPair()) {
           AccessorPair pair = AccessorPair::cast(value);
-          Object* tmp = pair->getter();
+          Object tmp = pair->getter();
           if (tmp->IsSmi()) {
             pair->set_getter(GetMethodWithSharedNameAndSetHomeObject(
                 isolate, args, tmp, *receiver));
@@ -417,7 +417,7 @@ bool AddDescriptorsByTemplate(
 
     ValueKind value_kind = ComputedEntryFlags::ValueKindBits::decode(flags);
     int key_index = ComputedEntryFlags::KeyIndexBits::decode(flags);
-    Object* value = Smi::FromInt(key_index + 1);  // Value follows name.
+    Object value = Smi::FromInt(key_index + 1);  // Value follows name.
 
     Handle<Object> key = args.at<Object>(key_index);
     DCHECK(key->IsName());

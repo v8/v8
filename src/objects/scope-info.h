@@ -76,7 +76,7 @@ class ScopeInfo : public FixedArray {
 
   bool HasInferredFunctionName() const;
 
-  void SetFunctionName(Object* name);
+  void SetFunctionName(Object name);
   void SetInferredFunctionName(String name);
 
   // Does this scope belong to a function?
@@ -91,7 +91,7 @@ class ScopeInfo : public FixedArray {
   inline bool HasSimpleParameters() const;
 
   // Return the function_name if present.
-  Object* FunctionName() const;
+  Object FunctionName() const;
 
   // The function's name if it is non-empty, otherwise the inferred name or an
   // empty string.
@@ -99,7 +99,7 @@ class ScopeInfo : public FixedArray {
 
   // Return the function's inferred name if present.
   // See SharedFunctionInfo::function_identifier.
-  Object* InferredFunctionName() const;
+  Object InferredFunctionName() const;
 
   // Position information accessors.
   int StartPosition() const;

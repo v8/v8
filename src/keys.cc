@@ -25,7 +25,7 @@ namespace {
 static bool ContainsOnlyValidKeys(Handle<FixedArray> array) {
   int len = array->length();
   for (int i = 0; i < len; i++) {
-    Object* e = array->get(i);
+    Object e = array->get(i);
     if (!(e->IsName() || e->IsNumber())) return false;
   }
   return true;
@@ -62,7 +62,7 @@ Handle<OrderedHashSet> KeyAccumulator::keys() {
   return Handle<OrderedHashSet>::cast(keys_);
 }
 
-void KeyAccumulator::AddKey(Object* key, AddKeyConversion convert) {
+void KeyAccumulator::AddKey(Object key, AddKeyConversion convert) {
   AddKey(handle(key, isolate_), convert);
 }
 
@@ -212,7 +212,7 @@ bool KeyAccumulator::IsShadowed(Handle<Object> key) {
   return shadowing_keys_->Has(isolate_, key);
 }
 
-void KeyAccumulator::AddShadowingKey(Object* key) {
+void KeyAccumulator::AddShadowingKey(Object key) {
   if (mode_ == KeyCollectionMode::kOwnOnly) return;
   AddShadowingKey(handle(key, isolate_));
 }
@@ -323,7 +323,7 @@ Handle<FixedArray> GetFastEnumPropertyKeys(Isolate* isolate,
     DisallowHeapAllocation no_gc;
     PropertyDetails details = descriptors->GetDetails(i);
     if (details.IsDontEnum()) continue;
-    Object* key = descriptors->GetKey(i);
+    Object key = descriptors->GetKey(i);
     if (key->IsSymbol()) continue;
     keys->set(index, key);
     if (details.location() != kField) fields_only = false;
@@ -340,7 +340,7 @@ Handle<FixedArray> GetFastEnumPropertyKeys(Isolate* isolate,
       DisallowHeapAllocation no_gc;
       PropertyDetails details = descriptors->GetDetails(i);
       if (details.IsDontEnum()) continue;
-      Object* key = descriptors->GetKey(i);
+      Object key = descriptors->GetKey(i);
       if (key->IsSymbol()) continue;
       DCHECK_EQ(kData, details.kind());
       DCHECK_EQ(kField, details.location());
@@ -607,7 +607,7 @@ int CollectOwnPropertyNamesInternal(Handle<JSObject> object,
 
     if (filter & ONLY_ALL_CAN_READ) {
       if (details.kind() != kAccessor) continue;
-      Object* accessors = descs->GetStrongValue(i);
+      Object accessors = descs->GetStrongValue(i);
       if (!accessors->IsAccessorInfo()) continue;
       if (!AccessorInfo::cast(accessors)->all_can_read()) continue;
     }
@@ -661,7 +661,7 @@ Maybe<bool> KeyAccumulator::CollectOwnPropertyNames(Handle<JSReceiver> receiver,
         for (int i = 0; i < nof_descriptors; i++) {
           PropertyDetails details = descs->GetDetails(i);
           if (!details.IsDontEnum()) continue;
-          Object* key = descs->GetKey(i);
+          Object key = descs->GetKey(i);
           this->AddShadowingKey(key);
         }
       }
@@ -758,7 +758,7 @@ Maybe<bool> KeyAccumulator::CollectOwnKeys(Handle<JSReceiver> receiver,
     }
     // We always have both kinds of interceptors or none.
     if (!access_check_info.is_null() &&
-        access_check_info->named_interceptor()) {
+        access_check_info->named_interceptor() != Object()) {
       MAYBE_RETURN(CollectAccessCheckInterceptorKeys(access_check_info,
                                                      receiver, object),
                    Nothing<bool>());
@@ -910,7 +910,7 @@ Maybe<bool> KeyAccumulator::CollectOwnJSProxyKeys(Handle<JSReceiver> receiver,
   }
   // 17. Repeat, for each key that is an element of targetNonconfigurableKeys:
   for (int i = 0; i < nonconfigurable_keys_length; ++i) {
-    Object* raw_key = target_nonconfigurable_keys->get(i);
+    Object raw_key = target_nonconfigurable_keys->get(i);
     Handle<Name> key(Name::cast(raw_key), isolate_);
     // 17a. If key is not an element of uncheckedResultKeys, throw a
     //      TypeError exception.
@@ -930,7 +930,7 @@ Maybe<bool> KeyAccumulator::CollectOwnJSProxyKeys(Handle<JSReceiver> receiver,
   }
   // 19. Repeat, for each key that is an element of targetConfigurableKeys:
   for (int i = 0; i < target_configurable_keys->length(); ++i) {
-    Object* raw_key = target_configurable_keys->get(i);
+    Object raw_key = target_configurable_keys->get(i);
     if (raw_key->IsSmi()) continue;  // Zapped entry, was nonconfigurable.
     Handle<Name> key(Name::cast(raw_key), isolate_);
     // 19a. If key is not an element of uncheckedResultKeys, throw a

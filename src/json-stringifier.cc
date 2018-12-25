@@ -471,7 +471,7 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<Object> object,
 
 JsonStringifier::Result JsonStringifier::SerializeJSValue(
     Handle<JSValue> object) {
-  Object* raw = object->value();
+  Object raw = object->value();
   if (raw->IsString()) {
     Handle<Object> value;
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(

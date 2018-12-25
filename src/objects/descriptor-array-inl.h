@@ -130,12 +130,12 @@ MaybeObjectSlot DescriptorArray::GetValueSlot(int descriptor) {
   return MaybeObjectSlot(GetDescriptorSlot(descriptor) + kEntryValueIndex);
 }
 
-Object* DescriptorArray::GetStrongValue(int descriptor_number) {
+Object DescriptorArray::GetStrongValue(int descriptor_number) {
   DCHECK(descriptor_number < number_of_descriptors());
   return get(ToValueIndex(descriptor_number))->cast<Object>();
 }
 
-void DescriptorArray::SetValue(int descriptor_index, Object* value) {
+void DescriptorArray::SetValue(int descriptor_index, Object value) {
   set(ToValueIndex(descriptor_index), MaybeObject::FromObject(value));
 }
 

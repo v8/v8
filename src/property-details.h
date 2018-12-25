@@ -287,7 +287,7 @@ class PropertyDetails {
     return PropertyDetails(value_, new_attributes);
   }
 
-  // Conversion for storing details as Object*.
+  // Conversion for storing details as Object.
   explicit inline PropertyDetails(Smi smi);
   inline Smi AsSmi() const;
 

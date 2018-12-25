@@ -192,12 +192,6 @@ struct MachineRepresentationOf<
 };
 template <class T>
 struct MachineRepresentationOf<
-    T, typename std::enable_if<std::is_base_of<ObjectPtr, T>::value>::type> {
-  static const MachineRepresentation value =
-      MachineTypeOf<T>::value.representation();
-};
-template <class T>
-struct MachineRepresentationOf<
     T, typename std::enable_if<std::is_base_of<MaybeObject, T>::value>::type> {
   static const MachineRepresentation value =
       MachineTypeOf<T>::value.representation();
@@ -206,12 +200,10 @@ struct MachineRepresentationOf<
 template <class T>
 struct is_valid_type_tag {
   static const bool value = std::is_base_of<Object, T>::value ||
-                            std::is_base_of<ObjectPtr, T>::value ||
                             std::is_base_of<UntaggedT, T>::value ||
                             std::is_base_of<MaybeObject, T>::value ||
                             std::is_same<ExternalReference, T>::value;
   static const bool is_tagged = std::is_base_of<Object, T>::value ||
-                                std::is_base_of<ObjectPtr, T>::value ||
                                 std::is_base_of<MaybeObject, T>::value;
 };
 
@@ -338,10 +330,12 @@ HEAP_OBJECT_TEMPLATE_TYPE_LIST(OBJECT_TYPE_TEMPLATE_CASE)
 #undef OBJECT_TYPE_STRUCT_CASE
 #undef OBJECT_TYPE_TEMPLATE_CASE
 
+// {raw_value} must be a tagged Object.
 // {raw_type} must be a tagged Smi.
 // {raw_location} must be a tagged String.
 // Returns a tagged Smi.
-Address CheckObjectType(Object* value, Address raw_type, Address raw_location);
+Address CheckObjectType(Address raw_value, Address raw_type,
+                        Address raw_location);
 
 namespace compiler {
 

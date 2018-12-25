@@ -25,7 +25,7 @@ ASSERT_TRIVIALLY_COPYABLE(MaybeHandle<Object>);
 #ifdef DEBUG
 bool HandleBase::IsDereferenceAllowed(DereferenceCheckMode mode) const {
   DCHECK_NOT_NULL(location_);
-  Object* object = reinterpret_cast<Object*>(*location_);
+  Object object(*location_);
   if (object->IsSmi()) return true;
   HeapObject heap_object = HeapObject::cast(object);
   Isolate* isolate;
@@ -158,7 +158,7 @@ Address* CanonicalHandleScope::Lookup(Address object) {
       return isolate_->root_handle(root_index).location();
     }
   }
-  Address** entry = identity_map_->Get(reinterpret_cast<Object*>(object));
+  Address** entry = identity_map_->Get(Object(object));
   if (*entry == nullptr) {
     // Allocate new handle location.
     *entry = HandleScope::CreateHandle(isolate_, object);

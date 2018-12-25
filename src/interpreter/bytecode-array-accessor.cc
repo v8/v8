@@ -197,11 +197,11 @@ Runtime::FunctionId BytecodeArrayAccessor::GetIntrinsicIdOperand(
       static_cast<IntrinsicsHelper::IntrinsicId>(raw_id));
 }
 
-Object* BytecodeArrayAccessor::GetConstantAtIndex(int index) const {
+Object BytecodeArrayAccessor::GetConstantAtIndex(int index) const {
   return bytecode_array()->constant_pool()->get(index);
 }
 
-Object* BytecodeArrayAccessor::GetConstantForIndexOperand(
+Object BytecodeArrayAccessor::GetConstantForIndexOperand(
     int operand_index) const {
   return GetConstantAtIndex(GetIndexOperand(operand_index));
 }
@@ -317,7 +317,7 @@ bool JumpTableTargetOffsets::iterator::operator!=(
 void JumpTableTargetOffsets::iterator::UpdateAndAdvanceToValid() {
   if (table_offset_ >= table_end_) return;
 
-  Object* current = accessor_->GetConstantAtIndex(table_offset_);
+  Object current = accessor_->GetConstantAtIndex(table_offset_);
   while (!current->IsSmi()) {
     DCHECK(current->IsTheHole());
     ++table_offset_;

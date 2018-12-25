@@ -25,7 +25,7 @@ int FreeSpace::Size() { return size(); }
 FreeSpace FreeSpace::next() {
 #ifdef DEBUG
   Heap* heap = Heap::FromWritableHeapObject(this);
-  Object* free_space_map = heap->isolate()->root(RootIndex::kFreeSpaceMap);
+  Object free_space_map = heap->isolate()->root(RootIndex::kFreeSpaceMap);
   DCHECK_IMPLIES(!map_slot().contains_value(free_space_map->ptr()),
                  !heap->deserialization_complete() &&
                      map_slot().contains_value(kNullAddress));
@@ -37,7 +37,7 @@ FreeSpace FreeSpace::next() {
 void FreeSpace::set_next(FreeSpace next) {
 #ifdef DEBUG
   Heap* heap = Heap::FromWritableHeapObject(this);
-  Object* free_space_map = heap->isolate()->root(RootIndex::kFreeSpaceMap);
+  Object free_space_map = heap->isolate()->root(RootIndex::kFreeSpaceMap);
   DCHECK_IMPLIES(!map_slot().contains_value(free_space_map->ptr()),
                  !heap->deserialization_complete() &&
                      map_slot().contains_value(kNullAddress));
@@ -52,8 +52,8 @@ FreeSpace FreeSpace::cast(HeapObject o) {
   return bit_cast<FreeSpace>(o);
 }
 
-FreeSpace FreeSpace::unchecked_cast(const Object* o) {
-  return bit_cast<FreeSpace>(ObjectPtr(o->ptr()));
+FreeSpace FreeSpace::unchecked_cast(const Object o) {
+  return bit_cast<FreeSpace>(o);
 }
 
 }  // namespace internal

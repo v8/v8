@@ -722,7 +722,7 @@ void ValueSerializer::WriteJSDate(JSDate date) {
 }
 
 Maybe<bool> ValueSerializer::WriteJSValue(Handle<JSValue> value) {
-  Object* inner_value = value->value();
+  Object inner_value = value->value();
   if (inner_value->IsTrue(isolate_)) {
     WriteTag(SerializationTag::kTrueObject);
   } else if (inner_value->IsFalse(isolate_)) {
@@ -761,7 +761,7 @@ Maybe<bool> ValueSerializer::WriteJSMap(Handle<JSMap> map) {
     int capacity = table->UsedCapacity();
     int result_index = 0;
     for (int i = 0; i < capacity; i++) {
-      Object* key = table->KeyAt(i);
+      Object key = table->KeyAt(i);
       if (key == the_hole) continue;
       entries->set(result_index++, key);
       entries->set(result_index++, table->ValueAt(i));
@@ -792,7 +792,7 @@ Maybe<bool> ValueSerializer::WriteJSSet(Handle<JSSet> set) {
     int capacity = table->UsedCapacity();
     int result_index = 0;
     for (int i = 0; i < capacity; i++) {
-      Object* key = table->KeyAt(i);
+      Object key = table->KeyAt(i);
       if (key == the_hole) continue;
       entries->set(result_index++, key);
     }
@@ -2049,7 +2049,7 @@ MaybeHandle<JSReceiver> ValueDeserializer::GetObjectWithID(uint32_t id) {
   if (id >= static_cast<unsigned>(id_map_->length())) {
     return MaybeHandle<JSReceiver>();
   }
-  Object* value = id_map_->get(id);
+  Object value = id_map_->get(id);
   if (value->IsTheHole(isolate_)) return MaybeHandle<JSReceiver>();
   DCHECK(value->IsJSReceiver());
   return Handle<JSReceiver>(JSReceiver::cast(value), isolate_);

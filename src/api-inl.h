@@ -14,7 +14,7 @@
 namespace v8 {
 
 template <typename T>
-inline T ToCData(v8::internal::Object* obj) {
+inline T ToCData(v8::internal::Object obj) {
   STATIC_ASSERT(sizeof(T) == sizeof(v8::internal::Address));
   if (obj == v8::internal::Smi::kZero) return nullptr;
   return reinterpret_cast<T>(
@@ -22,7 +22,7 @@ inline T ToCData(v8::internal::Object* obj) {
 }
 
 template <>
-inline v8::internal::Address ToCData(v8::internal::Object* obj) {
+inline v8::internal::Address ToCData(v8::internal::Object obj) {
   if (obj == v8::internal::Smi::kZero) return v8::internal::kNullAddress;
   return v8::internal::Foreign::cast(obj)->foreign_address();
 }
@@ -110,15 +110,17 @@ MAKE_TO_LOCAL(ScriptOrModuleToLocal, Script, ScriptOrModule)
 
 // Implementations of OpenHandle
 
-#define MAKE_OPEN_HANDLE(From, To)                                             \
-  v8::internal::Handle<v8::internal::To> Utils::OpenHandle(                    \
-      const v8::From* that, bool allow_empty_handle) {                         \
-    DCHECK(allow_empty_handle || that != nullptr);                             \
-    DCHECK(that == nullptr ||                                                  \
-           (*reinterpret_cast<v8::internal::Object* const*>(that))->Is##To()); \
-    return v8::internal::Handle<v8::internal::To>(                             \
-        reinterpret_cast<v8::internal::Address*>(                              \
-            const_cast<v8::From*>(that)));                                     \
+#define MAKE_OPEN_HANDLE(From, To)                                    \
+  v8::internal::Handle<v8::internal::To> Utils::OpenHandle(           \
+      const v8::From* that, bool allow_empty_handle) {                \
+    DCHECK(allow_empty_handle || that != nullptr);                    \
+    DCHECK(that == nullptr ||                                         \
+           v8::internal::Object(                                      \
+               *reinterpret_cast<const v8::internal::Address*>(that)) \
+               ->Is##To());                                           \
+    return v8::internal::Handle<v8::internal::To>(                    \
+        reinterpret_cast<v8::internal::Address*>(                     \
+            const_cast<v8::From*>(that)));                            \
   }
 
 OPEN_HANDLE_LIST(MAKE_OPEN_HANDLE)

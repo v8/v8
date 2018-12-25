@@ -2074,8 +2074,6 @@ class V8_EXPORT_PRIVATE PagedSpace
 
   // Checks whether an object/address is in this space.
   inline bool Contains(Address a);
-  // TODO(3770): Drop Object* version.
-  inline bool Contains(Object* o);
   inline bool Contains(ObjectPtr o);
   bool ContainsSlow(Address addr);
 
@@ -2383,7 +2381,7 @@ class SemiSpace : public Space {
         pages_used_(0) {}
 
   inline bool Contains(HeapObject o);
-  inline bool Contains(Object* o);
+  inline bool Contains(Object o);
   inline bool ContainsSlow(Address a);
 
   void SetUp(size_t initial_capacity, size_t maximum_capacity);
@@ -2569,7 +2567,7 @@ class NewSpace : public SpaceWithLinearArea {
   ~NewSpace() override { TearDown(); }
 
   inline bool ContainsSlow(Address a);
-  inline bool Contains(Object* o);
+  inline bool Contains(Object o);
   inline bool Contains(HeapObject o);
 
   // Tears down the space.  Heap memory was not allocated by the space, so it
@@ -2731,8 +2729,8 @@ class NewSpace : public SpaceWithLinearArea {
   void UpdateInlineAllocationLimit(size_t size_in_bytes) override;
 
   inline bool ToSpaceContainsSlow(Address a);
-  inline bool ToSpaceContains(Object* o);
-  inline bool FromSpaceContains(Object* o);
+  inline bool ToSpaceContains(Object o);
+  inline bool FromSpaceContains(Object o);
 
   // Try to switch the active semispace to a new, empty, page.
   // Returns false if this isn't possible or reasonable (i.e., there
@@ -2982,7 +2980,7 @@ class LargeObjectSpace : public Space {
 
   // Finds an object for a given address, returns a Smi if it is not found.
   // The function iterates through all objects in this space, may be slow.
-  Object* FindObject(Address a);
+  Object FindObject(Address a);
 
   // Finds a large object page containing the given address, returns nullptr
   // if such a page doesn't exist.

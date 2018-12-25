@@ -407,7 +407,7 @@ class ObjectStatsCollectorImpl {
   Heap* heap_;
   ObjectStats* stats_;
   MarkCompactCollector::NonAtomicMarkingState* marking_state_;
-  std::unordered_set<HeapObject, HeapObject::Hasher> virtual_objects_;
+  std::unordered_set<HeapObject, Object::Hasher> virtual_objects_;
   std::unordered_set<Address> external_resources_;
   FieldStatsCollector field_stats_collector_;
 };
@@ -564,7 +564,7 @@ static ObjectStats::VirtualInstanceType GetFeedbackSlotType(
     MaybeObject maybe_obj, FeedbackSlotKind kind, Isolate* isolate) {
   if (maybe_obj->IsCleared())
     return ObjectStats::FEEDBACK_VECTOR_SLOT_OTHER_TYPE;
-  Object* obj = maybe_obj->GetHeapObjectOrSmi();
+  Object obj = maybe_obj->GetHeapObjectOrSmi();
   switch (kind) {
     case FeedbackSlotKind::kCall:
       if (obj == *isolate->factory()->uninitialized_symbol() ||
@@ -716,7 +716,7 @@ void ObjectStatsCollectorImpl::CollectStatistics(
 
 void ObjectStatsCollectorImpl::CollectGlobalStatistics() {
   // Iterate boilerplates first to disambiguate them from regular JS objects.
-  Object* list = heap_->allocation_sites_list();
+  Object list = heap_->allocation_sites_list();
   while (list->IsAllocationSite()) {
     AllocationSite site = AllocationSite::cast(list);
     RecordVirtualAllocationSiteDetails(site);
@@ -790,7 +790,7 @@ void ObjectStatsCollectorImpl::RecordVirtualMapDetails(Map map) {
   if (map->is_prototype_map()) {
     if (map->prototype_info()->IsPrototypeInfo()) {
       PrototypeInfo info = PrototypeInfo::cast(map->prototype_info());
-      Object* users = info->prototype_users();
+      Object users = info->prototype_users();
       if (users->IsWeakFixedArray()) {
         RecordSimpleVirtualObjectStats(map, WeakArrayList::cast(users),
                                        ObjectStats::PROTOTYPE_USERS_TYPE);
@@ -805,7 +805,7 @@ void ObjectStatsCollectorImpl::RecordVirtualScriptDetails(Script script) {
       ObjectStats::SCRIPT_SHARED_FUNCTION_INFOS_TYPE);
 
   // Log the size of external source code.
-  Object* raw_source = script->source();
+  Object raw_source = script->source();
   if (raw_source->IsExternalString()) {
     // The contents of external strings aren't on the heap, so we have to record
     // them manually. The on-heap String object is recorded indepentendely in
@@ -875,7 +875,7 @@ void ObjectStatsCollectorImpl::
   if (object->IsFixedArrayExact()) {
     FixedArray array = FixedArray::cast(object);
     for (int i = 0; i < array->length(); i++) {
-      Object* entry = array->get(i);
+      Object entry = array->get(i);
       if (!entry->IsHeapObject()) continue;
       RecordVirtualObjectsForConstantPoolOrEmbeddedObjects(
           array, HeapObject::cast(entry), type);
@@ -892,7 +892,7 @@ void ObjectStatsCollectorImpl::RecordVirtualBytecodeArrayDetails(
   // They are shared with optimized code.
   FixedArray constant_pool = FixedArray::cast(bytecode->constant_pool());
   for (int i = 0; i < constant_pool->length(); i++) {
-    Object* entry = constant_pool->get(i);
+    Object entry = constant_pool->get(i);
     if (entry->IsFixedArrayExact()) {
       RecordVirtualObjectsForConstantPoolOrEmbeddedObjects(
           constant_pool, HeapObject::cast(entry),
@@ -931,7 +931,7 @@ void ObjectStatsCollectorImpl::RecordVirtualCodeDetails(Code code) {
                                  ObjectStats::DEOPTIMIZATION_DATA_TYPE);
   RecordSimpleVirtualObjectStats(code, code->relocation_info(),
                                  ObjectStats::RELOC_INFO_TYPE);
-  Object* source_position_table = code->source_position_table();
+  Object source_position_table = code->source_position_table();
   if (source_position_table->IsSourcePositionTableWithFrameCache()) {
     RecordSimpleVirtualObjectStats(
         code,
@@ -956,7 +956,7 @@ void ObjectStatsCollectorImpl::RecordVirtualCodeDetails(Code code) {
   for (RelocIterator it(code, mode_mask); !it.done(); it.next()) {
     RelocInfo::Mode mode = it.rinfo()->rmode();
     if (mode == RelocInfo::EMBEDDED_OBJECT) {
-      Object* target = it.rinfo()->target_object();
+      Object target = it.rinfo()->target_object();
       if (target->IsFixedArrayExact()) {
         RecordVirtualObjectsForConstantPoolOrEmbeddedObjects(
             code, HeapObject::cast(target), ObjectStats::EMBEDDED_OBJECT_TYPE);

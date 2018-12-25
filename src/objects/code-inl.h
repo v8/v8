@@ -68,8 +68,8 @@ ByteArray AbstractCode::source_position_table() {
   }
 }
 
-Object* AbstractCode::stack_frame_cache() {
-  Object* maybe_table;
+Object AbstractCode::stack_frame_cache() {
+  Object maybe_table;
   if (IsCode()) {
     maybe_table = GetCode()->source_position_table();
   } else {
@@ -230,18 +230,18 @@ void Code::clear_padding() {
 }
 
 ByteArray Code::SourcePositionTable() const {
-  Object* maybe_table = source_position_table();
+  Object maybe_table = source_position_table();
   if (maybe_table->IsByteArray()) return ByteArray::cast(maybe_table);
   DCHECK(maybe_table->IsSourcePositionTableWithFrameCache());
   return SourcePositionTableWithFrameCache::cast(maybe_table)
       ->source_position_table();
 }
 
-Object* Code::next_code_link() const {
+Object Code::next_code_link() const {
   return code_data_container()->next_code_link();
 }
 
-void Code::set_next_code_link(Object* value) {
+void Code::set_next_code_link(Object value) {
   code_data_container()->set_next_code_link(value);
 }
 
@@ -748,7 +748,7 @@ Address BytecodeArray::GetFirstBytecodeAddress() {
 }
 
 ByteArray BytecodeArray::SourcePositionTable() {
-  Object* maybe_table = source_position_table();
+  Object maybe_table = source_position_table();
   if (maybe_table->IsByteArray()) return ByteArray::cast(maybe_table);
   DCHECK(maybe_table->IsSourcePositionTableWithFrameCache());
   return SourcePositionTableWithFrameCache::cast(maybe_table)
@@ -756,7 +756,7 @@ ByteArray BytecodeArray::SourcePositionTable() {
 }
 
 void BytecodeArray::ClearFrameCacheFromSourcePositionTable() {
-  Object* maybe_table = source_position_table();
+  Object maybe_table = source_position_table();
   if (maybe_table->IsByteArray()) return;
   DCHECK(maybe_table->IsSourcePositionTableWithFrameCache());
   set_source_position_table(SourcePositionTableWithFrameCache::cast(maybe_table)

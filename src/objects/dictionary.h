@@ -29,12 +29,12 @@ class Dictionary : public HashTable<Derived, Shape> {
  public:
   typedef typename Shape::Key Key;
   // Returns the value at entry.
-  Object* ValueAt(int entry) {
+  Object ValueAt(int entry) {
     return this->get(DerivedHashTable::EntryToIndex(entry) + 1);
   }
 
   // Set the value for entry.
-  void ValueAtPut(int entry, Object* value) {
+  void ValueAtPut(int entry, Object value) {
     this->set(DerivedHashTable::EntryToIndex(entry) + 1, value);
   }
 
@@ -67,11 +67,11 @@ class Dictionary : public HashTable<Derived, Shape> {
   void Print(std::ostream& os);  // NOLINT
 #endif
   // Returns the key (slow).
-  Object* SlowReverseLookup(Object* value);
+  Object SlowReverseLookup(Object value);
 
   // Sets the entry to (key, value) pair.
   inline void ClearEntry(Isolate* isolate, int entry);
-  inline void SetEntry(Isolate* isolate, int entry, Object* key, Object* value,
+  inline void SetEntry(Isolate* isolate, int entry, Object key, Object value,
                        PropertyDetails details);
 
   V8_WARN_UNUSED_RESULT static Handle<Derived> Add(
@@ -112,9 +112,9 @@ class BaseDictionaryShape : public BaseShape<Key> {
 
 class NameDictionaryShape : public BaseDictionaryShape<Handle<Name>> {
  public:
-  static inline bool IsMatch(Handle<Name> key, Object* other);
+  static inline bool IsMatch(Handle<Name> key, Object other);
   static inline uint32_t Hash(Isolate* isolate, Handle<Name> key);
-  static inline uint32_t HashForObject(Isolate* isolate, Object* object);
+  static inline uint32_t HashForObject(Isolate* isolate, Object object);
   static inline Handle<Object> AsHandle(Isolate* isolate, Handle<Name> key);
   static inline RootIndex GetMapRootIndex();
   static const int kPrefixSize = 2;
@@ -149,7 +149,7 @@ class BaseNameDictionary : public Dictionary<Derived, Shape> {
   }
 
   int Hash() const {
-    Object* hash_obj = this->get(kObjectHashIndex);
+    Object hash_obj = this->get(kObjectHashIndex);
     int hash = Smi::ToInt(hash_obj);
     DCHECK(PropertyArray::HashField::is_valid(hash));
     return hash;
@@ -209,8 +209,8 @@ class NameDictionary
 
 class GlobalDictionaryShape : public NameDictionaryShape {
  public:
-  static inline bool IsMatch(Handle<Name> key, Object* other);
-  static inline uint32_t HashForObject(Isolate* isolate, Object* object);
+  static inline bool IsMatch(Handle<Name> key, Object other);
+  static inline uint32_t HashForObject(Isolate* isolate, Object object);
 
   static const int kEntrySize = 1;  // Overrides NameDictionaryShape::kEntrySize
 
@@ -221,9 +221,9 @@ class GlobalDictionaryShape : public NameDictionaryShape {
   static inline void DetailsAtPut(Isolate* isolate, Dictionary dict, int entry,
                                   PropertyDetails value);
 
-  static inline Object* Unwrap(Object* key);
-  static inline bool IsKey(ReadOnlyRoots roots, Object* k);
-  static inline bool IsLive(ReadOnlyRoots roots, Object* key);
+  static inline Object Unwrap(Object key);
+  static inline bool IsKey(ReadOnlyRoots roots, Object k);
+  static inline bool IsLive(ReadOnlyRoots roots, Object key);
   static inline RootIndex GetMapRootIndex();
 };
 
@@ -232,12 +232,12 @@ class GlobalDictionary
  public:
   DECL_CAST2(GlobalDictionary)
 
-  inline Object* ValueAt(int entry);
+  inline Object ValueAt(int entry);
   inline PropertyCell CellAt(int entry);
-  inline void SetEntry(Isolate* isolate, int entry, Object* key, Object* value,
+  inline void SetEntry(Isolate* isolate, int entry, Object key, Object value,
                        PropertyDetails details);
   inline Name NameAt(int entry);
-  inline void ValueAtPut(int entry, Object* value);
+  inline void ValueAtPut(int entry, Object value);
 
   OBJECT_CONSTRUCTORS(
       GlobalDictionary,
@@ -246,11 +246,11 @@ class GlobalDictionary
 
 class NumberDictionaryBaseShape : public BaseDictionaryShape<uint32_t> {
  public:
-  static inline bool IsMatch(uint32_t key, Object* other);
+  static inline bool IsMatch(uint32_t key, Object other);
   static inline Handle<Object> AsHandle(Isolate* isolate, uint32_t key);
 
   static inline uint32_t Hash(Isolate* isolate, uint32_t key);
-  static inline uint32_t HashForObject(Isolate* isolate, Object* object);
+  static inline uint32_t HashForObject(Isolate* isolate, Object object);
 };
 
 class NumberDictionaryShape : public NumberDictionaryBaseShape {

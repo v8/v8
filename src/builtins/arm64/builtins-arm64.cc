@@ -1573,7 +1573,7 @@ void Builtins::Generate_InstantiateAsmJs(MacroAssembler* masm) {
 
     Label at_least_one_arg;
     Label three_args;
-    DCHECK_NULL(Smi::kZero);
+    DCHECK_EQ(0, Smi::kZero.ptr());
     __ Cbnz(argc, &at_least_one_arg);
 
     // No arguments.

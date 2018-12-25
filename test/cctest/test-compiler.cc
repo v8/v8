@@ -48,8 +48,7 @@ static Handle<Object> GetGlobalProperty(const char* name) {
       .ToHandleChecked();
 }
 
-
-static void SetGlobalProperty(const char* name, Object* value) {
+static void SetGlobalProperty(const char* name, Object value) {
   Isolate* isolate = CcTest::i_isolate();
   Handle<Object> object(value, isolate);
   Handle<String> internalized_name =
@@ -59,7 +58,6 @@ static void SetGlobalProperty(const char* name, Object* value) {
                              LanguageMode::kSloppy, StoreOrigin::kMaybeKeyed)
       .Check();
 }
-
 
 static Handle<JSFunction> Compile(const char* source) {
   Isolate* isolate = CcTest::i_isolate();
@@ -915,8 +913,7 @@ TEST(DeepEagerCompilationPeakMemory) {
 // TODO(mslekova): Remove the duplication with test-heap.cc
 static int AllocationSitesCount(Heap* heap) {
   int count = 0;
-  for (Object* site = heap->allocation_sites_list();
-       site->IsAllocationSite();) {
+  for (Object site = heap->allocation_sites_list(); site->IsAllocationSite();) {
     AllocationSite cur = AllocationSite::cast(site);
     CHECK(cur->HasWeakNext());
     site = cur->weak_next();

@@ -43,7 +43,7 @@ class FixedArrayBuilder {
   bool HasCapacity(int elements);
   void EnsureCapacity(Isolate* isolate, int elements);
 
-  void Add(Object* value);
+  void Add(Object value);
   void Add(Smi value);
 
   Handle<FixedArray> array() { return array_; }
@@ -103,7 +103,7 @@ class ReplacementStringBuilder {
   }
 
  private:
-  void AddElement(Object* element);
+  void AddElement(Object element);
 
   Heap* heap_;
   FixedArrayBuilder array_builder_;

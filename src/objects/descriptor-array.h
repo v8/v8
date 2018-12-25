@@ -70,8 +70,8 @@ class DescriptorArray : public HeapObject {
 
   // Accessors for fetching instance descriptor at descriptor number.
   inline Name GetKey(int descriptor_number) const;
-  inline Object* GetStrongValue(int descriptor_number);
-  inline void SetValue(int descriptor_number, Object* value);
+  inline Object GetStrongValue(int descriptor_number);
+  inline void SetValue(int descriptor_number, Object value);
   inline MaybeObject GetValue(int descriptor_number);
   inline PropertyDetails GetDetails(int descriptor_number);
   inline int GetFieldIndex(int descriptor_number);

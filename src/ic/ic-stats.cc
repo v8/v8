@@ -59,7 +59,7 @@ const char* ICStats::GetOrCacheScriptName(Script script) {
   if (script_name_map_.find(script_ptr) != script_name_map_.end()) {
     return script_name_map_[script_ptr].get();
   }
-  Object* script_name_raw = script->name();
+  Object script_name_raw = script->name();
   if (script_name_raw->IsString()) {
     String script_name = String::cast(script_name_raw);
     char* c_script_name =

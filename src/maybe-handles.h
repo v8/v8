@@ -27,30 +27,18 @@ class MaybeHandle final {
 
   // Constructor for handling automatic up casting from Handle.
   // Ex. Handle<JSArray> can be passed when MaybeHandle<Object> is expected.
-  // TODO(3770): Drop std::is_same special cases after the migration.
   template <typename S, typename = typename std::enable_if<
-                            std::is_convertible<S*, T*>::value ||
-                            std::is_same<T, Object>::value ||
-                            (std::is_same<T, HeapObject>::value &&
-                             (std::is_same<S, FixedArray>::value ||
-                              std::is_same<S, FunctionTemplateInfo>::value ||
-                              std::is_same<S, Map>::value))>::type>
+                            std::is_convertible<S*, T*>::value>::type>
   V8_INLINE MaybeHandle(Handle<S> handle) : location_(handle.location_) {}
 
   // Constructor for handling automatic up casting.
   // Ex. MaybeHandle<JSArray> can be passed when Handle<Object> is expected.
-  // TODO(3770): Remove std::is_same special cases after the migration.
-  template <typename S,
-            typename = typename std::enable_if<
-                std::is_convertible<S*, T*>::value ||
-                std::is_same<T, Object>::value ||
-                (std::is_same<T, HeapObject>::value &&
-                 (std::is_same<S, Map>::value ||
-                  std::is_same<S, WasmExportedFunctionData>::value))>::type>
+  template <typename S, typename = typename std::enable_if<
+                            std::is_convertible<S*, T*>::value>::type>
   V8_INLINE MaybeHandle(MaybeHandle<S> maybe_handle)
       : location_(maybe_handle.location_) {}
 
-  V8_INLINE MaybeHandle(T* object, Isolate* isolate);
+  V8_INLINE MaybeHandle(T object, Isolate* isolate);
 
   V8_INLINE void Assert() const { DCHECK_NOT_NULL(location_); }
   V8_INLINE void Check() const { CHECK_NOT_NULL(location_); }
@@ -95,10 +83,10 @@ class MaybeObjectHandle {
  public:
   inline MaybeObjectHandle();
   inline MaybeObjectHandle(MaybeObject object, Isolate* isolate);
-  inline MaybeObjectHandle(Object* object, Isolate* isolate);
+  inline MaybeObjectHandle(Object object, Isolate* isolate);
   inline explicit MaybeObjectHandle(Handle<Object> object);
 
-  static inline MaybeObjectHandle Weak(Object* object, Isolate* isolate);
+  static inline MaybeObjectHandle Weak(Object object, Isolate* isolate);
   static inline MaybeObjectHandle Weak(Handle<Object> object);
 
   inline MaybeObject operator*() const;
@@ -117,7 +105,7 @@ class MaybeObjectHandle {
   bool is_null() const { return handle_.is_null(); }
 
  private:
-  inline MaybeObjectHandle(Object* object,
+  inline MaybeObjectHandle(Object object,
                            HeapObjectReferenceType reference_type,
                            Isolate* isolate);
   inline MaybeObjectHandle(Handle<Object> object,

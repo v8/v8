@@ -129,7 +129,7 @@ bool JSObject::PrototypeHasNoElements(Isolate* isolate, JSObject object) {
 ACCESSORS(JSReceiver, raw_properties_or_hash, Object, kPropertiesOrHashOffset)
 
 FixedArrayBase JSObject::elements() const {
-  Object* array = READ_FIELD(this, kElementsOffset);
+  Object array = READ_FIELD(this, kElementsOffset);
   return FixedArrayBase::cast(array);
 }
 
@@ -159,9 +159,9 @@ void JSObject::EnsureCanContainElements(Handle<JSObject> object, TSlot objects,
     DCHECK(mode != ALLOW_COPIED_DOUBLE_ELEMENTS);
     bool is_holey = IsHoleyElementsKind(current_kind);
     if (current_kind == HOLEY_ELEMENTS) return;
-    Object* the_hole = object->GetReadOnlyRoots().the_hole_value();
+    Object the_hole = object->GetReadOnlyRoots().the_hole_value();
     for (uint32_t i = 0; i < count; ++i, ++objects) {
-      Object* current = *objects;
+      Object current = *objects;
       if (current == the_hole) {
         is_holey = true;
         target_kind = GetHoleyElementsKind(target_kind);
@@ -307,11 +307,11 @@ int JSObject::GetEmbedderFieldOffset(int index) {
   return GetEmbedderFieldsStartOffset() + (kEmbedderDataSlotSize * index);
 }
 
-Object* JSObject::GetEmbedderField(int index) {
+Object JSObject::GetEmbedderField(int index) {
   return EmbedderDataSlot(*this, index).load_tagged();
 }
 
-void JSObject::SetEmbedderField(int index, Object* value) {
+void JSObject::SetEmbedderField(int index, Object value) {
   EmbedderDataSlot::store_tagged(*this, index, value);
 }
 
@@ -327,7 +327,7 @@ bool JSObject::IsUnboxedDoubleField(FieldIndex index) {
 // Access fast-case object properties at index. The use of these routines
 // is needed to correctly distinguish between properties stored in-object and
 // properties stored in the properties array.
-Object* JSObject::RawFastPropertyAt(FieldIndex index) {
+Object JSObject::RawFastPropertyAt(FieldIndex index) {
   DCHECK(!IsUnboxedDoubleField(index));
   if (index.is_inobject()) {
     return READ_FIELD(this, index.offset());
@@ -346,7 +346,7 @@ uint64_t JSObject::RawFastDoublePropertyAsBitsAt(FieldIndex index) {
   return READ_UINT64_FIELD(this, index.offset());
 }
 
-void JSObject::RawFastPropertyAtPut(FieldIndex index, Object* value) {
+void JSObject::RawFastPropertyAtPut(FieldIndex index, Object value) {
   if (index.is_inobject()) {
     int offset = index.offset();
     WRITE_FIELD(this, offset, value);
@@ -366,7 +366,7 @@ void JSObject::RawFastDoublePropertyAsBitsAtPut(FieldIndex index,
                       static_cast<base::AtomicWord>(bits));
 }
 
-void JSObject::FastPropertyAtPut(FieldIndex index, Object* value) {
+void JSObject::FastPropertyAtPut(FieldIndex index, Object value) {
   if (IsUnboxedDoubleField(index)) {
     DCHECK(value->IsMutableHeapNumber());
     // Ensure that all bits of the double value are preserved.
@@ -378,7 +378,7 @@ void JSObject::FastPropertyAtPut(FieldIndex index, Object* value) {
 }
 
 void JSObject::WriteToField(int descriptor, PropertyDetails details,
-                            Object* value) {
+                            Object value) {
   DCHECK_EQ(kField, details.location());
   DCHECK_EQ(kData, details.kind());
   DisallowHeapAllocation no_gc;
@@ -414,13 +414,13 @@ int JSObject::GetInObjectPropertyOffset(int index) {
   return map()->GetInObjectPropertyOffset(index);
 }
 
-Object* JSObject::InObjectPropertyAt(int index) {
+Object JSObject::InObjectPropertyAt(int index) {
   int offset = GetInObjectPropertyOffset(index);
   return READ_FIELD(this, offset);
 }
 
-Object* JSObject::InObjectPropertyAtPut(int index, Object* value,
-                                        WriteBarrierMode mode) {
+Object JSObject::InObjectPropertyAtPut(int index, Object value,
+                                       WriteBarrierMode mode) {
   // Adjust for the number of properties stored in the object.
   int offset = GetInObjectPropertyOffset(index);
   WRITE_FIELD(this, offset, value);
@@ -429,8 +429,7 @@ Object* JSObject::InObjectPropertyAtPut(int index, Object* value,
 }
 
 void JSObject::InitializeBody(Map map, int start_offset,
-                              Object* pre_allocated_value,
-                              Object* filler_value) {
+                              Object pre_allocated_value, Object filler_value) {
   DCHECK(!filler_value->IsHeapObject() || !Heap::InNewSpace(filler_value));
   DCHECK(!pre_allocated_value->IsHeapObject() ||
          !Heap::InNewSpace(pre_allocated_value));
@@ -451,7 +450,7 @@ void JSObject::InitializeBody(Map map, int start_offset,
   }
 }
 
-Object* JSBoundFunction::raw_bound_target_function() const {
+Object JSBoundFunction::raw_bound_target_function() const {
   return READ_FIELD(this, kBoundTargetFunctionOffset);
 }
 
@@ -594,7 +593,7 @@ JSGlobalProxy JSFunction::global_proxy() { return context()->global_proxy(); }
 
 Context JSFunction::native_context() { return context()->native_context(); }
 
-void JSFunction::set_context(Object* value) {
+void JSFunction::set_context(Object value) {
   DCHECK(value->IsUndefined() || value->IsContext());
   WRITE_FIELD(this, kContextOffset, value);
   WRITE_BARRIER(this, kContextOffset, value);
@@ -633,7 +632,7 @@ bool JSFunction::PrototypeRequiresRuntimeLookup() {
   return !has_prototype_property() || map()->has_non_instance_prototype();
 }
 
-Object* JSFunction::instance_prototype() {
+Object JSFunction::instance_prototype() {
   DCHECK(has_instance_prototype());
   if (has_initial_map()) return initial_map()->prototype();
   // When there is no initial map and the prototype is a JSReceiver, the
@@ -641,12 +640,12 @@ Object* JSFunction::instance_prototype() {
   return prototype_or_initial_map();
 }
 
-Object* JSFunction::prototype() {
+Object JSFunction::prototype() {
   DCHECK(has_prototype());
   // If the function's prototype property has been set to a non-JSReceiver
   // value, that value is stored in the constructor field of the map.
   if (map()->has_non_instance_prototype()) {
-    Object* prototype = map()->GetConstructor();
+    Object prototype = map()->GetConstructor();
     // The map must have a prototype in that field, not a back pointer.
     DCHECK(!prototype->IsMap());
     DCHECK(!prototype->IsFunctionTemplateInfo());
@@ -687,7 +686,7 @@ ACCESSORS(JSDate, min, Object, kMinOffset)
 ACCESSORS(JSDate, sec, Object, kSecOffset)
 
 MessageTemplate JSMessageObject::type() const {
-  Object* value = READ_FIELD(this, kTypeOffset);
+  Object value = READ_FIELD(this, kTypeOffset);
   return MessageTemplateFromInt(Smi::ToInt(value));
 }
 void JSMessageObject::set_type(MessageTemplate value) {
@@ -843,7 +842,7 @@ NameDictionary JSReceiver::property_dictionary() const {
   DCHECK(!IsJSGlobalObject());
   DCHECK(!HasFastProperties());
 
-  Object* prop = raw_properties_or_hash();
+  Object prop = raw_properties_or_hash();
   if (prop->IsSmi()) {
     return GetReadOnlyRoots().empty_property_dictionary();
   }
@@ -856,7 +855,7 @@ NameDictionary JSReceiver::property_dictionary() const {
 PropertyArray JSReceiver::property_array() const {
   DCHECK(HasFastProperties());
 
-  Object* prop = raw_properties_or_hash();
+  Object prop = raw_properties_or_hash();
   if (prop->IsSmi() || prop == GetReadOnlyRoots().empty_fixed_array()) {
     return GetReadOnlyRoots().empty_property_array();
   }

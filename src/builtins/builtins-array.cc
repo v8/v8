@@ -179,10 +179,10 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> SetLengthProperty(
       isolate->factory()->NewNumber(length), LanguageMode::kStrict);
 }
 
-V8_WARN_UNUSED_RESULT Object* GenericArrayFill(Isolate* isolate,
-                                               Handle<JSReceiver> receiver,
-                                               Handle<Object> value,
-                                               double start, double end) {
+V8_WARN_UNUSED_RESULT Object GenericArrayFill(Isolate* isolate,
+                                              Handle<JSReceiver> receiver,
+                                              Handle<Object> value,
+                                              double start, double end) {
   // 7. Repeat, while k < final.
   while (start < end) {
     // a. Let Pk be ! ToString(k).
@@ -295,8 +295,8 @@ BUILTIN(ArrayPrototypeFill) {
 }
 
 namespace {
-V8_WARN_UNUSED_RESULT Object* GenericArrayPush(Isolate* isolate,
-                                               BuiltinArguments* args) {
+V8_WARN_UNUSED_RESULT Object GenericArrayPush(Isolate* isolate,
+                                              BuiltinArguments* args) {
   // 1. Let O be ? ToObject(this value).
   Handle<JSReceiver> receiver;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
@@ -388,8 +388,8 @@ BUILTIN(ArrayPush) {
 
 namespace {
 
-V8_WARN_UNUSED_RESULT Object* GenericArrayPop(Isolate* isolate,
-                                              BuiltinArguments* args) {
+V8_WARN_UNUSED_RESULT Object GenericArrayPop(Isolate* isolate,
+                                             BuiltinArguments* args) {
   // 1. Let O be ? ToObject(this value).
   Handle<JSReceiver> receiver;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
@@ -489,9 +489,9 @@ V8_WARN_UNUSED_RESULT bool CanUseFastArrayShift(Isolate* isolate,
   return !JSArray::HasReadOnlyLength(array);
 }
 
-V8_WARN_UNUSED_RESULT Object* GenericArrayShift(Isolate* isolate,
-                                                Handle<JSReceiver> receiver,
-                                                double length) {
+V8_WARN_UNUSED_RESULT Object GenericArrayShift(Isolate* isolate,
+                                               Handle<JSReceiver> receiver,
+                                               double length) {
   // 4. Let first be ? Get(O, "0").
   Handle<Object> first;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, first,
@@ -843,7 +843,7 @@ uint32_t EstimateElementCount(Isolate* isolate, Handle<JSArray> array) {
       int capacity = dictionary->Capacity();
       ReadOnlyRoots roots(isolate);
       for (int i = 0; i < capacity; i++) {
-        Object* key = dictionary->KeyAt(i);
+        Object key = dictionary->KeyAt(i);
         if (dictionary->IsKey(roots, key)) {
           element_count++;
         }
@@ -911,7 +911,7 @@ void CollectElementIndices(Isolate* isolate, Handle<JSObject> object,
       uint32_t capacity = dict->Capacity();
       ReadOnlyRoots roots(isolate);
       FOR_WITH_HANDLE_SCOPE(isolate, uint32_t, j = 0, j, j < capacity, j++, {
-        Object* k = dict->KeyAt(j);
+        Object k = dict->KeyAt(j);
         if (!dict->IsKey(roots, k)) continue;
         DCHECK(k->IsNumber());
         uint32_t index = static_cast<uint32_t>(k->Number());
@@ -1174,8 +1174,8 @@ static Maybe<bool> IsConcatSpreadable(Isolate* isolate, Handle<Object> obj) {
   return Object::IsArray(obj);
 }
 
-Object* Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
-                         Isolate* isolate) {
+Object Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
+                        Isolate* isolate) {
   int argument_count = args->length();
 
   bool is_array_species = *species == isolate->context()->array_function();
@@ -1275,10 +1275,10 @@ Object* Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
             }
             case HOLEY_SMI_ELEMENTS:
             case PACKED_SMI_ELEMENTS: {
-              Object* the_hole = ReadOnlyRoots(isolate).the_hole_value();
+              Object the_hole = ReadOnlyRoots(isolate).the_hole_value();
               FixedArray elements(FixedArray::cast(array->elements()));
               for (uint32_t i = 0; i < length; i++) {
-                Object* element = elements->get(i);
+                Object element = elements->get(i);
                 if (element == the_hole) {
                   failure = true;
                   break;

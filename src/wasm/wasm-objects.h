@@ -65,7 +65,7 @@ class IndirectFunctionTableEntry {
   void Set(int sig_id, Handle<WasmInstanceObject> target_instance,
            int target_func_index);
 
-  Object* object_ref();
+  Object object_ref();
   int sig_id();
   Address target();
 
@@ -97,7 +97,7 @@ class ImportedFunctionEntry {
 
   WasmInstanceObject instance();
   JSReceiver callable();
-  Object* object_ref();
+  Object object_ref();
   Address target();
 
  private:
@@ -541,7 +541,7 @@ class WasmExportedFunction : public JSFunction {
   WasmInstanceObject instance();
   V8_EXPORT_PRIVATE int function_index();
 
-  V8_EXPORT_PRIVATE static bool IsWasmExportedFunction(Object* object);
+  V8_EXPORT_PRIVATE static bool IsWasmExportedFunction(Object object);
 
   static Handle<WasmExportedFunction> New(Isolate* isolate,
                                           Handle<WasmInstanceObject> instance,

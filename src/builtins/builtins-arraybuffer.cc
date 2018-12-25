@@ -27,9 +27,9 @@ namespace internal {
 
 namespace {
 
-Object* ConstructBuffer(Isolate* isolate, Handle<JSFunction> target,
-                        Handle<JSReceiver> new_target, Handle<Object> length,
-                        bool initialize) {
+Object ConstructBuffer(Isolate* isolate, Handle<JSFunction> target,
+                       Handle<JSReceiver> new_target, Handle<Object> length,
+                       bool initialize) {
   Handle<JSObject> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
@@ -122,8 +122,8 @@ BUILTIN(ArrayBufferIsView) {
   return isolate->heap()->ToBoolean(arg->IsJSArrayBufferView());
 }
 
-static Object* SliceHelper(BuiltinArguments args, Isolate* isolate,
-                           const char* kMethodName, bool is_shared) {
+static Object SliceHelper(BuiltinArguments args, Isolate* isolate,
+                          const char* kMethodName, bool is_shared) {
   HandleScope scope(isolate);
   Handle<Object> start = args.at(1);
   Handle<Object> end = args.atOrUndefined(isolate, 2);

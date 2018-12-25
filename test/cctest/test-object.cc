@@ -15,7 +15,7 @@ namespace internal {
 
 static void CheckObject(Isolate* isolate, Handle<Object> obj,
                         const char* string) {
-  Object* print_string = *Object::NoSideEffectsToString(isolate, obj);
+  Object print_string = *Object::NoSideEffectsToString(isolate, obj);
   CHECK(String::cast(print_string)->IsUtf8EqualTo(CStrVector(string)));
 }
 

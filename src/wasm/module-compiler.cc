@@ -1962,7 +1962,7 @@ int InstanceBuilder::ProcessImports(Handle<WasmInstanceObject> instance) {
                           index, module_name, import_name);
           return -1;
         }
-        Object* exception_tag = imported_exception->exception_tag();
+        Object exception_tag = imported_exception->exception_tag();
         DCHECK(instance->exceptions_table()->get(import.index)->IsUndefined());
         instance->exceptions_table()->set(import.index, exception_tag);
         exception_wrappers_[import.index] = imported_exception;

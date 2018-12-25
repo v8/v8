@@ -75,7 +75,7 @@ void JsonPrintFunctionSource(std::ostream& os, int source_id,
   int start = 0;
   int end = 0;
   if (!script.is_null() && !script->IsUndefined(isolate) && !shared.is_null()) {
-    Object* source_name = script->name();
+    Object source_name = script->name();
     os << ", \"sourceName\": \"";
     if (source_name->IsString()) {
       os << String::cast(source_name)->ToCString().get();
@@ -139,7 +139,8 @@ void JsonPrintAllSourceWithPositions(std::ostream& os,
   AllowDeferredHandleDereference allow_deference_for_print_code;
   os << "\"sources\" : {";
   Handle<Script> script =
-      (info->shared_info().is_null() || !info->shared_info()->script())
+      (info->shared_info().is_null() ||
+       info->shared_info()->script() == Object())
           ? Handle<Script>()
           : handle(Script::cast(info->shared_info()->script()), isolate);
   JsonPrintFunctionSource(os, -1,
@@ -189,7 +190,7 @@ std::unique_ptr<char[]> GetVisualizerLogFileName(OptimizedCompilationInfo* info,
   bool source_available = false;
   if (FLAG_trace_file_names && info->has_shared_info() &&
       info->shared_info()->script()->IsScript()) {
-    Object* source_name = Script::cast(info->shared_info()->script())->name();
+    Object source_name = Script::cast(info->shared_info()->script())->name();
     if (source_name->IsString()) {
       String str = String::cast(source_name);
       if (str->length() > 0) {

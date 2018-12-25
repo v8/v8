@@ -381,7 +381,7 @@ void RunSmiConstant(int32_t v) {
 // TODO(dcarney): on x64 Smis are generated with the SmiConstantRegister
 #if !V8_TARGET_ARCH_X64
   if (Smi::IsValid(v)) {
-    RawMachineAssemblerTester<Object*> m;
+    RawMachineAssemblerTester<Object> m;
     m.Return(m.NumberConstant(v));
     CHECK_EQ(Smi::FromInt(v), m.Call());
   }
@@ -390,14 +390,14 @@ void RunSmiConstant(int32_t v) {
 
 
 void RunNumberConstant(double v) {
-  RawMachineAssemblerTester<Object*> m;
+  RawMachineAssemblerTester<Object> m;
 #if V8_TARGET_ARCH_X64
   // TODO(dcarney): on x64 Smis are generated with the SmiConstantRegister
   Handle<Object> number = m.isolate()->factory()->NewNumber(v);
   if (number->IsSmi()) return;
 #endif
   m.Return(m.NumberConstant(v));
-  Object* result = m.Call();
+  Object result = m.Call();
   m.CheckNumber(v, result);
 }
 
@@ -458,14 +458,14 @@ TEST(RunNumberConstants) {
 
 
 TEST(RunEmptyString) {
-  RawMachineAssemblerTester<Object*> m;
+  RawMachineAssemblerTester<Object> m;
   m.Return(m.StringConstant("empty"));
   m.CheckString("empty", m.Call());
 }
 
 
 TEST(RunHeapConstant) {
-  RawMachineAssemblerTester<Object*> m;
+  RawMachineAssemblerTester<Object> m;
   m.Return(m.StringConstant("empty"));
   m.CheckString("empty", m.Call());
 }

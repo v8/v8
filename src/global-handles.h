@@ -46,18 +46,9 @@ class GlobalHandles {
   ~GlobalHandles();
 
   // Creates a new global handle that is alive until Destroy is called.
-  // TODO(3770): Drop Object* version.
-  Handle<Object> Create(Object* value);
   Handle<Object> Create(ObjectPtr value);
   Handle<Object> Create(Address value);
 
-  template <typename T>
-  Handle<T> Create(T* value) {
-    static_assert(std::is_base_of<Object, T>::value, "static type violation");
-    // The compiler should only pick this method if T is not Object.
-    static_assert(!std::is_same<Object, T>::value, "compiler error");
-    return Handle<T>::cast(Create(static_cast<Object*>(value)));
-  }
   template <typename T>
   Handle<T> Create(T value) {
     static_assert(std::is_base_of<ObjectPtr, T>::value,
@@ -273,7 +264,7 @@ class EternalHandles {
   int NumberOfHandles() { return size_; }
 
   // Create an EternalHandle, overwriting the index.
-  void Create(Isolate* isolate, Object* object, int* index);
+  void Create(Isolate* isolate, Object object, int* index);
 
   // Grab the handle for an existing EternalHandle.
   inline Handle<Object> Get(int index) {

@@ -41,10 +41,10 @@ class Consts {
 };
 
 template <typename T>
-inline T ToCData(v8::internal::Object* obj);
+inline T ToCData(v8::internal::Object obj);
 
 template <>
-inline v8::internal::Address ToCData(v8::internal::Object* obj);
+inline v8::internal::Address ToCData(v8::internal::Object obj);
 
 template <typename T>
 inline v8::internal::Handle<v8::internal::Object> FromCData(

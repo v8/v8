@@ -26,7 +26,7 @@ inline void JSV8BreakIterator::set_type(Type type) {
 }
 
 inline JSV8BreakIterator::Type JSV8BreakIterator::type() const {
-  Object* value = READ_FIELD(this, kTypeOffset);
+  Object value = READ_FIELD(this, kTypeOffset);
   return static_cast<JSV8BreakIterator::Type>(Smi::ToInt(value));
 }
 

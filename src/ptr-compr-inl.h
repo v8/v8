@@ -98,9 +98,9 @@ V8_INLINE Address DecompressTaggedAny(Address on_heap_addr,
 CompressedObjectSlot::CompressedObjectSlot(ObjectPtr* object)
     : SlotBase(reinterpret_cast<Address>(&object->ptr_)) {}
 
-Object* CompressedObjectSlot::operator*() const {
+Object CompressedObjectSlot::operator*() const {
   Tagged_t value = *location();
-  return reinterpret_cast<Object*>(DecompressTaggedAny(address(), value));
+  return Object(DecompressTaggedAny(address(), value));
 }
 
 ObjectPtr CompressedObjectSlot::load() const {
@@ -108,18 +108,13 @@ ObjectPtr CompressedObjectSlot::load() const {
   return ObjectPtr(DecompressTaggedAny(address(), value));
 }
 
-void CompressedObjectSlot::store(Object* value) const {
+void CompressedObjectSlot::store(Object value) const {
   *location() = CompressTagged(value->ptr());
 }
 
 ObjectPtr CompressedObjectSlot::Acquire_Load() const {
   AtomicTagged_t value = AsAtomicTagged::Acquire_Load(location());
   return ObjectPtr(DecompressTaggedAny(address(), value));
-}
-
-Object* CompressedObjectSlot::Acquire_Load1() const {
-  AtomicTagged_t value = AsAtomicTagged::Acquire_Load(location());
-  return reinterpret_cast<Object*>(DecompressTaggedAny(address(), value));
 }
 
 ObjectPtr CompressedObjectSlot::Relaxed_Load() const {
@@ -130,16 +125,6 @@ ObjectPtr CompressedObjectSlot::Relaxed_Load() const {
 void CompressedObjectSlot::Relaxed_Store(ObjectPtr value) const {
   Tagged_t ptr = CompressTagged(value->ptr());
   AsAtomicTagged::Relaxed_Store(location(), ptr);
-}
-
-void CompressedObjectSlot::Relaxed_Store1(Object* value) const {
-  Tagged_t ptr = CompressTagged(value->ptr());
-  AsAtomicTagged::Relaxed_Store(location(), ptr);
-}
-
-void CompressedObjectSlot::Release_Store1(Object* value) const {
-  Tagged_t ptr = CompressTagged(value->ptr());
-  AsAtomicTagged::Release_Store(location(), ptr);
 }
 
 void CompressedObjectSlot::Release_Store(ObjectPtr value) const {
@@ -165,9 +150,9 @@ bool CompressedMapWordSlot::contains_value(Address raw_value) const {
   return value == static_cast<Tagged_t>(raw_value);
 }
 
-Object* CompressedMapWordSlot::operator*() const {
+Object CompressedMapWordSlot::operator*() const {
   Tagged_t value = *location();
-  return reinterpret_cast<Object*>(DecompressTaggedPointer(address(), value));
+  return Object(DecompressTaggedPointer(address(), value));
 }
 
 ObjectPtr CompressedMapWordSlot::load() const {

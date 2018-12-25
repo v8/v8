@@ -53,10 +53,10 @@ class RecordingVisitor : public RootVisitor {
     }
   }
 
-  const std::vector<Object*>& visited() const { return visited_; }
+  const std::vector<Object>& visited() const { return visited_; }
 
  private:
-  std::vector<Object*> visited_;
+  std::vector<Object> visited_;
 };
 
 // Sanity check. Ensure a microtask is stored in a queue and run.
@@ -154,7 +154,7 @@ TEST_F(MicrotaskQueueTest, VisitRoot) {
   }
   microtask_queue->RunMicrotasks(isolate());
 
-  std::vector<Object*> expected;
+  std::vector<Object> expected;
   for (int i = 0; i < MicrotaskQueue::kMinimumCapacity / 2 + 1; ++i) {
     Handle<Microtask> microtask = NewMicrotask([] {});
     expected.push_back(*microtask);
@@ -166,7 +166,7 @@ TEST_F(MicrotaskQueueTest, VisitRoot) {
   RecordingVisitor visitor;
   microtask_queue->IterateMicrotasks(&visitor);
 
-  std::vector<Object*> actual = visitor.visited();
+  std::vector<Object> actual = visitor.visited();
   std::sort(expected.begin(), expected.end());
   std::sort(actual.begin(), actual.end());
   EXPECT_EQ(expected, actual);

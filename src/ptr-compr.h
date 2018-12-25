@@ -40,10 +40,10 @@ class CompressedObjectSlot
   explicit CompressedObjectSlot(SlotBase<T, TData, kSlotDataSize> slot)
       : SlotBase(slot.address()) {}
 
-  inline Object* operator*() const;
+  inline Object operator*() const;
   // TODO(3770): drop this in favor of operator* once migration is complete.
   inline ObjectPtr load() const;
-  inline void store(Object* value) const;
+  inline void store(Object value) const;
 
   inline ObjectPtr Acquire_Load() const;
   inline ObjectPtr Relaxed_Load() const;
@@ -51,12 +51,6 @@ class CompressedObjectSlot
   inline void Release_Store(ObjectPtr value) const;
   inline ObjectPtr Release_CompareAndSwap(ObjectPtr old,
                                           ObjectPtr target) const;
-  // Old-style alternative for the above, temporarily separate to allow
-  // incremental transition.
-  // TODO(3770): Get rid of the duplication when the migration is complete.
-  inline Object* Acquire_Load1() const;
-  inline void Relaxed_Store1(Object* value) const;
-  inline void Release_Store1(Object* value) const;
 };
 
 // A CompressedMapWordSlot instance describes a kTaggedSize-sized map-word field
@@ -80,7 +74,7 @@ class CompressedMapWordSlot
   // raw value without decompression.
   inline bool contains_value(Address raw_value) const;
 
-  inline Object* operator*() const;
+  inline Object operator*() const;
   inline ObjectPtr load() const;
   inline void store(ObjectPtr value) const;
 
@@ -109,8 +103,6 @@ class CompressedMaybeObjectSlot
   CompressedMaybeObjectSlot() : SlotBase(kNullAddress) {}
   explicit CompressedMaybeObjectSlot(Address ptr) : SlotBase(ptr) {}
   explicit CompressedMaybeObjectSlot(ObjectPtr* ptr)
-      : SlotBase(reinterpret_cast<Address>(ptr)) {}
-  explicit CompressedMaybeObjectSlot(Object** ptr)
       : SlotBase(reinterpret_cast<Address>(ptr)) {}
   template <typename T>
   explicit CompressedMaybeObjectSlot(SlotBase<T, TData, kSlotDataSize> slot)

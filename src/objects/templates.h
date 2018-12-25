@@ -108,7 +108,7 @@ class FunctionTemplateInfo : public TemplateInfo {
   DECL_ACCESSORS2(rare_data, HeapObject)
 
 #define DECL_RARE_ACCESSORS(Name, CamelName, Type)                           \
-  inline Type* Get##CamelName();                                             \
+  inline Type Get##CamelName();                                              \
   static inline void Set##CamelName(                                         \
       Isolate* isolate, Handle<FunctionTemplateInfo> function_template_info, \
       Handle<Type> Name);

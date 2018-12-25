@@ -34,7 +34,7 @@ void IncrementalMarking::TransferColor(HeapObject from, HeapObject to) {
 }
 
 void IncrementalMarking::RecordWrite(HeapObject obj, ObjectSlot slot,
-                                     Object* value) {
+                                     Object value) {
   DCHECK_IMPLIES(slot.address() != kNullAddress, !HasWeakHeapObjectTag(*slot));
   DCHECK(!HasWeakHeapObjectTag(value));
   if (IsMarking() && value->IsHeapObject()) {

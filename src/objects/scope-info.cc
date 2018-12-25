@@ -28,8 +28,8 @@ enum ModuleVariableEntryOffset {
 bool ScopeInfo::Equals(ScopeInfo other) const {
   if (length() != other->length()) return false;
   for (int index = 0; index < length(); ++index) {
-    Object* entry = get(index);
-    Object* other_entry = other->get(index);
+    Object entry = get(index);
+    Object other_entry = other->get(index);
     if (entry->IsSmi()) {
       if (entry != other_entry) return false;
     } else {
@@ -268,7 +268,7 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
     DisallowHeapAllocation no_gc;
     Variable* var = scope->AsDeclarationScope()->function_var();
     int var_index = -1;
-    Object* name = Smi::kZero;
+    Object name = Smi::kZero;
     if (var != nullptr) {
       var_index = var->index();
       name = *var->name();
@@ -541,7 +541,7 @@ bool ScopeInfo::HasSharedFunctionName() const {
   return FunctionName() != SharedFunctionInfo::kNoSharedNameSentinel;
 }
 
-void ScopeInfo::SetFunctionName(Object* name) {
+void ScopeInfo::SetFunctionName(Object name) {
   DCHECK(HasFunctionName());
   DCHECK(name->IsString() || name == SharedFunctionInfo::kNoSharedNameSentinel);
   set(FunctionNameInfoIndex(), name);
@@ -573,18 +573,18 @@ void ScopeInfo::SetIsDebugEvaluateScope() {
 
 bool ScopeInfo::HasContext() const { return ContextLength() > 0; }
 
-Object* ScopeInfo::FunctionName() const {
+Object ScopeInfo::FunctionName() const {
   DCHECK(HasFunctionName());
   return get(FunctionNameInfoIndex());
 }
 
-Object* ScopeInfo::InferredFunctionName() const {
+Object ScopeInfo::InferredFunctionName() const {
   DCHECK(HasInferredFunctionName());
   return get(InferredFunctionNameIndex());
 }
 
 String ScopeInfo::FunctionDebugName() const {
-  Object* name = FunctionName();
+  Object name = FunctionName();
   if (name->IsString() && String::cast(name)->length() > 0) {
     return String::cast(name);
   }

@@ -32,7 +32,7 @@ class JSArrayBuffer : public JSObject {
   DECL_PRIMITIVE_ACCESSORS(byte_length, size_t)
 
   // [backing_store]: backing memory for this array
-  DECL_ACCESSORS(backing_store, void)
+  DECL_ACCESSORS(backing_store, void*)
 
   // For non-wasm, allocation_length and allocation_base are byte_length and
   // backing_store, respectively.

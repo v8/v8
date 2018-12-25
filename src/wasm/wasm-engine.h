@@ -19,6 +19,7 @@ namespace internal {
 class AsmWasmData;
 class CodeTracer;
 class CompilationStatistics;
+class HeapNumber;
 class WasmInstanceObject;
 class WasmModuleObject;
 

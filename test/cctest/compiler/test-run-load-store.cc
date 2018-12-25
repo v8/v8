@@ -350,7 +350,7 @@ TEST(RunLoadImmIndex) {
   RunLoadImmIndex<Smi>(MachineType::TaggedSigned(), TestAlignment::kAligned);
   RunLoadImmIndex<HeapObject>(MachineType::TaggedPointer(),
                               TestAlignment::kAligned);
-  RunLoadImmIndex<Object*>(MachineType::AnyTagged(), TestAlignment::kAligned);
+  RunLoadImmIndex<Object>(MachineType::AnyTagged(), TestAlignment::kAligned);
   RunLoadImmIndex<float>(MachineType::Float32(), TestAlignment::kAligned);
   RunLoadImmIndex<double>(MachineType::Float64(), TestAlignment::kAligned);
 #if V8_TARGET_ARCH_64_BIT
@@ -368,7 +368,7 @@ TEST(RunUnalignedLoadImmIndex) {
   RunLoadImmIndex<Smi>(MachineType::TaggedSigned(), TestAlignment::kUnaligned);
   RunLoadImmIndex<HeapObject>(MachineType::TaggedPointer(),
                               TestAlignment::kUnaligned);
-  RunLoadImmIndex<Object*>(MachineType::AnyTagged(), TestAlignment::kUnaligned);
+  RunLoadImmIndex<Object>(MachineType::AnyTagged(), TestAlignment::kUnaligned);
   RunLoadImmIndex<float>(MachineType::Float32(), TestAlignment::kUnaligned);
   RunLoadImmIndex<double>(MachineType::Float64(), TestAlignment::kUnaligned);
 #if V8_TARGET_ARCH_64_BIT
@@ -388,7 +388,7 @@ TEST(RunLoadStore) {
   RunLoadStore<Smi>(MachineType::TaggedSigned(), TestAlignment::kAligned);
   RunLoadStore<HeapObject>(MachineType::TaggedPointer(),
                            TestAlignment::kAligned);
-  RunLoadStore<Object*>(MachineType::AnyTagged(), TestAlignment::kAligned);
+  RunLoadStore<Object>(MachineType::AnyTagged(), TestAlignment::kAligned);
   RunLoadStore<float>(MachineType::Float32(), TestAlignment::kAligned);
   RunLoadStore<double>(MachineType::Float64(), TestAlignment::kAligned);
 #if V8_TARGET_ARCH_64_BIT
@@ -405,7 +405,7 @@ TEST(RunUnalignedLoadStore) {
   RunLoadStore<Smi>(MachineType::TaggedSigned(), TestAlignment::kUnaligned);
   RunLoadStore<HeapObject>(MachineType::TaggedPointer(),
                            TestAlignment::kUnaligned);
-  RunLoadStore<Object*>(MachineType::AnyTagged(), TestAlignment::kUnaligned);
+  RunLoadStore<Object>(MachineType::AnyTagged(), TestAlignment::kUnaligned);
   RunLoadStore<float>(MachineType::Float32(), TestAlignment::kUnaligned);
   RunLoadStore<double>(MachineType::Float64(), TestAlignment::kUnaligned);
 #if V8_TARGET_ARCH_64_BIT
@@ -422,7 +422,7 @@ TEST(RunUnalignedLoadStoreUnalignedAccess) {
   RunUnalignedLoadStoreUnalignedAccess<Smi>(MachineType::TaggedSigned());
   RunUnalignedLoadStoreUnalignedAccess<HeapObject>(
       MachineType::TaggedPointer());
-  RunUnalignedLoadStoreUnalignedAccess<Object*>(MachineType::AnyTagged());
+  RunUnalignedLoadStoreUnalignedAccess<Object>(MachineType::AnyTagged());
   RunUnalignedLoadStoreUnalignedAccess<float>(MachineType::Float32());
   RunUnalignedLoadStoreUnalignedAccess<double>(MachineType::Float64());
 #if V8_TARGET_ARCH_64_BIT

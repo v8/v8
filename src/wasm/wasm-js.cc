@@ -1320,7 +1320,7 @@ void WebAssemblyTableGrow(const v8::FunctionCallbackInfo<v8::Value>& args) {
     i::Handle<i::FixedArray> new_array =
         i_isolate->factory()->NewFixedArray(new_size);
     for (int i = 0; i < old_size; ++i) new_array->set(i, old_array->get(i));
-    i::Object* null = i::ReadOnlyRoots(i_isolate).null_value();
+    i::Object null = i::ReadOnlyRoots(i_isolate).null_value();
     for (int i = old_size; i < new_size; ++i) new_array->set(i, null);
     receiver->set_functions(*new_array);
   }
@@ -1648,7 +1648,7 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
   Handle<JSGlobalObject> global = isolate->global_object();
   Handle<Context> context(global->native_context(), isolate);
   // Install the JS API once only.
-  Object* prev = context->get(Context::WASM_MODULE_CONSTRUCTOR_INDEX);
+  Object prev = context->get(Context::WASM_MODULE_CONSTRUCTOR_INDEX);
   if (!prev->IsUndefined(isolate)) {
     DCHECK(prev->IsJSFunction());
     return;

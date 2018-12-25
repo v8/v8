@@ -63,7 +63,7 @@ class CodeSerializer : public Serializer {
     UNREACHABLE();
   }
 
-  virtual bool ElideObject(Object* obj) { return false; }
+  virtual bool ElideObject(Object obj) { return false; }
   void SerializeGeneric(HeapObject heap_object, HowToCode how_to_code,
                         WhereToPoint where_to_point);
 

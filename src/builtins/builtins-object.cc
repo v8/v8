@@ -59,8 +59,8 @@ BUILTIN(ObjectDefineProperty) {
 namespace {
 
 template <AccessorComponent which_accessor>
-Object* ObjectDefineAccessor(Isolate* isolate, Handle<Object> object,
-                             Handle<Object> name, Handle<Object> accessor) {
+Object ObjectDefineAccessor(Isolate* isolate, Handle<Object> object,
+                            Handle<Object> name, Handle<Object> accessor) {
   // 1. Let O be ? ToObject(this value).
   Handle<JSReceiver> receiver;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, receiver,
@@ -100,8 +100,8 @@ Object* ObjectDefineAccessor(Isolate* isolate, Handle<Object> object,
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-Object* ObjectLookupAccessor(Isolate* isolate, Handle<Object> object,
-                             Handle<Object> key, AccessorComponent component) {
+Object ObjectLookupAccessor(Isolate* isolate, Handle<Object> object,
+                            Handle<Object> key, AccessorComponent component) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, object,
                                      Object::ToObject(isolate, object));
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, key,
@@ -309,8 +309,8 @@ BUILTIN(ObjectPrototypeSetProto) {
 
 namespace {
 
-Object* GetOwnPropertyKeys(Isolate* isolate, BuiltinArguments args,
-                           PropertyFilter filter) {
+Object GetOwnPropertyKeys(Isolate* isolate, BuiltinArguments args,
+                          PropertyFilter filter) {
   HandleScope scope(isolate);
   Handle<Object> object = args.atOrUndefined(isolate, 1);
   Handle<JSReceiver> receiver;

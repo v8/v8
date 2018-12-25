@@ -84,10 +84,10 @@ void AtomicsWaitWakeHandle::Wake() {
 
 enum WaitReturnValue : int { kOk = 0, kNotEqual = 1, kTimedOut = 2 };
 
-Object* FutexEmulation::WaitJs(Isolate* isolate,
-                               Handle<JSArrayBuffer> array_buffer, size_t addr,
-                               int32_t value, double rel_timeout_ms) {
-  Object* res = Wait32(isolate, array_buffer, addr, value, rel_timeout_ms);
+Object FutexEmulation::WaitJs(Isolate* isolate,
+                              Handle<JSArrayBuffer> array_buffer, size_t addr,
+                              int32_t value, double rel_timeout_ms) {
+  Object res = Wait32(isolate, array_buffer, addr, value, rel_timeout_ms);
   if (res->IsSmi()) {
     int val = Smi::ToInt(res);
     switch (val) {
@@ -104,22 +104,22 @@ Object* FutexEmulation::WaitJs(Isolate* isolate,
   return res;
 }
 
-Object* FutexEmulation::Wait32(Isolate* isolate,
-                               Handle<JSArrayBuffer> array_buffer, size_t addr,
-                               int32_t value, double rel_timeout_ms) {
+Object FutexEmulation::Wait32(Isolate* isolate,
+                              Handle<JSArrayBuffer> array_buffer, size_t addr,
+                              int32_t value, double rel_timeout_ms) {
   return Wait<int32_t>(isolate, array_buffer, addr, value, rel_timeout_ms);
 }
 
-Object* FutexEmulation::Wait64(Isolate* isolate,
-                               Handle<JSArrayBuffer> array_buffer, size_t addr,
-                               int64_t value, double rel_timeout_ms) {
+Object FutexEmulation::Wait64(Isolate* isolate,
+                              Handle<JSArrayBuffer> array_buffer, size_t addr,
+                              int64_t value, double rel_timeout_ms) {
   return Wait<int64_t>(isolate, array_buffer, addr, value, rel_timeout_ms);
 }
 
 template <typename T>
-Object* FutexEmulation::Wait(Isolate* isolate,
-                             Handle<JSArrayBuffer> array_buffer, size_t addr,
-                             T value, double rel_timeout_ms) {
+Object FutexEmulation::Wait(Isolate* isolate,
+                            Handle<JSArrayBuffer> array_buffer, size_t addr,
+                            T value, double rel_timeout_ms) {
   DCHECK_LT(addr, array_buffer->byte_length());
 
   bool use_timeout = rel_timeout_ms != V8_INFINITY;
@@ -150,7 +150,7 @@ Object* FutexEmulation::Wait(Isolate* isolate,
     return isolate->PromoteScheduledException();
   }
 
-  Object* result;
+  Object result;
   AtomicsWaitEvent callback_result = AtomicsWaitEvent::kWokenUp;
 
   do {  // Not really a loop, just makes it easier to break out early.
@@ -204,7 +204,7 @@ Object* FutexEmulation::Wait(Isolate* isolate,
       // notification will wake up the condition variable. node->waiting() will
       // be false, so we'll loop and then check interrupts.
       if (interrupted) {
-        Object* interrupt_object = isolate->stack_guard()->HandleInterrupts();
+        Object interrupt_object = isolate->stack_guard()->HandleInterrupts();
         if (interrupt_object->IsException(isolate)) {
           result = interrupt_object;
           callback_result = AtomicsWaitEvent::kTerminatedExecution;
@@ -265,8 +265,8 @@ Object* FutexEmulation::Wait(Isolate* isolate,
   return result;
 }
 
-Object* FutexEmulation::Wake(Handle<JSArrayBuffer> array_buffer, size_t addr,
-                             uint32_t num_waiters_to_wake) {
+Object FutexEmulation::Wake(Handle<JSArrayBuffer> array_buffer, size_t addr,
+                            uint32_t num_waiters_to_wake) {
   DCHECK_LT(addr, array_buffer->byte_length());
 
   int waiters_woken = 0;
@@ -291,8 +291,8 @@ Object* FutexEmulation::Wake(Handle<JSArrayBuffer> array_buffer, size_t addr,
   return Smi::FromInt(waiters_woken);
 }
 
-Object* FutexEmulation::NumWaitersForTesting(Handle<JSArrayBuffer> array_buffer,
-                                             size_t addr) {
+Object FutexEmulation::NumWaitersForTesting(Handle<JSArrayBuffer> array_buffer,
+                                            size_t addr) {
   DCHECK_LT(addr, array_buffer->byte_length());
   void* backing_store = array_buffer->backing_store();
 

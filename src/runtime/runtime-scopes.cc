@@ -31,8 +31,8 @@ namespace {
 
 enum class RedeclarationType { kSyntaxError = 0, kTypeError = 1 };
 
-Object* ThrowRedeclarationError(Isolate* isolate, Handle<String> name,
-                                RedeclarationType redeclaration_type) {
+Object ThrowRedeclarationError(Isolate* isolate, Handle<String> name,
+                               RedeclarationType redeclaration_type) {
   HandleScope scope(isolate);
   if (redeclaration_type == RedeclarationType::kSyntaxError) {
     THROW_NEW_ERROR_RETURN_FAILURE(
@@ -43,9 +43,8 @@ Object* ThrowRedeclarationError(Isolate* isolate, Handle<String> name,
   }
 }
 
-
 // May throw a RedeclarationError.
-Object* DeclareGlobal(
+Object DeclareGlobal(
     Isolate* isolate, Handle<JSGlobalObject> global, Handle<String> name,
     Handle<Object> value, PropertyAttributes attr, bool is_var,
     bool is_function_declaration, RedeclarationType redeclaration_type,
@@ -133,8 +132,8 @@ Object* DeclareGlobal(
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-Object* DeclareGlobals(Isolate* isolate, Handle<FixedArray> declarations,
-                       int flags, Handle<FeedbackVector> feedback_vector) {
+Object DeclareGlobals(Isolate* isolate, Handle<FixedArray> declarations,
+                      int flags, Handle<FeedbackVector> feedback_vector) {
   HandleScope scope(isolate);
   Handle<JSGlobalObject> global(isolate->global_object());
   Handle<Context> context(isolate->context(), isolate);
@@ -189,10 +188,10 @@ Object* DeclareGlobals(Isolate* isolate, Handle<FixedArray> declarations,
 
     // ES#sec-globaldeclarationinstantiation 5.d:
     // If hasRestrictedGlobal is true, throw a SyntaxError exception.
-    Object* result = DeclareGlobal(
-        isolate, global, name, value, static_cast<PropertyAttributes>(attr),
-        is_var, is_function, RedeclarationType::kSyntaxError, feedback_vector,
-        slot);
+    Object result = DeclareGlobal(isolate, global, name, value,
+                                  static_cast<PropertyAttributes>(attr), is_var,
+                                  is_function, RedeclarationType::kSyntaxError,
+                                  feedback_vector, slot);
     if (isolate->has_pending_exception()) return result;
   });
 
@@ -219,8 +218,8 @@ RUNTIME_FUNCTION(Runtime_DeclareGlobals) {
 
 namespace {
 
-Object* DeclareEvalHelper(Isolate* isolate, Handle<String> name,
-                          Handle<Object> value) {
+Object DeclareEvalHelper(Isolate* isolate, Handle<String> name,
+                         Handle<Object> value) {
   // Declarations are always made in a function, native, eval, or script
   // context, or a declaration block scope. Since this is called from eval, the
   // context passed is the context of the caller, which may be some nested
@@ -478,7 +477,7 @@ Handle<JSObject> NewSloppyArguments(Isolate* isolate, Handle<JSFunction> callee,
 class HandleArguments {
  public:
   explicit HandleArguments(Handle<Object>* array) : array_(array) {}
-  Object* operator[](int index) { return *array_[index]; }
+  Object operator[](int index) { return *array_[index]; }
 
  private:
   Handle<Object>* array_;
@@ -487,7 +486,7 @@ class HandleArguments {
 class ParameterArguments {
  public:
   explicit ParameterArguments(Address parameters) : parameters_(parameters) {}
-  Object* operator[](int index) {
+  Object operator[](int index) {
     return *FullObjectSlot(parameters_ - (index + 1) * kPointerSize);
   }
 
@@ -643,9 +642,9 @@ RUNTIME_FUNCTION(Runtime_NewClosure_Tenured) {
   return *function;
 }
 
-static Object* FindNameClash(Isolate* isolate, Handle<ScopeInfo> scope_info,
-                             Handle<JSGlobalObject> global_object,
-                             Handle<ScriptContextTable> script_context) {
+static Object FindNameClash(Isolate* isolate, Handle<ScopeInfo> scope_info,
+                            Handle<JSGlobalObject> global_object,
+                            Handle<ScriptContextTable> script_context) {
   for (int var = 0; var < scope_info->ContextLocalCount(); var++) {
     Handle<String> name(scope_info->ContextLocalName(var), isolate);
     VariableMode mode = scope_info->ContextLocalMode(var);
@@ -681,7 +680,6 @@ static Object* FindNameClash(Isolate* isolate, Handle<ScopeInfo> scope_info,
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-
 RUNTIME_FUNCTION(Runtime_NewScriptContext) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
@@ -694,7 +692,7 @@ RUNTIME_FUNCTION(Runtime_NewScriptContext) {
   Handle<ScriptContextTable> script_context_table(
       native_context->script_context_table(), isolate);
 
-  Object* name_clash_result =
+  Object name_clash_result =
       FindNameClash(isolate, scope_info, global_object, script_context_table);
   if (isolate->has_pending_exception()) return name_clash_result;
 
@@ -899,7 +897,7 @@ RUNTIME_FUNCTION_RETURN_PAIR(Runtime_LoadLookupSlotForCall) {
   Handle<Object> receiver;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, value, LoadLookupSlot(isolate, name, kThrowOnError, &receiver),
-      MakePair(ReadOnlyRoots(isolate).exception(), nullptr));
+      MakePair(ReadOnlyRoots(isolate).exception(), Object()));
   return MakePair(*value, *receiver);
 }
 

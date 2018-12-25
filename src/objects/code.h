@@ -94,8 +94,8 @@ class Code : public HeapObject {
 
   // [next_code_link]: Link for lists of optimized or deoptimized code.
   // Note that this field is stored in the {CodeDataContainer} to be mutable.
-  inline Object* next_code_link() const;
-  inline void set_next_code_link(Object* value);
+  inline Object next_code_link() const;
+  inline void set_next_code_link(Object value);
 
   // [constant_pool offset]: Offset of the constant pool.
   // Valid for FLAG_enable_embedded_constant_pool only
@@ -560,7 +560,7 @@ class AbstractCode : public HeapObject {
   // Return the source position table.
   inline ByteArray source_position_table();
 
-  inline Object* stack_frame_cache();
+  inline Object stack_frame_cache();
   static void SetStackFrameCache(Handle<AbstractCode> abstract_code,
                                  Handle<SimpleNumberDictionary> cache);
   void DropStackFrameCache();
@@ -865,7 +865,7 @@ class DeoptimizationData : public FixedArray {
   DECL_ELEMENT_ACCESSORS(OsrBytecodeOffset, Smi)
   DECL_ELEMENT_ACCESSORS(OsrPcOffset, Smi)
   DECL_ELEMENT_ACCESSORS(OptimizationId, Smi)
-  DECL_ELEMENT_ACCESSORS(SharedFunctionInfo, Object*)
+  DECL_ELEMENT_ACCESSORS(SharedFunctionInfo, Object)
   DECL_ELEMENT_ACCESSORS(InliningPositions, PodArray<InliningPosition>)
 
 #undef DECL_ELEMENT_ACCESSORS

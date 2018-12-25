@@ -233,7 +233,7 @@ class ExternalReference {
   // Used in the simulator to support different native api calls.
   enum Type {
     // Builtin call.
-    // Object* f(v8::internal::Arguments).
+    // Address f(v8::internal::Arguments).
     BUILTIN_CALL,  // default
 
     // Builtin call returning object pair.

@@ -108,92 +108,30 @@ class HandleBase {
 template <typename T>
 class Handle final : public HandleBase {
  public:
-  V8_INLINE explicit Handle(T** location)
-      : HandleBase(reinterpret_cast<Address*>(location)) {
-    // Type check:
-    static_assert(std::is_convertible<T*, Object*>::value,
-                  "static type violation");
-  }
   V8_INLINE explicit Handle(Address* location = nullptr)
       : HandleBase(location) {
     // Type check:
-    static_assert(std::is_convertible<T*, Object*>::value ||
-                      std::is_convertible<T, ObjectPtr>::value,
+    static_assert(std::is_convertible<T*, Object*>::value,
                   "static type violation");
     // TODO(jkummerow): Runtime type check here as a SLOW_DCHECK?
   }
 
-  // Here and below: for object types T that still derive from Object,
-  // enable the overloads that consume/produce a T*; for types already
-  // ported to deriving from ObjectPtr, use non-pointer T values.
-  // TODO(3770): The T* versions should disappear eventually.
-  template <typename T1 = T, typename = typename std::enable_if<
-                                 std::is_base_of<Object, T1>::value>::type>
-  V8_INLINE Handle(T* object, Isolate* isolate);
-  template <typename T1 = T, typename = typename std::enable_if<
-                                 std::is_base_of<ObjectPtr, T1>::value>::type>
   V8_INLINE Handle(T object, Isolate* isolate);
 
   // Allocate a new handle for the object, do not canonicalize.
-  template <typename T1 = T, typename = typename std::enable_if<
-                                 std::is_base_of<Object, T1>::value>::type>
-  V8_INLINE static Handle<T> New(T* object, Isolate* isolate);
-  template <typename T1 = T, typename = typename std::enable_if<
-                                 std::is_base_of<ObjectPtr, T1>::value>::type>
   V8_INLINE static Handle<T> New(T object, Isolate* isolate);
 
   // Constructor for handling automatic up casting.
   // Ex. Handle<JSFunction> can be passed when Handle<Object> is expected.
   // TODO(3770): Remove special cases after the migration.
-  template <
-      typename S,
-      typename = typename std::enable_if<
-          std::is_convertible<S*, T*>::value ||
-          std::is_same<T, Object>::value ||
-          (std::is_same<T, HeapObject>::value &&
-           (std::is_same<S, AllocationSite>::value ||
-            std::is_same<S, ArrayBoilerplateDescription>::value ||
-            std::is_same<S, ByteArray>::value || std::is_same<S, Cell>::value ||
-            std::is_same<S, Code>::value || std::is_same<S, Context>::value ||
-            std::is_same<S, DescriptorArray>::value ||
-            std::is_same<S, FeedbackCell>::value ||
-            std::is_same<S, FeedbackVector>::value ||
-            std::is_same<S, FixedArray>::value ||
-            std::is_same<S, FixedArrayBase>::value ||
-            std::is_same<S, FixedDoubleArray>::value ||
-            std::is_same<S, FunctionTemplateInfo>::value ||
-            std::is_same<S, HeapNumber>::value ||
-            std::is_same<S, JSArray>::value ||
-            std::is_same<S, JSFunction>::value ||
-            std::is_same<S, JSGlobalProxy>::value ||
-            std::is_same<S, JSObject>::value ||
-            std::is_same<S, JSReceiver>::value || std::is_same<S, Map>::value ||
-            std::is_same<S, Module>::value ||
-            std::is_same<S, MutableHeapNumber>::value ||
-            std::is_same<S, Name>::value ||
-            std::is_same<S, NumberDictionary>::value ||
-            std::is_same<S, ObjectBoilerplateDescription>::value ||
-            std::is_same<S, Oddball>::value ||
-            std::is_same<S, OrderedHashMap>::value ||
-            std::is_same<S, OrderedHashSet>::value ||
-            std::is_same<S, OrderedNameDictionary>::value ||
-            std::is_same<S, PropertyCell>::value ||
-            std::is_same<S, ScriptContextTable>::value ||
-            std::is_same<S, ScopeInfo>::value ||
-            std::is_same<S, SharedFunctionInfo>::value ||
-            std::is_same<S, SmallOrderedHashMap>::value ||
-            std::is_same<S, SmallOrderedHashSet>::value ||
-            std::is_same<S, SmallOrderedNameDictionary>::value ||
-            std::is_same<S, String>::value || std::is_same<S, Symbol>::value ||
-            std::is_same<S, WasmExportedFunctionData>::value ||
-            std::is_same<S, WasmInstanceObject>::value))>::type>
+  template <typename S, typename = typename std::enable_if<
+                            std::is_convertible<S*, T*>::value>::type>
   V8_INLINE Handle(Handle<S> handle) : HandleBase(handle) {}
 
   // The NeverReadOnlySpaceObject special-case is needed for the
   // ContextFromNeverReadOnlySpaceObject helper function in api.cc.
   template <typename T1 = T,
             typename = typename std::enable_if<
-                std::is_base_of<Object, T1>::value ||
                 std::is_base_of<NeverReadOnlySpaceObject, T1>::value>::type>
   V8_INLINE T* operator->() const {
     return operator*();
@@ -207,7 +145,6 @@ class Handle final : public HandleBase {
   // Provides the C++ dereference operator.
   template <typename T1 = T,
             typename = typename std::enable_if<
-                std::is_base_of<Object, T1>::value ||
                 std::is_base_of<NeverReadOnlySpaceObject, T1>::value>::type>
   V8_INLINE T* operator*() const {
     return reinterpret_cast<T*>(HandleBase::operator*());

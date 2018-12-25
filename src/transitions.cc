@@ -554,7 +554,7 @@ void TransitionsAccessor::TraverseTransitionTreeInternal(
 
 #ifdef DEBUG
 void TransitionsAccessor::CheckNewTransitionsAreConsistent(
-    TransitionArray old_transitions, Object* transitions) {
+    TransitionArray old_transitions, Object transitions) {
   // This function only handles full transition arrays.
   DCHECK_EQ(kFullTransitionArray, encoding());
   TransitionArray new_transitions = TransitionArray::cast(transitions);

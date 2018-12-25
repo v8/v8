@@ -125,7 +125,7 @@ class Script : public Struct {
   // resource is accessible. Otherwise, always return true.
   inline bool HasValidSource();
 
-  Object* GetNameOrSourceURL();
+  Object GetNameOrSourceURL();
 
   // Retrieve source position from where eval was called.
   int GetEvalPosition();

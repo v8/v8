@@ -563,14 +563,14 @@ class Map : public HeapObject {
   // Returns null_value if there's neither a constructor function nor a
   // FunctionTemplateInfo available.
   DECL_ACCESSORS(constructor_or_backpointer, Object)
-  inline Object* GetConstructor() const;
+  inline Object GetConstructor() const;
   inline FunctionTemplateInfo GetFunctionTemplateInfo() const;
-  inline void SetConstructor(Object* constructor,
+  inline void SetConstructor(Object constructor,
                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   // [back pointer]: points back to the parent map from which a transition
   // leads to this map. The field overlaps with the constructor (see above).
-  inline Object* GetBackPointer() const;
-  inline void SetBackPointer(Object* value,
+  inline Object GetBackPointer() const;
+  inline void SetBackPointer(Object value,
                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // [instance descriptors]: describes the object.
@@ -1007,8 +1007,8 @@ class NormalizedMapCache : public WeakFixedArray {
   static inline int GetIndex(Handle<Map> map);
 
   // The following declarations hide base class methods.
-  Object* get(int index);
-  void set(int index, Object* value);
+  Object get(int index);
+  void set(int index, Object value);
 
   OBJECT_CONSTRUCTORS(NormalizedMapCache, WeakFixedArray)
 };

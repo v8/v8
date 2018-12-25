@@ -29,7 +29,7 @@ CAST_ACCESSOR2(Tuple2)
 CAST_ACCESSOR2(Tuple3)
 
 void Struct::InitializeBody(int object_size) {
-  Object* value = GetReadOnlyRoots().undefined_value();
+  Object value = GetReadOnlyRoots().undefined_value();
   for (int offset = kHeaderSize; offset < object_size; offset += kPointerSize) {
     WRITE_FIELD(this, offset, value);
   }
@@ -42,11 +42,11 @@ ACCESSORS(Tuple3, value3, Object, kValue3Offset)
 ACCESSORS(AccessorPair, getter, Object, kGetterOffset)
 ACCESSORS(AccessorPair, setter, Object, kSetterOffset)
 
-Object* AccessorPair::get(AccessorComponent component) {
+Object AccessorPair::get(AccessorComponent component) {
   return component == ACCESSOR_GETTER ? getter() : setter();
 }
 
-void AccessorPair::set(AccessorComponent component, Object* value) {
+void AccessorPair::set(AccessorComponent component, Object value) {
   if (component == ACCESSOR_GETTER) {
     set_getter(value);
   } else {
@@ -54,12 +54,12 @@ void AccessorPair::set(AccessorComponent component, Object* value) {
   }
 }
 
-void AccessorPair::SetComponents(Object* getter, Object* setter) {
+void AccessorPair::SetComponents(Object getter, Object setter) {
   if (!getter->IsNull()) set_getter(getter);
   if (!setter->IsNull()) set_setter(setter);
 }
 
-bool AccessorPair::Equals(Object* getter_value, Object* setter_value) {
+bool AccessorPair::Equals(Object getter_value, Object setter_value) {
   return (getter() == getter_value) && (setter() == setter_value);
 }
 

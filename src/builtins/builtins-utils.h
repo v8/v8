@@ -67,7 +67,7 @@ class BuiltinArguments : public Arguments {
 // TODO(cbruni): add global flag to check whether any tracing events have been
 // enabled.
 #define BUILTIN(name)                                                        \
-  V8_WARN_UNUSED_RESULT static Object* Builtin_Impl_##name(                  \
+  V8_WARN_UNUSED_RESULT static Object Builtin_Impl_##name(                   \
       BuiltinArguments args, Isolate* isolate);                              \
                                                                              \
   V8_NOINLINE static Address Builtin_Impl_Stats_##name(                      \
@@ -90,7 +90,7 @@ class BuiltinArguments : public Arguments {
     return Builtin_Impl_##name(args, isolate)->ptr();                        \
   }                                                                          \
                                                                              \
-  V8_WARN_UNUSED_RESULT static Object* Builtin_Impl_##name(                  \
+  V8_WARN_UNUSED_RESULT static Object Builtin_Impl_##name(                   \
       BuiltinArguments args, Isolate* isolate)
 
 // ----------------------------------------------------------------------------

@@ -126,11 +126,9 @@ bool LayoutDescriptor::IsFastPointerLayout() {
   return *this == FastPointerLayout();
 }
 
-
-bool LayoutDescriptor::IsFastPointerLayout(Object* layout_descriptor) {
+bool LayoutDescriptor::IsFastPointerLayout(Object layout_descriptor) {
   return layout_descriptor == FastPointerLayout();
 }
-
 
 bool LayoutDescriptor::IsSlowLayout() { return !IsSmi(); }
 
@@ -139,7 +137,7 @@ int LayoutDescriptor::capacity() {
   return IsSlowLayout() ? (length() * kBitsPerByte) : kBitsInSmiLayout;
 }
 
-LayoutDescriptor LayoutDescriptor::cast_gc_safe(Object* object) {
+LayoutDescriptor LayoutDescriptor::cast_gc_safe(Object object) {
   // The map word of the object can be a forwarding pointer during
   // object evacuation phase of GC. Since the layout descriptor methods
   // for checking whether a field is tagged or not do not depend on the

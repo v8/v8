@@ -89,9 +89,9 @@ class JSStrictArgumentsObject : public JSArgumentsObjectWithLength {
 // +---------------------------+
 // | 1 | FixedArray arguments  +----+ HOLEY_ELEMENTS
 // +---------------------------+    v-----+-----------+
-// | 2 | Object* param_1_map   |    |  0  | the_hole  |
+// | 2 | Object param_1_map    |    |  0  | the_hole  |
 // |...| ...                   |    | ... | ...       |
-// |n+1| Object* param_n_map   |    | n-1 | the_hole  |
+// |n+1| Object param_n_map    |    | n-1 | the_hole  |
 // +---------------------------+    |  n  | element_1 |
 //                                  | ... | ...       |
 //                                  |n+m-1| element_m |
@@ -114,8 +114,8 @@ class SloppyArgumentsElements : public FixedArray {
   inline FixedArray arguments();
   inline void set_arguments(FixedArray arguments);
   inline uint32_t parameter_map_length();
-  inline Object* get_mapped_entry(uint32_t entry);
-  inline void set_mapped_entry(uint32_t entry, Object* object);
+  inline Object get_mapped_entry(uint32_t entry);
+  inline void set_mapped_entry(uint32_t entry, Object object);
 
   DECL_CAST2(SloppyArgumentsElements)
 #ifdef VERIFY_HEAP

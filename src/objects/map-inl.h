@@ -565,9 +565,9 @@ bool Map::IsPrimitiveMap() const {
   return instance_type() <= LAST_PRIMITIVE_TYPE;
 }
 
-Object* Map::prototype() const { return READ_FIELD(this, kPrototypeOffset); }
+Object Map::prototype() const { return READ_FIELD(this, kPrototypeOffset); }
 
-void Map::set_prototype(Object* value, WriteBarrierMode mode) {
+void Map::set_prototype(Object value, WriteBarrierMode mode) {
   DCHECK(value->IsNull() || value->IsJSReceiver());
   WRITE_FIELD(this, kPrototypeOffset, value);
   CONDITIONAL_WRITE_BARRIER(this, kPrototypeOffset, value, mode);
@@ -578,7 +578,7 @@ LayoutDescriptor Map::layout_descriptor_gc_safe() const {
   // The loaded value can be dereferenced on background thread to load the
   // bitmap. We need acquire load in order to ensure that the bitmap
   // initializing stores are also visible to the background thread.
-  Object* layout_desc = ACQUIRE_READ_FIELD(this, kLayoutDescriptorOffset);
+  Object layout_desc = ACQUIRE_READ_FIELD(this, kLayoutDescriptorOffset);
   return LayoutDescriptor::cast_gc_safe(layout_desc);
 }
 
@@ -586,7 +586,7 @@ bool Map::HasFastPointerLayout() const {
   DCHECK(FLAG_unbox_double_fields);
   // The loaded value is used for SMI check only and is not dereferenced,
   // so relaxed load is safe.
-  Object* layout_desc = RELAXED_READ_FIELD(this, kLayoutDescriptorOffset);
+  Object layout_desc = RELAXED_READ_FIELD(this, kLayoutDescriptorOffset);
   return LayoutDescriptor::IsFastPointerLayout(layout_desc);
 }
 
@@ -675,8 +675,8 @@ void Map::AppendDescriptor(Isolate* isolate, Descriptor* desc) {
 #endif
 }
 
-Object* Map::GetBackPointer() const {
-  Object* object = constructor_or_backpointer();
+Object Map::GetBackPointer() const {
+  Object object = constructor_or_backpointer();
   if (object->IsMap()) {
     return object;
   }
@@ -692,19 +692,19 @@ Map Map::ElementsTransitionMap() {
       .SearchSpecial(GetReadOnlyRoots().elements_transition_symbol());
 }
 
-Object* Map::prototype_info() const {
+Object Map::prototype_info() const {
   DCHECK(is_prototype_map());
   return READ_FIELD(this, Map::kTransitionsOrPrototypeInfoOffset);
 }
 
-void Map::set_prototype_info(Object* value, WriteBarrierMode mode) {
+void Map::set_prototype_info(Object value, WriteBarrierMode mode) {
   CHECK(is_prototype_map());
   WRITE_FIELD(this, Map::kTransitionsOrPrototypeInfoOffset, value);
   CONDITIONAL_WRITE_BARRIER(this, Map::kTransitionsOrPrototypeInfoOffset, value,
                             mode);
 }
 
-void Map::SetBackPointer(Object* value, WriteBarrierMode mode) {
+void Map::SetBackPointer(Object value, WriteBarrierMode mode) {
   CHECK_GE(instance_type(), FIRST_JS_RECEIVER_TYPE);
   CHECK(value->IsMap());
   CHECK(GetBackPointer()->IsUndefined());
@@ -719,14 +719,14 @@ ACCESSORS(Map, constructor_or_backpointer, Object,
           kConstructorOrBackPointerOffset)
 
 bool Map::IsPrototypeValidityCellValid() const {
-  Object* validity_cell = prototype_validity_cell();
-  Object* value = validity_cell->IsSmi() ? Smi::cast(validity_cell)
-                                         : Cell::cast(validity_cell)->value();
+  Object validity_cell = prototype_validity_cell();
+  Object value = validity_cell->IsSmi() ? Smi::cast(validity_cell)
+                                        : Cell::cast(validity_cell)->value();
   return value == Smi::FromInt(Map::kPrototypeChainValid);
 }
 
-Object* Map::GetConstructor() const {
-  Object* maybe_constructor = constructor_or_backpointer();
+Object Map::GetConstructor() const {
+  Object maybe_constructor = constructor_or_backpointer();
   // Follow any back pointers.
   while (maybe_constructor->IsMap()) {
     maybe_constructor =
@@ -736,7 +736,7 @@ Object* Map::GetConstructor() const {
 }
 
 FunctionTemplateInfo Map::GetFunctionTemplateInfo() const {
-  Object* constructor = GetConstructor();
+  Object constructor = GetConstructor();
   if (constructor->IsJSFunction()) {
     DCHECK(JSFunction::cast(constructor)->shared()->IsApiFunction());
     return JSFunction::cast(constructor)->shared()->get_api_func_data();
@@ -745,7 +745,7 @@ FunctionTemplateInfo Map::GetFunctionTemplateInfo() const {
   return FunctionTemplateInfo::cast(constructor);
 }
 
-void Map::SetConstructor(Object* constructor, WriteBarrierMode mode) {
+void Map::SetConstructor(Object constructor, WriteBarrierMode mode) {
   // Never overwrite a back pointer with a constructor.
   CHECK(!constructor_or_backpointer()->IsMap());
   set_constructor_or_backpointer(constructor, mode);

@@ -224,16 +224,16 @@ class String : public Name {
                                                         Handle<String> y);
 
   // Perform ES6 21.1.3.8, including checking arguments.
-  static Object* IndexOf(Isolate* isolate, Handle<Object> receiver,
-                         Handle<Object> search, Handle<Object> position);
+  static Object IndexOf(Isolate* isolate, Handle<Object> receiver,
+                        Handle<Object> search, Handle<Object> position);
   // Perform string match of pattern on subject, starting at start index.
   // Caller must ensure that 0 <= start_index <= sub->length(), as this does not
   // check any arguments.
   static int IndexOf(Isolate* isolate, Handle<String> receiver,
                      Handle<String> search, int start_index);
 
-  static Object* LastIndexOf(Isolate* isolate, Handle<Object> receiver,
-                             Handle<Object> search, Handle<Object> position);
+  static Object LastIndexOf(Isolate* isolate, Handle<Object> receiver,
+                            Handle<Object> search, Handle<Object> position);
 
   // Encapsulates logic related to a match and its capture groups as required
   // by GetSubstitution.
@@ -304,7 +304,7 @@ class String : public Name {
 
   // Conversion.
   inline bool AsArrayIndex(uint32_t* index);
-  uint32_t inline ToValidIndex(Object* number);
+  uint32_t inline ToValidIndex(Object number);
 
   // Trimming.
   enum TrimMode { kTrim, kTrimStart, kTrimEnd };
@@ -589,7 +589,7 @@ class ConsString : public String {
   inline String first();
   // Doesn't check that the result is a string, even in debug mode.  This is
   // useful during GC where the mark bits confuse the checks.
-  inline Object* unchecked_first();
+  inline Object unchecked_first();
   inline void set_first(Isolate* isolate, String first,
                         WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
@@ -597,7 +597,7 @@ class ConsString : public String {
   inline String second();
   // Doesn't check that the result is a string, even in debug mode.  This is
   // useful during GC where the mark bits confuse the checks.
-  inline Object* unchecked_second();
+  inline Object unchecked_second();
   inline void set_second(Isolate* isolate, String second,
                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 

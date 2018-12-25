@@ -23,10 +23,10 @@ class ClassLiteral;
 // in the list.
 class ObjectBoilerplateDescription : public FixedArray {
  public:
-  Object* name(int index) const;
-  Object* value(int index) const;
+  Object name(int index) const;
+  Object value(int index) const;
 
-  void set_key_value(int index, Object* key, Object* value);
+  void set_key_value(int index, Object key, Object value);
 
   // The number of boilerplate properties.
   int size() const;
@@ -129,12 +129,12 @@ class ClassBoilerplate : public FixedArray {
   static void AddToPropertiesTemplate(Isolate* isolate,
                                       Handle<NameDictionary> dictionary,
                                       Handle<Name> name, int key_index,
-                                      ValueKind value_kind, Object* value);
+                                      ValueKind value_kind, Object value);
 
   static void AddToElementsTemplate(Isolate* isolate,
                                     Handle<NumberDictionary> dictionary,
                                     uint32_t key, int key_index,
-                                    ValueKind value_kind, Object* value);
+                                    ValueKind value_kind, Object value);
 
   static Handle<ClassBoilerplate> BuildClassBoilerplate(Isolate* isolate,
                                                         ClassLiteral* expr);

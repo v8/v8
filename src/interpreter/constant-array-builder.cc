@@ -71,7 +71,7 @@ void ConstantArrayBuilder::ConstantArraySlice::CheckAllElementsAreUnique(
   std::set<const AstRawString*> strings;
   std::set<const char*> bigints;
   std::set<const Scope*> scopes;
-  std::set<Object*> deferred_objects;
+  std::set<Object, Object::Comparer> deferred_objects;
   for (const Entry& entry : constants_) {
     bool duplicate = false;
     switch (entry.tag_) {

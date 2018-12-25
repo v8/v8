@@ -299,7 +299,7 @@ bool WasmModuleObject::SetBreakPoint(Handle<WasmModuleObject> module_object,
 
 namespace {
 
-int GetBreakpointPos(Isolate* isolate, Object* break_point_info_or_undef) {
+int GetBreakpointPos(Isolate* isolate, Object break_point_info_or_undef) {
   if (break_point_info_or_undef->IsUndefined(isolate)) return kMaxInt;
   return BreakPointInfo::cast(break_point_info_or_undef)->source_position();
 }
@@ -315,7 +315,7 @@ int FindBreakpointInfoInsertPos(Isolate* isolate,
   int right = breakpoint_infos->length();  // exclusive
   while (right - left > 1) {
     int mid = left + (right - left) / 2;
-    Object* mid_obj = breakpoint_infos->get(mid);
+    Object mid_obj = breakpoint_infos->get(mid);
     if (GetBreakpointPos(isolate, mid_obj) <= position) {
       left = mid;
     } else {
@@ -370,7 +370,7 @@ void WasmModuleObject::AddBreakpoint(Handle<WasmModuleObject> module_object,
 
   // Move elements [insert_pos, ...] up by one.
   for (int i = breakpoint_infos->length() - 1; i >= insert_pos; --i) {
-    Object* entry = breakpoint_infos->get(i);
+    Object entry = breakpoint_infos->get(i);
     if (entry->IsUndefined(isolate)) continue;
     new_breakpoint_infos->set(i + 1, entry);
   }
@@ -777,7 +777,7 @@ Handle<WasmTableObject> WasmTableObject::New(Isolate* isolate, uint32_t initial,
       isolate->factory()->NewJSObject(table_ctor));
 
   *js_functions = isolate->factory()->NewFixedArray(initial);
-  Object* null = ReadOnlyRoots(isolate).null_value();
+  Object null = ReadOnlyRoots(isolate).null_value();
   for (int i = 0; i < static_cast<int>(initial); ++i) {
     (*js_functions)->set(i, null);
   }
@@ -1147,7 +1147,7 @@ void IndirectFunctionTableEntry::Set(int sig_id,
       reinterpret_cast<void*>(instance_->ptr()), index_, sig_id,
       reinterpret_cast<void*>(target_instance->ptr()), target_func_index);
 
-  Object* ref = nullptr;
+  Object ref;
   Address call_target = 0;
   if (target_func_index <
       static_cast<int>(target_instance->module()->num_imported_functions)) {
@@ -1168,7 +1168,7 @@ void IndirectFunctionTableEntry::Set(int sig_id,
   instance_->indirect_function_table_refs()->set(index_, ref);
 }
 
-Object* IndirectFunctionTableEntry::object_ref() {
+Object IndirectFunctionTableEntry::object_ref() {
   return instance_->indirect_function_table_refs()->get(index_);
 }
 
@@ -1207,7 +1207,7 @@ void ImportedFunctionEntry::SetWasmToWasm(WasmInstanceObject instance,
 WasmInstanceObject ImportedFunctionEntry::instance() {
   // The imported reference entry is either a target instance or a tuple
   // of this instance and the target callable.
-  Object* value = instance_->imported_function_refs()->get(index_);
+  Object value = instance_->imported_function_refs()->get(index_);
   if (value->IsWasmInstanceObject()) {
     return WasmInstanceObject::cast(value);
   }
@@ -1219,7 +1219,7 @@ JSReceiver ImportedFunctionEntry::callable() {
   return JSReceiver::cast(Tuple2::cast(object_ref())->value2());
 }
 
-Object* ImportedFunctionEntry::object_ref() {
+Object ImportedFunctionEntry::object_ref() {
   return instance_->imported_function_refs()->get(index_);
 }
 
@@ -1410,7 +1410,7 @@ bool WasmExceptionObject::IsSignatureEqual(const wasm::FunctionSig* sig) {
   return true;
 }
 
-bool WasmExportedFunction::IsWasmExportedFunction(Object* object) {
+bool WasmExportedFunction::IsWasmExportedFunction(Object object) {
   if (!object->IsJSFunction()) return false;
   JSFunction js_function = JSFunction::cast(object);
   if (Code::JS_TO_WASM_FUNCTION != js_function->code()->kind()) return false;

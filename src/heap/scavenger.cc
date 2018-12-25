@@ -151,7 +151,7 @@ static bool IsUnscavengedHeapObject(Heap* heap, FullObjectSlot p) {
 
 class ScavengeWeakObjectRetainer : public WeakObjectRetainer {
  public:
-  Object* RetainAs(Object* object) override {
+  Object RetainAs(Object object) override {
     if (!Heap::InFromSpace(object)) {
       return object;
     }
@@ -160,7 +160,7 @@ class ScavengeWeakObjectRetainer : public WeakObjectRetainer {
     if (map_word.IsForwardingAddress()) {
       return map_word.ToForwardingAddress();
     }
-    return nullptr;
+    return Object();
   }
 };
 
@@ -454,7 +454,7 @@ void RootScavengeVisitor::VisitRootPointers(Root root, const char* description,
 }
 
 void RootScavengeVisitor::ScavengePointer(FullObjectSlot p) {
-  Object* object = *p;
+  Object object = *p;
   DCHECK(!HasWeakHeapObjectTag(object));
   if (!Heap::InNewSpace(object)) return;
 

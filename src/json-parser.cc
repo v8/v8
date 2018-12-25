@@ -890,7 +890,7 @@ Handle<String> JsonParser<seq_one_byte>::ScanJsonString() {
     uint32_t count = 1;
     Handle<String> result;
     while (true) {
-      Object* element = string_table->KeyAt(entry);
+      Object element = string_table->KeyAt(entry);
       if (element->IsUndefined(isolate())) {
         // Lookup failure.
         result =

@@ -134,7 +134,7 @@ void Accessors::ArgumentsIteratorGetter(
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   DisallowHeapAllocation no_allocation;
   HandleScope scope(isolate);
-  Object* result = isolate->native_context()->array_values_iterator();
+  Object result = isolate->native_context()->array_values_iterator();
   info.GetReturnValue().Set(Utils::ToLocal(Handle<Object>(result, isolate)));
 }
 
@@ -158,7 +158,7 @@ void Accessors::ArrayLengthGetter(
   DisallowHeapAllocation no_allocation;
   HandleScope scope(isolate);
   JSArray holder = JSArray::cast(*Utils::OpenHandle(*info.Holder()));
-  Object* result = holder->length();
+  Object result = holder->length();
   info.GetReturnValue().Set(Utils::ToLocal(Handle<Object>(result, isolate)));
 }
 
@@ -292,13 +292,13 @@ void Accessors::StringLengthGetter(
   // v8::Object, but internally we have callbacks on entities which are higher
   // in the hierarchy, in this case for String values.
 
-  Object* value = *Utils::OpenHandle(*v8::Local<v8::Value>(info.This()));
+  Object value = *Utils::OpenHandle(*v8::Local<v8::Value>(info.This()));
   if (!value->IsString()) {
     // Not a string value. That means that we either got a String wrapper or
     // a Value with a String wrapper in its prototype chain.
     value = JSValue::cast(*Utils::OpenHandle(*info.Holder()))->value();
   }
-  Object* result = Smi::FromInt(String::cast(value)->length());
+  Object result = Smi::FromInt(String::cast(value)->length());
   info.GetReturnValue().Set(Utils::ToLocal(Handle<Object>(result, isolate)));
 }
 
@@ -497,7 +497,7 @@ Handle<JSObject> GetFrameArguments(Isolate* isolate,
   // Copy the parameters to the arguments object.
   DCHECK(array->length() == length);
   for (int i = 0; i < length; i++) {
-    Object* value = frame->GetParameter(i);
+    Object value = frame->GetParameter(i);
     if (value->IsTheHole(isolate)) {
       // Generators currently use holes as dummy arguments when resuming.  We
       // must not leak those.

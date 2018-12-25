@@ -192,7 +192,7 @@ void ProfilerListener::SetterCallbackEvent(Name name, Address entry_point) {
 Name ProfilerListener::InferScriptName(Name name, SharedFunctionInfo info) {
   if (name->IsString() && String::cast(name)->length()) return name;
   if (!info->script()->IsScript()) return name;
-  Object* source_url = Script::cast(info->script())->source_url();
+  Object source_url = Script::cast(info->script())->source_url();
   return source_url->IsName() ? Name::cast(source_url) : name;
 }
 

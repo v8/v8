@@ -112,7 +112,7 @@ class FreshlyAllocatedBigInt : public BigIntBase {
   //   (and no explicit operator is provided either).
 
  public:
-  inline static FreshlyAllocatedBigInt cast(Object* object);
+  inline static FreshlyAllocatedBigInt cast(Object object);
   inline static FreshlyAllocatedBigInt unchecked_cast(ObjectPtr o) {
     return bit_cast<FreshlyAllocatedBigInt>(o);
   }

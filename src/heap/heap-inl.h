@@ -85,11 +85,9 @@ void Heap::account_external_memory_concurrently_freed() {
 
 RootsTable& Heap::roots_table() { return isolate()->roots_table(); }
 
-// TODO(jkummerow): Drop std::remove_pointer after the migration to ObjectPtr.
-#define ROOT_ACCESSOR(Type, name, CamelName)      \
-  Type Heap::name() {                             \
-    return std::remove_pointer<Type>::type::cast( \
-        roots_table()[RootIndex::k##CamelName]);  \
+#define ROOT_ACCESSOR(Type, name, CamelName)                           \
+  Type Heap::name() {                                                  \
+    return Type::cast(Object(roots_table()[RootIndex::k##CamelName])); \
   }
 MUTABLE_ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
@@ -102,29 +100,29 @@ MUTABLE_ROOT_LIST(ROOT_ACCESSOR)
                    !RootsTable::IsImmortalImmovable(RootIndex::k##CamelName)); \
     DCHECK_IMPLIES(RootsTable::IsImmortalImmovable(RootIndex::k##CamelName),   \
                    IsImmovable(HeapObject::cast(value)));                      \
-    roots_table()[RootIndex::k##CamelName] = value;                            \
+    roots_table()[RootIndex::k##CamelName] = value->ptr();                     \
   }
 ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
 
 void Heap::SetRootMaterializedObjects(FixedArray objects) {
-  roots_table()[RootIndex::kMaterializedObjects] = objects;
+  roots_table()[RootIndex::kMaterializedObjects] = objects->ptr();
 }
 
-void Heap::SetRootScriptList(Object* value) {
-  roots_table()[RootIndex::kScriptList] = value;
+void Heap::SetRootScriptList(Object value) {
+  roots_table()[RootIndex::kScriptList] = value->ptr();
 }
 
 void Heap::SetRootStringTable(StringTable value) {
-  roots_table()[RootIndex::kStringTable] = value;
+  roots_table()[RootIndex::kStringTable] = value->ptr();
 }
 
-void Heap::SetRootNoScriptSharedFunctionInfos(Object* value) {
-  roots_table()[RootIndex::kNoScriptSharedFunctionInfos] = value;
+void Heap::SetRootNoScriptSharedFunctionInfos(Object value) {
+  roots_table()[RootIndex::kNoScriptSharedFunctionInfos] = value->ptr();
 }
 
 void Heap::SetMessageListeners(TemplateList value) {
-  roots_table()[RootIndex::kMessageListeners] = value;
+  roots_table()[RootIndex::kMessageListeners] = value->ptr();
 }
 
 PagedSpace* Heap::paged_space(int idx) {
@@ -371,7 +369,7 @@ void Heap::FinalizeExternalString(String string) {
 Address Heap::NewSpaceTop() { return new_space_->top(); }
 
 // static
-bool Heap::InNewSpace(Object* object) {
+bool Heap::InNewSpace(Object object) {
   DCHECK(!HasWeakHeapObjectTag(object));
   return object->IsHeapObject() && InNewSpace(HeapObject::cast(object));
 }
@@ -399,7 +397,7 @@ bool Heap::InNewSpace(HeapObject heap_object) {
 }
 
 // static
-bool Heap::InFromSpace(Object* object) {
+bool Heap::InFromSpace(Object object) {
   DCHECK(!HasWeakHeapObjectTag(object));
   return object->IsHeapObject() && InFromSpace(HeapObject::cast(object));
 }
@@ -417,7 +415,7 @@ bool Heap::InFromSpace(HeapObject heap_object) {
 }
 
 // static
-bool Heap::InToSpace(Object* object) {
+bool Heap::InToSpace(Object object) {
   DCHECK(!HasWeakHeapObjectTag(object));
   return object->IsHeapObject() && InToSpace(HeapObject::cast(object));
 }
@@ -433,9 +431,9 @@ bool Heap::InToSpace(HeapObject heap_object) {
   return MemoryChunk::FromHeapObject(heap_object)->IsFlagSet(Page::IN_TO_SPACE);
 }
 
-bool Heap::InOldSpace(Object* object) { return old_space_->Contains(object); }
+bool Heap::InOldSpace(Object object) { return old_space_->Contains(object); }
 
-bool Heap::InReadOnlySpace(Object* object) {
+bool Heap::InReadOnlySpace(Object object) {
   return read_only_space_->Contains(object);
 }
 

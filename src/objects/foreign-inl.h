@@ -20,7 +20,7 @@ OBJECT_CONSTRUCTORS_IMPL(Foreign, HeapObject)
 CAST_ACCESSOR2(Foreign)
 
 // static
-bool Foreign::IsNormalized(Object* value) {
+bool Foreign::IsNormalized(Object value) {
   if (value == Smi::kZero) return true;
   return Foreign::cast(value)->foreign_address() != kNullAddress;
 }

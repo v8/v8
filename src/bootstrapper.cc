@@ -1148,7 +1148,7 @@ static void AddToWeakNativeContextList(Isolate* isolate, Context context) {
   { // NOLINT
     DCHECK(context->next_context_link()->IsUndefined(isolate));
     // Check that context is not in the list yet.
-    for (Object* current = heap->native_contexts_list();
+    for (Object current = heap->native_contexts_list();
          !current->IsUndefined(isolate);
          current = Context::cast(current)->next_context_link()) {
       DCHECK(current != context);
@@ -4998,7 +4998,7 @@ bool Genesis::InstallNatives() {
                           isolate());
 
     // Verification of important array prototype properties.
-    Object* length = proto->length();
+    Object length = proto->length();
     CHECK(length->IsSmi());
     CHECK_EQ(Smi::ToInt(length), 0);
     CHECK(proto->HasSmiOrObjectElements());
@@ -5593,7 +5593,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
     ReadOnlyRoots roots(isolate());
     for (int i = 0; i < key_indices->length(); i++) {
       int key_index = Smi::ToInt(key_indices->get(i));
-      Object* raw_key = properties->KeyAt(key_index);
+      Object raw_key = properties->KeyAt(key_index);
       DCHECK(properties->IsKey(roots, raw_key));
       DCHECK(raw_key->IsName());
       // If the property is already there we skip it.
@@ -5663,7 +5663,7 @@ Genesis::Genesis(
       // The global proxy function to reinitialize this global proxy is in the
       // context that is yet to be deserialized. We need to prepare a global
       // proxy of the correct size.
-      Object* size = isolate->heap()->serialized_global_proxy_sizes()->get(
+      Object size = isolate->heap()->serialized_global_proxy_sizes()->get(
           static_cast<int>(context_snapshot_index) - 1);
       instance_size = Smi::ToInt(size);
     } else {

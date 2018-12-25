@@ -352,7 +352,7 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
       }
     } else if (context->IsDebugEvaluateContext()) {
       // Check materialized locals.
-      Object* ext = context->get(EXTENSION_INDEX);
+      Object ext = context->get(EXTENSION_INDEX);
       if (ext->IsJSReceiver()) {
         Handle<JSReceiver> extension(JSReceiver::cast(ext), isolate);
         LookupIterator it(extension, name, extension);
@@ -363,7 +363,7 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
         }
       }
       // Check the original context, but do not follow its context chain.
-      Object* obj = context->get(WRAPPED_CONTEXT_INDEX);
+      Object obj = context->get(WRAPPED_CONTEXT_INDEX);
       if (obj->IsContext()) {
         Handle<Object> result =
             Context::cast(obj)->Lookup(name, DONT_FOLLOW_CHAINS, index,
@@ -410,30 +410,25 @@ void Context::AddOptimizedCode(Code code) {
   set(OPTIMIZED_CODE_LIST, code, UPDATE_WEAK_WRITE_BARRIER);
 }
 
-
-void Context::SetOptimizedCodeListHead(Object* head) {
+void Context::SetOptimizedCodeListHead(Object head) {
   DCHECK(IsNativeContext());
   set(OPTIMIZED_CODE_LIST, head, UPDATE_WEAK_WRITE_BARRIER);
 }
 
-
-Object* Context::OptimizedCodeListHead() {
+Object Context::OptimizedCodeListHead() {
   DCHECK(IsNativeContext());
   return get(OPTIMIZED_CODE_LIST);
 }
 
-
-void Context::SetDeoptimizedCodeListHead(Object* head) {
+void Context::SetDeoptimizedCodeListHead(Object head) {
   DCHECK(IsNativeContext());
   set(DEOPTIMIZED_CODE_LIST, head, UPDATE_WEAK_WRITE_BARRIER);
 }
 
-
-Object* Context::DeoptimizedCodeListHead() {
+Object Context::DeoptimizedCodeListHead() {
   DCHECK(IsNativeContext());
   return get(DEOPTIMIZED_CODE_LIST);
 }
-
 
 Handle<Object> Context::ErrorMessageForCodeGenerationFromStrings() {
   Isolate* isolate = GetIsolate();
@@ -468,14 +463,14 @@ int Context::IntrinsicIndexForName(const unsigned char* unsigned_string,
 
 #ifdef DEBUG
 
-bool Context::IsBootstrappingOrNativeContext(Isolate* isolate, Object* object) {
+bool Context::IsBootstrappingOrNativeContext(Isolate* isolate, Object object) {
   // During bootstrapping we allow all objects to pass as global
   // objects. This is necessary to fix circular dependencies.
   return isolate->heap()->gc_state() != Heap::NOT_IN_GC ||
          isolate->bootstrapper()->IsActive() || object->IsNativeContext();
 }
 
-bool Context::IsBootstrappingOrValidParentContext(Object* object,
+bool Context::IsBootstrappingOrValidParentContext(Object object,
                                                   Context child) {
   // During bootstrapping we allow all objects to pass as
   // contexts. This is necessary to fix circular dependencies.

@@ -383,46 +383,46 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   void ExtractWeakArrayReferences(int header_size, HeapEntry* entry, T array);
   void ExtractPropertyReferences(JSObject js_obj, HeapEntry* entry);
   void ExtractAccessorPairProperty(HeapEntry* entry, Name key,
-                                   Object* callback_obj, int field_offset = -1);
+                                   Object callback_obj, int field_offset = -1);
   void ExtractElementReferences(JSObject js_obj, HeapEntry* entry);
   void ExtractInternalReferences(JSObject js_obj, HeapEntry* entry);
 
-  bool IsEssentialObject(Object* object);
-  bool IsEssentialHiddenReference(Object* parent, int field_offset);
+  bool IsEssentialObject(Object object);
+  bool IsEssentialHiddenReference(Object parent, int field_offset);
 
   void SetContextReference(HeapEntry* parent_entry, String reference_name,
-                           Object* child, int field_offset);
+                           Object child, int field_offset);
   void SetNativeBindReference(HeapEntry* parent_entry,
-                              const char* reference_name, Object* child);
-  void SetElementReference(HeapEntry* parent_entry, int index, Object* child);
+                              const char* reference_name, Object child);
+  void SetElementReference(HeapEntry* parent_entry, int index, Object child);
   void SetInternalReference(HeapEntry* parent_entry, const char* reference_name,
-                            Object* child, int field_offset = -1);
-  void SetInternalReference(HeapEntry* parent_entry, int index, Object* child,
+                            Object child, int field_offset = -1);
+  void SetInternalReference(HeapEntry* parent_entry, int index, Object child,
                             int field_offset = -1);
   void SetHiddenReference(HeapObject parent_obj, HeapEntry* parent_entry,
-                          int index, Object* child, int field_offset);
+                          int index, Object child, int field_offset);
   void SetWeakReference(HeapEntry* parent_entry, const char* reference_name,
-                        Object* child_obj, int field_offset);
-  void SetWeakReference(HeapEntry* parent_entry, int index, Object* child_obj,
+                        Object child_obj, int field_offset);
+  void SetWeakReference(HeapEntry* parent_entry, int index, Object child_obj,
                         int field_offset);
   void SetPropertyReference(HeapEntry* parent_entry, Name reference_name,
-                            Object* child,
+                            Object child,
                             const char* name_format_string = nullptr,
                             int field_offset = -1);
   void SetDataOrAccessorPropertyReference(
       PropertyKind kind, HeapEntry* parent_entry, Name reference_name,
-      Object* child, const char* name_format_string = nullptr,
+      Object child, const char* name_format_string = nullptr,
       int field_offset = -1);
 
-  void SetUserGlobalReference(Object* user_global);
+  void SetUserGlobalReference(Object user_global);
   void SetRootGcRootsReference();
   void SetGcRootsReference(Root root);
   void SetGcSubrootReference(Root root, const char* description, bool is_weak,
-                             Object* child);
-  const char* GetStrongGcSubrootName(Object* object);
-  void TagObject(Object* obj, const char* tag);
+                             Object child);
+  const char* GetStrongGcSubrootName(Object object);
+  void TagObject(Object obj, const char* tag);
 
-  HeapEntry* GetEntry(Object* obj);
+  HeapEntry* GetEntry(Object obj);
 
   Heap* heap_;
   HeapSnapshot* snapshot_;
@@ -432,7 +432,8 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   HeapSnapshotGenerator* generator_ = nullptr;
   std::unordered_map<JSGlobalObject, const char*, ObjectPtr::Hasher>
       objects_tags_;
-  std::unordered_map<Object*, const char*> strong_gc_subroot_names_;
+  std::unordered_map<Object, const char*, Object::Hasher>
+      strong_gc_subroot_names_;
   std::unordered_set<JSGlobalObject, ObjectPtr::Hasher> user_roots_;
   v8::HeapProfiler::ObjectNameResolver* global_object_name_resolver_;
 
@@ -488,7 +489,7 @@ class NativeObjectsExplorer {
   HeapSnapshot* snapshot_;
   StringsStorage* names_;
   bool embedder_queried_;
-  std::unordered_set<Object*> in_groups_;
+  std::unordered_set<Object, Object::Hasher> in_groups_;
   std::unordered_map<v8::RetainedObjectInfo*, std::vector<HeapObject>*,
                      RetainedInfoHasher, RetainedInfoEquals>
       objects_by_info_;

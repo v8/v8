@@ -23,7 +23,7 @@ namespace {
 // TODO(dcarney): CallOptimization duplicates this logic, merge.
 JSReceiver GetCompatibleReceiver(Isolate* isolate, FunctionTemplateInfo info,
                                  JSReceiver receiver) {
-  Object* recv_type = info->signature();
+  Object recv_type = info->signature();
   // No signature, return holder.
   if (!recv_type->IsFunctionTemplateInfo()) return receiver;
   // A Proxy cannot have been created from the signature template.
@@ -97,11 +97,11 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> HandleApiCallHelper(
     }
   }
 
-  Object* raw_call_data = fun_data->call_code();
+  Object raw_call_data = fun_data->call_code();
   if (!raw_call_data->IsUndefined(isolate)) {
     DCHECK(raw_call_data->IsCallHandlerInfo());
     CallHandlerInfo call_data = CallHandlerInfo::cast(raw_call_data);
-    Object* data_obj = call_data->data();
+    Object data_obj = call_data->data();
 
     FunctionCallbackArguments custom(isolate, data_obj, *function, raw_holder,
                                      *new_target, args.address_of_arg_at(1),
@@ -247,7 +247,7 @@ MaybeHandle<Object> Builtins::InvokeApiFunction(Isolate* isolate,
 // Helper function to handle calls to non-function objects created through the
 // API. The object can be called as either a constructor (using new) or just as
 // a function (without new).
-V8_WARN_UNUSED_RESULT static Object* HandleApiCallAsFunctionOrConstructor(
+V8_WARN_UNUSED_RESULT static Object HandleApiCallAsFunctionOrConstructor(
     Isolate* isolate, bool is_construct_call, BuiltinArguments args) {
   Handle<Object> receiver = args.receiver();
 
@@ -271,13 +271,13 @@ V8_WARN_UNUSED_RESULT static Object* HandleApiCallAsFunctionOrConstructor(
   DCHECK(obj->map()->is_callable());
   JSFunction constructor = JSFunction::cast(obj->map()->GetConstructor());
   DCHECK(constructor->shared()->IsApiFunction());
-  Object* handler =
+  Object handler =
       constructor->shared()->get_api_func_data()->GetInstanceCallHandler();
   DCHECK(!handler->IsUndefined(isolate));
   CallHandlerInfo call_data = CallHandlerInfo::cast(handler);
 
   // Get the data for the call and perform the callback.
-  Object* result;
+  Object result;
   {
     HandleScope scope(isolate);
     LOG(isolate, ApiObjectAccess("call non-function", obj));

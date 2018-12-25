@@ -50,8 +50,8 @@ class FrameWriter {
     }
   }
 
-  void PushRawObject(Object* obj, const char* debug_hint) {
-    intptr_t value = reinterpret_cast<intptr_t>(obj);
+  void PushRawObject(Object obj, const char* debug_hint) {
+    intptr_t value = obj->ptr();
     PushValue(value);
     if (trace_scope_ != nullptr) {
       DebugPrintOutputObject(obj, top_offset_, debug_hint);
@@ -78,7 +78,7 @@ class FrameWriter {
 
   void PushTranslatedValue(const TranslatedFrame::iterator& iterator,
                            const char* debug_hint = "") {
-    Object* obj = iterator->GetRawValue();
+    Object obj = iterator->GetRawValue();
 
     PushRawObject(obj, debug_hint);
 
@@ -113,14 +113,13 @@ class FrameWriter {
     }
   }
 
-  void DebugPrintOutputObject(Object* obj, unsigned output_offset,
+  void DebugPrintOutputObject(Object obj, unsigned output_offset,
                               const char* debug_hint = "") {
     if (trace_scope_ != nullptr) {
       PrintF(trace_scope_->file(), "    " V8PRIxPTR_FMT ": [top + %3d] <- ",
              output_address(output_offset), output_offset);
       if (obj->IsSmi()) {
-        PrintF(V8PRIxPTR_FMT " <Smi %d>", reinterpret_cast<Address>(obj),
-               Smi::cast(obj)->value());
+        PrintF(V8PRIxPTR_FMT " <Smi %d>", obj->ptr(), Smi::cast(obj)->value());
       } else {
         obj->ShortPrint(trace_scope_->file());
       }
@@ -159,7 +158,7 @@ Code Deoptimizer::FindDeoptimizingCode(Address addr) {
     // Search all deoptimizing code in the native context of the function.
     Isolate* isolate = isolate_;
     Context native_context = function_->context()->native_context();
-    Object* element = native_context->DeoptimizedCodeListHead();
+    Object element = native_context->DeoptimizedCodeListHead();
     while (!element->IsUndefined(isolate)) {
       Code code = Code::cast(element);
       CHECK(code->kind() == Code::OPTIMIZED_FUNCTION);
@@ -317,11 +316,11 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(Context context) {
   // Move marked code from the optimized code list to the deoptimized code list.
   // Walk over all optimized code objects in this native context.
   Code prev;
-  Object* element = context->OptimizedCodeListHead();
+  Object element = context->OptimizedCodeListHead();
   while (!element->IsUndefined(isolate)) {
     Code code = Code::cast(element);
     CHECK_EQ(code->kind(), Code::OPTIMIZED_FUNCTION);
-    Object* next = code->next_code_link();
+    Object next = code->next_code_link();
 
     if (code->marked_for_deoptimization()) {
       codes.insert(code);
@@ -374,7 +373,7 @@ void Deoptimizer::DeoptimizeAll(Isolate* isolate) {
   isolate->AbortConcurrentOptimization(BlockingBehavior::kBlock);
   DisallowHeapAllocation no_allocation;
   // For all contexts, mark all code, then deoptimize.
-  Object* context = isolate->heap()->native_contexts_list();
+  Object context = isolate->heap()->native_contexts_list();
   while (!context->IsUndefined(isolate)) {
     Context native_context = Context::cast(context);
     MarkAllCodeForContext(native_context);
@@ -395,7 +394,7 @@ void Deoptimizer::DeoptimizeMarkedCode(Isolate* isolate) {
   }
   DisallowHeapAllocation no_allocation;
   // For all contexts, deoptimize code already marked.
-  Object* context = isolate->heap()->native_contexts_list();
+  Object context = isolate->heap()->native_contexts_list();
   while (!context->IsUndefined(isolate)) {
     Context native_context = Context::cast(context);
     DeoptimizeMarkedCodeForContext(native_context);
@@ -404,7 +403,7 @@ void Deoptimizer::DeoptimizeMarkedCode(Isolate* isolate) {
 }
 
 void Deoptimizer::MarkAllCodeForContext(Context context) {
-  Object* element = context->OptimizedCodeListHead();
+  Object element = context->OptimizedCodeListHead();
   Isolate* isolate = context->GetIsolate();
   while (!element->IsUndefined(isolate)) {
     Code code = Code::cast(element);
@@ -623,10 +622,10 @@ bool Deoptimizer::IsDeoptimizationEntry(Isolate* isolate, Address addr,
 int Deoptimizer::GetDeoptimizedCodeCount(Isolate* isolate) {
   int length = 0;
   // Count all entries in the deoptimizing code list of every context.
-  Object* context = isolate->heap()->native_contexts_list();
+  Object context = isolate->heap()->native_contexts_list();
   while (!context->IsUndefined(isolate)) {
     Context native_context = Context::cast(context);
-    Object* element = native_context->DeoptimizedCodeListHead();
+    Object element = native_context->DeoptimizedCodeListHead();
     while (!element->IsUndefined(isolate)) {
       Code code = Code::cast(element);
       DCHECK(code->kind() == Code::OPTIMIZED_FUNCTION);
@@ -942,17 +941,17 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
     }
   }
   // Read the context from the translations.
-  Object* context = context_pos->GetRawValue();
-  output_frame->SetContext(reinterpret_cast<intptr_t>(context));
+  Object context = context_pos->GetRawValue();
+  output_frame->SetContext(static_cast<intptr_t>(context->ptr()));
   frame_writer.PushTranslatedValue(context_pos, "context");
 
   // The function was mentioned explicitly in the BEGIN_FRAME.
   frame_writer.PushTranslatedValue(function_iterator, "function");
 
   // Set the bytecode array pointer.
-  Object* bytecode_array = shared->HasBreakInfo()
-                               ? shared->GetDebugInfo()->DebugBytecodeArray()
-                               : shared->GetBytecodeArray();
+  Object bytecode_array = shared->HasBreakInfo()
+                              ? shared->GetDebugInfo()->DebugBytecodeArray()
+                              : shared->GetBytecodeArray();
   frame_writer.PushRawObject(bytecode_array, "bytecode array\n");
 
   // The bytecode offset was mentioned explicitly in the BEGIN_FRAME.
@@ -1019,8 +1018,7 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
       // the exception (which lives in the result register).
       intptr_t accumulator_value =
           input_->GetRegister(kInterpreterAccumulatorRegister.code());
-      frame_writer.PushRawObject(reinterpret_cast<Object*>(accumulator_value),
-                                 "accumulator\n");
+      frame_writer.PushRawObject(Object(accumulator_value), "accumulator\n");
     } else {
       // If we are lazily deoptimizing make sure we store the deopt
       // return value into the appropriate slot.
@@ -1580,8 +1578,7 @@ void Deoptimizer::DoComputeBuiltinContinuation(
   // Get the possible JSFunction for the case that this is a
   // JavaScriptBuiltinContinuationFrame, which needs the JSFunction pointer
   // like a normal JavaScriptFrame.
-  const intptr_t maybe_function =
-      reinterpret_cast<intptr_t>(value_iterator->GetRawValue());
+  const intptr_t maybe_function = value_iterator->GetRawValue()->ptr();
   ++value_iterator;
 
   ReadOnlyRoots roots(isolate());
@@ -1605,7 +1602,7 @@ void Deoptimizer::DoComputeBuiltinContinuation(
     case BuiltinContinuationMode::JAVASCRIPT_HANDLE_EXCEPTION: {
       intptr_t accumulator_value =
           input_->GetRegister(kInterpreterAccumulatorRegister.code());
-      frame_writer.PushRawObject(reinterpret_cast<Object*>(accumulator_value),
+      frame_writer.PushRawObject(Object(accumulator_value),
                                  "exception (from accumulator)\n");
     } break;
   }
@@ -1632,8 +1629,8 @@ void Deoptimizer::DoComputeBuiltinContinuation(
   // sure that it's harvested from the translation and copied into the register
   // set (it was automatically added at the end of the FrameState by the
   // instruction selector).
-  Object* context = value_iterator->GetRawValue();
-  const intptr_t value = reinterpret_cast<intptr_t>(context);
+  Object context = value_iterator->GetRawValue();
+  const intptr_t value = context->ptr();
   TranslatedFrame::iterator context_register_value = value_iterator++;
   register_values[kContextRegister.code()] = context_register_value;
   output_frame->SetContext(value);
@@ -1769,13 +1766,13 @@ void Deoptimizer::MaterializeHeapObjects() {
     if (trace_scope_ != nullptr) {
       PrintF("Materialization [" V8PRIxPTR_FMT "] <- " V8PRIxPTR_FMT " ;  ",
              static_cast<intptr_t>(materialization.output_slot_address_),
-             reinterpret_cast<intptr_t>(*value));
+             value->ptr());
       value->ShortPrint(trace_scope_->file());
       PrintF(trace_scope_->file(), "\n");
     }
 
-    *(reinterpret_cast<intptr_t*>(materialization.output_slot_address_)) =
-        reinterpret_cast<intptr_t>(*value);
+    *(reinterpret_cast<Address*>(materialization.output_slot_address_)) =
+        value->ptr();
   }
 
   translated_state_.VerifyMaterializedObjects();
@@ -1792,7 +1789,7 @@ void Deoptimizer::MaterializeHeapObjects() {
 }
 
 void Deoptimizer::QueueValueForMaterialization(
-    Address output_address, Object* obj,
+    Address output_address, Object obj,
     const TranslatedFrame::iterator& iterator) {
   if (obj == ReadOnlyRoots(isolate_).arguments_marker()) {
     values_to_materialize_.push_back({output_address, iterator});
@@ -2423,12 +2420,11 @@ TranslatedValue TranslatedValue::NewBool(TranslatedState* container,
 
 // static
 TranslatedValue TranslatedValue::NewTagged(TranslatedState* container,
-                                           Object* literal) {
+                                           Object literal) {
   TranslatedValue slot(container, kTagged);
   slot.raw_literal_ = literal;
   return slot;
 }
-
 
 // static
 TranslatedValue TranslatedValue::NewInvalid(TranslatedState* container) {
@@ -2438,12 +2434,10 @@ TranslatedValue TranslatedValue::NewInvalid(TranslatedState* container) {
 
 Isolate* TranslatedValue::isolate() const { return container_->isolate(); }
 
-
-Object* TranslatedValue::raw_literal() const {
+Object TranslatedValue::raw_literal() const {
   DCHECK_EQ(kTagged, kind());
   return raw_literal_;
 }
-
 
 int32_t TranslatedValue::int32_value() const {
   DCHECK_EQ(kInt32, kind());
@@ -2482,8 +2476,7 @@ int TranslatedValue::object_index() const {
   return materialization_info_.id_;
 }
 
-
-Object* TranslatedValue::GetRawValue() const {
+Object TranslatedValue::GetRawValue() const {
   // If we have a value, return it.
   if (materialization_state() == kFinished) {
     return *storage_;
@@ -2592,7 +2585,7 @@ void TranslatedValue::MaterializeSimple() {
   // If we already have materialized, return.
   if (materialization_state() == kFinished) return;
 
-  Object* raw_value = GetRawValue();
+  Object raw_value = GetRawValue();
   if (raw_value != ReadOnlyRoots(isolate()).arguments_marker()) {
     // We can get the value without allocation, just return it here.
     set_initialized_storage(Handle<Object>(raw_value, isolate()));
@@ -2691,7 +2684,7 @@ Float64 TranslatedState::GetDoubleSlot(Address fp, int slot_offset) {
 void TranslatedValue::Handlify() {
   if (kind() == kTagged) {
     set_initialized_storage(Handle<Object>(raw_literal(), isolate()));
-    raw_literal_ = nullptr;
+    raw_literal_ = Object();
   }
 }
 
@@ -3092,10 +3085,10 @@ int TranslatedState::CreateNextTranslatedValue(
       if (trace_file != nullptr) {
         PrintF(trace_file, V8PRIxPTR_FMT " ; %s ", value,
                converter.NameOfCPURegister(input_reg));
-        reinterpret_cast<Object*>(value)->ShortPrint(trace_file);
+        Object(value)->ShortPrint(trace_file);
       }
       TranslatedValue translated_value =
-          TranslatedValue::NewTagged(this, reinterpret_cast<Object*>(value));
+          TranslatedValue::NewTagged(this, Object(value));
       frame.Add(translated_value);
       return translated_value.GetChildrenCount();
     }
@@ -3214,10 +3207,10 @@ int TranslatedState::CreateNextTranslatedValue(
       if (trace_file != nullptr) {
         PrintF(trace_file, V8PRIxPTR_FMT " ;  [fp %c %3d]  ", value,
                slot_offset < 0 ? '-' : '+', std::abs(slot_offset));
-        reinterpret_cast<Object*>(value)->ShortPrint(trace_file);
+        Object(value)->ShortPrint(trace_file);
       }
       TranslatedValue translated_value =
-          TranslatedValue::NewTagged(this, reinterpret_cast<Object*>(value));
+          TranslatedValue::NewTagged(this, Object(value));
       frame.Add(translated_value);
       return translated_value.GetChildrenCount();
     }
@@ -3306,11 +3299,11 @@ int TranslatedState::CreateNextTranslatedValue(
 
     case Translation::LITERAL: {
       int literal_index = iterator->Next();
-      Object* value = literal_array->get(literal_index);
+      Object value = literal_array->get(literal_index);
       if (trace_file != nullptr) {
-        PrintF(trace_file, V8PRIxPTR_FMT " ; (literal %2d) ",
-               reinterpret_cast<intptr_t>(value), literal_index);
-        reinterpret_cast<Object*>(value)->ShortPrint(trace_file);
+        PrintF(trace_file, V8PRIxPTR_FMT " ; (literal %2d) ", value->ptr(),
+               literal_index);
+        value->ShortPrint(trace_file);
       }
 
       TranslatedValue translated_value =
