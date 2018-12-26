@@ -46,7 +46,6 @@
 #include "src/ic/ic.h"
 #include "src/macro-assembler-inl.h"
 #include "src/objects-inl.h"
-#include "src/objects/frame-array-inl.h"
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-collection-inl.h"
@@ -2953,13 +2952,6 @@ TEST(Regress1465) {
   CHECK_EQ(1, transitions_after);
 }
 
-static i::Handle<JSObject> GetByName(const char* name) {
-  return i::Handle<JSObject>::cast(
-      v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(
-          CcTest::global()
-              ->Get(CcTest::isolate()->GetCurrentContext(), v8_str(name))
-              .ToLocalChecked())));
-}
 
 #ifdef DEBUG
 static void AddTransitions(int transitions_count) {
@@ -2969,6 +2961,15 @@ static void AddTransitions(int transitions_count) {
     SNPrintF(buffer, "var o = new F; o.prop%d = %d;", i, i);
     CompileRun(buffer.start());
   }
+}
+
+
+static i::Handle<JSObject> GetByName(const char* name) {
+  return i::Handle<JSObject>::cast(
+      v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(
+          CcTest::global()
+              ->Get(CcTest::isolate()->GetCurrentContext(), v8_str(name))
+              .ToLocalChecked())));
 }
 
 
@@ -3485,160 +3486,6 @@ UNINITIALIZED_TEST(ReleaseStackTraceData) {
     ReleaseStackTraceDataTest(isolate, source4, getter);
   }
   isolate->Dispose();
-}
-
-// TODO(mmarchini) also write tests for async/await and Promise.all
-void DetailedErrorStackTraceTest(const char* src,
-                                 std::function<void(Handle<FrameArray>)> test) {
-  FLAG_detailed_error_stack_trace = true;
-  CcTest::InitializeVM();
-  v8::HandleScope scope(CcTest::isolate());
-
-  v8::TryCatch try_catch(CcTest::isolate());
-  CompileRun(src);
-
-  CHECK(try_catch.HasCaught());
-  Handle<Object> exception = v8::Utils::OpenHandle(*try_catch.Exception());
-
-  Isolate* isolate = CcTest::i_isolate();
-  Handle<Name> key = isolate->factory()->stack_trace_symbol();
-
-  Handle<FrameArray> stack_trace(
-      FrameArray::cast(
-          Handle<JSArray>::cast(
-              Object::GetProperty(isolate, exception, key).ToHandleChecked())
-              ->elements()),
-      isolate);
-
-  test(stack_trace);
-}
-
-// * Test interpreted function error
-TEST(DetailedErrorStackTrace) {
-  FLAG_opt = false;
-  static const char* source =
-      "function func1(arg1) {       "
-      "  let err = new Error();     "
-      "  throw err;                 "
-      "}                            "
-      "function func2(arg1, arg2) { "
-      "  func1(42);                 "
-      "}                            "
-      "class Foo {};                "
-      "function main(arg1, arg2) {  "
-      "  func2(arg1, false);        "
-      "}                            "
-      "var foo = new Foo();         "
-      "main(foo);                   ";
-
-  DetailedErrorStackTraceTest(source, [](Handle<FrameArray> stack_trace) {
-    FixedArrayArgType foo_parameters = stack_trace->Parameters(0);
-    CHECK_EQ(foo_parameters->length(), 1);
-    CHECK(foo_parameters->get(0)->IsSmi());
-    CHECK_EQ(Smi::ToInt(foo_parameters->get(0)), 42);
-
-    FixedArrayArgType bar_parameters = stack_trace->Parameters(1);
-    CHECK_EQ(bar_parameters->length(), 2);
-    CHECK(bar_parameters->get(0)->IsJSObject());
-    CHECK(bar_parameters->get(1)->IsBoolean());
-    Handle<Object> foo = Handle<Object>::cast(GetByName("foo"));
-    CHECK_EQ(bar_parameters->get(0), *foo);
-    CHECK(!bar_parameters->get(1)->BooleanValue(CcTest::i_isolate()));
-
-    FixedArrayArgType main_parameters = stack_trace->Parameters(2);
-    CHECK_EQ(main_parameters->length(), 2);
-    CHECK(main_parameters->get(0)->IsJSObject());
-    CHECK(main_parameters->get(1)->IsUndefined());
-    CHECK_EQ(main_parameters->get(0), *foo);
-  });
-}
-
-// * Test optimized function error
-TEST(DetailedErrorStackTraceOpt) {
-  FLAG_always_opt = true;
-  static const char* source =
-      "function func1(arg1) {       "
-      "  let err = new Error();     "
-      "  throw err;                 "
-      "}                            "
-      "function func2(arg1, arg2) { "
-      "  func1(42);                 "
-      "}                            "
-      "class Foo {};                "
-      "function main(arg1, arg2) {  "
-      "  func2(arg1, false);        "
-      "}                            "
-      "var foo = new Foo();         "
-      "main(foo);                   ";
-
-  DetailedErrorStackTraceTest(source, [](Handle<FrameArray> stack_trace) {
-    FixedArrayArgType foo_parameters = stack_trace->Parameters(0);
-    CHECK_EQ(foo_parameters->length(), 1);
-    CHECK(foo_parameters->get(0)->IsSmi());
-    CHECK_EQ(Smi::ToInt(foo_parameters->get(0)), 42);
-
-    FixedArrayArgType bar_parameters = stack_trace->Parameters(1);
-    CHECK_EQ(bar_parameters->length(), 2);
-    CHECK(bar_parameters->get(0)->IsJSObject());
-    CHECK(bar_parameters->get(1)->IsBoolean());
-    Handle<Object> foo = Handle<Object>::cast(GetByName("foo"));
-    CHECK_EQ(bar_parameters->get(0), *foo);
-    CHECK(!bar_parameters->get(1)->BooleanValue(CcTest::i_isolate()));
-
-    FixedArrayArgType main_parameters = stack_trace->Parameters(2);
-    CHECK_EQ(main_parameters->length(), 2);
-    CHECK(main_parameters->get(0)->IsJSObject());
-    CHECK(main_parameters->get(1)->IsUndefined());
-    CHECK_EQ(main_parameters->get(0), *foo);
-  });
-}
-
-// * Test optimized function with inline frame error
-TEST(DetailedErrorStackTraceInline) {
-  FLAG_allow_natives_syntax = true;
-  static const char* source =
-      "function add(x) {                 "
-      " if (x == 42)                     "
-      "  throw new Error();              "
-      " return x + x;                    "
-      "}                                 "
-      "add(0);                           "
-      "add(1);                           "
-      "function foo(x) {                 "
-      " return add(x + 1)                "
-      "}                                 "
-      "foo(40);                          "
-      "%OptimizeFunctionOnNextCall(foo); "
-      "foo(41);                          ";
-
-  DetailedErrorStackTraceTest(source, [](Handle<FrameArray> stack_trace) {
-    FixedArrayArgType parameters_add = stack_trace->Parameters(0);
-    CHECK_EQ(parameters_add->length(), 1);
-    CHECK(parameters_add->get(0)->IsSmi());
-    CHECK_EQ(Smi::ToInt(parameters_add->get(0)), 42);
-
-    FixedArrayArgType parameters_foo = stack_trace->Parameters(1);
-    CHECK_EQ(parameters_foo->length(), 1);
-    CHECK(parameters_foo->get(0)->IsSmi());
-    CHECK_EQ(Smi::ToInt(parameters_foo->get(0)), 41);
-  });
-}
-
-// * Test builtin exit error
-TEST(DetailedErrorStackTraceBuiltinExit) {
-  static const char* source =
-      "function test(arg1) {           "
-      "  (new Number()).toFixed(arg1); "
-      "}                               "
-      "test(9999);                     ";
-
-  DetailedErrorStackTraceTest(source, [](Handle<FrameArray> stack_trace) {
-    FixedArrayArgType parameters = stack_trace->Parameters(0);
-
-    CHECK_EQ(parameters->length(), 2);
-    CHECK(parameters->get(0)->IsSmi());
-    CHECK_EQ(Smi::ToInt(parameters->get(0)), 9999);
-  });
 }
 
 TEST(Regress169928) {

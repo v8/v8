@@ -1082,10 +1082,9 @@ void JavaScriptFrame::Summarize(std::vector<FrameSummary>* functions) const {
   Code code = LookupCode();
   int offset = static_cast<int>(pc() - code->InstructionStart());
   AbstractCode abstract_code = AbstractCode::cast(code);
-  Handle<FixedArray> params = GetParameters();
-  FrameSummary::JavaScriptFrameSummary summary(
-      isolate(), receiver(), function(), abstract_code, offset, IsConstructor(),
-      *params);
+  FrameSummary::JavaScriptFrameSummary summary(isolate(), receiver(),
+                                               function(), abstract_code,
+                                               offset, IsConstructor());
   functions->push_back(summary);
 }
 
@@ -1243,20 +1242,6 @@ int JavaScriptFrame::ComputeParametersCount() const {
   return GetNumberOfIncomingArguments();
 }
 
-Handle<FixedArray> JavaScriptFrame::GetParameters() const {
-  if (V8_LIKELY(!FLAG_detailed_error_stack_trace)) {
-    return isolate()->factory()->empty_fixed_array();
-  }
-  int param_count = ComputeParametersCount();
-  Handle<FixedArray> parameters =
-      isolate()->factory()->NewFixedArray(param_count);
-  for (int i = 0; i < param_count; i++) {
-    parameters->set(i, GetParameter(i));
-  }
-
-  return parameters;
-}
-
 int JavaScriptBuiltinContinuationFrame::ComputeParametersCount() const {
   // Assert that the first allocatable register is also the argument count
   // register.
@@ -1293,15 +1278,13 @@ void JavaScriptBuiltinContinuationWithCatchFrame::SetException(
 
 FrameSummary::JavaScriptFrameSummary::JavaScriptFrameSummary(
     Isolate* isolate, Object* receiver, JSFunction function,
-    AbstractCode abstract_code, int code_offset, bool is_constructor,
-    FixedArray parameters)
+    AbstractCode abstract_code, int code_offset, bool is_constructor)
     : FrameSummaryBase(isolate, FrameSummary::JAVA_SCRIPT),
       receiver_(receiver, isolate),
       function_(function, isolate),
       abstract_code_(abstract_code, isolate),
       code_offset_(code_offset),
-      is_constructor_(is_constructor),
-      parameters_(parameters, isolate) {
+      is_constructor_(is_constructor) {
   DCHECK(abstract_code->IsBytecodeArray() ||
          Code::cast(abstract_code)->kind() != Code::OPTIMIZED_FUNCTION);
 }
@@ -1547,10 +1530,9 @@ void OptimizedFrame::Summarize(std::vector<FrameSummary>* frames) const {
       }
 
       // Append full summary of the encountered JS frame.
-      Handle<FixedArray> params = GetParameters();
-      FrameSummary::JavaScriptFrameSummary summary(
-          isolate(), *receiver, *function, *abstract_code, code_offset,
-          is_constructor, *params);
+      FrameSummary::JavaScriptFrameSummary summary(isolate(), *receiver,
+                                                   *function, *abstract_code,
+                                                   code_offset, is_constructor);
       frames->push_back(summary);
       is_constructor = false;
     } else if (it->kind() == TranslatedFrame::kConstructStub) {
@@ -1761,10 +1743,9 @@ void InterpretedFrame::WriteInterpreterRegister(int register_index,
 void InterpretedFrame::Summarize(std::vector<FrameSummary>* functions) const {
   DCHECK(functions->empty());
   AbstractCode abstract_code = AbstractCode::cast(GetBytecodeArray());
-  Handle<FixedArray> params = GetParameters();
   FrameSummary::JavaScriptFrameSummary summary(
       isolate(), receiver(), function(), abstract_code, GetBytecodeOffset(),
-      IsConstructor(), *params);
+      IsConstructor());
   functions->push_back(summary);
 }
 

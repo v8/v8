@@ -470,6 +470,8 @@ StackTraceFailureMessage::StackTraceFailureMessage(Isolate* isolate, void* ptr1,
   }
 }
 
+namespace {
+
 class FrameArrayBuilder {
  public:
   FrameArrayBuilder(Isolate* isolate, FrameSkipMode mode, int limit,
@@ -505,19 +507,8 @@ class FrameArrayBuilder {
     // The stored bytecode offset is relative to a different base than what
     // is used in the source position table, hence the subtraction.
     offset -= BytecodeArray::kHeaderSize - kHeapObjectTag;
-
-    Handle<FixedArray> parameters = isolate_->factory()->empty_fixed_array();
-    if (V8_UNLIKELY(FLAG_detailed_error_stack_trace)) {
-      int param_count = function->shared()->internal_formal_parameter_count();
-      parameters = isolate_->factory()->NewFixedArray(param_count);
-      for (int i = 0; i < param_count; i++) {
-        parameters->set(i,
-                        generator_object->parameters_and_registers()->get(i));
-      }
-    }
-
     elements_ = FrameArray::AppendJSFrame(elements_, receiver, function, code,
-                                          offset, flags, parameters);
+                                          offset, flags);
   }
 
   void AppendPromiseAllFrame(Handle<Context> context, int offset) {
@@ -530,12 +521,8 @@ class FrameArrayBuilder {
 
     Handle<Object> receiver(native_context->promise_function(), isolate_);
     Handle<AbstractCode> code(AbstractCode::cast(function->code()), isolate_);
-
-    // TODO(mmarchini) save Promises list from Promise.all()
-    Handle<FixedArray> parameters = isolate_->factory()->empty_fixed_array();
-
     elements_ = FrameArray::AppendJSFrame(elements_, receiver, function, code,
-                                          offset, flags, parameters);
+                                          offset, flags);
   }
 
   void AppendJavaScriptFrame(
@@ -553,13 +540,9 @@ class FrameArrayBuilder {
     if (IsStrictFrame(function)) flags |= FrameArray::kIsStrict;
     if (is_constructor) flags |= FrameArray::kIsConstructor;
 
-    Handle<FixedArray> parameters = isolate_->factory()->empty_fixed_array();
-    if (V8_UNLIKELY(FLAG_detailed_error_stack_trace))
-      parameters = summary.parameters();
-
     elements_ = FrameArray::AppendJSFrame(
         elements_, TheHoleToUndefined(isolate_, summary.receiver()), function,
-        abstract_code, offset, flags, parameters);
+        abstract_code, offset, flags);
   }
 
   void AppendWasmCompiledFrame(
@@ -606,18 +589,9 @@ class FrameArrayBuilder {
     if (IsStrictFrame(function)) flags |= FrameArray::kIsStrict;
     if (exit_frame->IsConstructor()) flags |= FrameArray::kIsConstructor;
 
-    Handle<FixedArray> parameters = isolate_->factory()->empty_fixed_array();
-    if (V8_UNLIKELY(FLAG_detailed_error_stack_trace)) {
-      int param_count = exit_frame->ComputeParametersCount();
-      parameters = isolate_->factory()->NewFixedArray(param_count);
-      for (int i = 0; i < param_count; i++) {
-        parameters->set(i, exit_frame->GetParameter(i));
-      }
-    }
-
     elements_ = FrameArray::AppendJSFrame(elements_, receiver, function,
                                           Handle<AbstractCode>::cast(code),
-                                          offset, flags, parameters);
+                                          offset, flags);
   }
 
   bool full() { return elements_->FrameCount() >= limit_; }
@@ -815,6 +789,8 @@ void CaptureAsyncStackTrace(Isolate* isolate, Handle<JSPromise> promise,
     }
   }
 }
+
+}  // namespace
 
 Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
                                                 FrameSkipMode mode,
