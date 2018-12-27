@@ -209,12 +209,12 @@ class Internals {
 
   V8_INLINE static int GetInstanceType(const internal::Address obj) {
     typedef internal::Address A;
-    A map = ReadField<A>(obj, kHeapObjectMapOffset);
-    return ReadField<uint16_t>(map, kMapInstanceTypeOffset);
+    A map = ReadTaggedPointerField(obj, kHeapObjectMapOffset);
+    return ReadRawField<uint16_t>(map, kMapInstanceTypeOffset);
   }
 
   V8_INLINE static int GetOddballKind(const internal::Address obj) {
-    return SmiValue(ReadField<internal::Address>(obj, kOddballKindOffset));
+    return SmiValue(ReadTaggedSignedField(obj, kOddballKindOffset));
   }
 
   V8_INLINE static bool IsExternalTwoByteString(int instance_type) {
@@ -268,24 +268,74 @@ class Internals {
   }
 
   template <typename T>
-  V8_INLINE static T ReadField(const internal::Address heap_object_ptr,
-                               int offset) {
+  V8_INLINE static T ReadRawField(internal::Address heap_object_ptr,
+                                  int offset) {
     internal::Address addr = heap_object_ptr + offset - kHeapObjectTag;
     return *reinterpret_cast<const T*>(addr);
   }
 
-#ifndef V8_COMPRESS_POINTERS
+  V8_INLINE static internal::Address ReadTaggedPointerField(
+      internal::Address heap_object_ptr, int offset) {
+#ifdef V8_COMPRESS_POINTERS
+    int32_t value = ReadRawField<int32_t>(heap_object_ptr, offset);
+    internal::Address root = GetRootFromOnHeapAddress(heap_object_ptr);
+    return root + static_cast<internal::Address>(static_cast<intptr_t>(value));
+#else
+    return ReadRawField<internal::Address>(heap_object_ptr, offset);
+#endif
+  }
+
+  V8_INLINE static internal::Address ReadTaggedSignedField(
+      internal::Address heap_object_ptr, int offset) {
+#ifdef V8_COMPRESS_POINTERS
+    int32_t value = ReadRawField<int32_t>(heap_object_ptr, offset);
+    return static_cast<internal::Address>(static_cast<intptr_t>(value));
+#else
+    return ReadRawField<internal::Address>(heap_object_ptr, offset);
+#endif
+  }
+
+  V8_INLINE static internal::Address ReadTaggedAnyField(
+      internal::Address heap_object_ptr, int offset) {
+#ifdef V8_COMPRESS_POINTERS
+    int32_t value = ReadRawField<int32_t>(heap_object_ptr, offset);
+    internal::Address root_mask = static_cast<internal::Address>(
+        -static_cast<intptr_t>(value & kSmiTagMask));
+    internal::Address root_or_zero =
+        root_mask & GetRootFromOnHeapAddress(heap_object_ptr);
+    return root_or_zero +
+           static_cast<internal::Address>(static_cast<intptr_t>(value));
+#else
+    return ReadRawField<internal::Address>(heap_object_ptr, offset);
+#endif
+  }
+
+#ifdef V8_COMPRESS_POINTERS
+  static constexpr size_t kPtrComprHeapReservationSize = size_t{1} << 32;
+  static constexpr size_t kPtrComprIsolateRootBias =
+      kPtrComprHeapReservationSize / 2;
+  static constexpr size_t kPtrComprIsolateRootAlignment = size_t{1} << 32;
+
+  V8_INLINE static internal::Address GetRootFromOnHeapAddress(
+      internal::Address addr) {
+    return (addr + kPtrComprIsolateRootBias) &
+           -static_cast<intptr_t>(kPtrComprIsolateRootAlignment);
+  }
+
+#else
+
   template <typename T>
   V8_INLINE static T ReadEmbedderData(const v8::Context* context, int index) {
     typedef internal::Address A;
     typedef internal::Internals I;
     A ctx = *reinterpret_cast<const A*>(context);
-    A embedder_data = I::ReadField<A>(ctx, I::kNativeContextEmbedderDataOffset);
+    A embedder_data =
+        I::ReadTaggedPointerField(ctx, I::kNativeContextEmbedderDataOffset);
     int value_offset =
         I::kEmbedderDataArrayHeaderSize + (I::kEmbedderDataSlotSize * index);
-    return I::ReadField<T>(embedder_data, value_offset);
+    return I::ReadRawField<T>(embedder_data, value_offset);
   }
-#endif
+#endif  // V8_COMPRESS_POINTERS
 };
 
 // Only perform cast check for types derived from v8::Data since

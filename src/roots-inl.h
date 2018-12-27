@@ -33,9 +33,9 @@ V8_INLINE RootIndex operator++(RootIndex& index) {
 
 bool RootsTable::IsRootHandleLocation(Address* handle_location,
                                       RootIndex* index) const {
-  ObjectSlot location(handle_location);
-  ObjectSlot first_root(&roots_[0]);
-  ObjectSlot last_root(&roots_[kEntriesCount]);
+  FullObjectSlot location(handle_location);
+  FullObjectSlot first_root(&roots_[0]);
+  FullObjectSlot last_root(&roots_[kEntriesCount]);
   if (location >= last_root) return false;
   if (location < first_root) return false;
   *index = static_cast<RootIndex>(location - first_root);

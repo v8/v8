@@ -5560,7 +5560,7 @@ String::ExternalStringResource* String::GetExternalStringResourceSlow() const {
   }
 
   if (i::StringShape(str).IsExternalTwoByte()) {
-    void* value = I::ReadField<void*>(str.ptr(), I::kStringResourceOffset);
+    void* value = I::ReadRawField<void*>(str.ptr(), I::kStringResourceOffset);
     return reinterpret_cast<String::ExternalStringResource*>(value);
   }
   return nullptr;
@@ -5582,7 +5582,7 @@ String::ExternalStringResourceBase* String::GetExternalStringResourceBaseSlow(
   *encoding_out = static_cast<Encoding>(type & I::kStringEncodingMask);
   if (i::StringShape(str).IsExternalOneByte() ||
       i::StringShape(str).IsExternalTwoByte()) {
-    void* value = I::ReadField<void*>(string, I::kStringResourceOffset);
+    void* value = I::ReadRawField<void*>(string, I::kStringResourceOffset);
     resource = static_cast<ExternalStringResourceBase*>(value);
   }
   return resource;
@@ -5613,9 +5613,15 @@ Local<Value> Symbol::Name() const {
     // objects are immovable we can use the Handle(Address*) constructor with
     // the address of the name field in the Symbol object without needing an
     // isolate.
+#ifdef V8_COMPRESS_POINTERS
+    // Compressed fields can't serve as handle locations.
+    // TODO(ishell): get Isolate as a parameter.
+    isolate = i::Isolate::Current();
+#else
     i::Handle<i::HeapObject> ro_name(reinterpret_cast<i::Address*>(
         sym->GetFieldAddress(i::Symbol::kNameOffset)));
     return Utils::ToLocal(ro_name);
+#endif
   }
 
   i::Handle<i::Object> name(sym->name(), isolate);

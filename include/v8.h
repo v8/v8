@@ -695,7 +695,7 @@ template <class T, class M> class Persistent : public PersistentBase<T> {
   V8_INLINE Persistent(const Persistent<S, M2>& that) : PersistentBase<T>(0) {
     Copy(that);
   }
-  V8_INLINE Persistent& operator=(const Persistent& that) { // NOLINT
+  V8_INLINE Persistent& operator=(const Persistent& that) {
     Copy(that);
     return *this;
   }
@@ -779,7 +779,7 @@ class Global : public PersistentBase<T> {
   /**
    * Move constructor.
    */
-  V8_INLINE Global(Global&& other) : PersistentBase<T>(other.val_) {  // NOLINT
+  V8_INLINE Global(Global&& other) : PersistentBase<T>(other.val_) {
     other.val_ = nullptr;
   }
   V8_INLINE ~Global() { this->Reset(); }
@@ -9934,7 +9934,7 @@ Local<Value> Object::GetInternalField(int index) {
       instance_type == I::kJSSpecialApiObjectType) {
     int offset = I::kJSObjectHeaderSizeForEmbedderFields +
                  (I::kEmbedderDataSlotSize * index);
-    A value = I::ReadField<A>(obj, offset);
+    A value = I::ReadTaggedAnyField(obj, offset);
     A* result = HandleScope::CreateHandle(
         reinterpret_cast<internal::NeverReadOnlySpaceObject*>(obj), value);
     return Local<Value>(reinterpret_cast<Value*>(result));
@@ -9957,7 +9957,7 @@ void* Object::GetAlignedPointerFromInternalField(int index) {
                 instance_type == I::kJSSpecialApiObjectType)) {
     int offset = I::kJSObjectHeaderSizeForEmbedderFields +
                  (I::kEmbedderDataSlotSize * index);
-    return I::ReadField<void*>(obj, offset);
+    return I::ReadRawField<void*>(obj, offset);
   }
 #endif
   return SlowGetAlignedPointerFromInternalField(index);
@@ -9987,7 +9987,7 @@ String::ExternalStringResource* String::GetExternalStringResource() const {
 
   ExternalStringResource* result;
   if (I::IsExternalTwoByteString(I::GetInstanceType(obj))) {
-    void* value = I::ReadField<void*>(obj, I::kStringResourceOffset);
+    void* value = I::ReadRawField<void*>(obj, I::kStringResourceOffset);
     result = reinterpret_cast<String::ExternalStringResource*>(value);
   } else {
     result = GetExternalStringResourceSlow();
@@ -10009,7 +10009,7 @@ String::ExternalStringResourceBase* String::GetExternalStringResourceBase(
   ExternalStringResourceBase* resource;
   if (type == I::kExternalOneByteRepresentationTag ||
       type == I::kExternalTwoByteRepresentationTag) {
-    void* value = I::ReadField<void*>(obj, I::kStringResourceOffset);
+    void* value = I::ReadRawField<void*>(obj, I::kStringResourceOffset);
     resource = static_cast<ExternalStringResourceBase*>(value);
   } else {
     resource = GetExternalStringResourceBaseSlow(encoding_out);
