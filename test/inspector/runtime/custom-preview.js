@@ -51,18 +51,24 @@ const {session, contextGroup, Protocol} =
 
   Protocol.Runtime.onConsoleAPICalled(m => InspectorTest.logMessage(m));
   InspectorTest.log('Dump custom previews..');
-  await dumpCustomPreview(await Protocol.Runtime.evaluate({expression: 'a'}));
-  await dumpCustomPreview(await Protocol.Runtime.evaluate({expression: 'b'}));
-  await dumpCustomPreview(await Protocol.Runtime.evaluate({expression: 'c'}));
-  await dumpCustomPreview(await Protocol.Runtime.evaluate({expression: 'configTest'}));
+  await dumpCustomPreviewForEvaluate(await Protocol.Runtime.evaluate({expression: 'a'}));
+  await dumpCustomPreviewForEvaluate(await Protocol.Runtime.evaluate({expression: 'b'}));
+  await dumpCustomPreviewForEvaluate(await Protocol.Runtime.evaluate({expression: 'c'}));
+  await dumpCustomPreviewForEvaluate(await Protocol.Runtime.evaluate({expression: 'configTest'}));
   InspectorTest.log('Change formatters order and dump again..');
   await Protocol.Runtime.evaluate({
     expression: 'this.devtoolsFormatters = [formatter2, formatter1, formatterWithConfig1, formatterWithConfig2]'
   });
-  await dumpCustomPreview(await Protocol.Runtime.evaluate({expression: 'a'}));
-  await dumpCustomPreview(await Protocol.Runtime.evaluate({expression: 'b'}));
-  await dumpCustomPreview(await Protocol.Runtime.evaluate({expression: 'c'}));
-  await dumpCustomPreview(await Protocol.Runtime.evaluate({expression: 'configTest'}));
+  await dumpCustomPreviewForEvaluate(await Protocol.Runtime.evaluate({expression: 'a'}));
+  await dumpCustomPreviewForEvaluate(await Protocol.Runtime.evaluate({expression: 'b'}));
+  await dumpCustomPreviewForEvaluate(await Protocol.Runtime.evaluate({expression: 'c'}));
+  await dumpCustomPreviewForEvaluate(await Protocol.Runtime.evaluate({expression: 'configTest'}));
+
+  InspectorTest.log('Test Runtime.getProperties');
+  const {result:{result:{objectId}}} = await Protocol.Runtime.evaluate({expression: '({a})'});
+  const {result:{result}} = await Protocol.Runtime.getProperties({
+    objectId, ownProperties: true, generatePreview: true});
+  await dumpCustomPreview(result.find(value => value.name === 'a').value);
 
   InspectorTest.log('Try to break custom preview..');
   await Protocol.Runtime.evaluate({
@@ -104,11 +110,16 @@ const {session, contextGroup, Protocol} =
   });
   Protocol.Runtime.evaluate({ expression: '({})', generatePreview: true });
   InspectorTest.logMessage(await Protocol.Runtime.onceConsoleAPICalled());
+
   InspectorTest.completeTest();
 })()
 
+function dumpCustomPreviewForEvaluate(result) {
+  return dumpCustomPreview(result.result.result);
+}
+
 async function dumpCustomPreview(result) {
-  const { objectId, customPreview } = result.result.result;
+  const { objectId, customPreview } = result;
   InspectorTest.logMessage(customPreview);
   if (customPreview.bodyGetterId) {
     const body = await Protocol.Runtime.callFunctionOn({

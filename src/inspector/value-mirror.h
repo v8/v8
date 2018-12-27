@@ -47,18 +47,18 @@ class ValueMirror {
                                              v8::Local<v8::Value> value);
   virtual protocol::Response buildRemoteObject(
       v8::Local<v8::Context> context, WrapMode mode,
-      std::unique_ptr<protocol::Runtime::RemoteObject>* result) = 0;
+      std::unique_ptr<protocol::Runtime::RemoteObject>* result) const = 0;
   virtual void buildPropertyPreview(
       v8::Local<v8::Context> context, const String16& name,
-      std::unique_ptr<protocol::Runtime::PropertyPreview>*) {}
+      std::unique_ptr<protocol::Runtime::PropertyPreview>*) const {}
   virtual void buildObjectPreview(
       v8::Local<v8::Context> context, bool generatePreviewForTable,
       int* nameLimit, int* indexLimit,
-      std::unique_ptr<protocol::Runtime::ObjectPreview>*) {}
+      std::unique_ptr<protocol::Runtime::ObjectPreview>*) const {}
   virtual void buildEntryPreview(
       v8::Local<v8::Context> context, int* nameLimit, int* indexLimit,
-      std::unique_ptr<protocol::Runtime::ObjectPreview>*) {}
-  virtual v8::Local<v8::Value> v8Value() = 0;
+      std::unique_ptr<protocol::Runtime::ObjectPreview>*) const {}
+  virtual v8::Local<v8::Value> v8Value() const = 0;
 
   class PropertyAccumulator {
    public:
