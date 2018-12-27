@@ -315,8 +315,38 @@ class ConcurrentMarkingVisitor final
   // Fixed array object ========================================================
   // ===========================================================================
 
+  int VisitFixedArrayWithProgressBar(Map map, FixedArray object,
+                                     MemoryChunk* chunk) {
+    // The concurrent marker can process larger chunks than the main thread
+    // marker.
+    const int kProgressBarScanningChunk =
+        RoundUp(kMaxRegularHeapObjectSize, kTaggedSize);
+    DCHECK(marking_state_.IsBlackOrGrey(object));
+    marking_state_.GreyToBlack(object);
+    int size = FixedArray::BodyDescriptor::SizeOf(map, object);
+    int start =
+        Max(FixedArray::BodyDescriptor::kStartOffset, chunk->progress_bar());
+    int end = Min(size, start + kProgressBarScanningChunk);
+    if (start < end) {
+      VisitPointers(object, HeapObject::RawField(object, start),
+                    HeapObject::RawField(object, end));
+      chunk->set_progress_bar(end);
+      if (end < size) {
+        // The object can be pushed back onto the marking worklist only after
+        // progress bar was updated.
+        shared_.Push(object);
+      }
+    }
+    return end - start;
+  }
+
   int VisitFixedArray(Map map, FixedArray object) {
-    return VisitLeftTrimmableArray(map, object);
+    // Arrays with the progress bar are not left-trimmable because they reside
+    // in the large object space.
+    MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
+    return chunk->IsFlagSet<AccessMode::ATOMIC>(MemoryChunk::HAS_PROGRESS_BAR)
+               ? VisitFixedArrayWithProgressBar(map, object, chunk)
+               : VisitLeftTrimmableArray(map, object);
   }
 
   int VisitFixedDoubleArray(Map map, FixedDoubleArray object) {

@@ -999,7 +999,7 @@ class MarkingVisitor final
  private:
   // Granularity in which FixedArrays are scanned if |fixed_array_mode|
   // is true.
-  static const int kProgressBarScanningChunk = 32 * 1024;
+  static const int kProgressBarScanningChunk = 32 * KB;
 
   template <typename TSlot>
   V8_INLINE void VisitPointerImpl(HeapObject host, TSlot p);

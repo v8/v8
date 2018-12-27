@@ -378,44 +378,30 @@ template <FixedArrayVisitationMode fixed_array_mode,
 int MarkingVisitor<fixed_array_mode, retaining_path_mode, MarkingState>::
     VisitFixedArrayIncremental(Map map, FixedArray object) {
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
-  int object_size = FixedArray::BodyDescriptor::SizeOf(map, object);
+  int size = FixedArray::BodyDescriptor::SizeOf(map, object);
   if (chunk->IsFlagSet(MemoryChunk::HAS_PROGRESS_BAR)) {
-    DCHECK(!FLAG_use_marking_progress_bar || heap_->IsLargeObject(object));
-    // When using a progress bar for large fixed arrays, scan only a chunk of
-    // the array and try to push it onto the marking deque again until it is
-    // fully scanned. Fall back to scanning it through to the end in case this
-    // fails because of a full deque.
-    int start_offset =
+    DCHECK(FLAG_use_marking_progress_bar);
+    DCHECK(heap_->IsLargeObject(object));
+    int start =
         Max(FixedArray::BodyDescriptor::kStartOffset, chunk->progress_bar());
-    if (start_offset < object_size) {
-      // Ensure that the object is either grey or black before pushing it
-      // into marking worklist.
-      marking_state()->WhiteToGrey(object);
-      if (FLAG_concurrent_marking || FLAG_parallel_marking) {
-        marking_worklist()->PushBailout(object);
-      } else {
+    int end = Min(size, start + kProgressBarScanningChunk);
+    if (start < end) {
+      VisitPointers(object, HeapObject::RawField(object, start),
+                    HeapObject::RawField(object, end));
+      chunk->set_progress_bar(end);
+      if (end < size) {
+        DCHECK(marking_state()->IsBlack(object));
+        // The object can be pushed back onto the marking worklist only after
+        // progress bar was updated.
         marking_worklist()->Push(object);
-      }
-      DCHECK(marking_state()->IsGrey(object) ||
-             marking_state()->IsBlack(object));
-
-      int end_offset =
-          Min(object_size, start_offset + kProgressBarScanningChunk);
-      int already_scanned_offset = start_offset;
-      VisitPointers(object, HeapObject::RawField(object, start_offset),
-                    HeapObject::RawField(object, end_offset));
-      start_offset = end_offset;
-      end_offset = Min(object_size, end_offset + kProgressBarScanningChunk);
-      chunk->set_progress_bar(start_offset);
-      if (start_offset < object_size) {
         heap_->incremental_marking()->NotifyIncompleteScanOfObject(
-            object_size - (start_offset - already_scanned_offset));
+            size - (end - start));
       }
     }
   } else {
-    FixedArray::BodyDescriptor::IterateBody(map, object, object_size, this);
+    FixedArray::BodyDescriptor::IterateBody(map, object, size, this);
   }
-  return object_size;
+  return size;
 }
 
 template <FixedArrayVisitationMode fixed_array_mode,

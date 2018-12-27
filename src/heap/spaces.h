@@ -535,13 +535,13 @@ class MemoryChunk {
   Address HighWaterMark() { return address() + high_water_mark_; }
 
   int progress_bar() {
-    DCHECK(IsFlagSet(HAS_PROGRESS_BAR));
-    return static_cast<int>(progress_bar_);
+    DCHECK(IsFlagSet<AccessMode::ATOMIC>(HAS_PROGRESS_BAR));
+    return static_cast<int>(progress_bar_.load(std::memory_order_relaxed));
   }
 
   void set_progress_bar(int progress_bar) {
-    DCHECK(IsFlagSet(HAS_PROGRESS_BAR));
-    progress_bar_ = progress_bar;
+    DCHECK(IsFlagSet<AccessMode::ATOMIC>(HAS_PROGRESS_BAR));
+    progress_bar_.store(progress_bar, std::memory_order_relaxed);
   }
 
   void ResetProgressBar() {
@@ -681,7 +681,7 @@ class MemoryChunk {
 
   // Used by the incremental marker to keep track of the scanning progress in
   // large objects that have a progress bar and are scanned in increments.
-  intptr_t progress_bar_;
+  std::atomic<intptr_t> progress_bar_;
 
   // Count of bytes marked black on page.
   std::atomic<intptr_t> live_byte_count_;
