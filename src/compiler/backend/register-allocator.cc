@@ -1795,6 +1795,7 @@ void ConstraintBuilder::MeetConstraintsBefore(int instr_index) {
         UnallocatedOperand(*cur_input, second_output->virtual_register());
     MoveOperands* gap_move = data()->AddGapMove(instr_index, Instruction::END,
                                                 input_copy, *cur_input);
+    DCHECK_NOT_NULL(gap_move);
     if (code()->IsReference(input_vreg) && !code()->IsReference(output_vreg)) {
       if (second->HasReferenceMap()) {
         RegisterAllocationData::DelayedReference delayed_reference = {

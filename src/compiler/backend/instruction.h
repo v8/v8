@@ -705,9 +705,7 @@ class V8_EXPORT_PRIVATE ParallelMove final
     : public NON_EXPORTED_BASE(ZoneVector<MoveOperands*>),
       public NON_EXPORTED_BASE(ZoneObject) {
  public:
-  explicit ParallelMove(Zone* zone) : ZoneVector<MoveOperands*>(zone) {
-    reserve(4);
-  }
+  explicit ParallelMove(Zone* zone) : ZoneVector<MoveOperands*>(zone) {}
 
   MoveOperands* AddMove(const InstructionOperand& from,
                         const InstructionOperand& to) {
@@ -718,7 +716,9 @@ class V8_EXPORT_PRIVATE ParallelMove final
   MoveOperands* AddMove(const InstructionOperand& from,
                         const InstructionOperand& to,
                         Zone* operand_allocation_zone) {
+    if (from.EqualsCanonicalized(to)) return nullptr;
     MoveOperands* move = new (operand_allocation_zone) MoveOperands(from, to);
+    if (empty()) reserve(4);
     push_back(move);
     return move;
   }
