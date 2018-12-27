@@ -692,7 +692,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Check that the value is a non-negative smi.
   TNode<BoolT> TaggedIsPositiveSmi(SloppyTNode<Object> a);
   // Check that a word has a word-aligned address.
-  TNode<BoolT> WordIsWordAligned(SloppyTNode<WordT> word);
+  TNode<BoolT> WordIsAligned(SloppyTNode<WordT> word, size_t alignment);
   TNode<BoolT> WordIsPowerOfTwo(SloppyTNode<IntPtrT> value);
 
 #if DEBUG
