@@ -145,24 +145,45 @@ inline void I64Binop(LiftoffAssembler* assm, LiftoffRegister dst,
   }
 }
 
-// safe_amount_reg is the register in which the register holding the shift
-// amount can be held without being clobbered, thus the original register
-// holding the shift amount can be moved into it if required.
+inline Register GetNonAliasingRegister(LiftoffAssembler* assm,
+                                       UseScratchRegisterScope* temps,
+                                       Register src, Register alternative,
+                                       Register src_cannot_alias,
+                                       Register alternative_cannot_alias) {
+  if (src != src_cannot_alias) return src;
+  Register result =
+      alternative == alternative_cannot_alias ? temps->Acquire() : alternative;
+  assm->TurboAssembler::Move(result, src);
+  return result;
+}
+
 template <void (TurboAssembler::*op)(Register, Register, Register, Register,
-                                     Register)>
+                                     Register),
+          bool is_left_shift>
 inline void I64Shiftop(LiftoffAssembler* assm, LiftoffRegister dst,
                        LiftoffRegister src, Register amount,
-                       Register safe_amount_reg, LiftoffRegList pinned) {
-  DCHECK(safe_amount_reg == dst.low_gp() || safe_amount_reg == dst.high_gp());
-  Register other_reg =
-      (safe_amount_reg == dst.low_gp()) ? dst.high_gp() : dst.low_gp();
+                       LiftoffRegList pinned) {
+  // safe_amount_reg is the register in which the register holding the shift
+  // amount can be held without being clobbered, thus the original register
+  // holding the shift amount can be moved into it if required.
+  Register safe_amount_reg = is_left_shift ? dst.low_gp() : dst.high_gp();
+  Register other_reg = is_left_shift ? dst.high_gp() : dst.low_gp();
   pinned.set(other_reg);
   pinned.set(src.low_gp());
   pinned.set(src.high_gp());
   Register scratch = assm->GetUnusedRegister(kGpReg, pinned).gp();
   assm->and_(scratch, amount, Operand(0x3F));
-  (assm->*op)(dst.low_gp(), dst.high_gp(), src.low_gp(), src.high_gp(),
-              scratch);
+
+  UseScratchRegisterScope temps(assm);
+  if (is_left_shift) {
+    Register src_low = GetNonAliasingRegister(
+        assm, &temps, src.low_gp(), safe_amount_reg, other_reg, src.high_gp());
+    (assm->*op)(dst.low_gp(), dst.high_gp(), src_low, src.high_gp(), scratch);
+  } else {
+    Register src_high = GetNonAliasingRegister(
+        assm, &temps, src.high_gp(), safe_amount_reg, other_reg, src.low_gp());
+    (assm->*op)(dst.low_gp(), dst.high_gp(), src.low_gp(), src_high, scratch);
+  }
 }
 
 inline FloatRegister GetFloatRegister(DoubleRegister reg) {
@@ -837,26 +858,29 @@ bool LiftoffAssembler::emit_i64_remu(LiftoffRegister dst, LiftoffRegister lhs,
 
 void LiftoffAssembler::emit_i64_shl(LiftoffRegister dst, LiftoffRegister src,
                                     Register amount, LiftoffRegList pinned) {
-  liftoff::I64Shiftop<&TurboAssembler::LslPair>(this, dst, src, amount,
-                                                dst.low_gp(), pinned);
+  liftoff::I64Shiftop<&TurboAssembler::LslPair, true>(this, dst, src, amount,
+                                                      pinned);
 }
 
 void LiftoffAssembler::emit_i64_sar(LiftoffRegister dst, LiftoffRegister src,
                                     Register amount, LiftoffRegList pinned) {
-  liftoff::I64Shiftop<&TurboAssembler::AsrPair>(this, dst, src, amount,
-                                                dst.high_gp(), pinned);
+  liftoff::I64Shiftop<&TurboAssembler::AsrPair, false>(this, dst, src, amount,
+                                                       pinned);
 }
 
 void LiftoffAssembler::emit_i64_shr(LiftoffRegister dst, LiftoffRegister src,
                                     Register amount, LiftoffRegList pinned) {
-  liftoff::I64Shiftop<&TurboAssembler::LsrPair>(this, dst, src, amount,
-                                                dst.high_gp(), pinned);
+  liftoff::I64Shiftop<&TurboAssembler::LsrPair, false>(this, dst, src, amount,
+                                                       pinned);
 }
 
 void LiftoffAssembler::emit_i64_shr(LiftoffRegister dst, LiftoffRegister src,
                                     int amount) {
   DCHECK(is_uint6(amount));
-  LsrPair(dst.low_gp(), dst.high_gp(), src.low_gp(), src.high_gp(), amount);
+  UseScratchRegisterScope temps(this);
+  Register src_high = liftoff::GetNonAliasingRegister(
+      this, &temps, src.high_gp(), dst.high_gp(), dst.low_gp(), src.low_gp());
+  LsrPair(dst.low_gp(), dst.high_gp(), src.low_gp(), src_high, amount);
 }
 
 bool LiftoffAssembler::emit_f32_ceil(DoubleRegister dst, DoubleRegister src) {
