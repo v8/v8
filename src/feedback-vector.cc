@@ -724,23 +724,16 @@ void FeedbackNexus::ConfigurePropertyCellMode(Handle<PropertyCell> cell) {
 }
 
 bool FeedbackNexus::ConfigureLexicalVarMode(int script_context_index,
-                                            int context_slot_index,
-                                            bool immutable) {
+                                            int context_slot_index) {
   DCHECK(IsGlobalICKind(kind()));
   DCHECK_LE(0, script_context_index);
   DCHECK_LE(0, context_slot_index);
   if (!ContextIndexBits::is_valid(script_context_index) ||
-      !SlotIndexBits::is_valid(context_slot_index) ||
-      !ImmutabilityBit::is_valid(immutable)) {
+      !SlotIndexBits::is_valid(context_slot_index)) {
     return false;
   }
   int config = ContextIndexBits::encode(script_context_index) |
-               SlotIndexBits::encode(context_slot_index) |
-               ImmutabilityBit::encode(immutable);
-
-  // Force {config} to be in Smi range by propagating the most significant Smi
-  // bit. This does not change any of the bitfield's bits.
-  config = (config << (32 - kSmiValueSize)) >> (32 - kSmiValueSize);
+               SlotIndexBits::encode(context_slot_index);
 
   SetFeedback(Smi::FromInt(config));
   Isolate* isolate = GetIsolate();
