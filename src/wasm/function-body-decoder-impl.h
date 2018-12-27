@@ -2551,7 +2551,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     return stack_.data() + old_size;
   }
 
-  Value Pop(int index, ValueType expected) {
+  V8_INLINE Value Pop(int index, ValueType expected) {
     auto val = Pop();
     if (!VALIDATE(val.type == expected || val.type == kWasmVar ||
                   expected == kWasmVar)) {
@@ -2563,7 +2563,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     return val;
   }
 
-  Value Pop() {
+  V8_INLINE Value Pop() {
     DCHECK(!control_.empty());
     uint32_t limit = control_.back().stack_depth;
     if (stack_.size() <= limit) {
