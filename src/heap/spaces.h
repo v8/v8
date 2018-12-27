@@ -1980,8 +1980,9 @@ class LocalAllocationBuffer {
   ~LocalAllocationBuffer() { Close(); }
 
   // Convert to C++11 move-semantics once allowed by the style guide.
-  LocalAllocationBuffer(const LocalAllocationBuffer& other);
-  LocalAllocationBuffer& operator=(const LocalAllocationBuffer& other);
+  LocalAllocationBuffer(const LocalAllocationBuffer& other) V8_NOEXCEPT;
+  LocalAllocationBuffer& operator=(const LocalAllocationBuffer& other)
+      V8_NOEXCEPT;
 
   V8_WARN_UNUSED_RESULT inline AllocationResult AllocateRawAligned(
       int size_in_bytes, AllocationAlignment alignment);
