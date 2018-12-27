@@ -103,7 +103,7 @@ void MicrotaskQueueBuiltinsAssembler::SetMicrotaskQueueStart(
 
 TNode<IntPtrT> MicrotaskQueueBuiltinsAssembler::CalculateRingBufferOffset(
     TNode<IntPtrT> capacity, TNode<IntPtrT> start, TNode<IntPtrT> index) {
-  return TimesPointerSize(
+  return TimesSystemPointerSize(
       WordAnd(IntPtrAdd(start, index), IntPtrSub(capacity, IntPtrConstant(1))));
 }
 
@@ -373,7 +373,7 @@ void MicrotaskQueueBuiltinsAssembler::EnterMicrotaskContext(
                        ContextStack::kDataOffset);
     Node* data = Load(MachineType::Pointer(), hsi, data_offset);
     StoreNoWriteBarrier(MachineType::Pointer().representation(), data,
-                        TimesPointerSize(size),
+                        TimesSystemPointerSize(size),
                         BitcastTaggedToWord(native_context));
 
     TNode<IntPtrT> new_size = IntPtrAdd(size, IntPtrConstant(1));

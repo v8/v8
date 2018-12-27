@@ -1130,7 +1130,7 @@ void AccessorAssembler::OverwriteExistingFastDataProperty(
 
     BIND(&inobject);
     {
-      Node* field_offset = TimesPointerSize(field_index);
+      Node* field_offset = TimesTaggedSize(field_index);
       Label tagged_rep(this), double_rep(this);
       Branch(
           Word32Equal(representation, Int32Constant(Representation::kDouble)),
@@ -3640,7 +3640,7 @@ void AccessorAssembler::GenerateCloneObjectIC() {
     TNode<IntPtrT> result_start =
         LoadMapInobjectPropertiesStartInWords(result_map);
     TNode<IntPtrT> field_offset_difference =
-        TimesPointerSize(IntPtrSub(result_start, source_start));
+        TimesTaggedSize(IntPtrSub(result_start, source_start));
 
     // If MutableHeapNumbers may be present in-object, allocations may occur
     // within this loop, thus the write barrier is required.
@@ -3653,7 +3653,7 @@ void AccessorAssembler::GenerateCloneObjectIC() {
         source_start, source_size,
         [=](Node* field_index) {
           TNode<IntPtrT> field_offset =
-              TimesPointerSize(UncheckedCast<IntPtrT>(field_index));
+              TimesTaggedSize(UncheckedCast<IntPtrT>(field_index));
 
           if (may_use_mutable_heap_numbers) {
             TNode<Object> field = LoadObjectField(source, field_offset);

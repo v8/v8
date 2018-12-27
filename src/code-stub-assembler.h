@@ -1890,13 +1890,34 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                    Variable* var_numeric,
                                    Variable* var_feedback);
 
-  TNode<WordT> TimesPointerSize(SloppyTNode<WordT> value);
+  // TODO(ishell): drop this version once all usages are fixed.
+  TNode<WordT> TimesPointerSize(SloppyTNode<WordT> value) {
+    STATIC_ASSERT(kTaggedSize == kSystemPointerSize);
+    return TimesSystemPointerSize(value);
+  }
   TNode<IntPtrT> TimesPointerSize(TNode<IntPtrT> value) {
     return Signed(TimesPointerSize(implicit_cast<TNode<WordT>>(value)));
   }
   TNode<UintPtrT> TimesPointerSize(TNode<UintPtrT> value) {
     return Unsigned(TimesPointerSize(implicit_cast<TNode<WordT>>(value)));
   }
+
+  TNode<WordT> TimesSystemPointerSize(SloppyTNode<WordT> value);
+  TNode<IntPtrT> TimesSystemPointerSize(TNode<IntPtrT> value) {
+    return Signed(TimesSystemPointerSize(implicit_cast<TNode<WordT>>(value)));
+  }
+  TNode<UintPtrT> TimesSystemPointerSize(TNode<UintPtrT> value) {
+    return Unsigned(TimesSystemPointerSize(implicit_cast<TNode<WordT>>(value)));
+  }
+
+  TNode<WordT> TimesTaggedSize(SloppyTNode<WordT> value);
+  TNode<IntPtrT> TimesTaggedSize(TNode<IntPtrT> value) {
+    return Signed(TimesTaggedSize(implicit_cast<TNode<WordT>>(value)));
+  }
+  TNode<UintPtrT> TimesTaggedSize(TNode<UintPtrT> value) {
+    return Unsigned(TimesTaggedSize(implicit_cast<TNode<WordT>>(value)));
+  }
+
   TNode<WordT> TimesDoubleSize(SloppyTNode<WordT> value);
   TNode<UintPtrT> TimesDoubleSize(TNode<UintPtrT> value) {
     return Unsigned(TimesDoubleSize(implicit_cast<TNode<WordT>>(value)));

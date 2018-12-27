@@ -109,7 +109,7 @@ TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
 
   // Create a new closure from the given function info in new space
   TNode<IntPtrT> instance_size_in_bytes =
-      TimesPointerSize(LoadMapInstanceSizeInWords(function_map));
+      TimesTaggedSize(LoadMapInstanceSizeInWords(function_map));
   TNode<Object> result = Allocate(instance_size_in_bytes);
   StoreMapNoWriteBarrier(result, function_map);
   InitializeJSObjectBodyNoSlackTracking(result, function_map,
@@ -492,7 +492,7 @@ Node* ConstructorBuiltinsAssembler::EmitCreateShallowObjectLiteral(
   // barriers when copying all object fields.
   STATIC_ASSERT(JSObject::kMaxInstanceSize < kMaxRegularHeapObjectSize);
   TNode<IntPtrT> instance_size =
-      TimesPointerSize(LoadMapInstanceSizeInWords(boilerplate_map));
+      TimesTaggedSize(LoadMapInstanceSizeInWords(boilerplate_map));
   TNode<IntPtrT> allocation_size = instance_size;
   bool needs_allocation_memento = FLAG_allocation_site_pretenuring;
   if (needs_allocation_memento) {

@@ -145,9 +145,9 @@ TF_BUILTIN(NewArgumentsElements, CodeStubAssembler) {
         GotoIf(WordEqual(index, length), &done_loop2);
 
         // Load the parameter at the given {index}.
-        TNode<Object> value =
-            CAST(Load(MachineType::AnyTagged(), frame,
-                      TimesPointerSize(IntPtrSub(offset, index))));
+        TNode<Object> value = BitcastWordToTagged(
+            Load(MachineType::Pointer(), frame,
+                 TimesSystemPointerSize(IntPtrSub(offset, index))));
 
         // Store the {value} into the {result}.
         StoreFixedArrayElement(result, index, value, SKIP_WRITE_BARRIER);

@@ -2498,7 +2498,7 @@ void CodeStubAssembler::StoreContextElement(SloppyTNode<Context> context,
 void CodeStubAssembler::StoreContextElement(SloppyTNode<Context> context,
                                             SloppyTNode<IntPtrT> slot_index,
                                             SloppyTNode<Object> value) {
-  Node* offset = IntPtrAdd(TimesPointerSize(slot_index),
+  Node* offset = IntPtrAdd(TimesTaggedSize(slot_index),
                            IntPtrConstant(Context::SlotOffset(0)));
   Store(context, offset, value);
 }
@@ -3388,7 +3388,7 @@ TNode<NameDictionary> CodeStubAssembler::AllocateNameDictionaryWithCapacity(
   CSA_ASSERT(this, IntPtrGreaterThan(capacity, IntPtrConstant(0)));
   TNode<IntPtrT> length = EntryToIndex<NameDictionary>(capacity);
   TNode<IntPtrT> store_size = IntPtrAdd(
-      TimesPointerSize(length), IntPtrConstant(NameDictionary::kHeaderSize));
+      TimesTaggedSize(length), IntPtrConstant(NameDictionary::kHeaderSize));
 
   TNode<NameDictionary> result =
       UncheckedCast<NameDictionary>(AllocateInNewSpace(store_size));
@@ -3530,7 +3530,7 @@ TNode<CollectionType> CodeStubAssembler::AllocateSmallOrderedHashTable(
       Int32Div(TruncateIntPtrToInt32(total_size_word_aligned),
                Int32Constant(kTaggedSize)));
   total_size_word_aligned =
-      UncheckedCast<IntPtrT>(TimesPointerSize(total_size_word_aligned));
+      UncheckedCast<IntPtrT>(TimesTaggedSize(total_size_word_aligned));
 
   // Allocate the table and add the proper map.
   TNode<Map> small_ordered_hash_map =
@@ -3660,7 +3660,7 @@ template void CodeStubAssembler::FindOrderedHashTableEntry<OrderedHashSet>(
 Node* CodeStubAssembler::AllocateStruct(Node* map, AllocationFlags flags) {
   Comment("AllocateStruct");
   CSA_ASSERT(this, IsMap(map));
-  TNode<IntPtrT> size = TimesPointerSize(LoadMapInstanceSizeInWords(map));
+  TNode<IntPtrT> size = TimesTaggedSize(LoadMapInstanceSizeInWords(map));
   TNode<Object> object = Allocate(size, flags);
   StoreMapNoWriteBarrier(object, map);
   InitializeStructBody(object, map, size, Struct::kHeaderSize);
@@ -3689,7 +3689,7 @@ Node* CodeStubAssembler::AllocateJSObjectFromMap(
   CSA_ASSERT(this, Word32BinaryNot(InstanceTypeEqual(LoadMapInstanceType(map),
                                                      JS_GLOBAL_OBJECT_TYPE)));
   TNode<IntPtrT> instance_size =
-      TimesPointerSize(LoadMapInstanceSizeInWords(map));
+      TimesTaggedSize(LoadMapInstanceSizeInWords(map));
   TNode<Object> object = AllocateInNewSpace(instance_size, flags);
   StoreMapNoWriteBarrier(object, map);
   InitializeJSObjectFromMap(object, map, instance_size, properties, elements,
@@ -3768,7 +3768,7 @@ void CodeStubAssembler::InitializeJSObjectBodyWithSlackTracking(
 
     // The object still has in-object slack therefore the |unsed_or_unused|
     // field contain the "used" value.
-    Node* used_size = TimesPointerSize(ChangeUint32ToWord(
+    Node* used_size = TimesTaggedSize(ChangeUint32ToWord(
         LoadObjectField(map, Map::kUsedOrUnusedInstanceSizeInWordsOffset,
                         MachineType::Uint8())));
 
@@ -4589,7 +4589,7 @@ void CodeStubAssembler::FillFixedArrayWithSmiZero(TNode<FixedArray> array,
                                                   TNode<IntPtrT> length) {
   CSA_ASSERT(this, WordEqual(length, LoadAndUntagFixedArrayBaseLength(array)));
 
-  TNode<IntPtrT> byte_length = TimesPointerSize(length);
+  TNode<IntPtrT> byte_length = TimesTaggedSize(length);
   CSA_ASSERT(this, UintPtrLessThan(length, byte_length));
 
   static const int32_t fa_base_data_offset =
@@ -5658,7 +5658,12 @@ TNode<UintPtrT> CodeStubAssembler::ChangeNonnegativeNumberToUintPtr(
   return result.value();
 }
 
-TNode<WordT> CodeStubAssembler::TimesPointerSize(SloppyTNode<WordT> value) {
+TNode<WordT> CodeStubAssembler::TimesSystemPointerSize(
+    SloppyTNode<WordT> value) {
+  return WordShl(value, kSystemPointerSizeLog2);
+}
+
+TNode<WordT> CodeStubAssembler::TimesTaggedSize(SloppyTNode<WordT> value) {
   return WordShl(value, kTaggedSizeLog2);
 }
 
@@ -9151,7 +9156,7 @@ void CodeStubAssembler::LoadPropertyFromFastObject(
     BIND(&if_inobject);
     {
       Comment("if_inobject");
-      Node* field_offset = TimesPointerSize(field_index);
+      Node* field_offset = TimesTaggedSize(field_index);
 
       Label if_double(this), if_tagged(this);
       Branch(Word32NotEqual(representation,
@@ -13154,13 +13159,12 @@ void CodeStubArguments::ForEach(
     DCHECK_EQ(mode, argc_mode_);
     last = argc_;
   }
-  // TODO(ishell): INTPTR_ELEMENTS
   Node* start = assembler_->IntPtrSub(
       assembler_->UncheckedCast<IntPtrT>(arguments_),
-      assembler_->ElementOffsetFromIndex(first, PACKED_ELEMENTS, mode));
+      assembler_->ElementOffsetFromIndex(first, SYSTEM_POINTER_ELEMENTS, mode));
   Node* end = assembler_->IntPtrSub(
       assembler_->UncheckedCast<IntPtrT>(arguments_),
-      assembler_->ElementOffsetFromIndex(last, PACKED_ELEMENTS, mode));
+      assembler_->ElementOffsetFromIndex(last, SYSTEM_POINTER_ELEMENTS, mode));
   assembler_->BuildFastLoop(
       vars, start, end,
       [this, &body](Node* current) {

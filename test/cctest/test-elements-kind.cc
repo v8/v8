@@ -65,6 +65,12 @@ bool EQUALS(Isolate* isolate, T left, Handle<M> right) {
 // Tests
 //
 
+TEST(SystemPointerElementsKind) {
+  CHECK_EQ(ElementsKindToShiftSize(SYSTEM_POINTER_ELEMENTS),
+           kSystemPointerSizeLog2);
+  CHECK_EQ(ElementsKindToByteSize(SYSTEM_POINTER_ELEMENTS), kSystemPointerSize);
+}
+
 TEST(JSObjectAddingProperties) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();

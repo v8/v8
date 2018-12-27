@@ -386,7 +386,7 @@ Node* ArrayBuiltinsAssembler::FindProcessor(Node* k_value, Node* k) {
     CSA_ASSERT(this, Word32BinaryNot(IsFixedDoubleArray(array)));
 
     TNode<IntPtrT> length = SmiToIntPtr(smi_length);
-    TNode<WordT> byte_length = TimesPointerSize(length);
+    TNode<WordT> byte_length = TimesTaggedSize(length);
     CSA_ASSERT(this, UintPtrLessThan(length, byte_length));
 
     static const int32_t fa_base_data_offset =
