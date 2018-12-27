@@ -238,13 +238,6 @@ void V8RuntimeAgentImpl::evaluate(
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("devtools.timeline"),
                "EvaluateScript");
   int contextId = 0;
-
-  // TODO(alph): Temporary code to investigate the crash crbug.com/897816
-  char expression_for_debug[200];
-  std::snprintf(expression_for_debug, sizeof(expression_for_debug),
-                "V8RAI::evaluate %s", expression.utf8().c_str());
-  USE(expression_for_debug);
-
   Response response = ensureContext(m_inspector, m_session->contextGroupId(),
                                     std::move(executionContextId), &contextId);
   if (!response.isSuccess()) {
