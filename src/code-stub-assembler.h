@@ -1890,18 +1890,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                    Variable* var_numeric,
                                    Variable* var_feedback);
 
-  // TODO(ishell): drop this version once all usages are fixed.
-  TNode<WordT> TimesPointerSize(SloppyTNode<WordT> value) {
-    STATIC_ASSERT(kTaggedSize == kSystemPointerSize);
-    return TimesSystemPointerSize(value);
-  }
-  TNode<IntPtrT> TimesPointerSize(TNode<IntPtrT> value) {
-    return Signed(TimesPointerSize(implicit_cast<TNode<WordT>>(value)));
-  }
-  TNode<UintPtrT> TimesPointerSize(TNode<UintPtrT> value) {
-    return Unsigned(TimesPointerSize(implicit_cast<TNode<WordT>>(value)));
-  }
-
   TNode<WordT> TimesSystemPointerSize(SloppyTNode<WordT> value);
   TNode<IntPtrT> TimesSystemPointerSize(TNode<IntPtrT> value) {
     return Signed(TimesSystemPointerSize(implicit_cast<TNode<WordT>>(value)));

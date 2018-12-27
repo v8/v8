@@ -232,7 +232,7 @@ Node* InterpreterAssembler::RegisterLocation(Register reg) {
 }
 
 Node* InterpreterAssembler::RegisterFrameOffset(Node* index) {
-  return TimesPointerSize(index);
+  return TimesSystemPointerSize(index);
 }
 
 Node* InterpreterAssembler::LoadRegister(Node* reg_index) {
@@ -242,12 +242,12 @@ Node* InterpreterAssembler::LoadRegister(Node* reg_index) {
 
 Node* InterpreterAssembler::LoadRegister(Register reg) {
   return Load(MachineType::AnyTagged(), GetInterpretedFramePointer(),
-              IntPtrConstant(reg.ToOperand() << kPointerSizeLog2));
+              IntPtrConstant(reg.ToOperand() << kSystemPointerSizeLog2));
 }
 
 Node* InterpreterAssembler::LoadAndUntagRegister(Register reg) {
-  return LoadAndUntagSmi(GetInterpretedFramePointer(), reg.ToOperand()
-                                                           << kPointerSizeLog2);
+  return LoadAndUntagSmi(GetInterpretedFramePointer(),
+                         reg.ToOperand() << kSystemPointerSizeLog2);
 }
 
 Node* InterpreterAssembler::LoadRegisterAtOperandIndex(int operand_index) {
@@ -298,7 +298,7 @@ Node* InterpreterAssembler::RegisterLocationInRegisterList(
 void InterpreterAssembler::StoreRegister(Node* value, Register reg) {
   StoreNoWriteBarrier(
       MachineRepresentation::kTagged, GetInterpretedFramePointer(),
-      IntPtrConstant(reg.ToOperand() << kPointerSizeLog2), value);
+      IntPtrConstant(reg.ToOperand() << kSystemPointerSizeLog2), value);
 }
 
 void InterpreterAssembler::StoreRegister(Node* value, Node* reg_index) {
@@ -308,7 +308,7 @@ void InterpreterAssembler::StoreRegister(Node* value, Node* reg_index) {
 }
 
 void InterpreterAssembler::StoreAndTagRegister(Node* value, Register reg) {
-  int offset = reg.ToOperand() << kPointerSizeLog2;
+  int offset = reg.ToOperand() << kSystemPointerSizeLog2;
   StoreAndTagSmi(GetInterpretedFramePointer(), offset, value);
 }
 
@@ -710,7 +710,7 @@ void InterpreterAssembler::IncrementCallCount(Node* feedback_vector,
                                               Node* slot_id) {
   Comment("increment call count");
   TNode<Smi> call_count =
-      CAST(LoadFeedbackVectorSlot(feedback_vector, slot_id, kPointerSize));
+      CAST(LoadFeedbackVectorSlot(feedback_vector, slot_id, kTaggedSize));
   // The lowest {FeedbackNexus::CallCountField::kShift} bits of the call
   // count are used as flags. To increment the call count by 1 we hence
   // have to increment by 1 << {FeedbackNexus::CallCountField::kShift}.
@@ -718,7 +718,7 @@ void InterpreterAssembler::IncrementCallCount(Node* feedback_vector,
       call_count, SmiConstant(1 << FeedbackNexus::CallCountField::kShift));
   // Count is Smi, so we don't need a write barrier.
   StoreFeedbackVectorSlot(feedback_vector, slot_id, new_count,
-                          SKIP_WRITE_BARRIER, kPointerSize);
+                          SKIP_WRITE_BARRIER, kTaggedSize);
 }
 
 void InterpreterAssembler::CollectCallableFeedback(Node* target, Node* context,
@@ -1419,7 +1419,7 @@ Node* InterpreterAssembler::DispatchToBytecode(Node* target_bytecode,
 
   Node* target_code_entry =
       Load(MachineType::Pointer(), DispatchTableRawPointer(),
-           TimesPointerSize(target_bytecode));
+           TimesSystemPointerSize(target_bytecode));
 
   return DispatchToBytecodeHandlerEntry(target_code_entry, new_bytecode_offset,
                                         target_bytecode);
@@ -1476,7 +1476,7 @@ void InterpreterAssembler::DispatchWide(OperandScale operand_scale) {
   Node* target_index = IntPtrAdd(base_index, next_bytecode);
   Node* target_code_entry =
       Load(MachineType::Pointer(), DispatchTableRawPointer(),
-           TimesPointerSize(target_index));
+           TimesSystemPointerSize(target_index));
 
   DispatchToBytecodeHandlerEntry(target_code_entry, next_bytecode_offset,
                                  next_bytecode);
@@ -1563,8 +1563,8 @@ void InterpreterAssembler::TraceBytecodeDispatch(Node* target_bytecode) {
   Node* source_bytecode_table_index = IntPtrConstant(
       static_cast<int>(bytecode_) * (static_cast<int>(Bytecode::kLast) + 1));
 
-  Node* counter_offset =
-      TimesPointerSize(IntPtrAdd(source_bytecode_table_index, target_bytecode));
+  Node* counter_offset = TimesSystemPointerSize(
+      IntPtrAdd(source_bytecode_table_index, target_bytecode));
   Node* old_counter =
       Load(MachineType::IntPtr(), counters_table, counter_offset);
 
