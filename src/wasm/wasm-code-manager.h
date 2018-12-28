@@ -520,10 +520,14 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
   void FreeNativeModule(NativeModule*);
   void AssignRanges(Address start, Address end, NativeModule*);
   void AssignRangesAndAddModule(Address start, Address end, NativeModule*);
-  bool ShouldForceCriticalMemoryPressureNotification();
 
   WasmMemoryTracker* const memory_tracker_;
   std::atomic<size_t> remaining_uncommitted_code_space_;
+  // If the remaining uncommitted code space falls below
+  // {critical_uncommitted_code_space_}, then we trigger a GC before creating
+  // the next module. This value is initialized to 50% of the available code
+  // space on creation and after each GC.
+  std::atomic<size_t> critical_uncommitted_code_space_;
   mutable base::Mutex native_modules_mutex_;
 
   //////////////////////////////////////////////////////////////////////////////

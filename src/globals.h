@@ -150,10 +150,11 @@ constexpr int kElidedFrameSlots = 0;
 constexpr int kDoubleSizeLog2 = 3;
 #if V8_TARGET_ARCH_ARM64
 // ARM64 only supports direct calls within a 128 MB range.
-constexpr size_t kMaxWasmCodeMemory = 128 * MB;
+constexpr size_t kMaxWasmCodeMB = 128;
 #else
-constexpr size_t kMaxWasmCodeMemory = 1024 * MB;
+constexpr size_t kMaxWasmCodeMB = 1024;
 #endif
+constexpr size_t kMaxWasmCodeMemory = kMaxWasmCodeMB * MB;
 
 #if V8_HOST_ARCH_64_BIT
 constexpr int kSystemPointerSizeLog2 = 3;

@@ -876,7 +876,8 @@ NativeModule::~NativeModule() {
 WasmCodeManager::WasmCodeManager(WasmMemoryTracker* memory_tracker,
                                  size_t max_committed)
     : memory_tracker_(memory_tracker),
-      remaining_uncommitted_code_space_(max_committed) {
+      remaining_uncommitted_code_space_(max_committed),
+      critical_uncommitted_code_space_(max_committed / 2) {
   DCHECK_LE(max_committed, kMaxWasmCodeMemory);
 }
 
@@ -888,8 +889,8 @@ bool WasmCodeManager::Commit(Address start, size_t size) {
   // Reserve the size. Use CAS loop to avoid underflow on
   // {remaining_uncommitted_}. Temporary underflow would allow concurrent
   // threads to over-commit.
+  size_t old_value = remaining_uncommitted_code_space_.load();
   while (true) {
-    size_t old_value = remaining_uncommitted_code_space_.load();
     if (old_value < size) return false;
     if (remaining_uncommitted_code_space_.compare_exchange_weak(
             old_value, old_value - size)) {
@@ -966,6 +967,7 @@ void WasmCodeManager::SampleModuleSizes(Isolate* isolate) const {
 
 void WasmCodeManager::SetMaxCommittedMemoryForTesting(size_t limit) {
   remaining_uncommitted_code_space_.store(limit);
+  critical_uncommitted_code_space_.store(limit / 2);
 }
 
 namespace {
@@ -1018,30 +1020,22 @@ size_t WasmCodeManager::EstimateNativeModuleNonCodeSize(
   return wasm_module_estimate + native_module_estimate;
 }
 
-bool WasmCodeManager::ShouldForceCriticalMemoryPressureNotification() {
-  base::MutexGuard lock(&native_modules_mutex_);
-  // TODO(titzer): we force a critical memory pressure notification
-  // when the code space is almost exhausted, but only upon the next module
-  // creation. This is only for one isolate, and it should really do this for
-  // all isolates, at the point of commit.
-  constexpr size_t kCriticalThreshold = 32 * 1024 * 1024;
-  return native_modules_.size() > 1 &&
-         remaining_uncommitted_code_space_.load() < kCriticalThreshold;
-}
-
 std::unique_ptr<NativeModule> WasmCodeManager::NewNativeModule(
     Isolate* isolate, const WasmFeatures& enabled, size_t code_size_estimate,
     bool can_request_more, std::shared_ptr<const WasmModule> module) {
   DCHECK_EQ(this, isolate->wasm_engine()->code_manager());
-  if (ShouldForceCriticalMemoryPressureNotification()) {
+  if (remaining_uncommitted_code_space_.load() <
+      critical_uncommitted_code_space_.load()) {
     (reinterpret_cast<v8::Isolate*>(isolate))
         ->MemoryPressureNotification(MemoryPressureLevel::kCritical);
+    critical_uncommitted_code_space_.store(
+        remaining_uncommitted_code_space_.load() / 2);
   }
 
   // If the code must be contiguous, reserve enough address space up front.
   size_t code_vmem_size =
       kRequiresCodeRange ? kMaxWasmCodeMemory : code_size_estimate;
-  // Try up to three times; getting rid of dead JSArrayBuffer allocations might
+  // Try up to two times; getting rid of dead JSArrayBuffer allocations might
   // require two GCs because the first GC maybe incremental and may have
   // floating garbage.
   static constexpr int kAllocationRetries = 2;

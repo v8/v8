@@ -20,7 +20,7 @@ namespace internal {
 namespace wasm {
 
 WasmEngine::WasmEngine()
-    : code_manager_(&memory_tracker_, kMaxWasmCodeMemory) {}
+    : code_manager_(&memory_tracker_, FLAG_wasm_max_code_space * MB) {}
 
 WasmEngine::~WasmEngine() {
   // All AsyncCompileJobs have been canceled.

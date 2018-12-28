@@ -552,6 +552,8 @@ DEFINE_UINT(wasm_max_mem_pages, v8::internal::wasm::kV8MaxWasmMemoryPages,
             "maximum number of 64KiB memory pages of a wasm instance")
 DEFINE_UINT(wasm_max_table_size, v8::internal::wasm::kV8MaxWasmTableSize,
             "maximum table size of a wasm instance")
+DEFINE_UINT(wasm_max_code_space, v8::internal::kMaxWasmCodeMB,
+            "maximum committed code space for wasm (in MB)")
 // Enable Liftoff by default on ia32 and x64. More architectures will follow
 // once they are implemented and sufficiently tested.
 #if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
