@@ -468,7 +468,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
   using NonAtomicMarkingState = MajorNonAtomicMarkingState;
 
-  // Wrapper for the shared and bailout worklists.
+  // Wrapper for the shared worklist.
   class MarkingWorklist {
    public:
     using ConcurrentMarkingWorklist = Worklist<HeapObject, 64>;
@@ -483,17 +483,8 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
       DCHECK(success);
     }
 
-    void PushBailout(HeapObject object) {
-      bool success = bailout_.Push(kMainThread, object);
-      USE(success);
-      DCHECK(success);
-    }
-
     HeapObject Pop() {
       HeapObject result;
-#ifdef V8_CONCURRENT_MARKING
-      if (bailout_.Pop(kMainThread, &result)) return result;
-#endif
       if (shared_.Pop(kMainThread, &result)) return result;
 #ifdef V8_CONCURRENT_MARKING
       // The expectation is that this work list is empty almost all the time
@@ -503,29 +494,16 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
       return HeapObject();
     }
 
-    HeapObject PopBailout() {
-#ifdef V8_CONCURRENT_MARKING
-      HeapObject result;
-      if (bailout_.Pop(kMainThread, &result)) return result;
-#endif
-      return HeapObject();
-    }
-
     void Clear() {
-      bailout_.Clear();
       shared_.Clear();
       on_hold_.Clear();
       embedder_.Clear();
     }
 
-    bool IsBailoutEmpty() { return bailout_.IsLocalEmpty(kMainThread); }
-
     bool IsEmpty() {
-      return bailout_.IsLocalEmpty(kMainThread) &&
-             shared_.IsLocalEmpty(kMainThread) &&
+      return shared_.IsLocalEmpty(kMainThread) &&
              on_hold_.IsLocalEmpty(kMainThread) &&
-             bailout_.IsGlobalPoolEmpty() && shared_.IsGlobalPoolEmpty() &&
-             on_hold_.IsGlobalPoolEmpty();
+             shared_.IsGlobalPoolEmpty() && on_hold_.IsGlobalPoolEmpty();
     }
 
     bool IsEmbedderEmpty() {
@@ -534,8 +512,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
     }
 
     int Size() {
-      return static_cast<int>(bailout_.LocalSize(kMainThread) +
-                              shared_.LocalSize(kMainThread) +
+      return static_cast<int>(shared_.LocalSize(kMainThread) +
                               on_hold_.LocalSize(kMainThread));
     }
 
@@ -545,20 +522,17 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
     // The callback must accept HeapObject and return HeapObject.
     template <typename Callback>
     void Update(Callback callback) {
-      bailout_.Update(callback);
       shared_.Update(callback);
       on_hold_.Update(callback);
       embedder_.Update(callback);
     }
 
     ConcurrentMarkingWorklist* shared() { return &shared_; }
-    ConcurrentMarkingWorklist* bailout() { return &bailout_; }
     ConcurrentMarkingWorklist* on_hold() { return &on_hold_; }
     EmbedderTracingWorklist* embedder() { return &embedder_; }
 
     void Print() {
       PrintWorklist("shared", &shared_);
-      PrintWorklist("bailout", &bailout_);
       PrintWorklist("on_hold", &on_hold_);
     }
 
@@ -569,11 +543,6 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
     // Worklist used for most objects.
     ConcurrentMarkingWorklist shared_;
-
-    // Concurrent marking uses this worklist to bail out of concurrently
-    // marking certain object types. These objects are handled later in a STW
-    // pause after concurrent marking has finished.
-    ConcurrentMarkingWorklist bailout_;
 
     // Concurrent marking uses this worklist to bail out of marking objects
     // in new space's linear allocation area. Used to avoid black allocation

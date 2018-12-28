@@ -133,18 +133,13 @@ bool IncrementalMarking::WhiteToGreyAndPush(HeapObject obj) {
   return false;
 }
 
-void IncrementalMarking::MarkBlackAndPush(HeapObject obj) {
-  // Marking left-trimmable fixed array black is unsafe because left-trimming
-  // re-pushes only grey arrays onto the marking worklist.
-  DCHECK(!obj->IsFixedArray() && !obj->IsFixedDoubleArray());
-  // Color the object black and push it into the bailout deque.
+void IncrementalMarking::MarkBlackAndVisitObjectDueToLayoutChange(
+    HeapObject obj) {
+  TRACE_EVENT0("v8", "V8.GCIncrementalMarkingLayoutChange");
+  TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_INCREMENTAL_LAYOUT_CHANGE);
   marking_state()->WhiteToGrey(obj);
   if (marking_state()->GreyToBlack(obj)) {
-    if (FLAG_concurrent_marking) {
-      marking_worklist()->PushBailout(obj);
-    } else {
-      marking_worklist()->Push(obj);
-    }
+    RevisitObject(obj);
   }
 }
 
@@ -155,61 +150,26 @@ void IncrementalMarking::NotifyLeftTrimming(HeapObject from, HeapObject to) {
             MemoryChunk::FromAddress(to->address()));
   DCHECK_NE(from, to);
 
-  MarkBit old_mark_bit = marking_state()->MarkBitFrom(from);
   MarkBit new_mark_bit = marking_state()->MarkBitFrom(to);
 
   if (black_allocation() && Marking::IsBlack<kAtomicity>(new_mark_bit)) {
     // Nothing to do if the object is in black area.
     return;
   }
-
-  bool marked_black_due_to_left_trimming = false;
-  if (FLAG_concurrent_marking) {
-    // We need to mark the array black before overwriting its map and length
-    // so that the concurrent marker does not observe inconsistent state.
-    Marking::WhiteToGrey<kAtomicity>(old_mark_bit);
-    if (Marking::GreyToBlack<kAtomicity>(old_mark_bit)) {
-      // The concurrent marker will not mark the array. We need to push the
-      // new array start in marking deque to ensure that it will be marked.
-      marked_black_due_to_left_trimming = true;
-    }
-    DCHECK(Marking::IsBlack<kAtomicity>(old_mark_bit));
+  MarkBlackAndVisitObjectDueToLayoutChange(from);
+  DCHECK(marking_state()->IsBlack(from));
+  // Mark the new address as black.
+  if (from->address() + kTaggedSize == to->address()) {
+    // The old and the new markbits overlap. The |to| object has the
+    // grey color. To make it black, we need to set the second bit.
+    DCHECK(new_mark_bit.Get<kAtomicity>());
+    new_mark_bit.Next().Set<kAtomicity>();
+  } else {
+    bool success = Marking::WhiteToBlack<kAtomicity>(new_mark_bit);
+    DCHECK(success);
+    USE(success);
   }
-
-  if (Marking::IsBlack<kAtomicity>(old_mark_bit) &&
-      !marked_black_due_to_left_trimming) {
-    // The array was black before left trimming or was marked black by the
-    // concurrent marker. Simply transfer the color.
-    if (from->address() + kTaggedSize == to->address()) {
-      // The old and the new markbits overlap. The |to| object has the
-      // grey color. To make it black, we need to set the second bit.
-      DCHECK(new_mark_bit.Get<kAtomicity>());
-      new_mark_bit.Next().Set<kAtomicity>();
-    } else {
-      bool success = Marking::WhiteToBlack<kAtomicity>(new_mark_bit);
-      DCHECK(success);
-      USE(success);
-    }
-  } else if (Marking::IsGrey<kAtomicity>(old_mark_bit) ||
-             marked_black_due_to_left_trimming) {
-    // The array was already grey or was marked black by this function.
-    // Mark the new array grey and push it to marking deque.
-    if (from->address() + kTaggedSize == to->address()) {
-      // The old and the new markbits overlap. The |to| object is either white
-      // or grey.  Set the first bit to make sure that it is grey.
-      new_mark_bit.Set<kAtomicity>();
-      DCHECK(!new_mark_bit.Next().Get<kAtomicity>());
-    } else {
-      bool success = Marking::WhiteToGrey<kAtomicity>(new_mark_bit);
-      DCHECK(success);
-      USE(success);
-    }
-    // Subsequent left-trimming will re-push only grey arrays.
-    // Ensure that this array is grey.
-    DCHECK(Marking::IsGrey<kAtomicity>(new_mark_bit));
-    marking_worklist()->PushBailout(to);
-    RestartIfNotMarking();
-  }
+  DCHECK(marking_state()->IsBlack(to));
 }
 
 class IncrementalMarkingRootMarkingVisitor : public RootVisitor {
@@ -797,17 +757,11 @@ void IncrementalMarking::VisitDescriptors(HeapObject host,
   visitor.VisitDescriptors(descriptors, number_of_own_descriptors);
 }
 
-template <WorklistToProcess worklist_to_process>
 intptr_t IncrementalMarking::ProcessMarkingWorklist(
     intptr_t bytes_to_process, ForceCompletionAction completion) {
   intptr_t bytes_processed = 0;
   while (bytes_processed < bytes_to_process || completion == FORCE_COMPLETION) {
-    HeapObject obj;
-    if (worklist_to_process == WorklistToProcess::kBailout) {
-      obj = marking_worklist()->PopBailout();
-    } else {
-      obj = marking_worklist()->Pop();
-    }
+    HeapObject obj = marking_worklist()->Pop();
     if (obj.is_null()) break;
     // Left trimming may result in white, grey, or black filler objects on the
     // marking deque. Ignore these objects.
@@ -1069,11 +1023,6 @@ void IncrementalMarking::StepOnAllocation(size_t bytes_to_process,
   bytes_to_process = Min(bytes_to_process, step_size);
   size_t bytes_processed = 0;
   if (FLAG_concurrent_marking) {
-    bytes_processed = Step(bytes_to_process, GC_VIA_STACK_GUARD,
-                           StepOrigin::kV8, WorklistToProcess::kBailout);
-    bytes_to_process = (bytes_processed >= bytes_to_process)
-                           ? 0
-                           : bytes_to_process - bytes_processed;
     size_t current_bytes_marked_concurrently =
         heap()->concurrent_marking()->TotalMarkedBytes();
     // The concurrent_marking()->TotalMarkedBytes() is not monothonic for a
@@ -1092,14 +1041,14 @@ void IncrementalMarking::StepOnAllocation(size_t bytes_to_process,
     bytes_processed += bytes_to_process;
     bytes_to_process = IncrementalMarking::kMinStepSizeInBytes;
   }
-  bytes_processed += Step(bytes_to_process, GC_VIA_STACK_GUARD, StepOrigin::kV8,
-                          WorklistToProcess::kAll);
+  bytes_processed +=
+      Step(bytes_to_process, GC_VIA_STACK_GUARD, StepOrigin::kV8);
   bytes_allocated_ -= Min(bytes_allocated_, bytes_processed);
 }
 
 size_t IncrementalMarking::Step(size_t bytes_to_process,
-                                CompletionAction action, StepOrigin step_origin,
-                                WorklistToProcess worklist_to_process) {
+                                CompletionAction action,
+                                StepOrigin step_origin) {
   double start = heap_->MonotonicallyIncreasingTimeInMs();
 
   if (state_ == SWEEPING) {
@@ -1126,13 +1075,7 @@ size_t IncrementalMarking::Step(size_t bytes_to_process,
     }
 #endif
 
-    if (worklist_to_process == WorklistToProcess::kBailout) {
-      bytes_processed =
-          ProcessMarkingWorklist<WorklistToProcess::kBailout>(bytes_to_process);
-    } else {
-      bytes_processed =
-          ProcessMarkingWorklist<WorklistToProcess::kAll>(bytes_to_process);
-    }
+    ProcessMarkingWorklist(bytes_to_process);
 
     if (step_origin == StepOrigin::kTask) {
       bytes_marked_ahead_of_schedule_ += bytes_processed;

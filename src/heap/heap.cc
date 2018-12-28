@@ -2967,7 +2967,7 @@ void Heap::RegisterDeserializedObjectsForBlackAllocation(
 void Heap::NotifyObjectLayoutChange(HeapObject object, int size,
                                     const DisallowHeapAllocation&) {
   if (incremental_marking()->IsMarking()) {
-    incremental_marking()->MarkBlackAndPush(object);
+    incremental_marking()->MarkBlackAndVisitObjectDueToLayoutChange(object);
     if (incremental_marking()->IsCompacting() &&
         MayContainRecordedSlots(object)) {
       MemoryChunk::FromHeapObject(object)->RegisterObjectWithInvalidatedSlots(
@@ -4382,12 +4382,11 @@ void Heap::SetUp() {
     MarkCompactCollector::MarkingWorklist* marking_worklist =
         mark_compact_collector_->marking_worklist();
     concurrent_marking_ = new ConcurrentMarking(
-        this, marking_worklist->shared(), marking_worklist->bailout(),
-        marking_worklist->on_hold(), mark_compact_collector_->weak_objects(),
-        marking_worklist->embedder());
+        this, marking_worklist->shared(), marking_worklist->on_hold(),
+        mark_compact_collector_->weak_objects(), marking_worklist->embedder());
   } else {
-    concurrent_marking_ = new ConcurrentMarking(this, nullptr, nullptr, nullptr,
-                                                nullptr, nullptr);
+    concurrent_marking_ =
+        new ConcurrentMarking(this, nullptr, nullptr, nullptr, nullptr);
   }
 
   for (int i = FIRST_SPACE; i <= LAST_SPACE; i++) {

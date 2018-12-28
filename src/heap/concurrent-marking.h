@@ -67,8 +67,7 @@ class ConcurrentMarking {
   using EmbedderTracingWorklist = Worklist<HeapObject, 16 /* segment size */>;
 
   ConcurrentMarking(Heap* heap, MarkingWorklist* shared,
-                    MarkingWorklist* bailout, MarkingWorklist* on_hold,
-                    WeakObjects* weak_objects,
+                    MarkingWorklist* on_hold, WeakObjects* weak_objects,
                     EmbedderTracingWorklist* embedder_objects);
 
   // Schedules asynchronous tasks to perform concurrent marking. Objects in the
@@ -113,7 +112,6 @@ class ConcurrentMarking {
   void Run(int task_id, TaskState* task_state);
   Heap* const heap_;
   MarkingWorklist* const shared_;
-  MarkingWorklist* const bailout_;
   MarkingWorklist* const on_hold_;
   WeakObjects* const weak_objects_;
   EmbedderTracingWorklist* const embedder_objects_;

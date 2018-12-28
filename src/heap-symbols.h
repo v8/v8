@@ -352,14 +352,15 @@
 #define INCREMENTAL_SCOPES(F)                                      \
   /* MC_INCREMENTAL is the top-level incremental marking scope. */ \
   F(MC_INCREMENTAL)                                                \
-  F(MC_INCREMENTAL_START)                                          \
-  F(MC_INCREMENTAL_SWEEPING)                                       \
   F(MC_INCREMENTAL_EMBEDDER_PROLOGUE)                              \
   F(MC_INCREMENTAL_EMBEDDER_TRACING)                               \
+  F(MC_INCREMENTAL_EXTERNAL_EPILOGUE)                              \
+  F(MC_INCREMENTAL_EXTERNAL_PROLOGUE)                              \
   F(MC_INCREMENTAL_FINALIZE)                                       \
   F(MC_INCREMENTAL_FINALIZE_BODY)                                  \
-  F(MC_INCREMENTAL_EXTERNAL_EPILOGUE)                              \
-  F(MC_INCREMENTAL_EXTERNAL_PROLOGUE)
+  F(MC_INCREMENTAL_LAYOUT_CHANGE)                                  \
+  F(MC_INCREMENTAL_START)                                          \
+  F(MC_INCREMENTAL_SWEEPING)
 
 #define TOP_MC_SCOPES(F) \
   F(MC_CLEAR)            \
