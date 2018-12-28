@@ -39,6 +39,12 @@ inline MemOperand GetHalfStackSlot(uint32_t half_index) {
   return MemOperand(fp, -kFirstStackSlotOffset - offset);
 }
 
+inline MemOperand GetHalfStackSlot(uint32_t index, RegPairHalf half) {
+  STATIC_ASSERT(kLowWord == 0);
+  STATIC_ASSERT(kHighWord == 1);
+  return GetHalfStackSlot(2 * index + half);
+}
+
 inline MemOperand GetInstanceOperand() { return MemOperand(fp, -8); }
 
 inline void Load(LiftoffAssembler* assm, LiftoffRegister dst, Register base,
@@ -513,8 +519,8 @@ void LiftoffAssembler::Spill(uint32_t index, LiftoffRegister reg,
       sw(reg.gp(), dst);
       break;
     case kWasmI64:
-      sw(reg.low_gp(), dst);
-      sw(reg.high_gp(), liftoff::GetHalfStackSlot(2 * index + 1));
+      sw(reg.low_gp(), liftoff::GetHalfStackSlot(index, kLowWord));
+      sw(reg.high_gp(), liftoff::GetHalfStackSlot(index, kHighWord));
       break;
     case kWasmF32:
       swc1(reg.fp(), dst);
@@ -545,8 +551,8 @@ void LiftoffAssembler::Spill(uint32_t index, WasmValue value) {
       TurboAssembler::li(tmp.low_gp(), Operand(low_word));
       TurboAssembler::li(tmp.high_gp(), Operand(high_word));
 
-      sw(tmp.low_gp(), dst);
-      sw(tmp.high_gp(), liftoff::GetHalfStackSlot(2 * index + 1));
+      sw(tmp.low_gp(), liftoff::GetHalfStackSlot(index, kLowWord));
+      sw(tmp.high_gp(), liftoff::GetHalfStackSlot(index, kHighWord));
       break;
     }
     default:
@@ -564,8 +570,8 @@ void LiftoffAssembler::Fill(LiftoffRegister reg, uint32_t index,
       lw(reg.gp(), src);
       break;
     case kWasmI64:
-      lw(reg.low_gp(), src);
-      lw(reg.high_gp(), liftoff::GetHalfStackSlot(2 * index + 1));
+      lw(reg.low_gp(), liftoff::GetHalfStackSlot(index, kLowWord));
+      lw(reg.high_gp(), liftoff::GetHalfStackSlot(index, kHighWord));
       break;
     case kWasmF32:
       lwc1(reg.fp(), src);
@@ -1453,12 +1459,11 @@ void LiftoffStackSlots::Construct() {
         if (src.type() == kWasmF64) {
           DCHECK_EQ(kLowWord, slot.half_);
           asm_->lw(kScratchReg,
-                   liftoff::GetHalfStackSlot(2 * slot.src_index_ - 1));
+                   liftoff::GetHalfStackSlot(slot.src_index_, kHighWord));
           asm_->push(kScratchReg);
         }
         asm_->lw(kScratchReg,
-                 liftoff::GetHalfStackSlot(2 * slot.src_index_ +
-                                           (slot.half_ == kLowWord ? 0 : 1)));
+                 liftoff::GetHalfStackSlot(slot.src_index_, slot.half_));
         asm_->push(kScratchReg);
         break;
       }
