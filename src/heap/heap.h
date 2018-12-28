@@ -1350,7 +1350,7 @@ class Heap {
         : callback(callback), gc_type(gc_type), data(data) {}
 
     bool operator==(const GCCallbackTuple& other) const;
-    GCCallbackTuple& operator=(const GCCallbackTuple& other);
+    GCCallbackTuple& operator=(const GCCallbackTuple& other) V8_NOEXCEPT;
 
     v8::Isolate::GCCallbackWithData callback;
     GCType gc_type;
