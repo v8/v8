@@ -39,6 +39,12 @@ inline Operand GetHalfStackSlot(uint32_t half_index) {
   return Operand(ebp, -kFirstStackSlotOffset - offset);
 }
 
+inline MemOperand GetHalfStackSlot(uint32_t index, RegPairHalf half) {
+  STATIC_ASSERT(kLowWord == 0);
+  STATIC_ASSERT(kHighWord == 1);
+  return GetHalfStackSlot(2 * index - half);
+}
+
 // TODO(clemensh): Make this a constexpr variable once Operand is constexpr.
 inline Operand GetInstanceOperand() { return Operand(ebp, -8); }
 
@@ -436,8 +442,8 @@ void LiftoffAssembler::Spill(uint32_t index, LiftoffRegister reg,
       mov(dst, reg.gp());
       break;
     case kWasmI64:
-      mov(dst, reg.low_gp());
-      mov(liftoff::GetHalfStackSlot(2 * index - 1), reg.high_gp());
+      mov(liftoff::GetHalfStackSlot(index, kLowWord), reg.low_gp());
+      mov(liftoff::GetHalfStackSlot(index, kHighWord), reg.high_gp());
       break;
     case kWasmF32:
       movss(dst, reg.fp());
@@ -460,8 +466,8 @@ void LiftoffAssembler::Spill(uint32_t index, WasmValue value) {
     case kWasmI64: {
       int32_t low_word = value.to_i64();
       int32_t high_word = value.to_i64() >> 32;
-      mov(dst, Immediate(low_word));
-      mov(liftoff::GetHalfStackSlot(2 * index - 1), Immediate(high_word));
+      mov(liftoff::GetHalfStackSlot(index, kLowWord), Immediate(low_word));
+      mov(liftoff::GetHalfStackSlot(index, kHighWord), Immediate(high_word));
       break;
     }
     default:
@@ -478,8 +484,8 @@ void LiftoffAssembler::Fill(LiftoffRegister reg, uint32_t index,
       mov(reg.gp(), src);
       break;
     case kWasmI64:
-      mov(reg.low_gp(), src);
-      mov(reg.high_gp(), liftoff::GetHalfStackSlot(2 * index - 1));
+      mov(reg.low_gp(), liftoff::GetHalfStackSlot(index, kLowWord));
+      mov(reg.high_gp(), liftoff::GetHalfStackSlot(index, kHighWord));
       break;
     case kWasmF32:
       movss(reg.fp(), src);
@@ -1741,10 +1747,9 @@ void LiftoffStackSlots::Construct() {
       case LiftoffAssembler::VarState::kStack:
         if (src.type() == kWasmF64) {
           DCHECK_EQ(kLowWord, slot.half_);
-          asm_->push(liftoff::GetHalfStackSlot(2 * slot.src_index_ - 1));
+          asm_->push(liftoff::GetHalfStackSlot(slot.src_index_, kHighWord));
         }
-        asm_->push(liftoff::GetHalfStackSlot(2 * slot.src_index_ -
-                                             (slot.half_ == kLowWord ? 0 : 1)));
+        asm_->push(liftoff::GetHalfStackSlot(slot.src_index_, slot.half_));
         break;
       case LiftoffAssembler::VarState::kRegister:
         if (src.type() == kWasmI64) {

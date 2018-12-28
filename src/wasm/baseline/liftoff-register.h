@@ -26,7 +26,7 @@ enum RegClass : uint8_t {
   kNoReg = kGpRegPair + kNeedI64RegPair
 };
 
-enum RegPairHalf : uint8_t { kLowWord, kHighWord };
+enum RegPairHalf : uint8_t { kLowWord = 0, kHighWord = 1 };
 
 static inline constexpr bool needs_reg_pair(ValueType type) {
   return kNeedI64RegPair && type == kWasmI64;

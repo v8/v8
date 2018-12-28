@@ -61,11 +61,9 @@ inline MemOperand GetHalfStackSlot(uint32_t half_index) {
 }
 
 inline MemOperand GetHalfStackSlot(uint32_t index, RegPairHalf half) {
-  if (half == kLowWord) {
-    return GetHalfStackSlot(2 * index);
-  } else {
-    return GetHalfStackSlot(2 * index - 1);
-  }
+  STATIC_ASSERT(kLowWord == 0);
+  STATIC_ASSERT(kHighWord == 1);
+  return GetHalfStackSlot(2 * index - half);
 }
 
 inline MemOperand GetInstanceOperand() {
