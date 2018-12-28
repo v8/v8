@@ -1156,6 +1156,7 @@ class WasmDecoder : public Decoder {
       case kNumericPrefix: {
         byte numeric_index =
             decoder->read_u8<validate>(pc + 1, "numeric_index");
+        if (!VALIDATE(decoder->ok())) return 2;
         WasmOpcode opcode =
             static_cast<WasmOpcode>(kNumericPrefix << 8 | numeric_index);
         switch (opcode) {
@@ -1200,6 +1201,7 @@ class WasmDecoder : public Decoder {
       }
       case kSimdPrefix: {
         byte simd_index = decoder->read_u8<validate>(pc + 1, "simd_index");
+        if (!VALIDATE(decoder->ok())) return 2;
         WasmOpcode opcode =
             static_cast<WasmOpcode>(kSimdPrefix << 8 | simd_index);
         switch (opcode) {
@@ -1228,6 +1230,7 @@ class WasmDecoder : public Decoder {
       }
       case kAtomicPrefix: {
         byte atomic_index = decoder->read_u8<validate>(pc + 1, "atomic_index");
+        if (!VALIDATE(decoder->ok())) return 2;
         WasmOpcode opcode =
             static_cast<WasmOpcode>(kAtomicPrefix << 8 | atomic_index);
         switch (opcode) {

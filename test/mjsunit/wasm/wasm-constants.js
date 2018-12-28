@@ -360,6 +360,7 @@ let kExprI64SExtendI32 = 0xc4;
 
 // Prefix opcodes
 let kNumericPrefix = 0xfc;
+let kSimdPrefix = 0xfd;
 let kAtomicPrefix = 0xfe;
 
 // Numeric opcodes.
@@ -439,6 +440,9 @@ let kExprI64AtomicCompareExchange = 0x49
 let kExprI64AtomicCompareExchange8U = 0x4c;
 let kExprI64AtomicCompareExchange16U = 0x4d;
 let kExprI64AtomicCompareExchange32U = 0x4e;
+
+// Simd opcodes.
+let kExprF32x4Min = 0x9e;
 
 let kTrapUnreachable          = 0;
 let kTrapMemOutOfBounds       = 1;
