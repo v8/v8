@@ -881,11 +881,13 @@ struct CommonOperatorGlobalCache final {
 #undef CACHED_STATE_VALUES
 };
 
-static base::LazyInstance<CommonOperatorGlobalCache>::type
-    kCommonOperatorGlobalCache = LAZY_INSTANCE_INITIALIZER;
+namespace {
+DEFINE_LAZY_LEAKY_OBJECT_GETTER(CommonOperatorGlobalCache,
+                                GetCommonOperatorGlobalCache);
+}
 
 CommonOperatorBuilder::CommonOperatorBuilder(Zone* zone)
-    : cache_(kCommonOperatorGlobalCache.Get()), zone_(zone) {}
+    : cache_(*GetCommonOperatorGlobalCache()), zone_(zone) {}
 
 #define CACHED(Name, properties, value_input_count, effect_input_count,      \
                control_input_count, value_output_count, effect_output_count, \

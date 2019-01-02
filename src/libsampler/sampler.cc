@@ -306,17 +306,17 @@ class SamplerManager {
   }
 #endif
 
-  static SamplerManager* instance() { return instance_.Pointer(); }
+  static SamplerManager* instance() {
+    static base::LeakyObject<SamplerManager> instance;
+    return instance.get();
+  }
 
  private:
   base::HashMap sampler_map_;
   static AtomicMutex samplers_access_counter_;
-  static base::LazyInstance<SamplerManager>::type instance_;
 };
 
 AtomicMutex SamplerManager::samplers_access_counter_;
-base::LazyInstance<SamplerManager>::type SamplerManager::instance_ =
-    LAZY_INSTANCE_INITIALIZER;
 
 #elif V8_OS_WIN || V8_OS_CYGWIN
 

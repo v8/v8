@@ -224,6 +224,33 @@ struct LazyDynamicInstance {
       CreateTrait, InitOnceTrait, DestroyTrait> type;
 };
 
+// LeakyObject<T> wraps an object of type T, which is initialized in the
+// constructor but never destructed. Thus LeakyObject<T> is trivially
+// destructible and can be used in static (lazily initialized) variables.
+template <typename T>
+class LeakyObject {
+ public:
+  template <typename... Args>
+  explicit LeakyObject(Args&&... args) {
+    new (&storage_) T(std::forward<Args>(args)...);
+  }
+
+  T* get() { return reinterpret_cast<T*>(&storage_); }
+
+ private:
+  typename std::aligned_storage<sizeof(T), alignof(T)>::type storage_;
+
+  DISALLOW_COPY_AND_ASSIGN(LeakyObject);
+};
+
+// Define a function which returns a pointer to a lazily initialized and never
+// destructed object of type T.
+#define DEFINE_LAZY_LEAKY_OBJECT_GETTER(T, FunctionName, ...) \
+  T* FunctionName() {                                         \
+    static ::v8::base::LeakyObject<T> object{__VA_ARGS__};    \
+    return object.get();                                      \
+  }
+
 }  // namespace base
 }  // namespace v8
 

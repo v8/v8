@@ -721,11 +721,13 @@ struct JSOperatorGlobalCache final {
 #undef COMPARE_OP
 };
 
-static base::LazyInstance<JSOperatorGlobalCache>::type kJSOperatorGlobalCache =
-    LAZY_INSTANCE_INITIALIZER;
+namespace {
+DEFINE_LAZY_LEAKY_OBJECT_GETTER(JSOperatorGlobalCache,
+                                GetJSOperatorGlobalCache);
+}
 
 JSOperatorBuilder::JSOperatorBuilder(Zone* zone)
-    : cache_(kJSOperatorGlobalCache.Get()), zone_(zone) {}
+    : cache_(*GetJSOperatorGlobalCache()), zone_(zone) {}
 
 #define CACHED_OP(Name, properties, value_input_count, value_output_count) \
   const Operator* JSOperatorBuilder::Name() {                              \

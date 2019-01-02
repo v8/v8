@@ -38,11 +38,9 @@ void* AlignedAllocInternal(size_t size, size_t alignment) {
   return ptr;
 }
 
-// TODO(bbudge) Simplify this once all embedders implement a page allocator.
-struct InitializePageAllocator {
-  static void Construct(void* page_allocator_ptr_arg) {
-    auto page_allocator_ptr =
-        reinterpret_cast<v8::PageAllocator**>(page_allocator_ptr_arg);
+class PageAllocatorInitializer {
+ public:
+  PageAllocatorInitializer() {
     v8::PageAllocator* page_allocator =
         V8::GetCurrentPlatform()->GetPageAllocator();
     if (page_allocator == nullptr) {
@@ -58,12 +56,22 @@ struct InitializePageAllocator {
       page_allocator = lsan_allocator;
     }
 #endif
-    *page_allocator_ptr = page_allocator;
+    page_allocator_ = page_allocator;
   }
+
+  PageAllocator* page_allocator() const { return page_allocator_; }
+
+  void SetPageAllocatorForTesting(PageAllocator* allocator) {
+    page_allocator_ = allocator;
+  }
+
+ private:
+  PageAllocator* page_allocator_;
 };
 
-static base::LazyInstance<v8::PageAllocator*, InitializePageAllocator>::type
-    page_allocator = LAZY_INSTANCE_INITIALIZER;
+DEFINE_LAZY_LEAKY_OBJECT_GETTER(PageAllocatorInitializer,
+                                GetPageTableInitializer);
+
 // We will attempt allocation this many times. After each failure, we call
 // OnCriticalMemoryPressure to try to free some memory.
 const int kAllocationTries = 2;
@@ -71,14 +79,14 @@ const int kAllocationTries = 2;
 }  // namespace
 
 v8::PageAllocator* GetPlatformPageAllocator() {
-  DCHECK_NOT_NULL(page_allocator.Get());
-  return page_allocator.Get();
+  DCHECK_NOT_NULL(GetPageTableInitializer()->page_allocator());
+  return GetPageTableInitializer()->page_allocator();
 }
 
 v8::PageAllocator* SetPlatformPageAllocatorForTesting(
     v8::PageAllocator* new_page_allocator) {
   v8::PageAllocator* old_page_allocator = GetPlatformPageAllocator();
-  *page_allocator.Pointer() = new_page_allocator;
+  GetPageTableInitializer()->SetPageAllocatorForTesting(new_page_allocator);
   return old_page_allocator;
 }
 

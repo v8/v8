@@ -1151,11 +1151,13 @@ struct SimplifiedOperatorGlobalCache final {
       kSpeculativeToNumberNumberOrOddballOperator;
 };
 
-static base::LazyInstance<SimplifiedOperatorGlobalCache>::type
-    kSimplifiedOperatorGlobalCache = LAZY_INSTANCE_INITIALIZER;
+namespace {
+DEFINE_LAZY_LEAKY_OBJECT_GETTER(SimplifiedOperatorGlobalCache,
+                                GetSimplifiedOperatorGlobalCache);
+}
 
 SimplifiedOperatorBuilder::SimplifiedOperatorBuilder(Zone* zone)
-    : cache_(kSimplifiedOperatorGlobalCache.Get()), zone_(zone) {}
+    : cache_(*GetSimplifiedOperatorGlobalCache()), zone_(zone) {}
 
 #define GET_FROM_CACHE(Name, ...) \
   const Operator* SimplifiedOperatorBuilder::Name() { return &cache_.k##Name; }

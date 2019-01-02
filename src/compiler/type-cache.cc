@@ -10,14 +10,11 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-namespace {
-
-base::LazyInstance<TypeCache>::type kTypeCache = LAZY_INSTANCE_INITIALIZER;
-
-}  // namespace
-
 // static
-TypeCache const& TypeCache::Get() { return kTypeCache.Get(); }
+TypeCache const& TypeCache::Get() {
+  static base::LeakyObject<TypeCache> type_cache;
+  return *type_cache.get();
+}
 
 }  // namespace compiler
 }  // namespace internal

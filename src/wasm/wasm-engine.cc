@@ -336,38 +336,27 @@ void WasmEngine::RemoveIsolate(Isolate* isolate) {
 
 namespace {
 
-struct WasmEnginePointerConstructTrait final {
-  static void Construct(void* raw_ptr) {
-    auto engine_ptr = reinterpret_cast<std::shared_ptr<WasmEngine>*>(raw_ptr);
-    *engine_ptr = std::shared_ptr<WasmEngine>();
-  }
-};
-
-// Holds the global shared pointer to the single {WasmEngine} that is intended
-// to be shared among Isolates within the same process. The {LazyStaticInstance}
-// here is required because {std::shared_ptr} has a non-trivial initializer.
-base::LazyStaticInstance<std::shared_ptr<WasmEngine>,
-                         WasmEnginePointerConstructTrait>::type
-    global_wasm_engine;
+DEFINE_LAZY_LEAKY_OBJECT_GETTER(std::shared_ptr<WasmEngine>,
+                                GetSharedWasmEngine);
 
 }  // namespace
 
 // static
 void WasmEngine::InitializeOncePerProcess() {
   if (!FLAG_wasm_shared_engine) return;
-  global_wasm_engine.Pointer()->reset(new WasmEngine());
+  *GetSharedWasmEngine() = std::make_shared<WasmEngine>();
 }
 
 // static
 void WasmEngine::GlobalTearDown() {
   if (!FLAG_wasm_shared_engine) return;
-  global_wasm_engine.Pointer()->reset();
+  GetSharedWasmEngine()->reset();
 }
 
 // static
 std::shared_ptr<WasmEngine> WasmEngine::GetWasmEngine() {
-  if (FLAG_wasm_shared_engine) return global_wasm_engine.Get();
-  return std::shared_ptr<WasmEngine>(new WasmEngine());
+  if (FLAG_wasm_shared_engine) return *GetSharedWasmEngine();
+  return std::make_shared<WasmEngine>();
 }
 
 // {max_mem_pages} is declared in wasm-limits.h.

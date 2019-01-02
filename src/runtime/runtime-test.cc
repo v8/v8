@@ -37,20 +37,20 @@ struct WasmCompileControls {
   uint32_t MaxWasmBufferSize = std::numeric_limits<uint32_t>::max();
   bool AllowAnySizeForAsync = true;
 };
+using WasmCompileControlsMap = std::map<v8::Isolate*, WasmCompileControls>;
 
 // We need per-isolate controls, because we sometimes run tests in multiple
 // isolates concurrently. Methods need to hold the accompanying mutex on access.
 // To avoid upsetting the static initializer count, we lazy initialize this.
-base::LazyInstance<std::map<v8::Isolate*, WasmCompileControls>>::type
-    g_PerIsolateWasmControls = LAZY_INSTANCE_INITIALIZER;
-base::LazyInstance<base::Mutex>::type g_PerIsolateWasmControlsMutex =
-    LAZY_INSTANCE_INITIALIZER;
+DEFINE_LAZY_LEAKY_OBJECT_GETTER(WasmCompileControlsMap,
+                                GetPerIsolateWasmControls);
+base::LazyMutex g_PerIsolateWasmControlsMutex = LAZY_MUTEX_INITIALIZER;
 
 bool IsWasmCompileAllowed(v8::Isolate* isolate, v8::Local<v8::Value> value,
                           bool is_async) {
   base::MutexGuard guard(g_PerIsolateWasmControlsMutex.Pointer());
-  DCHECK_GT(g_PerIsolateWasmControls.Get().count(isolate), 0);
-  const WasmCompileControls& ctrls = g_PerIsolateWasmControls.Get().at(isolate);
+  DCHECK_GT(GetPerIsolateWasmControls()->count(isolate), 0);
+  const WasmCompileControls& ctrls = GetPerIsolateWasmControls()->at(isolate);
   return (is_async && ctrls.AllowAnySizeForAsync) ||
          (value->IsArrayBuffer() &&
           v8::Local<v8::ArrayBuffer>::Cast(value)->ByteLength() <=
@@ -62,8 +62,8 @@ bool IsWasmInstantiateAllowed(v8::Isolate* isolate,
                               v8::Local<v8::Value> module_or_bytes,
                               bool is_async) {
   base::MutexGuard guard(g_PerIsolateWasmControlsMutex.Pointer());
-  DCHECK_GT(g_PerIsolateWasmControls.Get().count(isolate), 0);
-  const WasmCompileControls& ctrls = g_PerIsolateWasmControls.Get().at(isolate);
+  DCHECK_GT(GetPerIsolateWasmControls()->count(isolate), 0);
+  const WasmCompileControls& ctrls = GetPerIsolateWasmControls()->at(isolate);
   if (is_async && ctrls.AllowAnySizeForAsync) return true;
   if (!module_or_bytes->IsWebAssemblyCompiledModule()) {
     return IsWasmCompileAllowed(isolate, module_or_bytes, is_async);
@@ -511,7 +511,7 @@ RUNTIME_FUNCTION(Runtime_SetWasmCompileControls) {
   CONVERT_ARG_HANDLE_CHECKED(Smi, block_size, 0);
   CONVERT_BOOLEAN_ARG_CHECKED(allow_async, 1);
   base::MutexGuard guard(g_PerIsolateWasmControlsMutex.Pointer());
-  WasmCompileControls& ctrl = (*g_PerIsolateWasmControls.Pointer())[v8_isolate];
+  WasmCompileControls& ctrl = (*GetPerIsolateWasmControls())[v8_isolate];
   ctrl.AllowAnySizeForAsync = allow_async;
   ctrl.MaxWasmBufferSize = static_cast<uint32_t>(block_size->value());
   v8_isolate->SetWasmModuleCallback(WasmModuleOverride);

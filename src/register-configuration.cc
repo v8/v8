@@ -91,15 +91,8 @@ class ArchDefaultRegisterConfiguration : public RegisterConfiguration {
   }
 };
 
-struct RegisterConfigurationInitializer {
-  static void Construct(void* config) {
-    new (config) ArchDefaultRegisterConfiguration();
-  }
-};
-
-static base::LazyInstance<ArchDefaultRegisterConfiguration,
-                          RegisterConfigurationInitializer>::type
-    kDefaultRegisterConfiguration = LAZY_INSTANCE_INITIALIZER;
+DEFINE_LAZY_LEAKY_OBJECT_GETTER(ArchDefaultRegisterConfiguration,
+                                GetDefaultRegisterConfiguration);
 
 // Allocatable registers with the masking register removed.
 class ArchDefaultPoisoningRegisterConfiguration : public RegisterConfiguration {
@@ -134,15 +127,8 @@ class ArchDefaultPoisoningRegisterConfiguration : public RegisterConfiguration {
 int ArchDefaultPoisoningRegisterConfiguration::allocatable_general_codes_
     [kMaxAllocatableGeneralRegisterCount - 1];
 
-struct PoisoningRegisterConfigurationInitializer {
-  static void Construct(void* config) {
-    new (config) ArchDefaultPoisoningRegisterConfiguration();
-  }
-};
-
-static base::LazyInstance<ArchDefaultPoisoningRegisterConfiguration,
-                          PoisoningRegisterConfigurationInitializer>::type
-    kDefaultPoisoningRegisterConfiguration = LAZY_INSTANCE_INITIALIZER;
+DEFINE_LAZY_LEAKY_OBJECT_GETTER(ArchDefaultPoisoningRegisterConfiguration,
+                                GetDefaultPoisoningRegisterConfiguration);
 
 // RestrictedRegisterConfiguration uses the subset of allocatable general
 // registers the architecture support, which results into generating assembly
@@ -187,11 +173,11 @@ class RestrictedRegisterConfiguration : public RegisterConfiguration {
 }  // namespace
 
 const RegisterConfiguration* RegisterConfiguration::Default() {
-  return &kDefaultRegisterConfiguration.Get();
+  return GetDefaultRegisterConfiguration();
 }
 
 const RegisterConfiguration* RegisterConfiguration::Poisoning() {
-  return &kDefaultPoisoningRegisterConfiguration.Get();
+  return GetDefaultPoisoningRegisterConfiguration();
 }
 
 const RegisterConfiguration* RegisterConfiguration::RestrictGeneralRegisters(

@@ -289,8 +289,7 @@ class CpuProfilersManager {
   base::Mutex mutex_;
 };
 
-base::LazyInstance<CpuProfilersManager>::type g_profilers_manager =
-    LAZY_INSTANCE_INITIALIZER;
+DEFINE_LAZY_LEAKY_OBJECT_GETTER(CpuProfilersManager, GetProfilersManager);
 
 }  // namespace
 
@@ -309,12 +308,12 @@ CpuProfiler::CpuProfiler(Isolate* isolate, CpuProfilesCollection* test_profiles,
       processor_(test_processor),
       is_profiling_(false) {
   profiles_->set_cpu_profiler(this);
-  g_profilers_manager.Pointer()->AddProfiler(isolate, this);
+  GetProfilersManager()->AddProfiler(isolate, this);
 }
 
 CpuProfiler::~CpuProfiler() {
   DCHECK(!is_profiling_);
-  g_profilers_manager.Pointer()->RemoveProfiler(isolate_, this);
+  GetProfilersManager()->RemoveProfiler(isolate_, this);
 }
 
 void CpuProfiler::set_sampling_interval(base::TimeDelta value) {
@@ -343,7 +342,7 @@ void CpuProfiler::CreateEntriesForRuntimeCallStats() {
 
 // static
 void CpuProfiler::CollectSample(Isolate* isolate) {
-  g_profilers_manager.Pointer()->CallCollectSample(isolate);
+  GetProfilersManager()->CallCollectSample(isolate);
 }
 
 void CpuProfiler::CollectSample() {

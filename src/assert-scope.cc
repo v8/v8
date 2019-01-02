@@ -14,20 +14,9 @@ namespace internal {
 
 namespace {
 
-struct PerThreadAssertKeyConstructTrait final {
-  static void Construct(void* key_arg) {
-    auto key = reinterpret_cast<base::Thread::LocalStorageKey*>(key_arg);
-    *key = base::Thread::CreateThreadLocalKey();
-  }
-};
-
-
-typedef base::LazyStaticInstance<base::Thread::LocalStorageKey,
-                                 PerThreadAssertKeyConstructTrait>::type
-    PerThreadAssertKey;
-
-
-PerThreadAssertKey kPerThreadAssertKey;
+DEFINE_LAZY_LEAKY_OBJECT_GETTER(base::Thread::LocalStorageKey,
+                                GetPerThreadAssertKey,
+                                base::Thread::CreateThreadLocalKey());
 
 }  // namespace
 
@@ -54,10 +43,10 @@ class PerThreadAssertData final {
 
   static PerThreadAssertData* GetCurrent() {
     return reinterpret_cast<PerThreadAssertData*>(
-        base::Thread::GetThreadLocal(kPerThreadAssertKey.Get()));
+        base::Thread::GetThreadLocal(*GetPerThreadAssertKey()));
   }
   static void SetCurrent(PerThreadAssertData* data) {
-    base::Thread::SetThreadLocal(kPerThreadAssertKey.Get(), data);
+    base::Thread::SetThreadLocal(*GetPerThreadAssertKey(), data);
   }
 
  private:

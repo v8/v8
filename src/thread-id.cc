@@ -13,32 +13,23 @@ base::Atomic32 ThreadId::highest_thread_id_ = 0;
 
 namespace {
 
-struct LocalStorageKeyAllocator {
-  static void Construct(void* storage_ptr_arg) {
-    auto storage_ptr =
-        reinterpret_cast<base::Thread::LocalStorageKey*>(storage_ptr_arg);
-    *storage_ptr = base::Thread::CreateThreadLocalKey();
-  }
-};
-
-static base::LazyInstance<base::Thread::LocalStorageKey,
-                          LocalStorageKeyAllocator>::type thread_id_key =
-    LAZY_INSTANCE_INITIALIZER;
+DEFINE_LAZY_LEAKY_OBJECT_GETTER(base::Thread::LocalStorageKey, GetThreadIdKey,
+                                base::Thread::CreateThreadLocalKey());
 
 }  // namespace
 
 // static
 ThreadId ThreadId::TryGetCurrent() {
-  int thread_id = base::Thread::GetThreadLocalInt(thread_id_key.Get());
+  int thread_id = base::Thread::GetThreadLocalInt(*GetThreadIdKey());
   return thread_id == 0 ? Invalid() : ThreadId(thread_id);
 }
 
 // static
 int ThreadId::GetCurrentThreadId() {
-  int thread_id = base::Thread::GetThreadLocalInt(thread_id_key.Get());
+  int thread_id = base::Thread::GetThreadLocalInt(*GetThreadIdKey());
   if (thread_id == 0) {
     thread_id = AllocateThreadId();
-    base::Thread::SetThreadLocalInt(thread_id_key.Get(), thread_id);
+    base::Thread::SetThreadLocalInt(*GetThreadIdKey(), thread_id);
   }
   return thread_id;
 }

@@ -250,10 +250,9 @@ void InstructionTable::AddJumpConditionalShort() {
   }
 }
 
-
-static v8::base::LazyInstance<InstructionTable>::type instruction_table =
-    LAZY_INSTANCE_INITIALIZER;
-
+namespace {
+DEFINE_LAZY_LEAKY_OBJECT_GETTER(InstructionTable, GetInstructionTable);
+}
 
 static const InstructionDesc cmov_instructions[16] = {
   {"cmovo", TWO_OPERANDS_INSTR, REG_OPER_OP_ORDER, false},
@@ -296,7 +295,7 @@ class DisassemblerX64 {
         vex_byte1_(0),
         vex_byte2_(0),
         byte_size_operand_(false),
-        instruction_table_(instruction_table.Pointer()) {
+        instruction_table_(GetInstructionTable()) {
     tmp_buffer_[0] = '\0';
   }
 

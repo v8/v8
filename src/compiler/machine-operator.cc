@@ -816,14 +816,16 @@ struct CommentOperator : public Operator1<const char*> {
                                "Comment", 0, 1, 1, 0, 1, 0, msg) {}
 };
 
-static base::LazyInstance<MachineOperatorGlobalCache>::type
-    kMachineOperatorGlobalCache = LAZY_INSTANCE_INITIALIZER;
+namespace {
+DEFINE_LAZY_LEAKY_OBJECT_GETTER(MachineOperatorGlobalCache,
+                                GetMachineOperatorGlobalCache);
+}
 
 MachineOperatorBuilder::MachineOperatorBuilder(
     Zone* zone, MachineRepresentation word, Flags flags,
     AlignmentRequirements alignmentRequirements)
     : zone_(zone),
-      cache_(kMachineOperatorGlobalCache.Get()),
+      cache_(*GetMachineOperatorGlobalCache()),
       word_(word),
       flags_(flags),
       alignment_requirements_(alignmentRequirements) {
