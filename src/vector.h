@@ -10,7 +10,6 @@
 #include <iterator>
 
 #include "src/allocation.h"
-#include "src/base/macros.h"
 #include "src/checks.h"
 #include "src/globals.h"
 
@@ -258,10 +257,10 @@ inline int StrLength(const char* string) {
   return static_cast<int>(length);
 }
 
-#define STATIC_CHAR_VECTOR(x)                                          \
-  v8::internal::VectorOf(                                              \
-      reinterpret_cast<const uint8_t*>(implicit_cast<const char*>(x)), \
-      arraysize(x) - 1)
+template <size_t N>
+constexpr Vector<const uint8_t> StaticCharVector(const char (&array)[N]) {
+  return Vector<const uint8_t>::cast(Vector<const char>(array, N - 1));
+}
 
 inline Vector<const char> CStrVector(const char* data) {
   return Vector<const char>(data, StrLength(data));

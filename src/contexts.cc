@@ -438,9 +438,8 @@ Handle<Object> Context::ErrorMessageForCodeGenerationFromStrings() {
       "Code generation from strings disallowed for this context");
 }
 
-
 #define COMPARE_NAME(index, type, name) \
-  if (string->IsOneByteEqualTo(STATIC_CHAR_VECTOR(#name))) return index;
+  if (string->IsOneByteEqualTo(StaticCharVector(#name))) return index;
 
 int Context::IntrinsicIndexForName(Handle<String> string) {
   NATIVE_CONTEXT_INTRINSIC_FUNCTIONS(COMPARE_NAME);

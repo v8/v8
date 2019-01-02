@@ -270,7 +270,7 @@ class V8_EXPORT_PRIVATE Factory {
   inline Handle<String> NewStringFromStaticChars(
       const char (&str)[N], PretenureFlag pretenure = NOT_TENURED) {
     DCHECK(N == StrLength(str) + 1);
-    return NewStringFromOneByte(STATIC_CHAR_VECTOR(str), pretenure)
+    return NewStringFromOneByte(StaticCharVector(str), pretenure)
         .ToHandleChecked();
   }
 

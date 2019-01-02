@@ -1086,7 +1086,7 @@ Handle<String> MessageFormatter::FormatMessage(Isolate* isolate,
   if (!maybe_result_string.ToHandle(&result_string)) {
     DCHECK(isolate->has_pending_exception());
     isolate->clear_pending_exception();
-    return factory->InternalizeOneByteString(STATIC_CHAR_VECTOR("<error>"));
+    return factory->InternalizeOneByteString(StaticCharVector("<error>"));
   }
   // A string that has been obtained from JS code in this way is
   // likely to be a complicated ConsString of some sort.  We flatten it

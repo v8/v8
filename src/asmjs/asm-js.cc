@@ -41,7 +41,7 @@ namespace {
 Handle<Object> StdlibMathMember(Isolate* isolate, Handle<JSReceiver> stdlib,
                                 Handle<Name> name) {
   Handle<Name> math_name(
-      isolate->factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR("Math")));
+      isolate->factory()->InternalizeOneByteString(StaticCharVector("Math")));
   Handle<Object> math = JSReceiver::GetDataProperty(stdlib, math_name);
   if (!math->IsJSReceiver()) return isolate->factory()->undefined_value();
   Handle<JSReceiver> math_receiver = Handle<JSReceiver>::cast(math);
@@ -68,7 +68,7 @@ bool AreStdlibMembersValid(Isolate* isolate, Handle<JSReceiver> stdlib,
   if (members.Contains(wasm::AsmJsParser::StandardMember::kMath##FName)) { \
     members.Remove(wasm::AsmJsParser::StandardMember::kMath##FName);       \
     Handle<Name> name(isolate->factory()->InternalizeOneByteString(        \
-        STATIC_CHAR_VECTOR(#fname)));                                      \
+        StaticCharVector(#fname)));                                        \
     Handle<Object> value = StdlibMathMember(isolate, stdlib, name);        \
     if (!value->IsJSFunction()) return false;                              \
     SharedFunctionInfo shared = Handle<JSFunction>::cast(value)->shared(); \
@@ -85,7 +85,7 @@ bool AreStdlibMembersValid(Isolate* isolate, Handle<JSReceiver> stdlib,
   if (members.Contains(wasm::AsmJsParser::StandardMember::kMath##cname)) {  \
     members.Remove(wasm::AsmJsParser::StandardMember::kMath##cname);        \
     Handle<Name> name(isolate->factory()->InternalizeOneByteString(         \
-        STATIC_CHAR_VECTOR(#cname)));                                       \
+        StaticCharVector(#cname)));                                         \
     Handle<Object> value = StdlibMathMember(isolate, stdlib, name);         \
     if (!value->IsNumber() || value->Number() != const_value) return false; \
   }
@@ -96,7 +96,7 @@ bool AreStdlibMembersValid(Isolate* isolate, Handle<JSReceiver> stdlib,
     members.Remove(wasm::AsmJsParser::StandardMember::k##FName);       \
     *is_typed_array = true;                                            \
     Handle<Name> name(isolate->factory()->InternalizeOneByteString(    \
-        STATIC_CHAR_VECTOR(#FName)));                                  \
+        StaticCharVector(#FName)));                                    \
     Handle<Object> value = JSReceiver::GetDataProperty(stdlib, name);  \
     if (!value->IsJSFunction()) return false;                          \
     Handle<JSFunction> func = Handle<JSFunction>::cast(value);         \

@@ -291,7 +291,7 @@ static void SanityCheck(v8::Isolate* v8_isolate) {
 #endif
   CHECK(isolate->global_object()->IsJSObject());
   CHECK(isolate->native_context()->IsContext());
-  isolate->factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR("Empty"));
+  isolate->factory()->InternalizeOneByteString(StaticCharVector("Empty"));
 }
 
 void TestStartupSerializerOnceImpl() {
@@ -610,9 +610,8 @@ static void PartiallySerializeCustomContext(
           "(async ()=>{ p = await 42; })();");
 
       Vector<const uint8_t> source = ConstructSource(
-          STATIC_CHAR_VECTOR("function g() { return [,"),
-          STATIC_CHAR_VECTOR("1,"),
-          STATIC_CHAR_VECTOR("];} a = g(); b = g(); b.push(1);"), 100000);
+          StaticCharVector("function g() { return [,"), StaticCharVector("1,"),
+          StaticCharVector("];} a = g(); b = g(); b.push(1);"), 100000);
       v8::MaybeLocal<v8::String> source_str = v8::String::NewFromOneByte(
           v8_isolate, source.start(), v8::NewStringType::kNormal,
           source.length());
@@ -1456,9 +1455,9 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobImmortalImmovableRoots) {
   // serialized before the immortal immovable root, the root will no longer end
   // up on the first page.
   Vector<const uint8_t> source =
-      ConstructSource(STATIC_CHAR_VECTOR("var a = [];"),
-                      STATIC_CHAR_VECTOR("a.push(function() {return 7});"),
-                      STATIC_CHAR_VECTOR("\0"), 10000);
+      ConstructSource(StaticCharVector("var a = [];"),
+                      StaticCharVector("a.push(function() {return 7});"),
+                      StaticCharVector("\0"), 10000);
 
   v8::StartupData data =
       CreateSnapshotDataBlob(reinterpret_cast<const char*>(source.start()));
@@ -1705,10 +1704,10 @@ TEST(CodeSerializerLargeCodeObject) {
   FLAG_always_opt = false;
 
   Vector<const uint8_t> source = ConstructSource(
-      STATIC_CHAR_VECTOR("var j=1; if (j == 0) {"),
-      STATIC_CHAR_VECTOR(
+      StaticCharVector("var j=1; if (j == 0) {"),
+      StaticCharVector(
           "for (let i of Object.prototype) for (let k = 0; k < 0; ++k);"),
-      STATIC_CHAR_VECTOR("} j=7; j"), 1200);
+      StaticCharVector("} j=7; j"), 1200);
   Handle<String> source_str =
       isolate->factory()->NewStringFromOneByte(source).ToHandleChecked();
 
@@ -1761,9 +1760,9 @@ TEST(CodeSerializerLargeCodeObjectWithIncrementalMarking) {
   v8::HandleScope scope(CcTest::isolate());
 
   Vector<const uint8_t> source = ConstructSource(
-      STATIC_CHAR_VECTOR("var j=1; if (j == 0) {"),
-      STATIC_CHAR_VECTOR("for (var i = 0; i < Object.prototype; i++);"),
-      STATIC_CHAR_VECTOR("} j=7; var s = 'happy_hippo'; j"), 20000);
+      StaticCharVector("var j=1; if (j == 0) {"),
+      StaticCharVector("for (var i = 0; i < Object.prototype; i++);"),
+      StaticCharVector("} j=7; var s = 'happy_hippo'; j"), 20000);
   Handle<String> source_str =
       isolate->factory()->NewStringFromOneByte(source).ToHandleChecked();
 
@@ -1831,11 +1830,11 @@ TEST(CodeSerializerLargeStrings) {
   v8::HandleScope scope(CcTest::isolate());
 
   Vector<const uint8_t> source_s = ConstructSource(
-      STATIC_CHAR_VECTOR("var s = \""), STATIC_CHAR_VECTOR("abcdef"),
-      STATIC_CHAR_VECTOR("\";"), 1000000);
+      StaticCharVector("var s = \""), StaticCharVector("abcdef"),
+      StaticCharVector("\";"), 1000000);
   Vector<const uint8_t> source_t = ConstructSource(
-      STATIC_CHAR_VECTOR("var t = \""), STATIC_CHAR_VECTOR("uvwxyz"),
-      STATIC_CHAR_VECTOR("\"; s + t"), 999999);
+      StaticCharVector("var t = \""), StaticCharVector("uvwxyz"),
+      StaticCharVector("\"; s + t"), 999999);
   Handle<String> source_str =
       f->NewConsString(f->NewStringFromOneByte(source_s).ToHandleChecked(),
                        f->NewStringFromOneByte(source_t).ToHandleChecked())
@@ -1887,20 +1886,20 @@ TEST(CodeSerializerThreeBigStrings) {
   v8::HandleScope scope(CcTest::isolate());
 
   Vector<const uint8_t> source_a =
-      ConstructSource(STATIC_CHAR_VECTOR("var a = \""), STATIC_CHAR_VECTOR("a"),
-                      STATIC_CHAR_VECTOR("\";"), 700000);
+      ConstructSource(StaticCharVector("var a = \""), StaticCharVector("a"),
+                      StaticCharVector("\";"), 700000);
   Handle<String> source_a_str =
       f->NewStringFromOneByte(source_a).ToHandleChecked();
 
   Vector<const uint8_t> source_b =
-      ConstructSource(STATIC_CHAR_VECTOR("var b = \""), STATIC_CHAR_VECTOR("b"),
-                      STATIC_CHAR_VECTOR("\";"), 400000);
+      ConstructSource(StaticCharVector("var b = \""), StaticCharVector("b"),
+                      StaticCharVector("\";"), 400000);
   Handle<String> source_b_str =
       f->NewStringFromOneByte(source_b).ToHandleChecked();
 
   Vector<const uint8_t> source_c =
-      ConstructSource(STATIC_CHAR_VECTOR("var c = \""), STATIC_CHAR_VECTOR("c"),
-                      STATIC_CHAR_VECTOR("\";"), 400000);
+      ConstructSource(StaticCharVector("var c = \""), StaticCharVector("c"),
+                      StaticCharVector("\";"), 400000);
   Handle<String> source_c_str =
       f->NewStringFromOneByte(source_c).ToHandleChecked();
 
@@ -2079,8 +2078,8 @@ TEST(CodeSerializerLargeExternalString) {
 
   // Create a huge external internalized string to use as variable name.
   Vector<const uint8_t> string =
-      ConstructSource(STATIC_CHAR_VECTOR(""), STATIC_CHAR_VECTOR("abcdef"),
-                      STATIC_CHAR_VECTOR(""), 999999);
+      ConstructSource(StaticCharVector(""), StaticCharVector("abcdef"),
+                      StaticCharVector(""), 999999);
   Handle<String> name = f->NewStringFromOneByte(string).ToHandleChecked();
   SerializerOneByteResource one_byte_resource(
       reinterpret_cast<const char*>(string.start()), string.length());

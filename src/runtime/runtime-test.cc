@@ -258,7 +258,7 @@ RUNTIME_FUNCTION(Runtime_OptimizeFunctionOnNextCall) {
       return ReadOnlyRoots(isolate).undefined_value();
     }
     if (Handle<String>::cast(type)->IsOneByteEqualTo(
-            STATIC_CHAR_VECTOR("concurrent")) &&
+            StaticCharVector("concurrent")) &&
         isolate->concurrent_recompilation_enabled()) {
       concurrency_mode = ConcurrencyMode::kConcurrent;
     }
@@ -376,7 +376,7 @@ RUNTIME_FUNCTION(Runtime_GetOptimizationStatus) {
     if (!sync_object->IsString())
       return ReadOnlyRoots(isolate).undefined_value();
     Handle<String> sync = Handle<String>::cast(sync_object);
-    if (sync->IsOneByteEqualTo(STATIC_CHAR_VECTOR("no sync"))) {
+    if (sync->IsOneByteEqualTo(StaticCharVector("no sync"))) {
       sync_with_compiler_thread = false;
     }
   }
@@ -644,7 +644,7 @@ RUNTIME_FUNCTION(Runtime_DebugTrackRetainingPath) {
     if (args.length() == 2) {
       CONVERT_ARG_HANDLE_CHECKED(String, str, 1);
       const char track_ephemeron_path[] = "track-ephemeron-path";
-      if (str->IsOneByteEqualTo(STATIC_CHAR_VECTOR(track_ephemeron_path))) {
+      if (str->IsOneByteEqualTo(StaticCharVector(track_ephemeron_path))) {
         option = RetainingPathOption::kTrackEphemeronPath;
       } else if (str->length() != 0) {
         PrintF("Unexpected second argument of DebugTrackRetainingPath.\n");

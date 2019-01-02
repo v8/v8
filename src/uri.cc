@@ -416,7 +416,7 @@ static MaybeHandle<String> UnescapePrivate(Isolate* isolate,
   int index;
   {
     DisallowHeapAllocation no_allocation;
-    StringSearch<uint8_t, Char> search(isolate, STATIC_CHAR_VECTOR("%"));
+    StringSearch<uint8_t, Char> search(isolate, StaticCharVector("%"));
     index = search.Search(source->GetCharVector<Char>(no_allocation), 0);
     if (index < 0) return source;
   }

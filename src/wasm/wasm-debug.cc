@@ -412,7 +412,7 @@ class InterpreterHandle {
         isolate_->factory()->NewJSObjectWithNullProto();
     if (instance->has_memory_object()) {
       Handle<String> name = isolate_->factory()->InternalizeOneByteString(
-          STATIC_CHAR_VECTOR("memory"));
+          StaticCharVector("memory"));
       Handle<JSArrayBuffer> memory_buffer(
           instance->memory_object()->array_buffer(), isolate_);
       Handle<JSTypedArray> uint8_array = isolate_->factory()->NewJSTypedArray(
@@ -439,7 +439,7 @@ class InterpreterHandle {
           isolate_->factory()->NewJSObjectWithNullProto();
       Handle<String> locals_name =
           isolate_->factory()->InternalizeOneByteString(
-              STATIC_CHAR_VECTOR("locals"));
+              StaticCharVector("locals"));
       JSObject::SetOwnPropertyIgnoreAttributes(local_scope_object, locals_name,
                                                locals_obj, NONE)
           .Assert();
@@ -468,7 +468,7 @@ class InterpreterHandle {
     Handle<JSObject> stack_obj =
         isolate_->factory()->NewJSObjectWithNullProto();
     Handle<String> stack_name = isolate_->factory()->InternalizeOneByteString(
-        STATIC_CHAR_VECTOR("stack"));
+        StaticCharVector("stack"));
     JSObject::SetOwnPropertyIgnoreAttributes(local_scope_object, stack_name,
                                              stack_obj, NONE)
         .Assert();
@@ -727,7 +727,7 @@ Handle<JSFunction> WasmDebugInfo::GetCWasmEntry(
     function_data->set_jump_table_offset(-1);
     function_data->set_function_index(-1);
     Handle<String> name = isolate->factory()->InternalizeOneByteString(
-        STATIC_CHAR_VECTOR("c-wasm-entry"));
+        StaticCharVector("c-wasm-entry"));
     NewFunctionArgs args = NewFunctionArgs::ForWasm(
         name, function_data, isolate->sloppy_function_map());
     Handle<JSFunction> new_entry = isolate->factory()->NewFunction(args);

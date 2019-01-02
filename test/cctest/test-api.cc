@@ -17442,7 +17442,7 @@ TEST(ErrorLevelWarning) {
   for (size_t i = 0; i < arraysize(levels); i++) {
     i::MessageLocation location(script, 0, 0);
     i::Handle<i::String> msg(i_isolate->factory()->InternalizeOneByteString(
-        STATIC_CHAR_VECTOR("test")));
+        i::StaticCharVector("test")));
     i::Handle<i::JSMessageObject> message =
         i::MessageHandler::MakeMessageObject(
             i_isolate, i::MessageTemplate::kAsmJsInvalid, &location, msg,

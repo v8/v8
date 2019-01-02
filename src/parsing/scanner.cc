@@ -298,9 +298,9 @@ void Scanner::TryToParseSourceURLComment() {
   if (!name.is_one_byte()) return;
   Vector<const uint8_t> name_literal = name.one_byte_literal();
   LiteralBuffer* value;
-  if (name_literal == STATIC_CHAR_VECTOR("sourceURL")) {
+  if (name_literal == StaticCharVector("sourceURL")) {
     value = &source_url_;
-  } else if (name_literal == STATIC_CHAR_VECTOR("sourceMappingURL")) {
+  } else if (name_literal == StaticCharVector("sourceMappingURL")) {
     value = &source_mapping_url_;
   } else {
     return;
