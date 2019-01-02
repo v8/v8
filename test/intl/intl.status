@@ -29,6 +29,8 @@
 [ALWAYS, {
   # TODO(jochen): The following test is flaky.
   'overrides/caching': [PASS, FAIL],
+
+  'date-format/check-hc-option': [FAIL],
 }],  # ALWAYS
 
 ['variant == no_wasm_traps', {

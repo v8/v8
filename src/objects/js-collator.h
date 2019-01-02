@@ -50,7 +50,6 @@ class JSCollator : public JSObject {
 #define JS_COLLATOR_FIELDS(V)         \
   V(kICUCollatorOffset, kTaggedSize)  \
   V(kBoundCompareOffset, kTaggedSize) \
-  V(kLocaleOffset, kTaggedSize)       \
   /* Total size. */                   \
   V(kSize, 0)
 
@@ -59,7 +58,6 @@ class JSCollator : public JSObject {
 
   DECL_ACCESSORS2(icu_collator, Managed<icu::Collator>)
   DECL_ACCESSORS(bound_compare, Object);
-  DECL_ACCESSORS2(locale, String)
 
   OBJECT_CONSTRUCTORS(JSCollator, JSObject);
 };

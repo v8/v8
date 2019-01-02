@@ -73,6 +73,9 @@
   'intl402/DateTimeFormat/prototype/format/format-function-name': [FAIL],
   'intl402/Collator/prototype/compare/compare-function-name': [FAIL],
 
+  'intl402/DateTimeFormat/prototype/resolvedOptions/hourCycle': [FAIL],
+
+
   # https://code.google.com/p/v8/issues/detail?id=4251
   'language/expressions/postfix-increment/S11.3.1_A5_T1': [FAIL],
   'language/expressions/postfix-increment/S11.3.1_A5_T2': [FAIL],
@@ -568,6 +571,10 @@
   'intl402/NumberFormat/prototype/format/format-fraction-digits': [FAIL],
   'intl402/NumberFormat/prototype/format/format-significant-digits': [FAIL],
 
+  # https://bugs.chromium.org/p/v8/issues/detail?id=7481
+  'intl402/NumberFormat/ignore-invalid-unicode-ext-values': [FAIL],
+  'intl402/DateTimeFormat/ignore-invalid-unicode-ext-values': [FAIL],
+
   # https://bugs.chromium.org/p/v8/issues/detail?id=7482
   'intl402/DateTimeFormat/prototype/resolvedOptions/resolved-locale-with-hc-unicode': [FAIL],
 
@@ -577,8 +584,12 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=7669
   'intl402/Intl/getCanonicalLocales/canonicalized-tags': [FAIL],
 
-  # https://github.com/tc39/ecma402/issues/223
-  'intl402/Collator/missing-unicode-ext-value-defaults-to-true': [FAIL],
+  # Tests assume that the sort order of "same elements" (comparator returns 0)
+  # is deterministic.
+  # https://crbug.com/v8/7808
+  'intl402/String/prototype/localeCompare/returns-same-results-as-Collator': [SKIP],
+  'intl402/Collator/prototype/compare/bound-to-collator-instance': [SKIP],
+  'intl402/Collator/ignore-invalid-unicode-ext-values': [SKIP],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=8260
   'intl402/Locale/constructor-non-iana-canon': [FAIL],
