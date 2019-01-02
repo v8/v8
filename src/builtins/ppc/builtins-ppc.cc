@@ -1036,6 +1036,21 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   Register closure = r4;
   Register feedback_vector = r5;
 
+  // Get the bytecode array from the function object and load it into
+  // kInterpreterBytecodeArrayRegister.
+  __ LoadP(r3, FieldMemOperand(closure, JSFunction::kSharedFunctionInfoOffset));
+  // Load original bytecode array or the debug copy.
+  __ LoadP(kInterpreterBytecodeArrayRegister,
+           FieldMemOperand(r3, SharedFunctionInfo::kFunctionDataOffset));
+  GetSharedFunctionInfoBytecode(masm, kInterpreterBytecodeArrayRegister, r7);
+
+  // The bytecode array could have been flushed from the shared function info,
+  // if so, call into CompileLazy.
+  Label compile_lazy;
+  __ CompareObjectType(kInterpreterBytecodeArrayRegister, r3, no_reg,
+                       BYTECODE_ARRAY_TYPE);
+  __ bne(&compile_lazy);
+
   // Load the feedback vector from the closure.
   __ LoadP(feedback_vector,
            FieldMemOperand(closure, JSFunction::kFeedbackCellOffset));
@@ -1044,20 +1059,6 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   // Read off the optimized code slot in the feedback vector, and if there
   // is optimized code or an optimization marker, call that instead.
   MaybeTailCallOptimizedCodeSlot(masm, feedback_vector, r7, r9, r8);
-
-  // Open a frame scope to indicate that there is a frame on the stack.  The
-  // MANUAL indicates that the scope shouldn't actually generate code to set up
-  // the frame (that is done below).
-  FrameScope frame_scope(masm, StackFrame::MANUAL);
-  __ PushStandardFrame(closure);
-
-  // Get the bytecode array from the function object and load it into
-  // kInterpreterBytecodeArrayRegister.
-  __ LoadP(r3, FieldMemOperand(closure, JSFunction::kSharedFunctionInfoOffset));
-  // Load original bytecode array or the debug copy.
-  __ LoadP(kInterpreterBytecodeArrayRegister,
-           FieldMemOperand(r3, SharedFunctionInfo::kFunctionDataOffset));
-  GetSharedFunctionInfoBytecode(masm, kInterpreterBytecodeArrayRegister, r7);
 
   // Increment invocation count for the function.
   __ LoadWord(
@@ -1070,18 +1071,11 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
       FieldMemOperand(feedback_vector, FeedbackVector::kInvocationCountOffset),
       r0);
 
-  // Check function data field is actually a BytecodeArray object.
-
-  if (FLAG_debug_code) {
-    __ TestIfSmi(kInterpreterBytecodeArrayRegister, r0);
-    __ Assert(ne,
-              AbortReason::kFunctionDataShouldBeBytecodeArrayOnInterpreterEntry,
-              cr0);
-    __ CompareObjectType(kInterpreterBytecodeArrayRegister, r3, no_reg,
-                         BYTECODE_ARRAY_TYPE);
-    __ Assert(
-        eq, AbortReason::kFunctionDataShouldBeBytecodeArrayOnInterpreterEntry);
-  }
+  // Open a frame scope to indicate that there is a frame on the stack.  The
+  // MANUAL indicates that the scope shouldn't actually generate code to set up
+  // the frame (that is done below).
+  FrameScope frame_scope(masm, StackFrame::MANUAL);
+  __ PushStandardFrame(closure);
 
   // Reset code age.
   __ mov(r8, Operand(BytecodeArray::kNoAgeBytecodeAge));
@@ -1179,6 +1173,10 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   // The return value is in r3.
   LeaveInterpreterFrame(masm, r5);
   __ blr();
+
+  __ bind(&compile_lazy);
+  GenerateTailCallToReturnedCode(masm, Runtime::kCompileLazy);
+  __ bkpt(0);  // Should not return.
 }
 
 static void Generate_InterpreterPushArgs(MacroAssembler* masm,
