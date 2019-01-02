@@ -156,6 +156,8 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case NAME_DICTIONARY_TYPE:
     case GLOBAL_DICTIONARY_TYPE:
     case SIMPLE_NUMBER_DICTIONARY_TYPE:
+      FixedArray::cast(*this)->FixedArrayPrint(os);
+      break;
     case STRING_TABLE_TYPE:
       ObjectHashTable::cast(*this)->ObjectHashTablePrint(os);
       break;
