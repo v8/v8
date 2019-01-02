@@ -1485,8 +1485,8 @@ void MacroAssembler::PushStackHandler() {
   STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0 * kPointerSize);
 
   // Link the current handler as the next handler.
-  mov(r7, Operand(ExternalReference::Create(IsolateAddressId::kHandlerAddress,
-                                            isolate())));
+  Move(r7, ExternalReference::Create(IsolateAddressId::kHandlerAddress,
+                                            isolate()));
 
   // Buy the full stack frame for 5 slots.
   lay(sp, MemOperand(sp, -StackHandlerConstants::kSize));
@@ -1508,8 +1508,8 @@ void MacroAssembler::PopStackHandler() {
 
   // Pop the Next Handler into r3 and store it into Handler Address reference.
   Pop(r3);
-  mov(ip, Operand(ExternalReference::Create(IsolateAddressId::kHandlerAddress,
-                                            isolate())));
+  Move(ip, ExternalReference::Create(IsolateAddressId::kHandlerAddress,
+                                            isolate()));
   StoreP(r3, MemOperand(ip));
 
   Drop(1);  // Drop padding.
