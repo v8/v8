@@ -13,6 +13,7 @@
 
 #include "src/arm64/decoder-arm64-inl.h"
 #include "src/assembler-inl.h"
+#include "src/base/lazy-instance.h"
 #include "src/codegen.h"
 #include "src/disasm.h"
 #include "src/macro-assembler.h"
@@ -57,9 +58,8 @@ TEXT_COLOUR clr_debug_number   = FLAG_log_colour ? COLOUR_BOLD(YELLOW)  : "";
 TEXT_COLOUR clr_debug_message  = FLAG_log_colour ? COLOUR(YELLOW)       : "";
 TEXT_COLOUR clr_printf         = FLAG_log_colour ? COLOUR(GREEN)        : "";
 
-// static
-base::LazyInstance<Simulator::GlobalMonitor>::type Simulator::global_monitor_ =
-    LAZY_INSTANCE_INITIALIZER;
+DEFINE_LAZY_LEAKY_OBJECT_GETTER(Simulator::GlobalMonitor,
+                                Simulator::GlobalMonitor::Get);
 
 // This is basically the same as PrintF, with a guard for FLAG_trace_sim.
 void Simulator::TraceSim(const char* format, ...) {
@@ -367,7 +367,7 @@ void Simulator::ResetState() {
 
 
 Simulator::~Simulator() {
-  global_monitor_.Pointer()->RemoveProcessor(&global_monitor_processor_);
+  GlobalMonitor::Get()->RemoveProcessor(&global_monitor_processor_);
   delete[] reinterpret_cast<byte*>(stack_);
   if (FLAG_log_instruction_stats) {
     delete instrument_;
@@ -1779,12 +1779,12 @@ void Simulator::LoadStoreHelper(Instruction* instr,
   uintptr_t stack = 0;
 
   {
-    base::MutexGuard lock_guard(&global_monitor_.Pointer()->mutex);
+    base::MutexGuard lock_guard(&GlobalMonitor::Get()->mutex);
     if (instr->IsLoad()) {
       local_monitor_.NotifyLoad();
     } else {
       local_monitor_.NotifyStore();
-      global_monitor_.Pointer()->NotifyStore_Locked(&global_monitor_processor_);
+      GlobalMonitor::Get()->NotifyStore_Locked(&global_monitor_processor_);
     }
   }
 
@@ -1913,12 +1913,12 @@ void Simulator::LoadStorePairHelper(Instruction* instr,
   uintptr_t stack = 0;
 
   {
-    base::MutexGuard lock_guard(&global_monitor_.Pointer()->mutex);
+    base::MutexGuard lock_guard(&GlobalMonitor::Get()->mutex);
     if (instr->IsLoad()) {
       local_monitor_.NotifyLoad();
     } else {
       local_monitor_.NotifyStore();
-      global_monitor_.Pointer()->NotifyStore_Locked(&global_monitor_processor_);
+      GlobalMonitor::Get()->NotifyStore_Locked(&global_monitor_processor_);
     }
   }
 
@@ -2064,7 +2064,7 @@ void Simulator::VisitLoadLiteral(Instruction* instr) {
   unsigned rt = instr->Rt();
 
   {
-    base::MutexGuard lock_guard(&global_monitor_.Pointer()->mutex);
+    base::MutexGuard lock_guard(&GlobalMonitor::Get()->mutex);
     local_monitor_.NotifyLoad();
   }
 
@@ -2155,12 +2155,12 @@ void Simulator::VisitLoadStoreAcquireRelease(Instruction* instr) {
   unsigned access_size = 1 << instr->LoadStoreXSizeLog2();
   uintptr_t address = LoadStoreAddress(rn, 0, AddrMode::Offset);
   DCHECK_EQ(address % access_size, 0);
-  base::MutexGuard lock_guard(&global_monitor_.Pointer()->mutex);
+  base::MutexGuard lock_guard(&GlobalMonitor::Get()->mutex);
   if (is_load != 0) {
     if (is_exclusive) {
       local_monitor_.NotifyLoadExcl(address, get_transaction_size(access_size));
-      global_monitor_.Pointer()->NotifyLoadExcl_Locked(
-          address, &global_monitor_processor_);
+      GlobalMonitor::Get()->NotifyLoadExcl_Locked(address,
+                                                  &global_monitor_processor_);
     } else {
       local_monitor_.NotifyLoad();
     }
@@ -2192,7 +2192,7 @@ void Simulator::VisitLoadStoreAcquireRelease(Instruction* instr) {
       DCHECK_NE(rs, rn);
       if (local_monitor_.NotifyStoreExcl(address,
                                          get_transaction_size(access_size)) &&
-          global_monitor_.Pointer()->NotifyStoreExcl_Locked(
+          GlobalMonitor::Get()->NotifyStoreExcl_Locked(
               address, &global_monitor_processor_)) {
         switch (op) {
           case STLXR_b:
@@ -2217,7 +2217,7 @@ void Simulator::VisitLoadStoreAcquireRelease(Instruction* instr) {
       }
     } else {
       local_monitor_.NotifyStore();
-      global_monitor_.Pointer()->NotifyStore_Locked(&global_monitor_processor_);
+      GlobalMonitor::Get()->NotifyStore_Locked(&global_monitor_processor_);
       switch (op) {
         case STLR_b:
           MemoryWrite<uint8_t>(address, wreg(rt));
@@ -4531,12 +4531,12 @@ void Simulator::NEONLoadStoreMultiStructHelper(const Instruction* instr,
   }
 
   {
-    base::MutexGuard lock_guard(&global_monitor_.Pointer()->mutex);
+    base::MutexGuard lock_guard(&GlobalMonitor::Get()->mutex);
     if (log_read) {
       local_monitor_.NotifyLoad();
     } else {
       local_monitor_.NotifyStore();
-      global_monitor_.Pointer()->NotifyStore_Locked(&global_monitor_processor_);
+      GlobalMonitor::Get()->NotifyStore_Locked(&global_monitor_processor_);
     }
   }
 
@@ -4777,12 +4777,12 @@ void Simulator::NEONLoadStoreSingleStructHelper(const Instruction* instr,
   }
 
   {
-    base::MutexGuard lock_guard(&global_monitor_.Pointer()->mutex);
+    base::MutexGuard lock_guard(&GlobalMonitor::Get()->mutex);
     if (do_load) {
       local_monitor_.NotifyLoad();
     } else {
       local_monitor_.NotifyStore();
-      global_monitor_.Pointer()->NotifyStore_Locked(&global_monitor_processor_);
+      GlobalMonitor::Get()->NotifyStore_Locked(&global_monitor_processor_);
     }
   }
 
@@ -5859,8 +5859,6 @@ bool Simulator::GlobalMonitor::Processor::NotifyStoreExcl_Locked(
   }
   return false;
 }
-
-Simulator::GlobalMonitor::GlobalMonitor() : head_(nullptr) {}
 
 void Simulator::GlobalMonitor::NotifyLoadExcl_Locked(uintptr_t addr,
                                                      Processor* processor) {

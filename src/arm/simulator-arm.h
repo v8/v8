@@ -447,8 +447,6 @@ class Simulator : public SimulatorBase {
 
   class GlobalMonitor {
    public:
-    GlobalMonitor();
-
     class Processor {
      public:
       Processor();
@@ -484,16 +482,21 @@ class Simulator : public SimulatorBase {
     // Called when the simulator is destroyed.
     void RemoveProcessor(Processor* processor);
 
+    static GlobalMonitor* Get();
+
    private:
+    // Private constructor. Call {GlobalMonitor::Get()} to get the singleton.
+    GlobalMonitor() = default;
+    friend class base::LeakyObject<GlobalMonitor>;
+
     bool IsProcessorInLinkedList_Locked(Processor* processor) const;
     void PrependProcessor_Locked(Processor* processor);
 
-    Processor* head_;
+    Processor* head_ = nullptr;
   };
 
   LocalMonitor local_monitor_;
   GlobalMonitor::Processor global_monitor_processor_;
-  static base::LazyInstance<GlobalMonitor>::type global_monitor_;
 };
 
 }  // namespace internal

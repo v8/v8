@@ -248,14 +248,14 @@ class Simulator : public SimulatorBase {
   // Read and write memory.
   template <typename T>
   inline void Read(uintptr_t address, T* value) {
-    base::MutexGuard lock_guard(&global_monitor_.Pointer()->mutex);
+    base::MutexGuard lock_guard(&GlobalMonitor::Get()->mutex);
     memcpy(value, reinterpret_cast<const char*>(address), sizeof(T));
   }
 
   template <typename T>
   inline void ReadEx(uintptr_t address, T* value) {
-    base::MutexGuard lock_guard(&global_monitor_.Pointer()->mutex);
-    global_monitor_.Pointer()->NotifyLoadExcl(
+    base::MutexGuard lock_guard(&GlobalMonitor::Get()->mutex);
+    GlobalMonitor::Get()->NotifyLoadExcl(
         address, static_cast<TransactionSize>(sizeof(T)),
         isolate_->thread_id());
     memcpy(value, reinterpret_cast<const char*>(address), sizeof(T));
@@ -263,17 +263,17 @@ class Simulator : public SimulatorBase {
 
   template <typename T>
   inline void Write(uintptr_t address, T value) {
-    base::MutexGuard lock_guard(&global_monitor_.Pointer()->mutex);
-    global_monitor_.Pointer()->NotifyStore(
-        address, static_cast<TransactionSize>(sizeof(T)),
-        isolate_->thread_id());
+    base::MutexGuard lock_guard(&GlobalMonitor::Get()->mutex);
+    GlobalMonitor::Get()->NotifyStore(address,
+                                      static_cast<TransactionSize>(sizeof(T)),
+                                      isolate_->thread_id());
     memcpy(reinterpret_cast<char*>(address), &value, sizeof(T));
   }
 
   template <typename T>
   inline int32_t WriteEx(uintptr_t address, T value) {
-    base::MutexGuard lock_guard(&global_monitor_.Pointer()->mutex);
-    if (global_monitor_.Pointer()->NotifyStoreExcl(
+    base::MutexGuard lock_guard(&GlobalMonitor::Get()->mutex);
+    if (GlobalMonitor::Get()->NotifyStoreExcl(
             address, static_cast<TransactionSize>(sizeof(T)),
             isolate_->thread_id())) {
       memcpy(reinterpret_cast<char*>(address), &value, sizeof(T));
@@ -386,8 +386,6 @@ class Simulator : public SimulatorBase {
 
   class GlobalMonitor {
    public:
-    GlobalMonitor();
-
     // Exposed so it can be accessed by Simulator::{Read,Write}Ex*.
     base::Mutex mutex;
 
@@ -397,16 +395,20 @@ class Simulator : public SimulatorBase {
     bool NotifyStoreExcl(uintptr_t addr, TransactionSize size,
                          ThreadId thread_id);
 
+    static GlobalMonitor* Get();
+
    private:
+    // Private constructor. Call {GlobalMonitor::Get()} to get the singleton.
+    GlobalMonitor() = default;
+    friend class base::LeakyObject<GlobalMonitor>;
+
     void Clear();
 
-    MonitorAccess access_state_;
-    uintptr_t tagged_addr_;
-    TransactionSize size_;
-    ThreadId thread_id_;
+    MonitorAccess access_state_ = MonitorAccess::Open;
+    uintptr_t tagged_addr_ = 0;
+    TransactionSize size_ = TransactionSize::None;
+    ThreadId thread_id_ = ThreadId::Invalid();
   };
-
-  static base::LazyInstance<GlobalMonitor>::type global_monitor_;
 };
 
 }  // namespace internal

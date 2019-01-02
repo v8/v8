@@ -12,6 +12,7 @@
 
 #include "src/assembler.h"
 #include "src/base/bits.h"
+#include "src/base/lazy-instance.h"
 #include "src/codegen.h"
 #include "src/disasm.h"
 #include "src/macro-assembler.h"
@@ -26,9 +27,8 @@
 namespace v8 {
 namespace internal {
 
-// static
-base::LazyInstance<Simulator::GlobalMonitor>::type Simulator::global_monitor_ =
-    LAZY_INSTANCE_INITIALIZER;
+DEFINE_LAZY_LEAKY_OBJECT_GETTER(Simulator::GlobalMonitor,
+                                Simulator::GlobalMonitor::Get);
 
 // This macro provides a platform independent use of sscanf. The reason for
 // SScanF not being implemented in a platform independent way through
@@ -3951,12 +3951,6 @@ uintptr_t Simulator::PopAddress() {
   set_register(sp, current_sp + sizeof(uintptr_t));
   return address;
 }
-
-Simulator::GlobalMonitor::GlobalMonitor()
-    : access_state_(MonitorAccess::Open),
-      tagged_addr_(0),
-      size_(TransactionSize::None),
-      thread_id_(ThreadId::Invalid()) {}
 
 void Simulator::GlobalMonitor::Clear() {
   access_state_ = MonitorAccess::Open;
