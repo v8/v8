@@ -391,7 +391,7 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
             field_type = Type::SignedSmall();
             field_representation = MachineRepresentation::kTaggedSigned;
           } else if (details_representation.IsDouble()) {
-            field_type = type_cache_.kFloat64;
+            field_type = type_cache_->kFloat64;
             field_representation = MachineRepresentation::kFloat64;
           } else if (details_representation.IsHeapObject()) {
             // Extract the field type from the property details (make sure its
@@ -652,13 +652,13 @@ bool AccessInfoFactory::LookupSpecialFieldAccessor(
       // in case of other fast elements, and [0, kMaxUInt32] in
       // case of other arrays.
       if (IsDoubleElementsKind(map->elements_kind())) {
-        field_type = type_cache_.kFixedDoubleArrayLengthType;
+        field_type = type_cache_->kFixedDoubleArrayLengthType;
         field_representation = MachineRepresentation::kTaggedSigned;
       } else if (IsFastElementsKind(map->elements_kind())) {
-        field_type = type_cache_.kFixedArrayLengthType;
+        field_type = type_cache_->kFixedArrayLengthType;
         field_representation = MachineRepresentation::kTaggedSigned;
       } else {
-        field_type = type_cache_.kJSArrayLengthType;
+        field_type = type_cache_->kJSArrayLengthType;
       }
     }
     // Special fields are always mutable.
@@ -698,7 +698,7 @@ bool AccessInfoFactory::LookupTransition(Handle<Map> map, Handle<Name> name,
     field_type = Type::SignedSmall();
     field_representation = MachineRepresentation::kTaggedSigned;
   } else if (details_representation.IsDouble()) {
-    field_type = type_cache_.kFloat64;
+    field_type = type_cache_->kFloat64;
     field_representation = MachineRepresentation::kFloat64;
   } else if (details_representation.IsHeapObject()) {
     // Extract the field type from the property details (make sure its

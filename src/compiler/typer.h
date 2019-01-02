@@ -46,7 +46,7 @@ class V8_EXPORT_PRIVATE Typer {
   Flags const flags_;
   Graph* const graph_;
   Decorator* decorator_;
-  TypeCache const& cache_;
+  TypeCache const* cache_;
   JSHeapBroker* broker_;
   OperationTyper operation_typer_;
 

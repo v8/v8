@@ -10,11 +10,7 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-// static
-TypeCache const& TypeCache::Get() {
-  static base::LeakyObject<TypeCache> type_cache;
-  return *type_cache.get();
-}
+DEFINE_LAZY_LEAKY_OBJECT_GETTER(const TypeCache, TypeCache::Get);
 
 }  // namespace compiler
 }  // namespace internal

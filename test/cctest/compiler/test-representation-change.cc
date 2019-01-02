@@ -289,7 +289,7 @@ TEST(ToInt64_constant) {
     Node* n = r.jsgraph()->Constant(*i);
     Node* use = r.Return(n);
     Node* c = r.changer()->GetRepresentationFor(
-        n, MachineRepresentation::kTagged, TypeCache::Get().kSafeInteger, use,
+        n, MachineRepresentation::kTagged, TypeCache::Get()->kSafeInteger, use,
         UseInfo(MachineRepresentation::kWord64, Truncation::None()));
     r.CheckInt64Constant(c, *i);
   }
@@ -367,13 +367,13 @@ static void CheckChange(IrOpcode::Value expected, MachineRepresentation from,
 
 TEST(Word64) {
   CheckChange(IrOpcode::kChangeInt32ToInt64, MachineRepresentation::kWord8,
-              TypeCache::Get().kInt8, MachineRepresentation::kWord64);
+              TypeCache::Get()->kInt8, MachineRepresentation::kWord64);
   CheckChange(IrOpcode::kChangeUint32ToUint64, MachineRepresentation::kWord8,
-              TypeCache::Get().kUint8, MachineRepresentation::kWord64);
+              TypeCache::Get()->kUint8, MachineRepresentation::kWord64);
   CheckChange(IrOpcode::kChangeInt32ToInt64, MachineRepresentation::kWord16,
-              TypeCache::Get().kInt16, MachineRepresentation::kWord64);
+              TypeCache::Get()->kInt16, MachineRepresentation::kWord64);
   CheckChange(IrOpcode::kChangeUint32ToUint64, MachineRepresentation::kWord16,
-              TypeCache::Get().kUint16, MachineRepresentation::kWord64);
+              TypeCache::Get()->kUint16, MachineRepresentation::kWord64);
   CheckChange(IrOpcode::kChangeInt32ToInt64, MachineRepresentation::kWord32,
               Type::Signed32(), MachineRepresentation::kWord64);
   CheckChange(IrOpcode::kChangeUint32ToUint64, MachineRepresentation::kWord32,
@@ -384,15 +384,15 @@ TEST(Word64) {
   CheckChange(IrOpcode::kTruncateInt64ToInt32, MachineRepresentation::kWord64,
               Type::Unsigned32(), MachineRepresentation::kWord32);
   CheckChange(IrOpcode::kTruncateInt64ToInt32, MachineRepresentation::kWord64,
-              TypeCache::Get().kSafeInteger, MachineRepresentation::kWord32,
+              TypeCache::Get()->kSafeInteger, MachineRepresentation::kWord32,
               UseInfo::TruncatingWord32());
   CheckChange(
       IrOpcode::kCheckedInt64ToInt32, MachineRepresentation::kWord64,
-      TypeCache::Get().kSafeInteger, MachineRepresentation::kWord32,
+      TypeCache::Get()->kSafeInteger, MachineRepresentation::kWord32,
       UseInfo::CheckedSigned32AsWord32(kIdentifyZeros, VectorSlotPair()));
   CheckChange(
       IrOpcode::kCheckedUint64ToInt32, MachineRepresentation::kWord64,
-      TypeCache::Get().kPositiveSafeInteger, MachineRepresentation::kWord32,
+      TypeCache::Get()->kPositiveSafeInteger, MachineRepresentation::kWord32,
       UseInfo::CheckedSigned32AsWord32(kIdentifyZeros, VectorSlotPair()));
 
   CheckChange(IrOpcode::kChangeFloat64ToInt64, MachineRepresentation::kFloat64,
@@ -400,11 +400,11 @@ TEST(Word64) {
   CheckChange(IrOpcode::kChangeFloat64ToInt64, MachineRepresentation::kFloat64,
               Type::Unsigned32(), MachineRepresentation::kWord64);
   CheckChange(IrOpcode::kChangeFloat64ToInt64, MachineRepresentation::kFloat64,
-              TypeCache::Get().kSafeInteger, MachineRepresentation::kWord64);
+              TypeCache::Get()->kSafeInteger, MachineRepresentation::kWord64);
   CheckChange(IrOpcode::kChangeFloat64ToInt64, MachineRepresentation::kFloat64,
-              TypeCache::Get().kInt64, MachineRepresentation::kWord64);
+              TypeCache::Get()->kInt64, MachineRepresentation::kWord64);
   CheckChange(IrOpcode::kChangeFloat64ToUint64, MachineRepresentation::kFloat64,
-              TypeCache::Get().kUint64, MachineRepresentation::kWord64);
+              TypeCache::Get()->kUint64, MachineRepresentation::kWord64);
   CheckChange(
       IrOpcode::kCheckedFloat64ToInt64, MachineRepresentation::kFloat64,
       Type::Number(), MachineRepresentation::kWord64,
@@ -415,7 +415,7 @@ TEST(Word64) {
   CheckChange(IrOpcode::kChangeInt64ToFloat64, MachineRepresentation::kWord64,
               Type::Unsigned32(), MachineRepresentation::kFloat64);
   CheckChange(IrOpcode::kChangeInt64ToFloat64, MachineRepresentation::kWord64,
-              TypeCache::Get().kSafeInteger, MachineRepresentation::kFloat64);
+              TypeCache::Get()->kSafeInteger, MachineRepresentation::kFloat64);
 
   CheckTwoChanges(IrOpcode::kChangeFloat32ToFloat64,
                   IrOpcode::kChangeFloat64ToInt64,
@@ -427,11 +427,11 @@ TEST(Word64) {
                   MachineRepresentation::kWord64);
   CheckTwoChanges(IrOpcode::kChangeFloat32ToFloat64,
                   IrOpcode::kChangeFloat64ToInt64,
-                  MachineRepresentation::kFloat32, TypeCache::Get().kInt64,
+                  MachineRepresentation::kFloat32, TypeCache::Get()->kInt64,
                   MachineRepresentation::kWord64);
   CheckTwoChanges(IrOpcode::kChangeFloat32ToFloat64,
                   IrOpcode::kChangeFloat64ToUint64,
-                  MachineRepresentation::kFloat32, TypeCache::Get().kUint64,
+                  MachineRepresentation::kFloat32, TypeCache::Get()->kUint64,
                   MachineRepresentation::kWord64);
   CheckTwoChanges(
       IrOpcode::kChangeFloat32ToFloat64, IrOpcode::kCheckedFloat64ToInt64,
@@ -449,9 +449,9 @@ TEST(Word64) {
   CheckChange(IrOpcode::kChangeTaggedToInt64, MachineRepresentation::kTagged,
               Type::Unsigned32(), MachineRepresentation::kWord64);
   CheckChange(IrOpcode::kChangeTaggedToInt64, MachineRepresentation::kTagged,
-              TypeCache::Get().kSafeInteger, MachineRepresentation::kWord64);
+              TypeCache::Get()->kSafeInteger, MachineRepresentation::kWord64);
   CheckChange(IrOpcode::kChangeTaggedToInt64, MachineRepresentation::kTagged,
-              TypeCache::Get().kInt64, MachineRepresentation::kWord64);
+              TypeCache::Get()->kInt64, MachineRepresentation::kWord64);
   CheckChange(IrOpcode::kChangeTaggedSignedToInt64,
               MachineRepresentation::kTaggedSigned, Type::SignedSmall(),
               MachineRepresentation::kWord64);
@@ -477,9 +477,9 @@ TEST(Word64) {
                   MachineRepresentation::kWord64, Type::Unsigned32(),
                   MachineRepresentation::kTagged);
   CheckChange(IrOpcode::kChangeInt64ToTagged, MachineRepresentation::kWord64,
-              TypeCache::Get().kSafeInteger, MachineRepresentation::kTagged);
+              TypeCache::Get()->kSafeInteger, MachineRepresentation::kTagged);
   CheckChange(IrOpcode::kChangeUint64ToTagged, MachineRepresentation::kWord64,
-              TypeCache::Get().kPositiveSafeInteger,
+              TypeCache::Get()->kPositiveSafeInteger,
               MachineRepresentation::kTagged);
 
   CheckTwoChanges(IrOpcode::kTruncateInt64ToInt32,
@@ -493,19 +493,19 @@ TEST(Word64) {
                     MachineRepresentation::kTaggedSigned);
   }
   CheckChange(IrOpcode::kCheckedInt64ToTaggedSigned,
-              MachineRepresentation::kWord64, TypeCache::Get().kSafeInteger,
+              MachineRepresentation::kWord64, TypeCache::Get()->kSafeInteger,
               MachineRepresentation::kTaggedSigned,
               UseInfo::CheckedSignedSmallAsTaggedSigned(VectorSlotPair()));
   CheckChange(IrOpcode::kCheckedUint64ToTaggedSigned,
               MachineRepresentation::kWord64,
-              TypeCache::Get().kPositiveSafeInteger,
+              TypeCache::Get()->kPositiveSafeInteger,
               MachineRepresentation::kTaggedSigned,
               UseInfo::CheckedSignedSmallAsTaggedSigned(VectorSlotPair()));
 
-  CheckTwoChanges(IrOpcode::kChangeInt64ToFloat64,
-                  IrOpcode::kChangeFloat64ToTaggedPointer,
-                  MachineRepresentation::kWord64, TypeCache::Get().kSafeInteger,
-                  MachineRepresentation::kTaggedPointer);
+  CheckTwoChanges(
+      IrOpcode::kChangeInt64ToFloat64, IrOpcode::kChangeFloat64ToTaggedPointer,
+      MachineRepresentation::kWord64, TypeCache::Get()->kSafeInteger,
+      MachineRepresentation::kTaggedPointer);
 }
 
 TEST(SingleChanges) {

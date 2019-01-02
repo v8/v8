@@ -181,7 +181,7 @@ class AccessInfoFactory final {
   CompilationDependencies* const dependencies_;
   Handle<Context> const native_context_;
   Isolate* const isolate_;
-  TypeCache const& type_cache_;
+  TypeCache const* type_cache_;
   Zone* const zone_;
 
   DISALLOW_COPY_AND_ASSIGN(AccessInfoFactory);

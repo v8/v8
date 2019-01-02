@@ -22,7 +22,7 @@ class TypeCache final {
   Zone zone_;
 
  public:
-  static TypeCache const& Get();
+  static TypeCache const* Get();
 
   TypeCache() : zone_(&allocator, ZONE_NAME) {}
 

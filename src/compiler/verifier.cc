@@ -1110,7 +1110,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckTypeIs(node, Type::Number());
       break;
     case IrOpcode::kStringConcat:
-      CheckValueInputIs(node, 0, TypeCache::Get().kStringLengthType);
+      CheckValueInputIs(node, 0, TypeCache::Get()->kStringLengthType);
       CheckValueInputIs(node, 1, Type::String());
       CheckValueInputIs(node, 2, Type::String());
       CheckTypeIs(node, Type::String());
@@ -1159,7 +1159,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       break;
     case IrOpcode::kStringLength:
       CheckValueInputIs(node, 0, Type::String());
-      CheckTypeIs(node, TypeCache::Get().kStringLengthType);
+      CheckTypeIs(node, TypeCache::Get()->kStringLengthType);
       break;
     case IrOpcode::kStringToLowerCaseIntl:
     case IrOpcode::kStringToUpperCaseIntl:
@@ -1245,7 +1245,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       break;
     case IrOpcode::kArgumentsLength:
       CheckValueInputIs(node, 0, Type::ExternalPointer());
-      CheckTypeIs(node, TypeCache::Get().kArgumentsLengthType);
+      CheckTypeIs(node, TypeCache::Get()->kArgumentsLengthType);
       break;
     case IrOpcode::kArgumentsFrame:
       CheckTypeIs(node, Type::ExternalPointer());
@@ -1263,7 +1263,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckTypeIs(node, Type::OtherInternal());
       break;
     case IrOpcode::kNewConsString:
-      CheckValueInputIs(node, 0, TypeCache::Get().kStringLengthType);
+      CheckValueInputIs(node, 0, TypeCache::Get()->kStringLengthType);
       CheckValueInputIs(node, 1, Type::String());
       CheckValueInputIs(node, 2, Type::String());
       CheckTypeIs(node, Type::String());
@@ -1421,8 +1421,8 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
 
     case IrOpcode::kCheckBounds:
       CheckValueInputIs(node, 0, Type::Any());
-      CheckValueInputIs(node, 1, TypeCache::Get().kPositiveSafeInteger);
-      CheckTypeIs(node, TypeCache::Get().kPositiveSafeInteger);
+      CheckValueInputIs(node, 1, TypeCache::Get()->kPositiveSafeInteger);
+      CheckTypeIs(node, TypeCache::Get()->kPositiveSafeInteger);
       break;
     case IrOpcode::kPoisonIndex:
       CheckValueInputIs(node, 0, Type::Unsigned32());

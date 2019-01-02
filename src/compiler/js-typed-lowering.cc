@@ -608,7 +608,7 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
       }
       control = graph()->NewNode(common()->IfTrue(), branch);
       length = effect =
-          graph()->NewNode(common()->TypeGuard(type_cache_.kStringLengthType),
+          graph()->NewNode(common()->TypeGuard(type_cache_->kStringLengthType),
                            length, effect, control);
     }
 
@@ -923,7 +923,7 @@ Reduction JSTypedLowering::ReduceJSToName(Node* node) {
 Reduction JSTypedLowering::ReduceJSToLength(Node* node) {
   Node* input = NodeProperties::GetValueInput(node, 0);
   Type input_type = NodeProperties::GetType(input);
-  if (input_type.Is(type_cache_.kIntegerOrMinusZero)) {
+  if (input_type.Is(type_cache_->kIntegerOrMinusZero)) {
     if (input_type.IsNone() || input_type.Max() <= 0.0) {
       input = jsgraph()->ZeroConstant();
     } else if (input_type.Min() >= kMaxSafeInteger) {
@@ -2227,9 +2227,9 @@ Reduction JSTypedLowering::ReduceJSParseInt(Node* node) {
   Type radix_type = NodeProperties::GetType(radix);
   // We need kTenOrUndefined and kZeroOrUndefined because
   // the type representing {0,10} would become the range 1-10.
-  if (value_type.Is(type_cache_.kSafeInteger) &&
-      (radix_type.Is(type_cache_.kTenOrUndefined) ||
-       radix_type.Is(type_cache_.kZeroOrUndefined))) {
+  if (value_type.Is(type_cache_->kSafeInteger) &&
+      (radix_type.Is(type_cache_->kTenOrUndefined) ||
+       radix_type.Is(type_cache_->kZeroOrUndefined))) {
     // Number.parseInt(a:safe-integer) -> a
     // Number.parseInt(a:safe-integer,b:#0\/undefined) -> a
     // Number.parseInt(a:safe-integer,b:#10\/undefined) -> a

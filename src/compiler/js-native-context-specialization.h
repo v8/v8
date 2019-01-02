@@ -251,7 +251,7 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   CompilationDependencies* const dependencies_;
   Zone* const zone_;
   Zone* const shared_zone_;
-  TypeCache const& type_cache_;
+  TypeCache const* type_cache_;
 
   DISALLOW_COPY_AND_ASSIGN(JSNativeContextSpecialization);
 };

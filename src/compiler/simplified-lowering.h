@@ -49,7 +49,7 @@ class V8_EXPORT_PRIVATE SimplifiedLowering final {
   JSGraph* const jsgraph_;
   JSHeapBroker* broker_;
   Zone* const zone_;
-  TypeCache const& type_cache_;
+  TypeCache const* type_cache_;
   SetOncePointer<Node> to_number_code_;
   SetOncePointer<Node> to_number_convert_big_int_code_;
   SetOncePointer<Node> to_numeric_code_;

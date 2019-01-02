@@ -302,7 +302,7 @@ class RepresentationChanger final {
   }
 
  private:
-  TypeCache const& cache_;
+  TypeCache const* cache_;
   JSGraph* jsgraph_;
   Isolate* isolate_;
 

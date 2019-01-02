@@ -2164,10 +2164,10 @@ Node* JSCallReducer::DoFilterPostCallbackWork(ElementsKind kind, Node** control,
         simplified()->LoadField(AccessBuilder::ForJSObjectElements()), a, etrue,
         if_true);
 
-    DCHECK(TypeCache::Get().kFixedDoubleArrayLengthType.Is(
-        TypeCache::Get().kFixedArrayLengthType));
+    DCHECK(TypeCache::Get()->kFixedDoubleArrayLengthType.Is(
+        TypeCache::Get()->kFixedArrayLengthType));
     Node* checked_to = etrue = graph()->NewNode(
-        common()->TypeGuard(TypeCache::Get().kFixedArrayLengthType), to, etrue,
+        common()->TypeGuard(TypeCache::Get()->kFixedArrayLengthType), to, etrue,
         if_true);
     Node* elements_length = etrue = graph()->NewNode(
         simplified()->LoadField(AccessBuilder::ForFixedArrayLength()), elements,
@@ -5042,11 +5042,11 @@ Reduction JSCallReducer::ReduceArrayIteratorPrototypeNext(Node* node) {
   // latter case we even know that it's a Smi in UnsignedSmall range.
   FieldAccess index_access = AccessBuilder::ForJSArrayIteratorNextIndex();
   if (IsFixedTypedArrayElementsKind(elements_kind)) {
-    index_access.type = TypeCache::Get().kJSTypedArrayLengthType;
+    index_access.type = TypeCache::Get()->kJSTypedArrayLengthType;
     index_access.machine_type = MachineType::TaggedSigned();
     index_access.write_barrier_kind = kNoWriteBarrier;
   } else {
-    index_access.type = TypeCache::Get().kJSArrayLengthType;
+    index_access.type = TypeCache::Get()->kJSArrayLengthType;
   }
   Node* index = effect = graph()->NewNode(simplified()->LoadField(index_access),
                                           iterator, effect, control);
@@ -6512,7 +6512,7 @@ Reduction JSCallReducer::ReduceCollectionIteratorPrototypeNext(
                          jsgraph()->NoContextConstant(), effect);
 
     index = effect = graph()->NewNode(
-        common()->TypeGuard(TypeCache::Get().kFixedArrayLengthType), index,
+        common()->TypeGuard(TypeCache::Get()->kFixedArrayLengthType), index,
         effect, control);
 
     // Update the {index} and {table} on the {receiver}.
@@ -6576,7 +6576,7 @@ Reduction JSCallReducer::ReduceCollectionIteratorPrototypeNext(
         common()->Phi(MachineRepresentation::kTagged, 2), index, index, loop);
 
     Node* index = effect = graph()->NewNode(
-        common()->TypeGuard(TypeCache::Get().kFixedArrayLengthType), iloop,
+        common()->TypeGuard(TypeCache::Get()->kFixedArrayLengthType), iloop,
         eloop, control);
     {
       Node* check0 = graph()->NewNode(simplified()->NumberLessThan(), index,

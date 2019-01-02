@@ -335,7 +335,7 @@ void EscapeAnalysisReducer::Finalize() {
                 jsgraph()->simplified()->NumberSubtract(), arguments_length,
                 index);
             NodeProperties::SetType(offset,
-                                    TypeCache::Get().kArgumentsLengthType);
+                                    TypeCache::Get()->kArgumentsLengthType);
             NodeProperties::ReplaceValueInput(load, arguments_frame, 0);
             NodeProperties::ReplaceValueInput(load, offset, 1);
             NodeProperties::ChangeOp(load, load_stack_op);

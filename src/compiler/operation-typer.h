@@ -93,7 +93,7 @@ class V8_EXPORT_PRIVATE OperationTyper {
   Zone* zone() const { return zone_; }
 
   Zone* const zone_;
-  TypeCache const& cache_;
+  TypeCache const* cache_;
 
   Type infinity_;
   Type minus_infinity_;

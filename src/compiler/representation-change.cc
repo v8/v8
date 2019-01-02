@@ -252,9 +252,9 @@ Node* RepresentationChanger::GetTaggedSignedRepresentationFor(
       node = InsertTruncateInt64ToInt32(node);
       op = simplified()->ChangeInt32ToTagged();
     } else if (use_info.type_check() == TypeCheckKind::kSignedSmall) {
-      if (output_type.Is(cache_.kPositiveSafeInteger)) {
+      if (output_type.Is(cache_->kPositiveSafeInteger)) {
         op = simplified()->CheckedUint64ToTaggedSigned(use_info.feedback());
-      } else if (output_type.Is(cache_.kSafeInteger)) {
+      } else if (output_type.Is(cache_->kSafeInteger)) {
         op = simplified()->CheckedInt64ToTaggedSigned(use_info.feedback());
       } else {
         return TypeError(node, output_rep, output_type,
@@ -388,7 +388,7 @@ Node* RepresentationChanger::GetTaggedPointerRepresentationFor(
     }
     op = simplified()->ChangeFloat64ToTaggedPointer();
   } else if (output_rep == MachineRepresentation::kWord64) {
-    if (output_type.Is(cache_.kSafeInteger)) {
+    if (output_type.Is(cache_->kSafeInteger)) {
       // int64 -> float64 -> tagged pointer
       op = machine()->ChangeInt64ToFloat64();
       node = jsgraph()->graph()->NewNode(op, node);
@@ -491,10 +491,10 @@ Node* RepresentationChanger::GetTaggedRepresentationFor(
       // int64 -> uint32 -> tagged
       node = InsertTruncateInt64ToInt32(node);
       op = simplified()->ChangeUint32ToTagged();
-    } else if (output_type.Is(cache_.kPositiveSafeInteger)) {
+    } else if (output_type.Is(cache_->kPositiveSafeInteger)) {
       // uint64 -> tagged
       op = simplified()->ChangeUint64ToTagged();
-    } else if (output_type.Is(cache_.kSafeInteger)) {
+    } else if (output_type.Is(cache_->kSafeInteger)) {
       // int64 -> tagged
       op = simplified()->ChangeInt64ToTagged();
     } else {
@@ -588,7 +588,7 @@ Node* RepresentationChanger::GetFloat32RepresentationFor(
   } else if (output_rep == MachineRepresentation::kFloat64) {
     op = machine()->TruncateFloat64ToFloat32();
   } else if (output_rep == MachineRepresentation::kWord64) {
-    if (output_type.Is(cache_.kSafeInteger)) {
+    if (output_type.Is(cache_->kSafeInteger)) {
       // int64 -> float64 -> float32
       op = machine()->ChangeInt64ToFloat64();
       node = jsgraph()->graph()->NewNode(op, node);
@@ -665,7 +665,7 @@ Node* RepresentationChanger::GetFloat64RepresentationFor(
   } else if (output_rep == MachineRepresentation::kFloat32) {
     op = machine()->ChangeFloat32ToFloat64();
   } else if (output_rep == MachineRepresentation::kWord64) {
-    if (output_type.Is(cache_.kSafeInteger)) {
+    if (output_type.Is(cache_->kSafeInteger)) {
       op = machine()->ChangeInt64ToFloat64();
     }
   }
@@ -841,14 +841,14 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
     if (output_type.Is(Type::Signed32()) ||
         output_type.Is(Type::Unsigned32())) {
       op = machine()->TruncateInt64ToInt32();
-    } else if (output_type.Is(cache_.kSafeInteger) &&
+    } else if (output_type.Is(cache_->kSafeInteger) &&
                use_info.truncation().IsUsedAsWord32()) {
       op = machine()->TruncateInt64ToInt32();
     } else if (use_info.type_check() == TypeCheckKind::kSignedSmall ||
                use_info.type_check() == TypeCheckKind::kSigned32) {
-      if (output_type.Is(cache_.kPositiveSafeInteger)) {
+      if (output_type.Is(cache_->kPositiveSafeInteger)) {
         op = simplified()->CheckedUint64ToInt32(use_info.feedback());
-      } else if (output_type.Is(cache_.kSafeInteger)) {
+      } else if (output_type.Is(cache_->kSafeInteger)) {
         op = simplified()->CheckedInt64ToInt32(use_info.feedback());
       } else {
         return TypeError(node, output_rep, output_type,
@@ -989,11 +989,11 @@ Node* RepresentationChanger::GetWord64RepresentationFor(
                        MachineRepresentation::kWord64);
     }
   } else if (output_rep == MachineRepresentation::kFloat32) {
-    if (output_type.Is(cache_.kInt64)) {
+    if (output_type.Is(cache_->kInt64)) {
       // float32 -> float64 -> int64
       node = InsertChangeFloat32ToFloat64(node);
       op = machine()->ChangeFloat64ToInt64();
-    } else if (output_type.Is(cache_.kUint64)) {
+    } else if (output_type.Is(cache_->kUint64)) {
       // float32 -> float64 -> uint64
       node = InsertChangeFloat32ToFloat64(node);
       op = machine()->ChangeFloat64ToUint64();
@@ -1010,9 +1010,9 @@ Node* RepresentationChanger::GetWord64RepresentationFor(
                        MachineRepresentation::kWord64);
     }
   } else if (output_rep == MachineRepresentation::kFloat64) {
-    if (output_type.Is(cache_.kInt64)) {
+    if (output_type.Is(cache_->kInt64)) {
       op = machine()->ChangeFloat64ToInt64();
-    } else if (output_type.Is(cache_.kUint64)) {
+    } else if (output_type.Is(cache_->kUint64)) {
       op = machine()->ChangeFloat64ToUint64();
     } else if (use_info.type_check() == TypeCheckKind::kSigned64) {
       op = simplified()->CheckedFloat64ToInt64(
@@ -1032,7 +1032,7 @@ Node* RepresentationChanger::GetWord64RepresentationFor(
                        MachineRepresentation::kWord64);
     }
   } else if (CanBeTaggedPointer(output_rep)) {
-    if (output_type.Is(cache_.kInt64)) {
+    if (output_type.Is(cache_->kInt64)) {
       op = simplified()->ChangeTaggedToInt64();
     } else if (use_info.type_check() == TypeCheckKind::kSigned64) {
       op = simplified()->CheckedTaggedToInt64(
