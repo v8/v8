@@ -201,52 +201,57 @@ void ProfilerListener::RecordInliningInfo(CodeEntry* entry,
   if (!abstract_code->IsCode()) return;
   Code code = abstract_code->GetCode();
   if (code->kind() != Code::OPTIMIZED_FUNCTION) return;
-  DeoptimizationData deopt_input_data =
-      DeoptimizationData::cast(code->deoptimization_data());
-  int deopt_count = deopt_input_data->DeoptCount();
-  for (int i = 0; i < deopt_count; i++) {
-    int pc_offset = deopt_input_data->Pc(i)->value();
-    if (pc_offset == -1) continue;
-    int translation_index = deopt_input_data->TranslationIndex(i)->value();
-    TranslationIterator it(deopt_input_data->TranslationByteArray(),
-                           translation_index);
-    Translation::Opcode opcode = static_cast<Translation::Opcode>(it.Next());
-    DCHECK_EQ(Translation::BEGIN, opcode);
-    it.Skip(Translation::NumberOfOperandsFor(opcode));
-    int depth = 0;
-    std::vector<std::unique_ptr<CodeEntry>> inline_stack;
-    while (it.HasNext() &&
-           Translation::BEGIN !=
-               (opcode = static_cast<Translation::Opcode>(it.Next()))) {
-      if (opcode != Translation::INTERPRETED_FRAME) {
-        it.Skip(Translation::NumberOfOperandsFor(opcode));
-        continue;
-      }
-      it.Next();  // Skip ast_id
-      int shared_info_id = it.Next();
-      it.Next();  // Skip height
-      it.Next();  // Skip return value offset
-      it.Next();  // Skip return value count
-      SharedFunctionInfo shared_info = SharedFunctionInfo::cast(
-          deopt_input_data->LiteralArray()->get(shared_info_id));
-      if (!depth++) continue;  // Skip the current function itself.
+
+  // Needed for InliningStack().
+  HandleScope scope(isolate_);
+  int last_inlining_id = -2;
+  for (SourcePositionTableIterator it(abstract_code->source_position_table());
+       !it.done(); it.Advance()) {
+    int code_offset = it.code_offset();
+
+    // Save space by not duplicating repeated entries that map to the same
+    // inlining ID. We might get multiple source positions per inlining ID, but
+    // they all map to the same line. This automatically collapses adjacent
+    // inlining stacks (or empty stacks) that are exactly the same.
+    if (it.source_position().InliningId() == last_inlining_id) continue;
+    last_inlining_id = it.source_position().InliningId();
+
+    // Only look at positions for inlined calls.
+    if (it.source_position().InliningId() == SourcePosition::kNotInlined) {
+      entry->AddInlineStack(code_offset, std::vector<InlineEntry>());
+      continue;
+    }
+
+    std::vector<SourcePositionInfo> stack =
+        it.source_position().InliningStack(handle(code, isolate_));
+    std::vector<InlineEntry> inline_stack;
+    for (SourcePositionInfo& pos_info : stack) {
+      if (pos_info.position.ScriptOffset() == kNoSourcePosition) continue;
+      if (pos_info.script.is_null()) continue;
+
+      int line_number =
+          pos_info.script->GetLineNumber(pos_info.position.ScriptOffset()) + 1;
 
       const char* resource_name =
-          (shared_info->script()->IsScript() &&
-           Script::cast(shared_info->script())->name()->IsName())
-              ? GetName(Name::cast(Script::cast(shared_info->script())->name()))
+          (pos_info.script->name()->IsName())
+              ? GetName(Name::cast(pos_info.script->name()))
               : CodeEntry::kEmptyResourceName;
 
-      CodeEntry* inline_entry =
-          new CodeEntry(entry->tag(), GetName(shared_info->DebugName()),
-                        resource_name, CpuProfileNode::kNoLineNumberInfo,
-                        CpuProfileNode::kNoColumnNumberInfo, nullptr,
-                        code->InstructionStart());
-      inline_entry->FillFunctionInfo(shared_info);
-      inline_stack.emplace_back(inline_entry);
+      // We need the start line number and column number of the function for
+      // kLeafNodeLineNumbers mode. Creating a SourcePositionInfo is a handy way
+      // of getting both easily.
+      SourcePositionInfo start_pos_info(
+          SourcePosition(pos_info.shared->StartPosition()), pos_info.shared);
+
+      std::unique_ptr<CodeEntry> inline_entry = base::make_unique<CodeEntry>(
+          entry->tag(), GetName(pos_info.shared->DebugName()), resource_name,
+          start_pos_info.line + 1, start_pos_info.column + 1, nullptr,
+          code->InstructionStart());
+      inline_entry->FillFunctionInfo(*pos_info.shared);
+      inline_stack.push_back(InlineEntry{std::move(inline_entry), line_number});
     }
     if (!inline_stack.empty()) {
-      entry->AddInlineStack(pc_offset, std::move(inline_stack));
+      entry->AddInlineStack(code_offset, std::move(inline_stack));
     }
   }
 }

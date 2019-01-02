@@ -36,7 +36,7 @@ int SourcePositionTable::GetSourceLineNumber(int pc_offset) const {
     return v8::CpuProfileNode::kNoLineNumberInfo;
   }
   auto it =
-      std::upper_bound(pc_offsets_to_lines_.begin(), pc_offsets_to_lines_.end(),
+      std::lower_bound(pc_offsets_to_lines_.begin(), pc_offsets_to_lines_.end(),
                        PCOffsetAndLineNumber{pc_offset, 0});
   if (it != pc_offsets_to_lines_.begin()) --it;
   return it->line_number;
@@ -119,17 +119,17 @@ int CodeEntry::GetSourceLine(int pc_offset) const {
   return v8::CpuProfileNode::kNoLineNumberInfo;
 }
 
-void CodeEntry::AddInlineStack(
-    int pc_offset, std::vector<std::unique_ptr<CodeEntry>> inline_stack) {
+void CodeEntry::AddInlineStack(int pc_offset,
+                               std::vector<InlineEntry> inline_stack) {
   EnsureRareData()->inline_locations_.insert(
       std::make_pair(pc_offset, std::move(inline_stack)));
 }
 
-const std::vector<std::unique_ptr<CodeEntry>>* CodeEntry::GetInlineStack(
-    int pc_offset) const {
-  if (!rare_data_) return nullptr;
-  auto it = rare_data_->inline_locations_.find(pc_offset);
-  return it != rare_data_->inline_locations_.end() ? &it->second : nullptr;
+const std::vector<InlineEntry>* CodeEntry::GetInlineStack(int pc_offset) const {
+  if (!rare_data_ || rare_data_->inline_locations_.empty()) return nullptr;
+  auto it = rare_data_->inline_locations_.lower_bound(pc_offset);
+  if (it != rare_data_->inline_locations_.begin()) it--;
+  return it->second.empty() ? nullptr : &it->second;
 }
 
 void CodeEntry::set_deopt_info(
@@ -759,15 +759,16 @@ void ProfileGenerator::RecordTickSample(const TickSample& sample) {
         int pc_offset =
             static_cast<int>(stack_pos - entry->instruction_start());
         // TODO(petermarshall): pc_offset can still be negative in some cases.
-        const std::vector<std::unique_ptr<CodeEntry>>* inline_stack =
+        const std::vector<InlineEntry>* inline_stack =
             entry->GetInlineStack(pc_offset);
         if (inline_stack) {
-          std::transform(
-              inline_stack->rbegin(), inline_stack->rend(),
-              std::back_inserter(stack_trace),
-              [=](const std::unique_ptr<CodeEntry>& ptr) {
-                return CodeEntryAndLineNumber{ptr.get(), no_line_info};
-              });
+          std::transform(inline_stack->begin(), inline_stack->end(),
+                         std::back_inserter(stack_trace),
+                         [](const InlineEntry& inline_entry) {
+                           return CodeEntryAndLineNumber{
+                               inline_entry.code_entry.get(),
+                               inline_entry.call_line_number};
+                         });
         }
         // Skip unresolved frames (e.g. internal frame) and get source line of
         // the first JS caller.
@@ -779,6 +780,12 @@ void ProfileGenerator::RecordTickSample(const TickSample& sample) {
           src_line_not_found = false;
         }
         line_number = entry->GetSourceLine(pc_offset);
+
+        // The inline stack contains the top-level function i.e. the same
+        // function as entry. We don't want to add it twice. The one from the
+        // inline stack has the correct line number for this particular inlining
+        // so we use it instead of pushing entry to stack_trace.
+        if (inline_stack) continue;
       }
       stack_trace.push_back({entry, line_number});
     }

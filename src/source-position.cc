@@ -124,6 +124,7 @@ void SourcePosition::Print(std::ostream& out, Code code) const {
 SourcePositionInfo::SourcePositionInfo(SourcePosition pos,
                                        Handle<SharedFunctionInfo> f)
     : position(pos),
+      shared(f),
       script(f.is_null() || !f->script()->IsScript()
                  ? Handle<Script>::null()
                  : handle(Script::cast(f->script()), f->GetIsolate())) {

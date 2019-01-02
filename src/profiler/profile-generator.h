@@ -49,6 +49,8 @@ class SourcePositionTable : public Malloced {
   DISALLOW_COPY_AND_ASSIGN(SourcePositionTable);
 };
 
+struct InlineEntry;
+
 class CodeEntry {
  public:
   // CodeEntry doesn't own name strings, just references them.
@@ -103,10 +105,8 @@ class CodeEntry {
 
   int GetSourceLine(int pc_offset) const;
 
-  void AddInlineStack(int pc_offset,
-                      std::vector<std::unique_ptr<CodeEntry>> inline_stack);
-  const std::vector<std::unique_ptr<CodeEntry>>* GetInlineStack(
-      int pc_offset) const;
+  void AddInlineStack(int pc_offset, std::vector<InlineEntry> inline_stack);
+  const std::vector<InlineEntry>* GetInlineStack(int pc_offset) const;
 
   void set_instruction_start(Address start) { instruction_start_ = start; }
   Address instruction_start() const { return instruction_start_; }
@@ -141,8 +141,7 @@ class CodeEntry {
     const char* deopt_reason_ = kNoDeoptReason;
     const char* bailout_reason_ = kEmptyBailoutReason;
     int deopt_id_ = kNoDeoptimizationId;
-    std::unordered_map<int, std::vector<std::unique_ptr<CodeEntry>>>
-        inline_locations_;
+    std::map<int, std::vector<InlineEntry>> inline_locations_;
     std::vector<CpuProfileDeoptFrame> deopt_inlined_frames_;
   };
 
@@ -186,6 +185,15 @@ class CodeEntry {
   std::unique_ptr<RareData> rare_data_;
 
   DISALLOW_COPY_AND_ASSIGN(CodeEntry);
+};
+
+// Used to store information about inline call stacks - call_line_number is the
+// line number within the function represented by code_entry. Inlining
+// inherently happens at callsites, so this line number will always be the call
+// to the next inline/noninline frame.
+struct InlineEntry {
+  std::unique_ptr<CodeEntry> code_entry;
+  int call_line_number;
 };
 
 struct CodeEntryAndLineNumber {

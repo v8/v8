@@ -1701,6 +1701,116 @@ TEST(Inlining) {
   profile->Delete();
 }
 
+static const char* inlining_test_source2 = R"(
+    %NeverOptimizeFunction(action);
+    %NeverOptimizeFunction(start);
+    level1();
+    level1();
+    %OptimizeFunctionOnNextCall(level1);
+    %OptimizeFunctionOnNextCall(level2);
+    %OptimizeFunctionOnNextCall(level3);
+    %OptimizeFunctionOnNextCall(level4);
+    level1();
+    function action(n) {
+      var s = 0;
+      for (var i = 0; i < n; ++i) s += i*i*i;
+      return s;
+    }
+    function level4() {
+      return action(200);
+    }
+    function level3() {
+      const a = level4();
+      const b = level4();
+      return a + b * 1.1;
+    }
+    function level2() {
+      return level3() * 2;
+    }
+    function level1() {
+      action(1);
+      action(200);
+      action(1);
+      return level2();
+    }
+    function start(n) {
+      while (--n)
+        level1();
+    };
+  )";
+
+// The simulator builds are extremely slow. We run them with fewer iterations.
+#ifdef USE_SIMULATOR
+const double load_factor = 0.01;
+#else
+const double load_factor = 1.0;
+#endif
+
+// [Top down]:
+//     0  (root):0 0 #1
+//     1    start:33 6 #3
+//              bailed out due to 'Optimization disabled for test'
+//     5      level1:35 6 #4
+//     1        action:28 6 #12
+//                  bailed out due to 'Optimization disabled for test'
+//     3        action:30 6 #13
+//                  bailed out due to 'Optimization disabled for test'
+//     0        level2:31 6 #6
+//     0          level3:25 6 #7
+//     6            level4:20 6 #10
+//   251              action:17 6 #11
+//                        bailed out due to 'Optimization disabled for test'
+//     2            level4:21 6 #8
+//   238              action:17 6 #9
+//                        bailed out due to 'Optimization disabled for test'
+//   245        action:29 6 #5
+//                  bailed out due to 'Optimization disabled for test'
+//     2    (program):0 0 #2
+TEST(Inlining2) {
+  i::FLAG_allow_natives_syntax = true;
+  v8::HandleScope scope(CcTest::isolate());
+  v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
+  v8::Context::Scope context_scope(env);
+
+  CompileRun(inlining_test_source2);
+  v8::Local<v8::Function> function = GetFunction(env, "start");
+
+  v8::CpuProfiler* profiler = v8::CpuProfiler::New(CcTest::isolate());
+  v8::Local<v8::String> profile_name = v8_str("inlining");
+  profiler->StartProfiling(profile_name,
+                           v8::CpuProfilingMode::kCallerLineNumbers);
+
+  v8::Local<v8::Value> args[] = {
+      v8::Integer::New(env->GetIsolate(), 50000 * load_factor)};
+  function->Call(env, env->Global(), arraysize(args), args).ToLocalChecked();
+  v8::CpuProfile* profile = profiler->StopProfiling(profile_name);
+  CHECK(profile);
+
+  // Dump collected profile to have a better diagnostic in case of failure.
+  reinterpret_cast<i::CpuProfile*>(profile)->Print();
+
+  const v8::CpuProfileNode* root = profile->GetTopDownRoot();
+  const v8::CpuProfileNode* start_node = GetChild(env, root, "start");
+
+  NameLinePair l4_18[] = {{"level1", 35},
+                          {"level2", 31},
+                          {"level3", 25},
+                          {"level4", 20},
+                          {"action", 17}};
+  CheckBranch(start_node, l4_18, arraysize(l4_18));
+  NameLinePair l4_19[] = {{"level1", 35},
+                          {"level2", 31},
+                          {"level3", 25},
+                          {"level4", 21},
+                          {"action", 17}};
+  CheckBranch(start_node, l4_19, arraysize(l4_19));
+  NameLinePair action_direct[] = {{"level1", 35}, {"action", 29}};
+  CheckBranch(start_node, action_direct, arraysize(action_direct));
+
+  profile->Delete();
+  profiler->Dispose();
+}
+
 // [Top down]:
 //     0   (root) #0 1
 //     2    (program) #0 2
@@ -1885,7 +1995,7 @@ TEST(FunctionDetailsInlining) {
   const v8::CpuProfileNode* beta = FindChild(env, alpha, "beta");
   if (!beta) return;
   CheckFunctionDetails(env->GetIsolate(), beta, "beta", "script_b",
-                       script_b->GetUnboundScript()->GetId(), 0, 0);
+                       script_b->GetUnboundScript()->GetId(), 1, 14);
 }
 
 TEST(DontStopOnFinishedProfileDelete) {
@@ -2528,7 +2638,7 @@ TEST(SourcePositionTable) {
   CHECK_EQ(1, info.GetSourceLineNumber(10));
   CHECK_EQ(1, info.GetSourceLineNumber(11));
   CHECK_EQ(1, info.GetSourceLineNumber(19));
-  CHECK_EQ(2, info.GetSourceLineNumber(20));
+  CHECK_EQ(1, info.GetSourceLineNumber(20));
   CHECK_EQ(2, info.GetSourceLineNumber(21));
   CHECK_EQ(2, info.GetSourceLineNumber(100));
   CHECK_EQ(2, info.GetSourceLineNumber(std::numeric_limits<int>::max()));
