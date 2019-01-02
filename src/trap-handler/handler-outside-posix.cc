@@ -13,7 +13,7 @@
 //    should be as self-contained as possible to make it easy to audit the code.
 //
 // 2. Any changes must be reviewed by someone from the crash reporting
-//    or security team. Se OWNERS for suggested reviewers.
+//    or security team. See OWNERS for suggested reviewers.
 //
 // For more information, see https://goo.gl/yMeyUY.
 //
@@ -52,36 +52,21 @@ bool RegisterDefaultTrapHandler() {
     return false;
   }
 
-// Sanitizers often prevent us from installing our own signal handler. Attempt
-// to detect this and if so, refuse to enable trap handling.
-//
-// TODO(chromium:830894): Remove this once all bots support custom signal
-// handlers.
-#if defined(ADDRESS_SANITIZER) || defined(MEMORY_SANITIZER) || \
-    defined(THREAD_SANITIZER) || defined(LEAK_SANITIZER) ||    \
-    defined(UNDEFINED_SANITIZER)
+  // Check that the signal handler is indeed registered. Sanitizers for example
+  // might prevent this, and then report crashes later because signals are not
+  // being caught correctly.
   struct sigaction installed_handler;
   CHECK_EQ(sigaction(kOobSignal, NULL, &installed_handler), 0);
-  // If the installed handler does not point to HandleSignal, then
-  // allow_user_segv_handler is 0.
-  if (installed_handler.sa_sigaction != HandleSignal) {
-    printf(
-        "WARNING: sanitizers are preventing signal handler installation. "
-        "Trap handlers are disabled.\n");
-    return false;
-  }
-#endif
+  CHECK_EQ(HandleSignal, installed_handler.sa_sigaction);
 
   g_is_default_signal_handler_registered = true;
   return true;
 }
 
 void RemoveTrapHandler() {
-  if (g_is_default_signal_handler_registered) {
-    if (sigaction(kOobSignal, &g_old_handler, nullptr) == 0) {
-      g_is_default_signal_handler_registered = false;
-    }
-  }
+  if (!g_is_default_signal_handler_registered) return;
+  if (sigaction(kOobSignal, &g_old_handler, nullptr) != 0) return;
+  g_is_default_signal_handler_registered = false;
 }
 #endif  // V8_TRAP_HANDLER_SUPPORTED
 
