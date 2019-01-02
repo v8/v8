@@ -2842,8 +2842,18 @@ Block* Parser::BuildParameterInitializationBlock(
     if (parameter->initializer() != nullptr) {
       // IS_UNDEFINED($param) ? initializer : $param
 
-      // Ensure initializer is rewritten
-      RewriteParameterInitializer(parameter->initializer());
+      if (parameter->initializer()->IsClassLiteral()) {
+        //  Initializers could have their own scopes. So set the scope
+        //  here if necessary.
+        BlockState block_state(
+            &scope_, parameter->initializer()->AsClassLiteral()->scope());
+
+        // Ensure initializer is rewritten
+        RewriteParameterInitializer(parameter->initializer());
+      } else {
+        // Ensure initializer is rewritten
+        RewriteParameterInitializer(parameter->initializer());
+      }
 
       auto condition = factory()->NewCompareOperation(
           Token::EQ_STRICT,
