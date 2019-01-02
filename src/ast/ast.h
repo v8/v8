@@ -1720,10 +1720,11 @@ class VariableProxy final : public Expression {
   friend base::ThreadedListTraits<VariableProxy>;
 };
 
-// Left-hand side can only be a property, a global or a (parameter or local)
-// slot.
-enum LhsKind {
-  VARIABLE,
+// Assignments to a property will use one of several types of property access.
+// Otherwise, the assignment is to a non-property (a global, a local slot, a
+// parameter slot, or a destructuring pattern).
+enum AssignType {
+  NON_PROPERTY,
   NAMED_PROPERTY,
   KEYED_PROPERTY,
   NAMED_SUPER_PROPERTY,
@@ -1740,8 +1741,8 @@ class Property final : public Expression {
   bool IsSuperAccess() { return obj()->IsSuperPropertyReference(); }
 
   // Returns the properties assign type.
-  static LhsKind GetAssignType(Property* property) {
-    if (property == nullptr) return VARIABLE;
+  static AssignType GetAssignType(Property* property) {
+    if (property == nullptr) return NON_PROPERTY;
     bool super_access = property->IsSuperAccess();
     return (property->key()->IsPropertyName())
                ? (super_access ? NAMED_SUPER_PROPERTY : NAMED_PROPERTY)

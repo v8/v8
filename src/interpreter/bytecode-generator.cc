@@ -97,7 +97,8 @@ class BytecodeGenerator::ContextScope {
 class BytecodeGenerator::ControlScope {
  public:
   explicit ControlScope(BytecodeGenerator* generator)
-      : generator_(generator), outer_(generator->execution_control()),
+      : generator_(generator),
+        outer_(generator->execution_control()),
         context_(generator->execution_context()) {
     generator_->set_execution_control(this);
   }
@@ -158,6 +159,16 @@ class BytecodeGenerator::ControlScope {
 // paths going through the finally-block to dispatch after leaving the block.
 class BytecodeGenerator::ControlScope::DeferredCommands final {
  public:
+  // Fixed value tokens for paths we know we need.
+  // Fallthrough is set to -1 to make it the fallthrough case of the jump table,
+  // where the remaining cases start at 0.
+  static const int kFallthroughToken = -1;
+  // TODO(leszeks): Rethrow being 0 makes it use up a valuable LdaZero, which
+  // means that other commands (such as break or return) have to use LdaSmi.
+  // This can very slightly bloat bytecode, so perhaps token values should all
+  // be shifted down by 1.
+  static const int kRethrowToken = 0;
+
   DeferredCommands(BytecodeGenerator* generator, Register token_register,
                    Register result_register)
       : generator_(generator),
@@ -165,8 +176,13 @@ class BytecodeGenerator::ControlScope::DeferredCommands final {
         token_register_(token_register),
         result_register_(result_register),
         return_token_(-1),
-        async_return_token_(-1),
-        rethrow_token_(-1) {}
+        async_return_token_(-1) {
+    // There's always a rethrow path.
+    // TODO(leszeks): We could decouple deferred_ index and token to allow us
+    // to still push this lazily.
+    STATIC_ASSERT(kRethrowToken == 0);
+    deferred_.push_back({CMD_RETHROW, nullptr, kRethrowToken});
+  }
 
   // One recorded control-flow command.
   struct Entry {
@@ -211,7 +227,7 @@ class BytecodeGenerator::ControlScope::DeferredCommands final {
   // Records the dispatch token to be used to identify the implicit fall-through
   // path at the end of a try-block into the corresponding finally-block.
   void RecordFallThroughPath() {
-    builder()->LoadLiteral(Smi::FromInt(-1));
+    builder()->LoadLiteral(Smi::FromInt(kFallthroughToken));
     builder()->StoreAccumulatorInRegister(token_register_);
     // Since we're not saving the accumulator in the result register, shove a
     // harmless value there instead so that it is still considered "killed" in
@@ -277,7 +293,7 @@ class BytecodeGenerator::ControlScope::DeferredCommands final {
       case CMD_ASYNC_RETURN:
         return GetAsyncReturnToken();
       case CMD_RETHROW:
-        return GetRethrowToken();
+        return kRethrowToken;
       default:
         // TODO(leszeks): We could also search for entries with the same
         // command and statement.
@@ -299,13 +315,6 @@ class BytecodeGenerator::ControlScope::DeferredCommands final {
     return async_return_token_;
   }
 
-  int GetRethrowToken() {
-    if (rethrow_token_ == -1) {
-      rethrow_token_ = GetNewTokenForCommand(CMD_RETHROW, nullptr);
-    }
-    return rethrow_token_;
-  }
-
   int GetNewTokenForCommand(Command command, Statement* statement) {
     int token = static_cast<int>(deferred_.size());
     deferred_.push_back({command, statement, token});
@@ -320,7 +329,6 @@ class BytecodeGenerator::ControlScope::DeferredCommands final {
   // Tokens for commands that don't need a statement.
   int return_token_;
   int async_return_token_;
-  int rethrow_token_;
 };
 
 // Scoped class for dealing with control flow reaching the function level.
@@ -639,9 +647,7 @@ class BytecodeGenerator::TestResultScope final : public ExpressionResultScope {
 
   // Used when code special cases for TestResultScope and consumes any
   // possible value by testing and jumping to a then/else label.
-  void SetResultConsumedByTest() {
-    result_consumed_by_test_ = true;
-  }
+  void SetResultConsumedByTest() { result_consumed_by_test_ = true; }
   bool result_consumed_by_test() { return result_consumed_by_test_; }
 
   // Inverts the control flow of the operation, swapping the then and else
@@ -1347,8 +1353,7 @@ void BytecodeGenerator::VisitExpressionStatement(ExpressionStatement* stmt) {
   VisitForEffect(stmt->expression());
 }
 
-void BytecodeGenerator::VisitEmptyStatement(EmptyStatement* stmt) {
-}
+void BytecodeGenerator::VisitEmptyStatement(EmptyStatement* stmt) {}
 
 void BytecodeGenerator::VisitIfStatement(IfStatement* stmt) {
   ConditionalControlFlowBuilder conditional_builder(
@@ -1552,9 +1557,9 @@ void BytecodeGenerator::VisitForInAssignment(Expression* expr) {
   // Evaluate assignment starting with the value to be stored in the
   // accumulator.
   Property* property = expr->AsProperty();
-  LhsKind assign_type = Property::GetAssignType(property);
+  AssignType assign_type = Property::GetAssignType(property);
   switch (assign_type) {
-    case VARIABLE: {
+    case NON_PROPERTY: {
       VariableProxy* proxy = expr->AsVariableProxy();
       BuildVariableAssignment(proxy->var(), Token::ASSIGN,
                               proxy->hole_check_mode());
@@ -2416,19 +2421,36 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
   builder()->LoadAccumulatorWithRegister(literal);
 }
 
-void BytecodeGenerator::BuildArrayLiteralSpread(Spread* spread, Register array,
-                                                Register index,
-                                                FeedbackSlot index_slot,
-                                                FeedbackSlot element_slot) {
-  RegisterAllocationScope register_scope(this);
-  Register value = register_allocator()->NewRegister();
-
-  builder()->SetExpressionAsStatementPosition(spread->expression());
-  IteratorRecord iterator =
-      BuildGetIteratorRecord(spread->expression(), IteratorType::kNormal);
+// Fill an array with values from an iterator, starting at a given index,
+// optionally setting the 'done' register to true if the loop is exited because
+// the iterator is done (as opposed to e.g. the store into the array failing).
+//
+// In pseudocode:
+//
+// loop {
+//   // Make sure we are considered 'done' if .next(), .done or .value fail.
+//   done = true
+//   value = iterator.next()
+//   if (value.done) break;
+//   value = value.value
+//   done = false
+//   array[index++] = value
+// }
+// done = true
+void BytecodeGenerator::BuildFillArrayWithIterator(
+    IteratorRecord iterator, Register array, Register index, Register value,
+    Register done, FeedbackSlot next_value_slot, FeedbackSlot next_done_slot,
+    FeedbackSlot index_slot, FeedbackSlot element_slot) {
+  DCHECK(array.is_valid());
+  DCHECK(index.is_valid());
+  DCHECK(value.is_valid());
 
   LoopBuilder loop_builder(builder(), nullptr, nullptr);
   loop_builder.LoopHeader();
+
+  if (done.is_valid()) {
+    builder()->LoadTrue().StoreAccumulatorInRegister(done);
+  }
 
   // Call the iterator's .next() method. Break from the loop if the `done`
   // property is truthy, otherwise load the value from the iterator result and
@@ -2443,16 +2465,30 @@ void BytecodeGenerator::BuildArrayLiteralSpread(Spread* spread, Register array,
   builder()
       // value = value.value
       ->LoadNamedProperty(value, ast_string_constants()->value_string(),
-                          feedback_index(feedback_spec()->AddLoadICSlot()))
-      .StoreAccumulatorInRegister(value)
+                          feedback_index(next_value_slot));
+  if (done.is_valid()) {
+    // done = false
+    builder()
+        ->StoreAccumulatorInRegister(value)
+        .LoadFalse()
+        .StoreAccumulatorInRegister(done)
+        .LoadAccumulatorWithRegister(value);
+  }
+  builder()
       // array[index] = value
-      .StoreInArrayLiteral(array, index, feedback_index(element_slot))
+      ->StoreInArrayLiteral(array, index, feedback_index(element_slot))
       // index++
       .LoadAccumulatorWithRegister(index)
       .UnaryOperation(Token::INC, feedback_index(index_slot))
       .StoreAccumulatorInRegister(index);
   loop_builder.BindContinueTarget();
   loop_builder.JumpToHeader(loop_depth_);
+
+  if (done.is_valid()) {
+    // Reaching here means that the loop was exited because of next_result.done
+    // being true, so set 'done' to true.
+    builder()->LoadTrue().StoreAccumulatorInRegister(done);
+  }
 }
 
 void BytecodeGenerator::BuildCreateArrayLiteral(
@@ -2566,9 +2602,21 @@ void BytecodeGenerator::BuildCreateArrayLiteral(
   for (; current != end; ++current) {
     Expression* subexpr = *current;
     if (subexpr->IsSpread()) {
+      RegisterAllocationScope scope(this);
+      builder()->SetExpressionAsStatementPosition(
+          subexpr->AsSpread()->expression());
+      VisitForAccumulatorValue(subexpr->AsSpread()->expression());
+      IteratorRecord iterator = BuildGetIteratorRecord(IteratorType::kNormal);
+
+      Register value = register_allocator()->NewRegister();
+      FeedbackSlot next_value_load_slot = feedback_spec()->AddLoadICSlot();
+      FeedbackSlot next_done_load_slot = feedback_spec()->AddLoadICSlot();
       FeedbackSlot real_index_slot = index_slot.Get();
-      BuildArrayLiteralSpread(subexpr->AsSpread(), array, index,
-                              real_index_slot, element_slot.Get());
+      FeedbackSlot real_element_slot = element_slot.Get();
+      BuildFillArrayWithIterator(iterator, array, index, value,
+                                 Register::invalid_value(),
+                                 next_value_load_slot, next_done_load_slot,
+                                 real_index_slot, real_element_slot);
     } else if (!subexpr->IsTheHoleLiteral()) {
       // literal[index++] = subexpr
       VisitForAccumulatorValue(subexpr);
@@ -2905,18 +2953,18 @@ void BytecodeGenerator::BuildVariableAssignment(
   }
 }
 
-void BytecodeGenerator::BuildLoadNamedProperty(Property* property,
+void BytecodeGenerator::BuildLoadNamedProperty(const Expression* object_expr,
                                                Register object,
                                                const AstRawString* name) {
   if (ShouldOptimizeAsOneShot()) {
     builder()->LoadNamedPropertyNoFeedback(object, name);
   } else {
-    FeedbackSlot slot = GetCachedLoadICSlot(property->obj(), name);
+    FeedbackSlot slot = GetCachedLoadICSlot(object_expr, name);
     builder()->LoadNamedProperty(object, name, feedback_index(slot));
   }
 }
 
-void BytecodeGenerator::BuildStoreNamedProperty(Property* property,
+void BytecodeGenerator::BuildStoreNamedProperty(const Expression* object_expr,
                                                 Register object,
                                                 const AstRawString* name) {
   Register value;
@@ -2928,7 +2976,7 @@ void BytecodeGenerator::BuildStoreNamedProperty(Property* property,
   if (ShouldOptimizeAsOneShot()) {
     builder()->StoreNamedPropertyNoFeedback(object, name, language_mode());
   } else {
-    FeedbackSlot slot = GetCachedStoreICSlot(property->obj(), name);
+    FeedbackSlot slot = GetCachedStoreICSlot(object_expr, name);
     builder()->StoreNamedProperty(object, name, feedback_index(slot),
                                   language_mode());
   }
@@ -2938,35 +2986,66 @@ void BytecodeGenerator::BuildStoreNamedProperty(Property* property,
   }
 }
 
-void BytecodeGenerator::VisitAssignment(Assignment* expr) {
-  DCHECK(expr->target()->IsValidReferenceExpression() ||
-         (expr->op() == Token::INIT && expr->target()->IsVariableProxy() &&
-          expr->target()->AsVariableProxy()->is_this()));
-  Register object, key;
-  RegisterList super_property_args;
-  const AstRawString* name;
+// static
+BytecodeGenerator::AssignmentLhsData
+BytecodeGenerator::AssignmentLhsData::NonProperty(Expression* expr) {
+  return AssignmentLhsData(NON_PROPERTY, expr, RegisterList(), Register(),
+                           Register(), nullptr, nullptr);
+}
+// static
+BytecodeGenerator::AssignmentLhsData
+BytecodeGenerator::AssignmentLhsData::NamedProperty(Expression* object_expr,
+                                                    Register object,
+                                                    const AstRawString* name) {
+  return AssignmentLhsData(NAMED_PROPERTY, nullptr, RegisterList(), object,
+                           Register(), object_expr, name);
+}
+// static
+BytecodeGenerator::AssignmentLhsData
+BytecodeGenerator::AssignmentLhsData::KeyedProperty(Register object,
+                                                    Register key) {
+  return AssignmentLhsData(KEYED_PROPERTY, nullptr, RegisterList(), object, key,
+                           nullptr, nullptr);
+}
+// static
+BytecodeGenerator::AssignmentLhsData
+BytecodeGenerator::AssignmentLhsData::NamedSuperProperty(
+    RegisterList super_property_args) {
+  return AssignmentLhsData(NAMED_SUPER_PROPERTY, nullptr, super_property_args,
+                           Register(), Register(), nullptr, nullptr);
+}
+// static
+BytecodeGenerator::AssignmentLhsData
+BytecodeGenerator::AssignmentLhsData::KeyedSuperProperty(
+    RegisterList super_property_args) {
+  return AssignmentLhsData(KEYED_SUPER_PROPERTY, nullptr, super_property_args,
+                           Register(), Register(), nullptr, nullptr);
+}
 
+BytecodeGenerator::AssignmentLhsData BytecodeGenerator::PrepareAssignmentLhs(
+    Expression* lhs) {
   // Left-hand side can only be a property, a global or a variable slot.
-  Property* property = expr->target()->AsProperty();
-  LhsKind assign_type = Property::GetAssignType(property);
+  Property* property = lhs->AsProperty();
+  AssignType assign_type = Property::GetAssignType(property);
 
   // Evaluate LHS expression.
   switch (assign_type) {
-    case VARIABLE:
-      // Nothing to do to evaluate variable assignment LHS.
-      break;
+    case NON_PROPERTY:
+      return AssignmentLhsData::NonProperty(lhs);
     case NAMED_PROPERTY: {
-      object = VisitForRegisterValue(property->obj());
-      name = property->key()->AsLiteral()->AsRawPropertyName();
-      break;
+      Register object = VisitForRegisterValue(property->obj());
+      const AstRawString* name =
+          property->key()->AsLiteral()->AsRawPropertyName();
+      return AssignmentLhsData::NamedProperty(property->obj(), object, name);
     }
     case KEYED_PROPERTY: {
-      object = VisitForRegisterValue(property->obj());
-      key = VisitForRegisterValue(property->key());
-      break;
+      Register object = VisitForRegisterValue(property->obj());
+      Register key = VisitForRegisterValue(property->key());
+      return AssignmentLhsData::KeyedProperty(object, key);
     }
     case NAMED_SUPER_PROPERTY: {
-      super_property_args = register_allocator()->NewRegisterList(4);
+      RegisterList super_property_args =
+          register_allocator()->NewRegisterList(4);
       SuperPropertyReference* super_property =
           property->obj()->AsSuperPropertyReference();
       VisitForRegisterValue(super_property->this_var(), super_property_args[0]);
@@ -2975,81 +3054,511 @@ void BytecodeGenerator::VisitAssignment(Assignment* expr) {
       builder()
           ->LoadLiteral(property->key()->AsLiteral()->AsRawPropertyName())
           .StoreAccumulatorInRegister(super_property_args[2]);
-      break;
+      return AssignmentLhsData::NamedSuperProperty(super_property_args);
     }
     case KEYED_SUPER_PROPERTY: {
-      super_property_args = register_allocator()->NewRegisterList(4);
+      RegisterList super_property_args =
+          register_allocator()->NewRegisterList(4);
       SuperPropertyReference* super_property =
           property->obj()->AsSuperPropertyReference();
       VisitForRegisterValue(super_property->this_var(), super_property_args[0]);
       VisitForRegisterValue(super_property->home_object(),
                             super_property_args[1]);
       VisitForRegisterValue(property->key(), super_property_args[2]);
-      break;
+      return AssignmentLhsData::KeyedSuperProperty(super_property_args);
     }
   }
+  UNREACHABLE();
+}
 
-  // Evaluate the value and potentially handle compound assignments by loading
-  // the left-hand side value and performing a binary operation.
-  if (expr->IsCompoundAssignment()) {
-    switch (assign_type) {
-      case VARIABLE: {
-        VariableProxy* proxy = expr->target()->AsVariableProxy();
-        BuildVariableLoad(proxy->var(), proxy->hole_check_mode());
+// Build the iteration finalizer called in the finally block of an iteration
+// protocol execution. This closes the iterator if needed, and suppresses any
+// exception it throws if necessary.
+//
+// In pseudo-code, this builds:
+//
+// try {
+//   if (!done) iterator.close()
+// } catch (e) {
+//   if (iteration_continuation != RETHROW)
+//     rethrow e
+// }
+void BytecodeGenerator::BuildFinalizeIteration(
+    IteratorRecord iterator, Register done,
+    Register iteration_continuation_token) {
+  RegisterAllocationScope scope(this);
+  TryCatchBuilder try_control_builder(builder(), nullptr, nullptr,
+                                      HandlerTable::DESUGARING);
+
+  // Preserve the context in a dedicated register, so that it can be restored
+  // when the handler is entered by the stack-unwinding machinery.
+  // TODO(mstarzinger): Be smarter about register allocation.
+  Register context = register_allocator()->NewRegister();
+  builder()->MoveRegister(Register::current_context(), context);
+
+  // Evaluate the try-block inside a control scope. This simulates a handler
+  // that is intercepting 'throw' control commands.
+  try_control_builder.BeginTry(context);
+  {
+    ControlScopeForTryCatch scope(this, &try_control_builder);
+
+    // if (!done) iterator.close()
+    BytecodeLabel iterator_is_done;
+    builder()->LoadAccumulatorWithRegister(done).JumpIfTrue(
+        ToBooleanMode::kConvertToBoolean, &iterator_is_done);
+    BuildIteratorClose(iterator);
+    builder()->Bind(&iterator_is_done);
+  }
+  try_control_builder.EndTry();
+
+  // catch (e) {
+  //   if (iteration_continuation != RETHROW)
+  //     rethrow e
+  // }
+
+  // Reuse context register to store the exception.
+  Register close_exception = context;
+  builder()->StoreAccumulatorInRegister(close_exception);
+
+  BytecodeLabel suppress_close_exception;
+  builder()
+      ->LoadLiteral(Smi::FromInt(ControlScope::DeferredCommands::kRethrowToken))
+      .CompareReference(iteration_continuation_token)
+      .JumpIfTrue(ToBooleanMode::kAlreadyBoolean, &suppress_close_exception)
+      .LoadAccumulatorWithRegister(close_exception)
+      .ReThrow()
+      .Bind(&suppress_close_exception);
+  try_control_builder.EndCatch();
+}
+
+// Get the default value of a destructuring target. Will mutate the
+// destructuring target expression if there is a default value.
+//
+// For
+//   a = b
+// in
+//   let {a = b} = c
+// returns b and mutates the input into a.
+Expression* BytecodeGenerator::GetDestructuringDefaultValue(
+    Expression** target) {
+  Expression* default_value = nullptr;
+  if ((*target)->IsAssignment()) {
+    Assignment* default_init = (*target)->AsAssignment();
+    DCHECK_EQ(default_init->op(), Token::ASSIGN);
+    default_value = default_init->value();
+    *target = default_init->target();
+    DCHECK((*target)->IsValidReferenceExpression() || (*target)->IsPattern());
+  }
+  return default_value;
+}
+
+// Convert a destructuring assignment to an array literal into a sequence of
+// iterator accesses into the value being assigned (in the accumulator).
+//
+// [a().x, ...b] = accumulator
+//
+//   becomes
+//
+// iterator = %GetIterator(accumulator)
+// try {
+//
+//   // Individual assignments read off the value from iterator.next() This gets
+//   // repeated per destructuring element.
+//   if (!done) {
+//     // Make sure we are considered 'done' if .next(), .done or .value fail.
+//     done = true
+//     var next_result = iterator.next()
+//     var tmp_done = next_result.done
+//     if (!tmp_done) {
+//       value = next_result.value
+//       done = false
+//     }
+//   }
+//   if (done)
+//     value = undefined
+//   a().x = value
+//
+//   // A spread receives the remaining items in the iterator.
+//   var array = []
+//   var index = 0
+//   %FillArrayWithIterator(iterator, array, index, done)
+//   done = true
+//   b = array
+//
+// } catch(e) {
+//   iteration_continuation = RETHROW
+// } finally {
+//   %FinalizeIteration(iterator, done, iteration_continuation)
+// }
+void BytecodeGenerator::BuildDestructuringArrayAssignment(
+    ArrayLiteral* pattern) {
+  RegisterAllocationScope scope(this);
+
+  Register value = register_allocator()->NewRegister();
+  builder()->StoreAccumulatorInRegister(value);
+
+  // Store the iterator in a dedicated register so that it can be closed on
+  // exit, and the 'done' value in a dedicated register so that it can be
+  // changed and accessed independently of the iteration result.
+  IteratorRecord iterator = BuildGetIteratorRecord(IteratorType::kNormal);
+  Register done = register_allocator()->NewRegister();
+  builder()->LoadFalse();
+  builder()->StoreAccumulatorInRegister(done);
+  TryFinallyBuilder try_control_builder(builder(), nullptr, nullptr,
+                                        HandlerTable::DESUGARING);
+
+  // Keep a continuation token and result for exceptions and returns in the
+  // destructuring body, so that we can close the iterator on abrupt
+  // completions. Same general appraoch as when visiting a TryFinallyStatement.
+  Register token = register_allocator()->NewRegister();
+  Register result = register_allocator()->NewRegister();
+  ControlScope::DeferredCommands commands(this, token, result);
+
+  // Preserve the context in a dedicated register, so that it can be restored
+  // when the handler is entered by the stack-unwinding machinery.
+  // TODO(mstarzinger): Be smarter about register allocation.
+  Register context = register_allocator()->NewRegister();
+  builder()->MoveRegister(Register::current_context(), context);
+
+  // Evaluate the destructuring logic inside a control scope. This simulates a
+  // handler that is intercepting all control commands.
+  try_control_builder.BeginTry(context);
+  {
+    ControlScopeForTryFinally scope(this, &try_control_builder, &commands);
+
+    Register next_result = register_allocator()->NewRegister();
+    FeedbackSlot next_value_load_slot = feedback_spec()->AddLoadICSlot();
+    FeedbackSlot next_done_load_slot = feedback_spec()->AddLoadICSlot();
+
+    Spread* spread = nullptr;
+    for (Expression* target : *pattern->values()) {
+      if (target->IsSpread()) {
+        spread = target->AsSpread();
         break;
       }
-      case NAMED_PROPERTY: {
-        BuildLoadNamedProperty(property, object, name);
-        break;
+
+      Expression* default_value = GetDestructuringDefaultValue(&target);
+      if (!target->IsPattern()) {
+        builder()->SetExpressionAsStatementPosition(target);
       }
-      case KEYED_PROPERTY: {
-        // Key is already in accumulator at this point due to evaluating the
-        // LHS above.
-        FeedbackSlot slot = feedback_spec()->AddKeyedLoadICSlot();
-        builder()->LoadKeyedProperty(object, feedback_index(slot));
-        break;
+
+      AssignmentLhsData lhs_data = PrepareAssignmentLhs(target);
+
+      // if (!done) {
+      //   // Make sure we are considered done if .next(), .done or .value fail.
+      //   done = true
+      //   var next_result = iterator.next()
+      //   var tmp_done = next_result.done
+      //   if (!tmp_done) {
+      //     value = next_result.value
+      //     done = false
+      //   }
+      // }
+      // if (done)
+      //   value = undefined
+      BytecodeLabels is_done(zone());
+
+      builder()->LoadAccumulatorWithRegister(done);
+      builder()->JumpIfTrue(ToBooleanMode::kConvertToBoolean, is_done.New());
+
+      builder()->LoadTrue().StoreAccumulatorInRegister(done);
+      BuildIteratorNext(iterator, next_result);
+      builder()
+          ->LoadNamedProperty(next_result,
+                              ast_string_constants()->done_string(),
+                              feedback_index(next_done_load_slot))
+          .JumpIfTrue(ToBooleanMode::kConvertToBoolean, is_done.New())
+          .LoadNamedProperty(next_result,
+                             ast_string_constants()->value_string(),
+                             feedback_index(next_value_load_slot))
+          .StoreAccumulatorInRegister(next_result)
+          .LoadFalse()
+          .StoreAccumulatorInRegister(done)
+          .LoadAccumulatorWithRegister(next_result);
+
+      // Only do the assignment if this is not a hole (i.e. 'elided').
+      if (!target->IsTheHoleLiteral()) {
+        // [<pattern> = <init>] = <value>
+        //   becomes (roughly)
+        // temp = <value>.next();
+        // <pattern> = temp === undefined ? <init> : temp;
+        BytecodeLabel do_assignment;
+        if (default_value) {
+          builder()->JumpIfNotUndefined(&do_assignment);
+          // Since done == true => temp == undefined, jump directly to using
+          // the default value for that case.
+          is_done.Bind(builder());
+          VisitForAccumulatorValue(default_value);
+        } else {
+          builder()->Jump(&do_assignment);
+          is_done.Bind(builder());
+          builder()->LoadUndefined();
+        }
+        builder()->Bind(&do_assignment);
+
+        // TODO(leszeks): This should be the position of the assignment.
+        BuildAssignment(lhs_data, Token::ASSIGN, LookupHoistingMode::kNormal);
+      } else {
+        DCHECK_EQ(lhs_data.assign_type(), NON_PROPERTY);
+        is_done.Bind(builder());
       }
-      case NAMED_SUPER_PROPERTY: {
-        builder()->CallRuntime(Runtime::kLoadFromSuper,
-                               super_property_args.Truncate(3));
-        break;
-      }
-      case KEYED_SUPER_PROPERTY: {
-        builder()->CallRuntime(Runtime::kLoadKeyedFromSuper,
-                               super_property_args.Truncate(3));
+    }
+
+    if (spread) {
+      RegisterAllocationScope scope(this);
+      builder()->SetExpressionAsStatementPosition(spread);
+
+      // A spread is turned into a loop over the remainer of the iterator.
+      Expression* target = spread->expression();
+      AssignmentLhsData lhs_data = PrepareAssignmentLhs(target);
+
+      // var array = [];
+      Register array = register_allocator()->NewRegister();
+      builder()->CreateEmptyArrayLiteral(
+          feedback_index(feedback_spec()->AddLiteralSlot()));
+      builder()->StoreAccumulatorInRegister(array);
+
+      // var index = 0;
+      Register index = register_allocator()->NewRegister();
+      builder()->LoadLiteral(Smi::zero());
+      builder()->StoreAccumulatorInRegister(index);
+
+      // Fill the array with the iterator.
+      FeedbackSlot element_slot =
+          feedback_spec()->AddStoreInArrayLiteralICSlot();
+      FeedbackSlot index_slot = feedback_spec()->AddBinaryOpICSlot();
+      BuildFillArrayWithIterator(iterator, array, index, next_result, done,
+                                 next_value_load_slot, next_done_load_slot,
+                                 index_slot, element_slot);
+
+      // Assign the array to the LHS.
+      builder()->LoadAccumulatorWithRegister(array);
+      BuildAssignment(lhs_data, Token::ASSIGN, LookupHoistingMode::kNormal);
+    }
+  }
+  try_control_builder.EndTry();
+
+  // Record fall-through and exception cases.
+  commands.RecordFallThroughPath();
+  try_control_builder.LeaveTry();
+  try_control_builder.BeginHandler();
+  commands.RecordHandlerReThrowPath();
+
+  // Pending message object is saved on entry.
+  try_control_builder.BeginFinally();
+  Register message = context;  // Reuse register.
+
+  // Clear message object as we enter the finally block.
+  builder()->LoadTheHole().SetPendingMessage().StoreAccumulatorInRegister(
+      message);
+
+  // Finish the iteration in the finally block.
+  BuildFinalizeIteration(iterator, done, token);
+
+  try_control_builder.EndFinally();
+
+  // Pending message object is restored on exit.
+  builder()->LoadAccumulatorWithRegister(message).SetPendingMessage();
+
+  // Dynamic dispatch after the finally-block.
+  commands.ApplyDeferredCommands();
+
+  if (!execution_result()->IsEffect()) {
+    builder()->LoadAccumulatorWithRegister(value);
+  }
+}
+
+// Convert a destructuring assignment to an object literal into a sequence of
+// property accesses into the value being assigned (in the accumulator).
+//
+// { y, [x++]: a(), ...b.c } = value
+//
+//   becomes
+//
+// var rest_runtime_callargs = new Array(3);
+// rest_runtime_callargs[0] = value;
+//
+// rest_runtime_callargs[1] = value;
+// y = value.y;
+//
+// var temp1 = %ToName(x++);
+// rest_runtime_callargs[2] = temp1;
+// a() = value[temp1];
+//
+// b.c = %CopyDataPropertiesWithExcludedProperties.call(rest_runtime_callargs);
+void BytecodeGenerator::BuildDestructuringObjectAssignment(
+    ObjectLiteral* pattern) {
+  RegisterAllocationScope scope(this);
+
+  // if (value === null || value === undefined)
+  //   throw new TypeError(kNonCoercible);
+  //
+  // TODO(leszeks): Eliminate check if value is known to be non-null (e.g.
+  // an object literal).
+  BytecodeLabel is_null_or_undefined, not_null_or_undefined;
+  builder()
+      ->JumpIfNull(&is_null_or_undefined)
+      .JumpIfNotUndefined(&not_null_or_undefined);
+
+  {
+    builder()->Bind(&is_null_or_undefined);
+
+    // TODO(leszeks): Don't do this calculation here, but instead do it in a
+    // runtime method.
+    const AstRawString* property_name = ast_string_constants()->empty_string();
+    MessageTemplate msg = MessageTemplate::kNonCoercible;
+    for (ObjectLiteralProperty* pattern_property : *pattern->properties()) {
+      Expression* key = pattern_property->key();
+      if (key->IsPropertyName()) {
+        property_name = key->AsLiteral()->AsRawPropertyName();
+        msg = MessageTemplate::kNonCoercibleWithProperty;
         break;
       }
     }
-    BinaryOperation* binop = expr->AsCompoundAssignment()->binary_operation();
-    FeedbackSlot slot = feedback_spec()->AddBinaryOpICSlot();
-    if (expr->value()->IsSmiLiteral()) {
-      builder()->BinaryOperationSmiLiteral(
-          binop->op(), expr->value()->AsLiteral()->AsSmiLiteral(),
-          feedback_index(slot));
-    } else {
-      Register old_value = register_allocator()->NewRegister();
-      builder()->StoreAccumulatorInRegister(old_value);
-      VisitForAccumulatorValue(expr->value());
-      builder()->BinaryOperation(binop->op(), old_value, feedback_index(slot));
-    }
+
+    RegisterList new_type_error_args = register_allocator()->NewRegisterList(2);
+    // throw %NewTypeError(msg, property_name, source_position)
+    builder()
+        ->LoadLiteral(Smi::FromEnum(msg))
+        .StoreAccumulatorInRegister(new_type_error_args[0])
+        .LoadLiteral(property_name)
+        .StoreAccumulatorInRegister(new_type_error_args[1])
+        .CallRuntime(Runtime::kNewTypeError, new_type_error_args)
+        .Throw();
+  }
+
+  // Store the assignment value in a register.
+  Register value;
+  RegisterList rest_runtime_callargs;
+  if (pattern->has_rest_property()) {
+    rest_runtime_callargs =
+        register_allocator()->NewRegisterList(pattern->properties()->length());
+    value = rest_runtime_callargs[0];
   } else {
-    VisitForAccumulatorValue(expr->value());
+    value = register_allocator()->NewRegister();
+  }
+  builder()->Bind(&not_null_or_undefined).StoreAccumulatorInRegister(value);
+
+  int i = 0;
+  for (ObjectLiteralProperty* pattern_property : *pattern->properties()) {
+    RegisterAllocationScope scope(this);
+
+    // The key of the pattern becomes the key into the RHS value, and the value
+    // of the pattern becomes the target of the assignment.
+    //
+    // e.g. { a: b } = o becomes b = o.a
+    Expression* pattern_key = pattern_property->key();
+    Expression* target = pattern_property->value();
+    Expression* default_value = GetDestructuringDefaultValue(&target);
+
+    if (!target->IsPattern()) {
+      builder()->SetExpressionAsStatementPosition(target);
+    }
+
+    // Calculate this property's key into the assignment RHS value, additionally
+    // storing the key for rest_runtime_callargs if needed.
+    //
+    // The RHS is accessed using the key either by LoadNamedProperty (if
+    // value_name is valid) or by LoadKeyedProperty (otherwise).
+    const AstRawString* value_name = nullptr;
+    Register value_key;
+
+    if (pattern_property->kind() != ObjectLiteralProperty::Kind::SPREAD) {
+      if (pattern_key->IsPropertyName()) {
+        value_name = pattern_key->AsLiteral()->AsRawPropertyName();
+      }
+      if (pattern->has_rest_property() || !value_name) {
+        if (pattern->has_rest_property()) {
+          value_key = rest_runtime_callargs[i + 1];
+        } else {
+          value_key = register_allocator()->NewRegister();
+        }
+        if (pattern_property->is_computed_name()) {
+          // { [a()]: b().x } = c
+          // becomes
+          // var tmp = a()
+          // b().x = c[tmp]
+          DCHECK(!pattern_key->IsPropertyName() ||
+                 !pattern_key->IsNumberLiteral());
+          VisitForAccumulatorValue(pattern_key);
+          builder()->ToName(value_key);
+        } else {
+          // We only need the key for non-computed properties when it is numeric
+          // or is being saved for the rest_runtime_callargs.
+          DCHECK(
+              pattern_key->IsNumberLiteral() ||
+              (pattern->has_rest_property() && pattern_key->IsPropertyName()));
+          VisitForRegisterValue(pattern_key, value_key);
+        }
+      }
+    }
+
+    AssignmentLhsData lhs_data = PrepareAssignmentLhs(target);
+
+    // Get the value from the RHS.
+    if (pattern_property->kind() == ObjectLiteralProperty::Kind::SPREAD) {
+      DCHECK_EQ(i, pattern->properties()->length() - 1);
+      DCHECK(!value_key.is_valid());
+      DCHECK_NULL(value_name);
+      builder()->CallRuntime(Runtime::kCopyDataPropertiesWithExcludedProperties,
+                             rest_runtime_callargs);
+    } else if (value_name) {
+      builder()->LoadNamedProperty(
+          value, value_name, feedback_index(feedback_spec()->AddLoadICSlot()));
+    } else {
+      DCHECK(value_key.is_valid());
+      builder()->LoadAccumulatorWithRegister(value_key).LoadKeyedProperty(
+          value, feedback_index(feedback_spec()->AddKeyedLoadICSlot()));
+    }
+
+    // {<pattern> = <init>} = <value>
+    //   becomes
+    // temp = <value>;
+    // <pattern> = temp === undefined ? <init> : temp;
+    if (default_value) {
+      BytecodeLabel value_not_undefined;
+      builder()->JumpIfNotUndefined(&value_not_undefined);
+      VisitForAccumulatorValue(default_value);
+      builder()->Bind(&value_not_undefined);
+    }
+
+    BuildAssignment(lhs_data, Token::ASSIGN, LookupHoistingMode::kNormal);
+
+    i++;
   }
 
-  // Store the value.
-  builder()->SetExpressionPosition(expr);
-  switch (assign_type) {
-    case VARIABLE: {
-      // TODO(oth): The BuildVariableAssignment() call is hard to reason about.
-      // Is the value in the accumulator safe? Yes, but scary.
-      VariableProxy* proxy = expr->target()->AsVariableProxy();
-      BuildVariableAssignment(proxy->var(), expr->op(),
-                              proxy->hole_check_mode(),
-                              expr->lookup_hoisting_mode());
+  if (!execution_result()->IsEffect()) {
+    builder()->LoadAccumulatorWithRegister(value);
+  }
+}
+
+void BytecodeGenerator::BuildAssignment(
+    const AssignmentLhsData& lhs_data, Token::Value op,
+    LookupHoistingMode lookup_hoisting_mode) {
+  // Assign the value to the LHS.
+  switch (lhs_data.assign_type()) {
+    case NON_PROPERTY: {
+      if (ObjectLiteral* pattern = lhs_data.expr()->AsObjectLiteral()) {
+        // Split object literals into destructuring.
+        DCHECK_EQ(op, Token::ASSIGN);
+        DCHECK_EQ(lookup_hoisting_mode, LookupHoistingMode::kNormal);
+        BuildDestructuringObjectAssignment(pattern);
+      } else if (ArrayLiteral* pattern = lhs_data.expr()->AsArrayLiteral()) {
+        // Split object literals into destructuring.
+        DCHECK_EQ(op, Token::ASSIGN);
+        DCHECK_EQ(lookup_hoisting_mode, LookupHoistingMode::kNormal);
+        BuildDestructuringArrayAssignment(pattern);
+      } else {
+        DCHECK(lhs_data.expr()->IsVariableProxy());
+        VariableProxy* proxy = lhs_data.expr()->AsVariableProxy();
+        BuildVariableAssignment(proxy->var(), op, proxy->hole_check_mode(),
+                                lookup_hoisting_mode);
+      }
       break;
     }
     case NAMED_PROPERTY: {
-      BuildStoreNamedProperty(property, object, name);
+      BuildStoreNamedProperty(lhs_data.object_expr(), lhs_data.object(),
+                              lhs_data.name());
       break;
     }
     case KEYED_PROPERTY: {
@@ -3059,8 +3568,8 @@ void BytecodeGenerator::VisitAssignment(Assignment* expr) {
         value = register_allocator()->NewRegister();
         builder()->StoreAccumulatorInRegister(value);
       }
-      builder()->StoreKeyedProperty(object, key, feedback_index(slot),
-                                    language_mode());
+      builder()->StoreKeyedProperty(lhs_data.object(), lhs_data.key(),
+                                    feedback_index(slot), language_mode());
       if (!execution_result()->IsEffect()) {
         builder()->LoadAccumulatorWithRegister(value);
       }
@@ -3068,21 +3577,78 @@ void BytecodeGenerator::VisitAssignment(Assignment* expr) {
     }
     case NAMED_SUPER_PROPERTY: {
       builder()
-          ->StoreAccumulatorInRegister(super_property_args[3])
-          .CallRuntime(StoreToSuperRuntimeId(), super_property_args);
+          ->StoreAccumulatorInRegister(lhs_data.super_property_args()[3])
+          .CallRuntime(StoreToSuperRuntimeId(), lhs_data.super_property_args());
       break;
     }
     case KEYED_SUPER_PROPERTY: {
       builder()
-          ->StoreAccumulatorInRegister(super_property_args[3])
-          .CallRuntime(StoreKeyedToSuperRuntimeId(), super_property_args);
+          ->StoreAccumulatorInRegister(lhs_data.super_property_args()[3])
+          .CallRuntime(StoreKeyedToSuperRuntimeId(),
+                       lhs_data.super_property_args());
       break;
     }
   }
 }
 
+void BytecodeGenerator::VisitAssignment(Assignment* expr) {
+  AssignmentLhsData lhs_data = PrepareAssignmentLhs(expr->target());
+
+  VisitForAccumulatorValue(expr->value());
+
+  builder()->SetExpressionPosition(expr);
+  BuildAssignment(lhs_data, expr->op(), expr->lookup_hoisting_mode());
+}
+
 void BytecodeGenerator::VisitCompoundAssignment(CompoundAssignment* expr) {
-  VisitAssignment(expr);
+  AssignmentLhsData lhs_data = PrepareAssignmentLhs(expr->target());
+
+  // Evaluate the value and potentially handle compound assignments by loading
+  // the left-hand side value and performing a binary operation.
+  switch (lhs_data.assign_type()) {
+    case NON_PROPERTY: {
+      VariableProxy* proxy = expr->target()->AsVariableProxy();
+      BuildVariableLoad(proxy->var(), proxy->hole_check_mode());
+      break;
+    }
+    case NAMED_PROPERTY: {
+      BuildLoadNamedProperty(lhs_data.object_expr(), lhs_data.object(),
+                             lhs_data.name());
+      break;
+    }
+    case KEYED_PROPERTY: {
+      FeedbackSlot slot = feedback_spec()->AddKeyedLoadICSlot();
+      builder()
+          ->LoadAccumulatorWithRegister(lhs_data.key())
+          .LoadKeyedProperty(lhs_data.object(), feedback_index(slot));
+      break;
+    }
+    case NAMED_SUPER_PROPERTY: {
+      builder()->CallRuntime(Runtime::kLoadFromSuper,
+                             lhs_data.super_property_args().Truncate(3));
+      break;
+    }
+    case KEYED_SUPER_PROPERTY: {
+      builder()->CallRuntime(Runtime::kLoadKeyedFromSuper,
+                             lhs_data.super_property_args().Truncate(3));
+      break;
+    }
+  }
+  BinaryOperation* binop = expr->AsCompoundAssignment()->binary_operation();
+  FeedbackSlot slot = feedback_spec()->AddBinaryOpICSlot();
+  if (expr->value()->IsSmiLiteral()) {
+    builder()->BinaryOperationSmiLiteral(
+        binop->op(), expr->value()->AsLiteral()->AsSmiLiteral(),
+        feedback_index(slot));
+  } else {
+    Register old_value = register_allocator()->NewRegister();
+    builder()->StoreAccumulatorInRegister(old_value);
+    VisitForAccumulatorValue(expr->value());
+    builder()->BinaryOperation(binop->op(), old_value, feedback_index(slot));
+  }
+
+  builder()->SetExpressionPosition(expr);
+  BuildAssignment(lhs_data, expr->op(), expr->lookup_hoisting_mode());
 }
 
 // Suspends the generator to resume at the next suspend_id, with output stored
@@ -3132,7 +3698,7 @@ void BytecodeGenerator::VisitYield(Yield* expr) {
       builder()
           ->StoreAccumulatorInRegister(args[0])  // value
           .LoadFalse()
-          .StoreAccumulatorInRegister(args[1])   // done
+          .StoreAccumulatorInRegister(args[1])  // done
           .CallRuntime(Runtime::kInlineCreateIterResultObject, args);
     }
   }
@@ -3260,8 +3826,8 @@ void BytecodeGenerator::VisitYieldStar(YieldStar* expr) {
   {
     RegisterAllocationScope register_scope(this);
     RegisterList iterator_and_input = register_allocator()->NewRegisterList(2);
+    VisitForAccumulatorValue(expr->expression());
     IteratorRecord iterator = BuildGetIteratorRecord(
-        expr->expression(),
         register_allocator()->NewRegister() /* next method */,
         iterator_and_input[0], iterator_type);
 
@@ -3495,15 +4061,15 @@ void BytecodeGenerator::VisitThrow(Throw* expr) {
 }
 
 void BytecodeGenerator::VisitPropertyLoad(Register obj, Property* property) {
-  LhsKind property_kind = Property::GetAssignType(property);
+  AssignType property_kind = Property::GetAssignType(property);
   switch (property_kind) {
-    case VARIABLE:
+    case NON_PROPERTY:
       UNREACHABLE();
     case NAMED_PROPERTY: {
       builder()->SetExpressionPosition(property);
       const AstRawString* name =
           property->key()->AsLiteral()->AsRawPropertyName();
-      BuildLoadNamedProperty(property, obj, name);
+      BuildLoadNamedProperty(property->obj(), obj, name);
       break;
     }
     case KEYED_PROPERTY: {
@@ -3569,7 +4135,7 @@ void BytecodeGenerator::VisitKeyedSuperPropertyLoad(Property* property,
 }
 
 void BytecodeGenerator::VisitProperty(Property* expr) {
-  LhsKind property_kind = Property::GetAssignType(expr);
+  AssignType property_kind = Property::GetAssignType(expr);
   if (property_kind != NAMED_SUPER_PROPERTY &&
       property_kind != KEYED_SUPER_PROPERTY) {
     Register obj = VisitForRegisterValue(expr->obj());
@@ -4005,7 +4571,7 @@ void BytecodeGenerator::VisitCountOperation(CountOperation* expr) {
 
   // Left-hand side can only be a property, a global or a variable slot.
   Property* property = expr->expression()->AsProperty();
-  LhsKind assign_type = Property::GetAssignType(property);
+  AssignType assign_type = Property::GetAssignType(property);
 
   bool is_postfix = expr->is_postfix() && !execution_result()->IsEffect();
 
@@ -4014,7 +4580,7 @@ void BytecodeGenerator::VisitCountOperation(CountOperation* expr) {
   RegisterList super_property_args;
   const AstRawString* name;
   switch (assign_type) {
-    case VARIABLE: {
+    case NON_PROPERTY: {
       VariableProxy* proxy = expr->expression()->AsVariableProxy();
       BuildVariableLoadForAccumulatorValue(proxy->var(),
                                            proxy->hole_check_mode());
@@ -4082,7 +4648,7 @@ void BytecodeGenerator::VisitCountOperation(CountOperation* expr) {
   // Store the value.
   builder()->SetExpressionPosition(expr);
   switch (assign_type) {
-    case VARIABLE: {
+    case NON_PROPERTY: {
       VariableProxy* proxy = expr->expression()->AsVariableProxy();
       BuildVariableAssignment(proxy->var(), expr->op(),
                               proxy->hole_check_mode());
@@ -4305,13 +4871,10 @@ void BytecodeGenerator::VisitImportCallExpression(ImportCallExpression* expr) {
       .CallRuntime(Runtime::kDynamicImportCall, args);
 }
 
-void BytecodeGenerator::BuildGetIterator(Expression* iterable,
-                                         IteratorType hint) {
+void BytecodeGenerator::BuildGetIterator(IteratorType hint) {
   RegisterList args = register_allocator()->NewRegisterList(1);
   Register method = register_allocator()->NewRegister();
   Register obj = args[0];
-
-  VisitForAccumulatorValue(iterable);
 
   if (hint == IteratorType::kAsync) {
     // Set method to GetMethod(obj, @@asyncIterator)
@@ -4374,9 +4937,9 @@ void BytecodeGenerator::BuildGetIterator(Expression* iterable,
 // Returns an IteratorRecord which is valid for the lifetime of the current
 // register_allocation_scope.
 BytecodeGenerator::IteratorRecord BytecodeGenerator::BuildGetIteratorRecord(
-    Expression* iterable, Register next, Register object, IteratorType hint) {
+    Register next, Register object, IteratorType hint) {
   DCHECK(next.is_valid() && object.is_valid());
-  BuildGetIterator(iterable, hint);
+  BuildGetIterator(hint);
 
   builder()
       ->StoreAccumulatorInRegister(object)
@@ -4387,10 +4950,10 @@ BytecodeGenerator::IteratorRecord BytecodeGenerator::BuildGetIteratorRecord(
 }
 
 BytecodeGenerator::IteratorRecord BytecodeGenerator::BuildGetIteratorRecord(
-    Expression* iterable, IteratorType hint) {
+    IteratorType hint) {
   Register next = register_allocator()->NewRegister();
   Register object = register_allocator()->NewRegister();
-  return BuildGetIteratorRecord(iterable, next, object, hint);
+  return BuildGetIteratorRecord(next, object, hint);
 }
 
 void BytecodeGenerator::BuildIteratorNext(const IteratorRecord& iterator,
@@ -4458,7 +5021,8 @@ void BytecodeGenerator::BuildIteratorClose(const IteratorRecord& iterator,
 
 void BytecodeGenerator::VisitGetIterator(GetIterator* expr) {
   builder()->SetExpressionPosition(expr);
-  BuildGetIterator(expr->iterable(), expr->hint());
+  VisitForAccumulatorValue(expr->iterable());
+  BuildGetIterator(expr->hint());
 }
 
 void BytecodeGenerator::VisitGetTemplateObject(GetTemplateObject* expr) {

@@ -137,18 +137,39 @@ void Parser::DeclareAndInitializeVariables(
       this, block, declaration_descriptor, declaration, names);
 }
 
+namespace {
+// Lightweight visitor for the case where bytecode does the desugaring.
+void MarkVariablesWritten(Expression* expr) {
+  if (expr->IsVariableProxy()) {
+    expr->AsVariableProxy()->set_is_assigned();
+  } else if (expr->IsObjectLiteral()) {
+    for (ObjectLiteralProperty* prop : *expr->AsObjectLiteral()->properties()) {
+      MarkVariablesWritten(prop->value());
+    }
+  } else if (expr->IsArrayLiteral()) {
+    for (Expression* value : *expr->AsArrayLiteral()->values()) {
+      MarkVariablesWritten(value);
+    }
+  } else if (expr->IsSpread()) {
+    MarkVariablesWritten(expr->AsSpread()->expression());
+  } else if (expr->IsAssignment()) {
+    MarkVariablesWritten(expr->AsAssignment()->target());
+  }
+}
+}  // namespace
+
 void Parser::RewriteDestructuringAssignment(RewritableExpression* to_rewrite) {
   DCHECK(!to_rewrite->is_rewritten());
   Assignment* assignment = to_rewrite->expression()->AsAssignment();
-  Expression* result =
-      PatternRewriter::RewriteDestructuringAssignment(this, assignment);
-  to_rewrite->Rewrite(result);
+  DCHECK_NOT_NULL(assignment);
+  MarkVariablesWritten(assignment->target());
 }
 
 Expression* Parser::RewriteDestructuringAssignment(Assignment* assignment) {
   DCHECK_NOT_NULL(assignment);
   DCHECK_EQ(Token::ASSIGN, assignment->op());
-  return PatternRewriter::RewriteDestructuringAssignment(this, assignment);
+  MarkVariablesWritten(assignment->target());
+  return assignment;
 }
 
 void PatternRewriter::DeclareAndInitializeVariables(

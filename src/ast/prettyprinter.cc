@@ -1249,7 +1249,7 @@ void AstPrinter::VisitProperty(Property* node) {
   IndentedScope indent(this, buf.start(), node->position());
 
   Visit(node->obj());
-  LhsKind property_kind = Property::GetAssignType(node);
+  AssignType property_kind = Property::GetAssignType(node);
   if (property_kind == NAMED_PROPERTY ||
       property_kind == NAMED_SUPER_PROPERTY) {
     PrintLiteralIndented("NAME", node->key()->AsLiteral(), false);

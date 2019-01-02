@@ -407,7 +407,6 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
 
   BytecodeArrayBuilder& JumpIfTrue(ToBooleanMode mode, BytecodeLabel* label);
   BytecodeArrayBuilder& JumpIfFalse(ToBooleanMode mode, BytecodeLabel* label);
-  BytecodeArrayBuilder& JumpIfNotHole(BytecodeLabel* label);
   BytecodeArrayBuilder& JumpIfJSReceiver(BytecodeLabel* label);
   BytecodeArrayBuilder& JumpIfNull(BytecodeLabel* label);
   BytecodeArrayBuilder& JumpIfNotNull(BytecodeLabel* label);
