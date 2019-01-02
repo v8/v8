@@ -10,6 +10,7 @@
 #include <iterator>
 
 #include "src/allocation.h"
+#include "src/base/macros.h"
 #include "src/checks.h"
 #include "src/globals.h"
 
@@ -257,10 +258,10 @@ inline int StrLength(const char* string) {
   return static_cast<int>(length);
 }
 
-
-#define STATIC_CHAR_VECTOR(x)                                              \
-  v8::internal::Vector<const uint8_t>(reinterpret_cast<const uint8_t*>(x), \
-                                      arraysize(x) - 1)
+#define STATIC_CHAR_VECTOR(x)                                          \
+  v8::internal::VectorOf(                                              \
+      reinterpret_cast<const uint8_t*>(implicit_cast<const char*>(x)), \
+      arraysize(x) - 1)
 
 inline Vector<const char> CStrVector(const char* data) {
   return Vector<const char>(data, StrLength(data));
@@ -288,13 +289,17 @@ inline constexpr Vector<T> ArrayVector(T (&arr)[N]) {
   return Vector<T>(arr);
 }
 
+// Construct a Vector from a start pointer and a size.
+template <typename T>
+inline constexpr Vector<T> VectorOf(T* start, size_t size) {
+  return Vector<T>(start, size);
+}
+
 // Construct a Vector from anything providing a {data()} and {size()} accessor.
-template <typename Container,
-          typename T = typename std::remove_reference<
-              decltype(*(std::declval<Container>()).data())>::type,
-          typename = decltype((std::declval<Container>()).size())>
-inline constexpr Vector<T> VectorOf(Container&& c) {
-  return Vector<T>(c.data(), c.size());
+template <typename Container>
+inline constexpr auto VectorOf(Container&& c)
+    -> decltype(VectorOf(c.data(), c.size())) {
+  return VectorOf(c.data(), c.size());
 }
 
 }  // namespace internal

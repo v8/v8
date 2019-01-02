@@ -3395,8 +3395,7 @@ Handle<Script> CreateWasmScript(Isolate* isolate,
   int name_chars = SNPrintF(ArrayVector(buffer), "wasm-%08x", hash);
   DCHECK(name_chars >= 0 && name_chars < kBufferSize);
   MaybeHandle<String> name_str = isolate->factory()->NewStringFromOneByte(
-      Vector<const uint8_t>(reinterpret_cast<uint8_t*>(buffer), name_chars),
-      TENURED);
+      VectorOf(reinterpret_cast<uint8_t*>(buffer), name_chars), TENURED);
   script->set_name(*name_str.ToHandleChecked());
 
   if (source_map_url.size() != 0) {

@@ -1025,7 +1025,7 @@ class ModuleDecoderImpl : public Decoder {
     StartDecoding(counters, allocator);
     uint32_t offset = 0;
     Vector<const byte> orig_bytes(start(), end() - start());
-    DecodeModuleHeader(Vector<const uint8_t>(start(), end() - start()), offset);
+    DecodeModuleHeader(VectorOf(start(), end() - start()), offset);
     if (failed()) {
       return FinishDecoding(verify_functions);
     }

@@ -42,7 +42,7 @@ class WasmStreaming::WasmStreamingImpl {
   }
 
   void OnBytesReceived(const uint8_t* bytes, size_t size) {
-    streaming_decoder_->OnBytesReceived(i::Vector<const uint8_t>(bytes, size));
+    streaming_decoder_->OnBytesReceived(i::VectorOf(bytes, size));
   }
   void Finish() { streaming_decoder_->Finish(); }
 
@@ -338,20 +338,14 @@ class InstantiateBytesResultResolver
     i::Handle<i::JSObject> result =
         isolate_->factory()->NewJSObject(isolate_->object_function());
 
-    const uint8_t* instance_str = reinterpret_cast<const uint8_t*>("instance");
     i::Handle<i::String> instance_name =
         isolate_->factory()
-            ->NewStringFromOneByte(i::Vector<const uint8_t>(
-                instance_str,
-                i::StrLength(reinterpret_cast<const char*>(instance_str))))
+            ->NewStringFromOneByte(STATIC_CHAR_VECTOR("instance"))
             .ToHandleChecked();
 
-    const uint8_t* module_str = reinterpret_cast<const uint8_t*>("module");
     i::Handle<i::String> module_name =
         isolate_->factory()
-            ->NewStringFromOneByte(i::Vector<const uint8_t>(
-                module_str,
-                i::StrLength(reinterpret_cast<const char*>(module_str))))
+            ->NewStringFromOneByte(STATIC_CHAR_VECTOR("module"))
             .ToHandleChecked();
 
     i::JSObject::AddProperty(isolate_, result, instance_name, instance,

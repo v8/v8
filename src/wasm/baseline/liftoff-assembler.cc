@@ -328,11 +328,10 @@ void LiftoffAssembler::CacheState::InitMerge(const CacheState& source,
   // multiple times need to be copied to another free register. Compute the list
   // of used registers.
   LiftoffRegList used_regs;
-  for (auto& src : Vector<const VarState>{source_begin, num_locals}) {
+  for (auto& src : VectorOf(source_begin, num_locals)) {
     if (src.is_reg()) used_regs.set(src.reg());
   }
-  for (auto& src :
-       Vector<const VarState>{source_begin + stack_base + discarded, arity}) {
+  for (auto& src : VectorOf(source_begin + stack_base + discarded, arity)) {
     if (src.is_reg()) used_regs.set(src.reg());
   }
 
