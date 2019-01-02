@@ -83,7 +83,6 @@ class Operand {
 
   static Operand EmbeddedNumber(double number);  // Smi or HeapNumber.
   static Operand EmbeddedStringConstant(const StringConstantBase* str);
-  static Operand EmbeddedCode(CodeStub* stub);
 
   // Return true if this is a register operand.
   V8_INLINE bool is_reg() const { return rm_.is_valid(); }

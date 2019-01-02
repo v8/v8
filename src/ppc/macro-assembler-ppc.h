@@ -378,7 +378,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // Print a message to stdout and abort execution.
   void Abort(AbortReason reason);
 
-  inline bool AllowThisStubCall(CodeStub* stub);
 #if !V8_TARGET_ARCH_PPC64
   void ShiftLeftPair(Register dst_low, Register dst_high, Register src_low,
                      Register src_high, Register scratch, Register shift);
@@ -607,8 +606,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // the JS bitwise operations. See ECMA-262 9.5: ToInt32. Goes to 'done' if it
   // succeeds, otherwise falls through if result is saturated. On return
   // 'result' either holds answer, or is clobbered on fall through.
-  //
-  // Only public for the test code in test-code-stubs-arm.cc.
   void TryInlineTruncateDoubleToI(Register result, DoubleRegister input,
                                   Label* done);
   void TruncateDoubleToI(Isolate* isolate, Zone* zone, Register result,
@@ -865,10 +862,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
                                             RelocInfo::Mode rmode,
                                             Condition cond = al);
   void CallJSEntry(Register target);
-
-  // Call a code stub.
-  void CallStub(CodeStub* stub, Condition cond = al);
-  void TailCallStub(CodeStub* stub, Condition cond = al);
 
   // Call a runtime routine.
   void CallRuntime(const Runtime::Function* f, int num_arguments,

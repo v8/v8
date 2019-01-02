@@ -854,8 +854,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // Print a message to stdout and abort execution.
   void Abort(AbortReason reason);
 
-  inline bool AllowThisStubCall(CodeStub* stub);
-
   // ---------------------------------------------------------------------------
   // Bit testing/extraction
   //
@@ -1017,10 +1015,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   MacroAssembler(Isolate* isolate, const AssemblerOptions& options,
                  void* buffer, int size, CodeObjectRequired create_code_object);
 
-  // Call a code stub.
-  void TailCallStub(CodeStub* stub, Condition cond = al);
-
-  void CallStub(CodeStub* stub, Condition cond = al);
   void CallRuntime(const Runtime::Function* f, int num_arguments,
                    SaveFPRegsMode save_doubles = kDontSaveFPRegs);
   void CallRuntimeSaveDoubles(Runtime::FunctionId fid) {

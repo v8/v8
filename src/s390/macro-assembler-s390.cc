@@ -12,7 +12,6 @@
 #include "src/bootstrapper.h"
 #include "src/callable.h"
 #include "src/code-factory.h"
-#include "src/code-stubs.h"
 #include "src/counters.h"
 #include "src/debug/debug.h"
 #include "src/external-reference-table.h"
@@ -1533,19 +1532,6 @@ void MacroAssembler::CompareInstanceType(Register map, Register type_reg,
 
 void MacroAssembler::CompareRoot(Register obj, RootIndex index) {
   CmpP(obj, MemOperand(kRootRegister, RootRegisterOffsetForRootIndex(index)));
-}
-
-void MacroAssembler::CallStub(CodeStub* stub, Condition cond) {
-  DCHECK(AllowThisStubCall(stub));  // Stub calls are not allowed in some stubs.
-  Call(stub->GetCode(), RelocInfo::CODE_TARGET, cond);
-}
-
-void MacroAssembler::TailCallStub(CodeStub* stub, Condition cond) {
-  Jump(stub->GetCode(), RelocInfo::CODE_TARGET, cond);
-}
-
-bool TurboAssembler::AllowThisStubCall(CodeStub* stub) {
-  return has_frame_ || !stub->SometimesSetsUpAFrame();
 }
 
 void MacroAssembler::TryDoubleToInt32Exact(Register result,

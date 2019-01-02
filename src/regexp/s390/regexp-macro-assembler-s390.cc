@@ -8,7 +8,6 @@
 
 #include "src/assembler-inl.h"
 #include "src/base/bits.h"
-#include "src/code-stubs.h"
 #include "src/log.h"
 #include "src/macro-assembler.h"
 #include "src/regexp/regexp-macro-assembler.h"

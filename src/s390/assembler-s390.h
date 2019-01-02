@@ -1134,7 +1134,6 @@ inline void ss_a_format(Opcode op, int f1, int f2, int f3, int f4, int f5) {
   }
 
   void call(Handle<Code> target, RelocInfo::Mode rmode);
-  void call(CodeStub* stub);
   void jump(Handle<Code> target, RelocInfo::Mode rmode, Condition cond);
 
 // S390 instruction generation

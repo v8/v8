@@ -47,7 +47,6 @@
 
 #include "src/base/bits.h"
 #include "src/base/cpu.h"
-#include "src/code-stubs.h"
 #include "src/deoptimizer.h"
 #include "src/macro-assembler.h"
 #include "src/s390/assembler-s390-inl.h"
@@ -330,14 +329,6 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
             isolate->factory()->NewHeapNumber(request.heap_number(), TENURED);
         set_target_address_at(pc, kNullAddress, object.address(),
                               SKIP_ICACHE_FLUSH);
-        break;
-      }
-      case HeapObjectRequest::kCodeStub: {
-        request.code_stub()->set_isolate(isolate);
-        SixByteInstr instr =
-            Instruction::InstructionBits(reinterpret_cast<const byte*>(pc));
-        int index = instr & 0xFFFFFFFF;
-        UpdateCodeTarget(index, request.code_stub()->GetCode());
         break;
       }
       case HeapObjectRequest::kStringConstant: {
@@ -682,14 +673,6 @@ void Assembler::call(Handle<Code> target, RelocInfo::Mode rmode) {
 
   RecordRelocInfo(rmode);
   int32_t target_index = AddCodeTarget(target);
-  brasl(r14, Operand(target_index));
-}
-
-void Assembler::call(CodeStub* stub) {
-  EnsureSpace ensure_space(this);
-  RequestHeapObject(HeapObjectRequest(stub));
-  RecordRelocInfo(RelocInfo::CODE_TARGET);
-  int32_t target_index = AddCodeTarget(Handle<Code>());
   brasl(r14, Operand(target_index));
 }
 
