@@ -41,22 +41,16 @@ void* AlignedAllocInternal(size_t size, size_t alignment) {
 class PageAllocatorInitializer {
  public:
   PageAllocatorInitializer() {
-    v8::PageAllocator* page_allocator =
-        V8::GetCurrentPlatform()->GetPageAllocator();
-    if (page_allocator == nullptr) {
-      // On the heap and leaked so that no destructor needs to run at exit time.
-      static auto* default_allocator = new v8::base::PageAllocator;
-      page_allocator = default_allocator;
+    page_allocator_ = V8::GetCurrentPlatform()->GetPageAllocator();
+    if (page_allocator_ == nullptr) {
+      static base::LeakyObject<base::PageAllocator> default_page_allocator;
+      page_allocator_ = default_page_allocator.get();
     }
 #if defined(LEAK_SANITIZER)
-    {
-      // On the heap and leaked so that no destructor needs to run at exit time.
-      static auto* lsan_allocator =
-          new v8::base::LsanPageAllocator(page_allocator);
-      page_allocator = lsan_allocator;
-    }
+    static base::LeakyObject<base::LsanPageAllocator> lsan_allocator(
+        page_allocator_);
+    page_allocator_ = lsan_allocator.get();
 #endif
-    page_allocator_ = page_allocator;
   }
 
   PageAllocator* page_allocator() const { return page_allocator_; }
