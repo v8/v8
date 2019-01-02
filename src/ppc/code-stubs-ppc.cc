@@ -54,7 +54,9 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
     // Set up the reserved register for 0.0.
     __ LoadDoubleLiteral(kDoubleRegZero, Double(0.0), r0);
 
-    __ InitializeRootRegister();
+    // Initialize the root register.
+    // C calling convention. The sixth argument is passed in r8.
+    __ mr(kRootRegister, r8);
   }
 
   // Push a frame with special values setup to mark it as an entry frame.

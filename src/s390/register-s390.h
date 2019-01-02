@@ -65,8 +65,6 @@ const RegList kCalleeSaved =
 
 const int kNumCalleeSaved = 8;
 
-#ifdef V8_TARGET_ARCH_S390X
-
 const RegList kCallerSavedDoubles = 1 << 0 |  // d0
                                     1 << 1 |  // d1
                                     1 << 2 |  // d2
@@ -88,32 +86,6 @@ const RegList kCalleeSavedDoubles = 1 << 8 |   // d8
                                     1 << 15;   // d13
 
 const int kNumCalleeSavedDoubles = 8;
-
-#else
-
-const RegList kCallerSavedDoubles = 1 << 14 |  // d14
-                                    1 << 15 |  // d15
-                                    1 << 0 |   // d0
-                                    1 << 1 |   // d1
-                                    1 << 2 |   // d2
-                                    1 << 3 |   // d3
-                                    1 << 5 |   // d5
-                                    1 << 7 |   // d7
-                                    1 << 8 |   // d8
-                                    1 << 9 |   // d9
-                                    1 << 10 |  // d10
-                                    1 << 11 |  // d10
-                                    1 << 12 |  // d10
-                                    1 << 13;   // d11
-
-const int kNumCallerSavedDoubles = 14;
-
-const RegList kCalleeSavedDoubles = 1 << 4 |  // d4
-                                    1 << 6;   // d6
-
-const int kNumCalleeSavedDoubles = 2;
-
-#endif
 
 // Number of registers for which space is reserved in safepoints. Must be a
 // multiple of 8.

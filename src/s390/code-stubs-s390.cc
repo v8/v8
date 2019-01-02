@@ -25,21 +25,32 @@ namespace internal {
 
 #define __ ACCESS_MASM(masm)
 
+// Called with the native C calling convention. The corresponding function
+// signature is:
+//
+//  using JSEntryFunction = GeneratedCode<Object*(
+//      Object * new_target, Object * target, Object * receiver, int argc,
+//      Object*** args, Address root_register_value)>;
 void JSEntryStub::Generate(MacroAssembler* masm) {
-  // r2: code entry
-  // r3: function
-  // r4: receiver
-  // r5: argc
-  // r6: argv
+  // r2:                            code entry
+  // r3:                            function
+  // r4:                            receiver
+  // r5:                            argc
+  // r6:                            argv
+  // [sp + 20 * kSystemPointerSize]: root register value
 
   Label invoke, handler_entry, exit;
+
+  static constexpr int kPushedStackSpace =
+      (kNumCalleeSaved + 2) * kPointerSize +
+      kNumCalleeSavedDoubles * kDoubleSize;
 
   {
     NoRootArrayScope no_root_array(masm);
 
-// saving floating point registers
-#if V8_TARGET_ARCH_S390X
+    // saving floating point registers
     // 64bit ABI requires f8 to f15 be saved
+    // http://refspecs.linuxbase.org/ELF/zSeries/lzsabi0_zSeries.html
     __ lay(sp, MemOperand(sp, -8 * kDoubleSize));
     __ std(d8, MemOperand(sp));
     __ std(d9, MemOperand(sp, 1 * kDoubleSize));
@@ -49,13 +60,6 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
     __ std(d13, MemOperand(sp, 5 * kDoubleSize));
     __ std(d14, MemOperand(sp, 6 * kDoubleSize));
     __ std(d15, MemOperand(sp, 7 * kDoubleSize));
-#else
-    // 31bit ABI requires you to store f4 and f6:
-    // http://refspecs.linuxbase.org/ELF/zSeries/lzsabi0_s390.html#AEN417
-    __ lay(sp, MemOperand(sp, -2 * kDoubleSize));
-    __ std(d4, MemOperand(sp));
-    __ std(d6, MemOperand(sp, kDoubleSize));
-#endif
 
     // zLinux ABI
     //    Incoming parameters:
@@ -64,42 +68,50 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
     //          r4: receiver
     //          r5: argc
     //          r6: argv
+    // [sp + 20 * kSystemPointerSize]: root register value
     //    Requires us to save the callee-preserved registers r6-r13
     //    General convention is to also save r14 (return addr) and
     //    sp/r15 as well in a single STM/STMG
     __ lay(sp, MemOperand(sp, -10 * kPointerSize));
     __ StoreMultipleP(r6, sp, MemOperand(sp, 0));
 
-    // Set up the reserved register for 0.0.
-    // __ LoadDoubleLiteral(kDoubleRegZero, 0.0, r0);
-
-    // Push a frame with special values setup to mark it as an entry frame.
-    //   Bad FP (-1)
-    //   SMI Marker
-    //   SMI Marker
-    //   kCEntryFPAddress
-    //   Frame type
-    __ lay(sp, MemOperand(sp, -5 * kPointerSize));
-
-    // Push a bad frame pointer to fail if it is used.
-    __ LoadImmP(r10, Operand(-1));
-
-    StackFrame::Type marker = type();
-    __ Load(r9, Operand(StackFrame::TypeToMarker(marker)));
-    __ Load(r8, Operand(StackFrame::TypeToMarker(marker)));
-    // Save copies of the top frame descriptor on the stack.
-    __ mov(r7, Operand(ExternalReference::Create(
-                   IsolateAddressId::kCEntryFPAddress, isolate())));
-    __ LoadP(r7, MemOperand(r7));
-    __ StoreMultipleP(r7, r10, MemOperand(sp, kPointerSize));
-    // Set up frame pointer for the frame to be pushed.
-    // Need to add kPointerSize, because sp has one extra
-    // frame already for the frame type being pushed later.
-    __ lay(fp, MemOperand(
-                   sp, -EntryFrameConstants::kCallerFPOffset + kPointerSize));
-
-    __ InitializeRootRegister();
+    // Initialize the root register.
+    // C calling convention. The sixth argument is passed on the stack.
+    static constexpr int kOffsetToRootRegisterValue =
+        kPushedStackSpace + EntryFrameConstants::kRootRegisterValueOffset;
+    __ LoadP(kRootRegister, MemOperand(sp, kOffsetToRootRegisterValue));
   }
+
+  // save r6 to r1
+  __ LoadRR(r1, r6);
+
+  // Push a frame with special values setup to mark it as an entry frame.
+  //   Bad FP (-1)
+  //   SMI Marker
+  //   SMI Marker
+  //   kCEntryFPAddress
+  //   Frame type
+  __ lay(sp, MemOperand(sp, -5 * kPointerSize));
+
+  // Push a bad frame pointer to fail if it is used.
+  __ LoadImmP(r9, Operand(-1));
+
+  StackFrame::Type marker = type();
+  __ Load(r8, Operand(StackFrame::TypeToMarker(marker)));
+  __ Load(r7, Operand(StackFrame::TypeToMarker(marker)));
+  // Save copies of the top frame descriptor on the stack.
+  __ mov(r6, Operand(ExternalReference::Create(
+                 IsolateAddressId::kCEntryFPAddress, isolate())));
+  __ LoadP(r6, MemOperand(r6));
+  __ StoreMultipleP(r6, r9, MemOperand(sp, kPointerSize));
+  // Set up frame pointer for the frame to be pushed.
+  // Need to add kPointerSize, because sp has one extra
+  // frame already for the frame type being pushed later.
+  __ lay(fp, MemOperand(
+                 sp, -EntryFrameConstants::kCallerFPOffset + kPointerSize));
+
+  // restore r6
+  __ LoadRR(r6, r1);
 
   // If this is the outermost JS call, set js_entry_sp value.
   Label non_outermost_js;
