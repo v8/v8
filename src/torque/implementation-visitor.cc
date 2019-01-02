@@ -183,78 +183,60 @@ void ImplementationVisitor::Visit(TypeAlias* alias) {
   header_out() << "  };\n";
 }
 
-void ImplementationVisitor::Visit(Macro* macro) {
-  if (macro->IsExternal()) return;
+VisitResult ImplementationVisitor::InlineMacro(
+    Macro* macro, const std::vector<VisitResult>& arguments,
+    const std::vector<Block*> label_blocks) {
   CurrentScope::Scope current_scope(macro);
+  BindingsManagersScope bindings_managers_scope;
+  CurrentCallable::Scope current_callable(macro);
+  CurrentReturnValue::Scope current_return_value;
   const Signature& signature = macro->signature();
   const Type* return_type = macro->signature().return_type;
   bool can_return = return_type != TypeOracle::GetNeverType();
-  bool has_return_value =
-      can_return && return_type != TypeOracle::GetVoidType();
-
-  CurrentCallable::Scope current_callable(macro);
-
-  header_out() << "  ";
-  GenerateMacroFunctionDeclaration(header_out(), "", macro);
-  header_out() << ";\n";
-
-  GenerateMacroFunctionDeclaration(
-      source_out(), CurrentNamespace()->ExternalName() + "::", macro);
-  source_out() << " {\n";
-
-  Stack<std::string> lowered_parameters;
-  Stack<const Type*> lowered_parameter_types;
-
-  BindingsManagersScope bindings_managers_scope;
 
   BlockBindings<LocalValue> parameter_bindings(&ValueBindingsManager::Get());
+  DCHECK_EQ(macro->signature().parameter_names.size(), arguments.size());
   for (size_t i = 0; i < macro->signature().parameter_names.size(); ++i) {
     const std::string& name = macro->parameter_names()[i];
-    std::string external_name = GetParameterVariableFromName(name);
-    const Type* type = macro->signature().types()[i];
-    if (type->IsConstexpr()) {
-      parameter_bindings.Add(
-          name, LocalValue{true, VisitResult(type, external_name)});
-    } else {
-      LowerParameter(type, external_name, &lowered_parameters);
-      StackRange range = lowered_parameter_types.PushMany(LowerType(type));
-      parameter_bindings.Add(name, LocalValue{true, VisitResult(type, range)});
-    }
+    parameter_bindings.Add(name, LocalValue{true, arguments[i]});
   }
 
-  DCHECK_EQ(lowered_parameters.Size(), lowered_parameter_types.Size());
-  assembler_ = CfgAssembler(lowered_parameter_types);
-
   BlockBindings<LocalLabel> label_bindings(&LabelBindingsManager::Get());
-  for (const LabelDeclaration& label_info : signature.labels) {
-    Stack<const Type*> label_input_stack;
-    for (const Type* type : label_info.types) {
-      label_input_stack.PushMany(LowerType(type));
-    }
-    Block* block = assembler().NewBlock(std::move(label_input_stack));
-    label_bindings.Add(label_info.name, LocalLabel{block, label_info.types});
+  DCHECK_EQ(label_blocks.size(), signature.labels.size());
+  for (size_t i = 0; i < signature.labels.size(); ++i) {
+    const LabelDeclaration& label_info = signature.labels[i];
+    label_bindings.Add(label_info.name,
+                       LocalLabel{label_blocks[i], label_info.types});
   }
 
   Block* macro_end;
   base::Optional<Binding<LocalLabel>> macro_end_binding;
   if (can_return) {
-    macro_end = assembler().NewBlock(
-        Stack<const Type*>{LowerType(signature.return_type)});
+    Stack<const Type*> stack = assembler().CurrentStack();
+    std::vector<const Type*> lowered_return_types = LowerType(return_type);
+    stack.PushMany(lowered_return_types);
+    if (!return_type->IsConstexpr()) {
+      SetReturnValue(VisitResult(return_type,
+                                 stack.TopRange(lowered_return_types.size())));
+    }
+    macro_end = assembler().NewBlock(std::move(stack));
     macro_end_binding.emplace(&LabelBindingsManager::Get(), "_macro_end",
-                              LocalLabel{macro_end, {signature.return_type}});
+                              LocalLabel{macro_end, {return_type}});
+  } else {
+    SetReturnValue(VisitResult::NeverResult());
   }
 
   const Type* result = Visit(*macro->body());
 
   if (result->IsNever()) {
-    if (!macro->signature().return_type->IsNever() && !macro->HasReturns()) {
+    if (!return_type->IsNever() && !macro->HasReturns()) {
       std::stringstream s;
       s << "macro " << macro->ReadableName()
         << " that never returns must have return type never";
       ReportError(s.str());
     }
   } else {
-    if (macro->signature().return_type->IsNever()) {
+    if (return_type->IsNever()) {
       std::stringstream s;
       s << "macro " << macro->ReadableName()
         << " has implicit return at end of its declartion but return type "
@@ -271,19 +253,83 @@ void ImplementationVisitor::Visit(Macro* macro) {
     assembler().Goto(macro_end);
   }
 
-  for (auto* label_binding : label_bindings.bindings()) {
-    assembler().Bind(label_binding->block);
-    std::vector<std::string> label_parameter_variables;
-    for (size_t i = 0; i < label_binding->parameter_types.size(); ++i) {
-      label_parameter_variables.push_back(
-          ExternalLabelParameterName(label_binding->name(), i));
-    }
-    assembler().Emit(GotoExternalInstruction{
-        ExternalLabelName(label_binding->name()), label_parameter_variables});
-  }
-
   if (macro->HasReturns() || !result->IsNever()) {
     assembler().Bind(macro_end);
+  }
+
+  return GetAndClearReturnValue();
+}
+
+void ImplementationVisitor::Visit(Macro* macro) {
+  if (macro->IsExternal()) return;
+  CurrentScope::Scope current_scope(macro);
+  const Signature& signature = macro->signature();
+  const Type* return_type = macro->signature().return_type;
+  bool can_return = return_type != TypeOracle::GetNeverType();
+  bool has_return_value =
+      can_return && return_type != TypeOracle::GetVoidType();
+
+  header_out() << "  ";
+  GenerateMacroFunctionDeclaration(header_out(), "", macro);
+  header_out() << ";\n";
+
+  GenerateMacroFunctionDeclaration(
+      source_out(), CurrentNamespace()->ExternalName() + "::", macro);
+  source_out() << " {\n";
+
+  Stack<std::string> lowered_parameters;
+  Stack<const Type*> lowered_parameter_types;
+
+  std::vector<VisitResult> arguments;
+
+  for (size_t i = 0; i < macro->signature().parameter_names.size(); ++i) {
+    const std::string& name = macro->parameter_names()[i];
+    std::string external_name = GetParameterVariableFromName(name);
+    const Type* type = macro->signature().types()[i];
+
+    if (type->IsConstexpr()) {
+      arguments.push_back(VisitResult(type, external_name));
+    } else {
+      LowerParameter(type, external_name, &lowered_parameters);
+      StackRange range = lowered_parameter_types.PushMany(LowerType(type));
+      arguments.push_back(VisitResult(type, range));
+    }
+  }
+
+  DCHECK_EQ(lowered_parameters.Size(), lowered_parameter_types.Size());
+  assembler_ = CfgAssembler(lowered_parameter_types);
+
+  std::vector<Block*> label_blocks;
+  for (const LabelDeclaration& label_info : signature.labels) {
+    Stack<const Type*> label_input_stack;
+    for (const Type* type : label_info.types) {
+      label_input_stack.PushMany(LowerType(type));
+    }
+    Block* block = assembler().NewBlock(std::move(label_input_stack));
+    label_blocks.push_back(block);
+  }
+
+  VisitResult return_value = InlineMacro(macro, arguments, label_blocks);
+  Block* end = assembler().NewBlock();
+  if (return_type != TypeOracle::GetNeverType()) {
+    assembler().Goto(end);
+  }
+
+  for (size_t i = 0; i < label_blocks.size(); ++i) {
+    Block* label_block = label_blocks[i];
+    const LabelDeclaration& label_info = signature.labels[i];
+    assembler().Bind(label_block);
+    std::vector<std::string> label_parameter_variables;
+    for (size_t i = 0; i < label_info.types.size(); ++i) {
+      label_parameter_variables.push_back(
+          ExternalLabelParameterName(label_info.name, i));
+    }
+    assembler().Emit(GotoExternalInstruction{ExternalLabelName(label_info.name),
+                                             label_parameter_variables});
+  }
+
+  if (return_type != TypeOracle::GetNeverType()) {
+    assembler().Bind(end);
   }
 
   CSAGenerator csa_generator{assembler().Result(), source_out()};
@@ -294,7 +340,7 @@ void ImplementationVisitor::Visit(Macro* macro) {
 
   if (has_return_value) {
     source_out() << "  return ";
-    CSAGenerator::EmitCSAValue(GetAndClearReturnValue(), *values, source_out());
+    CSAGenerator::EmitCSAValue(return_value, *values, source_out());
     source_out() << ";\n";
   }
   source_out() << "}\n\n";
@@ -327,6 +373,7 @@ void ImplementationVisitor::Visit(Builtin* builtin) {
                << "  compiler::CodeAssembler ca_(state());\n";
 
   CurrentCallable::Scope current_callable(builtin);
+  CurrentReturnValue::Scope current_return_value;
 
   Stack<const Type*> parameter_types;
   Stack<std::string> parameters;
@@ -1725,6 +1772,12 @@ VisitResult ImplementationVisitor::GenerateCall(
       }
       result << "))";
       return VisitResult(return_type, result.str());
+    } else if (macro->ShouldBeInlined()) {
+      std::vector<Block*> label_blocks;
+      for (Binding<LocalLabel>* label : arguments.labels) {
+        label_blocks.push_back(label->block);
+      }
+      return InlineMacro(macro, converted_arguments, label_blocks);
     } else if (arguments.labels.empty() &&
                return_type != TypeOracle::GetNeverType()) {
       base::Optional<Block*> catch_block = GetCatchBlock();
@@ -1972,6 +2025,7 @@ std::string ImplementationVisitor::ExternalParameterName(
 DEFINE_CONTEXTUAL_VARIABLE(ImplementationVisitor::ValueBindingsManager);
 DEFINE_CONTEXTUAL_VARIABLE(ImplementationVisitor::LabelBindingsManager);
 DEFINE_CONTEXTUAL_VARIABLE(ImplementationVisitor::CurrentCallable);
+DEFINE_CONTEXTUAL_VARIABLE(ImplementationVisitor::CurrentReturnValue);
 
 bool IsCompatibleSignature(const Signature& sig, const TypeVector& types,
                            const std::vector<Binding<LocalLabel>*>& labels) {

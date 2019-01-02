@@ -47,9 +47,7 @@ class Declarations {
   static std::vector<Declarable*> Lookup(const QualifiedName& name) {
     std::vector<Declarable*> d = TryLookup(name);
     if (d.empty()) {
-      std::stringstream s;
-      s << "cannot find \"" << name << "\"";
-      ReportError(s.str());
+      ReportError("cannot find \"", name, "\"");
     }
     return d;
   }

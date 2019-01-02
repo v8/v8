@@ -250,6 +250,7 @@ class Callable : public Scope {
   bool IsTransitioning() const { return transitioning_; }
   base::Optional<Statement*> body() const { return body_; }
   bool IsExternal() const { return !body_.has_value(); }
+  bool ShouldBeInlined() const { return false; }
 
  protected:
   Callable(Declarable::Kind kind, std::string external_name,

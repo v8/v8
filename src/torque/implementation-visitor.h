@@ -228,6 +228,9 @@ class ImplementationVisitor : public FileVisitor {
   void VisitAllDeclarables();
   void Visit(Declarable* delarable);
   void Visit(TypeAlias* decl);
+  VisitResult InlineMacro(Macro* macro,
+                          const std::vector<VisitResult>& arguments,
+                          const std::vector<Block*> label_blocks);
   void Visit(Macro* macro);
   void Visit(Builtin* builtin);
   void Visit(NamespaceConstant* decl);
@@ -275,6 +278,7 @@ class ImplementationVisitor : public FileVisitor {
   DECLARE_CONTEXTUAL_VARIABLE(LabelBindingsManager,
                               BindingsManager<LocalLabel>);
   DECLARE_CONTEXTUAL_VARIABLE(CurrentCallable, Callable*);
+  DECLARE_CONTEXTUAL_VARIABLE(CurrentReturnValue, base::Optional<VisitResult>);
 
   // A BindingsManagersScope has to be active for local bindings to be created.
   // Shadowing an existing BindingsManagersScope by creating a new one hides all
@@ -431,18 +435,19 @@ class ImplementationVisitor : public FileVisitor {
   CfgAssembler& assembler() { return *assembler_; }
 
   void SetReturnValue(VisitResult return_value) {
-    DCHECK_IMPLIES(return_value_, *return_value_ == return_value);
-    return_value_ = std::move(return_value);
+    base::Optional<VisitResult>& current_return_value =
+        CurrentReturnValue::Get();
+    DCHECK_IMPLIES(current_return_value, *current_return_value == return_value);
+    current_return_value = std::move(return_value);
   }
 
   VisitResult GetAndClearReturnValue() {
-    VisitResult return_value = *return_value_;
-    return_value_ = base::nullopt;
+    VisitResult return_value = *CurrentReturnValue::Get();
+    CurrentReturnValue::Get() = base::nullopt;
     return return_value;
   }
 
   base::Optional<CfgAssembler> assembler_;
-  base::Optional<VisitResult> return_value_;
 };
 
 }  // namespace torque
