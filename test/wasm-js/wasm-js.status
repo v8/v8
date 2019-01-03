@@ -13,6 +13,11 @@
   'global/value-get-set': [FAIL],
 }], # ALWAYS
 
+[ALWAYS, {
+  # https://bugs.chromium.org/p/v8/issues/detail?id=8633
+  'limits': [SKIP],
+}], # ALWAYS
+
 ['arch == s390 or arch == s390x or system == aix', {
   # https://bugs.chromium.org/p/v8/issues/detail?id=8402
   'instance/constructor': [SKIP],
