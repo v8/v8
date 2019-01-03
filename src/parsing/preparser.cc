@@ -107,7 +107,7 @@ void PreParserFormalParameters::ValidateStrictMode(PreParser* preparser) const {
 PreParser::PreParseResult PreParser::PreParseFunction(
     const AstRawString* function_name, FunctionKind kind,
     FunctionLiteral::FunctionType function_type,
-    DeclarationScope* function_scope, bool may_abort, int* use_counts,
+    DeclarationScope* function_scope, int* use_counts,
     ProducedPreParsedScopeData** produced_preparsed_scope_data, int script_id) {
   DCHECK_EQ(FUNCTION_SCOPE, function_scope->scope_type());
   use_counts_ = use_counts;
@@ -161,7 +161,6 @@ PreParser::PreParseResult PreParser::PreParseFunction(
 
   Expect(Token::LBRACE);
   DeclarationScope* inner_scope = function_scope;
-  LazyParsingResult result;
 
   if (!formals.is_simple) {
     inner_scope = NewVarblockScope();
@@ -170,7 +169,7 @@ PreParser::PreParseResult PreParser::PreParseFunction(
 
   {
     BlockState block_state(&scope_, inner_scope);
-    result = ParseStatementListAndLogFunction(&formals, may_abort);
+    ParseStatementListAndLogFunction(&formals);
   }
 
   bool allow_duplicate_parameters = false;
@@ -205,12 +204,8 @@ PreParser::PreParseResult PreParser::PreParseFunction(
     return kPreParseNotIdentifiableError;
   } else if (has_error()) {
     DCHECK(pending_error_handler()->has_pending_error());
-  } else if (result == kLazyParsingAborted) {
-    DCHECK(!pending_error_handler()->has_error_unidentifiable_by_preparser());
-    return kPreParseAbort;
   } else {
     DCHECK_EQ(Token::RBRACE, scanner()->peek());
-    DCHECK(result == kLazyParsingComplete);
 
     if (!IsArrowFunction(kind)) {
       // Validate parameter names. We can do this only after parsing the
@@ -372,12 +367,10 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   return Expression::Default();
 }
 
-PreParser::LazyParsingResult PreParser::ParseStatementListAndLogFunction(
-    PreParserFormalParameters* formals, bool may_abort) {
+void PreParser::ParseStatementListAndLogFunction(
+    PreParserFormalParameters* formals) {
   PreParserScopedStatementList body(pointer_buffer());
-  LazyParsingResult result =
-      ParseStatementList(&body, Token::RBRACE, may_abort);
-  if (result == kLazyParsingAborted) return result;
+  ParseStatementList(&body, Token::RBRACE);
 
   // Position right after terminal '}'.
   DCHECK_IMPLIES(!has_error(), scanner()->peek() == Token::RBRACE);
@@ -385,7 +378,6 @@ PreParser::LazyParsingResult PreParser::ParseStatementListAndLogFunction(
   DCHECK_EQ(this->scope()->is_function_scope(), formals->is_simple);
   log_.LogFunction(body_end, formals->num_parameters(),
                    GetLastFunctionLiteralId());
-  return kLazyParsingComplete;
 }
 
 PreParserBlock PreParser::BuildParameterInitializationBlock(

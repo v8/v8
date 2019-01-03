@@ -991,7 +991,6 @@ class PreParser : public ParserBase<PreParser> {
 
   enum PreParseResult {
     kPreParseStackOverflow,
-    kPreParseAbort,
     kPreParseNotIdentifiableError,
     kPreParseSuccess
   };
@@ -1030,7 +1029,7 @@ class PreParser : public ParserBase<PreParser> {
   PreParseResult PreParseFunction(
       const AstRawString* function_name, FunctionKind kind,
       FunctionLiteral::FunctionType function_type,
-      DeclarationScope* function_scope, bool may_abort, int* use_counts,
+      DeclarationScope* function_scope, int* use_counts,
       ProducedPreParsedScopeData** produced_preparser_scope_data,
       int script_id);
 
@@ -1069,8 +1068,7 @@ class PreParser : public ParserBase<PreParser> {
       const AstRawString* name, FunctionKind kind,
       FunctionLiteral::FunctionType function_type,
       DeclarationScope* function_scope, int* num_parameters,
-      ProducedPreParsedScopeData** produced_preparsed_scope_data,
-      bool may_abort, FunctionLiteral::EagerCompileHint* hint) {
+      ProducedPreParsedScopeData** produced_preparsed_scope_data) {
     UNREACHABLE();
   }
 
@@ -1085,8 +1083,7 @@ class PreParser : public ParserBase<PreParser> {
     return literal;
   }
 
-  LazyParsingResult ParseStatementListAndLogFunction(
-      PreParserFormalParameters* formals, bool maybe_abort);
+  void ParseStatementListAndLogFunction(PreParserFormalParameters* formals);
 
   struct TemplateLiteralState {};
 

@@ -336,8 +336,6 @@ class ParserBase {
   friend class v8::internal::ExpressionParsingScope<ParserTypes<Impl>>;
   friend class v8::internal::ArrowHeadParsingScope<ParserTypes<Impl>>;
 
-  enum LazyParsingResult { kLazyParsingComplete, kLazyParsingAborted };
-
   enum VariableDeclarationContext {
     kStatementListItem,
     kStatement,
@@ -1082,26 +1080,12 @@ class ParserBase {
                          FunctionLiteral::FunctionType function_type,
                          FunctionBodyType body_type);
 
-  // Under some circumstances, we allow preparsing to abort if the preparsed
-  // function is "long and trivial", and fully parse instead. Our current
-  // definition of "long and trivial" is:
-  // - over kLazyParseTrialLimit statements
-  // - all starting with an identifier (i.e., no if, for, while, etc.)
-  static const int kLazyParseTrialLimit = 200;
-
   // TODO(nikolaos, marja): The first argument should not really be passed
   // by value. The method is expected to add the parsed statements to the
   // list. This works because in the case of the parser, StatementListT is
   // a pointer whereas the preparser does not really modify the body.
   V8_INLINE void ParseStatementList(StatementListT* body,
-                                    Token::Value end_token) {
-    LazyParsingResult result = ParseStatementList(body, end_token, false);
-    USE(result);
-    DCHECK_EQ(result, kLazyParsingComplete);
-  }
-  V8_INLINE LazyParsingResult ParseStatementList(StatementListT* body,
-                                                 Token::Value end_token,
-                                                 bool may_abort);
+                                    Token::Value end_token);
   StatementT ParseStatementListItem();
 
   StatementT ParseStatement(ZonePtrList<const AstRawString>* labels,
@@ -4057,11 +4041,10 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
         // parameters.
         int dummy_num_parameters = -1;
         DCHECK_NE(kind & FunctionKind::kArrowFunction, 0);
-        FunctionLiteral::EagerCompileHint hint;
         bool did_preparse_successfully = impl()->SkipFunction(
             nullptr, kind, FunctionLiteral::kAnonymousExpression,
             formal_parameters.scope, &dummy_num_parameters,
-            &produced_preparsed_scope_data, false, &hint);
+            &produced_preparsed_scope_data);
 
         DCHECK_NULL(produced_preparsed_scope_data);
 
@@ -4497,9 +4480,8 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseV8Intrinsic() {
 }
 
 template <typename Impl>
-typename ParserBase<Impl>::LazyParsingResult
-ParserBase<Impl>::ParseStatementList(StatementListT* body,
-                                     Token::Value end_token, bool may_abort) {
+void ParserBase<Impl>::ParseStatementList(StatementListT* body,
+                                          Token::Value end_token) {
   // StatementList ::
   //   (StatementListItem)* <end_token>
   DCHECK_NOT_NULL(body);
@@ -4517,10 +4499,9 @@ ParserBase<Impl>::ParseStatementList(StatementListT* body,
     }
 
     StatementT stat = ParseStatementListItem();
-    if (impl()->IsNull(stat)) return kLazyParsingComplete;
+    if (impl()->IsNull(stat)) return;
 
     body->Add(stat);
-    may_abort = false;
 
     if (!impl()->IsStringLiteral(stat)) break;
 
@@ -4534,7 +4515,7 @@ ParserBase<Impl>::ParseStatementList(StatementListT* body,
         impl()->ReportMessageAt(token_loc,
                                 MessageTemplate::kIllegalLanguageModeDirective,
                                 "use strict");
-        return kLazyParsingComplete;
+        return;
       }
     } else if (use_asm) {
       // Directive "use asm".
@@ -4551,28 +4532,12 @@ ParserBase<Impl>::ParseStatementList(StatementListT* body,
   // all scripts and functions get their own target stack thus avoiding illegal
   // breaks and continues across functions.
   TargetScopeT target_scope(this);
-  int count_statements = 0;
-
-  if (may_abort) {
-    while (peek() == Token::IDENTIFIER) {
-      StatementT stat = ParseStatementListItem();
-      // If we're allowed to abort, we will do so when we see a "long and
-      // trivial" function. Our current definition of "long and trivial" is:
-      // - over kLazyParseTrialLimit statements
-      // - all starting with an identifier (i.e., no if, for, while, etc.)
-      if (++count_statements > kLazyParseTrialLimit) return kLazyParsingAborted;
-      body->Add(stat);
-    }
-  }
-
   while (peek() != end_token) {
     StatementT stat = ParseStatementListItem();
-    if (impl()->IsNull(stat)) return kLazyParsingComplete;
+    if (impl()->IsNull(stat)) return;
     if (stat->IsEmptyStatement()) continue;
     body->Add(stat);
   }
-
-  return kLazyParsingComplete;
 }
 
 template <typename Impl>

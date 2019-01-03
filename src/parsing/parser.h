@@ -465,8 +465,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   // Skip over a lazy function, either using cached data if we have it, or
   // by parsing the function with PreParser. Consumes the ending }.
-  // If may_abort == true, the (pre-)parser may decide to abort skipping
-  // in order to force the function to be eagerly parsed, after all.
   // In case the preparser detects an error it cannot identify, it resets the
   // scanner- and preparser state to the initial one, before PreParsing the
   // function.
@@ -477,8 +475,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   bool SkipFunction(const AstRawString* function_name, FunctionKind kind,
                     FunctionLiteral::FunctionType function_type,
                     DeclarationScope* function_scope, int* num_parameters,
-                    ProducedPreParsedScopeData** produced_preparsed_scope_data,
-                    bool may_abort, FunctionLiteral::EagerCompileHint* hint);
+                    ProducedPreParsedScopeData** produced_preparsed_scope_data);
 
   Block* BuildParameterInitializationBlock(
       const ParserFormalParameters& parameters);

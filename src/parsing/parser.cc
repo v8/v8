@@ -2585,8 +2585,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   bool did_preparse_successfully =
       should_preparse &&
       SkipFunction(function_name, kind, function_type, scope, &num_parameters,
-                   &produced_preparsed_scope_data, is_lazy_top_level_function,
-                   &eager_compile_hint);
+                   &produced_preparsed_scope_data);
   if (!did_preparse_successfully) {
     // If skipping aborted, it rewound the scanner until before the LPAREN.
     // Consume it in that case.
@@ -2658,8 +2657,7 @@ bool Parser::SkipFunction(
     const AstRawString* function_name, FunctionKind kind,
     FunctionLiteral::FunctionType function_type,
     DeclarationScope* function_scope, int* num_parameters,
-    ProducedPreParsedScopeData** produced_preparsed_scope_data, bool may_abort,
-    FunctionLiteral::EagerCompileHint* hint) {
+    ProducedPreParsedScopeData** produced_preparsed_scope_data) {
   FunctionState function_state(&function_state_, &scope_, function_scope);
   function_scope->set_zone(&preparser_zone_);
 
@@ -2706,16 +2704,8 @@ bool Parser::SkipFunction(
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.PreParse");
 
   PreParser::PreParseResult result = reusable_preparser()->PreParseFunction(
-      function_name, kind, function_type, function_scope, may_abort,
-      use_counts_, produced_preparsed_scope_data, this->script_id());
-
-  // Return immediately if pre-parser decided to abort parsing.
-  if (result == PreParser::kPreParseAbort) {
-    bookmark.Apply();
-    function_scope->ResetAfterPreparsing(ast_value_factory(), true);
-    *hint = FunctionLiteral::kShouldEagerCompile;
-    return false;
-  }
+      function_name, kind, function_type, function_scope, use_counts_,
+      produced_preparsed_scope_data, this->script_id());
 
   if (result == PreParser::kPreParseStackOverflow) {
     // Propagate stack overflow.
