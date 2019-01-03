@@ -51,7 +51,7 @@ class Intl {
   static std::set<std::string> BuildLocaleSet(
       const icu::Locale* icu_available_locales, int32_t count);
 
-  static std::string ToLanguageTag(const icu::Locale& locale);
+  static Maybe<std::string> ToLanguageTag(const icu::Locale& locale);
 
   // Get the name of the numbering system from locale.
   // ICU doesn't expose numbering system in any way, so we have to assume that

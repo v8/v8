@@ -499,24 +499,13 @@ bool RemoveLocaleScriptTag(const std::string& icu_locale,
 std::set<std::string> Intl::BuildLocaleSet(
     const icu::Locale* icu_available_locales, int32_t count) {
   std::set<std::string> locales;
-  UErrorCode error = U_ZERO_ERROR;
-  char result[ULOC_FULLNAME_CAPACITY];
-
   for (int32_t i = 0; i < count; ++i) {
-    const char* icu_name = icu_available_locales[i].getName();
-
-    error = U_ZERO_ERROR;
-    // No need to force strict BCP47 rules.
-    uloc_toLanguageTag(icu_name, result, ULOC_FULLNAME_CAPACITY, FALSE, &error);
-    if (U_FAILURE(error) || error == U_STRING_NOT_TERMINATED_WARNING) {
-      // This shouldn't happen, but lets not break the user.
-      continue;
-    }
-    std::string locale(result);
+    std::string locale =
+        Intl::ToLanguageTag(icu_available_locales[i]).FromJust();
     locales.insert(locale);
 
     std::string shortened_locale;
-    if (RemoveLocaleScriptTag(icu_name, &shortened_locale)) {
+    if (RemoveLocaleScriptTag(locale, &shortened_locale)) {
       std::replace(shortened_locale.begin(), shortened_locale.end(), '_', '-');
       locales.insert(shortened_locale);
     }
@@ -525,9 +514,12 @@ std::set<std::string> Intl::BuildLocaleSet(
   return locales;
 }
 
-std::string Intl::ToLanguageTag(const icu::Locale& locale) {
+Maybe<std::string> Intl::ToLanguageTag(const icu::Locale& locale) {
   UErrorCode status = U_ZERO_ERROR;
   std::string res = locale.toLanguageTag<std::string>(status);
+  if (U_FAILURE(status)) {
+    return Nothing<std::string>();
+  }
   CHECK(U_SUCCESS(status));
 
   // Hack to remove -true from unicode extensions
@@ -543,7 +535,7 @@ std::string Intl::ToLanguageTag(const icu::Locale& locale) {
       res.erase(sep_true, 5 /* strlen(kSepTrue) == 5 */);
     }
   }
-  return res;
+  return Just(res);
 }
 
 namespace {
@@ -555,13 +547,10 @@ std::string DefaultLocale(Isolate* isolate) {
       isolate->set_default_locale("en-US");
     } else {
       // Set the locale
-      char result[ULOC_FULLNAME_CAPACITY];
-      UErrorCode status = U_ZERO_ERROR;
-      int32_t length =
-          uloc_toLanguageTag(default_locale.getName(), result,
-                             ULOC_FULLNAME_CAPACITY, FALSE, &status);
       isolate->set_default_locale(
-          U_SUCCESS(status) ? std::string(result, length) : "und");
+          default_locale.isBogus()
+              ? "und"
+              : Intl::ToLanguageTag(default_locale).FromJust());
     }
     DCHECK(!isolate->default_locale().empty());
   }
@@ -768,36 +757,26 @@ Maybe<std::string> Intl::CanonicalizeLanguageTag(Isolate* isolate,
   // handle long locale names better. See
   // https://unicode-org.atlassian.net/browse/ICU-13417
   UErrorCode error = U_ZERO_ERROR;
-  char icu_result[ULOC_FULLNAME_CAPACITY];
   // uloc_forLanguageTag checks the structrual validity. If the input BCP47
   // language tag is parsed all the way to the end, it indicates that the input
   // is structurally valid. Due to a couple of bugs, we can't use it
   // without Chromium patches or ICU 62 or earlier.
-  int parsed_length;
-  uloc_forLanguageTag(locale.c_str(), icu_result, ULOC_FULLNAME_CAPACITY,
-                      &parsed_length, &error);
-  if (U_FAILURE(error) ||
-      static_cast<size_t>(parsed_length) < locale.length() ||
-      error == U_STRING_NOT_TERMINATED_WARNING) {
+  icu::Locale icu_locale = icu::Locale::forLanguageTag(locale.c_str(), error);
+  if (U_FAILURE(error) || icu_locale.isBogus()) {
+    THROW_NEW_ERROR_RETURN_VALUE(
+        isolate,
+        NewRangeError(MessageTemplate::kInvalidLanguageTag, locale_str),
+        Nothing<std::string>());
+  }
+  Maybe<std::string> maybe_to_language_tag = Intl::ToLanguageTag(icu_locale);
+  if (maybe_to_language_tag.IsNothing()) {
     THROW_NEW_ERROR_RETURN_VALUE(
         isolate,
         NewRangeError(MessageTemplate::kInvalidLanguageTag, locale_str),
         Nothing<std::string>());
   }
 
-  // Force strict BCP47 rules.
-  char result[ULOC_FULLNAME_CAPACITY];
-  int32_t result_len = uloc_toLanguageTag(icu_result, result,
-                                          ULOC_FULLNAME_CAPACITY, TRUE, &error);
-
-  if (U_FAILURE(error)) {
-    THROW_NEW_ERROR_RETURN_VALUE(
-        isolate,
-        NewRangeError(MessageTemplate::kInvalidLanguageTag, locale_str),
-        Nothing<std::string>());
-  }
-
-  return Just(std::string(result, result_len));
+  return maybe_to_language_tag;
 }
 
 Maybe<std::vector<std::string>> Intl::CanonicalizeLocaleList(
@@ -1591,11 +1570,7 @@ Intl::ResolvedLocale Intl::ResolveLocale(
   std::map<std::string, std::string> extensions =
       LookupAndValidateUnicodeExtensions(&icu_locale, relevant_extension_keys);
 
-  char canonicalized_locale[ULOC_FULLNAME_CAPACITY];
-  UErrorCode status = U_ZERO_ERROR;
-  uloc_toLanguageTag(icu_locale.getName(), canonicalized_locale,
-                     ULOC_FULLNAME_CAPACITY, true, &status);
-  CHECK(U_SUCCESS(status));
+  std::string canonicalized_locale = Intl::ToLanguageTag(icu_locale).FromJust();
 
   // TODO(gsathya): Remove privateuse subtags from extensions.
 

@@ -285,7 +285,9 @@ MaybeHandle<JSObject> JSDateTimeFormat::ResolvedOptions(
   CHECK(!date_time_format->icu_locale().is_null());
   CHECK_NOT_NULL(date_time_format->icu_locale()->raw());
   icu::Locale* icu_locale = date_time_format->icu_locale()->raw();
-  std::string locale_str = Intl::ToLanguageTag(*icu_locale);
+  Maybe<std::string> maybe_locale_str = Intl::ToLanguageTag(*icu_locale);
+  MAYBE_RETURN(maybe_locale_str, MaybeHandle<JSObject>());
+  std::string locale_str = maybe_locale_str.FromJust();
   Handle<String> locale =
       factory->NewStringFromAsciiChecked(locale_str.c_str());
 
