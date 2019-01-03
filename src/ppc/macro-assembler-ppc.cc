@@ -141,8 +141,11 @@ void TurboAssembler::LoadRootRegisterOffset(Register destination,
                                             intptr_t offset) {
   if (offset == 0) {
     mr(destination, kRootRegister);
-  } else {
+  } else if (is_int16(offset)) {
     addi(destination, kRootRegister, Operand(offset));
+  } else {
+    mov(destination, Operand(offset));
+    add(destination, kRootRegister, destination);
   }
 }
 
@@ -3036,7 +3039,7 @@ void TurboAssembler::StoreReturnAddressAndCall(Register target) {
   StoreP(r7, MemOperand(sp, kStackFrameExtraParamSlot * kPointerSize));
   Call(target);
   DCHECK_EQ(after_call_offset - kInstrSize,
-            __ SizeOfCodeGeneratedSince(&start_call));
+            SizeOfCodeGeneratedSince(&start_call));
 }
 
 }  // namespace internal
