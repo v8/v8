@@ -2927,19 +2927,6 @@ void Builtins::Generate_MathPowInternal(MacroAssembler* masm) {
   __ Ret();
 }
 
-namespace {
-
-void GenerateInternalArrayConstructorCase(MacroAssembler* masm) {
-  __ CmpP(r2, Operand(0));
-  __ Assert(eq, AbortReason::kWrongNumberOfArgumentsForInternalPackedArray);
-
-  __ Jump(
-      BUILTIN_CODE(masm->isolate(), InternalArrayNoArgumentConstructor_Packed),
-      RelocInfo::CODE_TARGET, lt);
-}
-
-}  // namespace
-
 void Builtins::Generate_InternalArrayConstructorImpl(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- r2 : argc
@@ -2959,21 +2946,21 @@ void Builtins::Generate_InternalArrayConstructorImpl(MacroAssembler* masm) {
     __ Assert(ne, AbortReason::kUnexpectedInitialMapForArrayFunction, cr0);
     __ CompareObjectType(r5, r5, r6, MAP_TYPE);
     __ Assert(eq, AbortReason::kUnexpectedInitialMapForArrayFunction);
-  }
 
-  // Figure out the right elements kind
-  __ LoadP(r5, FieldMemOperand(r3, JSFunction::kPrototypeOrInitialMapOffset));
-  // Load the map's "bit field 2" into |result|.
-  __ LoadlB(r5, FieldMemOperand(r5, Map::kBitField2Offset));
-  // Retrieve elements_kind from bit field 2.
-  __ DecodeField<Map::ElementsKindBits>(r5);
+    // Figure out the right elements kind
+    __ LoadP(r5, FieldMemOperand(r3, JSFunction::kPrototypeOrInitialMapOffset));
+    // Load the map's "bit field 2" into |result|.
+    __ LoadlB(r5, FieldMemOperand(r5, Map::kBitField2Offset));
+    // Retrieve elements_kind from bit field 2.
+    __ DecodeField<Map::ElementsKindBits>(r5);
 
-  if (FLAG_debug_code) {
     __ CmpP(r5, Operand(PACKED_ELEMENTS));
     __ Assert(eq, AbortReason::kInvalidElementsKindForInternalPackedArray);
   }
 
-  GenerateInternalArrayConstructorCase(masm);
+  __ Jump(
+      BUILTIN_CODE(masm->isolate(), InternalArrayNoArgumentConstructor_Packed),
+      RelocInfo::CODE_TARGET);
 }
 
 namespace {
