@@ -537,9 +537,9 @@ namespace {
 // Called with the native C calling convention. The corresponding function
 // signature is:
 //
-//  using JSEntryFunction = GeneratedCode<Object*(
-//      Object * new_target, Object * target, Object * receiver, int argc,
-//      Object*** args, Address root_register_value)>;
+//  using JSEntryFunction = GeneratedCode<Address(
+//      Address new_target, Address target, Address receiver, int argc,
+//      Address** args, Address root_register_value)>;
 void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
                              Builtins::Name entry_trampoline) {
   // r3: code entry
