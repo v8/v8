@@ -17,6 +17,7 @@
 #include "src/codegen.h"
 #include "src/disasm.h"
 #include "src/macro-assembler.h"
+#include "src/objects-inl.h"
 #include "src/ostreams.h"
 #include "src/register-configuration.h"
 #include "src/runtime/runtime-utils.h"
@@ -422,7 +423,7 @@ void S390Debugger::Debug() {
           Heap* current_heap = sim_->isolate_->heap();
           if (obj.IsSmi()) {
             PrintF(" (smi %d)", Smi::ToInt(obj));
-          } else if (current_heap->Contains(obj)) {
+          } else if (current_heap->Contains(HeapObject::cast(obj))) {
             PrintF(" (");
             obj->ShortPrint();
             PrintF(")");
