@@ -603,17 +603,6 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=8246
   'intl402/Locale/constructor-tag': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=8244
-  'intl402/Locale/constructor-getter-order': [FAIL],
-  'intl402/Locale/constructor-locale-object': [FAIL],
-  'intl402/Locale/constructor-options-language-grandfathered': [FAIL],
-  'intl402/Locale/constructor-options-language-invalid': [FAIL],
-  'intl402/Locale/constructor-options-region-invalid': [FAIL],
-  'intl402/Locale/constructor-options-region-valid': [FAIL],
-  'intl402/Locale/constructor-options-script-invalid': [FAIL],
-  'intl402/Locale/constructor-options-script-valid': [FAIL],
-  'intl402/Locale/getters': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=8243
   'intl402/Locale/extensions-private': [FAIL],
   'intl402/Locale/getters-privateuse': [FAIL],
@@ -657,7 +646,6 @@
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=8258
   'intl402/Locale/constructor-options-language-valid-undefined': [FAIL],
-  'intl402/Locale/constructor-options-throwing-getters': [FAIL],
   'intl402/NumberFormat/prototype/format/format-fraction-digits-precision': [FAIL],
   'intl402/NumberFormat/prototype/format/format-significant-digits-precision': [FAIL],
 
