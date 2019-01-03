@@ -318,12 +318,15 @@ void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
 void LiftoffAssembler::MoveStackValue(uint32_t dst_index, uint32_t src_index,
                                       ValueType type) {
   DCHECK_NE(dst_index, src_index);
-  if (cache_state_.has_unused_register(kGpReg)) {
-    Fill(LiftoffRegister{kScratchRegister}, src_index, type);
-    Spill(dst_index, LiftoffRegister{kScratchRegister}, type);
+  Operand src = liftoff::GetStackSlot(src_index);
+  Operand dst = liftoff::GetStackSlot(dst_index);
+  if (ValueTypes::ElementSizeLog2Of(type) == 2) {
+    movl(kScratchRegister, src);
+    movl(dst, kScratchRegister);
   } else {
-    pushq(liftoff::GetStackSlot(src_index));
-    popq(liftoff::GetStackSlot(dst_index));
+    DCHECK_EQ(3, ValueTypes::ElementSizeLog2Of(type));
+    movq(kScratchRegister, src);
+    movq(dst, kScratchRegister);
   }
 }
 

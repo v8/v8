@@ -134,6 +134,19 @@ inline Register GetTmpByteRegister(LiftoffAssembler* assm, Register candidate) {
   return assm->GetUnusedRegister(liftoff::kByteRegs).gp();
 }
 
+inline void MoveStackValue(LiftoffAssembler* assm, const Operand& src,
+                           const Operand& dst) {
+  if (assm->cache_state()->has_unused_register(kGpReg)) {
+    Register tmp = assm->cache_state()->unused_register(kGpReg).gp();
+    assm->mov(tmp, src);
+    assm->mov(dst, tmp);
+  } else {
+    // No free register, move via the stack.
+    assm->push(src);
+    assm->pop(dst);
+  }
+}
+
 constexpr DoubleRegister kScratchDoubleReg = xmm7;
 
 constexpr int kSubSpSize = 6;  // 6 bytes for "sub esp, <imm32>"
@@ -401,14 +414,16 @@ void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
 
 void LiftoffAssembler::MoveStackValue(uint32_t dst_index, uint32_t src_index,
                                       ValueType type) {
-  DCHECK_NE(dst_index, src_index);
-  if (cache_state_.has_unused_register(kGpReg)) {
-    LiftoffRegister reg = GetUnusedRegister(kGpReg);
-    Fill(reg, src_index, type);
-    Spill(dst_index, reg, type);
+  if (needs_reg_pair(type)) {
+    liftoff::MoveStackValue(this,
+                            liftoff::GetHalfStackSlot(src_index, kLowWord),
+                            liftoff::GetHalfStackSlot(dst_index, kLowWord));
+    liftoff::MoveStackValue(this,
+                            liftoff::GetHalfStackSlot(src_index, kHighWord),
+                            liftoff::GetHalfStackSlot(dst_index, kHighWord));
   } else {
-    push(liftoff::GetStackSlot(src_index));
-    pop(liftoff::GetStackSlot(dst_index));
+    liftoff::MoveStackValue(this, liftoff::GetStackSlot(src_index),
+                            liftoff::GetStackSlot(dst_index));
   }
 }
 
