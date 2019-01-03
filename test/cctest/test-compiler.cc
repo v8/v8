@@ -939,6 +939,7 @@ TEST(DecideToPretenureDuringCompilation) {
   FLAG_stress_gc_during_compilation = true;
   FLAG_allow_natives_syntax = true;
   FLAG_allocation_site_pretenuring = true;
+  FLAG_flush_bytecode = false;
 
   // We want to trigger exactly 1 optimization.
   FLAG_use_osr = false;
