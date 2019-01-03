@@ -371,10 +371,11 @@ class Typer::Visitor : public Reducer {
       if (V8_UNLIKELY(node->opcode() == IrOpcode::kNumberAdd)) {
         for (int i = 0; i < 2; ++i) {
           Node* input = NodeProperties::GetValueInput(node, i);
-          if (NodeProperties::IsTyped(input)) {
-            remembered_types_[{node, i}] = NodeProperties::GetType(input);
-          }
+          remembered_types_[{node, i}] = NodeProperties::IsTyped(input)
+                                             ? NodeProperties::GetType(input)
+                                             : Type::Invalid();
         }
+        remembered_types_[{node, 2}] = current;
       }
 
       NodeProperties::SetType(node, current);
@@ -387,9 +388,9 @@ class Typer::Visitor : public Reducer {
       if (V8_UNLIKELY(node->opcode() == IrOpcode::kNumberAdd)) {
         for (int i = 0; i < 2; ++i) {
           Node* input = NodeProperties::GetValueInput(node, i);
-          if (NodeProperties::IsTyped(input)) {
-            remembered_types_[{node, i}] = NodeProperties::GetType(input);
-          }
+          remembered_types_[{node, i}] = NodeProperties::IsTyped(input)
+                                             ? NodeProperties::GetType(input)
+                                             : Type::Invalid();
         }
         remembered_types_[{node, 2}] = current;
       }
