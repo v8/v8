@@ -34,15 +34,11 @@ inline Operand GetStackSlot(uint32_t index) {
   return Operand(ebp, -kFirstStackSlotOffset - offset);
 }
 
-inline Operand GetHalfStackSlot(uint32_t half_index) {
-  int32_t offset = half_index * (LiftoffAssembler::kStackSlotSize / 2);
-  return Operand(ebp, -kFirstStackSlotOffset - offset);
-}
-
 inline MemOperand GetHalfStackSlot(uint32_t index, RegPairHalf half) {
-  STATIC_ASSERT(kLowWord == 0);
-  STATIC_ASSERT(kHighWord == 1);
-  return GetHalfStackSlot(2 * index - half);
+  int32_t half_offset =
+      half == kLowWord ? 0 : LiftoffAssembler::kStackSlotSize / 2;
+  int32_t offset = index * LiftoffAssembler::kStackSlotSize - half_offset;
+  return Operand(ebp, -kFirstStackSlotOffset - offset);
 }
 
 // TODO(clemensh): Make this a constexpr variable once Operand is constexpr.
@@ -498,8 +494,9 @@ void LiftoffAssembler::Fill(LiftoffRegister reg, uint32_t index,
   }
 }
 
-void LiftoffAssembler::FillI64Half(Register reg, uint32_t half_index) {
-  mov(reg, liftoff::GetHalfStackSlot(half_index));
+void LiftoffAssembler::FillI64Half(Register reg, uint32_t index,
+                                   RegPairHalf half) {
+  mov(reg, liftoff::GetHalfStackSlot(index, half));
 }
 
 void LiftoffAssembler::emit_i32_add(Register dst, Register lhs, Register rhs) {

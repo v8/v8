@@ -363,7 +363,7 @@ void LiftoffAssembler::Fill(LiftoffRegister reg, uint32_t index,
   Ldr(liftoff::GetRegFromType(reg, type), src);
 }
 
-void LiftoffAssembler::FillI64Half(Register, uint32_t half_index) {
+void LiftoffAssembler::FillI64Half(Register, uint32_t index, RegPairHalf) {
   UNREACHABLE();
 }
 

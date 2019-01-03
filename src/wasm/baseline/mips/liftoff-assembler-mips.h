@@ -34,8 +34,10 @@ inline MemOperand GetStackSlot(uint32_t index) {
   return MemOperand(fp, -kFirstStackSlotOffset - offset);
 }
 
-inline MemOperand GetHalfStackSlot(uint32_t half_index) {
-  int32_t offset = half_index * (LiftoffAssembler::kStackSlotSize / 2);
+inline MemOperand GetHalfStackSlot(uint32_t index, RegPairHalf half) {
+  int32_t half_offset =
+      half == kLowWord ? 0 : LiftoffAssembler::kStackSlotSize / 2;
+  int32_t offset = index * LiftoffAssembler::kStackSlotSize + half_offset;
   return MemOperand(fp, -kFirstStackSlotOffset - offset);
 }
 
@@ -584,8 +586,9 @@ void LiftoffAssembler::Fill(LiftoffRegister reg, uint32_t index,
   }
 }
 
-void LiftoffAssembler::FillI64Half(Register reg, uint32_t half_index) {
-  lw(reg, liftoff::GetHalfStackSlot(half_index));
+void LiftoffAssembler::FillI64Half(Register reg, uint32_t index,
+                                   RegPairHalf half) {
+  lw(reg, liftoff::GetHalfStackSlot(index, half));
 }
 
 void LiftoffAssembler::emit_i32_mul(Register dst, Register lhs, Register rhs) {

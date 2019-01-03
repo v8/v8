@@ -384,9 +384,8 @@ class LiftoffAssembler : public TurboAssembler {
   inline void Spill(uint32_t index, WasmValue);
   inline void Fill(LiftoffRegister, uint32_t index, ValueType);
   // Only used on 32-bit systems: Fill a register from a "half stack slot", i.e.
-  // 4 bytes on the stack holding half of a 64-bit value. The two half_indexes
-  // corresponding to slot {index} are {2*index} and {2*index-1}.
-  inline void FillI64Half(Register, uint32_t half_index);
+  // 4 bytes on the stack holding half of a 64-bit value.
+  inline void FillI64Half(Register, uint32_t index, RegPairHalf);
 
   // i32 binops.
   inline void emit_i32_add(Register dst, Register lhs, Register rhs);

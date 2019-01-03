@@ -40,9 +40,10 @@ class StackTransferRecipe {
   };
   struct RegisterLoad {
     enum LoadKind : uint8_t {
-      kConstant,  // load a constant value into a register.
-      kStack,     // fill a register from a stack slot.
-      kHalfStack  // fill one half of a register pair from half a stack slot.
+      kConstant,      // load a constant value into a register.
+      kStack,         // fill a register from a stack slot.
+      kLowHalfStack,  // fill a register from the low half of a stack slot.
+      kHighHalfStack  // fill a register from the high half of a stack slot.
     };
 
     LiftoffRegister dst;
@@ -63,9 +64,10 @@ class StackTransferRecipe {
                               ValueType type) {
       return {dst, kStack, type, stack_index};
     }
-    static RegisterLoad HalfStack(LiftoffRegister dst,
-                                  int32_t half_stack_index) {
-      return {dst, kHalfStack, kWasmI32, half_stack_index};
+    static RegisterLoad HalfStack(LiftoffRegister dst, int32_t stack_index,
+                                  RegPairHalf half) {
+      return {dst, half == kLowWord ? kLowHalfStack : kHighHalfStack, kWasmI32,
+              stack_index};
     }
 
    private:
@@ -142,9 +144,12 @@ class StackTransferRecipe {
         case RegisterLoad::kStack:
           asm_->Fill(rl.dst, rl.value, rl.type);
           break;
-        case RegisterLoad::kHalfStack:
-          // As half of a register pair, {rl.dst} must be a gp register.
-          asm_->FillI64Half(rl.dst.gp(), rl.value);
+        case RegisterLoad::kLowHalfStack:
+        case RegisterLoad::kHighHalfStack:
+          // Half of a register pair, {rl.dst} must be a gp register.
+          auto half =
+              rl.kind == RegisterLoad::kLowHalfStack ? kLowWord : kHighWord;
+          asm_->FillI64Half(rl.dst.gp(), rl.value, half);
           break;
       }
     }
@@ -208,7 +213,7 @@ class StackTransferRecipe {
     DCHECK_EQ(kWasmI64, src.type());
     switch (src.loc()) {
       case VarState::kStack:
-        LoadI64HalfStackSlot(dst, 2 * index - (half == kLowWord ? 0 : 1));
+        LoadI64HalfStackSlot(dst, index, half);
         break;
       case VarState::kRegister: {
         LiftoffRegister src_half =
@@ -251,9 +256,10 @@ class StackTransferRecipe {
     register_loads_.emplace_back(RegisterLoad::Stack(dst, stack_index, type));
   }
 
-  void LoadI64HalfStackSlot(LiftoffRegister dst, uint32_t half_stack_index) {
+  void LoadI64HalfStackSlot(LiftoffRegister dst, uint32_t stack_index,
+                            RegPairHalf half) {
     register_loads_.emplace_back(
-        RegisterLoad::HalfStack(dst, half_stack_index));
+        RegisterLoad::HalfStack(dst, stack_index, half));
   }
 
  private:

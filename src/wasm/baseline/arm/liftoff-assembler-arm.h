@@ -54,16 +54,12 @@ inline MemOperand GetStackSlot(uint32_t index) {
   return MemOperand(fp, -offset);
 }
 
-inline MemOperand GetHalfStackSlot(uint32_t half_index) {
-  int32_t offset = kFirstStackSlotOffset +
-                   half_index * (LiftoffAssembler::kStackSlotSize / 2);
-  return MemOperand(fp, -offset);
-}
-
 inline MemOperand GetHalfStackSlot(uint32_t index, RegPairHalf half) {
-  STATIC_ASSERT(kLowWord == 0);
-  STATIC_ASSERT(kHighWord == 1);
-  return GetHalfStackSlot(2 * index - half);
+  int32_t half_offset =
+      half == kLowWord ? 0 : LiftoffAssembler::kStackSlotSize / 2;
+  int32_t offset = kFirstStackSlotOffset +
+                   index * LiftoffAssembler::kStackSlotSize - half_offset;
+  return MemOperand(fp, -offset);
 }
 
 inline MemOperand GetInstanceOperand() {
@@ -601,8 +597,9 @@ void LiftoffAssembler::Fill(LiftoffRegister reg, uint32_t index,
   }
 }
 
-void LiftoffAssembler::FillI64Half(Register reg, uint32_t half_index) {
-  ldr(reg, liftoff::GetHalfStackSlot(half_index));
+void LiftoffAssembler::FillI64Half(Register reg, uint32_t index,
+                                   RegPairHalf half) {
+  ldr(reg, liftoff::GetHalfStackSlot(index, half));
 }
 
 #define I32_BINOP(name, instruction)                             \
