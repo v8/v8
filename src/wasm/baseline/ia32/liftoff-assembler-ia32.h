@@ -1448,7 +1448,9 @@ void LiftoffAssembler::emit_i32_signextend_i16(Register dst, Register src) {
 
 void LiftoffAssembler::emit_i64_signextend_i8(LiftoffRegister dst,
                                               LiftoffRegister src) {
-  movsx_b(dst.low_gp(), src.low_gp());
+  Register byte_reg = liftoff::GetTmpByteRegister(this, src.low_gp());
+  if (byte_reg != src.low_gp()) mov(byte_reg, src.low_gp());
+  movsx_b(dst.low_gp(), byte_reg);
   liftoff::SignExtendI32ToI64(this, dst);
 }
 
