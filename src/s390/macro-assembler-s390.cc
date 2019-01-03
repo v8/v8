@@ -4393,8 +4393,18 @@ void TurboAssembler::JumpIfLessThan(Register x, int32_t y, Label* dest) {
 }
 
 void TurboAssembler::CallBuiltinPointer(Register builtin_pointer) {
+  STATIC_ASSERT(kSystemPointerSize == 8);
+  STATIC_ASSERT(kSmiShiftSize == 31);
+  STATIC_ASSERT(kSmiTagSize == 1);
+  STATIC_ASSERT(kSmiTag == 0);
+
+  // The builtin_pointer register contains the builtin index as a Smi.
+  // Untagging is folded into the indexing operand below.
+  ShiftRightArithP(builtin_pointer, builtin_pointer,
+                   Operand(kSmiShift - kSystemPointerSizeLog2));
   AddP(builtin_pointer, builtin_pointer,
-      Operand(Code::kHeaderSize - kHeapObjectTag));
+      Operand(IsolateData::builtin_entry_table_offset()));
+  LoadP(builtin_pointer, MemOperand(kRootRegister, builtin_pointer));
   Call(builtin_pointer);
 }
 
