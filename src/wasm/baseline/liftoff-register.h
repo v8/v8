@@ -92,7 +92,7 @@ class LiftoffRegister {
     DCHECK_EQ(reg, fp());
   }
 
-  static LiftoffRegister from_liftoff_code(int code) {
+  static LiftoffRegister from_liftoff_code(uint32_t code) {
     DCHECK_LE(0, code);
     DCHECK_GT(kAfterMaxLiftoffRegCode, code);
     DCHECK_EQ(code, static_cast<storage_t>(code));

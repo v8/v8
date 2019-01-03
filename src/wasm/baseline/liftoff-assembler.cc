@@ -241,7 +241,10 @@ class StackTransferRecipe {
         MoveRegister(dst.high(), src.high(), kWasmI32);
       return;
     }
-    DCHECK(!move_dst_regs_.has(dst));
+    if (move_dst_regs_.has(dst)) {
+      DCHECK(HasRegisterMove(dst, src, type));
+      return;
+    }
     move_dst_regs_.set(dst);
     move_src_regs_.set(src);
     register_moves_.emplace_back(dst, src, type);
@@ -269,7 +272,38 @@ class StackTransferRecipe {
   LiftoffRegList move_src_regs_;
   LiftoffAssembler* const asm_;
 
+  bool HasRegisterMove(LiftoffRegister dst, LiftoffRegister src,
+                       ValueType type) {
+    for (auto& move : register_moves_) {
+      if (move.dst == dst && move.src == src && move.type == type) return true;
+    }
+    return false;
+  }
+
   DISALLOW_COPY_AND_ASSIGN(StackTransferRecipe);
+};
+
+class RegisterReuseMap {
+ public:
+  void Add(LiftoffRegister src, LiftoffRegister dst) {
+    if (auto previous = Lookup(src)) {
+      DCHECK_EQ(previous, dst);
+      return;
+    }
+    map_.emplace_back(src);
+    map_.emplace_back(dst);
+  }
+
+  base::Optional<LiftoffRegister> Lookup(LiftoffRegister src) {
+    for (auto it = map_.begin(), end = map_.end(); it != end; it += 2) {
+      if (*it == src) return *(it + 1);
+    }
+    return {};
+  }
+
+ private:
+  // {map_} holds pairs of <src, dst>.
+  base::SmallVector<LiftoffRegister, 8> map_;
 };
 
 enum MergeKeepStackSlots : bool {
@@ -280,11 +314,16 @@ enum MergeAllowConstants : bool {
   kConstantsAllowed = true,
   kConstantsNotAllowed = false
 };
+enum ReuseRegisters : bool {
+  kReuseRegisters = true,
+  kNoReuseRegisters = false
+};
 void InitMergeRegion(LiftoffAssembler::CacheState* state,
                      const VarState* source, VarState* target, uint32_t count,
                      MergeKeepStackSlots keep_stack_slots,
                      MergeAllowConstants allow_constants,
-                     LiftoffRegList used_regs) {
+                     ReuseRegisters reuse_registers, LiftoffRegList used_regs) {
+  RegisterReuseMap register_reuse_map;
   for (const VarState* source_end = source + count; source < source_end;
        ++source, ++target) {
     if ((source->is_stack() && keep_stack_slots) ||
@@ -292,20 +331,28 @@ void InitMergeRegion(LiftoffAssembler::CacheState* state,
       *target = *source;
       continue;
     }
+    base::Optional<LiftoffRegister> reg;
+    // First try: Keep the same register, if it's free.
     if (source->is_reg() && state->is_free(source->reg())) {
-      *target = *source;
-      state->inc_used(source->reg());
-      continue;
+      reg = source->reg();
     }
+    // Second try: Use the same register we used before (if we reuse registers).
+    if (!reg && reuse_registers) {
+      reg = register_reuse_map.Lookup(source->reg());
+    }
+    // Third try: Use any free register.
     RegClass rc = reg_class_for(source->type());
-    if (state->has_unused_register(rc, used_regs)) {
-      LiftoffRegister reg = state->unused_register(rc, used_regs);
-      state->inc_used(reg);
-      *target = VarState(source->type(), reg);
+    if (!reg && state->has_unused_register(rc, used_regs)) {
+      reg = state->unused_register(rc, used_regs);
+    }
+    if (!reg) {
+      // No free register; make this a stack slot.
+      *target = VarState(source->type());
       continue;
     }
-    // Otherwise make this a stack slot.
-    *target = VarState(source->type());
+    if (reuse_registers) register_reuse_map.Add(source->reg(), *reg);
+    state->inc_used(*reg);
+    *target = VarState(source->type(), *reg);
   }
 }
 
@@ -347,20 +394,22 @@ void LiftoffAssembler::CacheState::InitMerge(const CacheState& source,
       discarded == 0 ? kKeepStackSlots : kTurnStackSlotsIntoRegisters;
   InitMergeRegion(this, source_begin + stack_base + discarded,
                   target_begin + stack_base, arity, keep_merge_stack_slots,
-                  kConstantsNotAllowed, used_regs);
+                  kConstantsNotAllowed, kNoReuseRegisters, used_regs);
 
   // Initialize the locals region. Here, stack slots stay stack slots (because
   // they do not move). Try to keep register in registers, but avoid duplicates.
   InitMergeRegion(this, source_begin, target_begin, num_locals, kKeepStackSlots,
-                  kConstantsNotAllowed, used_regs);
+                  kConstantsNotAllowed, kNoReuseRegisters, used_regs);
   // Sanity check: All the {used_regs} are really in use now.
   DCHECK_EQ(used_regs, used_registers & used_regs);
 
   // Last, initialize the section in between. Here, constants are allowed, but
   // registers which are already used for the merge region or locals must be
-  // spilled.
+  // moved to other registers or spilled. If a register appears twice in the
+  // source region, ensure to use the same register twice in the target region.
   InitMergeRegion(this, source_begin + num_locals, target_begin + num_locals,
-                  stack_depth, kKeepStackSlots, kConstantsAllowed, used_regs);
+                  stack_depth, kKeepStackSlots, kConstantsAllowed,
+                  kReuseRegisters, used_regs);
 }
 
 void LiftoffAssembler::CacheState::Steal(const CacheState& source) {
@@ -433,7 +482,7 @@ void LiftoffAssembler::MergeFullStackWith(const CacheState& target,
 
 void LiftoffAssembler::MergeStackWith(const CacheState& target,
                                       uint32_t arity) {
-  // Before: ----------------|------ pop_count -----|--- arity ---|
+  // Before: ----------------|----- (discarded) ----|--- arity ---|
   //                         ^target_stack_height   ^stack_base   ^stack_height
   // After:  ----|-- arity --|
   //             ^           ^target_stack_height
@@ -700,7 +749,7 @@ bool LiftoffAssembler::ValidateCacheState() const {
      << PrintCollection(register_use_count) << "\n";
   os << "found:    used_regs " << cache_state_.used_registers << ", counts "
      << PrintCollection(cache_state_.register_use_count) << "\n";
-  os << "Use --trace-liftoff to debug.";
+  os << "Use --trace-wasm-decoder and --trace-liftoff to debug.";
   FATAL("%s", os.str().c_str());
 }
 #endif
