@@ -457,6 +457,12 @@ def _CheckNoexceptAnnotations(input_api, output_api):
   tools/presubmit.py (https://crbug.com/v8/8616).
   """
 
+  def FilterFile(affected_file):
+    return input_api.FilterSourceFile(
+        affected_file,
+        white_list=(r'src/.*', r'test/.*'))
+
+
   # matches any class name.
   class_name = r'\b([A-Z][A-Za-z0-9_]*)(?:::\1)?'
   # initial class name is potentially followed by this to declare an assignment
@@ -473,7 +479,8 @@ def _CheckNoexceptAnnotations(input_api, output_api):
   regexp = input_api.re.compile(full_pattern, re.MULTILINE)
 
   errors = []
-  for f in input_api.AffectedFiles(include_deletes=False):
+  for f in input_api.AffectedFiles(file_filter=FilterFile,
+                                   include_deletes=False):
     with open(f.LocalPath()) as fh:
       for match in re.finditer(regexp, fh.read()):
         errors.append('in {}: {}'.format(f.LocalPath(),
