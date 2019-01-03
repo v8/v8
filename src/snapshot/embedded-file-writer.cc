@@ -81,9 +81,11 @@ const char* DirectiveAsString(DataDirective directive) {
 }
 
 // V8_OS_MACOSX
+// Fuchsia target is explicitly excluded here for Mac hosts. This is to avoid
+// generating uncompilable assembly files for the Fuchsia target.
 // -----------------------------------------------------------------------------
 
-#if defined(V8_OS_MACOSX)
+#if defined(V8_OS_MACOSX) && !defined(V8_TARGET_OS_FUCHSIA)
 
 void PlatformDependentEmbeddedFileWriter::SectionText() {
   fprintf(fp_, ".text\n");
