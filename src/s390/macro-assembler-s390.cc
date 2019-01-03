@@ -4392,6 +4392,12 @@ void TurboAssembler::JumpIfLessThan(Register x, int32_t y, Label* dest) {
   blt(dest);
 }
 
+void TurboAssembler::CallBuiltinPointer(Register builtin_pointer) {
+  AddP(builtin_pointer, builtin_pointer,
+      Operand(Code::kHeaderSize - kHeapObjectTag));
+  Call(builtin_pointer);
+}
+
 void TurboAssembler::StoreReturnAddressAndCall(Register target) {
   // This generates the final instruction sequence for calls to C functions
   // once an exit frame has been constructed.

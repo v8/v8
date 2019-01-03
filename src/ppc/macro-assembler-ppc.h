@@ -412,6 +412,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
             Condition cond = al);
   void Call(Label* target);
 
+  void CallBuiltinPointer(Register builtin_pointer) override;
+
+
   void CallForDeoptimization(Address target, int deopt_id,
                              RelocInfo::Mode rmode) {
     USE(deopt_id);
