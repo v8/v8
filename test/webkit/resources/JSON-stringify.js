@@ -481,20 +481,20 @@ function createTests() {
     });
     result.push(function (jsonObject){
         var deepObject = {};
-        for (var i = 0; i < 915; i++)
+        for (var i = 0; i < 700; i++)
             deepObject = {next:deepObject};
         return jsonObject.stringify(deepObject);
     });
     result.push(function (jsonObject){
         var deepArray = [];
-        for (var i = 0; i < 1024; i++)
+        for (var i = 0; i < 800; i++)
             deepArray = [deepArray];
         return jsonObject.stringify(deepArray);
     });
     result.push(function (jsonObject){
         var depth = 0;
         function toDeepVirtualJSONObject() {
-            if (++depth >= 915)
+            if (++depth >= 700)
                 return {};
             var r = {};
             r.toJSON = toDeepVirtualJSONObject;
