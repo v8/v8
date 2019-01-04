@@ -111,7 +111,7 @@ export function isIterable(obj: any): obj is Iterable<any> {
     && typeof obj != 'string' && typeof obj[Symbol.iterator] === 'function';
 }
 
-export function alignUp(raw:number, multiple:number):number {
+export function alignUp(raw: number, multiple: number): number {
   return Math.floor((raw + multiple - 1) / multiple) * multiple;
 }
 
@@ -124,4 +124,9 @@ export function measureText(text: string) {
       height: textMeasure.getBBox().height,
     };
   }
+}
+
+// Interpolate between the given start and end values by a fraction of val/max.
+export function interpolate(val: number, max: number, start: number, end: number) {
+  return start + (end - start) * (val / max);
 }

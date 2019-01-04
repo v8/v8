@@ -7,7 +7,7 @@ import { SelectionBroker } from "../src/selection-broker"
 import { TextView } from "../src/text-view"
 import { SourceResolver } from "./source-resolver";
 import { MySelection } from "./selection";
-import { anyToString } from "./util";
+import { anyToString, interpolate } from "./util";
 import { InstructionSelectionHandler } from "./selection-handler";
 
 const toolboxHTML = `<div id="disassembly-toolbox">
@@ -292,11 +292,6 @@ export class DisassemblyView extends TextView {
     return num.toFixed(3).replace(/\.?0+$/, "") + "%";
   }
 
-  // Interpolate between the given start and end values by a fraction of val/max.
-  interpolate(val, max, start, end) {
-    return start + (end - start) * (val / max);
-  }
-
   processLine(line) {
     let view = this;
     let fragments = super.processLine(line);
@@ -326,9 +321,9 @@ export class DisassemblyView extends TextView {
                 let val = perc - PROF_COLS[i].perc;
                 let max = PROF_COLS[i + 1].perc - PROF_COLS[i].perc;
 
-                col.r = Math.round(view.interpolate(val, max, col1.r, col2.r));
-                col.g = Math.round(view.interpolate(val, max, col1.g, col2.g));
-                col.b = Math.round(view.interpolate(val, max, col1.b, col2.b));
+                col.r = Math.round(interpolate(val, max, col1.r, col2.r));
+                col.g = Math.round(interpolate(val, max, col1.g, col2.g));
+                col.b = Math.round(interpolate(val, max, col1.b, col2.b));
                 break;
               }
             }

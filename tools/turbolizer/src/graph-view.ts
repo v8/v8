@@ -4,16 +4,16 @@
 
 import * as d3 from "d3"
 import { layoutNodeGraph } from "../src/graph-layout"
-import { MAX_RANK_SENTINEL } from "../src/constants"
 import { GNode, nodeToStr } from "../src/node"
-import { NODE_INPUT_WIDTH, MINIMUM_NODE_OUTPUT_APPROACH } from "../src/node"
+import { NODE_INPUT_WIDTH } from "../src/node"
 import { DEFAULT_NODE_BUBBLE_RADIUS } from "../src/node"
 import { Edge, edgeToStr } from "../src/edge"
 import { View, PhaseView } from "../src/view"
 import { MySelection } from "../src/selection"
-import { partial, alignUp } from "../src/util"
+import { partial } from "../src/util"
 import { NodeSelectionHandler, ClearableHandler } from "./selection-handler";
 import { Graph } from "./graph";
+import { SelectionBroker } from "./selection-broker";
 
 function nodeToStringKey(n) {
   return "" + n.id;
@@ -45,6 +45,7 @@ export class GraphView extends View implements PhaseView {
   visibleBubbles: d3.Selection<any, any, any, any>;
   transitionTimout: number;
   graph: Graph;
+  broker: SelectionBroker;
 
   createViewElement() {
     const pane = document.createElement('div');
@@ -55,6 +56,7 @@ export class GraphView extends View implements PhaseView {
   constructor(id, broker, showPhaseByName: (string) => void) {
     super(id);
     const view = this;
+    this.broker = broker;
     this.showPhaseByName = showPhaseByName;
     this.divElement = d3.select(this.divNode);
     const svg = this.divElement.append("svg").attr('version', '1.1')
@@ -96,6 +98,7 @@ export class GraphView extends View implements PhaseView {
         view.updateGraphVisibility();
       },
       brokeredNodeSelect: function (locations, selected) {
+        if (!view.graph) return;
         let selection = view.graph.nodes((n) => {
           return locations.has(nodeToStringKey(n))
             && (!view.state.hideDead || n.isLive());
@@ -120,7 +123,6 @@ export class GraphView extends View implements PhaseView {
         view.updateGraphVisibility();
       }
     };
-    broker.addNodeHandler(this.selectionHandler);
 
     view.state.selection = new MySelection(nodeToStringKey);
 
@@ -190,7 +192,7 @@ export class GraphView extends View implements PhaseView {
     return 50;
   }
 
-  getEdgeFrontier(nodes, inEdges, edgeFilter) {
+  getEdgeFrontier(nodes, inEdges: boolean, edgeFilter: (e: Edge, i: number) => boolean) {
     let frontier = new Set();
     for (const n of nodes) {
       const edges = inEdges ? n.inputs : n.outputs;
@@ -207,9 +209,9 @@ export class GraphView extends View implements PhaseView {
 
   getNodeFrontier(nodes, inEdges, edgeFilter) {
     const view = this;
-    var frontier = new Set();
-    var newState = true;
-    var edgeFrontier = view.getEdgeFrontier(nodes, inEdges, edgeFilter);
+    const frontier = new Set();
+    let newState = true;
+    const edgeFrontier = view.getEdgeFrontier(nodes, inEdges, edgeFilter);
     // Control key toggles edges rather than just turning them on
     if (d3.event.ctrlKey) {
       edgeFrontier.forEach(function (edge) {
@@ -221,7 +223,7 @@ export class GraphView extends View implements PhaseView {
     edgeFrontier.forEach(function (edge) {
       edge.visible = newState;
       if (newState) {
-        var node = inEdges ? edge.source : edge.target;
+        const node = inEdges ? edge.source : edge.target;
         node.visible = true;
         frontier.add(node);
       }
@@ -243,6 +245,9 @@ export class GraphView extends View implements PhaseView {
     d3.select("#zoom-selection").on("click", partial(this.zoomSelectionAction, this));
     d3.select("#toggle-types").on("click", partial(this.toggleTypesAction, this));
     this.createGraph(data, rememberedSelection);
+    this.broker.addNodeHandler(this.selectionHandler);
+
+
     if (rememberedSelection != null) {
       this.attachSelection(rememberedSelection);
       this.connectVisibleSelectedNodes();
@@ -279,8 +284,8 @@ export class GraphView extends View implements PhaseView {
   }
 
   connectVisibleSelectedNodes() {
-    var graph = this;
-    for (const n of graph.state.selection) {
+    const view = this;
+    for (const n of view.state.selection) {
       n.inputs.forEach(function (edge) {
         if (edge.source.visible && edge.target.visible) {
           edge.visible = true;
@@ -299,37 +304,37 @@ export class GraphView extends View implements PhaseView {
     const g = this.graph;
     const s = this.visibleBubbles;
     s.classed("filledBubbleStyle", function (c) {
-      var components = this.id.split(',');
+      const components = this.id.split(',');
       if (components[0] == "ib") {
-        var edge = g.nodeMap[components[3]].inputs[components[2]];
+        const edge = g.nodeMap[components[3]].inputs[components[2]];
         return edge.isVisible();
       } else {
         return g.nodeMap[components[1]].areAnyOutputsVisible() == 2;
       }
     }).classed("halfFilledBubbleStyle", function (c) {
-      var components = this.id.split(',');
+      const components = this.id.split(',');
       if (components[0] == "ib") {
-        var edge = g.nodeMap[components[3]].inputs[components[2]];
+        const edge = g.nodeMap[components[3]].inputs[components[2]];
         return false;
       } else {
         return g.nodeMap[components[1]].areAnyOutputsVisible() == 1;
       }
     }).classed("bubbleStyle", function (c) {
-      var components = this.id.split(',');
+      const components = this.id.split(',');
       if (components[0] == "ib") {
-        var edge = g.nodeMap[components[3]].inputs[components[2]];
+        const edge = g.nodeMap[components[3]].inputs[components[2]];
         return !edge.isVisible();
       } else {
         return g.nodeMap[components[1]].areAnyOutputsVisible() == 0;
       }
     });
     s.each(function (c) {
-      var components = this.id.split(',');
+      const components = this.id.split(',');
       if (components[0] == "ob") {
-        var from = g.nodeMap[components[1]];
-        var x = from.getOutputX();
-        var y = from.getNodeHeight(view.state.showTypes) + DEFAULT_NODE_BUBBLE_RADIUS;
-        var transform = "translate(" + x + "," + y + ")";
+        const from = g.nodeMap[components[1]];
+        const x = from.getOutputX();
+        const y = from.getNodeHeight(view.state.showTypes) + DEFAULT_NODE_BUBBLE_RADIUS;
+        const transform = "translate(" + x + "," + y + ")";
         this.setAttribute('transform', transform);
       }
     });
@@ -376,7 +381,7 @@ export class GraphView extends View implements PhaseView {
   toggleHideDead(view: GraphView) {
     view.state.hideDead = !view.state.hideDead;
     if (view.state.hideDead) view.hideDead();
-    var element = document.getElementById('toggle-hide-dead');
+    const element = document.getElementById('toggle-hide-dead');
     element.classList.toggle('button-input-toggled', view.state.hideDead);
   }
 
@@ -419,12 +424,12 @@ export class GraphView extends View implements PhaseView {
   searchInputAction(searchBar, e: KeyboardEvent) {
     if (e.keyCode == 13) {
       this.selectionHandler.clear();
-      var query = searchBar.value;
+      const query = searchBar.value;
       window.sessionStorage.setItem("lastSearch", query);
       if (query.length == 0) return;
 
-      var reg = new RegExp(query);
-      var filterFunction = function (n) {
+      const reg = new RegExp(query);
+      const filterFunction = function (n) {
         return (reg.exec(n.getDisplayLabel()) != null ||
           (this.state.showTypes && reg.exec(n.getDisplayType())) ||
           (reg.exec(n.getTitle())) ||
@@ -451,13 +456,13 @@ export class GraphView extends View implements PhaseView {
   svgKeyDown() {
     const view = this;
     const state = this.state;
-    const graph = this.graph;
+    let allowRepetition = true;
 
     // Don't handle key press repetition
     if (state.lastKeyDown !== -1) return;
 
-    var showSelectionFrontierNodes = function (inEdges, filter, select) {
-      var frontier = view.getNodeFrontier(state.selection, inEdges, filter);
+    const showSelectionFrontierNodes = (inEdges: boolean, filter: (e: Edge, i: number) => boolean, select: boolean) => {
+      const frontier = view.getNodeFrontier(state.selection, inEdges, filter);
       if (frontier != undefined && frontier.size) {
         if (select) {
           if (!d3.event.shiftKey) {
@@ -470,8 +475,7 @@ export class GraphView extends View implements PhaseView {
       allowRepetition = false;
     }
 
-    var allowRepetition = true;
-    var eventHandled = true; // unless the below switch defaults
+    let eventHandled = true; // unless the below switch defaults
     switch (d3.event.keyCode) {
       case 49:
       case 50:
@@ -484,7 +488,7 @@ export class GraphView extends View implements PhaseView {
       case 57:
         // '1'-'9'
         showSelectionFrontierNodes(true,
-          (edge, index) => { return index == (d3.event.keyCode - 49); },
+          (edge: Edge, index: number) => { return index == (d3.event.keyCode - 49); },
           false);
         break;
       case 97:
@@ -599,8 +603,9 @@ export class GraphView extends View implements PhaseView {
     const view = this;
     const graph = this.graph;
     const state = this.state;
+    if (!graph) return;
 
-    var filteredEdges = [...graph.filteredEdges(function (e) {
+    const filteredEdges = [...graph.filteredEdges(function (e) {
       return e.source.visible && e.target.visible;
     })];
     const selEdges = view.visibleEdges.selectAll<SVGPathElement, Edge>("path").data(filteredEdges, edgeToStr);
@@ -648,7 +653,7 @@ export class GraphView extends View implements PhaseView {
     selNodes.exit().remove();
 
     // add new nodes
-    var newGs = selNodes.enter()
+    const newGs = selNodes.enter()
       .append("g");
 
     newGs.classed("turbonode", function (n) { return true; })
@@ -702,10 +707,10 @@ export class GraphView extends View implements PhaseView {
       })
 
     function appendInputAndOutputBubbles(g, d) {
-      for (var i = 0; i < d.inputs.length; ++i) {
-        var x = d.getInputX(i);
-        var y = -DEFAULT_NODE_BUBBLE_RADIUS;
-        var s = g.append('circle')
+      for (let i = 0; i < d.inputs.length; ++i) {
+        const x = d.getInputX(i);
+        const y = -DEFAULT_NODE_BUBBLE_RADIUS;
+        g.append('circle')
           .classed("filledBubbleStyle", function (c) {
             return d.inputs[i].isVisible();
           })
@@ -718,10 +723,10 @@ export class GraphView extends View implements PhaseView {
             return "translate(" + x + "," + y + ")";
           })
           .on("click", function (d) {
-            var components = this.id.split(',');
-            var node = graph.nodeMap[components[3]];
-            var edge = node.inputs[components[2]];
-            var visible = !edge.isVisible();
+            const components = this.id.split(',');
+            const node = graph.nodeMap[components[3]];
+            const edge = node.inputs[components[2]];
+            const visible = !edge.isVisible();
             node.setInputVisibility(components[2], visible);
             d3.event.stopPropagation();
             view.updateGraphVisibility();
@@ -823,10 +828,10 @@ export class GraphView extends View implements PhaseView {
   }
 
   minScale() {
-    const graph = this;
+    const view = this;
     const dimensions = this.getSvgViewDimensions();
-    const minXScale = dimensions[0] / (2 * graph.width);
-    const minYScale = dimensions[1] / (2 * graph.height);
+    const minXScale = dimensions[0] / (2 * view.width);
+    const minYScale = dimensions[1] / (2 * view.height);
     const minScale = Math.min(minXScale, minYScale);
     this.panZoom.scaleExtent([minScale, 40]);
     return minScale;
@@ -839,17 +844,17 @@ export class GraphView extends View implements PhaseView {
   }
 
   toggleTypes() {
-    var graph = this;
-    graph.state.showTypes = !graph.state.showTypes;
-    var element = document.getElementById('toggle-types');
-    element.classList.toggle('button-input-toggled', graph.state.showTypes);
-    graph.updateGraphVisibility();
+    const view = this;
+    view.state.showTypes = !view.state.showTypes;
+    const element = document.getElementById('toggle-types');
+    element.classList.toggle('button-input-toggled', view.state.showTypes);
+    view.updateGraphVisibility();
   }
 
   viewSelection() {
-    var view = this;
+    const view = this;
     var minX, maxX, minY, maxY;
-    var hasSelection = false;
+    let hasSelection = false;
     view.visibleNodes.selectAll<SVGGElement, GNode>("g").each(function (n) {
       if (view.state.selection.isSelected(n)) {
         hasSelection = true;
