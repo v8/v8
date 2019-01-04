@@ -6,13 +6,14 @@
 import { MAX_RANK_SENTINEL } from "../src/constants"
 import { MINIMUM_EDGE_SEPARATION, Edge } from "../src/edge"
 import { NODE_INPUT_WIDTH, MINIMUM_NODE_OUTPUT_APPROACH, DEFAULT_NODE_BUBBLE_RADIUS, GNode } from "../src/node"
+import { Graph } from "./graph";
 
 
 const DEFAULT_NODE_ROW_SEPARATION = 130
 
 var traceLayout = false;
 
-function newGraphOccupation(graph) {
+function newGraphOccupation(graph:Graph) {
   var isSlotFilled = [];
   var maxSlot = 0;
   var minSlot = 0;
@@ -138,7 +139,6 @@ function newGraphOccupation(graph) {
         if (node.inputs[i].isVisible()) {
           var edge = node.inputs[i];
           if (!edge.isBackEdge()) {
-            var source = edge.source;
             var horizontalPos = edge.getInputHorizontalPosition(graph);
             if (traceLayout) {
               console.log("Occupying input " + i + " of " + node.id + " at " + horizontalPos);
@@ -252,7 +252,7 @@ function newGraphOccupation(graph) {
   return occupation;
 }
 
-export function layoutNodeGraph(graph) {
+export function layoutNodeGraph(graph: Graph, showTypes: boolean): void {
   // First determine the set of nodes that have no outputs. Those are the
   // basis for bottom-up DFS to determine rank and node placement.
 
@@ -260,10 +260,10 @@ export function layoutNodeGraph(graph) {
 
   const endNodesHasNoOutputs = [];
   const startNodesHasNoInputs = [];
-  graph.nodes.forEach(function (n: GNode) {
+  for (const n of graph.nodes()) {
     endNodesHasNoOutputs[n.id] = true;
     startNodesHasNoInputs[n.id] = true;
-  });
+  };
   graph.forEachEdge((e: Edge) => {
     endNodesHasNoOutputs[e.source.id] = false;
     startNodesHasNoInputs[e.target.id] = false;
@@ -274,7 +274,7 @@ export function layoutNodeGraph(graph) {
   var startNodes = [];
   var visited = [];
   var rank = [];
-  graph.nodes.forEach(function (n, i) {
+  for (const n of graph.nodes()) {
     if (endNodesHasNoOutputs[n.id]) {
       endNodes.push(n);
     }
@@ -286,7 +286,7 @@ export function layoutNodeGraph(graph) {
     n.rank = 0;
     n.visitOrderWithinRank = 0;
     n.outputApproach = MINIMUM_NODE_OUTPUT_APPROACH;
-  });
+  };
 
   if (traceLayout) {
     console.log(`layoutGraph init ${performance.now() - start}`);
@@ -385,8 +385,8 @@ export function layoutNodeGraph(graph) {
 
   var rankSets = [];
   // Collect sets for each rank.
-  graph.nodes.forEach(function (n, i) {
-    n.y = n.rank * (DEFAULT_NODE_ROW_SEPARATION + graph.getNodeHeight(n) +
+  for (const n of graph.nodes()) {
+    n.y = n.rank * (DEFAULT_NODE_ROW_SEPARATION + n.getNodeHeight(showTypes) +
       2 * DEFAULT_NODE_BUBBLE_RADIUS);
     if (n.visible) {
       if (rankSets[n.rank] === undefined) {
@@ -395,13 +395,12 @@ export function layoutNodeGraph(graph) {
         rankSets[n.rank].push(n);
       }
     }
-  });
+  };
 
   // Iterate backwards from highest to lowest rank, placing nodes so that they
   // spread out from the "center" as much as possible while still being
   // compact and not overlapping live input lines.
   var occupation = newGraphOccupation(graph);
-  var rankCount = 0;
 
   rankSets.reverse().forEach(function (rankSet) {
 
@@ -462,57 +461,11 @@ export function layoutNodeGraph(graph) {
   });
 
   graph.maxBackEdgeNumber = 0;
-  graph.visibleEdges.selectAll("path").each(function (e) {
+  graph.forEachEdge((e) => {
     if (e.isBackEdge()) {
       e.backEdgeNumber = ++graph.maxBackEdgeNumber;
     } else {
       e.backEdgeNumber = 0;
     }
   });
-
-  redetermineGraphBoundingBox(graph);
-}
-
-function redetermineGraphBoundingBox(graph) {
-  graph.minGraphX = 0;
-  graph.maxGraphNodeX = 1;
-  graph.maxGraphX = undefined;  // see below
-  graph.minGraphY = 0;
-  graph.maxGraphY = 1;
-
-  for (var i = 0; i < graph.nodes.length; ++i) {
-    var node = graph.nodes[i];
-
-    if (!node.visible) {
-      continue;
-    }
-
-    if (node.x < graph.minGraphX) {
-      graph.minGraphX = node.x;
-    }
-    if ((node.x + node.getTotalNodeWidth()) > graph.maxGraphNodeX) {
-      graph.maxGraphNodeX = node.x + node.getTotalNodeWidth();
-    }
-    if ((node.y - 50) < graph.minGraphY) {
-      graph.minGraphY = node.y - 50;
-    }
-    if ((node.y + graph.getNodeHeight(node) + 50) > graph.maxGraphY) {
-      graph.maxGraphY = node.y + graph.getNodeHeight(node) + 50;
-    }
-  }
-
-  graph.maxGraphX = graph.maxGraphNodeX +
-    graph.maxBackEdgeNumber * MINIMUM_EDGE_SEPARATION;
-
-  const width = (graph.maxGraphX - graph.minGraphX);
-  const height = graph.maxGraphY - graph.minGraphY;
-  graph.width = width;
-  graph.height = height;
-
-  const extent = [
-    [graph.minGraphX - width / 2, graph.minGraphY - height / 2],
-    [graph.maxGraphX + width / 2, graph.maxGraphY + height / 2]
-  ];
-  graph.panZoom.translateExtent(extent);
-  graph.minScale();
 }

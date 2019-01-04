@@ -114,3 +114,14 @@ export function isIterable(obj: any): obj is Iterable<any> {
 export function alignUp(raw:number, multiple:number):number {
   return Math.floor((raw + multiple - 1) / multiple) * multiple;
 }
+
+export function measureText(text: string) {
+  const textMeasure = document.getElementById('text-measure');
+  if (textMeasure instanceof SVGTSpanElement) {
+    textMeasure.textContent = text;
+    return {
+      width: textMeasure.getBBox().width,
+      height: textMeasure.getBBox().height,
+    };
+  }
+}

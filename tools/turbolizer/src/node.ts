@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {NodeOrigin} from "../src/source-resolver"
-import {MINIMUM_EDGE_SEPARATION, Edge} from "../src/edge"
+import { NodeOrigin } from "../src/source-resolver"
+import { MINIMUM_EDGE_SEPARATION, Edge } from "../src/edge"
 
 export const DEFAULT_NODE_BUBBLE_RADIUS = 12;
 export const NODE_INPUT_WIDTH = 50;
@@ -42,6 +42,7 @@ export class GNode {
   labelbbox: { width: number, height: number };
   visitOrderWithinRank: number;
   cfg: boolean;
+  normalheight: number;
 
   isControl() {
     return this.control;
@@ -158,8 +159,15 @@ export class GNode {
     return this.y - MINIMUM_NODE_INPUT_APPROACH -
       (index % 4) * MINIMUM_EDGE_SEPARATION - DEFAULT_NODE_BUBBLE_RADIUS
   }
-  getOutputApproach(graph) {
-    return this.y + this.outputApproach + graph.getNodeHeight(this) +
+  getNodeHeight(showTypes:boolean): number {
+    if (showTypes) {
+      return this.normalheight + this.labelbbox.height;
+    } else {
+      return this.normalheight;
+    }
+  }
+  getOutputApproach(showTypes:boolean) {
+    return this.y + this.outputApproach + this.getNodeHeight(showTypes) +
       + DEFAULT_NODE_BUBBLE_RADIUS;
   }
   getInputX(index) {
