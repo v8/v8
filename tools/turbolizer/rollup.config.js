@@ -10,8 +10,8 @@ import path from 'path'
 const onwarn = warning => {
   // Silence circular dependency warning for moment package
   const node_modules = path.normalize('node_modules/');
-  if (warning.code === 'CIRCULAR_DEPENDENCY'
-    && !warning.importer.indexOf(node_modules)) {
+  if (warning.code === 'CIRCULAR_DEPENDENCY' &&
+    !warning.importer.indexOf(node_modules)) {
     return
   }
 
@@ -20,7 +20,13 @@ const onwarn = warning => {
 
 export default {
   input: "src/turbo-visualizer.ts",
-  plugins: [node(), typescript({abortOnError:false})],
-  output: {file: "build/turbolizer.js", format: "iife", sourcemap: true},
+  plugins: [node(), typescript({
+    abortOnError: false
+  })],
+  output: {
+    file: "build/turbolizer.js",
+    format: "iife",
+    sourcemap: true
+  },
   onwarn: onwarn
 };

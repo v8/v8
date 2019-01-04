@@ -209,7 +209,7 @@ window.onload = function () {
     if (multiview) multiview.onresize();
   }
 
-  function loadFile(txtRes) {
+  function loadFile(txtRes: string) {
     // If the JSON isn't properly terminated, assume compiler crashed and
     // add best-guess empty termination
     if (txtRes[txtRes.length - 2] == ',') {
@@ -294,14 +294,16 @@ window.onload = function () {
     d3.select("#upload").on("click",
       () => document.getElementById("upload-helper").click());
     d3.select("#upload-helper").on("change", function (this: HTMLInputElement) {
-      var uploadFile = this.files && this.files[0];
-      var filereader = new FileReader();
-      filereader.onload = function (e) {
-        var txtRes = filereader.result;
-        loadFile(txtRes);
-      };
-      if (uploadFile)
+      const uploadFile = this.files && this.files[0];
+      if (uploadFile) {
+        const filereader = new FileReader();
+        filereader.onload = () => {
+          const txtRes = filereader.result;
+          if (typeof txtRes == 'string')
+            loadFile(txtRes);
+        };
         filereader.readAsText(uploadFile);
+      }
     });
   }
 
