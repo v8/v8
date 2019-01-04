@@ -268,6 +268,7 @@
   'regress/regress-trap-allocation-memento': [SKIP],
   'regress/regress-2249': [SKIP],
   'regress/regress-4121': [SKIP],
+  'regress/regress-6989': [SKIP],
   'compare-known-objects-slow': [SKIP],
   'compiler/array-multiple-receiver-maps': [SKIP],
   # Tests taking too long
