@@ -1470,7 +1470,7 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
       ZoneVector<Handle<Map>> prototype_maps(zone());
       for (ElementAccessInfo const& access_info : access_infos) {
         for (Handle<Map> receiver_map : access_info.receiver_maps()) {
-          // If the {receiver_map} has a prototype and it's elements backing
+          // If the {receiver_map} has a prototype and its elements backing
           // store is either holey, or we have a potentially growing store,
           // then we need to check that all prototypes have stable maps with
           // fast elements (and we need to guard against changes to that below).
@@ -1647,77 +1647,83 @@ Reduction JSNativeContextSpecialization::ReduceKeyedAccess(
   // Optimize the case where we load from a constant {receiver}.
   if (access_mode == AccessMode::kLoad) {
     HeapObjectMatcher mreceiver(receiver);
-    if (mreceiver.HasValue() && !mreceiver.Value()->IsTheHole(isolate()) &&
-        !mreceiver.Value()->IsNullOrUndefined(isolate())) {
-      // Check whether we're accessing a known element on the {receiver}
-      // that is non-configurable, non-writable (i.e. the {receiver} was
-      // frozen using Object.freeze).
-      NumberMatcher mindex(index);
-      if (mindex.IsInteger() && mindex.IsInRange(0.0, kMaxUInt32 - 1.0)) {
-        LookupIterator it(isolate(), mreceiver.Value(),
-                          static_cast<uint32_t>(mindex.Value()),
-                          LookupIterator::OWN);
-        if (it.state() == LookupIterator::DATA) {
-          if (it.IsReadOnly() && !it.IsConfigurable()) {
-            // We can safely constant-fold the {index} access to {receiver},
-            // since the element is non-configurable, non-writable and thus
-            // cannot change anymore.
-            value = jsgraph()->Constant(it.GetDataValue());
-            ReplaceWithValue(node, value, effect, control);
-            return Replace(value);
-          }
-
-          // Check if the {receiver} is a known constant with a copy-on-write
-          // backing store, and whether {index} is within the appropriate
-          // bounds. In that case we can constant-fold the access and only
-          // check that the {elements} didn't change. This is sufficient as
-          // the backing store of a copy-on-write JSArray is defensively copied
-          // whenever the length or the elements (might) change.
-          //
-          // What's interesting here is that we don't need to map check the
-          // {receiver}, since JSArray's will always have their elements in
-          // the backing store.
-          if (mreceiver.Value()->IsJSArray()) {
-            Handle<JSArray> array = Handle<JSArray>::cast(mreceiver.Value());
-            if (array->elements()->IsCowArray()) {
-              Node* elements = effect = graph()->NewNode(
-                  simplified()->LoadField(AccessBuilder::ForJSObjectElements()),
-                  receiver, effect, control);
-              Handle<FixedArray> array_elements(
-                  FixedArray::cast(array->elements()), isolate());
-              Node* check =
-                  graph()->NewNode(simplified()->ReferenceEqual(), elements,
-                                   jsgraph()->HeapConstant(array_elements));
-              effect = graph()->NewNode(
-                  simplified()->CheckIf(
-                      DeoptimizeReason::kCowArrayElementsChanged),
-                  check, effect, control);
+    if (mreceiver.HasValue()) {
+      HeapObjectRef receiver_ref = mreceiver.Ref(broker()).AsHeapObject();
+      if (receiver_ref.map().oddball_type() != OddballType::kHole &&
+          receiver_ref.map().oddball_type() != OddballType::kNull &&
+          receiver_ref.map().oddball_type() != OddballType::kUndefined) {
+        // Check whether we're accessing a known element on the {receiver}
+        // that is non-configurable, non-writable (i.e. the {receiver} was
+        // frozen using Object.freeze).
+        NumberMatcher mindex(index);
+        if (mindex.IsInteger() && mindex.IsInRange(0.0, kMaxUInt32 - 1.0)) {
+          LookupIterator it(isolate(), receiver_ref.object(),
+                            static_cast<uint32_t>(mindex.Value()),
+                            LookupIterator::OWN);
+          if (it.state() == LookupIterator::DATA) {
+            if (it.IsReadOnly() && !it.IsConfigurable()) {
+              // We can safely constant-fold the {index} access to {receiver},
+              // since the element is non-configurable, non-writable and thus
+              // cannot change anymore.
               value = jsgraph()->Constant(it.GetDataValue());
               ReplaceWithValue(node, value, effect, control);
               return Replace(value);
             }
+
+            // Check if the {receiver} is a known constant with a copy-on-write
+            // backing store, and whether {index} is within the appropriate
+            // bounds. In that case we can constant-fold the access and only
+            // check that the {elements} didn't change. This is sufficient as
+            // the backing store of a copy-on-write JSArray is defensively
+            // copied whenever the length or the elements (might) change.
+            //
+            // What's interesting here is that we don't need to map check the
+            // {receiver}, since JSArray's will always have their elements in
+            // the backing store.
+            if (receiver_ref.IsJSArray()) {
+              Handle<JSArray> array = receiver_ref.AsJSArray().object();
+              if (array->elements()->IsCowArray()) {
+                Node* elements = effect =
+                    graph()->NewNode(simplified()->LoadField(
+                                         AccessBuilder::ForJSObjectElements()),
+                                     receiver, effect, control);
+                Handle<FixedArray> array_elements(
+                    FixedArray::cast(array->elements()), isolate());
+                Node* check =
+                    graph()->NewNode(simplified()->ReferenceEqual(), elements,
+                                     jsgraph()->HeapConstant(array_elements));
+                effect = graph()->NewNode(
+                    simplified()->CheckIf(
+                        DeoptimizeReason::kCowArrayElementsChanged),
+                    check, effect, control);
+                value = jsgraph()->Constant(it.GetDataValue());
+                ReplaceWithValue(node, value, effect, control);
+                return Replace(value);
+              }
+            }
           }
         }
-      }
 
-      // For constant Strings we can eagerly strength-reduce the keyed
-      // accesses using the known length, which doesn't change.
-      if (mreceiver.Value()->IsString()) {
-        Handle<String> string = Handle<String>::cast(mreceiver.Value());
+        // For constant Strings we can eagerly strength-reduce the keyed
+        // accesses using the known length, which doesn't change.
+        if (receiver_ref.IsString()) {
+          // We can only assume that the {index} is a valid array index if the
+          // IC is in element access mode and not MEGAMORPHIC, otherwise there's
+          // no guard for the bounds check below.
+          if (nexus.ic_state() != MEGAMORPHIC &&
+              nexus.GetKeyType() == ELEMENT) {
+            // Ensure that {index} is less than {receiver} length.
+            Node* length =
+                jsgraph()->Constant(receiver_ref.AsString().length());
 
-        // We can only assume that the {index} is a valid array index if the IC
-        // is in element access mode and not MEGAMORPHIC, otherwise there's no
-        // guard for the bounds check below.
-        if (nexus.ic_state() != MEGAMORPHIC && nexus.GetKeyType() == ELEMENT) {
-          // Ensure that {index} is less than {receiver} length.
-          Node* length = jsgraph()->Constant(string->length());
-
-          // Load the single character string from {receiver} or yield undefined
-          // if the {index} is out of bounds (depending on the {load_mode}).
-          value = BuildIndexedStringLoad(receiver, index, length, &effect,
-                                         &control, load_mode);
-          ReplaceWithValue(node, value, effect, control);
-          return Replace(value);
+            // Load the single character string from {receiver} or yield
+            // undefined if the {index} is out of bounds (depending on the
+            // {load_mode}).
+            value = BuildIndexedStringLoad(receiver, index, length, &effect,
+                                           &control, load_mode);
+            ReplaceWithValue(node, value, effect, control);
+            return Replace(value);
+          }
         }
       }
     }
