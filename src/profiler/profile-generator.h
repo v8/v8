@@ -26,26 +26,30 @@ namespace internal {
 struct TickSample;
 
 // Provides a mapping from the offsets within generated code or a bytecode array
-// to the source line.
+// to the source line and inlining id.
 class SourcePositionTable : public Malloced {
  public:
   SourcePositionTable() = default;
 
-  void SetPosition(int pc_offset, int line);
+  void SetPosition(int pc_offset, int line, int inlining_id);
   int GetSourceLineNumber(int pc_offset) const;
+  int GetInliningId(int pc_offset) const;
+
+  void print() const;
 
  private:
-  struct PCOffsetAndLineNumber {
-    bool operator<(const PCOffsetAndLineNumber& other) const {
+  struct SourcePositionTuple {
+    bool operator<(const SourcePositionTuple& other) const {
       return pc_offset < other.pc_offset;
     }
     int pc_offset;
     int line_number;
+    int inlining_id;
   };
-  // This is logically a map, but we store it as a vector of pairs, sorted by
+  // This is logically a map, but we store it as a vector of tuples, sorted by
   // the pc offset, so that we can save space and look up items using binary
   // search.
-  std::vector<PCOffsetAndLineNumber> pc_offsets_to_lines_;
+  std::vector<SourcePositionTuple> pc_offsets_to_lines_;
   DISALLOW_COPY_AND_ASSIGN(SourcePositionTable);
 };
 
@@ -105,7 +109,8 @@ class CodeEntry {
 
   int GetSourceLine(int pc_offset) const;
 
-  void AddInlineStack(int pc_offset, std::vector<InlineEntry> inline_stack);
+  void SetInlineStacks(
+      std::unordered_map<int, std::vector<InlineEntry>> inline_stacks);
   const std::vector<InlineEntry>* GetInlineStack(int pc_offset) const;
 
   void set_instruction_start(Address start) { instruction_start_ = start; }
@@ -136,12 +141,14 @@ class CodeEntry {
     return kUnresolvedEntry.Pointer();
   }
 
+  void print() const;
+
  private:
   struct RareData {
     const char* deopt_reason_ = kNoDeoptReason;
     const char* bailout_reason_ = kEmptyBailoutReason;
     int deopt_id_ = kNoDeoptimizationId;
-    std::map<int, std::vector<InlineEntry>> inline_locations_;
+    std::unordered_map<int, std::vector<InlineEntry>> inline_locations_;
     std::vector<CpuProfileDeoptFrame> deopt_inlined_frames_;
   };
 

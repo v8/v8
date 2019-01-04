@@ -40,7 +40,6 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
                             CpuProfileNode::kNoLineNumberInfo,
                             CpuProfileNode::kNoColumnNumberInfo, nullptr,
                             code->InstructionStart());
-  RecordInliningInfo(rec->entry, code);
   rec->instruction_size = code->InstructionSize();
   DispatchCodeEvent(evt_rec);
 }
@@ -54,7 +53,6 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
                             CpuProfileNode::kNoLineNumberInfo,
                             CpuProfileNode::kNoColumnNumberInfo, nullptr,
                             code->InstructionStart());
-  RecordInliningInfo(rec->entry, code);
   rec->instruction_size = code->InstructionSize();
   DispatchCodeEvent(evt_rec);
 }
@@ -71,7 +69,7 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
                             CpuProfileNode::kNoLineNumberInfo,
                             CpuProfileNode::kNoColumnNumberInfo, nullptr,
                             code->InstructionStart());
-  RecordInliningInfo(rec->entry, code);
+  DCHECK(!code->IsCode());
   rec->entry->FillFunctionInfo(shared);
   rec->instruction_size = code->InstructionSize();
   DispatchCodeEvent(evt_rec);
@@ -85,25 +83,74 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->instruction_start = abstract_code->InstructionStart();
   std::unique_ptr<SourcePositionTable> line_table;
+  std::unordered_map<int, std::vector<InlineEntry>> inline_stacks;
   if (shared->script()->IsScript()) {
     Script script = Script::cast(shared->script());
     line_table.reset(new SourcePositionTable());
+    HandleScope scope(isolate_);
+
+    // Add each position to the source position table and store inlining stacks
+    // for inline positions. We store almost the same information in the
+    // profiler as is stored on the code object, except that we transform source
+    // positions to line numbers here, because we only care about attributing
+    // ticks to a given line.
     for (SourcePositionTableIterator it(abstract_code->source_position_table());
          !it.done(); it.Advance()) {
-      // TODO(alph,tebbi) Skipping inlined positions for now, because they might
-      // refer to a different script.
-      if (it.source_position().InliningId() != SourcePosition::kNotInlined)
-        continue;
       int position = it.source_position().ScriptOffset();
       int line_number = script->GetLineNumber(position) + 1;
-      line_table->SetPosition(it.code_offset(), line_number);
+      int inlining_id = it.source_position().InliningId();
+      line_table->SetPosition(it.code_offset(), line_number, inlining_id);
+
+      if (inlining_id != SourcePosition::kNotInlined) {
+        DCHECK(abstract_code->IsCode());
+        Code code = abstract_code->GetCode();
+        std::vector<SourcePositionInfo> stack =
+            it.source_position().InliningStack(handle(code, isolate_));
+        DCHECK(!stack.empty());
+
+        std::vector<InlineEntry> inline_stack;
+        for (SourcePositionInfo& pos_info : stack) {
+          if (pos_info.position.ScriptOffset() == kNoSourcePosition) continue;
+          if (pos_info.script.is_null()) continue;
+
+          int line_number =
+              pos_info.script->GetLineNumber(pos_info.position.ScriptOffset()) +
+              1;
+
+          const char* resource_name =
+              (pos_info.script->name()->IsName())
+                  ? GetName(Name::cast(pos_info.script->name()))
+                  : CodeEntry::kEmptyResourceName;
+
+          // We need the start line number and column number of the function for
+          // kLeafNodeLineNumbers mode. Creating a SourcePositionInfo is a handy
+          // way of getting both easily.
+          SourcePositionInfo start_pos_info(
+              SourcePosition(pos_info.shared->StartPosition()),
+              pos_info.shared);
+
+          std::unique_ptr<CodeEntry> inline_entry =
+              base::make_unique<CodeEntry>(
+                  tag, GetName(pos_info.shared->DebugName()), resource_name,
+                  start_pos_info.line + 1, start_pos_info.column + 1, nullptr,
+                  code->InstructionStart());
+          inline_entry->FillFunctionInfo(*pos_info.shared);
+          inline_stack.push_back(
+              InlineEntry{std::move(inline_entry), line_number});
+        }
+        DCHECK(!inline_stack.empty());
+        inline_stacks.emplace(inlining_id, std::move(inline_stack));
+      }
     }
   }
   rec->entry =
       NewCodeEntry(tag, GetName(shared->DebugName()),
                    GetName(InferScriptName(script_name, shared)), line, column,
                    std::move(line_table), abstract_code->InstructionStart());
-  RecordInliningInfo(rec->entry, abstract_code);
+  if (!inline_stacks.empty()) {
+    rec->entry->SetInlineStacks(std::move(inline_stacks));
+  }
+
   rec->entry->FillFunctionInfo(shared);
   rec->instruction_size = abstract_code->InstructionSize();
   DispatchCodeEvent(evt_rec);
@@ -194,66 +241,6 @@ Name ProfilerListener::InferScriptName(Name name, SharedFunctionInfo info) {
   if (!info->script()->IsScript()) return name;
   Object source_url = Script::cast(info->script())->source_url();
   return source_url->IsName() ? Name::cast(source_url) : name;
-}
-
-void ProfilerListener::RecordInliningInfo(CodeEntry* entry,
-                                          AbstractCode abstract_code) {
-  if (!abstract_code->IsCode()) return;
-  Code code = abstract_code->GetCode();
-  if (code->kind() != Code::OPTIMIZED_FUNCTION) return;
-
-  // Needed for InliningStack().
-  HandleScope scope(isolate_);
-  int last_inlining_id = -2;
-  for (SourcePositionTableIterator it(abstract_code->source_position_table());
-       !it.done(); it.Advance()) {
-    int code_offset = it.code_offset();
-
-    // Save space by not duplicating repeated entries that map to the same
-    // inlining ID. We might get multiple source positions per inlining ID, but
-    // they all map to the same line. This automatically collapses adjacent
-    // inlining stacks (or empty stacks) that are exactly the same.
-    if (it.source_position().InliningId() == last_inlining_id) continue;
-    last_inlining_id = it.source_position().InliningId();
-
-    // Only look at positions for inlined calls.
-    if (it.source_position().InliningId() == SourcePosition::kNotInlined) {
-      entry->AddInlineStack(code_offset, std::vector<InlineEntry>());
-      continue;
-    }
-
-    std::vector<SourcePositionInfo> stack =
-        it.source_position().InliningStack(handle(code, isolate_));
-    std::vector<InlineEntry> inline_stack;
-    for (SourcePositionInfo& pos_info : stack) {
-      if (pos_info.position.ScriptOffset() == kNoSourcePosition) continue;
-      if (pos_info.script.is_null()) continue;
-
-      int line_number =
-          pos_info.script->GetLineNumber(pos_info.position.ScriptOffset()) + 1;
-
-      const char* resource_name =
-          (pos_info.script->name()->IsName())
-              ? GetName(Name::cast(pos_info.script->name()))
-              : CodeEntry::kEmptyResourceName;
-
-      // We need the start line number and column number of the function for
-      // kLeafNodeLineNumbers mode. Creating a SourcePositionInfo is a handy way
-      // of getting both easily.
-      SourcePositionInfo start_pos_info(
-          SourcePosition(pos_info.shared->StartPosition()), pos_info.shared);
-
-      std::unique_ptr<CodeEntry> inline_entry = base::make_unique<CodeEntry>(
-          entry->tag(), GetName(pos_info.shared->DebugName()), resource_name,
-          start_pos_info.line + 1, start_pos_info.column + 1, nullptr,
-          code->InstructionStart());
-      inline_entry->FillFunctionInfo(*pos_info.shared);
-      inline_stack.push_back(InlineEntry{std::move(inline_entry), line_number});
-    }
-    if (!inline_stack.empty()) {
-      entry->AddInlineStack(code_offset, std::move(inline_stack));
-    }
-  }
 }
 
 void ProfilerListener::AttachDeoptInlinedFrames(Code code,

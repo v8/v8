@@ -18,7 +18,8 @@
 namespace v8 {
 namespace internal {
 
-void SourcePositionTable::SetPosition(int pc_offset, int line) {
+void SourcePositionTable::SetPosition(int pc_offset, int line,
+                                      int inlining_id) {
   DCHECK_GE(pc_offset, 0);
   DCHECK_GT(line, 0);  // The 1-based number of the source line.
   // Check that we are inserting in ascending order, so that the vector remains
@@ -26,8 +27,9 @@ void SourcePositionTable::SetPosition(int pc_offset, int line) {
   DCHECK(pc_offsets_to_lines_.empty() ||
          pc_offsets_to_lines_.back().pc_offset < pc_offset);
   if (pc_offsets_to_lines_.empty() ||
-      pc_offsets_to_lines_.back().line_number != line) {
-    pc_offsets_to_lines_.push_back({pc_offset, line});
+      pc_offsets_to_lines_.back().line_number != line ||
+      pc_offsets_to_lines_.back().inlining_id != inlining_id) {
+    pc_offsets_to_lines_.push_back({pc_offset, line, inlining_id});
   }
 }
 
@@ -35,11 +37,31 @@ int SourcePositionTable::GetSourceLineNumber(int pc_offset) const {
   if (pc_offsets_to_lines_.empty()) {
     return v8::CpuProfileNode::kNoLineNumberInfo;
   }
-  auto it =
-      std::lower_bound(pc_offsets_to_lines_.begin(), pc_offsets_to_lines_.end(),
-                       PCOffsetAndLineNumber{pc_offset, 0});
+  auto it = std::lower_bound(
+      pc_offsets_to_lines_.begin(), pc_offsets_to_lines_.end(),
+      SourcePositionTuple{pc_offset, 0, SourcePosition::kNotInlined});
   if (it != pc_offsets_to_lines_.begin()) --it;
   return it->line_number;
+}
+
+int SourcePositionTable::GetInliningId(int pc_offset) const {
+  if (pc_offsets_to_lines_.empty()) {
+    return SourcePosition::kNotInlined;
+  }
+  auto it = std::lower_bound(
+      pc_offsets_to_lines_.begin(), pc_offsets_to_lines_.end(),
+      SourcePositionTuple{pc_offset, 0, SourcePosition::kNotInlined});
+  if (it != pc_offsets_to_lines_.begin()) --it;
+  return it->inlining_id;
+}
+
+void SourcePositionTable::print() const {
+  base::OS::Print(" - source position table at %p\n", this);
+  for (const SourcePositionTuple& pos_info : pc_offsets_to_lines_) {
+    base::OS::Print("    %d --> line_number: %d inlining_id: %d\n",
+                    pos_info.pc_offset, pos_info.line_number,
+                    pos_info.inlining_id);
+  }
 }
 
 const char* const CodeEntry::kWasmResourceNamePrefix = "wasm ";
@@ -119,17 +141,20 @@ int CodeEntry::GetSourceLine(int pc_offset) const {
   return v8::CpuProfileNode::kNoLineNumberInfo;
 }
 
-void CodeEntry::AddInlineStack(int pc_offset,
-                               std::vector<InlineEntry> inline_stack) {
-  EnsureRareData()->inline_locations_.insert(
-      std::make_pair(pc_offset, std::move(inline_stack)));
+void CodeEntry::SetInlineStacks(
+    std::unordered_map<int, std::vector<InlineEntry>> inline_stacks) {
+  EnsureRareData()->inline_locations_ = std::move(inline_stacks);
 }
 
 const std::vector<InlineEntry>* CodeEntry::GetInlineStack(int pc_offset) const {
-  if (!rare_data_ || rare_data_->inline_locations_.empty()) return nullptr;
-  auto it = rare_data_->inline_locations_.lower_bound(pc_offset);
-  if (it != rare_data_->inline_locations_.begin()) it--;
-  return it->second.empty() ? nullptr : &it->second;
+  if (!line_info_) return nullptr;
+
+  int inlining_id = line_info_->GetInliningId(pc_offset);
+  if (inlining_id == SourcePosition::kNotInlined) return nullptr;
+  DCHECK(rare_data_);
+
+  auto it = rare_data_->inline_locations_.find(inlining_id);
+  return it != rare_data_->inline_locations_.end() ? &it->second : nullptr;
 }
 
 void CodeEntry::set_deopt_info(
@@ -172,6 +197,55 @@ CodeEntry::RareData* CodeEntry::EnsureRareData() {
     rare_data_.reset(new RareData());
   }
   return rare_data_.get();
+}
+
+void CodeEntry::print() const {
+  base::OS::Print("CodeEntry: at %p\n", this);
+
+  base::OS::Print(" - name: %s\n", name_);
+  base::OS::Print(" - resource_name: %s\n", resource_name_);
+  base::OS::Print(" - line_number: %d\n", line_number_);
+  base::OS::Print(" - column_number: %d\n", column_number_);
+  base::OS::Print(" - script_id: %d\n", script_id_);
+  base::OS::Print(" - position: %d\n", position_);
+  base::OS::Print(" - instruction_start: %p\n",
+                  reinterpret_cast<void*>(instruction_start_));
+
+  if (line_info_) {
+    line_info_->print();
+  }
+
+  if (rare_data_) {
+    base::OS::Print(" - deopt_reason: %s\n", rare_data_->deopt_reason_);
+    base::OS::Print(" - bailout_reason: %s\n", rare_data_->bailout_reason_);
+    base::OS::Print(" - deopt_id: %d\n", rare_data_->deopt_id_);
+
+    if (!rare_data_->inline_locations_.empty()) {
+      base::OS::Print(" - inline stacks:\n");
+      for (auto it = rare_data_->inline_locations_.begin();
+           it != rare_data_->inline_locations_.end(); it++) {
+        base::OS::Print("    inlining_id: [%d]\n", it->first);
+        for (const auto& e : it->second) {
+          base::OS::Print("     %s --> %d\n", e.code_entry->name(),
+                          e.call_line_number);
+        }
+      }
+    } else {
+      base::OS::Print(" - inline stacks: (empty)\n");
+    }
+
+    if (!rare_data_->deopt_inlined_frames_.empty()) {
+      base::OS::Print(" - deopt inlined frames:\n");
+      for (const CpuProfileDeoptFrame& frame :
+           rare_data_->deopt_inlined_frames_) {
+        base::OS::Print("script_id: %d position: %zu\n", frame.script_id,
+                        frame.position);
+      }
+    } else {
+      base::OS::Print(" - deopt inlined frames: (empty)\n");
+    }
+  }
+  base::OS::Print("\n");
 }
 
 void ProfileNode::CollectDeoptInfo(CodeEntry* entry) {
@@ -762,6 +836,7 @@ void ProfileGenerator::RecordTickSample(const TickSample& sample) {
         const std::vector<InlineEntry>* inline_stack =
             entry->GetInlineStack(pc_offset);
         if (inline_stack) {
+          int most_inlined_frame_line_number = entry->GetSourceLine(pc_offset);
           std::transform(inline_stack->begin(), inline_stack->end(),
                          std::back_inserter(stack_trace),
                          [](const InlineEntry& inline_entry) {
@@ -769,6 +844,16 @@ void ProfileGenerator::RecordTickSample(const TickSample& sample) {
                                inline_entry.code_entry.get(),
                                inline_entry.call_line_number};
                          });
+          // This is a bit of a messy hack. The line number for the most-inlined
+          // frame (the function at the end of the chain of function calls) has
+          // the wrong line number in inline_stack. The actual line number in
+          // this function is stored in the SourcePositionTable in entry. We fix
+          // up the line number for the most-inlined frame here.
+          // TODO(petermarshall): Remove this and use a tree with a node per
+          // inlining_id.
+          DCHECK(!inline_stack->empty());
+          size_t index = stack_trace.size() - inline_stack->size();
+          stack_trace[index].line_number = most_inlined_frame_line_number;
         }
         // Skip unresolved frames (e.g. internal frame) and get source line of
         // the first JS caller.

@@ -1717,7 +1717,8 @@ static const char* inlining_test_source2 = R"(
       return s;
     }
     function level4() {
-      return action(200);
+      action(100);
+      return action(100);
     }
     function level3() {
       const a = level4();
@@ -1748,23 +1749,27 @@ const double load_factor = 1.0;
 
 // [Top down]:
 //     0  (root):0 0 #1
-//     1    start:33 6 #3
-//              bailed out due to 'Optimization disabled for test'
-//     5      level1:35 6 #4
-//     1        action:28 6 #12
-//                  bailed out due to 'Optimization disabled for test'
-//     3        action:30 6 #13
-//                  bailed out due to 'Optimization disabled for test'
-//     0        level2:31 6 #6
-//     0          level3:25 6 #7
-//     6            level4:20 6 #10
-//   251              action:17 6 #11
-//                        bailed out due to 'Optimization disabled for test'
-//     2            level4:21 6 #8
-//   238              action:17 6 #9
-//                        bailed out due to 'Optimization disabled for test'
-//   245        action:29 6 #5
-//                  bailed out due to 'Optimization disabled for test'
+//    13    start:34 6 #3
+//              bailed out due to 'Optimization is always disabled'
+//    19      level1:36 6 #4
+//    16        action:29 6 #14
+//                  bailed out due to 'Optimization is always disabled'
+//  2748        action:30 6 #10
+//                  bailed out due to 'Optimization is always disabled'
+//    18        action:31 6 #15
+//                  bailed out due to 'Optimization is always disabled'
+//     0        level2:32 6 #5
+//     0          level3:26 6 #6
+//    12            level4:22 6 #11
+//  1315              action:17 6 #13
+//                        bailed out due to 'Optimization is always disabled'
+//  1324              action:18 6 #12
+//                        bailed out due to 'Optimization is always disabled'
+//    16            level4:21 6 #7
+//  1268              action:17 6 #9
+//                        bailed out due to 'Optimization is always disabled'
+//  1322              action:18 6 #8
+//                        bailed out due to 'Optimization is always disabled'
 //     2    (program):0 0 #2
 TEST(Inlining2) {
   i::FLAG_allow_natives_syntax = true;
@@ -1792,19 +1797,33 @@ TEST(Inlining2) {
   const v8::CpuProfileNode* root = profile->GetTopDownRoot();
   const v8::CpuProfileNode* start_node = GetChild(env, root, "start");
 
-  NameLinePair l4_18[] = {{"level1", 35},
-                          {"level2", 31},
-                          {"level3", 25},
-                          {"level4", 20},
-                          {"action", 17}};
-  CheckBranch(start_node, l4_18, arraysize(l4_18));
-  NameLinePair l4_19[] = {{"level1", 35},
-                          {"level2", 31},
-                          {"level3", 25},
-                          {"level4", 21},
-                          {"action", 17}};
-  CheckBranch(start_node, l4_19, arraysize(l4_19));
-  NameLinePair action_direct[] = {{"level1", 35}, {"action", 29}};
+  NameLinePair l421_a17[] = {{"level1", 36},
+                             {"level2", 32},
+                             {"level3", 26},
+                             {"level4", 21},
+                             {"action", 17}};
+  CheckBranch(start_node, l421_a17, arraysize(l421_a17));
+  NameLinePair l422_a17[] = {{"level1", 36},
+                             {"level2", 32},
+                             {"level3", 26},
+                             {"level4", 22},
+                             {"action", 17}};
+  CheckBranch(start_node, l422_a17, arraysize(l422_a17));
+
+  NameLinePair l421_a18[] = {{"level1", 36},
+                             {"level2", 32},
+                             {"level3", 26},
+                             {"level4", 21},
+                             {"action", 18}};
+  CheckBranch(start_node, l421_a18, arraysize(l421_a18));
+  NameLinePair l422_a18[] = {{"level1", 36},
+                             {"level2", 32},
+                             {"level3", 26},
+                             {"level4", 22},
+                             {"action", 18}};
+  CheckBranch(start_node, l422_a18, arraysize(l422_a18));
+
+  NameLinePair action_direct[] = {{"level1", 36}, {"action", 30}};
   CheckBranch(start_node, action_direct, arraysize(action_direct));
 
   profile->Delete();
@@ -2617,6 +2636,7 @@ TEST(SourcePositionTable) {
   int no_info = v8::CpuProfileNode::kNoLineNumberInfo;
   CHECK_EQ(no_info, info.GetSourceLineNumber(std::numeric_limits<int>::min()));
   CHECK_EQ(no_info, info.GetSourceLineNumber(0));
+  CHECK_EQ(SourcePosition::kNotInlined, info.GetInliningId(0));
   CHECK_EQ(no_info, info.GetSourceLineNumber(1));
   CHECK_EQ(no_info, info.GetSourceLineNumber(9));
   CHECK_EQ(no_info, info.GetSourceLineNumber(10));
@@ -2625,12 +2645,14 @@ TEST(SourcePositionTable) {
   CHECK_EQ(no_info, info.GetSourceLineNumber(20));
   CHECK_EQ(no_info, info.GetSourceLineNumber(21));
   CHECK_EQ(no_info, info.GetSourceLineNumber(100));
+  CHECK_EQ(SourcePosition::kNotInlined, info.GetInliningId(100));
   CHECK_EQ(no_info, info.GetSourceLineNumber(std::numeric_limits<int>::max()));
 
-  info.SetPosition(10, 1);
-  info.SetPosition(20, 2);
+  info.SetPosition(10, 1, SourcePosition::kNotInlined);
+  info.SetPosition(20, 2, SourcePosition::kNotInlined);
 
-  // The only valid return values are 1 or 2 - every pc maps to a line number.
+  // The only valid return values are 1 or 2 - every pc maps to a line
+  // number.
   CHECK_EQ(1, info.GetSourceLineNumber(std::numeric_limits<int>::min()));
   CHECK_EQ(1, info.GetSourceLineNumber(0));
   CHECK_EQ(1, info.GetSourceLineNumber(1));
@@ -2643,11 +2665,17 @@ TEST(SourcePositionTable) {
   CHECK_EQ(2, info.GetSourceLineNumber(100));
   CHECK_EQ(2, info.GetSourceLineNumber(std::numeric_limits<int>::max()));
 
+  CHECK_EQ(SourcePosition::kNotInlined, info.GetInliningId(0));
+  CHECK_EQ(SourcePosition::kNotInlined, info.GetInliningId(100));
+
   // Test SetPosition behavior.
-  info.SetPosition(25, 3);
+  info.SetPosition(25, 3, 0);
   CHECK_EQ(2, info.GetSourceLineNumber(21));
   CHECK_EQ(3, info.GetSourceLineNumber(100));
   CHECK_EQ(3, info.GetSourceLineNumber(std::numeric_limits<int>::max()));
+
+  CHECK_EQ(SourcePosition::kNotInlined, info.GetInliningId(21));
+  CHECK_EQ(0, info.GetInliningId(100));
 }
 
 TEST(MultipleProfilers) {
