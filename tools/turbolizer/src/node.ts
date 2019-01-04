@@ -3,16 +3,12 @@
 // found in the LICENSE file.
 
 import {NodeOrigin} from "../src/source-resolver"
-import {MINIMUM_EDGE_SEPARATION} from "../src/edge"
+import {MINIMUM_EDGE_SEPARATION, Edge} from "../src/edge"
 
 export const DEFAULT_NODE_BUBBLE_RADIUS = 12;
 export const NODE_INPUT_WIDTH = 50;
 export const MINIMUM_NODE_OUTPUT_APPROACH = 15;
 const MINIMUM_NODE_INPUT_APPROACH = 15 + 2 * DEFAULT_NODE_BUBBLE_RADIUS;
-
-export function isNodeInitiallyVisible(node) {
-  return node.cfg;
-}
 
 function formatOrigin(origin) {
   if (origin.nodeId) {
@@ -28,13 +24,13 @@ export class GNode {
   control: boolean;
   opcode: string;
   live: boolean;
-  inputs: Array<any>;
+  inputs: Array<Edge>;
   width: number;
   properties: string;
   title: string;
   label: string;
   origin: NodeOrigin;
-  outputs: Array<any>;
+  outputs: Array<Edge>;
   outputApproach: number;
   type: string;
   id: number;
@@ -44,6 +40,8 @@ export class GNode {
   rank: number;
   opinfo: string;
   labelbbox: { width: number, height: number };
+  visitOrderWithinRank: number;
+  cfg: boolean;
 
   isControl() {
     return this.control;

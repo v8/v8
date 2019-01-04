@@ -6,10 +6,6 @@ import {GNode, DEFAULT_NODE_BUBBLE_RADIUS} from "../src/node"
 
 export const MINIMUM_EDGE_SEPARATION = 20;
 
-export function isEdgeInitiallyVisible(target, index, source, type) {
-  return type == "control" && (target.cfg || source.cfg);
-}
-
 export class Edge {
   target: GNode;
   source: GNode;
@@ -24,7 +20,7 @@ export class Edge {
     this.index = index;
     this.type = type;
     this.backEdgeNumber = 0;
-    this.visible = isEdgeInitiallyVisible(target, index, source, type);
+    this.visible = false;
   }
 
 

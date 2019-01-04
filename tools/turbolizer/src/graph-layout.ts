@@ -3,9 +3,9 @@
 // found in the LICENSE file.
 
 
-import {MAX_RANK_SENTINEL} from "../src/constants"
-import {MINIMUM_EDGE_SEPARATION} from "../src/edge"
-import {NODE_INPUT_WIDTH, MINIMUM_NODE_OUTPUT_APPROACH, DEFAULT_NODE_BUBBLE_RADIUS} from "../src/node"
+import { MAX_RANK_SENTINEL } from "../src/constants"
+import { MINIMUM_EDGE_SEPARATION, Edge } from "../src/edge"
+import { NODE_INPUT_WIDTH, MINIMUM_NODE_OUTPUT_APPROACH, DEFAULT_NODE_BUBBLE_RADIUS, GNode } from "../src/node"
 
 
 const DEFAULT_NODE_ROW_SEPARATION = 130
@@ -255,13 +255,16 @@ function newGraphOccupation(graph) {
 export function layoutNodeGraph(graph) {
   // First determine the set of nodes that have no outputs. Those are the
   // basis for bottom-up DFS to determine rank and node placement.
-  var endNodesHasNoOutputs = [];
-  var startNodesHasNoInputs = [];
-  graph.nodes.forEach(function (n, i) {
+
+  const start = performance.now();
+
+  const endNodesHasNoOutputs = [];
+  const startNodesHasNoInputs = [];
+  graph.nodes.forEach(function (n: GNode) {
     endNodesHasNoOutputs[n.id] = true;
     startNodesHasNoInputs[n.id] = true;
   });
-  graph.edges.forEach(function (e, i) {
+  graph.forEachEdge((e: Edge) => {
     endNodesHasNoOutputs[e.source.id] = false;
     startNodesHasNoInputs[e.target.id] = false;
   });
@@ -285,10 +288,12 @@ export function layoutNodeGraph(graph) {
     n.outputApproach = MINIMUM_NODE_OUTPUT_APPROACH;
   });
 
+  if (traceLayout) {
+    console.log(`layoutGraph init ${performance.now() - start}`);
+  }
 
   var maxRank = 0;
   var visited = [];
-  var dfsStack = [];
   var visitOrderWithinRank = 0;
 
   var worklist = startNodes.slice();
@@ -329,8 +334,12 @@ export function layoutNodeGraph(graph) {
     }
   }
 
+  if (traceLayout) {
+    console.log(`layoutGraph worklist ${performance.now() - start}`);
+  }
+
   visited = [];
-  function dfsFindRankLate(n) {
+  function dfsFindRankLate(n: GNode) {
     if (visited[n.id]) return;
     visited[n.id] = true;
     var originalRank = n.rank;
@@ -354,7 +363,7 @@ export function layoutNodeGraph(graph) {
   startNodes.forEach(dfsFindRankLate);
 
   visited = [];
-  function dfsRankOrder(n) {
+  function dfsRankOrder(n: GNode) {
     if (visited[n.id]) return;
     visited[n.id] = true;
     for (var l = 0; l < n.outputs.length; ++l) {

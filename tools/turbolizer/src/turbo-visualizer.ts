@@ -238,7 +238,7 @@ window.onload = function () {
           backwardsCompatibility: true
         };
       } else {
-        fnc = Object.assign(jsonObj.function, {backwardsCompatibility: false});
+        fnc = Object.assign(jsonObj.function, { backwardsCompatibility: false });
       }
 
       sourceResolver.setInlinings(jsonObj.inlinings);
@@ -297,7 +297,7 @@ window.onload = function () {
       var uploadFile = this.files && this.files[0];
       var filereader = new FileReader();
       filereader.onload = function (e) {
-        var txtRes = e.target.result;
+        var txtRes = filereader.result;
         loadFile(txtRes);
       };
       if (uploadFile)

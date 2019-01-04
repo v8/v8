@@ -180,7 +180,7 @@ export abstract class TextView extends View {
           fragment.classList.add(cls);
         }
       }
-      fragment.innerHTML = text;
+      fragment.innerText = text;
     }
 
     return fragment;
