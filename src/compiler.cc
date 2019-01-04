@@ -569,30 +569,37 @@ bool FinalizeUnoptimizedCode(
     UnoptimizedCompilationJobList* inner_function_jobs) {
   DCHECK(AllowCompilation::IsAllowed(isolate));
 
-  // TODO(rmcilroy): Clear native context in debug once AsmJS generates doesn't
-  // rely on accessing native context during finalization.
+  {
+#ifdef DEBUG
+    // Unoptimized compilation should be context-independent. Verify that we
+    // don't access the native context by nulling it out during finalization.
+    SaveContext save(isolate);
+    isolate->set_context(Context());
+#endif
 
-  // Allocate scope infos for the literal.
-  DeclarationScope::AllocateScopeInfos(parse_info, isolate);
+    // Allocate scope infos for the literal.
+    DeclarationScope::AllocateScopeInfos(parse_info, isolate);
 
-  // Finalize the outer-most function's compilation job.
-  if (FinalizeUnoptimizedCompilationJob(outer_function_job, shared_info,
-                                        isolate) != CompilationJob::SUCCEEDED) {
-    return false;
-  }
-
-  // Finalize the inner functions' compilation jobs.
-  for (auto&& inner_job : *inner_function_jobs) {
-    Handle<SharedFunctionInfo> inner_shared_info =
-        Compiler::GetSharedFunctionInfo(
-            inner_job->compilation_info()->literal(), parse_info->script(),
-            isolate);
-    // The inner function might be compiled already if compiling for debug.
-    if (inner_shared_info->is_compiled()) continue;
-    if (FinalizeUnoptimizedCompilationJob(inner_job.get(), inner_shared_info,
+    // Finalize the outer-most function's compilation job.
+    if (FinalizeUnoptimizedCompilationJob(outer_function_job, shared_info,
                                           isolate) !=
         CompilationJob::SUCCEEDED) {
       return false;
+    }
+
+    // Finalize the inner functions' compilation jobs.
+    for (auto&& inner_job : *inner_function_jobs) {
+      Handle<SharedFunctionInfo> inner_shared_info =
+          Compiler::GetSharedFunctionInfo(
+              inner_job->compilation_info()->literal(), parse_info->script(),
+              isolate);
+      // The inner function might be compiled already if compiling for debug.
+      if (inner_shared_info->is_compiled()) continue;
+      if (FinalizeUnoptimizedCompilationJob(inner_job.get(), inner_shared_info,
+                                            isolate) !=
+          CompilationJob::SUCCEEDED) {
+        return false;
+      }
     }
   }
 
