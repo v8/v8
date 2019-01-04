@@ -870,7 +870,7 @@ void BytecodeGraphBuilder::VisitSingleBytecode(
     Visit##name();                     \
     break;
       BYTECODE_LIST(BYTECODE_CASE)
-#undef BYTECODE_CODE
+#undef BYTECODE_CASE
     }
   }
 }

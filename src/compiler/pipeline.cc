@@ -64,6 +64,7 @@
 #include "src/compiler/schedule.h"
 #include "src/compiler/scheduler.h"
 #include "src/compiler/select-lowering.h"
+#include "src/compiler/serializer-for-background-compilation.h"
 #include "src/compiler/simplified-lowering.h"
 #include "src/compiler/simplified-operator-reducer.h"
 #include "src/compiler/simplified-operator.h"
@@ -1201,6 +1202,19 @@ struct CopyMetadataForConcurrentCompilePhase {
   }
 };
 
+// TODO(turbofan): Move all calls from CopyMetaDataForConcurrentCompilePhase
+// here. Also all the calls to Serialize* methods that are currently sprinkled
+// over inlining will move here as well.
+struct SerializationPhase {
+  static const char* phase_name() { return "serialize bytecode"; }
+
+  void Run(PipelineData* data, Zone* temp_zone) {
+    SerializerForBackgroundCompilation serializer(data->broker(), temp_zone,
+                                                  data->info()->closure());
+    serializer.Run();
+  }
+};
+
 struct TypedLoweringPhase {
   static const char* phase_name() { return "typed lowering"; }
 
@@ -1903,15 +1917,19 @@ bool PipelineImpl::CreateGraph() {
     data->node_origins()->AddDecorator();
   }
 
+  if (FLAG_concurrent_inlining) {
+    data->broker()->StartSerializing();
+    Run<SerializeStandardObjectsPhase>();
+    Run<SerializationPhase>();
+  } else {
+    data->broker()->SetNativeContextRef();
+  }
+
   Run<GraphBuilderPhase>();
   RunPrintAndVerify(GraphBuilderPhase::phase_name(), true);
 
   if (FLAG_concurrent_inlining) {
-    data->broker()->StartSerializing();
-    Run<SerializeStandardObjectsPhase>();
     Run<CopyMetadataForConcurrentCompilePhase>();
-  } else {
-    data->broker()->SetNativeContextRef();
   }
 
   // Perform function context specialization and inlining (if enabled).

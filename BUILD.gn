@@ -1902,6 +1902,8 @@ v8_source_set("v8_base") {
     "src/compiler/scheduler.h",
     "src/compiler/select-lowering.cc",
     "src/compiler/select-lowering.h",
+    "src/compiler/serializer-for-background-compilation.cc",
+    "src/compiler/serializer-for-background-compilation.h",
     "src/compiler/simd-scalar-lowering.cc",
     "src/compiler/simd-scalar-lowering.h",
     "src/compiler/simplified-lowering.cc",
