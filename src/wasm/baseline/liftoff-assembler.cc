@@ -83,77 +83,9 @@ class StackTransferRecipe {
   void Execute() {
     // First, execute register moves. Then load constants and stack values into
     // registers.
-
-    if ((move_dst_regs_ & move_src_regs_).is_empty()) {
-      // No overlap in src and dst registers. Just execute the moves in any
-      // order.
-      for (RegisterMove& rm : register_moves_) {
-        asm_->Move(rm.dst, rm.src, rm.type);
-      }
-      register_moves_.clear();
-    } else {
-      // Keep use counters of src registers.
-      uint32_t src_reg_use_count[kAfterMaxLiftoffRegCode] = {0};
-      for (RegisterMove& rm : register_moves_) {
-        ++src_reg_use_count[rm.src.liftoff_code()];
-      }
-      // Now repeatedly iterate the list of register moves, and execute those
-      // whose dst register does not appear as src any more. The remaining moves
-      // are compacted during this iteration.
-      // If no more moves can be executed (because of a cycle), spill one
-      // register to the stack, add a RegisterLoad to reload it later, and
-      // continue.
-      uint32_t next_spill_slot = asm_->cache_state()->stack_height();
-      while (!register_moves_.empty()) {
-        int executed_moves = 0;
-        for (auto& rm : register_moves_) {
-          if (src_reg_use_count[rm.dst.liftoff_code()] == 0) {
-            asm_->Move(rm.dst, rm.src, rm.type);
-            ++executed_moves;
-            DCHECK_LT(0, src_reg_use_count[rm.src.liftoff_code()]);
-            --src_reg_use_count[rm.src.liftoff_code()];
-          } else if (executed_moves) {
-            // Compaction: Move not-executed moves to the beginning of the list.
-            (&rm)[-executed_moves] = rm;
-          }
-        }
-        if (executed_moves == 0) {
-          // There is a cycle. Spill one register, then continue.
-          // TODO(clemensh): Use an unused register if available.
-          RegisterMove& rm = register_moves_.back();
-          LiftoffRegister spill_reg = rm.src;
-          asm_->Spill(next_spill_slot, spill_reg, rm.type);
-          // Remember to reload into the destination register later.
-          LoadStackSlot(register_moves_.back().dst, next_spill_slot, rm.type);
-          DCHECK_EQ(1, src_reg_use_count[spill_reg.liftoff_code()]);
-          src_reg_use_count[spill_reg.liftoff_code()] = 0;
-          ++next_spill_slot;
-          executed_moves = 1;
-        }
-        register_moves_.pop_back(executed_moves);
-      }
-    }
-
-    for (RegisterLoad& rl : register_loads_) {
-      switch (rl.kind) {
-        case RegisterLoad::kConstant:
-          asm_->LoadConstant(rl.dst, rl.type == kWasmI64
-                                         ? WasmValue(int64_t{rl.value})
-                                         : WasmValue(int32_t{rl.value}));
-          break;
-        case RegisterLoad::kStack:
-          asm_->Fill(rl.dst, rl.value, rl.type);
-          break;
-        case RegisterLoad::kLowHalfStack:
-        case RegisterLoad::kHighHalfStack:
-          // Half of a register pair, {rl.dst} must be a gp register.
-          auto half =
-              rl.kind == RegisterLoad::kLowHalfStack ? kLowWord : kHighWord;
-          asm_->FillI64Half(rl.dst.gp(), rl.value, half);
-          break;
-      }
-    }
-    register_loads_.clear();
+    ExecuteMoves();
+    DCHECK(register_moves_.empty());
+    ExecuteLoads();
   }
 
   void TransferStackSlot(const LiftoffAssembler::CacheState& dst_state,
@@ -278,6 +210,84 @@ class StackTransferRecipe {
       if (move.dst == dst && move.src == src && move.type == type) return true;
     }
     return false;
+  }
+
+  void ExecuteMoves() {
+    if (move_dst_regs_.is_empty()) return;
+
+    if ((move_dst_regs_ & move_src_regs_).is_empty()) {
+      // No overlap in src and dst registers. Just execute the moves in any
+      // order.
+      for (RegisterMove& rm : register_moves_) {
+        asm_->Move(rm.dst, rm.src, rm.type);
+      }
+      register_moves_.clear();
+      return;
+    }
+
+    // Keep use counters of src registers.
+    uint32_t src_reg_use_count[kAfterMaxLiftoffRegCode] = {0};
+    for (RegisterMove& rm : register_moves_) {
+      ++src_reg_use_count[rm.src.liftoff_code()];
+    }
+    // Now repeatedly iterate the list of register moves, and execute those
+    // whose dst register does not appear as src any more. The remaining moves
+    // are compacted during this iteration.
+    // If no more moves can be executed (because of a cycle), spill one
+    // register to the stack, add a RegisterLoad to reload it later, and
+    // continue.
+    uint32_t next_spill_slot = asm_->cache_state()->stack_height();
+    while (!register_moves_.empty()) {
+      int executed_moves = 0;
+      for (auto& rm : register_moves_) {
+        if (src_reg_use_count[rm.dst.liftoff_code()] == 0) {
+          asm_->Move(rm.dst, rm.src, rm.type);
+          ++executed_moves;
+          DCHECK_LT(0, src_reg_use_count[rm.src.liftoff_code()]);
+          --src_reg_use_count[rm.src.liftoff_code()];
+        } else if (executed_moves) {
+          // Compaction: Move not-executed moves to the beginning of the list.
+          (&rm)[-executed_moves] = rm;
+        }
+      }
+      if (executed_moves == 0) {
+        // There is a cycle. Spill one register, then continue.
+        // TODO(clemensh): Use an unused register if available.
+        RegisterMove& rm = register_moves_.back();
+        LiftoffRegister spill_reg = rm.src;
+        asm_->Spill(next_spill_slot, spill_reg, rm.type);
+        // Remember to reload into the destination register later.
+        LoadStackSlot(register_moves_.back().dst, next_spill_slot, rm.type);
+        DCHECK_EQ(1, src_reg_use_count[spill_reg.liftoff_code()]);
+        src_reg_use_count[spill_reg.liftoff_code()] = 0;
+        ++next_spill_slot;
+        executed_moves = 1;
+      }
+      register_moves_.pop_back(executed_moves);
+    }
+  }
+
+  void ExecuteLoads() {
+    for (RegisterLoad& rl : register_loads_) {
+      switch (rl.kind) {
+        case RegisterLoad::kConstant:
+          asm_->LoadConstant(rl.dst, rl.type == kWasmI64
+                                         ? WasmValue(int64_t{rl.value})
+                                         : WasmValue(int32_t{rl.value}));
+          break;
+        case RegisterLoad::kStack:
+          asm_->Fill(rl.dst, rl.value, rl.type);
+          break;
+        case RegisterLoad::kLowHalfStack:
+        case RegisterLoad::kHighHalfStack:
+          // Half of a register pair, {rl.dst} must be a gp register.
+          auto half =
+              rl.kind == RegisterLoad::kLowHalfStack ? kLowWord : kHighWord;
+          asm_->FillI64Half(rl.dst.gp(), rl.value, half);
+          break;
+      }
+    }
+    register_loads_.clear();
   }
 
   DISALLOW_COPY_AND_ASSIGN(StackTransferRecipe);
