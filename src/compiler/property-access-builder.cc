@@ -83,27 +83,37 @@ bool NeedsCheckHeapObject(Node* receiver) {
   switch (receiver->opcode()) {
     case IrOpcode::kConvertReceiver:
     case IrOpcode::kHeapConstant:
+    case IrOpcode::kJSCloneObject:
+    case IrOpcode::kJSConstruct:
+    case IrOpcode::kJSConstructForwardVarargs:
+    case IrOpcode::kJSConstructWithArrayLike:
+    case IrOpcode::kJSConstructWithSpread:
     case IrOpcode::kJSCreate:
     case IrOpcode::kJSCreateArguments:
     case IrOpcode::kJSCreateArray:
-    case IrOpcode::kJSCreateClosure:
-    case IrOpcode::kJSCreateIterResultObject:
-    case IrOpcode::kJSCreateLiteralArray:
-    case IrOpcode::kJSCreateEmptyLiteralArray:
     case IrOpcode::kJSCreateArrayFromIterable:
-    case IrOpcode::kJSCreateLiteralObject:
+    case IrOpcode::kJSCreateArrayIterator:
+    case IrOpcode::kJSCreateAsyncFunctionObject:
+    case IrOpcode::kJSCreateBoundFunction:
+    case IrOpcode::kJSCreateClosure:
+    case IrOpcode::kJSCreateCollectionIterator:
+    case IrOpcode::kJSCreateEmptyLiteralArray:
     case IrOpcode::kJSCreateEmptyLiteralObject:
-    case IrOpcode::kJSCreateLiteralRegExp:
     case IrOpcode::kJSCreateGeneratorObject:
-    case IrOpcode::kJSConstructForwardVarargs:
-    case IrOpcode::kJSConstruct:
-    case IrOpcode::kJSConstructWithArrayLike:
-    case IrOpcode::kJSConstructWithSpread:
-    case IrOpcode::kJSToName:
-    case IrOpcode::kJSToString:
-    case IrOpcode::kJSToObject:
-    case IrOpcode::kTypeOf:
+    case IrOpcode::kJSCreateIterResultObject:
+    case IrOpcode::kJSCreateKeyValueArray:
+    case IrOpcode::kJSCreateLiteralArray:
+    case IrOpcode::kJSCreateLiteralObject:
+    case IrOpcode::kJSCreateLiteralRegExp:
+    case IrOpcode::kJSCreateObject:
+    case IrOpcode::kJSCreatePromise:
+    case IrOpcode::kJSCreateStringIterator:
+    case IrOpcode::kJSCreateTypedArray:
     case IrOpcode::kJSGetSuperConstructor:
+    case IrOpcode::kJSToName:
+    case IrOpcode::kJSToObject:
+    case IrOpcode::kJSToString:
+    case IrOpcode::kTypeOf:
       return false;
     case IrOpcode::kPhi: {
       Node* control = NodeProperties::GetControlInput(receiver);

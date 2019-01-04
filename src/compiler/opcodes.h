@@ -134,28 +134,28 @@
   V(JSNegate)
 
 #define JS_CREATE_OP_LIST(V)     \
+  V(JSCloneObject)               \
   V(JSCreate)                    \
   V(JSCreateArguments)           \
   V(JSCreateArray)               \
+  V(JSCreateArrayFromIterable)   \
   V(JSCreateArrayIterator)       \
   V(JSCreateAsyncFunctionObject) \
   V(JSCreateBoundFunction)       \
   V(JSCreateClosure)             \
   V(JSCreateCollectionIterator)  \
+  V(JSCreateEmptyLiteralArray)   \
+  V(JSCreateEmptyLiteralObject)  \
   V(JSCreateGeneratorObject)     \
   V(JSCreateIterResultObject)    \
-  V(JSCreateStringIterator)      \
   V(JSCreateKeyValueArray)       \
+  V(JSCreateLiteralArray)        \
+  V(JSCreateLiteralObject)       \
+  V(JSCreateLiteralRegExp)       \
   V(JSCreateObject)              \
   V(JSCreatePromise)             \
-  V(JSCreateTypedArray)          \
-  V(JSCreateLiteralArray)        \
-  V(JSCreateEmptyLiteralArray)   \
-  V(JSCreateArrayFromIterable)   \
-  V(JSCreateLiteralObject)       \
-  V(JSCreateEmptyLiteralObject)  \
-  V(JSCloneObject)               \
-  V(JSCreateLiteralRegExp)
+  V(JSCreateStringIterator)      \
+  V(JSCreateTypedArray)
 
 #define JS_OBJECT_OP_LIST(V)      \
   JS_CREATE_OP_LIST(V)            \
