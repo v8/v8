@@ -41,12 +41,6 @@ inline MemOperand GetHalfStackSlot(uint32_t index, RegPairHalf half) {
   return MemOperand(fp, -kFirstStackSlotOffset - offset);
 }
 
-inline MemOperand GetHalfStackSlot(uint32_t index, RegPairHalf half) {
-  STATIC_ASSERT(kLowWord == 0);
-  STATIC_ASSERT(kHighWord == 1);
-  return GetHalfStackSlot(2 * index + half);
-}
-
 inline MemOperand GetInstanceOperand() { return MemOperand(fp, -8); }
 
 inline void Load(LiftoffAssembler* assm, LiftoffRegister dst, Register base,
