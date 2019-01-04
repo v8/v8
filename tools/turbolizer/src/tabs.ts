@@ -72,7 +72,8 @@ export class Tabs {
         this.tabBar.parentNode.appendChild(tabDiv);
     }
 
-    tabBarOnDrop(e) {
+    tabBarOnDrop(e: DragEvent) {
+        if (!(e.target instanceof HTMLElement)) return;
         e.preventDefault();
         const tabId = e.dataTransfer.getData("text");
         const tab = document.getElementById(tabId) as HTMLLIElement;
@@ -90,7 +91,8 @@ export class Tabs {
         e.preventDefault();
     }
 
-    tabOnDragStart(e) {
+    tabOnDragStart(e: DragEvent) {
+        if (!(e.target instanceof HTMLElement)) return;
         e.dataTransfer.setData("text", e.target.id);
     }
 

@@ -236,7 +236,7 @@ export class DisassemblyView extends TextView {
     }
   }
 
-  initializeCode(sourceText, sourcePosition) {
+  initializeCode(sourceText, sourcePosition: number = 0) {
     let view = this;
     view.addr_event_counts = null;
     view.total_event_counts = null;

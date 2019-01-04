@@ -16,9 +16,9 @@ function sourcePositionEq(a, b) {
     a.scriptOffset == b.scriptOffset;
 }
 
-export function sourcePositionToStringKey(sourcePosition): string {
+export function sourcePositionToStringKey(sourcePosition: AnyPosition): string {
   if (!sourcePosition) return "undefined";
-  if (sourcePosition.inliningId && sourcePosition.scriptOffset)
+  if ('inliningId' in sourcePosition && 'scriptOffset' in sourcePosition)
     return "SP:" + sourcePosition.inliningId + ":" + sourcePosition.scriptOffset;
   if (sourcePosition.bytecodePosition)
     return "BCP:" + sourcePosition.bytecodePosition;

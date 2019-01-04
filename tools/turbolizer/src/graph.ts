@@ -20,7 +20,7 @@ export class Graph {
     this.minGraphY = 0;
     this.maxGraphY = 1;
 
-    data.nodes.forEach((n) => {
+    data.nodes.forEach((n: any) => {
       n.__proto__ = GNode.prototype;
       n.visible = false;
       n.x = 0;

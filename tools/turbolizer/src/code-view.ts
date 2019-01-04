@@ -30,11 +30,10 @@ export class CodeView extends View {
     return sourceContainer;
   }
 
-  constructor(parentId, broker, sourceResolver, sourceFunction, codeMode: CodeMode) {
-    super(parentId);
+  constructor(parent: HTMLElement, broker: SelectionBroker, sourceResolver: SourceResolver, sourceFunction: Source, codeMode: CodeMode) {
+    super(parent);
     let view = this;
     view.broker = broker;
-    view.source = null;
     view.sourceResolver = sourceResolver;
     view.source = sourceFunction;
     view.codeMode = codeMode;
@@ -207,11 +206,13 @@ export class CodeView extends View {
         const spans = currentLineElement.childNodes;
         for (let j = 0; j < spans.length; ++j) {
           const currentSpan = spans[j];
-          const pos = base + current;
-          const end = pos + currentSpan.textContent.length;
-          current += currentSpan.textContent.length;
-          this.insertSourcePositions(currentSpan, lineNumber, pos, end, newlineAdjust);
-          newlineAdjust = 0;
+          if (currentSpan instanceof HTMLSpanElement) {
+            const pos = base + current;
+            const end = pos + currentSpan.textContent.length;
+            current += currentSpan.textContent.length;
+            this.insertSourcePositions(currentSpan, lineNumber, pos, end, newlineAdjust);
+            newlineAdjust = 0;
+          }
         }
 
         this.insertLineNumber(currentLineElement, lineNumber);
@@ -232,6 +233,7 @@ export class CodeView extends View {
     for (const sourcePosition of sps) {
       this.sourceResolver.addAnyPositionToLine(lineNumber, sourcePosition);
       const textnode = currentSpan.tagName == 'SPAN' ? currentSpan.lastChild : currentSpan;
+      if (!(textnode instanceof Text)) continue;
       const splitLength = Math.max(0, sourcePosition.scriptOffset - pos - offset);
       offset += splitLength;
       const replacementNode = textnode.splitText(splitLength);
@@ -258,12 +260,12 @@ export class CodeView extends View {
     }
   }
 
-  insertLineNumber(lineElement, lineNumber) {
+  insertLineNumber(lineElement: HTMLElement, lineNumber: number) {
     const view = this;
     const lineNumberElement = document.createElement("div");
     lineNumberElement.classList.add("line-number");
-    lineNumberElement.dataset.lineNumber = lineNumber;
-    lineNumberElement.innerText = lineNumber;
+    lineNumberElement.dataset.lineNumber = `${lineNumber}`;
+    lineNumberElement.innerText = `${lineNumber}`;
     lineElement.insertBefore(lineNumberElement, lineElement.firstChild)
     // Don't add lines to source positions of not in backwardsCompatibility mode.
     if (this.source.backwardsCompatibility === true) {
