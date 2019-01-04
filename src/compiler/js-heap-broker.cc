@@ -647,6 +647,8 @@ class MapData : public HeapObjectData {
     return in_object_properties_;
   }
   int constructor_function_index() const { return constructor_function_index_; }
+  int NextFreePropertyIndex() const { return next_free_property_index_; }
+  int UnusedPropertyFields() const { return unused_property_fields_; }
 
   // Extra information.
 
@@ -687,6 +689,8 @@ class MapData : public HeapObjectData {
   int const in_object_properties_start_in_words_;
   int const in_object_properties_;
   int const constructor_function_index_;
+  int const next_free_property_index_;
+  int const unused_property_fields_;
 
   bool serialized_elements_kind_generalizations_ = false;
   ZoneVector<MapData*> elements_kind_generalizations_;
@@ -767,6 +771,8 @@ MapData::MapData(JSHeapBroker* broker, ObjectData** storage, Handle<Map> object)
       constructor_function_index_(object->IsPrimitiveMap()
                                       ? object->GetConstructorFunctionIndex()
                                       : Map::kNoConstructorFunctionIndex),
+      next_free_property_index_(object->NextFreePropertyIndex()),
+      unused_property_fields_(object->UnusedPropertyFields()),
       elements_kind_generalizations_(broker->zone()) {}
 
 JSFunctionData::JSFunctionData(JSHeapBroker* broker, ObjectData** storage,
@@ -2155,6 +2161,8 @@ BIMODAL_ACCESSOR_B(Map, bit_field, is_callable, Map::IsCallableBit)
 BIMODAL_ACCESSOR_B(Map, bit_field, is_constructor, Map::IsConstructorBit)
 BIMODAL_ACCESSOR_B(Map, bit_field, is_undetectable, Map::IsUndetectableBit)
 BIMODAL_ACCESSOR_C(Map, int, instance_size)
+BIMODAL_ACCESSOR_C(Map, int, NextFreePropertyIndex)
+BIMODAL_ACCESSOR_C(Map, int, UnusedPropertyFields)
 BIMODAL_ACCESSOR(Map, Object, prototype)
 BIMODAL_ACCESSOR_C(Map, InstanceType, instance_type)
 BIMODAL_ACCESSOR(Map, Object, GetConstructor)

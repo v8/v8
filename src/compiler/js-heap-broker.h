@@ -415,6 +415,8 @@ class MapRef : public HeapObjectRef {
   int NumberOfOwnDescriptors() const;
   int GetInObjectPropertyOffset(int index) const;
   int constructor_function_index() const;
+  int NextFreePropertyIndex() const;
+  int UnusedPropertyFields() const;
   ElementsKind elements_kind() const;
   bool is_stable() const;
   bool is_extensible() const;
