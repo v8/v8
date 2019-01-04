@@ -87,9 +87,7 @@ class CompilationStateImpl {
 
   bool HasCompilationUnitToFinish();
 
-  void OnFinishedUnit();
-  void ScheduleUnitForFinishing(std::unique_ptr<WasmCompilationUnit> unit,
-                                ExecutionTier tier);
+  void OnFinishedUnit(ExecutionTier);
   void ScheduleCodeLogging(WasmCode*);
 
   void OnBackgroundTaskStopped(const WasmFeatures& detected);
@@ -111,13 +109,10 @@ class CompilationStateImpl {
   }
 
   bool baseline_compilation_finished() const {
+    base::MutexGuard guard(&mutex_);
     return outstanding_baseline_units_ == 0 ||
            (compile_mode_ == CompileMode::kTiering &&
             outstanding_tiering_units_ == 0);
-  }
-
-  bool has_outstanding_units() const {
-    return outstanding_tiering_units_ > 0 || outstanding_baseline_units_ > 0;
   }
 
   CompileMode compile_mode() const { return compile_mode_; }
@@ -269,6 +264,9 @@ class CompilationStateImpl {
   // compiling.
   std::shared_ptr<WireBytesStorage> wire_bytes_storage_;
 
+  size_t outstanding_baseline_units_ = 0;
+  size_t outstanding_tiering_units_ = 0;
+
   // End of fields protected by {mutex_}.
   //////////////////////////////////////////////////////////////////////////////
 
@@ -287,9 +285,6 @@ class CompilationStateImpl {
   std::shared_ptr<v8::TaskRunner> foreground_task_runner_;
 
   const size_t max_background_tasks_ = 0;
-
-  size_t outstanding_baseline_units_ = 0;
-  size_t outstanding_tiering_units_ = 0;
 };
 
 void UpdateFeatureUseCounts(Isolate* isolate, const WasmFeatures& detected) {
@@ -697,7 +692,7 @@ bool FetchAndExecuteCompilationUnit(CompilationEnv* env,
   if (WasmCode* result = unit->result()) {
     compilation_state->ScheduleCodeLogging(result);
   }
-  compilation_state->ScheduleUnitForFinishing(std::move(unit), tier);
+  compilation_state->OnFinishedUnit(tier);
 
   return true;
 }
@@ -721,9 +716,6 @@ void FinishCompilationUnits(CompilationStateImpl* compilation_state) {
     std::unique_ptr<WasmCompilationUnit> unit =
         compilation_state->GetNextExecutedUnit();
     if (unit == nullptr) break;
-
-    // Update the compilation state.
-    compilation_state->OnFinishedUnit();
   }
 }
 
@@ -737,12 +729,8 @@ void CompileInParallel(Isolate* isolate, NativeModule* native_module) {
   //    {compilation_state}. By adding units to the {compilation_state}, new
   //    {BackgroundCompileTasks} instances are spawned which run on
   //    the background threads.
-  // 2.a) The background threads and the main thread pick one compilation
-  //      unit at a time and execute the parallel phase of the compilation
-  //      unit. After finishing the execution of the parallel phase, the
-  //      result is enqueued in {baseline_finish_units_}.
-  // 2.b) If {baseline_finish_units_} contains a compilation unit, the main
-  //      thread dequeues it and finishes the compilation.
+  // 2) The background threads and the main thread pick one compilation unit at
+  //    a time and execute the parallel phase of the compilation unit.
   // 3) After the parallel phase of all compilation units has started, the
   //    main thread continues to finish all compilation units as long as
   //    baseline-compilation units are left to be processed.
@@ -771,22 +759,16 @@ void CompileInParallel(Isolate* isolate, NativeModule* native_module) {
   //    background threads.
   InitializeCompilationUnits(native_module, isolate->wasm_engine());
 
-  // 2.a) The background threads and the main thread pick one compilation
-  //      unit at a time and execute the parallel phase of the compilation
-  //      unit. After finishing the execution of the parallel phase, the
-  //      result is enqueued in {baseline_finish_units_}.
-  //      The foreground task bypasses waiting on memory threshold, because
-  //      its results will immediately be converted to code (below).
+  // 2) The background threads and the main thread pick one compilation unit at
+  //    a time and execute the parallel phase of the compilation unit.
   WasmFeatures detected_features;
   CompilationEnv env = native_module->CreateCompilationEnv();
   while (FetchAndExecuteCompilationUnit(&env, compilation_state,
                                         &detected_features,
                                         isolate->counters()) &&
          !compilation_state->baseline_compilation_finished()) {
-    // 2.b) If {baseline_finish_units_} contains a compilation unit, the main
-    //      thread dequeues it and finishes the compilation unit. Compilation
-    //      units are finished concurrently to the background threads to save
-    //      memory.
+    // TODO(clemensh): Refactor ownership of the AsyncCompileJob and remove
+    // this.
     FinishCompilationUnits(compilation_state);
 
     if (compilation_state->failed()) break;
@@ -951,10 +933,6 @@ class FinishCompileTask : public CancelableTask {
       }
 
       if (compilation_state_->failed()) break;
-
-      // Update the compilation state, and possibly notify
-      // threads waiting for events.
-      compilation_state_->OnFinishedUnit();
 
       if (deadline < MonotonicallyIncreasingTimeInMs()) {
         // We reached the deadline. We reschedule this task and return
@@ -2888,7 +2866,7 @@ class AsyncCompileJob::FinishModule : public CompileStep {
       return;
     }
     DCHECK_EQ(CompileMode::kTiering, compilation_state->compile_mode());
-    if (!compilation_state->has_outstanding_units()) {
+    if (compilation_state->baseline_compilation_finished()) {
       job->isolate_->wasm_engine()->RemoveCompileJob(job);
     }
   }
@@ -3121,6 +3099,7 @@ void CompilationStateImpl::CancelAndWait() {
 
 void CompilationStateImpl::SetNumberOfFunctionsToCompile(size_t num_functions) {
   DCHECK(!failed());
+  base::MutexGuard guard(&mutex_);
   outstanding_baseline_units_ = num_functions;
 
   if (compile_mode_ == CompileMode::kTiering) {
@@ -3177,8 +3156,8 @@ CompilationStateImpl::GetNextCompilationUnit() {
 
 std::unique_ptr<WasmCompilationUnit>
 CompilationStateImpl::GetNextExecutedUnit() {
-  base::MutexGuard guard(&mutex_);
   std::vector<std::unique_ptr<WasmCompilationUnit>>& units = finish_units();
+  base::MutexGuard guard(&mutex_);
   if (units.empty()) return {};
   std::unique_ptr<WasmCompilationUnit> ret = std::move(units.back());
   units.pop_back();
@@ -3186,56 +3165,61 @@ CompilationStateImpl::GetNextExecutedUnit() {
 }
 
 bool CompilationStateImpl::HasCompilationUnitToFinish() {
-  base::MutexGuard guard(&mutex_);
   return !finish_units().empty();
 }
 
-void CompilationStateImpl::OnFinishedUnit() {
+void CompilationStateImpl::OnFinishedUnit(ExecutionTier tier) {
+  // This mutex guarantees that events happen in the right order.
+  base::MutexGuard guard(&mutex_);
+
+  if (failed()) return;
+
   // If we are *not* compiling in tiering mode, then all units are counted as
   // baseline units.
   bool is_tiering_mode = compile_mode_ == CompileMode::kTiering;
-  bool is_tiering_unit = is_tiering_mode && outstanding_baseline_units_ == 0;
+  bool is_tiering_unit = is_tiering_mode && tier == ExecutionTier::kOptimized;
 
   // Sanity check: If we are not in tiering mode, there cannot be outstanding
   // tiering units.
   DCHECK_IMPLIES(!is_tiering_mode, outstanding_tiering_units_ == 0);
 
+  // Bitset of events to deliver.
+  EnumSet<CompilationEvent> events;
+
   if (is_tiering_unit) {
     DCHECK_LT(0, outstanding_tiering_units_);
     --outstanding_tiering_units_;
     if (outstanding_tiering_units_ == 0) {
-      // We currently finish all baseline units before finishing tiering units.
-      DCHECK_EQ(0, outstanding_baseline_units_);
-      NotifyOnEvent(CompilationEvent::kFinishedTopTierCompilation, nullptr);
+      // If baseline compilation has not finished yet, then also trigger
+      // {kFinishedBaselineCompilation}.
+      if (outstanding_baseline_units_ > 0) {
+        events.Add(CompilationEvent::kFinishedBaselineCompilation);
+      }
+      events.Add(CompilationEvent::kFinishedTopTierCompilation);
     }
   } else {
     DCHECK_LT(0, outstanding_baseline_units_);
     --outstanding_baseline_units_;
     if (outstanding_baseline_units_ == 0) {
-      NotifyOnEvent(CompilationEvent::kFinishedBaselineCompilation, nullptr);
+      events.Add(CompilationEvent::kFinishedBaselineCompilation);
       // If we are not tiering, then we also trigger the "top tier finished"
       // event when baseline compilation is finished.
       if (!is_tiering_mode) {
-        NotifyOnEvent(CompilationEvent::kFinishedTopTierCompilation, nullptr);
+        events.Add(CompilationEvent::kFinishedTopTierCompilation);
       }
     }
   }
-}
 
-void CompilationStateImpl::ScheduleUnitForFinishing(
-    std::unique_ptr<WasmCompilationUnit> unit, ExecutionTier tier) {
-  base::MutexGuard guard(&mutex_);
-  if (compile_mode_ == CompileMode::kTiering &&
-      tier == ExecutionTier::kOptimized) {
-    tiering_finish_units_.push_back(std::move(unit));
-  } else {
-    baseline_finish_units_.push_back(std::move(unit));
-  }
-
-  if (!finisher_is_running_ && !failed()) {
-    ScheduleFinisherTask();
-    // We set the flag here so that not more than one finisher is started.
-    finisher_is_running_ = true;
+  if (!events.IsEmpty()) {
+    auto notify_events = [this, events] {
+      for (auto event : {CompilationEvent::kFinishedBaselineCompilation,
+                         CompilationEvent::kFinishedTopTierCompilation}) {
+        if (!events.Contains(event)) continue;
+        NotifyOnEvent(event, nullptr);
+      }
+    };
+    foreground_task_runner_->PostTask(
+        MakeCancelableTask(&foreground_task_manager_, notify_events));
   }
 }
 

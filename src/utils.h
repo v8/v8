@@ -819,7 +819,7 @@ class EnumSet {
  private:
   static_assert(std::is_enum<E>::value, "EnumSet can only be used with enums");
 
-  T Mask(E element) const {
+  static T Mask(E element) {
     DCHECK_GT(sizeof(T) * CHAR_BIT, static_cast<int>(element));
     return T{1} << static_cast<typename std::underlying_type<E>::type>(element);
   }
