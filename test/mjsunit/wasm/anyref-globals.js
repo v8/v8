@@ -108,3 +108,23 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
   assertEquals('world', result.hello);
 })();
+
+(function TestImported() {
+  print(arguments.callee.name);
+  function Test(obj) {
+    let builder = new WasmModuleBuilder();
+    const g = builder.addImportedGlobal('m', 'val', kWasmAnyRef);
+    builder.addFunction('main', kSig_r_v)
+        .addBody([kExprGetGlobal, g])
+        .exportAs('main');
+
+    const instance = builder.instantiate({m: {val: obj}});
+    assertSame(obj, instance.exports.main());
+  }
+  Test(null);
+  Test(undefined);
+  Test(1653);
+  Test("mystring");
+  Test({q: 14});
+  Test(print);
+})();

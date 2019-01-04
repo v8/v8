@@ -404,6 +404,8 @@ class InstanceBuilder {
   void WriteGlobalValue(const WasmGlobal& global,
                         Handle<WasmGlobalObject> value);
 
+  void WriteGlobalAnyRef(const WasmGlobal& global, Handle<Object> value);
+
   void SanitizeImports();
 
   // Find the imported memory buffer if there is one. This is used to see if we
@@ -434,6 +436,15 @@ class InstanceBuilder {
                              int* next_imported_mutable_global_index,
                              Handle<String> module_name,
                              Handle<String> import_name, Handle<Object> value);
+
+  // Process a single imported WasmGlobalObject.
+  bool ProcessImportedWasmGlobalObject(Handle<WasmInstanceObject> instance,
+                                       int import_index,
+                                       int* next_imported_mutable_global_index,
+                                       Handle<String> module_name,
+                                       Handle<String> import_name,
+                                       const WasmGlobal& global,
+                                       Handle<WasmGlobalObject> global_object);
 
   // Process the imports, including functions, tables, globals, and memory, in
   // order, loading them from the {ffi_} object. Returns the number of imported
@@ -1524,6 +1535,11 @@ void InstanceBuilder::WriteGlobalValue(const WasmGlobal& global,
         ValueTypes::TypeName(global.type));
 }
 
+void InstanceBuilder::WriteGlobalAnyRef(const WasmGlobal& global,
+                                        Handle<Object> value) {
+  tagged_globals_->set(global.offset, *value, UPDATE_WRITE_BARRIER);
+}
+
 void InstanceBuilder::SanitizeImports() {
   Vector<const uint8_t> wire_bytes =
       module_object_->native_module()->wire_bytes();
@@ -1760,6 +1776,37 @@ bool InstanceBuilder::ProcessImportedMemory(Handle<WasmInstanceObject> instance,
   return true;
 }
 
+bool InstanceBuilder::ProcessImportedWasmGlobalObject(
+    Handle<WasmInstanceObject> instance, int import_index,
+    int* next_imported_mutable_global_index, Handle<String> module_name,
+    Handle<String> import_name, const WasmGlobal& global,
+    Handle<WasmGlobalObject> global_object) {
+  if (global_object->type() != global.type) {
+    ReportLinkError("imported global does not match the expected type",
+                    import_index, module_name, import_name);
+    return false;
+  }
+  if (global_object->is_mutable() != global.mutability) {
+    ReportLinkError("imported global does not match the expected mutability",
+                    import_index, module_name, import_name);
+    return false;
+  }
+  if (global.mutability) {
+    Handle<JSArrayBuffer> buffer(global_object->array_buffer(), isolate_);
+    int index = (*next_imported_mutable_global_index)++;
+    instance->imported_mutable_globals_buffers()->set(index, *buffer);
+    // It is safe in this case to store the raw pointer to the buffer
+    // since the backing store of the JSArrayBuffer will not be
+    // relocated.
+    instance->imported_mutable_globals()[index] = reinterpret_cast<Address>(
+        raw_buffer_ptr(buffer, global_object->offset()));
+    return true;
+  }
+
+  WriteGlobalValue(global, global_object);
+  return true;
+}
+
 bool InstanceBuilder::ProcessImportedGlobal(
     Handle<WasmInstanceObject> instance, int import_index, int global_index,
     int* next_imported_mutable_global_index, Handle<String> module_name,
@@ -1802,75 +1849,45 @@ bool InstanceBuilder::ProcessImportedGlobal(
   if (enabled_.mut_global) {
     if (value->IsWasmGlobalObject()) {
       auto global_object = Handle<WasmGlobalObject>::cast(value);
-      if (global_object->type() != global.type) {
-        ReportLinkError("imported global does not match the expected type",
-                        import_index, module_name, import_name);
-        return false;
-      }
-      if (global_object->is_mutable() != global.mutability) {
-        ReportLinkError(
-            "imported global does not match the expected mutability",
-            import_index, module_name, import_name);
-        return false;
-      }
-      if (global.mutability) {
-        Handle<JSArrayBuffer> buffer(global_object->array_buffer(), isolate_);
-        int import_index = (*next_imported_mutable_global_index)++;
-        instance->imported_mutable_globals_buffers()->set(import_index,
-                                                          *buffer);
-        // It is safe in this case to store the raw pointer to the buffer
-        // since the backing store of the JSArrayBuffer will not be
-        // relocated.
-        instance->imported_mutable_globals()[import_index] =
-            reinterpret_cast<Address>(
-                raw_buffer_ptr(buffer, global_object->offset()));
-      } else {
-        WriteGlobalValue(global, global_object);
-      }
-    } else if (value->IsNumber()) {
-      if (global.mutability) {
-        ReportLinkError(
-            "imported mutable global must be a WebAssembly.Global object",
-            import_index, module_name, import_name);
-        return false;
-      }
-      WriteGlobalValue(global, value->Number());
-    } else if (enabled_.bigint && global.type == kWasmI64) {
-      if (global.mutability) {
-        ReportLinkError(
-            "imported mutable global must be a WebAssembly.Global object",
-            import_index, module_name, import_name);
-        return false;
-      }
-      Handle<BigInt> bigint;
+      return ProcessImportedWasmGlobalObject(
+          instance, import_index, next_imported_mutable_global_index,
+          module_name, import_name, global, global_object);
+    }
 
-      if (!BigInt::FromObject(isolate_, value).ToHandle(&bigint)) {
-        return false;
-      }
-      WriteGlobalValue(global, bigint->AsInt64());
-    } else {
+    if (global.mutability) {
       ReportLinkError(
-          "global import must be a number or WebAssembly.Global object",
+          "imported mutable global must be a WebAssembly.Global object",
           import_index, module_name, import_name);
       return false;
     }
-  } else {
-    if (value->IsNumber()) {
-      WriteGlobalValue(global, value->Number());
-    } else if (enabled_.bigint && global.type == kWasmI64) {
-      Handle<BigInt> bigint;
+  }
 
-      if (!BigInt::FromObject(isolate_, value).ToHandle(&bigint)) {
-        return false;
-      }
-      WriteGlobalValue(global, bigint->AsInt64());
-    } else {
-      ReportLinkError("global import must be a number", import_index,
-                      module_name, import_name);
+  if (global.type == ValueType::kWasmAnyRef) {
+    WriteGlobalAnyRef(global, value);
+    return true;
+  }
+
+  if (value->IsNumber()) {
+    WriteGlobalValue(global, value->Number());
+    return true;
+  }
+
+  if (enabled_.bigint && global.type == kWasmI64) {
+    Handle<BigInt> bigint;
+
+    if (!BigInt::FromObject(isolate_, value).ToHandle(&bigint)) {
       return false;
     }
+    WriteGlobalValue(global, bigint->AsInt64());
+    return true;
   }
-  return true;
+
+  ReportLinkError(
+      enabled_.mut_global
+          ? "global import must be a number or WebAssembly.Global object"
+          : "global import must be a number",
+      import_index, module_name, import_name);
+  return false;
 }
 
 // Process the imports, including functions, tables, globals, and memory, in
