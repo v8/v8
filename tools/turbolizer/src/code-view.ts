@@ -6,7 +6,7 @@ import { Source, SourceResolver, sourcePositionToStringKey } from "../src/source
 import { SelectionBroker } from "../src/selection-broker"
 import { View } from "../src/view"
 import { MySelection } from "../src/selection"
-import { anyToString, ViewElements } from "../src/util"
+import { ViewElements } from "../src/util"
 import { SelectionHandler } from "./selection-handler";
 
 export enum CodeMode {
@@ -118,7 +118,6 @@ export class CodeView extends View {
   }
 
   onSelectLine(lineNumber: number, doClear: boolean) {
-    const key = anyToString(lineNumber);
     if (doClear) {
       this.selectionHandler.clear();
     }

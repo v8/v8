@@ -197,7 +197,6 @@ class Resizer {
 }
 
 window.onload = function () {
-  var svg = null;
   var multiview = null;
   var disassemblyView = null;
   var sourceViews = [];

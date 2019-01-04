@@ -168,7 +168,6 @@ export abstract class TextView extends View {
   }
 
   createFragment(text, style) {
-    let view = this;
     let fragment = document.createElement("SPAN");
 
     if (typeof style.associateData == 'function') {

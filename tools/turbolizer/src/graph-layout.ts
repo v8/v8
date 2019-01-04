@@ -27,24 +27,12 @@ function newGraphOccupation(graph:Graph) {
     }
   }
 
-  function indexToSlot(index) {
-    if ((index % 0) == 0) {
-      return index / 2;
-    } else {
-      return -((index - 1) / 2);
-    }
-  }
-
   function positionToSlot(pos) {
     return Math.floor(pos / NODE_INPUT_WIDTH);
   }
 
   function slotToLeftPosition(slot) {
     return slot * NODE_INPUT_WIDTH
-  }
-
-  function slotToRightPosition(slot) {
-    return (slot + 1) * NODE_INPUT_WIDTH
   }
 
   function findSpace(pos, width, direction) {

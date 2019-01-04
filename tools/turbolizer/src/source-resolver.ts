@@ -48,9 +48,9 @@ interface BytecodePosition {
   bytecodePosition: number;
 }
 
-type Origin = NodeOrigin | BytecodePosition;
-type TurboFanNodeOrigin = NodeOrigin & TurboFanOrigin;
-type TurboFanBytecodeOrigin = BytecodePosition & TurboFanOrigin;
+export type Origin = NodeOrigin | BytecodePosition;
+export type TurboFanNodeOrigin = NodeOrigin & TurboFanOrigin;
+export type TurboFanBytecodeOrigin = BytecodePosition & TurboFanOrigin;
 
 type AnyPosition = SourcePosition | BytecodePosition;
 
@@ -199,7 +199,7 @@ export class SourceResolver {
       }
       this.positionToNodes.get(key).push(nodeId);
     }
-    for (const [sourceId, source] of Object.entries(this.sources)) {
+    for (const [, source] of Object.entries(this.sources)) {
       source.sourcePositions = sortUnique(source.sourcePositions,
         sourcePositionLe, sourcePositionEq);
     }
@@ -435,7 +435,7 @@ export class SourceResolver {
   }
 
   parsePhases(phases) {
-    for (const [phaseId, phase] of Object.entries<Phase>(phases)) {
+    for (const [, phase] of Object.entries<Phase>(phases)) {
       switch (phase.type) {
         case 'disassembly':
           this.disassemblyPhase = phase;

@@ -47,45 +47,6 @@ export class ViewElements {
   }
 }
 
-
-function lowerBound(a, value, compare, lookup) {
-  let first = 0;
-  let count = a.length;
-  while (count > 0) {
-    let step = Math.floor(count / 2);
-    let middle = first + step;
-    let middle_value = (lookup === undefined) ? a[middle] : lookup(a, middle);
-    let result = (compare === undefined) ? (middle_value < value) : compare(middle_value, value);
-    if (result) {
-      first = middle + 1;
-      count -= step + 1;
-    } else {
-      count = step;
-    }
-  }
-  return first;
-}
-
-
-function upperBound(a, value, compare, lookup) {
-  let first = 0;
-  let count = a.length;
-  while (count > 0) {
-    let step = Math.floor(count / 2);
-    let middle = first + step;
-    let middle_value = (lookup === undefined) ? a[middle] : lookup(a, middle);
-    let result = (compare === undefined) ? (value < middle_value) : compare(value, middle_value);
-    if (!result) {
-      first = middle + 1;
-      count -= step + 1;
-    } else {
-      count = step;
-    }
-  }
-  return first;
-}
-
-
 export function sortUnique<T>(arr: Array<T>, f: (a: T, b: T) => number, equal: (a: T, b: T) => boolean) {
   if (arr.length == 0) return arr;
   arr = arr.sort(f);

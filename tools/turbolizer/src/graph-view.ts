@@ -314,7 +314,6 @@ export class GraphView extends View implements PhaseView {
     }).classed("halfFilledBubbleStyle", function (c) {
       const components = this.id.split(',');
       if (components[0] == "ib") {
-        const edge = g.nodeMap[components[3]].inputs[components[2]];
         return false;
       } else {
         return g.nodeMap[components[1]].areAnyOutputsVisible() == 1;
@@ -672,11 +671,9 @@ export class GraphView extends View implements PhaseView {
         adjOutputEdges.attr('relToHover', "output");
         const adjInputNodes = adjInputEdges.data().map(e => e.source);
         const visibleNodes = view.visibleNodes.selectAll<SVGGElement, GNode>("g");
-        const input = visibleNodes.data<GNode>(adjInputNodes, nodeToStr)
-          .attr('relToHover', "input");
+        visibleNodes.data<GNode>(adjInputNodes, nodeToStr).attr('relToHover', "input");
         const adjOutputNodes = adjOutputEdges.data().map(e => e.target);
-        const output = visibleNodes.data<GNode>(adjOutputNodes, nodeToStr)
-          .attr('relToHover', "output");
+        visibleNodes.data<GNode>(adjOutputNodes, nodeToStr).attr('relToHover', "output");
         view.updateGraphVisibility();
       })
       .on('mouseleave', function (node) {
@@ -685,8 +682,7 @@ export class GraphView extends View implements PhaseView {
         adjEdges.attr('relToHover', "none");
         const adjNodes = adjEdges.data().map(e => e.target).concat(adjEdges.data().map(e => e.source));
         const visibleNodes = view.visibleNodes.selectAll<SVGPathElement, GNode>("g");
-        const nodes = visibleNodes.data(adjNodes, nodeToStr)
-          .attr('relToHover', "none");
+        visibleNodes.data(adjNodes, nodeToStr).attr('relToHover', "none");
         view.updateGraphVisibility();
       })
       .on("click", (d) => {
@@ -880,7 +876,6 @@ export class GraphView extends View implements PhaseView {
     const x = (minX + maxX) / 2;
     const y = (minY + maxY) / 2;
     const scale = Math.min(width / (1.1 * dx), height / (1.1 * dy));
-    const transform = d3.zoomIdentity.translate(1500, 100).scale(0.75);
     this.svg
       .transition().duration(300).call(this.panZoom.translateTo, x, y)
       .transition().duration(300).call(this.panZoom.scaleTo, scale)

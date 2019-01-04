@@ -5,7 +5,6 @@
 import { PROF_COLS, UNICODE_BLOCK } from "../src/constants"
 import { SelectionBroker } from "../src/selection-broker"
 import { TextView } from "../src/text-view"
-import { SourceResolver } from "./source-resolver";
 import { MySelection } from "./selection";
 import { anyToString, interpolate } from "./util";
 import { InstructionSelectionHandler } from "./selection-handler";
@@ -139,7 +138,7 @@ export class DisassemblyView extends TextView {
       const offset = e.target.dataset.pcOffset ? e.target.dataset.pcOffset : e.target.parentElement.dataset.pcOffset;
       if ((typeof offset) != "undefined" && !Number.isNaN(Number(offset))) {
         view.offsetSelection.select([offset], true);
-        const [nodes, blockId] = view.sourceResolver.nodesForPCOffset(offset)
+        const nodes = view.sourceResolver.nodesForPCOffset(offset)[0]
         if (nodes.length > 0) {
           e.stopPropagation();
           if (!e.shiftKey) {
@@ -210,7 +209,7 @@ export class DisassemblyView extends TextView {
 
     const instructionBinaryInput: HTMLInputElement = view.divNode.querySelector("#show-instruction-binary");
     const lastShowInstructionBinary = window.sessionStorage.getItem("show-instruction-binary");
-    instructionBinaryInput.checked = lastShowInstructionAddress == 'true';
+    instructionBinaryInput.checked = lastShowInstructionBinary == 'true';
     const showInstructionBinaryHandler = () => {
       window.sessionStorage.setItem("show-instruction-binary", `${instructionBinaryInput.checked}`);
       for (const el of view.divNode.querySelectorAll(".instruction-binary")) {

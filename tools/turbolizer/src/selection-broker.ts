@@ -49,7 +49,6 @@ export class SelectionBroker {
   }
 
   broadcastSourcePositionSelect(from, sourcePositions, selected) {
-    let broker = this;
     sourcePositions = sourcePositions.filter((l) => {
       if (!sourcePositionValid(l)) {
         console.log("Warning: invalid source position");
@@ -67,7 +66,6 @@ export class SelectionBroker {
   }
 
   broadcastNodeSelect(from, nodes, selected) {
-    let broker = this;
     for (const b of this.nodeHandlers) {
       if (b != from) b.brokeredNodeSelect(nodes, selected);
     }
@@ -78,7 +76,6 @@ export class SelectionBroker {
   }
 
   broadcastBlockSelect(from, blocks, selected) {
-    let broker = this;
     for (var b of this.blockHandlers) {
       if (b != from) b.brokeredBlockSelect(blocks, selected);
     }

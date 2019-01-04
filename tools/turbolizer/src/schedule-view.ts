@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 import {Schedule,SourceResolver} from "../src/source-resolver"
-import {isIterable} from "../src/util"
 import {PhaseView} from "../src/view"
 import {TextView} from "../src/text-view"
 

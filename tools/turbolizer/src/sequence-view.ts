@@ -6,7 +6,6 @@ import {Sequence} from "../src/source-resolver"
 import {isIterable} from "../src/util"
 import {PhaseView} from "../src/view"
 import {TextView} from "../src/text-view"
-import { MySelection } from "./selection";
 
 export class SequenceView extends TextView implements PhaseView {
   sequence: Sequence;
