@@ -5,7 +5,7 @@
   code is governed by a BSD-style license that can be found in the LICENSE file.
   -->
 <head>
-<meta charset="UTF-8">
+<meta charset="utf-8">
 <style>
 html, body {
   font-family: sans-serif;
@@ -1114,7 +1114,7 @@ class StatsView {
        row.appendChild(td(""));
       }
       row.maps = this.timeline.filterUniqueTransitions(filter);
-      row.onclick = 
+      row.onclick =
           (e) => this.transitionView.showMaps(e.target.parentNode.maps);
       row.appendChild(td(name));
       let count = this.timeline.count(filter);
@@ -1169,7 +1169,7 @@ function transitionTypeToColor(type) {
       <span id="label">
         Drag and drop a v8.log file into this area, or click to choose from disk.
       </span>
-      <input id="file" type="file" name="files" />
+      <input id="file" type="file" name="files">
     </div>
     <div id="loader">
       <div id="spinner"></div>
@@ -1183,8 +1183,8 @@ function transitionTypeToColor(type) {
     <h2>Timeline</h2>
     <div id="timeline">
       <div id="timelineLabel">Frequency</div>
-      <div id=timelineChunks></div>
-      <canvas id="timelineCanvas" ></canvas>
+      <div id="timelineChunks"></div>
+      <canvas id="timelineCanvas"></canvas>
     </div>
     <div id="timelineOverview"
         onmousemove="handleTimelineIndicatorMove(event)" >
@@ -1202,7 +1202,7 @@ function transitionTypeToColor(type) {
     <section id="mapDetails"></section>
   </div>
 
-  <h2>Instructions</h2> 
+  <h2>Instructions</h2>
   <section>
     <p>Visualize Map trees that have been gathere using <code>--trace-maps</code>.</p>
   </section>
