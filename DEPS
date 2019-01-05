@@ -16,15 +16,15 @@ vars = {
 
 deps = {
   'v8/build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '29fca48af3ec6f31d1ffd8a2156be8646f682f05',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'de2f586d03cb847c8c7e9b72468866f469f57da6',
   'v8/third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '936a994608348285d6120127c906893ae1d37c24',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'c0641b8e930496500616b6f7253da869fc4a343e',
   'v8/third_party/icu':
-    Var('chromium_url') + '/chromium/deps/icu.git' + '@' + '23de01679d298bf9fb964ebede32f2157729ba96',
+    Var('chromium_url') + '/chromium/deps/icu.git' + '@' + 'd65301491c513d49163ad29c853eb85c02c8d5b4',
   'v8/third_party/instrumented_libraries':
     Var('chromium_url') + '/chromium/src/third_party/instrumented_libraries.git' + '@' + 'a959e4f0cb643003f2d75d179cede449979e3e77',
   'v8/buildtools':
-    Var('chromium_url') + '/chromium/buildtools.git' + '@' + '7d88270de197ebe8b439ab5eb57a4a2a0bb810e0',
+    Var('chromium_url') + '/chromium/buildtools.git' + '@' + '0e1cbc4eab6861b0c84bf2ed9a3c4b7aa2063819',
   'v8/base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '211b3ed9d0481b4caddbee1322321b86a483ca1f',
   'v8/third_party/android_ndk': {
@@ -36,7 +36,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'v8/third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'ebf0d23ee62ec1b476cc8a0c8616b6d295271680',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '865a64df6576494643d2eec97f9abbd89b37ed9c',
     'condition': 'checkout_android',
   },
   'v8/third_party/colorama/src': {
@@ -84,7 +84,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'v8/tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'a974cf8c1843f4121e3aa41b40c853e5b181d804',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '35ea2f353f23f2cfbcf46be61c827eb202ab5511',
   'v8/tools/luci-go': {
       'packages': [
         {
