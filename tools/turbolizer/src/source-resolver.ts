@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 import { sortUnique, anyToString } from "../src/util"
+import { NodeLabel } from "./node-label";
 
 function sourcePositionLe(a, b) {
   if (a.inliningId == b.inliningId) {
@@ -87,6 +88,7 @@ interface GraphPhase {
   name: string;
   data: any;
   highestNodeId: number;
+  nodeLabelMap: Array<NodeLabel>;
 }
 
 type Phase = GraphPhase | InstructionsPhase | OtherPhase;
@@ -333,8 +335,14 @@ export class SourceResolver {
           this.positionToNodes.set(key, []);
         }
         const A = this.positionToNodes.get(key);
-        if (!A.includes(node.id)) A.push("" + node.id);
+        if (!A.includes(node.id)) A.push(`${node.id}`);
       }
+
+      // Backwards compatibility.
+      if (typeof node.pos === "number") {
+        node.sourcePosition = { scriptOffset: node.pos, inliningId: -1 };
+      }
+
     }
   }
 
@@ -435,6 +443,7 @@ export class SourceResolver {
   }
 
   parsePhases(phases) {
+    const nodeLabelMap = [];
     for (const [, phase] of Object.entries<Phase>(phases)) {
       switch (phase.type) {
         case 'disassembly':
@@ -463,11 +472,26 @@ export class SourceResolver {
           const graphPhase: GraphPhase = Object.assign(phase, { highestNodeId: 0 });
           this.phases.push(graphPhase);
           this.recordOrigins(graphPhase);
+          this.internNodeLabels(graphPhase, nodeLabelMap);
+          graphPhase.nodeLabelMap = nodeLabelMap.slice();
           this.phaseNames.set(graphPhase.name, this.phases.length);
           break;
         default:
           throw "Unsupported phase type";
       }
+    }
+  }
+
+  internNodeLabels(phase: GraphPhase, nodeLabelMap: Array<NodeLabel>) {
+    for (const n of phase.data.nodes) {
+      const label = new NodeLabel(n.id, n.label, n.title, n.live,
+        n.properties, n.sourcePosition, n.origin, n.opcode, n.control,
+        n.opinfo, n.type);
+      const previous = nodeLabelMap[label.id];
+      if (!label.equals(previous)) {
+        nodeLabelMap[label.id] = label;
+      }
+      n.nodeLabel = nodeLabelMap[label.id];
     }
   }
 

@@ -16,6 +16,7 @@
     "src/node.ts",
     "src/edge.ts",
     "src/graph.ts",
+    "src/node-label.ts",
     "src/source-resolver.ts",
     "src/selection.ts",
     "src/selection-broker.ts",

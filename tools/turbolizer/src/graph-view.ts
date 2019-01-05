@@ -32,7 +32,7 @@ interface GraphState {
 export class GraphView extends View implements PhaseView {
   divElement: d3.Selection<any, any, any, any>;
   svg: d3.Selection<any, any, any, any>;
-  showPhaseByName: (string) => void;
+  showPhaseByName: (s: string) => void;
   state: GraphState;
   selectionHandler: NodeSelectionHandler & ClearableHandler;
   graphElement: d3.Selection<any, any, any, any>;
@@ -53,8 +53,8 @@ export class GraphView extends View implements PhaseView {
     return pane;
   }
 
-  constructor(id, broker, showPhaseByName: (string) => void) {
-    super(id);
+  constructor(idOrContainer: string | HTMLElement, broker: SelectionBroker, showPhaseByName: (s: string) => void) {
+    super(idOrContainer);
     const view = this;
     this.broker = broker;
     this.showPhaseByName = showPhaseByName;
@@ -83,21 +83,21 @@ export class GraphView extends View implements PhaseView {
         broker.broadcastClear(this);
         view.updateGraphVisibility();
       },
-      select: function (nodes, selected) {
+      select: function (nodes: Iterable<GNode>, selected: boolean) {
         let locations = [];
         for (const node of nodes) {
-          if (node.sourcePosition) {
-            locations.push(node.sourcePosition);
+          if (node.nodeLabel.sourcePosition) {
+            locations.push(node.nodeLabel.sourcePosition);
           }
-          if (node.origin && node.origin.bytecodePosition) {
-            locations.push({ bytecodePosition: node.origin.bytecodePosition });
+          if (node.nodeLabel.origin && node.nodeLabel.origin.bytecodePosition) {
+            locations.push({ bytecodePosition: node.nodeLabel.origin.bytecodePosition });
           }
         }
         view.state.selection.select(nodes, selected);
         broker.broadcastSourcePositionSelect(this, locations, selected);
         view.updateGraphVisibility();
       },
-      brokeredNodeSelect: function (locations, selected) {
+      brokeredNodeSelect: function (locations, selected: boolean) {
         if (!view.graph) return;
         let selection = view.graph.nodes((n) => {
           return locations.has(nodeToStringKey(n))
@@ -772,7 +772,7 @@ export class GraphView extends View implements PhaseView {
         .text(function (l) {
           return d.getTitle();
         })
-      if (d.type != undefined) {
+      if (d.nodeLabel.type != undefined) {
         d3.select(this).append("text")
           .classed("label", true)
           .classed("type", true)

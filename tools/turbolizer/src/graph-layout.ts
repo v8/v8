@@ -13,7 +13,7 @@ const DEFAULT_NODE_ROW_SEPARATION = 130
 
 var traceLayout = false;
 
-function newGraphOccupation(graph:Graph) {
+function newGraphOccupation(graph: Graph) {
   var isSlotFilled = [];
   var maxSlot = 0;
   var minSlot = 0;
@@ -122,12 +122,12 @@ function newGraphOccupation(graph:Graph) {
   }
 
   var occupation = {
-    occupyNodeInputs: function (node) {
+    occupyNodeInputs: function (node: GNode, showTypes: boolean) {
       for (var i = 0; i < node.inputs.length; ++i) {
         if (node.inputs[i].isVisible()) {
           var edge = node.inputs[i];
           if (!edge.isBackEdge()) {
-            var horizontalPos = edge.getInputHorizontalPosition(graph);
+            var horizontalPos = edge.getInputHorizontalPosition(graph, showTypes);
             if (traceLayout) {
               console.log("Occupying input " + i + " of " + node.id + " at " + horizontalPos);
             }
@@ -201,13 +201,13 @@ function newGraphOccupation(graph:Graph) {
       });
       nodeOccupation = [];
     },
-    clearNodeOutputs: function (source) {
+    clearNodeOutputs: function (source: GNode, showTypes: boolean) {
       source.outputs.forEach(function (edge) {
         if (edge.isVisible()) {
           var target = edge.target;
           for (var i = 0; i < target.inputs.length; ++i) {
             if (target.inputs[i].source === source) {
-              var horizontalPos = edge.getInputHorizontalPosition(graph);
+              var horizontalPos = edge.getInputHorizontalPosition(graph, showTypes);
               clearPositionRangeWithMargin(horizontalPos,
                 horizontalPos,
                 NODE_INPUT_WIDTH / 2);
@@ -343,7 +343,7 @@ export function layoutNodeGraph(graph: Graph, showTypes: boolean): void {
       }
       firstInput = false;
     }
-    if (n.opcode != "Start" && n.opcode != "Phi" && n.opcode != "EffectPhi") {
+    if (n.nodeLabel.opcode != "Start" && n.nodeLabel.opcode != "Phi" && n.nodeLabel.opcode != "EffectPhi" && n.nodeLabel.opcode != "InductionVariablePhi") {
       n.rank = newRank;
     }
   }
@@ -371,7 +371,7 @@ export function layoutNodeGraph(graph: Graph, showTypes: boolean): void {
     n.rank = maxRank + 1;
   });
 
-  var rankSets = [];
+  const rankSets: Array<Array<GNode>> = [];
   // Collect sets for each rank.
   for (const n of graph.nodes()) {
     n.y = n.rank * (DEFAULT_NODE_ROW_SEPARATION + n.getNodeHeight(showTypes) +
@@ -390,10 +390,10 @@ export function layoutNodeGraph(graph: Graph, showTypes: boolean): void {
   // compact and not overlapping live input lines.
   var occupation = newGraphOccupation(graph);
 
-  rankSets.reverse().forEach(function (rankSet) {
+  rankSets.reverse().forEach(function (rankSet: Array<GNode>) {
 
     for (var i = 0; i < rankSet.length; ++i) {
-      occupation.clearNodeOutputs(rankSet[i]);
+      occupation.clearNodeOutputs(rankSet[i], showTypes);
     }
 
     if (traceLayout) {
@@ -402,8 +402,14 @@ export function layoutNodeGraph(graph: Graph, showTypes: boolean): void {
     }
 
     var placedCount = 0;
-    rankSet = rankSet.sort(function (a, b) {
-      return a.visitOrderWithinRank < b.visitOrderWithinRank;
+    rankSet = rankSet.sort((a: GNode, b: GNode) => {
+      if (a.visitOrderWithinRank < b.visitOrderWithinRank) {
+        return -1
+      } else if (a.visitOrderWithinRank == b.visitOrderWithinRank) {
+        return 0;
+      } else {
+        return 1;
+      }
     });
     for (var i = 0; i < rankSet.length; ++i) {
       var nodeToPlace = rankSet[i];
@@ -434,7 +440,7 @@ export function layoutNodeGraph(graph: Graph, showTypes: boolean): void {
 
     for (var i = 0; i < rankSet.length; ++i) {
       var node = rankSet[i];
-      occupation.occupyNodeInputs(node);
+      occupation.occupyNodeInputs(node, showTypes);
     }
 
     if (traceLayout) {
@@ -449,7 +455,7 @@ export function layoutNodeGraph(graph: Graph, showTypes: boolean): void {
   });
 
   graph.maxBackEdgeNumber = 0;
-  graph.forEachEdge((e) => {
+  graph.forEachEdge((e: Edge) => {
     if (e.isBackEdge()) {
       e.backEdgeNumber = ++graph.maxBackEdgeNumber;
     } else {

@@ -31,6 +31,6 @@ export abstract class View {
 }
 
 export interface PhaseView {
-  onresize();
-  searchInputAction(searchInput: HTMLInputElement, e: Event);
+  onresize(): void;
+  searchInputAction(searchInput: HTMLInputElement, e: Event): void;
 }
