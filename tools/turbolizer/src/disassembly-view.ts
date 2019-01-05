@@ -135,8 +135,9 @@ export class DisassemblyView extends TextView {
 
     const linkHandler = (e: MouseEvent) => {
       if (!(e.target instanceof HTMLElement)) return;
-      const offset = e.target.dataset.pcOffset ? e.target.dataset.pcOffset : e.target.parentElement.dataset.pcOffset;
-      if ((typeof offset) != "undefined" && !Number.isNaN(Number(offset))) {
+      const offsetAsString = e.target.dataset.pcOffset ? e.target.dataset.pcOffset : e.target.parentElement.dataset.pcOffset;
+      const offset = Number.parseInt(offsetAsString);
+      if ((typeof offsetAsString) != "undefined" && !Number.isNaN(offset)) {
         view.offsetSelection.select([offset], true);
         const nodes = view.sourceResolver.nodesForPCOffset(offset)[0]
         if (nodes.length > 0) {

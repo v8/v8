@@ -159,6 +159,7 @@ export class GraphView extends View implements PhaseView {
     function zoomed() {
       if (d3.event.shiftKey) return false;
       view.graphElement.attr("transform", d3.event.transform);
+      return true;
     }
 
     const zoomSvg = d3.zoom<SVGElement, any>()
@@ -408,7 +409,7 @@ export class GraphView extends View implements PhaseView {
     view.toggleTypes();
   }
 
-  searchInputAction(searchBar, e: KeyboardEvent) {
+  searchInputAction(searchBar: HTMLInputElement, e: KeyboardEvent) {
     if (e.keyCode == 13) {
       this.selectionHandler.clear();
       const query = searchBar.value;
@@ -416,11 +417,11 @@ export class GraphView extends View implements PhaseView {
       if (query.length == 0) return;
 
       const reg = new RegExp(query);
-      const filterFunction = function (n) {
+      const filterFunction = (n: GNode) => {
         return (reg.exec(n.getDisplayLabel()) != null ||
           (this.state.showTypes && reg.exec(n.getDisplayType())) ||
           (reg.exec(n.getTitle())) ||
-          reg.exec(n.opcode) != null);
+          reg.exec(n.nodeLabel.opcode) != null);
       };
 
       const selection = this.graph.nodes((n) => {
@@ -706,7 +707,7 @@ export class GraphView extends View implements PhaseView {
           .attr("transform", function (d) {
             return "translate(" + x + "," + y + ")";
           })
-          .on("click", function (d) {
+          .on("click", function (this: SVGCircleElement, d) {
             const components = this.id.split(',');
             const node = graph.nodeMap[components[3]];
             const edge = node.inputs[components[2]];

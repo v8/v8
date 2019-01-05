@@ -9,6 +9,8 @@
     "emitDecoratorMetadata": true,
     "moduleResolution": "node",
     "noUnusedLocals": true,
+    "noImplicitReturns": true,
+    "noImplicitThis": true,
     "lib": ["dom", "es6", "dom.iterable", "scripthost", "es2018"]
   },
   "files": [

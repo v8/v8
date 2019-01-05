@@ -234,11 +234,11 @@ export class SourceResolver {
     return sourcePositionArray;
   }
 
-  forEachSource(f) {
+  forEachSource(f: (value: Source, index: number, array: Source[]) => void) {
     this.sources.forEach(f);
   }
 
-  translateToSourceId(sourceId, location) {
+  translateToSourceId(sourceId: number, location?: SourcePosition) {
     for (const position of this.getInlineStack(location)) {
       let inlining = this.inlinings[position.inliningId];
       if (!inlining) continue;
@@ -249,7 +249,7 @@ export class SourceResolver {
     return location;
   }
 
-  addInliningPositions(sourcePosition, locations) {
+  addInliningPositions(sourcePosition: AnyPosition, locations: Array<SourcePosition>) {
     let inlining = this.inliningsMap.get(sourcePositionToStringKey(sourcePosition));
     if (!inlining) return;
     let sourceId = inlining.sourceId
@@ -260,20 +260,20 @@ export class SourceResolver {
     }
   }
 
-  getInliningForPosition(sourcePosition) {
+  getInliningForPosition(sourcePosition: AnyPosition) {
     return this.inliningsMap.get(sourcePositionToStringKey(sourcePosition));
   }
 
-  getSource(sourceId) {
+  getSource(sourceId: number) {
     return this.sources[sourceId];
   }
 
-  getSourceName(sourceId) {
+  getSourceName(sourceId: number) {
     const source = this.sources[sourceId];
     return `${source.sourceName}:${source.functionName}`;
   }
 
-  sourcePositionFor(sourceId, scriptOffset) {
+  sourcePositionFor(sourceId: number, scriptOffset: number) {
     if (!this.sources[sourceId]) {
       return null;
     }
@@ -289,7 +289,7 @@ export class SourceResolver {
     return null;
   }
 
-  sourcePositionsInRange(sourceId, start, end) {
+  sourcePositionsInRange(sourceId: number, start: number, end: number) {
     if (!this.sources[sourceId]) return [];
     const res = [];
     const list = this.sources[sourceId].sourcePositions;
@@ -302,10 +302,9 @@ export class SourceResolver {
     return res;
   }
 
-  getInlineStack(sourcePosition) {
-    if (!sourcePosition) {
-      return [];
-    }
+  getInlineStack(sourcePosition?: SourcePosition) {
+    if (!sourcePosition) return [];
+
     let inliningStack = [];
     let cur = sourcePosition;
     while (cur && cur.inliningId != -1) {
@@ -342,7 +341,6 @@ export class SourceResolver {
       if (typeof node.pos === "number") {
         node.sourcePosition = { scriptOffset: node.pos, inliningId: -1 };
       }
-
     }
   }
 
@@ -358,13 +356,13 @@ export class SourceResolver {
     }
   }
 
-  getInstruction(nodeId): [number, number] {
+  getInstruction(nodeId: number): [number, number] {
     const X = this.nodeIdToInstructionRange[nodeId];
     if (X === undefined) return [-1, -1];
     return X;
   }
 
-  getInstructionRangeForBlock(blockId): [number, number] {
+  getInstructionRangeForBlock(blockId: number): [number, number] {
     const X = this.blockIdToInstructionRange[blockId];
     if (X === undefined) return [-1, -1];
     return X;
@@ -385,21 +383,22 @@ export class SourceResolver {
     return this.pcOffsetToInstructions.size > 0;
   }
 
-  getKeyPcOffset(offset): number {
+  getKeyPcOffset(offset: number): number {
     if (this.pcOffsets.length === 0) return -1;
     for (const key of this.pcOffsets) {
       if (key <= offset) {
         return key;
       }
     }
+    return -1;
   }
 
-  instructionRangeToKeyPcOffsets([start, end]) {
+  instructionRangeToKeyPcOffsets([start, end]: [number, number]) {
     if (start == end) return [this.instructionToPCOffset[start]];
     return this.instructionToPCOffset.slice(start, end);
   }
 
-  instructionsToKeyPcOffsets(instructionIds) {
+  instructionsToKeyPcOffsets(instructionIds: Iterable<number>) {
     const keyPcOffsets = [];
     for (const instructionId of instructionIds) {
       keyPcOffsets.push(this.instructionToPCOffset[instructionId]);
@@ -417,7 +416,7 @@ export class SourceResolver {
     return offsets;
   }
 
-  nodesForPCOffset(offset): [Array<String>, Array<String>] {
+  nodesForPCOffset(offset: number): [Array<String>, Array<String>] {
     if (this.pcOffsets.length === 0) return [[], []];
     for (const key of this.pcOffsets) {
       if (key <= offset) {
@@ -496,14 +495,14 @@ export class SourceResolver {
   }
 
   repairPhaseId(anyPhaseId) {
-    return Math.max(0, Math.min(anyPhaseId, this.phases.length - 1))
+    return Math.max(0, Math.min(anyPhaseId | 0, this.phases.length - 1))
   }
 
-  getPhase(phaseId) {
+  getPhase(phaseId: number) {
     return this.phases[phaseId];
   }
 
-  getPhaseIdByName(phaseName) {
+  getPhaseIdByName(phaseName: string) {
     return this.phaseNames.get(phaseName);
   }
 

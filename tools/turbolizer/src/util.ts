@@ -60,9 +60,8 @@ export function sortUnique<T>(arr: Array<T>, f: (a: T, b: T) => number, equal: (
 }
 
 // Partial application without binding the receiver
-export function partial(f, ...arguments1) {
-  return function (...arguments2) {
-    var arguments2 = Array.from(arguments);
+export function partial(f: any, ...arguments1: any[]) {
+  return function (this: any, ...arguments2: any[]) {
     f.apply(this, [...arguments1, ...arguments2]);
   }
 }
@@ -85,6 +84,7 @@ export function measureText(text: string) {
       height: textMeasure.getBBox().height,
     };
   }
+  return { width: 0, height: 0 };
 }
 
 // Interpolate between the given start and end values by a fraction of val/max.
