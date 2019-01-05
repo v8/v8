@@ -178,22 +178,9 @@ export class GraphView extends View implements PhaseView {
 
   }
 
-
-  static get selectedClass() {
-    return "selected";
-  }
-  static get rectClass() {
-    return "nodeStyle";
-  }
-  static get activeEditId() {
-    return "active-editing";
-  }
-  static get nodeRadius() {
-    return 50;
-  }
-
-  getEdgeFrontier(nodes, inEdges: boolean, edgeFilter: (e: Edge, i: number) => boolean) {
-    let frontier = new Set();
+  getEdgeFrontier(nodes: Iterable<GNode>, inEdges: boolean,
+    edgeFilter: (e: Edge, i: number) => boolean) {
+    let frontier: Set<Edge> = new Set();
     for (const n of nodes) {
       const edges = inEdges ? n.inputs : n.outputs;
       var edgeNumber = 0;
@@ -207,20 +194,21 @@ export class GraphView extends View implements PhaseView {
     return frontier;
   }
 
-  getNodeFrontier(nodes, inEdges, edgeFilter) {
+  getNodeFrontier(nodes: Iterable<GNode>, inEdges: boolean,
+    edgeFilter: (e: Edge, i: number) => boolean) {
     const view = this;
-    const frontier = new Set();
+    const frontier: Set<GNode> = new Set();
     let newState = true;
     const edgeFrontier = view.getEdgeFrontier(nodes, inEdges, edgeFilter);
     // Control key toggles edges rather than just turning them on
     if (d3.event.ctrlKey) {
-      edgeFrontier.forEach(function (edge) {
+      edgeFrontier.forEach(function (edge: Edge) {
         if (edge.visible) {
           newState = false;
         }
       });
     }
-    edgeFrontier.forEach(function (edge) {
+    edgeFrontier.forEach(function (edge: Edge) {
       edge.visible = newState;
       if (newState) {
         const node = inEdges ? edge.source : edge.target;
@@ -286,12 +274,12 @@ export class GraphView extends View implements PhaseView {
   connectVisibleSelectedNodes() {
     const view = this;
     for (const n of view.state.selection) {
-      n.inputs.forEach(function (edge) {
+      n.inputs.forEach(function (edge: Edge) {
         if (edge.source.visible && edge.target.visible) {
           edge.visible = true;
         }
       });
-      n.outputs.forEach(function (edge) {
+      n.outputs.forEach(function (edge: Edge) {
         if (edge.source.visible && edge.target.visible) {
           edge.visible = true;
         }

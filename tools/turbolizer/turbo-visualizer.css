@@ -569,7 +569,7 @@ text {
 .schedule-block .instr-marker {
   padding-right: .5ex;
   padding-left: .5ex;
-  min-width: 1ex;
+  min-width: 1em;
   background: #EEEEEE;
   /* display: none; */
 }
