@@ -27,10 +27,18 @@
 
 [
 [ALWAYS, {
-  # TODO(jochen): The following test is flaky.
+# TODO(jochen): The following test is flaky.
   'overrides/caching': [PASS, FAIL],
 
+  # https://code.google.com/p/v8/issues/detail?id=7481
+  'regress-7481': [FAIL],
+  'collator/check-kf-option': [FAIL],
+  'collator/check-kn-option': [FAIL],
+  'date-format/check-ca-option': [FAIL],
   'date-format/check-hc-option': [FAIL],
+  'date-format/check-nu-option': [FAIL],
+  'number-format/check-nu-option': [FAIL],
+  'segmenter/check-lb-option': [FAIL],
 }],  # ALWAYS
 
 ['variant == no_wasm_traps', {
