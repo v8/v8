@@ -32,6 +32,7 @@
     "src/schedule-view.ts",
     "src/disassembly-view.ts",
     "src/graphmultiview.ts",
-    "src/turbo-visualizer.ts"
+    "src/turbo-visualizer.ts",
+    "src/resizer.ts"
   ]
 }
