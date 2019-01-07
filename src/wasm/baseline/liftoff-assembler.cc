@@ -174,7 +174,7 @@ class StackTransferRecipe {
       return;
     }
     move_dst_regs_.set(dst);
-    move_src_regs_.set(src);
+    ++*src_reg_use_count(src);
     *register_move(dst) = {src, type};
   }
 
@@ -228,8 +228,8 @@ class StackTransferRecipe {
 
   MovesStorage register_moves_;  // uninitialized
   LoadsStorage register_loads_;  // uninitialized
+  int src_reg_use_count_[kAfterMaxLiftoffRegCode] = {0};
   LiftoffRegList move_dst_regs_;
-  LiftoffRegList move_src_regs_;
   LiftoffRegList load_dst_regs_;
   LiftoffAssembler* const asm_;
 
@@ -241,6 +241,9 @@ class StackTransferRecipe {
     return reinterpret_cast<RegisterLoad*>(&register_loads_) +
            reg.liftoff_code();
   }
+  int* src_reg_use_count(LiftoffRegister reg) {
+    return src_reg_use_count_ + reg.liftoff_code();
+  }
 
   bool HasRegisterMove(LiftoffRegister dst, LiftoffRegister src,
                        ValueType type) {
@@ -248,52 +251,34 @@ class StackTransferRecipe {
            register_move(dst)->type == type;
   }
 
-  void ExecuteMove(LiftoffRegister dst, uint32_t* src_reg_use_count) {
+  void ExecuteMove(LiftoffRegister dst) {
     RegisterMove* move = register_move(dst);
-    DCHECK_EQ(0, src_reg_use_count[dst.liftoff_code()]);
+    DCHECK_EQ(0, *src_reg_use_count(dst));
     asm_->Move(dst, move->src, move->type);
-    ClearExecutedMove(dst, src_reg_use_count);
+    ClearExecutedMove(dst);
   }
 
-  void ClearExecutedMove(LiftoffRegister dst, uint32_t* src_reg_use_count) {
+  void ClearExecutedMove(LiftoffRegister dst) {
     DCHECK(move_dst_regs_.has(dst));
     move_dst_regs_.clear(dst);
     RegisterMove* move = register_move(dst);
-    DCHECK_LT(0, src_reg_use_count[move->src.liftoff_code()]);
-    if (--src_reg_use_count[move->src.liftoff_code()] != 0) return;
+    DCHECK_LT(0, *src_reg_use_count(move->src));
+    if (--*src_reg_use_count(move->src)) return;
     // src count dropped to zero. If this is a destination register, execute
     // that move now.
     if (!move_dst_regs_.has(move->src)) return;
-    ExecuteMove(move->src, src_reg_use_count);
+    ExecuteMove(move->src);
   }
 
   void ExecuteMoves() {
-    // Execute all moves whose {dst} is not being used as src any more.
-    // Simultaneously, compute use counters of src registers for the remaining
-    // passes.
-    uint32_t src_reg_use_count[kAfterMaxLiftoffRegCode] = {0};
-    for (LiftoffRegister dst : move_dst_regs_) {
-      RegisterMove* move = register_move(dst);
-      if (!move_src_regs_.has(dst)) {
-        asm_->Move(dst, move->src, move->type);
-        move_dst_regs_.clear(dst);
-      } else {
-        ++src_reg_use_count[move->src.liftoff_code()];
-      }
-    }
-    // {move_src_regs_} is outdated and not being used any more.
-    move_src_regs_ = {};
-
-    // Now iterate all remaining moves again and execute all that can be
-    // executed according to {src_reg_use_count}. If any src count drops to
-    // zero, also (transitively) execute the corresponding move to that
-    // register.
+    // Execute all moves whose {dst} is not being used as src in another move.
+    // If any src count drops to zero, also (transitively) execute the
+    // corresponding move to that register.
     for (LiftoffRegister dst : move_dst_regs_) {
       // Check if already handled via transitivity in {ClearExecutedMove}.
       if (!move_dst_regs_.has(dst)) continue;
-      RegisterMove* move = register_move(dst);
-      if (src_reg_use_count[move->src.liftoff_code()]) continue;
-      ExecuteMove(dst, src_reg_use_count);
+      if (*src_reg_use_count(dst)) continue;
+      ExecuteMove(dst);
     }
 
     // All remaining moves are parts of a cycle. Just spill the first one, then
@@ -308,7 +293,7 @@ class StackTransferRecipe {
       // Remember to reload into the destination register later.
       LoadStackSlot(dst, next_spill_slot, move->type);
       ++next_spill_slot;
-      ClearExecutedMove(dst, src_reg_use_count);
+      ClearExecutedMove(dst);
     }
   }
 
