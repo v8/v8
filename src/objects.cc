@@ -14857,7 +14857,7 @@ bool Code::IsIsolateIndependent(Isolate* isolate) {
   for (RelocIterator it(*this, mode_mask); !it.done(); it.next()) {
 #if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_ARM64) || \
     defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_MIPS) ||  \
-    defined(V8_TARGET_ARCH_IA32)
+    defined(V8_TARGET_ARCH_S390) || defined(V8_TARGET_ARCH_IA32)
     // On these platforms we emit relative builtin-to-builtin
     // jumps for isolate independent builtins in the snapshot. They are later
     // rewritten as pc-relative jumps to the off-heap instruction stream and are

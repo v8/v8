@@ -178,35 +178,38 @@ void TurboAssembler::Jump(Address target, RelocInfo::Mode rmode, Condition cond,
 void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
                           Condition cond, CRegister cr) {
   DCHECK(RelocInfo::IsCodeTarget(rmode));
-  // 'code' is always generated ppc code, never THUMB code
-  if (FLAG_embedded_builtins) {
-    if (root_array_available_ && options().isolate_independent_code) {
-      Register scratch = ip;
-      IndirectLoadConstant(scratch, code);
-      addi(scratch, scratch, Operand(Code::kHeaderSize - kHeapObjectTag));
-      Label skip;
-      if (cond != al) b(NegateCondition(cond), &skip, cr);
-      Jump(scratch);
-      bind(&skip);
-      return;
-    } else if (options().inline_offheap_trampolines) {
-      int builtin_index = Builtins::kNoBuiltinId;
-      if (isolate()->builtins()->IsBuiltinHandle(code, &builtin_index) &&
-          Builtins::IsIsolateIndependent(builtin_index)) {
-        // Inline the trampoline.
-        RecordCommentForOffHeapTrampoline(builtin_index);
-        EmbeddedData d = EmbeddedData::FromBlob();
-        Address entry = d.InstructionStartOfBuiltin(builtin_index);
-        // Use ip directly instead of using UseScratchRegisterScope, as we do
-        // not preserve scratch registers across calls.
-        mov(ip, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
-        Label skip;
-        if (cond != al) b(NegateCondition(cond), &skip, cr);
-        Jump(ip);
-        bind(&skip);
-        return;
-      }
-    }
+  DCHECK_IMPLIES(options().isolate_independent_code,
+                 Builtins::IsIsolateIndependentBuiltin(*code));
+
+  int builtin_index = Builtins::kNoBuiltinId;
+  bool target_is_isolate_independent_builtin =
+      isolate()->builtins()->IsBuiltinHandle(code, &builtin_index) &&
+      Builtins::IsIsolateIndependent(builtin_index);
+
+  if (root_array_available_ && options().isolate_independent_code) {
+    Label skip;
+    Register scratch = ip;
+    int offset = code->builtin_index() * kSystemPointerSize +
+                 IsolateData::builtin_entry_table_offset();
+    LoadP(scratch, MemOperand(kRootRegister, offset), r0);
+    if (cond != al) b(NegateCondition(cond), &skip, cr);
+    Jump(scratch);
+    bind(&skip);
+    return;
+  } else if (options().inline_offheap_trampolines &&
+             target_is_isolate_independent_builtin) {
+    // Inline the trampoline.
+    Label skip;
+    RecordCommentForOffHeapTrampoline(builtin_index);
+    EmbeddedData d = EmbeddedData::FromBlob();
+    Address entry = d.InstructionStartOfBuiltin(builtin_index);
+    // Use ip directly instead of using UseScratchRegisterScope, as we do
+    // not preserve scratch registers across calls.
+    mov(ip, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
+    if (cond != al) b(NegateCondition(cond), &skip, cr);
+    Jump(ip);
+    bind(&skip);
+    return;
   }
   Jump(static_cast<intptr_t>(code.address()), rmode, cond, cr);
 }
@@ -249,37 +252,39 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
                           Condition cond) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
   DCHECK(RelocInfo::IsCodeTarget(rmode));
+  DCHECK_IMPLIES(options().isolate_independent_code,
+                 Builtins::IsIsolateIndependentBuiltin(*code));
+  DCHECK_IMPLIES(options().use_pc_relative_calls_and_jumps,
+                 Builtins::IsIsolateIndependentBuiltin(*code));
 
-  if (FLAG_embedded_builtins) {
-    if (root_array_available_ && options().isolate_independent_code) {
-      // Use ip directly instead of using UseScratchRegisterScope, as we do not
-      // preserve scratch registers across calls.
-      IndirectLoadConstant(ip, code);
-      addi(ip, ip, Operand(Code::kHeaderSize - kHeapObjectTag));
-      Label skip;
-      if (cond != al) b(NegateCondition(cond), &skip);
-      Call(ip);
-      bind(&skip);
-      return;
-    } else if (options().inline_offheap_trampolines) {
-      int builtin_index = Builtins::kNoBuiltinId;
-      if (isolate()->builtins()->IsBuiltinHandle(code, &builtin_index) &&
-          Builtins::IsIsolateIndependent(builtin_index)) {
-        // Inline the trampoline.
-        RecordCommentForOffHeapTrampoline(builtin_index);
-        DCHECK(Builtins::IsBuiltinId(builtin_index));
-        EmbeddedData d = EmbeddedData::FromBlob();
-        Address entry = d.InstructionStartOfBuiltin(builtin_index);
-        // Use ip directly instead of using UseScratchRegisterScope, as we do
-        // not preserve scratch registers across calls.
-        mov(ip, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
-        Label skip;
-        if (cond != al) b(NegateCondition(cond), &skip);
-        Call(ip);
-        bind(&skip);
-        return;
-      }
-    }
+  int builtin_index = Builtins::kNoBuiltinId;
+  bool target_is_isolate_independent_builtin =
+      isolate()->builtins()->IsBuiltinHandle(code, &builtin_index) &&
+      Builtins::IsIsolateIndependent(builtin_index);
+
+  if (root_array_available_ && options().isolate_independent_code) {
+    Label skip;
+    int offset = code->builtin_index() * kSystemPointerSize +
+                 IsolateData::builtin_entry_table_offset();
+    LoadP(ip, MemOperand(kRootRegister, offset));
+    if (cond != al) b(NegateCondition(cond), &skip);
+    Call(ip);
+    bind(&skip);
+    return;
+  } else if (options().inline_offheap_trampolines &&
+             target_is_isolate_independent_builtin) {
+    // Inline the trampoline.
+    RecordCommentForOffHeapTrampoline(builtin_index);
+    EmbeddedData d = EmbeddedData::FromBlob();
+    Address entry = d.InstructionStartOfBuiltin(builtin_index);
+    // Use ip directly instead of using UseScratchRegisterScope, as we do
+    // not preserve scratch registers across calls.
+    mov(ip, Operand(entry, RelocInfo::OFF_HEAP_TARGET));
+    Label skip;
+    if (cond != al) b(NegateCondition(cond), &skip);
+    Call(ip);
+    bind(&skip);
+    return;
   }
   Call(code.address(), rmode, cond);
 }
@@ -1351,12 +1356,11 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
     // call sites.
     Register code = kJavaScriptCallCodeStartRegister;
     LoadP(code, FieldMemOperand(function, JSFunction::kCodeOffset));
-    addi(code, code, Operand(Code::kHeaderSize - kHeapObjectTag));
     if (flag == CALL_FUNCTION) {
-      CallJSEntry(code);
+      CallCodeObject(code);
     } else {
       DCHECK(flag == JUMP_FUNCTION);
-      JumpToJSEntry(code);
+      JumpCodeObject(code);
     }
 
     // Continue here if InvokePrologue does handle the invocation due to
@@ -1645,8 +1649,7 @@ void TurboAssembler::CallRuntimeWithCEntry(Runtime::FunctionId fid,
   mov(r3, Operand(f->nargs));
   Move(r4, ExternalReference::Create(f));
   DCHECK(!AreAliased(centry, r3, r4));
-  addi(centry, centry, Operand(Code::kHeaderSize - kHeapObjectTag));
-  Call(centry);
+  CallCodeObject(centry);
 }
 
 void MacroAssembler::CallRuntime(const Runtime::Function* f, int num_arguments,
@@ -3037,6 +3040,65 @@ void TurboAssembler::CallBuiltinPointer(Register builtin_pointer) {
       Operand(IsolateData::builtin_entry_table_offset()));
   LoadPX(builtin_pointer, MemOperand(kRootRegister, builtin_pointer));
   Call(builtin_pointer);
+}
+
+void TurboAssembler::LoadCodeObjectEntry(Register destination,
+                                         Register code_object) {
+  // Code objects are called differently depending on whether we are generating
+  // builtin code (which will later be embedded into the binary) or compiling
+  // user JS code at runtime.
+  // * Builtin code runs in --jitless mode and thus must not call into on-heap
+  //   Code targets. Instead, we dispatch through the builtins entry table.
+  // * Codegen at runtime does not have this restriction and we can use the
+  //   shorter, branchless instruction sequence. The assumption here is that
+  //   targets are usually generated code and not builtin Code objects.
+
+  if (options().isolate_independent_code) {
+    DCHECK(root_array_available());
+    Label if_code_is_builtin, out;
+
+    Register scratch = r11;
+
+    DCHECK(!AreAliased(destination, scratch));
+    DCHECK(!AreAliased(code_object, scratch));
+
+    // Check whether the Code object is a builtin. If so, call its (off-heap)
+    // entry point directly without going through the (on-heap) trampoline.
+    // Otherwise, just call the Code object as always.
+
+    LoadWordArith(scratch,
+                  FieldMemOperand(code_object, Code::kBuiltinIndexOffset));
+    cmpi(scratch, Operand(Builtins::kNoBuiltinId));
+    bne(&if_code_is_builtin);
+
+    // A non-builtin Code object, the entry point is at
+    // Code::raw_instruction_start().
+    addi(destination, code_object, Operand(Code::kHeaderSize - kHeapObjectTag));
+    b(&out);
+
+    // A builtin Code object, the entry point is loaded from the builtin entry
+    // table.
+    // The builtin index is loaded in scratch.
+    bind(&if_code_is_builtin);
+    ShiftLeftImm(destination, scratch, Operand(kSystemPointerSizeLog2));
+    add(destination, destination, kRootRegister);
+    LoadP(destination,
+        MemOperand(destination, IsolateData::builtin_entry_table_offset()), r0);
+
+    bind(&out);
+  } else {
+    addi(destination, code_object, Operand(Code::kHeaderSize - kHeapObjectTag));
+  }
+}
+
+void TurboAssembler::CallCodeObject(Register code_object) {
+  LoadCodeObjectEntry(code_object, code_object);
+  Call(code_object);
+}
+
+void TurboAssembler::JumpCodeObject(Register code_object) {
+  LoadCodeObjectEntry(code_object, code_object);
+  Jump(code_object);
 }
 
 void TurboAssembler::StoreReturnAddressAndCall(Register target) {

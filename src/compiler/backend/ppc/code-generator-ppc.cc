@@ -861,8 +861,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         DCHECK_IMPLIES(
             HasCallDescriptorFlag(instr, CallDescriptor::kFixedTargetRegister),
             reg == kJavaScriptCallCodeStartRegister);
-        __ addi(reg, reg, Operand(Code::kHeaderSize - kHeapObjectTag));
-        __ Call(reg);
+        __ CallCodeObject(reg);
       } else {
         __ Call(i.InputCode(0), RelocInfo::CODE_TARGET);
       }
@@ -910,8 +909,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         DCHECK_IMPLIES(
             HasCallDescriptorFlag(instr, CallDescriptor::kFixedTargetRegister),
             reg == kJavaScriptCallCodeStartRegister);
-        __ addi(reg, reg, Operand(Code::kHeaderSize - kHeapObjectTag));
-        __ Jump(reg);
+        __ JumpCodeObject(reg);
       } else {
         // We cannot use the constant pool to load the target since
         // we've already restored the caller's frame.
@@ -966,8 +964,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       static_assert(kJavaScriptCallCodeStartRegister == r5, "ABI mismatch");
       __ LoadP(r5, FieldMemOperand(func, JSFunction::kCodeOffset));
-      __ addi(r5, r5, Operand(Code::kHeaderSize - kHeapObjectTag));
-      __ Call(r5);
+      __ CallCodeObject(r5);
       RecordCallPosition(instr);
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       frame_access_state()->ClearSPDelta();

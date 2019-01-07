@@ -177,6 +177,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   void Call(Label* target);
 
+  void LoadCodeObjectEntry(Register destination, Register code_object) override;
+  void CallCodeObject(Register code_object) override;
+  void JumpCodeObject(Register code_object) override;
+
   void CallBuiltinPointer(Register builtin_pointer) override;
 
   // Register move. May do nothing if the registers are identical.

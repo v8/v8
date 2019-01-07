@@ -412,6 +412,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
             Condition cond = al);
   void Call(Label* target);
 
+  void LoadCodeObjectEntry(Register destination, Register code_object) override;
+  void CallCodeObject(Register code_object) override;
+  void JumpCodeObject(Register code_object) override;
+
   void CallBuiltinPointer(Register builtin_pointer) override;
 
 

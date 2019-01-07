@@ -678,7 +678,7 @@ void Assembler::call(Handle<Code> target, RelocInfo::Mode rmode) {
 
 void Assembler::jump(Handle<Code> target, RelocInfo::Mode rmode,
                      Condition cond) {
-  DCHECK(RelocInfo::IsCodeTarget(rmode));
+  DCHECK(RelocInfo::IsRelativeCodeTarget(rmode));
   EnsureSpace ensure_space(this);
 
   RecordRelocInfo(rmode);

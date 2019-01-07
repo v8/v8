@@ -86,8 +86,7 @@ static void GenerateTailCallToReturnedCode(MacroAssembler* masm,
     __ SmiUntag(r2);
   }
   static_assert(kJavaScriptCallCodeStartRegister == r4, "ABI mismatch");
-  __ AddP(r4, r4, Operand(Code::kHeaderSize - kHeapObjectTag));
-  __ JumpToJSEntry(r4);
+  __ JumpCodeObject(r4);
 }
 
 namespace {
@@ -492,8 +491,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
     __ LoadRR(r3, r6);
     static_assert(kJavaScriptCallCodeStartRegister == r4, "ABI mismatch");
     __ LoadP(r4, FieldMemOperand(r3, JSFunction::kCodeOffset));
-    __ AddP(r4, r4, Operand(Code::kHeaderSize - kHeapObjectTag));
-    __ JumpToJSEntry(r4);
+    __ JumpCodeObject(r4);
   }
 
   __ bind(&prepare_step_in_if_stepping);
@@ -984,8 +982,7 @@ static void MaybeTailCallOptimizedCodeSlot(MacroAssembler* masm,
     ReplaceClosureCodeWithOptimizedCode(masm, optimized_code_entry, closure,
                                         scratch2, scratch3, feedback_vector);
     static_assert(kJavaScriptCallCodeStartRegister == r4, "ABI mismatch");
-    __ AddP(r4, optimized_code_entry,
-            Operand(Code::kHeaderSize - kHeapObjectTag));
+    __ LoadCodeObjectEntry(r4, optimized_code_entry);
     __ Jump(r4);
 
     // Optimized code slot contains deoptimized code, evict it and re-enter the
@@ -1502,8 +1499,7 @@ void Builtins::Generate_InstantiateAsmJs(MacroAssembler* masm) {
   // which has be reset to the compile lazy builtin.
   static_assert(kJavaScriptCallCodeStartRegister == r4, "ABI mismatch");
   __ LoadP(r4, FieldMemOperand(r3, JSFunction::kCodeOffset));
-  __ AddP(r4, r4, Operand(Code::kHeaderSize - kHeapObjectTag));
-  __ JumpToJSEntry(r4);
+  __ JumpCodeObject(r4);
 }
 
 namespace {
@@ -2488,8 +2484,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   // r5 : new target (passed through to callee)
   static_assert(kJavaScriptCallCodeStartRegister == r4, "ABI mismatch");
   __ LoadP(r4, FieldMemOperand(r3, JSFunction::kCodeOffset));
-  __ AddP(r4, r4, Operand(Code::kHeaderSize - kHeapObjectTag));
-  __ CallJSEntry(r4);
+  __ CallCodeObject(r4);
 
   // Store offset of return address for deoptimizer.
   masm->isolate()->heap()->SetArgumentsAdaptorDeoptPCOffset(masm->pc_offset());
@@ -2504,8 +2499,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   __ bind(&dont_adapt_arguments);
   static_assert(kJavaScriptCallCodeStartRegister == r4, "ABI mismatch");
   __ LoadP(r4, FieldMemOperand(r3, JSFunction::kCodeOffset));
-  __ AddP(r4, r4, Operand(Code::kHeaderSize - kHeapObjectTag));
-  __ JumpToJSEntry(r4);
+  __ JumpCodeObject(r4);
 
   __ bind(&stack_overflow);
   {
