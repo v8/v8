@@ -195,6 +195,8 @@ inline std::ostream& operator<<(std::ostream& os, LiftoffRegister reg) {
 
 class LiftoffRegList {
  public:
+  class Iterator;
+
   static constexpr bool use_u16 = kAfterMaxLiftoffRegCode <= 16;
   static constexpr bool use_u32 = !use_u16 && kAfterMaxLiftoffRegCode <= 32;
   using storage_t = std::conditional<
@@ -282,6 +284,12 @@ class LiftoffRegList {
     return FromBits(regs_ & ~mask.regs_);
   }
 
+  RegList GetGpList() { return regs_ & kGpMask; }
+  RegList GetFpList() { return (regs_ & kFpMask) >> kAfterMaxLiftoffGpRegCode; }
+
+  inline Iterator begin() const;
+  inline Iterator end() const;
+
   static LiftoffRegList FromBits(storage_t bits) {
     DCHECK_EQ(bits, bits & (kGpMask | kFpMask));
     return LiftoffRegList(bits);
@@ -300,9 +308,6 @@ class LiftoffRegList {
     return list;
   }
 
-  RegList GetGpList() { return regs_ & kGpMask; }
-  RegList GetFpList() { return (regs_ & kFpMask) >> kAfterMaxLiftoffGpRegCode; }
-
  private:
   storage_t regs_ = 0;
 
@@ -315,6 +320,30 @@ static constexpr LiftoffRegList kGpCacheRegList =
     LiftoffRegList::FromBits<LiftoffRegList::kGpMask>();
 static constexpr LiftoffRegList kFpCacheRegList =
     LiftoffRegList::FromBits<LiftoffRegList::kFpMask>();
+
+class LiftoffRegList::Iterator {
+ public:
+  LiftoffRegister operator*() { return remaining_.GetFirstRegSet(); }
+  Iterator& operator++() {
+    remaining_.clear(remaining_.GetFirstRegSet());
+    return *this;
+  }
+  bool operator==(Iterator other) { return remaining_ == other.remaining_; }
+  bool operator!=(Iterator other) { return remaining_ != other.remaining_; }
+
+ private:
+  explicit Iterator(LiftoffRegList remaining) : remaining_(remaining) {}
+  friend class LiftoffRegList;
+
+  LiftoffRegList remaining_;
+};
+
+LiftoffRegList::Iterator LiftoffRegList::begin() const {
+  return Iterator{*this};
+}
+LiftoffRegList::Iterator LiftoffRegList::end() const {
+  return Iterator{LiftoffRegList{}};
+}
 
 static constexpr LiftoffRegList GetCacheRegList(RegClass rc) {
   return rc == kFpReg ? kFpCacheRegList : kGpCacheRegList;
