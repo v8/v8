@@ -1667,9 +1667,7 @@ ParserBase<Impl>::ParsePrimaryExpression() {
       parsing_scope.ValidateDeclaration();
       FunctionState function_state(&function_state_, &scope_,
                                    next_arrow_function_info_.scope);
-      InferName infer = kind == FunctionKind::kArrowFunction ? InferName::kYes
-                                                             : InferName::kNo;
-      return impl()->ExpressionFromIdentifier(name, beg_pos, infer);
+      return impl()->ExpressionFromIdentifier(name, beg_pos, InferName::kNo);
     }
 
     IdentifierT name = ParseAndClassifyIdentifier(token);
@@ -2620,8 +2618,6 @@ ParserBase<Impl>::ParseAssignmentExpressionCoverGrammar() {
     impl()->DeclareArrowFunctionFormalParameters(&parameters, expression, loc);
 
     expression = ParseArrowFunctionLiteral(parameters);
-
-    fni_.Infer();
 
     return expression;
   }

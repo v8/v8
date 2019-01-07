@@ -213,12 +213,12 @@ f1 (test.js:4:36)
     return await Promise.resolve(2);#
   }
 
-f1.then.x (test.js:10:27)
+(anonymous) (test.js:10:27)
     await f1();
     await f1().then(x => x #* 2);
     await [1].map(x => Promise.resolve(x))[0];
 
-f1.then.x (test.js:10:30)
+(anonymous) (test.js:10:30)
     await f1();
     await f1().then(x => x * 2#);
     await [1].map(x => Promise.resolve(x))[0];
@@ -228,13 +228,13 @@ f2 (test.js:11:4)
     #await [1].map(x => Promise.resolve(x))[0];
     await Promise.resolve().then(x => x * 2);
 
-map.x (test.js:11:31)
+(anonymous) (test.js:11:31)
 f2 (test.js:11:14)
     await f1().then(x => x * 2);
     await [1].map(x => Promise.#resolve(x))[0];
     await Promise.resolve().then(x => x * 2);
 
-map.x (test.js:11:41)
+(anonymous) (test.js:11:41)
 f2 (test.js:11:14)
     await f1().then(x => x * 2);
     await [1].map(x => Promise.resolve(x)#)[0];
