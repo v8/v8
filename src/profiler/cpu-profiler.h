@@ -197,7 +197,7 @@ class SamplingEventsProcessor : public ProfilerEventsProcessor {
  private:
   SampleProcessingResult ProcessOneSample() override;
 
-  static const size_t kTickSampleBufferSize = 1 * MB;
+  static const size_t kTickSampleBufferSize = 512 * KB;
   static const size_t kTickSampleQueueLength =
       kTickSampleBufferSize / sizeof(TickSampleEventRecord);
   SamplingCircularQueue<TickSampleEventRecord,
