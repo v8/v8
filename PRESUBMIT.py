@@ -464,13 +464,13 @@ def _CheckNoexceptAnnotations(input_api, output_api):
 
 
   # matches any class name.
-  class_name = r'\b([A-Z][A-Za-z0-9_]*)(?:::\1)?'
+  class_name = r'\b([A-Z][A-Za-z0-9_:]*)(?:::\1)?'
   # initial class name is potentially followed by this to declare an assignment
   # operator.
-  potential_assignment = r'(?:&\s+operator=)?\s*'
+  potential_assignment = r'(?:&\s+(?:\1::)?operator=)?\s*'
   # matches an argument list that contains only a reference to a class named
   # like the first capture group, potentially const.
-  single_class_ref_arg = r'\((?:const\s+)?\1(?:::\1)?&&?[^,;)]*\)'
+  single_class_ref_arg = r'\(\s*(?:const\s+)?\1(?:::\1)?&&?[^,;)]*\)'
   # matches anything but a sequence of whitespaces followed by either
   # V8_NOEXCEPT or "= delete".
   not_followed_by_noexcept = r'(?!\s+(?:V8_NOEXCEPT|=\s+delete)\b)'
