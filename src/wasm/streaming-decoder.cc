@@ -103,8 +103,10 @@ void StreamingDecoder::Finish() {
 void StreamingDecoder::Abort() {
   TRACE_STREAMING("Abort\n");
   if (!ok()) return;  // Failed already.
-  processor_->OnAbort();
-  Fail();
+  // Move the processor out of the unique_ptr field first, to avoid recursive
+  // calls to {OnAbort}.
+  std::unique_ptr<StreamingProcessor> processor = std::move(processor_);
+  processor->OnAbort();
 }
 
 void StreamingDecoder::SetModuleCompiledCallback(
