@@ -430,6 +430,8 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
     }
 
     // Monomorphic property access.
+    constructor =
+        access_builder.BuildCheckHeapObject(constructor, &effect, control);
     access_builder.BuildCheckMaps(constructor, &effect, control,
                                   access_info.receiver_maps());
 
