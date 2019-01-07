@@ -12,6 +12,7 @@
 #include "src/ast/ast.h"
 #include "src/ast/source-range-ast-visitor.h"
 #include "src/bailout-reason.h"
+#include "src/base/ieee754.h"
 #include "src/base/platform/platform.h"
 #include "src/char-predicates-inl.h"
 #include "src/compiler-dispatcher/compiler-dispatcher.h"
@@ -159,7 +160,8 @@ bool Parser::ShortcutNumericLiteralBinaryExpression(Expression** x,
         *x = factory()->NewNumberLiteral(x_val * y_val, pos);
         return true;
       case Token::DIV:
-        *x = factory()->NewNumberLiteral(x_val / y_val, pos);
+        *x = factory()->NewNumberLiteral(base::ieee754::divide(x_val, y_val),
+                                         pos);
         return true;
       case Token::BIT_OR: {
         int value = DoubleToInt32(x_val) | DoubleToInt32(y_val);
