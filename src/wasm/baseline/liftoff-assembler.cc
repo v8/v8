@@ -248,63 +248,67 @@ class StackTransferRecipe {
            register_move(dst)->type == type;
   }
 
+  void ExecuteMove(LiftoffRegister dst, uint32_t* src_reg_use_count) {
+    RegisterMove* move = register_move(dst);
+    DCHECK_EQ(0, src_reg_use_count[dst.liftoff_code()]);
+    asm_->Move(dst, move->src, move->type);
+    ClearExecutedMove(dst, src_reg_use_count);
+  }
+
+  void ClearExecutedMove(LiftoffRegister dst, uint32_t* src_reg_use_count) {
+    DCHECK(move_dst_regs_.has(dst));
+    move_dst_regs_.clear(dst);
+    RegisterMove* move = register_move(dst);
+    DCHECK_LT(0, src_reg_use_count[move->src.liftoff_code()]);
+    if (--src_reg_use_count[move->src.liftoff_code()] != 0) return;
+    // src count dropped to zero. If this is a destination register, execute
+    // that move now.
+    if (!move_dst_regs_.has(move->src)) return;
+    ExecuteMove(move->src, src_reg_use_count);
+  }
+
   void ExecuteMoves() {
-    if (move_dst_regs_.is_empty()) return;
-
-    if ((move_dst_regs_ & move_src_regs_).is_empty()) {
-      // No overlap in src and dst registers. Just execute the moves in any
-      // order.
-      for (LiftoffRegister dst : move_dst_regs_) {
-        RegisterMove* move = register_move(dst);
-        asm_->Move(dst, move->src, move->type);
-      }
-      move_dst_regs_ = {};
-      return;
-    }
-
-    // Keep use counters of src registers.
+    // Execute all moves whose {dst} is not being used as src any more.
+    // Simultaneously, compute use counters of src registers for the remaining
+    // passes.
     uint32_t src_reg_use_count[kAfterMaxLiftoffRegCode] = {0};
     for (LiftoffRegister dst : move_dst_regs_) {
-      ++src_reg_use_count[register_move(dst)->src.liftoff_code()];
+      RegisterMove* move = register_move(dst);
+      if (!move_src_regs_.has(dst)) {
+        asm_->Move(dst, move->src, move->type);
+        move_dst_regs_.clear(dst);
+      } else {
+        ++src_reg_use_count[move->src.liftoff_code()];
+      }
     }
-    // Now repeatedly iterate the list of register moves, and execute those
-    // whose dst register does not appear as src any more. The remaining moves
-    // are compacted during this iteration.
-    // If no more moves can be executed (because of a cycle), spill one
-    // register to the stack, add a RegisterLoad to reload it later, and
-    // continue.
+    // {move_src_regs_} is outdated and not being used any more.
+    move_src_regs_ = {};
+
+    // Now iterate all remaining moves again and execute all that can be
+    // executed according to {src_reg_use_count}. If any src count drops to
+    // zero, also (transitively) execute the corresponding move to that
+    // register.
+    for (LiftoffRegister dst : move_dst_regs_) {
+      // Check if already handled via transitivity in {ClearExecutedMove}.
+      if (!move_dst_regs_.has(dst)) continue;
+      RegisterMove* move = register_move(dst);
+      if (src_reg_use_count[move->src.liftoff_code()]) continue;
+      ExecuteMove(dst, src_reg_use_count);
+    }
+
+    // All remaining moves are parts of a cycle. Just spill the first one, then
+    // process all remaining moves in that cycle. Repeat for all cycles.
     uint32_t next_spill_slot = asm_->cache_state()->stack_height();
     while (!move_dst_regs_.is_empty()) {
-      bool freed_src_reg = false;
-      for (LiftoffRegister dst : move_dst_regs_) {
-        // If the dst register is still being used as src, we cannot execute
-        // this move yet.
-        if (src_reg_use_count[dst.liftoff_code()] != 0) continue;
-
-        RegisterMove* move = register_move(dst);
-        asm_->Move(dst, move->src, move->type);
-        DCHECK_LT(0, src_reg_use_count[move->src.liftoff_code()]);
-        if (--src_reg_use_count[move->src.liftoff_code()] == 0) {
-          freed_src_reg = true;
-        }
-        move_dst_regs_.clear(dst);
-      }
-      // If the loop above did free at least one src register, then there is a
-      // chance that another run executes more moves. Thus run again.
-      if (freed_src_reg) continue;
-
-      // There is a cycle. Spill one register, then continue.
       // TODO(clemensh): Use an unused register if available.
       LiftoffRegister dst = move_dst_regs_.GetFirstRegSet();
-      move_dst_regs_.clear(dst);
       RegisterMove* move = register_move(dst);
       LiftoffRegister spill_reg = move->src;
       asm_->Spill(next_spill_slot, spill_reg, move->type);
       // Remember to reload into the destination register later.
       LoadStackSlot(dst, next_spill_slot, move->type);
-      DCHECK_EQ(1, src_reg_use_count[spill_reg.liftoff_code()]);
-      src_reg_use_count[spill_reg.liftoff_code()] = 0;
       ++next_spill_slot;
+      ClearExecutedMove(dst, src_reg_use_count);
     }
   }
 
