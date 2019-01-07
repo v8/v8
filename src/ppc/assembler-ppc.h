@@ -52,8 +52,6 @@
 #include "src/ppc/constants-ppc.h"
 #include "src/ppc/register-ppc.h"
 
-#define INSTR_AND_DATA_CACHE_COHERENCY LWSYNC
-
 namespace v8 {
 namespace internal {
 

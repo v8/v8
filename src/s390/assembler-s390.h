@@ -78,8 +78,6 @@
 
 #define ABI_CALL_VIA_IP 1
 
-#define INSTR_AND_DATA_CACHE_COHERENCY LWSYNC
-
 namespace v8 {
 namespace internal {
 
