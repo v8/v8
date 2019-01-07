@@ -1251,15 +1251,17 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
 
 void VisitWordCompare(InstructionSelector* selector, Node* node,
                       FlagsContinuation* cont) {
-  StackCheckMatcher<Int32BinopMatcher, IrOpcode::kUint32LessThan> m(
-      selector->isolate(), node);
-  if (m.Matched()) {
-    // Compare(Load(js_stack_limit), LoadStackPointer)
-    if (!node->op()->HasProperty(Operator::kCommutative)) cont->Commute();
-    InstructionCode opcode = cont->Encode(kIA32StackCheck);
-    CHECK(cont->IsBranch());
-    selector->EmitWithContinuation(opcode, cont);
-    return;
+  if (selector->isolate() != nullptr) {
+    StackCheckMatcher<Int32BinopMatcher, IrOpcode::kUint32LessThan> m(
+        selector->isolate(), node);
+    if (m.Matched()) {
+      // Compare(Load(js_stack_limit), LoadStackPointer)
+      if (!node->op()->HasProperty(Operator::kCommutative)) cont->Commute();
+      InstructionCode opcode = cont->Encode(kIA32StackCheck);
+      CHECK(cont->IsBranch());
+      selector->EmitWithContinuation(opcode, cont);
+      return;
+    }
   }
   WasmStackCheckMatcher<Int32BinopMatcher, IrOpcode::kUint32LessThan> wasm_m(
       node);

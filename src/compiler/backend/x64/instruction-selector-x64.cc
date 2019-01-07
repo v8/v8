@@ -1780,15 +1780,17 @@ void VisitWord64Compare(InstructionSelector* selector, Node* node,
           g.UseRegister(m.right().node()), cont);
     }
   }
-  StackCheckMatcher<Int64BinopMatcher, IrOpcode::kUint64LessThan> m(
-      selector->isolate(), node);
-  if (m.Matched()) {
-    // Compare(Load(js_stack_limit), LoadStackPointer)
-    if (!node->op()->HasProperty(Operator::kCommutative)) cont->Commute();
-    InstructionCode opcode = cont->Encode(kX64StackCheck);
-    CHECK(cont->IsBranch());
-    selector->EmitWithContinuation(opcode, cont);
-    return;
+  if (selector->isolate() != nullptr) {
+    StackCheckMatcher<Int64BinopMatcher, IrOpcode::kUint64LessThan> m(
+        selector->isolate(), node);
+    if (m.Matched()) {
+      // Compare(Load(js_stack_limit), LoadStackPointer)
+      if (!node->op()->HasProperty(Operator::kCommutative)) cont->Commute();
+      InstructionCode opcode = cont->Encode(kX64StackCheck);
+      CHECK(cont->IsBranch());
+      selector->EmitWithContinuation(opcode, cont);
+      return;
+    }
   }
   WasmStackCheckMatcher<Int64BinopMatcher, IrOpcode::kUint64LessThan> wasm_m(
       node);

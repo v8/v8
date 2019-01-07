@@ -782,7 +782,9 @@ struct WasmStackCheckMatcher {
 template <class BinopMatcher, IrOpcode::Value expected_opcode>
 struct StackCheckMatcher {
   StackCheckMatcher(Isolate* isolate, Node* compare)
-      : isolate_(isolate), compare_(compare) {}
+      : isolate_(isolate), compare_(compare) {
+    DCHECK_NOT_NULL(isolate);
+  }
   bool Matched() {
     // TODO(jgruber): Ideally, we could be more flexible here and also match the
     // same pattern with switched operands (i.e.: left is LoadStackPointer and
