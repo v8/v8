@@ -649,6 +649,9 @@ class MapData : public HeapObjectData {
   int constructor_function_index() const { return constructor_function_index_; }
   int NextFreePropertyIndex() const { return next_free_property_index_; }
   int UnusedPropertyFields() const { return unused_property_fields_; }
+  bool supports_fast_array_resize() const {
+    return supports_fast_array_resize_;
+  }
 
   // Extra information.
 
@@ -691,6 +694,7 @@ class MapData : public HeapObjectData {
   int const constructor_function_index_;
   int const next_free_property_index_;
   int const unused_property_fields_;
+  bool const supports_fast_array_resize_;
 
   bool serialized_elements_kind_generalizations_ = false;
   ZoneVector<MapData*> elements_kind_generalizations_;
@@ -752,6 +756,28 @@ HeapObjectData::HeapObjectData(JSHeapBroker* broker, ObjectData** storage,
   CHECK(broker->SerializingAllowed());
 }
 
+namespace {
+bool IsReadOnlyLengthDescriptor(Isolate* isolate, Handle<Map> jsarray_map) {
+  DCHECK(!jsarray_map->is_dictionary_map());
+  Handle<Name> length_string = isolate->factory()->length_string();
+  DescriptorArray descriptors = jsarray_map->instance_descriptors();
+  int number = descriptors->Search(*length_string, *jsarray_map);
+  DCHECK_NE(DescriptorArray::kNotFound, number);
+  return descriptors->GetDetails(number).IsReadOnly();
+}
+
+bool SupportsFastArrayResize(Isolate* isolate, Handle<Map> map) {
+  return map->instance_type() == JS_ARRAY_TYPE &&
+         IsFastElementsKind(map->elements_kind()) && map->is_extensible() &&
+         map->prototype()->IsJSArray() &&
+         isolate->IsAnyInitialArrayPrototype(
+             handle(JSArray::cast(map->prototype()), isolate)) &&
+         !map->is_dictionary_map() &&
+         !IsReadOnlyLengthDescriptor(isolate, map) &&
+         isolate->IsNoElementsProtectorIntact();
+}
+}  // namespace
+
 MapData::MapData(JSHeapBroker* broker, ObjectData** storage, Handle<Map> object)
     : HeapObjectData(broker, storage, object),
       instance_type_(object->instance_type()),
@@ -773,6 +799,8 @@ MapData::MapData(JSHeapBroker* broker, ObjectData** storage, Handle<Map> object)
                                       : Map::kNoConstructorFunctionIndex),
       next_free_property_index_(object->NextFreePropertyIndex()),
       unused_property_fields_(object->UnusedPropertyFields()),
+      supports_fast_array_resize_(
+          SupportsFastArrayResize(broker->isolate(), object)),
       elements_kind_generalizations_(broker->zone()) {}
 
 JSFunctionData::JSFunctionData(JSHeapBroker* broker, ObjectData** storage,
@@ -1817,6 +1845,15 @@ base::Optional<MapRef> MapRef::AsElementsKind(ElementsKind kind) const {
     if (map.elements_kind() == kind) return map;
   }
   return base::Optional<MapRef>();
+}
+
+bool MapRef::supports_fast_array_resize() const {
+  if (broker()->mode() == JSHeapBroker::kDisabled) {
+    AllowHandleDereference allow_handle_dereference;
+    AllowHandleAllocation handle_allocation;
+    return SupportsFastArrayResize(broker()->isolate(), object());
+  }
+  return data()->AsMap()->supports_fast_array_resize();
 }
 
 int JSFunctionRef::InitialMapInstanceSizeWithMinSlack() const {

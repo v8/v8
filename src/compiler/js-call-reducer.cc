@@ -4308,32 +4308,6 @@ Reduction JSCallReducer::ReduceSoftDeoptimize(Node* node,
   return Changed(node);
 }
 
-namespace {
-
-// TODO(turbofan): This was copied from old compiler, might be too restrictive.
-bool IsReadOnlyLengthDescriptor(Isolate* isolate, Handle<Map> jsarray_map) {
-  DCHECK(!jsarray_map->is_dictionary_map());
-  Handle<Name> length_string = isolate->factory()->length_string();
-  DescriptorArray descriptors = jsarray_map->instance_descriptors();
-  int number = descriptors->Search(*length_string, *jsarray_map);
-  DCHECK_NE(DescriptorArray::kNotFound, number);
-  return descriptors->GetDetails(number).IsReadOnly();
-}
-
-// TODO(turbofan): This was copied from old compiler, might be too restrictive.
-bool CanInlineArrayResizeOperation(Isolate* isolate, MapRef& receiver_map) {
-  receiver_map.SerializePrototype();
-  if (!receiver_map.prototype().IsJSArray()) return false;
-  JSArrayRef receiver_prototype = receiver_map.prototype().AsJSArray();
-  return receiver_map.instance_type() == JS_ARRAY_TYPE &&
-         IsFastElementsKind(receiver_map.elements_kind()) &&
-         !receiver_map.is_dictionary_map() && receiver_map.is_extensible() &&
-         isolate->IsAnyInitialArrayPrototype(receiver_prototype.object()) &&
-         !IsReadOnlyLengthDescriptor(isolate, receiver_map.object());
-}
-
-}  // namespace
-
 // ES6 section 22.1.3.18 Array.prototype.push ( )
 Reduction JSCallReducer::ReduceArrayPrototypePush(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
@@ -4342,18 +4316,11 @@ Reduction JSCallReducer::ReduceArrayPrototypePush(Node* node) {
     return NoChange();
   }
 
-  PropertyCellRef no_elements_protector(broker(),
-                                        factory()->no_elements_protector());
-  if (no_elements_protector.value().AsSmi() != Isolate::kProtectorValid) {
-    return NoChange();
-  }
-
   int const num_values = node->op()->ValueInputCount() - 2;
   Node* receiver = NodeProperties::GetValueInput(node, 1);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
-  // Try to determine the {receiver} map(s).
   ZoneHandleSet<Map> receiver_maps;
   NodeProperties::InferReceiverMapsResult result =
       NodeProperties::InferReceiverMaps(broker(), receiver, effect,
@@ -4362,18 +4329,15 @@ Reduction JSCallReducer::ReduceArrayPrototypePush(Node* node) {
   DCHECK_NE(0, receiver_maps.size());
 
   ElementsKind kind = receiver_maps[0]->elements_kind();
-
   for (Handle<Map> map : receiver_maps) {
     MapRef receiver_map(broker(), map);
-    receiver_map.SerializePrototype();
-    if (!CanInlineArrayResizeOperation(isolate(), receiver_map))
-      return NoChange();
+    if (!receiver_map.supports_fast_array_resize()) return NoChange();
     if (!UnionElementsKindUptoPackedness(&kind, receiver_map.elements_kind()))
       return NoChange();
   }
 
-  // Install code dependencies on the {receiver} global array protector cell.
-  dependencies()->DependOnProtector(no_elements_protector);
+  dependencies()->DependOnProtector(
+      PropertyCellRef(broker(), factory()->no_elements_protector()));
 
   // If the {receiver_maps} information is not reliable, we need
   // to check that the {receiver} still has one of these maps.
@@ -4461,12 +4425,6 @@ Reduction JSCallReducer::ReduceArrayPrototypePop(Node* node) {
     return NoChange();
   }
 
-  PropertyCellRef no_elements_protector(broker(),
-                                        factory()->no_elements_protector());
-  if (no_elements_protector.value().AsSmi() != Isolate::kProtectorValid) {
-    return NoChange();
-  }
-
   Node* receiver = NodeProperties::GetValueInput(node, 1);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
@@ -4481,9 +4439,7 @@ Reduction JSCallReducer::ReduceArrayPrototypePop(Node* node) {
   ElementsKind kind = receiver_maps[0]->elements_kind();
   for (Handle<Map> map : receiver_maps) {
     MapRef receiver_map(broker(), map);
-    receiver_map.SerializePrototype();
-    if (!CanInlineArrayResizeOperation(isolate(), receiver_map))
-      return NoChange();
+    if (!receiver_map.supports_fast_array_resize()) return NoChange();
     // TODO(turbofan): Extend this to also handle fast holey double elements
     // once we got the hole NaN mess sorted out in TurboFan/V8.
     if (receiver_map.elements_kind() == HOLEY_DOUBLE_ELEMENTS)
@@ -4492,8 +4448,8 @@ Reduction JSCallReducer::ReduceArrayPrototypePop(Node* node) {
       return NoChange();
   }
 
-  // Install code dependencies on the {receiver} global array protector cell.
-  dependencies()->DependOnProtector(no_elements_protector);
+  dependencies()->DependOnProtector(
+      PropertyCellRef(broker(), factory()->no_elements_protector()));
 
   // If the {receiver_maps} information is not reliable, we need
   // to check that the {receiver} still has one of these maps.
@@ -4583,12 +4539,6 @@ Reduction JSCallReducer::ReduceArrayPrototypeShift(Node* node) {
     return NoChange();
   }
 
-  PropertyCellRef no_elements_protector(broker(),
-                                        factory()->no_elements_protector());
-  if (no_elements_protector.value().AsSmi() != Isolate::kProtectorValid) {
-    return NoChange();
-  }
-
   Node* target = NodeProperties::GetValueInput(node, 0);
   Node* receiver = NodeProperties::GetValueInput(node, 1);
   Node* context = NodeProperties::GetContextInput(node);
@@ -4606,9 +4556,7 @@ Reduction JSCallReducer::ReduceArrayPrototypeShift(Node* node) {
   ElementsKind kind = receiver_maps[0]->elements_kind();
   for (Handle<Map> map : receiver_maps) {
     MapRef receiver_map(broker(), map);
-    receiver_map.SerializePrototype();
-    if (!CanInlineArrayResizeOperation(isolate(), receiver_map))
-      return NoChange();
+    if (!receiver_map.supports_fast_array_resize()) return NoChange();
     // TODO(turbofan): Extend this to also handle fast holey double elements
     // once we got the hole NaN mess sorted out in TurboFan/V8.
     if (receiver_map.elements_kind() == HOLEY_DOUBLE_ELEMENTS)
@@ -4617,8 +4565,8 @@ Reduction JSCallReducer::ReduceArrayPrototypeShift(Node* node) {
       return NoChange();
   }
 
-  // Install code dependencies on the {receiver} global array protector cell.
-  dependencies()->DependOnProtector(no_elements_protector);
+  dependencies()->DependOnProtector(
+      PropertyCellRef(broker(), factory()->no_elements_protector()));
 
   // If the {receiver_maps} information is not reliable, we need
   // to check that the {receiver} still has one of these maps.
