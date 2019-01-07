@@ -2770,6 +2770,282 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   UNREACHABLE();
 }
 
+namespace {
+
+// Packs a 4 lane shuffle into a single imm8 suitable for use by pshufd,
+// pshuflw, and pshufhw.
+uint8_t PackShuffle4(uint8_t* shuffle) {
+  return (shuffle[0] & 3) | ((shuffle[1] & 3) << 2) | ((shuffle[2] & 3) << 4) |
+         ((shuffle[3] & 3) << 6);
+}
+
+// Gets an 8 bit lane mask suitable for 16x8 pblendw.
+uint8_t PackBlend8(const uint8_t* shuffle16x8) {
+  int8_t result = 0;
+  for (int i = 0; i < 8; ++i) {
+    result |= (shuffle16x8[i] >= 8 ? 1 : 0) << i;
+  }
+  return result;
+}
+
+// Gets an 8 bit lane mask suitable for 32x4 pblendw.
+uint8_t PackBlend4(const uint8_t* shuffle32x4) {
+  int8_t result = 0;
+  for (int i = 0; i < 4; ++i) {
+    result |= (shuffle32x4[i] >= 4 ? 0x3 : 0) << (i * 2);
+  }
+  return result;
+}
+
+// Returns true if shuffle can be decomposed into two 16x4 half shuffles
+// followed by a 16x8 blend.
+// E.g. [3 2 1 0 15 14 13 12].
+bool TryMatch16x8HalfShuffle(uint8_t* shuffle16x8, uint8_t* blend_mask) {
+  *blend_mask = 0;
+  for (int i = 0; i < 8; i++) {
+    if ((shuffle16x8[i] & 0x4) != (i & 0x4)) return false;
+    *blend_mask |= (shuffle16x8[i] > 7 ? 1 : 0) << i;
+  }
+  return true;
+}
+
+struct ShuffleEntry {
+  uint8_t shuffle[kSimd128Size];
+  ArchOpcode opcode;
+  bool src0_needs_reg;
+  bool src1_needs_reg;
+};
+
+// Shuffles that map to architecture-specific instruction sequences. These are
+// matched very early, so we shouldn't include shuffles that match better in
+// later tests, like 32x4 and 16x8 shuffles. In general, these patterns should
+// map to either a single instruction, or be finer grained, such as zip/unzip or
+// transpose patterns.
+static const ShuffleEntry arch_shuffles[] = {
+    {{0, 1, 2, 3, 4, 5, 6, 7, 16, 17, 18, 19, 20, 21, 22, 23},
+     kX64S64x2UnpackLow,
+     true,
+     false},
+    {{8, 9, 10, 11, 12, 13, 14, 15, 24, 25, 26, 27, 28, 29, 30, 31},
+     kX64S64x2UnpackHigh,
+     true,
+     false},
+    {{0, 1, 2, 3, 16, 17, 18, 19, 4, 5, 6, 7, 20, 21, 22, 23},
+     kX64S32x4UnpackLow,
+     true,
+     false},
+    {{8, 9, 10, 11, 24, 25, 26, 27, 12, 13, 14, 15, 28, 29, 30, 31},
+     kX64S32x4UnpackHigh,
+     true,
+     false},
+    {{0, 1, 16, 17, 2, 3, 18, 19, 4, 5, 20, 21, 6, 7, 22, 23},
+     kX64S16x8UnpackLow,
+     true,
+     false},
+    {{8, 9, 24, 25, 10, 11, 26, 27, 12, 13, 28, 29, 14, 15, 30, 31},
+     kX64S16x8UnpackHigh,
+     true,
+     false},
+    {{0, 16, 1, 17, 2, 18, 3, 19, 4, 20, 5, 21, 6, 22, 7, 23},
+     kX64S8x16UnpackLow,
+     true,
+     false},
+    {{8, 24, 9, 25, 10, 26, 11, 27, 12, 28, 13, 29, 14, 30, 15, 31},
+     kX64S8x16UnpackHigh,
+     true,
+     false},
+
+    {{0, 1, 4, 5, 8, 9, 12, 13, 16, 17, 20, 21, 24, 25, 28, 29},
+     kX64S16x8UnzipLow,
+     true,
+     false},
+    {{2, 3, 6, 7, 10, 11, 14, 15, 18, 19, 22, 23, 26, 27, 30, 31},
+     kX64S16x8UnzipHigh,
+     true,
+     true},
+    {{0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30},
+     kX64S8x16UnzipLow,
+     true,
+     true},
+    {{1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31},
+     kX64S8x16UnzipHigh,
+     true,
+     true},
+    {{0, 16, 2, 18, 4, 20, 6, 22, 8, 24, 10, 26, 12, 28, 14, 30},
+     kX64S8x16TransposeLow,
+     true,
+     true},
+    {{1, 17, 3, 19, 5, 21, 7, 23, 9, 25, 11, 27, 13, 29, 15, 31},
+     kX64S8x16TransposeHigh,
+     true,
+     true},
+    {{7, 6, 5, 4, 3, 2, 1, 0, 15, 14, 13, 12, 11, 10, 9, 8},
+     kX64S8x8Reverse,
+     false,
+     false},
+    {{3, 2, 1, 0, 7, 6, 5, 4, 11, 10, 9, 8, 15, 14, 13, 12},
+     kX64S8x4Reverse,
+     false,
+     false},
+    {{1, 0, 3, 2, 5, 4, 7, 6, 9, 8, 11, 10, 13, 12, 15, 14},
+     kX64S8x2Reverse,
+     true,
+     true}};
+
+bool TryMatchArchShuffle(const uint8_t* shuffle, const ShuffleEntry* table,
+                         size_t num_entries, bool is_swizzle,
+                         const ShuffleEntry** arch_shuffle) {
+  uint8_t mask = is_swizzle ? kSimd128Size - 1 : 2 * kSimd128Size - 1;
+  for (size_t i = 0; i < num_entries; ++i) {
+    const ShuffleEntry& entry = table[i];
+    int j = 0;
+    for (; j < kSimd128Size; ++j) {
+      if ((entry.shuffle[j] & mask) != (shuffle[j] & mask)) {
+        break;
+      }
+    }
+    if (j == kSimd128Size) {
+      *arch_shuffle = &entry;
+      return true;
+    }
+  }
+  return false;
+}
+
+}  // namespace
+
+void InstructionSelector::VisitS8x16Shuffle(Node* node) {
+  uint8_t shuffle[kSimd128Size];
+  bool is_swizzle;
+  CanonicalizeShuffle(node, shuffle, &is_swizzle);
+
+  int imm_count = 0;
+  static const int kMaxImms = 6;
+  uint32_t imms[kMaxImms];
+  int temp_count = 0;
+  static const int kMaxTemps = 2;
+  InstructionOperand temps[kMaxTemps];
+
+  X64OperandGenerator g(this);
+  // Swizzles don't generally need DefineSameAsFirst to avoid a move.
+  bool no_same_as_first = is_swizzle;
+  // We generally need UseRegister for input0, Use for input1.
+  bool src0_needs_reg = true;
+  bool src1_needs_reg = false;
+  ArchOpcode opcode = kX64S8x16Shuffle;  // general shuffle is the default
+
+  uint8_t offset;
+  uint8_t shuffle32x4[4];
+  uint8_t shuffle16x8[8];
+  int index;
+  const ShuffleEntry* arch_shuffle;
+  if (TryMatchConcat(shuffle, &offset)) {
+    // Swap inputs from the normal order for (v)palignr.
+    SwapShuffleInputs(node);
+    is_swizzle = false;        // It's simpler to just handle the general case.
+    no_same_as_first = false;  // SSE requires same-as-first.
+    opcode = kX64S8x16Alignr;
+    // palignr takes a single imm8 offset.
+    imms[imm_count++] = offset;
+  } else if (TryMatchArchShuffle(shuffle, arch_shuffles,
+                                 arraysize(arch_shuffles), is_swizzle,
+                                 &arch_shuffle)) {
+    opcode = arch_shuffle->opcode;
+    src0_needs_reg = arch_shuffle->src0_needs_reg;
+    // SSE can't take advantage of both operands in registers and needs
+    // same-as-first.
+    src1_needs_reg = false;
+    no_same_as_first = false;
+  } else if (TryMatch32x4Shuffle(shuffle, shuffle32x4)) {
+    uint8_t shuffle_mask = PackShuffle4(shuffle32x4);
+    if (is_swizzle) {
+      if (TryMatchIdentity(shuffle)) {
+        // Bypass normal shuffle code generation in this case.
+        EmitIdentity(node);
+        return;
+      } else {
+        // pshufd takes a single imm8 shuffle mask.
+        opcode = kX64S32x4Swizzle;
+        no_same_as_first = true;
+        src0_needs_reg = false;
+        imms[imm_count++] = shuffle_mask;
+      }
+    } else {
+      // 2 operand shuffle
+      // A blend is more efficient than a general 32x4 shuffle; try it first.
+      if (TryMatchBlend(shuffle)) {
+        opcode = kX64S16x8Blend;
+        uint8_t blend_mask = PackBlend4(shuffle32x4);
+        imms[imm_count++] = blend_mask;
+      } else {
+        opcode = kX64S32x4Shuffle;
+        no_same_as_first = true;
+        src0_needs_reg = false;
+        imms[imm_count++] = shuffle_mask;
+        int8_t blend_mask = PackBlend4(shuffle32x4);
+        imms[imm_count++] = blend_mask;
+      }
+    }
+  } else if (TryMatch16x8Shuffle(shuffle, shuffle16x8)) {
+    uint8_t blend_mask;
+    if (TryMatchBlend(shuffle)) {
+      opcode = kX64S16x8Blend;
+      blend_mask = PackBlend8(shuffle16x8);
+      imms[imm_count++] = blend_mask;
+    } else if (TryMatchDup<8>(shuffle, &index)) {
+      opcode = kX64S16x8Dup;
+      src0_needs_reg = false;
+      imms[imm_count++] = index;
+    } else if (TryMatch16x8HalfShuffle(shuffle16x8, &blend_mask)) {
+      opcode = is_swizzle ? kX64S16x8HalfShuffle1 : kX64S16x8HalfShuffle2;
+      // Half-shuffles don't need DefineSameAsFirst or UseRegister(src0).
+      no_same_as_first = true;
+      src0_needs_reg = false;
+      uint8_t mask_lo = PackShuffle4(shuffle16x8);
+      uint8_t mask_hi = PackShuffle4(shuffle16x8 + 4);
+      imms[imm_count++] = mask_lo;
+      imms[imm_count++] = mask_hi;
+      if (!is_swizzle) imms[imm_count++] = blend_mask;
+    }
+  } else if (TryMatchDup<16>(shuffle, &index)) {
+    opcode = kX64S8x16Dup;
+    no_same_as_first = false;
+    src0_needs_reg = true;
+    imms[imm_count++] = index;
+  }
+  if (opcode == kX64S8x16Shuffle) {
+    // Use same-as-first for general swizzle, but not shuffle.
+    no_same_as_first = !is_swizzle;
+    src0_needs_reg = !no_same_as_first;
+    imms[imm_count++] = Pack4Lanes(shuffle);
+    imms[imm_count++] = Pack4Lanes(shuffle + 4);
+    imms[imm_count++] = Pack4Lanes(shuffle + 8);
+    imms[imm_count++] = Pack4Lanes(shuffle + 12);
+    temps[temp_count++] = g.TempRegister();
+  }
+
+  // Use DefineAsRegister(node) and Use(src0) if we can without forcing an extra
+  // move instruction in the CodeGenerator.
+  Node* input0 = node->InputAt(0);
+  InstructionOperand dst =
+      no_same_as_first ? g.DefineAsRegister(node) : g.DefineSameAsFirst(node);
+  InstructionOperand src0 =
+      src0_needs_reg ? g.UseRegister(input0) : g.Use(input0);
+
+  int input_count = 0;
+  InstructionOperand inputs[2 + kMaxImms + kMaxTemps];
+  inputs[input_count++] = src0;
+  if (!is_swizzle) {
+    Node* input1 = node->InputAt(1);
+    inputs[input_count++] =
+        src1_needs_reg ? g.UseRegister(input1) : g.Use(input1);
+  }
+  for (int i = 0; i < imm_count; ++i) {
+    inputs[input_count++] = g.UseImmediate(imms[i]);
+  }
+  Emit(opcode, 1, &dst, input_count, inputs, temp_count, temps);
+}
+
 // static
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {

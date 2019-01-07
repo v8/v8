@@ -260,6 +260,32 @@ namespace compiler {
   V(X64S128Or)                            \
   V(X64S128Xor)                           \
   V(X64S128Select)                        \
+  V(X64S8x16Shuffle)                      \
+  V(X64S32x4Swizzle)                      \
+  V(X64S32x4Shuffle)                      \
+  V(X64S16x8Blend)                        \
+  V(X64S16x8HalfShuffle1)                 \
+  V(X64S16x8HalfShuffle2)                 \
+  V(X64S8x16Alignr)                       \
+  V(X64S16x8Dup)                          \
+  V(X64S8x16Dup)                          \
+  V(X64S16x8UnzipHigh)                    \
+  V(X64S16x8UnzipLow)                     \
+  V(X64S8x16UnzipHigh)                    \
+  V(X64S8x16UnzipLow)                     \
+  V(X64S64x2UnpackHigh)                   \
+  V(X64S32x4UnpackHigh)                   \
+  V(X64S16x8UnpackHigh)                   \
+  V(X64S8x16UnpackHigh)                   \
+  V(X64S64x2UnpackLow)                    \
+  V(X64S32x4UnpackLow)                    \
+  V(X64S16x8UnpackLow)                    \
+  V(X64S8x16UnpackLow)                    \
+  V(X64S8x16TransposeLow)                 \
+  V(X64S8x16TransposeHigh)                \
+  V(X64S8x8Reverse)                       \
+  V(X64S8x4Reverse)                       \
+  V(X64S8x2Reverse)                       \
   V(X64S1x4AnyTrue)                       \
   V(X64S1x4AllTrue)                       \
   V(X64S1x8AnyTrue)                       \

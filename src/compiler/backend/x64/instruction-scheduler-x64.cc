@@ -237,6 +237,32 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64S1x4AllTrue:
     case kX64S1x8AnyTrue:
     case kX64S1x8AllTrue:
+    case kX64S8x16Shuffle:
+    case kX64S32x4Swizzle:
+    case kX64S32x4Shuffle:
+    case kX64S16x8Blend:
+    case kX64S16x8HalfShuffle1:
+    case kX64S16x8HalfShuffle2:
+    case kX64S8x16Alignr:
+    case kX64S16x8Dup:
+    case kX64S8x16Dup:
+    case kX64S16x8UnzipHigh:
+    case kX64S16x8UnzipLow:
+    case kX64S8x16UnzipHigh:
+    case kX64S8x16UnzipLow:
+    case kX64S64x2UnpackHigh:
+    case kX64S32x4UnpackHigh:
+    case kX64S16x8UnpackHigh:
+    case kX64S8x16UnpackHigh:
+    case kX64S64x2UnpackLow:
+    case kX64S32x4UnpackLow:
+    case kX64S16x8UnpackLow:
+    case kX64S8x16UnpackLow:
+    case kX64S8x16TransposeLow:
+    case kX64S8x16TransposeHigh:
+    case kX64S8x8Reverse:
+    case kX64S8x4Reverse:
+    case kX64S8x2Reverse:
     case kX64S1x16AnyTrue:
     case kX64S1x16AllTrue:
       return (instr->addressing_mode() == kMode_None)

@@ -1738,8 +1738,6 @@ void RunShuffleOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
                               other_swizzle);
 }
 
-#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS || \
-    V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_IA32
 #define SHUFFLE_LIST(V)  \
   V(S128Identity)        \
   V(S32x4Dup)            \
@@ -1984,8 +1982,6 @@ WASM_SIMD_COMPILED_TEST(S8x16MultiShuffleFuzz) {
     }
   }
 }
-#endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS ||
-        // V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_IA32
 
 // Boolean unary operations are 'AllTrue' and 'AnyTrue', which return an integer
 // result. Use relational ops on numeric vectors to create the boolean vector

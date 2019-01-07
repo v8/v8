@@ -1150,7 +1150,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void pshufd(XMMRegister dst, XMMRegister src, uint8_t shuffle);
   void pshufd(XMMRegister dst, Operand src, uint8_t shuffle);
   void pshufhw(XMMRegister dst, XMMRegister src, uint8_t shuffle);
+  void pshufhw(XMMRegister dst, Operand src, uint8_t shuffle);
   void pshuflw(XMMRegister dst, XMMRegister src, uint8_t shuffle);
+  void pshuflw(XMMRegister dst, Operand src, uint8_t shuffle);
   void cvtdq2ps(XMMRegister dst, XMMRegister src);
   void cvtdq2ps(XMMRegister dst, Operand src);
 
