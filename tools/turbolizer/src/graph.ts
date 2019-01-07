@@ -9,6 +9,8 @@ export class Graph {
   maxGraphY: number;
   maxGraphNodeX: number;
   maxBackEdgeNumber: number;
+  width: number;
+  height: number;
 
   constructor(data: any) {
     this.nodeMap = [];
@@ -17,6 +19,8 @@ export class Graph {
     this.maxGraphX = 1;
     this.minGraphY = 0;
     this.maxGraphY = 1;
+    this.width = 1;
+    this.height = 1;
 
     data.nodes.forEach((json_node: any) => {
       this.nodeMap[json_node.id] = new GNode(json_node.nodeLabel);
@@ -60,7 +64,7 @@ export class Graph {
     }
   }
 
-  redetermineGraphBoundingBox(showTypes: boolean): [[number, number], [[number, number], [number, number]]] {
+  redetermineGraphBoundingBox(showTypes: boolean): [[number, number], [number, number]] {
     this.minGraphX = 0;
     this.maxGraphNodeX = 1;
     this.maxGraphX = undefined;  // see below
@@ -89,15 +93,15 @@ export class Graph {
     this.maxGraphX = this.maxGraphNodeX +
       this.maxBackEdgeNumber * MINIMUM_EDGE_SEPARATION;
 
-    const width = (this.maxGraphX - this.minGraphX);
-    const height = this.maxGraphY - this.minGraphY;
+    this.width = this.maxGraphX - this.minGraphX;
+    this.height = this.maxGraphY - this.minGraphY;
 
     const extent: [[number, number], [number, number]] = [
-      [this.minGraphX - width / 2, this.minGraphY - height / 2],
-      [this.maxGraphX + width / 2, this.maxGraphY + height / 2]
+      [this.minGraphX - this.width / 2, this.minGraphY - this.height / 2],
+      [this.maxGraphX + this.width / 2, this.maxGraphY + this.height / 2]
     ];
 
-    return [[width, height], extent];
+    return extent;
   }
 
 }

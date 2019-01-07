@@ -37,8 +37,6 @@ export class GraphView extends View implements PhaseView {
   graphElement: d3.Selection<any, any, any, any>;
   visibleNodes: d3.Selection<any, GNode, any, any>;
   visibleEdges: d3.Selection<any, Edge, any, any>;
-  width: number;
-  height: number;
   drag: d3.DragBehavior<any, GNode, GNode>;
   panZoom: d3.ZoomBehavior<SVGElement, any>;
   visibleBubbles: d3.Selection<any, any, any, any>;
@@ -547,9 +545,7 @@ export class GraphView extends View implements PhaseView {
   layoutGraph() {
     console.time("layoutGraph");
     layoutNodeGraph(this.graph, this.state.showTypes);
-    const [[width, height], extent] = this.graph.redetermineGraphBoundingBox(this.state.showTypes);
-    this.width = width;
-    this.height = height;
+    const extent = this.graph.redetermineGraphBoundingBox(this.state.showTypes);
     this.panZoom.translateExtent(extent);
     this.minScale();
     console.timeEnd("layoutGraph");
@@ -802,10 +798,9 @@ export class GraphView extends View implements PhaseView {
   }
 
   minScale() {
-    const view = this;
     const dimensions = this.getSvgViewDimensions();
-    const minXScale = dimensions[0] / (2 * view.width);
-    const minYScale = dimensions[1] / (2 * view.height);
+    const minXScale = dimensions[0] / (2 * this.graph.width);
+    const minYScale = dimensions[1] / (2 * this.graph.height);
     const minScale = Math.min(minXScale, minYScale);
     this.panZoom.scaleExtent([minScale, 40]);
     return minScale;
@@ -862,6 +857,8 @@ export class GraphView extends View implements PhaseView {
 
   viewWholeGraph() {
     this.panZoom.scaleTo(this.svg, 0);
-    this.panZoom.translateTo(this.svg, this.graph.minGraphX + this.width / 2, this.graph.minGraphY + this.height / 2)
+    this.panZoom.translateTo(this.svg,
+      this.graph.minGraphX + this.graph.width / 2,
+      this.graph.minGraphY + this.graph.height / 2)
   }
 }
