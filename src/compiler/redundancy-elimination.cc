@@ -200,11 +200,22 @@ bool CheckSubsumes(Node const* a, Node const* b) {
   return true;
 }
 
+bool TypeSubsumes(Node* node, Node* replacement) {
+  if (!NodeProperties::IsTyped(node) || !NodeProperties::IsTyped(replacement)) {
+    // If either node is untyped, we are running during an untyped optimization
+    // phase, and replacement is OK.
+    return true;
+  }
+  Type node_type = NodeProperties::GetType(node);
+  Type replacement_type = NodeProperties::GetType(replacement);
+  return replacement_type.Is(node_type);
+}
+
 }  // namespace
 
 Node* RedundancyElimination::EffectPathChecks::LookupCheck(Node* node) const {
   for (Check const* check = head_; check != nullptr; check = check->next) {
-    if (CheckSubsumes(check->node, node)) {
+    if (CheckSubsumes(check->node, node) && TypeSubsumes(node, check->node)) {
       DCHECK(!check->node->IsDead());
       return check->node;
     }
