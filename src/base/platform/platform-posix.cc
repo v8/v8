@@ -92,8 +92,8 @@ bool g_hard_abort = false;
 
 const char* g_gc_fake_mmap = nullptr;
 
-static LazyInstance<RandomNumberGenerator>::type
-    platform_random_number_generator = LAZY_INSTANCE_INITIALIZER;
+DEFINE_LAZY_LEAKY_OBJECT_GETTER(RandomNumberGenerator,
+                                GetPlatformRandomNumberGenerator);
 static LazyMutex rng_mutex = LAZY_MUTEX_INITIALIZER;
 
 #if !V8_OS_FUCHSIA
@@ -188,7 +188,7 @@ size_t OS::CommitPageSize() {
 void OS::SetRandomMmapSeed(int64_t seed) {
   if (seed) {
     MutexGuard guard(rng_mutex.Pointer());
-    platform_random_number_generator.Pointer()->SetSeed(seed);
+    GetPlatformRandomNumberGenerator()->SetSeed(seed);
   }
 }
 
@@ -197,8 +197,7 @@ void* OS::GetRandomMmapAddr() {
   uintptr_t raw_addr;
   {
     MutexGuard guard(rng_mutex.Pointer());
-    platform_random_number_generator.Pointer()->NextBytes(&raw_addr,
-                                                          sizeof(raw_addr));
+    GetPlatformRandomNumberGenerator()->NextBytes(&raw_addr, sizeof(raw_addr));
   }
 #if defined(V8_USE_ADDRESS_SANITIZER) || defined(MEMORY_SANITIZER) || \
     defined(THREAD_SANITIZER) || defined(LEAK_SANITIZER)

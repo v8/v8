@@ -313,21 +313,13 @@ class Clock final {
   Mutex mutex_;
 };
 
+namespace {
+DEFINE_LAZY_LEAKY_OBJECT_GETTER(Clock, GetClock);
+};
 
-static LazyStaticInstance<Clock, DefaultConstructTrait<Clock>,
-                          ThreadSafeInitOnceTrait>::type clock =
-    LAZY_STATIC_INSTANCE_INITIALIZER;
+Time Time::Now() { return GetClock()->Now(); }
 
-
-Time Time::Now() {
-  return clock.Pointer()->Now();
-}
-
-
-Time Time::NowFromSystemTime() {
-  return clock.Pointer()->NowFromSystemTime();
-}
-
+Time Time::NowFromSystemTime() { return GetClock()->NowFromSystemTime(); }
 
 // Time between windows epoch and standard epoch.
 static const int64_t kTimeToEpochInMicroseconds = int64_t{11644473600000000};

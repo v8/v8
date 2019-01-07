@@ -689,8 +689,8 @@ void OS::StrNCpy(char* dest, int length, const char* src, size_t n) {
 #undef _TRUNCATE
 #undef STRUNCATE
 
-static LazyInstance<RandomNumberGenerator>::type
-    platform_random_number_generator = LAZY_INSTANCE_INITIALIZER;
+DEFINE_LAZY_LEAKY_OBJECT_GETTER(RandomNumberGenerator,
+                                GetPlatformRandomNumberGenerator);
 static LazyMutex rng_mutex = LAZY_MUTEX_INITIALIZER;
 
 void OS::Initialize(bool hard_abort, const char* const gc_fake_mmap) {
@@ -724,7 +724,7 @@ size_t OS::CommitPageSize() {
 void OS::SetRandomMmapSeed(int64_t seed) {
   if (seed) {
     MutexGuard guard(rng_mutex.Pointer());
-    platform_random_number_generator.Pointer()->SetSeed(seed);
+    GetPlatformRandomNumberGenerator()->SetSeed(seed);
   }
 }
 
@@ -745,8 +745,7 @@ void* OS::GetRandomMmapAddr() {
   uintptr_t address;
   {
     MutexGuard guard(rng_mutex.Pointer());
-    platform_random_number_generator.Pointer()->NextBytes(&address,
-                                                          sizeof(address));
+    GetPlatformRandomNumberGenerator()->NextBytes(&address, sizeof(address));
   }
   address <<= kPageSizeBits;
   address += kAllocationRandomAddressMin;
