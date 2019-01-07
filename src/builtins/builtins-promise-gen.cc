@@ -1958,9 +1958,12 @@ Node* PromiseBuiltinsAssembler::PerformPromiseAll(
     //   (a) The {constructor} is the intrinsic %Promise% function, and
     //       looking up "resolve" on {constructor} yields the initial
     //       Promise.resolve() builtin, and
-    //   (b) the {next_value} is a JSPromise whose [[Prototype]] field
+    //   (b) the promise @@species protector cell is valid, meaning that
+    //       no one messed with the Symbol.species property on any
+    //       intrinsic promise or on the Promise.prototype, and
+    //   (c) the {next_value} is a JSPromise whose [[Prototype]] field
     //       contains the intrinsic %PromisePrototype%, and
-    //   (c) we're not running with async_hooks or DevTools enabled.
+    //   (d) we're not running with async_hooks or DevTools enabled.
     //
     // In that case we also don't need to allocate a chained promise for
     // the PromiseReaction (aka we can pass undefined to PerformPromiseThen),
@@ -1970,6 +1973,7 @@ Node* PromiseBuiltinsAssembler::PerformPromiseAll(
                                              &if_slow);
     GotoIf(IsPromiseHookEnabledOrDebugIsActiveOrHasAsyncEventDelegate(),
            &if_slow);
+    GotoIf(IsPromiseSpeciesProtectorCellInvalid(), &if_slow);
     GotoIf(TaggedIsSmi(next_value), &if_slow);
     Node* const next_value_map = LoadMap(next_value);
     BranchIfPromiseThenLookupChainIntact(native_context, next_value_map,
