@@ -65,7 +65,7 @@ export class GraphView extends View implements PhaseView {
     svg.on("click", function (d) {
       view.selectionHandler.clear();
     });
-    // Listen for key events. Note that the focus handler seems 
+    // Listen for key events. Note that the focus handler seems
     // to be important even if it does nothing.
     svg
       .attr("focusable", false)
@@ -250,9 +250,13 @@ export class GraphView extends View implements PhaseView {
   }
 
   deleteContent() {
-    if (this.visibleNodes) {
-      this.updateGraphVisibility();
-    }
+    for (const n of this.graph.nodes()) {
+      n.visible = false;
+    };
+    this.graph.forEachEdge((e: Edge) => {
+      e.visible = false;
+    });
+    this.updateGraphVisibility();
   };
 
   createGraph(data, rememberedSelection) {
