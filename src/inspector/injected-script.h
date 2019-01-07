@@ -48,6 +48,7 @@ namespace v8_inspector {
 class RemoteObjectId;
 class V8InspectorImpl;
 class V8InspectorSessionImpl;
+class ValueMirror;
 enum class WrapMode;
 
 using protocol::Maybe;
@@ -93,6 +94,10 @@ class InjectedScript final {
                       v8::MaybeLocal<v8::Value> customPreviewConfig,
                       int maxCustomPreviewDepth,
                       std::unique_ptr<protocol::Runtime::RemoteObject>* result);
+  Response wrapObjectMirror(
+      const ValueMirror& mirror, const String16& groupName, WrapMode wrapMode,
+      v8::MaybeLocal<v8::Value> customPreviewConfig, int maxCustomPreviewDepth,
+      std::unique_ptr<protocol::Runtime::RemoteObject>* result);
   std::unique_ptr<protocol::Runtime::RemoteObject> wrapTable(
       v8::Local<v8::Object> table, v8::MaybeLocal<v8::Array> columns);
 
