@@ -136,8 +136,6 @@ void ReadNatives() {
   if (natives_blob_ && NativesHolder<EXTRAS>::empty()) {
     SnapshotByteSource bytes(natives_blob_->data, natives_blob_->raw_size);
     NativesHolder<EXTRAS>::set(NativesStore::MakeFromScriptsSource(&bytes));
-    NativesHolder<EXPERIMENTAL_EXTRAS>::set(
-        NativesStore::MakeFromScriptsSource(&bytes));
     DCHECK(!bytes.HasMore());
   }
 }
@@ -163,7 +161,6 @@ void SetNativesFromFile(StartupData* natives_blob) {
  */
 void DisposeNatives() {
   NativesHolder<EXTRAS>::Dispose();
-  NativesHolder<EXPERIMENTAL_EXTRAS>::Dispose();
 }
 
 
@@ -207,7 +204,6 @@ Vector<const char> NativesCollection<type>::GetScriptsSource() {
   template Vector<const char> NativesCollection<T>::GetScriptName(int i);   \
   template Vector<const char> NativesCollection<T>::GetScriptsSource();
 INSTANTIATE_TEMPLATES(EXTRAS)
-INSTANTIATE_TEMPLATES(EXPERIMENTAL_EXTRAS)
 #undef INSTANTIATE_TEMPLATES
 
 }  // namespace internal

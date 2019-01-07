@@ -149,12 +149,6 @@ declare_args() {
   # This default is used by cctests. Projects using V8 will want to override.
   v8_extra_library_files = [ "//test/cctest/test-extra.js" ]
 
-  # Like v8_extra_library_files but for experimental features.
-  #
-  # This default is used by cctests. Projects using V8 will want to override.
-  v8_experimental_extra_library_files =
-      [ "//test/cctest/test-experimental-extra.js" ]
-
   v8_enable_gdbjit =
       ((v8_current_cpu == "x86" || v8_current_cpu == "x64") &&
        (is_linux || is_mac)) || (v8_current_cpu == "ppc64" && is_linux)
@@ -736,33 +730,6 @@ action("js2c_extras") {
   }
 }
 
-action("js2c_experimental_extras") {
-  visibility = [ ":*" ]  # Only targets in this file can depend on this.
-
-  script = "tools/js2c.py"
-
-  sources = v8_experimental_extra_library_files
-
-  outputs = [
-    "$target_gen_dir/experimental-extras-libraries.cc",
-  ]
-
-  args = [
-           rebase_path("$target_gen_dir/experimental-extras-libraries.cc",
-                       root_build_dir),
-           "EXPERIMENTAL_EXTRAS",
-         ] + rebase_path(sources, root_build_dir)
-
-  if (v8_use_external_startup_data) {
-    outputs += [ "$target_gen_dir/libraries_experimental_extras.bin" ]
-    args += [
-      "--startup_blob",
-      rebase_path("$target_gen_dir/libraries_experimental_extras.bin",
-                  root_build_dir),
-    ]
-  }
-}
-
 action("d8_js2c") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
@@ -810,14 +777,12 @@ if (v8_use_external_startup_data) {
     visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
     deps = [
-      ":js2c_experimental_extras",
       ":js2c_extras",
     ]
 
     # NOSORT
     sources = [
       "$target_gen_dir/libraries_extras.bin",
-      "$target_gen_dir/libraries_experimental_extras.bin",
     ]
 
     outputs = [
@@ -1222,25 +1187,15 @@ v8_source_set("v8_nosnapshot") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
   deps = [
-    ":js2c_experimental_extras",
     ":js2c_extras",
     ":v8_base",
   ]
 
   sources = [
-    "$target_gen_dir/experimental-extras-libraries.cc",
     "$target_gen_dir/extras-libraries.cc",
     "src/snapshot/embedded-empty.cc",
     "src/snapshot/snapshot-empty.cc",
   ]
-
-  if (use_jumbo_build == true) {
-    jumbo_excluded_sources = [
-      # TODO(mostynb@vewd.com): don't exclude these http://crbug.com/752428
-      # Generated source, contains same variable names as libraries.cc
-      "$target_gen_dir/experimental-extras-libraries.cc",
-    ]
-  }
 
   configs = [ ":internal_config" ]
 }
@@ -1255,7 +1210,6 @@ if (v8_use_snapshot && !v8_use_external_startup_data) {
     ]
 
     deps = [
-      ":js2c_experimental_extras",
       ":js2c_extras",
       ":v8_base",
     ]
@@ -1269,7 +1223,6 @@ if (v8_use_snapshot && !v8_use_external_startup_data) {
     public = []
 
     sources = [
-      "$target_gen_dir/experimental-extras-libraries.cc",
       "$target_gen_dir/extras-libraries.cc",
       "$target_gen_dir/snapshot.cc",
       "src/setup-isolate-deserialize.cc",
@@ -1284,14 +1237,6 @@ if (v8_use_snapshot && !v8_use_external_startup_data) {
       sources += [ "src/snapshot/embedded-empty.cc" ]
     }
 
-    if (use_jumbo_build == true) {
-      jumbo_excluded_sources = [
-        # TODO(mostynb@vewd.com): don't exclude these http://crbug.com/752428
-        # Generated source, contains same variable names as libraries.cc
-        "$target_gen_dir/experimental-extras-libraries.cc",
-      ]
-    }
-
     configs = [ ":internal_config" ]
   }
 }
@@ -1301,7 +1246,6 @@ if (v8_use_snapshot && v8_use_external_startup_data) {
     visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
     deps = [
-      ":js2c_experimental_extras",
       ":js2c_extras",
       ":v8_base",
     ]
@@ -4148,7 +4092,6 @@ group("v8_generated_cc_files") {
   deps = [
     ":d8_js2c",
     ":generate_bytecode_builtins_list",
-    ":js2c_experimental_extras",
     ":js2c_extras",
     ":run_torque",
     "src/inspector:v8_generated_cc_files",

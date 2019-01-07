@@ -26527,42 +26527,6 @@ TEST(ExtrasBindingObject) {
 }
 
 
-TEST(ExperimentalExtras) {
-  i::FLAG_experimental_extras = true;
-
-  v8::Isolate* isolate = CcTest::isolate();
-  v8::HandleScope handle_scope(isolate);
-  LocalContext env;
-
-  // standalone.gypi ensures we include the test-experimental-extra.js file,
-  // which should export the tested functions.
-  v8::Local<v8::Object> binding = env->GetExtrasBindingObject();
-
-  auto func =
-      binding->Get(env.local(), v8_str("testExperimentalExtraShouldReturnTen"))
-          .ToLocalChecked()
-          .As<v8::Function>();
-  auto undefined = v8::Undefined(isolate);
-  auto result = func->Call(env.local(), undefined, 0, {})
-                    .ToLocalChecked()
-                    .As<v8::Number>();
-  CHECK_EQ(10, result->Int32Value(env.local()).FromJust());
-
-  v8::Local<v8::FunctionTemplate> runtimeFunction =
-      v8::FunctionTemplate::New(isolate, ExtrasBindingTestRuntimeFunction);
-  binding->Set(env.local(), v8_str("runtime"),
-               runtimeFunction->GetFunction(env.local()).ToLocalChecked())
-      .FromJust();
-  func = binding->Get(env.local(),
-                      v8_str("testExperimentalExtraShouldCallToRuntime"))
-             .ToLocalChecked()
-             .As<v8::Function>();
-  result = func->Call(env.local(), undefined, 0, {})
-               .ToLocalChecked()
-               .As<v8::Number>();
-  CHECK_EQ(7, result->Int32Value(env.local()).FromJust());
-}
-
 TEST(ExtrasCreatePromise) {
   i::FLAG_allow_natives_syntax = true;
   LocalContext context;

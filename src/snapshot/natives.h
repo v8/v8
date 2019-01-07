@@ -16,7 +16,6 @@ namespace internal {
 
 enum NativeType {
   EXTRAS,
-  EXPERIMENTAL_EXTRAS,
   D8,
   TEST
 };
@@ -42,7 +41,6 @@ class V8_EXPORT_PRIVATE NativesCollection {
 };
 
 typedef NativesCollection<EXTRAS> ExtraNatives;
-typedef NativesCollection<EXPERIMENTAL_EXTRAS> ExperimentalExtraNatives;
 
 
 #ifdef V8_USE_EXTERNAL_STARTUP_DATA

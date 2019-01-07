@@ -177,9 +177,6 @@ struct MaybeBoolFlag {
 //
 #define FLAG FLAG_FULL
 
-DEFINE_BOOL(experimental_extras, false,
-            "enable code compiled in via v8_experimental_extra_library_files")
-
 // Flags for language modes and experimental language features.
 DEFINE_BOOL(use_strict, false, "enforce strict mode")
 

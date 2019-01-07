@@ -255,9 +255,7 @@ class Genesis {
   Handle<JSFunction> InstallTypedArray(const char* name,
                                        ElementsKind elements_kind);
   bool InstallExtraNatives();
-  bool InstallExperimentalExtraNatives();
   void InstallBuiltinFunctionIds();
-  void InstallExperimentalBuiltinFunctionIds();
   void InitializeNormalizedMapCaches();
 
   enum ExtensionTraversalState {
@@ -3829,20 +3827,6 @@ bool Bootstrapper::CompileExtraBuiltin(Isolate* isolate, int index) {
 }
 
 
-bool Bootstrapper::CompileExperimentalExtraBuiltin(Isolate* isolate,
-                                                   int index) {
-  HandleScope scope(isolate);
-  Vector<const char> name = ExperimentalExtraNatives::GetScriptName(index);
-  Handle<String> source_code =
-      isolate->bootstrapper()->GetNativeSource(EXPERIMENTAL_EXTRAS, index);
-  Handle<Object> global = isolate->global_object();
-  Handle<Object> binding = isolate->extras_binding_object();
-  Handle<Object> extras_utils = isolate->extras_utils_object();
-  Handle<Object> args[] = {global, binding, extras_utils};
-  return Bootstrapper::CompileNative(isolate, name, source_code,
-                                     arraysize(args), args, EXTENSION_CODE);
-}
-
 bool Bootstrapper::CompileNative(Isolate* isolate, Vector<const char> name,
                                  Handle<String> source, int argc,
                                  Handle<Object> argv[],
@@ -5192,16 +5176,6 @@ bool Genesis::InstallExtraNatives() {
 }
 
 
-bool Genesis::InstallExperimentalExtraNatives() {
-  for (int i = 0; i < ExperimentalExtraNatives::GetBuiltinsCount(); i++) {
-    if (!Bootstrapper::CompileExperimentalExtraBuiltin(isolate(), i))
-      return false;
-  }
-
-  return true;
-}
-
-
 static void InstallBuiltinFunctionId(Isolate* isolate, Handle<JSObject> holder,
                                      const char* function_name,
                                      BuiltinFunctionId id) {
@@ -5706,10 +5680,6 @@ Genesis::Genesis(
   // them after they have already been deserialized would also fail.
     if (!isolate->serializer_enabled()) {
       InitializeExperimentalGlobal();
-
-      if (FLAG_experimental_extras) {
-        if (!InstallExperimentalExtraNatives()) return;
-      }
 
       // Store String.prototype's map again in case it has been changed by
       // experimental natives.
