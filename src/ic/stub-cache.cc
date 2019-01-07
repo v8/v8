@@ -91,10 +91,10 @@ void StubCache::Set(Name name, Map map, MaybeObject handler) {
   if (old_handler != MaybeObject::FromObject(
                          isolate_->builtins()->builtin(Builtins::kIllegal)) &&
       primary->map != kNullAddress) {
-    Map old_map = Map::cast(ObjectPtr(primary->map));
-    int seed = PrimaryOffset(Name::cast(ObjectPtr(primary->key)), old_map);
+    Map old_map = Map::cast(Object(primary->map));
+    int seed = PrimaryOffset(Name::cast(Object(primary->key)), old_map);
     int secondary_offset =
-        SecondaryOffset(Name::cast(ObjectPtr(primary->key)), seed);
+        SecondaryOffset(Name::cast(Object(primary->key)), seed);
     Entry* secondary = entry(secondary_, secondary_offset);
     *secondary = *primary;
   }

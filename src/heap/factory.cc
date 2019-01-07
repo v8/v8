@@ -145,7 +145,7 @@ HeapObject Factory::AllocateRawWithAllocationSite(
   result->set_map_after_allocation(*map, write_barrier_mode);
   if (!allocation_site.is_null()) {
     AllocationMemento alloc_memento = AllocationMemento::unchecked_cast(
-        ObjectPtr(result->ptr() + map->instance_size()));
+        Object(result->ptr() + map->instance_size()));
     InitializeAllocationMemento(alloc_memento, *allocation_site);
   }
   return result;
@@ -2054,7 +2054,7 @@ Handle<JSObject> Factory::CopyJSObjectWithAllocationSite(
 
   if (!site.is_null()) {
     AllocationMemento alloc_memento = AllocationMemento::unchecked_cast(
-        ObjectPtr(raw_clone->ptr() + object_size));
+        Object(raw_clone->ptr() + object_size));
     InitializeAllocationMemento(alloc_memento, *site);
   }
 

@@ -400,7 +400,7 @@ void PPCDebugger::Debug() {
         while (cur < end) {
           PrintF("  0x%08" V8PRIxPTR ":  0x%08" V8PRIxPTR " %10" V8PRIdPTR,
                  reinterpret_cast<intptr_t>(cur), *cur, *cur);
-          ObjectPtr obj(*cur);
+          Object obj(*cur);
           Heap* current_heap = sim_->isolate_->heap();
           if (obj.IsSmi() || current_heap->Contains(HeapObject::cast(obj))) {
             PrintF(" (");

@@ -46,16 +46,15 @@ class GlobalHandles {
   ~GlobalHandles();
 
   // Creates a new global handle that is alive until Destroy is called.
-  Handle<Object> Create(ObjectPtr value);
+  Handle<Object> Create(Object value);
   Handle<Object> Create(Address value);
 
   template <typename T>
   Handle<T> Create(T value) {
-    static_assert(std::is_base_of<ObjectPtr, T>::value,
-                  "static type violation");
+    static_assert(std::is_base_of<Object, T>::value, "static type violation");
     // The compiler should only pick this method if T is not Object.
-    static_assert(!std::is_same<ObjectPtr, T>::value, "compiler error");
-    return Handle<T>::cast(Create(ObjectPtr(value)));
+    static_assert(!std::is_same<Object, T>::value, "compiler error");
+    return Handle<T>::cast(Create(Object(value)));
   }
 
   // Copy a global handle

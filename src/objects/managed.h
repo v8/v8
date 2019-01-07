@@ -59,9 +59,7 @@ class Managed : public Foreign {
   V8_INLINE std::shared_ptr<CppType> get() { return *GetSharedPtrPtr(); }
 
   static Managed cast(Object obj) { return Managed(obj->ptr()); }
-  static Managed unchecked_cast(ObjectPtr obj) {
-    return bit_cast<Managed>(obj);
-  }
+  static Managed unchecked_cast(Object obj) { return bit_cast<Managed>(obj); }
 
   // Allocate a new {CppType} and wrap it in a {Managed<CppType>}.
   template <typename... Args>

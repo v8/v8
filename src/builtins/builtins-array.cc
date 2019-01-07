@@ -69,7 +69,7 @@ void MatchArrayElementsKindToArguments(Isolate* isolate, Handle<JSArray> array,
     DisallowHeapAllocation no_gc;
     int last_arg_index = std::min(first_arg_index + num_arguments, args_length);
     for (int i = first_arg_index; i < last_arg_index; i++) {
-      ObjectPtr arg = (*args)[i];
+      Object arg = (*args)[i];
       if (arg->IsHeapObject()) {
         if (arg->IsHeapNumber()) {
           target_kind = PACKED_DOUBLE_ELEMENTS;
@@ -1387,7 +1387,7 @@ MaybeHandle<JSArray> Fast_ArrayConcat(Isolate* isolate,
     // Iterate through all the arguments performing checks
     // and calculating total length.
     for (int i = 0; i < n_arguments; i++) {
-      ObjectPtr arg = (*args)[i];
+      Object arg = (*args)[i];
       if (!arg->IsJSArray()) return MaybeHandle<JSArray>();
       if (!HasOnlySimpleReceiverElements(isolate, JSObject::cast(arg))) {
         return MaybeHandle<JSArray>();

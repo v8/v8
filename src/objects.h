@@ -1031,8 +1031,7 @@ class Object {
   Address ptr_;
 };
 
-V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
-                                           const ObjectPtr& obj);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os, const Object& obj);
 
 // In objects.h to be usable without objects-inl.h inclusion.
 bool Object::IsSmi() const { return HAS_SMI_TAG(ptr()); }

@@ -515,7 +515,7 @@ V8HeapExplorer::V8HeapExplorer(HeapSnapshot* snapshot,
       global_object_name_resolver_(resolver) {}
 
 HeapEntry* V8HeapExplorer::AllocateEntry(HeapThing ptr) {
-  return AddEntry(HeapObject::cast(ObjectPtr(reinterpret_cast<Address>(ptr))));
+  return AddEntry(HeapObject::cast(Object(reinterpret_cast<Address>(ptr))));
 }
 
 void V8HeapExplorer::ExtractLocation(HeapEntry* entry, HeapObject object) {

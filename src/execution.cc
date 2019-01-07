@@ -253,7 +253,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
   }
 
   // Placeholder for return value.
-  ObjectPtr value;
+  Object value;
 
   Handle<Code> code =
       JSEntry(isolate, params.execution_target, params.is_construct);
@@ -290,8 +290,8 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
       PrintDeserializedCodeInfo(Handle<JSFunction>::cast(params.target));
     }
     RuntimeCallTimerScope timer(isolate, RuntimeCallCounterId::kJS_Execution);
-    value = ObjectPtr(stub_entry.Call(orig_func, func, recv, params.argc, argv,
-                                      isolate->isolate_data()->isolate_root()));
+    value = Object(stub_entry.Call(orig_func, func, recv, params.argc, argv,
+                                   isolate->isolate_data()->isolate_root()));
   }
 
 #ifdef VERIFY_HEAP

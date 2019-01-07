@@ -175,7 +175,7 @@ Code Deoptimizer::FindDeoptimizingCode(Address addr) {
 Deoptimizer* Deoptimizer::New(Address raw_function, DeoptimizeKind kind,
                               unsigned bailout_id, Address from,
                               int fp_to_sp_delta, Isolate* isolate) {
-  JSFunction function = JSFunction::cast(ObjectPtr(raw_function));
+  JSFunction function = JSFunction::cast(Object(raw_function));
   Deoptimizer* deoptimizer = new Deoptimizer(isolate, function, kind,
                                              bailout_id, from, fp_to_sp_delta);
   CHECK_NULL(isolate->deoptimizer_data()->current_);

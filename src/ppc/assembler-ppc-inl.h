@@ -162,7 +162,7 @@ Address Assembler::return_address_from_call_start(Address pc) {
 HeapObject RelocInfo::target_object() {
   DCHECK(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
   return HeapObject::cast(
-      ObjectPtr(Assembler::target_address_at(pc_, constant_pool_)));
+      Object(Assembler::target_address_at(pc_, constant_pool_)));
 }
 
 Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {

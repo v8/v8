@@ -57,7 +57,7 @@ class MutableBigInt : public FreshlyAllocatedBigInt {
     SLOW_DCHECK(bigint->IsBigInt());
     return Handle<MutableBigInt>::cast(bigint);
   }
-  static MutableBigInt unchecked_cast(ObjectPtr o) {
+  static MutableBigInt unchecked_cast(Object o) {
     return MutableBigInt(o.ptr());
   }
 

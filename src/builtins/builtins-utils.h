@@ -23,7 +23,7 @@ class BuiltinArguments : public Arguments {
     DCHECK_LE(1, this->length());
   }
 
-  ObjectPtr operator[](int index) {
+  Object operator[](int index) {
     DCHECK_LT(index, length());
     return Arguments::operator[](index);
   }

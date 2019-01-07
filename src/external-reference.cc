@@ -645,7 +645,7 @@ Address GetOrCreateHash(Isolate* isolate, Address raw_key) {
 FUNCTION_REFERENCE(get_or_create_hash_raw, GetOrCreateHash)
 
 static Address JSReceiverCreateIdentityHash(Isolate* isolate, Address raw_key) {
-  JSReceiver key = JSReceiver::cast(ObjectPtr(raw_key));
+  JSReceiver key = JSReceiver::cast(Object(raw_key));
   return JSReceiver::CreateIdentityHash(isolate, key).ptr();
 }
 
@@ -681,8 +681,8 @@ FUNCTION_REFERENCE(check_object_type, CheckObjectType)
 #ifdef V8_INTL_SUPPORT
 
 static Address ConvertOneByteToLower(Address raw_src, Address raw_dst) {
-  String src = String::cast(ObjectPtr(raw_src));
-  String dst = String::cast(ObjectPtr(raw_dst));
+  String src = String::cast(Object(raw_src));
+  String dst = String::cast(Object(raw_dst));
   return Intl::ConvertOneByteToLower(src, dst).ptr();
 }
 FUNCTION_REFERENCE(intl_convert_one_byte_to_lower, ConvertOneByteToLower)
@@ -762,7 +762,7 @@ ExternalReference ExternalReference::runtime_function_table_address(
 }
 
 static Address InvalidatePrototypeChainsWrapper(Address raw_map) {
-  Map map = Map::cast(ObjectPtr(raw_map));
+  Map map = Map::cast(Object(raw_map));
   return JSObject::InvalidatePrototypeChains(map).ptr();
 }
 
@@ -923,7 +923,7 @@ FUNCTION_REFERENCE(atomic_pair_compare_exchange_function,
 
 static int EnterMicrotaskContextWrapper(HandleScopeImplementer* hsi,
                                         Address raw_context) {
-  Context context = Context::cast(ObjectPtr(raw_context));
+  Context context = Context::cast(Object(raw_context));
   hsi->EnterMicrotaskContext(context);
   return 0;
 }

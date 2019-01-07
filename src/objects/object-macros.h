@@ -102,7 +102,7 @@
 // TODO(3770): Replacement for the above, temporarily separate for
 // incremental transition.
 #define CAST_ACCESSOR2(Type) \
-  Type Type::cast(ObjectPtr object) { return Type(object.ptr()); }
+  Type Type::cast(Object object) { return Type(object.ptr()); }
 
 #define INT_ACCESSORS(holder, name, offset)                         \
   int holder::name() const { return READ_INT_FIELD(this, offset); } \

@@ -118,7 +118,7 @@ BUILTIN(SharedArrayBufferPrototypeGetByteLength) {
 BUILTIN(ArrayBufferIsView) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(2, args.length());
-  ObjectPtr arg = args[1];
+  Object arg = args[1];
   return isolate->heap()->ToBoolean(arg->IsJSArrayBufferView());
 }
 

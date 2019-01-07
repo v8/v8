@@ -84,7 +84,7 @@ class MaybeObject {
   template <typename T>
   T cast() const {
     DCHECK(!HasWeakHeapObjectTag(ptr_));
-    return T::cast(ObjectPtr(ptr_));
+    return T::cast(Object(ptr_));
   }
 
   static MaybeObject FromSmi(Smi smi) {
@@ -92,7 +92,7 @@ class MaybeObject {
     return MaybeObject(smi->ptr());
   }
 
-  static MaybeObject FromObject(ObjectPtr object) {
+  static MaybeObject FromObject(Object object) {
     DCHECK(!HasWeakHeapObjectTag(object.ptr()));
     return MaybeObject(object.ptr());
   }

@@ -1262,8 +1262,8 @@ bool Object::ToInt32(int32_t* value) {
 
 // static constexpr object declarations need a definition to make the
 // compiler happy.
-constexpr ObjectPtr Smi::kZero;
-constexpr ObjectPtr SharedFunctionInfo::kNoSharedNameSentinel;
+constexpr Object Smi::kZero;
+constexpr Object SharedFunctionInfo::kNoSharedNameSentinel;
 
 Handle<SharedFunctionInfo> FunctionTemplateInfo::GetOrCreateSharedFunctionInfo(
     Isolate* isolate, Handle<FunctionTemplateInfo> info,
@@ -2568,7 +2568,7 @@ void Object::ShortPrint(StringStream* accumulator) const {
 
 void Object::ShortPrint(std::ostream& os) const { os << Brief(*this); }
 
-std::ostream& operator<<(std::ostream& os, const ObjectPtr& obj) {
+std::ostream& operator<<(std::ostream& os, const Object& obj) {
   obj.ShortPrint(os);
   return os;
 }
@@ -11669,9 +11669,9 @@ Address JSArray::ArrayJoinConcatToSequentialString(Isolate* isolate,
                                                    Address raw_dest) {
   DisallowHeapAllocation no_allocation;
   DisallowJavascriptExecution no_js(isolate);
-  FixedArray fixed_array = FixedArray::cast(ObjectPtr(raw_fixed_array));
-  String separator = String::cast(ObjectPtr(raw_separator));
-  String dest = String::cast(ObjectPtr(raw_dest));
+  FixedArray fixed_array = FixedArray::cast(Object(raw_fixed_array));
+  String separator = String::cast(Object(raw_separator));
+  String dest = String::cast(Object(raw_dest));
   DCHECK(fixed_array->IsFixedArray());
   DCHECK(StringShape(dest).IsSequentialOneByte() ||
          StringShape(dest).IsSequentialTwoByte());
@@ -17623,7 +17623,7 @@ class StringTableNoAllocateKey : public StringTableKey {
 Address StringTable::LookupStringIfExists_NoAllocate(Isolate* isolate,
                                                      Address raw_string) {
   DisallowHeapAllocation no_gc;
-  String string = String::cast(ObjectPtr(raw_string));
+  String string = String::cast(Object(raw_string));
   Heap* heap = isolate->heap();
   StringTable table = heap->string_table();
 

@@ -94,7 +94,7 @@ class FieldStatsCollector : public ObjectVisitor {
     unsigned embedded_fields_count_ : kDescriptorIndexBitCount;
     unsigned unboxed_double_fields_count_ : kDescriptorIndexBitCount;
   };
-  std::unordered_map<Map, JSObjectFieldStats, ObjectPtr::Hasher>
+  std::unordered_map<Map, JSObjectFieldStats, Object::Hasher>
       field_stats_cache_;
 
   JSObjectFieldStats GetInobjectFieldStats(Map map);

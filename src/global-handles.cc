@@ -74,7 +74,7 @@ class GlobalHandles::Node {
     *first_free = this;
   }
 
-  void Acquire(ObjectPtr object) {
+  void Acquire(Object object) {
     DCHECK(state() == FREE);
     object_ = object.ptr();
     class_id_ = v8::HeapProfiler::kPersistentHandleNoClassId;
@@ -105,7 +105,7 @@ class GlobalHandles::Node {
   }
 
   // Object slot accessors.
-  ObjectPtr object() const { return ObjectPtr(object_); }
+  Object object() const { return Object(object_); }
   FullObjectSlot location() { return FullObjectSlot(&object_); }
   const char* label() { return state() == NORMAL ? data_.label : nullptr; }
   Handle<Object> handle() { return Handle<Object>(&object_); }
@@ -340,7 +340,7 @@ class GlobalHandles::Node {
 
   // Storage for object pointer.
   // Placed first to avoid offset computation.
-  // The stored data is equivalent to an ObjectPtr. It is stored as a plain
+  // The stored data is equivalent to an Object. It is stored as a plain
   // Address for convenience (smallest number of casts), and because it is a
   // private implementation detail: the public interface provides type safety.
   Address object_;
@@ -526,7 +526,7 @@ GlobalHandles::~GlobalHandles() {
   first_block_ = nullptr;
 }
 
-Handle<Object> GlobalHandles::Create(ObjectPtr value) {
+Handle<Object> GlobalHandles::Create(Object value) {
   if (first_free_ == nullptr) {
     first_block_ = new NodeBlock(this, first_block_);
     first_block_->PutNodesOnFreeList(&first_free_);
@@ -544,7 +544,7 @@ Handle<Object> GlobalHandles::Create(ObjectPtr value) {
 }
 
 Handle<Object> GlobalHandles::Create(Address value) {
-  return Create(ObjectPtr(value));
+  return Create(Object(value));
 }
 
 Handle<Object> GlobalHandles::CopyGlobal(Address* location) {
@@ -553,7 +553,7 @@ Handle<Object> GlobalHandles::CopyGlobal(Address* location) {
       Node::FromLocation(location)->GetGlobalHandles();
 #ifdef VERIFY_HEAP
   if (i::FLAG_verify_heap) {
-    ObjectPtr(*location)->ObjectVerify(global_handles->isolate());
+    Object(*location)->ObjectVerify(global_handles->isolate());
   }
 #endif  // VERIFY_HEAP
   return global_handles->Create(*location);
@@ -1107,7 +1107,7 @@ void EternalHandles::IterateNewSpaceRoots(RootVisitor* visitor) {
 void EternalHandles::PostGarbageCollectionProcessing() {
   size_t last = 0;
   for (int index : new_space_indices_) {
-    if (Heap::InNewSpace(ObjectPtr(*GetLocation(index)))) {
+    if (Heap::InNewSpace(Object(*GetLocation(index)))) {
       new_space_indices_[last++] = index;
     }
   }

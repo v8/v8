@@ -998,7 +998,7 @@ i::Address* V8::GlobalizeReference(i::Isolate* isolate, i::Address* obj) {
   i::Handle<i::Object> result = isolate->global_handles()->Create(*obj);
 #ifdef VERIFY_HEAP
   if (i::FLAG_verify_heap) {
-    i::ObjectPtr(*obj)->ObjectVerify(isolate);
+    i::Object(*obj)->ObjectVerify(isolate);
   }
 #endif  // VERIFY_HEAP
   return result.location();
@@ -1111,8 +1111,8 @@ i::Address* HandleScope::CreateHandle(i::Isolate* isolate, i::Address value) {
 
 i::Address* HandleScope::CreateHandle(
     i::NeverReadOnlySpaceObject* writable_object, i::Address value) {
-  DCHECK(i::ObjectPtr(reinterpret_cast<i::Address>(writable_object))
-             .IsHeapObject());
+  DCHECK(
+      i::Object(reinterpret_cast<i::Address>(writable_object)).IsHeapObject());
   return i::HandleScope::CreateHandle(writable_object->GetIsolate(), value);
 }
 

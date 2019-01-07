@@ -1896,7 +1896,7 @@ Address CheckObjectType(Address raw_value, Address raw_type,
 #ifdef DEBUG
   Object value(raw_value);
   Smi type(raw_type);
-  String location = String::cast(ObjectPtr(raw_location));
+  String location = String::cast(Object(raw_location));
   const char* expected;
   switch (static_cast<ObjectType>(type->value())) {
 #define TYPE_CASE(Name)                                  \

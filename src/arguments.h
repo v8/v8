@@ -36,9 +36,7 @@ class Arguments {
     DCHECK_GE(length_, 0);
   }
 
-  ObjectPtr operator[](int index) {
-    return ObjectPtr(*address_of_arg_at(index));
-  }
+  Object operator[](int index) { return Object(*address_of_arg_at(index)); }
 
   template <class S = Object>
   inline Handle<S> at(int index);

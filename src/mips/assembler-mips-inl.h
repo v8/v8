@@ -181,7 +181,7 @@ void Assembler::deserialization_set_target_internal_reference_at(
 HeapObject RelocInfo::target_object() {
   DCHECK(IsCodeTarget(rmode_) || IsEmbeddedObject(rmode_));
   return HeapObject::cast(
-      ObjectPtr(Assembler::target_address_at(pc_, constant_pool_)));
+      Object(Assembler::target_address_at(pc_, constant_pool_)));
 }
 
 Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {

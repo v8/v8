@@ -431,7 +431,7 @@ bool Object::IsMinusZero() const {
          i::IsMinusZero(HeapNumber::cast(*this)->value());
 }
 
-OBJECT_CONSTRUCTORS_IMPL(HeapObject, ObjectPtr)
+OBJECT_CONSTRUCTORS_IMPL(HeapObject, Object)
 OBJECT_CONSTRUCTORS_IMPL(HashTableBase, FixedArray)
 
 template <typename Derived, typename Shape>
@@ -720,7 +720,7 @@ MaybeObjectSlot HeapObject::RawMaybeWeakField(HeapObject obj, int byte_offset) {
 
 MapWord MapWord::FromMap(const Map map) { return MapWord(map.ptr()); }
 
-Map MapWord::ToMap() const { return Map::unchecked_cast(ObjectPtr(value_)); }
+Map MapWord::ToMap() const { return Map::unchecked_cast(Object(value_)); }
 
 bool MapWord::IsForwardingAddress() const { return HAS_SMI_TAG(value_); }
 
@@ -832,7 +832,7 @@ MapWord HeapObject::map_word() const {
 }
 
 void HeapObject::set_map_word(MapWord map_word) {
-  map_slot().Relaxed_Store(ObjectPtr(map_word.value_));
+  map_slot().Relaxed_Store(Object(map_word.value_));
 }
 
 
@@ -841,7 +841,7 @@ MapWord HeapObject::synchronized_map_word() const {
 }
 
 void HeapObject::synchronized_set_map_word(MapWord map_word) {
-  map_slot().Release_Store(ObjectPtr(map_word.value_));
+  map_slot().Release_Store(Object(map_word.value_));
 }
 
 int HeapObject::Size() const { return SizeFromMap(map()); }

@@ -24,7 +24,7 @@ namespace internal {
 // FullObjectSlot implementation.
 //
 
-FullObjectSlot::FullObjectSlot(ObjectPtr* object)
+FullObjectSlot::FullObjectSlot(Object* object)
     : SlotBase(reinterpret_cast<Address>(&object->ptr_)) {}
 
 bool FullObjectSlot::contains_value(Address raw_value) const {
@@ -33,31 +33,30 @@ bool FullObjectSlot::contains_value(Address raw_value) const {
 
 Object FullObjectSlot::operator*() const { return Object(*location()); }
 
-ObjectPtr FullObjectSlot::load() const { return ObjectPtr(*location()); }
+Object FullObjectSlot::load() const { return Object(*location()); }
 
 void FullObjectSlot::store(Object value) const { *location() = value->ptr(); }
 
-ObjectPtr FullObjectSlot::Acquire_Load() const {
-  return ObjectPtr(base::AsAtomicPointer::Acquire_Load(location()));
+Object FullObjectSlot::Acquire_Load() const {
+  return Object(base::AsAtomicPointer::Acquire_Load(location()));
 }
 
-ObjectPtr FullObjectSlot::Relaxed_Load() const {
-  return ObjectPtr(base::AsAtomicPointer::Relaxed_Load(location()));
+Object FullObjectSlot::Relaxed_Load() const {
+  return Object(base::AsAtomicPointer::Relaxed_Load(location()));
 }
 
-void FullObjectSlot::Relaxed_Store(ObjectPtr value) const {
+void FullObjectSlot::Relaxed_Store(Object value) const {
   base::AsAtomicPointer::Relaxed_Store(location(), value->ptr());
 }
 
-void FullObjectSlot::Release_Store(ObjectPtr value) const {
+void FullObjectSlot::Release_Store(Object value) const {
   base::AsAtomicPointer::Release_Store(location(), value->ptr());
 }
 
-ObjectPtr FullObjectSlot::Release_CompareAndSwap(ObjectPtr old,
-                                                 ObjectPtr target) const {
+Object FullObjectSlot::Release_CompareAndSwap(Object old, Object target) const {
   Address result = base::AsAtomicPointer::Release_CompareAndSwap(
       location(), old->ptr(), target->ptr());
-  return ObjectPtr(result);
+  return Object(result);
 }
 
 //
@@ -103,7 +102,7 @@ void FullHeapObjectSlot::store(HeapObjectReference value) const {
 
 HeapObject FullHeapObjectSlot::ToHeapObject() const {
   DCHECK((*location() & kHeapObjectTagMask) == kHeapObjectTag);
-  return HeapObject::cast(ObjectPtr(*location()));
+  return HeapObject::cast(Object(*location()));
 }
 
 void FullHeapObjectSlot::StoreHeapObject(HeapObject value) const {

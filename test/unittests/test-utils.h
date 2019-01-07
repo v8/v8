@@ -313,7 +313,7 @@ class SaveFlags {
 };
 
 // For GTest.
-inline void PrintTo(ObjectPtr o, ::std::ostream* os) {
+inline void PrintTo(Object o, ::std::ostream* os) {
   *os << reinterpret_cast<void*>(o.ptr());
 }
 inline void PrintTo(Smi o, ::std::ostream* os) {

@@ -24,7 +24,7 @@ constexpr size_t kPtrComprIsolateRootAlignment = size_t{4} * GB;
 class CompressedObjectSlot
     : public SlotBase<CompressedObjectSlot, Tagged_t, kTaggedSize> {
  public:
-  using TObject = ObjectPtr;
+  using TObject = Object;
   using THeapObjectSlot = CompressedHeapObjectSlot;
 
   static constexpr bool kCanBeWeak = false;
@@ -33,7 +33,7 @@ class CompressedObjectSlot
   explicit CompressedObjectSlot(Address ptr) : SlotBase(ptr) {}
   explicit CompressedObjectSlot(Address* ptr)
       : SlotBase(reinterpret_cast<Address>(ptr)) {}
-  inline explicit CompressedObjectSlot(ObjectPtr* object);
+  inline explicit CompressedObjectSlot(Object* object);
   explicit CompressedObjectSlot(Object const* const* ptr)
       : SlotBase(reinterpret_cast<Address>(ptr)) {}
   template <typename T>
@@ -42,15 +42,14 @@ class CompressedObjectSlot
 
   inline Object operator*() const;
   // TODO(3770): drop this in favor of operator* once migration is complete.
-  inline ObjectPtr load() const;
+  inline Object load() const;
   inline void store(Object value) const;
 
-  inline ObjectPtr Acquire_Load() const;
-  inline ObjectPtr Relaxed_Load() const;
-  inline void Relaxed_Store(ObjectPtr value) const;
-  inline void Release_Store(ObjectPtr value) const;
-  inline ObjectPtr Release_CompareAndSwap(ObjectPtr old,
-                                          ObjectPtr target) const;
+  inline Object Acquire_Load() const;
+  inline Object Relaxed_Load() const;
+  inline void Relaxed_Store(Object value) const;
+  inline void Release_Store(Object value) const;
+  inline Object Release_CompareAndSwap(Object old, Object target) const;
 };
 
 // A CompressedMapWordSlot instance describes a kTaggedSize-sized map-word field
@@ -63,7 +62,7 @@ class CompressedObjectSlot
 class CompressedMapWordSlot
     : public SlotBase<CompressedMapWordSlot, Tagged_t, kTaggedSize> {
  public:
-  using TObject = ObjectPtr;
+  using TObject = Object;
 
   static constexpr bool kCanBeWeak = false;
 
@@ -75,16 +74,15 @@ class CompressedMapWordSlot
   inline bool contains_value(Address raw_value) const;
 
   inline Object operator*() const;
-  inline ObjectPtr load() const;
-  inline void store(ObjectPtr value) const;
+  inline Object load() const;
+  inline void store(Object value) const;
 
-  inline ObjectPtr Relaxed_Load() const;
-  inline void Relaxed_Store(ObjectPtr value) const;
+  inline Object Relaxed_Load() const;
+  inline void Relaxed_Store(Object value) const;
 
-  inline ObjectPtr Acquire_Load() const;
-  inline void Release_Store(ObjectPtr value) const;
-  inline ObjectPtr Release_CompareAndSwap(ObjectPtr old,
-                                          ObjectPtr target) const;
+  inline Object Acquire_Load() const;
+  inline void Release_Store(Object value) const;
+  inline Object Release_CompareAndSwap(Object old, Object target) const;
 };
 
 // A CompressedMaybeObjectSlot instance describes a kTaggedSize-sized field
@@ -102,7 +100,7 @@ class CompressedMaybeObjectSlot
 
   CompressedMaybeObjectSlot() : SlotBase(kNullAddress) {}
   explicit CompressedMaybeObjectSlot(Address ptr) : SlotBase(ptr) {}
-  explicit CompressedMaybeObjectSlot(ObjectPtr* ptr)
+  explicit CompressedMaybeObjectSlot(Object* ptr)
       : SlotBase(reinterpret_cast<Address>(ptr)) {}
   template <typename T>
   explicit CompressedMaybeObjectSlot(SlotBase<T, TData, kSlotDataSize> slot)
@@ -130,7 +128,7 @@ class CompressedHeapObjectSlot
  public:
   CompressedHeapObjectSlot() : SlotBase(kNullAddress) {}
   explicit CompressedHeapObjectSlot(Address ptr) : SlotBase(ptr) {}
-  explicit CompressedHeapObjectSlot(ObjectPtr* ptr)
+  explicit CompressedHeapObjectSlot(Object* ptr)
       : SlotBase(reinterpret_cast<Address>(ptr)) {}
   template <typename T>
   explicit CompressedHeapObjectSlot(SlotBase<T, TData, kSlotDataSize> slot)

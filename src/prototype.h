@@ -45,7 +45,7 @@ class PrototypeIterator {
 
   inline bool HasAccess() const;
 
-  template <typename T = ObjectPtr>
+  template <typename T = Object>
   T GetCurrent() const {
     DCHECK(handle_.is_null());
     return T::cast(object_);

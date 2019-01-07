@@ -39,7 +39,7 @@ RootIndexMap::RootIndexMap(Isolate* isolate) {
 }
 
 bool RootIndexMap::Lookup(Address obj, RootIndex* out_root_list) const {
-  return Lookup(HeapObject::cast(ObjectPtr(obj)), out_root_list);
+  return Lookup(HeapObject::cast(Object(obj)), out_root_list);
 }
 
 }  // namespace internal

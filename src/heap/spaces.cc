@@ -1188,7 +1188,7 @@ void MemoryAllocator::ZapBlock(Address start, size_t size,
                                uintptr_t zap_value) {
   DCHECK(IsAligned(start, kTaggedSize));
   DCHECK(IsAligned(size, kTaggedSize));
-  MemsetTagged(ObjectSlot(start), ObjectPtr(static_cast<Address>(zap_value)),
+  MemsetTagged(ObjectSlot(start), Object(static_cast<Address>(zap_value)),
                size >> kTaggedSizeLog2);
 }
 
@@ -2866,7 +2866,7 @@ void FreeListCategory::RepairFreeList(Heap* heap) {
   while (!n.is_null()) {
     MapWordSlot map_location = n.map_slot();
     // We can't use .is_null() here because ObjectSlot.load() returns an
-    // ObjectPtr (for which "is null" is not defined, as it would be
+    // Object (for which "is null" is not defined, as it would be
     // indistinguishable from "is Smi(0)"). Only HeapObject has "is_null()".
     if (map_location.load() == Map()) {
       map_location.store(ReadOnlyRoots(heap).free_space_map());

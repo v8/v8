@@ -427,7 +427,7 @@ void StackFrame::IteratePc(RootVisitor* v, Address* pc_address,
   Address pc = *pc_address;
   DCHECK(holder->GetHeap()->GcSafeCodeContains(holder, pc));
   unsigned pc_offset = static_cast<unsigned>(pc - holder->InstructionStart());
-  ObjectPtr code = holder;
+  Object code = holder;
   v->VisitRootPointer(Root::kTop, nullptr, FullObjectSlot(&code));
   if (code == holder) return;
   holder = Code::unchecked_cast(code);

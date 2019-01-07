@@ -1172,7 +1172,7 @@ static T* frame_entry_address(Address re_frame, int frame_offset) {
 int RegExpMacroAssemblerMIPS::CheckStackGuardState(Address* return_address,
                                                    Address raw_code,
                                                    Address re_frame) {
-  Code re_code = Code::cast(ObjectPtr(raw_code));
+  Code re_code = Code::cast(Object(raw_code));
   return NativeRegExpMacroAssembler::CheckStackGuardState(
       frame_entry<Isolate*>(re_frame, kIsolate),
       frame_entry<int>(re_frame, kStartIndex),

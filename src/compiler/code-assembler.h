@@ -445,7 +445,6 @@ struct types_have_common_values<MaybeObject, T> {
 // TNode<T> is an SSA value with the static type tag T, which is one of the
 // following:
 //   - a subclass of internal::Object represents a tagged type
-//   - a subclass of internal::ObjectPtr represents a tagged type
 //   - a subclass of internal::UntaggedT represents an untagged type
 //   - ExternalReference
 //   - PairT<T1, T2> for an operation returning two values, with types T1
@@ -684,8 +683,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 
       static_assert(types_have_common_values<A, PreviousType>::value,
                     "Incompatible types: this cast can never succeed.");
-      static_assert(std::is_convertible<TNode<A>, TNode<Object>>::value ||
-                        std::is_convertible<TNode<A>, TNode<ObjectPtr>>::value,
+      static_assert(std::is_convertible<TNode<A>, TNode<Object>>::value,
                     "Coercion to untagged values cannot be "
                     "checked.");
       static_assert(
@@ -990,13 +988,10 @@ class V8_EXPORT_PRIVATE CodeAssembler {
         WordAnd(static_cast<Node*>(left), static_cast<Node*>(right)));
   }
 
-  // TODO(3770): Drop ObjectPtr when the transition is done.
   template <class Left, class Right,
             class = typename std::enable_if<
-                (std::is_base_of<Object, Left>::value ||
-                 std::is_base_of<ObjectPtr, Left>::value) &&
-                (std::is_base_of<Object, Right>::value ||
-                 std::is_base_of<ObjectPtr, Right>::value)>::type>
+                std::is_base_of<Object, Left>::value &&
+                std::is_base_of<Object, Right>::value>::type>
   TNode<BoolT> WordEqual(TNode<Left> left, TNode<Right> right) {
     return WordEqual(ReinterpretCast<WordT>(left),
                      ReinterpretCast<WordT>(right));
@@ -1011,10 +1006,8 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   }
   template <class Left, class Right,
             class = typename std::enable_if<
-                (std::is_base_of<Object, Left>::value ||
-                 std::is_base_of<ObjectPtr, Left>::value) &&
-                (std::is_base_of<Object, Right>::value ||
-                 std::is_base_of<ObjectPtr, Right>::value)>::type>
+                std::is_base_of<Object, Left>::value &&
+                std::is_base_of<Object, Right>::value>::type>
   TNode<BoolT> WordNotEqual(TNode<Left> left, TNode<Right> right) {
     return WordNotEqual(ReinterpretCast<WordT>(left),
                         ReinterpretCast<WordT>(right));

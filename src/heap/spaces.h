@@ -2075,7 +2075,7 @@ class V8_EXPORT_PRIVATE PagedSpace
 
   // Checks whether an object/address is in this space.
   inline bool Contains(Address a);
-  inline bool Contains(ObjectPtr o);
+  inline bool Contains(Object o);
   bool ContainsSlow(Address addr);
 
   // Does the space need executable memory?

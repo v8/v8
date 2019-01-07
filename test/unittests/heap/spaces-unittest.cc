@@ -54,13 +54,13 @@ TEST_F(SpacesTest, CompactionSpaceMerge) {
 
 TEST_F(SpacesTest, WriteBarrierFromHeapObject) {
   constexpr Address address1 = Page::kPageSize;
-  HeapObject object1 = HeapObject::unchecked_cast(ObjectPtr(address1));
+  HeapObject object1 = HeapObject::unchecked_cast(Object(address1));
   MemoryChunk* chunk1 = MemoryChunk::FromHeapObject(object1);
   heap_internals::MemoryChunk* slim_chunk1 =
       heap_internals::MemoryChunk::FromHeapObject(object1);
   EXPECT_EQ(static_cast<void*>(chunk1), static_cast<void*>(slim_chunk1));
   constexpr Address address2 = 2 * Page::kPageSize - 1;
-  HeapObject object2 = HeapObject::unchecked_cast(ObjectPtr(address2));
+  HeapObject object2 = HeapObject::unchecked_cast(Object(address2));
   MemoryChunk* chunk2 = MemoryChunk::FromHeapObject(object2);
   heap_internals::MemoryChunk* slim_chunk2 =
       heap_internals::MemoryChunk::FromHeapObject(object2);

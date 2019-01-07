@@ -152,7 +152,7 @@ class AllocationResult {
   }
 
   // Implicit constructor from Object.
-  AllocationResult(ObjectPtr object)  // NOLINT
+  AllocationResult(Object object)  // NOLINT
       : object_(object) {
     // AllocationResults can't return Smis, which are used to represent
     // failure and the space to retry in.
@@ -176,7 +176,7 @@ class AllocationResult {
   explicit AllocationResult(AllocationSpace space)
       : object_(Smi::FromInt(static_cast<int>(space))) {}
 
-  ObjectPtr object_;
+  Object object_;
 };
 
 STATIC_ASSERT(sizeof(AllocationResult) == kSystemPointerSize);

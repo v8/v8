@@ -17,7 +17,7 @@ namespace internal {
 
 // HeapObject is the superclass for all classes describing heap allocated
 // objects.
-class HeapObject : public ObjectPtr {
+class HeapObject : public Object {
  public:
   bool is_null() const { return ptr() == kNullAddress; }
 
@@ -189,7 +189,7 @@ class HeapObject : public ObjectPtr {
   enum class AllowInlineSmiStorage { kRequireHeapObjectTag, kAllowBeingASmi };
   inline HeapObject(Address ptr, AllowInlineSmiStorage allow_smi);
 
-  OBJECT_CONSTRUCTORS(HeapObject, ObjectPtr);
+  OBJECT_CONSTRUCTORS(HeapObject, Object);
 };
 
 // Replacement for NeverReadOnlySpaceObject, temporarily separate for

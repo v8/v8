@@ -16,7 +16,7 @@ namespace v8 {
 namespace internal {
 
 HeapObject::HeapObject(Address ptr, AllowInlineSmiStorage allow_smi)
-    : ObjectPtr(ptr) {
+    : Object(ptr) {
   SLOW_DCHECK(
       (allow_smi == AllowInlineSmiStorage::kAllowBeingASmi && IsSmi()) ||
       IsHeapObject());

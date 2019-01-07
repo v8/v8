@@ -18,7 +18,7 @@ namespace internal {
 
 bool MaybeObject::ToSmi(Smi* value) {
   if (HAS_SMI_TAG(ptr_)) {
-    *value = Smi::cast(ObjectPtr(ptr_));
+    *value = Smi::cast(Object(ptr_));
     return true;
   }
   return false;
@@ -26,7 +26,7 @@ bool MaybeObject::ToSmi(Smi* value) {
 
 Smi MaybeObject::ToSmi() const {
   DCHECK(HAS_SMI_TAG(ptr_));
-  return Smi::cast(ObjectPtr(ptr_));
+  return Smi::cast(Object(ptr_));
 }
 
 bool MaybeObject::IsStrongOrWeak() const {
@@ -62,7 +62,7 @@ bool MaybeObject::IsStrong() const {
 
 bool MaybeObject::GetHeapObjectIfStrong(HeapObject* result) const {
   if (!HasWeakHeapObjectTag(ptr_) && !IsSmi()) {
-    *result = HeapObject::cast(ObjectPtr(ptr_));
+    *result = HeapObject::cast(Object(ptr_));
     return true;
   }
   return false;
@@ -70,7 +70,7 @@ bool MaybeObject::GetHeapObjectIfStrong(HeapObject* result) const {
 
 HeapObject MaybeObject::GetHeapObjectAssumeStrong() const {
   DCHECK(IsStrong());
-  return HeapObject::cast(ObjectPtr(ptr_));
+  return HeapObject::cast(Object(ptr_));
 }
 
 bool MaybeObject::IsWeak() const {
@@ -95,7 +95,7 @@ HeapObject MaybeObject::GetHeapObjectAssumeWeak() const {
 HeapObject MaybeObject::GetHeapObject() const {
   DCHECK(!IsSmi());
   DCHECK(!IsCleared());
-  return HeapObject::cast(ObjectPtr(ptr_ & ~kWeakHeapObjectMask));
+  return HeapObject::cast(Object(ptr_ & ~kWeakHeapObjectMask));
 }
 
 Object MaybeObject::GetHeapObjectOrSmi() const {

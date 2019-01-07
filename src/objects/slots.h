@@ -10,7 +10,7 @@
 namespace v8 {
 namespace internal {
 
-class ObjectPtr;
+class Object;
 
 template <typename Subclass, typename Data, size_t SlotDataSize>
 class SlotBase {
@@ -91,7 +91,7 @@ class SlotBase {
 class FullObjectSlot
     : public SlotBase<FullObjectSlot, Address, kSystemPointerSize> {
  public:
-  using TObject = ObjectPtr;
+  using TObject = Object;
   using THeapObjectSlot = FullHeapObjectSlot;
 
   // Tagged value stored in this slot is guaranteed to never be a weak pointer.
@@ -112,15 +112,14 @@ class FullObjectSlot
 
   inline Object operator*() const;
   // TODO(3770): drop this in favor of operator* once migration is complete.
-  inline ObjectPtr load() const;
+  inline Object load() const;
   inline void store(Object value) const;
 
-  inline ObjectPtr Acquire_Load() const;
-  inline ObjectPtr Relaxed_Load() const;
-  inline void Relaxed_Store(ObjectPtr value) const;
-  inline void Release_Store(ObjectPtr value) const;
-  inline ObjectPtr Release_CompareAndSwap(ObjectPtr old,
-                                          ObjectPtr target) const;
+  inline Object Acquire_Load() const;
+  inline Object Relaxed_Load() const;
+  inline void Relaxed_Store(Object value) const;
+  inline void Release_Store(Object value) const;
+  inline Object Release_CompareAndSwap(Object old, Object target) const;
 };
 
 // A FullMaybeObjectSlot instance describes a kSystemPointerSize-sized field
@@ -166,7 +165,7 @@ class FullHeapObjectSlot
  public:
   FullHeapObjectSlot() : SlotBase(kNullAddress) {}
   explicit FullHeapObjectSlot(Address ptr) : SlotBase(ptr) {}
-  explicit FullHeapObjectSlot(ObjectPtr* ptr)
+  explicit FullHeapObjectSlot(Object* ptr)
       : SlotBase(reinterpret_cast<Address>(ptr)) {}
   template <typename T>
   explicit FullHeapObjectSlot(SlotBase<T, TData, kSlotDataSize> slot)

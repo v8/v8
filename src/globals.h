@@ -597,10 +597,6 @@ class Struct;
 class Symbol;
 class Variable;
 
-// Allow smaller incremental CLs.
-// TODO(3770): Drop this ASAP.
-#define ObjectPtr Object
-
 enum class SlotLocation { kOnHeap, kOffHeap };
 
 template <SlotLocation slot_location>
@@ -633,7 +629,7 @@ struct SlotTraits<SlotLocation::kOnHeap> {
 };
 
 // An ObjectSlot instance describes a kTaggedSize-sized on-heap field ("slot")
-// holding ObjectPtr value (smi or strong heap object).
+// holding Object value (smi or strong heap object).
 using ObjectSlot = SlotTraits<SlotLocation::kOnHeap>::TObjectSlot;
 
 // An MapWordSlot instance describes a kTaggedSize-sized on-heap field ("slot")

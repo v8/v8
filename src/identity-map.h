@@ -101,27 +101,27 @@ class IdentityMap : public IdentityMapBase {
   //    found => a pointer to the storage location for the value
   //    not found => a pointer to a new storage location for the value
   V* Get(Handle<Object> key) { return Get(*key); }
-  V* Get(ObjectPtr key) { return reinterpret_cast<V*>(GetEntry(key.ptr())); }
+  V* Get(Object key) { return reinterpret_cast<V*>(GetEntry(key.ptr())); }
 
   // Searches this map for the given key using the object's address
   // as the identity, returning:
   //    found => a pointer to the storage location for the value
   //    not found => {nullptr}
   V* Find(Handle<Object> key) const { return Find(*key); }
-  V* Find(ObjectPtr key) const {
+  V* Find(Object key) const {
     return reinterpret_cast<V*>(FindEntry(key.ptr()));
   }
 
   // Set the value for the given key.
   void Set(Handle<Object> key, V v) { Set(*key, v); }
-  void Set(ObjectPtr key, V v) {
+  void Set(Object key, V v) {
     *(reinterpret_cast<V*>(GetEntry(key.ptr()))) = v;
   }
 
   bool Delete(Handle<Object> key, V* deleted_value) {
     return Delete(*key, deleted_value);
   }
-  bool Delete(ObjectPtr key, V* deleted_value) {
+  bool Delete(Object key, V* deleted_value) {
     void* v = nullptr;
     bool deleted_something = DeleteEntry(key.ptr(), &v);
     if (deleted_value != nullptr && deleted_something) {

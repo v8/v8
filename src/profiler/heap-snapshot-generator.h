@@ -430,11 +430,10 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   HeapObjectsMap* heap_object_map_;
   SnapshottingProgressReportingInterface* progress_;
   HeapSnapshotGenerator* generator_ = nullptr;
-  std::unordered_map<JSGlobalObject, const char*, ObjectPtr::Hasher>
-      objects_tags_;
+  std::unordered_map<JSGlobalObject, const char*, Object::Hasher> objects_tags_;
   std::unordered_map<Object, const char*, Object::Hasher>
       strong_gc_subroot_names_;
-  std::unordered_set<JSGlobalObject, ObjectPtr::Hasher> user_roots_;
+  std::unordered_set<JSGlobalObject, Object::Hasher> user_roots_;
   v8::HeapProfiler::ObjectNameResolver* global_object_name_resolver_;
 
   std::vector<bool> visited_fields_;

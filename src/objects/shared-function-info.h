@@ -198,7 +198,7 @@ class InterpreterData : public Struct {
 class SharedFunctionInfo : public HeapObject {
  public:
   NEVER_READ_ONLY_SPACE
-  static constexpr ObjectPtr const kNoSharedNameSentinel = Smi::kZero;
+  static constexpr Object const kNoSharedNameSentinel = Smi::kZero;
 
   // [name]: Returns shared name if it exists or an empty string otherwise.
   inline String Name() const;

@@ -108,7 +108,7 @@ void IncrementalMarking::RecordWriteSlow(HeapObject obj, HeapObjectSlot slot,
 int IncrementalMarking::RecordWriteFromCode(Address raw_obj,
                                             Address slot_address,
                                             Isolate* isolate) {
-  HeapObject obj = HeapObject::cast(ObjectPtr(raw_obj));
+  HeapObject obj = HeapObject::cast(Object(raw_obj));
   MaybeObjectSlot slot(slot_address);
   isolate->heap()->incremental_marking()->RecordMaybeWeakWrite(obj, slot,
                                                                *slot);

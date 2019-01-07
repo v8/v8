@@ -162,7 +162,7 @@ bool PagedSpace::Contains(Address addr) {
   return MemoryChunk::FromAnyPointerAddress(heap(), addr)->owner() == this;
 }
 
-bool PagedSpace::Contains(ObjectPtr o) {
+bool PagedSpace::Contains(Object o) {
   if (!o.IsHeapObject()) return false;
   return Page::FromAddress(o.ptr())->owner() == this;
 }

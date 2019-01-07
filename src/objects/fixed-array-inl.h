@@ -118,7 +118,7 @@ bool FixedArray::is_the_hole(Isolate* isolate, int index) {
 void FixedArray::set(int index, Smi value) {
   DCHECK_NE(map(), GetReadOnlyRoots().fixed_cow_array_map());
   DCHECK_LT(index, this->length());
-  DCHECK(ObjectPtr(value).IsSmi());
+  DCHECK(Object(value).IsSmi());
   int offset = kHeaderSize + index * kTaggedSize;
   RELAXED_WRITE_FIELD(this, offset, value);
 }
@@ -512,7 +512,7 @@ void ByteArray::clear_padding() {
 
 ByteArray ByteArray::FromDataStartAddress(Address address) {
   DCHECK_TAG_ALIGNED(address);
-  return ByteArray::cast(ObjectPtr(address - kHeaderSize + kHeapObjectTag));
+  return ByteArray::cast(Object(address - kHeaderSize + kHeapObjectTag));
 }
 
 int ByteArray::DataSize() const { return RoundUp(length(), kTaggedSize); }
@@ -531,7 +531,7 @@ template <class T>
 PodArray<T>::PodArray(Address ptr) : ByteArray(ptr) {}
 
 template <class T>
-PodArray<T> PodArray<T>::cast(ObjectPtr object) {
+PodArray<T> PodArray<T>::cast(Object object) {
   return PodArray<T>(object.ptr());
 }
 
@@ -892,7 +892,7 @@ FixedTypedArray<Traits>::FixedTypedArray(Address ptr)
 }
 
 template <class Traits>
-FixedTypedArray<Traits> FixedTypedArray<Traits>::cast(ObjectPtr object) {
+FixedTypedArray<Traits> FixedTypedArray<Traits>::cast(Object object) {
   return FixedTypedArray<Traits>(object.ptr());
 }
 

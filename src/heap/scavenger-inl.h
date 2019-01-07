@@ -129,7 +129,7 @@ bool Scavenger::MigrateObject(Map map, HeapObject source, HeapObject target,
   heap()->CopyBlock(target->address() + kTaggedSize,
                     source->address() + kTaggedSize, size - kTaggedSize);
 
-  ObjectPtr old = source->map_slot().Release_CompareAndSwap(
+  Object old = source->map_slot().Release_CompareAndSwap(
       map, MapWord::FromForwardingAddress(target).ToMap());
   if (old != map) {
     // Other task migrated the object.

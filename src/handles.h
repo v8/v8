@@ -29,7 +29,7 @@ class HandleScopeImplementer;
 class Isolate;
 template <typename T>
 class MaybeHandle;
-class ObjectPtr;
+class Object;
 class OrderedHashMap;
 class OrderedHashSet;
 class OrderedNameDictionary;
@@ -137,7 +137,7 @@ class Handle final : public HandleBase {
     return operator*();
   }
   template <typename T1 = T, typename = typename std::enable_if<
-                                 std::is_base_of<ObjectPtr, T1>::value>::type>
+                                 std::is_base_of<Object, T1>::value>::type>
   V8_INLINE T operator->() const {
     return operator*();
   }
@@ -150,11 +150,11 @@ class Handle final : public HandleBase {
     return reinterpret_cast<T*>(HandleBase::operator*());
   }
   template <typename T1 = T, typename = typename std::enable_if<
-                                 std::is_base_of<ObjectPtr, T1>::value>::type>
+                                 std::is_base_of<Object, T1>::value>::type>
   V8_INLINE T operator*() const {
     // unchecked_cast because we rather trust Handle<T> to contain a T than
     // include all the respective -inl.h headers for SLOW_DCHECKs.
-    return T::unchecked_cast(ObjectPtr(HandleBase::operator*()));
+    return T::unchecked_cast(Object(HandleBase::operator*()));
   }
 
   // Returns the address to where the raw pointer is stored.

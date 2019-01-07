@@ -20,12 +20,12 @@ namespace internal {
 // For long smis it has the following format:
 //     [32 bit signed int] [31 bits zero padding] 0
 // Smi stands for small integer.
-class Smi : public ObjectPtr {
+class Smi : public Object {
  public:
   // This replaces the OBJECT_CONSTRUCTORS macro, because Smis are special
   // in that we want them to be constexprs.
-  constexpr Smi() : ObjectPtr() {}
-  explicit constexpr Smi(Address ptr) : ObjectPtr(ptr) {
+  constexpr Smi() : Object() {}
+  explicit constexpr Smi(Address ptr) : Object(ptr) {
 #if V8_CAN_HAVE_DCHECK_IN_CONSTEXPR
     DCHECK(HAS_SMI_TAG(ptr));
 #endif
@@ -43,7 +43,7 @@ class Smi : public ObjectPtr {
   // Convert a Smi object to an int.
   static inline int ToInt(const Object object);
 
-  // TODO(3770): Drop this when merging Object and ObjectPtr.
+  // TODO(3770): Drop this when merging Object and Object.
   bool ToInt32(int32_t* value) {
     *value = this->value();
     return true;
@@ -95,9 +95,9 @@ class Smi : public ObjectPtr {
   DECL_VERIFIER(Smi)
 
   // C++ does not allow us to have an object of type Smi within class Smi,
-  // so the kZero value has type ObjectPtr. Consider it deprecated; new code
+  // so the kZero value has type Object. Consider it deprecated; new code
   // should use zero() instead.
-  V8_EXPORT_PRIVATE static constexpr ObjectPtr kZero = ObjectPtr(0);
+  V8_EXPORT_PRIVATE static constexpr Object kZero = Object(0);
   // If you need something with type Smi, call zero() instead. Since it is
   // a constexpr, "calling" it is just as efficient as reading kZero.
   static inline constexpr Smi zero() { return Smi::FromInt(0); }

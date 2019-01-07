@@ -2386,7 +2386,7 @@ template <typename TSlot, HeapObjectReferenceType reference_type>
 typename TSlot::TObject MakeSlotValue(HeapObject heap_object);
 
 template <>
-ObjectPtr MakeSlotValue<ObjectSlot, HeapObjectReferenceType::STRONG>(
+Object MakeSlotValue<ObjectSlot, HeapObjectReferenceType::STRONG>(
     HeapObject heap_object) {
   return heap_object;
 }
@@ -2405,7 +2405,7 @@ MaybeObject MakeSlotValue<MaybeObjectSlot, HeapObjectReferenceType::WEAK>(
 
 #ifdef V8_COMPRESS_POINTERS
 template <>
-ObjectPtr MakeSlotValue<FullObjectSlot, HeapObjectReferenceType::STRONG>(
+Object MakeSlotValue<FullObjectSlot, HeapObjectReferenceType::STRONG>(
     HeapObject heap_object) {
   return heap_object;
 }

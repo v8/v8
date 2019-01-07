@@ -35,7 +35,7 @@ class BigIntBase : public HeapObject {
     return LengthBits::decode(static_cast<uint32_t>(bitfield));
   }
 
-  static inline BigIntBase unchecked_cast(ObjectPtr o) {
+  static inline BigIntBase unchecked_cast(Object o) {
     return bit_cast<BigIntBase>(o);
   }
 
@@ -113,7 +113,7 @@ class FreshlyAllocatedBigInt : public BigIntBase {
 
  public:
   inline static FreshlyAllocatedBigInt cast(Object object);
-  inline static FreshlyAllocatedBigInt unchecked_cast(ObjectPtr o) {
+  inline static FreshlyAllocatedBigInt unchecked_cast(Object o) {
     return bit_cast<FreshlyAllocatedBigInt>(o);
   }
 

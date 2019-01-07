@@ -2440,7 +2440,7 @@ HeapObject Heap::CreateFillerObjectAt(Address addr, int size,
         SKIP_WRITE_BARRIER);
     FreeSpace::cast(filler)->relaxed_write_size(size);
     if (clear_memory_mode == ClearFreedMemoryMode::kClearFreedMemory) {
-      MemsetTagged(ObjectSlot(addr) + 2, ObjectPtr(kClearedFreeMemoryValue),
+      MemsetTagged(ObjectSlot(addr) + 2, Object(kClearedFreeMemoryValue),
                    (size / kTaggedSize) - 2);
     }
   }
@@ -3681,7 +3681,7 @@ void Heap::ZapCodeObject(Address start_address, int size_in_bytes) {
 // TODO(ishell): move builtin accessors out from Heap.
 Code Heap::builtin(int index) {
   DCHECK(Builtins::IsBuiltinId(index));
-  return Code::cast(ObjectPtr(isolate()->builtins_table()[index]));
+  return Code::cast(Object(isolate()->builtins_table()[index]));
 }
 
 Address Heap::builtin_address(int index) {
@@ -3766,7 +3766,7 @@ class FixStaleLeftTrimmedHandlesVisitor : public RootVisitor {
         } else {
           next += current->Size();
         }
-        current = HeapObject::cast(ObjectPtr(next));
+        current = HeapObject::cast(Object(next));
       }
       DCHECK(current->IsFixedArrayBase());
 #endif  // DEBUG
@@ -4553,7 +4553,7 @@ EmbedderHeapTracer* Heap::GetEmbedderHeapTracer() const {
 void Heap::RegisterExternallyReferencedObject(Address* location) {
   // The embedder is not aware of whether numbers are materialized as heap
   // objects are just passed around as Smis.
-  ObjectPtr object(*location);
+  Object object(*location);
   if (!object->IsHeapObject()) return;
   HeapObject heap_object = HeapObject::cast(object);
   DCHECK(Contains(heap_object));

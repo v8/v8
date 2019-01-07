@@ -160,7 +160,7 @@ int NativeRegExpMacroAssembler::CheckStackGuardState(
   // Prepare for possible GC.
   HandleScope handles(isolate);
   Handle<Code> code_handle(re_code, isolate);
-  Handle<String> subject_handle(String::cast(ObjectPtr(*subject)), isolate);
+  Handle<String> subject_handle(String::cast(Object(*subject)), isolate);
   bool is_one_byte = String::IsOneByteRepresentationUnderneath(*subject_handle);
 
   StackLimitCheck check(isolate);

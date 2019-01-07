@@ -534,7 +534,7 @@ void MipsDebugger::Debug() {
         while (cur < end) {
           PrintF("  0x%08" PRIxPTR ":  0x%08x %10d",
                  reinterpret_cast<intptr_t>(cur), *cur, *cur);
-          ObjectPtr obj(*cur);
+          Object obj(*cur);
           Heap* current_heap = sim_->isolate_->heap();
           if (obj.IsSmi() || current_heap->Contains(HeapObject::cast(obj))) {
             PrintF(" (");

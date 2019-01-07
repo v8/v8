@@ -514,7 +514,7 @@ class ReadOnlyRoots {
   V8_INLINE explicit ReadOnlyRoots(Heap* heap);
   V8_INLINE explicit ReadOnlyRoots(Isolate* isolate);
 
-// TODO(jkummerow): Drop std::remove_pointer after the migration to ObjectPtr.
+// TODO(3770): Drop std::remove_pointer after the migration.
 #define ROOT_ACCESSOR(Type, name, CamelName) \
   V8_INLINE class Type name() const;         \
   V8_INLINE Handle<std::remove_pointer<Type>::type> name##_handle() const;

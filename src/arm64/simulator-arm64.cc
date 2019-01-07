@@ -3291,7 +3291,7 @@ void Simulator::Debug() {
         while (cur < end) {
           PrintF("  0x%016" PRIx64 ":  0x%016" PRIx64 " %10" PRId64,
                  reinterpret_cast<uint64_t>(cur), *cur, *cur);
-          ObjectPtr obj(*cur);
+          Object obj(*cur);
           Heap* current_heap = isolate_->heap();
           if (obj.IsSmi() || current_heap->Contains(HeapObject::cast(obj))) {
             PrintF(" (");

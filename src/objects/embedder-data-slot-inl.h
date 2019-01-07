@@ -91,7 +91,7 @@ bool EmbedderDataSlot::store_aligned_pointer(void* ptr) {
   Address lo = static_cast<intptr_t>(static_cast<int32_t>(value));
   ObjectSlot(address() + kTaggedPayloadOffset).Relaxed_Store(Smi(lo));
   Address hi = value >> 32;
-  ObjectSlot(address() + kRawPayloadOffset).Relaxed_Store(ObjectPtr(hi));
+  ObjectSlot(address() + kRawPayloadOffset).Relaxed_Store(Object(hi));
 #else
   ObjectSlot(address() + kTaggedPayloadOffset).Relaxed_Store(Smi(value));
 #endif
@@ -112,10 +112,10 @@ EmbedderDataSlot::RawData EmbedderDataSlot::load_raw(
 void EmbedderDataSlot::store_raw(const EmbedderDataSlot::RawData& data,
                                  const DisallowHeapAllocation& no_gc) {
   ObjectSlot(address() + kTaggedPayloadOffset)
-      .Relaxed_Store(ObjectPtr(data.data_[0]));
+      .Relaxed_Store(Object(data.data_[0]));
 #ifdef V8_COMPRESS_POINTERS
   ObjectSlot(address() + kRawPayloadOffset)
-      .Relaxed_Store(ObjectPtr(data.data_[1]));
+      .Relaxed_Store(Object(data.data_[1]));
 #endif
 }
 

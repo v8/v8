@@ -843,7 +843,7 @@ class V8_EXPORT_PRIVATE Factory {
 
   inline Handle<String> Uint32ToString(uint32_t value, bool check_cache = true);
 
-// TODO(jkummerow): Drop std::remove_pointer after the migration to ObjectPtr.
+// TODO(3770): Drop std::remove_pointer after the migration.
 #define ROOT_ACCESSOR(Type, name, CamelName) \
   inline Handle<std::remove_pointer<Type>::type> name();
   ROOT_LIST(ROOT_ACCESSOR)
