@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_PARSING_PREPARSED_SCOPE_DATA_H_
-#define V8_PARSING_PREPARSED_SCOPE_DATA_H_
+#ifndef V8_PARSING_PREPARSE_DATA_H_
+#define V8_PARSING_PREPARSE_DATA_H_
 
 #include "src/globals.h"
 #include "src/handles.h"
@@ -18,8 +18,8 @@ template <typename T>
 class PodArray;
 
 class PreParser;
-class PreParsedScopeData;
-class ZonePreParsedScopeData;
+class PreparseData;
+class ZonePreparseData;
 
 /*
 
@@ -55,26 +55,26 @@ class ZonePreParsedScopeData;
   For each Scope:
   - inner_scope_calls_eval_.
 
-  ProducedPreParsedScopeData implements storing the above mentioned data and
-  ConsumedPreParsedScopeData implements restoring it (= setting the context
+  ProducedPreparseData implements storing the above mentioned data and
+  ConsumedPreparseData implements restoring it (= setting the context
   allocation status of the variables in a Scope (and its subscopes) based on the
   data).
 
  */
 
-class PreParsedScopeDataBuilder : public ZoneObject {
+class PreparseDataBuilder : public ZoneObject {
  public:
   class ByteData;
 
-  // Create a PreParsedScopeDataBuilder object which will collect data as we
+  // Create a PreparseDataBuilder object which will collect data as we
   // parse.
-  PreParsedScopeDataBuilder(Zone* zone, PreParsedScopeDataBuilder* parent);
+  PreparseDataBuilder(Zone* zone, PreparseDataBuilder* parent);
 
-  PreParsedScopeDataBuilder* parent() const { return parent_; }
+  PreparseDataBuilder* parent() const { return parent_; }
 
   // For gathering the inner function data and splitting it up according to the
   // laziness boundaries. Each lazy function gets its own
-  // ProducedPreParsedScopeData, and so do all lazy functions inside it.
+  // ProducedPreparseData, and so do all lazy functions inside it.
   class DataGatheringScope {
    public:
     explicit DataGatheringScope(PreParser* preparser)
@@ -85,7 +85,7 @@ class PreParsedScopeDataBuilder : public ZoneObject {
 
    private:
     PreParser* preparser_;
-    PreParsedScopeDataBuilder* builder_;
+    PreparseDataBuilder* builder_;
 
     DISALLOW_COPY_AND_ASSIGN(DataGatheringScope);
   };
@@ -124,69 +124,66 @@ class PreParsedScopeDataBuilder : public ZoneObject {
                             bool uses_super_property);
 
  private:
-  friend class BuilderProducedPreParsedScopeData;
+  friend class BuilderProducedPreparseData;
 
-  MaybeHandle<PreParsedScopeData> Serialize(Isolate* isolate);
-  ZonePreParsedScopeData* Serialize(Zone* zone);
+  MaybeHandle<PreparseData> Serialize(Isolate* isolate);
+  ZonePreparseData* Serialize(Zone* zone);
 
   void SaveDataForScope(Scope* scope);
   void SaveDataForVariable(Variable* var);
   void SaveDataForInnerScopes(Scope* scope);
 
-  PreParsedScopeDataBuilder* parent_;
+  PreparseDataBuilder* parent_;
 
   ByteData* byte_data_;
-  ZoneChunkList<PreParsedScopeDataBuilder*> data_for_inner_functions_;
+  ZoneChunkList<PreparseDataBuilder*> data_for_inner_functions_;
 
   // Whether we've given up producing the data for this function.
   bool bailed_out_;
 
-  DISALLOW_COPY_AND_ASSIGN(PreParsedScopeDataBuilder);
+  DISALLOW_COPY_AND_ASSIGN(PreparseDataBuilder);
 };
 
-class ProducedPreParsedScopeData : public ZoneObject {
+class ProducedPreparseData : public ZoneObject {
  public:
   // If there is data (if the Scope contains skippable inner functions), move
   // the data into the heap and return a Handle to it; otherwise return a null
   // MaybeHandle.
-  virtual MaybeHandle<PreParsedScopeData> Serialize(Isolate* isolate) = 0;
+  virtual MaybeHandle<PreparseData> Serialize(Isolate* isolate) = 0;
 
   // If there is data (if the Scope contains skippable inner functions), return
-  // an off-heap ZonePreParsedScopeData representing the data; otherwise
+  // an off-heap ZonePreparseData representing the data; otherwise
   // return nullptr.
-  virtual ZonePreParsedScopeData* Serialize(Zone* zone) = 0;
+  virtual ZonePreparseData* Serialize(Zone* zone) = 0;
 
-  // Create a ProducedPreParsedScopeData which is a proxy for a previous
-  // produced PreParsedScopeData in zone.
-  static ProducedPreParsedScopeData* For(PreParsedScopeDataBuilder* builder,
-                                         Zone* zone);
+  // Create a ProducedPreparseData which is a proxy for a previous
+  // produced PreparseData in zone.
+  static ProducedPreparseData* For(PreparseDataBuilder* builder, Zone* zone);
 
-  // Create a ProducedPreParsedScopeData which is a proxy for a previous
-  // produced PreParsedScopeData on the heap.
-  static ProducedPreParsedScopeData* For(Handle<PreParsedScopeData> data,
-                                         Zone* zone);
+  // Create a ProducedPreparseData which is a proxy for a previous
+  // produced PreparseData on the heap.
+  static ProducedPreparseData* For(Handle<PreparseData> data, Zone* zone);
 
-  // Create a ProducedPreParsedScopeData which is a proxy for a previous
-  // produced PreParsedScopeData in zone.
-  static ProducedPreParsedScopeData* For(ZonePreParsedScopeData* data,
-                                         Zone* zone);
+  // Create a ProducedPreparseData which is a proxy for a previous
+  // produced PreparseData in zone.
+  static ProducedPreparseData* For(ZonePreparseData* data, Zone* zone);
 };
 
-class ConsumedPreParsedScopeData {
+class ConsumedPreparseData {
  public:
-  // Creates a ConsumedPreParsedScopeData representing the data of an on-heap
-  // PreParsedScopeData |data|.
-  static std::unique_ptr<ConsumedPreParsedScopeData> For(
-      Isolate* isolate, Handle<PreParsedScopeData> data);
+  // Creates a ConsumedPreparseData representing the data of an on-heap
+  // PreparseData |data|.
+  static std::unique_ptr<ConsumedPreparseData> For(Isolate* isolate,
+                                                   Handle<PreparseData> data);
 
-  // Creates a ConsumedPreParsedScopeData representing the data of an off-heap
-  // ZonePreParsedScopeData |data|.
-  static std::unique_ptr<ConsumedPreParsedScopeData> For(
-      Zone* zone, ZonePreParsedScopeData* data);
+  // Creates a ConsumedPreparseData representing the data of an off-heap
+  // ZonePreparseData |data|.
+  static std::unique_ptr<ConsumedPreparseData> For(Zone* zone,
+                                                   ZonePreparseData* data);
 
-  virtual ~ConsumedPreParsedScopeData() = default;
+  virtual ~ConsumedPreparseData() = default;
 
-  virtual ProducedPreParsedScopeData* GetDataForSkippableFunction(
+  virtual ProducedPreparseData* GetDataForSkippableFunction(
       Zone* zone, int start_position, int* end_position, int* num_parameters,
       int* num_inner_functions, bool* uses_super_property,
       LanguageMode* language_mode) = 0;
@@ -196,13 +193,13 @@ class ConsumedPreParsedScopeData {
   virtual void RestoreScopeAllocationData(DeclarationScope* scope) = 0;
 
  protected:
-  ConsumedPreParsedScopeData() = default;
+  ConsumedPreparseData() = default;
 
  private:
-  DISALLOW_COPY_AND_ASSIGN(ConsumedPreParsedScopeData);
+  DISALLOW_COPY_AND_ASSIGN(ConsumedPreparseData);
 };
 
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_PARSING_PREPARSED_SCOPE_DATA_H_
+#endif  // V8_PARSING_PREPARSE_DATA_H_

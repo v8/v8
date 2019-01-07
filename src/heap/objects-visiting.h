@@ -29,56 +29,56 @@ class JSWeakCell;
 class JSWeakRef;
 class JSWeakCollection;
 class NativeContext;
-class UncompiledDataWithoutPreParsedScope;
-class UncompiledDataWithPreParsedScope;
+class UncompiledDataWithoutPreparseData;
+class UncompiledDataWithPreparseData;
 class WasmInstanceObject;
 
-#define TYPED_VISITOR_ID_LIST(V)                                              \
-  V(AllocationSite, AllocationSite)                                           \
-  V(BigInt, BigInt)                                                           \
-  V(ByteArray, ByteArray)                                                     \
-  V(BytecodeArray, BytecodeArray)                                             \
-  V(Cell, Cell)                                                               \
-  V(Code, Code)                                                               \
-  V(CodeDataContainer, CodeDataContainer)                                     \
-  V(ConsString, ConsString)                                                   \
-  V(Context, Context)                                                         \
-  V(DataHandler, DataHandler)                                                 \
-  V(DescriptorArray, DescriptorArray)                                         \
-  V(EmbedderDataArray, EmbedderDataArray)                                     \
-  V(EphemeronHashTable, EphemeronHashTable)                                   \
-  V(FeedbackCell, FeedbackCell)                                               \
-  V(FeedbackVector, FeedbackVector)                                           \
-  V(FixedArray, FixedArray)                                                   \
-  V(FixedDoubleArray, FixedDoubleArray)                                       \
-  V(FixedFloat64Array, FixedFloat64Array)                                     \
-  V(FixedTypedArrayBase, FixedTypedArrayBase)                                 \
-  V(JSArrayBuffer, JSArrayBuffer)                                             \
-  V(JSDataView, JSDataView)                                                   \
-  V(JSObject, JSObject)                                                       \
-  V(JSTypedArray, JSTypedArray)                                               \
-  V(JSWeakCell, JSWeakCell)                                                   \
-  V(JSWeakCollection, JSWeakCollection)                                       \
-  V(JSWeakRef, JSWeakRef)                                                     \
-  V(Map, Map)                                                                 \
-  V(NativeContext, NativeContext)                                             \
-  V(Oddball, Oddball)                                                         \
-  V(PreParsedScopeData, PreParsedScopeData)                                   \
-  V(PropertyArray, PropertyArray)                                             \
-  V(PropertyCell, PropertyCell)                                               \
-  V(PrototypeInfo, PrototypeInfo)                                             \
-  V(SeqOneByteString, SeqOneByteString)                                       \
-  V(SeqTwoByteString, SeqTwoByteString)                                       \
-  V(SharedFunctionInfo, SharedFunctionInfo)                                   \
-  V(SlicedString, SlicedString)                                               \
-  V(SmallOrderedHashMap, SmallOrderedHashMap)                                 \
-  V(SmallOrderedHashSet, SmallOrderedHashSet)                                 \
-  V(SmallOrderedNameDictionary, SmallOrderedNameDictionary)                   \
-  V(Symbol, Symbol)                                                           \
-  V(ThinString, ThinString)                                                   \
-  V(TransitionArray, TransitionArray)                                         \
-  V(UncompiledDataWithoutPreParsedScope, UncompiledDataWithoutPreParsedScope) \
-  V(UncompiledDataWithPreParsedScope, UncompiledDataWithPreParsedScope)       \
+#define TYPED_VISITOR_ID_LIST(V)                                          \
+  V(AllocationSite, AllocationSite)                                       \
+  V(BigInt, BigInt)                                                       \
+  V(ByteArray, ByteArray)                                                 \
+  V(BytecodeArray, BytecodeArray)                                         \
+  V(Cell, Cell)                                                           \
+  V(Code, Code)                                                           \
+  V(CodeDataContainer, CodeDataContainer)                                 \
+  V(ConsString, ConsString)                                               \
+  V(Context, Context)                                                     \
+  V(DataHandler, DataHandler)                                             \
+  V(DescriptorArray, DescriptorArray)                                     \
+  V(EmbedderDataArray, EmbedderDataArray)                                 \
+  V(EphemeronHashTable, EphemeronHashTable)                               \
+  V(FeedbackCell, FeedbackCell)                                           \
+  V(FeedbackVector, FeedbackVector)                                       \
+  V(FixedArray, FixedArray)                                               \
+  V(FixedDoubleArray, FixedDoubleArray)                                   \
+  V(FixedFloat64Array, FixedFloat64Array)                                 \
+  V(FixedTypedArrayBase, FixedTypedArrayBase)                             \
+  V(JSArrayBuffer, JSArrayBuffer)                                         \
+  V(JSDataView, JSDataView)                                               \
+  V(JSObject, JSObject)                                                   \
+  V(JSTypedArray, JSTypedArray)                                           \
+  V(JSWeakCell, JSWeakCell)                                               \
+  V(JSWeakCollection, JSWeakCollection)                                   \
+  V(JSWeakRef, JSWeakRef)                                                 \
+  V(Map, Map)                                                             \
+  V(NativeContext, NativeContext)                                         \
+  V(Oddball, Oddball)                                                     \
+  V(PreparseData, PreparseData)                                           \
+  V(PropertyArray, PropertyArray)                                         \
+  V(PropertyCell, PropertyCell)                                           \
+  V(PrototypeInfo, PrototypeInfo)                                         \
+  V(SeqOneByteString, SeqOneByteString)                                   \
+  V(SeqTwoByteString, SeqTwoByteString)                                   \
+  V(SharedFunctionInfo, SharedFunctionInfo)                               \
+  V(SlicedString, SlicedString)                                           \
+  V(SmallOrderedHashMap, SmallOrderedHashMap)                             \
+  V(SmallOrderedHashSet, SmallOrderedHashSet)                             \
+  V(SmallOrderedNameDictionary, SmallOrderedNameDictionary)               \
+  V(Symbol, Symbol)                                                       \
+  V(ThinString, ThinString)                                               \
+  V(TransitionArray, TransitionArray)                                     \
+  V(UncompiledDataWithoutPreparseData, UncompiledDataWithoutPreparseData) \
+  V(UncompiledDataWithPreparseData, UncompiledDataWithPreparseData)       \
   V(WasmInstanceObject, WasmInstanceObject)
 
 // The base class for visitors that need to dispatch on object type. The default

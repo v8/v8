@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_PARSING_PREPARSED_SCOPE_DATA_IMPL_H_
-#define V8_PARSING_PREPARSED_SCOPE_DATA_IMPL_H_
+#ifndef V8_PARSING_PREPARSE_DATA_IMPL_H_
+#define V8_PARSING_PREPARSE_DATA_IMPL_H_
 
-#include "src/parsing/preparsed-scope-data.h"
+#include "src/parsing/preparse-data.h"
 
 #include "src/assert-scope.h"
 
@@ -15,7 +15,7 @@ namespace internal {
 // Classes which are internal to prepared-scope-data.cc, but are exposed in
 // a header for tests.
 
-struct PreParsedScopeByteDataConstants {
+struct PreparseByteDataConstants {
 #ifdef DEBUG
   static constexpr int kMagicValue = 0xC0DE0DE;
 
@@ -33,9 +33,8 @@ struct PreParsedScopeByteDataConstants {
       4 * kUint32Size + 1 * kUint8Size;
 };
 
-class PreParsedScopeDataBuilder::ByteData
-    : public ZoneObject,
-      public PreParsedScopeByteDataConstants {
+class PreparseDataBuilder::ByteData : public ZoneObject,
+                                      public PreparseByteDataConstants {
  public:
   explicit ByteData(Zone* zone)
       : free_quarters_in_last_byte_(0), backing_store_(zone) {}
@@ -62,9 +61,9 @@ class PreParsedScopeDataBuilder::ByteData
 };
 
 template <class Data>
-class BaseConsumedPreParsedScopeData : public ConsumedPreParsedScopeData {
+class BaseConsumedPreparseData : public ConsumedPreparseData {
  public:
-  class ByteData : public PreParsedScopeByteDataConstants {
+  class ByteData : public PreparseByteDataConstants {
    public:
     ByteData() {}
 
@@ -80,7 +79,7 @@ class BaseConsumedPreParsedScopeData : public ConsumedPreParsedScopeData {
         consumed_data->has_data_ = true;
 #endif
       }
-      explicit ReadingScope(BaseConsumedPreParsedScopeData<Data>* parent)
+      explicit ReadingScope(BaseConsumedPreparseData<Data>* parent)
           : ReadingScope(parent->scope_data_.get(), parent->GetScopeData()) {}
       ~ReadingScope() {
 #ifdef DEBUG
@@ -157,15 +156,13 @@ class BaseConsumedPreParsedScopeData : public ConsumedPreParsedScopeData {
 #endif
   };
 
-  BaseConsumedPreParsedScopeData()
-      : scope_data_(new ByteData()), child_index_(0) {}
+  BaseConsumedPreparseData() : scope_data_(new ByteData()), child_index_(0) {}
 
   virtual Data GetScopeData() = 0;
 
-  virtual ProducedPreParsedScopeData* GetChildData(Zone* zone,
-                                                   int child_index) = 0;
+  virtual ProducedPreparseData* GetChildData(Zone* zone, int child_index) = 0;
 
-  ProducedPreParsedScopeData* GetDataForSkippableFunction(
+  ProducedPreparseData* GetDataForSkippableFunction(
       Zone* zone, int start_position, int* end_position, int* num_parameters,
       int* num_inner_functions, bool* uses_super_property,
       LanguageMode* language_mode) final;
@@ -186,22 +183,21 @@ class BaseConsumedPreParsedScopeData : public ConsumedPreParsedScopeData {
   // consume next.
   int child_index_;
 
-  DISALLOW_COPY_AND_ASSIGN(BaseConsumedPreParsedScopeData);
+  DISALLOW_COPY_AND_ASSIGN(BaseConsumedPreparseData);
 };
 
-// Implementation of ConsumedPreParsedScopeData for on-heap data.
-class OnHeapConsumedPreParsedScopeData final
-    : public BaseConsumedPreParsedScopeData<PodArray<uint8_t>> {
+// Implementation of ConsumedPreparseData for on-heap data.
+class OnHeapConsumedPreparseData final
+    : public BaseConsumedPreparseData<PodArray<uint8_t>> {
  public:
-  OnHeapConsumedPreParsedScopeData(Isolate* isolate,
-                                   Handle<PreParsedScopeData> data);
+  OnHeapConsumedPreparseData(Isolate* isolate, Handle<PreparseData> data);
 
   PodArray<uint8_t> GetScopeData() final;
-  ProducedPreParsedScopeData* GetChildData(Zone* zone, int child_index) final;
+  ProducedPreparseData* GetChildData(Zone* zone, int child_index) final;
 
  private:
   Isolate* isolate_;
-  Handle<PreParsedScopeData> data_;
+  Handle<PreparseData> data_;
 };
 
 // Wraps a ZoneVector<uint8_t> to have with functions named the same as
@@ -219,20 +215,19 @@ class ZoneVectorWrapper {
   ZoneVector<uint8_t>* data_ = nullptr;
 };
 
-// A serialized PreParsedScopeData in zone memory (as apposed to being on-heap).
-class ZonePreParsedScopeData : public ZoneObject {
+// A serialized PreparseData in zone memory (as apposed to being on-heap).
+class ZonePreparseData : public ZoneObject {
  public:
-  ZonePreParsedScopeData(Zone* zone,
-                         PreParsedScopeDataBuilder::ByteData* byte_data,
-                         int child_length);
+  ZonePreparseData(Zone* zone, PreparseDataBuilder::ByteData* byte_data,
+                   int child_length);
 
-  Handle<PreParsedScopeData> Serialize(Isolate* isolate);
+  Handle<PreparseData> Serialize(Isolate* isolate);
 
   int child_length() const { return static_cast<int>(children_.size()); }
 
-  ZonePreParsedScopeData* get_child(int index) { return children_[index]; }
+  ZonePreparseData* get_child(int index) { return children_[index]; }
 
-  void set_child(int index, ZonePreParsedScopeData* child) {
+  void set_child(int index, ZonePreparseData* child) {
     children_[index] = child;
   }
 
@@ -240,27 +235,27 @@ class ZonePreParsedScopeData : public ZoneObject {
 
  private:
   ZoneVector<uint8_t> byte_data_;
-  ZoneVector<ZonePreParsedScopeData*> children_;
+  ZoneVector<ZonePreparseData*> children_;
 
-  DISALLOW_COPY_AND_ASSIGN(ZonePreParsedScopeData);
+  DISALLOW_COPY_AND_ASSIGN(ZonePreparseData);
 };
 
-// Implementation of ConsumedPreParsedScopeData for PreParsedScopeData
+// Implementation of ConsumedPreparseData for PreparseData
 // serialized into zone memory.
-class ZoneConsumedPreParsedScopeData final
-    : public BaseConsumedPreParsedScopeData<ZoneVectorWrapper> {
+class ZoneConsumedPreparseData final
+    : public BaseConsumedPreparseData<ZoneVectorWrapper> {
  public:
-  ZoneConsumedPreParsedScopeData(Zone* zone, ZonePreParsedScopeData* data);
+  ZoneConsumedPreparseData(Zone* zone, ZonePreparseData* data);
 
   ZoneVectorWrapper GetScopeData() final;
-  ProducedPreParsedScopeData* GetChildData(Zone* zone, int child_index) final;
+  ProducedPreparseData* GetChildData(Zone* zone, int child_index) final;
 
  private:
-  ZonePreParsedScopeData* data_;
+  ZonePreparseData* data_;
   ZoneVectorWrapper scope_data_wrapper_;
 };
 
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_PARSING_PREPARSED_SCOPE_DATA_IMPL_H_
+#endif  // V8_PARSING_PREPARSE_DATA_IMPL_H_

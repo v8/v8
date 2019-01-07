@@ -22,7 +22,7 @@ namespace internal {
 // interface as AstNodeFactory, so ParserBase doesn't need to care which one is
 // used.
 
-class PreParsedScopeDataBuilder;
+class PreparseDataBuilder;
 
 class PreParserIdentifier {
  public:
@@ -728,8 +728,8 @@ class PreParserFactory {
       FunctionLiteral::FunctionType function_type,
       FunctionLiteral::EagerCompileHint eager_compile_hint, int position,
       bool has_braces, int function_literal_id,
-      ProducedPreParsedScopeData* produced_preparsed_scope_data = nullptr) {
-    DCHECK_NULL(produced_preparsed_scope_data);
+      ProducedPreparseData* produced_preparse_data = nullptr) {
+    DCHECK_NULL(produced_preparse_data);
     return PreParserExpression::Default();
   }
 
@@ -1030,15 +1030,14 @@ class PreParser : public ParserBase<PreParser> {
       const AstRawString* function_name, FunctionKind kind,
       FunctionLiteral::FunctionType function_type,
       DeclarationScope* function_scope, int* use_counts,
-      ProducedPreParsedScopeData** produced_preparser_scope_data,
-      int script_id);
+      ProducedPreparseData** produced_preparser_scope_data, int script_id);
 
-  PreParsedScopeDataBuilder* preparsed_scope_data_builder() const {
+  PreparseDataBuilder* preparsed_scope_data_builder() const {
     return preparsed_scope_data_builder_;
   }
 
   void set_preparsed_scope_data_builder(
-      PreParsedScopeDataBuilder* preparsed_scope_data_builder) {
+      PreparseDataBuilder* preparsed_scope_data_builder) {
     preparsed_scope_data_builder_ = preparsed_scope_data_builder;
   }
 
@@ -1064,11 +1063,11 @@ class PreParser : public ParserBase<PreParser> {
     return pending_error_handler_;
   }
 
-  V8_INLINE bool SkipFunction(
-      const AstRawString* name, FunctionKind kind,
-      FunctionLiteral::FunctionType function_type,
-      DeclarationScope* function_scope, int* num_parameters,
-      ProducedPreParsedScopeData** produced_preparsed_scope_data) {
+  V8_INLINE bool SkipFunction(const AstRawString* name, FunctionKind kind,
+                              FunctionLiteral::FunctionType function_type,
+                              DeclarationScope* function_scope,
+                              int* num_parameters,
+                              ProducedPreparseData** produced_preparse_data) {
     UNREACHABLE();
   }
 
@@ -1758,7 +1757,7 @@ class PreParser : public ParserBase<PreParser> {
   int* use_counts_;
   PreParserLogger log_;
 
-  PreParsedScopeDataBuilder* preparsed_scope_data_builder_;
+  PreparseDataBuilder* preparsed_scope_data_builder_;
 };
 
 PreParserExpression PreParser::SpreadCall(const PreParserExpression& function,

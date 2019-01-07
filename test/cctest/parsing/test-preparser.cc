@@ -8,8 +8,8 @@
 #include "src/objects-inl.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parsing.h"
-#include "src/parsing/preparsed-scope-data-impl.h"
-#include "src/parsing/preparsed-scope-data.h"
+#include "src/parsing/preparse-data-impl.h"
+#include "src/parsing/preparse-data.h"
 
 #include "test/cctest/cctest.h"
 #include "test/cctest/scope-test-helper.h"
@@ -732,21 +732,20 @@ TEST(PreParserScopeAnalysis) {
 
       if (inners[inner_ix].bailout == Bailout::BAILOUT_IF_OUTER_SLOPPY &&
           !outers[outer_ix].strict_outer) {
-        CHECK(!shared->HasUncompiledDataWithPreParsedScope());
+        CHECK(!shared->HasUncompiledDataWithPreparseData());
         continue;
       }
 
-      CHECK(shared->HasUncompiledDataWithPreParsedScope());
-      i::Handle<i::PreParsedScopeData> produced_data_on_heap(
-          shared->uncompiled_data_with_pre_parsed_scope()
-              ->pre_parsed_scope_data(),
+      CHECK(shared->HasUncompiledDataWithPreparseData());
+      i::Handle<i::PreparseData> produced_data_on_heap(
+          shared->uncompiled_data_with_preparse_data()->preparse_data(),
           isolate);
 
       // Parse the lazy function using the scope data.
       i::ParseInfo using_scope_data(isolate, shared);
       using_scope_data.set_lazy_compile();
-      using_scope_data.set_consumed_preparsed_scope_data(
-          i::ConsumedPreParsedScopeData::For(isolate, produced_data_on_heap));
+      using_scope_data.set_consumed_preparse_data(
+          i::ConsumedPreparseData::For(isolate, produced_data_on_heap));
       CHECK(i::parsing::ParseFunction(&using_scope_data, shared, isolate));
 
       // Verify that we skipped at least one function inside that scope.
@@ -811,7 +810,7 @@ TEST(ProducingAndConsumingByteData) {
   LocalContext env;
 
   i::Zone zone(isolate->allocator(), ZONE_NAME);
-  i::PreParsedScopeDataBuilder::ByteData bytes(&zone);
+  i::PreparseDataBuilder::ByteData bytes(&zone);
   // Write some data.
   bytes.WriteUint32(1983);  // This will be overwritten.
   bytes.WriteUint32(2147483647);
@@ -839,11 +838,11 @@ TEST(ProducingAndConsumingByteData) {
   bytes.WriteQuarter(2);
 
   {
-    // Serialize as a ZoneConsumedPreParsedScopeData, and read back data.
-    i::ZonePreParsedScopeData zone_serialized(&zone, &bytes, 0);
-    i::ZoneConsumedPreParsedScopeData::ByteData bytes_for_reading;
+    // Serialize as a ZoneConsumedPreparseData, and read back data.
+    i::ZonePreparseData zone_serialized(&zone, &bytes, 0);
+    i::ZoneConsumedPreparseData::ByteData bytes_for_reading;
     i::ZoneVectorWrapper wrapper(zone_serialized.byte_data());
-    i::ZoneConsumedPreParsedScopeData::ByteData::ReadingScope reading_scope(
+    i::ZoneConsumedPreparseData::ByteData::ReadingScope reading_scope(
         &bytes_for_reading, wrapper);
 
 #ifdef DEBUG
@@ -871,10 +870,10 @@ TEST(ProducingAndConsumingByteData) {
   }
 
   {
-    // Serialize as an OnHeapConsumedPreParsedScopeData, and read back data.
+    // Serialize as an OnHeapConsumedPreparseData, and read back data.
     i::Handle<i::PodArray<uint8_t>> data_on_heap = bytes.Serialize(isolate);
-    i::OnHeapConsumedPreParsedScopeData::ByteData bytes_for_reading;
-    i::OnHeapConsumedPreParsedScopeData::ByteData::ReadingScope reading_scope(
+    i::OnHeapConsumedPreparseData::ByteData bytes_for_reading;
+    i::OnHeapConsumedPreparseData::ByteData::ReadingScope reading_scope(
         &bytes_for_reading, *data_on_heap);
 
 #ifdef DEBUG

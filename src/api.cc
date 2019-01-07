@@ -827,7 +827,7 @@ StartupData SnapshotCreator::CreateBlob(
         DCHECK(fun->shared()->HasWasmExportedFunctionData() ||
                fun->shared()->HasBuiltinId() ||
                fun->shared()->IsApiFunction() ||
-               fun->shared()->HasUncompiledDataWithoutPreParsedScope());
+               fun->shared()->HasUncompiledDataWithoutPreparseData());
       }
     }
   }

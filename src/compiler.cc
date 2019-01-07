@@ -1014,12 +1014,11 @@ BackgroundCompileTask::BackgroundCompileTask(
   info_->set_character_stream(std::move(character_stream));
 
   // Get preparsed scope data from the function literal.
-  if (function_literal->produced_preparsed_scope_data()) {
-    ZonePreParsedScopeData* serialized_data =
-        function_literal->produced_preparsed_scope_data()->Serialize(
-            info_->zone());
-    info_->set_consumed_preparsed_scope_data(
-        ConsumedPreParsedScopeData::For(info_->zone(), serialized_data));
+  if (function_literal->produced_preparse_data()) {
+    ZonePreparseData* serialized_data =
+        function_literal->produced_preparse_data()->Serialize(info_->zone());
+    info_->set_consumed_preparse_data(
+        ConsumedPreparseData::For(info_->zone(), serialized_data));
   }
 }
 
@@ -1152,12 +1151,12 @@ bool Compiler::Compile(Handle<SharedFunctionInfo> shared_info,
     return true;
   }
 
-  if (shared_info->HasUncompiledDataWithPreParsedScope()) {
-    parse_info.set_consumed_preparsed_scope_data(
-        ConsumedPreParsedScopeData::For(
-            isolate, handle(shared_info->uncompiled_data_with_pre_parsed_scope()
-                                ->pre_parsed_scope_data(),
-                            isolate)));
+  if (shared_info->HasUncompiledDataWithPreparseData()) {
+    parse_info.set_consumed_preparse_data(ConsumedPreparseData::For(
+        isolate,
+        handle(
+            shared_info->uncompiled_data_with_preparse_data()->preparse_data(),
+            isolate)));
   }
 
   // Parse and update ParseInfo with the results.

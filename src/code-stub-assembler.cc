@@ -13334,15 +13334,15 @@ TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
   Label check_is_bytecode_array(this);
   Label check_is_exported_function_data(this);
   Label check_is_asm_wasm_data(this);
-  Label check_is_uncompiled_data_without_pre_parsed_scope(this);
-  Label check_is_uncompiled_data_with_pre_parsed_scope(this);
+  Label check_is_uncompiled_data_without_preparse_data(this);
+  Label check_is_uncompiled_data_with_preparse_data(this);
   Label check_is_function_template_info(this);
   Label check_is_interpreter_data(this);
   Label* case_labels[] = {&check_is_bytecode_array,
                           &check_is_exported_function_data,
                           &check_is_asm_wasm_data,
-                          &check_is_uncompiled_data_without_pre_parsed_scope,
-                          &check_is_uncompiled_data_with_pre_parsed_scope,
+                          &check_is_uncompiled_data_without_preparse_data,
+                          &check_is_uncompiled_data_with_preparse_data,
                           &check_is_function_template_info};
   STATIC_ASSERT(arraysize(case_values) == arraysize(case_labels));
   Switch(data_type, &check_is_interpreter_data, case_values, case_labels,
@@ -13364,11 +13364,11 @@ TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
   sfi_code = HeapConstant(BUILTIN_CODE(isolate(), InstantiateAsmJs));
   Goto(&done);
 
-  // IsUncompiledDataWithPreParsedScope | IsUncompiledDataWithoutPreParsedScope:
+  // IsUncompiledDataWithPreparseData | IsUncompiledDataWithoutPreparseData:
   // Compile lazy
-  BIND(&check_is_uncompiled_data_with_pre_parsed_scope);
-  Goto(&check_is_uncompiled_data_without_pre_parsed_scope);
-  BIND(&check_is_uncompiled_data_without_pre_parsed_scope);
+  BIND(&check_is_uncompiled_data_with_preparse_data);
+  Goto(&check_is_uncompiled_data_without_preparse_data);
+  BIND(&check_is_uncompiled_data_without_preparse_data);
   sfi_code = HeapConstant(BUILTIN_CODE(isolate(), CompileLazy));
   Goto(if_compile_lazy ? if_compile_lazy : &done);
 

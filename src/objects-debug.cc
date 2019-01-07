@@ -368,15 +368,15 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
       Foreign::cast(*this)->ForeignVerify(isolate);
       break;
     case PRE_PARSED_SCOPE_DATA_TYPE:
-      PreParsedScopeData::cast(*this)->PreParsedScopeDataVerify(isolate);
+      PreparseData::cast(*this)->PreparseDataVerify(isolate);
       break;
     case UNCOMPILED_DATA_WITHOUT_PRE_PARSED_SCOPE_TYPE:
-      UncompiledDataWithoutPreParsedScope::cast(*this)
-          ->UncompiledDataWithoutPreParsedScopeVerify(isolate);
+      UncompiledDataWithoutPreparseData::cast(*this)
+          ->UncompiledDataWithoutPreparseDataVerify(isolate);
       break;
     case UNCOMPILED_DATA_WITH_PRE_PARSED_SCOPE_TYPE:
-      UncompiledDataWithPreParsedScope::cast(*this)
-          ->UncompiledDataWithPreParsedScopeVerify(isolate);
+      UncompiledDataWithPreparseData::cast(*this)
+          ->UncompiledDataWithPreparseDataVerify(isolate);
       break;
     case SHARED_FUNCTION_INFO_TYPE:
       SharedFunctionInfo::cast(*this)->SharedFunctionInfoVerify(isolate);
@@ -1082,8 +1082,8 @@ void SharedFunctionInfo::SharedFunctionInfoVerify(Isolate* isolate) {
 
   CHECK(HasWasmExportedFunctionData() || IsApiFunction() ||
         HasBytecodeArray() || HasAsmWasmData() || HasBuiltinId() ||
-        HasUncompiledDataWithPreParsedScope() ||
-        HasUncompiledDataWithoutPreParsedScope());
+        HasUncompiledDataWithPreparseData() ||
+        HasUncompiledDataWithoutPreparseData());
 
   CHECK(script_or_debug_info()->IsUndefined(isolate) ||
         script_or_debug_info()->IsScript() || HasDebugInfo());
@@ -2009,28 +2009,28 @@ void StackFrameInfo::StackFrameInfoVerify(Isolate* isolate) {
   VerifyPointer(isolate, function_name());
 }
 
-void PreParsedScopeData::PreParsedScopeDataVerify(Isolate* isolate) {
-  CHECK(IsPreParsedScopeData());
+void PreparseData::PreparseDataVerify(Isolate* isolate) {
+  CHECK(IsPreparseData());
   CHECK(scope_data()->IsByteArray());
   CHECK_GE(length(), 0);
 
   for (int i = 0; i < length(); ++i) {
     Object child = child_data(i);
-    CHECK(child->IsPreParsedScopeData() || child->IsNull());
+    CHECK(child->IsPreparseData() || child->IsNull());
     VerifyPointer(isolate, child);
   }
 }
 
-void UncompiledDataWithPreParsedScope::UncompiledDataWithPreParsedScopeVerify(
+void UncompiledDataWithPreparseData::UncompiledDataWithPreparseDataVerify(
     Isolate* isolate) {
-  CHECK(IsUncompiledDataWithPreParsedScope());
+  CHECK(IsUncompiledDataWithPreparseData());
   VerifyPointer(isolate, inferred_name());
-  VerifyPointer(isolate, pre_parsed_scope_data());
+  VerifyPointer(isolate, preparse_data());
 }
 
-void UncompiledDataWithoutPreParsedScope::
-    UncompiledDataWithoutPreParsedScopeVerify(Isolate* isolate) {
-  CHECK(IsUncompiledDataWithoutPreParsedScope());
+void UncompiledDataWithoutPreparseData::UncompiledDataWithoutPreparseDataVerify(
+    Isolate* isolate) {
+  CHECK(IsUncompiledDataWithoutPreparseData());
   VerifyPointer(isolate, inferred_name());
 }
 

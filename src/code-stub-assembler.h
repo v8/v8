@@ -41,60 +41,59 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
     TypedArraySpeciesProtector)                                            \
   V(RegExpSpeciesProtector, regexp_species_protector, RegExpSpeciesProtector)
 
-#define HEAP_IMMUTABLE_IMMOVABLE_OBJECT_LIST(V)                              \
-  V(AccessorInfoMap, accessor_info_map, AccessorInfoMap)                     \
-  V(AccessorPairMap, accessor_pair_map, AccessorPairMap)                     \
-  V(AllocationSiteWithWeakNextMap, allocation_site_map, AllocationSiteMap)   \
-  V(AllocationSiteWithoutWeakNextMap, allocation_site_without_weaknext_map,  \
-    AllocationSiteWithoutWeakNextMap)                                        \
-  V(BooleanMap, boolean_map, BooleanMap)                                     \
-  V(CodeMap, code_map, CodeMap)                                              \
-  V(EmptyFixedArray, empty_fixed_array, EmptyFixedArray)                     \
-  V(EmptyPropertyDictionary, empty_property_dictionary,                      \
-    EmptyPropertyDictionary)                                                 \
-  V(EmptySlowElementDictionary, empty_slow_element_dictionary,               \
-    EmptySlowElementDictionary)                                              \
-  V(empty_string, empty_string, EmptyString)                                 \
-  V(FalseValue, false_value, False)                                          \
-  V(FeedbackVectorMap, feedback_vector_map, FeedbackVectorMap)               \
-  V(FixedArrayMap, fixed_array_map, FixedArrayMap)                           \
-  V(FixedCOWArrayMap, fixed_cow_array_map, FixedCOWArrayMap)                 \
-  V(FixedDoubleArrayMap, fixed_double_array_map, FixedDoubleArrayMap)        \
-  V(FunctionTemplateInfoMap, function_template_info_map,                     \
-    FunctionTemplateInfoMap)                                                 \
-  V(GlobalPropertyCellMap, global_property_cell_map, PropertyCellMap)        \
-  V(has_instance_symbol, has_instance_symbol, HasInstanceSymbol)             \
-  V(HeapNumberMap, heap_number_map, HeapNumberMap)                           \
-  V(iterator_symbol, iterator_symbol, IteratorSymbol)                        \
-  V(length_string, length_string, LengthString)                              \
-  V(ManyClosuresCellMap, many_closures_cell_map, ManyClosuresCellMap)        \
-  V(MetaMap, meta_map, MetaMap)                                              \
-  V(MinusZeroValue, minus_zero_value, MinusZero)                             \
-  V(MutableHeapNumberMap, mutable_heap_number_map, MutableHeapNumberMap)     \
-  V(NanValue, nan_value, Nan)                                                \
-  V(NoClosuresCellMap, no_closures_cell_map, NoClosuresCellMap)              \
-  V(NoFeedbackCellMap, no_feedback_cell_map, NoFeedbackCellMap)              \
-  V(NullValue, null_value, Null)                                             \
-  V(OneClosureCellMap, one_closure_cell_map, OneClosureCellMap)              \
-  V(PreParsedScopeDataMap, pre_parsed_scope_data_map, PreParsedScopeDataMap) \
-  V(prototype_string, prototype_string, PrototypeString)                     \
-  V(SharedFunctionInfoMap, shared_function_info_map, SharedFunctionInfoMap)  \
-  V(StoreHandler0Map, store_handler0_map, StoreHandler0Map)                  \
-  V(SymbolMap, symbol_map, SymbolMap)                                        \
-  V(TheHoleValue, the_hole_value, TheHole)                                   \
-  V(TransitionArrayMap, transition_array_map, TransitionArrayMap)            \
-  V(TrueValue, true_value, True)                                             \
-  V(Tuple2Map, tuple2_map, Tuple2Map)                                        \
-  V(Tuple3Map, tuple3_map, Tuple3Map)                                        \
-  V(ArrayBoilerplateDescriptionMap, array_boilerplate_description_map,       \
-    ArrayBoilerplateDescriptionMap)                                          \
-  V(UncompiledDataWithoutPreParsedScopeMap,                                  \
-    uncompiled_data_without_pre_parsed_scope_map,                            \
-    UncompiledDataWithoutPreParsedScopeMap)                                  \
-  V(UncompiledDataWithPreParsedScopeMap,                                     \
-    uncompiled_data_with_pre_parsed_scope_map,                               \
-    UncompiledDataWithPreParsedScopeMap)                                     \
-  V(UndefinedValue, undefined_value, Undefined)                              \
+#define HEAP_IMMUTABLE_IMMOVABLE_OBJECT_LIST(V)                                \
+  V(AccessorInfoMap, accessor_info_map, AccessorInfoMap)                       \
+  V(AccessorPairMap, accessor_pair_map, AccessorPairMap)                       \
+  V(AllocationSiteWithWeakNextMap, allocation_site_map, AllocationSiteMap)     \
+  V(AllocationSiteWithoutWeakNextMap, allocation_site_without_weaknext_map,    \
+    AllocationSiteWithoutWeakNextMap)                                          \
+  V(BooleanMap, boolean_map, BooleanMap)                                       \
+  V(CodeMap, code_map, CodeMap)                                                \
+  V(EmptyFixedArray, empty_fixed_array, EmptyFixedArray)                       \
+  V(EmptyPropertyDictionary, empty_property_dictionary,                        \
+    EmptyPropertyDictionary)                                                   \
+  V(EmptySlowElementDictionary, empty_slow_element_dictionary,                 \
+    EmptySlowElementDictionary)                                                \
+  V(empty_string, empty_string, EmptyString)                                   \
+  V(FalseValue, false_value, False)                                            \
+  V(FeedbackVectorMap, feedback_vector_map, FeedbackVectorMap)                 \
+  V(FixedArrayMap, fixed_array_map, FixedArrayMap)                             \
+  V(FixedCOWArrayMap, fixed_cow_array_map, FixedCOWArrayMap)                   \
+  V(FixedDoubleArrayMap, fixed_double_array_map, FixedDoubleArrayMap)          \
+  V(FunctionTemplateInfoMap, function_template_info_map,                       \
+    FunctionTemplateInfoMap)                                                   \
+  V(GlobalPropertyCellMap, global_property_cell_map, PropertyCellMap)          \
+  V(has_instance_symbol, has_instance_symbol, HasInstanceSymbol)               \
+  V(HeapNumberMap, heap_number_map, HeapNumberMap)                             \
+  V(iterator_symbol, iterator_symbol, IteratorSymbol)                          \
+  V(length_string, length_string, LengthString)                                \
+  V(ManyClosuresCellMap, many_closures_cell_map, ManyClosuresCellMap)          \
+  V(MetaMap, meta_map, MetaMap)                                                \
+  V(MinusZeroValue, minus_zero_value, MinusZero)                               \
+  V(MutableHeapNumberMap, mutable_heap_number_map, MutableHeapNumberMap)       \
+  V(NanValue, nan_value, Nan)                                                  \
+  V(NoClosuresCellMap, no_closures_cell_map, NoClosuresCellMap)                \
+  V(NoFeedbackCellMap, no_feedback_cell_map, NoFeedbackCellMap)                \
+  V(NullValue, null_value, Null)                                               \
+  V(OneClosureCellMap, one_closure_cell_map, OneClosureCellMap)                \
+  V(PreparseDataMap, preparse_data_map, PreparseDataMap)                       \
+  V(prototype_string, prototype_string, PrototypeString)                       \
+  V(SharedFunctionInfoMap, shared_function_info_map, SharedFunctionInfoMap)    \
+  V(StoreHandler0Map, store_handler0_map, StoreHandler0Map)                    \
+  V(SymbolMap, symbol_map, SymbolMap)                                          \
+  V(TheHoleValue, the_hole_value, TheHole)                                     \
+  V(TransitionArrayMap, transition_array_map, TransitionArrayMap)              \
+  V(TrueValue, true_value, True)                                               \
+  V(Tuple2Map, tuple2_map, Tuple2Map)                                          \
+  V(Tuple3Map, tuple3_map, Tuple3Map)                                          \
+  V(ArrayBoilerplateDescriptionMap, array_boilerplate_description_map,         \
+    ArrayBoilerplateDescriptionMap)                                            \
+  V(UncompiledDataWithoutPreparseDataMap,                                      \
+    uncompiled_data_without_preparse_data_map,                                 \
+    UncompiledDataWithoutPreparseDataMap)                                      \
+  V(UncompiledDataWithPreparseDataMap, uncompiled_data_with_preparse_data_map, \
+    UncompiledDataWithPreparseDataMap)                                         \
+  V(UndefinedValue, undefined_value, Undefined)                                \
   V(WeakFixedArrayMap, weak_fixed_array_map, WeakFixedArrayMap)
 
 #define HEAP_IMMOVABLE_OBJECT_LIST(V)   \

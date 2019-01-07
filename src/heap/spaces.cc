@@ -3639,8 +3639,7 @@ void LargeObjectSpace::Verify(Isolate* isolate) {
           object->IsPropertyArray() || object->IsByteArray() ||
           object->IsFeedbackVector() || object->IsBigInt() ||
           object->IsFreeSpace() || object->IsFeedbackMetadata() ||
-          object->IsContext() ||
-          object->IsUncompiledDataWithoutPreParsedScope());
+          object->IsContext() || object->IsUncompiledDataWithoutPreparseData());
 
     // The object itself should look OK.
     object->ObjectVerify(isolate);

@@ -25,12 +25,12 @@ class ScriptCompiler;
 
 namespace internal {
 
-class ConsumedPreParsedScopeData;
+class ConsumedPreparseData;
 class ParseInfo;
 class ParserTarget;
 class ParserTargetScope;
 class PendingCompilationErrorHandler;
-class PreParsedScopeData;
+class PreparseData;
 
 class FunctionEntry {
  public:
@@ -475,7 +475,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   bool SkipFunction(const AstRawString* function_name, FunctionKind kind,
                     FunctionLiteral::FunctionType function_type,
                     DeclarationScope* function_scope, int* num_parameters,
-                    ProducedPreParsedScopeData** produced_preparsed_scope_data);
+                    ProducedPreparseData** produced_preparsed_scope_data);
 
   Block* BuildParameterInitializationBlock(
       const ParserFormalParameters& parameters);
@@ -1127,7 +1127,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   int total_preparse_skipped_;
   bool allow_lazy_;
   bool temp_zoned_;
-  ConsumedPreParsedScopeData* consumed_preparsed_scope_data_;
+  ConsumedPreparseData* consumed_preparse_data_;
 
   // If not kNoSourcePosition, indicates that the first function literal
   // encountered is a dynamic function, see CreateDynamicFunction(). This field

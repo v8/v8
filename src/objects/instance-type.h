@@ -471,7 +471,7 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
   V(OrderedHashMap, ORDERED_HASH_MAP_TYPE)                               \
   V(OrderedHashSet, ORDERED_HASH_SET_TYPE)                               \
   V(OrderedNameDictionary, ORDERED_NAME_DICTIONARY_TYPE)                 \
-  V(PreParsedScopeData, PRE_PARSED_SCOPE_DATA_TYPE)                      \
+  V(PreparseData, PRE_PARSED_SCOPE_DATA_TYPE)                            \
   V(PropertyArray, PROPERTY_ARRAY_TYPE)                                  \
   V(PropertyCell, PROPERTY_CELL_TYPE)                                    \
   V(PropertyDescriptorObject, FIXED_ARRAY_TYPE)                          \
@@ -488,9 +488,9 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
   V(Symbol, SYMBOL_TYPE)                                                 \
   V(TemplateObjectDescription, TUPLE2_TYPE)                              \
   V(TransitionArray, TRANSITION_ARRAY_TYPE)                              \
-  V(UncompiledDataWithoutPreParsedScope,                                 \
+  V(UncompiledDataWithoutPreparseData,                                   \
     UNCOMPILED_DATA_WITHOUT_PRE_PARSED_SCOPE_TYPE)                       \
-  V(UncompiledDataWithPreParsedScope,                                    \
+  V(UncompiledDataWithPreparseData,                                      \
     UNCOMPILED_DATA_WITH_PRE_PARSED_SCOPE_TYPE)                          \
   V(WasmExceptionObject, WASM_EXCEPTION_TYPE)                            \
   V(WasmGlobalObject, WASM_GLOBAL_TYPE)                                  \

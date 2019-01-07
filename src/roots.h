@@ -103,7 +103,7 @@ class RootVisitor;
   V(Map, ordered_hash_map_map, OrderedHashMapMap)                              \
   V(Map, ordered_hash_set_map, OrderedHashSetMap)                              \
   V(Map, ordered_name_dictionary_map, OrderedNameDictionaryMap)                \
-  V(Map, pre_parsed_scope_data_map, PreParsedScopeDataMap)                     \
+  V(Map, preparse_data_map, PreparseDataMap)                                   \
   V(Map, property_array_map, PropertyArrayMap)                                 \
   V(Map, side_effect_call_handler_info_map, SideEffectCallHandlerInfoMap)      \
   V(Map, side_effect_free_call_handler_info_map,                               \
@@ -116,10 +116,10 @@ class RootVisitor;
   V(Map, small_ordered_hash_set_map, SmallOrderedHashSetMap)                   \
   V(Map, small_ordered_name_dictionary_map, SmallOrderedNameDictionaryMap)     \
   V(Map, string_table_map, StringTableMap)                                     \
-  V(Map, uncompiled_data_without_pre_parsed_scope_map,                         \
-    UncompiledDataWithoutPreParsedScopeMap)                                    \
-  V(Map, uncompiled_data_with_pre_parsed_scope_map,                            \
-    UncompiledDataWithPreParsedScopeMap)                                       \
+  V(Map, uncompiled_data_without_preparse_data_map,                            \
+    UncompiledDataWithoutPreparseDataMap)                                      \
+  V(Map, uncompiled_data_with_preparse_data_map,                               \
+    UncompiledDataWithPreparseDataMap)                                         \
   V(Map, weak_fixed_array_map, WeakFixedArrayMap)                              \
   V(Map, weak_array_list_map, WeakArrayListMap)                                \
   V(Map, ephemeron_hash_table_map, EphemeronHashTableMap)                      \

@@ -21,21 +21,21 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(PreParsedScopeData, HeapObject)
+OBJECT_CONSTRUCTORS_IMPL(PreparseData, HeapObject)
 
-CAST_ACCESSOR2(PreParsedScopeData)
-ACCESSORS2(PreParsedScopeData, scope_data, PodArray<uint8_t>, kScopeDataOffset)
-INT_ACCESSORS(PreParsedScopeData, length, kLengthOffset)
+CAST_ACCESSOR2(PreparseData)
+ACCESSORS2(PreparseData, scope_data, PodArray<uint8_t>, kScopeDataOffset)
+INT_ACCESSORS(PreparseData, length, kLengthOffset)
 
-Object PreParsedScopeData::child_data(int index) const {
+Object PreparseData::child_data(int index) const {
   DCHECK_GE(index, 0);
   DCHECK_LT(index, this->length());
   int offset = kChildDataStartOffset + index * kTaggedSize;
   return RELAXED_READ_FIELD(this, offset);
 }
 
-void PreParsedScopeData::set_child_data(int index, Object value,
-                                        WriteBarrierMode mode) {
+void PreparseData::set_child_data(int index, Object value,
+                                  WriteBarrierMode mode) {
   DCHECK_GE(index, 0);
   DCHECK_LT(index, this->length());
   int offset = kChildDataStartOffset + index * kTaggedSize;
@@ -43,11 +43,11 @@ void PreParsedScopeData::set_child_data(int index, Object value,
   CONDITIONAL_WRITE_BARRIER(this, offset, value, mode);
 }
 
-ObjectSlot PreParsedScopeData::child_data_start() const {
+ObjectSlot PreparseData::child_data_start() const {
   return RawField(kChildDataStartOffset);
 }
 
-void PreParsedScopeData::clear_padding() {
+void PreparseData::clear_padding() {
   if (FIELD_SIZE(kOptionalPaddingOffset) != 0) {
     DCHECK_EQ(4, FIELD_SIZE(kOptionalPaddingOffset));
     memset(reinterpret_cast<void*>(address() + kOptionalPaddingOffset), 0,
@@ -56,8 +56,8 @@ void PreParsedScopeData::clear_padding() {
 }
 
 OBJECT_CONSTRUCTORS_IMPL(UncompiledData, HeapObject)
-OBJECT_CONSTRUCTORS_IMPL(UncompiledDataWithoutPreParsedScope, UncompiledData)
-OBJECT_CONSTRUCTORS_IMPL(UncompiledDataWithPreParsedScope, UncompiledData)
+OBJECT_CONSTRUCTORS_IMPL(UncompiledDataWithoutPreparseData, UncompiledData)
+OBJECT_CONSTRUCTORS_IMPL(UncompiledDataWithPreparseData, UncompiledData)
 CAST_ACCESSOR2(UncompiledData)
 ACCESSORS2(UncompiledData, inferred_name, String, kInferredNameOffset)
 INT32_ACCESSORS(UncompiledData, start_position, kStartPositionOffset)
@@ -72,11 +72,11 @@ void UncompiledData::clear_padding() {
   }
 }
 
-CAST_ACCESSOR2(UncompiledDataWithoutPreParsedScope)
+CAST_ACCESSOR2(UncompiledDataWithoutPreparseData)
 
-CAST_ACCESSOR2(UncompiledDataWithPreParsedScope)
-ACCESSORS2(UncompiledDataWithPreParsedScope, pre_parsed_scope_data,
-           PreParsedScopeData, kPreParsedScopeDataOffset)
+CAST_ACCESSOR2(UncompiledDataWithPreparseData)
+ACCESSORS2(UncompiledDataWithPreparseData, preparse_data, PreparseData,
+           kPreparseDataOffset)
 
 OBJECT_CONSTRUCTORS_IMPL(InterpreterData, Struct)
 
@@ -552,32 +552,31 @@ void SharedFunctionInfo::set_uncompiled_data(UncompiledData uncompiled_data) {
   set_function_data(uncompiled_data);
 }
 
-bool SharedFunctionInfo::HasUncompiledDataWithPreParsedScope() const {
-  return function_data()->IsUncompiledDataWithPreParsedScope();
+bool SharedFunctionInfo::HasUncompiledDataWithPreparseData() const {
+  return function_data()->IsUncompiledDataWithPreparseData();
 }
 
-UncompiledDataWithPreParsedScope
-SharedFunctionInfo::uncompiled_data_with_pre_parsed_scope() const {
-  DCHECK(HasUncompiledDataWithPreParsedScope());
-  return UncompiledDataWithPreParsedScope::cast(function_data());
+UncompiledDataWithPreparseData
+SharedFunctionInfo::uncompiled_data_with_preparse_data() const {
+  DCHECK(HasUncompiledDataWithPreparseData());
+  return UncompiledDataWithPreparseData::cast(function_data());
 }
 
-void SharedFunctionInfo::set_uncompiled_data_with_pre_parsed_scope(
-    UncompiledDataWithPreParsedScope uncompiled_data_with_pre_parsed_scope) {
+void SharedFunctionInfo::set_uncompiled_data_with_preparse_data(
+    UncompiledDataWithPreparseData uncompiled_data_with_preparse_data) {
   DCHECK(function_data() == Smi::FromEnum(Builtins::kCompileLazy));
-  DCHECK(uncompiled_data_with_pre_parsed_scope
-             ->IsUncompiledDataWithPreParsedScope());
-  set_function_data(uncompiled_data_with_pre_parsed_scope);
+  DCHECK(
+      uncompiled_data_with_preparse_data->IsUncompiledDataWithPreparseData());
+  set_function_data(uncompiled_data_with_preparse_data);
 }
 
-bool SharedFunctionInfo::HasUncompiledDataWithoutPreParsedScope() const {
-  return function_data()->IsUncompiledDataWithoutPreParsedScope();
+bool SharedFunctionInfo::HasUncompiledDataWithoutPreparseData() const {
+  return function_data()->IsUncompiledDataWithoutPreparseData();
 }
 
-void SharedFunctionInfo::ClearPreParsedScopeData() {
-  DCHECK(HasUncompiledDataWithPreParsedScope());
-  UncompiledDataWithPreParsedScope data =
-      uncompiled_data_with_pre_parsed_scope();
+void SharedFunctionInfo::ClearPreparseData() {
+  DCHECK(HasUncompiledDataWithPreparseData());
+  UncompiledDataWithPreparseData data = uncompiled_data_with_preparse_data();
 
   // Trim off the pre-parsed scope data from the uncompiled data by swapping the
   // map, leaving only an uncompiled data without pre-parsed scope.
@@ -585,24 +584,24 @@ void SharedFunctionInfo::ClearPreParsedScopeData() {
   Heap* heap = Heap::FromWritableHeapObject(&data);
 
   // Swap the map.
-  heap->NotifyObjectLayoutChange(data, UncompiledDataWithPreParsedScope::kSize,
+  heap->NotifyObjectLayoutChange(data, UncompiledDataWithPreparseData::kSize,
                                  no_gc);
-  STATIC_ASSERT(UncompiledDataWithoutPreParsedScope::kSize <
-                UncompiledDataWithPreParsedScope::kSize);
-  STATIC_ASSERT(UncompiledDataWithoutPreParsedScope::kSize ==
+  STATIC_ASSERT(UncompiledDataWithoutPreparseData::kSize <
+                UncompiledDataWithPreparseData::kSize);
+  STATIC_ASSERT(UncompiledDataWithoutPreparseData::kSize ==
                 UncompiledData::kSize);
   data->synchronized_set_map(
-      GetReadOnlyRoots().uncompiled_data_without_pre_parsed_scope_map());
+      GetReadOnlyRoots().uncompiled_data_without_preparse_data_map());
 
   // Fill the remaining space with filler.
   heap->CreateFillerObjectAt(
-      data->address() + UncompiledDataWithoutPreParsedScope::kSize,
-      UncompiledDataWithPreParsedScope::kSize -
-          UncompiledDataWithoutPreParsedScope::kSize,
+      data->address() + UncompiledDataWithoutPreparseData::kSize,
+      UncompiledDataWithPreparseData::kSize -
+          UncompiledDataWithoutPreparseData::kSize,
       ClearRecordedSlots::kNo);
 
   // Ensure that the clear was successful.
-  DCHECK(HasUncompiledDataWithoutPreParsedScope());
+  DCHECK(HasUncompiledDataWithoutPreparseData());
 }
 
 // static
@@ -620,19 +619,17 @@ void UncompiledData::Initialize(
   data->clear_padding();
 }
 
-void UncompiledDataWithPreParsedScope::Initialize(
-    UncompiledDataWithPreParsedScope data, String inferred_name,
+void UncompiledDataWithPreparseData::Initialize(
+    UncompiledDataWithPreparseData data, String inferred_name,
     int start_position, int end_position, int function_literal_id,
-    PreParsedScopeData scope_data,
+    PreparseData scope_data,
     std::function<void(HeapObject object, ObjectSlot slot, HeapObject target)>
         gc_notify_updated_slot) {
   UncompiledData::Initialize(data, inferred_name, start_position, end_position,
                              function_literal_id, gc_notify_updated_slot);
-  data->set_pre_parsed_scope_data(scope_data);
+  data->set_preparse_data(scope_data);
   gc_notify_updated_slot(
-      data,
-      data->RawField(
-          UncompiledDataWithPreParsedScope::kPreParsedScopeDataOffset),
+      data, data->RawField(UncompiledDataWithPreparseData::kPreparseDataOffset),
       scope_data);
 }
 
@@ -719,7 +716,7 @@ bool SharedFunctionInfo::IsSubjectToDebugging() {
 
 bool SharedFunctionInfo::CanDiscardCompiled() const {
   bool can_decompile = (HasBytecodeArray() || HasAsmWasmData() ||
-                        HasUncompiledDataWithPreParsedScope());
+                        HasUncompiledDataWithPreparseData());
   return can_decompile;
 }
 

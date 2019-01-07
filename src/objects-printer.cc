@@ -317,15 +317,15 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
       CallHandlerInfo::cast(*this)->CallHandlerInfoPrint(os);
       break;
     case PRE_PARSED_SCOPE_DATA_TYPE:
-      PreParsedScopeData::cast(*this)->PreParsedScopeDataPrint(os);
+      PreparseData::cast(*this)->PreparseDataPrint(os);
       break;
     case UNCOMPILED_DATA_WITHOUT_PRE_PARSED_SCOPE_TYPE:
-      UncompiledDataWithoutPreParsedScope::cast(*this)
-          ->UncompiledDataWithoutPreParsedScopePrint(os);
+      UncompiledDataWithoutPreparseData::cast(*this)
+          ->UncompiledDataWithoutPreparseDataPrint(os);
       break;
     case UNCOMPILED_DATA_WITH_PRE_PARSED_SCOPE_TYPE:
-      UncompiledDataWithPreParsedScope::cast(*this)
-          ->UncompiledDataWithPreParsedScopePrint(os);
+      UncompiledDataWithPreparseData::cast(*this)
+          ->UncompiledDataWithPreparseDataPrint(os);
       break;
     case SHARED_FUNCTION_INFO_TYPE:
       SharedFunctionInfo::cast(*this)->SharedFunctionInfoPrint(os);
@@ -2250,8 +2250,8 @@ void LayoutDescriptor::Print(std::ostream& os) {  // NOLINT
   os << "\n";
 }
 
-void PreParsedScopeData::PreParsedScopeDataPrint(std::ostream& os) {  // NOLINT
-  PrintHeader(os, "PreParsedScopeData");
+void PreparseData::PreparseDataPrint(std::ostream& os) {  // NOLINT
+  PrintHeader(os, "PreparseData");
   os << "\n - scope_data: " << Brief(scope_data());
   os << "\n - length: " << length();
   for (int i = 0; i < length(); ++i) {
@@ -2260,20 +2260,20 @@ void PreParsedScopeData::PreParsedScopeDataPrint(std::ostream& os) {  // NOLINT
   os << "\n";
 }
 
-void UncompiledDataWithoutPreParsedScope::
-    UncompiledDataWithoutPreParsedScopePrint(std::ostream& os) {  // NOLINT
-  PrintHeader(os, "UncompiledDataWithoutPreParsedScope");
+void UncompiledDataWithoutPreparseData::UncompiledDataWithoutPreparseDataPrint(
+    std::ostream& os) {  // NOLINT
+  PrintHeader(os, "UncompiledDataWithoutPreparseData");
   os << "\n - start position: " << start_position();
   os << "\n - end position: " << end_position();
   os << "\n";
 }
 
-void UncompiledDataWithPreParsedScope::UncompiledDataWithPreParsedScopePrint(
+void UncompiledDataWithPreparseData::UncompiledDataWithPreparseDataPrint(
     std::ostream& os) {  // NOLINT
-  PrintHeader(os, "UncompiledDataWithPreParsedScope");
+  PrintHeader(os, "UncompiledDataWithPreparseData");
   os << "\n - start position: " << start_position();
   os << "\n - end position: " << end_position();
-  os << "\n - pre_parsed_scope_data: " << Brief(pre_parsed_scope_data());
+  os << "\n - preparse_data: " << Brief(preparse_data());
   os << "\n";
 }
 

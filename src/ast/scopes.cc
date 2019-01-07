@@ -16,7 +16,7 @@
 #include "src/objects/module-inl.h"
 #include "src/objects/scope-info.h"
 #include "src/parsing/parse-info.h"
-#include "src/parsing/preparsed-scope-data.h"
+#include "src/parsing/preparse-data.h"
 #include "src/zone/zone-list-inl.h"
 
 namespace v8 {
@@ -249,7 +249,7 @@ Scope::Scope(Zone* zone, ScopeType scope_type, Handle<ScopeInfo> scope_info)
   num_heap_slots_ = scope_info->ContextLength();
   DCHECK_LE(Context::MIN_CONTEXT_SLOTS, num_heap_slots_);
   // We don't really need to use the preparsed scope data; this is just to
-  // shorten the recursion in SetMustUsePreParsedScopeData.
+  // shorten the recursion in SetMustUsePreparseData.
   must_use_preparsed_scope_data_ = true;
 }
 
@@ -675,7 +675,7 @@ bool DeclarationScope::Analyze(ParseInfo* info) {
   if (scope->must_use_preparsed_scope_data_) {
     DCHECK_EQ(scope->scope_type_, ScopeType::FUNCTION_SCOPE);
     allow_deref.emplace();
-    info->consumed_preparsed_scope_data()->RestoreScopeAllocationData(scope);
+    info->consumed_preparse_data()->RestoreScopeAllocationData(scope);
   }
 
   if (!scope->AllocateVariables(info)) return false;
@@ -1491,17 +1491,17 @@ void DeclarationScope::ResetAfterPreparsing(AstValueFactory* ast_value_factory,
   was_lazily_parsed_ = !aborted;
 }
 
-void Scope::SavePreParsedScopeData() {
-  if (PreParsedScopeDataBuilder::ScopeIsSkippableFunctionScope(this)) {
-    AsDeclarationScope()->SavePreParsedScopeDataForDeclarationScope();
+void Scope::SavePreparseData() {
+  if (PreparseDataBuilder::ScopeIsSkippableFunctionScope(this)) {
+    AsDeclarationScope()->SavePreparseDataForDeclarationScope();
   }
 
   for (Scope* scope = inner_scope_; scope != nullptr; scope = scope->sibling_) {
-    scope->SavePreParsedScopeData();
+    scope->SavePreparseData();
   }
 }
 
-void DeclarationScope::SavePreParsedScopeDataForDeclarationScope() {
+void DeclarationScope::SavePreparseDataForDeclarationScope() {
   if (preparsed_scope_data_builder_ == nullptr) return;
   preparsed_scope_data_builder_->SaveScopeAllocationData(this);
 }
@@ -1523,7 +1523,7 @@ void DeclarationScope::AnalyzePartially(AstNodeFactory* ast_node_factory) {
       function_ = ast_node_factory->CopyVariable(function_);
     }
 
-    SavePreParsedScopeData();
+    SavePreparseData();
   }
 
 #ifdef DEBUG

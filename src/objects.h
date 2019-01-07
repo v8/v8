@@ -173,10 +173,10 @@
 //       - ModuleInfoEntry
 //     - FeedbackCell
 //     - FeedbackVector
-//     - PreParsedScopeData
+//     - PreparseData
 //     - UncompiledData
-//       - UncompiledDataWithoutPreParsedScope
-//       - UncompiledDataWithPreParsedScope
+//       - UncompiledDataWithoutPreparseData
+//       - UncompiledDataWithPreparseData
 //
 // Formats of Object::ptr_:
 //  Smi:        [31 bit signed int] 0
@@ -281,7 +281,7 @@ class MutableHeapNumber;
 class ObjectHashTable;
 class ObjectTemplateInfo;
 class ObjectVisitor;
-class PreParsedScopeData;
+class PreparseData;
 class PropertyArray;
 class PropertyCell;
 class PropertyDescriptor;
@@ -444,7 +444,7 @@ class ZoneForwardList;
   V(OrderedHashMap)                            \
   V(OrderedHashSet)                            \
   V(OrderedNameDictionary)                     \
-  V(PreParsedScopeData)                        \
+  V(PreparseData)                              \
   V(PromiseReactionJobTask)                    \
   V(PropertyArray)                             \
   V(PropertyCell)                              \
@@ -478,8 +478,8 @@ class ZoneForwardList;
   V(ThinString)                                \
   V(TransitionArray)                           \
   V(UncompiledData)                            \
-  V(UncompiledDataWithPreParsedScope)          \
-  V(UncompiledDataWithoutPreParsedScope)       \
+  V(UncompiledDataWithPreparseData)            \
+  V(UncompiledDataWithoutPreparseData)         \
   V(Undetectable)                              \
   V(UniqueName)                                \
   V(WasmExceptionObject)                       \

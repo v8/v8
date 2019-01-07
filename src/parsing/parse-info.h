@@ -13,7 +13,7 @@
 #include "src/globals.h"
 #include "src/handles.h"
 #include "src/objects/script.h"
-#include "src/parsing/preparsed-scope-data.h"
+#include "src/parsing/preparse-data.h"
 #include "src/pending-compilation-error-handler.h"
 
 namespace v8 {
@@ -135,12 +135,11 @@ class V8_EXPORT_PRIVATE ParseInfo {
   v8::Extension* extension() const { return extension_; }
   void set_extension(v8::Extension* extension) { extension_ = extension; }
 
-  void set_consumed_preparsed_scope_data(
-      std::unique_ptr<ConsumedPreParsedScopeData> data) {
-    consumed_preparsed_scope_data_.swap(data);
+  void set_consumed_preparse_data(std::unique_ptr<ConsumedPreparseData> data) {
+    consumed_preparse_data_.swap(data);
   }
-  ConsumedPreParsedScopeData* consumed_preparsed_scope_data() {
-    return consumed_preparsed_scope_data_.get();
+  ConsumedPreparseData* consumed_preparse_data() {
+    return consumed_preparse_data_.get();
   }
 
   DeclarationScope* script_scope() const { return script_scope_; }
@@ -334,7 +333,7 @@ class V8_EXPORT_PRIVATE ParseInfo {
 
   //----------- Inputs+Outputs of parsing and scope analysis -----------------
   std::unique_ptr<Utf16CharacterStream> character_stream_;
-  std::unique_ptr<ConsumedPreParsedScopeData> consumed_preparsed_scope_data_;
+  std::unique_ptr<ConsumedPreparseData> consumed_preparse_data_;
   std::unique_ptr<AstValueFactory> ast_value_factory_;
   const class AstStringConstants* ast_string_constants_;
   const AstRawString* function_name_;

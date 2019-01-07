@@ -2003,7 +2003,7 @@ void MarkCompactCollector::FlushBytecodeFromSFI(
   // The size of the bytecode array should always be larger than an
   // UncompiledData object.
   STATIC_ASSERT(BytecodeArray::SizeFor(0) >=
-                UncompiledDataWithoutPreParsedScope::kSize);
+                UncompiledDataWithoutPreparseData::kSize);
 
   // Replace bytecode array with an uncompiled data array.
   HeapObject compiled_data = shared_info->GetBytecodeArray();
@@ -2022,14 +2022,14 @@ void MarkCompactCollector::FlushBytecodeFromSFI(
   // Swap the map, using set_map_after_allocation to avoid verify heap checks
   // which are not necessary since we are doing this during the GC atomic pause.
   compiled_data->set_map_after_allocation(
-      ReadOnlyRoots(heap()).uncompiled_data_without_pre_parsed_scope_map(),
+      ReadOnlyRoots(heap()).uncompiled_data_without_preparse_data_map(),
       SKIP_WRITE_BARRIER);
 
   // Create a filler object for any left over space in the bytecode array.
   if (!heap()->IsLargeObject(compiled_data)) {
     heap()->CreateFillerObjectAt(
-        compiled_data->address() + UncompiledDataWithoutPreParsedScope::kSize,
-        compiled_data_size - UncompiledDataWithoutPreParsedScope::kSize,
+        compiled_data->address() + UncompiledDataWithoutPreparseData::kSize,
+        compiled_data_size - UncompiledDataWithoutPreparseData::kSize,
         ClearRecordedSlots::kNo);
   }
 

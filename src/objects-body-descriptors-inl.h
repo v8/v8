@@ -502,7 +502,7 @@ class FeedbackVector::BodyDescriptor final : public BodyDescriptorBase {
   }
 };
 
-class PreParsedScopeData::BodyDescriptor final : public BodyDescriptorBase {
+class PreparseData::BodyDescriptor final : public BodyDescriptorBase {
  public:
   static bool IsValidSlot(Map map, HeapObject obj, int offset) {
     return offset == kScopeDataOffset || offset >= kChildDataStartOffset;
@@ -516,7 +516,7 @@ class PreParsedScopeData::BodyDescriptor final : public BodyDescriptorBase {
   }
 
   static inline int SizeOf(Map map, HeapObject obj) {
-    return PreParsedScopeData::SizeFor(PreParsedScopeData::cast(obj)->length());
+    return PreparseData::SizeFor(PreparseData::cast(obj)->length());
   }
 };
 
@@ -993,14 +993,13 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
       return Op::template apply<CodeDataContainer::BodyDescriptor>(p1, p2, p3,
                                                                    p4);
     case PRE_PARSED_SCOPE_DATA_TYPE:
-      return Op::template apply<PreParsedScopeData::BodyDescriptor>(p1, p2, p3,
-                                                                    p4);
+      return Op::template apply<PreparseData::BodyDescriptor>(p1, p2, p3, p4);
     case UNCOMPILED_DATA_WITHOUT_PRE_PARSED_SCOPE_TYPE:
       return Op::template apply<
-          UncompiledDataWithoutPreParsedScope::BodyDescriptor>(p1, p2, p3, p4);
+          UncompiledDataWithoutPreparseData::BodyDescriptor>(p1, p2, p3, p4);
     case UNCOMPILED_DATA_WITH_PRE_PARSED_SCOPE_TYPE:
-      return Op::template apply<
-          UncompiledDataWithPreParsedScope::BodyDescriptor>(p1, p2, p3, p4);
+      return Op::template apply<UncompiledDataWithPreparseData::BodyDescriptor>(
+          p1, p2, p3, p4);
     case HEAP_NUMBER_TYPE:
     case MUTABLE_HEAP_NUMBER_TYPE:
     case FILLER_TYPE:

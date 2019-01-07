@@ -95,7 +95,7 @@
 #include "src/objects/slots-atomic-inl.h"
 #include "src/objects/stack-frame-info-inl.h"
 #include "src/objects/struct-inl.h"
-#include "src/parsing/preparsed-scope-data.h"
+#include "src/parsing/preparse-data.h"
 #include "src/property-descriptor.h"
 #include "src/prototype.h"
 #include "src/regexp/jsregexp.h"
@@ -3233,13 +3233,13 @@ VisitorId Map::GetVisitorId(Map map) {
       return kVisitWasmInstanceObject;
 
     case PRE_PARSED_SCOPE_DATA_TYPE:
-      return kVisitPreParsedScopeData;
+      return kVisitPreparseData;
 
     case UNCOMPILED_DATA_WITHOUT_PRE_PARSED_SCOPE_TYPE:
-      return kVisitUncompiledDataWithoutPreParsedScope;
+      return kVisitUncompiledDataWithoutPreparseData;
 
     case UNCOMPILED_DATA_WITH_PRE_PARSED_SCOPE_TYPE:
-      return kVisitUncompiledDataWithPreParsedScope;
+      return kVisitUncompiledDataWithPreparseData;
 
     case JS_OBJECT_TYPE:
     case JS_ERROR_TYPE:
@@ -3599,25 +3599,25 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
 #undef TYPED_ARRAY_SHORT_PRINT
 
     case PRE_PARSED_SCOPE_DATA_TYPE: {
-      PreParsedScopeData data = PreParsedScopeData::cast(*this);
-      os << "<PreParsedScopeData[" << data->length() << "]>";
+      PreparseData data = PreparseData::cast(*this);
+      os << "<PreparseData[" << data->length() << "]>";
       break;
     }
 
     case UNCOMPILED_DATA_WITHOUT_PRE_PARSED_SCOPE_TYPE: {
-      UncompiledDataWithoutPreParsedScope data =
-          UncompiledDataWithoutPreParsedScope::cast(*this);
-      os << "<UncompiledDataWithoutPreParsedScope (" << data->start_position()
+      UncompiledDataWithoutPreparseData data =
+          UncompiledDataWithoutPreparseData::cast(*this);
+      os << "<UncompiledDataWithoutPreparseData (" << data->start_position()
          << ", " << data->end_position() << ")]>";
       break;
     }
 
     case UNCOMPILED_DATA_WITH_PRE_PARSED_SCOPE_TYPE: {
-      UncompiledDataWithPreParsedScope data =
-          UncompiledDataWithPreParsedScope::cast(*this);
-      os << "<UncompiledDataWithPreParsedScope (" << data->start_position()
+      UncompiledDataWithPreparseData data =
+          UncompiledDataWithPreparseData::cast(*this);
+      os << "<UncompiledDataWithPreparseData (" << data->start_position()
          << ", " << data->end_position()
-         << ") preparsed=" << Brief(data->pre_parsed_scope_data()) << ">";
+         << ") preparsed=" << Brief(data->preparse_data()) << ">";
       break;
     }
 
@@ -14031,8 +14031,8 @@ void SharedFunctionInfo::SetScript(Handle<SharedFunctionInfo> shared,
   Isolate* isolate = shared->GetIsolate();
 
   if (reset_preparsed_scope_data &&
-      shared->HasUncompiledDataWithPreParsedScope()) {
-    shared->ClearPreParsedScopeData();
+      shared->HasUncompiledDataWithPreparseData()) {
+    shared->ClearPreparseData();
   }
 
   // Add shared function info to new script's list. If a collection occurs,
@@ -14187,16 +14187,16 @@ void SharedFunctionInfo::DiscardCompiled(
   shared_info->DiscardCompiledMetadata(isolate);
 
   // Replace compiled data with a new UncompiledData object.
-  if (shared_info->HasUncompiledDataWithPreParsedScope()) {
+  if (shared_info->HasUncompiledDataWithPreparseData()) {
     // If this is uncompiled data with a pre-parsed scope data, we can just
     // clear out the scope data and keep the uncompiled data.
-    shared_info->ClearPreParsedScopeData();
+    shared_info->ClearPreparseData();
   } else {
     // Create a new UncompiledData, without pre-parsed scope, and update the
     // function data to point to it. Use the raw function data setter to avoid
     // validity checks, since we're performing the unusual task of decompiling.
     Handle<UncompiledData> data =
-        isolate->factory()->NewUncompiledDataWithoutPreParsedScope(
+        isolate->factory()->NewUncompiledDataWithoutPreparseData(
             inferred_name_val, start_position, end_position,
             function_literal_id);
     shared_info->set_function_data(*data);
@@ -14446,7 +14446,7 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
     shared_info->set_length(lit->function_length());
     shared_info->set_has_duplicate_parameters(lit->has_duplicate_parameters());
     shared_info->SetExpectedNofPropertiesFromEstimate(lit);
-    DCHECK_NULL(lit->produced_preparsed_scope_data());
+    DCHECK_NULL(lit->produced_preparse_data());
     // If we're about to eager compile, we'll have the function literal
     // available, so there's no need to wastefully allocate an uncompiled data.
     // TODO(leszeks): This should be explicitly passed as a parameter, rather
@@ -14457,17 +14457,15 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
     // value after compiling, but avoid overwriting values set manually by the
     // bootstrapper.
     shared_info->set_length(SharedFunctionInfo::kInvalidLength);
-    ProducedPreParsedScopeData* scope_data =
-        lit->produced_preparsed_scope_data();
+    ProducedPreparseData* scope_data = lit->produced_preparse_data();
     if (scope_data != nullptr) {
-      Handle<PreParsedScopeData> pre_parsed_scope_data;
+      Handle<PreparseData> preparse_data;
       if (scope_data->Serialize(shared_info->GetIsolate())
-              .ToHandle(&pre_parsed_scope_data)) {
+              .ToHandle(&preparse_data)) {
         Handle<UncompiledData> data =
-            isolate->factory()->NewUncompiledDataWithPreParsedScope(
+            isolate->factory()->NewUncompiledDataWithPreparseData(
                 lit->inferred_name(), lit->start_position(),
-                lit->end_position(), lit->function_literal_id(),
-                pre_parsed_scope_data);
+                lit->end_position(), lit->function_literal_id(), preparse_data);
         shared_info->set_uncompiled_data(*data);
         needs_position_info = false;
       }
@@ -14475,7 +14473,7 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
   }
   if (needs_position_info) {
     Handle<UncompiledData> data =
-        isolate->factory()->NewUncompiledDataWithoutPreParsedScope(
+        isolate->factory()->NewUncompiledDataWithoutPreparseData(
             lit->inferred_name(), lit->start_position(), lit->end_position(),
             lit->function_literal_id());
     shared_info->set_uncompiled_data(*data);
@@ -14574,10 +14572,10 @@ void SharedFunctionInfo::SetPosition(int start_position, int end_position) {
       info->SetPositionInfo(start_position, end_position);
     }
   } else if (HasUncompiledData()) {
-    if (HasUncompiledDataWithPreParsedScope()) {
+    if (HasUncompiledDataWithPreparseData()) {
       // Clear out preparsed scope data, since the position setter invalidates
       // any scope data.
-      ClearPreParsedScopeData();
+      ClearPreparseData();
     }
     uncompiled_data()->set_start_position(start_position);
     uncompiled_data()->set_end_position(end_position);

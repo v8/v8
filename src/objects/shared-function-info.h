@@ -27,7 +27,7 @@ class WasmExportedFunctionData;
 
 // Data collected by the pre-parser storing information about scopes and inner
 // functions.
-class PreParsedScopeData : public HeapObject {
+class PreparseData : public HeapObject {
  public:
   DECL_ACCESSORS2(scope_data, PodArray<uint8_t>)
   DECL_INT_ACCESSORS(length)
@@ -41,9 +41,9 @@ class PreParsedScopeData : public HeapObject {
   // Clear uninitialized padding space.
   inline void clear_padding();
 
-  DECL_CAST2(PreParsedScopeData)
-  DECL_PRINTER(PreParsedScopeData)
-  DECL_VERIFIER(PreParsedScopeData)
+  DECL_CAST2(PreparseData)
+  DECL_PRINTER(PreparseData)
+  DECL_VERIFIER(PreparseData)
 
 // Layout description.
 #define PRE_PARSED_SCOPE_DATA_FIELDS(V)                                   \
@@ -63,7 +63,7 @@ class PreParsedScopeData : public HeapObject {
     return kChildDataStartOffset + length * kTaggedSize;
   }
 
-  OBJECT_CONSTRUCTORS(PreParsedScopeData, HeapObject);
+  OBJECT_CONSTRUCTORS(PreparseData, HeapObject);
 };
 
 // Abstract class representing extra data for an uncompiled function, which is
@@ -114,34 +114,34 @@ class UncompiledData : public HeapObject {
 // Class representing data for an uncompiled function that does not have any
 // data from the pre-parser, either because it's a leaf function or because the
 // pre-parser bailed out.
-class UncompiledDataWithoutPreParsedScope : public UncompiledData {
+class UncompiledDataWithoutPreparseData : public UncompiledData {
  public:
-  DECL_CAST2(UncompiledDataWithoutPreParsedScope)
-  DECL_PRINTER(UncompiledDataWithoutPreParsedScope)
-  DECL_VERIFIER(UncompiledDataWithoutPreParsedScope)
+  DECL_CAST2(UncompiledDataWithoutPreparseData)
+  DECL_PRINTER(UncompiledDataWithoutPreparseData)
+  DECL_VERIFIER(UncompiledDataWithoutPreparseData)
 
   static const int kSize = UncompiledData::kSize;
 
   // No extra fields compared to UncompiledData.
   typedef UncompiledData::BodyDescriptor BodyDescriptor;
 
-  OBJECT_CONSTRUCTORS(UncompiledDataWithoutPreParsedScope, UncompiledData);
+  OBJECT_CONSTRUCTORS(UncompiledDataWithoutPreparseData, UncompiledData);
 };
 
 // Class representing data for an uncompiled function that has pre-parsed scope
 // data.
-class UncompiledDataWithPreParsedScope : public UncompiledData {
+class UncompiledDataWithPreparseData : public UncompiledData {
  public:
-  DECL_ACCESSORS2(pre_parsed_scope_data, PreParsedScopeData)
+  DECL_ACCESSORS2(preparse_data, PreparseData)
 
-  DECL_CAST2(UncompiledDataWithPreParsedScope)
-  DECL_PRINTER(UncompiledDataWithPreParsedScope)
-  DECL_VERIFIER(UncompiledDataWithPreParsedScope)
+  DECL_CAST2(UncompiledDataWithPreparseData)
+  DECL_PRINTER(UncompiledDataWithPreparseData)
+  DECL_VERIFIER(UncompiledDataWithPreparseData)
 
   inline static void Initialize(
-      UncompiledDataWithPreParsedScope data, String inferred_name,
+      UncompiledDataWithPreparseData data, String inferred_name,
       int start_position, int end_position, int function_literal_id,
-      PreParsedScopeData scope_data,
+      PreparseData scope_data,
       std::function<void(HeapObject object, ObjectSlot slot, HeapObject target)>
           gc_notify_updated_slot =
               [](HeapObject object, ObjectSlot slot, HeapObject target) {});
@@ -150,7 +150,7 @@ class UncompiledDataWithPreParsedScope : public UncompiledData {
 
 #define UNCOMPILED_DATA_WITH_PRE_PARSED_SCOPE_FIELDS(V) \
   V(kStartOfPointerFieldsOffset, 0)                     \
-  V(kPreParsedScopeDataOffset, kTaggedSize)             \
+  V(kPreparseDataOffset, kTaggedSize)                   \
   V(kEndOfTaggedFieldsOffset, 0)                        \
   /* Total size. */                                     \
   V(kSize, 0)
@@ -168,7 +168,7 @@ class UncompiledDataWithPreParsedScope : public UncompiledData {
                           kSize>>
       BodyDescriptor;
 
-  OBJECT_CONSTRUCTORS(UncompiledDataWithPreParsedScope, UncompiledData);
+  OBJECT_CONSTRUCTORS(UncompiledDataWithPreparseData, UncompiledData);
 };
 
 class InterpreterData : public Struct {
@@ -306,10 +306,10 @@ class SharedFunctionInfo : public HeapObject {
   //    interpreter trampoline [HasInterpreterData()]
   //  - an AsmWasmData with Asm->Wasm conversion [HasAsmWasmData()].
   //  - a Smi containing the builtin id [HasBuiltinId()]
-  //  - a UncompiledDataWithoutPreParsedScope for lazy compilation
-  //    [HasUncompiledDataWithoutPreParsedScope()]
-  //  - a UncompiledDataWithPreParsedScope for lazy compilation
-  //    [HasUncompiledDataWithPreParsedScope()]
+  //  - a UncompiledDataWithoutPreparseData for lazy compilation
+  //    [HasUncompiledDataWithoutPreparseData()]
+  //  - a UncompiledDataWithPreparseData for lazy compilation
+  //    [HasUncompiledDataWithPreparseData()]
   //  - a WasmExportedFunctionData for Wasm [HasWasmExportedFunctionData()]
   DECL_ACCESSORS(function_data, Object)
 
@@ -340,18 +340,18 @@ class SharedFunctionInfo : public HeapObject {
   inline bool HasUncompiledData() const;
   inline UncompiledData uncompiled_data() const;
   inline void set_uncompiled_data(UncompiledData data);
-  inline bool HasUncompiledDataWithPreParsedScope() const;
-  inline UncompiledDataWithPreParsedScope
-  uncompiled_data_with_pre_parsed_scope() const;
-  inline void set_uncompiled_data_with_pre_parsed_scope(
-      UncompiledDataWithPreParsedScope data);
-  inline bool HasUncompiledDataWithoutPreParsedScope() const;
+  inline bool HasUncompiledDataWithPreparseData() const;
+  inline UncompiledDataWithPreparseData uncompiled_data_with_preparse_data()
+      const;
+  inline void set_uncompiled_data_with_preparse_data(
+      UncompiledDataWithPreparseData data);
+  inline bool HasUncompiledDataWithoutPreparseData() const;
   inline bool HasWasmExportedFunctionData() const;
   WasmExportedFunctionData wasm_exported_function_data() const;
 
-  // Clear out pre-parsed scope data from UncompiledDataWithPreParsedScope,
-  // turning it into UncompiledDataWithoutPreParsedScope.
-  inline void ClearPreParsedScopeData();
+  // Clear out pre-parsed scope data from UncompiledDataWithPreparseData,
+  // turning it into UncompiledDataWithoutPreparseData.
+  inline void ClearPreparseData();
 
   // [raw_builtin_function_id]: The id of the built-in function this function
   // represents, used during optimization to improve code generation.

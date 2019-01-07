@@ -55,15 +55,15 @@ class LoadHandler;
 class ModuleInfo;
 class NativeContext;
 class NewFunctionArgs;
-class PreParsedScopeData;
+class PreparseData;
 class PromiseResolveThenableJobTask;
 class RegExpMatchInfo;
 class ScriptContextTable;
 class StackFrameInfo;
 class StoreHandler;
 class TemplateObjectDescription;
-class UncompiledDataWithoutPreParsedScope;
-class UncompiledDataWithPreParsedScope;
+class UncompiledDataWithoutPreparseData;
+class UncompiledDataWithPreparseData;
 class WasmExportedFunctionData;
 class WeakFactoryCleanupJobTask;
 struct SourceRange;
@@ -750,18 +750,17 @@ class V8_EXPORT_PRIVATE Factory {
 
   Handle<ModuleInfo> NewModuleInfo();
 
-  Handle<PreParsedScopeData> NewPreParsedScopeData(int length);
+  Handle<PreparseData> NewPreparseData(int length);
 
-  Handle<UncompiledDataWithoutPreParsedScope>
-  NewUncompiledDataWithoutPreParsedScope(Handle<String> inferred_name,
-                                         int32_t start_position,
-                                         int32_t end_position,
-                                         int32_t function_literal_id);
+  Handle<UncompiledDataWithoutPreparseData>
+  NewUncompiledDataWithoutPreparseData(Handle<String> inferred_name,
+                                       int32_t start_position,
+                                       int32_t end_position,
+                                       int32_t function_literal_id);
 
-  Handle<UncompiledDataWithPreParsedScope> NewUncompiledDataWithPreParsedScope(
+  Handle<UncompiledDataWithPreparseData> NewUncompiledDataWithPreparseData(
       Handle<String> inferred_name, int32_t start_position,
-      int32_t end_position, int32_t function_literal_id,
-      Handle<PreParsedScopeData>);
+      int32_t end_position, int32_t function_literal_id, Handle<PreparseData>);
 
   // Create an External object for V8's external API.
   Handle<JSObject> NewExternal(void* value);

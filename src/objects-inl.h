@@ -85,8 +85,8 @@ int PropertyDetails::field_width_in_words() const {
 }
 
 bool HeapObject::IsUncompiledData() const {
-  return IsUncompiledDataWithoutPreParsedScope() ||
-         IsUncompiledDataWithPreParsedScope();
+  return IsUncompiledDataWithoutPreparseData() ||
+         IsUncompiledDataWithPreparseData();
 }
 
 bool HeapObject::IsSloppyArgumentsElements() const {
@@ -1098,8 +1098,7 @@ int HeapObject::SizeFromMap(Map map) const {
     return BigInt::SizeFor(BigInt::unchecked_cast(*this)->length());
   }
   if (instance_type == PRE_PARSED_SCOPE_DATA_TYPE) {
-    return PreParsedScopeData::SizeFor(
-        PreParsedScopeData::unchecked_cast(*this)->length());
+    return PreparseData::SizeFor(PreparseData::unchecked_cast(*this)->length());
   }
   if (instance_type == CODE_TYPE) {
     return Code::unchecked_cast(*this)->CodeSize();

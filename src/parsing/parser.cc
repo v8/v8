@@ -394,7 +394,7 @@ Parser::Parser(ParseInfo* info)
       source_range_map_(info->source_range_map()),
       target_stack_(nullptr),
       total_preparse_skipped_(0),
-      consumed_preparsed_scope_data_(info->consumed_preparsed_scope_data()),
+      consumed_preparse_data_(info->consumed_preparse_data()),
       parameters_end_pos_(info->parameters_end_pos()) {
   // Even though we were passed ParseInfo, we should not store it in
   // Parser - this makes sure that Isolate is not accidentally accessed via
@@ -2563,7 +2563,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   int function_length = -1;
   bool has_duplicate_parameters = false;
   int function_literal_id = GetNextFunctionLiteralId();
-  ProducedPreParsedScopeData* produced_preparsed_scope_data = nullptr;
+  ProducedPreparseData* produced_preparse_data = nullptr;
 
   // This Scope lives in the main zone. We'll migrate data into that zone later.
   Zone* parse_zone = should_preparse ? &preparser_zone_ : zone();
@@ -2585,9 +2585,8 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   // which case the parser is expected to have backtracked), or if we didn't
   // try to lazy parse in the first place, we'll have to parse eagerly.
   bool did_preparse_successfully =
-      should_preparse &&
-      SkipFunction(function_name, kind, function_type, scope, &num_parameters,
-                   &produced_preparsed_scope_data);
+      should_preparse && SkipFunction(function_name, kind, function_type, scope,
+                                      &num_parameters, &produced_preparse_data);
   if (!did_preparse_successfully) {
     // If skipping aborted, it rewound the scanner until before the LPAREN.
     // Consume it in that case.
@@ -2640,7 +2639,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   FunctionLiteral* function_literal = factory()->NewFunctionLiteral(
       function_name, scope, body, expected_property_count, num_parameters,
       function_length, duplicate_parameters, function_type, eager_compile_hint,
-      pos, true, function_literal_id, produced_preparsed_scope_data);
+      pos, true, function_literal_id, produced_preparse_data);
   function_literal->set_function_token_position(function_token_pos);
   function_literal->set_suspend_count(suspend_count);
 
@@ -2655,11 +2654,10 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   return function_literal;
 }
 
-bool Parser::SkipFunction(
-    const AstRawString* function_name, FunctionKind kind,
-    FunctionLiteral::FunctionType function_type,
-    DeclarationScope* function_scope, int* num_parameters,
-    ProducedPreParsedScopeData** produced_preparsed_scope_data) {
+bool Parser::SkipFunction(const AstRawString* function_name, FunctionKind kind,
+                          FunctionLiteral::FunctionType function_type,
+                          DeclarationScope* function_scope, int* num_parameters,
+                          ProducedPreparseData** produced_preparse_data) {
   FunctionState function_state(&function_state_, &scope_, function_scope);
   function_scope->set_zone(&preparser_zone_);
 
@@ -2670,7 +2668,7 @@ bool Parser::SkipFunction(
                  scanner()->current_token() == Token::ARROW);
 
   // FIXME(marja): There are 2 ways to skip functions now. Unify them.
-  if (consumed_preparsed_scope_data_) {
+  if (consumed_preparse_data_) {
     int end_position;
     LanguageMode language_mode;
     int num_inner_functions;
@@ -2678,13 +2676,13 @@ bool Parser::SkipFunction(
     if (stack_overflow()) {
       return true;
     }
-    *produced_preparsed_scope_data =
-        consumed_preparsed_scope_data_->GetDataForSkippableFunction(
+    *produced_preparse_data =
+        consumed_preparse_data_->GetDataForSkippableFunction(
             main_zone(), function_scope->start_position(), &end_position,
             num_parameters, &num_inner_functions, &uses_super_property,
             &language_mode);
 
-    function_scope->outer_scope()->SetMustUsePreParsedScopeData();
+    function_scope->outer_scope()->SetMustUsePreparseData();
     function_scope->set_is_skipped_function(true);
     function_scope->set_end_position(end_position);
     scanner()->SeekForward(end_position - 1);
@@ -2707,7 +2705,7 @@ bool Parser::SkipFunction(
 
   PreParser::PreParseResult result = reusable_preparser()->PreParseFunction(
       function_name, kind, function_type, function_scope, use_counts_,
-      produced_preparsed_scope_data, this->script_id());
+      produced_preparse_data, this->script_id());
 
   if (result == PreParser::kPreParseStackOverflow) {
     // Propagate stack overflow.

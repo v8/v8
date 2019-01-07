@@ -16,7 +16,7 @@
 #include "src/objects/smi.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parser.h"
-#include "src/parsing/preparsed-scope-data.h"
+#include "src/parsing/preparse-data.h"
 #include "src/v8.h"
 #include "test/unittests/test-helpers.h"
 #include "test/unittests/test-utils.h"

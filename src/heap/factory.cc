@@ -2629,12 +2629,11 @@ Handle<ModuleInfo> Factory::NewModuleInfo() {
                                           ModuleInfo::kLength, TENURED);
 }
 
-Handle<PreParsedScopeData> Factory::NewPreParsedScopeData(int length) {
-  int size = PreParsedScopeData::SizeFor(length);
-  Handle<PreParsedScopeData> result(
-      PreParsedScopeData::cast(AllocateRawWithImmortalMap(
-          size, TENURED, *pre_parsed_scope_data_map())),
-      isolate());
+Handle<PreparseData> Factory::NewPreparseData(int length) {
+  int size = PreparseData::SizeFor(length);
+  Handle<PreparseData> result(PreparseData::cast(AllocateRawWithImmortalMap(
+                                  size, TENURED, *preparse_data_map())),
+                              isolate());
   result->set_scope_data(PodArray<uint8_t>::cast(*empty_byte_array()));
   result->set_length(length);
   MemsetTagged(result->child_data_start(), *null_value(), length);
@@ -2643,14 +2642,14 @@ Handle<PreParsedScopeData> Factory::NewPreParsedScopeData(int length) {
   return result;
 }
 
-Handle<UncompiledDataWithoutPreParsedScope>
-Factory::NewUncompiledDataWithoutPreParsedScope(Handle<String> inferred_name,
-                                                int32_t start_position,
-                                                int32_t end_position,
-                                                int32_t function_literal_id) {
-  Handle<UncompiledDataWithoutPreParsedScope> result(
-      UncompiledDataWithoutPreParsedScope::cast(
-          New(uncompiled_data_without_pre_parsed_scope_map(), TENURED)),
+Handle<UncompiledDataWithoutPreparseData>
+Factory::NewUncompiledDataWithoutPreparseData(Handle<String> inferred_name,
+                                              int32_t start_position,
+                                              int32_t end_position,
+                                              int32_t function_literal_id) {
+  Handle<UncompiledDataWithoutPreparseData> result(
+      UncompiledDataWithoutPreparseData::cast(
+          New(uncompiled_data_without_preparse_data_map(), TENURED)),
       isolate());
 
   UncompiledData::Initialize(*result, *inferred_name, start_position,
@@ -2658,19 +2657,20 @@ Factory::NewUncompiledDataWithoutPreParsedScope(Handle<String> inferred_name,
   return result;
 }
 
-Handle<UncompiledDataWithPreParsedScope>
-Factory::NewUncompiledDataWithPreParsedScope(
-    Handle<String> inferred_name, int32_t start_position, int32_t end_position,
-    int32_t function_literal_id,
-    Handle<PreParsedScopeData> pre_parsed_scope_data) {
-  Handle<UncompiledDataWithPreParsedScope> result(
-      UncompiledDataWithPreParsedScope::cast(
-          New(uncompiled_data_with_pre_parsed_scope_map(), TENURED)),
+Handle<UncompiledDataWithPreparseData>
+Factory::NewUncompiledDataWithPreparseData(Handle<String> inferred_name,
+                                           int32_t start_position,
+                                           int32_t end_position,
+                                           int32_t function_literal_id,
+                                           Handle<PreparseData> preparse_data) {
+  Handle<UncompiledDataWithPreparseData> result(
+      UncompiledDataWithPreparseData::cast(
+          New(uncompiled_data_with_preparse_data_map(), TENURED)),
       isolate());
 
-  UncompiledDataWithPreParsedScope::Initialize(
+  UncompiledDataWithPreparseData::Initialize(
       *result, *inferred_name, start_position, end_position,
-      function_literal_id, *pre_parsed_scope_data);
+      function_literal_id, *preparse_data);
 
   return result;
 }

@@ -10,7 +10,7 @@
 #include "src/conversions.h"
 #include "src/globals.h"
 #include "src/parsing/parser-base.h"
-#include "src/parsing/preparsed-scope-data.h"
+#include "src/parsing/preparse-data.h"
 #include "src/parsing/preparser.h"
 #include "src/unicode.h"
 #include "src/utils.h"
@@ -108,7 +108,7 @@ PreParser::PreParseResult PreParser::PreParseFunction(
     const AstRawString* function_name, FunctionKind kind,
     FunctionLiteral::FunctionType function_type,
     DeclarationScope* function_scope, int* use_counts,
-    ProducedPreParsedScopeData** produced_preparsed_scope_data, int script_id) {
+    ProducedPreparseData** produced_preparse_data, int script_id) {
   DCHECK_EQ(FUNCTION_SCOPE, function_scope->scope_type());
   use_counts_ = use_counts;
   set_script_id(script_id);
@@ -132,8 +132,8 @@ PreParser::PreParseResult PreParser::PreParseFunction(
 
   // Start collecting data for a new function which might contain skippable
   // functions.
-  PreParsedScopeDataBuilder::DataGatheringScope
-      preparsed_scope_data_builder_scope(this);
+  PreparseDataBuilder::DataGatheringScope preparsed_scope_data_builder_scope(
+      this);
 
   if (IsArrowFunction(kind)) {
     formals.is_simple = function_scope->has_simple_parameters();
@@ -228,8 +228,8 @@ PreParser::PreParseResult PreParser::PreParseFunction(
 
       DeclareFunctionNameVar(function_name, function_type, function_scope);
 
-      *produced_preparsed_scope_data = ProducedPreParsedScopeData::For(
-          preparsed_scope_data_builder_, main_zone());
+      *produced_preparse_data =
+          ProducedPreparseData::For(preparsed_scope_data_builder_, main_zone());
     }
 
     if (pending_error_handler()->has_error_unidentifiable_by_preparser()) {
@@ -245,7 +245,6 @@ PreParser::PreParseResult PreParser::PreParseFunction(
   DCHECK(!pending_error_handler()->has_error_unidentifiable_by_preparser());
   return kPreParseSuccess;
 }
-
 
 // Preparsing checks a JavaScript program and emits preparse-data that helps
 // a later parsing to be faster.
@@ -288,8 +287,8 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   // Start collecting data for a new function which might contain skippable
   // functions.
   {
-    PreParsedScopeDataBuilder::DataGatheringScope
-        preparsed_scope_data_builder_scope(this);
+    PreparseDataBuilder::DataGatheringScope preparsed_scope_data_builder_scope(
+        this);
     skippable_function = !function_state_->next_function_is_likely_called() &&
                          preparsed_scope_data_builder_ != nullptr;
     if (skippable_function) {

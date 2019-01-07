@@ -4000,7 +4000,7 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
   bool is_lazy_top_level_function =
       can_preparse && impl()->AllowsLazyParsingWithoutUnresolvedVariables();
   bool has_braces = true;
-  ProducedPreParsedScopeData* produced_preparsed_scope_data = nullptr;
+  ProducedPreparseData* produced_preparse_data = nullptr;
   StatementListT body(pointer_buffer());
   {
     FunctionState function_state(&function_state_, &scope_,
@@ -4039,9 +4039,9 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
         bool did_preparse_successfully = impl()->SkipFunction(
             nullptr, kind, FunctionLiteral::kAnonymousExpression,
             formal_parameters.scope, &dummy_num_parameters,
-            &produced_preparsed_scope_data);
+            &produced_preparse_data);
 
-        DCHECK_NULL(produced_preparsed_scope_data);
+        DCHECK_NULL(produced_preparse_data);
 
         if (did_preparse_successfully) {
           // Validate parameter names. We can do this only after preparsing the
@@ -4117,7 +4117,7 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
       FunctionLiteral::kNoDuplicateParameters,
       FunctionLiteral::kAnonymousExpression, eager_compile_hint,
       formal_parameters.scope->start_position(), has_braces,
-      function_literal_id, produced_preparsed_scope_data);
+      function_literal_id, produced_preparse_data);
 
   function_literal->set_suspend_count(suspend_count);
   function_literal->set_function_token_position(

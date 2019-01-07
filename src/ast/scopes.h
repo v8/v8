@@ -21,7 +21,7 @@ class AstValueFactory;
 class AstRawString;
 class Declaration;
 class ParseInfo;
-class PreParsedScopeDataBuilder;
+class PreparseDataBuilder;
 class SloppyBlockFunctionStatement;
 class Statement;
 class StringSet;
@@ -202,13 +202,13 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
 
   Zone* zone() const { return zone_; }
 
-  void SetMustUsePreParsedScopeData() {
+  void SetMustUsePreparseData() {
     if (must_use_preparsed_scope_data_) {
       return;
     }
     must_use_preparsed_scope_data_ = true;
     if (outer_scope_) {
-      outer_scope_->SetMustUsePreParsedScopeData();
+      outer_scope_->SetMustUsePreparseData();
     }
   }
 
@@ -584,8 +584,8 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
                          MaybeAssignedFlag maybe_assigned);
 
   // Walk the scope chain to find DeclarationScopes; call
-  // SavePreParsedScopeDataForDeclarationScope for each.
-  void SavePreParsedScopeData();
+  // SavePreparseDataForDeclarationScope for each.
+  void SavePreparseData();
 
   // Create a non-local variable with a given name.
   // These variables are looked up dynamically at runtime.
@@ -1019,15 +1019,15 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
 
   // Save data describing the context allocation of the variables in this scope
   // and its subscopes (except scopes at the laziness boundary). The data is
-  // saved in produced_preparsed_scope_data_.
-  void SavePreParsedScopeDataForDeclarationScope();
+  // saved in produced_preparse_data_.
+  void SavePreparseDataForDeclarationScope();
 
   void set_preparsed_scope_data_builder(
-      PreParsedScopeDataBuilder* preparsed_scope_data_builder) {
+      PreparseDataBuilder* preparsed_scope_data_builder) {
     preparsed_scope_data_builder_ = preparsed_scope_data_builder;
   }
 
-  PreParsedScopeDataBuilder* preparsed_scope_data_builder() const {
+  PreparseDataBuilder* preparsed_scope_data_builder() const {
     return preparsed_scope_data_builder_;
   }
 
@@ -1084,7 +1084,7 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   Variable* arguments_;
 
   // For producing the scope allocation data during preparsing.
-  PreParsedScopeDataBuilder* preparsed_scope_data_builder_;
+  PreparseDataBuilder* preparsed_scope_data_builder_;
 
   struct RareData : public ZoneObject {
     // Convenience variable; Subclass constructor only
