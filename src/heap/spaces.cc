@@ -2215,9 +2215,8 @@ LocalAllocationBuffer::LocalAllocationBuffer(
   *this = other;
 }
 
-
 LocalAllocationBuffer& LocalAllocationBuffer::operator=(
-    const LocalAllocationBuffer& other) {
+    const LocalAllocationBuffer& other) V8_NOEXCEPT {
   Close();
   heap_ = other.heap_;
   allocation_info_ = other.allocation_info_;

@@ -108,7 +108,7 @@ bool Heap::GCCallbackTuple::operator==(
 }
 
 Heap::GCCallbackTuple& Heap::GCCallbackTuple::operator=(
-    const Heap::GCCallbackTuple& other) = default;
+    const Heap::GCCallbackTuple& other) V8_NOEXCEPT = default;
 
 struct Heap::StrongRootsList {
   FullObjectSlot start;
