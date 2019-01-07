@@ -61,6 +61,11 @@ export class GraphMultiView extends View {
       if (!view.currentPhaseView) return;
       view.currentPhaseView.searchInputAction(searchInput, e)
     });
+    view.divNode.addEventListener("keyup", (e: KeyboardEvent) => {
+      if (e.keyCode == 191) { // keyCode == '/'
+        searchInput.focus();
+      }
+    });
     searchInput.setAttribute("value", window.sessionStorage.getItem("lastSearch") || "");
     this.graph = new GraphView(this.divNode, selectionBroker,
       (phaseName) => view.displayPhaseByName(phaseName));
@@ -76,7 +81,7 @@ export class GraphMultiView extends View {
       const optionElement = document.createElement("option");
       let maxNodeId = "";
       if (phase.type == "graph" && phase.highestNodeId != 0) {
-         maxNodeId = ` ${phase.highestNodeId}`;
+        maxNodeId = ` ${phase.highestNodeId}`;
       }
       optionElement.text = `${phase.name}${maxNodeId}`;
       view.selectMenu.add(optionElement);

@@ -32,6 +32,7 @@ export class NodeLabel {
         this.live = live;
         this.properties = properties;
         this.sourcePosition = sourcePosition;
+        this.origin = origin;
         this.opcode = opcode;
         this.control = control;
         this.opinfo = opinfo;

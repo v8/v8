@@ -25,7 +25,6 @@ interface GraphState {
   mouseDownNode: any;
   justDragged: boolean,
   justScaleTransGraph: boolean,
-  lastKeyDown: number,
   hideDead: boolean
 }
 
@@ -59,12 +58,20 @@ export class GraphView extends View implements PhaseView {
     this.broker = broker;
     this.showPhaseByName = showPhaseByName;
     this.divElement = d3.select(this.divNode);
-    const svg = this.divElement.append("svg").attr('version', '1.1')
+    const svg = this.divElement.append("svg")
+      .attr('version', '2.0')
       .attr("width", "100%")
-      .attr("height", "100%");
+      .attr("height", "100%")
     svg.on("click", function (d) {
       view.selectionHandler.clear();
     });
+    // Listen for key events. Note that the focus handler seems 
+    // to be important even if it does nothing.
+    svg
+      .attr("focusable", false)
+      .on("focus", (e) => { })
+      .on("keydown", (e) => { view.svgKeyDown(); })
+
     view.svg = svg;
 
     this.state = {
@@ -72,7 +79,6 @@ export class GraphView extends View implements PhaseView {
       mouseDownNode: null,
       justDragged: false,
       justScaleTransGraph: false,
-      lastKeyDown: -1,
       showTypes: false,
       hideDead: false
     };
@@ -83,7 +89,7 @@ export class GraphView extends View implements PhaseView {
         broker.broadcastClear(this);
         view.updateGraphVisibility();
       },
-      select: function (nodes: Iterable<GNode>, selected: boolean) {
+      select: function (nodes: Array<GNode>, selected: boolean) {
         let locations = [];
         for (const node of nodes) {
           if (node.nodeLabel.sourcePosition) {
@@ -147,14 +153,6 @@ export class GraphView extends View implements PhaseView {
         d.y += d3.event.dy;
         view.updateGraphVisibility();
       });
-
-
-    // listen for key events
-    d3.select(window).on("keydown", function (e) {
-      view.svgKeyDown.call(view);
-    }).on("keyup", function () {
-      view.svgKeyUp.call(view);
-    });
 
     function zoomed() {
       if (d3.event.shiftKey) return false;
@@ -424,13 +422,13 @@ export class GraphView extends View implements PhaseView {
           reg.exec(n.nodeLabel.opcode) != null);
       };
 
-      const selection = this.graph.nodes((n) => {
+      const selection = [...this.graph.nodes((n) => {
         if ((e.ctrlKey || n.visible) && filterFunction(n)) {
           if (e.ctrlKey) n.visible = true;
           return true;
         }
         return false;
-      });
+      })];
 
       this.selectionHandler.select(selection, true);
       this.connectVisibleSelectedNodes();
@@ -444,23 +442,18 @@ export class GraphView extends View implements PhaseView {
   svgKeyDown() {
     const view = this;
     const state = this.state;
-    let allowRepetition = true;
 
-    // Don't handle key press repetition
-    if (state.lastKeyDown !== -1) return;
-
-    const showSelectionFrontierNodes = (inEdges: boolean, filter: (e: Edge, i: number) => boolean, select: boolean) => {
+    const showSelectionFrontierNodes = (inEdges: boolean, filter: (e: Edge, i: number) => boolean, doSelect: boolean) => {
       const frontier = view.getNodeFrontier(state.selection, inEdges, filter);
       if (frontier != undefined && frontier.size) {
-        if (select) {
+        if (doSelect) {
           if (!d3.event.shiftKey) {
             state.selection.clear();
           }
-          state.selection.select(frontier, true);
+          state.selection.select([...frontier], true);
         }
         view.updateGraphVisibility();
       }
-      allowRepetition = false;
     }
 
     let eventHandled = true; // unless the below switch defaults
@@ -477,7 +470,7 @@ export class GraphView extends View implements PhaseView {
         // '1'-'9'
         showSelectionFrontierNodes(true,
           (edge: Edge, index: number) => { return index == (d3.event.keyCode - 49); },
-          false);
+          !d3.event.ctrlKey);
         break;
       case 97:
       case 98:
@@ -491,7 +484,7 @@ export class GraphView extends View implements PhaseView {
         // 'numpad 1'-'numpad 9'
         showSelectionFrontierNodes(true,
           (edge, index) => { return index == (d3.event.keyCode - 97); },
-          false);
+          !d3.event.ctrlKey);
         break;
       case 67:
         // 'c'
@@ -511,12 +504,15 @@ export class GraphView extends View implements PhaseView {
         break;
       case 73:
         // 'i'
-        showSelectionFrontierNodes(true, undefined, false);
+        if (!d3.event.ctrlKey && !d3.event.shiftKey) {
+          showSelectionFrontierNodes(true, undefined, false);
+        } else {
+          eventHandled = false;
+        }
         break;
       case 65:
         // 'a'
         view.selectAllNodes();
-        allowRepetition = false;
         break;
       case 38:
       case 40: {
@@ -525,7 +521,7 @@ export class GraphView extends View implements PhaseView {
       }
       case 82:
         // 'r'
-        if (!d3.event.ctrlKey) {
+        if (!d3.event.ctrlKey && !d3.event.shiftKey) {
           this.layoutAction(this);
         } else {
           eventHandled = false;
@@ -535,10 +531,6 @@ export class GraphView extends View implements PhaseView {
         // 's'
         view.selectOrigins();
         break;
-      case 191:
-        // '/'
-        document.getElementById("search-input").focus();
-        break;
       default:
         eventHandled = false;
         break;
@@ -546,14 +538,7 @@ export class GraphView extends View implements PhaseView {
     if (eventHandled) {
       d3.event.preventDefault();
     }
-    if (!allowRepetition) {
-      state.lastKeyDown = d3.event.keyCode;
-    }
   }
-
-  svgKeyUp() {
-    this.state.lastKeyDown = -1
-  };
 
   layoutGraph() {
     console.time("layoutGraph");

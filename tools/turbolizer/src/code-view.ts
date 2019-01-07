@@ -62,7 +62,7 @@ export class CodeView extends View {
         for (const location of locations) {
           const translated = sourceResolver.translateToSourceId(view.source.sourceId, location);
           if (!translated) continue;
-          view.selection.select(translated, selected);
+          view.selection.select([translated], selected);
         }
         view.updateSelection(firstSelect);
       },
