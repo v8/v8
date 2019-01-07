@@ -347,7 +347,11 @@ void ValueSerializer::TransferArrayBuffer(uint32_t transfer_id,
 }
 
 Maybe<bool> ValueSerializer::WriteObject(Handle<Object> object) {
-  out_of_memory_ = false;
+  // There is no sense in trying to proceed if we've previously run out of
+  // memory. Bail immediately, as this likely implies that some write has
+  // previously failed and so the buffer is corrupt.
+  if (V8_UNLIKELY(out_of_memory_)) return ThrowIfOutOfMemory();
+
   if (object->IsSmi()) {
     WriteSmi(Smi::cast(*object));
     return ThrowIfOutOfMemory();
@@ -936,8 +940,10 @@ Maybe<bool> ValueSerializer::WriteHostObject(Handle<JSObject> object) {
   Maybe<bool> result =
       delegate_->WriteHostObject(v8_isolate, Utils::ToLocal(object));
   RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate_, Nothing<bool>());
+  USE(result);
   DCHECK(!result.IsNothing());
-  return result;
+  DCHECK(result.ToChecked());
+  return ThrowIfOutOfMemory();
 }
 
 Maybe<uint32_t> ValueSerializer::WriteJSObjectPropertiesSlow(
