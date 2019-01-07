@@ -437,8 +437,8 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
           DCHECK_EQ(kAccessor, details.kind());
           if (map->instance_type() == JS_MODULE_NAMESPACE_TYPE) {
             DCHECK(map->is_prototype_map());
-            Handle<PrototypeInfo> proto_info =
-                Map::GetOrCreatePrototypeInfo(map, isolate());
+            Handle<PrototypeInfo> proto_info(
+                PrototypeInfo::cast(map->prototype_info()), isolate());
             Handle<JSModuleNamespace> module_namespace(
                 JSModuleNamespace::cast(proto_info->module_namespace()),
                 isolate());
