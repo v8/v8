@@ -25032,11 +25032,11 @@ namespace {
 
 class MockPlatform : public TestPlatform {
  public:
-  MockPlatform() {
+  MockPlatform() : old_platform_(i::V8::GetCurrentPlatform()) {
     // Now that it's completely constructed, make this the current platform.
     i::V8::SetPlatformForTesting(this);
   }
-  ~MockPlatform() override = default;
+  ~MockPlatform() override { i::V8::SetPlatformForTesting(old_platform_); }
 
   bool dump_without_crashing_called() const {
     return dump_without_crashing_called_;
@@ -25045,6 +25045,7 @@ class MockPlatform : public TestPlatform {
   void DumpWithoutCrashing() override { dump_without_crashing_called_ = true; }
 
  private:
+  v8::Platform* old_platform_;
   bool dump_without_crashing_called_ = false;
 };
 
