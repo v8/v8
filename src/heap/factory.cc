@@ -542,8 +542,16 @@ Handle<FrameArray> Factory::NewFrameArray(int number_of_frames,
 template <typename T>
 Handle<T> Factory::AllocateSmallOrderedHashTable(Handle<Map> map, int capacity,
                                                  PretenureFlag pretenure) {
-  DCHECK_LE(0, capacity);
-  CHECK_LE(capacity, T::kMaxCapacity);
+  // Capacity must be a power of two, since we depend on being able
+  // to divide and multiple by 2 (kLoadFactor) to derive capacity
+  // from number of buckets. If we decide to change kLoadFactor
+  // to something other than 2, capacity should be stored as another
+  // field of this object.
+  DCHECK_EQ(T::kLoadFactor, 2);
+  capacity = base::bits::RoundUpToPowerOfTwo32(Max(T::kMinCapacity, capacity));
+  capacity = Min(capacity, T::kMaxCapacity);
+
+  DCHECK_LT(0, capacity);
   DCHECK_EQ(0, capacity % T::kLoadFactor);
 
   int size = T::SizeFor(capacity);

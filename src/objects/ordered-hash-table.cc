@@ -368,6 +368,37 @@ Handle<OrderedNameDictionary> OrderedNameDictionary::Add(
   return table;
 }
 
+void OrderedNameDictionary::SetEntry(Isolate* isolate, int entry, Object key,
+                                     Object value, PropertyDetails details) {
+  DisallowHeapAllocation gc;
+  DCHECK_IMPLIES(!key->IsName(), key->IsTheHole(isolate));
+  DisallowHeapAllocation no_gc;
+  int index = EntryToIndex(entry);
+  this->set(index, key);
+  this->set(index + kValueOffset, value);
+
+  // TODO(gsathya): Optimize how PropertyDetails are stored in this
+  // dictionary to save memory (by reusing padding?) and performance
+  // (by not doing the Smi conversion).
+  this->set(index + kPropertyDetailsOffset, details.AsSmi());
+}
+
+Handle<OrderedNameDictionary> OrderedNameDictionary::DeleteEntry(
+    Isolate* isolate, Handle<OrderedNameDictionary> table, int entry) {
+  DCHECK_NE(entry, kNotFound);
+
+  Object hole = ReadOnlyRoots(isolate).the_hole_value();
+  PropertyDetails details = PropertyDetails::Empty();
+  table->SetEntry(isolate, entry, hole, hole, details);
+
+  int nof = table->NumberOfElements();
+  table->SetNumberOfElements(nof - 1);
+  int nod = table->NumberOfDeletedElements();
+  table->SetNumberOfDeletedElements(nod + 1);
+
+  return Shrink(isolate, table);
+}
+
 Handle<OrderedHashSet> OrderedHashSet::Allocate(Isolate* isolate, int capacity,
                                                 PretenureFlag pretenure) {
   return OrderedHashTable<OrderedHashSet, 1>::Allocate(isolate, capacity,
@@ -430,6 +461,10 @@ template bool OrderedHashTable<OrderedHashMap, 2>::Delete(Isolate* isolate,
 
 template int OrderedHashTable<OrderedHashMap, 2>::FindEntry(Isolate* isolate,
                                                             Object key);
+
+template Handle<OrderedNameDictionary>
+OrderedHashTable<OrderedNameDictionary, 3>::Shrink(
+    Isolate* isolate, Handle<OrderedNameDictionary> table);
 
 template Handle<OrderedNameDictionary>
 OrderedHashTable<OrderedNameDictionary, 3>::EnsureGrowable(
@@ -628,6 +663,19 @@ MaybeHandle<SmallOrderedNameDictionary> SmallOrderedNameDictionary::Add(
   return table;
 }
 
+void SmallOrderedNameDictionary::SetEntry(Isolate* isolate, int entry,
+                                          Object key, Object value,
+                                          PropertyDetails details) {
+  DCHECK_IMPLIES(!key->IsName(), key->IsTheHole(isolate));
+  SetDataEntry(entry, SmallOrderedNameDictionary::kValueIndex, value);
+  SetDataEntry(entry, SmallOrderedNameDictionary::kKeyIndex, key);
+
+  // TODO(gsathya): PropertyDetails should be stored as part of the
+  // data table to save more memory.
+  SetDataEntry(entry, SmallOrderedNameDictionary::kPropertyDetailsIndex,
+               details.AsSmi());
+}
+
 template <class Derived>
 bool SmallOrderedHashTable<Derived>::HasKey(Isolate* isolate,
                                             Handle<Object> key) {
@@ -654,6 +702,23 @@ bool SmallOrderedHashTable<Derived>::Delete(Isolate* isolate, Derived table,
   table->SetNumberOfDeletedElements(nod + 1);
 
   return true;
+}
+
+Handle<SmallOrderedNameDictionary> SmallOrderedNameDictionary::DeleteEntry(
+    Isolate* isolate, Handle<SmallOrderedNameDictionary> table, int entry) {
+  DCHECK_NE(entry, kNotFound);
+  {
+    DisallowHeapAllocation no_gc;
+    Object hole = ReadOnlyRoots(isolate).the_hole_value();
+    PropertyDetails details = PropertyDetails::Empty();
+    table->SetEntry(isolate, entry, hole, hole, details);
+
+    int nof = table->NumberOfElements();
+    table->SetNumberOfElements(nof - 1);
+    int nod = table->NumberOfDeletedElements();
+    table->SetNumberOfDeletedElements(nod + 1);
+  }
+  return Shrink(isolate, table);
 }
 
 template <class Derived>
@@ -717,6 +782,15 @@ Handle<SmallOrderedNameDictionary> SmallOrderedNameDictionary::Rehash(
 }
 
 template <class Derived>
+Handle<Derived> SmallOrderedHashTable<Derived>::Shrink(Isolate* isolate,
+                                                       Handle<Derived> table) {
+  int nof = table->NumberOfElements();
+  int capacity = table->Capacity();
+  if (nof >= (capacity >> 2)) return table;
+  return Derived::Rehash(isolate, table, capacity / 2);
+}
+
+template <class Derived>
 MaybeHandle<Derived> SmallOrderedHashTable<Derived>::Grow(
     Isolate* isolate, Handle<Derived> table) {
   int capacity = table->Capacity();
@@ -765,6 +839,9 @@ template bool SmallOrderedHashTable<SmallOrderedHashSet>::HasKey(
 template Handle<SmallOrderedHashSet>
 SmallOrderedHashTable<SmallOrderedHashSet>::Rehash(
     Isolate* isolate, Handle<SmallOrderedHashSet> table, int new_capacity);
+template Handle<SmallOrderedHashSet>
+SmallOrderedHashTable<SmallOrderedHashSet>::Shrink(
+    Isolate* isolate, Handle<SmallOrderedHashSet> table);
 template MaybeHandle<SmallOrderedHashSet>
 SmallOrderedHashTable<SmallOrderedHashSet>::Grow(
     Isolate* isolate, Handle<SmallOrderedHashSet> table);
@@ -776,6 +853,9 @@ template bool SmallOrderedHashTable<SmallOrderedHashMap>::HasKey(
 template Handle<SmallOrderedHashMap>
 SmallOrderedHashTable<SmallOrderedHashMap>::Rehash(
     Isolate* isolate, Handle<SmallOrderedHashMap> table, int new_capacity);
+template Handle<SmallOrderedHashMap>
+SmallOrderedHashTable<SmallOrderedHashMap>::Shrink(
+    Isolate* isolate, Handle<SmallOrderedHashMap> table);
 template MaybeHandle<SmallOrderedHashMap>
 SmallOrderedHashTable<SmallOrderedHashMap>::Grow(
     Isolate* isolate, Handle<SmallOrderedHashMap> table);
@@ -789,6 +869,9 @@ template bool SmallOrderedHashTable<SmallOrderedHashSet>::Delete(
 
 template void SmallOrderedHashTable<SmallOrderedNameDictionary>::Initialize(
     Isolate* isolate, int capacity);
+template Handle<SmallOrderedNameDictionary>
+SmallOrderedHashTable<SmallOrderedNameDictionary>::Shrink(
+    Isolate* isolate, Handle<SmallOrderedNameDictionary> table);
 
 template <class SmallTable, class LargeTable>
 Handle<HeapObject> OrderedHashTableHandler<SmallTable, LargeTable>::Allocate(
@@ -969,8 +1052,23 @@ Handle<HeapObject> OrderedNameDictionaryHandler::Add(Isolate* isolate,
       isolate, Handle<OrderedNameDictionary>::cast(table), key, value, details);
 }
 
+void OrderedNameDictionaryHandler::SetEntry(Isolate* isolate, HeapObject table,
+                                            int entry, Object key, Object value,
+                                            PropertyDetails details) {
+  DisallowHeapAllocation no_gc;
+  if (table->IsSmallOrderedNameDictionary()) {
+    return SmallOrderedNameDictionary::cast(table)->SetEntry(
+        isolate, entry, key, value, details);
+  }
+
+  DCHECK(table->IsOrderedNameDictionary());
+  return OrderedNameDictionary::cast(table)->SetEntry(isolate, entry, key,
+                                                      value, details);
+}
+
 int OrderedNameDictionaryHandler::FindEntry(Isolate* isolate, HeapObject table,
-                                            Object key) {
+                                            Name key) {
+  DisallowHeapAllocation no_gc;
   if (table->IsSmallOrderedNameDictionary()) {
     int entry =
         SmallOrderedNameDictionary::cast(table)->FindEntry(isolate, key);
@@ -1042,6 +1140,57 @@ void OrderedNameDictionaryHandler::SetHash(HeapObject table, int hash) {
 
   DCHECK(table->IsOrderedNameDictionary());
   OrderedNameDictionary::cast(table)->SetHash(hash);
+}
+
+Name OrderedNameDictionaryHandler::KeyAt(HeapObject table, int entry) {
+  if (table->IsSmallOrderedNameDictionary()) {
+    return Name::cast(SmallOrderedNameDictionary::cast(table)->KeyAt(entry));
+  }
+
+  return Name::cast(OrderedNameDictionary::cast(table)->KeyAt(entry));
+}
+
+int OrderedNameDictionaryHandler::NumberOfElements(HeapObject table) {
+  if (table->IsSmallOrderedNameDictionary()) {
+    return SmallOrderedNameDictionary::cast(table)->NumberOfElements();
+  }
+
+  return OrderedNameDictionary::cast(table)->NumberOfElements();
+}
+
+int OrderedNameDictionaryHandler::Capacity(HeapObject table) {
+  if (table->IsSmallOrderedNameDictionary()) {
+    return SmallOrderedNameDictionary::cast(table)->Capacity();
+  }
+
+  return OrderedNameDictionary::cast(table)->Capacity();
+}
+
+Handle<HeapObject> OrderedNameDictionaryHandler::Shrink(
+    Isolate* isolate, Handle<HeapObject> table) {
+  if (table->IsSmallOrderedNameDictionary()) {
+    Handle<SmallOrderedNameDictionary> small_dict =
+        Handle<SmallOrderedNameDictionary>::cast(table);
+    return SmallOrderedNameDictionary::Shrink(isolate, small_dict);
+  }
+
+  Handle<OrderedNameDictionary> large_dict =
+      Handle<OrderedNameDictionary>::cast(table);
+  return OrderedNameDictionary::Shrink(isolate, large_dict);
+}
+
+Handle<HeapObject> OrderedNameDictionaryHandler::DeleteEntry(
+    Isolate* isolate, Handle<HeapObject> table, int entry) {
+  DisallowHeapAllocation no_gc;
+  if (table->IsSmallOrderedNameDictionary()) {
+    Handle<SmallOrderedNameDictionary> small_dict =
+        Handle<SmallOrderedNameDictionary>::cast(table);
+    return SmallOrderedNameDictionary::DeleteEntry(isolate, small_dict, entry);
+  }
+
+  Handle<OrderedNameDictionary> large_dict =
+      Handle<OrderedNameDictionary>::cast(table);
+  return OrderedNameDictionary::DeleteEntry(isolate, large_dict, entry);
 }
 
 template <class Derived, class TableType>

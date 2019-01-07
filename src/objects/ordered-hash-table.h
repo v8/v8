@@ -223,6 +223,9 @@ class OrderedHashTable : public FixedArray {
   }
 
   OBJECT_CONSTRUCTORS(OrderedHashTable, FixedArray)
+
+ private:
+  friend class OrderedNameDictionaryHandler;
 };
 
 class OrderedHashSet : public OrderedHashTable<OrderedHashSet, 1> {
@@ -354,6 +357,7 @@ class SmallOrderedHashTable : public HeapObject {
   static MaybeHandle<Derived> Grow(Isolate* isolate, Handle<Derived> table);
 
   int FindEntry(Isolate* isolate, Object key);
+  static Handle<Derived> Shrink(Isolate* isolate, Handle<Derived> table);
 
   // Iterates only fields in the DataTable.
   class BodyDescriptor;
@@ -398,6 +402,12 @@ class SmallOrderedHashTable : public HeapObject {
   }
 
   int NumberOfBuckets() const { return getByte(NumberOfBucketsOffset(), 0); }
+
+  Object KeyAt(int entry) const {
+    DCHECK_LT(entry, Capacity());
+    Offset entry_offset = GetDataEntryOffset(entry, Derived::kKeyIndex);
+    return READ_FIELD(this, entry_offset);
+  }
 
   DECL_VERIFIER(SmallOrderedHashTable)
 
@@ -481,12 +491,6 @@ class SmallOrderedHashTable : public HeapObject {
     DCHECK_LT(entry, Capacity());
     DCHECK_LE(static_cast<unsigned>(relative_index), Derived::kEntrySize);
     Offset entry_offset = GetDataEntryOffset(entry, relative_index);
-    return READ_FIELD(this, entry_offset);
-  }
-
-  Object KeyAt(int entry) const {
-    DCHECK_LT(entry, Capacity());
-    Offset entry_offset = GetDataEntryOffset(entry, Derived::kKeyIndex);
     return READ_FIELD(this, entry_offset);
   }
 
@@ -575,6 +579,7 @@ class SmallOrderedHashSet : public SmallOrderedHashTable<SmallOrderedHashSet> {
   DECL_CAST2(SmallOrderedHashSet)
 
   DECL_PRINTER(SmallOrderedHashSet)
+  DECL_VERIFIER(SmallOrderedHashSet)
 
   static const int kKeyIndex = 0;
   static const int kEntrySize = 1;
@@ -600,6 +605,7 @@ class SmallOrderedHashMap : public SmallOrderedHashTable<SmallOrderedHashMap> {
   DECL_CAST2(SmallOrderedHashMap)
 
   DECL_PRINTER(SmallOrderedHashMap)
+  DECL_VERIFIER(SmallOrderedHashMap)
 
   static const int kKeyIndex = 0;
   static const int kValueIndex = 1;
@@ -672,6 +678,12 @@ class OrderedNameDictionary
                                            Handle<Object> value,
                                            PropertyDetails details);
 
+  void SetEntry(Isolate* isolate, int entry, Object key, Object value,
+                PropertyDetails details);
+
+  static Handle<OrderedNameDictionary> DeleteEntry(
+      Isolate* isolate, Handle<OrderedNameDictionary> table, int entry);
+
   static Handle<OrderedNameDictionary> Allocate(
       Isolate* isolate, int capacity, PretenureFlag pretenure = NOT_TENURED);
 
@@ -711,8 +723,13 @@ class OrderedNameDictionaryHandler
   static Handle<HeapObject> Add(Isolate* isolate, Handle<HeapObject> table,
                                 Handle<Name> key, Handle<Object> value,
                                 PropertyDetails details);
+  static Handle<HeapObject> Shrink(Isolate* isolate, Handle<HeapObject> table);
 
-  static int FindEntry(Isolate* isolate, HeapObject table, Object key);
+  static Handle<HeapObject> DeleteEntry(Isolate* isolate,
+                                        Handle<HeapObject> table, int entry);
+  static int FindEntry(Isolate* isolate, HeapObject table, Name key);
+  static void SetEntry(Isolate* isolate, HeapObject table, int entry,
+                       Object key, Object value, PropertyDetails details);
 
   // Returns the value for entry.
   static Object ValueAt(HeapObject table, int entry);
@@ -726,8 +743,13 @@ class OrderedNameDictionaryHandler
   // Set the details for entry.
   static void DetailsAtPut(HeapObject table, int entry, PropertyDetails value);
 
+  static Name KeyAt(HeapObject table, int entry);
+
   static void SetHash(HeapObject table, int hash);
   static int Hash(HeapObject table);
+
+  static int NumberOfElements(HeapObject table);
+  static int Capacity(HeapObject table);
 
   static const int kNotFound = -1;
 
@@ -742,6 +764,7 @@ class SmallOrderedNameDictionary
   DECL_CAST2(SmallOrderedNameDictionary)
 
   DECL_PRINTER(SmallOrderedNameDictionary)
+  DECL_VERIFIER(SmallOrderedNameDictionary)
 
   // Returns the value for entry.
   inline Object ValueAt(int entry);
@@ -749,6 +772,9 @@ class SmallOrderedNameDictionary
   static Handle<SmallOrderedNameDictionary> Rehash(
       Isolate* isolate, Handle<SmallOrderedNameDictionary> table,
       int new_capacity);
+
+  static Handle<SmallOrderedNameDictionary> DeleteEntry(
+      Isolate* isolate, Handle<SmallOrderedNameDictionary> table, int entry);
 
   // Set the value for entry.
   inline void ValueAtPut(int entry, Object value);
@@ -774,6 +800,10 @@ class SmallOrderedNameDictionary
   static MaybeHandle<SmallOrderedNameDictionary> Add(
       Isolate* isolate, Handle<SmallOrderedNameDictionary> table,
       Handle<Name> key, Handle<Object> value, PropertyDetails details);
+
+  void SetEntry(Isolate* isolate, int entry, Object key, Object value,
+                PropertyDetails details);
+
   static inline RootIndex GetMapRootIndex();
 
   OBJECT_CONSTRUCTORS(SmallOrderedNameDictionary,

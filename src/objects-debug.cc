@@ -394,13 +394,13 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
       JSDataView::cast(*this)->JSDataViewVerify(isolate);
       break;
     case SMALL_ORDERED_HASH_SET_TYPE:
-      SmallOrderedHashSet::cast(*this)->SmallOrderedHashTableVerify(isolate);
+      SmallOrderedHashSet::cast(*this)->SmallOrderedHashSetVerify(isolate);
       break;
     case SMALL_ORDERED_HASH_MAP_TYPE:
-      SmallOrderedHashMap::cast(*this)->SmallOrderedHashTableVerify(isolate);
+      SmallOrderedHashMap::cast(*this)->SmallOrderedHashMapVerify(isolate);
       break;
     case SMALL_ORDERED_NAME_DICTIONARY_TYPE:
-      SmallOrderedNameDictionary::cast(*this)->SmallOrderedHashTableVerify(
+      SmallOrderedNameDictionary::cast(*this)->SmallOrderedNameDictionaryVerify(
           isolate);
       break;
     case CODE_DATA_CONTAINER_TYPE:
@@ -1515,14 +1515,6 @@ void SmallOrderedHashTable<Derived>::SmallOrderedHashTableVerify(
     }
   }
 
-  for (int entry = NumberOfElements(); entry < NumberOfDeletedElements();
-       entry++) {
-    for (int offset = 0; offset < Derived::kEntrySize; offset++) {
-      Object val = GetDataEntry(entry, offset);
-      CHECK(val->IsTheHole(isolate));
-    }
-  }
-
   for (int entry = NumberOfElements() + NumberOfDeletedElements();
        entry < Capacity(); entry++) {
     for (int offset = 0; offset < Derived::kEntrySize; offset++) {
@@ -1531,13 +1523,43 @@ void SmallOrderedHashTable<Derived>::SmallOrderedHashTableVerify(
     }
   }
 }
+void SmallOrderedHashMap::SmallOrderedHashMapVerify(Isolate* isolate) {
+  SmallOrderedHashTable<SmallOrderedHashMap>::SmallOrderedHashTableVerify(
+      isolate);
+  for (int entry = NumberOfElements(); entry < NumberOfDeletedElements();
+       entry++) {
+    for (int offset = 0; offset < kEntrySize; offset++) {
+      Object val = GetDataEntry(entry, offset);
+      CHECK(val->IsTheHole(isolate));
+    }
+  }
+}
 
-template void SmallOrderedHashTable<
-    SmallOrderedHashMap>::SmallOrderedHashTableVerify(Isolate* isolate);
-template void SmallOrderedHashTable<
-    SmallOrderedHashSet>::SmallOrderedHashTableVerify(Isolate* isolate);
-template void SmallOrderedHashTable<
-    SmallOrderedNameDictionary>::SmallOrderedHashTableVerify(Isolate* isolate);
+void SmallOrderedHashSet::SmallOrderedHashSetVerify(Isolate* isolate) {
+  SmallOrderedHashTable<SmallOrderedHashSet>::SmallOrderedHashTableVerify(
+      isolate);
+  for (int entry = NumberOfElements(); entry < NumberOfDeletedElements();
+       entry++) {
+    for (int offset = 0; offset < kEntrySize; offset++) {
+      Object val = GetDataEntry(entry, offset);
+      CHECK(val->IsTheHole(isolate));
+    }
+  }
+}
+
+void SmallOrderedNameDictionary::SmallOrderedNameDictionaryVerify(
+    Isolate* isolate) {
+  SmallOrderedHashTable<
+      SmallOrderedNameDictionary>::SmallOrderedHashTableVerify(isolate);
+  for (int entry = NumberOfElements(); entry < NumberOfDeletedElements();
+       entry++) {
+    for (int offset = 0; offset < kEntrySize; offset++) {
+      Object val = GetDataEntry(entry, offset);
+      CHECK(val->IsTheHole(isolate) ||
+            (PropertyDetails::Empty().AsSmi() == Smi::cast(val)));
+    }
+  }
+}
 
 void JSRegExp::JSRegExpVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
