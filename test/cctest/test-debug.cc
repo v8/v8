@@ -4269,7 +4269,6 @@ i::MaybeHandle<i::Script> FindScript(
 
 UNINITIALIZED_TEST(LoadedAtStartupScripts) {
   i::FLAG_expose_gc = true;
-  i::FLAG_expose_natives_as = "natives";
 
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -4296,16 +4295,11 @@ UNINITIALIZED_TEST(LoadedAtStartupScripts) {
         scripts.emplace_back(script, i_isolate);
       }
     }
-    CHECK_EQ(count_by_type[i::Script::TYPE_NATIVE],
-             i::Natives::GetBuiltinsCount());
+    CHECK_EQ(count_by_type[i::Script::TYPE_NATIVE], 0);
     CHECK_EQ(count_by_type[i::Script::TYPE_EXTENSION], 2);
     CHECK_EQ(count_by_type[i::Script::TYPE_NORMAL], 1);
     CHECK_EQ(count_by_type[i::Script::TYPE_WASM], 0);
     CHECK_EQ(count_by_type[i::Script::TYPE_INSPECTOR], 0);
-
-    i::Handle<i::Script> native_prologue_script =
-        FindScript(i_isolate, scripts, "native prologue.js").ToHandleChecked();
-    CHECK_EQ(native_prologue_script->type(), i::Script::TYPE_NATIVE);
 
     i::Handle<i::Script> gc_script =
         FindScript(i_isolate, scripts, "v8/gc").ToHandleChecked();

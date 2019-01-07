@@ -91,11 +91,8 @@ class Bootstrapper final {
   static bool CompileNative(Isolate* isolate, Vector<const char> name,
                             Handle<String> source, int argc,
                             Handle<Object> argv[], NativesFlag natives_flag);
-  static bool CompileBuiltin(Isolate* isolate, int index);
   static bool CompileExtraBuiltin(Isolate* isolate, int index);
   static bool CompileExperimentalExtraBuiltin(Isolate* isolate, int index);
-
-  static void ExportFromRuntime(Isolate* isolate, Handle<JSObject> container);
 
  private:
   // Log newly created Map objects if no snapshot was used.

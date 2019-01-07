@@ -26750,6 +26750,11 @@ TEST(ExtrasUtilsObject) {
           .ToLocalChecked()
           .As<v8::Boolean>();
   CHECK_EQ(false, thenable_is_promise->Value());
+
+  auto uncurry_this = result->Get(env.local(), v8_str("uncurryThis"))
+                          .ToLocalChecked()
+                          .As<v8::Boolean>();
+  CHECK_EQ(true, uncurry_this->Value());
 }
 
 

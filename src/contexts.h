@@ -205,7 +205,6 @@ enum ContextLookupFlags {
   V(MATH_RANDOM_STATE_INDEX, ByteArray, math_random_state)                     \
   V(MATH_RANDOM_CACHE_INDEX, FixedDoubleArray, math_random_cache)              \
   V(MESSAGE_LISTENERS_INDEX, TemplateList, message_listeners)                  \
-  V(NATIVES_UTILS_OBJECT_INDEX, Object, natives_utils_object)                  \
   V(NORMALIZED_MAP_CACHE_INDEX, Object, normalized_map_cache)                  \
   V(NUMBER_FUNCTION_INDEX, JSFunction, number_function)                        \
   V(OBJECT_FUNCTION_INDEX, JSFunction, object_function)                        \

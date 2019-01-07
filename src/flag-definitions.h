@@ -873,7 +873,6 @@ DEFINE_BOOL(disable_old_api_accessors, false,
             "prototype chain")
 
 // bootstrapper.cc
-DEFINE_STRING(expose_natives_as, nullptr, "expose natives in global object")
 DEFINE_BOOL(expose_free_buffer, false, "expose freeBuffer extension")
 DEFINE_BOOL(expose_gc, false, "expose gc extension")
 DEFINE_STRING(expose_gc_as, nullptr,

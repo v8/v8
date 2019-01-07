@@ -32,18 +32,6 @@ RUNTIME_FUNCTION(Runtime_CheckIsBootstrapping) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-RUNTIME_FUNCTION(Runtime_ExportFromRuntime) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, container, 0);
-  CHECK(isolate->bootstrapper()->IsActive());
-  JSObject::NormalizeProperties(container, KEEP_INOBJECT_PROPERTIES, 10,
-                                "ExportFromRuntime");
-  Bootstrapper::ExportFromRuntime(isolate, container);
-  JSObject::MigrateSlowToFast(container, 0, "ExportFromRuntime");
-  return *container;
-}
-
 RUNTIME_FUNCTION(Runtime_Throw) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());

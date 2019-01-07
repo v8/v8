@@ -188,7 +188,7 @@ TEST(FlagsRemoveIncomplete) {
   // if the list of arguments ends unexpectedly.
   SetFlagsToDefault();
   int argc = 3;
-  const char* argv[] = {"", "--testing-bool-flag", "--expose-natives-as"};
+  const char* argv[] = {"", "--testing-bool-flag", "--expose-gc-as"};
   CHECK_EQ(2, FlagList::SetFlagsFromCommandLine(&argc,
                                                 const_cast<char **>(argv),
                                                 true));

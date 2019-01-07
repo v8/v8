@@ -602,6 +602,10 @@ namespace internal {
   CPP(MakeTypeError)                                                           \
   CPP(MakeURIError)                                                            \
                                                                                \
+  /* ExtrasUtils */                                                            \
+  CPP(ExtrasUtilsUncurryThis)                                                  \
+  CPP(ExtrasUtilsCallReflectApply)                                             \
+                                                                               \
   /* Function */                                                               \
   CPP(FunctionConstructor)                                                     \
   ASM(FunctionPrototypeApply, Dummy)                                           \

@@ -15,7 +15,6 @@ namespace v8 {
 namespace internal {
 
 enum NativeType {
-  CORE,
   EXTRAS,
   EXPERIMENTAL_EXTRAS,
   D8,
@@ -42,7 +41,6 @@ class V8_EXPORT_PRIVATE NativesCollection {
   static Vector<const char> GetScriptsSource();
 };
 
-typedef NativesCollection<CORE> Natives;
 typedef NativesCollection<EXTRAS> ExtraNatives;
 typedef NativesCollection<EXPERIMENTAL_EXTRAS> ExperimentalExtraNatives;
 
@@ -63,8 +61,8 @@ class NativesExternalStringResource final
   size_t length() const override { return length_; }
 
   v8::String::ExternalOneByteStringResource* EncodeForSerialization() const {
-    DCHECK(type_ == CORE || type_ == EXTRAS);
-    intptr_t val = (index_ << 1) | ((type_ == CORE) ? 0 : 1);
+    DCHECK(type_ == EXTRAS);
+    intptr_t val = (index_ << 1) | 1;
     val = val << kPointerSizeLog2;  // Pointer align.
     return reinterpret_cast<v8::String::ExternalOneByteStringResource*>(val);
   }
@@ -73,9 +71,9 @@ class NativesExternalStringResource final
   static NativesExternalStringResource* DecodeForDeserialization(
       const v8::String::ExternalOneByteStringResource* encoded) {
     intptr_t val = reinterpret_cast<intptr_t>(encoded) >> kPointerSizeLog2;
-    NativeType type = (val & 1) ? EXTRAS : CORE;
+    DCHECK(val & 1);
     int index = static_cast<int>(val >> 1);
-    return new NativesExternalStringResource(type, index);
+    return new NativesExternalStringResource(EXTRAS, index);
   }
 
  private:

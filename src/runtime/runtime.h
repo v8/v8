@@ -216,7 +216,6 @@ namespace internal {
   I(CreateAsyncFromSyncIterator, 1, 1)             \
   F(CreateListFromArrayLike, 1, 1)                 \
   F(CreateTemplateObject, 1, 1)                    \
-  F(ExportFromRuntime, 1, 1)                       \
   F(GetAndResetRuntimeCallStats, -1 /* <= 2 */, 1) \
   F(IncrementUseCounter, 1, 1)                     \
   F(Interrupt, 0, 1)                               \

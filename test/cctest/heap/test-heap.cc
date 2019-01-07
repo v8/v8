@@ -4980,49 +4980,6 @@ TEST(PreprocessStackTrace) {
 }
 
 
-static bool utils_has_been_collected = false;
-
-static void UtilsHasBeenCollected(
-    const v8::WeakCallbackInfo<v8::Persistent<v8::Object>>& data) {
-  utils_has_been_collected = true;
-  data.GetParameter()->Reset();
-}
-
-
-TEST(BootstrappingExports) {
-  // Expose utils object and delete it to observe that it is indeed
-  // being garbage-collected.
-  FLAG_expose_natives_as = "utils";
-  CcTest::InitializeVM();
-  v8::Isolate* isolate = CcTest::isolate();
-  LocalContext env;
-
-  if (Snapshot::HasContextSnapshot(CcTest::i_isolate(), 0)) return;
-
-  utils_has_been_collected = false;
-
-  v8::Persistent<v8::Object> utils;
-
-  {
-    v8::HandleScope scope(isolate);
-    v8::Local<v8::String> name = v8_str("utils");
-    utils.Reset(isolate, CcTest::global()
-                             ->Get(env.local(), name)
-                             .ToLocalChecked()
-                             ->ToObject(env.local())
-                             .ToLocalChecked());
-    CHECK(CcTest::global()->Delete(env.local(), name).FromJust());
-  }
-
-  utils.SetWeak(&utils, UtilsHasBeenCollected,
-                v8::WeakCallbackType::kParameter);
-
-  CcTest::CollectAllAvailableGarbage();
-
-  CHECK(utils_has_been_collected);
-}
-
-
 void AllocateInSpace(Isolate* isolate, size_t bytes, AllocationSpace space) {
   CHECK_LE(FixedArray::kHeaderSize, bytes);
   CHECK(IsAligned(bytes, kTaggedSize));

@@ -228,6 +228,8 @@ class Genesis {
   void InitializeGlobal(Handle<JSGlobalObject> global_object,
                         Handle<JSFunction> empty_function);
   void InitializeExperimentalGlobal();
+  void InitializeIteratorFunctions();
+  void InitializeCallSiteBuiltins();
   // Depending on the situation, expose and/or get rid of the utils object.
   void ConfigureUtilsObject();
 
@@ -302,8 +304,6 @@ class Genesis {
   void TransferObject(Handle<JSObject> from, Handle<JSObject> to);
   void TransferNamedProperties(Handle<JSObject> from, Handle<JSObject> to);
   void TransferIndexedProperties(Handle<JSObject> from, Handle<JSObject> to);
-
-  static bool CallUtilsFunction(Isolate* isolate, const char* name);
 
   static bool CompileExtension(Isolate* isolate, v8::Extension* extension);
 
@@ -426,6 +426,15 @@ V8_NOINLINE Handle<JSFunction> CreateFunction(
   JSObject::MakePrototypesFast(result, kStartAtReceiver, isolate);
   result->shared()->set_native(true);
   return result;
+}
+
+V8_NOINLINE Handle<JSFunction> CreateFunction(
+    Isolate* isolate, const char* name, InstanceType type, int instance_size,
+    int inobject_properties, Handle<Object> prototype,
+    Builtins::Name builtin_id) {
+  return CreateFunction(
+      isolate, isolate->factory()->InternalizeUtf8String(name), type,
+      instance_size, inobject_properties, prototype, builtin_id);
 }
 
 V8_NOINLINE Handle<JSFunction> InstallFunction(
@@ -3806,23 +3815,6 @@ void Genesis::InitializeExperimentalGlobal() {
 #undef FEATURE_INITIALIZE_GLOBAL
 }
 
-bool Bootstrapper::CompileBuiltin(Isolate* isolate, int index) {
-  Vector<const char> name = Natives::GetScriptName(index);
-  Handle<String> source_code =
-      isolate->bootstrapper()->GetNativeSource(CORE, index);
-
-  // We pass in extras_utils so that builtin code can set it up for later use
-  // by actual extras code, compiled with CompileExtraBuiltin.
-  Handle<Object> global = isolate->global_object();
-  Handle<Object> utils = isolate->natives_utils_object();
-  Handle<Object> extras_utils = isolate->extras_utils_object();
-  Handle<Object> args[] = {global, utils, extras_utils};
-
-  return Bootstrapper::CompileNative(isolate, name, source_code,
-                                     arraysize(args), args, NATIVES_CODE);
-}
-
-
 bool Bootstrapper::CompileExtraBuiltin(Isolate* isolate, int index) {
   HandleScope scope(isolate);
   Vector<const char> name = ExtraNatives::GetScriptName(index);
@@ -3886,19 +3878,6 @@ bool Bootstrapper::CompileNative(Isolate* isolate, Vector<const char> name,
   // Then run the function wrapper.
   return !Execution::TryCall(isolate, Handle<JSFunction>::cast(wrapper),
                              receiver, argc, argv,
-                             Execution::MessageHandling::kKeepPending, nullptr)
-              .is_null();
-}
-
-
-bool Genesis::CallUtilsFunction(Isolate* isolate, const char* name) {
-  Handle<JSObject> utils =
-      Handle<JSObject>::cast(isolate->natives_utils_object());
-  Handle<String> name_string = isolate->factory()->InternalizeUtf8String(name);
-  Handle<Object> fun = JSObject::GetDataProperty(utils, name_string);
-  Handle<Object> receiver = isolate->factory()->undefined_value();
-  Handle<Object> args[] = {utils};
-  return !Execution::TryCall(isolate, fun, receiver, 1, args,
                              Execution::MessageHandling::kKeepPending, nullptr)
               .is_null();
 }
@@ -3984,62 +3963,26 @@ static Handle<JSObject> ResolveBuiltinIdHolder(Isolate* isolate,
 void Genesis::ConfigureUtilsObject() {
   // We still need the utils object after deserialization.
   if (isolate()->serializer_enabled()) return;
-  if (FLAG_expose_natives_as != nullptr &&
-      strlen(FLAG_expose_natives_as) != 0) {
-    HandleScope scope(isolate());
-    Handle<String> natives_key =
-        factory()->InternalizeUtf8String(FLAG_expose_natives_as);
-    uint32_t dummy_index;
-    if (!natives_key->AsArrayIndex(&dummy_index)) {
-      Handle<Object> utils = isolate()->natives_utils_object();
-      Handle<JSObject> global = isolate()->global_object();
-      JSObject::AddProperty(isolate(), global, natives_key, utils, DONT_ENUM);
-    }
-  }
 
   // The utils object can be removed for cases that reach this point.
   HeapObject undefined = ReadOnlyRoots(heap()).undefined_value();
-  native_context()->set_natives_utils_object(undefined);
   native_context()->set_extras_utils_object(undefined);
 }
 
-void Bootstrapper::ExportFromRuntime(Isolate* isolate,
-                                     Handle<JSObject> container) {
+void Genesis::InitializeIteratorFunctions() {
+  Isolate* isolate = isolate_;
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
   Handle<NativeContext> native_context = isolate->native_context();
-#define EXPORT_PRIVATE_SYMBOL(_, NAME)                                \
-  Handle<String> NAME##_name = factory->InternalizeUtf8String(#NAME); \
-  JSObject::AddProperty(isolate, container, NAME##_name, factory->NAME(), NONE);
-  PRIVATE_SYMBOL_LIST_GENERATOR(EXPORT_PRIVATE_SYMBOL, /* not used */)
-#undef EXPORT_PRIVATE_SYMBOL
-
-#define EXPORT_PUBLIC_SYMBOL(_, NAME, DESCRIPTION)                    \
-  Handle<String> NAME##_name = factory->InternalizeUtf8String(#NAME); \
-  JSObject::AddProperty(isolate, container, NAME##_name, factory->NAME(), NONE);
-  PUBLIC_SYMBOL_LIST_GENERATOR(EXPORT_PUBLIC_SYMBOL, /* not used */)
-  WELL_KNOWN_SYMBOL_LIST_GENERATOR(EXPORT_PUBLIC_SYMBOL, /* not used */)
-#undef EXPORT_PUBLIC_SYMBOL
-
   Handle<JSObject> iterator_prototype(
       native_context->initial_iterator_prototype(), isolate);
 
-  JSObject::AddProperty(isolate, container,
-                        factory->InternalizeUtf8String("IteratorPrototype"),
-                        iterator_prototype, NONE);
-
-  {
+  {  // -- G e n e r a t o r
     PrototypeIterator iter(isolate, native_context->generator_function_map());
     Handle<JSObject> generator_function_prototype(iter.GetCurrent<JSObject>(),
                                                   isolate);
-
-    JSObject::AddProperty(
-        isolate, container,
-        factory->InternalizeUtf8String("GeneratorFunctionPrototype"),
-        generator_function_prototype, NONE);
-
-    Handle<JSFunction> generator_function_function = InstallFunction(
-        isolate, container, "GeneratorFunction", JS_FUNCTION_TYPE,
+    Handle<JSFunction> generator_function_function = CreateFunction(
+        isolate, "GeneratorFunction", JS_FUNCTION_TYPE,
         JSFunction::kSizeWithPrototype, 0, generator_function_prototype,
         Builtins::kGeneratorFunctionConstructor);
     generator_function_function->set_prototype_or_initial_map(
@@ -4061,14 +4004,14 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
         *generator_function_function);
   }
 
-  {
+  {  // -- A s y n c G e n e r a t o r
     PrototypeIterator iter(isolate,
                            native_context->async_generator_function_map());
     Handle<JSObject> async_generator_function_prototype(
         iter.GetCurrent<JSObject>(), isolate);
 
-    Handle<JSFunction> async_generator_function_function = InstallFunction(
-        isolate, container, "AsyncGeneratorFunction", JS_FUNCTION_TYPE,
+    Handle<JSFunction> async_generator_function_function = CreateFunction(
+        isolate, "AsyncGeneratorFunction", JS_FUNCTION_TYPE,
         JSFunction::kSizeWithPrototype, 0, async_generator_function_prototype,
         Builtins::kAsyncGeneratorFunctionConstructor);
     async_generator_function_function->set_prototype_or_initial_map(
@@ -4106,9 +4049,9 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
     native_context->set_initial_set_iterator_prototype(*prototype);
 
     // Setup SetIterator constructor.
-    Handle<JSFunction> set_iterator_function = InstallFunction(
-        isolate, container, "SetIterator", JS_SET_VALUE_ITERATOR_TYPE,
-        JSSetIterator::kSize, 0, prototype, Builtins::kIllegal);
+    Handle<JSFunction> set_iterator_function =
+        CreateFunction(isolate, "SetIterator", JS_SET_VALUE_ITERATOR_TYPE,
+                       JSSetIterator::kSize, 0, prototype, Builtins::kIllegal);
     set_iterator_function->shared()->set_native(false);
 
     Handle<Map> set_value_iterator_map(set_iterator_function->initial_map(),
@@ -4137,9 +4080,9 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
     native_context->set_initial_map_iterator_prototype(*prototype);
 
     // Setup MapIterator constructor.
-    Handle<JSFunction> map_iterator_function = InstallFunction(
-        isolate, container, "MapIterator", JS_MAP_KEY_ITERATOR_TYPE,
-        JSMapIterator::kSize, 0, prototype, Builtins::kIllegal);
+    Handle<JSFunction> map_iterator_function =
+        CreateFunction(isolate, "MapIterator", JS_MAP_KEY_ITERATOR_TYPE,
+                       JSMapIterator::kSize, 0, prototype, Builtins::kIllegal);
     map_iterator_function->shared()->set_native(false);
 
     Handle<Map> map_key_iterator_map(map_iterator_function->initial_map(),
@@ -4164,8 +4107,8 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
     Handle<JSObject> async_function_prototype(iter.GetCurrent<JSObject>(),
                                               isolate);
 
-    Handle<JSFunction> async_function_constructor = InstallFunction(
-        isolate, container, "AsyncFunction", JS_FUNCTION_TYPE,
+    Handle<JSFunction> async_function_constructor = CreateFunction(
+        isolate, "AsyncFunction", JS_FUNCTION_TYPE,
         JSFunction::kSizeWithPrototype, 0, async_function_prototype,
         Builtins::kAsyncFunctionConstructor);
     async_function_constructor->set_prototype_or_initial_map(
@@ -4208,64 +4151,64 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
       native_context->set_async_function_await_resolve_shared_fun(*info);
     }
   }
-
-  {  // -- C a l l S i t e
-    // Builtin functions for CallSite.
-
-    // CallSites are a special case; the constructor is for our private use
-    // only, therefore we set it up as a builtin that throws. Internally, we use
-    // CallSiteUtils::Construct to create CallSite objects.
-
-    Handle<JSFunction> callsite_fun = InstallFunction(
-        isolate, container, "CallSite", JS_OBJECT_TYPE, JSObject::kHeaderSize,
-        0, factory->the_hole_value(), Builtins::kUnsupportedThrower);
-    callsite_fun->shared()->DontAdaptArguments();
-    isolate->native_context()->set_callsite_function(*callsite_fun);
-
-    {
-      // Setup CallSite.prototype.
-      Handle<JSObject> prototype(
-          JSObject::cast(callsite_fun->instance_prototype()), isolate);
-
-      struct FunctionInfo {
-        const char* name;
-        Builtins::Name id;
-      };
-
-      FunctionInfo infos[] = {
-          {"getColumnNumber", Builtins::kCallSitePrototypeGetColumnNumber},
-          {"getEvalOrigin", Builtins::kCallSitePrototypeGetEvalOrigin},
-          {"getFileName", Builtins::kCallSitePrototypeGetFileName},
-          {"getFunction", Builtins::kCallSitePrototypeGetFunction},
-          {"getFunctionName", Builtins::kCallSitePrototypeGetFunctionName},
-          {"getLineNumber", Builtins::kCallSitePrototypeGetLineNumber},
-          {"getMethodName", Builtins::kCallSitePrototypeGetMethodName},
-          {"getPosition", Builtins::kCallSitePrototypeGetPosition},
-          {"getPromiseIndex", Builtins::kCallSitePrototypeGetPromiseIndex},
-          {"getScriptNameOrSourceURL",
-           Builtins::kCallSitePrototypeGetScriptNameOrSourceURL},
-          {"getThis", Builtins::kCallSitePrototypeGetThis},
-          {"getTypeName", Builtins::kCallSitePrototypeGetTypeName},
-          {"isAsync", Builtins::kCallSitePrototypeIsAsync},
-          {"isConstructor", Builtins::kCallSitePrototypeIsConstructor},
-          {"isEval", Builtins::kCallSitePrototypeIsEval},
-          {"isNative", Builtins::kCallSitePrototypeIsNative},
-          {"isPromiseAll", Builtins::kCallSitePrototypeIsPromiseAll},
-          {"isToplevel", Builtins::kCallSitePrototypeIsToplevel},
-          {"toString", Builtins::kCallSitePrototypeToString}};
-
-      PropertyAttributes attrs =
-          static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
-
-      Handle<JSFunction> fun;
-      for (const FunctionInfo& info : infos) {
-        SimpleInstallFunction(isolate, prototype, info.name, info.id, 0, true,
-                              attrs);
-      }
-    }
-  }
 }
 
+void Genesis::InitializeCallSiteBuiltins() {
+  Factory* factory = isolate()->factory();
+  HandleScope scope(isolate());
+  // -- C a l l S i t e
+  // Builtin functions for CallSite.
+
+  // CallSites are a special case; the constructor is for our private use
+  // only, therefore we set it up as a builtin that throws. Internally, we use
+  // CallSiteUtils::Construct to create CallSite objects.
+
+  Handle<JSFunction> callsite_fun = CreateFunction(
+      isolate(), "CallSite", JS_OBJECT_TYPE, JSObject::kHeaderSize, 0,
+      factory->the_hole_value(), Builtins::kUnsupportedThrower);
+  callsite_fun->shared()->DontAdaptArguments();
+  isolate()->native_context()->set_callsite_function(*callsite_fun);
+
+  // Setup CallSite.prototype.
+  Handle<JSObject> prototype(JSObject::cast(callsite_fun->instance_prototype()),
+                             isolate());
+
+  struct FunctionInfo {
+    const char* name;
+    Builtins::Name id;
+  };
+
+  FunctionInfo infos[] = {
+      {"getColumnNumber", Builtins::kCallSitePrototypeGetColumnNumber},
+      {"getEvalOrigin", Builtins::kCallSitePrototypeGetEvalOrigin},
+      {"getFileName", Builtins::kCallSitePrototypeGetFileName},
+      {"getFunction", Builtins::kCallSitePrototypeGetFunction},
+      {"getFunctionName", Builtins::kCallSitePrototypeGetFunctionName},
+      {"getLineNumber", Builtins::kCallSitePrototypeGetLineNumber},
+      {"getMethodName", Builtins::kCallSitePrototypeGetMethodName},
+      {"getPosition", Builtins::kCallSitePrototypeGetPosition},
+      {"getPromiseIndex", Builtins::kCallSitePrototypeGetPromiseIndex},
+      {"getScriptNameOrSourceURL",
+       Builtins::kCallSitePrototypeGetScriptNameOrSourceURL},
+      {"getThis", Builtins::kCallSitePrototypeGetThis},
+      {"getTypeName", Builtins::kCallSitePrototypeGetTypeName},
+      {"isAsync", Builtins::kCallSitePrototypeIsAsync},
+      {"isConstructor", Builtins::kCallSitePrototypeIsConstructor},
+      {"isEval", Builtins::kCallSitePrototypeIsEval},
+      {"isNative", Builtins::kCallSitePrototypeIsNative},
+      {"isPromiseAll", Builtins::kCallSitePrototypeIsPromiseAll},
+      {"isToplevel", Builtins::kCallSitePrototypeIsToplevel},
+      {"toString", Builtins::kCallSitePrototypeToString}};
+
+  PropertyAttributes attrs =
+      static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
+
+  Handle<JSFunction> fun;
+  for (const FunctionInfo& info : infos) {
+    SimpleInstallFunction(isolate(), prototype, info.name, info.id, 0, true,
+                          attrs);
+  }
+}
 
 #define EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(id) \
   void Genesis::InitializeGlobal_##id() {}
@@ -4378,9 +4321,9 @@ void Genesis::InitializeGlobal_harmony_string_matchall() {
                           true);
 
     Handle<JSFunction> regexp_string_iterator_function = CreateFunction(
-        isolate(), factory()->InternalizeUtf8String("RegExpStringIterator"),
-        JS_REGEXP_STRING_ITERATOR_TYPE, JSRegExpStringIterator::kSize, 0,
-        regexp_string_iterator_prototype, Builtins::kIllegal);
+        isolate(), "RegExpStringIterator", JS_REGEXP_STRING_ITERATOR_TYPE,
+        JSRegExpStringIterator::kSize, 0, regexp_string_iterator_prototype,
+        Builtins::kIllegal);
     regexp_string_iterator_function->shared()->set_native(false);
     native_context()->set_initial_regexp_string_iterator_prototype_map(
         regexp_string_iterator_function->initial_map());
@@ -4847,12 +4790,6 @@ void Genesis::InstallInternalPackedArray(Handle<JSObject> target,
 bool Genesis::InstallNatives() {
   HandleScope scope(isolate());
 
-  // Set up the utils object as shared container between native scripts.
-  Handle<JSObject> utils = factory()->NewJSObject(isolate()->object_function());
-  JSObject::NormalizeProperties(utils, CLEAR_INOBJECT_PROPERTIES, 16,
-                                "utils container for native scripts");
-  native_context()->set_natives_utils_object(*utils);
-
   // Set up the extras utils object as a shared container between native
   // scripts and extras. (Extras consume things added there by native scripts.)
   Handle<JSObject> extras_utils =
@@ -4860,6 +4797,35 @@ bool Genesis::InstallNatives() {
   native_context()->set_extras_utils_object(*extras_utils);
 
   InstallInternalPackedArray(extras_utils, "InternalPackedArray");
+
+  // Extras need the ability to store private state on their objects without
+  // exposing it to the outside world.
+  SimpleInstallFunction(isolate_, extras_utils, "createPrivateSymbol",
+                        Builtins::kExtrasUtilsCreatePrivateSymbol, 1, false);
+
+  SimpleInstallFunction(isolate_, extras_utils, "uncurryThis",
+                        Builtins::kExtrasUtilsUncurryThis, 1, false);
+
+  SimpleInstallFunction(isolate_, extras_utils, "markPromiseAsHandled",
+                        Builtins::kExtrasUtilsMarkPromiseAsHandled, 1, false);
+
+  SimpleInstallFunction(isolate_, extras_utils, "promiseState",
+                        Builtins::kExtrasUtilsPromiseState, 1, false);
+
+  // [[PromiseState]] values (for extrasUtils.promiseState())
+  // These values should be kept in sync with PromiseStatus in globals.h
+  JSObject::AddProperty(
+      isolate(), extras_utils, "kPROMISE_PENDING",
+      factory()->NewNumberFromInt(static_cast<int>(Promise::kPending)),
+      DONT_ENUM);
+  JSObject::AddProperty(
+      isolate(), extras_utils, "kPROMISE_FULFILLED",
+      factory()->NewNumberFromInt(static_cast<int>(Promise::kFulfilled)),
+      DONT_ENUM);
+  JSObject::AddProperty(
+      isolate(), extras_utils, "kPROMISE_REJECTED",
+      factory()->NewNumberFromInt(static_cast<int>(Promise::kRejected)),
+      DONT_ENUM);
 
   // v8.createPromise(parent)
   Handle<JSFunction> promise_internal_constructor =
@@ -4888,10 +4854,8 @@ bool Genesis::InstallNatives() {
   JSObject::AddProperty(isolate(), extras_utils, "isPromise",
                         isolate()->is_promise(), DONT_ENUM);
 
-  int builtin_index = 0;
-  // Only run prologue.js at this point.
-  DCHECK_EQ(builtin_index, Natives::GetIndex("prologue"));
-  if (!Bootstrapper::CompileBuiltin(isolate(), builtin_index++)) return false;
+  JSObject::MigrateSlowToFast(Handle<JSObject>::cast(extras_utils), 0,
+                              "Bootstrapping");
 
   {
     // Builtin function for OpaqueReference -- a JSValue-based object,
@@ -4905,12 +4869,6 @@ bool Genesis::InstallNatives() {
     native_context()->set_opaque_reference_function(*opaque_reference_fun);
   }
 
-  // Run the rest of the native scripts.
-  while (builtin_index < Natives::GetBuiltinsCount()) {
-    if (!Bootstrapper::CompileBuiltin(isolate(), builtin_index++)) return false;
-  }
-
-  if (!CallUtilsFunction(isolate(), "PostNatives")) return false;
   auto fast_template_instantiations_cache = isolate()->factory()->NewFixedArray(
       TemplateInfo::kFastTemplateInstantiationsCacheSize);
   native_context()->set_fast_template_instantiations_cache(
@@ -5726,6 +5684,8 @@ Genesis::Genesis(
         CreateNewGlobals(global_proxy_template, global_proxy);
     InitializeGlobal(global_object, empty_function);
     InitializeNormalizedMapCaches();
+    InitializeIteratorFunctions();
+    InitializeCallSiteBuiltins();
 
     if (!InstallNatives()) return;
     if (!InstallExtraNatives()) return;

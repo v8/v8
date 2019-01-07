@@ -17,10 +17,6 @@ NativesExternalStringResource::NativesExternalStringResource(NativeType type,
   Vector<const char> source;
   DCHECK_LE(0, index);
   switch (type_) {
-    case CORE:
-      DCHECK(index < Natives::GetBuiltinsCount());
-      source = Natives::GetScriptSource(index);
-      break;
     case EXTRAS:
       DCHECK(index < ExtraNatives::GetBuiltinsCount());
       source = ExtraNatives::GetScriptSource(index);

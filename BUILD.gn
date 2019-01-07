@@ -711,36 +711,6 @@ template("asm_to_inline_asm") {
   }
 }
 
-action("js2c") {
-  visibility = [ ":*" ]  # Only targets in this file can depend on this.
-
-  script = "tools/js2c.py"
-
-  # NOSORT
-  sources = [
-    "src/js/macros.py",
-    "src/message-template.h",
-    "src/js/prologue.js",
-  ]
-
-  outputs = [
-    "$target_gen_dir/libraries.cc",
-  ]
-
-  args = [
-           rebase_path("$target_gen_dir/libraries.cc", root_build_dir),
-           "CORE",
-         ] + rebase_path(sources, root_build_dir)
-
-  if (v8_use_external_startup_data) {
-    outputs += [ "$target_gen_dir/libraries.bin" ]
-    args += [
-      "--startup_blob",
-      rebase_path("$target_gen_dir/libraries.bin", root_build_dir),
-    ]
-  }
-}
-
 action("js2c_extras") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
@@ -840,14 +810,12 @@ if (v8_use_external_startup_data) {
     visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
     deps = [
-      ":js2c",
       ":js2c_experimental_extras",
       ":js2c_extras",
     ]
 
     # NOSORT
     sources = [
-      "$target_gen_dir/libraries.bin",
       "$target_gen_dir/libraries_extras.bin",
       "$target_gen_dir/libraries_experimental_extras.bin",
     ]
@@ -950,6 +918,7 @@ torque_files = [
   "src/builtins/array-unshift.tq",
   "src/builtins/collections.tq",
   "src/builtins/data-view.tq",
+  "src/builtins/extras-utils.tq",
   "src/builtins/object.tq",
   "src/builtins/object-fromentries.tq",
   "src/builtins/iterator.tq",
@@ -967,6 +936,7 @@ torque_namespaces = [
   "object",
   "typed-array",
   "data-view",
+  "extras-utils",
   "test",
 ]
 
@@ -1252,7 +1222,6 @@ v8_source_set("v8_nosnapshot") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
   deps = [
-    ":js2c",
     ":js2c_experimental_extras",
     ":js2c_extras",
     ":v8_base",
@@ -1261,7 +1230,6 @@ v8_source_set("v8_nosnapshot") {
   sources = [
     "$target_gen_dir/experimental-extras-libraries.cc",
     "$target_gen_dir/extras-libraries.cc",
-    "$target_gen_dir/libraries.cc",
     "src/snapshot/embedded-empty.cc",
     "src/snapshot/snapshot-empty.cc",
   ]
@@ -1271,7 +1239,6 @@ v8_source_set("v8_nosnapshot") {
       # TODO(mostynb@vewd.com): don't exclude these http://crbug.com/752428
       # Generated source, contains same variable names as libraries.cc
       "$target_gen_dir/experimental-extras-libraries.cc",
-      "$target_gen_dir/libraries.cc",
     ]
   }
 
@@ -1288,7 +1255,6 @@ if (v8_use_snapshot && !v8_use_external_startup_data) {
     ]
 
     deps = [
-      ":js2c",
       ":js2c_experimental_extras",
       ":js2c_extras",
       ":v8_base",
@@ -1305,7 +1271,6 @@ if (v8_use_snapshot && !v8_use_external_startup_data) {
     sources = [
       "$target_gen_dir/experimental-extras-libraries.cc",
       "$target_gen_dir/extras-libraries.cc",
-      "$target_gen_dir/libraries.cc",
       "$target_gen_dir/snapshot.cc",
       "src/setup-isolate-deserialize.cc",
     ]
@@ -1324,7 +1289,6 @@ if (v8_use_snapshot && !v8_use_external_startup_data) {
         # TODO(mostynb@vewd.com): don't exclude these http://crbug.com/752428
         # Generated source, contains same variable names as libraries.cc
         "$target_gen_dir/experimental-extras-libraries.cc",
-        "$target_gen_dir/libraries.cc",
       ]
     }
 
@@ -1337,7 +1301,6 @@ if (v8_use_snapshot && v8_use_external_startup_data) {
     visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
     deps = [
-      ":js2c",
       ":js2c_experimental_extras",
       ":js2c_extras",
       ":v8_base",
@@ -1700,6 +1663,7 @@ v8_source_set("v8_base") {
     "src/builtins/builtins-definitions.h",
     "src/builtins/builtins-descriptors.h",
     "src/builtins/builtins-error.cc",
+    "src/builtins/builtins-extras-utils.cc",
     "src/builtins/builtins-function.cc",
     "src/builtins/builtins-global.cc",
     "src/builtins/builtins-internal.cc",
@@ -4182,7 +4146,6 @@ group("v8_generated_cc_files") {
   deps = [
     ":d8_js2c",
     ":generate_bytecode_builtins_list",
-    ":js2c",
     ":js2c_experimental_extras",
     ":js2c_extras",
     ":run_torque",
