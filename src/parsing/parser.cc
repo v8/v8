@@ -2567,6 +2567,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   bool did_preparse_successfully =
       should_preparse && SkipFunction(function_name, kind, function_type, scope,
                                       &num_parameters, &produced_preparse_data);
+
   if (!did_preparse_successfully) {
     // If skipping aborted, it rewound the scanner until before the LPAREN.
     // Consume it in that case.

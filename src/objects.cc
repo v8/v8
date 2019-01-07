@@ -14459,16 +14459,14 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
     shared_info->set_length(SharedFunctionInfo::kInvalidLength);
     ProducedPreparseData* scope_data = lit->produced_preparse_data();
     if (scope_data != nullptr) {
-      Handle<PreparseData> preparse_data;
-      if (scope_data->Serialize(shared_info->GetIsolate())
-              .ToHandle(&preparse_data)) {
-        Handle<UncompiledData> data =
-            isolate->factory()->NewUncompiledDataWithPreparseData(
-                lit->inferred_name(), lit->start_position(),
-                lit->end_position(), lit->function_literal_id(), preparse_data);
-        shared_info->set_uncompiled_data(*data);
-        needs_position_info = false;
-      }
+      Handle<PreparseData> preparse_data =
+          scope_data->Serialize(shared_info->GetIsolate());
+      Handle<UncompiledData> data =
+          isolate->factory()->NewUncompiledDataWithPreparseData(
+              lit->inferred_name(), lit->start_position(), lit->end_position(),
+              lit->function_literal_id(), preparse_data);
+      shared_info->set_uncompiled_data(*data);
+      needs_position_info = false;
     }
   }
   if (needs_position_info) {

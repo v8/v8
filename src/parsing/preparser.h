@@ -993,7 +993,7 @@ class PreParser : public ParserBase<PreParser> {
                               runtime_call_stats, logger, script_id,
                               parsing_module, parsing_on_main_thread),
         use_counts_(nullptr),
-        preparsed_scope_data_builder_(nullptr) {}
+        preparse_data_builder_(nullptr) {}
 
   static bool IsPreParser() { return true; }
 
@@ -1020,12 +1020,12 @@ class PreParser : public ParserBase<PreParser> {
       ProducedPreparseData** produced_preparser_scope_data, int script_id);
 
   PreparseDataBuilder* preparsed_scope_data_builder() const {
-    return preparsed_scope_data_builder_;
+    return preparse_data_builder_;
   }
 
   void set_preparsed_scope_data_builder(
       PreparseDataBuilder* preparsed_scope_data_builder) {
-    preparsed_scope_data_builder_ = preparsed_scope_data_builder;
+    preparse_data_builder_ = preparsed_scope_data_builder;
   }
 
  private:
@@ -1719,7 +1719,7 @@ class PreParser : public ParserBase<PreParser> {
   int* use_counts_;
   PreParserLogger log_;
 
-  PreparseDataBuilder* preparsed_scope_data_builder_;
+  PreparseDataBuilder* preparse_data_builder_;
 };
 
 PreParserExpression PreParser::SpreadCall(const PreParserExpression& function,

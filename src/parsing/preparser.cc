@@ -132,13 +132,12 @@ PreParser::PreParseResult PreParser::PreParseFunction(
 
   // Start collecting data for a new function which might contain skippable
   // functions.
-  PreparseDataBuilder::DataGatheringScope preparsed_scope_data_builder_scope(
-      this);
+  PreparseDataBuilder::DataGatheringScope preparse_data_builder_scope(this);
 
   if (IsArrowFunction(kind)) {
     formals.is_simple = function_scope->has_simple_parameters();
   } else {
-    preparsed_scope_data_builder_scope.Start(function_scope);
+    preparse_data_builder_scope.Start(function_scope);
 
     // Parse non-arrow function parameters. For arrow functions, the parameters
     // have already been parsed.
@@ -227,8 +226,10 @@ PreParser::PreParseResult PreParser::PreParseFunction(
 
       DeclareFunctionNameVar(function_name, function_type, function_scope);
 
-      *produced_preparse_data =
-          ProducedPreparseData::For(preparsed_scope_data_builder_, main_zone());
+      if (preparse_data_builder_->HasData()) {
+        *produced_preparse_data =
+            ProducedPreparseData::For(preparse_data_builder_, main_zone());
+      }
     }
 
     if (pending_error_handler()->has_error_unidentifiable_by_preparser()) {
@@ -286,12 +287,11 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   // Start collecting data for a new function which might contain skippable
   // functions.
   {
-    PreparseDataBuilder::DataGatheringScope preparsed_scope_data_builder_scope(
-        this);
+    PreparseDataBuilder::DataGatheringScope preparse_data_builder_scope(this);
     skippable_function = !function_state_->next_function_is_likely_called() &&
-                         preparsed_scope_data_builder_ != nullptr;
+                         preparse_data_builder_ != nullptr;
     if (skippable_function) {
-      preparsed_scope_data_builder_scope.Start(function_scope);
+      preparse_data_builder_scope.Start(function_scope);
     }
 
     FunctionState function_state(&function_state_, &scope_, function_scope);
@@ -338,7 +338,7 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   }
 
   if (skippable_function) {
-    preparsed_scope_data_builder_->AddSkippableFunction(
+    preparse_data_builder_->AddSkippableFunction(
         function_scope->start_position(), end_position(),
         function_scope->num_parameters(), GetLastFunctionLiteralId() - func_id,
         function_scope->language_mode(), function_scope->NeedsHomeObject());
@@ -382,19 +382,19 @@ PreParserBlock PreParser::BuildParameterInitializationBlock(
   DCHECK(!parameters.is_simple);
   DCHECK(scope()->is_function_scope());
   if (scope()->AsDeclarationScope()->calls_sloppy_eval() &&
-      preparsed_scope_data_builder_ != nullptr) {
+      preparse_data_builder_ != nullptr) {
     // We cannot replicate the Scope structure constructed by the Parser,
     // because we've lost information whether each individual parameter was
     // simple or not. Give up trying to produce data to skip inner functions.
-    if (preparsed_scope_data_builder_->parent() != nullptr) {
+    if (preparse_data_builder_->parent() != nullptr) {
       // Lazy parsing started before the current function; the function which
       // cannot contain skippable functions is the parent function. (Its inner
       // functions cannot either; they are implicitly bailed out.)
-      preparsed_scope_data_builder_->parent()->Bailout();
+      preparse_data_builder_->parent()->Bailout();
     } else {
       // Lazy parsing started at the current function; it cannot contain
       // skippable functions.
-      preparsed_scope_data_builder_->Bailout();
+      preparse_data_builder_->Bailout();
     }
   }
 

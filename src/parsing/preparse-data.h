@@ -115,6 +115,7 @@ class PreparseDataBuilder : public ZoneObject {
 #endif  // DEBUG
 
   bool ContainsInnerFunctions() const;
+  bool HasData() const;
 
   static bool ScopeNeedsData(Scope* scope);
   static bool ScopeIsSkippableFunctionScope(Scope* scope);
@@ -126,7 +127,7 @@ class PreparseDataBuilder : public ZoneObject {
  private:
   friend class BuilderProducedPreparseData;
 
-  MaybeHandle<PreparseData> Serialize(Isolate* isolate);
+  Handle<PreparseData> Serialize(Isolate* isolate);
   ZonePreparseData* Serialize(Zone* zone);
 
   void SaveDataForScope(Scope* scope);
@@ -149,7 +150,7 @@ class ProducedPreparseData : public ZoneObject {
   // If there is data (if the Scope contains skippable inner functions), move
   // the data into the heap and return a Handle to it; otherwise return a null
   // MaybeHandle.
-  virtual MaybeHandle<PreparseData> Serialize(Isolate* isolate) = 0;
+  virtual Handle<PreparseData> Serialize(Isolate* isolate) = 0;
 
   // If there is data (if the Scope contains skippable inner functions), return
   // an off-heap ZonePreparseData representing the data; otherwise
