@@ -996,17 +996,6 @@ void JSCallReducer::WireInLoopEnd(Node* loop, Node* eloop, Node* vloop, Node* k,
 }
 
 namespace {
-
-bool CanInlineArrayIteratingBuiltin(Isolate* isolate, MapRef& receiver_map) {
-  receiver_map.SerializePrototype();
-  if (!receiver_map.prototype().IsJSArray()) return false;
-  JSArrayRef receiver_prototype = receiver_map.prototype().AsJSArray();
-  return receiver_map.instance_type() == JS_ARRAY_TYPE &&
-         IsFastElementsKind(receiver_map.elements_kind()) &&
-         isolate->IsNoElementsProtectorIntact() &&
-         isolate->IsAnyInitialArrayPrototype(receiver_prototype.object());
-}
-
 bool CanInlineArrayIteratingBuiltin(JSHeapBroker* broker,
                                     ZoneHandleSet<Map> receiver_maps,
                                     ElementsKind* kind_return) {
@@ -1014,16 +1003,13 @@ bool CanInlineArrayIteratingBuiltin(JSHeapBroker* broker,
   *kind_return = MapRef(broker, receiver_maps[0]).elements_kind();
   for (auto receiver_map : receiver_maps) {
     MapRef map(broker, receiver_map);
-    if (!CanInlineArrayIteratingBuiltin(broker->isolate(), map)) {
-      return false;
-    }
-    if (!UnionElementsKindUptoSize(kind_return, map.elements_kind())) {
+    if (!map.supports_fast_array_iteration() ||
+        !UnionElementsKindUptoSize(kind_return, map.elements_kind())) {
       return false;
     }
   }
   return true;
 }
-
 }  // namespace
 
 Reduction JSCallReducer::ReduceArrayForEach(
@@ -2559,8 +2545,7 @@ Reduction JSCallReducer::ReduceArrayIndexOfIncludes(
     return NoChange();
 
   MapRef receiver_map(broker(), map);
-  if (!CanInlineArrayIteratingBuiltin(isolate(), receiver_map))
-    return NoChange();
+  if (!receiver_map.supports_fast_array_iteration()) return NoChange();
 
   ElementsKind const elements_kind = receiver_map.elements_kind();
   if (IsHoleyElementsKind(elements_kind)) {
@@ -4770,9 +4755,7 @@ Reduction JSCallReducer::ReduceArrayPrototypeSlice(Node* node) {
   bool can_be_holey = false;
   for (Handle<Map> map : receiver_maps) {
     MapRef receiver_map(broker(), map);
-    if (!CanInlineArrayIteratingBuiltin(isolate(), receiver_map)) {
-      return NoChange();
-    }
+    if (!receiver_map.supports_fast_array_iteration()) return NoChange();
 
     if (IsHoleyElementsKind(receiver_map.elements_kind())) {
       can_be_holey = true;
