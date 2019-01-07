@@ -403,11 +403,11 @@ class Code : public HeapObject {
 #elif V8_TARGET_ARCH_MIPS
   static constexpr int kHeaderPaddingSize = 20;
   STATIC_ASSERT(kHeaderSize - kHeaderPaddingStart == kHeaderPaddingSize);
-#elif V8_TARGET_ARCH_PPC
+#elif V8_TARGET_ARCH_PPC64
   // No static assert possible since padding size depends on the
   // FLAG_enable_embedded_constant_pool runtime flag.
-#elif V8_TARGET_ARCH_S390
-  static constexpr int kHeaderPaddingSize = 20;
+#elif V8_TARGET_ARCH_S390X
+  static constexpr int kHeaderPaddingSize = 0;
   STATIC_ASSERT(kHeaderSize - kHeaderPaddingStart == kHeaderPaddingSize);
 #else
 #error Unknown architecture.
