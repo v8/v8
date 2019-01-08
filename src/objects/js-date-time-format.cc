@@ -865,10 +865,7 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::Initialize(
   // ecma402/#sec-intl.datetimeformat-internal-slots
   // The value of the [[RelevantExtensionKeys]] internal slot is
   // « "ca", "nu", "hc" ».
-  //
-  // TODO(ftang): Add "hc" to this list of keys:
-  // https://bugs.chromium.org/p/v8/issues/detail?id=7482
-  std::set<std::string> relevant_extension_keys = {"nu", "ca"};
+  std::set<std::string> relevant_extension_keys = {"nu", "ca", "hc"};
 
   // 10. Let localeData be %DateTimeFormat%.[[LocaleData]].
   // 11. Let r be ResolveLocale( %DateTimeFormat%.[[AvailableLocales]],
@@ -879,8 +876,6 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::Initialize(
       isolate, JSDateTimeFormat::GetAvailableLocales(), requested_locales,
       locale_matcher, relevant_extension_keys);
 
-  // TODO(ftang): Make sure that "nu" key doesn't have "native",
-  // "traditio" or "finance" values.
   icu::Locale icu_locale = r.icu_locale;
   DCHECK(!icu_locale.isBogus());
 
