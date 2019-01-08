@@ -974,8 +974,7 @@ MaybeHandle<String> Intl::NumberToLocaleString(Isolate* isolate,
   ASSIGN_RETURN_ON_EXCEPTION(isolate, number_obj,
                              Object::ToNumber(isolate, num), String);
 
-  // Spec treats -0 and +0 as 0.
-  double number = number_obj->Number() + 0;
+  double number = number_obj->Number();
 
   // We only cache the instance when both locales and options are undefined,
   // as that is the only case when the specified side-effects of examining

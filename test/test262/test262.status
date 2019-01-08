@@ -532,10 +532,6 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=7472
   'intl402/NumberFormat/currency-digits': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=7474
-  'intl402/NumberFormat/prototype/format/format-fraction-digits': [FAIL],
-  'intl402/NumberFormat/prototype/format/format-significant-digits': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=7482
   'intl402/DateTimeFormat/prototype/resolvedOptions/resolved-locale-with-hc-unicode': [FAIL],
 
@@ -586,9 +582,6 @@
   'language/expressions/generators/generator-created-after-decl-inst': [FAIL],
   'language/expressions/async-generator/generator-created-after-decl-inst': [FAIL],
   'language/statements/async-generator/generator-created-after-decl-inst': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=8099
-  'intl402/NumberFormat/prototype/format/format-negative-numbers': [FAIL],
 
   # await tests that require flags
   'language/expressions/await/async-generator-interleaved': ['--harmony-await-optimization'],

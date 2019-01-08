@@ -405,11 +405,6 @@ BUILTIN(NumberFormatInternalFormatNumber) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, number_obj,
                                      Object::ToNumber(isolate, value));
 
-  // Spec treats -0 as 0.
-  if (number_obj->IsMinusZero()) {
-    number_obj = Handle<Smi>(Smi::zero(), isolate);
-  }
-
   double number = number_obj->Number();
   icu::NumberFormat* icu_number_format =
       number_format->icu_number_format()->raw();
