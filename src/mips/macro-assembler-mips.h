@@ -252,11 +252,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // The return address on the stack is used by frame iteration.
   void StoreReturnAddressAndCall(Register target);
 
-  void CallForDeoptimization(Address target, int deopt_id,
-                             RelocInfo::Mode rmode) {
-    USE(deopt_id);
-    Call(target, rmode);
-  }
+  void CallForDeoptimization(Address target, int deopt_id);
 
   void Ret(COND_ARGS);
   inline void Ret(BranchDelaySlot bd, Condition cond = al,

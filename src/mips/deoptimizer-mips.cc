@@ -15,10 +15,9 @@ namespace internal {
 // This code tries to be close to ia32 code so that any changes can be
 // easily ported.
 void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
-                                                Isolate* isolate, int count,
+                                                Isolate* isolate,
                                                 DeoptimizeKind deopt_kind) {
   NoRootArrayScope no_root_array(masm);
-  GenerateDeoptimizationEntriesPrologue(masm, count);
 
   // Unlike on ARM we don't save all the registers, just the useful ones.
   // For the rest, there are gaps on the stack, so the offsets remain the same.
@@ -64,16 +63,14 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
   const int kSavedRegistersAreaSize =
       (kNumberOfRegisters * kPointerSize) + kDoubleRegsSize + kFloatRegsSize;
 
-  // Get the bailout id from the stack.
-  __ lw(a2, MemOperand(sp, kSavedRegistersAreaSize));
+  // Get the bailout id is passed as kRootRegister by the caller.
+  __ mov(a2, kRootRegister);
 
   // Get the address of the location in the code object (a3) (return
   // address for lazy deoptimization) and compute the fp-to-sp delta in
   // register t0.
   __ mov(a3, ra);
-  // Correct one word for bailout id.
-  __ Addu(t0, sp, Operand(kSavedRegistersAreaSize + (1 * kPointerSize)));
-
+  __ Addu(t0, sp, Operand(kSavedRegistersAreaSize));
   __ Subu(t0, fp, t0);
 
   // Allocate a new deoptimizer object.
@@ -139,8 +136,8 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
     __ swc1(f0, MemOperand(a1, dst_offset));
   }
 
-  // Remove the bailout id and the saved registers from the stack.
-  __ Addu(sp, sp, Operand(kSavedRegistersAreaSize + (1 * kPointerSize)));
+  // Remove the saved registers from the stack.
+  __ Addu(sp, sp, Operand(kSavedRegistersAreaSize));
 
   // Compute a pointer to the unwinding limit in register a2; that is
   // the first stack slot not part of the input frame.
@@ -240,73 +237,6 @@ const int Deoptimizer::table_entry_size_ = 2 * kInstrSize;
 const int Deoptimizer::table_entry_size_ = 3 * kInstrSize;
 #endif
 
-void Deoptimizer::GenerateDeoptimizationEntriesPrologue(MacroAssembler* masm,
-                                                        int count) {
-  Assembler::BlockTrampolinePoolScope block_trampoline_pool(masm);
-
-  // Create a sequence of deoptimization entries.
-  // Note that registers are still live when jumping to an entry.
-  Label table_start, done, trampoline_jump;
-  __ bind(&table_start);
-
-#ifdef _MIPS_ARCH_MIPS32R6
-  int kMaxEntriesBranchReach =
-      (1 << (kImm26Bits - 2)) / (table_entry_size_ / kInstrSize);
-#else
-  int kMaxEntriesBranchReach =
-      (1 << (kImm16Bits - 2)) / (table_entry_size_ / kInstrSize);
-#endif
-
-  if (count <= kMaxEntriesBranchReach) {
-    // Common case.
-    for (int i = 0; i < count; i++) {
-      Label start;
-      __ bind(&start);
-      DCHECK(is_int16(i));
-      if (IsMipsArchVariant(kMips32r6)) {
-        __ li(kScratchReg, i);
-        __ BranchShort(PROTECT, &done);
-      } else {
-        __ BranchShort(USE_DELAY_SLOT, &done);  // Expose delay slot.
-        __ li(kScratchReg, i);                  // In the delay slot.
-        __ nop();
-      }
-      DCHECK_EQ(table_entry_size_, masm->SizeOfCodeGeneratedSince(&start));
-    }
-
-    DCHECK_EQ(masm->SizeOfCodeGeneratedSince(&table_start),
-              count * table_entry_size_);
-    __ bind(&done);
-    __ Push(kScratchReg);
-  } else {
-    DCHECK(!IsMipsArchVariant(kMips32r6));
-    // Uncommon case, the branch cannot reach.
-    // Create mini trampoline to reach the end of the table
-    for (int i = 0, j = 0; i < count; i++, j++) {
-      Label start;
-      __ bind(&start);
-      DCHECK(is_int16(i));
-      if (j >= kMaxEntriesBranchReach) {
-        j = 0;
-        __ li(kScratchReg, i);
-        __ bind(&trampoline_jump);
-        trampoline_jump = Label();
-        __ BranchShort(USE_DELAY_SLOT, &trampoline_jump);
-        __ nop();
-      } else {
-        __ BranchShort(USE_DELAY_SLOT, &trampoline_jump);  // Expose delay slot.
-        __ li(kScratchReg, i);                             // In the delay slot.
-        __ nop();
-      }
-      DCHECK_EQ(table_entry_size_, masm->SizeOfCodeGeneratedSince(&start));
-    }
-
-    DCHECK_EQ(masm->SizeOfCodeGeneratedSince(&table_start),
-              count * table_entry_size_);
-    __ bind(&trampoline_jump);
-    __ Push(kScratchReg);
-  }
-}
 
 bool Deoptimizer::PadTopOfStackRegister() { return false; }
 

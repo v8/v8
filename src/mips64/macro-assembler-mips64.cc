@@ -5886,6 +5886,16 @@ void TurboAssembler::ResetSpeculationPoisonRegister() {
   li(kSpeculationPoisonRegister, -1);
 }
 
+void TurboAssembler::CallForDeoptimization(Address target, int deopt_id) {
+  NoRootArrayScope no_root_array(this);
+
+  // Save the deopt id in kRootRegister (we don't need the roots array from now
+  // on).
+  DCHECK_LE(deopt_id, 0xFFFF);
+  li(kRootRegister, deopt_id);
+  Call(target, RelocInfo::RUNTIME_ENTRY);
+}
+
 }  // namespace internal
 }  // namespace v8
 
