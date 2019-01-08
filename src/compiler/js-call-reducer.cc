@@ -1010,6 +1010,31 @@ bool CanInlineArrayIteratingBuiltin(JSHeapBroker* broker,
   }
   return true;
 }
+
+bool CanInlineArrayResizingBuiltin(JSHeapBroker* broker,
+                                   ZoneHandleSet<Map> receiver_maps,
+                                   ElementsKind* kind_return,
+                                   bool builtin_is_push = false) {
+  DCHECK_NE(0, receiver_maps.size());
+  *kind_return = MapRef(broker, receiver_maps[0]).elements_kind();
+  for (auto receiver_map : receiver_maps) {
+    MapRef map(broker, receiver_map);
+    if (!map.supports_fast_array_resize()) return false;
+    if (builtin_is_push) {
+      if (!UnionElementsKindUptoPackedness(kind_return, map.elements_kind())) {
+        return false;
+      }
+    } else {
+      // TODO(turbofan): We should also handle fast holey double elements once
+      // we got the hole NaN mess sorted out in TurboFan/V8.
+      if (map.elements_kind() == HOLEY_DOUBLE_ELEMENTS ||
+          !UnionElementsKindUptoSize(kind_return, map.elements_kind())) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
 }  // namespace
 
 Reduction JSCallReducer::ReduceArrayForEach(
@@ -4313,12 +4338,9 @@ Reduction JSCallReducer::ReduceArrayPrototypePush(Node* node) {
   if (result == NodeProperties::kNoReceiverMaps) return NoChange();
   DCHECK_NE(0, receiver_maps.size());
 
-  ElementsKind kind = receiver_maps[0]->elements_kind();
-  for (Handle<Map> map : receiver_maps) {
-    MapRef receiver_map(broker(), map);
-    if (!receiver_map.supports_fast_array_resize()) return NoChange();
-    if (!UnionElementsKindUptoPackedness(&kind, receiver_map.elements_kind()))
-      return NoChange();
+  ElementsKind kind;
+  if (!CanInlineArrayResizingBuiltin(broker(), receiver_maps, &kind, true)) {
+    return NoChange();
   }
 
   dependencies()->DependOnProtector(
@@ -4421,16 +4443,9 @@ Reduction JSCallReducer::ReduceArrayPrototypePop(Node* node) {
   if (result == NodeProperties::kNoReceiverMaps) return NoChange();
   DCHECK_NE(0, receiver_maps.size());
 
-  ElementsKind kind = receiver_maps[0]->elements_kind();
-  for (Handle<Map> map : receiver_maps) {
-    MapRef receiver_map(broker(), map);
-    if (!receiver_map.supports_fast_array_resize()) return NoChange();
-    // TODO(turbofan): Extend this to also handle fast holey double elements
-    // once we got the hole NaN mess sorted out in TurboFan/V8.
-    if (receiver_map.elements_kind() == HOLEY_DOUBLE_ELEMENTS)
-      return NoChange();
-    if (!UnionElementsKindUptoSize(&kind, receiver_map.elements_kind()))
-      return NoChange();
+  ElementsKind kind;
+  if (!CanInlineArrayResizingBuiltin(broker(), receiver_maps, &kind)) {
+    return NoChange();
   }
 
   dependencies()->DependOnProtector(
@@ -4538,16 +4553,9 @@ Reduction JSCallReducer::ReduceArrayPrototypeShift(Node* node) {
   if (result == NodeProperties::kNoReceiverMaps) return NoChange();
   DCHECK_NE(0, receiver_maps.size());
 
-  ElementsKind kind = receiver_maps[0]->elements_kind();
-  for (Handle<Map> map : receiver_maps) {
-    MapRef receiver_map(broker(), map);
-    if (!receiver_map.supports_fast_array_resize()) return NoChange();
-    // TODO(turbofan): Extend this to also handle fast holey double elements
-    // once we got the hole NaN mess sorted out in TurboFan/V8.
-    if (receiver_map.elements_kind() == HOLEY_DOUBLE_ELEMENTS)
-      return NoChange();
-    if (!UnionElementsKindUptoSize(&kind, receiver_map.elements_kind()))
-      return NoChange();
+  ElementsKind kind;
+  if (!CanInlineArrayResizingBuiltin(broker(), receiver_maps, &kind)) {
+    return NoChange();
   }
 
   dependencies()->DependOnProtector(
