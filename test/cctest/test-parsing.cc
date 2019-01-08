@@ -5833,6 +5833,10 @@ TEST(PrivateClassFieldsErrors) {
     "#async a = 0",
     "#async a",
 
+    "#a; #a",
+    "#a = 1; #a",
+    "#a; #a = 1;",
+
     "#constructor",
     "#constructor = function() {}",
 
@@ -6009,6 +6013,9 @@ TEST(PrivateStaticClassFieldsErrors) {
     "#a = delete arguments[0]",
     "#a = f(arguments)",
     "#a = () => () => arguments",
+
+    "#a; static #a",
+    "static #a; #a",
 
     // TODO(joyee): support static private methods
     "static #a() { }",

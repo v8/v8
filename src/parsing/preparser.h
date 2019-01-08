@@ -1251,7 +1251,10 @@ class PreParser : public ParserBase<PreParser> {
                                  class_info->computed_field_count),
           VariableMode::kConst);
     } else if (is_private && property_name.string_ != nullptr) {
-      scope()->DeclareVariableName(property_name.string_, VariableMode::kConst);
+      if (scope()->DeclareVariableName(property_name.string_,
+                                       VariableMode::kConst) == nullptr) {
+        ReportUnidentifiableError();
+      }
     }
   }
 
