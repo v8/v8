@@ -51,6 +51,9 @@ inline StackHandler* StackHandler::next() const {
   return FromAddress(Memory<Address>(address() + offset));
 }
 
+inline Address StackHandler::next_address() const {
+  return Memory<Address>(address() + StackHandlerConstants::kNextOffset);
+}
 
 inline StackHandler* StackHandler::FromAddress(Address address) {
   return reinterpret_cast<StackHandler*>(address);

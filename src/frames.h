@@ -48,6 +48,10 @@ class StackHandler {
   // Get the next stack handler in the chain.
   inline StackHandler* next() const;
 
+  // Get the next stack handler, as an Address. This is safe to use even
+  // when the next handler is null.
+  inline Address next_address() const;
+
   // Conversion support.
   static inline StackHandler* FromAddress(Address address);
 
@@ -158,7 +162,7 @@ class StackFrame {
 
   // Copy constructor; it breaks the connection to host iterator
   // (as an iterator usually lives on stack).
-  StackFrame(const StackFrame& original) {
+  StackFrame(const StackFrame& original) V8_NOEXCEPT {
     this->state_ = original.state_;
     this->iterator_ = nullptr;
     this->isolate_ = original.isolate_;

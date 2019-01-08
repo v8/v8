@@ -1547,7 +1547,7 @@ Object Isolate::UnwindAndFindHandler() {
         StackHandler* handler = frame->top_handler();
 
         // Restore the next handler.
-        thread_local_top()->handler_ = handler->next()->address();
+        thread_local_top()->handler_ = handler->next_address();
 
         // Gather information from the handler.
         Code code = frame->LookupCode();
@@ -1790,7 +1790,7 @@ Isolate::CatchType Isolate::PredictExceptionCatcher() {
     switch (frame->type()) {
       case StackFrame::ENTRY:
       case StackFrame::CONSTRUCT_ENTRY: {
-        Address entry_handler = frame->top_handler()->next()->address();
+        Address entry_handler = frame->top_handler()->next_address();
         // The exception has been externally caught if and only if there is an
         // external handler which is on top of the top-most JS_ENTRY handler.
         if (external_handler != kNullAddress &&
@@ -2174,8 +2174,7 @@ void Isolate::ReportPendingMessagesFromJavaScript() {
     // Get the top-most JS_ENTRY handler, cannot be on top if it doesn't exist.
     Address entry_handler = Isolate::handler(thread_local_top());
     DCHECK_NE(entry_handler, kNullAddress);
-    entry_handler =
-        reinterpret_cast<StackHandler*>(entry_handler)->next()->address();
+    entry_handler = StackHandler::FromAddress(entry_handler)->next_address();
 
     // Get the address of the external handler so we can compare the address to
     // determine which one is closer to the top of the stack.
@@ -2192,8 +2191,7 @@ void Isolate::ReportPendingMessagesFromJavaScript() {
     // Get the top-most JS_ENTRY handler, cannot be on top if it doesn't exist.
     Address entry_handler = Isolate::handler(thread_local_top());
     DCHECK_NE(entry_handler, kNullAddress);
-    entry_handler =
-        reinterpret_cast<StackHandler*>(entry_handler)->next()->address();
+    entry_handler = StackHandler::FromAddress(entry_handler)->next_address();
     return (entry_handler > external_handler);
   };
 
