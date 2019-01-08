@@ -273,7 +273,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
     // {new_target}, {target}, {receiver}, return value: tagged pointers
     // {argv}: pointer to array of tagged pointers
     using JSEntryFunction = GeneratedCode<Address(
-        Address new_target, Address target, Address receiver, int argc,
+        Address new_target, Address target, Address receiver, intptr_t argc,
         Address** argv, Address root_register_value)>;
     // clang-format on
     JSEntryFunction stub_entry =
