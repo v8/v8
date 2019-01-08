@@ -2063,10 +2063,8 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
                               PropertyAttributes attributes) {
     Handle<NumberDictionary> dictionary = JSObject::NormalizeElements(object);
     entry = dictionary->FindEntry(object->GetIsolate(), entry);
-    // TODO(3770): Drop type conversion.
-    DictionaryElementsAccessor::ReconfigureImpl(
-        object, Handle<FixedArrayBase>(dictionary.location()), entry, value,
-        attributes);
+    DictionaryElementsAccessor::ReconfigureImpl(object, dictionary, entry,
+                                                value, attributes);
   }
 
   static void AddImpl(Handle<JSObject> object, uint32_t index,

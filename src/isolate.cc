@@ -914,9 +914,7 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
   }
 
   // TODO(yangguo): Queue this structured stack trace for preprocessing on GC.
-  // TODO(3770): Drop explicit cast.
-  return factory()->NewJSArrayWithElements(
-      Handle<FixedArray>(builder.GetElements().location()));
+  return factory()->NewJSArrayWithElements(builder.GetElements());
 }
 
 MaybeHandle<JSReceiver> Isolate::CaptureAndSetDetailedStackTrace(

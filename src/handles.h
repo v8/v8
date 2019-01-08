@@ -117,7 +117,6 @@ class Handle final : public HandleBase {
 
   // Constructor for handling automatic up casting.
   // Ex. Handle<JSFunction> can be passed when Handle<Object> is expected.
-  // TODO(3770): Remove special cases after the migration.
   template <typename S, typename = typename std::enable_if<
                             std::is_convertible<S*, T*>::value>::type>
   V8_INLINE Handle(Handle<S> handle) : HandleBase(handle) {}

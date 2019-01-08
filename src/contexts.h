@@ -608,9 +608,9 @@ class Context : public HeapObject {
   static int IntrinsicIndexForName(const unsigned char* name, int length);
 
 #define NATIVE_CONTEXT_FIELD_ACCESSORS(index, type, name) \
-  inline void set_##name(type##ArgType value);            \
-  inline bool is_##name(type##ArgType value) const;       \
-  inline type##ArgType name() const;
+  inline void set_##name(type value);                     \
+  inline bool is_##name(type value) const;                \
+  inline type name() const;
   NATIVE_CONTEXT_FIELDS(NATIVE_CONTEXT_FIELD_ACCESSORS)
 #undef NATIVE_CONTEXT_FIELD_ACCESSORS
 

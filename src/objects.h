@@ -531,33 +531,6 @@ class ZoneForwardList;
 // The element types selection for CreateListFromArrayLike.
 enum class ElementTypes { kAll, kStringAndSymbol };
 
-// TODO(3770): Get rid of this indirection when the migration is complete.
-typedef AbstractCode AbstractCodeArgType;
-typedef ByteArray ByteArrayArgType;
-typedef FixedArray FixedArrayArgType;
-typedef FixedDoubleArray FixedDoubleArrayArgType;
-typedef Foreign ForeignArgType;
-typedef HeapObject HeapObjectArgType;
-typedef JSArray JSArrayArgType;
-typedef JSAsyncGeneratorObject JSAsyncGeneratorObjectArgType;
-typedef JSFunction JSFunctionArgType;
-typedef JSGlobalProxy JSGlobalProxyArgType;
-typedef JSObject JSObjectArgType;
-typedef JSPromise JSPromiseArgType;
-typedef JSProxy JSProxyArgType;
-typedef Map MapArgType;
-typedef Object ObjectArgType;
-typedef RegExpMatchInfo RegExpMatchInfoArgType;
-typedef ScriptContextTable ScriptContextTableArgType;
-typedef SharedFunctionInfo SharedFunctionInfoArgType;
-typedef SimpleNumberDictionary SimpleNumberDictionaryArgType;
-typedef Smi SmiArgType;
-typedef String StringArgType;
-typedef Symbol SymbolArgType;
-typedef TemplateList TemplateListArgType;
-typedef WasmInstanceObject WasmInstanceObjectArgType;
-typedef WasmMemoryObject WasmMemoryObjectArgType;
-
 // Object is the abstract superclass for all classes in the
 // object hierarchy.
 // Object does not use any virtual functions to avoid the

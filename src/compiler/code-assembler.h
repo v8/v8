@@ -353,20 +353,9 @@ typedef ZoneVector<CodeAssemblerVariable*> CodeAssemblerVariableList;
 
 typedef std::function<void()> CodeAssemblerCallback;
 
-// TODO(3770): The Object/HeapObject dance is temporary (while the
-// incremental transition is in progress, we want to pretend that subclasses
-// of HeapObject are also subclasses of Object); it can be
-// removed when the migration is complete.
 template <class T, class U>
 struct is_subtype {
-  static const bool value =
-      std::is_base_of<U, T>::value ||
-      (std::is_same<U, Object>::value && std::is_base_of<HeapObject, T>::value);
-};
-// TODO(3770): Temporary; remove after migration.
-template <>
-struct is_subtype<Smi, Object> {
-  static const bool value = true;
+  static const bool value = std::is_base_of<U, T>::value;
 };
 template <class T1, class T2, class U>
 struct is_subtype<UnionT<T1, T2>, U> {

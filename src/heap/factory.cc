@@ -3607,9 +3607,8 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForApiFunction(
 
 Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForBuiltin(
     MaybeHandle<String> maybe_name, int builtin_index, FunctionKind kind) {
-  // TODO(3770): Switch to MaybeHandle<Code>() after migration.
   Handle<SharedFunctionInfo> shared = NewSharedFunctionInfo(
-      maybe_name, MaybeHandle<HeapObject>(), builtin_index, kind);
+      maybe_name, MaybeHandle<Code>(), builtin_index, kind);
   return shared;
 }
 

@@ -133,8 +133,7 @@ class Expectations {
         constness = PropertyConstness::kMutable;
       }
       if (representation.IsHeapObject() && !FieldType::cast(*value)->IsAny()) {
-        // TODO(3770): Drop extra Handle constructor call after migration.
-        value = Handle<Object>(FieldType::Any(isolate_));
+        value = FieldType::Any(isolate_);
       }
     }
     constnesses_[index] = constness;
@@ -263,8 +262,7 @@ class Expectations {
     CHECK(index < number_of_properties_);
     representations_[index] = Representation::Tagged();
     if (locations_[index] == kField) {
-      // TODO(3770): Drop extra Handle constructor call after migration.
-      values_[index] = Handle<Object>(FieldType::Any(isolate_));
+      values_[index] = FieldType::Any(isolate_);
     }
   }
 

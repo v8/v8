@@ -43,12 +43,6 @@ class Smi : public Object {
   // Convert a Smi object to an int.
   static inline int ToInt(const Object object);
 
-  // TODO(3770): Drop this when merging Object and Object.
-  bool ToInt32(int32_t* value) {
-    *value = this->value();
-    return true;
-  }
-
   // Convert a value to a Smi object.
   static inline constexpr Smi FromInt(int value) {
 #if V8_CAN_HAVE_DCHECK_IN_CONSTEXPR
