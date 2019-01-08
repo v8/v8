@@ -2193,8 +2193,8 @@ void Heap::ExternalStringTable::IterateAll(RootVisitor* v) {
   if (!old_space_strings_.empty()) {
     v->VisitRootPointers(
         Root::kExternalStringsTable, nullptr,
-        FullObjectSlot(&old_space_strings_[0]),
-        FullObjectSlot(&old_space_strings_[old_space_strings_.size()]));
+        FullObjectSlot(old_space_strings_.data()),
+        FullObjectSlot(old_space_strings_.data() + old_space_strings_.size()));
   }
 }
 
@@ -2206,8 +2206,8 @@ void Heap::UpdateNewSpaceReferencesInExternalStringTable(
 void Heap::ExternalStringTable::UpdateReferences(
     Heap::ExternalStringTableUpdaterCallback updater_func) {
   if (old_space_strings_.size() > 0) {
-    FullObjectSlot start(&old_space_strings_[0]);
-    FullObjectSlot end(&old_space_strings_[old_space_strings_.size()]);
+    FullObjectSlot start(old_space_strings_.data());
+    FullObjectSlot end(old_space_strings_.data() + old_space_strings_.size());
     for (FullObjectSlot p = start; p < end; ++p)
       p.store(updater_func(heap_, p));
   }

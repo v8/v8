@@ -18,11 +18,11 @@ namespace v8 {
 namespace internal {
 
 const size_t MicrotaskQueue::kRingBufferOffset =
-    offsetof(MicrotaskQueue, ring_buffer_);
+    OFFSET_OF(MicrotaskQueue, ring_buffer_);
 const size_t MicrotaskQueue::kCapacityOffset =
-    offsetof(MicrotaskQueue, capacity_);
-const size_t MicrotaskQueue::kSizeOffset = offsetof(MicrotaskQueue, size_);
-const size_t MicrotaskQueue::kStartOffset = offsetof(MicrotaskQueue, start_);
+    OFFSET_OF(MicrotaskQueue, capacity_);
+const size_t MicrotaskQueue::kSizeOffset = OFFSET_OF(MicrotaskQueue, size_);
+const size_t MicrotaskQueue::kStartOffset = OFFSET_OF(MicrotaskQueue, start_);
 
 const intptr_t MicrotaskQueue::kMinimumCapacity = 8;
 
