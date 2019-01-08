@@ -170,3 +170,27 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   TestGlobal({a: 11});
   TestGlobal(print);
 })();
+
+(function TestExportImmutableAnyRefGlobal() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  const g1 = builder.addGlobal(kWasmAnyRef, true).exportAs("global1");
+  builder.addGlobal(kWasmI32, true); // Dummy.
+  builder.addGlobal(kWasmAnyRef, true); // Dummy.
+  const g2 = builder.addGlobal(kWasmAnyRef, true).exportAs("global2");
+  builder.addFunction("main", kSig_v_rr)
+    .addBody([
+        kExprGetLocal, 0,
+        kExprSetGlobal, g1.index,
+        kExprGetLocal, 1,
+        kExprSetGlobal, g2.index
+    ])
+    .exportAs("main");
+
+  const instance = builder.instantiate();
+  const obj1 = {x: 221};
+  const obj2 = print;
+  instance.exports.main(obj1, obj2);
+  assertSame(obj1, instance.exports.global1.value);
+  assertSame(obj2, instance.exports.global2.value);
+})();

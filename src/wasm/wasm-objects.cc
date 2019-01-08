@@ -1106,6 +1106,7 @@ MaybeHandle<WasmGlobalObject> WasmGlobalObject::New(
       isolate->factory()->NewJSObject(global_ctor));
 
   if (type == wasm::kWasmAnyRef) {
+    DCHECK(maybe_untagged_buffer.is_null());
     Handle<FixedArray> tagged_buffer;
     if (!maybe_tagged_buffer.ToHandle(&tagged_buffer)) {
       // If no buffer was provided, create one.
@@ -1114,6 +1115,7 @@ MaybeHandle<WasmGlobalObject> WasmGlobalObject::New(
     }
     global_obj->set_tagged_buffer(*tagged_buffer);
   } else {
+    DCHECK(maybe_tagged_buffer.is_null());
     Handle<JSArrayBuffer> untagged_buffer;
     uint32_t type_size = wasm::ValueTypes::ElementSizeInBytes(type);
     if (!maybe_untagged_buffer.ToHandle(&untagged_buffer)) {
