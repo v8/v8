@@ -8,6 +8,7 @@
 #include <set>
 
 #include "src/register-configuration.h"
+#include "src/utils.h"
 
 namespace v8 {
 namespace internal {
@@ -73,31 +74,54 @@ MoveOperands* Split(MoveOperands* move, MachineRepresentation smaller_rep,
   return move;
 }
 
+enum MoveOperandKind : uint8_t { kConstant, kGpReg, kFpReg, kStack };
+
+MoveOperandKind GetKind(const InstructionOperand& move) {
+  if (move.IsConstant()) return kConstant;
+  LocationOperand loc_op = LocationOperand::cast(move);
+  if (loc_op.location_kind() != LocationOperand::REGISTER) return kStack;
+  return IsFloatingPoint(loc_op.representation()) ? kFpReg : kGpReg;
+}
+
 }  // namespace
 
 void GapResolver::Resolve(ParallelMove* moves) {
-  // Clear redundant moves, and collect FP move representations if aliasing
-  // is non-simple.
-  int reps = 0;
-  for (size_t i = 0; i < moves->size();) {
-    MoveOperands* move = (*moves)[i];
+  EnumSet<MoveOperandKind, uint8_t> source_kinds;
+  EnumSet<MoveOperandKind, uint8_t> destination_kinds;
+
+  // Remove redundant moves, collect source kinds and destination kinds to
+  // detect simple non-overlapping moves, and collect FP move representations if
+  // aliasing is non-simple.
+  int fp_reps = 0;
+  for (auto it = moves->begin(); it != moves->end();) {
+    MoveOperands* move = *it;
     if (move->IsRedundant()) {
-      (*moves)[i] = moves->back();
+      *it = moves->back();
       moves->pop_back();
       continue;
     }
-    i++;
+    source_kinds.Add(GetKind(move->source()));
+    destination_kinds.Add(GetKind(move->destination()));
     if (!kSimpleFPAliasing && move->destination().IsFPRegister()) {
-      reps |= RepresentationBit(
+      fp_reps |= RepresentationBit(
           LocationOperand::cast(move->destination()).representation());
     }
+    ++it;
+  }
+
+  if ((source_kinds & destination_kinds).IsEmpty() || moves->size() < 2) {
+    // Fast path for non-conflicting parallel moves.
+    for (MoveOperands* move : *moves) {
+      assembler_->AssembleMove(&move->source(), &move->destination());
+    }
+    return;
   }
 
   if (!kSimpleFPAliasing) {
-    if (reps && !base::bits::IsPowerOfTwo(reps)) {
+    if (fp_reps && !base::bits::IsPowerOfTwo(fp_reps)) {
       // Start with the smallest FP moves, so we never encounter smaller moves
       // in the middle of a cycle of larger moves.
-      if ((reps & RepresentationBit(MachineRepresentation::kFloat32)) != 0) {
+      if ((fp_reps & RepresentationBit(MachineRepresentation::kFloat32)) != 0) {
         split_rep_ = MachineRepresentation::kFloat32;
         for (size_t i = 0; i < moves->size(); ++i) {
           auto move = (*moves)[i];
@@ -105,7 +129,7 @@ void GapResolver::Resolve(ParallelMove* moves) {
             PerformMove(moves, move);
         }
       }
-      if ((reps & RepresentationBit(MachineRepresentation::kFloat64)) != 0) {
+      if ((fp_reps & RepresentationBit(MachineRepresentation::kFloat64)) != 0) {
         split_rep_ = MachineRepresentation::kFloat64;
         for (size_t i = 0; i < moves->size(); ++i) {
           auto move = (*moves)[i];

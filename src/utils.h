@@ -815,6 +815,9 @@ class EnumSet {
   EnumSet operator|(const EnumSet& set) const {
     return EnumSet(bits_ | set.bits_);
   }
+  EnumSet operator&(const EnumSet& set) const {
+    return EnumSet(bits_ & set.bits_);
+  }
 
  private:
   static_assert(std::is_enum<E>::value, "EnumSet can only be used with enums");
