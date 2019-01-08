@@ -3952,6 +3952,8 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
         } else {
           // In case we did not sucessfully preparse the function because of an
           // unidentified error we do a full reparse to return the error.
+          // Parse again in the outer scope, since the language mode may change.
+          BlockState block_state(&scope_, scope()->outer_scope());
           ExpressionT expression = ParseConditionalExpression();
           DeclarationScope* function_scope = next_arrow_function_info_.scope;
           FunctionState function_state(&function_state_, &scope_,
