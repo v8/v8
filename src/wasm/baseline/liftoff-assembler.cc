@@ -170,7 +170,13 @@ class StackTransferRecipe {
       return;
     }
     if (move_dst_regs_.has(dst)) {
-      DCHECK(HasRegisterMove(dst, src, type));
+      DCHECK_EQ(register_move(dst)->src, src);
+      // Non-fp registers can only occur with the exact same type.
+      DCHECK_IMPLIES(!dst.is_fp(), register_move(dst)->type == type);
+      // It can happen that one fp register holds both the f32 zero and the f64
+      // zero, as the initial value for local variables. Move the value as f64
+      // in that case.
+      if (type == kWasmF64) register_move(dst)->type = kWasmF64;
       return;
     }
     move_dst_regs_.set(dst);
@@ -243,12 +249,6 @@ class StackTransferRecipe {
   }
   int* src_reg_use_count(LiftoffRegister reg) {
     return src_reg_use_count_ + reg.liftoff_code();
-  }
-
-  bool HasRegisterMove(LiftoffRegister dst, LiftoffRegister src,
-                       ValueType type) {
-    return move_dst_regs_.has(dst) && register_move(dst)->src == src &&
-           register_move(dst)->type == type;
   }
 
   void ExecuteMove(LiftoffRegister dst) {
