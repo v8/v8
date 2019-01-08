@@ -813,6 +813,9 @@ class RegisterAllocationData final : public ZoneObject {
   bool ExistsUseWithoutDefinition();
   bool RangesDefinedInDeferredStayInDeferred();
 
+  void MarkFixedUse(MachineRepresentation rep, int index);
+  bool HasFixedUse(MachineRepresentation rep, int index);
+
   void MarkAllocated(MachineRepresentation rep, int index);
 
   PhiMapValue* InitializePhiMap(const InstructionBlock* block,
@@ -845,6 +848,8 @@ class RegisterAllocationData final : public ZoneObject {
   DelayedReferences delayed_references_;
   BitVector* assigned_registers_;
   BitVector* assigned_double_registers_;
+  BitVector* fixed_register_use_;
+  BitVector* fixed_fp_register_use_;
   int virtual_register_count_;
   RangesWithPreassignedSlots preassigned_slot_ranges_;
 
@@ -868,7 +873,7 @@ class ConstraintBuilder final : public ZoneObject {
   Zone* allocation_zone() const { return data()->allocation_zone(); }
 
   InstructionOperand* AllocateFixed(UnallocatedOperand* operand, int pos,
-                                    bool is_tagged);
+                                    bool is_tagged, bool is_input);
   void MeetRegisterConstraints(const InstructionBlock* block);
   void MeetConstraintsBefore(int index);
   void MeetConstraintsAfter(int index);

@@ -1413,6 +1413,11 @@ RegisterAllocationData::RegisterAllocationData(
       BitVector(this->config()->num_general_registers(), code_zone());
   assigned_double_registers_ = new (code_zone())
       BitVector(this->config()->num_double_registers(), code_zone());
+  fixed_register_use_ = new (code_zone())
+      BitVector(this->config()->num_general_registers(), code_zone());
+  fixed_fp_register_use_ = new (code_zone())
+      BitVector(this->config()->num_double_registers(), code_zone());
+
   this->frame()->SetAllocatedRegisters(assigned_registers_);
   this->frame()->SetAllocatedDoubleRegisters(assigned_double_registers_);
 }
@@ -1567,6 +1572,63 @@ SpillRange* RegisterAllocationData::CreateSpillRangeForLiveRange(
   return spill_range;
 }
 
+void RegisterAllocationData::MarkFixedUse(MachineRepresentation rep,
+                                          int index) {
+  switch (rep) {
+    case MachineRepresentation::kFloat32:
+    case MachineRepresentation::kSimd128:
+      if (kSimpleFPAliasing) {
+        fixed_fp_register_use_->Add(index);
+      } else {
+        int alias_base_index = -1;
+        int aliases = config()->GetAliases(
+            rep, index, MachineRepresentation::kFloat64, &alias_base_index);
+        DCHECK(aliases > 0 || (aliases == 0 && alias_base_index == -1));
+        while (aliases--) {
+          int aliased_reg = alias_base_index + aliases;
+          fixed_fp_register_use_->Add(aliased_reg);
+        }
+      }
+      break;
+    case MachineRepresentation::kFloat64:
+      fixed_fp_register_use_->Add(index);
+      break;
+    default:
+      DCHECK(!IsFloatingPoint(rep));
+      fixed_register_use_->Add(index);
+      break;
+  }
+}
+
+bool RegisterAllocationData::HasFixedUse(MachineRepresentation rep, int index) {
+  switch (rep) {
+    case MachineRepresentation::kFloat32:
+    case MachineRepresentation::kSimd128:
+      if (kSimpleFPAliasing) {
+        return fixed_fp_register_use_->Contains(index);
+      } else {
+        int alias_base_index = -1;
+        int aliases = config()->GetAliases(
+            rep, index, MachineRepresentation::kFloat64, &alias_base_index);
+        DCHECK(aliases > 0 || (aliases == 0 && alias_base_index == -1));
+        bool result = false;
+        while (aliases-- && !result) {
+          int aliased_reg = alias_base_index + aliases;
+          result |= fixed_fp_register_use_->Contains(aliased_reg);
+        }
+        return result;
+      }
+      break;
+    case MachineRepresentation::kFloat64:
+      return fixed_fp_register_use_->Contains(index);
+      break;
+    default:
+      DCHECK(!IsFloatingPoint(rep));
+      return fixed_register_use_->Contains(index);
+      break;
+  }
+}
+
 void RegisterAllocationData::MarkAllocated(MachineRepresentation rep,
                                            int index) {
   switch (rep) {
@@ -1605,7 +1667,7 @@ ConstraintBuilder::ConstraintBuilder(RegisterAllocationData* data)
     : data_(data) {}
 
 InstructionOperand* ConstraintBuilder::AllocateFixed(
-    UnallocatedOperand* operand, int pos, bool is_tagged) {
+    UnallocatedOperand* operand, int pos, bool is_tagged, bool is_input) {
   TRACE("Allocating fixed reg for op %d\n", operand->virtual_register());
   DCHECK(operand->HasFixedPolicy());
   InstructionOperand allocated;
@@ -1630,6 +1692,9 @@ InstructionOperand* ConstraintBuilder::AllocateFixed(
                                  operand->fixed_register_index());
   } else {
     UNREACHABLE();
+  }
+  if (is_input && allocated.IsAnyRegister()) {
+    data()->MarkFixedUse(rep, operand->fixed_register_index());
   }
   InstructionOperand::ReplaceWith(operand, &allocated);
   if (is_tagged) {
@@ -1672,7 +1737,7 @@ void ConstraintBuilder::MeetRegisterConstraintsForLastInstructionInBlock(
     TopLevelLiveRange* range = data()->GetOrCreateLiveRangeFor(output_vreg);
     bool assigned = false;
     if (output->HasFixedPolicy()) {
-      AllocateFixed(output, -1, false);
+      AllocateFixed(output, -1, false, false);
       // This value is produced on the stack, we never need to spill it.
       if (output->IsStackSlot()) {
         DCHECK(LocationOperand::cast(output)->index() <
@@ -1711,7 +1776,7 @@ void ConstraintBuilder::MeetConstraintsAfter(int instr_index) {
   // Handle fixed temporaries.
   for (size_t i = 0; i < first->TempCount(); i++) {
     UnallocatedOperand* temp = UnallocatedOperand::cast(first->TempAt(i));
-    if (temp->HasFixedPolicy()) AllocateFixed(temp, instr_index, false);
+    if (temp->HasFixedPolicy()) AllocateFixed(temp, instr_index, false, false);
   }
   // Handle constant/fixed output operands.
   for (size_t i = 0; i < first->OutputCount(); i++) {
@@ -1737,7 +1802,7 @@ void ConstraintBuilder::MeetConstraintsAfter(int instr_index) {
         data()->preassigned_slot_ranges().push_back(
             std::make_pair(range, first_output->GetSecondaryStorage()));
       }
-      AllocateFixed(first_output, instr_index, is_tagged);
+      AllocateFixed(first_output, instr_index, is_tagged, false);
 
       // This value is produced on the stack, we never need to spill it.
       if (first_output->IsStackSlot()) {
@@ -1774,7 +1839,7 @@ void ConstraintBuilder::MeetConstraintsBefore(int instr_index) {
       UnallocatedOperand input_copy(UnallocatedOperand::REGISTER_OR_SLOT,
                                     input_vreg);
       bool is_tagged = code()->IsReference(input_vreg);
-      AllocateFixed(cur_input, instr_index, is_tagged);
+      AllocateFixed(cur_input, instr_index, is_tagged, true);
       data()->AddGapMove(instr_index, Instruction::END, input_copy, *cur_input);
     }
   }
@@ -3122,8 +3187,12 @@ bool LinearScanAllocator::TryAllocateFreeReg(
   }
   for (int i = 0; i < num_codes; ++i) {
     int code = codes[i];
-    if (free_until_pos[code].ToInstructionIndex() >
-        free_until_pos[reg].ToInstructionIndex()) {
+    // Prefer registers that have no fixed uses to avoid blocking later hints.
+    int candidate_free = free_until_pos[code].ToInstructionIndex();
+    int current_free = free_until_pos[reg].ToInstructionIndex();
+    if (candidate_free > current_free ||
+        (candidate_free == current_free &&
+         !data()->HasFixedUse(current->representation(), code))) {
       reg = code;
     }
   }
