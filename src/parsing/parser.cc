@@ -3038,6 +3038,7 @@ void Parser::DeclareClassField(ClassLiteralProperty* property,
     class_info->properties->Add(property, zone());
   } else if (is_private) {
     Variable* private_name_var = CreateSyntheticContextVariable(property_name);
+    private_name_var->set_initializer_position(property->value()->position());
     property->set_private_name_var(private_name_var);
     class_info->properties->Add(property, zone());
   }
