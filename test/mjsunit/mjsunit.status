@@ -233,6 +233,9 @@
 
   # BUG(v8:8169)
   'external-backing-store-gc': [SKIP],
+
+  # BUG(v8:8653)
+  'compiler/array-multiple-receiver-maps': [SKIP],
 }],  # ALWAYS
 
 ['novfp3 == True', {
