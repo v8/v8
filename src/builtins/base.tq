@@ -332,6 +332,9 @@ extern macro ThrowTypeError(
     Context, constexpr MessageTemplate, Object, Object, Object): never;
 extern macro ArraySpeciesCreate(Context, Object, Number): JSReceiver;
 extern macro ArrayCreate(implicit context: Context)(Number): JSArray;
+extern macro BuildAppendJSArray(
+    constexpr ElementsKind, FastJSArray, Object): void labels Bailout;
+
 extern macro EnsureArrayPushable(Map): ElementsKind
     labels Bailout;
 extern macro EnsureArrayLengthWritable(Map) labels Bailout;
@@ -684,6 +687,27 @@ CastHeapObject<FastJSArray>(implicit context: Context)(o: HeapObject):
   return %RawObjectCast<FastJSArray>(o);
 }
 
+struct FastJSArrayWitness {
+  array: HeapObject;
+  map: Map;
+}
+
+macro MakeWitness(array: FastJSArray): FastJSArrayWitness {
+  return FastJSArrayWitness{array, array.map};
+}
+
+macro Testify(witness: FastJSArrayWitness): FastJSArray labels CastError {
+  if (witness.array.map != witness.map) goto CastError;
+  // We don't need to check elements kind or whether the prototype
+  // has changed away from the default JSArray prototype, because
+  // if the map remains the same then those properties hold.
+  //
+  // However, we have to make sure there are no elements in the
+  // prototype chain.
+  if (IsNoElementsProtectorCellInvalid()) goto CastError;
+  return %RawObjectCast<FastJSArray>(witness.array);
+}
+
 CastHeapObject<FastJSArrayForCopy>(implicit context: Context)(o: HeapObject):
     FastJSArrayForCopy
     labels CastError {
@@ -760,6 +784,7 @@ extern macro ChangeInt32ToIntPtr(int32): intptr;   // Sign-extends.
 extern macro ChangeUint32ToWord(uint32): uintptr;  // Doesn't sign-extend.
 extern macro LoadNativeContext(Context): NativeContext;
 extern macro LoadJSArrayElementsMap(constexpr ElementsKind, Context): Map;
+extern macro LoadJSArrayElementsMap(ElementsKind, Context): Map;
 extern macro ChangeNonnegativeNumberToUintPtr(Number): uintptr;
 
 extern macro NumberConstant(constexpr float64): Number;
@@ -1166,7 +1191,7 @@ macro TorqueCopyElements(
       count);
 }
 
-transitioning macro LoadElementNoHole<T: type>(a: JSArray, index: Smi): Object
+macro LoadElementNoHole<T: type>(a: JSArray, index: Smi): Object
     labels IfHole;
 
 LoadElementNoHole<FixedArray>(implicit context: Context)(
