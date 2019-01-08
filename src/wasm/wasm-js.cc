@@ -1152,6 +1152,8 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
       type = i::wasm::kWasmI64;
     } else if (string->StringEquals(v8_str(isolate, "f64"))) {
       type = i::wasm::kWasmF64;
+    } else if (string->StringEquals(v8_str(isolate, "anyref"))) {
+      type = i::wasm::kWasmAnyRef;
     } else {
       thrower.TypeError(
           "Descriptor property 'value' must be 'i32', 'i64', 'f32', or "
@@ -1163,7 +1165,8 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
   const uint32_t offset = 0;
   i::MaybeHandle<i::WasmGlobalObject> maybe_global_obj =
       i::WasmGlobalObject::New(i_isolate, i::MaybeHandle<i::JSArrayBuffer>(),
-                               type, offset, is_mutable);
+                               i::MaybeHandle<i::FixedArray>(), type, offset,
+                               is_mutable);
 
   i::Handle<i::WasmGlobalObject> global_obj;
   if (!maybe_global_obj.ToHandle(&global_obj)) {
@@ -1220,6 +1223,17 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
         if (!number_value->NumberValue(context).To(&f64_value)) return;
       }
       global_obj->SetF64(f64_value);
+      break;
+    }
+    case i::wasm::kWasmAnyRef: {
+      if (args.Length() < 2) {
+        // When no inital value is provided, we have to use the WebAssembly
+        // default value 'null', and not the JS default value 'undefined'.
+        global_obj->SetAnyRef(
+            handle(i::ReadOnlyRoots(i_isolate).null_value(), i_isolate));
+        break;
+      }
+      global_obj->SetAnyRef(Utils::OpenHandle(*value));
       break;
     }
     default:
@@ -1469,6 +1483,9 @@ void WebAssemblyGlobalGetValueCommon(
     case i::wasm::kWasmF64:
       return_value.Set(receiver->GetF64());
       break;
+    case i::wasm::kWasmAnyRef:
+      return_value.Set(Utils::ToLocal(receiver->GetAnyRef()));
+      break;
     default:
       UNREACHABLE();
   }
@@ -1528,6 +1545,10 @@ void WebAssemblyGlobalSetValue(
       double f64_value = 0;
       if (!args[0]->NumberValue(context).To(&f64_value)) return;
       receiver->SetF64(f64_value);
+      break;
+    }
+    case i::wasm::kWasmAnyRef: {
+      receiver->SetAnyRef(Utils::OpenHandle(*args[0]));
       break;
     }
     default:

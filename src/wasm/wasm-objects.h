@@ -335,7 +335,8 @@ class WasmGlobalObject : public JSObject {
  public:
   DECL_CAST2(WasmGlobalObject)
 
-  DECL_ACCESSORS2(array_buffer, JSArrayBuffer)
+  DECL_ACCESSORS2(untagged_buffer, JSArrayBuffer)
+  DECL_ACCESSORS2(tagged_buffer, FixedArray)
   DECL_INT32_ACCESSORS(offset)
   DECL_INT_ACCESSORS(flags)
   DECL_PRIMITIVE_ACCESSORS(type, wasm::ValueType)
@@ -350,10 +351,11 @@ class WasmGlobalObject : public JSObject {
 #undef WASM_GLOBAL_OBJECT_FLAGS_BIT_FIELDS
 
 // Layout description.
-#define WASM_GLOBAL_OBJECT_FIELDS(V) \
-  V(kArrayBufferOffset, kTaggedSize) \
-  V(kOffsetOffset, kTaggedSize)      \
-  V(kFlagsOffset, kTaggedSize)       \
+#define WASM_GLOBAL_OBJECT_FIELDS(V)    \
+  V(kUntaggedBufferOffset, kTaggedSize) \
+  V(kTaggedBufferOffset, kTaggedSize)   \
+  V(kOffsetOffset, kTaggedSize)         \
+  V(kFlagsOffset, kTaggedSize)          \
   V(kSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
@@ -361,7 +363,8 @@ class WasmGlobalObject : public JSObject {
 #undef WASM_GLOBAL_OBJECT_FIELDS
 
   V8_EXPORT_PRIVATE static MaybeHandle<WasmGlobalObject> New(
-      Isolate* isolate, MaybeHandle<JSArrayBuffer> buffer, wasm::ValueType type,
+      Isolate* isolate, MaybeHandle<JSArrayBuffer> maybe_untagged_buffer,
+      MaybeHandle<FixedArray> maybe_tagged_buffer, wasm::ValueType type,
       int32_t offset, bool is_mutable);
 
   inline int type_size() const;
@@ -370,11 +373,13 @@ class WasmGlobalObject : public JSObject {
   inline int64_t GetI64();
   inline float GetF32();
   inline double GetF64();
+  inline Handle<Object> GetAnyRef();
 
   inline void SetI32(int32_t value);
   inline void SetI64(int64_t value);
   inline void SetF32(float value);
   inline void SetF64(double value);
+  inline void SetAnyRef(Handle<Object> value);
 
  private:
   // This function returns the address of the global's data in the

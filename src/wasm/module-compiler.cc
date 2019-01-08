@@ -1792,7 +1792,7 @@ bool InstanceBuilder::ProcessImportedWasmGlobalObject(
     return false;
   }
   if (global.mutability) {
-    Handle<JSArrayBuffer> buffer(global_object->array_buffer(), isolate_);
+    Handle<JSArrayBuffer> buffer(global_object->untagged_buffer(), isolate_);
     int index = (*next_imported_mutable_global_index)++;
     instance->imported_mutable_globals_buffers()->set(index, *buffer);
     // It is safe in this case to store the raw pointer to the buffer
@@ -2193,33 +2193,35 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
       case kExternalGlobal: {
         const WasmGlobal& global = module_->globals[exp.index];
         if (enabled_.mut_global) {
-          Handle<JSArrayBuffer> buffer;
+          Handle<JSArrayBuffer> untagged_buffer;
           uint32_t offset;
 
           if (global.mutability && global.imported) {
             Handle<FixedArray> buffers_array(
                 instance->imported_mutable_globals_buffers(), isolate_);
-            buffer = buffers_array->GetValueChecked<JSArrayBuffer>(
+            untagged_buffer = buffers_array->GetValueChecked<JSArrayBuffer>(
                 isolate_, global.index);
             Address global_addr =
                 instance->imported_mutable_globals()[global.index];
 
-            size_t buffer_size = buffer->byte_length();
+            size_t buffer_size = untagged_buffer->byte_length();
             Address backing_store =
-                reinterpret_cast<Address>(buffer->backing_store());
+                reinterpret_cast<Address>(untagged_buffer->backing_store());
             CHECK(global_addr >= backing_store &&
                   global_addr < backing_store + buffer_size);
             offset = static_cast<uint32_t>(global_addr - backing_store);
           } else {
-            buffer = handle(instance->untagged_globals_buffer(), isolate_);
+            untagged_buffer =
+                handle(instance->untagged_globals_buffer(), isolate_);
             offset = global.offset;
           }
 
-          // Since the global's array buffer is always provided, allocation
-          // should never fail.
+          // Since the global's array untagged_buffer is always provided,
+          // allocation should never fail.
           Handle<WasmGlobalObject> global_obj =
-              WasmGlobalObject::New(isolate_, buffer, global.type, offset,
-                                    global.mutability)
+              WasmGlobalObject::New(isolate_, untagged_buffer,
+                                    MaybeHandle<FixedArray>(), global.type,
+                                    offset, global.mutability)
                   .ToHandleChecked();
           desc.set_value(global_obj);
         } else {

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-anyref --expose-gc
+// Flags: --experimental-wasm-anyref --expose-gc --experimental-wasm-mut-global
 
 load("test/mjsunit/wasm/wasm-constants.js");
 load("test/mjsunit/wasm/wasm-module-builder.js");
@@ -127,4 +127,46 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   Test("mystring");
   Test({q: 14});
   Test(print);
+})();
+
+(function TestAnyRefGlobalObjectDefaultValue() {
+  print(arguments.callee.name);
+  let default_init = new WebAssembly.Global({value: 'anyref', mutable: true});
+  assertSame(null, default_init.value);
+  assertSame(null, default_init.valueOf());
+})();
+
+
+(function TestAnyRefGlobalObject() {
+  print(arguments.callee.name);
+  function TestGlobal(obj) {
+    const global = new WebAssembly.Global({value: 'anyref'}, obj);
+    assertSame(obj, global.value);
+    assertSame(obj, global.valueOf());
+  }
+
+  TestGlobal(null);
+  TestGlobal(undefined);
+  TestGlobal(1663);
+  TestGlobal("testmyglobal");
+  TestGlobal({a: 11});
+  TestGlobal(print);
+})();
+
+(function TestAnyRefGlobalObjectSetValue() {
+  print(arguments.callee.name);
+  let global = new WebAssembly.Global({value: 'anyref', mutable: true});
+
+  function TestGlobal(obj) {
+    global.value = obj;
+    assertSame(obj, global.value);
+    assertSame(obj, global.valueOf());
+  }
+
+  TestGlobal(null);
+  TestGlobal(undefined);
+  TestGlobal(1663);
+  TestGlobal("testmyglobal");
+  TestGlobal({a: 11});
+  TestGlobal(print);
 })();

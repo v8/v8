@@ -120,7 +120,9 @@ OPTIONAL_ACCESSORS2(WasmMemoryObject, instances, WeakArrayList,
                     kInstancesOffset)
 
 // WasmGlobalObject
-ACCESSORS2(WasmGlobalObject, array_buffer, JSArrayBuffer, kArrayBufferOffset)
+ACCESSORS2(WasmGlobalObject, untagged_buffer, JSArrayBuffer,
+           kUntaggedBufferOffset)
+ACCESSORS2(WasmGlobalObject, tagged_buffer, FixedArray, kTaggedBufferOffset)
 SMI_ACCESSORS(WasmGlobalObject, offset, kOffsetOffset)
 SMI_ACCESSORS(WasmGlobalObject, flags, kFlagsOffset)
 BIT_FIELD_ACCESSORS(WasmGlobalObject, flags, type, WasmGlobalObject::TypeBits)
@@ -132,8 +134,9 @@ int WasmGlobalObject::type_size() const {
 }
 
 Address WasmGlobalObject::address() const {
-  DCHECK_LE(offset() + type_size(), array_buffer()->byte_length());
-  return Address(array_buffer()->backing_store()) + offset();
+  DCHECK_NE(type(), wasm::kWasmAnyRef);
+  DCHECK_LE(offset() + type_size(), untagged_buffer()->byte_length());
+  return Address(untagged_buffer()->backing_store()) + offset();
 }
 
 int32_t WasmGlobalObject::GetI32() {
@@ -152,6 +155,11 @@ double WasmGlobalObject::GetF64() {
   return ReadLittleEndianValue<double>(address());
 }
 
+Handle<Object> WasmGlobalObject::GetAnyRef() {
+  DCHECK_EQ(type(), wasm::kWasmAnyRef);
+  return handle(tagged_buffer()->get(offset()), GetIsolate());
+}
+
 void WasmGlobalObject::SetI32(int32_t value) {
   WriteLittleEndianValue<int32_t>(address(), value);
 }
@@ -166,6 +174,11 @@ void WasmGlobalObject::SetF32(float value) {
 
 void WasmGlobalObject::SetF64(double value) {
   WriteLittleEndianValue<double>(address(), value);
+}
+
+void WasmGlobalObject::SetAnyRef(Handle<Object> value) {
+  DCHECK_EQ(type(), wasm::kWasmAnyRef);
+  tagged_buffer()->set(offset(), *value);
 }
 
 // WasmInstanceObject

@@ -1097,32 +1097,42 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
 
 // static
 MaybeHandle<WasmGlobalObject> WasmGlobalObject::New(
-    Isolate* isolate, MaybeHandle<JSArrayBuffer> maybe_buffer,
-    wasm::ValueType type, int32_t offset, bool is_mutable) {
+    Isolate* isolate, MaybeHandle<JSArrayBuffer> maybe_untagged_buffer,
+    MaybeHandle<FixedArray> maybe_tagged_buffer, wasm::ValueType type,
+    int32_t offset, bool is_mutable) {
   Handle<JSFunction> global_ctor(
       isolate->native_context()->wasm_global_constructor(), isolate);
   auto global_obj = Handle<WasmGlobalObject>::cast(
       isolate->factory()->NewJSObject(global_ctor));
 
-  uint32_t type_size = wasm::ValueTypes::ElementSizeInBytes(type);
-
-  Handle<JSArrayBuffer> buffer;
-  if (!maybe_buffer.ToHandle(&buffer)) {
-    // If no buffer was provided, create one long enough for the given type.
-    buffer =
-        isolate->factory()->NewJSArrayBuffer(SharedFlag::kNotShared, TENURED);
-
-    const bool initialize = true;
-    if (!JSArrayBuffer::SetupAllocatingData(buffer, isolate, type_size,
-                                            initialize)) {
-      return {};
+  if (type == wasm::kWasmAnyRef) {
+    Handle<FixedArray> tagged_buffer;
+    if (!maybe_tagged_buffer.ToHandle(&tagged_buffer)) {
+      // If no buffer was provided, create one.
+      tagged_buffer = isolate->factory()->NewFixedArray(1, TENURED);
+      CHECK_EQ(offset, 0);
     }
+    global_obj->set_tagged_buffer(*tagged_buffer);
+  } else {
+    Handle<JSArrayBuffer> untagged_buffer;
+    uint32_t type_size = wasm::ValueTypes::ElementSizeInBytes(type);
+    if (!maybe_untagged_buffer.ToHandle(&untagged_buffer)) {
+      // If no buffer was provided, create one long enough for the given type.
+      untagged_buffer =
+          isolate->factory()->NewJSArrayBuffer(SharedFlag::kNotShared, TENURED);
+
+      const bool initialize = true;
+      if (!JSArrayBuffer::SetupAllocatingData(untagged_buffer, isolate,
+                                              type_size, initialize)) {
+        return {};
+      }
+    }
+
+    // Check that the offset is in bounds.
+    CHECK_LE(offset + type_size, untagged_buffer->byte_length());
+
+    global_obj->set_untagged_buffer(*untagged_buffer);
   }
-
-  // Check that the offset is in bounds.
-  CHECK_LE(offset + type_size, buffer->byte_length());
-
-  global_obj->set_array_buffer(*buffer);
   global_obj->set_flags(0);
   global_obj->set_type(type);
   global_obj->set_offset(offset);
