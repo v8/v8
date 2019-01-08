@@ -24,7 +24,7 @@ WasmEngine::WasmEngine()
 
 WasmEngine::~WasmEngine() {
   // All AsyncCompileJobs have been canceled.
-  DCHECK(async_compile_jobs_.empty());
+  DCHECK(jobs_.empty());
   // All Isolates have been deregistered.
   DCHECK(isolates_.empty());
 }
@@ -212,7 +212,7 @@ void WasmEngine::AsyncCompile(
   std::unique_ptr<byte[]> copy(new byte[bytes.length()]);
   memcpy(copy.get(), bytes.start(), bytes.length());
 
-  std::shared_ptr<AsyncCompileJob> job = CreateAsyncCompileJob(
+  AsyncCompileJob* job = CreateAsyncCompileJob(
       isolate, enabled, std::move(copy), bytes.length(),
       handle(isolate->context(), isolate), std::move(resolver));
   job->Start();
@@ -221,7 +221,7 @@ void WasmEngine::AsyncCompile(
 std::shared_ptr<StreamingDecoder> WasmEngine::StartStreamingCompilation(
     Isolate* isolate, const WasmFeatures& enabled, Handle<Context> context,
     std::shared_ptr<CompilationResultResolver> resolver) {
-  std::shared_ptr<AsyncCompileJob> job =
+  AsyncCompileJob* job =
       CreateAsyncCompileJob(isolate, enabled, std::unique_ptr<byte[]>(nullptr),
                             0, context, std::move(resolver));
   return job->CreateStreamingDecoder();
@@ -278,49 +278,48 @@ CodeTracer* WasmEngine::GetCodeTracer() {
   return code_tracer_.get();
 }
 
-std::shared_ptr<AsyncCompileJob> WasmEngine::CreateAsyncCompileJob(
+AsyncCompileJob* WasmEngine::CreateAsyncCompileJob(
     Isolate* isolate, const WasmFeatures& enabled,
     std::unique_ptr<byte[]> bytes_copy, size_t length, Handle<Context> context,
     std::shared_ptr<CompilationResultResolver> resolver) {
-  std::shared_ptr<AsyncCompileJob> job =
-      std::make_shared<AsyncCompileJob>(isolate, enabled, std::move(bytes_copy),
-                                        length, context, std::move(resolver));
+  AsyncCompileJob* job =
+      new AsyncCompileJob(isolate, enabled, std::move(bytes_copy), length,
+                          context, std::move(resolver));
+  // Pass ownership to the unique_ptr in {jobs_}.
   base::MutexGuard guard(&mutex_);
-  async_compile_jobs_.insert({job.get(), job});
+  jobs_[job] = std::unique_ptr<AsyncCompileJob>(job);
   return job;
 }
 
-void WasmEngine::RemoveCompileJob(AsyncCompileJob* job) {
+std::unique_ptr<AsyncCompileJob> WasmEngine::RemoveCompileJob(
+    AsyncCompileJob* job) {
   base::MutexGuard guard(&mutex_);
-  auto item = async_compile_jobs_.find(job);
-  DCHECK(item != async_compile_jobs_.end());
-  async_compile_jobs_.erase(item);
+  auto item = jobs_.find(job);
+  DCHECK(item != jobs_.end());
+  std::unique_ptr<AsyncCompileJob> result = std::move(item->second);
+  jobs_.erase(item);
+  return result;
 }
 
 bool WasmEngine::HasRunningCompileJob(Isolate* isolate) {
   base::MutexGuard guard(&mutex_);
   DCHECK_EQ(1, isolates_.count(isolate));
-  for (auto& entry : async_compile_jobs_) {
+  for (auto& entry : jobs_) {
     if (entry.first->isolate() == isolate) return true;
   }
   return false;
 }
 
-void WasmEngine::AbortCompileJobsOnIsolate(Isolate* isolate) {
-  // Copy out to a vector first, since abortion can free {AsyncCompileJob}s and
-  // thus modify the {async_compile_jobs_} set.
-  std::vector<std::shared_ptr<AsyncCompileJob>> compile_jobs_to_abort;
-  {
-    base::MutexGuard guard(&mutex_);
-    DCHECK_EQ(1, isolates_.count(isolate));
-    for (auto& job_entry : async_compile_jobs_) {
-      if (job_entry.first->isolate() != isolate) continue;
-      if (auto shared_job = job_entry.second.lock()) {
-        compile_jobs_to_abort.emplace_back(std::move(shared_job));
-      }
+void WasmEngine::DeleteCompileJobsOnIsolate(Isolate* isolate) {
+  base::MutexGuard guard(&mutex_);
+  DCHECK_EQ(1, isolates_.count(isolate));
+  for (auto it = jobs_.begin(); it != jobs_.end();) {
+    if (it->first->isolate() == isolate) {
+      it = jobs_.erase(it);
+    } else {
+      ++it;
     }
   }
-  for (auto job : compile_jobs_to_abort) job->Abort();
 }
 
 void WasmEngine::AddIsolate(Isolate* isolate) {

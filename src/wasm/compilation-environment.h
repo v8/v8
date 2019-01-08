@@ -93,7 +93,7 @@ class CompilationState {
   using callback_t = std::function<void(CompilationEvent, const ResultBase*)>;
   ~CompilationState();
 
-  void AbortCompilation();
+  void CancelAndWait();
 
   void SetError(uint32_t func_index, const ResultBase& error_result);
 

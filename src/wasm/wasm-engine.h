@@ -131,16 +131,16 @@ class V8_EXPORT_PRIVATE WasmEngine {
   CodeTracer* GetCodeTracer();
 
   // Remove {job} from the list of active compile jobs.
-  void RemoveCompileJob(AsyncCompileJob* job);
+  std::unique_ptr<AsyncCompileJob> RemoveCompileJob(AsyncCompileJob* job);
 
   // Returns true if at least one AsyncCompileJob that belongs to the given
   // Isolate is currently running.
   bool HasRunningCompileJob(Isolate* isolate);
 
-  // Aborts all AsyncCompileJobs that belong to the given Isolate. All
+  // Deletes all AsyncCompileJobs that belong to the given Isolate. All
   // compilation is aborted, no more callbacks will be triggered. This is used
   // for tearing down an isolate, or to clean it up to be reused.
-  void AbortCompileJobsOnIsolate(Isolate* isolate);
+  void DeleteCompileJobsOnIsolate(Isolate* isolate);
 
   // Manage the set of Isolates that use this WasmEngine.
   void AddIsolate(Isolate* isolate);
@@ -155,7 +155,7 @@ class V8_EXPORT_PRIVATE WasmEngine {
   static std::shared_ptr<WasmEngine> GetWasmEngine();
 
  private:
-  std::shared_ptr<AsyncCompileJob> CreateAsyncCompileJob(
+  AsyncCompileJob* CreateAsyncCompileJob(
       Isolate* isolate, const WasmFeatures& enabled,
       std::unique_ptr<byte[]> bytes_copy, size_t length,
       Handle<Context> context,
@@ -172,11 +172,9 @@ class V8_EXPORT_PRIVATE WasmEngine {
   //////////////////////////////////////////////////////////////////////////////
   // Protected by {mutex_}:
 
-  // Keep weak_ptrs to the AsyncCompileJob so we can detect the intermediate
-  // state where the refcount already dropped to zero (and the weak_ptr is
-  // cleared) but the destructor did not run to completion yet.
-  std::unordered_map<AsyncCompileJob*, std::weak_ptr<AsyncCompileJob>>
-      async_compile_jobs_;
+  // We use an AsyncCompileJob as the key for itself so that we can delete the
+  // job from the map when it is finished.
+  std::unordered_map<AsyncCompileJob*, std::unique_ptr<AsyncCompileJob>> jobs_;
 
   std::unique_ptr<CompilationStatistics> compilation_stats_;
   std::unique_ptr<CodeTracer> code_tracer_;

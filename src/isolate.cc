@@ -2839,7 +2839,7 @@ void Isolate::Deinit() {
 
   debug()->Unload();
 
-  wasm_engine()->AbortCompileJobsOnIsolate(this);
+  wasm_engine()->DeleteCompileJobsOnIsolate(this);
 
   if (concurrent_recompilation_enabled()) {
     optimizing_compile_dispatcher_->Stop();

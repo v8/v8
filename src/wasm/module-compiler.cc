@@ -67,7 +67,7 @@ class CompilationStateImpl {
 
   // Cancel all background compilation and wait for all tasks to finish. Call
   // this before destructing this object.
-  void AbortCompilation();
+  void CancelAndWait();
 
   // Set the number of compilations unit expected to be executed. Needs to be
   // set before {AddCompilationUnits} is run, which triggers background
@@ -83,6 +83,9 @@ class CompilationStateImpl {
       std::vector<std::unique_ptr<WasmCompilationUnit>>& baseline_units,
       std::vector<std::unique_ptr<WasmCompilationUnit>>& tiering_units);
   std::unique_ptr<WasmCompilationUnit> GetNextCompilationUnit();
+  std::unique_ptr<WasmCompilationUnit> GetNextExecutedUnit();
+
+  bool HasCompilationUnitToFinish();
 
   void OnFinishedUnit(ExecutionTier);
   void ScheduleCodeLogging(WasmCode*);
@@ -90,6 +93,10 @@ class CompilationStateImpl {
   void OnBackgroundTaskStopped(const WasmFeatures& detected);
   void PublishDetectedFeatures(Isolate* isolate, const WasmFeatures& detected);
   void RestartBackgroundTasks(size_t max = std::numeric_limits<size_t>::max());
+  // Only one foreground thread (finisher) is allowed to run at a time.
+  // {SetFinisherIsRunning} returns whether the flag changed its state.
+  bool SetFinisherIsRunning(bool value);
+  void ScheduleFinisherTask();
 
   void Abort();
 
@@ -207,6 +214,11 @@ class CompilationStateImpl {
 
   void NotifyOnEvent(CompilationEvent event, const VoidResult* error_result);
 
+  std::vector<std::unique_ptr<WasmCompilationUnit>>& finish_units() {
+    return baseline_compilation_finished() ? tiering_finish_units_
+                                           : baseline_finish_units_;
+  }
+
   // TODO(mstarzinger): Get rid of the Isolate field to make sure the
   // {CompilationStateImpl} can be shared across multiple Isolates.
   Isolate* const isolate_;
@@ -233,7 +245,11 @@ class CompilationStateImpl {
   std::vector<std::unique_ptr<WasmCompilationUnit>> baseline_compilation_units_;
   std::vector<std::unique_ptr<WasmCompilationUnit>> tiering_compilation_units_;
 
+  bool finisher_is_running_ = false;
   size_t num_background_tasks_ = 0;
+
+  std::vector<std::unique_ptr<WasmCompilationUnit>> baseline_finish_units_;
+  std::vector<std::unique_ptr<WasmCompilationUnit>> tiering_finish_units_;
 
   // Features detected to be used in this module. Features can be detected
   // as a module is being compiled.
@@ -473,7 +489,7 @@ const CompilationStateImpl* Impl(const CompilationState* compilation_state) {
 
 CompilationState::~CompilationState() { Impl(this)->~CompilationStateImpl(); }
 
-void CompilationState::AbortCompilation() { Impl(this)->AbortCompilation(); }
+void CompilationState::CancelAndWait() { Impl(this)->CancelAndWait(); }
 
 void CompilationState::SetError(uint32_t func_index,
                                 const ResultBase& error_result) {
@@ -660,8 +676,15 @@ bool in_bounds(uint32_t offset, size_t size, size_t upper) {
 using WasmInstanceMap =
     IdentityMap<Handle<WasmInstanceObject>, FreeStoreAllocationPolicy>;
 
+double MonotonicallyIncreasingTimeInMs() {
+  return V8::GetCurrentPlatform()->MonotonicallyIncreasingTime() *
+         base::Time::kMillisecondsPerSecond;
+}
+
 // Run by each compilation task and by the main thread (i.e. in both
-// foreground and background threads).
+// foreground and background threads). The no_finisher_callback is called
+// within the result_mutex_ lock when no finishing task is running, i.e. when
+// the finisher_is_running_ flag is not set.
 bool FetchAndExecuteCompilationUnit(CompilationEnv* env,
                                     CompilationStateImpl* compilation_state,
                                     WasmFeatures* detected,
@@ -698,6 +721,15 @@ void InitializeCompilationUnits(NativeModule* native_module,
   builder.Commit();
 }
 
+void FinishCompilationUnits(CompilationStateImpl* compilation_state) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"), "FinishCompilationUnits");
+  while (!compilation_state->failed()) {
+    std::unique_ptr<WasmCompilationUnit> unit =
+        compilation_state->GetNextExecutedUnit();
+    if (unit == nullptr) break;
+  }
+}
+
 void CompileInParallel(Isolate* isolate, NativeModule* native_module) {
   // Data structures for the parallel compilation.
 
@@ -710,6 +742,12 @@ void CompileInParallel(Isolate* isolate, NativeModule* native_module) {
   //    the background threads.
   // 2) The background threads and the main thread pick one compilation unit at
   //    a time and execute the parallel phase of the compilation unit.
+  // 3) After the parallel phase of all compilation units has started, the
+  //    main thread continues to finish all compilation units as long as
+  //    baseline-compilation units are left to be processed.
+  // 4) If tier-up is enabled, the main thread restarts background tasks
+  //    that take care of compiling and finishing the top-tier compilation
+  //    units.
 
   // Turn on the {CanonicalHandleScope} so that the background threads can
   // use the node cache.
@@ -717,6 +755,10 @@ void CompileInParallel(Isolate* isolate, NativeModule* native_module) {
 
   CompilationStateImpl* compilation_state =
       Impl(native_module->compilation_state());
+  // Make sure that no foreground task is spawned for finishing
+  // the compilation units. This foreground thread will be
+  // responsible for finishing compilation.
+  compilation_state->SetFinisherIsRunning(true);
   uint32_t num_wasm_functions =
       native_module->num_functions() - native_module->num_imported_functions();
   compilation_state->SetNumberOfFunctionsToCompile(num_wasm_functions);
@@ -732,19 +774,38 @@ void CompileInParallel(Isolate* isolate, NativeModule* native_module) {
   //    a time and execute the parallel phase of the compilation unit.
   WasmFeatures detected_features;
   CompilationEnv env = native_module->CreateCompilationEnv();
-  // TODO(wasm): This might already execute TurboFan units on the main thread,
-  // while waiting for baseline compilation to finish. This can introduce
-  // additional delay.
-  // TODO(wasm): This is a busy-wait loop once all units have started executing
-  // in background threads. Replace by a semaphore / barrier.
-  while (!compilation_state->failed() &&
+  while (FetchAndExecuteCompilationUnit(&env, compilation_state,
+                                        &detected_features,
+                                        isolate->counters()) &&
          !compilation_state->baseline_compilation_finished()) {
-    FetchAndExecuteCompilationUnit(&env, compilation_state, &detected_features,
-                                   isolate->counters());
+    // TODO(clemensh): Refactor ownership of the AsyncCompileJob and remove
+    // this.
+    FinishCompilationUnits(compilation_state);
+
+    if (compilation_state->failed()) break;
+  }
+
+  while (!compilation_state->failed()) {
+    // 3) After the parallel phase of all compilation units has started, the
+    //    main thread continues to finish compilation units as long as
+    //    baseline compilation units are left to be processed. If compilation
+    //    already failed, all background tasks have already been canceled
+    //    in {FinishCompilationUnits}, and there are no units to finish.
+    FinishCompilationUnits(compilation_state);
+
+    if (compilation_state->baseline_compilation_finished()) break;
   }
 
   // Publish features from the foreground and background tasks.
   compilation_state->PublishDetectedFeatures(isolate, detected_features);
+
+  // 4) If tiering-compilation is enabled, we need to set the finisher
+  //    to false, such that the background threads will spawn a foreground
+  //    thread to finish the top-tier compilation units.
+  if (!compilation_state->failed() &&
+      compilation_state->compile_mode() == CompileMode::kTiering) {
+    compilation_state->SetFinisherIsRunning(false);
+  }
 }
 
 void CompileSequentially(Isolate* isolate, NativeModule* native_module,
@@ -841,6 +902,62 @@ void CompileNativeModule(Isolate* isolate, ErrorThrower* thrower,
     }
   }
 }
+
+// The runnable task that finishes compilation in foreground (e.g. updating
+// the NativeModule, the code table, etc.).
+class FinishCompileTask : public CancelableTask {
+ public:
+  explicit FinishCompileTask(CompilationStateImpl* compilation_state,
+                             CancelableTaskManager* task_manager)
+      : CancelableTask(task_manager), compilation_state_(compilation_state) {}
+
+  void RunInternal() override {
+    Isolate* isolate = compilation_state_->isolate();
+    HandleScope scope(isolate);
+    SaveContext saved_context(isolate);
+    isolate->set_context(Context());
+
+    TRACE_COMPILE("(4a) Finishing compilation units...\n");
+    if (compilation_state_->failed()) {
+      compilation_state_->SetFinisherIsRunning(false);
+      return;
+    }
+
+    // We execute for 1 ms and then reschedule the task, same as the GC.
+    double deadline = MonotonicallyIncreasingTimeInMs() + 1.0;
+    while (true) {
+      compilation_state_->RestartBackgroundTasks();
+
+      std::unique_ptr<WasmCompilationUnit> unit =
+          compilation_state_->GetNextExecutedUnit();
+
+      if (unit == nullptr) {
+        // It might happen that a background task just scheduled a unit to be
+        // finished, but did not start a finisher task since the flag was still
+        // set. Check for this case, and continue if there is more work.
+        compilation_state_->SetFinisherIsRunning(false);
+        if (compilation_state_->HasCompilationUnitToFinish() &&
+            compilation_state_->SetFinisherIsRunning(true)) {
+          continue;
+        }
+        break;
+      }
+
+      if (compilation_state_->failed()) break;
+
+      if (deadline < MonotonicallyIncreasingTimeInMs()) {
+        // We reached the deadline. We reschedule this task and return
+        // immediately. Since we rescheduled this task already, we do not set
+        // the FinisherIsRunning flag to false.
+        compilation_state_->ScheduleFinisherTask();
+        return;
+      }
+    }
+  }
+
+ private:
+  CompilationStateImpl* compilation_state_;
+};
 
 // The runnable task that performs compilations in the background.
 class BackgroundCompileTask : public CancelableTask {
@@ -2296,18 +2413,14 @@ void AsyncCompileJob::Start() {
 }
 
 void AsyncCompileJob::Abort() {
-  background_task_manager_.CancelAndWait();
-  if (native_module_) Impl(native_module_->compilation_state())->Abort();
-  // Tell the streaming decoder that compilation aborted.
-  // TODO(ahaas): Is this notification really necessary? Check
-  // https://crbug.com/888170.
-  if (stream_) stream_->NotifyCompilationEnded();
-  CancelPendingForegroundTask();
+  // Removing this job will trigger the destructor, which will cancel all
+  // compilation.
+  isolate_->wasm_engine()->RemoveCompileJob(this);
 }
 
 class AsyncStreamingProcessor final : public StreamingProcessor {
  public:
-  explicit AsyncStreamingProcessor(std::shared_ptr<AsyncCompileJob> job);
+  explicit AsyncStreamingProcessor(AsyncCompileJob* job);
 
   bool ProcessModuleHeader(Vector<const uint8_t> bytes,
                            uint32_t offset) override;
@@ -2339,22 +2452,28 @@ class AsyncStreamingProcessor final : public StreamingProcessor {
   void CommitCompilationUnits();
 
   ModuleDecoder decoder_;
-  std::shared_ptr<AsyncCompileJob> job_;
+  AsyncCompileJob* job_;
   std::unique_ptr<CompilationUnitBuilder> compilation_unit_builder_;
   uint32_t next_function_ = 0;
 };
 
 std::shared_ptr<StreamingDecoder> AsyncCompileJob::CreateStreamingDecoder() {
   DCHECK_NULL(stream_);
-  stream_ = std::make_shared<StreamingDecoder>(
-      base::make_unique<AsyncStreamingProcessor>(shared_from_this()));
+  stream_.reset(
+      new StreamingDecoder(base::make_unique<AsyncStreamingProcessor>(this)));
   return stream_;
 }
 
 AsyncCompileJob::~AsyncCompileJob() {
   background_task_manager_.CancelAndWait();
+  if (native_module_) Impl(native_module_->compilation_state())->Abort();
+  // Tell the streaming decoder that the AsyncCompileJob is not available
+  // anymore.
+  // TODO(ahaas): Is this notification really necessary? Check
+  // https://crbug.com/888170.
+  if (stream_) stream_->NotifyCompilationEnded();
+  CancelPendingForegroundTask();
   for (auto d : deferred_handles_) delete d;
-  isolate_->wasm_engine()->RemoveCompileJob(this);
 }
 
 void AsyncCompileJob::PrepareRuntimeObjects(
@@ -2424,19 +2543,19 @@ void AsyncCompileJob::FinishCompile(bool compile_wrappers) {
 }
 
 void AsyncCompileJob::AsyncCompileFailed(Handle<Object> error_reason) {
-  if (stream_) stream_->NotifyCompilationEnded();
+  // {job} keeps the {this} pointer alive.
+  std::shared_ptr<AsyncCompileJob> job =
+      isolate_->wasm_engine()->RemoveCompileJob(this);
   resolver_->OnCompilationFailed(error_reason);
 }
 
 void AsyncCompileJob::AsyncCompileSucceeded(Handle<WasmModuleObject> result) {
-  if (stream_) stream_->NotifyCompilationEnded();
   resolver_->OnCompilationSucceeded(result);
 }
 
 class AsyncCompileJob::CompilationStateCallback {
  public:
-  explicit CompilationStateCallback(std::shared_ptr<AsyncCompileJob> job)
-      : job_(std::move(job)) {}
+  explicit CompilationStateCallback(AsyncCompileJob* job) : job_(job) {}
 
   void operator()(CompilationEvent event, const ResultBase* error_result) {
     // This callback is only being called from a foreground task.
@@ -2451,10 +2570,21 @@ class AsyncCompileJob::CompilationStateCallback {
         break;
       case CompilationEvent::kFinishedTopTierCompilation:
         DCHECK_EQ(CompilationEvent::kFinishedBaselineCompilation, last_event_);
+        // If a foreground task or a finisher is pending, we rely on
+        // FinishModule to remove the job.
+        if (!job_->pending_foreground_task_ &&
+            job_->outstanding_finishers_.load() == 0) {
+          job_->isolate_->wasm_engine()->RemoveCompileJob(job_);
+        }
         break;
       case CompilationEvent::kFailedCompilation:
         DCHECK(!last_event_.has_value());
         DCHECK_NOT_NULL(error_result);
+        // Tier-up compilation should not fail if baseline compilation
+        // did not fail.
+        DCHECK(!Impl(job_->native_module_->compilation_state())
+                    ->baseline_compilation_finished());
+
         {
           SaveContext saved_context(job_->isolate());
           job_->isolate()->set_context(*job_->native_context_);
@@ -2462,7 +2592,11 @@ class AsyncCompileJob::CompilationStateCallback {
           thrower.CompileFailed(*error_result);
           Handle<Object> error = thrower.Reify();
 
-          job_->AsyncCompileFailed(error);
+          DeferredHandleScope deferred(job_->isolate());
+          error = handle(*error, job_->isolate());
+          job_->deferred_handles_.push_back(deferred.Detach());
+
+          job_->DoSync<CompileFailed, kUseExistingForegroundTask>(error);
         }
 
         break;
@@ -2475,7 +2609,7 @@ class AsyncCompileJob::CompilationStateCallback {
   }
 
  private:
-  std::shared_ptr<AsyncCompileJob> job_;
+  AsyncCompileJob* job_;
 #ifdef DEBUG
   base::Optional<CompilationEvent> last_event_;
 #endif
@@ -2487,7 +2621,7 @@ class AsyncCompileJob::CompileStep {
  public:
   virtual ~CompileStep() = default;
 
-  void Run(const std::shared_ptr<AsyncCompileJob>& job, bool on_foreground) {
+  void Run(AsyncCompileJob* job, bool on_foreground) {
     if (on_foreground) {
       HandleScope scope(job->isolate_);
       SaveContext saved_context(job->isolate_);
@@ -2498,12 +2632,8 @@ class AsyncCompileJob::CompileStep {
     }
   }
 
-  virtual void RunInForeground(const std::shared_ptr<AsyncCompileJob>&) {
-    UNREACHABLE();
-  }
-  virtual void RunInBackground(const std::shared_ptr<AsyncCompileJob>&) {
-    UNREACHABLE();
-  }
+  virtual void RunInForeground(AsyncCompileJob*) { UNREACHABLE(); }
+  virtual void RunInBackground(AsyncCompileJob*) { UNREACHABLE(); }
 };
 
 class AsyncCompileJob::CompileTask : public CancelableTask {
@@ -2515,7 +2645,7 @@ class AsyncCompileJob::CompileTask : public CancelableTask {
       // their own task manager.
       : CancelableTask(on_foreground ? job->isolate_->cancelable_task_manager()
                                      : &job->background_task_manager_),
-        job_(job->shared_from_this()),
+        job_(job),
         on_foreground_(on_foreground) {}
 
   ~CompileTask() override {
@@ -2537,10 +2667,9 @@ class AsyncCompileJob::CompileTask : public CancelableTask {
   }
 
  private:
-  // Compile tasks (foreground and background) keep the {AsyncCompileJob} alive
-  // via shared_ptr. It will be cleared to cancel a pending task.
-  std::shared_ptr<AsyncCompileJob> job_;
-  const bool on_foreground_;
+  // {job_} will be cleared to cancel a pending task.
+  AsyncCompileJob* job_;
+  bool on_foreground_;
 
   void ResetPendingForegroundTask() const {
     DCHECK_EQ(this, job_->pending_foreground_task_);
@@ -2615,7 +2744,7 @@ class AsyncCompileJob::DecodeModule : public AsyncCompileJob::CompileStep {
  public:
   explicit DecodeModule(Counters* counters) : counters_(counters) {}
 
-  void RunInBackground(const std::shared_ptr<AsyncCompileJob>& job) override {
+  void RunInBackground(AsyncCompileJob* job) override {
     ModuleResult result;
     {
       DisallowHandleAllocation no_handle;
@@ -2651,10 +2780,11 @@ class AsyncCompileJob::DecodeFail : public CompileStep {
 
  private:
   ModuleResult result_;
-  void RunInForeground(const std::shared_ptr<AsyncCompileJob>& job) override {
+  void RunInForeground(AsyncCompileJob* job) override {
     TRACE_COMPILE("(1b) Decoding failed.\n");
     ErrorThrower thrower(job->isolate_, "AsyncCompile");
     thrower.CompileFailed("Wasm decoding failed", result_);
+    // {job_} is deleted in AsyncCompileFailed, therefore the {return}.
     return job->AsyncCompileFailed(thrower.Reify());
   }
 };
@@ -2672,7 +2802,7 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
   std::shared_ptr<const WasmModule> module_;
   bool start_compilation_;
 
-  void RunInForeground(const std::shared_ptr<AsyncCompileJob>& job) override {
+  void RunInForeground(AsyncCompileJob* job) override {
     TRACE_COMPILE("(2) Prepare and start compile...\n");
 
     // Make sure all compilation tasks stopped running. Decoding (async step)
@@ -2709,12 +2839,29 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
 };
 
 //==========================================================================
+// Step 4b (sync): Compilation failed. Reject Promise.
+//==========================================================================
+class AsyncCompileJob::CompileFailed : public CompileStep {
+ public:
+  explicit CompileFailed(Handle<Object> error_reason)
+      : error_reason_(error_reason) {}
+
+  void RunInForeground(AsyncCompileJob* job) override {
+    TRACE_COMPILE("(4b) Compilation Failed...\n");
+    return job->AsyncCompileFailed(error_reason_);
+  }
+
+ private:
+  Handle<Object> error_reason_;
+};
+
+//==========================================================================
 // Step 5 (sync): Compile JS->wasm wrappers.
 //==========================================================================
 class AsyncCompileJob::CompileWrappers : public CompileStep {
   // TODO(wasm): Compile all wrappers here, including the start function wrapper
   // and the wrappers for the function table elements.
-  void RunInForeground(const std::shared_ptr<AsyncCompileJob>& job) override {
+  void RunInForeground(AsyncCompileJob* job) override {
     TRACE_COMPILE("(5) Compile wrappers...\n");
     // Compile JS->wasm wrappers for exported functions.
     CompileJsToWasmWrappers(
@@ -2728,20 +2875,33 @@ class AsyncCompileJob::CompileWrappers : public CompileStep {
 // Step 6 (sync): Finish the module and resolve the promise.
 //==========================================================================
 class AsyncCompileJob::FinishModule : public CompileStep {
-  void RunInForeground(const std::shared_ptr<AsyncCompileJob>& job) override {
+  void RunInForeground(AsyncCompileJob* job) override {
     TRACE_COMPILE("(6) Finish module...\n");
     job->AsyncCompileSucceeded(job->module_object_);
+
+    size_t num_functions = job->native_module_->num_functions() -
+                           job->native_module_->num_imported_functions();
+    auto* compilation_state = Impl(job->native_module_->compilation_state());
+    if (compilation_state->compile_mode() == CompileMode::kRegular ||
+        num_functions == 0) {
+      // If we do not tier up, the async compile job is done here and
+      // can be deleted.
+      job->isolate_->wasm_engine()->RemoveCompileJob(job);
+      return;
+    }
+    DCHECK_EQ(CompileMode::kTiering, compilation_state->compile_mode());
+    if (compilation_state->baseline_compilation_finished()) {
+      job->isolate_->wasm_engine()->RemoveCompileJob(job);
+    }
   }
 };
 
-AsyncStreamingProcessor::AsyncStreamingProcessor(
-    std::shared_ptr<AsyncCompileJob> job)
+AsyncStreamingProcessor::AsyncStreamingProcessor(AsyncCompileJob* job)
     : decoder_(job->enabled_features_),
-      job_(std::move(job)),
+      job_(job),
       compilation_unit_builder_(nullptr) {}
 
 void AsyncStreamingProcessor::FinishAsyncCompileJobWithError(ResultBase error) {
-  TRACE_STREAMING("Finish streaming with error.\n");
   DCHECK(error.failed());
   // Make sure all background tasks stopped executing before we change the state
   // of the AsyncCompileJob to DecodeFail.
@@ -2954,14 +3114,13 @@ CompilationStateImpl::CompilationStateImpl(internal::Isolate* isolate,
 }
 
 CompilationStateImpl::~CompilationStateImpl() {
-  // {AbortCompilation} must have been called.
   DCHECK(background_task_manager_.canceled());
   DCHECK(foreground_task_manager_.canceled());
   CompilationError* error = compile_error_.load(std::memory_order_acquire);
   if (error != nullptr) delete error;
 }
 
-void CompilationStateImpl::AbortCompilation() {
+void CompilationStateImpl::CancelAndWait() {
   background_task_manager_.CancelAndWait();
   foreground_task_manager_.CancelAndWait();
 }
@@ -3023,9 +3182,25 @@ CompilationStateImpl::GetNextCompilationUnit() {
   return std::unique_ptr<WasmCompilationUnit>();
 }
 
+std::unique_ptr<WasmCompilationUnit>
+CompilationStateImpl::GetNextExecutedUnit() {
+  std::vector<std::unique_ptr<WasmCompilationUnit>>& units = finish_units();
+  base::MutexGuard guard(&mutex_);
+  if (units.empty()) return {};
+  std::unique_ptr<WasmCompilationUnit> ret = std::move(units.back());
+  units.pop_back();
+  return ret;
+}
+
+bool CompilationStateImpl::HasCompilationUnitToFinish() {
+  return !finish_units().empty();
+}
+
 void CompilationStateImpl::OnFinishedUnit(ExecutionTier tier) {
   // This mutex guarantees that events happen in the right order.
   base::MutexGuard guard(&mutex_);
+
+  if (failed()) return;
 
   // If we are *not* compiling in tiering mode, then all units are counted as
   // baseline units.
@@ -3136,8 +3311,19 @@ void CompilationStateImpl::RestartBackgroundTasks(size_t max) {
   }
 }
 
+bool CompilationStateImpl::SetFinisherIsRunning(bool value) {
+  base::MutexGuard guard(&mutex_);
+  if (finisher_is_running_ == value) return false;
+  finisher_is_running_ = value;
+  return true;
+}
+
+void CompilationStateImpl::ScheduleFinisherTask() {
+  foreground_task_runner_->PostTask(
+      base::make_unique<FinishCompileTask>(this, &foreground_task_manager_));
+}
+
 void CompilationStateImpl::Abort() {
-  printf("Abort: %p\n", this);
   SetError(0, VoidResult::Error(0, "Compilation aborted"));
   background_task_manager_.CancelAndWait();
   // No more callbacks after abort. Don't free the std::function objects here,

@@ -65,11 +65,8 @@ Address CompileLazy(Isolate*, NativeModule*, uint32_t func_index);
 // allocates on the V8 heap (e.g. creating the module object) must be a
 // foreground task. All other tasks (e.g. decoding and validating, the majority
 // of the work of compilation) can be background tasks.
-// AsyncCompileJobs are stored in shared_ptr by all tasks which need to keep
-// them alive. {std::enable_shared_from_this} allows to regain a shared_ptr from
-// a raw ptr.
 // TODO(wasm): factor out common parts of this with the synchronous pipeline.
-class AsyncCompileJob : public std::enable_shared_from_this<AsyncCompileJob> {
+class AsyncCompileJob {
  public:
   AsyncCompileJob(Isolate* isolate, const WasmFeatures& enabled_features,
                   std::unique_ptr<byte[]> bytes_copy, size_t length,
@@ -95,6 +92,7 @@ class AsyncCompileJob : public std::enable_shared_from_this<AsyncCompileJob> {
   class DecodeModule;            // Step 1  (async)
   class DecodeFail;              // Step 1b (sync)
   class PrepareAndStartCompile;  // Step 2  (sync)
+  class CompileFailed;           // Step 4b (sync)
   class CompileWrappers;         // Step 5  (sync)
   class FinishModule;            // Step 6  (sync)
 
