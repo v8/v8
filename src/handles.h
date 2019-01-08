@@ -12,12 +12,6 @@
 #include "src/base/macros.h"
 #include "src/checks.h"
 #include "src/globals.h"
-// TODO(3770): The objects.h and heap-object.h includes are required to make
-// the std::enable_if<std::is_base_of<...>> conditions below work. Once the
-// migration is complete, we should be able to get by with just forward
-// declarations.
-#include "src/objects.h"
-#include "src/objects/heap-object.h"
 #include "src/zone/zone.h"
 
 namespace v8 {
@@ -128,29 +122,11 @@ class Handle final : public HandleBase {
                             std::is_convertible<S*, T*>::value>::type>
   V8_INLINE Handle(Handle<S> handle) : HandleBase(handle) {}
 
-  // The NeverReadOnlySpaceObject special-case is needed for the
-  // ContextFromNeverReadOnlySpaceObject helper function in api.cc.
-  template <typename T1 = T,
-            typename = typename std::enable_if<
-                std::is_base_of<NeverReadOnlySpaceObject, T1>::value>::type>
-  V8_INLINE T* operator->() const {
-    return operator*();
-  }
-  template <typename T1 = T, typename = typename std::enable_if<
-                                 std::is_base_of<Object, T1>::value>::type>
   V8_INLINE T operator->() const {
     return operator*();
   }
 
   // Provides the C++ dereference operator.
-  template <typename T1 = T,
-            typename = typename std::enable_if<
-                std::is_base_of<NeverReadOnlySpaceObject, T1>::value>::type>
-  V8_INLINE T* operator*() const {
-    return reinterpret_cast<T*>(HandleBase::operator*());
-  }
-  template <typename T1 = T, typename = typename std::enable_if<
-                                 std::is_base_of<Object, T1>::value>::type>
   V8_INLINE T operator*() const {
     // unchecked_cast because we rather trust Handle<T> to contain a T than
     // include all the respective -inl.h headers for SLOW_DCHECKs.

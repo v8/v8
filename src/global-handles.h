@@ -12,6 +12,7 @@
 #include "include/v8-profiler.h"
 
 #include "src/handles.h"
+#include "src/objects.h"
 #include "src/utils.h"
 
 namespace v8 {

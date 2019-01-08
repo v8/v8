@@ -754,20 +754,6 @@ ReadOnlyRoots HeapObject::GetReadOnlyRoots() const {
   return ReadOnlyRoots(MemoryChunk::FromHeapObject(*this)->heap());
 }
 
-Heap* NeverReadOnlySpaceObject::GetHeap() const {
-  MemoryChunk* chunk =
-      MemoryChunk::FromAddress(reinterpret_cast<Address>(this));
-  // Make sure we are not accessing an object in RO space.
-  SLOW_DCHECK(chunk->owner()->identity() != RO_SPACE);
-  Heap* heap = chunk->heap();
-  SLOW_DCHECK(heap != nullptr);
-  return heap;
-}
-
-Isolate* NeverReadOnlySpaceObject::GetIsolate() const {
-  return GetHeap()->isolate();
-}
-
 Map HeapObject::map() const { return map_word().ToMap(); }
 
 void HeapObject::set_map(Map value) {

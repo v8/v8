@@ -869,10 +869,6 @@ class V8_EXPORT HandleScope {
   void operator delete(void*, size_t);
   void operator delete[](void*, size_t);
 
-  // Uses heap_object to obtain the current Isolate.
-  static internal::Address* CreateHandle(
-      internal::NeverReadOnlySpaceObject* heap_object, internal::Address value);
-
   internal::Isolate* isolate_;
   internal::Address* prev_next_;
   internal::Address* prev_limit_;
@@ -9935,8 +9931,9 @@ Local<Value> Object::GetInternalField(int index) {
     int offset = I::kJSObjectHeaderSizeForEmbedderFields +
                  (I::kEmbedderDataSlotSize * index);
     A value = I::ReadTaggedAnyField(obj, offset);
-    A* result = HandleScope::CreateHandle(
-        reinterpret_cast<internal::NeverReadOnlySpaceObject*>(obj), value);
+    internal::Isolate* isolate =
+        internal::IsolateFromNeverReadOnlySpaceObject(obj);
+    A* result = HandleScope::CreateHandle(isolate, value);
     return Local<Value>(reinterpret_cast<Value*>(result));
   }
 #endif
@@ -10556,9 +10553,10 @@ Local<Value> Context::GetEmbedderData(int index) {
 #if !defined(V8_ENABLE_CHECKS) && !defined(V8_COMPRESS_POINTERS)
   typedef internal::Address A;
   typedef internal::Internals I;
-  auto* context = *reinterpret_cast<internal::NeverReadOnlySpaceObject**>(this);
+  internal::Isolate* isolate = internal::IsolateFromNeverReadOnlySpaceObject(
+      *reinterpret_cast<A*>(this));
   A* result =
-      HandleScope::CreateHandle(context, I::ReadEmbedderData<A>(this, index));
+      HandleScope::CreateHandle(isolate, I::ReadEmbedderData<A>(this, index));
   return Local<Value>(reinterpret_cast<Value*>(result));
 #else
   return SlowGetEmbedderData(index);

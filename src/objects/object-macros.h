@@ -34,12 +34,14 @@
   inline Heap* GetHeap() const; \
   inline Isolate* GetIsolate() const;
 
-#define NEVER_READ_ONLY_SPACE_IMPL(Type)                   \
-  Heap* Type::GetHeap() const {                            \
-    return NeverReadOnlySpaceObjectPtr::GetHeap(*this);    \
-  }                                                        \
-  Isolate* Type::GetIsolate() const {                      \
-    return NeverReadOnlySpaceObjectPtr::GetIsolate(*this); \
+// TODO(leszeks): Add checks in the factory that we never allocate these
+// objects in RO space.
+#define NEVER_READ_ONLY_SPACE_IMPL(Type)                \
+  Heap* Type::GetHeap() const {                         \
+    return NeverReadOnlySpaceObject::GetHeap(*this);    \
+  }                                                     \
+  Isolate* Type::GetIsolate() const {                   \
+    return NeverReadOnlySpaceObject::GetIsolate(*this); \
   }
 
 #define DECL_PRIMITIVE_ACCESSORS(name, type) \

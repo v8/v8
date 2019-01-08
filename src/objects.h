@@ -1102,18 +1102,6 @@ class MapWord {
   Address value_;
 };
 
-// Mixin class for objects that can never be in RO space.
-// TODO(leszeks): Add checks in the factory that we never allocate these objects
-// in RO space.
-class NeverReadOnlySpaceObject {
- public:
-  // The Heap the object was allocated in. Used also to access Isolate.
-  inline Heap* GetHeap() const;
-
-  // Convenience method to get current isolate.
-  inline Isolate* GetIsolate() const;
-};
-
 template <int start_offset, int end_offset, int size>
 class FixedBodyDescriptor;
 

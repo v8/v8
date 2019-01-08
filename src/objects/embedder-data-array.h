@@ -7,7 +7,7 @@
 
 #include "src/globals.h"
 #include "src/maybe-handles.h"
-#include "src/objects.h"
+#include "src/objects/heap-object.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"

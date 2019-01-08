@@ -27,11 +27,11 @@ HeapObject HeapObject::FromAddress(Address address) {
   return HeapObject(address + kHeapObjectTag);
 }
 
-Heap* NeverReadOnlySpaceObjectPtr::GetHeap(const HeapObject object) {
+Heap* NeverReadOnlySpaceObject::GetHeap(const HeapObject object) {
   return GetHeapFromWritableObject(object);
 }
 
-Isolate* NeverReadOnlySpaceObjectPtr::GetIsolate(const HeapObject object) {
+Isolate* NeverReadOnlySpaceObject::GetIsolate(const HeapObject object) {
   return GetHeap(object)->isolate();
 }
 

@@ -13,6 +13,7 @@
 #include "src/double.h"
 #include "src/external-reference.h"
 #include "src/globals.h"
+#include "src/objects/heap-object.h"
 
 namespace v8 {
 namespace internal {

@@ -192,13 +192,8 @@ class HeapObject : public Object {
   OBJECT_CONSTRUCTORS(HeapObject, Object);
 };
 
-// Replacement for NeverReadOnlySpaceObject, temporarily separate for
-// incremental transition.
 // Helper class for objects that can never be in RO space.
-// TODO(leszeks): Add checks in the factory that we never allocate these objects
-// in RO space.
-// TODO(3770): Get rid of the duplication.
-class NeverReadOnlySpaceObjectPtr {
+class NeverReadOnlySpaceObject {
  public:
   // The Heap the object was allocated in. Used also to access Isolate.
   static inline Heap* GetHeap(const HeapObject object);

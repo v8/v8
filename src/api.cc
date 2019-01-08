@@ -1109,14 +1109,6 @@ i::Address* HandleScope::CreateHandle(i::Isolate* isolate, i::Address value) {
   return i::HandleScope::CreateHandle(isolate, value);
 }
 
-i::Address* HandleScope::CreateHandle(
-    i::NeverReadOnlySpaceObject* writable_object, i::Address value) {
-  DCHECK(
-      i::Object(reinterpret_cast<i::Address>(writable_object)).IsHeapObject());
-  return i::HandleScope::CreateHandle(writable_object->GetIsolate(), value);
-}
-
-
 EscapableHandleScope::EscapableHandleScope(Isolate* v8_isolate) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   escape_slot_ =
@@ -3618,6 +3610,10 @@ MaybeLocal<Uint32> Value::ToUint32(Local<Context> context) const {
   RETURN_ESCAPED(result);
 }
 
+i::Isolate* i::IsolateFromNeverReadOnlySpaceObject(i::Address obj) {
+  return i::NeverReadOnlySpaceObject::GetIsolate(
+      i::HeapObject::cast(i::Object(obj)));
+}
 
 void i::Internals::CheckInitializedImpl(v8::Isolate* external_isolate) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(external_isolate);

@@ -20,6 +20,8 @@ class Isolate;
 
 namespace internal {
 
+class Isolate;
+
 typedef uintptr_t Address;
 static const Address kNullAddress = 0;
 
@@ -360,6 +362,10 @@ template <class T>
 V8_INLINE void PerformCastCheck(T* data) {
   CastCheck<std::is_base_of<Data, T>::value>::Perform(data);
 }
+
+// {obj} must be the raw tagged pointer representation of a HeapObject
+// that's guaranteed to never be in ReadOnlySpace.
+V8_EXPORT internal::Isolate* IsolateFromNeverReadOnlySpaceObject(Address obj);
 
 }  // namespace internal
 }  // namespace v8
