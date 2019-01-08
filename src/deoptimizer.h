@@ -492,10 +492,7 @@ class Deoptimizer : public Malloced {
 
   static void ComputeOutputFrames(Deoptimizer* deoptimizer);
 
-  static Address GetDeoptimizationEntry(Isolate* isolate, int id,
-                                        DeoptimizeKind kind);
-  static int GetDeoptimizationId(Isolate* isolate, Address addr,
-                                 DeoptimizeKind kind);
+  static Address GetDeoptimizationEntry(Isolate* isolate, DeoptimizeKind kind);
 
   // Returns true if {addr} is a deoptimization entry and stores its type in
   // {type}. Returns false if {addr} is not a deoptimization entry.
@@ -519,17 +516,17 @@ class Deoptimizer : public Malloced {
 
   static void EnsureCodeForDeoptimizationEntry(Isolate* isolate,
                                                DeoptimizeKind kind);
-  static void EnsureCodeForMaxDeoptimizationEntries(Isolate* isolate);
+  static void EnsureCodeForDeoptimizationEntries(Isolate* isolate);
 
   Isolate* isolate() const { return isolate_; }
+
+  static const int kMaxNumberOfEntries = 16384;
 
  private:
   friend class FrameWriter;
   void QueueValueForMaterialization(Address output_address, Object obj,
                                     const TranslatedFrame::iterator& iterator);
 
-  static const int kMinNumberOfEntries = 64;
-  static const int kMaxNumberOfEntries = 16384;
 
   Deoptimizer(Isolate* isolate, JSFunction function, DeoptimizeKind kind,
               unsigned bailout_id, Address from, int fp_to_sp_delta);
@@ -537,8 +534,8 @@ class Deoptimizer : public Malloced {
   void PrintFunctionName();
   void DeleteFrameDescriptions();
 
-  static bool IsInDeoptimizationTable(Isolate* isolate, Address addr,
-                                      DeoptimizeKind type);
+  static bool IsDeoptimizationEntry(Isolate* isolate, Address addr,
+                                    DeoptimizeKind type);
 
   void DoComputeOutputFrames();
   void DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
@@ -573,10 +570,8 @@ class Deoptimizer : public Malloced {
   static unsigned ComputeOutgoingArgumentSize(Code code, unsigned bailout_id);
 
   static void GenerateDeoptimizationEntries(MacroAssembler* masm,
-                                            Isolate* isolate, int count,
+                                            Isolate* isolate,
                                             DeoptimizeKind kind);
-  static void GenerateDeoptimizationEntriesPrologue(MacroAssembler* masm,
-                                                    int count);
 
   // Marks all the code in the given context for deoptimization.
   static void MarkAllCodeForContext(Context native_context);

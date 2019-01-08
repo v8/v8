@@ -112,17 +112,19 @@ void CodeGenerator::CreateFrameAccessState(Frame* frame) {
 
 CodeGenerator::CodeGenResult CodeGenerator::AssembleDeoptimizerCall(
     int deoptimization_id, SourcePosition pos) {
+  if (deoptimization_id > Deoptimizer::kMaxNumberOfEntries) {
+    return kTooManyDeoptimizationBailouts;
+  }
+
   DeoptimizeKind deopt_kind = GetDeoptimizationKind(deoptimization_id);
   DeoptimizeReason deoptimization_reason =
       GetDeoptimizationReason(deoptimization_id);
-  Address deopt_entry = Deoptimizer::GetDeoptimizationEntry(
-      tasm()->isolate(), deoptimization_id, deopt_kind);
-  if (deopt_entry == kNullAddress) return kTooManyDeoptimizationBailouts;
+  Address deopt_entry =
+      Deoptimizer::GetDeoptimizationEntry(tasm()->isolate(), deopt_kind);
   if (info()->is_source_positions_enabled()) {
     tasm()->RecordDeoptReason(deoptimization_reason, pos, deoptimization_id);
   }
-  tasm()->CallForDeoptimization(deopt_entry, deoptimization_id,
-                                RelocInfo::RUNTIME_ENTRY);
+  tasm()->CallForDeoptimization(deopt_entry, deoptimization_id);
   return kSuccess;
 }
 

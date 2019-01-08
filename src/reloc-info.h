@@ -204,11 +204,6 @@ class RelocInfo {
   // constant pool, otherwise the pointer is embedded in the instruction stream.
   bool IsInConstantPool();
 
-  // Returns the deoptimization id for the entry associated with the reloc info
-  // where {kind} is the deoptimization kind.
-  // This is only used for printing RUNTIME_ENTRY relocation info.
-  int GetDeoptimizationId(Isolate* isolate, DeoptimizeKind kind);
-
   Address wasm_call_address() const;
   Address wasm_stub_call_address() const;
 

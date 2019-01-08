@@ -567,52 +567,34 @@ void Deoptimizer::DeleteFrameDescriptions() {
 #endif  // DEBUG
 }
 
-Address Deoptimizer::GetDeoptimizationEntry(Isolate* isolate, int id,
+Address Deoptimizer::GetDeoptimizationEntry(Isolate* isolate,
                                             DeoptimizeKind kind) {
-  CHECK_GE(id, 0);
-  if (id >= kMaxNumberOfEntries) return kNullAddress;
   DeoptimizerData* data = isolate->deoptimizer_data();
   CHECK_LE(kind, DeoptimizerData::kLastDeoptimizeKind);
   CHECK(!data->deopt_entry_code(kind).is_null());
-  Code code = data->deopt_entry_code(kind);
-  return code->raw_instruction_start() + (id * table_entry_size_);
+  return data->deopt_entry_code(kind)->raw_instruction_start();
 }
 
-int Deoptimizer::GetDeoptimizationId(Isolate* isolate, Address addr,
-                                     DeoptimizeKind kind) {
-  DeoptimizerData* data = isolate->deoptimizer_data();
-  CHECK_LE(kind, DeoptimizerData::kLastDeoptimizeKind);
-  DCHECK(IsInDeoptimizationTable(isolate, addr, kind));
-  Code code = data->deopt_entry_code(kind);
-  Address start = code->raw_instruction_start();
-  DCHECK_EQ(0,
-            static_cast<int>(addr - start) % table_entry_size_);
-  return static_cast<int>(addr - start) / table_entry_size_;
-}
-
-bool Deoptimizer::IsInDeoptimizationTable(Isolate* isolate, Address addr,
-                                          DeoptimizeKind type) {
+bool Deoptimizer::IsDeoptimizationEntry(Isolate* isolate, Address addr,
+                                        DeoptimizeKind type) {
   DeoptimizerData* data = isolate->deoptimizer_data();
   CHECK_LE(type, DeoptimizerData::kLastDeoptimizeKind);
   Code code = data->deopt_entry_code(type);
   if (code.is_null()) return false;
-  Address start = code->raw_instruction_start();
-  return ((table_entry_size_ == 0 && addr == start) ||
-          (addr >= start &&
-           addr < start + (kMaxNumberOfEntries * table_entry_size_)));
+  return addr == code->raw_instruction_start();
 }
 
 bool Deoptimizer::IsDeoptimizationEntry(Isolate* isolate, Address addr,
                                         DeoptimizeKind* type) {
-  if (IsInDeoptimizationTable(isolate, addr, DeoptimizeKind::kEager)) {
+  if (IsDeoptimizationEntry(isolate, addr, DeoptimizeKind::kEager)) {
     *type = DeoptimizeKind::kEager;
     return true;
   }
-  if (IsInDeoptimizationTable(isolate, addr, DeoptimizeKind::kSoft)) {
+  if (IsDeoptimizationEntry(isolate, addr, DeoptimizeKind::kSoft)) {
     *type = DeoptimizeKind::kSoft;
     return true;
   }
-  if (IsInDeoptimizationTable(isolate, addr, DeoptimizeKind::kLazy)) {
+  if (IsDeoptimizationEntry(isolate, addr, DeoptimizeKind::kLazy)) {
     *type = DeoptimizeKind::kLazy;
     return true;
   }
@@ -1846,8 +1828,7 @@ void Deoptimizer::EnsureCodeForDeoptimizationEntry(Isolate* isolate,
 
   MacroAssembler masm(isolate, nullptr, 16 * KB, CodeObjectRequired::kYes);
   masm.set_emit_debug_code(false);
-  GenerateDeoptimizationEntries(&masm, masm.isolate(), kMaxNumberOfEntries,
-                                kind);
+  GenerateDeoptimizationEntries(&masm, masm.isolate(), kind);
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
   DCHECK(!RelocInfo::RequiresRelocationAfterCodegen(desc));
@@ -1863,7 +1844,7 @@ void Deoptimizer::EnsureCodeForDeoptimizationEntry(Isolate* isolate,
   data->set_deopt_entry_code(kind, *code);
 }
 
-void Deoptimizer::EnsureCodeForMaxDeoptimizationEntries(Isolate* isolate) {
+void Deoptimizer::EnsureCodeForDeoptimizationEntries(Isolate* isolate) {
   EnsureCodeForDeoptimizationEntry(isolate, DeoptimizeKind::kEager);
   EnsureCodeForDeoptimizationEntry(isolate, DeoptimizeKind::kLazy);
   EnsureCodeForDeoptimizationEntry(isolate, DeoptimizeKind::kSoft);

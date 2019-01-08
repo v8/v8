@@ -201,14 +201,8 @@ bool RelocInfo::IsCodedSpecially() {
   return RelocInfo::ModeMask(rmode_) & kApplyMask;
 }
 
-
 bool RelocInfo::IsInConstantPool() {
   return false;
-}
-
-int RelocInfo::GetDeoptimizationId(Isolate* isolate, DeoptimizeKind kind) {
-  DCHECK(IsRuntimeEntry(rmode_));
-  return Deoptimizer::GetDeoptimizationId(isolate, target_address(), kind);
 }
 
 uint32_t RelocInfo::wasm_call_tag() const {

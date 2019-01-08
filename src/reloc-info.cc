@@ -474,9 +474,8 @@ void RelocInfo::Print(Isolate* isolate, std::ostream& os) {  // NOLINT
     // Deoptimization bailouts are stored as runtime entries.
     DeoptimizeKind type;
     if (Deoptimizer::IsDeoptimizationEntry(isolate, target_address(), &type)) {
-      int id = GetDeoptimizationId(isolate, type);
-      os << "  (" << Deoptimizer::MessageFor(type) << " deoptimization bailout "
-         << id << ")";
+      os << "  (" << Deoptimizer::MessageFor(type)
+         << " deoptimization bailout)";
     }
   } else if (IsConstPool(rmode_)) {
     os << " (size " << static_cast<int>(data_) << ")";

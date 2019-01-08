@@ -2118,23 +2118,18 @@ bool TurboAssembler::IsNearCallOffset(int64_t offset) {
   return is_int26(offset);
 }
 
-void TurboAssembler::CallForDeoptimization(Address target, int deopt_id,
-                                           RelocInfo::Mode rmode) {
-  DCHECK_EQ(rmode, RelocInfo::RUNTIME_ENTRY);
-
+void TurboAssembler::CallForDeoptimization(Address target, int deopt_id) {
   BlockPoolsScope scope(this);
+  NoRootArrayScope no_root_array(this);
+
 #ifdef DEBUG
   Label start;
   Bind(&start);
 #endif
-  // The deoptimizer requires the deoptimization id to be in x16.
-  UseScratchRegisterScope temps(this);
-  Register temp = temps.AcquireX();
-  DCHECK(temp.Is(x16));
   // Make sure that the deopt id can be encoded in 16 bits, so can be encoded
   // in a single movz instruction with a zero shift.
   DCHECK(is_uint16(deopt_id));
-  movz(temp, deopt_id);
+  movz(x26, deopt_id);
   int64_t offset = static_cast<int64_t>(target) -
                    static_cast<int64_t>(options().code_range_start);
   DCHECK_EQ(offset % kInstrSize, 0);

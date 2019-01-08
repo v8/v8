@@ -250,9 +250,8 @@ static void PrintRelocInfo(StringBuilder* out, Isolate* isolate,
     Address addr = relocinfo->target_address();
     DeoptimizeKind type;
     if (Deoptimizer::IsDeoptimizationEntry(isolate, addr, &type)) {
-      int id = relocinfo->GetDeoptimizationId(isolate, type);
-      out->AddFormatted("    ;; %s deoptimization bailout %d",
-                        Deoptimizer::MessageFor(type), id);
+      out->AddFormatted("    ;; %s deoptimization bailout",
+                        Deoptimizer::MessageFor(type));
     } else {
       out->AddFormatted("    ;; %s", RelocInfo::RelocModeName(rmode));
     }
@@ -370,7 +369,8 @@ static int DecodeIt(Isolate* isolate, ExternalReferenceEncoder* ref_encoder,
     // already, check if we can find some RelocInfo for the target address in
     // the constant pool.
     if (pcs.empty() && !code.is_null()) {
-      RelocInfo dummy_rinfo(reinterpret_cast<Address>(prev_pc), RelocInfo::NONE,
+      RelocInfo dummy_rinfo(reinterpret_cast<Address>(prev_pc),
+      RelocInfo::NONE,
                             0, Code());
       if (dummy_rinfo.IsInConstantPool()) {
         Address constant_pool_entry_address =

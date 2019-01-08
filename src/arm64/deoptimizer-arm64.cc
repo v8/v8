@@ -100,10 +100,9 @@ void RestoreRegList(MacroAssembler* masm, const CPURegList& reg_list,
 }  // namespace
 
 void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
-                                                Isolate* isolate, int count,
+                                                Isolate* isolate,
                                                 DeoptimizeKind deopt_kind) {
   NoRootArrayScope no_root_array(masm);
-  GenerateDeoptimizationEntriesPrologue(masm, count);
 
   // TODO(all): This code needs to be revisited. We probably only need to save
   // caller-saved registers here. Callee-saved registers can be stored directly
@@ -144,18 +143,17 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
   const int kDoubleRegistersOffset =
       kFloatRegistersOffset + saved_float_registers.Count() * kSRegSize;
 
-  // Get the bailout id from the stack.
+  // The bailout id was passed by the caller in x26.
   Register bailout_id = x2;
-  __ Peek(bailout_id, kSavedRegistersAreaSize);
+  __ Mov(bailout_id, x26);
 
   Register code_object = x3;
   Register fp_to_sp = x4;
   // Get the address of the location in the code object. This is the return
   // address for lazy deoptimization.
   __ Mov(code_object, lr);
-  // Compute the fp-to-sp delta, adding two words for alignment padding and
-  // bailout id.
-  __ Add(fp_to_sp, sp, kSavedRegistersAreaSize + (2 * kPointerSize));
+  // Compute the fp-to-sp delta.
+  __ Add(fp_to_sp, sp, kSavedRegistersAreaSize);
   __ Sub(fp_to_sp, fp, fp_to_sp);
 
   // Allocate a new deoptimizer object.
@@ -203,9 +201,9 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
   CopyRegListToFrame(masm, x1, FrameDescription::float_registers_offset(),
                      saved_float_registers, w2, w3, kFloatRegistersOffset);
 
-  // Remove the padding, bailout id and the saved registers from the stack.
+  // Remove the saved registers from the stack.
   DCHECK_EQ(kSavedRegistersAreaSize % kXRegSize, 0);
-  __ Drop(2 + (kSavedRegistersAreaSize / kXRegSize));
+  __ Drop(kSavedRegistersAreaSize / kXRegSize);
 
   // Compute a pointer to the unwinding limit in register x2; that is
   // the first stack slot not part of the input frame.
@@ -287,28 +285,6 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
                                   FrameDescription::continuation_offset()));
   __ Ldr(lr, MemOperand(last_output_frame, FrameDescription::pc_offset()));
   __ Br(continuation);
-}
-
-// Size of an entry of the second level deopt table. Since we do not generate
-// a table for ARM64, the size is zero.
-const int Deoptimizer::table_entry_size_ = 0 * kInstrSize;
-
-void Deoptimizer::GenerateDeoptimizationEntriesPrologue(MacroAssembler* masm,
-                                                        int count) {
-  UseScratchRegisterScope temps(masm);
-  // The MacroAssembler will have put the deoptimization id in x16, the first
-  // temp register allocated. We can't assert that the id is in there, but we
-  // can check that x16 the first allocated temp and that the value it contains
-  // is in the expected range.
-  Register entry_id = temps.AcquireX();
-  DCHECK(entry_id.Is(x16));
-  __ Push(padreg, entry_id);
-
-  if (__ emit_debug_code()) {
-    // Ensure the entry_id looks sensible, ie. 0 <= entry_id < count().
-    __ Cmp(entry_id, count);
-    __ Check(lo, AbortReason::kOffsetOutOfRange);
-  }
 }
 
 bool Deoptimizer::PadTopOfStackRegister() { return true; }

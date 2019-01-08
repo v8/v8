@@ -943,10 +943,10 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl(
 
   if (compilation_info()->is_osr()) data_.InitializeOsrHelper();
 
-  // Make sure that we have generated the maximal number of deopt entries.
-  // This is in order to avoid triggering the generation of deopt entries later
-  // during code assembly.
-  Deoptimizer::EnsureCodeForMaxDeoptimizationEntries(isolate);
+  // Make sure that we have generated the deopt entries code.  This is in order
+  // to avoid triggering the generation of deopt entries later during code
+  // assembly.
+  Deoptimizer::EnsureCodeForDeoptimizationEntries(isolate);
 
   return SUCCEEDED;
 }
@@ -2299,7 +2299,7 @@ MaybeHandle<Code> Pipeline::GenerateCodeForTesting(
   PipelineImpl pipeline(&data);
 
   Linkage linkage(Linkage::ComputeIncoming(data.instruction_zone(), info));
-  Deoptimizer::EnsureCodeForMaxDeoptimizationEntries(isolate);
+  Deoptimizer::EnsureCodeForDeoptimizationEntries(isolate);
 
   if (!pipeline.CreateGraph()) return MaybeHandle<Code>();
   if (!pipeline.OptimizeGraph(&linkage)) return MaybeHandle<Code>();

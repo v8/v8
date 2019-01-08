@@ -13,18 +13,12 @@
 namespace v8 {
 namespace internal {
 
-const int Deoptimizer::table_entry_size_ = 5;
-
 #define __ masm->
 
 void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
-                                                Isolate* isolate, int count,
+                                                Isolate* isolate,
                                                 DeoptimizeKind deopt_kind) {
   NoRootArrayScope no_root_array(masm);
-  Label deopt_table_entry;
-  __ bind(&deopt_table_entry);
-
-  GenerateDeoptimizationEntriesPrologue(masm, count);
 
   // Save all general purpose registers before messing with them.
   const int kNumberOfRegisters = Register::kNumRegisters;
@@ -69,29 +63,13 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
   // this on linux), since it is another parameter passing register on windows.
   Register arg5 = r11;
 
-  // Get the bailout id from the stack.
-  __ movp(rax, Operand(rsp, kSavedRegistersAreaSize));
-
-  // address of deoptimization table
-  __ leap(rdx, Operand(&deopt_table_entry));
-
-  // rax = deopt_entry - deopt_table_entry - 5
-  __ subp(rax, rdx);
-  __ subl(rax, Immediate(5));
-
-  // rax /= 5
-  __ movl(rbx, Immediate(0xcccccccd));
-  __ imulq(rax, rbx);
-  __ shrq(rax, Immediate(0x22));
-
-  // bailout id
-  __ movl(arg_reg_3, rax);
+  // The bailout id is passed using r13 on the stack.
+  __ movp(arg_reg_3, r13);
 
   // Get the address of the location in the code object
   // and compute the fp-to-sp delta in register arg5.
-  __ movp(arg_reg_4, Operand(rsp, kSavedRegistersAreaSize + 1 * kRegisterSize));
-  __ leap(arg5, Operand(rsp, kSavedRegistersAreaSize + 1 * kRegisterSize +
-                            kPCOnStackSize));
+  __ movp(arg_reg_4, Operand(rsp, kSavedRegistersAreaSize));
+  __ leap(arg5, Operand(rsp, kSavedRegistersAreaSize + kPCOnStackSize));
 
   __ subp(arg5, rbp);
   __ negp(arg5);
@@ -150,8 +128,8 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
     __ popq(Operand(rbx, dst_offset));
   }
 
-  // Remove the bailout id and return address from the stack.
-  __ addp(rsp, Immediate(1 * kRegisterSize + kPCOnStackSize));
+  // Remove the return address from the stack.
+  __ addp(rsp, Immediate(kPCOnStackSize));
 
   // Compute a pointer to the unwinding limit in register rcx; that is
   // the first stack slot not part of the input frame.
@@ -241,19 +219,6 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
 
   // Return to the continuation point.
   __ ret(0);
-}
-
-void Deoptimizer::GenerateDeoptimizationEntriesPrologue(MacroAssembler* masm,
-                                                        int count) {
-  // Create a sequence of deoptimization entries.
-  Label done;
-  for (int i = 0; i < count; i++) {
-    int start = masm->pc_offset();
-    USE(start);
-    __ call(&done);
-    DCHECK(masm->pc_offset() - start == table_entry_size_);
-  }
-  __ bind(&done);
 }
 
 bool Deoptimizer::PadTopOfStackRegister() { return false; }

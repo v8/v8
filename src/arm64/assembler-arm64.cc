@@ -190,17 +190,6 @@ bool RelocInfo::IsInConstantPool() {
   return instr->IsLdrLiteralX();
 }
 
-int RelocInfo::GetDeoptimizationId(Isolate* isolate, DeoptimizeKind kind) {
-  DCHECK(IsRuntimeEntry(rmode_));
-  Instruction* movz_instr = reinterpret_cast<Instruction*>(pc_)->preceding();
-  DCHECK(movz_instr->IsMovz());
-  uint64_t imm = static_cast<uint64_t>(movz_instr->ImmMoveWide())
-                 << (16 * movz_instr->ShiftMoveWide());
-  DCHECK_LE(imm, INT_MAX);
-
-  return static_cast<int>(imm);
-}
-
 uint32_t RelocInfo::wasm_call_tag() const {
   DCHECK(rmode_ == WASM_CALL || rmode_ == WASM_STUB_CALL);
   Instruction* instr = reinterpret_cast<Instruction*>(pc_);

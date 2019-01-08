@@ -2506,6 +2506,26 @@ void TurboAssembler::ResetSpeculationPoisonRegister() {
   mov(kSpeculationPoisonRegister, Operand(-1));
 }
 
+void TurboAssembler::CallForDeoptimization(Address target, int deopt_id) {
+  NoRootArrayScope no_root_array(this);
+
+  // Save the deopt id in r10 (we don't need the roots array from now on).
+  DCHECK_LE(deopt_id, 0xFFFF);
+  if (CpuFeatures::IsSupported(ARMv7)) {
+    // On ARMv7, we can use movw (with a maximum immediate of 0xFFFF)
+    movw(r10, deopt_id);
+  } else {
+    // On ARMv6, we might need two instructions.
+    mov(r10, Operand(deopt_id & 0xFF));  // Set the low byte.
+    if (deopt_id >= 0xFF) {
+      orr(r10, r10, Operand(deopt_id & 0xFF00));  // Set the high byte.
+    }
+  }
+
+  Call(target, RelocInfo::RUNTIME_ENTRY);
+  CheckConstPool(false, false);
+}
+
 }  // namespace internal
 }  // namespace v8
 

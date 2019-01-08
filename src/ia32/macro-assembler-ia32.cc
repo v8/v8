@@ -2035,6 +2035,13 @@ void TurboAssembler::ComputeCodeStartAddress(Register dst) {
   }
 }
 
+void TurboAssembler::CallForDeoptimization(Address target, int deopt_id) {
+  NoRootArrayScope no_root_array(this);
+  // Save the deopt id in ebx (we don't need the roots array from now on).
+  mov(ebx, deopt_id);
+  call(target, RelocInfo::RUNTIME_ENTRY);
+}
+
 }  // namespace internal
 }  // namespace v8
 

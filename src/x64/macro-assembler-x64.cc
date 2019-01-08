@@ -2819,6 +2819,13 @@ void TurboAssembler::ResetSpeculationPoisonRegister() {
   Set(kSpeculationPoisonRegister, -1);
 }
 
+void TurboAssembler::CallForDeoptimization(Address target, int deopt_id) {
+  NoRootArrayScope no_root_array(this);
+  // Save the deopt id in r13 (we don't need the roots array from now on).
+  movp(r13, Immediate(deopt_id));
+  call(target, RelocInfo::RUNTIME_ENTRY);
+}
+
 }  // namespace internal
 }  // namespace v8
 
