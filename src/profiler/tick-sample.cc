@@ -286,5 +286,20 @@ void TickSample::Init(Isolate* isolate, const v8::RegisterState& state,
   timestamp = base::TimeTicks::HighResolutionNow();
 }
 
+void TickSample::print() const {
+  PrintF("TickSample: at %p\n", this);
+  PrintF(" - state: %s\n", StateToString(state));
+  PrintF(" - pc: %p\n", pc);
+  PrintF(" - stack: (%u frames)\n", frames_count);
+  for (unsigned i = 0; i < frames_count; i++) {
+    PrintF("    %p\n", stack[i]);
+  }
+  PrintF(" - has_external_callback: %d\n", has_external_callback);
+  PrintF(" - %s: %p\n",
+         has_external_callback ? "external_callback_entry" : "tos", tos);
+  PrintF(" - update_stats: %d\n", update_stats);
+  PrintF("\n");
+}
+
 }  // namespace internal
 }  // namespace v8

@@ -1772,7 +1772,7 @@ const double load_factor = 1.0;
 //                        bailed out due to 'Optimization is always disabled'
 //     2    (program):0 0 #2
 TEST(Inlining2) {
-  i::FLAG_allow_natives_syntax = true;
+  FLAG_allow_natives_syntax = true;
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
   v8::Context::Scope context_scope(env);

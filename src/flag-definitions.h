@@ -934,6 +934,8 @@ DEFINE_BOOL(trace_compiler_dispatcher, false,
 // cpu-profiler.cc
 DEFINE_INT(cpu_profiler_sampling_interval, 1000,
            "CPU profiler sampling interval in microseconds")
+DEFINE_BOOL(cpu_profiler_logging, false,
+            "Detailed logging from the CPU profiler to help find bugs")
 
 // Array abuse tracing
 DEFINE_BOOL(trace_js_array_abuse, false,

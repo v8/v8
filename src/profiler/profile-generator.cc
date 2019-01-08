@@ -780,6 +780,11 @@ void ProfileGenerator::RecordTickSample(const TickSample& sample) {
   int src_line = no_line_info;
   bool src_line_not_found = true;
 
+  if (FLAG_cpu_profiler_logging) {
+    PrintF("RecordTickSample: ");
+    sample.print();
+  }
+
   if (sample.pc != nullptr) {
     if (sample.has_external_callback && sample.state == EXTERNAL) {
       // Don't use PC when in external callback code, as it can point
@@ -888,6 +893,18 @@ void ProfileGenerator::RecordTickSample(const TickSample& sample) {
     if (no_symbolized_entries) {
       stack_trace.push_back({EntryForVMState(sample.state), no_line_info});
     }
+  }
+
+  if (FLAG_cpu_profiler_logging) {
+    PrintF("stack_trace:\n");
+    for (const CodeEntryAndLineNumber& pair : stack_trace) {
+      if (pair.code_entry) {
+        PrintF("  %s at %d\n", pair.code_entry->name(), pair.line_number);
+      } else {
+        PrintF("  null code entry\n");
+      }
+    }
+    PrintF("\n");
   }
 
   profiles_->AddPathToCurrentProfiles(sample.timestamp, stack_trace, src_line,
