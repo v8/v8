@@ -1660,18 +1660,11 @@ Local<String> Shell::Stringify(Isolate* isolate, Local<Value> value) {
   v8::Local<v8::Context> context =
       v8::Local<v8::Context>::New(isolate, evaluation_context_);
   if (stringify_function_.IsEmpty()) {
-    int source_index = i::NativesCollection<i::D8>::GetIndex("d8");
-    i::Vector<const char> source_string =
-        i::NativesCollection<i::D8>::GetScriptSource(source_index);
-    i::Vector<const char> source_name =
-        i::NativesCollection<i::D8>::GetScriptName(source_index);
     Local<String> source =
-        String::NewFromUtf8(isolate, source_string.start(),
-                            NewStringType::kNormal, source_string.length())
+        String::NewFromUtf8(isolate, stringify_source_, NewStringType::kNormal)
             .ToLocalChecked();
     Local<String> name =
-        String::NewFromUtf8(isolate, source_name.start(),
-                            NewStringType::kNormal, source_name.length())
+        String::NewFromUtf8(isolate, "d8-stringify", NewStringType::kNormal)
             .ToLocalChecked();
     ScriptOrigin origin(name);
     Local<Script> script =

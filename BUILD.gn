@@ -730,24 +730,6 @@ action("js2c_extras") {
   }
 }
 
-action("d8_js2c") {
-  visibility = [ ":*" ]  # Only targets in this file can depend on this.
-
-  script = "tools/js2c.py"
-
-  # NOSORT
-  inputs = [
-    "src/d8.js",
-  ]
-
-  outputs = [
-    "$target_gen_dir/d8-js.cc",
-  ]
-
-  args = rebase_path(outputs, root_build_dir) + [ "D8" ] +
-         rebase_path(inputs, root_build_dir)
-}
-
 if (is_android && enable_java_templates) {
   android_assets("v8_external_startup_data_assets") {
     if (v8_use_external_startup_data) {
@@ -3603,11 +3585,11 @@ if (is_component_build) {
 
 v8_executable("d8") {
   sources = [
-    "$target_gen_dir/d8-js.cc",
     "src/async-hooks-wrapper.cc",
     "src/async-hooks-wrapper.h",
     "src/d8-console.cc",
     "src/d8-console.h",
+    "src/d8-js.cc",
     "src/d8-platforms.cc",
     "src/d8-platforms.h",
     "src/d8.cc",
@@ -3622,7 +3604,6 @@ v8_executable("d8") {
   ]
 
   deps = [
-    ":d8_js2c",
     ":v8",
     ":v8_libbase",
     ":v8_libplatform",
@@ -4089,7 +4070,6 @@ group("v8_generated_cc_files") {
   testonly = true
 
   deps = [
-    ":d8_js2c",
     ":generate_bytecode_builtins_list",
     ":js2c_extras",
     ":run_torque",
