@@ -4194,17 +4194,20 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
         prop_info.is_computed_name) {
       class_info.has_static_computed_names = true;
     }
-    if (prop_info.is_computed_name &&
-        property_kind == ClassLiteralProperty::FIELD) {
-      DCHECK(!prop_info.is_private);
-      class_info.computed_field_count++;
-    }
     is_constructor &= class_info.has_seen_constructor;
 
-    impl()->DeclareClassProperty(name, property, prop_info.name, property_kind,
-                                 prop_info.is_static, is_constructor,
-                                 prop_info.is_computed_name,
-                                 prop_info.is_private, &class_info);
+    if (V8_UNLIKELY(property_kind == ClassLiteralProperty::FIELD)) {
+      if (prop_info.is_computed_name) {
+        DCHECK(!prop_info.is_private);
+        class_info.computed_field_count++;
+      }
+
+      impl()->DeclareClassField(property, prop_info.name, prop_info.is_static,
+                                prop_info.is_computed_name,
+                                prop_info.is_private, &class_info);
+    } else {
+      impl()->DeclareClassProperty(name, property, is_constructor, &class_info);
+    }
     impl()->InferFunctionName();
   }
 

@@ -1252,21 +1252,20 @@ class PreParser : public ParserBase<PreParser> {
   }
   V8_INLINE void DeclareClassProperty(const PreParserIdentifier& class_name,
                                       const PreParserExpression& property,
-                                      const PreParserIdentifier& property_name,
-                                      ClassLiteralProperty::Kind kind,
-                                      bool is_static, bool is_constructor,
-                                      bool is_computed_name, bool is_private,
-                                      ClassInfo* class_info) {
-    if (kind == ClassLiteralProperty::FIELD && !is_private &&
-        is_computed_name) {
+                                      bool is_constructor,
+                                      ClassInfo* class_info) {}
+
+  V8_INLINE void DeclareClassField(const PreParserExpression& property,
+                                   const PreParserIdentifier& property_name,
+                                   bool is_static, bool is_computed_name,
+                                   bool is_private, ClassInfo* class_info) {
+    DCHECK_IMPLIES(is_computed_name, !is_private);
+    if (is_computed_name) {
       scope()->DeclareVariableName(
           ClassFieldVariableName(ast_value_factory(),
                                  class_info->computed_field_count),
           VariableMode::kConst);
-    }
-
-    if (kind == ClassLiteralProperty::FIELD && is_private &&
-        property_name.string_ != nullptr) {
+    } else if (is_private && property_name.string_ != nullptr) {
       scope()->DeclareVariableName(property_name.string_, VariableMode::kConst);
     }
   }
