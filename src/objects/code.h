@@ -76,13 +76,13 @@ class Code : public HeapObject {
   int OffHeapInstructionSize() const;
 
   // [relocation_info]: Code relocation information
-  DECL_ACCESSORS2(relocation_info, ByteArray)
+  DECL_ACCESSORS(relocation_info, ByteArray)
 
   // This function should be called only from GC.
   void ClearEmbeddedObjects(Heap* heap);
 
   // [deoptimization_data]: Array containing data for deopt.
-  DECL_ACCESSORS2(deoptimization_data, FixedArray)
+  DECL_ACCESSORS(deoptimization_data, FixedArray)
 
   // [source_position_table]: ByteArray for the source positions table or
   // SourcePositionTableWithFrameCache.
@@ -90,7 +90,7 @@ class Code : public HeapObject {
   inline ByteArray SourcePositionTable() const;
 
   // [code_data_container]: A container indirection for all mutable fields.
-  DECL_ACCESSORS2(code_data_container, CodeDataContainer)
+  DECL_ACCESSORS(code_data_container, CodeDataContainer)
 
   // [next_code_link]: Link for lists of optimized or deoptimized code.
   // Note that this field is stored in the {CodeDataContainer} to be mutable.
@@ -330,7 +330,7 @@ class Code : public HeapObject {
   // the layout of the code object into account.
   inline int ExecutableSize() const;
 
-  DECL_CAST2(Code)
+  DECL_CAST(Code)
 
   // Dispatched behavior.
   inline int CodeSize() const;
@@ -488,7 +488,7 @@ class CodeDataContainer : public HeapObject {
   // is deterministic.
   inline void clear_padding();
 
-  DECL_CAST2(CodeDataContainer)
+  DECL_CAST(CodeDataContainer)
 
   // Dispatched behavior.
   DECL_PRINTER(CodeDataContainer)
@@ -578,7 +578,7 @@ class AbstractCode : public HeapObject {
   // the layout of the code object into account.
   inline int ExecutableSize();
 
-  DECL_CAST2(AbstractCode)
+  DECL_CAST(AbstractCode)
   inline Code GetCode();
   inline BytecodeArray GetBytecodeArray();
 
@@ -610,7 +610,7 @@ class AbstractCode : public HeapObject {
 
 class DependentCode : public WeakFixedArray {
  public:
-  DECL_CAST2(DependentCode)
+  DECL_CAST(DependentCode)
 
   enum DependencyGroup {
     // Group of code that embed a transition to this map, and depend on being
@@ -759,10 +759,10 @@ class BytecodeArray : public FixedArrayBase {
   inline void set_bytecode_age(Age age);
 
   // Accessors for the constant pool.
-  DECL_ACCESSORS2(constant_pool, FixedArray)
+  DECL_ACCESSORS(constant_pool, FixedArray)
 
   // Accessors for handler table containing offsets of exception handlers.
-  DECL_ACCESSORS2(handler_table, ByteArray)
+  DECL_ACCESSORS(handler_table, ByteArray)
 
   // Accessors for source position table containing mappings between byte code
   // offset and source position or SourcePositionTableWithFrameCache.
@@ -771,7 +771,7 @@ class BytecodeArray : public FixedArrayBase {
   inline ByteArray SourcePositionTable();
   inline void ClearFrameCacheFromSourcePositionTable();
 
-  DECL_CAST2(BytecodeArray)
+  DECL_CAST(BytecodeArray)
 
   // Dispatched behavior.
   inline int BytecodeArraySize();
@@ -900,7 +900,7 @@ class DeoptimizationData : public FixedArray {
   // Return an empty DeoptimizationData.
   static Handle<DeoptimizationData> Empty(Isolate* isolate);
 
-  DECL_CAST2(DeoptimizationData)
+  DECL_CAST(DeoptimizationData)
 
 #ifdef ENABLE_DISASSEMBLER
   void DeoptimizationDataPrint(std::ostream& os);  // NOLINT
@@ -918,10 +918,10 @@ class DeoptimizationData : public FixedArray {
 
 class SourcePositionTableWithFrameCache : public Tuple2 {
  public:
-  DECL_ACCESSORS2(source_position_table, ByteArray)
-  DECL_ACCESSORS2(stack_frame_cache, SimpleNumberDictionary)
+  DECL_ACCESSORS(source_position_table, ByteArray)
+  DECL_ACCESSORS(stack_frame_cache, SimpleNumberDictionary)
 
-  DECL_CAST2(SourcePositionTableWithFrameCache)
+  DECL_CAST(SourcePositionTableWithFrameCache)
 
 // Layout description.
 #define SOURCE_POSITION_TABLE_WITH_FRAME_FIELDS(V) \

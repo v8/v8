@@ -47,13 +47,13 @@ ACCESSORS(JSCollectionIterator, index, Object, kIndexOffset)
 
 ACCESSORS(JSWeakCollection, table, Object, kTableOffset)
 
-CAST_ACCESSOR2(JSSet)
-CAST_ACCESSOR2(JSSetIterator)
-CAST_ACCESSOR2(JSMap)
-CAST_ACCESSOR2(JSMapIterator)
-CAST_ACCESSOR2(JSWeakCollection)
-CAST_ACCESSOR2(JSWeakMap)
-CAST_ACCESSOR2(JSWeakSet)
+CAST_ACCESSOR(JSSet)
+CAST_ACCESSOR(JSSetIterator)
+CAST_ACCESSOR(JSMap)
+CAST_ACCESSOR(JSMapIterator)
+CAST_ACCESSOR(JSWeakCollection)
+CAST_ACCESSOR(JSWeakMap)
+CAST_ACCESSOR(JSWeakSet)
 
 Object JSMapIterator::CurrentValue() {
   OrderedHashMap table = OrderedHashMap::cast(this->table());

@@ -34,8 +34,8 @@ ACCESSORS(FunctionTemplateInfo, class_name, Object, kClassNameOffset)
 ACCESSORS(FunctionTemplateInfo, signature, Object, kSignatureOffset)
 ACCESSORS(FunctionTemplateInfo, shared_function_info, Object,
           kSharedFunctionInfoOffset)
-ACCESSORS2(FunctionTemplateInfo, rare_data, HeapObject,
-           kFunctionTemplateRareDataOffset)
+ACCESSORS(FunctionTemplateInfo, rare_data, HeapObject,
+          kFunctionTemplateRareDataOffset)
 ACCESSORS(FunctionTemplateInfo, cached_property_name, Object,
           kCachedPropertyNameOffset)
 SMI_ACCESSORS(FunctionTemplateInfo, length, kLengthOffset)
@@ -109,10 +109,10 @@ ACCESSORS(FunctionTemplateRareData, access_check_info, Object,
 ACCESSORS(ObjectTemplateInfo, constructor, Object, kConstructorOffset)
 ACCESSORS(ObjectTemplateInfo, data, Object, kDataOffset)
 
-CAST_ACCESSOR2(TemplateInfo)
-CAST_ACCESSOR2(FunctionTemplateInfo)
-CAST_ACCESSOR2(FunctionTemplateRareData)
-CAST_ACCESSOR2(ObjectTemplateInfo)
+CAST_ACCESSOR(TemplateInfo)
+CAST_ACCESSOR(FunctionTemplateInfo)
+CAST_ACCESSOR(FunctionTemplateRareData)
+CAST_ACCESSOR(ObjectTemplateInfo)
 
 bool FunctionTemplateInfo::instantiated() {
   return shared_function_info()->IsSharedFunctionInfo();

@@ -19,7 +19,7 @@ OBJECT_CONSTRUCTORS_IMPL(StackFrameInfo, Struct)
 
 NEVER_READ_ONLY_SPACE_IMPL(StackFrameInfo)
 
-CAST_ACCESSOR2(StackFrameInfo)
+CAST_ACCESSOR(StackFrameInfo)
 
 SMI_ACCESSORS(StackFrameInfo, line_number, kLineNumberIndex)
 SMI_ACCESSORS(StackFrameInfo, column_number, kColumnNumberIndex)

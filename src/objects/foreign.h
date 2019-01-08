@@ -21,7 +21,7 @@ class Foreign : public HeapObject {
 
   static inline bool IsNormalized(Object object);
 
-  DECL_CAST2(Foreign)
+  DECL_CAST(Foreign)
 
   // Dispatched behavior.
   DECL_PRINTER(Foreign)

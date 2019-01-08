@@ -43,7 +43,7 @@ class PropertyArray : public HeapObject {
   }
   static constexpr int OffsetOfElementAt(int index) { return SizeFor(index); }
 
-  DECL_CAST2(PropertyArray)
+  DECL_CAST(PropertyArray)
   DECL_PRINTER(PropertyArray)
   DECL_VERIFIER(PropertyArray)
 

@@ -15,8 +15,8 @@
 namespace v8 {
 namespace internal {
 
-CAST_ACCESSOR2(StringSet)
-CAST_ACCESSOR2(StringTable)
+CAST_ACCESSOR(StringSet)
+CAST_ACCESSOR(StringTable)
 
 StringTable::StringTable(Address ptr)
     : HashTable<StringTable, StringTableShape>(ptr) {

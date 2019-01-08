@@ -423,7 +423,7 @@ class Map : public HeapObject {
   // [raw_transitions]: Provides access to the transitions storage field.
   // Don't call set_raw_transitions() directly to overwrite transitions, use
   // the TransitionArray::ReplaceTransitions() wrapper instead!
-  DECL_ACCESSORS2(raw_transitions, MaybeObject)
+  DECL_ACCESSORS(raw_transitions, MaybeObject)
   // [prototype_info]: Per-prototype metadata. Aliased with transitions
   // (which prototype maps don't have).
   DECL_ACCESSORS(prototype_info, Object)
@@ -580,7 +580,7 @@ class Map : public HeapObject {
                               int number_of_own_descriptors);
 
   // [layout descriptor]: describes the object layout.
-  DECL_ACCESSORS2(layout_descriptor, LayoutDescriptor)
+  DECL_ACCESSORS(layout_descriptor, LayoutDescriptor)
   // |layout descriptor| accessor which can be used from GC.
   inline LayoutDescriptor layout_descriptor_gc_safe() const;
   inline bool HasFastPointerLayout() const;
@@ -598,7 +598,7 @@ class Map : public HeapObject {
                                     LayoutDescriptor layout_descriptor);
 
   // [dependent code]: list of optimized codes that weakly embed this map.
-  DECL_ACCESSORS2(dependent_code, DependentCode)
+  DECL_ACCESSORS(dependent_code, DependentCode)
 
   // [prototype_validity_cell]: Cell containing the validity bit for prototype
   // chains or Smi(0) if uninitialized.
@@ -756,7 +756,7 @@ class Map : public HeapObject {
   // Returns the number of enumerable properties.
   int NumberOfEnumerableProperties() const;
 
-  DECL_CAST2(Map)
+  DECL_CAST(Map)
 
   static inline int SlackForArraySize(int old_size, int size_limit);
 
@@ -995,7 +995,7 @@ class NormalizedMapCache : public WeakFixedArray {
                                              PropertyNormalizationMode mode);
   void Set(Handle<Map> fast_map, Handle<Map> normalized_map);
 
-  DECL_CAST2(NormalizedMapCache)
+  DECL_CAST(NormalizedMapCache)
 
   static inline bool IsNormalizedMapCache(const HeapObject obj);
 

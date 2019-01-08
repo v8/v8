@@ -23,9 +23,9 @@ class JSWeakFactory : public JSObject {
  public:
   DECL_PRINTER(JSWeakFactory)
   DECL_VERIFIER(JSWeakFactory)
-  DECL_CAST2(JSWeakFactory)
+  DECL_CAST(JSWeakFactory)
 
-  DECL_ACCESSORS2(native_context, NativeContext)
+  DECL_ACCESSORS(native_context, NativeContext)
   DECL_ACCESSORS(cleanup, Object)
   DECL_ACCESSORS(active_cells, Object)
   DECL_ACCESSORS(cleared_cells, Object)
@@ -77,7 +77,7 @@ class JSWeakCell : public JSObject {
  public:
   DECL_PRINTER(JSWeakCell)
   DECL_VERIFIER(JSWeakCell)
-  DECL_CAST2(JSWeakCell)
+  DECL_CAST(JSWeakCell)
 
   DECL_ACCESSORS(factory, Object)
   DECL_ACCESSORS(target, Object)
@@ -120,7 +120,7 @@ class JSWeakRef : public JSObject {
  public:
   DECL_PRINTER(JSWeakRef)
   DECL_VERIFIER(JSWeakRef)
-  DECL_CAST2(JSWeakRef)
+  DECL_CAST(JSWeakRef)
 
   DECL_ACCESSORS(target, Object)
 
@@ -134,9 +134,9 @@ class JSWeakRef : public JSObject {
 
 class WeakFactoryCleanupJobTask : public Microtask {
  public:
-  DECL_ACCESSORS2(factory, JSWeakFactory)
+  DECL_ACCESSORS(factory, JSWeakFactory)
 
-  DECL_CAST2(WeakFactoryCleanupJobTask)
+  DECL_CAST(WeakFactoryCleanupJobTask)
   DECL_VERIFIER(WeakFactoryCleanupJobTask)
   DECL_PRINTER(WeakFactoryCleanupJobTask)
 
@@ -157,9 +157,9 @@ class JSWeakFactoryCleanupIterator : public JSObject {
  public:
   DECL_PRINTER(JSWeakFactoryCleanupIterator)
   DECL_VERIFIER(JSWeakFactoryCleanupIterator)
-  DECL_CAST2(JSWeakFactoryCleanupIterator)
+  DECL_CAST(JSWeakFactoryCleanupIterator)
 
-  DECL_ACCESSORS2(factory, JSWeakFactory)
+  DECL_ACCESSORS(factory, JSWeakFactory)
 
 // Layout description.
 #define JS_WEAK_FACTORY_CLEANUP_ITERATOR_FIELDS(V) \

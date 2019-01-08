@@ -19,7 +19,7 @@ namespace internal {
 
 OBJECT_CONSTRUCTORS_IMPL(PrototypeInfo, Struct)
 
-CAST_ACCESSOR2(PrototypeInfo)
+CAST_ACCESSOR(PrototypeInfo)
 
 Map PrototypeInfo::ObjectCreateMap() {
   return Map::cast(object_create_map()->GetHeapObjectAssumeWeak());

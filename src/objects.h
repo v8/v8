@@ -928,7 +928,7 @@ class Object {
 
   void ShortPrint(std::ostream& os) const;  // NOLINT
 
-  DECL_CAST2(Object)
+  DECL_CAST(Object)
 
   // Layout description.
   static const int kHeaderSize = 0;  // Object does not take up any space.

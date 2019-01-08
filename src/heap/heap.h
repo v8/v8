@@ -937,11 +937,6 @@ class Heap {
   // with off-heap Addresses.
   bool InSpaceSlow(Address addr, AllocationSpace space);
 
-  // This takes a HeapObject* (as opposed to a plain HeapObject)
-  // to keep the WRITE_BARRIER macro syntax-compatible to the old HeapObject*
-  // version.
-  // TODO(3770): This should probably take a HeapObject eventually.
-  static inline Heap* FromWritableHeapObject(const HeapObject* obj);
   static inline Heap* FromWritableHeapObject(const HeapObject obj);
 
   // ===========================================================================

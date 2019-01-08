@@ -21,9 +21,9 @@ namespace internal {
 OBJECT_CONSTRUCTORS_IMPL(JSRelativeTimeFormat, JSObject)
 
 // Base relative time format accessors.
-ACCESSORS2(JSRelativeTimeFormat, locale, String, kLocaleOffset)
-ACCESSORS2(JSRelativeTimeFormat, icu_formatter,
-           Managed<icu::RelativeDateTimeFormatter>, kICUFormatterOffset)
+ACCESSORS(JSRelativeTimeFormat, locale, String, kLocaleOffset)
+ACCESSORS(JSRelativeTimeFormat, icu_formatter,
+          Managed<icu::RelativeDateTimeFormatter>, kICUFormatterOffset)
 SMI_ACCESSORS(JSRelativeTimeFormat, flags, kFlagsOffset)
 
 inline void JSRelativeTimeFormat::set_style(Style style) {
@@ -48,7 +48,7 @@ inline JSRelativeTimeFormat::Numeric JSRelativeTimeFormat::numeric() const {
   return NumericBits::decode(flags());
 }
 
-CAST_ACCESSOR2(JSRelativeTimeFormat);
+CAST_ACCESSOR(JSRelativeTimeFormat);
 
 }  // namespace internal
 }  // namespace v8

@@ -39,7 +39,7 @@ class DebugInfo : public Struct {
   DECL_INT_ACCESSORS(flags)
 
   // The shared function info for the source being debugged.
-  DECL_ACCESSORS2(shared, SharedFunctionInfo)
+  DECL_ACCESSORS(shared, SharedFunctionInfo)
 
   // Bit field containing various information collected for debugging.
   DECL_INT_ACCESSORS(debugger_hints)
@@ -92,7 +92,7 @@ class DebugInfo : public Struct {
   DECL_ACCESSORS(debug_bytecode_array, Object)
 
   // Fixed array holding status information for each active break point.
-  DECL_ACCESSORS2(break_points, FixedArray)
+  DECL_ACCESSORS(break_points, FixedArray)
 
   // Check if there is a break point at a source position.
   bool HasBreakPoint(Isolate* isolate, int source_position);
@@ -162,7 +162,7 @@ class DebugInfo : public Struct {
   void ClearCoverageInfo(Isolate* isolate);
   DECL_ACCESSORS(coverage_info, Object)
 
-  DECL_CAST2(DebugInfo)
+  DECL_CAST(DebugInfo)
 
   // Dispatched behavior.
   DECL_PRINTER(DebugInfo)
@@ -217,7 +217,7 @@ class BreakPointInfo : public Tuple2 {
 
   int GetStatementPosition(Handle<DebugInfo> debug_info);
 
-  DECL_CAST2(BreakPointInfo)
+  DECL_CAST(BreakPointInfo)
 
   static const int kSourcePositionOffset = kValue1Offset;
   static const int kBreakPointsOffset = kValue2Offset;
@@ -242,7 +242,7 @@ class CoverageInfo : public FixedArray {
     return slot_count * kSlotIndexCount + kFirstSlotIndex;
   }
 
-  DECL_CAST2(CoverageInfo)
+  DECL_CAST(CoverageInfo)
 
   // Print debug info.
   void Print(std::unique_ptr<char[]> function_name);
@@ -268,9 +268,9 @@ class CoverageInfo : public FixedArray {
 class BreakPoint : public Tuple2 {
  public:
   DECL_INT_ACCESSORS(id)
-  DECL_ACCESSORS2(condition, String)
+  DECL_ACCESSORS(condition, String)
 
-  DECL_CAST2(BreakPoint)
+  DECL_CAST(BreakPoint)
 
   static const int kIdOffset = kValue1Offset;
   static const int kConditionOffset = kValue2Offset;

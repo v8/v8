@@ -95,7 +95,7 @@ class JSArray : public JSObject {
   // to Proxies and objects with a hidden prototype.
   inline bool HasArrayPrototype(Isolate* isolate);
 
-  DECL_CAST2(JSArray)
+  DECL_CAST(JSArray)
 
   // Dispatched behavior.
   DECL_PRINTER(JSArray)
@@ -145,7 +145,7 @@ class JSArrayIterator : public JSObject {
   DECL_PRINTER(JSArrayIterator)
   DECL_VERIFIER(JSArrayIterator)
 
-  DECL_CAST2(JSArrayIterator)
+  DECL_CAST(JSArrayIterator)
 
   // [iterated_object]: the [[IteratedObject]] inobject property.
   DECL_ACCESSORS(iterated_object, Object)

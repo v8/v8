@@ -83,7 +83,7 @@ class StringTable : public HashTable<StringTable, StringTableShape> {
 
   static void EnsureCapacityForDeserialization(Isolate* isolate, int expected);
 
-  DECL_CAST2(StringTable)
+  DECL_CAST(StringTable)
 
   static const int kMaxEmptyFactor = 4;
   static const int kMinCapacity = 2048;
@@ -113,7 +113,7 @@ class StringSet : public HashTable<StringSet, StringSetShape> {
                                Handle<String> name);
   bool Has(Isolate* isolate, Handle<String> name);
 
-  DECL_CAST2(StringSet)
+  DECL_CAST(StringSet)
   OBJECT_CONSTRUCTORS(StringSet, HashTable<StringSet, StringSetShape>)
 };
 

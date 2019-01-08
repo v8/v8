@@ -16,10 +16,10 @@
 namespace v8 {
 namespace internal {
 
-CAST_ACCESSOR2(GlobalDictionary)
-CAST_ACCESSOR2(NameDictionary)
-CAST_ACCESSOR2(NumberDictionary)
-CAST_ACCESSOR2(SimpleNumberDictionary)
+CAST_ACCESSOR(GlobalDictionary)
+CAST_ACCESSOR(NameDictionary)
+CAST_ACCESSOR(NumberDictionary)
+CAST_ACCESSOR(SimpleNumberDictionary)
 
 template <typename Derived, typename Shape>
 Dictionary<Derived, Shape>::Dictionary(Address ptr)

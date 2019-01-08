@@ -18,7 +18,7 @@ class Cell : public HeapObject {
   // [value]: value of the cell.
   DECL_ACCESSORS(value, Object)
 
-  DECL_CAST2(Cell)
+  DECL_CAST(Cell)
 
   static inline Cell FromValueAddress(Address value);
 

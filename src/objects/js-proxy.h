@@ -27,7 +27,7 @@ class JSProxy : public JSReceiver {
 
   static MaybeHandle<Context> GetFunctionRealm(Handle<JSProxy> proxy);
 
-  DECL_CAST2(JSProxy)
+  DECL_CAST(JSProxy)
 
   V8_INLINE bool IsRevoked() const;
   static void Revoke(Handle<JSProxy> proxy);

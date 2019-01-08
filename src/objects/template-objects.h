@@ -21,13 +21,13 @@ namespace internal {
 // method.
 class TemplateObjectDescription final : public Tuple2 {
  public:
-  DECL_ACCESSORS2(raw_strings, FixedArray)
-  DECL_ACCESSORS2(cooked_strings, FixedArray)
+  DECL_ACCESSORS(raw_strings, FixedArray)
+  DECL_ACCESSORS(cooked_strings, FixedArray)
 
   static Handle<JSArray> CreateTemplateObject(
       Isolate* isolate, Handle<TemplateObjectDescription> description);
 
-  DECL_CAST2(TemplateObjectDescription)
+  DECL_CAST(TemplateObjectDescription)
 
   static constexpr int kRawStringsOffset = kValue1Offset;
   static constexpr int kCookedStringsOffset = kValue2Offset;

@@ -19,7 +19,7 @@ namespace internal {
 
 OBJECT_CONSTRUCTORS_IMPL(JSRegExp, JSObject)
 
-CAST_ACCESSOR2(JSRegExp)
+CAST_ACCESSOR(JSRegExp)
 
 ACCESSORS(JSRegExp, data, Object, kDataOffset)
 ACCESSORS(JSRegExp, flags, Object, kFlagsOffset)

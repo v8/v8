@@ -28,20 +28,20 @@ namespace v8 {
 namespace internal {
 
 OBJECT_CONSTRUCTORS_IMPL(Map, HeapObject)
-CAST_ACCESSOR2(Map)
+CAST_ACCESSOR(Map)
 
 DescriptorArray Map::instance_descriptors() const {
-  return DescriptorArray::cast(READ_FIELD(this, kDescriptorsOffset));
+  return DescriptorArray::cast(READ_FIELD(*this, kDescriptorsOffset));
 }
 
 DescriptorArray Map::synchronized_instance_descriptors() const {
-  return DescriptorArray::cast(ACQUIRE_READ_FIELD(this, kDescriptorsOffset));
+  return DescriptorArray::cast(ACQUIRE_READ_FIELD(*this, kDescriptorsOffset));
 }
 
 void Map::set_synchronized_instance_descriptors(DescriptorArray value,
                                                 WriteBarrierMode mode) {
-  RELEASE_WRITE_FIELD(this, kDescriptorsOffset, value);
-  CONDITIONAL_WRITE_BARRIER(this, kDescriptorsOffset, value, mode);
+  RELEASE_WRITE_FIELD(*this, kDescriptorsOffset, value);
+  CONDITIONAL_WRITE_BARRIER(*this, kDescriptorsOffset, value, mode);
 }
 
 // A freshly allocated layout descriptor can be set on an existing map.
@@ -569,8 +569,8 @@ Object Map::prototype() const { return READ_FIELD(this, kPrototypeOffset); }
 
 void Map::set_prototype(Object value, WriteBarrierMode mode) {
   DCHECK(value->IsNull() || value->IsJSReceiver());
-  WRITE_FIELD(this, kPrototypeOffset, value);
-  CONDITIONAL_WRITE_BARRIER(this, kPrototypeOffset, value, mode);
+  WRITE_FIELD(*this, kPrototypeOffset, value);
+  CONDITIONAL_WRITE_BARRIER(*this, kPrototypeOffset, value, mode);
 }
 
 LayoutDescriptor Map::layout_descriptor_gc_safe() const {
@@ -578,7 +578,7 @@ LayoutDescriptor Map::layout_descriptor_gc_safe() const {
   // The loaded value can be dereferenced on background thread to load the
   // bitmap. We need acquire load in order to ensure that the bitmap
   // initializing stores are also visible to the background thread.
-  Object layout_desc = ACQUIRE_READ_FIELD(this, kLayoutDescriptorOffset);
+  Object layout_desc = ACQUIRE_READ_FIELD(*this, kLayoutDescriptorOffset);
   return LayoutDescriptor::cast_gc_safe(layout_desc);
 }
 
@@ -586,7 +586,7 @@ bool Map::HasFastPointerLayout() const {
   DCHECK(FLAG_unbox_double_fields);
   // The loaded value is used for SMI check only and is not dereferenced,
   // so relaxed load is safe.
-  Object layout_desc = RELAXED_READ_FIELD(this, kLayoutDescriptorOffset);
+  Object layout_desc = RELAXED_READ_FIELD(*this, kLayoutDescriptorOffset);
   return LayoutDescriptor::IsFastPointerLayout(layout_desc);
 }
 
@@ -699,9 +699,9 @@ Object Map::prototype_info() const {
 
 void Map::set_prototype_info(Object value, WriteBarrierMode mode) {
   CHECK(is_prototype_map());
-  WRITE_FIELD(this, Map::kTransitionsOrPrototypeInfoOffset, value);
-  CONDITIONAL_WRITE_BARRIER(this, Map::kTransitionsOrPrototypeInfoOffset, value,
-                            mode);
+  WRITE_FIELD(*this, Map::kTransitionsOrPrototypeInfoOffset, value);
+  CONDITIONAL_WRITE_BARRIER(*this, Map::kTransitionsOrPrototypeInfoOffset,
+                            value, mode);
 }
 
 void Map::SetBackPointer(Object value, WriteBarrierMode mode) {
@@ -713,7 +713,7 @@ void Map::SetBackPointer(Object value, WriteBarrierMode mode) {
   set_constructor_or_backpointer(value, mode);
 }
 
-ACCESSORS2(Map, dependent_code, DependentCode, kDependentCodeOffset)
+ACCESSORS(Map, dependent_code, DependentCode, kDependentCodeOffset)
 ACCESSORS(Map, prototype_validity_cell, Object, kPrototypeValidityCellOffset)
 ACCESSORS(Map, constructor_or_backpointer, Object,
           kConstructorOrBackPointerOffset)

@@ -30,7 +30,7 @@ class Zone;
 class Module : public Struct {
  public:
   NEVER_READ_ONLY_SPACE
-  DECL_CAST2(Module)
+  DECL_CAST(Module)
   DECL_VERIFIER(Module)
   DECL_PRINTER(Module)
 
@@ -44,12 +44,12 @@ class Module : public Struct {
   // A cell's position in the array is determined by the cell index of the
   // associated module entry (which coincides with the variable index of the
   // associated variable).
-  DECL_ACCESSORS2(regular_exports, FixedArray)
-  DECL_ACCESSORS2(regular_imports, FixedArray)
+  DECL_ACCESSORS(regular_exports, FixedArray)
+  DECL_ACCESSORS(regular_imports, FixedArray)
 
   // The complete export table, mapping an export name to its cell.
   // TODO(neis): We may want to remove the regular exports from the table.
-  DECL_ACCESSORS2(exports, ObjectHashTable)
+  DECL_ACCESSORS(exports, ObjectHashTable)
 
   // Hash for this object (a random non-zero Smi).
   DECL_INT_ACCESSORS(hash)
@@ -75,15 +75,15 @@ class Module : public Struct {
   SharedFunctionInfo GetSharedFunctionInfo() const;
 
   // The namespace object (or undefined).
-  DECL_ACCESSORS2(module_namespace, HeapObject)
+  DECL_ACCESSORS(module_namespace, HeapObject)
 
   // Modules imported or re-exported by this module.
   // Corresponds 1-to-1 to the module specifier strings in
   // ModuleInfo::module_requests.
-  DECL_ACCESSORS2(requested_modules, FixedArray)
+  DECL_ACCESSORS(requested_modules, FixedArray)
 
   // [script]: Script from which the module originates.
-  DECL_ACCESSORS2(script, Script)
+  DECL_ACCESSORS(script, Script)
 
   // The value of import.meta inside of this module.
   // Lazily initialized on first access. It's the hole before first access and
@@ -225,12 +225,12 @@ class Module : public Struct {
 // the declared variable (foo).  A module can have at most one namespace object.
 class JSModuleNamespace : public JSObject {
  public:
-  DECL_CAST2(JSModuleNamespace)
+  DECL_CAST(JSModuleNamespace)
   DECL_PRINTER(JSModuleNamespace)
   DECL_VERIFIER(JSModuleNamespace)
 
   // The actual module whose namespace is being represented.
-  DECL_ACCESSORS2(module, Module)
+  DECL_ACCESSORS(module, Module)
 
   // Retrieve the value exported by [module] under the given [name]. If there is
   // no such export, return Just(undefined). If the export is uninitialized,
@@ -269,7 +269,7 @@ class JSModuleNamespace : public JSObject {
 // ModuleInfo is to ModuleDescriptor what ScopeInfo is to Scope.
 class ModuleInfo : public FixedArray {
  public:
-  DECL_CAST2(ModuleInfo)
+  DECL_CAST(ModuleInfo)
 
   static Handle<ModuleInfo> New(Isolate* isolate, Zone* zone,
                                 ModuleDescriptor* descr);
@@ -314,7 +314,7 @@ class ModuleInfo : public FixedArray {
 
 class ModuleInfoEntry : public Struct {
  public:
-  DECL_CAST2(ModuleInfoEntry)
+  DECL_CAST(ModuleInfoEntry)
   DECL_PRINTER(ModuleInfoEntry)
   DECL_VERIFIER(ModuleInfoEntry)
 

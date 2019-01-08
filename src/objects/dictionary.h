@@ -194,7 +194,7 @@ class BaseNameDictionary : public Dictionary<Derived, Shape> {
 class NameDictionary
     : public BaseNameDictionary<NameDictionary, NameDictionaryShape> {
  public:
-  DECL_CAST2(NameDictionary)
+  DECL_CAST(NameDictionary)
 
   static const int kEntryDetailsIndex = 2;
   static const int kInitialCapacity = 2;
@@ -230,7 +230,7 @@ class GlobalDictionaryShape : public NameDictionaryShape {
 class GlobalDictionary
     : public BaseNameDictionary<GlobalDictionary, GlobalDictionaryShape> {
  public:
-  DECL_CAST2(GlobalDictionary)
+  DECL_CAST(GlobalDictionary)
 
   inline Object ValueAt(int entry);
   inline PropertyCell CellAt(int entry);
@@ -291,7 +291,7 @@ extern template class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
 class SimpleNumberDictionary
     : public Dictionary<SimpleNumberDictionary, SimpleNumberDictionaryShape> {
  public:
-  DECL_CAST2(SimpleNumberDictionary)
+  DECL_CAST(SimpleNumberDictionary)
   // Type specific at put (default NONE attributes is used when adding).
   V8_WARN_UNUSED_RESULT static Handle<SimpleNumberDictionary> Set(
       Isolate* isolate, Handle<SimpleNumberDictionary> dictionary, uint32_t key,
@@ -315,7 +315,7 @@ extern template class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
 class NumberDictionary
     : public Dictionary<NumberDictionary, NumberDictionaryShape> {
  public:
-  DECL_CAST2(NumberDictionary)
+  DECL_CAST(NumberDictionary)
   DECL_PRINTER(NumberDictionary)
 
   // Type specific at put (default NONE attributes is used when adding).

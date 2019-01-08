@@ -475,17 +475,17 @@ OBJECT_CONSTRUCTORS_IMPL(TemplateObjectDescription, Tuple2)
 // ------------------------------------
 // Cast operations
 
-CAST_ACCESSOR2(BigInt)
-CAST_ACCESSOR2(ObjectBoilerplateDescription)
-CAST_ACCESSOR2(EphemeronHashTable)
-CAST_ACCESSOR2(HeapObject)
-CAST_ACCESSOR2(NormalizedMapCache)
-CAST_ACCESSOR2(Object)
-CAST_ACCESSOR2(ObjectHashSet)
-CAST_ACCESSOR2(ObjectHashTable)
-CAST_ACCESSOR2(RegExpMatchInfo)
-CAST_ACCESSOR2(ScopeInfo)
-CAST_ACCESSOR2(TemplateObjectDescription)
+CAST_ACCESSOR(BigInt)
+CAST_ACCESSOR(ObjectBoilerplateDescription)
+CAST_ACCESSOR(EphemeronHashTable)
+CAST_ACCESSOR(HeapObject)
+CAST_ACCESSOR(NormalizedMapCache)
+CAST_ACCESSOR(Object)
+CAST_ACCESSOR(ObjectHashSet)
+CAST_ACCESSOR(ObjectHashTable)
+CAST_ACCESSOR(RegExpMatchInfo)
+CAST_ACCESSOR(ScopeInfo)
+CAST_ACCESSOR(TemplateObjectDescription)
 
 bool Object::HasValidElements() {
   // Dictionary is covered under FixedArray.
@@ -759,14 +759,14 @@ Map HeapObject::map() const { return map_word().ToMap(); }
 void HeapObject::set_map(Map value) {
   if (!value.is_null()) {
 #ifdef VERIFY_HEAP
-    Heap::FromWritableHeapObject(this)->VerifyObjectLayoutChange(*this, value);
+    Heap::FromWritableHeapObject(*this)->VerifyObjectLayoutChange(*this, value);
 #endif
   }
   set_map_word(MapWord::FromMap(value));
   if (!value.is_null()) {
     // TODO(1600) We are passing kNullAddress as a slot because maps can never
     // be on an evacuation candidate.
-    MarkingBarrier(this, ObjectSlot(kNullAddress), value);
+    MarkingBarrier(*this, ObjectSlot(kNullAddress), value);
   }
 }
 
@@ -777,14 +777,14 @@ Map HeapObject::synchronized_map() const {
 void HeapObject::synchronized_set_map(Map value) {
   if (!value.is_null()) {
 #ifdef VERIFY_HEAP
-    Heap::FromWritableHeapObject(this)->VerifyObjectLayoutChange(*this, value);
+    Heap::FromWritableHeapObject(*this)->VerifyObjectLayoutChange(*this, value);
 #endif
   }
   synchronized_set_map_word(MapWord::FromMap(value));
   if (!value.is_null()) {
     // TODO(1600) We are passing kNullAddress as a slot because maps can never
     // be on an evacuation candidate.
-    MarkingBarrier(this, ObjectSlot(kNullAddress), value);
+    MarkingBarrier(*this, ObjectSlot(kNullAddress), value);
   }
 }
 
@@ -793,7 +793,7 @@ void HeapObject::synchronized_set_map(Map value) {
 void HeapObject::set_map_no_write_barrier(Map value) {
   if (!value.is_null()) {
 #ifdef VERIFY_HEAP
-    Heap::FromWritableHeapObject(this)->VerifyObjectLayoutChange(*this, value);
+    Heap::FromWritableHeapObject(*this)->VerifyObjectLayoutChange(*this, value);
 #endif
   }
   set_map_word(MapWord::FromMap(value));
@@ -805,12 +805,12 @@ void HeapObject::set_map_after_allocation(Map value, WriteBarrierMode mode) {
     DCHECK(!value.is_null());
     // TODO(1600) We are passing kNullAddress as a slot because maps can never
     // be on an evacuation candidate.
-    MarkingBarrier(this, ObjectSlot(kNullAddress), value);
+    MarkingBarrier(*this, ObjectSlot(kNullAddress), value);
   }
 }
 
 MapWordSlot HeapObject::map_slot() const {
-  return MapWordSlot(FIELD_ADDR(this, kMapOffset));
+  return MapWordSlot(FIELD_ADDR(*this, kMapOffset));
 }
 
 MapWord HeapObject::map_word() const {
@@ -933,7 +933,7 @@ void RegExpMatchInfo::SetCapture(int i, int value) {
 
 WriteBarrierMode HeapObject::GetWriteBarrierMode(
     const DisallowHeapAllocation& promise) {
-  Heap* heap = Heap::FromWritableHeapObject(this);
+  Heap* heap = Heap::FromWritableHeapObject(*this);
   if (heap->incremental_marking()->IsMarking()) return UPDATE_WRITE_BARRIER;
   if (Heap::InNewSpace(*this)) return SKIP_WRITE_BARRIER;
   return UPDATE_WRITE_BARRIER;
@@ -980,16 +980,16 @@ Address HeapObject::GetFieldAddress(int field_offset) const {
   return FIELD_ADDR(this, field_offset);
 }
 
-ACCESSORS2(EnumCache, keys, FixedArray, kKeysOffset)
-ACCESSORS2(EnumCache, indices, FixedArray, kIndicesOffset)
+ACCESSORS(EnumCache, keys, FixedArray, kKeysOffset)
+ACCESSORS(EnumCache, indices, FixedArray, kIndicesOffset)
 
-DEFINE_DEOPT_ELEMENT_ACCESSORS2(TranslationByteArray, ByteArray)
-DEFINE_DEOPT_ELEMENT_ACCESSORS2(InlinedFunctionCount, Smi)
-DEFINE_DEOPT_ELEMENT_ACCESSORS2(LiteralArray, FixedArray)
-DEFINE_DEOPT_ELEMENT_ACCESSORS2(OsrBytecodeOffset, Smi)
-DEFINE_DEOPT_ELEMENT_ACCESSORS2(OsrPcOffset, Smi)
-DEFINE_DEOPT_ELEMENT_ACCESSORS2(OptimizationId, Smi)
-DEFINE_DEOPT_ELEMENT_ACCESSORS2(InliningPositions, PodArray<InliningPosition>)
+DEFINE_DEOPT_ELEMENT_ACCESSORS(TranslationByteArray, ByteArray)
+DEFINE_DEOPT_ELEMENT_ACCESSORS(InlinedFunctionCount, Smi)
+DEFINE_DEOPT_ELEMENT_ACCESSORS(LiteralArray, FixedArray)
+DEFINE_DEOPT_ELEMENT_ACCESSORS(OsrBytecodeOffset, Smi)
+DEFINE_DEOPT_ELEMENT_ACCESSORS(OsrPcOffset, Smi)
+DEFINE_DEOPT_ELEMENT_ACCESSORS(OptimizationId, Smi)
+DEFINE_DEOPT_ELEMENT_ACCESSORS(InliningPositions, PodArray<InliningPosition>)
 
 DEFINE_DEOPT_ENTRY_ACCESSORS(BytecodeOffsetRaw, Smi)
 DEFINE_DEOPT_ENTRY_ACCESSORS(TranslationIndex, Smi)
@@ -1094,10 +1094,9 @@ int HeapObject::SizeFromMap(Map map) const {
       EmbedderDataArray::unchecked_cast(*this)->length());
 }
 
-ACCESSORS2(TemplateObjectDescription, raw_strings, FixedArray,
-           kRawStringsOffset)
-ACCESSORS2(TemplateObjectDescription, cooked_strings, FixedArray,
-           kCookedStringsOffset)
+ACCESSORS(TemplateObjectDescription, raw_strings, FixedArray, kRawStringsOffset)
+ACCESSORS(TemplateObjectDescription, cooked_strings, FixedArray,
+          kCookedStringsOffset)
 
 // static
 Maybe<bool> Object::GreaterThan(Isolate* isolate, Handle<Object> x,

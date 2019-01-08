@@ -52,12 +52,12 @@ class JSRelativeTimeFormat : public JSObject {
 
   static std::set<std::string> GetAvailableLocales();
 
-  DECL_CAST2(JSRelativeTimeFormat)
+  DECL_CAST(JSRelativeTimeFormat)
 
   // RelativeTimeFormat accessors.
-  DECL_ACCESSORS2(locale, String)
+  DECL_ACCESSORS(locale, String)
 
-  DECL_ACCESSORS2(icu_formatter, Managed<icu::RelativeDateTimeFormatter>)
+  DECL_ACCESSORS(icu_formatter, Managed<icu::RelativeDateTimeFormatter>)
 
   // Style: identifying the relative time format style used.
   //

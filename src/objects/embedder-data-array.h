@@ -25,7 +25,7 @@ class EmbedderDataArray : public HeapObject {
   V8_INLINE int length() const;
   V8_INLINE void set_length(int value);
 
-  DECL_CAST2(EmbedderDataArray)
+  DECL_CAST(EmbedderDataArray)
 
 // Layout description.
 #define EMBEDDER_DATA_ARRAY_FIELDS(V) \

@@ -55,7 +55,7 @@ class JSPluralRules : public JSObject {
 
   Handle<String> TypeAsString() const;
 
-  DECL_CAST2(JSPluralRules)
+  DECL_CAST(JSPluralRules)
   DECL_PRINTER(JSPluralRules)
   DECL_VERIFIER(JSPluralRules)
 
@@ -80,10 +80,10 @@ class JSPluralRules : public JSObject {
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_PLURAL_RULES_FIELDS)
 #undef JS_PLURAL_RULES_FIELDS
 
-  DECL_ACCESSORS2(locale, String)
+  DECL_ACCESSORS(locale, String)
   DECL_INT_ACCESSORS(flags)
-  DECL_ACCESSORS2(icu_plural_rules, Managed<icu::PluralRules>)
-  DECL_ACCESSORS2(icu_decimal_format, Managed<icu::DecimalFormat>)
+  DECL_ACCESSORS(icu_plural_rules, Managed<icu::PluralRules>)
+  DECL_ACCESSORS(icu_decimal_format, Managed<icu::DecimalFormat>)
 
   OBJECT_CONSTRUCTORS(JSPluralRules, JSObject);
 };

@@ -26,10 +26,10 @@ namespace internal {
 OBJECT_CONSTRUCTORS_IMPL(DescriptorArray, HeapObject)
 OBJECT_CONSTRUCTORS_IMPL(EnumCache, Tuple2)
 
-CAST_ACCESSOR2(DescriptorArray)
-CAST_ACCESSOR2(EnumCache)
+CAST_ACCESSOR(DescriptorArray)
+CAST_ACCESSOR(EnumCache)
 
-ACCESSORS2(DescriptorArray, enum_cache, EnumCache, kEnumCacheOffset)
+ACCESSORS(DescriptorArray, enum_cache, EnumCache, kEnumCacheOffset)
 RELAXED_INT16_ACCESSORS(DescriptorArray, number_of_all_descriptors,
                         kNumberOfAllDescriptorsOffset)
 RELAXED_INT16_ACCESSORS(DescriptorArray, number_of_descriptors,
@@ -209,13 +209,13 @@ int DescriptorArray::length() const {
 
 MaybeObject DescriptorArray::get(int index) const {
   DCHECK(index >= 0 && index < this->length());
-  return RELAXED_READ_WEAK_FIELD(this, offset(index));
+  return RELAXED_READ_WEAK_FIELD(*this, offset(index));
 }
 
 void DescriptorArray::set(int index, MaybeObject value) {
   DCHECK(index >= 0 && index < this->length());
-  RELAXED_WRITE_WEAK_FIELD(this, offset(index), value);
-  WEAK_WRITE_BARRIER(this, offset(index), value);
+  RELAXED_WRITE_WEAK_FIELD(*this, offset(index), value);
+  WEAK_WRITE_BARRIER(*this, offset(index), value);
 }
 
 }  // namespace internal

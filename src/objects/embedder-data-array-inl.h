@@ -17,7 +17,7 @@
 namespace v8 {
 namespace internal {
 
-CAST_ACCESSOR2(EmbedderDataArray)
+CAST_ACCESSOR(EmbedderDataArray)
 
 SMI_ACCESSORS(EmbedderDataArray, length, kLengthOffset)
 

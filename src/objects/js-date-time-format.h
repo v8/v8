@@ -74,7 +74,7 @@ class JSDateTimeFormat : public JSObject {
   static std::set<std::string> GetAvailableLocales();
 
   Handle<String> HourCycleAsString() const;
-  DECL_CAST2(JSDateTimeFormat)
+  DECL_CAST(JSDateTimeFormat)
 
 // Layout description.
 #define JS_DATE_TIME_FORMAT_FIELDS(V)        \
@@ -104,8 +104,8 @@ class JSDateTimeFormat : public JSObject {
   STATIC_ASSERT(Intl::HourCycle::kH23 <= HourCycleBits::kMax);
   STATIC_ASSERT(Intl::HourCycle::kH24 <= HourCycleBits::kMax);
 
-  DECL_ACCESSORS2(icu_locale, Managed<icu::Locale>)
-  DECL_ACCESSORS2(icu_simple_date_format, Managed<icu::SimpleDateFormat>)
+  DECL_ACCESSORS(icu_locale, Managed<icu::Locale>)
+  DECL_ACCESSORS(icu_simple_date_format, Managed<icu::SimpleDateFormat>)
   DECL_ACCESSORS(bound_format, Object)
   DECL_INT_ACCESSORS(flags)
 

@@ -28,7 +28,7 @@ class StackFrameInfo : public Struct {
   DECL_INT_ACCESSORS(flag)
   DECL_INT_ACCESSORS(id)
 
-  DECL_CAST2(StackFrameInfo)
+  DECL_CAST(StackFrameInfo)
 
   // Dispatched behavior.
   DECL_PRINTER(StackFrameInfo)

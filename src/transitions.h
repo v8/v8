@@ -210,7 +210,7 @@ class TransitionsAccessor {
 // [3 + number of transitions * kTransitionSize]: start of slack
 class TransitionArray : public WeakFixedArray {
  public:
-  DECL_CAST2(TransitionArray)
+  DECL_CAST(TransitionArray)
 
   inline WeakFixedArray GetPrototypeTransitions();
   inline bool HasPrototypeTransitions();

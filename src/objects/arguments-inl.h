@@ -22,9 +22,9 @@ OBJECT_CONSTRUCTORS_IMPL(SloppyArgumentsElements, FixedArray)
 OBJECT_CONSTRUCTORS_IMPL(JSArgumentsObject, JSObject)
 OBJECT_CONSTRUCTORS_IMPL(AliasedArgumentsEntry, Struct)
 
-CAST_ACCESSOR2(AliasedArgumentsEntry)
-CAST_ACCESSOR2(SloppyArgumentsElements)
-CAST_ACCESSOR2(JSArgumentsObject)
+CAST_ACCESSOR(AliasedArgumentsEntry)
+CAST_ACCESSOR(SloppyArgumentsElements)
+CAST_ACCESSOR(JSArgumentsObject)
 
 SMI_ACCESSORS(AliasedArgumentsEntry, aliased_context_slot, kAliasedContextSlot)
 

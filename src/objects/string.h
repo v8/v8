@@ -311,7 +311,7 @@ class String : public Name {
   static Handle<String> Trim(Isolate* isolate, Handle<String> string,
                              TrimMode mode);
 
-  DECL_CAST2(String)
+  DECL_CAST(String)
 
   void PrintOn(FILE* out);
 
@@ -473,7 +473,7 @@ class SubStringRange {
 // The SeqString abstract class captures sequential string values.
 class SeqString : public String {
  public:
-  DECL_CAST2(SeqString)
+  DECL_CAST(SeqString)
 
   // Truncate the string in-place if possible and return the result.
   // In case of new_length == 0, the empty string is returned without
@@ -486,7 +486,7 @@ class SeqString : public String {
 
 class InternalizedString : public String {
  public:
-  DECL_CAST2(InternalizedString)
+  DECL_CAST(InternalizedString)
   // TODO(neis): Possibly move some stuff from String here.
 
   OBJECT_CONSTRUCTORS(InternalizedString, String);
@@ -511,7 +511,7 @@ class SeqOneByteString : public SeqString {
   // is deterministic.
   void clear_padding();
 
-  DECL_CAST2(SeqOneByteString)
+  DECL_CAST(SeqOneByteString)
 
   // Garbage collection support.  This method is called by the
   // garbage collector to compute the actual size of an OneByteString
@@ -552,7 +552,7 @@ class SeqTwoByteString : public SeqString {
   // is deterministic.
   void clear_padding();
 
-  DECL_CAST2(SeqTwoByteString)
+  DECL_CAST(SeqTwoByteString)
 
   // Garbage collection support.  This method is called by the
   // garbage collector to compute the actual size of a TwoByteString
@@ -604,7 +604,7 @@ class ConsString : public String {
   // Dispatched behavior.
   V8_EXPORT_PRIVATE uint16_t ConsStringGet(int index);
 
-  DECL_CAST2(ConsString)
+  DECL_CAST(ConsString)
 
   // Layout description.
 #define CONS_STRING_FIELDS(V)   \
@@ -643,7 +643,7 @@ class ThinString : public String {
 
   V8_EXPORT_PRIVATE uint16_t ThinStringGet(int index);
 
-  DECL_CAST2(ThinString)
+  DECL_CAST(ThinString)
   DECL_VERIFIER(ThinString)
 
   // Layout description.
@@ -683,7 +683,7 @@ class SlicedString : public String {
   // Dispatched behavior.
   V8_EXPORT_PRIVATE uint16_t SlicedStringGet(int index);
 
-  DECL_CAST2(SlicedString)
+  DECL_CAST(SlicedString)
 
   // Layout description.
 #define SLICED_STRING_FIELDS(V) \
@@ -716,7 +716,7 @@ class SlicedString : public String {
 // API.  Therefore, ExternalStrings should not be used internally.
 class ExternalString : public String {
  public:
-  DECL_CAST2(ExternalString)
+  DECL_CAST(ExternalString)
 
   // Layout description.
 #define EXTERNAL_STRING_FIELDS(V)            \
@@ -774,7 +774,7 @@ class ExternalOneByteString : public ExternalString {
   // Dispatched behavior.
   inline uint16_t ExternalOneByteStringGet(int index);
 
-  DECL_CAST2(ExternalOneByteString)
+  DECL_CAST(ExternalOneByteString)
 
   class BodyDescriptor;
 
@@ -812,7 +812,7 @@ class ExternalTwoByteString : public ExternalString {
   // For regexp code.
   inline const uint16_t* ExternalTwoByteStringGetData(unsigned start);
 
-  DECL_CAST2(ExternalTwoByteString)
+  DECL_CAST(ExternalTwoByteString)
 
   class BodyDescriptor;
 

@@ -18,8 +18,8 @@ namespace internal {
 OBJECT_CONSTRUCTORS_IMPL(JSArray, JSObject)
 OBJECT_CONSTRUCTORS_IMPL(JSArrayIterator, JSObject)
 
-CAST_ACCESSOR2(JSArray)
-CAST_ACCESSOR2(JSArrayIterator)
+CAST_ACCESSOR(JSArray)
+CAST_ACCESSOR(JSArrayIterator)
 
 ACCESSORS(JSArray, length, Object, kLengthOffset)
 

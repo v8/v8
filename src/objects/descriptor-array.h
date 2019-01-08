@@ -24,10 +24,10 @@ class Isolate;
 // An EnumCache is a pair used to hold keys and indices caches.
 class EnumCache : public Tuple2 {
  public:
-  DECL_ACCESSORS2(keys, FixedArray)
-  DECL_ACCESSORS2(indices, FixedArray)
+  DECL_ACCESSORS(keys, FixedArray)
+  DECL_ACCESSORS(indices, FixedArray)
 
-  DECL_CAST2(EnumCache)
+  DECL_CAST(EnumCache)
 
   // Layout description.
   static const int kKeysOffset = kValue1Offset;
@@ -59,7 +59,7 @@ class DescriptorArray : public HeapObject {
   DECL_INT16_ACCESSORS(number_of_descriptors)
   inline int16_t number_of_slack_descriptors() const;
   inline int number_of_entries() const;
-  DECL_ACCESSORS2(enum_cache, EnumCache)
+  DECL_ACCESSORS(enum_cache, EnumCache)
 
   void ClearEnumCache();
   inline void CopyEnumCacheFrom(DescriptorArray array);
@@ -130,7 +130,7 @@ class DescriptorArray : public HeapObject {
   void Initialize(EnumCache enum_cache, HeapObject undefined_value,
                   int nof_descriptors, int slack);
 
-  DECL_CAST2(DescriptorArray)
+  DECL_CAST(DescriptorArray)
 
   // Constant for denoting key was not found.
   static const int kNotFound = -1;

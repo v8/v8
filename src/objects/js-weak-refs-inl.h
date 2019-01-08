@@ -24,29 +24,29 @@ OBJECT_CONSTRUCTORS_IMPL(JSWeakFactory, JSObject)
 OBJECT_CONSTRUCTORS_IMPL(JSWeakFactoryCleanupIterator, JSObject)
 OBJECT_CONSTRUCTORS_IMPL(WeakFactoryCleanupJobTask, Microtask)
 
-ACCESSORS2(JSWeakFactory, native_context, NativeContext, kNativeContextOffset)
+ACCESSORS(JSWeakFactory, native_context, NativeContext, kNativeContextOffset)
 ACCESSORS(JSWeakFactory, cleanup, Object, kCleanupOffset)
 ACCESSORS(JSWeakFactory, active_cells, Object, kActiveCellsOffset)
 ACCESSORS(JSWeakFactory, cleared_cells, Object, kClearedCellsOffset)
 SMI_ACCESSORS(JSWeakFactory, flags, kFlagsOffset)
 ACCESSORS(JSWeakFactory, next, Object, kNextOffset)
-CAST_ACCESSOR2(JSWeakFactory)
+CAST_ACCESSOR(JSWeakFactory)
 
 ACCESSORS(JSWeakCell, factory, Object, kFactoryOffset)
 ACCESSORS(JSWeakCell, target, Object, kTargetOffset)
 ACCESSORS(JSWeakCell, holdings, Object, kHoldingsOffset)
 ACCESSORS(JSWeakCell, next, Object, kNextOffset)
 ACCESSORS(JSWeakCell, prev, Object, kPrevOffset)
-CAST_ACCESSOR2(JSWeakCell)
+CAST_ACCESSOR(JSWeakCell)
 
-CAST_ACCESSOR2(JSWeakRef)
+CAST_ACCESSOR(JSWeakRef)
 ACCESSORS(JSWeakRef, target, Object, kTargetOffset)
 
-ACCESSORS2(JSWeakFactoryCleanupIterator, factory, JSWeakFactory, kFactoryOffset)
-CAST_ACCESSOR2(JSWeakFactoryCleanupIterator)
+ACCESSORS(JSWeakFactoryCleanupIterator, factory, JSWeakFactory, kFactoryOffset)
+CAST_ACCESSOR(JSWeakFactoryCleanupIterator)
 
-ACCESSORS2(WeakFactoryCleanupJobTask, factory, JSWeakFactory, kFactoryOffset)
-CAST_ACCESSOR2(WeakFactoryCleanupJobTask)
+ACCESSORS(WeakFactoryCleanupJobTask, factory, JSWeakFactory, kFactoryOffset)
+CAST_ACCESSOR(WeakFactoryCleanupJobTask)
 
 void JSWeakFactory::AddWeakCell(JSWeakCell weak_cell) {
   weak_cell->set_factory(*this);

@@ -16,12 +16,12 @@
 namespace v8 {
 namespace internal {
 
-CAST_ACCESSOR2(OrderedNameDictionary)
-CAST_ACCESSOR2(SmallOrderedNameDictionary)
-CAST_ACCESSOR2(OrderedHashMap)
-CAST_ACCESSOR2(OrderedHashSet)
-CAST_ACCESSOR2(SmallOrderedHashMap)
-CAST_ACCESSOR2(SmallOrderedHashSet)
+CAST_ACCESSOR(OrderedNameDictionary)
+CAST_ACCESSOR(SmallOrderedNameDictionary)
+CAST_ACCESSOR(OrderedHashMap)
+CAST_ACCESSOR(OrderedHashSet)
+CAST_ACCESSOR(SmallOrderedHashMap)
+CAST_ACCESSOR(SmallOrderedHashSet)
 
 template <class Derived, int entrysize>
 OrderedHashTable<Derived, entrysize>::OrderedHashTable(Address ptr)
@@ -157,8 +157,8 @@ void SmallOrderedHashTable<Derived>::SetDataEntry(int entry, int relative_index,
                                                   Object value) {
   DCHECK_NE(kNotFound, entry);
   int entry_offset = GetDataEntryOffset(entry, relative_index);
-  RELAXED_WRITE_FIELD(this, entry_offset, value);
-  WRITE_BARRIER(this, entry_offset, value);
+  RELAXED_WRITE_FIELD(*this, entry_offset, value);
+  WRITE_BARRIER(*this, entry_offset, value);
 }
 
 template <class Derived, class TableType>
@@ -172,11 +172,11 @@ Object OrderedHashTableIterator<Derived, TableType>::CurrentKey() {
 
 inline void SmallOrderedNameDictionary::SetHash(int hash) {
   DCHECK(PropertyArray::HashField::is_valid(hash));
-  WRITE_INT_FIELD(this, PrefixOffset(), hash);
+  WRITE_INT_FIELD(*this, PrefixOffset(), hash);
 }
 
 inline int SmallOrderedNameDictionary::Hash() {
-  int hash = READ_INT_FIELD(this, PrefixOffset());
+  int hash = READ_INT_FIELD(*this, PrefixOffset());
   DCHECK(PropertyArray::HashField::is_valid(hash));
   return hash;
 }

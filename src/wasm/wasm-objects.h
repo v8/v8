@@ -45,10 +45,6 @@ class Managed;
 #define DECL_OPTIONAL_ACCESSORS(name, type) \
   V8_INLINE bool has_##name();              \
   DECL_ACCESSORS(name, type)
-// TODO(3770): Replacement for the above, temporarily separate.
-#define DECL_OPTIONAL_ACCESSORS2(name, type) \
-  V8_INLINE bool has_##name();               \
-  DECL_ACCESSORS2(name, type)
 
 // A helper for an entry in an indirect function table (IFT).
 // The underlying storage in the instance is used by generated code to
@@ -108,14 +104,14 @@ class ImportedFunctionEntry {
 // Representation of a WebAssembly.Module JavaScript-level object.
 class WasmModuleObject : public JSObject {
  public:
-  DECL_CAST2(WasmModuleObject)
+  DECL_CAST(WasmModuleObject)
 
-  DECL_ACCESSORS2(managed_native_module, Managed<wasm::NativeModule>)
-  DECL_ACCESSORS2(export_wrappers, FixedArray)
-  DECL_ACCESSORS2(script, Script)
-  DECL_ACCESSORS2(weak_instance_list, WeakArrayList)
-  DECL_OPTIONAL_ACCESSORS2(asm_js_offset_table, ByteArray)
-  DECL_OPTIONAL_ACCESSORS2(breakpoint_infos, FixedArray)
+  DECL_ACCESSORS(managed_native_module, Managed<wasm::NativeModule>)
+  DECL_ACCESSORS(export_wrappers, FixedArray)
+  DECL_ACCESSORS(script, Script)
+  DECL_ACCESSORS(weak_instance_list, WeakArrayList)
+  DECL_OPTIONAL_ACCESSORS(asm_js_offset_table, ByteArray)
+  DECL_OPTIONAL_ACCESSORS(breakpoint_infos, FixedArray)
   inline wasm::NativeModule* native_module() const;
   inline std::shared_ptr<wasm::NativeModule> shared_native_module() const;
   inline const wasm::WasmModule* module() const;
@@ -251,12 +247,12 @@ class WasmModuleObject : public JSObject {
 // Representation of a WebAssembly.Table JavaScript-level object.
 class WasmTableObject : public JSObject {
  public:
-  DECL_CAST2(WasmTableObject)
+  DECL_CAST(WasmTableObject)
 
-  DECL_ACCESSORS2(functions, FixedArray)
+  DECL_ACCESSORS(functions, FixedArray)
   // TODO(titzer): introduce DECL_I64_ACCESSORS macro
   DECL_ACCESSORS(maximum_length, Object)
-  DECL_ACCESSORS2(dispatch_tables, FixedArray)
+  DECL_ACCESSORS(dispatch_tables, FixedArray)
 
 // Layout description.
 #define WASM_TABLE_OBJECT_FIELDS(V)     \
@@ -296,11 +292,11 @@ class WasmTableObject : public JSObject {
 // Representation of a WebAssembly.Memory JavaScript-level object.
 class WasmMemoryObject : public JSObject {
  public:
-  DECL_CAST2(WasmMemoryObject)
+  DECL_CAST(WasmMemoryObject)
 
-  DECL_ACCESSORS2(array_buffer, JSArrayBuffer)
+  DECL_ACCESSORS(array_buffer, JSArrayBuffer)
   DECL_INT_ACCESSORS(maximum_pages)
-  DECL_OPTIONAL_ACCESSORS2(instances, WeakArrayList)
+  DECL_OPTIONAL_ACCESSORS(instances, WeakArrayList)
 
 // Layout description.
 #define WASM_MEMORY_OBJECT_FIELDS(V)  \
@@ -333,10 +329,10 @@ class WasmMemoryObject : public JSObject {
 // Representation of a WebAssembly.Global JavaScript-level object.
 class WasmGlobalObject : public JSObject {
  public:
-  DECL_CAST2(WasmGlobalObject)
+  DECL_CAST(WasmGlobalObject)
 
-  DECL_ACCESSORS2(untagged_buffer, JSArrayBuffer)
-  DECL_ACCESSORS2(tagged_buffer, FixedArray)
+  DECL_ACCESSORS(untagged_buffer, JSArrayBuffer)
+  DECL_ACCESSORS(tagged_buffer, FixedArray)
   DECL_INT32_ACCESSORS(offset)
   DECL_INT_ACCESSORS(flags)
   DECL_PRIMITIVE_ACCESSORS(type, wasm::ValueType)
@@ -393,24 +389,24 @@ class WasmGlobalObject : public JSObject {
 // Representation of a WebAssembly.Instance JavaScript-level object.
 class WasmInstanceObject : public JSObject {
  public:
-  DECL_CAST2(WasmInstanceObject)
+  DECL_CAST(WasmInstanceObject)
 
-  DECL_ACCESSORS2(module_object, WasmModuleObject)
-  DECL_ACCESSORS2(exports_object, JSObject)
-  DECL_ACCESSORS2(native_context, Context)
-  DECL_OPTIONAL_ACCESSORS2(memory_object, WasmMemoryObject)
-  DECL_OPTIONAL_ACCESSORS2(untagged_globals_buffer, JSArrayBuffer)
-  DECL_OPTIONAL_ACCESSORS2(tagged_globals_buffer, FixedArray)
-  DECL_OPTIONAL_ACCESSORS2(imported_mutable_globals_buffers, FixedArray)
-  DECL_OPTIONAL_ACCESSORS2(debug_info, WasmDebugInfo)
-  DECL_OPTIONAL_ACCESSORS2(table_object, WasmTableObject)
-  DECL_ACCESSORS2(imported_function_refs, FixedArray)
-  DECL_OPTIONAL_ACCESSORS2(indirect_function_table_refs, FixedArray)
-  DECL_OPTIONAL_ACCESSORS2(managed_native_allocations, Foreign)
-  DECL_OPTIONAL_ACCESSORS2(exceptions_table, FixedArray)
-  DECL_ACCESSORS2(undefined_value, Oddball)
-  DECL_ACCESSORS2(null_value, Oddball)
-  DECL_ACCESSORS2(centry_stub, Code)
+  DECL_ACCESSORS(module_object, WasmModuleObject)
+  DECL_ACCESSORS(exports_object, JSObject)
+  DECL_ACCESSORS(native_context, Context)
+  DECL_OPTIONAL_ACCESSORS(memory_object, WasmMemoryObject)
+  DECL_OPTIONAL_ACCESSORS(untagged_globals_buffer, JSArrayBuffer)
+  DECL_OPTIONAL_ACCESSORS(tagged_globals_buffer, FixedArray)
+  DECL_OPTIONAL_ACCESSORS(imported_mutable_globals_buffers, FixedArray)
+  DECL_OPTIONAL_ACCESSORS(debug_info, WasmDebugInfo)
+  DECL_OPTIONAL_ACCESSORS(table_object, WasmTableObject)
+  DECL_ACCESSORS(imported_function_refs, FixedArray)
+  DECL_OPTIONAL_ACCESSORS(indirect_function_table_refs, FixedArray)
+  DECL_OPTIONAL_ACCESSORS(managed_native_allocations, Foreign)
+  DECL_OPTIONAL_ACCESSORS(exceptions_table, FixedArray)
+  DECL_ACCESSORS(undefined_value, Oddball)
+  DECL_ACCESSORS(null_value, Oddball)
+  DECL_ACCESSORS(centry_stub, Code)
   DECL_PRIMITIVE_ACCESSORS(memory_start, byte*)
   DECL_PRIMITIVE_ACCESSORS(memory_size, size_t)
   DECL_PRIMITIVE_ACCESSORS(memory_mask, size_t)
@@ -514,10 +510,10 @@ class WasmInstanceObject : public JSObject {
 // Representation of WebAssembly.Exception JavaScript-level object.
 class WasmExceptionObject : public JSObject {
  public:
-  DECL_CAST2(WasmExceptionObject)
+  DECL_CAST(WasmExceptionObject)
 
-  DECL_ACCESSORS2(serialized_signature, PodArray<wasm::ValueType>)
-  DECL_ACCESSORS2(exception_tag, HeapObject)
+  DECL_ACCESSORS(serialized_signature, PodArray<wasm::ValueType>)
+  DECL_ACCESSORS(exception_tag, HeapObject)
 
 // Layout description.
 #define WASM_EXCEPTION_OBJECT_FIELDS(V)      \
@@ -558,7 +554,7 @@ class WasmExportedFunction : public JSFunction {
 
   wasm::FunctionSig* sig();
 
-  DECL_CAST2(WasmExportedFunction)
+  DECL_CAST(WasmExportedFunction)
   OBJECT_CONSTRUCTORS(WasmExportedFunction, JSFunction)
 };
 
@@ -567,12 +563,12 @@ class WasmExportedFunction : public JSFunction {
 // see the {SharedFunctionInfo::HasWasmExportedFunctionData} predicate.
 class WasmExportedFunctionData : public Struct {
  public:
-  DECL_ACCESSORS2(wrapper_code, Code);
-  DECL_ACCESSORS2(instance, WasmInstanceObject)
+  DECL_ACCESSORS(wrapper_code, Code);
+  DECL_ACCESSORS(instance, WasmInstanceObject)
   DECL_INT_ACCESSORS(jump_table_offset);
   DECL_INT_ACCESSORS(function_index);
 
-  DECL_CAST2(WasmExportedFunctionData)
+  DECL_CAST(WasmExportedFunctionData)
 
   // Dispatched behavior.
   DECL_PRINTER(WasmExportedFunctionData)
@@ -596,14 +592,14 @@ class WasmExportedFunctionData : public Struct {
 class WasmDebugInfo : public Struct {
  public:
   NEVER_READ_ONLY_SPACE
-  DECL_ACCESSORS2(wasm_instance, WasmInstanceObject)
+  DECL_ACCESSORS(wasm_instance, WasmInstanceObject)
   DECL_ACCESSORS(interpreter_handle, Object);  // Foreign or undefined
-  DECL_ACCESSORS2(interpreted_functions, FixedArray);
-  DECL_OPTIONAL_ACCESSORS2(locals_names, FixedArray)
-  DECL_OPTIONAL_ACCESSORS2(c_wasm_entries, FixedArray)
-  DECL_OPTIONAL_ACCESSORS2(c_wasm_entry_map, Managed<wasm::SignatureMap>)
+  DECL_ACCESSORS(interpreted_functions, FixedArray);
+  DECL_OPTIONAL_ACCESSORS(locals_names, FixedArray)
+  DECL_OPTIONAL_ACCESSORS(c_wasm_entries, FixedArray)
+  DECL_OPTIONAL_ACCESSORS(c_wasm_entry_map, Managed<wasm::SignatureMap>)
 
-  DECL_CAST2(WasmDebugInfo)
+  DECL_CAST(WasmDebugInfo)
 
   // Dispatched behavior.
   DECL_PRINTER(WasmDebugInfo)
@@ -704,7 +700,7 @@ class WasmExceptionTag : public Struct {
   // least one field, hence this also serves as a padding field for now.
   DECL_INT_ACCESSORS(index);
 
-  DECL_CAST2(WasmExceptionTag)
+  DECL_CAST(WasmExceptionTag)
   DECL_PRINTER(WasmExceptionTag)
   DECL_VERIFIER(WasmExceptionTag)
 
@@ -727,12 +723,12 @@ class AsmWasmData : public Struct {
       Handle<FixedArray> export_wrappers, Handle<ByteArray> asm_js_offset_table,
       Handle<HeapNumber> uses_bitset);
 
-  DECL_ACCESSORS2(managed_native_module, Managed<wasm::NativeModule>)
-  DECL_ACCESSORS2(export_wrappers, FixedArray)
-  DECL_ACCESSORS2(asm_js_offset_table, ByteArray)
-  DECL_ACCESSORS2(uses_bitset, HeapNumber)
+  DECL_ACCESSORS(managed_native_module, Managed<wasm::NativeModule>)
+  DECL_ACCESSORS(export_wrappers, FixedArray)
+  DECL_ACCESSORS(asm_js_offset_table, ByteArray)
+  DECL_ACCESSORS(uses_bitset, HeapNumber)
 
-  DECL_CAST2(AsmWasmData)
+  DECL_CAST(AsmWasmData)
   DECL_PRINTER(AsmWasmData)
   DECL_VERIFIER(AsmWasmData)
 

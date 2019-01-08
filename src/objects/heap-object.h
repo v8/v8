@@ -132,7 +132,7 @@ class HeapObject : public Object {
   inline MaybeObjectSlot RawMaybeWeakField(int byte_offset) const;
   static inline MaybeObjectSlot RawMaybeWeakField(HeapObject obj, int offset);
 
-  DECL_CAST2(HeapObject)
+  DECL_CAST(HeapObject)
 
   // Return the write barrier mode for this. Callers of this function
   // must be able to present a reference to an DisallowHeapAllocation

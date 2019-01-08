@@ -23,10 +23,10 @@ Tuple2::Tuple2(Address ptr) : Struct(ptr) {}
 Tuple3::Tuple3(Address ptr) : Tuple2(ptr) {}
 OBJECT_CONSTRUCTORS_IMPL(AccessorPair, Struct)
 
-CAST_ACCESSOR2(AccessorPair)
-CAST_ACCESSOR2(Struct)
-CAST_ACCESSOR2(Tuple2)
-CAST_ACCESSOR2(Tuple3)
+CAST_ACCESSOR(AccessorPair)
+CAST_ACCESSOR(Struct)
+CAST_ACCESSOR(Tuple2)
+CAST_ACCESSOR(Tuple3)
 
 void Struct::InitializeBody(int object_size) {
   Object value = GetReadOnlyRoots().undefined_value();

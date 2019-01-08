@@ -32,7 +32,7 @@ class PropertyDescriptorObject : public FixedArray {
 
   enum { kFlagsIndex, kValueIndex, kGetIndex, kSetIndex, kLength };
 
-  DECL_CAST2(PropertyDescriptorObject)
+  DECL_CAST(PropertyDescriptorObject)
 
   static const int kRegularAccessorPropertyBits =
       HasEnumerableBit::kMask | HasConfigurableBit::kMask | HasGetBit::kMask |

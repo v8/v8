@@ -5601,7 +5601,7 @@ void Heap::WriteBarrierForCodeSlow(Code code) {
 
 void Heap::GenerationalBarrierSlow(HeapObject object, Address slot,
                                    HeapObject value) {
-  Heap* heap = Heap::FromWritableHeapObject(&object);
+  Heap* heap = Heap::FromWritableHeapObject(object);
   heap->store_buffer()->InsertEntry(slot);
 }
 
@@ -5638,7 +5638,7 @@ void Heap::GenerationalBarrierForCodeSlow(Code host, RelocInfo* rinfo,
 
 void Heap::MarkingBarrierSlow(HeapObject object, Address slot,
                               HeapObject value) {
-  Heap* heap = Heap::FromWritableHeapObject(&object);
+  Heap* heap = Heap::FromWritableHeapObject(object);
   heap->incremental_marking()->RecordWriteSlow(object, HeapObjectSlot(slot),
                                                value);
 }
@@ -5652,7 +5652,7 @@ void Heap::MarkingBarrierForElementsSlow(Heap* heap, HeapObject object) {
 
 void Heap::MarkingBarrierForCodeSlow(Code host, RelocInfo* rinfo,
                                      HeapObject object) {
-  Heap* heap = Heap::FromWritableHeapObject(&host);
+  Heap* heap = Heap::FromWritableHeapObject(host);
   DCHECK(heap->incremental_marking()->IsMarking());
   heap->incremental_marking()->RecordWriteIntoCode(host, rinfo, object);
 }

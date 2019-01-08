@@ -750,8 +750,7 @@ bool Deserializer::ReadData(UnalignedSlot current, UnalignedSlot limit,
         if (write_barrier_needed && Heap::InNewSpace(hot_object)) {
           HeapObject current_object =
               HeapObject::FromAddress(current_object_address);
-          GenerationalBarrier(&current_object, current.Slot(),
-                              hot_maybe_object);
+          GenerationalBarrier(current_object, current.Slot(), hot_maybe_object);
         }
         current.Advance();
         break;
@@ -900,7 +899,7 @@ UnalignedSlot Deserializer::ReadDataCase(Isolate* isolate,
   if (emit_write_barrier && write_barrier_needed) {
     HeapObject object = HeapObject::FromAddress(current_object_address);
     SLOW_DCHECK(isolate->heap()->Contains(object));
-    GenerationalBarrier(&object, current.Slot(), current.Read());
+    GenerationalBarrier(object, current.Slot(), current.Read());
   }
   if (!current_was_incremented) {
     current.Advance();

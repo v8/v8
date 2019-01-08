@@ -34,7 +34,7 @@ class Zone;
 // routines.
 class ScopeInfo : public FixedArray {
  public:
-  DECL_CAST2(ScopeInfo)
+  DECL_CAST(ScopeInfo)
   DECL_PRINTER(ScopeInfo)
 
   // Return the type of this scope.

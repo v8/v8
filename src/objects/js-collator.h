@@ -42,7 +42,7 @@ class JSCollator : public JSObject {
 
   static std::set<std::string> GetAvailableLocales();
 
-  DECL_CAST2(JSCollator)
+  DECL_CAST(JSCollator)
   DECL_PRINTER(JSCollator)
   DECL_VERIFIER(JSCollator)
 
@@ -56,7 +56,7 @@ class JSCollator : public JSObject {
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_COLLATOR_FIELDS)
 #undef JS_COLLATOR_FIELDS
 
-  DECL_ACCESSORS2(icu_collator, Managed<icu::Collator>)
+  DECL_ACCESSORS(icu_collator, Managed<icu::Collator>)
   DECL_ACCESSORS(bound_compare, Object);
 
   OBJECT_CONSTRUCTORS(JSCollator, JSObject);

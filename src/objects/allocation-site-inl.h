@@ -21,8 +21,8 @@ OBJECT_CONSTRUCTORS_IMPL(AllocationSite, Struct)
 
 NEVER_READ_ONLY_SPACE_IMPL(AllocationSite)
 
-CAST_ACCESSOR2(AllocationMemento)
-CAST_ACCESSOR2(AllocationSite)
+CAST_ACCESSOR(AllocationMemento)
+CAST_ACCESSOR(AllocationSite)
 
 ACCESSORS(AllocationSite, transition_info_or_boilerplate, Object,
           kTransitionInfoOrBoilerplateOffset)
@@ -30,7 +30,7 @@ ACCESSORS(AllocationSite, nested_site, Object, kNestedSiteOffset)
 INT32_ACCESSORS(AllocationSite, pretenure_data, kPretenureDataOffset)
 INT32_ACCESSORS(AllocationSite, pretenure_create_count,
                 kPretenureCreateCountOffset)
-ACCESSORS2(AllocationSite, dependent_code, DependentCode, kDependentCodeOffset)
+ACCESSORS(AllocationSite, dependent_code, DependentCode, kDependentCodeOffset)
 ACCESSORS_CHECKED(AllocationSite, weak_next, Object, kWeakNextOffset,
                   HasWeakNext())
 ACCESSORS(AllocationMemento, allocation_site, Object, kAllocationSiteOffset)

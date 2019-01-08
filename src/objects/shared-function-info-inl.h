@@ -23,15 +23,15 @@ namespace internal {
 
 OBJECT_CONSTRUCTORS_IMPL(PreparseData, HeapObject)
 
-CAST_ACCESSOR2(PreparseData)
-ACCESSORS2(PreparseData, scope_data, PodArray<uint8_t>, kScopeDataOffset)
+CAST_ACCESSOR(PreparseData)
+ACCESSORS(PreparseData, scope_data, PodArray<uint8_t>, kScopeDataOffset)
 INT_ACCESSORS(PreparseData, length, kLengthOffset)
 
 Object PreparseData::child_data(int index) const {
   DCHECK_GE(index, 0);
   DCHECK_LT(index, this->length());
   int offset = kChildDataStartOffset + index * kTaggedSize;
-  return RELAXED_READ_FIELD(this, offset);
+  return RELAXED_READ_FIELD(*this, offset);
 }
 
 void PreparseData::set_child_data(int index, Object value,
@@ -39,8 +39,8 @@ void PreparseData::set_child_data(int index, Object value,
   DCHECK_GE(index, 0);
   DCHECK_LT(index, this->length());
   int offset = kChildDataStartOffset + index * kTaggedSize;
-  RELAXED_WRITE_FIELD(this, offset, value);
-  CONDITIONAL_WRITE_BARRIER(this, offset, value, mode);
+  RELAXED_WRITE_FIELD(*this, offset, value);
+  CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);
 }
 
 ObjectSlot PreparseData::child_data_start() const {
@@ -58,8 +58,8 @@ void PreparseData::clear_padding() {
 OBJECT_CONSTRUCTORS_IMPL(UncompiledData, HeapObject)
 OBJECT_CONSTRUCTORS_IMPL(UncompiledDataWithoutPreparseData, UncompiledData)
 OBJECT_CONSTRUCTORS_IMPL(UncompiledDataWithPreparseData, UncompiledData)
-CAST_ACCESSOR2(UncompiledData)
-ACCESSORS2(UncompiledData, inferred_name, String, kInferredNameOffset)
+CAST_ACCESSOR(UncompiledData)
+ACCESSORS(UncompiledData, inferred_name, String, kInferredNameOffset)
 INT32_ACCESSORS(UncompiledData, start_position, kStartPositionOffset)
 INT32_ACCESSORS(UncompiledData, end_position, kEndPositionOffset)
 INT32_ACCESSORS(UncompiledData, function_literal_id, kFunctionLiteralIdOffset)
@@ -72,22 +72,22 @@ void UncompiledData::clear_padding() {
   }
 }
 
-CAST_ACCESSOR2(UncompiledDataWithoutPreparseData)
+CAST_ACCESSOR(UncompiledDataWithoutPreparseData)
 
-CAST_ACCESSOR2(UncompiledDataWithPreparseData)
-ACCESSORS2(UncompiledDataWithPreparseData, preparse_data, PreparseData,
-           kPreparseDataOffset)
+CAST_ACCESSOR(UncompiledDataWithPreparseData)
+ACCESSORS(UncompiledDataWithPreparseData, preparse_data, PreparseData,
+          kPreparseDataOffset)
 
 OBJECT_CONSTRUCTORS_IMPL(InterpreterData, Struct)
 
-CAST_ACCESSOR2(InterpreterData)
-ACCESSORS2(InterpreterData, bytecode_array, BytecodeArray, kBytecodeArrayOffset)
-ACCESSORS2(InterpreterData, interpreter_trampoline, Code,
-           kInterpreterTrampolineOffset)
+CAST_ACCESSOR(InterpreterData)
+ACCESSORS(InterpreterData, bytecode_array, BytecodeArray, kBytecodeArrayOffset)
+ACCESSORS(InterpreterData, interpreter_trampoline, Code,
+          kInterpreterTrampolineOffset)
 
 OBJECT_CONSTRUCTORS_IMPL(SharedFunctionInfo, HeapObject)
 NEVER_READ_ONLY_SPACE_IMPL(SharedFunctionInfo)
-CAST_ACCESSOR2(SharedFunctionInfo)
+CAST_ACCESSOR(SharedFunctionInfo)
 DEFINE_DEOPT_ELEMENT_ACCESSORS(SharedFunctionInfo, Object)
 
 ACCESSORS(SharedFunctionInfo, name_or_scope_info, Object,
@@ -149,12 +149,12 @@ AbstractCode SharedFunctionInfo::abstract_code() {
 }
 
 Object SharedFunctionInfo::function_data() const {
-  return RELAXED_READ_FIELD(this, kFunctionDataOffset);
+  return RELAXED_READ_FIELD(*this, kFunctionDataOffset);
 }
 
 void SharedFunctionInfo::set_function_data(Object data, WriteBarrierMode mode) {
-  RELAXED_WRITE_FIELD(this, kFunctionDataOffset, data);
-  CONDITIONAL_WRITE_BARRIER(this, kFunctionDataOffset, data, mode);
+  RELAXED_WRITE_FIELD(*this, kFunctionDataOffset, data);
+  CONDITIONAL_WRITE_BARRIER(*this, kFunctionDataOffset, data, mode);
 }
 
 int SharedFunctionInfo::function_token_position() const {
@@ -322,12 +322,12 @@ void SharedFunctionInfo::set_scope_info(ScopeInfo scope_info,
   if (HasInferredName() && inferred_name()->length() != 0) {
     scope_info->SetInferredFunctionName(inferred_name());
   }
-  WRITE_FIELD(this, kNameOrScopeInfoOffset, scope_info);
-  CONDITIONAL_WRITE_BARRIER(this, kNameOrScopeInfoOffset, scope_info, mode);
+  WRITE_FIELD(*this, kNameOrScopeInfoOffset, scope_info);
+  CONDITIONAL_WRITE_BARRIER(*this, kNameOrScopeInfoOffset, scope_info, mode);
 }
 
-ACCESSORS2(SharedFunctionInfo, raw_outer_scope_info_or_feedback_metadata,
-           HeapObject, kOuterScopeInfoOrFeedbackMetadataOffset)
+ACCESSORS(SharedFunctionInfo, raw_outer_scope_info_or_feedback_metadata,
+          HeapObject, kOuterScopeInfoOrFeedbackMetadataOffset)
 
 HeapObject SharedFunctionInfo::outer_scope_info() const {
   DCHECK(!is_compiled());
@@ -581,7 +581,7 @@ void SharedFunctionInfo::ClearPreparseData() {
   // Trim off the pre-parsed scope data from the uncompiled data by swapping the
   // map, leaving only an uncompiled data without pre-parsed scope.
   DisallowHeapAllocation no_gc;
-  Heap* heap = Heap::FromWritableHeapObject(&data);
+  Heap* heap = Heap::FromWritableHeapObject(data);
 
   // Swap the map.
   heap->NotifyObjectLayoutChange(data, UncompiledDataWithPreparseData::kSize,

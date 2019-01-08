@@ -46,7 +46,7 @@ class LayoutDescriptor : public ByteArray {
   // Returns true if the layout descriptor is in non-Smi form.
   V8_INLINE bool IsSlowLayout();
 
-  DECL_CAST2(LayoutDescriptor)
+  DECL_CAST(LayoutDescriptor)
 
   V8_INLINE static LayoutDescriptor cast_gc_safe(Object object);
 

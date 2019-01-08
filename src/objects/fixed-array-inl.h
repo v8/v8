@@ -49,15 +49,15 @@ ByteArray::ByteArray(Address ptr, AllowInlineSmiStorage allow_smi)
 
 NEVER_READ_ONLY_SPACE_IMPL(WeakArrayList)
 
-CAST_ACCESSOR2(ArrayList)
-CAST_ACCESSOR2(ByteArray)
-CAST_ACCESSOR2(FixedArray)
-CAST_ACCESSOR2(FixedArrayBase)
-CAST_ACCESSOR2(FixedDoubleArray)
-CAST_ACCESSOR2(FixedTypedArrayBase)
-CAST_ACCESSOR2(TemplateList)
-CAST_ACCESSOR2(WeakFixedArray)
-CAST_ACCESSOR2(WeakArrayList)
+CAST_ACCESSOR(ArrayList)
+CAST_ACCESSOR(ByteArray)
+CAST_ACCESSOR(FixedArray)
+CAST_ACCESSOR(FixedArrayBase)
+CAST_ACCESSOR(FixedDoubleArray)
+CAST_ACCESSOR(FixedTypedArrayBase)
+CAST_ACCESSOR(TemplateList)
+CAST_ACCESSOR(WeakFixedArray)
+CAST_ACCESSOR(WeakArrayList)
 
 SMI_ACCESSORS(FixedArrayBase, length, kLengthOffset)
 SYNCHRONIZED_SMI_ACCESSORS(FixedArrayBase, length, kLengthOffset)
@@ -129,8 +129,8 @@ void FixedArray::set(int index, Object value) {
   DCHECK_GE(index, 0);
   DCHECK_LT(index, this->length());
   int offset = kHeaderSize + index * kTaggedSize;
-  RELAXED_WRITE_FIELD(this, offset, value);
-  WRITE_BARRIER(this, offset, value);
+  RELAXED_WRITE_FIELD(*this, offset, value);
+  WRITE_BARRIER(*this, offset, value);
 }
 
 void FixedArray::set(int index, Object value, WriteBarrierMode mode) {
@@ -138,8 +138,8 @@ void FixedArray::set(int index, Object value, WriteBarrierMode mode) {
   DCHECK_GE(index, 0);
   DCHECK_LT(index, this->length());
   int offset = kHeaderSize + index * kTaggedSize;
-  RELAXED_WRITE_FIELD(this, offset, value);
-  CONDITIONAL_WRITE_BARRIER(this, offset, value, mode);
+  RELAXED_WRITE_FIELD(*this, offset, value);
+  CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);
 }
 
 void FixedArray::NoWriteBarrierSet(FixedArray array, int index, Object value) {
@@ -364,7 +364,8 @@ bool FixedDoubleArray::is_the_hole(int index) {
 void FixedDoubleArray::MoveElements(Heap* heap, int dst_index, int src_index,
                                     int len, WriteBarrierMode mode) {
   DCHECK_EQ(SKIP_WRITE_BARRIER, mode);
-  double* data_start = reinterpret_cast<double*>(FIELD_ADDR(this, kHeaderSize));
+  double* data_start =
+      reinterpret_cast<double*>(FIELD_ADDR(*this, kHeaderSize));
   MemMove(data_start + dst_index, data_start + src_index, len * kDoubleSize);
 }
 
@@ -376,23 +377,23 @@ void FixedDoubleArray::FillWithHoles(int from, int to) {
 
 MaybeObject WeakFixedArray::Get(int index) const {
   DCHECK(index >= 0 && index < this->length());
-  return RELAXED_READ_WEAK_FIELD(this, OffsetOfElementAt(index));
+  return RELAXED_READ_WEAK_FIELD(*this, OffsetOfElementAt(index));
 }
 
 void WeakFixedArray::Set(int index, MaybeObject value) {
   DCHECK_GE(index, 0);
   DCHECK_LT(index, length());
   int offset = OffsetOfElementAt(index);
-  RELAXED_WRITE_WEAK_FIELD(this, offset, value);
-  WEAK_WRITE_BARRIER(this, offset, value);
+  RELAXED_WRITE_WEAK_FIELD(*this, offset, value);
+  WEAK_WRITE_BARRIER(*this, offset, value);
 }
 
 void WeakFixedArray::Set(int index, MaybeObject value, WriteBarrierMode mode) {
   DCHECK_GE(index, 0);
   DCHECK_LT(index, length());
   int offset = OffsetOfElementAt(index);
-  RELAXED_WRITE_WEAK_FIELD(this, offset, value);
-  CONDITIONAL_WEAK_WRITE_BARRIER(this, offset, value, mode);
+  RELAXED_WRITE_WEAK_FIELD(*this, offset, value);
+  CONDITIONAL_WEAK_WRITE_BARRIER(*this, offset, value, mode);
 }
 
 MaybeObjectSlot WeakFixedArray::data_start() {
@@ -405,15 +406,15 @@ MaybeObjectSlot WeakFixedArray::RawFieldOfElementAt(int index) {
 
 MaybeObject WeakArrayList::Get(int index) const {
   DCHECK(index >= 0 && index < this->capacity());
-  return RELAXED_READ_WEAK_FIELD(this, OffsetOfElementAt(index));
+  return RELAXED_READ_WEAK_FIELD(*this, OffsetOfElementAt(index));
 }
 
 void WeakArrayList::Set(int index, MaybeObject value, WriteBarrierMode mode) {
   DCHECK_GE(index, 0);
   DCHECK_LT(index, this->capacity());
   int offset = OffsetOfElementAt(index);
-  RELAXED_WRITE_WEAK_FIELD(this, offset, value);
-  CONDITIONAL_WEAK_WRITE_BARRIER(this, offset, value, mode);
+  RELAXED_WRITE_WEAK_FIELD(*this, offset, value);
+  CONDITIONAL_WEAK_WRITE_BARRIER(*this, offset, value, mode);
 }
 
 MaybeObjectSlot WeakArrayList::data_start() {

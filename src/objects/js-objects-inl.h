@@ -41,18 +41,18 @@ OBJECT_CONSTRUCTORS_IMPL(JSValue, JSObject)
 
 NEVER_READ_ONLY_SPACE_IMPL(JSReceiver)
 
-CAST_ACCESSOR2(JSAsyncFromSyncIterator)
-CAST_ACCESSOR2(JSBoundFunction)
-CAST_ACCESSOR2(JSDate)
-CAST_ACCESSOR2(JSFunction)
-CAST_ACCESSOR2(JSGlobalObject)
-CAST_ACCESSOR2(JSGlobalProxy)
-CAST_ACCESSOR2(JSIteratorResult)
-CAST_ACCESSOR2(JSMessageObject)
-CAST_ACCESSOR2(JSObject)
-CAST_ACCESSOR2(JSReceiver)
-CAST_ACCESSOR2(JSStringIterator)
-CAST_ACCESSOR2(JSValue)
+CAST_ACCESSOR(JSAsyncFromSyncIterator)
+CAST_ACCESSOR(JSBoundFunction)
+CAST_ACCESSOR(JSDate)
+CAST_ACCESSOR(JSFunction)
+CAST_ACCESSOR(JSGlobalObject)
+CAST_ACCESSOR(JSGlobalProxy)
+CAST_ACCESSOR(JSIteratorResult)
+CAST_ACCESSOR(JSMessageObject)
+CAST_ACCESSOR(JSObject)
+CAST_ACCESSOR(JSReceiver)
+CAST_ACCESSOR(JSStringIterator)
+CAST_ACCESSOR(JSValue)
 
 MaybeHandle<Object> JSReceiver::GetProperty(Isolate* isolate,
                                             Handle<JSReceiver> receiver,
@@ -236,13 +236,13 @@ void JSObject::SetMapAndElements(Handle<JSObject> object, Handle<Map> new_map,
 }
 
 void JSObject::set_elements(FixedArrayBase value, WriteBarrierMode mode) {
-  WRITE_FIELD(this, kElementsOffset, value);
-  CONDITIONAL_WRITE_BARRIER(this, kElementsOffset, value, mode);
+  WRITE_FIELD(*this, kElementsOffset, value);
+  CONDITIONAL_WRITE_BARRIER(*this, kElementsOffset, value, mode);
 }
 
 void JSObject::initialize_elements() {
   FixedArrayBase elements = map()->GetInitialElements();
-  WRITE_FIELD(this, kElementsOffset, elements);
+  WRITE_FIELD(*this, kElementsOffset, elements);
 }
 
 InterceptorInfo JSObject::GetIndexedInterceptor() {
@@ -349,8 +349,8 @@ uint64_t JSObject::RawFastDoublePropertyAsBitsAt(FieldIndex index) {
 void JSObject::RawFastPropertyAtPut(FieldIndex index, Object value) {
   if (index.is_inobject()) {
     int offset = index.offset();
-    WRITE_FIELD(this, offset, value);
-    WRITE_BARRIER(this, offset, value);
+    WRITE_FIELD(*this, offset, value);
+    WRITE_BARRIER(*this, offset, value);
   } else {
     property_array()->set(index.outobject_array_index(), value);
   }
@@ -361,7 +361,7 @@ void JSObject::RawFastDoublePropertyAsBitsAtPut(FieldIndex index,
   // Double unboxing is enabled only on 64-bit platforms without pointer
   // compression.
   DCHECK_EQ(kDoubleSize, kTaggedSize);
-  Address field_addr = FIELD_ADDR(this, index.offset());
+  Address field_addr = FIELD_ADDR(*this, index.offset());
   base::Relaxed_Store(reinterpret_cast<base::AtomicWord*>(field_addr),
                       static_cast<base::AtomicWord>(bits));
 }
@@ -416,15 +416,15 @@ int JSObject::GetInObjectPropertyOffset(int index) {
 
 Object JSObject::InObjectPropertyAt(int index) {
   int offset = GetInObjectPropertyOffset(index);
-  return READ_FIELD(this, offset);
+  return READ_FIELD(*this, offset);
 }
 
 Object JSObject::InObjectPropertyAtPut(int index, Object value,
                                        WriteBarrierMode mode) {
   // Adjust for the number of properties stored in the object.
   int offset = GetInObjectPropertyOffset(index);
-  WRITE_FIELD(this, offset, value);
-  CONDITIONAL_WRITE_BARRIER(this, offset, value, mode);
+  WRITE_FIELD(*this, offset, value);
+  CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);
   return value;
 }
 
@@ -440,12 +440,12 @@ void JSObject::InitializeBody(Map map, int start_offset,
         size - (map->UnusedPropertyFields() * kTaggedSize);
     DCHECK_LE(kHeaderSize, end_of_pre_allocated_offset);
     while (offset < end_of_pre_allocated_offset) {
-      WRITE_FIELD(this, offset, pre_allocated_value);
+      WRITE_FIELD(*this, offset, pre_allocated_value);
       offset += kTaggedSize;
     }
   }
   while (offset < size) {
-    WRITE_FIELD(this, offset, filler_value);
+    WRITE_FIELD(*this, offset, filler_value);
     offset += kTaggedSize;
   }
 }
@@ -454,16 +454,16 @@ Object JSBoundFunction::raw_bound_target_function() const {
   return READ_FIELD(this, kBoundTargetFunctionOffset);
 }
 
-ACCESSORS2(JSBoundFunction, bound_target_function, JSReceiver,
-           kBoundTargetFunctionOffset)
+ACCESSORS(JSBoundFunction, bound_target_function, JSReceiver,
+          kBoundTargetFunctionOffset)
 ACCESSORS(JSBoundFunction, bound_this, Object, kBoundThisOffset)
-ACCESSORS2(JSBoundFunction, bound_arguments, FixedArray, kBoundArgumentsOffset)
+ACCESSORS(JSBoundFunction, bound_arguments, FixedArray, kBoundArgumentsOffset)
 
-ACCESSORS2(JSFunction, shared, SharedFunctionInfo, kSharedFunctionInfoOffset)
-ACCESSORS2(JSFunction, raw_feedback_cell, FeedbackCell, kFeedbackCellOffset)
+ACCESSORS(JSFunction, shared, SharedFunctionInfo, kSharedFunctionInfoOffset)
+ACCESSORS(JSFunction, raw_feedback_cell, FeedbackCell, kFeedbackCellOffset)
 
-ACCESSORS2(JSGlobalObject, native_context, Context, kNativeContextOffset)
-ACCESSORS2(JSGlobalObject, global_proxy, JSObject, kGlobalProxyOffset)
+ACCESSORS(JSGlobalObject, native_context, Context, kNativeContextOffset)
+ACCESSORS(JSGlobalObject, global_proxy, JSObject, kGlobalProxyOffset)
 
 ACCESSORS(JSGlobalProxy, native_context, Object, kNativeContextOffset)
 
@@ -542,18 +542,18 @@ AbstractCode JSFunction::abstract_code() {
 }
 
 Code JSFunction::code() const {
-  return Code::cast(READ_FIELD(this, kCodeOffset));
+  return Code::cast(READ_FIELD(*this, kCodeOffset));
 }
 
 void JSFunction::set_code(Code value) {
   DCHECK(!Heap::InNewSpace(value));
-  WRITE_FIELD(this, kCodeOffset, value);
-  MarkingBarrier(this, RawField(kCodeOffset), value);
+  WRITE_FIELD(*this, kCodeOffset, value);
+  MarkingBarrier(*this, RawField(kCodeOffset), value);
 }
 
 void JSFunction::set_code_no_write_barrier(Code value) {
   DCHECK(!Heap::InNewSpace(value));
-  WRITE_FIELD(this, kCodeOffset, value);
+  WRITE_FIELD(*this, kCodeOffset, value);
 }
 
 void JSFunction::ClearOptimizedCodeSlot(const char* reason) {
@@ -582,11 +582,11 @@ bool JSFunction::has_feedback_vector() const {
 }
 
 Context JSFunction::context() {
-  return Context::cast(READ_FIELD(this, kContextOffset));
+  return Context::cast(READ_FIELD(*this, kContextOffset));
 }
 
 bool JSFunction::has_context() const {
-  return READ_FIELD(this, kContextOffset)->IsContext();
+  return READ_FIELD(*this, kContextOffset)->IsContext();
 }
 
 JSGlobalProxy JSFunction::global_proxy() { return context()->global_proxy(); }
@@ -595,8 +595,8 @@ Context JSFunction::native_context() { return context()->native_context(); }
 
 void JSFunction::set_context(Object value) {
   DCHECK(value->IsUndefined() || value->IsContext());
-  WRITE_FIELD(this, kContextOffset, value);
-  WRITE_BARRIER(this, kContextOffset, value);
+  WRITE_FIELD(*this, kContextOffset, value);
+  WRITE_BARRIER(*this, kContextOffset, value);
 }
 
 ACCESSORS_CHECKED(JSFunction, prototype_or_initial_map, Object,
@@ -693,7 +693,7 @@ void JSMessageObject::set_type(MessageTemplate value) {
   WRITE_FIELD(this, kTypeOffset, Smi::FromInt(static_cast<int>(value)));
 }
 ACCESSORS(JSMessageObject, argument, Object, kArgumentsOffset)
-ACCESSORS2(JSMessageObject, script, Script, kScriptOffset)
+ACCESSORS(JSMessageObject, script, Script, kScriptOffset)
 ACCESSORS(JSMessageObject, stack_frames, Object, kStackFramesOffset)
 SMI_ACCESSORS(JSMessageObject, start_position, kStartPositionOffset)
 SMI_ACCESSORS(JSMessageObject, end_position, kEndPositionOffset)
@@ -943,11 +943,11 @@ inline int JSGlobalProxy::SizeWithEmbedderFields(int embedder_field_count) {
 ACCESSORS(JSIteratorResult, value, Object, kValueOffset)
 ACCESSORS(JSIteratorResult, done, Object, kDoneOffset)
 
-ACCESSORS2(JSAsyncFromSyncIterator, sync_iterator, JSReceiver,
-           kSyncIteratorOffset)
+ACCESSORS(JSAsyncFromSyncIterator, sync_iterator, JSReceiver,
+          kSyncIteratorOffset)
 ACCESSORS(JSAsyncFromSyncIterator, next, Object, kNextOffset)
 
-ACCESSORS2(JSStringIterator, string, String, kStringOffset)
+ACCESSORS(JSStringIterator, string, String, kStringOffset)
 SMI_ACCESSORS(JSStringIterator, index, kNextIndexOffset)
 
 }  // namespace internal

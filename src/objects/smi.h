@@ -82,7 +82,7 @@ class Smi : public Object {
   // usage.
   static Address LexicographicCompare(Isolate* isolate, Smi x, Smi y);
 
-  DECL_CAST2(Smi)
+  DECL_CAST(Smi)
 
   // Dispatched behavior.
   V8_EXPORT_PRIVATE void SmiPrint(std::ostream& os) const;  // NOLINT

@@ -151,7 +151,7 @@ class FeedbackVector : public HeapObject {
  public:
   NEVER_READ_ONLY_SPACE
 
-  DECL_CAST2(FeedbackVector)
+  DECL_CAST(FeedbackVector)
 
   inline void ComputeCounts(int* with_type_info, int* generic,
                             int* vector_ic_count);
@@ -162,11 +162,11 @@ class FeedbackVector : public HeapObject {
 
   // [shared_function_info]: The shared function info for the function with this
   // feedback vector.
-  DECL_ACCESSORS2(shared_function_info, SharedFunctionInfo)
+  DECL_ACCESSORS(shared_function_info, SharedFunctionInfo)
 
   // [optimized_code_weak_or_smi]: weak reference to optimized code or a Smi
   // marker defining optimization behaviour.
-  DECL_ACCESSORS2(optimized_code_weak_or_smi, MaybeObject)
+  DECL_ACCESSORS(optimized_code_weak_or_smi, MaybeObject)
 
   // [length]: The length of the feedback vector (not including the header, i.e.
   // the number of feedback slots).
@@ -453,7 +453,7 @@ class SharedFeedbackSlot {
 // the number of slots is static once an instance is created.
 class FeedbackMetadata : public HeapObject {
  public:
-  DECL_CAST2(FeedbackMetadata)
+  DECL_CAST(FeedbackMetadata)
 
   // The number of slots that this metadata contains. Stored as an int32.
   DECL_INT32_ACCESSORS(slot_count)

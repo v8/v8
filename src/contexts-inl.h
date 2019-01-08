@@ -23,7 +23,7 @@ namespace v8 {
 namespace internal {
 
 OBJECT_CONSTRUCTORS_IMPL(ScriptContextTable, FixedArray)
-CAST_ACCESSOR2(ScriptContextTable)
+CAST_ACCESSOR(ScriptContextTable)
 
 int ScriptContextTable::used() const { return Smi::ToInt(get(kUsedSlotIndex)); }
 
@@ -42,31 +42,31 @@ Handle<Context> ScriptContextTable::GetContext(Isolate* isolate,
 
 OBJECT_CONSTRUCTORS_IMPL(Context, HeapObject)
 NEVER_READ_ONLY_SPACE_IMPL(Context)
-CAST_ACCESSOR2(Context)
+CAST_ACCESSOR(Context)
 SMI_ACCESSORS(Context, length, kLengthOffset)
 
-CAST_ACCESSOR2(NativeContext)
+CAST_ACCESSOR(NativeContext)
 
 Object Context::get(int index) const {
   DCHECK_LT(static_cast<unsigned>(index),
             static_cast<unsigned>(this->length()));
-  return RELAXED_READ_FIELD(this, OffsetOfElementAt(index));
+  return RELAXED_READ_FIELD(*this, OffsetOfElementAt(index));
 }
 
 void Context::set(int index, Object value) {
   DCHECK_LT(static_cast<unsigned>(index),
             static_cast<unsigned>(this->length()));
   int offset = OffsetOfElementAt(index);
-  RELAXED_WRITE_FIELD(this, offset, value);
-  WRITE_BARRIER(this, offset, value);
+  RELAXED_WRITE_FIELD(*this, offset, value);
+  WRITE_BARRIER(*this, offset, value);
 }
 
 void Context::set(int index, Object value, WriteBarrierMode mode) {
   DCHECK_LT(static_cast<unsigned>(index),
             static_cast<unsigned>(this->length()));
   int offset = OffsetOfElementAt(index);
-  RELAXED_WRITE_FIELD(this, offset, value);
-  CONDITIONAL_WRITE_BARRIER(this, offset, value, mode);
+  RELAXED_WRITE_FIELD(*this, offset, value);
+  CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);
 }
 
 void Context::set_scope_info(ScopeInfo scope_info) {

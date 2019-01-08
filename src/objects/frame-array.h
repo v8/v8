@@ -64,7 +64,7 @@ class FrameArray : public FixedArray {
       Handle<FrameArray> in, Handle<WasmInstanceObject> wasm_instance,
       int wasm_function_index, wasm::WasmCode* code, int offset, int flags);
 
-  DECL_CAST2(FrameArray)
+  DECL_CAST(FrameArray)
 
  private:
   // The underlying fixed array embodies a captured stack trace. Frame i

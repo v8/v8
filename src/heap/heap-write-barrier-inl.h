@@ -104,16 +104,11 @@ inline void GenerationalBarrier(HeapObject object, ObjectSlot slot,
                                               HeapObject::cast(value));
 }
 
-inline void GenerationalBarrier(HeapObject* object, ObjectSlot slot,
-                                Object value) {
-  GenerationalBarrier(*object, slot, value);
-}
-
-inline void GenerationalBarrier(HeapObject* object, MaybeObjectSlot slot,
+inline void GenerationalBarrier(HeapObject object, MaybeObjectSlot slot,
                                 MaybeObject value) {
   HeapObject value_heap_object;
   if (!value->GetHeapObject(&value_heap_object)) return;
-  heap_internals::GenerationalBarrierInternal(*object, slot.address(),
+  heap_internals::GenerationalBarrierInternal(object, slot.address(),
                                               value_heap_object);
 }
 
@@ -142,15 +137,11 @@ inline void MarkingBarrier(HeapObject object, ObjectSlot slot, Object value) {
                                          HeapObject::cast(value));
 }
 
-inline void MarkingBarrier(HeapObject* object, ObjectSlot slot, Object value) {
-  MarkingBarrier(*object, slot, value);
-}
-
-inline void MarkingBarrier(HeapObject* object, MaybeObjectSlot slot,
+inline void MarkingBarrier(HeapObject object, MaybeObjectSlot slot,
                            MaybeObject value) {
   HeapObject value_heap_object;
   if (!value->GetHeapObject(&value_heap_object)) return;
-  heap_internals::MarkingBarrierInternal(*object, slot.address(),
+  heap_internals::MarkingBarrierInternal(object, slot.address(),
                                          value_heap_object);
 }
 

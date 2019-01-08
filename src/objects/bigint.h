@@ -204,7 +204,7 @@ class V8_EXPORT_PRIVATE BigInt : public BigIntBase {
   int Words64Count();
   void ToWordsArray64(int* sign_bit, int* words64_count, uint64_t* words);
 
-  DECL_CAST2(BigInt)
+  DECL_CAST(BigInt)
   DECL_VERIFIER(BigInt)
   DECL_PRINTER(BigInt)
   void BigIntShortPrint(std::ostream& os);

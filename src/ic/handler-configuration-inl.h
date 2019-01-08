@@ -21,7 +21,7 @@ namespace internal {
 
 OBJECT_CONSTRUCTORS_IMPL(LoadHandler, DataHandler)
 
-CAST_ACCESSOR2(LoadHandler)
+CAST_ACCESSOR(LoadHandler)
 
 // Decodes kind from Smi-handler.
 LoadHandler::Kind LoadHandler::GetHandlerKind(Smi smi_handler) {
@@ -115,7 +115,7 @@ Handle<Smi> LoadHandler::LoadIndexedString(Isolate* isolate,
 
 OBJECT_CONSTRUCTORS_IMPL(StoreHandler, DataHandler)
 
-CAST_ACCESSOR2(StoreHandler)
+CAST_ACCESSOR(StoreHandler)
 
 Handle<Smi> StoreHandler::StoreGlobalProxy(Isolate* isolate) {
   int config = KindBits::encode(kGlobalProxy);

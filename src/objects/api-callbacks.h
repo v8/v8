@@ -24,7 +24,7 @@ namespace internal {
 // This shadows the accessor in the prototype.
 class AccessorInfo : public Struct {
  public:
-  DECL_ACCESSORS2(name, Name)
+  DECL_ACCESSORS(name, Name)
   DECL_INT_ACCESSORS(flags)
   DECL_ACCESSORS(expected_receiver_type, Object)
   // This directly points at a foreign C function to be used from the runtime.
@@ -66,7 +66,7 @@ class AccessorInfo : public Struct {
                                       Handle<Map> map);
   inline bool IsCompatibleReceiver(Object receiver);
 
-  DECL_CAST2(AccessorInfo)
+  DECL_CAST(AccessorInfo)
 
   // Dispatched behavior.
   DECL_VERIFIER(AccessorInfo)
@@ -118,7 +118,7 @@ class AccessCheckInfo : public Struct {
   DECL_ACCESSORS(indexed_interceptor, Object)
   DECL_ACCESSORS(data, Object)
 
-  DECL_CAST2(AccessCheckInfo)
+  DECL_CAST(AccessCheckInfo)
 
   // Dispatched behavior.
   DECL_PRINTER(AccessCheckInfo)
@@ -160,7 +160,7 @@ class InterceptorInfo : public Struct {
   inline int flags() const;
   inline void set_flags(int flags);
 
-  DECL_CAST2(InterceptorInfo)
+  DECL_CAST(InterceptorInfo)
 
   // Dispatched behavior.
   DECL_PRINTER(InterceptorInfo)
@@ -198,7 +198,7 @@ class CallHandlerInfo : public Tuple3 {
   DECL_ACCESSORS(js_callback, Object)
   DECL_ACCESSORS(data, Object)
 
-  DECL_CAST2(CallHandlerInfo)
+  DECL_CAST(CallHandlerInfo)
 
   inline bool IsSideEffectFreeCallHandlerInfo() const;
   inline bool IsSideEffectCallHandlerInfo() const;

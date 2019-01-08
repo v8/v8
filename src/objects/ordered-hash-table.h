@@ -230,7 +230,7 @@ class OrderedHashTable : public FixedArray {
 
 class OrderedHashSet : public OrderedHashTable<OrderedHashSet, 1> {
  public:
-  DECL_CAST2(OrderedHashSet)
+  DECL_CAST(OrderedHashSet)
 
   static Handle<OrderedHashSet> Add(Isolate* isolate,
                                     Handle<OrderedHashSet> table,
@@ -253,7 +253,7 @@ class OrderedHashSet : public OrderedHashTable<OrderedHashSet, 1> {
 
 class OrderedHashMap : public OrderedHashTable<OrderedHashMap, 2> {
  public:
-  DECL_CAST2(OrderedHashMap)
+  DECL_CAST(OrderedHashMap)
 
   // Returns a value if the OrderedHashMap contains the key, otherwise
   // returns undefined.
@@ -576,7 +576,7 @@ class SmallOrderedHashTable : public HeapObject {
 
 class SmallOrderedHashSet : public SmallOrderedHashTable<SmallOrderedHashSet> {
  public:
-  DECL_CAST2(SmallOrderedHashSet)
+  DECL_CAST(SmallOrderedHashSet)
 
   DECL_PRINTER(SmallOrderedHashSet)
   DECL_VERIFIER(SmallOrderedHashSet)
@@ -602,7 +602,7 @@ class SmallOrderedHashSet : public SmallOrderedHashTable<SmallOrderedHashSet> {
 
 class SmallOrderedHashMap : public SmallOrderedHashTable<SmallOrderedHashMap> {
  public:
-  DECL_CAST2(SmallOrderedHashMap)
+  DECL_CAST(SmallOrderedHashMap)
 
   DECL_PRINTER(SmallOrderedHashMap)
   DECL_VERIFIER(SmallOrderedHashMap)
@@ -670,7 +670,7 @@ class OrderedHashSetHandler
 class OrderedNameDictionary
     : public OrderedHashTable<OrderedNameDictionary, 3> {
  public:
-  DECL_CAST2(OrderedNameDictionary)
+  DECL_CAST(OrderedNameDictionary)
 
   static Handle<OrderedNameDictionary> Add(Isolate* isolate,
                                            Handle<OrderedNameDictionary> table,
@@ -761,7 +761,7 @@ class OrderedNameDictionaryHandler
 class SmallOrderedNameDictionary
     : public SmallOrderedHashTable<SmallOrderedNameDictionary> {
  public:
-  DECL_CAST2(SmallOrderedNameDictionary)
+  DECL_CAST(SmallOrderedNameDictionary)
 
   DECL_PRINTER(SmallOrderedNameDictionary)
   DECL_VERIFIER(SmallOrderedNameDictionary)

@@ -24,7 +24,7 @@ class TemplateInfo : public Struct {
 
   DECL_VERIFIER(TemplateInfo)
 
-  DECL_CAST2(TemplateInfo)
+  DECL_CAST(TemplateInfo)
 
   // Layout description.
 #define TEMPLATE_INFO_FIELDS(V)            \
@@ -62,7 +62,7 @@ class FunctionTemplateRareData : public Struct {
   DECL_ACCESSORS(instance_call_handler, Object)
   DECL_ACCESSORS(access_check_info, Object)
 
-  DECL_CAST2(FunctionTemplateRareData)
+  DECL_CAST(FunctionTemplateRareData)
 
   // Dispatched behavior.
   DECL_PRINTER(FunctionTemplateRareData)
@@ -105,7 +105,7 @@ class FunctionTemplateInfo : public TemplateInfo {
   // If any of the setters below declared by DECL_RARE_ACCESSORS are used then
   // a FunctionTemplateRareData will be stored here. Until then this contains
   // undefined.
-  DECL_ACCESSORS2(rare_data, HeapObject)
+  DECL_ACCESSORS(rare_data, HeapObject)
 
 #define DECL_RARE_ACCESSORS(Name, CamelName, Type)                           \
   inline Type Get##CamelName();                                              \
@@ -183,7 +183,7 @@ class FunctionTemplateInfo : public TemplateInfo {
   DECL_BOOLEAN_ACCESSORS(accept_any_receiver)
   // End flag bits ---------------------
 
-  DECL_CAST2(FunctionTemplateInfo)
+  DECL_CAST(FunctionTemplateInfo)
 
   // Dispatched behavior.
   DECL_PRINTER(FunctionTemplateInfo)
@@ -250,7 +250,7 @@ class ObjectTemplateInfo : public TemplateInfo {
   DECL_INT_ACCESSORS(embedder_field_count)
   DECL_BOOLEAN_ACCESSORS(immutable_proto)
 
-  DECL_CAST2(ObjectTemplateInfo)
+  DECL_CAST(ObjectTemplateInfo)
 
   // Dispatched behavior.
   DECL_PRINTER(ObjectTemplateInfo)

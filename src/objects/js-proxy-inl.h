@@ -17,7 +17,7 @@ namespace internal {
 
 OBJECT_CONSTRUCTORS_IMPL(JSProxy, JSReceiver)
 
-CAST_ACCESSOR2(JSProxy)
+CAST_ACCESSOR(JSProxy)
 
 ACCESSORS(JSProxy, target, Object, kTargetOffset)
 ACCESSORS(JSProxy, handler, Object, kHandlerOffset)

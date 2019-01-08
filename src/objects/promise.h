@@ -27,11 +27,11 @@ class JSPromise;
 class PromiseReactionJobTask : public Microtask {
  public:
   DECL_ACCESSORS(argument, Object)
-  DECL_ACCESSORS2(context, Context)
-  DECL_ACCESSORS2(handler, HeapObject)
+  DECL_ACCESSORS(context, Context)
+  DECL_ACCESSORS(handler, HeapObject)
   // [promise_or_capability]: Either a JSPromise (in case of native promises),
   // a PromiseCapability (general case), or undefined (in case of await).
-  DECL_ACCESSORS2(promise_or_capability, HeapObject)
+  DECL_ACCESSORS(promise_or_capability, HeapObject)
 
 // Layout description.
 #define PROMISE_REACTION_JOB_FIELDS(V)       \
@@ -47,7 +47,7 @@ class PromiseReactionJobTask : public Microtask {
 #undef PROMISE_REACTION_JOB_FIELDS
 
   // Dispatched behavior.
-  DECL_CAST2(PromiseReactionJobTask)
+  DECL_CAST(PromiseReactionJobTask)
   DECL_VERIFIER(PromiseReactionJobTask)
 
   OBJECT_CONSTRUCTORS(PromiseReactionJobTask, Microtask)
@@ -57,7 +57,7 @@ class PromiseReactionJobTask : public Microtask {
 class PromiseFulfillReactionJobTask : public PromiseReactionJobTask {
  public:
   // Dispatched behavior.
-  DECL_CAST2(PromiseFulfillReactionJobTask)
+  DECL_CAST(PromiseFulfillReactionJobTask)
   DECL_PRINTER(PromiseFulfillReactionJobTask)
   DECL_VERIFIER(PromiseFulfillReactionJobTask)
 
@@ -68,7 +68,7 @@ class PromiseFulfillReactionJobTask : public PromiseReactionJobTask {
 class PromiseRejectReactionJobTask : public PromiseReactionJobTask {
  public:
   // Dispatched behavior.
-  DECL_CAST2(PromiseRejectReactionJobTask)
+  DECL_CAST(PromiseRejectReactionJobTask)
   DECL_PRINTER(PromiseRejectReactionJobTask)
   DECL_VERIFIER(PromiseRejectReactionJobTask)
 
@@ -78,10 +78,10 @@ class PromiseRejectReactionJobTask : public PromiseReactionJobTask {
 // A container struct to hold state required for PromiseResolveThenableJob.
 class PromiseResolveThenableJobTask : public Microtask {
  public:
-  DECL_ACCESSORS2(context, Context)
-  DECL_ACCESSORS2(promise_to_resolve, JSPromise)
-  DECL_ACCESSORS2(then, JSReceiver)
-  DECL_ACCESSORS2(thenable, JSReceiver)
+  DECL_ACCESSORS(context, Context)
+  DECL_ACCESSORS(promise_to_resolve, JSPromise)
+  DECL_ACCESSORS(then, JSReceiver)
+  DECL_ACCESSORS(thenable, JSReceiver)
 
 // Layout description.
 #define PROMISE_RESOLVE_THENABLE_JOB_FIELDS(V) \
@@ -97,7 +97,7 @@ class PromiseResolveThenableJobTask : public Microtask {
 #undef PROMISE_RESOLVE_THENABLE_JOB_FIELDS
 
   // Dispatched behavior.
-  DECL_CAST2(PromiseResolveThenableJobTask)
+  DECL_CAST(PromiseResolveThenableJobTask)
   DECL_PRINTER(PromiseResolveThenableJobTask)
   DECL_VERIFIER(PromiseResolveThenableJobTask)
 
@@ -107,7 +107,7 @@ class PromiseResolveThenableJobTask : public Microtask {
 // Struct to hold the state of a PromiseCapability.
 class PromiseCapability : public Struct {
  public:
-  DECL_ACCESSORS2(promise, HeapObject)
+  DECL_ACCESSORS(promise, HeapObject)
   DECL_ACCESSORS(resolve, Object)
   DECL_ACCESSORS(reject, Object)
 
@@ -123,7 +123,7 @@ class PromiseCapability : public Struct {
 #undef PROMISE_CAPABILITY_FIELDS
 
   // Dispatched behavior.
-  DECL_CAST2(PromiseCapability)
+  DECL_CAST(PromiseCapability)
   DECL_PRINTER(PromiseCapability)
   DECL_VERIFIER(PromiseCapability)
 
@@ -152,11 +152,11 @@ class PromiseReaction : public Struct {
   enum Type { kFulfill, kReject };
 
   DECL_ACCESSORS(next, Object)
-  DECL_ACCESSORS2(reject_handler, HeapObject)
-  DECL_ACCESSORS2(fulfill_handler, HeapObject)
+  DECL_ACCESSORS(reject_handler, HeapObject)
+  DECL_ACCESSORS(fulfill_handler, HeapObject)
   // [promise_or_capability]: Either a JSPromise (in case of native promises),
   // a PromiseCapability (general case), or undefined (in case of await).
-  DECL_ACCESSORS2(promise_or_capability, HeapObject)
+  DECL_ACCESSORS(promise_or_capability, HeapObject)
 
 // Layout description.
 #define PROMISE_REACTION_FIELDS(V)           \
@@ -171,7 +171,7 @@ class PromiseReaction : public Struct {
 #undef PROMISE_REACTION_FIELDS
 
   // Dispatched behavior.
-  DECL_CAST2(PromiseReaction)
+  DECL_CAST(PromiseReaction)
   DECL_PRINTER(PromiseReaction)
   DECL_VERIFIER(PromiseReaction)
 

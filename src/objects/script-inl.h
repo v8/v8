@@ -21,7 +21,7 @@ OBJECT_CONSTRUCTORS_IMPL(Script, Struct)
 
 NEVER_READ_ONLY_SPACE_IMPL(Script)
 
-CAST_ACCESSOR2(Script)
+CAST_ACCESSOR(Script)
 
 ACCESSORS(Script, source, Object, kSourceOffset)
 ACCESSORS(Script, name, Object, kNameOffset)
@@ -36,12 +36,12 @@ ACCESSORS_CHECKED(Script, eval_from_shared_or_wrapped_arguments, Object,
                   this->type() != TYPE_WASM)
 SMI_ACCESSORS_CHECKED(Script, eval_from_position, kEvalFromPositionOffset,
                       this->type() != TYPE_WASM)
-ACCESSORS2(Script, shared_function_infos, WeakFixedArray,
-           kSharedFunctionInfosOffset)
+ACCESSORS(Script, shared_function_infos, WeakFixedArray,
+          kSharedFunctionInfosOffset)
 SMI_ACCESSORS(Script, flags, kFlagsOffset)
 ACCESSORS(Script, source_url, Object, kSourceUrlOffset)
 ACCESSORS(Script, source_mapping_url, Object, kSourceMappingUrlOffset)
-ACCESSORS2(Script, host_defined_options, FixedArray, kHostDefinedOptionsOffset)
+ACCESSORS(Script, host_defined_options, FixedArray, kHostDefinedOptionsOffset)
 ACCESSORS_CHECKED(Script, wasm_module_object, Object,
                   kEvalFromSharedOrWrappedArgumentsOffset,
                   this->type() == TYPE_WASM)

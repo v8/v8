@@ -20,10 +20,10 @@ class JSPromise;
 class JSGeneratorObject : public JSObject {
  public:
   // [function]: The function corresponding to this generator object.
-  DECL_ACCESSORS2(function, JSFunction)
+  DECL_ACCESSORS(function, JSFunction)
 
   // [context]: The context of the suspended computation.
-  DECL_ACCESSORS2(context, Context)
+  DECL_ACCESSORS(context, Context)
 
   // [receiver]: The receiver of the suspended computation.
   DECL_ACCESSORS(receiver, Object)
@@ -55,9 +55,9 @@ class JSGeneratorObject : public JSObject {
   int source_position() const;
 
   // [parameters_and_registers]: Saved interpreter register file.
-  DECL_ACCESSORS2(parameters_and_registers, FixedArray)
+  DECL_ACCESSORS(parameters_and_registers, FixedArray)
 
-  DECL_CAST2(JSGeneratorObject)
+  DECL_CAST(JSGeneratorObject)
 
   // Dispatched behavior.
   DECL_PRINTER(JSGeneratorObject)
@@ -87,13 +87,13 @@ class JSGeneratorObject : public JSObject {
 
 class JSAsyncFunctionObject : public JSGeneratorObject {
  public:
-  DECL_CAST2(JSAsyncFunctionObject)
+  DECL_CAST(JSAsyncFunctionObject)
 
   // Dispatched behavior.
   DECL_VERIFIER(JSAsyncFunctionObject)
 
   // [promise]: The promise of the async function.
-  DECL_ACCESSORS2(promise, JSPromise)
+  DECL_ACCESSORS(promise, JSPromise)
 
   // Layout description.
 #define JS_ASYNC_FUNCTION_FIELDS(V) \
@@ -110,7 +110,7 @@ class JSAsyncFunctionObject : public JSGeneratorObject {
 
 class JSAsyncGeneratorObject : public JSGeneratorObject {
  public:
-  DECL_CAST2(JSAsyncGeneratorObject)
+  DECL_CAST(JSAsyncGeneratorObject)
 
   // Dispatched behavior.
   DECL_VERIFIER(JSAsyncGeneratorObject)
@@ -118,7 +118,7 @@ class JSAsyncGeneratorObject : public JSGeneratorObject {
   // [queue]
   // Pointer to the head of a singly linked list of AsyncGeneratorRequest, or
   // undefined.
-  DECL_ACCESSORS2(queue, HeapObject)
+  DECL_ACCESSORS(queue, HeapObject)
 
   // [is_awaiting]
   // Whether or not the generator is currently awaiting.
@@ -159,7 +159,7 @@ class AsyncGeneratorRequest : public Struct {
                                 ASYNC_GENERATOR_REQUEST_FIELDS)
 #undef ASYNC_GENERATOR_REQUEST_FIELDS
 
-  DECL_CAST2(AsyncGeneratorRequest)
+  DECL_CAST(AsyncGeneratorRequest)
   DECL_PRINTER(AsyncGeneratorRequest)
   DECL_VERIFIER(AsyncGeneratorRequest)
 

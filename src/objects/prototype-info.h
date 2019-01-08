@@ -47,7 +47,7 @@ class PrototypeInfo : public Struct {
 
   DECL_BOOLEAN_ACCESSORS(should_be_fast_map)
 
-  DECL_CAST2(PrototypeInfo)
+  DECL_CAST(PrototypeInfo)
 
   // Dispatched behavior.
   DECL_PRINTER(PrototypeInfo)
@@ -73,7 +73,7 @@ class PrototypeInfo : public Struct {
   class BodyDescriptor;
 
  private:
-  DECL_ACCESSORS2(object_create_map, MaybeObject)
+  DECL_ACCESSORS(object_create_map, MaybeObject)
 
   OBJECT_CONSTRUCTORS(PrototypeInfo, Struct);
 };

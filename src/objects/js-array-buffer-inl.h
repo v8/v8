@@ -21,10 +21,10 @@ OBJECT_CONSTRUCTORS_IMPL(JSArrayBufferView, JSObject)
 OBJECT_CONSTRUCTORS_IMPL(JSTypedArray, JSArrayBufferView)
 OBJECT_CONSTRUCTORS_IMPL(JSDataView, JSArrayBufferView)
 
-CAST_ACCESSOR2(JSArrayBuffer)
-CAST_ACCESSOR2(JSArrayBufferView)
-CAST_ACCESSOR2(JSTypedArray)
-CAST_ACCESSOR2(JSDataView)
+CAST_ACCESSOR(JSArrayBuffer)
+CAST_ACCESSOR(JSArrayBufferView)
+CAST_ACCESSOR(JSTypedArray)
+CAST_ACCESSOR(JSDataView)
 
 size_t JSArrayBuffer::byte_length() const {
   return READ_UINTPTR_FIELD(this, kByteLengthOffset);
@@ -149,7 +149,7 @@ size_t JSTypedArray::length_value() const {
 
 void JSTypedArray::set_length(Object value, WriteBarrierMode mode) {
   WRITE_FIELD(this, kLengthOffset, value);
-  CONDITIONAL_WRITE_BARRIER(this, kLengthOffset, value, mode);
+  CONDITIONAL_WRITE_BARRIER(*this, kLengthOffset, value, mode);
 }
 
 bool JSTypedArray::is_on_heap() const {

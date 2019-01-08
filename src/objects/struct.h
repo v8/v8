@@ -20,7 +20,7 @@ namespace internal {
 class Struct : public HeapObject {
  public:
   inline void InitializeBody(int object_size);
-  DECL_CAST2(Struct)
+  DECL_CAST(Struct)
   void BriefPrintDetails(std::ostream& os);
 
   OBJECT_CONSTRUCTORS(Struct, HeapObject)
@@ -31,7 +31,7 @@ class Tuple2 : public Struct {
   DECL_ACCESSORS(value1, Object)
   DECL_ACCESSORS(value2, Object)
 
-  DECL_CAST2(Tuple2)
+  DECL_CAST(Tuple2)
 
   // Dispatched behavior.
   DECL_PRINTER(Tuple2)
@@ -49,7 +49,7 @@ class Tuple3 : public Tuple2 {
  public:
   DECL_ACCESSORS(value3, Object)
 
-  DECL_CAST2(Tuple3)
+  DECL_CAST(Tuple3)
 
   // Dispatched behavior.
   DECL_PRINTER(Tuple3)
@@ -73,7 +73,7 @@ class AccessorPair : public Struct {
   DECL_ACCESSORS(getter, Object)
   DECL_ACCESSORS(setter, Object)
 
-  DECL_CAST2(AccessorPair)
+  DECL_CAST(AccessorPair)
 
   static Handle<AccessorPair> Copy(Isolate* isolate, Handle<AccessorPair> pair);
 

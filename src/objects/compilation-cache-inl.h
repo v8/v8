@@ -25,7 +25,7 @@ CompilationCacheTable::CompilationCacheTable(Address ptr)
 }
 
 NEVER_READ_ONLY_SPACE_IMPL(CompilationCacheTable)
-CAST_ACCESSOR2(CompilationCacheTable)
+CAST_ACCESSOR(CompilationCacheTable)
 
 uint32_t CompilationCacheShape::RegExpHash(String string, Smi flags) {
   return string->Hash() + flags->value();

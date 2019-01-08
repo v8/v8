@@ -49,9 +49,9 @@ class JSLocale : public JSObject {
                                         Handle<JSLocale> locale);
   static Handle<String> ToString(Isolate* isolate, Handle<JSLocale> locale);
 
-  DECL_CAST2(JSLocale)
+  DECL_CAST(JSLocale)
 
-  DECL_ACCESSORS2(icu_locale, Managed<icu::Locale>)
+  DECL_ACCESSORS(icu_locale, Managed<icu::Locale>)
 
   DECL_PRINTER(JSLocale)
   DECL_VERIFIER(JSLocale)

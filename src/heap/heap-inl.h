@@ -389,7 +389,7 @@ bool Heap::InNewSpace(HeapObject heap_object) {
   // object is in to-space.
   if (result) {
     // If the object is in NEW_SPACE, then it's not in RO_SPACE so this is safe.
-    Heap* heap = Heap::FromWritableHeapObject(&heap_object);
+    Heap* heap = Heap::FromWritableHeapObject(heap_object);
     DCHECK(heap->gc_state_ != NOT_IN_GC || InToSpace(heap_object));
   }
 #endif
@@ -448,11 +448,6 @@ Heap* Heap::FromWritableHeapObject(const HeapObject obj) {
   Heap* heap = chunk->heap();
   SLOW_DCHECK(heap != nullptr);
   return heap;
-}
-
-// static
-Heap* Heap::FromWritableHeapObject(const HeapObject* obj) {
-  return FromWritableHeapObject(*obj);
 }
 
 bool Heap::ShouldBePromoted(Address old_address) {

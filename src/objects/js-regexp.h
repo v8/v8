@@ -116,7 +116,7 @@ class JSRegExp : public JSObject {
   inline bool HasCompiledCode() const;
   inline void DiscardCompiledCodeForSerialization();
 
-  DECL_CAST2(JSRegExp)
+  DECL_CAST(JSRegExp)
 
   // Dispatched behavior.
   DECL_PRINTER(JSRegExp)

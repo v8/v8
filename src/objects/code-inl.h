@@ -31,18 +31,18 @@ OBJECT_CONSTRUCTORS_IMPL(SourcePositionTableWithFrameCache, Tuple2)
 
 NEVER_READ_ONLY_SPACE_IMPL(AbstractCode)
 
-CAST_ACCESSOR2(AbstractCode)
-CAST_ACCESSOR2(BytecodeArray)
-CAST_ACCESSOR2(Code)
-CAST_ACCESSOR2(CodeDataContainer)
-CAST_ACCESSOR2(DependentCode)
-CAST_ACCESSOR2(DeoptimizationData)
-CAST_ACCESSOR2(SourcePositionTableWithFrameCache)
+CAST_ACCESSOR(AbstractCode)
+CAST_ACCESSOR(BytecodeArray)
+CAST_ACCESSOR(Code)
+CAST_ACCESSOR(CodeDataContainer)
+CAST_ACCESSOR(DependentCode)
+CAST_ACCESSOR(DeoptimizationData)
+CAST_ACCESSOR(SourcePositionTableWithFrameCache)
 
-ACCESSORS2(SourcePositionTableWithFrameCache, source_position_table, ByteArray,
-           kSourcePositionTableIndex)
-ACCESSORS2(SourcePositionTableWithFrameCache, stack_frame_cache,
-           SimpleNumberDictionary, kStackFrameCacheIndex)
+ACCESSORS(SourcePositionTableWithFrameCache, source_position_table, ByteArray,
+          kSourcePositionTableIndex)
+ACCESSORS(SourcePositionTableWithFrameCache, stack_frame_cache,
+          SimpleNumberDictionary, kStackFrameCacheIndex)
 
 int AbstractCode::raw_instruction_size() {
   if (IsCode()) {
@@ -197,20 +197,17 @@ INT_ACCESSORS(Code, raw_instruction_size, kInstructionSizeOffset)
 INT_ACCESSORS(Code, handler_table_offset, kHandlerTableOffsetOffset)
 #define CODE_ACCESSORS(name, type, offset) \
   ACCESSORS_CHECKED2(Code, name, type, offset, true, !Heap::InNewSpace(value))
-#define CODE_ACCESSORS2(name, type, offset) \
-  ACCESSORS_CHECKED3(Code, name, type, offset, true, !Heap::InNewSpace(value))
 #define SYNCHRONIZED_CODE_ACCESSORS(name, type, offset)           \
   SYNCHRONIZED_ACCESSORS_CHECKED2(Code, name, type, offset, true, \
                                   !Heap::InNewSpace(value))
 
-CODE_ACCESSORS2(relocation_info, ByteArray, kRelocationInfoOffset)
-CODE_ACCESSORS2(deoptimization_data, FixedArray, kDeoptimizationDataOffset)
+CODE_ACCESSORS(relocation_info, ByteArray, kRelocationInfoOffset)
+CODE_ACCESSORS(deoptimization_data, FixedArray, kDeoptimizationDataOffset)
 CODE_ACCESSORS(source_position_table, Object, kSourcePositionTableOffset)
 // Concurrent marker needs to access kind specific flags in code data container.
 SYNCHRONIZED_CODE_ACCESSORS(code_data_container, CodeDataContainer,
                             kCodeDataContainerOffset)
 #undef CODE_ACCESSORS
-#undef CODE_ACCESSORS2
 #undef SYNCHRONIZED_CODE_ACCESSORS
 
 void Code::WipeOutHeader() {
@@ -732,8 +729,8 @@ int BytecodeArray::parameter_count() const {
   return READ_INT_FIELD(this, kParameterSizeOffset) >> kSystemPointerSizeLog2;
 }
 
-ACCESSORS2(BytecodeArray, constant_pool, FixedArray, kConstantPoolOffset)
-ACCESSORS2(BytecodeArray, handler_table, ByteArray, kHandlerTableOffset)
+ACCESSORS(BytecodeArray, constant_pool, FixedArray, kConstantPoolOffset)
+ACCESSORS(BytecodeArray, handler_table, ByteArray, kHandlerTableOffset)
 ACCESSORS(BytecodeArray, source_position_table, Object,
           kSourcePositionTableOffset)
 

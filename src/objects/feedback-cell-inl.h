@@ -17,9 +17,9 @@ namespace internal {
 
 OBJECT_CONSTRUCTORS_IMPL(FeedbackCell, Struct)
 
-CAST_ACCESSOR2(FeedbackCell)
+CAST_ACCESSOR(FeedbackCell)
 
-ACCESSORS2(FeedbackCell, value, HeapObject, kValueOffset)
+ACCESSORS(FeedbackCell, value, HeapObject, kValueOffset)
 
 }  // namespace internal
 }  // namespace v8

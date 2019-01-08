@@ -17,7 +17,7 @@ namespace internal {
 
 OBJECT_CONSTRUCTORS_IMPL(Foreign, HeapObject)
 
-CAST_ACCESSOR2(Foreign)
+CAST_ACCESSOR(Foreign)
 
 // static
 bool Foreign::IsNormalized(Object value) {

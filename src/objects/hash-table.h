@@ -326,7 +326,7 @@ class ObjectHashTableBase : public HashTable<Derived, Shape> {
 class ObjectHashTable
     : public ObjectHashTableBase<ObjectHashTable, ObjectHashTableShape> {
  public:
-  DECL_CAST2(ObjectHashTable)
+  DECL_CAST(ObjectHashTable)
   DECL_PRINTER(ObjectHashTable)
 
   OBJECT_CONSTRUCTORS(
@@ -346,7 +346,7 @@ class EphemeronHashTableShape : public ObjectHashTableShape {
 class EphemeronHashTable
     : public ObjectHashTableBase<EphemeronHashTable, EphemeronHashTableShape> {
  public:
-  DECL_CAST2(EphemeronHashTable)
+  DECL_CAST(EphemeronHashTable)
   DECL_PRINTER(EphemeronHashTable)
 
  protected:
@@ -371,7 +371,7 @@ class ObjectHashSet : public HashTable<ObjectHashSet, ObjectHashSetShape> {
   inline bool Has(Isolate* isolate, Handle<Object> key, int32_t hash);
   inline bool Has(Isolate* isolate, Handle<Object> key);
 
-  DECL_CAST2(ObjectHashSet)
+  DECL_CAST(ObjectHashSet)
 
   OBJECT_CONSTRUCTORS(ObjectHashSet,
                       HashTable<ObjectHashSet, ObjectHashSetShape>)

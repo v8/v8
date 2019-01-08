@@ -22,7 +22,7 @@ LayoutDescriptor::LayoutDescriptor(Address ptr)
     : ByteArray(ptr, AllowInlineSmiStorage::kAllowBeingASmi) {
   SLOW_DCHECK(IsLayoutDescriptor());
 }
-CAST_ACCESSOR2(LayoutDescriptor)
+CAST_ACCESSOR(LayoutDescriptor)
 
 LayoutDescriptor LayoutDescriptor::FromSmi(Smi smi) {
   return LayoutDescriptor::cast(smi);

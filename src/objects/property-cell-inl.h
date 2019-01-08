@@ -18,9 +18,9 @@ namespace internal {
 
 OBJECT_CONSTRUCTORS_IMPL(PropertyCell, HeapObject)
 
-CAST_ACCESSOR2(PropertyCell)
-ACCESSORS2(PropertyCell, dependent_code, DependentCode, kDependentCodeOffset)
-ACCESSORS2(PropertyCell, name, Name, kNameOffset)
+CAST_ACCESSOR(PropertyCell)
+ACCESSORS(PropertyCell, dependent_code, DependentCode, kDependentCodeOffset)
+ACCESSORS(PropertyCell, name, Name, kNameOffset)
 ACCESSORS(PropertyCell, value, Object, kValueOffset)
 ACCESSORS(PropertyCell, property_details_raw, Object, kDetailsOffset)
 

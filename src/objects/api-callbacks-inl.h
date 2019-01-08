@@ -24,12 +24,12 @@ OBJECT_CONSTRUCTORS_IMPL(AccessorInfo, Struct)
 OBJECT_CONSTRUCTORS_IMPL(InterceptorInfo, Struct)
 OBJECT_CONSTRUCTORS_IMPL(CallHandlerInfo, Tuple3)
 
-CAST_ACCESSOR2(AccessorInfo)
-CAST_ACCESSOR2(AccessCheckInfo)
-CAST_ACCESSOR2(InterceptorInfo)
-CAST_ACCESSOR2(CallHandlerInfo)
+CAST_ACCESSOR(AccessorInfo)
+CAST_ACCESSOR(AccessCheckInfo)
+CAST_ACCESSOR(InterceptorInfo)
+CAST_ACCESSOR(CallHandlerInfo)
 
-ACCESSORS2(AccessorInfo, name, Name, kNameOffset)
+ACCESSORS(AccessorInfo, name, Name, kNameOffset)
 SMI_ACCESSORS(AccessorInfo, flags, kFlagsOffset)
 ACCESSORS(AccessorInfo, expected_receiver_type, Object,
           kExpectedReceiverTypeOffset)

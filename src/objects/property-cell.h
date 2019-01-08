@@ -16,14 +16,14 @@ namespace internal {
 class PropertyCell : public HeapObject {
  public:
   // [name]: the name of the global property.
-  DECL_ACCESSORS2(name, Name)
+  DECL_ACCESSORS(name, Name)
   // [property_details]: details of the global property.
   DECL_ACCESSORS(property_details_raw, Object)
   // [value]: value of the global property.
   DECL_ACCESSORS(value, Object)
   // [dependent_code]: dependent code that depends on the type of the global
   // property.
-  DECL_ACCESSORS2(dependent_code, DependentCode)
+  DECL_ACCESSORS(dependent_code, DependentCode)
 
   inline PropertyDetails property_details() const;
   inline void set_property_details(PropertyDetails details);
@@ -50,7 +50,7 @@ class PropertyCell : public HeapObject {
                                        Handle<PropertyCell> cell,
                                        Handle<Object> new_value);
 
-  DECL_CAST2(PropertyCell)
+  DECL_CAST(PropertyCell)
 
   // Dispatched behavior.
   DECL_PRINTER(PropertyCell)

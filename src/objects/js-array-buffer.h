@@ -77,7 +77,7 @@ class JSArrayBuffer : public JSObject {
   // [is_wasm_memory]: whether the buffer is tracked by the WasmMemoryTracker.
   DECL_BOOLEAN_ACCESSORS(is_wasm_memory)
 
-  DECL_CAST2(JSArrayBuffer)
+  DECL_CAST(JSArrayBuffer)
 
   void Detach();
 
@@ -155,7 +155,7 @@ class JSArrayBufferView : public JSObject {
   // [byte_length]: length of typed array in bytes.
   DECL_PRIMITIVE_ACCESSORS(byte_length, size_t)
 
-  DECL_CAST2(JSArrayBufferView)
+  DECL_CAST(JSArrayBufferView)
 
   DECL_VERIFIER(JSArrayBufferView)
 
@@ -191,7 +191,7 @@ class JSTypedArray : public JSArrayBufferView {
       Isolate* isolate, Handle<JSTypedArray> o, Handle<Object> key,
       PropertyDescriptor* desc, ShouldThrow should_throw);
 
-  DECL_CAST2(JSTypedArray)
+  DECL_CAST(JSTypedArray)
 
   ExternalArrayType type();
   V8_EXPORT_PRIVATE size_t element_size();
@@ -236,7 +236,7 @@ class JSTypedArray : public JSArrayBufferView {
 
 class JSDataView : public JSArrayBufferView {
  public:
-  DECL_CAST2(JSDataView)
+  DECL_CAST(JSDataView)
 
   // Dispatched behavior.
   DECL_PRINTER(JSDataView)

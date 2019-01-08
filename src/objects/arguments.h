@@ -19,7 +19,7 @@ namespace internal {
 class JSArgumentsObject : public JSObject {
  public:
   DECL_VERIFIER(JSArgumentsObject)
-  DECL_CAST2(JSArgumentsObject)
+  DECL_CAST(JSArgumentsObject)
   OBJECT_CONSTRUCTORS(JSArgumentsObject, JSObject);
 };
 
@@ -117,7 +117,7 @@ class SloppyArgumentsElements : public FixedArray {
   inline Object get_mapped_entry(uint32_t entry);
   inline void set_mapped_entry(uint32_t entry, Object object);
 
-  DECL_CAST2(SloppyArgumentsElements)
+  DECL_CAST(SloppyArgumentsElements)
 #ifdef VERIFY_HEAP
   void SloppyArgumentsElementsVerify(Isolate* isolate, JSObject holder);
 #endif
@@ -138,7 +138,7 @@ class AliasedArgumentsEntry : public Struct {
   inline int aliased_context_slot() const;
   inline void set_aliased_context_slot(int count);
 
-  DECL_CAST2(AliasedArgumentsEntry)
+  DECL_CAST(AliasedArgumentsEntry)
 
   // Dispatched behavior.
   DECL_PRINTER(AliasedArgumentsEntry)

@@ -20,8 +20,8 @@ namespace internal {
 OBJECT_CONSTRUCTORS_IMPL(Name, HeapObject)
 OBJECT_CONSTRUCTORS_IMPL(Symbol, Name)
 
-CAST_ACCESSOR2(Name)
-CAST_ACCESSOR2(Symbol)
+CAST_ACCESSOR(Name)
+CAST_ACCESSOR(Symbol)
 
 ACCESSORS(Symbol, name, Object, kNameOffset)
 INT_ACCESSORS(Symbol, flags, kFlagsOffset)
@@ -92,7 +92,7 @@ uint32_t Name::Hash() {
   // Also the string must be writable, because read-only strings will have their
   // hash values precomputed.
   return String::cast(*this)->ComputeAndSetHash(
-      Heap::FromWritableHeapObject(this)->isolate());
+      Heap::FromWritableHeapObject(*this)->isolate());
 }
 
 bool Name::IsInterestingSymbol() const {

@@ -36,7 +36,7 @@ class JSCollection : public JSObject {
 // The JSSet describes EcmaScript Harmony sets
 class JSSet : public JSCollection {
  public:
-  DECL_CAST2(JSSet)
+  DECL_CAST(JSSet)
 
   static void Initialize(Handle<JSSet> set, Isolate* isolate);
   static void Clear(Isolate* isolate, Handle<JSSet> set);
@@ -55,7 +55,7 @@ class JSSetIterator
   DECL_PRINTER(JSSetIterator)
   DECL_VERIFIER(JSSetIterator)
 
-  DECL_CAST2(JSSetIterator)
+  DECL_CAST(JSSetIterator)
 
   OBJECT_CONSTRUCTORS(JSSetIterator,
                       OrderedHashTableIterator<JSSetIterator, OrderedHashSet>);
@@ -64,7 +64,7 @@ class JSSetIterator
 // The JSMap describes EcmaScript Harmony maps
 class JSMap : public JSCollection {
  public:
-  DECL_CAST2(JSMap)
+  DECL_CAST(JSMap)
 
   static void Initialize(Handle<JSMap> map, Isolate* isolate);
   static void Clear(Isolate* isolate, Handle<JSMap> map);
@@ -83,7 +83,7 @@ class JSMapIterator
   DECL_PRINTER(JSMapIterator)
   DECL_VERIFIER(JSMapIterator)
 
-  DECL_CAST2(JSMapIterator)
+  DECL_CAST(JSMapIterator)
 
   // Returns the current value of the iterator. This should only be called when
   // |HasMore| returns true.
@@ -96,7 +96,7 @@ class JSMapIterator
 // Base class for both JSWeakMap and JSWeakSet
 class JSWeakCollection : public JSObject {
  public:
-  DECL_CAST2(JSWeakCollection)
+  DECL_CAST(JSWeakCollection)
 
   // [table]: the backing hash table mapping keys to values.
   DECL_ACCESSORS(table, Object)
@@ -133,7 +133,7 @@ class JSWeakCollection : public JSObject {
 // The JSWeakMap describes EcmaScript Harmony weak maps
 class JSWeakMap : public JSWeakCollection {
  public:
-  DECL_CAST2(JSWeakMap)
+  DECL_CAST(JSWeakMap)
 
   // Dispatched behavior.
   DECL_PRINTER(JSWeakMap)
@@ -145,7 +145,7 @@ class JSWeakMap : public JSWeakCollection {
 // The JSWeakSet describes EcmaScript Harmony weak sets
 class JSWeakSet : public JSWeakCollection {
  public:
-  DECL_CAST2(JSWeakSet)
+  DECL_CAST(JSWeakSet)
 
   // Dispatched behavior.
   DECL_PRINTER(JSWeakSet)

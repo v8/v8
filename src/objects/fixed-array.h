@@ -81,7 +81,7 @@ class FixedArrayBase : public HeapObject {
 
   inline Object unchecked_synchronized_length() const;
 
-  DECL_CAST2(FixedArrayBase)
+  DECL_CAST(FixedArrayBase)
 
   static int GetMaxLengthForNewSpaceAllocation(ElementsKind kind);
 
@@ -185,7 +185,7 @@ class FixedArray : public FixedArrayBase {
   // Garbage collection support.
   inline ObjectSlot RawFieldOfElementAt(int index);
 
-  DECL_CAST2(FixedArray)
+  DECL_CAST(FixedArray)
   // Maximally allowed length of a FixedArray.
   static const int kMaxLength = (kMaxSize - kHeaderSize) / kTaggedSize;
   static_assert(Internals::IsValidSmi(kMaxLength),
@@ -252,7 +252,7 @@ class FixedDoubleArray : public FixedArrayBase {
   // Code Generation support.
   static int OffsetOfElementAt(int index) { return SizeFor(index); }
 
-  DECL_CAST2(FixedDoubleArray)
+  DECL_CAST(FixedDoubleArray)
 
   // Maximally allowed length of a FixedArray.
   static const int kMaxLength = (kMaxSize - kHeaderSize) / kDoubleSize;
@@ -272,7 +272,7 @@ class FixedDoubleArray : public FixedArrayBase {
 // MaybeObject.
 class WeakFixedArray : public HeapObject {
  public:
-  DECL_CAST2(WeakFixedArray)
+  DECL_CAST(WeakFixedArray)
 
   inline MaybeObject Get(int index) const;
 
@@ -338,7 +338,7 @@ class WeakFixedArray : public HeapObject {
 class WeakArrayList : public HeapObject {
  public:
   NEVER_READ_ONLY_SPACE
-  DECL_CAST2(WeakArrayList)
+  DECL_CAST(WeakArrayList)
   DECL_VERIFIER(WeakArrayList)
   DECL_PRINTER(WeakArrayList)
 
@@ -460,7 +460,7 @@ class ArrayList : public FixedArray {
   // Return a copy of the list of size Length() without the first entry. The
   // number returned by Length() is stored in the first entry.
   static Handle<FixedArray> Elements(Isolate* isolate, Handle<ArrayList> array);
-  DECL_CAST2(ArrayList)
+  DECL_CAST(ArrayList)
 
  private:
   static Handle<ArrayList> EnsureSpace(Isolate* isolate,
@@ -524,7 +524,7 @@ class ByteArray : public FixedArrayBase {
   // Returns a pointer to the ByteArray object for a given data start address.
   static inline ByteArray FromDataStartAddress(Address address);
 
-  DECL_CAST2(ByteArray)
+  DECL_CAST(ByteArray)
 
   // Dispatched behavior.
   inline int ByteArraySize();
@@ -570,7 +570,7 @@ class PodArray : public ByteArray {
             sizeof(T));
   }
   inline int length() const;
-  DECL_CAST2(PodArray<T>)
+  DECL_CAST(PodArray<T>)
 
   OBJECT_CONSTRUCTORS(PodArray<T>, ByteArray);
 };
@@ -586,7 +586,7 @@ class FixedTypedArrayBase : public FixedArrayBase {
   DECL_ACCESSORS(external_pointer, void*)
 
   // Dispatched behavior.
-  DECL_CAST2(FixedTypedArrayBase)
+  DECL_CAST(FixedTypedArrayBase)
 
 #define FIXED_TYPED_ARRAY_BASE_FIELDS(V)        \
   V(kBasePointerOffset, kTaggedSize)            \
@@ -641,7 +641,7 @@ class FixedTypedArray : public FixedTypedArrayBase {
   typedef typename Traits::ElementType ElementType;
   static const InstanceType kInstanceType = Traits::kInstanceType;
 
-  DECL_CAST2(FixedTypedArray<Traits>)
+  DECL_CAST(FixedTypedArray<Traits>)
 
   static inline ElementType get_scalar_from_data_ptr(void* data_ptr, int index);
   inline ElementType get_scalar(int index);
@@ -695,7 +695,7 @@ class TemplateList : public FixedArray {
   inline void set(int index, Object value);
   static Handle<TemplateList> Add(Isolate* isolate, Handle<TemplateList> list,
                                   Handle<Object> value);
-  DECL_CAST2(TemplateList)
+  DECL_CAST(TemplateList)
  private:
   static const int kLengthIndex = 0;
   static const int kFirstElementIndex = kLengthIndex + 1;

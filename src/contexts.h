@@ -356,7 +356,7 @@ enum ContextLookupFlags {
 // the subsequent slots 1..used contain ScriptContexts.
 class ScriptContextTable : public FixedArray {
  public:
-  DECL_CAST2(ScriptContextTable)
+  DECL_CAST(ScriptContextTable)
 
   struct LookupResult {
     int context_index;
@@ -441,7 +441,7 @@ class Context : public HeapObject {
  public:
   NEVER_READ_ONLY_SPACE
 
-  DECL_CAST2(Context)
+  DECL_CAST(Context)
 
   // [length]: length of the context.
   V8_INLINE int length() const;
@@ -674,7 +674,7 @@ class Context : public HeapObject {
 
 class NativeContext : public Context {
  public:
-  DECL_CAST2(NativeContext)
+  DECL_CAST(NativeContext)
   // TODO(neis): Move some stuff from Context here.
 
   // [microtask_queue]: pointer to the MicrotaskQueue object.

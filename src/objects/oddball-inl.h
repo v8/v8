@@ -17,7 +17,7 @@ namespace internal {
 
 OBJECT_CONSTRUCTORS_IMPL(Oddball, HeapObject)
 
-CAST_ACCESSOR2(Oddball)
+CAST_ACCESSOR(Oddball)
 
 double Oddball::to_number_raw() const {
   return READ_DOUBLE_FIELD(this, kToNumberRawOffset);
@@ -31,9 +31,9 @@ void Oddball::set_to_number_raw_as_bits(uint64_t bits) {
   WRITE_UINT64_FIELD(this, kToNumberRawOffset, bits);
 }
 
-ACCESSORS2(Oddball, to_string, String, kToStringOffset)
+ACCESSORS(Oddball, to_string, String, kToStringOffset)
 ACCESSORS(Oddball, to_number, Object, kToNumberOffset)
-ACCESSORS2(Oddball, type_of, String, kTypeOfOffset)
+ACCESSORS(Oddball, type_of, String, kTypeOfOffset)
 
 byte Oddball::kind() const { return Smi::ToInt(READ_FIELD(this, kKindOffset)); }
 

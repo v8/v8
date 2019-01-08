@@ -67,7 +67,7 @@ class HeapNumberBase : public HeapObject {
 
 class HeapNumber : public HeapNumberBase {
  public:
-  DECL_CAST2(HeapNumber)
+  DECL_CAST(HeapNumber)
   V8_EXPORT_PRIVATE void HeapNumberPrint(std::ostream& os);
 
   OBJECT_CONSTRUCTORS(HeapNumber, HeapNumberBase);
@@ -75,7 +75,7 @@ class HeapNumber : public HeapNumberBase {
 
 class MutableHeapNumber : public HeapNumberBase {
  public:
-  DECL_CAST2(MutableHeapNumber)
+  DECL_CAST(MutableHeapNumber)
   V8_EXPORT_PRIVATE void MutableHeapNumberPrint(std::ostream& os);
 
   OBJECT_CONSTRUCTORS(MutableHeapNumber, HeapNumberBase);

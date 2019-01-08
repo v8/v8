@@ -38,7 +38,7 @@ class AllocationSite : public Struct {
   // Contains either a Smi-encoded bitfield or a boilerplate. If it's a Smi the
   // AllocationSite is for a constructed Array.
   DECL_ACCESSORS(transition_info_or_boilerplate, Object)
-  DECL_ACCESSORS2(boilerplate, JSObject)
+  DECL_ACCESSORS(boilerplate, JSObject)
   DECL_INT_ACCESSORS(transition_info)
 
   // nested_site threads a list of sites that represent nested literals
@@ -50,7 +50,7 @@ class AllocationSite : public Struct {
   DECL_INT32_ACCESSORS(pretenure_data)
 
   DECL_INT32_ACCESSORS(pretenure_create_count)
-  DECL_ACCESSORS2(dependent_code, DependentCode)
+  DECL_ACCESSORS(dependent_code, DependentCode)
 
   // heap->allocation_site_list() points to the last AllocationSite which form
   // a linked list through the weak_next property. The GC might remove elements
@@ -129,7 +129,7 @@ class AllocationSite : public Struct {
   DECL_PRINTER(AllocationSite)
   DECL_VERIFIER(AllocationSite)
 
-  DECL_CAST2(AllocationSite)
+  DECL_CAST(AllocationSite)
   static inline bool ShouldTrack(ElementsKind boilerplate_elements_kind);
   static bool ShouldTrack(ElementsKind from, ElementsKind to);
   static inline bool CanTrack(InstanceType type);
@@ -182,7 +182,7 @@ class AllocationMemento : public Struct {
   DECL_PRINTER(AllocationMemento)
   DECL_VERIFIER(AllocationMemento)
 
-  DECL_CAST2(AllocationMemento)
+  DECL_CAST(AllocationMemento)
 
   OBJECT_CONSTRUCTORS(AllocationMemento, Struct);
 };

@@ -34,27 +34,16 @@ void WriteBarrierForCode(Code host, RelocInfo* rinfo, Object value);
 void WriteBarrierForCode(Code host);
 
 // Generational write barrier.
-// This takes a HeapObject* (as opposed to a plain HeapObject)
-// to keep the WRITE_BARRIER macro syntax-compatible to the old HeapObject*
-// version.
-// TODO(3770): This should probably take a HeapObject eventually.
-void GenerationalBarrier(HeapObject* object, ObjectSlot slot, Object value);
 void GenerationalBarrier(HeapObject object, ObjectSlot slot, Object value);
-void GenerationalBarrier(HeapObject* object, MaybeObjectSlot slot,
+void GenerationalBarrier(HeapObject object, MaybeObjectSlot slot,
                          MaybeObject value);
 void GenerationalBarrierForElements(Heap* heap, FixedArray array, int offset,
                                     int length);
 void GenerationalBarrierForCode(Code host, RelocInfo* rinfo, HeapObject object);
 
 // Marking write barrier.
-// This takes a HeapObject* (as opposed to a plain HeapObject)
-// to keep the WRITE_BARRIER macro syntax-compatible to the old HeapObject*
-// version.
-// TODO(3770): This should probably take a HeapObject eventually.
-void MarkingBarrier(HeapObject* object, ObjectSlot slot, Object value);
 void MarkingBarrier(HeapObject object, ObjectSlot slot, Object value);
-void MarkingBarrier(HeapObject* object, MaybeObjectSlot slot,
-                    MaybeObject value);
+void MarkingBarrier(HeapObject object, MaybeObjectSlot slot, MaybeObject value);
 void MarkingBarrierForElements(Heap* heap, HeapObject object);
 void MarkingBarrierForCode(Code host, RelocInfo* rinfo, HeapObject object);
 

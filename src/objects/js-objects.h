@@ -65,7 +65,7 @@ class JSReceiver : public HeapObject {
   // Deletes an existing named property in a normalized object.
   static void DeleteNormalizedProperty(Handle<JSReceiver> object, int entry);
 
-  DECL_CAST2(JSReceiver)
+  DECL_CAST(JSReceiver)
 
   // ES6 section 7.1.1 ToPrimitive
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> ToPrimitive(
@@ -308,7 +308,7 @@ class JSObject : public JSReceiver {
   //
   // In the slow mode the elements is either a NumberDictionary, a
   // FixedArray parameter map for a (sloppy) arguments object.
-  DECL_ACCESSORS2(elements, FixedArrayBase)
+  DECL_ACCESSORS(elements, FixedArrayBase)
   inline void initialize_elements();
   static inline void SetMapAndElements(Handle<JSObject> object, Handle<Map> map,
                                        Handle<FixedArrayBase> elements);
@@ -666,7 +666,7 @@ class JSObject : public JSReceiver {
 
   static bool IsExtensible(Handle<JSObject> object);
 
-  DECL_CAST2(JSObject)
+  DECL_CAST(JSObject)
 
   // Dispatched behavior.
   void JSObjectShortPrint(StringStream* accumulator);
@@ -898,7 +898,7 @@ class JSIteratorResult : public JSObject {
   static const int kValueIndex = 0;
   static const int kDoneIndex = 1;
 
-  DECL_CAST2(JSIteratorResult)
+  DECL_CAST(JSIteratorResult)
 
   OBJECT_CONSTRUCTORS(JSIteratorResult, JSObject);
 };
@@ -908,7 +908,7 @@ class JSBoundFunction : public JSObject {
  public:
   // [bound_target_function]: The wrapped function object.
   inline Object raw_bound_target_function() const;
-  DECL_ACCESSORS2(bound_target_function, JSReceiver)
+  DECL_ACCESSORS(bound_target_function, JSReceiver)
 
   // [bound_this]: The value that is always passed as the this value when
   // calling the wrapped function.
@@ -916,7 +916,7 @@ class JSBoundFunction : public JSObject {
 
   // [bound_arguments]: A list of values whose elements are used as the first
   // arguments to any call to the wrapped function.
-  DECL_ACCESSORS2(bound_arguments, FixedArray)
+  DECL_ACCESSORS(bound_arguments, FixedArray)
 
   static MaybeHandle<String> GetName(Isolate* isolate,
                                      Handle<JSBoundFunction> function);
@@ -925,7 +925,7 @@ class JSBoundFunction : public JSObject {
   static MaybeHandle<Context> GetFunctionRealm(
       Handle<JSBoundFunction> function);
 
-  DECL_CAST2(JSBoundFunction)
+  DECL_CAST(JSBoundFunction)
 
   // Dispatched behavior.
   DECL_PRINTER(JSBoundFunction)
@@ -957,7 +957,7 @@ class JSFunction : public JSObject {
 
   // [shared]: The information about the function that
   // can be shared by instances.
-  DECL_ACCESSORS2(shared, SharedFunctionInfo)
+  DECL_ACCESSORS(shared, SharedFunctionInfo)
 
   static const int kLengthDescriptorIndex = 0;
   static const int kNameDescriptorIndex = 1;
@@ -1044,7 +1044,7 @@ class JSFunction : public JSObject {
   /// FeedbackVector eventually. Generally this shouldn't be used to get the
   // feedback_vector, instead use feedback_vector() which correctly deals with
   // the JSFunction's bytecode being flushed.
-  DECL_ACCESSORS2(raw_feedback_cell, FeedbackCell)
+  DECL_ACCESSORS(raw_feedback_cell, FeedbackCell)
 
   // feedback_vector() can be used once the function is compiled.
   inline FeedbackVector feedback_vector() const;
@@ -1096,7 +1096,7 @@ class JSFunction : public JSObject {
   // Prints the name of the function using PrintF.
   void PrintName(FILE* out = stdout);
 
-  DECL_CAST2(JSFunction)
+  DECL_CAST(JSFunction)
 
   // Calculate the instance size and in-object properties count.
   static bool CalculateInstanceSizeForDerivedClass(
@@ -1171,7 +1171,7 @@ class JSGlobalProxy : public JSObject {
   // It is null value if this object is not used by any context.
   DECL_ACCESSORS(native_context, Object)
 
-  DECL_CAST2(JSGlobalProxy)
+  DECL_CAST(JSGlobalProxy)
 
   inline bool IsDetachedFrom(JSGlobalObject global) const;
 
@@ -1197,10 +1197,10 @@ class JSGlobalProxy : public JSObject {
 class JSGlobalObject : public JSObject {
  public:
   // [native context]: the natives corresponding to this global object.
-  DECL_ACCESSORS2(native_context, Context)
+  DECL_ACCESSORS(native_context, Context)
 
   // [global proxy]: the global proxy object of the context
-  DECL_ACCESSORS2(global_proxy, JSObject)
+  DECL_ACCESSORS(global_proxy, JSObject)
 
   // Gets global object properties.
   inline GlobalDictionary global_dictionary();
@@ -1213,7 +1213,7 @@ class JSGlobalObject : public JSObject {
       Handle<JSGlobalObject> global, Handle<Name> name,
       PropertyCellType cell_type, int* entry_out = nullptr);
 
-  DECL_CAST2(JSGlobalObject)
+  DECL_CAST(JSGlobalObject)
 
   inline bool IsDetached();
 
@@ -1241,7 +1241,7 @@ class JSValue : public JSObject {
   // [value]: the object being wrapped.
   DECL_ACCESSORS(value, Object)
 
-  DECL_CAST2(JSValue)
+  DECL_CAST(JSValue)
 
   // Dispatched behavior.
   DECL_PRINTER(JSValue)
@@ -1288,7 +1288,7 @@ class JSDate : public JSObject {
   // moment when chached fields were cached.
   DECL_ACCESSORS(cache_stamp, Object)
 
-  DECL_CAST2(JSDate)
+  DECL_CAST(JSDate)
 
   // Returns the time value (UTC) identifying the current time.
   static double CurrentTimeValue(Isolate* isolate);
@@ -1383,7 +1383,7 @@ class JSMessageObject : public JSObject {
   DECL_ACCESSORS(argument, Object)
 
   // [script]: the script from which the error message originated.
-  DECL_ACCESSORS2(script, Script)
+  DECL_ACCESSORS(script, Script)
 
   // [stack_frames]: an array of stack frames for this error object.
   DECL_ACCESSORS(stack_frames, Object)
@@ -1410,7 +1410,7 @@ class JSMessageObject : public JSObject {
   inline int error_level() const;
   inline void set_error_level(int level);
 
-  DECL_CAST2(JSMessageObject)
+  DECL_CAST(JSMessageObject)
 
   // Dispatched behavior.
   DECL_PRINTER(JSMessageObject)
@@ -1449,7 +1449,7 @@ class JSMessageObject : public JSObject {
 // (See https://tc39.github.io/proposal-async-iteration/#sec-iteration)
 class JSAsyncFromSyncIterator : public JSObject {
  public:
-  DECL_CAST2(JSAsyncFromSyncIterator)
+  DECL_CAST(JSAsyncFromSyncIterator)
   DECL_PRINTER(JSAsyncFromSyncIterator)
   DECL_VERIFIER(JSAsyncFromSyncIterator)
 
@@ -1458,7 +1458,7 @@ class JSAsyncFromSyncIterator : public JSObject {
   // Async-from-Sync Iterator instances are initially created with the internal
   // slots listed in Table 4.
   // (proposal-async-iteration/#table-async-from-sync-iterator-internal-slots)
-  DECL_ACCESSORS2(sync_iterator, JSReceiver)
+  DECL_ACCESSORS(sync_iterator, JSReceiver)
 
   // The "next" method is loaded during GetIterator, and is not reloaded for
   // subsequent "next" invocations.
@@ -1484,10 +1484,10 @@ class JSStringIterator : public JSObject {
   DECL_PRINTER(JSStringIterator)
   DECL_VERIFIER(JSStringIterator)
 
-  DECL_CAST2(JSStringIterator)
+  DECL_CAST(JSStringIterator)
 
   // [string]: the [[IteratedString]] inobject property.
-  DECL_ACCESSORS2(string, String)
+  DECL_ACCESSORS(string, String)
 
   // [index]: The [[StringIteratorNextIndex]] inobject property.
   inline int index() const;

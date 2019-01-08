@@ -19,7 +19,7 @@ class JSRegExpStringIterator : public JSObject {
   DECL_ACCESSORS(iterating_regexp, Object)
 
   // [string]: The [[IteratedString]] internal property.
-  DECL_ACCESSORS2(iterating_string, String)
+  DECL_ACCESSORS(iterating_string, String)
 
   DECL_INT_ACCESSORS(flags)
 
@@ -32,7 +32,7 @@ class JSRegExpStringIterator : public JSObject {
   // [boolean]: The [[Unicode]] internal property.
   DECL_BOOLEAN_ACCESSORS(unicode)
 
-  DECL_CAST2(JSRegExpStringIterator)
+  DECL_CAST(JSRegExpStringIterator)
   DECL_PRINTER(JSRegExpStringIterator)
   DECL_VERIFIER(JSRegExpStringIterator)
 

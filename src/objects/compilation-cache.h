@@ -109,7 +109,7 @@ class CompilationCacheTable
   void Age();
   static const int kHashGenerations = 10;
 
-  DECL_CAST2(CompilationCacheTable)
+  DECL_CAST(CompilationCacheTable)
 
  private:
   OBJECT_CONSTRUCTORS(CompilationCacheTable,

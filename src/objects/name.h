@@ -61,7 +61,7 @@ class Name : public HeapObject {
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> ToFunctionName(
       Isolate* isolate, Handle<Name> name, Handle<String> prefix);
 
-  DECL_CAST2(Name)
+  DECL_CAST(Name)
 
   DECL_PRINTER(Name)
   void NameShortPrint();
@@ -169,7 +169,7 @@ class Symbol : public Name {
   inline bool is_private_name() const;
   inline void set_is_private_name();
 
-  DECL_CAST2(Symbol)
+  DECL_CAST(Symbol)
 
   // Dispatched behavior.
   DECL_PRINTER(Symbol)

@@ -26,7 +26,7 @@ TransitionArray TransitionsAccessor::transitions() {
 
 OBJECT_CONSTRUCTORS_IMPL(TransitionArray, WeakFixedArray)
 
-CAST_ACCESSOR2(TransitionArray)
+CAST_ACCESSOR(TransitionArray)
 
 bool TransitionArray::HasPrototypeTransitions() {
   return Get(kPrototypeTransitionsIndex) != MaybeObject::FromSmi(Smi::zero());

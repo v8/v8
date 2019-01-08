@@ -29,7 +29,7 @@ class WasmExportedFunctionData;
 // functions.
 class PreparseData : public HeapObject {
  public:
-  DECL_ACCESSORS2(scope_data, PodArray<uint8_t>)
+  DECL_ACCESSORS(scope_data, PodArray<uint8_t>)
   DECL_INT_ACCESSORS(length)
 
   inline Object child_data(int index) const;
@@ -41,7 +41,7 @@ class PreparseData : public HeapObject {
   // Clear uninitialized padding space.
   inline void clear_padding();
 
-  DECL_CAST2(PreparseData)
+  DECL_CAST(PreparseData)
   DECL_PRINTER(PreparseData)
   DECL_VERIFIER(PreparseData)
 
@@ -70,12 +70,12 @@ class PreparseData : public HeapObject {
 // not stored in the SharedFunctionInfo.
 class UncompiledData : public HeapObject {
  public:
-  DECL_ACCESSORS2(inferred_name, String)
+  DECL_ACCESSORS(inferred_name, String)
   DECL_INT32_ACCESSORS(start_position)
   DECL_INT32_ACCESSORS(end_position)
   DECL_INT32_ACCESSORS(function_literal_id)
 
-  DECL_CAST2(UncompiledData)
+  DECL_CAST(UncompiledData)
 
   inline static void Initialize(
       UncompiledData data, String inferred_name, int start_position,
@@ -116,7 +116,7 @@ class UncompiledData : public HeapObject {
 // pre-parser bailed out.
 class UncompiledDataWithoutPreparseData : public UncompiledData {
  public:
-  DECL_CAST2(UncompiledDataWithoutPreparseData)
+  DECL_CAST(UncompiledDataWithoutPreparseData)
   DECL_PRINTER(UncompiledDataWithoutPreparseData)
   DECL_VERIFIER(UncompiledDataWithoutPreparseData)
 
@@ -132,9 +132,9 @@ class UncompiledDataWithoutPreparseData : public UncompiledData {
 // data.
 class UncompiledDataWithPreparseData : public UncompiledData {
  public:
-  DECL_ACCESSORS2(preparse_data, PreparseData)
+  DECL_ACCESSORS(preparse_data, PreparseData)
 
-  DECL_CAST2(UncompiledDataWithPreparseData)
+  DECL_CAST(UncompiledDataWithPreparseData)
   DECL_PRINTER(UncompiledDataWithPreparseData)
   DECL_VERIFIER(UncompiledDataWithPreparseData)
 
@@ -173,8 +173,8 @@ class UncompiledDataWithPreparseData : public UncompiledData {
 
 class InterpreterData : public Struct {
  public:
-  DECL_ACCESSORS2(bytecode_array, BytecodeArray)
-  DECL_ACCESSORS2(interpreter_trampoline, Code)
+  DECL_ACCESSORS(bytecode_array, BytecodeArray)
+  DECL_ACCESSORS(interpreter_trampoline, Code)
 
 // Layout description.
 #define INTERPRETER_DATA_FIELDS(V)             \
@@ -186,7 +186,7 @@ class InterpreterData : public Struct {
   DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize, INTERPRETER_DATA_FIELDS)
 #undef INTERPRETER_DATA_FIELDS
 
-  DECL_CAST2(InterpreterData)
+  DECL_CAST(InterpreterData)
   DECL_PRINTER(InterpreterData)
   DECL_VERIFIER(InterpreterData)
 
@@ -235,7 +235,7 @@ class SharedFunctionInfo : public HeapObject {
   static const uint16_t kInvalidLength = static_cast<uint16_t>(-1);
 
   // [scope_info]: Scope info.
-  DECL_ACCESSORS2(scope_info, ScopeInfo)
+  DECL_ACCESSORS(scope_info, ScopeInfo)
 
   // End position of this function in the script source.
   V8_EXPORT_PRIVATE int EndPosition() const;
@@ -249,7 +249,7 @@ class SharedFunctionInfo : public HeapObject {
 
   // [outer scope info | feedback metadata] Shared storage for outer scope info
   // (on uncompiled functions) and feedback metadata (on compiled functions).
-  DECL_ACCESSORS2(raw_outer_scope_info_or_feedback_metadata, HeapObject)
+  DECL_ACCESSORS(raw_outer_scope_info_or_feedback_metadata, HeapObject)
 
   // Get the outer scope info whether this function is compiled or not.
   inline bool HasOuterScopeInfo() const;
@@ -258,7 +258,7 @@ class SharedFunctionInfo : public HeapObject {
   // [feedback metadata] Metadata template for feedback vectors of instances of
   // this function.
   inline bool HasFeedbackMetadata() const;
-  DECL_ACCESSORS2(feedback_metadata, FeedbackMetadata)
+  DECL_ACCESSORS(feedback_metadata, FeedbackMetadata)
 
   // Returns if this function has been compiled yet. Note: with bytecode
   // flushing, any GC after this call is made could cause the function
@@ -606,7 +606,7 @@ class SharedFunctionInfo : public HeapObject {
     DISALLOW_COPY_AND_ASSIGN(GlobalIterator);
   };
 
-  DECL_CAST2(SharedFunctionInfo)
+  DECL_CAST(SharedFunctionInfo)
 
   // Constants.
   static const uint16_t kDontAdaptArgumentsSentinel = static_cast<uint16_t>(-1);
@@ -695,7 +695,7 @@ class SharedFunctionInfo : public HeapObject {
 
   // [outer scope info] The outer scope info, needed to lazily parse this
   // function.
-  DECL_ACCESSORS2(outer_scope_info, HeapObject)
+  DECL_ACCESSORS(outer_scope_info, HeapObject)
 
   inline void set_kind(FunctionKind kind);
 
