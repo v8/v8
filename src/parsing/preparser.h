@@ -571,15 +571,7 @@ class PreParserFactory {
 
   PreParserExpression NewStringLiteral(const PreParserIdentifier& identifier,
                                        int pos) {
-    // This is needed for object literal property names. Property names are
-    // normalized to string literals during object literal parsing.
-    PreParserExpression expression = PreParserExpression::Default();
-    if (identifier.string_ != nullptr) {
-      VariableProxy* variable = ast_node_factory_.NewVariableProxy(
-          identifier.string_, NORMAL_VARIABLE);
-      expression.AddVariable(variable, zone_);
-    }
-    return expression;
+    return PreParserExpression::Default();
   }
   PreParserExpression NewNumberLiteral(double number,
                                        int pos) {
@@ -657,10 +649,6 @@ class PreParserFactory {
                                           const PreParserExpression& right,
                                           int pos) {
     return PreParserExpression::Default();
-  }
-  PreParserExpression NewRewritableExpression(
-      const PreParserExpression& expression, Scope* scope) {
-    return expression;
   }
   PreParserExpression NewAssignment(Token::Value op,
                                     const PreParserExpression& left,
@@ -943,7 +931,6 @@ struct ParserTypes<PreParser> {
   typedef PreParserExpression Expression;
   typedef PreParserExpression FunctionLiteral;
   typedef PreParserExpression ObjectLiteralProperty;
-  typedef PreParserExpression RewritableExpression;
   typedef PreParserExpression Suspend;
   typedef PreParserExpressionList ExpressionList;
   typedef PreParserExpressionList ObjectPropertyList;
@@ -1116,14 +1103,12 @@ class PreParser : public ParserBase<PreParser> {
   SpreadCallNew(const PreParserExpression& function,
                 const PreParserExpressionList& args, int pos);
 
-  V8_INLINE void RewriteDestructuringAssignments() {}
-
   V8_INLINE void PrepareGeneratorVariables() {}
   V8_INLINE void RewriteAsyncFunctionBody(
       const PreParserScopedStatementList* body, PreParserStatement block,
       const PreParserExpression& return_value) {}
 
-  void DeclareAndInitializeVariables(
+  void InitializeVariables(
       PreParserStatement block,
       const DeclarationDescriptor* declaration_descriptor,
       const DeclarationParsingResult::Declaration* declaration,
@@ -1401,25 +1386,6 @@ class PreParser : public ParserBase<PreParser> {
   V8_INLINE static void CheckAssigningFunctionLiteralToProperty(
       const PreParserExpression& left, const PreParserExpression& right) {}
 
-  V8_INLINE void MarkPatternAsAssigned(const PreParserExpression& expression) {
-    // TODO(marja): To be able to produce the same errors, the preparser needs
-    // to start tracking which expressions are variables and which are assigned.
-    if (expression.variables_ != nullptr) {
-      for (auto variable : *expression.variables_) {
-        variable->set_is_assigned();
-      }
-    }
-  }
-
-  V8_INLINE void MarkExpressionAsAssigned(
-      const PreParserExpression& expression) {
-    if (IsIdentifier(expression)) {
-      DCHECK_NOT_NULL(expression.variables_);
-      DCHECK_EQ(1, expression.variables_->LengthForTest());
-      expression.variables_->first()->set_is_assigned();
-    }
-  }
-
   V8_INLINE bool ShortcutNumericLiteralBinaryExpression(
       PreParserExpression* x, const PreParserExpression& y, Token::Value op,
       int pos) {
@@ -1442,9 +1408,8 @@ class PreParser : public ParserBase<PreParser> {
   BuildInitializationBlock(DeclarationParsingResult* parsing_result,
                            ZonePtrList<const AstRawString>* names) {
     for (auto declaration : parsing_result->declarations) {
-      DeclareAndInitializeVariables(PreParserStatement::Default(),
-                                    &(parsing_result->descriptor), &declaration,
-                                    names);
+      InitializeVariables(PreParserStatement::Default(),
+                          &(parsing_result->descriptor), &declaration, names);
     }
     return PreParserStatement::Default();
   }
@@ -1452,7 +1417,6 @@ class PreParser : public ParserBase<PreParser> {
   V8_INLINE PreParserStatement InitializeForEachStatement(
       PreParserStatement stmt, const PreParserExpression& each,
       const PreParserExpression& subject, PreParserStatement body) {
-    MarkPatternAsAssigned(each);
     return stmt;
   }
 
@@ -1461,7 +1425,6 @@ class PreParser : public ParserBase<PreParser> {
       const PreParserExpression& iterable, PreParserStatement body,
       bool finalize, IteratorType type,
       int next_result_pos = kNoSourcePosition) {
-    MarkPatternAsAssigned(each);
     return stmt;
   }
 
@@ -1480,10 +1443,10 @@ class PreParser : public ParserBase<PreParser> {
         IsLexicalVariableMode(for_info->parsing_result.descriptor.mode) ||
         is_for_var_of;
 
-    DeclareAndInitializeVariables(
-        PreParserStatement::Default(), &for_info->parsing_result.descriptor,
-        &for_info->parsing_result.declarations[0],
-        collect_names ? &for_info->bound_names : nullptr);
+    InitializeVariables(PreParserStatement::Default(),
+                        &for_info->parsing_result.descriptor,
+                        &for_info->parsing_result.declarations[0],
+                        collect_names ? &for_info->bound_names : nullptr);
   }
 
   V8_INLINE PreParserBlock CreateForEachStatementTDZ(PreParserBlock init_block,

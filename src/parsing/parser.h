@@ -151,7 +151,6 @@ struct ParserTypes<Parser> {
   typedef v8::internal::IterationStatement* IterationStatement;
   typedef ObjectLiteral::Property* ObjectLiteralProperty;
   typedef ScopedPtrList<v8::internal::ObjectLiteralProperty> ObjectPropertyList;
-  typedef v8::internal::RewritableExpression* RewritableExpression;
   typedef v8::internal::Statement* Statement;
   typedef ScopedPtrList<v8::internal::Statement> StatementList;
   typedef v8::internal::Suspend* Suspend;
@@ -370,12 +369,10 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   // PatternRewriter and associated methods defined in pattern-rewriter.cc.
   friend class PatternRewriter;
-  void DeclareAndInitializeVariables(
+  void InitializeVariables(
       Block* block, const DeclarationDescriptor* declaration_descriptor,
       const DeclarationParsingResult::Declaration* declaration,
       ZonePtrList<const AstRawString>* names);
-  void RewriteDestructuringAssignment(RewritableExpression* expr);
-  Expression* RewriteDestructuringAssignment(Assignment* assignment);
 
   // [if (IteratorType == kAsync)]
   //     !%_IsJSReceiver(result = Await(next.[[Call]](iterator, « »)) &&
@@ -548,13 +545,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   void SetLanguageMode(Scope* scope, LanguageMode mode);
   void SetAsmModule();
 
-  // Rewrite all DestructuringAssignments in the current FunctionState.
-  void RewriteDestructuringAssignments();
-
   Expression* RewriteSpreads(ArrayLiteral* lit);
-
-  void QueueDestructuringAssignmentForRewriting(
-      RewritableExpression* assignment);
 
   friend class InitializerRewriter;
   void RewriteParameterInitializer(Expression* expr);
@@ -717,17 +708,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     }
   }
 
-  V8_INLINE static void MarkPatternAsAssigned(Expression* expression) {}
-
-  // Determine if the expression is a variable proxy and mark it as being used
-  // in an assignment or with a increment/decrement operator.
-  V8_INLINE static void MarkExpressionAsAssigned(Expression* expression) {
-    DCHECK_NOT_NULL(expression);
-    if (expression->IsVariableProxy()) {
-      expression->AsVariableProxy()->set_is_assigned();
-    }
-  }
-
   // A shortcut for performing a ToString operation
   V8_INLINE Expression* ToString(Expression* expr) {
     if (expr->IsStringLiteral()) return expr;
@@ -877,7 +857,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     if (infer == InferName::kYes) {
       fni_.PushVariableName(name);
     }
-    return NewUnresolved(name, start_position);
+    return expression_scope()->NewVariable(name, start_position);
   }
 
   V8_INLINE Variable* DeclareCatchVariableName(Scope* scope,

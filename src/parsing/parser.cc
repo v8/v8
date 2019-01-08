@@ -605,7 +605,6 @@ FunctionLiteral* Parser::DoParseProgram(Isolate* isolate, ParseInfo* info) {
       }
     }
 
-    RewriteDestructuringAssignments();
     int parameter_count = parsing_module_ ? 1 : 0;
     result = factory()->NewScriptOrEvalFunctionLiteral(
         scope, body, function_state.expected_property_count(), parameter_count);
@@ -774,12 +773,8 @@ FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
 
       scope->set_start_position(info->start_position());
       ParserFormalParameters formals(scope);
-      // The outer FunctionState should not contain destructuring assignments.
-      DCHECK_EQ(0,
-                function_state.destructuring_assignments_to_rewrite().size());
       {
-        DeclarationParsingScope formals_scope(
-            this, ExpressionScope::kParameterDeclaration);
+        ParameterDeclarationParsingScope formals_scope(this);
         // Parsing patterns as variable reference expression creates
         // NewUnresolved references in current scope. Enter arrow function
         // scope for formal parameter parsing.
@@ -814,7 +809,6 @@ FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
         SkipFunctionLiterals(info->function_literal_id() - 1);
       }
 
-      set_rewritable_length(0);
       Expression* expression = ParseArrowFunctionLiteral(formals);
       // Scanning must end at the same position that was recorded
       // previously. If not, parsing has been interrupted due to a stack
@@ -1405,8 +1399,8 @@ Block* Parser::BuildInitializationBlock(
     ZonePtrList<const AstRawString>* names) {
   Block* result = factory()->NewBlock(1, true);
   for (const auto& declaration : parsing_result->declarations) {
-    DeclareAndInitializeVariables(result, &(parsing_result->descriptor),
-                                  &declaration, names);
+    InitializeVariables(result, &(parsing_result->descriptor), &declaration,
+                        names);
   }
   return result;
 }
@@ -1600,7 +1594,7 @@ Block* Parser::RewriteCatchPattern(CatchInfo* catch_info) {
       factory()->NewVariableProxy(catch_info->variable));
 
   Block* init_block = factory()->NewBlock(8, true);
-  DeclareAndInitializeVariables(init_block, &descriptor, &decl, nullptr);
+  InitializeVariables(init_block, &descriptor, &decl, nullptr);
   return init_block;
 }
 
@@ -1819,9 +1813,8 @@ Statement* Parser::InitializeForEachStatement(ForEachStatement* stmt,
     if (each->IsPattern()) {
       Variable* temp = NewTemporary(ast_value_factory()->empty_string());
       VariableProxy* temp_proxy = factory()->NewVariableProxy(temp);
-      Expression* assign_each =
-          RewriteDestructuringAssignment(factory()->NewAssignment(
-              Token::ASSIGN, each, temp_proxy, kNoSourcePosition));
+      Expression* assign_each = factory()->NewAssignment(
+          Token::ASSIGN, each, temp_proxy, kNoSourcePosition);
       auto block = factory()->NewBlock(2, false);
       block->statements()->Add(
           factory()->NewExpressionStatement(assign_each, kNoSourcePosition),
@@ -1830,7 +1823,6 @@ Statement* Parser::InitializeForEachStatement(ForEachStatement* stmt,
       body = block;
       each = factory()->NewVariableProxy(temp);
     }
-    MarkExpressionAsAssigned(each);
     stmt->AsForInStatement()->Initialize(each, subject, body);
   }
   return stmt;
@@ -1907,9 +1899,8 @@ void Parser::DesugarBindingInForEachStatement(ForInfo* for_info,
         IsLexicalVariableMode(for_info->parsing_result.descriptor.mode) ||
         is_for_var_of;
 
-    DeclareAndInitializeVariables(
-        each_initialization_block, &descriptor, &decl,
-        collect_names ? &for_info->bound_names : nullptr);
+    InitializeVariables(each_initialization_block, &descriptor, &decl,
+                        collect_names ? &for_info->bound_names : nullptr);
 
     // Annex B.3.5 prohibits the form
     // `try {} catch(e) { for (var e of {}); }`
@@ -2048,14 +2039,8 @@ Statement* Parser::InitializeForOfStatement(
   }
 
   // each = #result_value;
-  Expression* assign_each;
-  {
-    assign_each =
-        factory()->NewAssignment(Token::ASSIGN, each, result_value, nopos);
-    if (each->IsPattern()) {
-      assign_each = RewriteDestructuringAssignment(assign_each->AsAssignment());
-    }
-  }
+  Expression* assign_each =
+      factory()->NewAssignment(Token::ASSIGN, each, result_value, nopos);
 
   // {{completion = kNormalCompletion;}}
   Statement* set_completion_normal;
@@ -2396,11 +2381,6 @@ void Parser::AddArrowFunctionFormalParameters(
 
   Expression* initializer = nullptr;
   if (expr->IsAssignment()) {
-    if (expr->IsRewritableExpression()) {
-      // This expression was parsed as a possible destructuring assignment.
-      // Mark it as already-rewritten to avoid an unnecessary visit later.
-      expr->AsRewritableExpression()->set_rewritten();
-    }
     Assignment* assignment = expr->AsAssignment();
     DCHECK(!assignment->IsCompoundAssignment());
     initializer = assignment->value();
@@ -2789,13 +2769,6 @@ class InitializerRewriter final
   // called by the base class (template).
   friend class AstTraversalVisitor<InitializerRewriter>;
 
-  // Just rewrite destructuring assignments wrapped in RewritableExpressions.
-  void VisitRewritableExpression(RewritableExpression* to_rewrite) {
-    if (to_rewrite->is_rewritten()) return;
-    parser_->RewriteDestructuringAssignment(to_rewrite);
-    AstTraversalVisitor::VisitRewritableExpression(to_rewrite);
-  }
-
   // Code in function literals does not need to be eagerly rewritten, it will be
   // rewritten when scheduled.
   void VisitFunctionLiteral(FunctionLiteral* expr) {}
@@ -2872,7 +2845,7 @@ Block* Parser::BuildParameterInitializationBlock(
     BlockState block_state(&scope_, param_scope);
     DeclarationParsingResult::Declaration decl(
         parameter->pattern, parameter->initializer_end_position, initial_value);
-    DeclareAndInitializeVariables(param_block, &descriptor, &decl, nullptr);
+    InitializeVariables(param_block, &descriptor, &decl, nullptr);
 
     if (param_block != init_block) {
       param_scope = param_scope->FinalizeBlockScope();
@@ -2960,57 +2933,57 @@ void Parser::ParseFunction(
 
   ParserFormalParameters formals(function_scope);
 
-  if (is_wrapped) {
-    // For a function implicitly wrapped in function header and footer, the
-    // function arguments are provided separately to the source, and are
-    // declared directly here.
-    int arguments_length = arguments_for_wrapped_function->length();
-    for (int i = 0; i < arguments_length; i++) {
-      const bool is_rest = false;
-      Expression* argument = ExpressionFromIdentifier(
-          arguments_for_wrapped_function->at(i), kNoSourcePosition);
-      AddFormalParameter(&formals, argument, NullExpression(),
-                         kNoSourcePosition, is_rest);
-    }
-    DCHECK_EQ(arguments_length, formals.num_parameters());
-    DeclareFormalParameters(&formals);
-  } else {
-    // For a regular function, the function arguments are parsed from source.
-    DCHECK_NULL(arguments_for_wrapped_function);
-    DeclarationParsingScope formals_scope(
-        this, ExpressionScope::kParameterDeclaration);
-    ParseFormalParameterList(&formals);
-    if (expected_parameters_end_pos != kNoSourcePosition) {
-      // Check for '(' or ')' shenanigans in the parameter string for dynamic
-      // functions.
-      int position = peek_position();
-      if (position < expected_parameters_end_pos) {
-        ReportMessageAt(Scanner::Location(position, position + 1),
-                        MessageTemplate::kArgStringTerminatesParametersEarly);
-        return;
-      } else if (position > expected_parameters_end_pos) {
-        ReportMessageAt(Scanner::Location(expected_parameters_end_pos - 2,
-                                          expected_parameters_end_pos),
-                        MessageTemplate::kUnexpectedEndOfArgString);
-        return;
+  {
+    ParameterDeclarationParsingScope formals_scope(this);
+    if (is_wrapped) {
+      // For a function implicitly wrapped in function header and footer, the
+      // function arguments are provided separately to the source, and are
+      // declared directly here.
+      int arguments_length = arguments_for_wrapped_function->length();
+      for (int i = 0; i < arguments_length; i++) {
+        const bool is_rest = false;
+        Expression* argument = ExpressionFromIdentifier(
+            arguments_for_wrapped_function->at(i), kNoSourcePosition);
+        AddFormalParameter(&formals, argument, NullExpression(),
+                           kNoSourcePosition, is_rest);
       }
-    }
-    Expect(Token::RPAREN);
-    int formals_end_position = scanner()->location().end_pos;
+      DCHECK_EQ(arguments_length, formals.num_parameters());
+      DeclareFormalParameters(&formals);
+    } else {
+      // For a regular function, the function arguments are parsed from source.
+      DCHECK_NULL(arguments_for_wrapped_function);
+      ParseFormalParameterList(&formals);
+      if (expected_parameters_end_pos != kNoSourcePosition) {
+        // Check for '(' or ')' shenanigans in the parameter string for dynamic
+        // functions.
+        int position = peek_position();
+        if (position < expected_parameters_end_pos) {
+          ReportMessageAt(Scanner::Location(position, position + 1),
+                          MessageTemplate::kArgStringTerminatesParametersEarly);
+          return;
+        } else if (position > expected_parameters_end_pos) {
+          ReportMessageAt(Scanner::Location(expected_parameters_end_pos - 2,
+                                            expected_parameters_end_pos),
+                          MessageTemplate::kUnexpectedEndOfArgString);
+          return;
+        }
+      }
+      Expect(Token::RPAREN);
+      int formals_end_position = scanner()->location().end_pos;
 
-    CheckArityRestrictions(formals.arity, kind, formals.has_rest,
-                           function_scope->start_position(),
-                           formals_end_position);
-    Expect(Token::LBRACE);
+      CheckArityRestrictions(formals.arity, kind, formals.has_rest,
+                             function_scope->start_position(),
+                             formals_end_position);
+      Expect(Token::LBRACE);
+    }
   }
+
   *num_parameters = formals.num_parameters();
   *function_length = formals.function_length;
 
   AcceptINScope scope(this, true);
   ParseFunctionBody(body, function_name, pos, formals, kind, function_type,
                     FunctionBodyType::kBlock);
-
-  RewriteDestructuringAssignments();
 
   *has_duplicate_parameters = formals.has_duplicate();
 
@@ -3506,34 +3479,6 @@ void Parser::RewriteAsyncFunctionBody(ScopedPtrList<Statement>* body,
                            zone());
   block = BuildRejectPromiseOnException(block);
   body->Add(block);
-}
-
-void Parser::RewriteDestructuringAssignments() {
-  const auto& assignments =
-      function_state_->destructuring_assignments_to_rewrite();
-  auto it = assignments.rbegin();
-  for (; it != assignments.rend(); ++it) {
-    // Rewrite list in reverse, so that nested assignment patterns are rewritten
-    // correctly.
-    RewritableExpression* to_rewrite = *it;
-    DCHECK_NOT_NULL(to_rewrite);
-    if (!to_rewrite->is_rewritten()) {
-      // Since this function is called at the end of parsing the program,
-      // pair.scope may already have been removed by FinalizeBlockScope in the
-      // meantime.
-      Scope* scope = to_rewrite->scope()->GetUnremovedScope();
-      // Scope at the time of the rewriting and the original parsing
-      // should be in the same function.
-      DCHECK(scope->GetClosureScope() == scope_->GetClosureScope());
-      BlockState block_state(&scope_, scope);
-      RewriteDestructuringAssignment(to_rewrite);
-    }
-  }
-}
-
-void Parser::QueueDestructuringAssignmentForRewriting(
-    RewritableExpression* expr) {
-  function_state_->AddDestructuringAssignment(expr);
 }
 
 void Parser::SetFunctionNameFromPropertyName(LiteralProperty* property,

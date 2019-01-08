@@ -497,10 +497,6 @@ void CallPrinter::VisitSuperCallReference(SuperCallReference* node) {
 }
 
 
-void CallPrinter::VisitRewritableExpression(RewritableExpression* node) {
-  Find(node->expression());
-}
-
 void CallPrinter::FindStatements(const ZonePtrList<Statement>* statements) {
   if (statements == nullptr) return;
   for (int i = 0; i < statements->length(); i++) {
@@ -742,8 +738,9 @@ void AstPrinter::PrintLiteralWithModeIndented(const char* info, Variable* var,
   } else {
     EmbeddedVector<char, 256> buf;
     int pos =
-        SNPrintF(buf, "%s (%p) (mode = %s", info, reinterpret_cast<void*>(var),
-                 VariableMode2String(var->mode()));
+        SNPrintF(buf, "%s (%p) (mode = %s, assigned = %s", info,
+                 reinterpret_cast<void*>(var), VariableMode2String(var->mode()),
+                 var->maybe_assigned() == kMaybeAssigned ? "true" : "false");
     SNPrintF(buf + pos, ")");
     PrintLiteralIndented(buf.start(), value, true);
   }
@@ -1386,11 +1383,6 @@ void AstPrinter::VisitSuperPropertyReference(SuperPropertyReference* node) {
 
 void AstPrinter::VisitSuperCallReference(SuperCallReference* node) {
   IndentedScope indent(this, "SUPER-CALL-REFERENCE", node->position());
-}
-
-
-void AstPrinter::VisitRewritableExpression(RewritableExpression* node) {
-  Visit(node->expression());
 }
 
 

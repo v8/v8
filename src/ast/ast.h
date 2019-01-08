@@ -96,7 +96,6 @@ namespace internal {
   V(NativeFunctionLiteral)      \
   V(Property)                   \
   V(ResolvedProperty)           \
-  V(RewritableExpression)       \
   V(Spread)                     \
   V(StoreInArrayLiteral)        \
   V(SuperCallReference)         \
@@ -2197,58 +2196,6 @@ class CompoundAssignment final : public Assignment {
   BinaryOperation* binary_operation_;
 };
 
-// The RewritableExpression class is a wrapper for AST nodes that wait
-// for some potential rewriting.  However, even if such nodes are indeed
-// rewritten, the RewritableExpression wrapper nodes will survive in the
-// final AST and should be just ignored, i.e., they should be treated as
-// equivalent to the wrapped nodes.  For this reason and to simplify later
-// phases, RewritableExpressions are considered as exceptions of AST nodes
-// in the following sense:
-//
-// 1. IsRewritableExpression and AsRewritableExpression behave as usual.
-// 2. All other Is* and As* methods are practically delegated to the
-//    wrapped node, i.e. IsArrayLiteral() will return true iff the
-//    wrapped node is an array literal.
-//
-// Furthermore, an invariant that should be respected is that the wrapped
-// node is not a RewritableExpression.
-class RewritableExpression final : public Expression {
- public:
-  Expression* expression() const { return expr_; }
-  bool is_rewritten() const { return IsRewrittenField::decode(bit_field_); }
-  void set_rewritten() {
-    bit_field_ = IsRewrittenField::update(bit_field_, true);
-  }
-
-  void Rewrite(Expression* new_expression) {
-    DCHECK(!is_rewritten());
-    DCHECK_NOT_NULL(new_expression);
-    DCHECK(!new_expression->IsRewritableExpression());
-    expr_ = new_expression;
-    set_rewritten();
-  }
-
-  Scope* scope() const { return scope_; }
-  void set_scope(Scope* scope) { scope_ = scope; }
-
- private:
-  friend class AstNodeFactory;
-
-  RewritableExpression(Expression* expression, Scope* scope)
-      : Expression(expression->position(), kRewritableExpression),
-        expr_(expression),
-        scope_(scope) {
-    bit_field_ |= IsRewrittenField::encode(false);
-    DCHECK(!expression->IsRewritableExpression());
-  }
-
-  Expression* expr_;
-  Scope* scope_;
-
-  class IsRewrittenField
-      : public BitField<bool, Expression::kNextBitFieldIndex, 1> {};
-};
-
 // There are several types of Suspend node:
 //
 // Yield
@@ -2969,6 +2916,7 @@ class AstNodeFactory final {
         empty_statement_(new (zone) class EmptyStatement()),
         failure_expression_(new (zone) class FailureExpression()) {}
 
+  AstNodeFactory* ast_node_factory() { return this; }
   AstValueFactory* ast_value_factory() const { return ast_value_factory_; }
 
   VariableDeclaration* NewVariableDeclaration(VariableProxy* proxy, int pos) {
@@ -3326,12 +3274,6 @@ class AstNodeFactory final {
         Conditional(condition, then_expression, else_expression, position);
   }
 
-  RewritableExpression* NewRewritableExpression(Expression* expression,
-                                                Scope* scope) {
-    DCHECK_NOT_NULL(expression);
-    return new (zone_) RewritableExpression(expression, scope);
-  }
-
   Assignment* NewAssignment(Token::Value op,
                             Expression* target,
                             Expression* value,
@@ -3508,38 +3450,15 @@ class AstNodeFactory final {
 // Inline functions for AstNode.
 
 #define DECLARE_NODE_FUNCTIONS(type)                                         \
-  bool AstNode::Is##type() const {                                           \
-    NodeType mine = node_type();                                             \
-    if (mine == AstNode::kRewritableExpression &&                            \
-        AstNode::k##type == AstNode::kAssignment)                            \
-      mine = reinterpret_cast<const RewritableExpression*>(this)             \
-                 ->expression()                                              \
-                 ->node_type();                                              \
-    return mine == AstNode::k##type;                                         \
-  }                                                                          \
+  bool AstNode::Is##type() const { return node_type() == AstNode::k##type; } \
   type* AstNode::As##type() {                                                \
-    NodeType mine = node_type();                                             \
-    AstNode* result = this;                                                  \
-    if (mine == AstNode::kRewritableExpression &&                            \
-        AstNode::k##type == AstNode::kAssignment) {                          \
-      result =                                                               \
-          reinterpret_cast<const RewritableExpression*>(this)->expression(); \
-      mine = result->node_type();                                            \
-    }                                                                        \
-    return mine == AstNode::k##type ? reinterpret_cast<type*>(result)        \
-                                    : nullptr;                               \
+    return node_type() == AstNode::k##type ? reinterpret_cast<type*>(this)   \
+                                           : nullptr;                        \
   }                                                                          \
   const type* AstNode::As##type() const {                                    \
-    NodeType mine = node_type();                                             \
-    const AstNode* result = this;                                            \
-    if (mine == AstNode::kRewritableExpression &&                            \
-        AstNode::k##type != AstNode::kRewritableExpression) {                \
-      result =                                                               \
-          reinterpret_cast<const RewritableExpression*>(this)->expression(); \
-      mine = result->node_type();                                            \
-    }                                                                        \
-    return mine == AstNode::k##type ? reinterpret_cast<const type*>(result)  \
-                                    : nullptr;                               \
+    return node_type() == AstNode::k##type                                   \
+               ? reinterpret_cast<const type*>(this)                         \
+               : nullptr;                                                    \
   }
 AST_NODE_LIST(DECLARE_NODE_FUNCTIONS)
 FAILURE_NODE_LIST(DECLARE_NODE_FUNCTIONS)

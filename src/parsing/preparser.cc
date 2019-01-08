@@ -142,8 +142,7 @@ PreParser::PreParseResult PreParser::PreParseFunction(
 
     // Parse non-arrow function parameters. For arrow functions, the parameters
     // have already been parsed.
-    DeclarationParsingScope formals_scope(
-        this, ExpressionScope::kParameterDeclaration);
+    ParameterDeclarationParsingScope formals_scope(this);
     // We return kPreParseSuccess in failure cases too - errors are retrieved
     // separately by Parser::SkipLazyFunctionBody.
     ParseFormalParameterList(&formals);
@@ -302,8 +301,7 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
     function_scope->set_start_position(start_position);
     PreParserFormalParameters formals(function_scope);
     {
-      DeclarationParsingScope formals_scope(
-          this, ExpressionScope::kParameterDeclaration);
+      ParameterDeclarationParsingScope formals_scope(this);
       ParseFormalParameterList(&formals);
     }
     Expect(Token::RPAREN);
@@ -410,22 +408,20 @@ bool PreParser::IdentifierEquals(const PreParserIdentifier& identifier,
 
 PreParserExpression PreParser::ExpressionFromIdentifier(
     const PreParserIdentifier& name, int start_position, InferName infer) {
-  VariableProxy* proxy = nullptr;
   DCHECK_IMPLIES(name.string_ == nullptr, has_error());
   if (name.string_ == nullptr) return PreParserExpression::Default();
-  proxy = scope()->NewUnresolved(factory()->ast_node_factory(), name.string_,
-                                 start_position, NORMAL_VARIABLE);
+  VariableProxy* proxy =
+      expression_scope()->NewVariable(name.string_, start_position);
   return PreParserExpression::FromIdentifier(name, proxy, zone());
 }
 
-void PreParser::DeclareAndInitializeVariables(
+void PreParser::InitializeVariables(
     PreParserStatement block,
     const DeclarationDescriptor* declaration_descriptor,
     const DeclarationParsingResult::Declaration* declaration,
     ZonePtrList<const AstRawString>* names) {
   if (declaration->pattern.variables_ != nullptr) {
     for (auto variable : *(declaration->pattern.variables_)) {
-      scope()->DeleteUnresolved(variable);
       Variable* var = scope()->DeclareVariableName(
           variable->raw_name(), declaration_descriptor->mode);
       if (var == nullptr) {

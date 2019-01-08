@@ -770,27 +770,11 @@ Variable* DeclarationScope::DeclareGeneratorObjectVar(
   return result;
 }
 
-bool Scope::HasBeenRemoved() const {
-  if (sibling() == this) {
-    DCHECK_NULL(inner_scope_);
-    DCHECK(is_block_scope());
-    return true;
-  }
-  return false;
-}
-
-Scope* Scope::GetUnremovedScope() {
-  Scope* scope = this;
-  while (scope != nullptr && scope->HasBeenRemoved()) {
-    scope = scope->outer_scope();
-  }
-  DCHECK_NOT_NULL(scope);
-  return scope;
-}
-
 Scope* Scope::FinalizeBlockScope() {
   DCHECK(is_block_scope());
-  DCHECK(!HasBeenRemoved());
+#ifdef DEBUG
+  DCHECK_NE(sibling_, this);
+#endif
 
   if (variables_.occupancy() > 0 ||
       (is_declaration_scope() && AsDeclarationScope()->calls_sloppy_eval())) {
@@ -830,8 +814,9 @@ Scope* Scope::FinalizeBlockScope() {
   num_heap_slots_ = 0;
 
   // Mark scope as removed by making it its own sibling.
+#ifdef DEBUG
   sibling_ = this;
-  DCHECK(HasBeenRemoved());
+#endif
 
   return nullptr;
 }
@@ -986,6 +971,11 @@ Variable* DeclarationScope::DeclareParameter(const AstRawString* name,
   if (name == ast_value_factory->arguments_string()) {
     has_arguments_parameter_ = true;
   }
+  // Params are automatically marked as used to make sure that the debugger and
+  // function.arguments sees them.
+  // TODO(verwaest): Reevaluate whether we always need to do this, since
+  // strict-mode function.arguments does not make the arguments available.
+  var->set_is_used();
   return var;
 }
 
@@ -1010,6 +1000,11 @@ Variable* DeclarationScope::DeclareParameterName(
   if (add_parameter) {
     params_.Add(var, zone());
   }
+  // Params are automatically marked as used to make sure that the debugger and
+  // function.arguments sees them.
+  // TODO(verwaest): Reevaluate whether we always need to do this, since
+  // strict-mode function.arguments does not make the arguments available.
+  var->set_is_used();
   return var;
 }
 

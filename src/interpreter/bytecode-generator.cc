@@ -5328,10 +5328,6 @@ void BytecodeGenerator::VisitNaryLogicalAndExpression(NaryOperation* expr) {
   }
 }
 
-void BytecodeGenerator::VisitRewritableExpression(RewritableExpression* expr) {
-  Visit(expr->expression());
-}
-
 void BytecodeGenerator::BuildNewLocalActivationContext() {
   ValueResultScope value_execution_result(this);
   Scope* scope = closure_scope();

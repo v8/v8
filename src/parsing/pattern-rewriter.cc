@@ -25,14 +25,11 @@ class PatternRewriter final : public AstVisitor<PatternRewriter> {
 
   typedef Parser::DeclarationDescriptor DeclarationDescriptor;
 
-  static void DeclareAndInitializeVariables(
+  static void InitializeVariables(
       Parser* parser, Block* block,
       const DeclarationDescriptor* declaration_descriptor,
       const Parser::DeclarationParsingResult::Declaration* declaration,
       ZonePtrList<const AstRawString>* names);
-
-  static Expression* RewriteDestructuringAssignment(Parser* parser,
-                                                    Assignment* to_rewrite);
 
  private:
   enum PatternContext : uint8_t { BINDING, ASSIGNMENT };
@@ -128,51 +125,16 @@ class PatternRewriter final : public AstVisitor<PatternRewriter> {
   DEFINE_AST_VISITOR_MEMBERS_WITHOUT_STACKOVERFLOW()
 };
 
-void Parser::DeclareAndInitializeVariables(
+void Parser::InitializeVariables(
     Block* block, const DeclarationDescriptor* declaration_descriptor,
     const DeclarationParsingResult::Declaration* declaration,
     ZonePtrList<const AstRawString>* names) {
   if (has_error()) return;
-  PatternRewriter::DeclareAndInitializeVariables(
-      this, block, declaration_descriptor, declaration, names);
+  PatternRewriter::InitializeVariables(this, block, declaration_descriptor,
+                                       declaration, names);
 }
 
-namespace {
-// Lightweight visitor for the case where bytecode does the desugaring.
-void MarkVariablesWritten(Expression* expr) {
-  if (expr->IsVariableProxy()) {
-    expr->AsVariableProxy()->set_is_assigned();
-  } else if (expr->IsObjectLiteral()) {
-    for (ObjectLiteralProperty* prop : *expr->AsObjectLiteral()->properties()) {
-      MarkVariablesWritten(prop->value());
-    }
-  } else if (expr->IsArrayLiteral()) {
-    for (Expression* value : *expr->AsArrayLiteral()->values()) {
-      MarkVariablesWritten(value);
-    }
-  } else if (expr->IsSpread()) {
-    MarkVariablesWritten(expr->AsSpread()->expression());
-  } else if (expr->IsAssignment()) {
-    MarkVariablesWritten(expr->AsAssignment()->target());
-  }
-}
-}  // namespace
-
-void Parser::RewriteDestructuringAssignment(RewritableExpression* to_rewrite) {
-  DCHECK(!to_rewrite->is_rewritten());
-  Assignment* assignment = to_rewrite->expression()->AsAssignment();
-  DCHECK_NOT_NULL(assignment);
-  MarkVariablesWritten(assignment->target());
-}
-
-Expression* Parser::RewriteDestructuringAssignment(Assignment* assignment) {
-  DCHECK_NOT_NULL(assignment);
-  DCHECK_EQ(Token::ASSIGN, assignment->op());
-  MarkVariablesWritten(assignment->target());
-  return assignment;
-}
-
-void PatternRewriter::DeclareAndInitializeVariables(
+void PatternRewriter::InitializeVariables(
     Parser* parser, Block* block,
     const DeclarationDescriptor* declaration_descriptor,
     const Parser::DeclarationParsingResult::Declaration* declaration,
@@ -189,14 +151,6 @@ void PatternRewriter::DeclareAndInitializeVariables(
 
   rewriter.RecurseIntoSubpattern(declaration->pattern,
                                  declaration->initializer);
-}
-
-Expression* PatternRewriter::RewriteDestructuringAssignment(
-    Parser* parser, Assignment* to_rewrite) {
-  DCHECK(!parser->scope()->HasBeenRemoved());
-
-  PatternRewriter rewriter(parser, ASSIGNMENT);
-  return rewriter.Rewrite(to_rewrite);
 }
 
 void PatternRewriter::VisitVariableProxy(VariableProxy* proxy) {
@@ -219,7 +173,6 @@ void PatternRewriter::VisitVariableProxy(VariableProxy* proxy) {
   if (declares_parameter_containing_sloppy_eval_) {
     target_scope = target_scope->outer_scope();
   }
-  target_scope->DeleteUnresolved(proxy);
 
   // Declare variable.
   // Note that we *always* must treat the initial value via a separate init
@@ -310,16 +263,6 @@ Variable* PatternRewriter::CreateTempVar(Expression* value) {
         zone());
   }
   return temp;
-}
-
-void PatternRewriter::VisitRewritableExpression(RewritableExpression* node) {
-  DCHECK(node->expression()->IsAssignment());
-  // This is not a top-level destructuring assignment. Mark the node as
-  // rewritten to prevent redundant rewriting and visit the underlying
-  // expression.
-  DCHECK(!node->is_rewritten());
-  node->set_rewritten();
-  return Visit(node->expression());
 }
 
 // When an extra declaration scope needs to be inserted to account for
