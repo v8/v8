@@ -575,6 +575,9 @@
   'intl402/Locale/getters-grandfathered': [FAIL],
   'intl402/Locale/likely-subtags-grandfathered': [FAIL],
 
+  # https://bugs.chromium.org/p/v8/issues/detail?id=8613
+  'intl402/RelativeTimeFormat/prototype/resolvedOptions/order': [FAIL],
+
   # https://bugs.chromium.org/p/v8/issues/detail?id=6705
   'built-ins/Object/assign/strings-and-symbol-order': [FAIL],
 

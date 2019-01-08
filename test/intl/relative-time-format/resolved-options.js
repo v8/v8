@@ -13,10 +13,15 @@ assertEquals('long', rtf.resolvedOptions().style);
 assertEquals('always', rtf.resolvedOptions().numeric);
 
 // contains style, numeric and locale key
-assertEquals(3, Object.getOwnPropertyNames(rtf.resolvedOptions()).length);
+assertEquals(4, Object.getOwnPropertyNames(rtf.resolvedOptions()).length);
 
 // contains style, numeric and locale key
-assertEquals(3, Object.getOwnPropertyNames(new Intl.RelativeTimeFormat('en').resolvedOptions()).length);
+assertEquals(
+    4,
+    Object.getOwnPropertyNames(
+        new Intl.RelativeTimeFormat("en").resolvedOptions()
+    ).length
+);
 
 assertEquals(
     'short',

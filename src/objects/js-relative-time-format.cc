@@ -96,7 +96,7 @@ MaybeHandle<JSRelativeTimeFormat> JSRelativeTimeFormat::Initialize(
   //               %RelativeTimeFormat%.[[RelevantExtensionKeys]], localeData).
   Intl::ResolvedLocale r =
       Intl::ResolveLocale(isolate, JSRelativeTimeFormat::GetAvailableLocales(),
-                          requested_locales, matcher, {});
+                          requested_locales, matcher, {"nu"});
 
   // 9. Let locale be r.[[Locale]].
   // 10. Set relativeTimeFormat.[[Locale]] to locale.
@@ -178,6 +178,12 @@ Handle<JSObject> JSRelativeTimeFormat::ResolvedOptions(
                         format_holder->StyleAsString(), NONE);
   JSObject::AddProperty(isolate, result, factory->numeric_string(),
                         format_holder->NumericAsString(), NONE);
+  std::string locale_str(format_holder->locale()->ToCString().get());
+  icu::Locale icu_locale = Intl::CreateICULocale(locale_str);
+  std::string numbering_system = Intl::GetNumberingSystem(icu_locale);
+  JSObject::AddProperty(
+      isolate, result, factory->numberingSystem_string(),
+      factory->NewStringFromAsciiChecked(numbering_system.c_str()), NONE);
   return result;
 }
 
