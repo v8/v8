@@ -53,7 +53,7 @@ class SourcePositionTable : public Malloced {
   DISALLOW_COPY_AND_ASSIGN(SourcePositionTable);
 };
 
-struct InlineEntry;
+struct CodeEntryAndLineNumber;
 
 class CodeEntry {
  public:
@@ -109,9 +109,25 @@ class CodeEntry {
 
   int GetSourceLine(int pc_offset) const;
 
+  struct Equals {
+    bool operator()(const std::unique_ptr<CodeEntry>& lhs,
+                    const std::unique_ptr<CodeEntry>& rhs) const {
+      return lhs.get()->IsSameFunctionAs(rhs.get());
+    }
+  };
+  struct Hasher {
+    std::size_t operator()(const std::unique_ptr<CodeEntry>& e) const {
+      return e->GetHash();
+    }
+  };
+
   void SetInlineStacks(
-      std::unordered_map<int, std::vector<InlineEntry>> inline_stacks);
-  const std::vector<InlineEntry>* GetInlineStack(int pc_offset) const;
+      std::unordered_set<std::unique_ptr<CodeEntry>, Hasher, Equals>
+          inline_entries,
+      std::unordered_map<int, std::vector<CodeEntryAndLineNumber>>
+          inline_stacks);
+  const std::vector<CodeEntryAndLineNumber>* GetInlineStack(
+      int pc_offset) const;
 
   void set_instruction_start(Address start) { instruction_start_ = start; }
   Address instruction_start() const { return instruction_start_; }
@@ -148,7 +164,9 @@ class CodeEntry {
     const char* deopt_reason_ = kNoDeoptReason;
     const char* bailout_reason_ = kEmptyBailoutReason;
     int deopt_id_ = kNoDeoptimizationId;
-    std::unordered_map<int, std::vector<InlineEntry>> inline_locations_;
+    std::unordered_map<int, std::vector<CodeEntryAndLineNumber>> inline_stacks_;
+    std::unordered_set<std::unique_ptr<CodeEntry>, Hasher, Equals>
+        inline_entries_;
     std::vector<CpuProfileDeoptFrame> deopt_inlined_frames_;
   };
 
@@ -192,15 +210,6 @@ class CodeEntry {
   std::unique_ptr<RareData> rare_data_;
 
   DISALLOW_COPY_AND_ASSIGN(CodeEntry);
-};
-
-// Used to store information about inline call stacks - call_line_number is the
-// line number within the function represented by code_entry. Inlining
-// inherently happens at callsites, so this line number will always be the call
-// to the next inline/noninline frame.
-struct InlineEntry {
-  std::unique_ptr<CodeEntry> code_entry;
-  int call_line_number;
 };
 
 struct CodeEntryAndLineNumber {

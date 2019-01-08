@@ -75,6 +75,21 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
   DispatchCodeEvent(evt_rec);
 }
 
+namespace {
+
+CodeEntry* GetOrInsertCachedEntry(
+    std::unordered_set<std::unique_ptr<CodeEntry>, CodeEntry::Hasher,
+                       CodeEntry::Equals>* entries,
+    std::unique_ptr<CodeEntry> search_value) {
+  auto it = entries->find(search_value);
+  if (it != entries->end()) return it->get();
+  CodeEntry* ret = search_value.get();
+  entries->insert(std::move(search_value));
+  return ret;
+}
+
+}  // namespace
+
 void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
                                        AbstractCode abstract_code,
                                        SharedFunctionInfo shared,
@@ -83,7 +98,10 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->instruction_start = abstract_code->InstructionStart();
   std::unique_ptr<SourcePositionTable> line_table;
-  std::unordered_map<int, std::vector<InlineEntry>> inline_stacks;
+  std::unordered_map<int, std::vector<CodeEntryAndLineNumber>> inline_stacks;
+  std::unordered_set<std::unique_ptr<CodeEntry>, CodeEntry::Hasher,
+                     CodeEntry::Equals>
+      cached_inline_entries;
   if (shared->script()->IsScript()) {
     Script script = Script::cast(shared->script());
     line_table.reset(new SourcePositionTable());
@@ -108,7 +126,7 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
             it.source_position().InliningStack(handle(code, isolate_));
         DCHECK(!stack.empty());
 
-        std::vector<InlineEntry> inline_stack;
+        std::vector<CodeEntryAndLineNumber> inline_stack;
         for (SourcePositionInfo& pos_info : stack) {
           if (pos_info.position.ScriptOffset() == kNoSourcePosition) continue;
           if (pos_info.script.is_null()) continue;
@@ -135,8 +153,14 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
                   start_pos_info.line + 1, start_pos_info.column + 1, nullptr,
                   code->InstructionStart());
           inline_entry->FillFunctionInfo(*pos_info.shared);
+
+          // Create a canonical CodeEntry for each inlined frame and then re-use
+          // them for subsequent inline stacks to avoid a lot of duplication.
+          CodeEntry* cached_entry = GetOrInsertCachedEntry(
+              &cached_inline_entries, std::move(inline_entry));
+
           inline_stack.push_back(
-              InlineEntry{std::move(inline_entry), line_number});
+              CodeEntryAndLineNumber{cached_entry, line_number});
         }
         DCHECK(!inline_stack.empty());
         inline_stacks.emplace(inlining_id, std::move(inline_stack));
@@ -148,7 +172,8 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
                    GetName(InferScriptName(script_name, shared)), line, column,
                    std::move(line_table), abstract_code->InstructionStart());
   if (!inline_stacks.empty()) {
-    rec->entry->SetInlineStacks(std::move(inline_stacks));
+    rec->entry->SetInlineStacks(std::move(cached_inline_entries),
+                                std::move(inline_stacks));
   }
 
   rec->entry->FillFunctionInfo(shared);

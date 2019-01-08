@@ -142,19 +142,24 @@ int CodeEntry::GetSourceLine(int pc_offset) const {
 }
 
 void CodeEntry::SetInlineStacks(
-    std::unordered_map<int, std::vector<InlineEntry>> inline_stacks) {
-  EnsureRareData()->inline_locations_ = std::move(inline_stacks);
+    std::unordered_set<std::unique_ptr<CodeEntry>, Hasher, Equals>
+        inline_entries,
+    std::unordered_map<int, std::vector<CodeEntryAndLineNumber>>
+        inline_stacks) {
+  EnsureRareData()->inline_entries_ = std::move(inline_entries);
+  rare_data_->inline_stacks_ = std::move(inline_stacks);
 }
 
-const std::vector<InlineEntry>* CodeEntry::GetInlineStack(int pc_offset) const {
+const std::vector<CodeEntryAndLineNumber>* CodeEntry::GetInlineStack(
+    int pc_offset) const {
   if (!line_info_) return nullptr;
 
   int inlining_id = line_info_->GetInliningId(pc_offset);
   if (inlining_id == SourcePosition::kNotInlined) return nullptr;
   DCHECK(rare_data_);
 
-  auto it = rare_data_->inline_locations_.find(inlining_id);
-  return it != rare_data_->inline_locations_.end() ? &it->second : nullptr;
+  auto it = rare_data_->inline_stacks_.find(inlining_id);
+  return it != rare_data_->inline_stacks_.end() ? &it->second : nullptr;
 }
 
 void CodeEntry::set_deopt_info(
@@ -220,14 +225,14 @@ void CodeEntry::print() const {
     base::OS::Print(" - bailout_reason: %s\n", rare_data_->bailout_reason_);
     base::OS::Print(" - deopt_id: %d\n", rare_data_->deopt_id_);
 
-    if (!rare_data_->inline_locations_.empty()) {
+    if (!rare_data_->inline_stacks_.empty()) {
       base::OS::Print(" - inline stacks:\n");
-      for (auto it = rare_data_->inline_locations_.begin();
-           it != rare_data_->inline_locations_.end(); it++) {
+      for (auto it = rare_data_->inline_stacks_.begin();
+           it != rare_data_->inline_stacks_.end(); it++) {
         base::OS::Print("    inlining_id: [%d]\n", it->first);
         for (const auto& e : it->second) {
           base::OS::Print("     %s --> %d\n", e.code_entry->name(),
-                          e.call_line_number);
+                          e.line_number);
         }
       }
     } else {
@@ -833,17 +838,12 @@ void ProfileGenerator::RecordTickSample(const TickSample& sample) {
         int pc_offset =
             static_cast<int>(stack_pos - entry->instruction_start());
         // TODO(petermarshall): pc_offset can still be negative in some cases.
-        const std::vector<InlineEntry>* inline_stack =
+        const std::vector<CodeEntryAndLineNumber>* inline_stack =
             entry->GetInlineStack(pc_offset);
         if (inline_stack) {
           int most_inlined_frame_line_number = entry->GetSourceLine(pc_offset);
-          std::transform(inline_stack->begin(), inline_stack->end(),
-                         std::back_inserter(stack_trace),
-                         [](const InlineEntry& inline_entry) {
-                           return CodeEntryAndLineNumber{
-                               inline_entry.code_entry.get(),
-                               inline_entry.call_line_number};
-                         });
+          stack_trace.insert(stack_trace.end(), inline_stack->begin(),
+                             inline_stack->end());
           // This is a bit of a messy hack. The line number for the most-inlined
           // frame (the function at the end of the chain of function calls) has
           // the wrong line number in inline_stack. The actual line number in
