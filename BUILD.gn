@@ -738,7 +738,6 @@ action("d8_js2c") {
   # NOSORT
   inputs = [
     "src/d8.js",
-    "src/js/macros.py",
   ]
 
   outputs = [

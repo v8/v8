@@ -44,7 +44,7 @@ function Stringify(x, depth) {
     case "bigint":
       return x.toString() + "n";
     case "object":
-      if (IS_NULL(x)) return "null";
+      if (x === null) return "null";
       if (x.constructor && x.constructor.name === "Array") {
         var elems = [];
         for (var i = 0; i < x.length; ++i) {
@@ -63,8 +63,8 @@ function Stringify(x, depth) {
       for (var i in names) {
         var name = names[i];
         var desc = Object.getOwnPropertyDescriptor(x, name);
-        if (IS_UNDEFINED(desc)) continue;
-        if (IS_SYMBOL(name)) name = "[" + Stringify(name) + "]";
+        if (desc === (void 0)) continue;
+        if (typeof name === 'symbol') name = "[" + Stringify(name) + "]";
         if ("value" in desc) {
           props.push(name + ": " + Stringify(desc.value, depth - 1));
         }
