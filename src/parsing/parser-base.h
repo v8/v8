@@ -2568,31 +2568,21 @@ ParserBase<Impl>::ParseAssignmentExpressionCoverGrammar() {
     return expression;
   }
 
-  // Destructuring assignmment.
-  if (V8_UNLIKELY(expression->IsPattern() && op == Token::ASSIGN)) {
-    expression_scope()->ValidateAsPattern(expression, lhs_beg_pos,
-                                          end_position());
-
-    Consume(op);
-    int pos = position();
-
-    ExpressionT right = ParseAssignmentExpression();
-    ExpressionT result = factory()->NewAssignment(op, expression, right, pos);
-
-    return result;
-  }
-
-  if (V8_UNLIKELY(!IsValidReferenceExpression(expression))) {
-    expression = RewriteInvalidReferenceExpression(
-        expression, lhs_beg_pos, end_position(),
-        MessageTemplate::kInvalidLhsInAssignment);
+  if (V8_LIKELY(impl()->IsAssignableIdentifier(expression))) {
+    expression_scope()->MarkIdentifierAsAssigned();
   } else if (expression->IsProperty()) {
     expression_scope()->RecordDeclarationError(
         Scanner::Location(lhs_beg_pos, end_position()),
         MessageTemplate::kInvalidPropertyBindingPattern);
+  } else if (expression->IsPattern() && op == Token::ASSIGN) {
+    // Destructuring assignmment.
+    expression_scope()->ValidateAsPattern(expression, lhs_beg_pos,
+                                          end_position());
   } else {
-    DCHECK(impl()->IsAssignableIdentifier(expression));
-    expression_scope()->MarkIdentifierAsAssigned();
+    DCHECK(!IsValidReferenceExpression(expression));
+    expression = RewriteInvalidReferenceExpression(
+        expression, lhs_beg_pos, end_position(),
+        MessageTemplate::kInvalidLhsInAssignment);
   }
 
   Consume(op);
