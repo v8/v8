@@ -157,13 +157,14 @@ bool CompareTexts(const std::string& generated, const std::string& expected) {
   std::string expected_line;
   // Line number does not include golden file header.
   int line_number = 0;
+  bool strings_match = true;
 
   do {
     std::getline(generated_stream, generated_line);
     std::getline(expected_stream, expected_line);
 
     if (!generated_stream.good() && !expected_stream.good()) {
-      return true;
+      return strings_match;
     }
 
     if (!generated_stream.good()) {
@@ -182,7 +183,7 @@ bool CompareTexts(const std::string& generated, const std::string& expected) {
       std::cerr << "Inputs differ at line " << line_number << "\n";
       std::cerr << "  Generated: '" << generated_line << "'\n";
       std::cerr << "  Expected:  '" << expected_line << "'\n";
-      return false;
+      strings_match = false;
     }
     line_number++;
   } while (true);
