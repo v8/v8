@@ -332,6 +332,15 @@ class Platform {
   }
 
   /**
+   * Schedules a task to be invoked with low-priority on a worker thread.
+   */
+  virtual void CallLowPriorityTaskOnWorkerThread(std::unique_ptr<Task> task) {
+    // Embedders may optionally override this to process these tasks in a low
+    // priority pool.
+    CallOnWorkerThread(std::move(task));
+  }
+
+  /**
    * Schedules a task to be invoked on a worker thread after |delay_in_seconds|
    * expires.
    */
