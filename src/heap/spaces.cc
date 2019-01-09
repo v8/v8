@@ -2209,9 +2209,8 @@ LocalAllocationBuffer::LocalAllocationBuffer(
   }
 }
 
-
-LocalAllocationBuffer::LocalAllocationBuffer(
-    const LocalAllocationBuffer& other) {
+LocalAllocationBuffer::LocalAllocationBuffer(const LocalAllocationBuffer& other)
+    V8_NOEXCEPT {
   *this = other;
 }
 
