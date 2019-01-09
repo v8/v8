@@ -19,23 +19,16 @@ void UnwindingInfoWriter::BeginInstructionBlock(int pc_offset,
             static_cast<int>(block_initial_states_.size()));
   const BlockInitialState* initial_state =
       block_initial_states_[block->rpo_number().ToInt()];
-  if (initial_state) {
-    if (initial_state->saved_lr_ != saved_lr_) {
-      eh_frame_writer_.AdvanceLocation(pc_offset);
-      if (initial_state->saved_lr_) {
-        eh_frame_writer_.RecordRegisterSavedToStack(lr, kSystemPointerSize);
-        eh_frame_writer_.RecordRegisterSavedToStack(fp, 0);
-      } else {
-        eh_frame_writer_.RecordRegisterFollowsInitialRule(lr);
-      }
-      saved_lr_ = initial_state->saved_lr_;
+  if (!initial_state) return;
+  if (initial_state->saved_lr_ != saved_lr_) {
+    eh_frame_writer_.AdvanceLocation(pc_offset);
+    if (initial_state->saved_lr_) {
+      eh_frame_writer_.RecordRegisterSavedToStack(lr, kSystemPointerSize);
+      eh_frame_writer_.RecordRegisterSavedToStack(fp, 0);
+    } else {
+      eh_frame_writer_.RecordRegisterFollowsInitialRule(lr);
     }
-  } else {
-    // The entry block always lacks an explicit initial state.
-    // The exit block may lack an explicit state, if it is only reached by
-    //   the block ending in a ret.
-    // All the other blocks must have an explicit initial state.
-    DCHECK(block->predecessors().empty() || block->successors().empty());
+    saved_lr_ = initial_state->saved_lr_;
   }
 }
 
