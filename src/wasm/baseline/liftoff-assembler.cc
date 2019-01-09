@@ -201,7 +201,12 @@ class StackTransferRecipe {
 
   void LoadStackSlot(LiftoffRegister dst, uint32_t stack_index,
                      ValueType type) {
-    DCHECK(!load_dst_regs_.has(dst));
+    if (load_dst_regs_.has(dst)) {
+      // It can happen that we spilled the same register to different stack
+      // slots, and then we reload them later into the same dst register.
+      // In that case, it is enough to load one of the stack slots.
+      return;
+    }
     load_dst_regs_.set(dst);
     if (dst.is_pair()) {
       DCHECK_EQ(kWasmI64, type);
@@ -216,7 +221,12 @@ class StackTransferRecipe {
 
   void LoadI64HalfStackSlot(LiftoffRegister dst, uint32_t stack_index,
                             RegPairHalf half) {
-    DCHECK(!load_dst_regs_.has(dst));
+    if (load_dst_regs_.has(dst)) {
+      // It can happen that we spilled the same register to different stack
+      // slots, and then we reload them later into the same dst register.
+      // In that case, it is enough to load one of the stack slots.
+      return;
+    }
     load_dst_regs_.set(dst);
     *register_load(dst) = RegisterLoad::HalfStack(stack_index, half);
   }
