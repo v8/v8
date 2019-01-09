@@ -343,7 +343,7 @@ void AsmJsParser::ValidateModule() {
   RECURSE(ValidateModuleParameters());
   EXPECT_TOKEN('{');
   EXPECT_TOKEN(TOK(UseAsm));
-  SkipSemicolon();
+  RECURSE(SkipSemicolon());
   RECURSE(ValidateModuleVars());
   while (Peek(TOK(function))) {
     RECURSE(ValidateFunction());
