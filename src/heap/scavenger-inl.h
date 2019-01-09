@@ -488,7 +488,7 @@ template <typename TSlot>
 void ScavengeVisitor::VisitPointersImpl(HeapObject host, TSlot start,
                                         TSlot end) {
   for (TSlot slot = start; slot < end; ++slot) {
-    typename TSlot::TObject object = slot.load();
+    typename TSlot::TObject object = *slot;
     HeapObject heap_object;
     // Treat weak references as strong.
     if (object.GetHeapObject(&heap_object)) {

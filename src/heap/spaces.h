@@ -1999,7 +1999,8 @@ class LocalAllocationBuffer {
   LinearAllocationArea Close();
 
  private:
-  LocalAllocationBuffer(Heap* heap, LinearAllocationArea allocation_info);
+  LocalAllocationBuffer(Heap* heap,
+                        LinearAllocationArea allocation_info) V8_NOEXCEPT;
 
   Heap* heap_;
   LinearAllocationArea allocation_info_;

@@ -25,7 +25,7 @@ Handle<T> Handle<T>::New(T object, Isolate* isolate) {
 template <typename T>
 template <typename S>
 const Handle<T> Handle<T>::cast(Handle<S> that) {
-  T::cast(FullObjectSlot(that.location()).load());
+  T::cast(*FullObjectSlot(that.location()));
   return Handle<T>(that.location_);
 }
 

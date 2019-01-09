@@ -103,11 +103,6 @@ Object CompressedObjectSlot::operator*() const {
   return Object(DecompressTaggedAny(address(), value));
 }
 
-Object CompressedObjectSlot::load() const {
-  Tagged_t value = *location();
-  return Object(DecompressTaggedAny(address(), value));
-}
-
 void CompressedObjectSlot::store(Object value) const {
   *location() = CompressTagged(value->ptr());
 }
@@ -155,11 +150,6 @@ Object CompressedMapWordSlot::operator*() const {
   return Object(DecompressTaggedPointer(address(), value));
 }
 
-Object CompressedMapWordSlot::load() const {
-  Tagged_t value = *location();
-  return Object(DecompressTaggedPointer(address(), value));
-}
-
 void CompressedMapWordSlot::store(Object value) const {
   *location() = CompressTagged(value.ptr());
 }
@@ -198,11 +188,6 @@ Object CompressedMapWordSlot::Release_CompareAndSwap(Object old,
 //
 
 MaybeObject CompressedMaybeObjectSlot::operator*() const {
-  Tagged_t value = *location();
-  return MaybeObject(DecompressTaggedAny(address(), value));
-}
-
-MaybeObject CompressedMaybeObjectSlot::load() const {
   Tagged_t value = *location();
   return MaybeObject(DecompressTaggedAny(address(), value));
 }

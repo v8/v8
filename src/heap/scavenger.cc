@@ -102,7 +102,7 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
     // Treat weak references as strong.
     // TODO(marja): Proper weakness handling in the young generation.
     for (TSlot slot = start; slot < end; ++slot) {
-      typename TSlot::TObject object = slot.load();
+      typename TSlot::TObject object = *slot;
       HeapObject heap_object;
       if (object.GetHeapObject(&heap_object)) {
         HandleSlot(host, THeapObjectSlot(slot), heap_object);

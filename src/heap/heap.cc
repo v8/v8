@@ -5074,7 +5074,7 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
     V8_INLINE void MarkPointersImpl(TSlot start, TSlot end) {
       // Treat weak references as strong.
       for (TSlot p = start; p < end; ++p) {
-        typename TSlot::TObject object = p.load();
+        typename TSlot::TObject object = *p;
         HeapObject heap_object;
         if (object.GetHeapObject(&heap_object)) {
           MarkHeapObject(heap_object);
@@ -5434,7 +5434,7 @@ void VerifyPointersVisitor::VerifyHeapObjectImpl(HeapObject heap_object) {
 template <typename TSlot>
 void VerifyPointersVisitor::VerifyPointersImpl(TSlot start, TSlot end) {
   for (TSlot slot = start; slot < end; ++slot) {
-    typename TSlot::TObject object = slot.load();
+    typename TSlot::TObject object = *slot;
     HeapObject heap_object;
     if (object.GetHeapObject(&heap_object)) {
       VerifyHeapObjectImpl(heap_object);

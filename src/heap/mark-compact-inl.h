@@ -279,7 +279,7 @@ void MarkingVisitor<fixed_array_mode, retaining_path_mode,
   static_assert(std::is_same<TSlot, ObjectSlot>::value ||
                     std::is_same<TSlot, MaybeObjectSlot>::value,
                 "Only ObjectSlot and MaybeObjectSlot are expected here");
-  typename TSlot::TObject object = slot.load();
+  typename TSlot::TObject object = *slot;
   HeapObject target_object;
   if (object.GetHeapObjectIfStrong(&target_object)) {
     collector_->RecordSlot(host, HeapObjectSlot(slot), target_object);

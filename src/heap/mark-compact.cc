@@ -224,7 +224,7 @@ class FullMarkingVerifier : public MarkingVerifier {
   template <typename TSlot>
   V8_INLINE void VerifyPointersImpl(TSlot start, TSlot end) {
     for (TSlot slot = start; slot < end; ++slot) {
-      typename TSlot::TObject object = slot.load();
+      typename TSlot::TObject object = *slot;
       HeapObject heap_object;
       if (object.GetHeapObjectIfStrong(&heap_object)) {
         VerifyHeapObjectImpl(heap_object);
@@ -329,7 +329,7 @@ class FullEvacuationVerifier : public EvacuationVerifier {
   template <typename TSlot>
   void VerifyPointersImpl(TSlot start, TSlot end) {
     for (TSlot current = start; current < end; ++current) {
-      typename TSlot::TObject object = current.load();
+      typename TSlot::TObject object = *current;
       HeapObject heap_object;
       if (object.GetHeapObjectIfStrong(&heap_object)) {
         VerifyHeapObjectImpl(heap_object);
@@ -2469,7 +2469,7 @@ static inline SlotCallbackResult UpdateSlot(TSlot slot) {
 
 template <AccessMode access_mode, typename TSlot>
 static inline SlotCallbackResult UpdateStrongSlot(TSlot slot) {
-  DCHECK(!HasWeakHeapObjectTag(slot.load().ptr()));
+  DCHECK(!HasWeakHeapObjectTag((*slot).ptr()));
   typename TSlot::TObject obj = slot.Relaxed_Load();
   HeapObject heap_obj;
   if (obj.GetHeapObject(&heap_obj)) {
@@ -3235,7 +3235,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
         "Only FullMaybeObjectSlot and MaybeObjectSlot are expected here");
     using THeapObjectSlot = typename TSlot::THeapObjectSlot;
     HeapObject heap_object;
-    if (!slot.load().GetHeapObject(&heap_object)) {
+    if (!(*slot).GetHeapObject(&heap_object)) {
       return REMOVE_SLOT;
     }
     if (Heap::InFromSpace(heap_object)) {
@@ -3244,7 +3244,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
         HeapObjectReference::Update(THeapObjectSlot(slot),
                                     map_word.ToForwardingAddress());
       }
-      bool success = slot.load().GetHeapObject(&heap_object);
+      bool success = (*slot).GetHeapObject(&heap_object);
       USE(success);
       DCHECK(success);
       // If the object was in from space before and is after executing the
@@ -3813,7 +3813,7 @@ class YoungGenerationMarkingVerifier : public MarkingVerifier {
   template <typename TSlot>
   V8_INLINE void VerifyPointersImpl(TSlot start, TSlot end) {
     for (TSlot slot = start; slot < end; ++slot) {
-      typename TSlot::TObject object = slot.load();
+      typename TSlot::TObject object = *slot;
       HeapObject heap_object;
       // Minor MC treats weak references as strong.
       if (object.GetHeapObject(&heap_object)) {
@@ -3846,7 +3846,7 @@ class YoungGenerationEvacuationVerifier : public EvacuationVerifier {
   template <typename TSlot>
   void VerifyPointersImpl(TSlot start, TSlot end) {
     for (TSlot current = start; current < end; ++current) {
-      typename TSlot::TObject object = current.load();
+      typename TSlot::TObject object = *current;
       HeapObject heap_object;
       if (object.GetHeapObject(&heap_object)) {
         VerifyHeapObjectImpl(heap_object);
@@ -3942,7 +3942,7 @@ class YoungGenerationMarkingVisitor final
 
   template <typename TSlot>
   V8_INLINE void VisitPointerImpl(HeapObject host, TSlot slot) {
-    typename TSlot::TObject target = slot.load();
+    typename TSlot::TObject target = *slot;
     if (Heap::InNewSpace(target)) {
       // Treat weak references as strong.
       // TODO(marja): Proper weakness handling for minor-mcs.
@@ -4503,7 +4503,7 @@ class PageMarkingItem : public MarkingItem {
         std::is_same<TSlot, FullMaybeObjectSlot>::value ||
             std::is_same<TSlot, MaybeObjectSlot>::value,
         "Only FullMaybeObjectSlot and MaybeObjectSlot are expected here");
-    MaybeObject object = slot.load();
+    MaybeObject object = *slot;
     if (Heap::InNewSpace(object)) {
       // Marking happens before flipping the young generation, so the object
       // has to be in ToSpace.

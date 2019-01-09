@@ -111,8 +111,6 @@ class FullObjectSlot
   inline bool contains_value(Address raw_value) const;
 
   inline Object operator*() const;
-  // TODO(3770): drop this in favor of operator* once migration is complete.
-  inline Object load() const;
   inline void store(Object value) const;
 
   inline Object Acquire_Load() const;
@@ -144,8 +142,6 @@ class FullMaybeObjectSlot
       : SlotBase(slot.address()) {}
 
   inline MaybeObject operator*() const;
-  // TODO(3770): drop this once ObjectSlot::load() is dropped.
-  inline MaybeObject load() const;
   inline void store(MaybeObject value) const;
 
   inline MaybeObject Relaxed_Load() const;

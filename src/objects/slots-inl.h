@@ -33,8 +33,6 @@ bool FullObjectSlot::contains_value(Address raw_value) const {
 
 Object FullObjectSlot::operator*() const { return Object(*location()); }
 
-Object FullObjectSlot::load() const { return Object(*location()); }
-
 void FullObjectSlot::store(Object value) const { *location() = value->ptr(); }
 
 Object FullObjectSlot::Acquire_Load() const {
@@ -64,10 +62,6 @@ Object FullObjectSlot::Release_CompareAndSwap(Object old, Object target) const {
 //
 
 MaybeObject FullMaybeObjectSlot::operator*() const {
-  return MaybeObject(*location());
-}
-
-MaybeObject FullMaybeObjectSlot::load() const {
   return MaybeObject(*location());
 }
 
