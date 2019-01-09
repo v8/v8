@@ -9,6 +9,7 @@
 #include "src/globals.h"
 #include "src/machine-type.h"
 #include "src/reglist.h"
+#include "src/utils.h"
 
 namespace v8 {
 namespace internal {
@@ -25,8 +26,10 @@ class V8_EXPORT_PRIVATE RegisterConfiguration {
   };
 
   // Architecture independent maxes.
-  static const int kMaxGeneralRegisters = 32;
-  static const int kMaxFPRegisters = 32;
+  static constexpr int kMaxGeneralRegisters = 32;
+  static constexpr int kMaxFPRegisters = 32;
+  static constexpr int kMaxRegisters =
+      Max(kMaxFPRegisters, kMaxGeneralRegisters);
 
   // Default RegisterConfigurations for the target architecture.
   static const RegisterConfiguration* Default();

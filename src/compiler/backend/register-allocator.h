@@ -242,11 +242,7 @@ enum class UsePositionHintType : uint8_t {
   kUnresolved
 };
 
-static const int32_t kUnassignedRegister =
-    RegisterConfiguration::kMaxGeneralRegisters;
-
-static_assert(kUnassignedRegister <= RegisterConfiguration::kMaxFPRegisters,
-              "kUnassignedRegister too small");
+static const int32_t kUnassignedRegister = RegisterConfiguration::kMaxRegisters;
 
 // Representation of a use position.
 class V8_EXPORT_PRIVATE UsePosition final

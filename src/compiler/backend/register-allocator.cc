@@ -2806,10 +2806,6 @@ LinearScanAllocator::LinearScanAllocator(RegisterAllocationData* data,
       next_inactive_ranges_change_(LifetimePosition::Invalid()) {
   active_live_ranges().reserve(8);
   inactive_live_ranges().reserve(8);
-  // TryAllocateFreeReg and AllocateBlockedReg assume this
-  // when allocating local arrays.
-  DCHECK_GE(RegisterConfiguration::kMaxFPRegisters,
-            this->data()->config()->num_general_registers());
 }
 
 void LinearScanAllocator::AllocateRegisters() {
@@ -3121,9 +3117,8 @@ void LinearScanAllocator::FindFreeRegistersForRange(
 // - a phi. The same analysis as in the case of the input constraint applies.
 //
 void LinearScanAllocator::ProcessCurrentRange(LiveRange* current) {
-  LifetimePosition free_until_pos_buff[RegisterConfiguration::kMaxFPRegisters];
-  Vector<LifetimePosition> free_until_pos(
-      free_until_pos_buff, RegisterConfiguration::kMaxFPRegisters);
+  EmbeddedVector<LifetimePosition, RegisterConfiguration::kMaxRegisters>
+      free_until_pos;
   FindFreeRegistersForRange(current, free_until_pos);
   if (!TryAllocatePreferredReg(current, free_until_pos)) {
     if (current->TopLevel()->IsSplinter()) {
@@ -3245,8 +3240,8 @@ void LinearScanAllocator::AllocateBlockedReg(LiveRange* current) {
   // use_pos keeps track of positions a register/alias is used at.
   // block_pos keeps track of positions where a register/alias is blocked
   // from.
-  LifetimePosition use_pos[RegisterConfiguration::kMaxFPRegisters];
-  LifetimePosition block_pos[RegisterConfiguration::kMaxFPRegisters];
+  LifetimePosition use_pos[RegisterConfiguration::kMaxRegisters];
+  LifetimePosition block_pos[RegisterConfiguration::kMaxRegisters];
   for (int i = 0; i < num_regs; i++) {
     use_pos[i] = block_pos[i] = LifetimePosition::MaxPosition();
   }
