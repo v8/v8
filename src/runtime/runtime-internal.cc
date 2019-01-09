@@ -32,6 +32,20 @@ RUNTIME_FUNCTION(Runtime_CheckIsBootstrapping) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
+RUNTIME_FUNCTION(Runtime_FatalProcessOutOfMemoryInAllocateRaw) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(0, args.length());
+  isolate->heap()->FatalProcessOutOfMemory("CodeStubAssembler::AllocateRaw");
+  UNREACHABLE();
+}
+
+RUNTIME_FUNCTION(Runtime_FatalProcessOutOfMemoryInvalidArrayLength) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(0, args.length());
+  isolate->heap()->FatalProcessOutOfMemory("invalid array length");
+  UNREACHABLE();
+}
+
 RUNTIME_FUNCTION(Runtime_Throw) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());

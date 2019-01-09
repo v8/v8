@@ -275,6 +275,25 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return value;
   }
 
+  bool ToParameterConstant(Node* node, intptr_t* out, ParameterMode mode) {
+    if (mode == ParameterMode::SMI_PARAMETERS) {
+      Smi constant;
+      if (ToSmiConstant(node, &constant)) {
+        *out = static_cast<intptr_t>(constant->value());
+        return true;
+      }
+    } else {
+      DCHECK_EQ(mode, ParameterMode::INTPTR_PARAMETERS);
+      intptr_t constant;
+      if (ToIntPtrConstant(node, constant)) {
+        *out = constant;
+        return true;
+      }
+    }
+
+    return false;
+  }
+
 #if defined(V8_HOST_ARCH_32_BIT)
   TNode<Smi> BIntToSmi(TNode<BInt> source) { return source; }
   TNode<IntPtrT> BIntToIntPtr(TNode<BInt> source) {

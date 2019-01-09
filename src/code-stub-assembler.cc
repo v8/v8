@@ -1070,15 +1070,22 @@ TNode<HeapObject> CodeStubAssembler::AllocateRaw(TNode<IntPtrT> size_in_bytes,
                                                  AllocationFlags flags,
                                                  TNode<RawPtrT> top_address,
                                                  TNode<RawPtrT> limit_address) {
-  // TODO(jgruber, chromium:848672): Call FatalProcessOutOfMemory if this fails.
-  {
-    intptr_t constant_value;
-    if (ToIntPtrConstant(size_in_bytes, constant_value)) {
-      CHECK(Internals::IsValidSmi(constant_value));
-      CHECK_GT(constant_value, 0);
-    } else {
-      CSA_CHECK(this, IsValidPositiveSmi(size_in_bytes));
-    }
+  Label if_out_of_memory(this, Label::kDeferred);
+
+  // TODO(jgruber,jkummerow): Extract the slow paths (= probably everything
+  // but bump pointer allocation) into a builtin to save code space. The
+  // size_in_bytes check may be moved there as well since a non-smi
+  // size_in_bytes probably doesn't fit into the bump pointer region
+  // (double-check that).
+
+  intptr_t size_in_bytes_constant;
+  bool size_in_bytes_is_constant = false;
+  if (ToIntPtrConstant(size_in_bytes, size_in_bytes_constant)) {
+    size_in_bytes_is_constant = true;
+    CHECK(Internals::IsValidSmi(size_in_bytes_constant));
+    CHECK_GT(size_in_bytes_constant, 0);
+  } else {
+    GotoIfNot(IsValidPositiveSmi(size_in_bytes), &if_out_of_memory);
   }
 
   TNode<RawPtrT> top =
@@ -1163,6 +1170,13 @@ TNode<HeapObject> CodeStubAssembler::AllocateRaw(TNode<IntPtrT> size_in_bytes,
     result = BitcastWordToTagged(
         IntPtrAdd(address.value(), IntPtrConstant(kHeapObjectTag)));
     Goto(&out);
+  }
+
+  if (!size_in_bytes_is_constant) {
+    BIND(&if_out_of_memory);
+    CallRuntime(Runtime::kFatalProcessOutOfMemoryInAllocateRaw,
+                NoContextConstant());
+    Unreachable();
   }
 
   BIND(&out);
@@ -4106,6 +4120,28 @@ TNode<FixedArrayBase> CodeStubAssembler::AllocateFixedArray(
   CSA_SLOW_ASSERT(this, MatchesParameterMode(capacity, mode));
   CSA_ASSERT(this, IntPtrOrSmiGreaterThan(capacity,
                                           IntPtrOrSmiConstant(0, mode), mode));
+
+  const intptr_t kMaxLength = IsDoubleElementsKind(kind)
+                                  ? FixedDoubleArray::kMaxLength
+                                  : FixedArray::kMaxLength;
+  intptr_t capacity_constant;
+  if (ToParameterConstant(capacity, &capacity_constant, mode)) {
+    CHECK_LE(capacity_constant, kMaxLength);
+  } else {
+    Label if_out_of_memory(this, Label::kDeferred), next(this);
+    Branch(IntPtrOrSmiGreaterThan(
+               capacity,
+               IntPtrOrSmiConstant(static_cast<int>(kMaxLength), mode), mode),
+           &if_out_of_memory, &next);
+
+    BIND(&if_out_of_memory);
+    CallRuntime(Runtime::kFatalProcessOutOfMemoryInvalidArrayLength,
+                NoContextConstant());
+    Unreachable();
+
+    BIND(&next);
+  }
+
   TNode<IntPtrT> total_size = GetFixedArrayAllocationSize(capacity, kind, mode);
 
   if (IsDoubleElementsKind(kind)) flags |= kDoubleAlignment;
