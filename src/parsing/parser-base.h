@@ -4320,6 +4320,11 @@ ParserBase<Impl>::ParsePossibleDestructuringSubPattern(
     // themselves are not allowed, e.g., "[(x)] = []". Only accumulate
     // assignment pattern errors if the parsed expression is more complex.
     if (impl()->IsIdentifier(result)) {
+      if (result->is_parenthesized()) {
+        expression_scope()->RecordDeclarationError(
+            Scanner::Location(begin, end_position()),
+            MessageTemplate::kInvalidDestructuringTarget);
+      }
       IdentifierT identifier = impl()->AsIdentifier(result);
       ClassifyParameter(identifier, begin, end_position());
       if (impl()->IsLet(identifier)) {
