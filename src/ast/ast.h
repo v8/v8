@@ -1628,9 +1628,8 @@ class VariableProxy final : public Expression {
         HoleCheckModeField::update(bit_field_, HoleCheckMode::kRequired);
   }
 
-  bool is_private_name() const { return IsPrivateName::decode(bit_field_); }
-  void set_is_private_name() {
-    bit_field_ = IsPrivateName::update(bit_field_, true);
+  bool IsPrivateName() const {
+    return raw_name()->length() > 0 && raw_name()->FirstCharacter() == '#';
   }
 
   // Bind this proxy to the variable var.
@@ -1687,8 +1686,7 @@ class VariableProxy final : public Expression {
                   IsAssignedField::encode(false) |
                   IsResolvedField::encode(false) |
                   IsRemovedFromUnresolvedField::encode(false) |
-                  HoleCheckModeField::encode(HoleCheckMode::kElided) |
-                  IsPrivateName::encode(false);
+                  HoleCheckModeField::encode(HoleCheckMode::kElided);
   }
 
   explicit VariableProxy(const VariableProxy* copy_from);
@@ -1703,7 +1701,6 @@ class VariableProxy final : public Expression {
       : public BitField<bool, IsRemovedFromUnresolvedField::kNext, 1> {};
   class HoleCheckModeField
       : public BitField<HoleCheckMode, IsNewTargetField::kNext, 1> {};
-  class IsPrivateName : public BitField<bool, HoleCheckModeField::kNext, 1> {};
 
   union {
     const AstRawString* raw_name_;  // if !is_resolved_

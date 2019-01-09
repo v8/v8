@@ -325,15 +325,6 @@ class PreParserExpression {
   // and PreParser.
   PreParserExpression* operator->() { return this; }
 
-  void set_is_private_name() {
-    if (variables_ != nullptr) {
-      DCHECK(IsIdentifier());
-      DCHECK(AsIdentifier().IsPrivateName());
-      DCHECK_EQ(1, variables_->LengthForTest());
-      variables_->first()->set_is_private_name();
-    }
-  }
-
   // More dummy implementations of things PreParser doesn't need to track:
   void SetShouldEagerCompile() {}
   void mark_as_iife() {}

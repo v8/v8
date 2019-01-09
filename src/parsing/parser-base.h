@@ -1509,10 +1509,7 @@ ParserBase<Impl>::ParsePropertyOrPrivatePropertyName() {
     key = factory()->NewStringLiteral(name, pos);
   } else if (allow_harmony_private_fields() && next == Token::PRIVATE_NAME) {
     name = impl()->GetSymbol();
-    auto key_proxy =
-        impl()->ExpressionFromIdentifier(name, pos, InferName::kNo);
-    key_proxy->set_is_private_name();
-    key = key_proxy;
+    key = impl()->ExpressionFromIdentifier(name, pos, InferName::kNo);
   } else {
     ReportUnexpectedToken(next);
     return impl()->FailureExpression();

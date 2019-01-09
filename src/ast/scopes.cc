@@ -1421,7 +1421,7 @@ void Scope::AnalyzePartially(DeclarationScope* max_outer_scope,
       // reference to a private name or method. In that case keep it so we
       // can fail later.
       if (!max_outer_scope->outer_scope()->is_script_scope() ||
-          proxy->is_private_name()) {
+          proxy->IsPrivateName()) {
         VariableProxy* copy = ast_node_factory->CopyVariableProxy(proxy);
         new_unresolved_list->Add(copy);
       }
@@ -1845,7 +1845,7 @@ Variable* Scope::Lookup(VariableProxy* proxy, Scope* scope,
   if (mode == kParsedScope && !scope->is_script_scope()) {
     return nullptr;
   }
-  if (V8_UNLIKELY(proxy->is_private_name())) return nullptr;
+  if (V8_UNLIKELY(proxy->IsPrivateName())) return nullptr;
 
   // No binding has been found. Declare a variable on the global object.
   return scope->AsDeclarationScope()->DeclareDynamicGlobal(
@@ -1954,7 +1954,7 @@ bool Scope::ResolveVariable(ParseInfo* info, VariableProxy* proxy) {
   DCHECK(!proxy->is_resolved());
   Variable* var = Lookup<kParsedScope>(proxy, this, nullptr);
   if (var == nullptr) {
-    DCHECK(proxy->is_private_name());
+    DCHECK(proxy->IsPrivateName());
     info->pending_error_handler()->ReportMessageAt(
         proxy->position(), proxy->position() + 1,
         MessageTemplate::kInvalidPrivateFieldResolution, proxy->raw_name(),
@@ -2072,7 +2072,7 @@ bool Scope::ResolveVariablesRecursively(ParseInfo* info) {
             proxy->position(), proxy->position() + 1,
             MessageTemplate::kInvalidPrivateFieldResolution, proxy->raw_name(),
             kSyntaxError);
-        DCHECK(proxy->is_private_name());
+        DCHECK(proxy->IsPrivateName());
         return false;
       }
       if (!var->is_dynamic()) {

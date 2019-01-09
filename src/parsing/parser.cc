@@ -3158,7 +3158,7 @@ bool Parser::IsPropertyWithPrivateFieldKey(Expression* expression) {
   if (!property->key()->IsVariableProxy()) return false;
   VariableProxy* key = property->key()->AsVariableProxy();
 
-  return key->is_private_name();
+  return key->IsPrivateName();
 }
 
 void Parser::InsertShadowingVarBindingInitializers(Block* inner_block) {
