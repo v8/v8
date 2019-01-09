@@ -499,7 +499,7 @@ void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
 void LiftoffAssembler::MoveStackValue(uint32_t dst_index, uint32_t src_index,
                                       ValueType type) {
   DCHECK_NE(dst_index, src_index);
-  LiftoffRegister reg = GetUnusedRegister(kGpReg);
+  LiftoffRegister reg = GetUnusedRegister(reg_class_for(type));
   Fill(reg, src_index, type);
   Spill(dst_index, reg, type);
 }
