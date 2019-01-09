@@ -84,29 +84,32 @@ class Parser;
 
 struct ParserFormalParameters : FormalParametersBase {
   struct Parameter : public ZoneObject {
-    Parameter(const AstRawString* name, Expression* pattern,
-              Expression* initializer, int position,
+    Parameter(Expression* pattern, Expression* initializer, int position,
               int initializer_end_position, bool is_rest)
-        : name(name),
-          name_and_is_rest(initializer, is_rest),
+        : initializer_and_is_rest(initializer, is_rest),
           pattern(pattern),
           position(position),
           initializer_end_position(initializer_end_position) {}
 
-    const AstRawString* name;
-
-    PointerWithPayload<Expression, bool, 1> name_and_is_rest;
+    PointerWithPayload<Expression, bool, 1> initializer_and_is_rest;
 
     Expression* pattern;
-    Expression* initializer() const { return name_and_is_rest.GetPointer(); }
+    Expression* initializer() const {
+      return initializer_and_is_rest.GetPointer();
+    }
     int position;
     int initializer_end_position;
-    inline bool is_rest() const { return name_and_is_rest.GetPayload(); }
+    inline bool is_rest() const { return initializer_and_is_rest.GetPayload(); }
 
     Parameter* next_parameter = nullptr;
     bool is_simple() const {
       return pattern->IsVariableProxy() && initializer() == nullptr &&
              !is_rest();
+    }
+
+    const AstRawString* name() const {
+      DCHECK(is_simple());
+      return pattern->AsVariableProxy()->raw_name();
     }
 
     Parameter** next() { return &next_parameter; }
@@ -894,12 +897,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                                     int initializer_end_position,
                                     bool is_rest) {
     parameters->UpdateArityAndFunctionLength(initializer != nullptr, is_rest);
-    bool has_simple_name = pattern->IsVariableProxy() && initializer == nullptr;
-    const AstRawString* name = has_simple_name
-                                   ? pattern->AsVariableProxy()->raw_name()
-                                   : ast_value_factory()->empty_string();
     auto parameter = new (parameters->scope->zone())
-        ParserFormalParameters::Parameter(name, pattern, initializer,
+        ParserFormalParameters::Parameter(pattern, initializer,
                                           scanner()->location().beg_pos,
                                           initializer_end_position, is_rest);
 
@@ -917,13 +916,13 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
       // for each parameter - the corresponding named variable is declared by
       // BuildParamerterInitializationBlock.
       if (is_simple && !parameters->has_duplicate() &&
-          scope->LookupLocal(parameter->name)) {
-        parameters->duplicate_loc =
-            Scanner::Location(parameter->position,
-                              parameter->position + parameter->name->length());
+          scope->LookupLocal(parameter->name())) {
+        parameters->duplicate_loc = Scanner::Location(
+            parameter->position,
+            parameter->position + parameter->name()->length());
       }
       scope->DeclareParameter(
-          is_simple ? parameter->name : ast_value_factory()->empty_string(),
+          is_simple ? parameter->name() : ast_value_factory()->empty_string(),
           is_simple ? VariableMode::kVar : VariableMode::kTemporary,
           is_optional, parameter->is_rest(), ast_value_factory(),
           parameter->position);
