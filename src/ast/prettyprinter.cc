@@ -285,7 +285,24 @@ void CallPrinter::VisitVariableProxy(VariableProxy* node) {
 
 void CallPrinter::VisitAssignment(Assignment* node) {
   Find(node->target());
-  Find(node->value());
+  if (node->target()->IsArrayLiteral()) {
+    // Special case the visit for destructuring array assignment.
+    bool was_found = false;
+    if (node->value()->position() == position_) {
+      is_iterator_error_ = true;
+      was_found = !found_;
+      if (was_found) {
+        found_ = true;
+      }
+    }
+    Find(node->value(), true);
+    if (was_found) {
+      done_ = true;
+      found_ = false;
+    }
+  } else {
+    Find(node->value());
+  }
 }
 
 void CallPrinter::VisitCompoundAssignment(CompoundAssignment* node) {
@@ -347,7 +364,7 @@ void CallPrinter::VisitCall(Call* node) {
     found_ = true;
   }
   Find(node->expression(), true);
-  if (!was_found) Print("(...)");
+  if (!was_found && !is_iterator_error_) Print("(...)");
   FindArguments(node->arguments());
   if (was_found) {
     done_ = true;
@@ -371,7 +388,7 @@ void CallPrinter::VisitCallNew(CallNew* node) {
     }
     found_ = true;
   }
-  Find(node->expression(), was_found);
+  Find(node->expression(), was_found || is_iterator_error_);
   FindArguments(node->arguments());
   if (was_found) {
     done_ = true;
@@ -465,7 +482,7 @@ void CallPrinter::VisitGetIterator(GetIterator* node) {
       found_ = true;
     }
   }
-  Find(node->iterable_for_call_printer(), true);
+  Find(node->iterable(), true);
   if (was_found) {
     done_ = true;
     found_ = false;

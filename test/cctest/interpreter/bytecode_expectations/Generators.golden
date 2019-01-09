@@ -145,7 +145,7 @@ bytecodes: [
                 B(Star), R(7),
                 B(Mov), R(8), R(3),
   /*   16 E> */ B(StackCheck),
-                B(Mov), R(3), R(0),
+  /*   25 S> */ B(Mov), R(3), R(0),
   /*   36 S> */ B(LdaFalse),
                 B(Star), R(16),
                 B(Mov), R(0), R(15),

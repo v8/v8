@@ -200,8 +200,12 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
                        LookupHoistingMode lookup_hoisting_mode);
 
   Expression* GetDestructuringDefaultValue(Expression** target);
-  void BuildDestructuringArrayAssignment(ArrayLiteral* pattern);
-  void BuildDestructuringObjectAssignment(ObjectLiteral* pattern);
+  void BuildDestructuringArrayAssignment(
+      ArrayLiteral* pattern, Token::Value op,
+      LookupHoistingMode lookup_hoisting_mode);
+  void BuildDestructuringObjectAssignment(
+      ObjectLiteral* pattern, Token::Value op,
+      LookupHoistingMode lookup_hoisting_mode);
 
   void BuildLoadNamedProperty(const Expression* object_expr, Register object,
                               const AstRawString* name);

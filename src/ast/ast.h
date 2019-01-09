@@ -2730,34 +2730,14 @@ class GetIterator final : public Expression {
 
   Expression* iterable() const { return iterable_; }
 
-  Expression* iterable_for_call_printer() const {
-    return destructured_iterable_ != nullptr ? destructured_iterable_
-                                             : iterable_;
-  }
-
  private:
   friend class AstNodeFactory;
 
-  GetIterator(Expression* iterable, Expression* destructured_iterable,
-              IteratorType hint, int pos)
-      : Expression(pos, kGetIterator),
-        hint_(hint),
-        iterable_(iterable),
-        destructured_iterable_(destructured_iterable) {}
-
   GetIterator(Expression* iterable, IteratorType hint, int pos)
-      : Expression(pos, kGetIterator),
-        hint_(hint),
-        iterable_(iterable),
-        destructured_iterable_(nullptr) {}
+      : Expression(pos, kGetIterator), hint_(hint), iterable_(iterable) {}
 
   IteratorType hint_;
   Expression* iterable_;
-
-  // iterable_ is the variable proxy, while destructured_iterable_ points to
-  // the raw value stored in the variable proxy. This is only used for
-  // pretty printing error messages.
-  Expression* destructured_iterable_;
 };
 
 // Represents the spec operation `GetTemplateObject(templateLiteral)`
@@ -3395,12 +3375,6 @@ class AstNodeFactory final {
 
   EmptyParentheses* NewEmptyParentheses(int pos) {
     return new (zone_) EmptyParentheses(pos);
-  }
-
-  GetIterator* NewGetIterator(Expression* iterable,
-                              Expression* destructured_iterable,
-                              IteratorType hint, int pos) {
-    return new (zone_) GetIterator(iterable, destructured_iterable, hint, pos);
   }
 
   GetIterator* NewGetIterator(Expression* iterable, IteratorType hint,

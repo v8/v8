@@ -300,7 +300,7 @@ bytecodes: [
                 B(Star), R(7),
                 B(Mov), R(8), R(3),
   /*   22 E> */ B(StackCheck),
-                B(Mov), R(3), R(0),
+  /*   31 S> */ B(Mov), R(3), R(0),
   /*   42 S> */ B(LdaFalse),
                 B(Star), R(21),
                 B(Mov), R(2), R(19),

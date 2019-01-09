@@ -220,23 +220,22 @@ snippet: "
 "
 frame size: 6
 parameter count: 1
-bytecode array length: 64
+bytecode array length: 62
 bytecodes: [
   /*   10 E> */ B(StackCheck),
-                B(CreateObjectLiteral), U8(0), U8(0), U8(41),
-                B(Star), R(3),
-                B(JumpIfUndefined), U8(6),
-                B(Ldar), R(3),
-                B(JumpIfNotNull), U8(16),
+  /*   37 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(41),
+                B(JumpIfNull), U8(4),
+                B(JumpIfNotUndefined), U8(16),
                 B(LdaSmi), I8(81),
-                B(Star), R(4),
+                B(Star), R(3),
                 B(LdaConstant), U8(1),
+                B(Star), R(4),
+  /*   28 E> */ B(CallRuntime), U16(Runtime::kNewTypeError), R(3), U8(2),
+                B(Throw),
                 B(Star), R(5),
-                B(CallRuntime), U16(Runtime::kNewTypeError), R(4), U8(2),
-  /*   28 E> */ B(Throw),
-  /*   37 S> */ B(LdaNamedProperty), R(3), U8(1), U8(1),
+  /*   28 S> */ B(LdaNamedProperty), R(5), U8(1), U8(1),
                 B(Star), R(1),
-  /*   37 S> */ B(LdaNamedProperty), R(3), U8(2), U8(3),
+  /*   31 S> */ B(LdaNamedProperty), R(5), U8(2), U8(3),
                 B(Star), R(2),
   /*   55 S> */ B(LdaZero),
   /*   55 E> */ B(TestGreaterThan), R(2), U8(5),
