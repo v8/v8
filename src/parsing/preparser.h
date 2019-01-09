@@ -1010,13 +1010,12 @@ class PreParser : public ParserBase<PreParser> {
       DeclarationScope* function_scope, int* use_counts,
       ProducedPreparseData** produced_preparser_scope_data, int script_id);
 
-  PreparseDataBuilder* preparsed_scope_data_builder() const {
+  PreparseDataBuilder* preparse_data_builder() const {
     return preparse_data_builder_;
   }
 
-  void set_preparsed_scope_data_builder(
-      PreparseDataBuilder* preparsed_scope_data_builder) {
-    preparse_data_builder_ = preparsed_scope_data_builder;
+  void set_preparse_data_builder(PreparseDataBuilder* preparse_data_builder) {
+    preparse_data_builder_ = preparse_data_builder;
   }
 
  private:

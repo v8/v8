@@ -160,11 +160,11 @@ PreparseDataBuilder::PreparseDataBuilder(Zone* zone,
 
 void PreparseDataBuilder::DataGatheringScope::Start(
     DeclarationScope* function_scope) {
-  PreparseDataBuilder* parent = preparser_->preparsed_scope_data_builder();
+  PreparseDataBuilder* parent = preparser_->preparse_data_builder();
   Zone* main_zone = preparser_->main_zone();
   builder_ = new (main_zone) PreparseDataBuilder(main_zone, parent);
-  preparser_->set_preparsed_scope_data_builder(builder_);
-  function_scope->set_preparsed_scope_data_builder(builder_);
+  preparser_->set_preparse_data_builder(builder_);
+  function_scope->set_preparse_data_builder(builder_);
 }
 
 PreparseDataBuilder::DataGatheringScope::~DataGatheringScope() {
@@ -174,7 +174,16 @@ PreparseDataBuilder::DataGatheringScope::~DataGatheringScope() {
     parent->data_for_inner_functions_.push_back(builder_->HasData() ? builder_
                                                                     : nullptr);
   }
-  preparser_->set_preparsed_scope_data_builder(parent);
+  preparser_->set_preparse_data_builder(parent);
+}
+
+void PreparseDataBuilder::DataGatheringScope::AddSkippableFunction(
+    DeclarationScope* function_scope, int end_position,
+    int num_inner_functions) {
+  builder_->parent_->AddSkippableFunction(
+      function_scope->start_position(), end_position,
+      function_scope->num_parameters(), num_inner_functions,
+      function_scope->language_mode(), function_scope->NeedsHomeObject());
 }
 
 void PreparseDataBuilder::AddSkippableFunction(int start_position,
@@ -305,7 +314,7 @@ bool PreparseDataBuilder::ScopeIsSkippableFunctionScope(Scope* scope) {
   if (scope->scope_type() != ScopeType::FUNCTION_SCOPE) return false;
   DeclarationScope* declaration_scope = scope->AsDeclarationScope();
   return !declaration_scope->is_arrow_scope() &&
-         declaration_scope->preparsed_scope_data_builder() != nullptr;
+         declaration_scope->preparse_data_builder() != nullptr;
 }
 
 void PreparseDataBuilder::SaveDataForScope(Scope* scope) {
@@ -362,8 +371,7 @@ void PreparseDataBuilder::SaveDataForInnerScopes(Scope* scope) {
     if (ScopeIsSkippableFunctionScope(inner)) {
       // Don't save data about function scopes, since they'll have their own
       // PreparseDataBuilder where their data is saved.
-      DCHECK_NOT_NULL(
-          inner->AsDeclarationScope()->preparsed_scope_data_builder());
+      DCHECK_NOT_NULL(inner->AsDeclarationScope()->preparse_data_builder());
       continue;
     }
     if (!ScopeNeedsData(inner)) continue;

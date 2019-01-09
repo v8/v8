@@ -299,7 +299,7 @@ void DeclarationScope::SetDefaults() {
   should_eager_compile_ = false;
   was_lazily_parsed_ = false;
   is_skipped_function_ = false;
-  preparsed_scope_data_builder_ = nullptr;
+  preparse_data_builder_ = nullptr;
 #ifdef DEBUG
   DeclarationScope* outer_declaration_scope =
       outer_scope_ ? outer_scope_->GetDeclarationScope() : nullptr;
@@ -1497,8 +1497,8 @@ void Scope::SavePreparseData() {
 }
 
 void DeclarationScope::SavePreparseDataForDeclarationScope() {
-  if (preparsed_scope_data_builder_ == nullptr) return;
-  preparsed_scope_data_builder_->SaveScopeAllocationData(this);
+  if (preparse_data_builder_ == nullptr) return;
+  preparse_data_builder_->SaveScopeAllocationData(this);
 }
 
 void DeclarationScope::AnalyzePartially(AstNodeFactory* ast_node_factory) {
@@ -1506,8 +1506,8 @@ void DeclarationScope::AnalyzePartially(AstNodeFactory* ast_node_factory) {
   UnresolvedList new_unresolved_list;
   if (!IsArrowFunction(function_kind_) &&
       (!outer_scope_->is_script_scope() ||
-       (preparsed_scope_data_builder_ != nullptr &&
-        preparsed_scope_data_builder_->ContainsInnerFunctions()))) {
+       (preparse_data_builder_ != nullptr &&
+        preparse_data_builder_->ContainsInnerFunctions()))) {
     // Try to resolve unresolved variables for this Scope and migrate those
     // which cannot be resolved inside. It doesn't make sense to try to resolve
     // them in the outer Scopes here, because they are incomplete.

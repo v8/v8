@@ -1017,13 +1017,12 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   // saved in produced_preparse_data_.
   void SavePreparseDataForDeclarationScope();
 
-  void set_preparsed_scope_data_builder(
-      PreparseDataBuilder* preparsed_scope_data_builder) {
-    preparsed_scope_data_builder_ = preparsed_scope_data_builder;
+  void set_preparse_data_builder(PreparseDataBuilder* preparse_data_builder) {
+    preparse_data_builder_ = preparse_data_builder;
   }
 
-  PreparseDataBuilder* preparsed_scope_data_builder() const {
-    return preparsed_scope_data_builder_;
+  PreparseDataBuilder* preparse_data_builder() const {
+    return preparse_data_builder_;
   }
 
  private:
@@ -1079,7 +1078,7 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   Variable* arguments_;
 
   // For producing the scope allocation data during preparsing.
-  PreparseDataBuilder* preparsed_scope_data_builder_;
+  PreparseDataBuilder* preparse_data_builder_;
 
   struct RareData : public ZoneObject {
     // Convenience variable; Subclass constructor only

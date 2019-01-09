@@ -38,7 +38,7 @@ TEST(PreParserScopeAnalysis) {
   i::Factory* factory = isolate->factory();
   LocalContext env;
 
-  struct {
+  struct Outer {
     const char* code;
     bool strict_outer;
     bool strict_test_function;
@@ -688,34 +688,27 @@ TEST(PreParserScopeAnalysis) {
        [] { i::FLAG_harmony_private_fields = false; }},
   };
 
-  for (unsigned outer_ix = 0; outer_ix < arraysize(outers); ++outer_ix) {
-    for (unsigned inner_ix = 0; inner_ix < arraysize(inners); ++inner_ix) {
-      if (outers[outer_ix].strict_outer &&
-          (inners[inner_ix].skip & SKIP_STRICT_OUTER)) {
+  for (unsigned i = 0; i < arraysize(outers); ++i) {
+    struct Outer outer = outers[i];
+    for (unsigned j = 0; j < arraysize(inners); ++j) {
+      struct Inner inner = inners[j];
+      if (outer.strict_outer && (inner.skip & SKIP_STRICT_OUTER)) continue;
+      if (outer.strict_test_function && (inner.skip & SKIP_STRICT_FUNCTION)) {
         continue;
       }
-      if (outers[outer_ix].strict_test_function &&
-          (inners[inner_ix].skip & SKIP_STRICT_FUNCTION)) {
-        continue;
-      }
-      if (outers[outer_ix].arrow && (inners[inner_ix].skip & SKIP_ARROW)) {
-        continue;
-      }
+      if (outer.arrow && (inner.skip & SKIP_ARROW)) continue;
 
-      const char* code = outers[outer_ix].code;
+      const char* code = outer.code;
       int code_len = Utf8LengthHelper(code);
 
-      int params_len = Utf8LengthHelper(inners[inner_ix].params);
-      int source_len = Utf8LengthHelper(inners[inner_ix].source);
+      int params_len = Utf8LengthHelper(inner.params);
+      int source_len = Utf8LengthHelper(inner.source);
       int len = code_len + params_len + source_len;
 
-      if (inners[inner_ix].prologue != nullptr) {
-        inners[inner_ix].prologue();
-      }
+      if (inner.prologue != nullptr) inner.prologue();
 
       i::ScopedVector<char> program(len + 1);
-      i::SNPrintF(program, code, inners[inner_ix].params,
-                  inners[inner_ix].source);
+      i::SNPrintF(program, code, inner.params, inner.source);
 
       i::HandleScope scope(isolate);
 
@@ -730,8 +723,8 @@ TEST(PreParserScopeAnalysis) {
       i::Handle<i::JSFunction> f = i::Handle<i::JSFunction>::cast(o);
       i::Handle<i::SharedFunctionInfo> shared = i::handle(f->shared(), isolate);
 
-      if (inners[inner_ix].bailout == Bailout::BAILOUT_IF_OUTER_SLOPPY &&
-          !outers[outer_ix].strict_outer) {
+      if (inner.bailout == Bailout::BAILOUT_IF_OUTER_SLOPPY &&
+          !outer.strict_outer) {
         CHECK(!shared->HasUncompiledDataWithPreparseData());
         continue;
       }
@@ -776,11 +769,9 @@ TEST(PreParserScopeAnalysis) {
       // scope data (and skipping functions), and when parsing without.
       i::ScopeTestHelper::CompareScopes(
           scope_without_skipped_functions, scope_with_skipped_functions,
-          inners[inner_ix].precise_maybe_assigned == PreciseMaybeAssigned::YES);
+          inner.precise_maybe_assigned == PreciseMaybeAssigned::YES);
 
-      if (inners[inner_ix].epilogue != nullptr) {
-        inners[inner_ix].epilogue();
-      }
+      if (inner.epilogue != nullptr) inner.epilogue();
     }
   }
 }

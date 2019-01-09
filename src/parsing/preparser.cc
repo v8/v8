@@ -335,13 +335,10 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
     if (is_strict(language_mode)) {
       CheckStrictOctalLiteral(start_position, end_position());
     }
-  }
-
-  if (skippable_function) {
-    preparse_data_builder_->AddSkippableFunction(
-        function_scope->start_position(), end_position(),
-        function_scope->num_parameters(), GetLastFunctionLiteralId() - func_id,
-        function_scope->language_mode(), function_scope->NeedsHomeObject());
+    if (skippable_function) {
+      preparse_data_builder_scope.AddSkippableFunction(
+          function_scope, end_position(), GetLastFunctionLiteralId() - func_id);
+    }
   }
 
   if (V8_UNLIKELY(FLAG_log_function_events)) {

@@ -81,6 +81,8 @@ class PreparseDataBuilder : public ZoneObject {
         : preparser_(preparser), builder_(nullptr) {}
 
     void Start(DeclarationScope* function_scope);
+    void AddSkippableFunction(DeclarationScope* function_scope,
+                              int end_position, int num_inner_functions);
     ~DataGatheringScope();
 
    private:
