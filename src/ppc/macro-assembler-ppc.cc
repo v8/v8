@@ -3109,13 +3109,27 @@ void TurboAssembler::StoreReturnAddressAndCall(Register target) {
   // being generated) is immovable or that the callee function cannot trigger
   // GC, since the callee function will return to it.
 
-  Label start_call;
   static constexpr int after_call_offset = 5 * kInstrSize;
+  Label start_call;
+  Register dest = target;
+
+  if (ABI_USES_FUNCTION_DESCRIPTORS) {
+    // AIX/PPC64BE Linux uses a function descriptor. When calling C code be
+    // aware of this descriptor and pick up values from it
+    LoadP(ToRegister(ABI_TOC_REGISTER), MemOperand(target, kPointerSize));
+    LoadP(ip, MemOperand(target, 0));
+    dest = ip;
+  } else if (ABI_CALL_VIA_IP && dest != ip) {
+    Move(ip, target);
+    dest = ip;
+  }
+
   LoadPC(r7);
   bind(&start_call);
   addi(r7, r7, Operand(after_call_offset));
   StoreP(r7, MemOperand(sp, kStackFrameExtraParamSlot * kPointerSize));
-  Call(target);
+  Call(dest);
+
   DCHECK_EQ(after_call_offset - kInstrSize,
             SizeOfCodeGeneratedSince(&start_call));
 }
