@@ -1770,24 +1770,21 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
   auto enabled_features = i::wasm::WasmFeaturesFromFlags();
 
   // Setup Global
-  if (enabled_features.mut_global) {
-    Handle<JSFunction> global_constructor = InstallConstructorFunc(
-        isolate, webassembly, "Global", WebAssemblyGlobal);
-    context->set_wasm_global_constructor(*global_constructor);
-    SetDummyInstanceTemplate(isolate, global_constructor);
-    JSFunction::EnsureHasInitialMap(global_constructor);
-    Handle<JSObject> global_proto(
-        JSObject::cast(global_constructor->instance_prototype()), isolate);
-    i::Handle<i::Map> global_map = isolate->factory()->NewMap(
-        i::WASM_GLOBAL_TYPE, WasmGlobalObject::kSize);
-    JSFunction::SetInitialMap(global_constructor, global_map, global_proto);
-    InstallFunc(isolate, global_proto, "valueOf", WebAssemblyGlobalValueOf, 0);
-    InstallGetterSetter(isolate, global_proto, "value",
-                        WebAssemblyGlobalGetValue, WebAssemblyGlobalSetValue);
-    JSObject::AddProperty(isolate, global_proto,
-                          factory->to_string_tag_symbol(),
-                          v8_str(isolate, "WebAssembly.Global"), ro_attributes);
-  }
+  Handle<JSFunction> global_constructor =
+      InstallConstructorFunc(isolate, webassembly, "Global", WebAssemblyGlobal);
+  context->set_wasm_global_constructor(*global_constructor);
+  SetDummyInstanceTemplate(isolate, global_constructor);
+  JSFunction::EnsureHasInitialMap(global_constructor);
+  Handle<JSObject> global_proto(
+      JSObject::cast(global_constructor->instance_prototype()), isolate);
+  i::Handle<i::Map> global_map =
+      isolate->factory()->NewMap(i::WASM_GLOBAL_TYPE, WasmGlobalObject::kSize);
+  JSFunction::SetInitialMap(global_constructor, global_map, global_proto);
+  InstallFunc(isolate, global_proto, "valueOf", WebAssemblyGlobalValueOf, 0);
+  InstallGetterSetter(isolate, global_proto, "value", WebAssemblyGlobalGetValue,
+                      WebAssemblyGlobalSetValue);
+  JSObject::AddProperty(isolate, global_proto, factory->to_string_tag_symbol(),
+                        v8_str(isolate, "WebAssembly.Global"), ro_attributes);
 
   // Setup Exception
   if (enabled_features.eh) {

@@ -347,7 +347,6 @@ TEST_F(WasmModuleVerifyTest, ZeroGlobals) {
 }
 
 TEST_F(WasmModuleVerifyTest, ExportMutableGlobal) {
-  WASM_FEATURE_SCOPE(mut_global);
   {
     static const byte data[] = {
         SECTION(Global,                         // --
@@ -1648,7 +1647,6 @@ TEST_F(WasmModuleVerifyTest, ImportTable_nosigs1) {
 }
 
 TEST_F(WasmModuleVerifyTest, ImportTable_mutable_global) {
-  WASM_FEATURE_SCOPE(mut_global);
   {
     static const byte data[] = {
         SECTION(Import,           // section header
@@ -1676,7 +1674,6 @@ TEST_F(WasmModuleVerifyTest, ImportTable_mutable_global) {
 }
 
 TEST_F(WasmModuleVerifyTest, ImportTable_mutability_malformed) {
-  WASM_FEATURE_SCOPE(mut_global);
   static const byte data[] = {
       SECTION(Import,
               ENTRY_COUNT(1),   // --

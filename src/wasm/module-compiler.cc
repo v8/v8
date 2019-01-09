@@ -1825,7 +1825,7 @@ bool InstanceBuilder::ProcessImportedGlobal(
   // However, the bigint proposal allows importing constant i64 values,
   // as non WebAssembly.Global object.
   if (global.type == kWasmI64 && !enabled_.bigint &&
-      !(enabled_.mut_global && value->IsWasmGlobalObject())) {
+      !value->IsWasmGlobalObject()) {
     ReportLinkError("global import cannot have type i64", import_index,
                     module_name, import_name);
     return false;
@@ -1846,20 +1846,19 @@ bool InstanceBuilder::ProcessImportedGlobal(
       }
     }
   }
-  if (enabled_.mut_global) {
-    if (value->IsWasmGlobalObject()) {
-      auto global_object = Handle<WasmGlobalObject>::cast(value);
-      return ProcessImportedWasmGlobalObject(
-          instance, import_index, next_imported_mutable_global_index,
-          module_name, import_name, global, global_object);
-    }
 
-    if (global.mutability) {
-      ReportLinkError(
-          "imported mutable global must be a WebAssembly.Global object",
-          import_index, module_name, import_name);
-      return false;
-    }
+  if (value->IsWasmGlobalObject()) {
+    auto global_object = Handle<WasmGlobalObject>::cast(value);
+    return ProcessImportedWasmGlobalObject(
+        instance, import_index, next_imported_mutable_global_index, module_name,
+        import_name, global, global_object);
+  }
+
+  if (global.mutability) {
+    ReportLinkError(
+        "imported mutable global must be a WebAssembly.Global object",
+        import_index, module_name, import_name);
+    return false;
   }
 
   if (global.type == ValueType::kWasmAnyRef) {
@@ -1882,11 +1881,8 @@ bool InstanceBuilder::ProcessImportedGlobal(
     return true;
   }
 
-  ReportLinkError(
-      enabled_.mut_global
-          ? "global import must be a number or WebAssembly.Global object"
-          : "global import must be a number",
-      import_index, module_name, import_name);
+  ReportLinkError("global import must be a number or WebAssembly.Global object",
+                  import_index, module_name, import_name);
   return false;
 }
 
@@ -2192,68 +2188,41 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
       }
       case kExternalGlobal: {
         const WasmGlobal& global = module_->globals[exp.index];
-        if (enabled_.mut_global) {
-          Handle<JSArrayBuffer> untagged_buffer;
-          Handle<FixedArray> tagged_buffer;
-          uint32_t offset;
+        Handle<JSArrayBuffer> untagged_buffer;
+        Handle<FixedArray> tagged_buffer;
+        uint32_t offset;
 
-          if (global.mutability && global.imported) {
-            Handle<FixedArray> buffers_array(
-                instance->imported_mutable_globals_buffers(), isolate_);
-            untagged_buffer = buffers_array->GetValueChecked<JSArrayBuffer>(
-                isolate_, global.index);
-            Address global_addr =
-                instance->imported_mutable_globals()[global.index];
+        if (global.mutability && global.imported) {
+          Handle<FixedArray> buffers_array(
+              instance->imported_mutable_globals_buffers(), isolate_);
+          untagged_buffer = buffers_array->GetValueChecked<JSArrayBuffer>(
+              isolate_, global.index);
+          Address global_addr =
+              instance->imported_mutable_globals()[global.index];
 
-            size_t buffer_size = untagged_buffer->byte_length();
-            Address backing_store =
-                reinterpret_cast<Address>(untagged_buffer->backing_store());
-            CHECK(global_addr >= backing_store &&
-                  global_addr < backing_store + buffer_size);
-            offset = static_cast<uint32_t>(global_addr - backing_store);
-          } else {
-            if (global.type == kWasmAnyRef) {
-              tagged_buffer =
-                  handle(instance->tagged_globals_buffer(), isolate_);
-            } else {
-              untagged_buffer =
-                  handle(instance->untagged_globals_buffer(), isolate_);
-            }
-            offset = global.offset;
-          }
-
-          // Since the global's array untagged_buffer is always provided,
-          // allocation should never fail.
-          Handle<WasmGlobalObject> global_obj =
-              WasmGlobalObject::New(isolate_, untagged_buffer, tagged_buffer,
-                                    global.type, offset, global.mutability)
-                  .ToHandleChecked();
-          desc.set_value(global_obj);
+          size_t buffer_size = untagged_buffer->byte_length();
+          Address backing_store =
+              reinterpret_cast<Address>(untagged_buffer->backing_store());
+          CHECK(global_addr >= backing_store &&
+                global_addr < backing_store + buffer_size);
+          offset = static_cast<uint32_t>(global_addr - backing_store);
         } else {
-          // Export the value of the global variable as a number.
-          double num = 0;
-          switch (global.type) {
-            case kWasmI32:
-              num = ReadLittleEndianValue<int32_t>(
-                  GetRawGlobalPtr<int32_t>(global));
-              break;
-            case kWasmF32:
-              num =
-                  ReadLittleEndianValue<float>(GetRawGlobalPtr<float>(global));
-              break;
-            case kWasmF64:
-              num = ReadLittleEndianValue<double>(
-                  GetRawGlobalPtr<double>(global));
-              break;
-            case kWasmI64:
-              thrower_->LinkError(
-                  "export of globals of type I64 is not allowed.");
-              return;
-            default:
-              UNREACHABLE();
+          if (global.type == kWasmAnyRef) {
+            tagged_buffer = handle(instance->tagged_globals_buffer(), isolate_);
+          } else {
+            untagged_buffer =
+                handle(instance->untagged_globals_buffer(), isolate_);
           }
-          desc.set_value(isolate_->factory()->NewNumber(num));
+          offset = global.offset;
         }
+
+        // Since the global's array untagged_buffer is always provided,
+        // allocation should never fail.
+        Handle<WasmGlobalObject> global_obj =
+            WasmGlobalObject::New(isolate_, untagged_buffer, tagged_buffer,
+                                  global.type, offset, global.mutability)
+                .ToHandleChecked();
+        desc.set_value(global_obj);
         break;
       }
       case kExternalException: {

@@ -566,11 +566,7 @@ class ModuleDecoderImpl : public Decoder {
           global->type = consume_value_type();
           global->mutability = consume_mutability();
           if (global->mutability) {
-            if (enabled_features_.mut_global) {
-              module_->num_imported_mutable_globals++;
-            } else {
-              error("mutable globals cannot be imported");
-            }
+            module_->num_imported_mutable_globals++;
           }
           break;
         }
@@ -714,9 +710,6 @@ class ModuleDecoderImpl : public Decoder {
           WasmGlobal* global = nullptr;
           exp->index = consume_global_index(module_.get(), &global);
           if (global) {
-            if (!enabled_features_.mut_global && global->mutability) {
-              error("mutable globals cannot be exported");
-            }
             global->exported = true;
           }
           break;
@@ -1191,7 +1184,6 @@ class ModuleDecoderImpl : public Decoder {
     uint32_t num_imported_mutable_globals = 0;
     for (WasmGlobal& global : module->globals) {
       if (global.mutability && global.imported) {
-        DCHECK(enabled_features_.mut_global);
         global.index = num_imported_mutable_globals++;
       } else if (global.type == ValueType::kWasmAnyRef) {
         global.offset = tagged_offset;

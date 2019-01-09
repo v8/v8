@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-mut-global
-
 function assertGlobalIsValid(global) {
   assertSame(WebAssembly.Global.prototype, global.__proto__);
   assertSame(WebAssembly.Global, global.constructor);
