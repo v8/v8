@@ -3181,9 +3181,10 @@ bool LinearScanAllocator::TryAllocateFreeReg(
   // cloberred after the call except for the argument registers, which are
   // set before the call. Hence, the argument registers always get ignored,
   // as their available time is shorter.
-  int reg;
-  if (current->FirstHintPosition(&reg) == nullptr) {
-    reg = codes[0];
+  int hint_reg = kUnassignedRegister;
+  int reg = codes[0];
+  if (current->FirstHintPosition(&hint_reg) != nullptr) {
+    reg = hint_reg;
   }
   for (int i = 0; i < num_codes; ++i) {
     int code = codes[i];
@@ -3191,7 +3192,7 @@ bool LinearScanAllocator::TryAllocateFreeReg(
     int candidate_free = free_until_pos[code].ToInstructionIndex();
     int current_free = free_until_pos[reg].ToInstructionIndex();
     if (candidate_free > current_free ||
-        (candidate_free == current_free &&
+        (candidate_free == current_free && reg != hint_reg &&
          !data()->HasFixedUse(current->representation(), code))) {
       reg = code;
     }
