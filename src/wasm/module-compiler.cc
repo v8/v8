@@ -2549,12 +2549,11 @@ void AsyncCompileJob::FinishCompile() {
 
   // TODO(bbudge) Allow deserialization without wrapper compilation, so we can
   // just compile wrappers here.
-  if (is_after_deserialization) {
-    DoSync<AsyncCompileJob::FinishModule>();
-  } else {
-    // TODO(wasm): compiling wrappers should be made async as well.
-    DoSync<CompileWrappers>();
+  if (!is_after_deserialization) {
+    // TODO(wasm): compiling wrappers should be made async.
+    CompileWrappers();
   }
+  FinishModule();
 }
 
 void AsyncCompileJob::AsyncCompileFailed(Handle<Object> error_reason) {
@@ -2870,46 +2869,34 @@ class AsyncCompileJob::CompileFailed : public CompileStep {
   Handle<Object> error_reason_;
 };
 
-//==========================================================================
-// Step 5 (sync): Compile JS->wasm wrappers.
-//==========================================================================
-class AsyncCompileJob::CompileWrappers : public CompileStep {
+void AsyncCompileJob::CompileWrappers() {
   // TODO(wasm): Compile all wrappers here, including the start function wrapper
   // and the wrappers for the function table elements.
-  void RunInForeground(AsyncCompileJob* job) override {
-    TRACE_COMPILE("(5) Compile wrappers...\n");
-    // Compile JS->wasm wrappers for exported functions.
-    CompileJsToWasmWrappers(
-        job->isolate_, job->module_object_->native_module()->module(),
-        handle(job->module_object_->export_wrappers(), job->isolate_));
-    job->DoSync<FinishModule>();
-  }
-};
+  TRACE_COMPILE("(5) Compile wrappers...\n");
+  // Compile JS->wasm wrappers for exported functions.
+  CompileJsToWasmWrappers(isolate_, module_object_->native_module()->module(),
+                          handle(module_object_->export_wrappers(), isolate_));
+}
 
-//==========================================================================
-// Step 6 (sync): Finish the module and resolve the promise.
-//==========================================================================
-class AsyncCompileJob::FinishModule : public CompileStep {
-  void RunInForeground(AsyncCompileJob* job) override {
-    TRACE_COMPILE("(6) Finish module...\n");
-    job->AsyncCompileSucceeded(job->module_object_);
+void AsyncCompileJob::FinishModule() {
+  TRACE_COMPILE("(6) Finish module...\n");
+  AsyncCompileSucceeded(module_object_);
 
-    size_t num_functions = job->native_module_->num_functions() -
-                           job->native_module_->num_imported_functions();
-    auto* compilation_state = Impl(job->native_module_->compilation_state());
-    if (compilation_state->compile_mode() == CompileMode::kRegular ||
-        num_functions == 0) {
-      // If we do not tier up, the async compile job is done here and
-      // can be deleted.
-      job->isolate_->wasm_engine()->RemoveCompileJob(job);
-      return;
-    }
-    DCHECK_EQ(CompileMode::kTiering, compilation_state->compile_mode());
-    if (compilation_state->baseline_compilation_finished()) {
-      job->isolate_->wasm_engine()->RemoveCompileJob(job);
-    }
+  size_t num_functions = native_module_->num_functions() -
+                         native_module_->num_imported_functions();
+  auto* compilation_state = Impl(native_module_->compilation_state());
+  if (compilation_state->compile_mode() == CompileMode::kRegular ||
+      num_functions == 0) {
+    // If we do not tier up, the async compile job is done here and
+    // can be deleted.
+    isolate_->wasm_engine()->RemoveCompileJob(this);
+    return;
   }
-};
+  DCHECK_EQ(CompileMode::kTiering, compilation_state->compile_mode());
+  if (compilation_state->baseline_compilation_finished()) {
+    isolate_->wasm_engine()->RemoveCompileJob(this);
+  }
+}
 
 AsyncStreamingProcessor::AsyncStreamingProcessor(AsyncCompileJob* job)
     : decoder_(job->enabled_features_),
