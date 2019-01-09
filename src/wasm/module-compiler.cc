@@ -2476,18 +2476,12 @@ AsyncCompileJob::~AsyncCompileJob() {
   for (auto d : deferred_handles_) delete d;
 }
 
-void AsyncCompileJob::PrepareRuntimeObjects(
+void AsyncCompileJob::CreateNativeModule(
     std::shared_ptr<const WasmModule> module) {
   // Embedder usage count for declared shared memories.
   if (module->has_shared_memory) {
     isolate_->CountUsage(v8::Isolate::UseCounterFeature::kWasmSharedMemory);
   }
-
-  // Create heap objects for script and module bytes to be stored in the
-  // module object. Asm.js is not compiled asynchronously.
-  Handle<Script> script =
-      CreateWasmScript(isolate_, wire_bytes_, module->source_map_url);
-  Handle<ByteArray> asm_js_offset_table;
 
   // TODO(wasm): Improve efficiency of storing module wire bytes. Only store
   // relevant sections, not function bodies
@@ -2498,11 +2492,27 @@ void AsyncCompileJob::PrepareRuntimeObjects(
   // only have one {WasmModuleObject}. Otherwise, we might only set
   // breakpoints on a (potentially empty) subset of the instances.
   // Create the module object.
-  module_object_ =
-      WasmModuleObject::New(isolate_, enabled_features_, std::move(module),
-                            {std::move(bytes_copy_), wire_bytes_.length()},
-                            script, asm_js_offset_table);
-  native_module_ = module_object_->native_module();
+
+  size_t code_size_estimate =
+      wasm::WasmCodeManager::EstimateNativeModuleCodeSize(module.get());
+  native_module_ = isolate_->wasm_engine()->code_manager()->NewNativeModule(
+      isolate_, enabled_features_, code_size_estimate,
+      wasm::NativeModule::kCanAllocateMoreMemory, std::move(module));
+  native_module_->SetWireBytes({std::move(bytes_copy_), wire_bytes_.length()});
+  native_module_->SetRuntimeStubs(isolate_);
+}
+
+void AsyncCompileJob::PrepareRuntimeObjects() {
+  // Create heap objects for script and module bytes to be stored in the
+  // module object. Asm.js is not compiled asynchronously.
+  const WasmModule* module = native_module_->module();
+  Handle<Script> script =
+      CreateWasmScript(isolate_, wire_bytes_, module->source_map_url);
+
+  size_t code_size_estimate =
+      wasm::WasmCodeManager::EstimateNativeModuleCodeSize(module);
+  module_object_ = WasmModuleObject::New(isolate_, native_module_, script,
+                                         code_size_estimate);
 
   {
     DeferredHandleScope deferred(isolate_);
@@ -2515,7 +2525,11 @@ void AsyncCompileJob::PrepareRuntimeObjects(
 
 // This function assumes that it is executed in a HandleScope, and that a
 // context is set on the isolate.
-void AsyncCompileJob::FinishCompile(bool compile_wrappers) {
+void AsyncCompileJob::FinishCompile() {
+  bool is_after_deserialization = !module_object_.is_null();
+  if (!is_after_deserialization) {
+    PrepareRuntimeObjects();
+  }
   DCHECK(!isolate_->context().is_null());
   // Finish the wasm script now and make it public to the debugger.
   Handle<Script> script(module_object_->script(), isolate_);
@@ -2528,17 +2542,18 @@ void AsyncCompileJob::FinishCompile(bool compile_wrappers) {
   isolate_->debug()->OnAfterCompile(script);
 
   // We can only update the feature counts once the entire compile is done.
-  auto compilation_state = Impl(native_module_->compilation_state());
+  auto compilation_state =
+      Impl(module_object_->native_module()->compilation_state());
   compilation_state->PublishDetectedFeatures(
       isolate_, *compilation_state->detected_features());
 
   // TODO(bbudge) Allow deserialization without wrapper compilation, so we can
   // just compile wrappers here.
-  if (compile_wrappers) {
-    DoSync<CompileWrappers>();
+  if (is_after_deserialization) {
+    DoSync<AsyncCompileJob::FinishModule>();
   } else {
     // TODO(wasm): compiling wrappers should be made async as well.
-    DoSync<AsyncCompileJob::FinishModule>();
+    DoSync<CompileWrappers>();
   }
 }
 
@@ -2565,7 +2580,7 @@ class AsyncCompileJob::CompilationStateCallback {
         if (job_->DecrementAndCheckFinisherCount()) {
           SaveContext saved_context(job_->isolate());
           job_->isolate()->set_context(*job_->native_context_);
-          job_->FinishCompile(true);
+          job_->FinishCompile();
         }
         break;
       case CompilationEvent::kFinishedTopTierCompilation:
@@ -2809,14 +2824,14 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
     // is done.
     job->background_task_manager_.CancelAndWait();
 
-    job->PrepareRuntimeObjects(module_);
+    job->CreateNativeModule(module_);
 
     size_t num_functions =
         module_->functions.size() - module_->num_imported_functions;
 
     if (num_functions == 0) {
       // Degenerate case of an empty module.
-      job->FinishCompile(true);
+      job->FinishCompile();
       return;
     }
 
@@ -2832,7 +2847,7 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
       compilation_state->SetNumberOfFunctionsToCompile(
           module_->num_declared_functions);
       // Add compilation units and kick off compilation.
-      InitializeCompilationUnits(job->native_module_,
+      InitializeCompilationUnits(job->native_module_.get(),
                                  job->isolate()->wasm_engine());
     }
   }
@@ -3000,7 +3015,7 @@ bool AsyncStreamingProcessor::ProcessCodeSectionHeader(
   // AsyncStreamingProcessor have to finish.
   job_->outstanding_finishers_.store(2);
   compilation_unit_builder_.reset(new CompilationUnitBuilder(
-      job_->native_module_, job_->isolate()->wasm_engine()));
+      job_->native_module_.get(), job_->isolate()->wasm_engine()));
   return true;
 }
 
@@ -3039,8 +3054,8 @@ void AsyncStreamingProcessor::OnFinishedStream(OwnedVector<uint8_t> bytes) {
     return;
   }
   // We have to open a HandleScope and prepare the Context for
-  // PrepareRuntimeObjects and FinishCompile as this is a callback from the
-  // embedder.
+  // CreateNativeModule, PrepareRuntimeObjects and FinishCompile as this is a
+  // callback from the embedder.
   HandleScope scope(job_->isolate_);
   SaveContext saved_context(job_->isolate_);
   job_->isolate_->set_context(*job_->native_context_);
@@ -3049,13 +3064,13 @@ void AsyncStreamingProcessor::OnFinishedStream(OwnedVector<uint8_t> bytes) {
   if (job_->native_module_ == nullptr) {
     // We are processing a WebAssembly module without code section. Create the
     // runtime objects now (would otherwise happen in {PrepareAndStartCompile}).
-    job_->PrepareRuntimeObjects(std::move(result).value());
+    job_->CreateNativeModule(std::move(result).value());
     DCHECK(needs_finish);
   }
   job_->wire_bytes_ = ModuleWireBytes(bytes.as_vector());
   job_->native_module_->SetWireBytes(std::move(bytes));
   if (needs_finish) {
-    job_->FinishCompile(true);
+    job_->FinishCompile();
   }
 }
 
@@ -3088,11 +3103,11 @@ bool AsyncStreamingProcessor::Deserialize(Vector<const uint8_t> module_bytes,
     job_->module_object_ = handle(*job_->module_object_, job_->isolate_);
     job_->deferred_handles_.push_back(deferred.Detach());
   }
-  job_->native_module_ = job_->module_object_->native_module();
+  job_->native_module_ = job_->module_object_->shared_native_module();
   auto owned_wire_bytes = OwnedVector<uint8_t>::Of(wire_bytes);
   job_->wire_bytes_ = ModuleWireBytes(owned_wire_bytes.as_vector());
   job_->native_module_->SetWireBytes(std::move(owned_wire_bytes));
-  job_->FinishCompile(false);
+  job_->FinishCompile();
   return true;
 }
 

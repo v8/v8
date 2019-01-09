@@ -105,9 +105,10 @@ class AsyncCompileJob {
     return outstanding_finishers_.fetch_sub(1) == 1;
   }
 
-  void PrepareRuntimeObjects(std::shared_ptr<const WasmModule>);
+  void CreateNativeModule(std::shared_ptr<const WasmModule> module);
+  void PrepareRuntimeObjects();
 
-  void FinishCompile(bool compile_wrappers);
+  void FinishCompile();
 
   void AsyncCompileFailed(Handle<Object> error_reason);
 
@@ -158,7 +159,7 @@ class AsyncCompileJob {
 
   std::vector<DeferredHandles*> deferred_handles_;
   Handle<WasmModuleObject> module_object_;
-  NativeModule* native_module_ = nullptr;
+  std::shared_ptr<NativeModule> native_module_;
 
   std::unique_ptr<CompileStep> step_;
   CancelableTaskManager background_task_manager_;
