@@ -11,7 +11,7 @@ export class Edge {
   target: GNode;
   source: GNode;
   index: number;
-  type: String;
+  type: string;
   backEdgeNumber: number;
   visible: boolean;
 
@@ -23,7 +23,6 @@ export class Edge {
     this.backEdgeNumber = 0;
     this.visible = false;
   }
-
 
   stringID() {
     return this.source.id + "," + this.index + "," + this.target.id;

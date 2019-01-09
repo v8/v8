@@ -33,7 +33,7 @@ export class MySelection {
     }
   }
 
-  isSelected(i:any): boolean {
+  isSelected(i: any): boolean {
     return this.selection.has(this.stringKey(i));
   }
 

@@ -71,7 +71,7 @@ export class GraphMultiView extends View {
       (phaseName) => view.displayPhaseByName(phaseName));
     this.schedule = new ScheduleView(this.divNode, selectionBroker);
     this.sequence = new SequenceView(this.divNode, selectionBroker);
-    this.selectMenu = (<HTMLSelectElement>toolbox.querySelector('#display-selector'));
+    this.selectMenu = toolbox.querySelector('#display-selector') as HTMLSelectElement;
   }
 
   initializeSelect() {

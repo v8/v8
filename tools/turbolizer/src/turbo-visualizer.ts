@@ -114,8 +114,9 @@ window.onload = function () {
         const filereader = new FileReader();
         filereader.onload = () => {
           const txtRes = filereader.result;
-          if (typeof txtRes == 'string')
+          if (typeof txtRes == 'string') {
             loadFile(txtRes);
+          }
         };
         filereader.readAsText(uploadFile);
       }

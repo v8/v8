@@ -19,10 +19,12 @@ function sourcePositionEq(a, b) {
 
 export function sourcePositionToStringKey(sourcePosition: AnyPosition): string {
   if (!sourcePosition) return "undefined";
-  if ('inliningId' in sourcePosition && 'scriptOffset' in sourcePosition)
+  if ('inliningId' in sourcePosition && 'scriptOffset' in sourcePosition) {
     return "SP:" + sourcePosition.inliningId + ":" + sourcePosition.scriptOffset;
-  if (sourcePosition.bytecodePosition)
+  }
+  if (sourcePosition.bytecodePosition) {
     return "BCP:" + sourcePosition.bytecodePosition;
+  }
   return "undefined";
 }
 
@@ -116,7 +118,6 @@ export class SourceResolver {
   instructionToPCOffset: Array<number>;
   pcOffsetToInstructions: Map<number, Array<number>>;
   pcOffsets: Array<number>;
-
 
   constructor() {
     // Maps node ids to source positions.
@@ -416,7 +417,7 @@ export class SourceResolver {
     return offsets;
   }
 
-  nodesForPCOffset(offset: number): [Array<String>, Array<String>] {
+  nodesForPCOffset(offset: number): [Array<string>, Array<string>] {
     if (this.pcOffsets.length === 0) return [[], []];
     for (const key of this.pcOffsets) {
       if (key <= offset) {
@@ -510,7 +511,7 @@ export class SourceResolver {
     this.phases.forEach(f);
   }
 
-  addAnyPositionToLine(lineNumber: number | String, sourcePosition: AnyPosition) {
+  addAnyPositionToLine(lineNumber: number | string, sourcePosition: AnyPosition) {
     const lineNumberString = anyToString(lineNumber);
     if (!this.lineToSourcePositions.has(lineNumberString)) {
       this.lineToSourcePositions.set(lineNumberString, []);
@@ -526,7 +527,7 @@ export class SourceResolver {
     });
   }
 
-  linetoSourcePositions(lineNumber: number | String) {
+  linetoSourcePositions(lineNumber: number | string) {
     const positions = this.lineToSourcePositions.get(anyToString(lineNumber));
     if (positions === undefined) return [];
     return positions;

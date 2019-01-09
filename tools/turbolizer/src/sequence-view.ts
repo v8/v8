@@ -40,7 +40,7 @@ export class SequenceView extends TextView implements PhaseView {
     this.divNode.innerHTML = '';
     this.sequence = data.sequence;
     this.search_info = [];
-    this.divNode.addEventListener('click', (e:MouseEvent) => {
+    this.divNode.addEventListener('click', (e: MouseEvent) => {
       if (!(e.target instanceof HTMLElement)) return;
       const instructionId = Number.parseInt(e.target.dataset.instructionId, 10);
       if (!instructionId) return;

@@ -156,7 +156,7 @@ export class Resizer {
           window.sessionStorage.setItem("disassembly-pane-width", `${resizer.sep_right / resizer.client_width}`);
         }
         resizer.resizer_right.classed("dragged", false);
-      });;
+      });
     resizer.resizer_right.call(dragResizeRight);
     window.onresize = function () {
       resizer.updateWidths();

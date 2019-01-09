@@ -136,7 +136,7 @@ export class DisassemblyView extends TextView {
     const linkHandler = (e: MouseEvent) => {
       if (!(e.target instanceof HTMLElement)) return;
       const offsetAsString = e.target.dataset.pcOffset ? e.target.dataset.pcOffset : e.target.parentElement.dataset.pcOffset;
-      const offset = Number.parseInt(offsetAsString);
+      const offset = Number.parseInt(offsetAsString, 10);
       if ((typeof offsetAsString) != "undefined" && !Number.isNaN(offset)) {
         view.offsetSelection.select([offset], true);
         const nodes = view.sourceResolver.nodesForPCOffset(offset)[0]
@@ -271,8 +271,7 @@ export class DisassemblyView extends TextView {
         view.total_event_counts[ev_name] = values.reduce((a, b) => a + b);
         view.max_event_counts[ev_name] = values.reduce((a, b) => Math.max(a, b));
       }
-    }
-    else {
+    } else {
       view.addr_event_counts = null;
       view.total_event_counts = null;
       view.max_event_counts = null;
@@ -313,8 +312,7 @@ export class DisassemblyView extends TextView {
               if (perc === PROF_COLS[i].perc) {
                 col = PROF_COLS[i].col;
                 break;
-              }
-              else if (perc > PROF_COLS[i].perc && perc < PROF_COLS[i + 1].perc) {
+              } else if (perc > PROF_COLS[i].perc && perc < PROF_COLS[i + 1].perc) {
                 let col1 = PROF_COLS[i].col;
                 let col2 = PROF_COLS[i + 1].col;
 
@@ -335,10 +333,9 @@ export class DisassemblyView extends TextView {
             fragment.style.color = "rgb(" + col.r + ", " + col.g + ", " + col.b + ")";
 
             newFragments.push(fragment);
-          }
-          else
+          } else {
             newFragments.push(view.createFragment(str, css_cls));
-
+          }
         }
         fragments = newFragments.concat(fragments);
       }

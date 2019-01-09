@@ -2,12 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-
 import { MAX_RANK_SENTINEL } from "../src/constants"
 import { MINIMUM_EDGE_SEPARATION, Edge } from "../src/edge"
 import { NODE_INPUT_WIDTH, MINIMUM_NODE_OUTPUT_APPROACH, DEFAULT_NODE_BUBBLE_RADIUS, GNode } from "../src/node"
 import { Graph } from "./graph";
-
 
 const DEFAULT_NODE_ROW_SEPARATION = 130
 const traceLayout = false;

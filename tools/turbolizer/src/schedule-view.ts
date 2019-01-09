@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {Schedule,SourceResolver} from "../src/source-resolver"
-import {PhaseView} from "../src/view"
-import {TextView} from "../src/text-view"
+import { Schedule, SourceResolver } from "../src/source-resolver"
+import { PhaseView } from "../src/view"
+import { TextView } from "../src/text-view"
 
 export class ScheduleView extends TextView implements PhaseView {
   schedule: Schedule;
@@ -71,13 +71,13 @@ export class ScheduleView extends TextView implements PhaseView {
     function getMarker(start, end) {
       if (start != end) {
         return ["&#8857;", `This node generated instructions in range [${start},${end}). ` +
-                           `This is currently unreliable for constants.`];
+          `This is currently unreliable for constants.`];
       }
       if (start != -1) {
         return ["&#183;", `The instruction selector did not generate instructions ` +
-                          `for this node, but processed the node at instruction ${start}. ` +
-                          `This usually means that this node was folded into another node; ` +
-                          `the highlighted machine code is a guess.`];
+          `for this node, but processed the node at instruction ${start}. ` +
+          `This usually means that this node was folded into another node; ` +
+          `the highlighted machine code is a guess.`];
       }
       return ["", `This not is not in the final schedule.`]
     }
@@ -91,7 +91,6 @@ export class ScheduleView extends TextView implements PhaseView {
       instrMarker.setAttribute("title", tooltip);
       instrMarker.onclick = mkNodeLinkHandler(node.id);
       nodeEl.appendChild(instrMarker);
-
 
       const node_id = createElement("div", "node-id tag clickable", node.id);
       node_id.onclick = mkNodeLinkHandler(node.id);
