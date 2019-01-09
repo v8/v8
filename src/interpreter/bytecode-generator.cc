@@ -2427,25 +2427,21 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
   builder()->LoadAccumulatorWithRegister(literal);
 }
 
-// Fill an array with values from an iterator, starting at a given index,
-// optionally setting the 'done' register to true if the loop is exited because
-// the iterator is done (as opposed to e.g. the store into the array failing).
+// Fill an array with values from an iterator, starting at a given index. It is
+// guaranteed that the loop will only terminate if the iterator is exhausted, or
+// if one of iterator.next(), value.done, or value.value fail.
 //
 // In pseudocode:
 //
 // loop {
-//   // Make sure we are considered 'done' if .next(), .done or .value fail.
-//   done = true
 //   value = iterator.next()
 //   if (value.done) break;
 //   value = value.value
-//   done = false
 //   array[index++] = value
 // }
-// done = true
 void BytecodeGenerator::BuildFillArrayWithIterator(
     IteratorRecord iterator, Register array, Register index, Register value,
-    Register done, FeedbackSlot next_value_slot, FeedbackSlot next_done_slot,
+    FeedbackSlot next_value_slot, FeedbackSlot next_done_slot,
     FeedbackSlot index_slot, FeedbackSlot element_slot) {
   DCHECK(array.is_valid());
   DCHECK(index.is_valid());
@@ -2453,10 +2449,6 @@ void BytecodeGenerator::BuildFillArrayWithIterator(
 
   LoopBuilder loop_builder(builder(), nullptr, nullptr);
   loop_builder.LoopHeader();
-
-  if (done.is_valid()) {
-    builder()->LoadTrue().StoreAccumulatorInRegister(done);
-  }
 
   // Call the iterator's .next() method. Break from the loop if the `done`
   // property is truthy, otherwise load the value from the iterator result and
@@ -2471,30 +2463,15 @@ void BytecodeGenerator::BuildFillArrayWithIterator(
   builder()
       // value = value.value
       ->LoadNamedProperty(value, ast_string_constants()->value_string(),
-                          feedback_index(next_value_slot));
-  if (done.is_valid()) {
-    // done = false
-    builder()
-        ->StoreAccumulatorInRegister(value)
-        .LoadFalse()
-        .StoreAccumulatorInRegister(done)
-        .LoadAccumulatorWithRegister(value);
-  }
-  builder()
+                          feedback_index(next_value_slot))
       // array[index] = value
-      ->StoreInArrayLiteral(array, index, feedback_index(element_slot))
+      .StoreInArrayLiteral(array, index, feedback_index(element_slot))
       // index++
       .LoadAccumulatorWithRegister(index)
       .UnaryOperation(Token::INC, feedback_index(index_slot))
       .StoreAccumulatorInRegister(index);
   loop_builder.BindContinueTarget();
   loop_builder.JumpToHeader(loop_depth_);
-
-  if (done.is_valid()) {
-    // Reaching here means that the loop was exited because of next_result.done
-    // being true, so set 'done' to true.
-    builder()->LoadTrue().StoreAccumulatorInRegister(done);
-  }
 }
 
 void BytecodeGenerator::BuildCreateArrayLiteral(
@@ -2620,7 +2597,6 @@ void BytecodeGenerator::BuildCreateArrayLiteral(
       FeedbackSlot real_index_slot = index_slot.Get();
       FeedbackSlot real_element_slot = element_slot.Get();
       BuildFillArrayWithIterator(iterator, array, index, value,
-                                 Register::invalid_value(),
                                  next_value_load_slot, next_done_load_slot,
                                  real_index_slot, real_element_slot);
     } else if (!subexpr->IsTheHoleLiteral()) {
@@ -3395,11 +3371,15 @@ void BytecodeGenerator::BuildDestructuringArrayAssignment(
       builder()->LoadLiteral(Smi::zero());
       builder()->StoreAccumulatorInRegister(index);
 
+      // Set done to true, since it's guaranteed to be true by the time the
+      // array fill completes.
+      builder()->LoadTrue().StoreAccumulatorInRegister(done);
+
       // Fill the array with the iterator.
       FeedbackSlot element_slot =
           feedback_spec()->AddStoreInArrayLiteralICSlot();
       FeedbackSlot index_slot = feedback_spec()->AddBinaryOpICSlot();
-      BuildFillArrayWithIterator(iterator, array, index, next_result, done,
+      BuildFillArrayWithIterator(iterator, array, index, next_result,
                                  next_value_load_slot, next_done_load_slot,
                                  index_slot, element_slot);
 

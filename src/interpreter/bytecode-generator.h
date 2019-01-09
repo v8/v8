@@ -268,7 +268,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
                                BytecodeLabels* if_notcalled);
 
   void BuildFillArrayWithIterator(IteratorRecord iterator, Register array,
-                                  Register index, Register value, Register done,
+                                  Register index, Register value,
                                   FeedbackSlot next_value_slot,
                                   FeedbackSlot next_done_slot,
                                   FeedbackSlot index_slot,

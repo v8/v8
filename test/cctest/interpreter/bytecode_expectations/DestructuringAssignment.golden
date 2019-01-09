@@ -115,7 +115,7 @@ snippet: "
 "
 frame size: 16
 parameter count: 1
-bytecode array length: 276
+bytecode array length: 266
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   48 S> */ B(CreateArrayLiteral), U8(0), U8(0), U8(37),
@@ -177,19 +177,13 @@ bytecodes: [
                 B(JumpIfJSReceiver), U8(7),
                 B(CallRuntime), U16(Runtime::kThrowIteratorResultNotAnObject), R(12), U8(1),
                 B(LdaNamedProperty), R(12), U8(3), U8(21),
-                B(JumpIfToBooleanTrue), U8(29),
+                B(JumpIfToBooleanTrue), U8(19),
                 B(LdaNamedProperty), R(12), U8(4), U8(7),
-                B(Star), R(12),
-                B(LdaFalse),
-                B(Star), R(8),
-                B(Ldar), R(12),
                 B(StaInArrayLiteral), R(13), R(14), U8(16),
                 B(Ldar), R(14),
                 B(Inc), U8(18),
                 B(Star), R(14),
-                B(JumpLoop), U8(43), I8(0),
-                B(LdaTrue),
-                B(Star), R(8),
+                B(JumpLoop), U8(33), I8(0),
                 B(Mov), R(13), R(1),
                 B(Ldar), R(1),
                 B(LdaSmi), I8(-1),
@@ -248,8 +242,8 @@ constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE [""],
 ]
 handlers: [
-  [44, 184, 192],
-  [238, 251, 253],
+  [44, 174, 182],
+  [228, 241, 243],
 ]
 
 ---
