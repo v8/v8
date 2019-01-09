@@ -92,6 +92,7 @@ class AsyncCompileJob {
   class DecodeModule;            // Step 1  (async)
   class DecodeFail;              // Step 1b (sync)
   class PrepareAndStartCompile;  // Step 2  (sync)
+  class CompileFailed;           // Step 4b (sync)
   class CompileWrappers;         // Step 5  (sync)
   class FinishModule;            // Step 6  (sync)
 
@@ -109,7 +110,7 @@ class AsyncCompileJob {
 
   void FinishCompile();
 
-  void CompileFailed(Handle<Object> error_reason);
+  void AsyncCompileFailed(Handle<Object> error_reason);
 
   void AsyncCompileSucceeded(Handle<WasmModuleObject> result);
 

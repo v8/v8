@@ -2557,7 +2557,7 @@ void AsyncCompileJob::FinishCompile() {
   }
 }
 
-void AsyncCompileJob::CompileFailed(Handle<Object> error_reason) {
+void AsyncCompileJob::AsyncCompileFailed(Handle<Object> error_reason) {
   // {job} keeps the {this} pointer alive.
   std::shared_ptr<AsyncCompileJob> job =
       isolate_->wasm_engine()->RemoveCompileJob(this);
@@ -2606,7 +2606,12 @@ class AsyncCompileJob::CompilationStateCallback {
           ErrorThrower thrower(job_->isolate(), "AsyncCompilation");
           thrower.CompileFailed(*error_result);
           Handle<Object> error = thrower.Reify();
-          job_->CompileFailed(error);
+
+          DeferredHandleScope deferred(job_->isolate());
+          error = handle(*error, job_->isolate());
+          job_->deferred_handles_.push_back(deferred.Detach());
+
+          job_->DoSync<CompileFailed, kUseExistingForegroundTask>(error);
         }
 
         break;
@@ -2795,7 +2800,7 @@ class AsyncCompileJob::DecodeFail : public CompileStep {
     ErrorThrower thrower(job->isolate_, "AsyncCompile");
     thrower.CompileFailed("Wasm decoding failed", result_);
     // {job_} is deleted in AsyncCompileFailed, therefore the {return}.
-    return job->CompileFailed(thrower.Reify());
+    return job->AsyncCompileFailed(thrower.Reify());
   }
 };
 
@@ -2846,6 +2851,23 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
                                  job->isolate()->wasm_engine());
     }
   }
+};
+
+//==========================================================================
+// Step 4b (sync): Compilation failed. Reject Promise.
+//==========================================================================
+class AsyncCompileJob::CompileFailed : public CompileStep {
+ public:
+  explicit CompileFailed(Handle<Object> error_reason)
+      : error_reason_(error_reason) {}
+
+  void RunInForeground(AsyncCompileJob* job) override {
+    TRACE_COMPILE("(4b) Compilation Failed...\n");
+    return job->AsyncCompileFailed(error_reason_);
+  }
+
+ private:
+  Handle<Object> error_reason_;
 };
 
 //==========================================================================
