@@ -564,7 +564,6 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     // while rdi holds the function pointer, rsi the context, and rdx the
     // new.target.
 
-#ifdef _WIN64
     // MSVC parameters in:
     // rcx        : root_register_value
     // rdx        : new_target
@@ -572,30 +571,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     // r9         : receiver
     // [rsp+0x20] : argc
     // [rsp+0x28] : argv
-
-    __ movp(rdi, r8);
-
-    // Clear the context before we push it when entering the internal frame.
-    __ Set(rsi, 0);
-
-    // Enter an internal frame.
-    FrameScope scope(masm, StackFrame::INTERNAL);
-
-    // Setup the context (we need to use the caller context from the isolate).
-    ExternalReference context_address = ExternalReference::Create(
-        IsolateAddressId::kContextAddress, masm->isolate());
-    __ movp(rsi, masm->ExternalReferenceAsOperand(context_address));
-
-    // Push the function and the receiver onto the stack.
-    __ Push(r8);
-    __ Push(r9);
-
-    // Load the previous frame pointer to access C arguments on stack
-    __ movp(kScratchRegister, Operand(rbp, 0));
-    // Load the number of arguments and setup pointer to the arguments.
-    __ movp(rax, Operand(kScratchRegister, EntryFrameConstants::kArgcOffset));
-    __ movp(rbx, Operand(kScratchRegister, EntryFrameConstants::kArgvOffset));
-#else   // _WIN64
+    //
     // GCC parameters in:
     // rdi : root_register_value
     // rsi : new_target
@@ -604,8 +580,8 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     // r8  : argc
     // r9  : argv
 
-    __ movp(rdi, rdx);
-    __ movp(rdx, rsi);
+    __ movp(rdi, arg_reg_3);
+    __ Move(rdx, arg_reg_2);
     // rdi : function
     // rdx : new_target
 
@@ -620,10 +596,17 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
         IsolateAddressId::kContextAddress, masm->isolate());
     __ movp(rsi, masm->ExternalReferenceAsOperand(context_address));
 
-    // Push the function and receiver onto the stack.
+    // Push the function and the receiver onto the stack.
     __ Push(rdi);
-    __ Push(rcx);
+    __ Push(arg_reg_4);
 
+#ifdef _WIN64
+    // Load the previous frame pointer to access C arguments on stack
+    __ movp(kScratchRegister, Operand(rbp, 0));
+    // Load the number of arguments and setup pointer to the arguments.
+    __ movp(rax, Operand(kScratchRegister, EntryFrameConstants::kArgcOffset));
+    __ movp(rbx, Operand(kScratchRegister, EntryFrameConstants::kArgvOffset));
+#else   // _WIN64
     // Load the number of arguments and setup pointer to the arguments.
     __ movp(rax, r8);
     __ movp(rbx, r9);
