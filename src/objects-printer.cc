@@ -316,14 +316,14 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case CALL_HANDLER_INFO_TYPE:
       CallHandlerInfo::cast(*this)->CallHandlerInfoPrint(os);
       break;
-    case PRE_PARSED_SCOPE_DATA_TYPE:
+    case PREPARSE_DATA_TYPE:
       PreparseData::cast(*this)->PreparseDataPrint(os);
       break;
-    case UNCOMPILED_DATA_WITHOUT_PRE_PARSED_SCOPE_TYPE:
+    case UNCOMPILED_DATA_WITHOUT_PREPARSE_DATA_TYPE:
       UncompiledDataWithoutPreparseData::cast(*this)
           ->UncompiledDataWithoutPreparseDataPrint(os);
       break;
-    case UNCOMPILED_DATA_WITH_PRE_PARSED_SCOPE_TYPE:
+    case UNCOMPILED_DATA_WITH_PREPARSE_DATA_TYPE:
       UncompiledDataWithPreparseData::cast(*this)
           ->UncompiledDataWithPreparseDataPrint(os);
       break;

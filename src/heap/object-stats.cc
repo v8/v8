@@ -401,6 +401,7 @@ class ObjectStatsCollectorImpl {
   void RecordVirtualExternalStringDetails(ExternalString script);
   void RecordVirtualSharedFunctionInfoDetails(SharedFunctionInfo info);
   void RecordVirtualJSFunctionDetails(JSFunction function);
+  void RecordVirtualPreparseDataDetails(PreparseData data);
 
   void RecordVirtualArrayBoilerplateDescription(
       ArrayBoilerplateDescription description);
@@ -607,48 +608,58 @@ static ObjectStats::VirtualInstanceType GetFeedbackSlotType(
 
 void ObjectStatsCollectorImpl::RecordVirtualFeedbackVectorDetails(
     FeedbackVector vector) {
-  if (virtual_objects_.find(vector) == virtual_objects_.end()) {
-    // Manually insert the feedback vector into the virtual object list, since
-    // we're logging its component parts separately.
-    virtual_objects_.insert(vector);
+  if (virtual_objects_.find(vector) != virtual_objects_.end()) return;
+  // Manually insert the feedback vector into the virtual object list, since
+  // we're logging its component parts separately.
+  virtual_objects_.insert(vector);
 
-    size_t calculated_size = 0;
+  size_t calculated_size = 0;
 
-    // Log the feedback vector's header (fixed fields).
-    size_t header_size = vector->slots_start().address() - vector->address();
-    stats_->RecordVirtualObjectStats(ObjectStats::FEEDBACK_VECTOR_HEADER_TYPE,
-                                     header_size,
-                                     ObjectStats::kNoOverAllocation);
-    calculated_size += header_size;
+  // Log the feedback vector's header (fixed fields).
+  size_t header_size = vector->slots_start().address() - vector->address();
+  stats_->RecordVirtualObjectStats(ObjectStats::FEEDBACK_VECTOR_HEADER_TYPE,
+                                   header_size, ObjectStats::kNoOverAllocation);
+  calculated_size += header_size;
 
-    // Iterate over the feedback slots and log each one.
-    if (!vector->shared_function_info()->HasFeedbackMetadata()) return;
+  // Iterate over the feedback slots and log each one.
+  if (!vector->shared_function_info()->HasFeedbackMetadata()) return;
 
-    FeedbackMetadataIterator it(vector->metadata());
-    while (it.HasNext()) {
-      FeedbackSlot slot = it.Next();
-      // Log the entry (or entries) taken up by this slot.
-      size_t slot_size = it.entry_size() * kTaggedSize;
-      stats_->RecordVirtualObjectStats(
-          GetFeedbackSlotType(vector->Get(slot), it.kind(), heap_->isolate()),
-          slot_size, ObjectStats::kNoOverAllocation);
-      calculated_size += slot_size;
+  FeedbackMetadataIterator it(vector->metadata());
+  while (it.HasNext()) {
+    FeedbackSlot slot = it.Next();
+    // Log the entry (or entries) taken up by this slot.
+    size_t slot_size = it.entry_size() * kTaggedSize;
+    stats_->RecordVirtualObjectStats(
+        GetFeedbackSlotType(vector->Get(slot), it.kind(), heap_->isolate()),
+        slot_size, ObjectStats::kNoOverAllocation);
+    calculated_size += slot_size;
 
-      // Log the monomorphic/polymorphic helper objects that this slot owns.
-      for (int i = 0; i < it.entry_size(); i++) {
-        MaybeObject raw_object = vector->get(slot.ToInt() + i);
-        HeapObject object;
-        if (raw_object->GetHeapObject(&object)) {
-          if (object->IsCell() || object->IsWeakFixedArray()) {
-            RecordSimpleVirtualObjectStats(
-                vector, object, ObjectStats::FEEDBACK_VECTOR_ENTRY_TYPE);
-          }
+    // Log the monomorphic/polymorphic helper objects that this slot owns.
+    for (int i = 0; i < it.entry_size(); i++) {
+      MaybeObject raw_object = vector->get(slot.ToInt() + i);
+      HeapObject object;
+      if (raw_object->GetHeapObject(&object)) {
+        if (object->IsCell() || object->IsWeakFixedArray()) {
+          RecordSimpleVirtualObjectStats(
+              vector, object, ObjectStats::FEEDBACK_VECTOR_ENTRY_TYPE);
         }
       }
     }
-
-    CHECK_EQ(calculated_size, vector->Size());
   }
+
+  CHECK_EQ(calculated_size, vector->Size());
+}
+
+void ObjectStatsCollectorImpl::RecordVirtualPreparseDataDetails(
+    PreparseData data) {
+  if (virtual_objects_.find(data) != virtual_objects_.end()) return;
+  // Manually insert the PreparseData since we're combining the size with it's
+  // byte_data size.
+  virtual_objects_.insert(data);
+  virtual_objects_.insert(data->scope_data());
+  size_t size = data->Size() + data->scope_data()->Size();
+  DCHECK_LE(0, data->scope_data()->length());
+  stats_->RecordObjectStats(PREPARSE_DATA_TYPE, size);
 }
 
 void ObjectStatsCollectorImpl::RecordVirtualFixedArrayDetails(
@@ -695,6 +706,8 @@ void ObjectStatsCollectorImpl::CollectStatistics(
       } else if (obj->IsArrayBoilerplateDescription()) {
         RecordVirtualArrayBoilerplateDescription(
             ArrayBoilerplateDescription::cast(obj));
+      } else if (obj->IsPreparseData()) {
+        RecordVirtualPreparseDataDetails(PreparseData::cast(obj));
       } else if (obj->IsFixedArrayExact()) {
         // Has to go last as it triggers too eagerly.
         RecordVirtualFixedArrayDetails(FixedArray::cast(obj));

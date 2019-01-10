@@ -46,16 +46,15 @@ class PreparseData : public HeapObject {
   DECL_VERIFIER(PreparseData)
 
 // Layout description.
-#define PRE_PARSED_SCOPE_DATA_FIELDS(V)                                   \
+#define PREPARSE_DATA_FIELDS(V)                                           \
   V(kScopeDataOffset, kTaggedSize)                                        \
   V(kLengthOffset, kIntSize)                                              \
   V(kOptionalPaddingOffset, POINTER_SIZE_PADDING(kOptionalPaddingOffset)) \
   /* Header size. */                                                      \
   V(kChildDataStartOffset, 0)
 
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
-                                PRE_PARSED_SCOPE_DATA_FIELDS)
-#undef PRE_PARSED_SCOPE_DATA_FIELDS
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, PREPARSE_DATA_FIELDS)
+#undef PREPARSE_DATA_FIELDS
 
   class BodyDescriptor;
 
@@ -148,16 +147,16 @@ class UncompiledDataWithPreparseData : public UncompiledData {
 
   // Layout description.
 
-#define UNCOMPILED_DATA_WITH_PRE_PARSED_SCOPE_FIELDS(V) \
-  V(kStartOfPointerFieldsOffset, 0)                     \
-  V(kPreparseDataOffset, kTaggedSize)                   \
-  V(kEndOfTaggedFieldsOffset, 0)                        \
-  /* Total size. */                                     \
+#define UNCOMPILED_DATA_WITH_PREPARSE_DATA_FIELDS(V) \
+  V(kStartOfPointerFieldsOffset, 0)                  \
+  V(kPreparseDataOffset, kTaggedSize)                \
+  V(kEndOfTaggedFieldsOffset, 0)                     \
+  /* Total size. */                                  \
   V(kSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(UncompiledData::kSize,
-                                UNCOMPILED_DATA_WITH_PRE_PARSED_SCOPE_FIELDS)
-#undef UNCOMPILED_DATA_WITH_PRE_PARSED_SCOPE_FIELDS
+                                UNCOMPILED_DATA_WITH_PREPARSE_DATA_FIELDS)
+#undef UNCOMPILED_DATA_WITH_PREPARSE_DATA_FIELDS
 
   // Make sure the size is aligned
   STATIC_ASSERT(kSize == POINTER_SIZE_ALIGN(kSize));

@@ -239,7 +239,7 @@ enum InstanceType : uint16_t {
   FEEDBACK_CELL_TYPE,
   FEEDBACK_VECTOR_TYPE,
   LOAD_HANDLER_TYPE,
-  PRE_PARSED_SCOPE_DATA_TYPE,
+  PREPARSE_DATA_TYPE,
   PROPERTY_ARRAY_TYPE,
   PROPERTY_CELL_TYPE,
   SHARED_FUNCTION_INFO_TYPE,
@@ -247,8 +247,8 @@ enum InstanceType : uint16_t {
   SMALL_ORDERED_HASH_SET_TYPE,
   SMALL_ORDERED_NAME_DICTIONARY_TYPE,
   STORE_HANDLER_TYPE,
-  UNCOMPILED_DATA_WITHOUT_PRE_PARSED_SCOPE_TYPE,
-  UNCOMPILED_DATA_WITH_PRE_PARSED_SCOPE_TYPE,
+  UNCOMPILED_DATA_WITHOUT_PREPARSE_DATA_TYPE,
+  UNCOMPILED_DATA_WITH_PREPARSE_DATA_TYPE,
   WEAK_ARRAY_LIST_TYPE,
 
   // All the following types are subtypes of JSReceiver, which corresponds to
@@ -402,102 +402,101 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
                                            InstanceType instance_type);
 
 // List of object types that have a single unique instance type.
-#define INSTANCE_TYPE_CHECKERS_SINGLE_BASE(V)                            \
-  V(AllocationSite, ALLOCATION_SITE_TYPE)                                \
-  V(BigInt, BIGINT_TYPE)                                                 \
-  V(ObjectBoilerplateDescription, OBJECT_BOILERPLATE_DESCRIPTION_TYPE)   \
-  V(BreakPoint, TUPLE2_TYPE)                                             \
-  V(BreakPointInfo, TUPLE2_TYPE)                                         \
-  V(ByteArray, BYTE_ARRAY_TYPE)                                          \
-  V(BytecodeArray, BYTECODE_ARRAY_TYPE)                                  \
-  V(CallHandlerInfo, CALL_HANDLER_INFO_TYPE)                             \
-  V(Cell, CELL_TYPE)                                                     \
-  V(Code, CODE_TYPE)                                                     \
-  V(CodeDataContainer, CODE_DATA_CONTAINER_TYPE)                         \
-  V(CoverageInfo, FIXED_ARRAY_TYPE)                                      \
-  V(DescriptorArray, DESCRIPTOR_ARRAY_TYPE)                              \
-  V(EmbedderDataArray, EMBEDDER_DATA_ARRAY_TYPE)                         \
-  V(EphemeronHashTable, EPHEMERON_HASH_TABLE_TYPE)                       \
-  V(FeedbackCell, FEEDBACK_CELL_TYPE)                                    \
-  V(FeedbackMetadata, FEEDBACK_METADATA_TYPE)                            \
-  V(FeedbackVector, FEEDBACK_VECTOR_TYPE)                                \
-  V(FixedArrayExact, FIXED_ARRAY_TYPE)                                   \
-  V(FixedDoubleArray, FIXED_DOUBLE_ARRAY_TYPE)                           \
-  V(Foreign, FOREIGN_TYPE)                                               \
-  V(FreeSpace, FREE_SPACE_TYPE)                                          \
-  V(GlobalDictionary, GLOBAL_DICTIONARY_TYPE)                            \
-  V(HeapNumber, HEAP_NUMBER_TYPE)                                        \
-  V(JSArgumentsObject, JS_ARGUMENTS_TYPE)                                \
-  V(JSArgumentsObjectWithLength, JS_ARGUMENTS_TYPE)                      \
-  V(JSArray, JS_ARRAY_TYPE)                                              \
-  V(JSArrayBuffer, JS_ARRAY_BUFFER_TYPE)                                 \
-  V(JSArrayIterator, JS_ARRAY_ITERATOR_TYPE)                             \
-  V(JSAsyncFromSyncIterator, JS_ASYNC_FROM_SYNC_ITERATOR_TYPE)           \
-  V(JSAsyncFunctionObject, JS_ASYNC_FUNCTION_OBJECT_TYPE)                \
-  V(JSAsyncGeneratorObject, JS_ASYNC_GENERATOR_OBJECT_TYPE)              \
-  V(JSBoundFunction, JS_BOUND_FUNCTION_TYPE)                             \
-  V(JSContextExtensionObject, JS_CONTEXT_EXTENSION_OBJECT_TYPE)          \
-  V(JSDataView, JS_DATA_VIEW_TYPE)                                       \
-  V(JSDate, JS_DATE_TYPE)                                                \
-  V(JSError, JS_ERROR_TYPE)                                              \
-  V(JSFunction, JS_FUNCTION_TYPE)                                        \
-  V(JSGlobalObject, JS_GLOBAL_OBJECT_TYPE)                               \
-  V(JSGlobalProxy, JS_GLOBAL_PROXY_TYPE)                                 \
-  V(JSMap, JS_MAP_TYPE)                                                  \
-  V(JSMessageObject, JS_MESSAGE_OBJECT_TYPE)                             \
-  V(JSModuleNamespace, JS_MODULE_NAMESPACE_TYPE)                         \
-  V(JSPromise, JS_PROMISE_TYPE)                                          \
-  V(JSProxy, JS_PROXY_TYPE)                                              \
-  V(JSRegExp, JS_REGEXP_TYPE)                                            \
-  V(JSRegExpResult, JS_ARRAY_TYPE)                                       \
-  V(JSRegExpStringIterator, JS_REGEXP_STRING_ITERATOR_TYPE)              \
-  V(JSSet, JS_SET_TYPE)                                                  \
-  V(JSStringIterator, JS_STRING_ITERATOR_TYPE)                           \
-  V(JSTypedArray, JS_TYPED_ARRAY_TYPE)                                   \
-  V(JSValue, JS_VALUE_TYPE)                                              \
-  V(JSWeakFactory, JS_WEAK_FACTORY_TYPE)                                 \
-  V(JSWeakFactoryCleanupIterator, JS_WEAK_FACTORY_CLEANUP_ITERATOR_TYPE) \
-  V(JSWeakCell, JS_WEAK_CELL_TYPE)                                       \
-  V(JSWeakMap, JS_WEAK_MAP_TYPE)                                         \
-  V(JSWeakRef, JS_WEAK_REF_TYPE)                                         \
-  V(JSWeakSet, JS_WEAK_SET_TYPE)                                         \
-  V(LoadHandler, LOAD_HANDLER_TYPE)                                      \
-  V(Map, MAP_TYPE)                                                       \
-  V(MutableHeapNumber, MUTABLE_HEAP_NUMBER_TYPE)                         \
-  V(NameDictionary, NAME_DICTIONARY_TYPE)                                \
-  V(NativeContext, NATIVE_CONTEXT_TYPE)                                  \
-  V(NumberDictionary, NUMBER_DICTIONARY_TYPE)                            \
-  V(Oddball, ODDBALL_TYPE)                                               \
-  V(OrderedHashMap, ORDERED_HASH_MAP_TYPE)                               \
-  V(OrderedHashSet, ORDERED_HASH_SET_TYPE)                               \
-  V(OrderedNameDictionary, ORDERED_NAME_DICTIONARY_TYPE)                 \
-  V(PreparseData, PRE_PARSED_SCOPE_DATA_TYPE)                            \
-  V(PropertyArray, PROPERTY_ARRAY_TYPE)                                  \
-  V(PropertyCell, PROPERTY_CELL_TYPE)                                    \
-  V(PropertyDescriptorObject, FIXED_ARRAY_TYPE)                          \
-  V(ScopeInfo, SCOPE_INFO_TYPE)                                          \
-  V(ScriptContextTable, SCRIPT_CONTEXT_TABLE_TYPE)                       \
-  V(SharedFunctionInfo, SHARED_FUNCTION_INFO_TYPE)                       \
-  V(SimpleNumberDictionary, SIMPLE_NUMBER_DICTIONARY_TYPE)               \
-  V(SmallOrderedHashMap, SMALL_ORDERED_HASH_MAP_TYPE)                    \
-  V(SmallOrderedHashSet, SMALL_ORDERED_HASH_SET_TYPE)                    \
-  V(SmallOrderedNameDictionary, SMALL_ORDERED_NAME_DICTIONARY_TYPE)      \
-  V(SourcePositionTableWithFrameCache, TUPLE2_TYPE)                      \
-  V(StoreHandler, STORE_HANDLER_TYPE)                                    \
-  V(StringTable, STRING_TABLE_TYPE)                                      \
-  V(Symbol, SYMBOL_TYPE)                                                 \
-  V(TemplateObjectDescription, TUPLE2_TYPE)                              \
-  V(TransitionArray, TRANSITION_ARRAY_TYPE)                              \
-  V(UncompiledDataWithoutPreparseData,                                   \
-    UNCOMPILED_DATA_WITHOUT_PRE_PARSED_SCOPE_TYPE)                       \
-  V(UncompiledDataWithPreparseData,                                      \
-    UNCOMPILED_DATA_WITH_PRE_PARSED_SCOPE_TYPE)                          \
-  V(WasmExceptionObject, WASM_EXCEPTION_TYPE)                            \
-  V(WasmGlobalObject, WASM_GLOBAL_TYPE)                                  \
-  V(WasmInstanceObject, WASM_INSTANCE_TYPE)                              \
-  V(WasmMemoryObject, WASM_MEMORY_TYPE)                                  \
-  V(WasmModuleObject, WASM_MODULE_TYPE)                                  \
-  V(WasmTableObject, WASM_TABLE_TYPE)                                    \
+#define INSTANCE_TYPE_CHECKERS_SINGLE_BASE(V)                                \
+  V(AllocationSite, ALLOCATION_SITE_TYPE)                                    \
+  V(BigInt, BIGINT_TYPE)                                                     \
+  V(ObjectBoilerplateDescription, OBJECT_BOILERPLATE_DESCRIPTION_TYPE)       \
+  V(BreakPoint, TUPLE2_TYPE)                                                 \
+  V(BreakPointInfo, TUPLE2_TYPE)                                             \
+  V(ByteArray, BYTE_ARRAY_TYPE)                                              \
+  V(BytecodeArray, BYTECODE_ARRAY_TYPE)                                      \
+  V(CallHandlerInfo, CALL_HANDLER_INFO_TYPE)                                 \
+  V(Cell, CELL_TYPE)                                                         \
+  V(Code, CODE_TYPE)                                                         \
+  V(CodeDataContainer, CODE_DATA_CONTAINER_TYPE)                             \
+  V(CoverageInfo, FIXED_ARRAY_TYPE)                                          \
+  V(DescriptorArray, DESCRIPTOR_ARRAY_TYPE)                                  \
+  V(EmbedderDataArray, EMBEDDER_DATA_ARRAY_TYPE)                             \
+  V(EphemeronHashTable, EPHEMERON_HASH_TABLE_TYPE)                           \
+  V(FeedbackCell, FEEDBACK_CELL_TYPE)                                        \
+  V(FeedbackMetadata, FEEDBACK_METADATA_TYPE)                                \
+  V(FeedbackVector, FEEDBACK_VECTOR_TYPE)                                    \
+  V(FixedArrayExact, FIXED_ARRAY_TYPE)                                       \
+  V(FixedDoubleArray, FIXED_DOUBLE_ARRAY_TYPE)                               \
+  V(Foreign, FOREIGN_TYPE)                                                   \
+  V(FreeSpace, FREE_SPACE_TYPE)                                              \
+  V(GlobalDictionary, GLOBAL_DICTIONARY_TYPE)                                \
+  V(HeapNumber, HEAP_NUMBER_TYPE)                                            \
+  V(JSArgumentsObject, JS_ARGUMENTS_TYPE)                                    \
+  V(JSArgumentsObjectWithLength, JS_ARGUMENTS_TYPE)                          \
+  V(JSArray, JS_ARRAY_TYPE)                                                  \
+  V(JSArrayBuffer, JS_ARRAY_BUFFER_TYPE)                                     \
+  V(JSArrayIterator, JS_ARRAY_ITERATOR_TYPE)                                 \
+  V(JSAsyncFromSyncIterator, JS_ASYNC_FROM_SYNC_ITERATOR_TYPE)               \
+  V(JSAsyncFunctionObject, JS_ASYNC_FUNCTION_OBJECT_TYPE)                    \
+  V(JSAsyncGeneratorObject, JS_ASYNC_GENERATOR_OBJECT_TYPE)                  \
+  V(JSBoundFunction, JS_BOUND_FUNCTION_TYPE)                                 \
+  V(JSContextExtensionObject, JS_CONTEXT_EXTENSION_OBJECT_TYPE)              \
+  V(JSDataView, JS_DATA_VIEW_TYPE)                                           \
+  V(JSDate, JS_DATE_TYPE)                                                    \
+  V(JSError, JS_ERROR_TYPE)                                                  \
+  V(JSFunction, JS_FUNCTION_TYPE)                                            \
+  V(JSGlobalObject, JS_GLOBAL_OBJECT_TYPE)                                   \
+  V(JSGlobalProxy, JS_GLOBAL_PROXY_TYPE)                                     \
+  V(JSMap, JS_MAP_TYPE)                                                      \
+  V(JSMessageObject, JS_MESSAGE_OBJECT_TYPE)                                 \
+  V(JSModuleNamespace, JS_MODULE_NAMESPACE_TYPE)                             \
+  V(JSPromise, JS_PROMISE_TYPE)                                              \
+  V(JSProxy, JS_PROXY_TYPE)                                                  \
+  V(JSRegExp, JS_REGEXP_TYPE)                                                \
+  V(JSRegExpResult, JS_ARRAY_TYPE)                                           \
+  V(JSRegExpStringIterator, JS_REGEXP_STRING_ITERATOR_TYPE)                  \
+  V(JSSet, JS_SET_TYPE)                                                      \
+  V(JSStringIterator, JS_STRING_ITERATOR_TYPE)                               \
+  V(JSTypedArray, JS_TYPED_ARRAY_TYPE)                                       \
+  V(JSValue, JS_VALUE_TYPE)                                                  \
+  V(JSWeakFactory, JS_WEAK_FACTORY_TYPE)                                     \
+  V(JSWeakFactoryCleanupIterator, JS_WEAK_FACTORY_CLEANUP_ITERATOR_TYPE)     \
+  V(JSWeakCell, JS_WEAK_CELL_TYPE)                                           \
+  V(JSWeakMap, JS_WEAK_MAP_TYPE)                                             \
+  V(JSWeakRef, JS_WEAK_REF_TYPE)                                             \
+  V(JSWeakSet, JS_WEAK_SET_TYPE)                                             \
+  V(LoadHandler, LOAD_HANDLER_TYPE)                                          \
+  V(Map, MAP_TYPE)                                                           \
+  V(MutableHeapNumber, MUTABLE_HEAP_NUMBER_TYPE)                             \
+  V(NameDictionary, NAME_DICTIONARY_TYPE)                                    \
+  V(NativeContext, NATIVE_CONTEXT_TYPE)                                      \
+  V(NumberDictionary, NUMBER_DICTIONARY_TYPE)                                \
+  V(Oddball, ODDBALL_TYPE)                                                   \
+  V(OrderedHashMap, ORDERED_HASH_MAP_TYPE)                                   \
+  V(OrderedHashSet, ORDERED_HASH_SET_TYPE)                                   \
+  V(OrderedNameDictionary, ORDERED_NAME_DICTIONARY_TYPE)                     \
+  V(PreparseData, PREPARSE_DATA_TYPE)                                        \
+  V(PropertyArray, PROPERTY_ARRAY_TYPE)                                      \
+  V(PropertyCell, PROPERTY_CELL_TYPE)                                        \
+  V(PropertyDescriptorObject, FIXED_ARRAY_TYPE)                              \
+  V(ScopeInfo, SCOPE_INFO_TYPE)                                              \
+  V(ScriptContextTable, SCRIPT_CONTEXT_TABLE_TYPE)                           \
+  V(SharedFunctionInfo, SHARED_FUNCTION_INFO_TYPE)                           \
+  V(SimpleNumberDictionary, SIMPLE_NUMBER_DICTIONARY_TYPE)                   \
+  V(SmallOrderedHashMap, SMALL_ORDERED_HASH_MAP_TYPE)                        \
+  V(SmallOrderedHashSet, SMALL_ORDERED_HASH_SET_TYPE)                        \
+  V(SmallOrderedNameDictionary, SMALL_ORDERED_NAME_DICTIONARY_TYPE)          \
+  V(SourcePositionTableWithFrameCache, TUPLE2_TYPE)                          \
+  V(StoreHandler, STORE_HANDLER_TYPE)                                        \
+  V(StringTable, STRING_TABLE_TYPE)                                          \
+  V(Symbol, SYMBOL_TYPE)                                                     \
+  V(TemplateObjectDescription, TUPLE2_TYPE)                                  \
+  V(TransitionArray, TRANSITION_ARRAY_TYPE)                                  \
+  V(UncompiledDataWithoutPreparseData,                                       \
+    UNCOMPILED_DATA_WITHOUT_PREPARSE_DATA_TYPE)                              \
+  V(UncompiledDataWithPreparseData, UNCOMPILED_DATA_WITH_PREPARSE_DATA_TYPE) \
+  V(WasmExceptionObject, WASM_EXCEPTION_TYPE)                                \
+  V(WasmGlobalObject, WASM_GLOBAL_TYPE)                                      \
+  V(WasmInstanceObject, WASM_INSTANCE_TYPE)                                  \
+  V(WasmMemoryObject, WASM_MEMORY_TYPE)                                      \
+  V(WasmModuleObject, WASM_MODULE_TYPE)                                      \
+  V(WasmTableObject, WASM_TABLE_TYPE)                                        \
   V(WeakArrayList, WEAK_ARRAY_LIST_TYPE)
 #ifdef V8_INTL_SUPPORT
 

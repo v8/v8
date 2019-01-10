@@ -367,14 +367,14 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
     case FOREIGN_TYPE:
       Foreign::cast(*this)->ForeignVerify(isolate);
       break;
-    case PRE_PARSED_SCOPE_DATA_TYPE:
+    case PREPARSE_DATA_TYPE:
       PreparseData::cast(*this)->PreparseDataVerify(isolate);
       break;
-    case UNCOMPILED_DATA_WITHOUT_PRE_PARSED_SCOPE_TYPE:
+    case UNCOMPILED_DATA_WITHOUT_PREPARSE_DATA_TYPE:
       UncompiledDataWithoutPreparseData::cast(*this)
           ->UncompiledDataWithoutPreparseDataVerify(isolate);
       break;
-    case UNCOMPILED_DATA_WITH_PRE_PARSED_SCOPE_TYPE:
+    case UNCOMPILED_DATA_WITH_PREPARSE_DATA_TYPE:
       UncompiledDataWithPreparseData::cast(*this)
           ->UncompiledDataWithPreparseDataVerify(isolate);
       break;

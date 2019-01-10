@@ -1083,7 +1083,7 @@ int HeapObject::SizeFromMap(Map map) const {
   if (instance_type == BIGINT_TYPE) {
     return BigInt::SizeFor(BigInt::unchecked_cast(*this)->length());
   }
-  if (instance_type == PRE_PARSED_SCOPE_DATA_TYPE) {
+  if (instance_type == PREPARSE_DATA_TYPE) {
     return PreparseData::SizeFor(PreparseData::unchecked_cast(*this)->length());
   }
   if (instance_type == CODE_TYPE) {

@@ -13357,8 +13357,8 @@ TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
   int32_t case_values[] = {BYTECODE_ARRAY_TYPE,
                            WASM_EXPORTED_FUNCTION_DATA_TYPE,
                            ASM_WASM_DATA_TYPE,
-                           UNCOMPILED_DATA_WITHOUT_PRE_PARSED_SCOPE_TYPE,
-                           UNCOMPILED_DATA_WITH_PRE_PARSED_SCOPE_TYPE,
+                           UNCOMPILED_DATA_WITHOUT_PREPARSE_DATA_TYPE,
+                           UNCOMPILED_DATA_WITH_PREPARSE_DATA_TYPE,
                            FUNCTION_TEMPLATE_INFO_TYPE};
   Label check_is_bytecode_array(this);
   Label check_is_exported_function_data(this);

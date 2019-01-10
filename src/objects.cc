@@ -3232,13 +3232,13 @@ VisitorId Map::GetVisitorId(Map map) {
     case WASM_INSTANCE_TYPE:
       return kVisitWasmInstanceObject;
 
-    case PRE_PARSED_SCOPE_DATA_TYPE:
+    case PREPARSE_DATA_TYPE:
       return kVisitPreparseData;
 
-    case UNCOMPILED_DATA_WITHOUT_PRE_PARSED_SCOPE_TYPE:
+    case UNCOMPILED_DATA_WITHOUT_PREPARSE_DATA_TYPE:
       return kVisitUncompiledDataWithoutPreparseData;
 
-    case UNCOMPILED_DATA_WITH_PRE_PARSED_SCOPE_TYPE:
+    case UNCOMPILED_DATA_WITH_PREPARSE_DATA_TYPE:
       return kVisitUncompiledDataWithPreparseData;
 
     case JS_OBJECT_TYPE:
@@ -3598,13 +3598,13 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
       TYPED_ARRAYS(TYPED_ARRAY_SHORT_PRINT)
 #undef TYPED_ARRAY_SHORT_PRINT
 
-    case PRE_PARSED_SCOPE_DATA_TYPE: {
+    case PREPARSE_DATA_TYPE: {
       PreparseData data = PreparseData::cast(*this);
       os << "<PreparseData[" << data->length() << "]>";
       break;
     }
 
-    case UNCOMPILED_DATA_WITHOUT_PRE_PARSED_SCOPE_TYPE: {
+    case UNCOMPILED_DATA_WITHOUT_PREPARSE_DATA_TYPE: {
       UncompiledDataWithoutPreparseData data =
           UncompiledDataWithoutPreparseData::cast(*this);
       os << "<UncompiledDataWithoutPreparseData (" << data->start_position()
@@ -3612,7 +3612,7 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
       break;
     }
 
-    case UNCOMPILED_DATA_WITH_PRE_PARSED_SCOPE_TYPE: {
+    case UNCOMPILED_DATA_WITH_PREPARSE_DATA_TYPE: {
       UncompiledDataWithPreparseData data =
           UncompiledDataWithPreparseData::cast(*this);
       os << "<UncompiledDataWithPreparseData (" << data->start_position()

@@ -164,7 +164,7 @@ namespace internal {
   V(FEEDBACK_CELL_TYPE)                                            \
   V(FEEDBACK_VECTOR_TYPE)                                          \
   V(LOAD_HANDLER_TYPE)                                             \
-  V(PRE_PARSED_SCOPE_DATA_TYPE)                                    \
+  V(PREPARSE_DATA_TYPE)                                            \
   V(PROPERTY_ARRAY_TYPE)                                           \
   V(PROPERTY_CELL_TYPE)                                            \
   V(SHARED_FUNCTION_INFO_TYPE)                                     \
@@ -172,8 +172,8 @@ namespace internal {
   V(SMALL_ORDERED_HASH_SET_TYPE)                                   \
   V(SMALL_ORDERED_NAME_DICTIONARY_TYPE)                            \
   V(STORE_HANDLER_TYPE)                                            \
-  V(UNCOMPILED_DATA_WITHOUT_PRE_PARSED_SCOPE_TYPE)                 \
-  V(UNCOMPILED_DATA_WITH_PRE_PARSED_SCOPE_TYPE)                    \
+  V(UNCOMPILED_DATA_WITHOUT_PREPARSE_DATA_TYPE)                    \
+  V(UNCOMPILED_DATA_WITH_PREPARSE_DATA_TYPE)                       \
   V(WEAK_ARRAY_LIST_TYPE)                                          \
                                                                    \
   V(JS_PROXY_TYPE)                                                 \
