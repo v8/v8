@@ -1032,10 +1032,10 @@ void AstPrinter::VisitFunctionLiteral(FunctionLiteral* node) {
   IndentedScope indent(this, "FUNC LITERAL", node->position());
   PrintLiteralIndented("NAME", node->raw_name(), false);
   PrintLiteralIndented("INFERRED NAME", node->raw_inferred_name(), false);
-  PrintParameters(node->scope());
   // We don't want to see the function literal in this case: it
   // will be printed via PrintProgram when the code for it is
   // generated.
+  // PrintParameters(node->scope());
   // PrintStatements(node->body());
 }
 

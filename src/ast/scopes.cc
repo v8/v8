@@ -147,13 +147,6 @@ DeclarationScope::DeclarationScope(Zone* zone, Scope* outer_scope,
   SetDefaults();
 }
 
-bool DeclarationScope::IsDeclaredParameter(const AstRawString* name) {
-  // If IsSimpleParameterList is false, duplicate parameters are not allowed,
-  // however `arguments` may be allowed if function is not strict code. Thus,
-  // the assumptions explained above do not hold.
-  return params_.Contains(variables_.Lookup(name));
-}
-
 ModuleScope::ModuleScope(DeclarationScope* script_scope,
                          AstValueFactory* ast_value_factory)
     : DeclarationScope(ast_value_factory->zone(), script_scope, MODULE_SCOPE,
@@ -484,7 +477,11 @@ void DeclarationScope::HoistSloppyBlockFunctions(AstNodeFactory* factory) {
   SloppyBlockFunctionMap* map = sloppy_block_function_map();
   if (map == nullptr) return;
 
-  const bool has_simple_parameters = HasSimpleParameters();
+  // In case of complex parameters the current scope is the body scope and the
+  // parameters are stored in the outer scope.
+  Scope* parameter_scope = HasSimpleParameters() ? this : outer_scope_;
+  DCHECK(parameter_scope->is_function_scope() || is_eval_scope() ||
+         is_script_scope());
 
   // The declarations need to be added in the order they were seen,
   // so accumulate declared names sorted by index.
@@ -499,21 +496,9 @@ void DeclarationScope::HoistSloppyBlockFunctions(AstNodeFactory* factory) {
     // or parameter,
 
     // Check if there's a conflict with a parameter.
-    // This depends on the fact that functions always have a scope solely to
-    // hold complex parameters, and the names local to that scope are
-    // precisely the names of the parameters. IsDeclaredParameter(name) does
-    // not hold for names declared by complex parameters, nor are those
-    // bindings necessarily declared lexically, so we have to check for them
-    // explicitly. On the other hand, if there are not complex parameters,
-    // it is sufficient to just check IsDeclaredParameter.
-    if (!has_simple_parameters) {
-      if (outer_scope_->LookupLocal(name) != nullptr) {
-        continue;
-      }
-    } else {
-      if (IsDeclaredParameter(name)) {
-        continue;
-      }
+    Variable* maybe_parameter = parameter_scope->LookupLocal(name);
+    if (maybe_parameter != nullptr && maybe_parameter->is_parameter()) {
+      continue;
     }
 
     bool declaration_queued = false;
@@ -580,7 +565,7 @@ void DeclarationScope::HoistSloppyBlockFunctions(AstNodeFactory* factory) {
       // Based on the preceding checks, it doesn't matter what we pass as
       // sloppy_mode_block_scope_function_redefinition.
       bool ok = true;
-      DeclareVariable(declaration, VariableMode::kVar,
+      DeclareVariable(declaration, VariableMode::kVar, NORMAL_VARIABLE,
                       Variable::DefaultInitializationFlag(VariableMode::kVar),
                       nullptr, &ok);
       DCHECK(ok);
@@ -937,11 +922,12 @@ Variable* DeclarationScope::DeclareParameter(const AstRawString* name,
     var = NewTemporary(name);
   } else {
     DCHECK_EQ(mode, VariableMode::kVar);
-    var = Declare(zone(), name, mode);
+    var = Declare(zone(), name, mode, PARAMETER_VARIABLE);
   }
   has_rest_ = is_rest;
   var->set_initializer_position(position);
   params_.Add(var, zone());
+  if (!is_rest) ++num_parameters_;
   if (name == ast_value_factory->arguments_string()) {
     has_arguments_parameter_ = true;
   }
@@ -953,37 +939,31 @@ Variable* DeclarationScope::DeclareParameter(const AstRawString* name,
   return var;
 }
 
-Variable* DeclarationScope::DeclareParameterName(
-    const AstRawString* name, bool is_rest, AstValueFactory* ast_value_factory,
-    bool declare_as_local, bool add_parameter) {
+void DeclarationScope::RecordParameter(bool is_rest) {
   DCHECK(!already_resolved_);
   DCHECK(is_function_scope() || is_module_scope());
-  DCHECK(!has_rest_ || is_rest);
   DCHECK(is_being_lazily_parsed_);
+  DCHECK(!has_rest_);
   has_rest_ = is_rest;
-  if (name == ast_value_factory->arguments_string()) {
-    has_arguments_parameter_ = true;
-  }
-  Variable* var;
-  if (declare_as_local) {
-    var = Declare(zone(), name, VariableMode::kVar);
-  } else {
-    var = new (zone()) Variable(this, name, VariableMode::kTemporary,
-                                NORMAL_VARIABLE, kCreatedInitialized);
-  }
-  if (add_parameter) {
-    params_.Add(var, zone());
-  }
+  if (!is_rest) ++num_parameters_;
+}
+
+void DeclarationScope::DeclareParameterName(const AstRawString* name) {
+  DCHECK(!already_resolved_);
+  DCHECK(is_function_scope() || is_module_scope());
+  DCHECK(is_being_lazily_parsed_);
+  // The resulting variable isn't added to params. In the case of non-simple
+  // params, a dummy temp variable is added in AddNonSimpleParameterTemp.
+  Variable* var = Declare(zone(), name, VariableMode::kVar, PARAMETER_VARIABLE);
   // Params are automatically marked as used to make sure that the debugger and
   // function.arguments sees them.
   // TODO(verwaest): Reevaluate whether we always need to do this, since
   // strict-mode function.arguments does not make the arguments available.
   var->set_is_used();
-  return var;
 }
 
 Variable* Scope::DeclareLocal(const AstRawString* name, VariableMode mode,
-                              InitializationFlag init_flag) {
+                              VariableKind kind, InitializationFlag init_flag) {
   DCHECK(!already_resolved_);
   // This function handles VariableMode::kVar, VariableMode::kLet, and
   // VariableMode::kConst modes.  VariableMode::kDynamic variables are
@@ -994,11 +974,11 @@ Variable* Scope::DeclareLocal(const AstRawString* name, VariableMode mode,
                  mode == VariableMode::kVar || mode == VariableMode::kLet ||
                      mode == VariableMode::kConst);
   DCHECK(!GetDeclarationScope()->was_lazily_parsed());
-  return Declare(zone(), name, mode, NORMAL_VARIABLE, init_flag);
+  return Declare(zone(), name, mode, kind, init_flag);
 }
 
 void Scope::DeclareVariable(Declaration* declaration, VariableMode mode,
-                            InitializationFlag init,
+                            VariableKind kind, InitializationFlag init,
                             bool* sloppy_mode_block_scope_function_redefinition,
                             bool* ok) {
   DCHECK(IsDeclaredVariableMode(mode));
@@ -1008,8 +988,8 @@ void Scope::DeclareVariable(Declaration* declaration, VariableMode mode,
 
   if (mode == VariableMode::kVar && !is_declaration_scope()) {
     return GetDeclarationScope()->DeclareVariable(
-        declaration, mode, init, sloppy_mode_block_scope_function_redefinition,
-        ok);
+        declaration, mode, kind, init,
+        sloppy_mode_block_scope_function_redefinition, ok);
   }
   DCHECK(!is_catch_scope());
   DCHECK(!is_with_scope());
@@ -1040,12 +1020,12 @@ void Scope::DeclareVariable(Declaration* declaration, VariableMode mode,
       // with this new binding by doing the following:
       // The proxy is bound to a lookup variable to force a dynamic declaration
       // using the DeclareEvalVar or DeclareEvalFunction runtime functions.
-      var = new (zone())
-          Variable(this, name, mode, NORMAL_VARIABLE, init, kMaybeAssigned);
+      DCHECK_EQ(NORMAL_VARIABLE, kind);
+      var = new (zone()) Variable(this, name, mode, kind, init, kMaybeAssigned);
       var->AllocateTo(VariableLocation::LOOKUP, -1);
     } else {
       // Declare the name.
-      var = DeclareLocal(name, mode, init);
+      var = DeclareLocal(name, mode, kind, init);
     }
   } else {
     var->set_maybe_assigned();
@@ -1600,10 +1580,11 @@ void DeclarationScope::PrintParameters() {
   for (int i = 0; i < params_.length(); i++) {
     if (i > 0) PrintF(", ");
     const AstRawString* name = params_[i]->raw_name();
-    if (name->IsEmpty())
+    if (name->IsEmpty()) {
       PrintF(".%p", reinterpret_cast<void*>(params_[i]));
-    else
+    } else {
       PrintName(name);
+    }
   }
   PrintF(")");
 }
@@ -2122,6 +2103,7 @@ void DeclarationScope::AllocateParameterLocals() {
   // order is relevant!
   for (int i = num_parameters() - 1; i >= 0; --i) {
     Variable* var = params_[i];
+    DCHECK_NOT_NULL(var);
     DCHECK(!has_rest_ || var != rest_parameter());
     DCHECK_EQ(this, var->scope());
     if (has_mapped_arguments) {

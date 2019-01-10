@@ -3314,8 +3314,6 @@ template <typename Impl>
 void ParserBase<Impl>::ParseFormalParameter(FormalParametersT* parameters) {
   // FormalParameter[Yield,GeneratorParameter] :
   //   BindingElement[?Yield, ?GeneratorParameter]
-  bool is_rest = parameters->has_rest;
-
   FuncNameInferrerState fni_state(&fni_);
   int pos = peek_position();
   ExpressionT pattern = ParseBindingPattern();
@@ -3329,7 +3327,7 @@ void ParserBase<Impl>::ParseFormalParameter(FormalParametersT* parameters) {
   if (Check(Token::ASSIGN)) {
     parameters->is_simple = false;
 
-    if (is_rest) {
+    if (parameters->has_rest) {
       ReportMessage(MessageTemplate::kRestDefaultInitializer);
       return;
     }
@@ -3340,7 +3338,7 @@ void ParserBase<Impl>::ParseFormalParameter(FormalParametersT* parameters) {
   }
 
   impl()->AddFormalParameter(parameters, pattern, initializer, end_position(),
-                             is_rest);
+                             parameters->has_rest);
 }
 
 template <typename Impl>

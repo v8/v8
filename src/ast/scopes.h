@@ -221,10 +221,11 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // Declare a local variable in this scope. If the variable has been
   // declared before, the previously declared variable is returned.
   Variable* DeclareLocal(const AstRawString* name, VariableMode mode,
+                         VariableKind kind = NORMAL_VARIABLE,
                          InitializationFlag init_flag = kCreatedInitialized);
 
   void DeclareVariable(Declaration* declaration, VariableMode mode,
-                       InitializationFlag init,
+                       VariableKind kind, InitializationFlag init,
                        bool* sloppy_mode_block_scope_function_redefinition,
                        bool* ok);
 
@@ -723,8 +724,6 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   // Creates a script scope.
   DeclarationScope(Zone* zone, AstValueFactory* ast_value_factory);
 
-  bool IsDeclaredParameter(const AstRawString* name);
-
   FunctionKind function_kind() const { return function_kind_; }
 
   bool is_arrow_scope() const {
@@ -815,11 +814,10 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
                              bool is_optional, bool is_rest,
                              AstValueFactory* ast_value_factory, int position);
 
-  // Declares that a parameter with the name exists. Creates a Variable and
-  // returns it if FLAG_preparser_scope_analysis is on.
-  Variable* DeclareParameterName(const AstRawString* name, bool is_rest,
-                                 AstValueFactory* ast_value_factory,
-                                 bool declare_local, bool add_parameter);
+  // Declares that a parameter with the name exists. Creates a Variable.
+  void DeclareParameterName(const AstRawString* name);
+  // Makes sure that num_parameters_ and has_rest is correct for the preparser.
+  void RecordParameter(bool is_rest);
 
   // Declare an implicit global variable in this scope which must be a
   // script scope.  The variable was introduced (possibly from an inner
@@ -861,6 +859,7 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   // Only valid for function and module scopes.
   Variable* parameter(int index) const {
     DCHECK(is_function_scope() || is_module_scope());
+    DCHECK(!is_being_lazily_parsed_);
     return params_[index];
   }
 
@@ -869,9 +868,7 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   //   function foo(a, b) {}         ==> 2
   //   function foo(a, b, ...c) {}   ==> 2
   //   function foo(a, b, c = 1) {}  ==> 3
-  int num_parameters() const {
-    return has_rest_ ? params_.length() - 1 : params_.length();
-  }
+  int num_parameters() const { return num_parameters_; }
 
   // The function's rest parameter (nullptr if there is none).
   Variable* rest_parameter() const {
@@ -1048,6 +1045,8 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
 #endif
   bool is_skipped_function_ : 1;
   bool has_inferred_function_name_ : 1;
+
+  int num_parameters_ = 0;
 
   // If the scope is a function scope, this is the function kind.
   const FunctionKind function_kind_;

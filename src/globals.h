@@ -1091,6 +1091,7 @@ inline const char* VariableMode2String(VariableMode mode) {
 
 enum VariableKind : uint8_t {
   NORMAL_VARIABLE,
+  PARAMETER_VARIABLE,
   THIS_VARIABLE,
   SLOPPY_FUNCTION_NAME_VARIABLE
 };

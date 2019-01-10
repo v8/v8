@@ -1372,9 +1372,11 @@ void Parser::Declare(Declaration* declaration,
                      int var_end_pos) {
   bool local_ok = true;
   bool sloppy_mode_block_scope_function_redefinition = false;
-  scope->DeclareVariable(declaration, mode, init,
-                         &sloppy_mode_block_scope_function_redefinition,
-                         &local_ok);
+  scope->DeclareVariable(
+      declaration, mode,
+      declaration_kind == DeclarationDescriptor::PARAMETER ? PARAMETER_VARIABLE
+                                                           : NORMAL_VARIABLE,
+      init, &sloppy_mode_block_scope_function_redefinition, &local_ok);
   if (!local_ok) {
     // If we only have the start position of a proxy, we can't highlight the
     // whole variable name.  Pretend its length is 1 so that we highlight at
