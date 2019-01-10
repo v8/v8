@@ -544,7 +544,10 @@ void MemoryChunk::InitializationMemoryFence() {
 #endif
 }
 
-void MemoryChunk::SetReadAndExecutable() {
+void MemoryChunk::DecrementWriteUnprotectCounterAndMaybeSetPermissions(
+    PageAllocator::Permission permission) {
+  DCHECK(permission == PageAllocator::kRead ||
+         permission == PageAllocator::kReadExecute);
   DCHECK(IsFlagSet(MemoryChunk::IS_EXECUTABLE));
   DCHECK(owner()->identity() == CODE_SPACE ||
          owner()->identity() == CODE_LO_SPACE);
@@ -565,9 +568,18 @@ void MemoryChunk::SetReadAndExecutable() {
     size_t page_size = MemoryAllocator::GetCommitPageSize();
     DCHECK(IsAligned(protect_start, page_size));
     size_t protect_size = RoundUp(area_size(), page_size);
-    CHECK(reservation_.SetPermissions(protect_start, protect_size,
-                                      PageAllocator::kReadExecute));
+    CHECK(reservation_.SetPermissions(protect_start, protect_size, permission));
   }
+}
+
+void MemoryChunk::SetReadable() {
+  DecrementWriteUnprotectCounterAndMaybeSetPermissions(PageAllocator::kRead);
+}
+
+void MemoryChunk::SetReadAndExecutable() {
+  DCHECK(!FLAG_jitless);
+  DecrementWriteUnprotectCounterAndMaybeSetPermissions(
+      PageAllocator::kReadExecute);
 }
 
 void MemoryChunk::SetReadAndWritable() {
@@ -589,6 +601,15 @@ void MemoryChunk::SetReadAndWritable() {
                                       PageAllocator::kReadWrite));
   }
 }
+
+namespace {
+
+PageAllocator::Permission DefaultWritableCodePermissions() {
+  return FLAG_jitless ? PageAllocator::kReadWrite
+                      : PageAllocator::kReadWriteExecute;
+}
+
+}  // namespace
 
 MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
                                      Address area_start, Address area_end,
@@ -657,7 +678,7 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
       DCHECK(IsAligned(area_start, page_size));
       size_t area_size = RoundUp(area_end - area_start, page_size);
       CHECK(reservation.SetPermissions(area_start, area_size,
-                                       PageAllocator::kReadWriteExecute));
+                                       DefaultWritableCodePermissions()));
     }
   }
 
@@ -1830,6 +1851,14 @@ void PagedSpace::ReleasePage(Page* page) {
   AccountUncommitted(page->size());
   accounting_stats_.DecreaseCapacity(page->area_size());
   heap()->memory_allocator()->Free<MemoryAllocator::kPreFreeAndQueue>(page);
+}
+
+void PagedSpace::SetReadable() {
+  DCHECK(identity() == CODE_SPACE);
+  for (Page* page : *this) {
+    CHECK(heap()->memory_allocator()->IsMemoryChunkExecutable(page));
+    page->SetReadable();
+  }
 }
 
 void PagedSpace::SetReadAndExecutable() {

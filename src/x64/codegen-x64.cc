@@ -14,6 +14,7 @@ namespace internal {
 #define __ masm.
 
 UnaryMathFunction CreateSqrtFunction() {
+  DCHECK(!FLAG_jitless);
   v8::PageAllocator* page_allocator = GetPlatformPageAllocator();
   size_t allocated = 0;
   byte* buffer = AllocatePage(page_allocator,

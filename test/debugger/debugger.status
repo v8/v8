@@ -123,4 +123,12 @@
   'debug/debug-liveedit-restart-frame': [SKIP],
 }],  # 'arch == s390 or arch == s390x'
 
+##############################################################################
+['lite_mode', {
+  # TODO(v8:7777): Re-enable once wasm is supported in jitless mode.
+  'asm-*': [SKIP],
+  'debug/wasm/*': [SKIP],
+  'wasm-*': [SKIP],
+}], # lite_mode
+
 ]

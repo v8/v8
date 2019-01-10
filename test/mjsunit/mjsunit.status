@@ -326,7 +326,7 @@
 }],  # 'gc_stress == True'
 
 ##############################################################################
-['lite_mode == True', {
+['lite_mode', {
   # Skip tests not suitable for lite_mode.
 
   # TODO(8596): We cache the templates in the feedback vector. In lite mode
@@ -352,7 +352,38 @@
   'spread-large-string': [SKIP],
   'spread-large-array': [SKIP],
 
-}],  # 'lite_mode == True'
+  # TODO(v8:7777): Re-enable once wasm is supported in jitless mode.
+  'asm/*': [SKIP],
+  'regress/wasm/*': [SKIP],
+  'tools/compiler-trace-flags': [SKIP],
+  'wasm/*': [SKIP],
+
+  # Other tests that use asm / wasm / optimized code.
+  'compiler/regress-439743': [SKIP],
+  'regress/regress-599719': [SKIP],
+  'regress/regress-6196': [SKIP],
+  'regress/regress-6700': [SKIP],
+  'regress/regress-670808': [SKIP],
+  'regress/regress-677685': [SKIP],
+  'regress/regress-6838-2': [SKIP],
+  'regress/regress-6838-3': [SKIP],
+  'regress/regress-799690': [SKIP],
+
+  # Tests that generate code at runtime.
+  'code-comments': [SKIP],
+  'regress/regress-441099': [SKIP],
+  'regress/regress-617526': [SKIP],
+  'regress/regress-618608': [SKIP],
+  'regress/regress-673241': [SKIP],
+  'regress/regress-673297': [SKIP],
+  'regress/regress-7893': [SKIP],
+  'regress/regress-8377': [SKIP],
+  'regress/regress-863810': [SKIP],
+  'regress/regress-crbug-721835': [SKIP],
+  'regress/regress-crbug-759327': [SKIP],
+  'regress/regress-crbug-762472': [SKIP],
+  'regress/regress-crbug-898974': [SKIP],
+}],  # 'lite_mode'
 
 ##############################################################################
 ['byteorder == big', {
@@ -974,4 +1005,5 @@
   # Unwinding info writer is only supported on x64, arm, and arm64 Linux
   'regress/regress-913844': [SKIP],
 }],
+
 ]

@@ -465,7 +465,7 @@
 }],
 
 ##############################################################################
-['lite_mode == True', {
+['lite_mode', {
 
   # TODO(8394): First execution events don't work in lite_mode. Enable this after
   # we fix the lite mode to track the first execution.
@@ -510,6 +510,38 @@
 
   # Slow tests
   'test-heap/IncrementalMarkingStepMakesBigProgressWithLargeObjects': [SKIP],
-}],
+
+  # TODO(v8:7777): Re-enable once wasm is supported in jitless mode.
+  'test-c-wasm-entry/*': [SKIP],
+  'test-jump-table-assembler/*': [SKIP],
+  'test-run-wasm-64/*': [SKIP],
+  'test-run-wasm-asmjs/*': [SKIP],
+  'test-run-wasm-atomics64/*': [SKIP],
+  'test-run-wasm-atomics/*': [SKIP],
+  'test-run-wasm/*': [SKIP],
+  'test-run-wasm-interpreter/*': [SKIP],
+  'test-run-wasm-js/*': [SKIP],
+  'test-run-wasm-module/*': [SKIP],
+  'test-run-wasm-sign-extension/*': [SKIP],
+  'test-run-wasm-simd/*': [SKIP],
+  'test-streaming-compilation/*': [SKIP],
+  'test-wasm-breakpoints/*': [SKIP],
+  'test-wasm-codegen/*': [SKIP],
+  'test-wasm-import-wrapper-cache/*': [SKIP],
+  'test-wasm-interpreter-entry/*': [SKIP],
+  'test-wasm-serialization/*': [SKIP],
+  'test-wasm-shared-engine/*': [SKIP],
+  'test-wasm-stack/*': [SKIP],
+  'test-wasm-trap-position/*': [SKIP],
+  'wasm-run-utils/*': [SKIP],
+
+  # Tests that generate code at runtime.
+  'codegen-tester/*': [SKIP],
+  'test-assembler-*': [SKIP],
+  'test-basic-block-profiler/*': [SKIP],
+  'test-branch-combine/*': [SKIP],
+  'test-multiple-return/*': [SKIP],
+  'test-run-calls-to-external-references/*': [SKIP],
+}], # lite_mode
 
 ]

@@ -4,4 +4,11 @@
 
 [
 
+##############################################################################
+['lite_mode', {
+  # TODO(v8:7777): Re-enable once wasm is supported in jitless mode.
+  'multi_return/*': [SKIP],
+  'wasm_compile/*': [SKIP],
+}], # lite_mode
+
 ]

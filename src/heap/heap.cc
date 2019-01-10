@@ -2042,7 +2042,7 @@ void Heap::ProtectUnprotectedMemoryChunks() {
   for (auto chunk = unprotected_memory_chunks_.begin();
        chunk != unprotected_memory_chunks_.end(); chunk++) {
     CHECK(memory_allocator()->IsMemoryChunkExecutable(*chunk));
-    (*chunk)->SetReadAndExecutable();
+    (*chunk)->SetDefaultCodePermissions();
   }
   unprotected_memory_chunks_.clear();
 }
