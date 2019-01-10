@@ -4777,7 +4777,13 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseIfStatement(
   StatementT then_statement = impl()->NullStatement();
   {
     SourceRangeScope range_scope(scanner(), &then_range);
-    then_statement = ParseScopedStatement(labels);
+    // Make a copy of {labels} to avoid conflicts with any
+    // labels that may be applied to the else clause below.
+    auto labels_copy =
+        labels == nullptr
+            ? labels
+            : new (zone()) ZonePtrList<const AstRawString>(*labels, zone());
+    then_statement = ParseScopedStatement(labels_copy);
   }
 
   StatementT else_statement = impl()->NullStatement();
