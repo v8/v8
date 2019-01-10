@@ -776,7 +776,11 @@ void GraphC1Visualizer::PrintLiveRange(const LiveRange* range, const char* type,
     os_ << " " << parent->vreg() << ":" << parent->relative_id();
 
     // TODO(herhut) Find something useful to print for the hint field
-    os_ << " unknown";
+    if (range->get_bundle() != nullptr) {
+      os_ << " B" << range->get_bundle()->id();
+    } else {
+      os_ << " unknown";
+    }
 
     for (const UseInterval* interval = range->first_interval();
          interval != nullptr; interval = interval->next()) {
