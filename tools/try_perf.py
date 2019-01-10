@@ -15,7 +15,6 @@ BOTS = {
   '--linux64_atom': 'v8_linux64_atom_perf_try',
   '--nexus5': 'v8_nexus5_perf_try',
   '--nexus7': 'v8_nexus7_perf_try',
-  '--nexus10': 'v8_nexus10_perf_try',
   '--pixel2': 'v8_pixel2_perf_try',
   '--nokia1': 'v8_nokia1_perf_try',
 }
@@ -26,6 +25,8 @@ SWARMING_BOTS = [
   'v8_linux32_perf_try',
   'v8_linux64_perf_try',
   'v8_linux64_atom_perf_try',
+  'v8_nexus5_perf_try',
+  'v8_nexus7_perf_try',
   'v8_pixel2_perf_try',
   'v8_nokia1_perf_try',
 ]
@@ -34,7 +35,6 @@ DEFAULT_BOTS = [
   'v8_arm32_perf_try',
   'v8_linux32_perf_try',
   'v8_linux64_perf_try',
-  'v8_nexus10_perf_try',
 ]
 
 PUBLIC_BENCHMARKS = [
