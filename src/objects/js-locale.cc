@@ -148,8 +148,7 @@ Handle<Object> UnicodeKeywordValue(Isolate* isolate, Handle<JSLocale> locale,
   UErrorCode status = U_ZERO_ERROR;
   std::string value =
       icu_locale->getUnicodeKeywordValue<std::string>(key, status);
-  CHECK(U_SUCCESS(status));
-  if (value == "") {
+  if (status == U_ILLEGAL_ARGUMENT_ERROR || value == "") {
     return isolate->factory()->undefined_value();
   }
   return isolate->factory()->NewStringFromAsciiChecked(value.c_str());
