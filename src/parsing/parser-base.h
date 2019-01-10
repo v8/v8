@@ -2564,6 +2564,11 @@ ParserBase<Impl>::ParseAssignmentExpressionCoverGrammar() {
   }
 
   if (V8_LIKELY(impl()->IsAssignableIdentifier(expression))) {
+    if (expression->is_parenthesized()) {
+      expression_scope()->RecordDeclarationError(
+          Scanner::Location(lhs_beg_pos, end_position()),
+          MessageTemplate::kInvalidDestructuringTarget);
+    }
     expression_scope()->MarkIdentifierAsAssigned();
   } else if (expression->IsProperty()) {
     expression_scope()->RecordDeclarationError(
@@ -2571,6 +2576,11 @@ ParserBase<Impl>::ParseAssignmentExpressionCoverGrammar() {
         MessageTemplate::kInvalidPropertyBindingPattern);
   } else if (expression->IsPattern() && op == Token::ASSIGN) {
     // Destructuring assignmment.
+    if (expression->is_parenthesized()) {
+      expression_scope()->RecordPatternError(
+          Scanner::Location(lhs_beg_pos, end_position()),
+          MessageTemplate::kInvalidDestructuringTarget);
+    }
     expression_scope()->ValidateAsPattern(expression, lhs_beg_pos,
                                           end_position());
   } else {
