@@ -58,5 +58,5 @@ export class MySelection {
     return result;
   }
 
-  [Symbol.iterator]() { return this.selection.values() }
+  [Symbol.iterator]() { return this.selection.values(); }
 }

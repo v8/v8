@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import { Schedule, SourceResolver } from "../src/source-resolver"
-import { PhaseView } from "../src/view"
-import { TextView } from "../src/text-view"
+import { Schedule, SourceResolver } from "../src/source-resolver";
+import { PhaseView } from "../src/view";
+import { TextView } from "../src/text-view";
 
 export class ScheduleView extends TextView implements PhaseView {
   schedule: Schedule;
@@ -38,7 +38,7 @@ export class ScheduleView extends TextView implements PhaseView {
 
   initializeContent(data, rememberedSelection) {
     this.divNode.innerHTML = '';
-    this.schedule = data.schedule
+    this.schedule = data.schedule;
     this.addBlocks(data.schedule.blocks);
     this.attachSelection(rememberedSelection);
   }
@@ -53,7 +53,7 @@ export class ScheduleView extends TextView implements PhaseView {
     const view = this;
     function createElement(tag: string, cls: string, content?: string) {
       const el = document.createElement(tag);
-      el.className = cls
+      el.className = cls;
       if (content != undefined) el.innerHTML = content;
       return el;
     }
@@ -79,7 +79,7 @@ export class ScheduleView extends TextView implements PhaseView {
           `This usually means that this node was folded into another node; ` +
           `the highlighted machine code is a guess.`];
       }
-      return ["", `This not is not in the final schedule.`]
+      return ["", `This not is not in the final schedule.`];
     }
 
     function createElementForNode(node) {
@@ -126,7 +126,7 @@ export class ScheduleView extends TextView implements PhaseView {
 
     const [start, end] = view.sourceResolver.getInstructionRangeForBlock(block.id);
     const instrMarker = createElement("div", "instr-marker com", "&#8857;");
-    instrMarker.setAttribute("title", `Instructions range for this block is [${start}, ${end})`)
+    instrMarker.setAttribute("title", `Instructions range for this block is [${start}, ${end})`);
     instrMarker.onclick = mkBlockLinkHandler(block.id);
     scheduleBlock.appendChild(instrMarker);
 
@@ -164,7 +164,7 @@ export class ScheduleView extends TextView implements PhaseView {
   }
 
   lineString(node) {
-    return `${node.id}: ${node.label}(${node.inputs.join(", ")})`
+    return `${node.id}: ${node.label}(${node.inputs.join(", ")})`;
   }
 
   searchInputAction(searchBar, e) {
@@ -178,7 +178,7 @@ export class ScheduleView extends TextView implements PhaseView {
     for (const node of this.schedule.nodes) {
       if (node === undefined) continue;
       if (reg.exec(this.lineString(node)) != null) {
-        select.push(node.id)
+        select.push(node.id);
       }
     }
     this.selectionHandler.select(select, true);

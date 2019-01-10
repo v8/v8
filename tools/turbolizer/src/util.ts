@@ -32,7 +32,7 @@ export class ViewElements {
     if (!doConsider) return;
     const newScrollTop = computeScrollTop(this.container, element);
     if (isNaN(newScrollTop)) {
-      console.log("NOO")
+      console.log("NOO");
     }
     if (this.scrollTop === undefined) {
       this.scrollTop = newScrollTop;
@@ -63,7 +63,7 @@ export function sortUnique<T>(arr: Array<T>, f: (a: T, b: T) => number, equal: (
 export function partial(f: any, ...arguments1: Array<any>) {
   return function (this: any, ...arguments2: Array<any>) {
     f.apply(this, [...arguments1, ...arguments2]);
-  }
+  };
 }
 
 export function isIterable(obj: any): obj is Iterable<any> {

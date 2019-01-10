@@ -13,7 +13,7 @@
     }],
     "ordered-imports": false,
     "array-type": [true, "generic"],
-    "semicolon": false,
+    "semicolon": true,
     "member-access": false,
     "object-literal-shorthand": false,
     "object-literal-key-quotes": [true, "as-needed"],

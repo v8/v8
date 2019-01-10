@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import * as d3 from "d3"
-import * as C from "../src/constants"
+import * as d3 from "d3";
+import * as C from "../src/constants";
 
 class Snapper {
   resizer: Resizer;
@@ -104,7 +104,7 @@ export class Resizer {
   constructor(panesUpdatedCallback: () => void, deadWidth: number) {
     let resizer = this;
     resizer.panesUpdatedCallback = panesUpdatedCallback;
-    resizer.deadWidth = deadWidth
+    resizer.deadWidth = deadWidth;
     resizer.left = document.getElementById(C.SOURCE_PANE_ID);
     resizer.middle = document.getElementById(C.INTERMEDIATE_PANE_ID);
     resizer.right = document.getElementById(C.GENERATED_PANE_ID);
@@ -152,7 +152,7 @@ export class Resizer {
       })
       .on('end', function () {
         if (!resizer.isRightSnapped()) {
-          console.log(`disassembly-pane-width ${resizer.sepRight}`)
+          console.log(`disassembly-pane-width ${resizer.sepRight}`);
           window.sessionStorage.setItem("disassembly-pane-width", `${resizer.sepRight / resizer.clientWidth}`);
         }
         resizer.resizerRight.classed("dragged", false);

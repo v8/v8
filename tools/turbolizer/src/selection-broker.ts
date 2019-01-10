@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import { SourceResolver, sourcePositionValid } from "../src/source-resolver"
-import { ClearableHandler, SelectionHandler, NodeSelectionHandler, BlockSelectionHandler, InstructionSelectionHandler } from "../src/selection-handler"
+import { SourceResolver, sourcePositionValid } from "../src/source-resolver";
+import { ClearableHandler, SelectionHandler, NodeSelectionHandler, BlockSelectionHandler, InstructionSelectionHandler } from "../src/selection-handler";
 
 export class SelectionBroker {
   sourceResolver: SourceResolver;
@@ -20,7 +20,7 @@ export class SelectionBroker {
     this.blockHandlers = [];
     this.instructionHandlers = [];
     this.sourceResolver = sourceResolver;
-  };
+  }
 
   addSourcePositionHandler(handler: SelectionHandler & ClearableHandler) {
     this.allHandlers.push(handler);

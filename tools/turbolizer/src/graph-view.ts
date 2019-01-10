@@ -2,15 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import * as d3 from "d3"
-import { layoutNodeGraph } from "../src/graph-layout"
-import { GNode, nodeToStr } from "../src/node"
-import { NODE_INPUT_WIDTH } from "../src/node"
-import { DEFAULT_NODE_BUBBLE_RADIUS } from "../src/node"
-import { Edge, edgeToStr } from "../src/edge"
-import { View, PhaseView } from "../src/view"
-import { MySelection } from "../src/selection"
-import { partial } from "../src/util"
+import * as d3 from "d3";
+import { layoutNodeGraph } from "../src/graph-layout";
+import { GNode, nodeToStr } from "../src/node";
+import { NODE_INPUT_WIDTH } from "../src/node";
+import { DEFAULT_NODE_BUBBLE_RADIUS } from "../src/node";
+import { Edge, edgeToStr } from "../src/edge";
+import { View, PhaseView } from "../src/view";
+import { MySelection } from "../src/selection";
+import { partial } from "../src/util";
 import { NodeSelectionHandler, ClearableHandler } from "./selection-handler";
 import { Graph } from "./graph";
 import { SelectionBroker } from "./selection-broker";
@@ -23,9 +23,9 @@ interface GraphState {
   showTypes: boolean;
   selection: MySelection;
   mouseDownNode: any;
-  justDragged: boolean,
-  justScaleTransGraph: boolean,
-  hideDead: boolean
+  justDragged: boolean;
+  justScaleTransGraph: boolean;
+  hideDead: boolean;
 }
 
 export class GraphView extends View implements PhaseView {
@@ -59,7 +59,7 @@ export class GraphView extends View implements PhaseView {
     const svg = this.divElement.append("svg")
       .attr('version', '2.0')
       .attr("width", "100%")
-      .attr("height", "100%")
+      .attr("height", "100%");
     svg.on("click", function (d) {
       view.selectionHandler.clear();
     });
@@ -68,7 +68,7 @@ export class GraphView extends View implements PhaseView {
     svg
       .attr("focusable", false)
       .on("focus", e => {})
-      .on("keydown", e => { view.svgKeyDown(); })
+      .on("keydown", e => { view.svgKeyDown(); });
 
     view.svg = svg;
 
@@ -119,7 +119,7 @@ export class GraphView extends View implements PhaseView {
               e.visible = e.visible || view.state.selection.isSelected(e.target);
             });
           }
-        };
+        }
         view.updateGraphVisibility();
       },
       brokeredClear: function () {
@@ -249,12 +249,12 @@ export class GraphView extends View implements PhaseView {
   deleteContent() {
     for (const n of this.graph.nodes()) {
       n.visible = false;
-    };
+    }
     this.graph.forEachEdge((e: Edge) => {
       e.visible = false;
     });
     this.updateGraphVisibility();
-  };
+  }
 
   createGraph(data, rememberedSelection) {
     this.graph = new Graph(data);
@@ -263,7 +263,7 @@ export class GraphView extends View implements PhaseView {
       if (rememberedSelection != undefined && rememberedSelection.has(nodeToStringKey(n))) {
         n.visible = true;
       }
-    };
+    }
     this.graph.forEachEdge((e: Edge) => {
       e.visible = e.type == 'control' && e.source.visible && e.target.visible;
     });
@@ -357,7 +357,7 @@ export class GraphView extends View implements PhaseView {
   showAllAction(view: GraphView) {
     for (const n of view.graph.nodes()) {
       n.visible = !view.state.hideDead || n.isLive();
-    };
+    }
     view.graph.forEachEdge((e: Edge) => {
       e.visible = e.source.visible || e.target.visible;
     });
@@ -378,7 +378,7 @@ export class GraphView extends View implements PhaseView {
         n.visible = false;
         this.state.selection.select([n], false);
       }
-    };
+    }
     this.updateGraphVisibility();
   }
 
@@ -387,7 +387,7 @@ export class GraphView extends View implements PhaseView {
       if (!view.state.selection.isSelected(n)) {
         n.visible = false;
       }
-    };
+    }
     view.updateGraphVisibility();
   }
 
@@ -396,7 +396,7 @@ export class GraphView extends View implements PhaseView {
       if (view.state.selection.isSelected(n)) {
         n.visible = false;
       }
-    };
+    }
     view.selectionHandler.clear();
   }
 
@@ -455,7 +455,7 @@ export class GraphView extends View implements PhaseView {
         }
         view.updateGraphVisibility();
       }
-    }
+    };
 
     let eventHandled = true; // unless the below switch defaults
     switch (d3.event.keyCode) {
@@ -663,7 +663,7 @@ export class GraphView extends View implements PhaseView {
         view.selectionHandler.select([d], undefined);
         d3.event.stopPropagation();
       })
-      .call(view.drag)
+      .call(view.drag);
 
     newGs.append("rect")
       .attr("rx", 10)
@@ -673,7 +673,7 @@ export class GraphView extends View implements PhaseView {
       })
       .attr('height', function (d) {
         return d.getNodeHeight(view.state.showTypes);
-      })
+      });
 
     function appendInputAndOutputBubbles(g, d) {
       for (let i = 0; i < d.inputs.length; ++i) {
@@ -744,7 +744,7 @@ export class GraphView extends View implements PhaseView {
         .append("title")
         .text(function (l) {
           return d.getTitle();
-        })
+        });
       if (d.nodeLabel.type != undefined) {
         d3.select(this).append("text")
           .classed("label", true)
@@ -759,7 +759,7 @@ export class GraphView extends View implements PhaseView {
           .append("title")
           .text(function (l) {
             return d.getType();
-          })
+          });
       }
     });
 
@@ -807,8 +807,8 @@ export class GraphView extends View implements PhaseView {
 
   onresize() {
     const trans = d3.zoomTransform(this.svg.node());
-    const ctrans = this.panZoom.constrain()(trans, this.getSvgExtent(), this.panZoom.translateExtent())
-    this.panZoom.transform(this.svg, ctrans)
+    const ctrans = this.panZoom.constrain()(trans, this.getSvgExtent(), this.panZoom.translateExtent());
+    this.panZoom.transform(this.svg, ctrans);
   }
 
   toggleTypes() {
@@ -860,6 +860,6 @@ export class GraphView extends View implements PhaseView {
     this.panZoom.scaleTo(this.svg, 0);
     this.panZoom.translateTo(this.svg,
       this.graph.minGraphX + this.graph.width / 2,
-      this.graph.minGraphY + this.graph.height / 2)
+      this.graph.minGraphY + this.graph.height / 2);
   }
 }

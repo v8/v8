@@ -52,9 +52,9 @@ export class GraphMultiView extends View {
     const view = this;
     view.sourceResolver = sourceResolver;
     view.selectionBroker = selectionBroker;
-    const toolbox = document.createElement("div")
+    const toolbox = document.createElement("div");
     toolbox.className = "toolbox-anchor";
-    toolbox.innerHTML = toolboxHTML
+    toolbox.innerHTML = toolboxHTML;
     view.divNode.appendChild(toolbox);
     const searchInput = toolbox.querySelector("#search-input") as HTMLInputElement;
     searchInput.addEventListener("keyup", e => {
@@ -88,7 +88,7 @@ export class GraphMultiView extends View {
     this.selectMenu.onchange = function (this: HTMLSelectElement) {
       window.sessionStorage.setItem("lastSelectedPhase", this.selectedIndex.toString());
       view.displayPhase(view.sourceResolver.getPhase(this.selectedIndex));
-    }
+    };
   }
 
   show(data, rememberedSelection) {

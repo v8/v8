@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import { View } from "../src/view"
-import { anyToString, ViewElements, isIterable } from "../src/util"
-import { MySelection } from "../src/selection"
+import { View } from "../src/view";
+import { anyToString, ViewElements, isIterable } from "../src/util";
+import { MySelection } from "../src/selection";
 import { SourceResolver } from "./source-resolver";
 import { SelectionBroker } from "./selection-broker";
 import { NodeSelectionHandler, BlockSelectionHandler } from "./selection-handler";
@@ -136,7 +136,7 @@ export abstract class TextView extends View {
         element.classList.toggle("selected", isSelected);
       }
     }
-    const elementsToSelect = view.divNode.querySelectorAll(`[data-pc-offset]`)
+    const elementsToSelect = view.divNode.querySelectorAll(`[data-pc-offset]`);
     for (const el of elementsToSelect) {
       el.classList.toggle("selected", false);
     }

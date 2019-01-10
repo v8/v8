@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import { GNode, DEFAULT_NODE_BUBBLE_RADIUS } from "../src/node"
+import { GNode, DEFAULT_NODE_BUBBLE_RADIUS } from "../src/node";
 import { Graph } from "./graph";
 
 export const MINIMUM_EDGE_SEPARATION = 20;
@@ -26,11 +26,11 @@ export class Edge {
 
   stringID() {
     return this.source.id + "," + this.index + "," + this.target.id;
-  };
+  }
 
   isVisible() {
     return this.visible && this.source.visible && this.target.visible;
-  };
+  }
 
   getInputHorizontalPosition(graph: Graph, showTypes: boolean) {
     if (this.backEdgeNumber > 0) {
@@ -48,7 +48,7 @@ export class Edge {
       var inputOffset = MINIMUM_EDGE_SEPARATION * (index + 1);
       return (target.x < source.x)
         ? (target.x + target.getTotalNodeWidth() + inputOffset)
-        : (target.x - inputOffset)
+        : (target.x - inputOffset);
     }
   }
 

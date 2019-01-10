@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import { PROF_COLS, UNICODE_BLOCK } from "../src/constants"
-import { SelectionBroker } from "../src/selection-broker"
-import { TextView } from "../src/text-view"
+import { PROF_COLS, UNICODE_BLOCK } from "../src/constants";
+import { SelectionBroker } from "../src/selection-broker";
+import { TextView } from "../src/text-view";
 import { MySelection } from "./selection";
 import { anyToString, interpolate } from "./util";
 import { InstructionSelectionHandler } from "./selection-handler";
@@ -14,7 +14,7 @@ const toolboxHTML = `<div id="disassembly-toolbox">
   <input id="show-instruction-address" type="checkbox" name="instruction-address">Show addresses</input>
   <input id="show-instruction-binary" type="checkbox" name="instruction-binary">Show binary literal</input>
 </form>
-</div>`
+</div>`;
 
 export class DisassemblyView extends TextView {
   SOURCE_POSITION_HEADER_REGEX: any;
@@ -52,9 +52,9 @@ export class DisassemblyView extends TextView {
         const offsetElement = document.createElement("SPAN");
         offsetElement.innerText = matches.groups["offset"];
         fragment.appendChild(addressElement);
-        fragment.appendChild(document.createTextNode(matches.groups["addressSpace"]))
+        fragment.appendChild(document.createTextNode(matches.groups["addressSpace"]));
         fragment.appendChild(offsetElement);
-        fragment.appendChild(document.createTextNode(matches.groups["offsetSpace"]))
+        fragment.appendChild(document.createTextNode(matches.groups["offsetSpace"]));
         fragment.classList.add('tag');
 
         if (!Number.isNaN(offset)) {
@@ -79,10 +79,10 @@ export class DisassemblyView extends TextView {
         fragment.innerHTML = text;
         const replacer = (match, hexOffset) => {
           const offset = Number.parseInt(hexOffset, 16);
-          const keyOffset = view.sourceResolver.getKeyPcOffset(offset)
-          return `<span class="tag linkable-text" data-pc-offset="${keyOffset}">${match}</span>`
-        }
-        const html = text.replace(/<.0?x?([0-9a-fA-F]+)>/g, replacer)
+          const keyOffset = view.sourceResolver.getKeyPcOffset(offset);
+          return `<span class="tag linkable-text" data-pc-offset="${keyOffset}">${match}</span>`;
+        };
+        const html = text.replace(/<.0?x?([0-9a-fA-F]+)>/g, replacer);
         fragment.innerHTML = html;
       }
     };
@@ -139,7 +139,7 @@ export class DisassemblyView extends TextView {
       const offset = Number.parseInt(offsetAsString, 10);
       if ((typeof offsetAsString) != "undefined" && !Number.isNaN(offset)) {
         view.offsetSelection.select([offset], true);
-        const nodes = view.sourceResolver.nodesForPCOffset(offset)[0]
+        const nodes = view.sourceResolver.nodesForPCOffset(offset)[0];
         if (nodes.length > 0) {
           e.stopPropagation();
           if (!e.shiftKey) {
@@ -151,7 +151,7 @@ export class DisassemblyView extends TextView {
         }
       }
       return undefined;
-    }
+    };
     view.divNode.addEventListener('click', linkHandler);
 
     const linkHandlerBlock = e => {
@@ -162,8 +162,8 @@ export class DisassemblyView extends TextView {
           view.selectionHandler.clear();
         }
         view.blockSelectionHandler.select([blockId], true);
-      };
-    }
+      }
+    };
     view.divNode.addEventListener('click', linkHandlerBlock);
 
     this.offsetSelection = new MySelection(anyToString);
@@ -192,9 +192,9 @@ export class DisassemblyView extends TextView {
     this.instructionSelectionHandler = instructionSelectionHandler;
     broker.addInstructionHandler(instructionSelectionHandler);
 
-    const toolbox = document.createElement("div")
+    const toolbox = document.createElement("div");
     toolbox.id = "toolbox-anchor";
-    toolbox.innerHTML = toolboxHTML
+    toolbox.innerHTML = toolboxHTML;
     view.divNode.insertBefore(toolbox, view.divNode.firstChild);
     const instructionAddressInput: HTMLInputElement = view.divNode.querySelector("#show-instruction-address");
     const lastShowInstructionAddress = window.sessionStorage.getItem("show-instruction-address");
@@ -226,11 +226,11 @@ export class DisassemblyView extends TextView {
     let keyPcOffsets = this.sourceResolver.nodesToKeyPcOffsets(this.selection.selectedKeys());
     if (this.offsetSelection) {
       for (const key of this.offsetSelection.selectedKeys()) {
-        keyPcOffsets.push(Number(key))
+        keyPcOffsets.push(Number(key));
       }
     }
     for (const keyPcOffset of keyPcOffsets) {
-      const elementsToSelect = this.divNode.querySelectorAll(`[data-pc-offset='${keyPcOffset}']`)
+      const elementsToSelect = this.divNode.querySelectorAll(`[data-pc-offset='${keyPcOffset}']`);
       for (const el of elementsToSelect) {
         el.classList.toggle("selected", true);
       }
@@ -281,11 +281,11 @@ export class DisassemblyView extends TextView {
   }
 
   initializeContent(data, rememberedSelection) {
-    console.time("disassembly-view")
+    console.time("disassembly-view");
     super.initializeContent(data, rememberedSelection);
     this.showInstructionAddressHandler();
     this.showInstructionBinaryHandler();
-    console.timeEnd("disassembly-view")
+    console.timeEnd("disassembly-view");
   }
 
   // Shorten decimals and remove trailing zeroes for readability.

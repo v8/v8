@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import { MAX_RANK_SENTINEL } from "../src/constants"
-import { MINIMUM_EDGE_SEPARATION, Edge } from "../src/edge"
-import { NODE_INPUT_WIDTH, MINIMUM_NODE_OUTPUT_APPROACH, DEFAULT_NODE_BUBBLE_RADIUS, GNode } from "../src/node"
+import { MAX_RANK_SENTINEL } from "../src/constants";
+import { MINIMUM_EDGE_SEPARATION, Edge } from "../src/edge";
+import { NODE_INPUT_WIDTH, MINIMUM_NODE_OUTPUT_APPROACH, DEFAULT_NODE_BUBBLE_RADIUS, GNode } from "../src/node";
 import { Graph } from "./graph";
 
-const DEFAULT_NODE_ROW_SEPARATION = 130
+const DEFAULT_NODE_ROW_SEPARATION = 130;
 const traceLayout = false;
 
 function newGraphOccupation(graph: Graph) {
@@ -29,7 +29,7 @@ function newGraphOccupation(graph: Graph) {
   }
 
   function slotToLeftPosition(slot: number) {
-    return slot * NODE_INPUT_WIDTH
+    return slot * NODE_INPUT_WIDTH;
   }
 
   function findSpace(pos: number, width: number, direction: number) {
@@ -45,9 +45,9 @@ function newGraphOccupation(graph: Graph) {
       currentScanSlot = currentSlot + (mod ? -1 : 1) * (slotsChecked >> 1);
       if (!isSlotFilled[slotToIndex(currentScanSlot)]) {
         if (mod) {
-          if (direction <= 0)--widthSlotsRemainingLeft
+          if (direction <= 0) --widthSlotsRemainingLeft;
         } else {
-          if (direction >= 0)--widthSlotsRemainingRight
+          if (direction >= 0) --widthSlotsRemainingRight;
         }
         if (widthSlotsRemainingLeft == 0 ||
           widthSlotsRemainingRight == 0 ||
@@ -169,7 +169,7 @@ function newGraphOccupation(graph: Graph) {
           direction = 0;
         }
         return [direction, pos];
-      }
+      };
       const width = node.getTotalNodeWidth();
       const margin = MINIMUM_EDGE_SEPARATION;
       const paddedWidth = width + 2 * margin;
@@ -233,7 +233,7 @@ function newGraphOccupation(graph: Graph) {
       }
       console.log(s);
     }
-  }
+  };
   return occupation;
 }
 
@@ -248,7 +248,7 @@ export function layoutNodeGraph(graph: Graph, showTypes: boolean): void {
   for (const n of graph.nodes()) {
     endNodesHasNoOutputs[n.id] = true;
     startNodesHasNoInputs[n.id] = true;
-  };
+  }
   graph.forEachEdge((e: Edge) => {
     endNodesHasNoOutputs[e.source.id] = false;
     startNodesHasNoInputs[e.target.id] = false;
@@ -271,7 +271,7 @@ export function layoutNodeGraph(graph: Graph, showTypes: boolean): void {
     n.rank = 0;
     n.visitOrderWithinRank = 0;
     n.outputApproach = MINIMUM_NODE_OUTPUT_APPROACH;
-  };
+  }
 
   if (traceLayout) {
     console.log(`layoutGraph init ${performance.now() - start}`);
@@ -382,7 +382,7 @@ export function layoutNodeGraph(graph: Graph, showTypes: boolean): void {
         rankSets[n.rank].push(n);
       }
     }
-  };
+  }
 
   // Iterate backwards from highest to lowest rank, placing nodes so that they
   // spread out from the "center" as much as possible while still being
@@ -403,7 +403,7 @@ export function layoutNodeGraph(graph: Graph, showTypes: boolean): void {
     let placedCount = 0;
     rankSet = rankSet.sort((a: GNode, b: GNode) => {
       if (a.visitOrderWithinRank < b.visitOrderWithinRank) {
-        return -1
+        return -1;
       } else if (a.visitOrderWithinRank == b.visitOrderWithinRank) {
         return 0;
       } else {
@@ -419,7 +419,7 @@ export function layoutNodeGraph(graph: Graph, showTypes: boolean): void {
           console.log("Node " + nodeToPlace.id + " is placed between [" + nodeToPlace.x + ", " + (nodeToPlace.x + nodeToPlace.getTotalNodeWidth()) + ")");
         }
         const staggeredFlooredI = Math.floor(placedCount++ % 3);
-        const delta = MINIMUM_EDGE_SEPARATION * staggeredFlooredI
+        const delta = MINIMUM_EDGE_SEPARATION * staggeredFlooredI;
         nodeToPlace.outputApproach += delta;
       } else {
         nodeToPlace.x = 0;

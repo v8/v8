@@ -2,15 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import * as d3 from "d3"
-import { SourceResolver } from "../src/source-resolver"
-import { SelectionBroker } from "../src/selection-broker"
-import { DisassemblyView } from "../src/disassembly-view"
-import { GraphMultiView } from "../src/graphmultiview"
-import { CodeMode, CodeView } from "../src/code-view"
-import { Tabs } from "../src/tabs"
-import { Resizer } from "../src/resizer"
-import * as C from "../src/constants"
+import * as d3 from "d3";
+import { SourceResolver } from "../src/source-resolver";
+import { SelectionBroker } from "../src/selection-broker";
+import { DisassemblyView } from "../src/disassembly-view";
+import { GraphMultiView } from "../src/graphmultiview";
+import { CodeMode, CodeView } from "../src/code-view";
+import { Tabs } from "../src/tabs";
+import { Resizer } from "../src/resizer";
+import * as C from "../src/constants";
 
 window.onload = function () {
   var multiview = null;
@@ -41,7 +41,7 @@ window.onload = function () {
 
       const jsonObj = JSON.parse(txtRes);
 
-      let fnc = null
+      let fnc = null;
       // Backwards compatibility.
       if (typeof jsonObj.function == 'string') {
         fnc = {
@@ -58,13 +58,13 @@ window.onload = function () {
 
       sourceResolver.setInlinings(jsonObj.inlinings);
       sourceResolver.setSourceLineToBytecodePosition(jsonObj.sourceLineToBytecodePosition);
-      sourceResolver.setSources(jsonObj.sources, fnc)
+      sourceResolver.setSources(jsonObj.sources, fnc);
       sourceResolver.setNodePositionMap(jsonObj.nodePositions);
       sourceResolver.parsePhases(jsonObj.phases);
 
       const sourceTabsContainer = document.getElementById(C.SOURCE_PANE_ID);
       const sourceTabs = new Tabs(sourceTabsContainer);
-      const [sourceTab, sourceContainer] = sourceTabs.addTabAndContent("Source")
+      const [sourceTab, sourceContainer] = sourceTabs.addTabAndContent("Source");
       sourceContainer.classList.add("viewpane", "scrollable");
       sourceTabs.activateTab(sourceTab);
       sourceTabs.addTab("&#x2b;").classList.add("open-tab");
@@ -80,7 +80,7 @@ window.onload = function () {
 
       const disassemblyTabsContainer = document.getElementById(C.GENERATED_PANE_ID);
       const disassemblyTabs = new Tabs(disassemblyTabsContainer);
-      const [disassemblyTab, disassemblyContainer] = disassemblyTabs.addTabAndContent("Disassembly")
+      const [disassemblyTab, disassemblyContainer] = disassemblyTabs.addTabAndContent("Disassembly");
       disassemblyContainer.classList.add("viewpane", "scrollable");
       disassemblyTabs.activateTab(disassemblyTab);
       disassemblyTabs.addTab("&#x2b;").classList.add("open-tab");

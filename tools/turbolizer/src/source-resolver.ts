@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import { sortUnique, anyToString } from "../src/util"
+import { sortUnique, anyToString } from "../src/util";
 import { NodeLabel } from "./node-label";
 
 function sourcePositionLe(a, b) {
@@ -183,7 +183,7 @@ export class SourceResolver {
         alternativeMap[nodeId] = { scriptOffset: scriptOffset, inliningId: -1 };
       }
       map = alternativeMap;
-    };
+    }
 
     for (const [nodeId, sourcePosition] of Object.entries<SourcePosition>(map)) {
       if (sourcePosition == undefined) {
@@ -253,7 +253,7 @@ export class SourceResolver {
   addInliningPositions(sourcePosition: AnyPosition, locations: Array<SourcePosition>) {
     let inlining = this.inliningsMap.get(sourcePositionToStringKey(sourcePosition));
     if (!inlining) return;
-    let sourceId = inlining.sourceId
+    let sourceId = inlining.sourceId;
     const source = this.sources[sourceId];
     for (const sp of source.sourcePositions) {
       locations.push(sp);
@@ -280,7 +280,7 @@ export class SourceResolver {
     }
     const list = this.sources[sourceId].sourcePositions;
     for (let i = 0; i < list.length; i++) {
-      const sourcePosition = list[i]
+      const sourcePosition = list[i];
       const position = sourcePosition.scriptOffset;
       const nextPosition = list[Math.min(i + 1, list.length - 1)].scriptOffset;
       if ((position <= scriptOffset && scriptOffset < nextPosition)) {
@@ -324,7 +324,7 @@ export class SourceResolver {
   recordOrigins(phase: GraphPhase) {
     if (phase.type != "graph") return;
     for (const node of phase.data.nodes) {
-      phase.highestNodeId = Math.max(phase.highestNodeId, node.id)
+      phase.highestNodeId = Math.max(phase.highestNodeId, node.id);
       if (node.origin != undefined &&
         node.origin.bytecodePosition != undefined) {
         const position = { bytecodePosition: node.origin.bytecodePosition };
@@ -411,7 +411,7 @@ export class SourceResolver {
     for (const node of nodes) {
       const range = this.nodeIdToInstructionRange[node];
       if (!range) continue;
-      offsets = offsets.concat(this.instructionRangeToKeyPcOffsets(range))
+      offsets = offsets.concat(this.instructionRangeToKeyPcOffsets(range));
     }
     return offsets;
   }
@@ -495,7 +495,7 @@ export class SourceResolver {
   }
 
   repairPhaseId(anyPhaseId) {
-    return Math.max(0, Math.min(anyPhaseId | 0, this.phases.length - 1))
+    return Math.max(0, Math.min(anyPhaseId | 0, this.phases.length - 1));
   }
 
   getPhase(phaseId: number) {

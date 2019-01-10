@@ -1,11 +1,11 @@
 
 export class Tabs {
-    container: HTMLElement
+    container: HTMLElement;
     tabBar: HTMLElement;
     nextTabId: number;
 
     mkTabBar(container: HTMLElement) {
-        container.classList.add("nav-tabs-container")
+        container.classList.add("nav-tabs-container");
         this.tabBar = document.createElement("ul");
         this.tabBar.id = `tab-bar-${container.id}`;
         this.tabBar.className = "nav-tabs";
@@ -16,7 +16,7 @@ export class Tabs {
         const defaultDiv = document.createElement("div");
         defaultDiv.className = "tab-content tab-default";
         defaultDiv.id = `tab-content-${container.id}-default`;
-        container.insertBefore(defaultDiv, container.firstChild)
+        container.insertBefore(defaultDiv, container.firstChild);
         container.insertBefore(this.tabBar, container.firstChild);
     }
 

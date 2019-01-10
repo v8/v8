@@ -2,17 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import { Source, SourceResolver, sourcePositionToStringKey } from "../src/source-resolver"
-import { SelectionBroker } from "../src/selection-broker"
-import { View } from "../src/view"
-import { MySelection } from "../src/selection"
-import { ViewElements } from "../src/util"
+import { Source, SourceResolver, sourcePositionToStringKey } from "../src/source-resolver";
+import { SelectionBroker } from "../src/selection-broker";
+import { View } from "../src/view";
+import { MySelection } from "../src/selection";
+import { ViewElements } from "../src/util";
 import { SelectionHandler } from "./selection-handler";
 
 export enum CodeMode {
   MAIN_SOURCE = "main function",
   INLINED_SOURCE = "inlined function"
-};
+}
 
 export class CodeView extends View {
   broker: SelectionBroker;
@@ -44,7 +44,7 @@ export class CodeView extends View {
       clear: function () {
         view.selection.clear();
         view.updateSelection();
-        broker.broadcastClear(this)
+        broker.broadcastClear(this);
       },
       select: function (sourcePositions, selected) {
         const locations = [];
@@ -170,7 +170,7 @@ export class CodeView extends View {
       } else {
         codePre.style.display = "none";
       }
-    }
+    };
     if (sourceText != "") {
       codePre.classList.add("linenums");
       codePre.textContent = sourceText;
@@ -191,7 +191,7 @@ export class CodeView extends View {
         } else {
           view.selectionHandler.clear();
         }
-      }
+      };
 
       const base: number = source.startPosition;
       let current = 0;
@@ -239,21 +239,21 @@ export class CodeView extends View {
       const replacementNode = textnode.splitText(splitLength);
       const span = document.createElement('span');
       span.setAttribute("scriptOffset", sourcePosition.scriptOffset);
-      span.classList.add("source-position")
+      span.classList.add("source-position");
       const marker = document.createElement('span');
-      marker.classList.add("marker")
+      marker.classList.add("marker");
       span.appendChild(marker);
       const inlining = this.sourceResolver.getInliningForPosition(sourcePosition);
       if (inlining != undefined && view.showAdditionalInliningPosition) {
         const sourceName = this.sourceResolver.getSourceName(inlining.sourceId);
         const inliningMarker = document.createElement('span');
-        inliningMarker.classList.add("inlining-marker")
-        inliningMarker.setAttribute("data-descr", `${sourceName} was inlined here`)
+        inliningMarker.classList.add("inlining-marker");
+        inliningMarker.setAttribute("data-descr", `${sourceName} was inlined here`);
         span.appendChild(inliningMarker);
       }
       span.onclick = function (e) {
         e.stopPropagation();
-        view.onSelectSourcePosition(sourcePosition, !e.shiftKey)
+        view.onSelectSourcePosition(sourcePosition, !e.shiftKey);
       };
       view.addHtmlElementToSourcePosition(sourcePosition, span);
       textnode.parentNode.insertBefore(span, replacementNode);
@@ -266,7 +266,7 @@ export class CodeView extends View {
     lineNumberElement.classList.add("line-number");
     lineNumberElement.dataset.lineNumber = `${lineNumber}`;
     lineNumberElement.innerText = `${lineNumber}`;
-    lineElement.insertBefore(lineNumberElement, lineElement.firstChild)
+    lineElement.insertBefore(lineNumberElement, lineElement.firstChild);
     // Don't add lines to source positions of not in backwardsCompatibility mode.
     if (this.source.backwardsCompatibility === true) {
       for (const sourcePosition of this.sourceResolver.linetoSourcePositions(lineNumber - 1)) {

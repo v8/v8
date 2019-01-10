@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import { MINIMUM_EDGE_SEPARATION, Edge } from "../src/edge"
+import { MINIMUM_EDGE_SEPARATION, Edge } from "../src/edge";
 import { NodeLabel } from "./node-label";
 import { MAX_RANK_SENTINEL } from "./constants";
 import { alignUp, measureText } from "./util";
@@ -149,7 +149,7 @@ export class GNode {
   }
   getInputApproach(index) {
     return this.y - MINIMUM_NODE_INPUT_APPROACH -
-      (index % 4) * MINIMUM_EDGE_SEPARATION - DEFAULT_NODE_BUBBLE_RADIUS
+      (index % 4) * MINIMUM_EDGE_SEPARATION - DEFAULT_NODE_BUBBLE_RADIUS;
   }
   getNodeHeight(showTypes: boolean): number {
     if (showTypes) {
@@ -175,6 +175,6 @@ export class GNode {
       ((this.nodeLabel.opcode == "Phi" || this.nodeLabel.opcode == "EffectPhi" || this.nodeLabel.opcode == "InductionVariablePhi") &&
         this.inputs[this.inputs.length - 1].source.nodeLabel.opcode == "Loop");
   }
-};
+}
 
 export const nodeToStr = (n: GNode) => "N" + n.id;
