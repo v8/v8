@@ -8,6 +8,7 @@
 #include "src/api-natives.h"
 #include "src/assert-scope.h"
 #include "src/ast/ast.h"
+#include "src/base/overflowing-math.h"
 #include "src/execution.h"
 #include "src/handles.h"
 #include "src/heap/factory.h"
@@ -1408,7 +1409,7 @@ void WebAssemblyMemoryGrow(const v8::FunctionCallbackInfo<v8::Value>& args) {
     return;
   }
   int64_t old_size = old_buffer->byte_length() / i::wasm::kWasmPageSize;
-  int64_t new_size64 = old_size + delta_size;
+  int64_t new_size64 = base::AddWithWraparound(old_size, delta_size);
   if (delta_size < 0 || max_size64 < new_size64 || new_size64 < old_size) {
     thrower.RangeError(new_size64 < old_size ? "trying to shrink memory"
                                              : "maximum memory size exceeded");

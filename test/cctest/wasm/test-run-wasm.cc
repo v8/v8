@@ -7,6 +7,7 @@
 #include <string.h>
 
 #include "src/assembler-inl.h"
+#include "src/base/overflowing-math.h"
 #include "src/base/platform/elapsed-timer.h"
 #include "src/utils.h"
 #include "test/cctest/cctest.h"
@@ -84,14 +85,14 @@ WASM_EXEC_TEST(Int32Add_P) {
   WasmRunner<int32_t, int32_t> r(execution_tier);
   // p0 + 13
   BUILD(r, WASM_I32_ADD(WASM_I32V_1(13), WASM_GET_LOCAL(0)));
-  FOR_INT32_INPUTS(i) { CHECK_EQ(*i + 13, r.Call(*i)); }
+  FOR_INT32_INPUTS(i) { CHECK_EQ(base::AddWithWraparound(*i, 13), r.Call(*i)); }
 }
 
 WASM_EXEC_TEST(Int32Add_P_fallthru) {
   WasmRunner<int32_t, int32_t> r(execution_tier);
   // p0 + 13
   BUILD(r, WASM_I32_ADD(WASM_I32V_1(13), WASM_GET_LOCAL(0)));
-  FOR_INT32_INPUTS(i) { CHECK_EQ(*i + 13, r.Call(*i)); }
+  FOR_INT32_INPUTS(i) { CHECK_EQ(base::AddWithWraparound(*i, 13), r.Call(*i)); }
 }
 
 static void RunInt32AddTest(ExecutionTier execution_tier, const byte* code,
@@ -190,9 +191,9 @@ static void TestInt32Binop(ExecutionTier execution_tier, WasmOpcode opcode,
                           [](ctype a, ctype b) -> ctype { return expected; }); \
   }
 
-WASM_I32_BINOP_TEST(Add, int32_t, a + b)
-WASM_I32_BINOP_TEST(Sub, int32_t, a - b)
-WASM_I32_BINOP_TEST(Mul, int32_t, a* b)
+WASM_I32_BINOP_TEST(Add, int32_t, base::AddWithWraparound(a, b))
+WASM_I32_BINOP_TEST(Sub, int32_t, base::SubWithWraparound(a, b))
+WASM_I32_BINOP_TEST(Mul, int32_t, base::MulWithWraparound(a, b))
 WASM_I32_BINOP_TEST(DivS, int32_t,
                     (a == kMinInt && b == -1) || b == 0
                         ? static_cast<int32_t>(0xDEADBEEF)
@@ -206,8 +207,8 @@ WASM_I32_BINOP_TEST(Xor, int32_t, a ^ b)
 WASM_I32_BINOP_TEST(Shl, int32_t, a << (b & 0x1F))
 WASM_I32_BINOP_TEST(ShrU, uint32_t, a >> (b & 0x1F))
 WASM_I32_BINOP_TEST(ShrS, int32_t, a >> (b & 0x1F))
-WASM_I32_BINOP_TEST(Ror, uint32_t, (a >> (b & 0x1F)) | (a << (32 - (b & 0x1F))))
-WASM_I32_BINOP_TEST(Rol, uint32_t, (a << (b & 0x1F)) | (a >> (32 - (b & 0x1F))))
+WASM_I32_BINOP_TEST(Ror, uint32_t, (a >> (b & 0x1F)) | (a << ((32 - b) & 0x1F)))
+WASM_I32_BINOP_TEST(Rol, uint32_t, (a << (b & 0x1F)) | (a >> ((32 - b) & 0x1F)))
 WASM_I32_BINOP_TEST(Eq, int32_t, a == b)
 WASM_I32_BINOP_TEST(Ne, int32_t, a != b)
 WASM_I32_BINOP_TEST(LtS, int32_t, a < b)
@@ -3298,9 +3299,11 @@ WASM_EXEC_TEST(I32SubOnDifferentRegisters) {
 }
 
 WASM_EXEC_TEST(I32MulOnDifferentRegisters) {
-  BinOpOnDifferentRegisters<int32_t>(
-      execution_tier, kWasmI32, ArrayVector(kSome32BitInputs), kExprI32Mul,
-      [](int32_t lhs, int32_t rhs, bool* trap) { return lhs * rhs; });
+  BinOpOnDifferentRegisters<int32_t>(execution_tier, kWasmI32,
+                                     ArrayVector(kSome32BitInputs), kExprI32Mul,
+                                     [](int32_t lhs, int32_t rhs, bool* trap) {
+                                       return base::MulWithWraparound(lhs, rhs);
+                                     });
 }
 
 WASM_EXEC_TEST(I32ShlOnDifferentRegisters) {
@@ -3372,9 +3375,11 @@ WASM_EXEC_TEST(I64SubOnDifferentRegisters) {
 }
 
 WASM_EXEC_TEST(I64MulOnDifferentRegisters) {
-  BinOpOnDifferentRegisters<int64_t>(
-      execution_tier, kWasmI64, ArrayVector(kSome64BitInputs), kExprI64Mul,
-      [](int64_t lhs, int64_t rhs, bool* trap) { return lhs * rhs; });
+  BinOpOnDifferentRegisters<int64_t>(execution_tier, kWasmI64,
+                                     ArrayVector(kSome64BitInputs), kExprI64Mul,
+                                     [](int64_t lhs, int64_t rhs, bool* trap) {
+                                       return base::MulWithWraparound(lhs, rhs);
+                                     });
 }
 
 WASM_EXEC_TEST(I64ShlOnDifferentRegisters) {

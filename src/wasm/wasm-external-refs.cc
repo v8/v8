@@ -233,13 +233,13 @@ uint32_t word64_popcnt_wrapper(Address data) {
 uint32_t word32_rol_wrapper(Address data) {
   uint32_t input = ReadUnalignedValue<uint32_t>(data);
   uint32_t shift = ReadUnalignedValue<uint32_t>(data + sizeof(input)) & 31;
-  return (input << shift) | (input >> (32 - shift));
+  return (input << shift) | (input >> ((32 - shift) & 31));
 }
 
 uint32_t word32_ror_wrapper(Address data) {
   uint32_t input = ReadUnalignedValue<uint32_t>(data);
   uint32_t shift = ReadUnalignedValue<uint32_t>(data + sizeof(input)) & 31;
-  return (input >> shift) | (input << (32 - shift));
+  return (input >> shift) | (input << ((32 - shift) & 31));
 }
 
 void float64_pow_wrapper(Address data) {

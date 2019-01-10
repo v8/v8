@@ -2665,6 +2665,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     }
 
     // Typecheck the topmost {num_returns} values on the stack.
+    if (num_returns == 0) return true;
+    // This line requires num_returns > 0.
     Value* stack_values = &*(stack_.end() - num_returns);
     for (uint32_t i = 0; i < num_returns; ++i) {
       auto& val = stack_values[i];

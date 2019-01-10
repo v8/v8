@@ -12,6 +12,7 @@
 #include "src/asmjs/asm-js.h"
 #include "src/asmjs/asm-types.h"
 #include "src/base/optional.h"
+#include "src/base/overflowing-math.h"
 #include "src/flags.h"
 #include "src/parsing/scanner.h"
 #include "src/wasm/wasm-limits.h"
@@ -1564,7 +1565,8 @@ AsmType* AsmJsParser::UnaryExpression() {
     if (CheckForUnsigned(&uvalue)) {
       // TODO(bradnelson): was supposed to be 0x7FFFFFFF, check errata.
       if (uvalue <= 0x80000000) {
-        current_function_builder_->EmitI32Const(-static_cast<int32_t>(uvalue));
+        current_function_builder_->EmitI32Const(
+            base::NegateWithWraparound(static_cast<int32_t>(uvalue)));
       } else {
         FAILn("Integer numeric literal out of range.");
       }

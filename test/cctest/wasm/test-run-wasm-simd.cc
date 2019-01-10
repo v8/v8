@@ -2,8 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <type_traits>
+
 #include "src/assembler-inl.h"
 #include "src/base/bits.h"
+#include "src/base/overflowing-math.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/value-helper.h"
 #include "test/cctest/wasm/wasm-run-utils.h"
@@ -50,22 +53,29 @@ typedef int8_t (*Int8ShiftOp)(int8_t, int);
   void RunWasm_##name##_Impl(LowerSimd lower_simd, ExecutionTier execution_tier)
 
 // Generic expected value functions.
-template <typename T>
+template <typename T, typename = typename std::enable_if<
+                          std::is_floating_point<T>::value>::type>
 T Negate(T a) {
   return -a;
 }
 
-template <typename T>
+// For signed integral types, use base::AddWithWraparound.
+template <typename T, typename = typename std::enable_if<
+                          std::is_floating_point<T>::value>::type>
 T Add(T a, T b) {
   return a + b;
 }
 
-template <typename T>
+// For signed integral types, use base::SubWithWraparound.
+template <typename T, typename = typename std::enable_if<
+                          std::is_floating_point<T>::value>::type>
 T Sub(T a, T b) {
   return a - b;
 }
 
-template <typename T>
+// For signed integral types, use base::MulWithWraparound.
+template <typename T, typename = typename std::enable_if<
+                          std::is_floating_point<T>::value>::type>
 T Mul(T a, T b) {
   return a * b;
 }
@@ -241,16 +251,6 @@ T LogicalNot(T a) {
 template <typename T>
 T Sqrt(T a) {
   return std::sqrt(a);
-}
-
-template <typename T>
-T Recip(T a) {
-  return 1.0f / a;
-}
-
-template <typename T>
-T RecipSqrt(T a) {
-  return 1.0f / std::sqrt(a);
 }
 
 }  // namespace
@@ -509,13 +509,13 @@ WASM_SIMD_TEST(F32x4Neg) {
 static const float kApproxError = 0.01f;
 
 WASM_SIMD_TEST(F32x4RecipApprox) {
-  RunF32x4UnOpTest(execution_tier, lower_simd, kExprF32x4RecipApprox, Recip,
-                   kApproxError);
+  RunF32x4UnOpTest(execution_tier, lower_simd, kExprF32x4RecipApprox,
+                   base::Recip, kApproxError);
 }
 
 WASM_SIMD_TEST(F32x4RecipSqrtApprox) {
   RunF32x4UnOpTest(execution_tier, lower_simd, kExprF32x4RecipSqrtApprox,
-                   RecipSqrt, kApproxError);
+                   base::RecipSqrt, kApproxError);
 }
 
 void RunF32x4BinOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
@@ -923,7 +923,8 @@ void RunI32x4UnOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
 }
 
 WASM_SIMD_TEST(I32x4Neg) {
-  RunI32x4UnOpTest(execution_tier, lower_simd, kExprI32x4Neg, Negate);
+  RunI32x4UnOpTest(execution_tier, lower_simd, kExprI32x4Neg,
+                   base::NegateWithWraparound);
 }
 
 WASM_SIMD_TEST(S128Not) {
@@ -950,15 +951,18 @@ void RunI32x4BinOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
 }
 
 WASM_SIMD_TEST(I32x4Add) {
-  RunI32x4BinOpTest(execution_tier, lower_simd, kExprI32x4Add, Add);
+  RunI32x4BinOpTest(execution_tier, lower_simd, kExprI32x4Add,
+                    base::AddWithWraparound);
 }
 
 WASM_SIMD_TEST(I32x4Sub) {
-  RunI32x4BinOpTest(execution_tier, lower_simd, kExprI32x4Sub, Sub);
+  RunI32x4BinOpTest(execution_tier, lower_simd, kExprI32x4Sub,
+                    base::SubWithWraparound);
 }
 
 WASM_SIMD_TEST(I32x4Mul) {
-  RunI32x4BinOpTest(execution_tier, lower_simd, kExprI32x4Mul, Mul);
+  RunI32x4BinOpTest(execution_tier, lower_simd, kExprI32x4Mul,
+                    base::MulWithWraparound);
 }
 
 WASM_SIMD_TEST(I32x4MinS) {
@@ -1143,7 +1147,8 @@ void RunI16x8UnOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
 }
 
 WASM_SIMD_TEST(I16x8Neg) {
-  RunI16x8UnOpTest(execution_tier, lower_simd, kExprI16x8Neg, Negate);
+  RunI16x8UnOpTest(execution_tier, lower_simd, kExprI16x8Neg,
+                   base::NegateWithWraparound);
 }
 
 // Tests both signed and unsigned conversion from I32x4 (packing).
@@ -1211,7 +1216,8 @@ void RunI16x8BinOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
 }
 
 WASM_SIMD_TEST(I16x8Add) {
-  RunI16x8BinOpTest(execution_tier, lower_simd, kExprI16x8Add, Add);
+  RunI16x8BinOpTest(execution_tier, lower_simd, kExprI16x8Add,
+                    base::AddWithWraparound);
 }
 
 WASM_SIMD_TEST(I16x8AddSaturateS) {
@@ -1220,7 +1226,8 @@ WASM_SIMD_TEST(I16x8AddSaturateS) {
 }
 
 WASM_SIMD_TEST(I16x8Sub) {
-  RunI16x8BinOpTest(execution_tier, lower_simd, kExprI16x8Sub, Sub);
+  RunI16x8BinOpTest(execution_tier, lower_simd, kExprI16x8Sub,
+                    base::SubWithWraparound);
 }
 
 WASM_SIMD_TEST(I16x8SubSaturateS) {
@@ -1229,7 +1236,8 @@ WASM_SIMD_TEST(I16x8SubSaturateS) {
 }
 
 WASM_SIMD_TEST(I16x8Mul) {
-  RunI16x8BinOpTest(execution_tier, lower_simd, kExprI16x8Mul, Mul);
+  RunI16x8BinOpTest(execution_tier, lower_simd, kExprI16x8Mul,
+                    base::MulWithWraparound);
 }
 
 WASM_SIMD_TEST(I16x8MinS) {
@@ -1369,7 +1377,8 @@ void RunI8x16UnOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
 }
 
 WASM_SIMD_TEST(I8x16Neg) {
-  RunI8x16UnOpTest(execution_tier, lower_simd, kExprI8x16Neg, Negate);
+  RunI8x16UnOpTest(execution_tier, lower_simd, kExprI8x16Neg,
+                   base::NegateWithWraparound);
 }
 
 // Tests both signed and unsigned conversion from I16x8 (packing).
@@ -1439,7 +1448,8 @@ void RunI8x16BinOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
 }
 
 WASM_SIMD_TEST(I8x16Add) {
-  RunI8x16BinOpTest(execution_tier, lower_simd, kExprI8x16Add, Add);
+  RunI8x16BinOpTest(execution_tier, lower_simd, kExprI8x16Add,
+                    base::AddWithWraparound);
 }
 
 WASM_SIMD_TEST(I8x16AddSaturateS) {
@@ -1448,7 +1458,8 @@ WASM_SIMD_TEST(I8x16AddSaturateS) {
 }
 
 WASM_SIMD_TEST(I8x16Sub) {
-  RunI8x16BinOpTest(execution_tier, lower_simd, kExprI8x16Sub, Sub);
+  RunI8x16BinOpTest(execution_tier, lower_simd, kExprI8x16Sub,
+                    base::SubWithWraparound);
 }
 
 WASM_SIMD_TEST(I8x16SubSaturateS) {
@@ -1549,7 +1560,8 @@ WASM_SIMD_TEST(I8x16LeU) {
 }
 
 WASM_SIMD_TEST(I8x16Mul) {
-  RunI8x16BinOpTest(execution_tier, lower_simd, kExprI8x16Mul, Mul);
+  RunI8x16BinOpTest(execution_tier, lower_simd, kExprI8x16Mul,
+                    base::MulWithWraparound);
 }
 
 void RunI8x16ShiftOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
