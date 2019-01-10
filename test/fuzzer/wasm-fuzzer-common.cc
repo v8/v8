@@ -4,6 +4,8 @@
 
 #include "test/fuzzer/wasm-fuzzer-common.h"
 
+#include <ctime>
+
 #include "include/v8.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
@@ -163,7 +165,18 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
 
   StdoutStream os;
 
-  os << "// Copyright 2018 the V8 project authors. All rights reserved.\n"
+  tzset();
+  time_t current_time = time(nullptr);
+  struct tm current_localtime;
+#ifdef V8_OS_WIN
+  localtime_s(&current_localtime, &current_time);
+#else
+  localtime_r(&current_time, &current_localtime);
+#endif
+  int year = 1900 + current_localtime.tm_year;
+
+  os << "// Copyright " << year
+     << " the V8 project authors. All rights reserved.\n"
         "// Use of this source code is governed by a BSD-style license that "
         "can be\n"
         "// found in the LICENSE file.\n"
