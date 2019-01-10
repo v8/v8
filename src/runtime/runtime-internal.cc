@@ -6,6 +6,7 @@
 
 #include "src/api.h"
 #include "src/arguments-inl.h"
+#include "src/ast/ast-traversal-visitor.h"
 #include "src/ast/prettyprinter.h"
 #include "src/bootstrapper.h"
 #include "src/builtins/builtins.h"
@@ -424,6 +425,94 @@ RUNTIME_FUNCTION(Runtime_ThrowConstructedNonConstructable) {
   Handle<String> callsite = RenderCallSite(isolate, object, &hint);
   MessageTemplate id = MessageTemplate::kNotConstructor;
   THROW_NEW_ERROR_RETURN_FAILURE(isolate, NewTypeError(id, callsite));
+}
+
+namespace {
+
+// Helper visitor for ThrowPatternAssignmentNonCoercible which finds an
+// object literal (representing a destructuring assignment) at a given source
+// position.
+class PatternFinder final : public AstTraversalVisitor<PatternFinder> {
+ public:
+  PatternFinder(Isolate* isolate, Expression* root, int position)
+      : AstTraversalVisitor(isolate, root),
+        position_(position),
+        object_literal_(nullptr) {}
+
+  ObjectLiteral* object_literal() const { return object_literal_; }
+
+ private:
+  // This is required so that the overriden Visit* methods can be
+  // called by the base class (template).
+  friend class AstTraversalVisitor<PatternFinder>;
+
+  void VisitObjectLiteral(ObjectLiteral* lit) {
+    // TODO(leszeks): This could be smarter in only traversing object literals
+    // that are known to be a destructuring pattern. We could then also
+    // potentially find the corresponding assignment value and report that too.
+    if (lit->position() == position_) {
+      object_literal_ = lit;
+      return;
+    }
+    AstTraversalVisitor::VisitObjectLiteral(lit);
+  }
+
+  int position_;
+  ObjectLiteral* object_literal_;
+};
+
+}  // namespace
+
+RUNTIME_FUNCTION(Runtime_ThrowPatternAssignmentNonCoercible) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(0, args.length());
+
+  // Find the object literal representing the destructuring assignment, so that
+  // we can try to attribute the error to a property name on it rather than to
+  // the literal itself.
+  MaybeHandle<String> maybe_property_name;
+  MessageLocation location;
+  if (ComputeLocation(isolate, &location)) {
+    ParseInfo info(isolate, location.shared());
+    if (parsing::ParseAny(&info, location.shared(), isolate)) {
+      info.ast_value_factory()->Internalize(isolate);
+
+      PatternFinder finder(isolate, info.literal(), location.start_pos());
+      finder.Run();
+      if (finder.object_literal()) {
+        for (ObjectLiteralProperty* pattern_property :
+             *finder.object_literal()->properties()) {
+          Expression* key = pattern_property->key();
+          if (key->IsPropertyName()) {
+            int pos = key->position();
+            maybe_property_name =
+                key->AsLiteral()->AsRawPropertyName()->string();
+            // Change the message location to point at the property name.
+            location = MessageLocation(location.script(), pos, pos + 1,
+                                       location.shared());
+            break;
+          }
+        }
+      }
+    } else {
+      isolate->clear_pending_exception();
+    }
+  }
+
+  // Create a "non-coercible" type error with a property name if one is
+  // available, otherwise create a generic one.
+  Handle<Object> error;
+  Handle<String> property_name;
+  if (maybe_property_name.ToHandle(&property_name)) {
+    error = isolate->factory()->NewTypeError(
+        MessageTemplate::kNonCoercibleWithProperty, property_name);
+  } else {
+    error = isolate->factory()->NewTypeError(MessageTemplate::kNonCoercible);
+  }
+
+  // Explicitly pass the calculated location, as we may have updated it to match
+  // the property name.
+  return isolate->Throw(*error, &location);
 }
 
 RUNTIME_FUNCTION(Runtime_ThrowConstructorReturnedNonObject) {

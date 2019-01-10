@@ -376,23 +376,18 @@ snippet: "
   var x, a = {x:1};
   ({x} = a);
 "
-frame size: 5
+frame size: 3
 parameter count: 1
-bytecode array length: 35
+bytecode array length: 26
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   45 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(41),
                 B(Star), R(1),
   /*   52 S> */ B(JumpIfNull), U8(4),
-                B(JumpIfNotUndefined), U8(16),
-                B(LdaSmi), I8(81),
+                B(JumpIfNotUndefined), U8(7),
+  /*   53 E> */ B(CallRuntime), U16(Runtime::kThrowPatternAssignmentNonCoercible), R(0), U8(0),
                 B(Star), R(2),
-                B(LdaConstant), U8(1),
-                B(Star), R(3),
-  /*   54 E> */ B(CallRuntime), U16(Runtime::kNewTypeError), R(2), U8(2),
-                B(Throw),
-                B(Star), R(4),
-  /*   54 S> */ B(LdaNamedProperty), R(4), U8(1), U8(1),
+  /*   54 S> */ B(LdaNamedProperty), R(2), U8(1), U8(1),
                 B(Star), R(0),
                 B(LdaUndefined),
   /*   63 S> */ B(Return),
@@ -409,9 +404,9 @@ snippet: "
   var x={}, a = {y:1};
   ({y:x.foo} = a);
 "
-frame size: 5
+frame size: 3
 parameter count: 1
-bytecode array length: 40
+bytecode array length: 31
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   40 S> */ B(CreateEmptyObjectLiteral),
@@ -419,15 +414,10 @@ bytecodes: [
   /*   48 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(41),
                 B(Star), R(1),
   /*   55 S> */ B(JumpIfNull), U8(4),
-                B(JumpIfNotUndefined), U8(16),
-                B(LdaSmi), I8(81),
-                B(Star), R(2),
-                B(LdaConstant), U8(1),
-                B(Star), R(3),
-  /*   57 E> */ B(CallRuntime), U16(Runtime::kNewTypeError), R(2), U8(2),
-                B(Throw),
-  /*   61 S> */ B(Star), R(4),
-                B(LdaNamedProperty), R(4), U8(1), U8(1),
+                B(JumpIfNotUndefined), U8(7),
+  /*   56 E> */ B(CallRuntime), U16(Runtime::kThrowPatternAssignmentNonCoercible), R(0), U8(0),
+  /*   61 S> */ B(Star), R(2),
+                B(LdaNamedProperty), R(2), U8(1), U8(1),
                 B(StaNamedProperty), R(0), U8(2), U8(3),
                 B(LdaUndefined),
   /*   72 S> */ B(Return),
@@ -445,29 +435,24 @@ snippet: "
   var x, a = {y:1, w:2, v:3};
   ({x=0,...y} = a);
 "
-frame size: 6
+frame size: 4
 parameter count: 1
-bytecode array length: 50
+bytecode array length: 41
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   45 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(41),
                 B(Star), R(1),
   /*   62 S> */ B(JumpIfNull), U8(4),
-                B(JumpIfNotUndefined), U8(16),
-                B(LdaSmi), I8(81),
+                B(JumpIfNotUndefined), U8(7),
+  /*   63 E> */ B(CallRuntime), U16(Runtime::kThrowPatternAssignmentNonCoercible), R(0), U8(0),
                 B(Star), R(2),
-                B(LdaConstant), U8(1),
-                B(Star), R(3),
-  /*   64 E> */ B(CallRuntime), U16(Runtime::kNewTypeError), R(2), U8(2),
-                B(Throw),
-                B(Star), R(4),
   /*   64 S> */ B(LdaConstant), U8(1),
-                B(Star), R(5),
-                B(LdaNamedProperty), R(4), U8(1), U8(1),
+                B(Star), R(3),
+                B(LdaNamedProperty), R(2), U8(1), U8(1),
                 B(JumpIfNotUndefined), U8(3),
                 B(LdaZero),
                 B(Star), R(0),
-  /*   71 S> */ B(CallRuntime), U16(Runtime::kCopyDataPropertiesWithExcludedProperties), R(4), U8(2),
+  /*   71 S> */ B(CallRuntime), U16(Runtime::kCopyDataPropertiesWithExcludedProperties), R(2), U8(2),
                 B(StaGlobal), U8(2), U8(3),
                 B(LdaUndefined),
   /*   80 S> */ B(Return),

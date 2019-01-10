@@ -3455,32 +3455,8 @@ void BytecodeGenerator::BuildDestructuringObjectAssignment(
 
   {
     builder()->Bind(&is_null_or_undefined);
-
-    // TODO(leszeks): Don't do this calculation here, but instead do it in a
-    // runtime method.
-    auto source_position = pattern->position();
-    const AstRawString* property_name = ast_string_constants()->empty_string();
-    MessageTemplate msg = MessageTemplate::kNonCoercible;
-    for (ObjectLiteralProperty* pattern_property : *pattern->properties()) {
-      Expression* key = pattern_property->key();
-      if (key->IsPropertyName()) {
-        property_name = key->AsLiteral()->AsRawPropertyName();
-        msg = MessageTemplate::kNonCoercibleWithProperty;
-        source_position = key->position();
-        break;
-      }
-    }
-
-    RegisterList new_type_error_args = register_allocator()->NewRegisterList(2);
-    // throw %NewTypeError(msg, property_name, source_position)
-    builder()->SetExpressionPosition(source_position);
-    builder()
-        ->LoadLiteral(Smi::FromEnum(msg))
-        .StoreAccumulatorInRegister(new_type_error_args[0])
-        .LoadLiteral(property_name)
-        .StoreAccumulatorInRegister(new_type_error_args[1])
-        .CallRuntime(Runtime::kNewTypeError, new_type_error_args)
-        .Throw();
+    builder()->SetExpressionPosition(pattern);
+    builder()->CallRuntime(Runtime::kThrowPatternAssignmentNonCoercible);
   }
 
   // Store the assignment value in a register.

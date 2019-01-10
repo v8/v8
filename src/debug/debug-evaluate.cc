@@ -279,6 +279,7 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(ThrowInvalidStringLength)                 \
   V(ThrowIteratorError)                       \
   V(ThrowIteratorResultNotAnObject)           \
+  V(ThrowPatternAssignmentNonCoercible)       \
   V(ThrowReferenceError)                      \
   V(ThrowSymbolIteratorInvalid)               \
   /* Strings */                               \
