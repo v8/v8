@@ -41,8 +41,8 @@ export class DisassemblyView extends TextView {
 
   constructor(parentId, broker: SelectionBroker) {
     super(parentId, broker);
-    let view = this;
-    let ADDRESS_STYLE = {
+    const view = this;
+    const ADDRESS_STYLE = {
       associateData: (text, fragment: HTMLElement) => {
         const matches = text.match(/(?<address>0?x?[0-9a-fA-F]{8,16})(?<addressSpace>\s+)(?<offset>[0-9a-f]+)(?<offsetSpace>\s*)/);
         const offset = Number.parseInt(matches.groups["offset"], 16);
@@ -65,16 +65,16 @@ export class DisassemblyView extends TextView {
         }
       }
     };
-    let UNCLASSIFIED_STYLE = {
+    const UNCLASSIFIED_STYLE = {
       css: 'com'
     };
-    let NUMBER_STYLE = {
+    const NUMBER_STYLE = {
       css: ['instruction-binary', 'lit']
     };
-    let COMMENT_STYLE = {
+    const COMMENT_STYLE = {
       css: 'com'
     };
-    let OPCODE_ARGS = {
+    const OPCODE_ARGS = {
       associateData: function (text, fragment) {
         fragment.innerHTML = text;
         const replacer = (match, hexOffset) => {
@@ -86,12 +86,12 @@ export class DisassemblyView extends TextView {
         fragment.innerHTML = html;
       }
     };
-    let OPCODE_STYLE = {
+    const OPCODE_STYLE = {
       css: 'kwd'
     };
     const BLOCK_HEADER_STYLE = {
       associateData: function (text, fragment) {
-        let matches = /\d+/.exec(text);
+        const matches = /\d+/.exec(text);
         if (!matches) return;
         const blockId = matches[0];
         fragment.dataset.blockId = blockId;
@@ -103,7 +103,7 @@ export class DisassemblyView extends TextView {
       css: 'com'
     };
     view.SOURCE_POSITION_HEADER_REGEX = /^\s*--[^<]*<.*(not inlined|inlined\((\d+)\)):(\d+)>\s*--/;
-    let patterns = [
+    const patterns = [
       [
         [/^0?x?[0-9a-fA-F]{8,16}\s+[0-9a-f]+\s+/, ADDRESS_STYLE, 1],
         [view.SOURCE_POSITION_HEADER_REGEX, SOURCE_POSITION_HEADER_STYLE, -1],
@@ -223,7 +223,7 @@ export class DisassemblyView extends TextView {
 
   updateSelection(scrollIntoView: boolean = false) {
     super.updateSelection(scrollIntoView);
-    let keyPcOffsets = this.sourceResolver.nodesToKeyPcOffsets(this.selection.selectedKeys());
+    const keyPcOffsets = this.sourceResolver.nodesToKeyPcOffsets(this.selection.selectedKeys());
     if (this.offsetSelection) {
       for (const key of this.offsetSelection.selectedKeys()) {
         keyPcOffsets.push(Number(key));
@@ -238,7 +238,7 @@ export class DisassemblyView extends TextView {
   }
 
   initializeCode(sourceText, sourcePosition: number = 0) {
-    let view = this;
+    const view = this;
     view.addrEventCounts = null;
     view.totalEventCounts = null;
     view.maxEventCounts = null;
@@ -247,9 +247,9 @@ export class DisassemblyView extends TextView {
     // add sourcePosition for lines > 0.
     view.posLines[0] = sourcePosition;
     if (sourceText && sourceText != "") {
-      let base = sourcePosition;
+      const base = sourcePosition;
       let current = 0;
-      let sourceLines = sourceText.split("\n");
+      const sourceLines = sourceText.split("\n");
       for (let i = 1; i < sourceLines.length; i++) {
         // Add 1 for newline character that is split off.
         current += sourceLines[i - 1].length + 1;
@@ -259,16 +259,16 @@ export class DisassemblyView extends TextView {
   }
 
   initializePerfProfile(eventCounts) {
-    let view = this;
+    const view = this;
     if (eventCounts !== undefined) {
       view.addrEventCounts = eventCounts;
 
       view.totalEventCounts = {};
       view.maxEventCounts = {};
-      for (let evName in view.addrEventCounts) {
+      for (const evName in view.addrEventCounts) {
         if (view.addrEventCounts.hasOwnProperty(evName)) {
-          let keys = Object.keys(view.addrEventCounts[evName]);
-          let values = keys.map(key => view.addrEventCounts[evName][key]);
+          const keys = Object.keys(view.addrEventCounts[evName]);
+          const values = keys.map(key => view.addrEventCounts[evName][key]);
           view.totalEventCounts[evName] = values.reduce((a, b) => a + b);
           view.maxEventCounts[evName] = values.reduce((a, b) => Math.max(a, b));
         }
@@ -294,21 +294,21 @@ export class DisassemblyView extends TextView {
   }
 
   processLine(line) {
-    let view = this;
+    const view = this;
     let fragments = super.processLine(line);
 
     // Add profiling data per instruction if available.
     if (view.totalEventCounts) {
-      let matches = /^(0x[0-9a-fA-F]+)\s+\d+\s+[0-9a-fA-F]+/.exec(line);
+      const matches = /^(0x[0-9a-fA-F]+)\s+\d+\s+[0-9a-fA-F]+/.exec(line);
       if (matches) {
-        let newFragments = [];
-        for (let event in view.addrEventCounts) {
+        const newFragments = [];
+        for (const event in view.addrEventCounts) {
           if (!view.addrEventCounts.hasOwnProperty(event)) continue;
-          let count = view.addrEventCounts[event][matches[1]];
+          const count = view.addrEventCounts[event][matches[1]];
           let str = " ";
-          let cssCls = "prof";
+          const cssCls = "prof";
           if (count !== undefined) {
-            let perc = count / view.totalEventCounts[event] * 100;
+            const perc = count / view.totalEventCounts[event] * 100;
 
             let col = { r: 255, g: 255, b: 255 };
             for (let i = 0; i < PROF_COLS.length; i++) {
@@ -316,11 +316,11 @@ export class DisassemblyView extends TextView {
                 col = PROF_COLS[i].col;
                 break;
               } else if (perc > PROF_COLS[i].perc && perc < PROF_COLS[i + 1].perc) {
-                let col1 = PROF_COLS[i].col;
-                let col2 = PROF_COLS[i + 1].col;
+                const col1 = PROF_COLS[i].col;
+                const col2 = PROF_COLS[i + 1].col;
 
-                let val = perc - PROF_COLS[i].perc;
-                let max = PROF_COLS[i + 1].perc - PROF_COLS[i].perc;
+                const val = perc - PROF_COLS[i].perc;
+                const max = PROF_COLS[i + 1].perc - PROF_COLS[i].perc;
 
                 col.r = Math.round(interpolate(val, max, col1.r, col2.r));
                 col.g = Math.round(interpolate(val, max, col1.g, col2.g));
@@ -331,7 +331,7 @@ export class DisassemblyView extends TextView {
 
             str = UNICODE_BLOCK;
 
-            let fragment = view.createFragment(str, cssCls);
+            const fragment = view.createFragment(str, cssCls);
             fragment.title = event + ": " + view.humanize(perc) + " (" + count + ")";
             fragment.style.color = "rgb(" + col.r + ", " + col.g + ", " + col.b + ")";
 

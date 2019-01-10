@@ -35,7 +35,7 @@ class Snapper {
   }
 
   getLastExpandedState(type: string, defaultState: boolean): boolean {
-    var state = window.sessionStorage.getItem("expandedState-" + type);
+    const state = window.sessionStorage.getItem("expandedState-" + type);
     if (state === null) return defaultState;
     return state === 'true';
   }
@@ -102,7 +102,7 @@ export class Resizer {
   resizerLeft: d3.Selection<HTMLDivElement, any, any, any>;
 
   constructor(panesUpdatedCallback: () => void, deadWidth: number) {
-    let resizer = this;
+    const resizer = this;
     resizer.panesUpdatedCallback = panesUpdatedCallback;
     resizer.deadWidth = deadWidth;
     resizer.left = document.getElementById(C.SOURCE_PANE_ID);
@@ -116,15 +116,15 @@ export class Resizer {
     resizer.sepWidthOffset = 7;
     this.updateWidths();
 
-    let dragResizeLeft = d3.drag()
+    const dragResizeLeft = d3.drag()
       .on('drag', function () {
-        let x = d3.mouse(this.parentElement)[0];
+        const x = d3.mouse(this.parentElement)[0];
         resizer.sepLeft = Math.min(Math.max(0, x), resizer.sepRight - resizer.sepWidthOffset);
         resizer.updatePanes();
       })
       .on('start', function () {
         resizer.resizerLeft.classed("dragged", true);
-        let x = d3.mouse(this.parentElement)[0];
+        const x = d3.mouse(this.parentElement)[0];
         if (x > deadWidth) {
           resizer.sepLeftSnap = resizer.sepLeft;
         }
@@ -137,15 +137,15 @@ export class Resizer {
       });
     resizer.resizerLeft.call(dragResizeLeft);
 
-    let dragResizeRight = d3.drag()
+    const dragResizeRight = d3.drag()
       .on('drag', function () {
-        let x = d3.mouse(this.parentElement)[0];
+        const x = d3.mouse(this.parentElement)[0];
         resizer.sepRight = Math.max(resizer.sepLeft + resizer.sepWidthOffset, Math.min(x, resizer.clientWidth));
         resizer.updatePanes();
       })
       .on('start', function () {
         resizer.resizerRight.classed("dragged", true);
-        let x = d3.mouse(this.parentElement)[0];
+        const x = d3.mouse(this.parentElement)[0];
         if (x < (resizer.clientWidth - deadWidth)) {
           resizer.sepRightSnap = resizer.sepRight;
         }
@@ -175,8 +175,8 @@ export class Resizer {
   }
 
   updatePanes() {
-    let leftSnapped = this.isLeftSnapped();
-    let rightSnapped = this.isRightSnapped();
+    const leftSnapped = this.isLeftSnapped();
+    const rightSnapped = this.isRightSnapped();
     this.resizerLeft.classed("snapped", leftSnapped);
     this.resizerRight.classed("snapped", rightSnapped);
     this.left.style.width = this.sepLeft + 'px';

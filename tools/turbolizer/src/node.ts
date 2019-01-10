@@ -85,7 +85,7 @@ export class GNode {
       this.isJavaScript() || this.isSimplified());
   }
   getTotalNodeWidth() {
-    var inputWidth = this.inputs.length * NODE_INPUT_WIDTH;
+    const inputWidth = this.inputs.length * NODE_INPUT_WIDTH;
     return Math.max(inputWidth, this.width);
   }
   getTitle() {
@@ -98,7 +98,7 @@ export class GNode {
     return this.nodeLabel.type;
   }
   getDisplayType() {
-    var typeString = this.nodeLabel.type;
+    let typeString = this.nodeLabel.type;
     if (typeString == undefined) return "";
     if (typeString.length > 24) {
       typeString = typeString.substr(0, 25) + "...";
@@ -106,7 +106,7 @@ export class GNode {
     return typeString;
   }
   deepestInputRank() {
-    var deepestRank = 0;
+    let deepestRank = 0;
     this.inputs.forEach(function (e) {
       if (e.isVisible() && !e.isBackEdge()) {
         if (e.source.rank > deepestRank) {
@@ -117,14 +117,14 @@ export class GNode {
     return deepestRank;
   }
   areAnyOutputsVisible() {
-    var visibleCount = 0;
+    let visibleCount = 0;
     this.outputs.forEach(function (e) { if (e.isVisible())++visibleCount; });
     if (this.outputs.length == visibleCount) return 2;
     if (visibleCount != 0) return 1;
     return 0;
   }
   setOutputVisibility(v) {
-    var result = false;
+    let result = false;
     this.outputs.forEach(function (e) {
       e.visible = v;
       if (v) {
@@ -137,7 +137,7 @@ export class GNode {
     return result;
   }
   setInputVisibility(i, v) {
-    var edge = this.inputs[i];
+    const edge = this.inputs[i];
     edge.visible = v;
     if (v) {
       if (!edge.source.visible) {
@@ -163,7 +163,7 @@ export class GNode {
       + DEFAULT_NODE_BUBBLE_RADIUS;
   }
   getInputX(index) {
-    var result = this.getTotalNodeWidth() - (NODE_INPUT_WIDTH / 2) +
+    const result = this.getTotalNodeWidth() - (NODE_INPUT_WIDTH / 2) +
       (index - this.inputs.length + 1) * NODE_INPUT_WIDTH;
     return result;
   }

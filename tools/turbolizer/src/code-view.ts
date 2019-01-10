@@ -32,7 +32,7 @@ export class CodeView extends View {
 
   constructor(parent: HTMLElement, broker: SelectionBroker, sourceResolver: SourceResolver, sourceFunction: Source, codeMode: CodeMode) {
     super(parent);
-    let view = this;
+    const view = this;
     view.broker = broker;
     view.sourceResolver = sourceResolver;
     view.source = sourceFunction;
@@ -48,7 +48,7 @@ export class CodeView extends View {
       },
       select: function (sourcePositions, selected) {
         const locations = [];
-        for (var sourcePosition of sourcePositions) {
+        for (const sourcePosition of sourcePositions) {
           locations.push(sourcePosition);
           sourceResolver.addInliningPositions(sourcePosition, locations);
         }
@@ -134,7 +134,7 @@ export class CodeView extends View {
   }
 
   initializeCode() {
-    var view = this;
+    const view = this;
     const source = this.source;
     const sourceText = source.sourceText;
     if (!sourceText) return;
@@ -144,14 +144,14 @@ export class CodeView extends View {
     } else {
       sourceContainer.classList.add("inlined-source");
     }
-    var codeHeader = document.createElement("div");
+    const codeHeader = document.createElement("div");
     codeHeader.setAttribute("id", this.getCodeHeaderHtmlElementName());
     codeHeader.classList.add("code-header");
-    var codeFileFunction = document.createElement("div");
+    const codeFileFunction = document.createElement("div");
     codeFileFunction.classList.add("code-file-function");
     codeFileFunction.innerHTML = `${source.sourceName}:${source.functionName}`;
     codeHeader.appendChild(codeFileFunction);
-    var codeModeDiv = document.createElement("div");
+    const codeModeDiv = document.createElement("div");
     codeModeDiv.classList.add("code-mode");
     codeModeDiv.innerHTML = `${this.codeMode}`;
     codeHeader.appendChild(codeModeDiv);
@@ -159,7 +159,7 @@ export class CodeView extends View {
     clearDiv.style.clear = "both";
     codeHeader.appendChild(clearDiv);
     sourceContainer.appendChild(codeHeader);
-    var codePre = document.createElement("pre");
+    const codePre = document.createElement("pre");
     codePre.setAttribute("id", this.getCodeHtmlElementName());
     codePre.classList.add("prettyprint");
     sourceContainer.appendChild(codePre);
@@ -204,8 +204,7 @@ export class CodeView extends View {
         currentLineElement.id = "li" + i;
         currentLineElement.dataset.lineNumber = "" + lineNumber;
         const spans = currentLineElement.childNodes;
-        for (let j = 0; j < spans.length; ++j) {
-          const currentSpan = spans[j];
+        for (const currentSpan of spans) {
           if (currentSpan instanceof HTMLSpanElement) {
             const pos = base + current;
             const end = pos + currentSpan.textContent.length;

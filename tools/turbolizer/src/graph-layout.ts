@@ -141,10 +141,9 @@ function newGraphOccupation(graph: Graph) {
         let direction = -1;
         let outputEdges = 0;
         let inputEdges = 0;
-        for (let k = 0; k < n.outputs.length; ++k) {
-          const outputEdge = n.outputs[k];
+        for (const outputEdge of n.outputs) {
           if (outputEdge.isVisible()) {
-            const output = n.outputs[k].target;
+            const output = outputEdge.target;
             for (let l = 0; l < output.inputs.length; ++l) {
               if (output.rank > n.rank) {
                 const inputEdge = output.inputs[l];
@@ -202,8 +201,8 @@ function newGraphOccupation(graph: Graph) {
       source.outputs.forEach(function (edge) {
         if (edge.isVisible()) {
           const target = edge.target;
-          for (let i = 0; i < target.inputs.length; ++i) {
-            if (target.inputs[i].source === source) {
+          for (const inputEdge of target.inputs) {
+            if (inputEdge.source === source) {
               const horizontalPos = edge.getInputHorizontalPosition(graph, showTypes);
               clearPositionRangeWithMargin(horizontalPos,
                 horizontalPos,
@@ -332,8 +331,8 @@ export function layoutNodeGraph(graph: Graph, showTypes: boolean): void {
     const originalRank = n.rank;
     let newRank = n.rank;
     let isFirstInput = true;
-    for (let l = 0; l < n.outputs.length; ++l) {
-      const output = n.outputs[l].target;
+    for (const outputEdge of n.outputs) {
+      const output = outputEdge.target;
       dfsFindRankLate(output);
       const outputRank = output.rank;
       if (output.visible && (isFirstInput || outputRank <= newRank) &&
@@ -353,10 +352,9 @@ export function layoutNodeGraph(graph: Graph, showTypes: boolean): void {
   function dfsRankOrder(n: GNode) {
     if (visited[n.id]) return;
     visited[n.id] = true;
-    for (let l = 0; l < n.outputs.length; ++l) {
-      const edge = n.outputs[l];
-      if (edge.isVisible()) {
-        const output = edge.target;
+    for (const outputEdge of n.outputs) {
+      if (outputEdge.isVisible()) {
+        const output = outputEdge.target;
         dfsRankOrder(output);
       }
     }
@@ -391,8 +389,8 @@ export function layoutNodeGraph(graph: Graph, showTypes: boolean): void {
 
   rankSets.reverse().forEach(function (rankSet: Array<GNode>) {
 
-    for (let i = 0; i < rankSet.length; ++i) {
-      occupation.clearNodeOutputs(rankSet[i], showTypes);
+    for (const node of rankSet) {
+      occupation.clearNodeOutputs(node, showTypes);
     }
 
     if (traceLayout) {
@@ -411,8 +409,7 @@ export function layoutNodeGraph(graph: Graph, showTypes: boolean): void {
       }
     });
 
-    for (let i = 0; i < rankSet.length; ++i) {
-      const nodeToPlace = rankSet[i];
+    for (const nodeToPlace of rankSet) {
       if (nodeToPlace.visible) {
         nodeToPlace.x = occupation.occupyNode(nodeToPlace);
         if (traceLayout) {
@@ -438,8 +435,7 @@ export function layoutNodeGraph(graph: Graph, showTypes: boolean): void {
       occupation.print();
     }
 
-    for (let i = 0; i < rankSet.length; ++i) {
-      const node = rankSet[i];
+    for (const node of rankSet) {
       occupation.occupyNodeInputs(node, showTypes);
     }
 

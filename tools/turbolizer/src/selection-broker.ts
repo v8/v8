@@ -76,7 +76,7 @@ export class SelectionBroker {
   }
 
   broadcastBlockSelect(from, blocks, selected) {
-    for (var b of this.blockHandlers) {
+    for (const b of this.blockHandlers) {
       if (b != from) b.brokeredBlockSelect(blocks, selected);
     }
   }

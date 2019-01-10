@@ -83,7 +83,7 @@ export class SequenceView extends TextView implements PhaseView {
     }
 
     function elementForOperand(operand, searchInfo) {
-      var text = operand.text;
+      const text = operand.text;
       const operandEl = createElement("div", ["parameter", "tag", "clickable", operand.type], text);
       if (operand.tooltip) {
         operandEl.setAttribute("title", operand.tooltip);
@@ -137,7 +137,7 @@ export class SequenceView extends TextView implements PhaseView {
         instEl.appendChild(assignEl);
       }
 
-      var text = instruction.opcode + instruction.flags;
+      const text = instruction.opcode + instruction.flags;
       const instLabel = createElement("div", "node-label", text);
       searchInfo.push(text);
       view.addHtmlElementForNodeId(text, instLabel);

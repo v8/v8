@@ -6,8 +6,8 @@
     "curly": [true, "ignore-same-line"],
     "quotemark": [false, "double", "avoid-escape", "avoid-template"],
     "only-arrow-functions": [false],
-    "no-var-keyword": false,
-    "prefer-const": [false],
+    "no-var-keyword": true,
+    "prefer-const": [true],
     "max-line-length": [false, {
       "limit": 80
     }],
@@ -32,13 +32,13 @@
     "interface-name": false,
     "no-bitwise": false,
     "no-shadowed-variable": false,
-    "prefer-for-of": false,
-    "align": false,
-    "arrow-return-shorthand": false,
+    "prefer-for-of": true,
+    "align": true,
+    "arrow-return-shorthand": true,
     "max-classes-per-file": false,
-    "variable-name": false,
+    "variable-name": true,
     "forin": false,
-    "one-variable-per-declaration": false,
+    "one-variable-per-declaration": true,
     "no-consecutive-blank-lines": true
   },
   "rulesDirectory": []

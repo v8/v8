@@ -88,7 +88,7 @@ export class GraphView extends View implements PhaseView {
         view.updateGraphVisibility();
       },
       select: function (nodes: Array<GNode>, selected: boolean) {
-        let locations = [];
+        const locations = [];
         for (const node of nodes) {
           if (node.nodeLabel.sourcePosition) {
             locations.push(node.nodeLabel.sourcePosition);
@@ -103,7 +103,7 @@ export class GraphView extends View implements PhaseView {
       },
       brokeredNodeSelect: function (locations, selected: boolean) {
         if (!view.graph) return;
-        let selection = view.graph.nodes(n => {
+        const selection = view.graph.nodes(n => {
           return locations.has(nodeToStringKey(n))
             && (!view.state.hideDead || n.isLive());
         });
@@ -177,10 +177,10 @@ export class GraphView extends View implements PhaseView {
 
   getEdgeFrontier(nodes: Iterable<GNode>, inEdges: boolean,
     edgeFilter: (e: Edge, i: number) => boolean) {
-    let frontier: Set<Edge> = new Set();
+    const frontier: Set<Edge> = new Set();
     for (const n of nodes) {
       const edges = inEdges ? n.inputs : n.outputs;
-      var edgeNumber = 0;
+      let edgeNumber = 0;
       edges.forEach((edge: Edge) => {
         if (edgeFilter == undefined || edgeFilter(edge, edgeNumber)) {
           frontier.add(edge);
@@ -470,7 +470,7 @@ export class GraphView extends View implements PhaseView {
       case 57:
         // '1'-'9'
         showSelectionFrontierNodes(true,
-          (edge: Edge, index: number) => { return index == (d3.event.keyCode - 49); },
+          (edge: Edge, index: number) => index == (d3.event.keyCode - 49),
           !d3.event.ctrlKey);
         break;
       case 97:
@@ -484,19 +484,19 @@ export class GraphView extends View implements PhaseView {
       case 105:
         // 'numpad 1'-'numpad 9'
         showSelectionFrontierNodes(true,
-          (edge, index) => { return index == (d3.event.keyCode - 97); },
+          (edge, index) => index == (d3.event.keyCode - 97),
           !d3.event.ctrlKey);
         break;
       case 67:
         // 'c'
         showSelectionFrontierNodes(d3.event.altKey,
-          (edge, index) => { return edge.type == 'control'; },
+          (edge, index) => edge.type == 'control',
           true);
         break;
       case 69:
         // 'e'
         showSelectionFrontierNodes(d3.event.altKey,
-          (edge, index) => { return edge.type == 'effect'; },
+          (edge, index) => edge.type == 'effect',
           true);
         break;
       case 79:
@@ -638,8 +638,8 @@ export class GraphView extends View implements PhaseView {
       .classed("machine", function (n) { return n.isMachine(); })
       .on('mouseenter', function (node) {
         const visibleEdges = view.visibleEdges.selectAll<SVGPathElement, Edge>('path');
-        const adjInputEdges = visibleEdges.filter(e => { return e.target === node; });
-        const adjOutputEdges = visibleEdges.filter(e => { return e.source === node; });
+        const adjInputEdges = visibleEdges.filter(e => e.target === node);
+        const adjOutputEdges = visibleEdges.filter(e => e.source === node);
         adjInputEdges.attr('relToHover', "input");
         adjOutputEdges.attr('relToHover', "output");
         const adjInputNodes = adjInputEdges.data().map(e => e.source);
@@ -651,7 +651,7 @@ export class GraphView extends View implements PhaseView {
       })
       .on('mouseleave', function (node) {
         const visibleEdges = view.visibleEdges.selectAll<SVGPathElement, Edge>('path');
-        const adjEdges = visibleEdges.filter(e => { return e.target === node || e.source === node; });
+        const adjEdges = visibleEdges.filter(e => e.target === node || e.source === node);
         adjEdges.attr('relToHover', "none");
         const adjNodes = adjEdges.data().map(e => e.target).concat(adjEdges.data().map(e => e.source));
         const visibleNodes = view.visibleNodes.selectAll<SVGPathElement, GNode>("g");
@@ -821,10 +821,10 @@ export class GraphView extends View implements PhaseView {
 
   viewSelection() {
     const view = this;
-    var minX;
-    var maxX;
-    var minY;
-    var maxY;
+    let minX;
+    let maxX;
+    let minY;
+    let maxY;
     let hasSelection = false;
     view.visibleNodes.selectAll<SVGGElement, GNode>("g").each(function (n) {
       if (view.state.selection.isSelected(n)) {

@@ -36,16 +36,16 @@ export class Edge {
     if (this.backEdgeNumber > 0) {
       return graph.maxGraphNodeX + this.backEdgeNumber * MINIMUM_EDGE_SEPARATION;
     }
-    var source = this.source;
-    var target = this.target;
-    var index = this.index;
-    var inputX = target.x + target.getInputX(index);
-    var inputApproach = target.getInputApproach(this.index);
-    var outputApproach = source.getOutputApproach(showTypes);
+    const source = this.source;
+    const target = this.target;
+    const index = this.index;
+    const inputX = target.x + target.getInputX(index);
+    const inputApproach = target.getInputApproach(this.index);
+    const outputApproach = source.getOutputApproach(showTypes);
     if (inputApproach > outputApproach) {
       return inputX;
     } else {
-      var inputOffset = MINIMUM_EDGE_SEPARATION * (index + 1);
+      const inputOffset = MINIMUM_EDGE_SEPARATION * (index + 1);
       return (target.x < source.x)
         ? (target.x + target.getTotalNodeWidth() + inputOffset)
         : (target.x - inputOffset);
@@ -53,18 +53,18 @@ export class Edge {
   }
 
   generatePath(graph: Graph, showTypes: boolean) {
-    var target = this.target;
-    var source = this.source;
-    var inputX = target.x + target.getInputX(this.index);
-    var arrowheadHeight = 7;
-    var inputY = target.y - 2 * DEFAULT_NODE_BUBBLE_RADIUS - arrowheadHeight;
-    var outputX = source.x + source.getOutputX();
-    var outputY = source.y + source.getNodeHeight(showTypes) + DEFAULT_NODE_BUBBLE_RADIUS;
-    var inputApproach = target.getInputApproach(this.index);
-    var outputApproach = source.getOutputApproach(showTypes);
-    var horizontalPos = this.getInputHorizontalPosition(graph, showTypes);
+    const target = this.target;
+    const source = this.source;
+    const inputX = target.x + target.getInputX(this.index);
+    const arrowheadHeight = 7;
+    const inputY = target.y - 2 * DEFAULT_NODE_BUBBLE_RADIUS - arrowheadHeight;
+    const outputX = source.x + source.getOutputX();
+    const outputY = source.y + source.getNodeHeight(showTypes) + DEFAULT_NODE_BUBBLE_RADIUS;
+    let inputApproach = target.getInputApproach(this.index);
+    const outputApproach = source.getOutputApproach(showTypes);
+    const horizontalPos = this.getInputHorizontalPosition(graph, showTypes);
 
-    var result = "M" + outputX + "," + outputY +
+    let result = "M" + outputX + "," + outputY +
       "L" + outputX + "," + outputApproach +
       "L" + horizontalPos + "," + outputApproach;
 

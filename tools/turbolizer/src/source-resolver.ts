@@ -151,7 +151,7 @@ export class SourceResolver {
 
   setSources(sources, mainBackup) {
     if (sources) {
-      for (let [sourceId, source] of Object.entries(sources)) {
+      for (const [sourceId, source] of Object.entries(sources)) {
         this.sources[sourceId] = source;
         this.sources[sourceId].sourcePositions = [];
       }
@@ -196,7 +196,7 @@ export class SourceResolver {
         this.sources[sourceId].sourcePositions.push(sourcePosition);
       }
       this.nodePositionMap[nodeId] = sourcePosition;
-      let key = sourcePositionToStringKey(sourcePosition);
+      const key = sourcePositionToStringKey(sourcePosition);
       if (!this.positionToNodes.has(key)) {
         this.positionToNodes.set(key, []);
       }
@@ -211,8 +211,8 @@ export class SourceResolver {
   sourcePositionsToNodeIds(sourcePositions) {
     const nodeIds = new Set();
     for (const sp of sourcePositions) {
-      let key = sourcePositionToStringKey(sp);
-      let nodeIdsForPosition = this.positionToNodes.get(key);
+      const key = sourcePositionToStringKey(sp);
+      const nodeIdsForPosition = this.positionToNodes.get(key);
       if (!nodeIdsForPosition) continue;
       for (const nodeId of nodeIdsForPosition) {
         nodeIds.add(nodeId);
@@ -224,8 +224,8 @@ export class SourceResolver {
   nodeIdsToSourcePositions(nodeIds): Array<AnyPosition> {
     const sourcePositions = new Map();
     for (const nodeId of nodeIds) {
-      let sp = this.nodePositionMap[nodeId];
-      let key = sourcePositionToStringKey(sp);
+      const sp = this.nodePositionMap[nodeId];
+      const key = sourcePositionToStringKey(sp);
       sourcePositions.set(key, sp);
     }
     const sourcePositionArray = [];
@@ -241,7 +241,7 @@ export class SourceResolver {
 
   translateToSourceId(sourceId: number, location?: SourcePosition) {
     for (const position of this.getInlineStack(location)) {
-      let inlining = this.inlinings[position.inliningId];
+      const inlining = this.inlinings[position.inliningId];
       if (!inlining) continue;
       if (inlining.sourceId == sourceId) {
         return position;
@@ -251,9 +251,9 @@ export class SourceResolver {
   }
 
   addInliningPositions(sourcePosition: AnyPosition, locations: Array<SourcePosition>) {
-    let inlining = this.inliningsMap.get(sourcePositionToStringKey(sourcePosition));
+    const inlining = this.inliningsMap.get(sourcePositionToStringKey(sourcePosition));
     if (!inlining) return;
-    let sourceId = inlining.sourceId;
+    const sourceId = inlining.sourceId;
     const source = this.sources[sourceId];
     for (const sp of source.sourcePositions) {
       locations.push(sp);
@@ -305,11 +305,11 @@ export class SourceResolver {
   getInlineStack(sourcePosition?: SourcePosition) {
     if (!sourcePosition) return [];
 
-    let inliningStack = [];
+    const inliningStack = [];
     let cur = sourcePosition;
     while (cur && cur.inliningId != -1) {
       inliningStack.push(cur);
-      let inlining = this.inlinings[cur.inliningId];
+      const inlining = this.inlinings[cur.inliningId];
       if (!inlining) {
         break;
       }
@@ -329,7 +329,7 @@ export class SourceResolver {
         node.origin.bytecodePosition != undefined) {
         const position = { bytecodePosition: node.origin.bytecodePosition };
         this.nodePositionMap[node.id] = position;
-        let key = sourcePositionToStringKey(position);
+        const key = sourcePositionToStringKey(position);
         if (!this.positionToNodes.has(key)) {
           this.positionToNodes.set(key, []);
         }

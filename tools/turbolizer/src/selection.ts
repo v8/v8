@@ -42,16 +42,16 @@ export class MySelection {
   }
 
   selectedKeys() {
-    var result = new Set();
-    for (var i of this.selection.keys()) {
+    const result = new Set();
+    for (const i of this.selection.keys()) {
       result.add(i);
     }
     return result;
   }
 
   detachSelection() {
-    var result = new Set();
-    for (var i of this.selection.keys()) {
+    const result = new Set();
+    for (const i of this.selection.keys()) {
       result.add(i);
     }
     this.clear();

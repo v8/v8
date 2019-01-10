@@ -27,9 +27,9 @@ export class Graph {
     });
 
     data.edges.forEach((e: any) => {
-      var t = this.nodeMap[e.target];
-      var s = this.nodeMap[e.source];
-      var newEdge = new Edge(t, e.index, s, e.type);
+      const t = this.nodeMap[e.target];
+      const s = this.nodeMap[e.source];
+      const newEdge = new Edge(t, e.index, s, e.type);
       t.inputs.push(newEdge);
       s.outputs.push(newEdge);
       if (e.type == 'control') {

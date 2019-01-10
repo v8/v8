@@ -13,12 +13,12 @@ import { Resizer } from "../src/resizer";
 import * as C from "../src/constants";
 
 window.onload = function () {
-  var multiview = null;
-  var disassemblyView = null;
-  var sourceViews = [];
-  var selectionBroker = null;
-  var sourceResolver = null;
-  let resizer = new Resizer(panesUpdatedCallback, 100);
+  let multiview = null;
+  let disassemblyView = null;
+  let sourceViews = [];
+  let selectionBroker = null;
+  let sourceResolver = null;
+  const resizer = new Resizer(panesUpdatedCallback, 100);
 
   function panesUpdatedCallback() {
     if (multiview) multiview.onresize();
@@ -68,12 +68,12 @@ window.onload = function () {
       sourceContainer.classList.add("viewpane", "scrollable");
       sourceTabs.activateTab(sourceTab);
       sourceTabs.addTab("&#x2b;").classList.add("open-tab");
-      let sourceView = new CodeView(sourceContainer, selectionBroker, sourceResolver, fnc, CodeMode.MAIN_SOURCE);
+      const sourceView = new CodeView(sourceContainer, selectionBroker, sourceResolver, fnc, CodeMode.MAIN_SOURCE);
       sourceView.show(null, null);
       sourceViews.push(sourceView);
 
       sourceResolver.forEachSource(source => {
-        let sourceView = new CodeView(sourceContainer, selectionBroker, sourceResolver, source, CodeMode.INLINED_SOURCE);
+        const sourceView = new CodeView(sourceContainer, selectionBroker, sourceResolver, source, CodeMode.INLINED_SOURCE);
         sourceView.show(null, null);
         sourceViews.push(sourceView);
       });

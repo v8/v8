@@ -4,7 +4,7 @@ import { describe, it } from 'mocha';
 
 describe('SourceResolver', () => {
   it('should be constructible', () => {
-    let a: SourceResolver = new SourceResolver();
+    const a: SourceResolver = new SourceResolver();
     expect(a.sources.length).to.equal(0);
   });
 });
