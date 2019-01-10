@@ -5545,7 +5545,7 @@ wasm::WasmCode* CompileWasmMathIntrinsic(Isolate* isolate,
 
   wasm::WasmCode* wasm_code = Pipeline::GenerateCodeForWasmNativeStub(
       isolate->wasm_engine(), call_descriptor, mcgraph, Code::WASM_FUNCTION,
-      wasm::WasmCode::kFunction, debug_name, AssemblerOptions::Default(isolate),
+      wasm::WasmCode::kFunction, debug_name, WasmStubAssemblerOptions(isolate),
       native_module, source_positions);
   CHECK_NOT_NULL(wasm_code);
   // TODO(titzer): add counters for math intrinsic code size / allocation
@@ -5606,7 +5606,7 @@ wasm::WasmCode* CompileWasmImportCallWrapper(Isolate* isolate,
   wasm::WasmCode* wasm_code = Pipeline::GenerateCodeForWasmNativeStub(
       isolate->wasm_engine(), incoming, &jsgraph, Code::WASM_TO_JS_FUNCTION,
       wasm::WasmCode::kWasmToJsWrapper, func_name,
-      AssemblerOptions::Default(isolate), native_module, source_position_table);
+      WasmStubAssemblerOptions(isolate), native_module, source_position_table);
   CHECK_NOT_NULL(wasm_code);
 
   return wasm_code;
@@ -5650,7 +5650,7 @@ wasm::WasmCode* CompileWasmInterpreterEntry(Isolate* isolate,
   wasm::WasmCode* wasm_code = Pipeline::GenerateCodeForWasmNativeStub(
       isolate->wasm_engine(), incoming, &jsgraph, Code::WASM_INTERPRETER_ENTRY,
       wasm::WasmCode::kInterpreterEntry, func_name.start(),
-      AssemblerOptions::Default(isolate), native_module);
+      WasmStubAssemblerOptions(isolate), native_module);
   CHECK_NOT_NULL(wasm_code);
 
   return wasm_code;
@@ -6054,6 +6054,15 @@ AssemblerOptions WasmAssemblerOptions() {
   AssemblerOptions options;
   options.record_reloc_info_for_serialization = true;
   options.enable_root_array_delta_access = false;
+  return options;
+}
+
+AssemblerOptions WasmStubAssemblerOptions(Isolate* isolate) {
+  // TODO(mstarzinger): Figure out if this can be consolidated (either
+  // with Default(), or with WasmAssemblerOptions() above).
+  AssemblerOptions options = AssemblerOptions::Default(isolate);
+  options.enable_root_array_delta_access = false;
+  options.code_range_start = 0;
   return options;
 }
 
