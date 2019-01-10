@@ -368,8 +368,8 @@ namespace {
 // signature is:
 //
 //  using JSEntryFunction = GeneratedCode<Address(
-//      Address new_target, Address target, Address receiver, intptr_t argc,
-//      Address** args, Address root_register_value)>;
+//      Address root_register_value, Address new_target, Address target,
+//      Address receiver, intptr_t argc, Address** args)>;
 void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
                              Builtins::Name entry_trampoline) {
   Label invoke, handler_entry, exit;
@@ -416,16 +416,9 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
                       EntryFrameConstants::kCalleeSaveXMMRegisters);
 #endif
 
-#ifdef _WIN64
     // Initialize the root register.
-    // C calling convention. The sixth argument is passed on the stack.
-    __ movp(kRootRegister,
-            Operand(rbp, EntryFrameConstants::kRootRegisterValueOffset));
-#else
-    // Initialize the root register.
-    // C calling convention. The sixth argument is passed in r9.
-    __ movp(kRootRegister, r9);
-#endif
+    // C calling convention. The first argument is passed in arg_reg_1.
+    __ movp(kRootRegister, arg_reg_1);
   }
 
   // Save copies of the top frame descriptor on the stack.
@@ -555,6 +548,7 @@ void Builtins::Generate_JSRunMicrotasksEntry(MacroAssembler* masm) {
 static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
                                              bool is_construct) {
   // Expects five C++ function parameters.
+  // - Address root_register_value
   // - Address new_target (tagged Object pointer)
   // - Address function (tagged JSFunction pointer)
   // - Address receiver (tagged Object pointer)
@@ -564,19 +558,25 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
 
   // Open a C++ scope for the FrameScope.
   {
-// Platform specific argument handling. After this, the stack contains
-// an internal frame and the pushed function and receiver, and
-// register rax and rbx holds the argument count and argument array,
-// while rdi holds the function pointer, rsi the context, and rdx the
-// new.target.
+    // Platform specific argument handling. After this, the stack contains
+    // an internal frame and the pushed function and receiver, and
+    // register rax and rbx holds the argument count and argument array,
+    // while rdi holds the function pointer, rsi the context, and rdx the
+    // new.target.
 
 #ifdef _WIN64
     // MSVC parameters in:
-    // rcx        : new_target
-    // rdx        : function
-    // r8         : receiver
-    // r9         : argc
-    // [rsp+0x20] : argv
+    // rcx        : root_register_value
+    // rdx        : new_target
+    // r8         : function
+    // r9         : receiver
+    // [rsp+0x20] : argc
+    // [rsp+0x28] : argv
+
+    __ movp(rdi, r8);
+
+    // Clear the context before we push it when entering the internal frame.
+    __ Set(rsi, 0);
 
     // Enter an internal frame.
     FrameScope scope(masm, StackFrame::INTERNAL);
@@ -587,30 +587,27 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     __ movp(rsi, masm->ExternalReferenceAsOperand(context_address));
 
     // Push the function and the receiver onto the stack.
-    __ Push(rdx);
     __ Push(r8);
+    __ Push(r9);
 
-    // Load the number of arguments and setup pointer to the arguments.
-    __ movp(rax, r9);
-    // Load the previous frame pointer to access C argument on stack
+    // Load the previous frame pointer to access C arguments on stack
     __ movp(kScratchRegister, Operand(rbp, 0));
+    // Load the number of arguments and setup pointer to the arguments.
+    __ movp(rax, Operand(kScratchRegister, EntryFrameConstants::kArgcOffset));
     __ movp(rbx, Operand(kScratchRegister, EntryFrameConstants::kArgvOffset));
-    // Load the function pointer into rdi.
-    __ movp(rdi, rdx);
-    // Load the new.target into rdx.
-    __ movp(rdx, rcx);
 #else   // _WIN64
     // GCC parameters in:
-    // rdi : new_target
-    // rsi : function
-    // rdx : receiver
-    // rcx : argc
-    // r8  : argv
+    // rdi : root_register_value
+    // rsi : new_target
+    // rdx : function
+    // rcx : receiver
+    // r8  : argc
+    // r9  : argv
 
-    __ movp(r11, rdi);
-    __ movp(rdi, rsi);
+    __ movp(rdi, rdx);
+    __ movp(rdx, rsi);
     // rdi : function
-    // r11 : new_target
+    // rdx : new_target
 
     // Clear the context before we push it when entering the internal frame.
     __ Set(rsi, 0);
@@ -625,14 +622,11 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
 
     // Push the function and receiver onto the stack.
     __ Push(rdi);
-    __ Push(rdx);
+    __ Push(rcx);
 
     // Load the number of arguments and setup pointer to the arguments.
-    __ movp(rax, rcx);
-    __ movp(rbx, r8);
-
-    // Load the new.target into rdx.
-    __ movp(rdx, r11);
+    __ movp(rax, r8);
+    __ movp(rbx, r9);
 #endif  // _WIN64
 
     // Current stack contents:

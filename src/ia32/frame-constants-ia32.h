@@ -17,12 +17,12 @@ class EntryFrameConstants : public AllStatic {
   // Isolate::c_entry_fp onto the stack.
   static constexpr int kCallerFPOffset = -6 * kPointerSize;
 
-  static constexpr int kNewTargetArgOffset = +2 * kPointerSize;
-  static constexpr int kFunctionArgOffset = +3 * kPointerSize;
-  static constexpr int kReceiverArgOffset = +4 * kPointerSize;
-  static constexpr int kArgcOffset = +5 * kPointerSize;
-  static constexpr int kArgvOffset = +6 * kPointerSize;
-  static constexpr int kRootRegisterValueOffset = +7 * kPointerSize;
+  static constexpr int kRootRegisterValueOffset = +2 * kPointerSize;
+  static constexpr int kNewTargetArgOffset = +3 * kPointerSize;
+  static constexpr int kFunctionArgOffset = +4 * kPointerSize;
+  static constexpr int kReceiverArgOffset = +5 * kPointerSize;
+  static constexpr int kArgcOffset = +6 * kPointerSize;
+  static constexpr int kArgvOffset = +7 * kPointerSize;
 };
 
 class ExitFrameConstants : public TypedFrameConstants {

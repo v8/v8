@@ -374,8 +374,8 @@ namespace {
 // signature is:
 //
 //  using JSEntryFunction = GeneratedCode<Address(
-//      Address new_target, Address target, Address receiver, intptr_t argc,
-//      Address** args, Address root_register_value)>;
+//      Address root_register_value, Address new_target, Address target,
+//      Address receiver, intptr_t argc, Address** args)>;
 void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
                              Builtins::Name entry_trampoline) {
   Label invoke, handler_entry, exit;
@@ -399,7 +399,7 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
     __ push(ebx);
 
     // Initialize the root register based on the given Isolate* argument.
-    // C calling convention. The sixth argument is passed on the stack.
+    // C calling convention. The first argument is passed on the stack.
     __ mov(kRootRegister,
            Operand(ebp, EntryFrameConstants::kRootRegisterValueOffset));
   }

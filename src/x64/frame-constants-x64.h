@@ -28,8 +28,8 @@ class EntryFrameConstants : public AllStatic {
       -3 * kSystemPointerSize + -7 * kRegisterSize - kXMMRegistersBlockSize;
 
   // Stack offsets for arguments passed to JSEntry.
-  static constexpr int kArgvOffset = 6 * kSystemPointerSize;
-  static constexpr int kRootRegisterValueOffset = 7 * kSystemPointerSize;
+  static constexpr int kArgcOffset = 6 * kSystemPointerSize;
+  static constexpr int kArgvOffset = 7 * kSystemPointerSize;
 #else
   // This is the offset to where JSEntry pushes the current value of
   // Isolate::c_entry_fp onto the stack.

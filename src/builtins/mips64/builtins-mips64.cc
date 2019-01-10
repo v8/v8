@@ -542,10 +542,13 @@ namespace {
 // signature is:
 //
 //  using JSEntryFunction = GeneratedCode<Address(
-//      Address new_target, Address target, Address receiver, intptr_t argc,
-//      Address** args, Address root_register_value)>;
+//      Address root_register_value, Address new_target, Address target,
+//      Address receiver, intptr_t argc, Address** args)>;
 void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
                              Builtins::Name entry_trampoline) {
+  // TODO(tzik): |root_register_value| is moved from sixth to first. Update
+  // JSEntryVariant and JSEntryTrampoline for it.
+
   Label invoke, handler_entry, exit;
 
   {

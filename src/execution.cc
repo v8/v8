@@ -273,8 +273,8 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
     // {new_target}, {target}, {receiver}, return value: tagged pointers
     // {argv}: pointer to array of tagged pointers
     using JSEntryFunction = GeneratedCode<Address(
-        Address new_target, Address target, Address receiver, intptr_t argc,
-        Address** argv, Address root_register_value)>;
+        Address root_register_value, Address new_target, Address target,
+        Address receiver, intptr_t argc, Address** argv)>;
     // clang-format on
     JSEntryFunction stub_entry =
         JSEntryFunction::FromAddress(isolate, code->InstructionStart());
@@ -290,8 +290,8 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
       PrintDeserializedCodeInfo(Handle<JSFunction>::cast(params.target));
     }
     RuntimeCallTimerScope timer(isolate, RuntimeCallCounterId::kJS_Execution);
-    value = Object(stub_entry.Call(orig_func, func, recv, params.argc, argv,
-                                   isolate->isolate_data()->isolate_root()));
+    value = Object(stub_entry.Call(isolate->isolate_data()->isolate_root(),
+                                   orig_func, func, recv, params.argc, argv));
   }
 
 #ifdef VERIFY_HEAP

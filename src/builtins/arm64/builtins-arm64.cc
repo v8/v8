@@ -597,23 +597,21 @@ namespace {
 // signature is:
 //
 //  using JSEntryFunction = GeneratedCode<Address(
-//      Address new_target, Address target, Address receiver, intptr_t argc,
-//      Address** args, Address root_register_value)>;
+//      Address root_register_value, Address new_target, Address target,
+//      Address receiver, intptr_t argc, Address** argv)>;
 //
 // Input:
-//   x0: code entry.
-//   x1: function.
-//   x2: receiver.
-//   x3: argc.
-//   x4: argv.
-//   x5: root register value.
+//   x0: root_register_value.
+//   x1: new_target.
+//   x2: target.
+//   x3: receiver.
+//   x4: argc.
+//   x5: argv.
 // Output:
 //   x0: result.
 void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
                              Builtins::Name entry_trampoline) {
   Label invoke, handler_entry, exit;
-
-  Register code_entry = x0;
 
   {
     NoRootArrayScope no_root_array(masm);
@@ -628,8 +626,8 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
     __ Fmov(fp_zero, 0.0);
 
     // Initialize the root register.
-    // C calling convention. The sixth argument is passed in x5.
-    __ Mov(kRootRegister, x5);
+    // C calling convention. The first argument is passed in x0.
+    __ Mov(kRootRegister, x0);
   }
 
   // Build an entry frame (see layout below).
@@ -697,7 +695,7 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
            ExternalReference::Create(IsolateAddressId::kPendingExceptionAddress,
                                      masm->isolate()));
   }
-  __ Str(code_entry, MemOperand(x10));
+  __ Str(x0, MemOperand(x10));
   __ LoadRoot(x0, RootIndex::kException);
   __ B(&exit);
 
@@ -730,11 +728,11 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   // saved values before returning a failure to C.
   //
   // Expected registers by Builtins::JSEntryTrampoline
-  // x0: code entry.
-  // x1: function.
-  // x2: receiver.
-  // x3: argc.
-  // x4: argv.
+  // x1: new_target.
+  // x2: target.
+  // x3: receiver.
+  // x4: argc.
+  // x5: argv.
   //
   // Invoke the function by calling through JS entry trampoline builtin and
   // pop the faked function when we return.
@@ -805,20 +803,20 @@ void Builtins::Generate_JSRunMicrotasksEntry(MacroAssembler* masm) {
 }
 
 // Input:
-//   x0: new.target.
-//   x1: function.
-//   x2: receiver.
-//   x3: argc.
-//   x4: argv.
+//   x1: new.target.
+//   x2: function.
+//   x3: receiver.
+//   x4: argc.
+//   x5: argv.
 // Output:
 //   x0: result.
 static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
                                              bool is_construct) {
-  Register new_target = x0;
-  Register function = x1;
-  Register receiver = x2;
-  Register argc = x3;
-  Register argv = x4;
+  Register new_target = x1;
+  Register function = x2;
+  Register receiver = x3;
+  Register argc = x4;
+  Register argv = x5;
   Register scratch = x10;
   Register slots_to_claim = x11;
 
@@ -857,8 +855,8 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     __ Stp(receiver, function, MemOperand(scratch));
 
     // Copy arguments to the stack in a loop, in reverse order.
-    // x3: argc.
-    // x4: argv.
+    // x4: argc.
+    // x5: argv.
     Label loop, done;
 
     // Skip the argument set up if we have no arguments.
@@ -880,10 +878,11 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
 
     __ Bind(&done);
 
-    __ Mov(scratch, argc);
-    __ Mov(argc, new_target);
-    __ Mov(new_target, scratch);
+    __ Mov(x0, argc);
+    __ Mov(x3, new_target);
+    __ Mov(x1, function);
     // x0: argc.
+    // x1: function.
     // x3: new.target.
 
     // Initialize all JavaScript callee-saved registers, since they will be seen
