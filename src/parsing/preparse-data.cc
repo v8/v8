@@ -27,6 +27,10 @@ class VariableMaybeAssignedField : public BitField8<bool, 0, 1> {};
 class VariableContextAllocatedField
     : public BitField8<bool, VariableMaybeAssignedField::kNext, 1> {};
 
+class HasDataField : public BitField<bool, 0, 1> {};
+class NumberOfParametersField
+    : public BitField<uint16_t, HasDataField::kNext, 16> {};
+
 class LanguageField : public BitField8<LanguageMode, 0, 1> {};
 class UsesSuperField : public BitField8<bool, LanguageField::kNext, 1> {};
 STATIC_ASSERT(LanguageModeSize <= LanguageField::kNumValues);
@@ -170,9 +174,8 @@ void PreparseDataBuilder::DataGatheringScope::Start(
 PreparseDataBuilder::DataGatheringScope::~DataGatheringScope() {
   if (builder_ == nullptr) return;
   PreparseDataBuilder* parent = builder_->parent_;
-  if (parent != nullptr) {
-    parent->data_for_inner_functions_.push_back(builder_->HasData() ? builder_
-                                                                    : nullptr);
+  if (parent != nullptr && builder_->HasData()) {
+    parent->data_for_inner_functions_.push_back(builder_);
   }
   preparser_->set_preparse_data_builder(parent);
 }
@@ -183,15 +186,14 @@ void PreparseDataBuilder::DataGatheringScope::AddSkippableFunction(
   builder_->parent_->AddSkippableFunction(
       function_scope->start_position(), end_position,
       function_scope->num_parameters(), num_inner_functions,
-      function_scope->language_mode(), function_scope->NeedsHomeObject());
+      function_scope->language_mode(), builder_->HasData(),
+      function_scope->NeedsHomeObject());
 }
 
-void PreparseDataBuilder::AddSkippableFunction(int start_position,
-                                               int end_position,
-                                               int num_parameters,
-                                               int num_inner_functions,
-                                               LanguageMode language_mode,
-                                               bool uses_super_property) {
+void PreparseDataBuilder::AddSkippableFunction(
+    int start_position, int end_position, int num_parameters,
+    int num_inner_functions, LanguageMode language_mode, bool has_data,
+    bool uses_super_property) {
   if (bailed_out_) return;
 
   // Start position is used for a sanity check when consuming the data, we could
@@ -199,7 +201,10 @@ void PreparseDataBuilder::AddSkippableFunction(int start_position,
   // at catching bugs in the wild so far.
   byte_data_->WriteUint32(start_position);
   byte_data_->WriteUint32(end_position);
-  byte_data_->WriteUint32(num_parameters);
+  uint32_t has_data_and_num_parameters =
+      HasDataField::encode(has_data) |
+      NumberOfParametersField::encode(num_parameters);
+  byte_data_->WriteUint32(has_data_and_num_parameters);
   byte_data_->WriteUint32(num_inner_functions);
 
   uint8_t language_and_super = LanguageField::encode(language_mode) |
@@ -255,13 +260,9 @@ Handle<PreparseData> PreparseDataBuilder::Serialize(Isolate* isolate) {
 
   int i = 0;
   for (const auto& item : data_for_inner_functions_) {
-    if (item != nullptr) {
-      Handle<PreparseData> child_data = item->Serialize(isolate);
-      data->set_child_data(i, *child_data);
-    } else {
-      DCHECK(data->child_data(i)->IsNull());
-    }
-    i++;
+    DCHECK_NOT_NULL(item);
+    Handle<PreparseData> child_data = item->Serialize(isolate);
+    data->set_child_data(i++, *child_data);
   }
 
   return data;
@@ -277,11 +278,9 @@ ZonePreparseData* PreparseDataBuilder::Serialize(Zone* zone) {
 
   int i = 0;
   for (const auto& item : data_for_inner_functions_) {
-    if (item != nullptr) {
-      ZonePreparseData* child = item->Serialize(zone);
-      result->set_child(i, child);
-    }
-    i++;
+    DCHECK_NOT_NULL(item);
+    ZonePreparseData* child = item->Serialize(zone);
+    result->set_child(i++, child);
   }
 
   return result;
@@ -458,15 +457,20 @@ BaseConsumedPreparseData<Data>::GetDataForSkippableFunction(
   CHECK(scope_data_->HasRemainingBytes(ByteData::kSkippableFunctionDataSize));
   int start_position_from_data = scope_data_->ReadUint32();
   CHECK_EQ(start_position, start_position_from_data);
-
   *end_position = scope_data_->ReadUint32();
   DCHECK_GT(*end_position, start_position);
-  *num_parameters = scope_data_->ReadUint32();
+
+  uint32_t has_data_and_num_parameters = scope_data_->ReadUint32();
+  bool has_data = HasDataField::decode(has_data_and_num_parameters);
+  *num_parameters =
+      NumberOfParametersField::decode(has_data_and_num_parameters);
   *num_inner_functions = scope_data_->ReadUint32();
 
   uint8_t language_and_super = scope_data_->ReadQuarter();
   *language_mode = LanguageMode(LanguageField::decode(language_and_super));
   *uses_super_property = UsesSuperField::decode(language_and_super);
+
+  if (!has_data) return nullptr;
 
   // Retrieve the corresponding PreparseData and associate it to the
   // skipped function. If the skipped functions contains inner functions, those
