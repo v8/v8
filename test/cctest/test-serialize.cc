@@ -831,11 +831,13 @@ void TestCustomSnapshotDataBlobWithIrregexpCode(
     v8::SnapshotCreator::FunctionCodeHandling function_code_handling) {
   DisableAlwaysOpt();
   const char* source =
-      "var re = /\\/\\*[^*]*\\*+([^/*][^*]*\\*+)*\\//;\n"
-      "function f() { return '/* a comment */'.search(re); }\n"
-      "function g() { return 'not a comment'.search(re); }\n"
-      "function h() { return '// this is a comment'.search(re); }\n"
-      "f(); f(); g(); g();";
+      "var re1 = /\\/\\*[^*]*\\*+([^/*][^*]*\\*+)*\\//;\n"
+      "function f() { return '/* a comment */'.search(re1); }\n"
+      "function g() { return 'not a comment'.search(re1); }\n"
+      "function h() { return '// this is a comment'.search(re1); }\n"
+      "var re2 = /a/;\n"
+      "function i() { return '/* a comment */'.search(re2); }\n"
+      "f(); f(); g(); g(); h(); h(); i(); i();\n";
 
   v8::StartupData data1 =
       CreateSnapshotDataBlob(function_code_handling, source);
@@ -855,7 +857,7 @@ void TestCustomSnapshotDataBlobWithIrregexpCode(
       // Check that compiled irregexp code has not been flushed prior to
       // serialization.
       i::Handle<i::JSRegExp> re =
-          Utils::OpenHandle(*CompileRun("re").As<v8::RegExp>());
+          Utils::OpenHandle(*CompileRun("re1").As<v8::RegExp>());
       CHECK_EQ(re->HasCompiledCode(),
                function_code_handling ==
                    v8::SnapshotCreator::FunctionCodeHandling::kKeep);
@@ -874,6 +876,13 @@ void TestCustomSnapshotDataBlobWithIrregexpCode(
       v8::Maybe<int32_t> result =
           CompileRun("h()")->Int32Value(isolate1->GetCurrentContext());
       CHECK_EQ(-1, result.FromJust());
+    }
+    {
+      // Check that ATOM regexp remains valid.
+      i::Handle<i::JSRegExp> re =
+          Utils::OpenHandle(*CompileRun("re2").As<v8::RegExp>());
+      CHECK_EQ(re->TypeTag(), JSRegExp::ATOM);
+      CHECK(!re->HasCompiledCode());
     }
   }
   isolate1->Dispose();

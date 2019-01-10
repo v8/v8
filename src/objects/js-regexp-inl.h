@@ -79,8 +79,8 @@ void JSRegExp::SetDataAt(int index, Object value) {
 }
 
 bool JSRegExp::HasCompiledCode() const {
-  return DataAt(kIrregexpLatin1CodeIndex)->IsCode() ||
-         DataAt(kIrregexpUC16CodeIndex)->IsCode();
+  return TypeTag() == IRREGEXP && (DataAt(kIrregexpLatin1CodeIndex)->IsCode() ||
+                                   DataAt(kIrregexpUC16CodeIndex)->IsCode());
 }
 
 void JSRegExp::DiscardCompiledCodeForSerialization() {
