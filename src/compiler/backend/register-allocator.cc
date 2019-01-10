@@ -3294,10 +3294,13 @@ bool LinearScanAllocator::TryAllocateFreeReg(
   for (int i = 0; i < num_codes; ++i) {
     int code = codes[i];
     // Prefer registers that have no fixed uses to avoid blocking later hints.
+    // We use the first register that has no fixed uses to ensure we use
+    // byte addressable registers in ia32 first.
     int candidate_free = free_until_pos[code].ToInstructionIndex();
     int current_free = free_until_pos[reg].ToInstructionIndex();
     if (candidate_free > current_free ||
         (candidate_free == current_free && reg != hint_reg &&
+         data()->HasFixedUse(current->representation(), reg) &&
          !data()->HasFixedUse(current->representation(), code))) {
       reg = code;
     }
