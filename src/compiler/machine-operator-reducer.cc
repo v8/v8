@@ -1072,7 +1072,8 @@ Reduction MachineOperatorReducer::ReduceWord32Shl(Node* node) {
   Int32BinopMatcher m(node);
   if (m.right().Is(0)) return Replace(m.left().node());  // x << 0 => x
   if (m.IsFoldable()) {                                  // K << K => K
-    return ReplaceInt32(m.left().Value() << m.right().Value());
+    return ReplaceInt32(
+        base::ShlWithWraparound(m.left().Value(), m.right().Value()));
   }
   if (m.right().IsInRange(1, 31)) {
     // (x >>> K) << K => x & ~(2^K - 1)
@@ -1097,7 +1098,8 @@ Reduction MachineOperatorReducer::ReduceWord64Shl(Node* node) {
   Int64BinopMatcher m(node);
   if (m.right().Is(0)) return Replace(m.left().node());  // x << 0 => x
   if (m.IsFoldable()) {                                  // K << K => K
-    return ReplaceInt64(m.left().Value() << m.right().Value());
+    return ReplaceInt64(
+        base::ShlWithWraparound(m.left().Value(), m.right().Value()));
   }
   return NoChange();
 }
@@ -1106,12 +1108,12 @@ Reduction MachineOperatorReducer::ReduceWord32Shr(Node* node) {
   Uint32BinopMatcher m(node);
   if (m.right().Is(0)) return Replace(m.left().node());  // x >>> 0 => x
   if (m.IsFoldable()) {                                  // K >>> K => K
-    return ReplaceInt32(m.left().Value() >> m.right().Value());
+    return ReplaceInt32(m.left().Value() >> (m.right().Value() & 31));
   }
   if (m.left().IsWord32And() && m.right().HasValue()) {
     Uint32BinopMatcher mleft(m.left().node());
     if (mleft.right().HasValue()) {
-      uint32_t shift = m.right().Value() & 0x1F;
+      uint32_t shift = m.right().Value() & 31;
       uint32_t mask = mleft.right().Value();
       if ((mask >> shift) == 0) {
         // (m >>> s) == 0 implies ((x & m) >>> s) == 0
@@ -1127,7 +1129,7 @@ Reduction MachineOperatorReducer::ReduceWord64Shr(Node* node) {
   Uint64BinopMatcher m(node);
   if (m.right().Is(0)) return Replace(m.left().node());  // x >>> 0 => x
   if (m.IsFoldable()) {                                  // K >> K => K
-    return ReplaceInt64(m.left().Value() >> m.right().Value());
+    return ReplaceInt64(m.left().Value() >> (m.right().Value() & 63));
   }
   return NoChange();
 }
@@ -1136,7 +1138,7 @@ Reduction MachineOperatorReducer::ReduceWord32Sar(Node* node) {
   Int32BinopMatcher m(node);
   if (m.right().Is(0)) return Replace(m.left().node());  // x >> 0 => x
   if (m.IsFoldable()) {                                  // K >> K => K
-    return ReplaceInt32(m.left().Value() >> m.right().Value());
+    return ReplaceInt32(m.left().Value() >> (m.right().Value() & 31));
   }
   if (m.left().IsWord32Shl()) {
     Int32BinopMatcher mleft(m.left().node());
@@ -1171,7 +1173,7 @@ Reduction MachineOperatorReducer::ReduceWord64Sar(Node* node) {
   Int64BinopMatcher m(node);
   if (m.right().Is(0)) return Replace(m.left().node());  // x >> 0 => x
   if (m.IsFoldable()) {
-    return ReplaceInt64(m.left().Value() >> m.right().Value());
+    return ReplaceInt64(m.left().Value() >> (m.right().Value() & 63));
   }
   return NoChange();
 }
