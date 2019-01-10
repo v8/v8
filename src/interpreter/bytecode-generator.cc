@@ -3083,58 +3083,120 @@ BytecodeGenerator::AssignmentLhsData BytecodeGenerator::PrepareAssignmentLhs(
 //
 // In pseudo-code, this builds:
 //
-// try {
-//   if (!done) iterator.close()
-// } catch (e) {
-//   if (iteration_continuation != RETHROW)
-//     rethrow e
+// if (!done) {
+//   let method = iterator.return
+//   if (method !== null && method !== undefined) {
+//     if (typeof(method) !== "function") throw TypeError
+//     try {
+//       let return_val = method.call(iterator)
+//       if (!%IsObject(return_val)) throw TypeError
+//     } catch (e) {
+//       if (iteration_continuation != RETHROW)
+//         rethrow e
+//     }
+//   }
 // }
 void BytecodeGenerator::BuildFinalizeIteration(
     IteratorRecord iterator, Register done,
     Register iteration_continuation_token) {
-  RegisterAllocationScope scope(this);
-  TryCatchBuilder try_control_builder(builder(), nullptr, nullptr,
-                                      HandlerTable::DESUGARING);
+  RegisterAllocationScope register_scope(this);
+  BytecodeLabels iterator_is_done(zone());
 
-  // Preserve the context in a dedicated register, so that it can be restored
-  // when the handler is entered by the stack-unwinding machinery.
-  // TODO(mstarzinger): Be smarter about register allocation.
-  Register context = register_allocator()->NewRegister();
-  builder()->MoveRegister(Register::current_context(), context);
+  // if (!done) {
+  builder()->LoadAccumulatorWithRegister(done).JumpIfTrue(
+      ToBooleanMode::kConvertToBoolean, iterator_is_done.New());
 
-  // Evaluate the try-block inside a control scope. This simulates a handler
-  // that is intercepting 'throw' control commands.
-  try_control_builder.BeginTry(context);
-  {
-    ControlScopeForTryCatch scope(this, &try_control_builder);
-
-    // if (!done) iterator.close()
-    BytecodeLabel iterator_is_done;
-    builder()->LoadAccumulatorWithRegister(done).JumpIfTrue(
-        ToBooleanMode::kConvertToBoolean, &iterator_is_done);
-    BuildIteratorClose(iterator);
-    builder()->Bind(&iterator_is_done);
-  }
-  try_control_builder.EndTry();
-
-  // catch (e) {
-  //   if (iteration_continuation != RETHROW)
-  //     rethrow e
-  // }
-
-  // Reuse context register to store the exception.
-  Register close_exception = context;
-  builder()->StoreAccumulatorInRegister(close_exception);
-
-  BytecodeLabel suppress_close_exception;
+  //   method = iterator.return
+  //   if (method !== null && method !== undefined) {
+  Register method = register_allocator()->NewRegister();
   builder()
-      ->LoadLiteral(Smi::FromInt(ControlScope::DeferredCommands::kRethrowToken))
-      .CompareReference(iteration_continuation_token)
-      .JumpIfTrue(ToBooleanMode::kAlreadyBoolean, &suppress_close_exception)
-      .LoadAccumulatorWithRegister(close_exception)
-      .ReThrow()
-      .Bind(&suppress_close_exception);
-  try_control_builder.EndCatch();
+      ->LoadNamedProperty(iterator.object(),
+                          ast_string_constants()->return_string(),
+                          feedback_index(feedback_spec()->AddLoadICSlot()))
+      .StoreAccumulatorInRegister(method)
+      .JumpIfUndefined(iterator_is_done.New())
+      .JumpIfNull(iterator_is_done.New());
+
+  //     if (typeof(method) !== "function") throw TypeError
+  BytecodeLabel if_callable;
+  builder()
+      ->CompareTypeOf(TestTypeOfFlags::LiteralFlag::kFunction)
+      .JumpIfTrue(ToBooleanMode::kAlreadyBoolean, &if_callable);
+  {
+    // throw %NewTypeError(kReturnMethodNotCallable)
+    RegisterAllocationScope register_scope(this);
+    RegisterList new_type_error_args = register_allocator()->NewRegisterList(2);
+    builder()
+        ->LoadLiteral(Smi::FromEnum(MessageTemplate::kReturnMethodNotCallable))
+        .StoreAccumulatorInRegister(new_type_error_args[0])
+        .LoadLiteral(ast_string_constants()->empty_string())
+        .StoreAccumulatorInRegister(new_type_error_args[1])
+        .CallRuntime(Runtime::kNewTypeError, new_type_error_args)
+        .Throw();
+  }
+  builder()->Bind(&if_callable);
+
+  //     try {
+  //       let return_val = method.call(iterator)
+  //       if (!%IsObject(return_val)) throw TypeError
+  //     }
+
+  {
+    RegisterAllocationScope register_scope(this);
+    TryCatchBuilder try_control_builder(builder(), nullptr, nullptr,
+                                        HandlerTable::UNCAUGHT);
+
+    // Preserve the context in a dedicated register, so that it can be restored
+    // when the handler is entered by the stack-unwinding machinery.
+    // TODO(mstarzinger): Be smarter about register allocation.
+    Register context = register_allocator()->NewRegister();
+    builder()->MoveRegister(Register::current_context(), context);
+
+    // Evaluate the try-block inside a control scope. This simulates a handler
+    // that is intercepting 'throw' control commands.
+    try_control_builder.BeginTry(context);
+    {
+      ControlScopeForTryCatch scope(this, &try_control_builder);
+
+      RegisterList args(iterator.object());
+      builder()->CallProperty(method, args,
+                              feedback_index(feedback_spec()->AddCallICSlot()));
+      builder()->JumpIfJSReceiver(iterator_is_done.New());
+      {
+        // Throw this exception inside the try block so that it is suppressed by
+        // the iteration continuation if necessary.
+        RegisterAllocationScope register_scope(this);
+        Register return_result = register_allocator()->NewRegister();
+        builder()
+            ->StoreAccumulatorInRegister(return_result)
+            .CallRuntime(Runtime::kThrowIteratorResultNotAnObject,
+                         return_result);
+      }
+    }
+    try_control_builder.EndTry();
+
+    //     catch (e) {
+    //       if (iteration_continuation != RETHROW)
+    //         rethrow e
+    //     }
+
+    // Reuse context register to store the exception.
+    Register close_exception = context;
+    builder()->StoreAccumulatorInRegister(close_exception);
+
+    BytecodeLabel suppress_close_exception;
+    builder()
+        ->LoadLiteral(
+            Smi::FromInt(ControlScope::DeferredCommands::kRethrowToken))
+        .CompareReference(iteration_continuation_token)
+        .JumpIfTrue(ToBooleanMode::kAlreadyBoolean, &suppress_close_exception)
+        .LoadAccumulatorWithRegister(close_exception)
+        .ReThrow()
+        .Bind(&suppress_close_exception);
+    try_control_builder.EndCatch();
+  }
+
+  iterator_is_done.Bind(builder());
 }
 
 // Get the default value of a destructuring target. Will mutate the
@@ -3212,7 +3274,7 @@ void BytecodeGenerator::BuildDestructuringArrayAssignment(
   builder()->LoadFalse();
   builder()->StoreAccumulatorInRegister(done);
   TryFinallyBuilder try_control_builder(builder(), nullptr, nullptr,
-                                        HandlerTable::DESUGARING);
+                                        HandlerTable::UNCAUGHT);
 
   // Keep a continuation token and result for exceptions and returns in the
   // destructuring body, so that we can close the iterator on abrupt
