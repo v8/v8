@@ -131,7 +131,8 @@ struct IntMatcher final : public ValueMatcher<T, kOpcode> {
   }
   bool IsNegativePowerOf2() const {
     return this->HasValue() && this->Value() < 0 &&
-           (-this->Value() & (-this->Value() - 1)) == 0;
+           ((this->Value() == kMinInt) ||
+            (-this->Value() & (-this->Value() - 1)) == 0);
   }
   bool IsNegative() const { return this->HasValue() && this->Value() < 0; }
 };

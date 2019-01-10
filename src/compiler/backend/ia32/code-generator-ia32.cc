@@ -5,6 +5,7 @@
 #include "src/compiler/backend/code-generator.h"
 
 #include "src/assembler-inl.h"
+#include "src/base/overflowing-math.h"
 #include "src/callable.h"
 #include "src/compiler/backend/code-generator-impl.h"
 #include "src/compiler/backend/gap-resolver.h"
@@ -1667,7 +1668,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           if (constant_summand > 0) {
             __ add(i.OutputRegister(), Immediate(constant_summand));
           } else if (constant_summand < 0) {
-            __ sub(i.OutputRegister(), Immediate(-constant_summand));
+            __ sub(i.OutputRegister(),
+                   Immediate(base::NegateWithWraparound(constant_summand)));
           }
         } else if (mode == kMode_MR1) {
           if (i.InputRegister(1) == i.OutputRegister()) {

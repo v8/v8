@@ -2848,7 +2848,7 @@ Node* WasmGraphBuilder::BuildI32Rol(Node* left, Node* right) {
   Int32Matcher m(right);
   if (m.HasValue()) {
     return Binop(wasm::kExprI32Ror, left,
-                 mcgraph()->Int32Constant(32 - m.Value()));
+                 mcgraph()->Int32Constant(32 - (m.Value() & 0x1F)));
   } else {
     return Binop(wasm::kExprI32Ror, left,
                  Binop(wasm::kExprI32Sub, mcgraph()->Int32Constant(32), right));
@@ -2861,7 +2861,7 @@ Node* WasmGraphBuilder::BuildI64Rol(Node* left, Node* right) {
   Int64Matcher m(right);
   if (m.HasValue()) {
     return Binop(wasm::kExprI64Ror, left,
-                 mcgraph()->Int64Constant(64 - m.Value()));
+                 mcgraph()->Int64Constant(64 - (m.Value() & 0x3F)));
   } else {
     return Binop(wasm::kExprI64Ror, left,
                  Binop(wasm::kExprI64Sub, mcgraph()->Int64Constant(64), right));

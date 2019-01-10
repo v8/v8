@@ -6,6 +6,7 @@
 
 #include <limits>
 
+#include "src/base/overflowing-math.h"
 #include "src/compiler/backend/code-generator-impl.h"
 #include "src/compiler/backend/gap-resolver.h"
 #include "src/compiler/node-matchers.h"
@@ -2046,7 +2047,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           if (constant_summand > 0) {
             __ addl(i.OutputRegister(), Immediate(constant_summand));
           } else {
-            __ subl(i.OutputRegister(), Immediate(-constant_summand));
+            __ subl(i.OutputRegister(),
+                    Immediate(base::NegateWithWraparound(constant_summand)));
           }
         } else if (mode == kMode_MR1) {
           if (i.InputRegister(1) == i.OutputRegister()) {

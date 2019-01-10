@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/base/overflowing-math.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/codegen.h"
 #include "src/compiler/js-graph.h"
@@ -505,7 +506,7 @@ TEST(ReduceInt32Add) {
   FOR_INT32_INPUTS(pl) {
     FOR_INT32_INPUTS(pr) {
       int32_t x = *pl, y = *pr;
-      R.CheckFoldBinop<int32_t>(x + y, x, y);  // TODO(titzer): signed overflow
+      R.CheckFoldBinop<int32_t>(base::AddWithWraparound(x, y), x, y);
     }
   }
 
@@ -526,7 +527,7 @@ TEST(ReduceInt64Add) {
   FOR_INT64_INPUTS(pl) {
     FOR_INT64_INPUTS(pr) {
       int64_t x = *pl, y = *pr;
-      R.CheckFoldBinop<int64_t>(x + y, x, y);
+      R.CheckFoldBinop<int64_t>(base::AddWithWraparound(x, y), x, y);
     }
   }
 
@@ -545,7 +546,7 @@ TEST(ReduceInt32Sub) {
   FOR_INT32_INPUTS(pl) {
     FOR_INT32_INPUTS(pr) {
       int32_t x = *pl, y = *pr;
-      R.CheckFoldBinop<int32_t>(x - y, x, y);
+      R.CheckFoldBinop<int32_t>(base::SubWithWraparound(x, y), x, y);
     }
   }
 
@@ -564,7 +565,7 @@ TEST(ReduceInt64Sub) {
   FOR_INT64_INPUTS(pl) {
     FOR_INT64_INPUTS(pr) {
       int64_t x = *pl, y = *pr;
-      R.CheckFoldBinop<int64_t>(x - y, x, y);
+      R.CheckFoldBinop<int64_t>(base::SubWithWraparound(x, y), x, y);
     }
   }
 
@@ -589,7 +590,7 @@ TEST(ReduceInt32Mul) {
   FOR_INT32_INPUTS(pl) {
     FOR_INT32_INPUTS(pr) {
       int32_t x = *pl, y = *pr;
-      R.CheckFoldBinop<int32_t>(x * y, x, y);  // TODO(titzer): signed overflow
+      R.CheckFoldBinop<int32_t>(base::MulWithWraparound(x, y), x, y);
     }
   }
 
@@ -628,7 +629,8 @@ TEST(ReduceInt32Div) {
     FOR_INT32_INPUTS(pr) {
       int32_t x = *pl, y = *pr;
       if (y == 0) continue;              // TODO(titzer): test / 0
-      int32_t r = y == -1 ? -x : x / y;  // INT_MIN / -1 may explode in C
+      int32_t r = y == -1 ? base::NegateWithWraparound(x)
+                          : x / y;  // INT_MIN / -1 may explode in C
       R.CheckFoldBinop<int32_t>(r, x, y);
     }
   }

@@ -7,6 +7,7 @@
 #include <limits>
 
 #include "src/base/bits.h"
+#include "src/base/overflowing-math.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/codegen.h"
 #include "src/objects-inl.h"
@@ -90,7 +91,8 @@ void RunLoadStoreFloat32Offset(TestAlignment t) {
   float p2 = 0.0f;  // and stores directly into this location.
 
   FOR_INT32_INPUTS(i) {
-    int32_t magic = 0x2342AABB + *i * 3;
+    int32_t magic =
+        base::AddWithWraparound(0x2342AABB, base::MulWithWraparound(*i, 3));
     RawMachineAssemblerTester<int32_t> m;
     int32_t offset = *i;
     byte* from = reinterpret_cast<byte*>(&p1) - offset;
@@ -127,7 +129,8 @@ void RunLoadStoreFloat64Offset(TestAlignment t) {
   double p2 = 0;  // and stores directly into this location.
 
   FOR_INT32_INPUTS(i) {
-    int32_t magic = 0x2342AABB + *i * 3;
+    int32_t magic =
+        base::AddWithWraparound(0x2342AABB, base::MulWithWraparound(*i, 3));
     RawMachineAssemblerTester<int32_t> m;
     int32_t offset = *i;
     byte* from = reinterpret_cast<byte*>(&p1) - offset;

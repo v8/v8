@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "src/assembler.h"
+#include "src/base/overflowing-math.h"
 #include "src/codegen.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/raw-machine-assembler.h"
@@ -1101,7 +1102,8 @@ void MixedParamTest(int start) {
           CHECK_NOT_NULL(konst);
 
           inputs[input_count++] = konst;
-          constant += 0x1010101010101010;
+          const int64_t kIncrement = 0x1010101010101010;
+          constant = base::AddWithWraparound(constant, kIncrement);
         }
 
         Node* call = raw.CallN(desc, input_count, inputs);

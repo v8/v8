@@ -5,6 +5,7 @@
 #include <algorithm>
 
 #include "src/base/adapters.h"
+#include "src/base/overflowing-math.h"
 #include "src/compiler/backend/instruction-selector-impl.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
@@ -939,7 +940,7 @@ void InstructionSelector::VisitInt32Sub(Node* node) {
     // by negating the value.
     Emit(kX64Lea32 | AddressingModeField::encode(kMode_MRI),
          g.DefineAsRegister(node), g.UseRegister(m.left().node()),
-         g.TempImmediate(-m.right().Value()));
+         g.TempImmediate(base::NegateWithWraparound(m.right().Value())));
   } else {
     VisitBinop(this, node, kX64Sub32);
   }
