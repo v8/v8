@@ -3219,7 +3219,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       XMMRegister src = i.InputSimd128Register(0);
       Register tmp = i.TempRegister(0);
       __ xorq(tmp, tmp);
-      __ movq(dst, Immediate(1));
+      __ movq(dst, Immediate(-1));
       __ ptest(src, src);
       __ cmovq(zero, dst, tmp);
       break;
@@ -3231,10 +3231,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register dst = i.OutputRegister();
       XMMRegister src = i.InputSimd128Register(0);
       Register tmp = i.TempRegister(0);
-      __ movq(tmp, Immediate(1));
+      __ movq(tmp, Immediate(-1));
       __ xorq(dst, dst);
-      __ pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
-      __ pxor(kScratchDoubleReg, src);
+      // Compare all src lanes to false.
+      __ pxor(kScratchDoubleReg, kScratchDoubleReg);
+      if (arch_opcode == kX64S1x4AllTrue) {
+        __ pcmpeqd(kScratchDoubleReg, src);
+      } else if (arch_opcode == kX64S1x8AllTrue) {
+        __ pcmpeqw(kScratchDoubleReg, src);
+      } else {
+        __ pcmpeqb(kScratchDoubleReg, src);
+      }
+      // If kScratchDoubleReg is all zero, none of src lanes are false.
       __ ptest(kScratchDoubleReg, kScratchDoubleReg);
       __ cmovq(zero, dst, tmp);
       break;
