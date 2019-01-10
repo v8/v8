@@ -212,11 +212,6 @@ void PatternRewriter::VisitVariableProxy(VariableProxy* proxy) {
   if (names_) {
     names_->Add(proxy->raw_name(), zone());
   }
-
-  // If there's no initializer, we're done.
-  if (!has_initializer_) return;
-
-  parser_->MarkLoopVariableAsAssigned(proxy->var());
 }
 
 // When an extra declaration scope needs to be inserted to account for

@@ -315,6 +315,10 @@ class ParserBase {
     return default_eager_compile_hint_;
   }
 
+  int loop_nesting_depth() const {
+    return function_state_->loop_nesting_depth();
+  }
+
   int GetNextFunctionLiteralId() { return ++function_literal_id_; }
   int GetLastFunctionLiteralId() const { return function_literal_id_; }
 
@@ -1161,21 +1165,6 @@ class ParserBase {
     }
     return true;
   }
-
-  // Due to hoisting, the value of a 'var'-declared variable may actually change
-  // even if the code contains only the "initial" assignment, namely when that
-  // assignment occurs inside a loop.  For example:
-  //
-  //   let i = 10;
-  //   do { var x = i } while (i--):
-  //
-  // Note that non-lexical variables include temporaries, which may also get
-  // assigned inside a loop due to the various rewritings that the parser
-  // performs.
-  //
-  // This also handles marking of loop variables in for-in and for-of loops,
-  // as determined by loop-nesting-depth.
-  void MarkLoopVariableAsAssigned(Variable* var);
 
   FunctionKind FunctionKindForImpl(bool is_method, ParseFunctionFlags flags) {
     static const FunctionKind kFunctionKinds[][2][2] = {
@@ -5535,14 +5524,6 @@ typename ParserBase<Impl>::ForStatementT ParserBase<Impl>::ParseStandardForLoop(
   impl()->RecordIterationStatementSourceRange(loop, body_range);
 
   return loop;
-}
-
-template <typename Impl>
-void ParserBase<Impl>::MarkLoopVariableAsAssigned(Variable* var) {
-  if (!IsLexicalVariableMode(var->mode()) &&
-      function_state_->loop_nesting_depth() > 0) {
-    var->set_maybe_assigned();
-  }
 }
 
 template <typename Impl>

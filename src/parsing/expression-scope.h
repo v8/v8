@@ -42,7 +42,28 @@ class ExpressionScope {
   VariableProxy* NewVariable(const AstRawString* name,
                              int pos = kNoSourcePosition) {
     VariableProxy* result = parser_->NewRawVariable(name, pos);
-    if (CanBeExpression()) AsExpressionParsingScope()->TrackVariable(result);
+    if (CanBeExpression()) {
+      AsExpressionParsingScope()->TrackVariable(result);
+    } else if (type_ == kVarDeclaration && parser_->loop_nesting_depth() > 0) {
+      // Due to hoisting, the value of a 'var'-declared variable may actually
+      // change even if the code contains only the "initial" assignment, namely
+      // when that assignment occurs inside a loop.  For example:
+      //
+      //   let i = 10;
+      //   do { var x = i } while (i--):
+      //
+      // Note that non-lexical variables include temporaries, which may also get
+      // assigned inside a loop due to the various rewritings that the parser
+      // performs.
+      //
+      // Pessimistically mark all vars in loops as assigned. This
+      // overapproximates the actual assigned vars due to unassigned var without
+      // initializer, but that's unlikely anyway.
+      //
+      // This also handles marking of loop variables in for-in and for-of loops,
+      // as determined by loop-nesting-depth.
+      result->set_is_assigned();
+    }
     return result;
   }
 
