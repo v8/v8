@@ -1324,35 +1324,6 @@ Handle<JSArray> CreateArrayFromList(Isolate* isolate,
   return array;
 }
 
-// TODO(bstell): should this be moved somewhere where it is reusable?
-// Implement steps 5, 6, 7 for ECMA 402 9.2.9 SupportedLocales
-// https://tc39.github.io/ecma402/#sec-supportedlocales
-MaybeHandle<JSObject> CreateReadOnlyArray(Isolate* isolate,
-                                          std::vector<std::string> elements) {
-  if (elements.size() >= kMaxUInt32) {
-    THROW_NEW_ERROR(
-        isolate, NewRangeError(MessageTemplate::kInvalidArrayLength), JSObject);
-  }
-
-  PropertyAttributes attr =
-      static_cast<PropertyAttributes>(READ_ONLY | DONT_DELETE);
-
-  // 5. Let subset be CreateArrayFromList(elements).
-  Handle<JSArray> subset = CreateArrayFromList(isolate, elements, attr);
-
-  // 6. Let keys be subset.[[OwnPropertyKeys]]().
-
-  // 7.a. Let desc be PropertyDescriptor { [[Configurable]]: false,
-  //          [[Writable]]: false }.
-  PropertyDescriptor desc;
-  desc.set_writable(false);
-  desc.set_configurable(false);
-
-  // 7.b. Perform ! DefinePropertyOrThrow(subset, P, desc).
-  JSArray::ArraySetLength(isolate, subset, &desc, kThrowOnError).ToChecked();
-  return subset;
-}
-
 // ECMA 402 9.2.9 SupportedLocales(availableLocales, requestedLocales, options)
 // https://tc39.github.io/ecma402/#sec-supportedlocales
 MaybeHandle<JSObject> SupportedLocales(
@@ -1394,22 +1365,11 @@ MaybeHandle<JSObject> SupportedLocales(
         LookupSupportedLocales(available_locales, requested_locales);
   }
 
-  // TODO(jkummerow): Possibly revisit why the spec has the individual entries
-  // readonly but the array is not frozen.
-  // https://github.com/tc39/ecma402/issues/258
-
-  // 5. Let subset be CreateArrayFromList(supportedLocales).
-  // 6. Let keys be subset.[[OwnPropertyKeys]]().
-  // 7. For each element P of keys in List order, do
-  //    a. Let desc be PropertyDescriptor { [[Configurable]]: false,
-  //       [[Writable]]: false }.
-  //    b. Perform ! DefinePropertyOrThrow(subset, P, desc).
-  MaybeHandle<JSObject> subset =
-      CreateReadOnlyArray(isolate, supported_locales);
-
-  // 8. Return subset.
-  return subset;
+  // 5. Return CreateArrayFromList(supportedLocales).
+  PropertyAttributes attr = static_cast<PropertyAttributes>(NONE);
+  return CreateArrayFromList(isolate, supported_locales, attr);
 }
+
 }  // namespace
 
 // ecma-402 #sec-intl.getcanonicallocales
