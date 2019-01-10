@@ -445,12 +445,11 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                                  int pos);
   VariableProxy* DeclareVariable(const AstRawString* name, VariableMode mode,
                                  InitializationFlag init, int pos);
-  void DeclareVariable(VariableProxy* proxy, DeclarationDescriptor::Kind,
+  void DeclareVariable(VariableProxy* proxy, VariableKind kind,
                        VariableMode mode, InitializationFlag init,
                        Scope* declaration_scope, int begin,
                        int end = kNoSourcePosition);
-  void Declare(Declaration* declaration,
-               DeclarationDescriptor::Kind declaration_kind, VariableMode mode,
+  void Declare(Declaration* declaration, VariableKind kind, VariableMode mode,
                InitializationFlag init, Scope* declaration_scope,
                int var_end_pos = kNoSourcePosition);
 

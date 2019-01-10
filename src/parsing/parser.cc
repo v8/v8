@@ -1346,13 +1346,12 @@ VariableProxy* Parser::DeclareVariable(const AstRawString* name,
   DCHECK_NOT_NULL(name);
   VariableProxy* proxy =
       factory()->NewVariableProxy(name, NORMAL_VARIABLE, position());
-  DeclareVariable(proxy, DeclarationDescriptor::NORMAL, mode, init, scope(),
-                  pos, end_position());
+  DeclareVariable(proxy, NORMAL_VARIABLE, mode, init, scope(), pos,
+                  end_position());
   return proxy;
 }
 
-void Parser::DeclareVariable(VariableProxy* proxy,
-                             DeclarationDescriptor::Kind kind,
+void Parser::DeclareVariable(VariableProxy* proxy, VariableKind kind,
                              VariableMode mode, InitializationFlag init,
                              Scope* scope, int begin, int end) {
   Declaration* declaration;
@@ -1365,17 +1364,14 @@ void Parser::DeclareVariable(VariableProxy* proxy,
   Declare(declaration, kind, mode, init, scope, end);
 }
 
-void Parser::Declare(Declaration* declaration,
-                     DeclarationDescriptor::Kind declaration_kind,
+void Parser::Declare(Declaration* declaration, VariableKind variable_kind,
                      VariableMode mode, InitializationFlag init, Scope* scope,
                      int var_end_pos) {
   bool local_ok = true;
   bool sloppy_mode_block_scope_function_redefinition = false;
-  scope->DeclareVariable(
-      declaration, mode,
-      declaration_kind == DeclarationDescriptor::PARAMETER ? PARAMETER_VARIABLE
-                                                           : NORMAL_VARIABLE,
-      init, &sloppy_mode_block_scope_function_redefinition, &local_ok);
+  scope->DeclareVariable(declaration, mode, variable_kind, init,
+                         &sloppy_mode_block_scope_function_redefinition,
+                         &local_ok);
   if (!local_ok) {
     // If we only have the start position of a proxy, we can't highlight the
     // whole variable name.  Pretend its length is 1 so that we highlight at
@@ -1384,7 +1380,7 @@ void Parser::Declare(Declaration* declaration,
                           var_end_pos != kNoSourcePosition
                               ? var_end_pos
                               : declaration->proxy()->position() + 1);
-    if (declaration_kind == DeclarationDescriptor::PARAMETER) {
+    if (variable_kind == PARAMETER_VARIABLE) {
       ReportMessageAt(loc, MessageTemplate::kParamDupe);
     } else {
       ReportMessageAt(loc, MessageTemplate::kVarRedeclaration,
@@ -1414,8 +1410,7 @@ Statement* Parser::DeclareFunction(const AstRawString* variable_name,
       factory()->NewVariableProxy(variable_name, NORMAL_VARIABLE, pos);
   Declaration* declaration = factory()->NewFunctionDeclaration(
       proxy, function, is_sloppy_block_function, pos);
-  Declare(declaration, DeclarationDescriptor::NORMAL, mode, kCreatedInitialized,
-          scope());
+  Declare(declaration, NORMAL_VARIABLE, mode, kCreatedInitialized, scope());
   if (names) names->Add(variable_name, zone());
   if (is_sloppy_block_function) {
     SloppyBlockFunctionStatement* statement =

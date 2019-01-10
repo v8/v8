@@ -197,8 +197,12 @@ void PatternRewriter::VisitVariableProxy(VariableProxy* proxy) {
                                         proxy->position());
   }
 
+  VariableKind kind =
+      descriptor_->declaration_kind == DeclarationDescriptor::PARAMETER
+          ? PARAMETER_VARIABLE
+          : NORMAL_VARIABLE;
   parser_->DeclareVariable(
-      proxy, descriptor_->declaration_kind, descriptor_->mode,
+      proxy, kind, descriptor_->mode,
       Variable::DefaultInitializationFlag(descriptor_->mode), target_scope,
       descriptor_->declaration_pos);
 
