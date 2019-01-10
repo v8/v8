@@ -452,6 +452,19 @@ WASM_SIMD_TEST(F32x4ReplaceLane) {
   }                                                                 \
   void RunWasm_##name##_Impl(LowerSimd lower_simd, ExecutionTier execution_tier)
 
+// The macro below disables tests lowering for certain nodes where the simd
+// lowering doesn't work correctly. Early return here if the CPU does not
+// support SIMD as the graph will be implicitly lowered in that case.
+#define WASM_SIMD_TEST_WITHOUT_LOWERING(name)                       \
+  void RunWasm_##name##_Impl(LowerSimd lower_simd,                  \
+                             ExecutionTier execution_tier);         \
+  TEST(RunWasm_##name##_turbofan) {                                 \
+    if (!CpuFeatures::SupportsWasmSimd128()) return;                \
+    EXPERIMENTAL_FLAG_SCOPE(simd);                                  \
+    RunWasm_##name##_Impl(kNoLowerSimd, ExecutionTier::kOptimized); \
+  }                                                                 \
+  void RunWasm_##name##_Impl(LowerSimd lower_simd, ExecutionTier execution_tier)
+
 // Tests both signed and unsigned conversion.
 // v8:8425 tracks this test being enabled in the interpreter.
 WASM_SIMD_COMPILED_TEST(F32x4ConvertI32x4) {
@@ -2328,6 +2341,43 @@ WASM_SIMD_COMPILED_TEST(SimdLoadStoreLoad) {
   }
 }
 
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
+// V8:8665 - Tracking bug to enable reduction tests in the interpreter,
+// and for SIMD lowering.
+// TODO(gdeepti): Enable these tests for ARM/ARM64
+#define WASM_SIMD_ANYTRUE_TEST(format, lanes, max)                            \
+  WASM_SIMD_TEST_WITHOUT_LOWERING(S##format##AnyTrue) {                       \
+    WasmRunner<int32_t, int32_t> r(execution_tier, lower_simd);               \
+    byte simd = r.AllocateLocal(kWasmS128);                                   \
+    BUILD(                                                                    \
+        r,                                                                    \
+        WASM_SET_LOCAL(simd, WASM_SIMD_I##format##_SPLAT(WASM_GET_LOCAL(0))), \
+        WASM_SIMD_UNOP(kExprS1x##lanes##AnyTrue, WASM_GET_LOCAL(simd)));      \
+    DCHECK_EQ(1, r.Call(max));                                                \
+    DCHECK_EQ(1, r.Call(5));                                                  \
+    DCHECK_EQ(0, r.Call(0));                                                  \
+  }
+WASM_SIMD_ANYTRUE_TEST(32x4, 4, 0xffffffff);
+WASM_SIMD_ANYTRUE_TEST(16x8, 8, 0xffff);
+WASM_SIMD_ANYTRUE_TEST(8x16, 16, 0xff);
+
+#define WASM_SIMD_ALLTRUE_TEST(format, lanes, max)                            \
+  WASM_SIMD_TEST_WITHOUT_LOWERING(S##format##AllTrue) {                       \
+    WasmRunner<int32_t, int32_t> r(execution_tier, lower_simd);               \
+    byte simd = r.AllocateLocal(kWasmS128);                                   \
+    BUILD(                                                                    \
+        r,                                                                    \
+        WASM_SET_LOCAL(simd, WASM_SIMD_I##format##_SPLAT(WASM_GET_LOCAL(0))), \
+        WASM_SIMD_UNOP(kExprS1x##lanes##AllTrue, WASM_GET_LOCAL(simd)));      \
+    DCHECK_EQ(1, r.Call(max));                                                \
+    DCHECK_EQ(0, r.Call(21));                                                 \
+    DCHECK_EQ(0, r.Call(0));                                                  \
+  }
+WASM_SIMD_ALLTRUE_TEST(32x4, 4, 0xffffffff);
+WASM_SIMD_ALLTRUE_TEST(16x8, 8, 0xffff);
+WASM_SIMD_ALLTRUE_TEST(8x16, 16, 0xff);
+#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
+
 #undef WASM_SIMD_TEST
 #undef WASM_SIMD_CHECK_LANE
 #undef WASM_SIMD_CHECK4
@@ -2368,6 +2418,9 @@ WASM_SIMD_COMPILED_TEST(SimdLoadStoreLoad) {
 #undef WASM_SIMD_NON_CANONICAL_SELECT_TEST
 #undef WASM_SIMD_COMPILED_TEST
 #undef WASM_SIMD_BOOL_REDUCTION_TEST
+#undef WASM_SIMD_TEST_WITHOUT_LOWERING
+#undef WASM_SIMD_ANYTRUE_TEST
+#undef WASM_SIMD_ALLTRUE_TEST
 
 }  // namespace test_run_wasm_simd
 }  // namespace wasm
