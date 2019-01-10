@@ -130,8 +130,7 @@ void PatternRewriter::InitializeVariables(
   PatternRewriter rewriter(parser, declaration_descriptor, names,
                            declaration->initializer != nullptr,
                            declaration->initializer_position,
-                           declaration_descriptor->declaration_kind ==
-                                   DeclarationDescriptor::PARAMETER &&
+                           declaration_descriptor->kind == PARAMETER_VARIABLE &&
                                parser->scope()->is_block_scope());
 
   rewriter.RecurseIntoSubpattern(declaration->pattern);
@@ -197,12 +196,8 @@ void PatternRewriter::VisitVariableProxy(VariableProxy* proxy) {
                                         proxy->position());
   }
 
-  VariableKind kind =
-      descriptor_->declaration_kind == DeclarationDescriptor::PARAMETER
-          ? PARAMETER_VARIABLE
-          : NORMAL_VARIABLE;
   parser_->DeclareVariable(
-      proxy, kind, descriptor_->mode,
+      proxy, descriptor_->kind, descriptor_->mode,
       Variable::DefaultInitializationFlag(descriptor_->mode), target_scope,
       descriptor_->declaration_pos);
 
@@ -225,8 +220,7 @@ void PatternRewriter::VisitVariableProxy(VariableProxy* proxy) {
   // If there's no initializer, we're done.
   if (!has_initializer_) return;
 
-  Parser::MarkLoopVariableAsAssigned(var_init_scope, proxy->var(),
-                                     descriptor_->declaration_kind);
+  parser_->MarkLoopVariableAsAssigned(proxy->var());
 }
 
 // When an extra declaration scope needs to be inserted to account for

@@ -1577,7 +1577,7 @@ Statement* Parser::RewriteSwitchStatement(SwitchStatement* switch_statement,
 Block* Parser::RewriteCatchPattern(CatchInfo* catch_info) {
   DCHECK_NOT_NULL(catch_info->pattern);
   DeclarationDescriptor descriptor;
-  descriptor.declaration_kind = DeclarationDescriptor::NORMAL;
+  descriptor.kind = NORMAL_VARIABLE;
   descriptor.mode = VariableMode::kLet;
   descriptor.declaration_pos = catch_info->pattern->position();
   descriptor.initialization_pos = catch_info->pattern->position();
@@ -2788,7 +2788,7 @@ Block* Parser::BuildParameterInitializationBlock(
   int index = 0;
   for (auto parameter : parameters.params) {
     DeclarationDescriptor descriptor;
-    descriptor.declaration_kind = DeclarationDescriptor::PARAMETER;
+    descriptor.kind = PARAMETER_VARIABLE;
     descriptor.mode = VariableMode::kLet;
     descriptor.declaration_pos = parameter->pattern->position();
     // The position that will be used by the AssignmentExpression

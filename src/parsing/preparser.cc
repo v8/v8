@@ -425,8 +425,7 @@ void PreParser::InitializeVariables(
         ReportUnidentifiableError();
         return;
       }
-      MarkLoopVariableAsAssigned(scope(), var,
-                                 declaration_descriptor->declaration_kind);
+      MarkLoopVariableAsAssigned(var);
       // This is only necessary if there is an initializer, but we don't have
       // that information here.  Consequently, the preparser sometimes says
       // maybe-assigned where the parser (correctly) says never-assigned.

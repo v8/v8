@@ -421,12 +421,30 @@ class ParserBase {
       PointerWithPayload<FunctionState, bool, 1> state_and_prev_value_;
     };
 
+    class LoopScope {
+     public:
+      explicit LoopScope(FunctionState* function_state)
+          : function_state_(function_state) {
+        function_state_->loop_nesting_depth_++;
+      }
+
+      ~LoopScope() { function_state_->loop_nesting_depth_--; }
+
+     private:
+      FunctionState* function_state_;
+    };
+
+    int loop_nesting_depth() const { return loop_nesting_depth_; }
+
    private:
     // Properties count estimation.
     int expected_property_count_;
 
     // How many suspends are needed for this function.
     int suspend_count_;
+
+    // How deeply nested we currently are in this function.
+    int loop_nesting_depth_ = 0;
 
     FunctionState** function_state_stack_;
     FunctionState* outer_function_state_;
@@ -450,11 +468,10 @@ class ParserBase {
   };
 
   struct DeclarationDescriptor {
-    enum Kind { NORMAL, PARAMETER, FOR_EACH };
     VariableMode mode;
+    VariableKind kind;
     int declaration_pos;
     int initialization_pos;
-    Kind declaration_kind;
   };
 
   struct DeclarationParsingResult {
@@ -1152,21 +1169,13 @@ class ParserBase {
   //   let i = 10;
   //   do { var x = i } while (i--):
   //
-  // As a simple and very conservative approximation of this, we explicitly mark
-  // as maybe-assigned any non-lexical variable whose initializing "declaration"
-  // does not syntactically occur in the function scope.  (In the example above,
-  // it occurs in a block scope.)
-  //
   // Note that non-lexical variables include temporaries, which may also get
   // assigned inside a loop due to the various rewritings that the parser
   // performs.
   //
   // This also handles marking of loop variables in for-in and for-of loops,
-  // as determined by declaration_kind.
-  //
-  static void MarkLoopVariableAsAssigned(
-      Scope* scope, Variable* var,
-      typename DeclarationDescriptor::Kind declaration_kind);
+  // as determined by loop-nesting-depth.
+  void MarkLoopVariableAsAssigned(Variable* var);
 
   FunctionKind FunctionKindForImpl(bool is_method, ParseFunctionFlags flags) {
     static const FunctionKind kFunctionKinds[][2][2] = {
@@ -3399,7 +3408,7 @@ void ParserBase<Impl>::ParseVariableDeclarations(
   // declaration syntax.
 
   DCHECK_NOT_NULL(parsing_result);
-  parsing_result->descriptor.declaration_kind = DeclarationDescriptor::NORMAL;
+  parsing_result->descriptor.kind = NORMAL_VARIABLE;
   parsing_result->descriptor.declaration_pos = peek_position();
   parsing_result->descriptor.initialization_pos = peek_position();
 
@@ -4931,6 +4940,8 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseDoWhileStatement(
     ZonePtrList<const AstRawString>* own_labels) {
   // DoStatement ::
   //   'do' Statement 'while' '(' Expression ')' ';'
+  typename FunctionState::LoopScope loop_scope(function_state_);
+
   auto loop =
       factory()->NewDoWhileStatement(labels, own_labels, peek_position());
   TargetT target(this, loop);
@@ -4969,6 +4980,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseWhileStatement(
     ZonePtrList<const AstRawString>* own_labels) {
   // WhileStatement ::
   //   'while' '(' Expression ')' Statement
+  typename FunctionState::LoopScope loop_scope(function_state_);
 
   auto loop = factory()->NewWhileStatement(labels, own_labels, peek_position());
   TargetT target(this, loop);
@@ -5205,6 +5217,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForStatement(
   //
   // We parse a declaration/expression after the 'for (' and then read the first
   // expression/declaration before we know if this is a for or a for-each.
+  typename FunctionState::LoopScope loop_scope(function_state_);
 
   int stmt_pos = peek_position();
   ForInfo for_info(this);
@@ -5343,10 +5356,6 @@ ParserBase<Impl>::ParseForEachStatementWithDeclarations(
                             ForEachStatement::VisitModeString(for_info->mode));
     return impl()->NullStatement();
   }
-
-  // Reset the declaration_kind to ensure proper processing during declaration.
-  for_info->parsing_result.descriptor.declaration_kind =
-      DeclarationDescriptor::FOR_EACH;
 
   BlockT init_block = impl()->RewriteForVarInLegacy(*for_info);
 
@@ -5529,12 +5538,9 @@ typename ParserBase<Impl>::ForStatementT ParserBase<Impl>::ParseStandardForLoop(
 }
 
 template <typename Impl>
-void ParserBase<Impl>::MarkLoopVariableAsAssigned(
-    Scope* scope, Variable* var,
-    typename DeclarationDescriptor::Kind declaration_kind) {
+void ParserBase<Impl>::MarkLoopVariableAsAssigned(Variable* var) {
   if (!IsLexicalVariableMode(var->mode()) &&
-      (!scope->is_function_scope() ||
-       declaration_kind == DeclarationDescriptor::FOR_EACH)) {
+      function_state_->loop_nesting_depth() > 0) {
     var->set_maybe_assigned();
   }
 }
@@ -5545,6 +5551,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForAwaitStatement(
     ZonePtrList<const AstRawString>* own_labels) {
   // for await '(' ForDeclaration of AssignmentExpression ')'
   DCHECK(is_async_function());
+  typename FunctionState::LoopScope loop_scope(function_state_);
 
   int stmt_pos = peek_position();
 
