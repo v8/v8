@@ -173,20 +173,16 @@ namespace array {
   }
 
   // This method creates a 0-length array with the ElementsKind of the
-  // receiver if possible, otherwise, calls the species constructor.
-  macro FilterSpeciesCreate(implicit context: Context)(receiver: JSReceiver):
-      JSReceiver {
+  // receiver if possible, otherwise, bails out. It makes sense for the
+  // caller to know that the slow case needs to be invoked.
+  macro FastFilterSpeciesCreate(implicit context: Context)(
+      receiver: JSReceiver): JSReceiver labels Slow {
     const len: Smi = 0;
-    try {
-      if (IsArraySpeciesProtectorCellInvalid()) goto Slow;
-      const o: FastJSArray = Cast<FastJSArray>(receiver) otherwise Slow;
-      const newMap: Map = LoadJSArrayElementsMap(
-          o.map.elements_kind, LoadNativeContext(context));
-      return AllocateJSArray(PACKED_SMI_ELEMENTS, newMap, len, len);
-    }
-    label Slow {
-      return ArraySpeciesCreate(context, receiver, len);
-    }
+    if (IsArraySpeciesProtectorCellInvalid()) goto Slow;
+    const o: FastJSArray = Cast<FastJSArray>(receiver) otherwise Slow;
+    const newMap: Map =
+        LoadJSArrayElementsMap(o.map.elements_kind, LoadNativeContext(context));
+    return AllocateJSArray(PACKED_SMI_ELEMENTS, newMap, len, len);
   }
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.filter
@@ -213,18 +209,25 @@ namespace array {
 
       // 4. If thisArg is present, let T be thisArg; else let T be undefined.
       const thisArg: Object = arguments.length > 1 ? arguments[1] : Undefined;
-      const array: JSReceiver = FilterSpeciesCreate(o);
+      let array: JSReceiver;
 
       // Special cases.
       let k: Number = 0;
       let to: Number = 0;
       try {
-        return FastArrayFilter(o, len, callbackfn, thisArg, array)
-            otherwise Bailout;
+        array = FastFilterSpeciesCreate(o) otherwise SlowSpeciesCreate;
+
+        try {
+          return FastArrayFilter(o, len, callbackfn, thisArg, array)
+              otherwise Bailout;
+        }
+        label Bailout(kValue: Smi, toValue: Smi) deferred {
+          k = kValue;
+          to = toValue;
+        }
       }
-      label Bailout(kValue: Smi, toValue: Smi) deferred {
-        k = kValue;
-        to = toValue;
+      label SlowSpeciesCreate {
+        array = ArraySpeciesCreate(context, receiver, 0);
       }
 
       return ArrayFilterLoopContinuation(
