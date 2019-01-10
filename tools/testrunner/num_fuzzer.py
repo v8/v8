@@ -72,11 +72,6 @@ class NumFuzzer(base_runner.BaseTestRunner):
                       help="extends --stress-deopt to have minimum interval "
                            "between deopt points")
 
-    # Stress interrupt budget
-    parser.add_option("--stress-interrupt-budget", default=0, type="int",
-                      help="probability [0-10] of adding --interrupt-budget "
-                           "flag to the test")
-
     # Combine multiple tests
     parser.add_option("--combine-tests", default=False, action="store_true",
                       help="Combine multiple tests as one and run with "
@@ -114,14 +109,6 @@ class NumFuzzer(base_runner.BaseTestRunner):
 
   def _get_default_suite_names(self):
     return DEFAULT_SUITES
-
-  def _timeout_scalefactor(self, options):
-    factor = super(NumFuzzer, self)._timeout_scalefactor(options)
-    if options.stress_interrupt_budget:
-      # TODO(machenbach): This should be moved to a more generic config.
-      # Fuzzers have too much timeout in debug mode.
-      factor = max(int(factor * 0.25), 1)
-    return factor
 
   def _get_statusfile_variables(self, options):
     variables = (
@@ -190,10 +177,6 @@ class NumFuzzer(base_runner.BaseTestRunner):
     suites = super(NumFuzzer, self)._load_suites(names, options)
     if options.combine_tests:
       suites = [s for s in suites if s.test_combiner_available()]
-    if options.stress_interrupt_budget:
-      # Changing interrupt budget forces us to suppress certain test assertions.
-      for suite in suites:
-        suite.do_suppress_internals()
     return suites
 
   def _create_combiner(self, rng, options):
@@ -217,7 +200,7 @@ class NumFuzzer(base_runner.BaseTestRunner):
 
   def _disable_analysis(self, options):
     """Disable analysis phase when options are used that don't support it."""
-    return options.combine_tests or options.stress_interrupt_budget
+    return options.combine_tests
 
   def _create_fuzzer_configs(self, options):
     fuzzers = []
@@ -231,7 +214,6 @@ class NumFuzzer(base_runner.BaseTestRunner):
     add('gc_interval', options.stress_gc)
     add('threads', options.stress_thread_pool_size)
     add('delay', options.stress_delay_tasks)
-    add('interrupt_budget', options.stress_interrupt_budget)
     add('deopt', options.stress_deopt, options.stress_deopt_min)
     return fuzzers
 
