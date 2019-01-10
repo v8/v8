@@ -72,7 +72,7 @@ inline double DoubleToInteger(double x) {
   return (x >= 0) ? std::floor(x) : std::ceil(x);
 }
 
-
+// Implements most of https://tc39.github.io/ecma262/#sec-toint32.
 int32_t DoubleToInt32(double x) {
   if ((std::isfinite(x)) && (x <= INT_MAX) && (x >= INT_MIN)) {
     int32_t i = static_cast<int32_t>(x);
@@ -80,13 +80,18 @@ int32_t DoubleToInt32(double x) {
   }
   Double d(x);
   int exponent = d.Exponent();
+  uint64_t bits;
   if (exponent < 0) {
     if (exponent <= -Double::kSignificandSize) return 0;
-    return d.Sign() * static_cast<int32_t>(d.Significand() >> -exponent);
+    bits = d.Significand() >> -exponent;
   } else {
     if (exponent > 31) return 0;
-    return d.Sign() * static_cast<int32_t>(d.Significand() << exponent);
+    // Masking to a 32-bit value ensures that the result of the
+    // static_cast<int64_t> below is not the minimal int64_t value,
+    // which would overflow on multiplication with d.Sign().
+    bits = (d.Significand() << exponent) & 0xFFFFFFFFul;
   }
+  return static_cast<int32_t>(d.Sign() * static_cast<int64_t>(bits));
 }
 
 bool DoubleToSmiInteger(double value, int* smi_int_value) {

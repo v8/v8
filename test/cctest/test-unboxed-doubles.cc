@@ -9,6 +9,7 @@
 
 #include "src/accessors.h"
 #include "src/api-inl.h"
+#include "src/base/overflowing-math.h"
 #include "src/compilation-cache.h"
 #include "src/execution.h"
 #include "src/field-type.h"
@@ -440,7 +441,7 @@ static void TestLayoutDescriptorQueriesSlow(int max_sequence_length) {
     int cur = 0;
     for (int i = 0; i < kMaxNumberOfDescriptors; i++) {
       bit_flip_positions[i] = cur;
-      cur = (cur + 1) * 2;
+      cur = base::MulWithWraparound((cur + 1), 2);
     }
     CHECK_LT(cur, 10000);
     bit_flip_positions[kMaxNumberOfDescriptors] = 10000;
@@ -453,7 +454,7 @@ static void TestLayoutDescriptorQueriesSlow(int max_sequence_length) {
     int cur = 3;
     for (int i = 0; i < kMaxNumberOfDescriptors; i++) {
       bit_flip_positions[i] = cur;
-      cur = (cur + 1) * 2;
+      cur = base::MulWithWraparound((cur + 1), 2);
     }
     CHECK_LT(cur, 10000);
     bit_flip_positions[kMaxNumberOfDescriptors] = 10000;

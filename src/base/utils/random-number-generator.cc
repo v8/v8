@@ -91,7 +91,7 @@ int RandomNumberGenerator::NextInt(int max) {
   while (true) {
     int rnd = Next(31);
     int val = rnd % max;
-    if (rnd - val + (max - 1) >= 0) {
+    if (std::numeric_limits<int>::max() - (rnd - val) >= (max - 1)) {
       return val;
     }
   }

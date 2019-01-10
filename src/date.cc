@@ -4,6 +4,7 @@
 
 #include "src/date.h"
 
+#include "src/base/overflowing-math.h"
 #include "src/conversions.h"
 #include "src/objects-inl.h"
 #ifdef V8_INTL_SUPPORT
@@ -283,7 +284,8 @@ int DateCache::GetLocalOffsetFromOS(int64_t time_ms, bool is_utc) {
 
 void DateCache::ExtendTheAfterSegment(int time_sec, int offset_ms) {
   if (after_->offset_ms == offset_ms &&
-      after_->start_sec <= time_sec + kDefaultDSTDeltaInSec &&
+      after_->start_sec <=
+          base::AddWithWraparound(time_sec, kDefaultDSTDeltaInSec) &&
       time_sec <= after_->end_sec) {
     // Extend the after_ segment.
     after_->start_sec = time_sec;

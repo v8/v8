@@ -68,8 +68,9 @@ TEST_F(SpacesTest, WriteBarrierFromHeapObject) {
 }
 
 TEST_F(SpacesTest, WriteBarrierIsMarking) {
-  char memory[256];
-  memset(&memory, 0, sizeof(memory));
+  const size_t kSizeOfMemoryChunk = sizeof(MemoryChunk);
+  char memory[kSizeOfMemoryChunk];
+  memset(&memory, 0, kSizeOfMemoryChunk);
   MemoryChunk* chunk = reinterpret_cast<MemoryChunk*>(&memory);
   heap_internals::MemoryChunk* slim_chunk =
       reinterpret_cast<heap_internals::MemoryChunk*>(&memory);
@@ -84,8 +85,9 @@ TEST_F(SpacesTest, WriteBarrierIsMarking) {
 }
 
 TEST_F(SpacesTest, WriteBarrierInNewSpaceToSpace) {
-  char memory[256];
-  memset(&memory, 0, sizeof(memory));
+  const size_t kSizeOfMemoryChunk = sizeof(MemoryChunk);
+  char memory[kSizeOfMemoryChunk];
+  memset(&memory, 0, kSizeOfMemoryChunk);
   MemoryChunk* chunk = reinterpret_cast<MemoryChunk*>(&memory);
   heap_internals::MemoryChunk* slim_chunk =
       reinterpret_cast<heap_internals::MemoryChunk*>(&memory);
@@ -100,8 +102,9 @@ TEST_F(SpacesTest, WriteBarrierInNewSpaceToSpace) {
 }
 
 TEST_F(SpacesTest, WriteBarrierInNewSpaceFromSpace) {
-  char memory[256];
-  memset(&memory, 0, sizeof(memory));
+  const size_t kSizeOfMemoryChunk = sizeof(MemoryChunk);
+  char memory[kSizeOfMemoryChunk];
+  memset(&memory, 0, kSizeOfMemoryChunk);
   MemoryChunk* chunk = reinterpret_cast<MemoryChunk*>(&memory);
   heap_internals::MemoryChunk* slim_chunk =
       reinterpret_cast<heap_internals::MemoryChunk*>(&memory);

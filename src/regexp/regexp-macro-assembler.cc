@@ -29,8 +29,6 @@ int RegExpMacroAssembler::CaseInsensitiveCompareUC16(Address byte_offset1,
                                                      Address byte_offset2,
                                                      size_t byte_length,
                                                      Isolate* isolate) {
-  unibrow::Mapping<unibrow::Ecma262Canonicalize>* canonicalize =
-      isolate->regexp_macro_assembler_canonicalize();
   // This function is not allowed to cause a garbage collection.
   // A GC might move the calling generated code and invalidate the
   // return address on the stack.
@@ -67,6 +65,8 @@ int RegExpMacroAssembler::CaseInsensitiveCompareUC16(Address byte_offset1,
   }
 #endif  // V8_INTL_SUPPORT
   DCHECK_NOT_NULL(isolate);
+  unibrow::Mapping<unibrow::Ecma262Canonicalize>* canonicalize =
+      isolate->regexp_macro_assembler_canonicalize();
   for (size_t i = 0; i < length; i++) {
     unibrow::uchar c1 = substring1[i];
     unibrow::uchar c2 = substring2[i];

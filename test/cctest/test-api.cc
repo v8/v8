@@ -40,6 +40,7 @@
 #include "include/v8-util.h"
 #include "src/api-inl.h"
 #include "src/arguments.h"
+#include "src/base/overflowing-math.h"
 #include "src/base/platform/platform.h"
 #include "src/compilation-cache.h"
 #include "src/debug/debug.h"
@@ -1262,7 +1263,7 @@ THREADED_PROFILED_TEST(FastReturnValues) {
   };
   for (size_t i = 0; i < arraysize(int_values); i++) {
     for (int modifier = -1; modifier <= 1; modifier++) {
-      int int_value = int_values[i] + modifier;
+      int int_value = v8::base::AddWithWraparound(int_values[i], modifier);
       // check int32_t
       fast_return_value_int32 = int_value;
       value = TestFastReturnValues<int32_t>();
