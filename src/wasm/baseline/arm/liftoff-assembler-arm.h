@@ -682,10 +682,9 @@ bool LiftoffAssembler::emit_i32_ctz(Register dst, Register src) {
 bool LiftoffAssembler::emit_i32_popcnt(Register dst, Register src) {
   {
     UseScratchRegisterScope temps(this);
-    LiftoffRegList pinned;
-    pinned.set(dst);
-    Register scratch = GetUnusedRegister(kGpReg, pinned).gp();
-    Register scratch_2 = temps.Acquire();
+    LiftoffRegList pinned = LiftoffRegList::ForRegs(dst);
+    Register scratch = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
+    Register scratch_2 = GetUnusedRegister(kGpReg, pinned).gp();
     // x = x - ((x & (0x55555555 << 1)) >> 1)
     and_(scratch, src, Operand(0xaaaaaaaa));
     sub(dst, src, Operand(scratch, LSR, 1));
