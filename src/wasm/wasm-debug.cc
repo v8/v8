@@ -31,9 +31,9 @@ namespace {
 template <bool internal, typename... Args>
 Handle<String> PrintFToOneByteString(Isolate* isolate, const char* format,
                                      Args... args) {
-  // Maximum length of a formatted value name ("param#%d", "local#%d",
-  // "global#%d").
-  constexpr int kMaxStrLen = 18;
+  // Maximum length of a formatted value name ("arg#%d", "local#%d",
+  // "global#%d", i32 constants, i64 constants), including null character.
+  static constexpr int kMaxStrLen = 21;
   EmbeddedVector<char, kMaxStrLen> value;
   int len = SNPrintF(value, format, args...);
   CHECK(len > 0 && len < value.length());
@@ -49,11 +49,13 @@ Handle<Object> WasmValueToValueObject(Isolate* isolate, WasmValue value) {
       if (Smi::IsValid(value.to<int32_t>()))
         return handle(Smi::FromInt(value.to<int32_t>()), isolate);
       return PrintFToOneByteString<false>(isolate, "%d", value.to<int32_t>());
-    case kWasmI64:
-      if (Smi::IsValid(value.to<int64_t>()))
-        return handle(Smi::FromIntptr(value.to<int64_t>()), isolate);
-      return PrintFToOneByteString<false>(isolate, "%" PRId64,
-                                          value.to<int64_t>());
+    case kWasmI64: {
+      int64_t i64 = value.to<int64_t>();
+      int32_t i32 = static_cast<int32_t>(i64);
+      if (i32 == i64 && Smi::IsValid(i32))
+        return handle(Smi::FromIntptr(i32), isolate);
+      return PrintFToOneByteString<false>(isolate, "%" PRId64, i64);
+    }
     case kWasmF32:
       return isolate->factory()->NewNumber(value.to<float>());
     case kWasmF64:
