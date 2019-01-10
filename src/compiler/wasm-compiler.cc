@@ -4412,12 +4412,12 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
  public:
   WasmWrapperGraphBuilder(Zone* zone, JSGraph* jsgraph, wasm::FunctionSig* sig,
                           compiler::SourcePositionTable* spt,
-                          StubCallMode stub_mode)
+                          StubCallMode stub_mode, wasm::WasmFeatures features)
       : WasmGraphBuilder(nullptr, zone, jsgraph, sig, spt),
         isolate_(jsgraph->isolate()),
         jsgraph_(jsgraph),
         stub_mode_(stub_mode),
-        enabled_features_(wasm::WasmFeaturesFromIsolate(isolate_)) {}
+        enabled_features_(features) {}
 
   Node* BuildAllocateHeapNumberWithValue(Node* value, Node* control) {
     MachineOperatorBuilder* machine = mcgraph()->machine();
@@ -5312,7 +5312,8 @@ MaybeHandle<Code> CompileJSToWasmWrapper(Isolate* isolate,
   Node* effect = nullptr;
 
   WasmWrapperGraphBuilder builder(&zone, &jsgraph, sig, nullptr,
-                                  StubCallMode::kCallCodeObject);
+                                  StubCallMode::kCallCodeObject,
+                                  wasm::WasmFeaturesFromIsolate(isolate));
   builder.set_control_ptr(&control);
   builder.set_effect_ptr(&effect);
   builder.BuildJSToWasmWrapper(is_import);
@@ -5482,7 +5483,7 @@ wasm::WasmOpcode GetMathIntrinsicOpcode(WasmImportCallKind kind,
 #undef CASE
 }
 
-wasm::WasmCode* CompileWasmMathIntrinsic(Isolate* isolate,
+wasm::WasmCode* CompileWasmMathIntrinsic(wasm::WasmEngine* wasm_engine,
                                          wasm::NativeModule* native_module,
                                          WasmImportCallKind kind,
                                          wasm::FunctionSig* sig) {
@@ -5491,7 +5492,7 @@ wasm::WasmCode* CompileWasmMathIntrinsic(Isolate* isolate,
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"),
                "CompileWasmMathIntrinsic");
 
-  Zone zone(isolate->allocator(), ZONE_NAME);
+  Zone zone(wasm_engine->allocator(), ZONE_NAME);
 
   // Compile a WASM function with a single bytecode and let TurboFan
   // generate either inlined machine code or a call to a helper.
@@ -5544,8 +5545,8 @@ wasm::WasmCode* CompileWasmMathIntrinsic(Isolate* isolate,
   }
 
   wasm::WasmCode* wasm_code = Pipeline::GenerateCodeForWasmNativeStub(
-      isolate->wasm_engine(), call_descriptor, mcgraph, Code::WASM_FUNCTION,
-      wasm::WasmCode::kFunction, debug_name, WasmStubAssemblerOptions(isolate),
+      wasm_engine, call_descriptor, mcgraph, Code::WASM_FUNCTION,
+      wasm::WasmCode::kFunction, debug_name, WasmStubAssemblerOptions(),
       native_module, source_positions);
   CHECK_NOT_NULL(wasm_code);
   // TODO(titzer): add counters for math intrinsic code size / allocation
@@ -5553,7 +5554,7 @@ wasm::WasmCode* CompileWasmMathIntrinsic(Isolate* isolate,
   return wasm_code;
 }
 
-wasm::WasmCode* CompileWasmImportCallWrapper(Isolate* isolate,
+wasm::WasmCode* CompileWasmImportCallWrapper(wasm::WasmEngine* wasm_engine,
                                              wasm::NativeModule* native_module,
                                              WasmImportCallKind kind,
                                              wasm::FunctionSig* sig,
@@ -5565,7 +5566,7 @@ wasm::WasmCode* CompileWasmImportCallWrapper(Isolate* isolate,
   if (FLAG_wasm_math_intrinsics &&
       kind >= WasmImportCallKind::kFirstMathIntrinsic &&
       kind <= WasmImportCallKind::kLastMathIntrinsic) {
-    return CompileWasmMathIntrinsic(isolate, native_module, kind, sig);
+    return CompileWasmMathIntrinsic(wasm_engine, native_module, kind, sig);
   }
 
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"),
@@ -5573,14 +5574,14 @@ wasm::WasmCode* CompileWasmImportCallWrapper(Isolate* isolate,
   //----------------------------------------------------------------------------
   // Create the Graph
   //----------------------------------------------------------------------------
-  Zone zone(isolate->allocator(), ZONE_NAME);
+  Zone zone(wasm_engine->allocator(), ZONE_NAME);
   Graph graph(&zone);
   CommonOperatorBuilder common(&zone);
   MachineOperatorBuilder machine(
       &zone, MachineType::PointerRepresentation(),
       InstructionSelector::SupportedMachineOperatorFlags(),
       InstructionSelector::AlignmentRequirements());
-  JSGraph jsgraph(isolate, &graph, &common, nullptr, nullptr, &machine);
+  JSGraph jsgraph(nullptr, &graph, &common, nullptr, nullptr, &machine);
 
   Node* control = nullptr;
   Node* effect = nullptr;
@@ -5589,7 +5590,8 @@ wasm::WasmCode* CompileWasmImportCallWrapper(Isolate* isolate,
       source_positions ? new (&zone) SourcePositionTable(&graph) : nullptr;
 
   WasmWrapperGraphBuilder builder(&zone, &jsgraph, sig, source_position_table,
-                                  StubCallMode::kCallWasmRuntimeStub);
+                                  StubCallMode::kCallWasmRuntimeStub,
+                                  native_module->enabled_features());
   builder.set_control_ptr(&control);
   builder.set_effect_ptr(&effect);
   builder.BuildWasmImportCallWrapper(kind);
@@ -5604,35 +5606,36 @@ wasm::WasmCode* CompileWasmImportCallWrapper(Isolate* isolate,
     incoming = GetI32WasmCallDescriptor(&zone, incoming);
   }
   wasm::WasmCode* wasm_code = Pipeline::GenerateCodeForWasmNativeStub(
-      isolate->wasm_engine(), incoming, &jsgraph, Code::WASM_TO_JS_FUNCTION,
-      wasm::WasmCode::kWasmToJsWrapper, func_name,
-      WasmStubAssemblerOptions(isolate), native_module, source_position_table);
+      wasm_engine, incoming, &jsgraph, Code::WASM_TO_JS_FUNCTION,
+      wasm::WasmCode::kWasmToJsWrapper, func_name, WasmStubAssemblerOptions(),
+      native_module, source_position_table);
   CHECK_NOT_NULL(wasm_code);
 
   return wasm_code;
 }
 
-wasm::WasmCode* CompileWasmInterpreterEntry(Isolate* isolate,
+wasm::WasmCode* CompileWasmInterpreterEntry(wasm::WasmEngine* wasm_engine,
                                             wasm::NativeModule* native_module,
                                             uint32_t func_index,
                                             wasm::FunctionSig* sig) {
   //----------------------------------------------------------------------------
   // Create the Graph
   //----------------------------------------------------------------------------
-  Zone zone(isolate->allocator(), ZONE_NAME);
+  Zone zone(wasm_engine->allocator(), ZONE_NAME);
   Graph graph(&zone);
   CommonOperatorBuilder common(&zone);
   MachineOperatorBuilder machine(
       &zone, MachineType::PointerRepresentation(),
       InstructionSelector::SupportedMachineOperatorFlags(),
       InstructionSelector::AlignmentRequirements());
-  JSGraph jsgraph(isolate, &graph, &common, nullptr, nullptr, &machine);
+  JSGraph jsgraph(nullptr, &graph, &common, nullptr, nullptr, &machine);
 
   Node* control = nullptr;
   Node* effect = nullptr;
 
   WasmWrapperGraphBuilder builder(&zone, &jsgraph, sig, nullptr,
-                                  StubCallMode::kCallWasmRuntimeStub);
+                                  StubCallMode::kCallWasmRuntimeStub,
+                                  native_module->enabled_features());
   builder.set_control_ptr(&control);
   builder.set_effect_ptr(&effect);
   builder.BuildWasmInterpreterEntry(func_index);
@@ -5648,9 +5651,9 @@ wasm::WasmCode* CompileWasmInterpreterEntry(Isolate* isolate,
       SNPrintF(func_name, "wasm-interpreter-entry#%d", func_index));
 
   wasm::WasmCode* wasm_code = Pipeline::GenerateCodeForWasmNativeStub(
-      isolate->wasm_engine(), incoming, &jsgraph, Code::WASM_INTERPRETER_ENTRY,
+      wasm_engine, incoming, &jsgraph, Code::WASM_INTERPRETER_ENTRY,
       wasm::WasmCode::kInterpreterEntry, func_name.start(),
-      WasmStubAssemblerOptions(isolate), native_module);
+      WasmStubAssemblerOptions(), native_module);
   CHECK_NOT_NULL(wasm_code);
 
   return wasm_code;
@@ -5670,7 +5673,8 @@ MaybeHandle<Code> CompileCWasmEntry(Isolate* isolate, wasm::FunctionSig* sig) {
   Node* effect = nullptr;
 
   WasmWrapperGraphBuilder builder(&zone, &jsgraph, sig, nullptr,
-                                  StubCallMode::kCallCodeObject);
+                                  StubCallMode::kCallCodeObject,
+                                  wasm::WasmFeaturesFromIsolate(isolate));
   builder.set_control_ptr(&control);
   builder.set_effect_ptr(&effect);
   builder.BuildCWasmEntry();
@@ -6052,17 +6056,17 @@ CallDescriptor* GetI32WasmCallDescriptorForSimd(
 
 AssemblerOptions WasmAssemblerOptions() {
   AssemblerOptions options;
+  // Relocation info required to serialize {WasmCode} for proper functions.
   options.record_reloc_info_for_serialization = true;
   options.enable_root_array_delta_access = false;
   return options;
 }
 
-AssemblerOptions WasmStubAssemblerOptions(Isolate* isolate) {
-  // TODO(mstarzinger): Figure out if this can be consolidated (either
-  // with Default(), or with WasmAssemblerOptions() above).
-  AssemblerOptions options = AssemblerOptions::Default(isolate);
+AssemblerOptions WasmStubAssemblerOptions() {
+  AssemblerOptions options;
+  // Relocation info not necessary because stubs are not serialized.
+  options.record_reloc_info_for_serialization = false;
   options.enable_root_array_delta_access = false;
-  options.code_range_start = 0;
   return options;
 }
 

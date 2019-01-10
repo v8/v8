@@ -112,7 +112,8 @@ WasmImportCallKind GetWasmImportCallKind(Handle<JSReceiver> callable,
                                          bool has_bigint_feature);
 
 // Compiles an import call wrapper, which allows WASM to call imports.
-wasm::WasmCode* CompileWasmImportCallWrapper(Isolate*, wasm::NativeModule*,
+wasm::WasmCode* CompileWasmImportCallWrapper(wasm::WasmEngine*,
+                                             wasm::NativeModule*,
                                              WasmImportCallKind,
                                              wasm::FunctionSig*,
                                              bool source_positions);
@@ -125,7 +126,8 @@ V8_EXPORT_PRIVATE MaybeHandle<Code> CompileJSToWasmWrapper(Isolate*,
 
 // Compiles a stub that redirects a call to a wasm function to the wasm
 // interpreter. It's ABI compatible with the compiled wasm function.
-wasm::WasmCode* CompileWasmInterpreterEntry(Isolate*, wasm::NativeModule*,
+wasm::WasmCode* CompileWasmInterpreterEntry(wasm::WasmEngine*,
+                                            wasm::NativeModule*,
                                             uint32_t func_index,
                                             wasm::FunctionSig*);
 
@@ -558,7 +560,7 @@ V8_EXPORT_PRIVATE CallDescriptor* GetI32WasmCallDescriptorForSimd(
     Zone* zone, CallDescriptor* call_descriptor);
 
 AssemblerOptions WasmAssemblerOptions();
-AssemblerOptions WasmStubAssemblerOptions(Isolate* isolate);
+AssemblerOptions WasmStubAssemblerOptions();
 
 }  // namespace compiler
 }  // namespace internal

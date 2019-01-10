@@ -21,7 +21,7 @@ class WasmImportWrapperCache {
  public:
   WasmCode* GetOrCompile(Isolate* isolate, compiler::WasmImportCallKind kind,
                          FunctionSig* sig) {
-    // TODO(titzer): remove the isolate parameter.
+    // TODO(titzer/mstarzinger): remove the isolate parameter.
     base::MutexGuard lock(&mutex_);
     CacheKey key(static_cast<uint8_t>(kind), *sig);
     WasmCode*& cached = entry_map_[key];
@@ -30,7 +30,7 @@ class WasmImportWrapperCache {
       HandleScope scope(isolate);
       bool source_positions = native_module_->module()->origin == kAsmJsOrigin;
       cached = compiler::CompileWasmImportCallWrapper(
-          isolate, native_module_, kind, sig, source_positions);
+          isolate->wasm_engine(), native_module_, kind, sig, source_positions);
       auto counters = isolate->counters();
       counters->wasm_generated_code_size()->Increment(
           cached->instructions().length());

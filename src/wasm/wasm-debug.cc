@@ -627,7 +627,8 @@ void WasmDebugInfo::RedirectToInterpreter(Handle<WasmDebugInfo> debug_info,
     if (!interpreted_functions->get(func_index)->IsUndefined(isolate)) continue;
 
     wasm::WasmCode* wasm_new_code = compiler::CompileWasmInterpreterEntry(
-        isolate, native_module, func_index, module->functions[func_index].sig);
+        isolate->wasm_engine(), native_module, func_index,
+        module->functions[func_index].sig);
     native_module->PublishInterpreterEntry(wasm_new_code, func_index);
     Handle<Foreign> foreign_holder = isolate->factory()->NewForeign(
         wasm_new_code->instruction_start(), TENURED);
