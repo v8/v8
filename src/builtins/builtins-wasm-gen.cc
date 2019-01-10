@@ -233,6 +233,21 @@ TF_BUILTIN(BigIntToWasmI64, WasmBuiltinsAssembler) {
                argument);
 }
 
+TF_BUILTIN(WasmBigIntToI64, WasmBuiltinsAssembler) {
+  if (!Is64()) {
+    Unreachable();
+    return;
+  }
+
+  TNode<Object> context =
+      UncheckedCast<Object>(Parameter(Descriptor::kContext));
+  TNode<Code> target = LoadBuiltinFromFrame(Builtins::kBigIntToI64);
+  TNode<IntPtrT> argument =
+      UncheckedCast<IntPtrT>(Parameter(Descriptor::kArgument));
+
+  TailCallStub(BigIntToI64Descriptor(), target, context, argument);
+}
+
 #define DECLARE_ENUM(name)                                                \
   TF_BUILTIN(ThrowWasm##name, WasmBuiltinsAssembler) {                    \
     TNode<Object> instance = LoadInstanceFromFrame();                     \

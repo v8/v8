@@ -4710,8 +4710,6 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
   }
 
   Node* BuildChangeBigIntToInt64(Node* input, Node* context) {
-    DCHECK_EQ(stub_mode_, StubCallMode::kCallCodeObject);
-
     BigIntToI64Descriptor interface_descriptor;
 
     auto call_descriptor = Linkage::GetStubCallDescriptor(
@@ -4720,9 +4718,13 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         interface_descriptor.GetStackParameterCount(),  // stack parameter count
         CallDescriptor::kNoFlags,                       // flags
         Operator::kNoProperties,                        // properties
-        StubCallMode::kCallCodeObject);                 // stub call mode
+        stub_mode_);                                    // stub call mode
 
-    Node* target = jsgraph()->HeapConstant(BUILTIN_CODE(isolate_, BigIntToI64));
+    Node* target =
+        (stub_mode_ == StubCallMode::kCallWasmRuntimeStub)
+            ? mcgraph()->RelocatableIntPtrConstant(
+                  wasm::WasmCode::kWasmBigIntToI64, RelocInfo::WASM_STUB_CALL)
+            : jsgraph()->HeapConstant(BUILTIN_CODE(isolate_, BigIntToI64));
 
     return SetEffect(SetControl(
         graph()->NewNode(mcgraph()->common()->Call(call_descriptor), target,

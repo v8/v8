@@ -1260,6 +1260,7 @@ namespace internal {
   TFS(ThrowWasmTrapFuncSigMismatch)                                            \
   TFS(ThrowWasmTrapDataSegmentDropped)                                         \
   TFC(BigIntToWasmI64, BigIntToWasmI64, 1)                                     \
+  TFC(WasmBigIntToI64, BigIntToI64, 1)                                         \
                                                                                \
   /* WeakMap */                                                                \
   TFJ(WeakMapConstructor, SharedFunctionInfo::kDontAdaptArgumentsSentinel)     \
@@ -1551,7 +1552,8 @@ namespace internal {
   V(WasmToNumber)                        \
   V(WasmThrow)                           \
   V(DoubleToI)                           \
-  V(BigIntToWasmI64)
+  V(BigIntToWasmI64)                     \
+  V(WasmBigIntToI64)
 
 // The exception thrown in the following builtins are caught internally and will
 // not be propagated further or re-thrown

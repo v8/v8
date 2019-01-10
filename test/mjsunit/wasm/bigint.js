@@ -27,12 +27,12 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   var builder = new WasmModuleBuilder();
 
   var a_index = builder
-    .addImport("a", "a", kSig_v_l) // i64 -> ()
+    .addImport("a", "a", kSig_l_l) // i64 -> i64
 
   builder
-    .addFunction("fn", kSig_v_v) // () -> ()
+    .addFunction("fn", kSig_l_v) // () -> i64
     .addBody([
-      kExprI64Const, 0x1,
+      kExprI64Const, 0x7,
       kExprCallFunction, a_index
     ])
     .exportFunc();
@@ -43,13 +43,14 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
     a: {
       a(param) {
         assertEquals(typeof param, "bigint");
-        assertEquals(param, 1n);
+        assertEquals(param, 7n);
         a_was_called = true;
+        return 12n;
       },
     }
   });
 
-  module.exports.fn();
+  assertEquals(module.exports.fn(), 12n);
 
   assertTrue(a_was_called);
 })();
