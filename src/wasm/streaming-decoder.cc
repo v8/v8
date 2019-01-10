@@ -149,12 +149,10 @@ class TopTierCompiledCallback {
 
 }  // namespace
 
-void StreamingDecoder::NotifyRuntimeObjectsCreated(
-    Handle<WasmModuleObject> module_object) {
+void StreamingDecoder::NotifyNativeModuleCreated(
+    const std::shared_ptr<NativeModule>& native_module) {
   if (!module_compiled_callback_) return;
-  std::shared_ptr<NativeModule> native_module =
-      module_object->shared_native_module();
-  auto* comp_state = module_object->native_module()->compilation_state();
+  auto* comp_state = native_module->compilation_state();
   comp_state->AddCallback(TopTierCompiledCallback{
       std::move(native_module), std::move(module_compiled_callback_)});
   module_compiled_callback_ = {};

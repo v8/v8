@@ -16,12 +16,8 @@
 
 namespace v8 {
 namespace internal {
-
-template <typename T>
-class Handle;
-class WasmModuleObject;
-
 namespace wasm {
+class NativeModule;
 
 // This class is an interface for the StreamingDecoder to start the processing
 // of the incoming module bytes.
@@ -90,7 +86,8 @@ class V8_EXPORT_PRIVATE StreamingDecoder {
   // Passes previously compiled module bytes from the embedder's cache.
   bool SetCompiledModuleBytes(Vector<const uint8_t> compiled_module_bytes);
 
-  void NotifyRuntimeObjectsCreated(Handle<WasmModuleObject>);
+  void NotifyNativeModuleCreated(
+      const std::shared_ptr<NativeModule>& native_module);
 
  private:
   // TODO(ahaas): Put the whole private state of the StreamingDecoder into the

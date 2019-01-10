@@ -2469,6 +2469,8 @@ void AsyncCompileJob::CreateNativeModule(
       wasm::NativeModule::kCanAllocateMoreMemory, std::move(module));
   native_module_->SetWireBytes({std::move(bytes_copy_), wire_bytes_.length()});
   native_module_->SetRuntimeStubs(isolate_);
+
+  if (stream_) stream_->NotifyNativeModuleCreated(native_module_);
 }
 
 void AsyncCompileJob::PrepareRuntimeObjects() {
@@ -2488,8 +2490,6 @@ void AsyncCompileJob::PrepareRuntimeObjects() {
     module_object_ = handle(*module_object_, isolate_);
     deferred_handles_.push_back(deferred.Detach());
   }
-
-  if (stream_) stream_->NotifyRuntimeObjectsCreated(module_object_);
 }
 
 // This function assumes that it is executed in a HandleScope, and that a
