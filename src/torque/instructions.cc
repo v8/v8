@@ -281,6 +281,41 @@ void UnsafeCastInstruction::TypeInstruction(Stack<const Type*>* stack,
   stack->Poke(stack->AboveTop() - 1, destination_type);
 }
 
+void LoadObjectFieldInstruction::TypeInstruction(Stack<const Type*>* stack,
+                                                 ControlFlowGraph* cfg) const {
+  const ClassType* stack_class_type = ClassType::DynamicCast(stack->Top());
+  if (!stack_class_type) {
+    ReportError(
+        "first argument to a LoadObjectFieldInstruction instruction isn't a "
+        "class");
+  }
+  if (stack_class_type != class_type) {
+    ReportError(
+        "first argument to a LoadObjectFieldInstruction doesn't match "
+        "instruction's type");
+  }
+  const Field& field = class_type->LookupField(field_name);
+  stack->Poke(stack->AboveTop() - 1, field.name_and_type.type);
+}
+
+void StoreObjectFieldInstruction::TypeInstruction(Stack<const Type*>* stack,
+                                                  ControlFlowGraph* cfg) const {
+  auto value = stack->Pop();
+  const ClassType* stack_class_type = ClassType::DynamicCast(stack->Top());
+  if (!stack_class_type) {
+    ReportError(
+        "first argument to a StoreObjectFieldInstruction instruction isn't a "
+        "class");
+  }
+  if (stack_class_type != class_type) {
+    ReportError(
+        "first argument to a StoreObjectFieldInstruction doesn't match "
+        "instruction's type");
+  }
+  stack->Pop();
+  stack->Push(value);
+}
+
 bool CallRuntimeInstruction::IsBlockTerminator() const {
   return is_tailcall || runtime_function->signature().return_type ==
                             TypeOracle::GetNeverType();

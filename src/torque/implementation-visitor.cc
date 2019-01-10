@@ -152,8 +152,8 @@ void ImplementationVisitor::Visit(TypeAlias* alias) {
   const std::string& name = struct_type->name();
   header_out() << "  struct " << name << " {\n";
   for (auto& field : struct_type->fields()) {
-    header_out() << "    " << field.type->GetGeneratedTypeName();
-    header_out() << " " << field.name << ";\n";
+    header_out() << "    " << field.name_and_type.type->GetGeneratedTypeName();
+    header_out() << " " << field.name_and_type.name << ";\n";
   }
   header_out() << "\n    std::tuple<";
   bool first = true;
@@ -172,10 +172,10 @@ void ImplementationVisitor::Visit(TypeAlias* alias) {
       header_out() << ", ";
     }
     first = false;
-    if (field.type->IsStructType()) {
-      header_out() << field.name << ".Flatten()";
+    if (field.name_and_type.type->IsStructType()) {
+      header_out() << field.name_and_type.name << ".Flatten()";
     } else {
-      header_out() << "std::make_tuple(" << field.name << ")";
+      header_out() << "std::make_tuple(" << field.name_and_type.name << ")";
     }
   }
   header_out() << ");\n";
@@ -1466,10 +1466,10 @@ VisitResult ImplementationVisitor::Visit(StructExpression* decl) {
   }
   StackRange stack_range = assembler().TopRange(0);
   for (size_t i = 0; i < struct_type->fields().size(); ++i) {
-    const NameAndType& field = struct_type->fields()[i];
+    const Field& field = struct_type->fields()[i];
     StackScope scope(this);
     VisitResult value = Visit(decl->expressions[i]);
-    value = GenerateImplicitConvert(field.type, value);
+    value = GenerateImplicitConvert(field.name_and_type.type, value);
     stack_range.Extend(scope.Yield(value).stack_range());
   }
   return VisitResult(struct_type, stack_range);
@@ -1908,6 +1908,35 @@ VisitResult ImplementationVisitor::Visit(CallExpression* expr,
   }
 }
 
+VisitResult ImplementationVisitor::Visit(LoadObjectFieldExpression* expr) {
+  VisitResult result = Visit(expr->base);
+  auto class_type = ClassType::DynamicCast(result.type());
+  if (!class_type) {
+    ReportError(
+        "base expression for a LoadObjectFieldExpression is not a class type "
+        "but instead ",
+        *result.type());
+  }
+  assembler().Emit(LoadObjectFieldInstruction{class_type, expr->field_name});
+  const Field& field = class_type->LookupField(expr->field_name);
+  result.SetType(field.name_and_type.type);
+  return result;
+}
+
+VisitResult ImplementationVisitor::Visit(StoreObjectFieldExpression* expr) {
+  VisitResult base_result = Visit(expr->base);
+  auto class_type = ClassType::DynamicCast(base_result.type());
+  if (!class_type) {
+    ReportError(
+        "base expression for a StoreObjectFieldExpression is not a class type "
+        "but instead ",
+        *base_result.type());
+  }
+  VisitResult value = Visit(expr->value);
+  assembler().Emit(StoreObjectFieldInstruction{class_type, expr->field_name});
+  return VisitResult(value.type(), assembler().TopRange(0));
+}
+
 VisitResult ImplementationVisitor::Visit(IntrinsicCallExpression* expr) {
   StackScope scope(this);
   Arguments arguments;
@@ -1997,7 +2026,8 @@ StackRange ImplementationVisitor::LowerParameter(
     StackRange range = lowered_parameters->TopRange(0);
     for (auto& field : struct_type->fields()) {
       StackRange parameter_range = LowerParameter(
-          field.type, parameter_name + "." + field.name, lowered_parameters);
+          field.name_and_type.type,
+          parameter_name + "." + field.name_and_type.name, lowered_parameters);
       range.Extend(parameter_range);
     }
     return range;
@@ -2165,6 +2195,50 @@ void ImplementationVisitor::GenerateBuiltinDefinitions(std::string& file_name) {
 
   new_contents_stream
       << "#endif  // V8_BUILTINS_BUILTIN_DEFINITIONS_FROM_DSL_H_\n";
+
+  std::string new_contents(new_contents_stream.str());
+  ReplaceFileContentsIfDifferent(file_name, new_contents);
+}
+
+void ImplementationVisitor::GenerateClassDefinitions(std::string& file_name) {
+  std::stringstream new_contents_stream;
+  new_contents_stream << "#ifndef V8_CLASS_BUILTIN_DEFINITIONS_FROM_DSL_H_\n"
+                         "#define V8_CLASS_BUILTIN_DEFINITIONS_FROM_DSL_H_\n"
+                         "\n\n";
+
+  for (auto i : GlobalContext::GetClasses()) {
+    // TODO(danno): Ideally (and we've got several core V8 dev's feedback
+    // supporting this), Torque should generate the constants for the offsets
+    // directly and not go through the existing layer of macros, which actually
+    // currently just serves to additionally obfuscate where these values come
+    // from.
+    new_contents_stream << "#define ";
+    new_contents_stream << CapifyStringWithUnderscores(i.first)
+                        << "_FIELDS(V) \\\n";
+    const ClassType* type = i.second;
+    std::vector<Field> fields = type->fields();
+    new_contents_stream << "V(kStartOfStrongFieldsOffset, 0) \\\n";
+    for (auto f : fields) {
+      if (!f.is_weak) {
+        new_contents_stream << "V(k" << CamelifyString(f.name_and_type.name)
+                            << "Offset, kTaggedSize) \\\n";
+      }
+    }
+    new_contents_stream << "V(kEndOfStrongFieldsOffset, 0) \\\n";
+    new_contents_stream << "V(kStartOfWeakFieldsOffset, 0) \\\n";
+    for (auto f : fields) {
+      if (f.is_weak) {
+        new_contents_stream << "V(k" << CamelifyString(f.name_and_type.name)
+                            << "Offset, kTaggedSize) \\\n";
+      }
+    }
+    new_contents_stream << "V(kEndOfWeakFieldsOffset, 0) \\\n";
+    new_contents_stream << "V(kSize, 0) \\\n";
+    new_contents_stream << "\n";
+  }
+
+  new_contents_stream
+      << "\n#endif  // V8_CLASS_BUILTIN_DEFINITIONS_FROM_DSL_H_\n";
 
   std::string new_contents(new_contents_stream.str());
   ReplaceFileContentsIfDifferent(file_name, new_contents);

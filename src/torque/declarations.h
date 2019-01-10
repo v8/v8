@@ -82,7 +82,12 @@ class Declarations {
                           bool redeclaration);
 
   static void DeclareStruct(const std::string& name,
-                            const std::vector<NameAndType>& fields);
+                            const std::vector<Field>& fields);
+
+  static const ClassType* DeclareClass(base::Optional<std::string> parent,
+                                       const std::string& name, bool transient,
+                                       const std::string& generates,
+                                       std::vector<Field> fields, size_t size);
 
   static Macro* CreateMacro(std::string external_name,
                             std::string readable_name,

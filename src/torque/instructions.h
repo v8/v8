@@ -30,6 +30,8 @@ class RuntimeFunction;
   V(DeleteRangeInstruction)           \
   V(PushUninitializedInstruction)     \
   V(PushBuiltinPointerInstruction)    \
+  V(LoadObjectFieldInstruction)       \
+  V(StoreObjectFieldInstruction)      \
   V(CallCsaMacroInstruction)          \
   V(CallIntrinsicInstruction)         \
   V(NamespaceConstantInstruction)     \
@@ -109,9 +111,10 @@ class Instruction {
     return nullptr;
   }
 
-  Instruction(const Instruction& other)
-      : kind_(other.kind_), instruction_(other.instruction_->Clone()) {}
-  Instruction& operator=(const Instruction& other) {
+  Instruction(const Instruction& other) V8_NOEXCEPT
+      : kind_(other.kind_),
+        instruction_(other.instruction_->Clone()) {}
+  Instruction& operator=(const Instruction& other) V8_NOEXCEPT {
     if (kind_ == other.kind_) {
       instruction_->Assign(*other.instruction_);
     } else {
@@ -187,6 +190,30 @@ struct NamespaceConstantInstruction : InstructionBase {
       : constant(constant) {}
 
   NamespaceConstant* constant;
+};
+
+struct LoadObjectFieldInstruction : InstructionBase {
+  TORQUE_INSTRUCTION_BOILERPLATE()
+  LoadObjectFieldInstruction(const ClassType* class_type,
+                             std::string field_name)
+      : class_type(class_type) {
+    // The normal way to write this triggers a bug in Clang on Windows.
+    this->field_name = std::move(field_name);
+  }
+  const ClassType* class_type;
+  std::string field_name;
+};
+
+struct StoreObjectFieldInstruction : InstructionBase {
+  TORQUE_INSTRUCTION_BOILERPLATE()
+  StoreObjectFieldInstruction(const ClassType* class_type,
+                              std::string field_name)
+      : class_type(class_type) {
+    // The normal way to write this triggers a bug in Clang on Windows.
+    this->field_name = std::move(field_name);
+  }
+  const ClassType* class_type;
+  std::string field_name;
 };
 
 struct CallIntrinsicInstruction : InstructionBase {

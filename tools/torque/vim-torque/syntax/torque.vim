@@ -30,14 +30,14 @@ syn keyword torqueFunction macro builtin runtime intrinsic
 syn keyword torqueKeyword cast convert from_constexpr min max unsafe_cast
 syn keyword torqueLabel case
 syn keyword torqueMatching try label catch
-syn keyword torqueModifier extern javascript constexpr transitioning transient
+syn keyword torqueModifier extern javascript constexpr transitioning transient weak
 syn match torqueNumber /\v<[0-9]+(\.[0-9]*)?>/
 syn match torqueNumber /\v<0x[0-9a-fA-F]+>/
 syn keyword torqueOperator operator
 syn keyword torqueRel extends generates labels
 syn keyword torqueRepeat while for of
 syn keyword torqueStatement return tail
-syn keyword torqueStructure module struct type
+syn keyword torqueStructure module struct type class
 syn keyword torqueVariable const let
 
 syn match torqueType /\v(\<)@<=([A-Za-z][0-9A-Za-z_]*)(>)@=/

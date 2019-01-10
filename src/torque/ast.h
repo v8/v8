@@ -19,6 +19,8 @@ namespace torque {
 
 #define AST_EXPRESSION_NODE_KIND_LIST(V) \
   V(CallExpression)                      \
+  V(LoadObjectFieldExpression)           \
+  V(StoreObjectFieldExpression)          \
   V(IntrinsicCallExpression)             \
   V(StructExpression)                    \
   V(LogicalOrExpression)                 \
@@ -63,6 +65,7 @@ namespace torque {
   V(GenericDeclaration)                   \
   V(SpecializationDeclaration)            \
   V(ExternConstDeclaration)               \
+  V(ClassDeclaration)                     \
   V(StructDeclaration)                    \
   V(NamespaceDeclaration)                 \
   V(ConstDeclaration)                     \
@@ -202,6 +205,31 @@ struct IdentifierExpression : LocationExpression {
   std::vector<std::string> namespace_qualification;
   std::string name;
   std::vector<TypeExpression*> generic_arguments;
+};
+
+struct LoadObjectFieldExpression : Expression {
+  DEFINE_AST_NODE_LEAF_BOILERPLATE(LoadObjectFieldExpression)
+  LoadObjectFieldExpression(SourcePosition pos, Expression* base,
+                            std::string field_name)
+      : Expression(kKind, pos),
+        base(std::move(base)),
+        field_name(std::move(field_name)) {}
+  Expression* base;
+  std::string field_name;
+};
+
+struct StoreObjectFieldExpression : Expression {
+  DEFINE_AST_NODE_LEAF_BOILERPLATE(StoreObjectFieldExpression)
+  StoreObjectFieldExpression(SourcePosition pos, Expression* base,
+                             std::string field_name, Expression* value)
+      : Expression(kKind, pos),
+        base(std::move(base)),
+        field_name(std::move(field_name)),
+        value(std::move(value)) {}
+  Expression* base;
+  std::string field_name;
+  Expression* value;
+  size_t offset;
 };
 
 struct IntrinsicCallExpression : Expression {
@@ -629,6 +657,11 @@ struct NameAndTypeExpression {
   TypeExpression* type;
 };
 
+struct ClassFieldExpression {
+  NameAndTypeExpression name_and_type;
+  bool weak;
+};
+
 struct LabelAndTypes {
   std::string name;
   std::vector<TypeExpression*> types;
@@ -826,6 +859,25 @@ struct StructDeclaration : Declaration {
   std::vector<NameAndTypeExpression> fields;
 };
 
+struct ClassDeclaration : Declaration {
+  DEFINE_AST_NODE_LEAF_BOILERPLATE(ClassDeclaration)
+  ClassDeclaration(SourcePosition pos, std::string name, bool transient,
+                   base::Optional<std::string> extends,
+                   base::Optional<std::string> generates,
+                   std::vector<ClassFieldExpression> fields)
+      : Declaration(kKind, pos),
+        name(std::move(name)),
+        transient(transient),
+        extends(std::move(extends)),
+        generates(std::move(generates)),
+        fields(std::move(fields)) {}
+  std::string name;
+  bool transient;
+  base::Optional<std::string> extends;
+  base::Optional<std::string> generates;
+  std::vector<ClassFieldExpression> fields;
+};
+
 struct CppIncludeDeclaration : Declaration {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(CppIncludeDeclaration)
   CppIncludeDeclaration(SourcePosition pos, std::string include_path)
@@ -855,6 +907,14 @@ inline bool IsDeferred(Statement* stmt) {
     return block->deferred;
   }
   return false;
+}
+
+DECLARE_CONTEXTUAL_VARIABLE(CurrentAst, Ast);
+
+template <class T, class... Args>
+T* MakeNode(Args... args) {
+  return CurrentAst::Get().AddNode(std::unique_ptr<T>(
+      new T(CurrentSourcePosition::Get(), std::move(args)...)));
 }
 
 }  // namespace torque

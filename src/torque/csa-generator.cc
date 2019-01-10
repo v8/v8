@@ -657,6 +657,36 @@ void CSAGenerator::EmitInstruction(const UnsafeCastInstruction& instruction,
                   ">(" + stack->Top() + ")");
 }
 
+void CSAGenerator::EmitInstruction(
+    const LoadObjectFieldInstruction& instruction, Stack<std::string>* stack) {
+  const Field& field =
+      instruction.class_type->LookupField(instruction.field_name);
+  std::string result_name = FreshNodeName();
+  std::string type_string =
+      field.name_and_type.type->IsSubtypeOf(TypeOracle::GetSmiType())
+          ? "MachineType::TaggedSigned()"
+          : "MachineType::AnyTagged()";
+  out_ << field.name_and_type.type->GetGeneratedTypeName() << " " << result_name
+       << " = "
+       << "ca_.UncheckedCast<"
+       << field.name_and_type.type->GetGeneratedTNodeTypeName()
+       << ">(CodeStubAssembler(state_).LoadObjectField("
+       << stack->Top() + ", " + std::to_string(field.offset) + ", "
+       << type_string + "));\n";
+  stack->Poke(stack->AboveTop() - 1, result_name);
+}
+
+void CSAGenerator::EmitInstruction(
+    const StoreObjectFieldInstruction& instruction, Stack<std::string>* stack) {
+  auto value = stack->Pop();
+  auto object = stack->Pop();
+  stack->Push(value);
+  const Field& field =
+      instruction.class_type->LookupField(instruction.field_name);
+  out_ << "    CodeStubAssembler(state_).StoreObjectField(" + object + ", " +
+              std::to_string(field.offset) + ", " + value + ");\n";
+}
+
 // static
 void CSAGenerator::EmitCSAValue(VisitResult result,
                                 const Stack<std::string>& values,
@@ -671,7 +701,8 @@ void CSAGenerator::EmitCSAValue(VisitResult result,
         out << ", ";
       }
       first = false;
-      EmitCSAValue(ProjectStructField(result, field.name), values, out);
+      EmitCSAValue(ProjectStructField(result, field.name_and_type.name), values,
+                   out);
     }
     out << "}";
   } else {

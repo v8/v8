@@ -168,9 +168,22 @@ void Declarations::DeclareType(const std::string& name, const Type* type,
 }
 
 void Declarations::DeclareStruct(const std::string& name,
-                                 const std::vector<NameAndType>& fields) {
+                                 const std::vector<Field>& fields) {
   const StructType* new_type = TypeOracle::GetStructType(name, fields);
   DeclareType(name, new_type, false);
+}
+
+const ClassType* Declarations::DeclareClass(
+    base::Optional<std::string> parent, const std::string& name, bool transient,
+    const std::string& generates, std::vector<Field> fields, size_t size) {
+  const Type* parent_type = nullptr;
+  if (parent) {
+    parent_type = LookupType(QualifiedName{*parent});
+  }
+  const ClassType* new_type = TypeOracle::GetClassType(
+      parent_type, name, transient, generates, std::move(fields), size);
+  DeclareType(name, new_type, false);
+  return new_type;
 }
 
 Macro* Declarations::CreateMacro(

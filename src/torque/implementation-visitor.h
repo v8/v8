@@ -200,6 +200,7 @@ bool IsCompatibleSignature(const Signature& sig, const TypeVector& types,
 class ImplementationVisitor : public FileVisitor {
  public:
   void GenerateBuiltinDefinitions(std::string& file_name);
+  void GenerateClassDefinitions(std::string& file_name);
 
   VisitResult Visit(Expression* expr);
   const Type* Visit(Statement* stmt);
@@ -237,6 +238,8 @@ class ImplementationVisitor : public FileVisitor {
 
   VisitResult Visit(CallExpression* expr, bool is_tail = false);
   VisitResult Visit(IntrinsicCallExpression* intrinsic);
+  VisitResult Visit(LoadObjectFieldExpression* intrinsic);
+  VisitResult Visit(StoreObjectFieldExpression* intrinsic);
   const Type* Visit(TailCallStatement* stmt);
 
   VisitResult Visit(ConditionalExpression* expr);

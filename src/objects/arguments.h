@@ -8,6 +8,7 @@
 #include "src/objects/fixed-array.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/struct.h"
+#include "torque-generated/class-definitions-from-dsl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -35,7 +36,7 @@ class JSArgumentsObjectWithLength : public JSArgumentsObject {
   V(kSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
-                                JS_ARGUMENTS_OBJECT_WITH_LENGTH_FIELDS)
+                                JSARGUMENTS_OBJECT_WITH_LENGTH_FIELDS)
 #undef JS_ARGUMENTS_OBJECT_WITH_LENGTH_FIELDS
 
   // Indices of in-object properties.

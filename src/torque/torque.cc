@@ -68,6 +68,9 @@ int WrappedMain(int argc, const char** argv) {
     output_header_path += "/builtin-definitions-from-dsl.h";
     visitor.GenerateBuiltinDefinitions(output_header_path);
 
+    output_header_path = output_directory + "/class-definitions-from-dsl.h";
+    visitor.GenerateClassDefinitions(output_header_path);
+
     for (Namespace* n : GlobalContext::Get().GetNamespaces()) {
       visitor.EndNamespaceFile(n);
       visitor.GenerateImplementation(output_directory, n);

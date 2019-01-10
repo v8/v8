@@ -44,6 +44,7 @@ class DeclarationVisitor : public FileVisitor {
   }
 
   void Visit(TypeDeclaration* decl);
+  void Visit(ClassDeclaration* decl);
 
   void Visit(TypeAliasDeclaration* decl) {
     const Type* type = Declarations::GetType(decl->type);

@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/torque/declaration-visitor.h"
+#include "src/torque/ast.h"
 
 namespace v8 {
 namespace internal {
@@ -229,12 +230,122 @@ void DeclarationVisitor::Visit(ExternConstDeclaration* decl) {
 }
 
 void DeclarationVisitor::Visit(StructDeclaration* decl) {
-  std::vector<NameAndType> fields;
+  std::vector<Field> fields;
   for (auto& field : decl->fields) {
     const Type* field_type = Declarations::GetType(field.type);
-    fields.push_back({field.name, field_type});
+    fields.push_back({{field.name, field_type}, 0, false});
   }
   Declarations::DeclareStruct(decl->name, fields);
+}
+
+void DeclarationVisitor::Visit(ClassDeclaration* decl) {
+  // Compute the offset of the class' first member. If the class extends
+  // another class, it's the size of the extended class, otherwise zero.
+  size_t first_field_offset = 0;
+  if (decl->extends) {
+    const Type* extends_type = Declarations::LookupType(*decl->extends);
+    if (extends_type != TypeOracle::GetTaggedType()) {
+      if (!extends_type->IsClassType()) {
+        ReportError(
+            "class \"", decl->name,
+            "\" must extend either Tagged or an already declared class");
+      }
+      first_field_offset = ClassType::DynamicCast(extends_type)->size();
+    }
+  }
+
+  // The generates clause must create a TNode<>
+  std::string generates = decl->name;
+  if (decl->generates) {
+    if (generates.length() < 7 || generates.substr(0, 6) != "TNode<" ||
+        generates.substr(generates.length() - 1, 1) != ">") {
+      ReportError("generated type \"", generates,
+                  "\" should be of the form \"TNode<...>\"");
+    }
+    generates = generates.substr(6, generates.length() - 7);
+  }
+
+  std::vector<Field> fields;
+  size_t offset = first_field_offset;
+  bool seen_strong = false;
+  bool seen_weak = false;
+  for (ClassFieldExpression& field : decl->fields) {
+    const Type* field_type = Declarations::GetType(field.name_and_type.type);
+    if (field_type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
+      if (field.weak) {
+        seen_weak = true;
+      } else {
+        if (seen_weak) {
+          ReportError("cannot declare strong field \"",
+                      field.name_and_type.name,
+                      "\" after weak Tagged references");
+        }
+        seen_strong = true;
+      }
+    } else {
+      if (seen_strong || seen_weak) {
+        ReportError("cannot declare scalar field \"", field.name_and_type.name,
+                    "\" after strong or weak Tagged references");
+      }
+    }
+    if (!field_type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
+      ReportError(
+          "field \"", field.name_and_type.name, "\" of class \"", decl->name,
+          "\" must be a subtype of Tagged (other types not yet supported)");
+    }
+    fields.push_back(
+        {{field.name_and_type.name, field_type}, offset, field.weak});
+    offset += kTaggedSize;
+  }
+
+  auto new_class = Declarations::DeclareClass(
+      decl->extends, decl->name, decl->transient, generates, fields, offset);
+
+  // For each field, construct AST snippits that implement a CSA accessor
+  // function and define a corresponding '.field' operator. The
+  // implementation iterator will turn the snippits into code.
+  for (auto& field : fields) {
+    CurrentSourcePosition::Scope source_position(decl->pos);
+    IdentifierExpression* parameter = MakeNode<IdentifierExpression>(
+        std::vector<std::string>{}, std::string{"o"});
+
+    // Load accessor
+    std::string load_macro_name =
+        "Load" + decl->name + CamelifyString(field.name_and_type.name);
+    std::string get_operator_name = "." + field.name_and_type.name;
+    Signature load_signature;
+    load_signature.parameter_names.push_back("o");
+    load_signature.parameter_types.types.push_back(new_class);
+    load_signature.parameter_types.var_args = false;
+    load_signature.return_type = field.name_and_type.type;
+    Statement* load_body =
+        MakeNode<ReturnStatement>(MakeNode<LoadObjectFieldExpression>(
+            parameter, field.name_and_type.name));
+    Declarations::DeclareMacro(load_macro_name, base::nullopt, load_signature,
+                               false, load_body, get_operator_name);
+
+    // Store accessor
+    IdentifierExpression* value = MakeNode<IdentifierExpression>(
+        std::vector<std::string>{}, std::string{"v"});
+    std::string store_macro_name =
+        "Store" + decl->name + CamelifyString(field.name_and_type.name);
+    std::string store_operator_name = "." + field.name_and_type.name + "=";
+    Signature store_signature;
+    store_signature.parameter_names.push_back("o");
+    store_signature.parameter_names.push_back("v");
+    store_signature.parameter_types.types.push_back(new_class);
+    store_signature.parameter_types.types.push_back(field.name_and_type.type);
+    store_signature.parameter_types.var_args = false;
+    // TODO(danno): Store macros probably should return their value argument
+    store_signature.return_type = TypeOracle::GetVoidType();
+    Statement* store_body =
+        MakeNode<ExpressionStatement>(MakeNode<StoreObjectFieldExpression>(
+            parameter, field.name_and_type.name, value));
+    Declarations::DeclareMacro(store_macro_name, base::nullopt, store_signature,
+                               false, store_body, store_operator_name);
+  }
+
+  GlobalContext::RegisterClass(decl->name, new_class);
 }
 
 void DeclarationVisitor::Visit(CppIncludeDeclaration* decl) {

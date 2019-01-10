@@ -8,6 +8,7 @@
 #include "src/objects.h"
 #include "src/objects/embedder-data-slot.h"
 #include "src/objects/property-array.h"
+#include "torque-generated/class-definitions-from-dsl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -256,14 +257,8 @@ class JSReceiver : public HeapObject {
 
   static const int kHashMask = PropertyArray::HashField::kMask;
 
-// Layout description.
-#define JS_RECEIVER_FIELDS(V)             \
-  V(kPropertiesOrHashOffset, kTaggedSize) \
-  /* Header size. */                      \
-  V(kHeaderSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, JS_RECEIVER_FIELDS)
-#undef JS_RECEIVER_FIELDS
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, JSRECEIVER_FIELDS)
+  static const int kHeaderSize = kSize;
 
   bool HasProxyInPrototype(Isolate* isolate);
 
@@ -936,15 +931,7 @@ class JSBoundFunction : public JSObject {
   static Handle<String> ToString(Handle<JSBoundFunction> function);
 
   // Layout description.
-#define JS_BOUND_FUNCTION_FIELDS(V)          \
-  V(kBoundTargetFunctionOffset, kTaggedSize) \
-  V(kBoundThisOffset, kTaggedSize)           \
-  V(kBoundArgumentsOffset, kTaggedSize)      \
-  /* Header size. */                         \
-  V(kSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_BOUND_FUNCTION_FIELDS)
-#undef JS_BOUND_FUNCTION_FIELDS
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JSBOUND_FUNCTION_FIELDS)
 
   OBJECT_CONSTRUCTORS(JSBoundFunction, JSObject);
 };
@@ -1137,22 +1124,10 @@ class JSFunction : public JSObject {
   // ES6 section 19.2.3.5 Function.prototype.toString ( ).
   static Handle<String> ToString(Handle<JSFunction> function);
 
-// Layout description.
-#define JS_FUNCTION_FIELDS(V)                              \
-  /* Pointer fields. */                                    \
-  V(kSharedFunctionInfoOffset, kTaggedSize)                \
-  V(kContextOffset, kTaggedSize)                           \
-  V(kFeedbackCellOffset, kTaggedSize)                      \
-  V(kEndOfStrongFieldsOffset, 0)                           \
-  V(kCodeOffset, kTaggedSize)                              \
-  /* Size of JSFunction object without prototype field. */ \
-  V(kSizeWithoutPrototype, 0)                              \
-  V(kPrototypeOrInitialMapOffset, kTaggedSize)             \
-  /* Size of JSFunction object with prototype field. */    \
-  V(kSizeWithPrototype, 0)
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JSFUNCTION_FIELDS)
 
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_FUNCTION_FIELDS)
-#undef JS_FUNCTION_FIELDS
+  static constexpr int kSizeWithoutPrototype = kPrototypeOrInitialMapOffset;
+  static constexpr int kSizeWithPrototype = kSize;
 
   OBJECT_CONSTRUCTORS(JSFunction, JSObject);
 };

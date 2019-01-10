@@ -1462,8 +1462,7 @@ TNode<BoolT> CodeStubAssembler::TaggedDoesntHaveInstanceType(
 TNode<HeapObject> CodeStubAssembler::LoadFastProperties(
     SloppyTNode<JSObject> object) {
   CSA_SLOW_ASSERT(this, Word32BinaryNot(IsDictionaryMap(LoadMap(object))));
-  TNode<Object> properties =
-      LoadObjectField(object, JSObject::kPropertiesOrHashOffset);
+  TNode<Object> properties = LoadJSReceiverPropertiesOrHash(object);
   return Select<HeapObject>(TaggedIsSmi(properties),
                             [=] { return EmptyFixedArrayConstant(); },
                             [=] { return CAST(properties); });
@@ -1472,16 +1471,10 @@ TNode<HeapObject> CodeStubAssembler::LoadFastProperties(
 TNode<HeapObject> CodeStubAssembler::LoadSlowProperties(
     SloppyTNode<JSObject> object) {
   CSA_SLOW_ASSERT(this, IsDictionaryMap(LoadMap(object)));
-  TNode<Object> properties =
-      LoadObjectField(object, JSObject::kPropertiesOrHashOffset);
+  TNode<Object> properties = LoadJSReceiverPropertiesOrHash(object);
   return Select<HeapObject>(TaggedIsSmi(properties),
                             [=] { return EmptyPropertyDictionaryConstant(); },
                             [=] { return CAST(properties); });
-}
-
-TNode<FixedArrayBase> CodeStubAssembler::LoadElements(
-    SloppyTNode<JSObject> object) {
-  return CAST(LoadObjectField(object, JSObject::kElementsOffset));
 }
 
 TNode<Number> CodeStubAssembler::LoadJSArrayLength(SloppyTNode<JSArray> array) {

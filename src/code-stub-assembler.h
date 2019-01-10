@@ -843,7 +843,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<HeapObject> LoadSlowProperties(SloppyTNode<JSObject> object);
   TNode<HeapObject> LoadFastProperties(SloppyTNode<JSObject> object);
   // Load the elements backing store of a JSObject.
-  TNode<FixedArrayBase> LoadElements(SloppyTNode<JSObject> object);
+  TNode<FixedArrayBase> LoadElements(SloppyTNode<JSObject> object) {
+    return LoadJSObjectElements(object);
+  }
   // Load the length of a JSArray instance.
   TNode<Object> LoadJSArgumentsObjectWithLength(
       SloppyTNode<JSArgumentsObjectWithLength> array);
@@ -1166,17 +1168,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   TNode<BytecodeArray> LoadSharedFunctionInfoBytecodeArray(
       SloppyTNode<SharedFunctionInfo> shared);
-
-  TNode<Object> LoadJSFunctionPrototypeOrInitialMap(
-      TNode<JSFunction> function) {
-    return LoadObjectField(function, JSFunction::kPrototypeOrInitialMapOffset);
-  }
-
-  TNode<SharedFunctionInfo> LoadJSFunctionSharedFunctionInfo(
-      TNode<JSFunction> function) {
-    return CAST(
-        LoadObjectField(function, JSFunction::kSharedFunctionInfoOffset));
-  }
 
   TNode<Int32T> LoadSharedFunctionInfoFormalParameterCount(
       TNode<SharedFunctionInfo> function) {

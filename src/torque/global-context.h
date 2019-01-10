@@ -5,6 +5,8 @@
 #ifndef V8_TORQUE_GLOBAL_CONTEXT_H_
 #define V8_TORQUE_GLOBAL_CONTEXT_H_
 
+#include <map>
+
 #include "src/torque/declarable.h"
 #include "src/torque/declarations.h"
 #include "src/torque/type-oracle.h"
@@ -44,6 +46,15 @@ class GlobalContext : public ContextualClass<GlobalContext> {
     return result;
   }
 
+  static void RegisterClass(const std::string& name,
+                            const ClassType* new_class) {
+    Get().classes_[name] = new_class;
+  }
+
+  static const std::map<std::string, const ClassType*>& GetClasses() {
+    return Get().classes_;
+  }
+
   static void AddCppInclude(std::string include_path) {
     Get().cpp_includes_.push_back(std::move(include_path));
   }
@@ -61,6 +72,7 @@ class GlobalContext : public ContextualClass<GlobalContext> {
   Ast ast_;
   std::vector<std::unique_ptr<Declarable>> declarables_;
   std::vector<std::string> cpp_includes_;
+  std::map<std::string, const ClassType*> classes_;
 };
 
 template <class T>

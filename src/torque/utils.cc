@@ -163,6 +163,19 @@ bool IsValidTypeName(const std::string& s) {
   return IsUpperCamelCase(s);
 }
 
+std::string CapifyStringWithUnderscores(const std::string& camellified_string) {
+  std::string result;
+  bool previousWasLower = false;
+  for (auto current : camellified_string) {
+    if (previousWasLower && isupper(current)) {
+      result += "_";
+    }
+    result += toupper(current);
+    previousWasLower = (islower(current));
+  }
+  return result;
+}
+
 std::string CamelifyString(const std::string& underscore_string) {
   std::string result;
   bool word_beginning = true;

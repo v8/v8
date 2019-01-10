@@ -78,6 +78,8 @@ std::string AbstractType::GetGeneratedTNodeTypeName() const {
   return generated_type_;
 }
 
+std::string ClassType::GetGeneratedTNodeTypeName() const { return generates_; }
+
 std::string BuiltinPointerType::ToExplicitString() const {
   std::stringstream result;
   result << "builtin (";
@@ -182,16 +184,36 @@ const Type* SubtractType(const Type* a, const Type* b) {
   return TypeOracle::GetUnionType(result);
 }
 
+const Field& NameAndTypeListType::LookupField(const std::string& name) const {
+  for (auto& field : fields_) {
+    if (field.name_and_type.name == name) return field;
+  }
+  if (parent() != nullptr) {
+    if (auto parent_class = ClassType::DynamicCast(parent())) {
+      return parent_class->LookupField(name);
+    }
+  }
+  ReportError("no field ", name, "found");
+}
+
+std::string StructType::GetGeneratedTypeName() const {
+  return nspace()->ExternalName() + "::" + name();
+}
+
 std::string StructType::ToExplicitString() const {
   std::stringstream result;
-  result << "{";
-  PrintCommaSeparatedList(result, fields_);
+  result << "struct " << name() << "{";
+  PrintCommaSeparatedList(result, fields());
   result << "}";
   return result.str();
 }
 
-std::string StructType::GetGeneratedTypeName() const {
-  return namespace_->ExternalName() + "::" + GetStructName();
+std::string ClassType::ToExplicitString() const {
+  std::stringstream result;
+  result << "class " << name() << "{";
+  PrintCommaSeparatedList(result, fields());
+  result << "}";
+  return result.str();
 }
 
 void PrintSignature(std::ostream& os, const Signature& sig, bool with_names) {
@@ -231,6 +253,14 @@ std::ostream& operator<<(std::ostream& os, const NameAndType& name_and_type) {
   os << name_and_type.name;
   os << ": ";
   os << *name_and_type.type;
+  return os;
+}
+
+std::ostream& operator<<(std::ostream& os, const Field& field) {
+  os << field.name_and_type;
+  if (field.is_weak) {
+    os << " (weak)";
+  }
   return os;
 }
 
@@ -294,9 +324,9 @@ VisitResult ProjectStructField(VisitResult structure,
   BottomOffset begin = structure.stack_range().begin();
   const StructType* type = StructType::cast(structure.type());
   for (auto& field : type->fields()) {
-    BottomOffset end = begin + LoweredSlotCount(field.type);
-    if (field.name == fieldname) {
-      return VisitResult(field.type, StackRange{begin, end});
+    BottomOffset end = begin + LoweredSlotCount(field.name_and_type.type);
+    if (field.name_and_type.name == fieldname) {
+      return VisitResult(field.name_and_type.type, StackRange{begin, end});
     }
     begin = end;
   }
@@ -309,8 +339,8 @@ void AppendLoweredTypes(const Type* type, std::vector<const Type*>* result) {
   if (type->IsConstexpr()) return;
   if (type == TypeOracle::GetVoidType()) return;
   if (auto* s = StructType::DynamicCast(type)) {
-    for (const NameAndType& field : s->fields()) {
-      AppendLoweredTypes(field.type, result);
+    for (const Field& field : s->fields()) {
+      AppendLoweredTypes(field.name_and_type.type, result);
     }
   } else {
     result->push_back(type);

@@ -50,7 +50,8 @@ class TypeBase {
     kAbstractType,
     kBuiltinPointerType,
     kUnionType,
-    kStructType
+    kStructType,
+    kClassType
   };
   virtual ~TypeBase() = default;
   bool IsTopType() const { return kind() == Kind::kTopType; }
@@ -60,6 +61,7 @@ class TypeBase {
   }
   bool IsUnionType() const { return kind() == Kind::kUnionType; }
   bool IsStructType() const { return kind() == Kind::kStructType; }
+  bool IsClassType() const { return kind() == Kind::kClassType; }
 
  protected:
   explicit TypeBase(Kind kind) : kind_(kind) {}
@@ -142,6 +144,14 @@ struct NameAndType {
 };
 
 std::ostream& operator<<(std::ostream& os, const NameAndType& name_and_type);
+
+struct Field {
+  NameAndType name_and_type;
+  size_t offset;
+  bool is_weak;
+};
+
+std::ostream& operator<<(std::ostream& os, const Field& name_and_type);
 
 class TopType final : public Type {
  public:
@@ -366,44 +376,71 @@ class UnionType final : public Type {
 
 const Type* SubtractType(const Type* a, const Type* b);
 
-class StructType final : public Type {
+class NameAndTypeListType : public Type {
  public:
-  DECLARE_TYPE_BOILERPLATE(StructType);
-  std::string ToExplicitString() const override;
   std::string MangledName() const override { return name_; }
-  std::string GetGeneratedTypeName() const override;
+  std::string GetGeneratedTypeName() const override { UNREACHABLE(); };
   std::string GetGeneratedTNodeTypeName() const override { UNREACHABLE(); }
   const Type* NonConstexprVersion() const override { return this; }
 
   bool IsConstexpr() const override { return false; }
 
-  const std::vector<NameAndType>& fields() const { return fields_; }
-  const Type* GetFieldType(const std::string& fieldname) const {
-    for (const NameAndType& field : fields()) {
-      if (field.name == fieldname) return field.type;
-    }
-    std::stringstream s;
-    s << "\"" << fieldname << "\" is not a field of struct type \"" << name()
-      << "\"";
-    ReportError(s.str());
-  }
+  void SetFields(std::vector<Field> fields) { fields_ = std::move(fields); }
+  const std::vector<Field>& fields() const { return fields_; }
+  const Field& LookupField(const std::string& name) const;
   const std::string& name() const { return name_; }
   Namespace* nspace() const { return namespace_; }
+
+ protected:
+  NameAndTypeListType(Kind kind, const Type* parent, Namespace* nspace,
+                      const std::string& name, const std::vector<Field>& fields)
+      : Type(kind, parent), namespace_(nspace), name_(name), fields_(fields) {}
+
+ private:
+  Namespace* namespace_;
+  std::string name_;
+  std::vector<Field> fields_;
+};
+
+class StructType final : public NameAndTypeListType {
+ public:
+  DECLARE_TYPE_BOILERPLATE(StructType);
+  std::string ToExplicitString() const override;
+  std::string GetGeneratedTypeName() const override;
 
  private:
   friend class TypeOracle;
   StructType(Namespace* nspace, const std::string& name,
-             const std::vector<NameAndType>& fields)
-      : Type(Kind::kStructType, nullptr),
-        namespace_(nspace),
-        name_(name),
-        fields_(fields) {}
+             const std::vector<Field>& fields)
+      : NameAndTypeListType(Kind::kStructType, nullptr, nspace, name, fields) {}
 
-  const std::string& GetStructName() const { return name_; }
+  const std::string& GetStructName() const { return name(); }
+};
 
-  Namespace* namespace_;
-  std::string name_;
-  std::vector<NameAndType> fields_;
+class ClassType final : public NameAndTypeListType {
+ public:
+  DECLARE_TYPE_BOILERPLATE(ClassType);
+  std::string ToExplicitString() const override;
+  std::string GetGeneratedTypeName() const override {
+    return IsConstexpr() ? generates_ : "compiler::TNode<" + generates_ + ">";
+  }
+  std::string GetGeneratedTNodeTypeName() const override;
+  bool IsTransient() const override { return transient_; }
+  size_t size() const { return size_; }
+
+ private:
+  friend class TypeOracle;
+  ClassType(const Type* parent, Namespace* nspace, const std::string& name,
+            bool transient, const std::string& generates,
+            const std::vector<Field>& fields, size_t size)
+      : NameAndTypeListType(Kind::kClassType, parent, nspace, name, fields),
+        transient_(transient),
+        size_(size),
+        generates_(generates) {}
+
+  bool transient_;
+  size_t size_;
+  const std::string generates_;
 };
 
 inline std::ostream& operator<<(std::ostream& os, const Type& t) {
