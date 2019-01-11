@@ -918,7 +918,10 @@
   },
   'V8 Linux64 UBSan': {
     'tests': [
+      {'name': 'mozilla'},
+      {'name': 'test262', 'shards': 2},
       {'name': 'v8testing'},
+      {'name': 'v8testing', 'variant': 'extra'},
     ],
   },
   'V8 Linux64 UBSanVptr': {
