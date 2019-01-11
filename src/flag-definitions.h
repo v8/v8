@@ -199,7 +199,6 @@ DEFINE_IMPLICATION(harmony_private_methods, harmony_private_fields)
 // Features that are still work in progress (behind individual flags).
 #define HARMONY_INPROGRESS_BASE(V)                                        \
   V(harmony_class_fields, "harmony fields in class literals")             \
-  V(harmony_await_optimization, "harmony await taking 1 tick")            \
   V(harmony_private_methods, "harmony private methods in class literals") \
   V(harmony_regexp_sequence, "RegExp Unicode sequence properties")        \
   V(harmony_weak_refs, "harmony weak references")
@@ -239,7 +238,8 @@ DEFINE_IMPLICATION(harmony_private_methods, harmony_private_fields)
   V(harmony_public_fields, "harmony public instance fields in class literals") \
   V(harmony_static_fields, "harmony static fields in class literals")          \
   V(harmony_string_matchall, "harmony String.prototype.matchAll")              \
-  V(harmony_object_from_entries, "harmony Object.fromEntries()")
+  V(harmony_object_from_entries, "harmony Object.fromEntries()")               \
+  V(harmony_await_optimization, "harmony await taking 1 tick")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_SHIPPING(V)                      \
