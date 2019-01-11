@@ -434,12 +434,17 @@ void LiftoffAssembler::emit_i32_add(Register dst, Register lhs, Register rhs) {
 }
 
 void LiftoffAssembler::emit_i32_sub(Register dst, Register lhs, Register rhs) {
-  if (dst == rhs) {
-    negl(dst);
-    addl(dst, lhs);
-  } else {
+  if (dst != rhs) {
+    // Default path.
     if (dst != lhs) movl(dst, lhs);
     subl(dst, rhs);
+  } else if (lhs == rhs) {
+    // Degenerate case.
+    xorl(dst, dst);
+  } else {
+    // Emit {dst = lhs + -rhs} if dst == rhs.
+    negl(dst);
+    addl(dst, lhs);
   }
 }
 
