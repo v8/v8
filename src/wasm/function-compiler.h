@@ -30,29 +30,27 @@ struct WasmFunction;
 
 class WasmCompilationUnit final {
  public:
-  static ExecutionTier GetDefaultExecutionTier();
+  static ExecutionTier GetDefaultExecutionTier(const WasmModule*);
 
   // If constructing from a background thread, pass in a Counters*, and ensure
   // that the Counters live at least as long as this compilation unit (which
   // typically means to hold a std::shared_ptr<Counters>).
   // If used exclusively from a foreground thread, Isolate::counters() may be
   // used by callers to pass Counters.
-  WasmCompilationUnit(WasmEngine*, NativeModule*, int index,
-                      ExecutionTier = GetDefaultExecutionTier());
+  WasmCompilationUnit(WasmEngine*, int index, ExecutionTier);
 
   ~WasmCompilationUnit();
 
-  void ExecuteCompilation(CompilationEnv*, std::shared_ptr<WireBytesStorage>,
-                          Counters*, WasmFeatures* detected);
+  void ExecuteCompilation(CompilationEnv*, NativeModule*,
+                          std::shared_ptr<WireBytesStorage>, Counters*,
+                          WasmFeatures* detected);
 
-  NativeModule* native_module() const { return native_module_; }
   ExecutionTier tier() const { return tier_; }
   WasmCode* result() const { return result_; }
 
-  static void CompileWasmFunction(Isolate* isolate, NativeModule* native_module,
-                                  WasmFeatures* detected,
-                                  const WasmFunction* function,
-                                  ExecutionTier = GetDefaultExecutionTier());
+  static void CompileWasmFunction(Isolate*, NativeModule*,
+                                  WasmFeatures* detected, const WasmFunction*,
+                                  ExecutionTier);
 
  private:
   friend class LiftoffCompilationUnit;
@@ -60,7 +58,6 @@ class WasmCompilationUnit final {
 
   WasmEngine* const wasm_engine_;
   const int func_index_;
-  NativeModule* const native_module_;
   ExecutionTier tier_;
   WasmCode* result_ = nullptr;
 

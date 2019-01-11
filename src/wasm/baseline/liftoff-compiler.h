@@ -16,6 +16,7 @@ namespace wasm {
 
 struct CompilationEnv;
 struct FunctionBody;
+class NativeModule;
 class WasmCompilationUnit;
 struct WasmFeatures;
 
@@ -24,8 +25,8 @@ class LiftoffCompilationUnit final {
   explicit LiftoffCompilationUnit(WasmCompilationUnit* wasm_unit)
       : wasm_unit_(wasm_unit) {}
 
-  bool ExecuteCompilation(CompilationEnv*, const FunctionBody&, Counters*,
-                          WasmFeatures* detected);
+  bool ExecuteCompilation(CompilationEnv*, NativeModule*, const FunctionBody&,
+                          Counters*, WasmFeatures* detected);
 
  private:
   WasmCompilationUnit* const wasm_unit_;

@@ -31,24 +31,16 @@ const char* GetExecutionTierAsString(ExecutionTier tier) {
 }  // namespace
 
 // static
-ExecutionTier WasmCompilationUnit::GetDefaultExecutionTier() {
-  return FLAG_liftoff ? ExecutionTier::kBaseline : ExecutionTier::kOptimized;
+ExecutionTier WasmCompilationUnit::GetDefaultExecutionTier(
+    const WasmModule* module) {
+  return FLAG_liftoff && module->origin == kWasmOrigin
+             ? ExecutionTier::kBaseline
+             : ExecutionTier::kOptimized;
 }
 
-WasmCompilationUnit::WasmCompilationUnit(WasmEngine* wasm_engine,
-                                         NativeModule* native_module, int index,
+WasmCompilationUnit::WasmCompilationUnit(WasmEngine* wasm_engine, int index,
                                          ExecutionTier tier)
-    : wasm_engine_(wasm_engine),
-      func_index_(index),
-      native_module_(native_module),
-      tier_(tier) {
-  const WasmModule* module = native_module->module();
-  DCHECK_GE(index, module->num_imported_functions);
-  DCHECK_LT(index, module->functions.size());
-  // Always disable Liftoff for asm.js, for two reasons:
-  //    1) asm-specific opcodes are not implemented, and
-  //    2) tier-up does not work with lazy compilation.
-  if (module->origin == kAsmJsOrigin) tier = ExecutionTier::kOptimized;
+    : wasm_engine_(wasm_engine), func_index_(index), tier_(tier) {
   if (V8_UNLIKELY(FLAG_wasm_tier_mask_for_testing) && index < 32 &&
       (FLAG_wasm_tier_mask_for_testing & (1 << index))) {
     tier = ExecutionTier::kOptimized;
@@ -61,20 +53,18 @@ WasmCompilationUnit::WasmCompilationUnit(WasmEngine* wasm_engine,
 WasmCompilationUnit::~WasmCompilationUnit() = default;
 
 void WasmCompilationUnit::ExecuteCompilation(
-    CompilationEnv* env, std::shared_ptr<WireBytesStorage> wire_bytes_storage,
-    Counters* counters, WasmFeatures* detected) {
-  const WasmModule* module = native_module_->module();
-  DCHECK_EQ(module, env->module);
-
+    CompilationEnv* env, NativeModule* native_module,
+    std::shared_ptr<WireBytesStorage> wire_bytes_storage, Counters* counters,
+    WasmFeatures* detected) {
   auto* func = &env->module->functions[func_index_];
   Vector<const uint8_t> code = wire_bytes_storage->GetCode(func->code);
   wasm::FunctionBody func_body{func->sig, func->code.offset(), code.start(),
                                code.end()};
 
-  auto size_histogram =
-      SELECT_WASM_COUNTER(counters, module->origin, wasm, function_size_bytes);
+  auto size_histogram = SELECT_WASM_COUNTER(counters, env->module->origin, wasm,
+                                            function_size_bytes);
   size_histogram->AddSample(static_cast<int>(func_body.end - func_body.start));
-  auto timed_histogram = SELECT_WASM_COUNTER(counters, module->origin,
+  auto timed_histogram = SELECT_WASM_COUNTER(counters, env->module->origin,
                                              wasm_compile, function_time);
   TimedHistogramScope wasm_compile_function_time_scope(timed_histogram);
 
@@ -85,8 +75,8 @@ void WasmCompilationUnit::ExecuteCompilation(
 
   switch (tier_) {
     case ExecutionTier::kBaseline:
-      if (liftoff_unit_->ExecuteCompilation(env, func_body, counters,
-                                            detected)) {
+      if (liftoff_unit_->ExecuteCompilation(env, native_module, func_body,
+                                            counters, detected)) {
         break;
       }
       // Otherwise, fall back to turbofan.
@@ -95,7 +85,8 @@ void WasmCompilationUnit::ExecuteCompilation(
       // function to avoid compiling it twice with TurboFan.
       V8_FALLTHROUGH;
     case ExecutionTier::kOptimized:
-      turbofan_unit_->ExecuteCompilation(env, func_body, counters, detected);
+      turbofan_unit_->ExecuteCompilation(env, native_module, func_body,
+                                         counters, detected);
       break;
     case ExecutionTier::kInterpreter:
       UNREACHABLE();  // TODO(titzer): compile interpreter entry stub.
@@ -135,18 +126,18 @@ void WasmCompilationUnit::CompileWasmFunction(Isolate* isolate,
                              wire_bytes.start() + function->code.offset(),
                              wire_bytes.start() + function->code.end_offset()};
 
-  WasmCompilationUnit unit(isolate->wasm_engine(), native_module,
-                           function->func_index, tier);
+  WasmCompilationUnit unit(isolate->wasm_engine(), function->func_index, tier);
   CompilationEnv env = native_module->CreateCompilationEnv();
   unit.ExecuteCompilation(
-      &env, native_module->compilation_state()->GetWireBytesStorage(),
+      &env, native_module,
+      native_module->compilation_state()->GetWireBytesStorage(),
       isolate->counters(), detected);
 }
 
 void WasmCompilationUnit::SetResult(WasmCode* code, Counters* counters) {
   DCHECK_NULL(result_);
   result_ = code;
-  native_module()->PublishCode(code);
+  code->native_module()->PublishCode(code);
 
   counters->wasm_generated_code_size()->Increment(
       static_cast<int>(code->instructions().size()));

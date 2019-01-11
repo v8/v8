@@ -1947,6 +1947,7 @@ class LiftoffCompiler {
 }  // namespace
 
 bool LiftoffCompilationUnit::ExecuteCompilation(CompilationEnv* env,
+                                                NativeModule* native_module,
                                                 const FunctionBody& func_body,
                                                 Counters* counters,
                                                 WasmFeatures* detected) {
@@ -1963,8 +1964,8 @@ bool LiftoffCompilationUnit::ExecuteCompilation(CompilationEnv* env,
   base::Optional<TimedHistogramScope> liftoff_compile_time_scope(
       base::in_place, counters->liftoff_compile_time());
   WasmFullDecoder<Decoder::kValidate, LiftoffCompiler> decoder(
-      &zone, module, wasm_unit_->native_module_->enabled_features(), detected,
-      func_body, call_descriptor, env, &zone);
+      &zone, module, native_module->enabled_features(), detected, func_body,
+      call_descriptor, env, &zone);
   decoder.Decode();
   liftoff_compile_time_scope.reset();
   LiftoffCompiler* compiler = &decoder.interface();
@@ -1993,7 +1994,7 @@ bool LiftoffCompilationUnit::ExecuteCompilation(CompilationEnv* env,
   uint32_t frame_slot_count = compiler->GetTotalFrameSlotCount();
   int safepoint_table_offset = compiler->GetSafepointTableOffset();
 
-  WasmCode* code = wasm_unit_->native_module_->AddCode(
+  WasmCode* code = native_module->AddCode(
       wasm_unit_->func_index_, desc, frame_slot_count, safepoint_table_offset,
       0, std::move(protected_instructions), std::move(source_positions),
       WasmCode::kFunction, WasmCode::kLiftoff);

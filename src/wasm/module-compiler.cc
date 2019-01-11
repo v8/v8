@@ -550,10 +550,13 @@ WasmCode* LazyCompileFunction(Isolate* isolate, NativeModule* native_module,
                          module_start + func->code.offset(),
                          module_start + func->code.end_offset()};
 
-  WasmCompilationUnit unit(isolate->wasm_engine(), native_module, func_index);
+  WasmCompilationUnit unit(
+      isolate->wasm_engine(), func_index,
+      WasmCompilationUnit::GetDefaultExecutionTier(native_module->module()));
   CompilationEnv env = native_module->CreateCompilationEnv();
   unit.ExecuteCompilation(
-      &env, native_module->compilation_state()->GetWireBytesStorage(),
+      &env, native_module,
+      native_module->compilation_state()->GetWireBytesStorage(),
       isolate->counters(),
       Impl(native_module->compilation_state())->detected_features());
 
@@ -607,7 +610,10 @@ class CompilationUnitBuilder {
  public:
   explicit CompilationUnitBuilder(NativeModule* native_module,
                                   WasmEngine* wasm_engine)
-      : native_module_(native_module), wasm_engine_(wasm_engine) {}
+      : native_module_(native_module),
+        wasm_engine_(wasm_engine),
+        default_tier_(WasmCompilationUnit::GetDefaultExecutionTier(
+            native_module->module())) {}
 
   void AddUnit(uint32_t func_index) {
     switch (compilation_state()->compile_mode()) {
@@ -618,8 +624,7 @@ class CompilationUnitBuilder {
             CreateUnit(func_index, ExecutionTier::kBaseline));
         return;
       case CompileMode::kRegular:
-        baseline_units_.emplace_back(CreateUnit(
-            func_index, WasmCompilationUnit::GetDefaultExecutionTier()));
+        baseline_units_.emplace_back(CreateUnit(func_index, default_tier_));
         return;
     }
     UNREACHABLE();
@@ -640,8 +645,8 @@ class CompilationUnitBuilder {
  private:
   std::unique_ptr<WasmCompilationUnit> CreateUnit(uint32_t func_index,
                                                   ExecutionTier tier) {
-    return base::make_unique<WasmCompilationUnit>(wasm_engine_, native_module_,
-                                                  func_index, tier);
+    return base::make_unique<WasmCompilationUnit>(wasm_engine_, func_index,
+                                                  tier);
   }
 
   CompilationStateImpl* compilation_state() const {
@@ -650,6 +655,7 @@ class CompilationUnitBuilder {
 
   NativeModule* const native_module_;
   WasmEngine* const wasm_engine_;
+  const ExecutionTier default_tier_;
   std::vector<std::unique_ptr<WasmCompilationUnit>> baseline_units_;
   std::vector<std::unique_ptr<WasmCompilationUnit>> tiering_units_;
 };
@@ -685,6 +691,7 @@ double MonotonicallyIncreasingTimeInMs() {
 // within the result_mutex_ lock when no finishing task is running, i.e. when
 // the finisher_is_running_ flag is not set.
 bool FetchAndExecuteCompilationUnit(CompilationEnv* env,
+                                    NativeModule* native_module,
                                     CompilationStateImpl* compilation_state,
                                     WasmFeatures* detected,
                                     Counters* counters) {
@@ -697,7 +704,8 @@ bool FetchAndExecuteCompilationUnit(CompilationEnv* env,
   // Get the tier before starting compilation, as compilation can switch tiers
   // if baseline bails out.
   ExecutionTier tier = unit->tier();
-  unit->ExecuteCompilation(env, compilation_state->GetSharedWireBytesStorage(),
+  unit->ExecuteCompilation(env, native_module,
+                           compilation_state->GetSharedWireBytesStorage(),
                            counters, detected);
   compilation_state->OnFinishedUnit(tier, unit->result());
 
@@ -770,7 +778,7 @@ void CompileInParallel(Isolate* isolate, NativeModule* native_module) {
   //    a time and execute the parallel phase of the compilation unit.
   WasmFeatures detected_features;
   CompilationEnv env = native_module->CreateCompilationEnv();
-  while (FetchAndExecuteCompilationUnit(&env, compilation_state,
+  while (FetchAndExecuteCompilationUnit(&env, native_module, compilation_state,
                                         &detected_features,
                                         isolate->counters()) &&
          !compilation_state->baseline_compilation_finished()) {
@@ -812,12 +820,14 @@ void CompileSequentially(Isolate* isolate, NativeModule* native_module,
   const WasmModule* module = native_module->module();
   WasmFeatures detected = kNoWasmFeatures;
   auto* comp_state = Impl(native_module->compilation_state());
+  ExecutionTier tier =
+      WasmCompilationUnit::GetDefaultExecutionTier(native_module->module());
   for (const WasmFunction& func : module->functions) {
     if (func.imported) continue;  // Imports are compiled at instantiation time.
 
     // Compile the function.
     WasmCompilationUnit::CompileWasmFunction(isolate, native_module, &detected,
-                                             &func);
+                                             &func, tier);
     if (comp_state->failed()) {
       thrower->CompileFailed(comp_state->GetCompileError());
       break;
@@ -975,8 +985,9 @@ class BackgroundCompileTask : public CancelableTask {
     auto* compilation_state = Impl(native_module_->compilation_state());
     WasmFeatures detected_features = kNoWasmFeatures;
     while (!compilation_state->failed()) {
-      if (!FetchAndExecuteCompilationUnit(&env, compilation_state,
-                                          &detected_features, counters_)) {
+      if (!FetchAndExecuteCompilationUnit(&env, native_module_,
+                                          compilation_state, &detected_features,
+                                          counters_)) {
         break;
       }
     }
