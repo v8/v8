@@ -39,8 +39,7 @@ class PatternRewriter final : public AstVisitor<PatternRewriter> {
   typedef Parser::DeclarationDescriptor DeclarationDescriptor;
 
   static void InitializeVariables(
-      Parser* parser, Block* block,
-      const DeclarationDescriptor* declaration_descriptor,
+      Parser* parser, const DeclarationDescriptor* declaration_descriptor,
       const Parser::DeclarationParsingResult::Declaration* declaration,
       ZonePtrList<const AstRawString>* names);
 
@@ -101,11 +100,12 @@ class PatternRewriter final : public AstVisitor<PatternRewriter> {
 };
 
 void Parser::InitializeVariables(
-    Block* block, const DeclarationDescriptor* declaration_descriptor,
+    ScopedPtrList<Statement>* statements,
+    const DeclarationDescriptor* declaration_descriptor,
     const DeclarationParsingResult::Declaration* declaration,
     ZonePtrList<const AstRawString>* names) {
   if (has_error()) return;
-  PatternRewriter::InitializeVariables(this, block, declaration_descriptor,
+  PatternRewriter::InitializeVariables(this, declaration_descriptor,
                                        declaration, names);
 
   if (declaration->initializer) {
@@ -115,18 +115,14 @@ void Parser::InitializeVariables(
     }
     Assignment* assignment = factory()->NewAssignment(
         Token::INIT, declaration->pattern, declaration->initializer, pos);
-    block->statements()->Add(factory()->NewExpressionStatement(assignment, pos),
-                             zone());
+    statements->Add(factory()->NewExpressionStatement(assignment, pos));
   }
 }
 
 void PatternRewriter::InitializeVariables(
-    Parser* parser, Block* block,
-    const DeclarationDescriptor* declaration_descriptor,
+    Parser* parser, const DeclarationDescriptor* declaration_descriptor,
     const Parser::DeclarationParsingResult::Declaration* declaration,
     ZonePtrList<const AstRawString>* names) {
-  DCHECK(block->ignore_completion_value());
-
   PatternRewriter rewriter(parser, declaration_descriptor, names,
                            declaration->initializer != nullptr,
                            declaration->initializer_position,

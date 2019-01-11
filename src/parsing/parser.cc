@@ -1391,15 +1391,15 @@ void Parser::Declare(Declaration* declaration, VariableKind variable_kind,
   }
 }
 
-Block* Parser::BuildInitializationBlock(
+Statement* Parser::BuildInitializationBlock(
     DeclarationParsingResult* parsing_result,
     ZonePtrList<const AstRawString>* names) {
-  Block* result = factory()->NewBlock(1, true);
+  ScopedPtrList<Statement> statements(pointer_buffer());
   for (const auto& declaration : parsing_result->declarations) {
-    InitializeVariables(result, &(parsing_result->descriptor), &declaration,
-                        names);
+    InitializeVariables(&statements, &(parsing_result->descriptor),
+                        &declaration, names);
   }
-  return result;
+  return factory()->NewBlock(true, statements);
 }
 
 Statement* Parser::DeclareFunction(const AstRawString* variable_name,
@@ -1589,9 +1589,9 @@ Block* Parser::RewriteCatchPattern(CatchInfo* catch_info) {
       catch_info->pattern, initializer_position,
       factory()->NewVariableProxy(catch_info->variable));
 
-  Block* init_block = factory()->NewBlock(8, true);
-  InitializeVariables(init_block, &descriptor, &decl, nullptr);
-  return init_block;
+  ScopedPtrList<Statement> init_statements(pointer_buffer());
+  InitializeVariables(&init_statements, &descriptor, &decl, nullptr);
+  return factory()->NewBlock(true, init_statements);
 }
 
 void Parser::ReportVarRedeclarationIn(const AstRawString* name, Scope* scope) {
@@ -1881,7 +1881,7 @@ void Parser::DesugarBindingInForEachStatement(ForInfo* for_info,
   DeclarationParsingResult::Declaration& decl =
       for_info->parsing_result.declarations[0];
   Variable* temp = NewTemporary(ast_value_factory()->dot_for_string());
-  auto each_initialization_block = factory()->NewBlock(1, true);
+  ScopedPtrList<Statement> each_initialization_statements(pointer_buffer());
   {
     auto descriptor = for_info->parsing_result.descriptor;
     descriptor.declaration_pos = kNoSourcePosition;
@@ -1895,7 +1895,7 @@ void Parser::DesugarBindingInForEachStatement(ForInfo* for_info,
         IsLexicalVariableMode(for_info->parsing_result.descriptor.mode) ||
         is_for_var_of;
 
-    InitializeVariables(each_initialization_block, &descriptor, &decl,
+    InitializeVariables(&each_initialization_statements, &descriptor, &decl,
                         collect_names ? &for_info->bound_names : nullptr);
 
     // Annex B.3.5 prohibits the form
@@ -1923,7 +1923,9 @@ void Parser::DesugarBindingInForEachStatement(ForInfo* for_info,
   }
 
   *body_block = factory()->NewBlock(3, false);
-  (*body_block)->statements()->Add(each_initialization_block, zone());
+  (*body_block)
+      ->statements()
+      ->Add(factory()->NewBlock(true, each_initialization_statements), zone());
   *each_variable = factory()->NewVariableProxy(temp, for_info->position);
 }
 
@@ -2784,7 +2786,7 @@ Block* Parser::BuildParameterInitializationBlock(
   DCHECK(!parameters.is_simple);
   DCHECK(scope()->is_function_scope());
   DCHECK_EQ(scope(), parameters.scope);
-  Block* init_block = factory()->NewBlock(parameters.num_parameters(), true);
+  ScopedPtrList<Statement> init_statements(pointer_buffer());
   int index = 0;
   for (auto parameter : parameters.params) {
     DeclarationDescriptor descriptor;
@@ -2826,15 +2828,17 @@ Block* Parser::BuildParameterInitializationBlock(
     }
 
     Scope* param_scope = scope();
-    Block* param_block = init_block;
+    ScopedPtrList<Statement>* param_init_statements = &init_statements;
+
+    base::Optional<ScopedPtrList<Statement>> non_simple_param_init_statements;
     if (!parameter->is_simple() &&
         scope()->AsDeclarationScope()->calls_sloppy_eval()) {
       param_scope = NewVarblockScope();
       param_scope->set_start_position(descriptor.initialization_pos);
       param_scope->set_end_position(parameter->initializer_end_position);
       param_scope->RecordEvalCall();
-      param_block = factory()->NewBlock(8, true);
-      param_block->set_scope(param_scope);
+      non_simple_param_init_statements.emplace(pointer_buffer());
+      param_init_statements = &non_simple_param_init_statements.value();
       // Rewrite the outer initializer to point to param_scope
       ReparentExpressionScope(stack_limit(), initial_value, param_scope);
     }
@@ -2842,15 +2846,25 @@ Block* Parser::BuildParameterInitializationBlock(
     BlockState block_state(&scope_, param_scope);
     DeclarationParsingResult::Declaration decl(
         parameter->pattern, parameter->initializer_end_position, initial_value);
-    InitializeVariables(param_block, &descriptor, &decl, nullptr);
 
-    if (param_block != init_block) {
+    InitializeVariables(param_init_statements, &descriptor, &decl, nullptr);
+
+    if (param_init_statements != &init_statements) {
+      DCHECK_EQ(param_init_statements,
+                &non_simple_param_init_statements.value());
+      Block* param_block =
+          factory()->NewBlock(true, *non_simple_param_init_statements);
+      non_simple_param_init_statements.reset();
+      param_block->set_scope(param_scope);
       param_scope = param_scope->FinalizeBlockScope();
-      init_block->statements()->Add(param_block, zone());
+      if (param_scope != nullptr) {
+        CheckConflictingVarDeclarations(param_scope);
+      }
+      init_statements.Add(param_block);
     }
     ++index;
   }
-  return init_block;
+  return factory()->NewBlock(true, init_statements);
 }
 
 Scope* Parser::NewHiddenCatchScope() {

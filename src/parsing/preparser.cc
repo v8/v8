@@ -413,7 +413,7 @@ PreParserExpression PreParser::ExpressionFromIdentifier(
 }
 
 void PreParser::InitializeVariables(
-    PreParserStatement block,
+    PreParserScopedStatementList* statements,
     const DeclarationDescriptor* declaration_descriptor,
     const DeclarationParsingResult::Declaration* declaration,
     ZonePtrList<const AstRawString>* names) {
