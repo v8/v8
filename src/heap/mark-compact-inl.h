@@ -409,6 +409,9 @@ template <FixedArrayVisitationMode fixed_array_mode,
 void MarkingVisitor<fixed_array_mode, retaining_path_mode, MarkingState>::
     VisitDescriptors(DescriptorArray descriptors,
                      int number_of_own_descriptors) {
+  // Updating the number of marked descriptor is supported only for black
+  // descriptor arrays.
+  DCHECK(marking_state()->IsBlack(descriptors));
   int16_t new_marked = static_cast<int16_t>(number_of_own_descriptors);
   int16_t old_marked = descriptors->UpdateNumberOfMarkedDescriptors(
       mark_compact_epoch_, new_marked);

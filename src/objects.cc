@@ -4783,8 +4783,9 @@ void Map::ReplaceDescriptors(Isolate* isolate, DescriptorArray new_descriptors,
   // Replace descriptors by new_descriptors in all maps that share it. The old
   // descriptors will not be trimmed in the mark-compactor, we need to mark
   // all its elements.
-  MarkingBarrierForElements(isolate->heap(), to_replace);
   Map current = *this;
+  MarkingBarrierForDescriptorArray(isolate->heap(), current, to_replace,
+                                   to_replace->number_of_descriptors());
   while (current->instance_descriptors() == to_replace) {
     Object next = current->GetBackPointer();
     if (next->IsUndefined(isolate)) break;  // Stop overwriting at initial map.
@@ -5622,7 +5623,8 @@ void Map::EnsureDescriptorSlack(Isolate* isolate, Handle<Map> map, int slack) {
   // Replace descriptors by new_descriptors in all maps that share it. The old
   // descriptors will not be trimmed in the mark-compactor, we need to mark
   // all its elements.
-  MarkingBarrierForElements(isolate->heap(), *descriptors);
+  MarkingBarrierForDescriptorArray(isolate->heap(), *map, *descriptors,
+                                   descriptors->number_of_descriptors());
 
   Map current = *map;
   while (current->instance_descriptors() == *descriptors) {

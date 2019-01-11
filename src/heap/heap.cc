@@ -5643,10 +5643,13 @@ void Heap::MarkingBarrierSlow(HeapObject object, Address slot,
 }
 
 void Heap::MarkingBarrierForElementsSlow(Heap* heap, HeapObject object) {
-  if (FLAG_concurrent_marking ||
-      heap->incremental_marking()->marking_state()->IsBlack(object)) {
-    heap->incremental_marking()->RevisitObject(object);
+  IncrementalMarking::MarkingState* marking_state =
+      heap->incremental_marking()->marking_state();
+  if (!marking_state->IsBlack(object)) {
+    marking_state->WhiteToGrey(object);
+    marking_state->GreyToBlack(object);
   }
+  heap->incremental_marking()->RevisitObject(object);
 }
 
 void Heap::MarkingBarrierForCodeSlow(Code host, RelocInfo* rinfo,
