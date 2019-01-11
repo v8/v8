@@ -6,7 +6,6 @@
 
 #include "src/api.h"
 #include "src/base/ieee754.h"
-#include "src/codegen.h"
 #include "src/compiler/code-assembler.h"
 #include "src/counters.h"
 #include "src/cpu-features.h"

@@ -6,7 +6,6 @@
 
 #include "src/assembler.h"
 #include "src/base/overflowing-math.h"
-#include "src/codegen.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/raw-machine-assembler.h"
 #include "src/machine-type.h"

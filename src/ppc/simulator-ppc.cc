@@ -13,7 +13,6 @@
 #include "src/assembler.h"
 #include "src/base/bits.h"
 #include "src/base/lazy-instance.h"
-#include "src/codegen.h"
 #include "src/disasm.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
@@ -3110,11 +3109,10 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       return;
     }
     case FSQRT: {
-      lazily_initialize_fast_sqrt();
       int frt = instr->RTValue();
       int frb = instr->RBValue();
       double frb_val = get_double_from_d_register(frb);
-      double frt_val = fast_sqrt(frb_val);
+      double frt_val = std::sqrt(frb_val);
       set_d_register_from_double(frt, frt_val);
       return;
     }

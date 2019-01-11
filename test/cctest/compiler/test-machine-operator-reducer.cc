@@ -4,7 +4,6 @@
 
 #include "src/base/overflowing-math.h"
 #include "src/base/utils/random-number-generator.h"
-#include "src/codegen.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/machine-operator-reducer.h"
 #include "src/compiler/operator-properties.h"

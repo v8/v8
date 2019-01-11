@@ -8,7 +8,6 @@
 
 #include "src/arm/assembler-arm-inl.h"
 #include "src/arm/simulator-arm.h"
-#include "src/codegen.h"
 #include "src/macro-assembler.h"
 
 namespace v8 {
@@ -266,34 +265,6 @@ MemCopyUint16Uint8Function CreateMemCopyUint16Uint8Function(
 #endif
 }
 #endif
-
-UnaryMathFunction CreateSqrtFunction() {
-#if defined(USE_SIMULATOR)
-  return nullptr;
-#else
-  v8::PageAllocator* page_allocator = GetPlatformPageAllocator();
-  size_t allocated = 0;
-  byte* buffer = AllocatePage(page_allocator,
-                              page_allocator->GetRandomMmapAddr(), &allocated);
-  if (buffer == nullptr) return nullptr;
-
-  MacroAssembler masm(AssemblerOptions{}, buffer, static_cast<int>(allocated));
-
-  __ MovFromFloatParameter(d0);
-  __ vsqrt(d0, d0);
-  __ MovToFloatResult(d0);
-  __ Ret();
-
-  CodeDesc desc;
-  masm.GetCode(nullptr, &desc);
-  DCHECK(!RelocInfo::RequiresRelocationAfterCodegen(desc));
-
-  Assembler::FlushICache(buffer, allocated);
-  CHECK(SetPermissions(page_allocator, buffer, allocated,
-                       PageAllocator::kReadExecute));
-  return FUNCTION_CAST<UnaryMathFunction>(buffer);
-#endif
-}
 
 #undef __
 

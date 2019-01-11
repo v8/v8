@@ -9,7 +9,6 @@
 
 #include "src/assembler.h"
 #include "src/base/bits.h"
-#include "src/codegen.h"
 #include "src/compiler.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/wasm-compiler.h"

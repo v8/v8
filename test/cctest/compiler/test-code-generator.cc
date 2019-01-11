@@ -5,7 +5,6 @@
 #include "src/assembler-inl.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/code-stub-assembler.h"
-#include "src/codegen.h"
 #include "src/compiler/backend/code-generator.h"
 #include "src/compiler/backend/instruction.h"
 #include "src/compiler/linkage.h"

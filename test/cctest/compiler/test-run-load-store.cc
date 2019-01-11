@@ -9,7 +9,6 @@
 #include "src/base/bits.h"
 #include "src/base/overflowing-math.h"
 #include "src/base/utils/random-number-generator.h"
-#include "src/codegen.h"
 #include "src/objects-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/codegen-tester.h"

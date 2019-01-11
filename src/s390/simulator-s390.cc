@@ -14,7 +14,6 @@
 #include "src/assembler.h"
 #include "src/base/bits.h"
 #include "src/base/once.h"
-#include "src/codegen.h"
 #include "src/disasm.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
