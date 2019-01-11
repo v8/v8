@@ -160,14 +160,14 @@ void StoreBuffer::MoveEntriesToRememberedSet(int index) {
   DCHECK_GE(index, 0);
   DCHECK_LT(index, kStoreBuffers);
   Address last_inserted_addr = kNullAddress;
-  MemoryChunk* chunk = nullptr;
 
+  // We are taking the chunk map mutex here because the page lookup of addr
+  // below may require us to check if addr is part of a large page.
+  base::MutexGuard guard(heap_->lo_space()->chunk_map_mutex());
   for (Address* current = start_[index]; current < lazy_top_[index];
        current++) {
     Address addr = *current;
-    if (MemoryChunk::BaseAddress(addr) != chunk->address()) {
-      chunk = MemoryChunk::FromAnyPointerAddress(addr);
-    }
+    MemoryChunk* chunk = MemoryChunk::FromAnyPointerAddress(heap_, addr);
     if (IsDeletionAddress(addr)) {
       last_inserted_addr = kNullAddress;
       current++;

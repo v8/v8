@@ -363,8 +363,6 @@ class MemoryChunk {
       kMarkBitmapOffset + kSystemPointerSize;
   static const intptr_t kHeapOffset =
       kReservationOffset + 3 * kSystemPointerSize;
-  static const intptr_t kHeaderSentinelOffset =
-      kHeapOffset + kSystemPointerSize;
 
   static const size_t kHeaderSize =
       kSizeOffset               // NOLINT
@@ -373,7 +371,6 @@ class MemoryChunk {
       + kSystemPointerSize      // Bitmap* marking_bitmap_
       + 3 * kSystemPointerSize  // VirtualMemory reservation_
       + kSystemPointerSize      // Heap* heap_
-      + kSystemPointerSize      // Address header_sentinel_
       + kSystemPointerSize      // Address area_start_
       + kSystemPointerSize      // Address area_end_
       + kSystemPointerSize      // Address owner_
@@ -408,21 +405,19 @@ class MemoryChunk {
   // TODO(6792,mstarzinger): Drop to 3 or lower once WebAssembly is off heap.
   static const int kMaxWriteUnprotectCounter = 4;
 
-  static Address BaseAddress(Address a) { return a & ~kAlignmentMask; }
-
   // Only works if the pointer is in the first kPageSize of the MemoryChunk.
   static MemoryChunk* FromAddress(Address a) {
-    return reinterpret_cast<MemoryChunk*>(BaseAddress(a));
+    return reinterpret_cast<MemoryChunk*>(a & ~kAlignmentMask);
   }
   // Only works if the object is in the first kPageSize of the MemoryChunk.
   static MemoryChunk* FromHeapObject(const HeapObject o) {
-    return reinterpret_cast<MemoryChunk*>(BaseAddress(o.ptr()));
+    return reinterpret_cast<MemoryChunk*>(o.ptr() & ~kAlignmentMask);
   }
 
   void SetOldGenerationPageFlags(bool is_marking);
   void SetYoungGenerationPageFlags(bool is_marking);
 
-  static inline MemoryChunk* FromAnyPointerAddress(Address addr);
+  static inline MemoryChunk* FromAnyPointerAddress(Heap* heap, Address addr);
 
   static inline void UpdateHighWaterMark(Address mark) {
     if (mark == kNullAddress) return;
@@ -647,8 +642,6 @@ class MemoryChunk {
 
   void set_owner(Space* space) { owner_ = space; }
 
-  static inline bool HasHeaderSentinel(Address slot_addr);
-
   // Emits a memory barrier. For TSAN builds the other thread needs to perform
   // MemoryChunk::synchronized_heap() to simulate the barrier.
   void InitializationMemoryFence();
@@ -692,12 +685,6 @@ class MemoryChunk {
   VirtualMemory reservation_;
 
   Heap* heap_;
-
-  // This is used to distinguish the memory chunk header from the interior of a
-  // large page. The memory chunk header stores here an impossible tagged
-  // pointer: the tagger pointer of the page start. A field in a large object is
-  // guaranteed to not contain such a pointer.
-  Address header_sentinel_;
 
   // Start and end of allocatable memory on this chunk.
   Address area_start_;
