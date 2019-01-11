@@ -19,8 +19,8 @@ class EntryFrameConstants : public AllStatic {
       -(StandardFrameConstants::kFixedFrameSizeFromFp + kPointerSize);
 
   // Stack offsets for arguments passed to JSEntry.
-  static constexpr int kArgvOffset = +0 * kSystemPointerSize;
-  static constexpr int kRootRegisterValueOffset = +1 * kSystemPointerSize;
+  static constexpr int kArgcOffset = +0 * kSystemPointerSize;
+  static constexpr int kArgvOffset = +1 * kSystemPointerSize;
 };
 
 class ExitFrameConstants : public TypedFrameConstants {
