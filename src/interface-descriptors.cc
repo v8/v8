@@ -321,7 +321,7 @@ void GrowArrayElementsDescriptor::InitializePlatformSpecific(
 
 void NewArgumentsElementsDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
-  DefaultInitializePlatformSpecific(data, 3);
+  DefaultInitializePlatformSpecific(data, kParameterCount);
 }
 
 void ArrayNoArgumentConstructorDescriptor::InitializePlatformSpecific(
@@ -364,6 +364,7 @@ void WasmAtomicWakeDescriptor::InitializePlatformSpecific(
   DefaultInitializePlatformSpecific(data, kParameterCount);
 }
 
+#if !defined(V8_TARGET_ARCH_MIPS) && !defined(V8_TARGET_ARCH_MIPS64)
 void WasmI32AtomicWaitDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   DefaultInitializePlatformSpecific(data, kParameterCount);
@@ -373,6 +374,7 @@ void WasmI64AtomicWaitDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   DefaultInitializePlatformSpecific(data, kParameterCount);
 }
+#endif
 
 void CloneObjectWithVectorDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
