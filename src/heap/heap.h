@@ -1114,6 +1114,8 @@ class Heap {
 
   int gc_count() const { return gc_count_; }
 
+  bool is_current_gc_forced() const { return is_current_gc_forced_; }
+
   // Returns the size of objects residing in non-new spaces.
   // Excludes external memory held by those objects.
   size_t OldGenerationSizeOfObjects();
@@ -1953,6 +1955,8 @@ class Heap {
   // Currently set GC callback flags that are used to pass information between
   // the embedder and V8's GC.
   GCCallbackFlags current_gc_callback_flags_;
+
+  bool is_current_gc_forced_;
 
   ExternalStringTable external_string_table_;
 

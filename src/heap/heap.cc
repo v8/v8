@@ -138,6 +138,7 @@ Heap::Heap()
       old_generation_allocation_limit_(initial_old_generation_size_),
       global_pretenuring_feedback_(kInitialFeedbackCapacity),
       current_gc_callback_flags_(GCCallbackFlags::kNoGCCallbackFlags),
+      is_current_gc_forced_(false),
       external_string_table_(this) {
   // Ensure old_generation_size_ is a multiple of kPageSize.
   DCHECK_EQ(0, max_old_generation_size_ & (Page::kPageSize - 1));
@@ -1263,6 +1264,7 @@ bool Heap::CollectGarbage(AllocationSpace space,
                           const v8::GCCallbackFlags gc_callback_flags) {
   const char* collector_reason = nullptr;
   GarbageCollector collector = SelectGarbageCollector(space, &collector_reason);
+  is_current_gc_forced_ = gc_callback_flags & v8::kGCCallbackFlagForced;
 
   if (!CanExpandOldGeneration(new_space()->Capacity())) {
     InvokeNearHeapLimitCallback();
@@ -1326,6 +1328,11 @@ bool Heap::CollectGarbage(AllocationSpace space,
         tracer()->RecordGCPhasesHistograms(gc_type_timer);
       }
     }
+
+    // Clear is_current_gc_forced now that the current GC is complete. Do this
+    // before GarbageCollectionEpilogue() since that could trigger another
+    // unforced GC.
+    is_current_gc_forced_ = false;
 
     GarbageCollectionEpilogue();
     if (collector == MARK_COMPACTOR && FLAG_track_detached_contexts) {

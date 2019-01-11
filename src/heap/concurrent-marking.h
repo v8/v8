@@ -106,6 +106,7 @@ class ConcurrentMarking {
     MemoryChunkDataMap memory_chunk_data;
     size_t marked_bytes = 0;
     unsigned mark_compact_epoch;
+    bool is_forced_gc;
     char cache_line_padding[64];
   };
   class Task;

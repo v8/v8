@@ -80,7 +80,8 @@ class ConcurrentMarkingVisitor final
       ConcurrentMarking::MarkingWorklist* shared,
       MemoryChunkDataMap* memory_chunk_data, WeakObjects* weak_objects,
       ConcurrentMarking::EmbedderTracingWorklist* embedder_objects, int task_id,
-      bool embedder_tracing_enabled, unsigned mark_compact_epoch)
+      bool embedder_tracing_enabled, unsigned mark_compact_epoch,
+      bool is_forced_gc)
       : shared_(shared, task_id),
         weak_objects_(weak_objects),
         embedder_objects_(embedder_objects, task_id),
@@ -88,7 +89,8 @@ class ConcurrentMarkingVisitor final
         memory_chunk_data_(memory_chunk_data),
         task_id_(task_id),
         embedder_tracing_enabled_(embedder_tracing_enabled),
-        mark_compact_epoch_(mark_compact_epoch) {}
+        mark_compact_epoch_(mark_compact_epoch),
+        is_forced_gc_(is_forced_gc) {}
 
   template <typename T>
   static V8_INLINE T Cast(HeapObject object) {
@@ -379,7 +381,9 @@ class ConcurrentMarkingVisitor final
     int size = BytecodeArray::BodyDescriptor::SizeOf(map, object);
     VisitMapPointer(object, object->map_slot());
     BytecodeArray::BodyDescriptor::IterateBody(map, object, size, this);
-    object->MakeOlder();
+    if (!is_forced_gc_) {
+      object->MakeOlder();
+    }
     return size;
   }
 
@@ -660,6 +664,7 @@ class ConcurrentMarkingVisitor final
   SlotSnapshot slot_snapshot_;
   bool embedder_tracing_enabled_;
   const unsigned mark_compact_epoch_;
+  bool is_forced_gc_;
 };
 
 // Strings can change maps due to conversion to thin string or external strings.
@@ -738,10 +743,10 @@ void ConcurrentMarking::Run(int task_id, TaskState* task_state) {
                       GCTracer::BackgroundScope::MC_BACKGROUND_MARKING);
   size_t kBytesUntilInterruptCheck = 64 * KB;
   int kObjectsUntilInterrupCheck = 1000;
-  ConcurrentMarkingVisitor visitor(shared_, &task_state->memory_chunk_data,
-                                   weak_objects_, embedder_objects_, task_id,
-                                   heap_->local_embedder_heap_tracer()->InUse(),
-                                   task_state->mark_compact_epoch);
+  ConcurrentMarkingVisitor visitor(
+      shared_, &task_state->memory_chunk_data, weak_objects_, embedder_objects_,
+      task_id, heap_->local_embedder_heap_tracer()->InUse(),
+      task_state->mark_compact_epoch, task_state->is_forced_gc);
   double time_ms;
   size_t marked_bytes = 0;
   if (FLAG_trace_concurrent_marking) {
@@ -871,6 +876,7 @@ void ConcurrentMarking::ScheduleTasks() {
       task_state_[i].preemption_request = false;
       task_state_[i].mark_compact_epoch =
           heap_->mark_compact_collector()->epoch();
+      task_state_[i].is_forced_gc = heap_->is_current_gc_forced();
       is_pending_[i] = true;
       ++pending_task_count_;
       auto task =

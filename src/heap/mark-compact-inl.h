@@ -55,7 +55,10 @@ int MarkingVisitor<fixed_array_mode, retaining_path_mode,
                                                      BytecodeArray array) {
   int size = BytecodeArray::BodyDescriptor::SizeOf(map, array);
   BytecodeArray::BodyDescriptor::IterateBody(map, array, size, this);
-  array->MakeOlder();
+
+  if (!heap_->is_current_gc_forced()) {
+    array->MakeOlder();
+  }
   return size;
 }
 
