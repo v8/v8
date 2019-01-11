@@ -377,7 +377,6 @@ class Heap {
 
   bool IsLargeObject(HeapObject object);
   bool IsLargeMemoryChunk(MemoryChunk* chunk);
-  inline bool IsWithinLargeObject(Address address);
 
   bool IsInYoungGeneration(HeapObject object);
 

@@ -617,10 +617,12 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
                                      VirtualMemory reservation) {
   MemoryChunk* chunk = FromAddress(base);
 
-  DCHECK(base == chunk->address());
+  DCHECK_EQ(base, chunk->address());
 
   chunk->heap_ = heap;
   chunk->size_ = size;
+  chunk->header_sentinel_ = HeapObject::FromAddress(base).ptr();
+  DCHECK(HasHeaderSentinel(area_start));
   chunk->area_start_ = area_start;
   chunk->area_end_ = area_end;
   chunk->flags_ = Flags(NO_FLAGS);
