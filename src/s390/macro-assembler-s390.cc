@@ -4476,6 +4476,15 @@ void TurboAssembler::StoreReturnAddressAndCall(Register target) {
   bind(&return_label);
 }
 
+void TurboAssembler::CallForDeoptimization(Address target, int deopt_id) {
+  NoRootArrayScope no_root_array(this);
+
+  // Save the deopt id in r10 (we don't need the roots array from now on).
+  DCHECK_LE(deopt_id, 0xFFFF);
+  lghi(r10, Operand(deopt_id));
+  Call(target, RelocInfo::RUNTIME_ENTRY);
+}
+
 }  // namespace internal
 }  // namespace v8
 

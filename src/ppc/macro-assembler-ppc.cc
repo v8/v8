@@ -3134,6 +3134,16 @@ void TurboAssembler::StoreReturnAddressAndCall(Register target) {
             SizeOfCodeGeneratedSince(&start_call));
 }
 
+void TurboAssembler::CallForDeoptimization(Address target, int deopt_id) {
+  NoRootArrayScope no_root_array(this);
+
+  // Save the deopt id in r29 (we don't need the roots array from now on).
+  DCHECK_LE(deopt_id, 0xFFFF);
+
+  mov(r29, Operand(deopt_id));
+  Call(target, RelocInfo::RUNTIME_ENTRY);
+}
+
 }  // namespace internal
 }  // namespace v8
 
