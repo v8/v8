@@ -1869,9 +1869,11 @@ void Logger::LogAllMaps() {
 
 static void AddIsolateIdIfNeeded(std::ostream& os,  // NOLINT
                                  Isolate* isolate) {
-  if (FLAG_logfile_per_isolate) os << "isolate-" << isolate << "-";
+  if (FLAG_logfile_per_isolate) {
+    os << "isolate-" << isolate << "-" << base::OS::GetCurrentProcessId()
+       << "-";
+  }
 }
-
 
 static void PrepareLogFileName(std::ostream& os,  // NOLINT
                                Isolate* isolate, const char* file_name) {
