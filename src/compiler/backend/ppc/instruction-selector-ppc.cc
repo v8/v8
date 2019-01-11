@@ -2344,6 +2344,8 @@ void InstructionSelector::VisitI8x16ShrU(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI8x16Mul(Node* node) { UNIMPLEMENTED(); }
 
+void InstructionSelector::VisitS8x16Shuffle(Node* node) { UNIMPLEMENTED(); }
+
 // static
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {
