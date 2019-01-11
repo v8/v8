@@ -276,23 +276,35 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
     PrintF("[Deserializing from %d bytes took %0.3f ms]\n", length, ms);
   }
 
-  bool log_code_creation = isolate->logger()->is_listening_to_code_events() ||
-                           isolate->is_profiling();
+  bool log_code_creation =
+      isolate->logger()->is_listening_to_code_events() ||
+      isolate->is_profiling() ||
+      isolate->code_event_dispatcher()->IsListeningToCodeEvents();
   if (log_code_creation || FLAG_log_function_events) {
     String name = ReadOnlyRoots(isolate).empty_string();
-    if (result->script()->IsScript()) {
-      Script script = Script::cast(result->script());
-      if (script->name()->IsString()) name = String::cast(script->name());
-      if (FLAG_log_function_events) {
-        LOG(isolate, FunctionEvent("deserialize", script->id(),
-                                   timer.Elapsed().InMillisecondsF(),
-                                   result->StartPosition(),
-                                   result->EndPosition(), name));
-      }
+    Script script = Script::cast(result->script());
+    Handle<Script> script_handle(script, isolate);
+    if (script->name()->IsString()) name = String::cast(script->name());
+    if (FLAG_log_function_events) {
+      LOG(isolate,
+          FunctionEvent("deserialize", script->id(),
+                        timer.Elapsed().InMillisecondsF(),
+                        result->StartPosition(), result->EndPosition(), name));
     }
     if (log_code_creation) {
-      PROFILE(isolate, CodeCreateEvent(CodeEventListener::SCRIPT_TAG,
-                                       result->abstract_code(), *result, name));
+      Script::InitLineEnds(Handle<Script>(script, isolate));
+      DisallowHeapAllocation no_gc;
+      SharedFunctionInfo::ScriptIterator iter(isolate, script);
+      for (i::SharedFunctionInfo info = iter.Next(); !info.is_null();
+           info = iter.Next()) {
+        if (info->is_compiled()) {
+          int line_num = script->GetLineNumber(info->StartPosition()) + 1;
+          int column_num = script->GetColumnNumber(info->StartPosition()) + 1;
+          PROFILE(isolate, CodeCreateEvent(CodeEventListener::SCRIPT_TAG,
+                                           info->abstract_code(), info, name,
+                                           line_num, column_num));
+        }
+      }
     }
   }
 
