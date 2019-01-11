@@ -1426,14 +1426,14 @@ void MacroAssembler::PushStackHandler() {
   Push(Smi::zero());  // Padding.
 
   // Link the current handler as the next handler.
-  // Preserve r3-r7.
-  Move(r8, ExternalReference::Create(IsolateAddressId::kHandlerAddress,
-                                            isolate()));
-  LoadP(r0, MemOperand(r8));
+  // Preserve r4-r8.
+  Move(r3,
+       ExternalReference::Create(IsolateAddressId::kHandlerAddress, isolate()));
+  LoadP(r0, MemOperand(r3));
   push(r0);
 
   // Set this new handler as the current one.
-  StoreP(sp, MemOperand(r8));
+  StoreP(sp, MemOperand(r3));
 }
 
 
