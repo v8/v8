@@ -9,7 +9,8 @@ from testrunner.local import testsuite
 
 
 class TestSuite(testsuite.TestSuite):
-  pass
+  def ListTests(self):
+    return []
 
 def GetSuite(*args, **kwargs):
   return TestSuite(*args, **kwargs)

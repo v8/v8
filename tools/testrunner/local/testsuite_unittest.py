@@ -36,15 +36,22 @@ class TestSuiteTest(unittest.TestCase):
         verbose=False,
     )
 
-  def testLoadingTestSuite(self):
-    suite = TestSuite.LoadTestSuite(self.test_root, self.test_config)
+    self.suite = TestSuite.Load(self.test_root, self.test_config)
 
-    self.assertEquals(suite.name, "fake_testsuite")
-    self.assertEquals(suite.test_config, self.test_config)
+  def testLoadingTestSuites(self):
+    self.assertEquals(self.suite.name, "fake_testsuite")
+    self.assertEquals(self.suite.test_config, self.test_config)
 
-    # Verify that no tests are loaded yet.
-    self.assertIsNone(suite.tests)
-    self.assertIsNone(suite.statusfile)
+    # Verify that the components of the TestSuite aren't loaded yet.
+    self.assertIsNone(self.suite.tests)
+    self.assertIsNone(self.suite.statusfile)
+
+  def testLoadingTestsFromDisk(self):
+    self.suite.load_tests_from_disk(statusfile_variables={})
+
+    # Verify that the components of the TestSuite are loaded.
+    self.assertIsNotNone(self.suite.tests)
+    self.assertIsNotNone(self.suite.statusfile)
 
 
 if __name__ == '__main__':

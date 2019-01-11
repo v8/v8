@@ -173,11 +173,8 @@ class NumFuzzer(base_runner.BaseTestRunner):
     # Indicate if a SIGINT or SIGTERM happened.
     return sigproc.exit_code
 
-  def _load_suites(self, names, options):
-    suites = super(NumFuzzer, self)._load_suites(names, options)
-    if options.combine_tests:
-      suites = [s for s in suites if s.test_combiner_available()]
-    return suites
+  def _is_testsuite_supported(self, suite, options):
+    return not options.combine_tests or suite.test_combiner_available()
 
   def _create_combiner(self, rng, options):
     if not options.combine_tests:

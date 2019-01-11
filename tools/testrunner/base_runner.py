@@ -260,11 +260,8 @@ class BaseTestRunner(object):
         raise
 
       args = self._parse_test_args(args)
-      suites = self._get_suites(args, options)
-      self._prepare_suites(suites, options)
-
+      suites = self._load_testsuites(args, options)
       self._setup_env()
-
       print(">>> Running tests for %s.%s" % (self.build_config.arch,
                                             self.mode_name))
       tests = [t for s in suites for t in s.tests]
@@ -596,10 +593,6 @@ class BaseTestRunner(object):
 
     return reduce(list.__add__, map(expand_test_group, args), [])
 
-  def _get_suites(self, args, options):
-    names = self._args_to_suite_names(args, options.test_root)
-    return self._load_suites(names, options)
-
   def _args_to_suite_names(self, args, test_root):
     # Use default tests if no test configuration was provided at the cmd line.
     all_names = set(utils.GetSuitePaths(test_root))
@@ -609,26 +602,27 @@ class BaseTestRunner(object):
   def _get_default_suite_names(self):
     return []
 
-  def _load_suites(self, names, options):
+  def _load_testsuites(self, args, options):
+    names = self._args_to_suite_names(args, options.test_root)
     test_config = self._create_test_config(options)
-    def load_suite(name):
+    variables = self._get_statusfile_variables(options)
+    suites = []
+    for name in names:
       if options.verbose:
         print '>>> Loading test suite: %s' % name
-      return testsuite.TestSuite.LoadTestSuite(
-          os.path.join(options.test_root, name),
-          test_config)
-    return map(load_suite, names)
+      suite = testsuite.TestSuite.Load(
+          os.path.join(options.test_root, name), test_config)
 
-  def _prepare_suites(self, suites, options):
-    self._load_status_files(suites, options)
-    for s in suites:
-      s.ReadTestCases()
+      if self._is_testsuite_supported(suite, options):
+        suite.load_tests_from_disk(variables)
+        suites.append(suite)
 
-  def _load_status_files(self, suites, options):
-    # simd_mips is true if SIMD is fully supported on MIPS
-    variables = self._get_statusfile_variables(options)
-    for s in suites:
-      s.ReadStatusFile(variables)
+    return suites
+
+  def _is_testsuite_supported(self, suite, options):
+    """A predicate that can be overridden to filter out unsupported TestSuite
+    instances (see NumFuzzer for usage)."""
+    return True
 
   def _get_statusfile_variables(self, options):
     simd_mips = (
