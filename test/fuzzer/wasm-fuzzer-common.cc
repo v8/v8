@@ -24,49 +24,6 @@ namespace internal {
 namespace wasm {
 namespace fuzzer {
 
-static constexpr const char* kNameString = "name";
-static constexpr size_t kNameStringLength = 4;
-
-int FuzzWasmSection(SectionCode section, const uint8_t* data, size_t size) {
-  v8_fuzzer::FuzzerSupport* support = v8_fuzzer::FuzzerSupport::Get();
-  v8::Isolate* isolate = support->GetIsolate();
-  i::Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
-
-  // Clear any pending exceptions from a prior run.
-  i_isolate->clear_pending_exception();
-
-  v8::Isolate::Scope isolate_scope(isolate);
-  v8::HandleScope handle_scope(isolate);
-  v8::Context::Scope context_scope(support->GetContext());
-  v8::TryCatch try_catch(isolate);
-
-  AccountingAllocator allocator;
-  Zone zone(&allocator, ZONE_NAME);
-
-  ZoneBuffer buffer(&zone);
-  buffer.write_u32(kWasmMagic);
-  buffer.write_u32(kWasmVersion);
-  if (section == kNameSectionCode) {
-    buffer.write_u8(kUnknownSectionCode);
-    buffer.write_size(size + kNameStringLength + 1);
-    buffer.write_u8(kNameStringLength);
-    buffer.write(reinterpret_cast<const uint8_t*>(kNameString),
-                 kNameStringLength);
-    buffer.write(data, size);
-  } else {
-    buffer.write_u8(section);
-    buffer.write_size(size);
-    buffer.write(data, size);
-  }
-
-  ErrorThrower thrower(i_isolate, "decoder");
-
-  testing::DecodeWasmModuleForTesting(i_isolate, &thrower, buffer.begin(),
-                                      buffer.end(), kWasmOrigin);
-
-  return 0;
-}
-
 void InterpretAndExecuteModule(i::Isolate* isolate,
                                Handle<WasmModuleObject> module_object) {
   // We do not instantiate the module if there is a start function, because a
