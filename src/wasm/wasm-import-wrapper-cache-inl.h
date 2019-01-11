@@ -7,8 +7,6 @@
 
 #include "src/compiler/wasm-compiler.h"
 #include "src/counters.h"
-#include "src/handles-inl.h"
-#include "src/objects/code-inl.h"
 #include "src/wasm/value-type.h"
 #include "src/wasm/wasm-code-manager.h"
 
@@ -19,19 +17,16 @@ namespace wasm {
 // Implements a cache for import wrappers.
 class WasmImportWrapperCache {
  public:
-  WasmCode* GetOrCompile(Isolate* isolate, compiler::WasmImportCallKind kind,
-                         FunctionSig* sig) {
-    // TODO(titzer/mstarzinger): remove the isolate parameter.
+  WasmCode* GetOrCompile(WasmEngine* wasm_engine, Counters* counters,
+                         compiler::WasmImportCallKind kind, FunctionSig* sig) {
     base::MutexGuard lock(&mutex_);
     CacheKey key(static_cast<uint8_t>(kind), *sig);
     WasmCode*& cached = entry_map_[key];
     if (cached == nullptr) {
       // TODO(wasm): no need to hold the lock while compiling an import wrapper.
-      HandleScope scope(isolate);
       bool source_positions = native_module_->module()->origin == kAsmJsOrigin;
       cached = compiler::CompileWasmImportCallWrapper(
-          isolate->wasm_engine(), native_module_, kind, sig, source_positions);
-      auto counters = isolate->counters();
+          wasm_engine, native_module_, kind, sig, source_positions);
       counters->wasm_generated_code_size()->Increment(
           cached->instructions().length());
       counters->wasm_reloc_size()->Increment(cached->reloc_info().length());

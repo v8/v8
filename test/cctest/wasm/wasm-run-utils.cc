@@ -46,7 +46,7 @@ TestingModuleBuilder::TestingModuleBuilder(
     auto kind = compiler::GetWasmImportCallKind(maybe_import->js_function,
                                                 maybe_import->sig, false);
     auto import_wrapper = native_module_->import_wrapper_cache()->GetOrCompile(
-        isolate_, kind, maybe_import->sig);
+        isolate_->wasm_engine(), isolate_->counters(), kind, maybe_import->sig);
 
     ImportedFunctionEntry(instance_object_, maybe_import_index)
         .SetWasmToJs(isolate_, maybe_import->js_function, import_wrapper);

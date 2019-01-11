@@ -1632,7 +1632,7 @@ bool InstanceBuilder::ProcessImportedFunction(
       // The imported function is a callable.
       NativeModule* native_module = instance->module_object()->native_module();
       WasmCode* wasm_code = native_module->import_wrapper_cache()->GetOrCompile(
-          isolate_, kind, expected_sig);
+          isolate_->wasm_engine(), isolate_->counters(), kind, expected_sig);
       ImportedFunctionEntry entry(instance, func_index);
       if (wasm_code->kind() == WasmCode::kWasmToJsWrapper) {
         // Wasm to JS wrappers are treated specially in the import table.

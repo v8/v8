@@ -35,14 +35,14 @@ TEST(CacheHit) {
 
   auto kind = compiler::WasmImportCallKind::kJSFunctionArityMatch;
 
-  WasmCode* c1 =
-      module->import_wrapper_cache()->GetOrCompile(isolate, kind, sigs.i_i());
+  WasmCode* c1 = module->import_wrapper_cache()->GetOrCompile(
+      isolate->wasm_engine(), isolate->counters(), kind, sigs.i_i());
 
   CHECK_NOT_NULL(c1);
   CHECK_EQ(WasmCode::Kind::kWasmToJsWrapper, c1->kind());
 
-  WasmCode* c2 =
-      module->import_wrapper_cache()->GetOrCompile(isolate, kind, sigs.i_i());
+  WasmCode* c2 = module->import_wrapper_cache()->GetOrCompile(
+      isolate->wasm_engine(), isolate->counters(), kind, sigs.i_i());
 
   CHECK_NOT_NULL(c2);
   CHECK_EQ(c1, c2);
@@ -55,14 +55,14 @@ TEST(CacheMissSig) {
 
   auto kind = compiler::WasmImportCallKind::kJSFunctionArityMatch;
 
-  WasmCode* c1 =
-      module->import_wrapper_cache()->GetOrCompile(isolate, kind, sigs.i_i());
+  WasmCode* c1 = module->import_wrapper_cache()->GetOrCompile(
+      isolate->wasm_engine(), isolate->counters(), kind, sigs.i_i());
 
   CHECK_NOT_NULL(c1);
   CHECK_EQ(WasmCode::Kind::kWasmToJsWrapper, c1->kind());
 
-  WasmCode* c2 =
-      module->import_wrapper_cache()->GetOrCompile(isolate, kind, sigs.i_ii());
+  WasmCode* c2 = module->import_wrapper_cache()->GetOrCompile(
+      isolate->wasm_engine(), isolate->counters(), kind, sigs.i_ii());
 
   CHECK_NOT_NULL(c2);
   CHECK_NE(c1, c2);
@@ -76,14 +76,14 @@ TEST(CacheMissKind) {
   auto kind1 = compiler::WasmImportCallKind::kJSFunctionArityMatch;
   auto kind2 = compiler::WasmImportCallKind::kJSFunctionArityMismatch;
 
-  WasmCode* c1 =
-      module->import_wrapper_cache()->GetOrCompile(isolate, kind1, sigs.i_i());
+  WasmCode* c1 = module->import_wrapper_cache()->GetOrCompile(
+      isolate->wasm_engine(), isolate->counters(), kind1, sigs.i_i());
 
   CHECK_NOT_NULL(c1);
   CHECK_EQ(WasmCode::Kind::kWasmToJsWrapper, c1->kind());
 
-  WasmCode* c2 =
-      module->import_wrapper_cache()->GetOrCompile(isolate, kind2, sigs.i_i());
+  WasmCode* c2 = module->import_wrapper_cache()->GetOrCompile(
+      isolate->wasm_engine(), isolate->counters(), kind2, sigs.i_i());
 
   CHECK_NOT_NULL(c2);
   CHECK_NE(c1, c2);
@@ -96,26 +96,26 @@ TEST(CacheHitMissSig) {
 
   auto kind = compiler::WasmImportCallKind::kJSFunctionArityMatch;
 
-  WasmCode* c1 =
-      module->import_wrapper_cache()->GetOrCompile(isolate, kind, sigs.i_i());
+  WasmCode* c1 = module->import_wrapper_cache()->GetOrCompile(
+      isolate->wasm_engine(), isolate->counters(), kind, sigs.i_i());
 
   CHECK_NOT_NULL(c1);
   CHECK_EQ(WasmCode::Kind::kWasmToJsWrapper, c1->kind());
 
-  WasmCode* c2 =
-      module->import_wrapper_cache()->GetOrCompile(isolate, kind, sigs.i_ii());
+  WasmCode* c2 = module->import_wrapper_cache()->GetOrCompile(
+      isolate->wasm_engine(), isolate->counters(), kind, sigs.i_ii());
 
   CHECK_NOT_NULL(c2);
   CHECK_NE(c1, c2);
 
-  WasmCode* c3 =
-      module->import_wrapper_cache()->GetOrCompile(isolate, kind, sigs.i_i());
+  WasmCode* c3 = module->import_wrapper_cache()->GetOrCompile(
+      isolate->wasm_engine(), isolate->counters(), kind, sigs.i_i());
 
   CHECK_NOT_NULL(c3);
   CHECK_EQ(c1, c3);
 
-  WasmCode* c4 =
-      module->import_wrapper_cache()->GetOrCompile(isolate, kind, sigs.i_ii());
+  WasmCode* c4 = module->import_wrapper_cache()->GetOrCompile(
+      isolate->wasm_engine(), isolate->counters(), kind, sigs.i_ii());
 
   CHECK_NOT_NULL(c4);
   CHECK_EQ(c2, c4);
