@@ -87,8 +87,7 @@ class CompilationStateImpl {
 
   bool HasCompilationUnitToFinish();
 
-  void OnFinishedUnit(ExecutionTier);
-  void ScheduleCodeLogging(WasmCode*);
+  void OnFinishedUnit(ExecutionTier, WasmCode*);
 
   void OnBackgroundTaskStopped(const WasmFeatures& detected);
   void PublishDetectedFeatures(Isolate* isolate, const WasmFeatures& detected);
@@ -700,10 +699,7 @@ bool FetchAndExecuteCompilationUnit(CompilationEnv* env,
   ExecutionTier tier = unit->tier();
   unit->ExecuteCompilation(env, compilation_state->GetSharedWireBytesStorage(),
                            counters, detected);
-  if (WasmCode* result = unit->result()) {
-    compilation_state->ScheduleCodeLogging(result);
-  }
-  compilation_state->OnFinishedUnit(tier);
+  compilation_state->OnFinishedUnit(tier, unit->result());
 
   return true;
 }
@@ -3167,7 +3163,7 @@ bool CompilationStateImpl::HasCompilationUnitToFinish() {
   return !finish_units().empty();
 }
 
-void CompilationStateImpl::OnFinishedUnit(ExecutionTier tier) {
+void CompilationStateImpl::OnFinishedUnit(ExecutionTier tier, WasmCode* code) {
   // This mutex guarantees that events happen in the right order.
   base::MutexGuard guard(&mutex_);
 
@@ -3220,18 +3216,16 @@ void CompilationStateImpl::OnFinishedUnit(ExecutionTier tier) {
     foreground_task_runner_->PostTask(
         MakeCancelableTask(&foreground_task_manager_, notify_events));
   }
-}
 
-void CompilationStateImpl::ScheduleCodeLogging(WasmCode* code) {
-  if (!should_log_code_) return;
-  base::MutexGuard guard(&mutex_);
-  if (log_codes_task_ == nullptr) {
-    auto new_task = base::make_unique<LogCodesTask>(&foreground_task_manager_,
-                                                    this, isolate_);
-    log_codes_task_ = new_task.get();
-    foreground_task_runner_->PostTask(std::move(new_task));
+  if (should_log_code_ && code != nullptr) {
+    if (log_codes_task_ == nullptr) {
+      auto new_task = base::make_unique<LogCodesTask>(&foreground_task_manager_,
+                                                      this, isolate_);
+      log_codes_task_ = new_task.get();
+      foreground_task_runner_->PostTask(std::move(new_task));
+    }
+    log_codes_task_->AddCode(code);
   }
-  log_codes_task_->AddCode(code);
 }
 
 void CompilationStateImpl::OnBackgroundTaskStopped(
