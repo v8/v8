@@ -2252,10 +2252,10 @@ void LayoutDescriptor::Print(std::ostream& os) {  // NOLINT
 
 void PreparseData::PreparseDataPrint(std::ostream& os) {  // NOLINT
   PrintHeader(os, "PreparseData");
-  os << "\n - scope_data: " << Brief(scope_data());
-  os << "\n - length: " << length();
-  for (int i = 0; i < length(); ++i) {
-    os << "\n - [" << i << "]: " << Brief(child_data(i));
+  os << "\n - data_length: " << data_length();
+  os << "\n - children_length: " << children_length();
+  for (int i = 0; i < children_length(); ++i) {
+    os << "\n - [" << i << "]: " << Brief(get_child(i));
   }
   os << "\n";
 }

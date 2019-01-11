@@ -401,7 +401,6 @@ class ObjectStatsCollectorImpl {
   void RecordVirtualExternalStringDetails(ExternalString script);
   void RecordVirtualSharedFunctionInfoDetails(SharedFunctionInfo info);
   void RecordVirtualJSFunctionDetails(JSFunction function);
-  void RecordVirtualPreparseDataDetails(PreparseData data);
 
   void RecordVirtualArrayBoilerplateDescription(
       ArrayBoilerplateDescription description);
@@ -650,18 +649,6 @@ void ObjectStatsCollectorImpl::RecordVirtualFeedbackVectorDetails(
   CHECK_EQ(calculated_size, vector->Size());
 }
 
-void ObjectStatsCollectorImpl::RecordVirtualPreparseDataDetails(
-    PreparseData data) {
-  if (virtual_objects_.find(data) != virtual_objects_.end()) return;
-  // Manually insert the PreparseData since we're combining the size with it's
-  // byte_data size.
-  virtual_objects_.insert(data);
-  virtual_objects_.insert(data->scope_data());
-  size_t size = data->Size() + data->scope_data()->Size();
-  DCHECK_LE(0, data->scope_data()->length());
-  stats_->RecordObjectStats(PREPARSE_DATA_TYPE, size);
-}
-
 void ObjectStatsCollectorImpl::RecordVirtualFixedArrayDetails(
     FixedArray array) {
   if (IsCowArray(array)) {
@@ -706,8 +693,6 @@ void ObjectStatsCollectorImpl::CollectStatistics(
       } else if (obj->IsArrayBoilerplateDescription()) {
         RecordVirtualArrayBoilerplateDescription(
             ArrayBoilerplateDescription::cast(obj));
-      } else if (obj->IsPreparseData()) {
-        RecordVirtualPreparseDataDetails(PreparseData::cast(obj));
       } else if (obj->IsFixedArrayExact()) {
         // Has to go last as it triggers too eagerly.
         RecordVirtualFixedArrayDetails(FixedArray::cast(obj));

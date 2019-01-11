@@ -47,7 +47,7 @@ class PreparseDataBuilder::ByteData : public ZoneObject,
   void OverwriteFirstUint32(uint32_t data);
 #endif
 
-  Handle<PodArray<uint8_t>> Serialize(Isolate* isolate);
+  void StoreInto(PreparseData data);
 
   size_t size() const { return backing_store_.size(); }
 
@@ -58,6 +58,21 @@ class PreparseDataBuilder::ByteData : public ZoneObject,
  private:
   uint8_t free_quarters_in_last_byte_;
   ZoneChunkList<uint8_t> backing_store_;
+};
+
+// Wraps a ZoneVector<uint8_t> to have with functions named the same as
+// PodArray<uint8_t>.
+class ZoneVectorWrapper {
+ public:
+  ZoneVectorWrapper() = default;
+  explicit ZoneVectorWrapper(ZoneVector<uint8_t>* data) : data_(data) {}
+
+  int data_length() const { return static_cast<int>(data_->size()); }
+
+  uint8_t get(int index) const { return data_->at(index); }
+
+ private:
+  ZoneVector<uint8_t>* data_ = nullptr;
 };
 
 template <class Data>
@@ -93,19 +108,19 @@ class BaseConsumedPreparseData : public ConsumedPreparseData {
     };
 
     void SetPosition(int position) {
-      DCHECK_LE(position, data_.length());
+      DCHECK_LE(position, data_.data_length());
       index_ = position;
     }
 
     size_t RemainingBytes() const {
       DCHECK(has_data_);
-      DCHECK_LE(index_, data_.length());
-      return data_.length() - index_;
+      DCHECK_LE(index_, data_.data_length());
+      return data_.data_length() - index_;
     }
 
     bool HasRemainingBytes(size_t bytes) const {
       DCHECK(has_data_);
-      return index_ <= data_.length() && bytes <= RemainingBytes();
+      return index_ <= data_.data_length() && bytes <= RemainingBytes();
     }
 
     int32_t ReadUint32() {
@@ -188,31 +203,16 @@ class BaseConsumedPreparseData : public ConsumedPreparseData {
 
 // Implementation of ConsumedPreparseData for on-heap data.
 class OnHeapConsumedPreparseData final
-    : public BaseConsumedPreparseData<PodArray<uint8_t>> {
+    : public BaseConsumedPreparseData<PreparseData> {
  public:
   OnHeapConsumedPreparseData(Isolate* isolate, Handle<PreparseData> data);
 
-  PodArray<uint8_t> GetScopeData() final;
-  ProducedPreparseData* GetChildData(Zone* zone, int child_index) final;
+  PreparseData GetScopeData() final;
+  ProducedPreparseData* GetChildData(Zone* zone, int index) final;
 
  private:
   Isolate* isolate_;
   Handle<PreparseData> data_;
-};
-
-// Wraps a ZoneVector<uint8_t> to have with functions named the same as
-// PodArray<uint8_t>.
-class ZoneVectorWrapper {
- public:
-  ZoneVectorWrapper() = default;
-  explicit ZoneVectorWrapper(ZoneVector<uint8_t>* data) : data_(data) {}
-
-  int length() const { return static_cast<int>(data_->size()); }
-
-  uint8_t get(int index) const { return data_->at(index); }
-
- private:
-  ZoneVector<uint8_t>* data_ = nullptr;
 };
 
 // A serialized PreparseData in zone memory (as apposed to being on-heap).

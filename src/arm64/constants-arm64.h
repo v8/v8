@@ -111,8 +111,6 @@ const unsigned kRegCodeMask = 0x1f;
 const unsigned kShiftAmountWRegMask = 0x1f;
 const unsigned kShiftAmountXRegMask = 0x3f;
 // Standard machine types defined by AAPCS64.
-const unsigned kByteSize = 8;
-const unsigned kByteSizeInBytes = kByteSize >> 3;
 const unsigned kHalfWordSize = 16;
 const unsigned kHalfWordSizeLog2 = 4;
 const unsigned kHalfWordSizeInBytes = kHalfWordSize >> 3;
