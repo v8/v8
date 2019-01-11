@@ -4496,13 +4496,13 @@ void MacroAssembler::PushStackHandler() {
   Push(Smi::zero());  // Padding.
 
   // Link the current handler as the next handler.
-  li(a6,
+  li(t2,
      ExternalReference::Create(IsolateAddressId::kHandlerAddress, isolate()));
-  Ld(a5, MemOperand(a6));
-  push(a5);
+  Ld(t1, MemOperand(t2));
+  push(t1);
 
   // Set this new handler as the current one.
-  Sd(sp, MemOperand(a6));
+  Sd(sp, MemOperand(t2));
 }
 
 

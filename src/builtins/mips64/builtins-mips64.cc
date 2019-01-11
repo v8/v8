@@ -516,19 +516,20 @@ void Builtins::Generate_ConstructedNonConstructable(MacroAssembler* masm) {
   __ CallRuntime(Runtime::kThrowConstructedNonConstructable);
 }
 
-// Clobbers a2; preserves all other registers.
-static void Generate_CheckStackOverflow(MacroAssembler* masm, Register argc) {
+// Clobbers scratch1 and scratch2; preserves all other registers.
+static void Generate_CheckStackOverflow(MacroAssembler* masm, Register argc,
+                                        Register scratch1, Register scratch2) {
   // Check the stack for overflow. We are not trying to catch
   // interruptions (e.g. debug break and preemption) here, so the "real stack
   // limit" is checked.
   Label okay;
-  __ LoadRoot(a2, RootIndex::kRealStackLimit);
+  __ LoadRoot(scratch1, RootIndex::kRealStackLimit);
   // Make a2 the space we have left. The stack might already be overflowed
   // here which will cause r2 to become negative.
-  __ dsubu(a2, sp, a2);
+  __ dsubu(scratch1, sp, scratch1);
   // Check if the arguments will overflow the stack.
-  __ dsll(a7, argc, kPointerSizeLog2);
-  __ Branch(&okay, gt, a2, Operand(a7));  // Signed comparison.
+  __ dsll(scratch2, argc, kPointerSizeLog2);
+  __ Branch(&okay, gt, scratch1, Operand(scratch2));  // Signed comparison.
 
   // Out of stack space.
   __ CallRuntime(Runtime::kThrowStackOverflow);
@@ -539,16 +540,16 @@ static void Generate_CheckStackOverflow(MacroAssembler* masm, Register argc) {
 namespace {
 
 // Called with the native C calling convention. The corresponding function
-// signature is:
+// signature is either:
 //
-//  using JSEntryFunction = GeneratedCode<Address(
-//      Address root_register_value, Address new_target, Address target,
-//      Address receiver, intptr_t argc, Address** args)>;
+//   using JSEntryFunction = GeneratedCode<Address(
+//       Address root_register_value, Address new_target, Address target,
+//       Address receiver, intptr_t argc, Address** args)>;
+// or
+//   using JSEntryFunction = GeneratedCode<Address(
+//       Address root_register_value, MicrotaskQueue* microtask_queue)>;
 void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
                              Builtins::Name entry_trampoline) {
-  // TODO(tzik): |root_register_value| is moved from sixth to first. Update
-  // JSEntryVariant and JSEntryTrampoline for it.
-
   Label invoke, handler_entry, exit;
 
   {
@@ -556,12 +557,12 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
 
     // TODO(plind): unify the ABI description here.
     // Registers:
-    // a0: entry address
-    // a1: function
-    // a2: receiver
-    // a3: argc
-    // a4: argv
-    // a5: root register value
+    // a0: root register value
+    // a1: entry address
+    // a2: function
+    // a3: receiver
+    // a4: argc
+    // a5: argv
     //
     // Stack:
     // 0 arg slots on mips64 (4 args slots on mips)
@@ -575,31 +576,34 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
     __ Move(kDoubleRegZero, 0.0);
 
     // Initialize the root register.
-    // C calling convention. The sixth argument is passed in a5.
-    __ mov(kRootRegister, a5);
+    // C calling convention. The first argument is passed in a0.
+    __ mov(kRootRegister, a0);
   }
 
-  // Load argv in s0.
-  __ mov(s0, a4);  // The 5th argument is passed in a4.
+  // a1: entry address
+  // a2: function
+  // a3: receiver
+  // a4: argc
+  // a5: argv
 
   // We build an EntryFrame.
-  __ li(a7, Operand(-1));  // Push a bad frame pointer to fail if it is used.
-  __ li(a6, Operand(StackFrame::TypeToMarker(type)));
-  __ li(a5, Operand(StackFrame::TypeToMarker(type)));
+  __ li(s1, Operand(-1));  // Push a bad frame pointer to fail if it is used.
+  __ li(s2, Operand(StackFrame::TypeToMarker(type)));
+  __ li(s3, Operand(StackFrame::TypeToMarker(type)));
   ExternalReference c_entry_fp = ExternalReference::Create(
       IsolateAddressId::kCEntryFPAddress, masm->isolate());
-  __ li(a4, c_entry_fp);
-  __ Ld(a4, MemOperand(a4));
-  __ Push(a7, a6, a5, a4);
+  __ li(s4, c_entry_fp);
+  __ Ld(s4, MemOperand(s4));
+  __ Push(s1, s2, s3, s4);
   // Set up frame pointer for the frame to be pushed.
   __ daddiu(fp, sp, -EntryFrameConstants::kCallerFPOffset);
 
   // Registers:
-  // a0: entry_address
-  // a1: function
-  // a2: receiver_pointer
-  // a3: argc
-  // s0: argv
+  // a1: entry_address
+  // a2: function
+  // a3: receiver_pointer
+  // a4: argc
+  // a5: argv
   //
   // Stack:
   // caller fp          |
@@ -614,18 +618,18 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   Label non_outermost_js;
   ExternalReference js_entry_sp = ExternalReference::Create(
       IsolateAddressId::kJSEntrySPAddress, masm->isolate());
-  __ li(a5, js_entry_sp);
-  __ Ld(a6, MemOperand(a5));
-  __ Branch(&non_outermost_js, ne, a6, Operand(zero_reg));
-  __ Sd(fp, MemOperand(a5));
-  __ li(a4, Operand(StackFrame::OUTERMOST_JSENTRY_FRAME));
+  __ li(s1, js_entry_sp);
+  __ Ld(s2, MemOperand(s1));
+  __ Branch(&non_outermost_js, ne, s2, Operand(zero_reg));
+  __ Sd(fp, MemOperand(s1));
+  __ li(s3, Operand(StackFrame::OUTERMOST_JSENTRY_FRAME));
   Label cont;
   __ b(&cont);
   __ nop();  // Branch delay slot nop.
   __ bind(&non_outermost_js);
-  __ li(a4, Operand(StackFrame::INNER_JSENTRY_FRAME));
+  __ li(s3, Operand(StackFrame::INNER_JSENTRY_FRAME));
   __ bind(&cont);
-  __ push(a4);
+  __ push(s3);
 
   // Jump to a faked try block that does the invoke, with a faked catch
   // block that sets the pending exception.
@@ -640,9 +644,9 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   // field in the JSEnv and return a failure sentinel.  Coming in here the
   // fp will be invalid because the PushStackHandler below sets it to 0 to
   // signal the existence of the JSEntry frame.
-  __ li(a4, ExternalReference::Create(
+  __ li(s1, ExternalReference::Create(
                 IsolateAddressId::kPendingExceptionAddress, masm->isolate()));
-  __ Sd(v0, MemOperand(a4));  // We come back from 'invoke'. result is in v0.
+  __ Sd(v0, MemOperand(s1));  // We come back from 'invoke'. result is in v0.
   __ LoadRoot(v0, RootIndex::kException);
   __ b(&exit);  // b exposes branch delay slot.
   __ nop();     // Branch delay slot nop.
@@ -656,11 +660,11 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   // saved values before returning a failure to C.
   //
   // Registers:
-  // a0: entry_address
-  // a1: function
-  // a2: receiver_pointer
-  // a3: argc
-  // s0: argv
+  // a1: entry_address
+  // a2: function
+  // a3: receiver_pointer
+  // a4: argc
+  // a5: argv
   //
   // Stack:
   // handler frame
@@ -671,6 +675,7 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   //
   // Invoke the function by calling through JS entry trampoline builtin and
   // pop the faked function when we return.
+
   Handle<Code> trampoline_code =
       masm->isolate()->builtins()->builtin_handle(entry_trampoline);
   __ Call(trampoline_code, RelocInfo::CODE_TARGET);
@@ -725,11 +730,11 @@ void Builtins::Generate_JSRunMicrotasksEntry(MacroAssembler* masm) {
 static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
                                              bool is_construct) {
   // ----------- S t a t e -------------
-  //  -- a0: new.target
-  //  -- a1: function
-  //  -- a2: receiver_pointer
-  //  -- a3: argc
-  //  -- s0: argv
+  //  -- a1: new.target
+  //  -- a2: function
+  //  -- a3: receiver_pointer
+  //  -- a4: argc
+  //  -- a5: argv
   // -----------------------------------
 
   // Enter an internal frame.
@@ -743,38 +748,46 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     __ Ld(cp, MemOperand(cp));
 
     // Push the function and the receiver onto the stack.
-    __ Push(a1, a2);
+    __ Push(a2, a3);
 
     // Check if we have enough stack space to push all arguments.
-    // Clobbers a2.
-    Generate_CheckStackOverflow(masm, a3);
+    // Clobbers a0 and a3.
+    Generate_CheckStackOverflow(masm, a4, a0, a3);
 
-    // Remember new.target.
-    __ mov(a5, a0);
+    // Setup new.target, function and argc.
+    __ mov(a3, a1);
+    __ mov(a1, a2);
+    __ mov(a0, a4);
+
+    // a0: argc
+    // a1: function
+    // a3: new.target
+    // a5: argv
 
     // Copy arguments to the stack in a loop.
     // a3: argc
-    // s0: argv, i.e. points to first arg
+    // a5: argv, i.e. points to first arg
     Label loop, entry;
-    __ Dlsa(a6, s0, a3, kPointerSizeLog2);
+    __ Dlsa(s1, a5, a4, kPointerSizeLog2);
     __ b(&entry);
     __ nop();  // Branch delay slot nop.
-    // a6 points past last arg.
+    // s1 points past last arg.
     __ bind(&loop);
-    __ Ld(a4, MemOperand(s0));  // Read next parameter.
-    __ daddiu(s0, s0, kPointerSize);
-    __ Ld(a4, MemOperand(a4));  // Dereference handle.
-    __ push(a4);                // Push parameter.
+    __ Ld(s2, MemOperand(a5));  // Read next parameter.
+    __ daddiu(a5, a5, kPointerSize);
+    __ Ld(s2, MemOperand(s2));  // Dereference handle.
+    __ push(s2);                // Push parameter.
     __ bind(&entry);
-    __ Branch(&loop, ne, s0, Operand(a6));
+    __ Branch(&loop, ne, a5, Operand(s1));
 
-    // Setup new.target and argc.
-    __ mov(a0, a3);
-    __ mov(a3, a5);
+    // a0: argc
+    // a1: function
+    // a3: new.target
 
     // Initialize all JavaScript callee-saved registers, since they will be seen
     // by the garbage collector as part of handlers.
     __ LoadRoot(a4, RootIndex::kUndefinedValue);
+    __ mov(a5, a4);
     __ mov(s1, a4);
     __ mov(s2, a4);
     __ mov(s3, a4);
