@@ -24,61 +24,35 @@ namespace internal {
 OBJECT_CONSTRUCTORS_IMPL(PreparseData, HeapObject)
 
 CAST_ACCESSOR(PreparseData)
-INT_ACCESSORS(PreparseData, data_length, kDataLengthOffset)
-INT_ACCESSORS(PreparseData, children_length, kInnerLengthOffset)
+ACCESSORS(PreparseData, scope_data, PodArray<uint8_t>, kScopeDataOffset)
+INT_ACCESSORS(PreparseData, length, kLengthOffset)
 
-int PreparseData::inner_start_offset() const {
-  return InnerOffset(data_length());
+Object PreparseData::child_data(int index) const {
+  DCHECK_GE(index, 0);
+  DCHECK_LT(index, this->length());
+  int offset = kChildDataStartOffset + index * kTaggedSize;
+  return RELAXED_READ_FIELD(*this, offset);
 }
 
-ObjectSlot PreparseData::inner_data_start() const {
-  return RawField(inner_start_offset());
+void PreparseData::set_child_data(int index, Object value,
+                                  WriteBarrierMode mode) {
+  DCHECK_GE(index, 0);
+  DCHECK_LT(index, this->length());
+  int offset = kChildDataStartOffset + index * kTaggedSize;
+  RELAXED_WRITE_FIELD(*this, offset, value);
+  CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);
+}
+
+ObjectSlot PreparseData::child_data_start() const {
+  return RawField(kChildDataStartOffset);
 }
 
 void PreparseData::clear_padding() {
-  int data_end_offset = kDataStartOffset + data_length();
-  int padding_size = inner_start_offset() - data_end_offset;
-  DCHECK_LE(0, padding_size);
-  if (padding_size == 0) return;
-  memset(reinterpret_cast<void*>(address() + data_end_offset), 0, padding_size);
-}
-
-byte PreparseData::get(int index) const {
-  DCHECK_LE(0, index);
-  DCHECK_LT(index, data_length());
-  int offset = kDataStartOffset + index * kByteSize;
-  return READ_BYTE_FIELD(*this, offset);
-}
-
-void PreparseData::set(int index, byte value) {
-  DCHECK_LE(0, index);
-  DCHECK_LT(index, data_length());
-  int offset = kDataStartOffset + index * kByteSize;
-  WRITE_BYTE_FIELD(*this, offset, value);
-}
-
-void PreparseData::copy_in(int index, const byte* buffer, int length) {
-  DCHECK(index >= 0 && length >= 0 && length <= kMaxInt - index &&
-         index + length <= this->data_length());
-  Address dst_addr = FIELD_ADDR(this, kDataStartOffset + index * kByteSize);
-  memcpy(reinterpret_cast<void*>(dst_addr), buffer, length);
-}
-
-PreparseData PreparseData::get_child(int index) const {
-  DCHECK_LE(0, index);
-  DCHECK_LT(index, this->children_length());
-  int offset = inner_start_offset() + index * kTaggedSize;
-  Object result = RELAXED_READ_FIELD(*this, offset);
-  return PreparseData::cast(result);
-}
-
-void PreparseData::set_child(int index, PreparseData value,
-                             WriteBarrierMode mode) {
-  DCHECK_LE(0, index);
-  DCHECK_LT(index, this->children_length());
-  int offset = inner_start_offset() + index * kTaggedSize;
-  RELAXED_WRITE_FIELD(*this, offset, value);
-  CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);
+  if (FIELD_SIZE(kOptionalPaddingOffset) != 0) {
+    DCHECK_EQ(4, FIELD_SIZE(kOptionalPaddingOffset));
+    memset(reinterpret_cast<void*>(address() + kOptionalPaddingOffset), 0,
+           FIELD_SIZE(kOptionalPaddingOffset));
+  }
 }
 
 OBJECT_CONSTRUCTORS_IMPL(UncompiledData, HeapObject)
@@ -91,10 +65,11 @@ INT32_ACCESSORS(UncompiledData, end_position, kEndPositionOffset)
 INT32_ACCESSORS(UncompiledData, function_literal_id, kFunctionLiteralIdOffset)
 
 void UncompiledData::clear_padding() {
-  if (FIELD_SIZE(kOptionalPaddingOffset) == 0) return;
-  DCHECK_EQ(4, FIELD_SIZE(kOptionalPaddingOffset));
-  memset(reinterpret_cast<void*>(address() + kOptionalPaddingOffset), 0,
-         FIELD_SIZE(kOptionalPaddingOffset));
+  if (FIELD_SIZE(kOptionalPaddingOffset) != 0) {
+    DCHECK_EQ(4, FIELD_SIZE(kOptionalPaddingOffset));
+    memset(reinterpret_cast<void*>(address() + kOptionalPaddingOffset), 0,
+           FIELD_SIZE(kOptionalPaddingOffset));
+  }
 }
 
 CAST_ACCESSOR(UncompiledDataWithoutPreparseData)

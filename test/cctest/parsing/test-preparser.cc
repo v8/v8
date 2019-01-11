@@ -862,9 +862,7 @@ TEST(ProducingAndConsumingByteData) {
 
   {
     // Serialize as an OnHeapConsumedPreparseData, and read back data.
-    i::Handle<i::PreparseData> data_on_heap =
-        isolate->factory()->NewPreparseData(static_cast<int>(bytes.size()), 0);
-    bytes.StoreInto(*data_on_heap);
+    i::Handle<i::PodArray<uint8_t>> data_on_heap = bytes.Serialize(isolate);
     i::OnHeapConsumedPreparseData::ByteData bytes_for_reading;
     i::OnHeapConsumedPreparseData::ByteData::ReadingScope reading_scope(
         &bytes_for_reading, *data_on_heap);

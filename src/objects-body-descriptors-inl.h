@@ -505,21 +505,18 @@ class FeedbackVector::BodyDescriptor final : public BodyDescriptorBase {
 class PreparseData::BodyDescriptor final : public BodyDescriptorBase {
  public:
   static bool IsValidSlot(Map map, HeapObject obj, int offset) {
-    return offset >= PreparseData::cast(obj)->inner_start_offset();
+    return offset == kScopeDataOffset || offset >= kChildDataStartOffset;
   }
 
   template <typename ObjectVisitor>
   static inline void IterateBody(Map map, HeapObject obj, int object_size,
                                  ObjectVisitor* v) {
-    PreparseData data = PreparseData::cast(obj);
-    int start_offset = data->inner_start_offset();
-    int end_offset = start_offset + data->children_length() * kTaggedSize;
-    IteratePointers(obj, start_offset, end_offset, v);
+    IteratePointer(obj, kScopeDataOffset, v);
+    IteratePointers(obj, kChildDataStartOffset, object_size, v);
   }
 
   static inline int SizeOf(Map map, HeapObject obj) {
-    PreparseData data = PreparseData::cast(obj);
-    return PreparseData::SizeFor(data->data_length(), data->children_length());
+    return PreparseData::SizeFor(PreparseData::cast(obj)->length());
   }
 };
 

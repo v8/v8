@@ -1084,8 +1084,7 @@ int HeapObject::SizeFromMap(Map map) const {
     return BigInt::SizeFor(BigInt::unchecked_cast(*this)->length());
   }
   if (instance_type == PREPARSE_DATA_TYPE) {
-    PreparseData data = PreparseData::unchecked_cast(*this);
-    return PreparseData::SizeFor(data->data_length(), data->children_length());
+    return PreparseData::SizeFor(PreparseData::unchecked_cast(*this)->length());
   }
   if (instance_type == CODE_TYPE) {
     return Code::unchecked_cast(*this)->CodeSize();

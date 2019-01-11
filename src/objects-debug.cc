@@ -2033,11 +2033,13 @@ void StackFrameInfo::StackFrameInfoVerify(Isolate* isolate) {
 
 void PreparseData::PreparseDataVerify(Isolate* isolate) {
   CHECK(IsPreparseData());
-  CHECK_LE(0, data_length());
-  CHECK_LE(0, children_length());
+  CHECK(scope_data()->IsByteArray());
+  CHECK_GE(length(), 0);
 
-  for (int i = 0; i < children_length(); ++i) {
-    VerifyPointer(isolate, get_child(i));
+  for (int i = 0; i < length(); ++i) {
+    Object child = child_data(i);
+    CHECK(child->IsPreparseData() || child->IsNull());
+    VerifyPointer(isolate, child);
   }
 }
 
