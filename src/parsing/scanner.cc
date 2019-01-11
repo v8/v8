@@ -65,13 +65,14 @@ Handle<String> Scanner::LiteralBuffer::Internalize(Isolate* isolate) const {
 }
 
 int Scanner::LiteralBuffer::NewCapacity(int min_capacity) {
-  int capacity = Max(min_capacity, backing_store_.length());
-  int new_capacity = Min(capacity * kGrowthFactory, capacity + kMaxGrowth);
-  return new_capacity;
+  return min_capacity < (kMaxGrowth / (kGrowthFactor - 1))
+             ? min_capacity * kGrowthFactor
+             : min_capacity + kMaxGrowth;
 }
 
 void Scanner::LiteralBuffer::ExpandBuffer() {
-  Vector<byte> new_store = Vector<byte>::New(NewCapacity(kInitialCapacity));
+  int min_capacity = Max(kInitialCapacity, backing_store_.length());
+  Vector<byte> new_store = Vector<byte>::New(NewCapacity(min_capacity));
   MemCopy(new_store.start(), backing_store_.start(), position_);
   backing_store_.Dispose();
   backing_store_ = new_store;

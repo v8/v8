@@ -468,8 +468,7 @@ class Scanner {
 
    private:
     static const int kInitialCapacity = 16;
-    static const int kGrowthFactory = 4;
-    static const int kMinConversionSlack = 256;
+    static const int kGrowthFactor = 4;
     static const int kMaxGrowth = 1 * MB;
 
     inline bool IsValidAscii(char code_unit) {
