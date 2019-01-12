@@ -235,7 +235,7 @@ export class GraphView extends View implements PhaseView {
     this.createGraph(data.data, rememberedSelection);
     this.broker.addNodeHandler(this.selectionHandler);
 
-    if (rememberedSelection != null) {
+    if (rememberedSelection != null && rememberedSelection.size > 0) {
       this.attachSelection(rememberedSelection);
       this.connectVisibleSelectedNodes();
       this.viewSelection();
