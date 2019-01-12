@@ -3237,8 +3237,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       XMMRegister dst = i.OutputSimd128Register();
       __ vxorps(kScratchDoubleReg, i.InputSimd128Register(2),
                 i.InputOperand(1));
-      __ vandps(dst, kScratchDoubleReg, i.InputOperand(0));
-      __ vxorps(dst, dst, i.InputSimd128Register(2));
+      __ vandps(kScratchDoubleReg, kScratchDoubleReg, i.InputOperand(0));
+      __ vxorps(dst, kScratchDoubleReg, i.InputSimd128Register(2));
       break;
     }
     case kIA32S8x16Shuffle: {

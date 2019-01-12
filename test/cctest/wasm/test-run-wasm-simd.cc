@@ -455,7 +455,7 @@ WASM_SIMD_TEST(F32x4ReplaceLane) {
 // The macro below disables tests lowering for certain nodes where the simd
 // lowering doesn't work correctly. Early return here if the CPU does not
 // support SIMD as the graph will be implicitly lowered in that case.
-#define WASM_SIMD_TEST_WITHOUT_LOWERING(name)                       \
+#define WASM_SIMD_TEST_TURBOFAN(name)                               \
   void RunWasm_##name##_Impl(LowerSimd lower_simd,                  \
                              ExecutionTier execution_tier);         \
   TEST(RunWasm_##name##_turbofan) {                                 \
@@ -1612,7 +1612,7 @@ WASM_SIMD_TEST(I8x16ShrU) {
 // rest false, and comparing for non-equality with zero to convert to a boolean
 // vector.
 #define WASM_SIMD_SELECT_TEST(format)                                        \
-  WASM_SIMD_TEST(S##format##Select) {                                        \
+  WASM_SIMD_TEST_TURBOFAN(S##format##Select) {                               \
     WasmRunner<int32_t, int32_t, int32_t> r(execution_tier, lower_simd);     \
     byte val1 = 0;                                                           \
     byte val2 = 1;                                                           \
@@ -1633,10 +1633,9 @@ WASM_SIMD_TEST(I8x16ShrU) {
           WASM_SET_LOCAL(                                                    \
               mask,                                                          \
               WASM_SIMD_SELECT(                                              \
-                  format,                                                    \
+                  format, WASM_GET_LOCAL(src1), WASM_GET_LOCAL(src2),        \
                   WASM_SIMD_BINOP(kExprI##format##Ne, WASM_GET_LOCAL(mask),  \
-                                  WASM_GET_LOCAL(zero)),                     \
-                  WASM_GET_LOCAL(src1), WASM_GET_LOCAL(src2))),              \
+                                  WASM_GET_LOCAL(zero)))),                   \
           WASM_SIMD_CHECK_LANE(I##format, mask, I32, val2, 0),               \
           WASM_SIMD_CHECK_LANE(I##format, mask, I32, val1, 1),               \
           WASM_SIMD_CHECK_LANE(I##format, mask, I32, val1, 2),               \
@@ -1652,7 +1651,7 @@ WASM_SIMD_SELECT_TEST(8x16)
 // Test Select by making a mask where the 0th and 3rd lanes are non-zero and the
 // rest 0. The mask is not the result of a comparison op.
 #define WASM_SIMD_NON_CANONICAL_SELECT_TEST(format)                           \
-  WASM_SIMD_TEST(S##format##NonCanonicalSelect) {                             \
+  WASM_SIMD_TEST_TURBOFAN(S##format##NonCanonicalSelect) {                    \
     WasmRunner<int32_t, int32_t, int32_t, int32_t> r(execution_tier,          \
                                                      lower_simd);             \
     byte val1 = 0;                                                            \
@@ -1672,9 +1671,9 @@ WASM_SIMD_SELECT_TEST(8x16)
                                    1, WASM_GET_LOCAL(zero), WASM_I32V(0xF))), \
           WASM_SET_LOCAL(mask, WASM_SIMD_I##format##_REPLACE_LANE(            \
                                    2, WASM_GET_LOCAL(mask), WASM_I32V(0xF))), \
-          WASM_SET_LOCAL(mask, WASM_SIMD_SELECT(format, WASM_GET_LOCAL(mask), \
-                                                WASM_GET_LOCAL(src1),         \
-                                                WASM_GET_LOCAL(src2))),       \
+          WASM_SET_LOCAL(mask, WASM_SIMD_SELECT(format, WASM_GET_LOCAL(src1), \
+                                                WASM_GET_LOCAL(src2),         \
+                                                WASM_GET_LOCAL(mask))),       \
           WASM_SIMD_CHECK_LANE(I##format, mask, I32, val2, 0),                \
           WASM_SIMD_CHECK_LANE(I##format, mask, I32, combined, 1),            \
           WASM_SIMD_CHECK_LANE(I##format, mask, I32, combined, 2),            \
@@ -2346,7 +2345,7 @@ WASM_SIMD_COMPILED_TEST(SimdLoadStoreLoad) {
 // and for SIMD lowering.
 // TODO(gdeepti): Enable these tests for ARM/ARM64
 #define WASM_SIMD_ANYTRUE_TEST(format, lanes, max)                            \
-  WASM_SIMD_TEST_WITHOUT_LOWERING(S##format##AnyTrue) {                       \
+  WASM_SIMD_TEST_TURBOFAN(S##format##AnyTrue) {                               \
     WasmRunner<int32_t, int32_t> r(execution_tier, lower_simd);               \
     byte simd = r.AllocateLocal(kWasmS128);                                   \
     BUILD(                                                                    \
@@ -2362,7 +2361,7 @@ WASM_SIMD_ANYTRUE_TEST(16x8, 8, 0xffff);
 WASM_SIMD_ANYTRUE_TEST(8x16, 16, 0xff);
 
 #define WASM_SIMD_ALLTRUE_TEST(format, lanes, max)                            \
-  WASM_SIMD_TEST_WITHOUT_LOWERING(S##format##AllTrue) {                       \
+  WASM_SIMD_TEST_TURBOFAN(S##format##AllTrue) {                               \
     WasmRunner<int32_t, int32_t> r(execution_tier, lower_simd);               \
     byte simd = r.AllocateLocal(kWasmS128);                                   \
     BUILD(                                                                    \
@@ -2377,6 +2376,19 @@ WASM_SIMD_ALLTRUE_TEST(32x4, 4, 0xffffffff);
 WASM_SIMD_ALLTRUE_TEST(16x8, 8, 0xffff);
 WASM_SIMD_ALLTRUE_TEST(8x16, 16, 0xff);
 #endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
+
+WASM_SIMD_TEST_TURBOFAN(BitSelect) {
+  WasmRunner<int32_t, int32_t> r(execution_tier, lower_simd);
+  byte simd = r.AllocateLocal(kWasmS128);
+  BUILD(r,
+        WASM_SET_LOCAL(
+            simd,
+            WASM_SIMD_SELECT(32x4, WASM_SIMD_I32x4_SPLAT(WASM_I32V(0x01020304)),
+                             WASM_SIMD_I32x4_SPLAT(WASM_I32V(0)),
+                             WASM_SIMD_I32x4_SPLAT(WASM_GET_LOCAL(0)))),
+        WASM_SIMD_I32x4_EXTRACT_LANE(0, WASM_GET_LOCAL(simd)));
+  DCHECK_EQ(0x01020304, r.Call(0xFFFFFFFF));
+}
 
 #undef WASM_SIMD_TEST
 #undef WASM_SIMD_CHECK_LANE
@@ -2418,7 +2430,7 @@ WASM_SIMD_ALLTRUE_TEST(8x16, 16, 0xff);
 #undef WASM_SIMD_NON_CANONICAL_SELECT_TEST
 #undef WASM_SIMD_COMPILED_TEST
 #undef WASM_SIMD_BOOL_REDUCTION_TEST
-#undef WASM_SIMD_TEST_WITHOUT_LOWERING
+#undef WASM_SIMD_TEST_TURBOFAN
 #undef WASM_SIMD_ANYTRUE_TEST
 #undef WASM_SIMD_ALLTRUE_TEST
 
