@@ -98,12 +98,12 @@ export class GNode {
     return this.nodeLabel.type;
   }
   getDisplayType() {
-    var type_string = this.nodeLabel.type;
-    if (type_string == undefined) return "";
-    if (type_string.length > 24) {
-      type_string = type_string.substr(0, 25) + "...";
+    var typeString = this.nodeLabel.type;
+    if (typeString == undefined) return "";
+    if (typeString.length > 24) {
+      typeString = typeString.substr(0, 25) + "...";
     }
-    return type_string;
+    return typeString;
   }
   deepestInputRank() {
     var deepestRank = 0;

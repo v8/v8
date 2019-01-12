@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import { GraphView } from "../src/graph-view"
-import { ScheduleView } from "../src/schedule-view"
-import { SequenceView } from "../src/sequence-view"
-import { SourceResolver } from "../src/source-resolver"
-import { SelectionBroker } from "../src/selection-broker"
-import { View, PhaseView } from "../src/view"
+import { GraphView } from "../src/graph-view";
+import { ScheduleView } from "../src/schedule-view";
+import { SequenceView } from "../src/sequence-view";
+import { SourceResolver } from "../src/source-resolver";
+import { SelectionBroker } from "../src/selection-broker";
+import { View, PhaseView } from "../src/view";
 
 const multiviewID = "multiview";
 
@@ -29,7 +29,7 @@ const toolboxHTML = `
   <select id="display-selector">
     <option disabled selected>(please open a file)</option>
   </select>
-</div>`
+</div>`;
 
 export class GraphMultiView extends View {
   sourceResolver: SourceResolver;
@@ -41,8 +41,8 @@ export class GraphMultiView extends View {
   currentPhaseView: View & PhaseView;
 
   createViewElement() {
-    const pane = document.createElement('div');
-    pane.setAttribute('id', multiviewID);
+    const pane = document.createElement("div");
+    pane.setAttribute("id", multiviewID);
     pane.className = "viewpane";
     return pane;
   }
@@ -59,7 +59,7 @@ export class GraphMultiView extends View {
     const searchInput = toolbox.querySelector("#search-input") as HTMLInputElement;
     searchInput.addEventListener("keyup", e => {
       if (!view.currentPhaseView) return;
-      view.currentPhaseView.searchInputAction(searchInput, e)
+      view.currentPhaseView.searchInputAction(searchInput, e);
     });
     view.divNode.addEventListener("keyup", (e: KeyboardEvent) => {
       if (e.keyCode == 191) { // keyCode == '/'
@@ -67,17 +67,16 @@ export class GraphMultiView extends View {
       }
     });
     searchInput.setAttribute("value", window.sessionStorage.getItem("lastSearch") || "");
-    this.graph = new GraphView(this.divNode, selectionBroker,
-      (phaseName) => view.displayPhaseByName(phaseName));
+    this.graph = new GraphView(this.divNode, selectionBroker, phaseName => view.displayPhaseByName(phaseName));
     this.schedule = new ScheduleView(this.divNode, selectionBroker);
     this.sequence = new SequenceView(this.divNode, selectionBroker);
-    this.selectMenu = toolbox.querySelector('#display-selector') as HTMLSelectElement;
+    this.selectMenu = toolbox.querySelector("#display-selector") as HTMLSelectElement;
   }
 
   initializeSelect() {
     const view = this;
-    view.selectMenu.innerHTML = '';
-    view.sourceResolver.forEachPhase((phase) => {
+    view.selectMenu.innerHTML = "";
+    view.sourceResolver.forEachPhase(phase => {
       const optionElement = document.createElement("option");
       let maxNodeId = "";
       if (phase.type == "graph" && phase.highestNodeId != 0) {
@@ -104,11 +103,11 @@ export class GraphMultiView extends View {
   initializeContent() { }
 
   displayPhase(phase) {
-    if (phase.type == 'graph') {
+    if (phase.type == "graph") {
       this.displayPhaseView(this.graph, phase.data);
-    } else if (phase.type == 'schedule') {
+    } else if (phase.type == "schedule") {
       this.displayPhaseView(this.schedule, phase);
-    } else if (phase.type == 'sequence') {
+    } else if (phase.type == "sequence") {
       this.displayPhaseView(this.sequence, phase);
     }
   }

@@ -18,10 +18,10 @@ const toolboxHTML = `<div id="disassembly-toolbox">
 
 export class DisassemblyView extends TextView {
   SOURCE_POSITION_HEADER_REGEX: any;
-  addr_event_counts: any;
-  total_event_counts: any;
-  max_event_counts: any;
-  pos_lines: Array<any>;
+  addrEventCounts: any;
+  totalEventCounts: any;
+  maxEventCounts: any;
+  posLines: Array<any>;
   instructionSelectionHandler: InstructionSelectionHandler;
   offsetSelection: MySelection;
   showInstructionAddressHandler: () => void;
@@ -77,7 +77,7 @@ export class DisassemblyView extends TextView {
     let OPCODE_ARGS = {
       associateData: function (text, fragment) {
         fragment.innerHTML = text;
-        const replacer = (match, hexOffset, stringOffset, string) => {
+        const replacer = (match, hexOffset) => {
           const offset = Number.parseInt(hexOffset, 16);
           const keyOffset = view.sourceResolver.getKeyPcOffset(offset)
           return `<span class="tag linkable-text" data-pc-offset="${keyOffset}">${match}</span>`
@@ -154,7 +154,7 @@ export class DisassemblyView extends TextView {
     }
     view.divNode.addEventListener('click', linkHandler);
 
-    const linkHandlerBlock = (e) => {
+    const linkHandlerBlock = e => {
       const blockId = e.target.dataset.blockId;
       if (typeof blockId != "undefined" && !Number.isNaN(blockId)) {
         e.stopPropagation();
@@ -239,21 +239,21 @@ export class DisassemblyView extends TextView {
 
   initializeCode(sourceText, sourcePosition: number = 0) {
     let view = this;
-    view.addr_event_counts = null;
-    view.total_event_counts = null;
-    view.max_event_counts = null;
-    view.pos_lines = new Array();
+    view.addrEventCounts = null;
+    view.totalEventCounts = null;
+    view.maxEventCounts = null;
+    view.posLines = new Array();
     // Comment lines for line 0 include sourcePosition already, only need to
     // add sourcePosition for lines > 0.
-    view.pos_lines[0] = sourcePosition;
+    view.posLines[0] = sourcePosition;
     if (sourceText && sourceText != "") {
       let base = sourcePosition;
       let current = 0;
-      let source_lines = sourceText.split("\n");
-      for (let i = 1; i < source_lines.length; i++) {
+      let sourceLines = sourceText.split("\n");
+      for (let i = 1; i < sourceLines.length; i++) {
         // Add 1 for newline character that is split off.
-        current += source_lines[i - 1].length + 1;
-        view.pos_lines[i] = base + current;
+        current += sourceLines[i - 1].length + 1;
+        view.posLines[i] = base + current;
       }
     }
   }
@@ -261,20 +261,22 @@ export class DisassemblyView extends TextView {
   initializePerfProfile(eventCounts) {
     let view = this;
     if (eventCounts !== undefined) {
-      view.addr_event_counts = eventCounts;
+      view.addrEventCounts = eventCounts;
 
-      view.total_event_counts = {};
-      view.max_event_counts = {};
-      for (let ev_name in view.addr_event_counts) {
-        let keys = Object.keys(view.addr_event_counts[ev_name]);
-        let values = keys.map(key => view.addr_event_counts[ev_name][key]);
-        view.total_event_counts[ev_name] = values.reduce((a, b) => a + b);
-        view.max_event_counts[ev_name] = values.reduce((a, b) => Math.max(a, b));
+      view.totalEventCounts = {};
+      view.maxEventCounts = {};
+      for (let evName in view.addrEventCounts) {
+        if (view.addrEventCounts.hasOwnProperty(evName)) {
+          let keys = Object.keys(view.addrEventCounts[evName]);
+          let values = keys.map(key => view.addrEventCounts[evName][key]);
+          view.totalEventCounts[evName] = values.reduce((a, b) => a + b);
+          view.maxEventCounts[evName] = values.reduce((a, b) => Math.max(a, b));
+        }
       }
     } else {
-      view.addr_event_counts = null;
-      view.total_event_counts = null;
-      view.max_event_counts = null;
+      view.addrEventCounts = null;
+      view.totalEventCounts = null;
+      view.maxEventCounts = null;
     }
   }
 
@@ -296,16 +298,17 @@ export class DisassemblyView extends TextView {
     let fragments = super.processLine(line);
 
     // Add profiling data per instruction if available.
-    if (view.total_event_counts) {
+    if (view.totalEventCounts) {
       let matches = /^(0x[0-9a-fA-F]+)\s+\d+\s+[0-9a-fA-F]+/.exec(line);
       if (matches) {
         let newFragments = [];
-        for (let event in view.addr_event_counts) {
-          let count = view.addr_event_counts[event][matches[1]];
+        for (let event in view.addrEventCounts) {
+          if (!view.addrEventCounts.hasOwnProperty(event)) continue;
+          let count = view.addrEventCounts[event][matches[1]];
           let str = " ";
-          let css_cls = "prof";
+          let cssCls = "prof";
           if (count !== undefined) {
-            let perc = count / view.total_event_counts[event] * 100;
+            let perc = count / view.totalEventCounts[event] * 100;
 
             let col = { r: 255, g: 255, b: 255 };
             for (let i = 0; i < PROF_COLS.length; i++) {
@@ -328,13 +331,13 @@ export class DisassemblyView extends TextView {
 
             str = UNICODE_BLOCK;
 
-            let fragment = view.createFragment(str, css_cls);
+            let fragment = view.createFragment(str, cssCls);
             fragment.title = event + ": " + view.humanize(perc) + " (" + count + ")";
             fragment.style.color = "rgb(" + col.r + ", " + col.g + ", " + col.b + ")";
 
             newFragments.push(fragment);
           } else {
-            newFragments.push(view.createFragment(str, css_cls));
+            newFragments.push(view.createFragment(str, cssCls));
           }
         }
         fragments = newFragments.concat(fragments);

@@ -12,7 +12,7 @@
       "limit": 80
     }],
     "ordered-imports": false,
-    "array-type": [false, "generic"],
+    "array-type": [true, "generic"],
     "semicolon": false,
     "member-access": false,
     "object-literal-shorthand": false,
@@ -27,7 +27,7 @@
     "trailing-comma": false,
     "member-ordering": false,
     "no-string-literal": false,
-    "arrow-parens": false,
+    "arrow-parens": [true, "ban-single-arg-parens"],
     "no-console": false,
     "interface-name": false,
     "no-bitwise": false,

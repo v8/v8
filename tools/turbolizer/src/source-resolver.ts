@@ -235,7 +235,7 @@ export class SourceResolver {
     return sourcePositionArray;
   }
 
-  forEachSource(f: (value: Source, index: number, array: Source[]) => void) {
+  forEachSource(f: (value: Source, index: number, array: Array<Source>) => void) {
     this.sources.forEach(f);
   }
 
@@ -294,8 +294,7 @@ export class SourceResolver {
     if (!this.sources[sourceId]) return [];
     const res = [];
     const list = this.sources[sourceId].sourcePositions;
-    for (let i = 0; i < list.length; i++) {
-      const sourcePosition = list[i]
+    for (const sourcePosition of list) {
       if (start <= sourcePosition.scriptOffset && sourcePosition.scriptOffset < end) {
         res.push(sourcePosition);
       }
@@ -507,7 +506,7 @@ export class SourceResolver {
     return this.phaseNames.get(phaseName);
   }
 
-  forEachPhase(f: (value: Phase, index: number, array: Phase[]) => void) {
+  forEachPhase(f: (value: Phase, index: number, array: Array<Phase>) => void) {
     this.phases.forEach(f);
   }
 
@@ -534,12 +533,12 @@ export class SourceResolver {
   }
 
   parseSchedule(phase) {
-    function createNode(state, match) {
+    function createNode(state: any, match) {
       let inputs = [];
       if (match.groups.args) {
         const nodeIdsString = match.groups.args.replace(/\s/g, '');
         const nodeIdStrings = nodeIdsString.split(',');
-        inputs = nodeIdStrings.map((n) => Number.parseInt(n, 10));
+        inputs = nodeIdStrings.map(n => Number.parseInt(n, 10));
       }
       const node = {
         id: Number.parseInt(match.groups.id, 10),
@@ -549,7 +548,7 @@ export class SourceResolver {
       if (match.groups.blocks) {
         const nodeIdsString = match.groups.blocks.replace(/\s/g, '').replace(/B/g, '');
         const nodeIdStrings = nodeIdsString.split(',');
-        const successors = nodeIdStrings.map((n) => Number.parseInt(n, 10));
+        const successors = nodeIdStrings.map(n => Number.parseInt(n, 10));
         state.currentBlock.succ = successors;
       }
       state.nodes[node.id] = node;
@@ -560,7 +559,7 @@ export class SourceResolver {
       if (match.groups.in) {
         const blockIdsString = match.groups.in.replace(/\s/g, '').replace(/B/g, '');
         const blockIdStrings = blockIdsString.split(',');
-        predecessors = blockIdStrings.map((n) => Number.parseInt(n, 10));
+        predecessors = blockIdStrings.map(n => Number.parseInt(n, 10));
       }
       const block = {
         id: Number.parseInt(match.groups.id, 10),

@@ -15,7 +15,7 @@ import { NodeSelectionHandler, ClearableHandler } from "./selection-handler";
 import { Graph } from "./graph";
 import { SelectionBroker } from "./selection-broker";
 
-function nodeToStringKey(n) {
+function nodeToStringKey(n: GNode) {
   return "" + n.id;
 }
 
@@ -67,8 +67,8 @@ export class GraphView extends View implements PhaseView {
     // to be important even if it does nothing.
     svg
       .attr("focusable", false)
-      .on("focus", (e) => { })
-      .on("keydown", (e) => { view.svgKeyDown(); })
+      .on("focus", e => {})
+      .on("keydown", e => { view.svgKeyDown(); })
 
     view.svg = svg;
 
@@ -103,7 +103,7 @@ export class GraphView extends View implements PhaseView {
       },
       brokeredNodeSelect: function (locations, selected: boolean) {
         if (!view.graph) return;
-        let selection = view.graph.nodes((n) => {
+        let selection = view.graph.nodes(n => {
           return locations.has(nodeToStringKey(n))
             && (!view.state.hideDead || n.isLive());
         });
@@ -112,10 +112,10 @@ export class GraphView extends View implements PhaseView {
         for (const n of view.graph.nodes()) {
           if (view.state.selection.isSelected(n)) {
             n.visible = true;
-            n.inputs.forEach((e) => {
+            n.inputs.forEach(e => {
               e.visible = e.visible || view.state.selection.isSelected(e.source);
             });
-            n.outputs.forEach((e) => {
+            n.outputs.forEach(e => {
               e.visible = e.visible || view.state.selection.isSelected(e.target);
             });
           }
@@ -330,7 +330,7 @@ export class GraphView extends View implements PhaseView {
   attachSelection(s) {
     if (!(s instanceof Set)) return;
     this.selectionHandler.clear();
-    const selected = [...this.graph.nodes((n) =>
+    const selected = [...this.graph.nodes(n =>
       s.has(this.state.selection.stringKey(n)) && (!this.state.hideDead || n.isLive()))];
     this.selectionHandler.select(selected, true);
   }
@@ -343,7 +343,7 @@ export class GraphView extends View implements PhaseView {
     if (!d3.event.shiftKey) {
       this.state.selection.clear();
     }
-    const allVisibleNodes = [...this.graph.nodes((n) => n.visible)];
+    const allVisibleNodes = [...this.graph.nodes(n => n.visible)];
     this.state.selection.select(allVisibleNodes, true);
     this.updateGraphVisibility();
   }
@@ -423,7 +423,7 @@ export class GraphView extends View implements PhaseView {
           reg.exec(n.nodeLabel.opcode) != null);
       };
 
-      const selection = [...this.graph.nodes((n) => {
+      const selection = [...this.graph.nodes(n => {
         if ((e.ctrlKey || n.visible) && filterFunction(n)) {
           if (e.ctrlKey) n.visible = true;
           return true;
@@ -614,7 +614,7 @@ export class GraphView extends View implements PhaseView {
 
     const newAndOldEdges = newEdges.merge(selEdges);
 
-    newAndOldEdges.classed('hidden', (e) => !e.isVisible());
+    newAndOldEdges.classed('hidden', e => !e.isVisible());
 
     // select existing nodes
     const filteredNodes = [...graph.nodes(n => n.visible)];
@@ -658,7 +658,7 @@ export class GraphView extends View implements PhaseView {
         visibleNodes.data(adjNodes, nodeToStr).attr('relToHover', "none");
         view.updateGraphVisibility();
       })
-      .on("click", (d) => {
+      .on("click", d => {
         if (!d3.event.shiftKey) view.selectionHandler.clear();
         view.selectionHandler.select([d], undefined);
         d3.event.stopPropagation();
@@ -821,7 +821,10 @@ export class GraphView extends View implements PhaseView {
 
   viewSelection() {
     const view = this;
-    var minX, maxX, minY, maxY;
+    var minX;
+    var maxX;
+    var minY;
+    var maxY;
     let hasSelection = false;
     view.visibleNodes.selectAll<SVGGElement, GNode>("g").each(function (n) {
       if (view.state.selection.isSelected(n)) {
@@ -836,12 +839,11 @@ export class GraphView extends View implements PhaseView {
     });
     if (hasSelection) {
       view.viewGraphRegion(minX - NODE_INPUT_WIDTH, minY - 60,
-        maxX + NODE_INPUT_WIDTH, maxY + 60,
-        true);
+        maxX + NODE_INPUT_WIDTH, maxY + 60);
     }
   }
 
-  viewGraphRegion(minX, minY, maxX, maxY, transition) {
+  viewGraphRegion(minX, minY, maxX, maxY) {
     const [width, height] = this.getSvgViewDimensions();
     const dx = maxX - minX;
     const dy = maxY - minY;

@@ -92,21 +92,21 @@ export class ScheduleView extends TextView implements PhaseView {
       instrMarker.onclick = mkNodeLinkHandler(node.id);
       nodeEl.appendChild(instrMarker);
 
-      const node_id = createElement("div", "node-id tag clickable", node.id);
-      node_id.onclick = mkNodeLinkHandler(node.id);
-      view.addHtmlElementForNodeId(node.id, node_id);
-      nodeEl.appendChild(node_id);
-      const node_label = createElement("div", "node-label", node.label);
-      nodeEl.appendChild(node_label);
+      const nodeId = createElement("div", "node-id tag clickable", node.id);
+      nodeId.onclick = mkNodeLinkHandler(node.id);
+      view.addHtmlElementForNodeId(node.id, nodeId);
+      nodeEl.appendChild(nodeId);
+      const nodeLabel = createElement("div", "node-label", node.label);
+      nodeEl.appendChild(nodeLabel);
       if (node.inputs.length > 0) {
-        const node_parameters = createElement("div", "parameter-list comma-sep-list");
+        const nodeParameters = createElement("div", "parameter-list comma-sep-list");
         for (const param of node.inputs) {
           const paramEl = createElement("div", "parameter tag clickable", param);
-          node_parameters.appendChild(paramEl);
+          nodeParameters.appendChild(paramEl);
           paramEl.onclick = mkNodeLinkHandler(param);
           view.addHtmlElementForNodeId(param, paramEl);
         }
-        nodeEl.appendChild(node_parameters);
+        nodeEl.appendChild(nodeParameters);
       }
 
       return nodeEl;
@@ -122,38 +122,38 @@ export class ScheduleView extends TextView implements PhaseView {
       };
     }
 
-    const schedule_block = createElement("div", "schedule-block");
+    const scheduleBlock = createElement("div", "schedule-block");
 
     const [start, end] = view.sourceResolver.getInstructionRangeForBlock(block.id);
     const instrMarker = createElement("div", "instr-marker com", "&#8857;");
     instrMarker.setAttribute("title", `Instructions range for this block is [${start}, ${end})`)
     instrMarker.onclick = mkBlockLinkHandler(block.id);
-    schedule_block.appendChild(instrMarker);
+    scheduleBlock.appendChild(instrMarker);
 
-    const block_id = createElement("div", "block-id com clickable", block.id);
-    block_id.onclick = mkBlockLinkHandler(block.id);
-    schedule_block.appendChild(block_id);
-    const block_pred = createElement("div", "predecessor-list block-list comma-sep-list");
+    const blockId = createElement("div", "block-id com clickable", block.id);
+    blockId.onclick = mkBlockLinkHandler(block.id);
+    scheduleBlock.appendChild(blockId);
+    const blockPred = createElement("div", "predecessor-list block-list comma-sep-list");
     for (const pred of block.pred) {
       const predEl = createElement("div", "block-id com clickable", pred);
       predEl.onclick = mkBlockLinkHandler(pred);
-      block_pred.appendChild(predEl);
+      blockPred.appendChild(predEl);
     }
-    if (block.pred.length) schedule_block.appendChild(block_pred);
+    if (block.pred.length) scheduleBlock.appendChild(blockPred);
     const nodes = createElement("div", "nodes");
     for (const node of block.nodes) {
       nodes.appendChild(createElementForNode(node));
     }
-    schedule_block.appendChild(nodes);
-    const block_succ = createElement("div", "successor-list block-list comma-sep-list");
+    scheduleBlock.appendChild(nodes);
+    const blockSucc = createElement("div", "successor-list block-list comma-sep-list");
     for (const succ of block.succ) {
       const succEl = createElement("div", "block-id com clickable", succ);
       succEl.onclick = mkBlockLinkHandler(succ);
-      block_succ.appendChild(succEl);
+      blockSucc.appendChild(succEl);
     }
-    if (block.succ.length) schedule_block.appendChild(block_succ);
-    this.addHtmlElementForBlockId(block.id, schedule_block);
-    return schedule_block;
+    if (block.succ.length) scheduleBlock.appendChild(blockSucc);
+    this.addHtmlElementForBlockId(block.id, scheduleBlock);
+    return scheduleBlock;
   }
 
   addBlocks(blocks) {

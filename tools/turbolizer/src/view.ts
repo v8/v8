@@ -19,7 +19,7 @@ export abstract class View {
     return false;
   }
 
-  show(data, rememberedSelection): void {
+  show(data: any, rememberedSelection: Selection): void {
     this.initializeContent(data, rememberedSelection);
     this.container.appendChild(this.divNode);
   }

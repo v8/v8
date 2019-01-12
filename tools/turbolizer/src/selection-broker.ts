@@ -49,7 +49,7 @@ export class SelectionBroker {
   }
 
   broadcastSourcePositionSelect(from, sourcePositions, selected) {
-    sourcePositions = sourcePositions.filter((l) => {
+    sourcePositions = sourcePositions.filter(l => {
       if (!sourcePositionValid(l)) {
         console.log("Warning: invalid source position");
         return false;

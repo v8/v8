@@ -39,11 +39,11 @@ export class Edge {
     var source = this.source;
     var target = this.target;
     var index = this.index;
-    var input_x = target.x + target.getInputX(index);
+    var inputX = target.x + target.getInputX(index);
     var inputApproach = target.getInputApproach(this.index);
     var outputApproach = source.getOutputApproach(showTypes);
     if (inputApproach > outputApproach) {
-      return input_x;
+      return inputX;
     } else {
       var inputOffset = MINIMUM_EDGE_SEPARATION * (index + 1);
       return (target.x < source.x)
@@ -55,20 +55,20 @@ export class Edge {
   generatePath(graph: Graph, showTypes: boolean) {
     var target = this.target;
     var source = this.source;
-    var input_x = target.x + target.getInputX(this.index);
+    var inputX = target.x + target.getInputX(this.index);
     var arrowheadHeight = 7;
-    var input_y = target.y - 2 * DEFAULT_NODE_BUBBLE_RADIUS - arrowheadHeight;
-    var output_x = source.x + source.getOutputX();
-    var output_y = source.y + source.getNodeHeight(showTypes) + DEFAULT_NODE_BUBBLE_RADIUS;
+    var inputY = target.y - 2 * DEFAULT_NODE_BUBBLE_RADIUS - arrowheadHeight;
+    var outputX = source.x + source.getOutputX();
+    var outputY = source.y + source.getNodeHeight(showTypes) + DEFAULT_NODE_BUBBLE_RADIUS;
     var inputApproach = target.getInputApproach(this.index);
     var outputApproach = source.getOutputApproach(showTypes);
     var horizontalPos = this.getInputHorizontalPosition(graph, showTypes);
 
-    var result = "M" + output_x + "," + output_y +
-      "L" + output_x + "," + outputApproach +
+    var result = "M" + outputX + "," + outputY +
+      "L" + outputX + "," + outputApproach +
       "L" + horizontalPos + "," + outputApproach;
 
-    if (horizontalPos != input_x) {
+    if (horizontalPos != inputX) {
       result += "L" + horizontalPos + "," + inputApproach;
     } else {
       if (inputApproach < outputApproach) {
@@ -76,8 +76,8 @@ export class Edge {
       }
     }
 
-    result += "L" + input_x + "," + inputApproach +
-      "L" + input_x + "," + input_y;
+    result += "L" + inputX + "," + inputApproach +
+      "L" + inputX + "," + inputY;
     return result;
   }
 

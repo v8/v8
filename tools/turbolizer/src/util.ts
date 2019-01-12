@@ -60,8 +60,8 @@ export function sortUnique<T>(arr: Array<T>, f: (a: T, b: T) => number, equal: (
 }
 
 // Partial application without binding the receiver
-export function partial(f: any, ...arguments1: any[]) {
-  return function (this: any, ...arguments2: any[]) {
+export function partial(f: any, ...arguments1: Array<any>) {
+  return function (this: any, ...arguments2: Array<any>) {
     f.apply(this, [...arguments1, ...arguments2]);
   }
 }

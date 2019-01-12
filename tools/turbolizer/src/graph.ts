@@ -22,8 +22,8 @@ export class Graph {
     this.width = 1;
     this.height = 1;
 
-    data.nodes.forEach((json_node: any) => {
-      this.nodeMap[json_node.id] = new GNode(json_node.nodeLabel);
+    data.nodes.forEach((jsonNode: any) => {
+      this.nodeMap[jsonNode.id] = new GNode(jsonNode.nodeLabel);
     });
 
     data.edges.forEach((e: any) => {

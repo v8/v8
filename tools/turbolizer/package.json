@@ -6,9 +6,9 @@
     "build": "rollup -c",
     "watch": "rollup -c -w",
     "deploy": "./deploy.sh",
-    "format": "tsfmt -r",
     "test": "ts-mocha -p tsconfig.test.json test/**/*-test.ts",
-    "dev-server": "ws"
+    "dev-server": "ws",
+    "presubmit": "tslint --project ./tslint.json --fix"
   },
   "author": "The V8 team",
   "license": "MIT",
@@ -17,8 +17,7 @@
     "d3": "^5.7.0",
     "rollup": "^0.68.2",
     "rollup-plugin-node-resolve": "^4.0.0",
-    "rollup-plugin-typescript2": "^0.18.1",
-    "tslint": "^5.12.0"
+    "rollup-plugin-typescript2": "^0.18.1"
   },
   "repository": {
     "type": "git",
@@ -30,6 +29,6 @@
     "mocha": "^5.2.0",
     "ts-mocha": "^2.0.0",
     "typescript": "^3.2.2",
-    "typescript-formatter": "^7.2.2"
+    "tslint": "^5.12.0"
   }
 }

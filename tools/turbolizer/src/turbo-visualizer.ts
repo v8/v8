@@ -31,7 +31,7 @@ window.onload = function () {
       txtRes += '{"name":"disassembly","type":"disassembly","data":""}]}';
     }
     try {
-      sourceViews.forEach((sv) => sv.hide());
+      sourceViews.forEach(sv => sv.hide());
       if (multiview) multiview.hide();
       multiview = null;
       if (disassemblyView) disassemblyView.hide();
@@ -72,7 +72,7 @@ window.onload = function () {
       sourceView.show(null, null);
       sourceViews.push(sourceView);
 
-      sourceResolver.forEachSource((source) => {
+      sourceResolver.forEachSource(source => {
         let sourceView = new CodeView(sourceContainer, selectionBroker, sourceResolver, source, CodeMode.INLINED_SOURCE);
         sourceView.show(null, null);
         sourceViews.push(sourceView);

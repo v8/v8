@@ -59,7 +59,7 @@ export abstract class TextView extends View {
     };
     this.selectionHandler = selectionHandler;
     broker.addNodeHandler(selectionHandler);
-    view.divNode.addEventListener('click', (e) => {
+    view.divNode.addEventListener('click', e => {
       if (!e.shiftKey) {
         view.selectionHandler.clear();
       }
