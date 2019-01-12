@@ -24,6 +24,7 @@ export class NodeLabel {
   control: boolean;
   opinfo: string;
   type: string;
+  inplaceUpdatePhase: string;
 
   constructor(id: number, label: string, title: string, live: boolean, properties: string, sourcePosition: any, origin: any, opcode: string, control: boolean, opinfo: string, type: string) {
     this.id = id;
@@ -37,6 +38,7 @@ export class NodeLabel {
     this.control = control;
     this.opinfo = opinfo;
     this.type = type;
+    this.inplaceUpdatePhase = null;
   }
 
   equals(that?: NodeLabel) {
@@ -64,6 +66,9 @@ export class NodeLabel {
     if (this.origin) {
       title += `\nOrigin: ${formatOrigin(this.origin)}`;
     }
+    if (this.inplaceUpdatePhase) {
+      title += `\nInplace update in phase: ${this.inplaceUpdatePhase}`;
+    }
     return title;
   }
 
@@ -75,4 +80,7 @@ export class NodeLabel {
     return result;
   }
 
+  setInplaceUpdatePhase(name: string): any {
+    this.inplaceUpdatePhase = name;
+  }
 }

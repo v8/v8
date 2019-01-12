@@ -488,6 +488,9 @@ export class SourceResolver {
         n.opinfo, n.type);
       const previous = nodeLabelMap[label.id];
       if (!label.equals(previous)) {
+        if (previous != undefined) {
+          label.setInplaceUpdatePhase(phase.name);
+        }
         nodeLabelMap[label.id] = label;
       }
       n.nodeLabel = nodeLabelMap[label.id];
