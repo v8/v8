@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import * as d3 from "d3";
 import { SourceResolver } from "../src/source-resolver";
 import { SelectionBroker } from "../src/selection-broker";
 import { DisassemblyView } from "../src/disassembly-view";
@@ -113,19 +112,30 @@ window.onload = function () {
     // The <input> form #upload-helper with type file can't be a picture.
     // We hence keep it hidden, and forward the click from the picture
     // button #upload.
-    d3.select("#upload").on("click",
-      () => document.getElementById("upload-helper").click());
-    d3.select("#upload-helper").on("change", function (this: HTMLInputElement) {
-      const uploadFile = this.files && this.files[0];
-      if (uploadFile) {
-        const filereader = new FileReader();
-        filereader.onload = () => {
-          const txtRes = filereader.result;
-          if (typeof txtRes == 'string') {
-            loadFile(txtRes);
-          }
-        };
-        filereader.readAsText(uploadFile);
+    document.getElementById("upload").addEventListener("click", e => {
+      document.getElementById("upload-helper").click();
+      e.stopPropagation();
+    });
+    document.getElementById("upload-helper").addEventListener("change",
+      function (this: HTMLInputElement) {
+        const uploadFile = this.files && this.files[0];
+        if (uploadFile) {
+          const filereader = new FileReader();
+          filereader.onload = () => {
+            const txtRes = filereader.result;
+            if (typeof txtRes == 'string') {
+              loadFile(txtRes);
+            }
+          };
+          filereader.readAsText(uploadFile);
+        }
+      }
+    );
+    window.addEventListener("keydown", (e: KeyboardEvent) => {
+      if (e.keyCode == 76 && e.ctrlKey) { // CTRL + L
+        document.getElementById("upload-helper").click();
+        e.stopPropagation();
+        e.preventDefault();
       }
     });
   }
