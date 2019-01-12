@@ -11,8 +11,8 @@ import { InstructionSelectionHandler } from "./selection-handler";
 
 const toolboxHTML = `<div id="disassembly-toolbox">
 <form>
-  <input id="show-instruction-address" type="checkbox" name="instruction-address">Show addresses</input>
-  <input id="show-instruction-binary" type="checkbox" name="instruction-binary">Show binary literal</input>
+  <label><input id="show-instruction-address" type="checkbox" name="instruction-address">Show addresses</label>
+  <label><input id="show-instruction-binary" type="checkbox" name="instruction-binary">Show binary literal</label>
 </form>
 </div>`;
 

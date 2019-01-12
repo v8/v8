@@ -26,6 +26,7 @@ const toolboxHTML = `
   <input id="toggle-types" type="image" title="show/hide types" src="types.png" alt="show/hide types" class="button-input">
   <input id="search-input" type="text" title="search nodes for regex" alt="search node for regex" class="search-input"
     placeholder="find with regexp&hellip;">
+  <label><input id="search-only-visible" type="checkbox" name="instruction-address" alt="Apply search to visible nodes only">only visible</label>
   <select id="display-selector">
     <option disabled selected>(please open a file)</option>
   </select>
@@ -57,9 +58,10 @@ export class GraphMultiView extends View {
     toolbox.innerHTML = toolboxHTML;
     view.divNode.appendChild(toolbox);
     const searchInput = toolbox.querySelector("#search-input") as HTMLInputElement;
+    const onlyVisibleCheckbox = toolbox.querySelector("#search-only-visible") as HTMLInputElement;
     searchInput.addEventListener("keyup", e => {
       if (!view.currentPhaseView) return;
-      view.currentPhaseView.searchInputAction(searchInput, e);
+      view.currentPhaseView.searchInputAction(searchInput, e, onlyVisibleCheckbox.checked);
     });
     view.divNode.addEventListener("keyup", (e: KeyboardEvent) => {
       if (e.keyCode == 191) { // keyCode == '/'

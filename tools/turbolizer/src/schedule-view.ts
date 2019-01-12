@@ -167,7 +167,7 @@ export class ScheduleView extends TextView implements PhaseView {
     return `${node.id}: ${node.label}(${node.inputs.join(", ")})`;
   }
 
-  searchInputAction(searchBar, e) {
+  searchInputAction(searchBar, e, onlyVisible) {
     e.stopPropagation();
     this.selectionHandler.clear();
     const query = searchBar.value;

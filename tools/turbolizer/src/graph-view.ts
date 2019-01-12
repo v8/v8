@@ -411,7 +411,7 @@ export class GraphView extends View implements PhaseView {
     view.toggleTypes();
   }
 
-  searchInputAction(searchBar: HTMLInputElement, e: KeyboardEvent) {
+  searchInputAction(searchBar: HTMLInputElement, e: KeyboardEvent, onlyVisible: boolean) {
     if (e.keyCode == 13) {
       this.selectionHandler.clear();
       const query = searchBar.value;
@@ -427,8 +427,8 @@ export class GraphView extends View implements PhaseView {
       };
 
       const selection = [...this.graph.nodes(n => {
-        if ((e.ctrlKey || n.visible) && filterFunction(n)) {
-          if (e.ctrlKey) n.visible = true;
+        if ((e.ctrlKey || n.visible || !onlyVisible) && filterFunction(n)) {
+          if (e.ctrlKey || !onlyVisible) n.visible = true;
           return true;
         }
         return false;
