@@ -5,7 +5,7 @@
 export abstract class View {
   container: HTMLElement;
   divNode: HTMLElement;
-  abstract initializeContent(data: any, rememberedSelection: Selection): void;
+  abstract initializeContent(data: any, rememberedSelection: Set<any>): void;
   abstract createViewElement(): HTMLElement;
   abstract deleteContent(): void;
   abstract detachSelection(): Set<string>;
@@ -19,7 +19,7 @@ export abstract class View {
     return false;
   }
 
-  show(data: any, rememberedSelection: Selection): void {
+  show(data: any, rememberedSelection: Set<any>): void {
     this.initializeContent(data, rememberedSelection);
     this.container.appendChild(this.divNode);
   }

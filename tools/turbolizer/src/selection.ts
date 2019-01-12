@@ -50,10 +50,7 @@ export class MySelection {
   }
 
   detachSelection() {
-    const result = new Set();
-    for (const i of this.selection.keys()) {
-      result.add(i);
-    }
+    const result = this.selectedKeys();
     this.clear();
     return result;
   }

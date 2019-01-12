@@ -6,7 +6,7 @@ export class InfoView extends View {
     super(idOrContainer);
   }
 
-  initializeContent(data: any, rememberedSelection: Selection): void {
+  initializeContent(data: any, rememberedSelection: Set<any>): void {
     fetch("/info-view.html")
       .then(response => response.text())
       .then(htmlText => this.divNode.innerHTML = htmlText);

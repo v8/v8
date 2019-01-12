@@ -31,7 +31,7 @@ interface GraphState {
 export class GraphView extends View implements PhaseView {
   divElement: d3.Selection<any, any, any, any>;
   svg: d3.Selection<any, any, any, any>;
-  showPhaseByName: (s: string) => void;
+  showPhaseByName: (p: string, s: Set<any>) => void;
   state: GraphState;
   selectionHandler: NodeSelectionHandler & ClearableHandler;
   graphElement: d3.Selection<any, any, any, any>;
@@ -43,6 +43,7 @@ export class GraphView extends View implements PhaseView {
   transitionTimout: number;
   graph: Graph;
   broker: SelectionBroker;
+  phaseName: string;
 
   createViewElement() {
     const pane = document.createElement('div');
@@ -56,6 +57,7 @@ export class GraphView extends View implements PhaseView {
     this.broker = broker;
     this.showPhaseByName = showPhaseByName;
     this.divElement = d3.select(this.divNode);
+    this.phaseName = "";
     const svg = this.divElement.append("svg")
       .attr('version', '2.0')
       .attr("width", "100%")
@@ -67,7 +69,7 @@ export class GraphView extends View implements PhaseView {
     // to be important even if it does nothing.
     svg
       .attr("focusable", false)
-      .on("focus", e => {})
+      .on("focus", e => { })
       .on("keydown", e => { view.svgKeyDown(); });
 
     view.svg = svg;
@@ -229,7 +231,8 @@ export class GraphView extends View implements PhaseView {
     d3.select("#hide-selected").on("click", partial(this.hideSelectedAction, this));
     d3.select("#zoom-selection").on("click", partial(this.zoomSelectionAction, this));
     d3.select("#toggle-types").on("click", partial(this.toggleTypesAction, this));
-    this.createGraph(data, rememberedSelection);
+    this.phaseName = data.name;
+    this.createGraph(data.data, rememberedSelection);
     this.broker.addNodeHandler(this.selectionHandler);
 
     if (rememberedSelection != null) {
@@ -555,21 +558,27 @@ export class GraphView extends View implements PhaseView {
   selectOrigins() {
     const state = this.state;
     const origins = [];
-    let phase = null;
+    let phase = this.phaseName;
+    const selection = new Set<any>();
     for (const n of state.selection) {
       const origin = n.nodeLabel.origin;
       if (origin) {
-        const node = this.graph.nodeMap[origin.nodeId];
-        origins.push(node);
         phase = origin.phase;
+        const node = this.graph.nodeMap[origin.nodeId];
+        if (phase === this.phaseName && node) {
+          origins.push(node);
+        } else {
+          selection.add(`${origin.nodeId}`);
+        }
       }
     }
-    if (origins.length) {
-      state.selection.clear();
-      state.selection.select(origins, true);
-      if (phase) {
-        this.showPhaseByName(phase);
-      }
+    // Only go through phase reselection if we actually need
+    // to display another phase.
+    if (selection.size > 0 && phase !== this.phaseName) {
+      this.showPhaseByName(phase, selection);
+    } else if (origins.length > 0) {
+      this.selectionHandler.clear();
+      this.selectionHandler.select(origins, true);
     }
   }
 

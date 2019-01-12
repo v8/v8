@@ -449,12 +449,12 @@ export class SourceResolver {
           this.disassemblyPhase = phase;
           break;
         case 'schedule':
-          this.phases.push(this.parseSchedule(phase));
           this.phaseNames.set(phase.name, this.phases.length);
+          this.phases.push(this.parseSchedule(phase));
           break;
         case 'sequence':
-          this.phases.push(this.parseSequence(phase));
           this.phaseNames.set(phase.name, this.phases.length);
+          this.phases.push(this.parseSequence(phase));
           break;
         case 'instructions':
           if (phase.nodeIdToInstructionRange) {
@@ -469,11 +469,11 @@ export class SourceResolver {
           break;
         case 'graph':
           const graphPhase: GraphPhase = Object.assign(phase, { highestNodeId: 0 });
+          this.phaseNames.set(graphPhase.name, this.phases.length);
           this.phases.push(graphPhase);
           this.recordOrigins(graphPhase);
           this.internNodeLabels(graphPhase, nodeLabelMap);
           graphPhase.nodeLabelMap = nodeLabelMap.slice();
-          this.phaseNames.set(graphPhase.name, this.phases.length);
           break;
         default:
           throw "Unsupported phase type";

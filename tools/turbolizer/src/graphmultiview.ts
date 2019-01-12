@@ -67,7 +67,7 @@ export class GraphMultiView extends View {
       }
     });
     searchInput.setAttribute("value", window.sessionStorage.getItem("lastSearch") || "");
-    this.graph = new GraphView(this.divNode, selectionBroker, phaseName => view.displayPhaseByName(phaseName));
+    this.graph = new GraphView(this.divNode, selectionBroker, view.displayPhaseByName.bind(this));
     this.schedule = new ScheduleView(this.divNode, selectionBroker);
     this.sequence = new SequenceView(this.divNode, selectionBroker);
     this.selectMenu = toolbox.querySelector("#display-selector") as HTMLSelectElement;
@@ -86,8 +86,9 @@ export class GraphMultiView extends View {
       view.selectMenu.add(optionElement);
     });
     this.selectMenu.onchange = function (this: HTMLSelectElement) {
-      window.sessionStorage.setItem("lastSelectedPhase", this.selectedIndex.toString());
-      view.displayPhase(view.sourceResolver.getPhase(this.selectedIndex));
+      const phaseIndex = this.selectedIndex;
+      window.sessionStorage.setItem("lastSelectedPhase", phaseIndex.toString());
+      view.displayPhase(view.sourceResolver.getPhase(phaseIndex));
     };
   }
 
@@ -102,27 +103,27 @@ export class GraphMultiView extends View {
 
   initializeContent() { }
 
-  displayPhase(phase) {
+  displayPhase(phase, selection?: Set<any>) {
     if (phase.type == "graph") {
-      this.displayPhaseView(this.graph, phase.data);
+      this.displayPhaseView(this.graph, phase, selection);
     } else if (phase.type == "schedule") {
-      this.displayPhaseView(this.schedule, phase);
+      this.displayPhaseView(this.schedule, phase, selection);
     } else if (phase.type == "sequence") {
-      this.displayPhaseView(this.sequence, phase);
+      this.displayPhaseView(this.sequence, phase, selection);
     }
   }
 
-  displayPhaseView(view, data) {
-    const rememberedSelection = this.hideCurrentPhase();
+  displayPhaseView(view, data, selection?: Set<any>) {
+    const rememberedSelection = selection ? selection : this.hideCurrentPhase();
     view.show(data, rememberedSelection);
     this.divNode.classList.toggle("scrollable", view.isScrollable());
     this.currentPhaseView = view;
   }
 
-  displayPhaseByName(phaseName) {
+  displayPhaseByName(phaseName, selection?: Set<any>) {
     const phaseId = this.sourceResolver.getPhaseIdByName(phaseName);
-    this.selectMenu.selectedIndex = phaseId - 1;
-    this.displayPhase(this.sourceResolver.getPhase(phaseId));
+    this.selectMenu.selectedIndex = phaseId;
+    this.displayPhase(this.sourceResolver.getPhase(phaseId), selection);
   }
 
   hideCurrentPhase() {
