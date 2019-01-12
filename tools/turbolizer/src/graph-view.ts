@@ -516,7 +516,9 @@ export class GraphView extends View implements PhaseView {
         view.selectAllNodes();
         break;
       case 38:
+        // UP
       case 40: {
+        // DOWN
         showSelectionFrontierNodes(d3.event.keyCode == 38, undefined, true);
         break;
       }
@@ -555,10 +557,11 @@ export class GraphView extends View implements PhaseView {
     const origins = [];
     let phase = null;
     for (const n of state.selection) {
-      if (n.origin) {
-        const node = this.graph.nodeMap[n.origin.nodeId];
+      const origin = n.nodeLabel.origin;
+      if (origin) {
+        const node = this.graph.nodeMap[origin.nodeId];
         origins.push(node);
-        phase = n.origin.phase;
+        phase = origin.phase;
       }
     }
     if (origins.length) {

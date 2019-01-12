@@ -11,11 +11,13 @@ import { CodeMode, CodeView } from "../src/code-view";
 import { Tabs } from "../src/tabs";
 import { Resizer } from "../src/resizer";
 import * as C from "../src/constants";
+import { InfoView } from "./info-view";
 
 window.onload = function () {
   let multiview = null;
   let disassemblyView = null;
   let sourceViews = [];
+  let infoView = null;
   let selectionBroker = null;
   let sourceResolver = null;
   const resizer = new Resizer(panesUpdatedCallback, 100);
@@ -71,6 +73,11 @@ window.onload = function () {
       const sourceView = new CodeView(sourceContainer, selectionBroker, sourceResolver, fnc, CodeMode.MAIN_SOURCE);
       sourceView.show(null, null);
       sourceViews.push(sourceView);
+
+      const [, infoContainer] = sourceTabs.addTabAndContent("Info");
+      infoContainer.classList.add("viewpane", "scrollable");
+      infoView = new InfoView(infoContainer);
+      infoView.show(null, null);
 
       sourceResolver.forEachSource(source => {
         const sourceView = new CodeView(sourceContainer, selectionBroker, sourceResolver, source, CodeMode.INLINED_SOURCE);

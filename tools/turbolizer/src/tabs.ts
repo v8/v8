@@ -54,6 +54,7 @@ export class Tabs {
         const contentDiv = document.createElement("div");
         contentDiv.className = "tab-content tab-default";
         contentDiv.id = `tab-content-${this.container.id}-${this.nextTabId++}`;
+        contentDiv.style.display = "none";
         this.container.appendChild(contentDiv);
 
         const newTab = this.addTab(caption);

@@ -120,6 +120,26 @@ li.selected .line-number {
   font-size: small;
 }
 
+.info-container {
+  font-family: sans-serif;
+  font-size: small;
+}
+
+.info-topic {
+  border: 1px solid lightgray;
+  margin: 2px;
+}
+
+.info-topic-header {
+  background-color: lightgray;
+  padding: 1px;
+}
+
+.info-topic-content {
+  padding: 2px;
+}
+
+
 html,
 body {
   margin: 0;
