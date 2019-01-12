@@ -347,8 +347,7 @@ void PlatformDependentEmbeddedFileWriter::SectionData() {
 
 void PlatformDependentEmbeddedFileWriter::SectionRoData() {
 #if defined(V8_OS_WIN)
-  // .rodata defaults to r/w in COFF, but read only in ELF.
-  fprintf(fp_, ".section .rodata,\"r\"\n");
+  fprintf(fp_, ".section .rdata\n");
 #else
   fprintf(fp_, ".section .rodata\n");
 #endif
