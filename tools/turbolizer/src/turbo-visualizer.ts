@@ -16,16 +16,29 @@ window.onload = function () {
   let multiview = null;
   let disassemblyView = null;
   let sourceViews = [];
-  let infoView = null;
   let selectionBroker = null;
   let sourceResolver = null;
   const resizer = new Resizer(panesUpdatedCallback, 100);
+  const sourceTabsContainer = document.getElementById(C.SOURCE_PANE_ID);
+  const sourceTabs = new Tabs(sourceTabsContainer);
+  sourceTabs.addTab("&#x2b;").classList.add("last-tab", "persistent-tab");
+  const disassemblyTabsContainer = document.getElementById(C.GENERATED_PANE_ID);
+  const disassemblyTabs = new Tabs(disassemblyTabsContainer);
+  disassemblyTabs.addTab("&#x2b;").classList.add("last-tab", "persistent-tab");
+  const [infoTab, infoContainer] = sourceTabs.addTabAndContent("Info");
+  infoTab.classList.add("persistent-tab");
+  infoContainer.classList.add("viewpane", "scrollable");
+  const infoView = new InfoView(infoContainer);
+  infoView.show(null, null);
+  sourceTabs.activateTab(infoTab);
 
   function panesUpdatedCallback() {
     if (multiview) multiview.onresize();
   }
 
   function loadFile(txtRes: string) {
+    sourceTabs.clearTabsAndContent();
+    disassemblyTabs.clearTabsAndContent();
     // If the JSON isn't properly terminated, assume compiler crashed and
     // add best-guess empty termination
     if (txtRes[txtRes.length - 2] == ',') {
@@ -63,20 +76,12 @@ window.onload = function () {
       sourceResolver.setNodePositionMap(jsonObj.nodePositions);
       sourceResolver.parsePhases(jsonObj.phases);
 
-      const sourceTabsContainer = document.getElementById(C.SOURCE_PANE_ID);
-      const sourceTabs = new Tabs(sourceTabsContainer);
       const [sourceTab, sourceContainer] = sourceTabs.addTabAndContent("Source");
       sourceContainer.classList.add("viewpane", "scrollable");
       sourceTabs.activateTab(sourceTab);
-      sourceTabs.addTab("&#x2b;").classList.add("open-tab");
       const sourceView = new CodeView(sourceContainer, selectionBroker, sourceResolver, fnc, CodeMode.MAIN_SOURCE);
       sourceView.show(null, null);
       sourceViews.push(sourceView);
-
-      const [, infoContainer] = sourceTabs.addTabAndContent("Info");
-      infoContainer.classList.add("viewpane", "scrollable");
-      infoView = new InfoView(infoContainer);
-      infoView.show(null, null);
 
       sourceResolver.forEachSource(source => {
         const sourceView = new CodeView(sourceContainer, selectionBroker, sourceResolver, source, CodeMode.INLINED_SOURCE);
@@ -84,12 +89,9 @@ window.onload = function () {
         sourceViews.push(sourceView);
       });
 
-      const disassemblyTabsContainer = document.getElementById(C.GENERATED_PANE_ID);
-      const disassemblyTabs = new Tabs(disassemblyTabsContainer);
       const [disassemblyTab, disassemblyContainer] = disassemblyTabs.addTabAndContent("Disassembly");
       disassemblyContainer.classList.add("viewpane", "scrollable");
       disassemblyTabs.activateTab(disassemblyTab);
-      disassemblyTabs.addTab("&#x2b;").classList.add("open-tab");
       disassemblyView = new DisassemblyView(disassemblyContainer, selectionBroker);
       disassemblyView.initializeCode(fnc.sourceText);
       if (sourceResolver.disassemblyPhase) {
