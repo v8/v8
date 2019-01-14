@@ -5432,16 +5432,29 @@ bool Genesis::ConfigureApiObject(Handle<JSObject> object,
 
   MaybeHandle<JSObject> maybe_obj =
       ApiNatives::InstantiateObject(object->GetIsolate(), object_template);
-  Handle<JSObject> obj;
-  if (!maybe_obj.ToHandle(&obj)) {
+  Handle<JSObject> instantiated_template;
+  if (!maybe_obj.ToHandle(&instantiated_template)) {
     DCHECK(isolate()->has_pending_exception());
     isolate()->clear_pending_exception();
     return false;
   }
-  TransferObject(obj, object);
+  TransferObject(instantiated_template, object);
   return true;
 }
 
+static bool PropertyAlreadyExists(Isolate* isolate, Handle<JSObject> to,
+                                  Handle<Name> key) {
+  LookupIterator it(isolate, to, key, LookupIterator::OWN_SKIP_INTERCEPTOR);
+  CHECK_NE(LookupIterator::ACCESS_CHECK, it.state());
+#ifdef DEBUG
+  if (it.IsFound()) {
+    PrintF(stderr, "Duplicate property when initializing global object: ");
+    key->ShortPrint();
+    PrintF("\n");
+  }
+#endif  // DEBUG
+  return it.IsFound();
+}
 
 void Genesis::TransferNamedProperties(Handle<JSObject> from,
                                       Handle<JSObject> to) {
@@ -5459,6 +5472,8 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
         if (details.kind() == kData) {
           HandleScope inner(isolate());
           Handle<Name> key = Handle<Name>(descs->GetKey(i), isolate());
+          // If the property is already there we skip it.
+          if (PropertyAlreadyExists(isolate(), to, key)) continue;
           FieldIndex index = FieldIndex::ForDescriptor(from->map(), i);
           Handle<Object> value =
               JSObject::FastPropertyAt(from, details.representation(), index);
@@ -5475,17 +5490,16 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
           DCHECK(!FLAG_track_constant_fields);
           HandleScope inner(isolate());
           Handle<Name> key = Handle<Name>(descs->GetKey(i), isolate());
+          // If the property is already there we skip it.
+          if (PropertyAlreadyExists(isolate(), to, key)) continue;
           Handle<Object> value(descs->GetStrongValue(i), isolate());
           JSObject::AddProperty(isolate(), to, key, value,
                                 details.attributes());
         } else {
           DCHECK_EQ(kAccessor, details.kind());
           Handle<Name> key(descs->GetKey(i), isolate());
-          LookupIterator it(isolate(), to, key,
-                            LookupIterator::OWN_SKIP_INTERCEPTOR);
-          CHECK_NE(LookupIterator::ACCESS_CHECK, it.state());
-          // If the property is already there we skip it
-          if (it.IsFound()) continue;
+          // If the property is already there we skip it.
+          if (PropertyAlreadyExists(isolate(), to, key)) continue;
           HandleScope inner(isolate());
           DCHECK(!to->HasFastProperties());
           // Add to dictionary.
@@ -5504,13 +5518,10 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
         GlobalDictionary::IterationIndices(isolate(), properties);
     for (int i = 0; i < indices->length(); i++) {
       int index = Smi::ToInt(indices->get(i));
-      // If the property is already there we skip it.
       Handle<PropertyCell> cell(properties->CellAt(index), isolate());
       Handle<Name> key(cell->name(), isolate());
-      LookupIterator it(isolate(), to, key,
-                        LookupIterator::OWN_SKIP_INTERCEPTOR);
-      CHECK_NE(LookupIterator::ACCESS_CHECK, it.state());
-      if (it.IsFound()) continue;
+      // If the property is already there we skip it.
+      if (PropertyAlreadyExists(isolate(), to, key)) continue;
       // Set the property.
       Handle<Object> value(cell->value(), isolate());
       if (value->IsTheHole(isolate())) continue;
@@ -5530,12 +5541,9 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
       Object raw_key = properties->KeyAt(key_index);
       DCHECK(properties->IsKey(roots, raw_key));
       DCHECK(raw_key->IsName());
-      // If the property is already there we skip it.
       Handle<Name> key(Name::cast(raw_key), isolate());
-      LookupIterator it(isolate(), to, key,
-                        LookupIterator::OWN_SKIP_INTERCEPTOR);
-      CHECK_NE(LookupIterator::ACCESS_CHECK, it.state());
-      if (it.IsFound()) continue;
+      // If the property is already there we skip it.
+      if (PropertyAlreadyExists(isolate(), to, key)) continue;
       // Set the property.
       Handle<Object> value =
           Handle<Object>(properties->ValueAt(key_index), isolate());
@@ -5669,7 +5677,7 @@ Genesis::Genesis(
 
     if (FLAG_profile_deserialization) {
       double ms = timer.Elapsed().InMillisecondsF();
-      i::PrintF("[Initializing context from scratch took %0.3f ms]\n", ms);
+      PrintF("[Initializing context from scratch took %0.3f ms]\n", ms);
     }
   }
 

@@ -788,6 +788,42 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlob1) {
   FreeCurrentEmbeddedBlob();
 }
 
+static void UnreachableCallback(const FunctionCallbackInfo<Value>& args) {
+  UNREACHABLE();
+}
+
+UNINITIALIZED_TEST(CustomSnapshotDataBlobOverwriteGlobal) {
+  DisableAlwaysOpt();
+  const char* source1 = "function f() { return 42; }";
+
+  v8::StartupData data1 = CreateSnapshotDataBlob(source1);
+
+  v8::Isolate::CreateParams params1;
+  params1.snapshot_blob = &data1;
+  params1.array_buffer_allocator = CcTest::array_buffer_allocator();
+
+  // Test that the snapshot overwrites the object template when there are
+  // duplicate global properties.
+  v8::Isolate* isolate1 = TestSerializer::NewIsolate(params1);
+  {
+    v8::Isolate::Scope i_scope(isolate1);
+    v8::HandleScope h_scope(isolate1);
+    v8::Local<v8::ObjectTemplate> global_template =
+        v8::ObjectTemplate::New(isolate1);
+    global_template->Set(
+        v8_str("f"), v8::FunctionTemplate::New(isolate1, UnreachableCallback));
+    v8::Local<v8::Context> context =
+        v8::Context::New(isolate1, nullptr, global_template);
+    v8::Context::Scope c_scope(context);
+    v8::Maybe<int32_t> result =
+        CompileRun("f()")->Int32Value(isolate1->GetCurrentContext());
+    CHECK_EQ(42, result.FromJust());
+  }
+  isolate1->Dispose();
+  delete[] data1.data;  // We can dispose of the snapshot blob now.
+  FreeCurrentEmbeddedBlob();
+}
+
 UNINITIALIZED_TEST(CustomSnapshotDataBlobStringNotInternalized) {
   DisableAlwaysOpt();
   const char* source1 =
