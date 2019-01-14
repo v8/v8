@@ -35,110 +35,7 @@ MemCopyUint8Function CreateMemCopyUint8Function(MemCopyUint8Function stub) {
   Register temp1 = r3;
   Label less_4;
 
-  if (CpuFeatures::IsSupported(NEON)) {
-    CpuFeatureScope scope(&masm, NEON);
-    Label loop, less_256, less_128, less_64, less_32, _16_or_less, _8_or_less;
-    Label size_less_than_8;
-    __ pld(MemOperand(src, 0));
-
-    __ cmp(chars, Operand(8));
-    __ b(lt, &size_less_than_8);
-    __ cmp(chars, Operand(32));
-    __ b(lt, &less_32);
-    if (CpuFeatures::dcache_line_size() == 32) {
-      __ pld(MemOperand(src, 32));
-    }
-    __ cmp(chars, Operand(64));
-    __ b(lt, &less_64);
-    __ pld(MemOperand(src, 64));
-    if (CpuFeatures::dcache_line_size() == 32) {
-      __ pld(MemOperand(src, 96));
-    }
-    __ cmp(chars, Operand(128));
-    __ b(lt, &less_128);
-    __ pld(MemOperand(src, 128));
-    if (CpuFeatures::dcache_line_size() == 32) {
-      __ pld(MemOperand(src, 160));
-    }
-    __ pld(MemOperand(src, 192));
-    if (CpuFeatures::dcache_line_size() == 32) {
-      __ pld(MemOperand(src, 224));
-    }
-    __ cmp(chars, Operand(256));
-    __ b(lt, &less_256);
-    __ sub(chars, chars, Operand(256));
-
-    __ bind(&loop);
-    __ pld(MemOperand(src, 256));
-    __ vld1(Neon8, NeonListOperand(d0, 4), NeonMemOperand(src, PostIndex));
-    if (CpuFeatures::dcache_line_size() == 32) {
-      __ pld(MemOperand(src, 256));
-    }
-    __ vld1(Neon8, NeonListOperand(d4, 4), NeonMemOperand(src, PostIndex));
-    __ sub(chars, chars, Operand(64), SetCC);
-    __ vst1(Neon8, NeonListOperand(d0, 4), NeonMemOperand(dest, PostIndex));
-    __ vst1(Neon8, NeonListOperand(d4, 4), NeonMemOperand(dest, PostIndex));
-    __ b(ge, &loop);
-    __ add(chars, chars, Operand(256));
-
-    __ bind(&less_256);
-    __ vld1(Neon8, NeonListOperand(d0, 4), NeonMemOperand(src, PostIndex));
-    __ vld1(Neon8, NeonListOperand(d4, 4), NeonMemOperand(src, PostIndex));
-    __ sub(chars, chars, Operand(128));
-    __ vst1(Neon8, NeonListOperand(d0, 4), NeonMemOperand(dest, PostIndex));
-    __ vst1(Neon8, NeonListOperand(d4, 4), NeonMemOperand(dest, PostIndex));
-    __ vld1(Neon8, NeonListOperand(d0, 4), NeonMemOperand(src, PostIndex));
-    __ vld1(Neon8, NeonListOperand(d4, 4), NeonMemOperand(src, PostIndex));
-    __ vst1(Neon8, NeonListOperand(d0, 4), NeonMemOperand(dest, PostIndex));
-    __ vst1(Neon8, NeonListOperand(d4, 4), NeonMemOperand(dest, PostIndex));
-    __ cmp(chars, Operand(64));
-    __ b(lt, &less_64);
-
-    __ bind(&less_128);
-    __ vld1(Neon8, NeonListOperand(d0, 4), NeonMemOperand(src, PostIndex));
-    __ vld1(Neon8, NeonListOperand(d4, 4), NeonMemOperand(src, PostIndex));
-    __ sub(chars, chars, Operand(64));
-    __ vst1(Neon8, NeonListOperand(d0, 4), NeonMemOperand(dest, PostIndex));
-    __ vst1(Neon8, NeonListOperand(d4, 4), NeonMemOperand(dest, PostIndex));
-
-    __ bind(&less_64);
-    __ cmp(chars, Operand(32));
-    __ b(lt, &less_32);
-    __ vld1(Neon8, NeonListOperand(d0, 4), NeonMemOperand(src, PostIndex));
-    __ vst1(Neon8, NeonListOperand(d0, 4), NeonMemOperand(dest, PostIndex));
-    __ sub(chars, chars, Operand(32));
-
-    __ bind(&less_32);
-    __ cmp(chars, Operand(16));
-    __ b(le, &_16_or_less);
-    __ vld1(Neon8, NeonListOperand(d0, 2), NeonMemOperand(src, PostIndex));
-    __ vst1(Neon8, NeonListOperand(d0, 2), NeonMemOperand(dest, PostIndex));
-    __ sub(chars, chars, Operand(16));
-
-    __ bind(&_16_or_less);
-    __ cmp(chars, Operand(8));
-    __ b(le, &_8_or_less);
-    __ vld1(Neon8, NeonListOperand(d0), NeonMemOperand(src, PostIndex));
-    __ vst1(Neon8, NeonListOperand(d0), NeonMemOperand(dest, PostIndex));
-    __ sub(chars, chars, Operand(8));
-
-    // Do a last copy which may overlap with the previous copy (up to 8 bytes).
-    __ bind(&_8_or_less);
-    __ rsb(chars, chars, Operand(8));
-    __ sub(src, src, Operand(chars));
-    __ sub(dest, dest, Operand(chars));
-    __ vld1(Neon8, NeonListOperand(d0), NeonMemOperand(src));
-    __ vst1(Neon8, NeonListOperand(d0), NeonMemOperand(dest));
-
-    __ Ret();
-
-    __ bind(&size_less_than_8);
-
-    __ bic(temp1, chars, Operand(0x3), SetCC);
-    __ b(&less_4, eq);
-    __ ldr(temp1, MemOperand(src, 4, PostIndex));
-    __ str(temp1, MemOperand(dest, 4, PostIndex));
-  } else {
+  {
     UseScratchRegisterScope temps(&masm);
     Register temp2 = temps.Acquire();
     Label loop;
@@ -192,31 +89,8 @@ MemCopyUint16Uint8Function CreateMemCopyUint16Uint8Function(
   Register dest = r0;
   Register src = r1;
   Register chars = r2;
-  if (CpuFeatures::IsSupported(NEON)) {
-    CpuFeatureScope scope(&masm, NEON);
-    Register temp = r3;
-    Label loop;
 
-    __ bic(temp, chars, Operand(0x7));
-    __ sub(chars, chars, Operand(temp));
-    __ add(temp, dest, Operand(temp, LSL, 1));
-
-    __ bind(&loop);
-    __ vld1(Neon8, NeonListOperand(d0), NeonMemOperand(src, PostIndex));
-    __ vmovl(NeonU8, q0, d0);
-    __ vst1(Neon16, NeonListOperand(d0, 2), NeonMemOperand(dest, PostIndex));
-    __ cmp(dest, temp);
-    __ b(&loop, ne);
-
-    // Do a last copy which will overlap with the previous copy (1 to 8 bytes).
-    __ rsb(chars, chars, Operand(8));
-    __ sub(src, src, Operand(chars));
-    __ sub(dest, dest, Operand(chars, LSL, 1));
-    __ vld1(Neon8, NeonListOperand(d0), NeonMemOperand(src));
-    __ vmovl(NeonU8, q0, d0);
-    __ vst1(Neon16, NeonListOperand(d0, 2), NeonMemOperand(dest));
-    __ Ret();
-  } else {
+  {
     UseScratchRegisterScope temps(&masm);
 
     Register temp1 = r3;
