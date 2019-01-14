@@ -449,6 +449,7 @@ struct WeakObjects {
   Worklist<JSWeakCell, 64> js_weak_cells;
 
   Worklist<SharedFunctionInfo, 64> bytecode_flushing_candidates;
+  Worklist<JSFunction, 64> flushed_js_functions;
 };
 
 struct EphemeronMarking {
@@ -662,6 +663,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   }
 
   inline void AddBytecodeFlushingCandidate(SharedFunctionInfo flush_candidate);
+  inline void AddFlushedJSFunction(JSFunction flushed_function);
 
   void AddNewlyDiscovered(HeapObject object) {
     if (ephemeron_marking_.newly_discovered_overflowed) return;
@@ -792,6 +794,9 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   // Clears bytecode arrays that have not been executed for multiple
   // collections.
   void ClearOldBytecodeCandidates();
+
+  // Resets any JSFunctions which have had their bytecode flushed.
+  void ClearFlushedJsFunctions();
 
   // Compact every array in the global list of transition arrays and
   // trim the corresponding descriptor array if a transition target is non-live.
@@ -927,6 +932,7 @@ class MarkingVisitor final
   V8_INLINE int VisitFixedArray(Map map, FixedArray object);
   V8_INLINE int VisitJSApiObject(Map map, JSObject object);
   V8_INLINE int VisitJSArrayBuffer(Map map, JSArrayBuffer object);
+  V8_INLINE int VisitJSFunction(Map map, JSFunction object);
   V8_INLINE int VisitJSDataView(Map map, JSDataView object);
   V8_INLINE int VisitJSTypedArray(Map map, JSTypedArray object);
   V8_INLINE int VisitMap(Map map, Map object);

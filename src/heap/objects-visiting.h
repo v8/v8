@@ -55,6 +55,7 @@ class WasmInstanceObject;
   V(FixedTypedArrayBase, FixedTypedArrayBase)                             \
   V(JSArrayBuffer, JSArrayBuffer)                                         \
   V(JSDataView, JSDataView)                                               \
+  V(JSFunction, JSFunction)                                               \
   V(JSObject, JSObject)                                                   \
   V(JSTypedArray, JSTypedArray)                                           \
   V(JSWeakCell, JSWeakCell)                                               \
