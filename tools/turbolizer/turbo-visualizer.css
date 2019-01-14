@@ -23,6 +23,17 @@
   vertical-align: middle;
   width: 145px;
   opacity: 1;
+  box-sizing: border-box;
+  height: 1.5em;
+}
+
+#phase-select {
+  box-sizing: border-box;
+  height: 1.5em;
+}
+
+#search-only-visible {
+  vertical-align: middle;
 }
 
 .button-input {
@@ -367,11 +378,10 @@ input:hover,
 .graph-toolbox {
   position: relative;
   border-bottom: 2px solid #eee8d5;
-  padding-bottom: 3px;
   z-index: 5;
   background: rgba(100%, 100%, 100%, 0.7);
-  padding-top: 3px;
   box-sizing: border-box;
+  padding: 3px;
   margin-left: 4px;
   margin-right: 4px;
 }

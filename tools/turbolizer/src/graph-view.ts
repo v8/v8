@@ -44,6 +44,7 @@ export class GraphView extends View implements PhaseView {
   graph: Graph;
   broker: SelectionBroker;
   phaseName: string;
+  toolbox: HTMLElement;
 
   createViewElement() {
     const pane = document.createElement('div');
@@ -51,13 +52,15 @@ export class GraphView extends View implements PhaseView {
     return pane;
   }
 
-  constructor(idOrContainer: string | HTMLElement, broker: SelectionBroker, showPhaseByName: (s: string) => void) {
+  constructor(idOrContainer: string | HTMLElement, broker: SelectionBroker,
+    showPhaseByName: (s: string) => void, toolbox: HTMLElement) {
     super(idOrContainer);
     const view = this;
     this.broker = broker;
     this.showPhaseByName = showPhaseByName;
     this.divElement = d3.select(this.divNode);
     this.phaseName = "";
+    this.toolbox = toolbox;
     const svg = this.divElement.append("svg")
       .attr('version', '2.0')
       .attr("width", "100%")
@@ -224,13 +227,31 @@ export class GraphView extends View implements PhaseView {
   }
 
   initializeContent(data, rememberedSelection) {
-    d3.select("#layout").on("click", partial(this.layoutAction, this));
-    d3.select("#show-all").on("click", partial(this.showAllAction, this));
-    d3.select("#toggle-hide-dead").on("click", partial(this.toggleHideDead, this));
-    d3.select("#hide-unselected").on("click", partial(this.hideUnselectedAction, this));
-    d3.select("#hide-selected").on("click", partial(this.hideSelectedAction, this));
-    d3.select("#zoom-selection").on("click", partial(this.zoomSelectionAction, this));
-    d3.select("#toggle-types").on("click", partial(this.toggleTypesAction, this));
+    function createImgInput(id: string, title: string, onClick): HTMLElement {
+      const input = document.createElement("input");
+      input.setAttribute("id", id);
+      input.setAttribute("type", "image");
+      input.setAttribute("title", title);
+      input.setAttribute("src", `img/${id}-icon.png`);
+      input.className = "button-input graph-toolbox-item";
+      input.addEventListener("click", onClick);
+      return input;
+    }
+    this.toolbox.appendChild(createImgInput("layout", "layout graph",
+      partial(this.layoutAction, this)));
+    this.toolbox.appendChild(createImgInput("show-all", "show all nodes",
+      partial(this.showAllAction, this)));
+    this.toolbox.appendChild(createImgInput("toggle-hide-dead", "show only live nodes",
+      partial(this.toggleHideDead, this)));
+    this.toolbox.appendChild(createImgInput("hide-unselected", "show only live nodes",
+      partial(this.hideUnselectedAction, this)));
+    this.toolbox.appendChild(createImgInput("hide-selected", "show only live nodes",
+      partial(this.hideSelectedAction, this)));
+    this.toolbox.appendChild(createImgInput("zoom-selection", "show only live nodes",
+      partial(this.zoomSelectionAction, this)));
+    this.toolbox.appendChild(createImgInput("toggle-types", "show only live nodes",
+      partial(this.toggleTypesAction, this)));
+
     this.phaseName = data.name;
     this.createGraph(data.data, rememberedSelection);
     this.broker.addNodeHandler(this.selectionHandler);
@@ -250,6 +271,10 @@ export class GraphView extends View implements PhaseView {
   }
 
   deleteContent() {
+    for (const item of this.toolbox.querySelectorAll(".graph-toolbox-item")) {
+      item.parentElement.removeChild(item);
+    }
+
     for (const n of this.graph.nodes()) {
       n.visible = false;
     }
