@@ -78,11 +78,13 @@ class ConcurrentMarkingVisitor final
 
   explicit ConcurrentMarkingVisitor(
       ConcurrentMarking::MarkingWorklist* shared,
+      ConcurrentMarking::MarkingWorklist* bailout,
       MemoryChunkDataMap* memory_chunk_data, WeakObjects* weak_objects,
       ConcurrentMarking::EmbedderTracingWorklist* embedder_objects, int task_id,
       bool embedder_tracing_enabled, unsigned mark_compact_epoch,
       bool is_forced_gc)
       : shared_(shared, task_id),
+        bailout_(bailout, task_id),
         weak_objects_(weak_objects),
         embedder_objects_(embedder_objects, task_id),
         marking_state_(memory_chunk_data),
@@ -656,6 +658,7 @@ class ConcurrentMarkingVisitor final
   }
 
   ConcurrentMarking::MarkingWorklist::View shared_;
+  ConcurrentMarking::MarkingWorklist::View bailout_;
   WeakObjects* weak_objects_;
   ConcurrentMarking::EmbedderTracingWorklist::View embedder_objects_;
   ConcurrentMarkingState marking_state_;
@@ -724,11 +727,13 @@ class ConcurrentMarking::Task : public CancelableTask {
 };
 
 ConcurrentMarking::ConcurrentMarking(Heap* heap, MarkingWorklist* shared,
+                                     MarkingWorklist* bailout,
                                      MarkingWorklist* on_hold,
                                      WeakObjects* weak_objects,
                                      EmbedderTracingWorklist* embedder_objects)
     : heap_(heap),
       shared_(shared),
+      bailout_(bailout),
       on_hold_(on_hold),
       weak_objects_(weak_objects),
       embedder_objects_(embedder_objects) {
@@ -744,8 +749,8 @@ void ConcurrentMarking::Run(int task_id, TaskState* task_state) {
   size_t kBytesUntilInterruptCheck = 64 * KB;
   int kObjectsUntilInterrupCheck = 1000;
   ConcurrentMarkingVisitor visitor(
-      shared_, &task_state->memory_chunk_data, weak_objects_, embedder_objects_,
-      task_id, heap_->local_embedder_heap_tracer()->InUse(),
+      shared_, bailout_, &task_state->memory_chunk_data, weak_objects_,
+      embedder_objects_, task_id, heap_->local_embedder_heap_tracer()->InUse(),
       task_state->mark_compact_epoch, task_state->is_forced_gc);
   double time_ms;
   size_t marked_bytes = 0;
@@ -812,6 +817,7 @@ void ConcurrentMarking::Run(int task_id, TaskState* task_state) {
     }
 
     shared_->FlushToGlobal(task_id);
+    bailout_->FlushToGlobal(task_id);
     on_hold_->FlushToGlobal(task_id);
     embedder_objects_->FlushToGlobal(task_id);
 

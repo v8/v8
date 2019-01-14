@@ -1691,6 +1691,7 @@ void MarkCompactCollector::ProcessMarkingWorklistInternal() {
     MarkObject(object, map);
     visitor.Visit(map, object);
   }
+  DCHECK(marking_worklist()->IsBailoutEmpty());
 }
 
 bool MarkCompactCollector::VisitEphemeron(HeapObject key, HeapObject value) {

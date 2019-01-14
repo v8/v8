@@ -20,6 +20,7 @@ class Object;
 class PagedSpace;
 
 enum class StepOrigin { kV8, kTask };
+enum class WorklistToProcess { kAll, kBailout };
 
 class V8_EXPORT_PRIVATE IncrementalMarking {
  public:
@@ -174,7 +175,8 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
   void FinalizeSweeping();
 
   size_t Step(size_t bytes_to_process, CompletionAction action,
-              StepOrigin step_origin);
+              StepOrigin step_origin,
+              WorklistToProcess worklist_to_process = WorklistToProcess::kAll);
   void StepOnAllocation(size_t bytes_to_process, double max_step_size);
 
   bool ShouldDoEmbedderStep();
@@ -214,7 +216,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
   // This function is used to color the object black before it undergoes an
   // unsafe layout change. This is a part of synchronization protocol with
   // the concurrent marker.
-  void MarkBlackAndVisitObjectDueToLayoutChange(HeapObject obj);
+  void MarkBlackAndPush(HeapObject obj);
 
   bool IsCompacting() { return IsMarking() && is_compacting_; }
 
@@ -277,6 +279,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
   void DeactivateIncrementalWriteBarrierForSpace(NewSpace* space);
   void DeactivateIncrementalWriteBarrier();
 
+  template <WorklistToProcess worklist_to_process = WorklistToProcess::kAll>
   V8_INLINE intptr_t ProcessMarkingWorklist(
       intptr_t bytes_to_process,
       ForceCompletionAction completion = DO_NOT_FORCE_COMPLETION);
