@@ -218,10 +218,10 @@ class Decoder {
   template <typename T, typename U = typename std::remove_reference<T>::type>
   Result<U> toResult(T&& val) {
     if (failed()) {
-      TRACE("Result error: %s\n", error_msg_.c_str());
-      return Result<U>::Error(error_offset_, std::move(error_msg_));
+      TRACE("Result error: %s\n", error_.message().c_str());
+      return Result<U>{error_};
     }
-    return Result<U>(std::forward<T>(val));
+    return Result<U>{std::forward<T>(val)};
   }
 
   // Resets the boundaries of this decoder.
@@ -232,17 +232,17 @@ class Decoder {
     pc_ = start;
     end_ = end;
     buffer_offset_ = buffer_offset;
-    error_offset_ = 0;
-    error_msg_.clear();
+    error_ = {};
   }
 
   void Reset(Vector<const uint8_t> bytes, uint32_t buffer_offset = 0) {
     Reset(bytes.begin(), bytes.end(), buffer_offset);
   }
 
-  bool ok() const { return error_msg_.empty(); }
+  bool ok() const { return error_.empty(); }
   bool failed() const { return !ok(); }
   bool more() const { return pc_ < end_; }
+  const WasmError& error() const { return error_; }
 
   const byte* start() const { return start_; }
   const byte* pc() const { return pc_; }
@@ -271,8 +271,7 @@ class Decoder {
   const byte* end_;
   // The offset of the current buffer in the module. Needed for streaming.
   uint32_t buffer_offset_;
-  uint32_t error_offset_ = 0;
-  std::string error_msg_;
+  WasmError error_;
 
  private:
   void verrorf(uint32_t offset, const char* format, va_list args) {
@@ -287,8 +286,7 @@ class Decoder {
     EmbeddedVector<char, kMaxErrorMsg> buffer;
     int len = VSNPrintF(buffer, format, args);
     CHECK_LT(0, len);
-    error_msg_.assign(buffer.start(), len);
-    error_offset_ = offset;
+    error_ = {offset, {buffer.start(), static_cast<size_t>(len)}};
     onFirstError();
   }
 

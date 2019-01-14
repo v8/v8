@@ -50,7 +50,7 @@ void PrintFToString(std::string& str, size_t str_offset, const char* format,
 }  // namespace
 
 // static
-std::string ResultBase::FormatError(const char* format, va_list args) {
+std::string WasmError::FormatError(const char* format, va_list args) {
   std::string result;
   VPrintFToString(result, 0, format, args);
   return result;

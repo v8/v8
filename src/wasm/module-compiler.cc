@@ -96,7 +96,7 @@ class CompilationStateImpl {
 
   void Abort();
 
-  void SetError(uint32_t func_index, const ResultBase& error_result);
+  void SetError(uint32_t func_index, const WasmError& error);
 
   Isolate* isolate() const { return isolate_; }
 
@@ -117,7 +117,7 @@ class CompilationStateImpl {
   // Call {GetCompileError} from foreground threads only, since we access
   // NativeModule::wire_bytes, which is set from the foreground thread once the
   // stream has finished.
-  VoidResult GetCompileError() {
+  WasmError GetCompileError() {
     CompilationError* error = compile_error_.load(std::memory_order_acquire);
     DCHECK_NOT_NULL(error);
     std::ostringstream error_msg;
@@ -131,8 +131,8 @@ class CompilationStateImpl {
     } else {
       error_msg << "wasm-function[" << error->func_index << "]";
     }
-    error_msg << "\" failed: " << error->result.error_msg();
-    return VoidResult::Error(error->result.error_offset(), error_msg.str());
+    error_msg << "\" failed: " << error->error.message();
+    return WasmError{error->error.offset(), error_msg.str()};
   }
 
   std::shared_ptr<WireBytesStorage> GetSharedWireBytesStorage() const {
@@ -155,10 +155,9 @@ class CompilationStateImpl {
  private:
   struct CompilationError {
     uint32_t const func_index;
-    VoidResult const result;
-    CompilationError(uint32_t func_index, const ResultBase& compile_result)
-        : func_index(func_index),
-          result(VoidResult::ErrorFrom(compile_result)) {}
+    WasmError const error;
+    CompilationError(uint32_t func_index, WasmError error)
+        : func_index(func_index), error(std::move(error)) {}
   };
 
   class LogCodesTask : public CancelableTask {
@@ -208,7 +207,7 @@ class CompilationStateImpl {
     CompilationStateImpl* const compilation_state_;
   };
 
-  void NotifyOnEvent(CompilationEvent event, const VoidResult* error_result);
+  void NotifyOnEvent(CompilationEvent event, const WasmError* error);
 
   std::vector<std::unique_ptr<WasmCompilationUnit>>& finish_units() {
     return baseline_compilation_finished() ? tiering_finish_units_
@@ -305,9 +304,8 @@ CompilationState::~CompilationState() { Impl(this)->~CompilationStateImpl(); }
 
 void CompilationState::CancelAndWait() { Impl(this)->CancelAndWait(); }
 
-void CompilationState::SetError(uint32_t func_index,
-                                const ResultBase& error_result) {
-  Impl(this)->SetError(func_index, error_result);
+void CompilationState::SetError(uint32_t func_index, const WasmError& error) {
+  Impl(this)->SetError(func_index, error);
 }
 
 void CompilationState::SetWireBytesStorage(
@@ -656,7 +654,8 @@ void ValidateSequentially(Isolate* isolate, NativeModule* native_module,
       TruncatedUserString<> name(wire_bytes.GetNameOrNull(&func, module));
       thrower->CompileError("Compiling function #%d:%.*s failed: %s @+%u", i,
                             name.length(), name.start(),
-                            result.error_msg().c_str(), result.error_offset());
+                            result.error().message().c_str(),
+                            result.error().offset());
       break;
     }
   }
@@ -894,7 +893,7 @@ class AsyncStreamingProcessor final : public StreamingProcessor {
 
   void OnFinishedStream(OwnedVector<uint8_t> bytes) override;
 
-  void OnError(DecodeResult result) override;
+  void OnError(const WasmError&) override;
 
   void OnAbort() override;
 
@@ -903,7 +902,7 @@ class AsyncStreamingProcessor final : public StreamingProcessor {
 
  private:
   // Finishes the AsyncCompileJob with an error.
-  void FinishAsyncCompileJobWithError(ResultBase result);
+  void FinishAsyncCompileJobWithError(const WasmError&);
 
   void CommitCompilationUnits();
 
@@ -1027,7 +1026,7 @@ class AsyncCompileJob::CompilationStateCallback {
  public:
   explicit CompilationStateCallback(AsyncCompileJob* job) : job_(job) {}
 
-  void operator()(CompilationEvent event, const ResultBase* error_result) {
+  void operator()(CompilationEvent event, const WasmError* error) {
     // This callback is only being called from a foreground task.
     switch (event) {
       case CompilationEvent::kFinishedBaselineCompilation:
@@ -1049,7 +1048,7 @@ class AsyncCompileJob::CompilationStateCallback {
         break;
       case CompilationEvent::kFailedCompilation:
         DCHECK(!last_event_.has_value());
-        DCHECK_NOT_NULL(error_result);
+        DCHECK_NOT_NULL(error);
         // Tier-up compilation should not fail if baseline compilation
         // did not fail.
         DCHECK(!Impl(job_->native_module_->compilation_state())
@@ -1059,7 +1058,7 @@ class AsyncCompileJob::CompilationStateCallback {
           SaveContext saved_context(job_->isolate());
           job_->isolate()->set_context(*job_->native_context_);
           ErrorThrower thrower(job_->isolate(), "AsyncCompilation");
-          thrower.CompileFailed(*error_result);
+          thrower.CompileFailed(nullptr, *error);
           Handle<Object> error = thrower.Reify();
 
           DeferredHandleScope deferred(job_->isolate());
@@ -1230,7 +1229,7 @@ class AsyncCompileJob::DecodeModule : public AsyncCompileJob::CompileStep {
     }
     if (result.failed()) {
       // Decoding failure; reject the promise and clean up.
-      job->DoSync<DecodeFail>(std::move(result));
+      job->DoSync<DecodeFail>(std::move(result).error());
     } else {
       // Decode passed.
       job->DoSync<PrepareAndStartCompile>(std::move(result).value(), true);
@@ -1246,14 +1245,15 @@ class AsyncCompileJob::DecodeModule : public AsyncCompileJob::CompileStep {
 //==========================================================================
 class AsyncCompileJob::DecodeFail : public CompileStep {
  public:
-  explicit DecodeFail(ModuleResult result) : result_(std::move(result)) {}
+  explicit DecodeFail(WasmError error) : error_(std::move(error)) {}
 
  private:
-  ModuleResult result_;
+  WasmError error_;
+
   void RunInForeground(AsyncCompileJob* job) override {
     TRACE_COMPILE("(1b) Decoding failed.\n");
     ErrorThrower thrower(job->isolate_, "AsyncCompile");
-    thrower.CompileFailed("Wasm decoding failed", result_);
+    thrower.CompileFailed("Wasm decoding failed", error_);
     // {job_} is deleted in AsyncCompileFailed, therefore the {return}.
     return job->AsyncCompileFailed(thrower.Reify());
   }
@@ -1359,15 +1359,12 @@ AsyncStreamingProcessor::AsyncStreamingProcessor(AsyncCompileJob* job)
       job_(job),
       compilation_unit_builder_(nullptr) {}
 
-void AsyncStreamingProcessor::FinishAsyncCompileJobWithError(ResultBase error) {
-  DCHECK(error.failed());
+void AsyncStreamingProcessor::FinishAsyncCompileJobWithError(
+    const WasmError& error) {
+  DCHECK(error.has_error());
   // Make sure all background tasks stopped executing before we change the state
   // of the AsyncCompileJob to DecodeFail.
   job_->background_task_manager_.CancelAndWait();
-
-  // Create a ModuleResult from the result we got as parameter. Since there was
-  // an error, we don't have to provide a real wasm module to the ModuleResult.
-  ModuleResult result = ModuleResult::ErrorFrom(std::move(error));
 
   // Check if there is already a CompiledModule, in which case we have to clean
   // up the CompilationStateImpl as well.
@@ -1375,15 +1372,14 @@ void AsyncStreamingProcessor::FinishAsyncCompileJobWithError(ResultBase error) {
     Impl(job_->native_module_->compilation_state())->Abort();
 
     job_->DoSync<AsyncCompileJob::DecodeFail,
-                 AsyncCompileJob::kUseExistingForegroundTask>(
-        std::move(result));
+                 AsyncCompileJob::kUseExistingForegroundTask>(error);
 
     // Clear the {compilation_unit_builder_} if it exists. This is needed
     // because there is a check in the destructor of the
     // {CompilationUnitBuilder} that it is empty.
     if (compilation_unit_builder_) compilation_unit_builder_->Clear();
   } else {
-    job_->DoSync<AsyncCompileJob::DecodeFail>(std::move(result));
+    job_->DoSync<AsyncCompileJob::DecodeFail>(error);
   }
 }
 
@@ -1395,7 +1391,7 @@ bool AsyncStreamingProcessor::ProcessModuleHeader(Vector<const uint8_t> bytes,
                          job_->isolate()->wasm_engine()->allocator());
   decoder_.DecodeModuleHeader(bytes, offset);
   if (!decoder_.ok()) {
-    FinishAsyncCompileJobWithError(decoder_.FinishDecoding(false));
+    FinishAsyncCompileJobWithError(decoder_.FinishDecoding(false).error());
     return false;
   }
   return true;
@@ -1427,7 +1423,7 @@ bool AsyncStreamingProcessor::ProcessSection(SectionCode section_code,
   constexpr bool verify_functions = false;
   decoder_.DecodeSection(section_code, bytes, offset, verify_functions);
   if (!decoder_.ok()) {
-    FinishAsyncCompileJobWithError(decoder_.FinishDecoding(false));
+    FinishAsyncCompileJobWithError(decoder_.FinishDecoding(false).error());
     return false;
   }
   return true;
@@ -1441,7 +1437,7 @@ bool AsyncStreamingProcessor::ProcessCodeSectionHeader(
                   functions_count);
   if (!decoder_.CheckFunctionsCount(static_cast<uint32_t>(functions_count),
                                     offset)) {
-    FinishAsyncCompileJobWithError(decoder_.FinishDecoding(false));
+    FinishAsyncCompileJobWithError(decoder_.FinishDecoding(false).error());
     return false;
   }
   // Execute the PrepareAndStartCompile step immediately and not in a separate
@@ -1493,7 +1489,7 @@ void AsyncStreamingProcessor::OnFinishedStream(OwnedVector<uint8_t> bytes) {
   TRACE_STREAMING("Finish stream...\n");
   ModuleResult result = decoder_.FinishDecoding(false);
   if (result.failed()) {
-    FinishAsyncCompileJobWithError(std::move(result));
+    FinishAsyncCompileJobWithError(result.error());
     return;
   }
   // We have to open a HandleScope and prepare the Context for
@@ -1518,9 +1514,9 @@ void AsyncStreamingProcessor::OnFinishedStream(OwnedVector<uint8_t> bytes) {
 }
 
 // Report an error detected in the StreamingDecoder.
-void AsyncStreamingProcessor::OnError(DecodeResult result) {
+void AsyncStreamingProcessor::OnError(const WasmError& error) {
   TRACE_STREAMING("Stream error...\n");
-  FinishAsyncCompileJobWithError(std::move(result));
+  FinishAsyncCompileJobWithError(error);
 }
 
 void AsyncStreamingProcessor::OnAbort() {
@@ -1780,7 +1776,7 @@ void CompilationStateImpl::ScheduleFinisherTask() {
 }
 
 void CompilationStateImpl::Abort() {
-  SetError(0, VoidResult::Error(0, "Compilation aborted"));
+  SetError(0, WasmError{0, "Compilation aborted"});
   background_task_manager_.CancelAndWait();
   // No more callbacks after abort. Don't free the std::function objects here,
   // since this might clear references in the embedder, which is only allowed on
@@ -1793,32 +1789,32 @@ void CompilationStateImpl::Abort() {
 }
 
 void CompilationStateImpl::SetError(uint32_t func_index,
-                                    const ResultBase& error_result) {
-  DCHECK(error_result.failed());
-  std::unique_ptr<CompilationError> error =
-      base::make_unique<CompilationError>(func_index, error_result);
+                                    const WasmError& error) {
+  DCHECK(error.has_error());
+  std::unique_ptr<CompilationError> compile_error =
+      base::make_unique<CompilationError>(func_index, error);
   CompilationError* expected = nullptr;
-  bool set = compile_error_.compare_exchange_strong(expected, error.get(),
-                                                    std::memory_order_acq_rel);
+  bool set = compile_error_.compare_exchange_strong(
+      expected, compile_error.get(), std::memory_order_acq_rel);
   // Ignore all but the first error. If the previous value is not nullptr, just
   // return (and free the allocated error).
   if (!set) return;
   // If set successfully, give up ownership.
-  error.release();
+  compile_error.release();
   // Schedule a foreground task to call the callback and notify users about the
   // compile error.
   foreground_task_runner_->PostTask(
       MakeCancelableTask(&foreground_task_manager_, [this] {
-        VoidResult error_result = GetCompileError();
-        NotifyOnEvent(CompilationEvent::kFailedCompilation, &error_result);
+        WasmError error = GetCompileError();
+        NotifyOnEvent(CompilationEvent::kFailedCompilation, &error);
       }));
 }
 
 void CompilationStateImpl::NotifyOnEvent(CompilationEvent event,
-                                         const VoidResult* error_result) {
+                                         const WasmError* error) {
   if (aborted_.load()) return;
   HandleScope scope(isolate_);
-  for (auto& callback : callbacks_) callback(event, error_result);
+  for (auto& callback : callbacks_) callback(event, error);
   // If no more events are expected after this one, clear the callbacks to free
   // memory. We can safely do this here, as this method is only called from
   // foreground tasks.

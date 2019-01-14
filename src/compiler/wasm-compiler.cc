@@ -5847,10 +5847,11 @@ bool TurbofanWasmCompilationUnit::BuildGraphForWasmFunction(
   if (graph_construction_result.failed()) {
     if (FLAG_trace_wasm_compiler) {
       StdoutStream{} << "Compilation failed: "
-                     << graph_construction_result.error_msg() << std::endl;
+                     << graph_construction_result.error().message()
+                     << std::endl;
     }
     native_module->compilation_state()->SetError(
-        wasm_unit_->func_index_, std::move(graph_construction_result));
+        wasm_unit_->func_index_, std::move(graph_construction_result).error());
     return false;
   }
 

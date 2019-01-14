@@ -138,17 +138,16 @@ class FunctionBodyDecoderTest : public TestWithZone {
         VerifyWasmCode(zone()->allocator(), enabled_features_, module,
                        &unused_detected_features, body);
 
-    uint32_t pc = result.error_offset();
     std::ostringstream str;
-    if (expected_success) {
-      str << "Verification failed: pc = +" << pc
-          << ", msg = " << result.error_msg();
+    if (result.failed()) {
+      str << "Verification failed: pc = +" << result.error().offset()
+          << ", msg = " << result.error().message();
     } else {
-      str << "Verification successed, expected failure; pc = +" << pc;
+      str << "Verification successed, expected failure";
     }
     EXPECT_EQ(result.ok(), expected_success) << str.str();
-    if (!expected_success && message) {
-      EXPECT_THAT(result.error_msg(), ::testing::HasSubstr(message));
+    if (result.failed() && message) {
+      EXPECT_THAT(result.error().message(), ::testing::HasSubstr(message));
     }
   }
 

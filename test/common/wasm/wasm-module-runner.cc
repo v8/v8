@@ -51,7 +51,7 @@ std::shared_ptr<WasmModule> DecodeWasmModuleForTesting(
   if (decoding_result.failed()) {
     // Module verification failed. throw.
     thrower->CompileError("DecodeWasmModule failed: %s",
-                          decoding_result.error_msg().c_str());
+                          decoding_result.error().message().c_str());
   }
 
   return std::move(decoding_result).value();

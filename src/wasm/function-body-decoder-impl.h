@@ -1423,9 +1423,9 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   }
 
   bool TraceFailed() {
-    TRACE("wasm-error module+%-6d func+%d: %s\n\n", this->error_offset_,
-          this->GetBufferRelativeOffset(this->error_offset_),
-          this->error_msg_.c_str());
+    TRACE("wasm-error module+%-6d func+%d: %s\n\n", this->error_.offset(),
+          this->GetBufferRelativeOffset(this->error_.offset()),
+          this->error_.message().c_str());
     return false;
   }
 
@@ -2707,7 +2707,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
 
   void onFirstError() override {
     this->end_ = this->pc_;  // Terminate decoding loop.
-    TRACE(" !%s\n", this->error_msg_.c_str());
+    TRACE(" !%s\n", this->error_.message().c_str());
     CALL_INTERFACE(OnFirstError);
   }
 

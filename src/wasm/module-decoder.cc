@@ -1000,9 +1000,9 @@ class ModuleDecoderImpl : public Decoder {
       CalculateGlobalOffsets(module_.get());
     }
     ModuleResult result = toResult(std::move(module_));
-    if (verify_functions && result.ok() && intermediate_result_.failed()) {
-      // Copy error code and location.
-      result = ModuleResult::ErrorFrom(std::move(intermediate_result_));
+    if (verify_functions && result.ok() && intermediate_error_.has_error()) {
+      // Copy error message and location.
+      return ModuleResult{std::move(intermediate_error_)};
     }
     return result;
   }
@@ -1057,8 +1057,8 @@ class ModuleDecoderImpl : public Decoder {
       VerifyFunctionBody(zone->allocator(), 0, wire_bytes, module,
                          function.get());
 
-    if (intermediate_result_.failed()) {
-      return FunctionResult::ErrorFrom(std::move(intermediate_result_));
+    if (intermediate_error_.has_error()) {
+      return FunctionResult{std::move(intermediate_error_)};
     }
 
     return FunctionResult(std::move(function));
@@ -1105,7 +1105,7 @@ class ModuleDecoderImpl : public Decoder {
                         sizeof(ModuleDecoderImpl::seen_unordered_sections_) >
                     kLastKnownModuleSection,
                 "not enough bits");
-  VoidResult intermediate_result_;
+  WasmError intermediate_error_;
   ModuleOrigin origin_;
 
   bool has_seen_unordered_section(SectionCode section_code) {
@@ -1224,12 +1224,12 @@ class ModuleDecoderImpl : public Decoder {
 
     // If the decode failed and this is the first error, set error code and
     // location.
-    if (result.failed() && intermediate_result_.ok()) {
+    if (result.failed() && intermediate_error_.empty()) {
       // Wrap the error message from the function decoder.
       std::ostringstream error_msg;
-      error_msg << "in function " << func_name << ": " << result.error_msg();
-      intermediate_result_ =
-          VoidResult::Error(result.error_offset(), error_msg.str());
+      error_msg << "in function " << func_name << ": "
+                << result.error().message();
+      intermediate_error_ = WasmError{result.error().offset(), error_msg.str()};
     }
   }
 
@@ -1620,8 +1620,8 @@ ModuleResult DecodeWasmModule(const WasmFeatures& enabled,
   size_t size = module_end - module_start;
   CHECK_LE(module_start, module_end);
   if (size >= kV8MaxWasmModuleSize) {
-    return ModuleResult::Error(0, "size > maximum module size (%zu): %zu",
-                               kV8MaxWasmModuleSize, size);
+    return ModuleResult{WasmError{0, "size > maximum module size (%zu): %zu",
+                                  kV8MaxWasmModuleSize, size}};
   }
   // TODO(bradnelson): Improve histogram handling of size_t.
   auto size_counter =
@@ -1740,8 +1740,9 @@ FunctionResult DecodeWasmFunctionForTesting(
   // TODO(bradnelson): Improve histogram handling of ptrdiff_t.
   size_histogram->AddSample(static_cast<int>(size));
   if (size > kV8MaxWasmFunctionSize) {
-    return FunctionResult::Error(0, "size > maximum function size (%zu): %zu",
-                                 kV8MaxWasmFunctionSize, size);
+    return FunctionResult{WasmError{0,
+                                    "size > maximum function size (%zu): %zu",
+                                    kV8MaxWasmFunctionSize, size}};
   }
   ModuleDecoderImpl decoder(enabled, function_start, function_end, kWasmOrigin);
   decoder.SetCounters(counters);

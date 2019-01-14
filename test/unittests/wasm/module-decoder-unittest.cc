@@ -135,10 +135,10 @@ struct CheckLEB1 : std::integral_constant<size_t, num> {
     if (!result.ok()) return; \
   } while (false)
 
-#define EXPECT_NOT_OK(result, msg)                   \
-  do {                                               \
-    EXPECT_FALSE(result.ok());                       \
-    EXPECT_THAT(result.error_msg(), HasSubstr(msg)); \
+#define EXPECT_NOT_OK(result, msg)                         \
+  do {                                                     \
+    EXPECT_FALSE(result.ok());                             \
+    EXPECT_THAT(result.error().message(), HasSubstr(msg)); \
   } while (false)
 
 static size_t SizeOfVarInt(size_t value) {

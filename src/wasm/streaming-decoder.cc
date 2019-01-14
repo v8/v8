@@ -128,10 +128,9 @@ class TopTierCompiledCallback {
       : native_module_(std::move(native_module)),
         callback_(std::move(callback)) {}
 
-  void operator()(CompilationEvent event,
-                  const ResultBase* error_result) const {
+  void operator()(CompilationEvent event, const WasmError* error) const {
     if (event != CompilationEvent::kFinishedTopTierCompilation) return;
-    DCHECK_NULL(error_result);
+    DCHECK_NULL(error);
     callback_(native_module_);
 #ifdef DEBUG
     DCHECK(!called_);
@@ -327,7 +326,7 @@ size_t StreamingDecoder::DecodeVarInt32::ReadBytes(
   if (decoder.failed()) {
     if (new_bytes == remaining_buf.size()) {
       // We only report an error if we read all bytes.
-      streaming->Error(decoder.toResult(nullptr));
+      streaming->Error(decoder.error());
     }
     set_offset(offset() + new_bytes);
     return new_bytes;

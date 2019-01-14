@@ -14,7 +14,7 @@ namespace internal {
 namespace wasm {
 
 class NativeModule;
-class ResultBase;
+class WasmError;
 
 enum RuntimeExceptionSupport : bool {
   kRuntimeExceptionSupport = true,
@@ -96,12 +96,12 @@ enum class CompilationEvent : uint8_t {
 // This is the PIMPL interface to that private class.
 class CompilationState {
  public:
-  using callback_t = std::function<void(CompilationEvent, const ResultBase*)>;
+  using callback_t = std::function<void(CompilationEvent, const WasmError*)>;
   ~CompilationState();
 
   void CancelAndWait();
 
-  void SetError(uint32_t func_index, const ResultBase& error_result);
+  void SetError(uint32_t func_index, const WasmError& error);
 
   void SetWireBytesStorage(std::shared_ptr<WireBytesStorage>);
 

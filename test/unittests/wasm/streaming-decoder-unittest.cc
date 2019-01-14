@@ -74,7 +74,7 @@ class MockStreamingProcessor : public StreamingProcessor {
   }
 
   // Report an error detected in the StreamingDecoder.
-  void OnError(DecodeResult result) override { result_->ok = false; }
+  void OnError(const WasmError&) override { result_->ok = false; }
 
   void OnAbort() override {}
 

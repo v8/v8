@@ -51,7 +51,7 @@ class V8_EXPORT_PRIVATE StreamingProcessor {
   // empty array is passed.
   virtual void OnFinishedStream(OwnedVector<uint8_t> bytes) = 0;
   // Report an error detected in the StreamingDecoder.
-  virtual void OnError(VoidResult result) = 0;
+  virtual void OnError(const WasmError&) = 0;
   // Report the abortion of the stream.
   virtual void OnAbort() = 0;
 
@@ -202,14 +202,14 @@ class V8_EXPORT_PRIVATE StreamingDecoder {
                                  size_t length,
                                  Vector<const uint8_t> length_bytes);
 
-  std::unique_ptr<DecodingState> Error(VoidResult result) {
-    if (ok()) processor_->OnError(std::move(result));
+  std::unique_ptr<DecodingState> Error(const WasmError& error) {
+    if (ok()) processor_->OnError(error);
     Fail();
     return std::unique_ptr<DecodingState>(nullptr);
   }
 
   std::unique_ptr<DecodingState> Error(std::string message) {
-    return Error(VoidResult::Error(module_offset_ - 1, std::move(message)));
+    return Error(WasmError{module_offset_ - 1, std::move(message)});
   }
 
   void ProcessModuleHeader() {

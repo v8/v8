@@ -93,7 +93,7 @@ MaybeHandle<WasmModuleObject> WasmEngine::SyncCompile(
       DecodeWasmModule(enabled, bytes.start(), bytes.end(), false, kWasmOrigin,
                        isolate->counters(), allocator());
   if (result.failed()) {
-    thrower->CompileFailed("Wasm decoding failed", result);
+    thrower->CompileFailed("Wasm decoding failed", result.error());
     return {};
   }
 
