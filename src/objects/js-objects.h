@@ -1042,7 +1042,6 @@ class JSFunction : public JSObject {
   void ClearTypeFeedbackInfo();
 
   // Resets function to clear compiled data after bytecode has been flushed.
-  inline bool NeedsResetDueToFlushedBytecode();
   inline void ResetIfBytecodeFlushed();
 
   inline bool has_prototype_slot() const;
@@ -1097,6 +1096,8 @@ class JSFunction : public JSObject {
                                           int requested_in_object_properties,
                                           int* instance_size,
                                           int* in_object_properties);
+
+  class BodyDescriptor;
 
   // Dispatched behavior.
   DECL_PRINTER(JSFunction)

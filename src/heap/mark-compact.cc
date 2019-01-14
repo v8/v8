@@ -1907,11 +1907,6 @@ void MarkCompactCollector::ClearNonLiveReferences() {
   }
 
   {
-    TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_CLEAR_FLUSHED_JS_FUNCTIONS);
-    ClearFlushedJsFunctions();
-  }
-
-  {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_CLEAR_WEAK_LISTS);
     // Process the weak references.
     MarkCompactWeakObjectRetainer mark_compact_object_retainer(
@@ -1940,7 +1935,6 @@ void MarkCompactCollector::ClearNonLiveReferences() {
   DCHECK(weak_objects_.js_weak_refs.IsEmpty());
   DCHECK(weak_objects_.js_weak_cells.IsEmpty());
   DCHECK(weak_objects_.bytecode_flushing_candidates.IsEmpty());
-  DCHECK(weak_objects_.flushed_js_functions.IsEmpty());
 }
 
 void MarkCompactCollector::MarkDependentCodeForDeoptimization() {
@@ -2076,15 +2070,6 @@ void MarkCompactCollector::ClearOldBytecodeCandidates() {
     ObjectSlot slot = HeapObject::RawField(
         flushing_candidate, SharedFunctionInfo::kFunctionDataOffset);
     RecordSlot(flushing_candidate, slot, HeapObject::cast(*slot));
-  }
-}
-
-void MarkCompactCollector::ClearFlushedJsFunctions() {
-  DCHECK(FLAG_flush_bytecode || weak_objects_.flushed_js_functions.IsEmpty());
-  JSFunction flushed_js_function;
-  while (weak_objects_.flushed_js_functions.Pop(kMainThread,
-                                                &flushed_js_function)) {
-    flushed_js_function->ResetIfBytecodeFlushed();
   }
 }
 
@@ -2345,7 +2330,6 @@ void MarkCompactCollector::AbortWeakObjects() {
   weak_objects_.js_weak_refs.Clear();
   weak_objects_.js_weak_cells.Clear();
   weak_objects_.bytecode_flushing_candidates.Clear();
-  weak_objects_.flushed_js_functions.Clear();
 }
 
 bool MarkCompactCollector::IsOnEvacuationCandidate(MaybeObject obj) {

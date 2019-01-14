@@ -197,6 +197,30 @@ class JSObject::FastBodyDescriptor final : public BodyDescriptorBase {
   }
 };
 
+class JSFunction::BodyDescriptor final : public BodyDescriptorBase {
+ public:
+  static bool IsValidSlot(Map map, HeapObject obj, int offset) {
+    if (offset < kSizeWithoutPrototype) return true;
+    if (offset < kSizeWithPrototype && map->has_prototype_slot()) {
+      return true;
+    }
+    return IsValidJSObjectSlotImpl(map, obj, offset);
+  }
+
+  template <typename ObjectVisitor>
+  static inline void IterateBody(Map map, HeapObject obj, int object_size,
+                                 ObjectVisitor* v) {
+    int header_size = JSFunction::GetHeaderSize(map->has_prototype_slot());
+    DCHECK_EQ(header_size, JSObject::GetHeaderSize(map));
+    IteratePointers(obj, kPropertiesOrHashOffset, header_size, v);
+    IterateJSObjectBodyImpl(map, obj, header_size, object_size, v);
+  }
+
+  static inline int SizeOf(Map map, HeapObject object) {
+    return map->instance_size();
+  }
+};
+
 class JSWeakCell::BodyDescriptor final : public BodyDescriptorBase {
  public:
   static bool IsValidSlot(Map map, HeapObject obj, int offset) {

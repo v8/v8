@@ -96,19 +96,6 @@ int MarkingVisitor<fixed_array_mode, retaining_path_mode, MarkingState>::
 template <FixedArrayVisitationMode fixed_array_mode,
           TraceRetainingPathMode retaining_path_mode, typename MarkingState>
 int MarkingVisitor<fixed_array_mode, retaining_path_mode,
-                   MarkingState>::VisitJSFunction(Map map, JSFunction object) {
-  int size = Parent::VisitJSFunction(map, object);
-
-  // Check if the JSFunction needs reset due to bytecode being flushed.
-  if (FLAG_flush_bytecode && object->NeedsResetDueToFlushedBytecode()) {
-    collector_->AddFlushedJSFunction(object);
-  }
-
-  return size;
-}
-template <FixedArrayVisitationMode fixed_array_mode,
-          TraceRetainingPathMode retaining_path_mode, typename MarkingState>
-int MarkingVisitor<fixed_array_mode, retaining_path_mode,
                    MarkingState>::VisitFixedArray(Map map, FixedArray object) {
   return (fixed_array_mode == FixedArrayVisitationMode::kRegular)
              ? Parent::VisitFixedArray(map, object)
@@ -497,10 +484,6 @@ void MarkCompactCollector::AddTransitionArray(TransitionArray array) {
 void MarkCompactCollector::AddBytecodeFlushingCandidate(
     SharedFunctionInfo flush_candidate) {
   weak_objects_.bytecode_flushing_candidates.Push(kMainThread, flush_candidate);
-}
-
-void MarkCompactCollector::AddFlushedJSFunction(JSFunction flushed_function) {
-  weak_objects_.flushed_js_functions.Push(kMainThread, flushed_function);
 }
 
 template <LiveObjectIterationMode mode>
