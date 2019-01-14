@@ -191,7 +191,7 @@ CompilationEnv TestingModuleBuilder::CreateCompilationEnv() {
   return {
       test_module_ptr_,
       trap_handler::IsTrapHandlerEnabled() ? kUseTrapHandler : kNoTrapHandler,
-      runtime_exception_support_, lower_simd()};
+      runtime_exception_support_, enabled_features_, lower_simd()};
 }
 
 const WasmGlobal* TestingModuleBuilder::AddGlobal(ValueType type) {

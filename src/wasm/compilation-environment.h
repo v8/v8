@@ -5,6 +5,7 @@
 #ifndef V8_WASM_COMPILATION_ENVIRONMENT_H_
 #define V8_WASM_COMPILATION_ENVIRONMENT_H_
 
+#include "src/wasm/wasm-features.h"
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-module.h"
 
@@ -47,11 +48,15 @@ struct CompilationEnv {
   // bytes.
   const uint64_t max_memory_size;
 
+  // Features enabled for this compilation.
+  const WasmFeatures enabled_features;
+
   const LowerSimd lower_simd;
 
   constexpr CompilationEnv(const WasmModule* module,
                            UseTrapHandler use_trap_handler,
                            RuntimeExceptionSupport runtime_exception_support,
+                           const WasmFeatures& enabled_features,
                            LowerSimd lower_simd = kNoLowerSimd)
       : module(module),
         use_trap_handler(use_trap_handler),
@@ -62,6 +67,7 @@ struct CompilationEnv {
                              ? module->maximum_pages
                              : kV8MaxWasmMemoryPages) *
                         uint64_t{kWasmPageSize}),
+        enabled_features(enabled_features),
         lower_simd(lower_simd) {}
 };
 

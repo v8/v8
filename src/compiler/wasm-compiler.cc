@@ -5548,7 +5548,7 @@ wasm::WasmCode* CompileWasmMathIntrinsic(wasm::WasmEngine* wasm_engine,
   wasm::CompilationEnv env(
       native_module->module(), wasm::UseTrapHandler::kNoTrapHandler,
       wasm::RuntimeExceptionSupport::kNoRuntimeExceptionSupport,
-      wasm::LowerSimd::kNoLowerSimd);
+      wasm::kAllWasmFeatures, wasm::LowerSimd::kNoLowerSimd);
 
   WasmGraphBuilder builder(&env, mcgraph->zone(), mcgraph, sig,
                            source_positions);
@@ -5769,8 +5769,8 @@ bool TurbofanWasmCompilationUnit::BuildGraphForWasmFunction(
   WasmGraphBuilder builder(env, mcgraph->zone(), mcgraph, func_body.sig,
                            source_positions);
   wasm::VoidResult graph_construction_result = wasm::BuildTFGraph(
-      wasm_unit_->wasm_engine_->allocator(), native_module->enabled_features(),
-      env->module, &builder, detected, func_body, node_origins);
+      wasm_unit_->wasm_engine_->allocator(), env->enabled_features, env->module,
+      &builder, detected, func_body, node_origins);
   if (graph_construction_result.failed()) {
     if (FLAG_trace_wasm_compiler) {
       StdoutStream{} << "Compilation failed: "

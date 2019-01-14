@@ -1964,7 +1964,7 @@ bool LiftoffCompilationUnit::ExecuteCompilation(CompilationEnv* env,
   base::Optional<TimedHistogramScope> liftoff_compile_time_scope(
       base::in_place, counters->liftoff_compile_time());
   WasmFullDecoder<Decoder::kValidate, LiftoffCompiler> decoder(
-      &zone, module, native_module->enabled_features(), detected, func_body,
+      &zone, module, env->enabled_features, detected, func_body,
       call_descriptor, env, &zone);
   decoder.Decode();
   liftoff_compile_time_scope.reset();
