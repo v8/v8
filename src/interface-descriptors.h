@@ -293,9 +293,18 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptor {
       CallInterfaceDescriptorData* data, int non_js_register_parameter_count);
 
   // Checks if float parameters are not assigned invalid registers.
-  virtual bool CheckFloatingPointParameters(CallInterfaceDescriptorData* data) {
+  bool CheckFloatingPointParameters(CallInterfaceDescriptorData* data) {
+    for (int i = 0; i < data->register_param_count(); i++) {
+      if (IsFloatingPoint(data->param_type(i).representation())) {
+        if (!IsValidFloatParameterRegister(data->register_param(i))) {
+          return false;
+        }
+      }
+    }
     return true;
   }
+
+  bool IsValidFloatParameterRegister(Register reg);
 
  private:
   // {CallDescriptors} is allowed to call the private {Initialize} method.
@@ -442,10 +451,6 @@ STATIC_ASSERT(kMaxTFSBuiltinRegisterParams <= kMaxBuiltinRegisterParams);
   name(CallDescriptors::Key key) : base(key) {}                                \
                                                                                \
  public:
-
-#define DECLARE_CHECK_FLOAT \
- private:                   \
-  bool CheckFloatingPointParameters(CallInterfaceDescriptorData* data) override;
 
 class V8_EXPORT_PRIVATE VoidDescriptor : public CallInterfaceDescriptor {
  public:
@@ -1150,9 +1155,6 @@ class WasmI32AtomicWaitDescriptor final : public CallInterfaceDescriptor {
                                     MachineType::Uint32(),   // kAddress
                                     MachineType::Int32(),    // kExpectedValue
                                     MachineType::Float64())  // kTimeout
-#if defined(V8_TARGET_ARCH_MIPS) || defined(V8_TARGET_ARCH_MIPS64)
-  DECLARE_CHECK_FLOAT
-#endif
   DECLARE_DESCRIPTOR(WasmI32AtomicWaitDescriptor, CallInterfaceDescriptor)
 };
 
@@ -1166,9 +1168,6 @@ class WasmI64AtomicWaitDescriptor final : public CallInterfaceDescriptor {
       MachineType::Uint32(),   // kExpectedValueHigh
       MachineType::Uint32(),   // kExpectedValueLow
       MachineType::Float64())  // kTimeout
-#if defined(V8_TARGET_ARCH_MIPS) || defined(V8_TARGET_ARCH_MIPS64)
-  DECLARE_CHECK_FLOAT
-#endif
   DECLARE_DESCRIPTOR(WasmI64AtomicWaitDescriptor, CallInterfaceDescriptor)
 };
 
@@ -1192,7 +1191,6 @@ class CloneObjectWithVectorDescriptor final : public CallInterfaceDescriptor {
 BUILTIN_LIST_TFS(DEFINE_TFS_BUILTIN_DESCRIPTOR)
 #undef DEFINE_TFS_BUILTIN_DESCRIPTOR
 
-#undef DECLARE_CHECK_FLOAT
 #undef DECLARE_DEFAULT_DESCRIPTOR
 #undef DECLARE_DESCRIPTOR_WITH_BASE
 #undef DECLARE_DESCRIPTOR

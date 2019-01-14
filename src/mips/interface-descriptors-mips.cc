@@ -27,6 +27,10 @@ void CallInterfaceDescriptor::DefaultInitializePlatformSpecific(
 // DefaultInitializePlatformSpecific to assign float registers for parameters.
 // E.g if fourth parameter goes to float register, f7 would be assigned for
 // parameter (a3 casted to int is 7).
+bool CallInterfaceDescriptor::IsValidFloatParameterRegister(Register reg) {
+  return reg.code() % 2 == 0;
+}
+
 void WasmI32AtomicWaitDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   /* Register t4 correspond to f12 FPU register. */
@@ -36,11 +40,6 @@ void WasmI32AtomicWaitDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(kParameterCount, default_stub_registers);
 }
 
-bool WasmI32AtomicWaitDescriptor::CheckFloatingPointParameters(
-    CallInterfaceDescriptorData* data) {
-  return IsFloatingPoint(data->param_type(2).representation());
-}
-
 void WasmI64AtomicWaitDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   /* Register t4 correspond to f12 FPU register. */
@@ -48,11 +47,6 @@ void WasmI64AtomicWaitDescriptor::InitializePlatformSpecific(
   CHECK_EQ(static_cast<size_t>(kParameterCount),
            arraysize(default_stub_registers));
   data->InitializePlatformSpecific(kParameterCount, default_stub_registers);
-}
-
-bool WasmI64AtomicWaitDescriptor::CheckFloatingPointParameters(
-    CallInterfaceDescriptorData* data) {
-  return IsFloatingPoint(data->param_type(3).representation());
 }
 
 void RecordWriteDescriptor::InitializePlatformSpecific(

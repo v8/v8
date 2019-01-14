@@ -128,6 +128,11 @@ const char* CallInterfaceDescriptor::DebugName() const {
   return "";
 }
 
+#if !defined(V8_TARGET_ARCH_MIPS) && !defined(V8_TARGET_ARCH_MIPS64)
+bool CallInterfaceDescriptor::IsValidFloatParameterRegister(Register reg) {
+  return true;
+}
+#endif
 
 void VoidDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
