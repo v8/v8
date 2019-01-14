@@ -89,7 +89,6 @@ namespace internal {
   V(DoExpression)               \
   V(EmptyParentheses)           \
   V(FunctionLiteral)            \
-  V(GetIterator)                \
   V(GetTemplateObject)          \
   V(ImportCallExpression)       \
   V(Literal)                    \
@@ -619,7 +618,7 @@ class ForStatement final : public IterationStatement {
   Statement* next_;
 };
 
-
+// Shared class for for-in and for-of statements.
 class ForEachStatement : public IterationStatement {
  public:
   enum VisitMode {
@@ -633,119 +632,54 @@ class ForEachStatement : public IterationStatement {
     return mode == ITERATE ? "for-of" : "for-in";
   }
 
- protected:
-  ForEachStatement(ZonePtrList<const AstRawString>* labels,
-                   ZonePtrList<const AstRawString>* own_labels, int pos,
-                   NodeType type)
-      : IterationStatement(labels, own_labels, pos, type) {}
-};
-
-
-class ForInStatement final : public ForEachStatement {
- public:
   void Initialize(Expression* each, Expression* subject, Statement* body) {
-    ForEachStatement::Initialize(body);
+    IterationStatement::Initialize(body);
     each_ = each;
     subject_ = subject;
-  }
-
-  Expression* enumerable() const {
-    return subject();
   }
 
   Expression* each() const { return each_; }
   Expression* subject() const { return subject_; }
 
-  enum ForInType { FAST_FOR_IN, SLOW_FOR_IN };
-  ForInType for_in_type() const { return ForInTypeField::decode(bit_field_); }
+ protected:
+  friend class AstNodeFactory;
 
+  ForEachStatement(ZonePtrList<const AstRawString>* labels,
+                   ZonePtrList<const AstRawString>* own_labels, int pos,
+                   NodeType type)
+      : IterationStatement(labels, own_labels, pos, type),
+        each_(nullptr),
+        subject_(nullptr) {}
+
+  Expression* each_;
+  Expression* subject_;
+};
+
+class ForInStatement final : public ForEachStatement {
  private:
   friend class AstNodeFactory;
 
   ForInStatement(ZonePtrList<const AstRawString>* labels,
                  ZonePtrList<const AstRawString>* own_labels, int pos)
-      : ForEachStatement(labels, own_labels, pos, kForInStatement),
-        each_(nullptr),
-        subject_(nullptr) {
-    bit_field_ = ForInTypeField::update(bit_field_, SLOW_FOR_IN);
-  }
-
-  Expression* each_;
-  Expression* subject_;
-
-  class ForInTypeField
-      : public BitField<ForInType, ForEachStatement::kNextBitFieldIndex, 1> {};
+      : ForEachStatement(labels, own_labels, pos, kForInStatement) {}
 };
 
-
+enum class IteratorType { kNormal, kAsync };
 class ForOfStatement final : public ForEachStatement {
  public:
-  void Initialize(Statement* body, Variable* iterator,
-                  Expression* assign_iterator, Expression* assign_next,
-                  Expression* next_result, Expression* result_done,
-                  Expression* assign_each) {
-    ForEachStatement::Initialize(body);
-    iterator_ = iterator;
-    assign_iterator_ = assign_iterator;
-    assign_next_ = assign_next;
-    next_result_ = next_result;
-    result_done_ = result_done;
-    assign_each_ = assign_each;
-  }
-
-  Variable* iterator() const {
-    return iterator_;
-  }
-
-  // iterator = subject[Symbol.iterator]()
-  Expression* assign_iterator() const {
-    return assign_iterator_;
-  }
-
-  // iteratorRecord.next = iterator.next
-  Expression* assign_next() const { return assign_next_; }
-
-  // result = iterator.next()  // with type check
-  Expression* next_result() const {
-    return next_result_;
-  }
-
-  // result.done
-  Expression* result_done() const {
-    return result_done_;
-  }
-
-  // each = result.value
-  Expression* assign_each() const {
-    return assign_each_;
-  }
-
-  void set_assign_iterator(Expression* e) { assign_iterator_ = e; }
-  void set_assign_next(Expression* e) { assign_next_ = e; }
-  void set_next_result(Expression* e) { next_result_ = e; }
-  void set_result_done(Expression* e) { result_done_ = e; }
-  void set_assign_each(Expression* e) { assign_each_ = e; }
+  IteratorType type() const { return type_; }
 
  private:
   friend class AstNodeFactory;
 
   ForOfStatement(ZonePtrList<const AstRawString>* labels,
-                 ZonePtrList<const AstRawString>* own_labels, int pos)
+                 ZonePtrList<const AstRawString>* own_labels, int pos,
+                 IteratorType type)
       : ForEachStatement(labels, own_labels, pos, kForOfStatement),
-        iterator_(nullptr),
-        assign_iterator_(nullptr),
-        next_result_(nullptr),
-        result_done_(nullptr),
-        assign_each_(nullptr) {}
+        type_(type) {}
 
-  Variable* iterator_;
-  Expression* assign_iterator_;
-  Expression* assign_next_;
-  Expression* next_result_;
-  Expression* result_done_;
-  Expression* assign_each_;
+  IteratorType type_;
 };
-
 
 class ExpressionStatement final : public Statement {
  public:
@@ -2719,27 +2653,6 @@ class EmptyParentheses final : public Expression {
   }
 };
 
-// Represents the spec operation `GetIterator()`
-// (defined at https://tc39.github.io/ecma262/#sec-getiterator). Ignition
-// desugars this into a LoadIC / JSLoadNamed, CallIC, and a type-check to
-// validate return value of the Symbol.iterator() call.
-enum class IteratorType { kNormal, kAsync };
-class GetIterator final : public Expression {
- public:
-  IteratorType hint() const { return hint_; }
-
-  Expression* iterable() const { return iterable_; }
-
- private:
-  friend class AstNodeFactory;
-
-  GetIterator(Expression* iterable, IteratorType hint, int pos)
-      : Expression(pos, kGetIterator), hint_(hint), iterable_(iterable) {}
-
-  IteratorType hint_;
-  Expression* iterable_;
-};
-
 // Represents the spec operation `GetTemplateObject(templateLiteral)`
 // (defined at https://tc39.github.io/ecma262/#sec-gettemplateobject).
 class GetTemplateObject final : public Expression {
@@ -2957,7 +2870,8 @@ class AstNodeFactory final {
         return new (zone_) ForInStatement(labels, own_labels, pos);
       }
       case ForEachStatement::ITERATE: {
-        return new (zone_) ForOfStatement(labels, own_labels, pos);
+        return new (zone_)
+            ForOfStatement(labels, own_labels, pos, IteratorType::kNormal);
       }
     }
     UNREACHABLE();
@@ -2965,8 +2879,8 @@ class AstNodeFactory final {
 
   ForOfStatement* NewForOfStatement(ZonePtrList<const AstRawString>* labels,
                                     ZonePtrList<const AstRawString>* own_labels,
-                                    int pos) {
-    return new (zone_) ForOfStatement(labels, own_labels, pos);
+                                    int pos, IteratorType type) {
+    return new (zone_) ForOfStatement(labels, own_labels, pos, type);
   }
 
   ExpressionStatement* NewExpressionStatement(Expression* expression, int pos) {
@@ -3375,11 +3289,6 @@ class AstNodeFactory final {
 
   EmptyParentheses* NewEmptyParentheses(int pos) {
     return new (zone_) EmptyParentheses(pos);
-  }
-
-  GetIterator* NewGetIterator(Expression* iterable, IteratorType hint,
-                              int pos) {
-    return new (zone_) GetIterator(iterable, hint, pos);
   }
 
   GetTemplateObject* NewGetTemplateObject(

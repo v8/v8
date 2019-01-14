@@ -5405,14 +5405,13 @@ ParserBase<Impl>::ParseForEachStatementWithDeclarations(
     }
   }
 
-  StatementT final_loop = impl()->InitializeForEachStatement(
-      loop, each_variable, enumerable, body_block);
+  loop->Initialize(each_variable, enumerable, body_block);
 
   init_block = impl()->CreateForEachStatementTDZ(init_block, *for_info);
 
   // Parsed for-in loop w/ variable declarations.
   if (!impl()->IsNull(init_block)) {
-    init_block->statements()->Add(final_loop, zone());
+    init_block->statements()->Add(loop, zone());
     if (IsLexicalVariableMode(for_info->parsing_result.descriptor.mode)) {
       scope()->set_end_position(end_position());
       init_block->set_scope(scope()->FinalizeBlockScope());
@@ -5420,7 +5419,7 @@ ParserBase<Impl>::ParseForEachStatementWithDeclarations(
     return init_block;
   }
 
-  return final_loop;
+  return loop;
 }
 
 template <typename Impl>
@@ -5451,7 +5450,8 @@ ParserBase<Impl>::ParseForEachStatementWithoutDeclarations(
   }
   impl()->RecordIterationStatementSourceRange(loop, body_range);
   RETURN_IF_PARSE_ERROR;
-  return impl()->InitializeForEachStatement(loop, expression, enumerable, body);
+  loop->Initialize(expression, enumerable, body);
+  return loop;
 }
 
 template <typename Impl>
@@ -5563,7 +5563,12 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForAwaitStatement(
   scope()->set_start_position(scanner()->location().beg_pos);
   scope()->set_is_hidden();
 
-  auto loop = factory()->NewForOfStatement(labels, own_labels, stmt_pos);
+  auto loop = factory()->NewForOfStatement(labels, own_labels, stmt_pos,
+                                           IteratorType::kAsync);
+  // Two suspends: one for next() and one for return()
+  function_state_->AddSuspend();
+  function_state_->AddSuspend();
+
   TargetT target(this, loop);
 
   ExpressionT each_variable = impl()->NullExpression();
@@ -5620,7 +5625,6 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForAwaitStatement(
   }
 
   ExpectContextualKeyword(ast_value_factory()->of_string());
-  int each_keyword_pos = scanner()->location().beg_pos;
 
   const bool kAllowIn = true;
   ExpressionT iterable = impl()->NullExpression();
@@ -5658,16 +5662,14 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForAwaitStatement(
       USE(block_scope);
     }
   }
-  const bool finalize = true;
-  StatementT final_loop = impl()->InitializeForOfStatement(
-      loop, each_variable, iterable, body, finalize, IteratorType::kAsync,
-      each_keyword_pos);
+
+  loop->Initialize(each_variable, iterable, body);
 
   if (!has_declarations) {
     Scope* for_scope = scope()->FinalizeBlockScope();
     DCHECK_NULL(for_scope);
     USE(for_scope);
-    return final_loop;
+    return loop;
   }
 
   BlockT init_block =
@@ -5677,12 +5679,12 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForAwaitStatement(
   Scope* for_scope = scope()->FinalizeBlockScope();
   // Parsed for-in loop w/ variable declarations.
   if (!impl()->IsNull(init_block)) {
-    init_block->statements()->Add(final_loop, zone());
+    init_block->statements()->Add(loop, zone());
     init_block->set_scope(for_scope);
     return init_block;
   }
   DCHECK_NULL(for_scope);
-  return final_loop;
+  return loop;
 }
 
 template <typename Impl>

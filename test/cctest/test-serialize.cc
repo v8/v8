@@ -1752,7 +1752,7 @@ TEST(CodeSerializerLargeCodeObject) {
       StaticCharVector("var j=1; if (j == 0) {"),
       StaticCharVector(
           "for (let i of Object.prototype) for (let k = 0; k < 0; ++k);"),
-      StaticCharVector("} j=7; j"), 1200);
+      StaticCharVector("} j=7; j"), 2000);
   Handle<String> source_str =
       isolate->factory()->NewStringFromOneByte(source).ToHandleChecked();
 

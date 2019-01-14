@@ -62,6 +62,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   class IteratorRecord;
   class NaryCodeCoverageSlots;
   class RegisterAllocationScope;
+  class AccumulatorPreservingScope;
   class TestResultScope;
   class ValueResultScope;
 
@@ -69,6 +70,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
 
   enum class TestFallthrough { kThen, kElse, kNone };
   enum class TypeHint { kAny, kBoolean, kString };
+  enum class AccumulatorPreservingMode { kNone, kPreserve };
 
   // An assignment has to evaluate its LHS before its RHS, but has to assign to
   // the LHS after both evaluations are done. This class stores the data
@@ -195,7 +197,9 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void VisitPropertyLoadForRegister(Register obj, Property* expr,
                                     Register destination);
 
-  AssignmentLhsData PrepareAssignmentLhs(Expression* lhs);
+  AssignmentLhsData PrepareAssignmentLhs(
+      Expression* lhs, AccumulatorPreservingMode accumulator_preserving_mode =
+                           AccumulatorPreservingMode::kNone);
   void BuildAssignment(const AssignmentLhsData& data, Token::Value op,
                        LookupHoistingMode lookup_hoisting_mode);
 
@@ -241,8 +245,9 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void BuildNewLocalWithContext(Scope* scope);
 
   void BuildGeneratorPrologue();
-  void BuildSuspendPoint(Expression* suspend_expr);
+  void BuildSuspendPoint(int position);
 
+  void BuildAwait(int position = kNoSourcePosition);
   void BuildAwait(Expression* await_expr);
 
   void BuildFinalizeIteration(IteratorRecord iterator, Register done,
@@ -338,6 +343,12 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
 
   void BuildTest(ToBooleanMode mode, BytecodeLabels* then_labels,
                  BytecodeLabels* else_labels, TestFallthrough fallthrough);
+
+  template <typename TryBodyFunc, typename FinallyBodyFunc>
+  void BuildTryFinally(TryBodyFunc try_body_func,
+                       FinallyBodyFunc finally_body_func,
+                       HandlerTable::CatchPrediction catch_prediction,
+                       TryFinallyStatement* stmt_for_coverage = nullptr);
 
   // Visitors for obtaining expression result in the accumulator, in a
   // register, or just getting the effect. Some visitors return a TypeHint which

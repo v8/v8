@@ -244,17 +244,15 @@ template <class Subclass>
 void AstTraversalVisitor<Subclass>::VisitForInStatement(ForInStatement* stmt) {
   PROCESS_NODE(stmt);
   RECURSE(Visit(stmt->each()));
-  RECURSE(Visit(stmt->enumerable()));
+  RECURSE(Visit(stmt->subject()));
   RECURSE(Visit(stmt->body()));
 }
 
 template <class Subclass>
 void AstTraversalVisitor<Subclass>::VisitForOfStatement(ForOfStatement* stmt) {
   PROCESS_NODE(stmt);
-  RECURSE(Visit(stmt->assign_iterator()));
-  RECURSE(Visit(stmt->next_result()));
-  RECURSE(Visit(stmt->result_done()));
-  RECURSE(Visit(stmt->assign_each()));
+  RECURSE(Visit(stmt->each()));
+  RECURSE(Visit(stmt->subject()));
   RECURSE(Visit(stmt->body()));
 }
 
@@ -530,12 +528,6 @@ template <class Subclass>
 void AstTraversalVisitor<Subclass>::VisitEmptyParentheses(
     EmptyParentheses* expr) {
   PROCESS_EXPRESSION(expr);
-}
-
-template <class Subclass>
-void AstTraversalVisitor<Subclass>::VisitGetIterator(GetIterator* expr) {
-  PROCESS_EXPRESSION(expr);
-  RECURSE_EXPRESSION(Visit(expr->iterable()));
 }
 
 template <class Subclass>

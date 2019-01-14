@@ -378,26 +378,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
       const DeclarationParsingResult::Declaration* declaration,
       ZonePtrList<const AstRawString>* names);
 
-  // [if (IteratorType == kAsync)]
-  //     !%_IsJSReceiver(result = Await(next.[[Call]](iterator, « »)) &&
-  //         %ThrowIteratorResultNotAnObject(result)
-  // [else]
-  //     !%_IsJSReceiver(result = next.[[Call]](iterator, « »)) &&
-  //         %ThrowIteratorResultNotAnObject(result)
-  // [endif]
-  Expression* BuildIteratorNextResult(VariableProxy* iterator,
-                                      VariableProxy* next, Variable* result,
-                                      IteratorType type, int pos);
-
-  // Initialize the components of a for-in / for-of statement.
-  Statement* InitializeForEachStatement(ForEachStatement* stmt,
-                                        Expression* each, Expression* subject,
-                                        Statement* body);
-  Statement* InitializeForOfStatement(ForOfStatement* stmt, Expression* each,
-                                      Expression* iterable, Statement* body,
-                                      bool finalize, IteratorType type,
-                                      int next_result_pos = kNoSourcePosition);
-
   Block* RewriteForVarInLegacy(const ForInfo& for_info);
   void DesugarBindingInForEachStatement(ForInfo* for_info, Block** body_block,
                                         Expression** each_variable);
@@ -555,23 +535,14 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   Expression* BuildInitialYield(int pos, FunctionKind kind);
   Assignment* BuildCreateJSGeneratorObject(int pos, FunctionKind kind);
-  Variable* AsyncGeneratorAwaitVariable();
 
   // Generic AST generator for throwing errors from compiled code.
   Expression* NewThrowError(Runtime::FunctionId function_id,
                             MessageTemplate message, const AstRawString* arg,
                             int pos);
 
-  void FinalizeIteratorUse(Variable* completion, Expression* condition,
-                           Variable* iter, Block* iterator_use, Block* result,
-                           IteratorType type);
-
   Statement* FinalizeForOfStatement(ForOfStatement* loop, Variable* completion,
                                     IteratorType type, int pos);
-  void BuildIteratorCloseForCompletion(ZonePtrList<Statement>* statements,
-                                       Variable* iterator,
-                                       Expression* completion,
-                                       IteratorType type);
   Statement* CheckCallable(Variable* var, Expression* error, int pos);
 
   void RewriteAsyncFunctionBody(ScopedPtrList<Statement>* body, Block* block,

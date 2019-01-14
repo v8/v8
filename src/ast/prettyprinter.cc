@@ -161,16 +161,30 @@ void CallPrinter::VisitForStatement(ForStatement* node) {
 
 void CallPrinter::VisitForInStatement(ForInStatement* node) {
   Find(node->each());
-  Find(node->enumerable());
+  Find(node->subject());
   Find(node->body());
 }
 
 
 void CallPrinter::VisitForOfStatement(ForOfStatement* node) {
-  Find(node->assign_iterator());
-  Find(node->next_result());
-  Find(node->result_done());
-  Find(node->assign_each());
+  Find(node->each());
+
+  // Check the subject's position in case there was a GetIterator error.
+  bool was_found = false;
+  if (node->subject()->position() == position_) {
+    is_async_iterator_error_ = node->type() == IteratorType::kAsync;
+    is_iterator_error_ = !is_async_iterator_error_;
+    was_found = !found_;
+    if (was_found) {
+      found_ = true;
+    }
+  }
+  Find(node->subject(), true);
+  if (was_found) {
+    done_ = true;
+    found_ = false;
+  }
+
   Find(node->body());
 }
 
@@ -470,23 +484,6 @@ void CallPrinter::VisitStoreInArrayLiteral(StoreInArrayLiteral* node) {
 
 void CallPrinter::VisitEmptyParentheses(EmptyParentheses* node) {
   UNREACHABLE();
-}
-
-void CallPrinter::VisitGetIterator(GetIterator* node) {
-  bool was_found = false;
-  if (node->position() == position_) {
-    is_async_iterator_error_ = node->hint() == IteratorType::kAsync;
-    is_iterator_error_ = !is_async_iterator_error_;
-    was_found = !found_;
-    if (was_found) {
-      found_ = true;
-    }
-  }
-  Find(node->iterable(), true);
-  if (was_found) {
-    done_ = true;
-    found_ = false;
-  }
 }
 
 void CallPrinter::VisitGetTemplateObject(GetTemplateObject* node) {}
@@ -969,7 +966,7 @@ void AstPrinter::VisitForInStatement(ForInStatement* node) {
   PrintLabelsIndented(node->labels());
   PrintLabelsIndented(node->own_labels(), "OWN ");
   PrintIndentedVisit("FOR", node->each());
-  PrintIndentedVisit("IN", node->enumerable());
+  PrintIndentedVisit("IN", node->subject());
   PrintIndentedVisit("BODY", node->body());
 }
 
@@ -978,10 +975,17 @@ void AstPrinter::VisitForOfStatement(ForOfStatement* node) {
   IndentedScope indent(this, "FOR OF", node->position());
   PrintLabelsIndented(node->labels());
   PrintLabelsIndented(node->own_labels(), "OWN ");
-  PrintIndentedVisit("INIT", node->assign_iterator());
-  PrintIndentedVisit("NEXT", node->next_result());
-  PrintIndentedVisit("DONE", node->result_done());
-  PrintIndentedVisit("EACH", node->assign_each());
+  const char* for_type;
+  switch (node->type()) {
+    case IteratorType::kNormal:
+      for_type = "FOR";
+      break;
+    case IteratorType::kAsync:
+      for_type = "FOR AWAIT";
+      break;
+  }
+  PrintIndentedVisit(for_type, node->each());
+  PrintIndentedVisit("OF", node->subject());
   PrintIndentedVisit("BODY", node->body());
 }
 
@@ -1359,11 +1363,6 @@ void AstPrinter::VisitStoreInArrayLiteral(StoreInArrayLiteral* node) {
 
 void AstPrinter::VisitEmptyParentheses(EmptyParentheses* node) {
   IndentedScope indent(this, "()", node->position());
-}
-
-void AstPrinter::VisitGetIterator(GetIterator* node) {
-  IndentedScope indent(this, "GET-ITERATOR", node->position());
-  Visit(node->iterable());
 }
 
 void AstPrinter::VisitGetTemplateObject(GetTemplateObject* node) {

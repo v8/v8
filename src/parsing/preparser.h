@@ -516,6 +516,9 @@ class PreParserStatement {
   void Initialize(PreParserStatement init, const PreParserExpression& cond,
                   PreParserStatement next, PreParserStatement body,
                   const SourceRange& body_range = {}) {}
+  void Initialize(PreParserExpression each, const PreParserExpression& subject,
+                  PreParserStatement body, const SourceRange& body_range = {}) {
+  }
 
  protected:
   enum Type {
@@ -815,7 +818,7 @@ class PreParserFactory {
 
   PreParserStatement NewForOfStatement(
       ZonePtrList<const AstRawString>* labels,
-      ZonePtrList<const AstRawString>* own_labels, int pos) {
+      ZonePtrList<const AstRawString>* own_labels, int pos, IteratorType type) {
     return PreParserStatement::Default();
   }
 
@@ -1406,20 +1409,6 @@ class PreParser : public ParserBase<PreParser> {
                           names);
     }
     return PreParserStatement::Default();
-  }
-
-  V8_INLINE PreParserStatement InitializeForEachStatement(
-      PreParserStatement stmt, const PreParserExpression& each,
-      const PreParserExpression& subject, PreParserStatement body) {
-    return stmt;
-  }
-
-  V8_INLINE PreParserStatement InitializeForOfStatement(
-      PreParserStatement stmt, const PreParserExpression& each,
-      const PreParserExpression& iterable, PreParserStatement body,
-      bool finalize, IteratorType type,
-      int next_result_pos = kNoSourcePosition) {
-    return stmt;
   }
 
   V8_INLINE PreParserBlock RewriteForVarInLegacy(const ForInfo& for_info) {
