@@ -7,7 +7,7 @@ export class InfoView extends View {
   }
 
   initializeContent(data: any, rememberedSelection: Set<any>): void {
-    fetch("/info-view.html")
+    fetch("info-view.html")
       .then(response => response.text())
       .then(htmlText => this.divNode.innerHTML = htmlText);
   }
