@@ -1358,17 +1358,28 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
         if (global.mutability && global.imported) {
           Handle<FixedArray> buffers_array(
               instance->imported_mutable_globals_buffers(), isolate_);
-          untagged_buffer = buffers_array->GetValueChecked<JSArrayBuffer>(
-              isolate_, global.index);
-          Address global_addr =
-              instance->imported_mutable_globals()[global.index];
+          if (global.type == kWasmAnyRef) {
+            tagged_buffer = buffers_array->GetValueChecked<FixedArray>(
+                isolate_, global.index);
+            // For anyref globals we store the relative offset in the
+            // imported_mutable_globals array instead of an absolute address.
+            Address addr = instance->imported_mutable_globals()[global.index];
+            DCHECK_LE(addr, static_cast<Address>(
+                                std::numeric_limits<uint32_t>::max()));
+            offset = static_cast<uint32_t>(addr);
+          } else {
+            untagged_buffer = buffers_array->GetValueChecked<JSArrayBuffer>(
+                isolate_, global.index);
+            Address global_addr =
+                instance->imported_mutable_globals()[global.index];
 
-          size_t buffer_size = untagged_buffer->byte_length();
-          Address backing_store =
-              reinterpret_cast<Address>(untagged_buffer->backing_store());
-          CHECK(global_addr >= backing_store &&
-                global_addr < backing_store + buffer_size);
-          offset = static_cast<uint32_t>(global_addr - backing_store);
+            size_t buffer_size = untagged_buffer->byte_length();
+            Address backing_store =
+                reinterpret_cast<Address>(untagged_buffer->backing_store());
+            CHECK(global_addr >= backing_store &&
+                  global_addr < backing_store + buffer_size);
+            offset = static_cast<uint32_t>(global_addr - backing_store);
+          }
         } else {
           if (global.type == kWasmAnyRef) {
             tagged_buffer = handle(instance->tagged_globals_buffer(), isolate_);

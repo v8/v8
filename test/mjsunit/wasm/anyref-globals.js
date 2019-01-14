@@ -255,6 +255,11 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   const i3 = builder2.addImportedGlobal('exports', 'e3', kWasmAnyRef, true);
   const i4 = builder2.addImportedGlobal('exports', 'e4', kWasmAnyRef, true);
 
+  builder2.addExportOfKind("reexport1", kExternalGlobal, i1);
+  builder2.addExportOfKind("reexport2", kExternalGlobal, i2);
+  builder2.addExportOfKind("reexport3", kExternalGlobal, i3);
+  builder2.addExportOfKind("reexport4", kExternalGlobal, i4);
+
   builder2.addFunction("set_globals", kSig_v_rr)
     .addBody([
         kExprGetLocal, 0,
@@ -277,13 +282,32 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   assertSame(obj2, instance2.exports.get_global2());
   assertSame(obj3, instance2.exports.get_global3());
 
+  assertSame(obj2, instance2.exports.reexport2.value);
+  assertSame(obj3, instance2.exports.reexport3.value);
+
   // Check if instance2 can make changes visible for instance1.
   instance2.exports.set_globals(null, undefined);
   assertEquals(null, instance1.exports.get_global2());
   assertEquals(undefined, instance1.exports.get_global3());
 
+  assertEquals(null, instance2.exports.reexport2.value);
+  assertEquals(undefined, instance2.exports.reexport3.value);
+
   // Check if instance1 can make changes visible for instance2.
   instance1.exports.set_globals("foo", 66343);
   assertEquals("foo", instance2.exports.get_global2());
   assertEquals(66343, instance2.exports.get_global3());
+
+  assertEquals("foo", instance2.exports.reexport2.value);
+  assertEquals(66343, instance2.exports.reexport3.value);
+
+  const bar2 = {f: "oo"};
+  const bar3 = {b: "ar"};
+  instance2.exports.reexport2.value = bar2;
+  instance2.exports.reexport3.value = bar3;
+
+  assertSame(bar2, instance1.exports.get_global2());
+  assertSame(bar3, instance1.exports.get_global3());
+  assertSame(bar2, instance2.exports.get_global2());
+  assertSame(bar3, instance2.exports.get_global3());
 })();
