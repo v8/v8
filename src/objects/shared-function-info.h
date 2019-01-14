@@ -27,16 +27,37 @@ class WasmExportedFunctionData;
 
 // Data collected by the pre-parser storing information about scopes and inner
 // functions.
+//
+// PreparseData Layout:
+// +-------------------------------+
+// | data_length | children_length |
+// +-------------------------------+
+// | Scope Byte Data ...           |
+// | ...                           |
+// +-------------------------------+
+// | [Padding]                     |
+// +-------------------------------+
+// | Inner PreparseData 1          |
+// +-------------------------------+
+// | ...                           |
+// +-------------------------------+
+// | Inner PreparseData N          |
+// +-------------------------------+
 class PreparseData : public HeapObject {
  public:
-  DECL_ACCESSORS(scope_data, PodArray<uint8_t>)
-  DECL_INT_ACCESSORS(length)
+  DECL_INT_ACCESSORS(data_length)
+  DECL_INT_ACCESSORS(children_length)
 
-  inline Object child_data(int index) const;
-  inline void set_child_data(int index, Object value,
-                             WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline int inner_start_offset() const;
+  inline ObjectSlot inner_data_start() const;
 
-  inline ObjectSlot child_data_start() const;
+  inline byte get(int index) const;
+  inline void set(int index, byte value);
+  inline void copy_in(int index, const byte* buffer, int length);
+
+  inline PreparseData get_child(int index) const;
+  inline void set_child(int index, PreparseData value,
+                        WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // Clear uninitialized padding space.
   inline void clear_padding();
@@ -46,23 +67,30 @@ class PreparseData : public HeapObject {
   DECL_VERIFIER(PreparseData)
 
 // Layout description.
-#define PREPARSE_DATA_FIELDS(V)                                           \
-  V(kScopeDataOffset, kTaggedSize)                                        \
-  V(kLengthOffset, kIntSize)                                              \
-  V(kOptionalPaddingOffset, POINTER_SIZE_PADDING(kOptionalPaddingOffset)) \
-  /* Header size. */                                                      \
-  V(kChildDataStartOffset, 0)
+#define PREPARSE_DATA_FIELDS(V)     \
+  V(kDataLengthOffset, kInt32Size)  \
+  V(kInnerLengthOffset, kInt32Size) \
+  /* Header size. */                \
+  V(kDataStartOffset, 0)            \
+  V(kHeaderSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, PREPARSE_DATA_FIELDS)
 #undef PREPARSE_DATA_FIELDS
 
   class BodyDescriptor;
 
-  static constexpr int SizeFor(int length) {
-    return kChildDataStartOffset + length * kTaggedSize;
+  static int InnerOffset(int data_length) {
+    return RoundUp(kDataStartOffset + data_length * kByteSize, kTaggedSize);
+  }
+
+  static int SizeFor(int data_length, int children_length) {
+    return InnerOffset(data_length) + children_length * kTaggedSize;
   }
 
   OBJECT_CONSTRUCTORS(PreparseData, HeapObject);
+
+ private:
+  inline Object get_child_raw(int index) const;
 };
 
 // Abstract class representing extra data for an uncompiled function, which is
@@ -84,7 +112,6 @@ class UncompiledData : public HeapObject {
               [](HeapObject object, ObjectSlot slot, HeapObject target) {});
 
   // Layout description.
-
 #define UNCOMPILED_DATA_FIELDS(V)                                         \
   V(kStartOfPointerFieldsOffset, 0)                                       \
   V(kInferredNameOffset, kTaggedSize)                                     \

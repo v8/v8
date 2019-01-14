@@ -135,19 +135,12 @@ void PreparseDataBuilder::ByteData::WriteQuarter(uint8_t data) {
   backing_store_.back() |= (data << shift_amount);
 }
 
-Handle<PodArray<uint8_t>> PreparseDataBuilder::ByteData::Serialize(
-    Isolate* isolate) {
-  Handle<PodArray<uint8_t>> array = PodArray<uint8_t>::New(
-      isolate, static_cast<int>(backing_store_.size()), TENURED);
-
+void PreparseDataBuilder::ByteData::StoreInto(PreparseData data) {
   DisallowHeapAllocation no_gc;
-  PodArray<uint8_t> raw_array = *array;
-
   int i = 0;
   for (uint8_t item : backing_store_) {
-    raw_array->set(i++, item);
+    data->set(i++, item);
   }
-  return array;
 }
 
 PreparseDataBuilder::PreparseDataBuilder(Zone* zone,
@@ -252,17 +245,15 @@ Handle<PreparseData> PreparseDataBuilder::Serialize(Isolate* isolate) {
   DCHECK(!ThisOrParentBailedOut());
 
   int child_data_length = static_cast<int>(data_for_inner_functions_.size());
-  Handle<PreparseData> data =
-      isolate->factory()->NewPreparseData(child_data_length);
-
-  Handle<PodArray<uint8_t>> scope_data_array = byte_data_->Serialize(isolate);
-  data->set_scope_data(*scope_data_array);
+  Handle<PreparseData> data = isolate->factory()->NewPreparseData(
+      static_cast<int>(byte_data_->size()), child_data_length);
+  byte_data_->StoreInto(*data);
 
   int i = 0;
   for (const auto& item : data_for_inner_functions_) {
     DCHECK_NOT_NULL(item);
     Handle<PreparseData> child_data = item->Serialize(isolate);
-    data->set_child_data(i++, *child_data);
+    data->set_child(i++, *child_data);
   }
 
   return data;
@@ -588,25 +579,18 @@ void BaseConsumedPreparseData<Data>::VerifyDataStart() {
 }
 #endif
 
-PodArray<uint8_t> OnHeapConsumedPreparseData::GetScopeData() {
-  return data_->scope_data();
-}
+PreparseData OnHeapConsumedPreparseData::GetScopeData() { return *data_; }
 
-ProducedPreparseData* OnHeapConsumedPreparseData::GetChildData(
-    Zone* zone, int child_index) {
-  CHECK_GT(data_->length(), child_index);
-  Object child_data = data_->child_data(child_index);
-  if (!child_data->IsPreparseData()) return nullptr;
-  Handle<PreparseData> child_data_handle(PreparseData::cast(child_data),
-                                         isolate_);
+ProducedPreparseData* OnHeapConsumedPreparseData::GetChildData(Zone* zone,
+                                                               int index) {
+  DisallowHeapAllocation no_gc;
+  Handle<PreparseData> child_data_handle(data_->get_child(index), isolate_);
   return ProducedPreparseData::For(child_data_handle, zone);
 }
 
 OnHeapConsumedPreparseData::OnHeapConsumedPreparseData(
     Isolate* isolate, Handle<PreparseData> data)
-    : BaseConsumedPreparseData<PodArray<uint8_t>>(),
-      isolate_(isolate),
-      data_(data) {
+    : BaseConsumedPreparseData<PreparseData>(), isolate_(isolate), data_(data) {
   DCHECK_NOT_NULL(isolate);
   DCHECK(data->IsPreparseData());
 #ifdef DEBUG
@@ -621,22 +605,17 @@ ZonePreparseData::ZonePreparseData(Zone* zone,
       children_(child_length, zone) {}
 
 Handle<PreparseData> ZonePreparseData::Serialize(Isolate* isolate) {
+  int data_size = static_cast<int>(byte_data()->size());
   int child_data_length = child_length();
   Handle<PreparseData> result =
-      isolate->factory()->NewPreparseData(child_data_length);
-
-  Handle<PodArray<uint8_t>> scope_data_array = PodArray<uint8_t>::New(
-      isolate, static_cast<int>(byte_data()->size()), TENURED);
-  scope_data_array->copy_in(0, byte_data()->data(),
-                            static_cast<int>(byte_data()->size()));
-  result->set_scope_data(*scope_data_array);
+      isolate->factory()->NewPreparseData(data_size, child_data_length);
+  result->copy_in(0, byte_data()->data(), data_size);
 
   for (int i = 0; i < child_data_length; i++) {
     ZonePreparseData* child = get_child(i);
-    if (child) {
-      Handle<PreparseData> child_data = child->Serialize(isolate);
-      result->set_child_data(i, *child_data);
-    }
+    DCHECK_NOT_NULL(child);
+    Handle<PreparseData> child_data = child->Serialize(isolate);
+    result->set_child(i, *child_data);
   }
   return result;
 }

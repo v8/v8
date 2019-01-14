@@ -3600,7 +3600,8 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
 
     case PREPARSE_DATA_TYPE: {
       PreparseData data = PreparseData::cast(*this);
-      os << "<PreparseData[" << data->length() << "]>";
+      os << "<PreparseData[data=" << data->data_length()
+         << " children=" << data->children_length() << "]>";
       break;
     }
 

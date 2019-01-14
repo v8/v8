@@ -2638,15 +2638,15 @@ Handle<ModuleInfo> Factory::NewModuleInfo() {
                                           ModuleInfo::kLength, TENURED);
 }
 
-Handle<PreparseData> Factory::NewPreparseData(int length) {
-  int size = PreparseData::SizeFor(length);
+Handle<PreparseData> Factory::NewPreparseData(int data_length,
+                                              int children_length) {
+  int size = PreparseData::SizeFor(data_length, children_length);
   Handle<PreparseData> result(PreparseData::cast(AllocateRawWithImmortalMap(
                                   size, TENURED, *preparse_data_map())),
                               isolate());
-  result->set_scope_data(PodArray<uint8_t>::cast(*empty_byte_array()));
-  result->set_length(length);
-  MemsetTagged(result->child_data_start(), *null_value(), length);
-
+  result->set_data_length(data_length);
+  result->set_children_length(children_length);
+  MemsetTagged(result->inner_data_start(), *null_value(), children_length);
   result->clear_padding();
   return result;
 }
