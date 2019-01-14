@@ -2682,6 +2682,7 @@ v8_source_set("v8_base") {
       "src/ia32/assembler-ia32-inl.h",
       "src/ia32/assembler-ia32.cc",
       "src/ia32/assembler-ia32.h",
+      "src/ia32/codegen-ia32.cc",
       "src/ia32/constants-ia32.h",
       "src/ia32/cpu-ia32.cc",
       "src/ia32/deoptimizer-ia32.cc",

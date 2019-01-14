@@ -23,7 +23,21 @@ typedef uintptr_t Address;
 // Initializes the codegen support that depends on CPU features.
 void init_memcopy_functions();
 
-#if defined(V8_HOST_ARCH_ARM)
+#if defined(V8_TARGET_ARCH_IA32)
+// Limit below which the extra overhead of the MemCopy function is likely
+// to outweigh the benefits of faster copying.
+const int kMinComplexMemCopy = 64;
+
+// Copy memory area. No restrictions.
+V8_EXPORT_PRIVATE void MemMove(void* dest, const void* src, size_t size);
+typedef void (*MemMoveFunction)(void* dest, const void* src, size_t size);
+
+// Keep the distinction of "move" vs. "copy" for the benefit of other
+// architectures.
+V8_INLINE void MemCopy(void* dest, const void* src, size_t size) {
+  MemMove(dest, src, size);
+}
+#elif defined(V8_HOST_ARCH_ARM)
 typedef void (*MemCopyUint8Function)(uint8_t* dest, const uint8_t* src,
                                      size_t size);
 V8_EXPORT_PRIVATE extern MemCopyUint8Function memcopy_uint8_function;
@@ -74,15 +88,13 @@ V8_EXPORT_PRIVATE V8_INLINE void MemMove(void* dest, const void* src,
 #else
 // Copy memory area to disjoint memory area.
 V8_INLINE void MemCopy(void* dest, const void* src, size_t size) {
-  std::memcpy(dest, src, size);
+  memcpy(dest, src, size);
 }
-
 V8_EXPORT_PRIVATE V8_INLINE void MemMove(void* dest, const void* src,
                                          size_t size) {
-  std::memmove(dest, src, size);
+  memmove(dest, src, size);
 }
-
-static constexpr int kMinComplexMemCopy = 8;
+const int kMinComplexMemCopy = 8;
 #endif  // V8_TARGET_ARCH_IA32
 
 // Copies words from |src| to |dst|. The data spans must not overlap.
