@@ -8,7 +8,7 @@ import { GNode, nodeToStr } from "../src/node";
 import { NODE_INPUT_WIDTH } from "../src/node";
 import { DEFAULT_NODE_BUBBLE_RADIUS } from "../src/node";
 import { Edge, edgeToStr } from "../src/edge";
-import { View, PhaseView } from "../src/view";
+import { PhaseView } from "../src/view";
 import { MySelection } from "../src/selection";
 import { partial } from "../src/util";
 import { NodeSelectionHandler, ClearableHandler } from "./selection-handler";
@@ -28,7 +28,7 @@ interface GraphState {
   hideDead: boolean;
 }
 
-export class GraphView extends View implements PhaseView {
+export class GraphView extends PhaseView {
   divElement: d3.Selection<any, any, any, any>;
   svg: d3.Selection<any, any, any, any>;
   showPhaseByName: (p: string, s: Set<any>) => void;
@@ -227,6 +227,7 @@ export class GraphView extends View implements PhaseView {
   }
 
   initializeContent(data, rememberedSelection) {
+    this.show();
     function createImgInput(id: string, title: string, onClick): HTMLElement {
       const input = document.createElement("input");
       input.setAttribute("id", id);
@@ -267,11 +268,6 @@ export class GraphView extends View implements PhaseView {
     }
   }
 
-  show(data, rememberedSelection): void {
-    this.container.appendChild(this.divNode);
-    this.initializeContent(data, rememberedSelection);
-  }
-
   deleteContent() {
     for (const item of this.toolbox.querySelectorAll(".graph-toolbox-item")) {
       item.parentElement.removeChild(item);
@@ -286,6 +282,11 @@ export class GraphView extends View implements PhaseView {
     this.updateGraphVisibility();
   }
 
+  public hide(): void {
+    super.hide();
+    this.deleteContent();
+  }
+
   createGraph(data, rememberedSelection) {
     this.graph = new Graph(data);
 
@@ -293,7 +294,7 @@ export class GraphView extends View implements PhaseView {
 
     if (rememberedSelection != undefined) {
       for (const n of this.graph.nodes()) {
-        n.visible = n.visible || rememberedSelection.has(nodeToStringKey(n);
+        n.visible = n.visible || rememberedSelection.has(nodeToStringKey(n));
       }
     }
 
@@ -559,7 +560,7 @@ export class GraphView extends View implements PhaseView {
         view.selectAllNodes();
         break;
       case 38:
-        // UP
+      // UP
       case 40: {
         // DOWN
         showSelectionFrontierNodes(d3.event.keyCode == 38, undefined, true);

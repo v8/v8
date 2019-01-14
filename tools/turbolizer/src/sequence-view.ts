@@ -4,10 +4,9 @@
 
 import { Sequence } from "../src/source-resolver";
 import { isIterable } from "../src/util";
-import { PhaseView } from "../src/view";
 import { TextView } from "../src/text-view";
 
-export class SequenceView extends TextView implements PhaseView {
+export class SequenceView extends TextView {
   sequence: Sequence;
   searchInfo: Array<any>;
 
@@ -49,6 +48,7 @@ export class SequenceView extends TextView implements PhaseView {
     });
     this.addBlocks(this.sequence.blocks);
     this.attachSelection(rememberedSelection);
+    this.show();
   }
 
   elementForBlock(block) {
@@ -239,6 +239,4 @@ export class SequenceView extends TextView implements PhaseView {
     }
     this.selectionHandler.select(select, true);
   }
-
-  onresize() { }
 }

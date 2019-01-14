@@ -100,9 +100,6 @@ export class CodeView extends View {
     mkVisible.apply(scrollIntoView);
   }
 
-  initializeContent(data, rememberedSelection) {
-  }
-
   getCodeHtmlElementName() {
     return `source-pre-${this.source.sourceId}`;
   }
@@ -126,7 +123,7 @@ export class CodeView extends View {
     }
   }
 
-  onSelectSourcePosition(sourcePosition, doClear) {
+  onSelectSourcePosition(sourcePosition, doClear: boolean) {
     if (doClear) {
       this.selectionHandler.clear();
     }
@@ -274,6 +271,4 @@ export class CodeView extends View {
     }
   }
 
-  deleteContent() { }
-  detachSelection() { return null; }
 }

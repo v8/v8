@@ -280,9 +280,9 @@ export class DisassemblyView extends TextView {
     }
   }
 
-  initializeContent(data, rememberedSelection) {
+  showContent(data): void {
     console.time("disassembly-view");
-    super.initializeContent(data, rememberedSelection);
+    super.initializeContent(data, null);
     this.showInstructionAddressHandler();
     this.showInstructionBinaryHandler();
     console.timeEnd("disassembly-view");
@@ -347,4 +347,8 @@ export class DisassemblyView extends TextView {
   }
 
   detachSelection() { return null; }
+
+  public searchInputAction(searchInput: HTMLInputElement, e: Event, onlyVisible: boolean): void {
+    throw new Error("Method not implemented.");
+  }
 }

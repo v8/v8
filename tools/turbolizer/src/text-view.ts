@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import { View } from "../src/view";
+import { PhaseView } from "../src/view";
 import { anyToString, ViewElements, isIterable } from "../src/util";
 import { MySelection } from "../src/selection";
 import { SourceResolver } from "./source-resolver";
 import { SelectionBroker } from "./selection-broker";
 import { NodeSelectionHandler, BlockSelectionHandler } from "./selection-handler";
 
-export abstract class TextView extends View {
+export abstract class TextView extends PhaseView {
   selectionHandler: NodeSelectionHandler;
   blockSelectionHandler: BlockSelectionHandler;
   selection: MySelection;
@@ -161,9 +161,8 @@ export abstract class TextView extends View {
   }
 
   clearText() {
-    const view = this;
-    while (view.textListNode.firstChild) {
-      view.textListNode.removeChild(view.textListNode.firstChild);
+    while (this.textListNode.firstChild) {
+      this.textListNode.removeChild(this.textListNode.firstChild);
     }
   }
 
@@ -240,13 +239,12 @@ export abstract class TextView extends View {
   }
 
   initializeContent(data, rememberedSelection) {
-    const view = this;
-    view.clearText();
-    view.processText(data);
+    this.clearText();
+    this.processText(data);
+    this.show();
   }
 
-  deleteContent() {
-  }
+  public onresize(): void {}
 
   isScrollable() {
     return true;

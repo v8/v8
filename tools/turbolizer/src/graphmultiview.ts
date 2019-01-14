@@ -28,7 +28,7 @@ export class GraphMultiView extends View {
   schedule: ScheduleView;
   sequence: SequenceView;
   selectMenu: HTMLSelectElement;
-  currentPhaseView: View & PhaseView;
+  currentPhaseView: PhaseView;
 
   createViewElement() {
     const pane = document.createElement("div");
@@ -84,16 +84,14 @@ export class GraphMultiView extends View {
     };
   }
 
-  show(data, rememberedSelection) {
-    super.show(data, rememberedSelection);
+  show() {
+    super.show();
     this.initializeSelect();
     const lastPhaseIndex = +window.sessionStorage.getItem("lastSelectedPhase");
     const initialPhaseIndex = this.sourceResolver.repairPhaseId(lastPhaseIndex);
     this.selectMenu.selectedIndex = initialPhaseIndex;
     this.displayPhase(this.sourceResolver.getPhase(initialPhaseIndex));
   }
-
-  initializeContent() { }
 
   displayPhase(phase, selection?: Set<any>) {
     if (phase.type == "graph") {
@@ -105,9 +103,9 @@ export class GraphMultiView extends View {
     }
   }
 
-  displayPhaseView(view, data, selection?: Set<any>) {
+  displayPhaseView(view: PhaseView, data, selection?: Set<any>) {
     const rememberedSelection = selection ? selection : this.hideCurrentPhase();
-    view.show(data, rememberedSelection);
+    view.initializeContent(data, rememberedSelection);
     this.divNode.classList.toggle("scrollable", view.isScrollable());
     this.currentPhaseView = view;
   }
@@ -130,10 +128,6 @@ export class GraphMultiView extends View {
 
   onresize() {
     if (this.currentPhaseView) this.currentPhaseView.onresize();
-  }
-
-  deleteContent() {
-    this.hideCurrentPhase();
   }
 
   detachSelection() {

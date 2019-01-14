@@ -3,10 +3,9 @@
 // found in the LICENSE file.
 
 import { Schedule, SourceResolver } from "../src/source-resolver";
-import { PhaseView } from "../src/view";
 import { TextView } from "../src/text-view";
 
-export class ScheduleView extends TextView implements PhaseView {
+export class ScheduleView extends TextView {
   schedule: Schedule;
   sourceResolver: SourceResolver;
 
@@ -41,6 +40,7 @@ export class ScheduleView extends TextView implements PhaseView {
     this.schedule = data.schedule;
     this.addBlocks(data.schedule.blocks);
     this.attachSelection(rememberedSelection);
+    this.show();
   }
 
   createElementFromString(htmlString) {
@@ -183,6 +183,4 @@ export class ScheduleView extends TextView implements PhaseView {
     }
     this.selectionHandler.select(select, true);
   }
-
-  onresize() { }
 }

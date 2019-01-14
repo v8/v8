@@ -13,11 +13,11 @@ import * as C from "../src/constants";
 import { InfoView } from "./info-view";
 
 window.onload = function () {
-  let multiview = null;
-  let disassemblyView = null;
-  let sourceViews = [];
-  let selectionBroker = null;
-  let sourceResolver = null;
+  let multiview: GraphMultiView = null;
+  let disassemblyView: DisassemblyView = null;
+  let sourceViews: Array<CodeView> = [];
+  let selectionBroker: SelectionBroker = null;
+  let sourceResolver: SourceResolver = null;
   const resizer = new Resizer(panesUpdatedCallback, 100);
   const sourceTabsContainer = document.getElementById(C.SOURCE_PANE_ID);
   const sourceTabs = new Tabs(sourceTabsContainer);
@@ -29,7 +29,7 @@ window.onload = function () {
   infoTab.classList.add("persistent-tab");
   infoContainer.classList.add("viewpane", "scrollable");
   const infoView = new InfoView(infoContainer);
-  infoView.show(null, null);
+  infoView.show();
   sourceTabs.activateTab(infoTab);
 
   function panesUpdatedCallback() {
@@ -80,12 +80,12 @@ window.onload = function () {
       sourceContainer.classList.add("viewpane", "scrollable");
       sourceTabs.activateTab(sourceTab);
       const sourceView = new CodeView(sourceContainer, selectionBroker, sourceResolver, fnc, CodeMode.MAIN_SOURCE);
-      sourceView.show(null, null);
+      sourceView.show();
       sourceViews.push(sourceView);
 
       sourceResolver.forEachSource(source => {
         const sourceView = new CodeView(sourceContainer, selectionBroker, sourceResolver, source, CodeMode.INLINED_SOURCE);
-        sourceView.show(null, null);
+        sourceView.show();
         sourceViews.push(sourceView);
       });
 
@@ -96,11 +96,12 @@ window.onload = function () {
       disassemblyView.initializeCode(fnc.sourceText);
       if (sourceResolver.disassemblyPhase) {
         disassemblyView.initializePerfProfile(jsonObj.eventCounts);
-        disassemblyView.show(sourceResolver.disassemblyPhase.data, null);
+        disassemblyView.showContent(sourceResolver.disassemblyPhase.data);
+        disassemblyView.show();
       }
 
       multiview = new GraphMultiView(C.INTERMEDIATE_PANE_ID, selectionBroker, sourceResolver);
-      multiview.show(jsonObj);
+      multiview.show();
     } catch (err) {
       if (window.confirm("Error: Exception during load of TurboFan JSON file:\n" +
         "error: " + err.message + "\nDo you want to clear session storage?")) {
