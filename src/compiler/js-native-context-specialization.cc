@@ -1802,21 +1802,13 @@ Reduction JSNativeContextSpecialization::ReduceKeyedAccess(
 
   // Optimize access for constant {index}.
   HeapObjectMatcher mindex(index);
-  if (mindex.HasValue() && mindex.Value()->IsPrimitive()) {
-    // Keyed access requires a ToPropertyKey on the {index} first before
-    // looking up the property on the object (see ES6 section 12.3.2.1).
-    // We can only do this for non-observable ToPropertyKey invocations,
-    // so we limit the constant indices to primitives at this point.
-    Handle<Name> name;
-    if (Object::ToName(isolate(), mindex.Value()).ToHandle(&name)) {
-      uint32_t array_index;
-      if (name->AsArrayIndex(&array_index)) {
-        // Use the constant array index.
-        index = jsgraph()->Constant(static_cast<double>(array_index));
-      } else {
-        name = factory()->InternalizeName(name);  // TODO(neis): Do up-front.
-        return ReduceNamedAccess(node, value, receiver_maps, name, access_mode);
-      }
+  if (mindex.HasValue() && mindex.Value()->IsUniqueName()) {
+    auto name = Handle<Name>::cast(mindex.Value());
+    uint32_t array_index;
+    if (name->AsArrayIndex(&array_index)) {
+      index = jsgraph()->Constant(static_cast<double>(array_index));
+    } else {
+      return ReduceNamedAccess(node, value, receiver_maps, name, access_mode);
     }
   }
 
