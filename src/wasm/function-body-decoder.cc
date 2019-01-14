@@ -116,7 +116,7 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
   BodyLocalDecls decls(&zone);
   BytecodeIterator i(body.start, body.end, &decls);
   if (body.start != i.pc() && print_locals == kPrintLocals) {
-    os << "// locals: ";
+    os << "// locals:";
     if (!decls.type_list.empty()) {
       ValueType type = decls.type_list[0];
       uint32_t count = 0;
@@ -129,6 +129,7 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
           count = 1;
         }
       }
+      os << " " << count << " " << ValueTypes::TypeName(type);
     }
     os << std::endl;
     if (line_numbers) line_numbers->push_back(kNoByteCode);
