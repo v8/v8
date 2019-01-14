@@ -1501,6 +1501,36 @@ void BytecodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
   }
 }
 
+template <typename TryBodyFunc, typename CatchBodyFunc>
+void BytecodeGenerator::BuildTryCatch(
+    TryBodyFunc try_body_func, CatchBodyFunc catch_body_func,
+    HandlerTable::CatchPrediction catch_prediction,
+    TryCatchStatement* stmt_for_coverage) {
+  TryCatchBuilder try_control_builder(
+      builder(),
+      stmt_for_coverage == nullptr ? nullptr : block_coverage_builder_,
+      stmt_for_coverage, catch_prediction);
+
+  // Preserve the context in a dedicated register, so that it can be restored
+  // when the handler is entered by the stack-unwinding machinery.
+  // TODO(mstarzinger): Be smarter about register allocation.
+  Register context = register_allocator()->NewRegister();
+  builder()->MoveRegister(Register::current_context(), context);
+
+  // Evaluate the try-block inside a control scope. This simulates a handler
+  // that is intercepting 'throw' control commands.
+  try_control_builder.BeginTry(context);
+  {
+    ControlScopeForTryCatch scope(this, &try_control_builder);
+    try_body_func();
+  }
+  try_control_builder.EndTry();
+
+  catch_body_func(context);
+
+  try_control_builder.EndCatch();
+}
+
 template <typename TryBodyFunc, typename FinallyBodyFunc>
 void BytecodeGenerator::BuildTryFinally(
     TryBodyFunc try_body_func, FinallyBodyFunc finally_body_func,
@@ -1806,46 +1836,36 @@ void BytecodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
   HandlerTable::CatchPrediction outer_catch_prediction = catch_prediction();
   set_catch_prediction(stmt->GetCatchPrediction(outer_catch_prediction));
 
-  TryCatchBuilder try_control_builder(builder(), block_coverage_builder_, stmt,
-                                      catch_prediction());
+  BuildTryCatch(
+      // Try body.
+      [&]() {
+        Visit(stmt->try_block());
+        set_catch_prediction(outer_catch_prediction);
+      },
+      // Catch body.
+      [&](Register context) {
+        if (stmt->scope()) {
+          // Create a catch scope that binds the exception.
+          BuildNewLocalCatchContext(stmt->scope());
+          builder()->StoreAccumulatorInRegister(context);
+        }
 
-  // Preserve the context in a dedicated register, so that it can be restored
-  // when the handler is entered by the stack-unwinding machinery.
-  // TODO(mstarzinger): Be smarter about register allocation.
-  Register context = register_allocator()->NewRegister();
-  builder()->MoveRegister(Register::current_context(), context);
+        // If requested, clear message object as we enter the catch block.
+        if (stmt->ShouldClearPendingException(outer_catch_prediction)) {
+          builder()->LoadTheHole().SetPendingMessage();
+        }
 
-  // Evaluate the try-block inside a control scope. This simulates a handler
-  // that is intercepting 'throw' control commands.
-  try_control_builder.BeginTry(context);
-  {
-    ControlScopeForTryCatch scope(this, &try_control_builder);
-    Visit(stmt->try_block());
-    set_catch_prediction(outer_catch_prediction);
-  }
-  try_control_builder.EndTry();
+        // Load the catch context into the accumulator.
+        builder()->LoadAccumulatorWithRegister(context);
 
-  if (stmt->scope()) {
-    // Create a catch scope that binds the exception.
-    BuildNewLocalCatchContext(stmt->scope());
-    builder()->StoreAccumulatorInRegister(context);
-  }
-
-  // If requested, clear message object as we enter the catch block.
-  if (stmt->ShouldClearPendingException(outer_catch_prediction)) {
-    builder()->LoadTheHole().SetPendingMessage();
-  }
-
-  // Load the catch context into the accumulator.
-  builder()->LoadAccumulatorWithRegister(context);
-
-  // Evaluate the catch-block.
-  if (stmt->scope()) {
-    VisitInScope(stmt->catch_block(), stmt->scope());
-  } else {
-    VisitBlock(stmt->catch_block());
-  }
-  try_control_builder.EndCatch();
+        // Evaluate the catch-block.
+        if (stmt->scope()) {
+          VisitInScope(stmt->catch_block(), stmt->scope());
+        } else {
+          VisitBlock(stmt->catch_block());
+        }
+      },
+      catch_prediction(), stmt);
 }
 
 void BytecodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
@@ -3173,67 +3193,54 @@ void BytecodeGenerator::BuildFinalizeIteration(
   }
   builder()->Bind(&if_callable);
 
-  //     try {
-  //       let return_val = method.call(iterator)
-  //       if (!%IsObject(return_val)) throw TypeError
-  //     }
-
   {
     RegisterAllocationScope register_scope(this);
-    TryCatchBuilder try_control_builder(builder(), nullptr, nullptr,
-                                        HandlerTable::UNCAUGHT);
+    BuildTryCatch(
+        // try {
+        //   let return_val = method.call(iterator)
+        //   if (!%IsObject(return_val)) throw TypeError
+        // }
+        [&]() {
+          RegisterList args(iterator.object());
+          builder()->CallProperty(
+              method, args, feedback_index(feedback_spec()->AddCallICSlot()));
+          if (iterator.type() == IteratorType::kAsync) {
+            BuildAwait();
+          }
+          builder()->JumpIfJSReceiver(iterator_is_done.New());
+          {
+            // Throw this exception inside the try block so that it is
+            // suppressed by the iteration continuation if necessary.
+            RegisterAllocationScope register_scope(this);
+            Register return_result = register_allocator()->NewRegister();
+            builder()
+                ->StoreAccumulatorInRegister(return_result)
+                .CallRuntime(Runtime::kThrowIteratorResultNotAnObject,
+                             return_result);
+          }
+        },
 
-    // Preserve the context in a dedicated register, so that it can be restored
-    // when the handler is entered by the stack-unwinding machinery.
-    // TODO(mstarzinger): Be smarter about register allocation.
-    Register context = register_allocator()->NewRegister();
-    builder()->MoveRegister(Register::current_context(), context);
+        // catch (e) {
+        //   if (iteration_continuation != RETHROW)
+        //     rethrow e
+        // }
+        [&](Register context) {
+          // Reuse context register to store the exception.
+          Register close_exception = context;
+          builder()->StoreAccumulatorInRegister(close_exception);
 
-    // Evaluate the try-block inside a control scope. This simulates a handler
-    // that is intercepting 'throw' control commands.
-    try_control_builder.BeginTry(context);
-    {
-      ControlScopeForTryCatch scope(this, &try_control_builder);
-
-      RegisterList args(iterator.object());
-      builder()->CallProperty(method, args,
-                              feedback_index(feedback_spec()->AddCallICSlot()));
-      if (iterator.type() == IteratorType::kAsync) {
-        BuildAwait();
-      }
-      builder()->JumpIfJSReceiver(iterator_is_done.New());
-      {
-        // Throw this exception inside the try block so that it is suppressed by
-        // the iteration continuation if necessary.
-        RegisterAllocationScope register_scope(this);
-        Register return_result = register_allocator()->NewRegister();
-        builder()
-            ->StoreAccumulatorInRegister(return_result)
-            .CallRuntime(Runtime::kThrowIteratorResultNotAnObject,
-                         return_result);
-      }
-    }
-    try_control_builder.EndTry();
-
-    //     catch (e) {
-    //       if (iteration_continuation != RETHROW)
-    //         rethrow e
-    //     }
-
-    // Reuse context register to store the exception.
-    Register close_exception = context;
-    builder()->StoreAccumulatorInRegister(close_exception);
-
-    BytecodeLabel suppress_close_exception;
-    builder()
-        ->LoadLiteral(
-            Smi::FromInt(ControlScope::DeferredCommands::kRethrowToken))
-        .CompareReference(iteration_continuation_token)
-        .JumpIfTrue(ToBooleanMode::kAlreadyBoolean, &suppress_close_exception)
-        .LoadAccumulatorWithRegister(close_exception)
-        .ReThrow()
-        .Bind(&suppress_close_exception);
-    try_control_builder.EndCatch();
+          BytecodeLabel suppress_close_exception;
+          builder()
+              ->LoadLiteral(
+                  Smi::FromInt(ControlScope::DeferredCommands::kRethrowToken))
+              .CompareReference(iteration_continuation_token)
+              .JumpIfTrue(ToBooleanMode::kAlreadyBoolean,
+                          &suppress_close_exception)
+              .LoadAccumulatorWithRegister(close_exception)
+              .ReThrow()
+              .Bind(&suppress_close_exception);
+        },
+        HandlerTable::UNCAUGHT);
   }
 
   iterator_is_done.Bind(builder());

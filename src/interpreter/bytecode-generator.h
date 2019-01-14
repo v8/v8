@@ -344,6 +344,10 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void BuildTest(ToBooleanMode mode, BytecodeLabels* then_labels,
                  BytecodeLabels* else_labels, TestFallthrough fallthrough);
 
+  template <typename TryBodyFunc, typename CatchBodyFunc>
+  void BuildTryCatch(TryBodyFunc try_body_func, CatchBodyFunc catch_body_func,
+                     HandlerTable::CatchPrediction catch_prediction,
+                     TryCatchStatement* stmt_for_coverage = nullptr);
   template <typename TryBodyFunc, typename FinallyBodyFunc>
   void BuildTryFinally(TryBodyFunc try_body_func,
                        FinallyBodyFunc finally_body_func,
