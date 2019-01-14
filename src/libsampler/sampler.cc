@@ -63,6 +63,8 @@ typedef zx_arm64_general_regs_t zx_thread_state_general_regs_t;
 #include "src/base/atomic-utils.h"
 #include "src/base/hashmap.h"
 #include "src/base/platform/platform.h"
+// TODO(petermarshall): Remove when cpu profiler logging is no longer needed
+#include "src/flags.h"
 
 #if V8_OS_ANDROID && !defined(__BIONIC_HAVE_UCONTEXT_T)
 
@@ -391,6 +393,9 @@ class SignalHandler {
 
   static void DecreaseSamplerCount() {
     base::MutexGuard lock_guard(mutex_);
+    if (i::FLAG_cpu_profiler_logging) {
+      printf("SignalHandler DecreaseSamplerCount: signals: %d\n", signals_);
+    }
     if (--client_count_ == 0) Restore();
   }
 
@@ -428,13 +433,14 @@ class SignalHandler {
   static int client_count_;
   static bool signal_handler_installed_;
   static struct sigaction old_signal_handler_;
+  static int signals_;
 };
 
 base::Mutex* SignalHandler::mutex_ = nullptr;
 int SignalHandler::client_count_ = 0;
 struct sigaction SignalHandler::old_signal_handler_;
 bool SignalHandler::signal_handler_installed_ = false;
-
+int SignalHandler::signals_ = 0;
 
 void SignalHandler::HandleProfilerSignal(int signal, siginfo_t* info,
                                          void* context) {
@@ -442,6 +448,7 @@ void SignalHandler::HandleProfilerSignal(int signal, siginfo_t* info,
   if (signal != SIGPROF) return;
   v8::RegisterState state;
   FillRegisterState(context, &state);
+  signals_++;
   SamplerManager::instance()->DoSample(state);
 }
 
@@ -627,6 +634,9 @@ void Sampler::UnregisterIfRegistered() {
 Sampler::~Sampler() {
   DCHECK(!IsActive());
   DCHECK(!IsRegistered());
+  if (i::FLAG_cpu_profiler_logging) {
+    printf("~Sampler: samples = %d\n", samples_);
+  }
   delete data_;
 }
 
@@ -668,6 +678,7 @@ void Sampler::DecreaseProfilingDepth() {
 #if defined(USE_SIGNALS)
 
 void Sampler::DoSample() {
+  samples_++;
   if (!SignalHandler::Installed()) return;
   if (!IsActive() && !IsRegistered()) {
     SamplerManager::instance()->AddSampler(this);

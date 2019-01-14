@@ -463,10 +463,16 @@ class CpuProfilesCollection {
 class ProfileGenerator {
  public:
   explicit ProfileGenerator(CpuProfilesCollection* profiles);
+  ~ProfileGenerator() {
+    if (FLAG_cpu_profiler_logging) {
+      PrintF("~ProfileGenerator: samples = %d\n", samples_);
+    }
+  }
 
   void RecordTickSample(const TickSample& sample);
 
   CodeMap* code_map() { return &code_map_; }
+  int samples_ = 0;
 
  private:
   CodeEntry* FindEntry(Address address);

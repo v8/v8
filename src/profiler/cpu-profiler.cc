@@ -406,6 +406,9 @@ void CpuProfiler::StartProcessorIfNotStarted() {
 
 CpuProfile* CpuProfiler::StopProfiling(const char* title) {
   if (!is_profiling_) return nullptr;
+  if (i::FLAG_cpu_profiler_logging) {
+    PrintF("StopProfiling: samples = %d\n", generator_->samples_);
+  }
   StopProcessorIfLastProfile(title);
   return profiles_->StopProfiling(title);
 }
