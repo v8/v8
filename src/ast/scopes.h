@@ -53,10 +53,12 @@ class SloppyBlockFunctionMap : public ZoneHashMap {
     Delegate(Scope* scope, SloppyBlockFunctionStatement* statement, int index)
         : scope_(scope), statement_(statement), next_(nullptr), index_(index) {}
     void set_statement(Statement* statement);
+
     void set_next(Delegate* next) { next_ = next; }
     Delegate* next() const { return next_; }
     Scope* scope() const { return scope_; }
     int index() const { return index_; }
+    int position() const { return statement_->position(); }
 
    private:
     Scope* scope_;
@@ -240,8 +242,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
 
   // Create a new unresolved variable.
   VariableProxy* NewUnresolved(AstNodeFactory* factory,
-                               const AstRawString* name,
-                               int start_pos = kNoSourcePosition,
+                               const AstRawString* name, int start_pos,
                                VariableKind kind = NORMAL_VARIABLE) {
     // Note that we must not share the unresolved variables with
     // the same name because they may be removed selectively via

@@ -1196,10 +1196,11 @@ class PreParser : public ParserBase<PreParser> {
     return PreParserStatement::Default();
   }
 
-  V8_INLINE PreParserStatement DeclareFunction(
-      const PreParserIdentifier& variable_name,
-      const PreParserExpression& function, VariableMode mode, int pos,
-      bool is_sloppy_block_function, ZonePtrList<const AstRawString>* names) {
+  V8_INLINE PreParserStatement
+  DeclareFunction(const PreParserIdentifier& variable_name,
+                  const PreParserExpression& function, VariableMode mode,
+                  int beg_pos, int end_pos, bool is_sloppy_block_function,
+                  ZonePtrList<const AstRawString>* names) {
     DCHECK_NULL(names);
     if (variable_name.string_ != nullptr) {
       scope()->DeclareVariableName(variable_name.string_, mode);

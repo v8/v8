@@ -542,12 +542,12 @@ void DeclarationScope::HoistSloppyBlockFunctions(AstNodeFactory* factory) {
 
       if (factory) {
         DCHECK(!is_being_lazily_parsed_);
+        int pos = delegate->position();
         Assignment* assignment = factory->NewAssignment(
-            Token::ASSIGN, NewUnresolved(factory, name),
-            delegate->scope()->NewUnresolved(factory, name), kNoSourcePosition);
+            Token::ASSIGN, NewUnresolved(factory, name, pos),
+            delegate->scope()->NewUnresolved(factory, name, pos), pos);
         assignment->set_lookup_hoisting_mode(LookupHoistingMode::kLegacySloppy);
-        Statement* statement =
-            factory->NewExpressionStatement(assignment, kNoSourcePosition);
+        Statement* statement = factory->NewExpressionStatement(assignment, pos);
         delegate->set_statement(statement);
       }
     }

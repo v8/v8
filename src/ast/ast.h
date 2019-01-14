@@ -994,9 +994,8 @@ class SloppyBlockFunctionStatement final : public Statement {
  private:
   friend class AstNodeFactory;
 
-  explicit SloppyBlockFunctionStatement(Statement* statement)
-      : Statement(kNoSourcePosition, kSloppyBlockFunctionStatement),
-        statement_(statement) {}
+  SloppyBlockFunctionStatement(int pos, Statement* statement)
+      : Statement(pos, kSloppyBlockFunctionStatement), statement_(statement) {}
 
   Statement* statement_;
 };
@@ -2967,8 +2966,8 @@ class AstNodeFactory final {
     return failure_expression_;
   }
 
-  SloppyBlockFunctionStatement* NewSloppyBlockFunctionStatement() {
-    return new (zone_) SloppyBlockFunctionStatement(EmptyStatement());
+  SloppyBlockFunctionStatement* NewSloppyBlockFunctionStatement(int pos) {
+    return new (zone_) SloppyBlockFunctionStatement(pos, EmptyStatement());
   }
 
   CaseClause* NewCaseClause(Expression* label,

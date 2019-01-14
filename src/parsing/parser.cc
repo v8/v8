@@ -1404,17 +1404,18 @@ Statement* Parser::BuildInitializationBlock(
 
 Statement* Parser::DeclareFunction(const AstRawString* variable_name,
                                    FunctionLiteral* function, VariableMode mode,
-                                   int pos, bool is_sloppy_block_function,
+                                   int beg_pos, int end_pos,
+                                   bool is_sloppy_block_function,
                                    ZonePtrList<const AstRawString>* names) {
   VariableProxy* proxy =
-      factory()->NewVariableProxy(variable_name, NORMAL_VARIABLE, pos);
+      factory()->NewVariableProxy(variable_name, NORMAL_VARIABLE, beg_pos);
   Declaration* declaration = factory()->NewFunctionDeclaration(
-      proxy, function, is_sloppy_block_function, pos);
+      proxy, function, is_sloppy_block_function, beg_pos);
   Declare(declaration, NORMAL_VARIABLE, mode, kCreatedInitialized, scope());
   if (names) names->Add(variable_name, zone());
   if (is_sloppy_block_function) {
     SloppyBlockFunctionStatement* statement =
-        factory()->NewSloppyBlockFunctionStatement();
+        factory()->NewSloppyBlockFunctionStatement(end_pos);
     GetDeclarationScope()->DeclareSloppyBlockFunction(variable_name, scope(),
                                                       statement);
     return statement;

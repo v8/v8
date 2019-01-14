@@ -3610,7 +3610,8 @@ ParserBase<Impl>::ParseHoistableDeclaration(
                                   flags == ParseFunctionFlag::kIsNormal;
 
   return impl()->DeclareFunction(variable_name, function, mode, pos,
-                                 is_sloppy_block_function, names);
+                                 end_position(), is_sloppy_block_function,
+                                 names);
 }
 
 template <typename Impl>
