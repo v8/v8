@@ -341,14 +341,13 @@ bool AccessInfoFactory::ComputeElementAccessInfos(
 bool AccessInfoFactory::ComputePropertyAccessInfo(
     Handle<Map> map, Handle<Name> name, AccessMode access_mode,
     PropertyAccessInfo* access_info) {
+  CHECK(name->IsUniqueName());
+
   // Check if it is safe to inline property access for the {map}.
   if (!CanInlinePropertyAccess(map)) return false;
 
   // Compute the receiver type.
   Handle<Map> receiver_map = map;
-
-  // Property lookups require the name to be internalized.
-  name = isolate()->factory()->InternalizeName(name);
 
   // We support fast inline cases for certain JSObject getters.
   if (access_mode == AccessMode::kLoad &&

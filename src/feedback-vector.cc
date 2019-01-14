@@ -43,7 +43,10 @@ bool FeedbackVectorSpec::HasTypeProfileSlot() const {
 static bool IsPropertyNameFeedback(MaybeObject feedback) {
   HeapObject heap_object;
   if (!feedback->GetHeapObjectIfStrong(&heap_object)) return false;
-  if (heap_object->IsString()) return true;
+  if (heap_object->IsString()) {
+    DCHECK(heap_object->IsInternalizedString());
+    return true;
+  }
   if (!heap_object->IsSymbol()) return false;
   Symbol symbol = Symbol::cast(heap_object);
   ReadOnlyRoots roots = symbol->GetReadOnlyRoots();

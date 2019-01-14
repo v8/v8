@@ -1814,7 +1814,7 @@ Reduction JSNativeContextSpecialization::ReduceKeyedAccess(
         // Use the constant array index.
         index = jsgraph()->Constant(static_cast<double>(array_index));
       } else {
-        name = factory()->InternalizeName(name);
+        name = factory()->InternalizeName(name);  // TODO(neis): Do up-front.
         return ReduceNamedAccess(node, value, receiver_maps, name, access_mode);
       }
     }
@@ -2407,9 +2407,9 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreDataPropertyInLiteral(
   if (!Map::TryUpdate(isolate(), receiver_map).ToHandle(&receiver_map))
     return NoChange();
 
-  Handle<Name> cached_name =
-      handle(Name::cast(nexus.GetFeedbackExtra()->GetHeapObjectAssumeStrong()),
-             isolate());
+  Handle<Name> cached_name(
+      Name::cast(nexus.GetFeedbackExtra()->GetHeapObjectAssumeStrong()),
+      isolate());
 
   PropertyAccessInfo access_info;
   AccessInfoFactory access_info_factory(
@@ -3158,7 +3158,7 @@ Node* JSNativeContextSpecialization::BuildCheckEqualsName(Handle<Name> name,
 
 bool JSNativeContextSpecialization::CanTreatHoleAsUndefined(
     MapHandles const& receiver_maps) {
-  // Check if all {receiver_maps} either have one of the initial Array.prototype
+  // Check if all {receiver_maps} have one of the initial Array.prototype
   // or Object.prototype objects as their prototype (in any of the current
   // native contexts, as the global Array protector works isolate-wide).
   for (Handle<Map> map : receiver_maps) {
