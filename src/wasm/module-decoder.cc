@@ -353,17 +353,7 @@ class ModuleDecoderImpl : public Decoder {
       return false;
     }
     set_seen_unordered_section(section_code);
-
-    switch (section_code) {
-      case kDataCountSectionCode:
-        return CheckSectionOrder(section_code, kElementSectionCode,
-                                 kCodeSectionCode);
-      case kExceptionSectionCode:
-        return CheckSectionOrder(section_code, kGlobalSectionCode,
-                                 kExportSectionCode);
-      default:
-        UNREACHABLE();
-    }
+    return true;
   }
 
   void DecodeSection(SectionCode section_code, Vector<const uint8_t> bytes,
@@ -385,11 +375,16 @@ class ModuleDecoderImpl : public Decoder {
       case kUnknownSectionCode:
         break;
       case kDataCountSectionCode:
-      case kExceptionSectionCode:
-        // Note: These sections have a section code that is numerically
-        // out-of-order with respect to their required location. So they are
-        // treated as a special case.
         if (!CheckUnorderedSection(section_code)) return;
+        if (!CheckSectionOrder(section_code, kElementSectionCode,
+                               kCodeSectionCode))
+          return;
+        break;
+      case kExceptionSectionCode:
+        if (!CheckUnorderedSection(section_code)) return;
+        if (!CheckSectionOrder(section_code, kGlobalSectionCode,
+                               kExportSectionCode))
+          return;
         break;
       case kSourceMappingURLSectionCode:
         // sourceMappingURL is a custom section and currently can occur anywhere
