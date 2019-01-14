@@ -360,12 +360,18 @@ class WasmGraphBuilder {
                                                wasm::WasmCodePosition position);
   Node* MemoryInit(uint32_t data_segment_index, Node* dst, Node* src,
                    Node* size, wasm::WasmCodePosition position);
-  Node* MemoryDrop(uint32_t data_segment_index,
-                   wasm::WasmCodePosition position);
   Node* MemoryCopy(Node* dst, Node* src, Node* size,
+                   wasm::WasmCodePosition position);
+  Node* MemoryDrop(uint32_t data_segment_index,
                    wasm::WasmCodePosition position);
   Node* MemoryFill(Node* dst, Node* fill, Node* size,
                    wasm::WasmCodePosition position);
+
+  Node* TableInit(uint32_t table_index, uint32_t elem_segment_index, Node* dst,
+                  Node* src, Node* size, wasm::WasmCodePosition position);
+  Node* TableDrop(uint32_t elem_segment_index, wasm::WasmCodePosition position);
+  Node* TableCopy(Node* dst, Node* src, Node* size,
+                  wasm::WasmCodePosition position);
 
   bool has_simd() const { return has_simd_; }
 

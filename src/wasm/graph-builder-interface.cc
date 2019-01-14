@@ -553,15 +553,17 @@ class WasmGraphBuildingInterface {
   }
   void TableInit(FullDecoder* decoder, const TableInitImmediate<validate>& imm,
                  Vector<Value> args) {
-    BUILD(Unreachable, decoder->position());
+    BUILD(TableInit, imm.table.index, imm.elem_segment_index, args[0].node,
+          args[1].node, args[2].node, decoder->position());
   }
   void TableDrop(FullDecoder* decoder,
                  const TableDropImmediate<validate>& imm) {
-    BUILD(Unreachable, decoder->position());
+    BUILD(TableDrop, imm.index, decoder->position());
   }
   void TableCopy(FullDecoder* decoder, const TableIndexImmediate<validate>& imm,
                  Vector<Value> args) {
-    BUILD(Unreachable, decoder->position());
+    BUILD(TableCopy, args[0].node, args[1].node, args[2].node,
+          decoder->position());
   }
 
  private:

@@ -106,6 +106,7 @@ let kExternalException = 4;
 
 let kTableZero = 0;
 let kMemoryZero = 0;
+let kSegmentZero = 0;
 
 let kExceptionAttribute = 0;
 

@@ -3119,9 +3119,10 @@ Node* WasmGraphBuilder::BuildCallToRuntimeWithContext(
   DCHECK_EQ(1, fun->result_size);
   Node* centry_stub =
       LOAD_INSTANCE_FIELD(CEntryStub, MachineType::TaggedPointer());
-  // At the moment we only allow 4 parameters. If more parameters are needed,
+  // TODO(titzer): allow arbitrary number of runtime arguments
+  // At the moment we only allow 5 parameters. If more parameters are needed,
   // increase this constant accordingly.
-  static const int kMaxParams = 4;
+  static const int kMaxParams = 5;
   DCHECK_GE(kMaxParams, parameter_count);
   Node* inputs[kMaxParams + 6];
   int count = 0;
@@ -4354,6 +4355,44 @@ Node* WasmGraphBuilder::MemoryFill(Node* dst, Node* value, Node* size,
                              MachineType::Uint32()};
   MachineSignature sig(0, 3, sig_types);
   return BuildCCall(&sig, function, dst, value, size);
+}
+
+Node* WasmGraphBuilder::TableInit(uint32_t table_index,
+                                  uint32_t elem_segment_index, Node* dst,
+                                  Node* src, Node* size,
+                                  wasm::WasmCodePosition position) {
+  // TODO(titzer): bounds check table indexes against maximum table size.
+  Node* args[] = {
+      // --
+      graph()->NewNode(mcgraph()->common()->NumberConstant(table_index)),
+      graph()->NewNode(mcgraph()->common()->NumberConstant(elem_segment_index)),
+      BuildChangeUint31ToSmi(dst),  // --
+      BuildChangeUint31ToSmi(src),  // --
+      BuildChangeUint31ToSmi(size)  // --
+  };
+  Node* result =
+      BuildCallToRuntime(Runtime::kWasmTableInit, args, arraysize(args));
+
+  return result;
+}
+
+Node* WasmGraphBuilder::TableDrop(uint32_t elem_segment_index,
+                                  wasm::WasmCodePosition position) {
+  UNREACHABLE();
+}
+
+Node* WasmGraphBuilder::TableCopy(Node* dst, Node* src, Node* size,
+                                  wasm::WasmCodePosition position) {
+  // TODO(titzer): bounds check table indexes against maximum table size.
+  Node* args[] = {
+      BuildChangeUint31ToSmi(dst),  // --
+      BuildChangeUint31ToSmi(src),  // --
+      BuildChangeUint31ToSmi(size)  // --
+  };
+  Node* result =
+      BuildCallToRuntime(Runtime::kWasmTableCopy, args, arraysize(args));
+
+  return result;
 }
 
 class WasmDecorator final : public GraphDecorator {

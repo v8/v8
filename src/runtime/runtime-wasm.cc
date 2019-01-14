@@ -319,5 +319,47 @@ RUNTIME_FUNCTION(Runtime_WasmI64AtomicWait) {
                                 timeout_ms);
 }
 
+RUNTIME_FUNCTION(Runtime_WasmTableInit) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(5, args.length());
+  auto instance = GetWasmInstanceOnStackTop(isolate);
+  CONVERT_UINT32_ARG_CHECKED(table_index, 0);
+  CONVERT_UINT32_ARG_CHECKED(elem_segment_index, 1);
+  CONVERT_UINT32_ARG_CHECKED(dst, 2);
+  CONVERT_UINT32_ARG_CHECKED(src, 3);
+  CONVERT_UINT32_ARG_CHECKED(size, 4);
+
+  PrintF(
+      "TableInit(table_index=%u, elem_segment_index=%u, dst=%u, src=%u, "
+      "size=%u)\n",
+      table_index, elem_segment_index, dst, src, size);
+
+  USE(instance);
+  USE(table_index);
+  USE(elem_segment_index);
+  USE(dst);
+  USE(src);
+  USE(size);
+
+  UNREACHABLE();
+}
+
+RUNTIME_FUNCTION(Runtime_WasmTableCopy) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(3, args.length());
+  auto instance = GetWasmInstanceOnStackTop(isolate);
+  CONVERT_UINT32_ARG_CHECKED(dst, 0);
+  CONVERT_UINT32_ARG_CHECKED(src, 1);
+  CONVERT_UINT32_ARG_CHECKED(size, 2);
+
+  PrintF("TableCopy(dst=%u, src=%u, size=%u)\n", dst, src, size);
+
+  USE(instance);
+  USE(dst);
+  USE(src);
+  USE(size);
+
+  UNREACHABLE();
+}
 }  // namespace internal
 }  // namespace v8
