@@ -67,7 +67,8 @@ class WasmInstanceNativeAllocations {
   WasmInstanceNativeAllocations(Handle<WasmInstanceObject> instance,
                                 size_t num_imported_functions,
                                 size_t num_imported_mutable_globals,
-                                size_t num_data_segments) {
+                                size_t num_data_segments,
+                                size_t num_elem_segments) {
     SET(instance, imported_function_targets,
         reinterpret_cast<Address*>(
             calloc(num_imported_functions, sizeof(Address))));
@@ -81,6 +82,8 @@ class WasmInstanceNativeAllocations {
             calloc(num_data_segments, sizeof(uint32_t))));
     SET(instance, dropped_data_segments,
         reinterpret_cast<uint8_t*>(calloc(num_data_segments, sizeof(uint8_t))));
+    SET(instance, dropped_elem_segments,
+        reinterpret_cast<uint8_t*>(calloc(num_elem_segments, sizeof(uint8_t))));
   }
   ~WasmInstanceNativeAllocations() {
     ::free(indirect_function_table_sig_ids_);
@@ -97,6 +100,8 @@ class WasmInstanceNativeAllocations {
     data_segment_sizes_ = nullptr;
     ::free(dropped_data_segments_);
     dropped_data_segments_ = nullptr;
+    ::free(dropped_elem_segments_);
+    dropped_elem_segments_ = nullptr;
   }
   // Resizes the indirect function table.
   void resize_indirect_function_table(Isolate* isolate,
@@ -141,6 +146,7 @@ class WasmInstanceNativeAllocations {
   Address* data_segment_starts_ = nullptr;
   uint32_t* data_segment_sizes_ = nullptr;
   uint8_t* dropped_data_segments_ = nullptr;
+  uint8_t* dropped_elem_segments_ = nullptr;
 #undef SET
 };
 
@@ -1306,7 +1312,8 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
   size_t native_allocations_size = EstimateNativeAllocationsSize(module);
   auto native_allocations = Managed<WasmInstanceNativeAllocations>::Allocate(
       isolate, native_allocations_size, instance, num_imported_functions,
-      num_imported_mutable_globals, num_data_segments);
+      num_imported_mutable_globals, num_data_segments,
+      module->elem_segments.size());
   instance->set_managed_native_allocations(*native_allocations);
 
   Handle<FixedArray> imported_function_refs =
@@ -1342,6 +1349,7 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
   module_object->set_weak_instance_list(*weak_instance_list);
 
   InitDataSegmentArrays(instance, module_object);
+  InitElemSegmentArrays(instance, module_object);
 
   return instance;
 }
@@ -1371,6 +1379,20 @@ void WasmInstanceObject::InitDataSegmentArrays(
     instance->data_segment_starts()[i] =
         reinterpret_cast<Address>(&wire_bytes[segment.source.offset()]);
     instance->data_segment_sizes()[i] = segment.source.length();
+  }
+}
+
+void WasmInstanceObject::InitElemSegmentArrays(
+    Handle<WasmInstanceObject> instance,
+    Handle<WasmModuleObject> module_object) {
+  auto module = module_object->module();
+  auto num_elem_segments = module->elem_segments.size();
+  for (size_t i = 0; i < num_elem_segments; ++i) {
+    const wasm::WasmElemSegment& segment = module->elem_segments[i];
+    // Set the active segments to being already dropped, since table.init on
+    // a dropped passive segment and an active segment have the same
+    // behavior.
+    instance->dropped_elem_segments()[i] = segment.active ? 1 : 0;
   }
 }
 

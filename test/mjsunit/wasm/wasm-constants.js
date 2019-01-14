@@ -457,6 +457,7 @@ let kTrapFuncSigMismatch      = 7;
 let kTrapTypeError            = 8;
 let kTrapUnalignedAccess      = 9;
 let kTrapDataSegmentDropped   = 10;
+let kTrapElemSegmentDropped   = 11;
 
 let kTrapMsgs = [
   "unreachable",
@@ -469,7 +470,8 @@ let kTrapMsgs = [
   "function signature mismatch",
   "wasm function signature contains illegal type",
   "operation does not support unaligned accesses",
-  "data segment has been dropped"
+  "data segment has been dropped",
+  "element segment has been dropped"
 ];
 
 function assertTraps(trap, code) {

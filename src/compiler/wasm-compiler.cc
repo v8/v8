@@ -4357,6 +4357,21 @@ Node* WasmGraphBuilder::MemoryFill(Node* dst, Node* value, Node* size,
   return BuildCCall(&sig, function, dst, value, size);
 }
 
+Node* WasmGraphBuilder::CheckElemSegmentIsPassiveAndNotDropped(
+    uint32_t elem_segment_index, wasm::WasmCodePosition position) {
+  // The elem segment index must be in bounds since it is required by
+  // validation.
+  DCHECK_LT(elem_segment_index, env_->module->elem_segments.size());
+
+  Node* dropped_elem_segments =
+      LOAD_INSTANCE_FIELD(DroppedElemSegments, MachineType::Pointer());
+  Node* is_segment_dropped = SetEffect(graph()->NewNode(
+      mcgraph()->machine()->Load(MachineType::Uint8()), dropped_elem_segments,
+      mcgraph()->IntPtrConstant(elem_segment_index), Effect(), Control()));
+  TrapIfTrue(wasm::kTrapElemSegmentDropped, is_segment_dropped, position);
+  return dropped_elem_segments;
+}
+
 Node* WasmGraphBuilder::TableInit(uint32_t table_index,
                                   uint32_t elem_segment_index, Node* dst,
                                   Node* src, Node* size,
@@ -4378,7 +4393,14 @@ Node* WasmGraphBuilder::TableInit(uint32_t table_index,
 
 Node* WasmGraphBuilder::TableDrop(uint32_t elem_segment_index,
                                   wasm::WasmCodePosition position) {
-  UNREACHABLE();
+  Node* dropped_elem_segments =
+      CheckElemSegmentIsPassiveAndNotDropped(elem_segment_index, position);
+  const Operator* store_op = mcgraph()->machine()->Store(
+      StoreRepresentation(MachineRepresentation::kWord8, kNoWriteBarrier));
+  return SetEffect(
+      graph()->NewNode(store_op, dropped_elem_segments,
+                       mcgraph()->IntPtrConstant(elem_segment_index),
+                       mcgraph()->Int32Constant(1), Effect(), Control()));
 }
 
 Node* WasmGraphBuilder::TableCopy(Node* dst, Node* src, Node* size,

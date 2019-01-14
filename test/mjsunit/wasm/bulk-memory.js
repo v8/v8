@@ -343,8 +343,35 @@ function getMemoryFill(mem) {
   //  init(1, 2, 3);
 })();
 
-(function TestTableDrop0() {
-  // TODO(titzer): initial testcase for table drop
+(function TestTableDropActive() {
+  const builder = new WasmModuleBuilder();
+  builder.setTableBounds(5, 5);
+  builder.addElementSegment(0, false, [0, 0, 0]);
+  builder.addFunction('drop', kSig_v_v)
+      .addBody([
+        kNumericPrefix, kExprTableDrop,
+        0,  // Element segment index.
+      ])
+      .exportAs('drop');
+
+  const instance = builder.instantiate();
+  assertTraps(kTrapElemSegmentDropped, () => instance.exports.drop());
+})();
+
+(function TestTableDropTwice() {
+  const builder = new WasmModuleBuilder();
+  builder.setTableBounds(5, 5);
+  builder.addPassiveElementSegment([0, 0, 0]);
+  builder.addFunction('drop', kSig_v_v)
+      .addBody([
+        kNumericPrefix, kExprTableDrop,
+        0,  // Element segment index.
+      ])
+      .exportAs('drop');
+
+  const instance = builder.instantiate();
+  instance.exports.drop();
+  assertTraps(kTrapElemSegmentDropped, () => instance.exports.drop());
 })();
 
 (function TestTableCopy0() {

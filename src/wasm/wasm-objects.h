@@ -423,6 +423,7 @@ class WasmInstanceObject : public JSObject {
   DECL_PRIMITIVE_ACCESSORS(data_segment_starts, Address*)
   DECL_PRIMITIVE_ACCESSORS(data_segment_sizes, uint32_t*)
   DECL_PRIMITIVE_ACCESSORS(dropped_data_segments, byte*)
+  DECL_PRIMITIVE_ACCESSORS(dropped_elem_segments, byte*)
 
   V8_INLINE void clear_padding();
 
@@ -470,6 +471,7 @@ class WasmInstanceObject : public JSObject {
   V(kDataSegmentStartsOffset, kSystemPointerSize)                         \
   V(kDataSegmentSizesOffset, kSystemPointerSize)                          \
   V(kDroppedDataSegmentsOffset, kSystemPointerSize)                       \
+  V(kDroppedElemSegmentsOffset, kSystemPointerSize)                       \
   /* Header size. */                                                      \
   V(kSize, 0)
 
@@ -504,6 +506,8 @@ class WasmInstanceObject : public JSObject {
 
  private:
   static void InitDataSegmentArrays(Handle<WasmInstanceObject>,
+                                    Handle<WasmModuleObject>);
+  static void InitElemSegmentArrays(Handle<WasmInstanceObject>,
                                     Handle<WasmModuleObject>);
 };
 

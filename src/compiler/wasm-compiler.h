@@ -358,6 +358,8 @@ class WasmGraphBuilder {
   // segment is active or has been dropped.
   Node* CheckDataSegmentIsPassiveAndNotDropped(uint32_t data_segment_index,
                                                wasm::WasmCodePosition position);
+  Node* CheckElemSegmentIsPassiveAndNotDropped(uint32_t elem_segment_index,
+                                               wasm::WasmCodePosition position);
   Node* MemoryInit(uint32_t data_segment_index, Node* dst, Node* src,
                    Node* size, wasm::WasmCodePosition position);
   Node* MemoryCopy(Node* dst, Node* src, Node* size,
