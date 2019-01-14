@@ -100,7 +100,6 @@ class Sampler {
   base::Atomic32 active_;
   base::Atomic32 registered_;
   PlatformData* data_;  // Platform specific data.
-  int samples_ = 0;
   DISALLOW_IMPLICIT_CONSTRUCTORS(Sampler);
 };
 
