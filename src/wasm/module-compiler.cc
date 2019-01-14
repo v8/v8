@@ -1265,12 +1265,12 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   //--------------------------------------------------------------------------
   // Check that indirect function table segments are within bounds.
   //--------------------------------------------------------------------------
-  for (const WasmTableInit& table_init : module_->table_inits) {
-    if (!table_init.active) continue;
-    DCHECK(table_init.table_index < table_instances_.size());
-    uint32_t base = EvalUint32InitExpr(table_init.offset);
-    size_t table_size = table_instances_[table_init.table_index].table_size;
-    if (!in_bounds(base, table_init.entries.size(), table_size)) {
+  for (const WasmElemSegment& elem_segment : module_->elem_segments) {
+    if (!elem_segment.active) continue;
+    DCHECK(elem_segment.table_index < table_instances_.size());
+    uint32_t base = EvalUint32InitExpr(elem_segment.offset);
+    size_t table_size = table_instances_[elem_segment.table_index].table_size;
+    if (!in_bounds(base, elem_segment.entries.size(), table_size)) {
       thrower_->LinkError("table initializer is out of bounds");
       return {};
     }
@@ -2277,17 +2277,17 @@ void InstanceBuilder::InitializeTables(Handle<WasmInstanceObject> instance) {
 
 void InstanceBuilder::LoadTableSegments(Handle<WasmInstanceObject> instance) {
   NativeModule* native_module = module_object_->native_module();
-  for (auto& table_init : module_->table_inits) {
+  for (auto& elem_segment : module_->elem_segments) {
     // Passive segments are not copied during instantiation.
-    if (!table_init.active) continue;
+    if (!elem_segment.active) continue;
 
-    uint32_t base = EvalUint32InitExpr(table_init.offset);
-    uint32_t num_entries = static_cast<uint32_t>(table_init.entries.size());
-    uint32_t index = table_init.table_index;
+    uint32_t base = EvalUint32InitExpr(elem_segment.offset);
+    uint32_t num_entries = static_cast<uint32_t>(elem_segment.entries.size());
+    uint32_t index = elem_segment.table_index;
     TableInstance& table_instance = table_instances_[index];
     DCHECK(in_bounds(base, num_entries, table_instance.table_size));
     for (uint32_t i = 0; i < num_entries; ++i) {
-      uint32_t func_index = table_init.entries[i];
+      uint32_t func_index = elem_segment.entries[i];
       const WasmFunction* function = &module_->functions[func_index];
       int table_index = static_cast<int>(i + base);
 

@@ -321,7 +321,7 @@ size_t EstimateStoredSize(const WasmModule* module) {
          VectorSize(module->functions) + VectorSize(module->data_segments) +
          VectorSize(module->tables) + VectorSize(module->import_table) +
          VectorSize(module->export_table) + VectorSize(module->exceptions) +
-         VectorSize(module->table_inits);
+         VectorSize(module->elem_segments);
 }
 }  // namespace wasm
 }  // namespace internal

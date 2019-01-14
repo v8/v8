@@ -180,19 +180,19 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
       os << "undefined);\n";
     }
   }
-  for (const WasmTableInit& table_init : module->table_inits) {
+  for (const WasmElemSegment& elem_segment : module->elem_segments) {
     os << "  builder.addElementSegment(";
-    switch (table_init.offset.kind) {
+    switch (elem_segment.offset.kind) {
       case WasmInitExpr::kGlobalIndex:
-        os << table_init.offset.val.global_index << ", true";
+        os << elem_segment.offset.val.global_index << ", true";
         break;
       case WasmInitExpr::kI32Const:
-        os << table_init.offset.val.i32_const << ", false";
+        os << elem_segment.offset.val.i32_const << ", false";
         break;
       default:
         UNREACHABLE();
     }
-    os << ", " << PrintCollection(table_init.entries) << ");\n";
+    os << ", " << PrintCollection(elem_segment.entries) << ");\n";
   }
 
   for (const WasmFunction& func : module->functions) {

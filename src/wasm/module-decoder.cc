@@ -801,12 +801,12 @@ class ModuleDecoderImpl : public Decoder {
       uint32_t num_elem =
           consume_count("number of elements", kV8MaxWasmTableEntries);
       if (is_active) {
-        module_->table_inits.emplace_back(table_index, offset);
+        module_->elem_segments.emplace_back(table_index, offset);
       } else {
-        module_->table_inits.emplace_back();
+        module_->elem_segments.emplace_back();
       }
 
-      WasmTableInit* init = &module_->table_inits.back();
+      WasmElemSegment* init = &module_->elem_segments.back();
       for (uint32_t j = 0; j < num_elem; j++) {
         WasmFunction* func = nullptr;
         uint32_t index = consume_func_index(module_.get(), &func);

@@ -264,8 +264,8 @@ class TestModuleBuilder {
   void InitializeTable() { mod.tables.emplace_back(); }
 
   byte AddPassiveElementSegment() {
-    mod.table_inits.emplace_back();
-    return static_cast<byte>(mod.table_inits.size() - 1);
+    mod.elem_segments.emplace_back();
+    return static_cast<byte>(mod.elem_segments.size() - 1);
   }
 
   // Set the number of data segments as declared by the DataCount section.

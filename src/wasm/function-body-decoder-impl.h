@@ -1059,7 +1059,7 @@ class WasmDecoder : public Decoder {
   inline bool Validate(TableInitImmediate<validate>& imm) {
     if (!Validate(pc_ + 1, imm.table)) return false;
     if (!VALIDATE(module_ != nullptr &&
-                  imm.elem_segment_index < module_->table_inits.size())) {
+                  imm.elem_segment_index < module_->elem_segments.size())) {
       errorf(pc_ + 2, "invalid element segment index: %u",
              imm.elem_segment_index);
       return false;
@@ -1069,7 +1069,7 @@ class WasmDecoder : public Decoder {
 
   inline bool Validate(TableDropImmediate<validate>& imm) {
     if (!VALIDATE(module_ != nullptr &&
-                  imm.index < module_->table_inits.size())) {
+                  imm.index < module_->elem_segments.size())) {
       errorf(pc_ + 2, "invalid element segment index: %u", imm.index);
       return false;
     }

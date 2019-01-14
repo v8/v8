@@ -109,16 +109,16 @@ struct WasmTable {
   bool exported = false;        // true if exported.
 };
 
-// Static representation of how to initialize a table.
-struct WasmTableInit {
-  MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(WasmTableInit);
+// Static representation of wasm element segment (table initializer).
+struct WasmElemSegment {
+  MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(WasmElemSegment);
 
   // Construct an active segment.
-  WasmTableInit(uint32_t table_index, WasmInitExpr offset)
+  WasmElemSegment(uint32_t table_index, WasmInitExpr offset)
       : table_index(table_index), offset(offset), active(true) {}
 
   // Construct a passive segment, which has no table index or offset.
-  WasmTableInit() : table_index(0), active(false) {}
+  WasmElemSegment() : table_index(0), active(false) {}
 
   uint32_t table_index;
   WasmInitExpr offset;
@@ -181,7 +181,7 @@ struct V8_EXPORT_PRIVATE WasmModule {
   std::vector<WasmImport> import_table;
   std::vector<WasmExport> export_table;
   std::vector<WasmException> exceptions;
-  std::vector<WasmTableInit> table_inits;
+  std::vector<WasmElemSegment> elem_segments;
   SignatureMap signature_map;  // canonicalizing map for signature indexes.
 
   ModuleOrigin origin = kWasmOrigin;  // origin of the module
