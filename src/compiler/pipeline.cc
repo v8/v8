@@ -2127,6 +2127,10 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
     pipeline.Run<PrintGraphPhase>("Machine");
   }
 
+  // Optimize memory access and allocation operations.
+  pipeline.Run<MemoryOptimizationPhase>();
+  pipeline.RunPrintAndVerify(MemoryOptimizationPhase::phase_name(), true);
+
   pipeline.Run<CsaOptimizationPhase>();
   pipeline.RunPrintAndVerify(CsaOptimizationPhase::phase_name(), true);
 

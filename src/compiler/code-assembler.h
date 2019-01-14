@@ -1342,6 +1342,9 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   void GotoIfException(Node* node, Label* if_exception,
                        Variable* exception_var = nullptr);
 
+  TNode<HeapObject> OptimizedAllocate(TNode<IntPtrT> size,
+                                      PretenureFlag pretenure);
+
   // Helpers which delegate to RawMachineAssembler.
   Factory* factory() const;
   Isolate* isolate() const;

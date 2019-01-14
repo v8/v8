@@ -23,6 +23,7 @@ RawMachineAssembler::RawMachineAssembler(
       schedule_(new (zone()) Schedule(zone())),
       machine_(zone(), word, flags, alignment_requirements),
       common_(zone()),
+      simplified_(zone()),
       call_descriptor_(call_descriptor),
       target_parameter_(nullptr),
       parameters_(parameter_count(), zone()),
@@ -55,6 +56,11 @@ Node* RawMachineAssembler::RelocatableIntPtrConstant(intptr_t value,
   return kSystemPointerSize == 8
              ? RelocatableInt64Constant(value, rmode)
              : RelocatableInt32Constant(static_cast<int>(value), rmode);
+}
+
+Node* RawMachineAssembler::OptimizedAllocate(Node* size,
+                                             PretenureFlag pretenure) {
+  return AddNode(simplified()->AllocateRaw(Type::Any(), pretenure), size);
 }
 
 Schedule* RawMachineAssembler::Export() {

@@ -1072,6 +1072,12 @@ void CodeAssembler::GotoIfException(Node* node, Label* if_exception,
   raw_assembler()->AddNode(raw_assembler()->common()->IfSuccess(), node);
 }
 
+TNode<HeapObject> CodeAssembler::OptimizedAllocate(TNode<IntPtrT> size,
+                                                   PretenureFlag pretenure) {
+  return UncheckedCast<HeapObject>(
+      raw_assembler()->OptimizedAllocate(size, pretenure));
+}
+
 void CodeAssembler::HandleException(Node* node) {
   if (state_->exception_handler_labels_.size() == 0) return;
   CodeAssemblerExceptionHandlerLabel* label =

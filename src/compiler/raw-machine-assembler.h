@@ -12,6 +12,7 @@
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node.h"
 #include "src/compiler/operator.h"
+#include "src/compiler/simplified-operator.h"
 #include "src/globals.h"
 #include "src/heap/factory.h"
 #include "src/isolate.h"
@@ -55,6 +56,7 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   Zone* zone() const { return graph()->zone(); }
   MachineOperatorBuilder* machine() { return &machine_; }
   CommonOperatorBuilder* common() { return &common_; }
+  SimplifiedOperatorBuilder* simplified() { return &simplified_; }
   CallDescriptor* call_descriptor() const { return call_descriptor_; }
   PoisoningMitigationLevel poisoning_level() const { return poisoning_level_; }
 
@@ -144,6 +146,8 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
                    base, index, value);
   }
   Node* Retain(Node* value) { return AddNode(common()->Retain(), value); }
+
+  Node* OptimizedAllocate(Node* size, PretenureFlag pretenure);
 
   // Unaligned memory operations
   Node* UnalignedLoad(MachineType type, Node* base) {
@@ -995,6 +999,7 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   Schedule* schedule_;
   MachineOperatorBuilder machine_;
   CommonOperatorBuilder common_;
+  SimplifiedOperatorBuilder simplified_;
   CallDescriptor* call_descriptor_;
   Node* target_parameter_;
   NodeVector parameters_;

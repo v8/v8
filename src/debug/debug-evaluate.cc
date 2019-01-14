@@ -771,6 +771,8 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtins::Name id) {
     case Builtins::kRegExpConstructor:
     // Internal.
     case Builtins::kStrictPoisonPillThrower:
+    case Builtins::kAllocateInNewSpace:
+    case Builtins::kAllocateInOldSpace:
       return DebugInfo::kHasNoSideEffect;
 
     // Set builtins.

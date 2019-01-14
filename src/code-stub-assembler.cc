@@ -1216,6 +1216,11 @@ TNode<HeapObject> CodeStubAssembler::Allocate(TNode<IntPtrT> size_in_bytes,
                                               AllocationFlags flags) {
   Comment("Allocate");
   bool const new_space = !(flags & kPretenured);
+  if (!(flags & kDoubleAlignment) && !(flags & kAllowLargeObjectAllocation)) {
+    return OptimizedAllocate(size_in_bytes, new_space
+                                                ? PretenureFlag::NOT_TENURED
+                                                : PretenureFlag::TENURED);
+  }
   TNode<ExternalReference> top_address = ExternalConstant(
       new_space
           ? ExternalReference::new_space_allocation_top_address(isolate())
