@@ -18,9 +18,8 @@ namespace internal {
 typedef uintptr_t Address;
 
 // ----------------------------------------------------------------------------
-// Generated memcpy/memmove
+// Generated memcpy/memmove for ia32, arm, and mips.
 
-// Initializes the codegen support that depends on CPU features.
 void init_memcopy_functions();
 
 #if defined(V8_TARGET_ARCH_IA32)
@@ -148,11 +147,7 @@ inline void MemsetPointer(Address* dest, Address value, size_t counter) {
 #if V8_HOST_ARCH_IA32
 #define STOS "stosl"
 #elif V8_HOST_ARCH_X64
-#if V8_HOST_ARCH_32_BIT
-#define STOS "addr32 stosl"
-#else
 #define STOS "stosq"
-#endif
 #endif
 
 #if defined(MEMORY_SANITIZER)

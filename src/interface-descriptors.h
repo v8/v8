@@ -463,6 +463,9 @@ class V8_EXPORT_PRIVATE VoidDescriptor : public CallInterfaceDescriptor {
 // descriptor associated.
 typedef VoidDescriptor DummyDescriptor;
 
+// Dummy descriptor that marks builtins with C calling convention.
+typedef VoidDescriptor CCallDescriptor;
+
 class AllocateDescriptor : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS_NO_CONTEXT(kRequestedSize)

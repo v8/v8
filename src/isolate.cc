@@ -183,6 +183,22 @@ void FreeCurrentEmbeddedBlob() {
   sticky_embedded_blob_size_ = 0;
 }
 
+// static
+bool Isolate::CurrentEmbeddedBlobIsBinaryEmbedded() {
+  // In some situations, we must be able to rely on the embedded blob being
+  // immortal immovable. This is the case if the blob is binary-embedded.
+  // See blob lifecycle controls above for descriptions of when the current
+  // embedded blob may change (e.g. in tests or mksnapshot). If the blob is
+  // binary-embedded, it is immortal immovable.
+  const uint8_t* blob =
+      current_embedded_blob_.load(std::memory_order::memory_order_relaxed);
+  if (blob == nullptr) return false;
+#ifdef V8_MULTI_SNAPSHOTS
+  if (blob == TrustedEmbeddedBlob()) return true;
+#endif
+  return blob == DefaultEmbeddedBlob();
+}
+
 void Isolate::SetEmbeddedBlob(const uint8_t* blob, uint32_t blob_size) {
   CHECK_NOT_NULL(blob);
 
@@ -304,7 +320,6 @@ void Isolate::InitializeOncePerProcess() {
   base::Relaxed_Store(&isolate_key_created_, 1);
 #endif
   per_isolate_thread_data_key_ = base::Thread::CreateThreadLocalKey();
-  init_memcopy_functions();
 }
 
 Address Isolate::get_address_from_id(IsolateAddressId id) {
@@ -3282,6 +3297,10 @@ bool Isolate::Init(StartupDeserializer* des) {
 
     CreateAndSetEmbeddedBlob();
   }
+
+  // Initialize custom memcopy and memmove functions (must happen after
+  // embedded blob setup).
+  init_memcopy_functions();
 
   if (FLAG_log_internal_timer_events) {
     set_event_logger(Logger::DefaultEventLoggerSentinel);

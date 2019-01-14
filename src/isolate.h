@@ -1484,6 +1484,7 @@ class Isolate final : private HiddenFactory {
 
   static const uint8_t* CurrentEmbeddedBlob();
   static uint32_t CurrentEmbeddedBlobSize();
+  static bool CurrentEmbeddedBlobIsBinaryEmbedded();
 
   // These always return the same result as static methods above, but don't
   // access the global atomic variable (and thus *might be* slightly faster).
