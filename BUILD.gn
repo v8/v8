@@ -3080,6 +3080,7 @@ v8_component("v8_libbase") {
     "src/base/debug/stack_trace.h",
     "src/base/division-by-constant.cc",
     "src/base/division-by-constant.h",
+    "src/base/enum-set.h",
     "src/base/export-template.h",
     "src/base/file-utils.cc",
     "src/base/file-utils.h",

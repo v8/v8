@@ -6,6 +6,7 @@
 
 #include "src/api.h"
 #include "src/asmjs/asm-js.h"
+#include "src/base/enum-set.h"
 #include "src/base/template-utils.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/compiler/wasm-compiler.h"
@@ -1669,7 +1670,7 @@ void CompilationStateImpl::OnFinishedUnit(ExecutionTier tier, WasmCode* code) {
   DCHECK_IMPLIES(!is_tiering_mode, outstanding_tiering_units_ == 0);
 
   // Bitset of events to deliver.
-  EnumSet<CompilationEvent> events;
+  base::EnumSet<CompilationEvent> events;
 
   if (is_tiering_unit) {
     DCHECK_LT(0, outstanding_tiering_units_);

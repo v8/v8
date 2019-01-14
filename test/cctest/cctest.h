@@ -32,13 +32,13 @@
 
 #include "include/libplatform/libplatform.h"
 #include "include/v8-platform.h"
+#include "src/base/enum-set.h"
 #include "src/debug/debug-interface.h"
 #include "src/flags.h"
 #include "src/heap/factory.h"
 #include "src/isolate.h"
 #include "src/objects.h"
 #include "src/register-configuration.h"
-#include "src/utils.h"
 #include "src/v8.h"
 #include "src/zone/accounting-allocator.h"
 
@@ -94,7 +94,7 @@ enum CcTestExtensionIds {
 };
 #undef DEFINE_EXTENSION_ID
 
-typedef v8::internal::EnumSet<CcTestExtensionIds> CcTestExtensionFlags;
+using CcTestExtensionFlags = v8::base::EnumSet<CcTestExtensionIds>;
 #define DEFINE_EXTENSION_FLAG(Name, Ident)                               \
   static const CcTestExtensionFlags Name(1 << Name##_ID);
   static const CcTestExtensionFlags NO_EXTENSIONS(0);

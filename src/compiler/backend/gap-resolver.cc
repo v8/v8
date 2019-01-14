@@ -7,8 +7,8 @@
 #include <algorithm>
 #include <set>
 
+#include "src/base/enum-set.h"
 #include "src/register-configuration.h"
-#include "src/utils.h"
 
 namespace v8 {
 namespace internal {
@@ -86,8 +86,8 @@ MoveOperandKind GetKind(const InstructionOperand& move) {
 }  // namespace
 
 void GapResolver::Resolve(ParallelMove* moves) {
-  EnumSet<MoveOperandKind, uint8_t> source_kinds;
-  EnumSet<MoveOperandKind, uint8_t> destination_kinds;
+  base::EnumSet<MoveOperandKind, uint8_t> source_kinds;
+  base::EnumSet<MoveOperandKind, uint8_t> destination_kinds;
 
   // Remove redundant moves, collect source kinds and destination kinds to
   // detect simple non-overlapping moves, and collect FP move representations if

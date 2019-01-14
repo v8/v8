@@ -36,6 +36,7 @@
 #include "src/api-inl.h"
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/ast.h"
+#include "src/base/enum-set.h"
 #include "src/compiler.h"
 #include "src/execution.h"
 #include "src/flags.h"
@@ -49,7 +50,6 @@
 #include "src/parsing/rewriter.h"
 #include "src/parsing/scanner-character-streams.h"
 #include "src/parsing/token.h"
-#include "src/utils.h"
 
 #include "test/cctest/cctest.h"
 #include "test/cctest/scope-test-helper.h"
@@ -1550,7 +1550,7 @@ enum ParserSyncTestResult {
   kError
 };
 
-void SetGlobalFlags(i::EnumSet<ParserFlag> flags) {
+void SetGlobalFlags(base::EnumSet<ParserFlag> flags) {
   i::FLAG_allow_natives_syntax = flags.Contains(kAllowNatives);
   i::FLAG_harmony_public_fields = flags.Contains(kAllowHarmonyPublicFields);
   i::FLAG_harmony_private_fields = flags.Contains(kAllowHarmonyPrivateFields);
@@ -1562,7 +1562,7 @@ void SetGlobalFlags(i::EnumSet<ParserFlag> flags) {
       flags.Contains(kAllowHarmonyNumericSeparator);
 }
 
-void SetParserFlags(i::PreParser* parser, i::EnumSet<ParserFlag> flags) {
+void SetParserFlags(i::PreParser* parser, base::EnumSet<ParserFlag> flags) {
   parser->set_allow_natives(flags.Contains(kAllowNatives));
   parser->set_allow_harmony_public_fields(
       flags.Contains(kAllowHarmonyPublicFields));
@@ -1581,7 +1581,7 @@ void SetParserFlags(i::PreParser* parser, i::EnumSet<ParserFlag> flags) {
 }
 
 void TestParserSyncWithFlags(i::Handle<i::String> source,
-                             i::EnumSet<ParserFlag> flags,
+                             base::EnumSet<ParserFlag> flags,
                              ParserSyncTestResult result,
                              bool is_module = false, bool test_preparser = true,
                              bool ignore_error_msg = false) {
@@ -1705,7 +1705,7 @@ void TestParserSync(const char* source, const ParserFlag* varying_flags,
           ->NewStringFromUtf8(Vector<const char>(source, strlen(source)))
           .ToHandleChecked();
   for (int bits = 0; bits < (1 << varying_flags_length); bits++) {
-    i::EnumSet<ParserFlag> flags;
+    base::EnumSet<ParserFlag> flags;
     for (size_t flag_index = 0; flag_index < varying_flags_length;
          ++flag_index) {
       if ((bits & (1 << flag_index)) != 0) flags.Add(varying_flags[flag_index]);

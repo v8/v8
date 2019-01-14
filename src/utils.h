@@ -796,45 +796,6 @@ class SimpleStringBuilder {
   DISALLOW_IMPLICIT_CONSTRUCTORS(SimpleStringBuilder);
 };
 
-
-// A poor man's version of STL's bitset: A bit set of enums E (without explicit
-// values), fitting into an integral type T.
-template <class E, class T = int>
-class EnumSet {
- public:
-  explicit EnumSet(T bits = 0) : bits_(bits) {}
-  bool IsEmpty() const { return bits_ == 0; }
-  bool Contains(E element) const { return (bits_ & Mask(element)) != 0; }
-  bool ContainsAnyOf(const EnumSet& set) const {
-    return (bits_ & set.bits_) != 0;
-  }
-  void Add(E element) { bits_ |= Mask(element); }
-  void Add(const EnumSet& set) { bits_ |= set.bits_; }
-  void Remove(E element) { bits_ &= ~Mask(element); }
-  void Remove(const EnumSet& set) { bits_ &= ~set.bits_; }
-  void RemoveAll() { bits_ = 0; }
-  void Intersect(const EnumSet& set) { bits_ &= set.bits_; }
-  T ToIntegral() const { return bits_; }
-  bool operator==(const EnumSet& set) { return bits_ == set.bits_; }
-  bool operator!=(const EnumSet& set) { return bits_ != set.bits_; }
-  EnumSet operator|(const EnumSet& set) const {
-    return EnumSet(bits_ | set.bits_);
-  }
-  EnumSet operator&(const EnumSet& set) const {
-    return EnumSet(bits_ & set.bits_);
-  }
-
- private:
-  static_assert(std::is_enum<E>::value, "EnumSet can only be used with enums");
-
-  static T Mask(E element) {
-    DCHECK_GT(sizeof(T) * CHAR_BIT, static_cast<int>(element));
-    return T{1} << static_cast<typename std::underlying_type<E>::type>(element);
-  }
-
-  T bits_;
-};
-
 // Bit field extraction.
 inline uint32_t unsigned_bitextract_32(int msb, int lsb, uint32_t x) {
   return (x >> lsb) & ((1 << (1 + msb - lsb)) - 1);
