@@ -241,6 +241,8 @@ export class GraphView extends View implements PhaseView {
       partial(this.layoutAction, this)));
     this.toolbox.appendChild(createImgInput("show-all", "show all nodes",
       partial(this.showAllAction, this)));
+    this.toolbox.appendChild(createImgInput("show-control", "show all nodes",
+      partial(this.showControlAction, this)));
     this.toolbox.appendChild(createImgInput("toggle-hide-dead", "show only live nodes",
       partial(this.toggleHideDead, this)));
     this.toolbox.appendChild(createImgInput("hide-unselected", "show only live nodes",
@@ -286,15 +288,17 @@ export class GraphView extends View implements PhaseView {
 
   createGraph(data, rememberedSelection) {
     this.graph = new Graph(data);
-    for (const n of this.graph.nodes()) {
-      n.visible = n.cfg && (!this.state.hideDead || n.isLive());
-      if (rememberedSelection != undefined && rememberedSelection.has(nodeToStringKey(n))) {
-        n.visible = true;
+
+    this.showControlAction(this);
+
+    if (rememberedSelection != undefined) {
+      for (const n of this.graph.nodes()) {
+        n.visible = n.visible || rememberedSelection.has(nodeToStringKey(n);
       }
     }
-    this.graph.forEachEdge((e: Edge) => {
-      e.visible = e.type == 'control' && e.source.visible && e.target.visible;
-    });
+
+    this.graph.forEachEdge(e => e.visible = e.source.visible && e.target.visible);
+
     this.layoutGraph();
     this.updateGraphVisibility();
   }
@@ -388,6 +392,17 @@ export class GraphView extends View implements PhaseView {
     }
     view.graph.forEachEdge((e: Edge) => {
       e.visible = e.source.visible || e.target.visible;
+    });
+    view.updateGraphVisibility();
+    view.viewWholeGraph();
+  }
+
+  showControlAction(view: GraphView) {
+    for (const n of view.graph.nodes()) {
+      n.visible = n.cfg && (!view.state.hideDead || n.isLive());
+    }
+    view.graph.forEachEdge((e: Edge) => {
+      e.visible = e.type == 'control' && e.source.visible && e.target.visible;
     });
     view.updateGraphVisibility();
     view.viewWholeGraph();
