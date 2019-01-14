@@ -1152,6 +1152,19 @@ DEFINE_SIZE_T(mock_arraybuffer_allocator_limit, 0,
 DEFINE_BOOL(jitless, V8_LITE_BOOL,
             "Disable runtime allocation of executable memory.")
 
+// Jitless V8 has a few implications:
+#ifndef V8_LITE_MODE
+// Optimizations (i.e. jitting) are disabled.
+DEFINE_NEG_IMPLICATION(jitless, opt)
+#endif
+// asm.js validation is disabled since it triggers wasm code generation.
+DEFINE_NEG_IMPLICATION(jitless, validate_asm)
+// Wasm is put into interpreter-only mode. We repeat flag implications down
+// here to ensure they're applied correctly by setting the --jitless flag.
+DEFINE_IMPLICATION(jitless, wasm_interpret_all)
+DEFINE_NEG_IMPLICATION(jitless, asm_wasm_lazy_compilation)
+DEFINE_NEG_IMPLICATION(jitless, wasm_lazy_compilation)
+
 // Enable recompilation of function with optimized code.
 DEFINE_BOOL(opt, !V8_LITE_BOOL, "use adaptive optimizations")
 

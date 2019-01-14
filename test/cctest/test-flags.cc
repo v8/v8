@@ -196,5 +196,18 @@ TEST(FlagsRemoveIncomplete) {
   CHECK_EQ(2, argc);
 }
 
+TEST(FlagsJitlessImplications) {
+  if (FLAG_jitless) {
+    // Double-check implications work as expected. Our implication system is
+    // fairly primitive and can break easily depending on the implication
+    // definition order in flag-definitions.h.
+    CHECK(!FLAG_opt);
+    CHECK(!FLAG_validate_asm);
+    CHECK(FLAG_wasm_interpret_all);
+    CHECK(!FLAG_asm_wasm_lazy_compilation);
+    CHECK(!FLAG_wasm_lazy_compilation);
+  }
+}
+
 }  // namespace internal
 }  // namespace v8

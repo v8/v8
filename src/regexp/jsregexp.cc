@@ -6699,6 +6699,8 @@ RegExpEngine::CompilationResult RegExpEngine::Compile(
 
   // Create the correct assembler for the architecture.
 #ifndef V8_INTERPRETED_REGEXP
+  DCHECK(!FLAG_jitless);
+
   // Native regexp implementation.
 
   NativeRegExpMacroAssembler::Mode mode =

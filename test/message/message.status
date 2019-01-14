@@ -58,6 +58,9 @@
   # TODO(v8:7777): Re-enable once wasm is supported in jitless mode.
   'fail/wasm-*': [SKIP],
   'wasm-*': [SKIP],
+
+  # Test output requires --validate-asm, which is disabled in jitless mode.
+  'asm-*': [SKIP],
 }], # lite_mode
 
 ]
