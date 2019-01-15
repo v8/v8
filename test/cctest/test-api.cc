@@ -28850,3 +28850,124 @@ TEST(PreviewMapIteratorEntriesWithDeleted) {
     }
   }
 }
+
+namespace {
+static v8::Isolate* isolate_1;
+static v8::Isolate* isolate_2;
+v8::Persistent<v8::Context> context_1;
+v8::Persistent<v8::Context> context_2;
+
+static void CallIsolate1(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  v8::Isolate::Scope isolate_scope(isolate_1);
+  v8::HandleScope handle_scope(isolate_1);
+  v8::Local<v8::Context> context =
+      v8::Local<v8::Context>::New(isolate_1, context_1);
+  v8::Context::Scope context_scope(context);
+  CompileRun("f1() //# sourceURL=isolate1b");
+}
+
+static void CallIsolate2(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  v8::Isolate::Scope isolate_scope(isolate_2);
+  v8::HandleScope handle_scope(isolate_2);
+  v8::Local<v8::Context> context =
+      v8::Local<v8::Context>::New(isolate_2, context_2);
+  v8::Context::Scope context_scope(context);
+  reinterpret_cast<i::Isolate*>(isolate_2)->heap()->CollectAllGarbage(
+      i::Heap::kNoGCFlags, i::GarbageCollectionReason::kTesting,
+      v8::kGCCallbackFlagForced);
+  CompileRun("f2() //# sourceURL=isolate2b");
+}
+
+}  // anonymous namespace
+
+UNINITIALIZED_TEST(NestedIsolates) {
+#ifdef VERIFY_HEAP
+  i::FLAG_verify_heap = true;
+#endif  // VERIFY_HEAP
+  // Create two isolates and set up C++ functions via function templates that
+  // call into the other isolate. Recurse a few times, trigger GC along the way,
+  // and finally capture a stack trace. Check that the stack trace only includes
+  // frames from its own isolate.
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  isolate_1 = v8::Isolate::New(create_params);
+  isolate_2 = v8::Isolate::New(create_params);
+
+  {
+    v8::Isolate::Scope isolate_scope(isolate_1);
+    v8::HandleScope handle_scope(isolate_1);
+
+    v8::Local<v8::Context> context = v8::Context::New(isolate_1);
+    v8::Context::Scope context_scope(context);
+
+    v8::Local<v8::FunctionTemplate> fun_templ =
+        v8::FunctionTemplate::New(isolate_1, CallIsolate2);
+    fun_templ->SetClassName(v8_str(isolate_1, "call_isolate_2"));
+    Local<Function> fun = fun_templ->GetFunction(context).ToLocalChecked();
+    CHECK(context->Global()
+              ->Set(context, v8_str(isolate_1, "call_isolate_2"), fun)
+              .FromJust());
+    CompileRun(
+        "let c = 0;"
+        "function f1() {"
+        "  c++;"
+        "  return call_isolate_2();"
+        "} //# sourceURL=isolate1a");
+    context_1.Reset(isolate_1, context);
+  }
+
+  {
+    v8::Isolate::Scope isolate_scope(isolate_2);
+    v8::HandleScope handle_scope(isolate_2);
+
+    v8::Local<v8::Context> context = v8::Context::New(isolate_2);
+    v8::Context::Scope context_scope(context);
+
+    v8::Local<v8::FunctionTemplate> fun_templ =
+        v8::FunctionTemplate::New(isolate_2, CallIsolate1);
+    fun_templ->SetClassName(v8_str(isolate_2, "call_isolate_1"));
+    Local<Function> fun = fun_templ->GetFunction(context).ToLocalChecked();
+
+    CHECK(context->Global()
+              ->Set(context, v8_str(isolate_2, "call_isolate_1"), fun)
+              .FromJust());
+    CompileRun(
+        "let c = 4;"
+        "let result = undefined;"
+        "function f2() {"
+        "  if (c-- > 0) return call_isolate_1();"
+        "  else result = new Error().stack;"
+        "} //# sourceURL=isolate2a");
+    context_2.Reset(isolate_2, context);
+
+    v8::Local<v8::String> result =
+        CompileRun("f2(); result //# sourceURL=isolate2c")
+            ->ToString(context)
+            .ToLocalChecked();
+    v8::Local<v8::String> expectation = v8_str(isolate_2,
+                                               "Error\n"
+                                               "    at f2 (isolate2a:1:104)\n"
+                                               "    at isolate2b:1:1\n"
+                                               "    at f2 (isolate2a:1:71)\n"
+                                               "    at isolate2b:1:1\n"
+                                               "    at f2 (isolate2a:1:71)\n"
+                                               "    at isolate2b:1:1\n"
+                                               "    at f2 (isolate2a:1:71)\n"
+                                               "    at isolate2b:1:1\n"
+                                               "    at f2 (isolate2a:1:71)\n"
+                                               "    at isolate2c:1:1");
+    CHECK(result->StrictEquals(expectation));
+  }
+
+  {
+    v8::Isolate::Scope isolate_scope(isolate_1);
+    v8::HandleScope handle_scope(isolate_1);
+    v8::Local<v8::Context> context =
+        v8::Local<v8::Context>::New(isolate_1, context_1);
+    v8::Context::Scope context_scope(context);
+    ExpectInt32("c", 4);
+  }
+
+  isolate_1->Dispose();
+  isolate_2->Dispose();
+}
