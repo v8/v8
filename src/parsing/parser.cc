@@ -236,6 +236,7 @@ bool Parser::CollapseNaryExpression(Expression** x, Expression* y,
   // TODO(leszeks): Do some literal collapsing here if we're appending Smi or
   // String literals.
   nary->AddSubsequent(y, pos);
+  nary->clear_parenthesized();
   AppendNaryOperationSourceRange(nary, range);
 
   return true;

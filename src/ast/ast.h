@@ -260,6 +260,10 @@ class Expression : public AstNode {
     bit_field_ = IsParenthesizedField::update(bit_field_, true);
   }
 
+  void clear_parenthesized() {
+    bit_field_ = IsParenthesizedField::update(bit_field_, false);
+  }
+
  private:
   class IsParenthesizedField
       : public BitField<bool, AstNode::kNextBitFieldIndex, 1> {};

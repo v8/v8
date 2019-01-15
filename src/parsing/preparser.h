@@ -319,6 +319,10 @@ class PreParserExpression {
     code_ = IsParenthesizedField::update(code_, true);
   }
 
+  void clear_parenthesized() {
+    code_ = IsParenthesizedField::update(code_, false);
+  }
+
   PreParserExpression AsFunctionLiteral() { return *this; }
 
   // Dummy implementation for making expression->somefunc() work in both Parser
@@ -1394,6 +1398,7 @@ class PreParser : public ParserBase<PreParser> {
                                                   PreParserExpression y,
                                                   Token::Value op, int pos,
                                                   const SourceRange& range) {
+    x->clear_parenthesized();
     return nullptr;
   }
 
