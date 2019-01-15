@@ -17,6 +17,25 @@ namespace internal {
 #define V8_COMPILER_IS_MSVC
 #endif
 
+// MSVC uses MASM for x86 and x64, while it has a ARMASM for ARM32 and
+// ARMASM64 for ARM64. Since ARMASM and ARMASM64 accept a slightly tweaked
+// version of ARM assembly language, they are referred to together in Visual
+// Studio project files as MARMASM.
+//
+// ARM assembly language docs:
+// http://infocenter.arm.com/help/topic/com.arm.doc.dui0802b/index.html
+// Microsoft ARM assembler and assembly language docs:
+// https://docs.microsoft.com/en-us/cpp/assembler/arm/arm-assembler-reference
+#if defined(V8_COMPILER_IS_MSVC)
+#if defined(V8_TARGET_ARCH_ARM64) || defined(V8_TARGET_ARCH_ARM)
+#define V8_ASSEMBLER_IS_MARMASM
+#elif defined(V8_TARGET_ARCH_IA32) || defined(V8_TARGET_ARCH_X64)
+#define V8_ASSEMBLER_IS_MASM
+#else
+#error Unknown Windows assembler target architecture.
+#endif
+#endif
+
 // Name mangling.
 // Symbols are prefixed with an underscore on 32-bit architectures.
 #if defined(V8_OS_WIN) && !defined(V8_TARGET_ARCH_X64) && \
@@ -43,7 +62,7 @@ DataDirective PointerSizeDirective() {
 }  // namespace
 
 const char* DirectiveAsString(DataDirective directive) {
-#if defined(V8_OS_WIN) && defined(V8_COMPILER_IS_MSVC)
+#if defined(V8_OS_WIN) && defined(V8_ASSEMBLER_IS_MASM)
   switch (directive) {
     case kByte:
       return "BYTE";
@@ -51,6 +70,17 @@ const char* DirectiveAsString(DataDirective directive) {
       return "DWORD";
     case kQuad:
       return "QWORD";
+    default:
+      UNREACHABLE();
+  }
+#elif defined(V8_OS_WIN) && defined(V8_ASSEMBLER_IS_MARMASM)
+  switch (directive) {
+    case kByte:
+      return "DCB";
+    case kLong:
+      return "DCDU";
+    case kQuad:
+      return "DCQU";
     default:
       UNREACHABLE();
   }
@@ -247,7 +277,7 @@ int PlatformDependentEmbeddedFileWriter::IndentedDataDirective(
 // V8_OS_WIN (MSVC)
 // -----------------------------------------------------------------------------
 
-#elif defined(V8_OS_WIN) && defined(V8_COMPILER_IS_MSVC)
+#elif defined(V8_OS_WIN) && defined(V8_ASSEMBLER_IS_MASM)
 
 // For MSVC builds we emit assembly in MASM syntax.
 // See https://docs.microsoft.com/en-us/cpp/assembler/masm/directives-reference.
@@ -327,6 +357,106 @@ int PlatformDependentEmbeddedFileWriter::IndentedDataDirective(
     DataDirective directive) {
   return fprintf(fp_, "  %s ", DirectiveAsString(directive));
 }
+
+#undef V8_ASSEMBLER_IS_MASM
+
+#elif defined(V8_OS_WIN) && defined(V8_ASSEMBLER_IS_MARMASM)
+
+// The the AARCH64 ABI requires instructions be 4-byte-aligned and Windows does
+// not have a stricter alignment requirement (see the TEXTAREA macro of
+// kxarm64.h in the Windows SDK), so code is 4-byte-aligned.
+// The data fields in the emitted assembly tend to be accessed with 8-byte
+// LDR instructions, so data is 8-byte-aligned.
+//
+// armasm64's warning A4228 states
+//     Alignment value exceeds AREA alignment; alignment not guaranteed
+// To ensure that ALIGN directives are honored, their values are defined as
+// equal to their corresponding AREA's ALIGN attributes.
+
+#define ARM64_DATA_ALIGNMENT_POWER (3)
+#define ARM64_DATA_ALIGNMENT (1 << ARM64_DATA_ALIGNMENT_POWER)
+#define ARM64_CODE_ALIGNMENT_POWER (2)
+#define ARM64_CODE_ALIGNMENT (1 << ARM64_CODE_ALIGNMENT_POWER)
+
+void PlatformDependentEmbeddedFileWriter::SectionText() {
+  fprintf(fp_, "  AREA |.text|, CODE, ALIGN=%d, READONLY\n",
+          ARM64_CODE_ALIGNMENT_POWER);
+}
+
+void PlatformDependentEmbeddedFileWriter::SectionData() {
+  fprintf(fp_, "  AREA |.data|, DATA, ALIGN=%d, READWRITE\n",
+          ARM64_DATA_ALIGNMENT_POWER);
+}
+
+void PlatformDependentEmbeddedFileWriter::SectionRoData() {
+  fprintf(fp_, "  AREA |.rodata|, DATA, ALIGN=%d, READONLY\n",
+          ARM64_DATA_ALIGNMENT_POWER);
+}
+
+void PlatformDependentEmbeddedFileWriter::DeclareUint32(const char* name,
+                                                        uint32_t value) {
+  DeclareSymbolGlobal(name);
+  fprintf(fp_, "%s%s %s %d\n", SYMBOL_PREFIX, name, DirectiveAsString(kLong),
+          value);
+}
+
+void PlatformDependentEmbeddedFileWriter::DeclarePointerToSymbol(
+    const char* name, const char* target) {
+  DeclareSymbolGlobal(name);
+  fprintf(fp_, "%s%s %s %s%s\n", SYMBOL_PREFIX, name,
+          DirectiveAsString(PointerSizeDirective()), SYMBOL_PREFIX, target);
+}
+
+void PlatformDependentEmbeddedFileWriter::DeclareSymbolGlobal(
+    const char* name) {
+  fprintf(fp_, "  EXPORT %s%s\n", SYMBOL_PREFIX, name);
+}
+
+void PlatformDependentEmbeddedFileWriter::AlignToCodeAlignment() {
+  fprintf(fp_, "  ALIGN %d\n", ARM64_CODE_ALIGNMENT);
+}
+
+void PlatformDependentEmbeddedFileWriter::AlignToDataAlignment() {
+  fprintf(fp_, "  ALIGN %d\n", ARM64_DATA_ALIGNMENT);
+}
+
+void PlatformDependentEmbeddedFileWriter::Comment(const char* string) {
+  fprintf(fp_, "; %s\n", string);
+}
+
+void PlatformDependentEmbeddedFileWriter::DeclareLabel(const char* name) {
+  fprintf(fp_, "%s%s\n", SYMBOL_PREFIX, name);
+}
+
+void PlatformDependentEmbeddedFileWriter::DeclareFunctionBegin(
+    const char* name) {
+  fprintf(fp_, "%s%s FUNCTION\n", SYMBOL_PREFIX, name);
+}
+
+void PlatformDependentEmbeddedFileWriter::DeclareFunctionEnd(const char* name) {
+  fprintf(fp_, "  ENDFUNC\n");
+}
+
+int PlatformDependentEmbeddedFileWriter::HexLiteral(uint64_t value) {
+  return fprintf(fp_, "0x%" PRIx64, value);
+}
+
+void PlatformDependentEmbeddedFileWriter::FilePrologue() {}
+
+void PlatformDependentEmbeddedFileWriter::FileEpilogue() {
+  fprintf(fp_, "  END\n");
+}
+
+int PlatformDependentEmbeddedFileWriter::IndentedDataDirective(
+    DataDirective directive) {
+  return fprintf(fp_, "  %s ", DirectiveAsString(directive));
+}
+
+#undef V8_ASSEMBLER_IS_MARMASM
+#undef ARM64_DATA_ALIGNMENT_POWER
+#undef ARM64_DATA_ALIGNMENT
+#undef ARM64_CODE_ALIGNMENT_POWER
+#undef ARM64_CODE_ALIGNMENT
 
 // Everything but AIX, Windows with MSVC, or OSX.
 // -----------------------------------------------------------------------------
