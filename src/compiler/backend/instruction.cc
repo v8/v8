@@ -629,6 +629,10 @@ static InstructionBlock* InstructionBlockFor(Zone* zone,
   for (BasicBlock* predecessor : block->predecessors()) {
     instr_block->predecessors().push_back(GetRpo(predecessor));
   }
+  if (block->PredecessorCount() == 1 &&
+      block->predecessors()[0]->control() == BasicBlock::Control::kSwitch) {
+    instr_block->set_switch_target(true);
+  }
   return instr_block;
 }
 
@@ -781,6 +785,9 @@ void InstructionSequence::ComputeAssemblyOrder() {
         }
       }
       block->set_alignment(header_align);
+    }
+    if (block->loop_header().IsValid() && block->IsSwitchTarget()) {
+      block->set_alignment(true);
     }
     block->set_ao_number(RpoNumber::FromInt(ao++));
     ao_blocks_->push_back(block);

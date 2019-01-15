@@ -1366,6 +1366,7 @@ class V8_EXPORT_PRIVATE InstructionBlock final
     return loop_end_;
   }
   inline bool IsLoopHeader() const { return loop_end_.IsValid(); }
+  inline bool IsSwitchTarget() const { return switch_target_; }
   inline bool ShouldAlign() const { return alignment_; }
 
   typedef ZoneVector<RpoNumber> Predecessors;
@@ -1388,6 +1389,8 @@ class V8_EXPORT_PRIVATE InstructionBlock final
 
   void set_alignment(bool val) { alignment_ = val; }
 
+  void set_switch_target(bool val) { switch_target_ = val; }
+
   bool needs_frame() const { return needs_frame_; }
   void mark_needs_frame() { needs_frame_ = true; }
 
@@ -1409,6 +1412,7 @@ class V8_EXPORT_PRIVATE InstructionBlock final
   int32_t code_end_ = -1;     // end index of arch-specific code.
   const bool deferred_ = -1;  // Block contains deferred code.
   const bool handler_;   // Block is a handler entry point.
+  bool switch_target_ = false;
   bool alignment_ = false;  // insert alignment before this block
   bool needs_frame_ = false;
   bool must_construct_frame_ = false;
