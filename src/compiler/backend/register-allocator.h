@@ -1149,6 +1149,9 @@ class LinearScanAllocator final : public RegisterAllocator {
 
   // Helper methods for allocating registers.
   bool TryReuseSpillForPhi(TopLevelLiveRange* range);
+  int PickRegisterThatIsAvailableLongest(
+      LiveRange* current, int hint_reg,
+      const Vector<LifetimePosition>& free_until_pos);
   bool TryAllocateFreeReg(LiveRange* range,
                           const Vector<LifetimePosition>& free_until_pos);
   bool TryAllocatePreferredReg(LiveRange* range,

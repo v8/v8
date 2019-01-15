@@ -3264,8 +3264,9 @@ bool LinearScanAllocator::TryAllocatePreferredReg(
   return false;
 }
 
-bool LinearScanAllocator::TryAllocateFreeReg(
-    LiveRange* current, const Vector<LifetimePosition>& free_until_pos) {
+int LinearScanAllocator::PickRegisterThatIsAvailableLongest(
+    LiveRange* current, int hint_reg,
+    const Vector<LifetimePosition>& free_until_pos) {
   int num_regs = 0;  // used only for the call to GetFPRegisterSet.
   int num_codes = num_allocatable_registers();
   const int* codes = allocatable_register_codes();
@@ -3285,12 +3286,7 @@ bool LinearScanAllocator::TryAllocateFreeReg(
   // cloberred after the call except for the argument registers, which are
   // set before the call. Hence, the argument registers always get ignored,
   // as their available time is shorter.
-  int hint_reg = kUnassignedRegister;
-  int reg = codes[0];
-  if (current->FirstHintPosition(&hint_reg) != nullptr ||
-      current->RegisterFromBundle(&hint_reg)) {
-    reg = hint_reg;
-  }
+  int reg = hint_reg == kUnassignedRegister ? codes[0] : hint_reg;
   for (int i = 0; i < num_codes; ++i) {
     int code = codes[i];
     // Prefer registers that have no fixed uses to avoid blocking later hints.
@@ -3305,6 +3301,18 @@ bool LinearScanAllocator::TryAllocateFreeReg(
       reg = code;
     }
   }
+  return reg;
+}
+
+bool LinearScanAllocator::TryAllocateFreeReg(
+    LiveRange* current, const Vector<LifetimePosition>& free_until_pos) {
+  // Compute register hint, if such exists.
+  int hint_reg = kUnassignedRegister;
+  current->FirstHintPosition(&hint_reg) != nullptr ||
+      current->RegisterFromBundle(&hint_reg);
+
+  int reg =
+      PickRegisterThatIsAvailableLongest(current, hint_reg, free_until_pos);
 
   LifetimePosition pos = free_until_pos[reg];
 
@@ -3342,22 +3350,15 @@ void LinearScanAllocator::AllocateBlockedReg(LiveRange* current) {
     return;
   }
 
-  int num_regs = num_registers();
-  int num_codes = num_allocatable_registers();
-  const int* codes = allocatable_register_codes();
   MachineRepresentation rep = current->representation();
-  if (!kSimpleFPAliasing && (rep == MachineRepresentation::kFloat32 ||
-                             rep == MachineRepresentation::kSimd128))
-    GetFPRegisterSet(rep, &num_regs, &num_codes, &codes);
 
   // use_pos keeps track of positions a register/alias is used at.
   // block_pos keeps track of positions where a register/alias is blocked
   // from.
-  LifetimePosition use_pos[RegisterConfiguration::kMaxRegisters];
-  LifetimePosition block_pos[RegisterConfiguration::kMaxRegisters];
-  for (int i = 0; i < num_regs; i++) {
-    use_pos[i] = block_pos[i] = LifetimePosition::MaxPosition();
-  }
+  EmbeddedVector<LifetimePosition, RegisterConfiguration::kMaxRegisters>
+      use_pos(LifetimePosition::MaxPosition());
+  EmbeddedVector<LifetimePosition, RegisterConfiguration::kMaxRegisters>
+      block_pos(LifetimePosition::MaxPosition());
 
   for (LiveRange* range : active_live_ranges()) {
     int cur_reg = range->assigned_register();
@@ -3438,14 +3439,11 @@ void LinearScanAllocator::AllocateBlockedReg(LiveRange* current) {
     }
   }
 
-  int reg = codes[0];
-  register_use->HintRegister(&reg) || current->RegisterFromBundle(&reg);
-  for (int i = 0; i < num_codes; ++i) {
-    int code = codes[i];
-    if (use_pos[code] > use_pos[reg]) {
-      reg = code;
-    }
-  }
+  // Compute register hint if it exists.
+  int hint_reg = kUnassignedRegister;
+  register_use->HintRegister(&hint_reg) ||
+      current->RegisterFromBundle(&hint_reg);
+  int reg = PickRegisterThatIsAvailableLongest(current, hint_reg, use_pos);
 
   if (use_pos[reg] < register_use->pos()) {
     // If there is a gap position before the next register use, we can
