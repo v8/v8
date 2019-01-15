@@ -370,7 +370,7 @@ void NativeModuleSerializer::WriteCode(const WasmCode* code, Writer* writer) {
                           code->constant_pool(), mask);
   for (RelocIterator iter(
            {code_start, code->instructions().size()}, code->reloc_info(),
-           reinterpret_cast<Address>(code_start) + code->unpadded_binary_size(),
+           reinterpret_cast<Address>(code_start) + code->constant_pool_offset(),
            mask);
        !iter.done(); iter.next(), orig_iter.next()) {
     RelocInfo::Mode mode = orig_iter.rinfo()->rmode();
