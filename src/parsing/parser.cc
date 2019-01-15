@@ -1361,34 +1361,33 @@ void Parser::DeclareVariable(VariableProxy* proxy, VariableKind kind,
   Declaration* declaration;
   if (mode == VariableMode::kVar && !scope->is_declaration_scope()) {
     DCHECK(scope->is_block_scope() || scope->is_with_scope());
-    declaration = factory()->NewNestedVariableDeclaration(proxy, scope, begin);
+    declaration = factory()->NewNestedVariableDeclaration(scope, begin);
   } else {
-    declaration = factory()->NewVariableDeclaration(proxy, begin);
+    declaration = factory()->NewVariableDeclaration(begin);
   }
-  Declare(declaration, kind, mode, init, scope, end);
+  Declare(declaration, proxy, kind, mode, init, scope, end);
 }
 
-void Parser::Declare(Declaration* declaration, VariableKind variable_kind,
-                     VariableMode mode, InitializationFlag init, Scope* scope,
-                     int var_end_pos) {
+void Parser::Declare(Declaration* declaration, VariableProxy* proxy,
+                     VariableKind variable_kind, VariableMode mode,
+                     InitializationFlag init, Scope* scope, int var_end_pos) {
   bool local_ok = true;
   bool sloppy_mode_block_scope_function_redefinition = false;
-  scope->DeclareVariable(declaration, mode, variable_kind, init,
+  scope->DeclareVariable(declaration, proxy, mode, variable_kind, init,
                          &sloppy_mode_block_scope_function_redefinition,
                          &local_ok);
   if (!local_ok) {
     // If we only have the start position of a proxy, we can't highlight the
     // whole variable name.  Pretend its length is 1 so that we highlight at
     // least the first character.
-    Scanner::Location loc(declaration->proxy()->position(),
-                          var_end_pos != kNoSourcePosition
-                              ? var_end_pos
-                              : declaration->proxy()->position() + 1);
+    Scanner::Location loc(proxy->position(), var_end_pos != kNoSourcePosition
+                                                 ? var_end_pos
+                                                 : proxy->position() + 1);
     if (variable_kind == PARAMETER_VARIABLE) {
       ReportMessageAt(loc, MessageTemplate::kParamDupe);
     } else {
       ReportMessageAt(loc, MessageTemplate::kVarRedeclaration,
-                      declaration->proxy()->raw_name());
+                      declaration->var()->raw_name());
     }
   } else if (sloppy_mode_block_scope_function_redefinition) {
     ++use_counts_[v8::Isolate::kSloppyModeBlockScopedFunctionRedefinition];
@@ -1414,8 +1413,9 @@ Statement* Parser::DeclareFunction(const AstRawString* variable_name,
   VariableProxy* proxy =
       factory()->NewVariableProxy(variable_name, NORMAL_VARIABLE, beg_pos);
   Declaration* declaration = factory()->NewFunctionDeclaration(
-      proxy, function, is_sloppy_block_function, beg_pos);
-  Declare(declaration, NORMAL_VARIABLE, mode, kCreatedInitialized, scope());
+      function, is_sloppy_block_function, beg_pos);
+  Declare(declaration, proxy, NORMAL_VARIABLE, mode, kCreatedInitialized,
+          scope());
   if (names) names->Add(variable_name, zone());
   if (is_sloppy_block_function) {
     SloppyBlockFunctionStatement* statement =
@@ -1601,8 +1601,8 @@ Block* Parser::RewriteCatchPattern(CatchInfo* catch_info) {
 
 void Parser::ReportVarRedeclarationIn(const AstRawString* name, Scope* scope) {
   for (Declaration* decl : *scope->declarations()) {
-    if (decl->proxy()->raw_name() == name) {
-      int position = decl->proxy()->position();
+    if (decl->var()->raw_name() == name) {
+      int position = decl->position();
       Scanner::Location location =
           position == kNoSourcePosition
               ? Scanner::Location::invalid()
@@ -2968,8 +2968,8 @@ void Parser::CheckConflictingVarDeclarations(Scope* scope) {
   Declaration* decl = scope->CheckConflictingVarDeclarations();
   if (decl != nullptr) {
     // In ES6, conflicting variable bindings are early errors.
-    const AstRawString* name = decl->proxy()->raw_name();
-    int position = decl->proxy()->position();
+    const AstRawString* name = decl->var()->raw_name();
+    int position = decl->position();
     Scanner::Location location =
         position == kNoSourcePosition
             ? Scanner::Location::invalid()
@@ -2997,11 +2997,11 @@ void Parser::InsertShadowingVarBindingInitializers(Block* inner_block) {
   DCHECK(function_scope->is_function_scope());
   BlockState block_state(&scope_, inner_scope);
   for (Declaration* decl : *inner_scope->declarations()) {
-    if (decl->proxy()->var()->mode() != VariableMode::kVar ||
+    if (decl->var()->mode() != VariableMode::kVar ||
         !decl->IsVariableDeclaration()) {
       continue;
     }
-    const AstRawString* name = decl->proxy()->raw_name();
+    const AstRawString* name = decl->var()->raw_name();
     Variable* parameter = function_scope->LookupLocal(name);
     if (parameter == nullptr) continue;
     VariableProxy* to = NewUnresolved(name);

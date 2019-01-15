@@ -1220,7 +1220,7 @@ void BytecodeGenerator::VisitBlockDeclarationsAndStatements(Block* stmt) {
 }
 
 void BytecodeGenerator::VisitVariableDeclaration(VariableDeclaration* decl) {
-  Variable* variable = decl->proxy()->var();
+  Variable* variable = decl->var();
   switch (variable->location()) {
     case VariableLocation::UNALLOCATED: {
       DCHECK(!variable->binding_needs_init());
@@ -1271,7 +1271,7 @@ void BytecodeGenerator::VisitVariableDeclaration(VariableDeclaration* decl) {
 }
 
 void BytecodeGenerator::VisitFunctionDeclaration(FunctionDeclaration* decl) {
-  Variable* variable = decl->proxy()->var();
+  Variable* variable = decl->var();
   DCHECK(variable->mode() == VariableMode::kLet ||
          variable->mode() == VariableMode::kVar);
   switch (variable->location()) {

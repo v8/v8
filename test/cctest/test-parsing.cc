@@ -7556,103 +7556,85 @@ TEST(ModuleParsingInternals) {
   i::Declaration::List* declarations = module_scope->declarations();
   CHECK_EQ(13, declarations->LengthForTest());
 
-  CHECK(declarations->AtForTest(0)->proxy()->raw_name()->IsOneByteEqualTo("x"));
-  CHECK(declarations->AtForTest(0)->proxy()->var()->mode() ==
-        i::VariableMode::kLet);
-  CHECK(declarations->AtForTest(0)->proxy()->var()->binding_needs_init());
-  CHECK(declarations->AtForTest(0)->proxy()->var()->location() ==
+  CHECK(declarations->AtForTest(0)->var()->raw_name()->IsOneByteEqualTo("x"));
+  CHECK(declarations->AtForTest(0)->var()->mode() == i::VariableMode::kLet);
+  CHECK(declarations->AtForTest(0)->var()->binding_needs_init());
+  CHECK(declarations->AtForTest(0)->var()->location() ==
         i::VariableLocation::MODULE);
 
-  CHECK(declarations->AtForTest(1)->proxy()->raw_name()->IsOneByteEqualTo("z"));
-  CHECK(declarations->AtForTest(1)->proxy()->var()->mode() ==
-        i::VariableMode::kConst);
-  CHECK(declarations->AtForTest(1)->proxy()->var()->binding_needs_init());
-  CHECK(declarations->AtForTest(1)->proxy()->var()->location() ==
+  CHECK(declarations->AtForTest(1)->var()->raw_name()->IsOneByteEqualTo("z"));
+  CHECK(declarations->AtForTest(1)->var()->mode() == i::VariableMode::kConst);
+  CHECK(declarations->AtForTest(1)->var()->binding_needs_init());
+  CHECK(declarations->AtForTest(1)->var()->location() ==
         i::VariableLocation::MODULE);
 
-  CHECK(declarations->AtForTest(2)->proxy()->raw_name()->IsOneByteEqualTo("n"));
-  CHECK(declarations->AtForTest(2)->proxy()->var()->mode() ==
-        i::VariableMode::kConst);
-  CHECK(declarations->AtForTest(2)->proxy()->var()->binding_needs_init());
-  CHECK(declarations->AtForTest(2)->proxy()->var()->location() ==
+  CHECK(declarations->AtForTest(2)->var()->raw_name()->IsOneByteEqualTo("n"));
+  CHECK(declarations->AtForTest(2)->var()->mode() == i::VariableMode::kConst);
+  CHECK(declarations->AtForTest(2)->var()->binding_needs_init());
+  CHECK(declarations->AtForTest(2)->var()->location() ==
         i::VariableLocation::MODULE);
 
-  CHECK(
-      declarations->AtForTest(3)->proxy()->raw_name()->IsOneByteEqualTo("foo"));
-  CHECK(declarations->AtForTest(3)->proxy()->var()->mode() ==
-        i::VariableMode::kVar);
-  CHECK(!declarations->AtForTest(3)->proxy()->var()->binding_needs_init());
-  CHECK(declarations->AtForTest(3)->proxy()->var()->location() ==
+  CHECK(declarations->AtForTest(3)->var()->raw_name()->IsOneByteEqualTo("foo"));
+  CHECK(declarations->AtForTest(3)->var()->mode() == i::VariableMode::kVar);
+  CHECK(!declarations->AtForTest(3)->var()->binding_needs_init());
+  CHECK(declarations->AtForTest(3)->var()->location() ==
         i::VariableLocation::MODULE);
 
-  CHECK(
-      declarations->AtForTest(4)->proxy()->raw_name()->IsOneByteEqualTo("goo"));
-  CHECK(declarations->AtForTest(4)->proxy()->var()->mode() ==
-        i::VariableMode::kLet);
-  CHECK(!declarations->AtForTest(4)->proxy()->var()->binding_needs_init());
-  CHECK(declarations->AtForTest(4)->proxy()->var()->location() ==
+  CHECK(declarations->AtForTest(4)->var()->raw_name()->IsOneByteEqualTo("goo"));
+  CHECK(declarations->AtForTest(4)->var()->mode() == i::VariableMode::kLet);
+  CHECK(!declarations->AtForTest(4)->var()->binding_needs_init());
+  CHECK(declarations->AtForTest(4)->var()->location() ==
         i::VariableLocation::MODULE);
 
-  CHECK(
-      declarations->AtForTest(5)->proxy()->raw_name()->IsOneByteEqualTo("hoo"));
-  CHECK(declarations->AtForTest(5)->proxy()->var()->mode() ==
-        i::VariableMode::kLet);
-  CHECK(declarations->AtForTest(5)->proxy()->var()->binding_needs_init());
-  CHECK(declarations->AtForTest(5)->proxy()->var()->location() ==
+  CHECK(declarations->AtForTest(5)->var()->raw_name()->IsOneByteEqualTo("hoo"));
+  CHECK(declarations->AtForTest(5)->var()->mode() == i::VariableMode::kLet);
+  CHECK(declarations->AtForTest(5)->var()->binding_needs_init());
+  CHECK(declarations->AtForTest(5)->var()->location() ==
         i::VariableLocation::MODULE);
 
-  CHECK(
-      declarations->AtForTest(6)->proxy()->raw_name()->IsOneByteEqualTo("joo"));
-  CHECK(declarations->AtForTest(6)->proxy()->var()->mode() ==
-        i::VariableMode::kConst);
-  CHECK(declarations->AtForTest(6)->proxy()->var()->binding_needs_init());
-  CHECK(declarations->AtForTest(6)->proxy()->var()->location() ==
+  CHECK(declarations->AtForTest(6)->var()->raw_name()->IsOneByteEqualTo("joo"));
+  CHECK(declarations->AtForTest(6)->var()->mode() == i::VariableMode::kConst);
+  CHECK(declarations->AtForTest(6)->var()->binding_needs_init());
+  CHECK(declarations->AtForTest(6)->var()->location() ==
         i::VariableLocation::MODULE);
 
-  CHECK(declarations->AtForTest(7)->proxy()->raw_name()->IsOneByteEqualTo(
+  CHECK(declarations->AtForTest(7)->var()->raw_name()->IsOneByteEqualTo(
       "*default*"));
-  CHECK(declarations->AtForTest(7)->proxy()->var()->mode() ==
-        i::VariableMode::kConst);
-  CHECK(declarations->AtForTest(7)->proxy()->var()->binding_needs_init());
-  CHECK(declarations->AtForTest(7)->proxy()->var()->location() ==
+  CHECK(declarations->AtForTest(7)->var()->mode() == i::VariableMode::kConst);
+  CHECK(declarations->AtForTest(7)->var()->binding_needs_init());
+  CHECK(declarations->AtForTest(7)->var()->location() ==
         i::VariableLocation::MODULE);
 
-  CHECK(declarations->AtForTest(8)->proxy()->raw_name()->IsOneByteEqualTo(
+  CHECK(declarations->AtForTest(8)->var()->raw_name()->IsOneByteEqualTo(
       "nonexport"));
-  CHECK(!declarations->AtForTest(8)->proxy()->var()->binding_needs_init());
-  CHECK(declarations->AtForTest(8)->proxy()->var()->location() ==
+  CHECK(!declarations->AtForTest(8)->var()->binding_needs_init());
+  CHECK(declarations->AtForTest(8)->var()->location() ==
         i::VariableLocation::LOCAL);
 
-  CHECK(
-      declarations->AtForTest(9)->proxy()->raw_name()->IsOneByteEqualTo("mm"));
-  CHECK(declarations->AtForTest(9)->proxy()->var()->mode() ==
-        i::VariableMode::kConst);
-  CHECK(declarations->AtForTest(9)->proxy()->var()->binding_needs_init());
-  CHECK(declarations->AtForTest(9)->proxy()->var()->location() ==
+  CHECK(declarations->AtForTest(9)->var()->raw_name()->IsOneByteEqualTo("mm"));
+  CHECK(declarations->AtForTest(9)->var()->mode() == i::VariableMode::kConst);
+  CHECK(declarations->AtForTest(9)->var()->binding_needs_init());
+  CHECK(declarations->AtForTest(9)->var()->location() ==
+        i::VariableLocation::MODULE);
+
+  CHECK(declarations->AtForTest(10)->var()->raw_name()->IsOneByteEqualTo("aa"));
+  CHECK(declarations->AtForTest(10)->var()->mode() == i::VariableMode::kConst);
+  CHECK(declarations->AtForTest(10)->var()->binding_needs_init());
+  CHECK(declarations->AtForTest(10)->var()->location() ==
         i::VariableLocation::MODULE);
 
   CHECK(
-      declarations->AtForTest(10)->proxy()->raw_name()->IsOneByteEqualTo("aa"));
-  CHECK(declarations->AtForTest(10)->proxy()->var()->mode() ==
-        i::VariableMode::kConst);
-  CHECK(declarations->AtForTest(10)->proxy()->var()->binding_needs_init());
-  CHECK(declarations->AtForTest(10)->proxy()->var()->location() ==
+      declarations->AtForTest(11)->var()->raw_name()->IsOneByteEqualTo("loo"));
+  CHECK(declarations->AtForTest(11)->var()->mode() == i::VariableMode::kConst);
+  CHECK(!declarations->AtForTest(11)->var()->binding_needs_init());
+  CHECK(declarations->AtForTest(11)->var()->location() !=
         i::VariableLocation::MODULE);
 
-  CHECK(declarations->AtForTest(11)->proxy()->raw_name()->IsOneByteEqualTo(
-      "loo"));
-  CHECK(declarations->AtForTest(11)->proxy()->var()->mode() ==
-        i::VariableMode::kConst);
-  CHECK(!declarations->AtForTest(11)->proxy()->var()->binding_needs_init());
-  CHECK(declarations->AtForTest(11)->proxy()->var()->location() !=
-        i::VariableLocation::MODULE);
-
-  CHECK(declarations->AtForTest(12)->proxy()->raw_name()->IsOneByteEqualTo(
-      "foob"));
-  CHECK(declarations->AtForTest(12)->proxy()->var()->mode() ==
-        i::VariableMode::kConst);
-  CHECK(!declarations->AtForTest(12)->proxy()->var()->binding_needs_init());
-  CHECK(declarations->AtForTest(12)->proxy()->var()->location() ==
+  CHECK(
+      declarations->AtForTest(12)->var()->raw_name()->IsOneByteEqualTo("foob"));
+  CHECK(declarations->AtForTest(12)->var()->mode() == i::VariableMode::kConst);
+  CHECK(!declarations->AtForTest(12)->var()->binding_needs_init());
+  CHECK(declarations->AtForTest(12)->var()->location() ==
         i::VariableLocation::MODULE);
 
   i::ModuleDescriptor* descriptor = module_scope->module();
@@ -7688,31 +7670,31 @@ TEST(ModuleParsingInternals) {
 
   CHECK_EQ(8u, descriptor->regular_exports().size());
   entry = descriptor->regular_exports()
-              .find(declarations->AtForTest(3)->proxy()->raw_name())
+              .find(declarations->AtForTest(3)->var()->raw_name())
               ->second;
   CheckEntry(entry, "foo", "foo", nullptr, -1);
   entry = descriptor->regular_exports()
-              .find(declarations->AtForTest(4)->proxy()->raw_name())
+              .find(declarations->AtForTest(4)->var()->raw_name())
               ->second;
   CheckEntry(entry, "goo", "goo", nullptr, -1);
   entry = descriptor->regular_exports()
-              .find(declarations->AtForTest(5)->proxy()->raw_name())
+              .find(declarations->AtForTest(5)->var()->raw_name())
               ->second;
   CheckEntry(entry, "hoo", "hoo", nullptr, -1);
   entry = descriptor->regular_exports()
-              .find(declarations->AtForTest(6)->proxy()->raw_name())
+              .find(declarations->AtForTest(6)->var()->raw_name())
               ->second;
   CheckEntry(entry, "joo", "joo", nullptr, -1);
   entry = descriptor->regular_exports()
-              .find(declarations->AtForTest(7)->proxy()->raw_name())
+              .find(declarations->AtForTest(7)->var()->raw_name())
               ->second;
   CheckEntry(entry, "default", "*default*", nullptr, -1);
   entry = descriptor->regular_exports()
-              .find(declarations->AtForTest(12)->proxy()->raw_name())
+              .find(declarations->AtForTest(12)->var()->raw_name())
               ->second;
   CheckEntry(entry, "foob", "foob", nullptr, -1);
   // TODO(neis): The next lines are terrible. Find a better way.
-  auto name_x = declarations->AtForTest(0)->proxy()->raw_name();
+  auto name_x = declarations->AtForTest(0)->var()->raw_name();
   CHECK_EQ(2u, descriptor->regular_exports().count(name_x));
   auto it = descriptor->regular_exports().equal_range(name_x).first;
   entry = it->second;
@@ -7733,19 +7715,19 @@ TEST(ModuleParsingInternals) {
 
   CHECK_EQ(4u, descriptor->regular_imports().size());
   entry = descriptor->regular_imports()
-              .find(declarations->AtForTest(1)->proxy()->raw_name())
+              .find(declarations->AtForTest(1)->var()->raw_name())
               ->second;
   CheckEntry(entry, nullptr, "z", "q", 0);
   entry = descriptor->regular_imports()
-              .find(declarations->AtForTest(2)->proxy()->raw_name())
+              .find(declarations->AtForTest(2)->var()->raw_name())
               ->second;
   CheckEntry(entry, nullptr, "n", "default", 1);
   entry = descriptor->regular_imports()
-              .find(declarations->AtForTest(9)->proxy()->raw_name())
+              .find(declarations->AtForTest(9)->var()->raw_name())
               ->second;
   CheckEntry(entry, nullptr, "mm", "m", 0);
   entry = descriptor->regular_imports()
-              .find(declarations->AtForTest(10)->proxy()->raw_name())
+              .find(declarations->AtForTest(10)->var()->raw_name())
               ->second;
   CheckEntry(entry, nullptr, "aa", "aa", 0);
 }

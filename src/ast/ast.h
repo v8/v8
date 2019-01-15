@@ -431,14 +431,14 @@ class Declaration : public AstNode {
  public:
   typedef base::ThreadedList<Declaration> List;
 
-  VariableProxy* proxy() const { return proxy_; }
+  Variable* var() const { return var_; }
+  void set_var(Variable* var) { var_ = var; }
 
  protected:
-  Declaration(VariableProxy* proxy, int pos, NodeType type)
-      : AstNode(pos, type), proxy_(proxy), next_(nullptr) {}
+  Declaration(int pos, NodeType type) : AstNode(pos, type), next_(nullptr) {}
 
  private:
-  VariableProxy* proxy_;
+  Variable* var_;
   // Declarations list threaded through the declarations.
   Declaration** next() { return &next_; }
   Declaration* next_;
@@ -457,8 +457,8 @@ class VariableDeclaration : public Declaration {
       : public BitField<bool, Declaration::kNextBitFieldIndex, 1> {};
 
  protected:
-  VariableDeclaration(VariableProxy* proxy, int pos, bool is_nested = false)
-      : Declaration(proxy, pos, kVariableDeclaration) {
+  explicit VariableDeclaration(int pos, bool is_nested = false)
+      : Declaration(pos, kVariableDeclaration) {
     bit_field_ = IsNestedField::update(bit_field_, is_nested);
   }
 
@@ -475,8 +475,8 @@ class NestedVariableDeclaration final : public VariableDeclaration {
  private:
   friend class AstNodeFactory;
 
-  NestedVariableDeclaration(VariableProxy* proxy, Scope* scope, int pos)
-      : VariableDeclaration(proxy, pos, true), scope_(scope) {}
+  NestedVariableDeclaration(Scope* scope, int pos)
+      : VariableDeclaration(pos, true), scope_(scope) {}
 
   // Nested scope from which the declaration originated.
   Scope* scope_;
@@ -501,9 +501,9 @@ class FunctionDeclaration final : public Declaration {
   class DeclaresSloppyBlockFunction
       : public BitField<bool, Declaration::kNextBitFieldIndex, 1> {};
 
-  FunctionDeclaration(VariableProxy* proxy, FunctionLiteral* fun,
-                      bool declares_sloppy_block_function, int pos)
-      : Declaration(proxy, pos, kFunctionDeclaration), fun_(fun) {
+  FunctionDeclaration(FunctionLiteral* fun, bool declares_sloppy_block_function,
+                      int pos)
+      : Declaration(pos, kFunctionDeclaration), fun_(fun) {
     bit_field_ = DeclaresSloppyBlockFunction::update(
         bit_field_, declares_sloppy_block_function);
   }
@@ -2812,22 +2812,19 @@ class AstNodeFactory final {
   AstNodeFactory* ast_node_factory() { return this; }
   AstValueFactory* ast_value_factory() const { return ast_value_factory_; }
 
-  VariableDeclaration* NewVariableDeclaration(VariableProxy* proxy, int pos) {
-    return new (zone_) VariableDeclaration(proxy, pos);
+  VariableDeclaration* NewVariableDeclaration(int pos) {
+    return new (zone_) VariableDeclaration(pos);
   }
 
-  NestedVariableDeclaration* NewNestedVariableDeclaration(VariableProxy* proxy,
-                                                          Scope* scope,
+  NestedVariableDeclaration* NewNestedVariableDeclaration(Scope* scope,
                                                           int pos) {
-    return new (zone_) NestedVariableDeclaration(proxy, scope, pos);
+    return new (zone_) NestedVariableDeclaration(scope, pos);
   }
 
-  FunctionDeclaration* NewFunctionDeclaration(VariableProxy* proxy,
-                                              FunctionLiteral* fun,
+  FunctionDeclaration* NewFunctionDeclaration(FunctionLiteral* fun,
                                               bool is_sloppy_block_function,
                                               int pos) {
-    return new (zone_)
-        FunctionDeclaration(proxy, fun, is_sloppy_block_function, pos);
+    return new (zone_) FunctionDeclaration(fun, is_sloppy_block_function, pos);
   }
 
   Block* NewBlock(int capacity, bool ignore_completion_value) {

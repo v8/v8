@@ -848,15 +848,15 @@ void AstPrinter::VisitBlock(Block* node) {
 
 // TODO(svenpanne) Start with IndentedScope.
 void AstPrinter::VisitVariableDeclaration(VariableDeclaration* node) {
-  PrintLiteralWithModeIndented("VARIABLE", node->proxy()->var(),
-                               node->proxy()->raw_name());
+  PrintLiteralWithModeIndented("VARIABLE", node->var(),
+                               node->var()->raw_name());
 }
 
 
 // TODO(svenpanne) Start with IndentedScope.
 void AstPrinter::VisitFunctionDeclaration(FunctionDeclaration* node) {
   PrintIndented("FUNCTION ");
-  PrintLiteral(node->proxy()->raw_name(), true);
+  PrintLiteral(node->var()->raw_name(), true);
   Print(" = function ");
   PrintLiteral(node->fun()->raw_name(), false);
   Print("\n");

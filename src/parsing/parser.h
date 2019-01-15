@@ -431,9 +431,9 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                        VariableMode mode, InitializationFlag init,
                        Scope* declaration_scope, int begin,
                        int end = kNoSourcePosition);
-  void Declare(Declaration* declaration, VariableKind kind, VariableMode mode,
-               InitializationFlag init, Scope* declaration_scope,
-               int var_end_pos = kNoSourcePosition);
+  void Declare(Declaration* declaration, VariableProxy* proxy,
+               VariableKind kind, VariableMode mode, InitializationFlag init,
+               Scope* declaration_scope, int var_end_pos = kNoSourcePosition);
 
   bool TargetStackContainsLabel(const AstRawString* label);
   BreakableStatement* LookupBreakTarget(const AstRawString* label);
