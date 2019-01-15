@@ -8228,7 +8228,7 @@ class V8_EXPORT Isolate {
   void SetWasmModuleCallback(ExtensionCallback callback);
   void SetWasmInstanceCallback(ExtensionCallback callback);
 
-  V8_DEPRECATE_SOON(
+  V8_DEPRECATED(
       "The callback set in SetWasmStreamingCallback is used now",
       void SetWasmCompileStreamingCallback(ApiImplementationCallback callback));
 
