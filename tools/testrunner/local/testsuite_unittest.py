@@ -47,10 +47,19 @@ class TestSuiteTest(unittest.TestCase):
     self.assertIsNone(self.suite.statusfile)
 
   def testLoadingTestsFromDisk(self):
-    self.suite.load_tests_from_disk(statusfile_variables={})
+    slow_tests, fast_tests = self.suite.load_tests_from_disk(
+      statusfile_variables={})
+    def is_generator(iterator):
+      return iterator == iter(iterator)
 
+    self.assertTrue(is_generator(slow_tests))
+    self.assertTrue(is_generator(fast_tests))
+
+    slow_tests, fast_tests = list(slow_tests), list(fast_tests)
     # Verify that the components of the TestSuite are loaded.
-    self.assertIsNotNone(self.suite.tests)
+    self.assertTrue(len(slow_tests) == len(fast_tests) == 1)
+    self.assertTrue(all(test.is_slow for test in slow_tests))
+    self.assertFalse(any(test.is_slow for test in fast_tests))
     self.assertIsNotNone(self.suite.statusfile)
 
 

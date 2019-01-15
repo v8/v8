@@ -5,12 +5,19 @@
 
 import sys
 
-from testrunner.local import testsuite
+from testrunner.local import testsuite, statusfile
 
 
 class TestSuite(testsuite.TestSuite):
+  def _test_class(self):
+    return testsuite.TestCase
+
   def ListTests(self):
-    return []
+    fast = self._create_test("fast")
+    slow = self._create_test("slow")
+    slow._statusfile_outcomes.append(statusfile.SLOW)
+    yield fast
+    yield slow
 
 def GetSuite(*args, **kwargs):
   return TestSuite(*args, **kwargs)

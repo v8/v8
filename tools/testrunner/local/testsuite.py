@@ -111,7 +111,11 @@ class TestSuite(object):
   def load_tests_from_disk(self, statusfile_variables):
     self.statusfile = statusfile.StatusFile(
       self.status_file(), statusfile_variables)
-    self.tests = self.ListTests()
+
+    slow_tests = (test for test in self.ListTests() if test.is_slow)
+    fast_tests = (test for test in self.ListTests() if not test.is_slow)
+
+    return slow_tests, fast_tests
 
   def get_variants_gen(self, variants):
     return self._variants_gen_class()(variants)

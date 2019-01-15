@@ -311,7 +311,6 @@ class StandardTestRunner(base_runner.BaseTestRunner):
       ]
 
       self._prepare_procs(procs)
-      tests.sort(key=lambda t: t.is_slow, reverse=True)
 
       loader.load_tests(tests)
 

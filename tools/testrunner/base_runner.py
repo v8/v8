@@ -260,11 +260,10 @@ class BaseTestRunner(object):
         raise
 
       args = self._parse_test_args(args)
-      suites = self._load_testsuites(args, options)
+      tests = self._load_testsuite_generators(args, options)
       self._setup_env()
       print(">>> Running tests for %s.%s" % (self.build_config.arch,
                                             self.mode_name))
-      tests = [t for s in suites for t in s.tests]
       return self._do_execute(tests, args, options)
     except TestRunnerError:
       return utils.EXIT_CODE_INTERNAL_ERROR
@@ -602,11 +601,11 @@ class BaseTestRunner(object):
   def _get_default_suite_names(self):
     return []
 
-  def _load_testsuites(self, args, options):
+  def _load_testsuite_generators(self, args, options):
     names = self._args_to_suite_names(args, options.test_root)
     test_config = self._create_test_config(options)
     variables = self._get_statusfile_variables(options)
-    suites = []
+    slow_chain, fast_chain = [], []
     for name in names:
       if options.verbose:
         print '>>> Loading test suite: %s' % name
@@ -614,10 +613,17 @@ class BaseTestRunner(object):
           os.path.join(options.test_root, name), test_config)
 
       if self._is_testsuite_supported(suite, options):
-        suite.load_tests_from_disk(variables)
-        suites.append(suite)
+        slow_tests, fast_tests = suite.load_tests_from_disk(variables)
+        slow_chain.append(slow_tests)
+        fast_chain.append(fast_tests)
 
-    return suites
+    for tests in slow_chain:
+      for test in tests:
+        yield test
+
+    for tests in fast_chain:
+      for test in tests:
+        yield test
 
   def _is_testsuite_supported(self, suite, options):
     """A predicate that can be overridden to filter out unsupported TestSuite
