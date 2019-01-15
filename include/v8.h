@@ -8208,6 +8208,14 @@ class V8_EXPORT Isolate {
                                    size_t heap_limit);
 
   /**
+   * If the heap limit was changed by the NearHeapLimitCallback, then the
+   * initial heap limit will be restored once the heap size falls below the
+   * given threshold percentage of the initial heap limit.
+   * The threshold percentage is a number in (0.0, 1.0) range.
+   */
+  void AutomaticallyRestoreInitialHeapLimit(double threshold_percent = 0.5);
+
+  /**
    * Set the callback to invoke to check if code generation from
    * strings should be allowed.
    */

@@ -132,6 +132,7 @@ class IdleScavengeObserver : public AllocationObserver {
 Heap::Heap()
     : isolate_(isolate()),
       initial_max_old_generation_size_(max_old_generation_size_),
+      initial_max_old_generation_size_threshold_(0),
       initial_old_generation_size_(max_old_generation_size_ /
                                    kInitalOldGenerationLimitFactor),
       memory_pressure_level_(MemoryPressureLevel::kNone),
@@ -1356,6 +1357,10 @@ bool Heap::CollectGarbage(AllocationSpace space,
       event.committed_memory = committed_memory_after;
       if (deserialization_complete_) {
         memory_reducer_->NotifyMarkCompact(event);
+      }
+      if (initial_max_old_generation_size_ < max_old_generation_size_ &&
+          used_memory_after < initial_max_old_generation_size_threshold_) {
+        max_old_generation_size_ = initial_max_old_generation_size_;
       }
     }
 
@@ -3302,6 +3307,11 @@ void Heap::RemoveNearHeapLimitCallback(v8::NearHeapLimitCallback callback,
     }
   }
   UNREACHABLE();
+}
+
+void Heap::AutomaticallyRestoreInitialHeapLimit(double threshold_percent) {
+  initial_max_old_generation_size_threshold_ =
+      initial_max_old_generation_size_ * threshold_percent;
 }
 
 bool Heap::InvokeNearHeapLimitCallback() {

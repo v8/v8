@@ -8762,6 +8762,13 @@ void Isolate::RemoveNearHeapLimitCallback(v8::NearHeapLimitCallback callback,
   isolate->heap()->RemoveNearHeapLimitCallback(callback, heap_limit);
 }
 
+void Isolate::AutomaticallyRestoreInitialHeapLimit(double threshold_percent) {
+  DCHECK_GT(threshold_percent, 0.0);
+  DCHECK_LT(threshold_percent, 1.0);
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->heap()->AutomaticallyRestoreInitialHeapLimit(threshold_percent);
+}
+
 bool Isolate::IsDead() {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   return isolate->IsDead();

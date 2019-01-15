@@ -492,6 +492,7 @@ class Heap {
   void AddNearHeapLimitCallback(v8::NearHeapLimitCallback, void* data);
   void RemoveNearHeapLimitCallback(v8::NearHeapLimitCallback callback,
                                    size_t heap_limit);
+  void AutomaticallyRestoreInitialHeapLimit(double threshold_percent);
 
   double MonotonicallyIncreasingTimeInMs();
 
@@ -1750,6 +1751,7 @@ class Heap {
   size_t initial_semispace_size_ = kMinSemiSpaceSizeInKB * KB;
   size_t max_old_generation_size_ = 700ul * (kSystemPointerSize / 4) * MB;
   size_t initial_max_old_generation_size_;
+  size_t initial_max_old_generation_size_threshold_;
   size_t initial_old_generation_size_;
   bool old_generation_size_configured_ = false;
   size_t maximum_committed_ = 0;

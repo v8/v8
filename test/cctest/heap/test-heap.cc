@@ -6295,6 +6295,8 @@ struct OutOfMemoryState {
   size_t old_generation_capacity_at_oom;
   size_t memory_allocator_size_at_oom;
   size_t new_space_capacity_at_oom;
+  size_t current_heap_limit;
+  size_t initial_heap_limit;
 };
 
 size_t NearHeapLimitCallback(void* raw_state, size_t current_heap_limit,
@@ -6305,6 +6307,8 @@ size_t NearHeapLimitCallback(void* raw_state, size_t current_heap_limit,
   state->old_generation_capacity_at_oom = heap->OldGenerationCapacity();
   state->memory_allocator_size_at_oom = heap->memory_allocator()->Size();
   state->new_space_capacity_at_oom = heap->new_space()->Capacity();
+  state->current_heap_limit = current_heap_limit;
+  state->initial_heap_limit = initial_heap_limit;
   return initial_heap_limit + 100 * MB;
 }
 
@@ -6383,6 +6387,44 @@ UNINITIALIZED_TEST(OutOfMemoryLargeObjects) {
       state.memory_allocator_size_at_oom,
       MemoryAllocatorSizeFromHeapCapacity(state.old_generation_capacity_at_oom +
                                           2 * state.new_space_capacity_at_oom));
+  reinterpret_cast<v8::Isolate*>(isolate)->Dispose();
+}
+
+UNINITIALIZED_TEST(RestoreHeapLimit) {
+  if (FLAG_stress_incremental_marking) return;
+#ifdef VERIFY_HEAP
+  if (FLAG_verify_heap) return;
+#endif
+  ManualGCScope manual_gc_scope;
+  const size_t kOldGenerationLimit = 300 * MB;
+  FLAG_max_old_space_size = kOldGenerationLimit / MB;
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  Isolate* isolate =
+      reinterpret_cast<Isolate*>(v8::Isolate::New(create_params));
+  Heap* heap = isolate->heap();
+  Factory* factory = isolate->factory();
+  OutOfMemoryState state;
+  state.heap = heap;
+  state.oom_triggered = false;
+  heap->AddNearHeapLimitCallback(NearHeapLimitCallback, &state);
+  heap->AutomaticallyRestoreInitialHeapLimit(0.5);
+  const int kFixedArrayLength = 1000000;
+  {
+    HandleScope handle_scope(isolate);
+    while (!state.oom_triggered) {
+      factory->NewFixedArray(kFixedArrayLength);
+    }
+  }
+  heap->MemoryPressureNotification(MemoryPressureLevel::kCritical, true);
+  state.oom_triggered = false;
+  {
+    HandleScope handle_scope(isolate);
+    while (!state.oom_triggered) {
+      factory->NewFixedArray(kFixedArrayLength);
+    }
+  }
+  CHECK_EQ(state.current_heap_limit, state.initial_heap_limit);
   reinterpret_cast<v8::Isolate*>(isolate)->Dispose();
 }
 
