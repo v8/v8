@@ -2828,9 +2828,11 @@ bool String::SupportsExternalization() {
 }
 
 void String::StringShortPrint(StringStream* accumulator, bool show_details) {
+  const char* internalized_marker = this->IsInternalizedString() ? "#" : "";
+
   int len = length();
   if (len > kMaxShortPrintLength) {
-    accumulator->Add("<Very long string[%u]>", len);
+    accumulator->Add("<Very long string[%s%u]>", internalized_marker, len);
     return;
   }
 
@@ -2856,7 +2858,8 @@ void String::StringShortPrint(StringStream* accumulator, bool show_details) {
   }
   stream.Reset(*this);
   if (one_byte) {
-    if (show_details) accumulator->Add("<String[%u]: ", length());
+    if (show_details)
+      accumulator->Add("<String[%s%u]: ", internalized_marker, length());
     for (int i = 0; i < len; i++) {
       accumulator->Put(static_cast<char>(stream.GetNext()));
     }
@@ -2864,7 +2867,8 @@ void String::StringShortPrint(StringStream* accumulator, bool show_details) {
   } else {
     // Backslash indicates that the string contains control
     // characters and that backslashes are therefore escaped.
-    if (show_details) accumulator->Add("<String[%u]\\: ", length());
+    if (show_details)
+      accumulator->Add("<String[%s%u]\\: ", internalized_marker, length());
     for (int i = 0; i < len; i++) {
       uint16_t c = stream.GetNext();
       if (c == '\n') {
