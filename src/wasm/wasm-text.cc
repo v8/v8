@@ -81,8 +81,7 @@ void PrintWasmText(const WasmModule* module, const ModuleWireBytes& wire_bytes,
 
   for (; i.has_next(); i.next()) {
     WasmOpcode opcode = i.current();
-    if (opcode == kExprElse || opcode == kExprCatch ||
-        opcode == kExprCatchAll || opcode == kExprEnd) {
+    if (opcode == kExprElse || opcode == kExprCatch || opcode == kExprEnd) {
       --control_depth;
     }
 
@@ -120,8 +119,16 @@ void PrintWasmText(const WasmModule* module, const ModuleWireBytes& wire_bytes,
         os << WasmOpcodes::OpcodeName(opcode) << ' ' << imm.depth;
         break;
       }
+      case kExprBrOnExn: {
+        BranchDepthImmediate<Decoder::kNoValidate> imm_br(&i, i.pc());
+        ExceptionIndexImmediate<Decoder::kNoValidate> imm_idx(
+            &i, i.pc() + imm_br.length);
+        os << WasmOpcodes::OpcodeName(opcode) << ' ' << imm_br.depth << ' '
+           << imm_idx.index;
+        break;
+      }
       case kExprElse:
-      case kExprCatchAll:
+      case kExprCatch:
         os << WasmOpcodes::OpcodeName(opcode);
         control_depth++;
         break;
@@ -153,9 +160,6 @@ void PrintWasmText(const WasmModule* module, const ModuleWireBytes& wire_bytes,
         os << WasmOpcodes::OpcodeName(opcode) << ' ' << imm.index;
         break;
       }
-      case kExprCatch:
-        control_depth++;
-        V8_FALLTHROUGH;
       case kExprThrow: {
         ExceptionIndexImmediate<Decoder::kNoValidate> imm(&i, i.pc());
         os << WasmOpcodes::OpcodeName(opcode) << ' ' << imm.index;

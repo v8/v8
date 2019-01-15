@@ -2445,58 +2445,57 @@ TEST_F(FunctionBodyDecoderTest, ThrowUnreachable) {
 }
 
 #define WASM_TRY_OP kExprTry, kLocalVoid
-#define WASM_CATCH(index) kExprCatch, static_cast<byte>(index)
-#define WASM_RETHROW(depth) kExprRethrow, static_cast<byte>(depth)
+#define WASM_BR_ON_EXN(depth, index) \
+  kExprBrOnExn, static_cast<byte>(depth), static_cast<byte>(index)
 
 TEST_F(FunctionBodyDecoderTest, TryCatch) {
   WASM_FEATURE_SCOPE(eh);
   TestModuleBuilder builder;
   module = builder.module();
-  byte ex1 = builder.AddException(sigs.v_v());
-  byte ex2 = builder.AddException(sigs.v_v());
-  EXPECT_VERIFIES(v_v, WASM_TRY_OP, WASM_CATCH(ex1), kExprEnd);
-  EXPECT_VERIFIES(v_v, WASM_TRY_OP, WASM_CATCH(ex1), WASM_CATCH(ex2), kExprEnd);
-  EXPECT_FAILURE(v_v, WASM_TRY_OP, kExprEnd);         // Missing catch.
-  EXPECT_FAILURE(v_v, WASM_TRY_OP, WASM_CATCH(ex1));  // Missing end.
-  EXPECT_FAILURE(v_v, WASM_CATCH(ex1), kExprEnd);     // Missing try.
-}
-
-TEST_F(FunctionBodyDecoderTest, TryCatchAll) {
-  WASM_FEATURE_SCOPE(eh);
-  TestModuleBuilder builder;
-  module = builder.module();
-  byte ex1 = builder.AddException(sigs.v_v());
-  byte ex2 = builder.AddException(sigs.v_v());
-  EXPECT_VERIFIES(v_v, WASM_TRY_OP, kExprCatchAll, kExprEnd);
-  EXPECT_VERIFIES(v_v, WASM_TRY_OP, WASM_CATCH(ex1), kExprCatchAll, kExprEnd);
-  EXPECT_VERIFIES(v_v, WASM_TRY_OP, WASM_CATCH(ex1), WASM_CATCH(ex2),
-                  kExprCatchAll, kExprEnd);
-  EXPECT_FAILURE(v_v, WASM_TRY_OP, kExprCatchAll, kExprCatchAll, kExprEnd);
-  EXPECT_FAILURE(v_v, WASM_TRY_OP, kExprCatchAll, WASM_CATCH(ex1), kExprEnd);
-  EXPECT_FAILURE(v_v, WASM_TRY_OP, kExprCatchAll);  // Missing end.
-  EXPECT_FAILURE(v_v, kExprCatchAll, kExprEnd);     // Missing try.
+  EXPECT_VERIFIES(v_v, WASM_TRY_OP, kExprCatch, kExprDrop, kExprEnd);
+  EXPECT_FAILURE(v_v, WASM_TRY_OP, kExprCatch, kExprCatch, kExprEnd);
+  EXPECT_FAILURE(v_v, WASM_TRY_OP, kExprEnd);    // Missing catch.
+  EXPECT_FAILURE(v_v, WASM_TRY_OP, kExprCatch);  // Missing end.
+  EXPECT_FAILURE(v_v, kExprCatch, kExprEnd);     // Missing try.
 }
 
 TEST_F(FunctionBodyDecoderTest, Rethrow) {
   WASM_FEATURE_SCOPE(eh);
   TestModuleBuilder builder;
   module = builder.module();
-  byte ex1 = builder.AddException(sigs.v_v());
-  EXPECT_VERIFIES(v_v, WASM_TRY_OP, WASM_CATCH(ex1), WASM_RETHROW(0), kExprEnd);
-  EXPECT_VERIFIES(v_v, WASM_TRY_OP, kExprCatchAll, WASM_RETHROW(0), kExprEnd);
-  EXPECT_VERIFIES(v_v, WASM_TRY_OP, kExprCatchAll, WASM_BLOCK(WASM_RETHROW(1)),
-                  kExprEnd);
-  EXPECT_FAILURE(v_v, WASM_TRY_OP, kExprCatchAll, WASM_BLOCK(WASM_RETHROW(0)),
-                 kExprEnd);
-  EXPECT_FAILURE(v_v, WASM_TRY_OP, kExprCatchAll, WASM_RETHROW(23), kExprEnd);
-  EXPECT_FAILURE(v_v, WASM_TRY_OP, WASM_RETHROW(0), kExprCatchAll, kExprEnd);
-  EXPECT_FAILURE(v_v, WASM_BLOCK(WASM_RETHROW(0)));
-  EXPECT_FAILURE(v_v, WASM_RETHROW(0));
+  EXPECT_VERIFIES(v_v, WASM_TRY_OP, kExprCatch, kExprRethrow, kExprEnd);
+  EXPECT_FAILURE(v_v, WASM_TRY_OP, kExprRethrow, kExprCatch, kExprEnd);
+  EXPECT_FAILURE(v_v, WASM_BLOCK(kExprRethrow));
+  EXPECT_FAILURE(v_v, kExprRethrow);
 }
 
+TEST_F(FunctionBodyDecoderTest, BrOnExn) {
+  WASM_FEATURE_SCOPE(eh);
+  TestModuleBuilder builder;
+  module = builder.module();
+  byte ex1 = builder.AddException(sigs.v_v());
+  byte ex2 = builder.AddException(sigs.v_i());
+  EXPECT_VERIFIES(v_v, WASM_TRY_OP, kExprCatch, WASM_BR_ON_EXN(0, ex1),
+                  kExprDrop, kExprEnd);
+  EXPECT_VERIFIES(v_v, WASM_TRY_OP, kExprCatch, WASM_BR_ON_EXN(1, ex1),
+                  kExprDrop, kExprEnd);
+  EXPECT_VERIFIES(v_v, WASM_TRY_OP, kExprCatch, WASM_BR_ON_EXN(0, ex1),
+                  WASM_BR_ON_EXN(0, ex1), kExprDrop, kExprEnd);
+  EXPECT_VERIFIES(v_v, WASM_BLOCK(WASM_TRY_OP, kExprCatch,
+                                  WASM_BR_ON_EXN(1, ex1), kExprDrop, kExprEnd));
+  EXPECT_VERIFIES(i_v,
+                  WASM_BLOCK_I(WASM_TRY_OP, kExprCatch, WASM_BR_ON_EXN(1, ex2),
+                               kExprDrop, kExprEnd, kExprI32Const, 0));
+  EXPECT_FAILURE(v_v, WASM_TRY_OP, kExprCatch, WASM_BR_ON_EXN(2, ex1),
+                 kExprDrop, kExprEnd);
+  EXPECT_FAILURE(v_v, WASM_TRY_OP, kExprCatch, kExprDrop,
+                 WASM_BR_ON_EXN(0, ex1), kExprEnd);
+  EXPECT_FAILURE(v_v, WASM_TRY_OP, kExprCatch, WASM_BR_ON_EXN(0, ex1),
+                 kExprEnd);
+}
+
+#undef WASM_BR_ON_EXN
 #undef WASM_TRY_OP
-#undef WASM_CATCH
-#undef WASM_RETHROW
 
 TEST_F(FunctionBodyDecoderTest, MultiValBlock1) {
   WASM_FEATURE_SCOPE(mv);
@@ -2951,11 +2950,12 @@ TEST_F(WasmOpcodeLengthTest, Statements) {
   EXPECT_LENGTH(1, kExprElse);
   EXPECT_LENGTH(1, kExprEnd);
   EXPECT_LENGTH(1, kExprSelect);
+  EXPECT_LENGTH(1, kExprCatch);
+  EXPECT_LENGTH(1, kExprRethrow);
   EXPECT_LENGTH(2, kExprBr);
   EXPECT_LENGTH(2, kExprBrIf);
   EXPECT_LENGTH(2, kExprThrow);
-  EXPECT_LENGTH(2, kExprRethrow);
-  EXPECT_LENGTH(2, kExprCatch);
+  EXPECT_LENGTH(3, kExprBrOnExn);
   EXPECT_LENGTH_N(2, kExprBlock, kLocalI32);
   EXPECT_LENGTH_N(2, kExprLoop, kLocalI32);
   EXPECT_LENGTH_N(2, kExprIf, kLocalI32);

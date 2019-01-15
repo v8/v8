@@ -30,22 +30,25 @@ load("test/mjsunit/wasm/exceptions-utils.js");
   let except = builder.addException(kSig_v_r);
   builder.addFunction("throw_catch_null", kSig_i_i)
       .addBody([
-        kExprTry, kWasmI32,
+        kExprTry, kWasmAnyRef,
           kExprGetLocal, 0,
           kExprI32Eqz,
-          kExprIf, kWasmI32,
+          kExprIf, kWasmAnyRef,
             kExprRefNull,
             kExprThrow, except,
           kExprElse,
             kExprI32Const, 42,
+            kExprReturn,
           kExprEnd,
-        kExprCatch, except,
-          kExprRefIsNull,
-          kExprIf, kWasmI32,
-            kExprI32Const, 23,
-          kExprElse,
-            kExprUnreachable,
-          kExprEnd,
+        kExprCatch,
+          kExprBrOnExn, 0, except,
+          kExprRethrow,
+        kExprEnd,
+        kExprRefIsNull,
+        kExprIf, kWasmI32,
+          kExprI32Const, 23,
+        kExprElse,
+          kExprUnreachable,
         kExprEnd,
       ]).exportFunc();
   let instance = builder.instantiate();
@@ -83,8 +86,9 @@ load("test/mjsunit/wasm/exceptions-utils.js");
         kExprTry, kWasmAnyRef,
           kExprGetLocal, 0,
           kExprThrow, except,
-        kExprCatch, except,
-          // fall-through
+        kExprCatch,
+          kExprBrOnExn, 0, except,
+          kExprRethrow,
         kExprEnd,
       ]).exportFunc();
   let instance = builder.instantiate();

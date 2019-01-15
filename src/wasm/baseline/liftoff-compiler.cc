@@ -480,6 +480,10 @@ class LiftoffCompiler {
     unsupported(decoder, "try");
   }
 
+  void Catch(FullDecoder* decoder, Control* block, Value* exception) {
+    unsupported(decoder, "catch");
+  }
+
   void If(FullDecoder* decoder, const Value& cond, Control* if_block) {
     DCHECK_EQ(if_block, decoder->control_at(0));
     DCHECK(if_block->is_if());
@@ -1860,16 +1864,13 @@ class LiftoffCompiler {
              const Vector<Value>& args) {
     unsupported(decoder, "throw");
   }
-  void Rethrow(FullDecoder* decoder, Control* block) {
+  void Rethrow(FullDecoder* decoder, const Value& exception) {
     unsupported(decoder, "rethrow");
   }
-  void CatchException(FullDecoder* decoder,
-                      const ExceptionIndexImmediate<validate>& imm,
-                      Control* block, Vector<Value> caught_values) {
-    unsupported(decoder, "catch");
-  }
-  void CatchAll(FullDecoder* decoder, Control* block) {
-    unsupported(decoder, "catch-all");
+  void BrOnException(FullDecoder* decoder, const Value& exception,
+                     const ExceptionIndexImmediate<validate>& imm,
+                     uint32_t depth, Vector<Value> values) {
+    unsupported(decoder, "br_on_exn");
   }
   void AtomicOp(FullDecoder* decoder, WasmOpcode opcode, Vector<Value> args,
                 const MemoryAccessImmediate<validate>& imm, Value* result) {

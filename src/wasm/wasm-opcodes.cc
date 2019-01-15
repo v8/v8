@@ -158,12 +158,12 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_I64_OP(StoreMem32, "store32")
     CASE_S128_OP(StoreMem, "store128")
 
-    // Non-standard opcodes.
+    // Exception handling opcodes.
     CASE_OP(Try, "try")
+    CASE_OP(Catch, "catch")
     CASE_OP(Throw, "throw")
     CASE_OP(Rethrow, "rethrow")
-    CASE_OP(Catch, "catch")
-    CASE_OP(CatchAll, "catch_all")
+    CASE_OP(BrOnExn, "br_on_exn")
 
     // asm.js-only opcodes.
     CASE_F64_OP(Acos, "acos")

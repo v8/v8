@@ -453,16 +453,44 @@ class WasmGraphBuildingInterface {
     builder_->TerminateThrow(ssa_env_->effect, ssa_env_->control);
   }
 
-  void Rethrow(FullDecoder* decoder, Control* block) {
-    DCHECK(block->is_try_catchall() || block->is_try_catch());
-    TFNode* exception = block->try_info->exception;
-    BUILD(Rethrow, exception);
+  void Rethrow(FullDecoder* decoder, const Value& exception) {
+    BUILD(Rethrow, exception.node);
     builder_->TerminateThrow(ssa_env_->effect, ssa_env_->control);
   }
 
-  void CatchException(FullDecoder* decoder,
-                      const ExceptionIndexImmediate<validate>& imm,
-                      Control* block, Vector<Value> values) {
+  void BrOnException(FullDecoder* decoder, const Value& exception,
+                     const ExceptionIndexImmediate<validate>& imm,
+                     uint32_t depth, Vector<Value> values) {
+    TFNode* if_match = nullptr;
+    TFNode* if_no_match = nullptr;
+
+    // Get the exception tag and see if it matches the expected one.
+    TFNode* caught_tag = BUILD(GetExceptionTag, exception.node);
+    TFNode* exception_tag = BUILD(LoadExceptionTagFromTable, imm.index);
+    TFNode* compare = BUILD(ExceptionTagEqual, caught_tag, exception_tag);
+    BUILD(BranchNoHint, compare, &if_match, &if_no_match);
+    SsaEnv* if_no_match_env = Split(decoder, ssa_env_);
+    SsaEnv* if_match_env = Steal(decoder->zone(), ssa_env_);
+    if_no_match_env->control = if_no_match;
+    if_match_env->control = if_match;
+
+    // If the tags match we extract the values from the exception object and
+    // push them onto the operand stack using the passed {values} vector.
+    SetEnv(if_match_env);
+    // TODO(mstarzinger): Can't use BUILD() here, GetExceptionValues() returns
+    // TFNode** rather than TFNode*. Fix to add landing pads.
+    TFNode** caught_values =
+        builder_->GetExceptionValues(exception.node, imm.exception);
+    for (size_t i = 0, e = values.size(); i < e; ++i) {
+      values[i].node = caught_values[i];
+    }
+    BrOrRet(decoder, depth);
+
+    // If the tags don't match we fall-through here.
+    SetEnv(if_no_match_env);
+  }
+
+  void Catch(FullDecoder* decoder, Control* block, Value* exception) {
     DCHECK(block->is_try_catch());
 
     current_catch_ = block->previous_catch;  // Pop try scope.
@@ -475,52 +503,9 @@ class WasmGraphBuildingInterface {
       return;
     }
 
-    TFNode* exception = block->try_info->exception;
     SetEnv(block->try_info->catch_env);
-
-    TFNode* if_catch = nullptr;
-    TFNode* if_no_catch = nullptr;
-
-    // Get the exception tag and see if it matches the expected one.
-    TFNode* caught_tag = BUILD(GetExceptionTag, exception);
-    TFNode* exception_tag = BUILD(LoadExceptionTagFromTable, imm.index);
-    TFNode* compare = BUILD(ExceptionTagEqual, caught_tag, exception_tag);
-    BUILD(BranchNoHint, compare, &if_catch, &if_no_catch);
-
-    // If the tags don't match we continue with the next tag by setting the
-    // false environment as the new {TryInfo::catch_env} here.
-    SsaEnv* if_no_catch_env = Split(decoder, ssa_env_);
-    if_no_catch_env->control = if_no_catch;
-    SsaEnv* if_catch_env = Steal(decoder->zone(), ssa_env_);
-    if_catch_env->control = if_catch;
-    block->try_info->catch_env = if_no_catch_env;
-
-    // If the tags match we extract the values from the exception object and
-    // push them onto the operand stack using the passed {values} vector.
-    SetEnv(if_catch_env);
-    // TODO(mstarzinger): Can't use BUILD() here, GetExceptionValues() returns
-    // TFNode** rather than TFNode*. Fix to add landing pads.
-    TFNode** caught_values =
-        builder_->GetExceptionValues(exception, imm.exception);
-    for (size_t i = 0, e = values.size(); i < e; ++i) {
-      values[i].node = caught_values[i];
-    }
-  }
-
-  void CatchAll(FullDecoder* decoder, Control* block) {
-    DCHECK(block->is_try_catchall() || block->is_try_catch());
-
-    current_catch_ = block->previous_catch;  // Pop try scope.
-
-    // The catch block is unreachable if no possible throws in the try block
-    // exist. We only build a landing pad if some node in the try block can
-    // (possibly) throw. Otherwise the catch environments remain empty.
-    if (!block->try_info->might_throw()) {
-      block->reachability = kSpecOnlyReachable;
-      return;
-    }
-
-    SetEnv(block->try_info->catch_env);
+    DCHECK_NOT_NULL(block->try_info->exception);
+    exception->node = block->try_info->exception;
   }
 
   void AtomicOp(FullDecoder* decoder, WasmOpcode opcode, Vector<Value> args,

@@ -32,15 +32,17 @@ load("test/mjsunit/wasm/exceptions-utils.js");
   builder.addFunction("throw_catch_simd", kSig_i_v)
       .addLocals({s128_count: 1})
       .addBody([
-        kExprTry, kWasmI32,
+        kExprTry, kWasmS128,
           kExprGetLocal, 0,
           kExprThrow, 0,
-        kExprCatch, except,
+        kExprCatch,
+          kExprBrOnExn, 0, except,
+          kExprRethrow,
+        kExprEnd,
         // TODO(mstarzinger): Actually return some compressed form of the s128
         // value here to make sure it is extracted properly from the exception.
-          kExprDrop,
-          kExprI32Const, 1,
-        kExprEnd,
+        kExprDrop,
+        kExprI32Const, 1,
       ])
       .exportFunc();
   var instance = builder.instantiate();
