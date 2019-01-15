@@ -20,6 +20,7 @@
 #include "src/objects-inl.h"
 #include "src/objects/js-collator-inl.h"
 #include "src/objects/js-date-time-format-inl.h"
+#include "src/objects/js-locale-inl.h"
 #include "src/objects/js-number-format-inl.h"
 #include "src/objects/string.h"
 #include "src/property-descriptor.h"
@@ -789,7 +790,15 @@ Maybe<std::vector<std::string>> Intl::CanonicalizeLocaleList(
   }
   // 2. Let seen be a new empty List.
   std::vector<std::string> seen;
-  // 3. If Type(locales) is String, then
+  // 3. If Type(locales) is String or locales has an [[InitializedLocale]]
+  // internal slot,  then
+  if (locales->IsJSLocale()) {
+    // Since this value came from JSLocale, which is already went though the
+    // CanonializeLanguageTag process once, therefore there are no need to
+    // call CanonializeLanguageTag again.
+    seen.push_back(JSLocale::ToString(Handle<JSLocale>::cast(locales)));
+    return Just(seen);
+  }
   if (locales->IsString()) {
     // 3a. Let O be CreateArrayFromList(« locales »).
     // Instead of creating a one-element array and then iterating over it,
@@ -840,8 +849,12 @@ Maybe<std::vector<std::string>> Intl::CanonicalizeLocaleList(
     // RangeError exception.
     // 7c v. Let canonicalizedTag be CanonicalizeLanguageTag(tag).
     std::string canonicalized_tag;
-    if (!CanonicalizeLanguageTag(isolate, k_value).To(&canonicalized_tag)) {
-      return Nothing<std::vector<std::string>>();
+    if (k_value->IsJSLocale()) {
+      canonicalized_tag = JSLocale::ToString(Handle<JSLocale>::cast(k_value));
+    } else {
+      if (!CanonicalizeLanguageTag(isolate, k_value).To(&canonicalized_tag)) {
+        return Nothing<std::vector<std::string>>();
+      }
     }
     // 7c vi. If canonicalizedTag is not an element of seen, append
     // canonicalizedTag as the last element of seen.

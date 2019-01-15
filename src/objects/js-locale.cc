@@ -447,9 +447,13 @@ Handle<Object> JSLocale::NumberingSystem(Isolate* isolate,
   return UnicodeKeywordValue(isolate, locale, "nu");
 }
 
-Handle<String> JSLocale::ToString(Isolate* isolate, Handle<JSLocale> locale) {
+std::string JSLocale::ToString(Handle<JSLocale> locale) {
   icu::Locale* icu_locale = locale->icu_locale()->raw();
-  std::string locale_str = Intl::ToLanguageTag(*icu_locale).FromJust();
+  return Intl::ToLanguageTag(*icu_locale).FromJust();
+}
+
+Handle<String> JSLocale::ToString(Isolate* isolate, Handle<JSLocale> locale) {
+  std::string locale_str = JSLocale::ToString(locale);
   return isolate->factory()->NewStringFromAsciiChecked(locale_str.c_str());
 }
 

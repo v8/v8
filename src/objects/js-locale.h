@@ -48,6 +48,7 @@ class JSLocale : public JSObject {
   static Handle<Object> NumberingSystem(Isolate* isolate,
                                         Handle<JSLocale> locale);
   static Handle<String> ToString(Isolate* isolate, Handle<JSLocale> locale);
+  static std::string ToString(Handle<JSLocale> locale);
 
   DECL_CAST(JSLocale)
 
