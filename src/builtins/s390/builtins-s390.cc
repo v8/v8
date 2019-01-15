@@ -532,30 +532,32 @@ void Builtins::Generate_ConstructedNonConstructable(MacroAssembler* masm) {
 
 namespace {
 
+constexpr int kPushedStackSpace =
+    (kNumCalleeSaved + 2) * kPointerSize +
+    kNumCalleeSavedDoubles * kDoubleSize + 5 * kPointerSize +
+    EntryFrameConstants::kCallerFPOffset - kPointerSize;
+
 // Called with the native C calling convention. The corresponding function
-// signature is:
+// signature is either:
 //
-//  using JSEntryFunction = GeneratedCode<Address(
-//      Address root_register_value, Address new_target, Address target,
-//      Address receiver, intptr_t argc, Address** args)>;
+//   using JSEntryFunction = GeneratedCode<Address(
+//       Address root_register_value, Address new_target, Address target,
+//       Address receiver, intptr_t argc, Address** args)>;
+// or
+//   using JSEntryFunction = GeneratedCode<Address(
+//       Address root_register_value, MicrotaskQueue* microtask_queue)>;
 void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
                              Builtins::Name entry_trampoline) {
-  // TODO(tzik): |root_register_value| is moved from sixth to first. Update
-  // JSEntryVariant and JSEntryTrampoline for it.
-  //
-  // r2:                            code entry
-  // r3:                            function
-  // r4:                            receiver
-  // r5:                            argc
-  // r6:                            argv
-  // [sp + 20 * kSystemPointerSize]: root register value
+  // r2:                             root register value
+  // r3:                             code entry
+  // r4:                             function
+  // r5:                             receiver
+  // r6:                             argc
+  // [sp + 20 * kSystemPointerSize]: argv
 
   Label invoke, handler_entry, exit;
 
-  static constexpr int kPushedStackSpace =
-      (kNumCalleeSaved + 2) * kPointerSize +
-      kNumCalleeSavedDoubles * kDoubleSize;
-
+  int pushed_stack_space = 0;
   {
     NoRootArrayScope no_root_array(masm);
 
@@ -571,26 +573,26 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
     __ std(d13, MemOperand(sp, 5 * kDoubleSize));
     __ std(d14, MemOperand(sp, 6 * kDoubleSize));
     __ std(d15, MemOperand(sp, 7 * kDoubleSize));
+    pushed_stack_space += kNumCalleeSavedDoubles * kDoubleSize;
 
     // zLinux ABI
     //    Incoming parameters:
-    //          r2: code entry
-    //          r3: function
-    //          r4: receiver
-    //          r5: argc
-    //          r6: argv
-    // [sp + 20 * kSystemPointerSize]: root register value
+    //          r2: root register value
+    //          r3: code entry
+    //          r4: function
+    //          r5: receiver
+    //          r6: argc
+    // [sp + 20 * kSystemPointerSize]: argv
     //    Requires us to save the callee-preserved registers r6-r13
     //    General convention is to also save r14 (return addr) and
     //    sp/r15 as well in a single STM/STMG
     __ lay(sp, MemOperand(sp, -10 * kPointerSize));
     __ StoreMultipleP(r6, sp, MemOperand(sp, 0));
+    pushed_stack_space += (kNumCalleeSaved + 2) * kPointerSize;
 
     // Initialize the root register.
-    // C calling convention. The sixth argument is passed on the stack.
-    static constexpr int kOffsetToRootRegisterValue =
-        kPushedStackSpace + EntryFrameConstants::kRootRegisterValueOffset;
-    __ LoadP(kRootRegister, MemOperand(sp, kOffsetToRootRegisterValue));
+    // C calling convention. The first argument is passed in r2.
+    __ LoadRR(kRootRegister, r2);
   }
 
   // save r6 to r1
@@ -603,6 +605,7 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   //   kCEntryFPAddress
   //   Frame type
   __ lay(sp, MemOperand(sp, -5 * kPointerSize));
+  pushed_stack_space += 5 * kPointerSize;
 
   // Push a bad frame pointer to fail if it is used.
   __ LoadImmP(r9, Operand(-1));
@@ -619,6 +622,7 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   // frame already for the frame type being pushed later.
   __ lay(fp, MemOperand(
                  sp, -EntryFrameConstants::kCallerFPOffset + kPointerSize));
+  pushed_stack_space += EntryFrameConstants::kCallerFPOffset - kPointerSize;
 
   // restore r6
   __ LoadRR(r6, r1);
@@ -686,6 +690,7 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   // pop the faked function when we return.
   Handle<Code> trampoline_code =
       masm->isolate()->builtins()->builtin_handle(entry_trampoline);
+  DCHECK_EQ(kPushedStackSpace, pushed_stack_space);
   __ Call(trampoline_code, RelocInfo::CODE_TARGET);
 
   // Unlink this frame from the handler chain.
@@ -754,19 +759,20 @@ void Builtins::Generate_JSRunMicrotasksEntry(MacroAssembler* masm) {
   Generate_JSEntryVariant(masm, StackFrame::ENTRY, Builtins::kRunMicrotasks);
 }
 
-// Clobbers r4; preserves all other registers.
-static void Generate_CheckStackOverflow(MacroAssembler* masm, Register argc) {
+// Clobbers scratch1 and scratch2; preserves all other registers.
+static void Generate_CheckStackOverflow(MacroAssembler* masm, Register argc,
+                                        Register scratch1, Register scratch2) {
   // Check the stack for overflow. We are not trying to catch
   // interruptions (e.g. debug break and preemption) here, so the "real stack
   // limit" is checked.
   Label okay;
-  __ LoadRoot(r4, RootIndex::kRealStackLimit);
-  // Make r4 the space we have left. The stack might already be overflowed
-  // here which will cause r4 to become negative.
-  __ SubP(r4, sp, r4);
+  __ LoadRoot(scratch1, RootIndex::kRealStackLimit);
+  // Make scratch1 the space we have left. The stack might already be overflowed
+  // here which will cause scratch1 to become negative.
+  __ SubP(scratch1, sp, scratch1);
   // Check if the arguments will overflow the stack.
-  __ ShiftLeftP(r0, argc, Operand(kPointerSizeLog2));
-  __ CmpP(r4, r0);
+  __ ShiftLeftP(scratch2, argc, Operand(kPointerSizeLog2));
+  __ CmpP(scratch1, scratch2);
   __ bgt(&okay);  // Signed comparison.
 
   // Out of stack space.
@@ -778,12 +784,12 @@ static void Generate_CheckStackOverflow(MacroAssembler* masm, Register argc) {
 static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
                                              bool is_construct) {
   // Called from Generate_JS_Entry
-  // r2: new.target
-  // r3: function
-  // r4: receiver
-  // r5: argc
-  // r6: argv
-  // r0,r7-r9, cp may be clobbered
+  // r3: new.target
+  // r4: function
+  // r5: receiver
+  // r6: argc
+  // [fp + kPushedStackSpace + 20 * kPointerSize]: argv
+  // r0,r2,r7-r9, cp may be clobbered
 
   // Enter an internal frame.
   {
@@ -797,24 +803,47 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     __ LoadP(cp, MemOperand(cp));
 
     // Push the function and the receiver onto the stack.
-    __ Push(r3, r4);
+    __ Push(r4, r5);
 
     // Check if we have enough stack space to push all arguments.
-    // Clobbers r4.
-    Generate_CheckStackOverflow(masm, r5);
+    // Clobbers r5 and r0.
+    Generate_CheckStackOverflow(masm, r6, r5, r0);
+
+    // r3: new.target
+    // r4: function
+    // r6: argc
+    // [fp + kPushedStackSpace + 20 * kPointerSize]: argv
+    // r0,r2,r5,r7-r9, cp may be clobbered
+
+    // Setup new.target, argc and function.
+    __ LoadRR(r2, r6);
+    __ LoadRR(r5, r3);
+    __ LoadRR(r3, r4);
+
+    // Load argv from the stack.
+    __ LoadP(r6, MemOperand(fp));
+    __ LoadP(r6, MemOperand(
+                     r6, kPushedStackSpace + EntryFrameConstants::kArgvOffset));
+
+    // r2: argc
+    // r3: function
+    // r5: new.target
+    // r6: argv
+    // r0,r4,r7-r9, cp may be clobbered
 
     // Copy arguments to the stack in a loop from argv to sp.
     // The arguments are actually placed in reverse order on sp
     // compared to argv (i.e. arg1 is highest memory in sp).
+    // r2: argc
     // r3: function
-    // r5: argc
+    // r5: new.target
     // r6: argv, i.e. points to first arg
     // r7: scratch reg to hold scaled argc
     // r8: scratch reg to hold arg handle
     // r9: scratch reg to hold index into argv
     Label argLoop, argExit;
     intptr_t zero = 0;
-    __ ShiftLeftP(r7, r5, Operand(kPointerSizeLog2));
+    __ ShiftLeftP(r7, r2, Operand(kPointerSizeLog2));
     __ SubRR(sp, r7);                // Buy the stack frame to fit args
     __ LoadImmP(r9, Operand(zero));  // Initialize argv index
     __ bind(&argLoop);
@@ -828,14 +857,14 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     __ b(&argLoop);
     __ bind(&argExit);
 
-    // Setup new.target and argc.
-    __ LoadRR(r6, r2);
-    __ LoadRR(r2, r5);
-    __ LoadRR(r5, r6);
+    // r2: argc
+    // r3: function
+    // r5: new.target
 
     // Initialize all JavaScript callee-saved registers, since they will be seen
     // by the garbage collector as part of handlers.
-    __ LoadRoot(r6, RootIndex::kUndefinedValue);
+    __ LoadRoot(r4, RootIndex::kUndefinedValue);
+    __ LoadRR(r6, r4);
     __ LoadRR(r7, r6);
     __ LoadRR(r8, r6);
     __ LoadRR(r9, r6);
