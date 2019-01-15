@@ -1,7 +1,6 @@
 include_rules = [
   "+include",
   "-src",
-  "+src/flags.h",
   "+src/base",
   "+src/libsampler",
 ]
