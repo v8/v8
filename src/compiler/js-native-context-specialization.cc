@@ -1802,13 +1802,20 @@ Reduction JSNativeContextSpecialization::ReduceKeyedAccess(
 
   // Optimize access for constant {index}.
   HeapObjectMatcher mindex(index);
-  if (mindex.HasValue() && mindex.Value()->IsUniqueName()) {
-    auto name = Handle<Name>::cast(mindex.Value());
-    uint32_t array_index;
-    if (name->AsArrayIndex(&array_index)) {
-      index = jsgraph()->Constant(static_cast<double>(array_index));
-    } else {
-      return ReduceNamedAccess(node, value, receiver_maps, name, access_mode);
+  if (mindex.HasValue()) {
+    ObjectRef name = mindex.Ref(broker());
+    if (name.IsSymbol()) {
+      return ReduceNamedAccess(node, value, receiver_maps,
+                               name.AsName().object(), access_mode);
+    }
+    if (name.IsInternalizedString()) {
+      uint32_t array_index = name.AsInternalizedString().array_index();
+      if (array_index != InternalizedStringRef::kNotAnArrayIndex) {
+        index = jsgraph()->Constant(static_cast<double>(array_index));
+      } else {
+        return ReduceNamedAccess(node, value, receiver_maps,
+                                 name.AsName().object(), access_mode);
+      }
     }
   }
 

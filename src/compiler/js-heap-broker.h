@@ -66,6 +66,7 @@ enum class OddballType : uint8_t {
   /* Subtypes of Name */           \
   V(InternalizedString)            \
   V(String)                        \
+  V(Symbol)                        \
   /* Subtypes of HeapObject */     \
   V(AllocationSite)                \
   V(Cell)                          \
@@ -549,6 +550,12 @@ class StringRef : public NameRef {
   bool IsExternalString() const;
 };
 
+class SymbolRef : public NameRef {
+ public:
+  using NameRef::NameRef;
+  Handle<Symbol> object() const;
+};
+
 class JSTypedArrayRef : public JSObjectRef {
  public:
   using JSObjectRef::JSObjectRef;
@@ -597,6 +604,9 @@ class InternalizedStringRef : public StringRef {
  public:
   using StringRef::StringRef;
   Handle<InternalizedString> object() const;
+
+  uint32_t array_index() const;
+  static const uint32_t kNotAnArrayIndex = -1;  // 2^32-1 is not a valid index.
 };
 
 class V8_EXPORT_PRIVATE JSHeapBroker : public NON_EXPORTED_BASE(ZoneObject) {

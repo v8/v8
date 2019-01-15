@@ -486,6 +486,12 @@ class StringData : public NameData {
   static constexpr int kMaxLengthForDoubleConversion = 23;
 };
 
+class SymbolData : public NameData {
+ public:
+  SymbolData(JSHeapBroker* broker, ObjectData** storage, Handle<Symbol> object)
+      : NameData(broker, storage, object) {}
+};
+
 StringData::StringData(JSHeapBroker* broker, ObjectData** storage,
                        Handle<String> object)
     : NameData(broker, storage, object),
@@ -502,9 +508,22 @@ StringData::StringData(JSHeapBroker* broker, ObjectData** storage,
 class InternalizedStringData : public StringData {
  public:
   InternalizedStringData(JSHeapBroker* broker, ObjectData** storage,
-                         Handle<InternalizedString> object)
-      : StringData(broker, storage, object) {}
+                         Handle<InternalizedString> object);
+
+  uint32_t array_index() const { return array_index_; }
+
+ private:
+  uint32_t array_index_;
 };
+
+InternalizedStringData::InternalizedStringData(
+    JSHeapBroker* broker, ObjectData** storage,
+    Handle<InternalizedString> object)
+    : StringData(broker, storage, object) {
+  if (!object->AsArrayIndex(&array_index_)) {
+    array_index_ = InternalizedStringRef::kNotAnArrayIndex;
+  }
+}
 
 namespace {
 
@@ -2111,6 +2130,19 @@ base::Optional<double> StringRef::ToNumber() {
     return StringToDouble(broker()->isolate(), object(), flags);
   }
   return data()->AsString()->to_number();
+}
+
+uint32_t InternalizedStringRef::array_index() const {
+  if (broker()->mode() == JSHeapBroker::kDisabled) {
+    AllowHandleDereference allow_handle_dereference;
+    AllowHandleAllocation allow_handle_allocation;
+    uint32_t result;
+    if (!object()->AsArrayIndex(&result)) {
+      result = kNotAnArrayIndex;
+    }
+    return result;
+  }
+  return data()->AsInternalizedString()->array_index();
 }
 
 ObjectRef FixedArrayRef::get(int i) const {
