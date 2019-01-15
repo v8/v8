@@ -5446,13 +5446,6 @@ static bool PropertyAlreadyExists(Isolate* isolate, Handle<JSObject> to,
                                   Handle<Name> key) {
   LookupIterator it(isolate, to, key, LookupIterator::OWN_SKIP_INTERCEPTOR);
   CHECK_NE(LookupIterator::ACCESS_CHECK, it.state());
-#ifdef DEBUG
-  if (it.IsFound()) {
-    PrintF(stderr, "Duplicate property when initializing global object: ");
-    key->ShortPrint();
-    PrintF("\n");
-  }
-#endif  // DEBUG
   return it.IsFound();
 }
 
