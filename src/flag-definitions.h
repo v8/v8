@@ -201,7 +201,8 @@ DEFINE_IMPLICATION(harmony_private_methods, harmony_private_fields)
   V(harmony_class_fields, "harmony fields in class literals")             \
   V(harmony_private_methods, "harmony private methods in class literals") \
   V(harmony_regexp_sequence, "RegExp Unicode sequence properties")        \
-  V(harmony_weak_refs, "harmony weak references")
+  V(harmony_weak_refs, "harmony weak references")                         \
+  V(harmony_hashbang, "harmony hashbang syntax")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_INPROGRESS(V) \

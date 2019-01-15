@@ -495,6 +495,9 @@ FunctionLiteral* Parser::ParseProgram(Isolate* isolate, ParseInfo* info) {
   DeserializeScopeChain(isolate, info, info->maybe_outer_scope_info());
 
   scanner_.Initialize();
+  if (FLAG_harmony_hashbang && !info->is_eval()) {
+    scanner_.SkipHashBang();
+  }
   FunctionLiteral* result = DoParseProgram(isolate, info);
   MaybeResetCharacterStream(info, result);
   MaybeProcessSourceRanges(info, result, stack_limit_);

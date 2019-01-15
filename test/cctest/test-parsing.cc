@@ -11416,6 +11416,72 @@ TEST(PrivateNamesSyntaxError) {
   }
 }
 
+TEST(HashbangSyntax) {
+  const char* context_data[][2] = {
+      {"#!\n", ""}, {"#!---IGNORED---\n", ""}, {nullptr, nullptr}};
+
+  const char* data[] = {"function\nFN\n(\n)\n {\n}\nFN();", nullptr};
+
+  i::FLAG_harmony_hashbang = true;
+  RunParserSyncTest(context_data, data, kSuccess);
+  RunParserSyncTest(context_data, data, kSuccess, nullptr, 0, nullptr, 0,
+                    nullptr, 0, true);
+
+  i::FLAG_harmony_hashbang = false;
+  RunParserSyncTest(context_data, data, kError);
+  RunParserSyncTest(context_data, data, kError, nullptr, 0, nullptr, 0, nullptr,
+                    0, true);
+}
+
+TEST(HashbangSyntaxErrors) {
+  const char* file_context_data[][2] = {{"", ""}, {nullptr, nullptr}};
+  const char* other_context_data[][2] = {{"/**/", ""},
+                                         {"//---\n", ""},
+                                         {";", ""},
+                                         {"function fn() {", "}"},
+                                         {"function* fn() {", "}"},
+                                         {"async function fn() {", "}"},
+                                         {"async function* fn() {", "}"},
+                                         {"() => {", "}"},
+                                         {"() => ", ""},
+                                         {"function fn(a = ", ") {}"},
+                                         {"function* fn(a = ", ") {}"},
+                                         {"async function fn(a = ", ") {}"},
+                                         {"async function* fn(a = ", ") {}"},
+                                         {"(a = ", ") => {}"},
+                                         {"(a = ", ") => a"},
+                                         {"class k {", "}"},
+                                         {"[", "]"},
+                                         {"{", "}"},
+                                         {"({", "})"},
+                                         {nullptr, nullptr}};
+
+  const char* invalid_hashbang_data[] = {// Encoded characters are not allowed
+                                         "#\\u0021\n"
+                                         "\\u0023!\n",
+                                         "\\u0023\\u0021\n",
+
+                                         "\n#!---IGNORED---\n",
+                                         " #!---IGNORED---\n", nullptr};
+  const char* hashbang_data[] = {"#!\n", "#!---IGNORED---\n", nullptr};
+
+  auto SyntaxErrorTest = [](const char* context_data[][2], const char* data[]) {
+    i::FLAG_harmony_hashbang = true;
+    RunParserSyncTest(context_data, data, kError);
+    RunParserSyncTest(context_data, data, kError, nullptr, 0, nullptr, 0,
+                      nullptr, 0, true);
+
+    i::FLAG_harmony_hashbang = false;
+    RunParserSyncTest(context_data, data, kError);
+    RunParserSyncTest(context_data, data, kError, nullptr, 0, nullptr, 0,
+                      nullptr, 0, true);
+  };
+
+  SyntaxErrorTest(file_context_data, invalid_hashbang_data);
+  SyntaxErrorTest(other_context_data, invalid_hashbang_data);
+  SyntaxErrorTest(other_context_data, hashbang_data);
+}
+
 }  // namespace test_parsing
 }  // namespace internal
 }  // namespace v8
