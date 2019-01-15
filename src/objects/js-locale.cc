@@ -30,23 +30,6 @@ namespace internal {
 
 namespace {
 
-// Helper function to check a language tag is valid. It will return false if
-// the parsing is not the same as the tag. For example, it will return false if
-// the tag is too long.
-bool IsValidLanguageTag(const char* tag, int length) {
-  // icu::Locale::forLanguageTag won't return U_STRING_NOT_TERMINATED_WARNING
-  // for incorrect locale yet. So we still need the following
-  // uloc_forLanguageTag
-  // TODO(ftang): Remove once icu::Locale::forLanguageTag indicate error.
-  char result[ULOC_FULLNAME_CAPACITY];
-  UErrorCode status = U_ZERO_ERROR;
-  int parsed_length = 0;
-  int icu_length = uloc_forLanguageTag(tag, result, ULOC_FULLNAME_CAPACITY,
-                                       &parsed_length, &status);
-  return U_SUCCESS(status) && parsed_length == length &&
-         status != U_STRING_NOT_TERMINATED_WARNING && icu_length != 0;
-}
-
 // Helper function to check a locale is valid. It will return false if
 // the length of the extension fields are incorrect. For example, en-u-a or
 // en-u-co-b will return false.
@@ -218,14 +201,10 @@ Maybe<icu::Locale> ApplyOptionsToTag(Isolate* isolate, Handle<String> tag,
   CHECK_NOT_NULL(*bcp47_tag);
   // 2. If IsStructurallyValidLanguageTag(tag) is false, throw a RangeError
   // exception.
-  if (!IsValidLanguageTag(*bcp47_tag, bcp47_tag.length())) {
-    THROW_NEW_ERROR_RETURN_VALUE(
-        isolate, NewRangeError(MessageTemplate::kLocaleBadParameters),
-        Nothing<icu::Locale>());
-  }
   UErrorCode status = U_ZERO_ERROR;
-  icu::Locale icu_locale = icu::Locale::forLanguageTag(*bcp47_tag, status);
-  if (U_FAILURE(status) || status == U_STRING_NOT_TERMINATED_WARNING) {
+  icu::Locale icu_locale =
+      icu::Locale::forLanguageTag({*bcp47_tag, bcp47_tag.length()}, status);
+  if (U_FAILURE(status)) {
     THROW_NEW_ERROR_RETURN_VALUE(
         isolate, NewRangeError(MessageTemplate::kLocaleBadParameters),
         Nothing<icu::Locale>());
