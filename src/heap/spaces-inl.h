@@ -119,9 +119,8 @@ void Space::MoveExternalBackingStoreBytes(ExternalBackingStoreType type,
 // SemiSpace
 
 bool SemiSpace::Contains(HeapObject o) {
-  return id_ == kToSpace
-             ? MemoryChunk::FromAddress(o->address())->InToSpace()
-             : MemoryChunk::FromAddress(o->address())->InFromSpace();
+  return id_ == kToSpace ? MemoryChunk::FromHeapObject(o)->InToSpace()
+                         : MemoryChunk::FromHeapObject(o)->InFromSpace();
 }
 
 bool SemiSpace::Contains(Object o) {

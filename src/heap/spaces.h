@@ -560,6 +560,8 @@ class MemoryChunk {
     return external_backing_store_bytes_[type];
   }
 
+  // Some callers rely on the fact that this can operate on both
+  // tagged and aligned object addresses.
   inline uint32_t AddressToMarkbitIndex(Address addr) const {
     return static_cast<uint32_t>(addr - this->address()) >>
            kSystemPointerSizeLog2;

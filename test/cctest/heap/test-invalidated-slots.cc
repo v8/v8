@@ -34,12 +34,12 @@ Page* HeapTester::AllocateByteArraysOnPage(
     ByteArray byte_array;
     CHECK(AllocateByteArrayForTest(heap, kLength, TENURED).To(&byte_array));
     byte_arrays->push_back(byte_array);
-    page = Page::FromAddress(byte_array->address());
+    page = Page::FromHeapObject(byte_array);
     size_t n = page->area_size() / kSize;
     for (size_t i = 1; i < n; i++) {
       CHECK(AllocateByteArrayForTest(heap, kLength, TENURED).To(&byte_array));
       byte_arrays->push_back(byte_array);
-      CHECK_EQ(page, Page::FromAddress(byte_array->address()));
+      CHECK_EQ(page, Page::FromHeapObject(byte_array));
     }
   }
   CHECK_NULL(page->invalidated_slots());

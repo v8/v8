@@ -1819,7 +1819,7 @@ TEST(CodeSerializerLargeCodeObjectWithIncrementalMarking) {
     heap::SimulateFullSpace(heap->old_space());
     moving_object = isolate->factory()->InternalizeString(
         isolate->factory()->NewStringFromAsciiChecked("happy_hippo"));
-    ec_page = Page::FromAddress(moving_object->address());
+    ec_page = Page::FromHeapObject(*moving_object);
   }
 
   Handle<JSObject> global(isolate->context()->global_object(), isolate);

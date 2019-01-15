@@ -3019,7 +3019,7 @@ FreeSpace FreeList::Allocate(size_t size_in_bytes, size_t* node_size) {
   }
 
   if (!node.is_null()) {
-    Page::FromAddress(node->address())->IncreaseAllocatedBytes(*node_size);
+    Page::FromHeapObject(node)->IncreaseAllocatedBytes(*node_size);
   }
 
   DCHECK(IsVeryLong() || Available() == SumFreeLists());
@@ -3509,7 +3509,7 @@ void LargeObjectSpace::ClearMarkingStateOfLiveObjects() {
   for (HeapObject obj = it.Next(); !obj.is_null(); obj = it.Next()) {
     if (marking_state->IsBlackOrGrey(obj)) {
       Marking::MarkWhite(marking_state->MarkBitFrom(obj));
-      MemoryChunk* chunk = MemoryChunk::FromAddress(obj->address());
+      MemoryChunk* chunk = MemoryChunk::FromHeapObject(obj);
       RememberedSet<OLD_TO_NEW>::FreeEmptyBuckets(chunk);
       chunk->ResetProgressBar();
       marking_state->SetLiveBytes(chunk, 0);
@@ -3620,12 +3620,11 @@ void LargeObjectSpace::FreeUnmarkedObjects() {
 }
 
 bool LargeObjectSpace::Contains(HeapObject object) {
-  Address address = object->address();
-  MemoryChunk* chunk = MemoryChunk::FromAddress(address);
+  MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
 
   bool owned = (chunk->owner() == this);
 
-  SLOW_DCHECK(!owned || FindObject(address)->IsHeapObject());
+  SLOW_DCHECK(!owned || FindObject(object->address())->IsHeapObject());
 
   return owned;
 }
@@ -3649,7 +3648,7 @@ void LargeObjectSpace::Verify(Isolate* isolate) {
     // Each chunk contains an object that starts at the large object page's
     // object area start.
     HeapObject object = chunk->GetObject();
-    Page* page = Page::FromAddress(object->address());
+    Page* page = Page::FromHeapObject(object);
     CHECK(object->address() == page->area_start());
 
     // The first word should be a map, and we expect all map pointers to be

@@ -657,7 +657,7 @@ TEST(ShrinkPageToHighWaterMarkFreeSpaceEnd) {
   // Prepare page that only contains a single object and a trailing FreeSpace
   // filler.
   Handle<FixedArray> array = isolate->factory()->NewFixedArray(128, TENURED);
-  Page* page = Page::FromAddress(array->address());
+  Page* page = Page::FromHeapObject(*array);
 
   // Reset space so high water mark is consistent.
   PagedSpace* old_space = CcTest::heap()->old_space();
@@ -684,7 +684,7 @@ TEST(ShrinkPageToHighWaterMarkNoFiller) {
   std::vector<Handle<FixedArray>> arrays =
       heap::FillOldSpacePageWithFixedArrays(CcTest::heap(), kFillerSize);
   Handle<FixedArray> array = arrays.back();
-  Page* page = Page::FromAddress(array->address());
+  Page* page = Page::FromHeapObject(*array);
   CHECK_EQ(page->area_end(), array->address() + array->Size() + kFillerSize);
 
   // Reset space so high water mark and fillers are consistent.
@@ -707,7 +707,7 @@ TEST(ShrinkPageToHighWaterMarkOneWordFiller) {
   std::vector<Handle<FixedArray>> arrays =
       heap::FillOldSpacePageWithFixedArrays(CcTest::heap(), kFillerSize);
   Handle<FixedArray> array = arrays.back();
-  Page* page = Page::FromAddress(array->address());
+  Page* page = Page::FromHeapObject(*array);
   CHECK_EQ(page->area_end(), array->address() + array->Size() + kFillerSize);
 
   // Reset space so high water mark and fillers are consistent.
@@ -734,7 +734,7 @@ TEST(ShrinkPageToHighWaterMarkTwoWordFiller) {
   std::vector<Handle<FixedArray>> arrays =
       heap::FillOldSpacePageWithFixedArrays(CcTest::heap(), kFillerSize);
   Handle<FixedArray> array = arrays.back();
-  Page* page = Page::FromAddress(array->address());
+  Page* page = Page::FromHeapObject(*array);
   CHECK_EQ(page->area_end(), array->address() + array->Size() + kFillerSize);
 
   // Reset space so high water mark and fillers are consistent.

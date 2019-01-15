@@ -32,10 +32,10 @@ template <typename ConcreteState, AccessMode access_mode>
 class MarkingStateBase {
  public:
   V8_INLINE MarkBit MarkBitFrom(HeapObject obj) {
-    return MarkBitFrom(MemoryChunk::FromAddress(obj->address()),
-                       obj->address());
+    return MarkBitFrom(MemoryChunk::FromHeapObject(obj), obj->ptr());
   }
 
+  // {addr} may be tagged or aligned.
   V8_INLINE MarkBit MarkBitFrom(MemoryChunk* p, Address addr) {
     return static_cast<ConcreteState*>(this)->bitmap(p)->MarkBitFromIndex(
         p->AddressToMarkbitIndex(addr));

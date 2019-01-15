@@ -536,7 +536,7 @@ void MarkCompactCollector::VerifyMarkbitsAreClean(LargeObjectSpace* space) {
   for (HeapObject obj = it.Next(); !obj.is_null(); obj = it.Next()) {
     CHECK(non_atomic_marking_state()->IsWhite(obj));
     CHECK_EQ(0, non_atomic_marking_state()->live_bytes(
-                    MemoryChunk::FromAddress(obj->address())));
+                    MemoryChunk::FromHeapObject(obj)));
   }
 }
 
@@ -1274,8 +1274,8 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
     if (FLAG_stress_compaction) {
       const uintptr_t mask = static_cast<uintptr_t>(FLAG_random_seed) &
                              kPageAlignmentMask & ~kObjectAlignmentMask;
-      if ((object->address() & kPageAlignmentMask) == mask) {
-        Page* page = Page::FromAddress(object->address());
+      if ((object->ptr() & kPageAlignmentMask) == mask) {
+        Page* page = Page::FromHeapObject(object);
         if (page->IsFlagSet(Page::COMPACTION_WAS_ABORTED_FOR_TESTING)) {
           page->ClearFlag(Page::COMPACTION_WAS_ABORTED_FOR_TESTING);
         } else {
@@ -1437,9 +1437,8 @@ class EvacuateOldSpaceVisitor final : public EvacuateVisitorBase {
 
   inline bool Visit(HeapObject object, int size) override {
     HeapObject target_object;
-    if (TryEvacuateObject(
-            Page::FromAddress(object->address())->owner()->identity(), object,
-            size, &target_object)) {
+    if (TryEvacuateObject(Page::FromHeapObject(object)->owner()->identity(),
+                          object, size, &target_object)) {
       DCHECK(object->map_word().IsForwardingAddress());
       return true;
     }
@@ -2342,8 +2341,8 @@ MarkCompactCollector::PrepareRecordRelocSlot(Code host, RelocInfo* rinfo,
                                              HeapObject target) {
   RecordRelocSlotInfo result;
   result.should_record = false;
-  Page* target_page = Page::FromAddress(target->ptr());
-  Page* source_page = Page::FromAddress(host.ptr());
+  Page* target_page = Page::FromHeapObject(target);
+  Page* source_page = Page::FromHeapObject(host);
   if (target_page->IsEvacuationCandidate() &&
       (rinfo->host().is_null() ||
        !source_page->ShouldSkipEvacuationSlotRecording())) {
@@ -2436,8 +2435,8 @@ static inline SlotCallbackResult UpdateSlot(TSlot slot,
   if (map_word.IsForwardingAddress()) {
     DCHECK(Heap::InFromSpace(heap_obj) ||
            MarkCompactCollector::IsOnEvacuationCandidate(heap_obj) ||
-           Page::FromAddress(heap_obj->address())
-               ->IsFlagSet(Page::COMPACTION_WAS_ABORTED));
+           Page::FromHeapObject(heap_obj)->IsFlagSet(
+               Page::COMPACTION_WAS_ABORTED));
     typename TSlot::TObject target =
         MakeSlotValue<TSlot, reference_type>(map_word.ToForwardingAddress());
     if (access_mode == AccessMode::NON_ATOMIC) {
@@ -3260,7 +3259,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
       // if the slot was already updated during old->old updating.
       // In case the page has been moved, check markbits to determine liveness
       // of the slot. In the other case, the slot can just be kept.
-      if (Page::FromAddress(heap_object->address())
+      if (Page::FromHeapObject(heap_object)
               ->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION)) {
         // IsBlackOrGrey is required because objects are marked as grey for
         // the young generation collector while they are black for the full

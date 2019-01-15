@@ -1166,7 +1166,7 @@ TEST(DoScavengeWithIncrementalWriteBarrier) {
     // Make sure |obj_value| is placed on an old-space evacuation candidate.
     heap::SimulateFullSpace(old_space);
     obj_value = factory->NewJSArray(32 * KB, HOLEY_ELEMENTS, TENURED);
-    ec_page = Page::FromAddress(obj_value->address());
+    ec_page = Page::FromHeapObject(*obj_value);
   }
 
   // Create object in new space.
@@ -1519,8 +1519,8 @@ static void TestIncrementalWriteBarrier(Handle<Map> map, Handle<Map> new_map,
     // Make sure |obj_value| is placed on an old-space evacuation candidate.
     heap::SimulateFullSpace(old_space);
     obj_value = factory->NewJSArray(32 * KB, HOLEY_ELEMENTS, TENURED);
-    ec_page = Page::FromAddress(obj_value->address());
-    CHECK_NE(ec_page, Page::FromAddress(obj->address()));
+    ec_page = Page::FromHeapObject(*obj_value);
+    CHECK_NE(ec_page, Page::FromHeapObject(*obj));
   }
 
   // Heap is ready, force |ec_page| to become an evacuation candidate and

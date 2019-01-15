@@ -830,7 +830,7 @@ void Heap::ProcessPretenuringFeedback() {
 }
 
 void Heap::InvalidateCodeDeoptimizationData(Code code) {
-  MemoryChunk* chunk = MemoryChunk::FromAddress(code->ptr());
+  MemoryChunk* chunk = MemoryChunk::FromHeapObject(code);
   CodePageMemoryModificationScope modification_scope(chunk);
   code->set_deoptimization_data(ReadOnlyRoots(this).empty_fixed_array());
 }
@@ -2037,7 +2037,7 @@ void Heap::UnprotectAndRegisterMemoryChunk(MemoryChunk* chunk) {
 }
 
 void Heap::UnprotectAndRegisterMemoryChunk(HeapObject object) {
-  UnprotectAndRegisterMemoryChunk(MemoryChunk::FromAddress(object->address()));
+  UnprotectAndRegisterMemoryChunk(MemoryChunk::FromHeapObject(object));
 }
 
 void Heap::UnregisterUnprotectedMemoryChunk(MemoryChunk* chunk) {
@@ -2469,16 +2469,14 @@ bool Heap::CanMoveObjectStart(HeapObject object) {
   // Sampling heap profiler may have a reference to the object.
   if (isolate()->heap_profiler()->is_sampling_allocations()) return false;
 
-  Address address = object->address();
-
   if (IsLargeObject(object)) return false;
 
   // We can move the object start if the page was already swept.
-  return Page::FromAddress(address)->SweepingDone();
+  return Page::FromHeapObject(object)->SweepingDone();
 }
 
 bool Heap::IsImmovable(HeapObject object) {
-  MemoryChunk* chunk = MemoryChunk::FromAddress(object->address());
+  MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
   return chunk->NeverEvacuate() || IsLargeObject(object);
 }
 
@@ -3629,7 +3627,7 @@ void CollectSlots(MemoryChunk* chunk, Address start, Address end,
 }
 
 void Heap::VerifyRememberedSetFor(HeapObject object) {
-  MemoryChunk* chunk = MemoryChunk::FromAddress(object->address());
+  MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
   DCHECK_IMPLIES(chunk->mutex() == nullptr, InReadOnlySpace(object));
   // In RO_SPACE chunk->mutex() may be nullptr, so just ignore it.
   base::LockGuard<base::Mutex, base::NullBehavior::kIgnoreIfNull> lock_guard(
@@ -4261,7 +4259,7 @@ HeapObject Heap::EnsureImmovableCode(HeapObject heap_object, int object_size) {
   if (!Heap::IsImmovable(heap_object)) {
     if (isolate()->serializer_enabled() ||
         code_space_->first_page()->Contains(heap_object->address())) {
-      MemoryChunk::FromAddress(heap_object->address())->MarkNeverEvacuate();
+      MemoryChunk::FromHeapObject(heap_object)->MarkNeverEvacuate();
     } else {
       // Discard the first code allocation, which was on a page where it could
       // be moved.
@@ -5020,14 +5018,14 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
 
   bool SkipObject(HeapObject object) override {
     if (object->IsFiller()) return true;
-    MemoryChunk* chunk = MemoryChunk::FromAddress(object->address());
+    MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
     if (reachable_.count(chunk) == 0) return true;
     return reachable_[chunk]->count(object) == 0;
   }
 
  private:
   bool MarkAsReachable(HeapObject object) {
-    MemoryChunk* chunk = MemoryChunk::FromAddress(object->address());
+    MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
     if (reachable_.count(chunk) == 0) {
       reachable_[chunk] = new std::unordered_set<HeapObject, Object::Hasher>();
     }
@@ -5489,7 +5487,7 @@ bool Heap::AllowedToBeMigrated(HeapObject obj, AllocationSpace dst) {
   // asserts here, but check everything explicitly.
   if (obj->map() == ReadOnlyRoots(this).one_pointer_filler_map()) return false;
   InstanceType type = obj->map()->instance_type();
-  MemoryChunk* chunk = MemoryChunk::FromAddress(obj->address());
+  MemoryChunk* chunk = MemoryChunk::FromHeapObject(obj);
   AllocationSpace src = chunk->owner()->identity();
   switch (src) {
     case NEW_SPACE:
@@ -5624,7 +5622,7 @@ void Heap::GenerationalBarrierForElementsSlow(Heap* heap, FixedArray array,
 void Heap::GenerationalBarrierForCodeSlow(Code host, RelocInfo* rinfo,
                                           HeapObject object) {
   DCHECK(InNewSpace(object));
-  Page* source_page = Page::FromAddress(host.ptr());
+  Page* source_page = Page::FromHeapObject(host);
   RelocInfo::Mode rmode = rinfo->rmode();
   Address addr = rinfo->pc();
   SlotType slot_type = SlotTypeForRelocInfoMode(rmode);

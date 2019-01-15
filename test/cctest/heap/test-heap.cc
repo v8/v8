@@ -797,7 +797,7 @@ TEST(BytecodeArray) {
 
   // Perform a full garbage collection and force the constant pool to be on an
   // evacuation candidate.
-  Page* evac_page = Page::FromAddress(constant_pool->address());
+  Page* evac_page = Page::FromHeapObject(*constant_pool);
   heap::ForceEvacuationCandidate(evac_page);
   CcTest::CollectAllGarbage();
 
@@ -3582,7 +3582,7 @@ TEST(LargeObjectSlotRecording) {
   // Create an object on an evacuation candidate.
   heap::SimulateFullSpace(heap->old_space());
   Handle<FixedArray> lit = isolate->factory()->NewFixedArray(4, TENURED);
-  Page* evac_page = Page::FromAddress(lit->address());
+  Page* evac_page = Page::FromHeapObject(*lit);
   heap::ForceEvacuationCandidate(evac_page);
   FixedArray old_location = *lit;
 
@@ -4691,7 +4691,7 @@ HEAP_TEST(Regress538257) {
                     heap->CanExpandOldGeneration(old_space->AreaSize());
          i++) {
       objects[i] = i_isolate->factory()->NewFixedArray(kFixedArrayLen, TENURED);
-      heap::ForceEvacuationCandidate(Page::FromAddress(objects[i]->address()));
+      heap::ForceEvacuationCandidate(Page::FromHeapObject(*objects[i]));
     }
     heap::SimulateFullSpace(old_space);
     CcTest::CollectAllGarbage();
@@ -4781,7 +4781,7 @@ TEST(Regress388880) {
   o->set_raw_properties_or_hash(*factory->empty_fixed_array());
 
   // Ensure that the object allocated where we need it.
-  Page* page = Page::FromAddress(o->address());
+  Page* page = Page::FromHeapObject(*o);
   CHECK_EQ(desired_offset, page->Offset(o->address()));
 
   // Now we have an object right at the end of the page.
@@ -5316,7 +5316,7 @@ HEAP_TEST(Regress589413) {
     {
       AlwaysAllocateScope always_allocate(isolate);
       Handle<HeapObject> ec_obj = factory->NewFixedArray(5000, TENURED);
-      Page* ec_page = Page::FromAddress(ec_obj->address());
+      Page* ec_page = Page::FromHeapObject(*ec_obj);
       heap::ForceEvacuationCandidate(ec_page);
       // Make all arrays point to evacuation candidate so that
       // slots are recorded for them.
@@ -5556,7 +5556,7 @@ TEST(Regress631969) {
   heap::SimulateFullSpace(heap->old_space());
   Handle<String> s1 = factory->NewStringFromStaticChars("123456789", TENURED);
   Handle<String> s2 = factory->NewStringFromStaticChars("01234", TENURED);
-  heap::ForceEvacuationCandidate(Page::FromAddress(s1->address()));
+  heap::ForceEvacuationCandidate(Page::FromHeapObject(*s1));
 
   heap::SimulateIncrementalMarking(heap, false);
 
@@ -5787,7 +5787,7 @@ TEST(YoungGenerationLargeObjectAllocationScavenge) {
 
   // TODO(hpayer): Update the test as soon as we have a tenure limit for LO.
   Handle<FixedArray> array_small = isolate->factory()->NewFixedArray(200000);
-  MemoryChunk* chunk = MemoryChunk::FromAddress(array_small->address());
+  MemoryChunk* chunk = MemoryChunk::FromHeapObject(*array_small);
   CHECK_EQ(NEW_LO_SPACE, chunk->owner()->identity());
   CHECK(chunk->IsFlagSet(MemoryChunk::IN_TO_SPACE));
 
@@ -5798,7 +5798,7 @@ TEST(YoungGenerationLargeObjectAllocationScavenge) {
 
   // After the first young generation GC array_small will be in the old
   // generation large object space.
-  chunk = MemoryChunk::FromAddress(array_small->address());
+  chunk = MemoryChunk::FromHeapObject(*array_small);
   CHECK_EQ(LO_SPACE, chunk->owner()->identity());
   CHECK(!chunk->IsFlagSet(MemoryChunk::IN_TO_SPACE));
 
@@ -5816,7 +5816,7 @@ TEST(YoungGenerationLargeObjectAllocationMarkCompact) {
 
   // TODO(hpayer): Update the test as soon as we have a tenure limit for LO.
   Handle<FixedArray> array_small = isolate->factory()->NewFixedArray(200000);
-  MemoryChunk* chunk = MemoryChunk::FromAddress(array_small->address());
+  MemoryChunk* chunk = MemoryChunk::FromHeapObject(*array_small);
   CHECK_EQ(NEW_LO_SPACE, chunk->owner()->identity());
   CHECK(chunk->IsFlagSet(MemoryChunk::IN_TO_SPACE));
 
@@ -5827,7 +5827,7 @@ TEST(YoungGenerationLargeObjectAllocationMarkCompact) {
 
   // After the first full GC array_small will be in the old generation
   // large object space.
-  chunk = MemoryChunk::FromAddress(array_small->address());
+  chunk = MemoryChunk::FromHeapObject(*array_small);
   CHECK_EQ(LO_SPACE, chunk->owner()->identity());
   CHECK(!chunk->IsFlagSet(MemoryChunk::IN_TO_SPACE));
 
@@ -5847,7 +5847,7 @@ TEST(YoungGenerationLargeObjectAllocationReleaseScavenger) {
     HandleScope scope(isolate);
     for (int i = 0; i < 10; i++) {
       Handle<FixedArray> array_small = isolate->factory()->NewFixedArray(20000);
-      MemoryChunk* chunk = MemoryChunk::FromAddress(array_small->address());
+      MemoryChunk* chunk = MemoryChunk::FromHeapObject(*array_small);
       CHECK_EQ(NEW_LO_SPACE, chunk->owner()->identity());
       CHECK(chunk->IsFlagSet(MemoryChunk::IN_TO_SPACE));
     }
@@ -5869,7 +5869,7 @@ TEST(UncommitUnusedLargeObjectMemory) {
   Isolate* isolate = heap->isolate();
 
   Handle<FixedArray> array = isolate->factory()->NewFixedArray(200000, TENURED);
-  MemoryChunk* chunk = MemoryChunk::FromAddress(array->address());
+  MemoryChunk* chunk = MemoryChunk::FromHeapObject(*array);
   CHECK(chunk->owner()->identity() == LO_SPACE);
 
   intptr_t size_before = array->Size();
@@ -5893,7 +5893,7 @@ TEST(RememberedSetRemoveRange) {
 
   Handle<FixedArray> array =
       isolate->factory()->NewFixedArray(Page::kPageSize / kTaggedSize, TENURED);
-  MemoryChunk* chunk = MemoryChunk::FromAddress(array->address());
+  MemoryChunk* chunk = MemoryChunk::FromHeapObject(*array);
   CHECK(chunk->owner()->identity() == LO_SPACE);
   Address start = array->address();
   // Maps slot to boolean indicator of whether the slot should be in the set.
@@ -6050,7 +6050,7 @@ HEAP_TEST(Regress5831) {
   CHECK(!heap->code_space()->first_page()->Contains(code->address()));
 
   // Ensure it's not in large object space.
-  MemoryChunk* chunk = MemoryChunk::FromAddress(code->address());
+  MemoryChunk* chunk = MemoryChunk::FromHeapObject(*code);
   CHECK(chunk->owner()->identity() != LO_SPACE);
   CHECK(chunk->NeverEvacuate());
 }
@@ -6075,7 +6075,7 @@ TEST(Regress6800) {
   }
   CcTest::CollectGarbage(NEW_SPACE);
   CHECK_EQ(0, RememberedSet<OLD_TO_NEW>::NumberOfPreFreedEmptyBuckets(
-                  MemoryChunk::FromAddress(root->address())));
+                  MemoryChunk::FromHeapObject(*root)));
 }
 
 TEST(Regress6800LargeObject) {
@@ -6099,7 +6099,7 @@ TEST(Regress6800LargeObject) {
   }
   CcTest::CollectGarbage(OLD_SPACE);
   CHECK_EQ(0, RememberedSet<OLD_TO_NEW>::NumberOfPreFreedEmptyBuckets(
-                  MemoryChunk::FromAddress(root->address())));
+                  MemoryChunk::FromHeapObject(*root)));
 }
 
 HEAP_TEST(RegressMissingWriteBarrierInAllocate) {
@@ -6438,7 +6438,7 @@ TEST(Regress8617) {
       "obj.method = foo;"
       "obj;");
   // Step 3. Make sure that foo moves during Mark-Compact.
-  Page* ec_page = Page::FromAddress(HeapObject::cast(*foo)->address());
+  Page* ec_page = Page::FromAddress(foo->ptr());
   heap::ForceEvacuationCandidate(ec_page);
   // Step 4. Start incremental marking.
   heap::SimulateIncrementalMarking(heap, false);

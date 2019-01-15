@@ -528,12 +528,11 @@ AllocationMemento Heap::FindAllocationMemento(Map map, HeapObject object) {
 void Heap::UpdateAllocationSite(Map map, HeapObject object,
                                 PretenuringFeedbackMap* pretenuring_feedback) {
   DCHECK_NE(pretenuring_feedback, &global_pretenuring_feedback_);
-  DCHECK(
-      InFromSpace(object) ||
-      (InToSpace(object) && Page::FromAddress(object->address())
-                                ->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION)) ||
-      (!InNewSpace(object) && Page::FromAddress(object->address())
-                                  ->IsFlagSet(Page::PAGE_NEW_OLD_PROMOTION)));
+  DCHECK(InFromSpace(object) ||
+         (InToSpace(object) && Page::FromHeapObject(object)->IsFlagSet(
+                                   Page::PAGE_NEW_NEW_PROMOTION)) ||
+         (!InNewSpace(object) && Page::FromHeapObject(object)->IsFlagSet(
+                                     Page::PAGE_NEW_OLD_PROMOTION)));
   if (!FLAG_allocation_site_pretenuring ||
       !AllocationSite::CanTrack(map->instance_type())) {
     return;

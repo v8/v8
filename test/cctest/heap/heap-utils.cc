@@ -57,8 +57,7 @@ std::vector<Handle<FixedArray>> FillOldSpacePageWithFixedArrays(Heap* heap,
     }
     if (handles.empty()) {
       // Check that allocations started on a new page.
-      CHECK_EQ(array->address(),
-               Page::FromAddress(array->address())->area_start());
+      CHECK_EQ(array->address(), Page::FromHeapObject(*array)->area_start());
     }
     handles.push_back(array);
   } while (allocated <

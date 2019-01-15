@@ -20,7 +20,7 @@ namespace internal {
 
 template <typename ConcreteState, AccessMode access_mode>
 bool MarkingStateBase<ConcreteState, access_mode>::GreyToBlack(HeapObject obj) {
-  MemoryChunk* p = MemoryChunk::FromAddress(obj->address());
+  MemoryChunk* p = MemoryChunk::FromHeapObject(obj);
   MarkBit markbit = MarkBitFrom(p, obj->address());
   if (!Marking::GreyToBlack<access_mode>(markbit)) return false;
   static_cast<ConcreteState*>(this)->IncrementLiveBytes(p, obj->Size());

@@ -150,9 +150,8 @@ void IncrementalMarking::MarkBlackAndPush(HeapObject obj) {
 
 void IncrementalMarking::NotifyLeftTrimming(HeapObject from, HeapObject to) {
   DCHECK(IsMarking());
-  DCHECK(MemoryChunk::FromAddress(from->address())->SweepingDone());
-  DCHECK_EQ(MemoryChunk::FromAddress(from->address()),
-            MemoryChunk::FromAddress(to->address()));
+  DCHECK(MemoryChunk::FromHeapObject(from)->SweepingDone());
+  DCHECK_EQ(MemoryChunk::FromHeapObject(from), MemoryChunk::FromHeapObject(to));
   DCHECK_NE(from, to);
 
   MarkBit old_mark_bit = marking_state()->MarkBitFrom(from);
@@ -609,8 +608,7 @@ void IncrementalMarking::UpdateMarkingWorklistAfterScavenge() {
       return true;
     } else if (Heap::InToSpace(obj)) {
       // The object may be on a page that was moved in new space.
-      DCHECK(
-          Page::FromAddress(obj->address())->IsFlagSet(Page::SWEEP_TO_ITERATE));
+      DCHECK(Page::FromHeapObject(obj)->IsFlagSet(Page::SWEEP_TO_ITERATE));
 #ifdef ENABLE_MINOR_MC
       if (minor_marking_state->IsGrey(obj)) {
         *out = obj;
@@ -621,8 +619,7 @@ void IncrementalMarking::UpdateMarkingWorklistAfterScavenge() {
     } else {
       // The object may be on a page that was moved from new to old space. Only
       // applicable during minor MC garbage collections.
-      if (Page::FromAddress(obj->address())
-              ->IsFlagSet(Page::SWEEP_TO_ITERATE)) {
+      if (Page::FromHeapObject(obj)->IsFlagSet(Page::SWEEP_TO_ITERATE)) {
 #ifdef ENABLE_MINOR_MC
         if (minor_marking_state->IsGrey(obj)) {
           *out = obj;
@@ -738,7 +735,7 @@ void IncrementalMarking::UpdateMarkedBytesAfterScavenge(
 
 bool IncrementalMarking::IsFixedArrayWithProgressBar(HeapObject obj) {
   if (!obj->IsFixedArray()) return false;
-  MemoryChunk* chunk = MemoryChunk::FromAddress(obj->address());
+  MemoryChunk* chunk = MemoryChunk::FromHeapObject(obj);
   return chunk->IsFlagSet(MemoryChunk::HAS_PROGRESS_BAR);
 }
 
@@ -774,7 +771,7 @@ void IncrementalMarking::ProcessBlackAllocatedObject(HeapObject obj) {
 void IncrementalMarking::RevisitObject(HeapObject obj) {
   DCHECK(IsMarking());
   DCHECK(marking_state()->IsBlack(obj));
-  Page* page = Page::FromAddress(obj->address());
+  Page* page = Page::FromHeapObject(obj);
   if (page->owner()->identity() == LO_SPACE) {
     page->ResetProgressBar();
   }

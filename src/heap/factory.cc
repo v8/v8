@@ -166,7 +166,7 @@ HeapObject Factory::AllocateRawArray(int size, PretenureFlag pretenure) {
   HeapObject result =
       isolate()->heap()->AllocateRawWithRetryOrFail(size, space);
   if (size > kMaxRegularHeapObjectSize && FLAG_use_marking_progress_bar) {
-    MemoryChunk* chunk = MemoryChunk::FromAddress(result->address());
+    MemoryChunk* chunk = MemoryChunk::FromHeapObject(result);
     chunk->SetFlag<AccessMode::ATOMIC>(MemoryChunk::HAS_PROGRESS_BAR);
   }
   return result;
@@ -206,7 +206,7 @@ Handle<HeapObject> Factory::NewFillerObject(int size, bool double_align,
   Heap* heap = isolate()->heap();
   HeapObject result = heap->AllocateRawWithRetryOrFail(size, space, alignment);
 #ifdef DEBUG
-  MemoryChunk* chunk = MemoryChunk::FromAddress(result->address());
+  MemoryChunk* chunk = MemoryChunk::FromHeapObject(result);
   DCHECK(chunk->owner()->identity() == space);
 #endif
   heap->CreateFillerObjectAt(result->address(), size, ClearRecordedSlots::kNo);
@@ -379,7 +379,7 @@ MaybeHandle<FixedArray> Factory::TryNewFixedArray(int length,
   HeapObject result;
   if (!allocation.To(&result)) return MaybeHandle<FixedArray>();
   if (size > kMaxRegularHeapObjectSize && FLAG_use_marking_progress_bar) {
-    MemoryChunk* chunk = MemoryChunk::FromAddress(result->address());
+    MemoryChunk* chunk = MemoryChunk::FromHeapObject(result);
     chunk->SetFlag<AccessMode::ATOMIC>(MemoryChunk::HAS_PROGRESS_BAR);
   }
   result->set_map_after_allocation(*fixed_array_map(), SKIP_WRITE_BARRIER);
@@ -2825,7 +2825,7 @@ Handle<Code> Factory::NewOffHeapTrampolineFor(Handle<Code> code,
   // builtin (e.g. the safepoint-table offset). We set them manually here.
 
   {
-    MemoryChunk* chunk = MemoryChunk::FromAddress(result->ptr());
+    MemoryChunk* chunk = MemoryChunk::FromHeapObject(*result);
     CodePageMemoryModificationScope code_allocation(chunk);
 
     const bool set_is_off_heap_trampoline = true;

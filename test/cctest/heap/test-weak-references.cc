@@ -98,7 +98,7 @@ TEST(WeakReferencesOldToOld) {
   CHECK(heap->InOldSpace(*fixed_array));
   fv->set_optimized_code_weak_or_smi(HeapObjectReference::Weak(*fixed_array));
 
-  Page* page_before_gc = Page::FromAddress(fixed_array->address());
+  Page* page_before_gc = Page::FromHeapObject(*fixed_array);
   heap::ForceEvacuationCandidate(page_before_gc);
   CcTest::CollectAllGarbage();
   CHECK(heap->InOldSpace(*fixed_array));
