@@ -63,6 +63,8 @@ typedef zx_arm64_general_regs_t zx_thread_state_general_regs_t;
 #include "src/base/atomic-utils.h"
 #include "src/base/hashmap.h"
 #include "src/base/platform/platform.h"
+// TODO(petermarshall): Remove when cpu profiler logging is no longer needed
+#include "src/flags.h"
 
 #if V8_OS_ANDROID && !defined(__BIONIC_HAVE_UCONTEXT_T)
 
@@ -265,6 +267,10 @@ class SamplerManager {
   void RemoveSampler(Sampler* sampler) {
     AtomicGuard atomic_guard(&samplers_access_counter_);
     DCHECK(sampler->IsActive() || sampler->IsRegistered());
+
+    if (i::FLAG_cpu_profiler_logging) {
+      printf("SamplerManager RemoveSampler: signals: %d\n", signals_);
+    }
     // Remove sampler from map.
     pthread_t thread_id = sampler->platform_data()->vm_tid();
     void* thread_key = ThreadKey(thread_id);
@@ -289,6 +295,7 @@ class SamplerManager {
   void DoSample(const v8::RegisterState& state) {
     AtomicGuard atomic_guard(&SamplerManager::samplers_access_counter_, false);
     if (!atomic_guard.is_success()) return;
+    signals_++;
     pthread_t thread_id = pthread_self();
     base::HashMap::Entry* entry =
         sampler_map_.Lookup(ThreadKey(thread_id), ThreadHash(thread_id));
@@ -314,6 +321,7 @@ class SamplerManager {
  private:
   base::HashMap sampler_map_;
   static AtomicMutex samplers_access_counter_;
+  int signals_ = 0;
 };
 
 AtomicMutex SamplerManager::samplers_access_counter_;
@@ -434,7 +442,6 @@ base::Mutex* SignalHandler::mutex_ = nullptr;
 int SignalHandler::client_count_ = 0;
 struct sigaction SignalHandler::old_signal_handler_;
 bool SignalHandler::signal_handler_installed_ = false;
-
 
 void SignalHandler::HandleProfilerSignal(int signal, siginfo_t* info,
                                          void* context) {
@@ -627,6 +634,9 @@ void Sampler::UnregisterIfRegistered() {
 Sampler::~Sampler() {
   DCHECK(!IsActive());
   DCHECK(!IsRegistered());
+  if (i::FLAG_cpu_profiler_logging && samples_ != 0) {
+    printf("~Sampler: samples = %d\n", samples_);
+  }
   delete data_;
 }
 
@@ -668,6 +678,7 @@ void Sampler::DecreaseProfilingDepth() {
 #if defined(USE_SIGNALS)
 
 void Sampler::DoSample() {
+  samples_++;
   if (!SignalHandler::Installed()) return;
   if (!IsActive() && !IsRegistered()) {
     SamplerManager::instance()->AddSampler(this);

@@ -28,10 +28,16 @@ class CpuSampler : public sampler::Sampler {
   CpuSampler(Isolate* isolate, SamplingEventsProcessor* processor)
       : sampler::Sampler(reinterpret_cast<v8::Isolate*>(isolate)),
         processor_(processor) {}
+  ~CpuSampler() {
+    if (i::FLAG_cpu_profiler_logging) {
+      printf("~CpuSampler: samples_: %d\n", samples_);
+    }
+  }
 
   void SampleStack(const v8::RegisterState& regs) override {
     TickSample* sample = processor_->StartTickSample();
     if (sample == nullptr) return;
+    samples_++;
     Isolate* isolate = reinterpret_cast<Isolate*>(this->isolate());
     sample->Init(isolate, regs, TickSample::kIncludeCEntryFrame, true);
     if (is_counting_samples_ && !sample->timestamp.IsNull()) {
@@ -43,6 +49,7 @@ class CpuSampler : public sampler::Sampler {
 
  private:
   SamplingEventsProcessor* processor_;
+  int samples_ = 0;
 };
 
 ProfilerEventsProcessor::ProfilerEventsProcessor(Isolate* isolate,
@@ -407,6 +414,9 @@ void CpuProfiler::StartProcessorIfNotStarted() {
 CpuProfile* CpuProfiler::StopProfiling(const char* title) {
   if (!is_profiling_) return nullptr;
   StopProcessorIfLastProfile(title);
+  if (i::FLAG_cpu_profiler_logging) {
+    PrintF("StopProfiling: samples = %d\n", generator_->samples_);
+  }
   return profiles_->StopProfiling(title);
 }
 

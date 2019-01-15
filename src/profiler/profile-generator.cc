@@ -783,6 +783,7 @@ void ProfileGenerator::RecordTickSample(const TickSample& sample) {
   if (FLAG_cpu_profiler_logging) {
     PrintF("RecordTickSample: ");
     sample.print();
+    samples_++;
   }
 
   if (sample.pc != nullptr) {
