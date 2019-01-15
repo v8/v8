@@ -150,14 +150,12 @@ class InstanceBuilder {
   // Process a single imported global.
   bool ProcessImportedGlobal(Handle<WasmInstanceObject> instance,
                              int import_index, int global_index,
-                             int* next_imported_mutable_global_index,
                              Handle<String> module_name,
                              Handle<String> import_name, Handle<Object> value);
 
   // Process a single imported WasmGlobalObject.
   bool ProcessImportedWasmGlobalObject(Handle<WasmInstanceObject> instance,
                                        int import_index,
-                                       int* next_imported_mutable_global_index,
                                        Handle<String> module_name,
                                        Handle<String> import_name,
                                        const WasmGlobal& global,
@@ -938,9 +936,8 @@ bool InstanceBuilder::ProcessImportedMemory(Handle<WasmInstanceObject> instance,
 
 bool InstanceBuilder::ProcessImportedWasmGlobalObject(
     Handle<WasmInstanceObject> instance, int import_index,
-    int* next_imported_mutable_global_index, Handle<String> module_name,
-    Handle<String> import_name, const WasmGlobal& global,
-    Handle<WasmGlobalObject> global_object) {
+    Handle<String> module_name, Handle<String> import_name,
+    const WasmGlobal& global, Handle<WasmGlobalObject> global_object) {
   if (global_object->type() != global.type) {
     ReportLinkError("imported global does not match the expected type",
                     import_index, module_name, import_name);
@@ -952,14 +949,26 @@ bool InstanceBuilder::ProcessImportedWasmGlobalObject(
     return false;
   }
   if (global.mutability) {
-    Handle<JSArrayBuffer> buffer(global_object->untagged_buffer(), isolate_);
-    int index = (*next_imported_mutable_global_index)++;
-    instance->imported_mutable_globals_buffers()->set(index, *buffer);
-    // It is safe in this case to store the raw pointer to the buffer
-    // since the backing store of the JSArrayBuffer will not be
-    // relocated.
-    instance->imported_mutable_globals()[index] = reinterpret_cast<Address>(
-        raw_buffer_ptr(buffer, global_object->offset()));
+    DCHECK_LT(global.index, module_->num_imported_mutable_globals);
+    Handle<Object> buffer;
+    Address address_or_offset;
+    if (global.type == kWasmAnyRef) {
+      static_assert(sizeof(global_object->offset()) <= sizeof(Address),
+                    "The offset into the globals buffer does not fit into "
+                    "the imported_mutable_globals array");
+      buffer = handle(global_object->tagged_buffer(), isolate_);
+      // For anyref globals we use a relative offset, not an absolute address.
+      address_or_offset = static_cast<Address>(global_object->offset());
+    } else {
+      buffer = handle(global_object->untagged_buffer(), isolate_);
+      // It is safe in this case to store the raw pointer to the buffer
+      // since the backing store of the JSArrayBuffer will not be
+      // relocated.
+      address_or_offset = reinterpret_cast<Address>(raw_buffer_ptr(
+          Handle<JSArrayBuffer>::cast(buffer), global_object->offset()));
+    }
+    instance->imported_mutable_globals_buffers()->set(global.index, *buffer);
+    instance->imported_mutable_globals()[global.index] = address_or_offset;
     return true;
   }
 
@@ -967,10 +976,11 @@ bool InstanceBuilder::ProcessImportedWasmGlobalObject(
   return true;
 }
 
-bool InstanceBuilder::ProcessImportedGlobal(
-    Handle<WasmInstanceObject> instance, int import_index, int global_index,
-    int* next_imported_mutable_global_index, Handle<String> module_name,
-    Handle<String> import_name, Handle<Object> value) {
+bool InstanceBuilder::ProcessImportedGlobal(Handle<WasmInstanceObject> instance,
+                                            int import_index, int global_index,
+                                            Handle<String> module_name,
+                                            Handle<String> import_name,
+                                            Handle<Object> value) {
   // Immutable global imports are converted to numbers and written into
   // the {untagged_globals_} array buffer.
   //
@@ -1009,9 +1019,8 @@ bool InstanceBuilder::ProcessImportedGlobal(
 
   if (value->IsWasmGlobalObject()) {
     auto global_object = Handle<WasmGlobalObject>::cast(value);
-    return ProcessImportedWasmGlobalObject(
-        instance, import_index, next_imported_mutable_global_index, module_name,
-        import_name, global, global_object);
+    return ProcessImportedWasmGlobalObject(instance, import_index, module_name,
+                                           import_name, global, global_object);
   }
 
   if (global.mutability) {
@@ -1052,7 +1061,6 @@ bool InstanceBuilder::ProcessImportedGlobal(
 int InstanceBuilder::ProcessImports(Handle<WasmInstanceObject> instance) {
   int num_imported_functions = 0;
   int num_imported_tables = 0;
-  int num_imported_mutable_globals = 0;
 
   DCHECK_EQ(module_->import_table.size(), sanitized_imports_.size());
   int num_imports = static_cast<int>(module_->import_table.size());
@@ -1092,8 +1100,7 @@ int InstanceBuilder::ProcessImports(Handle<WasmInstanceObject> instance) {
         break;
       }
       case kExternalGlobal: {
-        if (!ProcessImportedGlobal(instance, index, import.index,
-                                   &num_imported_mutable_globals, module_name,
+        if (!ProcessImportedGlobal(instance, index, import.index, module_name,
                                    import_name, value)) {
           return -1;
         }
@@ -1124,10 +1131,6 @@ int InstanceBuilder::ProcessImports(Handle<WasmInstanceObject> instance) {
         break;
     }
   }
-
-  DCHECK_EQ(module_->num_imported_mutable_globals,
-            num_imported_mutable_globals);
-
   return num_imported_functions;
 }
 

@@ -3023,24 +3023,28 @@ Node* WasmGraphBuilder::CreateOrMergeIntoEffectPhi(Node* merge, Node* tnode,
   return tnode;
 }
 
+Node* WasmGraphBuilder::GetImportedMutableGlobals() {
+  if (imported_mutable_globals_ == nullptr) {
+    // Load imported_mutable_globals_ from the instance object at runtime.
+    imported_mutable_globals_ = graph()->NewNode(
+        mcgraph()->machine()->Load(MachineType::UintPtr()),
+        instance_node_.get(),
+        mcgraph()->Int32Constant(
+            WASM_INSTANCE_OBJECT_OFFSET(ImportedMutableGlobals)),
+        graph()->start(), graph()->start());
+  }
+  return imported_mutable_globals_.get();
+}
+
 void WasmGraphBuilder::GetGlobalBaseAndOffset(MachineType mem_type,
                                               const wasm::WasmGlobal& global,
                                               Node** base_node,
                                               Node** offset_node) {
   DCHECK_NOT_NULL(instance_node_);
   if (global.mutability && global.imported) {
-    if (imported_mutable_globals_ == nullptr) {
-      // Load imported_mutable_globals_ from the instance object at runtime.
-      imported_mutable_globals_ = graph()->NewNode(
-          mcgraph()->machine()->Load(MachineType::UintPtr()),
-          instance_node_.get(),
-          mcgraph()->Int32Constant(
-              WASM_INSTANCE_OBJECT_OFFSET(ImportedMutableGlobals)),
-          graph()->start(), graph()->start());
-    }
     *base_node = SetEffect(graph()->NewNode(
         mcgraph()->machine()->Load(MachineType::UintPtr()),
-        imported_mutable_globals_.get(),
+        GetImportedMutableGlobals(),
         mcgraph()->Int32Constant(global.index * sizeof(Address)), Effect(),
         Control()));
     *offset_node = mcgraph()->Int32Constant(0);
@@ -3071,6 +3075,34 @@ void WasmGraphBuilder::GetGlobalBaseAndOffset(MachineType mem_type,
       *offset_node = mcgraph()->Int32Constant(0);
     }
   }
+}
+
+void WasmGraphBuilder::GetBaseAndOffsetForImportedMutableAnyRefGlobal(
+    const wasm::WasmGlobal& global, Node** base, Node** offset) {
+  // Load the base from the ImportedMutableGlobalsBuffer of the instance.
+  Node* buffers = LOAD_INSTANCE_FIELD(ImportedMutableGlobalsBuffers,
+                                      MachineType::TaggedPointer());
+  *base = LOAD_FIXED_ARRAY_SLOT_ANY(buffers, global.index);
+
+  // For the offset we need the index of the global in the buffer, and then
+  // calculate the actual offset from the index. Load the index from the
+  // ImportedMutableGlobals array of the instance.
+  Node* index = SetEffect(
+      graph()->NewNode(mcgraph()->machine()->Load(MachineType::UintPtr()),
+                       GetImportedMutableGlobals(),
+                       mcgraph()->Int32Constant(global.index * sizeof(Address)),
+                       Effect(), Control()));
+
+  // From the index, calculate the actual offset in the FixeArray. This
+  // is kHeaderSize + (index * kTaggedSize). kHeaderSize can be acquired with
+  // wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(0).
+  Node* index_times_tagged_size =
+      graph()->NewNode(mcgraph()->machine()->IntMul(), Uint32ToUintptr(index),
+                       mcgraph()->Int32Constant(kTaggedSize));
+  *offset = graph()->NewNode(
+      mcgraph()->machine()->IntAdd(), index_times_tagged_size,
+      mcgraph()->IntPtrConstant(
+          wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(0)));
 }
 
 Node* WasmGraphBuilder::MemBuffer(uint32_t offset) {
@@ -3151,11 +3183,19 @@ Node* WasmGraphBuilder::BuildCallToRuntime(Runtime::FunctionId f,
 }
 
 Node* WasmGraphBuilder::GetGlobal(uint32_t index) {
-  if (env_->module->globals[index].type == wasm::ValueType::kWasmAnyRef) {
-    Node* globals =
+  const wasm::WasmGlobal& global = env_->module->globals[index];
+  if (global.type == wasm::ValueType::kWasmAnyRef) {
+    if (global.mutability && global.imported) {
+      Node* base = nullptr;
+      Node* offset = nullptr;
+      GetBaseAndOffsetForImportedMutableAnyRefGlobal(global, &base, &offset);
+      return SetEffect(graph()->NewNode(
+          mcgraph()->machine()->Load(MachineType::TaggedPointer()), base,
+          offset, Effect(), Control()));
+    }
+    Node* globals_buffer =
         LOAD_INSTANCE_FIELD(TaggedGlobalsBuffer, MachineType::TaggedPointer());
-    return LOAD_FIXED_ARRAY_SLOT_ANY(globals,
-                                     env_->module->globals[index].offset);
+    return LOAD_FIXED_ARRAY_SLOT_ANY(globals_buffer, global.offset);
   }
 
   MachineType mem_type =
@@ -3174,10 +3214,21 @@ Node* WasmGraphBuilder::GetGlobal(uint32_t index) {
 }
 
 Node* WasmGraphBuilder::SetGlobal(uint32_t index, Node* val) {
-  if (env_->module->globals[index].type == wasm::ValueType::kWasmAnyRef) {
-    Node* globals =
+  const wasm::WasmGlobal& global = env_->module->globals[index];
+  if (global.type == wasm::ValueType::kWasmAnyRef) {
+    if (global.mutability && global.imported) {
+      Node* base = nullptr;
+      Node* offset = nullptr;
+      GetBaseAndOffsetForImportedMutableAnyRefGlobal(global, &base, &offset);
+
+      return SetEffect(graph()->NewNode(
+          mcgraph()->machine()->Store(StoreRepresentation(
+              MachineRepresentation::kTagged, kFullWriteBarrier)),
+          base, offset, val, Effect(), Control()));
+    }
+    Node* globals_buffer =
         LOAD_INSTANCE_FIELD(TaggedGlobalsBuffer, MachineType::TaggedPointer());
-    return STORE_FIXED_ARRAY_SLOT_ANY(globals,
+    return STORE_FIXED_ARRAY_SLOT_ANY(globals_buffer,
                                       env_->module->globals[index].offset, val);
   }
 
