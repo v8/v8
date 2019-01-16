@@ -234,6 +234,9 @@ void CSAGenerator::EmitInstruction(const CallIntrinsicInstruction& instruction,
       s << "%FromConstexpr does not support return type " << *return_type;
       ReportError(s.str());
     }
+  } else if (instruction.intrinsic->ExternalName() == "%Allocate") {
+    out_ << "ca_.UncheckedCast<" << return_type->GetGeneratedTNodeTypeName()
+         << ">(CodeStubAssembler(state_).Allocate";
   } else {
     ReportError("no built in intrinsic with name " +
                 instruction.intrinsic->ExternalName());
@@ -241,6 +244,7 @@ void CSAGenerator::EmitInstruction(const CallIntrinsicInstruction& instruction,
 
   out_ << "(";
   PrintCommaSeparatedList(out_, args);
+  if (instruction.intrinsic->ExternalName() == "%Allocate") out_ << ")";
   if (return_type->IsStructType()) {
     out_ << ").Flatten();\n";
   } else {
@@ -683,8 +687,13 @@ void CSAGenerator::EmitInstruction(
   stack->Push(value);
   const Field& field =
       instruction.class_type->LookupField(instruction.field_name);
-  out_ << "    CodeStubAssembler(state_).StoreObjectField(" + object + ", " +
-              std::to_string(field.offset) + ", " + value + ");\n";
+  if (field.offset == 0) {
+    out_ << "    CodeStubAssembler(state_).StoreMap(" + object + ", " + value +
+                ");\n";
+  } else {
+    out_ << "    CodeStubAssembler(state_).StoreObjectField(" + object + ", " +
+                std::to_string(field.offset) + ", " + value + ");\n";
+  }
 }
 
 // static

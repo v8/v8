@@ -168,6 +168,10 @@ class StackRange {
   BottomOffset end_;
 };
 
+inline std::ostream& operator<<(std::ostream& out, StackRange range) {
+  return out << "StackRange{" << range.begin() << ", " << range.end() << "}";
+}
+
 template <class T>
 class Stack {
  public:
@@ -265,6 +269,9 @@ class ToString {
 };
 
 constexpr int kTaggedSize = sizeof(void*);
+
+static const char* const kConstructMethodName = "constructor";
+static const char* const kSuperMethodName = "super";
 
 }  // namespace torque
 }  // namespace internal

@@ -44,6 +44,7 @@ class Declarable {
   enum Kind {
     kNamespace,
     kMacro,
+    kMethod,
     kBuiltin,
     kRuntimeFunction,
     kIntrinsic,
@@ -54,7 +55,8 @@ class Declarable {
   };
   Kind kind() const { return kind_; }
   bool IsNamespace() const { return kind() == kNamespace; }
-  bool IsMacro() const { return kind() == kMacro; }
+  bool IsMacro() const { return kind() == kMacro || kind() == kMethod; }
+  bool IsMethod() const { return kind() == kMethod; }
   bool IsIntrinsic() const { return kind() == kIntrinsic; }
   bool IsBuiltin() const { return kind() == kBuiltin; }
   bool IsRuntimeFunction() const { return kind() == kRuntimeFunction; }
@@ -65,7 +67,8 @@ class Declarable {
   bool IsValue() const { return IsExternConstant() || IsNamespaceConstant(); }
   bool IsScope() const { return IsNamespace() || IsCallable(); }
   bool IsCallable() const {
-    return IsMacro() || IsBuiltin() || IsRuntimeFunction() || IsIntrinsic();
+    return IsMacro() || IsBuiltin() || IsRuntimeFunction() || IsIntrinsic() ||
+           IsMethod();
   }
   virtual const char* type_name() const { return "<<unknown>>"; }
   Scope* ParentScope() const { return parent_scope_; }
@@ -250,7 +253,8 @@ class Callable : public Scope {
   bool IsTransitioning() const { return transitioning_; }
   base::Optional<Statement*> body() const { return body_; }
   bool IsExternal() const { return !body_.has_value(); }
-  bool ShouldBeInlined() const { return false; }
+  virtual bool ShouldBeInlined() const { return false; }
+  bool IsConstructor() const { return readable_name_ == kConstructMethodName; }
 
  protected:
   Callable(Declarable::Kind kind, std::string external_name,
@@ -284,20 +288,49 @@ class Macro : public Callable {
     return external_assembler_name_;
   }
 
- private:
-  friend class Declarations;
-  Macro(std::string external_name, std::string readable_name,
-        std::string external_assembler_name, const Signature& signature,
-        bool transitioning, base::Optional<Statement*> body)
-      : Callable(Declarable::kMacro, std::move(external_name),
-                 std::move(readable_name), signature, transitioning, body),
+ protected:
+  Macro(Declarable::Kind kind, std::string external_name,
+        std::string readable_name, std::string external_assembler_name,
+        const Signature& signature, bool transitioning,
+        base::Optional<Statement*> body)
+      : Callable(kind, std::move(external_name), std::move(readable_name),
+                 signature, transitioning, body),
         external_assembler_name_(std::move(external_assembler_name)) {
     if (signature.parameter_types.var_args) {
       ReportError("Varargs are not supported for macros.");
     }
   }
 
+ private:
+  friend class Declarations;
+  Macro(std::string external_name, std::string readable_name,
+        std::string external_assembler_name, const Signature& signature,
+        bool transitioning, base::Optional<Statement*> body)
+      : Macro(Declarable::kMacro, std::move(external_name),
+              std::move(readable_name), external_assembler_name, signature,
+              transitioning, body) {}
+
   std::string external_assembler_name_;
+};
+
+class Method : public Macro {
+ public:
+  DECLARE_DECLARABLE_BOILERPLATE(Method, Method);
+  bool ShouldBeInlined() const override {
+    return signature().parameter_types.types[0]->IsStructType();
+  }
+  AggregateType* aggregate_type() const { return aggregate_type_; }
+
+ private:
+  friend class Declarations;
+  Method(AggregateType* aggregate_type, std::string external_name,
+         std::string readable_name, std::string external_assembler_name,
+         const Signature& signature, bool transitioning, Statement* body)
+      : Macro(Declarable::kMethod, std::move(external_name),
+              std::move(readable_name), std::move(external_assembler_name),
+              signature, transitioning, body),
+        aggregate_type_(aggregate_type) {}
+  AggregateType* aggregate_type_;
 };
 
 class Builtin : public Callable {

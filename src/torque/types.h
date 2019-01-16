@@ -40,6 +40,9 @@ static const char* const CONST_INT31_TYPE_STRING = "constexpr int31";
 static const char* const CONST_INT32_TYPE_STRING = "constexpr int32";
 static const char* const CONST_FLOAT64_TYPE_STRING = "constexpr float64";
 
+class Macro;
+class Method;
+class StructType;
 class Value;
 class Namespace;
 
@@ -62,6 +65,7 @@ class TypeBase {
   bool IsUnionType() const { return kind() == Kind::kUnionType; }
   bool IsStructType() const { return kind() == Kind::kStructType; }
   bool IsClassType() const { return kind() == Kind::kClassType; }
+  bool IsAggregateType() const { return IsStructType() || IsClassType(); }
 
  protected:
   explicit TypeBase(Kind kind) : kind_(kind) {}
@@ -376,8 +380,9 @@ class UnionType final : public Type {
 
 const Type* SubtractType(const Type* a, const Type* b);
 
-class NameAndTypeListType : public Type {
+class AggregateType : public Type {
  public:
+  DECLARE_TYPE_BOILERPLATE(AggregateType);
   std::string MangledName() const override { return name_; }
   std::string GetGeneratedTypeName() const override { UNREACHABLE(); };
   std::string GetGeneratedTNodeTypeName() const override { UNREACHABLE(); }
@@ -391,18 +396,30 @@ class NameAndTypeListType : public Type {
   const std::string& name() const { return name_; }
   Namespace* nspace() const { return namespace_; }
 
+  std::string GetGeneratedMethodName(const std::string& name) const {
+    return "_method_" + name_ + "_" + name;
+  }
+
+  void RegisterMethod(Method* method) { methods_.push_back(method); }
+  std::vector<Method*> Constructors() const;
+  const std::vector<Method*>& Methods() const { return methods_; }
+  std::vector<Method*> Methods(const std::string& name) const;
+
+  std::vector<const AggregateType*> GetHierarchy();
+
  protected:
-  NameAndTypeListType(Kind kind, const Type* parent, Namespace* nspace,
-                      const std::string& name, const std::vector<Field>& fields)
+  AggregateType(Kind kind, const Type* parent, Namespace* nspace,
+                const std::string& name, const std::vector<Field>& fields)
       : Type(kind, parent), namespace_(nspace), name_(name), fields_(fields) {}
 
  private:
   Namespace* namespace_;
   std::string name_;
+  std::vector<Method*> methods_;
   std::vector<Field> fields_;
 };
 
-class StructType final : public NameAndTypeListType {
+class StructType final : public AggregateType {
  public:
   DECLARE_TYPE_BOILERPLATE(StructType);
   std::string ToExplicitString() const override;
@@ -412,12 +429,12 @@ class StructType final : public NameAndTypeListType {
   friend class TypeOracle;
   StructType(Namespace* nspace, const std::string& name,
              const std::vector<Field>& fields)
-      : NameAndTypeListType(Kind::kStructType, nullptr, nspace, name, fields) {}
+      : AggregateType(Kind::kStructType, nullptr, nspace, name, fields) {}
 
   const std::string& GetStructName() const { return name(); }
 };
 
-class ClassType final : public NameAndTypeListType {
+class ClassType final : public AggregateType {
  public:
   DECLARE_TYPE_BOILERPLATE(ClassType);
   std::string ToExplicitString() const override;
@@ -427,13 +444,16 @@ class ClassType final : public NameAndTypeListType {
   std::string GetGeneratedTNodeTypeName() const override;
   bool IsTransient() const override { return transient_; }
   size_t size() const { return size_; }
+  const ClassType* GetSuperClass() const {
+    return parent()->IsClassType() ? ClassType::DynamicCast(parent()) : nullptr;
+  }
 
  private:
   friend class TypeOracle;
   ClassType(const Type* parent, Namespace* nspace, const std::string& name,
             bool transient, const std::string& generates,
             const std::vector<Field>& fields, size_t size)
-      : NameAndTypeListType(Kind::kClassType, parent, nspace, name, fields),
+      : AggregateType(Kind::kClassType, parent, nspace, name, fields),
         transient_(transient),
         size_(size),
         generates_(generates) {}

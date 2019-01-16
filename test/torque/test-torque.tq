@@ -689,4 +689,33 @@ namespace test {
     }
   }
 
+  macro TestNew(implicit context: Context)() {
+    const f: JSArray = new JSArray{};
+    assert(f.IsEmpty());
+    f.length = 0;
+  }
+
+  struct TestInner {
+    SetX(newValue: int32) {
+      this.x = newValue;
+    }
+    GetX(): int32 {
+      return this.x;
+    }
+    x: int32;
+    y: int32;
+  }
+
+  struct TestOuter {
+    a: int32;
+    b: TestInner;
+    c: int32;
+  }
+
+  macro TestStructConstructor(implicit context: Context)() {
+    let a: TestOuter = TestOuter{0, TestInner{0, 0}, 0};
+    a.b.SetX(2);
+    assert(a.b.x == 2);
+    assert(a.b.GetX() == 2);
+  }
 }

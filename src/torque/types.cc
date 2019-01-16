@@ -184,7 +184,21 @@ const Type* SubtractType(const Type* a, const Type* b) {
   return TypeOracle::GetUnionType(result);
 }
 
-const Field& NameAndTypeListType::LookupField(const std::string& name) const {
+std::vector<const AggregateType*> AggregateType::GetHierarchy() {
+  std::vector<const AggregateType*> hierarchy;
+  const AggregateType* current_container_type = this;
+  while (current_container_type != nullptr) {
+    hierarchy.push_back(current_container_type);
+    current_container_type =
+        current_container_type->IsClassType()
+            ? ClassType::cast(current_container_type)->GetSuperClass()
+            : nullptr;
+  }
+  std::reverse(hierarchy.begin(), hierarchy.end());
+  return hierarchy;
+}
+
+const Field& AggregateType::LookupField(const std::string& name) const {
   for (auto& field : fields_) {
     if (field.name_and_type.name == name) return field;
   }
@@ -198,6 +212,17 @@ const Field& NameAndTypeListType::LookupField(const std::string& name) const {
 
 std::string StructType::GetGeneratedTypeName() const {
   return nspace()->ExternalName() + "::" + name();
+}
+
+std::vector<Method*> AggregateType::Methods(const std::string& name) const {
+  std::vector<Method*> result;
+  std::copy_if(methods_.begin(), methods_.end(), std::back_inserter(result),
+               [&](Macro* macro) { return macro->ReadableName() == name; });
+  return result;
+}
+
+std::vector<Method*> AggregateType::Constructors() const {
+  return Methods(kConstructMethodName);
 }
 
 std::string StructType::ToExplicitString() const {

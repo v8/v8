@@ -163,6 +163,13 @@ void DeclarationVisitor::Visit(GenericDeclaration* decl) {
   Declarations::DeclareGeneric(decl->callable->name, decl);
 }
 
+static Statement* WrapBodyWithNoThrow(Statement* body, std::string reason) {
+  return MakeNode<ExpressionStatement>(MakeNode<TryLabelExpression>(
+      true, MakeNode<StatementExpression>(body),
+      MakeNode<LabelBlock>("_catch", ParameterList{},
+                           MakeNode<DebugStatement>(reason, true))));
+}
+
 void DeclarationVisitor::Visit(SpecializationDeclaration* decl) {
   if ((decl->body != nullptr) == decl->external) {
     std::stringstream stream;
@@ -229,13 +236,124 @@ void DeclarationVisitor::Visit(ExternConstDeclaration* decl) {
   Declarations::DeclareExternConstant(decl->name, type, decl->literal);
 }
 
+void DeclarationVisitor::DeclareMethods(
+    AggregateType* container_type, const std::vector<Declaration*>& methods) {
+  // Declare the class' methods
+  IdentifierExpression* constructor_this = MakeNode<IdentifierExpression>(
+      std::vector<std::string>{}, kThisParameterName);
+  for (auto declaration : methods) {
+    StandardDeclaration* standard_declaration =
+        StandardDeclaration::DynamicCast(declaration);
+    DCHECK(standard_declaration);
+    TorqueMacroDeclaration* method =
+        TorqueMacroDeclaration::DynamicCast(standard_declaration->callable);
+    Signature signature = MakeSignature(method->signature.get());
+    signature.parameter_names.insert(signature.parameter_names.begin(),
+                                     kThisParameterName);
+    signature.parameter_types.types.insert(
+        signature.parameter_types.types.begin(), container_type);
+    signature.implicit_count++;
+    Statement* body = *(standard_declaration->body);
+    std::string method_name(method->name);
+    if (method->name == kConstructMethodName) {
+      // Constructor
+      if (!signature.return_type->IsVoid()) {
+        ReportError("constructors musn't have a return type");
+      }
+      if (signature.labels.size() != 0) {
+        ReportError("constructors musn't have labels");
+      }
+      method_name = kConstructMethodName;
+      signature.return_type = container_type;
+      ReturnStatement* return_statement = MakeNode<ReturnStatement>(
+          MakeNode<IdentifierExpression>(kThisParameterName));
+      body = MakeNode<BlockStatement>(
+          false, std::vector<Statement*>{body, return_statement});
+      body = WrapBodyWithNoThrow(body, "exception thrown from constructor");
+    }
+    Declarations::CreateMethod(container_type, method_name, signature, false,
+                               body);
+  }
+
+  if (container_type->Constructors().size() != 0) return;
+
+  // Generate default constructor.
+  Signature constructor_signature;
+  constructor_signature.parameter_types.var_args = false;
+  constructor_signature.return_type = container_type;
+  std::vector<const AggregateType*> hierarchy = container_type->GetHierarchy();
+
+  std::vector<Statement*> statements;
+  std::vector<Statement*> initializer_statements;
+
+  size_t parameter_number = 0;
+  constructor_signature.parameter_names.push_back(kThisParameterName);
+  constructor_signature.parameter_types.types.push_back(container_type);
+  constructor_signature.implicit_count = 1;
+  std::vector<Expression*> super_arguments;
+  for (auto current_type : hierarchy) {
+    for (auto& f : current_type->fields()) {
+      std::string parameter_name("p" + std::to_string(parameter_number++));
+      constructor_signature.parameter_names.push_back(parameter_name);
+      constructor_signature.parameter_types.types.push_back(
+          f.name_and_type.type);
+      IdentifierExpression* value = MakeNode<IdentifierExpression>(
+          std::vector<std::string>{}, parameter_name);
+      if (container_type != current_type) {
+        super_arguments.push_back(MakeNode<IdentifierExpression>(
+            std::vector<std::string>{}, parameter_name));
+      } else if (container_type->IsClassType()) {
+        Statement* statement =
+            MakeNode<ExpressionStatement>(MakeNode<StoreObjectFieldExpression>(
+                constructor_this, f.name_and_type.name, value));
+        initializer_statements.push_back(statement);
+      } else {
+        DCHECK(container_type->IsStructType());
+        LocationExpression* location = MakeNode<FieldAccessExpression>(
+            constructor_this, f.name_and_type.name);
+        Statement* statement = MakeNode<ExpressionStatement>(
+            MakeNode<AssignmentExpression>(location, base::nullopt, value));
+        initializer_statements.push_back(statement);
+      }
+    }
+  }
+
+  if (hierarchy.size() > 1) {
+    IdentifierExpression* super_identifier = MakeNode<IdentifierExpression>(
+        std::vector<std::string>{}, kSuperMethodName);
+    Statement* super_call_statement =
+        MakeNode<ExpressionStatement>(MakeNode<CallMethodExpression>(
+            constructor_this, super_identifier, super_arguments,
+            std::vector<std::string>{}));
+    statements.push_back(super_call_statement);
+  }
+
+  for (auto s : initializer_statements) {
+    statements.push_back(s);
+  }
+
+  statements.push_back(MakeNode<ReturnStatement>(MakeNode<IdentifierExpression>(
+      std::vector<std::string>{}, kThisParameterName)));
+
+  Statement* constructor_body = MakeNode<BlockStatement>(false, statements);
+
+  constructor_body = WrapBodyWithNoThrow(constructor_body,
+                                         "exception thrown from constructor");
+
+  Declarations::CreateMethod(container_type, kConstructMethodName,
+                             constructor_signature, false, constructor_body);
+}
+
 void DeclarationVisitor::Visit(StructDeclaration* decl) {
   std::vector<Field> fields;
+  size_t offset = 0;
   for (auto& field : decl->fields) {
     const Type* field_type = Declarations::GetType(field.type);
-    fields.push_back({{field.name, field_type}, 0, false});
+    fields.push_back({{field.name, field_type}, offset, false});
+    offset += LoweredSlotCount(field_type);
   }
-  Declarations::DeclareStruct(decl->name, fields);
+  StructType* struct_type = Declarations::DeclareStruct(decl->name, fields);
+  DeclareMethods(struct_type, decl->methods);
 }
 
 void DeclarationVisitor::Visit(ClassDeclaration* decl) {
@@ -243,14 +361,15 @@ void DeclarationVisitor::Visit(ClassDeclaration* decl) {
   // another class, it's the size of the extended class, otherwise zero.
   size_t first_field_offset = 0;
   if (decl->extends) {
-    const Type* extends_type = Declarations::LookupType(*decl->extends);
-    if (extends_type != TypeOracle::GetTaggedType()) {
-      if (!extends_type->IsClassType()) {
+    const Type* super_type = Declarations::LookupType(*decl->extends);
+    if (super_type != TypeOracle::GetTaggedType()) {
+      const ClassType* super_class = ClassType::DynamicCast(super_type);
+      if (!super_class) {
         ReportError(
             "class \"", decl->name,
             "\" must extend either Tagged or an already declared class");
       }
-      first_field_offset = ClassType::DynamicCast(extends_type)->size();
+      first_field_offset = super_class->size();
     }
   }
 
@@ -300,19 +419,19 @@ void DeclarationVisitor::Visit(ClassDeclaration* decl) {
 
   auto new_class = Declarations::DeclareClass(
       decl->extends, decl->name, decl->transient, generates, fields, offset);
+  DeclareMethods(new_class, decl->methods);
 
   // For each field, construct AST snippits that implement a CSA accessor
   // function and define a corresponding '.field' operator. The
   // implementation iterator will turn the snippits into code.
-  for (auto& field : fields) {
-    CurrentSourcePosition::Scope source_position(decl->pos);
-    IdentifierExpression* parameter = MakeNode<IdentifierExpression>(
-        std::vector<std::string>{}, std::string{"o"});
+  for (auto& field : new_class->fields()) {
+    IdentifierExpression* parameter =
+        MakeNode<IdentifierExpression>(std::string{"o"});
 
     // Load accessor
-    std::string load_macro_name =
-        "Load" + decl->name + CamelifyString(field.name_and_type.name);
-    std::string get_operator_name = "." + field.name_and_type.name;
+    std::string camel_field_name = CamelifyString(field.name_and_type.name);
+    std::string load_macro_name = "Load" + new_class->name() + camel_field_name;
+    std::string load_operator_name = "." + field.name_and_type.name;
     Signature load_signature;
     load_signature.parameter_names.push_back("o");
     load_signature.parameter_types.types.push_back(new_class);
@@ -322,13 +441,13 @@ void DeclarationVisitor::Visit(ClassDeclaration* decl) {
         MakeNode<ReturnStatement>(MakeNode<LoadObjectFieldExpression>(
             parameter, field.name_and_type.name));
     Declarations::DeclareMacro(load_macro_name, base::nullopt, load_signature,
-                               false, load_body, get_operator_name);
+                               false, load_body, load_operator_name);
 
     // Store accessor
     IdentifierExpression* value = MakeNode<IdentifierExpression>(
         std::vector<std::string>{}, std::string{"v"});
     std::string store_macro_name =
-        "Store" + decl->name + CamelifyString(field.name_and_type.name);
+        "Store" + new_class->name() + camel_field_name;
     std::string store_operator_name = "." + field.name_and_type.name + "=";
     Signature store_signature;
     store_signature.parameter_names.push_back("o");

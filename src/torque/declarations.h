@@ -81,13 +81,13 @@ class Declarations {
   static void DeclareType(const std::string& name, const Type* type,
                           bool redeclaration);
 
-  static void DeclareStruct(const std::string& name,
-                            const std::vector<Field>& fields);
+  static StructType* DeclareStruct(const std::string& name,
+                                   const std::vector<Field>& fields);
 
-  static const ClassType* DeclareClass(base::Optional<std::string> parent,
-                                       const std::string& name, bool transient,
-                                       const std::string& generates,
-                                       std::vector<Field> fields, size_t size);
+  static ClassType* DeclareClass(base::Optional<std::string> parent,
+                                 const std::string& name, bool transient,
+                                 const std::string& generates,
+                                 std::vector<Field> fields, size_t size);
 
   static Macro* CreateMacro(std::string external_name,
                             std::string readable_name,
@@ -99,6 +99,10 @@ class Declarations {
       base::Optional<std::string> external_assembler_name,
       const Signature& signature, bool transitioning,
       base::Optional<Statement*> body, base::Optional<std::string> op = {});
+
+  static Method* CreateMethod(AggregateType* class_type,
+                              const std::string& name, Signature signature,
+                              bool transitioning, Statement* body);
 
   static Intrinsic* CreateIntrinsic(const std::string& name,
                                     const Signature& signature);
@@ -137,6 +141,7 @@ class Declarations {
     return CurrentScope::Get()->AddDeclarable(name,
                                               RegisterDeclarable(std::move(d)));
   }
+  static Macro* DeclareOperator(const std::string& name, Macro* m);
 
   static std::string GetGeneratedCallableName(
       const std::string& name, const TypeVector& specialized_types);

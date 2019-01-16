@@ -58,6 +58,11 @@ type Map extends HeapObject generates 'TNode<Map>';
 extern operator '.map' macro LoadMap(HeapObject): Map;
 extern transitioning operator '.map=' macro StoreMap(HeapObject, Map);
 
+// This intrinsic should never be called from Torque code. It's used internally
+// by the 'new' operator and only declared here because it's simpler than
+// building the definition from C++.
+intrinsic %Allocate<Class: type>(size: intptr): Class;
+
 type FixedArrayBase extends HeapObject generates 'TNode<FixedArrayBase>';
 type FixedArray extends FixedArrayBase generates 'TNode<FixedArray>';
 type FixedDoubleArray extends FixedArrayBase
@@ -79,6 +84,15 @@ class JSArgumentsObjectWithLength extends JSObject {
 }
 
 class JSArray extends JSObject {
+  constructor(implicit context: Context)() {
+    super(
+        GetFastPackedSmiElementsJSArrayMap(), kEmptyFixedArray,
+        kEmptyFixedArray);
+    this.length = 0;
+  }
+  IsEmpty(): bool {
+    return this.length == 0;
+  }
   length: Number;
 }
 
@@ -139,6 +153,8 @@ const OBJECT_FUNCTION_INDEX: constexpr NativeContextSlot
     generates 'Context::OBJECT_FUNCTION_INDEX';
 const ITERATOR_RESULT_MAP_INDEX: constexpr NativeContextSlot
     generates 'Context::ITERATOR_RESULT_MAP_INDEX';
+const JS_ARRAY_PACKED_SMI_ELEMENTS_MAP_INDEX: constexpr NativeContextSlot
+    generates 'Context::JS_ARRAY_PACKED_SMI_ELEMENTS_MAP_INDEX';
 extern operator '[]' macro LoadContextElement(
     NativeContext, NativeContextSlot): Object;
 extern operator '[]=' macro StoreContextElement(
@@ -466,8 +482,11 @@ extern operator '==' macro Float64Equal(float64, float64): bool;
 extern operator '!=' macro Float64NotEqual(float64, float64): bool;
 extern operator '>' macro Float64GreaterThan(float64, float64): bool;
 
-extern operator '==' macro BranchIfNumberEqual(Number, Number): never
+extern macro BranchIfNumberEqual(Number, Number): never
     labels Taken, NotTaken;
+operator '==' macro IsNumberEqual(a: Number, b: Number): bool {
+  return (BranchIfNumberEqual(a, b)) ? true : false;
+}
 extern operator '!=' macro BranchIfNumberNotEqual(Number, Number): never
     labels Taken, NotTaken;
 extern operator '<' macro BranchIfNumberLessThan(Number, Number): never
@@ -1158,6 +1177,11 @@ extern macro StoreFixedDoubleArrayHoleSmi(FixedDoubleArray, Smi): void;
 macro GetObjectFunction(implicit context: Context)(): JSFunction {
   return UnsafeCast<JSFunction>(
       LoadNativeContext(context)[OBJECT_FUNCTION_INDEX]);
+}
+
+macro GetFastPackedSmiElementsJSArrayMap(implicit context: Context)(): Map {
+  return UnsafeCast<Map>(
+      LoadNativeContext(context)[JS_ARRAY_PACKED_SMI_ELEMENTS_MAP_INDEX]);
 }
 
 extern transitioning macro Call(Context, Callable, Object): Object;

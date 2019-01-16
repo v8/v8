@@ -19,7 +19,7 @@ template <class T>
 std::vector<T> EnsureNonempty(std::vector<T> list, const std::string& name,
                               const char* kind) {
   if (list.empty()) {
-    ReportError("there is no ", kind, "named ", name);
+    ReportError("there is no ", kind, " named ", name);
   }
   return std::move(list);
 }
@@ -27,7 +27,7 @@ std::vector<T> EnsureNonempty(std::vector<T> list, const std::string& name,
 template <class T, class Name>
 T EnsureUnique(const std::vector<T>& list, const Name& name, const char* kind) {
   if (list.empty()) {
-    ReportError("there is no ", kind, "named ", name);
+    ReportError("there is no ", kind, " named ", name);
   }
   if (list.size() >= 2) {
     ReportError("ambiguous reference to ", kind, " ", name);
@@ -167,20 +167,22 @@ void Declarations::DeclareType(const std::string& name, const Type* type,
   Declare(name, std::unique_ptr<TypeAlias>(new TypeAlias(type, redeclaration)));
 }
 
-void Declarations::DeclareStruct(const std::string& name,
-                                 const std::vector<Field>& fields) {
-  const StructType* new_type = TypeOracle::GetStructType(name, fields);
+StructType* Declarations::DeclareStruct(const std::string& name,
+                                        const std::vector<Field>& fields) {
+  StructType* new_type = TypeOracle::GetStructType(name, fields);
   DeclareType(name, new_type, false);
+  return new_type;
 }
 
-const ClassType* Declarations::DeclareClass(
-    base::Optional<std::string> parent, const std::string& name, bool transient,
-    const std::string& generates, std::vector<Field> fields, size_t size) {
+ClassType* Declarations::DeclareClass(base::Optional<std::string> parent,
+                                      const std::string& name, bool transient,
+                                      const std::string& generates,
+                                      std::vector<Field> fields, size_t size) {
   const Type* parent_type = nullptr;
   if (parent) {
     parent_type = LookupType(QualifiedName{*parent});
   }
-  const ClassType* new_type = TypeOracle::GetClassType(
+  ClassType* new_type = TypeOracle::GetClassType(
       parent_type, name, transient, generates, std::move(fields), size);
   DeclareType(name, new_type, false);
   return new_type;
@@ -216,9 +218,21 @@ Macro* Declarations::DeclareMacro(
       ReportError("cannot redeclare operator ", name,
                   " with identical explicit parameters");
     }
-    Declare(*op, macro);
+    DeclareOperator(*op, macro);
   }
   return macro;
+}
+
+Method* Declarations::CreateMethod(AggregateType* container_type,
+                                   const std::string& name, Signature signature,
+                                   bool transitioning, Statement* body) {
+  std::string generated_name{container_type->GetGeneratedMethodName(name)};
+  Method* result = RegisterDeclarable(std::unique_ptr<Method>(
+      new Method(container_type, container_type->GetGeneratedMethodName(name),
+                 name, CurrentNamespace()->ExternalName(), std::move(signature),
+                 transitioning, body)));
+  container_type->RegisterMethod(result);
+  return result;
 }
 
 Intrinsic* Declarations::CreateIntrinsic(const std::string& name,
@@ -291,6 +305,11 @@ std::string Declarations::GetGeneratedCallableName(
     result += std::to_string(type_string.size()) + type_string;
   }
   return result;
+}
+
+Macro* Declarations::DeclareOperator(const std::string& name, Macro* m) {
+  GlobalContext::GetDefaultNamespace()->AddDeclarable(name, m);
+  return m;
 }
 
 }  // namespace torque

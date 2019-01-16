@@ -125,6 +125,17 @@ class Instruction {
   }
 
   InstructionKind kind() const { return kind_; }
+  const char* Mnemonic() const {
+    switch (kind()) {
+#define ENUM_ITEM(name)          \
+  case InstructionKind::k##name: \
+    return #name;
+      TORQUE_INSTRUCTION_LIST(ENUM_ITEM)
+#undef ENUM_ITEM
+      default:
+        UNREACHABLE();
+    }
+  }
   void TypeInstruction(Stack<const Type*>* stack, ControlFlowGraph* cfg) const {
     return instruction_->TypeInstruction(stack, cfg);
   }

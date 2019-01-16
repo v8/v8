@@ -28,10 +28,6 @@ class FileVisitor {
   }
 
  protected:
-  std::string GetParameterVariableFromName(const std::string& name) {
-    return std::string("p_") + name;
-  }
-
   Signature MakeSignature(const CallableNodeSignature* signature);
 };
 

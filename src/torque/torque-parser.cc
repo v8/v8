@@ -212,7 +212,8 @@ void CheckNotDeferredStatement(Statement* statement) {
 }
 
 Expression* MakeCall(IdentifierExpression* callee,
-                     const std::vector<Expression*>& arguments,
+                     base::Optional<Expression*> target,
+                     std::vector<Expression*> arguments,
                      const std::vector<Statement*>& otherwise) {
   std::vector<std::string> labels;
 
@@ -240,7 +241,13 @@ Expression* MakeCall(IdentifierExpression* callee,
 
   // Create nested try-label expression for all of the temporary Labels that
   // were created.
-  Expression* result = MakeNode<CallExpression>(callee, arguments, labels);
+  Expression* result = nullptr;
+  if (target) {
+    result = MakeNode<CallMethodExpression>(*target, callee, arguments, labels);
+  } else {
+    result = MakeNode<CallExpression>(callee, arguments, labels);
+  }
+
   for (auto* label : temp_labels) {
     result = MakeNode<TryLabelExpression>(false, result, label);
   }
@@ -252,15 +259,42 @@ Expression* MakeCall(const std::string& callee,
                      const std::vector<Expression*>& arguments,
                      const std::vector<Statement*>& otherwise) {
   return MakeCall(MakeNode<IdentifierExpression>(callee, generic_arguments),
-                  arguments, otherwise);
+                  base::nullopt, arguments, otherwise);
 }
 
 base::Optional<ParseResult> MakeCall(ParseResultIterator* child_results) {
   auto callee = child_results->NextAs<LocationExpression*>();
   auto args = child_results->NextAs<std::vector<Expression*>>();
   auto otherwise = child_results->NextAs<std::vector<Statement*>>();
-  return ParseResult{
-      MakeCall(IdentifierExpression::cast(callee), args, otherwise)};
+  IdentifierExpression* target = IdentifierExpression::cast(callee);
+  if (target->name == kSuperMethodName) {
+    if (target->namespace_qualification.size() != 0) {
+      ReportError(
+          "\"super\" invocation cannot be used with namespace qualification");
+    }
+    target = MakeNode<IdentifierExpression>(kSuperMethodName);
+    return ParseResult{
+        MakeCall(target, MakeNode<IdentifierExpression>(kThisParameterName),
+                 args, otherwise)};
+  } else {
+    return ParseResult{MakeCall(target, base::nullopt, args, otherwise)};
+  }
+}
+
+base::Optional<ParseResult> MakeMethodCall(ParseResultIterator* child_results) {
+  auto this_arg = child_results->NextAs<Expression*>();
+  auto callee = child_results->NextAs<std::string>();
+  auto args = child_results->NextAs<std::vector<Expression*>>();
+  auto otherwise = child_results->NextAs<std::vector<Statement*>>();
+  return ParseResult{MakeCall(MakeNode<IdentifierExpression>(callee), this_arg,
+                              args, otherwise)};
+}
+
+base::Optional<ParseResult> MakeNew(ParseResultIterator* child_results) {
+  TypeExpression* type = child_results->NextAs<TypeExpression*>();
+  auto args = child_results->NextAs<std::vector<Expression*>>();
+  Expression* result = MakeNode<NewExpression>(type, args);
+  return ParseResult{result};
 }
 
 base::Optional<ParseResult> MakeBinaryOperator(
@@ -521,6 +555,25 @@ base::Optional<ParseResult> MakeTypeDeclaration(
   return ParseResult{result};
 }
 
+base::Optional<ParseResult> MakeMethodDeclaration(
+    ParseResultIterator* child_results) {
+  auto transitioning = child_results->NextAs<bool>();
+  auto operator_name = child_results->NextAs<base::Optional<std::string>>();
+  auto name = child_results->NextAs<std::string>();
+  if (name != kConstructMethodName && !IsUpperCamelCase(name)) {
+    NamingConventionError("Method", name, "UpperCamelCase");
+  }
+
+  auto args = child_results->NextAs<ParameterList>();
+  auto return_type = child_results->NextAs<TypeExpression*>();
+  auto labels = child_results->NextAs<LabelAndTypesVector>();
+  auto body = child_results->NextAs<Statement*>();
+  MacroDeclaration* macro = MakeNode<TorqueMacroDeclaration>(
+      transitioning, name, operator_name, args, return_type, labels);
+  Declaration* result = MakeNode<StandardDeclaration>(macro, body);
+  return ParseResult{result};
+}
+
 base::Optional<ParseResult> MakeClassDeclaration(
     ParseResultIterator* child_results) {
   auto transient = child_results->NextAs<bool>();
@@ -530,10 +583,11 @@ base::Optional<ParseResult> MakeClassDeclaration(
   }
   auto extends = child_results->NextAs<base::Optional<std::string>>();
   auto generates = child_results->NextAs<base::Optional<std::string>>();
+  auto methods = child_results->NextAs<std::vector<Declaration*>>();
   auto fields = child_results->NextAs<std::vector<ClassFieldExpression>>();
-  Declaration* result =
-      MakeNode<ClassDeclaration>(std::move(name), transient, std::move(extends),
-                                 std::move(generates), fields);
+  Declaration* result = MakeNode<ClassDeclaration>(
+      std::move(name), transient, std::move(extends), std::move(generates),
+      std::move(methods), fields);
   return ParseResult{result};
 }
 
@@ -568,9 +622,10 @@ base::Optional<ParseResult> MakeSpecializationDeclaration(
 base::Optional<ParseResult> MakeStructDeclaration(
     ParseResultIterator* child_results) {
   auto name = child_results->NextAs<std::string>();
+  auto methods = child_results->NextAs<std::vector<Declaration*>>();
   auto fields = child_results->NextAs<std::vector<NameAndTypeExpression>>();
-  Declaration* result =
-      MakeNode<StructDeclaration>(std::move(name), std::move(fields));
+  Declaration* result = MakeNode<StructDeclaration>(
+      std::move(name), std::move(methods), std::move(fields));
   return ParseResult{result};
 }
 
@@ -1321,6 +1376,17 @@ struct TorqueGrammar : Grammar {
   Symbol callExpression = {Rule(
       {&identifierExpression, &argumentList, optionalOtherwise}, MakeCall)};
 
+  Symbol callMethodExpression = {
+      Rule({&primaryExpression, Token("."), &identifier, &argumentList,
+            optionalOtherwise},
+           MakeMethodCall)};
+
+  Symbol initializerList = {Rule(
+      {Token("{"), List<Expression*>(expression, Token(",")), Token("}")})};
+
+  Symbol newExpression = {
+      Rule({Token("new"), &type, &initializerList}, MakeNew)};
+
   // Result: Expression*
   Symbol intrinsicCallExpression = {Rule(
       {&intrinsicName, TryOrDefault<TypeList>(&genericSpecializationTypeList),
@@ -1329,7 +1395,9 @@ struct TorqueGrammar : Grammar {
 
   // Result: Expression*
   Symbol primaryExpression = {
+      Rule({&newExpression}),
       Rule({&callExpression}),
+      Rule({&callMethodExpression}),
       Rule({&intrinsicCallExpression}),
       Rule({&locationExpression},
            CastParseResult<LocationExpression*, Expression*>),
@@ -1505,6 +1573,14 @@ struct TorqueGrammar : Grammar {
       Rule({Token(";")}, YieldDefaultValue<base::Optional<Statement*>>)};
 
   // Result: Declaration*
+  Symbol method = {Rule(
+      {CheckIf(Token("transitioning")),
+       Optional<std::string>(Sequence({Token("operator"), &externalString})),
+       &identifier, &parameterListNoVararg, &optionalReturnType,
+       optionalLabelList, &block},
+      MakeMethodDeclaration)};
+
+  // Result: Declaration*
   Symbol declaration = {
       Rule({Token("const"), &identifier, Token(":"), &type, Token("="),
             expression, Token(";")},
@@ -1516,8 +1592,14 @@ struct TorqueGrammar : Grammar {
             Optional<std::string>(Sequence({Token("extends"), &identifier})),
             Optional<std::string>(
                 Sequence({Token("generates"), &externalString})),
-            Token("{"), List<ClassFieldExpression>(&classField), Token("}")},
+            Token("{"), List<Declaration*>(&method),
+            List<ClassFieldExpression>(&classField), Token("}")},
            MakeClassDeclaration),
+      Rule({Token("struct"), &identifier, Token("{"),
+            List<Declaration*>(&method),
+            List<NameAndTypeExpression>(Sequence({&nameAndType, Token(";")})),
+            Token("}")},
+           MakeStructDeclaration),
       Rule({CheckIf(Token("transient")), Token("type"), &identifier,
             Optional<std::string>(Sequence({Token("extends"), &identifier})),
             Optional<std::string>(
@@ -1567,10 +1649,6 @@ struct TorqueGrammar : Grammar {
             &parameterListAllowVararg, &optionalReturnType, optionalLabelList,
             &block},
            MakeSpecializationDeclaration),
-      Rule({Token("struct"), &identifier, Token("{"),
-            List<NameAndTypeExpression>(Sequence({&nameAndType, Token(";")})),
-            Token("}")},
-           MakeStructDeclaration),
       Rule({Token("#include"), &externalString}, MakeCppIncludeDeclaration)};
 
   // Result: Declaration*

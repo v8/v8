@@ -69,6 +69,13 @@ class LocationReference {
     DCHECK(IsTemporary());
     return *temporary_;
   }
+
+  const VisitResult& GetVisitResult() const {
+    if (IsVariableAccess()) return variable();
+    DCHECK(IsTemporary());
+    return temporary();
+  }
+
   // For error reporting.
   const std::string& temporary_description() const {
     DCHECK(IsTemporary());
@@ -230,13 +237,17 @@ class ImplementationVisitor : public FileVisitor {
   void Visit(Declarable* delarable);
   void Visit(TypeAlias* decl);
   VisitResult InlineMacro(Macro* macro,
+                          base::Optional<LocationReference> this_reference,
                           const std::vector<VisitResult>& arguments,
                           const std::vector<Block*> label_blocks);
+  void VisitMacroCommon(Macro* macro);
   void Visit(Macro* macro);
+  void Visit(Method* macro);
   void Visit(Builtin* builtin);
   void Visit(NamespaceConstant* decl);
 
   VisitResult Visit(CallExpression* expr, bool is_tail = false);
+  VisitResult Visit(CallMethodExpression* expr);
   VisitResult Visit(IntrinsicCallExpression* intrinsic);
   VisitResult Visit(LoadObjectFieldExpression* intrinsic);
   VisitResult Visit(StoreObjectFieldExpression* intrinsic);
@@ -254,6 +265,7 @@ class ImplementationVisitor : public FileVisitor {
   VisitResult Visit(AssumeTypeImpossibleExpression* expr);
   VisitResult Visit(TryLabelExpression* expr);
   VisitResult Visit(StatementExpression* expr);
+  VisitResult Visit(NewExpression* expr);
 
   const Type* Visit(ReturnStatement* stmt);
   const Type* Visit(GotoStatement* stmt);
@@ -276,12 +288,19 @@ class ImplementationVisitor : public FileVisitor {
 
   void GenerateImplementation(const std::string& dir, Namespace* nspace);
 
+  struct ConstructorInfo {
+    int super_calls;
+    bool accessed_this;
+  };
+
   DECLARE_CONTEXTUAL_VARIABLE(ValueBindingsManager,
                               BindingsManager<LocalValue>);
   DECLARE_CONTEXTUAL_VARIABLE(LabelBindingsManager,
                               BindingsManager<LocalLabel>);
   DECLARE_CONTEXTUAL_VARIABLE(CurrentCallable, Callable*);
   DECLARE_CONTEXTUAL_VARIABLE(CurrentReturnValue, base::Optional<VisitResult>);
+  DECLARE_CONTEXTUAL_VARIABLE(CurrentConstructorInfo,
+                              base::Optional<ConstructorInfo>);
 
   // A BindingsManagersScope has to be active for local bindings to be created.
   // Shadowing an existing BindingsManagersScope by creating a new one hides all
@@ -376,7 +395,10 @@ class ImplementationVisitor : public FileVisitor {
   base::Optional<Binding<LocalLabel>*> TryLookupLabel(const std::string& name);
   Binding<LocalLabel>* LookupLabel(const std::string& name);
   Block* LookupSimpleLabel(const std::string& name);
-  Callable* LookupCall(const QualifiedName& name, const Arguments& arguments,
+  template <class Container>
+  Callable* LookupCall(const QualifiedName& name,
+                       const Container& declaration_container,
+                       const Arguments& arguments,
                        const TypeVector& specialization_types);
 
   const Type* GetCommonType(const Type* left, const Type* right);
@@ -386,6 +408,17 @@ class ImplementationVisitor : public FileVisitor {
   void GenerateAssignToLocation(const LocationReference& reference,
                                 const VisitResult& assignment_value);
 
+  void AddCallParameter(Callable* callable, VisitResult parameter,
+                        const Type* parameter_type,
+                        std::vector<VisitResult>* converted_arguments,
+                        StackRange* argument_range,
+                        std::vector<std::string>* constexpr_arguments);
+
+  VisitResult GenerateCall(Callable* callable,
+                           base::Optional<LocationReference> this_parameter,
+                           Arguments parameters,
+                           const TypeVector& specialization_types = {},
+                           bool tail_call = false);
   VisitResult GenerateCall(const QualifiedName& callable_name,
                            Arguments parameters,
                            const TypeVector& specialization_types = {},
