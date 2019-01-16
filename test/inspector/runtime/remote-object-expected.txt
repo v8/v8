@@ -1424,6 +1424,18 @@ Running test: testError
     }
 }
 
+Running test: testCustomError
+'class CustomError extends Error {}; a = new CustomError(); delete a.stack; a', returnByValue: false, generatePreview: false
+{
+    result : {
+        className : CustomError
+        description : CustomError
+        objectId : <objectId>
+        subtype : error
+        type : object
+    }
+}
+
 Running test: testProxy
 'new Proxy({}, {})', returnByValue: false, generatePreview: false
 {
