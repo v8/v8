@@ -324,7 +324,11 @@ void PlatformDependentEmbeddedFileWriter::SectionData() {
 }
 
 void PlatformDependentEmbeddedFileWriter::SectionRoData() {
+#if defined(V8_OS_WIN)
+  fprintf(fp_, ".section .rdata\n");
+#else
   fprintf(fp_, ".section .rodata\n");
+#endif
 }
 
 void PlatformDependentEmbeddedFileWriter::DeclareUint32(const char* name,
