@@ -244,6 +244,14 @@ void WasmCode::Validate() const {
 #endif
 }
 
+void WasmCode::MaybePrint(const char* name) const {
+  // Determines whether flags want this code to be printed.
+  if ((FLAG_print_wasm_code && kind() == kFunction) ||
+      (FLAG_print_wasm_stub_code && kind() != kFunction) || FLAG_print_code) {
+    Print(name);
+  }
+}
+
 void WasmCode::Print(const char* name) const {
   StdoutStream os;
   os << "--- WebAssembly code ---\n";
@@ -564,7 +572,7 @@ WasmCode* NativeModule::AddAnonymousCode(Handle<Code> code, WasmCode::Kind kind,
   // made while iterating over the RelocInfo above.
   Assembler::FlushICache(ret->instructions().start(),
                          ret->instructions().size());
-  if (FLAG_print_code || FLAG_print_wasm_code) ret->Print(name);
+  ret->MaybePrint(name);
   ret->Validate();
   return ret;
 }
@@ -615,7 +623,7 @@ WasmCode* NativeModule::AddCode(
   // made while iterating over the RelocInfo above.
   Assembler::FlushICache(ret->instructions().start(),
                          ret->instructions().size());
-  if (FLAG_print_code || FLAG_print_wasm_code) ret->Print();
+  ret->MaybePrint();
   ret->Validate();
   return ret;
 }

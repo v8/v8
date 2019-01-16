@@ -564,7 +564,7 @@ bool NativeModuleDeserializer::ReadCode(uint32_t fn_index, Reader* reader) {
     }
   }
 
-  if (FLAG_print_code || FLAG_print_wasm_code) code->Print();
+  code->MaybePrint();
   code->Validate();
 
   // Finally, flush the icache for that code.
