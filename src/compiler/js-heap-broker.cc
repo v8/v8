@@ -319,6 +319,14 @@ class JSFunctionData : public JSObjectData {
 
   void Serialize(JSHeapBroker* broker);
 
+  void SetSerializedForCompilation(JSHeapBroker* broker) {
+    CHECK(!serialized_for_compilation_);
+    serialized_for_compilation_ = true;
+  }
+  bool serialized_for_compilation() const {
+    return serialized_for_compilation_;
+  }
+
   ContextData* context() const { return context_; }
   NativeContextData* native_context() const { return native_context_; }
   MapData* initial_map() const { return initial_map_; }
@@ -335,6 +343,7 @@ class JSFunctionData : public JSObjectData {
   bool PrototypeRequiresRuntimeLookup_;
 
   bool serialized_ = false;
+  bool serialized_for_compilation_ = false;
 
   ContextData* context_ = nullptr;
   NativeContextData* native_context_ = nullptr;
@@ -2627,6 +2636,16 @@ void JSFunctionRef::Serialize() {
   if (broker()->mode() == JSHeapBroker::kDisabled) return;
   CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
   data()->AsJSFunction()->Serialize(broker());
+}
+
+void JSFunctionRef::SetSerializedForCompilation() {
+  CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
+  data()->AsJSFunction()->SetSerializedForCompilation(broker());
+}
+
+bool JSFunctionRef::serialized_for_compilation() const {
+  CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
+  return data()->AsJSFunction()->serialized_for_compilation();
 }
 
 void JSObjectRef::SerializeObjectCreateMap() {

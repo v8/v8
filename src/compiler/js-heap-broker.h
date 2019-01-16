@@ -234,6 +234,9 @@ class JSFunctionRef : public JSObjectRef {
   bool PrototypeRequiresRuntimeLookup() const;
 
   void Serialize();
+  void SetSerializedForCompilation();
+
+  bool serialized_for_compilation() const;
 
   // The following are available only after calling Serialize().
   ObjectRef prototype() const;

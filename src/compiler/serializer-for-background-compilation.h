@@ -6,60 +6,148 @@
 #define V8_COMPILER_SERIALIZER_FOR_BACKGROUND_COMPILATION_H_
 
 #include "src/handles.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
 
 namespace interpreter {
 class BytecodeArrayIterator;
-}
+class Register;
+}  // namespace interpreter
 
-class FeedbackVector;
-class SharedFunctionInfo;
 class BytecodeArray;
+class FeedbackVector;
+class LookupIterator;
+class NativeContext;
+class ScriptContextTable;
+class SharedFunctionInfo;
 class SourcePositionTableIterator;
 class Zone;
 
 namespace compiler {
 
-#define SUPPORTED_BYTECODE_LIST(V) V(Illegal)
+#define CLEAR_ENVIRONMENT_LIST(V) \
+  V(Abort)                        \
+  V(CallRuntime)                  \
+  V(CallRuntimeForPair)           \
+  V(CreateBlockContext)           \
+  V(CreateFunctionContext)        \
+  V(CreateEvalContext)            \
+  V(Jump)                         \
+  V(JumpConstant)                 \
+  V(JumpIfFalse)                  \
+  V(JumpIfFalseConstant)          \
+  V(JumpIfJSReceiver)             \
+  V(JumpIfJSReceiverConstant)     \
+  V(JumpIfNotNull)                \
+  V(JumpIfNotNullConstant)        \
+  V(JumpIfNotUndefined)           \
+  V(JumpIfNotUndefinedConstant)   \
+  V(JumpIfNull)                   \
+  V(JumpIfNullConstant)           \
+  V(JumpIfToBooleanTrueConstant)  \
+  V(JumpIfToBooleanFalseConstant) \
+  V(JumpIfToBooleanTrue)          \
+  V(JumpIfToBooleanFalse)         \
+  V(JumpIfTrue)                   \
+  V(JumpIfTrueConstant)           \
+  V(JumpIfUndefined)              \
+  V(JumpIfUndefinedConstant)      \
+  V(JumpLoop)                     \
+  V(PushContext)                  \
+  V(PopContext)                   \
+  V(ReThrow)                      \
+  V(StaContextSlot)               \
+  V(StaCurrentContextSlot)        \
+  V(Throw)
+
+#define CLEAR_ACCUMULATOR_LIST(V)   \
+  V(Construct)                      \
+  V(CreateClosure)                  \
+  V(CreateEmptyObjectLiteral)       \
+  V(CreateMappedArguments)          \
+  V(CreateRestParameter)            \
+  V(CreateUnmappedArguments)        \
+  V(LdaContextSlot)                 \
+  V(LdaCurrentContextSlot)          \
+  V(LdaGlobal)                      \
+  V(LdaGlobalInsideTypeof)          \
+  V(LdaImmutableContextSlot)        \
+  V(LdaImmutableCurrentContextSlot) \
+  V(LdaKeyedProperty)               \
+  V(LdaNamedProperty)               \
+  V(LdaNamedPropertyNoFeedback)
+
+#define SUPPORTED_BYTECODE_LIST(V) \
+  V(CallAnyReceiver)               \
+  V(CallNoFeedback)                \
+  V(CallProperty)                  \
+  V(CallProperty0)                 \
+  V(CallProperty1)                 \
+  V(CallProperty2)                 \
+  V(CallUndefinedReceiver)         \
+  V(CallUndefinedReceiver0)        \
+  V(CallUndefinedReceiver1)        \
+  V(CallUndefinedReceiver2)        \
+  V(ExtraWide)                     \
+  V(Illegal)                       \
+  V(LdaConstant)                   \
+  V(LdaNull)                       \
+  V(Ldar)                          \
+  V(LdaSmi)                        \
+  V(LdaUndefined)                  \
+  V(LdaZero)                       \
+  V(Mov)                           \
+  V(Return)                        \
+  V(Star)                          \
+  V(Wide)                          \
+  CLEAR_ENVIRONMENT_LIST(V)        \
+  CLEAR_ACCUMULATOR_LIST(V)
 
 class JSHeapBroker;
+typedef ZoneVector<Handle<Object>> Hints;
+typedef ZoneVector<Hints> HintsVector;
 
 // The SerializerForBackgroundCompilation makes sure that the relevant function
 // data such as bytecode, SharedFunctionInfo and FeedbackVector, used by later
 // optimizations in the compiler, is copied to the heap broker.
 class SerializerForBackgroundCompilation {
  public:
-  explicit SerializerForBackgroundCompilation(JSHeapBroker* broker, Zone* zone,
-                                              Handle<JSFunction> closure);
+  class Environment;
 
-  void Run();
+  SerializerForBackgroundCompilation(JSHeapBroker* broker, Zone* zone,
+                                     Handle<JSFunction> closure);
+  SerializerForBackgroundCompilation(JSHeapBroker* broker, Zone* zone,
+                                     Handle<JSFunction> closure,
+                                     const Hints& receiver,
+                                     const HintsVector& arguments);
+
+  Hints Run();
 
   Zone* zone() const { return zone_; }
 
-  const Handle<BytecodeArray>& bytecode_array() const {
-    return bytecode_array_;
-  }
-
  private:
-  class Environment;
-
   void TraverseBytecode();
 
-#define DECLARE_VISIT_BYTECODE(name, ...) void Visit##name();
+#define DECLARE_VISIT_BYTECODE(name, ...) \
+  void Visit##name(interpreter::BytecodeArrayIterator* iterator);
   SUPPORTED_BYTECODE_LIST(DECLARE_VISIT_BYTECODE)
 #undef DECLARE_VISIT_BYTECODE
 
-  JSHeapBroker* broker() { return broker_; }
-  Environment* environment() { return environment_; }
+  JSHeapBroker* broker() const { return broker_; }
+  Environment* environment() const { return environment_; }
+
+  void ProcessCall(const Hints& callee, const Hints& receiver,
+                   const HintsVector& arguments);
+  void ProcessCallVarArgs(interpreter::BytecodeArrayIterator* iterator,
+                          ConvertReceiverMode receiver_mode);
 
   JSHeapBroker* broker_;
   Zone* zone_;
   Environment* environment_;
 
   Handle<JSFunction> closure_;
-  Handle<BytecodeArray> bytecode_array_;
 };
 
 }  // namespace compiler
