@@ -939,8 +939,11 @@ BUILTIN(DatePrototypeSetYear) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, year,
                                      Object::ToNumber(isolate, year));
   double m = 0.0, dt = 1.0, y = year->Number();
-  if (0.0 <= y && y <= 99.0) {
-    y = 1900.0 + DoubleToInteger(y);
+  if (!std::isnan(y)) {
+    double y_int = DoubleToInteger(y);
+    if (0.0 <= y_int && y_int <= 99.0) {
+      y = 1900.0 + y_int;
+    }
   }
   int time_within_day = 0;
   if (!std::isnan(date->value()->Number())) {
