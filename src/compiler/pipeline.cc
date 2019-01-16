@@ -513,12 +513,8 @@ class PipelineImpl final {
   explicit PipelineImpl(PipelineData* data) : data_(data) {}
 
   // Helpers for executing pipeline phases.
-  template <typename Phase>
-  void Run();
-  template <typename Phase, typename Arg0>
-  void Run(Arg0 arg_0);
-  template <typename Phase, typename Arg0, typename Arg1>
-  void Run(Arg0 arg_0, Arg1 arg_1);
+  template <typename Phase, typename... Args>
+  void Run(Args&&... args);
 
   // Step A. Run the graph creation and initial optimization passes.
   bool CreateGraph();
@@ -1002,25 +998,11 @@ void PipelineCompilationJob::RegisterWeakObjectsInOptimizedCode(
   code->set_can_have_weak_objects(true);
 }
 
-template <typename Phase>
-void PipelineImpl::Run() {
+template <typename Phase, typename... Args>
+void PipelineImpl::Run(Args&&... args) {
   PipelineRunScope scope(this->data_, Phase::phase_name());
   Phase phase;
-  phase.Run(this->data_, scope.zone());
-}
-
-template <typename Phase, typename Arg0>
-void PipelineImpl::Run(Arg0 arg_0) {
-  PipelineRunScope scope(this->data_, Phase::phase_name());
-  Phase phase;
-  phase.Run(this->data_, scope.zone(), arg_0);
-}
-
-template <typename Phase, typename Arg0, typename Arg1>
-void PipelineImpl::Run(Arg0 arg_0, Arg1 arg_1) {
-  PipelineRunScope scope(this->data_, Phase::phase_name());
-  Phase phase;
-  phase.Run(this->data_, scope.zone(), arg_0, arg_1);
+  phase.Run(this->data_, scope.zone(), std::forward<Args>(args)...);
 }
 
 struct GraphBuilderPhase {
