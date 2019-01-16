@@ -576,29 +576,6 @@ void DeclarationScope::HoistSloppyBlockFunctions(AstNodeFactory* factory) {
   }
 }
 
-void DeclarationScope::AttachOuterScopeInfo(ParseInfo* info, Isolate* isolate) {
-  DCHECK(scope_info_.is_null());
-  Handle<ScopeInfo> outer_scope_info;
-  if (info->maybe_outer_scope_info().ToHandle(&outer_scope_info)) {
-    // If we have a scope info we will potentially need to lookup variable names
-    // on the scope info as internalized strings, so make sure ast_value_factory
-    // is internalized.
-    info->ast_value_factory()->Internalize(isolate);
-    if (outer_scope()) {
-      DeclarationScope* script_scope = new (info->zone())
-          DeclarationScope(info->zone(), info->ast_value_factory());
-      info->set_script_scope(script_scope);
-      ReplaceOuterScope(Scope::DeserializeScopeChain(
-          isolate, info->zone(), *outer_scope_info, script_scope,
-          info->ast_value_factory(),
-          Scope::DeserializationMode::kIncludingVariables));
-    } else {
-      DCHECK_EQ(outer_scope_info->scope_type(), SCRIPT_SCOPE);
-      SetScriptScopeInfo(outer_scope_info);
-    }
-  }
-}
-
 bool DeclarationScope::Analyze(ParseInfo* info) {
   RuntimeCallTimerScope runtimeTimer(
       info->runtime_call_stats(),
@@ -1159,22 +1136,30 @@ Declaration* Scope::CheckConflictingVarDeclarations() {
     // Lexical vs lexical conflicts within the same scope have already been
     // captured in Parser::Declare. The only conflicts we still need to check
     // are lexical vs nested var.
+    Scope* current = nullptr;
     if (decl->IsVariableDeclaration() &&
         decl->AsVariableDeclaration()->AsNested() != nullptr) {
-      DCHECK(decl->var()->mode() == VariableMode::kVar ||
-             decl->var()->mode() == VariableMode::kDynamic);
-      Scope* current = decl->AsVariableDeclaration()->AsNested()->scope();
-      // Iterate through all scopes until and including the declaration scope.
-      while (true) {
-        // There is a conflict if there exists a non-VAR binding.
-        Variable* other_var =
-            current->variables_.Lookup(decl->var()->raw_name());
-        if (other_var != nullptr && IsLexicalVariableMode(other_var->mode())) {
-          return decl;
-        }
-        if (current->is_declaration_scope()) break;
-        current = current->outer_scope();
+      current = decl->AsVariableDeclaration()->AsNested()->scope();
+    } else if (is_eval_scope() && is_sloppy(language_mode())) {
+      if (IsLexicalVariableMode(decl->var()->mode())) continue;
+      current = outer_scope_;
+    }
+    if (current == nullptr) continue;
+    DCHECK(decl->var()->mode() == VariableMode::kVar ||
+           decl->var()->mode() == VariableMode::kDynamic);
+    // Iterate through all scopes until and including the declaration scope.
+    while (true) {
+      // There is a conflict if there exists a non-VAR binding.
+      Variable* other_var =
+          current->LookupInScopeOrScopeInfo(decl->var()->raw_name());
+      if (other_var != nullptr && IsLexicalVariableMode(other_var->mode())) {
+        return decl;
       }
+      if (current->is_declaration_scope() &&
+          !(current->is_eval_scope() && is_sloppy(current->language_mode()))) {
+        break;
+      }
+      current = current->outer_scope();
     }
   }
   return nullptr;

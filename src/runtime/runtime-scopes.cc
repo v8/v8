@@ -224,8 +224,7 @@ Object DeclareEvalHelper(Isolate* isolate, Handle<String> name,
   // context, or a declaration block scope. Since this is called from eval, the
   // context passed is the context of the caller, which may be some nested
   // context and not the declaration context.
-  Handle<Context> context_arg(isolate->context(), isolate);
-  Handle<Context> context(context_arg->declaration_context(), isolate);
+  Handle<Context> context(isolate->context()->declaration_context(), isolate);
 
   DCHECK(context->IsFunctionContext() || context->IsNativeContext() ||
          context->IsScriptContext() || context->IsEvalContext() ||
@@ -240,23 +239,6 @@ Object DeclareEvalHelper(Isolate* isolate, Handle<String> name,
   PropertyAttributes attributes;
   InitializationFlag init_flag;
   VariableMode mode;
-
-  // Check for a conflict with a lexically scoped variable
-  // TODO(verwaest): We should be able to do this at compile-time of the eval
-  // and drop these flags.
-  const ContextLookupFlags lookup_flags = static_cast<ContextLookupFlags>(
-      FOLLOW_CONTEXT_CHAIN | STOP_AT_DECLARATION_SCOPE | SKIP_WITH_CONTEXT);
-  Context::Lookup(context_arg, name, lookup_flags, &index, &attributes,
-                  &init_flag, &mode);
-  if (attributes != ABSENT && IsLexicalVariableMode(mode)) {
-    // ES#sec-evaldeclarationinstantiation 5.a.i.1:
-    // If varEnvRec.HasLexicalDeclaration(name) is true, throw a SyntaxError
-    // exception.
-    // ES#sec-evaldeclarationinstantiation 5.d.ii.2.a.i:
-    // Throw a SyntaxError exception.
-    return ThrowRedeclarationError(isolate, name,
-                                   RedeclarationType::kSyntaxError);
-  }
 
   Handle<Object> holder =
       Context::Lookup(context, name, DONT_FOLLOW_CHAINS, &index, &attributes,
@@ -273,9 +255,9 @@ Object DeclareEvalHelper(Isolate* isolate, Handle<String> name,
                          value, NONE, is_var, is_function,
                          RedeclarationType::kTypeError);
   }
-  if (context_arg->extension()->IsJSGlobalObject()) {
-    Handle<JSGlobalObject> global(
-        JSGlobalObject::cast(context_arg->extension()), isolate);
+  if (context->extension()->IsJSGlobalObject()) {
+    Handle<JSGlobalObject> global(JSGlobalObject::cast(context->extension()),
+                                  isolate);
     return DeclareGlobal(isolate, global, name, value, NONE, is_var,
                          is_function, RedeclarationType::kTypeError);
   } else if (context->IsScriptContext()) {
@@ -303,7 +285,7 @@ Object DeclareEvalHelper(Isolate* isolate, Handle<String> name,
 
   } else if (context->has_extension()) {
     object = handle(context->extension_object(), isolate);
-    DCHECK(object->IsJSContextExtensionObject() || object->IsJSGlobalObject());
+    DCHECK(object->IsJSContextExtensionObject());
   } else {
     // Sloppy varblock and function contexts might not have an extension object
     // yet. Sloppy eval will never have an extension object, as vars are hoisted

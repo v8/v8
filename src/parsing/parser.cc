@@ -442,14 +442,15 @@ void Parser::InitializeEmptyScopeChain(ParseInfo* info) {
 
 void Parser::DeserializeScopeChain(
     Isolate* isolate, ParseInfo* info,
-    MaybeHandle<ScopeInfo> maybe_outer_scope_info) {
+    MaybeHandle<ScopeInfo> maybe_outer_scope_info,
+    Scope::DeserializationMode mode) {
   InitializeEmptyScopeChain(info);
   Handle<ScopeInfo> outer_scope_info;
   if (maybe_outer_scope_info.ToHandle(&outer_scope_info)) {
     DCHECK(ThreadId::Current().Equals(isolate->thread_id()));
     original_scope_ = Scope::DeserializeScopeChain(
         isolate, zone(), *outer_scope_info, info->script_scope(),
-        ast_value_factory(), Scope::DeserializationMode::kScopesOnly);
+        ast_value_factory(), mode);
   }
 }
 
@@ -492,7 +493,8 @@ FunctionLiteral* Parser::ParseProgram(Isolate* isolate, ParseInfo* info) {
   if (V8_UNLIKELY(FLAG_log_function_events)) timer.Start();
 
   // Initialize parser state.
-  DeserializeScopeChain(isolate, info, info->maybe_outer_scope_info());
+  DeserializeScopeChain(isolate, info, info->maybe_outer_scope_info(),
+                        Scope::DeserializationMode::kIncludingVariables);
 
   scanner_.Initialize();
   if (FLAG_harmony_hashbang && !info->is_eval()) {
@@ -596,6 +598,12 @@ FunctionLiteral* Parser::DoParseProgram(Isolate* isolate, ParseInfo* info) {
       // unchanged if the property already exists.
       InsertSloppyBlockFunctionVarBindings(scope);
     }
+    // Internalize the ast strings in the case of eval so we can check for
+    // conflicting var declarations with outer scope-info-backed scopes.
+    if (info->is_eval()) {
+      DCHECK(parsing_on_main_thread_);
+      info->ast_value_factory()->Internalize(isolate);
+    }
     CheckConflictingVarDeclarations(scope);
 
     if (info->parse_restriction() == ONLY_SINGLE_FUNCTION_LITERAL) {
@@ -677,7 +685,8 @@ FunctionLiteral* Parser::ParseFunction(Isolate* isolate, ParseInfo* info,
   base::ElapsedTimer timer;
   if (V8_UNLIKELY(FLAG_log_function_events)) timer.Start();
 
-  DeserializeScopeChain(isolate, info, info->maybe_outer_scope_info());
+  DeserializeScopeChain(isolate, info, info->maybe_outer_scope_info(),
+                        Scope::DeserializationMode::kIncludingVariables);
   DCHECK_EQ(factory()->zone(), info->zone());
 
   // Initialize parser state.

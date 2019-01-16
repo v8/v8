@@ -194,7 +194,9 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   // their corresponding scope infos. Therefore, looking up variables in the
   // deserialized scopes is not possible.
   void DeserializeScopeChain(Isolate* isolate, ParseInfo* info,
-                             MaybeHandle<ScopeInfo> maybe_outer_scope_info);
+                             MaybeHandle<ScopeInfo> maybe_outer_scope_info,
+                             Scope::DeserializationMode mode =
+                                 Scope::DeserializationMode::kScopesOnly);
 
   // Move statistics to Isolate
   void UpdateStatistics(Isolate* isolate, Handle<Script> script);

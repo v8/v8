@@ -205,8 +205,7 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
     // 1. Check global objects, subjects of with, and extension objects.
     DCHECK_IMPLIES(context->IsEvalContext(),
                    context->extension()->IsTheHole(isolate));
-    if ((context->IsNativeContext() ||
-         (context->IsWithContext() && ((flags & SKIP_WITH_CONTEXT) == 0)) ||
+    if ((context->IsNativeContext() || context->IsWithContext() ||
          context->IsFunctionContext() || context->IsBlockContext()) &&
         !context->extension_receiver().is_null()) {
       Handle<JSReceiver> object(context->extension_receiver(), isolate);
@@ -310,8 +309,7 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
       // Check the slot corresponding to the intermediate context holding
       // only the function name variable. It's conceptually (and spec-wise)
       // in an outer scope of the function's declaration scope.
-      if (follow_context_chain && (flags & STOP_AT_DECLARATION_SCOPE) == 0 &&
-          context->IsFunctionContext()) {
+      if (follow_context_chain && context->IsFunctionContext()) {
         int function_index = scope_info->FunctionContextSlotIndex(*name);
         if (function_index >= 0) {
           if (FLAG_trace_contexts) {
@@ -382,20 +380,16 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
     }
 
     // 3. Prepare to continue with the previous (next outermost) context.
-    if (context->IsNativeContext() ||
-        ((flags & STOP_AT_DECLARATION_SCOPE) != 0 &&
-         context->is_declaration_context())) {
-      follow_context_chain = false;
-    } else {
-      do {
-        context = Handle<Context>(context->previous(), isolate);
-        // If we come across a whitelist context, and the name is not
-        // whitelisted, then only consider with, script, module or native
-        // contexts.
-      } while (failed_whitelist && !context->IsScriptContext() &&
-               !context->IsNativeContext() && !context->IsWithContext() &&
-               !context->IsModuleContext());
-    }
+    if (context->IsNativeContext()) break;
+
+    do {
+      context = Handle<Context>(context->previous(), isolate);
+      // If we come across a whitelist context, and the name is not
+      // whitelisted, then only consider with, script, module or native
+      // contexts.
+    } while (failed_whitelist && !context->IsScriptContext() &&
+             !context->IsNativeContext() && !context->IsWithContext() &&
+             !context->IsModuleContext());
   } while (follow_context_chain);
 
   if (FLAG_trace_contexts) {

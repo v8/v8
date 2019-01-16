@@ -934,10 +934,6 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
     return sloppy_block_function_map_;
   }
 
-  // Replaces the outer scope with the outer_scope_info in |info| if there is
-  // one.
-  void AttachOuterScopeInfo(ParseInfo* info, Isolate* isolate);
-
   // Compute top scope and allocate variables. For lazy compilation the top
   // scope only contains the single lazily compiled function, so this
   // doesn't re-allocate variables repeatedly.
