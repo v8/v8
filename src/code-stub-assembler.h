@@ -824,7 +824,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   }
 
   // Tag a smi and store it.
-  Node* StoreAndTagSmi(Node* base, int offset, Node* value);
+  void StoreAndTagSmi(Node* base, int offset, Node* value);
 
   // Load the floating point value of a HeapNumber.
   TNode<Float64T> LoadHeapNumberValue(SloppyTNode<HeapNumber> object);
@@ -1185,28 +1185,27 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void StoreMutableHeapNumberValue(SloppyTNode<MutableHeapNumber> object,
                                    SloppyTNode<Float64T> value);
   // Store a field to an object on the heap.
-  Node* StoreObjectField(Node* object, int offset, Node* value);
-  Node* StoreObjectField(Node* object, Node* offset, Node* value);
-  Node* StoreObjectFieldNoWriteBarrier(
+  void StoreObjectField(Node* object, int offset, Node* value);
+  void StoreObjectField(Node* object, Node* offset, Node* value);
+  void StoreObjectFieldNoWriteBarrier(
       Node* object, int offset, Node* value,
       MachineRepresentation rep = MachineRepresentation::kTagged);
-  Node* StoreObjectFieldNoWriteBarrier(
+  void StoreObjectFieldNoWriteBarrier(
       Node* object, Node* offset, Node* value,
       MachineRepresentation rep = MachineRepresentation::kTagged);
 
   template <class T = Object>
-  TNode<T> StoreObjectFieldNoWriteBarrier(TNode<HeapObject> object,
-                                          TNode<IntPtrT> offset,
-                                          TNode<T> value) {
-    return UncheckedCast<T>(StoreObjectFieldNoWriteBarrier(
-        object, offset, value, MachineRepresentationOf<T>::value));
+  void StoreObjectFieldNoWriteBarrier(TNode<HeapObject> object,
+                                      TNode<IntPtrT> offset, TNode<T> value) {
+    StoreObjectFieldNoWriteBarrier(object, offset, value,
+                                   MachineRepresentationOf<T>::value);
   }
 
   // Store the Map of an HeapObject.
-  Node* StoreMap(Node* object, Node* map);
-  Node* StoreMapNoWriteBarrier(Node* object, RootIndex map_root_index);
-  Node* StoreMapNoWriteBarrier(Node* object, Node* map);
-  Node* StoreObjectFieldRoot(Node* object, int offset, RootIndex root);
+  void StoreMap(Node* object, Node* map);
+  void StoreMapNoWriteBarrier(Node* object, RootIndex map_root_index);
+  void StoreMapNoWriteBarrier(Node* object, Node* map);
+  void StoreObjectFieldRoot(Node* object, int offset, RootIndex root);
   // Store an array element to a FixedArray.
   void StoreFixedArrayElement(
       TNode<FixedArray> object, int index, SloppyTNode<Object> value,
@@ -1220,8 +1219,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                   SKIP_WRITE_BARRIER);
   }
 
-  Node* StoreJSArrayLength(TNode<JSArray> array, TNode<Smi> length);
-  Node* StoreElements(TNode<Object> object, TNode<FixedArrayBase> elements);
+  void StoreJSArrayLength(TNode<JSArray> array, TNode<Smi> length);
+  void StoreElements(TNode<Object> object, TNode<FixedArrayBase> elements);
 
   void StoreFixedArrayOrPropertyArrayElement(
       Node* array, Node* index, Node* value,
@@ -1276,7 +1275,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     StoreFixedDoubleArrayHole(array, index, SMI_PARAMETERS);
   }
 
-  Node* StoreFeedbackVectorSlot(
+  void StoreFeedbackVectorSlot(
       Node* object, Node* index, Node* value,
       WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER,
       int additional_offset = 0,
@@ -1313,8 +1312,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   Node* LoadCellValue(Node* cell);
 
-  Node* StoreCellValue(Node* cell, Node* value,
-                       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  void StoreCellValue(Node* cell, Node* value,
+                      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // Allocate a HeapNumber without initializing its value.
   TNode<HeapNumber> AllocateHeapNumber();

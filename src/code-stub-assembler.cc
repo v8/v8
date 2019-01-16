@@ -1412,7 +1412,7 @@ TNode<Int32T> CodeStubAssembler::LoadAndUntagToWord32Root(
   }
 }
 
-Node* CodeStubAssembler::StoreAndTagSmi(Node* base, int offset, Node* value) {
+void CodeStubAssembler::StoreAndTagSmi(Node* base, int offset, Node* value) {
   if (SmiValuesAre32Bits()) {
     int zero_offset = offset + 4;
     int payload_offset = offset;
@@ -1421,12 +1421,12 @@ Node* CodeStubAssembler::StoreAndTagSmi(Node* base, int offset, Node* value) {
 #endif
     StoreNoWriteBarrier(MachineRepresentation::kWord32, base,
                         IntPtrConstant(zero_offset), Int32Constant(0));
-    return StoreNoWriteBarrier(MachineRepresentation::kWord32, base,
-                               IntPtrConstant(payload_offset),
-                               TruncateInt64ToInt32(value));
+    StoreNoWriteBarrier(MachineRepresentation::kWord32, base,
+                        IntPtrConstant(payload_offset),
+                        TruncateInt64ToInt32(value));
   } else {
-    return StoreNoWriteBarrier(MachineRepresentation::kTaggedSigned, base,
-                               IntPtrConstant(offset), SmiTag(value));
+    StoreNoWriteBarrier(MachineRepresentation::kTaggedSigned, base,
+                        IntPtrConstant(offset), SmiTag(value));
   }
 }
 
@@ -2673,58 +2673,59 @@ void CodeStubAssembler::StoreMutableHeapNumberValue(
                                  MachineRepresentation::kFloat64);
 }
 
-Node* CodeStubAssembler::StoreObjectField(
-    Node* object, int offset, Node* value) {
+void CodeStubAssembler::StoreObjectField(Node* object, int offset,
+                                         Node* value) {
   DCHECK_NE(HeapObject::kMapOffset, offset);  // Use StoreMap instead.
-  return Store(object, IntPtrConstant(offset - kHeapObjectTag), value);
+
+  OptimizedStoreField(MachineRepresentation::kTagged,
+                      UncheckedCast<HeapObject>(object), offset, value,
+                      WriteBarrierKind::kFullWriteBarrier);
 }
 
-Node* CodeStubAssembler::StoreObjectField(Node* object, Node* offset,
-                                          Node* value) {
+void CodeStubAssembler::StoreObjectField(Node* object, Node* offset,
+                                         Node* value) {
   int const_offset;
   if (ToInt32Constant(offset, const_offset)) {
-    return StoreObjectField(object, const_offset, value);
+    StoreObjectField(object, const_offset, value);
+  } else {
+    Store(object, IntPtrSub(offset, IntPtrConstant(kHeapObjectTag)), value);
   }
-  return Store(object, IntPtrSub(offset, IntPtrConstant(kHeapObjectTag)),
-               value);
 }
 
-Node* CodeStubAssembler::StoreObjectFieldNoWriteBarrier(
+void CodeStubAssembler::StoreObjectFieldNoWriteBarrier(
     Node* object, int offset, Node* value, MachineRepresentation rep) {
-  return StoreNoWriteBarrier(rep, object,
-                             IntPtrConstant(offset - kHeapObjectTag), value);
+  OptimizedStoreField(rep, UncheckedCast<HeapObject>(object), offset, value,
+                      WriteBarrierKind::kNoWriteBarrier);
 }
 
-Node* CodeStubAssembler::StoreObjectFieldNoWriteBarrier(
+void CodeStubAssembler::StoreObjectFieldNoWriteBarrier(
     Node* object, Node* offset, Node* value, MachineRepresentation rep) {
   int const_offset;
   if (ToInt32Constant(offset, const_offset)) {
     return StoreObjectFieldNoWriteBarrier(object, const_offset, value, rep);
   }
-  return StoreNoWriteBarrier(
-      rep, object, IntPtrSub(offset, IntPtrConstant(kHeapObjectTag)), value);
+  StoreNoWriteBarrier(rep, object,
+                      IntPtrSub(offset, IntPtrConstant(kHeapObjectTag)), value);
 }
 
-Node* CodeStubAssembler::StoreMap(Node* object, Node* map) {
+void CodeStubAssembler::StoreMap(Node* object, Node* map) {
+  OptimizedStoreMap(UncheckedCast<HeapObject>(object), CAST(map));
+}
+
+void CodeStubAssembler::StoreMapNoWriteBarrier(Node* object,
+                                               RootIndex map_root_index) {
+  StoreMapNoWriteBarrier(object, LoadRoot(map_root_index));
+}
+
+void CodeStubAssembler::StoreMapNoWriteBarrier(Node* object, Node* map) {
   CSA_SLOW_ASSERT(this, IsMap(map));
-  return StoreWithMapWriteBarrier(
-      object, IntPtrConstant(HeapObject::kMapOffset - kHeapObjectTag), map);
+  OptimizedStoreField(MachineRepresentation::kTaggedPointer,
+                      UncheckedCast<HeapObject>(object), HeapObject::kMapOffset,
+                      map, WriteBarrierKind::kNoWriteBarrier);
 }
 
-Node* CodeStubAssembler::StoreMapNoWriteBarrier(Node* object,
-                                                RootIndex map_root_index) {
-  return StoreMapNoWriteBarrier(object, LoadRoot(map_root_index));
-}
-
-Node* CodeStubAssembler::StoreMapNoWriteBarrier(Node* object, Node* map) {
-  CSA_SLOW_ASSERT(this, IsMap(map));
-  return StoreNoWriteBarrier(
-      MachineRepresentation::kTagged, object,
-      IntPtrConstant(HeapObject::kMapOffset - kHeapObjectTag), map);
-}
-
-Node* CodeStubAssembler::StoreObjectFieldRoot(Node* object, int offset,
-                                              RootIndex root_index) {
+void CodeStubAssembler::StoreObjectFieldRoot(Node* object, int offset,
+                                             RootIndex root_index) {
   if (RootsTable::IsImmortalImmovable(root_index)) {
     return StoreObjectFieldNoWriteBarrier(object, offset, LoadRoot(root_index));
   } else {
@@ -2732,14 +2733,14 @@ Node* CodeStubAssembler::StoreObjectFieldRoot(Node* object, int offset,
   }
 }
 
-Node* CodeStubAssembler::StoreJSArrayLength(TNode<JSArray> array,
-                                            TNode<Smi> length) {
-  return StoreObjectFieldNoWriteBarrier(array, JSArray::kLengthOffset, length);
+void CodeStubAssembler::StoreJSArrayLength(TNode<JSArray> array,
+                                           TNode<Smi> length) {
+  StoreObjectFieldNoWriteBarrier(array, JSArray::kLengthOffset, length);
 }
 
-Node* CodeStubAssembler::StoreElements(TNode<Object> object,
-                                       TNode<FixedArrayBase> elements) {
-  return StoreObjectField(object, JSObject::kElementsOffset, elements);
+void CodeStubAssembler::StoreElements(TNode<Object> object,
+                                      TNode<FixedArrayBase> elements) {
+  StoreObjectField(object, JSObject::kElementsOffset, elements);
 }
 
 void CodeStubAssembler::StoreFixedArrayOrPropertyArrayElement(
@@ -2800,12 +2801,12 @@ void CodeStubAssembler::StoreFixedDoubleArrayElement(
   StoreNoWriteBarrier(rep, object, offset, value);
 }
 
-Node* CodeStubAssembler::StoreFeedbackVectorSlot(Node* object,
-                                                 Node* slot_index_node,
-                                                 Node* value,
-                                                 WriteBarrierMode barrier_mode,
-                                                 int additional_offset,
-                                                 ParameterMode parameter_mode) {
+void CodeStubAssembler::StoreFeedbackVectorSlot(Node* object,
+                                                Node* slot_index_node,
+                                                Node* value,
+                                                WriteBarrierMode barrier_mode,
+                                                int additional_offset,
+                                                ParameterMode parameter_mode) {
   CSA_SLOW_ASSERT(this, IsFeedbackVector(object));
   CSA_SLOW_ASSERT(this, MatchesParameterMode(slot_index_node, parameter_mode));
   DCHECK(IsAligned(additional_offset, kTaggedSize));
@@ -2820,10 +2821,9 @@ Node* CodeStubAssembler::StoreFeedbackVectorSlot(Node* object,
              IsOffsetInBounds(offset, LoadFeedbackVectorLength(CAST(object)),
                               FeedbackVector::kHeaderSize));
   if (barrier_mode == SKIP_WRITE_BARRIER) {
-    return StoreNoWriteBarrier(MachineRepresentation::kTagged, object, offset,
-                               value);
+    StoreNoWriteBarrier(MachineRepresentation::kTagged, object, offset, value);
   } else {
-    return Store(object, offset, value);
+    Store(object, offset, value);
   }
 }
 
@@ -2993,15 +2993,15 @@ Node* CodeStubAssembler::LoadCellValue(Node* cell) {
   return LoadObjectField(cell, Cell::kValueOffset);
 }
 
-Node* CodeStubAssembler::StoreCellValue(Node* cell, Node* value,
-                                        WriteBarrierMode mode) {
+void CodeStubAssembler::StoreCellValue(Node* cell, Node* value,
+                                       WriteBarrierMode mode) {
   CSA_SLOW_ASSERT(this, HasInstanceType(cell, CELL_TYPE));
   DCHECK(mode == SKIP_WRITE_BARRIER || mode == UPDATE_WRITE_BARRIER);
 
   if (mode == UPDATE_WRITE_BARRIER) {
-    return StoreObjectField(cell, Cell::kValueOffset, value);
+    StoreObjectField(cell, Cell::kValueOffset, value);
   } else {
-    return StoreObjectFieldNoWriteBarrier(cell, Cell::kValueOffset, value);
+    StoreObjectFieldNoWriteBarrier(cell, Cell::kValueOffset, value);
   }
 }
 

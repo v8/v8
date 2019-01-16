@@ -920,10 +920,16 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   // Store value to raw memory location.
   Node* Store(Node* base, Node* value);
   Node* Store(Node* base, Node* offset, Node* value);
-  Node* StoreWithMapWriteBarrier(Node* base, Node* offset, Node* value);
   Node* StoreNoWriteBarrier(MachineRepresentation rep, Node* base, Node* value);
   Node* StoreNoWriteBarrier(MachineRepresentation rep, Node* base, Node* offset,
                             Node* value);
+  // Optimized memory operations that map to Turbofan simplified nodes.
+  TNode<HeapObject> OptimizedAllocate(TNode<IntPtrT> size,
+                                      PretenureFlag pretenure);
+  void OptimizedStoreField(MachineRepresentation rep, TNode<HeapObject> object,
+                           int offset, Node* value,
+                           WriteBarrierKind write_barrier);
+  void OptimizedStoreMap(TNode<HeapObject> object, TNode<Map>);
   // {value_high} is used for 64-bit stores on 32-bit platforms, must be
   // nullptr in other cases.
   Node* AtomicStore(MachineRepresentation rep, Node* base, Node* offset,
@@ -1341,9 +1347,6 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   // Exception handling support.
   void GotoIfException(Node* node, Label* if_exception,
                        Variable* exception_var = nullptr);
-
-  TNode<HeapObject> OptimizedAllocate(TNode<IntPtrT> size,
-                                      PretenureFlag pretenure);
 
   // Helpers which delegate to RawMachineAssembler.
   Factory* factory() const;

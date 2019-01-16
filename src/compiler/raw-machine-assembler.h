@@ -6,6 +6,7 @@
 #define V8_COMPILER_RAW_MACHINE_ASSEMBLER_H_
 
 #include "src/assembler.h"
+#include "src/compiler/access-builder.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/linkage.h"
@@ -144,6 +145,17 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
               WriteBarrierKind write_barrier) {
     return AddNode(machine()->Store(StoreRepresentation(rep, write_barrier)),
                    base, index, value);
+  }
+  void OptimizedStoreField(MachineRepresentation rep, Node* object, int offset,
+                           Node* value, WriteBarrierKind write_barrier) {
+    AddNode(simplified()->StoreField(FieldAccess(
+                BaseTaggedness::kTaggedBase, offset, MaybeHandle<Name>(),
+                MaybeHandle<Map>(), Type::Any(),
+                MachineType::TypeForRepresentation(rep), write_barrier)),
+            object, value);
+  }
+  void OptimizedStoreMap(Node* object, Node* value) {
+    AddNode(simplified()->StoreField(AccessBuilder::ForMap()), object, value);
   }
   Node* Retain(Node* value) { return AddNode(common()->Retain(), value); }
 
