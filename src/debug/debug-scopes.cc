@@ -605,7 +605,12 @@ bool ScopeIterator::VisitContextLocals(const Visitor& visitor,
 
 bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode) const {
   for (Variable* var : *current_scope_->locals()) {
-    if (!var->is_this() && ScopeInfo::VariableIsSynthetic(*var->name())) {
+    if (var->is_this()) {
+      // Only collect "this" for DebugEvaluate. The debugger will manually add
+      // "this" in a different way, and if we'd add it here as well, it shows up
+      // twice.
+      if (mode == Mode::ALL) continue;
+    } else if (ScopeInfo::VariableIsSynthetic(*var->name())) {
       continue;
     }
 
@@ -618,8 +623,6 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode) const {
 
       case VariableLocation::UNALLOCATED:
         if (!var->is_this()) continue;
-        // No idea why we only add it sometimes.
-        if (mode == Mode::ALL) continue;
         // No idea why this diverges...
         value = frame_inspector_->GetReceiver();
         break;
@@ -681,8 +684,6 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode) const {
 
       case VariableLocation::CONTEXT:
         if (mode == Mode::STACK) continue;
-        // TODO(verwaest): Why don't we want to show it if it's there?...
-        if (var->is_this()) continue;
         DCHECK(var->IsContextSlot());
         value = handle(context_->get(index), isolate_);
         // Reflect variables under TDZ as undeclared in scope object.
