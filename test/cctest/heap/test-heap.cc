@@ -190,7 +190,7 @@ HEAP_TEST(TestNewSpaceRefsInCopiedCode) {
   CHECK(Heap::InNewSpace(*value));
 
   i::byte buffer[i::Assembler::kMinimalBufferSize];
-  MacroAssembler masm(isolate, buffer, sizeof(buffer),
+  MacroAssembler masm(isolate, buffer, int{sizeof(buffer)},
                       v8::internal::CodeObjectRequired::kYes);
   // Add a new-space reference to the code.
   masm.Push(value);
@@ -4217,7 +4217,7 @@ TEST(NextCodeLinkInCodeDataContainerIsCleared) {
 
 static Handle<Code> DummyOptimizedCode(Isolate* isolate) {
   i::byte buffer[i::Assembler::kMinimalBufferSize];
-  MacroAssembler masm(isolate, buffer, sizeof(buffer),
+  MacroAssembler masm(isolate, buffer, int{sizeof(buffer)},
                       v8::internal::CodeObjectRequired::kYes);
   CodeDesc desc;
   masm.Push(isolate->factory()->undefined_value());

@@ -158,7 +158,7 @@ class RegExpMacroAssemblerX64: public NativeRegExpMacroAssembler {
   static const int kRegisterZero = kStringStartMinusOne - kSystemPointerSize;
 
   // Initial size of code buffer.
-  static const size_t kRegExpCodeSize = 1024;
+  static const int kRegExpCodeSize = 1024;
 
   // Load a number of characters at the given offset from the
   // current position, into the current-character register.

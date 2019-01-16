@@ -93,6 +93,8 @@ namespace internal {
 
 #define __ ACCESS_MASM((&masm_))
 
+const int RegExpMacroAssemblerX64::kRegExpCodeSize;
+
 RegExpMacroAssemblerX64::RegExpMacroAssemblerX64(Isolate* isolate, Zone* zone,
                                                  Mode mode,
                                                  int registers_to_save)

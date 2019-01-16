@@ -279,10 +279,12 @@ class OffHeapTrampolineGenerator {
  private:
   Isolate* isolate_;
   // Enough to fit the single jmp.
-  static constexpr size_t kBufferSize = 256;
+  static constexpr int kBufferSize = 256;
   byte buffer[kBufferSize];
   MacroAssembler masm_;
 };
+
+constexpr int OffHeapTrampolineGenerator::kBufferSize;
 
 }  // namespace
 

@@ -64,9 +64,9 @@ typedef void (*CodeAssemblerGenerator)(compiler::CodeAssemblerState*);
 
 Handle<Code> BuildPlaceholder(Isolate* isolate, int32_t builtin_index) {
   HandleScope scope(isolate);
-  const size_t buffer_size = 1 * KB;
-  byte buffer[buffer_size];  // NOLINT(runtime/arrays)
-  MacroAssembler masm(isolate, buffer, buffer_size, CodeObjectRequired::kYes);
+  constexpr int kBufferSize = 1 * KB;
+  byte buffer[kBufferSize];
+  MacroAssembler masm(isolate, buffer, kBufferSize, CodeObjectRequired::kYes);
   DCHECK(!masm.has_frame());
   {
     FrameScope scope(&masm, StackFrame::NONE);
@@ -89,11 +89,11 @@ Code BuildWithMacroAssembler(Isolate* isolate, int32_t builtin_index,
   // Canonicalize handles, so that we can share constant pool entries pointing
   // to code targets without dereferencing their handles.
   CanonicalHandleScope canonical(isolate);
-  const size_t buffer_size = 32 * KB;
-  byte buffer[buffer_size];  // NOLINT(runtime/arrays)
+  constexpr int kBufferSize = 32 * KB;
+  byte buffer[kBufferSize];
 
   MacroAssembler masm(isolate, BuiltinAssemblerOptions(isolate, builtin_index),
-                      buffer, buffer_size, CodeObjectRequired::kYes);
+                      buffer, kBufferSize, CodeObjectRequired::kYes);
   masm.set_builtin_index(builtin_index);
   DCHECK(!masm.has_frame());
   generator(&masm);
@@ -135,10 +135,10 @@ Code BuildAdaptor(Isolate* isolate, int32_t builtin_index,
   // Canonicalize handles, so that we can share constant pool entries pointing
   // to code targets without dereferencing their handles.
   CanonicalHandleScope canonical(isolate);
-  const size_t buffer_size = 32 * KB;
-  byte buffer[buffer_size];  // NOLINT(runtime/arrays)
+  constexpr int kBufferSize = 32 * KB;
+  byte buffer[kBufferSize];
   MacroAssembler masm(isolate, BuiltinAssemblerOptions(isolate, builtin_index),
-                      buffer, buffer_size, CodeObjectRequired::kYes);
+                      buffer, kBufferSize, CodeObjectRequired::kYes);
   masm.set_builtin_index(builtin_index);
   DCHECK(!masm.has_frame());
   Builtins::Generate_Adaptor(&masm, builtin_address, exit_frame_type);

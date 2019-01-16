@@ -15,9 +15,9 @@ namespace internal {
 
 TurboAssemblerBase::TurboAssemblerBase(Isolate* isolate,
                                        const AssemblerOptions& options,
-                                       void* buffer, int buffer_size,
-                                       CodeObjectRequired create_code_object)
-    : Assembler(options, buffer, buffer_size), isolate_(isolate) {
+                                       CodeObjectRequired create_code_object,
+                                       std::unique_ptr<AssemblerBuffer> buffer)
+    : Assembler(options, std::move(buffer)), isolate_(isolate) {
   if (create_code_object == CodeObjectRequired::kYes) {
     code_object_ = Handle<HeapObject>::New(
         ReadOnlyRoots(isolate).self_reference_marker(), isolate);

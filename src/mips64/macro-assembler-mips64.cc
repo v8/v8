@@ -33,11 +33,6 @@
 namespace v8 {
 namespace internal {
 
-MacroAssembler::MacroAssembler(Isolate* isolate,
-                               const AssemblerOptions& options, void* buffer,
-                               int size, CodeObjectRequired create_code_object)
-    : TurboAssembler(isolate, options, buffer, size, create_code_object) {}
-
 static inline bool IsZero(const Operand& rt) {
   if (rt.is_reg()) {
     return rt.rm() == zero_reg;

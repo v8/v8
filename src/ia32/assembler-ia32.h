@@ -386,10 +386,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // TODO(clemensh): Remove this constructor, refactor all call sites to use the
   // one above.
   Assembler(const AssemblerOptions& options, void* buffer, int buffer_size)
-      : Assembler(options, buffer ? ExternalAssemblerBuffer(buffer, buffer_size)
-                                  : NewAssemblerBuffer(
-                                        buffer_size ? buffer_size
-                                                    : kMinimalBufferSize)) {}
+      : Assembler(options, GetBuffer(buffer, buffer_size)) {}
 
   virtual ~Assembler() {}
 

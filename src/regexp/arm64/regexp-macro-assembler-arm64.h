@@ -127,7 +127,7 @@ class RegExpMacroAssemblerARM64: public NativeRegExpMacroAssembler {
   static const int kFirstCaptureOnStack = kSuccessCounter - kXRegSize;
 
   // Initial size of code buffer.
-  static const size_t kRegExpCodeSize = 1024;
+  static const int kRegExpCodeSize = 1024;
 
   // When initializing registers to a non-position value we can unroll
   // the loop. Set the limit of registers to unroll.

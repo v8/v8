@@ -124,7 +124,7 @@ class RegExpMacroAssemblerARM: public NativeRegExpMacroAssembler {
   static const int kRegisterZero = kStringStartMinusOne - kPointerSize;
 
   // Initial size of code buffer.
-  static const size_t kRegExpCodeSize = 1024;
+  static const int kRegExpCodeSize = 1024;
 
   static const int kBacktrackConstantPoolSize = 4;
 

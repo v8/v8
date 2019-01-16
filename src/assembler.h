@@ -193,6 +193,7 @@ std::unique_ptr<AssemblerBuffer> ExternalAssemblerBuffer(void* buffer,
                                                          int size);
 
 // Allocate a new growable AssemblerBuffer with a given initial size.
+V8_EXPORT_PRIVATE
 std::unique_ptr<AssemblerBuffer> NewAssemblerBuffer(int size);
 
 class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
@@ -251,6 +252,14 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
   // Debugging
   void Print(Isolate* isolate);
 
+  // Record an inline code comment that can be used by a disassembler.
+  // Use --code-comments to enable.
+  void RecordComment(const char* msg) {
+    if (FLAG_code_comments) {
+      code_comments_writer_.Add(pc_offset(), std::string(msg));
+    }
+  }
+
   static const int kMinimalBufferSize = 4*KB;
 
   static void FlushICache(void* start, size_t size);
@@ -258,12 +267,12 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
     return FlushICache(reinterpret_cast<void*>(start), size);
   }
 
-  // Record an inline code comment that can be used by a disassembler.
-  // Use --code-comments to enable.
-  void RecordComment(const char* msg) {
-    if (FLAG_code_comments) {
-      code_comments_writer_.Add(pc_offset(), std::string(msg));
-    }
+  // TODO(clemensh): Remove after changing all call sites to the new API.
+  static std::unique_ptr<AssemblerBuffer> GetBuffer(void* buffer,
+                                                    int buffer_size) {
+    if (buffer) return ExternalAssemblerBuffer(buffer, buffer_size);
+    return NewAssemblerBuffer(buffer_size ? buffer_size
+                                          : AssemblerBase::kMinimalBufferSize);
   }
 
  protected:
