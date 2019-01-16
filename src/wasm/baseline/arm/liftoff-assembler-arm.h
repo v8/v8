@@ -240,7 +240,8 @@ void LiftoffAssembler::PatchPrepareStackFrame(int offset,
     return;
   }
 #endif
-  PatchingAssembler patching_assembler(AssemblerOptions{}, buffer_ + offset,
+  PatchingAssembler patching_assembler(AssemblerOptions{},
+                                       buffer_start_ + offset,
                                        liftoff::kPatchInstructionsRequired);
   patching_assembler.sub(sp, sp, Operand(bytes));
   patching_assembler.PadWithNops();

@@ -258,7 +258,7 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
         object = str->AllocateStringConstant(isolate);
         break;
     }
-    Address pc = reinterpret_cast<Address>(buffer_) + request.offset();
+    Address pc = reinterpret_cast<Address>(buffer_start_) + request.offset();
     set_target_value_at(pc, reinterpret_cast<uint32_t>(object.location()));
   }
 }
@@ -300,11 +300,11 @@ const Instr kLwSwInstrTypeMask = 0xFFE00000;
 const Instr kLwSwInstrArgumentMask  = ~kLwSwInstrTypeMask;
 const Instr kLwSwOffsetMask = kImm16Mask;
 
-Assembler::Assembler(const AssemblerOptions& options, void* buffer,
-                     int buffer_size)
-    : AssemblerBase(options, buffer, buffer_size),
+Assembler::Assembler(const AssemblerOptions& options,
+                     std::unique_ptr<AssemblerBuffer> buffer)
+    : AssemblerBase(options, std::move(buffer)),
       scratch_register_list_(at.bit()) {
-  reloc_info_writer.Reposition(buffer_ + buffer_size_, pc_);
+  reloc_info_writer.Reposition(buffer_start_ + buffer_->size(), pc_);
 
   last_trampoline_pool_end_ = 0;
   no_trampoline_pool_before_ = 0;
@@ -331,10 +331,11 @@ void Assembler::GetCode(Isolate* isolate, CodeDesc* desc) {
   AllocateAndInstallRequestedHeapObjects(isolate);
 
   // Set up code descriptor.
-  desc->buffer = buffer_;
-  desc->buffer_size = buffer_size_;
+  desc->buffer = buffer_start_;
+  desc->buffer_size = buffer_->size();
   desc->instr_size = pc_offset();
-  desc->reloc_size = (buffer_ + buffer_size_) - reloc_info_writer.pos();
+  desc->reloc_size =
+      (buffer_start_ + desc->buffer_size) - reloc_info_writer.pos();
   desc->origin = this;
   desc->constant_pool_size = 0;
   desc->unwinding_info_size = 0;
@@ -874,7 +875,7 @@ int Assembler::target_at(int pos, bool is_internal) {
     if (instr == 0) {
       return kEndOfChain;
     } else {
-      int32_t instr_address = reinterpret_cast<int32_t>(buffer_ + pos);
+      int32_t instr_address = reinterpret_cast<int32_t>(buffer_start_ + pos);
       int delta = static_cast<int>(instr_address - instr);
       DCHECK(pos > delta);
       return pos - delta;
@@ -930,7 +931,7 @@ int Assembler::target_at(int pos, bool is_internal) {
         // EndOfChain sentinel is returned directly, not relative to pc or pos.
         return kEndOfChain;
       } else {
-        uint32_t instr_address = reinterpret_cast<int32_t>(buffer_ + pos);
+        uint32_t instr_address = reinterpret_cast<int32_t>(buffer_start_ + pos);
         int32_t delta = instr_address - imm;
         DCHECK(pos > delta);
         return pos - delta;
@@ -961,7 +962,7 @@ void Assembler::target_at_put(int32_t pos, int32_t target_pos,
   Instr instr = instr_at(pos);
 
   if (is_internal) {
-    uint32_t imm = reinterpret_cast<uint32_t>(buffer_) + target_pos;
+    uint32_t imm = reinterpret_cast<uint32_t>(buffer_start_) + target_pos;
     instr_at_put(pos, imm);
     return;
   }
@@ -1045,7 +1046,7 @@ void Assembler::target_at_put(int32_t pos, int32_t target_pos,
       Instr instr1 = instr_at(pos + 0 * kInstrSize);
       Instr instr2 = instr_at(pos + 1 * kInstrSize);
       DCHECK(IsOri(instr2) || IsJicOrJialc(instr2));
-      uint32_t imm = reinterpret_cast<uint32_t>(buffer_) + target_pos;
+      uint32_t imm = reinterpret_cast<uint32_t>(buffer_start_) + target_pos;
       DCHECK_EQ(imm & 3, 0);
       DCHECK(IsLui(instr1) && (IsJicOrJialc(instr2) || IsOri(instr2)));
       instr1 &= ~kImm16Mask;
@@ -1512,7 +1513,7 @@ uint32_t Assembler::jump_address(Label* L) {
     }
   }
 
-  uint32_t imm = reinterpret_cast<uint32_t>(buffer_) + target_pos;
+  uint32_t imm = reinterpret_cast<uint32_t>(buffer_start_) + target_pos;
   DCHECK_EQ(imm & 3, 0);
 
   return imm;
@@ -3857,46 +3858,40 @@ void Assembler::RelocateRelativeReference(RelocInfo::Mode rmode, Address pc,
 }
 
 void Assembler::GrowBuffer() {
-  if (!own_buffer_) FATAL("external code buffer is too small");
-
   // Compute new buffer size.
-  CodeDesc desc;  // the new buffer
-  if (buffer_size_ < 1 * MB) {
-    desc.buffer_size = 2*buffer_size_;
-  } else {
-    desc.buffer_size = buffer_size_ + 1*MB;
-  }
+  int old_size = buffer_->size();
+  int new_size = std::min(2 * old_size, old_size + 1 * MB);
 
   // Some internal data structures overflow for very large buffers,
   // they must ensure that kMaximalBufferSize is not too large.
-  if (desc.buffer_size > kMaximalBufferSize) {
+  if (new_size > kMaximalBufferSize) {
     V8::FatalProcessOutOfMemory(nullptr, "Assembler::GrowBuffer");
   }
 
   // Set up new buffer.
-  desc.buffer = NewArray<byte>(desc.buffer_size);
-  desc.origin = this;
-
-  desc.instr_size = pc_offset();
-  desc.reloc_size = (buffer_ + buffer_size_) - reloc_info_writer.pos();
+  std::unique_ptr<AssemblerBuffer> new_buffer = buffer_->Grow(new_size);
+  DCHECK_EQ(new_size, new_buffer->size());
+  byte* new_start = new_buffer->start();
 
   // Copy the data.
-  int pc_delta = desc.buffer - buffer_;
-  int rc_delta = (desc.buffer + desc.buffer_size) - (buffer_ + buffer_size_);
-  MemMove(desc.buffer, buffer_, desc.instr_size);
+  int pc_delta = new_start - buffer_start_;
+  int rc_delta = (new_start + new_size) - (buffer_start_ + old_size);
+  size_t reloc_size = (buffer_start_ + old_size) - reloc_info_writer.pos();
+  MemMove(new_start, buffer_start_, pc_offset());
   MemMove(reloc_info_writer.pos() + rc_delta, reloc_info_writer.pos(),
-          desc.reloc_size);
+          reloc_size);
 
   // Switch buffers.
-  DeleteArray(buffer_);
-  buffer_ = desc.buffer;
-  buffer_size_ = desc.buffer_size;
+  buffer_ = std::move(new_buffer);
+  buffer_start_ = new_start;
   pc_ += pc_delta;
   reloc_info_writer.Reposition(reloc_info_writer.pos() + rc_delta,
                                reloc_info_writer.last_pc() + pc_delta);
 
   // Relocate runtime entries.
-  for (RelocIterator it(desc); !it.done(); it.next()) {
+  Vector<byte> instructions{buffer_start_, pc_offset()};
+  Vector<const byte> reloc_info{reloc_info_writer.pos(), reloc_size};
+  for (RelocIterator it(instructions, reloc_info, 0); !it.done(); it.next()) {
     RelocInfo::Mode rmode = it.rinfo()->rmode();
     if (rmode == RelocInfo::INTERNAL_REFERENCE_ENCODED ||
         rmode == RelocInfo::INTERNAL_REFERENCE) {
@@ -3929,7 +3924,7 @@ void Assembler::dd(Label* label) {
   uint32_t data;
   CheckForEmitInForbiddenSlot();
   if (label->is_bound()) {
-    data = reinterpret_cast<uint32_t>(buffer_ + label->pos());
+    data = reinterpret_cast<uint32_t>(buffer_start_ + label->pos());
   } else {
     data = jump_address(label);
     unbound_labels_count_++;

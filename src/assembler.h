@@ -174,9 +174,31 @@ struct V8_EXPORT_PRIVATE AssemblerOptions {
       Isolate* isolate, bool explicitly_support_serialization = false);
 };
 
+class AssemblerBuffer {
+ public:
+  virtual ~AssemblerBuffer() = default;
+  virtual byte* start() const = 0;
+  virtual int size() const = 0;
+  // Return a grown copy of this buffer. The contained data is uninitialized.
+  // The data in {this} will still be read afterwards (until {this} is
+  // destructed), but not written.
+  virtual std::unique_ptr<AssemblerBuffer> Grow(int new_size)
+      V8_WARN_UNUSED_RESULT = 0;
+};
+
+// Allocate an AssemblerBuffer which uses an existing buffer. This buffer cannot
+// grow, so it must be large enough for all code emitted by the Assembler.
+V8_EXPORT_PRIVATE
+std::unique_ptr<AssemblerBuffer> ExternalAssemblerBuffer(void* buffer,
+                                                         int size);
+
+// Allocate a new growable AssemblerBuffer with a given initial size.
+std::unique_ptr<AssemblerBuffer> NewAssemblerBuffer(int size);
+
 class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
  public:
-  AssemblerBase(const AssemblerOptions& options, void* buffer, int buffer_size);
+  AssemblerBase(const AssemblerOptions& options,
+                std::unique_ptr<AssemblerBuffer>);
   virtual ~AssemblerBase();
 
   const AssemblerOptions& options() const { return options_; }
@@ -220,7 +242,7 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
   // cross-snapshotting.
   static void QuietNaN(HeapObject nan) {}
 
-  int pc_offset() const { return static_cast<int>(pc_ - buffer_); }
+  int pc_offset() const { return static_cast<int>(pc_ - buffer_start_); }
 
   // This function is called when code generation is aborted, so that
   // the assembler could clean up internal data structures.
@@ -254,11 +276,10 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
   // Reserves space in the code target vector.
   void ReserveCodeTargetSpace(size_t num_of_code_targets);
 
-  // The buffer into which code and relocation info are generated. It could
-  // either be owned by the assembler or be provided externally.
-  byte* buffer_;
-  int buffer_size_;
-  bool own_buffer_;
+  // The buffer into which code and relocation info are generated.
+  std::unique_ptr<AssemblerBuffer> buffer_;
+  // Cached from {buffer_->start()}, for faster access.
+  byte* buffer_start_;
   std::forward_list<HeapObjectRequest> heap_object_requests_;
   // The program counter, which points into the buffer above and moves forward.
   // TODO(jkummerow): This should probably have type {Address}.

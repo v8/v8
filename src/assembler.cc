@@ -44,6 +44,7 @@
 #include "src/snapshot/serializer-common.h"
 #include "src/snapshot/snapshot.h"
 #include "src/string-constants.h"
+#include "src/vector.h"
 
 namespace v8 {
 namespace internal {
@@ -87,29 +88,78 @@ AssemblerOptions AssemblerOptions::Default(
   return options;
 }
 
+namespace {
+
+class DefaultAssemblerBuffer : public AssemblerBuffer {
+ public:
+  explicit DefaultAssemblerBuffer(int size)
+      : buffer_(OwnedVector<uint8_t>::New(size)) {
+#ifdef DEBUG
+    ZapCode(reinterpret_cast<Address>(buffer_.start()), size);
+#endif
+  }
+
+  byte* start() const override { return buffer_.start(); }
+
+  int size() const override { return static_cast<int>(buffer_.size()); }
+
+  std::unique_ptr<AssemblerBuffer> Grow(int new_size) override {
+    DCHECK_LT(size(), new_size);
+    return base::make_unique<DefaultAssemblerBuffer>(new_size);
+  }
+
+ private:
+  OwnedVector<uint8_t> buffer_;
+};
+
+class ExternalAssemblerBufferImpl : public AssemblerBuffer {
+ public:
+  ExternalAssemblerBufferImpl(byte* start, int size)
+      : start_(start), size_(size) {}
+
+  byte* start() const override { return start_; }
+
+  int size() const override { return size_; }
+
+  std::unique_ptr<AssemblerBuffer> Grow(int new_size) override {
+    FATAL("Cannot grow external assembler buffer");
+  }
+
+ private:
+  byte* const start_;
+  const int size_;
+};
+
+}  // namespace
+
+std::unique_ptr<AssemblerBuffer> ExternalAssemblerBuffer(void* start,
+                                                         int size) {
+  return base::make_unique<ExternalAssemblerBufferImpl>(
+      reinterpret_cast<byte*>(start), size);
+}
+
+std::unique_ptr<AssemblerBuffer> NewAssemblerBuffer(int size) {
+  return base::make_unique<DefaultAssemblerBuffer>(size);
+}
+
 // -----------------------------------------------------------------------------
 // Implementation of AssemblerBase
 
-AssemblerBase::AssemblerBase(const AssemblerOptions& options, void* buffer,
-                             int buffer_size)
-    : options_(options),
+AssemblerBase::AssemblerBase(const AssemblerOptions& options,
+                             std::unique_ptr<AssemblerBuffer> buffer)
+    : buffer_(std::move(buffer)),
+      options_(options),
       enabled_cpu_features_(0),
       emit_debug_code_(FLAG_debug_code),
       predictable_code_size_(false),
       constant_pool_available_(false),
       jump_optimization_info_(nullptr) {
-  own_buffer_ = buffer == nullptr;
-  if (buffer_size == 0) buffer_size = kMinimalBufferSize;
-  DCHECK_GT(buffer_size, 0);
-  if (own_buffer_) buffer = NewArray<byte>(buffer_size);
-  buffer_ = static_cast<byte*>(buffer);
-  buffer_size_ = buffer_size;
-  pc_ = buffer_;
+  if (!buffer_) buffer_ = NewAssemblerBuffer(kMinimalBufferSize);
+  buffer_start_ = buffer_->start();
+  pc_ = buffer_start_;
 }
 
-AssemblerBase::~AssemblerBase() {
-  if (own_buffer_) DeleteArray(buffer_);
-}
+AssemblerBase::~AssemblerBase() = default;
 
 void AssemblerBase::FlushICache(void* start, size_t size) {
   if (size == 0) return;
@@ -124,7 +174,7 @@ void AssemblerBase::FlushICache(void* start, size_t size) {
 
 void AssemblerBase::Print(Isolate* isolate) {
   StdoutStream os;
-  v8::internal::Disassembler::Decode(isolate, &os, buffer_, pc_);
+  v8::internal::Disassembler::Decode(isolate, &os, buffer_start_, pc_);
 }
 
 // -----------------------------------------------------------------------------

@@ -326,7 +326,7 @@ bool Operand::AddressUsesRegister(Register reg) const {
 void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
   DCHECK_IMPLIES(isolate == nullptr, heap_object_requests_.empty());
   for (auto& request : heap_object_requests_) {
-    Address pc = reinterpret_cast<Address>(buffer_) + request.offset();
+    Address pc = reinterpret_cast<Address>(buffer_start_) + request.offset();
     switch (request.kind()) {
       case HeapObjectRequest::kHeapNumber: {
         Handle<HeapNumber> object =
@@ -429,18 +429,11 @@ bool Assembler::UseConstPoolFor(RelocInfo::Mode rmode) {
 // -----------------------------------------------------------------------------
 // Implementation of Assembler.
 
-Assembler::Assembler(const AssemblerOptions& options, void* buffer,
-                     int buffer_size)
-    : AssemblerBase(options, buffer, buffer_size), constpool_(this) {
-// Clear the buffer in debug mode unless it was provided by the
-// caller in which case we can't be sure it's okay to overwrite
-// existing code in it.
-#ifdef DEBUG
-  if (own_buffer_) ZapCode(reinterpret_cast<Address>(buffer_), buffer_size_);
-#endif
-
+Assembler::Assembler(const AssemblerOptions& options,
+                     std::unique_ptr<AssemblerBuffer> buffer)
+    : AssemblerBase(options, std::move(buffer)), constpool_(this) {
   ReserveCodeTargetSpace(100);
-  reloc_info_writer.Reposition(buffer_ + buffer_size_, pc_);
+  reloc_info_writer.Reposition(buffer_start_ + buffer_->size(), pc_);
   if (CpuFeatures::IsSupported(SSE4_1)) {
     EnableCpuFeature(SSSE3);
   }
@@ -459,12 +452,12 @@ void Assembler::GetCode(Isolate* isolate, CodeDesc* desc) {
   AllocateAndInstallRequestedHeapObjects(isolate);
 
   // Set up code descriptor.
-  desc->buffer = buffer_;
-  desc->buffer_size = buffer_size_;
+  desc->buffer = buffer_start_;
+  desc->buffer_size = buffer_->size();
   desc->instr_size = pc_offset();
   DCHECK_GT(desc->instr_size, 0);  // Zero-size code objects upset the system.
-  desc->reloc_size =
-      static_cast<int>((buffer_ + buffer_size_) - reloc_info_writer.pos());
+  desc->reloc_size = static_cast<int>((buffer_start_ + desc->buffer_size) -
+                                      reloc_info_writer.pos());
   desc->origin = this;
   desc->constant_pool_size = 0;
   desc->unwinding_info_size = 0;
@@ -526,7 +519,7 @@ void Assembler::bind_to(Label* L, int pos) {
     while (next != current) {
       if (current >= 4 && long_at(current - 4) == 0) {
         // Absolute address.
-        intptr_t imm64 = reinterpret_cast<intptr_t>(buffer_ + pos);
+        intptr_t imm64 = reinterpret_cast<intptr_t>(buffer_start_ + pos);
         *reinterpret_cast<intptr_t*>(addr_at(current - 4)) = imm64;
         internal_reference_positions_.push_back(current - 4);
       } else {
@@ -540,7 +533,7 @@ void Assembler::bind_to(Label* L, int pos) {
     // Fix up last fixup on linked list.
     if (current >= 4 && long_at(current - 4) == 0) {
       // Absolute address.
-      intptr_t imm64 = reinterpret_cast<intptr_t>(buffer_ + pos);
+      intptr_t imm64 = reinterpret_cast<intptr_t>(buffer_start_ + pos);
       *reinterpret_cast<intptr_t*>(addr_at(current - 4)) = imm64;
       internal_reference_positions_.push_back(current - 4);
     } else {
@@ -604,50 +597,41 @@ bool Assembler::is_optimizable_farjmp(int idx) {
 
 void Assembler::GrowBuffer() {
   DCHECK(buffer_overflow());
-  if (!own_buffer_) FATAL("external code buffer is too small");
 
   // Compute new buffer size.
-  CodeDesc desc;  // the new buffer
-  desc.buffer_size = 2 * buffer_size_;
+  DCHECK_EQ(buffer_start_, buffer_->start());
+  int old_size = buffer_->size();
+  int new_size = 2 * old_size;
 
   // Some internal data structures overflow for very large buffers,
   // they must ensure that kMaximalBufferSize is not too large.
-  if (desc.buffer_size > kMaximalBufferSize) {
+  if (new_size > kMaximalBufferSize) {
     V8::FatalProcessOutOfMemory(nullptr, "Assembler::GrowBuffer");
   }
 
   // Set up new buffer.
-  desc.buffer = NewArray<byte>(desc.buffer_size);
-  desc.origin = this;
-  desc.instr_size = pc_offset();
-  desc.reloc_size =
-      static_cast<int>((buffer_ + buffer_size_) - (reloc_info_writer.pos()));
-
-  // Clear the buffer in debug mode. Use 'int3' instructions to make
-  // sure to get into problems if we ever run uninitialized code.
-#ifdef DEBUG
-  ZapCode(reinterpret_cast<Address>(desc.buffer), desc.buffer_size);
-#endif
+  std::unique_ptr<AssemblerBuffer> new_buffer = buffer_->Grow(new_size);
+  DCHECK_EQ(new_size, new_buffer->size());
+  byte* new_start = new_buffer->start();
 
   // Copy the data.
-  intptr_t pc_delta = desc.buffer - buffer_;
-  intptr_t rc_delta = (desc.buffer + desc.buffer_size) -
-      (buffer_ + buffer_size_);
-  MemMove(desc.buffer, buffer_, desc.instr_size);
+  intptr_t pc_delta = new_start - buffer_start_;
+  intptr_t rc_delta = (new_start + new_size) - (buffer_start_ + old_size);
+  size_t reloc_size = (buffer_start_ + old_size) - reloc_info_writer.pos();
+  MemMove(new_start, buffer_start_, pc_offset());
   MemMove(rc_delta + reloc_info_writer.pos(), reloc_info_writer.pos(),
-          desc.reloc_size);
+          reloc_size);
 
   // Switch buffers.
-  DeleteArray(buffer_);
-  buffer_ = desc.buffer;
-  buffer_size_ = desc.buffer_size;
+  buffer_ = std::move(new_buffer);
+  buffer_start_ = new_start;
   pc_ += pc_delta;
   reloc_info_writer.Reposition(reloc_info_writer.pos() + rc_delta,
                                reloc_info_writer.last_pc() + pc_delta);
 
   // Relocate internal references.
   for (auto pos : internal_reference_positions_) {
-    intptr_t* p = reinterpret_cast<intptr_t*>(buffer_ + pos);
+    intptr_t* p = reinterpret_cast<intptr_t*>(buffer_start_ + pos);
     *p += pc_delta;
   }
 
@@ -4974,7 +4958,7 @@ void Assembler::dq(Label* label) {
   EnsureSpace ensure_space(this);
   if (label->is_bound()) {
     internal_reference_positions_.push_back(pc_offset());
-    emitp(reinterpret_cast<Address>(buffer_) + label->pos(),
+    emitp(reinterpret_cast<Address>(buffer_start_) + label->pos(),
           RelocInfo::INTERNAL_REFERENCE);
   } else {
     RecordRelocInfo(RelocInfo::INTERNAL_REFERENCE);

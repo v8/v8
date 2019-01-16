@@ -148,7 +148,8 @@ void LiftoffAssembler::PatchPrepareStackFrame(int offset,
     return;
   }
 #endif
-  PatchingAssembler patching_assembler(AssemblerOptions{}, buffer_ + offset, 1);
+  PatchingAssembler patching_assembler(AssemblerOptions{},
+                                       buffer_start_ + offset, 1);
   patching_assembler.PatchSubSp(bytes);
 }
 

@@ -1125,7 +1125,7 @@ const Register& Assembler::AppropriateZeroRegFor(const CPURegister& reg) const {
 
 
 inline void Assembler::CheckBufferSpace() {
-  DCHECK(pc_ < (buffer_ + buffer_size_));
+  DCHECK_LT(pc_, buffer_start_ + buffer_->size());
   if (buffer_space() < kGap) {
     GrowBuffer();
   }

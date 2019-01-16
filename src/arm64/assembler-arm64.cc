@@ -533,16 +533,15 @@ void ConstPool::EmitEntries() {
 
 
 // Assembler
-Assembler::Assembler(const AssemblerOptions& options, void* buffer,
-                     int buffer_size)
-    : AssemblerBase(options, buffer, buffer_size),
+Assembler::Assembler(const AssemblerOptions& options,
+                     std::unique_ptr<AssemblerBuffer> buffer)
+    : AssemblerBase(options, std::move(buffer)),
       constpool_(this),
       unresolved_branches_() {
   const_pool_blocked_nesting_ = 0;
   veneer_pool_blocked_nesting_ = 0;
   Reset();
 }
-
 
 Assembler::~Assembler() {
   DCHECK(constpool_.IsEmpty());
@@ -553,15 +552,15 @@ Assembler::~Assembler() {
 
 void Assembler::Reset() {
 #ifdef DEBUG
-  DCHECK((pc_ >= buffer_) && (pc_ < buffer_ + buffer_size_));
+  DCHECK((pc_ >= buffer_start_) && (pc_ < buffer_start_ + buffer_->size()));
   DCHECK_EQ(const_pool_blocked_nesting_, 0);
   DCHECK_EQ(veneer_pool_blocked_nesting_, 0);
   DCHECK(unresolved_branches_.empty());
-  memset(buffer_, 0, pc_ - buffer_);
+  memset(buffer_start_, 0, pc_ - buffer_start_);
 #endif
-  pc_ = buffer_;
+  pc_ = buffer_start_;
   ReserveCodeTargetSpace(64);
-  reloc_info_writer.Reposition(buffer_ + buffer_size_, pc_);
+  reloc_info_writer.Reposition(buffer_start_ + buffer_->size(), pc_);
   constpool_.Clear();
   next_constant_pool_check_ = 0;
   next_veneer_pool_check_ = kMaxInt;
@@ -571,7 +570,7 @@ void Assembler::Reset() {
 void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
   DCHECK_IMPLIES(isolate == nullptr, heap_object_requests_.empty());
   for (auto& request : heap_object_requests_) {
-    Address pc = reinterpret_cast<Address>(buffer_) + request.offset();
+    Address pc = reinterpret_cast<Address>(buffer_start_) + request.offset();
     switch (request.kind()) {
       case HeapObjectRequest::kHeapNumber: {
         Handle<HeapObject> object =
@@ -601,12 +600,11 @@ void Assembler::GetCode(Isolate* isolate, CodeDesc* desc) {
 
   // Set up code descriptor.
   if (desc) {
-    desc->buffer = reinterpret_cast<byte*>(buffer_);
-    desc->buffer_size = buffer_size_;
+    desc->buffer = buffer_start_;
+    desc->buffer_size = buffer_->size();
     desc->instr_size = pc_offset();
-    desc->reloc_size =
-        static_cast<int>((reinterpret_cast<byte*>(buffer_) + buffer_size_) -
-                         reloc_info_writer.pos());
+    desc->reloc_size = static_cast<int>((buffer_start_ + desc->buffer_size) -
+                                        reloc_info_writer.pos());
     desc->origin = this;
     desc->constant_pool_size = 0;
     desc->unwinding_info_size = 0;
@@ -675,7 +673,7 @@ void Assembler::RemoveBranchFromLabelLinkChain(Instruction* branch,
       label->Unuse();
     } else {
       label->link_to(
-          static_cast<int>(reinterpret_cast<byte*>(next_link) - buffer_));
+          static_cast<int>(reinterpret_cast<byte*>(next_link) - buffer_start_));
     }
 
   } else if (branch == next_link) {
@@ -3897,7 +3895,7 @@ void Assembler::dcptr(Label* label) {
     // In this case, label->pos() returns the offset of the label from the
     // start of the buffer.
     internal_reference_positions_.push_back(pc_offset());
-    dc64(reinterpret_cast<uintptr_t>(buffer_ + label->pos()));
+    dc64(reinterpret_cast<uintptr_t>(buffer_start_ + label->pos()));
   } else {
     int32_t offset;
     if (label->is_linked()) {
@@ -4682,45 +4680,33 @@ bool Assembler::IsImmFP64(double imm) {
 
 
 void Assembler::GrowBuffer() {
-  if (!own_buffer_) FATAL("external code buffer is too small");
-
   // Compute new buffer size.
-  CodeDesc desc;  // the new buffer
-  if (buffer_size_ < 1 * MB) {
-    desc.buffer_size = 2 * buffer_size_;
-  } else {
-    desc.buffer_size = buffer_size_ + 1 * MB;
-  }
+  int old_size = buffer_->size();
+  int new_size = std::min(2 * old_size, old_size + 1 * MB);
 
   // Some internal data structures overflow for very large buffers,
   // they must ensure that kMaximalBufferSize is not too large.
-  if (desc.buffer_size > kMaximalBufferSize) {
+  if (new_size > kMaximalBufferSize) {
     V8::FatalProcessOutOfMemory(nullptr, "Assembler::GrowBuffer");
   }
 
-  byte* buffer = reinterpret_cast<byte*>(buffer_);
-
   // Set up new buffer.
-  desc.buffer = NewArray<byte>(desc.buffer_size);
-  desc.origin = this;
-
-  desc.instr_size = pc_offset();
-  desc.reloc_size =
-      static_cast<int>((buffer + buffer_size_) - reloc_info_writer.pos());
+  std::unique_ptr<AssemblerBuffer> new_buffer = buffer_->Grow(new_size);
+  DCHECK_EQ(new_size, new_buffer->size());
+  byte* new_start = new_buffer->start();
 
   // Copy the data.
-  intptr_t pc_delta = desc.buffer - buffer;
-  intptr_t rc_delta = (desc.buffer + desc.buffer_size) -
-                      (buffer + buffer_size_);
-  memmove(desc.buffer, buffer, desc.instr_size);
-  memmove(reloc_info_writer.pos() + rc_delta,
-          reloc_info_writer.pos(), desc.reloc_size);
+  intptr_t pc_delta = new_start - buffer_start_;
+  intptr_t rc_delta = (new_start + new_size) - (buffer_start_ + old_size);
+  size_t reloc_size = (buffer_start_ + old_size) - reloc_info_writer.pos();
+  memmove(new_start, buffer_start_, pc_offset());
+  memmove(reloc_info_writer.pos() + rc_delta, reloc_info_writer.pos(),
+          reloc_size);
 
   // Switch buffers.
-  DeleteArray(buffer_);
-  buffer_ = desc.buffer;
-  buffer_size_ = desc.buffer_size;
-  pc_ = pc_ + pc_delta;
+  buffer_ = std::move(new_buffer);
+  buffer_start_ = new_start;
+  pc_ += pc_delta;
   reloc_info_writer.Reposition(reloc_info_writer.pos() + rc_delta,
                                reloc_info_writer.last_pc() + pc_delta);
 
@@ -4730,7 +4716,7 @@ void Assembler::GrowBuffer() {
 
   // Relocate internal references.
   for (auto pos : internal_reference_positions_) {
-    intptr_t* p = reinterpret_cast<intptr_t*>(buffer_ + pos);
+    intptr_t* p = reinterpret_cast<intptr_t*>(buffer_start_ + pos);
     *p += pc_delta;
   }
 
@@ -4865,7 +4851,7 @@ bool Assembler::ShouldEmitVeneer(int max_reachable_pc, int margin) {
 
 
 void Assembler::RecordVeneerPool(int location_offset, int size) {
-  RelocInfo rinfo(reinterpret_cast<Address>(buffer_) + location_offset,
+  RelocInfo rinfo(reinterpret_cast<Address>(buffer_start_) + location_offset,
                   RelocInfo::VENEER_POOL, static_cast<intptr_t>(size), Code());
   reloc_info_writer.Write(&rinfo);
 }

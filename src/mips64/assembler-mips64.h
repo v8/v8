@@ -151,6 +151,12 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // for a detailed comment on the layout (globals.h).
   //
   // If the provided buffer is nullptr, the assembler allocates and grows its
+  // own buffer. Otherwise it takes ownership of the provided buffer.
+  explicit Assembler(const AssemblerOptions&,
+                     std::unique_ptr<AssemblerBuffer> = {});
+
+  // Legacy constructor.
+  // If the provided buffer is nullptr, the assembler allocates and grows its
   // own buffer, and buffer_size determines the initial buffer size. The buffer
   // is owned by the assembler and deallocated upon destruction of the
   // assembler.
@@ -159,7 +165,15 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // buffer for code generation and assumes its size to be buffer_size. If the
   // buffer is too small, a fatal error occurs. No deallocation of the buffer is
   // done upon destruction of the assembler.
-  Assembler(const AssemblerOptions& options, void* buffer, int buffer_size);
+  //
+  // TODO(clemensh): Remove this constructor, refactor all call sites to use the
+  // one above.
+  Assembler(const AssemblerOptions& options, void* buffer, int buffer_size)
+      : Assembler(options, buffer ? ExternalAssemblerBuffer(buffer, buffer_size)
+                                  : NewAssemblerBuffer(
+                                        buffer_size ? buffer_size
+                                                    : kMinimalBufferSize)) {}
+
   virtual ~Assembler() { }
 
   // GetCode emits any pending (non-emitted) code and fills the descriptor
@@ -1490,9 +1504,11 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   static void instr_at_put(Address pc, Instr instr) {
     *reinterpret_cast<Instr*>(pc) = instr;
   }
-  Instr instr_at(int pos) { return *reinterpret_cast<Instr*>(buffer_ + pos); }
+  Instr instr_at(int pos) {
+    return *reinterpret_cast<Instr*>(buffer_start_ + pos);
+  }
   void instr_at_put(int pos, Instr instr) {
-    *reinterpret_cast<Instr*>(buffer_ + pos) = instr;
+    *reinterpret_cast<Instr*>(buffer_start_ + pos) = instr;
   }
 
   // Check if an instruction is a branch of some kind.

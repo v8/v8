@@ -254,6 +254,12 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // for a detailed comment on the layout (globals.h).
   //
   // If the provided buffer is nullptr, the assembler allocates and grows its
+  // own buffer. Otherwise it takes ownership of the provided buffer.
+  explicit Assembler(const AssemblerOptions&,
+                     std::unique_ptr<AssemblerBuffer> = {});
+
+  // Legacy constructor.
+  // If the provided buffer is nullptr, the assembler allocates and grows its
   // own buffer, and buffer_size determines the initial buffer size. The buffer
   // is owned by the assembler and deallocated upon destruction of the
   // assembler.
@@ -262,7 +268,14 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // buffer for code generation and assumes its size to be buffer_size. If the
   // buffer is too small, a fatal error occurs. No deallocation of the buffer is
   // done upon destruction of the assembler.
-  Assembler(const AssemblerOptions& options, void* buffer, int buffer_size);
+  //
+  // TODO(clemensh): Remove this constructor, refactor all call sites to use the
+  // one above.
+  Assembler(const AssemblerOptions& options, void* buffer, int buffer_size)
+      : Assembler(options, buffer ? ExternalAssemblerBuffer(buffer, buffer_size)
+                                  : NewAssemblerBuffer(
+                                        buffer_size ? buffer_size
+                                                    : kMinimalBufferSize)) {}
 
   virtual ~Assembler();
 
@@ -373,15 +386,15 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // Size of the generated code in bytes
   uint64_t SizeOfGeneratedCode() const {
-    DCHECK((pc_ >= buffer_) && (pc_ < (buffer_ + buffer_size_)));
-    return pc_ - buffer_;
+    DCHECK((pc_ >= buffer_start_) && (pc_ < (buffer_start_ + buffer_->size())));
+    return pc_ - buffer_start_;
   }
 
   // Return the code size generated from label to the current position.
   uint64_t SizeOfCodeGeneratedSince(const Label* label) {
     DCHECK(label->is_bound());
-    DCHECK(pc_offset() >= label->pos());
-    DCHECK(pc_offset() < buffer_size_);
+    DCHECK_GE(pc_offset(), label->pos());
+    DCHECK_LT(pc_offset(), buffer_->size());
     return pc_offset() - label->pos();
   }
 
@@ -2212,11 +2225,11 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   Instruction* pc() const { return Instruction::Cast(pc_); }
 
   Instruction* InstructionAt(ptrdiff_t offset) const {
-    return reinterpret_cast<Instruction*>(buffer_ + offset);
+    return reinterpret_cast<Instruction*>(buffer_start_ + offset);
   }
 
   ptrdiff_t InstructionOffset(Instruction* instr) const {
-    return reinterpret_cast<byte*>(instr) - buffer_;
+    return reinterpret_cast<byte*>(instr) - buffer_start_;
   }
 
   // Register encoding.
@@ -2757,7 +2770,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void Emit(Instr instruction) {
     STATIC_ASSERT(sizeof(*pc_) == 1);
     STATIC_ASSERT(sizeof(instruction) == kInstrSize);
-    DCHECK((pc_ + sizeof(instruction)) <= (buffer_ + buffer_size_));
+    DCHECK_LE(pc_ + sizeof(instruction), buffer_start_ + buffer_->size());
 
     memcpy(pc_, &instruction, sizeof(instruction));
     pc_ += sizeof(instruction);
@@ -2767,7 +2780,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Emit data inline in the instruction stream.
   void EmitData(void const * data, unsigned size) {
     DCHECK_EQ(sizeof(*pc_), 1);
-    DCHECK((pc_ + size) <= (buffer_ + buffer_size_));
+    DCHECK_LE(pc_ + size, buffer_start_ + buffer_->size());
 
     // TODO(all): Somehow register we have some data here. Then we can
     // disassemble it correctly.
@@ -2953,7 +2966,7 @@ class PatchingAssembler : public Assembler {
     DCHECK(is_const_pool_blocked());
     EndBlockPools();
     // Verify we have generated the number of instruction we expected.
-    DCHECK((pc_offset() + kGap) == buffer_size_);
+    DCHECK_EQ(pc_offset() + kGap, buffer_->size());
     // Verify no relocation information has been emitted.
     DCHECK(IsConstPoolEmpty());
   }
