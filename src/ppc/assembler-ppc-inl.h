@@ -376,7 +376,7 @@ int Assembler::GetConstantPoolOffset(Address pc,
 void Assembler::PatchConstantPoolAccessInstruction(
     int pc_offset, int offset, ConstantPoolEntry::Access access,
     ConstantPoolEntry::Type type) {
-  Address pc = reinterpret_cast<Address>(buffer_) + pc_offset;
+  Address pc = reinterpret_cast<Address>(buffer_start_) + pc_offset;
   bool overflowed = (access == ConstantPoolEntry::OVERFLOWED);
   CHECK(overflowed != is_int16(offset));
 #ifdef DEBUG

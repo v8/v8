@@ -317,7 +317,7 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
   DCHECK_IMPLIES(isolate == nullptr, heap_object_requests_.empty());
   for (auto& request : heap_object_requests_) {
     Handle<HeapObject> object;
-    Address pc = reinterpret_cast<Address>(buffer_ + request.offset());
+    Address pc = reinterpret_cast<Address>(buffer_start_) + request.offset();
     switch (request.kind()) {
       case HeapObjectRequest::kHeapNumber: {
         object =
@@ -340,10 +340,10 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
 // -----------------------------------------------------------------------------
 // Specific instructions, constants, and masks.
 
-Assembler::Assembler(const AssemblerOptions& options, void* buffer,
-                     int buffer_size)
-    : AssemblerBase(options, buffer, buffer_size) {
-  reloc_info_writer.Reposition(buffer_ + buffer_size_, pc_);
+Assembler::Assembler(const AssemblerOptions& options,
+                     std::unique_ptr<AssemblerBuffer> buffer)
+    : AssemblerBase(options, std::move(buffer)) {
+  reloc_info_writer.Reposition(buffer_start_ + buffer_->size(), pc_);
   ReserveCodeTargetSpace(100);
   last_bound_pos_ = 0;
   relocations_.reserve(128);
@@ -357,10 +357,11 @@ void Assembler::GetCode(Isolate* isolate, CodeDesc* desc) {
   AllocateAndInstallRequestedHeapObjects(isolate);
 
   // Set up code descriptor.
-  desc->buffer = buffer_;
-  desc->buffer_size = buffer_size_;
+  desc->buffer = buffer_start_;
+  desc->buffer_size = buffer_->size();
   desc->instr_size = pc_offset();
-  desc->reloc_size = (buffer_ + buffer_size_) - reloc_info_writer.pos();
+  desc->reloc_size =
+      (buffer_start_ + desc->buffer_size) - reloc_info_writer.pos();
   desc->constant_pool_size = 0;
   desc->origin = this;
   desc->unwinding_info_size = 0;
@@ -422,7 +423,7 @@ const int kEndOfChain = -4;
 int Assembler::target_at(int pos) {
   SixByteInstr instr = instr_at(pos);
   // check which type of branch this is 16 or 26 bit offset
-  Opcode opcode = Instruction::S390OpcodeValue(buffer_ + pos);
+  Opcode opcode = Instruction::S390OpcodeValue(buffer_start_ + pos);
 
   if (BRC == opcode || BRCT == opcode || BRCTG == opcode || BRXH == opcode) {
     int16_t imm16 = SIGN_EXT_IMM16((instr & kImm16Mask));
@@ -454,7 +455,7 @@ int Assembler::target_at(int pos) {
 // Update the target address of the current relative instruction.
 void Assembler::target_at_put(int pos, int target_pos, bool* is_branch) {
   SixByteInstr instr = instr_at(pos);
-  Opcode opcode = Instruction::S390OpcodeValue(buffer_ + pos);
+  Opcode opcode = Instruction::S390OpcodeValue(buffer_start_ + pos);
 
   if (is_branch != nullptr) {
     *is_branch = (opcode == BRC || opcode == BRCT || opcode == BRCTG ||
@@ -497,7 +498,7 @@ void Assembler::target_at_put(int pos, int target_pos, bool* is_branch) {
 
 // Returns the maximum number of bits given instruction can address.
 int Assembler::max_reach_from(int pos) {
-  Opcode opcode = Instruction::S390OpcodeValue(buffer_ + pos);
+  Opcode opcode = Instruction::S390OpcodeValue(buffer_start_ + pos);
   // Check which type of instr.  In theory, we can return
   // the values below + 1, given offset is # of halfwords
   if (BRC == opcode || BRCT == opcode || BRCTG == opcode|| BRXH == opcode ||
@@ -707,47 +708,36 @@ void Assembler::dumy(int r1, int x2, int b2, int d2) {
 }
 
 void Assembler::GrowBuffer(int needed) {
-  if (!own_buffer_) FATAL("external code buffer is too small");
+  DCHECK_EQ(buffer_start_, buffer_->start());
 
   // Compute new buffer size.
-  CodeDesc desc;  // the new buffer
-  if (buffer_size_ < 4 * KB) {
-    desc.buffer_size = 4 * KB;
-  } else if (buffer_size_ < 1 * MB) {
-    desc.buffer_size = 2 * buffer_size_;
-  } else {
-    desc.buffer_size = buffer_size_ + 1 * MB;
-  }
-  int space = buffer_space() + (desc.buffer_size - buffer_size_);
-  if (space < needed) {
-    desc.buffer_size += needed - space;
-  }
+  int old_size = buffer_->size();
+  int new_size = std::min(2 * old_size, old_size + 1 * MB);
+  int space = buffer_space() + (new_size - old_size);
+  new_size += (space < needed) ? needed - space : 0;
 
   // Some internal data structures overflow for very large buffers,
   // they must ensure that kMaximalBufferSize is not too large.
-  if (desc.buffer_size > kMaximalBufferSize) {
+  if (new_size > kMaximalBufferSize) {
     V8::FatalProcessOutOfMemory(nullptr, "Assembler::GrowBuffer");
   }
 
   // Set up new buffer.
-  desc.buffer = NewArray<byte>(desc.buffer_size);
-  desc.origin = this;
-
-  desc.instr_size = pc_offset();
-  desc.reloc_size = (buffer_ + buffer_size_) - reloc_info_writer.pos();
+  std::unique_ptr<AssemblerBuffer> new_buffer = buffer_->Grow(new_size);
+  DCHECK_EQ(new_size, new_buffer->size());
+  byte* new_start = new_buffer->start();
 
   // Copy the data.
-  intptr_t pc_delta = desc.buffer - buffer_;
-  intptr_t rc_delta =
-      (desc.buffer + desc.buffer_size) - (buffer_ + buffer_size_);
-  memmove(desc.buffer, buffer_, desc.instr_size);
-  memmove(reloc_info_writer.pos() + rc_delta, reloc_info_writer.pos(),
-          desc.reloc_size);
+  intptr_t pc_delta = new_start - buffer_start_;
+  intptr_t rc_delta = (new_start + new_size) - (buffer_start_ + old_size);
+  size_t reloc_size = (buffer_start_ + old_size) - reloc_info_writer.pos();
+  MemMove(new_start, buffer_start_, pc_offset());
+  MemMove(reloc_info_writer.pos() + rc_delta, reloc_info_writer.pos(),
+          reloc_size);
 
   // Switch buffers.
-  DeleteArray(buffer_);
-  buffer_ = desc.buffer;
-  buffer_size_ = desc.buffer_size;
+  buffer_ = std::move(new_buffer);
+  buffer_start_ = new_start;
   pc_ += pc_delta;
   reloc_info_writer.Reposition(reloc_info_writer.pos() + rc_delta,
                                reloc_info_writer.last_pc() + pc_delta);
@@ -802,18 +792,19 @@ void Assembler::EmitRelocations() {
   for (std::vector<DeferredRelocInfo>::iterator it = relocations_.begin();
        it != relocations_.end(); it++) {
     RelocInfo::Mode rmode = it->rmode();
-    Address pc = reinterpret_cast<Address>(buffer_) + it->position();
+    Address pc = reinterpret_cast<Address>(buffer_start_) + it->position();
     RelocInfo rinfo(pc, rmode, it->data(), Code());
 
     // Fix up internal references now that they are guaranteed to be bound.
     if (RelocInfo::IsInternalReference(rmode)) {
       // Jump table entry
       Address pos = Memory<Address>(pc);
-      Memory<Address>(pc) = reinterpret_cast<Address>(buffer_) + pos;
+      Memory<Address>(pc) = reinterpret_cast<Address>(buffer_start_) + pos;
     } else if (RelocInfo::IsInternalReferenceEncoded(rmode)) {
       // mov sequence
       Address pos = target_address_at(pc, 0);
-      set_target_address_at(pc, 0, reinterpret_cast<Address>(buffer_) + pos,
+      set_target_address_at(pc, 0,
+                            reinterpret_cast<Address>(buffer_start_) + pos,
                             SKIP_ICACHE_FLUSH);
     }
 

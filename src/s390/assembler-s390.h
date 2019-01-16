@@ -220,6 +220,12 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // for a detailed comment on the layout (globals.h).
   //
   // If the provided buffer is nullptr, the assembler allocates and grows its
+  // own buffer. Otherwise it takes ownership of the provided buffer.
+  explicit Assembler(const AssemblerOptions&,
+                     std::unique_ptr<AssemblerBuffer> = {});
+
+  // Legacy constructor.
+  // If the provided buffer is nullptr, the assembler allocates and grows its
   // own buffer, and buffer_size determines the initial buffer size. The buffer
   // is owned by the assembler and deallocated upon destruction of the
   // assembler.
@@ -228,7 +234,14 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // buffer for code generation and assumes its size to be buffer_size. If the
   // buffer is too small, a fatal error occurs. No deallocation of the buffer is
   // done upon destruction of the assembler.
-  Assembler(const AssemblerOptions& options, void* buffer, int buffer_size);
+  //
+  // TODO(clemensh): Remove this constructor, refactor all call sites to use the
+  // one above.
+  Assembler(const AssemblerOptions& options, void* buffer, int buffer_size)
+      : Assembler(options, buffer ? ExternalAssemblerBuffer(buffer, buffer_size)
+                                  : NewAssemblerBuffer(
+                                        buffer_size ? buffer_size
+                                                    : kMinimalBufferSize)) {}
   virtual ~Assembler() {}
 
   // GetCode emits any pending (non-emitted) code and fills the descriptor
@@ -1231,16 +1244,16 @@ inline void ss_a_format(Opcode op, int f1, int f2, int f3, int f4, int f5) {
 
   // Read/patch instructions
   SixByteInstr instr_at(int pos) {
-    return Instruction::InstructionBits(buffer_ + pos);
+    return Instruction::InstructionBits(buffer_start_ + pos);
   }
   template <typename T>
   void instr_at_put(int pos, T instr) {
-    Instruction::SetInstructionBits<T>(buffer_ + pos, instr);
+    Instruction::SetInstructionBits<T>(buffer_start_ + pos, instr);
   }
 
   // Decodes instruction at pos, and returns its length
   int32_t instr_length_at(int pos) {
-    return Instruction::InstructionLength(buffer_ + pos);
+    return Instruction::InstructionLength(buffer_start_ + pos);
   }
 
   static SixByteInstr instr_at(byte* pc) {
@@ -1271,7 +1284,7 @@ inline void ss_a_format(Opcode op, int f1, int f2, int f3, int f4, int f5) {
   void emit_label_addr(Label* label);
 
  public:
-  byte* buffer_pos() const { return buffer_; }
+  byte* buffer_pos() const { return buffer_start_; }
 
  protected:
   int buffer_space() const { return reloc_info_writer.pos() - pc_; }
