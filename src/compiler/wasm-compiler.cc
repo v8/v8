@@ -2917,6 +2917,19 @@ Node* WasmGraphBuilder::BuildChangeSmiToInt32(Node* value) {
   return value;
 }
 
+Node* WasmGraphBuilder::BuildConvertUint32ToSmiWithSaturation(Node* value,
+                                                              uint32_t maxval) {
+  DCHECK(Smi::IsValid(maxval));
+  Node* max = Uint32Constant(maxval);
+  Node* check = graph()->NewNode(mcgraph()->machine()->Uint32LessThanOrEqual(),
+                                 value, max);
+  Node* valsmi = BuildChangeUint31ToSmi(value);
+  Node* maxsmi = graph()->NewNode(mcgraph()->common()->NumberConstant(maxval));
+  Diamond d(graph(), mcgraph()->common(), check, BranchHint::kTrue);
+  d.Chain(Control());
+  return d.Phi(MachineRepresentation::kTagged, valsmi, maxsmi);
+}
+
 void WasmGraphBuilder::InitInstanceCache(
     WasmInstanceCacheNodes* instance_cache) {
   DCHECK_NOT_NULL(instance_node_);
@@ -4427,15 +4440,12 @@ Node* WasmGraphBuilder::TableInit(uint32_t table_index,
                                   uint32_t elem_segment_index, Node* dst,
                                   Node* src, Node* size,
                                   wasm::WasmCodePosition position) {
-  // TODO(titzer): bounds check table indexes against maximum table size.
   Node* args[] = {
-      // --
       graph()->NewNode(mcgraph()->common()->NumberConstant(table_index)),
       graph()->NewNode(mcgraph()->common()->NumberConstant(elem_segment_index)),
-      BuildChangeUint31ToSmi(dst),  // --
-      BuildChangeUint31ToSmi(src),  // --
-      BuildChangeUint31ToSmi(size)  // --
-  };
+      BuildConvertUint32ToSmiWithSaturation(dst, wasm::kV8MaxWasmTableSize),
+      BuildConvertUint32ToSmiWithSaturation(src, wasm::kV8MaxWasmTableSize),
+      BuildConvertUint32ToSmiWithSaturation(size, wasm::kV8MaxWasmTableSize)};
   Node* result =
       BuildCallToRuntime(Runtime::kWasmTableInit, args, arraysize(args));
 
@@ -4454,14 +4464,13 @@ Node* WasmGraphBuilder::TableDrop(uint32_t elem_segment_index,
                        mcgraph()->Int32Constant(1), Effect(), Control()));
 }
 
-Node* WasmGraphBuilder::TableCopy(Node* dst, Node* src, Node* size,
-                                  wasm::WasmCodePosition position) {
-  // TODO(titzer): bounds check table indexes against maximum table size.
+Node* WasmGraphBuilder::TableCopy(uint32_t table_index, Node* dst, Node* src,
+                                  Node* size, wasm::WasmCodePosition position) {
   Node* args[] = {
-      BuildChangeUint31ToSmi(dst),  // --
-      BuildChangeUint31ToSmi(src),  // --
-      BuildChangeUint31ToSmi(size)  // --
-  };
+      graph()->NewNode(mcgraph()->common()->NumberConstant(table_index)),
+      BuildConvertUint32ToSmiWithSaturation(dst, wasm::kV8MaxWasmTableSize),
+      BuildConvertUint32ToSmiWithSaturation(src, wasm::kV8MaxWasmTableSize),
+      BuildConvertUint32ToSmiWithSaturation(size, wasm::kV8MaxWasmTableSize)};
   Node* result =
       BuildCallToRuntime(Runtime::kWasmTableCopy, args, arraysize(args));
 

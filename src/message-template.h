@@ -517,6 +517,7 @@ namespace internal {
   T(WasmTrapTypeError, "wasm function signature contains illegal type")        \
   T(WasmTrapDataSegmentDropped, "data segment has been dropped")               \
   T(WasmTrapElemSegmentDropped, "element segment has been dropped")            \
+  T(WasmTrapTableOutOfBounds, "table access out of bounds")                    \
   T(WasmExceptionError, "wasm exception")                                      \
   /* Asm.js validation related */                                              \
   T(AsmJsInvalid, "Invalid asm.js: %")                                         \

@@ -852,8 +852,6 @@ void WasmTableObject::Set(Isolate* isolate, Handle<WasmTableObject> table,
     return;
   }
 
-  // TODO(titzer): Change this to MaybeHandle<WasmExportedFunction>
-  DCHECK(WasmExportedFunction::IsWasmExportedFunction(*function));
   auto exported_function = Handle<WasmExportedFunction>::cast(function);
   Handle<WasmInstanceObject> target_instance(exported_function->instance(),
                                              isolate);
@@ -1198,6 +1196,16 @@ Address IndirectFunctionTableEntry::target() {
   return instance_->indirect_function_table_targets()[index_];
 }
 
+void IndirectFunctionTableEntry::CopyFrom(
+    const IndirectFunctionTableEntry& that) {
+  instance_->indirect_function_table_sig_ids()[index_] =
+      that.instance_->indirect_function_table_sig_ids()[that.index_];
+  instance_->indirect_function_table_targets()[index_] =
+      that.instance_->indirect_function_table_targets()[that.index_];
+  instance_->indirect_function_table_refs()->set(
+      index_, that.instance_->indirect_function_table_refs()->get(that.index_));
+}
+
 void ImportedFunctionEntry::SetWasmToJs(
     Isolate* isolate, Handle<JSReceiver> callable,
     const wasm::WasmCode* wasm_to_js_wrapper) {
@@ -1402,6 +1410,54 @@ Address WasmInstanceObject::GetCallTarget(uint32_t func_index) {
     return imported_function_targets()[func_index];
   }
   return native_module->GetCallTargetForFunction(func_index);
+}
+
+namespace {
+void CopyTableEntriesImpl(Handle<WasmInstanceObject> instance, uint32_t dst,
+                          uint32_t src, uint32_t count) {
+  for (uint32_t i = 0; i < count; i++) {
+    auto from_entry = IndirectFunctionTableEntry(instance, dst + i);
+    auto to_entry = IndirectFunctionTableEntry(instance, src + i);
+    from_entry.CopyFrom(to_entry);
+  }
+}
+}  // namespace
+
+// static
+bool WasmInstanceObject::CopyTableEntries(Isolate* isolate,
+                                          Handle<WasmInstanceObject> instance,
+                                          uint32_t table_index, uint32_t dst,
+                                          uint32_t src, uint32_t count) {
+  CHECK_EQ(0, table_index);  // TODO(titzer): multiple tables in TableCopy
+  auto max = instance->indirect_function_table_size();
+  if (dst > max || count > (max - dst)) return false;  // out-of-bounds
+  if (src > max || count > (max - src)) return false;  // out-of-bounds
+
+  if (!instance->has_table_object()) {
+    // No table object, only need to update this instance.
+    CopyTableEntriesImpl(instance, dst, src, count);
+    return true;
+  }
+
+  Handle<WasmTableObject> table =
+      Handle<WasmTableObject>(instance->table_object(), isolate);
+  // Broadcast table copy operation to all instances that import this table.
+  Handle<FixedArray> dispatch_tables(table->dispatch_tables(), isolate);
+  for (int i = 0; i < dispatch_tables->length();
+       i += kDispatchTableNumElements) {
+    Handle<WasmInstanceObject> target_instance(
+        WasmInstanceObject::cast(
+            dispatch_tables->get(i + kDispatchTableInstanceOffset)),
+        isolate);
+    CopyTableEntriesImpl(target_instance, dst, src, count);
+  }
+
+  // Copy the function entries.
+  Handle<FixedArray> functions(table->functions(), isolate);
+  for (uint32_t i = 0; i < count; i++) {
+    functions->set(dst + i, functions->get(src + i));
+  }
+  return true;
 }
 
 // static

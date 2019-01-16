@@ -377,7 +377,7 @@ class WasmGraphBuilder {
   Node* TableInit(uint32_t table_index, uint32_t elem_segment_index, Node* dst,
                   Node* src, Node* size, wasm::WasmCodePosition position);
   Node* TableDrop(uint32_t elem_segment_index, wasm::WasmCodePosition position);
-  Node* TableCopy(Node* dst, Node* src, Node* size,
+  Node* TableCopy(uint32_t table_index, Node* dst, Node* src, Node* size,
                   wasm::WasmCodePosition position);
 
   bool has_simd() const { return has_simd_; }
@@ -440,6 +440,7 @@ class WasmGraphBuilder {
   Node* BoundsCheckMemRange(Node* start, Node* size, wasm::WasmCodePosition);
   Node* CheckBoundsAndAlignment(uint8_t access_size, Node* index,
                                 uint32_t offset, wasm::WasmCodePosition);
+
   Node* Uint32ToUintptr(Node*);
   const Operator* GetSafeLoadOperator(int offset, wasm::ValueType type);
   const Operator* GetSafeStoreOperator(int offset, wasm::ValueType type);
@@ -521,6 +522,8 @@ class WasmGraphBuilder {
   Node* BuildChangeUint31ToSmi(Node* value);
   Node* BuildSmiShiftBitsConstant();
   Node* BuildChangeSmiToInt32(Node* value);
+  // generates {index > max ? Smi(max) : Smi(index)}
+  Node* BuildConvertUint32ToSmiWithSaturation(Node* index, uint32_t maxval);
 
   // Asm.js specific functionality.
   Node* BuildI32AsmjsSConvertF32(Node* input);

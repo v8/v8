@@ -61,6 +61,8 @@ class IndirectFunctionTableEntry {
   void Set(int sig_id, Handle<WasmInstanceObject> target_instance,
            int target_func_index);
 
+  void CopyFrom(const IndirectFunctionTableEntry& that);
+
   Object object_ref();
   int sig_id();
   Address target();
@@ -498,6 +500,12 @@ class WasmInstanceObject : public JSObject {
   static Handle<WasmInstanceObject> New(Isolate*, Handle<WasmModuleObject>);
 
   Address GetCallTarget(uint32_t func_index);
+
+  // Copies table entries. Returns {false} if the ranges are out-of-bounds.
+  static bool CopyTableEntries(Isolate* isolate,
+                               Handle<WasmInstanceObject> instance,
+                               uint32_t table_index, uint32_t dst, uint32_t src,
+                               uint32_t count) V8_WARN_UNUSED_RESULT;
 
   // Iterates all fields in the object except the untagged fields.
   class BodyDescriptor;

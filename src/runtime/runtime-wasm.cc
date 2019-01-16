@@ -322,7 +322,8 @@ RUNTIME_FUNCTION(Runtime_WasmI64AtomicWait) {
 RUNTIME_FUNCTION(Runtime_WasmTableInit) {
   HandleScope scope(isolate);
   DCHECK_EQ(5, args.length());
-  auto instance = GetWasmInstanceOnStackTop(isolate);
+  auto instance =
+      Handle<WasmInstanceObject>(GetWasmInstanceOnStackTop(isolate), isolate);
   CONVERT_UINT32_ARG_CHECKED(table_index, 0);
   CONVERT_UINT32_ARG_CHECKED(elem_segment_index, 1);
   CONVERT_UINT32_ARG_CHECKED(dst, 2);
@@ -346,20 +347,26 @@ RUNTIME_FUNCTION(Runtime_WasmTableInit) {
 
 RUNTIME_FUNCTION(Runtime_WasmTableCopy) {
   HandleScope scope(isolate);
-  DCHECK_EQ(3, args.length());
-  auto instance = GetWasmInstanceOnStackTop(isolate);
-  CONVERT_UINT32_ARG_CHECKED(dst, 0);
-  CONVERT_UINT32_ARG_CHECKED(src, 1);
-  CONVERT_UINT32_ARG_CHECKED(size, 2);
+  DCHECK_EQ(4, args.length());
+  auto instance =
+      Handle<WasmInstanceObject>(GetWasmInstanceOnStackTop(isolate), isolate);
+  CONVERT_UINT32_ARG_CHECKED(table_index, 0);
+  CONVERT_UINT32_ARG_CHECKED(dst, 1);
+  CONVERT_UINT32_ARG_CHECKED(src, 2);
+  CONVERT_UINT32_ARG_CHECKED(count, 3);
 
-  PrintF("TableCopy(dst=%u, src=%u, size=%u)\n", dst, src, size);
-
-  USE(instance);
-  USE(dst);
-  USE(src);
-  USE(size);
-
-  UNREACHABLE();
+  bool oob = !WasmInstanceObject::CopyTableEntries(
+      isolate, instance, table_index, dst, src, count);
+  if (oob) {
+    // Handle out-of-bounds access here in the runtime call, rather
+    // than having the lower-level layers deal with JS exceptions.
+    DCHECK(isolate->context().is_null());
+    isolate->set_context(instance->native_context());
+    Handle<Object> error_obj = isolate->factory()->NewWasmRuntimeError(
+        MessageTemplate::kWasmTrapTableOutOfBounds);
+    return isolate->Throw(*error_obj);
+  }
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 }  // namespace internal
 }  // namespace v8

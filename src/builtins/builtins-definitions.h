@@ -1260,6 +1260,7 @@ namespace internal {
   TFS(ThrowWasmTrapFuncSigMismatch)                                            \
   TFS(ThrowWasmTrapDataSegmentDropped)                                         \
   TFS(ThrowWasmTrapElemSegmentDropped)                                         \
+  TFS(ThrowWasmTrapTableOutOfBounds)                                           \
   TFC(BigIntToWasmI64, BigIntToWasmI64, 1)                                     \
   TFC(WasmBigIntToI64, BigIntToI64, 1)                                         \
                                                                                \

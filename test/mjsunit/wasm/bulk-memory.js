@@ -373,23 +373,3 @@ function getMemoryFill(mem) {
   instance.exports.drop();
   assertTraps(kTrapElemSegmentDropped, () => instance.exports.drop());
 })();
-
-(function TestTableCopy0() {
-  let builder = new WasmModuleBuilder();
-  let sig_v_iii = builder.addType(kSig_v_iii);
-
-  builder.setTableBounds(5, 5);
-
-  builder.addFunction("copy", sig_v_iii)
-    .addBody([
-      kExprGetLocal, 0,
-      kExprGetLocal, 1,
-      kExprGetLocal, 2,
-      kNumericPrefix, kExprTableCopy, kTableZero])
-    .exportAs("copy");
-
-  let instance = builder.instantiate();
-  let copy = instance.exports.copy;
-  // TODO(titzer): we only check that a function containing TableCopy can be compiled.
-  // copy(1, 2, 3);
-})();
