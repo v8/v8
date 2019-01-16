@@ -109,7 +109,7 @@ void GapResolver::Resolve(ParallelMove* moves) {
     ++it;
   }
 
-  if ((source_kinds & destination_kinds).IsEmpty() || moves->size() < 2) {
+  if ((source_kinds & destination_kinds).empty() || moves->size() < 2) {
     // Fast path for non-conflicting parallel moves.
     for (MoveOperands* move : *moves) {
       assembler_->AssembleMove(&move->source(), &move->destination());

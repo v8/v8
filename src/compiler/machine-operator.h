@@ -199,7 +199,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
         case kNoSupport:
           return false;
         case kSomeSupport:
-          return !unsupported.Contains(rep);
+          return !unsupported.contains(rep);
       }
       UNREACHABLE();
     }

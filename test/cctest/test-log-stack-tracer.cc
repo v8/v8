@@ -147,7 +147,7 @@ TEST(CFromJSStackTrace) {
   i::TraceExtension::InitTraceEnv(&sample);
 
   v8::HandleScope scope(CcTest::isolate());
-  v8::Local<v8::Context> context = CcTest::NewContext(TRACE_EXTENSION);
+  v8::Local<v8::Context> context = CcTest::NewContext({TRACE_EXTENSION_ID});
   v8::Context::Scope context_scope(context);
 
   // Create global function JSFuncDoTrace which calls
@@ -196,7 +196,7 @@ TEST(PureJSStackTrace) {
   i::TraceExtension::InitTraceEnv(&sample);
 
   v8::HandleScope scope(CcTest::isolate());
-  v8::Local<v8::Context> context = CcTest::NewContext(TRACE_EXTENSION);
+  v8::Local<v8::Context> context = CcTest::NewContext({TRACE_EXTENSION_ID});
   v8::Context::Scope context_scope(context);
 
   // Create global function JSFuncDoTrace which calls
@@ -266,7 +266,7 @@ TEST(PureCStackTrace) {
   TickSample sample;
   i::TraceExtension::InitTraceEnv(&sample);
   v8::HandleScope scope(CcTest::isolate());
-  v8::Local<v8::Context> context = CcTest::NewContext(TRACE_EXTENSION);
+  v8::Local<v8::Context> context = CcTest::NewContext({TRACE_EXTENSION_ID});
   v8::Context::Scope context_scope(context);
   // Check that sampler doesn't crash
   CHECK_EQ(10, CFunc(10));
@@ -275,7 +275,7 @@ TEST(PureCStackTrace) {
 
 TEST(JsEntrySp) {
   v8::HandleScope scope(CcTest::isolate());
-  v8::Local<v8::Context> context = CcTest::NewContext(TRACE_EXTENSION);
+  v8::Local<v8::Context> context = CcTest::NewContext({TRACE_EXTENSION_ID});
   v8::Context::Scope context_scope(context);
   CHECK(!i::TraceExtension::GetJsEntrySp());
   CompileRun("a = 1; b = a + 1;");

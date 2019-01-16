@@ -1079,7 +1079,7 @@ static const char* bound_function_test_source =
 
 TEST(BoundFunctionCall) {
   v8::HandleScope scope(CcTest::isolate());
-  v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
+  v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
   v8::Context::Scope context_scope(env);
 
   CompileRun(bound_function_test_source);
@@ -1344,7 +1344,7 @@ static const char* cpu_profiler_deep_stack_test_source =
 //    0          foo 21 #254 no reason
 TEST(CpuProfileDeepStack) {
   v8::HandleScope scope(CcTest::isolate());
-  v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
+  v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
   v8::Context::Scope context_scope(env);
   ProfilerHelper helper(env);
 
@@ -1402,7 +1402,7 @@ static void CallJsFunction(const v8::FunctionCallbackInfo<v8::Value>& info) {
 TEST(JsNativeJsSample) {
   i::FLAG_allow_natives_syntax = true;
   v8::HandleScope scope(CcTest::isolate());
-  v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
+  v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
   v8::Context::Scope context_scope(env);
 
   v8::Local<v8::FunctionTemplate> func_template = v8::FunctionTemplate::New(
@@ -1455,7 +1455,7 @@ static const char* js_native_js_runtime_js_test_source =
 TEST(JsNativeJsRuntimeJsSample) {
   i::FLAG_allow_natives_syntax = true;
   v8::HandleScope scope(CcTest::isolate());
-  v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
+  v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
   v8::Context::Scope context_scope(env);
 
   v8::Local<v8::FunctionTemplate> func_template = v8::FunctionTemplate::New(
@@ -1512,7 +1512,7 @@ static const char* js_native1_js_native2_js_test_source =
 TEST(JsNative1JsNative2JsSample) {
   i::FLAG_allow_natives_syntax = true;
   v8::HandleScope scope(CcTest::isolate());
-  v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
+  v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
   v8::Context::Scope context_scope(env);
 
   v8::Local<v8::Function> func1 =
@@ -1558,7 +1558,7 @@ static void CallCollectSample(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
 TEST(CollectSampleAPI) {
   v8::HandleScope scope(CcTest::isolate());
-  v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
+  v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
   v8::Context::Scope context_scope(env);
 
   v8::Local<v8::FunctionTemplate> func_template =
@@ -1612,7 +1612,7 @@ static const char* js_native_js_runtime_multiple_test_source =
 TEST(JsNativeJsRuntimeJsSampleMultiple) {
   i::FLAG_allow_natives_syntax = true;
   v8::HandleScope scope(CcTest::isolate());
-  v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
+  v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
   v8::Context::Scope context_scope(env);
 
   v8::Local<v8::FunctionTemplate> func_template =
@@ -1677,7 +1677,7 @@ static const char* inlining_test_source =
 TEST(Inlining) {
   i::FLAG_allow_natives_syntax = true;
   v8::HandleScope scope(CcTest::isolate());
-  v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
+  v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
   v8::Context::Scope context_scope(env);
   ProfilerHelper helper(env);
 
@@ -1774,7 +1774,7 @@ const double load_factor = 1.0;
 TEST(Inlining2) {
   FLAG_allow_natives_syntax = true;
   v8::HandleScope scope(CcTest::isolate());
-  v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
+  v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
   v8::Context::Scope context_scope(env);
 
   CompileRun(inlining_test_source2);
@@ -1894,7 +1894,7 @@ static void CheckFunctionDetails(v8::Isolate* isolate,
 TEST(FunctionDetails) {
   i::FLAG_allow_natives_syntax = true;
   v8::HandleScope scope(CcTest::isolate());
-  v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
+  v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
   v8::Context::Scope context_scope(env);
   ProfilerHelper helper(env);
 
@@ -1941,7 +1941,7 @@ TEST(FunctionDetailsInlining) {
   if (!CcTest::i_isolate()->use_optimizer() || i::FLAG_always_opt) return;
   i::FLAG_allow_natives_syntax = true;
   v8::HandleScope scope(CcTest::isolate());
-  v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
+  v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
   v8::Context::Scope context_scope(env);
   ProfilerHelper helper(env);
 
@@ -2019,7 +2019,7 @@ TEST(FunctionDetailsInlining) {
 
 TEST(DontStopOnFinishedProfileDelete) {
   v8::HandleScope scope(CcTest::isolate());
-  v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
+  v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
   v8::Context::Scope context_scope(env);
 
   v8::CpuProfiler* profiler = v8::CpuProfiler::New(env->GetIsolate());
@@ -2067,7 +2067,7 @@ TEST(CollectDeoptEvents) {
   if (!CcTest::i_isolate()->use_optimizer() || i::FLAG_always_opt) return;
   i::FLAG_allow_natives_syntax = true;
   v8::HandleScope scope(CcTest::isolate());
-  v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
+  v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
   v8::Context::Scope context_scope(env);
   ProfilerHelper helper(env);
   i::CpuProfiler* iprofiler =
@@ -2200,7 +2200,7 @@ TEST(DeoptAtFirstLevelInlinedSource) {
   if (!CcTest::i_isolate()->use_optimizer() || i::FLAG_always_opt) return;
   i::FLAG_allow_natives_syntax = true;
   v8::HandleScope scope(CcTest::isolate());
-  v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
+  v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
   v8::Context::Scope context_scope(env);
   ProfilerHelper helper(env);
   i::CpuProfiler* iprofiler =
@@ -2270,7 +2270,7 @@ TEST(DeoptAtSecondLevelInlinedSource) {
   if (!CcTest::i_isolate()->use_optimizer() || i::FLAG_always_opt) return;
   i::FLAG_allow_natives_syntax = true;
   v8::HandleScope scope(CcTest::isolate());
-  v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
+  v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
   v8::Context::Scope context_scope(env);
   ProfilerHelper helper(env);
   i::CpuProfiler* iprofiler =
@@ -2345,7 +2345,7 @@ TEST(DeoptUntrackedFunction) {
   if (!CcTest::i_isolate()->use_optimizer() || i::FLAG_always_opt) return;
   i::FLAG_allow_natives_syntax = true;
   v8::HandleScope scope(CcTest::isolate());
-  v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
+  v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
   v8::Context::Scope context_scope(env);
   ProfilerHelper helper(env);
   i::CpuProfiler* iprofiler =
@@ -2556,7 +2556,7 @@ TEST(StaticCollectSampleAPI) {
 
 TEST(CodeEntriesMemoryLeak) {
   v8::HandleScope scope(CcTest::isolate());
-  v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
+  v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
   v8::Context::Scope context_scope(env);
 
   std::string source = "function start() {}\n";
@@ -2590,7 +2590,7 @@ TEST(NativeFrameStackTrace) {
   // v8::internal::StringTable::LookupStringIfExists_NoAllocate native function
   // without producing an EXIT frame.
   v8::HandleScope scope(CcTest::isolate());
-  v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
+  v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
   v8::Context::Scope context_scope(env);
 
   const char* source = R"(

@@ -52,20 +52,20 @@ Handle<Object> StdlibMathMember(Isolate* isolate, Handle<JSReceiver> stdlib,
 bool AreStdlibMembersValid(Isolate* isolate, Handle<JSReceiver> stdlib,
                            wasm::AsmJsParser::StdlibSet members,
                            bool* is_typed_array) {
-  if (members.Contains(wasm::AsmJsParser::StandardMember::kInfinity)) {
+  if (members.contains(wasm::AsmJsParser::StandardMember::kInfinity)) {
     members.Remove(wasm::AsmJsParser::StandardMember::kInfinity);
     Handle<Name> name = isolate->factory()->Infinity_string();
     Handle<Object> value = JSReceiver::GetDataProperty(stdlib, name);
     if (!value->IsNumber() || !std::isinf(value->Number())) return false;
   }
-  if (members.Contains(wasm::AsmJsParser::StandardMember::kNaN)) {
+  if (members.contains(wasm::AsmJsParser::StandardMember::kNaN)) {
     members.Remove(wasm::AsmJsParser::StandardMember::kNaN);
     Handle<Name> name = isolate->factory()->NaN_string();
     Handle<Object> value = JSReceiver::GetDataProperty(stdlib, name);
     if (!value->IsNaN()) return false;
   }
 #define STDLIB_MATH_FUNC(fname, FName, ignore1, ignore2)                   \
-  if (members.Contains(wasm::AsmJsParser::StandardMember::kMath##FName)) { \
+  if (members.contains(wasm::AsmJsParser::StandardMember::kMath##FName)) { \
     members.Remove(wasm::AsmJsParser::StandardMember::kMath##FName);       \
     Handle<Name> name(isolate->factory()->InternalizeOneByteString(        \
         StaticCharVector(#fname)));                                        \
@@ -82,7 +82,7 @@ bool AreStdlibMembersValid(Isolate* isolate, Handle<JSReceiver> stdlib,
   STDLIB_MATH_FUNCTION_LIST(STDLIB_MATH_FUNC)
 #undef STDLIB_MATH_FUNC
 #define STDLIB_MATH_CONST(cname, const_value)                               \
-  if (members.Contains(wasm::AsmJsParser::StandardMember::kMath##cname)) {  \
+  if (members.contains(wasm::AsmJsParser::StandardMember::kMath##cname)) {  \
     members.Remove(wasm::AsmJsParser::StandardMember::kMath##cname);        \
     Handle<Name> name(isolate->factory()->InternalizeOneByteString(         \
         StaticCharVector(#cname)));                                         \
@@ -92,7 +92,7 @@ bool AreStdlibMembersValid(Isolate* isolate, Handle<JSReceiver> stdlib,
   STDLIB_MATH_VALUE_LIST(STDLIB_MATH_CONST)
 #undef STDLIB_MATH_CONST
 #define STDLIB_ARRAY_TYPE(fname, FName)                                \
-  if (members.Contains(wasm::AsmJsParser::StandardMember::k##FName)) { \
+  if (members.contains(wasm::AsmJsParser::StandardMember::k##FName)) { \
     members.Remove(wasm::AsmJsParser::StandardMember::k##FName);       \
     *is_typed_array = true;                                            \
     Handle<Name> name(isolate->factory()->InternalizeOneByteString(    \
@@ -112,7 +112,7 @@ bool AreStdlibMembersValid(Isolate* isolate, Handle<JSReceiver> stdlib,
   STDLIB_ARRAY_TYPE(float64_array_fun, Float64Array)
 #undef STDLIB_ARRAY_TYPE
   // All members accounted for.
-  DCHECK(members.IsEmpty());
+  DCHECK(members.empty());
   return true;
 }
 
@@ -366,8 +366,9 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,
 
   // Check that all used stdlib members are valid.
   bool stdlib_use_of_typed_array_present = false;
-  wasm::AsmJsParser::StdlibSet stdlib_uses(uses_bitset->value_as_bits());
-  if (!stdlib_uses.IsEmpty()) {  // No checking needed if no uses.
+  wasm::AsmJsParser::StdlibSet stdlib_uses =
+      wasm::AsmJsParser::StdlibSet::FromIntegral(uses_bitset->value_as_bits());
+  if (!stdlib_uses.empty()) {  // No checking needed if no uses.
     if (stdlib.is_null()) {
       ReportInstantiationFailure(script, position, "Requires standard library");
       return MaybeHandle<Object>();

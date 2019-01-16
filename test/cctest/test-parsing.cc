@@ -1551,33 +1551,33 @@ enum ParserSyncTestResult {
 };
 
 void SetGlobalFlags(base::EnumSet<ParserFlag> flags) {
-  i::FLAG_allow_natives_syntax = flags.Contains(kAllowNatives);
-  i::FLAG_harmony_public_fields = flags.Contains(kAllowHarmonyPublicFields);
-  i::FLAG_harmony_private_fields = flags.Contains(kAllowHarmonyPrivateFields);
-  i::FLAG_harmony_private_methods = flags.Contains(kAllowHarmonyPrivateMethods);
-  i::FLAG_harmony_static_fields = flags.Contains(kAllowHarmonyStaticFields);
-  i::FLAG_harmony_dynamic_import = flags.Contains(kAllowHarmonyDynamicImport);
-  i::FLAG_harmony_import_meta = flags.Contains(kAllowHarmonyImportMeta);
+  i::FLAG_allow_natives_syntax = flags.contains(kAllowNatives);
+  i::FLAG_harmony_public_fields = flags.contains(kAllowHarmonyPublicFields);
+  i::FLAG_harmony_private_fields = flags.contains(kAllowHarmonyPrivateFields);
+  i::FLAG_harmony_private_methods = flags.contains(kAllowHarmonyPrivateMethods);
+  i::FLAG_harmony_static_fields = flags.contains(kAllowHarmonyStaticFields);
+  i::FLAG_harmony_dynamic_import = flags.contains(kAllowHarmonyDynamicImport);
+  i::FLAG_harmony_import_meta = flags.contains(kAllowHarmonyImportMeta);
   i::FLAG_harmony_numeric_separator =
-      flags.Contains(kAllowHarmonyNumericSeparator);
+      flags.contains(kAllowHarmonyNumericSeparator);
 }
 
 void SetParserFlags(i::PreParser* parser, base::EnumSet<ParserFlag> flags) {
-  parser->set_allow_natives(flags.Contains(kAllowNatives));
+  parser->set_allow_natives(flags.contains(kAllowNatives));
   parser->set_allow_harmony_public_fields(
-      flags.Contains(kAllowHarmonyPublicFields));
+      flags.contains(kAllowHarmonyPublicFields));
   parser->set_allow_harmony_private_fields(
-      flags.Contains(kAllowHarmonyPrivateFields));
+      flags.contains(kAllowHarmonyPrivateFields));
   parser->set_allow_harmony_private_methods(
-      flags.Contains(kAllowHarmonyPrivateMethods));
+      flags.contains(kAllowHarmonyPrivateMethods));
   parser->set_allow_harmony_static_fields(
-      flags.Contains(kAllowHarmonyStaticFields));
+      flags.contains(kAllowHarmonyStaticFields));
   parser->set_allow_harmony_dynamic_import(
-      flags.Contains(kAllowHarmonyDynamicImport));
+      flags.contains(kAllowHarmonyDynamicImport));
   parser->set_allow_harmony_import_meta(
-      flags.Contains(kAllowHarmonyImportMeta));
+      flags.contains(kAllowHarmonyImportMeta));
   parser->set_allow_harmony_numeric_separator(
-      flags.Contains(kAllowHarmonyNumericSeparator));
+      flags.contains(kAllowHarmonyNumericSeparator));
 }
 
 void TestParserSyncWithFlags(i::Handle<i::String> source,
@@ -1616,7 +1616,7 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
     SetGlobalFlags(flags);
     i::Handle<i::Script> script = factory->NewScript(source);
     i::ParseInfo info(isolate, script);
-    info.set_allow_lazy_parsing(flags.Contains(kAllowLazy));
+    info.set_allow_lazy_parsing(flags.contains(kAllowLazy));
     if (is_module) info.set_module();
     i::parsing::ParseProgram(&info, isolate);
     function = info.literal();

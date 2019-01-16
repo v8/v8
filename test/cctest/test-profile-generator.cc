@@ -538,7 +538,7 @@ TEST(RecordStackTraceAtStartProfiling) {
   i::FLAG_turbo_inlining = false;
 
   v8::HandleScope scope(CcTest::isolate());
-  v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
+  v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
   v8::Context::Scope context_scope(env);
   std::unique_ptr<i::CpuProfiler> iprofiler(
       new i::CpuProfiler(CcTest::i_isolate()));
@@ -616,7 +616,7 @@ TEST(ProfileNodeScriptId) {
   i::FLAG_turbo_inlining = false;
 
   v8::HandleScope scope(CcTest::isolate());
-  v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
+  v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
   v8::Context::Scope context_scope(env);
   std::unique_ptr<CpuProfiler> iprofiler(new CpuProfiler(CcTest::i_isolate()));
   i::ProfilerExtension::set_profiler(iprofiler.get());
@@ -716,7 +716,7 @@ TEST(BailoutReason) {
   i::FLAG_always_opt = false;
   i::FLAG_opt = true;
   v8::HandleScope scope(CcTest::isolate());
-  v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
+  v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
   v8::Context::Scope context_scope(env);
   std::unique_ptr<CpuProfiler> iprofiler(new CpuProfiler(CcTest::i_isolate()));
   i::ProfilerExtension::set_profiler(iprofiler.get());

@@ -88,20 +88,15 @@ class Zone;
   V(TRACE_EXTENSION,    "v8/trace")
 
 #define DEFINE_EXTENSION_ID(Name, Ident) Name##_ID,
-enum CcTestExtensionIds {
-  EXTENSION_LIST(DEFINE_EXTENSION_ID)
-  kMaxExtensions
-};
+enum CcTestExtensionId { EXTENSION_LIST(DEFINE_EXTENSION_ID) kMaxExtensions };
 #undef DEFINE_EXTENSION_ID
 
-using CcTestExtensionFlags = v8::base::EnumSet<CcTestExtensionIds>;
-#define DEFINE_EXTENSION_FLAG(Name, Ident)                               \
-  static const CcTestExtensionFlags Name(1 << Name##_ID);
-  static const CcTestExtensionFlags NO_EXTENSIONS(0);
-  static const CcTestExtensionFlags ALL_EXTENSIONS((1 << kMaxExtensions) - 1);
-  EXTENSION_LIST(DEFINE_EXTENSION_FLAG)
-#undef DEFINE_EXTENSION_FLAG
+using CcTestExtensionFlags = v8::base::EnumSet<CcTestExtensionId>;
 
+#define DEFINE_EXTENSION_NAME(Name, Ident) Ident,
+static constexpr const char* kExtensionName[kMaxExtensions] = {
+    EXTENSION_LIST(DEFINE_EXTENSION_NAME)};
+#undef DEFINE_EXTENSION_NAME
 
 class CcTest {
  public:
@@ -161,7 +156,11 @@ class CcTest {
   // Helper function to configure a context.
   // Must be in a HandleScope.
   static v8::Local<v8::Context> NewContext(
-      CcTestExtensionFlags extensions,
+      v8::Isolate* isolate = CcTest::isolate()) {
+    return NewContext({}, isolate);
+  }
+  static v8::Local<v8::Context> NewContext(
+      CcTestExtensionFlags extension_flags,
       v8::Isolate* isolate = CcTest::isolate());
 
   static void TearDown();

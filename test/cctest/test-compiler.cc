@@ -154,7 +154,7 @@ TEST(Sum) {
 
 TEST(Print) {
   v8::HandleScope scope(CcTest::isolate());
-  v8::Local<v8::Context> context = CcTest::NewContext(PRINT_EXTENSION);
+  v8::Local<v8::Context> context = CcTest::NewContext({PRINT_EXTENSION_ID});
   v8::Context::Scope context_scope(context);
   const char* source = "for (n = 0; n < 100; ++n) print(n, 1, 2);";
   Handle<JSFunction> fun = Compile(source);
@@ -222,7 +222,7 @@ TEST(C2JSFrames) {
   FLAG_expose_gc = true;
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> context =
-    CcTest::NewContext(PRINT_EXTENSION | GC_EXTENSION);
+      CcTest::NewContext({PRINT_EXTENSION_ID, GC_EXTENSION_ID});
   v8::Context::Scope context_scope(context);
 
   const char* source = "function foo(a) { gc(), print(a); }";

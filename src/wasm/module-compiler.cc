@@ -1692,11 +1692,11 @@ void CompilationStateImpl::OnFinishedUnit(ExecutionTier tier, WasmCode* code) {
     }
   }
 
-  if (!events.IsEmpty()) {
+  if (!events.empty()) {
     auto notify_events = [this, events] {
       for (auto event : {CompilationEvent::kFinishedBaselineCompilation,
                          CompilationEvent::kFinishedTopTierCompilation}) {
-        if (!events.Contains(event)) continue;
+        if (!events.contains(event)) continue;
         NotifyOnEvent(event, nullptr);
       }
     };
