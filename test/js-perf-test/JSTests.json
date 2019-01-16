@@ -529,6 +529,21 @@
           ]
         },
         {
+          "name": "StringStartsWith",
+          "main": "run.js",
+          "resources": [ "string-startswith.js" ],
+          "test_flags": [ "string-startswith" ],
+          "results_regexp": "^%s\\-Strings\\(Score\\): (.+)$",
+          "run_count": 1,
+          "flags": [ "--allow-natives-syntax" ],
+          "tests": [
+            {"name": "DirectStringsDirectSearch"},
+            {"name": "ConsStringsDirectSearch"},
+            {"name": "DirectStringsConsSearch"},
+            {"name": "ConsStringsConsSearch"}
+          ]
+        },
+        {
           "name": "StringSubstring",
           "main": "run.js",
           "resources": [ "string-substring.js" ],
