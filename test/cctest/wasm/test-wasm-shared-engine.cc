@@ -4,6 +4,7 @@
 
 #include <memory>
 
+#include "src/microtask-queue.h"
 #include "src/objects-inl.h"
 #include "src/wasm/function-compiler.h"
 #include "src/wasm/wasm-engine.h"
@@ -180,7 +181,8 @@ void PumpMessageLoop(SharedEngineIsolate& isolate) {
   v8::platform::PumpMessageLoop(i::V8::GetCurrentPlatform(),
                                 isolate.v8_isolate(),
                                 platform::MessageLoopBehavior::kWaitForWork);
-  isolate.isolate()->RunMicrotasks();
+  isolate.isolate()->default_microtask_queue()->RunMicrotasks(
+      isolate.isolate());
 }
 
 Handle<WasmInstanceObject> CompileAndInstantiateAsync(

@@ -8521,7 +8521,8 @@ void Isolate::SetPromiseRejectCallback(PromiseRejectCallback callback) {
 
 void Isolate::RunMicrotasks() {
   DCHECK_NE(MicrotasksPolicy::kScoped, GetMicrotasksPolicy());
-  reinterpret_cast<i::Isolate*>(this)->RunMicrotasks();
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->default_microtask_queue()->RunMicrotasks(isolate);
 }
 
 void Isolate::EnqueueMicrotask(Local<Function> function) {
@@ -8900,7 +8901,7 @@ void MicrotasksScope::PerformCheckpoint(Isolate* v8Isolate) {
   auto* microtask_queue = isolate->default_microtask_queue();
   if (!microtask_queue->GetMicrotasksScopeDepth() &&
       !microtask_queue->HasMicrotasksSuppressions()) {
-    isolate->RunMicrotasks();
+    microtask_queue->RunMicrotasks(isolate);
   }
 }
 

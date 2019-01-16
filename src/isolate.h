@@ -1407,7 +1407,7 @@ class Isolate final : private HiddenFactory {
   void ReportPromiseReject(Handle<JSPromise> promise, Handle<Object> value,
                            v8::PromiseRejectEvent event);
 
-  void RunMicrotasks();
+  void SetTerminationOnExternalTryCatch();
 
   Handle<Symbol> SymbolFor(RootIndex dictionary_index, Handle<String> name,
                            bool private_symbol);
@@ -1668,8 +1668,6 @@ class Isolate final : private HiddenFactory {
   // If there is no external try-catch or message was successfully propagated,
   // then return true.
   bool PropagatePendingExceptionToExternalTryCatch();
-
-  void SetTerminationOnExternalTryCatch();
 
   void RunPromiseHookForAsyncEventDelegate(PromiseHookType type,
                                            Handle<JSPromise> promise);

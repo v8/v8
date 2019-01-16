@@ -90,6 +90,8 @@ class V8_EXPORT_PRIVATE MicrotaskQueue {
   static const intptr_t kMinimumCapacity;
 
  private:
+  void OnCompleted(Isolate* isolate);
+
   MicrotaskQueue();
   void ResizeBuffer(intptr_t new_capacity);
 

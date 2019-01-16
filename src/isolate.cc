@@ -4028,7 +4028,7 @@ void Isolate::FireCallCompletedCallback() {
           v8::MicrotasksPolicy::kAuto;
 
   if (run_microtasks) {
-    RunMicrotasks();
+    default_microtask_queue()->RunMicrotasks(this);
   } else {
     // TODO(marja): (spec) The discussion about when to clear the KeepDuringJob
     // set is still open (whether to clear it after every microtask or once
@@ -4274,33 +4274,6 @@ void Isolate::ReportPromiseReject(Handle<JSPromise> promise,
   promise_reject_callback_(v8::PromiseRejectMessage(
       v8::Utils::PromiseToLocal(promise), event, v8::Utils::ToLocal(value),
       v8::Utils::StackTraceToLocal(stack_trace)));
-}
-
-void Isolate::RunMicrotasks() {
-  // Increase call depth to prevent recursive callbacks.
-  v8::Isolate::SuppressMicrotaskExecutionScope suppress(
-      reinterpret_cast<v8::Isolate*>(this));
-  MicrotaskQueue* microtask_queue = default_microtask_queue();
-  if (microtask_queue->size()) {
-    TRACE_EVENT0("v8.execute", "RunMicrotasks");
-    TRACE_EVENT_CALL_STATS_SCOPED(this, "v8", "V8.RunMicrotasks");
-
-    HandleScopeImplementer::EnteredContextRewindScope scope(
-        handle_scope_implementer());
-    // If execution is terminating, bail out, clean up, and propagate to
-    // TryCatch scope.
-    if (microtask_queue->RunMicrotasks(this) < 0) {
-      SetTerminationOnExternalTryCatch();
-    }
-    DCHECK_EQ(0, microtask_queue->size());
-  }
-  // TODO(marja): (spec) The discussion about when to clear the KeepDuringJob
-  // set is still open (whether to clear it after every microtask or once
-  // during a microtask checkpoint). See also
-  // https://github.com/tc39/proposal-weakrefs/issues/39 .
-  heap()->ClearKeepDuringJobSet();
-
-  microtask_queue->FireMicrotasksCompletedCallback(this);
 }
 
 void Isolate::SetUseCounterCallback(v8::Isolate::UseCounterCallback callback) {

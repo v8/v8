@@ -7,11 +7,13 @@
 #include <stddef.h>
 #include <algorithm>
 
+#include "src/api.h"
 #include "src/base/logging.h"
 #include "src/handles-inl.h"
 #include "src/isolate.h"
 #include "src/objects/microtask-inl.h"
 #include "src/roots-inl.h"
+#include "src/tracing/trace-event.h"
 #include "src/visitors.h"
 
 namespace v8 {
@@ -107,22 +109,40 @@ class SetIsRunningMicrotasks {
 }  // namespace
 
 int MicrotaskQueue::RunMicrotasks(Isolate* isolate) {
+  if (!size()) {
+    OnCompleted(isolate);
+    return 0;
+  }
+
   HandleScope handle_scope(isolate);
   MaybeHandle<Object> maybe_exception;
 
-  SetIsRunningMicrotasks scope(&is_running_microtasks_);
-  MaybeHandle<Object> maybe_result =
-      Execution::TryRunMicrotasks(isolate, this, &maybe_exception);
+  MaybeHandle<Object> maybe_result;
 
-  // If execution is terminating, clean up and propagate that to the caller.
+  {
+    SetIsRunningMicrotasks scope(&is_running_microtasks_);
+    v8::Isolate::SuppressMicrotaskExecutionScope suppress(
+        reinterpret_cast<v8::Isolate*>(isolate));
+    HandleScopeImplementer::EnteredContextRewindScope rewind_scope(
+        isolate->handle_scope_implementer());
+    TRACE_EVENT0("v8.execute", "RunMicrotasks");
+    TRACE_EVENT_CALL_STATS_SCOPED(isolate, "v8", "V8.RunMicrotasks");
+    maybe_result = Execution::TryRunMicrotasks(isolate, this, &maybe_exception);
+  }
+
+  // If execution is terminating, clean up and propagate that to TryCatch scope.
   if (maybe_result.is_null() && maybe_exception.is_null()) {
     delete[] ring_buffer_;
     ring_buffer_ = nullptr;
     capacity_ = 0;
     size_ = 0;
     start_ = 0;
+    isolate->SetTerminationOnExternalTryCatch();
+    OnCompleted(isolate);
     return -1;
   }
+  DCHECK_EQ(0, size());
+  OnCompleted(isolate);
 
   // TODO(tzik): Return the number of microtasks run in this round.
   return 0;
@@ -177,6 +197,16 @@ void MicrotaskQueue::FireMicrotasksCompletedCallback(Isolate* isolate) const {
   for (auto& callback : callbacks) {
     callback(reinterpret_cast<v8::Isolate*>(isolate));
   }
+}
+
+void MicrotaskQueue::OnCompleted(Isolate* isolate) {
+  // TODO(marja): (spec) The discussion about when to clear the KeepDuringJob
+  // set is still open (whether to clear it after every microtask or once
+  // during a microtask checkpoint). See also
+  // https://github.com/tc39/proposal-weakrefs/issues/39 .
+  isolate->heap()->ClearKeepDuringJobSet();
+
+  FireMicrotasksCompletedCallback(isolate);
 }
 
 void MicrotaskQueue::ResizeBuffer(intptr_t new_capacity) {

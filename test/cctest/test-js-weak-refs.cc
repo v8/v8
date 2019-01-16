@@ -5,6 +5,7 @@
 #include "src/handles-inl.h"
 #include "src/heap/factory-inl.h"
 #include "src/isolate.h"
+#include "src/microtask-queue.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/js-weak-refs-inl.h"
 #include "test/cctest/cctest.h"
@@ -427,7 +428,7 @@ TEST(TestJSWeakRefKeepDuringJob) {
   CHECK(!weak_ref->target()->IsUndefined(isolate));
 
   // Clears the KeepDuringJob set.
-  isolate->RunMicrotasks();
+  isolate->default_microtask_queue()->RunMicrotasks(isolate);
   CcTest::CollectAllGarbage();
 
   CHECK(weak_ref->target()->IsUndefined(isolate));
@@ -465,7 +466,7 @@ TEST(TestJSWeakRefKeepDuringJobIncrementalMarking) {
   CHECK(!weak_ref->target()->IsUndefined(isolate));
 
   // Clears the KeepDuringJob set.
-  isolate->RunMicrotasks();
+  isolate->default_microtask_queue()->RunMicrotasks(isolate);
   heap::SimulateIncrementalMarking(heap, true);
   CcTest::CollectAllGarbage();
 
