@@ -6,7 +6,6 @@
 [ALWAYS, {
   # https://bugs.chromium.org/p/v8/issues/detail?id=8319
   'memory/grow': [FAIL],
-  'table/get-set': [FAIL],
   'module/customSections': [FAIL],
 }], # ALWAYS
 

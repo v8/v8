@@ -277,7 +277,7 @@ class WasmTableObject : public JSObject {
                                int table_index);
 
   static void Set(Isolate* isolate, Handle<WasmTableObject> table,
-                  int32_t index, Handle<JSFunction> function);
+                  uint32_t index, Handle<JSFunction> function);
 
   static void UpdateDispatchTables(Isolate* isolate,
                                    Handle<WasmTableObject> table,

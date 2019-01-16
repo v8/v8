@@ -844,7 +844,7 @@ void WasmTableObject::Grow(Isolate* isolate, uint32_t count) {
 }
 
 void WasmTableObject::Set(Isolate* isolate, Handle<WasmTableObject> table,
-                          int32_t table_index, Handle<JSFunction> function) {
+                          uint32_t table_index, Handle<JSFunction> function) {
   Handle<FixedArray> array(table->functions(), isolate);
   if (function.is_null()) {
     ClearDispatchTables(isolate, table, table_index);  // Degenerate case.

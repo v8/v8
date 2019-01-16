@@ -179,14 +179,19 @@ function assertTableIsValid(table, length) {
       assertSame(undefined, table[i]);
     }
 
-    for (let key of [0.4, "", NaN, {}, [], () => {}]) {
+    for (let key of [0.4, "", []]) {
       assertSame(undefined, table.set(0, null));
       assertSame(undefined, table.set(key, f));
       assertSame(f, table.get(0));
       assertSame(undefined, table[key]);
     }
+    for (let key of [NaN, {}, () => {}]) {
+      assertSame(undefined, table[key]);
+      assertThrows(() => table.set(key, f), TypeError);
+    }
 
-    for (let key of [-1, table.length, table.length * 10]) {
+    assertThrows(() => table.set(-1, f), TypeError);
+    for (let key of [table.length, table.length * 10]) {
       assertThrows(() => table.set(key, f), RangeError);
     }
 

@@ -1385,8 +1385,10 @@ void WebAssemblyTableSet(const v8::FunctionCallbackInfo<v8::Value>& args) {
   EXTRACT_THIS(receiver, WasmTableObject);
 
   // Parameter 0.
-  int64_t index;
-  if (!args[0]->IntegerValue(context).To(&index)) return;
+  uint32_t index;
+  if (!EnforceUint32("Argument 0", args[0], context, &thrower, &index)) {
+    return;
+  }
 
   // Parameter 1.
   i::Handle<i::Object> value = Utils::OpenHandle(*args[1]);
@@ -1396,12 +1398,12 @@ void WebAssemblyTableSet(const v8::FunctionCallbackInfo<v8::Value>& args) {
     return;
   }
 
-  if (index < 0 || index >= receiver->functions()->length()) {
+  if (index >= static_cast<uint64_t>(receiver->functions()->length())) {
     thrower.RangeError("index out of bounds");
     return;
   }
 
-  i::WasmTableObject::Set(i_isolate, receiver, static_cast<int32_t>(index),
+  i::WasmTableObject::Set(i_isolate, receiver, index,
                           value->IsNull(i_isolate)
                               ? i::Handle<i::JSFunction>::null()
                               : i::Handle<i::JSFunction>::cast(value));
