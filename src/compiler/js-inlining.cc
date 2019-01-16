@@ -289,15 +289,6 @@ bool JSInliner::DetermineCallTarget(
   if (match.HasValue() && match.Value()->IsJSFunction()) {
     Handle<JSFunction> function = Handle<JSFunction>::cast(match.Value());
 
-    JSFunctionRef ref(broker(), function);
-    if (FLAG_concurrent_inlining && !ref.serialized_for_compilation()) {
-      broker()->Trace("Possibly missed opportunity to inline a function ");
-      if (FLAG_trace_heap_broker) {
-        match.Value()->ShortPrint();
-        PrintF(")\n");
-      }
-    }
-
     // Disallow cross native-context inlining for now. This means that all parts
     // of the resulting code will operate on the same global object. This also
     // prevents cross context leaks, where we could inline functions from a
@@ -308,6 +299,12 @@ bool JSInliner::DetermineCallTarget(
     // in the same graph in a compositional way.
     if (function->native_context() != info_->native_context()) {
       return false;
+    }
+
+    JSFunctionRef ref(broker(), function);
+    if (FLAG_concurrent_inlining && !ref.serialized_for_compilation()) {
+      TRACE_BROKER(broker(), "Missed opportunity to inline a function ("
+                                 << Brief(*match.Value()) << ")");
     }
 
     shared_info_out = handle(function->shared(), isolate());

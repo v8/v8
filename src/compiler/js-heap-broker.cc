@@ -24,6 +24,8 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+#define TRACE(broker, x) TRACE_BROKER(broker, x)
+
 #define FORWARD_DECL(Name) class Name##Data;
 HEAP_BROKER_OBJECT_LIST(FORWARD_DECL)
 #undef FORWARD_DECL
@@ -54,12 +56,9 @@ class ObjectData : public ZoneObject {
     // in an endless recursion.
     *storage = this;
 
-    broker->Trace("Creating data %p for handle %" V8PRIuPTR " (", this,
-                  object.address());
-    if (FLAG_trace_heap_broker) {
-      object->ShortPrint();
-      PrintF(")\n");
-    }
+    TRACE(broker, "Creating data " << this << " for handle " << object.address()
+                                   << " (" << Brief(*object) << ")");
+
     CHECK_NOT_NULL(broker->isolate()->handle_scope_data()->canonical_scope);
   }
 
@@ -111,9 +110,9 @@ class PropertyCellData : public HeapObjectData {
   ObjectData* value_ = nullptr;
 };
 
-void JSHeapBroker::IncrementTracingIndentation() { ++tracing_indentation_; }
+void JSHeapBroker::IncrementTracingIndentation() { ++trace_indentation_; }
 
-void JSHeapBroker::DecrementTracingIndentation() { --tracing_indentation_; }
+void JSHeapBroker::DecrementTracingIndentation() { --trace_indentation_; }
 
 class TraceScope {
  public:
@@ -130,7 +129,7 @@ class TraceScope {
 
   TraceScope(JSHeapBroker* broker, void* self, const char* label)
       : broker_(broker) {
-    broker_->Trace("Running %s on %p.\n", label, self);
+    TRACE(broker_, "Running " << label << " on " << self << ".");
     broker_->IncrementTracingIndentation();
   }
 };
@@ -962,7 +961,7 @@ void FeedbackVectorData::SerializeSlots(JSHeapBroker* broker) {
     }
   }
   DCHECK_EQ(vector->length(), feedback_.size());
-  broker->Trace("Copied %zu slots.\n", feedback_.size());
+  TRACE(broker, "Copied " << feedback_.size() << " slots.");
 }
 
 class FixedArrayBaseData : public HeapObjectData {
@@ -1046,7 +1045,7 @@ void FixedArrayData::SerializeContents(JSHeapBroker* broker) {
     Handle<Object> value(array->get(i), broker->isolate());
     contents_.push_back(broker->GetOrCreateData(value));
   }
-  broker->Trace("Copied %zu elements.\n", contents_.size());
+  TRACE(broker, "Copied " << contents_.size() << " elements.");
 }
 
 class FixedDoubleArrayData : public FixedArrayBaseData {
@@ -1082,7 +1081,7 @@ void FixedDoubleArrayData::SerializeContents(JSHeapBroker* broker) {
   for (int i = 0; i < length(); i++) {
     contents_.push_back(Float64::FromBits(self->get_representation(i)));
   }
-  broker->Trace("Copied %zu elements.\n", contents_.size());
+  TRACE(broker, "Copied " << contents_.size() << " elements.");
 }
 
 class BytecodeArrayData : public FixedArrayBaseData {
@@ -1230,7 +1229,7 @@ void ModuleData::Serialize(JSHeapBroker* broker) {
   for (int i = 0; i < imports_length; ++i) {
     imports_.push_back(broker->GetOrCreateData(imports->get(i))->AsCell());
   }
-  broker->Trace("Copied %zu imports.\n", imports_.size());
+  TRACE(broker, "Copied " << imports_.size() << " imports.");
 
   DCHECK(exports_.empty());
   Handle<FixedArray> exports(module->regular_exports(), broker->isolate());
@@ -1239,7 +1238,7 @@ void ModuleData::Serialize(JSHeapBroker* broker) {
   for (int i = 0; i < exports_length; ++i) {
     exports_.push_back(broker->GetOrCreateData(exports->get(i))->AsCell());
   }
-  broker->Trace("Copied %zu exports.\n", exports_.size());
+  TRACE(broker, "Copied " << exports_.size() << " exports.");
 }
 
 class CellData : public HeapObjectData {
@@ -1397,9 +1396,9 @@ void MapData::SerializeOwnDescriptors(JSHeapBroker* broker) {
     }
   }
 
-  broker->Trace("Copied %zu descriptors into %p (%zu total).\n",
-                number_of_own - current_size, instance_descriptors_,
-                number_of_own);
+  TRACE(broker, "Copied " << number_of_own - current_size
+                          << " descriptors into " << instance_descriptors_
+                          << " (" << number_of_own << " total).");
 }
 
 void JSObjectData::SerializeRecursive(JSHeapBroker* broker, int depth) {
@@ -1493,7 +1492,7 @@ void JSObjectData::SerializeRecursive(JSHeapBroker* broker, int depth) {
       inobject_fields_.push_back(JSObjectField{value_data});
     }
   }
-  broker->Trace("Copied %zu in-object fields.\n", inobject_fields_.size());
+  TRACE(broker, "Copied " << inobject_fields_.size() << " in-object fields.");
 
   map()->SerializeOwnDescriptors(broker);
 
@@ -1553,36 +1552,30 @@ JSHeapBroker::JSHeapBroker(Isolate* isolate, Zone* broker_zone)
   // compilation enabled, standard objects to be serialized), as the map
   // is going to be replaced immediatelly with a larger capacity one.
   // It doesn't seem to affect the performance in a noticeable way though.
-  Trace("Constructing heap broker.\n");
+  TRACE(this, "Constructing heap broker.");
 }
 
-void JSHeapBroker::Trace(const char* format, ...) const {
-  if (FLAG_trace_heap_broker) {
-    PrintF("[%p] ", this);
-    for (unsigned i = 0; i < tracing_indentation_; ++i) PrintF("  ");
-    va_list arguments;
-    va_start(arguments, format);
-    base::OS::VPrint(format, arguments);
-    va_end(arguments);
-  }
+std::ostream& JSHeapBroker::Trace() const {
+  std::cout << "[" << this << "] " << std::string(trace_indentation_ * 2, ' ');
+  return std::cout;
 }
 
 void JSHeapBroker::StartSerializing() {
   CHECK_EQ(mode_, kDisabled);
-  Trace("Starting serialization.\n");
+  TRACE(this, "Starting serialization.");
   mode_ = kSerializing;
   refs_->Clear();
 }
 
 void JSHeapBroker::StopSerializing() {
   CHECK_EQ(mode_, kSerializing);
-  Trace("Stopping serialization.\n");
+  TRACE(this, "Stopping serialization.");
   mode_ = kSerialized;
 }
 
 void JSHeapBroker::Retire() {
   CHECK_EQ(mode_, kSerialized);
-  Trace("Retiring.\n");
+  TRACE(this, "Retiring.");
   mode_ = kRetired;
 }
 
@@ -1787,7 +1780,7 @@ void JSHeapBroker::SerializeStandardObjects() {
   GetOrCreateData(
       CodeFactory::CEntry(isolate(), 1, kDontSaveFPRegs, kArgvOnStack, true));
 
-  Trace("Finished serializing standard objects.\n");
+  TRACE(this, "Finished serializing standard objects.");
 }
 
 ObjectData* JSHeapBroker::GetData(Handle<Object> object) const {
@@ -2733,6 +2726,7 @@ void JSBoundFunctionRef::Serialize() {
 #undef BIMODAL_ACCESSOR_C
 #undef IF_BROKER_DISABLED_ACCESS_HANDLE
 #undef IF_BROKER_DISABLED_ACCESS_HANDLE_C
+#undef TRACE
 
 }  // namespace compiler
 }  // namespace internal

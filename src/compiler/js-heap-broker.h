@@ -638,7 +638,8 @@ class V8_EXPORT_PRIVATE JSHeapBroker : public NON_EXPORTED_BASE(ZoneObject) {
   // %ObjectPrototype%.
   bool IsArrayOrObjectPrototype(const JSObjectRef& object) const;
 
-  void Trace(const char* format, ...) const;
+  std::ostream& Trace() const;
+
   void IncrementTracingIndentation();
   void DecrementTracingIndentation();
 
@@ -660,7 +661,7 @@ class V8_EXPORT_PRIVATE JSHeapBroker : public NON_EXPORTED_BASE(ZoneObject) {
       array_and_object_prototypes_;
 
   BrokerMode mode_ = kDisabled;
-  unsigned tracing_indentation_ = 0;
+  unsigned trace_indentation_ = 0;
   PerIsolateCompilerCache* compiler_cache_;
 
   static const size_t kMinimalRefsBucketCount = 8;     // must be power of 2
@@ -677,6 +678,11 @@ class V8_EXPORT_PRIVATE JSHeapBroker : public NON_EXPORTED_BASE(ZoneObject) {
 class Reduction;
 Reduction NoChangeBecauseOfMissingData(JSHeapBroker* broker,
                                        const char* function, int line);
+
+#define TRACE_BROKER(broker, x)                               \
+  do {                                                        \
+    if (FLAG_trace_heap_broker) broker->Trace() << x << '\n'; \
+  } while (false)
 
 }  // namespace compiler
 }  // namespace internal
