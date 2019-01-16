@@ -14258,12 +14258,32 @@ Handle<Object> SharedFunctionInfo::GetSourceCodeHarmony(
 bool SharedFunctionInfo::IsInlineable() {
   // Check that the function has a script associated with it.
   if (!script()->IsScript()) return false;
+
   if (GetIsolate()->is_precise_binary_code_coverage() &&
       !has_reported_binary_coverage()) {
     // We may miss invocations if this function is inlined.
     return false;
   }
-  return !optimization_disabled();
+
+  if (optimization_disabled()) return false;
+
+  // Built-in functions are handled by the JSCallReducer.
+  if (HasBuiltinFunctionId()) return false;
+
+  // Only choose user code for inlining.
+  if (!IsUserJavaScript()) return false;
+
+  // If there is no bytecode array, it is either not compiled or it is compiled
+  // with WebAssembly for the asm.js pipeline. In either case we don't want to
+  // inline.
+  if (!HasBytecodeArray()) return false;
+
+  // Quick check on the size of the bytecode to avoid inlining large functions.
+  if (GetBytecodeArray()->length() > FLAG_max_inlined_bytecode_size) {
+    return false;
+  }
+
+  return true;
 }
 
 int SharedFunctionInfo::SourceSize() { return EndPosition() - StartPosition(); }

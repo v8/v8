@@ -60,27 +60,6 @@ int CollectFunctions(Node* node, Handle<JSFunction>* functions,
   return 0;
 }
 
-bool CanInlineFunction(Handle<SharedFunctionInfo> shared,
-                       Handle<BytecodeArray> bytecode) {
-  // Built-in functions are handled by the JSCallReducer.
-  if (shared->HasBuiltinFunctionId()) return false;
-
-  // Only choose user code for inlining.
-  if (!shared->IsUserJavaScript()) return false;
-
-  // If there is no bytecode array, it is either not compiled or it is compiled
-  // with WebAssembly for the asm.js pipeline. In either case we don't want to
-  // inline.
-  if (bytecode.is_null()) return false;
-
-  // Quick check on the size of the bytecode to avoid inlining large functions.
-  if (bytecode->length() > FLAG_max_inlined_bytecode_size) {
-    return false;
-  }
-
-  return true;
-}
-
 bool IsSmallInlineFunction(Handle<BytecodeArray> bytecode) {
   // Forcibly inline small functions.
   // Don't forcibly inline functions that weren't compiled yet.
@@ -127,8 +106,7 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
         candidate.functions[i].is_null()
             ? candidate.shared_info
             : handle(candidate.functions[i]->shared(), isolate());
-    Handle<BytecodeArray> bytecode = candidate.bytecode[i];
-    candidate.can_inline_function[i] = CanInlineFunction(shared, bytecode);
+    candidate.can_inline_function[i] = shared->IsInlineable();
     // Do not allow direct recursion i.e. f() -> f(). We still allow indirect
     // recurion like f() -> g() -> f(). The indirect recursion is helpful in
     // cases where f() is a small dispatch function that calls the appropriate
@@ -144,6 +122,7 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
             node->id(), node->op()->mnemonic());
       candidate.can_inline_function[i] = false;
     }
+    Handle<BytecodeArray> bytecode = candidate.bytecode[i];
     if (candidate.can_inline_function[i]) {
       can_inline = true;
       candidate.total_size += bytecode->length();
