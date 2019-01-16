@@ -681,6 +681,7 @@ class V8_EXPORT_PRIVATE TopLevelLiveRange final : public LiveRange {
     splinter->relative_id_ = GetNextChildId();
     splinter->set_spill_type(spill_type());
     splinter->SetSplinteredFrom(this);
+    if (bundle_ != nullptr) splinter->set_bundle(bundle_);
   }
 
   void MarkHasPreassignedSlot() { has_preassigned_slot_ = true; }
