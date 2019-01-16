@@ -287,7 +287,7 @@ class SamplerManager {
 
 #if defined(USE_SIGNALS)
   void DoSample(const v8::RegisterState& state) {
-    AtomicGuard atomic_guard(&SamplerManager::samplers_access_counter_, false);
+    AtomicGuard atomic_guard(&samplers_access_counter_, false);
     if (!atomic_guard.is_success()) return;
     pthread_t thread_id = pthread_self();
     base::HashMap::Entry* entry =
@@ -313,10 +313,8 @@ class SamplerManager {
 
  private:
   base::HashMap sampler_map_;
-  static AtomicMutex samplers_access_counter_;
+  AtomicMutex samplers_access_counter_;
 };
-
-AtomicMutex SamplerManager::samplers_access_counter_;
 
 #elif V8_OS_WIN || V8_OS_CYGWIN
 
