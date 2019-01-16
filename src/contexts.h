@@ -635,11 +635,12 @@ class Context : public HeapObject {
   // 4) result.is_null():
   //    There was no binding found, *index is always -1 and *attributes is
   //    always ABSENT.
-  Handle<Object> Lookup(Handle<String> name, ContextLookupFlags flags,
-                        int* index, PropertyAttributes* attributes,
-                        InitializationFlag* init_flag,
-                        VariableMode* variable_mode,
-                        bool* is_sloppy_function_name = nullptr);
+  static Handle<Object> Lookup(Handle<Context> context, Handle<String> name,
+                               ContextLookupFlags flags, int* index,
+                               PropertyAttributes* attributes,
+                               InitializationFlag* init_flag,
+                               VariableMode* variable_mode,
+                               bool* is_sloppy_function_name = nullptr);
 
   static inline int FunctionMapIndex(LanguageMode language_mode,
                                      FunctionKind kind, bool has_prototype_slot,

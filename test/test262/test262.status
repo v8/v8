@@ -388,16 +388,6 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=5116
   'built-ins/TypedArray/prototype/fill/fill-values-conversion-operations-consistent-nan': [PASS, FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5135
-  'annexB/language/eval-code/direct/func-block-decl-eval-func-block-scoping': [FAIL],
-  'annexB/language/eval-code/direct/func-if-decl-else-decl-a-eval-func-block-scoping': [FAIL],
-  'annexB/language/eval-code/direct/func-if-decl-else-decl-b-eval-func-block-scoping': [FAIL],
-  'annexB/language/eval-code/direct/func-if-decl-else-stmt-eval-func-block-scoping': [FAIL],
-  'annexB/language/eval-code/direct/func-if-decl-no-else-eval-func-block-scoping': [FAIL],
-  'annexB/language/eval-code/direct/func-if-stmt-else-decl-eval-func-block-scoping': [FAIL],
-  'annexB/language/eval-code/direct/func-switch-case-eval-func-block-scoping': [FAIL],
-  'annexB/language/eval-code/direct/func-switch-dflt-eval-func-block-scoping': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=5139
   'annexB/built-ins/Date/prototype/setYear/year-number-relative': [FAIL],
 
@@ -446,16 +436,6 @@
   'built-ins/TypedArrayConstructors/internals/Set/BigInt/key-is-not-integer': [FAIL],
   'built-ins/TypedArrayConstructors/internals/Set/key-is-out-of-bounds': [FAIL],
   'built-ins/TypedArrayConstructors/internals/Set/BigInt/key-is-out-of-bounds': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5112
-  'annexB/language/eval-code/direct/func-block-decl-eval-func-no-skip-try': [FAIL],
-  'annexB/language/eval-code/direct/func-if-decl-else-decl-a-eval-func-no-skip-try': [FAIL],
-  'annexB/language/eval-code/direct/func-if-decl-else-decl-b-eval-func-no-skip-try': [FAIL],
-  'annexB/language/eval-code/direct/func-if-decl-else-stmt-eval-func-no-skip-try': [FAIL],
-  'annexB/language/eval-code/direct/func-if-decl-no-else-eval-func-no-skip-try': [FAIL],
-  'annexB/language/eval-code/direct/func-if-stmt-else-decl-eval-func-no-skip-try': [FAIL],
-  'annexB/language/eval-code/direct/func-switch-case-eval-func-no-skip-try': [FAIL],
-  'annexB/language/eval-code/direct/func-switch-dflt-eval-func-no-skip-try': [FAIL],
 
   # SharedArrayBuffer tests that require flags
   'built-ins/SharedArrayBuffer/*': ['--harmony-sharedarraybuffer'],

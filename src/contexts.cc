@@ -168,13 +168,14 @@ static PropertyAttributes GetAttributesForMode(VariableMode mode) {
   return mode == VariableMode::kConst ? READ_ONLY : NONE;
 }
 
-Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
-                               int* index, PropertyAttributes* attributes,
+// static
+Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
+                               ContextLookupFlags flags, int* index,
+                               PropertyAttributes* attributes,
                                InitializationFlag* init_flag,
                                VariableMode* variable_mode,
                                bool* is_sloppy_function_name) {
-  Isolate* isolate = GetIsolate();
-  Handle<Context> context(*this, isolate);
+  Isolate* isolate = context->GetIsolate();
 
   bool follow_context_chain = (flags & FOLLOW_CONTEXT_CHAIN) != 0;
   bool failed_whitelist = false;
@@ -365,9 +366,10 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
       // Check the original context, but do not follow its context chain.
       Object obj = context->get(WRAPPED_CONTEXT_INDEX);
       if (obj->IsContext()) {
+        Handle<Context> context(Context::cast(obj), isolate);
         Handle<Object> result =
-            Context::cast(obj)->Lookup(name, DONT_FOLLOW_CHAINS, index,
-                                       attributes, init_flag, variable_mode);
+            Context::Lookup(context, name, DONT_FOLLOW_CHAINS, index,
+                            attributes, init_flag, variable_mode);
         if (!result.is_null()) return result;
       }
       // Check whitelist. Names that do not pass whitelist shall only resolve

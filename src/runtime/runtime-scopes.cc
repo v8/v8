@@ -242,10 +242,12 @@ Object DeclareEvalHelper(Isolate* isolate, Handle<String> name,
   VariableMode mode;
 
   // Check for a conflict with a lexically scoped variable
+  // TODO(verwaest): We should be able to do this at compile-time of the eval
+  // and drop these flags.
   const ContextLookupFlags lookup_flags = static_cast<ContextLookupFlags>(
       FOLLOW_CONTEXT_CHAIN | STOP_AT_DECLARATION_SCOPE | SKIP_WITH_CONTEXT);
-  context_arg->Lookup(name, lookup_flags, &index, &attributes, &init_flag,
-                      &mode);
+  Context::Lookup(context_arg, name, lookup_flags, &index, &attributes,
+                  &init_flag, &mode);
   if (attributes != ABSENT && IsLexicalVariableMode(mode)) {
     // ES#sec-evaldeclarationinstantiation 5.a.i.1:
     // If varEnvRec.HasLexicalDeclaration(name) is true, throw a SyntaxError
@@ -256,8 +258,9 @@ Object DeclareEvalHelper(Isolate* isolate, Handle<String> name,
                                    RedeclarationType::kSyntaxError);
   }
 
-  Handle<Object> holder = context->Lookup(name, DONT_FOLLOW_CHAINS, &index,
-                                          &attributes, &init_flag, &mode);
+  Handle<Object> holder =
+      Context::Lookup(context, name, DONT_FOLLOW_CHAINS, &index, &attributes,
+                      &init_flag, &mode);
   DCHECK(holder.is_null() || !holder->IsModule());
   DCHECK(!isolate->has_pending_exception());
 
@@ -777,8 +780,9 @@ RUNTIME_FUNCTION(Runtime_DeleteLookupSlot) {
   PropertyAttributes attributes;
   InitializationFlag flag;
   VariableMode mode;
-  Handle<Object> holder = isolate->context()->Lookup(
-      name, FOLLOW_CHAINS, &index, &attributes, &flag, &mode);
+  Handle<Context> context(isolate->context(), isolate);
+  Handle<Object> holder = Context::Lookup(context, name, FOLLOW_CHAINS, &index,
+                                          &attributes, &flag, &mode);
 
   // If the slot was not found the result is true.
   if (holder.is_null()) {
@@ -813,8 +817,9 @@ MaybeHandle<Object> LoadLookupSlot(Isolate* isolate, Handle<String> name,
   PropertyAttributes attributes;
   InitializationFlag flag;
   VariableMode mode;
-  Handle<Object> holder = isolate->context()->Lookup(
-      name, FOLLOW_CHAINS, &index, &attributes, &flag, &mode);
+  Handle<Context> context(isolate->context(), isolate);
+  Handle<Object> holder = Context::Lookup(context, name, FOLLOW_CHAINS, &index,
+                                          &attributes, &flag, &mode);
   if (isolate->has_pending_exception()) return MaybeHandle<Object>();
 
   if (!holder.is_null() && holder->IsModule()) {
@@ -905,19 +910,17 @@ RUNTIME_FUNCTION_RETURN_PAIR(Runtime_LoadLookupSlotForCall) {
 namespace {
 
 MaybeHandle<Object> StoreLookupSlot(
-    Isolate* isolate, Handle<String> name, Handle<Object> value,
-    LanguageMode language_mode,
+    Isolate* isolate, Handle<Context> context, Handle<String> name,
+    Handle<Object> value, LanguageMode language_mode,
     ContextLookupFlags context_lookup_flags = FOLLOW_CHAINS) {
-  Handle<Context> context(isolate->context(), isolate);
-
   int index;
   PropertyAttributes attributes;
   InitializationFlag flag;
   VariableMode mode;
   bool is_sloppy_function_name;
   Handle<Object> holder =
-      context->Lookup(name, context_lookup_flags, &index, &attributes, &flag,
-                      &mode, &is_sloppy_function_name);
+      Context::Lookup(context, name, context_lookup_flags, &index, &attributes,
+                      &flag, &mode, &is_sloppy_function_name);
   if (holder.is_null()) {
     // In case of JSProxy, an exception might have been thrown.
     if (isolate->has_pending_exception()) return MaybeHandle<Object>();
@@ -977,23 +980,10 @@ RUNTIME_FUNCTION(Runtime_StoreLookupSlot_Sloppy) {
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
+  Handle<Context> context(isolate->context(), isolate);
   RETURN_RESULT_OR_FAILURE(
-      isolate, StoreLookupSlot(isolate, name, value, LanguageMode::kSloppy));
-}
-
-// Store into a dynamic context for sloppy-mode block-scoped function hoisting
-// which leaks out of an eval. In particular, with-scopes are be skipped to
-// reach the appropriate var-like declaration.
-RUNTIME_FUNCTION(Runtime_StoreLookupSlot_SloppyHoisting) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
-  const ContextLookupFlags lookup_flags = static_cast<ContextLookupFlags>(
-      FOLLOW_CONTEXT_CHAIN | STOP_AT_DECLARATION_SCOPE | SKIP_WITH_CONTEXT);
-  RETURN_RESULT_OR_FAILURE(
-      isolate, StoreLookupSlot(isolate, name, value, LanguageMode::kSloppy,
-                               lookup_flags));
+      isolate,
+      StoreLookupSlot(isolate, context, name, value, LanguageMode::kSloppy));
 }
 
 RUNTIME_FUNCTION(Runtime_StoreLookupSlot_Strict) {
@@ -1001,8 +991,26 @@ RUNTIME_FUNCTION(Runtime_StoreLookupSlot_Strict) {
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
+  Handle<Context> context(isolate->context(), isolate);
   RETURN_RESULT_OR_FAILURE(
-      isolate, StoreLookupSlot(isolate, name, value, LanguageMode::kStrict));
+      isolate,
+      StoreLookupSlot(isolate, context, name, value, LanguageMode::kStrict));
+}
+
+// Store into a dynamic declaration context for sloppy-mode block-scoped
+// function hoisting which leaks out of an eval.
+RUNTIME_FUNCTION(Runtime_StoreLookupSlot_SloppyHoisting) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
+  const ContextLookupFlags lookup_flags =
+      static_cast<ContextLookupFlags>(DONT_FOLLOW_CHAINS);
+  Handle<Context> declaration_context(isolate->context()->declaration_context(),
+                                      isolate);
+  RETURN_RESULT_OR_FAILURE(
+      isolate, StoreLookupSlot(isolate, declaration_context, name, value,
+                               LanguageMode::kSloppy, lookup_flags));
 }
 
 }  // namespace internal

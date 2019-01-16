@@ -1249,7 +1249,7 @@ void BytecodeGenerator::VisitVariableDeclaration(VariableDeclaration* decl) {
       }
       break;
     case VariableLocation::LOOKUP: {
-      DCHECK_EQ(VariableMode::kVar, variable->mode());
+      DCHECK_EQ(VariableMode::kDynamic, variable->mode());
       DCHECK(!variable->binding_needs_init());
 
       Register name = register_allocator()->NewRegister();
@@ -1273,7 +1273,8 @@ void BytecodeGenerator::VisitVariableDeclaration(VariableDeclaration* decl) {
 void BytecodeGenerator::VisitFunctionDeclaration(FunctionDeclaration* decl) {
   Variable* variable = decl->var();
   DCHECK(variable->mode() == VariableMode::kLet ||
-         variable->mode() == VariableMode::kVar);
+         variable->mode() == VariableMode::kVar ||
+         variable->mode() == VariableMode::kDynamic);
   switch (variable->location()) {
     case VariableLocation::UNALLOCATED: {
       FeedbackSlot slot =

@@ -1022,8 +1022,7 @@ void Scope::DeclareVariable(Declaration* declaration, VariableProxy* proxy,
       // The proxy is bound to a lookup variable to force a dynamic declaration
       // using the DeclareEvalVar or DeclareEvalFunction runtime functions.
       DCHECK_EQ(NORMAL_VARIABLE, kind);
-      var = new (zone()) Variable(this, name, mode, kind, init, kMaybeAssigned);
-      var->AllocateTo(VariableLocation::LOOKUP, -1);
+      var = NonLocal(proxy->raw_name(), VariableMode::kDynamic);
     } else {
       // Declare the name.
       var = DeclareLocal(name, mode, kind, init);
@@ -1162,7 +1161,8 @@ Declaration* Scope::CheckConflictingVarDeclarations() {
     // are lexical vs nested var.
     if (decl->IsVariableDeclaration() &&
         decl->AsVariableDeclaration()->AsNested() != nullptr) {
-      DCHECK_EQ(decl->var()->mode(), VariableMode::kVar);
+      DCHECK(decl->var()->mode() == VariableMode::kVar ||
+             decl->var()->mode() == VariableMode::kDynamic);
       Scope* current = decl->AsVariableDeclaration()->AsNested()->scope();
       // Iterate through all scopes until and including the declaration scope.
       while (true) {
@@ -1715,7 +1715,7 @@ void Scope::CheckZones() {
 Variable* Scope::NonLocal(const AstRawString* name, VariableMode mode) {
   // Declare a new non-local.
   DCHECK(IsDynamicVariableMode(mode));
-  Variable* var = variables_.Declare(zone(), nullptr, name, mode);
+  Variable* var = variables_.Declare(zone(), this, name, mode);
   // Allocate it by giving it a dynamic lookup.
   var->AllocateTo(VariableLocation::LOOKUP, -1);
   return var;
