@@ -16,15 +16,15 @@ vars = {
 
 deps = {
   'v8/build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '02ccb1605225f308d6c252db27daed78a2c2c070',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '7a1aacd97b8aeea43723cb227d083a8d684c6166',
   'v8/third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '8432ec24a32617322cae39cfbf3137933e5e49fb',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'e229a0e3c5f8646cd6c486ea12c9ef28113e91b6',
   'v8/third_party/icu':
     Var('chromium_url') + '/chromium/deps/icu.git' + '@' + 'd65301491c513d49163ad29c853eb85c02c8d5b4',
   'v8/third_party/instrumented_libraries':
     Var('chromium_url') + '/chromium/src/third_party/instrumented_libraries.git' + '@' + 'a959e4f0cb643003f2d75d179cede449979e3e77',
   'v8/buildtools':
-    Var('chromium_url') + '/chromium/buildtools.git' + '@' + '9d61cbb94fd61f2f641a954a35aac9c0019faddd',
+    Var('chromium_url') + '/chromium/buildtools.git' + '@' + '40194ab03962d8183b2796fa58a39ec8a9e83a41',
   'v8/base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + 'e31a1706337ccb9a658b37d29a018c81695c6518',
   'v8/third_party/android_ndk': {
@@ -36,7 +36,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'v8/third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '96320b515106e029ad6326b81cb6feef5660c6a8',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '78448d90081e62d442d5dbb4b6ac41bd471cb91a',
     'condition': 'checkout_android',
   },
   'v8/third_party/colorama/src': {
@@ -48,7 +48,7 @@ deps = {
     'condition': 'checkout_fuchsia',
   },
   'v8/third_party/googletest/src':
-    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + '879ac092fde0a19e1b3a61b2546b2a422b1528bc',
+    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + '933e5df283727911161f8fb56cc4773b08c12d3d',
   'v8/third_party/jinja2':
     Var('chromium_url') + '/chromium/src/third_party/jinja2.git' + '@' + 'b41863e42637544c2941b574c7877d3e1f663e25',
   'v8/third_party/markupsafe':
