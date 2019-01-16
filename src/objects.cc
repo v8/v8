@@ -8441,6 +8441,9 @@ bool TestElementsIntegrityLevel(JSObject object, PropertyAttributes level) {
         NumberDictionary::cast(object->elements()), object->GetReadOnlyRoots(),
         level);
   }
+  if (IsFixedTypedArrayElementsKind(kind)) {
+    return TestPropertiesIntegrityLevel(object, level);
+  }
 
   ElementsAccessor* accessor = ElementsAccessor::ForKind(kind);
   // Only DICTIONARY_ELEMENTS and SLOW_SLOPPY_ARGUMENTS_ELEMENTS have
