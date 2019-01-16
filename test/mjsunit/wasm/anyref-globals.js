@@ -164,7 +164,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   }
 
   TestGlobal(null);
-  TestGlobal(undefined);
+  assertThrows(() => TestGlobal(undefined), TypeError);
   TestGlobal(1663);
   TestGlobal("testmyglobal");
   TestGlobal({a: 11});

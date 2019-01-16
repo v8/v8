@@ -1517,6 +1517,10 @@ void WebAssemblyGlobalSetValue(
     thrower.TypeError("Can't set the value of an immutable global.");
     return;
   }
+  if (args[0]->IsUndefined()) {
+    thrower.TypeError("Argument 0: must be a value");
+    return;
+  }
 
   switch (receiver->type()) {
     case i::wasm::kWasmI32: {
