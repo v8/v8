@@ -524,17 +524,24 @@ Maybe<std::string> Intl::ToLanguageTag(const icu::Locale& locale) {
   }
   CHECK(U_SUCCESS(status));
 
-  // Hack to remove -true from unicode extensions
+  // Hack to remove -true and -yes from unicode extensions
   // Address https://crbug.com/v8/8565
   // TODO(ftang): Move the following "remove true" logic into ICU toLanguageTag
   // by fixing ICU-20310.
-  const char* kSepTrue = "-true";
   size_t u_ext_start = res.find("-u-");
   if (u_ext_start != std::string::npos) {
-    for (size_t sep_true =
-             res.find(kSepTrue, u_ext_start + 5 /* strlen("-u-xx") == 5 */);
-         sep_true != std::string::npos; sep_true = res.find(kSepTrue)) {
-      res.erase(sep_true, 5 /* strlen(kSepTrue) == 5 */);
+    // remove "-true" and "-yes" after -u-
+    const std::vector<std::string> remove_items({"-true", "-yes"});
+    for (auto item = remove_items.begin(); item != remove_items.end(); item++) {
+      for (size_t sep_remove =
+               res.find(*item, u_ext_start + 5 /* strlen("-u-xx") == 5 */);
+           sep_remove != std::string::npos; sep_remove = res.find(*item)) {
+        size_t end_of_sep_remove = sep_remove + item->length();
+        if (res.length() == end_of_sep_remove ||
+            res.at(end_of_sep_remove) == '-') {
+          res.erase(sep_remove, item->length());
+        }
+      }
     }
   }
   return Just(res);
