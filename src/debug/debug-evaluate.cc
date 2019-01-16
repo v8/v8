@@ -1029,7 +1029,14 @@ void DebugEvaluate::VerifyTransitiveBuiltins(Isolate* isolate) {
     }
   }
   CHECK(!failed);
+#ifdef V8_TARGET_ARCH_PPC
+  // Isolate-independent builtin calls and jumps do not emit reloc infos
+  // on PPC. We try to avoid using PC relative code due to performance
+  // issue with especially older hardwares.
+  USE(sanity_check);
+#else
   CHECK(sanity_check);
+#endif
 }
 #endif  // DEBUG
 
