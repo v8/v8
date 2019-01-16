@@ -1119,6 +1119,7 @@ class WasmDecoder : public Decoder {
 
       case kExprBrOnExn: {
         BranchDepthImmediate<validate> imm_br(decoder, pc);
+        if (!VALIDATE(decoder->ok())) return 1 + imm_br.length;
         ExceptionIndexImmediate<validate> imm_idx(decoder, pc + imm_br.length);
         return 1 + imm_br.length + imm_idx.length;
       }
