@@ -107,8 +107,8 @@ RegExpMacroAssemblerARM64::RegExpMacroAssemblerARM64(Isolate* isolate,
                                                      Zone* zone, Mode mode,
                                                      int registers_to_save)
     : NativeRegExpMacroAssembler(isolate, zone),
-      masm_(new MacroAssembler(isolate, nullptr, kRegExpCodeSize,
-                               CodeObjectRequired::kYes)),
+      masm_(new MacroAssembler(isolate, CodeObjectRequired::kYes,
+                               NewAssemblerBuffer(kRegExpCodeSize))),
       mode_(mode),
       num_registers_(registers_to_save),
       num_saved_registers_(registers_to_save),
@@ -124,7 +124,6 @@ RegExpMacroAssemblerARM64::RegExpMacroAssemblerARM64(Isolate* isolate,
   __ B(&entry_label_);   // We'll write the entry code later.
   __ Bind(&start_label_);  // And then continue from here.
 }
-
 
 RegExpMacroAssemblerARM64::~RegExpMacroAssemblerARM64() {
   delete masm_;

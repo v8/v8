@@ -371,23 +371,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // own buffer. Otherwise it takes ownership of the provided buffer.
   explicit Assembler(const AssemblerOptions&,
                      std::unique_ptr<AssemblerBuffer> = {});
-
-  // Legacy constructor.
-  // If the provided buffer is nullptr, the assembler allocates and grows its
-  // own buffer, and buffer_size determines the initial buffer size. The buffer
-  // is owned by the assembler and deallocated upon destruction of the
-  // assembler.
-  //
-  // If the provided buffer is not nullptr, the assembler uses the provided
-  // buffer for code generation and assumes its size to be buffer_size. If the
-  // buffer is too small, a fatal error occurs. No deallocation of the buffer is
-  // done upon destruction of the assembler.
-  //
-  // TODO(clemensh): Remove this constructor, refactor all call sites to use the
-  // one above.
-  Assembler(const AssemblerOptions& options, void* buffer, int buffer_size)
-      : Assembler(options, GetBuffer(buffer, buffer_size)) {}
-
   virtual ~Assembler() {}
 
   // GetCode emits any pending (non-emitted) code and fills the descriptor

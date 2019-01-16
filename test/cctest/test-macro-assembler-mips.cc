@@ -63,8 +63,7 @@ TEST(BYTESWAP) {
   uint32_t test_values[] = {0x5612FFCD, 0x9D327ACC, 0x781A15C3, 0xFCDE,    0x9F,
                             0xC81A15C3, 0x80000000, 0xFFFFFFFF, 0x00008000};
 
-  MacroAssembler assembler(isolate, nullptr, 0,
-                           v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes);
 
   MacroAssembler* masm = &assembler;
 
@@ -158,8 +157,7 @@ TEST(jump_tables4) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assembler(isolate, nullptr, 0,
-                           v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes);
   MacroAssembler* masm = &assembler;
 
   const int kNumCases = 512;
@@ -221,8 +219,7 @@ TEST(jump_tables5) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assembler(isolate, nullptr, 0,
-                           v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes);
   MacroAssembler* masm = &assembler;
 
   const int kNumCases = 512;
@@ -288,8 +285,7 @@ TEST(jump_tables6) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assembler(isolate, nullptr, 0,
-                           v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes);
   MacroAssembler* masm = &assembler;
 
   const int kSwitchTableCases = 40;
@@ -370,8 +366,7 @@ TEST(jump_tables6) {
 static uint32_t run_lsa(uint32_t rt, uint32_t rs, int8_t sa) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assembler(isolate, nullptr, 0,
-                           v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes);
   MacroAssembler* masm = &assembler;
 
   __ Lsa(v0, a0, a1, sa);
@@ -497,8 +492,7 @@ RET_TYPE run_Cvt(IN_TYPE x, Func GenerateConvertInstructionFunc) {
 
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, nullptr, 0,
-                      v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
   MacroAssembler* masm = &assm;
 
   __ mtc1(a0, f4);
@@ -580,8 +574,7 @@ TEST(OverflowInstructions) {
       int32_t jj = *j;
       int32_t expected_add, expected_sub, expected_mul;
       bool expected_add_ovf, expected_sub_ovf, expected_mul_ovf;
-      MacroAssembler assembler(isolate, nullptr, 0,
-                               v8::internal::CodeObjectRequired::kYes);
+      MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes);
       MacroAssembler* masm = &assembler;
 
       __ lw(t0, MemOperand(a0, offsetof(T, lhs)));
@@ -658,8 +651,7 @@ TEST(min_max_nan) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assembler(isolate, nullptr, 0,
-                           v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes);
   MacroAssembler* masm = &assembler;
 
   struct TestFloat {
@@ -771,8 +763,7 @@ bool run_Unaligned(char* memory_buffer, int32_t in_offset, int32_t out_offset,
 
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, nullptr, 0,
-                      v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
   MacroAssembler* masm = &assm;
   IN_TYPE res;
 
@@ -1020,8 +1011,7 @@ bool run_Sltu(uint32_t rs, uint32_t rd, Func GenerateSltuInstructionFunc) {
 
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, nullptr, 0,
-                      v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assm(isolate, v8::internal::CodeObjectRequired::kYes);
   MacroAssembler* masm = &assm;
 
   GenerateSltuInstructionFunc(masm, rd);
@@ -1139,8 +1129,7 @@ TEST(macro_float_minmax_f32) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assembler(isolate, nullptr, 0,
-                           v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes);
   MacroAssembler* masm = &assembler;
 
   struct Inputs {
@@ -1281,8 +1270,7 @@ TEST(macro_float_minmax_f64) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assembler(isolate, nullptr, 0,
-                           v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes);
   MacroAssembler* masm = &assembler;
 
   struct Inputs {

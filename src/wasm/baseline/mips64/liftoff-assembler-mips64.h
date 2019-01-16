@@ -222,9 +222,9 @@ void LiftoffAssembler::PatchPrepareStackFrame(int offset,
   // We can't run out of space, just pass anything big enough to not cause the
   // assembler to try to grow the buffer.
   constexpr int kAvailableSpace = 256;
-  TurboAssembler patching_assembler(nullptr, AssemblerOptions{},
-                                    buffer_start_ + offset, kAvailableSpace,
-                                    CodeObjectRequired::kNo);
+  TurboAssembler patching_assembler(
+      nullptr, AssemblerOptions{}, CodeObjectRequired::kNo,
+      ExternalAssemblerBuffer(buffer_start_ + offset, kAvailableSpace));
   // If bytes can be represented as 16bit, daddiu will be generated and two
   // nops will stay untouched. Otherwise, lui-ori sequence will load it to
   // register and, as third instruction, daddu will be generated.

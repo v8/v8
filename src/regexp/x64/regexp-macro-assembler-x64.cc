@@ -99,7 +99,8 @@ RegExpMacroAssemblerX64::RegExpMacroAssemblerX64(Isolate* isolate, Zone* zone,
                                                  Mode mode,
                                                  int registers_to_save)
     : NativeRegExpMacroAssembler(isolate, zone),
-      masm_(isolate, nullptr, kRegExpCodeSize, CodeObjectRequired::kYes),
+      masm_(isolate, CodeObjectRequired::kYes,
+            NewAssemblerBuffer(kRegExpCodeSize)),
       no_root_array_scope_(&masm_),
       code_relative_fixup_positions_(zone),
       mode_(mode),
@@ -114,7 +115,6 @@ RegExpMacroAssemblerX64::RegExpMacroAssemblerX64(Isolate* isolate, Zone* zone,
   __ jmp(&entry_label_);   // We'll write the entry code when we know more.
   __ bind(&start_label_);  // And then continue from here.
 }
-
 
 RegExpMacroAssemblerX64::~RegExpMacroAssemblerX64() {
   // Unuse labels in case we throw away the assembler without calling GetCode.

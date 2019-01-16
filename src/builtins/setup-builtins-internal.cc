@@ -66,7 +66,8 @@ Handle<Code> BuildPlaceholder(Isolate* isolate, int32_t builtin_index) {
   HandleScope scope(isolate);
   constexpr int kBufferSize = 1 * KB;
   byte buffer[kBufferSize];
-  MacroAssembler masm(isolate, buffer, kBufferSize, CodeObjectRequired::kYes);
+  MacroAssembler masm(isolate, CodeObjectRequired::kYes,
+                      ExternalAssemblerBuffer(buffer, kBufferSize));
   DCHECK(!masm.has_frame());
   {
     FrameScope scope(&masm, StackFrame::NONE);
@@ -93,7 +94,8 @@ Code BuildWithMacroAssembler(Isolate* isolate, int32_t builtin_index,
   byte buffer[kBufferSize];
 
   MacroAssembler masm(isolate, BuiltinAssemblerOptions(isolate, builtin_index),
-                      buffer, kBufferSize, CodeObjectRequired::kYes);
+                      CodeObjectRequired::kYes,
+                      ExternalAssemblerBuffer(buffer, kBufferSize));
   masm.set_builtin_index(builtin_index);
   DCHECK(!masm.has_frame());
   generator(&masm);
@@ -138,7 +140,8 @@ Code BuildAdaptor(Isolate* isolate, int32_t builtin_index,
   constexpr int kBufferSize = 32 * KB;
   byte buffer[kBufferSize];
   MacroAssembler masm(isolate, BuiltinAssemblerOptions(isolate, builtin_index),
-                      buffer, kBufferSize, CodeObjectRequired::kYes);
+                      CodeObjectRequired::kYes,
+                      ExternalAssemblerBuffer(buffer, kBufferSize));
   masm.set_builtin_index(builtin_index);
   DCHECK(!masm.has_frame());
   Builtins::Generate_Adaptor(&masm, builtin_address, exit_frame_type);

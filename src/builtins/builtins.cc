@@ -259,7 +259,8 @@ class OffHeapTrampolineGenerator {
  public:
   explicit OffHeapTrampolineGenerator(Isolate* isolate)
       : isolate_(isolate),
-        masm_(isolate, buffer, kBufferSize, CodeObjectRequired::kYes) {}
+        masm_(isolate, CodeObjectRequired::kYes,
+              ExternalAssemblerBuffer(buffer_, kBufferSize)) {}
 
   CodeDesc Generate(Address off_heap_entry) {
     // Generate replacement code that simply tail-calls the off-heap code.
@@ -280,7 +281,7 @@ class OffHeapTrampolineGenerator {
   Isolate* isolate_;
   // Enough to fit the single jmp.
   static constexpr int kBufferSize = 256;
-  byte buffer[kBufferSize];
+  byte buffer_[kBufferSize];
   MacroAssembler masm_;
 };
 

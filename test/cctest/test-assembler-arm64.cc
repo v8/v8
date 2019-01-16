@@ -119,21 +119,21 @@ static void InitializeVM() {
 #ifdef USE_SIMULATOR
 
 // Run tests with the simulator.
-#define SETUP_SIZE(buf_size)                                   \
-  Isolate* isolate = CcTest::i_isolate();                      \
-  HandleScope scope(isolate);                                  \
-  CHECK_NOT_NULL(isolate);                                     \
-  byte* buf = new byte[buf_size];                              \
-  MacroAssembler masm(isolate, buf, buf_size,                  \
-                      v8::internal::CodeObjectRequired::kYes); \
-  Decoder<DispatchingDecoderVisitor>* decoder =                \
-      new Decoder<DispatchingDecoderVisitor>();                \
-  Simulator simulator(decoder);                                \
-  PrintDisassembler* pdis = nullptr;                           \
-  RegisterDump core;                                           \
-  if (i::FLAG_trace_sim) {                                     \
-    pdis = new PrintDisassembler(stdout);                      \
-    decoder->PrependVisitor(pdis);                             \
+#define SETUP_SIZE(buf_size)                                           \
+  Isolate* isolate = CcTest::i_isolate();                              \
+  HandleScope scope(isolate);                                          \
+  CHECK_NOT_NULL(isolate);                                             \
+  byte* buf = new byte[buf_size];                                      \
+  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes, \
+                      ExternalAssemblerBuffer(buf, buf_size));         \
+  Decoder<DispatchingDecoderVisitor>* decoder =                        \
+      new Decoder<DispatchingDecoderVisitor>();                        \
+  Simulator simulator(decoder);                                        \
+  PrintDisassembler* pdis = nullptr;                                   \
+  RegisterDump core;                                                   \
+  if (i::FLAG_trace_sim) {                                             \
+    pdis = new PrintDisassembler(stdout);                              \
+    decoder->PrependVisitor(pdis);                                     \
   }
 
 // Reset the assembler and simulator, so that instructions can be generated,

@@ -103,22 +103,6 @@ class V8_EXPORT_PRIVATE TurboAssemblerBase : public Assembler {
                      CodeObjectRequired create_code_object,
                      std::unique_ptr<AssemblerBuffer> buffer = {});
 
-  // Legacy constructors.
-  // TODO(clemensh): Remove.
-  TurboAssemblerBase(const AssemblerOptions& options, void* buffer,
-                     int buffer_size)
-      : TurboAssemblerBase(options, GetBuffer(buffer, buffer_size)) {}
-  TurboAssemblerBase(Isolate* isolate, const AssemblerOptions& options,
-                     void* buffer, int buffer_size,
-                     CodeObjectRequired create_code_object)
-      : TurboAssemblerBase(isolate, options, create_code_object,
-                           GetBuffer(buffer, buffer_size)) {}
-  TurboAssemblerBase(Isolate* isolate, void* buffer, int buffer_size,
-                     CodeObjectRequired create_code_object)
-      : TurboAssemblerBase(isolate, AssemblerOptions::Default(isolate),
-                           create_code_object, GetBuffer(buffer, buffer_size)) {
-  }
-
   void RecordCommentForOffHeapTrampoline(int builtin_index);
 
   Isolate* const isolate_ = nullptr;

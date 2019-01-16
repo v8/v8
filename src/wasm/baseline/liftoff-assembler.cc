@@ -485,7 +485,7 @@ constexpr AssemblerOptions DefaultLiftoffOptions() {
 // TODO(clemensh): Provide a reasonably sized buffer, based on wasm function
 // size.
 LiftoffAssembler::LiftoffAssembler()
-    : TurboAssembler(nullptr, DefaultLiftoffOptions(), nullptr, 0,
+    : TurboAssembler(nullptr, DefaultLiftoffOptions(),
                      CodeObjectRequired::kNo) {
   set_abort_hard(true);  // Avoid calls to Abort.
 }

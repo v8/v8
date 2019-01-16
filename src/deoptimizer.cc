@@ -1826,7 +1826,8 @@ void Deoptimizer::EnsureCodeForDeoptimizationEntry(Isolate* isolate,
   DeoptimizerData* data = isolate->deoptimizer_data();
   if (!data->deopt_entry_code(kind).is_null()) return;
 
-  MacroAssembler masm(isolate, nullptr, 16 * KB, CodeObjectRequired::kYes);
+  MacroAssembler masm(isolate, CodeObjectRequired::kYes,
+                      NewAssemblerBuffer(16 * KB));
   masm.set_emit_debug_code(false);
   GenerateDeoptimizationEntries(&masm, masm.isolate(), kind);
   CodeDesc desc;

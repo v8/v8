@@ -44,29 +44,31 @@ namespace internal {
 
 #define EXP_SIZE   (256)
 #define INSTR_SIZE (1024)
-#define SET_UP_MASM()                                                    \
-  InitializeVM();                                                        \
-  Isolate* isolate = CcTest::i_isolate();                                \
-  HandleScope scope(isolate);                                            \
-  byte* buf = static_cast<byte*>(malloc(INSTR_SIZE));                    \
-  uint32_t encoding = 0;                                                 \
-  MacroAssembler* assm = new MacroAssembler(                             \
-      isolate, buf, INSTR_SIZE, v8::internal::CodeObjectRequired::kYes); \
-  Decoder<DispatchingDecoderVisitor>* decoder =                          \
-      new Decoder<DispatchingDecoderVisitor>();                          \
-  DisassemblingDecoder* disasm = new DisassemblingDecoder();             \
+#define SET_UP_MASM()                                                     \
+  InitializeVM();                                                         \
+  Isolate* isolate = CcTest::i_isolate();                                 \
+  HandleScope scope(isolate);                                             \
+  byte* buf = static_cast<byte*>(malloc(INSTR_SIZE));                     \
+  uint32_t encoding = 0;                                                  \
+  MacroAssembler* assm =                                                  \
+      new MacroAssembler(isolate, v8::internal::CodeObjectRequired::kYes, \
+                         ExternalAssemblerBuffer(buf, INSTR_SIZE));       \
+  Decoder<DispatchingDecoderVisitor>* decoder =                           \
+      new Decoder<DispatchingDecoderVisitor>();                           \
+  DisassemblingDecoder* disasm = new DisassemblingDecoder();              \
   decoder->AppendVisitor(disasm)
 
-#define SET_UP_ASM()                                                    \
-  InitializeVM();                                                       \
-  Isolate* isolate = CcTest::i_isolate();                               \
-  HandleScope scope(isolate);                                           \
-  byte* buf = static_cast<byte*>(malloc(INSTR_SIZE));                   \
-  uint32_t encoding = 0;                                                \
-  Assembler* assm = new Assembler(AssemblerOptions{}, buf, INSTR_SIZE); \
-  Decoder<DispatchingDecoderVisitor>* decoder =                         \
-      new Decoder<DispatchingDecoderVisitor>();                         \
-  DisassemblingDecoder* disasm = new DisassemblingDecoder();            \
+#define SET_UP_ASM()                                                         \
+  InitializeVM();                                                            \
+  Isolate* isolate = CcTest::i_isolate();                                    \
+  HandleScope scope(isolate);                                                \
+  byte* buf = static_cast<byte*>(malloc(INSTR_SIZE));                        \
+  uint32_t encoding = 0;                                                     \
+  Assembler* assm = new Assembler(AssemblerOptions{},                        \
+                                  ExternalAssemblerBuffer(buf, INSTR_SIZE)); \
+  Decoder<DispatchingDecoderVisitor>* decoder =                              \
+      new Decoder<DispatchingDecoderVisitor>();                              \
+  DisassemblingDecoder* disasm = new DisassemblingDecoder();                 \
   decoder->AppendVisitor(disasm)
 
 #define COMPARE(ASM, EXP)                                                \
@@ -1889,7 +1891,8 @@ TEST_(debug) {
 #else
     CHECK(!options.enable_simulator_code);
 #endif
-    Assembler* assm = new Assembler(options, buf, INSTR_SIZE);
+    Assembler* assm =
+        new Assembler(options, ExternalAssemblerBuffer(buf, INSTR_SIZE));
     Decoder<DispatchingDecoderVisitor>* decoder =
         new Decoder<DispatchingDecoderVisitor>();
     DisassemblingDecoder* disasm = new DisassemblingDecoder();

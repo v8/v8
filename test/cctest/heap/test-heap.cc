@@ -190,8 +190,8 @@ HEAP_TEST(TestNewSpaceRefsInCopiedCode) {
   CHECK(Heap::InNewSpace(*value));
 
   i::byte buffer[i::Assembler::kMinimalBufferSize];
-  MacroAssembler masm(isolate, buffer, int{sizeof(buffer)},
-                      v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes,
+                      ExternalAssemblerBuffer(buffer, sizeof(buffer)));
   // Add a new-space reference to the code.
   masm.Push(value);
 
@@ -215,7 +215,7 @@ static void CheckFindCodeObject(Isolate* isolate) {
   // Test FindCodeObject
 #define __ assm.
 
-  Assembler assm(AssemblerOptions{}, nullptr, 0);
+  Assembler assm(AssemblerOptions{});
 
   __ nop();  // supported on all architectures
 
@@ -4217,8 +4217,8 @@ TEST(NextCodeLinkInCodeDataContainerIsCleared) {
 
 static Handle<Code> DummyOptimizedCode(Isolate* isolate) {
   i::byte buffer[i::Assembler::kMinimalBufferSize];
-  MacroAssembler masm(isolate, buffer, int{sizeof(buffer)},
-                      v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes,
+                      ExternalAssemblerBuffer(buffer, sizeof(buffer)));
   CodeDesc desc;
   masm.Push(isolate->factory()->undefined_value());
   masm.Push(isolate->factory()->undefined_value());
@@ -5996,7 +5996,7 @@ HEAP_TEST(Regress670675) {
 
 namespace {
 Handle<Code> GenerateDummyImmovableCode(Isolate* isolate) {
-  Assembler assm(AssemblerOptions{}, nullptr, 0);
+  Assembler assm(AssemblerOptions{});
 
   const int kNumberOfNops = 1 << 10;
   for (int i = 0; i < kNumberOfNops; i++) {

@@ -1194,9 +1194,7 @@ class TestStatsStream : public v8::OutputStream {
       entries_size_(0),
       intervals_count_(0),
       first_interval_index_(-1) { }
-  TestStatsStream(const TestStatsStream& stream)
-
-      = default;
+  TestStatsStream(const TestStatsStream& stream) V8_NOEXCEPT = default;
   ~TestStatsStream() override = default;
   void EndOfStream() override { ++eos_signaled_; }
   WriteResult WriteAsciiChunk(char* buffer, int chars_written) override {
@@ -3908,7 +3906,7 @@ TEST(WeakReference) {
   i::Handle<i::FeedbackVector> fv = factory->NewFeedbackVector(shared_function);
 
   // Create a Code.
-  i::Assembler assm(i::AssemblerOptions{}, nullptr, 0);
+  i::Assembler assm(i::AssemblerOptions{});
   assm.nop();  // supported on all architectures
   i::CodeDesc desc;
   assm.GetCode(i_isolate, &desc);

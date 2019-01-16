@@ -267,14 +267,6 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
     return FlushICache(reinterpret_cast<void*>(start), size);
   }
 
-  // TODO(clemensh): Remove after changing all call sites to the new API.
-  static std::unique_ptr<AssemblerBuffer> GetBuffer(void* buffer,
-                                                    int buffer_size) {
-    if (buffer) return ExternalAssemblerBuffer(buffer, buffer_size);
-    return NewAssemblerBuffer(buffer_size ? buffer_size
-                                          : AssemblerBase::kMinimalBufferSize);
-  }
-
  protected:
   // Add 'target' to the {code_targets_} vector, if necessary, and return the
   // offset at which it is stored.
