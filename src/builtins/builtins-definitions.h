@@ -92,7 +92,7 @@ namespace internal {
   /* Apply and entries */                                                      \
   ASM(JSEntry, Dummy)                                                          \
   ASM(JSConstructEntry, Dummy)                                                 \
-  ASM(JSRunMicrotasksEntry, Dummy)                                             \
+  ASM(JSRunMicrotasksEntry, RunMicrotasksEntry)                                \
   ASM(JSEntryTrampoline, Dummy)                                                \
   ASM(JSConstructEntryTrampoline, Dummy)                                       \
   ASM(ResumeGeneratorTrampoline, ResumeGenerator)                              \
@@ -252,7 +252,7 @@ namespace internal {
                                                                                \
   /* Microtask helpers */                                                      \
   TFS(EnqueueMicrotask, kMicrotask)                                            \
-  ASM(RunMicrotasksTrampoline, Dummy)                                          \
+  ASM(RunMicrotasksTrampoline, RunMicrotasksEntry)                             \
   TFC(RunMicrotasks, RunMicrotasks, 1)                                         \
                                                                                \
   /* Object property helpers */                                                \

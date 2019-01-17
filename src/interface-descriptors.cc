@@ -48,7 +48,7 @@ void CallInterfaceDescriptorData::InitializePlatformIndependent(
     for (int i = 0; i < types_length; i++) machine_types_[i] = machine_types[i];
   }
 
-  DCHECK(AllStackParametersAreTagged());
+  if (!(flags_ & kNoStackScan)) DCHECK(AllStackParametersAreTagged());
 }
 
 #ifdef DEBUG

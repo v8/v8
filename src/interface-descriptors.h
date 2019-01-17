@@ -64,6 +64,7 @@ namespace internal {
   V(NoContext)                        \
   V(RecordWrite)                      \
   V(ResumeGenerator)                  \
+  V(RunMicrotasksEntry)               \
   V(RunMicrotasks)                    \
   V(Store)                            \
   V(StoreGlobal)                      \
@@ -88,6 +89,11 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptorData {
   enum Flag {
     kNoFlags = 0u,
     kNoContext = 1u << 0,
+
+    // This indicates that the code uses a special frame that does not scan the
+    // stack arguments, e.g. EntryFrame. And this allows the code to use
+    // untagged stack arguments.
+    kNoStackScan = 1u << 1,
   };
   typedef base::Flags<Flag> Flags;
 
@@ -401,6 +407,20 @@ STATIC_ASSERT(kMaxTFSBuiltinRegisterParams <= kMaxBuiltinRegisterParams);
     ##__VA_ARGS__,                                                 \
                                                                    \
     kParameterCount                                                \
+  };
+
+// This is valid only for builtins that use EntryFrame, which does not scan
+// stack arguments on GC.
+#define DEFINE_PARAMETERS_ENTRY(...)                      \
+  static constexpr int kDescriptorFlags =                 \
+      CallInterfaceDescriptorData::kNoContext |           \
+      CallInterfaceDescriptorData::kNoStackScan;          \
+  static constexpr int kReturnCount = 1;                  \
+  enum ParameterIndices {                                 \
+    __dummy = -1, /* to be able to pass zero arguments */ \
+    ##__VA_ARGS__,                                        \
+                                                          \
+    kParameterCount                                       \
   };
 
 #define DEFINE_PARAMETERS(...) DEFINE_RESULT_AND_PARAMETERS(1, ##__VA_ARGS__)
@@ -1103,6 +1123,14 @@ class FrameDropperTrampolineDescriptor final : public CallInterfaceDescriptor {
   DEFINE_PARAMETERS(kRestartFp)
   DEFINE_PARAMETER_TYPES(MachineType::Pointer())
   DECLARE_DESCRIPTOR(FrameDropperTrampolineDescriptor, CallInterfaceDescriptor)
+};
+
+class RunMicrotasksEntryDescriptor final : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS_ENTRY(kRootRegisterValue, kMicrotaskQueue)
+  DEFINE_PARAMETER_TYPES(MachineType::Pointer(),  // kRootRegisterValue
+                         MachineType::Pointer())  // kMicrotaskQueue
+  DECLARE_DESCRIPTOR(RunMicrotasksEntryDescriptor, CallInterfaceDescriptor)
 };
 
 class RunMicrotasksDescriptor final : public CallInterfaceDescriptor {
