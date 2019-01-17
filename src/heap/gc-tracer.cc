@@ -710,6 +710,8 @@ void GCTracer::PrintNVP() const {
           "incremental.finalize.body=%.1f "
           "incremental.finalize.external.prologue=%.1f "
           "incremental.finalize.external.epilogue=%.1f "
+          "incremental.layout_change=%.1f "
+          "incremental.start=%.1f "
           "incremental.sweeping=%.1f "
           "incremental.embedder_prologue=%.1f "
           "incremental.embedder_tracing=%.1f "
@@ -804,6 +806,8 @@ void GCTracer::PrintNVP() const {
           current_.scopes[Scope::MC_INCREMENTAL_FINALIZE_BODY],
           current_.scopes[Scope::MC_INCREMENTAL_EXTERNAL_PROLOGUE],
           current_.scopes[Scope::MC_INCREMENTAL_EXTERNAL_EPILOGUE],
+          current_.scopes[Scope::MC_INCREMENTAL_LAYOUT_CHANGE],
+          current_.scopes[Scope::MC_INCREMENTAL_START],
           current_.scopes[Scope::MC_INCREMENTAL_SWEEPING],
           current_.scopes[Scope::MC_INCREMENTAL_EMBEDDER_PROLOGUE],
           current_.scopes[Scope::MC_INCREMENTAL_EMBEDDER_TRACING],
@@ -1129,6 +1133,8 @@ void GCTracer::RecordGCSumCounters(double atomic_pause_duration) {
   base::MutexGuard guard(&background_counter_mutex_);
 
   const double overall_duration =
+      current_.incremental_marking_scopes[Scope::MC_INCREMENTAL_LAYOUT_CHANGE]
+          .duration +
       current_.incremental_marking_scopes[Scope::MC_INCREMENTAL_START]
           .duration +
       current_.incremental_marking_scopes[Scope::MC_INCREMENTAL_SWEEPING]
@@ -1149,6 +1155,8 @@ void GCTracer::RecordGCSumCounters(double atomic_pause_duration) {
           .total_duration_ms;
 
   const double marking_duration =
+      current_.incremental_marking_scopes[Scope::MC_INCREMENTAL_LAYOUT_CHANGE]
+          .duration +
       current_.incremental_marking_scopes[Scope::MC_INCREMENTAL_START]
           .duration +
       incremental_marking_duration_ +
