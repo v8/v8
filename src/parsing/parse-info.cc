@@ -79,6 +79,7 @@ void ParseInfo::SetFunctionInfo(T function) {
   set_requires_instance_members_initializer(
       function->requires_instance_members_initializer());
   set_toplevel(function->is_toplevel());
+  set_is_iife(function->is_iife());
   set_wrapped_as_function(function->is_wrapped());
 }
 

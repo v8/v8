@@ -114,6 +114,7 @@ class V8_EXPORT_PRIVATE ParseInfo {
                 set_allow_harmony_private_fields);
   FLAG_ACCESSOR(kAllowHarmonyPrivateMethods, allow_harmony_private_methods,
                 set_allow_harmony_private_methods);
+  FLAG_ACCESSOR(kIsIIFE, is_iife, set_is_iife);
 #undef FLAG_ACCESSOR
 
   void set_parse_restriction(ParseRestriction restriction) {
@@ -309,7 +310,8 @@ class V8_EXPORT_PRIVATE ParseInfo {
     kAllowHarmonyImportMeta = 1 << 25,
     kAllowHarmonyNumericSeparator = 1 << 26,
     kAllowHarmonyPrivateFields = 1 << 27,
-    kAllowHarmonyPrivateMethods = 1 << 28
+    kAllowHarmonyPrivateMethods = 1 << 28,
+    kIsIIFE = 1 << 29
   };
 
   //------------- Inputs to parsing and scope analysis -----------------------
