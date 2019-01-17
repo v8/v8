@@ -16,7 +16,7 @@ class ThreadId {
   // Creates an invalid ThreadId.
   ThreadId() { base::Relaxed_Store(&id_, kInvalidId); }
 
-  ThreadId& operator=(const ThreadId& other) {
+  ThreadId& operator=(const ThreadId& other) V8_NOEXCEPT {
     base::Relaxed_Store(&id_, base::Relaxed_Load(&other.id_));
     return *this;
   }

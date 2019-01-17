@@ -32,9 +32,9 @@ class AtomicSlot : public SlotBase<AtomicSlot, Tagged_t, kTaggedSize> {
   class Reference {
    public:
     explicit Reference(Tagged_t* address) : address_(address) {}
-    Reference(const Reference& other) : address_(other.address_) {}
+    Reference(const Reference&) V8_NOEXCEPT = default;
 
-    Reference& operator=(const Reference& other) {
+    Reference& operator=(const Reference& other) V8_NOEXCEPT {
       AsAtomicTagged::Relaxed_Store(
           address_, AsAtomicTagged::Relaxed_Load(other.address_));
       return *this;

@@ -33,7 +33,7 @@ class ScopedExternalStringLock {
   }
 
   // Copying a lock increases the locking depth.
-  ScopedExternalStringLock(const ScopedExternalStringLock& other)
+  ScopedExternalStringLock(const ScopedExternalStringLock& other) V8_NOEXCEPT
       : resource_(other.resource_) {
     resource_->Lock();
   }
@@ -84,7 +84,7 @@ class OnHeapStream {
   OnHeapStream(Handle<String> string, size_t start_offset, size_t end)
       : string_(string), start_offset_(start_offset), length_(end) {}
 
-  OnHeapStream(const OnHeapStream& other) : start_offset_(0), length_(0) {
+  OnHeapStream(const OnHeapStream&) V8_NOEXCEPT : start_offset_(0), length_(0) {
     UNREACHABLE();
   }
 
@@ -118,8 +118,10 @@ class ExternalStringStream {
         data_(string->GetChars() + start_offset),
         length_(length) {}
 
-  ExternalStringStream(const ExternalStringStream& other)
-      : lock_(other.lock_), data_(other.data_), length_(other.length_) {}
+  ExternalStringStream(const ExternalStringStream& other) V8_NOEXCEPT
+      : lock_(other.lock_),
+        data_(other.data_),
+        length_(other.length_) {}
 
   // The no_gc argument is only here because of the templated way this class
   // is used along with other implementations that require V8 heap access.
@@ -165,7 +167,7 @@ class ChunkedStream {
   explicit ChunkedStream(ScriptCompiler::ExternalSourceStream* source)
       : source_(source) {}
 
-  ChunkedStream(const ChunkedStream& other) {
+  ChunkedStream(const ChunkedStream&) V8_NOEXCEPT {
     // TODO(rmcilroy): Implement cloning for chunked streams.
     UNREACHABLE();
   }

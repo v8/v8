@@ -351,13 +351,6 @@ class AsyncTimedHistogram {
     histogram_->Start(&timer_, nullptr);
   }
 
-  ~AsyncTimedHistogram() = default;
-
-  AsyncTimedHistogram(const AsyncTimedHistogram& other) = default;
-  AsyncTimedHistogram& operator=(const AsyncTimedHistogram& other) = default;
-  AsyncTimedHistogram(AsyncTimedHistogram&& other) = default;
-  AsyncTimedHistogram& operator=(AsyncTimedHistogram&& other) = default;
-
   // Records the time elapsed to |histogram_| and stops |timer_|.
   void RecordDone() { histogram_->Stop(&timer_, nullptr); }
 
