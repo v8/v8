@@ -47,7 +47,7 @@ Maybe<uint32_t> FindNextFreePosition(Isolate* isolate,
                                      Handle<JSReceiver> receiver,
                                      uint32_t current_pos) {
   for (uint32_t position = current_pos;; ++position) {
-    Maybe<bool> has_element = JSReceiver::HasElement(receiver, position);
+    Maybe<bool> has_element = JSReceiver::HasOwnProperty(receiver, position);
     MAYBE_RETURN(has_element, Nothing<uint32_t>());
     if (!has_element.FromJust()) return Just(position);
 
@@ -124,8 +124,16 @@ Object RemoveArrayHolesGeneric(Isolate* isolate, Handle<JSReceiver> receiver,
       // If the array contains undefineds, the position at 'key' might later
       // bet set to 'undefined'. If we delete the element now and later set it
       // to undefined, the set operation would throw an exception.
+      // Instead, to mark it up as a free space, we set array[key] to undefined.
+      // As 'key' will be incremented afterward, this undefined value will not
+      // affect 'num_undefined', and the logic afterwards will correctly set
+      // the remaining undefineds or delete the remaining properties.
       RETURN_FAILURE_ON_EXCEPTION(
           isolate, Object::SetElement(isolate, receiver, current_pos, element,
+                                      LanguageMode::kStrict));
+      RETURN_FAILURE_ON_EXCEPTION(
+          isolate, Object::SetElement(isolate, receiver, key,
+                                      isolate->factory()->undefined_value(),
                                       LanguageMode::kStrict));
       ++current_pos;
     }
@@ -154,15 +162,11 @@ Object RemoveArrayHolesGeneric(Isolate* isolate, Handle<JSReceiver> receiver,
     MAYBE_RETURN(delete_result, ReadOnlyRoots(isolate).exception());
   }
 
-  // TODO(jgruber, szuend, chromium:897512): This is a workaround to prevent
-  // returning a number greater than array.length to Array.p.sort, which could
-  // trigger OOB accesses. There is still a correctness bug here though in
-  // how we shift around undefineds and delete elements in the two blocks above.
-  // This needs to be fixed soon.
-  const uint32_t number_of_non_undefined_elements = std::min(limit, result);
+  // The number of non-undefined elements MUST always be smaller then limit.
+  // Violating this may cause OOB reads/writes.
+  CHECK_LE(result, limit);
 
-  return *isolate->factory()->NewNumberFromUint(
-      number_of_non_undefined_elements);
+  return *isolate->factory()->NewNumberFromUint(result);
 }
 
 // Collects all defined (non-hole) and non-undefined (array) elements at the
