@@ -797,6 +797,9 @@ FieldAccess ForPropertyCellValue(MachineRepresentation representation,
 Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
     Node* node, Node* receiver, Node* value, Handle<Name> name,
     AccessMode access_mode, Node* index) {
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+
   // Lookup on the global object. We only deal with own data properties
   // of the global object here (represented as PropertyCell).
   LookupIterator it(isolate(), global_object(), name, LookupIterator::OWN);
@@ -804,25 +807,9 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
   if (it.state() != LookupIterator::DATA) return NoChange();
   if (!it.GetHolder<JSObject>()->IsJSGlobalObject()) return NoChange();
   Handle<PropertyCell> property_cell = it.GetPropertyCell();
-  return ReduceGlobalAccess(node, receiver, value, name, access_mode, index,
-                            property_cell);
-}
-
-Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
-    Node* node, Node* receiver, Node* value, Handle<Name> name,
-    AccessMode access_mode, Node* index, Handle<PropertyCell> property_cell) {
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
-
-  Handle<Object> property_cell_value(property_cell->value(), isolate());
-  if (property_cell_value.is_identical_to(factory()->the_hole_value())) {
-    // The property cell is no longer valid.
-    return NoChange();
-  }
-
   PropertyDetails property_details = property_cell->property_details();
+  Handle<Object> property_cell_value(property_cell->value(), isolate());
   PropertyCellType property_cell_type = property_details.cell_type();
-  DCHECK_EQ(kData, property_details.kind());
 
   // We have additional constraints for stores.
   if (access_mode == AccessMode::kStore) {
@@ -999,100 +986,58 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
 
 Reduction JSNativeContextSpecialization::ReduceJSLoadGlobal(Node* node) {
   DCHECK_EQ(IrOpcode::kJSLoadGlobal, node->opcode());
+  NameRef name(broker(), LoadGlobalParametersOf(node->op()).name());
   Node* effect = NodeProperties::GetEffectInput(node);
 
-  LoadGlobalParameters const& p = LoadGlobalParametersOf(node->op());
-  if (!p.feedback().IsValid()) return NoChange();
-  FeedbackNexus nexus(p.feedback().vector(), p.feedback().slot());
-
-  DCHECK(nexus.kind() == FeedbackSlotKind::kLoadGlobalInsideTypeof ||
-         nexus.kind() == FeedbackSlotKind::kLoadGlobalNotInsideTypeof);
-  if (nexus.GetFeedback()->IsCleared()) return NoChange();
-  Handle<Object> feedback(nexus.GetFeedback()->GetHeapObjectOrSmi(), isolate());
-
-  if (feedback->IsSmi()) {
-    // The wanted name belongs to a script-scope variable and the feedback tells
-    // us where to find its value.
-
-    int number = feedback->Number();
-    int const script_context_index =
-        FeedbackNexus::ContextIndexBits::decode(number);
-    int const context_slot_index = FeedbackNexus::SlotIndexBits::decode(number);
-    bool const immutable = FeedbackNexus::ImmutabilityBit::decode(number);
-    Handle<Context> context = ScriptContextTable::GetContext(
-        isolate(), native_context().script_context_table().object(),
-        script_context_index);
-
-    {
-      ObjectRef contents(broker(),
-                         handle(context->get(context_slot_index), isolate()));
-      CHECK(!contents.equals(ObjectRef(broker(), factory()->the_hole_value())));
+  // Try to lookup the name on the script context table first (lexical scoping).
+  base::Optional<ScriptContextTableRef::LookupResult> result =
+      native_context().script_context_table().lookup(name);
+  if (result) {
+    ObjectRef contents = result->context.get(result->index);
+    if (contents.IsHeapObject() &&
+        contents.AsHeapObject().map().oddball_type() == OddballType::kHole) {
+      return NoChange();
     }
-
-    Node* context_constant = jsgraph()->Constant(context);
+    Node* context = jsgraph()->Constant(result->context);
     Node* value = effect = graph()->NewNode(
-        javascript()->LoadContext(0, context_slot_index, immutable),
-        context_constant, effect);
+        javascript()->LoadContext(0, result->index, result->immutable), context,
+        effect);
     ReplaceWithValue(node, value, effect);
     return Replace(value);
   }
 
-  CHECK(feedback->IsPropertyCell());
-  // The wanted name belongs (or did belong) to a property on the global object
-  // and the feedback is the cell holding its value.
-  return ReduceGlobalAccess(node, nullptr, nullptr, p.name(), AccessMode::kLoad,
-                            nullptr, Handle<PropertyCell>::cast(feedback));
+  // Lookup the {name} on the global object instead.
+  return ReduceGlobalAccess(node, nullptr, nullptr, name.object(),
+                            AccessMode::kLoad);
 }
 
 Reduction JSNativeContextSpecialization::ReduceJSStoreGlobal(Node* node) {
   DCHECK_EQ(IrOpcode::kJSStoreGlobal, node->opcode());
+  NameRef name(broker(), StoreGlobalParametersOf(node->op()).name());
   Node* value = NodeProperties::GetValueInput(node, 0);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
-  StoreGlobalParameters const& p = StoreGlobalParametersOf(node->op());
-  if (!p.feedback().IsValid()) return NoChange();
-  FeedbackNexus nexus(p.feedback().vector(), p.feedback().slot());
-
-  DCHECK(nexus.kind() == FeedbackSlotKind::kStoreGlobalSloppy ||
-         nexus.kind() == FeedbackSlotKind::kStoreGlobalStrict);
-  if (nexus.GetFeedback()->IsCleared()) return NoChange();
-  Handle<Object> feedback(nexus.GetFeedback()->GetHeapObjectOrSmi(), isolate());
-
-  if (feedback->IsSmi()) {
-    // The wanted name belongs to a script-scope variable and the feedback tells
-    // us where to find its value.
-
-    int const script_context_index =
-        FeedbackNexus::ContextIndexBits::decode(feedback->Number());
-    int const context_slot_index =
-        FeedbackNexus::SlotIndexBits::decode(feedback->Number());
-    bool const immutable =
-        FeedbackNexus::ImmutabilityBit::decode(feedback->Number());
-    Handle<Context> context = ScriptContextTable::GetContext(
-        isolate(), native_context().script_context_table().object(),
-        script_context_index);
-
-    if (immutable) return NoChange();
-
-    {
-      ObjectRef contents(broker(),
-                         handle(context->get(context_slot_index), isolate()));
-      CHECK(!contents.equals(ObjectRef(broker(), factory()->the_hole_value())));
+  // Try to lookup the name on the script context table first (lexical scoping).
+  base::Optional<ScriptContextTableRef::LookupResult> result =
+      native_context().script_context_table().lookup(name);
+  if (result) {
+    ObjectRef contents = result->context.get(result->index);
+    if ((contents.IsHeapObject() &&
+         contents.AsHeapObject().map().oddball_type() == OddballType::kHole) ||
+        result->immutable) {
+      return NoChange();
     }
-
-    Node* context_constant = jsgraph()->Constant(context);
-    effect = graph()->NewNode(javascript()->StoreContext(0, context_slot_index),
-                              value, context_constant, effect, control);
+    Node* context = jsgraph()->Constant(result->context);
+    effect = graph()->NewNode(javascript()->StoreContext(0, result->index),
+                              value, context, effect, control);
     ReplaceWithValue(node, value, effect, control);
     return Replace(value);
   }
 
-  CHECK(feedback->IsPropertyCell());
-  // The wanted name belongs (or did belong) to a property on the global object
-  // and the feedback is the cell holding its value.
-  return ReduceGlobalAccess(node, nullptr, value, p.name(), AccessMode::kStore,
-                            nullptr, Handle<PropertyCell>::cast(feedback));
+  // Lookup the {name} on the global object instead.
+  return ReduceGlobalAccess(node, nullptr, value, name.object(),
+                            AccessMode::kStore);
 }
 
 Reduction JSNativeContextSpecialization::ReduceNamedAccess(
