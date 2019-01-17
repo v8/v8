@@ -21,19 +21,34 @@ Cancelable::~Cancelable() {
 }
 
 CancelableTaskManager::CancelableTaskManager()
-    : task_id_counter_(0), canceled_(false) {}
+    : task_id_counter_(kInvalidTaskId), canceled_(false) {}
+
+CancelableTaskManager::~CancelableTaskManager() {
+  // It is required that {CancelAndWait} is called before the manager object is
+  // destroyed. This guarantees that all tasks managed by this
+  // {CancelableTaskManager} are either canceled or finished their execution
+  // when the {CancelableTaskManager} dies.
+  CHECK(canceled_);
+}
 
 CancelableTaskManager::Id CancelableTaskManager::Register(Cancelable* task) {
   base::MutexGuard guard(&mutex_);
+  if (canceled_) {
+    // The CancelableTaskManager has already been canceled. Therefore we mark
+    // the new task immediately as canceled so that it does not get executed.
+    task->Cancel();
+    return kInvalidTaskId;
+  }
   CancelableTaskManager::Id id = ++task_id_counter_;
   // Id overflows are not supported.
-  CHECK_NE(0, id);
+  CHECK_NE(kInvalidTaskId, id);
   CHECK(!canceled_);
   cancelable_tasks_[id] = task;
   return id;
 }
 
 void CancelableTaskManager::RemoveFinishedTask(CancelableTaskManager::Id id) {
+  CHECK_NE(kInvalidTaskId, id);
   base::MutexGuard guard(&mutex_);
   size_t removed = cancelable_tasks_.erase(id);
   USE(removed);
@@ -42,6 +57,7 @@ void CancelableTaskManager::RemoveFinishedTask(CancelableTaskManager::Id id) {
 }
 
 TryAbortResult CancelableTaskManager::TryAbort(CancelableTaskManager::Id id) {
+  CHECK_NE(kInvalidTaskId, id);
   base::MutexGuard guard(&mutex_);
   auto entry = cancelable_tasks_.find(id);
   if (entry != cancelable_tasks_.end()) {

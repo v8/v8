@@ -221,6 +221,7 @@ TEST_F(CancelableTaskManagerTest, RemoveUnmanagedId) {
 
 TEST_F(CancelableTaskManagerTest, EmptyTryAbortAll) {
   EXPECT_EQ(TryAbortResult::kTaskRemoved, TryAbortAll());
+  CancelAndWait();
 }
 
 TEST_F(CancelableTaskManagerTest, ThreadedMultipleTasksNotRunTryAbortAll) {
@@ -236,6 +237,7 @@ TEST_F(CancelableTaskManagerTest, ThreadedMultipleTasksNotRunTryAbortAll) {
   runner2.Join();
   EXPECT_EQ(0u, result1);
   EXPECT_EQ(0u, result2);
+  CancelAndWait();
 }
 
 TEST_F(CancelableTaskManagerTest, ThreadedMultipleTasksStartedTryAbortAll) {
@@ -258,6 +260,7 @@ TEST_F(CancelableTaskManagerTest, ThreadedMultipleTasksStartedTryAbortAll) {
   runner2.Join();
   EXPECT_EQ(1u, result1);
   EXPECT_EQ(0u, result2);
+  CancelAndWait();
 }
 
 }  // namespace internal

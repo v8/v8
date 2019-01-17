@@ -86,8 +86,10 @@ class CompilationStateImpl {
 
   void OnFinishedUnit(ExecutionTier, WasmCode*);
 
+  void ReportDetectedFeatures(const WasmFeatures& detected);
   void OnBackgroundTaskStopped(const WasmFeatures& detected);
   void PublishDetectedFeatures(Isolate* isolate, const WasmFeatures& detected);
+  void RestartBackgroundCompileTask();
   void RestartBackgroundTasks(size_t max = std::numeric_limits<size_t>::max());
   // Only one foreground thread (finisher) is allowed to run at a time.
   // {SetFinisherIsRunning} returns whether the flag changed its state.
@@ -774,11 +776,17 @@ class BackgroundCompileTask : public CancelableTask {
     CompilationEnv env = native_module_->CreateCompilationEnv();
     auto* compilation_state = Impl(native_module_->compilation_state());
     WasmFeatures detected_features = kNoWasmFeatures;
+    double deadline = MonotonicallyIncreasingTimeInMs() + 50.0;
     while (!compilation_state->failed()) {
       if (!FetchAndExecuteCompilationUnit(&env, native_module_,
                                           compilation_state, &detected_features,
                                           counters_)) {
         break;
+      }
+      if (deadline < MonotonicallyIncreasingTimeInMs()) {
+        compilation_state->ReportDetectedFeatures(detected_features);
+        compilation_state->RestartBackgroundCompileTask();
+        return;
       }
     }
     compilation_state->OnBackgroundTaskStopped(detected_features);
@@ -1715,6 +1723,31 @@ void CompilationStateImpl::OnFinishedUnit(ExecutionTier tier, WasmCode* code) {
   }
 }
 
+void CompilationStateImpl::RestartBackgroundCompileTask() {
+  auto task = base::make_unique<BackgroundCompileTask>(
+      &background_task_manager_, native_module_, isolate_->counters());
+
+  // If --wasm-num-compilation-tasks=0 is passed, do only spawn foreground
+  // tasks. This is used to make timing deterministic.
+  if (FLAG_wasm_num_compilation_tasks == 0) {
+    foreground_task_runner_->PostTask(std::move(task));
+    return;
+  }
+
+  if (baseline_compilation_finished()) {
+    V8::GetCurrentPlatform()->CallLowPriorityTaskOnWorkerThread(
+        std::move(task));
+  } else {
+    V8::GetCurrentPlatform()->CallOnWorkerThread(std::move(task));
+  }
+}
+
+void CompilationStateImpl::ReportDetectedFeatures(
+    const WasmFeatures& detected) {
+  base::MutexGuard guard(&mutex_);
+  UnionFeaturesInto(&detected_features_, detected);
+}
+
 void CompilationStateImpl::OnBackgroundTaskStopped(
     const WasmFeatures& detected) {
   base::MutexGuard guard(&mutex_);
@@ -1750,16 +1783,7 @@ void CompilationStateImpl::RestartBackgroundTasks(size_t max) {
   }
 
   for (; num_restart > 0; --num_restart) {
-    auto task = base::make_unique<BackgroundCompileTask>(
-        &background_task_manager_, native_module_, isolate_->counters());
-
-    // If --wasm-num-compilation-tasks=0 is passed, do only spawn foreground
-    // tasks. This is used to make timing deterministic.
-    if (FLAG_wasm_num_compilation_tasks > 0) {
-      V8::GetCurrentPlatform()->CallOnWorkerThread(std::move(task));
-    } else {
-      foreground_task_runner_->PostTask(std::move(task));
-    }
+    RestartBackgroundCompileTask();
   }
 }
 

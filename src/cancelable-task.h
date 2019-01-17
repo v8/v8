@@ -35,9 +35,15 @@ class V8_EXPORT_PRIVATE CancelableTaskManager {
 
   CancelableTaskManager();
 
+  ~CancelableTaskManager();
+
   // Registers a new cancelable {task}. Returns the unique {id} of the task that
   // can be used to try to abort a task by calling {Abort}.
-  // Must not be called after CancelAndWait.
+  // If {Register} is called after {CancelAndWait}, then the task will be will
+  // be aborted immediately.
+  // {Register} should only be called by the thread which owns the
+  // {CancelableTaskManager}, or by a task which is managed by the
+  // {CancelableTaskManager}.
   Id Register(Cancelable* task);
 
   // Try to abort running a task identified by {id}.
@@ -62,6 +68,8 @@ class V8_EXPORT_PRIVATE CancelableTaskManager {
   bool canceled() const { return canceled_; }
 
  private:
+  static constexpr Id kInvalidTaskId = 0;
+
   // Only called by {Cancelable} destructor. The task is done with executing,
   // but needs to be removed.
   void RemoveFinishedTask(Id id);
