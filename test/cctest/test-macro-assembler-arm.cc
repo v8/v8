@@ -50,10 +50,9 @@ TEST(LoadAndStoreWithRepresentation) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
 
-  size_t allocated;
-  byte* buffer = AllocateAssemblerBuffer(&allocated);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(allocated),
-                           v8::internal::CodeObjectRequired::kYes);
+  auto buffer = AllocateAssemblerBuffer();
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes,
+                           buffer->CreateView());
   MacroAssembler* masm = &assembler;  // Create a pointer for the __ macro.
 
   __ sub(sp, sp, Operand(1 * kPointerSize));
@@ -140,10 +139,9 @@ TEST(ExtractLane) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
 
-  size_t allocated;
-  byte* buffer = AllocateAssemblerBuffer(&allocated);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(allocated),
-                           v8::internal::CodeObjectRequired::kYes);
+  auto buffer = AllocateAssemblerBuffer();
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes,
+                           buffer->CreateView());
   MacroAssembler* masm = &assembler;  // Create a pointer for the __ macro.
 
   typedef struct {
@@ -280,10 +278,9 @@ TEST(ReplaceLane) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
 
-  size_t allocated;
-  byte* buffer = AllocateAssemblerBuffer(&allocated);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(allocated),
-                           v8::internal::CodeObjectRequired::kYes);
+  auto buffer = AllocateAssemblerBuffer();
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes,
+                           buffer->CreateView());
   MacroAssembler* masm = &assembler;  // Create a pointer for the __ macro.
 
   typedef struct {

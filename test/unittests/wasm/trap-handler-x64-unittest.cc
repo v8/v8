@@ -94,10 +94,8 @@ class TrapHandlerTest : public TestWithIsolate,
     // The allocated memory buffer ends with a guard page.
     crash_address_ = memory_buffer_.end() - 32;
     // Allocate a buffer for the generated code.
-    size_t buffer_size;
-    byte* buffer = AllocateAssemblerBuffer(
-        &buffer_size, AssemblerBase::kMinimalBufferSize, GetRandomMmapAddr());
-    buffer_ = Vector<byte>(buffer, buffer_size);
+    buffer_ = AllocateAssemblerBuffer(AssemblerBase::kMinimalBufferSize,
+                                      GetRandomMmapAddr());
 
     InitRecoveryCode();
 
@@ -122,8 +120,8 @@ class TrapHandlerTest : public TestWithIsolate,
   void TearDown() override {
     // We should always have left wasm code.
     CHECK(!GetThreadInWasmFlag());
-    FreeAssemblerBuffer(buffer_.start(), buffer_.size());
-    FreeAssemblerBuffer(recovery_buffer_.start(), recovery_buffer_.size());
+    buffer_.reset();
+    recovery_buffer_.reset();
 
     // Free the allocated backing store.
     i_isolate()->wasm_engine()->memory_tracker()->FreeBackingStoreForTesting(
@@ -148,20 +146,17 @@ class TrapHandlerTest : public TestWithIsolate,
   void InitRecoveryCode() {
     // Create a code snippet where we can jump to to recover from a signal or
     // exception. The code snippet only consists of a return statement.
-    size_t buffer_size;
-    byte* buffer = AllocateAssemblerBuffer(
-        &buffer_size, AssemblerBase::kMinimalBufferSize, GetRandomMmapAddr());
-    recovery_buffer_ = Vector<byte>(buffer, buffer_size);
+    recovery_buffer_ = AllocateAssemblerBuffer(
+        AssemblerBase::kMinimalBufferSize, GetRandomMmapAddr());
 
-    MacroAssembler masm(nullptr, AssemblerOptions{}, recovery_buffer_.start(),
-                        recovery_buffer_.length(), CodeObjectRequired::kNo);
+    MacroAssembler masm(nullptr, AssemblerOptions{}, CodeObjectRequired::kNo,
+                        recovery_buffer_->CreateView());
     int recovery_offset = __ pc_offset();
     __ Pop(scratch);
     __ Ret();
     CodeDesc desc;
     masm.GetCode(nullptr, &desc);
-    MakeAssemblerBufferExecutable(recovery_buffer_.start(),
-                                  recovery_buffer_.size());
+    recovery_buffer_->MakeExecutable();
     g_recovery_address =
         reinterpret_cast<Address>(desc.buffer + recovery_offset);
   }
@@ -233,21 +228,22 @@ class TrapHandlerTest : public TestWithIsolate,
   }
 
   // Execute the code in buffer.
-  void ExecuteBuffer(Vector<byte> buffer) {
-    MakeAssemblerBufferExecutable(buffer.start(), buffer.size());
-    GeneratedCode<void>::FromAddress(i_isolate(),
-                                     reinterpret_cast<Address>(buffer.start()))
+  void ExecuteBuffer() {
+    buffer_->MakeExecutable();
+    GeneratedCode<void>::FromAddress(
+        i_isolate(), reinterpret_cast<Address>(buffer_->start()))
         .Call();
     CHECK(!g_test_handler_executed);
   }
 
   // Execute the code in buffer. We expect a crash which we recover from in the
   // test handler.
-  void ExecuteExpectCrash(Vector<byte> buffer, bool check_wasm_flag = true) {
+  void ExecuteExpectCrash(TestingAssemblerBuffer* buffer,
+                          bool check_wasm_flag = true) {
     CHECK(!g_test_handler_executed);
-    MakeAssemblerBufferExecutable(buffer.start(), buffer.size());
+    buffer->MakeExecutable();
     GeneratedCode<void>::FromAddress(i_isolate(),
-                                     reinterpret_cast<Address>(buffer.start()))
+                                     reinterpret_cast<Address>(buffer->start()))
         .Call();
     CHECK(g_test_handler_executed);
     g_test_handler_executed = false;
@@ -266,16 +262,16 @@ class TrapHandlerTest : public TestWithIsolate,
   void* accessible_memory_start_;
 
   // Buffer for generated code.
-  Vector<byte> buffer_;
+  std::unique_ptr<TestingAssemblerBuffer> buffer_;
   // Buffer for the code for the landing pad of the test handler.
-  Vector<byte> recovery_buffer_;
+  std::unique_ptr<TestingAssemblerBuffer> recovery_buffer_;
 };
 
 TEST_P(TrapHandlerTest, TestTrapHandlerRecovery) {
   // Test that the wasm trap handler can recover a memory access violation in
   // wasm code (we fake the wasm code and the access violation).
-  MacroAssembler masm(nullptr, AssemblerOptions{}, buffer_.start(),
-                      buffer_.length(), CodeObjectRequired::kNo);
+  MacroAssembler masm(nullptr, AssemblerOptions{}, CodeObjectRequired::kNo,
+                      buffer_->CreateView());
   __ Push(scratch);
   GenerateSetThreadInWasmFlagCode(&masm);
   __ Move(scratch, crash_address_, RelocInfo::NONE);
@@ -294,14 +290,14 @@ TEST_P(TrapHandlerTest, TestTrapHandlerRecovery) {
   trap_handler::RegisterHandlerData(reinterpret_cast<Address>(desc.buffer),
                                     desc.instr_size, 1, &protected_instruction);
 
-  ExecuteBuffer(buffer_);
+  ExecuteBuffer();
 }
 
 TEST_P(TrapHandlerTest, TestReleaseHandlerData) {
   // Test that after we release handler data in the trap handler, it cannot
   // recover from the specific memory access violation anymore.
-  MacroAssembler masm(nullptr, AssemblerOptions{}, buffer_.start(),
-                      buffer_.length(), CodeObjectRequired::kNo);
+  MacroAssembler masm(nullptr, AssemblerOptions{}, CodeObjectRequired::kNo,
+                      buffer_->CreateView());
   __ Push(scratch);
   GenerateSetThreadInWasmFlagCode(&masm);
   __ Move(scratch, crash_address_, RelocInfo::NONE);
@@ -322,20 +318,20 @@ TEST_P(TrapHandlerTest, TestReleaseHandlerData) {
 
   SetupTrapHandler(GetParam());
 
-  ExecuteBuffer(buffer_);
+  ExecuteBuffer();
 
   // Deregister from the trap handler. The trap handler should not do the
   // recovery now.
   trap_handler::ReleaseHandlerData(handler_id);
 
-  ExecuteExpectCrash(buffer_);
+  ExecuteExpectCrash(buffer_.get());
 }
 
 TEST_P(TrapHandlerTest, TestNoThreadInWasmFlag) {
   // That that if the thread_in_wasm flag is not set, the trap handler does not
   // get active.
-  MacroAssembler masm(nullptr, AssemblerOptions{}, buffer_.start(),
-                      buffer_.length(), CodeObjectRequired::kNo);
+  MacroAssembler masm(nullptr, AssemblerOptions{}, CodeObjectRequired::kNo,
+                      buffer_->CreateView());
   __ Push(scratch);
   __ Move(scratch, crash_address_, RelocInfo::NONE);
   int crash_offset = __ pc_offset();
@@ -353,14 +349,14 @@ TEST_P(TrapHandlerTest, TestNoThreadInWasmFlag) {
 
   SetupTrapHandler(GetParam());
 
-  ExecuteExpectCrash(buffer_);
+  ExecuteExpectCrash(buffer_.get());
 }
 
 TEST_P(TrapHandlerTest, TestCrashInWasmNoProtectedInstruction) {
   // Test that if the crash in wasm happened at an instruction which is not
   // protected, then the trap handler does not handle it.
-  MacroAssembler masm(nullptr, AssemblerOptions{}, buffer_.start(),
-                      buffer_.length(), CodeObjectRequired::kNo);
+  MacroAssembler masm(nullptr, AssemblerOptions{}, CodeObjectRequired::kNo,
+                      buffer_->CreateView());
   __ Push(scratch);
   GenerateSetThreadInWasmFlagCode(&masm);
   int no_crash_offset = __ pc_offset();
@@ -381,14 +377,14 @@ TEST_P(TrapHandlerTest, TestCrashInWasmNoProtectedInstruction) {
 
   SetupTrapHandler(GetParam());
 
-  ExecuteExpectCrash(buffer_);
+  ExecuteExpectCrash(buffer_.get());
 }
 
 TEST_P(TrapHandlerTest, TestCrashInWasmWrongCrashType) {
   // Test that if the crash reason is not a memory access violation, then the
   // wasm trap handler does not handle it.
-  MacroAssembler masm(nullptr, AssemblerOptions{}, buffer_.start(),
-                      buffer_.length(), CodeObjectRequired::kNo);
+  MacroAssembler masm(nullptr, AssemblerOptions{}, CodeObjectRequired::kNo,
+                      buffer_->CreateView());
   __ Push(scratch);
   GenerateSetThreadInWasmFlagCode(&masm);
   __ xorq(scratch, scratch);
@@ -417,7 +413,7 @@ TEST_P(TrapHandlerTest, TestCrashInWasmWrongCrashType) {
 #else
   bool check_wasm_flag = true;
 #endif
-  ExecuteExpectCrash(buffer_, check_wasm_flag);
+  ExecuteExpectCrash(buffer_.get(), check_wasm_flag);
   if (!check_wasm_flag) {
     // Reset the thread-in-wasm flag because it was probably not reset in the
     // trap handler.
@@ -427,14 +423,14 @@ TEST_P(TrapHandlerTest, TestCrashInWasmWrongCrashType) {
 
 class CodeRunner : public v8::base::Thread {
  public:
-  CodeRunner(TrapHandlerTest* test, Vector<byte> buffer)
+  CodeRunner(TrapHandlerTest* test, TestingAssemblerBuffer* buffer)
       : Thread(Options("CodeRunner")), test_(test), buffer_(buffer) {}
 
   void Run() override { test_->ExecuteExpectCrash(buffer_); }
 
  private:
   TrapHandlerTest* test_;
-  Vector<byte> buffer_;
+  TestingAssemblerBuffer* buffer_;
 };
 
 TEST_P(TrapHandlerTest, TestCrashInOtherThread) {
@@ -442,8 +438,8 @@ TEST_P(TrapHandlerTest, TestCrashInOtherThread) {
   // The current thread enters wasm land (sets the thread_in_wasm flag)
   // A second thread crashes at a protected instruction without having the flag
   // set.
-  MacroAssembler masm(nullptr, AssemblerOptions{}, buffer_.start(),
-                      buffer_.length(), CodeObjectRequired::kNo);
+  MacroAssembler masm(nullptr, AssemblerOptions{}, CodeObjectRequired::kNo,
+                      buffer_->CreateView());
   __ Push(scratch);
   __ Move(scratch, crash_address_, RelocInfo::NONE);
   int crash_offset = __ pc_offset();
@@ -461,7 +457,7 @@ TEST_P(TrapHandlerTest, TestCrashInOtherThread) {
 
   SetupTrapHandler(GetParam());
 
-  CodeRunner runner(this, buffer_);
+  CodeRunner runner(this, buffer_.get());
   CHECK(!GetThreadInWasmFlag());
   // Set the thread-in-wasm flag manually in this thread.
   *trap_handler::GetThreadInWasmThreadLocalAddress() = 1;

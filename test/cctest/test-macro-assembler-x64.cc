@@ -101,10 +101,9 @@ static void TestMoveSmi(MacroAssembler* masm, Label* exit, int id, Smi value) {
 TEST(SmiMove) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
-  size_t allocated;
-  byte* buffer = AllocateAssemblerBuffer(&allocated);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(allocated),
-                           v8::internal::CodeObjectRequired::kYes);
+  auto buffer = AllocateAssemblerBuffer();
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes,
+                           buffer->CreateView());
   MacroAssembler* masm = &assembler;  // Create a pointer for the __ macro.
   EntryCode(masm);
   Label exit;
@@ -129,9 +128,9 @@ TEST(SmiMove) {
 
   CodeDesc desc;
   masm->GetCode(isolate, &desc);
-  MakeAssemblerBufferExecutable(buffer, allocated);
+  buffer->MakeExecutable();
   // Call the function from C++.
-  auto f = GeneratedCode<F0>::FromBuffer(CcTest::i_isolate(), buffer);
+  auto f = GeneratedCode<F0>::FromBuffer(CcTest::i_isolate(), buffer->start());
   int result = f.Call();
   CHECK_EQ(0, result);
 }
@@ -186,11 +185,9 @@ void TestSmiCompare(MacroAssembler* masm, Label* exit, int id, int x, int y) {
 TEST(SmiCompare) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
-  size_t allocated;
-  byte* buffer =
-      AllocateAssemblerBuffer(&allocated, 2 * Assembler::kMinimalBufferSize);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(allocated),
-                           v8::internal::CodeObjectRequired::kYes);
+  auto buffer = AllocateAssemblerBuffer(2 * Assembler::kMinimalBufferSize);
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes,
+                           buffer->CreateView());
 
   MacroAssembler* masm = &assembler;
   EntryCode(masm);
@@ -223,9 +220,9 @@ TEST(SmiCompare) {
 
   CodeDesc desc;
   masm->GetCode(isolate, &desc);
-  MakeAssemblerBufferExecutable(buffer, allocated);
+  buffer->MakeExecutable();
   // Call the function from C++.
-  auto f = GeneratedCode<F0>::FromBuffer(CcTest::i_isolate(), buffer);
+  auto f = GeneratedCode<F0>::FromBuffer(CcTest::i_isolate(), buffer->start());
   int result = f.Call();
   CHECK_EQ(0, result);
 }
@@ -233,10 +230,9 @@ TEST(SmiCompare) {
 TEST(SmiTag) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
-  size_t allocated;
-  byte* buffer = AllocateAssemblerBuffer(&allocated);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(allocated),
-                           v8::internal::CodeObjectRequired::kYes);
+  auto buffer = AllocateAssemblerBuffer();
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes,
+                           buffer->CreateView());
 
   MacroAssembler* masm = &assembler;
   EntryCode(masm);
@@ -322,9 +318,9 @@ TEST(SmiTag) {
 
   CodeDesc desc;
   masm->GetCode(isolate, &desc);
-  MakeAssemblerBufferExecutable(buffer, allocated);
+  buffer->MakeExecutable();
   // Call the function from C++.
-  auto f = GeneratedCode<F0>::FromBuffer(CcTest::i_isolate(), buffer);
+  auto f = GeneratedCode<F0>::FromBuffer(CcTest::i_isolate(), buffer->start());
   int result = f.Call();
   CHECK_EQ(0, result);
 }
@@ -332,10 +328,9 @@ TEST(SmiTag) {
 TEST(SmiCheck) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
-  size_t allocated;
-  byte* buffer = AllocateAssemblerBuffer(&allocated);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(allocated),
-                           v8::internal::CodeObjectRequired::kYes);
+  auto buffer = AllocateAssemblerBuffer();
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes,
+                           buffer->CreateView());
 
   MacroAssembler* masm = &assembler;
   EntryCode(masm);
@@ -398,9 +393,9 @@ TEST(SmiCheck) {
 
   CodeDesc desc;
   masm->GetCode(isolate, &desc);
-  MakeAssemblerBufferExecutable(buffer, allocated);
+  buffer->MakeExecutable();
   // Call the function from C++.
-  auto f = GeneratedCode<F0>::FromBuffer(CcTest::i_isolate(), buffer);
+  auto f = GeneratedCode<F0>::FromBuffer(CcTest::i_isolate(), buffer->start());
   int result = f.Call();
   CHECK_EQ(0, result);
 }
@@ -431,10 +426,9 @@ void TestSmiIndex(MacroAssembler* masm, Label* exit, int id, int x) {
 TEST(SmiIndex) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
-  size_t allocated;
-  byte* buffer = AllocateAssemblerBuffer(&allocated);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(allocated),
-                           v8::internal::CodeObjectRequired::kYes);
+  auto buffer = AllocateAssemblerBuffer();
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes,
+                           buffer->CreateView());
 
   MacroAssembler* masm = &assembler;
   EntryCode(masm);
@@ -453,9 +447,9 @@ TEST(SmiIndex) {
 
   CodeDesc desc;
   masm->GetCode(isolate, &desc);
-  MakeAssemblerBufferExecutable(buffer, allocated);
+  buffer->MakeExecutable();
   // Call the function from C++.
-  auto f = GeneratedCode<F0>::FromBuffer(CcTest::i_isolate(), buffer);
+  auto f = GeneratedCode<F0>::FromBuffer(CcTest::i_isolate(), buffer->start());
   int result = f.Call();
   CHECK_EQ(0, result);
 }
@@ -466,10 +460,9 @@ TEST(OperandOffset) {
 
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
-  size_t allocated;
-  byte* buffer = AllocateAssemblerBuffer(&allocated);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(allocated),
-                           v8::internal::CodeObjectRequired::kYes);
+  auto buffer = AllocateAssemblerBuffer();
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes,
+                           buffer->CreateView());
 
   MacroAssembler* masm = &assembler;
   Label exit;
@@ -807,9 +800,9 @@ TEST(OperandOffset) {
 
   CodeDesc desc;
   masm->GetCode(isolate, &desc);
-  MakeAssemblerBufferExecutable(buffer, allocated);
+  buffer->MakeExecutable();
   // Call the function from C++.
-  auto f = GeneratedCode<F0>::FromBuffer(CcTest::i_isolate(), buffer);
+  auto f = GeneratedCode<F0>::FromBuffer(CcTest::i_isolate(), buffer->start());
   int result = f.Call();
   CHECK_EQ(0, result);
 }
@@ -818,10 +811,9 @@ TEST(OperandOffset) {
 TEST(LoadAndStoreWithRepresentation) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
-  size_t allocated;
-  byte* buffer = AllocateAssemblerBuffer(&allocated);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(allocated),
-                           v8::internal::CodeObjectRequired::kYes);
+  auto buffer = AllocateAssemblerBuffer();
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes,
+                           buffer->CreateView());
 
   MacroAssembler* masm = &assembler;  // Create a pointer for the __ macro.
   EntryCode(masm);
@@ -969,9 +961,9 @@ TEST(LoadAndStoreWithRepresentation) {
 
   CodeDesc desc;
   masm->GetCode(isolate, &desc);
-  MakeAssemblerBufferExecutable(buffer, allocated);
+  buffer->MakeExecutable();
   // Call the function from C++.
-  auto f = GeneratedCode<F0>::FromBuffer(CcTest::i_isolate(), buffer);
+  auto f = GeneratedCode<F0>::FromBuffer(CcTest::i_isolate(), buffer->start());
   int result = f.Call();
   CHECK_EQ(0, result);
 }
@@ -1101,10 +1093,9 @@ void TestFloat64x2Neg(MacroAssembler* masm, Label* exit, double x, double y) {
 TEST(SIMDMacros) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
-  size_t allocated;
-  byte* buffer = AllocateAssemblerBuffer(&allocated);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(allocated),
-                           v8::internal::CodeObjectRequired::kYes);
+  auto buffer = AllocateAssemblerBuffer();
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes,
+                           buffer->CreateView());
 
   MacroAssembler* masm = &assembler;
   EntryCode(masm);
@@ -1123,9 +1114,9 @@ TEST(SIMDMacros) {
 
   CodeDesc desc;
   masm->GetCode(isolate, &desc);
-  MakeAssemblerBufferExecutable(buffer, allocated);
+  buffer->MakeExecutable();
   // Call the function from C++.
-  auto f = GeneratedCode<F0>::FromBuffer(CcTest::i_isolate(), buffer);
+  auto f = GeneratedCode<F0>::FromBuffer(CcTest::i_isolate(), buffer->start());
   int result = f.Call();
   CHECK_EQ(0, result);
 }

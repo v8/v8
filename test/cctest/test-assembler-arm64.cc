@@ -171,18 +171,19 @@ static void InitializeVM() {
 
 #else  // ifdef USE_SIMULATOR.
 // Run the test on real hardware or models.
-#define SETUP_SIZE(buf_size)                                     \
-  Isolate* isolate = CcTest::i_isolate();                        \
-  HandleScope scope(isolate);                                    \
-  CHECK_NOT_NULL(isolate);                                       \
-  size_t allocated;                                              \
-  byte* buf = AllocateAssemblerBuffer(&allocated, buf_size);     \
-  MacroAssembler masm(isolate, buf, static_cast<int>(allocated), \
-                      v8::internal::CodeObjectRequired::kYes);   \
+#define SETUP_SIZE(buf_size)                                           \
+  Isolate* isolate = CcTest::i_isolate();                              \
+  HandleScope scope(isolate);                                          \
+  CHECK_NOT_NULL(isolate);                                             \
+  auto owned_buf = AllocateAssemblerBuffer(buf_size);                  \
+  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes, \
+                      owned_buf->CreateView());                        \
+  uint8_t* buf = owned_buf->start();                                   \
+  USE(buf);                                                            \
   RegisterDump core;
 
 #define RESET()                                                \
-  MakeAssemblerBufferWritable(buf, allocated);                 \
+  owned_buf->MakeWritable();                                   \
   __ Reset();                                                  \
   /* Reset the machine state (like simulator.ResetState()). */ \
   __ Msr(NZCV, xzr);                                           \
@@ -195,12 +196,11 @@ static void InitializeVM() {
   RESET();                                                                     \
   START_AFTER_RESET();
 
-#define RUN()                                              \
-  MakeAssemblerBufferExecutable(buf, allocated);           \
-  {                                                        \
-    void (*test_function)(void);                           \
-    memcpy(&test_function, &buf, sizeof(buf));             \
-    test_function();                                       \
+#define RUN()                                        \
+  owned_buf->MakeExecutable();                       \
+  {                                                  \
+    auto* test_function = bit_cast<void (*)()>(buf); \
+    test_function();                                 \
   }
 
 #define END()                   \
@@ -209,7 +209,7 @@ static void InitializeVM() {
   __ Ret();                     \
   __ GetCode(masm.isolate(), nullptr);
 
-#define TEARDOWN() FreeAssemblerBuffer(buf, allocated);
+#define TEARDOWN()
 
 #endif  // ifdef USE_SIMULATOR.
 
