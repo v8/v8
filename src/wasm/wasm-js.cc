@@ -689,6 +689,11 @@ void WebAssemblyModuleCustomSections(
   auto maybe_module = GetFirstArgumentAsModule(args, &thrower);
   if (thrower.error()) return;
 
+  if (args[1]->IsUndefined()) {
+    thrower.TypeError("Argument 1 is required");
+    return;
+  }
+
   i::MaybeHandle<i::Object> maybe_name =
       i::Object::ToString(i_isolate, Utils::OpenHandle(*args[1]));
   i::Handle<i::Object> name;
@@ -1545,7 +1550,7 @@ void WebAssemblyGlobalSetValue(
     return;
   }
   if (args[0]->IsUndefined()) {
-    thrower.TypeError("Argument 0: must be a value");
+    thrower.TypeError("Argument 0 is required");
     return;
   }
 

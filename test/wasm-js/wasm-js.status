@@ -4,11 +4,6 @@
 
 [
 [ALWAYS, {
-  # https://bugs.chromium.org/p/v8/issues/detail?id=8319
-  'module/customSections': [FAIL],
-}], # ALWAYS
-
-[ALWAYS, {
   # https://bugs.chromium.org/p/v8/issues/detail?id=8633
   'limits': [SKIP],
 }], # ALWAYS
