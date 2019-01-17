@@ -8,4 +8,6 @@ gdeepti@chromium.org
 mstarzinger@chromium.org
 titzer@chromium.org
 
+per-file wasm-js.*=adamk@chromium.org
+
 # COMPONENT: Blink>JavaScript>WebAssembly
