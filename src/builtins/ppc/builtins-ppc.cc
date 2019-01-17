@@ -543,12 +543,16 @@ namespace {
 //       Address root_register_value, MicrotaskQueue* microtask_queue)>;
 void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
                              Builtins::Name entry_trampoline) {
-  // r3: root_register_value
-  // r4: code entry
-  // r5: function
-  // r6: receiver
-  // r7: argc
-  // r8: argv
+  // The register state is either:
+  //   r3: root_register_value
+  //   r4: code entry
+  //   r5: function
+  //   r6: receiver
+  //   r7: argc
+  //   r8: argv
+  // or
+  //   r3: root_register_value
+  //   r4: microtask_queue
 
   Label invoke, handler_entry, exit;
 
@@ -659,13 +663,6 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   // Notice that we cannot store a reference to the trampoline code directly in
   // this stub, because runtime stubs are not traversed when doing GC.
 
-  // Expected registers by Builtins::JSEntryTrampoline
-  // r4: code entry
-  // r5: function
-  // r6: receiver
-  // r7: argc
-  // r8: argv
-  //
   // Invoke the function by calling through JS entry trampoline builtin and
   // pop the faked function when we return.
   Handle<Code> trampoline_code =
@@ -843,7 +840,11 @@ void Builtins::Generate_JSConstructEntryTrampoline(MacroAssembler* masm) {
 }
 
 void Builtins::Generate_RunMicrotasksTrampoline(MacroAssembler* masm) {
-  // r4: microtask_queue
+  // This expects two C++ function parameters passed by Invoke() in
+  // execution.cc.
+  //   r3: root_register_value
+  //   r4: microtask_queue
+
   __ mr(RunMicrotasksDescriptor::MicrotaskQueueRegister(), r4);
   __ Jump(BUILTIN_CODE(masm->isolate(), RunMicrotasks), RelocInfo::CODE_TARGET);
 }

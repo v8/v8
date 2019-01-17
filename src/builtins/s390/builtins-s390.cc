@@ -548,12 +548,16 @@ constexpr int kPushedStackSpace =
 //       Address root_register_value, MicrotaskQueue* microtask_queue)>;
 void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
                              Builtins::Name entry_trampoline) {
-  // r2:                             root register value
-  // r3:                             code entry
-  // r4:                             function
-  // r5:                             receiver
-  // r6:                             argc
-  // [sp + 20 * kSystemPointerSize]: argv
+  // The register state is either:
+  //   r2:                             root register value
+  //   r3:                             code entry
+  //   r4:                             function
+  //   r5:                             receiver
+  //   r6:                             argc
+  //   [sp + 20 * kSystemPointerSize]: argv
+  // or
+  //   r2: root_register_value
+  //   r3: microtask_queue
 
   Label invoke, handler_entry, exit;
 
@@ -679,13 +683,6 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   // Notice that we cannot store a reference to the trampoline code directly in
   // this stub, because runtime stubs are not traversed when doing GC.
 
-  // Expected registers by Builtins::JSEntryTrampoline
-  // r2: code entry
-  // r3: function
-  // r4: receiver
-  // r5: argc
-  // r6: argv
-  //
   // Invoke the function by calling through JS entry trampoline builtin and
   // pop the faked function when we return.
   Handle<Code> trampoline_code =
@@ -893,8 +890,12 @@ void Builtins::Generate_JSConstructEntryTrampoline(MacroAssembler* masm) {
 }
 
 void Builtins::Generate_RunMicrotasksTrampoline(MacroAssembler* masm) {
-  // r3: microtask_queue
-  __ mov(RunMicrotasksDescriptor::MicrotaskQueueRegister(), Operand(r3));
+  // This expects two C++ function parameters passed by Invoke() in
+  // execution.cc.
+  //   r2: root_register_value
+  //   r3: microtask_queue
+
+  __ LoadRR(RunMicrotasksDescriptor::MicrotaskQueueRegister(), r3);
   __ Jump(BUILTIN_CODE(masm->isolate(), RunMicrotasks), RelocInfo::CODE_TARGET);
 }
 
