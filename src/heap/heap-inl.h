@@ -616,13 +616,6 @@ void Heap::IncrementExternalBackingStoreBytes(ExternalBackingStoreType type,
   // trigger garbage collections.
 }
 
-bool Heap::IsWithinLargeObject(Address address) {
-  if (new_lo_space()->FindPage(address) || lo_space()->FindPage(address) ||
-      code_lo_space()->FindPage(address))
-    return true;
-  return false;
-}
-
 void Heap::DecrementExternalBackingStoreBytes(ExternalBackingStoreType type,
                                               size_t amount) {
   base::CheckedDecrement(&backing_store_bytes_, amount);

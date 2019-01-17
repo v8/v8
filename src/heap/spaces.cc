@@ -617,10 +617,12 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
                                      VirtualMemory reservation) {
   MemoryChunk* chunk = FromAddress(base);
 
-  DCHECK(base == chunk->address());
+  DCHECK_EQ(base, chunk->address());
 
   chunk->heap_ = heap;
   chunk->size_ = size;
+  chunk->header_sentinel_ = HeapObject::FromAddress(base).ptr();
+  DCHECK(HasHeaderSentinel(area_start));
   chunk->area_start_ = area_start;
   chunk->area_end_ = area_end;
   chunk->flags_ = Flags(NO_FLAGS);
@@ -734,6 +736,15 @@ LargePage* LargePage::Initialize(Heap* heap, MemoryChunk* chunk,
   }
 
   MSAN_ALLOCATED_UNINITIALIZED_MEMORY(chunk->area_start(), chunk->area_size());
+
+  // Initialize the sentinel value for each page boundary since the mutator
+  // may initialize the object starting from its end.
+  Address sentinel = chunk->address() + MemoryChunk::kHeaderSentinelOffset +
+                     MemoryChunk::kPageSize;
+  while (sentinel < chunk->area_end()) {
+    *reinterpret_cast<intptr_t*>(sentinel) = kNullAddress;
+    sentinel += MemoryChunk::kPageSize;
+  }
 
   LargePage* page = static_cast<LargePage*>(chunk);
   page->list_node().Initialize();

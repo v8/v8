@@ -157,8 +157,7 @@ bool NewSpace::ToSpaceContains(Object o) { return to_space_.Contains(o); }
 bool NewSpace::FromSpaceContains(Object o) { return from_space_.Contains(o); }
 
 bool PagedSpace::Contains(Address addr) {
-  if (heap()->IsWithinLargeObject(addr)) return false;
-  return MemoryChunk::FromAnyPointerAddress(heap(), addr)->owner() == this;
+  return MemoryChunk::FromAnyPointerAddress(addr)->owner() == this;
 }
 
 bool PagedSpace::Contains(Object o) {
@@ -199,12 +198,18 @@ bool PagedSpace::TryFreeLast(HeapObject object, int object_size) {
   return false;
 }
 
-MemoryChunk* MemoryChunk::FromAnyPointerAddress(Heap* heap, Address addr) {
-  MemoryChunk* chunk = heap->lo_space()->FindPage(addr);
-  if (chunk == nullptr) {
-    chunk = MemoryChunk::FromAddress(addr);
+bool MemoryChunk::HasHeaderSentinel(Address slot_addr) {
+  Address base = BaseAddress(slot_addr);
+  if (slot_addr < base + kHeaderSize) return false;
+  return HeapObject::FromAddress(base) ==
+         ObjectSlot(base + kHeaderSentinelOffset).Relaxed_Load();
+}
+
+MemoryChunk* MemoryChunk::FromAnyPointerAddress(Address addr) {
+  while (!HasHeaderSentinel(addr)) {
+    addr = BaseAddress(addr) - 1;
   }
-  return chunk;
+  return FromAddress(addr);
 }
 
 void MemoryChunk::IncrementExternalBackingStoreBytes(
