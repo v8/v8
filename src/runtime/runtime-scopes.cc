@@ -149,7 +149,7 @@ Object DeclareGlobals(Isolate* isolate, Handle<FixedArray> declarations,
 
     bool is_var = initial_value->IsUndefined(isolate);
     bool is_function = initial_value->IsSharedFunctionInfo();
-    DCHECK_EQ(1, BoolToInt(is_var) + BoolToInt(is_function));
+    DCHECK_NE(is_var, is_function);
 
     Handle<Object> value;
     if (is_function) {
