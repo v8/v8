@@ -30,6 +30,9 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
     copy(0, i, kTableSize - i);
     copy(i, 0, kTableSize - i);
   }
+  let big = 1000000;
+  copy(big, 0, 0); // nop
+  copy(0, big, 0); // nop
 })();
 
 function addFunction(builder, k) {
@@ -94,6 +97,8 @@ function assertTable(obj, ...elems) {
   assertTable(table, f1, f2, f2, f3, f4);
   copy(3, 0, 2);
   assertTable(table, f1, f2, f2, f1, f2);
+  copy(1, 0, 2);
+  assertTable(table, f1, f1, f2, f1, f2);
 })();
 
 function assertCall(call, ...elems) {
