@@ -32,7 +32,7 @@ TEST_F(TurboAssemblerTest, TestHardAbort) {
   tasm.GetCode(nullptr, &desc);
   buffer->MakeExecutable();
   // We need an isolate here to execute in the simulator.
-  auto f = GeneratedCode<void>::FromBuffer(isolate(), buffer);
+  auto f = GeneratedCode<void>::FromBuffer(isolate(), buffer->start());
 
   ASSERT_DEATH_IF_SUPPORTED({ f.Call(); }, "abort: no reason");
 }
@@ -53,7 +53,7 @@ TEST_F(TurboAssemblerTest, TestCheck) {
   tasm.GetCode(nullptr, &desc);
   buffer->MakeExecutable();
   // We need an isolate here to execute in the simulator.
-  auto f = GeneratedCode<void, int>::FromBuffer(isolate(), buffer);
+  auto f = GeneratedCode<void, int>::FromBuffer(isolate(), buffer->start());
 
   f.Call(0);
   f.Call(18);
