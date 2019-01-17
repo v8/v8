@@ -329,6 +329,11 @@
       {'name': 'v8testing', 'shards': 2},
     ],
   },
+  'v8_linux64_ubsan_vptr_rel_ng_triggered': {
+    'tests': [
+      {'name': 'v8testing', 'shards': 2},
+    ],
+  },
   'v8_linux64_verify_csa_rel_ng_triggered': {
     'tests': [
       {'name': 'v8testing', 'shards': 2},

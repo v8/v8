@@ -138,6 +138,8 @@
       'V8 Clusterfuzz Linux MSAN chained origins':
           'release_simulate_arm64_msan_edge',
       'V8 Clusterfuzz Linux64 TSAN - release builder': 'release_x64_tsan',
+      'V8 Clusterfuzz Linux64 UBSan - release builder':
+          'release_x64_ubsan_recover_edge',
       'V8 Clusterfuzz Linux64 UBSanVptr - release builder':
           'release_x64_ubsan_vptr_recover_edge',
     },
@@ -227,7 +229,8 @@
       'v8_linux64_tsan_rel': 'release_x64_tsan_minimal_symbols',
       'v8_linux64_tsan_isolates_rel_ng':
           'release_x64_tsan_minimal_symbols',
-      'v8_linux64_ubsan_rel_ng': 'release_x64_ubsan_vptr_minimal_symbols',
+      'v8_linux64_ubsan_rel_ng': 'release_x64_ubsan_minimal_symbols',
+      'v8_linux64_ubsan_vptr_rel_ng': 'release_x64_ubsan_vptr_minimal_symbols',
       'v8_odroid_arm_rel_ng': 'release_arm',
       # TODO(machenbach): Remove after switching to x64 on infra side.
       'v8_win_dbg': 'debug_x86_trybot',
@@ -458,12 +461,16 @@
       'release_bot', 'x64', 'tsan', 'minimal_symbols'],
     'release_x64_ubsan': [
       'release_bot', 'x64', 'ubsan'],
+    'release_x64_ubsan_minimal_symbols': [
+      'release_bot', 'x64', 'ubsan', 'minimal_symbols'],
+    'release_x64_ubsan_recover_edge': [
+      'release_bot', 'x64', 'edge', 'ubsan_recover'],
     'release_x64_ubsan_vptr': [
       'release_bot', 'x64', 'ubsan_vptr'],
-    'release_x64_ubsan_vptr_recover_edge': [
-      'release_bot', 'x64', 'edge', 'ubsan_vptr_recover'],
     'release_x64_ubsan_vptr_minimal_symbols': [
       'release_bot', 'x64', 'ubsan_vptr', 'minimal_symbols'],
+    'release_x64_ubsan_vptr_recover_edge': [
+      'release_bot', 'x64', 'edge', 'ubsan_vptr_recover'],
     'release_x64_shared_verify_heap': [
       'release_bot', 'x64', 'shared', 'v8_verify_heap'],
     'release_x64_verify_csa': [
@@ -763,6 +770,12 @@
       # https://llvm.org/bugs/show_bug.cgi?id=25569 is fixed and just use
       # ubsan instead.
       'gn_args': 'is_ubsan=true is_ubsan_no_recover=true',
+    },
+
+    'ubsan_recover': {
+      'mixins': ['v8_enable_test_features'],
+      # Ubsan with recovery.
+      'gn_args': 'is_ubsan=true is_ubsan_no_recover=false',
     },
 
     'ubsan_vptr': {
