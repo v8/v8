@@ -1402,14 +1402,18 @@ class ThreadImpl {
 
   template <typename mtype>
   inline Address BoundsCheckMem(uint32_t offset, uint32_t index) {
-    size_t mem_size = instance_object_->memory_size();
-    if (sizeof(mtype) > mem_size) return kNullAddress;
-    if (offset > (mem_size - sizeof(mtype))) return kNullAddress;
-    if (index > (mem_size - sizeof(mtype) - offset)) return kNullAddress;
+    uint32_t effective_index = offset + index;
+    if (effective_index < index) {
+      return kNullAddress;  // wraparound => oob
+    }
+    if (!IsInBounds(effective_index, sizeof(mtype),
+                    instance_object_->memory_size())) {
+      return kNullAddress;  // oob
+    }
     // Compute the effective address of the access, making sure to condition
     // the index even in the in-bounds case.
     return reinterpret_cast<Address>(instance_object_->memory_start()) +
-           offset + (index & instance_object_->memory_mask());
+           (effective_index & instance_object_->memory_mask());
   }
 
   template <typename ctype, typename mtype>

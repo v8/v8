@@ -5,6 +5,7 @@
 #include "src/wasm/module-instantiate.h"
 #include "src/asmjs/asm-js.h"
 #include "src/property-descriptor.h"
+#include "src/utils.h"
 #include "src/wasm/js-to-wasm-wrapper-cache-inl.h"
 #include "src/wasm/module-compiler.h"
 #include "src/wasm/wasm-import-wrapper-cache-inl.h"
@@ -24,10 +25,6 @@ namespace {
 byte* raw_buffer_ptr(MaybeHandle<JSArrayBuffer> buffer, int offset) {
   return static_cast<byte*>(buffer.ToHandleChecked()->backing_store()) + offset;
 }
-bool in_bounds(uint32_t offset, size_t size, size_t upper) {
-  return offset + size <= upper && offset + size >= offset;
-}
-
 }  // namespace
 
 // A helper class to simplify instantiating a module from a module object.
@@ -432,7 +429,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     DCHECK(elem_segment.table_index < table_instances_.size());
     uint32_t base = EvalUint32InitExpr(elem_segment.offset);
     size_t table_size = table_instances_[elem_segment.table_index].table_size;
-    if (!in_bounds(base, elem_segment.entries.size(), table_size)) {
+    if (!IsInBounds(base, elem_segment.entries.size(), table_size)) {
       thrower_->LinkError("table initializer is out of bounds");
       return {};
     }
@@ -444,7 +441,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   for (const WasmDataSegment& seg : module_->data_segments) {
     if (!seg.active) continue;
     uint32_t base = EvalUint32InitExpr(seg.dest_addr);
-    if (!in_bounds(base, seg.source.length(), instance->memory_size())) {
+    if (!IsInBounds(base, seg.source.length(), instance->memory_size())) {
       thrower_->LinkError("data segment is out of bounds");
       return {};
     }
@@ -623,7 +620,7 @@ void InstanceBuilder::LoadDataSegments(Handle<WasmInstanceObject> instance) {
     // Passive segments are not copied during instantiation.
     if (!segment.active) continue;
     uint32_t dest_offset = EvalUint32InitExpr(segment.dest_addr);
-    DCHECK(in_bounds(dest_offset, source_size, instance->memory_size()));
+    DCHECK(IsInBounds(dest_offset, source_size, instance->memory_size()));
     byte* dest = instance->memory_start() + dest_offset;
     const byte* src = wire_bytes.start() + segment.source.offset();
     memcpy(dest, src, source_size);
@@ -1464,7 +1461,7 @@ void InstanceBuilder::LoadTableSegments(Handle<WasmInstanceObject> instance) {
     uint32_t num_entries = static_cast<uint32_t>(elem_segment.entries.size());
     uint32_t index = elem_segment.table_index;
     TableInstance& table_instance = table_instances_[index];
-    DCHECK(in_bounds(base, num_entries, table_instance.table_size));
+    DCHECK(IsInBounds(base, num_entries, table_instance.table_size));
     for (uint32_t i = 0; i < num_entries; ++i) {
       uint32_t func_index = elem_segment.entries[i];
       const WasmFunction* function = &module_->functions[func_index];

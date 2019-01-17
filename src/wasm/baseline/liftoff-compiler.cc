@@ -14,6 +14,7 @@
 #include "src/macro-assembler-inl.h"
 #include "src/objects/smi.h"
 #include "src/tracing/trace-event.h"
+#include "src/utils.h"
 #include "src/wasm/baseline/liftoff-assembler.h"
 #include "src/wasm/function-body-decoder-impl.h"
 #include "src/wasm/function-compiler.h"
@@ -1393,8 +1394,8 @@ class LiftoffCompiler {
   // (a jump to the trap was generated then); return false otherwise.
   bool BoundsCheckMem(FullDecoder* decoder, uint32_t access_size,
                       uint32_t offset, Register index, LiftoffRegList pinned) {
-    const bool statically_oob = access_size > env_->max_memory_size ||
-                                offset > env_->max_memory_size - access_size;
+    const bool statically_oob =
+        !IsInBounds(offset, access_size, env_->max_memory_size);
 
     if (!statically_oob &&
         (FLAG_wasm_no_bounds_checks || env_->use_trap_handler)) {

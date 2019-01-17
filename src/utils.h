@@ -73,6 +73,12 @@ inline constexpr bool IsInRange(T value, U lower_limit, U higher_limit) {
                                  static_cast<unsigned_T>(lower_limit));
 }
 
+// Checks if [index, index+length) is in range [0, max). Note that this check
+// works even if {index+length} would wrap around.
+inline constexpr bool IsInBounds(size_t index, size_t length, size_t max) {
+  return length <= max && index <= (max - length);
+}
+
 // X must be a power of 2.  Returns the number of trailing zeros.
 template <typename T,
           typename = typename std::enable_if<std::is_integral<T>::value>::type>
