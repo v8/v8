@@ -289,6 +289,9 @@ bool JSInliner::DetermineCallTarget(
   if (match.HasValue() && match.Value()->IsJSFunction()) {
     Handle<JSFunction> function = Handle<JSFunction>::cast(match.Value());
 
+    // Don't inline if the function has never run.
+    if (!function->has_feedback_vector()) return false;
+
     // Disallow cross native-context inlining for now. This means that all parts
     // of the resulting code will operate on the same global object. This also
     // prevents cross context leaks, where we could inline functions from a
@@ -346,10 +349,7 @@ void JSInliner::DetermineCallContext(
 
   if (match.HasValue() && match.Value()->IsJSFunction()) {
     Handle<JSFunction> function = Handle<JSFunction>::cast(match.Value());
-
-    // If the target function was never invoked, its feedback cell array might
-    // not contain a feedback vector. We ensure at this point that it's created.
-    JSFunction::EnsureFeedbackVector(function);
+    CHECK(function->has_feedback_vector());
 
     // The inlinee specializes to the context from the JSFunction object.
     context_out = jsgraph()->Constant(handle(function->context(), isolate()));
