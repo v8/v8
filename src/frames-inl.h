@@ -110,8 +110,8 @@ inline Object BuiltinExitFrame::receiver_slot_object() const {
   DCHECK(argc_slot->IsSmi());
   int argc = Smi::ToInt(argc_slot);
 
-  const int receiverOffset =
-      BuiltinExitFrameConstants::kNewTargetOffset + (argc - 1) * kPointerSize;
+  const int receiverOffset = BuiltinExitFrameConstants::kNewTargetOffset +
+                             (argc - 1) * kSystemPointerSize;
   return Object(Memory<Address>(fp() + receiverOffset));
 }
 
@@ -182,7 +182,7 @@ Address JavaScriptFrame::GetParameterSlot(int index) const {
   DCHECK(-1 <= index &&
          (index < param_count ||
           param_count == SharedFunctionInfo::kDontAdaptArgumentsSentinel));
-  int parameter_offset = (param_count - index - 1) * kPointerSize;
+  int parameter_offset = (param_count - index - 1) * kSystemPointerSize;
   return caller_sp() + parameter_offset;
 }
 

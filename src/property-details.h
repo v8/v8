@@ -154,16 +154,13 @@ class Representation {
 
   int size() const {
     DCHECK(!IsNone());
-    if (IsInteger8() || IsUInteger8()) {
-      return sizeof(uint8_t);
-    }
-    if (IsInteger16() || IsUInteger16()) {
-      return sizeof(uint16_t);
-    }
-    if (IsInteger32()) {
-      return sizeof(uint32_t);
-    }
-    return kPointerSize;
+    if (IsInteger8() || IsUInteger8()) return kUInt8Size;
+    if (IsInteger16() || IsUInteger16()) return kUInt16Size;
+    if (IsInteger32()) return kInt32Size;
+    if (IsDouble()) return kDoubleSize;
+    if (IsExternal()) return kSystemPointerSize;
+    DCHECK(IsTagged() || IsSmi() || IsHeapObject());
+    return kTaggedSize;
   }
 
   Kind kind() const { return static_cast<Kind>(kind_); }

@@ -42,7 +42,8 @@ class ExternalReferenceTable {
       kBuiltinsReferenceCount + kRuntimeReferenceCount +
       kIsolateAddressReferenceCount + kAccessorReferenceCount +
       kStubCacheReferenceCount;
-  static constexpr uint32_t kEntrySize = kPointerSize;
+  static constexpr uint32_t kEntrySize =
+      static_cast<uint32_t>(kSystemPointerSize);
   static constexpr uint32_t kSizeInBytes = kSize * kEntrySize + 2 * kUInt32Size;
 
   Address address(uint32_t i) const { return ref_addr_[i]; }

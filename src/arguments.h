@@ -56,7 +56,7 @@ class Arguments {
   inline Address* address_of_arg_at(int index) {
     DCHECK_LT(static_cast<uint32_t>(index), static_cast<uint32_t>(length_));
     return reinterpret_cast<Address*>(reinterpret_cast<Address>(arguments_) -
-                                      index * kPointerSize);
+                                      index * kSystemPointerSize);
   }
 
   // Get the total number of arguments including the receiver.

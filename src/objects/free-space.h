@@ -41,10 +41,14 @@ class FreeSpace : public HeapObject {
   DECL_VERIFIER(FreeSpace)
 
   // Layout description.
-  // Size is smi tagged when it is stored.
-  static const int kSizeOffset = HeapObject::kHeaderSize;
-  static const int kNextOffset = POINTER_SIZE_ALIGN(kSizeOffset + kPointerSize);
-  static const int kSize = kNextOffset + kPointerSize;
+#define FREE_SPACE_FIELDS(V)  \
+  V(kSizeOffset, kTaggedSize) \
+  V(kNextOffset, kTaggedSize) \
+  /* Header size. */          \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, FREE_SPACE_FIELDS)
+#undef FREE_SPACE_FIELDS
 
   OBJECT_CONSTRUCTORS(FreeSpace, HeapObject);
 };

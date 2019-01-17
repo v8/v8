@@ -26,14 +26,15 @@ ConstantPoolEntry::Access ConstantPoolBuilder::NextAccess(
   int dbl_count = info_[ConstantPoolEntry::DOUBLE].regular_count;
   int dbl_offset = dbl_count * kDoubleSize;
   int ptr_count = info_[ConstantPoolEntry::INTPTR].regular_count;
-  int ptr_offset = ptr_count * kPointerSize + dbl_offset;
+  int ptr_offset = ptr_count * kSystemPointerSize + dbl_offset;
 
   if (type == ConstantPoolEntry::DOUBLE) {
     // Double overflow detection must take into account the reach for both types
     int ptr_reach_bits = info_[ConstantPoolEntry::INTPTR].regular_reach_bits;
     if (!is_uintn(dbl_offset, info.regular_reach_bits) ||
         (ptr_count > 0 &&
-         !is_uintn(ptr_offset + kDoubleSize - kPointerSize, ptr_reach_bits))) {
+         !is_uintn(ptr_offset + kDoubleSize - kSystemPointerSize,
+                   ptr_reach_bits))) {
       return ConstantPoolEntry::OVERFLOWED;
     }
   } else {
@@ -58,8 +59,9 @@ ConstantPoolEntry::Access ConstantPoolBuilder::AddEntry(
     std::vector<ConstantPoolEntry>::iterator it = info.shared_entries.begin();
     int end = static_cast<int>(info.shared_entries.size());
     for (int i = 0; i < end; i++, it++) {
-      if ((entry_size == kPointerSize) ? entry.value() == it->value()
-                                       : entry.value64() == it->value64()) {
+      if ((entry_size == kSystemPointerSize)
+              ? entry.value() == it->value()
+              : entry.value64() == it->value64()) {
         // Merge with found entry.
         entry.set_merged_index(i);
         merged = true;
@@ -106,7 +108,7 @@ void ConstantPoolBuilder::EmitSharedEntries(Assembler* assm,
   for (int i = 0; i < shared_end; i++, shared_it++) {
     int offset = assm->pc_offset() - base;
     shared_it->set_offset(offset);  // Save offset for merged entries.
-    if (entry_size == kPointerSize) {
+    if (entry_size == kSystemPointerSize) {
       assm->dp(shared_it->value());
     } else {
       assm->dq(shared_it->value64());
@@ -157,7 +159,7 @@ void ConstantPoolBuilder::EmitGroup(Assembler* assm,
       // Emit new entry
       offset = assm->pc_offset() - base;
       entry_access = access;
-      if (entry_size == kPointerSize) {
+      if (entry_size == kSystemPointerSize) {
         assm->dp(it->value());
       } else {
         assm->dq(it->value64());

@@ -467,10 +467,10 @@ class BitSetComputer {
 // macro definition are omitted here to please the compiler)
 //
 // #define MAP_FIELDS(V)
-//   V(kField1Offset, kPointerSize)
+//   V(kField1Offset, kTaggedSize)
 //   V(kField2Offset, kIntSize)
 //   V(kField3Offset, kIntSize)
-//   V(kField4Offset, kPointerSize)
+//   V(kField4Offset, kSystemPointerSize)
 //   V(kSize, 0)
 //
 // DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, MAP_FIELDS)

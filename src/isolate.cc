@@ -1586,7 +1586,7 @@ Object Isolate::UnwindAndFindHandler() {
         // argument slots on the stack are dropped as returning would.
         Address return_sp = frame->fp() +
                             StandardFrameConstants::kFixedFrameSizeAboveFp -
-                            stack_slots * kPointerSize;
+                            stack_slots * kSystemPointerSize;
 
         // This is going to be handled by Wasm, so we need to set the TLS flag
         // again. It was cleared above assuming the frame would be unwound.
@@ -1611,7 +1611,7 @@ Object Isolate::UnwindAndFindHandler() {
         // that argument slots on the stack are dropped as returning would.
         Address return_sp = frame->fp() +
                             StandardFrameConstants::kFixedFrameSizeAboveFp -
-                            stack_slots * kPointerSize;
+                            stack_slots * kSystemPointerSize;
 
         // Gather information from the frame.
         Code code = frame->LookupCode();
@@ -1649,7 +1649,7 @@ Object Isolate::UnwindAndFindHandler() {
         // that argument slots on the stack are dropped as returning would.
         Address return_sp = frame->fp() +
                             StandardFrameConstants::kFixedFrameSizeAboveFp -
-                            stack_slots * kPointerSize;
+                            stack_slots * kSystemPointerSize;
 
         return FoundHandler(Context(), code->InstructionStart(), offset,
                             code->constant_pool(), return_sp, frame->fp());
@@ -1672,7 +1672,7 @@ Object Isolate::UnwindAndFindHandler() {
         //       in between then {frame->sp()} would already be correct.
         Address return_sp = frame->fp() -
                             InterpreterFrameConstants::kFixedFrameSizeFromFp -
-                            register_slots * kPointerSize;
+                            register_slots * kSystemPointerSize;
 
         // Patch the bytecode offset in the interpreted frame to reflect the
         // position of the exception handler. The special builtin below will

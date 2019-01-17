@@ -63,12 +63,12 @@ class IsolateData final {
   // TODO(ishell): remove in favour of typified id version.
   static int builtin_slot_offset(int builtin_index) {
     DCHECK(Builtins::IsBuiltinId(builtin_index));
-    return builtins_table_offset() + builtin_index * kPointerSize;
+    return builtins_table_offset() + builtin_index * kSystemPointerSize;
   }
 
   // Root-register-relative offset of the builtin table entry.
   static int builtin_slot_offset(Builtins::Name id) {
-    return builtins_table_offset() + id * kPointerSize;
+    return builtins_table_offset() + id * kSystemPointerSize;
   }
 
   // Root-register-relative offset of the virtual call target register value.
@@ -103,22 +103,22 @@ class IsolateData final {
 
  private:
 // Static layout definition.
-#define FIELDS(V)                                                          \
-  V(kEmbedderDataOffset, Internals::kNumIsolateDataSlots* kPointerSize)    \
-  V(kExternalMemoryOffset, kInt64Size)                                     \
-  V(kExternalMemoryLlimitOffset, kInt64Size)                               \
-  V(kExternalMemoryAtLastMarkCompactOffset, kInt64Size)                    \
-  V(kRootsTableOffset, RootsTable::kEntriesCount* kPointerSize)            \
-  V(kExternalReferenceTableOffset, ExternalReferenceTable::kSizeInBytes)   \
-  V(kBuiltinEntryTableOffset, Builtins::builtin_count* kSystemPointerSize) \
-  V(kBuiltinsTableOffset, Builtins::builtin_count* kPointerSize)           \
-  V(kVirtualCallTargetRegisterOffset, kPointerSize)                        \
-  V(kFastCCallCallerFPOffset, kPointerSize)                                \
-  V(kFastCCallCallerPCOffset, kPointerSize)                                \
-  /* This padding aligns IsolateData size by 8 bytes. */                   \
-  V(kPaddingOffset,                                                        \
-    8 + RoundUp<8>(static_cast<int>(kPaddingOffset)) - kPaddingOffset)     \
-  /* Total size. */                                                        \
+#define FIELDS(V)                                                             \
+  V(kEmbedderDataOffset, Internals::kNumIsolateDataSlots* kSystemPointerSize) \
+  V(kExternalMemoryOffset, kInt64Size)                                        \
+  V(kExternalMemoryLlimitOffset, kInt64Size)                                  \
+  V(kExternalMemoryAtLastMarkCompactOffset, kInt64Size)                       \
+  V(kRootsTableOffset, RootsTable::kEntriesCount* kSystemPointerSize)         \
+  V(kExternalReferenceTableOffset, ExternalReferenceTable::kSizeInBytes)      \
+  V(kBuiltinEntryTableOffset, Builtins::builtin_count* kSystemPointerSize)    \
+  V(kBuiltinsTableOffset, Builtins::builtin_count* kSystemPointerSize)        \
+  V(kVirtualCallTargetRegisterOffset, kSystemPointerSize)                     \
+  V(kFastCCallCallerFPOffset, kSystemPointerSize)                             \
+  V(kFastCCallCallerPCOffset, kSystemPointerSize)                             \
+  /* This padding aligns IsolateData size by 8 bytes. */                      \
+  V(kPaddingOffset,                                                           \
+    8 + RoundUp<8>(static_cast<int>(kPaddingOffset)) - kPaddingOffset)        \
+  /* Total size. */                                                           \
   V(kSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(0, FIELDS)

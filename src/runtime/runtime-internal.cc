@@ -251,7 +251,7 @@ RUNTIME_FUNCTION(Runtime_AllocateInNewSpace) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_SMI_ARG_CHECKED(size, 0);
-  CHECK(IsAligned(size, kPointerSize));
+  CHECK(IsAligned(size, kTaggedSize));
   CHECK_GT(size, 0);
   CHECK_LE(size, kMaxRegularHeapObjectSize);
   return *isolate->factory()->NewFillerObject(size, false, NEW_SPACE);
@@ -262,7 +262,7 @@ RUNTIME_FUNCTION(Runtime_AllocateInTargetSpace) {
   DCHECK_EQ(2, args.length());
   CONVERT_SMI_ARG_CHECKED(size, 0);
   CONVERT_SMI_ARG_CHECKED(flags, 1);
-  CHECK(IsAligned(size, kPointerSize));
+  CHECK(IsAligned(size, kTaggedSize));
   CHECK_GT(size, 0);
   bool double_align = AllocateDoubleAlignFlag::decode(flags);
   AllocationSpace space = AllocateTargetSpace::decode(flags);

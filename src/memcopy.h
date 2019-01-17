@@ -97,13 +97,13 @@ const int kMinComplexMemCopy = 8;
 #endif  // V8_TARGET_ARCH_IA32
 
 // Copies words from |src| to |dst|. The data spans must not overlap.
-// |src| and |dst| must be kPointerSize-aligned.
+// |src| and |dst| must be kSystemPointerSize-aligned.
 inline void CopyWords(Address dst, const Address src, size_t num_words) {
-  constexpr int kPointerSize = sizeof(void*);  // to avoid src/globals.h
-  DCHECK(IsAligned(dst, kPointerSize));
-  DCHECK(IsAligned(src, kPointerSize));
-  DCHECK(((src <= dst) && ((src + num_words * kPointerSize) <= dst)) ||
-         ((dst <= src) && ((dst + num_words * kPointerSize) <= src)));
+  constexpr int kSystemPointerSize = sizeof(void*);  // to avoid src/globals.h
+  DCHECK(IsAligned(dst, kSystemPointerSize));
+  DCHECK(IsAligned(src, kSystemPointerSize));
+  DCHECK(((src <= dst) && ((src + num_words * kSystemPointerSize) <= dst)) ||
+         ((dst <= src) && ((dst + num_words * kSystemPointerSize) <= src)));
 
   // Use block copying MemCopy if the segment we're copying is
   // enough to justify the extra call/setup overhead.
@@ -117,7 +117,7 @@ inline void CopyWords(Address dst, const Address src, size_t num_words) {
       *dst_ptr++ = *src_ptr++;
     } while (num_words > 0);
   } else {
-    MemCopy(dst_ptr, src_ptr, num_words * kPointerSize);
+    MemCopy(dst_ptr, src_ptr, num_words * kSystemPointerSize);
   }
 }
 

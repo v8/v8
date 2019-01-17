@@ -149,7 +149,7 @@ MaybeObject FeedbackVector::Get(FeedbackSlot slot) const {
 MaybeObject FeedbackVector::get(int index) const {
   DCHECK_GE(index, 0);
   DCHECK_LT(index, this->length());
-  int offset = kFeedbackSlotsOffset + index * kPointerSize;
+  int offset = kFeedbackSlotsOffset + index * kTaggedSize;
   return RELAXED_READ_WEAK_FIELD(*this, offset);
 }
 
@@ -161,7 +161,7 @@ void FeedbackVector::Set(FeedbackSlot slot, MaybeObject value,
 void FeedbackVector::set(int index, MaybeObject value, WriteBarrierMode mode) {
   DCHECK_GE(index, 0);
   DCHECK_LT(index, this->length());
-  int offset = kFeedbackSlotsOffset + index * kPointerSize;
+  int offset = kFeedbackSlotsOffset + index * kTaggedSize;
   RELAXED_WRITE_WEAK_FIELD(*this, offset, value);
   CONDITIONAL_WEAK_WRITE_BARRIER(*this, offset, value, mode);
 }

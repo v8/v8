@@ -191,7 +191,8 @@ bool IsInterpreterFramePc(Isolate* isolate, Address pc,
     intptr_t marker = Memory<intptr_t>(
         state->fp + CommonFrameConstants::kContextOrFrameTypeOffset);
     MSAN_MEMORY_IS_INITIALIZED(
-        state->fp + StandardFrameConstants::kFunctionOffset, kPointerSize);
+        state->fp + StandardFrameConstants::kFunctionOffset,
+        kSystemPointerSize);
     Object maybe_function = Object(
         Memory<Address>(state->fp + StandardFrameConstants::kFunctionOffset));
     // There's no need to run a full ContainsSlow if we know the frame can't be
@@ -258,7 +259,7 @@ SafeStackFrameIterator::SafeStackFrameIterator(
     // then we are likely in a bytecode handler with elided frame. In that
     // case, set the PC properly and make sure we do not drop the frame.
     if (IsValidStackAddress(sp)) {
-      MSAN_MEMORY_IS_INITIALIZED(sp, kPointerSize);
+      MSAN_MEMORY_IS_INITIALIZED(sp, kSystemPointerSize);
       Address tos = ReadMemoryAt(sp);
       if (IsInterpreterFramePc(isolate, tos, &state)) {
         state.pc_address = reinterpret_cast<Address*>(sp);
@@ -451,7 +452,7 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
 
   MSAN_MEMORY_IS_INITIALIZED(
       state->fp + CommonFrameConstants::kContextOrFrameTypeOffset,
-      kPointerSize);
+      kSystemPointerSize);
   intptr_t marker = Memory<intptr_t>(
       state->fp + CommonFrameConstants::kContextOrFrameTypeOffset);
   if (!iterator->can_access_heap_objects_) {
@@ -461,7 +462,8 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
     // anything on the stack. So basically none of these checks are 100%
     // reliable.
     MSAN_MEMORY_IS_INITIALIZED(
-        state->fp + StandardFrameConstants::kFunctionOffset, kPointerSize);
+        state->fp + StandardFrameConstants::kFunctionOffset,
+        kSystemPointerSize);
     Object maybe_function = Object(
         Memory<Address>(state->fp + StandardFrameConstants::kFunctionOffset));
     if (!StackFrame::IsTypeMarker(marker)) {
@@ -678,7 +680,8 @@ StackFrame::Type ExitFrame::ComputeFrameType(Address fp) {
 }
 
 Address ExitFrame::ComputeStackPointer(Address fp) {
-  MSAN_MEMORY_IS_INITIALIZED(fp + ExitFrameConstants::kSPOffset, kPointerSize);
+  MSAN_MEMORY_IS_INITIALIZED(fp + ExitFrameConstants::kSPOffset,
+                             kSystemPointerSize);
   return Memory<Address>(fp + ExitFrameConstants::kSPOffset);
 }
 
@@ -708,7 +711,7 @@ bool BuiltinExitFrame::IsConstructor() const {
 Object BuiltinExitFrame::GetParameter(int i) const {
   DCHECK(i >= 0 && i < ComputeParametersCount());
   int offset =
-      BuiltinExitFrameConstants::kFirstArgumentOffset + i * kPointerSize;
+      BuiltinExitFrameConstants::kFirstArgumentOffset + i * kSystemPointerSize;
   return Object(Memory<Address>(fp() + offset));
 }
 
@@ -775,12 +778,12 @@ void BuiltinExitFrame::Print(StringStream* accumulator, PrintMode mode,
 
 Address StandardFrame::GetExpressionAddress(int n) const {
   const int offset = StandardFrameConstants::kExpressionsOffset;
-  return fp() + offset - n * kPointerSize;
+  return fp() + offset - n * kSystemPointerSize;
 }
 
 Address InterpretedFrame::GetExpressionAddress(int n) const {
   const int offset = InterpreterFrameConstants::kExpressionsOffset;
-  return fp() + offset - n * kPointerSize;
+  return fp() + offset - n * kSystemPointerSize;
 }
 
 Script StandardFrame::script() const {
@@ -805,10 +808,10 @@ int StandardFrame::position() const {
 
 int StandardFrame::ComputeExpressionsCount() const {
   Address base = GetExpressionAddress(0);
-  Address limit = sp() - kPointerSize;
+  Address limit = sp() - kSystemPointerSize;
   DCHECK(base >= limit);  // stack grows downwards
   // Include register-allocated locals in number of expressions.
-  return static_cast<int>((base - limit) / kPointerSize);
+  return static_cast<int>((base - limit) / kSystemPointerSize);
 }
 
 Object StandardFrame::GetParameter(int index) const {
@@ -872,7 +875,7 @@ void StandardFrame::IterateCompiledFrame(RootVisitor* v) const {
     stack_slots = code->stack_slots();
     has_tagged_params = code->has_tagged_params();
   }
-  uint32_t slot_space = stack_slots * kPointerSize;
+  uint32_t slot_space = stack_slots * kSystemPointerSize;
 
   // Determine the fixed header and spill slot area size.
   int frame_header_size = StandardFrameConstants::kFixedFrameSizeFromFp;
@@ -940,7 +943,7 @@ void StandardFrame::IterateCompiledFrame(RootVisitor* v) const {
     DCHECK(!isolate()->serializer_enabled());
     parameters_base +=
         RegisterConfiguration::Default()->num_allocatable_double_registers() *
-        kDoubleSize / kPointerSize;
+        kDoubleSize / kSystemPointerSize;
   }
 
   // Visit the registers that contain pointers if any.
@@ -1266,7 +1269,7 @@ void JavaScriptBuiltinContinuationWithCatchFrame::SetException(
     Object exception) {
   Address exception_argument_slot =
       fp() + JavaScriptFrameConstants::kLastParameterOffset +
-      kPointerSize;  // Skip over return value slot.
+      kSystemPointerSize;  // Skip over return value slot.
 
   // Only allow setting exception if previous value was the hole.
   CHECK_EQ(ReadOnlyRoots(isolate()).the_hole_value(),
@@ -1595,7 +1598,8 @@ Object OptimizedFrame::receiver() const {
     Address argc_ptr = fp() + OptimizedBuiltinFrameConstants::kArgCOffset;
     intptr_t argc = *reinterpret_cast<intptr_t*>(argc_ptr);
     intptr_t args_size =
-        (StandardFrameConstants::kFixedSlotCountAboveFp + argc) * kPointerSize;
+        (StandardFrameConstants::kFixedSlotCountAboveFp + argc) *
+        kSystemPointerSize;
     Address receiver_ptr = fp() + args_size;
     return *FullObjectSlot(receiver_ptr);
   } else {
@@ -1656,7 +1660,7 @@ void OptimizedFrame::GetFunctions(
 
 int OptimizedFrame::StackSlotOffsetRelativeToFp(int slot_index) {
   return StandardFrameConstants::kCallerSPOffset -
-         ((slot_index + 1) * kPointerSize);
+         ((slot_index + 1) * kSystemPointerSize);
 }
 
 Object OptimizedFrame::StackSlotAt(int index) const {
@@ -1677,9 +1681,9 @@ int InterpretedFrame::LookupExceptionHandlerInTable(
 
 int InterpretedFrame::GetBytecodeOffset() const {
   const int index = InterpreterFrameConstants::kBytecodeOffsetExpressionIndex;
-  DCHECK_EQ(
-      InterpreterFrameConstants::kBytecodeOffsetFromFp,
-      InterpreterFrameConstants::kExpressionsOffset - index * kPointerSize);
+  DCHECK_EQ(InterpreterFrameConstants::kBytecodeOffsetFromFp,
+            InterpreterFrameConstants::kExpressionsOffset -
+                index * kSystemPointerSize);
   int raw_offset = Smi::ToInt(GetExpression(index));
   return raw_offset - BytecodeArray::kHeaderSize + kHeapObjectTag;
 }
@@ -1687,53 +1691,53 @@ int InterpretedFrame::GetBytecodeOffset() const {
 int InterpretedFrame::GetBytecodeOffset(Address fp) {
   const int offset = InterpreterFrameConstants::kExpressionsOffset;
   const int index = InterpreterFrameConstants::kBytecodeOffsetExpressionIndex;
-  DCHECK_EQ(
-      InterpreterFrameConstants::kBytecodeOffsetFromFp,
-      InterpreterFrameConstants::kExpressionsOffset - index * kPointerSize);
-  Address expression_offset = fp + offset - index * kPointerSize;
+  DCHECK_EQ(InterpreterFrameConstants::kBytecodeOffsetFromFp,
+            InterpreterFrameConstants::kExpressionsOffset -
+                index * kSystemPointerSize);
+  Address expression_offset = fp + offset - index * kSystemPointerSize;
   int raw_offset = Smi::ToInt(Object(Memory<Address>(expression_offset)));
   return raw_offset - BytecodeArray::kHeaderSize + kHeapObjectTag;
 }
 
 void InterpretedFrame::PatchBytecodeOffset(int new_offset) {
   const int index = InterpreterFrameConstants::kBytecodeOffsetExpressionIndex;
-  DCHECK_EQ(
-      InterpreterFrameConstants::kBytecodeOffsetFromFp,
-      InterpreterFrameConstants::kExpressionsOffset - index * kPointerSize);
+  DCHECK_EQ(InterpreterFrameConstants::kBytecodeOffsetFromFp,
+            InterpreterFrameConstants::kExpressionsOffset -
+                index * kSystemPointerSize);
   int raw_offset = new_offset + BytecodeArray::kHeaderSize - kHeapObjectTag;
   SetExpression(index, Smi::FromInt(raw_offset));
 }
 
 BytecodeArray InterpretedFrame::GetBytecodeArray() const {
   const int index = InterpreterFrameConstants::kBytecodeArrayExpressionIndex;
-  DCHECK_EQ(
-      InterpreterFrameConstants::kBytecodeArrayFromFp,
-      InterpreterFrameConstants::kExpressionsOffset - index * kPointerSize);
+  DCHECK_EQ(InterpreterFrameConstants::kBytecodeArrayFromFp,
+            InterpreterFrameConstants::kExpressionsOffset -
+                index * kSystemPointerSize);
   return BytecodeArray::cast(GetExpression(index));
 }
 
 void InterpretedFrame::PatchBytecodeArray(BytecodeArray bytecode_array) {
   const int index = InterpreterFrameConstants::kBytecodeArrayExpressionIndex;
-  DCHECK_EQ(
-      InterpreterFrameConstants::kBytecodeArrayFromFp,
-      InterpreterFrameConstants::kExpressionsOffset - index * kPointerSize);
+  DCHECK_EQ(InterpreterFrameConstants::kBytecodeArrayFromFp,
+            InterpreterFrameConstants::kExpressionsOffset -
+                index * kSystemPointerSize);
   SetExpression(index, bytecode_array);
 }
 
 Object InterpretedFrame::ReadInterpreterRegister(int register_index) const {
   const int index = InterpreterFrameConstants::kRegisterFileExpressionIndex;
-  DCHECK_EQ(
-      InterpreterFrameConstants::kRegisterFileFromFp,
-      InterpreterFrameConstants::kExpressionsOffset - index * kPointerSize);
+  DCHECK_EQ(InterpreterFrameConstants::kRegisterFileFromFp,
+            InterpreterFrameConstants::kExpressionsOffset -
+                index * kSystemPointerSize);
   return GetExpression(index + register_index);
 }
 
 void InterpretedFrame::WriteInterpreterRegister(int register_index,
                                                 Object value) {
   const int index = InterpreterFrameConstants::kRegisterFileExpressionIndex;
-  DCHECK_EQ(
-      InterpreterFrameConstants::kRegisterFileFromFp,
-      InterpreterFrameConstants::kExpressionsOffset - index * kPointerSize);
+  DCHECK_EQ(InterpreterFrameConstants::kRegisterFileFromFp,
+            InterpreterFrameConstants::kExpressionsOffset -
+                index * kSystemPointerSize);
   return SetExpression(index + register_index, value);
 }
 

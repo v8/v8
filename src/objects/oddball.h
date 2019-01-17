@@ -48,12 +48,21 @@ class Oddball : public HeapObject {
                          const char* type_of, byte kind);
 
   // Layout description.
-  static const int kToNumberRawOffset = HeapObject::kHeaderSize;
-  static const int kToStringOffset = kToNumberRawOffset + kDoubleSize;
-  static const int kToNumberOffset = kToStringOffset + kPointerSize;
-  static const int kTypeOfOffset = kToNumberOffset + kPointerSize;
-  static const int kKindOffset = kTypeOfOffset + kPointerSize;
-  static const int kSize = kKindOffset + kPointerSize;
+#define ODDBALL_FIELDS(V)                  \
+  V(kToNumberRawOffset, kDoubleSize)       \
+  /* Tagged fields. */                     \
+  V(kTaggedFieldsStartOffset, 0)           \
+  V(kToStringOffset, kTaggedSize)          \
+  V(kToNumberOffset, kTaggedSize)          \
+  V(kTypeOfOffset, kTaggedSize)            \
+  V(kTaggedFieldsEndOffset, 0)             \
+  /* Raw data but still encoded as Smi. */ \
+  V(kKindOffset, kTaggedSize)              \
+  /* Total size. */                        \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, ODDBALL_FIELDS)
+#undef ODDBALL_FIELDS
 
   static const byte kFalse = 0;
   static const byte kTrue = 1;
@@ -69,7 +78,7 @@ class Oddball : public HeapObject {
   static const byte kStaleRegister = 10;
   static const byte kSelfReferenceMarker = 10;
 
-  typedef FixedBodyDescriptor<kToStringOffset, kTypeOfOffset + kPointerSize,
+  typedef FixedBodyDescriptor<kTaggedFieldsStartOffset, kTaggedFieldsEndOffset,
                               kSize>
       BodyDescriptor;
 

@@ -71,7 +71,7 @@ class FrameWriter {
   }
 
   void PushCallerConstantPool(intptr_t cp) {
-    top_offset_ -= kPointerSize;
+    top_offset_ -= kSystemPointerSize;
     frame_->SetCallerConstantPool(top_offset_, cp);
     DebugPrintOutputValue(cp, "caller's constant_pool\n");
   }
@@ -95,7 +95,7 @@ class FrameWriter {
  private:
   void PushValue(intptr_t value) {
     CHECK_GE(top_offset_, 0);
-    top_offset_ -= kPointerSize;
+    top_offset_ -= kSystemPointerSize;
     frame_->SetFrameSlot(top_offset_, value);
   }
 
@@ -806,12 +806,12 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
   int register_count = height - 1;  // Exclude accumulator.
   int register_stack_slot_count =
       InterpreterFrameConstants::RegisterStackSlotCount(register_count);
-  int height_in_bytes = register_stack_slot_count * kPointerSize;
+  int height_in_bytes = register_stack_slot_count * kSystemPointerSize;
 
   // The topmost frame will contain the accumulator.
   if (is_topmost) {
-    height_in_bytes += kPointerSize;
-    if (PadTopOfStackRegister()) height_in_bytes += kPointerSize;
+    height_in_bytes += kSystemPointerSize;
+    if (PadTopOfStackRegister()) height_in_bytes += kSystemPointerSize;
   }
 
   TranslatedFrame::iterator function_iterator = value_iterator++;
@@ -1068,9 +1068,10 @@ void Deoptimizer::DoComputeArgumentsAdaptorFrame(
   bool is_bottommost = (0 == frame_index);
 
   unsigned height = translated_frame->height();
-  unsigned height_in_bytes = height * kPointerSize;
+  unsigned height_in_bytes = height * kSystemPointerSize;
   int parameter_count = height;
-  if (ShouldPadArguments(parameter_count)) height_in_bytes += kPointerSize;
+  if (ShouldPadArguments(parameter_count))
+    height_in_bytes += kSystemPointerSize;
 
   TranslatedFrame::iterator function_iterator = value_iterator++;
   if (trace_scope_ != nullptr) {
@@ -1178,7 +1179,7 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
   BailoutId bailout_id = translated_frame->node_id();
   unsigned height = translated_frame->height();
   unsigned parameter_count = height - 1;  // Exclude the context.
-  unsigned height_in_bytes = parameter_count * kPointerSize;
+  unsigned height_in_bytes = parameter_count * kSystemPointerSize;
 
   // If the construct frame appears to be topmost we should ensure that the
   // value of result register is preserved during continuation execution.
@@ -1186,11 +1187,12 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
   // top of the reconstructed stack and popping it in
   // {Builtins::kNotifyDeoptimized}.
   if (is_topmost) {
-    height_in_bytes += kPointerSize;
-    if (PadTopOfStackRegister()) height_in_bytes += kPointerSize;
+    height_in_bytes += kSystemPointerSize;
+    if (PadTopOfStackRegister()) height_in_bytes += kSystemPointerSize;
   }
 
-  if (ShouldPadArguments(parameter_count)) height_in_bytes += kPointerSize;
+  if (ShouldPadArguments(parameter_count))
+    height_in_bytes += kSystemPointerSize;
 
   TranslatedFrame::iterator function_iterator = value_iterator++;
   if (trace_scope_ != nullptr) {
@@ -1417,7 +1419,7 @@ Builtins::Name Deoptimizer::TrampolineForBuiltinContinuation(
 //                TO
 //    |          ....           |
 //    +-------------------------+
-//    | arg padding (arch dept) |<- at most 1*kPointerSize
+//    | arg padding (arch dept) |<- at most 1*kSystemPointerSize
 //    +-------------------------+
 //    |     builtin param 0     |<- FrameState input value n becomes
 //    +-------------------------+
@@ -1504,14 +1506,14 @@ void Deoptimizer::DoComputeBuiltinContinuation(
       is_topmost ? (PadTopOfStackRegister() ? 2 : 1) : 0;
 
   const unsigned output_frame_size =
-      kPointerSize * (stack_param_count + stack_param_pad_count +
-                      allocatable_register_count + padding_slot_count +
-                      push_result_count) +
+      kSystemPointerSize * (stack_param_count + stack_param_pad_count +
+                            allocatable_register_count + padding_slot_count +
+                            push_result_count) +
       BuiltinContinuationFrameConstants::kFixedFrameSize;
 
   const unsigned output_frame_size_above_fp =
-      kPointerSize * (allocatable_register_count + padding_slot_count +
-                      push_result_count) +
+      kSystemPointerSize * (allocatable_register_count + padding_slot_count +
+                            push_result_count) +
       (BuiltinContinuationFrameConstants::kFixedFrameSize -
        BuiltinContinuationFrameConstants::kFixedFrameSizeAboveFp);
 
@@ -1797,7 +1799,7 @@ unsigned Deoptimizer::ComputeInputFrameSize() const {
     unsigned stack_slots = compiled_code_->stack_slots();
     unsigned outgoing_size = 0;
     //        ComputeOutgoingArgumentSize(compiled_code_, bailout_id_);
-    CHECK_EQ(fixed_size_above_fp + (stack_slots * kPointerSize) -
+    CHECK_EQ(fixed_size_above_fp + (stack_slots * kSystemPointerSize) -
                  CommonFrameConstants::kFixedFrameSizeAboveFp + outgoing_size,
              result);
   }
@@ -1816,7 +1818,7 @@ unsigned Deoptimizer::ComputeInterpretedFixedSize(SharedFunctionInfo shared) {
 unsigned Deoptimizer::ComputeIncomingArgumentSize(SharedFunctionInfo shared) {
   int parameter_slots = shared->internal_formal_parameter_count() + 1;
   if (kPadArguments) parameter_slots = RoundUp(parameter_slots, 2);
-  return parameter_slots * kPointerSize;
+  return parameter_slots * kSystemPointerSize;
 }
 
 void Deoptimizer::EnsureCodeForDeoptimizationEntry(Isolate* isolate,
@@ -1876,7 +1878,7 @@ FrameDescription::FrameDescription(uint32_t frame_size, int parameter_count)
   }
 
   // Zap all the slots.
-  for (unsigned o = 0; o < frame_size; o += kPointerSize) {
+  for (unsigned o = 0; o < frame_size; o += kSystemPointerSize) {
     SetFrameSlot(o, kZapUint32);
   }
 }
@@ -2091,7 +2093,7 @@ void Translation::AddUpdateFeedback(int vector_literal, int slot) {
 void Translation::StoreJSFrameFunction() {
   StoreStackSlot((StandardFrameConstants::kCallerPCOffset -
                   StandardFrameConstants::kFunctionOffset) /
-                 kPointerSize);
+                 kSystemPointerSize);
 }
 
 int Translation::NumberOfOperandsFor(Opcode opcode) {
@@ -2953,7 +2955,7 @@ void TranslatedState::CreateArgumentsElementsTranslatedValues(
 
   object_positions_.push_back({frame_index, value_index});
   frame.Add(TranslatedValue::NewDeferredObject(
-      this, length + FixedArray::kHeaderSize / kPointerSize, object_index));
+      this, length + FixedArray::kHeaderSize / kTaggedSize, object_index));
 
   ReadOnlyRoots roots(isolate_);
   frame.Add(TranslatedValue::NewTagged(this, roots.fixed_array_map()));
@@ -2971,7 +2973,7 @@ void TranslatedState::CreateArgumentsElementsTranslatedValues(
   for (int i = length - number_of_holes - 1; i >= 0; --i) {
     Address argument_slot = arguments_frame +
                             CommonFrameConstants::kFixedFrameSizeAboveFp +
-                            i * kPointerSize;
+                            i * kSystemPointerSize;
     frame.Add(TranslatedValue::NewTagged(this, *FullObjectSlot(argument_slot)));
   }
 }
@@ -3639,7 +3641,7 @@ void TranslatedState::EnsureCapturedObjectAllocatedAt(
           Smi::cast(frame->values_[value_index].GetRawValue())->value();
 
       int instance_size = FixedArray::SizeFor(array_length);
-      CHECK_EQ(instance_size, slot->GetChildrenCount() * kPointerSize);
+      CHECK_EQ(instance_size, slot->GetChildrenCount() * kTaggedSize);
 
       // Canonicalize empty fixed array.
       if (*map == ReadOnlyRoots(isolate()).empty_fixed_array()->map() &&
@@ -3660,7 +3662,7 @@ void TranslatedState::EnsureCapturedObjectAllocatedAt(
           Smi::cast(frame->values_[value_index].GetRawValue())->value();
       int array_length = PropertyArray::LengthField::decode(length_or_hash);
       int instance_size = PropertyArray::SizeFor(array_length);
-      CHECK_EQ(instance_size, slot->GetChildrenCount() * kPointerSize);
+      CHECK_EQ(instance_size, slot->GetChildrenCount() * kTaggedSize);
 
       slot->set_storage(AllocateStorageFor(slot));
       // Make sure all the remaining children (after the map) are allocated.
@@ -3731,7 +3733,7 @@ void TranslatedState::EnsurePropertiesAllocatedAndMarked(
         !index.is_inobject()) {
       CHECK(!map->IsUnboxedDoubleField(index));
       int outobject_index = index.outobject_array_index();
-      int array_index = outobject_index * kPointerSize;
+      int array_index = outobject_index * kTaggedSize;
       object_storage->set(array_index, kStoreMutableHeapNumber);
     }
   }
@@ -3739,7 +3741,7 @@ void TranslatedState::EnsurePropertiesAllocatedAndMarked(
 
 Handle<ByteArray> TranslatedState::AllocateStorageFor(TranslatedValue* slot) {
   int allocate_size =
-      ByteArray::LengthFor(slot->GetChildrenCount() * kPointerSize);
+      ByteArray::LengthFor(slot->GetChildrenCount() * kTaggedSize);
   // It is important to allocate all the objects tenured so that the marker
   // does not visit them.
   Handle<ByteArray> object_storage =
@@ -3752,7 +3754,7 @@ Handle<ByteArray> TranslatedState::AllocateStorageFor(TranslatedValue* slot) {
 
 void TranslatedState::EnsureJSObjectAllocated(TranslatedValue* slot,
                                               Handle<Map> map) {
-  CHECK_EQ(map->instance_size(), slot->GetChildrenCount() * kPointerSize);
+  CHECK_EQ(map->instance_size(), slot->GetChildrenCount() * kTaggedSize);
 
   Handle<ByteArray> object_storage = AllocateStorageFor(slot);
   // Now we handle the interesting (JSObject) case.
@@ -3764,8 +3766,8 @@ void TranslatedState::EnsureJSObjectAllocated(TranslatedValue* slot,
     FieldIndex index = FieldIndex::ForDescriptor(*map, i);
     if (descriptors->GetDetails(i).representation().IsDouble() &&
         index.is_inobject()) {
-      CHECK_GE(index.index(), FixedArray::kHeaderSize / kPointerSize);
-      int array_index = index.index() * kPointerSize - FixedArray::kHeaderSize;
+      CHECK_GE(index.index(), FixedArray::kHeaderSize / kTaggedSize);
+      int array_index = index.index() * kTaggedSize - FixedArray::kHeaderSize;
       uint8_t marker = map->IsUnboxedDoubleField(index)
                            ? kStoreUnboxedDouble
                            : kStoreMutableHeapNumber;
@@ -3797,7 +3799,7 @@ void TranslatedState::InitializeJSObjectAt(
 
   // Notify the concurrent marker about the layout change.
   isolate()->heap()->NotifyObjectLayoutChange(
-      *object_storage, slot->GetChildrenCount() * kPointerSize, no_allocation);
+      *object_storage, slot->GetChildrenCount() * kTaggedSize, no_allocation);
 
   // Fill the property array field.
   {
@@ -3810,7 +3812,7 @@ void TranslatedState::InitializeJSObjectAt(
 
   // For all the other fields we first look at the fixed array and check the
   // marker to see if we store an unboxed double.
-  DCHECK_EQ(kPointerSize, JSObject::kPropertiesOrHashOffset);
+  DCHECK_EQ(kTaggedSize, JSObject::kPropertiesOrHashOffset);
   for (int i = 2; i < slot->GetChildrenCount(); i++) {
     // Initialize and extract the value from its slot.
     Handle<Object> field_value = GetValueAndAdvance(frame, value_index);
@@ -3818,7 +3820,7 @@ void TranslatedState::InitializeJSObjectAt(
     // Read out the marker and ensure the field is consistent with
     // what the markers in the storage say (note that all heap numbers
     // should be fully initialized by now).
-    int offset = i * kPointerSize;
+    int offset = i * kTaggedSize;
     uint8_t marker = READ_UINT8_FIELD(*object_storage, offset);
     if (marker == kStoreUnboxedDouble) {
       double double_field_value;
@@ -3857,12 +3859,12 @@ void TranslatedState::InitializeObjectWithTaggedFieldsAt(
 
   // Notify the concurrent marker about the layout change.
   isolate()->heap()->NotifyObjectLayoutChange(
-      *object_storage, slot->GetChildrenCount() * kPointerSize, no_allocation);
+      *object_storage, slot->GetChildrenCount() * kTaggedSize, no_allocation);
 
   // Write the fields to the object.
   for (int i = 1; i < slot->GetChildrenCount(); i++) {
     Handle<Object> field_value = GetValueAndAdvance(frame, value_index);
-    int offset = i * kPointerSize;
+    int offset = i * kTaggedSize;
     uint8_t marker = READ_UINT8_FIELD(*object_storage, offset);
     if (i > 1 && marker == kStoreMutableHeapNumber) {
       CHECK(field_value->IsMutableHeapNumber());

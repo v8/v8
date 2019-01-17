@@ -28,10 +28,15 @@ class Foreign : public HeapObject {
   DECL_VERIFIER(Foreign)
 
   // Layout description.
+#define FOREIGN_FIELDS(V)                      \
+  V(kForeignAddressOffset, kSystemPointerSize) \
+  /* Total size. */                            \
+  V(kSize, 0)
 
-  static const int kForeignAddressOffset = HeapObject::kHeaderSize;
-  static const int kSize = kForeignAddressOffset + kPointerSize;
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, FOREIGN_FIELDS)
+#undef FOREIGN_FIELDS
 
+  STATIC_ASSERT(IsAligned(kForeignAddressOffset, kSystemPointerSize));
   STATIC_ASSERT(kForeignAddressOffset == Internals::kForeignAddressOffset);
 
   class BodyDescriptor;

@@ -121,16 +121,17 @@ const char* V8NameConverter::RootRelativeName(int offset) const {
   const int kExtRefsTableStart = IsolateData::external_reference_table_offset();
   const unsigned kExtRefsTableSize = ExternalReferenceTable::kSizeInBytes;
   const int kBuiltinsTableStart = IsolateData::builtins_table_offset();
-  const unsigned kBuiltinsTableSize = Builtins::builtin_count * kPointerSize;
+  const unsigned kBuiltinsTableSize =
+      Builtins::builtin_count * kSystemPointerSize;
 
   if (static_cast<unsigned>(offset - kRootsTableStart) < kRootsTableSize) {
     uint32_t offset_in_roots_table = offset - kRootsTableStart;
 
     // Fail safe in the unlikely case of an arbitrary root-relative offset.
-    if (offset_in_roots_table % kPointerSize != 0) return nullptr;
+    if (offset_in_roots_table % kSystemPointerSize != 0) return nullptr;
 
     RootIndex root_index =
-        static_cast<RootIndex>(offset_in_roots_table / kPointerSize);
+        static_cast<RootIndex>(offset_in_roots_table / kSystemPointerSize);
 
     SNPrintF(v8_buffer_, "root (%s)", RootsTable::name(root_index));
     return v8_buffer_.start();
@@ -158,8 +159,8 @@ const char* V8NameConverter::RootRelativeName(int offset) const {
              kBuiltinsTableSize) {
     uint32_t offset_in_builtins_table = (offset - kBuiltinsTableStart);
 
-    Builtins::Name builtin_id =
-        static_cast<Builtins::Name>(offset_in_builtins_table / kPointerSize);
+    Builtins::Name builtin_id = static_cast<Builtins::Name>(
+        offset_in_builtins_table / kSystemPointerSize);
 
     const char* name = Builtins::name(builtin_id);
     SNPrintF(v8_buffer_, "builtin (%s)", name);

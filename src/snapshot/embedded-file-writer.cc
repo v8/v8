@@ -51,10 +51,10 @@ namespace internal {
 namespace {
 
 DataDirective PointerSizeDirective() {
-  if (kPointerSize == 8) {
+  if (kSystemPointerSize == 8) {
     return kQuad;
   } else {
-    CHECK_EQ(4, kPointerSize);
+    CHECK_EQ(4, kSystemPointerSize);
     return kLong;
   }
 }

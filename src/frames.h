@@ -33,11 +33,11 @@ class WasmModuleObject;
 
 class StackHandlerConstants : public AllStatic {
  public:
-  static const int kNextOffset = 0 * kPointerSize;
-  static const int kPaddingOffset = 1 * kPointerSize;
+  static const int kNextOffset = 0 * kSystemPointerSize;
+  static const int kPaddingOffset = 1 * kSystemPointerSize;
 
-  static const int kSize = kPaddingOffset + kPointerSize;
-  static const int kSlotCount = kSize >> kPointerSizeLog2;
+  static const int kSize = kPaddingOffset + kSystemPointerSize;
+  static const int kSlotCount = kSize >> kSystemPointerSizeLog2;
 };
 
 class StackHandler {

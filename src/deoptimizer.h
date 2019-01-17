@@ -694,9 +694,9 @@ class FrameDescription {
   explicit FrameDescription(uint32_t frame_size, int parameter_count = 0);
 
   void* operator new(size_t size, uint32_t frame_size) {
-    // Subtracts kPointerSize, as the member frame_content_ already supplies
-    // the first element of the area to store the frame.
-    return malloc(size + frame_size - kPointerSize);
+    // Subtracts kSystemPointerSize, as the member frame_content_ already
+    // supplies the first element of the area to store the frame.
+    return malloc(size + frame_size - kSystemPointerSize);
   }
 
   void operator delete(void* pointer, uint32_t frame_size) {
@@ -720,7 +720,7 @@ class FrameDescription {
   unsigned GetLastArgumentSlotOffset() {
     int parameter_slots = parameter_count();
     if (kPadArguments) parameter_slots = RoundUp(parameter_slots, 2);
-    return GetFrameSize() - parameter_slots * kPointerSize;
+    return GetFrameSize() - parameter_slots * kSystemPointerSize;
   }
 
   Address GetFramePointerAddress() {

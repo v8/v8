@@ -1471,6 +1471,8 @@ int JSObject::GetHeaderSize(InstanceType type,
       return JSMapIterator::kSize;
     case JS_WEAK_CELL_TYPE:
       return JSWeakCell::kSize;
+    case JS_WEAK_REF_TYPE:
+      return JSWeakRef::kSize;
     case JS_WEAK_FACTORY_TYPE:
       return JSWeakFactory::kSize;
     case JS_WEAK_FACTORY_CLEANUP_ITERATOR_TYPE:
@@ -9420,7 +9422,7 @@ Handle<Map> Map::Normalize(Isolate* isolate, Handle<Map> fast_map,
         DCHECK_EQ(fresh->raw_transitions(),
                   MaybeObject::FromObject(Smi::kZero));
         STATIC_ASSERT(kDescriptorsOffset ==
-                      kTransitionsOrPrototypeInfoOffset + kPointerSize);
+                      kTransitionsOrPrototypeInfoOffset + kTaggedSize);
         DCHECK_EQ(
             0,
             memcmp(
@@ -9433,8 +9435,8 @@ Handle<Map> Map::Normalize(Isolate* isolate, Handle<Map> fast_map,
                             Map::kDependentCodeOffset));
       }
       STATIC_ASSERT(Map::kPrototypeValidityCellOffset ==
-                    Map::kDependentCodeOffset + kPointerSize);
-      int offset = Map::kPrototypeValidityCellOffset + kPointerSize;
+                    Map::kDependentCodeOffset + kTaggedSize);
+      int offset = Map::kPrototypeValidityCellOffset + kTaggedSize;
       DCHECK_EQ(0, memcmp(reinterpret_cast<void*>(fresh->address() + offset),
                           reinterpret_cast<void*>(new_map->address() + offset),
                           Map::kSize - offset));
@@ -9458,7 +9460,7 @@ Handle<Map> Map::CopyNormalized(Isolate* isolate, Handle<Map> map,
                                 PropertyNormalizationMode mode) {
   int new_instance_size = map->instance_size();
   if (mode == CLEAR_INOBJECT_PROPERTIES) {
-    new_instance_size -= map->GetInObjectProperties() * kPointerSize;
+    new_instance_size -= map->GetInObjectProperties() * kTaggedSize;
   }
 
   Handle<Map> result = RawCopy(
@@ -9915,11 +9917,11 @@ Handle<Map> Map::Create(Isolate* isolate, int inobject_properties) {
   }
 
   int new_instance_size =
-      JSObject::kHeaderSize + kPointerSize * inobject_properties;
+      JSObject::kHeaderSize + kTaggedSize * inobject_properties;
 
   // Adjust the map with the extra inobject properties.
   copy->set_instance_size(new_instance_size);
-  copy->SetInObjectPropertiesStartInWords(JSObject::kHeaderSize / kPointerSize);
+  copy->SetInObjectPropertiesStartInWords(JSObject::kHeaderSize / kTaggedSize);
   DCHECK_EQ(copy->GetInObjectProperties(), inobject_properties);
   copy->SetInObjectUnusedPropertyFields(inobject_properties);
   copy->set_visitor_id(Map::GetVisitorId(*copy));
@@ -12763,7 +12765,7 @@ static void GetMinInobjectSlack(Map map, void* data) {
 }
 
 int Map::InstanceSizeFromSlack(int slack) const {
-  return instance_size() - slack * kPointerSize;
+  return instance_size() - slack * kTaggedSize;
 }
 
 static void ShrinkInstanceSize(Map map, void* data) {
@@ -14318,10 +14320,16 @@ void JSFunction::CalculateInstanceSizeHelper(InstanceType instance_type,
                                              int* in_object_properties) {
   DCHECK_LE(static_cast<unsigned>(requested_embedder_fields),
             JSObject::kMaxEmbedderFields);
-  requested_embedder_fields *= kEmbedderDataSlotSizeInTaggedSlots;
   int header_size = JSObject::GetHeaderSize(instance_type, has_prototype_slot);
+  if (requested_embedder_fields) {
+    // If there are embedder fields, then the embedder fields start offset must
+    // be properly aligned (embedder fields are located between object header
+    // and inobject fields).
+    header_size = RoundUp<kSystemPointerSize>(header_size);
+    requested_embedder_fields *= kEmbedderDataSlotSizeInTaggedSlots;
+  }
   int max_nof_fields =
-      (JSObject::kMaxInstanceSize - header_size) >> kPointerSizeLog2;
+      (JSObject::kMaxInstanceSize - header_size) >> kTaggedSizeLog2;
   CHECK_LE(max_nof_fields, JSObject::kMaxInObjectProperties);
   CHECK_LE(static_cast<unsigned>(requested_embedder_fields),
            static_cast<unsigned>(max_nof_fields));
@@ -14329,9 +14337,9 @@ void JSFunction::CalculateInstanceSizeHelper(InstanceType instance_type,
                               max_nof_fields - requested_embedder_fields);
   *instance_size =
       header_size +
-      ((requested_embedder_fields + *in_object_properties) << kPointerSizeLog2);
+      ((requested_embedder_fields + *in_object_properties) << kTaggedSizeLog2);
   CHECK_EQ(*in_object_properties,
-           ((*instance_size - header_size) >> kPointerSizeLog2) -
+           ((*instance_size - header_size) >> kTaggedSizeLog2) -
                requested_embedder_fields);
   CHECK_LE(static_cast<unsigned>(*instance_size),
            static_cast<unsigned>(JSObject::kMaxInstanceSize));
@@ -15262,7 +15270,7 @@ void Code::Disassemble(const char* name, std::ostream& os, Address current_pc) {
       Vector<char> buf = Vector<char>::New(50);
       intptr_t* ptr =
           reinterpret_cast<intptr_t*>(InstructionStart() + const_pool_offset);
-      for (int i = 0; i < pool_size; i += kPointerSize, ptr++) {
+      for (int i = 0; i < pool_size; i += kSystemPointerSize, ptr++) {
         SNPrintF(buf, "%4d %08" V8PRIxPTR, i, *ptr);
         os << static_cast<const void*>(ptr) << "  " << buf.start() << "\n";
       }
@@ -15423,7 +15431,7 @@ void BytecodeArray::MakeOlder() {
   // BytecodeArray is aged in concurrent marker.
   // The word must be completely within the byte code array.
   Address age_addr = address() + kBytecodeAgeOffset;
-  DCHECK_LE((age_addr & ~kPointerAlignmentMask) + kPointerSize,
+  DCHECK_LE(RoundDown(age_addr, kSystemPointerSize) + kSystemPointerSize,
             address() + Size());
   Age age = bytecode_age();
   if (age < kLastBytecodeAge) {
@@ -17025,7 +17033,7 @@ void HashTable<Derived, Shape>::IteratePrefix(ObjectVisitor* v) {
 template <typename Derived, typename Shape>
 void HashTable<Derived, Shape>::IterateElements(ObjectVisitor* v) {
   BodyDescriptorBase::IteratePointers(*this, kElementsStartOffset,
-                                      kHeaderSize + length() * kPointerSize, v);
+                                      SizeFor(length()), v);
 }
 
 template <typename Derived, typename Shape>

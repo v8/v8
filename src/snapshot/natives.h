@@ -60,14 +60,15 @@ class NativesExternalStringResource final
   v8::String::ExternalOneByteStringResource* EncodeForSerialization() const {
     DCHECK(type_ == EXTRAS);
     intptr_t val = (index_ << 1) | 1;
-    val = val << kPointerSizeLog2;  // Pointer align.
+    val = val << kSystemPointerSizeLog2;  // Pointer align.
     return reinterpret_cast<v8::String::ExternalOneByteStringResource*>(val);
   }
 
   // Decode from serialization.
   static NativesExternalStringResource* DecodeForDeserialization(
       const v8::String::ExternalOneByteStringResource* encoded) {
-    intptr_t val = reinterpret_cast<intptr_t>(encoded) >> kPointerSizeLog2;
+    intptr_t val =
+        reinterpret_cast<intptr_t>(encoded) >> kSystemPointerSizeLog2;
     DCHECK(val & 1);
     int index = static_cast<int>(val >> 1);
     return new NativesExternalStringResource(EXTRAS, index);

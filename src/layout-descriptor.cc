@@ -194,16 +194,16 @@ LayoutDescriptor LayoutDescriptor::SetTaggedForTesting(int field_index,
 bool LayoutDescriptorHelper::IsTagged(
     int offset_in_bytes, int end_offset,
     int* out_end_of_contiguous_region_offset) {
-  DCHECK(IsAligned(offset_in_bytes, kPointerSize));
-  DCHECK(IsAligned(end_offset, kPointerSize));
+  DCHECK(IsAligned(offset_in_bytes, kTaggedSize));
+  DCHECK(IsAligned(end_offset, kTaggedSize));
   DCHECK(offset_in_bytes < end_offset);
   if (all_fields_tagged_) {
     *out_end_of_contiguous_region_offset = end_offset;
     DCHECK(offset_in_bytes < *out_end_of_contiguous_region_offset);
     return true;
   }
-  int max_sequence_length = (end_offset - offset_in_bytes) / kPointerSize;
-  int field_index = Max(0, (offset_in_bytes - header_size_) / kPointerSize);
+  int max_sequence_length = (end_offset - offset_in_bytes) / kTaggedSize;
+  int field_index = Max(0, (offset_in_bytes - header_size_) / kTaggedSize);
   int sequence_length;
   bool tagged = layout_descriptor_->IsTagged(field_index, max_sequence_length,
                                              &sequence_length);
@@ -214,7 +214,7 @@ bool LayoutDescriptorHelper::IsTagged(
     if (tagged) {
       // First field is tagged, calculate end offset from there.
       *out_end_of_contiguous_region_offset =
-          header_size_ + sequence_length * kPointerSize;
+          header_size_ + sequence_length * kTaggedSize;
 
     } else {
       *out_end_of_contiguous_region_offset = header_size_;
@@ -223,7 +223,7 @@ bool LayoutDescriptorHelper::IsTagged(
     return true;
   }
   *out_end_of_contiguous_region_offset =
-      offset_in_bytes + sequence_length * kPointerSize;
+      offset_in_bytes + sequence_length * kTaggedSize;
   DCHECK(offset_in_bytes < *out_end_of_contiguous_region_offset);
   return tagged;
 }

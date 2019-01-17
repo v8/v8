@@ -41,7 +41,7 @@ int ElementsKindToShiftSize(ElementsKind elements_kind) {
     case SLOW_SLOPPY_ARGUMENTS_ELEMENTS:
     case FAST_STRING_WRAPPER_ELEMENTS:
     case SLOW_STRING_WRAPPER_ELEMENTS:
-      return kPointerSizeLog2;
+      return kTaggedSizeLog2;
     case NO_ELEMENTS:
       UNREACHABLE();
   }

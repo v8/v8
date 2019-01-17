@@ -472,7 +472,7 @@ class ParameterArguments {
  public:
   explicit ParameterArguments(Address parameters) : parameters_(parameters) {}
   Object operator[](int index) {
-    return *FullObjectSlot(parameters_ - (index + 1) * kPointerSize);
+    return *FullObjectSlot(parameters_ - (index + 1) * kSystemPointerSize);
   }
 
  private:
@@ -572,7 +572,7 @@ RUNTIME_FUNCTION(Runtime_NewSloppyArguments) {
   }
 
   Address parameters =
-      fp + argc * kPointerSize + StandardFrameConstants::kCallerSPOffset;
+      fp + argc * kSystemPointerSize + StandardFrameConstants::kCallerSPOffset;
   ParameterArguments argument_getter(parameters);
   return *NewSloppyArguments(isolate, callee, argument_getter, argc);
 }

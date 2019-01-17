@@ -469,7 +469,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
           IntPtrOpName(BitcastTaggedToWord(a), BitcastTaggedToWord(b))); \
     } else {                                                             \
       DCHECK(SmiValuesAre31Bits());                                      \
-      if (kPointerSize == kInt64Size) {                                  \
+      if (kSystemPointerSize == kInt64Size) {                            \
         CSA_ASSERT(this, IsValidSmi(a));                                 \
         CSA_ASSERT(this, IsValidSmi(b));                                 \
       }                                                                  \
@@ -530,7 +530,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       return IntPtrOpName(BitcastTaggedToWord(a), BitcastTaggedToWord(b)); \
     } else {                                                               \
       DCHECK(SmiValuesAre31Bits());                                        \
-      if (kPointerSize == kInt64Size) {                                    \
+      if (kSystemPointerSize == kInt64Size) {                              \
         CSA_ASSERT(this, IsValidSmi(a));                                   \
         CSA_ASSERT(this, IsValidSmi(b));                                   \
       }                                                                    \
@@ -2421,7 +2421,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                   "Use the non-templatized version for DescriptorArray");
     const int kKeyToDetailsOffset =
         (ContainerType::kEntryDetailsIndex - ContainerType::kEntryKeyIndex) *
-        kPointerSize;
+        kTaggedSize;
     return Unsigned(LoadAndUntagToWord32FixedArrayElement(
         CAST(container), key_index, kKeyToDetailsOffset));
   }
@@ -2434,7 +2434,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                   "Use the non-templatized version for DescriptorArray");
     const int kKeyToValueOffset =
         (ContainerType::kEntryValueIndex - ContainerType::kEntryKeyIndex) *
-        kPointerSize;
+        kTaggedSize;
     return LoadFixedArrayElement(CAST(container), key_index, kKeyToValueOffset);
   }
 
@@ -2445,7 +2445,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                               TNode<IntPtrT> key_index, TNode<Smi> details) {
     const int kKeyToDetailsOffset =
         (ContainerType::kEntryDetailsIndex - ContainerType::kEntryKeyIndex) *
-        kPointerSize;
+        kTaggedSize;
     StoreFixedArrayElement(container, key_index, details, SKIP_WRITE_BARRIER,
                            kKeyToDetailsOffset);
   }
@@ -2458,7 +2458,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       WriteBarrierMode write_barrier = UPDATE_WRITE_BARRIER) {
     const int kKeyToValueOffset =
         (ContainerType::kEntryValueIndex - ContainerType::kEntryKeyIndex) *
-        kPointerSize;
+        kTaggedSize;
     StoreFixedArrayElement(container, key_index, value, write_barrier,
                            kKeyToValueOffset);
   }

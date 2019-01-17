@@ -13,8 +13,9 @@ namespace v8 {
 namespace internal {
 
 inline FieldIndex FieldIndex::ForInObjectOffset(int offset, Encoding encoding) {
-  DCHECK(encoding == kWord32 ? (offset % kInt32Size) == 0
-                             : (offset % kPointerSize) == 0);
+  DCHECK_IMPLIES(encoding == kWord32, IsAligned(offset, kInt32Size));
+  DCHECK_IMPLIES(encoding == kTagged, IsAligned(offset, kTaggedSize));
+  DCHECK_IMPLIES(encoding == kDouble, IsAligned(offset, kDoubleSize));
   return FieldIndex(true, offset, encoding, 0, 0);
 }
 
@@ -32,7 +33,7 @@ inline FieldIndex FieldIndex::ForPropertyIndex(const Map map,
   } else {
     first_inobject_offset = FixedArray::kHeaderSize;
     property_index -= inobject_properties;
-    offset = FixedArray::kHeaderSize + property_index * kPointerSize;
+    offset = PropertyArray::OffsetOfElementAt(property_index);
   }
   Encoding encoding = FieldEncoding(representation);
   return FieldIndex(is_inobject, offset, encoding, inobject_properties,
@@ -51,9 +52,9 @@ inline int FieldIndex::GetLoadByFieldIndex() const {
   // signifying if the field is a mutable double box (1) or not (0).
   int result = index();
   if (is_inobject()) {
-    result -= JSObject::kHeaderSize / kPointerSize;
+    result -= JSObject::kHeaderSize / kTaggedSize;
   } else {
-    result -= FixedArray::kHeaderSize / kPointerSize;
+    result -= FixedArray::kHeaderSize / kTaggedSize;
     result = -result - 1;
   }
   result <<= 1;

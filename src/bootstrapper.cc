@@ -773,8 +773,7 @@ void Genesis::CreateObjectFunction(Handle<JSFunction> empty_function) {
 
   // --- O b j e c t ---
   int inobject_properties = JSObject::kInitialGlobalObjectUnusedPropertiesCount;
-  int instance_size =
-      JSObject::kHeaderSize + kPointerSize * inobject_properties;
+  int instance_size = JSObject::kHeaderSize + kTaggedSize * inobject_properties;
 
   Handle<JSFunction> object_fun = CreateFunction(
       isolate_, factory->Object_string(), JS_OBJECT_TYPE, instance_size,
@@ -837,7 +836,7 @@ Handle<Map> CreateNonConstructorMap(Isolate* isolate, Handle<Map> source_map,
     // Re-set the unused property fields after changing the instance size.
     // TODO(ulan): Do not change instance size after map creation.
     int unused_property_fields = map->UnusedPropertyFields();
-    map->set_instance_size(map->instance_size() + kPointerSize);
+    map->set_instance_size(map->instance_size() + kTaggedSize);
     // The prototype slot shifts the in-object properties area by one slot.
     map->SetInObjectPropertiesStartInWords(
         map->GetInObjectPropertiesStartInWords() + 1);
@@ -2472,7 +2471,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     // Builtin functions for RegExp.prototype.
     Handle<JSFunction> regexp_fun = InstallFunction(
         isolate_, global, "RegExp", JS_REGEXP_TYPE,
-        JSRegExp::kSize + JSRegExp::kInObjectFieldCount * kPointerSize,
+        JSRegExp::kSize + JSRegExp::kInObjectFieldCount * kTaggedSize,
         JSRegExp::kInObjectFieldCount, factory->the_hole_value(),
         Builtins::kRegExpConstructor);
     InstallWithIntrinsicDefaultProto(isolate_, regexp_fun,

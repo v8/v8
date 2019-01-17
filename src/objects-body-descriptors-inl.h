@@ -224,7 +224,7 @@ class JSFunction::BodyDescriptor final : public BodyDescriptorBase {
 class JSWeakCell::BodyDescriptor final : public BodyDescriptorBase {
  public:
   static bool IsValidSlot(Map map, HeapObject obj, int offset) {
-    return JSObject::BodyDescriptor::IsValidSlot(map, obj, offset);
+    return IsValidJSObjectSlotImpl(map, obj, offset);
   }
 
   template <typename ObjectVisitor>
@@ -232,7 +232,8 @@ class JSWeakCell::BodyDescriptor final : public BodyDescriptorBase {
                                  ObjectVisitor* v) {
     IteratePointers(obj, JSReceiver::kPropertiesOrHashOffset, kTargetOffset, v);
     IterateCustomWeakPointer(obj, kTargetOffset, v);
-    IteratePointers(obj, kTargetOffset + kPointerSize, object_size, v);
+    IterateJSObjectBodyImpl(map, obj, kTargetOffset + kTaggedSize, object_size,
+                            v);
   }
 
   static inline int SizeOf(Map map, HeapObject object) {
@@ -534,7 +535,7 @@ class PrototypeInfo::BodyDescriptor final : public BodyDescriptorBase {
                                  ObjectVisitor* v) {
     IteratePointers(obj, HeapObject::kHeaderSize, kObjectCreateMapOffset, v);
     IterateMaybeWeakPointer(obj, kObjectCreateMapOffset, v);
-    IteratePointers(obj, kObjectCreateMapOffset + kPointerSize, object_size, v);
+    IteratePointers(obj, kObjectCreateMapOffset + kTaggedSize, object_size, v);
   }
 
   static inline int SizeOf(Map map, HeapObject obj) {
@@ -544,7 +545,7 @@ class PrototypeInfo::BodyDescriptor final : public BodyDescriptorBase {
 
 class JSWeakCollection::BodyDescriptorImpl final : public BodyDescriptorBase {
  public:
-  STATIC_ASSERT(kTableOffset + kPointerSize == kSize);
+  STATIC_ASSERT(kTableOffset + kTaggedSize == kSize);
 
   static bool IsValidSlot(Map map, HeapObject obj, int offset) {
     return IsValidJSObjectSlotImpl(map, obj, offset);
@@ -601,13 +602,13 @@ class ExternalTwoByteString::BodyDescriptor final : public BodyDescriptorBase {
 
 class Code::BodyDescriptor final : public BodyDescriptorBase {
  public:
-  STATIC_ASSERT(kRelocationInfoOffset + kPointerSize ==
+  STATIC_ASSERT(kRelocationInfoOffset + kTaggedSize ==
                 kDeoptimizationDataOffset);
-  STATIC_ASSERT(kDeoptimizationDataOffset + kPointerSize ==
+  STATIC_ASSERT(kDeoptimizationDataOffset + kTaggedSize ==
                 kSourcePositionTableOffset);
-  STATIC_ASSERT(kSourcePositionTableOffset + kPointerSize ==
+  STATIC_ASSERT(kSourcePositionTableOffset + kTaggedSize ==
                 kCodeDataContainerOffset);
-  STATIC_ASSERT(kCodeDataContainerOffset + kPointerSize == kDataStart);
+  STATIC_ASSERT(kCodeDataContainerOffset + kTaggedSize == kDataStart);
 
   static bool IsValidSlot(Map map, HeapObject obj, int offset) {
     // Slots in code can't be invalid because we never trim code objects.
@@ -703,7 +704,7 @@ class Map::BodyDescriptor final : public BodyDescriptorBase {
     IteratePointers(obj, Map::kPointerFieldsBeginOffset,
                     Map::kTransitionsOrPrototypeInfoOffset, v);
     IterateMaybeWeakPointer(obj, kTransitionsOrPrototypeInfoOffset, v);
-    IteratePointers(obj, Map::kTransitionsOrPrototypeInfoOffset + kPointerSize,
+    IteratePointers(obj, Map::kTransitionsOrPrototypeInfoOffset + kTaggedSize,
                     Map::kPointerFieldsEndOffset, v);
   }
 

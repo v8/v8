@@ -101,14 +101,14 @@ class MachineType {
     return representation() == MachineRepresentation::kTaggedPointer;
   }
   constexpr static MachineRepresentation PointerRepresentation() {
-    return (kPointerSize == 4) ? MachineRepresentation::kWord32
-                               : MachineRepresentation::kWord64;
+    return (kSystemPointerSize == 4) ? MachineRepresentation::kWord32
+                                     : MachineRepresentation::kWord64;
   }
   constexpr static MachineType UintPtr() {
-    return (kPointerSize == 4) ? Uint32() : Uint64();
+    return (kSystemPointerSize == 4) ? Uint32() : Uint64();
   }
   constexpr static MachineType IntPtr() {
-    return (kPointerSize == 4) ? Int32() : Int64();
+    return (kSystemPointerSize == 4) ? Int32() : Int64();
   }
   constexpr static MachineType Int8() {
     return MachineType(MachineRepresentation::kWord8, MachineSemantic::kInt32);
@@ -234,7 +234,7 @@ class MachineType {
   }
 
   bool LessThanOrEqualPointerSize() {
-    return ElementSizeLog2Of(this->representation()) <= kPointerSizeLog2;
+    return ElementSizeLog2Of(this->representation()) <= kSystemPointerSizeLog2;
   }
 
  private:

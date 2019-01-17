@@ -233,10 +233,10 @@ void Serializer::PutRoot(RootIndex root, HeapObject object,
 
 void Serializer::PutSmi(Smi smi) {
   sink_.Put(kOnePointerRawData, "Smi");
-  Address raw_value = smi.ptr();
-  byte bytes[kPointerSize];
-  memcpy(bytes, &raw_value, kPointerSize);
-  for (int i = 0; i < kPointerSize; i++) sink_.Put(bytes[i], "Byte");
+  Tagged_t raw_value = static_cast<Tagged_t>(smi.ptr());
+  byte bytes[kTaggedSize];
+  memcpy(bytes, &raw_value, kTaggedSize);
+  for (int i = 0; i < kTaggedSize; i++) sink_.Put(bytes[i], "Byte");
 }
 
 void Serializer::PutBackReference(HeapObject object,
@@ -604,7 +604,7 @@ void Serializer::ObjectSerializer::SerializeObject() {
 
   // Serialize the rest of the object.
   CHECK_EQ(0, bytes_processed_so_far_);
-  bytes_processed_so_far_ = kPointerSize;
+  bytes_processed_so_far_ = kTaggedSize;
 
   RecursionScope recursion(serializer_);
   // Objects that are immediately post processed during deserialization
@@ -635,12 +635,12 @@ void Serializer::ObjectSerializer::SerializeDeferred() {
 
   // Serialize the rest of the object.
   CHECK_EQ(0, bytes_processed_so_far_);
-  bytes_processed_so_far_ = kPointerSize;
+  bytes_processed_so_far_ = kTaggedSize;
 
   serializer_->PutAlignmentPrefix(object_);
   sink_->Put(kNewObject + back_reference.space(), "deferred object");
   serializer_->PutBackReference(object_, back_reference);
-  sink_->PutInt(size >> kPointerSizeLog2, "deferred object size");
+  sink_->PutInt(size >> kTaggedSizeLog2, "deferred object size");
 
   SerializeContent(map, size);
 }
@@ -683,7 +683,7 @@ void Serializer::ObjectSerializer::VisitPointers(HeapObject host,
     // tagged values.
     while (current < end && (*current)->IsCleared()) {
       sink_->Put(kClearedWeakReference, "ClearedWeakReference");
-      bytes_processed_so_far_ += kPointerSize;
+      bytes_processed_so_far_ += kTaggedSize;
       ++current;
     }
     HeapObject current_contents;
@@ -706,7 +706,7 @@ void Serializer::ObjectSerializer::VisitPointers(HeapObject host,
           repeat_count++;
         }
         current += repeat_count;
-        bytes_processed_so_far_ += repeat_count * kPointerSize;
+        bytes_processed_so_far_ += repeat_count * kTaggedSize;
         if (repeat_count > kNumberOfFixedRepeat) {
           sink_->Put(kVariableRepeat, "VariableRepeat");
           sink_->PutInt(repeat_count, "repeat count");
@@ -719,7 +719,7 @@ void Serializer::ObjectSerializer::VisitPointers(HeapObject host,
         }
         serializer_->SerializeObject(current_contents, kPlain, kStartOfObject,
                                      0);
-        bytes_processed_so_far_ += kPointerSize;
+        bytes_processed_so_far_ += kTaggedSize;
         ++current;
       }
     }
@@ -748,7 +748,7 @@ void Serializer::ObjectSerializer::VisitExternalReference(Foreign host,
   }
   sink_->PutInt(skip, "SkipB4ExternalRef");
   sink_->PutInt(encoded_reference.index(), "reference index");
-  bytes_processed_so_far_ += kPointerSize;
+  bytes_processed_so_far_ += kSystemPointerSize;
 }
 
 void Serializer::ObjectSerializer::VisitExternalReference(Code host,
@@ -871,9 +871,9 @@ void Serializer::ObjectSerializer::OutputRawData(Address up_to) {
   DCHECK_GE(to_skip, 0);
   if (bytes_to_output != 0) {
     DCHECK(to_skip == bytes_to_output);
-    if (IsAligned(bytes_to_output, kPointerAlignment) &&
-        bytes_to_output <= kNumberOfFixedRawData * kPointerSize) {
-      int size_in_words = bytes_to_output >> kPointerSizeLog2;
+    if (IsAligned(bytes_to_output, kObjectAlignment) &&
+        bytes_to_output <= kNumberOfFixedRawData * kTaggedSize) {
+      int size_in_words = bytes_to_output >> kTaggedSizeLog2;
       sink_->PutSection(kFixedRawDataStart + size_in_words, "FixedRawData");
     } else {
       sink_->Put(kVariableRawData, "VariableRawData");
@@ -920,7 +920,7 @@ int Serializer::ObjectSerializer::SkipTo(Address to) {
 }
 
 void Serializer::ObjectSerializer::OutputCode(int size) {
-  DCHECK_EQ(kPointerSize, bytes_processed_so_far_);
+  DCHECK_EQ(kTaggedSize, bytes_processed_so_far_);
   Code on_heap_code = Code::cast(object_);
   // To make snapshots reproducible, we make a copy of the code object
   // and wipe all pointers in the copy, which we then serialize.

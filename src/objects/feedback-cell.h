@@ -29,11 +29,16 @@ class FeedbackCell : public Struct {
   DECL_PRINTER(FeedbackCell)
   DECL_VERIFIER(FeedbackCell)
 
-  static const int kValueOffset = HeapObject::kHeaderSize;
-  static const int kSize = kValueOffset + kPointerSize;
+// Layout description.
+#define FEEDBACK_CELL_FIELDS(V) \
+  V(kValueOffset, kTaggedSize)  \
+  /* Total size. */             \
+  V(kSize, 0)
 
-  typedef FixedBodyDescriptor<kValueOffset, kValueOffset + kPointerSize, kSize>
-      BodyDescriptor;
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, FEEDBACK_CELL_FIELDS)
+#undef FEEDBACK_CELL_FIELDS
+
+  typedef FixedBodyDescriptor<kValueOffset, kSize, kSize> BodyDescriptor;
 
   OBJECT_CONSTRUCTORS(FeedbackCell, Struct);
 };

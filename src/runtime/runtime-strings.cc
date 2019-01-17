@@ -590,10 +590,7 @@ static int CopyCachedOneByteCharsToArray(Heap* heap, const uint8_t* chars,
     elements->set(i, value, mode);
   }
   if (i < length) {
-    static_assert(Smi::kZero.ptr() == kNullAddress,
-                  "Can use memset since Smi::kZero is 0");
-    memset(elements->RawFieldOfElementAt(i).ToVoidPtr(), 0,
-           kPointerSize * (length - i));
+    MemsetTagged(elements->RawFieldOfElementAt(i), Smi::kZero, length - i);
   }
 #ifdef DEBUG
   for (int j = 0; j < length; ++j) {

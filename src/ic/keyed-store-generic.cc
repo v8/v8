@@ -745,7 +745,7 @@ TNode<Map> KeyedStoreGenericAssembler::FindCandidateStoreICTransitionMapHandler(
       STATIC_ASSERT(NONE == 0);
       const int kKeyToTargetOffset = (TransitionArray::kEntryTargetIndex -
                                       TransitionArray::kEntryKeyIndex) *
-                                     kPointerSize;
+                                     kTaggedSize;
       var_transition_map = CAST(GetHeapObjectAssumeWeak(
           LoadArrayElement(transitions, WeakFixedArray::kHeaderSize,
                            var_name_index.value(), kKeyToTargetOffset)));

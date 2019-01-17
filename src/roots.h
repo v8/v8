@@ -423,7 +423,7 @@ class RootsTable {
   }
 
   static constexpr int offset_of(RootIndex root_index) {
-    return static_cast<int>(root_index) * kPointerSize;
+    return static_cast<int>(root_index) * kSystemPointerSize;
   }
 
   static RootIndex RootIndexForFixedTypedArray(ExternalArrayType array_type);

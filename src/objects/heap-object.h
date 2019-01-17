@@ -175,9 +175,13 @@ class HeapObject : public Object {
   void RehashBasedOnMap(Isolate* isolate);
 
   // Layout description.
-  // First field in a heap object is map.
-  static const int kMapOffset = Object::kHeaderSize;
-  static const int kHeaderSize = kMapOffset + kPointerSize;
+#define HEAP_OBJECT_FIELDS(V) \
+  V(kMapOffset, kTaggedSize)  \
+  /* Header size. */          \
+  V(kHeaderSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(Object::kHeaderSize, HEAP_OBJECT_FIELDS)
+#undef HEAP_OBJECT_FIELDS
 
   STATIC_ASSERT(kMapOffset == Internals::kHeapObjectMapOffset);
 

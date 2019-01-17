@@ -9493,7 +9493,7 @@ int debug::EstimatedValueSize(Isolate* v8_isolate, v8::Local<v8::Value> value) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   i::Handle<i::Object> object = Utils::OpenHandle(*value);
-  if (object->IsSmi()) return i::kPointerSize;
+  if (object->IsSmi()) return i::kTaggedSize;
   CHECK(object->IsHeapObject());
   return i::Handle<i::HeapObject>::cast(object)->Size();
 }

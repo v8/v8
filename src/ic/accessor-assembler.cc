@@ -62,7 +62,7 @@ TNode<MaybeObject> AccessorAssembler::LoadHandlerDataField(
   USE(minimum_size);
   CSA_ASSERT(this, UintPtrGreaterThanOrEqual(
                        LoadMapInstanceSizeInWords(handler_map),
-                       IntPtrConstant(minimum_size / kPointerSize)));
+                       IntPtrConstant(minimum_size / kTaggedSize)));
   return LoadMaybeWeakObjectField(handler, offset);
 }
 
@@ -90,7 +90,7 @@ TNode<MaybeObject> AccessorAssembler::TryMonomorphicCase(
 
   TNode<MaybeObject> handler = UncheckedCast<MaybeObject>(
       Load(MachineType::AnyTagged(), vector,
-           IntPtrAdd(offset, IntPtrConstant(header_size + kPointerSize))));
+           IntPtrAdd(offset, IntPtrConstant(header_size + kTaggedSize))));
 
   *var_handler = handler;
   Goto(if_handler);
@@ -162,7 +162,7 @@ void AccessorAssembler::HandlePolymorphicCase(
 
         // Found, now call handler.
         TNode<MaybeObject> handler =
-            LoadWeakFixedArrayElement(feedback, index, kPointerSize);
+            LoadWeakFixedArrayElement(feedback, index, kTaggedSize);
         *var_handler = handler;
         Goto(if_handler);
 
@@ -292,7 +292,7 @@ void AccessorAssembler::HandleLoadField(Node* holder, Node* handler_word,
                                         ExitPoint* exit_point) {
   Comment("field_load");
   Node* index = DecodeWord<LoadHandler::FieldIndexBits>(handler_word);
-  Node* offset = IntPtrMul(index, IntPtrConstant(kPointerSize));
+  Node* offset = IntPtrMul(index, IntPtrConstant(kTaggedSize));
 
   Label inobject(this), out_of_object(this);
   Branch(IsSetWord<LoadHandler::IsInobjectBits>(handler_word), &inobject,
@@ -1721,7 +1721,7 @@ void AccessorAssembler::StoreNamedField(Node* handler_word, Node* object,
   }
 
   Node* index = DecodeWord<StoreHandler::FieldIndexBits>(handler_word);
-  Node* offset = IntPtrMul(index, IntPtrConstant(kPointerSize));
+  Node* offset = IntPtrMul(index, IntPtrConstant(kTaggedSize));
   if (representation.IsDouble()) {
     if (!FLAG_unbox_double_fields || !is_inobject) {
       // Load the mutable heap number.
@@ -2325,18 +2325,19 @@ void AccessorAssembler::TryProbeStubCacheTable(
   GotoIf(WordNotEqual(name, entry_key), if_miss);
 
   // Get the map entry from the cache.
-  DCHECK_EQ(kPointerSize * 2, stub_cache->map_reference(table).address() -
-                                  stub_cache->key_reference(table).address());
+  DCHECK_EQ(kSystemPointerSize * 2,
+            stub_cache->map_reference(table).address() -
+                stub_cache->key_reference(table).address());
   Node* entry_map =
       Load(MachineType::Pointer(), key_base,
-           IntPtrAdd(entry_offset, IntPtrConstant(kPointerSize * 2)));
+           IntPtrAdd(entry_offset, IntPtrConstant(kSystemPointerSize * 2)));
   GotoIf(WordNotEqual(map, entry_map), if_miss);
 
-  DCHECK_EQ(kPointerSize, stub_cache->value_reference(table).address() -
-                              stub_cache->key_reference(table).address());
+  DCHECK_EQ(kSystemPointerSize, stub_cache->value_reference(table).address() -
+                                    stub_cache->key_reference(table).address());
   TNode<MaybeObject> handler = ReinterpretCast<MaybeObject>(
       Load(MachineType::AnyTagged(), key_base,
-           IntPtrAdd(entry_offset, IntPtrConstant(kPointerSize))));
+           IntPtrAdd(entry_offset, IntPtrConstant(kSystemPointerSize))));
 
   // We found the handler.
   *var_handler = handler;
@@ -2529,7 +2530,7 @@ void AccessorAssembler::LoadIC_Uninitialized(const LoadICParameters* p) {
                           LoadRoot(RootIndex::kpremonomorphic_symbol),
                           SKIP_WRITE_BARRIER, 0, SMI_PARAMETERS);
   StoreWeakReferenceInFeedbackVector(p->vector, p->slot, receiver_map,
-                                     kPointerSize, SMI_PARAMETERS);
+                                     kTaggedSize, SMI_PARAMETERS);
 
   {
     // Special case for Function.prototype load, because it's very common
@@ -2633,7 +2634,7 @@ void AccessorAssembler::LoadGlobalIC_TryHandlerCase(
   Label call_handler(this), non_smi(this);
 
   TNode<MaybeObject> feedback_element =
-      LoadFeedbackVectorSlot(vector, slot, kPointerSize, slot_mode);
+      LoadFeedbackVectorSlot(vector, slot, kTaggedSize, slot_mode);
   TNode<Object> handler = CAST(feedback_element);
   GotoIf(WordEqual(handler, LoadRoot(RootIndex::kuninitialized_symbol)), miss);
 
@@ -2854,7 +2855,7 @@ void AccessorAssembler::KeyedLoadICPolymorphicName(const LoadICParameters* p) {
 
   // Check if we have a matching handler for the {receiver_map}.
   TNode<MaybeObject> feedback_element =
-      LoadFeedbackVectorSlot(vector, slot, kPointerSize, SMI_PARAMETERS);
+      LoadFeedbackVectorSlot(vector, slot, kTaggedSize, SMI_PARAMETERS);
   TNode<WeakFixedArray> array = CAST(feedback_element);
   HandlePolymorphicCase(receiver_map, array, &if_handler, &var_handler, &miss,
                         1);
@@ -2956,7 +2957,7 @@ void AccessorAssembler::StoreGlobalIC(const StoreICParameters* pp) {
     {
       Comment("StoreGlobalIC_try_handler");
       TNode<MaybeObject> handler = LoadFeedbackVectorSlot(
-          pp->vector, pp->slot, kPointerSize, SMI_PARAMETERS);
+          pp->vector, pp->slot, kTaggedSize, SMI_PARAMETERS);
 
       GotoIf(WordEqual(handler, LoadRoot(RootIndex::kuninitialized_symbol)),
              &miss);
@@ -3110,7 +3111,7 @@ void AccessorAssembler::KeyedStoreIC(const StoreICParameters* p) {
       // If the name comparison succeeded, we know we have a feedback vector
       // with at least one map/handler pair.
       TNode<MaybeObject> feedback_element = LoadFeedbackVectorSlot(
-          p->vector, p->slot, kPointerSize, SMI_PARAMETERS);
+          p->vector, p->slot, kTaggedSize, SMI_PARAMETERS);
       TNode<WeakFixedArray> array = CAST(feedback_element);
       HandlePolymorphicCase(receiver_map, array, &if_handler, &var_handler,
                             &miss, 1);

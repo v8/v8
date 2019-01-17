@@ -2632,7 +2632,7 @@ static Handle<Map> FastCloneObjectMap(Isolate* isolate,
                                          initial_map->GetInObjectProperties()) {
     int inobject_properties = source_map->GetInObjectProperties();
     int instance_size =
-        JSObject::kHeaderSize + kPointerSize * inobject_properties;
+        JSObject::kHeaderSize + kTaggedSize * inobject_properties;
     int unused = source_map->UnusedInObjectProperties();
     DCHECK(instance_size <= JSObject::kMaxInstanceSize);
     map = Map::CopyInitialMap(isolate, map, instance_size, inobject_properties,

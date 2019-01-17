@@ -97,8 +97,9 @@ class GraphBuilderTester : public HandleAndZoneScope,
 
   Node* PointerConstant(void* value) {
     intptr_t intptr_value = reinterpret_cast<intptr_t>(value);
-    return kPointerSize == 8 ? NewNode(common()->Int64Constant(intptr_value))
-                             : Int32Constant(static_cast<int>(intptr_value));
+    return kSystemPointerSize == 8
+               ? NewNode(common()->Int64Constant(intptr_value))
+               : Int32Constant(static_cast<int>(intptr_value));
   }
   Node* Int32Constant(int32_t value) {
     return NewNode(common()->Int32Constant(value));
@@ -223,7 +224,7 @@ class GraphBuilderTester : public HandleAndZoneScope,
       if (has_control) ++input_count_with_deps;
       if (has_effect) ++input_count_with_deps;
       Node** buffer = zone()->template NewArray<Node*>(input_count_with_deps);
-      memcpy(buffer, value_inputs, kPointerSize * value_input_count);
+      memcpy(buffer, value_inputs, kSystemPointerSize * value_input_count);
       Node** current_input = buffer + value_input_count;
       if (has_effect) {
         *current_input++ = effect_;

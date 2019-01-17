@@ -3202,9 +3202,9 @@ Node* WasmGraphBuilder::GetGlobal(uint32_t index) {
       Node* base = nullptr;
       Node* offset = nullptr;
       GetBaseAndOffsetForImportedMutableAnyRefGlobal(global, &base, &offset);
-      return SetEffect(graph()->NewNode(
-          mcgraph()->machine()->Load(MachineType::TaggedPointer()), base,
-          offset, Effect(), Control()));
+      return SetEffect(
+          graph()->NewNode(mcgraph()->machine()->Load(MachineType::AnyTagged()),
+                           base, offset, Effect(), Control()));
     }
     Node* globals_buffer =
         LOAD_INSTANCE_FIELD(TaggedGlobalsBuffer, MachineType::TaggedPointer());

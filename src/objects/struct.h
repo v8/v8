@@ -38,9 +38,15 @@ class Tuple2 : public Struct {
   DECL_VERIFIER(Tuple2)
   void BriefPrintDetails(std::ostream& os);
 
-  static const int kValue1Offset = HeapObject::kHeaderSize;
-  static const int kValue2Offset = kValue1Offset + kPointerSize;
-  static const int kSize = kValue2Offset + kPointerSize;
+// Layout description.
+#define TUPLE2_FIELDS(V)        \
+  V(kValue1Offset, kTaggedSize) \
+  V(kValue2Offset, kTaggedSize) \
+  /* Total size. */             \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, TUPLE2_FIELDS)
+#undef TUPLE2_FIELDS
 
   OBJECT_CONSTRUCTORS(Tuple2, Struct);
 };
@@ -56,8 +62,14 @@ class Tuple3 : public Tuple2 {
   DECL_VERIFIER(Tuple3)
   void BriefPrintDetails(std::ostream& os);
 
-  static const int kValue3Offset = Tuple2::kSize;
-  static const int kSize = kValue3Offset + kPointerSize;
+// Layout description.
+#define TUPLE3_FIELDS(V)        \
+  V(kValue3Offset, kTaggedSize) \
+  /* Total size. */             \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(Tuple2::kSize, TUPLE3_FIELDS)
+#undef TUPLE3_FIELDS
 
   OBJECT_CONSTRUCTORS(Tuple3, Tuple2);
 };
@@ -94,9 +106,15 @@ class AccessorPair : public Struct {
   DECL_PRINTER(AccessorPair)
   DECL_VERIFIER(AccessorPair)
 
-  static const int kGetterOffset = HeapObject::kHeaderSize;
-  static const int kSetterOffset = kGetterOffset + kPointerSize;
-  static const int kSize = kSetterOffset + kPointerSize;
+// Layout description.
+#define ACCESSOR_PAIR_FIELDS(V) \
+  V(kGetterOffset, kTaggedSize) \
+  V(kSetterOffset, kTaggedSize) \
+  /* Total size. */             \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, ACCESSOR_PAIR_FIELDS)
+#undef ACCESSOR_PAIR_FIELDS
 
   OBJECT_CONSTRUCTORS(AccessorPair, Struct);
 };

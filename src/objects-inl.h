@@ -80,8 +80,8 @@ Smi PropertyDetails::AsSmi() const {
 int PropertyDetails::field_width_in_words() const {
   DCHECK_EQ(location(), kField);
   if (!FLAG_unbox_double_fields) return 1;
-  if (kDoubleSize == kPointerSize) return 1;
-  return representation().IsDouble() ? kDoubleSize / kPointerSize : 1;
+  if (kDoubleSize == kTaggedSize) return 1;
+  return representation().IsDouble() ? kDoubleSize / kTaggedSize : 1;
 }
 
 bool HeapObject::IsUncompiledData() const {

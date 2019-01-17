@@ -147,10 +147,10 @@ LayoutDescriptor LayoutDescriptor::cast_gc_safe(Object object) {
 
 int LayoutDescriptor::GetSlowModeBackingStoreLength(int length) {
   DCHECK_LT(0, length);
-  // We allocate kPointerSize rounded blocks of memory anyway so we increase
+  // We allocate kTaggedSize rounded blocks of memory anyway so we increase
   // the length  of allocated array to utilize that "lost" space which could
   // also help to avoid layout descriptor reallocations.
-  return RoundUp(length, kBitsPerByte * kPointerSize) / kBitsPerByte;
+  return RoundUp(length, kBitsPerByte * kTaggedSize) / kBitsPerByte;
 }
 
 int LayoutDescriptor::CalculateCapacity(Map map, DescriptorArray descriptors,
@@ -161,7 +161,7 @@ int LayoutDescriptor::CalculateCapacity(Map map, DescriptorArray descriptors,
   DCHECK_LE(num_descriptors, descriptors->number_of_descriptors());
 
   int layout_descriptor_length;
-  const int kMaxWordsPerField = kDoubleSize / kPointerSize;
+  const int kMaxWordsPerField = kDoubleSize / kTaggedSize;
 
   if (num_descriptors <= kBitsInSmiLayout / kMaxWordsPerField) {
     // Even in the "worst" case (all fields are doubles) it would fit into
@@ -231,7 +231,7 @@ LayoutDescriptorHelper::LayoutDescriptorHelper(Map map)
     return;
   }
 
-  header_size_ = map->GetInObjectPropertiesStartInWords() * kPointerSize;
+  header_size_ = map->GetInObjectPropertiesStartInWords() * kTaggedSize;
   DCHECK_GE(header_size_, 0);
 
   all_fields_tagged_ = false;
@@ -239,11 +239,11 @@ LayoutDescriptorHelper::LayoutDescriptorHelper(Map map)
 
 
 bool LayoutDescriptorHelper::IsTagged(int offset_in_bytes) {
-  DCHECK(IsAligned(offset_in_bytes, kPointerSize));
+  DCHECK(IsAligned(offset_in_bytes, kTaggedSize));
   if (all_fields_tagged_) return true;
   // Object headers do not contain non-tagged fields.
   if (offset_in_bytes < header_size_) return true;
-  int field_index = (offset_in_bytes - header_size_) / kPointerSize;
+  int field_index = (offset_in_bytes - header_size_) / kTaggedSize;
 
   return layout_descriptor_->IsTagged(field_index);
 }

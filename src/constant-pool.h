@@ -61,7 +61,7 @@ class ConstantPoolEntry {
   enum Type { INTPTR, DOUBLE, NUMBER_OF_TYPES };
 
   static int size(Type type) {
-    return (type == INTPTR) ? kPointerSize : kDoubleSize;
+    return (type == INTPTR) ? kSystemPointerSize : kDoubleSize;
   }
 
   enum Access { REGULAR, OVERFLOWED };

@@ -278,14 +278,14 @@ class FeedbackVector : public HeapObject {
   static inline Symbol RawUninitializedSentinel(Isolate* isolate);
 
 // Layout description.
-#define FEEDBACK_VECTOR_FIELDS(V)            \
-  /* Header fields. */                       \
-  V(kSharedFunctionInfoOffset, kPointerSize) \
-  V(kOptimizedCodeOffset, kPointerSize)      \
-  V(kLengthOffset, kInt32Size)               \
-  V(kInvocationCountOffset, kInt32Size)      \
-  V(kProfilerTicksOffset, kInt32Size)        \
-  V(kDeoptCountOffset, kInt32Size)           \
+#define FEEDBACK_VECTOR_FIELDS(V)           \
+  /* Header fields. */                      \
+  V(kSharedFunctionInfoOffset, kTaggedSize) \
+  V(kOptimizedCodeOffset, kTaggedSize)      \
+  V(kLengthOffset, kInt32Size)              \
+  V(kInvocationCountOffset, kInt32Size)     \
+  V(kProfilerTicksOffset, kInt32Size)       \
+  V(kDeoptCountOffset, kInt32Size)          \
   V(kUnalignedHeaderSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, FEEDBACK_VECTOR_FIELDS)
@@ -299,7 +299,7 @@ class FeedbackVector : public HeapObject {
 
   // Garbage collection support.
   static constexpr int SizeFor(int length) {
-    return kFeedbackSlotsOffset + length * kPointerSize;
+    return kFeedbackSlotsOffset + length * kTaggedSize;
   }
 
  private:
