@@ -3874,11 +3874,11 @@ Handle<JSObject> Factory::NewArgumentsObject(Handle<JSFunction> callee,
   Handle<JSObject> result = NewJSObjectFromMap(map);
   Handle<Smi> value(Smi::FromInt(length), isolate());
   Object::SetProperty(isolate(), result, length_string(), value,
-                      LanguageMode::kStrict)
+                      StoreOrigin::kMaybeKeyed, Just(LanguageMode::kStrict))
       .Assert();
   if (!strict_mode_callee) {
     Object::SetProperty(isolate(), result, callee_string(), callee,
-                        LanguageMode::kStrict)
+                        StoreOrigin::kMaybeKeyed, Just(LanguageMode::kStrict))
         .Assert();
   }
   return result;

@@ -948,9 +948,9 @@ MaybeHandle<Object> StoreLookupSlot(
     object = handle(context->global_object(), isolate);
   }
 
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, value,
-      Object::SetProperty(isolate, object, name, value, language_mode), Object);
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, value,
+                             Object::SetProperty(isolate, object, name, value),
+                             Object);
   return value;
 }
 

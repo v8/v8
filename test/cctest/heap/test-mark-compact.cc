@@ -165,9 +165,7 @@ HEAP_TEST(MarkCompactCollector) {
     // allocate a garbage
     Handle<String> func_name = factory->InternalizeUtf8String("theFunction");
     Handle<JSFunction> function = factory->NewFunctionForTest(func_name);
-    Object::SetProperty(isolate, global, func_name, function,
-                        LanguageMode::kSloppy)
-        .Check();
+    Object::SetProperty(isolate, global, func_name, function).Check();
 
     factory->NewJSObject(function);
   }
@@ -184,13 +182,10 @@ HEAP_TEST(MarkCompactCollector) {
     Handle<JSObject> obj = factory->NewJSObject(function);
 
     Handle<String> obj_name = factory->InternalizeUtf8String("theObject");
-    Object::SetProperty(isolate, global, obj_name, obj, LanguageMode::kSloppy)
-        .Check();
+    Object::SetProperty(isolate, global, obj_name, obj).Check();
     Handle<String> prop_name = factory->InternalizeUtf8String("theSlot");
     Handle<Smi> twenty_three(Smi::FromInt(23), isolate);
-    Object::SetProperty(isolate, obj, prop_name, twenty_three,
-                        LanguageMode::kSloppy)
-        .Check();
+    Object::SetProperty(isolate, obj, prop_name, twenty_three).Check();
   }
 
   CcTest::CollectGarbage(OLD_SPACE);

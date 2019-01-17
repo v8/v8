@@ -1402,8 +1402,7 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
   if (MigrateDeprecated(object)) {
     Handle<Object> result;
     ASSIGN_RETURN_ON_EXCEPTION(
-        isolate(), result,
-        Object::SetProperty(isolate(), object, name, value, language_mode()),
+        isolate(), result, Object::SetProperty(isolate(), object, name, value),
         Object);
     return result;
   }
@@ -1443,8 +1442,7 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
   }
   if (use_ic) UpdateCaches(&it, value, store_origin);
 
-  MAYBE_RETURN_NULL(
-      Object::SetProperty(&it, value, language_mode(), store_origin));
+  MAYBE_RETURN_NULL(Object::SetProperty(&it, value, store_origin));
   return value;
 }
 
@@ -2859,7 +2857,6 @@ RUNTIME_FUNCTION(Runtime_StorePropertyWithInterceptor) {
   Handle<JSObject> receiver = args.at<JSObject>(3);
   Handle<Name> name = args.at<Name>(4);
   FeedbackSlot vector_slot = FeedbackVector::ToSlot(slot->value());
-  LanguageMode language_mode = GetLanguageMode(vector, isolate->context());
 
   // TODO(ishell): Cache interceptor_holder in the store handler like we do
   // for LoadHandler::kInterceptor case.
@@ -2892,9 +2889,8 @@ RUNTIME_FUNCTION(Runtime_StorePropertyWithInterceptor) {
   DCHECK_EQ(LookupIterator::INTERCEPTOR, it.state());
   it.Next();
 
-  MAYBE_RETURN(
-      Object::SetProperty(&it, value, language_mode, StoreOrigin::kNamed),
-      ReadOnlyRoots(isolate).exception());
+  MAYBE_RETURN(Object::SetProperty(&it, value, StoreOrigin::kNamed),
+               ReadOnlyRoots(isolate).exception());
   return *value;
 }
 

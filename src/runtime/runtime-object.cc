@@ -370,8 +370,7 @@ MaybeHandle<Object> Runtime::SetObjectProperty(Isolate* isolate,
                     Object);
   }
 
-  MAYBE_RETURN_NULL(
-      Object::SetProperty(&it, value, language_mode, store_origin));
+  MAYBE_RETURN_NULL(Object::SetProperty(&it, value, store_origin));
 
   return value;
 }
