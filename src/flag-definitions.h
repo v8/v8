@@ -202,7 +202,6 @@ DEFINE_IMPLICATION(harmony_private_methods, harmony_private_fields)
   V(harmony_private_methods, "harmony private methods in class literals") \
   V(harmony_regexp_sequence, "RegExp Unicode sequence properties")        \
   V(harmony_weak_refs, "harmony weak references")                         \
-  V(harmony_hashbang, "harmony hashbang syntax")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_INPROGRESS(V) \
@@ -213,9 +212,10 @@ DEFINE_IMPLICATION(harmony_private_methods, harmony_private_fields)
 #endif
 
 // Features that are complete (but still behind --harmony/es-staging flag).
-#define HARMONY_STAGED_BASE(V)                                          \
-  V(harmony_private_fields, "harmony private fields in class literals") \
-  V(harmony_numeric_separator, "harmony numeric separator between digits")
+#define HARMONY_STAGED_BASE(V)                                             \
+  V(harmony_private_fields, "harmony private fields in class literals")    \
+  V(harmony_numeric_separator, "harmony numeric separator between digits") \
+  V(harmony_hashbang, "harmony hashbang syntax")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_STAGED(V)                        \
