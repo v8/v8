@@ -252,6 +252,7 @@ namespace internal {
                                                                                \
   /* Microtask helpers */                                                      \
   TFS(EnqueueMicrotask, kMicrotask)                                            \
+  ASM(RunMicrotasksTrampoline, Dummy)                                          \
   TFC(RunMicrotasks, RunMicrotasks, 1)                                         \
                                                                                \
   /* Object property helpers */                                                \

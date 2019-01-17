@@ -594,19 +594,25 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
 namespace {
 
 // Called with the native C calling convention. The corresponding function
-// signature is:
+// signature is either:
 //
-//  using JSEntryFunction = GeneratedCode<Address(
-//      Address root_register_value, Address new_target, Address target,
-//      Address receiver, intptr_t argc, Address** argv)>;
+//   using JSEntryFunction = GeneratedCode<Address(
+//       Address root_register_value, Address new_target, Address target,
+//       Address receiver, intptr_t argc, Address** argv)>;
+// or
+//   using JSEntryFunction = GeneratedCode<Address(
+//       Address root_register_value, MicrotaskQueue* microtask_queue)>;
 //
-// Input:
+// Input is either:
 //   x0: root_register_value.
 //   x1: new_target.
 //   x2: target.
 //   x3: receiver.
 //   x4: argc.
 //   x5: argv.
+// or
+//   x0: root_register_value.
+//   x1: microtask_queue.
 // Output:
 //   x0: result.
 void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
@@ -727,13 +733,6 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   // restores all callee-saved registers (including cp and fp) to their
   // saved values before returning a failure to C.
   //
-  // Expected registers by Builtins::JSEntryTrampoline
-  // x1: new_target.
-  // x2: target.
-  // x3: receiver.
-  // x4: argc.
-  // x5: argv.
-  //
   // Invoke the function by calling through JS entry trampoline builtin and
   // pop the faked function when we return.
   Handle<Code> trampoline_code =
@@ -799,7 +798,8 @@ void Builtins::Generate_JSConstructEntry(MacroAssembler* masm) {
 }
 
 void Builtins::Generate_JSRunMicrotasksEntry(MacroAssembler* masm) {
-  Generate_JSEntryVariant(masm, StackFrame::ENTRY, Builtins::kRunMicrotasks);
+  Generate_JSEntryVariant(masm, StackFrame::ENTRY,
+                          Builtins::kRunMicrotasksTrampoline);
 }
 
 // Input:
@@ -920,6 +920,16 @@ void Builtins::Generate_JSEntryTrampoline(MacroAssembler* masm) {
 
 void Builtins::Generate_JSConstructEntryTrampoline(MacroAssembler* masm) {
   Generate_JSEntryTrampolineHelper(masm, true);
+}
+
+void Builtins::Generate_RunMicrotasksTrampoline(MacroAssembler* masm) {
+  // This expects two C++ function parameters passed by Invoke() in
+  // execution.cc.
+  //   x0: root_register_value
+  //   x1: microtask_queue
+
+  __ Mov(RunMicrotasksDescriptor::MicrotaskQueueRegister(), x1);
+  __ Jump(BUILTIN_CODE(masm->isolate(), RunMicrotasks), RelocInfo::CODE_TARGET);
 }
 
 static void ReplaceClosureCodeWithOptimizedCode(

@@ -557,12 +557,16 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
 
     // TODO(plind): unify the ABI description here.
     // Registers:
-    // a0: root register value
-    // a1: entry address
-    // a2: function
-    // a3: receiver
-    // a4: argc
-    // a5: argv
+    //  either
+    //   a0: root register value
+    //   a1: entry address
+    //   a2: function
+    //   a3: receiver
+    //   a4: argc
+    //   a5: argv
+    //  or
+    //   a0: root register value
+    //   a1: microtask_queue
     //
     // Stack:
     // 0 arg slots on mips64 (4 args slots on mips)
@@ -599,11 +603,14 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   __ daddiu(fp, sp, -EntryFrameConstants::kCallerFPOffset);
 
   // Registers:
-  // a1: entry_address
-  // a2: function
-  // a3: receiver_pointer
-  // a4: argc
-  // a5: argv
+  //  either
+  //   a1: entry address
+  //   a2: function
+  //   a3: receiver
+  //   a4: argc
+  //   a5: argv
+  //  or
+  //   a1: microtask_queue
   //
   // Stack:
   // caller fp          |
@@ -660,11 +667,16 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   // saved values before returning a failure to C.
   //
   // Registers:
-  // a1: entry_address
-  // a2: function
-  // a3: receiver_pointer
-  // a4: argc
-  // a5: argv
+  //  either
+  //   a0: root register value
+  //   a1: entry address
+  //   a2: function
+  //   a3: receiver
+  //   a4: argc
+  //   a5: argv
+  //  or
+  //   a0: root register value
+  //   a1: microtask_queue
   //
   // Stack:
   // handler frame
@@ -724,7 +736,8 @@ void Builtins::Generate_JSConstructEntry(MacroAssembler* masm) {
 }
 
 void Builtins::Generate_JSRunMicrotasksEntry(MacroAssembler* masm) {
-  Generate_JSEntryVariant(masm, StackFrame::ENTRY, Builtins::kRunMicrotasks);
+  Generate_JSEntryVariant(masm, StackFrame::ENTRY,
+                          Builtins::kRunMicrotasksTrampoline);
 }
 
 static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
@@ -813,6 +826,12 @@ void Builtins::Generate_JSEntryTrampoline(MacroAssembler* masm) {
 
 void Builtins::Generate_JSConstructEntryTrampoline(MacroAssembler* masm) {
   Generate_JSEntryTrampolineHelper(masm, true);
+}
+
+void Builtins::Generate_RunMicrotasksTrampoline(MacroAssembler* masm) {
+  // a1: microtask_queue
+  __ mov(RunMicrotasksDescriptor::MicrotaskQueueRegister(), a1);
+  __ Jump(BUILTIN_CODE(masm->isolate(), RunMicrotasks), RelocInfo::CODE_TARGET);
 }
 
 static void ReplaceClosureCodeWithOptimizedCode(

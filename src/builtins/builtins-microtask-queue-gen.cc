@@ -21,7 +21,6 @@ class MicrotaskQueueBuiltinsAssembler : public CodeStubAssembler {
   explicit MicrotaskQueueBuiltinsAssembler(compiler::CodeAssemblerState* state)
       : CodeStubAssembler(state) {}
 
-  TNode<RawPtrT> GetDefaultMicrotaskQueue();
   TNode<RawPtrT> GetMicrotaskQueue(TNode<Context> context);
   TNode<RawPtrT> GetMicrotaskRingBuffer(TNode<RawPtrT> microtask_queue);
   TNode<IntPtrT> GetMicrotaskQueueCapacity(TNode<RawPtrT> microtask_queue);
@@ -47,12 +46,6 @@ class MicrotaskQueueBuiltinsAssembler : public CodeStubAssembler {
   void RunPromiseHook(Runtime::FunctionId id, TNode<Context> context,
                       SloppyTNode<HeapObject> promise_or_capability);
 };
-
-TNode<RawPtrT> MicrotaskQueueBuiltinsAssembler::GetDefaultMicrotaskQueue() {
-  auto ref = ExternalReference::default_microtask_queue_address(isolate());
-  return UncheckedCast<RawPtrT>(
-      Load(MachineType::Pointer(), ExternalConstant(ref)));
-}
 
 TNode<RawPtrT> MicrotaskQueueBuiltinsAssembler::GetMicrotaskQueue(
     TNode<Context> native_context) {
@@ -506,8 +499,8 @@ TF_BUILTIN(RunMicrotasks, MicrotaskQueueBuiltinsAssembler) {
   // Load the current context from the isolate.
   TNode<Context> current_context = GetCurrentContext();
 
-  // TODO(tzik): Take a MicrotaskQueue parameter to support non-default queue.
-  TNode<RawPtrT> microtask_queue = GetDefaultMicrotaskQueue();
+  TNode<RawPtrT> microtask_queue =
+      UncheckedCast<RawPtrT>(Parameter(Descriptor::kMicrotaskQueue));
 
   Label loop(this), done(this);
   Goto(&loop);

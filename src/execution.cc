@@ -269,29 +269,46 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
     // allocation of handles without explicit handle scopes.
     SaveContext save(isolate);
     SealHandleScope shs(isolate);
-    // clang-format off
-    // {new_target}, {target}, {receiver}, return value: tagged pointers
-    // {argv}: pointer to array of tagged pointers
-    using JSEntryFunction = GeneratedCode<Address(
-        Address root_register_value, Address new_target, Address target,
-        Address receiver, intptr_t argc, Address** argv)>;
-    // clang-format on
-    JSEntryFunction stub_entry =
-        JSEntryFunction::FromAddress(isolate, code->InstructionStart());
 
     if (FLAG_clear_exceptions_on_js_entry) isolate->clear_pending_exception();
 
-    // Call the function through the right JS entry stub.
-    Address orig_func = params.new_target->ptr();
-    Address func = params.target->ptr();
-    Address recv = params.receiver->ptr();
-    Address** argv = reinterpret_cast<Address**>(params.argv);
-    if (FLAG_profile_deserialization && params.target->IsJSFunction()) {
-      PrintDeserializedCodeInfo(Handle<JSFunction>::cast(params.target));
+    if (params.execution_target == Execution::Target::kCallable) {
+      // clang-format off
+      // {new_target}, {target}, {receiver}, return value: tagged pointers
+      // {argv}: pointer to array of tagged pointers
+      using JSEntryFunction = GeneratedCode<Address(
+          Address root_register_value, Address new_target, Address target,
+          Address receiver, intptr_t argc, Address** argv)>;
+      // clang-format on
+      JSEntryFunction stub_entry =
+          JSEntryFunction::FromAddress(isolate, code->InstructionStart());
+
+      Address orig_func = params.new_target->ptr();
+      Address func = params.target->ptr();
+      Address recv = params.receiver->ptr();
+      Address** argv = reinterpret_cast<Address**>(params.argv);
+      if (FLAG_profile_deserialization && params.target->IsJSFunction()) {
+        PrintDeserializedCodeInfo(Handle<JSFunction>::cast(params.target));
+      }
+      RuntimeCallTimerScope timer(isolate, RuntimeCallCounterId::kJS_Execution);
+      value = Object(stub_entry.Call(isolate->isolate_data()->isolate_root(),
+                                     orig_func, func, recv, params.argc, argv));
+    } else {
+      DCHECK_EQ(Execution::Target::kRunMicrotasks, params.execution_target);
+
+      // clang-format off
+      // return value: tagged pointers
+      // {microtask_queue}: pointer to a C++ object
+      using JSEntryFunction = GeneratedCode<Address(
+          Address root_register_value, MicrotaskQueue* microtask_queue)>;
+      // clang-format on
+      JSEntryFunction stub_entry =
+          JSEntryFunction::FromAddress(isolate, code->InstructionStart());
+
+      RuntimeCallTimerScope timer(isolate, RuntimeCallCounterId::kJS_Execution);
+      value = Object(stub_entry.Call(isolate->isolate_data()->isolate_root(),
+                                     params.microtask_queue));
     }
-    RuntimeCallTimerScope timer(isolate, RuntimeCallCounterId::kJS_Execution);
-    value = Object(stub_entry.Call(isolate->isolate_data()->isolate_root(),
-                                   orig_func, func, recv, params.argc, argv));
   }
 
 #ifdef VERIFY_HEAP

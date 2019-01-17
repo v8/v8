@@ -365,11 +365,13 @@ void Builtins::Generate_ConstructedNonConstructable(MacroAssembler* masm) {
 namespace {
 
 // Called with the native C calling convention. The corresponding function
-// signature is:
-//
-//  using JSEntryFunction = GeneratedCode<Address(
-//      Address root_register_value, Address new_target, Address target,
-//      Address receiver, intptr_t argc, Address** args)>;
+// signature is either:
+//   using JSEntryFunction = GeneratedCode<Address(
+//       Address root_register_value, Address new_target, Address target,
+//       Address receiver, intptr_t argc, Address** argv)>;
+// or
+//   using JSEntryFunction = GeneratedCode<Address(
+//       Address root_register_value, MicrotaskQueue* microtask_queue)>;
 void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
                              Builtins::Name entry_trampoline) {
   Label invoke, handler_entry, exit;
@@ -542,12 +544,13 @@ void Builtins::Generate_JSConstructEntry(MacroAssembler* masm) {
 }
 
 void Builtins::Generate_JSRunMicrotasksEntry(MacroAssembler* masm) {
-  Generate_JSEntryVariant(masm, StackFrame::ENTRY, Builtins::kRunMicrotasks);
+  Generate_JSEntryVariant(masm, StackFrame::ENTRY,
+                          Builtins::kRunMicrotasksTrampoline);
 }
 
 static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
                                              bool is_construct) {
-  // Expects five C++ function parameters.
+  // Expects six C++ function parameters.
   // - Address root_register_value
   // - Address new_target (tagged Object pointer)
   // - Address function (tagged JSFunction pointer)
@@ -670,6 +673,12 @@ void Builtins::Generate_JSEntryTrampoline(MacroAssembler* masm) {
 
 void Builtins::Generate_JSConstructEntryTrampoline(MacroAssembler* masm) {
   Generate_JSEntryTrampolineHelper(masm, true);
+}
+
+void Builtins::Generate_RunMicrotasksTrampoline(MacroAssembler* masm) {
+  // arg_reg_2: microtask_queue
+  __ movp(RunMicrotasksDescriptor::MicrotaskQueueRegister(), arg_reg_2);
+  __ Jump(BUILTIN_CODE(masm->isolate(), RunMicrotasks), RelocInfo::CODE_TARGET);
 }
 
 static void GetSharedFunctionInfoBytecode(MacroAssembler* masm,

@@ -756,7 +756,8 @@ void Builtins::Generate_JSConstructEntry(MacroAssembler* masm) {
 }
 
 void Builtins::Generate_JSRunMicrotasksEntry(MacroAssembler* masm) {
-  Generate_JSEntryVariant(masm, StackFrame::ENTRY, Builtins::kRunMicrotasks);
+  Generate_JSEntryVariant(masm, StackFrame::ENTRY,
+                          Builtins::kRunMicrotasksTrampoline);
 }
 
 // Clobbers scratch1 and scratch2; preserves all other registers.
@@ -889,6 +890,12 @@ void Builtins::Generate_JSEntryTrampoline(MacroAssembler* masm) {
 
 void Builtins::Generate_JSConstructEntryTrampoline(MacroAssembler* masm) {
   Generate_JSEntryTrampolineHelper(masm, true);
+}
+
+void Builtins::Generate_RunMicrotasksTrampoline(MacroAssembler* masm) {
+  // r3: microtask_queue
+  __ mov(RunMicrotasksDescriptor::MicrotaskQueueRegister(), Operand(r3));
+  __ Jump(BUILTIN_CODE(masm->isolate(), RunMicrotasks), RelocInfo::CODE_TARGET);
 }
 
 static void ReplaceClosureCodeWithOptimizedCode(

@@ -537,19 +537,27 @@ constexpr int kPushedStackSpace = kNumCalleeSaved * kPointerSize +
                                   EntryFrameConstants::kCallerFPOffset;
 
 // Called with the native C calling convention. The corresponding function
-// signature is:
+// signature is either:
 //
-//  using JSEntryFunction = GeneratedCode<Address(
-//      Address root_register_value, Address new_target, Address target,
-//      Address receiver, intptr_t argc, Address** args)>;
+//   using JSEntryFunction = GeneratedCode<Address(
+//       Address root_register_value, Address new_target, Address target,
+//       Address receiver, intptr_t argc, Address** argv)>;
+// or
+//   using JSEntryFunction = GeneratedCode<Address(
+//       Address root_register_value, MicrotaskQueue* microtask_queue)>;
 void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
                              Builtins::Name entry_trampoline) {
-  // r0:                            root_register_value
-  // r1:                            code entry
-  // r2:                            function
-  // r3:                            receiver
-  // [sp + 0 * kSystemPointerSize]: argc
-  // [sp + 1 * kSystemPointerSize]: argv
+  // The register state is either:
+  //   r0:                            root_register_value
+  //   r1:                            code entry
+  //   r2:                            function
+  //   r3:                            receiver
+  //   [sp + 0 * kSystemPointerSize]: argc
+  //   [sp + 1 * kSystemPointerSize]: argv
+  // or
+  //   r0: root_register_value
+  //   r1: microtask_queue
+  // Preserve all but r0 and pass them to entry_trampoline.
   Label invoke, handler_entry, exit;
 
   // Update |pushed_stack_space| when we manipulate the stack.
@@ -578,9 +586,6 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
 
   // Push a frame with special values setup to mark it as an entry frame.
   // r0: root_register_value
-  // r1: code entry
-  // r2: function
-  // r3: receiver
   __ mov(r7, Operand(StackFrame::TypeToMarker(type)));
   __ mov(r6, Operand(StackFrame::TypeToMarker(type)));
   __ Move(r5, ExternalReference::Create(IsolateAddressId::kCEntryFPAddress,
@@ -654,13 +659,6 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   // restores all kCalleeSaved registers (including cp and fp) to their
   // saved values before returning a failure to C.
   //
-  // Expected registers by Builtins::JSEntryTrampoline
-  // r0: code entry
-  // r1: function
-  // r2: receiver
-  // r3: argc
-  // r4: argv
-  //
   // Invoke the function by calling through JS entry trampoline builtin and
   // pop the faked function when we return.
   Handle<Code> trampoline_code =
@@ -717,7 +715,8 @@ void Builtins::Generate_JSConstructEntry(MacroAssembler* masm) {
 }
 
 void Builtins::Generate_JSRunMicrotasksEntry(MacroAssembler* masm) {
-  Generate_JSEntryVariant(masm, StackFrame::ENTRY, Builtins::kRunMicrotasks);
+  Generate_JSEntryVariant(masm, StackFrame::ENTRY,
+                          Builtins::kRunMicrotasksTrampoline);
 }
 
 static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
@@ -823,6 +822,16 @@ void Builtins::Generate_JSEntryTrampoline(MacroAssembler* masm) {
 
 void Builtins::Generate_JSConstructEntryTrampoline(MacroAssembler* masm) {
   Generate_JSEntryTrampolineHelper(masm, true);
+}
+
+void Builtins::Generate_RunMicrotasksTrampoline(MacroAssembler* masm) {
+  // This expects two C++ function parameters passed by Invoke() in
+  // execution.cc.
+  //   r0: root_register_value
+  //   r1: microtask_queue
+
+  __ mov(RunMicrotasksDescriptor::MicrotaskQueueRegister(), r1);
+  __ Jump(BUILTIN_CODE(masm->isolate(), RunMicrotasks), RelocInfo::CODE_TARGET);
 }
 
 static void ReplaceClosureCodeWithOptimizedCode(

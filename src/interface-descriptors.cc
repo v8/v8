@@ -386,6 +386,17 @@ void CloneObjectWithVectorDescriptor::InitializePlatformSpecific(
   DefaultInitializePlatformSpecific(data, kParameterCount);
 }
 
+// static
+Register RunMicrotasksDescriptor::MicrotaskQueueRegister() {
+  return CallDescriptors::call_descriptor_data(CallDescriptors::RunMicrotasks)
+      ->register_param(0);
+}
+
+void RunMicrotasksDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  DefaultInitializePlatformSpecific(data, kParameterCount);
+}
+
 void BigIntToWasmI64Descriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   DefaultInitializePlatformSpecific(data, kParameterCount);
