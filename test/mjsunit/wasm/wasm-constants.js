@@ -96,6 +96,7 @@ let kWasmF32 = 0x7d;
 let kWasmF64 = 0x7c;
 let kWasmS128  = 0x7b;
 let kWasmAnyRef = 0x6f;
+let kWasmAnyFunc = 0x70;
 let kWasmExceptRef = 0x68;
 
 let kExternalFunction = 0;
@@ -145,8 +146,10 @@ let kSig_f_f = makeSig([kWasmF32], [kWasmF32]);
 let kSig_f_d = makeSig([kWasmF64], [kWasmF32]);
 let kSig_d_d = makeSig([kWasmF64], [kWasmF64]);
 let kSig_r_r = makeSig([kWasmAnyRef], [kWasmAnyRef]);
+let kSig_a_a = makeSig([kWasmAnyFunc], [kWasmAnyFunc]);
 let kSig_i_r = makeSig([kWasmAnyRef], [kWasmI32]);
 let kSig_v_r = makeSig([kWasmAnyRef], []);
+let kSig_v_a = makeSig([kWasmAnyFunc], []);
 let kSig_v_rr = makeSig([kWasmAnyRef, kWasmAnyRef], []);
 let kSig_r_v = makeSig([], [kWasmAnyRef]);
 

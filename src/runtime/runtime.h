@@ -541,6 +541,7 @@ namespace internal {
   F(WasmThrowTypeError, 0, 1)         \
   F(WasmTableInit, 5, 1)              \
   F(WasmTableCopy, 4, 1)              \
+  F(WasmIsValidAnyFuncValue, 1, 1)    \
   F(WasmCompileLazy, 2, 1)
 
 #define FOR_EACH_INTRINSIC_RETURN_PAIR_IMPL(F, I) \

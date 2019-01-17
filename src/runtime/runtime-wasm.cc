@@ -56,6 +56,20 @@ class ClearThreadInWasmScope {
 
 }  // namespace
 
+RUNTIME_FUNCTION(Runtime_WasmIsValidAnyFuncValue) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Object, function, 0);
+
+  if (function->IsNull(isolate)) {
+    return Smi::FromInt(true);
+  }
+  if (WasmExportedFunction::IsWasmExportedFunction(*function)) {
+    return Smi::FromInt(true);
+  }
+  return Smi::FromInt(false);
+}
+
 RUNTIME_FUNCTION(Runtime_WasmMemoryGrow) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());

@@ -4802,6 +4802,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       case wasm::kWasmF64:
         return BuildChangeFloat64ToTagged(node);
       case wasm::kWasmAnyRef:
+      case wasm::kWasmAnyFunc:
         return node;
       default:
         UNREACHABLE();
@@ -4860,6 +4861,26 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       return node;
     }
 
+    if (type == wasm::kWasmAnyFunc) {
+      Node* check =
+          BuildChangeSmiToInt32(SetEffect(BuildCallToRuntimeWithContext(
+              Runtime::kWasmIsValidAnyFuncValue, js_context, &node, 1, effect_,
+              Control())));
+
+      Diamond type_check(graph(), mcgraph()->common(), check,
+                         BranchHint::kTrue);
+      type_check.Chain(Control());
+
+      Node* effect = Effect();
+      BuildCallToRuntimeWithContext(Runtime::kWasmThrowTypeError, js_context,
+                                    nullptr, 0, &effect, type_check.if_false);
+
+      SetEffect(type_check.EffectPhi(Effect(), effect));
+
+      SetControl(type_check.merge);
+
+      return node;
+    }
     Node* num = nullptr;
 
     if (type != wasm::kWasmI64) {
