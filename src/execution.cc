@@ -22,30 +22,12 @@ void StackGuard::set_interrupt_limits(const ExecutionAccess& lock) {
   isolate_->heap()->SetStackLimits();
 }
 
-
 void StackGuard::reset_limits(const ExecutionAccess& lock) {
   DCHECK_NOT_NULL(isolate_);
   thread_local_.set_jslimit(thread_local_.real_jslimit_);
   thread_local_.set_climit(thread_local_.real_climit_);
   isolate_->heap()->SetStackLimits();
 }
-
-
-static void PrintDeserializedCodeInfo(Handle<JSFunction> function) {
-  if (function->code() == function->shared()->GetCode() &&
-      function->shared()->deserialized()) {
-    PrintF("[Running deserialized script");
-    Object script = function->shared()->script();
-    if (script->IsScript()) {
-      Object name = Script::cast(script)->name();
-      if (name->IsString()) {
-        PrintF(": %s", String::cast(name)->ToCString().get());
-      }
-    }
-    PrintF("]\n");
-  }
-}
-
 
 namespace {
 
@@ -280,9 +262,6 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
       Address func = params.target->ptr();
       Address recv = params.receiver->ptr();
       Address** argv = reinterpret_cast<Address**>(params.argv);
-      if (FLAG_profile_deserialization && params.target->IsJSFunction()) {
-        PrintDeserializedCodeInfo(Handle<JSFunction>::cast(params.target));
-      }
       RuntimeCallTimerScope timer(isolate, RuntimeCallCounterId::kJS_Execution);
       value = Object(stub_entry.Call(isolate->isolate_data()->isolate_root(),
                                      orig_func, func, recv, params.argc, argv));

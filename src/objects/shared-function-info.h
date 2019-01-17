@@ -488,9 +488,6 @@ class SharedFunctionInfo : public HeapObject {
   // which does not change this flag).
   DECL_BOOLEAN_ACCESSORS(is_anonymous_expression)
 
-  // Indicates that the the shared function info is deserialized from cache.
-  DECL_BOOLEAN_ACCESSORS(deserialized)
-
   // Indicates that the function has been reported for binary code coverage.
   DECL_BOOLEAN_ACCESSORS(has_reported_binary_coverage)
 
@@ -696,7 +693,6 @@ class SharedFunctionInfo : public HeapObject {
   V(ConstructAsBuiltinBit, bool, 1, _)                   \
   V(IsAnonymousExpressionBit, bool, 1, _)                \
   V(NameShouldPrintAsAnonymousBit, bool, 1, _)           \
-  V(IsDeserializedBit, bool, 1, _)                       \
   V(HasReportedBinaryCoverageBit, bool, 1, _)            \
   V(IsNamedExpressionBit, bool, 1, _)                    \
   V(IsTopLevelBit, bool, 1, _)

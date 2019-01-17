@@ -195,11 +195,7 @@ void CodeSerializer::SerializeObject(HeapObject obj, HowToCode how_to_code,
     }
     DCHECK(!sfi->HasDebugInfo());
 
-    // Mark SFI to indicate whether the code is cached.
-    bool was_deserialized = sfi->deserialized();
-    sfi->set_deserialized(sfi->is_compiled());
     SerializeGeneric(obj, how_to_code, where_to_point);
-    sfi->set_deserialized(was_deserialized);
 
     // Restore debug info
     if (!debug_info.is_null()) {

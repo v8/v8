@@ -2287,16 +2287,6 @@ v8::ScriptCompiler::CachedData* CompileRunAndProduceCache(
   return cache;
 }
 
-void CheckDeserializedFlag(v8::Local<v8::UnboundScript> script) {
-  i::Handle<i::SharedFunctionInfo> sfi = v8::Utils::OpenHandle(*script);
-  i::SharedFunctionInfo::ScriptIterator iterator(sfi->GetIsolate(),
-                                                 Script::cast(sfi->script()));
-  for (SharedFunctionInfo next = iterator.Next(); !next.is_null();
-       next = iterator.Next()) {
-    CHECK_EQ(next->is_compiled(), next->deserialized());
-  }
-}
-
 TEST(CodeSerializerIsolates) {
   const char* source = "function f() { return 'abc'; }; f() + 'def'";
   v8::ScriptCompiler::CachedData* cache = CompileRunAndProduceCache(source);
@@ -2324,7 +2314,6 @@ TEST(CodeSerializerIsolates) {
                    .ToLocalChecked();
     }
     CHECK(!cache->rejected);
-    CheckDeserializedFlag(script);
     v8::Local<v8::Value> result = script->BindToCurrentContext()
                                       ->Run(isolate2->GetCurrentContext())
                                       .ToLocalChecked();
@@ -2371,7 +2360,6 @@ TEST(CodeSerializerIsolatesEager) {
                    .ToLocalChecked();
     }
     CHECK(!cache->rejected);
-    CheckDeserializedFlag(script);
     v8::Local<v8::Value> result = script->BindToCurrentContext()
                                       ->Run(isolate2->GetCurrentContext())
                                       .ToLocalChecked();
@@ -2415,7 +2403,6 @@ TEST(CodeSerializerAfterExecute) {
                    .ToLocalChecked();
     }
     CHECK(!cache->rejected);
-    CheckDeserializedFlag(script);
 
     Handle<SharedFunctionInfo> sfi = v8::Utils::OpenHandle(*script);
     CHECK(sfi->HasBytecodeArray());
@@ -2557,7 +2544,6 @@ TEST(CodeSerializerWithHarmonyScoping) {
                    isolate2, &source, v8::ScriptCompiler::kConsumeCodeCache)
                    .ToLocalChecked();
     }
-    CheckDeserializedFlag(script);
     v8::Local<v8::Value> result = script->BindToCurrentContext()
                                       ->Run(isolate2->GetCurrentContext())
                                       .ToLocalChecked();
