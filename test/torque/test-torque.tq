@@ -467,6 +467,19 @@ namespace test {
     check(TypeswitchExample(FromConstexpr<Number>(0.5)) == 27);
   }
 
+  macro TestTypeswitchAsanLsanFailure(implicit context: Context)(obj: Object) {
+    typeswitch (obj) {
+      case (o: Smi): {
+      }
+      case (o: JSTypedArray): {
+      }
+      case (o: JSReceiver): {
+      }
+      case (o: HeapObject): {
+      }
+    }
+  }
+
   macro ExampleGenericOverload<A: type>(o: Object): A {
     return o;
   }

@@ -355,11 +355,8 @@ class UnionType final : public Type {
     } else {
       if (t->IsSubtypeOf(this)) return;
       set_parent(CommonSupertype(parent(), t));
-      for (const Type* member : types_) {
-        if (member->IsSubtypeOf(t)) {
-          types_.erase(member);
-        }
-      }
+      EraseIf(&types_,
+              [&](const Type* member) { return member->IsSubtypeOf(t); });
       types_.insert(t);
     }
   }

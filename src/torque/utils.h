@@ -273,6 +273,20 @@ constexpr int kTaggedSize = sizeof(void*);
 static const char* const kConstructMethodName = "constructor";
 static const char* const kSuperMethodName = "super";
 
+// Erase elements of a container that has a constant-time erase function, like
+// std::set or std::list. Calling this on std::vector would have quadratic
+// complexity.
+template <class Container, class F>
+void EraseIf(Container* container, F f) {
+  for (auto it = container->begin(); it != container->end();) {
+    if (f(*it)) {
+      it = container->erase(it);
+    } else {
+      ++it;
+    }
+  }
+}
+
 }  // namespace torque
 }  // namespace internal
 }  // namespace v8
