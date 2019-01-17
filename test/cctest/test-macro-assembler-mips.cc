@@ -112,7 +112,7 @@ static void TestNaN(const char *code) {
   // tests checks the case where a x86 NaN value is serialized into the
   // snapshot on the simulator during cross compilation.
   v8::HandleScope scope(CcTest::isolate());
-  v8::Local<v8::Context> context = CcTest::NewContext(PRINT_EXTENSION);
+  v8::Local<v8::Context> context = CcTest::NewContext({PRINT_EXTENSION_ID});
   v8::Context::Scope context_scope(context);
 
   v8::Local<v8::Script> script =
