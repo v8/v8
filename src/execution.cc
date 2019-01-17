@@ -258,13 +258,6 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
   Handle<Code> code =
       JSEntry(isolate, params.execution_target, params.is_construct);
   {
-    // Non-default MicrotaskQueue is currently unsupported.
-    // TODO(tzik): Remove this DCHECK once the entry function is ready to handle
-    // the microtask_queue parameter.
-    DCHECK_IMPLIES(
-        params.execution_target == Execution::Target::kRunMicrotasks,
-        params.microtask_queue == isolate->default_microtask_queue());
-
     // Save and restore context around invocation and block the
     // allocation of handles without explicit handle scopes.
     SaveContext save(isolate);

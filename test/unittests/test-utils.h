@@ -222,7 +222,9 @@ class WithInternalIsolateMixin : public TMixin {
   Factory* factory() const { return isolate()->factory(); }
   Isolate* isolate() const { return TMixin::i_isolate(); }
 
-  Handle<Context> native_context() const { return isolate()->native_context(); }
+  Handle<NativeContext> native_context() const {
+    return isolate()->native_context();
+  }
 
   template <typename T = Object>
   Handle<T> RunJS(const char* source) {
