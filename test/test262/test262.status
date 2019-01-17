@@ -499,7 +499,7 @@
   'annexB/language/statements/for-of/iterator-close-return-emulates-undefined-throws-when-called': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7468
-  'language/statements/class/privatename-not-valid-earlyerr-script-8': [FAIL],
+  'language/statements/class/elements/privatename-not-valid-earlyerr-script-8': [SKIP],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=5690
   'language/expressions/call/eval-spread': [FAIL],
@@ -562,6 +562,69 @@
   'language/expressions/await/await-monkey-patched-promise': ['--harmony-await-optimization'],
   'language/expressions/await/for-await-of-interleaved': ['--harmony-await-optimization'],
   'language/expressions/await/async-await-interleaved': ['--harmony-await-optimization'],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=8706
+  'language/block-scope/syntax/redeclaration/fn-scope-var-name-redeclaration-attempt-with-async-function': [FAIL],
+  'language/block-scope/syntax/redeclaration/fn-scope-var-name-redeclaration-attempt-with-async-generator': [FAIL],
+  'language/block-scope/syntax/redeclaration/fn-scope-var-name-redeclaration-attempt-with-class': [FAIL],
+  'language/block-scope/syntax/redeclaration/fn-scope-var-name-redeclaration-attempt-with-const': [FAIL],
+  'language/block-scope/syntax/redeclaration/fn-scope-var-name-redeclaration-attempt-with-function': [FAIL],
+  'language/block-scope/syntax/redeclaration/fn-scope-var-name-redeclaration-attempt-with-generator': [FAIL],
+  'language/block-scope/syntax/redeclaration/fn-scope-var-name-redeclaration-attempt-with-let' : [FAIL],
+
+  # https://github.com/tc39/test262/issues/2033
+  'language/expressions/class/elements/private-derived-cls-direct-eval-err-contains-supercall': [SKIP],
+  'language/expressions/class/elements/private-derived-cls-direct-eval-err-contains-supercall-1': [SKIP],
+  'language/expressions/class/elements/private-derived-cls-direct-eval-err-contains-supercall-2': [SKIP],
+  'language/expressions/class/elements/private-derived-cls-indirect-eval-err-contains-supercall': [SKIP],
+  'language/expressions/class/elements/private-derived-cls-indirect-eval-err-contains-supercall-1': [SKIP],
+  'language/expressions/class/elements/private-derived-cls-indirect-eval-err-contains-supercall-2': [SKIP],
+  'language/statements/class/elements/private-derived-cls-direct-eval-err-contains-supercall': [SKIP],
+  'language/statements/class/elements/private-derived-cls-direct-eval-err-contains-supercall-1': [SKIP],
+  'language/statements/class/elements/private-derived-cls-direct-eval-err-contains-supercall-2': [SKIP],
+  'language/statements/class/elements/private-derived-cls-indirect-eval-err-contains-supercall': [SKIP],
+  'language/statements/class/elements/private-derived-cls-indirect-eval-err-contains-supercall-1': [SKIP],
+  'language/statements/class/elements/private-derived-cls-indirect-eval-err-contains-supercall-2': [SKIP],
+
+  # https://github.com/tc39/test262/issues/2034
+  'language/expressions/postfix-decrement/arguments': [SKIP],
+  'language/expressions/postfix-decrement/arguments-nostrict': [SKIP],
+  'language/expressions/postfix-decrement/eval': [SKIP],
+  'language/expressions/postfix-decrement/eval-nostrict': [SKIP],
+  'language/expressions/postfix-increment/arguments': [SKIP],
+  'language/expressions/postfix-increment/arguments-nostrict': [SKIP],
+  'language/expressions/postfix-increment/eval': [SKIP],
+  'language/expressions/postfix-increment/eval-nostrict': [SKIP],
+  'language/expressions/prefix-decrement/arguments': [SKIP],
+  'language/expressions/prefix-decrement/arguments-nostrict': [SKIP],
+  'language/expressions/prefix-decrement/eval': [SKIP],
+  'language/expressions/prefix-decrement/eval-nostrict': [SKIP],
+  'language/expressions/prefix-increment/arguments': [SKIP],
+  'language/expressions/prefix-increment/arguments-nostrict': [SKIP],
+  'language/expressions/prefix-increment/eval': [SKIP],
+  'language/expressions/prefix-increment/eval-nostrict': [SKIP],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=8707
+  'language/line-terminators/invalid-string-ls': [SKIP],
+  'language/line-terminators/invalid-string-ps': [SKIP],
+
+  # https://github.com/tc39/proposal-class-fields/issues/215
+  'language/expressions/class/elements/syntax/early-errors/invalid-names/method-inner-call-expression-bad-reference': [FAIL],
+  'language/expressions/class/elements/syntax/early-errors/invalid-names/method-inner-call-expression-this': [FAIL],
+  'language/expressions/class/elements/syntax/early-errors/invalid-names/method-inner-member-expression-bad-reference': [FAIL],
+  'language/expressions/class/elements/syntax/early-errors/invalid-names/method-inner-member-expression-this': [FAIL],
+  'language/statements/class/elements/syntax/early-errors/invalid-names/method-inner-call-expression-bad-reference': [FAIL],
+  'language/statements/class/elements/syntax/early-errors/invalid-names/method-inner-call-expression-this': [FAIL],
+  'language/statements/class/elements/syntax/early-errors/invalid-names/method-inner-member-expression-bad-reference': [FAIL],
+  'language/statements/class/elements/syntax/early-errors/invalid-names/method-inner-member-expression-this': [FAIL],
+  'language/expressions/function/early-errors/invalid-names-call-expression-bad-reference': [FAIL],
+  'language/expressions/function/early-errors/invalid-names-call-expression-this': [FAIL],
+  'language/expressions/function/early-errors/invalid-names-member-expression-bad-reference': [FAIL],
+  'language/expressions/function/early-errors/invalid-names-member-expression-this': [FAIL],
+  'language/statements/function/early-errors/invalid-names-call-expression-bad-reference': [FAIL],
+  'language/statements/function/early-errors/invalid-names-call-expression-this': [FAIL],
+  'language/statements/function/early-errors/invalid-names-member-expression-bad-reference': [FAIL],
+  'language/statements/function/early-errors/invalid-names-member-expression-this': [FAIL],
 
   ######################## NEEDS INVESTIGATION ###########################
 
@@ -643,18 +706,6 @@
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7187
   'built-ins/Function/prototype/toString/line-terminator-normalisation-CR': [SKIP],
-  'language/expressions/class/fields-private-derived-cls-direct-eval-err-contains-supercall': [FAIL],
-  'language/expressions/class/fields-private-derived-cls-direct-eval-err-contains-supercall-1': [FAIL],
-  'language/expressions/class/fields-private-derived-cls-direct-eval-err-contains-supercall-2': [FAIL],
-  'language/expressions/class/fields-private-derived-cls-indirect-eval-err-contains-supercall': [FAIL],
-  'language/expressions/class/fields-private-derived-cls-indirect-eval-err-contains-supercall-1': [FAIL],
-  'language/expressions/class/fields-private-derived-cls-indirect-eval-err-contains-supercall-2': [FAIL],
-  'language/statements/class/fields-private-derived-cls-direct-eval-err-contains-supercall': [FAIL],
-  'language/statements/class/fields-private-derived-cls-direct-eval-err-contains-supercall-1': [FAIL],
-  'language/statements/class/fields-private-derived-cls-direct-eval-err-contains-supercall-2': [FAIL],
-  'language/statements/class/fields-private-derived-cls-indirect-eval-err-contains-supercall': [FAIL],
-  'language/statements/class/fields-private-derived-cls-indirect-eval-err-contains-supercall-1': [FAIL],
-  'language/statements/class/fields-private-derived-cls-indirect-eval-err-contains-supercall-2': [FAIL],
 
   ############################ SLOW TESTS #############################
 
