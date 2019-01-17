@@ -389,14 +389,16 @@ void ImplementationVisitor::VisitMacroCommon(Macro* macro) {
 
 void ImplementationVisitor::Visit(Macro* macro) {
   if (macro->IsExternal()) return;
+  // Do not generate code for inlined macros.
+  if (macro->ShouldBeInlined()) return;
   VisitMacroCommon(macro);
 }
 
 void ImplementationVisitor::Visit(Method* method) {
   DCHECK(!method->IsExternal());
-  // Do not generate code for struct methods, they are always inlined in order
+  // Do not generate code for inlined methods, they have to be inlined in order
   // to get reference semantics for the 'this' argument.
-  if (method->aggregate_type()->IsStructType()) return;
+  if (method->ShouldBeInlined()) return;
   CurrentConstructorInfo::Scope current_constructor;
   if (method->IsConstructor())
     CurrentConstructorInfo::Get() = ConstructorInfo{0, false};

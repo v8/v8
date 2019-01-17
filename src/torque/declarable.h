@@ -283,6 +283,14 @@ class Callable : public Scope {
 class Macro : public Callable {
  public:
   DECLARE_DECLARABLE_BOILERPLATE(Macro, macro);
+  bool ShouldBeInlined() const override {
+    for (const LabelDeclaration& label : signature().labels) {
+      for (const Type* type : label.types) {
+        if (type->IsStructType()) return true;
+      }
+    }
+    return Callable::ShouldBeInlined();
+  }
 
   const std::string& external_assembler_name() const {
     return external_assembler_name_;
@@ -317,7 +325,8 @@ class Method : public Macro {
  public:
   DECLARE_DECLARABLE_BOILERPLATE(Method, Method);
   bool ShouldBeInlined() const override {
-    return signature().parameter_types.types[0]->IsStructType();
+    return Macro::ShouldBeInlined() ||
+           signature().parameter_types.types[0]->IsStructType();
   }
   AggregateType* aggregate_type() const { return aggregate_type_; }
 
