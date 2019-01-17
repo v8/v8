@@ -243,10 +243,9 @@ DEFINE_IMPLICATION(harmony_private_methods, harmony_private_fields)
   V(harmony_await_optimization, "harmony await taking 1 tick")
 
 #ifdef V8_INTL_SUPPORT
-#define HARMONY_SHIPPING(V)                      \
-  HARMONY_SHIPPING_BASE(V)                       \
-  V(harmony_intl_list_format, "Intl.ListFormat") \
-  V(harmony_intl_relative_time_format, "Intl.RelativeTimeFormat")
+#define HARMONY_SHIPPING(V) \
+  HARMONY_SHIPPING_BASE(V)  \
+  V(harmony_intl_list_format, "Intl.ListFormat")
 #else
 #define HARMONY_SHIPPING(V) HARMONY_SHIPPING_BASE(V)
 #endif
