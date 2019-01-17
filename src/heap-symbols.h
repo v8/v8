@@ -383,6 +383,7 @@
   TOP_MC_SCOPES(F)                                   \
   F(MC_CLEAR_DEPENDENT_CODE)                         \
   F(MC_CLEAR_FLUSHABLE_BYTECODE)                     \
+  F(MC_CLEAR_FLUSHED_JS_FUNCTIONS)                   \
   F(MC_CLEAR_MAPS)                                   \
   F(MC_CLEAR_SLOTS_BUFFER)                           \
   F(MC_CLEAR_STORE_BUFFER)                           \

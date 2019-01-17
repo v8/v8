@@ -3220,6 +3220,9 @@ VisitorId Map::GetVisitorId(Map map) {
     case JS_DATA_VIEW_TYPE:
       return kVisitJSDataView;
 
+    case JS_FUNCTION_TYPE:
+      return kVisitJSFunction;
+
     case JS_TYPED_ARRAY_TYPE:
       return kVisitJSTypedArray;
 
@@ -3260,7 +3263,6 @@ VisitorId Map::GetVisitorId(Map map) {
     case JS_DATE_TYPE:
     case JS_ARRAY_ITERATOR_TYPE:
     case JS_ARRAY_TYPE:
-    case JS_FUNCTION_TYPE:
     case JS_GLOBAL_PROXY_TYPE:
     case JS_GLOBAL_OBJECT_TYPE:
     case JS_MESSAGE_OBJECT_TYPE:
