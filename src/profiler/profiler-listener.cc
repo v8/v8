@@ -177,11 +177,6 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
   }
 
   rec->entry->FillFunctionInfo(shared);
-
-  if (FLAG_cpu_profiler_logging) {
-    PrintF("CodeCreateEvent: ");
-    rec->entry->print();
-  }
   rec->instruction_size = abstract_code->InstructionSize();
   DispatchCodeEvent(evt_rec);
 }

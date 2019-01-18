@@ -95,7 +95,6 @@ void CcTest::Run() {
     }
     isolate_->Enter();
   }
-  i::FLAG_cpu_profiler_logging = true;
 #ifdef DEBUG
   const size_t active_isolates = i::Isolate::non_disposed_isolates();
 #endif  // DEBUG
