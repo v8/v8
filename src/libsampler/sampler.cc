@@ -184,7 +184,9 @@ class AtomicGuard {
       : atomic_(atomic), is_success_(false) {
     do {
       bool expected = false;
-      is_success_ = atomic->compare_exchange_weak(expected, true);
+      // We have to use the strong version here for the case where is_blocking
+      // is false, and we will only attempt the exchange once.
+      is_success_ = atomic->compare_exchange_strong(expected, true);
     } while (is_blocking && !is_success_);
   }
 
