@@ -364,6 +364,13 @@ class ScopedPtrList final {
     target->AddAll(Vector<T*>(data, length()), zone);
   }
 
+  Vector<T*> CopyTo(Zone* zone) {
+    DCHECK_LE(end_, buffer_.size());
+    T** data = zone->NewArray<T*>(length());
+    MemCopy(data, &buffer_[start_], length() * sizeof(T*));
+    return Vector<T*>(data, length());
+  }
+
   void Add(T* value) {
     DCHECK_EQ(buffer_.size(), end_);
     buffer_.push_back(value);

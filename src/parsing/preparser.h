@@ -943,7 +943,10 @@ class PreParser : public ParserBase<PreParser> {
                               runtime_call_stats, logger, script_id,
                               parsing_module, parsing_on_main_thread),
         use_counts_(nullptr),
-        preparse_data_builder_(nullptr) {}
+        preparse_data_builder_(nullptr),
+        preparse_data_builder_buffer_() {
+    preparse_data_builder_buffer_.reserve(16);
+  }
 
   static bool IsPreParser() { return true; }
 
@@ -975,6 +978,10 @@ class PreParser : public ParserBase<PreParser> {
 
   void set_preparse_data_builder(PreparseDataBuilder* preparse_data_builder) {
     preparse_data_builder_ = preparse_data_builder;
+  }
+
+  std::vector<void*>* preparse_data_builder_buffer() {
+    return &preparse_data_builder_buffer_;
   }
 
  private:
@@ -1640,6 +1647,7 @@ class PreParser : public ParserBase<PreParser> {
   PreParserLogger log_;
 
   PreparseDataBuilder* preparse_data_builder_;
+  std::vector<void*> preparse_data_builder_buffer_;
 };
 
 PreParserExpression PreParser::SpreadCall(const PreParserExpression& function,

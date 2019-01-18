@@ -84,10 +84,11 @@ STATIC_ASSERT(LanguageModeSize <= LanguageField::kNumValues);
  */
 
 PreparseDataBuilder::PreparseDataBuilder(Zone* zone,
-                                         PreparseDataBuilder* parent_builder)
+                                         PreparseDataBuilder* parent_builder,
+                                         std::vector<void*>* children_buffer)
     : parent_(parent_builder),
       byte_data_(),
-      children_(zone),
+      children_buffer_(children_buffer),
       function_scope_(nullptr),
       num_inner_functions_(0),
       num_inner_with_data_(0),
@@ -98,19 +99,22 @@ void PreparseDataBuilder::DataGatheringScope::Start(
     DeclarationScope* function_scope) {
   Zone* main_zone = preparser_->main_zone();
   builder_ = new (main_zone)
-      PreparseDataBuilder(main_zone, preparser_->preparse_data_builder());
+      PreparseDataBuilder(main_zone, preparser_->preparse_data_builder(),
+                          preparser_->preparse_data_builder_buffer());
   preparser_->set_preparse_data_builder(builder_);
   function_scope->set_preparse_data_builder(builder_);
 }
 
 PreparseDataBuilder::DataGatheringScope::~DataGatheringScope() {
   if (builder_ == nullptr) return;
-  // Copy over the data from the buffer into the zone-allocated byte_data_
+
   PreparseDataBuilder* parent = builder_->parent_;
-  if (parent != nullptr && builder_->HasDataForParent()) {
-    parent->children_.push_back(builder_);
-  }
   preparser_->set_preparse_data_builder(parent);
+  builder_->FinalizeChildren(preparser_->main_zone());
+
+  if (parent == nullptr) return;
+  if (!builder_->HasDataForParent()) return;
+  parent->AddChild(builder_);
 }
 
 #ifdef DEBUG
@@ -232,6 +236,21 @@ bool PreparseDataBuilder::HasDataForParent() const {
   return HasData() || function_scope_ != nullptr;
 }
 
+void PreparseDataBuilder::AddChild(PreparseDataBuilder* child) {
+  DCHECK(!finalized_children_);
+  children_buffer_.Add(child);
+}
+
+void PreparseDataBuilder::FinalizeChildren(Zone* zone) {
+  DCHECK(!finalized_children_);
+  Vector<PreparseDataBuilder*> children = children_buffer_.CopyTo(zone);
+  children_buffer_.Rewind();
+  children_ = children;
+#ifdef DEBUG
+  finalized_children_ = true;
+#endif
+}
+
 bool PreparseDataBuilder::ScopeNeedsData(Scope* scope) {
   if (scope->scope_type() == ScopeType::FUNCTION_SCOPE) {
     // Default constructors don't need data (they cannot contain inner functions
@@ -284,7 +303,7 @@ void PreparseDataBuilder::SaveScopeAllocationData(DeclarationScope* scope,
   // Reserve Uint32 for scope_data_start debug info.
   byte_data_.WriteUint32(0);
 #endif
-
+  DCHECK(finalized_children_);
   for (const auto& builder : children_) {
     // Keep track of functions with inner data. {children_} contains also the
     // builders that have no inner functions at all.
@@ -397,6 +416,7 @@ Handle<PreparseData> PreparseDataBuilder::Serialize(Isolate* isolate) {
   Handle<PreparseData> data =
       byte_data_.CopyToHeap(isolate, num_inner_with_data_);
   int i = 0;
+  DCHECK(finalized_children_);
   for (const auto& builder : children_) {
     if (!builder->HasData()) continue;
     Handle<PreparseData> child_data = builder->Serialize(isolate);
@@ -411,6 +431,7 @@ ZonePreparseData* PreparseDataBuilder::Serialize(Zone* zone) {
   DCHECK(!ThisOrParentBailedOut());
   ZonePreparseData* data = byte_data_.CopyToZone(zone, num_inner_with_data_);
   int i = 0;
+  DCHECK(finalized_children_);
   for (const auto& builder : children_) {
     if (!builder->HasData()) continue;
     ZonePreparseData* child = builder->Serialize(zone);
