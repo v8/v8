@@ -4573,56 +4573,51 @@ void BytecodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
   }
 }
 
-void BytecodeGenerator::VisitDelete(UnaryOperation* expr) {
-  if (expr->expression()->IsProperty()) {
+void BytecodeGenerator::VisitDelete(UnaryOperation* unary) {
+  Expression* expr = unary->expression();
+  if (expr->IsProperty()) {
     // Delete of an object property is allowed both in sloppy
     // and strict modes.
-    Property* property = expr->expression()->AsProperty();
+    Property* property = expr->AsProperty();
     Register object = VisitForRegisterValue(property->obj());
     VisitForAccumulatorValue(property->key());
     builder()->Delete(object, language_mode());
-  } else if (expr->expression()->IsVariableProxy()) {
+  } else if (expr->IsVariableProxy() && !expr->AsVariableProxy()->is_this() &&
+             !expr->AsVariableProxy()->is_new_target()) {
     // Delete of an unqualified identifier is allowed in sloppy mode but is
-    // not allowed in strict mode. Deleting 'this' and 'new.target' is allowed
-    // in both modes.
-    VariableProxy* proxy = expr->expression()->AsVariableProxy();
-    DCHECK(is_sloppy(language_mode()) || proxy->is_this() ||
-           proxy->is_new_target());
-    if (proxy->is_this() || proxy->is_new_target()) {
-      builder()->LoadTrue();
-    } else {
-      Variable* variable = proxy->var();
-      switch (variable->location()) {
-        case VariableLocation::PARAMETER:
-        case VariableLocation::LOCAL:
-        case VariableLocation::CONTEXT: {
-          // Deleting local var/let/const, context variables, and arguments
-          // does not have any effect.
-          builder()->LoadFalse();
-          break;
-        }
-        case VariableLocation::UNALLOCATED:
-        // TODO(adamk): Falling through to the runtime results in correct
-        // behavior, but does unnecessary context-walking (since scope
-        // analysis has already proven that the variable doesn't exist in
-        // any non-global scope). Consider adding a DeleteGlobal bytecode
-        // that knows how to deal with ScriptContexts as well as global
-        // object properties.
-        case VariableLocation::LOOKUP: {
-          Register name_reg = register_allocator()->NewRegister();
-          builder()
-              ->LoadLiteral(variable->raw_name())
-              .StoreAccumulatorInRegister(name_reg)
-              .CallRuntime(Runtime::kDeleteLookupSlot, name_reg);
-          break;
-        }
-        default:
-          UNREACHABLE();
+    // not allowed in strict mode.
+    DCHECK(is_sloppy(language_mode()));
+    Variable* variable = expr->AsVariableProxy()->var();
+    switch (variable->location()) {
+      case VariableLocation::PARAMETER:
+      case VariableLocation::LOCAL:
+      case VariableLocation::CONTEXT: {
+        // Deleting local var/let/const, context variables, and arguments
+        // does not have any effect.
+        builder()->LoadFalse();
+        break;
       }
+      case VariableLocation::UNALLOCATED:
+      // TODO(adamk): Falling through to the runtime results in correct
+      // behavior, but does unnecessary context-walking (since scope
+      // analysis has already proven that the variable doesn't exist in
+      // any non-global scope). Consider adding a DeleteGlobal bytecode
+      // that knows how to deal with ScriptContexts as well as global
+      // object properties.
+      case VariableLocation::LOOKUP: {
+        Register name_reg = register_allocator()->NewRegister();
+        builder()
+            ->LoadLiteral(variable->raw_name())
+            .StoreAccumulatorInRegister(name_reg)
+            .CallRuntime(Runtime::kDeleteLookupSlot, name_reg);
+        break;
+      }
+      default:
+        UNREACHABLE();
     }
   } else {
-    // Delete of an unresolvable reference returns true.
-    VisitForEffect(expr->expression());
+    // Delete of an unresolvable reference, new.target, and this returns true.
+    VisitForEffect(expr);
     builder()->LoadTrue();
   }
 }

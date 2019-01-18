@@ -1499,6 +1499,8 @@ TEST(Delete) {
       "return delete a[1];\n",
 
       "return delete 'test';\n",
+
+      "return delete this;\n",
   };
 
   CHECK(CompareTexts(BuildActual(printer, snippets),

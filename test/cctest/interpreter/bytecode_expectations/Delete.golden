@@ -137,3 +137,20 @@ constant pool: [
 handlers: [
 ]
 
+---
+snippet: "
+  return delete this;
+"
+frame size: 0
+parameter count: 1
+bytecode array length: 3
+bytecodes: [
+  /*   30 E> */ B(StackCheck),
+  /*   34 S> */ B(LdaTrue),
+  /*   53 S> */ B(Return),
+]
+constant pool: [
+]
+handlers: [
+]
+
