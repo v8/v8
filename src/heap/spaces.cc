@@ -3670,14 +3670,19 @@ void LargeObjectSpace::Verify(Isolate* isolate) {
           heap()->read_only_space()->Contains(map));
 
     // We have only the following types in the large object space:
-    CHECK(object->IsAbstractCode() || object->IsSeqString() ||
+    if (!(object->IsAbstractCode() || object->IsSeqString() ||
           object->IsExternalString() || object->IsThinString() ||
           object->IsFixedArray() || object->IsFixedDoubleArray() ||
           object->IsWeakFixedArray() || object->IsWeakArrayList() ||
           object->IsPropertyArray() || object->IsByteArray() ||
           object->IsFeedbackVector() || object->IsBigInt() ||
           object->IsFreeSpace() || object->IsFeedbackMetadata() ||
-          object->IsContext() || object->IsUncompiledDataWithoutPreparseData());
+          object->IsContext() ||
+          object->IsUncompiledDataWithoutPreparseData() ||
+          object->IsPreparseData())) {
+      FATAL("Found invalid Object (instance_type=%i) in large object space.",
+            object->map()->instance_type());
+    }
 
     // The object itself should look OK.
     object->ObjectVerify(isolate);
