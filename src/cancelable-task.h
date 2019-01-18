@@ -39,8 +39,8 @@ class V8_EXPORT_PRIVATE CancelableTaskManager {
 
   // Registers a new cancelable {task}. Returns the unique {id} of the task that
   // can be used to try to abort a task by calling {Abort}.
-  // If {Register} is called after {CancelAndWait}, then the task will be will
-  // be aborted immediately.
+  // If {Register} is called after {CancelAndWait}, then the task will be
+  // aborted immediately.
   // {Register} should only be called by the thread which owns the
   // {CancelableTaskManager}, or by a task which is managed by the
   // {CancelableTaskManager}.
