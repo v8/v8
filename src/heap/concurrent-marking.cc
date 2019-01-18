@@ -387,17 +387,6 @@ class ConcurrentMarkingVisitor final
     return size;
   }
 
-  int VisitJSFunction(Map map, JSFunction object) {
-    int size = VisitJSObjectSubclass(map, object);
-
-    // Check if the JSFunction needs reset due to bytecode being flushed.
-    if (object->NeedsResetDueToFlushedBytecode()) {
-      weak_objects_->flushed_js_functions.Push(task_id_, object);
-    }
-
-    return size;
-  }
-
   int VisitMap(Map meta_map, Map map) {
     if (!ShouldVisit(map)) return 0;
     int size = Map::BodyDescriptor::SizeOf(meta_map, map);
@@ -836,7 +825,6 @@ void ConcurrentMarking::Run(int task_id, TaskState* task_state) {
     weak_objects_->js_weak_cells.FlushToGlobal(task_id);
     weak_objects_->weak_objects_in_code.FlushToGlobal(task_id);
     weak_objects_->bytecode_flushing_candidates.FlushToGlobal(task_id);
-    weak_objects_->flushed_js_functions.FlushToGlobal(task_id);
     base::AsAtomicWord::Relaxed_Store<size_t>(&task_state->marked_bytes, 0);
     total_marked_bytes_ += marked_bytes;
 

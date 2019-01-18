@@ -459,6 +459,7 @@ ACCESSORS(JSBoundFunction, bound_target_function, JSReceiver,
 ACCESSORS(JSBoundFunction, bound_this, Object, kBoundThisOffset)
 ACCESSORS(JSBoundFunction, bound_arguments, FixedArray, kBoundArgumentsOffset)
 
+ACCESSORS(JSFunction, shared, SharedFunctionInfo, kSharedFunctionInfoOffset)
 ACCESSORS(JSFunction, raw_feedback_cell, FeedbackCell, kFeedbackCellOffset)
 
 ACCESSORS(JSGlobalObject, native_context, Context, kNativeContextOffset)
@@ -541,29 +542,18 @@ AbstractCode JSFunction::abstract_code() {
 }
 
 Code JSFunction::code() const {
-  return Code::cast(RELAXED_READ_FIELD(*this, kCodeOffset));
+  return Code::cast(READ_FIELD(*this, kCodeOffset));
 }
 
 void JSFunction::set_code(Code value) {
   DCHECK(!Heap::InNewSpace(value));
-  RELAXED_WRITE_FIELD(*this, kCodeOffset, value);
+  WRITE_FIELD(*this, kCodeOffset, value);
   MarkingBarrier(*this, RawField(kCodeOffset), value);
 }
 
 void JSFunction::set_code_no_write_barrier(Code value) {
   DCHECK(!Heap::InNewSpace(value));
-  RELAXED_WRITE_FIELD(*this, kCodeOffset, value);
-}
-
-SharedFunctionInfo JSFunction::shared() const {
-  return SharedFunctionInfo::cast(
-      RELAXED_READ_FIELD(*this, kSharedFunctionInfoOffset));
-}
-
-void JSFunction::set_shared(SharedFunctionInfo value, WriteBarrierMode mode) {
-  // Release semantics to support acquire read in NeedsResetDueToFlushedBytecode
-  RELEASE_WRITE_FIELD(*this, kSharedFunctionInfoOffset, value);
-  CONDITIONAL_WRITE_BARRIER(*this, kSharedFunctionInfoOffset, value, mode);
+  WRITE_FIELD(*this, kCodeOffset, value);
 }
 
 void JSFunction::ClearOptimizedCodeSlot(const char* reason) {
@@ -669,32 +659,17 @@ bool JSFunction::is_compiled() const {
          shared()->is_compiled();
 }
 
-bool JSFunction::NeedsResetDueToFlushedBytecode() {
-  if (!FLAG_flush_bytecode) return false;
-
-  // Do a raw read for shared and code fields here since this function may be
-  // called on a concurrent thread and the JSFunction might not be fully
-  // initialized yet.
-  Object maybe_shared = ACQUIRE_READ_FIELD(*this, kSharedFunctionInfoOffset);
-  Object maybe_code = RELAXED_READ_FIELD(*this, kCodeOffset);
-
-  if (!maybe_shared->IsSharedFunctionInfo() || !maybe_code->IsCode()) {
-    return false;
-  }
-
-  SharedFunctionInfo shared = SharedFunctionInfo::cast(maybe_shared);
-  Code code = Code::cast(maybe_code);
-  return !shared->is_compiled() &&
-         code->builtin_index() != Builtins::kCompileLazy;
-}
-
 void JSFunction::ResetIfBytecodeFlushed() {
-  if (NeedsResetDueToFlushedBytecode()) {
+  if (!shared()->is_compiled()) {
     // Bytecode was flushed and function is now uncompiled, reset JSFunction
     // by setting code to CompileLazy and clearing the feedback vector.
-    set_code(GetIsolate()->builtins()->builtin(i::Builtins::kCompileLazy));
-    raw_feedback_cell()->set_value(
-        ReadOnlyRoots(GetIsolate()).undefined_value());
+    if (code()->builtin_index() != Builtins::kCompileLazy) {
+      set_code(GetIsolate()->builtins()->builtin(i::Builtins::kCompileLazy));
+    }
+    if (raw_feedback_cell()->value()->IsFeedbackVector()) {
+      raw_feedback_cell()->set_value(
+          ReadOnlyRoots(GetIsolate()).undefined_value());
+    }
   }
 }
 
