@@ -331,8 +331,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                                  Block* finally_block,
                                  const SourceRange& finally_range,
                                  const CatchInfo& catch_info, int pos);
-  void GetUnexpectedTokenMessage(Token::Value token, MessageTemplate* message,
-                                 Scanner::Location* location, const char** arg);
   void ParseAndRewriteGeneratorFunctionBody(int pos, FunctionKind kind,
                                             ScopedPtrList<Statement>* body);
   void ParseAndRewriteAsyncGeneratorFunctionBody(
@@ -754,6 +752,10 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                                              arg, error_type);
     scanner_.set_parser_error();
   }
+
+  void ReportUnexpectedTokenAt(
+      Scanner::Location location, Token::Value token,
+      MessageTemplate message = MessageTemplate::kUnexpectedToken);
 
   // "null" return type creators.
   V8_INLINE static std::nullptr_t NullIdentifier() { return nullptr; }

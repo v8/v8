@@ -81,63 +81,64 @@ FunctionLiteral* Parser::DefaultConstructor(const AstRawString* name,
   return function_literal;
 }
 
-void Parser::GetUnexpectedTokenMessage(Token::Value token,
-                                       MessageTemplate* message,
-                                       Scanner::Location* location,
-                                       const char** arg) {
+void Parser::ReportUnexpectedTokenAt(Scanner::Location location,
+                                     Token::Value token,
+                                     MessageTemplate message) {
+  const char* arg = nullptr;
   switch (token) {
     case Token::EOS:
-      *message = MessageTemplate::kUnexpectedEOS;
+      message = MessageTemplate::kUnexpectedEOS;
       break;
     case Token::SMI:
     case Token::NUMBER:
     case Token::BIGINT:
-      *message = MessageTemplate::kUnexpectedTokenNumber;
+      message = MessageTemplate::kUnexpectedTokenNumber;
       break;
     case Token::STRING:
-      *message = MessageTemplate::kUnexpectedTokenString;
+      message = MessageTemplate::kUnexpectedTokenString;
       break;
     case Token::PRIVATE_NAME:
     case Token::IDENTIFIER:
-      *message = MessageTemplate::kUnexpectedTokenIdentifier;
+      message = MessageTemplate::kUnexpectedTokenIdentifier;
       break;
     case Token::AWAIT:
     case Token::ENUM:
-      *message = MessageTemplate::kUnexpectedReserved;
+      message = MessageTemplate::kUnexpectedReserved;
       break;
     case Token::LET:
     case Token::STATIC:
     case Token::YIELD:
     case Token::FUTURE_STRICT_RESERVED_WORD:
-      *message = is_strict(language_mode())
-                     ? MessageTemplate::kUnexpectedStrictReserved
-                     : MessageTemplate::kUnexpectedTokenIdentifier;
+      message = is_strict(language_mode())
+                    ? MessageTemplate::kUnexpectedStrictReserved
+                    : MessageTemplate::kUnexpectedTokenIdentifier;
       break;
     case Token::TEMPLATE_SPAN:
     case Token::TEMPLATE_TAIL:
-      *message = MessageTemplate::kUnexpectedTemplateString;
+      message = MessageTemplate::kUnexpectedTemplateString;
       break;
     case Token::ESCAPED_STRICT_RESERVED_WORD:
     case Token::ESCAPED_KEYWORD:
-      *message = MessageTemplate::kInvalidEscapedReservedWord;
+      message = MessageTemplate::kInvalidEscapedReservedWord;
       break;
     case Token::ILLEGAL:
       if (scanner()->has_error()) {
-        *message = scanner()->error();
-        *location = scanner()->error_location();
+        message = scanner()->error();
+        location = scanner()->error_location();
       } else {
-        *message = MessageTemplate::kInvalidOrUnexpectedToken;
+        message = MessageTemplate::kInvalidOrUnexpectedToken;
       }
       break;
     case Token::REGEXP_LITERAL:
-      *message = MessageTemplate::kUnexpectedTokenRegExp;
+      message = MessageTemplate::kUnexpectedTokenRegExp;
       break;
     default:
       const char* name = Token::String(token);
       DCHECK_NOT_NULL(name);
-      *arg = name;
+      arg = name;
       break;
   }
+  ReportMessageAt(location, message, arg);
 }
 
 // ----------------------------------------------------------------------------

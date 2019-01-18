@@ -947,9 +947,6 @@ class ParserBase {
   }
 
   V8_NOINLINE void ReportUnexpectedToken(Token::Value token);
-  V8_NOINLINE void ReportUnexpectedTokenAt(
-      Scanner::Location location, Token::Value token,
-      MessageTemplate message = MessageTemplate::kUnexpectedToken);
 
   void ValidateFormalParameters(LanguageMode language_mode,
                                 const FormalParametersT& parameters,
@@ -1457,20 +1454,7 @@ ParserBase<Impl>::FunctionState::~FunctionState() {
 
 template <typename Impl>
 void ParserBase<Impl>::ReportUnexpectedToken(Token::Value token) {
-  return ReportUnexpectedTokenAt(scanner_->location(), token);
-}
-
-template <typename Impl>
-void ParserBase<Impl>::ReportUnexpectedTokenAt(
-    Scanner::Location source_location, Token::Value token,
-    MessageTemplate message) {
-  const char* arg = nullptr;
-  impl()->GetUnexpectedTokenMessage(token, &message, &source_location, &arg);
-  if (Impl::IsPreParser()) {
-    impl()->ReportUnidentifiableError();
-  } else {
-    impl()->ReportMessageAt(source_location, message, arg);
-  }
+  return impl()->ReportUnexpectedTokenAt(scanner_->location(), token);
 }
 
 template <typename Impl>
@@ -1858,7 +1842,7 @@ ParserBase<Impl>::ParseArrowParametersWithRest(
   // as the formal parameters of'(x, y, ...z) => foo', and is not itself a
   // valid expression.
   if (peek() != Token::RPAREN || PeekAhead() != Token::ARROW) {
-    ReportUnexpectedTokenAt(ellipsis, Token::ELLIPSIS);
+    impl()->ReportUnexpectedTokenAt(ellipsis, Token::ELLIPSIS);
     return impl()->FailureExpression();
   }
 
@@ -2225,7 +2209,7 @@ ParserBase<Impl>::ParseClassPropertyDefinition(ClassInfo* class_info,
     case ParsePropertyKind::kValue:
     case ParsePropertyKind::kShorthand:
     case ParsePropertyKind::kSpread:
-      ReportUnexpectedTokenAt(
+      impl()->ReportUnexpectedTokenAt(
           Scanner::Location(name_token_position, name_expression->position()),
           name_token);
       return impl()->NullLiteralProperty();
@@ -3928,7 +3912,7 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
     // ASI inserts `;` after arrow parameters if a line terminator is found.
     // `=> ...` is never a valid expression, so report as syntax error.
     // If next token is not `=>`, it's a syntax error anyways.
-    ReportUnexpectedTokenAt(scanner_->peek_location(), Token::ARROW);
+    impl()->ReportUnexpectedTokenAt(scanner_->peek_location(), Token::ARROW);
     return impl()->FailureExpression();
   }
 
