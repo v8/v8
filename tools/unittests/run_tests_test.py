@@ -173,7 +173,6 @@ class SystemTest(unittest.TestCase):
           'sweet/bananas',
           'sweet/raspberries',
       )
-      self.assertIn('Running 2 base tests', result.stdout, result)
       self.assertIn('Done running sweet/bananas: pass', result.stdout, result)
       # TODO(majeski): Implement for test processors
       # self.assertIn('Total time:', result.stderr, result)
@@ -195,7 +194,6 @@ class SystemTest(unittest.TestCase):
             infra_staging=True,
         )
         # One of the shards gets one variant of each test.
-        self.assertIn('Running 1 base tests', result.stdout, result)
         self.assertIn('2 tests ran', result.stdout, result)
         if shard == 1:
           self.assertIn('Done running sweet/bananas', result.stdout, result)
@@ -238,10 +236,7 @@ class SystemTest(unittest.TestCase):
           'sweet/strawberries',
           infra_staging=infra_staging,
       )
-      if not infra_staging:
-        self.assertIn('Running 2 tests', result.stdout, result)
-      else:
-        self.assertIn('Running 1 base tests', result.stdout, result)
+      if infra_staging:
         self.assertIn('2 tests ran', result.stdout, result)
       self.assertIn('Done running sweet/strawberries: FAIL', result.stdout, result)
       self.assertEqual(1, result.returncode, result)
@@ -291,10 +286,7 @@ class SystemTest(unittest.TestCase):
           'sweet/strawberries',
           infra_staging=infra_staging,
       )
-      if not infra_staging:
-        self.assertIn('Running 1 tests', result.stdout, result)
-      else:
-        self.assertIn('Running 1 base tests', result.stdout, result)
+      if infra_staging:
         self.assertIn('1 tests ran', result.stdout, result)
       self.assertIn('Done running sweet/strawberries: FAIL', result.stdout, result)
       if not infra_staging:
@@ -333,12 +325,10 @@ class SystemTest(unittest.TestCase):
           infra_staging=infra_staging,
       )
       if not infra_staging:
-        self.assertIn('Running 1 tests', result.stdout, result)
         self.assertIn(
             'Done running sweet/bananaflakes: FAIL', result.stdout, result)
         self.assertIn('1 tests failed', result.stdout, result)
       else:
-        self.assertIn('Running 1 base tests', result.stdout, result)
         self.assertIn(
             'Done running sweet/bananaflakes: pass', result.stdout, result)
         self.assertIn('All tests succeeded', result.stdout, result)
@@ -398,11 +388,9 @@ class SystemTest(unittest.TestCase):
           'sweet/strawberries',
           infra_staging=infra_staging,
       )
-      if not infra_staging:
-        self.assertIn('Running 0 tests', result.stdout, result)
-      else:
-        self.assertIn('Running 1 base tests', result.stdout, result)
+      if infra_staging:
         self.assertIn('0 tests ran', result.stdout, result)
+
       self.assertEqual(2, result.returncode, result)
 
   def testRunSkips(self):
@@ -416,7 +404,6 @@ class SystemTest(unittest.TestCase):
           '--run-skipped',
           'sweet/strawberries',
       )
-      self.assertIn('Running 1 base tests', result.stdout, result)
       self.assertIn('1 tests failed', result.stdout, result)
       self.assertIn('1 tests ran', result.stdout, result)
       self.assertEqual(1, result.returncode, result)
@@ -437,7 +424,6 @@ class SystemTest(unittest.TestCase):
       if not infra_staging:
         self.assertIn('Warning: no tests were run!', result.stdout, result)
       else:
-        self.assertIn('Running 0 base tests', result.stdout, result)
         self.assertIn('0 tests ran', result.stdout, result)
       self.assertEqual(2, result.returncode, result)
 
@@ -554,10 +540,7 @@ class SystemTest(unittest.TestCase):
           'sweet/bananas',
           infra_staging=infra_staging,
       )
-      if not infra_staging:
-        self.assertIn('Running 1 tests', result.stdout, result)
-      else:
-        self.assertIn('Running 1 base tests', result.stdout, result)
+      if infra_staging:
         self.assertIn('1 tests ran', result.stdout, result)
       self.assertIn('Done running sweet/bananas: FAIL', result.stdout, result)
       self.assertIn('Test had no allocation output', result.stdout, result)
@@ -595,10 +578,8 @@ class SystemTest(unittest.TestCase):
           infra_staging=infra_staging,
       )
       if infra_staging:
-        self.assertIn('Running 1 base tests', result.stdout, result)
         self.assertIn('2 tests ran', result.stdout, result)
-      else:
-        self.assertIn('Running 2 tests', result.stdout, result)
+
       self.assertEqual(0, result.returncode, result)
 
   def testRandomSeedStressWithSeed(self):
@@ -613,7 +594,6 @@ class SystemTest(unittest.TestCase):
           '--random-seed=123',
           'sweet/strawberries',
       )
-      self.assertIn('Running 1 base tests', result.stdout, result)
       self.assertIn('2 tests ran', result.stdout, result)
       # We use a failing test so that the command is printed and we can verify
       # that the right random seed was passed.
@@ -639,7 +619,6 @@ class SystemTest(unittest.TestCase):
       )
       # Both tests are either marked as running in only default or only
       # slow variant.
-      self.assertIn('Running 2 base tests', result.stdout, result)
       self.assertIn('2 tests ran', result.stdout, result)
       self.assertEqual(0, result.returncode, result)
 
@@ -664,10 +643,7 @@ class SystemTest(unittest.TestCase):
           '--no-sorting', '-j1', # make results order deterministic
           infra_staging=infra_staging,
       )
-      if not infra_staging:
-        self.assertIn('Running 2 tests', result.stdout, result)
-      else:
-        self.assertIn('Running 2 base tests', result.stdout, result)
+      if infra_staging:
         self.assertIn('2 tests ran', result.stdout, result)
       self.assertIn('F.', result.stdout, result)
       self.assertEqual(1, result.returncode, result)
@@ -718,7 +694,6 @@ class SystemTest(unittest.TestCase):
           'sweet/blackberries',  # FAIL
           'sweet/raspberries',   # should not run
       )
-      self.assertIn('Running 4 base tests', result.stdout, result)
       self.assertIn('sweet/mangoes: pass', result.stdout, result)
       self.assertIn('sweet/strawberries: FAIL', result.stdout, result)
       self.assertIn('Too many failures, exiting...', result.stdout, result)
