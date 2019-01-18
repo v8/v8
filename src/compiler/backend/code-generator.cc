@@ -45,7 +45,8 @@ CodeGenerator::CodeGenerator(
     InstructionSequence* code, OptimizedCompilationInfo* info, Isolate* isolate,
     base::Optional<OsrHelper> osr_helper, int start_source_position,
     JumpOptimizationInfo* jump_opt, PoisoningMitigationLevel poisoning_level,
-    const AssemblerOptions& options, int32_t builtin_index)
+    const AssemblerOptions& options, int32_t builtin_index,
+    std::unique_ptr<AssemblerBuffer> buffer)
     : zone_(codegen_zone),
       isolate_(isolate),
       frame_access_state_(nullptr),
@@ -57,7 +58,7 @@ CodeGenerator::CodeGenerator(
       current_block_(RpoNumber::Invalid()),
       start_source_position_(start_source_position),
       current_source_position_(SourcePosition::Unknown()),
-      tasm_(isolate, options, CodeObjectRequired::kNo),
+      tasm_(isolate, options, CodeObjectRequired::kNo, std::move(buffer)),
       resolver_(this),
       safepoints_(zone()),
       handlers_(zone()),

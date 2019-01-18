@@ -8,6 +8,7 @@
 #include "src/wasm/wasm-features.h"
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-module.h"
+#include "src/wasm/wasm-tier.h"
 
 namespace v8 {
 namespace internal {
@@ -113,6 +114,7 @@ class CompilationState {
 
  private:
   friend class NativeModule;
+  friend class WasmCompilationUnit;
   CompilationState() = delete;
 
   static std::unique_ptr<CompilationState> New(Isolate*, NativeModule*);

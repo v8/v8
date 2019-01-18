@@ -347,15 +347,15 @@ WasmCode* LazyCompileFunction(Isolate* isolate, NativeModule* native_module,
                          module_start + func->code.offset(),
                          module_start + func->code.end_offset()};
 
-  WasmCompilationUnit unit(
-      isolate->wasm_engine(), func_index,
-      WasmCompilationUnit::GetDefaultExecutionTier(native_module->module()));
+  ExecutionTier tier =
+      WasmCompilationUnit::GetDefaultExecutionTier(native_module->module());
+  WasmCompilationUnit unit(isolate->wasm_engine(), func_index, tier);
   CompilationEnv env = native_module->CreateCompilationEnv();
-  unit.ExecuteCompilation(
-      &env, native_module,
-      native_module->compilation_state()->GetWireBytesStorage(),
+  WasmCompilationResult result = unit.ExecuteCompilation(
+      &env, native_module->compilation_state()->GetWireBytesStorage(),
       isolate->counters(),
       Impl(native_module->compilation_state())->detected_features());
+  WasmCode* code = unit.Publish(std::move(result), native_module);
 
   // During lazy compilation, we should never get compilation errors. The module
   // was verified before starting execution with lazy compilation.
@@ -363,8 +363,6 @@ WasmCode* LazyCompileFunction(Isolate* isolate, NativeModule* native_module,
   // TODO(clemensh): According to the spec, we can actually skip validation at
   // module creation time, and return a function that always traps here.
   CHECK(!native_module->compilation_state()->failed());
-
-  WasmCode* code = unit.result();
 
   if (WasmCode::ShouldBeLogged(isolate)) code->LogCode(isolate);
 
@@ -490,10 +488,11 @@ bool FetchAndExecuteCompilationUnit(CompilationEnv* env,
   // Get the tier before starting compilation, as compilation can switch tiers
   // if baseline bails out.
   ExecutionTier tier = unit->tier();
-  unit->ExecuteCompilation(env, native_module,
-                           compilation_state->GetWireBytesStorage(), counters,
-                           detected);
-  compilation_state->OnFinishedUnit(tier, unit->result());
+  WasmCompilationResult result = unit->ExecuteCompilation(
+      env, compilation_state->GetWireBytesStorage(), counters, detected);
+
+  WasmCode* code = unit->Publish(std::move(result), native_module);
+  compilation_state->OnFinishedUnit(tier, code);
 
   return true;
 }

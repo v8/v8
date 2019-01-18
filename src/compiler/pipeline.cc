@@ -85,6 +85,7 @@
 #include "src/register-configuration.h"
 #include "src/utils.h"
 #include "src/wasm/function-body-decoder.h"
+#include "src/wasm/function-compiler.h"
 #include "src/wasm/wasm-engine.h"
 
 namespace v8 {
@@ -416,14 +417,15 @@ class PipelineData {
     start_source_position_ = position;
   }
 
-  void InitializeCodeGenerator(Linkage* linkage) {
+  void InitializeCodeGenerator(Linkage* linkage,
+                               std::unique_ptr<AssemblerBuffer> buffer) {
     DCHECK_NULL(code_generator_);
 
     code_generator_ = new CodeGenerator(
         codegen_zone(), frame(), linkage, sequence(), info(), isolate(),
         osr_helper_, start_source_position_, jump_optimization_info_,
         info()->GetPoisoningMitigationLevel(), assembler_options_,
-        info_->builtin_index());
+        info_->builtin_index(), std::move(buffer));
   }
 
   void BeginPhaseKind(const char* phase_kind_name) {
@@ -529,7 +531,8 @@ class PipelineImpl final {
   bool SelectInstructions(Linkage* linkage);
 
   // Step C. Run the code assembly pass.
-  void AssembleCode(Linkage* linkage);
+  void AssembleCode(Linkage* linkage,
+                    std::unique_ptr<AssemblerBuffer> buffer = {});
 
   // Step D. Run the code finalization pass.
   MaybeHandle<Code> FinalizeCode();
@@ -2355,16 +2358,21 @@ OptimizedCompilationJob* Pipeline::NewCompilationJob(
 }
 
 // static
-wasm::WasmCode* Pipeline::GenerateCodeForWasmFunction(
+void Pipeline::GenerateCodeForWasmFunction(
     OptimizedCompilationInfo* info, wasm::WasmEngine* wasm_engine,
     MachineGraph* mcgraph, CallDescriptor* call_descriptor,
     SourcePositionTable* source_positions, NodeOriginTable* node_origins,
-    wasm::FunctionBody function_body, wasm::NativeModule* native_module,
+    wasm::FunctionBody function_body, const wasm::WasmModule* module,
     int function_index) {
   ZoneStats zone_stats(wasm_engine->allocator());
   std::unique_ptr<PipelineStatistics> pipeline_statistics(
-      CreatePipelineStatistics(wasm_engine, function_body,
-                               native_module->module(), info, &zone_stats));
+      CreatePipelineStatistics(wasm_engine, function_body, module, info,
+                               &zone_stats));
+  // {instruction_buffer} must live longer than {PipelineData}, since
+  // {PipelineData} will reference the {instruction_buffer} via the
+  // {AssemblerBuffer} of the {Assembler} contained in the {CodeGenerator}.
+  std::unique_ptr<wasm::WasmInstructionBuffer> instruction_buffer =
+      wasm::WasmInstructionBuffer::New();
   PipelineData data(&zone_stats, wasm_engine, info, mcgraph,
                     pipeline_statistics.get(), source_positions, node_origins,
                     WasmAssemblerOptions());
@@ -2383,7 +2391,7 @@ wasm::WasmCode* Pipeline::GenerateCodeForWasmFunction(
   pipeline.RunPrintAndVerify("Machine", true);
 
   data.BeginPhaseKind("wasm optimization");
-  const bool is_asm_js = native_module->module()->origin == wasm::kAsmJsOrigin;
+  const bool is_asm_js = module->origin == wasm::kAsmJsOrigin;
   if (FLAG_turbo_splitting && !is_asm_js) {
     data.info()->MarkAsSplittingEnabled();
   }
@@ -2422,21 +2430,19 @@ wasm::WasmCode* Pipeline::GenerateCodeForWasmFunction(
   pipeline.ComputeScheduledGraph();
 
   Linkage linkage(call_descriptor);
-  if (!pipeline.SelectInstructions(&linkage)) return nullptr;
-  pipeline.AssembleCode(&linkage);
+  if (!pipeline.SelectInstructions(&linkage)) return;
+  pipeline.AssembleCode(&linkage, instruction_buffer->CreateView());
 
+  auto result = base::make_unique<wasm::WasmCompilationResult>();
   CodeGenerator* code_generator = pipeline.code_generator();
-  CodeDesc code_desc;
-  code_generator->tasm()->GetCode(nullptr, &code_desc);
+  code_generator->tasm()->GetCode(nullptr, &result->code_desc);
 
-  wasm::WasmCode* code = native_module->AddCode(
-      function_index, code_desc,
-      code_generator->frame()->GetTotalFrameSlotCount(),
-      code_generator->GetSafepointTableOffset(),
-      code_generator->GetHandlerTableOffset(),
-      code_generator->GetProtectedInstructions(),
-      code_generator->GetSourcePositionTable(), wasm::WasmCode::kFunction,
-      wasm::WasmCode::kTurbofan);
+  result->instr_buffer = instruction_buffer->ReleaseBuffer();
+  result->frame_slot_count = code_generator->frame()->GetTotalFrameSlotCount();
+  result->safepoint_table_offset = code_generator->GetSafepointTableOffset();
+  result->handler_table_offset = code_generator->GetHandlerTableOffset();
+  result->source_positions = code_generator->GetSourcePositionTable();
+  result->protected_instructions = code_generator->GetProtectedInstructions();
 
   if (data.info()->trace_turbo_json_enabled()) {
     TurboJsonFile json_of(data.info(), std::ios_base::app);
@@ -2444,9 +2450,9 @@ wasm::WasmCode* Pipeline::GenerateCodeForWasmFunction(
 #ifdef ENABLE_DISASSEMBLER
     std::stringstream disassembler_stream;
     Disassembler::Decode(
-        nullptr, &disassembler_stream, code->instructions().start(),
-        code->instructions().start() + code->safepoint_table_offset(),
-        CodeReference(code));
+        nullptr, &disassembler_stream, result->code_desc.buffer,
+        result->code_desc.buffer + result->safepoint_table_offset,
+        CodeReference());  // TODO(clemensh): Fix code ref.
     for (auto const c : disassembler_stream.str()) {
       json_of << AsEscapedUC16ForJSON(c);
     }
@@ -2464,7 +2470,8 @@ wasm::WasmCode* Pipeline::GenerateCodeForWasmFunction(
        << " using Turbofan" << std::endl;
   }
 
-  return code;
+  DCHECK(result->succeeded());
+  info->SetWasmCompilationResult(std::move(result));
 }
 
 bool Pipeline::AllocateRegistersForTesting(const RegisterConfiguration* config,
@@ -2659,10 +2666,11 @@ std::ostream& operator<<(std::ostream& out, const InstructionStartsAsJSON& s) {
   return out;
 }
 
-void PipelineImpl::AssembleCode(Linkage* linkage) {
+void PipelineImpl::AssembleCode(Linkage* linkage,
+                                std::unique_ptr<AssemblerBuffer> buffer) {
   PipelineData* data = this->data_;
   data->BeginPhaseKind("code generation");
-  data->InitializeCodeGenerator(linkage);
+  data->InitializeCodeGenerator(linkage, std::move(buffer));
 
   Run<AssembleCodePhase>();
   if (data->info()->trace_turbo_json_enabled()) {
