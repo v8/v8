@@ -1029,10 +1029,12 @@ void DebugEvaluate::VerifyTransitiveBuiltins(Isolate* isolate) {
     }
   }
   CHECK(!failed);
-#ifdef V8_TARGET_ARCH_PPC
+#if defined(V8_TARGET_ARCH_PPC) || defined(V8_TARGET_ARCH_MIPS64)
   // Isolate-independent builtin calls and jumps do not emit reloc infos
   // on PPC. We try to avoid using PC relative code due to performance
   // issue with especially older hardwares.
+  // MIPS64 doesn't have PC relative code currently.
+  // TODO(mips): Add PC relative code to MIPS64.
   USE(sanity_check);
 #else
   CHECK(sanity_check);

@@ -51,7 +51,8 @@ AssemblerOptions BuiltinAssemblerOptions(Isolate* isolate,
       isolate->heap()->memory_allocator()->code_range();
   bool pc_relative_calls_fit_in_code_range =
       !code_range.is_empty() &&
-      code_range.size() <= kMaxPCRelativeCodeRangeInMB * MB;
+      std::ceil(static_cast<float>(code_range.size() / MB)) <=
+          kMaxPCRelativeCodeRangeInMB;
 
   options.isolate_independent_code = true;
   options.use_pc_relative_calls_and_jumps = pc_relative_calls_fit_in_code_range;
