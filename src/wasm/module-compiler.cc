@@ -924,7 +924,11 @@ std::shared_ptr<StreamingDecoder> AsyncCompileJob::CreateStreamingDecoder() {
 
 AsyncCompileJob::~AsyncCompileJob() {
   background_task_manager_.CancelAndWait();
-  if (native_module_) Impl(native_module_->compilation_state())->Abort();
+  // If the runtime objects were not created yet, then initial compilation did
+  // not finish yet. In this case we can abort compilation.
+  if (native_module_ && module_object_.is_null()) {
+    Impl(native_module_->compilation_state())->Abort();
+  }
   // Tell the streaming decoder that the AsyncCompileJob is not available
   // anymore.
   // TODO(ahaas): Is this notification really necessary? Check
@@ -1042,12 +1046,8 @@ class AsyncCompileJob::CompilationStateCallback {
         break;
       case CompilationEvent::kFinishedTopTierCompilation:
         DCHECK_EQ(CompilationEvent::kFinishedBaselineCompilation, last_event_);
-        // If a foreground task or a finisher is pending, we rely on
-        // FinishModule to remove the job.
-        if (!job_->pending_foreground_task_ &&
-            job_->outstanding_finishers_.load() == 0) {
-          job_->isolate_->wasm_engine()->RemoveCompileJob(job_);
-        }
+        // This callback should not react to top tier finished callbacks, since
+        // the job might already be gone then.
         break;
       case CompilationEvent::kFailedCompilation:
         DCHECK(!last_event_.has_value());
