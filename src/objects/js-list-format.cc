@@ -149,7 +149,27 @@ MaybeHandle<JSListFormat> JSListFormat::Initialize(
   // Note: No need to create a record. It's not observable.
   // 6. Let opt be a new Record.
 
-  // 7. Let t be GetOption(options, "type", "string", «"conjunction",
+  // 7. Let matcher be ? GetOption(options, "localeMatcher", "string", «
+  // "lookup", "best fit" », "best fit").
+  Maybe<Intl::MatcherOption> maybe_locale_matcher =
+      Intl::GetLocaleMatcher(isolate, options, "Intl.ListFormat");
+  MAYBE_RETURN(maybe_locale_matcher, MaybeHandle<JSListFormat>());
+
+  // 8. Set opt.[[localeMatcher]] to matcher.
+  Intl::MatcherOption matcher = maybe_locale_matcher.FromJust();
+
+  // 10. Let r be ResolveLocale(%ListFormat%.[[AvailableLocales]],
+  // requestedLocales, opt, undefined, localeData).
+  Intl::ResolvedLocale r =
+      Intl::ResolveLocale(isolate, JSListFormat::GetAvailableLocales(),
+                          requested_locales, matcher, {});
+
+  // 11. Set listFormat.[[Locale]] to r.[[Locale]].
+  Handle<String> locale_str =
+      isolate->factory()->NewStringFromAsciiChecked(r.locale.c_str());
+  list_format->set_locale(*locale_str);
+
+  // 12. Let t be GetOption(options, "type", "string", «"conjunction",
   //    "disjunction", "unit"», "conjunction").
   Maybe<Type> maybe_type = Intl::GetStringOption<Type>(
       isolate, options, "type", "Intl.ListFormat",
@@ -158,10 +178,14 @@ MaybeHandle<JSListFormat> JSListFormat::Initialize(
   MAYBE_RETURN(maybe_type, MaybeHandle<JSListFormat>());
   Type type_enum = maybe_type.FromJust();
 
-  // 8. Set listFormat.[[Type]] to t.
+  // 13. Set listFormat.[[Type]] to t.
   list_format->set_type(type_enum);
 
-  // 9. Let s be ? GetOption(options, "style", "string",
+  // NOTE: Keep the old way of GetOptions on style for now. I discover a
+  // disadvantage of following the lastest spec and propose to rollback that
+  // part in https://github.com/tc39/proposal-intl-list-format/pull/40
+
+  // Let s be ? GetOption(options, "style", "string",
   //                          «"long", "short", "narrow"», "long").
   Maybe<Style> maybe_style = Intl::GetStringOption<Style>(
       isolate, options, "style", "Intl.ListFormat", {"long", "short", "narrow"},
@@ -169,17 +193,7 @@ MaybeHandle<JSListFormat> JSListFormat::Initialize(
   MAYBE_RETURN(maybe_style, MaybeHandle<JSListFormat>());
   Style style_enum = maybe_style.FromJust();
 
-  // 10. Set listFormat.[[Style]] to s.
-  list_format->set_style(style_enum);
-
-  // 12. Let matcher be ? GetOption(options, "localeMatcher", "string", «
-  // "lookup", "best fit" », "best fit").
-  Maybe<Intl::MatcherOption> maybe_locale_matcher =
-      Intl::GetLocaleMatcher(isolate, options, "Intl.ListFormat");
-  MAYBE_RETURN(maybe_locale_matcher, MaybeHandle<JSListFormat>());
-  Intl::MatcherOption matcher = maybe_locale_matcher.FromJust();
-
-  // 14. If style is "narrow" and type is not "unit", throw a RangeError
+  // If _style_ is `"narrow"` and _type_ is not `"unit"`, throw a *RangeError*
   // exception.
   if (style_enum == Style::NARROW && type_enum != Type::UNIT) {
     THROW_NEW_ERROR(
@@ -187,16 +201,8 @@ MaybeHandle<JSListFormat> JSListFormat::Initialize(
         JSListFormat);
   }
 
-  // 15. Let r be ResolveLocale(%ListFormat%.[[AvailableLocales]],
-  // requestedLocales, opt, undefined, localeData).
-  Intl::ResolvedLocale r =
-      Intl::ResolveLocale(isolate, JSListFormat::GetAvailableLocales(),
-                          requested_locales, matcher, {});
-
-  // 24. Set listFormat.[[Locale]] to r.[[Locale]].
-  Handle<String> locale_str =
-      isolate->factory()->NewStringFromAsciiChecked(r.locale.c_str());
-  list_format->set_locale(*locale_str);
+  // 17. Set listFormat.[[Style]] to s.
+  list_format->set_style(style_enum);
 
   icu::Locale icu_locale = r.icu_locale;
   UErrorCode status = U_ZERO_ERROR;

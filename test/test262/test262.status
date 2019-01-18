@@ -521,6 +521,9 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=7483
   'annexB/built-ins/Function/createdynfn-html-close-comment-params': [FAIL],
 
+  # https://bugs.chromium.org/p/v8/issues/detail?id=8614
+  'intl402/ListFormat/constructor/constructor/options-order': [FAIL],
+
   # https://bugs.chromium.org/p/v8/issues/detail?id=8260
   'intl402/Locale/constructor-non-iana-canon': [FAIL],
 

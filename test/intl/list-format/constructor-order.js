@@ -8,13 +8,13 @@
 let getCount = 0;
 
 new Intl.ListFormat(['en-US'], {
-  get type() {
+  get localeMatcher() {
     assertEquals(0, getCount++);
   },
-  get style() {
+  get type() {
     assertEquals(1, getCount++);
   },
-  get localeMatcher() {
+  get style() {
     assertEquals(2, getCount++);
   },
 });
