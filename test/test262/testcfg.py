@@ -53,6 +53,7 @@ FEATURE_FLAGS = {
   'numeric-separator-literal': '--harmony-numeric-separator',
   'Intl.ListFormat': '--harmony-intl-list-format',
   'Intl.Locale': '--harmony-locale',
+  'Intl.RelativeTimeFormat': '--harmony-intl-relative-time-format',
   'Intl.Segmenter': '--harmony-intl-segmenter',
   'Symbol.prototype.description': '--harmony-symbol-description',
   'globalThis': '--harmony-global',
