@@ -282,6 +282,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
       SET_ALLOW(harmony_private_methods);
       SET_ALLOW(eval_cache);
 #undef SET_ALLOW
+      preparse_data_buffer_.reserve(128);
     }
     return reusable_preparser_;
   }
@@ -1055,8 +1056,13 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   ParseInfo* info() const { return info_; }
 
+  std::vector<uint8_t>* preparse_data_buffer() {
+    return &preparse_data_buffer_;
+  }
+
   // Parser's private field members.
   friend class PreParserZoneScope;  // Uses reusable_preparser().
+  friend class PreparseDataBuilder;  // Uses preparse_data_buffer()
 
   ParseInfo* info_;
   Scanner scanner_;
@@ -1082,6 +1088,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   bool allow_lazy_;
   bool temp_zoned_;
   ConsumedPreparseData* consumed_preparse_data_;
+  std::vector<uint8_t> preparse_data_buffer_;
 
   // If not kNoSourcePosition, indicates that the first function literal
   // encountered is a dynamic function, see CreateDynamicFunction(). This field

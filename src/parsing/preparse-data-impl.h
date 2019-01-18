@@ -15,51 +15,6 @@ namespace internal {
 // Classes which are internal to prepared-scope-data.cc, but are exposed in
 // a header for tests.
 
-struct PreparseByteDataConstants {
-#ifdef DEBUG
-  static constexpr int kMagicValue = 0xC0DE0DE;
-
-  static constexpr size_t kUint32Size = 5;
-  static constexpr size_t kUint8Size = 2;
-  static constexpr size_t kQuarterMarker = 0;
-  static constexpr size_t kPlaceholderSize = kUint32Size;
-#else
-  static constexpr size_t kUint32Size = 4;
-  static constexpr size_t kUint8Size = 1;
-  static constexpr size_t kPlaceholderSize = 0;
-#endif
-
-  static const size_t kSkippableFunctionDataSize =
-      4 * kUint32Size + 1 * kUint8Size;
-};
-
-class PreparseDataBuilder::ByteData : public ZoneObject,
-                                      public PreparseByteDataConstants {
- public:
-  explicit ByteData(Zone* zone)
-      : free_quarters_in_last_byte_(0), backing_store_(zone) {}
-  void WriteUint32(uint32_t data);
-  void WriteUint8(uint8_t data);
-  void WriteQuarter(uint8_t data);
-
-#ifdef DEBUG
-  // For overwriting previously written data at position 0.
-  void OverwriteFirstUint32(uint32_t data);
-#endif
-
-  void StoreInto(PreparseData data);
-
-  size_t size() const { return backing_store_.size(); }
-
-  ZoneChunkList<uint8_t>::iterator begin() { return backing_store_.begin(); }
-
-  ZoneChunkList<uint8_t>::iterator end() { return backing_store_.end(); }
-
- private:
-  uint8_t free_quarters_in_last_byte_;
-  ZoneChunkList<uint8_t> backing_store_;
-};
-
 // Wraps a ZoneVector<uint8_t> to have with functions named the same as
 // PodArray<uint8_t>.
 class ZoneVectorWrapper {
@@ -124,6 +79,7 @@ class BaseConsumedPreparseData : public ConsumedPreparseData {
     }
 
     int32_t ReadUint32() {
+      DCHECK(has_data_);
       DCHECK(HasRemainingBytes(kUint32Size));
       // Check that there indeed is an integer following.
       DCHECK_EQ(data_.get(index_++), kUint32Size);
@@ -208,7 +164,7 @@ class OnHeapConsumedPreparseData final
   OnHeapConsumedPreparseData(Isolate* isolate, Handle<PreparseData> data);
 
   PreparseData GetScopeData() final;
-  ProducedPreparseData* GetChildData(Zone* zone, int index) final;
+  ProducedPreparseData* GetChildData(Zone* zone, int child_index) final;
 
  private:
   Isolate* isolate_;
@@ -218,16 +174,16 @@ class OnHeapConsumedPreparseData final
 // A serialized PreparseData in zone memory (as apposed to being on-heap).
 class ZonePreparseData : public ZoneObject {
  public:
-  ZonePreparseData(Zone* zone, PreparseDataBuilder::ByteData* byte_data,
-                   int child_length);
+  ZonePreparseData(Zone* zone, Vector<uint8_t>* byte_data, int child_length);
 
   Handle<PreparseData> Serialize(Isolate* isolate);
 
-  int child_length() const { return static_cast<int>(children_.size()); }
+  int children_length() const { return static_cast<int>(children_.size()); }
 
   ZonePreparseData* get_child(int index) { return children_[index]; }
 
   void set_child(int index, ZonePreparseData* child) {
+    DCHECK_NOT_NULL(child);
     children_[index] = child;
   }
 

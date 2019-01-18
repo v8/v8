@@ -560,15 +560,20 @@ class PodArray : public ByteArray {
     ByteArray::copy_out(index * sizeof(T), reinterpret_cast<byte*>(result),
                         sizeof(T));
   }
+
+  void copy_in(int index, const T* buffer, int length) {
+    ByteArray::copy_in(index * sizeof(T), reinterpret_cast<const byte*>(buffer),
+                       length * sizeof(T));
+  }
+
   T get(int index) {
     T result;
     copy_out(index, &result);
     return result;
   }
-  void set(int index, const T& value) {
-    copy_in(index * sizeof(T), reinterpret_cast<const byte*>(&value),
-            sizeof(T));
-  }
+
+  void set(int index, const T& value) { copy_in(index, &value, 1); }
+
   inline int length() const;
   DECL_CAST(PodArray<T>)
 

@@ -801,7 +801,9 @@ TEST(ProducingAndConsumingByteData) {
   LocalContext env;
 
   i::Zone zone(isolate->allocator(), ZONE_NAME);
-  i::PreparseDataBuilder::ByteData bytes(&zone);
+  std::vector<uint8_t> buffer;
+  i::PreparseDataBuilder::ByteData bytes;
+  bytes.Start(&buffer);
   // Write some data.
   bytes.WriteUint32(1983);  // This will be overwritten.
   bytes.WriteUint32(2147483647);
@@ -810,7 +812,9 @@ TEST(ProducingAndConsumingByteData) {
   bytes.WriteUint32(0);
   bytes.WriteUint8(0);
 #ifdef DEBUG
-  bytes.OverwriteFirstUint32(2017);
+  bytes.SaveCurrentSizeAtFirstUint32();
+  int saved_size = 21;
+  CHECK_EQ(buffer.size(), saved_size);
 #endif
   bytes.WriteUint8(100);
   // Write quarter bytes between uint8s and uint32s to verify they're stored
@@ -828,16 +832,35 @@ TEST(ProducingAndConsumingByteData) {
   // End with a lonely quarter.
   bytes.WriteQuarter(2);
 
+#ifdef DEBUG
+  CHECK_EQ(buffer.size(), 38);
+#else
+  CHECK_EQ(buffer.size(), 25);
+#endif
+
+  // Copy buffer for sanity checks later-on.
+  std::vector<uint8_t> copied_buffer(buffer);
+
+  // Move the data from the temporary buffer into the zone for later
+  // serialization.
+  bytes.Finalize(&zone);
+  CHECK_EQ(buffer.size(), 0);
+  CHECK_LT(0, copied_buffer.size());
+
   {
     // Serialize as a ZoneConsumedPreparseData, and read back data.
-    i::ZonePreparseData zone_serialized(&zone, &bytes, 0);
+    i::ZonePreparseData* data_in_zone = bytes.CopyToZone(&zone, 0);
     i::ZoneConsumedPreparseData::ByteData bytes_for_reading;
-    i::ZoneVectorWrapper wrapper(zone_serialized.byte_data());
+    i::ZoneVectorWrapper wrapper(data_in_zone->byte_data());
     i::ZoneConsumedPreparseData::ByteData::ReadingScope reading_scope(
         &bytes_for_reading, wrapper);
 
+    for (int i = 0; i < static_cast<int>(copied_buffer.size()); i++) {
+      CHECK_EQ(copied_buffer.at(i), wrapper.get(i));
+    }
+
 #ifdef DEBUG
-    CHECK_EQ(bytes_for_reading.ReadUint32(), 2017);
+    CHECK_EQ(bytes_for_reading.ReadUint32(), saved_size);
 #else
     CHECK_EQ(bytes_for_reading.ReadUint32(), 1983);
 #endif
@@ -858,19 +881,25 @@ TEST(ProducingAndConsumingByteData) {
     CHECK_EQ(bytes_for_reading.ReadQuarter(), 2);
     CHECK_EQ(bytes_for_reading.ReadUint32(), 50);
     CHECK_EQ(bytes_for_reading.ReadQuarter(), 2);
+    // We should have consumed all data at this point.
+    CHECK(!bytes_for_reading.HasRemainingBytes(1));
   }
 
   {
     // Serialize as an OnHeapConsumedPreparseData, and read back data.
-    i::Handle<i::PreparseData> data_on_heap =
-        isolate->factory()->NewPreparseData(static_cast<int>(bytes.size()), 0);
-    bytes.StoreInto(*data_on_heap);
+    i::Handle<i::PreparseData> data_on_heap = bytes.CopyToHeap(isolate, 0);
+    CHECK_EQ(copied_buffer.size(), data_on_heap->data_length());
+    CHECK_EQ(data_on_heap->children_length(), 0);
     i::OnHeapConsumedPreparseData::ByteData bytes_for_reading;
     i::OnHeapConsumedPreparseData::ByteData::ReadingScope reading_scope(
         &bytes_for_reading, *data_on_heap);
 
+    for (int i = 0; i < static_cast<int>(copied_buffer.size()); i++) {
+      CHECK_EQ(copied_buffer[i], data_on_heap->get(i));
+    }
+
 #ifdef DEBUG
-    CHECK_EQ(bytes_for_reading.ReadUint32(), 2017);
+    CHECK_EQ(bytes_for_reading.ReadUint32(), saved_size);
 #else
     CHECK_EQ(bytes_for_reading.ReadUint32(), 1983);
 #endif
@@ -891,5 +920,7 @@ TEST(ProducingAndConsumingByteData) {
     CHECK_EQ(bytes_for_reading.ReadQuarter(), 2);
     CHECK_EQ(bytes_for_reading.ReadUint32(), 50);
     CHECK_EQ(bytes_for_reading.ReadQuarter(), 2);
+    // We should have consumed all data at this point.
+    CHECK(!bytes_for_reading.HasRemainingBytes(1));
   }
 }

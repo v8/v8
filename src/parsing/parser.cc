@@ -395,6 +395,7 @@ Parser::Parser(ParseInfo* info)
       target_stack_(nullptr),
       total_preparse_skipped_(0),
       consumed_preparse_data_(info->consumed_preparse_data()),
+      preparse_data_buffer_(),
       parameters_end_pos_(info->parameters_end_pos()) {
   // Even though we were passed ParseInfo, we should not store it in
   // Parser - this makes sure that Isolate is not accidentally accessed via
@@ -2545,7 +2546,7 @@ bool Parser::SkipFunction(const AstRawString* function_name, FunctionKind kind,
         function_scope->end_position() - function_scope->start_position();
     *num_parameters = logger->num_parameters();
     SkipFunctionLiterals(logger->num_inner_functions());
-    function_scope->AnalyzePartially(factory());
+    function_scope->AnalyzePartially(this, factory());
   }
 
   return true;

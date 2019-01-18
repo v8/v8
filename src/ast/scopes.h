@@ -21,6 +21,7 @@ class AstValueFactory;
 class AstRawString;
 class Declaration;
 class ParseInfo;
+class Parser;
 class PreparseDataBuilder;
 class SloppyBlockFunctionStatement;
 class Statement;
@@ -571,7 +572,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
 
   // Walk the scope chain to find DeclarationScopes; call
   // SavePreparseDataForDeclarationScope for each.
-  void SavePreparseData();
+  void SavePreparseData(Parser* parser);
 
   // Create a non-local variable with a given name.
   // These variables are looked up dynamically at runtime.
@@ -949,7 +950,7 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   // this records variables which cannot be resolved inside the Scope (we don't
   // yet know what they will resolve to since the outer Scopes are incomplete)
   // and recreates them with the correct Zone with ast_node_factory.
-  void AnalyzePartially(AstNodeFactory* ast_node_factory);
+  void AnalyzePartially(Parser* parser, AstNodeFactory* ast_node_factory);
 
   // Allocate ScopeInfos for top scope and any inner scopes that need them.
   // Does nothing if ScopeInfo is already allocated.
@@ -998,7 +999,7 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   // Save data describing the context allocation of the variables in this scope
   // and its subscopes (except scopes at the laziness boundary). The data is
   // saved in produced_preparse_data_.
-  void SavePreparseDataForDeclarationScope();
+  void SavePreparseDataForDeclarationScope(Parser* parser);
 
   void set_preparse_data_builder(PreparseDataBuilder* preparse_data_builder) {
     preparse_data_builder_ = preparse_data_builder;
