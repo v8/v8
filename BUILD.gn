@@ -876,6 +876,7 @@ torque_files = [
   "src/builtins/object-fromentries.tq",
   "src/builtins/iterator.tq",
   "src/builtins/typed-array.tq",
+  "src/builtins/typed-array-createtypedarray.tq",
   "test/torque/test-torque.tq",
   "third_party/v8/builtins/array-sort.tq",
 ]

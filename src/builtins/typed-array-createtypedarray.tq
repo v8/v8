@@ -1,0 +1,29 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+namespace typed_array {
+  extern builtin TypedArrayInitialize(implicit context: Context)(
+      JSTypedArray, PositiveSmi, PositiveSmi, Boolean, JSReceiver): void;
+
+  // 22.2.4.2 TypedArray ( length )
+  // ES #sec-typedarray-length
+  macro ConstructByLength(implicit context: Context)(
+      typedArray: JSTypedArray, length: Object, elementSize: Smi): void {
+    const positiveElementSize: PositiveSmi =
+        Cast<PositiveSmi>(elementSize) otherwise unreachable;
+    const convertedLength: Number =
+        ToInteger_Inline(context, length, kTruncateMinusZero);
+    // The maximum length of a TypedArray is MaxSmi().
+    // Note: this is not per spec, but rather a constraint of our current
+    // representation (which uses Smis).
+    // TODO(7881): support larger-than-smi typed array lengths
+    const positiveLength: PositiveSmi = Cast<PositiveSmi>(convertedLength)
+        otherwise ThrowRangeError(context, kInvalidTypedArrayLength, length);
+    const defaultConstructor: JSFunction = GetArrayBufferFunction();
+    const initialize: Boolean = True;
+    TypedArrayInitialize(
+        typedArray, positiveLength, positiveElementSize, initialize,
+        defaultConstructor);
+  }
+}

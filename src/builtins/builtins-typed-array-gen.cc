@@ -10,6 +10,7 @@
 #include "src/builtins/growable-fixed-array-gen.h"
 #include "src/handles-inl.h"
 #include "src/heap/factory-inl.h"
+#include "torque-generated/builtins-typed-array-from-dsl-gen.h"
 
 namespace v8 {
 namespace internal {
@@ -315,44 +316,6 @@ TF_BUILTIN(TypedArrayInitialize, TypedArrayBuiltinsAssembler) {
   SetupTypedArray(holder, length, ChangeNonnegativeNumberToUintPtr(byte_offset),
                   ChangeNonnegativeNumberToUintPtr(byte_length));
   Return(UndefinedConstant());
-}
-
-// ES6 #sec-typedarray-length
-void TypedArrayBuiltinsAssembler::ConstructByLength(TNode<Context> context,
-                                                    TNode<JSTypedArray> holder,
-                                                    TNode<Object> length,
-                                                    TNode<Smi> element_size) {
-  // TODO(7881): support larger-than-smi typed array lengths
-  CSA_ASSERT(this, TaggedIsPositiveSmi(element_size));
-
-  Label invalid_length(this, Label::kDeferred), done(this);
-
-  TNode<Number> converted_length =
-      ToInteger_Inline(context, length, CodeStubAssembler::kTruncateMinusZero);
-
-  // The maximum length of a TypedArray is MaxSmi().
-  // Note: this is not per spec, but rather a constraint of our current
-  // representation (which uses Smis).
-  // TODO(7881): support larger-than-smi typed array lengths
-  GotoIf(TaggedIsNotSmi(converted_length), &invalid_length);
-  // The goto above ensures that byte_length is a Smi.
-  TNode<Smi> smi_converted_length = CAST(converted_length);
-  GotoIf(SmiLessThan(smi_converted_length, SmiConstant(0)), &invalid_length);
-
-  Node* initialize = TrueConstant();
-  TNode<JSFunction> default_constructor = CAST(LoadContextElement(
-      LoadNativeContext(context), Context::ARRAY_BUFFER_FUN_INDEX));
-  CallBuiltin(Builtins::kTypedArrayInitialize, context, holder,
-              converted_length, element_size, initialize, default_constructor);
-  Goto(&done);
-
-  BIND(&invalid_length);
-  {
-    ThrowRangeError(context, MessageTemplate::kInvalidTypedArrayLength,
-                    converted_length);
-  }
-
-  BIND(&done);
 }
 
 // ES6 #sec-typedarray-buffer-byteoffset-length
@@ -758,7 +721,8 @@ TF_BUILTIN(CreateTypedArray, TypedArrayBuiltinsAssembler) {
   // a number. https://tc39.github.io/ecma262/#sec-typedarray-length
   BIND(&if_arg1isnumber);
   {
-    ConstructByLength(context, result, arg1, element_size);
+    TypedArrayBuiltinsFromDSLAssembler(this->state())
+        .ConstructByLength(context, result, arg1, element_size);
     Goto(&return_result);
   }
 

@@ -18,6 +18,9 @@ type never;
 type Tagged generates 'TNode<Object>' constexpr 'ObjectPtr';
 type Smi extends Tagged generates 'TNode<Smi>' constexpr 'Smi';
 
+// A Smi that is greater than or equal to 0. See TaggedIsPositiveSmi.
+type PositiveSmi extends Smi generates 'TNode<Smi>';
+
 class HeapObject extends Tagged {
   map_untyped: Tagged;
 }
@@ -147,6 +150,8 @@ intrinsic %RawPointerCast<A: type>(p: RawPtr): A;
 intrinsic %RawConstexprCast<To: type, From: type>(f: From): To;
 
 type NativeContextSlot generates 'TNode<IntPtrT>' constexpr 'int32_t';
+const ARRAY_BUFFER_FUN_INDEX: constexpr NativeContextSlot
+    generates 'Context::ARRAY_BUFFER_FUN_INDEX';
 const ARRAY_JOIN_STACK_INDEX: constexpr NativeContextSlot
     generates 'Context::ARRAY_JOIN_STACK_INDEX';
 const OBJECT_FUNCTION_INDEX: constexpr NativeContextSlot
@@ -265,6 +270,8 @@ const kCalledNonCallable: constexpr MessageTemplate
     generates 'MessageTemplate::kCalledNonCallable';
 const kCalledOnNullOrUndefined: constexpr MessageTemplate
     generates 'MessageTemplate::kCalledOnNullOrUndefined';
+const kInvalidTypedArrayLength: constexpr MessageTemplate
+    generates 'MessageTemplate::kInvalidTypedArrayLength';
 const kIteratorValueNotAnObject: constexpr MessageTemplate
     generates 'MessageTemplate::kIteratorValueNotAnObject';
 const kNotIterable: constexpr MessageTemplate
@@ -376,6 +383,7 @@ extern transitioning macro HasProperty_Inline(implicit context: Context)(
     JSReceiver, Object): Boolean;
 
 extern macro ThrowRangeError(Context, constexpr MessageTemplate): never;
+extern macro ThrowRangeError(Context, constexpr MessageTemplate, Object): never;
 extern macro ThrowTypeError(Context, constexpr MessageTemplate): never;
 extern macro ThrowTypeError(Context, constexpr MessageTemplate, Object): never;
 extern macro ThrowTypeError(
@@ -595,6 +603,8 @@ extern macro TaggedToHeapObject(Object): HeapObject
     labels CastError;
 extern macro TaggedToSmi(Object): Smi
     labels CastError;
+extern macro TaggedToPositiveSmi(Object): PositiveSmi
+    labels CastError;
 extern macro HeapObjectToJSArray(HeapObject): JSArray
     labels CastError;
 extern macro HeapObjectToCallable(HeapObject): Callable
@@ -803,6 +813,11 @@ macro Cast<A: type>(implicit context: Context)(o: Object): A
 Cast<Smi>(o: Object): Smi
     labels CastError {
   return TaggedToSmi(o) otherwise CastError;
+}
+
+Cast<PositiveSmi>(o: Object): PositiveSmi
+    labels CastError {
+  return TaggedToPositiveSmi(o) otherwise CastError;
 }
 
 Cast<Number>(o: Object): Number
@@ -1177,6 +1192,10 @@ extern macro StoreFixedDoubleArrayHoleSmi(FixedDoubleArray, Smi): void;
 macro GetObjectFunction(implicit context: Context)(): JSFunction {
   return UnsafeCast<JSFunction>(
       LoadNativeContext(context)[OBJECT_FUNCTION_INDEX]);
+}
+macro GetArrayBufferFunction(implicit context: Context)(): JSFunction {
+  return UnsafeCast<JSFunction>(
+      LoadNativeContext(context)[ARRAY_BUFFER_FUN_INDEX]);
 }
 
 macro GetFastPackedSmiElementsJSArrayMap(implicit context: Context)(): Map {

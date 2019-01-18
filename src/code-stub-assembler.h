@@ -317,6 +317,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return UncheckedCast<Smi>(value);
   }
 
+  TNode<Smi> TaggedToPositiveSmi(TNode<Object> value, Label* fail) {
+    GotoIfNot(TaggedIsPositiveSmi(value), fail);
+    return UncheckedCast<Smi>(value);
+  }
+
   TNode<Number> TaggedToNumber(TNode<Object> value, Label* fail) {
     GotoIfNot(IsNumber(value), fail);
     return UncheckedCast<Number>(value);

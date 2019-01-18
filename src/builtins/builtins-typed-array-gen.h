@@ -30,8 +30,6 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
                                                   const char* method_name,
                                                   IterationKind iteration_kind);
 
-  void ConstructByLength(TNode<Context> context, TNode<JSTypedArray> holder,
-                         TNode<Object> length, TNode<Smi> element_size);
   void ConstructByArrayBuffer(TNode<Context> context,
                               TNode<JSTypedArray> holder,
                               TNode<JSArrayBuffer> buffer,
