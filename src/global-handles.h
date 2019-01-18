@@ -185,8 +185,12 @@ class GlobalHandles {
  private:
   // Internal node structures.
   class Node;
+  template <class NodeType>
   class NodeBlock;
+  template <class BlockType>
   class NodeIterator;
+  template <class NodeType>
+  class NodeSpace;
   class PendingPhantomCallback;
 
   explicit GlobalHandles(Isolate* isolate);
@@ -201,15 +205,7 @@ class GlobalHandles {
 
   Isolate* isolate_;
 
-  // List of all allocated node blocks.
-  NodeBlock* first_block_;
-
-  // List of node blocks with used nodes.
-  NodeBlock* first_used_block_;
-
-  // Free list of nodes.
-  Node* first_free_;
-
+  std::unique_ptr<NodeSpace<Node>> regular_nodes_;
   // Contains all nodes holding new space objects. Note: when the list
   // is accessed, some of the objects may have been promoted already.
   std::vector<Node*> new_space_nodes_;
