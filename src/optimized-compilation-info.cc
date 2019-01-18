@@ -10,7 +10,6 @@
 #include "src/objects-inl.h"
 #include "src/objects/shared-function-info.h"
 #include "src/source-position.h"
-#include "src/wasm/function-compiler.h"
 
 namespace v8 {
 namespace internal {
@@ -148,16 +147,6 @@ StackFrame::Type OptimizedCompilationInfo::GetOutputStackFrameType() const {
       UNIMPLEMENTED();
       return StackFrame::NONE;
   }
-}
-
-void OptimizedCompilationInfo::SetWasmCompilationResult(
-    std::unique_ptr<wasm::WasmCompilationResult> wasm_compilation_result) {
-  wasm_compilation_result_ = std::move(wasm_compilation_result);
-}
-
-std::unique_ptr<wasm::WasmCompilationResult>
-OptimizedCompilationInfo::ReleaseWasmCompilationResult() {
-  return std::move(wasm_compilation_result_);
 }
 
 bool OptimizedCompilationInfo::has_context() const {

@@ -6,7 +6,6 @@
 #define V8_WASM_BASELINE_LIFTOFF_COMPILER_H_
 
 #include "src/base/macros.h"
-#include "src/wasm/function-compiler.h"
 
 namespace v8 {
 namespace internal {
@@ -18,6 +17,7 @@ namespace wasm {
 struct CompilationEnv;
 struct FunctionBody;
 class NativeModule;
+class WasmCompilationUnit;
 struct WasmFeatures;
 
 class LiftoffCompilationUnit final {
@@ -25,9 +25,8 @@ class LiftoffCompilationUnit final {
   explicit LiftoffCompilationUnit(WasmCompilationUnit* wasm_unit)
       : wasm_unit_(wasm_unit) {}
 
-  WasmCompilationResult ExecuteCompilation(CompilationEnv*, const FunctionBody&,
-                                           Counters*,
-                                           WasmFeatures* detected_features);
+  bool ExecuteCompilation(CompilationEnv*, NativeModule*, const FunctionBody&,
+                          Counters*, WasmFeatures* detected);
 
  private:
   WasmCompilationUnit* const wasm_unit_;

@@ -163,10 +163,8 @@ class LiftoffCompiler {
   };
 
   LiftoffCompiler(compiler::CallDescriptor* call_descriptor,
-                  CompilationEnv* env, Zone* compilation_zone,
-                  std::unique_ptr<AssemblerBuffer> buffer)
-      : asm_(std::move(buffer)),
-        descriptor_(
+                  CompilationEnv* env, Zone* compilation_zone)
+      : descriptor_(
             GetLoweredCallDescriptor(compilation_zone, call_descriptor)),
         env_(env),
         compilation_zone_(compilation_zone),
@@ -1950,9 +1948,11 @@ class LiftoffCompiler {
 
 }  // namespace
 
-WasmCompilationResult LiftoffCompilationUnit::ExecuteCompilation(
-    CompilationEnv* env, const FunctionBody& func_body, Counters* counters,
-    WasmFeatures* detected) {
+bool LiftoffCompilationUnit::ExecuteCompilation(CompilationEnv* env,
+                                                NativeModule* native_module,
+                                                const FunctionBody& func_body,
+                                                Counters* counters,
+                                                WasmFeatures* detected) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"),
                "ExecuteLiftoffCompilation");
   base::ElapsedTimer compile_timer;
@@ -1965,19 +1965,17 @@ WasmCompilationResult LiftoffCompilationUnit::ExecuteCompilation(
   auto call_descriptor = compiler::GetWasmCallDescriptor(&zone, func_body.sig);
   base::Optional<TimedHistogramScope> liftoff_compile_time_scope(
       base::in_place, counters->liftoff_compile_time());
-  std::unique_ptr<wasm::WasmInstructionBuffer> instruction_buffer =
-      wasm::WasmInstructionBuffer::New();
   WasmFullDecoder<Decoder::kValidate, LiftoffCompiler> decoder(
       &zone, module, env->enabled_features, detected, func_body,
-      call_descriptor, env, &zone, instruction_buffer->CreateView());
+      call_descriptor, env, &zone);
   decoder.Decode();
   liftoff_compile_time_scope.reset();
   LiftoffCompiler* compiler = &decoder.interface();
-  if (decoder.failed()) return WasmCompilationResult{decoder.error()};
+  if (decoder.failed()) return false;  // validation error
   if (!compiler->ok()) {
     // Liftoff compilation failed.
     counters->liftoff_unsupported_functions()->Increment();
-    return WasmCompilationResult{WasmError{0, "Liftoff bailout"}};
+    return false;
   }
 
   counters->liftoff_compiled_functions()->Increment();
@@ -1990,16 +1988,21 @@ WasmCompilationResult LiftoffCompilationUnit::ExecuteCompilation(
         static_cast<unsigned>(func_body.end - func_body.start), compile_ms);
   }
 
-  WasmCompilationResult result;
-  compiler->GetCode(&result.code_desc);
-  result.instr_buffer = instruction_buffer->ReleaseBuffer();
-  result.source_positions = compiler->GetSourcePositionTable();
-  result.protected_instructions = compiler->GetProtectedInstructions();
-  result.frame_slot_count = compiler->GetTotalFrameSlotCount();
-  result.safepoint_table_offset = compiler->GetSafepointTableOffset();
+  CodeDesc desc;
+  compiler->GetCode(&desc);
+  OwnedVector<byte> source_positions = compiler->GetSourcePositionTable();
+  OwnedVector<trap_handler::ProtectedInstructionData> protected_instructions =
+      compiler->GetProtectedInstructions();
+  uint32_t frame_slot_count = compiler->GetTotalFrameSlotCount();
+  int safepoint_table_offset = compiler->GetSafepointTableOffset();
 
-  DCHECK(result.succeeded());
-  return result;
+  WasmCode* code = native_module->AddCode(
+      wasm_unit_->func_index_, desc, frame_slot_count, safepoint_table_offset,
+      0, std::move(protected_instructions), std::move(source_positions),
+      WasmCode::kFunction, WasmCode::kLiftoff);
+  wasm_unit_->SetResult(code, counters);
+
+  return true;
 }
 
 #undef __

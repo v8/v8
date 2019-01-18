@@ -95,8 +95,8 @@ class CodeGenerator final : public GapResolver::Assembler {
                          int start_source_position,
                          JumpOptimizationInfo* jump_opt,
                          PoisoningMitigationLevel poisoning_level,
-                         const AssemblerOptions& options, int32_t builtin_index,
-                         std::unique_ptr<AssemblerBuffer> = {});
+                         const AssemblerOptions& options,
+                         int32_t builtin_index);
 
   // Generate native code. After calling AssembleCode, call FinalizeCode to
   // produce the actual code object. If an error occurs during either phase,
