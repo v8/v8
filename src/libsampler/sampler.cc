@@ -57,11 +57,10 @@ typedef zx_arm64_general_regs_t zx_thread_state_general_regs_t;
 #endif
 
 #include <algorithm>
+#include <unordered_map>
 #include <vector>
-#include <map>
 
 #include "src/base/atomic-utils.h"
-#include "src/base/hashmap.h"
 #include "src/base/platform/platform.h"
 
 #if V8_OS_ANDROID && !defined(__BIONIC_HAVE_UCONTEXT_T)
@@ -174,7 +173,6 @@ namespace sampler {
 namespace {
 
 #if defined(USE_SIGNALS)
-typedef std::vector<Sampler*> SamplerList;
 typedef std::atomic_bool AtomicMutex;
 
 class AtomicGuard {
@@ -201,20 +199,6 @@ class AtomicGuard {
   bool is_success_;
 };
 
-// Returns key for hash map.
-void* ThreadKey(pthread_t thread_id) {
-  return reinterpret_cast<void*>(thread_id);
-}
-
-// Returns hash value for hash map.
-uint32_t ThreadHash(pthread_t thread_id) {
-#if V8_OS_BSD
-  return static_cast<uint32_t>(reinterpret_cast<intptr_t>(thread_id));
-#else
-  return static_cast<uint32_t>(thread_id);
-#endif
-}
-
 #endif  // USE_SIGNALS
 
 }  // namespace
@@ -236,23 +220,22 @@ class SamplerManager {
  public:
   SamplerManager() = default;
 
+  typedef std::vector<Sampler*> SamplerList;
+
   // Add |sampler| to the map if it is not already present.
   void AddSampler(Sampler* sampler) {
     AtomicGuard atomic_guard(&samplers_access_counter_);
     DCHECK(sampler->IsActive() || !sampler->IsRegistered());
     pthread_t thread_id = sampler->platform_data()->vm_tid();
-    base::HashMap::Entry* entry =
-            sampler_map_.LookupOrInsert(ThreadKey(thread_id),
-                                        ThreadHash(thread_id));
-    DCHECK_NOT_NULL(entry);
-    if (entry->value == nullptr) {
-      SamplerList* samplers = new SamplerList();
-      samplers->push_back(sampler);
-      entry->value = samplers;
+    auto it = sampler_map_.find(thread_id);
+    if (it == sampler_map_.end()) {
+      SamplerList samplers;
+      samplers.push_back(sampler);
+      sampler_map_.emplace(thread_id, std::move(samplers));
     } else {
-      SamplerList* samplers = reinterpret_cast<SamplerList*>(entry->value);
-      auto it = std::find(samplers->begin(), samplers->end(), sampler);
-      if (it == samplers->end()) samplers->push_back(sampler);
+      SamplerList& samplers = it->second;
+      auto it = std::find(samplers.begin(), samplers.end(), sampler);
+      if (it == samplers.end()) samplers.push_back(sampler);
     }
   }
 
@@ -262,16 +245,13 @@ class SamplerManager {
     AtomicGuard atomic_guard(&samplers_access_counter_);
     DCHECK(sampler->IsActive() || sampler->IsRegistered());
     pthread_t thread_id = sampler->platform_data()->vm_tid();
-    void* thread_key = ThreadKey(thread_id);
-    uint32_t thread_hash = ThreadHash(thread_id);
-    base::HashMap::Entry* entry = sampler_map_.Lookup(thread_key, thread_hash);
-    DCHECK_NOT_NULL(entry);
-    SamplerList* samplers = reinterpret_cast<SamplerList*>(entry->value);
-    samplers->erase(std::remove(samplers->begin(), samplers->end(), sampler),
-                    samplers->end());
-    if (samplers->empty()) {
-      sampler_map_.Remove(thread_key, thread_hash);
-      delete samplers;
+    auto it = sampler_map_.find(thread_id);
+    DCHECK_NE(it, sampler_map_.end());
+    SamplerList& samplers = it->second;
+    samplers.erase(std::remove(samplers.begin(), samplers.end(), sampler),
+                   samplers.end());
+    if (samplers.empty()) {
+      sampler_map_.erase(it);
     }
   }
 
@@ -283,10 +263,9 @@ class SamplerManager {
     AtomicGuard atomic_guard(&samplers_access_counter_, false);
     if (!atomic_guard.is_success()) return;
     pthread_t thread_id = pthread_self();
-    base::HashMap::Entry* entry =
-        sampler_map_.Lookup(ThreadKey(thread_id), ThreadHash(thread_id));
-    if (!entry) return;
-    SamplerList& samplers = *static_cast<SamplerList*>(entry->value);
+    auto it = sampler_map_.find(thread_id);
+    if (it == sampler_map_.end()) return;
+    SamplerList& samplers = it->second;
 
     for (Sampler* sampler : samplers) {
       Isolate* isolate = sampler->isolate();
@@ -304,7 +283,7 @@ class SamplerManager {
   }
 
  private:
-  base::HashMap sampler_map_;
+  std::unordered_map<pthread_t, SamplerList> sampler_map_;
   AtomicMutex samplers_access_counter_;
 };
 
