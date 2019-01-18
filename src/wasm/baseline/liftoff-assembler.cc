@@ -348,7 +348,7 @@ class RegisterReuseMap {
 
   base::Optional<LiftoffRegister> Lookup(LiftoffRegister src) {
     for (auto it = map_.begin(), end = map_.end(); it != end; it += 2) {
-      if (*it == src) return *(it + 1);
+      if (it->is_pair() == src.is_pair() && *it == src) return *(it + 1);
     }
     return {};
   }
