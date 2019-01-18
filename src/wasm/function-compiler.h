@@ -42,7 +42,7 @@ class WasmCompilationUnit final {
   ~WasmCompilationUnit();
 
   void ExecuteCompilation(CompilationEnv*, NativeModule*,
-                          std::shared_ptr<WireBytesStorage>, Counters*,
+                          const std::shared_ptr<WireBytesStorage>&, Counters*,
                           WasmFeatures* detected);
 
   ExecutionTier tier() const { return tier_; }

@@ -54,8 +54,8 @@ WasmCompilationUnit::~WasmCompilationUnit() = default;
 
 void WasmCompilationUnit::ExecuteCompilation(
     CompilationEnv* env, NativeModule* native_module,
-    std::shared_ptr<WireBytesStorage> wire_bytes_storage, Counters* counters,
-    WasmFeatures* detected) {
+    const std::shared_ptr<WireBytesStorage>& wire_bytes_storage,
+    Counters* counters, WasmFeatures* detected) {
   auto* func = &env->module->functions[func_index_];
   Vector<const uint8_t> code = wire_bytes_storage->GetCode(func->code);
   wasm::FunctionBody func_body{func->sig, func->code.offset(), code.start(),

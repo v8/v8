@@ -137,12 +137,6 @@ class CompilationStateImpl {
     return WasmError{error->error.offset(), error_msg.str()};
   }
 
-  std::shared_ptr<WireBytesStorage> GetSharedWireBytesStorage() const {
-    base::MutexGuard guard(&mutex_);
-    DCHECK_NOT_NULL(wire_bytes_storage_);
-    return wire_bytes_storage_;
-  }
-
   void SetWireBytesStorage(
       std::shared_ptr<WireBytesStorage> wire_bytes_storage) {
     base::MutexGuard guard(&mutex_);
@@ -151,6 +145,7 @@ class CompilationStateImpl {
 
   std::shared_ptr<WireBytesStorage> GetWireBytesStorage() const {
     base::MutexGuard guard(&mutex_);
+    DCHECK_NOT_NULL(wire_bytes_storage_);
     return wire_bytes_storage_;
   }
 
@@ -496,8 +491,8 @@ bool FetchAndExecuteCompilationUnit(CompilationEnv* env,
   // if baseline bails out.
   ExecutionTier tier = unit->tier();
   unit->ExecuteCompilation(env, native_module,
-                           compilation_state->GetSharedWireBytesStorage(),
-                           counters, detected);
+                           compilation_state->GetWireBytesStorage(), counters,
+                           detected);
   compilation_state->OnFinishedUnit(tier, unit->result());
 
   return true;
