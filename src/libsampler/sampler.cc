@@ -175,7 +175,6 @@ namespace {
 
 #if defined(USE_SIGNALS)
 typedef std::vector<Sampler*> SamplerList;
-typedef SamplerList::iterator SamplerListIterator;
 typedef std::atomic_bool AtomicMutex;
 
 class AtomicGuard {
@@ -231,14 +230,16 @@ class Sampler::PlatformData {
   pthread_t vm_tid_;
 };
 
+// SamplerManager keeps a list of Samplers per thread, and allows the caller to
+// take a sample for every Sampler on the current thread.
 class SamplerManager {
  public:
-  SamplerManager() : sampler_map_() {}
+  SamplerManager() = default;
 
+  // Add |sampler| to the map if it is not already present.
   void AddSampler(Sampler* sampler) {
     AtomicGuard atomic_guard(&samplers_access_counter_);
     DCHECK(sampler->IsActive() || !sampler->IsRegistered());
-    // Add sampler into map if needed.
     pthread_t thread_id = sampler->platform_data()->vm_tid();
     base::HashMap::Entry* entry =
             sampler_map_.LookupOrInsert(ThreadKey(thread_id),
@@ -250,37 +251,24 @@ class SamplerManager {
       entry->value = samplers;
     } else {
       SamplerList* samplers = reinterpret_cast<SamplerList*>(entry->value);
-      bool exists = false;
-      for (SamplerListIterator iter = samplers->begin();
-           iter != samplers->end(); ++iter) {
-        if (*iter == sampler) {
-          exists = true;
-          break;
-        }
-      }
-      if (!exists) {
-        samplers->push_back(sampler);
-      }
+      auto it = std::find(samplers->begin(), samplers->end(), sampler);
+      if (it == samplers->end()) samplers->push_back(sampler);
     }
   }
 
+  // If |sampler| exists in the map, remove it and delete the SamplerList if
+  // |sampler| was the last sampler in the list.
   void RemoveSampler(Sampler* sampler) {
     AtomicGuard atomic_guard(&samplers_access_counter_);
     DCHECK(sampler->IsActive() || sampler->IsRegistered());
-    // Remove sampler from map.
     pthread_t thread_id = sampler->platform_data()->vm_tid();
     void* thread_key = ThreadKey(thread_id);
     uint32_t thread_hash = ThreadHash(thread_id);
     base::HashMap::Entry* entry = sampler_map_.Lookup(thread_key, thread_hash);
     DCHECK_NOT_NULL(entry);
     SamplerList* samplers = reinterpret_cast<SamplerList*>(entry->value);
-    for (SamplerListIterator iter = samplers->begin(); iter != samplers->end();
-         ++iter) {
-      if (*iter == sampler) {
-        samplers->erase(iter);
-        break;
-      }
-    }
+    samplers->erase(std::remove(samplers->begin(), samplers->end(), sampler),
+                    samplers->end());
     if (samplers->empty()) {
       sampler_map_.Remove(thread_key, thread_hash);
       delete samplers;
@@ -288,6 +276,9 @@ class SamplerManager {
   }
 
 #if defined(USE_SIGNALS)
+  // Take a sample for every sampler on the current thread. This function can
+  // return without taking samples if AddSampler or RemoveSampler are being
+  // concurrently called on any thread.
   void DoSample(const v8::RegisterState& state) {
     AtomicGuard atomic_guard(&samplers_access_counter_, false);
     if (!atomic_guard.is_success()) return;
@@ -297,8 +288,7 @@ class SamplerManager {
     if (!entry) return;
     SamplerList& samplers = *static_cast<SamplerList*>(entry->value);
 
-    for (size_t i = 0; i < samplers.size(); ++i) {
-      Sampler* sampler = samplers[i];
+    for (Sampler* sampler : samplers) {
       Isolate* isolate = sampler->isolate();
       // We require a fully initialized and entered isolate.
       if (isolate == nullptr || !isolate->IsInUse()) continue;
