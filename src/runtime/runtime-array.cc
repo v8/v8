@@ -139,8 +139,15 @@ Object RemoveArrayHolesGeneric(Isolate* isolate, Handle<JSReceiver> receiver,
     }
   }
 
+  // current_pos points to the next free space in the array/object. In most
+  // cases this corresponds to the 'length' or to the number of non-undefined
+  // elements.
+  // In cases where an object is 'packed' and 'length' is smaller, e.g.:
+  //      { 0: 5, 1: 4, 2: 3, length: 2 }
+  // current_pos will be greater than limit, thus, we need to take the minimum.
+  uint32_t result = std::min(current_pos, limit);
+
   // Set [current_pos, current_pos + num_undefined) to undefined.
-  uint32_t result = current_pos;
   for (uint32_t i = 0; i < num_undefined; ++i) {
     RETURN_FAILURE_ON_EXCEPTION(
         isolate, Object::SetElement(isolate, receiver, current_pos++,
@@ -161,10 +168,6 @@ Object RemoveArrayHolesGeneric(Isolate* isolate, Handle<JSReceiver> receiver,
     Maybe<bool> delete_result = JSReceiver::DeleteElement(receiver, key);
     MAYBE_RETURN(delete_result, ReadOnlyRoots(isolate).exception());
   }
-
-  // The number of non-undefined elements MUST always be smaller then limit.
-  // Violating this may cause OOB reads/writes.
-  CHECK_LE(result, limit);
 
   return *isolate->factory()->NewNumberFromUint(result);
 }
