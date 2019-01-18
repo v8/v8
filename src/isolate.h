@@ -1433,10 +1433,6 @@ class Isolate final : private HiddenFactory {
     return reinterpret_cast<Address>(&promise_hook_or_async_event_delegate_);
   }
 
-  Address default_microtask_queue_address() {
-    return reinterpret_cast<Address>(&default_microtask_queue_);
-  }
-
   Address promise_hook_or_debug_is_active_or_async_event_delegate_address() {
     return reinterpret_cast<Address>(
         &promise_hook_or_debug_is_active_or_async_event_delegate_);
