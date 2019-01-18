@@ -128,14 +128,12 @@ RUNTIME_FUNCTION(Runtime_WasmThrowCreate) {
       MessageTemplate::kWasmExceptionError);
   CHECK(!Object::SetProperty(isolate, exception,
                              isolate->factory()->wasm_exception_tag_symbol(),
-                             tag, StoreOrigin::kMaybeKeyed,
-                             Just(LanguageMode::kStrict))
+                             tag, LanguageMode::kStrict)
              .is_null());
   Handle<FixedArray> values = isolate->factory()->NewFixedArray(size);
   CHECK(!Object::SetProperty(isolate, exception,
                              isolate->factory()->wasm_exception_values_symbol(),
-                             values, StoreOrigin::kMaybeKeyed,
-                             Just(LanguageMode::kStrict))
+                             values, LanguageMode::kStrict)
              .is_null());
   return *exception;
 }

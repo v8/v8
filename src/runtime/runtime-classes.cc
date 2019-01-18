@@ -770,22 +770,25 @@ namespace {
 
 MaybeHandle<Object> StoreToSuper(Isolate* isolate, Handle<JSObject> home_object,
                                  Handle<Object> receiver, Handle<Name> name,
-                                 Handle<Object> value) {
+                                 Handle<Object> value,
+                                 LanguageMode language_mode) {
   Handle<JSReceiver> holder;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, holder,
                              GetSuperHolder(isolate, receiver, home_object,
                                             SuperMode::kStore, name, 0),
                              Object);
   LookupIterator it(receiver, name, holder);
-  MAYBE_RETURN(Object::SetSuperProperty(&it, value, StoreOrigin::kNamed),
-               MaybeHandle<Object>());
+  MAYBE_RETURN(
+      Object::SetSuperProperty(&it, value, language_mode, StoreOrigin::kNamed),
+      MaybeHandle<Object>());
   return value;
 }
 
 MaybeHandle<Object> StoreElementToSuper(Isolate* isolate,
                                         Handle<JSObject> home_object,
                                         Handle<Object> receiver, uint32_t index,
-                                        Handle<Object> value) {
+                                        Handle<Object> value,
+                                        LanguageMode language_mode) {
   Handle<JSReceiver> holder;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, holder,
@@ -793,7 +796,8 @@ MaybeHandle<Object> StoreElementToSuper(Isolate* isolate,
                      MaybeHandle<Name>(), index),
       Object);
   LookupIterator it(isolate, receiver, index, holder);
-  MAYBE_RETURN(Object::SetSuperProperty(&it, value, StoreOrigin::kMaybeKeyed),
+  MAYBE_RETURN(Object::SetSuperProperty(&it, value, language_mode,
+                                        StoreOrigin::kMaybeKeyed),
                MaybeHandle<Object>());
   return value;
 }
@@ -809,11 +813,11 @@ RUNTIME_FUNCTION(Runtime_StoreToSuper_Strict) {
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 3);
 
   RETURN_RESULT_OR_FAILURE(
-      isolate, StoreToSuper(isolate, home_object, receiver, name, value));
+      isolate, StoreToSuper(isolate, home_object, receiver, name, value,
+                            LanguageMode::kStrict));
 }
 
-// TODO(mythria): Now that we don't need language mode merge this and
-// Runtime_StoreToSuper_Strict functions.
+
 RUNTIME_FUNCTION(Runtime_StoreToSuper_Sloppy) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
@@ -823,28 +827,31 @@ RUNTIME_FUNCTION(Runtime_StoreToSuper_Sloppy) {
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 3);
 
   RETURN_RESULT_OR_FAILURE(
-      isolate, StoreToSuper(isolate, home_object, receiver, name, value));
+      isolate, StoreToSuper(isolate, home_object, receiver, name, value,
+                            LanguageMode::kSloppy));
 }
 
-static MaybeHandle<Object> StoreKeyedToSuper(Isolate* isolate,
-                                             Handle<JSObject> home_object,
-                                             Handle<Object> receiver,
-                                             Handle<Object> key,
-                                             Handle<Object> value) {
+static MaybeHandle<Object> StoreKeyedToSuper(
+    Isolate* isolate, Handle<JSObject> home_object, Handle<Object> receiver,
+    Handle<Object> key, Handle<Object> value, LanguageMode language_mode) {
   uint32_t index = 0;
 
   if (key->ToArrayIndex(&index)) {
-    return StoreElementToSuper(isolate, home_object, receiver, index, value);
+    return StoreElementToSuper(isolate, home_object, receiver, index, value,
+                               language_mode);
   }
   Handle<Name> name;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, name, Object::ToName(isolate, key),
                              Object);
   // TODO(verwaest): Unify using LookupIterator.
   if (name->AsArrayIndex(&index)) {
-    return StoreElementToSuper(isolate, home_object, receiver, index, value);
+    return StoreElementToSuper(isolate, home_object, receiver, index, value,
+                               language_mode);
   }
-  return StoreToSuper(isolate, home_object, receiver, name, value);
+  return StoreToSuper(isolate, home_object, receiver, name, value,
+                      language_mode);
 }
+
 
 RUNTIME_FUNCTION(Runtime_StoreKeyedToSuper_Strict) {
   HandleScope scope(isolate);
@@ -855,11 +862,11 @@ RUNTIME_FUNCTION(Runtime_StoreKeyedToSuper_Strict) {
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 3);
 
   RETURN_RESULT_OR_FAILURE(
-      isolate, StoreKeyedToSuper(isolate, home_object, receiver, key, value));
+      isolate, StoreKeyedToSuper(isolate, home_object, receiver, key, value,
+                                 LanguageMode::kStrict));
 }
 
-// TODO(mythria): Now that we don't need language mode merge this and
-// Runtime_StoreKeyedToSuper_Strict functions.
+
 RUNTIME_FUNCTION(Runtime_StoreKeyedToSuper_Sloppy) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
@@ -869,7 +876,8 @@ RUNTIME_FUNCTION(Runtime_StoreKeyedToSuper_Sloppy) {
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 3);
 
   RETURN_RESULT_OR_FAILURE(
-      isolate, StoreKeyedToSuper(isolate, home_object, receiver, key, value));
+      isolate, StoreKeyedToSuper(isolate, home_object, receiver, key, value,
+                                 LanguageMode::kSloppy));
 }
 
 }  // namespace internal
