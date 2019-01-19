@@ -2856,7 +2856,9 @@ ParserBase<Impl>::ParseUnaryOrPrefixExpression() {
     }
 
     if (peek() == Token::EXP) {
-      ReportUnexpectedToken(Next());
+      impl()->ReportMessageAt(
+          Scanner::Location(pos, peek_end_position()),
+          MessageTemplate::kUnexpectedTokenUnaryExponentiation);
       return impl()->FailureExpression();
     }
 
