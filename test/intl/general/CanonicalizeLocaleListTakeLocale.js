@@ -63,3 +63,39 @@ assertDoesNotThrow(() => col = new Intl.Collator(tag));
 assertEquals(tag, lf.resolvedOptions().locale);
 assertDoesNotThrow(() => col = new Intl.Collator([tag]));
 assertEquals(tag, lf.resolvedOptions().locale);
+
+// Test monkey patching won't impact the result.
+
+class MyLocale extends Intl.Locale {
+  constructor(tag, options) {
+    super(tag, options);
+  }
+  toString() {
+    // this should not get called.
+    fail("toString should not be called")
+  }
+}
+
+let myLocale = new MyLocale(tag);
+
+// Test with a Locale
+assertDoesNotThrow(() => nf = new Intl.NumberFormat(myLocale));
+assertEquals(tag, nf.resolvedOptions().locale);
+
+// Test with a Array of one Locale
+assertDoesNotThrow(() => nf = new Intl.NumberFormat([myLocale]));
+assertEquals(tag, nf.resolvedOptions().locale);
+
+var res = Intl.getCanonicalLocales(myLocale);
+assertEquals(1, res.length);
+assertEquals(tag, res[0]);
+
+res = Intl.getCanonicalLocales([myLocale, "fr"]);
+assertEquals(2, res.length);
+assertEquals(tag, res[0]);
+assertEquals("fr", res[1]);
+
+res = Intl.getCanonicalLocales(["fr", myLocale]);
+assertEquals(2, res.length);
+assertEquals("fr", res[0]);
+assertEquals(tag, res[1]);

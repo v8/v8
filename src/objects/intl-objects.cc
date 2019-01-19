@@ -851,14 +851,18 @@ Maybe<std::vector<std::string>> Intl::CanonicalizeLocaleList(
                                      Nothing<std::vector<std::string>>());
     // 7c ii. If Type(kValue) is not String or Object, throw a TypeError
     // exception.
-    // 7c iii. Let tag be ? ToString(kValue).
-    // 7c iv. If IsStructurallyValidLanguageTag(tag) is false, throw a
-    // RangeError exception.
-    // 7c v. Let canonicalizedTag be CanonicalizeLanguageTag(tag).
+    // 7c iii. If Type(kValue) is Object and kValue has an [[InitializedLocale]]
+    // internal slot, then
     std::string canonicalized_tag;
     if (k_value->IsJSLocale()) {
+      // 7c iii. 1. Let tag be kValue.[[Locale]].
       canonicalized_tag = JSLocale::ToString(Handle<JSLocale>::cast(k_value));
+      // 7c iv. Else,
     } else {
+      // 7c iv 1. Let tag be ? ToString(kValue).
+      // 7c v. If IsStructurallyValidLanguageTag(tag) is false, throw a
+      // RangeError exception.
+      // 7c vi. Let canonicalizedTag be CanonicalizeLanguageTag(tag).
       if (!CanonicalizeLanguageTag(isolate, k_value).To(&canonicalized_tag)) {
         return Nothing<std::vector<std::string>>();
       }
