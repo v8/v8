@@ -23,18 +23,10 @@
 namespace v8 {
 namespace internal {
 
-JSSegmenter::LineBreakStyle JSSegmenter::GetLineBreakStyle(const char* str) {
-  if (strcmp(str, "strict") == 0) return JSSegmenter::LineBreakStyle::STRICT;
-  if (strcmp(str, "normal") == 0) return JSSegmenter::LineBreakStyle::NORMAL;
-  if (strcmp(str, "loose") == 0) return JSSegmenter::LineBreakStyle::LOOSE;
-  UNREACHABLE();
-}
-
 JSSegmenter::Granularity JSSegmenter::GetGranularity(const char* str) {
   if (strcmp(str, "grapheme") == 0) return JSSegmenter::Granularity::GRAPHEME;
   if (strcmp(str, "word") == 0) return JSSegmenter::Granularity::WORD;
   if (strcmp(str, "sentence") == 0) return JSSegmenter::Granularity::SENTENCE;
-  if (strcmp(str, "line") == 0) return JSSegmenter::Granularity::LINE;
   UNREACHABLE();
 }
 
@@ -72,25 +64,11 @@ MaybeHandle<JSSegmenter> JSSegmenter::Initialize(
   MAYBE_RETURN(maybe_locale_matcher, MaybeHandle<JSSegmenter>());
   Intl::MatcherOption matcher = maybe_locale_matcher.FromJust();
 
-  // 8. Set opt.[[lb]] to lineBreakStyle.
-
   // 9. Let r be ResolveLocale(%Segmenter%.[[AvailableLocales]],
   // requestedLocales, opt, %Segmenter%.[[RelevantExtensionKeys]]).
   Intl::ResolvedLocale r =
       Intl::ResolveLocale(isolate, JSSegmenter::GetAvailableLocales(),
-                          requested_locales, matcher, {"lb"});
-
-  // 7. Let lineBreakStyle be ? GetOption(options, "lineBreakStyle", "string", «
-  // "strict", "normal", "loose" », "normal").
-  Maybe<LineBreakStyle> maybe_line_break_style =
-      Intl::GetStringOption<LineBreakStyle>(
-          isolate, options, "lineBreakStyle", "Intl.Segmenter",
-          {"strict", "normal", "loose"},
-          {LineBreakStyle::STRICT, LineBreakStyle::NORMAL,
-           LineBreakStyle::LOOSE},
-          LineBreakStyle::NORMAL);
-  MAYBE_RETURN(maybe_line_break_style, MaybeHandle<JSSegmenter>());
-  LineBreakStyle line_break_style_enum = maybe_line_break_style.FromJust();
+                          requested_locales, matcher, {});
 
   // 10. Set segmenter.[[Locale]] to the value of r.[[Locale]].
   Handle<String> locale_str =
@@ -98,26 +76,17 @@ MaybeHandle<JSSegmenter> JSSegmenter::Initialize(
   segmenter_holder->set_locale(*locale_str);
 
   // 13. Let granularity be ? GetOption(options, "granularity", "string", «
-  // "grapheme", "word", "sentence", "line" », "grapheme").
+  // "grapheme", "word", "sentence" », "grapheme").
   Maybe<Granularity> maybe_granularity = Intl::GetStringOption<Granularity>(
       isolate, options, "granularity", "Intl.Segmenter",
-      {"grapheme", "word", "sentence", "line"},
-      {Granularity::GRAPHEME, Granularity::WORD, Granularity::SENTENCE,
-       Granularity::LINE},
+      {"grapheme", "word", "sentence"},
+      {Granularity::GRAPHEME, Granularity::WORD, Granularity::SENTENCE},
       Granularity::GRAPHEME);
   MAYBE_RETURN(maybe_granularity, MaybeHandle<JSSegmenter>());
   Granularity granularity_enum = maybe_granularity.FromJust();
 
   // 14. Set segmenter.[[SegmenterGranularity]] to granularity.
   segmenter_holder->set_granularity(granularity_enum);
-
-  // 15. If granularity is "line",
-  if (granularity_enum == Granularity::LINE) {
-    // a. Set segmenter.[[SegmenterLineBreakStyle]] to r.[[lb]].
-    segmenter_holder->set_line_break_style(line_break_style_enum);
-  } else {
-    segmenter_holder->set_line_break_style(LineBreakStyle::NOTSET);
-  }
 
   icu::Locale icu_locale = r.icu_locale;
   DCHECK(!icu_locale.isBogus());
@@ -138,21 +107,6 @@ MaybeHandle<JSSegmenter> JSSegmenter::Initialize(
       icu_break_iterator.reset(
           icu::BreakIterator::createSentenceInstance(icu_locale, status));
       break;
-    case Granularity::LINE: {
-      // 15. If granularity is "line",
-      // a. Set segmenter.[[SegmenterLineBreakStyle]] to r.[[lb]].
-      const char* key = uloc_toLegacyKey("lb");
-      CHECK_NOT_NULL(key);
-      const char* value =
-          uloc_toLegacyType(key, segmenter_holder->LineBreakStyleAsCString());
-      CHECK_NOT_NULL(value);
-      UErrorCode status = U_ZERO_ERROR;
-      icu_locale.setKeywordValue(key, value, status);
-      CHECK(U_SUCCESS(status));
-      icu_break_iterator.reset(
-          icu::BreakIterator::createLineInstance(icu_locale, status));
-      break;
-    }
     case Granularity::COUNT:
       UNREACHABLE();
   }
@@ -185,47 +139,14 @@ Handle<JSObject> JSSegmenter::ResolvedOptions(
   //     Internal Slot                 Property
   //     [[Locale]]                    "locale"
   //     [[SegmenterGranularity]]      "granularity"
-  //     [[SegmenterLineBreakStyle]]   "lineBreakStyle"
 
   Handle<String> locale(segmenter_holder->locale(), isolate);
   JSObject::AddProperty(isolate, result, factory->locale_string(), locale,
                         NONE);
   JSObject::AddProperty(isolate, result, factory->granularity_string(),
                         segmenter_holder->GranularityAsString(), NONE);
-  if (segmenter_holder->line_break_style() != LineBreakStyle::NOTSET) {
-    JSObject::AddProperty(isolate, result, factory->lineBreakStyle_string(),
-                          segmenter_holder->LineBreakStyleAsString(), NONE);
-  }
   // 5. Return options.
   return result;
-}
-
-const char* JSSegmenter::LineBreakStyleAsCString() const {
-  switch (line_break_style()) {
-    case LineBreakStyle::STRICT:
-      return "strict";
-    case LineBreakStyle::NORMAL:
-      return "normal";
-    case LineBreakStyle::LOOSE:
-      return "loose";
-    case LineBreakStyle::COUNT:
-    case LineBreakStyle::NOTSET:
-      UNREACHABLE();
-  }
-}
-
-Handle<String> JSSegmenter::LineBreakStyleAsString() const {
-  switch (line_break_style()) {
-    case LineBreakStyle::STRICT:
-      return GetReadOnlyRoots().strict_string_handle();
-    case LineBreakStyle::NORMAL:
-      return GetReadOnlyRoots().normal_string_handle();
-    case LineBreakStyle::LOOSE:
-      return GetReadOnlyRoots().loose_string_handle();
-    case LineBreakStyle::COUNT:
-    case LineBreakStyle::NOTSET:
-      UNREACHABLE();
-  }
 }
 
 Handle<String> JSSegmenter::GranularityAsString() const {
@@ -236,8 +157,6 @@ Handle<String> JSSegmenter::GranularityAsString() const {
       return GetReadOnlyRoots().word_string_handle();
     case Granularity::SENTENCE:
       return GetReadOnlyRoots().sentence_string_handle();
-    case Granularity::LINE:
-      return GetReadOnlyRoots().line_string_handle();
     case Granularity::COUNT:
       UNREACHABLE();
   }

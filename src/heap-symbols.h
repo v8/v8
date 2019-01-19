@@ -23,7 +23,6 @@
   V(_, h12_string, "h12")                                           \
   V(_, h23_string, "h23")                                           \
   V(_, h24_string, "h24")                                           \
-  V(_, hard_string, "hard")                                         \
   V(_, hour_string, "hour")                                         \
   V(_, hour12_string, "hour12")                                     \
   V(_, hourCycle_string, "hourCycle")                               \
@@ -36,7 +35,6 @@
   V(_, integer_string, "integer")                                   \
   V(_, kana_string, "kana")                                         \
   V(_, letter_string, "letter")                                     \
-  V(_, lineBreakStyle_string, "lineBreakStyle")                     \
   V(_, list_string, "list")                                         \
   V(_, literal_string, "literal")                                   \
   V(_, locale_string, "locale")                                     \
@@ -64,7 +62,6 @@
   V(_, SegmentIterator_string, "Segment Iterator")                  \
   V(_, sensitivity_string, "sensitivity")                           \
   V(_, sep_string, "sep")                                           \
-  V(_, soft_string, "soft")                                         \
   V(_, strict_string, "strict")                                     \
   V(_, style_string, "style")                                       \
   V(_, term_string, "term")                                         \

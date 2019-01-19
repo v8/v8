@@ -37,8 +37,6 @@ Handle<String> JSSegmentIterator::GranularityAsString() const {
       return GetReadOnlyRoots().word_string_handle();
     case JSSegmenter::Granularity::SENTENCE:
       return GetReadOnlyRoots().sentence_string_handle();
-    case JSSegmenter::Granularity::LINE:
-      return GetReadOnlyRoots().line_string_handle();
     case JSSegmenter::Granularity::COUNT:
       UNREACHABLE();
   }
@@ -104,18 +102,6 @@ Handle<Object> JSSegmentIterator::BreakType() const {
         // words that appear to be numbers, letters, kana characters,
         // ideographic characters, etc
         return GetReadOnlyRoots().word_string_handle();
-      }
-      return GetReadOnlyRoots().undefined_value_handle();
-    case JSSegmenter::Granularity::LINE:
-      if (rule_status >= UBRK_LINE_SOFT && rule_status < UBRK_LINE_SOFT_LIMIT) {
-        // soft line breaks, index at which a line break is acceptable but
-        // not required
-        return GetReadOnlyRoots().soft_string_handle();
-      }
-      if ((rule_status >= UBRK_LINE_HARD &&
-           rule_status < UBRK_LINE_HARD_LIMIT)) {
-        // hard, or mandatory line breaks
-        return GetReadOnlyRoots().hard_string_handle();
       }
       return GetReadOnlyRoots().undefined_value_handle();
     case JSSegmenter::Granularity::SENTENCE:

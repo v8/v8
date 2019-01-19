@@ -2103,7 +2103,6 @@ void JSSegmenter::JSSegmenterPrint(std::ostream& os) {  // NOLINT
   JSObjectPrintHeader(os, *this, "JSSegmenter");
   os << "\n - locale: " << Brief(locale());
   os << "\n - granularity: " << GranularityAsString();
-  os << "\n - lineBreakStyle: " << LineBreakStyleAsString();
   os << "\n - icu break iterator: " << Brief(icu_break_iterator());
   JSObjectPrintBody(os, *this);
 }

@@ -506,6 +506,24 @@
   'language/expressions/call/eval-spread-empty-leading': [FAIL],
   'language/expressions/call/eval-spread-empty-trailing': [FAIL],
 
+  # https://bugs.chromium.org/p/v8/issues/detail?id=8717
+  'intl402/Segmenter/constructor/constructor/options-granularity-valid': [FAIL],
+  'intl402/Segmenter/constructor/constructor/options-lineBreakStyle-invalid': [FAIL],
+  'intl402/Segmenter/constructor/constructor/options-lineBreakStyle-valid': [FAIL],
+  'intl402/Segmenter/constructor/constructor/options-order': [FAIL],
+  'intl402/Segmenter/constructor/constructor/options-throwing-getters': [FAIL],
+  'intl402/Segmenter/constructor/constructor/options-toobject-prototype': [FAIL],
+  'intl402/Segmenter/constructor/constructor/options-valid-combinations': [FAIL],
+  'intl402/Segmenter/iterator/granularity': [FAIL],
+  'intl402/Segmenter/prototype/resolvedOptions/order': [FAIL],
+  'intl402/Segmenter/prototype/resolvedOptions/type-with-lbs': [FAIL],
+  'intl402/Segmenter/prototype/segment/segment-line': [FAIL],
+  'intl402/Segmenter/prototype/segment/segment-line-following': [FAIL],
+  'intl402/Segmenter/prototype/segment/segment-line-following-modes': [FAIL],
+  'intl402/Segmenter/prototype/segment/segment-line-iterable': [FAIL],
+  'intl402/Segmenter/prototype/segment/segment-line-next': [FAIL],
+  'intl402/Segmenter/prototype/segment/segment-line-preceding': [FAIL],
+
   # https://bugs.chromium.org/p/v8/issues/detail?id=7472
   'intl402/NumberFormat/currency-digits': [FAIL],
 

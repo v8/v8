@@ -11,9 +11,6 @@ let invalid_lb = [
   "keepall",
   "none",
   "standard",
-];
-
-let valid_lb= [
   "strict",
   "normal",
   "loose",
@@ -28,14 +25,5 @@ let locales = [
 invalid_lb.forEach(function(lb) {
   let df = new Intl.Segmenter(["en-u-lb-" + lb + "-fo-obar"]);
   assertEquals("en", df.resolvedOptions().locale);
-}
-);
-
-valid_lb.forEach(function(lb) {
-  locales.forEach(function(base) {
-    let l = base + "-u-lb-" + lb;
-    let df = new Intl.Segmenter([l + "-fo-obar"]);
-    assertEquals(l, df.resolvedOptions().locale);
-  });
 }
 );

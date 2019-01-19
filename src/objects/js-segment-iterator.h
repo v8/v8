@@ -77,7 +77,7 @@ class JSSegmentIterator : public JSObject {
 
 // Bit positions in |flags|.
 #define FLAGS_BIT_FIELDS(V, _)                       \
-  V(GranularityBits, JSSegmenter::Granularity, 3, _) \
+  V(GranularityBits, JSSegmenter::Granularity, 2, _) \
   V(BreakTypeSetBits, bool, 1, _)
   DEFINE_BIT_FIELDS(FLAGS_BIT_FIELDS)
 #undef FLAGS_BIT_FIELDS
@@ -85,7 +85,6 @@ class JSSegmentIterator : public JSObject {
   STATIC_ASSERT(JSSegmenter::Granularity::GRAPHEME <= GranularityBits::kMax);
   STATIC_ASSERT(JSSegmenter::Granularity::WORD <= GranularityBits::kMax);
   STATIC_ASSERT(JSSegmenter::Granularity::SENTENCE <= GranularityBits::kMax);
-  STATIC_ASSERT(JSSegmenter::Granularity::LINE <= GranularityBits::kMax);
 
   // [flags] Bit field containing various flags about the function.
   DECL_INT_ACCESSORS(flags)
