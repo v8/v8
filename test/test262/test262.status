@@ -506,12 +506,6 @@
   'language/expressions/call/eval-spread-empty-leading': [FAIL],
   'language/expressions/call/eval-spread-empty-trailing': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=8398
-  'intl402/supportedLocalesOf-returned-array-elements-are-frozen': [FAIL],
-  'intl402/ListFormat/constructor/supportedLocalesOf/result-type': [FAIL],
-  'intl402/RelativeTimeFormat/constructor/supportedLocalesOf/result-type': [FAIL],
-  'intl402/Segmenter/constructor/supportedLocalesOf/result-type': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=7472
   'intl402/NumberFormat/currency-digits': [FAIL],
 
@@ -520,9 +514,6 @@
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7483
   'annexB/built-ins/Function/createdynfn-html-close-comment-params': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=8614
-  'intl402/ListFormat/constructor/constructor/options-order': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=8260
   'intl402/Locale/constructor-non-iana-canon': [FAIL],
