@@ -16,7 +16,8 @@
 
 #include "include/v8-profiler.h"
 #include "src/allocation.h"
-#include "src/log.h"
+#include "src/builtins/builtins.h"
+#include "src/code-events.h"
 #include "src/profiler/strings-storage.h"
 #include "src/source-position.h"
 
@@ -194,7 +195,7 @@ class CodeEntry {
   static base::LazyDynamicInstance<CodeEntry, UnresolvedEntryCreateTrait>::type
       kUnresolvedEntry;
 
-  using TagField = BitField<Logger::LogEventsAndTags, 0, 8>;
+  using TagField = BitField<CodeEventListener::LogEventsAndTags, 0, 8>;
   using BuiltinIdField = BitField<Builtins::Name, 8, 23>;
   using UsedField = BitField<bool, 31, 1>;
 
@@ -337,6 +338,7 @@ class ProfileTree {
   DISALLOW_COPY_AND_ASSIGN(ProfileTree);
 };
 
+class CpuProfiler;
 
 class CpuProfile {
  public:

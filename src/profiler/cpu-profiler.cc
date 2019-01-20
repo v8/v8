@@ -14,7 +14,7 @@
 #include "src/deoptimizer.h"
 #include "src/frames-inl.h"
 #include "src/locked-queue-inl.h"
-#include "src/log-inl.h"
+#include "src/log.h"
 #include "src/profiler/cpu-profiler-inl.h"
 #include "src/vm-state-inl.h"
 
@@ -369,8 +369,8 @@ void CpuProfiler::StartProcessorIfNotStarted() {
   }
   Logger* logger = isolate_->logger();
   // Disable logging when using the new implementation.
-  saved_is_logging_ = logger->is_logging_;
-  logger->is_logging_ = false;
+  saved_is_logging_ = logger->is_logging();
+  logger->set_is_logging(false);
 
   bool codemap_needs_initialization = false;
   if (!generator_) {
@@ -423,7 +423,7 @@ void CpuProfiler::StopProcessor() {
   logger->RemoveCodeEventListener(profiler_listener_.get());
   processor_->StopSynchronously();
   processor_.reset();
-  logger->is_logging_ = saved_is_logging_;
+  logger->set_is_logging(saved_is_logging_);
 }
 
 

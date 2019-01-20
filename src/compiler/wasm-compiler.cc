@@ -35,7 +35,7 @@
 #include "src/heap/factory.h"
 #include "src/interface-descriptors.h"
 #include "src/isolate-inl.h"
-#include "src/log-inl.h"
+#include "src/log.h"
 #include "src/objects/heap-number.h"
 #include "src/optimized-compilation-info.h"
 #include "src/tracing/trace-event.h"

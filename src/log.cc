@@ -780,9 +780,6 @@ class Profiler: public base::Thread {
 
   // Inserts collected profiling data into buffer.
   void Insert(v8::TickSample* sample) {
-    if (paused_)
-      return;
-
     if (Succ(head_) == static_cast<int>(base::Relaxed_Load(&tail_))) {
       overflow_ = true;
     } else {
@@ -793,10 +790,6 @@ class Profiler: public base::Thread {
   }
 
   void Run() override;
-
-  // Pause and Resume TickSample data collection.
-  void Pause() { paused_ = true; }
-  void Resume() { paused_ = false; }
 
  private:
   // Waits for a signal and removes profiling data.
@@ -824,14 +817,8 @@ class Profiler: public base::Thread {
   // Semaphore used for buffer synchronization.
   base::Semaphore buffer_semaphore_;
 
-  // Tells whether profiler is engaged, that is, processing thread is stated.
-  bool engaged_;
-
   // Tells whether worker thread should continue running.
   base::Atomic32 running_;
-
-  // Tells whether we are currently recording tick samples.
-  bool paused_;
 };
 
 
@@ -843,12 +830,11 @@ class Ticker: public sampler::Sampler {
  public:
   Ticker(Isolate* isolate, int interval_microseconds)
       : sampler::Sampler(reinterpret_cast<v8::Isolate*>(isolate)),
-        profiler_(nullptr),
-        sampling_thread_(new SamplingThread(this, interval_microseconds)) {}
+        sampling_thread_(
+            base::make_unique<SamplingThread>(this, interval_microseconds)) {}
 
   ~Ticker() override {
     if (IsActive()) Stop();
-    delete sampling_thread_;
   }
 
   void SetProfiler(Profiler* profiler) {
@@ -873,8 +859,8 @@ class Ticker: public sampler::Sampler {
   }
 
  private:
-  Profiler* profiler_;
-  SamplingThread* sampling_thread_;
+  Profiler* profiler_ = nullptr;
+  std::unique_ptr<SamplingThread> sampling_thread_;
 };
 
 //
@@ -885,18 +871,12 @@ Profiler::Profiler(Isolate* isolate)
       isolate_(isolate),
       head_(0),
       overflow_(false),
-      buffer_semaphore_(0),
-      engaged_(false),
-      paused_(false) {
+      buffer_semaphore_(0) {
   base::Relaxed_Store(&tail_, 0);
   base::Relaxed_Store(&running_, 0);
 }
 
-
 void Profiler::Engage() {
-  if (engaged_) return;
-  engaged_ = true;
-
   std::vector<base::OS::SharedLibraryAddress> addresses =
       base::OS::GetSharedLibraryAddresses();
   for (const auto& address : addresses) {
@@ -917,8 +897,6 @@ void Profiler::Engage() {
 
 
 void Profiler::Disengage() {
-  if (!engaged_) return;
-
   // Stop receiving ticks.
   isolate_->logger()->ticker_->ClearProfiler();
 
@@ -927,8 +905,6 @@ void Profiler::Disengage() {
   // the thread to terminate.
   base::Relaxed_Store(&running_, 0);
   v8::TickSample sample;
-  // Reset 'paused_' flag, otherwise semaphore may not be signalled.
-  Resume();
   Insert(&sample);
   Join();
 
@@ -952,15 +928,9 @@ void Profiler::Run() {
 
 Logger::Logger(Isolate* isolate)
     : isolate_(isolate),
-      ticker_(nullptr),
-      profiler_(nullptr),
       log_events_(nullptr),
       is_logging_(false),
       log_(nullptr),
-      perf_basic_logger_(nullptr),
-      perf_jit_logger_(nullptr),
-      ll_logger_(nullptr),
-      jit_logger_(nullptr),
       is_initialized_(false),
       existing_code_logger_(isolate) {}
 
@@ -1427,13 +1397,13 @@ void CodeLinePosEvent(JitLogger* jit_logger, Address code_start,
 void Logger::CodeLinePosInfoRecordEvent(Address code_start,
                                         ByteArray source_position_table) {
   SourcePositionTableIterator iter(source_position_table);
-  CodeLinePosEvent(jit_logger_, code_start, iter);
+  CodeLinePosEvent(jit_logger_.get(), code_start, iter);
 }
 
 void Logger::CodeLinePosInfoRecordEvent(
     Address code_start, Vector<const byte> source_position_table) {
   SourcePositionTableIterator iter(source_position_table);
-  CodeLinePosEvent(jit_logger_, code_start, iter);
+  CodeLinePosEvent(jit_logger_.get(), code_start, iter);
 }
 
 void Logger::CodeNameEvent(Address addr, int pos, const char* code_name) {
@@ -1722,21 +1692,6 @@ void Logger::MapDetails(Map map) {
   msg.WriteToLogFile();
 }
 
-void Logger::StopProfiler() {
-  if (!log_->IsEnabled()) return;
-  if (profiler_ != nullptr) {
-    profiler_->Pause();
-    is_logging_ = false;
-    RemoveCodeEventListener(this);
-  }
-}
-
-// This function can be called when Log's mutex is acquired,
-// either from main or Profiler's thread.
-void Logger::LogFailure() {
-  StopProfiler();
-}
-
 static void AddFunctionAndCode(SharedFunctionInfo sfi, AbstractCode code_object,
                                Handle<SharedFunctionInfo>* sfis,
                                Handle<AbstractCode>* code_objects, int offset) {
@@ -1929,21 +1884,21 @@ bool Logger::SetUp(Isolate* isolate) {
   log_ = new Log(this, log_file_name.str().c_str());
 
   if (FLAG_perf_basic_prof) {
-    perf_basic_logger_ = new PerfBasicLogger(isolate);
-    AddCodeEventListener(perf_basic_logger_);
+    perf_basic_logger_.reset(new PerfBasicLogger(isolate));
+    AddCodeEventListener(perf_basic_logger_.get());
   }
 
   if (FLAG_perf_prof) {
-    perf_jit_logger_ = new PerfJitLogger(isolate);
-    AddCodeEventListener(perf_jit_logger_);
+    perf_jit_logger_.reset(new PerfJitLogger(isolate));
+    AddCodeEventListener(perf_jit_logger_.get());
   }
 
   if (FLAG_ll_prof) {
-    ll_logger_ = new LowLevelLogger(isolate, log_file_name.str().c_str());
-    AddCodeEventListener(ll_logger_);
+    ll_logger_.reset(new LowLevelLogger(isolate, log_file_name.str().c_str()));
+    AddCodeEventListener(ll_logger_.get());
   }
 
-  ticker_ = new Ticker(isolate, FLAG_prof_sampling_interval);
+  ticker_.reset(new Ticker(isolate, FLAG_prof_sampling_interval));
 
   if (Log::InitLogAtStart()) {
     is_logging_ = true;
@@ -1952,7 +1907,7 @@ bool Logger::SetUp(Isolate* isolate) {
   timer_.Start();
 
   if (FLAG_prof_cpp) {
-    profiler_ = new Profiler(isolate);
+    profiler_.reset(new Profiler(isolate));
     is_logging_ = true;
     profiler_->Engage();
   }
@@ -1968,14 +1923,13 @@ bool Logger::SetUp(Isolate* isolate) {
 void Logger::SetCodeEventHandler(uint32_t options,
                                  JitCodeEventHandler event_handler) {
   if (jit_logger_) {
-    RemoveCodeEventListener(jit_logger_);
-    delete jit_logger_;
-    jit_logger_ = nullptr;
+    RemoveCodeEventListener(jit_logger_.get());
+    jit_logger_.reset();
   }
 
   if (event_handler) {
-    jit_logger_ = new JitLogger(isolate_, event_handler);
-    AddCodeEventListener(jit_logger_);
+    jit_logger_.reset(new JitLogger(isolate_, event_handler));
+    AddCodeEventListener(jit_logger_.get());
     if (options & kJitCodeEventEnumExisting) {
       HandleScope scope(isolate_);
       LogCodeObjects();
@@ -1984,15 +1938,12 @@ void Logger::SetCodeEventHandler(uint32_t options,
   }
 }
 
-sampler::Sampler* Logger::sampler() {
-  return ticker_;
-}
+sampler::Sampler* Logger::sampler() { return ticker_.get(); }
 
 void Logger::StopProfilerThread() {
   if (profiler_ != nullptr) {
     profiler_->Disengage();
-    delete profiler_;
-    profiler_ = nullptr;
+    profiler_.reset();
   }
 }
 
@@ -2003,31 +1954,26 @@ FILE* Logger::TearDown() {
   // Stop the profiler thread before closing the file.
   StopProfilerThread();
 
-  delete ticker_;
-  ticker_ = nullptr;
+  ticker_.reset();
 
   if (perf_basic_logger_) {
-    RemoveCodeEventListener(perf_basic_logger_);
-    delete perf_basic_logger_;
-    perf_basic_logger_ = nullptr;
+    RemoveCodeEventListener(perf_basic_logger_.get());
+    perf_basic_logger_.reset();
   }
 
   if (perf_jit_logger_) {
-    RemoveCodeEventListener(perf_jit_logger_);
-    delete perf_jit_logger_;
-    perf_jit_logger_ = nullptr;
+    RemoveCodeEventListener(perf_jit_logger_.get());
+    perf_jit_logger_.reset();
   }
 
   if (ll_logger_) {
-    RemoveCodeEventListener(ll_logger_);
-    delete ll_logger_;
-    ll_logger_ = nullptr;
+    RemoveCodeEventListener(ll_logger_.get());
+    ll_logger_.reset();
   }
 
   if (jit_logger_) {
-    RemoveCodeEventListener(jit_logger_);
-    delete jit_logger_;
-    jit_logger_ = nullptr;
+    RemoveCodeEventListener(jit_logger_.get());
+    jit_logger_.reset();
   }
 
   return log_->Close();

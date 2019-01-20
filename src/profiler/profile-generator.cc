@@ -88,20 +88,22 @@ base::LazyDynamicInstance<CodeEntry,
     CodeEntry::kUnresolvedEntry = LAZY_DYNAMIC_INSTANCE_INITIALIZER;
 
 CodeEntry* CodeEntry::ProgramEntryCreateTrait::Create() {
-  return new CodeEntry(Logger::FUNCTION_TAG, CodeEntry::kProgramEntryName);
+  return new CodeEntry(CodeEventListener::FUNCTION_TAG,
+                       CodeEntry::kProgramEntryName);
 }
 
 CodeEntry* CodeEntry::IdleEntryCreateTrait::Create() {
-  return new CodeEntry(Logger::FUNCTION_TAG, CodeEntry::kIdleEntryName);
+  return new CodeEntry(CodeEventListener::FUNCTION_TAG,
+                       CodeEntry::kIdleEntryName);
 }
 
 CodeEntry* CodeEntry::GCEntryCreateTrait::Create() {
-  return new CodeEntry(Logger::BUILTIN_TAG,
+  return new CodeEntry(CodeEventListener::BUILTIN_TAG,
                        CodeEntry::kGarbageCollectorEntryName);
 }
 
 CodeEntry* CodeEntry::UnresolvedEntryCreateTrait::Create() {
-  return new CodeEntry(Logger::FUNCTION_TAG,
+  return new CodeEntry(CodeEventListener::FUNCTION_TAG,
                        CodeEntry::kUnresolvedFunctionName);
 }
 

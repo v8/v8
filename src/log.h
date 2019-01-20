@@ -257,13 +257,12 @@ class Logger : public CodeEventListener {
     return is_logging_;
   }
 
+  // Used by CpuProfiler. TODO(petermarshall): Untangle
+  void set_is_logging(bool new_value) { is_logging_ = new_value; }
+
   bool is_listening_to_code_events() override {
     return is_logging() || jit_logger_ != nullptr;
   }
-
-  // Stop collection of profiling data.
-  // When data collection is paused, CPU Tick events are discarded.
-  void StopProfiler();
 
   void LogExistingFunction(Handle<SharedFunctionInfo> shared,
                            Handle<AbstractCode> code);
@@ -279,9 +278,6 @@ class Logger : public CodeEventListener {
   // Converts tag to a corresponding NATIVE_... if the script is native.
   V8_INLINE static CodeEventListener::LogEventsAndTags ToNativeByScript(
       CodeEventListener::LogEventsAndTags, Script);
-
-  // Callback from Log, stops profiling in case of insufficient resources.
-  void LogFailure();
 
   // Used for logging stubs found in the snapshot.
   void LogCodeObject(Object code_object);
@@ -321,12 +317,12 @@ class Logger : public CodeEventListener {
   Isolate* isolate_;
 
   // The sampler used by the profiler and the sliding state window.
-  Ticker* ticker_;
+  std::unique_ptr<Ticker> ticker_;
 
   // When the statistical profile is active, profiler_
   // points to a Profiler, that handles collection
   // of samples.
-  Profiler* profiler_;
+  std::unique_ptr<Profiler> profiler_;
 
   // An array of log events names.
   const char* const* log_events_;
@@ -342,10 +338,10 @@ class Logger : public CodeEventListener {
 
   bool is_logging_;
   Log* log_;
-  PerfBasicLogger* perf_basic_logger_;
-  PerfJitLogger* perf_jit_logger_;
-  LowLevelLogger* ll_logger_;
-  JitLogger* jit_logger_;
+  std::unique_ptr<PerfBasicLogger> perf_basic_logger_;
+  std::unique_ptr<PerfJitLogger> perf_jit_logger_;
+  std::unique_ptr<LowLevelLogger> ll_logger_;
+  std::unique_ptr<JitLogger> jit_logger_;
   std::set<int> logged_source_code_;
   uint32_t next_source_info_id_ = 0;
 
@@ -356,8 +352,6 @@ class Logger : public CodeEventListener {
   ExistingCodeLogger existing_code_logger_;
 
   base::ElapsedTimer timer_;
-
-  friend class CpuProfiler;
 };
 
 #define TIMER_EVENTS_LIST(V)     \

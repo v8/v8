@@ -458,7 +458,7 @@ TEST(EquivalenceOfLoggingAndTraversal) {
         "  obj.test =\n"
         "    (function a(j) { return function b() { return j; } })(100);\n"
         "})(this);");
-    logger.logger()->StopProfiler();
+    logger.logger()->StopProfilerThread();
     CcTest::PreciseCollectAllGarbage();
     logger.StringEvent("test-logging-done", "");
 
