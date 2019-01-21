@@ -158,7 +158,7 @@ class BaseConsumedPreparseData : public ConsumedPreparseData {
   void RestoreScopeAllocationData(DeclarationScope* scope) final;
 
 #ifdef DEBUG
-  void VerifyDataStart();
+  bool VerifyDataStart();
 #endif
 
  private:

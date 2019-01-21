@@ -2254,6 +2254,12 @@ void PreparseData::PreparseDataPrint(std::ostream& os) {  // NOLINT
   PrintHeader(os, "PreparseData");
   os << "\n - data_length: " << data_length();
   os << "\n - children_length: " << children_length();
+  if (data_length() > 0) {
+    os << "\n - data-start: " << (address() + kDataStartOffset);
+  }
+  if (children_length() > 0) {
+    os << "\n - children-start: " << inner_start_offset();
+  }
   for (int i = 0; i < children_length(); ++i) {
     os << "\n - [" << i << "]: " << Brief(get_child(i));
   }

@@ -2440,9 +2440,7 @@ bool Parser::SkipFunction(const AstRawString* function_name, FunctionKind kind,
     LanguageMode language_mode;
     int num_inner_functions;
     bool uses_super_property;
-    if (stack_overflow()) {
-      return true;
-    }
+    if (stack_overflow()) return true;
     *produced_preparse_data =
         consumed_preparse_data_->GetDataForSkippableFunction(
             main_zone(), function_scope->start_position(), &end_position,
