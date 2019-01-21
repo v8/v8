@@ -73,23 +73,19 @@ static void RunSampler(v8::Local<v8::Context> env,
                        v8::Local<v8::Value> argv[], int argc,
                        unsigned min_js_samples = 0,
                        unsigned min_external_samples = 0) {
-  Sampler::SetUp();
-  TestSampler* sampler = new TestSampler(env->GetIsolate());
-  TestSamplingThread* thread = new TestSamplingThread(sampler);
-  sampler->IncreaseProfilingDepth();
-  sampler->Start();
-  sampler->StartCountingSamples();
-  thread->StartSynchronously();
+  TestSampler sampler(env->GetIsolate());
+  TestSamplingThread thread(&sampler);
+  sampler.IncreaseProfilingDepth();
+  sampler.Start();
+  sampler.StartCountingSamples();
+  thread.StartSynchronously();
   do {
     function->Call(env, env->Global(), argc, argv).ToLocalChecked();
-  } while (sampler->js_sample_count() < min_js_samples ||
-           sampler->external_sample_count() < min_external_samples);
-  sampler->Stop();
-  sampler->DecreaseProfilingDepth();
-  thread->Join();
-  delete thread;
-  delete sampler;
-  Sampler::TearDown();
+  } while (sampler.js_sample_count() < min_js_samples ||
+           sampler.external_sample_count() < min_external_samples);
+  sampler.Stop();
+  sampler.DecreaseProfilingDepth();
+  thread.Join();
 }
 
 }  // namespace

@@ -307,24 +307,18 @@ class Sampler::PlatformData {
 #if defined(USE_SIGNALS)
 class SignalHandler {
  public:
-  static void SetUp() { if (!mutex_) mutex_ = new base::Mutex(); }
-  static void TearDown() {
-    delete mutex_;
-    mutex_ = nullptr;
-  }
-
   static void IncreaseSamplerCount() {
-    base::MutexGuard lock_guard(mutex_);
+    base::MutexGuard lock_guard(mutex_.Pointer());
     if (++client_count_ == 1) Install();
   }
 
   static void DecreaseSamplerCount() {
-    base::MutexGuard lock_guard(mutex_);
+    base::MutexGuard lock_guard(mutex_.Pointer());
     if (--client_count_ == 0) Restore();
   }
 
   static bool Installed() {
-    base::MutexGuard lock_guard(mutex_);
+    base::MutexGuard lock_guard(mutex_.Pointer());
     return signal_handler_installed_;
   }
 
@@ -353,13 +347,13 @@ class SignalHandler {
   static void HandleProfilerSignal(int signal, siginfo_t* info, void* context);
 
   // Protects the process wide state below.
-  static base::Mutex* mutex_;
+  static base::LazyMutex mutex_;
   static int client_count_;
   static bool signal_handler_installed_;
   static struct sigaction old_signal_handler_;
 };
 
-base::Mutex* SignalHandler::mutex_ = nullptr;
+base::LazyMutex SignalHandler::mutex_ = LAZY_MUTEX_INITIALIZER;
 int SignalHandler::client_count_ = 0;
 struct sigaction SignalHandler::old_signal_handler_;
 bool SignalHandler::signal_handler_installed_ = false;
@@ -518,31 +512,8 @@ void SignalHandler::FillRegisterState(void* context, RegisterState* state) {
 
 #endif  // USE_SIGNALS
 
-
-void Sampler::SetUp() {
-#if defined(USE_SIGNALS)
-  SignalHandler::SetUp();
-#endif
-}
-
-
-void Sampler::TearDown() {
-#if defined(USE_SIGNALS)
-  SignalHandler::TearDown();
-#endif
-}
-
 Sampler::Sampler(Isolate* isolate)
-    : is_counting_samples_(false),
-      js_sample_count_(0),
-      external_sample_count_(0),
-      isolate_(isolate),
-      profiling_(false),
-      has_processing_thread_(false),
-      active_(false),
-      registered_(false) {
-  data_ = new PlatformData;
-}
+    : isolate_(isolate), data_(base::make_unique<PlatformData>()) {}
 
 void Sampler::UnregisterIfRegistered() {
 #if defined(USE_SIGNALS)
@@ -556,7 +527,6 @@ void Sampler::UnregisterIfRegistered() {
 Sampler::~Sampler() {
   DCHECK(!IsActive());
   DCHECK(!IsRegistered());
-  delete data_;
 }
 
 void Sampler::Start() {
@@ -579,7 +549,7 @@ void Sampler::Stop() {
 
 
 void Sampler::IncreaseProfilingDepth() {
-  base::Relaxed_AtomicIncrement(&profiling_, 1);
+  profiling_++;
 #if defined(USE_SIGNALS)
   SignalHandler::IncreaseSamplerCount();
 #endif
@@ -590,7 +560,7 @@ void Sampler::DecreaseProfilingDepth() {
 #if defined(USE_SIGNALS)
   SignalHandler::DecreaseSamplerCount();
 #endif
-  base::Relaxed_AtomicIncrement(&profiling_, -1);
+  profiling_--;
 }
 
 

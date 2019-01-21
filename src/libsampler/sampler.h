@@ -5,10 +5,10 @@
 #ifndef V8_LIBSAMPLER_SAMPLER_H_
 #define V8_LIBSAMPLER_SAMPLER_H_
 
+#include <atomic>
 #include <unordered_map>
 
 #include "include/v8.h"
-#include "src/base/atomicops.h"
 #include "src/base/lazy-instance.h"
 #include "src/base/macros.h"
 
@@ -31,10 +31,6 @@ class Sampler {
   static const int kMaxFramesCountLog2 = 8;
   static const unsigned kMaxFramesCount = (1u << kMaxFramesCountLog2) - 1;
 
-  // Initializes the Sampler support. Called once at VM startup.
-  static void SetUp();
-  static void TearDown();
-
   // Initialize sampler.
   explicit Sampler(Isolate* isolate);
   virtual ~Sampler();
@@ -52,19 +48,20 @@ class Sampler {
 
   // Whether the sampling thread should use this Sampler for CPU profiling?
   bool IsProfiling() const {
-    return base::Relaxed_Load(&profiling_) > 0 &&
-           !base::Relaxed_Load(&has_processing_thread_);
+    return profiling_.load(std::memory_order_relaxed) > 0;
   }
   void IncreaseProfilingDepth();
   void DecreaseProfilingDepth();
 
   // Whether the sampler is running (that is, consumes resources).
-  bool IsActive() const { return base::Relaxed_Load(&active_) != 0; }
+  bool IsActive() const { return active_.load(std::memory_order_relaxed); }
 
   // CpuProfiler collects samples by calling DoSample directly
   // without calling Start. To keep it working, we register the sampler
   // with the CpuProfiler.
-  bool IsRegistered() const { return base::Relaxed_Load(&registered_) != 0; }
+  bool IsRegistered() const {
+    return registered_.load(std::memory_order_relaxed);
+  }
 
   // The sampler must be unregistered with the SamplerManager before ~Sampler()
   // is called. If this doesn't happen, the signal handler might interrupt
@@ -73,10 +70,6 @@ class Sampler {
   void UnregisterIfRegistered();
 
   void DoSample();
-
-  void SetHasProcessingThread(bool value) {
-    base::Relaxed_Store(&has_processing_thread_, value);
-  }
 
   // Used in tests to make sure that stack sampling is performed.
   unsigned js_sample_count() const { return js_sample_count_; }
@@ -88,23 +81,26 @@ class Sampler {
   }
 
   class PlatformData;
-  PlatformData* platform_data() const { return data_; }
+  PlatformData* platform_data() const { return data_.get(); }
 
  protected:
   // Counts stack samples taken in various VM states.
-  bool is_counting_samples_;
-  unsigned js_sample_count_;
-  unsigned external_sample_count_;
+  bool is_counting_samples_ = 0;
+  unsigned js_sample_count_ = 0;
+  unsigned external_sample_count_ = 0;
 
-  void SetActive(bool value) { base::Relaxed_Store(&active_, value); }
-  void SetRegistered(bool value) { base::Relaxed_Store(&registered_, value); }
+  void SetActive(bool value) {
+    active_.store(value, std::memory_order_relaxed);
+  }
+  void SetRegistered(bool value) {
+    registered_.store(value, std::memory_order_relaxed);
+  }
 
   Isolate* isolate_;
-  base::Atomic32 profiling_;
-  base::Atomic32 has_processing_thread_;
-  base::Atomic32 active_;
-  base::Atomic32 registered_;
-  PlatformData* data_;  // Platform specific data.
+  std::atomic<std::int32_t> profiling_{0};
+  std::atomic_bool active_{false};
+  std::atomic_bool registered_{false};
+  std::unique_ptr<PlatformData> data_;  // Platform specific data.
   DISALLOW_IMPLICIT_CONSTRUCTORS(Sampler);
 };
 
