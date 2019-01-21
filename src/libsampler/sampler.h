@@ -5,10 +5,16 @@
 #ifndef V8_LIBSAMPLER_SAMPLER_H_
 #define V8_LIBSAMPLER_SAMPLER_H_
 
-#include "include/v8.h"
+#include <unordered_map>
 
+#include "include/v8.h"
 #include "src/base/atomicops.h"
+#include "src/base/lazy-instance.h"
 #include "src/base/macros.h"
+
+#if V8_OS_POSIX && !V8_OS_CYGWIN && !V8_OS_FUCHSIA
+#define USE_SIGNALS
+#endif
 
 namespace v8 {
 namespace sampler {
@@ -90,7 +96,6 @@ class Sampler {
   unsigned js_sample_count_;
   unsigned external_sample_count_;
 
- private:
   void SetActive(bool value) { base::Relaxed_Store(&active_, value); }
   void SetRegistered(bool value) { base::Relaxed_Store(&registered_, value); }
 
@@ -102,6 +107,67 @@ class Sampler {
   PlatformData* data_;  // Platform specific data.
   DISALLOW_IMPLICIT_CONSTRUCTORS(Sampler);
 };
+
+#ifdef USE_SIGNALS
+
+typedef std::atomic_bool AtomicMutex;
+
+// A helper that uses an std::atomic_bool to create a lock that is obtained on
+// construction and released on destruction.
+class AtomicGuard {
+ public:
+  // Attempt to obtain the lock represented by |atomic|. |is_blocking|
+  // determines whether we will block to obtain the lock, or only make one
+  // attempt to gain the lock and then stop. If we fail to gain the lock,
+  // is_success will be false.
+  explicit AtomicGuard(AtomicMutex* atomic, bool is_blocking = true);
+
+  // Releases the lock represented by atomic, if it is held by this guard.
+  ~AtomicGuard();
+
+  // Whether the lock was successfully obtained in the constructor. This will
+  // always be true if is_blocking was true.
+  bool is_success() const;
+
+ private:
+  AtomicMutex* const atomic_;
+  bool is_success_;
+};
+
+// SamplerManager keeps a list of Samplers per thread, and allows the caller to
+// take a sample for every Sampler on the current thread.
+class SamplerManager {
+ public:
+  typedef std::vector<Sampler*> SamplerList;
+
+  // Add |sampler| to the map if it is not already present.
+  void AddSampler(Sampler* sampler);
+
+  // If |sampler| exists in the map, remove it and delete the SamplerList if
+  // |sampler| was the last sampler in the list.
+  void RemoveSampler(Sampler* sampler);
+
+  // Take a sample for every sampler on the current thread. This function can
+  // return without taking samples if AddSampler or RemoveSampler are being
+  // concurrently called on any thread.
+  void DoSample(const v8::RegisterState& state);
+
+  // Get the lazily instantiated, global SamplerManager instance.
+  static SamplerManager* instance();
+
+ private:
+  SamplerManager() = default;
+  // Must be a friend so that it can access the private constructor for the
+  // global lazy instance.
+  friend class base::LeakyObject<SamplerManager>;
+
+  std::unordered_map<pthread_t, SamplerList> sampler_map_;
+  AtomicMutex samplers_access_counter_{false};
+
+  DISALLOW_COPY_AND_ASSIGN(SamplerManager);
+};
+
+#endif  // USE_SIGNALS
 
 }  // namespace sampler
 }  // namespace v8

@@ -4,9 +4,7 @@
 
 #include "src/libsampler/sampler.h"
 
-#if V8_OS_POSIX && !V8_OS_CYGWIN && !V8_OS_FUCHSIA
-
-#define USE_SIGNALS
+#ifdef USE_SIGNALS
 
 #include <errno.h>
 #include <pthread.h>
@@ -57,7 +55,6 @@ typedef zx_arm64_general_regs_t zx_thread_state_general_regs_t;
 #endif
 
 #include <algorithm>
-#include <unordered_map>
 #include <vector>
 
 #include "src/base/atomic-utils.h"
@@ -170,40 +167,24 @@ enum { REG_RBP = 10, REG_RSP = 15, REG_RIP = 16 };
 namespace v8 {
 namespace sampler {
 
-namespace {
-
 #if defined(USE_SIGNALS)
-typedef std::atomic_bool AtomicMutex;
 
-class AtomicGuard {
- public:
-  explicit AtomicGuard(AtomicMutex* atomic, bool is_blocking = true)
-      : atomic_(atomic), is_success_(false) {
-    do {
-      bool expected = false;
-      // We have to use the strong version here for the case where is_blocking
-      // is false, and we will only attempt the exchange once.
-      is_success_ = atomic->compare_exchange_strong(expected, true);
-    } while (is_blocking && !is_success_);
-  }
+AtomicGuard::AtomicGuard(AtomicMutex* atomic, bool is_blocking)
+    : atomic_(atomic), is_success_(false) {
+  do {
+    bool expected = false;
+    // We have to use the strong version here for the case where is_blocking
+    // is false, and we will only attempt the exchange once.
+    is_success_ = atomic->compare_exchange_strong(expected, true);
+  } while (is_blocking && !is_success_);
+}
 
-  bool is_success() const { return is_success_; }
+AtomicGuard::~AtomicGuard() {
+  if (!is_success_) return;
+  atomic_->store(false);
+}
 
-  ~AtomicGuard() {
-    if (!is_success_) return;
-    atomic_->store(false);
-  }
-
- private:
-  AtomicMutex* const atomic_;
-  bool is_success_;
-};
-
-#endif  // USE_SIGNALS
-
-}  // namespace
-
-#if defined(USE_SIGNALS)
+bool AtomicGuard::is_success() const { return is_success_; }
 
 class Sampler::PlatformData {
  public:
@@ -214,78 +195,57 @@ class Sampler::PlatformData {
   pthread_t vm_tid_;
 };
 
-// SamplerManager keeps a list of Samplers per thread, and allows the caller to
-// take a sample for every Sampler on the current thread.
-class SamplerManager {
- public:
-  SamplerManager() = default;
-
-  typedef std::vector<Sampler*> SamplerList;
-
-  // Add |sampler| to the map if it is not already present.
-  void AddSampler(Sampler* sampler) {
-    AtomicGuard atomic_guard(&samplers_access_counter_);
-    DCHECK(sampler->IsActive() || !sampler->IsRegistered());
-    pthread_t thread_id = sampler->platform_data()->vm_tid();
-    auto it = sampler_map_.find(thread_id);
-    if (it == sampler_map_.end()) {
-      SamplerList samplers;
-      samplers.push_back(sampler);
-      sampler_map_.emplace(thread_id, std::move(samplers));
-    } else {
-      SamplerList& samplers = it->second;
-      auto it = std::find(samplers.begin(), samplers.end(), sampler);
-      if (it == samplers.end()) samplers.push_back(sampler);
-    }
-  }
-
-  // If |sampler| exists in the map, remove it and delete the SamplerList if
-  // |sampler| was the last sampler in the list.
-  void RemoveSampler(Sampler* sampler) {
-    AtomicGuard atomic_guard(&samplers_access_counter_);
-    DCHECK(sampler->IsActive() || sampler->IsRegistered());
-    pthread_t thread_id = sampler->platform_data()->vm_tid();
-    auto it = sampler_map_.find(thread_id);
-    DCHECK_NE(it, sampler_map_.end());
+void SamplerManager::AddSampler(Sampler* sampler) {
+  AtomicGuard atomic_guard(&samplers_access_counter_);
+  DCHECK(sampler->IsActive() || !sampler->IsRegistered());
+  pthread_t thread_id = sampler->platform_data()->vm_tid();
+  auto it = sampler_map_.find(thread_id);
+  if (it == sampler_map_.end()) {
+    SamplerList samplers;
+    samplers.push_back(sampler);
+    sampler_map_.emplace(thread_id, std::move(samplers));
+  } else {
     SamplerList& samplers = it->second;
-    samplers.erase(std::remove(samplers.begin(), samplers.end(), sampler),
-                   samplers.end());
-    if (samplers.empty()) {
-      sampler_map_.erase(it);
-    }
+    auto it = std::find(samplers.begin(), samplers.end(), sampler);
+    if (it == samplers.end()) samplers.push_back(sampler);
   }
+}
 
-#if defined(USE_SIGNALS)
-  // Take a sample for every sampler on the current thread. This function can
-  // return without taking samples if AddSampler or RemoveSampler are being
-  // concurrently called on any thread.
-  void DoSample(const v8::RegisterState& state) {
-    AtomicGuard atomic_guard(&samplers_access_counter_, false);
-    if (!atomic_guard.is_success()) return;
-    pthread_t thread_id = pthread_self();
-    auto it = sampler_map_.find(thread_id);
-    if (it == sampler_map_.end()) return;
-    SamplerList& samplers = it->second;
-
-    for (Sampler* sampler : samplers) {
-      Isolate* isolate = sampler->isolate();
-      // We require a fully initialized and entered isolate.
-      if (isolate == nullptr || !isolate->IsInUse()) continue;
-      if (v8::Locker::IsActive() && !Locker::IsLocked(isolate)) continue;
-      sampler->SampleStack(state);
-    }
+void SamplerManager::RemoveSampler(Sampler* sampler) {
+  AtomicGuard atomic_guard(&samplers_access_counter_);
+  DCHECK(sampler->IsActive() || sampler->IsRegistered());
+  pthread_t thread_id = sampler->platform_data()->vm_tid();
+  auto it = sampler_map_.find(thread_id);
+  DCHECK_NE(it, sampler_map_.end());
+  SamplerList& samplers = it->second;
+  samplers.erase(std::remove(samplers.begin(), samplers.end(), sampler),
+                 samplers.end());
+  if (samplers.empty()) {
+    sampler_map_.erase(it);
   }
-#endif
+}
 
-  static SamplerManager* instance() {
-    static base::LeakyObject<SamplerManager> instance;
-    return instance.get();
+void SamplerManager::DoSample(const v8::RegisterState& state) {
+  AtomicGuard atomic_guard(&samplers_access_counter_, false);
+  if (!atomic_guard.is_success()) return;
+  pthread_t thread_id = pthread_self();
+  auto it = sampler_map_.find(thread_id);
+  if (it == sampler_map_.end()) return;
+  SamplerList& samplers = it->second;
+
+  for (Sampler* sampler : samplers) {
+    Isolate* isolate = sampler->isolate();
+    // We require a fully initialized and entered isolate.
+    if (isolate == nullptr || !isolate->IsInUse()) continue;
+    if (v8::Locker::IsActive() && !Locker::IsLocked(isolate)) continue;
+    sampler->SampleStack(state);
   }
+}
 
- private:
-  std::unordered_map<pthread_t, SamplerList> sampler_map_;
-  AtomicMutex samplers_access_counter_;
-};
+SamplerManager* SamplerManager::instance() {
+  static base::LeakyObject<SamplerManager> instance;
+  return instance.get();
+}
 
 #elif V8_OS_WIN || V8_OS_CYGWIN
 
