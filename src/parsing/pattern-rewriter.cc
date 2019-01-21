@@ -39,20 +39,19 @@ class PatternRewriter final : public AstVisitor<PatternRewriter> {
   typedef Parser::DeclarationDescriptor DeclarationDescriptor;
 
   static void InitializeVariables(
-      Parser* parser, const DeclarationDescriptor* declaration_descriptor,
+      Parser* parser, VariableKind kind,
       const Parser::DeclarationParsingResult::Declaration* declaration,
       ZonePtrList<const AstRawString>* names);
 
  private:
-  PatternRewriter(Parser* parser, const DeclarationDescriptor* descriptor,
-                  ZonePtrList<const AstRawString>* names, bool has_initializer,
+  PatternRewriter(Parser* parser, VariableKind kind,
+                  ZonePtrList<const AstRawString>* names,
                   int initializer_position = kNoSourcePosition,
                   bool declares_parameter_containing_sloppy_eval = false)
       : parser_(parser),
-        descriptor_(descriptor),
+        kind_(kind),
         names_(names),
         initializer_position_(initializer_position),
-        has_initializer_(has_initializer),
         declares_parameter_containing_sloppy_eval_(
             declares_parameter_containing_sloppy_eval) {}
 
@@ -90,23 +89,20 @@ class PatternRewriter final : public AstVisitor<PatternRewriter> {
   Scope* scope() const { return parser_->scope(); }
 
   Parser* const parser_;
-  const DeclarationDescriptor* descriptor_;
+  VariableKind kind_;
   ZonePtrList<const AstRawString>* names_;
   const int initializer_position_;
-  const bool has_initializer_;
   const bool declares_parameter_containing_sloppy_eval_;
 
   DEFINE_AST_VISITOR_MEMBERS_WITHOUT_STACKOVERFLOW()
 };
 
 void Parser::InitializeVariables(
-    ScopedPtrList<Statement>* statements,
-    const DeclarationDescriptor* declaration_descriptor,
+    ScopedPtrList<Statement>* statements, VariableKind kind,
     const DeclarationParsingResult::Declaration* declaration,
     ZonePtrList<const AstRawString>* names) {
   if (has_error()) return;
-  PatternRewriter::InitializeVariables(this, declaration_descriptor,
-                                       declaration, names);
+  PatternRewriter::InitializeVariables(this, kind, declaration, names);
 
   if (declaration->initializer) {
     int pos = declaration->value_beg_position;
@@ -120,88 +116,37 @@ void Parser::InitializeVariables(
 }
 
 void PatternRewriter::InitializeVariables(
-    Parser* parser, const DeclarationDescriptor* declaration_descriptor,
+    Parser* parser, VariableKind kind,
     const Parser::DeclarationParsingResult::Declaration* declaration,
     ZonePtrList<const AstRawString>* names) {
-  PatternRewriter rewriter(parser, declaration_descriptor, names,
-                           declaration->initializer != nullptr,
-                           declaration->initializer_position,
-                           declaration_descriptor->kind == PARAMETER_VARIABLE &&
-                               parser->scope()->is_block_scope());
+  PatternRewriter rewriter(
+      parser, kind, names, declaration->initializer_position,
+      kind == PARAMETER_VARIABLE && parser->scope()->is_block_scope());
 
   rewriter.RecurseIntoSubpattern(declaration->pattern);
 }
 
 void PatternRewriter::VisitVariableProxy(VariableProxy* proxy) {
-  DCHECK_NOT_NULL(descriptor_);
-
   Scope* target_scope = scope();
   if (declares_parameter_containing_sloppy_eval_) {
     // When an extra declaration scope needs to be inserted to account for
     // a sloppy eval in a default parameter or function body, the parameter
     // needs to be declared in the function's scope, not in the varblock
     // scope which will be used for the initializer expression.
-    DCHECK_EQ(descriptor_->mode, VariableMode::kLet);
     target_scope = target_scope->outer_scope();
   }
-  Scope* var_init_scope = scope();
 
-#ifdef DEBUG
-  // Calculate the scope we expect the variable to be declared in, for DCHECKs.
-  Scope* expected_declaration_scope =
-      declares_parameter_containing_sloppy_eval_
-          ? scope()->outer_scope()
-          : (IsLexicalVariableMode(descriptor_->mode)
-                 ? scope()
-                 : scope()->GetDeclarationScope());
-#endif
+  DCHECK(!parser_->has_error());
+  Variable* var =
+      proxy->is_resolved()
+          ? proxy->var()
+          : scope()->GetDeclarationScope()->LookupLocal(proxy->raw_name());
 
-  // Declare variable.
-  // Note that we *always* must treat the initial value via a separate init
-  // assignment for variables and constants because the value must be assigned
-  // when the variable is encountered in the source. But the variable/constant
-  // is declared (and set to 'undefined') upon entering the function within
-  // which the variable or constant is declared. Only function variables have
-  // an initial value in the declaration (because they are initialized upon
-  // entering the function).
+  // TODO(verwaest): Use ScopedPtrList of Variable(Proxy?) in the
+  // ExpressionScope instead.
+  if (kind_ == PARAMETER_VARIABLE) var->MakeNonSimpleParameter();
 
-  // A declaration of the form:
-  //
-  //    var v = x;
-  //
-  // is syntactic sugar for:
-  //
-  //    var v; v = x;
-  //
-  // In particular, we need to re-lookup 'v' if it may be a different 'v' than
-  // the 'v' in the declaration (e.g., if we are inside a 'with' statement or
-  // 'catch' block).
-  //
-  // For 'let' and 'const' declared variables the initialization always assigns
-  // to the declared variable. But for var initializations that are declared in
-  // a different scope we need to do a new lookup, so clone the variable for the
-  // declaration and don't consider the original variable resolved.
-  if (has_initializer_ && descriptor_->mode == VariableMode::kVar &&
-      !var_init_scope->is_declaration_scope()) {
-    DCHECK_EQ(target_scope->GetDeclarationScope(), expected_declaration_scope);
-    // The cloned variable is not added to the unresolved list of the target
-    // scope, as it is about to be resolved by the declaration. The original
-    // variable will be left unresolved for now.
-    var_init_scope->AddUnresolved(proxy);
-    proxy = factory()->NewVariableProxy(proxy->raw_name(), NORMAL_VARIABLE,
-                                        proxy->position());
-  }
-
-  parser_->DeclareVariable(
-      proxy, descriptor_->kind, descriptor_->mode,
-      Variable::DefaultInitializationFlag(descriptor_->mode), target_scope,
-      descriptor_->declaration_pos);
-
-  if (parser_->has_error()) return;
-  Variable* var = proxy->var();
   DCHECK_NOT_NULL(var);
-  DCHECK(proxy->is_resolved());
-  DCHECK_EQ(var->scope(), expected_declaration_scope);
   DCHECK_NE(initializer_position_, kNoSourcePosition);
   var->set_initializer_position(initializer_position_);
 

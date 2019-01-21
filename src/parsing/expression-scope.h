@@ -19,6 +19,10 @@ template <typename Types>
 class AccumulationScope;
 template <typename Types>
 class ArrowHeadParsingScope;
+template <typename Types>
+class ParameterDeclarationParsingScope;
+template <typename Types>
+class VariableDeclarationParsingScope;
 class VariableProxy;
 
 // ExpressionScope is used in a stack fashion, and is used to specialize
@@ -44,25 +48,10 @@ class ExpressionScope {
     VariableProxy* result = parser_->NewRawVariable(name, pos);
     if (CanBeExpression()) {
       AsExpressionParsingScope()->TrackVariable(result);
-    } else if (type_ == kVarDeclaration && parser_->loop_nesting_depth() > 0) {
-      // Due to hoisting, the value of a 'var'-declared variable may actually
-      // change even if the code contains only the "initial" assignment, namely
-      // when that assignment occurs inside a loop.  For example:
-      //
-      //   let i = 10;
-      //   do { var x = i } while (i--):
-      //
-      // Note that non-lexical variables include temporaries, which may also get
-      // assigned inside a loop due to the various rewritings that the parser
-      // performs.
-      //
-      // Pessimistically mark all vars in loops as assigned. This
-      // overapproximates the actual assigned vars due to unassigned var without
-      // initializer, but that's unlikely anyway.
-      //
-      // This also handles marking of loop variables in for-in and for-of loops,
-      // as determined by loop-nesting-depth.
-      result->set_is_assigned();
+    } else if (type_ == kParameterDeclaration) {
+      AsParameterDeclarationParsingScope()->Declare(result);
+    } else {
+      return AsVariableDeclarationParsingScope()->Declare(result);
     }
     return result;
   }
@@ -220,6 +209,7 @@ class ExpressionScope {
   bool IsVariableDeclaration() const {
     return IsInRange(type_, kVarDeclaration, kLexicalDeclaration);
   }
+  bool IsLexicalDeclaration() const { return type_ == kLexicalDeclaration; }
   bool IsAsyncArrowHeadParsingScope() const {
     return type_ == kMaybeAsyncArrowParameterDeclaration;
   }
@@ -231,6 +221,17 @@ class ExpressionScope {
   ArrowHeadParsingScope<Types>* AsArrowHeadParsingScope() {
     DCHECK(IsArrowHeadParsingScope());
     return static_cast<ArrowHeadParsingScope<Types>*>(this);
+  }
+
+  ParameterDeclarationParsingScope<Types>*
+  AsParameterDeclarationParsingScope() {
+    DCHECK(IsCertainlyParameterDeclaration());
+    return static_cast<ParameterDeclarationParsingScope<Types>*>(this);
+  }
+
+  VariableDeclarationParsingScope<Types>* AsVariableDeclarationParsingScope() {
+    DCHECK(IsVariableDeclaration());
+    return static_cast<VariableDeclarationParsingScope<Types>*>(this);
   }
 
   bool IsArrowHeadParsingScope() const {
@@ -245,7 +246,6 @@ class ExpressionScope {
   bool IsCertainlyParameterDeclaration() const {
     return type_ == kParameterDeclaration;
   }
-  bool IsLexicalDeclaration() const { return type_ == kLexicalDeclaration; }
 
   ParserT* parser_;
   ExpressionScope<Types>* parent_;
@@ -269,6 +269,45 @@ class VariableDeclarationParsingScope : public ExpressionScope<Types> {
                                      : ExpressionScopeT::kVarDeclaration),
         mode_(mode) {}
 
+  VariableProxy* Declare(VariableProxy* proxy) {
+    VariableKind kind = NORMAL_VARIABLE;
+    bool added;
+    this->parser()->DeclareVariable(
+        proxy, kind, mode_, Variable::DefaultInitializationFlag(mode_),
+        this->parser()->scope(), &added, proxy->position());
+    if (!this->IsLexicalDeclaration()) {
+      if (this->parser()->loop_nesting_depth() > 0) {
+        // Due to hoisting, the value of a 'var'-declared variable may actually
+        // change even if the code contains only the "initial" assignment,
+        // namely when that assignment occurs inside a loop.  For example:
+        //
+        //   let i = 10;
+        //   do { var x = i } while (i--):
+        //
+        // Note that non-lexical variables include temporaries, which may also
+        // get assigned inside a loop due to the various rewritings that the
+        // parser performs.
+        //
+        // Pessimistically mark all vars in loops as assigned. This
+        // overapproximates the actual assigned vars due to unassigned var
+        // without initializer, but that's unlikely anyway.
+        //
+        // This also handles marking of loop variables in for-in and for-of
+        // loops, as determined by loop-nesting-depth.
+        proxy->set_is_assigned();
+      }
+
+      // Make sure we'll properly resolve the variable since we might be in a
+      // with or catch scope. In those cases the assignment isn't guaranteed to
+      // write to the variable declared above.
+      if (!this->parser()->scope()->is_declaration_scope()) {
+        proxy =
+            this->parser()->NewUnresolved(proxy->raw_name(), proxy->position());
+      }
+    }
+    return proxy;
+  }
+
  private:
   VariableMode mode_;
 
@@ -285,7 +324,24 @@ class ParameterDeclarationParsingScope : public ExpressionScope<Types> {
   explicit ParameterDeclarationParsingScope(ParserT* parser)
       : ExpressionScopeT(parser, ExpressionScopeT::kParameterDeclaration) {}
 
+  void Declare(VariableProxy* proxy) {
+    VariableKind kind = PARAMETER_VARIABLE;
+    VariableMode mode = VariableMode::kVar;
+    bool added;
+    this->parser()->DeclareVariable(
+        proxy, kind, mode, Variable::DefaultInitializationFlag(mode),
+        this->parser()->scope(), &added, proxy->position());
+    if (!has_duplicate() && !added) {
+      duplicate_loc_ = proxy->location();
+    }
+  }
+
+  bool has_duplicate() const { return duplicate_loc_.IsValid(); }
+
+  const Scanner::Location& duplicate_location() const { return duplicate_loc_; }
+
  private:
+  Scanner::Location duplicate_loc_ = Scanner::Location::invalid();
   DISALLOW_COPY_AND_ASSIGN(ParameterDeclarationParsingScope);
 };
 
@@ -590,7 +646,20 @@ class ArrowHeadParsingScope : public ExpressionParsingScope<Types> {
 
     DeclarationScope* result = this->parser()->NewFunctionScope(kind());
     if (!has_simple_parameter_list_) result->SetHasNonSimpleParameters();
-    // TODO(verwaest): Add declarations.
+    VariableKind kind = PARAMETER_VARIABLE;
+    VariableMode mode =
+        has_simple_parameter_list_ ? VariableMode::kVar : VariableMode::kLet;
+    for (int i = 0; i < this->variable_list()->length(); i++) {
+      VariableProxy* proxy = this->variable_list()->at(i);
+      bool added;
+      this->parser()->DeclareVariable(proxy, kind, mode,
+                                      Variable::DefaultInitializationFlag(mode),
+                                      result, &added, proxy->position());
+      if (!added) {
+        ExpressionScope<Types>::Report(proxy->location(),
+                                       MessageTemplate::kParamDupe);
+      }
+    }
     return result;
   }
 

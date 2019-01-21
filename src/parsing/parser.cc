@@ -561,6 +561,11 @@ FunctionLiteral* Parser::DoParseProgram(Isolate* isolate, ParseInfo* info) {
       auto name = ast_value_factory()->empty_string();
       bool is_rest = false;
       bool is_optional = false;
+      VariableMode mode = VariableMode::kVar;
+      bool added;
+      scope->DeclareLocal(name, mode, PARAMETER_VARIABLE, &added,
+                          Variable::DefaultInitializationFlag(mode));
+      DCHECK(added);
       auto var = scope->DeclareParameter(name, VariableMode::kVar, is_optional,
                                          is_rest, ast_value_factory(), beg_pos);
       var->AllocateTo(VariableLocation::PARAMETER, 0);
@@ -802,6 +807,7 @@ FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
           ParseFormalParameter(&formals);
           DeclareFormalParameters(&formals);
         }
+        formals.duplicate_loc = formals_scope.duplicate_location();
       }
 
       if (GetLastFunctionLiteralId() != info->function_literal_id() - 1) {
@@ -1342,15 +1348,6 @@ Statement* Parser::ParseExportDeclaration() {
   return result;
 }
 
-VariableProxy* Parser::NewUnresolved(const AstRawString* name, int begin_pos,
-                                     VariableKind kind) {
-  return scope()->NewUnresolved(factory(), name, begin_pos, kind);
-}
-
-VariableProxy* Parser::NewUnresolved(const AstRawString* name) {
-  return scope()->NewUnresolved(factory(), name, scanner()->location().beg_pos);
-}
-
 VariableProxy* Parser::DeclareVariable(const AstRawString* name,
                                        VariableMode mode, int pos) {
   return DeclareVariable(name, mode, Variable::DefaultInitializationFlag(mode),
@@ -1363,14 +1360,15 @@ VariableProxy* Parser::DeclareVariable(const AstRawString* name,
   DCHECK_NOT_NULL(name);
   VariableProxy* proxy =
       factory()->NewVariableProxy(name, NORMAL_VARIABLE, position());
-  DeclareVariable(proxy, NORMAL_VARIABLE, mode, init, scope(), pos,
+  bool added;
+  DeclareVariable(proxy, NORMAL_VARIABLE, mode, init, scope(), &added, pos,
                   end_position());
   return proxy;
 }
 
 void Parser::DeclareVariable(VariableProxy* proxy, VariableKind kind,
                              VariableMode mode, InitializationFlag init,
-                             Scope* scope, int begin, int end) {
+                             Scope* scope, bool* added, int begin, int end) {
   Declaration* declaration;
   if (mode == VariableMode::kVar && !scope->is_declaration_scope()) {
     DCHECK(scope->is_block_scope() || scope->is_with_scope());
@@ -1378,15 +1376,16 @@ void Parser::DeclareVariable(VariableProxy* proxy, VariableKind kind,
   } else {
     declaration = factory()->NewVariableDeclaration(begin);
   }
-  Declare(declaration, proxy, kind, mode, init, scope, end);
+  return Declare(declaration, proxy, kind, mode, init, scope, added, end);
 }
 
 void Parser::Declare(Declaration* declaration, VariableProxy* proxy,
                      VariableKind variable_kind, VariableMode mode,
-                     InitializationFlag init, Scope* scope, int var_end_pos) {
+                     InitializationFlag init, Scope* scope, bool* added,
+                     int var_end_pos) {
   bool local_ok = true;
   bool sloppy_mode_block_scope_function_redefinition = false;
-  scope->DeclareVariable(declaration, proxy, mode, variable_kind, init,
+  scope->DeclareVariable(declaration, proxy, mode, variable_kind, init, added,
                          &sloppy_mode_block_scope_function_redefinition,
                          &local_ok);
   if (!local_ok) {
@@ -1412,7 +1411,7 @@ Statement* Parser::BuildInitializationBlock(
     ZonePtrList<const AstRawString>* names) {
   ScopedPtrList<Statement> statements(pointer_buffer());
   for (const auto& declaration : parsing_result->declarations) {
-    InitializeVariables(&statements, &(parsing_result->descriptor),
+    InitializeVariables(&statements, parsing_result->descriptor.kind,
                         &declaration, names);
   }
   return factory()->NewBlock(true, statements);
@@ -1427,8 +1426,9 @@ Statement* Parser::DeclareFunction(const AstRawString* variable_name,
       factory()->NewVariableProxy(variable_name, NORMAL_VARIABLE, beg_pos);
   Declaration* declaration = factory()->NewFunctionDeclaration(
       function, is_sloppy_block_function, beg_pos);
+  bool added;
   Declare(declaration, proxy, NORMAL_VARIABLE, mode, kCreatedInitialized,
-          scope());
+          scope(), &added);
   if (names) names->Add(variable_name, zone());
   if (is_sloppy_block_function) {
     SloppyBlockFunctionStatement* statement =
@@ -1594,11 +1594,6 @@ Statement* Parser::RewriteSwitchStatement(SwitchStatement* switch_statement,
 
 Block* Parser::RewriteCatchPattern(CatchInfo* catch_info) {
   DCHECK_NOT_NULL(catch_info->pattern);
-  DeclarationDescriptor descriptor;
-  descriptor.kind = NORMAL_VARIABLE;
-  descriptor.mode = VariableMode::kLet;
-  descriptor.declaration_pos = catch_info->pattern->position();
-  descriptor.initialization_pos = catch_info->pattern->position();
 
   // Initializer position for variables declared by the pattern.
   const int initializer_position = position();
@@ -1608,7 +1603,7 @@ Block* Parser::RewriteCatchPattern(CatchInfo* catch_info) {
       factory()->NewVariableProxy(catch_info->variable));
 
   ScopedPtrList<Statement> init_statements(pointer_buffer());
-  InitializeVariables(&init_statements, &descriptor, &decl, nullptr);
+  InitializeVariables(&init_statements, NORMAL_VARIABLE, &decl, nullptr);
   return factory()->NewBlock(true, init_statements);
 }
 
@@ -1831,9 +1826,6 @@ void Parser::DesugarBindingInForEachStatement(ForInfo* for_info,
   Variable* temp = NewTemporary(ast_value_factory()->dot_for_string());
   ScopedPtrList<Statement> each_initialization_statements(pointer_buffer());
   {
-    auto descriptor = for_info->parsing_result.descriptor;
-    descriptor.declaration_pos = kNoSourcePosition;
-    descriptor.initialization_pos = kNoSourcePosition;
     decl.initializer = factory()->NewVariableProxy(temp);
 
     bool is_for_var_of =
@@ -1843,7 +1835,7 @@ void Parser::DesugarBindingInForEachStatement(ForInfo* for_info,
         IsLexicalVariableMode(for_info->parsing_result.descriptor.mode) ||
         is_for_var_of;
 
-    InitializeVariables(&each_initialization_statements, &descriptor, &decl,
+    InitializeVariables(&each_initialization_statements, NORMAL_VARIABLE, &decl,
                         collect_names ? &for_info->bound_names : nullptr);
 
     // Annex B.3.5 prohibits the form
@@ -2619,16 +2611,6 @@ Block* Parser::BuildParameterInitializationBlock(
   ScopedPtrList<Statement> init_statements(pointer_buffer());
   int index = 0;
   for (auto parameter : parameters.params) {
-    DeclarationDescriptor descriptor;
-    descriptor.kind = PARAMETER_VARIABLE;
-    descriptor.mode = VariableMode::kLet;
-    descriptor.declaration_pos = parameter->pattern->position();
-    // The position that will be used by the AssignmentExpression
-    // which copies from the temp parameter to the pattern.
-    //
-    // TODO(adamk): Should this be kNoSourcePosition, since
-    // it's just copying from a temp var to the real param var?
-    descriptor.initialization_pos = parameter->pattern->position();
     Expression* initial_value =
         factory()->NewVariableProxy(parameters.scope->parameter(index));
     if (parameter->initializer() != nullptr) {
@@ -2654,7 +2636,6 @@ Block* Parser::BuildParameterInitializationBlock(
       initial_value =
           factory()->NewConditional(condition, parameter->initializer(),
                                     initial_value, kNoSourcePosition);
-      descriptor.initialization_pos = parameter->initializer()->position();
     }
 
     Scope* param_scope = scope();
@@ -2664,7 +2645,7 @@ Block* Parser::BuildParameterInitializationBlock(
     if (!parameter->is_simple() &&
         scope()->AsDeclarationScope()->calls_sloppy_eval()) {
       param_scope = NewVarblockScope();
-      param_scope->set_start_position(descriptor.initialization_pos);
+      param_scope->set_start_position(parameter->pattern->position());
       param_scope->set_end_position(parameter->initializer_end_position);
       param_scope->RecordEvalCall();
       non_simple_param_init_statements.emplace(pointer_buffer());
@@ -2677,7 +2658,8 @@ Block* Parser::BuildParameterInitializationBlock(
     DeclarationParsingResult::Declaration decl(
         parameter->pattern, parameter->initializer_end_position, initial_value);
 
-    InitializeVariables(param_init_statements, &descriptor, &decl, nullptr);
+    InitializeVariables(param_init_statements, PARAMETER_VARIABLE, &decl,
+                        nullptr);
 
     if (param_init_statements != &init_statements) {
       DCHECK_EQ(param_init_statements,
@@ -2687,9 +2669,6 @@ Block* Parser::BuildParameterInitializationBlock(
       non_simple_param_init_statements.reset();
       param_block->set_scope(param_scope);
       param_scope = param_scope->FinalizeBlockScope();
-      if (param_scope != nullptr) {
-        CheckConflictingVarDeclarations(param_scope);
-      }
       init_statements.Add(param_block);
     }
     ++index;
@@ -2699,8 +2678,10 @@ Block* Parser::BuildParameterInitializationBlock(
 
 Scope* Parser::NewHiddenCatchScope() {
   Scope* catch_scope = NewScopeWithParent(scope(), CATCH_SCOPE);
+  bool added;
   catch_scope->DeclareLocal(ast_value_factory()->dot_catch_string(),
-                            VariableMode::kVar);
+                            VariableMode::kVar, NORMAL_VARIABLE, &added);
+  DCHECK(added);
   catch_scope->set_is_hidden();
   return catch_scope;
 }
@@ -2817,6 +2798,7 @@ void Parser::ParseFunction(
                              formals_end_position);
       Expect(Token::LBRACE);
     }
+    formals.duplicate_loc = formals_scope.duplicate_location();
   }
 
   *num_parameters = formals.num_parameters();

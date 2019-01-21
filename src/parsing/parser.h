@@ -206,6 +206,9 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   friend class ParserBase<Parser>;
   friend struct ParserFormalParameters;
   friend class i::ExpressionScope<ParserTypes<Parser>>;
+  friend class i::VariableDeclarationParsingScope<ParserTypes<Parser>>;
+  friend class i::ParameterDeclarationParsingScope<ParserTypes<Parser>>;
+  friend class i::ArrowHeadParsingScope<ParserTypes<Parser>>;
   friend bool v8::internal::parsing::ParseProgram(ParseInfo*, Isolate*);
   friend bool v8::internal::parsing::ParseFunction(
       ParseInfo*, Handle<SharedFunctionInfo> shared_info, Isolate*);
@@ -377,8 +380,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   // PatternRewriter and associated methods defined in pattern-rewriter.cc.
   friend class PatternRewriter;
   void InitializeVariables(
-      ScopedPtrList<Statement>* statements,
-      const DeclarationDescriptor* declaration_descriptor,
+      ScopedPtrList<Statement>* statements, VariableKind kind,
       const DeclarationParsingResult::Declaration* declaration,
       ZonePtrList<const AstRawString>* names);
 
@@ -423,20 +425,18 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   // Implement sloppy block-scoped functions, ES2015 Annex B 3.3
   void InsertSloppyBlockFunctionVarBindings(DeclarationScope* scope);
 
-  VariableProxy* NewUnresolved(const AstRawString* name, int begin_pos,
-                               VariableKind kind = NORMAL_VARIABLE);
-  VariableProxy* NewUnresolved(const AstRawString* name);
   VariableProxy* DeclareVariable(const AstRawString* name, VariableMode mode,
                                  int pos);
   VariableProxy* DeclareVariable(const AstRawString* name, VariableMode mode,
                                  InitializationFlag init, int pos);
   void DeclareVariable(VariableProxy* proxy, VariableKind kind,
                        VariableMode mode, InitializationFlag init,
-                       Scope* declaration_scope, int begin,
+                       Scope* declaration_scope, bool* added, int begin,
                        int end = kNoSourcePosition);
   void Declare(Declaration* declaration, VariableProxy* proxy,
                VariableKind kind, VariableMode mode, InitializationFlag init,
-               Scope* declaration_scope, int var_end_pos = kNoSourcePosition);
+               Scope* declaration_scope, bool* added,
+               int var_end_pos = kNoSourcePosition);
 
   bool TargetStackContainsLabel(const AstRawString* label);
   BreakableStatement* LookupBreakTarget(const AstRawString* label);
@@ -890,12 +890,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
       // their names. If the parameter list is not simple, declare a temporary
       // for each parameter - the corresponding named variable is declared by
       // BuildParamerterInitializationBlock.
-      if (is_simple && !parameters->has_duplicate() &&
-          scope->LookupLocal(parameter->name())) {
-        parameters->duplicate_loc = Scanner::Location(
-            parameter->position,
-            parameter->position + parameter->name()->length());
-      }
       scope->DeclareParameter(
           is_simple ? parameter->name() : ast_value_factory()->empty_string(),
           is_simple ? VariableMode::kVar : VariableMode::kTemporary,

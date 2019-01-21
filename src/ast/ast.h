@@ -1533,6 +1533,10 @@ class VariableProxy final : public Expression {
     var_ = v;
   }
 
+  Scanner::Location location() {
+    return Scanner::Location(position(), position() + raw_name()->length());
+  }
+
   bool is_this() const { return IsThisField::decode(bit_field_); }
 
   bool is_assigned() const { return IsAssignedField::decode(bit_field_); }

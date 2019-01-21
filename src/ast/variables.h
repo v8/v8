@@ -176,6 +176,13 @@ class Variable final : public ZoneObject {
     index_ = index;
   }
 
+  void MakeNonSimpleParameter() {
+    DCHECK(is_parameter());
+    bit_field_ = VariableModeField::update(bit_field_, VariableMode::kLet);
+    bit_field_ =
+        InitializationFlagField::update(bit_field_, kNeedsInitialization);
+  }
+
   static InitializationFlag DefaultInitializationFlag(VariableMode mode) {
     DCHECK(IsDeclaredVariableMode(mode));
     return mode == VariableMode::kVar ? kCreatedInitialized

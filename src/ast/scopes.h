@@ -33,12 +33,10 @@ class VariableMap: public ZoneHashMap {
  public:
   explicit VariableMap(Zone* zone);
 
-  Variable* Declare(
-      Zone* zone, Scope* scope, const AstRawString* name, VariableMode mode,
-      VariableKind kind = NORMAL_VARIABLE,
-      InitializationFlag initialization_flag = kCreatedInitialized,
-      MaybeAssignedFlag maybe_assigned_flag = kNotAssigned,
-      base::ThreadedList<Variable>* variable_list = nullptr);
+  Variable* Declare(Zone* zone, Scope* scope, const AstRawString* name,
+                    VariableMode mode, VariableKind kind,
+                    InitializationFlag initialization_flag,
+                    MaybeAssignedFlag maybe_assigned_flag, bool* was_added);
 
   Variable* Lookup(const AstRawString* name);
   void Remove(Variable* var);
@@ -224,17 +222,19 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // Declare a local variable in this scope. If the variable has been
   // declared before, the previously declared variable is returned.
   Variable* DeclareLocal(const AstRawString* name, VariableMode mode,
-                         VariableKind kind = NORMAL_VARIABLE,
+                         VariableKind kind, bool* was_added,
                          InitializationFlag init_flag = kCreatedInitialized);
 
-  void DeclareVariable(Declaration* declaration, VariableProxy* proxy,
-                       VariableMode mode, VariableKind kind,
-                       InitializationFlag init,
-                       bool* sloppy_mode_block_scope_function_redefinition,
-                       bool* ok);
+  Variable* DeclareVariable(Declaration* declaration, VariableProxy* proxy,
+                            VariableMode mode, VariableKind kind,
+                            InitializationFlag init, bool* was_added,
+                            bool* sloppy_mode_block_scope_function_redefinition,
+                            bool* ok);
 
-  // The return value is meaningful only if FLAG_preparser_scope_analysis is on.
-  Variable* DeclareVariableName(const AstRawString* name, VariableMode mode);
+  // Returns nullptr if there was a declaration conflict.
+  Variable* DeclareVariableName(const AstRawString* name, VariableMode mode,
+                                bool* was_added,
+                                VariableKind kind = NORMAL_VARIABLE);
   Variable* DeclareCatchVariableName(const AstRawString* name);
 
   // Declarations list.
@@ -552,13 +552,14 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   }
 
  private:
-  Variable* Declare(
-      Zone* zone, const AstRawString* name, VariableMode mode,
-      VariableKind kind = NORMAL_VARIABLE,
-      InitializationFlag initialization_flag = kCreatedInitialized,
-      MaybeAssignedFlag maybe_assigned_flag = kNotAssigned) {
-    return variables_.Declare(zone, this, name, mode, kind, initialization_flag,
-                              maybe_assigned_flag, &locals_);
+  Variable* Declare(Zone* zone, const AstRawString* name, VariableMode mode,
+                    VariableKind kind, InitializationFlag initialization_flag,
+                    MaybeAssignedFlag maybe_assigned_flag, bool* was_added) {
+    Variable* result =
+        variables_.Declare(zone, this, name, mode, kind, initialization_flag,
+                           maybe_assigned_flag, was_added);
+    if (*was_added) locals_.Add(result);
+    return result;
   }
 
   // This method should only be invoked on scopes created during parsing (i.e.,
@@ -817,8 +818,6 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
                              bool is_optional, bool is_rest,
                              AstValueFactory* ast_value_factory, int position);
 
-  // Declares that a parameter with the name exists. Creates a Variable.
-  void DeclareParameterName(const AstRawString* name);
   // Makes sure that num_parameters_ and has_rest is correct for the preparser.
   void RecordParameter(bool is_rest);
 

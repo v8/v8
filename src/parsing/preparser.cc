@@ -151,6 +151,7 @@ PreParser::PreParseResult PreParser::PreParseFunction(
     // We return kPreParseSuccess in failure cases too - errors are retrieved
     // separately by Parser::SkipLazyFunctionBody.
     ParseFormalParameterList(&formals);
+    if (formals_scope.has_duplicate()) formals.set_has_duplicate();
     if (!formals.is_simple) {
       BuildParameterInitializationBlock(formals);
     }
@@ -183,9 +184,8 @@ PreParser::PreParseResult PreParser::PreParseFunction(
       function_scope->HoistSloppyBlockFunctions(nullptr);
     }
 
-    allow_duplicate_parameters = is_sloppy(function_scope->language_mode()) &&
-                                 !IsConciseMethod(kind) &&
-                                 !IsArrowFunction(kind);
+    allow_duplicate_parameters =
+        is_sloppy(function_scope->language_mode()) && !IsConciseMethod(kind);
   } else {
     if (is_sloppy(inner_scope->language_mode())) {
       inner_scope->HoistSloppyBlockFunctions(nullptr);
@@ -309,6 +309,7 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
     {
       ParameterDeclarationParsingScope formals_scope(this);
       ParseFormalParameterList(&formals);
+      if (formals_scope.has_duplicate()) formals.set_has_duplicate();
     }
     Expect(Token::RPAREN);
     int formals_end_position = scanner()->location().end_pos;
@@ -419,24 +420,14 @@ PreParserExpression PreParser::ExpressionFromIdentifier(
 }
 
 void PreParser::InitializeVariables(
-    PreParserScopedStatementList* statements,
-    const DeclarationDescriptor* declaration_descriptor,
     const DeclarationParsingResult::Declaration* declaration,
     ZonePtrList<const AstRawString>* names) {
-  if (declaration->pattern.variables_ != nullptr) {
+  if (names && declaration->pattern.variables_ != nullptr) {
     for (auto variable : *(declaration->pattern.variables_)) {
-      Variable* var = scope()->DeclareVariableName(
-          variable->raw_name(), declaration_descriptor->mode);
-      if (var == nullptr) {
-        ReportUnidentifiableError();
-        return;
-      }
       // This is only necessary if there is an initializer, but we don't have
       // that information here.  Consequently, the preparser sometimes says
       // maybe-assigned where the parser (correctly) says never-assigned.
-      if (names) {
-        names->Add(variable->raw_name(), zone());
-      }
+      names->Add(variable->raw_name(), zone());
     }
   }
 }

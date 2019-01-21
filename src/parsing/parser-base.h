@@ -706,6 +706,17 @@ class ParserBase {
         name, NORMAL_VARIABLE, pos);
   }
 
+  VariableProxy* NewUnresolved(const AstRawString* name) {
+    return scope()->NewUnresolved(factory()->ast_node_factory(), name,
+                                  scanner()->location().beg_pos);
+  }
+
+  VariableProxy* NewUnresolved(const AstRawString* name, int begin_pos,
+                               VariableKind kind = NORMAL_VARIABLE) {
+    return scope()->NewUnresolved(factory()->ast_node_factory(), name,
+                                  begin_pos, kind);
+  }
+
   Scanner* scanner() const { return scanner_; }
   AstValueFactory* ast_value_factory() const { return ast_value_factory_; }
   int position() const { return scanner_->location().beg_pos; }
@@ -1620,10 +1631,10 @@ ParserBase<Impl>::ParsePrimaryExpression() {
       ArrowHeadParsingScope parsing_scope(impl(), kind);
       IdentifierT name = ParseAndClassifyIdentifier(token);
       ClassifyParameter(name, beg_pos, end_position());
+      ExpressionT result =
+          impl()->ExpressionFromIdentifier(name, beg_pos, InferName::kNo);
       next_arrow_function_info_.scope = parsing_scope.ValidateAndCreateScope();
-      FunctionState function_state(&function_state_, &scope_,
-                                   next_arrow_function_info_.scope);
-      return impl()->ExpressionFromIdentifier(name, beg_pos, InferName::kNo);
+      return result;
     }
 
     IdentifierT name = ParseAndClassifyIdentifier(token);
@@ -3771,9 +3782,8 @@ void ParserBase<Impl>::ParseFunctionBody(
     if (is_sloppy(function_scope->language_mode())) {
       impl()->InsertSloppyBlockFunctionVarBindings(function_scope);
     }
-    allow_duplicate_parameters = is_sloppy(function_scope->language_mode()) &&
-                                 !IsConciseMethod(kind) &&
-                                 !IsArrowFunction(kind);
+    allow_duplicate_parameters =
+        is_sloppy(function_scope->language_mode()) && !IsConciseMethod(kind);
   } else {
     DCHECK_NOT_NULL(inner_scope);
     DCHECK_EQ(function_scope, scope());
@@ -4000,8 +4010,6 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
       CheckStrictOctalLiteral(formal_parameters.scope->start_position(),
                               end_position());
     }
-    impl()->CheckConflictingVarDeclarations(formal_parameters.scope);
-
     suspend_count = function_state.suspend_count();
   }
 
