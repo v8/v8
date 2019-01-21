@@ -11400,7 +11400,12 @@ TEST(PrivateNamesSyntaxError) {
 
 TEST(HashbangSyntax) {
   const char* context_data[][2] = {
-      {"#!\n", ""}, {"#!---IGNORED---\n", ""}, {nullptr, nullptr}};
+      {"#!\n", ""},
+      {"#!---IGNORED---\n", ""},
+      {"#!---IGNORED---\r", ""},
+      {"#!---IGNORED---\xE2\x80\xA8", ""},  // <U+2028>
+      {"#!---IGNORED---\xE2\x80\xA9", ""},  // <U+2029>
+      {nullptr, nullptr}};
 
   const char* data[] = {"function\nFN\n(\n)\n {\n}\nFN();", nullptr};
 
@@ -11440,11 +11445,18 @@ TEST(HashbangSyntaxErrors) {
 
   const char* invalid_hashbang_data[] = {// Encoded characters are not allowed
                                          "#\\u0021\n"
+                                         "#\\u{21}\n",
+                                         "#\\x21\n",
+                                         "#\\041\n",
                                          "\\u0023!\n",
+                                         "\\u{23}!\n",
+                                         "\\x23!\n",
+                                         "\\043!\n",
                                          "\\u0023\\u0021\n",
 
                                          "\n#!---IGNORED---\n",
-                                         " #!---IGNORED---\n", nullptr};
+                                         " #!---IGNORED---\n",
+                                         nullptr};
   const char* hashbang_data[] = {"#!\n", "#!---IGNORED---\n", nullptr};
 
   auto SyntaxErrorTest = [](const char* context_data[][2], const char* data[]) {
