@@ -327,7 +327,7 @@ void SerializerForBackgroundCompilation::VisitCallUndefinedReceiver0(
 
   HintsVector parameters(zone());
 
-  ProcessCall(callee, receiver, parameters);
+  ProcessCallOrConstruct(callee, receiver, parameters);
 }
 
 void SerializerForBackgroundCompilation::VisitCallUndefinedReceiver1(
@@ -344,7 +344,7 @@ void SerializerForBackgroundCompilation::VisitCallUndefinedReceiver1(
   HintsVector parameters(zone());
   parameters.push_back(arg0);
 
-  ProcessCall(callee, receiver, parameters);
+  ProcessCallOrConstruct(callee, receiver, parameters);
 }
 
 void SerializerForBackgroundCompilation::VisitCallUndefinedReceiver2(
@@ -364,7 +364,7 @@ void SerializerForBackgroundCompilation::VisitCallUndefinedReceiver2(
   parameters.push_back(arg0);
   parameters.push_back(arg1);
 
-  ProcessCall(callee, receiver, parameters);
+  ProcessCallOrConstruct(callee, receiver, parameters);
 }
 
 void SerializerForBackgroundCompilation::VisitCallAnyReceiver(
@@ -391,7 +391,7 @@ void SerializerForBackgroundCompilation::VisitCallProperty0(
 
   HintsVector parameters(zone());
 
-  ProcessCall(callee, receiver, parameters);
+  ProcessCallOrConstruct(callee, receiver, parameters);
 }
 
 void SerializerForBackgroundCompilation::VisitCallProperty1(
@@ -406,7 +406,7 @@ void SerializerForBackgroundCompilation::VisitCallProperty1(
   HintsVector parameters(zone());
   parameters.push_back(arg0);
 
-  ProcessCall(callee, receiver, parameters);
+  ProcessCallOrConstruct(callee, receiver, parameters);
 }
 
 void SerializerForBackgroundCompilation::VisitCallProperty2(
@@ -424,10 +424,10 @@ void SerializerForBackgroundCompilation::VisitCallProperty2(
   parameters.push_back(arg0);
   parameters.push_back(arg1);
 
-  ProcessCall(callee, receiver, parameters);
+  ProcessCallOrConstruct(callee, receiver, parameters);
 }
 
-void SerializerForBackgroundCompilation::ProcessCall(
+void SerializerForBackgroundCompilation::ProcessCallOrConstruct(
     const Hints& callee, const Hints& receiver, const HintsVector& arguments) {
   environment()->ClearAccumulatorHints();
 
@@ -482,13 +482,43 @@ void SerializerForBackgroundCompilation::ProcessCallVarArgs(
         environment()->LookupRegister(interpreter::Register(arg_base + i)));
   }
 
-  ProcessCall(callee, receiver, arguments);
+  ProcessCallOrConstruct(callee, receiver, arguments);
 }
 
 void SerializerForBackgroundCompilation::VisitReturn(
     interpreter::BytecodeArrayIterator* iterator) {
   environment()->AddReturnValueHints(environment()->LookupAccumulator());
   environment()->Clear();
+}
+
+void SerializerForBackgroundCompilation::VisitConstruct(
+    interpreter::BytecodeArrayIterator* iterator) {
+  const Hints& callee =
+      environment()->LookupRegister(iterator->GetRegisterOperand(0));
+
+  interpreter::Register first_reg = iterator->GetRegisterOperand(1);
+  size_t reg_count = iterator->GetRegisterCountOperand(2);
+
+  Hints receiver = environment()->LookupRegister(first_reg);
+  interpreter::Register first_arg =
+      interpreter::Register(first_reg.index() + 1);
+
+  int arg_count = static_cast<int>(reg_count) - 1;
+
+  HintsVector arguments(zone());
+  // Push the target of the construct.
+  arguments.push_back(callee);
+
+  // The function arguments are in consecutive registers.
+  int arg_base = first_arg.index();
+  for (int i = 0; i < arg_count; ++i) {
+    arguments.push_back(
+        environment()->LookupRegister(interpreter::Register(arg_base + i)));
+  }
+  // Push the new_target of the construct.
+  arguments.push_back(environment()->LookupAccumulator());
+
+  ProcessCallOrConstruct(callee, receiver, arguments);
 }
 
 #define DEFINE_SKIPPED_JUMP(name, ...)                  \
