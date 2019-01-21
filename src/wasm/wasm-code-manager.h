@@ -339,11 +339,11 @@ class V8_EXPORT_PRIVATE NativeModule final {
   UseTrapHandler use_trap_handler() const { return use_trap_handler_; }
   void set_lazy_compile_frozen(bool frozen) { lazy_compile_frozen_ = frozen; }
   bool lazy_compile_frozen() const { return lazy_compile_frozen_; }
-  Vector<const byte> wire_bytes() const { return wire_bytes_.as_vector(); }
+  Vector<const uint8_t> wire_bytes() const { return wire_bytes_->as_vector(); }
   const WasmModule* module() const { return module_.get(); }
   size_t committed_code_space() const { return committed_code_space_.load(); }
 
-  void SetWireBytes(OwnedVector<const byte> wire_bytes);
+  void SetWireBytes(OwnedVector<const uint8_t> wire_bytes);
 
   WasmCode* Lookup(Address) const;
 
@@ -427,7 +427,9 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // AsyncCompileJob).
   std::shared_ptr<const WasmModule> module_;
 
-  OwnedVector<const byte> wire_bytes_;
+  // Wire bytes, held in a shared_ptr so they can be kept alive by the
+  // {WireBytesStorage}, held by background compile tasks.
+  std::shared_ptr<OwnedVector<const uint8_t>> wire_bytes_;
 
   WasmCode* runtime_stub_table_[WasmCode::kRuntimeStubCount] = {nullptr};
 

@@ -803,24 +803,27 @@ Vector<byte> NativeModule::AllocateForCode(size_t size) {
 namespace {
 class NativeModuleWireBytesStorage final : public WireBytesStorage {
  public:
-  explicit NativeModuleWireBytesStorage(NativeModule* native_module)
-      : native_module_(native_module) {}
+  explicit NativeModuleWireBytesStorage(
+      std::shared_ptr<OwnedVector<const uint8_t>> wire_bytes)
+      : wire_bytes_(std::move(wire_bytes)) {}
 
   Vector<const uint8_t> GetCode(WireBytesRef ref) const final {
-    return native_module_->wire_bytes().SubVector(ref.offset(),
-                                                  ref.end_offset());
+    return wire_bytes_->as_vector().SubVector(ref.offset(), ref.end_offset());
   }
 
  private:
-  NativeModule* const native_module_;
+  const std::shared_ptr<OwnedVector<const uint8_t>> wire_bytes_;
 };
 }  // namespace
 
-void NativeModule::SetWireBytes(OwnedVector<const byte> wire_bytes) {
-  wire_bytes_ = std::move(wire_bytes);
-  if (!wire_bytes.is_empty()) {
+void NativeModule::SetWireBytes(OwnedVector<const uint8_t> wire_bytes) {
+  auto shared_wire_bytes =
+      std::make_shared<OwnedVector<const uint8_t>>(std::move(wire_bytes));
+  wire_bytes_ = shared_wire_bytes;
+  if (!shared_wire_bytes->is_empty()) {
     compilation_state_->SetWireBytesStorage(
-        std::make_shared<NativeModuleWireBytesStorage>(this));
+        std::make_shared<NativeModuleWireBytesStorage>(
+            std::move(shared_wire_bytes)));
   }
 }
 
