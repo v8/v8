@@ -207,10 +207,7 @@ struct LoadObjectFieldInstruction : InstructionBase {
   TORQUE_INSTRUCTION_BOILERPLATE()
   LoadObjectFieldInstruction(const ClassType* class_type,
                              std::string field_name)
-      : class_type(class_type) {
-    // The normal way to write this triggers a bug in Clang on Windows.
-    this->field_name = std::move(field_name);
-  }
+      : class_type(class_type), field_name(std::move(field_name)) {}
   const ClassType* class_type;
   std::string field_name;
 };
@@ -219,10 +216,7 @@ struct StoreObjectFieldInstruction : InstructionBase {
   TORQUE_INSTRUCTION_BOILERPLATE()
   StoreObjectFieldInstruction(const ClassType* class_type,
                               std::string field_name)
-      : class_type(class_type) {
-    // The normal way to write this triggers a bug in Clang on Windows.
-    this->field_name = std::move(field_name);
-  }
+      : class_type(class_type), field_name(std::move(field_name)) {}
   const ClassType* class_type;
   std::string field_name;
 };
@@ -395,10 +389,8 @@ struct ReturnInstruction : InstructionBase {
 
 struct PrintConstantStringInstruction : InstructionBase {
   TORQUE_INSTRUCTION_BOILERPLATE()
-  explicit PrintConstantStringInstruction(std::string message) {
-    // The normal way to write this triggers a bug in Clang on Windows.
-    this->message = std::move(message);
-  }
+  explicit PrintConstantStringInstruction(std::string message)
+      : message(std::move(message)) {}
 
   std::string message;
 };
@@ -407,10 +399,8 @@ struct AbortInstruction : InstructionBase {
   TORQUE_INSTRUCTION_BOILERPLATE()
   enum class Kind { kDebugBreak, kUnreachable, kAssertionFailure };
   bool IsBlockTerminator() const override { return kind != Kind::kDebugBreak; }
-  explicit AbortInstruction(Kind kind, std::string message = "") : kind(kind) {
-    // The normal way to write this triggers a bug in Clang on Windows.
-    this->message = std::move(message);
-  }
+  explicit AbortInstruction(Kind kind, std::string message = "")
+      : kind(kind), message(std::move(message)) {}
 
   Kind kind;
   std::string message;

@@ -3050,9 +3050,6 @@ v8_source_set("torque_base") {
   ]
 
   configs = [ ":internal_config" ]
-  if (is_win && is_asan) {
-    remove_configs = [ "//build/config/sanitizers:default_sanitizer_flags" ]
-  }
 }
 
 v8_component("v8_libbase") {
@@ -3416,9 +3413,6 @@ if (current_toolchain == v8_snapshot_toolchain) {
     ]
 
     configs = [ ":internal_config" ]
-    if (is_win && is_asan) {
-      remove_configs = [ "//build/config/sanitizers:default_sanitizer_flags" ]
-    }
   }
 }
 
