@@ -46,28 +46,8 @@ class Sampler {
   void Start();
   void Stop();
 
-  // Whether the sampling thread should use this Sampler for CPU profiling?
-  bool IsProfiling() const {
-    return profiling_.load(std::memory_order_relaxed) > 0;
-  }
-  void IncreaseProfilingDepth();
-  void DecreaseProfilingDepth();
-
-  // Whether the sampler is running (that is, consumes resources).
+  // Whether the sampler is running (start has been called).
   bool IsActive() const { return active_.load(std::memory_order_relaxed); }
-
-  // CpuProfiler collects samples by calling DoSample directly
-  // without calling Start. To keep it working, we register the sampler
-  // with the CpuProfiler.
-  bool IsRegistered() const {
-    return registered_.load(std::memory_order_relaxed);
-  }
-
-  // The sampler must be unregistered with the SamplerManager before ~Sampler()
-  // is called. If this doesn't happen, the signal handler might interrupt
-  // during the destructor and call DoSample(), which calls the pure virtual
-  // function Sampler::SampleStack(), causing a crash.
-  void UnregisterIfRegistered();
 
   void DoSample();
 
@@ -92,14 +72,9 @@ class Sampler {
   void SetActive(bool value) {
     active_.store(value, std::memory_order_relaxed);
   }
-  void SetRegistered(bool value) {
-    registered_.store(value, std::memory_order_relaxed);
-  }
 
   Isolate* isolate_;
-  std::atomic<std::int32_t> profiling_{0};
   std::atomic_bool active_{false};
-  std::atomic_bool registered_{false};
   std::unique_ptr<PlatformData> data_;  // Platform specific data.
   DISALLOW_IMPLICIT_CONSTRUCTORS(Sampler);
 };

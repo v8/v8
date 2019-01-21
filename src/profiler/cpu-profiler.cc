@@ -60,13 +60,10 @@ SamplingEventsProcessor::SamplingEventsProcessor(Isolate* isolate,
     : ProfilerEventsProcessor(isolate, generator),
       sampler_(new CpuSampler(isolate, this)),
       period_(period) {
-  sampler_->IncreaseProfilingDepth();
+  sampler_->Start();
 }
 
-SamplingEventsProcessor::~SamplingEventsProcessor() {
-  sampler_->DecreaseProfilingDepth();
-  sampler_->UnregisterIfRegistered();
-}
+SamplingEventsProcessor::~SamplingEventsProcessor() { sampler_->Stop(); }
 
 ProfilerEventsProcessor::~ProfilerEventsProcessor() = default;
 

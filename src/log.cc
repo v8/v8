@@ -754,7 +754,7 @@ class SamplingThread : public base::Thread {
         sampler_(sampler),
         interval_microseconds_(interval_microseconds) {}
   void Run() override {
-    while (sampler_->IsProfiling()) {
+    while (sampler_->IsActive()) {
       sampler_->DoSample();
       base::OS::Sleep(
           base::TimeDelta::FromMicroseconds(interval_microseconds_));
@@ -854,7 +854,6 @@ class Ticker: public sampler::Sampler {
   void SetProfiler(Profiler* profiler) {
     DCHECK_NULL(profiler_);
     profiler_ = profiler;
-    IncreaseProfilingDepth();
     if (!IsActive()) Start();
     sampling_thread_->StartSynchronously();
   }
@@ -862,7 +861,6 @@ class Ticker: public sampler::Sampler {
   void ClearProfiler() {
     profiler_ = nullptr;
     if (IsActive()) Stop();
-    DecreaseProfilingDepth();
     sampling_thread_->Join();
   }
 

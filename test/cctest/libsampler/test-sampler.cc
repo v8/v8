@@ -26,7 +26,7 @@ class TestSamplingThread : public base::Thread {
 
   // Implement Thread::Run().
   void Run() override {
-    while (sampler_->IsProfiling()) {
+    while (sampler_->IsActive()) {
       sampler_->DoSample();
       base::OS::Sleep(base::TimeDelta::FromMilliseconds(1));
     }
@@ -75,7 +75,6 @@ static void RunSampler(v8::Local<v8::Context> env,
                        unsigned min_external_samples = 0) {
   TestSampler sampler(env->GetIsolate());
   TestSamplingThread thread(&sampler);
-  sampler.IncreaseProfilingDepth();
   sampler.Start();
   sampler.StartCountingSamples();
   thread.StartSynchronously();
@@ -84,7 +83,6 @@ static void RunSampler(v8::Local<v8::Context> env,
   } while (sampler.js_sample_count() < min_js_samples ||
            sampler.external_sample_count() < min_external_samples);
   sampler.Stop();
-  sampler.DecreaseProfilingDepth();
   thread.Join();
 }
 
@@ -154,6 +152,7 @@ TEST(SamplerManager_AddRemoveSampler) {
 
   SamplerManager* manager = SamplerManager::instance();
   CountingSampler sampler1(isolate);
+  sampler1.set_active(true);
   CHECK_EQ(0, sampler1.sample_count());
 
   manager->AddSampler(&sampler1);
@@ -177,12 +176,14 @@ TEST(SamplerManager_DoesNotReAdd) {
   // Add the same sampler twice, but check we only get one sample for it.
   SamplerManager* manager = SamplerManager::instance();
   CountingSampler sampler1(isolate);
+  sampler1.set_active(true);
   manager->AddSampler(&sampler1);
   manager->AddSampler(&sampler1);
 
   RegisterState state;
   manager->DoSample(state);
   CHECK_EQ(1, sampler1.sample_count());
+  sampler1.set_active(false);
 }
 
 TEST(AtomicGuard_GetNonBlockingSuccess) {

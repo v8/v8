@@ -197,7 +197,7 @@ class Sampler::PlatformData {
 
 void SamplerManager::AddSampler(Sampler* sampler) {
   AtomicGuard atomic_guard(&samplers_access_counter_);
-  DCHECK(sampler->IsActive() || !sampler->IsRegistered());
+  DCHECK(sampler->IsActive());
   pthread_t thread_id = sampler->platform_data()->vm_tid();
   auto it = sampler_map_.find(thread_id);
   if (it == sampler_map_.end()) {
@@ -213,7 +213,7 @@ void SamplerManager::AddSampler(Sampler* sampler) {
 
 void SamplerManager::RemoveSampler(Sampler* sampler) {
   AtomicGuard atomic_guard(&samplers_access_counter_);
-  DCHECK(sampler->IsActive() || sampler->IsRegistered());
+  DCHECK(sampler->IsActive());
   pthread_t thread_id = sampler->platform_data()->vm_tid();
   auto it = sampler_map_.find(thread_id);
   DCHECK_NE(it, sampler_map_.end());
@@ -515,63 +515,33 @@ void SignalHandler::FillRegisterState(void* context, RegisterState* state) {
 Sampler::Sampler(Isolate* isolate)
     : isolate_(isolate), data_(base::make_unique<PlatformData>()) {}
 
-void Sampler::UnregisterIfRegistered() {
-#if defined(USE_SIGNALS)
-  if (IsRegistered()) {
-    SamplerManager::instance()->RemoveSampler(this);
-    SetRegistered(false);
-  }
-#endif
-}
-
 Sampler::~Sampler() {
   DCHECK(!IsActive());
-  DCHECK(!IsRegistered());
 }
 
 void Sampler::Start() {
   DCHECK(!IsActive());
   SetActive(true);
 #if defined(USE_SIGNALS)
+  SignalHandler::IncreaseSamplerCount();
   SamplerManager::instance()->AddSampler(this);
 #endif
 }
 
-
 void Sampler::Stop() {
 #if defined(USE_SIGNALS)
   SamplerManager::instance()->RemoveSampler(this);
+  SignalHandler::DecreaseSamplerCount();
 #endif
   DCHECK(IsActive());
   SetActive(false);
-  SetRegistered(false);
 }
-
-
-void Sampler::IncreaseProfilingDepth() {
-  profiling_++;
-#if defined(USE_SIGNALS)
-  SignalHandler::IncreaseSamplerCount();
-#endif
-}
-
-
-void Sampler::DecreaseProfilingDepth() {
-#if defined(USE_SIGNALS)
-  SignalHandler::DecreaseSamplerCount();
-#endif
-  profiling_--;
-}
-
 
 #if defined(USE_SIGNALS)
 
 void Sampler::DoSample() {
   if (!SignalHandler::Installed()) return;
-  if (!IsActive() && !IsRegistered()) {
-    SamplerManager::instance()->AddSampler(this);
-    SetRegistered(true);
-  }
+  DCHECK(IsActive());
   pthread_kill(platform_data()->vm_tid(), SIGPROF);
 }
 
