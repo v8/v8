@@ -460,7 +460,9 @@ void Assembler::GetCode(Isolate* isolate, CodeDesc* desc) {
   desc->unwinding_info_size = 0;
   desc->unwinding_info = nullptr;
   desc->code_comments_size = code_comments_size;
+}
 
+void Assembler::FinalizeJumpOptimizationInfo() {
   // Collection stage
   auto jump_opt = jump_optimization_info();
   if (jump_opt && jump_opt->is_collecting()) {
@@ -484,7 +486,6 @@ void Assembler::GetCode(Isolate* isolate, CodeDesc* desc) {
     }
   }
 }
-
 
 void Assembler::Align(int m) {
   DCHECK(base::bits::IsPowerOfTwo(m));

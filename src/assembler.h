@@ -239,6 +239,8 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
     jump_optimization_info_ = jump_opt;
   }
 
+  void FinalizeJumpOptimizationInfo() {}
+
   // Overwrite a host NaN with a quiet target NaN.  Used by mksnapshot for
   // cross-snapshotting.
   static void QuietNaN(HeapObject nan) {}

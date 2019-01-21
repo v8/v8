@@ -305,6 +305,8 @@ void CodeGenerator::AssembleCode() {
     }
   }
 
+  tasm()->FinalizeJumpOptimizationInfo();
+
   result_ = kSuccess;
 }
 

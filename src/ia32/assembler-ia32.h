@@ -378,6 +378,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Assembler functions are invoked in between GetCode() calls.
   void GetCode(Isolate* isolate, CodeDesc* desc);
 
+  void FinalizeJumpOptimizationInfo();
+
   // Read/Modify the code target in the branch/call instruction at pc.
   // The isolate argument is unused (and may be nullptr) when skipping flushing.
   inline static Address target_address_at(Address pc, Address constant_pool);

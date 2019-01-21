@@ -321,6 +321,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Assembler functions are invoked in between GetCode() calls.
   void GetCode(Isolate* isolate, CodeDesc* desc);
 
+  void FinalizeJumpOptimizationInfo();
+
   // Read/Modify the code target in the relative branch/call instruction at pc.
   // On the x64 architecture, we use relative jumps with a 32-bit displacement
   // to jump to other Code objects in the Code space in the heap.

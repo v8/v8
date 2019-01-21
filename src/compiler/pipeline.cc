@@ -542,6 +542,7 @@ class PipelineImpl final {
 
   void VerifyGeneratedCodeIsIdempotent();
   void RunPrintAndVerify(const char* phase, bool untyped = false);
+  bool SelectInstructionsAndAssemble(CallDescriptor* call_descriptor);
   MaybeHandle<Code> GenerateCode(CallDescriptor* call_descriptor);
   void AllocateRegisters(const RegisterConfiguration* config,
                          CallDescriptor* call_descriptor, bool run_verifier);
@@ -2132,12 +2133,14 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
                            options);
   second_data.set_verify_graph(FLAG_verify_csa);
   PipelineImpl second_pipeline(&second_data);
-  Handle<Code> code =
-      second_pipeline.GenerateCode(call_descriptor).ToHandleChecked();
+  second_pipeline.SelectInstructionsAndAssemble(call_descriptor);
 
+  Handle<Code> code;
   if (jump_opt.is_optimizable()) {
     jump_opt.set_optimizing();
     code = pipeline.GenerateCode(call_descriptor).ToHandleChecked();
+  } else {
+    code = second_pipeline.FinalizeCode().ToHandleChecked();
   }
 
   return code;
@@ -2755,14 +2758,21 @@ MaybeHandle<Code> PipelineImpl::FinalizeCode() {
   return code;
 }
 
-MaybeHandle<Code> PipelineImpl::GenerateCode(CallDescriptor* call_descriptor) {
+bool PipelineImpl::SelectInstructionsAndAssemble(
+    CallDescriptor* call_descriptor) {
   Linkage linkage(call_descriptor);
 
   // Perform instruction selection and register allocation.
-  if (!SelectInstructions(&linkage)) return MaybeHandle<Code>();
+  if (!SelectInstructions(&linkage)) return false;
 
   // Generate the final machine code.
   AssembleCode(&linkage);
+  return true;
+}
+
+MaybeHandle<Code> PipelineImpl::GenerateCode(CallDescriptor* call_descriptor) {
+  if (!SelectInstructionsAndAssemble(call_descriptor))
+    return MaybeHandle<Code>();
   return FinalizeCode();
 }
 
