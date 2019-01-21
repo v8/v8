@@ -198,7 +198,7 @@ NodeType* GlobalHandles::NodeSpace<NodeType>::Acquire(Object object) {
     block->ListAdd(&first_used_block_);
   }
   global_handles_->isolate()->counters()->global_handles()->Increment();
-  global_handles_->number_of_global_handles_++;
+  global_handles_->handles_count_++;
   DCHECK(node->IsInUse());
   return node;
 }
@@ -230,7 +230,7 @@ void GlobalHandles::NodeSpace<NodeType>::Free(NodeType* node) {
     block->ListRemove(&first_used_block_);
   }
   global_handles_->isolate()->counters()->global_handles()->Decrement();
-  global_handles_->number_of_global_handles_--;
+  global_handles_->handles_count_--;
 }
 
 class GlobalHandles::Node final {
@@ -598,10 +598,7 @@ GlobalHandles* GlobalHandles::Node::GetGlobalHandles() {
 
 GlobalHandles::GlobalHandles(Isolate* isolate)
     : isolate_(isolate),
-      regular_nodes_(new NodeSpace<GlobalHandles::Node>(this)),
-      number_of_global_handles_(0),
-      post_gc_processing_count_(0),
-      number_of_phantom_handle_resets_(0) {}
+      regular_nodes_(new NodeSpace<GlobalHandles::Node>(this)) {}
 
 GlobalHandles::~GlobalHandles() { regular_nodes_.reset(nullptr); }
 
@@ -823,7 +820,7 @@ void GlobalHandles::InvokeSecondPassPhantomCallbacks() {
 }
 
 int GlobalHandles::PostScavengeProcessing(
-    const int initial_post_gc_processing_count) {
+    unsigned initial_post_gc_processing_count) {
   int freed_nodes = 0;
   for (Node* node : new_space_nodes_) {
     DCHECK(node->is_in_new_space_list());
@@ -858,9 +855,8 @@ int GlobalHandles::PostScavengeProcessing(
   return freed_nodes;
 }
 
-
 int GlobalHandles::PostMarkSweepProcessing(
-    const int initial_post_gc_processing_count) {
+    unsigned initial_post_gc_processing_count) {
   int freed_nodes = 0;
   for (Node* node : *regular_nodes_) {
     if (!node->IsRetainer()) {
@@ -881,7 +877,6 @@ int GlobalHandles::PostMarkSweepProcessing(
   }
   return freed_nodes;
 }
-
 
 void GlobalHandles::UpdateListOfNewSpaceNodes() {
   size_t last = 0;
@@ -970,7 +965,7 @@ int GlobalHandles::PostGarbageCollectionProcessing(
   // GC is completely done, because the callbacks may invoke arbitrary
   // API functions.
   DCHECK(isolate_->heap()->gc_state() == Heap::NOT_IN_GC);
-  const int initial_post_gc_processing_count = ++post_gc_processing_count_;
+  const unsigned initial_post_gc_processing_count = ++post_gc_processing_count_;
   int freed_nodes = 0;
   bool synchronous_second_pass =
       isolate_->heap()->IsTearingDown() ||
@@ -1147,10 +1142,6 @@ void GlobalHandles::Print() {
 }
 
 #endif
-
-void GlobalHandles::TearDown() {}
-
-EternalHandles::EternalHandles() : size_(0) {}
 
 EternalHandles::~EternalHandles() {
   for (Address* block : blocks_) delete[] block;

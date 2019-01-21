@@ -4281,7 +4281,7 @@ THREADED_TEST(ResettingGlobalHandle) {
   }
   v8::internal::GlobalHandles* global_handles =
       reinterpret_cast<v8::internal::Isolate*>(isolate)->global_handles();
-  int initial_handle_count = global_handles->global_handles_count();
+  size_t initial_handle_count = global_handles->handles_count();
   {
     v8::HandleScope scope(isolate);
     CHECK_EQ(3, v8::Local<String>::New(isolate, global)->Length());
@@ -4290,13 +4290,13 @@ THREADED_TEST(ResettingGlobalHandle) {
     v8::HandleScope scope(isolate);
     global.Reset(isolate, v8_str("longer"));
   }
-  CHECK_EQ(global_handles->global_handles_count(), initial_handle_count);
+  CHECK_EQ(global_handles->handles_count(), initial_handle_count);
   {
     v8::HandleScope scope(isolate);
     CHECK_EQ(6, v8::Local<String>::New(isolate, global)->Length());
   }
   global.Reset();
-  CHECK_EQ(global_handles->global_handles_count(), initial_handle_count - 1);
+  CHECK_EQ(global_handles->handles_count(), initial_handle_count - 1);
 }
 
 
@@ -4309,7 +4309,7 @@ THREADED_TEST(ResettingGlobalHandleToEmpty) {
   }
   v8::internal::GlobalHandles* global_handles =
       reinterpret_cast<v8::internal::Isolate*>(isolate)->global_handles();
-  int initial_handle_count = global_handles->global_handles_count();
+  size_t initial_handle_count = global_handles->handles_count();
   {
     v8::HandleScope scope(isolate);
     CHECK_EQ(3, v8::Local<String>::New(isolate, global)->Length());
@@ -4320,7 +4320,7 @@ THREADED_TEST(ResettingGlobalHandleToEmpty) {
     global.Reset(isolate, empty);
   }
   CHECK(global.IsEmpty());
-  CHECK_EQ(global_handles->global_handles_count(), initial_handle_count - 1);
+  CHECK_EQ(global_handles->handles_count(), initial_handle_count - 1);
 }
 
 
@@ -4347,17 +4347,16 @@ THREADED_TEST(Global) {
   }
   v8::internal::GlobalHandles* global_handles =
       reinterpret_cast<v8::internal::Isolate*>(isolate)->global_handles();
-  int initial_handle_count = global_handles->global_handles_count();
+  size_t initial_handle_count = global_handles->handles_count();
   {
     v8::Global<String> unique(isolate, global);
-    CHECK_EQ(initial_handle_count + 1, global_handles->global_handles_count());
+    CHECK_EQ(initial_handle_count + 1, global_handles->handles_count());
     // Test assignment via Pass
     {
       v8::Global<String> copy = unique.Pass();
       CHECK(unique.IsEmpty());
       CHECK(copy == global);
-      CHECK_EQ(initial_handle_count + 1,
-               global_handles->global_handles_count());
+      CHECK_EQ(initial_handle_count + 1, global_handles->handles_count());
       unique = copy.Pass();
     }
     // Test ctor via Pass
@@ -4365,8 +4364,7 @@ THREADED_TEST(Global) {
       v8::Global<String> copy(unique.Pass());
       CHECK(unique.IsEmpty());
       CHECK(copy == global);
-      CHECK_EQ(initial_handle_count + 1,
-               global_handles->global_handles_count());
+      CHECK_EQ(initial_handle_count + 1, global_handles->handles_count());
       unique = copy.Pass();
     }
     // Test pass through function call
@@ -4374,19 +4372,18 @@ THREADED_TEST(Global) {
       v8::Global<String> copy = PassUnique(unique.Pass());
       CHECK(unique.IsEmpty());
       CHECK(copy == global);
-      CHECK_EQ(initial_handle_count + 1,
-               global_handles->global_handles_count());
+      CHECK_EQ(initial_handle_count + 1, global_handles->handles_count());
       unique = copy.Pass();
     }
-    CHECK_EQ(initial_handle_count + 1, global_handles->global_handles_count());
+    CHECK_EQ(initial_handle_count + 1, global_handles->handles_count());
   }
   // Test pass from function call
   {
     v8::Global<String> unique = ReturnUnique(isolate, global);
     CHECK(unique == global);
-    CHECK_EQ(initial_handle_count + 1, global_handles->global_handles_count());
+    CHECK_EQ(initial_handle_count + 1, global_handles->handles_count());
   }
-  CHECK_EQ(initial_handle_count, global_handles->global_handles_count());
+  CHECK_EQ(initial_handle_count, global_handles->handles_count());
   global.Reset();
 }
 
@@ -4580,7 +4577,7 @@ void TestGlobalValueMap() {
   Map map(isolate);
   v8::internal::GlobalHandles* global_handles =
       reinterpret_cast<v8::internal::Isolate*>(isolate)->global_handles();
-  int initial_handle_count = global_handles->global_handles_count();
+  size_t initial_handle_count = global_handles->handles_count();
   CHECK_EQ(0, static_cast<int>(map.Size()));
   {
     HandleScope scope(isolate);
@@ -4613,14 +4610,14 @@ void TestGlobalValueMap() {
       CHECK(expected2->Equals(env.local(), ref.NewLocal(isolate)).FromJust());
     }
   }
-  CHECK_EQ(initial_handle_count + 1, global_handles->global_handles_count());
+  CHECK_EQ(initial_handle_count + 1, global_handles->handles_count());
   if (map.IsWeak()) {
     CcTest::PreciseCollectAllGarbage();
   } else {
     map.Clear();
   }
   CHECK_EQ(0, static_cast<int>(map.Size()));
-  CHECK_EQ(initial_handle_count, global_handles->global_handles_count());
+  CHECK_EQ(initial_handle_count, global_handles->handles_count());
   {
     HandleScope scope(isolate);
     Local<v8::Object> value = NewObjectForIntKey(isolate, templ, 9);
@@ -4628,7 +4625,7 @@ void TestGlobalValueMap() {
     map.Clear();
   }
   CHECK_EQ(0, static_cast<int>(map.Size()));
-  CHECK_EQ(initial_handle_count, global_handles->global_handles_count());
+  CHECK_EQ(initial_handle_count, global_handles->handles_count());
 }
 
 }  // namespace
@@ -4650,7 +4647,7 @@ TEST(PersistentValueVector) {
   v8::Isolate* isolate = env->GetIsolate();
   v8::internal::GlobalHandles* global_handles =
       reinterpret_cast<v8::internal::Isolate*>(isolate)->global_handles();
-  int handle_count = global_handles->global_handles_count();
+  size_t handle_count = global_handles->handles_count();
   HandleScope scope(isolate);
 
   v8::PersistentValueVector<v8::Object> vector(isolate);
@@ -4679,12 +4676,12 @@ TEST(PersistentValueVector) {
   CHECK(obj1->Equals(env.local(), vector.Get(4)).FromJust());
   CHECK(obj2->Equals(env.local(), vector.Get(1)).FromJust());
 
-  CHECK_EQ(5 + handle_count, global_handles->global_handles_count());
+  CHECK_EQ(5 + handle_count, global_handles->handles_count());
 
   vector.Clear();
   CHECK(vector.IsEmpty());
   CHECK_EQ(0, static_cast<int>(vector.Size()));
-  CHECK_EQ(handle_count, global_handles->global_handles_count());
+  CHECK_EQ(handle_count, global_handles->handles_count());
 }
 
 
@@ -14311,7 +14308,7 @@ TEST(CopyablePersistent) {
   v8::Isolate* isolate = context->GetIsolate();
   i::GlobalHandles* globals =
       reinterpret_cast<i::Isolate*>(isolate)->global_handles();
-  int initial_handles = globals->global_handles_count();
+  size_t initial_handles = globals->handles_count();
   typedef v8::Persistent<v8::Object, v8::CopyablePersistentTraits<v8::Object> >
       CopyableObject;
   {
@@ -14320,17 +14317,17 @@ TEST(CopyablePersistent) {
       v8::HandleScope scope(isolate);
       handle1.Reset(isolate, v8::Object::New(isolate));
     }
-    CHECK_EQ(initial_handles + 1, globals->global_handles_count());
+    CHECK_EQ(initial_handles + 1, globals->handles_count());
     CopyableObject  handle2;
     handle2 = handle1;
     CHECK(handle1 == handle2);
-    CHECK_EQ(initial_handles + 2, globals->global_handles_count());
+    CHECK_EQ(initial_handles + 2, globals->handles_count());
     CopyableObject handle3(handle2);
     CHECK(handle1 == handle3);
-    CHECK_EQ(initial_handles + 3, globals->global_handles_count());
+    CHECK_EQ(initial_handles + 3, globals->handles_count());
   }
   // Verify autodispose
-  CHECK_EQ(initial_handles, globals->global_handles_count());
+  CHECK_EQ(initial_handles, globals->handles_count());
 }
 
 
@@ -14346,7 +14343,7 @@ TEST(WeakCallbackApi) {
   v8::Isolate* isolate = context->GetIsolate();
   i::GlobalHandles* globals =
       reinterpret_cast<i::Isolate*>(isolate)->global_handles();
-  int initial_handles = globals->global_handles_count();
+  size_t initial_handles = globals->handles_count();
   {
     v8::HandleScope scope(isolate);
     v8::Local<v8::Object> obj = v8::Object::New(isolate);
@@ -14360,7 +14357,7 @@ TEST(WeakCallbackApi) {
   }
   CcTest::PreciseCollectAllGarbage();
   // Verify disposed.
-  CHECK_EQ(initial_handles, globals->global_handles_count());
+  CHECK_EQ(initial_handles, globals->handles_count());
 }
 
 

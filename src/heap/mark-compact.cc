@@ -3876,7 +3876,7 @@ template <class ParallelItem>
 void SeedGlobalHandles(GlobalHandles* global_handles, ItemParallelJob* job) {
   // Create batches of global handles.
   const size_t kGlobalHandlesBufferSize = 1000;
-  const size_t new_space_nodes = global_handles->NumberOfNewSpaceNodes();
+  const size_t new_space_nodes = global_handles->new_space_handles_count();
   for (size_t start = 0; start < new_space_nodes;
        start += kGlobalHandlesBufferSize) {
     size_t end = start + kGlobalHandlesBufferSize;

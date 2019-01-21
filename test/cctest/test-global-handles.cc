@@ -145,7 +145,7 @@ TEST(EternalHandles) {
   int indices[kArrayLength];
   v8::Eternal<v8::Value> eternals[kArrayLength];
 
-  CHECK_EQ(0, eternal_handles->NumberOfHandles());
+  CHECK_EQ(0, eternal_handles->handles_count());
   for (int i = 0; i < kArrayLength; i++) {
     indices[i] = -1;
     HandleScope scope(isolate);
@@ -184,7 +184,7 @@ TEST(EternalHandles) {
     }
   }
 
-  CHECK_EQ(2*kArrayLength, eternal_handles->NumberOfHandles());
+  CHECK_EQ(2 * kArrayLength, eternal_handles->handles_count());
 
   // Create an eternal via the constructor
   {
@@ -195,7 +195,7 @@ TEST(EternalHandles) {
     CHECK(object == eternal.Get(v8_isolate));
   }
 
-  CHECK_EQ(2*kArrayLength + 1, eternal_handles->NumberOfHandles());
+  CHECK_EQ(2 * kArrayLength + 1, eternal_handles->handles_count());
 }
 
 

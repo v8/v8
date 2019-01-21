@@ -8459,9 +8459,7 @@ void Isolate::GetStackSample(const RegisterState& state, void** frames,
 
 size_t Isolate::NumberOfPhantomHandleResetsSinceLastCall() {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
-  size_t result = isolate->global_handles()->NumberOfPhantomHandleResets();
-  isolate->global_handles()->ResetNumberOfPhantomHandleResets();
-  return result;
+  return isolate->global_handles()->GetAndResetGlobalHandleResetCount();
 }
 
 void Isolate::SetEventLogger(LogEventCallback that) {

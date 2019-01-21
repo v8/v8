@@ -4681,8 +4681,6 @@ void Heap::TearDown() {
   delete local_embedder_heap_tracer_;
   local_embedder_heap_tracer_ = nullptr;
 
-  isolate_->global_handles()->TearDown();
-
   external_string_table_.TearDown();
 
   // Tear down all ArrayBuffers before tearing down the heap since  their
