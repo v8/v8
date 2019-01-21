@@ -1210,6 +1210,7 @@ bool ZeroExtendsWord32ToWord64(Node* node) {
     case IrOpcode::kUint32LessThanOrEqual:
     case IrOpcode::kUint32Mod:
     case IrOpcode::kUint32MulHigh:
+    case IrOpcode::kTruncateInt64ToInt32:
       // These 32-bit operations implicitly zero-extend to 64-bit on x64, so the
       // zero-extension is a no-op.
       return true;
@@ -1225,6 +1226,7 @@ bool ZeroExtendsWord32ToWord64(Node* node) {
       }
     }
     case IrOpcode::kLoad:
+    case IrOpcode::kProtectedLoad:
     case IrOpcode::kPoisonedLoad: {
       // The movzxbl/movsxbl/movzxwl/movsxwl/movl operations implicitly
       // zero-extend to 64-bit on x64, so the zero-extension is a no-op.
@@ -1375,6 +1377,9 @@ void InstructionSelector::VisitTruncateFloat64ToWord32(Node* node) {
 }
 
 void InstructionSelector::VisitTruncateInt64ToInt32(Node* node) {
+  // We rely on the fact that TruncateInt64ToInt32 zero extends the
+  // value (see ZeroExtendsWord32ToWord64). So all code paths here
+  // have to satisfy that condition.
   X64OperandGenerator g(this);
   Node* value = node->InputAt(0);
   if (CanCover(node, value)) {
