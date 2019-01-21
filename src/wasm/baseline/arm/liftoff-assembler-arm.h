@@ -139,45 +139,34 @@ inline void I64Binop(LiftoffAssembler* assm, LiftoffRegister dst,
   }
 }
 
-inline Register GetNonAliasingRegister(LiftoffAssembler* assm,
-                                       UseScratchRegisterScope* temps,
-                                       Register src, Register alternative,
-                                       Register src_cannot_alias,
-                                       Register alternative_cannot_alias) {
-  if (src != src_cannot_alias) return src;
-  Register result =
-      alternative == alternative_cannot_alias ? temps->Acquire() : alternative;
-  assm->TurboAssembler::Move(result, src);
-  return result;
-}
-
 template <void (TurboAssembler::*op)(Register, Register, Register, Register,
                                      Register),
           bool is_left_shift>
 inline void I64Shiftop(LiftoffAssembler* assm, LiftoffRegister dst,
                        LiftoffRegister src, Register amount,
                        LiftoffRegList pinned) {
-  // safe_amount_reg is the register in which the register holding the shift
-  // amount can be held without being clobbered, thus the original register
-  // holding the shift amount can be moved into it if required.
-  Register safe_amount_reg = is_left_shift ? dst.low_gp() : dst.high_gp();
-  Register other_reg = is_left_shift ? dst.high_gp() : dst.low_gp();
-  pinned.set(other_reg);
-  pinned.set(src.low_gp());
-  pinned.set(src.high_gp());
-  Register scratch = assm->GetUnusedRegister(kGpReg, pinned).gp();
-  assm->and_(scratch, amount, Operand(0x3F));
+  Register src_low = src.low_gp();
+  Register src_high = src.high_gp();
+  Register dst_low = dst.low_gp();
+  Register dst_high = dst.high_gp();
+  // Left shift writes {dst_high} then {dst_low}, right shifts write {dst_low}
+  // then {dst_high}.
+  Register clobbered_dst_reg = is_left_shift ? dst_high : dst_low;
+  pinned.set(clobbered_dst_reg);
+  pinned.set(src);
+  Register amount_capped =
+      pinned.set(assm->GetUnusedRegister(kGpReg, pinned)).gp();
+  assm->and_(amount_capped, amount, Operand(0x3F));
 
-  UseScratchRegisterScope temps(assm);
-  if (is_left_shift) {
-    Register src_low = GetNonAliasingRegister(
-        assm, &temps, src.low_gp(), safe_amount_reg, other_reg, src.high_gp());
-    (assm->*op)(dst.low_gp(), dst.high_gp(), src_low, src.high_gp(), scratch);
-  } else {
-    Register src_high = GetNonAliasingRegister(
-        assm, &temps, src.high_gp(), safe_amount_reg, other_reg, src.low_gp());
-    (assm->*op)(dst.low_gp(), dst.high_gp(), src.low_gp(), src_high, scratch);
+  // Ensure that writing the first half of {dst} does not overwrite the still
+  // needed half of {src}.
+  Register* later_src_reg = is_left_shift ? &src_low : &src_high;
+  if (*later_src_reg == clobbered_dst_reg) {
+    *later_src_reg = assm->GetUnusedRegister(kGpReg, pinned).gp();
+    assm->TurboAssembler::Move(*later_src_reg, clobbered_dst_reg);
   }
+
+  (assm->*op)(dst_low, dst_high, src_low, src_high, amount_capped);
 }
 
 inline FloatRegister GetFloatRegister(DoubleRegister reg) {
@@ -873,8 +862,13 @@ void LiftoffAssembler::emit_i64_shr(LiftoffRegister dst, LiftoffRegister src,
                                     int amount) {
   DCHECK(is_uint6(amount));
   UseScratchRegisterScope temps(this);
-  Register src_high = liftoff::GetNonAliasingRegister(
-      this, &temps, src.high_gp(), dst.high_gp(), dst.low_gp(), src.low_gp());
+  Register src_high = src.high_gp();
+  // {src.high_gp()} will still be needed after writing {dst.low_gp()}.
+  if (src_high == dst.low_gp()) {
+    src_high = GetUnusedRegister(kGpReg).gp();
+    TurboAssembler::Move(src_high, dst.low_gp());
+  }
+
   LsrPair(dst.low_gp(), dst.high_gp(), src.low_gp(), src_high, amount);
 }
 
