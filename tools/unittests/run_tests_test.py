@@ -671,11 +671,10 @@ class SystemTest(unittest.TestCase):
           infra_staging=infra_staging,
       )
       if name == 'color':
-        expected = ('\033[34m% 100\033[0m|'
-                    '\033[32m+   1\033[0m|'
+        expected = ('\033[32m+   1\033[0m|'
                     '\033[31m-   1\033[0m]: Done')
       else:
-        expected = '% 100|+   1|-   1]: Done'
+        expected = '+   1|-   1]: Done'
       self.assertIn(expected, result.stdout)
       self.assertIn('sweet/cherries', result.stdout)
       self.assertIn('sweet/bananas', result.stdout)

@@ -20,7 +20,7 @@ from testrunner.testproc.execution import ExecutionProc
 from testrunner.testproc.expectation import ForgiveTimeoutProc
 from testrunner.testproc.filter import StatusFileFilterProc, NameFilterProc
 from testrunner.testproc.loader import LoadProc
-from testrunner.testproc.progress import ResultsTracker, TestsCounter
+from testrunner.testproc.progress import ResultsTracker
 from testrunner.utils import random_utils
 
 
