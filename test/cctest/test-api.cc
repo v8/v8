@@ -21164,7 +21164,17 @@ TEST(PersistentHandleInNewSpaceVisitor) {
   CHECK_EQ(42, object2.WrapperClassId());
 
   Visitor42 visitor(&object2);
+#if __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated"
+#endif
+  // VisitHandlesForPartialDependence is marked deprecated. This test will be
+  // removed with the API method.
   isolate->VisitHandlesForPartialDependence(&visitor);
+#if __clang__
+#pragma clang diagnostic pop
+#endif
+
   CHECK_EQ(1, visitor.counter_);
 
   object1.Reset();

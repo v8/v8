@@ -568,7 +568,9 @@ template <class T> class PersistentBase {
                     V8_INLINE bool IsIndependent() const);
 
   /** Checks if the handle holds the only reference to an object. */
-  V8_INLINE bool IsNearDeath() const;
+  V8_DEPRECATE_SOON(
+      "Garbage collection internal state should not be relied on.",
+      V8_INLINE bool IsNearDeath() const);
 
   /** Returns true if the handle's reference is weak.  */
   V8_INLINE bool IsWeak() const;
@@ -8317,7 +8319,9 @@ class V8_EXPORT Isolate {
    * garbage collection but is free to visit an arbitrary superset of these
    * objects.
    */
-  void VisitHandlesForPartialDependence(PersistentHandleVisitor* visitor);
+  V8_DEPRECATE_SOON(
+      "Use VisitHandlesWithClassIds",
+      void VisitHandlesForPartialDependence(PersistentHandleVisitor* visitor));
 
   /**
    * Iterates through all the persistent handles in the current isolate's heap
