@@ -3189,6 +3189,10 @@ TF_BUILTIN(FlattenIntoArray, ArrayFlattenAssembler) {
   Node* const start = Parameter(Descriptor::kStart);
   Node* const depth = Parameter(Descriptor::kDepth);
 
+  // FlattenIntoArray might get called recursively, check stack for overflow
+  // manually as it has stub linkage.
+  PerformStackCheck(CAST(context));
+
   Return(
       FlattenIntoArray(context, target, source, source_length, start, depth));
 }
