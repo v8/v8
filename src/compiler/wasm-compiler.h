@@ -51,16 +51,17 @@ class TurbofanWasmCompilationUnit {
   ~TurbofanWasmCompilationUnit();
 
   bool BuildGraphForWasmFunction(wasm::CompilationEnv* env,
-                                 wasm::NativeModule* native_module,
                                  const wasm::FunctionBody& func_body,
                                  wasm::WasmFeatures* detected,
                                  double* decode_ms, MachineGraph* mcgraph,
                                  NodeOriginTable* node_origins,
-                                 SourcePositionTable* source_positions);
+                                 SourcePositionTable* source_positions,
+                                 wasm::WasmError* error_out);
 
-  void ExecuteCompilation(wasm::CompilationEnv*, wasm::NativeModule*,
-                          const wasm::FunctionBody&, Counters*,
-                          wasm::WasmFeatures* detected);
+  wasm::WasmCompilationResult ExecuteCompilation(wasm::CompilationEnv*,
+                                                 const wasm::FunctionBody&,
+                                                 Counters*,
+                                                 wasm::WasmFeatures* detected);
 
  private:
   wasm::WasmCompilationUnit* const wasm_unit_;

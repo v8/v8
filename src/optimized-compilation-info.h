@@ -26,6 +26,10 @@ class JavaScriptFrame;
 class JSGlobalObject;
 class Zone;
 
+namespace wasm {
+struct WasmCompilationResult;
+}
+
 // OptimizedCompilationInfo encapsulates the information needed to compile
 // optimized code for a given function, and the results of the optimized
 // compilation.
@@ -174,6 +178,9 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
 
   void SetCode(Handle<Code> code) { code_ = code; }
 
+  void SetWasmCompilationResult(std::unique_ptr<wasm::WasmCompilationResult>);
+  std::unique_ptr<wasm::WasmCompilationResult> ReleaseWasmCompilationResult();
+
   bool has_context() const;
   Context context() const;
 
@@ -290,6 +297,9 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
 
   // The compiled code.
   Handle<Code> code_;
+
+  // The WebAssembly compilation result, not published in the NativeModule yet.
+  std::unique_ptr<wasm::WasmCompilationResult> wasm_compilation_result_;
 
   // Entry point when compiling for OSR, {BailoutId::None} otherwise.
   BailoutId osr_offset_ = BailoutId::None();

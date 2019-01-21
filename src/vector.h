@@ -205,7 +205,10 @@ class OwnedVector {
             typename = typename std::enable_if<std::is_convertible<
                 std::unique_ptr<U>, std::unique_ptr<T>>::value>::type>
   OwnedVector(OwnedVector<U>&& other)
-      : data_(other.ReleaseData()), length_(other.size()) {}
+      : data_(std::move(other.data_)), length_(other.length_) {
+    STATIC_ASSERT(sizeof(U) == sizeof(T));
+    other.length_ = 0;
+  }
 
   // Returns the length of the vector as a size_t.
   constexpr size_t size() const { return length_; }
@@ -223,8 +226,11 @@ class OwnedVector {
   Vector<T> as_vector() const { return Vector<T>(start(), size()); }
 
   // Releases the backing data from this vector and transfers ownership to the
-  // caller. This vectors data can no longer be used afterwards.
-  std::unique_ptr<T[]> ReleaseData() { return std::move(data_); }
+  // caller. This vector will be empty afterwards.
+  std::unique_ptr<T[]> ReleaseData() {
+    length_ = 0;
+    return std::move(data_);
+  }
 
   // Allocates a new vector of the specified size via the default allocator.
   static OwnedVector<T> New(size_t size) {
@@ -246,7 +252,13 @@ class OwnedVector {
     return vec;
   }
 
+  bool operator==(std::nullptr_t) const { return data_ == nullptr; }
+  bool operator!=(std::nullptr_t) const { return data_ != nullptr; }
+
  private:
+  template <typename U>
+  friend class OwnedVector;
+
   std::unique_ptr<T[]> data_;
   size_t length_ = 0;
 };
