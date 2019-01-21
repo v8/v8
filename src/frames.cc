@@ -929,14 +929,6 @@ void StandardFrame::IterateCompiledFrame(RootVisitor* v) const {
   FullObjectSlot parameters_base(&Memory<Address>(sp()));
   FullObjectSlot parameters_limit(frame_header_base.address() - slot_space);
 
-  // Visit the parameters that may be on top of the saved registers.
-  if (safepoint_entry.has_argument_count()) {
-    int argument_count = safepoint_entry.argument_count();
-    v->VisitRootPointers(Root::kTop, nullptr, parameters_base,
-                         parameters_base + argument_count);
-    parameters_base += argument_count;
-  }
-
   // Skip saved double registers.
   if (safepoint_entry.has_doubles()) {
     // Number of doubles not known at snapshot time.

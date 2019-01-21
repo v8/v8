@@ -423,7 +423,7 @@ class LiftoffCompiler {
     source_position_table_builder_.AddPosition(
         __ pc_offset(), SourcePosition(ool.position), false);
     __ CallRuntimeStub(ool.stub);
-    safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kSimple, 0,
+    safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kSimple,
                                              Safepoint::kNoLazyDeopt);
     DCHECK_EQ(ool.continuation.get()->is_bound(), is_stack_check);
     if (!ool.regs_to_save.is_empty()) __ PopRegisters(ool.regs_to_save);
@@ -1523,7 +1523,7 @@ class LiftoffCompiler {
     Register centry = kJavaScriptCallCodeStartRegister;
     LOAD_TAGGED_PTR_INSTANCE_FIELD(centry, CEntryStub);
     __ CallRuntimeWithCEntry(runtime_function, centry);
-    safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kSimple, 0,
+    safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kSimple,
                                              Safepoint::kNoLazyDeopt);
   }
 
@@ -1644,7 +1644,7 @@ class LiftoffCompiler {
     if (input.gp() != param_reg) __ Move(param_reg, input.gp(), kWasmI32);
 
     __ CallRuntimeStub(WasmCode::kWasmMemoryGrow);
-    safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kSimple, 0,
+    safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kSimple,
                                              Safepoint::kNoLazyDeopt);
 
     if (kReturnRegister0 != result.gp()) {
@@ -1696,7 +1696,7 @@ class LiftoffCompiler {
 
       __ CallIndirect(imm.sig, call_descriptor, target);
 
-      safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kSimple, 0,
+      safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kSimple,
                                                Safepoint::kNoLazyDeopt);
 
       __ FinishCall(imm.sig, call_descriptor);
@@ -1711,7 +1711,7 @@ class LiftoffCompiler {
       Address addr = static_cast<Address>(imm.index);
       __ CallNativeWasmCode(addr);
 
-      safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kSimple, 0,
+      safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kSimple,
                                                Safepoint::kNoLazyDeopt);
 
       __ FinishCall(imm.sig, call_descriptor);
@@ -1837,7 +1837,7 @@ class LiftoffCompiler {
     __ PrepareCall(imm.sig, call_descriptor, &target, explicit_instance);
     __ CallIndirect(imm.sig, call_descriptor, target);
 
-    safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kSimple, 0,
+    safepoint_table_builder_.DefineSafepoint(&asm_, Safepoint::kSimple,
                                              Safepoint::kNoLazyDeopt);
 
     __ FinishCall(imm.sig, call_descriptor);

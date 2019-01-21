@@ -38,40 +38,23 @@ class SafepointEntry {
 
   int trampoline_pc() { return trampoline_pc_; }
 
-  static const int kHasArgumentsFieldBits = 1;
   static const int kSaveDoublesFieldBits = 1;
-  static const int kDeoptIndexOrArgumentsBits =
-      32 - kHasArgumentsFieldBits - kSaveDoublesFieldBits;
+  static const int kDeoptIndexBits = 32 - kSaveDoublesFieldBits;
 
-  class DeoptimizationIndexOrArgumentsField                      // --
-      : public BitField<int, 0, kDeoptIndexOrArgumentsBits> {};  // --
-  class HasArgumentsField                                        // --
-      : public BitField<bool, kDeoptIndexOrArgumentsBits,        // --
-                        kHasArgumentsFieldBits> {};              // --
-  class SaveDoublesField                                         // --
-      : public BitField<bool, HasArgumentsField::kNext,          // --
-                        kSaveDoublesFieldBits> {};               // --
+  class DeoptimizationIndexField : public BitField<int, 0, kDeoptIndexBits> {};
+  class SaveDoublesField
+      : public BitField<bool, DeoptimizationIndexField::kNext,
+                        kSaveDoublesFieldBits> {};
 
   int deoptimization_index() const {
     DCHECK(is_valid() && has_deoptimization_index());
-    return DeoptimizationIndexOrArgumentsField::decode(info_);
+    return DeoptimizationIndexField::decode(info_);
   }
 
   bool has_deoptimization_index() const {
     DCHECK(is_valid());
-    return !HasArgumentsField::decode(info_) &&
-           DeoptimizationIndexOrArgumentsField::decode(info_) !=
-               DeoptimizationIndexOrArgumentsField::kMax;
-  }
-
-  int argument_count() const {
-    DCHECK(is_valid() && has_argument_count());
-    return DeoptimizationIndexOrArgumentsField::decode(info_);
-  }
-
-  bool has_argument_count() const {
-    DCHECK(is_valid());
-    return HasArgumentsField::decode(info_);
+    return DeoptimizationIndexField::decode(info_) !=
+           DeoptimizationIndexField::kMax;
   }
 
   bool has_doubles() const {
@@ -191,7 +174,7 @@ class Safepoint {
   };
 
   static const int kNoDeoptimizationIndex =
-      SafepointEntry::DeoptimizationIndexOrArgumentsField::kMax;
+      SafepointEntry::DeoptimizationIndexField::kMax;
 
   void DefinePointerSlot(int index) { indexes_->push_back(index); }
   void DefinePointerRegister(Register reg);
@@ -219,7 +202,6 @@ class SafepointTableBuilder {
   // Define a new safepoint for the current position in the body.
   Safepoint DefineSafepoint(Assembler* assembler,
                             Safepoint::Kind kind,
-                            int arguments,
                             Safepoint::DeoptMode mode);
 
   // Record deoptimization index for lazy deoptimization for the last
@@ -242,16 +224,13 @@ class SafepointTableBuilder {
  private:
   struct DeoptimizationInfo {
     unsigned pc;
-    unsigned arguments;    // Only available if {deopt_index} unused.
-    unsigned deopt_index;  // Only available if {arguments == 0}.
+    unsigned deopt_index;
     bool has_doubles;
     int trampoline;
     ZoneChunkList<int>* indexes;
     ZoneChunkList<int>* registers;
-    DeoptimizationInfo(Zone* zone, unsigned pc, unsigned arguments,
-                       Safepoint::Kind kind)
+    DeoptimizationInfo(Zone* zone, unsigned pc, Safepoint::Kind kind)
         : pc(pc),
-          arguments(arguments),
           deopt_index(Safepoint::kNoDeoptimizationIndex),
           has_doubles(kind & Safepoint::kWithDoubles),
           trampoline(-1),

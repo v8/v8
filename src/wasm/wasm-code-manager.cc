@@ -332,9 +332,6 @@ void WasmCode::Disassemble(const char* name, std::ostream& os,
       if (entry.has_deoptimization_index()) {
         os << " deopt: " << std::setw(6) << entry.deoptimization_index();
       }
-      if (entry.has_argument_count()) {
-        os << " argc: " << entry.argument_count();
-      }
       os << "\n";
     }
     os << "\n";

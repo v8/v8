@@ -46,7 +46,7 @@ SafepointTable::SafepointTable(Address instruction_start,
   pc_and_deoptimization_indexes_ = header + kHeaderSize;
   entries_ = pc_and_deoptimization_indexes_ + (length_ * kFixedEntrySize);
   DCHECK_GT(entry_size_, 0);
-  STATIC_ASSERT(SafepointEntry::DeoptimizationIndexOrArgumentsField::kMax ==
+  STATIC_ASSERT(SafepointEntry::DeoptimizationIndexField::kMax ==
                 Safepoint::kNoDeoptimizationIndex);
 }
 
@@ -129,11 +129,9 @@ void Safepoint::DefinePointerRegister(Register reg) {
 Safepoint SafepointTableBuilder::DefineSafepoint(
     Assembler* assembler,
     Safepoint::Kind kind,
-    int arguments,
     Safepoint::DeoptMode deopt_mode) {
-  DCHECK_GE(arguments, 0);
   deoptimization_info_.push_back(
-      DeoptimizationInfo(zone_, assembler->pc_offset(), arguments, kind));
+      DeoptimizationInfo(zone_, assembler->pc_offset(), kind));
   if (deopt_mode == Safepoint::kNoLazyDeopt) {
     last_lazy_safepoint_ = deoptimization_info_.size();
   }
@@ -241,11 +239,7 @@ void SafepointTableBuilder::Emit(Assembler* assembler, int bits_per_entry) {
 }
 
 uint32_t SafepointTableBuilder::EncodeExceptPC(const DeoptimizationInfo& info) {
-  bool has_argc = info.arguments != 0;
-  int argc = has_argc ? info.arguments : info.deopt_index;
-  DCHECK(info.deopt_index == Safepoint::kNoDeoptimizationIndex || !has_argc);
-  return SafepointEntry::DeoptimizationIndexOrArgumentsField::encode(argc) |
-         SafepointEntry::HasArgumentsField::encode(has_argc) |
+  return SafepointEntry::DeoptimizationIndexField::encode(info.deopt_index) |
          SafepointEntry::SaveDoublesField::encode(info.has_doubles);
 }
 
@@ -272,9 +266,7 @@ void SafepointTableBuilder::RemoveDuplicates() {
 
 bool SafepointTableBuilder::IsIdenticalExceptForPc(
     const DeoptimizationInfo& info1, const DeoptimizationInfo& info2) const {
-  if (info1.arguments != info2.arguments) return false;
   if (info1.has_doubles != info2.has_doubles) return false;
-
   if (info1.deopt_index != info2.deopt_index) return false;
 
   ZoneChunkList<int>* indexes1 = info1.indexes;

@@ -15306,9 +15306,6 @@ void Code::Disassemble(const char* name, std::ostream& os, Address current_pc) {
       } else {
         os << "<none>";
       }
-      if (entry.has_argument_count()) {
-        os << " argc: " << entry.argument_count();
-      }
       os << "\n";
     }
     os << "\n";

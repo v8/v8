@@ -3153,7 +3153,7 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
         __ Call(static_cast<Address>(trap_id), RelocInfo::WASM_STUB_CALL);
         ReferenceMap* reference_map =
             new (gen_->zone()) ReferenceMap(gen_->zone());
-        gen_->RecordSafepoint(reference_map, Safepoint::kSimple, 0,
+        gen_->RecordSafepoint(reference_map, Safepoint::kSimple,
                               Safepoint::kNoLazyDeopt);
         if (FLAG_debug_code) {
           __ stop(GetAbortReason(AbortReason::kUnexpectedReturnFromWasmTrap));

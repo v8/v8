@@ -320,7 +320,7 @@ class WasmOutOfLineTrap : public OutOfLineCode {
       __ near_call(static_cast<Address>(trap_id), RelocInfo::WASM_STUB_CALL);
       ReferenceMap* reference_map =
           new (gen_->zone()) ReferenceMap(gen_->zone());
-      gen_->RecordSafepoint(reference_map, Safepoint::kSimple, 0,
+      gen_->RecordSafepoint(reference_map, Safepoint::kSimple,
                             Safepoint::kNoLazyDeopt);
       __ AssertUnreachable(AbortReason::kUnexpectedReturnFromWasmTrap);
     }
@@ -3721,7 +3721,7 @@ void CodeGenerator::AssembleConstructFrame() {
       __ Move(rsi, Smi::zero());
       __ CallRuntimeWithCEntry(Runtime::kThrowWasmStackOverflow, rcx);
       ReferenceMap* reference_map = new (zone()) ReferenceMap(zone());
-      RecordSafepoint(reference_map, Safepoint::kSimple, 0,
+      RecordSafepoint(reference_map, Safepoint::kSimple,
                       Safepoint::kNoLazyDeopt);
       __ AssertUnreachable(AbortReason::kUnexpectedReturnFromWasmTrap);
       __ bind(&done);

@@ -418,10 +418,9 @@ bool CodeGenerator::IsNextInAssemblyOrder(RpoNumber block) const {
 }
 
 void CodeGenerator::RecordSafepoint(ReferenceMap* references,
-                                    Safepoint::Kind kind, int arguments,
+                                    Safepoint::Kind kind,
                                     Safepoint::DeoptMode deopt_mode) {
-  Safepoint safepoint =
-      safepoints()->DefineSafepoint(tasm(), kind, arguments, deopt_mode);
+  Safepoint safepoint = safepoints()->DefineSafepoint(tasm(), kind, deopt_mode);
   int stackSlotToSpillSlotDelta =
       frame()->GetTotalFrameSlotCount() - frame()->GetSpillSlotCount();
   for (const InstructionOperand& operand : references->reference_operands()) {
@@ -849,7 +848,7 @@ void CodeGenerator::RecordCallPosition(Instruction* instr) {
   bool needs_frame_state = (flags & CallDescriptor::kNeedsFrameState);
 
   RecordSafepoint(
-      instr->reference_map(), Safepoint::kSimple, 0,
+      instr->reference_map(), Safepoint::kSimple,
       needs_frame_state ? Safepoint::kLazyDeopt : Safepoint::kNoLazyDeopt);
 
   if (flags & CallDescriptor::kHasExceptionHandler) {

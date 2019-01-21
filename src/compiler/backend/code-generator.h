@@ -130,7 +130,7 @@ class CodeGenerator final : public GapResolver::Assembler {
 
   // Record a safepoint with the given pointer map.
   void RecordSafepoint(ReferenceMap* references, Safepoint::Kind kind,
-                       int arguments, Safepoint::DeoptMode deopt_mode);
+                       Safepoint::DeoptMode deopt_mode);
 
   Zone* zone() const { return zone_; }
   TurboAssembler* tasm() { return &tasm_; }
