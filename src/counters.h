@@ -8,6 +8,7 @@
 #include "include/v8.h"
 #include "src/allocation.h"
 #include "src/base/atomic-utils.h"
+#include "src/base/optional.h"
 #include "src/base/platform/elapsed-timer.h"
 #include "src/base/platform/time.h"
 #include "src/globals.h"
@@ -1101,7 +1102,7 @@ class WorkerThreadRuntimeCallStats final {
   ~WorkerThreadRuntimeCallStats();
 
   // Returns the TLS key associated with this WorkerThreadRuntimeCallStats.
-  base::Thread::LocalStorageKey GetKey() const { return tls_key_; }
+  base::Thread::LocalStorageKey GetKey();
 
   // Returns a new worker thread runtime call stats table managed by this
   // WorkerThreadRuntimeCallStats.
@@ -1113,7 +1114,7 @@ class WorkerThreadRuntimeCallStats final {
  private:
   base::Mutex mutex_;
   std::vector<std::unique_ptr<RuntimeCallStats>> tables_;
-  base::Thread::LocalStorageKey tls_key_;
+  base::Optional<base::Thread::LocalStorageKey> tls_key_;
 };
 
 // Creating a WorkerThreadRuntimeCallStatsScope will provide a thread-local
