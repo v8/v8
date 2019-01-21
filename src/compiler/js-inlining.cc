@@ -304,12 +304,6 @@ bool JSInliner::DetermineCallTarget(
       return false;
     }
 
-    JSFunctionRef ref(broker(), function);
-    if (FLAG_concurrent_inlining && !ref.serialized_for_compilation()) {
-      TRACE_BROKER(broker(), "Missed opportunity to inline a function ("
-                                 << Brief(*match.Value()) << ")");
-    }
-
     shared_info_out = handle(function->shared(), isolate());
     return true;
   }
@@ -479,6 +473,17 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
   Node* context;
   Handle<FeedbackVector> feedback_vector;
   DetermineCallContext(node, context, feedback_vector);
+
+  if (FLAG_concurrent_inlining) {
+    SharedFunctionInfoRef sfi(broker(), shared_info);
+    FeedbackVectorRef feedback(broker(), feedback_vector);
+    if (!sfi.IsSerializedForCompilation(feedback)) {
+      TRACE_BROKER(broker(),
+                   "Would have missed opportunity to inline a function ("
+                       << Brief(*sfi.object()) << " with "
+                       << Brief(*feedback.object()) << ")");
+    }
+  }
 
   // Remember that we inlined this function.
   int inlining_id = info_->AddInlinedFunction(

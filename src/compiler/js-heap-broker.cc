@@ -318,14 +318,6 @@ class JSFunctionData : public JSObjectData {
 
   void Serialize(JSHeapBroker* broker);
 
-  void SetSerializedForCompilation(JSHeapBroker* broker) {
-    CHECK(!serialized_for_compilation_);
-    serialized_for_compilation_ = true;
-  }
-  bool serialized_for_compilation() const {
-    return serialized_for_compilation_;
-  }
-
   ContextData* context() const { return context_; }
   NativeContextData* native_context() const { return native_context_; }
   MapData* initial_map() const { return initial_map_; }
@@ -342,7 +334,6 @@ class JSFunctionData : public JSObjectData {
   bool PrototypeRequiresRuntimeLookup_;
 
   bool serialized_ = false;
-  bool serialized_for_compilation_ = false;
 
   ContextData* context_ = nullptr;
   NativeContextData* native_context_ = nullptr;
@@ -1142,38 +1133,59 @@ ScopeInfoData::ScopeInfoData(JSHeapBroker* broker, ObjectData** storage,
 
 class SharedFunctionInfoData : public HeapObjectData {
  public:
+  SharedFunctionInfoData(JSHeapBroker* broker, ObjectData** storage,
+                         Handle<SharedFunctionInfo> object);
+
   int builtin_id() const { return builtin_id_; }
   BytecodeArrayData* GetBytecodeArray() const { return GetBytecodeArray_; }
+  void SetSerializedForCompilation(FeedbackVectorRef feedback);
+  bool IsSerializedForCompilation(FeedbackVectorRef feedback) const;
 #define DECL_ACCESSOR(type, name) \
   type name() const { return name##_; }
   BROKER_SFI_FIELDS(DECL_ACCESSOR)
 #undef DECL_ACCESSOR
 
-  SharedFunctionInfoData(JSHeapBroker* broker, ObjectData** storage,
-                         Handle<SharedFunctionInfo> object)
-      : HeapObjectData(broker, storage, object),
-        builtin_id_(object->HasBuiltinId() ? object->builtin_id()
-                                           : Builtins::kNoBuiltinId),
-        GetBytecodeArray_(
-            object->HasBytecodeArray()
-                ? broker->GetOrCreateData(object->GetBytecodeArray())
-                      ->AsBytecodeArray()
-                : nullptr)
-#define INIT_MEMBER(type, name) , name##_(object->name())
-            BROKER_SFI_FIELDS(INIT_MEMBER)
-#undef INIT_MEMBER
-  {
-    DCHECK_EQ(HasBuiltinId_, builtin_id_ != Builtins::kNoBuiltinId);
-    DCHECK_EQ(HasBytecodeArray_, GetBytecodeArray_ != nullptr);
-  }
-
  private:
   int const builtin_id_;
   BytecodeArrayData* const GetBytecodeArray_;
+  ZoneUnorderedSet<Handle<FeedbackVector>, Handle<FeedbackVector>::hash,
+                   Handle<FeedbackVector>::equal_to>
+      serialized_for_compilation_;
 #define DECL_MEMBER(type, name) type const name##_;
   BROKER_SFI_FIELDS(DECL_MEMBER)
 #undef DECL_MEMBER
 };
+
+SharedFunctionInfoData::SharedFunctionInfoData(
+    JSHeapBroker* broker, ObjectData** storage,
+    Handle<SharedFunctionInfo> object)
+    : HeapObjectData(broker, storage, object),
+      builtin_id_(object->HasBuiltinId() ? object->builtin_id()
+                                         : Builtins::kNoBuiltinId),
+      GetBytecodeArray_(
+          object->HasBytecodeArray()
+              ? broker->GetOrCreateData(object->GetBytecodeArray())
+                    ->AsBytecodeArray()
+              : nullptr),
+      serialized_for_compilation_(broker->zone())
+#define INIT_MEMBER(type, name) , name##_(object->name())
+          BROKER_SFI_FIELDS(INIT_MEMBER)
+#undef INIT_MEMBER
+{
+  DCHECK_EQ(HasBuiltinId_, builtin_id_ != Builtins::kNoBuiltinId);
+  DCHECK_EQ(HasBytecodeArray_, GetBytecodeArray_ != nullptr);
+}
+
+void SharedFunctionInfoData::SetSerializedForCompilation(
+    FeedbackVectorRef feedback) {
+  CHECK(serialized_for_compilation_.insert(feedback.object()).second);
+}
+
+bool SharedFunctionInfoData::IsSerializedForCompilation(
+    FeedbackVectorRef feedback) const {
+  return serialized_for_compilation_.find(feedback.object()) !=
+         serialized_for_compilation_.end();
+}
 
 class ModuleData : public HeapObjectData {
  public:
@@ -2663,14 +2675,16 @@ void JSFunctionRef::Serialize() {
   data()->AsJSFunction()->Serialize(broker());
 }
 
-void JSFunctionRef::SetSerializedForCompilation() {
+void SharedFunctionInfoRef::SetSerializedForCompilation(
+    FeedbackVectorRef feedback) {
   CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
-  data()->AsJSFunction()->SetSerializedForCompilation(broker());
+  data()->AsSharedFunctionInfo()->SetSerializedForCompilation(feedback);
 }
 
-bool JSFunctionRef::serialized_for_compilation() const {
-  CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
-  return data()->AsJSFunction()->serialized_for_compilation();
+bool SharedFunctionInfoRef::IsSerializedForCompilation(
+    FeedbackVectorRef feedback) const {
+  CHECK_NE(broker()->mode(), JSHeapBroker::kDisabled);
+  return data()->AsSharedFunctionInfo()->IsSerializedForCompilation(feedback);
 }
 
 void JSObjectRef::SerializeObjectCreateMap() {

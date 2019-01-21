@@ -116,20 +116,17 @@ typedef ZoneVector<Hints> HintsVector;
 // optimizations in the compiler, is copied to the heap broker.
 class SerializerForBackgroundCompilation {
  public:
-  class Environment;
+  SerializerForBackgroundCompilation(JSHeapBroker* broker, Zone* zone,
+                                     Handle<JSFunction> function);
+  Hints Run();
 
+ private:
   SerializerForBackgroundCompilation(JSHeapBroker* broker, Zone* zone,
-                                     Handle<JSFunction> closure);
-  SerializerForBackgroundCompilation(JSHeapBroker* broker, Zone* zone,
-                                     Handle<JSFunction> closure,
+                                     Handle<SharedFunctionInfo> sfi,
+                                     Handle<FeedbackVector> feedback,
                                      const Hints& receiver,
                                      const HintsVector& arguments);
 
-  Hints Run();
-
-  Zone* zone() const { return zone_; }
-
- private:
   void TraverseBytecode();
 
 #define DECLARE_VISIT_BYTECODE(name, ...) \
@@ -137,6 +134,9 @@ class SerializerForBackgroundCompilation {
   SUPPORTED_BYTECODE_LIST(DECLARE_VISIT_BYTECODE)
 #undef DECLARE_VISIT_BYTECODE
 
+  class Environment;
+
+  Zone* zone() const { return zone_; }
   JSHeapBroker* broker() const { return broker_; }
   Environment* environment() const { return environment_; }
 
@@ -147,9 +147,9 @@ class SerializerForBackgroundCompilation {
 
   JSHeapBroker* broker_;
   Zone* zone_;
+  Handle<SharedFunctionInfo> sfi_;
+  Handle<FeedbackVector> feedback_;
   Environment* environment_;
-
-  Handle<JSFunction> closure_;
 };
 
 }  // namespace compiler

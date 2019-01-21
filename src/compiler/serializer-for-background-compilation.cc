@@ -182,52 +182,45 @@ void SerializerForBackgroundCompilation::Environment::SetRegisterHints(
 }
 
 SerializerForBackgroundCompilation::SerializerForBackgroundCompilation(
-    JSHeapBroker* broker, Zone* zone, Handle<JSFunction> closure)
+    JSHeapBroker* broker, Zone* zone, Handle<JSFunction> function)
     : broker_(broker),
       zone_(zone),
+      sfi_(function->shared(), broker->isolate()),
+      feedback_(function->feedback_vector(), broker->isolate()),
       environment_(new (zone) Environment(
-          zone, broker_->isolate(),
-          closure->shared()->GetBytecodeArray()->register_count(),
-          closure->shared()->GetBytecodeArray()->parameter_count())),
-      closure_(closure) {}
+          zone, broker_->isolate(), sfi_->GetBytecodeArray()->register_count(),
+          sfi_->GetBytecodeArray()->parameter_count())) {
+  JSFunctionRef(broker, function).Serialize();
+}
 
 SerializerForBackgroundCompilation::SerializerForBackgroundCompilation(
-    JSHeapBroker* broker, Zone* zone, Handle<JSFunction> closure,
-    const Hints& receiver, const HintsVector& arguments)
+    JSHeapBroker* broker, Zone* zone, Handle<SharedFunctionInfo> sfi,
+    Handle<FeedbackVector> feedback, const Hints& receiver,
+    const HintsVector& arguments)
     : broker_(broker),
       zone_(zone),
+      sfi_(sfi),
+      feedback_(feedback),
       environment_(new (zone) Environment(
-          this, broker->isolate(),
-          closure->shared()->GetBytecodeArray()->register_count(),
-          closure->shared()->GetBytecodeArray()->parameter_count(), receiver,
-          arguments)),
-      closure_(closure) {}
+          this, broker->isolate(), sfi->GetBytecodeArray()->register_count(),
+          sfi->GetBytecodeArray()->parameter_count(), receiver, arguments)) {}
 
 Hints SerializerForBackgroundCompilation::Run() {
-  JSFunctionRef closure_ref(broker(), closure_);
-  if (closure_ref.serialized_for_compilation()) {
+  SharedFunctionInfoRef sfi(broker(), sfi_);
+  FeedbackVectorRef feedback(broker(), feedback_);
+  if (sfi.IsSerializedForCompilation(feedback)) {
     return Hints(zone());
   }
-  closure_ref.SetSerializedForCompilation();
-
-  FeedbackVectorRef fv(
-      broker(), handle(closure_->feedback_vector(), broker()->isolate()));
-  fv.SerializeSlots();
-
-  BytecodeArrayRef bytecode_array(
-      broker(),
-      handle(closure_->shared()->GetBytecodeArray(), broker()->isolate()));
-
-  closure_ref.Serialize();
-
+  sfi.SetSerializedForCompilation(feedback);
+  feedback.SerializeSlots();
   TraverseBytecode();
-
   return environment()->LookupReturnValue();
 }
 
 void SerializerForBackgroundCompilation::TraverseBytecode() {
-  interpreter::BytecodeArrayIterator iterator(
-      handle(closure_->shared()->GetBytecodeArray(), broker()->isolate()));
+  BytecodeArrayRef bytecode_array(
+      broker(), handle(sfi_->GetBytecodeArray(), broker()->isolate()));
+  interpreter::BytecodeArrayIterator iterator(bytecode_array.object());
 
   for (; !iterator.done(); iterator.Advance()) {
     switch (iterator.current_bytecode()) {
@@ -431,17 +424,19 @@ void SerializerForBackgroundCompilation::ProcessCallOrConstruct(
     const Hints& callee, const Hints& receiver, const HintsVector& arguments) {
   environment()->ClearAccumulatorHints();
 
-  for (auto value : callee) {
-    if (!value->IsJSFunction()) continue;
+  for (auto hint : callee) {
+    if (!hint->IsJSFunction()) continue;
 
-    Handle<JSFunction> callee(Handle<JSFunction>::cast(value));
-    if (!callee->shared()->HasBytecodeArray() ||
-        !callee->shared()->IsInlineable())
-      continue;
+    Handle<JSFunction> function = Handle<JSFunction>::cast(hint);
+    if (!function->shared()->IsInlineable()) continue;
 
+    JSFunctionRef(broker(), function).Serialize();
+
+    Handle<SharedFunctionInfo> sfi(function->shared(), broker()->isolate());
+    Handle<FeedbackVector> feedback(function->feedback_vector(),
+                                    broker()->isolate());
     SerializerForBackgroundCompilation child_serializer(
-        broker(), zone(), callee, receiver, arguments);
-
+        broker(), zone(), sfi, feedback, receiver, arguments);
     environment()->AddAccumulatorHints(child_serializer.Run());
   }
 }

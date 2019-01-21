@@ -235,9 +235,6 @@ class JSFunctionRef : public JSObjectRef {
   bool PrototypeRequiresRuntimeLookup() const;
 
   void Serialize();
-  void SetSerializedForCompilation();
-
-  bool serialized_for_compilation() const;
 
   // The following are available only after calling Serialize().
   ObjectRef prototype() const;
@@ -536,6 +533,9 @@ class SharedFunctionInfoRef : public HeapObjectRef {
 #define DECL_ACCESSOR(type, name) type name() const;
   BROKER_SFI_FIELDS(DECL_ACCESSOR)
 #undef DECL_ACCESSOR
+
+  bool IsSerializedForCompilation(FeedbackVectorRef feedback) const;
+  void SetSerializedForCompilation(FeedbackVectorRef feedback);
 };
 
 class StringRef : public NameRef {
