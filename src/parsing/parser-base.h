@@ -3949,6 +3949,9 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
           // Parse again in the outer scope, since the language mode may change.
           BlockState block_state(&scope_, scope()->outer_scope());
           ExpressionT expression = ParseConditionalExpression();
+          // Reparsing the head may have caused a stack overflow.
+          if (has_error()) return impl()->FailureExpression();
+
           DeclarationScope* function_scope = next_arrow_function_info_.scope;
           FunctionState function_state(&function_state_, &scope_,
                                        function_scope);
