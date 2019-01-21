@@ -121,6 +121,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
   size_t code_comments_offset() const { return code_comments_offset_; }
   size_t unpadded_binary_size() const { return unpadded_binary_size_; }
   uint32_t stack_slots() const { return stack_slots_; }
+  uint32_t tagged_parameter_slots() const { return tagged_parameter_slots_; }
   bool is_liftoff() const { return tier_ == kLiftoff; }
   bool contains(Address pc) const {
     return reinterpret_cast<Address>(instructions_.start()) <= pc &&
@@ -155,9 +156,9 @@ class V8_EXPORT_PRIVATE WasmCode final {
 
   WasmCode(NativeModule* native_module, uint32_t index,
            Vector<byte> instructions, uint32_t stack_slots,
-           size_t safepoint_table_offset, size_t handler_table_offset,
-           size_t constant_pool_offset, size_t code_comments_offset,
-           size_t unpadded_binary_size,
+           uint32_t tagged_parameter_slots, size_t safepoint_table_offset,
+           size_t handler_table_offset, size_t constant_pool_offset,
+           size_t code_comments_offset, size_t unpadded_binary_size,
            OwnedVector<trap_handler::ProtectedInstructionData>
                protected_instructions,
            OwnedVector<const byte> reloc_info,
@@ -170,6 +171,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
         kind_(kind),
         constant_pool_offset_(constant_pool_offset),
         stack_slots_(stack_slots),
+        tagged_parameter_slots_(tagged_parameter_slots),
         safepoint_table_offset_(safepoint_table_offset),
         handler_table_offset_(handler_table_offset),
         code_comments_offset_(code_comments_offset),
@@ -200,6 +202,9 @@ class V8_EXPORT_PRIVATE WasmCode final {
   Kind kind_;
   size_t constant_pool_offset_ = 0;
   uint32_t stack_slots_ = 0;
+  // Number of tagged parameters passed to this function via the stack. This
+  // value is used by the stack walker (e.g. GC) to find references.
+  uint32_t tagged_parameter_slots_ = 0;
   // we care about safepoint data for wasm-to-js functions,
   // since there may be stack/register tagged values for large number
   // conversions.
@@ -228,6 +233,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // {AddCode} is thread safe w.r.t. other calls to {AddCode} or methods adding
   // code below, i.e. it can be called concurrently from background threads.
   WasmCode* AddCode(uint32_t index, const CodeDesc& desc, uint32_t stack_slots,
+                    uint32_t tagged_parameter_slots,
                     size_t safepoint_table_offset, size_t handler_table_offset,
                     OwnedVector<trap_handler::ProtectedInstructionData>
                         protected_instructions,
@@ -236,9 +242,9 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   WasmCode* AddDeserializedCode(
       uint32_t index, Vector<const byte> instructions, uint32_t stack_slots,
-      size_t safepoint_table_offset, size_t handler_table_offset,
-      size_t constant_pool_offset, size_t code_comments_offset,
-      size_t unpadded_binary_size,
+      uint32_t tagged_parameter_slots, size_t safepoint_table_offset,
+      size_t handler_table_offset, size_t constant_pool_offset,
+      size_t code_comments_offset, size_t unpadded_binary_size,
       OwnedVector<trap_handler::ProtectedInstructionData>
           protected_instructions,
       OwnedVector<const byte> reloc_info,
@@ -377,7 +383,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // code is obtained (CodeDesc vs, as a point in time, Code), the kind,
   // whether it has an index or is anonymous, etc.
   WasmCode* AddOwnedCode(uint32_t index, Vector<const byte> instructions,
-                         uint32_t stack_slots, size_t safepoint_table_offset,
+                         uint32_t stack_slots, uint32_t tagged_parameter_slots,
+                         size_t safepoint_table_offset,
                          size_t handler_table_offset,
                          size_t constant_pool_offset,
                          size_t code_comments_offset,

@@ -315,6 +315,8 @@ class V8_EXPORT_PRIVATE CallDescriptor final
 
   int GetStackParameterDelta(const CallDescriptor* tail_caller) const;
 
+  int GetTaggedParameterSlots() const;
+
   bool CanTailCall(const Node* call) const;
 
   int CalculateFixedFrameSize() const;

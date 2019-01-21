@@ -195,6 +195,7 @@ constexpr size_t kCodeHeaderSize =
     sizeof(size_t) +         // offset of code comments
     sizeof(size_t) +         // unpadded binary size
     sizeof(uint32_t) +       // stack slots
+    sizeof(uint32_t) +       // tagged parameter slots
     sizeof(size_t) +         // code size
     sizeof(size_t) +         // reloc size
     sizeof(size_t) +         // source positions size
@@ -335,6 +336,7 @@ void NativeModuleSerializer::WriteCode(const WasmCode* code, Writer* writer) {
   writer->Write(code->code_comments_offset());
   writer->Write(code->unpadded_binary_size());
   writer->Write(code->stack_slots());
+  writer->Write(code->tagged_parameter_slots());
   writer->Write(code->instructions().size());
   writer->Write(code->reloc_info().size());
   writer->Write(code->source_positions().size());
@@ -495,6 +497,7 @@ bool NativeModuleDeserializer::ReadCode(uint32_t fn_index, Reader* reader) {
   size_t code_comment_offset = reader->Read<size_t>();
   size_t unpadded_binary_size = reader->Read<size_t>();
   uint32_t stack_slot_count = reader->Read<uint32_t>();
+  uint32_t tagged_parameter_slots = reader->Read<uint32_t>();
   size_t code_size = reader->Read<size_t>();
   size_t reloc_size = reader->Read<size_t>();
   size_t source_position_size = reader->Read<size_t>();
@@ -514,10 +517,11 @@ bool NativeModuleDeserializer::ReadCode(uint32_t fn_index, Reader* reader) {
   reader->ReadVector(Vector<byte>::cast(protected_instructions.as_vector()));
 
   WasmCode* code = native_module_->AddDeserializedCode(
-      fn_index, code_buffer, stack_slot_count, safepoint_table_offset,
-      handler_table_offset, constant_pool_offset, code_comment_offset,
-      unpadded_binary_size, std::move(protected_instructions),
-      std::move(reloc_info), std::move(source_pos), tier);
+      fn_index, code_buffer, stack_slot_count, tagged_parameter_slots,
+      safepoint_table_offset, handler_table_offset, constant_pool_offset,
+      code_comment_offset, unpadded_binary_size,
+      std::move(protected_instructions), std::move(reloc_info),
+      std::move(source_pos), tier);
 
   // Relocate the code.
   int mask = RelocInfo::ModeMask(RelocInfo::WASM_CALL) |

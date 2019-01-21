@@ -436,9 +436,9 @@ CompilationEnv NativeModule::CreateCompilationEnv() const {
 
 WasmCode* NativeModule::AddOwnedCode(
     uint32_t index, Vector<const byte> instructions, uint32_t stack_slots,
-    size_t safepoint_table_offset, size_t handler_table_offset,
-    size_t constant_pool_offset, size_t code_comments_offset,
-    size_t unpadded_binary_size,
+    uint32_t tagged_parameter_slots, size_t safepoint_table_offset,
+    size_t handler_table_offset, size_t constant_pool_offset,
+    size_t code_comments_offset, size_t unpadded_binary_size,
     OwnedVector<trap_handler::ProtectedInstructionData> protected_instructions,
     OwnedVector<const byte> reloc_info,
     OwnedVector<const byte> source_position_table, WasmCode::Kind kind,
@@ -451,10 +451,11 @@ WasmCode* NativeModule::AddOwnedCode(
     Vector<byte> executable_buffer = AllocateForCode(instructions.size());
     // Ownership will be transferred to {owned_code_} below.
     code = new WasmCode(
-        this, index, executable_buffer, stack_slots, safepoint_table_offset,
-        handler_table_offset, constant_pool_offset, code_comments_offset,
-        unpadded_binary_size, std::move(protected_instructions),
-        std::move(reloc_info), std::move(source_position_table), kind, tier);
+        this, index, executable_buffer, stack_slots, tagged_parameter_slots,
+        safepoint_table_offset, handler_table_offset, constant_pool_offset,
+        code_comments_offset, unpadded_binary_size,
+        std::move(protected_instructions), std::move(reloc_info),
+        std::move(source_position_table), kind, tier);
 
     if (owned_code_.empty() ||
         code->instruction_start() > owned_code_.back()->instruction_start()) {
@@ -535,6 +536,7 @@ WasmCode* NativeModule::AddAnonymousCode(Handle<Code> code, WasmCode::Kind kind,
       AddOwnedCode(WasmCode::kAnonymousFuncIndex,  // index
                    instructions,                   // instructions
                    stack_slots,                    // stack_slots
+                   0,                              // tagged_parameter_slots
                    safepoint_table_offset,         // safepoint_table_offset
                    code->handler_table_offset(),   // handler_table_offset
                    code->constant_pool_offset(),   // constant_pool_offset
@@ -578,7 +580,8 @@ WasmCode* NativeModule::AddAnonymousCode(Handle<Code> code, WasmCode::Kind kind,
 
 WasmCode* NativeModule::AddCode(
     uint32_t index, const CodeDesc& desc, uint32_t stack_slots,
-    size_t safepoint_table_offset, size_t handler_table_offset,
+    uint32_t tagged_parameter_slots, size_t safepoint_table_offset,
+    size_t handler_table_offset,
     OwnedVector<trap_handler::ProtectedInstructionData> protected_instructions,
     OwnedVector<const byte> source_pos_table, WasmCode::Kind kind,
     WasmCode::Tier tier) {
@@ -588,8 +591,8 @@ WasmCode* NativeModule::AddCode(
 
   WasmCode* ret = AddOwnedCode(
       index, {desc.buffer, static_cast<size_t>(desc.instr_size)}, stack_slots,
-      safepoint_table_offset, handler_table_offset, desc.constant_pool_offset(),
-      desc.code_comments_offset(), desc.instr_size,
+      tagged_parameter_slots, safepoint_table_offset, handler_table_offset,
+      desc.constant_pool_offset(), desc.code_comments_offset(), desc.instr_size,
       std::move(protected_instructions), std::move(reloc_info),
       std::move(source_pos_table), kind, tier);
 
@@ -629,18 +632,18 @@ WasmCode* NativeModule::AddCode(
 
 WasmCode* NativeModule::AddDeserializedCode(
     uint32_t index, Vector<const byte> instructions, uint32_t stack_slots,
-    size_t safepoint_table_offset, size_t handler_table_offset,
-    size_t constant_pool_offset, size_t code_comments_offset,
-    size_t unpadded_binary_size,
+    uint32_t tagged_parameter_slots, size_t safepoint_table_offset,
+    size_t handler_table_offset, size_t constant_pool_offset,
+    size_t code_comments_offset, size_t unpadded_binary_size,
     OwnedVector<trap_handler::ProtectedInstructionData> protected_instructions,
     OwnedVector<const byte> reloc_info,
     OwnedVector<const byte> source_position_table, WasmCode::Tier tier) {
-  WasmCode* code =
-      AddOwnedCode(index, instructions, stack_slots, safepoint_table_offset,
-                   handler_table_offset, constant_pool_offset,
-                   code_comments_offset, unpadded_binary_size,
-                   std::move(protected_instructions), std::move(reloc_info),
-                   std::move(source_position_table), WasmCode::kFunction, tier);
+  WasmCode* code = AddOwnedCode(
+      index, instructions, stack_slots, tagged_parameter_slots,
+      safepoint_table_offset, handler_table_offset, constant_pool_offset,
+      code_comments_offset, unpadded_binary_size,
+      std::move(protected_instructions), std::move(reloc_info),
+      std::move(source_position_table), WasmCode::kFunction, tier);
 
   if (!code->protected_instructions_.is_empty()) {
     code->RegisterTrapHandlerData();
@@ -689,6 +692,7 @@ WasmCode* NativeModule::CreateEmptyJumpTable(uint32_t num_wasm_functions) {
   return AddOwnedCode(WasmCode::kAnonymousFuncIndex,  // index
                       instructions.as_vector(),       // instructions
                       0,                              // stack_slots
+                      0,                              // tagged_parameter_slots
                       instructions.size(),            // safepoint_table_offset
                       instructions.size(),            // handler_table_offset
                       instructions.size(),            // constant_pool_offset

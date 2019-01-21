@@ -60,6 +60,7 @@ struct WasmCompilationResult {
   CodeDesc code_desc;
   std::unique_ptr<uint8_t[]> instr_buffer;
   uint32_t frame_slot_count = 0;
+  uint32_t tagged_parameter_slots = 0;
   size_t safepoint_table_offset = 0;
   size_t handler_table_offset = 0;
   OwnedVector<byte> source_positions;

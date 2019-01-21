@@ -852,6 +852,7 @@ void StandardFrame::IterateCompiledFrame(RootVisitor* v) const {
   uint32_t stack_slots;
   Code code;
   bool has_tagged_params = false;
+  uint32_t tagged_parameter_slots = 0;
   if (wasm_code != nullptr) {
     SafepointTable table(wasm_code->instruction_start(),
                          wasm_code->safepoint_table_offset(),
@@ -859,6 +860,7 @@ void StandardFrame::IterateCompiledFrame(RootVisitor* v) const {
     safepoint_entry = table.FindEntry(inner_pointer);
     stack_slots = wasm_code->stack_slots();
     has_tagged_params = wasm_code->kind() != wasm::WasmCode::kFunction;
+    tagged_parameter_slots = wasm_code->tagged_parameter_slots();
   } else {
     InnerPointerToCodeCache::InnerPointerToCodeCacheEntry* entry =
         isolate()->inner_pointer_to_code_cache()->GetCacheEntry(inner_pointer);
@@ -968,6 +970,19 @@ void StandardFrame::IterateCompiledFrame(RootVisitor* v) const {
     if ((safepoint_bits[byte_index] & (1U << bit_index)) != 0) {
       v->VisitRootPointer(Root::kTop, nullptr, parameters_limit + index);
     }
+  }
+
+  // Visit tagged parameters that have been passed to the function of this
+  // frame. Conceptionally these parameters belong to the parent frame. However,
+  // the exact count is only known by this frame (in the presence of tail calls,
+  // this information cannot be derived from the call site).
+  if (tagged_parameter_slots > 0) {
+    FullObjectSlot tagged_parameter_base(&Memory<Address>(caller_sp()));
+    FullObjectSlot tagged_parameter_limit =
+        tagged_parameter_base + tagged_parameter_slots;
+
+    v->VisitRootPointers(Root::kTop, nullptr, tagged_parameter_base,
+                         tagged_parameter_limit);
   }
 
   // For the off-heap code cases, we can skip this.
