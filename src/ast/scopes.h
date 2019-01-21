@@ -889,6 +889,15 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
     has_simple_parameters_ = false;
   }
 
+  void MakeParametersNonSimple() {
+    SetHasNonSimpleParameters();
+    for (ZoneHashMap::Entry* p = variables_.Start(); p != nullptr;
+         p = variables_.Next(p)) {
+      Variable* var = reinterpret_cast<Variable*>(p->value);
+      if (var->is_parameter()) var->MakeParameterNonSimple();
+    }
+  }
+
   // Returns whether the arguments object aliases formal parameters.
   CreateArgumentsType GetArgumentsType() const {
     DCHECK(is_function_scope());

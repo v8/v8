@@ -34,11 +34,9 @@ class PatternRewriter final : public AstVisitor<PatternRewriter> {
       const Parser::DeclarationParsingResult::Declaration* declaration);
 
  private:
-  PatternRewriter(Parser* parser, VariableKind kind,
-                  int initializer_position = kNoSourcePosition,
-                  bool declares_parameter_containing_sloppy_eval = false)
+  PatternRewriter(Parser* parser, VariableKind kind, int initializer_position,
+                  bool declares_parameter_containing_sloppy_eval)
       : parser_(parser),
-        kind_(kind),
         initializer_position_(initializer_position),
         declares_parameter_containing_sloppy_eval_(
             declares_parameter_containing_sloppy_eval) {}
@@ -47,8 +45,6 @@ class PatternRewriter final : public AstVisitor<PatternRewriter> {
   // Visiting functions for AST nodes make this an AstVisitor.
   AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
-
-  void RecurseIntoSubpattern(AstNode* pattern) { Visit(pattern); }
 
   Expression* Visit(Assignment* assign) {
     if (parser_->has_error()) return parser_->FailureExpression();
@@ -69,7 +65,6 @@ class PatternRewriter final : public AstVisitor<PatternRewriter> {
   Scope* scope() const { return parser_->scope(); }
 
   Parser* const parser_;
-  VariableKind kind_;
   const int initializer_position_;
   const bool declares_parameter_containing_sloppy_eval_;
 
@@ -80,17 +75,22 @@ void Parser::InitializeVariables(
     ScopedPtrList<Statement>* statements, VariableKind kind,
     const DeclarationParsingResult::Declaration* declaration) {
   if (has_error()) return;
-  PatternRewriter::InitializeVariables(this, kind, declaration);
 
-  if (declaration->initializer) {
-    int pos = declaration->value_beg_position;
-    if (pos == kNoSourcePosition) {
-      pos = declaration->initializer_position;
-    }
-    Assignment* assignment = factory()->NewAssignment(
-        Token::INIT, declaration->pattern, declaration->initializer, pos);
-    statements->Add(factory()->NewExpressionStatement(assignment, pos));
+  if (!declaration->initializer) {
+    // The parameter scope is only a block scope if the initializer calls sloppy
+    // eval. Since there is no initializer, we can't be calling sloppy eval.
+    DCHECK_IMPLIES(kind == PARAMETER_VARIABLE, scope()->is_function_scope());
+    return;
   }
+
+  PatternRewriter::InitializeVariables(this, kind, declaration);
+  int pos = declaration->value_beg_position;
+  if (pos == kNoSourcePosition) {
+    pos = declaration->initializer_position;
+  }
+  Assignment* assignment = factory()->NewAssignment(
+      Token::INIT, declaration->pattern, declaration->initializer, pos);
+  statements->Add(factory()->NewExpressionStatement(assignment, pos));
 }
 
 void PatternRewriter::InitializeVariables(
@@ -100,7 +100,7 @@ void PatternRewriter::InitializeVariables(
       parser, kind, declaration->initializer_position,
       kind == PARAMETER_VARIABLE && parser->scope()->is_block_scope());
 
-  rewriter.RecurseIntoSubpattern(declaration->pattern);
+  rewriter.Visit(declaration->pattern);
 }
 
 void PatternRewriter::VisitVariableProxy(VariableProxy* proxy) {
@@ -110,11 +110,8 @@ void PatternRewriter::VisitVariableProxy(VariableProxy* proxy) {
           ? proxy->var()
           : scope()->GetDeclarationScope()->LookupLocal(proxy->raw_name());
 
-  // TODO(verwaest): Use ScopedPtrList of Variable(Proxy?) in the
-  // ExpressionScope instead.
-  if (kind_ == PARAMETER_VARIABLE) var->MakeNonSimpleParameter();
-
   DCHECK_NOT_NULL(var);
+
   DCHECK_NE(initializer_position_, kNoSourcePosition);
   var->set_initializer_position(initializer_position_);
 }
@@ -137,14 +134,14 @@ void PatternRewriter::VisitObjectLiteral(ObjectLiteral* pattern) {
       // scope rewriting.
       RewriteParameterScopes(key);
     }
-    RecurseIntoSubpattern(property->value());
+    Visit(property->value());
   }
 }
 
 void PatternRewriter::VisitArrayLiteral(ArrayLiteral* node) {
   for (Expression* value : *node->values()) {
     if (value->IsTheHoleLiteral()) continue;
-    RecurseIntoSubpattern(value);
+    Visit(value);
   }
 }
 
@@ -154,12 +151,10 @@ void PatternRewriter::VisitAssignment(Assignment* node) {
   // Initializer may have been parsed in the wrong scope.
   RewriteParameterScopes(node->value());
 
-  RecurseIntoSubpattern(node->target());
+  Visit(node->target());
 }
 
-void PatternRewriter::VisitSpread(Spread* node) {
-  RecurseIntoSubpattern(node->expression());
-}
+void PatternRewriter::VisitSpread(Spread* node) { Visit(node->expression()); }
 
 // =============== UNREACHABLE =============================
 
