@@ -71,18 +71,21 @@ class Utf16CharacterStream {
   template <typename FunctionType>
   V8_INLINE uc32 AdvanceUntil(FunctionType check) {
     while (true) {
-      for (; buffer_cursor_ < buffer_end_; ++buffer_cursor_) {
-        uc32 c0_ = static_cast<uc32>(*buffer_cursor_);
-        if (check(c0_)) {
-          buffer_cursor_++;
-          return c0_;
-        }
-      }
+      auto next_cursor_pos =
+          std::find_if(buffer_cursor_, buffer_end_, [&check](uint16_t raw_c0_) {
+            uc32 c0_ = static_cast<uc32>(raw_c0_);
+            return check(c0_);
+          });
 
-      DCHECK_EQ(buffer_cursor_, buffer_end_);
-      if (!ReadBlockChecked()) {
-        buffer_cursor_++;
-        return kEndOfInput;
+      if (next_cursor_pos == buffer_end_) {
+        buffer_cursor_ = buffer_end_;
+        if (!ReadBlockChecked()) {
+          buffer_cursor_++;
+          return kEndOfInput;
+        }
+      } else {
+        buffer_cursor_ = next_cursor_pos + 1;
+        return static_cast<uc32>(*next_cursor_pos);
       }
     }
   }
