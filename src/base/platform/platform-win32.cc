@@ -969,20 +969,21 @@ class Win32MemoryMappedFile final : public OS::MemoryMappedFile {
 
 // static
 OS::MemoryMappedFile* OS::MemoryMappedFile::open(const char* name) {
-  // Open a physical file
+  // Open a physical file.
   HANDLE file = CreateFileA(name, GENERIC_READ | GENERIC_WRITE,
                             FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr,
                             OPEN_EXISTING, 0, nullptr);
   if (file == INVALID_HANDLE_VALUE) return nullptr;
 
   DWORD size = GetFileSize(file, nullptr);
+  if (size == 0) return new Win32MemoryMappedFile(file, nullptr, nullptr, 0);
 
-  // Create a file mapping for the physical file
+  // Create a file mapping for the physical file.
   HANDLE file_mapping =
       CreateFileMapping(file, nullptr, PAGE_READWRITE, 0, size, nullptr);
   if (file_mapping == nullptr) return nullptr;
 
-  // Map a view of the file into memory
+  // Map a view of the file into memory.
   void* memory = MapViewOfFile(file_mapping, FILE_MAP_ALL_ACCESS, 0, 0, size);
   return new Win32MemoryMappedFile(file, file_mapping, memory, size);
 }
@@ -991,16 +992,17 @@ OS::MemoryMappedFile* OS::MemoryMappedFile::open(const char* name) {
 // static
 OS::MemoryMappedFile* OS::MemoryMappedFile::create(const char* name,
                                                    size_t size, void* initial) {
-  // Open a physical file
+  // Open a physical file.
   HANDLE file = CreateFileA(name, GENERIC_READ | GENERIC_WRITE,
                             FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr,
                             OPEN_ALWAYS, 0, nullptr);
   if (file == nullptr) return nullptr;
-  // Create a file mapping for the physical file
+  if (size == 0) return new Win32MemoryMappedFile(file, nullptr, nullptr, 0);
+  // Create a file mapping for the physical file.
   HANDLE file_mapping = CreateFileMapping(file, nullptr, PAGE_READWRITE, 0,
                                           static_cast<DWORD>(size), nullptr);
   if (file_mapping == nullptr) return nullptr;
-  // Map a view of the file into memory
+  // Map a view of the file into memory.
   void* memory = MapViewOfFile(file_mapping, FILE_MAP_ALL_ACCESS, 0, 0, size);
   if (memory) memmove(memory, initial, size);
   return new Win32MemoryMappedFile(file, file_mapping, memory, size);
@@ -1009,7 +1011,7 @@ OS::MemoryMappedFile* OS::MemoryMappedFile::create(const char* name,
 
 Win32MemoryMappedFile::~Win32MemoryMappedFile() {
   if (memory_) UnmapViewOfFile(memory_);
-  CloseHandle(file_mapping_);
+  if (file_mapping_) CloseHandle(file_mapping_);
   CloseHandle(file_);
 }
 

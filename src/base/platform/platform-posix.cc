@@ -448,7 +448,8 @@ OS::MemoryMappedFile* OS::MemoryMappedFile::open(const char* name) {
   if (FILE* file = fopen(name, "r+")) {
     if (fseek(file, 0, SEEK_END) == 0) {
       long size = ftell(file);  // NOLINT(runtime/int)
-      if (size >= 0) {
+      if (size == 0) return new PosixMemoryMappedFile(file, nullptr, 0);
+      if (size > 0) {
         void* const memory =
             mmap(OS::GetRandomMmapAddr(), size, PROT_READ | PROT_WRITE,
                  MAP_SHARED, fileno(file), 0);
@@ -467,6 +468,7 @@ OS::MemoryMappedFile* OS::MemoryMappedFile::open(const char* name) {
 OS::MemoryMappedFile* OS::MemoryMappedFile::create(const char* name,
                                                    size_t size, void* initial) {
   if (FILE* file = fopen(name, "w+")) {
+    if (size == 0) return new PosixMemoryMappedFile(file, 0, 0);
     size_t result = fwrite(initial, 1, size, file);
     if (result == size && !ferror(file)) {
       void* memory = mmap(OS::GetRandomMmapAddr(), result,

@@ -542,7 +542,7 @@ class SourceProcessor(SourceFileProcessor):
       try:
         handle = open(file)
         contents = handle.read()
-        if not self.ProcessContents(file, contents):
+        if len(contents) > 0 and not self.ProcessContents(file, contents):
           success = False
           violations += 1
       finally:
