@@ -2238,8 +2238,10 @@ class FunctionLiteral final : public Expression {
     return function_type() == kAnonymousExpression;
   }
 
-  void mark_as_iife() { bit_field_ = IIFEBit::update(bit_field_, true); }
-  bool is_iife() const { return IIFEBit::decode(bit_field_); }
+  void mark_as_oneshot_iife() {
+    bit_field_ = OneshotIIFEBit::update(bit_field_, true);
+  }
+  bool is_oneshot_iife() const { return OneshotIIFEBit::decode(bit_field_); }
   bool is_toplevel() const {
     return function_literal_id() == FunctionLiteral::kIdTypeTopLevel;
   }
@@ -2370,13 +2372,13 @@ class FunctionLiteral final : public Expression {
         body_(0, nullptr),
         raw_inferred_name_(ast_value_factory->empty_cons_string()),
         produced_preparse_data_(produced_preparse_data) {
-    bit_field_ |= FunctionTypeBits::encode(function_type) |
-                  Pretenure::encode(false) |
-                  HasDuplicateParameters::encode(has_duplicate_parameters ==
-                                                 kHasDuplicateParameters) |
-                  DontOptimizeReasonField::encode(BailoutReason::kNoReason) |
-                  RequiresInstanceMembersInitializer::encode(false) |
-                  HasBracesField::encode(has_braces) | IIFEBit::encode(false);
+    bit_field_ |=
+        FunctionTypeBits::encode(function_type) | Pretenure::encode(false) |
+        HasDuplicateParameters::encode(has_duplicate_parameters ==
+                                       kHasDuplicateParameters) |
+        DontOptimizeReasonField::encode(BailoutReason::kNoReason) |
+        RequiresInstanceMembersInitializer::encode(false) |
+        HasBracesField::encode(has_braces) | OneshotIIFEBit::encode(false);
     if (eager_compile_hint == kShouldEagerCompile) SetShouldEagerCompile();
     body.CopyTo(&body_, zone);
   }
@@ -2391,7 +2393,7 @@ class FunctionLiteral final : public Expression {
       : public BitField<bool, DontOptimizeReasonField::kNext, 1> {};
   class HasBracesField
       : public BitField<bool, RequiresInstanceMembersInitializer::kNext, 1> {};
-  class IIFEBit : public BitField<bool, HasBracesField::kNext, 1> {};
+  class OneshotIIFEBit : public BitField<bool, HasBracesField::kNext, 1> {};
 
   int expected_property_count_;
   int parameter_count_;

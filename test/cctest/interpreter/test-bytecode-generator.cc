@@ -664,6 +664,7 @@ TEST(IIFEWithOneshotOpt) {
         return arguments.callee;
       })();
     )",
+      // TODO(rmcilroy): Make this function produce one-shot code.
       R"(
       var t = 0;
       function f2() {};

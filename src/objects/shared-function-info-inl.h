@@ -222,8 +222,8 @@ BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags, is_named_expression,
                     SharedFunctionInfo::IsNamedExpressionBit)
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags, is_toplevel,
                     SharedFunctionInfo::IsTopLevelBit)
-BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags, is_iife,
-                    SharedFunctionInfo::IsIIFEBit)
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags, is_oneshot_iife,
+                    SharedFunctionInfo::IsOneshotIIFEBit)
 
 bool SharedFunctionInfo::optimization_disabled() const {
   return disable_optimization_reason() != BailoutReason::kNoReason;

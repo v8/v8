@@ -859,8 +859,8 @@ FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
     if (has_error()) return nullptr;
     result->set_requires_instance_members_initializer(
         info->requires_instance_members_initializer());
-    if (info->is_iife()) {
-      result->mark_as_iife();
+    if (info->is_oneshot_iife()) {
+      result->mark_as_oneshot_iife();
     }
   }
 

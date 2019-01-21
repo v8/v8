@@ -489,8 +489,9 @@ class SharedFunctionInfo : public HeapObject {
   DECL_BOOLEAN_ACCESSORS(is_anonymous_expression)
 
   // Indicates that the function represented by the shared function info was
-  // classed as an immediately invoked function execution (IIFE) function.
-  DECL_BOOLEAN_ACCESSORS(is_iife)
+  // classed as an immediately invoked function execution (IIFE) function and
+  // is only executed once.
+  DECL_BOOLEAN_ACCESSORS(is_oneshot_iife)
 
   // Indicates that the function has been reported for binary code coverage.
   DECL_BOOLEAN_ACCESSORS(has_reported_binary_coverage)
@@ -700,7 +701,7 @@ class SharedFunctionInfo : public HeapObject {
   V(HasReportedBinaryCoverageBit, bool, 1, _)            \
   V(IsNamedExpressionBit, bool, 1, _)                    \
   V(IsTopLevelBit, bool, 1, _)                           \
-  V(IsIIFEBit, bool, 1, _)
+  V(IsOneshotIIFEBit, bool, 1, _)
   DEFINE_BIT_FIELDS(FLAGS_BIT_FIELDS)
 #undef FLAGS_BIT_FIELDS
 

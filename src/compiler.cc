@@ -406,7 +406,7 @@ void SetSharedFunctionFlagsFromLiteral(FunctionLiteral* literal,
   }
   shared_info->set_has_duplicate_parameters(
       literal->has_duplicate_parameters());
-  shared_info->set_is_iife(literal->is_iife());
+  shared_info->set_is_oneshot_iife(literal->is_oneshot_iife());
   shared_info->SetExpectedNofPropertiesFromEstimate(literal);
   if (literal->dont_optimize_reason() != BailoutReason::kNoReason) {
     shared_info->DisableOptimization(literal->dont_optimize_reason());
