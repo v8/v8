@@ -20,9 +20,9 @@ namespace internal {
 
 namespace {
 
-class ScopeCallsSloppyEvalField : public BitField<bool, 0, 1> {};
+class ScopeCallsSloppyEvalField : public BitField8<bool, 0, 1> {};
 class InnerScopeCallsEvalField
-    : public BitField<bool, ScopeCallsSloppyEvalField::kNext, 1> {};
+    : public BitField8<bool, ScopeCallsSloppyEvalField::kNext, 1> {};
 
 class VariableMaybeAssignedField : public BitField8<bool, 0, 1> {};
 class VariableContextAllocatedField
@@ -113,12 +113,10 @@ PreparseDataBuilder::DataGatheringScope::~DataGatheringScope() {
   preparser_->set_preparse_data_builder(parent);
 }
 
+#ifdef DEBUG
 void PreparseDataBuilder::ByteData::WriteUint32(uint32_t data) {
   DCHECK(!is_finalized_);
-#ifdef DEBUG
-  // Save expected item size in debug mode.
   byte_data_->push_back(kUint32Size);
-#endif
   byte_data_->push_back(data & 0xFF);
   byte_data_->push_back((data >> 8) & 0xFF);
   byte_data_->push_back((data >> 16) & 0xFF);
@@ -126,7 +124,6 @@ void PreparseDataBuilder::ByteData::WriteUint32(uint32_t data) {
   free_quarters_in_last_byte_ = 0;
 }
 
-#ifdef DEBUG
 void PreparseDataBuilder::ByteData::SaveCurrentSizeAtFirstUint32() {
   CHECK(!is_finalized_);
   uint32_t data = static_cast<uint32_t>(byte_data_->size());
@@ -146,6 +143,26 @@ int PreparseDataBuilder::ByteData::length() const {
   return static_cast<int>(byte_data_->size());
 }
 #endif
+
+void PreparseDataBuilder::ByteData::WriteVarint32(uint32_t data) {
+#ifdef DEBUG
+  // Save expected item size in debug mode.
+  byte_data_->push_back(kVarintMinSize);
+#endif
+  // See ValueSerializer::WriteVarint.
+  do {
+    uint8_t next_byte = (data & 0x7F);
+    data >>= 7;
+    // Add continue bit.
+    if (data) next_byte |= 0x80;
+    byte_data_->push_back(next_byte & 0xFF);
+  } while (data);
+#ifdef DEBUG
+  // Save a varint marker in debug mode.
+  byte_data_->push_back(kVarintEndMarker);
+#endif
+  free_quarters_in_last_byte_ = 0;
+}
 
 void PreparseDataBuilder::ByteData::WriteUint8(uint8_t data) {
   DCHECK(!is_finalized_);
@@ -240,15 +257,15 @@ bool PreparseDataBuilder::SaveDataForSkippableFunction(
   // Start position is used for a sanity check when consuming the data, we could
   // remove it in the future if we're very pressed for space but it's been good
   // at catching bugs in the wild so far.
-  byte_data_.WriteUint32(function_scope->start_position());
-  byte_data_.WriteUint32(function_scope->end_position());
+  byte_data_.WriteVarint32(function_scope->start_position());
+  byte_data_.WriteVarint32(function_scope->end_position());
 
   bool has_data = builder->has_data_;
   uint32_t has_data_and_num_parameters =
       HasDataField::encode(has_data) |
       NumberOfParametersField::encode(function_scope->num_parameters());
-  byte_data_.WriteUint32(has_data_and_num_parameters);
-  byte_data_.WriteUint32(builder->num_inner_functions_);
+  byte_data_.WriteVarint32(has_data_and_num_parameters);
+  byte_data_.WriteVarint32(builder->num_inner_functions_);
 
   uint8_t language_and_super =
       LanguageField::encode(function_scope->language_mode()) |
@@ -276,10 +293,9 @@ void PreparseDataBuilder::SaveScopeAllocationData(DeclarationScope* scope,
   }
 
 #ifdef DEBUG
-  // function data items, kSkippableFunctionDataSize each.
+  // function data items, kSkippableMinFunctionDataSize each.
   CHECK_GE(byte_data_.length(), kPlaceholderSize);
   CHECK_LE(byte_data_.length(), std::numeric_limits<uint32_t>::max());
-  CHECK_EQ(byte_data_.length() % kSkippableFunctionDataSize, kPlaceholderSize);
 
   byte_data_.SaveCurrentSizeAtFirstUint32();
   // For a data integrity check, write a value between data about skipped inner
@@ -489,17 +505,18 @@ BaseConsumedPreparseData<Data>::GetDataForSkippableFunction(
   // The skippable function *must* be the next function in the data. Use the
   // start position as a sanity check.
   typename ByteData::ReadingScope reading_scope(this);
-  CHECK(scope_data_->HasRemainingBytes(ByteData::kSkippableFunctionDataSize));
-  int start_position_from_data = scope_data_->ReadUint32();
+  CHECK(scope_data_->HasRemainingBytes(
+      PreparseByteDataConstants::kSkippableFunctionMinDataSize));
+  int start_position_from_data = scope_data_->ReadVarint32();
   CHECK_EQ(start_position, start_position_from_data);
-  *end_position = scope_data_->ReadUint32();
+  *end_position = scope_data_->ReadVarint32();
   DCHECK_GT(*end_position, start_position);
 
-  uint32_t has_data_and_num_parameters = scope_data_->ReadUint32();
+  uint32_t has_data_and_num_parameters = scope_data_->ReadVarint32();
   bool has_data = HasDataField::decode(has_data_and_num_parameters);
   *num_parameters =
       NumberOfParametersField::decode(has_data_and_num_parameters);
-  *num_inner_functions = scope_data_->ReadUint32();
+  *num_inner_functions = scope_data_->ReadVarint32();
 
   uint8_t language_and_super = scope_data_->ReadQuarter();
   *language_mode = LanguageMode(LanguageField::decode(language_and_super));

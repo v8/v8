@@ -91,6 +91,23 @@ class BaseConsumedPreparseData : public ConsumedPreparseData {
       return result;
     }
 
+    int32_t ReadVarint32() {
+      DCHECK(HasRemainingBytes(kVarintMinSize));
+      DCHECK_EQ(data_.get(index_++), kVarintMinSize);
+      int32_t value = 0;
+      bool has_another_byte;
+      unsigned shift = 0;
+      do {
+        uint8_t byte = data_.get(index_++);
+        value |= static_cast<int32_t>(byte & 0x7F) << shift;
+        shift += 7;
+        has_another_byte = byte & 0x80;
+      } while (has_another_byte);
+      DCHECK_EQ(data_.get(index_++), kVarintEndMarker);
+      stored_quarters_ = 0;
+      return value;
+    }
+
     uint8_t ReadUint8() {
       DCHECK(has_data_);
       DCHECK(HasRemainingBytes(kUint8Size));

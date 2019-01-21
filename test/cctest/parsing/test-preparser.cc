@@ -805,11 +805,15 @@ TEST(ProducingAndConsumingByteData) {
   i::PreparseDataBuilder::ByteData bytes;
   bytes.Start(&buffer);
   // Write some data.
+#ifdef DEBUG
   bytes.WriteUint32(1983);  // This will be overwritten.
-  bytes.WriteUint32(2147483647);
+#else
+  bytes.WriteVarint32(1983);
+#endif
+  bytes.WriteVarint32(2147483647);
   bytes.WriteUint8(4);
   bytes.WriteUint8(255);
-  bytes.WriteUint32(0);
+  bytes.WriteVarint32(0);
   bytes.WriteUint8(0);
 #ifdef DEBUG
   bytes.SaveCurrentSizeAtFirstUint32();
@@ -825,17 +829,26 @@ TEST(ProducingAndConsumingByteData) {
   bytes.WriteQuarter(1);
   bytes.WriteQuarter(0);
   bytes.WriteUint8(50);
+
   bytes.WriteQuarter(0);
   bytes.WriteQuarter(1);
   bytes.WriteQuarter(2);
-  bytes.WriteUint32(50);
+  bytes.WriteQuarter(3);
+  bytes.WriteVarint32(50);
+
+  // End with a lonely quarter.
+  bytes.WriteQuarter(0);
+  bytes.WriteQuarter(1);
+  bytes.WriteQuarter(2);
+  bytes.WriteVarint32(0xff);
+
   // End with a lonely quarter.
   bytes.WriteQuarter(2);
 
 #ifdef DEBUG
-  CHECK_EQ(buffer.size(), 38);
+  CHECK_EQ(buffer.size(), 42);
 #else
-  CHECK_EQ(buffer.size(), 25);
+  CHECK_EQ(buffer.size(), 21);
 #endif
 
   // Copy buffer for sanity checks later-on.
@@ -862,24 +875,33 @@ TEST(ProducingAndConsumingByteData) {
 #ifdef DEBUG
     CHECK_EQ(bytes_for_reading.ReadUint32(), saved_size);
 #else
-    CHECK_EQ(bytes_for_reading.ReadUint32(), 1983);
+    CHECK_EQ(bytes_for_reading.ReadVarint32(), 1983);
 #endif
-    CHECK_EQ(bytes_for_reading.ReadUint32(), 2147483647);
+    CHECK_EQ(bytes_for_reading.ReadVarint32(), 2147483647);
     CHECK_EQ(bytes_for_reading.ReadUint8(), 4);
     CHECK_EQ(bytes_for_reading.ReadUint8(), 255);
-    CHECK_EQ(bytes_for_reading.ReadUint32(), 0);
+    CHECK_EQ(bytes_for_reading.ReadVarint32(), 0);
     CHECK_EQ(bytes_for_reading.ReadUint8(), 0);
     CHECK_EQ(bytes_for_reading.ReadUint8(), 100);
+
     CHECK_EQ(bytes_for_reading.ReadQuarter(), 3);
     CHECK_EQ(bytes_for_reading.ReadQuarter(), 0);
     CHECK_EQ(bytes_for_reading.ReadQuarter(), 2);
     CHECK_EQ(bytes_for_reading.ReadQuarter(), 1);
     CHECK_EQ(bytes_for_reading.ReadQuarter(), 0);
     CHECK_EQ(bytes_for_reading.ReadUint8(), 50);
+
     CHECK_EQ(bytes_for_reading.ReadQuarter(), 0);
     CHECK_EQ(bytes_for_reading.ReadQuarter(), 1);
     CHECK_EQ(bytes_for_reading.ReadQuarter(), 2);
-    CHECK_EQ(bytes_for_reading.ReadUint32(), 50);
+    CHECK_EQ(bytes_for_reading.ReadQuarter(), 3);
+    CHECK_EQ(bytes_for_reading.ReadVarint32(), 50);
+
+    CHECK_EQ(bytes_for_reading.ReadQuarter(), 0);
+    CHECK_EQ(bytes_for_reading.ReadQuarter(), 1);
+    CHECK_EQ(bytes_for_reading.ReadQuarter(), 2);
+    CHECK_EQ(bytes_for_reading.ReadVarint32(), 0xff);
+
     CHECK_EQ(bytes_for_reading.ReadQuarter(), 2);
     // We should have consumed all data at this point.
     CHECK(!bytes_for_reading.HasRemainingBytes(1));
@@ -901,24 +923,33 @@ TEST(ProducingAndConsumingByteData) {
 #ifdef DEBUG
     CHECK_EQ(bytes_for_reading.ReadUint32(), saved_size);
 #else
-    CHECK_EQ(bytes_for_reading.ReadUint32(), 1983);
+    CHECK_EQ(bytes_for_reading.ReadVarint32(), 1983);
 #endif
-    CHECK_EQ(bytes_for_reading.ReadUint32(), 2147483647);
+    CHECK_EQ(bytes_for_reading.ReadVarint32(), 2147483647);
     CHECK_EQ(bytes_for_reading.ReadUint8(), 4);
     CHECK_EQ(bytes_for_reading.ReadUint8(), 255);
-    CHECK_EQ(bytes_for_reading.ReadUint32(), 0);
+    CHECK_EQ(bytes_for_reading.ReadVarint32(), 0);
     CHECK_EQ(bytes_for_reading.ReadUint8(), 0);
     CHECK_EQ(bytes_for_reading.ReadUint8(), 100);
+
     CHECK_EQ(bytes_for_reading.ReadQuarter(), 3);
     CHECK_EQ(bytes_for_reading.ReadQuarter(), 0);
     CHECK_EQ(bytes_for_reading.ReadQuarter(), 2);
     CHECK_EQ(bytes_for_reading.ReadQuarter(), 1);
     CHECK_EQ(bytes_for_reading.ReadQuarter(), 0);
     CHECK_EQ(bytes_for_reading.ReadUint8(), 50);
+
     CHECK_EQ(bytes_for_reading.ReadQuarter(), 0);
     CHECK_EQ(bytes_for_reading.ReadQuarter(), 1);
     CHECK_EQ(bytes_for_reading.ReadQuarter(), 2);
-    CHECK_EQ(bytes_for_reading.ReadUint32(), 50);
+    CHECK_EQ(bytes_for_reading.ReadQuarter(), 3);
+    CHECK_EQ(bytes_for_reading.ReadVarint32(), 50);
+
+    CHECK_EQ(bytes_for_reading.ReadQuarter(), 0);
+    CHECK_EQ(bytes_for_reading.ReadQuarter(), 1);
+    CHECK_EQ(bytes_for_reading.ReadQuarter(), 2);
+    CHECK_EQ(bytes_for_reading.ReadVarint32(), 0xff);
+
     CHECK_EQ(bytes_for_reading.ReadQuarter(), 2);
     // We should have consumed all data at this point.
     CHECK(!bytes_for_reading.HasRemainingBytes(1));

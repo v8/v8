@@ -68,17 +68,20 @@ struct PreparseByteDataConstants {
   static constexpr int kMagicValue = 0xC0DE0DE;
 
   static constexpr size_t kUint32Size = 5;
+  static constexpr size_t kVarintMinSize = 3;
+  static constexpr size_t kVarintEndMarker = 0xF1;
   static constexpr size_t kUint8Size = 2;
-  static constexpr size_t kQuarterMarker = 0;
+  static constexpr size_t kQuarterMarker = 0xF2;
   static constexpr size_t kPlaceholderSize = kUint32Size;
 #else
   static constexpr size_t kUint32Size = 4;
+  static constexpr size_t kVarintMinSize = 1;
   static constexpr size_t kUint8Size = 1;
   static constexpr size_t kPlaceholderSize = 0;
 #endif
 
-  static const size_t kSkippableFunctionDataSize =
-      4 * kUint32Size + 1 * kUint8Size;
+  static const size_t kSkippableFunctionMinDataSize =
+      4 * kVarintMinSize + 1 * kUint8Size;
 };
 
 class PreparseDataBuilder : public ZoneObject,
@@ -122,11 +125,12 @@ class PreparseDataBuilder : public ZoneObject,
     Handle<PreparseData> CopyToHeap(Isolate* isolate, int children_length);
     ZonePreparseData* CopyToZone(Zone* zone, int children_length);
 
-    void WriteUint32(uint32_t data);
+    void WriteVarint32(uint32_t data);
     void WriteUint8(uint8_t data);
     void WriteQuarter(uint8_t data);
 
 #ifdef DEBUG
+    void WriteUint32(uint32_t data);
     // For overwriting previously written data at position 0.
     void SaveCurrentSizeAtFirstUint32();
     int length() const;
