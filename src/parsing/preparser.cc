@@ -419,18 +419,5 @@ PreParserExpression PreParser::ExpressionFromIdentifier(
   return PreParserExpression::FromIdentifier(name, proxy, zone());
 }
 
-void PreParser::InitializeVariables(
-    const DeclarationParsingResult::Declaration* declaration,
-    ZonePtrList<const AstRawString>* names) {
-  if (names && declaration->pattern.variables_ != nullptr) {
-    for (auto variable : *(declaration->pattern.variables_)) {
-      // This is only necessary if there is an initializer, but we don't have
-      // that information here.  Consequently, the preparser sometimes says
-      // maybe-assigned where the parser (correctly) says never-assigned.
-      names->Add(variable->raw_name(), zone());
-    }
-  }
-}
-
 }  // namespace internal
 }  // namespace v8

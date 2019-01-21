@@ -1062,7 +1062,8 @@ class ParserBase {
                               int formals_end_pos);
 
   void ParseVariableDeclarations(VariableDeclarationContext var_context,
-                                 DeclarationParsingResult* parsing_result);
+                                 DeclarationParsingResult* parsing_result,
+                                 ZonePtrList<const AstRawString>* names);
   StatementT ParseAsyncFunctionDeclaration(
       ZonePtrList<const AstRawString>* names, bool default_export);
   StatementT ParseFunctionDeclaration();
@@ -1156,6 +1157,39 @@ class ParserBase {
   StatementT ParseForAwaitStatement(
       ZonePtrList<const AstRawString>* labels,
       ZonePtrList<const AstRawString>* own_labels);
+
+  void DesugarBindingInForEachStatement(ForInfo* for_info, BlockT* body_block,
+                                        ExpressionT* each_variable) {
+    // Annex B.3.5 prohibits the form
+    // `try {} catch(e) { for (var e of {}); }`
+    // So if we are parsing a statement like `for (var ... of ...)`
+    // we need to walk up the scope chain and look for catch scopes
+    // which have a simple binding, then compare their binding against
+    // all of the names declared in the init of the for-of we're
+    // parsing.
+    bool is_for_var_of =
+        for_info->mode == ForEachStatement::ITERATE &&
+        for_info->parsing_result.descriptor.mode == VariableMode::kVar;
+
+    if (is_for_var_of) {
+      Scope* scope = this->scope();
+      while (scope != nullptr && !scope->is_declaration_scope()) {
+        if (scope->is_catch_scope()) {
+          auto name = scope->catch_variable()->raw_name();
+          // If it's a simple binding and the name is declared in the for loop.
+          if (name != ast_value_factory()->dot_catch_string() &&
+              for_info->bound_names.Contains(name)) {
+            impl()->ReportMessageAt(for_info->parsing_result.bindings_loc,
+                                    MessageTemplate::kVarRedeclaration, name);
+          }
+        }
+        scope = scope->outer_scope();
+      }
+    }
+
+    impl()->DesugarBindingInForEachStatement(for_info, body_block,
+                                             each_variable);
+  }
 
   bool IsNextLetKeyword();
 
@@ -3409,7 +3443,8 @@ void ParserBase<Impl>::ParseFormalParameterList(FormalParametersT* parameters) {
 template <typename Impl>
 void ParserBase<Impl>::ParseVariableDeclarations(
     VariableDeclarationContext var_context,
-    DeclarationParsingResult* parsing_result) {
+    DeclarationParsingResult* parsing_result,
+    ZonePtrList<const AstRawString>* names) {
   // VariableDeclarations ::
   //   ('var' | 'const' | 'let') (Identifier ('=' AssignmentExpression)?)+[',']
   //
@@ -3442,28 +3477,27 @@ void ParserBase<Impl>::ParseVariableDeclarations(
       break;
   }
 
+  VariableDeclarationParsingScope declaration(
+      impl(), parsing_result->descriptor.mode, names);
+
   int bindings_start = peek_position();
   do {
     // Parse binding pattern.
     FuncNameInferrerState fni_state(&fni_);
 
-    ExpressionT pattern = impl()->NullExpression();
     int decl_pos = peek_position();
-    {
-      VariableDeclarationParsingScope declaration(
-          impl(), parsing_result->descriptor.mode);
-      pattern = ParseBindingPattern();
+    ExpressionT pattern = ParseBindingPattern();
 
-      if (IsLexicalVariableMode(parsing_result->descriptor.mode)) {
-        if (impl()->IsIdentifier(pattern)) {
-          if (impl()->IsLet(impl()->AsIdentifier(pattern))) {
-            impl()->ReportMessageAt(
-                Scanner::Location(bindings_start, end_position()),
-                MessageTemplate::kLetInLexicalBinding);
-          }
+    if (IsLexicalVariableMode(parsing_result->descriptor.mode)) {
+      if (impl()->IsIdentifier(pattern)) {
+        if (impl()->IsLet(impl()->AsIdentifier(pattern))) {
+          impl()->ReportMessageAt(
+              Scanner::Location(bindings_start, end_position()),
+              MessageTemplate::kLetInLexicalBinding);
         }
       }
     }
+
     Scanner::Location variable_loc = scanner()->location();
 
     ExpressionT value = impl()->NullExpression();
@@ -4681,9 +4715,9 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseVariableStatement(
   // is inside an initializer block, it is ignored.
 
   DeclarationParsingResult parsing_result;
-  ParseVariableDeclarations(var_context, &parsing_result);
+  ParseVariableDeclarations(var_context, &parsing_result, names);
   ExpectSemicolon();
-  return impl()->BuildInitializationBlock(&parsing_result, names);
+  return impl()->BuildInitializationBlock(&parsing_result);
 }
 
 template <typename Impl>
@@ -5166,8 +5200,8 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseTryStatement() {
             } else {
               catch_info.variable = catch_info.scope->DeclareCatchVariableName(
                   ast_value_factory()->dot_catch_string());
-              VariableDeclarationParsingScope destructuring(impl(),
-                                                            VariableMode::kLet);
+              VariableDeclarationParsingScope destructuring(
+                  impl(), VariableMode::kLet, nullptr);
               catch_info.pattern = ParseBindingPattern();
               RETURN_IF_PARSE_ERROR;
               catch_statements.Add(impl()->RewriteCatchPattern(&catch_info));
@@ -5259,7 +5293,8 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForStatement(
     Scope* inner_block_scope = NewScope(BLOCK_SCOPE);
     {
       BlockState inner_state(&scope_, inner_block_scope);
-      ParseVariableDeclarations(kForStatement, &for_info.parsing_result);
+      ParseVariableDeclarations(kForStatement, &for_info.parsing_result,
+                                &for_info.bound_names);
     }
     DCHECK(IsLexicalVariableMode(for_info.parsing_result.descriptor.mode));
     for_info.position = position();
@@ -5279,8 +5314,8 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForStatement(
     inner_block_scope->set_start_position(scope()->start_position());
     {
       BlockState inner_state(&scope_, inner_block_scope);
-      StatementT init = impl()->BuildInitializationBlock(
-          &for_info.parsing_result, &for_info.bound_names);
+      StatementT init =
+          impl()->BuildInitializationBlock(&for_info.parsing_result);
 
       result = ParseStandardForLoopWithLexicalDeclarations(
           stmt_pos, init, &for_info, labels, own_labels);
@@ -5293,7 +5328,8 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForStatement(
 
   StatementT init = impl()->NullStatement();
   if (peek() == Token::VAR) {
-    ParseVariableDeclarations(kForStatement, &for_info.parsing_result);
+    ParseVariableDeclarations(kForStatement, &for_info.parsing_result,
+                              &for_info.bound_names);
     DCHECK_EQ(for_info.parsing_result.descriptor.mode, VariableMode::kVar);
     for_info.position = scanner()->location().beg_pos;
 
@@ -5302,7 +5338,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForStatement(
                                                    own_labels, scope());
     }
 
-    init = impl()->BuildInitializationBlock(&for_info.parsing_result, nullptr);
+    init = impl()->BuildInitializationBlock(&for_info.parsing_result);
   } else if (peek() != Token::SEMICOLON) {
     // The initializer does not contain declarations.
     int lhs_beg_pos = peek_position();
@@ -5407,8 +5443,7 @@ ParserBase<Impl>::ParseForEachStatementWithDeclarations(
     }
     impl()->RecordIterationStatementSourceRange(loop, body_range);
 
-    impl()->DesugarBindingInForEachStatement(for_info, &body_block,
-                                             &each_variable);
+    DesugarBindingInForEachStatement(for_info, &body_block, &each_variable);
     body_block->statements()->Add(body, zone());
 
     if (IsLexicalVariableMode(for_info->parsing_result.descriptor.mode)) {
@@ -5599,7 +5634,8 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForAwaitStatement(
 
     {
       BlockState inner_state(&scope_, inner_block_scope);
-      ParseVariableDeclarations(kForStatement, &for_info.parsing_result);
+      ParseVariableDeclarations(kForStatement, &for_info.parsing_result,
+                                &for_info.bound_names);
     }
     for_info.position = scanner()->location().beg_pos;
 
@@ -5663,8 +5699,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForAwaitStatement(
 
     if (has_declarations) {
       BlockT body_block = impl()->NullBlock();
-      impl()->DesugarBindingInForEachStatement(&for_info, &body_block,
-                                               &each_variable);
+      DesugarBindingInForEachStatement(&for_info, &body_block, &each_variable);
       body_block->statements()->Add(body, zone());
       body_block->set_scope(scope()->FinalizeBlockScope());
       body = body_block;

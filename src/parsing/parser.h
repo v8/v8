@@ -315,8 +315,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
           location(location) {}
   };
   ZonePtrList<const NamedImport>* ParseNamedImports(int pos);
-  Statement* BuildInitializationBlock(DeclarationParsingResult* parsing_result,
-                                      ZonePtrList<const AstRawString>* names);
+  Statement* BuildInitializationBlock(DeclarationParsingResult* parsing_result);
   void DeclareLabel(ZonePtrList<const AstRawString>** labels,
                     ZonePtrList<const AstRawString>** own_labels,
                     VariableProxy* expr);
@@ -381,8 +380,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   friend class PatternRewriter;
   void InitializeVariables(
       ScopedPtrList<Statement>* statements, VariableKind kind,
-      const DeclarationParsingResult::Declaration* declaration,
-      ZonePtrList<const AstRawString>* names);
+      const DeclarationParsingResult::Declaration* declaration);
 
   Block* RewriteForVarInLegacy(const ForInfo& for_info);
   void DesugarBindingInForEachStatement(ForInfo* for_info, Block** body_block,
@@ -742,13 +740,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   void ReportMessageAt(Scanner::Location source_location,
                        MessageTemplate message, const char* arg = nullptr,
                        ParseErrorType error_type = kSyntaxError) {
-    if (stack_overflow()) {
-      // Suppress the error message (syntax error or such) in the presence of a
-      // stack overflow. The isolate allows only one pending exception at at
-      // time
-      // and we want to report the stack overflow later.
-      return;
-    }
     pending_error_handler()->ReportMessageAt(source_location.beg_pos,
                                              source_location.end_pos, message,
                                              arg, error_type);
@@ -762,13 +753,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   void ReportMessageAt(Scanner::Location source_location,
                        MessageTemplate message, const AstRawString* arg,
                        ParseErrorType error_type = kSyntaxError) {
-    if (stack_overflow()) {
-      // Suppress the error message (syntax error or such) in the presence of a
-      // stack overflow. The isolate allows only one pending exception at at
-      // time
-      // and we want to report the stack overflow later.
-      return;
-    }
     pending_error_handler()->ReportMessageAt(source_location.beg_pos,
                                              source_location.end_pos, message,
                                              arg, error_type);

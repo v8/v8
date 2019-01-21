@@ -263,11 +263,13 @@ class VariableDeclarationParsingScope : public ExpressionScope<Types> {
   typedef class ExpressionScope<Types> ExpressionScopeT;
   typedef typename ExpressionScopeT::ScopeType ScopeType;
 
-  VariableDeclarationParsingScope(ParserT* parser, VariableMode mode)
+  VariableDeclarationParsingScope(ParserT* parser, VariableMode mode,
+                                  ZonePtrList<const AstRawString>* names)
       : ExpressionScopeT(parser, IsLexicalVariableMode(mode)
                                      ? ExpressionScopeT::kLexicalDeclaration
                                      : ExpressionScopeT::kVarDeclaration),
-        mode_(mode) {}
+        mode_(mode),
+        names_(names) {}
 
   VariableProxy* Declare(VariableProxy* proxy) {
     VariableKind kind = NORMAL_VARIABLE;
@@ -275,6 +277,7 @@ class VariableDeclarationParsingScope : public ExpressionScope<Types> {
     this->parser()->DeclareVariable(
         proxy, kind, mode_, Variable::DefaultInitializationFlag(mode_),
         this->parser()->scope(), &added, proxy->position());
+    if (names_) names_->Add(proxy->raw_name(), this->parser()->zone());
     if (!this->IsLexicalDeclaration()) {
       if (this->parser()->loop_nesting_depth() > 0) {
         // Due to hoisting, the value of a 'var'-declared variable may actually
@@ -310,6 +313,7 @@ class VariableDeclarationParsingScope : public ExpressionScope<Types> {
 
  private:
   VariableMode mode_;
+  ZonePtrList<const AstRawString>* names_;
 
   DISALLOW_COPY_AND_ASSIGN(VariableDeclarationParsingScope);
 };

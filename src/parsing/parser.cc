@@ -1407,12 +1407,11 @@ void Parser::Declare(Declaration* declaration, VariableProxy* proxy,
 }
 
 Statement* Parser::BuildInitializationBlock(
-    DeclarationParsingResult* parsing_result,
-    ZonePtrList<const AstRawString>* names) {
+    DeclarationParsingResult* parsing_result) {
   ScopedPtrList<Statement> statements(pointer_buffer());
   for (const auto& declaration : parsing_result->declarations) {
     InitializeVariables(&statements, parsing_result->descriptor.kind,
-                        &declaration, names);
+                        &declaration);
   }
   return factory()->NewBlock(true, statements);
 }
@@ -1603,7 +1602,7 @@ Block* Parser::RewriteCatchPattern(CatchInfo* catch_info) {
       factory()->NewVariableProxy(catch_info->variable));
 
   ScopedPtrList<Statement> init_statements(pointer_buffer());
-  InitializeVariables(&init_statements, NORMAL_VARIABLE, &decl, nullptr);
+  InitializeVariables(&init_statements, NORMAL_VARIABLE, &decl);
   return factory()->NewBlock(true, init_statements);
 }
 
@@ -1825,42 +1824,8 @@ void Parser::DesugarBindingInForEachStatement(ForInfo* for_info,
       for_info->parsing_result.declarations[0];
   Variable* temp = NewTemporary(ast_value_factory()->dot_for_string());
   ScopedPtrList<Statement> each_initialization_statements(pointer_buffer());
-  {
-    decl.initializer = factory()->NewVariableProxy(temp);
-
-    bool is_for_var_of =
-        for_info->mode == ForEachStatement::ITERATE &&
-        for_info->parsing_result.descriptor.mode == VariableMode::kVar;
-    bool collect_names =
-        IsLexicalVariableMode(for_info->parsing_result.descriptor.mode) ||
-        is_for_var_of;
-
-    InitializeVariables(&each_initialization_statements, NORMAL_VARIABLE, &decl,
-                        collect_names ? &for_info->bound_names : nullptr);
-
-    // Annex B.3.5 prohibits the form
-    // `try {} catch(e) { for (var e of {}); }`
-    // So if we are parsing a statement like `for (var ... of ...)`
-    // we need to walk up the scope chain and look for catch scopes
-    // which have a simple binding, then compare their binding against
-    // all of the names declared in the init of the for-of we're
-    // parsing.
-    if (is_for_var_of) {
-      Scope* catch_scope = scope();
-      while (catch_scope != nullptr && !catch_scope->is_declaration_scope()) {
-        if (catch_scope->is_catch_scope()) {
-          auto name = catch_scope->catch_variable()->raw_name();
-          // If it's a simple binding and the name is declared in the for loop.
-          if (name != ast_value_factory()->dot_catch_string() &&
-              for_info->bound_names.Contains(name)) {
-            ReportMessageAt(for_info->parsing_result.bindings_loc,
-                            MessageTemplate::kVarRedeclaration, name);
-          }
-        }
-        catch_scope = catch_scope->outer_scope();
-      }
-    }
-  }
+  decl.initializer = factory()->NewVariableProxy(temp);
+  InitializeVariables(&each_initialization_statements, NORMAL_VARIABLE, &decl);
 
   *body_block = factory()->NewBlock(3, false);
   (*body_block)
@@ -2658,8 +2623,7 @@ Block* Parser::BuildParameterInitializationBlock(
     DeclarationParsingResult::Declaration decl(
         parameter->pattern, parameter->initializer_end_position, initial_value);
 
-    InitializeVariables(param_init_statements, PARAMETER_VARIABLE, &decl,
-                        nullptr);
+    InitializeVariables(param_init_statements, PARAMETER_VARIABLE, &decl);
 
     if (param_init_statements != &init_statements) {
       DCHECK_EQ(param_init_statements,

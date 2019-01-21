@@ -40,17 +40,14 @@ class PatternRewriter final : public AstVisitor<PatternRewriter> {
 
   static void InitializeVariables(
       Parser* parser, VariableKind kind,
-      const Parser::DeclarationParsingResult::Declaration* declaration,
-      ZonePtrList<const AstRawString>* names);
+      const Parser::DeclarationParsingResult::Declaration* declaration);
 
  private:
   PatternRewriter(Parser* parser, VariableKind kind,
-                  ZonePtrList<const AstRawString>* names,
                   int initializer_position = kNoSourcePosition,
                   bool declares_parameter_containing_sloppy_eval = false)
       : parser_(parser),
         kind_(kind),
-        names_(names),
         initializer_position_(initializer_position),
         declares_parameter_containing_sloppy_eval_(
             declares_parameter_containing_sloppy_eval) {}
@@ -90,7 +87,6 @@ class PatternRewriter final : public AstVisitor<PatternRewriter> {
 
   Parser* const parser_;
   VariableKind kind_;
-  ZonePtrList<const AstRawString>* names_;
   const int initializer_position_;
   const bool declares_parameter_containing_sloppy_eval_;
 
@@ -99,10 +95,9 @@ class PatternRewriter final : public AstVisitor<PatternRewriter> {
 
 void Parser::InitializeVariables(
     ScopedPtrList<Statement>* statements, VariableKind kind,
-    const DeclarationParsingResult::Declaration* declaration,
-    ZonePtrList<const AstRawString>* names) {
+    const DeclarationParsingResult::Declaration* declaration) {
   if (has_error()) return;
-  PatternRewriter::InitializeVariables(this, kind, declaration, names);
+  PatternRewriter::InitializeVariables(this, kind, declaration);
 
   if (declaration->initializer) {
     int pos = declaration->value_beg_position;
@@ -117,10 +112,9 @@ void Parser::InitializeVariables(
 
 void PatternRewriter::InitializeVariables(
     Parser* parser, VariableKind kind,
-    const Parser::DeclarationParsingResult::Declaration* declaration,
-    ZonePtrList<const AstRawString>* names) {
+    const Parser::DeclarationParsingResult::Declaration* declaration) {
   PatternRewriter rewriter(
-      parser, kind, names, declaration->initializer_position,
+      parser, kind, declaration->initializer_position,
       kind == PARAMETER_VARIABLE && parser->scope()->is_block_scope());
 
   rewriter.RecurseIntoSubpattern(declaration->pattern);
@@ -153,9 +147,6 @@ void PatternRewriter::VisitVariableProxy(VariableProxy* proxy) {
   if (var->scope()->num_var() > kMaxNumFunctionLocals) {
     parser_->ReportMessage(MessageTemplate::kTooManyVariables);
     return;
-  }
-  if (names_) {
-    names_->Add(proxy->raw_name(), zone());
   }
 }
 

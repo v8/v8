@@ -96,34 +96,26 @@ class PreParserIdentifier {
 
 class PreParserExpression {
  public:
-  using VariableZoneThreadedListType =
-      ZoneThreadedList<VariableProxy, VariableProxy::PreParserNext>;
-
-  PreParserExpression()
-      : code_(TypeField::encode(kNull)), variables_(nullptr) {}
+  PreParserExpression() : code_(TypeField::encode(kNull)) {}
 
   static PreParserExpression Null() { return PreParserExpression(); }
   static PreParserExpression Failure() {
     return PreParserExpression(TypeField::encode(kFailure));
   }
 
-  static PreParserExpression Default(
-      VariableZoneThreadedListType* variables = nullptr) {
-    return PreParserExpression(TypeField::encode(kExpression), variables);
+  static PreParserExpression Default() {
+    return PreParserExpression(TypeField::encode(kExpression));
   }
 
   static PreParserExpression Spread(const PreParserExpression& expression) {
-    return PreParserExpression(TypeField::encode(kSpreadExpression),
-                               expression.variables_);
+    return PreParserExpression(TypeField::encode(kSpreadExpression));
   }
 
   static PreParserExpression FromIdentifier(const PreParserIdentifier& id,
                                             VariableProxy* variable,
                                             Zone* zone) {
-    PreParserExpression expression(TypeField::encode(kIdentifierExpression) |
-                                   IdentifierTypeField::encode(id.type_));
-    expression.AddVariable(variable, zone);
-    return expression;
+    return PreParserExpression(TypeField::encode(kIdentifierExpression) |
+                               IdentifierTypeField::encode(id.type_));
   }
 
   static PreParserExpression BinaryOperation(const PreParserExpression& left,
@@ -133,27 +125,21 @@ class PreParserExpression {
     return PreParserExpression(TypeField::encode(kExpression));
   }
 
-  static PreParserExpression Assignment(
-      VariableZoneThreadedListType* variables) {
+  static PreParserExpression Assignment() {
     return PreParserExpression(TypeField::encode(kExpression) |
-                                   ExpressionTypeField::encode(kAssignment),
-                               variables);
+                               ExpressionTypeField::encode(kAssignment));
   }
 
   static PreParserExpression NewTargetExpression() {
     return PreParserExpression::Default();
   }
 
-  static PreParserExpression ObjectLiteral(
-      VariableZoneThreadedListType* variables) {
-    return PreParserExpression(TypeField::encode(kObjectLiteralExpression),
-                               variables);
+  static PreParserExpression ObjectLiteral() {
+    return PreParserExpression(TypeField::encode(kObjectLiteralExpression));
   }
 
-  static PreParserExpression ArrayLiteral(
-      VariableZoneThreadedListType* variables) {
-    return PreParserExpression(TypeField::encode(kArrayLiteralExpression),
-                               variables);
+  static PreParserExpression ArrayLiteral() {
+    return PreParserExpression(TypeField::encode(kArrayLiteralExpression));
   }
 
   static PreParserExpression StringLiteral() {
@@ -363,20 +349,8 @@ class PreParserExpression {
     kAssignment
   };
 
-  explicit PreParserExpression(
-      uint32_t expression_code,
-      VariableZoneThreadedListType* variables = nullptr)
-      : code_(expression_code), variables_(variables) {}
-
-  void AddVariable(VariableProxy* variable, Zone* zone) {
-    if (variable == nullptr) {
-      return;
-    }
-    if (variables_ == nullptr) {
-      variables_ = new (zone) VariableZoneThreadedListType();
-    }
-    variables_->Add(variable);
-  }
+  explicit PreParserExpression(uint32_t expression_code)
+      : code_(expression_code) {}
 
   // The first three bits are for the Type.
   typedef BitField<Type, 0, 3> TypeField;
@@ -398,10 +372,6 @@ class PreParserExpression {
       HasCoverInitializedNameField;
 
   uint32_t code_;
-  // If the PreParser is used in the variable tracking mode, PreParserExpression
-  // accumulates variables in that expression.
-  VariableZoneThreadedListType* variables_;
-
   friend class PreParser;
   friend class PreParserFactory;
   friend class PreParserExpressionList;
@@ -434,29 +404,17 @@ class PreParserScopedStatementList {
 // the like. If the PreParser is used in variable tracking mode, it needs to
 // build lists of variables though.
 class PreParserExpressionList {
-  using VariableZoneThreadedListType =
-      ZoneThreadedList<VariableProxy, VariableProxy::PreParserNext>;
-
  public:
-  explicit PreParserExpressionList(std::vector<void*>* buffer)
-      : length_(0), variables_(nullptr) {}
+  explicit PreParserExpressionList(std::vector<void*>* buffer) : length_(0) {}
 
   int length() const { return length_; }
 
   void Add(const PreParserExpression& expression) {
-    if (expression.variables_ != nullptr) {
-      if (variables_ == nullptr) {
-        variables_ = expression.variables_;
-      } else {
-        variables_->Append(std::move(*expression.variables_));
-      }
-    }
     ++length_;
   }
 
  private:
   int length_;
-  VariableZoneThreadedListType* variables_;
 
   friend class PreParser;
   friend class PreParserFactory;
@@ -588,7 +546,7 @@ class PreParserFactory {
   }
   PreParserExpression NewArrayLiteral(const PreParserExpressionList& values,
                                       int first_spread_index, int pos) {
-    return PreParserExpression::ArrayLiteral(values.variables_);
+    return PreParserExpression::ArrayLiteral();
   }
   PreParserExpression NewClassLiteralProperty(const PreParserExpression& key,
                                               const PreParserExpression& value,
@@ -602,17 +560,17 @@ class PreParserFactory {
                                                const PreParserExpression& value,
                                                ObjectLiteralProperty::Kind kind,
                                                bool is_computed_name) {
-    return PreParserExpression::Default(value.variables_);
+    return PreParserExpression::Default();
   }
   PreParserExpression NewObjectLiteralProperty(const PreParserExpression& key,
                                                const PreParserExpression& value,
                                                bool is_computed_name) {
-    return PreParserExpression::Default(value.variables_);
+    return PreParserExpression::Default();
   }
   PreParserExpression NewObjectLiteral(
       const PreParserExpressionList& properties, int boilerplate_properties,
       int pos, bool has_rest_property) {
-    return PreParserExpression::ObjectLiteral(properties.variables_);
+    return PreParserExpression::ObjectLiteral();
   }
   PreParserExpression NewVariableProxy(void* variable) {
     return PreParserExpression::Default();
@@ -654,7 +612,7 @@ class PreParserFactory {
                                     const PreParserExpression& right, int pos) {
     // Identifiers need to be tracked since this might be a parameter with a
     // default value inside an arrow function parameter list.
-    return PreParserExpression::Assignment(left.variables_);
+    return PreParserExpression::Assignment();
   }
   PreParserExpression NewYield(const PreParserExpression& expression, int pos,
                                Suspend::OnAbruptResume on_abrupt_resume) {
@@ -1109,10 +1067,6 @@ class PreParser : public ParserBase<PreParser> {
       const PreParserScopedStatementList* body, PreParserStatement block,
       const PreParserExpression& return_value) {}
 
-  void InitializeVariables(
-      const DeclarationParsingResult::Declaration* declaration,
-      ZonePtrList<const AstRawString>* names);
-
   V8_INLINE void DeclareLabel(ZonePtrList<const AstRawString>** labels,
                               ZonePtrList<const AstRawString>** own_labels,
                               const PreParserExpression& expr) {
@@ -1426,11 +1380,7 @@ class PreParser : public ParserBase<PreParser> {
   }
 
   V8_INLINE PreParserStatement
-  BuildInitializationBlock(DeclarationParsingResult* parsing_result,
-                           ZonePtrList<const AstRawString>* names) {
-    for (auto declaration : parsing_result->declarations) {
-      InitializeVariables(&declaration, names);
-    }
+  BuildInitializationBlock(DeclarationParsingResult* parsing_result) {
     return PreParserStatement::Default();
   }
 
@@ -1441,16 +1391,6 @@ class PreParser : public ParserBase<PreParser> {
   V8_INLINE void DesugarBindingInForEachStatement(
       ForInfo* for_info, PreParserStatement* body_block,
       PreParserExpression* each_variable) {
-    DCHECK_EQ(1, for_info->parsing_result.declarations.size());
-    bool is_for_var_of =
-        for_info->mode == ForEachStatement::ITERATE &&
-        for_info->parsing_result.descriptor.mode == VariableMode::kVar;
-    bool collect_names =
-        IsLexicalVariableMode(for_info->parsing_result.descriptor.mode) ||
-        is_for_var_of;
-
-    InitializeVariables(&for_info->parsing_result.declarations[0],
-                        collect_names ? &for_info->bound_names : nullptr);
   }
 
   V8_INLINE PreParserBlock CreateForEachStatementTDZ(PreParserBlock init_block,
@@ -1528,6 +1468,15 @@ class PreParser : public ParserBase<PreParser> {
                                  const PreParserIdentifier& arg,
                                  ParseErrorType error_type = kSyntaxError) {
     UNREACHABLE();
+  }
+
+  void ReportMessageAt(Scanner::Location source_location,
+                       MessageTemplate message, const AstRawString* arg,
+                       ParseErrorType error_type = kSyntaxError) {
+    pending_error_handler()->ReportMessageAt(source_location.beg_pos,
+                                             source_location.end_pos, message,
+                                             arg, error_type);
+    scanner()->set_parser_error();
   }
 
   // "null" return type creators.
@@ -1665,7 +1614,7 @@ class PreParser : public ParserBase<PreParser> {
 
   V8_INLINE PreParserExpression
   ExpressionListToExpression(const PreParserExpressionList& args) {
-    return PreParserExpression::Default(args.variables_);
+    return PreParserExpression::Default();
   }
 
   V8_INLINE void SetFunctionNameFromPropertyName(

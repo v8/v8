@@ -1585,18 +1585,7 @@ class VariableProxy final : public Expression {
     bit_field_ = IsRemovedFromUnresolvedField::update(bit_field_, true);
   }
 
-  // Provides an access type for the ThreadedList used by the PreParsers
-  // expressions, lists, and formal parameters.
-  struct PreParserNext {
-    static VariableProxy** next(VariableProxy* t) {
-      return t->pre_parser_expr_next();
-    }
-
-    static VariableProxy** start(VariableProxy** head) { return head; }
-  };
-
-  // Provides an access type for the ThreadedList used by the PreParsers
-  // expressions, lists, and formal parameters.
+  // Provides filtered access to the unresolved variable proxy threaded list.
   struct UnresolvedNext {
     static VariableProxy** filter(VariableProxy** t) {
       VariableProxy** n = t;
@@ -1621,8 +1610,7 @@ class VariableProxy final : public Expression {
                 int start_position)
       : Expression(start_position, kVariableProxy),
         raw_name_(name),
-        next_unresolved_(nullptr),
-        pre_parser_expr_next_(nullptr) {
+        next_unresolved_(nullptr) {
     bit_field_ |= IsThisField::encode(variable_kind == THIS_VARIABLE) |
                   IsAssignedField::encode(false) |
                   IsResolvedField::encode(false) |
@@ -1650,9 +1638,6 @@ class VariableProxy final : public Expression {
 
   V8_INLINE VariableProxy** next() { return &next_unresolved_; }
   VariableProxy* next_unresolved_;
-
-  VariableProxy** pre_parser_expr_next() { return &pre_parser_expr_next_; }
-  VariableProxy* pre_parser_expr_next_;
 
   friend base::ThreadedListTraits<VariableProxy>;
 };
