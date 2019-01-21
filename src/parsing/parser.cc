@@ -562,10 +562,10 @@ FunctionLiteral* Parser::DoParseProgram(Isolate* isolate, ParseInfo* info) {
       bool is_rest = false;
       bool is_optional = false;
       VariableMode mode = VariableMode::kVar;
-      bool added;
-      scope->DeclareLocal(name, mode, PARAMETER_VARIABLE, &added,
+      bool was_added;
+      scope->DeclareLocal(name, mode, PARAMETER_VARIABLE, &was_added,
                           Variable::DefaultInitializationFlag(mode));
-      DCHECK(added);
+      DCHECK(was_added);
       auto var = scope->DeclareParameter(name, VariableMode::kVar, is_optional,
                                          is_rest, ast_value_factory(), beg_pos);
       var->AllocateTo(VariableLocation::PARAMETER, 0);
@@ -1360,15 +1360,16 @@ VariableProxy* Parser::DeclareVariable(const AstRawString* name,
   DCHECK_NOT_NULL(name);
   VariableProxy* proxy =
       factory()->NewVariableProxy(name, NORMAL_VARIABLE, position());
-  bool added;
-  DeclareVariable(proxy, NORMAL_VARIABLE, mode, init, scope(), &added, pos,
+  bool was_added;
+  DeclareVariable(proxy, NORMAL_VARIABLE, mode, init, scope(), &was_added, pos,
                   end_position());
   return proxy;
 }
 
 void Parser::DeclareVariable(VariableProxy* proxy, VariableKind kind,
                              VariableMode mode, InitializationFlag init,
-                             Scope* scope, bool* added, int begin, int end) {
+                             Scope* scope, bool* was_added, int begin,
+                             int end) {
   Declaration* declaration;
   if (mode == VariableMode::kVar && !scope->is_declaration_scope()) {
     DCHECK(scope->is_block_scope() || scope->is_with_scope());
@@ -1376,18 +1377,18 @@ void Parser::DeclareVariable(VariableProxy* proxy, VariableKind kind,
   } else {
     declaration = factory()->NewVariableDeclaration(begin);
   }
-  return Declare(declaration, proxy, kind, mode, init, scope, added, end);
+  return Declare(declaration, proxy, kind, mode, init, scope, was_added, end);
 }
 
 void Parser::Declare(Declaration* declaration, VariableProxy* proxy,
                      VariableKind variable_kind, VariableMode mode,
-                     InitializationFlag init, Scope* scope, bool* added,
+                     InitializationFlag init, Scope* scope, bool* was_added,
                      int var_end_pos) {
   bool local_ok = true;
   bool sloppy_mode_block_scope_function_redefinition = false;
-  scope->DeclareVariable(declaration, proxy, mode, variable_kind, init, added,
-                         &sloppy_mode_block_scope_function_redefinition,
-                         &local_ok);
+  scope->DeclareVariable(
+      declaration, proxy, mode, variable_kind, init, was_added,
+      &sloppy_mode_block_scope_function_redefinition, &local_ok);
   if (!local_ok) {
     // If we only have the start position of a proxy, we can't highlight the
     // whole variable name.  Pretend its length is 1 so that we highlight at
@@ -1425,9 +1426,9 @@ Statement* Parser::DeclareFunction(const AstRawString* variable_name,
       factory()->NewVariableProxy(variable_name, NORMAL_VARIABLE, beg_pos);
   Declaration* declaration = factory()->NewFunctionDeclaration(
       function, is_sloppy_block_function, beg_pos);
-  bool added;
+  bool was_added;
   Declare(declaration, proxy, NORMAL_VARIABLE, mode, kCreatedInitialized,
-          scope(), &added);
+          scope(), &was_added);
   if (names) names->Add(variable_name, zone());
   if (is_sloppy_block_function) {
     SloppyBlockFunctionStatement* statement =
@@ -2642,10 +2643,10 @@ Block* Parser::BuildParameterInitializationBlock(
 
 Scope* Parser::NewHiddenCatchScope() {
   Scope* catch_scope = NewScopeWithParent(scope(), CATCH_SCOPE);
-  bool added;
+  bool was_added;
   catch_scope->DeclareLocal(ast_value_factory()->dot_catch_string(),
-                            VariableMode::kVar, NORMAL_VARIABLE, &added);
-  DCHECK(added);
+                            VariableMode::kVar, NORMAL_VARIABLE, &was_added);
+  DCHECK(was_added);
   catch_scope->set_is_hidden();
   return catch_scope;
 }

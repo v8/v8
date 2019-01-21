@@ -273,10 +273,14 @@ class VariableDeclarationParsingScope : public ExpressionScope<Types> {
 
   VariableProxy* Declare(VariableProxy* proxy) {
     VariableKind kind = NORMAL_VARIABLE;
-    bool added;
+    bool was_added;
     this->parser()->DeclareVariable(
         proxy, kind, mode_, Variable::DefaultInitializationFlag(mode_),
-        this->parser()->scope(), &added, proxy->position());
+        this->parser()->scope(), &was_added, proxy->position());
+    if (was_added &&
+        this->parser()->scope()->num_var() > kMaxNumFunctionLocals) {
+      this->parser()->ReportMessage(MessageTemplate::kTooManyVariables);
+    }
     if (names_) names_->Add(proxy->raw_name(), this->parser()->zone());
     if (!this->IsLexicalDeclaration()) {
       if (this->parser()->loop_nesting_depth() > 0) {
@@ -312,6 +316,11 @@ class VariableDeclarationParsingScope : public ExpressionScope<Types> {
   }
 
  private:
+  // Limit the allowed number of local variables in a function. The hard limit
+  // in Ignition is 2^31-1 due to the size of register operands. We limit it to
+  // a more reasonable lower up-limit.
+  static const int kMaxNumFunctionLocals = (1 << 23) - 1;
+
   VariableMode mode_;
   ZonePtrList<const AstRawString>* names_;
 
@@ -331,11 +340,11 @@ class ParameterDeclarationParsingScope : public ExpressionScope<Types> {
   void Declare(VariableProxy* proxy) {
     VariableKind kind = PARAMETER_VARIABLE;
     VariableMode mode = VariableMode::kVar;
-    bool added;
+    bool was_added;
     this->parser()->DeclareVariable(
         proxy, kind, mode, Variable::DefaultInitializationFlag(mode),
-        this->parser()->scope(), &added, proxy->position());
-    if (!has_duplicate() && !added) {
+        this->parser()->scope(), &was_added, proxy->position());
+    if (!has_duplicate() && !was_added) {
       duplicate_loc_ = proxy->location();
     }
   }
@@ -655,11 +664,11 @@ class ArrowHeadParsingScope : public ExpressionParsingScope<Types> {
         has_simple_parameter_list_ ? VariableMode::kVar : VariableMode::kLet;
     for (int i = 0; i < this->variable_list()->length(); i++) {
       VariableProxy* proxy = this->variable_list()->at(i);
-      bool added;
+      bool was_added;
       this->parser()->DeclareVariable(proxy, kind, mode,
                                       Variable::DefaultInitializationFlag(mode),
-                                      result, &added, proxy->position());
-      if (!added) {
+                                      result, &was_added, proxy->position());
+      if (!was_added) {
         ExpressionScope<Types>::Report(proxy->location(),
                                        MessageTemplate::kParamDupe);
       }

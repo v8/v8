@@ -1091,14 +1091,14 @@ class PreParser : public ParserBase<PreParser> {
 
   void DeclareVariable(VariableProxy* proxy, VariableKind kind,
                        VariableMode mode, InitializationFlag init, Scope* scope,
-                       bool* added, int position) {
-    DeclareVariableName(proxy->raw_name(), mode, scope, added, kind);
+                       bool* was_added, int position) {
+    DeclareVariableName(proxy->raw_name(), mode, scope, was_added, kind);
   }
 
   void DeclareVariableName(const AstRawString* name, VariableMode mode,
-                           Scope* scope, bool* added,
+                           Scope* scope, bool* was_added,
                            VariableKind kind = NORMAL_VARIABLE) {
-    if (scope->DeclareVariableName(name, mode, added, kind) == nullptr) {
+    if (scope->DeclareVariableName(name, mode, was_added, kind) == nullptr) {
       ReportUnidentifiableError();
     }
   }
@@ -1171,11 +1171,11 @@ class PreParser : public ParserBase<PreParser> {
                   ZonePtrList<const AstRawString>* names) {
     DCHECK_NULL(names);
     if (variable_name.string_ != nullptr) {
-      bool added;
+      bool was_added;
       if (is_strict(language_mode())) {
-        DeclareVariableName(variable_name.string_, mode, scope(), &added);
+        DeclareVariableName(variable_name.string_, mode, scope(), &was_added);
       } else {
-        scope()->DeclareVariableName(variable_name.string_, mode, &added);
+        scope()->DeclareVariableName(variable_name.string_, mode, &was_added);
       }
       if (is_sloppy_block_function) {
         GetDeclarationScope()->DeclareSloppyBlockFunction(variable_name.string_,
@@ -1192,9 +1192,9 @@ class PreParser : public ParserBase<PreParser> {
     // Preparser shouldn't be used in contexts where we need to track the names.
     DCHECK_NULL(names);
     if (variable_name.string_ != nullptr) {
-      bool added;
+      bool was_added;
       DeclareVariableName(variable_name.string_, VariableMode::kLet, scope(),
-                          &added);
+                          &was_added);
     }
     return PreParserStatement::Default();
   }
@@ -1202,8 +1202,9 @@ class PreParser : public ParserBase<PreParser> {
                                       ClassInfo* class_info,
                                       int class_token_pos) {
     if (name.string_ != nullptr) {
-      bool added;
-      DeclareVariableName(name.string_, VariableMode::kConst, scope(), &added);
+      bool was_added;
+      DeclareVariableName(name.string_, VariableMode::kConst, scope(),
+                          &was_added);
     }
   }
   V8_INLINE void DeclareClassProperty(const PreParserIdentifier& class_name,
@@ -1217,15 +1218,15 @@ class PreParser : public ParserBase<PreParser> {
                                    bool is_private, ClassInfo* class_info) {
     DCHECK_IMPLIES(is_computed_name, !is_private);
     if (is_computed_name) {
-      bool added;
+      bool was_added;
       DeclareVariableName(
           ClassFieldVariableName(ast_value_factory(),
                                  class_info->computed_field_count),
-          VariableMode::kConst, scope(), &added);
+          VariableMode::kConst, scope(), &was_added);
     } else if (is_private && property_name.string_ != nullptr) {
-      bool added;
+      bool was_added;
       DeclareVariableName(property_name.string_, VariableMode::kConst, scope(),
-                          &added);
+                          &was_added);
     }
   }
 
@@ -1397,8 +1398,8 @@ class PreParser : public ParserBase<PreParser> {
                                                      const ForInfo& for_info) {
     if (IsLexicalVariableMode(for_info.parsing_result.descriptor.mode)) {
       for (auto name : for_info.bound_names) {
-        bool added;
-        DeclareVariableName(name, VariableMode::kLet, scope(), &added);
+        bool was_added;
+        DeclareVariableName(name, VariableMode::kLet, scope(), &was_added);
       }
       return PreParserBlock::Default();
     }
@@ -1411,9 +1412,9 @@ class PreParser : public ParserBase<PreParser> {
       PreParserStatement body, Scope* inner_scope, const ForInfo& for_info) {
     // See Parser::DesugarLexicalBindingsInForStatement.
     for (auto name : for_info.bound_names) {
-      bool added;
+      bool was_added;
       DeclareVariableName(name, for_info.parsing_result.descriptor.mode,
-                          inner_scope, &added);
+                          inner_scope, &was_added);
     }
     return loop;
   }

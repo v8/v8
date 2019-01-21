@@ -27,15 +27,6 @@ namespace internal {
 // TODO(leszeks): Rename or remove this class
 class PatternRewriter final : public AstVisitor<PatternRewriter> {
  public:
-  // Limit the allowed number of local variables in a function. The hard limit
-  // is that offsets computed by FullCodeGenerator::StackOperand and similar
-  // functions are ints, and they should not overflow. In addition, accessing
-  // local variables creates user-controlled constants in the generated code,
-  // and we don't want too much user-controlled memory inside the code (this was
-  // the reason why this limit was introduced in the first place; see
-  // https://codereview.chromium.org/7003030/ ).
-  static const int kMaxNumFunctionLocals = 4194303;  // 2^22-1
-
   typedef Parser::DeclarationDescriptor DeclarationDescriptor;
 
   static void InitializeVariables(
@@ -75,14 +66,6 @@ class PatternRewriter final : public AstVisitor<PatternRewriter> {
 
   void RewriteParameterScopes(Expression* expr);
 
-  AstNodeFactory* factory() const { return parser_->factory(); }
-  AstValueFactory* ast_value_factory() const {
-    return parser_->ast_value_factory();
-  }
-
-  std::vector<void*>* pointer_buffer() { return parser_->pointer_buffer(); }
-
-  Zone* zone() const { return parser_->zone(); }
   Scope* scope() const { return parser_->scope(); }
 
   Parser* const parser_;
@@ -121,15 +104,6 @@ void PatternRewriter::InitializeVariables(
 }
 
 void PatternRewriter::VisitVariableProxy(VariableProxy* proxy) {
-  Scope* target_scope = scope();
-  if (declares_parameter_containing_sloppy_eval_) {
-    // When an extra declaration scope needs to be inserted to account for
-    // a sloppy eval in a default parameter or function body, the parameter
-    // needs to be declared in the function's scope, not in the varblock
-    // scope which will be used for the initializer expression.
-    target_scope = target_scope->outer_scope();
-  }
-
   DCHECK(!parser_->has_error());
   Variable* var =
       proxy->is_resolved()
@@ -143,11 +117,6 @@ void PatternRewriter::VisitVariableProxy(VariableProxy* proxy) {
   DCHECK_NOT_NULL(var);
   DCHECK_NE(initializer_position_, kNoSourcePosition);
   var->set_initializer_position(initializer_position_);
-
-  if (var->scope()->num_var() > kMaxNumFunctionLocals) {
-    parser_->ReportMessage(MessageTemplate::kTooManyVariables);
-    return;
-  }
 }
 
 // When an extra declaration scope needs to be inserted to account for
