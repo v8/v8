@@ -391,7 +391,7 @@ void TypedArrayBuiltinsAssembler::ConstructByArrayBuffer(
 
   BIND(&length_defined);
   {
-    TNode<Smi> new_length = ToSmiIndex(length, context, &invalid_length);
+    TNode<Smi> new_length = ToSmiIndex(context, length, &invalid_length);
     ThrowIfArrayBufferIsDetached(context, buffer, "Construct");
     new_byte_length.Bind(SmiMul(new_length, element_size));
     // Reading the byte length must come after the ToIndex operation, which
@@ -412,7 +412,7 @@ void TypedArrayBuiltinsAssembler::ConstructByArrayBuffer(
     TNode<Object> raw_length = CallBuiltin(
         Builtins::kDivide, context, new_byte_length.value(), element_size);
     // Force the result into a Smi, or throw a range error if it doesn't fit.
-    TNode<Smi> new_length = ToSmiIndex(raw_length, context, &invalid_length);
+    TNode<Smi> new_length = ToSmiIndex(context, raw_length, &invalid_length);
 
     CallBuiltin(Builtins::kTypedArrayInitializeWithBuffer, context, holder,
                 new_length, buffer, element_size, offset.value());
@@ -498,8 +498,10 @@ void TypedArrayBuiltinsAssembler::ConstructByTypedArray(
 
   BIND(&construct);
   {
-    ConstructByArrayLike(context, holder, typed_array, source_length.value(),
-                         element_size, buffer_constructor.value());
+    TypedArrayBuiltinsFromDSLAssembler(this->state())
+        .ConstructByArrayLike(context, holder, typed_array,
+                              source_length.value(), element_size,
+                              buffer_constructor.value());
     Goto(&done);
   }
 
@@ -536,75 +538,6 @@ TNode<BoolT> TypedArrayBuiltinsAssembler::ByteLengthIsValid(
   return is_valid.value();
 }
 
-void TypedArrayBuiltinsAssembler::ConstructByArrayLike(
-    TNode<Context> context, TNode<JSTypedArray> holder,
-    TNode<HeapObject> array_like, TNode<Object> initial_length,
-    TNode<Smi> element_size, TNode<JSReceiver> buffer_constructor) {
-  Label invalid_length(this, Label::kDeferred), fill(this), fast_copy(this),
-      detached_check(this), done(this);
-
-  // The caller has looked up length on array_like, which is observable.
-  TNode<Smi> length = ToSmiLength(initial_length, context, &invalid_length);
-
-  Node* initialize = FalseConstant();
-  CallBuiltin(Builtins::kTypedArrayInitialize, context, holder, length,
-              element_size, initialize, buffer_constructor);
-
-  GotoIf(IsJSTypedArray(array_like), &detached_check);
-  Goto(&fill);
-
-  BIND(&detached_check);
-  ThrowIfArrayBufferViewBufferIsDetached(context, CAST(array_like),
-                                         "Construct");
-  Goto(&fill);
-
-  BIND(&fill);
-  GotoIf(SmiEqual(length, SmiConstant(0)), &done);
-  TNode<Int32T> holder_kind = LoadElementsKind(holder);
-  TNode<Int32T> source_kind = LoadElementsKind(array_like);
-  GotoIf(Word32Equal(holder_kind, source_kind), &fast_copy);
-
-  // Copy using the elements accessor.
-  CallRuntime(Runtime::kTypedArrayCopyElements, context, holder, array_like,
-              length);
-  Goto(&done);
-
-  BIND(&fast_copy);
-  {
-    Node* holder_data_ptr = LoadDataPtr(holder);
-    Node* source_data_ptr = LoadDataPtr(array_like);
-
-    // Calculate the byte length. We shouldn't be trying to copy if the typed
-    // array was detached.
-    CSA_ASSERT(this, SmiNotEqual(length, SmiConstant(0)));
-    CSA_ASSERT(this, Word32Equal(IsDetachedBuffer(LoadObjectField(
-                                     array_like, JSTypedArray::kBufferOffset)),
-                                 Int32Constant(0)));
-
-    TNode<Number> byte_length = SmiMul(length, element_size);
-    CSA_ASSERT(this, ByteLengthIsValid(byte_length));
-    TNode<UintPtrT> byte_length_intptr =
-        ChangeNonnegativeNumberToUintPtr(byte_length);
-    CSA_ASSERT(this, UintPtrLessThanOrEqual(
-                         byte_length_intptr,
-                         IntPtrConstant(FixedTypedArrayBase::kMaxByteLength)));
-
-    Node* memcpy = ExternalConstant(ExternalReference::libc_memcpy_function());
-    CallCFunction3(MachineType::AnyTagged(), MachineType::Pointer(),
-                   MachineType::Pointer(), MachineType::UintPtr(), memcpy,
-                   holder_data_ptr, source_data_ptr, byte_length_intptr);
-    Goto(&done);
-  }
-
-  BIND(&invalid_length);
-  {
-    ThrowRangeError(context, MessageTemplate::kInvalidTypedArrayLength,
-                    initial_length);
-  }
-
-  BIND(&done);
-}
-
 void TypedArrayBuiltinsAssembler::ConstructByIterable(
     TNode<Context> context, TNode<JSTypedArray> holder,
     TNode<JSReceiver> iterable, TNode<JSReceiver> iterator_fn,
@@ -619,8 +552,9 @@ void TypedArrayBuiltinsAssembler::ConstructByIterable(
 
   TNode<JSFunction> default_constructor = CAST(LoadContextElement(
       LoadNativeContext(context), Context::ARRAY_BUFFER_FUN_INDEX));
-  ConstructByArrayLike(context, holder, array_like, initial_length,
-                       element_size, default_constructor);
+  TypedArrayBuiltinsFromDSLAssembler(this->state())
+      .ConstructByArrayLike(context, holder, array_like, initial_length,
+                            element_size, default_constructor);
 }
 
 TF_BUILTIN(TypedArrayBaseConstructor, TypedArrayBuiltinsAssembler) {
@@ -708,8 +642,9 @@ TF_BUILTIN(CreateTypedArray, TypedArrayBuiltinsAssembler) {
 
       TNode<JSFunction> default_constructor = CAST(LoadContextElement(
           LoadNativeContext(context), Context::ARRAY_BUFFER_FUN_INDEX));
-      ConstructByArrayLike(context, result, array_like, initial_length,
-                           element_size, default_constructor);
+      TypedArrayBuiltinsFromDSLAssembler(this->state())
+          .ConstructByArrayLike(context, result, array_like, initial_length,
+                                element_size, default_constructor);
       Goto(&return_result);
     }
 
@@ -1111,6 +1046,16 @@ void TypedArrayBuiltinsAssembler::CallCMemmove(TNode<IntPtrT> dest_ptr,
       ExternalConstant(ExternalReference::libc_memmove_function());
   CallCFunction3(MachineType::AnyTagged(), MachineType::Pointer(),
                  MachineType::Pointer(), MachineType::UintPtr(), memmove,
+                 dest_ptr, src_ptr, byte_length);
+}
+
+void TypedArrayBuiltinsAssembler::CallCMemcpy(TNode<RawPtrT> dest_ptr,
+                                              TNode<RawPtrT> src_ptr,
+                                              TNode<UintPtrT> byte_length) {
+  TNode<ExternalReference> memcpy =
+      ExternalConstant(ExternalReference::libc_memcpy_function());
+  CallCFunction3(MachineType::AnyTagged(), MachineType::Pointer(),
+                 MachineType::Pointer(), MachineType::UintPtr(), memcpy,
                  dest_ptr, src_ptr, byte_length);
 }
 
@@ -1759,7 +1704,7 @@ TF_BUILTIN(TypedArrayFrom, TypedArrayBuiltinsAssembler) {
     // 10. Let len be ? ToLength(? Get(arrayLike, "length")).
     TNode<Object> raw_length =
         GetProperty(context, final_source.value(), LengthStringConstant());
-    final_length = ToSmiLength(raw_length, context, &if_length_not_smi);
+    final_length = ToSmiLength(context, raw_length, &if_length_not_smi);
     Goto(&create_typed_array);
 
     BIND(&if_length_not_smi);

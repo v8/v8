@@ -104,7 +104,7 @@ Node* SharedArrayBufferBuiltinsAssembler::ConvertTaggedAtomicIndexToWord32(
   // The |number_index| output parameter is used only for architectures that
   // don't currently have a TF implementation and forward to runtime functions
   // instead; they expect the value has already been coerced to an integer.
-  *number_index = ToSmiIndex(CAST(tagged), CAST(context), &range_error);
+  *number_index = ToSmiIndex(CAST(context), CAST(tagged), &range_error);
   var_result.Bind(SmiToInt32(*number_index));
   Goto(&done);
 

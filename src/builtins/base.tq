@@ -279,6 +279,8 @@ const kNotIterable: constexpr MessageTemplate
 
 const kMaxArrayIndex:
     constexpr uint32 generates 'JSArray::kMaxArrayIndex';
+const kTypedArrayMaxByteLength:
+    constexpr uintptr generates 'FixedTypedArrayBase::kMaxByteLength';
 const kMaxSafeInteger: constexpr float64 generates 'kMaxSafeInteger';
 const kStringMaxLength: constexpr int31 generates 'String::kMaxLength';
 const kFixedArrayMaxLength:
@@ -368,6 +370,10 @@ extern macro ToInteger_Inline(
     Context, Object, constexpr ToIntegerTruncationMode): Number;
 extern macro ToLength_Inline(Context, Object): Number;
 extern macro ToNumber_Inline(Context, Object): Number;
+extern macro ToSmiIndex(implicit context: Context)(Object): PositiveSmi
+    labels IfRangeError;
+extern macro ToSmiLength(implicit context: Context)(Object): PositiveSmi
+    labels IfRangeError;
 extern macro ToString_Inline(Context, Object): String;
 extern transitioning macro GetProperty(implicit context: Context)(
     Object, Object): Object;
@@ -385,6 +391,8 @@ extern transitioning macro HasProperty_Inline(implicit context: Context)(
 extern macro ThrowRangeError(Context, constexpr MessageTemplate): never;
 extern macro ThrowRangeError(Context, constexpr MessageTemplate, Object): never;
 extern macro ThrowTypeError(Context, constexpr MessageTemplate): never;
+extern macro ThrowTypeError(
+    Context, constexpr MessageTemplate, constexpr string): never;
 extern macro ThrowTypeError(Context, constexpr MessageTemplate, Object): never;
 extern macro ThrowTypeError(
     Context, constexpr MessageTemplate, Object, Object, Object): never;
@@ -576,6 +584,7 @@ extern operator '>>>' macro ConstexprUintPtrShr(
 
 extern macro SmiMax(Smi, Smi): Smi;
 extern macro SmiMin(Smi, Smi): Smi;
+extern macro SmiMul(Smi, Smi): Number;
 
 extern operator '!' macro ConstexprBoolNot(constexpr bool): constexpr bool;
 extern operator '!' macro Word32BinaryNot(bool): bool;

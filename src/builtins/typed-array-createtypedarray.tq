@@ -6,6 +6,13 @@ namespace typed_array {
   extern builtin TypedArrayInitialize(implicit context: Context)(
       JSTypedArray, PositiveSmi, PositiveSmi, Boolean, JSReceiver): void;
 
+  extern macro TypedArrayBuiltinsAssembler::ByteLengthIsValid(Number): bool;
+  extern macro TypedArrayBuiltinsAssembler::CallCMemcpy(
+      RawPtr, RawPtr, uintptr): void;
+
+  extern runtime TypedArrayCopyElements(Context, JSTypedArray, Object, Number):
+      void;
+
   // 22.2.4.2 TypedArray ( length )
   // ES #sec-typedarray-length
   macro ConstructByLength(implicit context: Context)(
@@ -25,5 +32,42 @@ namespace typed_array {
     TypedArrayInitialize(
         typedArray, positiveLength, positiveElementSize, initialize,
         defaultConstructor);
+  }
+
+  // 22.2.4.4 TypedArray ( object )
+  // ES #sec-typedarray-object
+  macro ConstructByArrayLike(implicit context: Context)(
+      typedArray: JSTypedArray, arrayLike: HeapObject, initialLength: Object,
+      elementSize: Smi, bufferConstructor: JSReceiver): void {
+    const positiveElementSize: PositiveSmi =
+        Cast<PositiveSmi>(elementSize) otherwise unreachable;
+    // The caller has looked up length on arrayLike, which is observable.
+    const length: PositiveSmi = ToSmiLength(initialLength)
+        otherwise ThrowRangeError(context, kInvalidTypedArrayLength, initialLength);
+    const initialize: Boolean = False;
+    TypedArrayInitialize(
+        typedArray, length, positiveElementSize, initialize, bufferConstructor);
+
+    try {
+      const src: JSTypedArray = Cast<JSTypedArray>(arrayLike) otherwise IfSlow;
+
+      if (IsDetachedBuffer(src.buffer)) {
+        ThrowTypeError(context, kDetachedOperation, 'Construct');
+
+      } else if (src.elements_kind != typedArray.elements_kind) {
+        goto IfSlow;
+
+      } else if (length > 0) {
+        const byteLength: Number = SmiMul(length, elementSize);
+        assert(ByteLengthIsValid(byteLength));
+        CallCMemcpy(
+            typedArray.data_ptr, src.data_ptr, Convert<uintptr>(byteLength));
+      }
+    }
+    label IfSlow deferred {
+      if (length > 0) {
+        TypedArrayCopyElements(context, typedArray, arrayLike, length);
+      }
+    }
   }
 }

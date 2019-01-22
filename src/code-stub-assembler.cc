@@ -7905,8 +7905,8 @@ TNode<JSReceiver> CodeStubAssembler::ToObject_Inline(TNode<Context> context,
   return result.value();
 }
 
-TNode<Smi> CodeStubAssembler::ToSmiIndex(TNode<Object> input,
-                                         TNode<Context> context,
+TNode<Smi> CodeStubAssembler::ToSmiIndex(TNode<Context> context,
+                                         TNode<Object> input,
                                          Label* range_error) {
   TVARIABLE(Smi, result);
   Label check_undefined(this), return_zero(this), defined(this),
@@ -7937,8 +7937,8 @@ TNode<Smi> CodeStubAssembler::ToSmiIndex(TNode<Object> input,
   return result.value();
 }
 
-TNode<Smi> CodeStubAssembler::ToSmiLength(TNode<Object> input,
-                                          TNode<Context> context,
+TNode<Smi> CodeStubAssembler::ToSmiLength(TNode<Context> context,
+                                          TNode<Object> input,
                                           Label* range_error) {
   TVARIABLE(Smi, result);
   Label to_integer(this), negative_check(this),

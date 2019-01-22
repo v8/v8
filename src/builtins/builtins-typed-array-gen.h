@@ -38,11 +38,6 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
   void ConstructByTypedArray(TNode<Context> context, TNode<JSTypedArray> holder,
                              TNode<JSTypedArray> typed_array,
                              TNode<Smi> element_size);
-  void ConstructByArrayLike(TNode<Context> context, TNode<JSTypedArray> holder,
-                            TNode<HeapObject> array_like,
-                            TNode<Object> initial_length,
-                            TNode<Smi> element_size,
-                            TNode<JSReceiver> buffer_constructor);
   void ConstructByIterable(TNode<Context> context, TNode<JSTypedArray> holder,
                            TNode<JSReceiver> iterable,
                            TNode<JSReceiver> iterator_fn,
@@ -106,6 +101,9 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
 
   void CallCMemmove(TNode<IntPtrT> dest_ptr, TNode<IntPtrT> src_ptr,
                     TNode<IntPtrT> byte_length);
+
+  void CallCMemcpy(TNode<RawPtrT> dest_ptr, TNode<RawPtrT> src_ptr,
+                   TNode<UintPtrT> byte_length);
 
   void CallCCopyFastNumberJSArrayElementsToTypedArray(
       TNode<Context> context, TNode<JSArray> source, TNode<JSTypedArray> dest,
