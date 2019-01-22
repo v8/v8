@@ -11,6 +11,7 @@
 #include "src/compiler-dispatcher/compiler-dispatcher.h"
 #include "src/counters.h"
 #include "src/heap/heap-inl.h"
+#include "src/log.h"
 #include "src/objects-inl.h"
 #include "src/objects/scope-info.h"
 #include "src/zone/zone.h"

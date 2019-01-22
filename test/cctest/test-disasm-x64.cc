@@ -36,6 +36,7 @@
 #include "src/frames-inl.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
+#include "src/ostreams.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {

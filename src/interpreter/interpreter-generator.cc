@@ -25,6 +25,7 @@
 #include "src/objects/js-generator.h"
 #include "src/objects/module.h"
 #include "src/objects/oddball.h"
+#include "src/ostreams.h"
 
 namespace v8 {
 namespace internal {

@@ -45,6 +45,7 @@
 #include "src/heap/stress-scavenge-observer.h"
 #include "src/heap/sweeper.h"
 #include "src/interpreter/interpreter.h"
+#include "src/log.h"
 #include "src/microtask-queue.h"
 #include "src/objects/data-handler.h"
 #include "src/objects/free-space-inl.h"
@@ -2535,6 +2536,38 @@ bool MayContainRecordedSlots(HeapObject object) {
   return true;
 }
 }  // namespace
+
+void Heap::OnMoveEvent(HeapObject target, HeapObject source,
+                       int size_in_bytes) {
+  HeapProfiler* heap_profiler = isolate_->heap_profiler();
+  if (heap_profiler->is_tracking_object_moves()) {
+    heap_profiler->ObjectMoveEvent(source->address(), target->address(),
+                                   size_in_bytes);
+  }
+  for (auto& tracker : allocation_trackers_) {
+    tracker->MoveEvent(source->address(), target->address(), size_in_bytes);
+  }
+  if (target->IsSharedFunctionInfo()) {
+    LOG_CODE_EVENT(isolate_, SharedFunctionInfoMoveEvent(source->address(),
+                                                         target->address()));
+  }
+
+  if (FLAG_verify_predictable) {
+    ++allocations_count_;
+    // Advance synthetic time by making a time request.
+    MonotonicallyIncreasingTimeInMs();
+
+    UpdateAllocationsHash(source);
+    UpdateAllocationsHash(target);
+    UpdateAllocationsHash(size_in_bytes);
+
+    if (allocations_count_ % FLAG_dump_allocations_digest_at_alloc == 0) {
+      PrintAllocationsHash();
+    }
+  } else if (FLAG_fuzzer_gc_analysis) {
+    ++allocations_count_;
+  }
+}
 
 FixedArrayBase Heap::LeftTrimFixedArray(FixedArrayBase object,
                                         int elements_to_trim) {

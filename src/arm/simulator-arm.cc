@@ -17,6 +17,7 @@
 #include "src/disasm.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
+#include "src/ostreams.h"
 #include "src/runtime/runtime-utils.h"
 
 // Only build the simulator if not compiling for real ARM hardware.

@@ -22,7 +22,6 @@
 #include "src/heap/spaces-inl.h"
 #include "src/isolate-data.h"
 #include "src/isolate.h"
-#include "src/log.h"
 #include "src/msan.h"
 #include "src/objects-inl.h"
 #include "src/objects/allocation-site-inl.h"
@@ -264,38 +263,6 @@ void Heap::OnAllocationEvent(HeapObject object, int size_in_bytes) {
     if (allocations_count_ % FLAG_trace_allocation_stack_interval == 0) {
       isolate()->PrintStack(stdout, Isolate::kPrintStackConcise);
     }
-  }
-}
-
-void Heap::OnMoveEvent(HeapObject target, HeapObject source,
-                       int size_in_bytes) {
-  HeapProfiler* heap_profiler = isolate_->heap_profiler();
-  if (heap_profiler->is_tracking_object_moves()) {
-    heap_profiler->ObjectMoveEvent(source->address(), target->address(),
-                                   size_in_bytes);
-  }
-  for (auto& tracker : allocation_trackers_) {
-    tracker->MoveEvent(source->address(), target->address(), size_in_bytes);
-  }
-  if (target->IsSharedFunctionInfo()) {
-    LOG_CODE_EVENT(isolate_, SharedFunctionInfoMoveEvent(source->address(),
-                                                         target->address()));
-  }
-
-  if (FLAG_verify_predictable) {
-    ++allocations_count_;
-    // Advance synthetic time by making a time request.
-    MonotonicallyIncreasingTimeInMs();
-
-    UpdateAllocationsHash(source);
-    UpdateAllocationsHash(target);
-    UpdateAllocationsHash(size_in_bytes);
-
-    if (allocations_count_ % FLAG_dump_allocations_digest_at_alloc == 0) {
-      PrintAllocationsHash();
-    }
-  } else if (FLAG_fuzzer_gc_analysis) {
-    ++allocations_count_;
   }
 }
 

@@ -22,6 +22,7 @@
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/struct-inl.h"
 #include "src/optimized-compilation-info.h"
+#include "src/ostreams.h"
 #include "src/property.h"
 #include "src/transitions.h"
 

@@ -7,6 +7,7 @@
 #include "src/api.h"
 #include "src/asmjs/asm-js.h"
 #include "src/base/enum-set.h"
+#include "src/base/optional.h"
 #include "src/base/template-utils.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/compiler/wasm-compiler.h"

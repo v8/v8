@@ -13,6 +13,7 @@
 #include "src/debug/debug.h"
 #include "src/elements.h"
 #include "src/isolate-inl.h"
+#include "src/log.h"
 #include "src/message-template.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/literal-objects-inl.h"

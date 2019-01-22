@@ -14,6 +14,7 @@
 #include "src/counters.h"
 #include "src/eh-frame.h"
 #include "src/frames.h"
+#include "src/log.h"
 #include "src/macro-assembler-inl.h"
 #include "src/objects/smi.h"
 #include "src/optimized-compilation-info.h"

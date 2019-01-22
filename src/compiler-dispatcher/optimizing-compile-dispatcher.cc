@@ -10,6 +10,7 @@
 #include "src/compiler.h"
 #include "src/counters.h"
 #include "src/isolate.h"
+#include "src/log.h"
 #include "src/objects-inl.h"
 #include "src/optimized-compilation-info.h"
 #include "src/tracing/trace-event.h"

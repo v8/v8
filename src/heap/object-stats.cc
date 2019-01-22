@@ -22,6 +22,7 @@
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/slots.h"
 #include "src/objects/templates.h"
+#include "src/ostreams.h"
 
 namespace v8 {
 namespace internal {

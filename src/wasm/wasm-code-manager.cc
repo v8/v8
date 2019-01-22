@@ -12,6 +12,7 @@
 #include "src/base/platform/platform.h"
 #include "src/disassembler.h"
 #include "src/globals.h"
+#include "src/log.h"
 #include "src/macro-assembler-inl.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"

@@ -19,6 +19,7 @@
 #include "src/isolate-inl.h"
 #include "src/objects/heap-object-inl.h"
 #include "src/objects/smi.h"
+#include "src/ostreams.h"
 #include "src/runtime-profiler.h"
 #include "src/snapshot/natives.h"
 #include "src/trap-handler/trap-handler.h"

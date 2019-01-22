@@ -7,9 +7,11 @@
 #include <sstream>
 
 #include "src/assembler-inl.h"
+#include "src/base/optional.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/macro-assembler-inl.h"
+#include "src/ostreams.h"
 #include "src/wasm/function-body-decoder-impl.h"
 #include "src/wasm/wasm-linkage.h"
 #include "src/wasm/wasm-opcodes.h"

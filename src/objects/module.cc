@@ -15,6 +15,7 @@
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/js-generator-inl.h"
 #include "src/objects/module-inl.h"
+#include "src/ostreams.h"
 
 namespace v8 {
 namespace internal {

@@ -15,6 +15,7 @@
 #include "src/frames-inl.h"
 #include "src/global-handles.h"
 #include "src/interpreter/interpreter.h"
+#include "src/log.h"
 #include "src/macro-assembler.h"
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/heap-number-inl.h"

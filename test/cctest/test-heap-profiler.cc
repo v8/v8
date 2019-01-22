@@ -37,6 +37,7 @@
 #include "src/api-inl.h"
 #include "src/assembler-inl.h"
 #include "src/base/hashmap.h"
+#include "src/base/optional.h"
 #include "src/collector.h"
 #include "src/debug/debug.h"
 #include "src/objects-inl.h"

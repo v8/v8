@@ -17,6 +17,7 @@
 #include "src/ic/stub-cache.h"
 #include "src/interpreter/interpreter.h"
 #include "src/isolate.h"
+#include "src/log.h"
 #include "src/math-random.h"
 #include "src/microtask-queue.h"
 #include "src/objects-inl.h"

@@ -13,6 +13,7 @@
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
 #include "src/objects/fixed-array.h"
+#include "src/ostreams.h"
 #include "src/snapshot/embedded-data.h"
 #include "src/visitors.h"
 

@@ -9,6 +9,7 @@
 #include "src/objects-inl.h"
 #include "src/objects/heap-number.h"
 #include "src/objects/js-promise.h"
+#include "src/ostreams.h"
 #include "src/wasm/function-compiler.h"
 #include "src/wasm/module-compiler.h"
 #include "src/wasm/module-decoder.h"

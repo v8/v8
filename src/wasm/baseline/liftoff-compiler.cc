@@ -11,6 +11,7 @@
 #include "src/compiler/wasm-compiler.h"
 #include "src/counters.h"
 #include "src/interface-descriptors.h"
+#include "src/log.h"
 #include "src/macro-assembler-inl.h"
 #include "src/objects/smi.h"
 #include "src/tracing/trace-event.h"
