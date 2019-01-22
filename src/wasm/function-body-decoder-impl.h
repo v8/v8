@@ -762,6 +762,15 @@ class WasmDecoder : public Decoder {
           }
           decoder->error(decoder->pc() - 1, "invalid local type");
           return false;
+        case kLocalAnyFunc:
+          if (enabled.anyref) {
+            type = kWasmAnyFunc;
+            break;
+          }
+          decoder->error(decoder->pc() - 1,
+                         "local type 'anyfunc' is not enabled with "
+                         "--experimental-wasm-anyref");
+          return false;
         case kLocalExceptRef:
           if (enabled.eh) {
             type = kWasmExceptRef;

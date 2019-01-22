@@ -644,6 +644,7 @@ class WasmGraphBuildingInterface {
       case kWasmS128:
         return builder_->S128Zero();
       case kWasmAnyRef:
+      case kWasmAnyFunc:
       case kWasmExceptRef:
         return builder_->RefNull();
       default:

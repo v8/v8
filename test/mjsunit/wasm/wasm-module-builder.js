@@ -617,6 +617,9 @@ class WasmModuleBuilder {
             if (l.anyref_count > 0) {
               local_decls.push({count: l.anyref_count, type: kWasmAnyRef});
             }
+            if (l.anyfunc_count > 0) {
+              local_decls.push({count: l.anyfunc_count, type: kWasmAnyFunc});
+            }
             if (l.except_count > 0) {
               local_decls.push({count: l.except_count, type: kWasmExceptRef});
             }
