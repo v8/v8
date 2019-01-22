@@ -7,7 +7,7 @@
 load("test/mjsunit/wasm/wasm-constants.js");
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
-(function testAnyRefIdentityFunction() {
+(function testAnyFuncIdentityFunction() {
   print(arguments.callee.name);
   const builder = new WasmModuleBuilder();
   builder.addFunction('main', kSig_a_a)
@@ -23,7 +23,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
       instance.exports.main, instance.exports.main(instance.exports.main));
 })();
 
-(function testPassAnyRefToImportedFunction() {
+(function testPassAnyFuncToImportedFunction() {
   print(arguments.callee.name);
   const builder = new WasmModuleBuilder();
   const sig_index = builder.addType(kSig_v_a);
@@ -42,7 +42,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   main(main);
 })();
 
-(function testPassAnyRefWithGCWithLocals() {
+(function testPassAnyFuncWithGCWithLocals() {
   print(arguments.callee.name);
   const builder = new WasmModuleBuilder();
   const ref_sig = builder.addType(kSig_v_a);
@@ -78,7 +78,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   main(main);
 })();
 
-(function testPassAnyRefWithGC() {
+(function testPassAnyFuncWithGC() {
   print(arguments.callee.name);
   const builder = new WasmModuleBuilder();
   const ref_sig = builder.addType(kSig_v_a);
@@ -102,7 +102,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   main(main);
 })();
 
-(function testPassAnyRefWithGCInWrapper() {
+(function testPassAnyFuncWithGCInWrapper() {
   print(arguments.callee.name);
   const builder = new WasmModuleBuilder();
   const kSig_a_iai = makeSig([kWasmI32, kWasmAnyFunc, kWasmI32], [kWasmAnyFunc]);
@@ -122,4 +122,17 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
   const result = main(triggerGCParam, main, triggerGCParam);
   assertSame(main, result);
+})();
+
+(function testAnyFuncDefaultValue() {
+  print(arguments.callee.name);
+  const builder = new WasmModuleBuilder();
+  const sig_index = builder.addType(kSig_a_v);
+  builder.addFunction('main', sig_index)
+      .addLocals({anyfunc_count: 1})
+      .addBody([kExprGetLocal, 0])
+      .exportFunc();
+
+  const main = builder.instantiate().exports.main;
+  assertEquals(null, main());
 })();
