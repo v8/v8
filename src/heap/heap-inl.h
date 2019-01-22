@@ -39,12 +39,6 @@
 #include "src/string-hasher.h"
 #include "src/zone/zone-list-inl.h"
 
-// The following header includes the write barrier essentials that can also be
-// used stand-alone without including heap-inl.h.
-// TODO(mlippautz): Remove once users of object-macros.h include this file on
-// their own.
-#include "src/heap/heap-write-barrier-inl.h"
-
 namespace v8 {
 namespace internal {
 
