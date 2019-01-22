@@ -393,10 +393,10 @@ RUNTIME_FUNCTION(Runtime_PrepareElementsForSort) {
   // Counter for sorting arrays that have non-packed elements and where either
   // the ElementsProtector is invalid or the prototype does not match
   // Array.prototype.
+  JSObject initial_array_proto = JSObject::cast(
+      isolate->native_context()->get(Context::INITIAL_ARRAY_PROTOTYPE_INDEX));
   if (object->IsJSArray() &&
       !Handle<JSArray>::cast(object)->HasFastPackedElements()) {
-    JSObject initial_array_proto = JSObject::cast(
-        isolate->native_context()->get(Context::INITIAL_ARRAY_PROTOTYPE_INDEX));
     if (!isolate->IsNoElementsProtectorIntact() ||
         object->map()->prototype() != initial_array_proto) {
       isolate->CountUsage(
@@ -404,7 +404,10 @@ RUNTIME_FUNCTION(Runtime_PrepareElementsForSort) {
     }
   }
 
-  if (!object->IsJSArray()) {
+  // Skip copying from prototype for JSArrays with ElementsProtector intact and
+  // the original array prototype.
+  if (!object->IsJSArray() || !isolate->IsNoElementsProtectorIntact() ||
+      object->map()->prototype() != initial_array_proto) {
     RETURN_FAILURE_ON_EXCEPTION(isolate,
                                 CopyFromPrototype(isolate, object, length));
   }
