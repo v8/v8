@@ -661,15 +661,6 @@ class Isolate final : private HiddenFactory {
   // If one does not yet exist, no-op.
   void DiscardPerThreadDataForThisThread();
 
-  // Returns the key used to store the pointer to the current isolate.
-  // Used internally for V8 threads that do not execute JavaScript but still
-  // are part of the domain of an isolate (like the context switcher).
-  static base::Thread::LocalStorageKey isolate_key() {
-    return isolate_key_;
-  }
-
-  static base::Thread::LocalStorageKey per_isolate_thread_data_key();
-
   // Mutex for serializing access to break control structures.
   base::RecursiveMutex* break_access() { return &break_access_; }
 
