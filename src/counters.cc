@@ -12,6 +12,7 @@
 #include "src/isolate.h"
 #include "src/log-inl.h"
 #include "src/log.h"
+#include "src/ostreams.h"
 
 namespace v8 {
 namespace internal {

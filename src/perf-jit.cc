@@ -32,6 +32,7 @@
 #include "src/assembler.h"
 #include "src/eh-frame.h"
 #include "src/objects-inl.h"
+#include "src/ostreams.h"
 #include "src/snapshot/embedded-data.h"
 #include "src/source-position-table.h"
 #include "src/wasm/wasm-code-manager.h"

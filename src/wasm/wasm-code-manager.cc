@@ -16,6 +16,7 @@
 #include "src/macro-assembler-inl.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
+#include "src/ostreams.h"
 #include "src/wasm/compilation-environment.h"
 #include "src/wasm/function-compiler.h"
 #include "src/wasm/jump-table-assembler.h"

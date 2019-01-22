@@ -51,6 +51,7 @@
 #include "src/objects/slots.h"
 #include "src/objects/smi.h"
 #include "src/objects/stack-frame-info-inl.h"
+#include "src/ostreams.h"
 #include "src/profiler/tracing-cpu-profiler.h"
 #include "src/prototype.h"
 #include "src/ptr-compr.h"

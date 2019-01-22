@@ -14,6 +14,7 @@
 #include "src/log.h"
 #include "src/macro-assembler-inl.h"
 #include "src/objects/smi.h"
+#include "src/ostreams.h"
 #include "src/tracing/trace-event.h"
 #include "src/utils.h"
 #include "src/wasm/baseline/liftoff-assembler.h"

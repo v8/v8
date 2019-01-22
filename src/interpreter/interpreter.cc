@@ -17,6 +17,7 @@
 #include "src/objects-inl.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/slots.h"
+#include "src/ostreams.h"
 #include "src/parsing/parse-info.h"
 #include "src/setup-isolate.h"
 #include "src/snapshot/snapshot.h"

@@ -30,6 +30,7 @@
 #include "src/objects/feedback-cell-inl.h"
 #include "src/objects/map.h"
 #include "src/optimized-compilation-info.h"
+#include "src/ostreams.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parser.h"
 #include "src/parsing/parsing.h"

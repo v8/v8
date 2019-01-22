@@ -95,6 +95,7 @@
 #include "src/objects/slots-atomic-inl.h"
 #include "src/objects/stack-frame-info-inl.h"
 #include "src/objects/struct-inl.h"
+#include "src/ostreams.h"
 #include "src/parsing/preparse-data.h"
 #include "src/property-descriptor.h"
 #include "src/prototype.h"

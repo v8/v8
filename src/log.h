@@ -9,15 +9,9 @@
 #include <string>
 
 #include "include/v8-profiler.h"
-#include "src/allocation.h"
-#include "src/base/compiler-specific.h"
 #include "src/base/platform/elapsed-timer.h"
-#include "src/base/platform/platform.h"
 #include "src/code-events.h"
-#include "src/isolate.h"
-#include "src/log-utils.h"
 #include "src/objects.h"
-#include "src/objects/string.h"
 
 namespace v8 {
 
@@ -65,7 +59,6 @@ namespace internal {
 
 // Forward declarations.
 class CodeEventListener;
-class CpuProfiler;
 class Isolate;
 class JitLogger;
 class Log;
@@ -73,7 +66,6 @@ class LowLevelLogger;
 class PerfBasicLogger;
 class PerfJitLogger;
 class Profiler;
-class RuntimeCallTimer;
 class Ticker;
 
 #undef LOG
@@ -109,6 +101,8 @@ class ExistingCodeLogger {
   CodeEventListener* listener_;
 };
 
+enum class LogSeparator;
+
 class Logger : public CodeEventListener {
  public:
   enum StartEnd { START = 0, END = 1, STAMP = 2 };
@@ -122,7 +116,7 @@ class Logger : public CodeEventListener {
   };
 
   // The separator is used to write an unescaped "," into the log.
-  static const LogSeparator kNext = LogSeparator::kSeparator;
+  static const LogSeparator kNext;
 
   // Acquires resources for logging if the right flags are set.
   bool SetUp(Isolate* isolate);
@@ -165,8 +159,8 @@ class Logger : public CodeEventListener {
 
   // ==== Events logged by --log-function-events ====
   void FunctionEvent(const char* reason, int script_id, double time_delta_ms,
-                     int start_position = -1, int end_position = -1,
-                     String function_name = String());
+                     int start_position, int end_position,
+                     String function_name);
   void FunctionEvent(const char* reason, int script_id, double time_delta_ms,
                      int start_position, int end_position,
                      const char* function_name = nullptr,
@@ -473,7 +467,7 @@ class ExternalCodeEventListener : public CodeEventListener {
   void CodeDeoptEvent(Code code, DeoptimizeKind kind, Address pc,
                       int fp_to_sp_delta) override {}
 
-  void StartListening(CodeEventHandler* code_event_handler);
+  void StartListening(v8::CodeEventHandler* code_event_handler);
   void StopListening();
 
   bool is_listening_to_code_events() override { return true; }

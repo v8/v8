@@ -8,6 +8,7 @@
 #include "src/external-reference-table.h"
 #include "src/objects-inl.h"
 #include "src/objects.h"
+#include "src/ostreams.h"
 #include "src/snapshot/code-serializer.h"
 #include "src/snapshot/serializer-common.h"
 #include "src/utils.h"

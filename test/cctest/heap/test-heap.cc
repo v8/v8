@@ -51,6 +51,7 @@
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/managed.h"
 #include "src/objects/slots.h"
+#include "src/ostreams.h"
 #include "src/regexp/jsregexp.h"
 #include "src/snapshot/snapshot.h"
 #include "src/transitions.h"

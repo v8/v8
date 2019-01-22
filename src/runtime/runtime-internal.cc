@@ -17,6 +17,7 @@
 #include "src/isolate-inl.h"
 #include "src/message-template.h"
 #include "src/objects/js-array-inl.h"
+#include "src/ostreams.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parsing.h"
 #include "src/runtime/runtime-utils.h"

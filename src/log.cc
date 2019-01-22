@@ -17,8 +17,10 @@
 #include "src/global-handles.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/interpreter/interpreter.h"
+#include "src/isolate.h"
 #include "src/libsampler/sampler.h"
 #include "src/log-inl.h"
+#include "src/log-utils.h"
 #include "src/macro-assembler.h"
 #include "src/memcopy.h"
 #include "src/objects/api-callbacks.h"
@@ -937,6 +939,8 @@ Logger::Logger(Isolate* isolate)
 Logger::~Logger() {
   delete log_;
 }
+
+const LogSeparator Logger::kNext = LogSeparator::kSeparator;
 
 void Logger::AddCodeEventListener(CodeEventListener* listener) {
   bool result = isolate_->code_event_dispatcher()->AddListener(listener);
