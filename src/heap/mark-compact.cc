@@ -3358,26 +3358,6 @@ UpdatingItem* MarkCompactCollector::CreateRememberedSetUpdatingItem(
       heap(), non_atomic_marking_state(), chunk, updating_mode);
 }
 
-class GlobalHandlesUpdatingItem : public UpdatingItem {
- public:
-  GlobalHandlesUpdatingItem(GlobalHandles* global_handles, size_t start,
-                            size_t end)
-      : global_handles_(global_handles), start_(start), end_(end) {}
-  ~GlobalHandlesUpdatingItem() override = default;
-
-  void Process() override {
-    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
-                 "GlobalHandlesUpdatingItem::Process");
-    PointersUpdatingVisitor updating_visitor;
-    global_handles_->IterateNewSpaceRoots(&updating_visitor, start_, end_);
-  }
-
- private:
-  GlobalHandles* global_handles_;
-  size_t start_;
-  size_t end_;
-};
-
 // Update array buffers on a page that has been evacuated by copying objects.
 // Target page exclusivity in old space is guaranteed by the fact that
 // evacuation tasks either (a) retrieved a fresh page, or (b) retrieved all
@@ -3872,19 +3852,6 @@ class YoungGenerationEvacuationVerifier : public EvacuationVerifier {
 
 #endif  // VERIFY_HEAP
 
-template <class ParallelItem>
-void SeedGlobalHandles(GlobalHandles* global_handles, ItemParallelJob* job) {
-  // Create batches of global handles.
-  const size_t kGlobalHandlesBufferSize = 1000;
-  const size_t new_space_nodes = global_handles->new_space_handles_count();
-  for (size_t start = 0; start < new_space_nodes;
-       start += kGlobalHandlesBufferSize) {
-    size_t end = start + kGlobalHandlesBufferSize;
-    if (end > new_space_nodes) end = new_space_nodes;
-    job->AddItem(new ParallelItem(global_handles, start, end));
-  }
-}
-
 bool IsUnmarkedObjectForYoungGeneration(Heap* heap, FullObjectSlot p) {
   DCHECK_IMPLIES(Heap::InNewSpace(*p), Heap::InToSpace(*p));
   return Heap::InNewSpace(*p) && !heap->minor_mark_compact_collector()
@@ -4071,8 +4038,6 @@ void MinorMarkCompactCollector::UpdatePointersAfterEvacuation() {
 
   CollectNewSpaceArrayBufferTrackerItems(&updating_job);
   // Create batches of global handles.
-  SeedGlobalHandles<GlobalHandlesUpdatingItem>(isolate()->global_handles(),
-                                               &updating_job);
   const int to_space_tasks = CollectToSpaceUpdatingItems(&updating_job);
   int remembered_set_pages = 0;
   remembered_set_pages += CollectRememberedSetUpdatingItems(
@@ -4369,7 +4334,6 @@ UpdatingItem* MinorMarkCompactCollector::CreateRememberedSetUpdatingItem(
 }
 
 class MarkingItem;
-class GlobalHandlesMarkingItem;
 class PageMarkingItem;
 class RootMarkingItem;
 class YoungGenerationMarkingTask;
@@ -4522,51 +4486,6 @@ class PageMarkingItem : public MarkingItem {
   int slots_;
 };
 
-class GlobalHandlesMarkingItem : public MarkingItem {
- public:
-  GlobalHandlesMarkingItem(GlobalHandles* global_handles, size_t start,
-                           size_t end)
-      : global_handles_(global_handles), start_(start), end_(end) {}
-  ~GlobalHandlesMarkingItem() override = default;
-
-  void Process(YoungGenerationMarkingTask* task) override {
-    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
-                 "GlobalHandlesMarkingItem::Process");
-    GlobalHandlesRootMarkingVisitor visitor(task);
-    global_handles_
-        ->IterateNewSpaceStrongAndDependentRootsAndIdentifyUnmodified(
-            &visitor, start_, end_);
-  }
-
- private:
-  class GlobalHandlesRootMarkingVisitor : public RootVisitor {
-   public:
-    explicit GlobalHandlesRootMarkingVisitor(YoungGenerationMarkingTask* task)
-        : task_(task) {}
-
-    void VisitRootPointer(Root root, const char* description,
-                          FullObjectSlot p) override {
-      DCHECK_EQ(Root::kGlobalHandles, root);
-      task_->MarkObject(*p);
-    }
-
-    void VisitRootPointers(Root root, const char* description,
-                           FullObjectSlot start, FullObjectSlot end) override {
-      DCHECK_EQ(Root::kGlobalHandles, root);
-      for (FullObjectSlot p = start; p < end; ++p) {
-        task_->MarkObject(*p);
-      }
-    }
-
-   private:
-    YoungGenerationMarkingTask* task_;
-  };
-
-  GlobalHandles* global_handles_;
-  size_t start_;
-  size_t end_;
-};
-
 void MinorMarkCompactCollector::MarkRootSetInParallel(
     RootMarkingVisitor* root_visitor) {
   std::atomic<int> slots;
@@ -4577,10 +4496,9 @@ void MinorMarkCompactCollector::MarkRootSetInParallel(
     // Seed the root set (roots + old->new set).
     {
       TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_MARK_SEED);
+      isolate()->global_handles()->IdentifyWeakUnmodifiedObjects(
+          &JSObject::IsUnmodifiedApiObject);
       heap()->IterateRoots(root_visitor, VISIT_ALL_IN_MINOR_MC_MARK);
-      // Create batches of global handles.
-      SeedGlobalHandles<GlobalHandlesMarkingItem>(isolate()->global_handles(),
-                                                  &job);
       // Create items for each page.
       RememberedSet<OLD_TO_NEW>::IterateMemoryChunks(
           heap(), [&job, &slots](MemoryChunk* chunk) {

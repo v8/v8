@@ -102,7 +102,6 @@ class GlobalHandles final {
   void IterateAllRoots(RootVisitor* v);
 
   void IterateAllNewSpaceRoots(RootVisitor* v);
-  void IterateNewSpaceRoots(RootVisitor* v, size_t start, size_t end);
 
   // Iterates over all handles that have embedder-assigned class ID.
   void IterateAllRootsWithClassIds(v8::PersistentHandleVisitor* v);
@@ -132,11 +131,6 @@ class GlobalHandles final {
   // Iterates over strong and dependent handles. See the note above.
   void IterateNewSpaceStrongAndDependentRoots(RootVisitor* v);
 
-  // Iterates over strong and dependent handles. See the note above.
-  // Also marks unmodified nodes in the same iteration.
-  void IterateNewSpaceStrongAndDependentRootsAndIdentifyUnmodified(
-      RootVisitor* v, size_t start, size_t end);
-
   // Marks weak unmodified handles satisfying |is_dead| as pending.
   void MarkNewSpaceWeakUnmodifiedObjectsPending(
       WeakSlotCallbackWithHeap is_dead);
@@ -155,7 +149,6 @@ class GlobalHandles final {
 
   // Number of global handles.
   size_t handles_count() const { return handles_count_; }
-  size_t new_space_handles_count() const { return new_space_nodes_.size(); }
 
   size_t GetAndResetGlobalHandleResetCount() {
     size_t old = number_of_phantom_handle_resets_;
