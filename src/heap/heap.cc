@@ -4588,6 +4588,26 @@ void Heap::NotifyDeserializationComplete() {
   deserialization_complete_ = true;
 }
 
+void Heap::NotifyBootstrapComplete() {
+  // This function is invoked for each native context creation. We are
+  // interested only in the first native context.
+  if (old_generation_capacity_after_bootstrap_ == 0) {
+    old_generation_capacity_after_bootstrap_ = OldGenerationCapacity();
+  }
+}
+
+void Heap::NotifyOldGenerationExpansion() {
+  const size_t kMemoryReducerActivationThreshold = 1 * MB;
+  if (old_generation_capacity_after_bootstrap_ && ms_count_ == 0 &&
+      OldGenerationCapacity() >= old_generation_capacity_after_bootstrap_ +
+                                     kMemoryReducerActivationThreshold) {
+    MemoryReducer::Event event;
+    event.type = MemoryReducer::kPossibleGarbage;
+    event.time_ms = MonotonicallyIncreasingTimeInMs();
+    memory_reducer()->NotifyPossibleGarbage(event);
+  }
+}
+
 void Heap::SetEmbedderHeapTracer(EmbedderHeapTracer* tracer) {
   DCHECK_EQ(gc_state_, HeapState::NOT_IN_GC);
   local_embedder_heap_tracer()->SetRemoteTracer(tracer);

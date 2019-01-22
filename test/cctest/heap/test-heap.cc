@@ -6500,6 +6500,22 @@ TEST(Regress8617) {
   CompileRun("obj.method()");
 }
 
+HEAP_TEST(MemoryReducerActivationForSmallHeaps) {
+  ManualGCScope manual_gc_scope;
+  LocalContext env;
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+  CHECK_EQ(heap->memory_reducer()->state_.action, MemoryReducer::Action::kDone);
+  HandleScope scope(isolate);
+  const size_t kActivationThreshold = 1 * MB;
+  size_t initial_capacity = heap->OldGenerationCapacity();
+  while (heap->OldGenerationCapacity() <
+         initial_capacity + kActivationThreshold) {
+    isolate->factory()->NewFixedArray(1 * KB, TENURED);
+  }
+  CHECK_EQ(heap->memory_reducer()->state_.action, MemoryReducer::Action::kWait);
+}
+
 }  // namespace heap
 }  // namespace internal
 }  // namespace v8

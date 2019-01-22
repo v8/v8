@@ -347,6 +347,10 @@ class Heap {
   // should not happen during deserialization.
   void NotifyDeserializationComplete();
 
+  void NotifyBootstrapComplete();
+
+  void NotifyOldGenerationExpansion();
+
   inline Address* NewSpaceAllocationTopAddress();
   inline Address* NewSpaceAllocationLimitAddress();
   inline Address* OldSpaceAllocationTopAddress();
@@ -1753,6 +1757,7 @@ class Heap {
   size_t initial_old_generation_size_;
   bool old_generation_size_configured_ = false;
   size_t maximum_committed_ = 0;
+  size_t old_generation_capacity_after_bootstrap_ = 0;
 
   // Backing store bytes (array buffers and external strings).
   std::atomic<size_t> backing_store_bytes_{0};

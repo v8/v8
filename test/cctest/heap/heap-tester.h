@@ -31,6 +31,7 @@
   V(GCFlags)                                              \
   V(MarkCompactCollector)                                 \
   V(MarkCompactEpochCounter)                              \
+  V(MemoryReducerActivationForSmallHeaps)                 \
   V(NoPromotion)                                          \
   V(NumberStringCacheSize)                                \
   V(ObjectGroups)                                         \

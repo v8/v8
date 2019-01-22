@@ -1713,6 +1713,7 @@ bool PagedSpace::Expand() {
   AddPage(page);
   Free(page->area_start(), page->area_size(),
        SpaceAccountingMode::kSpaceAccounted);
+  heap()->NotifyOldGenerationExpansion();
   return true;
 }
 
@@ -3462,6 +3463,7 @@ AllocationResult LargeObjectSpace::AllocateRaw(int object_size,
       heap()->incremental_marking()->black_allocation(),
       heap()->incremental_marking()->marking_state()->IsBlack(object));
   page->InitializationMemoryFence();
+  heap()->NotifyOldGenerationExpansion();
   return object;
 }
 

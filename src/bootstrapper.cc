@@ -342,6 +342,7 @@ Handle<Context> Bootstrapper::CreateEnvironment(
     }
   }
   LogAllMaps();
+  isolate_->heap()->NotifyBootstrapComplete();
   return scope.CloseAndEscape(env);
 }
 
