@@ -8,6 +8,7 @@
 #include <memory>
 #include <unordered_set>
 
+#include "src/cancelable-task.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-memory.h"
 #include "src/wasm/wasm-tier.h"
@@ -154,6 +155,12 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // engines this might be a pointer to a new instance or to a shared one.
   static std::shared_ptr<WasmEngine> GetWasmEngine();
 
+  template <typename T, typename... Args>
+  std::unique_ptr<T> NewBackgroundCompileTask(Args&&... args) {
+    return base::make_unique<T>(&background_compile_task_manager_,
+                                std::forward<Args>(args)...);
+  }
+
  private:
   AsyncCompileJob* CreateAsyncCompileJob(
       Isolate* isolate, const WasmFeatures& enabled,
@@ -164,6 +171,10 @@ class V8_EXPORT_PRIVATE WasmEngine {
   WasmMemoryTracker memory_tracker_;
   WasmCodeManager code_manager_;
   AccountingAllocator allocator_;
+
+  // Task manager managing all background compile jobs. Before shut down of the
+  // engine, they must all be finished because they access the allocator.
+  CancelableTaskManager background_compile_task_manager_;
 
   // This mutex protects all information which is mutated concurrently or
   // fields that are initialized lazily on the first access.

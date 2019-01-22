@@ -30,7 +30,6 @@ namespace wasm {
 
 class NativeModule;
 class WasmCodeManager;
-class WasmEngine;
 class WasmMemoryTracker;
 class WasmImportWrapperCache;
 struct WasmModule;
@@ -326,8 +325,9 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   CompilationState* compilation_state() { return compilation_state_.get(); }
 
-  // Create a {CompilationEnv} object for compilation. Only valid as long as
-  // this {NativeModule} is alive.
+  // Create a {CompilationEnv} object for compilation. The caller has to ensure
+  // that the {WasmModule} pointer stays valid while the {CompilationEnv} is
+  // being used.
   CompilationEnv CreateCompilationEnv() const;
 
   uint32_t num_functions() const {
@@ -341,6 +341,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   bool lazy_compile_frozen() const { return lazy_compile_frozen_; }
   Vector<const uint8_t> wire_bytes() const { return wire_bytes_->as_vector(); }
   const WasmModule* module() const { return module_.get(); }
+  std::shared_ptr<const WasmModule> shared_module() const { return module_; }
   size_t committed_code_space() const { return committed_code_space_.load(); }
 
   void SetWireBytes(OwnedVector<const uint8_t> wire_bytes);
@@ -423,8 +424,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // to be consistent across asynchronous compilations later.
   const WasmFeatures enabled_features_;
 
-  // TODO(clemensh): Make this a unique_ptr (requires refactoring
-  // AsyncCompileJob).
+  // The decoded module, stored in a shared_ptr such that background compile
+  // tasks can keep this alive.
   std::shared_ptr<const WasmModule> module_;
 
   // Wire bytes, held in a shared_ptr so they can be kept alive by the

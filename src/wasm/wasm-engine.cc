@@ -25,6 +25,8 @@ WasmEngine::WasmEngine()
     : code_manager_(&memory_tracker_, FLAG_wasm_max_code_space * MB) {}
 
 WasmEngine::~WasmEngine() {
+  // Synchronize on all background compile tasks.
+  background_compile_task_manager_.CancelAndWait();
   // All AsyncCompileJobs have been canceled.
   DCHECK(jobs_.empty());
   // All Isolates have been deregistered.
