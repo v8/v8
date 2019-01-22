@@ -89,12 +89,12 @@ class GlobalHandles final {
 
   void RecordStats(HeapStats* stats);
 
-  size_t InvokeFirstPassWeakCallbacks();
+  int InvokeFirstPassWeakCallbacks();
   void InvokeSecondPassPhantomCallbacks();
 
   // Process pending weak handles.
   // Returns the number of freed nodes.
-  size_t PostGarbageCollectionProcessing(
+  int PostGarbageCollectionProcessing(
       GarbageCollector collector, const v8::GCCallbackFlags gc_callback_flags);
 
   void IterateStrongRoots(RootVisitor* v);
@@ -179,15 +179,11 @@ class GlobalHandles final {
   class NodeSpace;
   class PendingPhantomCallback;
 
-  bool InRecursiveGC(unsigned gc_processing_counter);
-
   void InvokeSecondPassPhantomCallbacksFromTask();
+  int PostScavengeProcessing(unsigned initial_post_gc_processing_count);
+  int PostMarkSweepProcessing(unsigned initial_post_gc_processing_count);
   void InvokeOrScheduleSecondPassPhantomCallbacks(bool synchronous_second_pass);
-  size_t PostScavengeProcessing(unsigned post_processing_count);
-  size_t PostMarkSweepProcessing(unsigned post_processing_count);
-
   void UpdateListOfNewSpaceNodes();
-
   void ApplyPersistentHandleVisitor(v8::PersistentHandleVisitor* visitor,
                                     Node* node);
 
