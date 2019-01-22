@@ -484,14 +484,14 @@ void RunConvertTest(ExecutionTier execution_tier, WasmOpcode wasm_op,
       r.builder().AddMemoryElems<uint64_t>(kWasmPageSize / sizeof(uint64_t));
   r.builder().SetHasSharedMemory();
 
-  BUILD(r, WASM_I32_CONVERT_I64(WASM_ATOMICS_BINOP(
-               kExprI64AtomicAdd, WASM_ZERO, WASM_GET_LOCAL(0),
-               MachineRepresentation::kWord64)));
+  BUILD(r, WASM_I32_CONVERT_I64(
+               WASM_ATOMICS_BINOP(wasm_op, WASM_ZERO, WASM_GET_LOCAL(0),
+                                  MachineRepresentation::kWord64)));
 
   uint64_t initial = 0x1111222233334444, local = 0x1111111111111111;
   r.builder().WriteMemory(&memory[0], initial);
   CHECK_EQ(static_cast<uint32_t>(initial), r.Call(local));
-  uint64_t expected = Add(initial, local);
+  uint64_t expected = op(initial, local);
   CHECK_EQ(expected, r.builder().ReadMemory(&memory[0]));
 }
 
