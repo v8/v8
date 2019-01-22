@@ -373,6 +373,12 @@ class GlobalHandles::Node final {
     return state() == PENDING && IsPhantomResetHandle();
   }
 
+  bool IsPendingFinalizer() const {
+    return state() == PENDING && weakness_type() == FINALIZER_WEAK;
+  }
+
+  bool IsPending() const { return state() == PENDING; }
+
   bool IsRetainer() const {
     return state() != FREE &&
            !(state() == NEAR_DEATH && weakness_type() != FINALIZER_WEAK);
@@ -399,6 +405,8 @@ class GlobalHandles::Node final {
     DCHECK(IsInUse());
     return data_.parameter;
   }
+
+  bool has_callback() const { return weak_callback_ != nullptr; }
 
   // Accessors for next free node in the free list.
   Node* next_free() {
@@ -451,7 +459,6 @@ class GlobalHandles::Node final {
   }
 
   void CollectPhantomCallbackData(
-
       std::vector<PendingPhantomCallback>* pending_phantom_callbacks) {
     DCHECK(weakness_type() == PHANTOM_WEAK ||
            weakness_type() == PHANTOM_WEAK_2_EMBEDDER_FIELDS);
@@ -490,25 +497,18 @@ class GlobalHandles::Node final {
     NodeSpace<Node>::Release(this);
   }
 
-  bool PostGarbageCollectionProcessing(Isolate* isolate) {
-    // Handles only weak handles (not phantom) that are dying.
-    if (state() != Node::PENDING) return false;
-    if (weak_callback_ == nullptr) {
-      NodeSpace<Node>::Release(this);
-      return false;
-    }
+  void PostGarbageCollectionProcessing(Isolate* isolate) {
+    // This method invokes a finalizer. Updating the method name would require
+    // adjusting CFI blacklist as weak_callback_ is invoked on the wrong type.
+    CHECK(IsPendingFinalizer());
+    CHECK(!is_active());
     set_state(NEAR_DEATH);
-
     // Check that we are not passing a finalized external string to
     // the callback.
     DCHECK(!object()->IsExternalOneByteString() ||
            ExternalOneByteString::cast(object())->resource() != nullptr);
     DCHECK(!object()->IsExternalTwoByteString() ||
            ExternalTwoByteString::cast(object())->resource() != nullptr);
-    if (weakness_type() != FINALIZER_WEAK) {
-      return false;
-    }
-
     // Leaving V8.
     VMState<EXTERNAL> vmstate(isolate);
     HandleScope handle_scope(isolate);
@@ -517,11 +517,9 @@ class GlobalHandles::Node final {
     v8::WeakCallbackInfo<void> data(reinterpret_cast<v8::Isolate*>(isolate),
                                     parameter(), embedder_fields, nullptr);
     weak_callback_(data);
-
-    // Absence of explicit cleanup or revival of weak handle
-    // in most of the cases would lead to memory leak.
-    CHECK(state() != NEAR_DEATH);
-    return true;
+    // For finalizers the handle must have either been reset or made strong.
+    // Both cases reset the state.
+    CHECK_NE(NEAR_DEATH, state());
   }
 
   inline GlobalHandles* GetGlobalHandles();
@@ -819,61 +817,44 @@ void GlobalHandles::InvokeSecondPassPhantomCallbacks() {
   }
 }
 
-int GlobalHandles::PostScavengeProcessing(
-    unsigned initial_post_gc_processing_count) {
-  int freed_nodes = 0;
+size_t GlobalHandles::PostScavengeProcessing(unsigned post_processing_count) {
+  size_t freed_nodes = 0;
   for (Node* node : new_space_nodes_) {
-    DCHECK(node->is_in_new_space_list());
-    if (!node->IsRetainer()) {
-      // Free nodes do not have weak callbacks. Do not use them to compute
-      // the freed_nodes.
-      continue;
-    }
-    // Skip dependent or unmodified handles. Their weak callbacks might expect
-    // to be
-    // called between two global garbage collection callbacks which
-    // are not called for minor collections.
-    if (!node->is_independent() && (node->is_active())) {
-      node->set_active(false);
-      continue;
-    }
+    // Filter free nodes.
+    if (!node->IsRetainer()) continue;
+
+    // Reset active state for all affected nodes.
     node->set_active(false);
 
-    if (node->PostGarbageCollectionProcessing(isolate_)) {
-      if (initial_post_gc_processing_count != post_gc_processing_count_) {
-        // Weak callback triggered another GC and another round of
-        // PostGarbageCollection processing.  The current node might
-        // have been deleted in that round, so we need to bail out (or
-        // restart the processing).
-        return freed_nodes;
-      }
+    if (node->IsPending()) {
+      DCHECK(node->has_callback());
+      DCHECK(node->IsPendingFinalizer());
+      node->PostGarbageCollectionProcessing(isolate_);
     }
-    if (!node->IsRetainer()) {
-      freed_nodes++;
-    }
+    if (InRecursiveGC(post_processing_count)) return freed_nodes;
+
+    if (!node->IsRetainer()) freed_nodes++;
   }
   return freed_nodes;
 }
 
-int GlobalHandles::PostMarkSweepProcessing(
-    unsigned initial_post_gc_processing_count) {
-  int freed_nodes = 0;
+size_t GlobalHandles::PostMarkSweepProcessing(unsigned post_processing_count) {
+  size_t freed_nodes = 0;
   for (Node* node : *regular_nodes_) {
-    if (!node->IsRetainer()) {
-      // Free nodes do not have weak callbacks. Do not use them to compute
-      // the freed_nodes.
-      continue;
-    }
+    // Filter free nodes.
+    if (!node->IsRetainer()) continue;
+
+    // Reset active state for all affected nodes.
     node->set_active(false);
-    if (node->PostGarbageCollectionProcessing(isolate_)) {
-      if (initial_post_gc_processing_count != post_gc_processing_count_) {
-        // See the comment above.
-        return freed_nodes;
-      }
+
+    if (node->IsPending()) {
+      DCHECK(node->has_callback());
+      DCHECK(node->IsPendingFinalizer());
+      node->PostGarbageCollectionProcessing(isolate_);
     }
-    if (!node->IsRetainer()) {
-      freed_nodes++;
-    }
+    if (InRecursiveGC(post_processing_count)) return freed_nodes;
+
+    if (!node->IsRetainer()) freed_nodes++;
   }
   return freed_nodes;
 }
@@ -900,8 +881,8 @@ void GlobalHandles::UpdateListOfNewSpaceNodes() {
   new_space_nodes_.shrink_to_fit();
 }
 
-int GlobalHandles::InvokeFirstPassWeakCallbacks() {
-  int freed_nodes = 0;
+size_t GlobalHandles::InvokeFirstPassWeakCallbacks() {
+  size_t freed_nodes = 0;
   std::vector<PendingPhantomCallback> pending_phantom_callbacks;
   pending_phantom_callbacks.swap(pending_phantom_callbacks_);
   {
@@ -959,38 +940,32 @@ void GlobalHandles::PendingPhantomCallback::Invoke(Isolate* isolate) {
   }
 }
 
-int GlobalHandles::PostGarbageCollectionProcessing(
+bool GlobalHandles::InRecursiveGC(unsigned gc_processing_counter) {
+  return gc_processing_counter != post_gc_processing_count_;
+}
+
+size_t GlobalHandles::PostGarbageCollectionProcessing(
     GarbageCollector collector, const v8::GCCallbackFlags gc_callback_flags) {
   // Process weak global handle callbacks. This must be done after the
   // GC is completely done, because the callbacks may invoke arbitrary
   // API functions.
-  DCHECK(isolate_->heap()->gc_state() == Heap::NOT_IN_GC);
-  const unsigned initial_post_gc_processing_count = ++post_gc_processing_count_;
-  int freed_nodes = 0;
+  DCHECK_EQ(Heap::NOT_IN_GC, isolate_->heap()->gc_state());
+  const unsigned post_processing_count = ++post_gc_processing_count_;
+  size_t freed_nodes = 0;
   bool synchronous_second_pass =
       isolate_->heap()->IsTearingDown() ||
       (gc_callback_flags &
        (kGCCallbackFlagForced | kGCCallbackFlagCollectAllAvailableGarbage |
         kGCCallbackFlagSynchronousPhantomCallbackProcessing)) != 0;
   InvokeOrScheduleSecondPassPhantomCallbacks(synchronous_second_pass);
-  if (initial_post_gc_processing_count != post_gc_processing_count_) {
-    // If the callbacks caused a nested GC, then return.  See comment in
-    // PostScavengeProcessing.
-    return freed_nodes;
-  }
-  if (Heap::IsYoungGenerationCollector(collector)) {
-    freed_nodes += PostScavengeProcessing(initial_post_gc_processing_count);
-  } else {
-    freed_nodes += PostMarkSweepProcessing(initial_post_gc_processing_count);
-  }
-  if (initial_post_gc_processing_count != post_gc_processing_count_) {
-    // If the callbacks caused a nested GC, then return.  See comment in
-    // PostScavengeProcessing.
-    return freed_nodes;
-  }
-  if (initial_post_gc_processing_count == post_gc_processing_count_) {
-    UpdateListOfNewSpaceNodes();
-  }
+  if (InRecursiveGC(post_processing_count)) return freed_nodes;
+
+  freed_nodes += Heap::IsYoungGenerationCollector(collector)
+                     ? PostScavengeProcessing(post_processing_count)
+                     : PostMarkSweepProcessing(post_processing_count);
+  if (InRecursiveGC(post_processing_count)) return freed_nodes;
+
+  UpdateListOfNewSpaceNodes();
   return freed_nodes;
 }
 
