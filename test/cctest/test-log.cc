@@ -636,6 +636,7 @@ TEST(LogAll) {
   isolate->Dispose();
 }
 
+#ifndef V8_TARGET_ARCH_ARM
 TEST(LogInterpretedFramesNativeStack) {
   SETUP_FLAGS();
   i::FLAG_interpreted_frames_native_stack = true;
@@ -658,6 +659,7 @@ TEST(LogInterpretedFramesNativeStack) {
   }
   isolate->Dispose();
 }
+#endif  // V8_TARGET_ARCH_ARM
 
 TEST(ExternalCodeEventListener) {
   i::FLAG_log = false;
@@ -760,6 +762,7 @@ TEST(ExternalCodeEventListenerInnerFunctions) {
   isolate2->Dispose();
 }
 
+#ifndef V8_TARGET_ARCH_ARM
 TEST(ExternalCodeEventListenerWithInterpretedFramesNativeStack) {
   i::FLAG_log = false;
   i::FLAG_prof = false;
@@ -809,6 +812,7 @@ TEST(ExternalCodeEventListenerWithInterpretedFramesNativeStack) {
   }
   isolate->Dispose();
 }
+#endif  // V8_TARGET_ARCH_ARM
 
 TEST(TraceMaps) {
   SETUP_FLAGS();

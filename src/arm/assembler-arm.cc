@@ -488,6 +488,11 @@ const Instr kPopRegPattern = al | B26 | L | 4 | PostIndex | sp.code() * B16;
 // ldr rd, [pc, #offset]
 const Instr kLdrPCImmedMask = 15 * B24 | 7 * B20 | 15 * B16;
 const Instr kLdrPCImmedPattern = 5 * B24 | L | pc.code() * B16;
+// Pc-relative call or jump to a signed imm24 offset.
+// bl pc + #offset
+// b  pc + #offset
+const Instr kBOrBlPCImmedMask = 0xE * B24;
+const Instr kBOrBlPCImmedPattern = 0xA * B24;
 // vldr dd, [pc, #offset]
 const Instr kVldrDPCMask = 15 * B24 | 3 * B20 | 15 * B16 | 15 * B8;
 const Instr kVldrDPCPattern = 13 * B24 | L | pc.code() * B16 | 11 * B8;
@@ -730,6 +735,9 @@ bool Assembler::IsLdrPcImmediateOffset(Instr instr) {
   return (instr & kLdrPCImmedMask) == kLdrPCImmedPattern;
 }
 
+bool Assembler::IsBOrBlPcImmediateOffset(Instr instr) {
+  return (instr & kBOrBlPCImmedMask) == kBOrBlPCImmedPattern;
+}
 
 bool Assembler::IsVldrDPcImmediateOffset(Instr instr) {
   // Check the instruction is indeed a

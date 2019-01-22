@@ -40,6 +40,10 @@ uint32_t BuiltinsConstantsTableBuilder::AddObject(Handle<Object> object) {
 
   // Must be generating embedded builtin code.
   DCHECK(isolate_->ShouldLoadConstantsFromRootList());
+
+  // All code objects should be loaded through the root register or use
+  // pc-relative addressing.
+  DCHECK(!object->IsCode());
 #endif
 
   uint32_t* maybe_key = map_.Find(object);

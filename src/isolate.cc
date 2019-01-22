@@ -3283,17 +3283,22 @@ bool Isolate::Init(StartupDeserializer* des) {
     builtins_constants_table_builder_ = new BuiltinsConstantsTableBuilder(this);
   }
   setup_delegate_->SetupBuiltins(this);
+#ifndef V8_TARGET_ARCH_ARM
   if (create_heap_objects) {
     // Create a copy of the the interpreter entry trampoline and store it
     // on the root list. It is used as a template for further copies that
     // may later be created to help profile interpreted code.
-    // TODO(jgruber): Merge this with the block below once
-    //                FLAG_embedded_builtins is always true.
+    // We currently cannot do this on arm due to RELATIVE_CODE_TARGETs
+    // assuming that all possible Code targets may be addressed with an int24
+    // offset, effectively limiting code space size to 32MB. We can guarantee
+    // this at mksnapshot-time, but not at runtime.
+    // See also: https://crbug.com/v8/8713.
     HandleScope handle_scope(this);
     Handle<Code> code =
         factory()->CopyCode(BUILTIN_CODE(this, InterpreterEntryTrampoline));
     heap_.SetInterpreterEntryTrampolineForProfiling(*code);
   }
+#endif
   if (FLAG_embedded_builtins && create_heap_objects) {
     builtins_constants_table_builder_->Finalize();
     delete builtins_constants_table_builder_;

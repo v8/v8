@@ -593,18 +593,20 @@ class Code::BodyDescriptor final : public BodyDescriptorBase {
 
   template <typename ObjectVisitor>
   static inline void IterateBody(Map map, HeapObject obj, ObjectVisitor* v) {
-    int mode_mask = RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
-                    RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
-                    RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE) |
-                    RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
-                    RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED) |
-                    RelocInfo::ModeMask(RelocInfo::OFF_HEAP_TARGET) |
-                    RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY);
+    static constexpr int kModeMask =
+        RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
+        RelocInfo::ModeMask(RelocInfo::RELATIVE_CODE_TARGET) |
+        RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
+        RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE) |
+        RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
+        RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED) |
+        RelocInfo::ModeMask(RelocInfo::OFF_HEAP_TARGET) |
+        RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY);
 
     // GC does not visit data/code in the header and in the body directly.
     IteratePointers(obj, kRelocationInfoOffset, kDataStart, v);
 
-    RelocIterator it(Code::cast(obj), mode_mask);
+    RelocIterator it(Code::cast(obj), kModeMask);
     v->VisitRelocInfo(&it);
   }
 

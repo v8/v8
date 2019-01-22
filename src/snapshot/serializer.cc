@@ -855,6 +855,9 @@ void Serializer::ObjectSerializer::VisitRelocInfo(RelocIterator* it) {
 
 void Serializer::ObjectSerializer::VisitCodeTarget(Code host,
                                                    RelocInfo* rinfo) {
+#ifdef V8_TARGET_ARCH_ARM
+  DCHECK(!RelocInfo::IsRelativeCodeTarget(rinfo->rmode()));
+#endif
   int skip = SkipTo(rinfo->target_address_address());
   Code object = Code::GetCodeFromTargetAddress(rinfo->target_address());
   serializer_->SerializeObject(object, kFromCode, kInnerPointer, skip);

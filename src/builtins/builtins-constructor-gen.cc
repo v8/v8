@@ -140,8 +140,8 @@ TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
   StoreObjectFieldNoWriteBarrier(result, JSFunction::kSharedFunctionInfoOffset,
                                  shared_function_info);
   StoreObjectFieldNoWriteBarrier(result, JSFunction::kContextOffset, context);
-  Handle<Code> lazy_builtin_handle(
-      isolate()->builtins()->builtin(Builtins::kCompileLazy), isolate());
+  Handle<Code> lazy_builtin_handle =
+      isolate()->builtins()->builtin_handle(Builtins::kCompileLazy);
   Node* lazy_builtin = HeapConstant(lazy_builtin_handle);
   StoreObjectFieldNoWriteBarrier(result, JSFunction::kCodeOffset, lazy_builtin);
   Return(result);

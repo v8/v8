@@ -382,9 +382,9 @@ bool RelocInfo::HasTargetAddressAddress() const {
       ModeMask(RUNTIME_ENTRY) | ModeMask(WASM_CALL) | ModeMask(WASM_STUB_CALL);
 #else
   static constexpr int kTargetAddressAddressModeMask =
-      ModeMask(CODE_TARGET) | ModeMask(EMBEDDED_OBJECT) |
-      ModeMask(EXTERNAL_REFERENCE) | ModeMask(OFF_HEAP_TARGET) |
-      ModeMask(RUNTIME_ENTRY) | ModeMask(WASM_CALL);
+      ModeMask(CODE_TARGET) | ModeMask(RELATIVE_CODE_TARGET) |
+      ModeMask(EMBEDDED_OBJECT) | ModeMask(EXTERNAL_REFERENCE) |
+      ModeMask(OFF_HEAP_TARGET) | ModeMask(RUNTIME_ENTRY) | ModeMask(WASM_CALL);
 #endif
   return (ModeMask(rmode_) & kTargetAddressAddressModeMask) != 0;
 }

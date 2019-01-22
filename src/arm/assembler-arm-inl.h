@@ -79,9 +79,12 @@ Address RelocInfo::target_address_address() {
   DCHECK(HasTargetAddressAddress());
   if (Assembler::IsMovW(Memory<int32_t>(pc_))) {
     return pc_;
-  } else {
-    DCHECK(Assembler::IsLdrPcImmediateOffset(Memory<int32_t>(pc_)));
+  } else if (Assembler::IsLdrPcImmediateOffset(Memory<int32_t>(pc_))) {
     return constant_pool_entry_address();
+  } else {
+    DCHECK(Assembler::IsBOrBlPcImmediateOffset(Memory<int32_t>(pc_)));
+    DCHECK(IsRelativeCodeTarget(rmode_));
+    return pc_;
   }
 }
 
@@ -295,6 +298,7 @@ Address Assembler::return_address_from_call_start(Address pc) {
 
 void Assembler::deserialization_set_special_target_at(
     Address constant_pool_entry, Code code, Address target) {
+  DCHECK(!Builtins::IsIsolateIndependentBuiltin(code));
   Memory<Address>(constant_pool_entry) = target;
 }
 

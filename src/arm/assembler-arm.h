@@ -1157,6 +1157,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   static bool IsStrRegFpNegOffset(Instr instr);
   static bool IsLdrRegFpNegOffset(Instr instr);
   static bool IsLdrPcImmediateOffset(Instr instr);
+  static bool IsBOrBlPcImmediateOffset(Instr instr);
   static bool IsVldrDPcImmediateOffset(Instr instr);
   static bool IsBlxReg(Instr instr);
   static bool IsBlxIp(Instr instr);

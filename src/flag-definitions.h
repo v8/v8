@@ -1311,9 +1311,6 @@ DEFINE_BOOL(prof_browser_mode, true,
 DEFINE_STRING(logfile, "v8.log", "Specify the name of the log file.")
 DEFINE_BOOL(logfile_per_isolate, true, "Separate log files for each isolate.")
 DEFINE_BOOL(ll_prof, false, "Enable low-level linux profiler.")
-DEFINE_BOOL(interpreted_frames_native_stack, false,
-            "Show interpreted frames on the native stack (useful for external "
-            "profilers).")
 DEFINE_BOOL(perf_basic_prof, false,
             "Enable perf linux profiler (basic support).")
 DEFINE_NEG_IMPLICATION(perf_basic_prof, compact_code_space)
@@ -1350,6 +1347,18 @@ DEFINE_STRING(redirect_code_traces_to, nullptr,
 
 DEFINE_BOOL(print_opt_source, false,
             "print source code of optimized and inlined functions")
+
+#ifdef V8_TARGET_ARCH_ARM
+// Unsupported on arm. See https://crbug.com/v8/8713.
+DEFINE_BOOL_READONLY(
+    interpreted_frames_native_stack, false,
+    "Show interpreted frames on the native stack (useful for external "
+    "profilers).")
+#else
+DEFINE_BOOL(interpreted_frames_native_stack, false,
+            "Show interpreted frames on the native stack (useful for external "
+            "profilers).")
+#endif
 
 //
 // Disassembler only flags
