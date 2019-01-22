@@ -45,9 +45,6 @@ class PreParserIdentifier {
   static PreParserIdentifier Await() {
     return PreParserIdentifier(kAwaitIdentifier);
   }
-  static PreParserIdentifier Let() {
-    return PreParserIdentifier(kLetIdentifier);
-  }
   static PreParserIdentifier Async() {
     return PreParserIdentifier(kAsyncIdentifier);
   }
@@ -67,7 +64,6 @@ class PreParserIdentifier {
   }
   bool IsConstructor() const { return type_ == kConstructorIdentifier; }
   bool IsAwait() const { return type_ == kAwaitIdentifier; }
-  bool IsLet() const { return type_ == kLetIdentifier; }
   bool IsName() const { return type_ == kNameIdentifier; }
   bool IsPrivateName() const { return type_ == kPrivateNameIdentifier; }
 
@@ -79,7 +75,6 @@ class PreParserIdentifier {
     kArgumentsIdentifier,
     kConstructorIdentifier,
     kAwaitIdentifier,
-    kLetIdentifier,
     kAsyncIdentifier,
     kNameIdentifier,
     kPrivateNameIdentifier
@@ -1286,10 +1281,6 @@ class PreParser : public ParserBase<PreParser> {
 
   V8_INLINE bool IsAwait(const PreParserIdentifier& identifier) const {
     return identifier.IsAwait();
-  }
-
-  V8_INLINE bool IsLet(const PreParserIdentifier& identifier) const {
-    return identifier.IsLet();
   }
 
   // Returns true if the expression is of type "this.foo".

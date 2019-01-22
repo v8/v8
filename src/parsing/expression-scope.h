@@ -282,7 +282,12 @@ class VariableDeclarationParsingScope : public ExpressionScope<Types> {
       this->parser()->ReportMessage(MessageTemplate::kTooManyVariables);
     }
     if (names_) names_->Add(proxy->raw_name(), this->parser()->zone());
-    if (!this->IsLexicalDeclaration()) {
+    if (this->IsLexicalDeclaration()) {
+      if (this->parser()->IsLet(proxy->raw_name())) {
+        this->parser()->ReportMessageAt(proxy->location(),
+                                        MessageTemplate::kLetInLexicalBinding);
+      }
+    } else {
       if (this->parser()->loop_nesting_depth() > 0) {
         // Due to hoisting, the value of a 'var'-declared variable may actually
         // change even if the code contains only the "initial" assignment,

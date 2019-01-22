@@ -1158,6 +1158,10 @@ class ParserBase {
       ZonePtrList<const AstRawString>* labels,
       ZonePtrList<const AstRawString>* own_labels);
 
+  V8_INLINE bool IsLet(const AstRawString* identifier) const {
+    return identifier == ast_value_factory()->let_string();
+  }
+
   void DesugarBindingInForEachStatement(ForInfo* for_info, BlockT* body_block,
                                         ExpressionT* each_variable) {
     // Annex B.3.5 prohibits the form
@@ -3488,16 +3492,6 @@ void ParserBase<Impl>::ParseVariableDeclarations(
     int decl_pos = peek_position();
     ExpressionT pattern = ParseBindingPattern();
 
-    if (IsLexicalVariableMode(parsing_result->descriptor.mode)) {
-      if (impl()->IsIdentifier(pattern)) {
-        if (impl()->IsLet(impl()->AsIdentifier(pattern))) {
-          impl()->ReportMessageAt(
-              Scanner::Location(bindings_start, end_position()),
-              MessageTemplate::kLetInLexicalBinding);
-        }
-      }
-    }
-
     Scanner::Location variable_loc = scanner()->location();
 
     ExpressionT value = impl()->NullExpression();
@@ -4376,11 +4370,6 @@ ParserBase<Impl>::ParsePossibleDestructuringSubPattern(
       }
       IdentifierT identifier = impl()->AsIdentifier(result);
       ClassifyParameter(identifier, begin, end_position());
-      if (impl()->IsLet(identifier)) {
-        expression_scope()->RecordLexicalDeclarationError(
-            Scanner::Location(begin, end_position()),
-            MessageTemplate::kLetInLexicalBinding);
-      }
     } else {
       DCHECK(result->IsProperty());
       expression_scope()->RecordDeclarationError(
