@@ -847,13 +847,20 @@ class WasmDecoder : public Decoder {
     return true;
   }
 
-  inline bool Validate(const byte* pc, ExceptionIndexImmediate<validate>& imm) {
+  inline bool Complete(const byte* pc, ExceptionIndexImmediate<validate>& imm) {
     if (!VALIDATE(module_ != nullptr &&
                   imm.index < module_->exceptions.size())) {
-      errorf(pc + 1, "Invalid exception index: %u", imm.index);
       return false;
     }
     imm.exception = &module_->exceptions[imm.index];
+    return true;
+  }
+
+  inline bool Validate(const byte* pc, ExceptionIndexImmediate<validate>& imm) {
+    if (!Complete(pc, imm)) {
+      errorf(pc + 1, "Invalid exception index: %u", imm.index);
+      return false;
+    }
     return true;
   }
 
@@ -1277,7 +1284,9 @@ class WasmDecoder : public Decoder {
       case kExprBrIf:
       case kExprBrTable:
       case kExprIf:
+      case kExprRethrow:
         return {1, 0};
+      case kExprCatch:
       case kExprGetLocal:
       case kExprGetGlobal:
       case kExprI32Const:
@@ -1299,11 +1308,19 @@ class WasmDecoder : public Decoder {
         return {imm.sig->parameter_count() + 1,
                 imm.sig->return_count()};
       }
+      case kExprThrow: {
+        ExceptionIndexImmediate<validate> imm(this, pc);
+        CHECK(Complete(pc, imm));
+        DCHECK_EQ(0, imm.exception->sig->return_count());
+        return {imm.exception->sig->parameter_count(), 0};
+      }
       case kExprBr:
       case kExprBlock:
       case kExprLoop:
       case kExprEnd:
       case kExprElse:
+      case kExprTry:
+      case kExprBrOnExn:
       case kExprNop:
       case kExprReturn:
       case kExprUnreachable:
