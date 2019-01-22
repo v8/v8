@@ -2411,13 +2411,18 @@ void Heap::UnregisterArrayBuffer(JSArrayBuffer buffer) {
 
 void Heap::ConfigureInitialOldGenerationSize() {
   if (!old_generation_size_configured_ && tracer()->SurvivalEventsRecorded()) {
-    old_generation_allocation_limit_ =
+    const size_t new_limit =
         Max(OldGenerationSizeOfObjects() +
                 heap_controller()->MinimumAllocationLimitGrowingStep(
                     CurrentHeapGrowingMode()),
             static_cast<size_t>(
                 static_cast<double>(old_generation_allocation_limit_) *
                 (tracer()->AverageSurvivalRatio() / 100)));
+    if (new_limit < old_generation_allocation_limit_) {
+      old_generation_allocation_limit_ = new_limit;
+    } else {
+      old_generation_size_configured_ = true;
+    }
   }
 }
 
