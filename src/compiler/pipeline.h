@@ -70,7 +70,8 @@ class Pipeline : public AllStatic {
   // Run the pipeline on a machine graph and generate code.
   static MaybeHandle<Code> GenerateCodeForCodeStub(
       Isolate* isolate, CallDescriptor* call_descriptor, Graph* graph,
-      Code::Kind kind, const char* debug_name, int32_t builtin_index,
+      SourcePositionTable* source_positions, Code::Kind kind,
+      const char* debug_name, int32_t builtin_index,
       PoisoningMitigationLevel poisoning_level,
       const AssemblerOptions& options);
 

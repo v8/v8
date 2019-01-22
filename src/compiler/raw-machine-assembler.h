@@ -25,7 +25,7 @@ namespace compiler {
 class BasicBlock;
 class RawMachineLabel;
 class Schedule;
-
+class SourcePositionTable;
 
 // The RawMachineAssembler produces a low-level IR graph. All nodes are wired
 // into a graph and also placed into a schedule immediately, hence subsequent
@@ -985,6 +985,9 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
     return AddNode(op, sizeof...(args) + 1, buffer);
   }
 
+  void SetSourcePosition(const char* file, int line);
+  SourcePositionTable* source_positions() { return source_positions_; }
+
  private:
   Node* MakeNode(const Operator* op, int input_count, Node* const* inputs);
   BasicBlock* Use(RawMachineLabel* label);
@@ -1009,6 +1012,7 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   Isolate* isolate_;
   Graph* graph_;
   Schedule* schedule_;
+  SourcePositionTable* source_positions_;
   MachineOperatorBuilder machine_;
   CommonOperatorBuilder common_;
   SimplifiedOperatorBuilder simplified_;

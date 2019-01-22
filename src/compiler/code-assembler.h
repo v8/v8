@@ -26,6 +26,7 @@
 #include "src/objects/maybe-object.h"
 #include "src/objects/oddball.h"
 #include "src/runtime/runtime.h"
+#include "src/source-position.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
@@ -348,6 +349,7 @@ class CodeAssemblerState;
 class Node;
 class RawMachineAssembler;
 class RawMachineLabel;
+class SourcePositionTable;
 
 typedef ZoneVector<CodeAssemblerVariable*> CodeAssemblerVariableList;
 
@@ -844,6 +846,8 @@ class V8_EXPORT_PRIVATE CodeAssembler {
     USE((s << std::forward<Args>(args))...);
     Comment(s.str());
   }
+
+  void SetSourcePosition(const char* file, int line);
 
   void Bind(Label* label);
 #if DEBUG
@@ -1663,6 +1667,7 @@ class V8_EXPORT_PRIVATE CodeAssemblerState {
   std::vector<CodeAssemblerExceptionHandlerLabel*> exception_handler_labels_;
   typedef uint32_t VariableId;
   VariableId next_variable_id_ = 0;
+
   VariableId NextVariableId() { return next_variable_id_++; }
 
   DISALLOW_COPY_AND_ASSIGN(CodeAssemblerState);

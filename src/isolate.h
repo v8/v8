@@ -74,6 +74,7 @@ class Counters;
 class Debug;
 class DeoptimizerData;
 class DescriptorLookupCache;
+class EmbeddedFileWriterInterface;
 class EternalHandles;
 class ExternalCallbackScope;
 class HandleScopeImplementer;
@@ -1524,6 +1525,19 @@ class Isolate final : private HiddenFactory {
   Handle<JSObject> RunHostInitializeImportMetaObjectCallback(
       Handle<Module> module);
 
+  void RegisterEmbeddedFileWriter(EmbeddedFileWriterInterface* writer) {
+    embedded_file_writer_ = writer;
+  }
+
+  int LookupOrAddExternallyCompiledFilename(const char* filename);
+  const char* GetExternallyCompiledFilename(int index) const;
+  int GetExternallyCompiledFilenameCount() const;
+  // PrepareBuiltinSourcePositionMap is necessary in order to preserve the
+  // builtin source positions before the corresponding code objects are
+  // replaced with trampolines. Those source positions are used to
+  // annotate the builtin blob with debugging information.
+  void PrepareBuiltinSourcePositionMap();
+
   void SetPrepareStackTraceCallback(PrepareStackTraceCallback callback);
   MaybeHandle<Object> RunPrepareStackTraceCallback(Handle<Context>,
                                                    Handle<JSObject> Error,
@@ -1883,6 +1897,8 @@ class Isolate final : private HiddenFactory {
   std::shared_ptr<wasm::WasmEngine> wasm_engine_;
 
   std::unique_ptr<TracingCpuProfilerImpl> tracing_cpu_profiler_;
+
+  EmbeddedFileWriterInterface* embedded_file_writer_ = nullptr;
 
   // The top entry of the v8::Context::BackupIncumbentScope stack.
   const v8::Context::BackupIncumbentScope* top_backup_incumbent_scope_ =

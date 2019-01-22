@@ -2068,7 +2068,8 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
 
 MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
     Isolate* isolate, CallDescriptor* call_descriptor, Graph* graph,
-    Code::Kind kind, const char* debug_name, int32_t builtin_index,
+    SourcePositionTable* source_positions, Code::Kind kind,
+    const char* debug_name, int32_t builtin_index,
     PoisoningMitigationLevel poisoning_level, const AssemblerOptions& options) {
   OptimizedCompilationInfo info(CStrVector(debug_name), graph->zone(), kind);
   info.set_builtin_index(builtin_index);
@@ -2080,12 +2081,11 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
   // Construct a pipeline for scheduling and code generation.
   ZoneStats zone_stats(isolate->allocator());
   NodeOriginTable node_origins(graph);
-  SourcePositionTable source_positions(graph);
   JumpOptimizationInfo jump_opt;
   bool should_optimize_jumps =
       isolate->serializer_enabled() && FLAG_turbo_rewrite_far_jumps;
   PipelineData data(&zone_stats, &info, isolate, graph, nullptr,
-                    &source_positions, &node_origins,
+                    source_positions, &node_origins,
                     should_optimize_jumps ? &jump_opt : nullptr, options);
   data.set_verify_graph(FLAG_verify_csa);
   std::unique_ptr<PipelineStatistics> pipeline_statistics;

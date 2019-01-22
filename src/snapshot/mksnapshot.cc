@@ -16,6 +16,7 @@
 #include "src/snapshot/partial-serializer.h"
 #include "src/snapshot/snapshot.h"
 #include "src/snapshot/startup-serializer.h"
+#include "src/source-position-table.h"
 
 namespace {
 
@@ -295,9 +296,14 @@ int main(int argc, char** argv) {
                 : std::min(i::kMaximalCodeRangeSize / i::MB,
                            i::kMaxPCRelativeCodeRangeInMB);
         i_isolate->heap()->ConfigureHeap(0, 0, code_range_size);
+        // The isolate contains data from builtin compilation that needs
+        // to be written out if builtins are embedded.
+        i_isolate->RegisterEmbeddedFileWriter(&embedded_writer);
       }
       v8::SnapshotCreator snapshot_creator(isolate);
-      if (i::FLAG_embedded_builtins) WriteEmbeddedFile(&embedded_writer);
+      if (i::FLAG_embedded_builtins) {
+        WriteEmbeddedFile(&embedded_writer);
+      }
       blob = CreateSnapshotDataBlob(&snapshot_creator, embed_script.get());
     }
 

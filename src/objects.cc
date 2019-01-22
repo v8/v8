@@ -15272,15 +15272,33 @@ void Code::Disassemble(const char* name, std::ostream& os, Address current_pc) {
   }
   os << "\n";
 
-  SourcePositionTableIterator it(SourcePositionTable());
-  if (!it.done()) {
-    os << "Source positions:\n pc offset  position\n";
-    for (; !it.done(); it.Advance()) {
-      os << std::setw(10) << std::hex << it.code_offset() << std::dec
-         << std::setw(10) << it.source_position().ScriptOffset()
-         << (it.is_statement() ? "  statement" : "") << "\n";
+  {
+    SourcePositionTableIterator it(
+        SourcePositionTable(), SourcePositionTableIterator::kJavaScriptOnly);
+    if (!it.done()) {
+      os << "Source positions:\n pc offset  position\n";
+      for (; !it.done(); it.Advance()) {
+        os << std::setw(10) << std::hex << it.code_offset() << std::dec
+           << std::setw(10) << it.source_position().ScriptOffset()
+           << (it.is_statement() ? "  statement" : "") << "\n";
+      }
+      os << "\n";
     }
-    os << "\n";
+  }
+
+  {
+    SourcePositionTableIterator it(SourcePositionTable(),
+                                   SourcePositionTableIterator::kExternalOnly);
+    if (!it.done()) {
+      os << "External Source positions:\n pc offset  fileid  line\n";
+      for (; !it.done(); it.Advance()) {
+        DCHECK(it.source_position().IsExternal());
+        os << std::setw(10) << std::hex << it.code_offset() << std::dec
+           << std::setw(10) << it.source_position().ExternalFileId()
+           << std::setw(10) << it.source_position().ExternalLine() << "\n";
+      }
+      os << "\n";
+    }
   }
 
   if (kind() == OPTIMIZED_FUNCTION) {

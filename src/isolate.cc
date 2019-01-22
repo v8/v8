@@ -60,6 +60,7 @@
 #include "src/setup-isolate.h"
 #include "src/simulator.h"
 #include "src/snapshot/embedded-data.h"
+#include "src/snapshot/embedded-file-writer.h"
 #include "src/snapshot/startup-deserializer.h"
 #include "src/tracing/tracing-category-observer.h"
 #include "src/trap-handler/trap-handler.h"
@@ -3145,6 +3146,8 @@ void Isolate::InitializeDefaultEmbeddedBlob() {
 void Isolate::CreateAndSetEmbeddedBlob() {
   base::MutexGuard guard(current_embedded_blob_refcount_mutex_.Pointer());
 
+  PrepareBuiltinSourcePositionMap();
+
   // If a sticky blob has been set, we reuse it.
   if (StickyEmbeddedBlob() != nullptr) {
     CHECK_EQ(embedded_blob(), StickyEmbeddedBlob());
@@ -4152,6 +4155,35 @@ MaybeHandle<Object> Isolate::RunPrepareStackTraceCallback(
                                     Utils::ToLocal(sites)),
       MaybeHandle<Object>());
   return Utils::OpenHandle(*stack);
+}
+
+int Isolate::LookupOrAddExternallyCompiledFilename(const char* filename) {
+  if (embedded_file_writer_ != nullptr) {
+    return embedded_file_writer_->LookupOrAddExternallyCompiledFilename(
+        filename);
+  }
+  return 0;
+}
+
+const char* Isolate::GetExternallyCompiledFilename(int index) const {
+  if (embedded_file_writer_ != nullptr) {
+    return embedded_file_writer_->GetExternallyCompiledFilename(index);
+  }
+  return "";
+}
+
+int Isolate::GetExternallyCompiledFilenameCount() const {
+  if (embedded_file_writer_ != nullptr) {
+    return embedded_file_writer_->GetExternallyCompiledFilenameCount();
+  }
+  return 0;
+}
+
+void Isolate::PrepareBuiltinSourcePositionMap() {
+  if (embedded_file_writer_ != nullptr) {
+    return embedded_file_writer_->PrepareBuiltinSourcePositionMap(
+        this->builtins());
+  }
 }
 
 void Isolate::SetPrepareStackTraceCallback(PrepareStackTraceCallback callback) {

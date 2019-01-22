@@ -6,6 +6,8 @@
 
 #include <cinttypes>
 
+#include "src/objects/code-inl.h"
+
 namespace v8 {
 namespace internal {
 
@@ -110,6 +112,20 @@ const char* DirectiveAsString(DataDirective directive) {
 #endif
 }
 
+void EmbeddedFileWriter::PrepareBuiltinSourcePositionMap(Builtins* builtins) {
+  for (int i = 0; i < Builtins::builtin_count; i++) {
+    // Retrieve the SourcePositionTable and copy it.
+    Code code = builtins->builtin(i);
+    // Verify that the code object is still the "real code" and not a
+    // trampoline (which wouldn't have source positions).
+    DCHECK(!code->is_off_heap_trampoline());
+    std::vector<unsigned char> data(
+        code->SourcePositionTable()->GetDataStartAddress(),
+        code->SourcePositionTable()->GetDataEndAddress());
+    source_positions_[i] = data;
+  }
+}
+
 // V8_OS_MACOSX
 // Fuchsia target is explicitly excluded here for Mac hosts. This is to avoid
 // generating uncompilable assembly files for the Fuchsia target.
@@ -168,6 +184,10 @@ void PlatformDependentEmbeddedFileWriter::DeclareLabel(const char* name) {
   fprintf(fp_, "_%s:\n", name);
 }
 
+void PlatformDependentEmbeddedFileWriter::SourceInfo(int fileid, int line) {
+  fprintf(fp_, ".loc %d %d\n", fileid, line);
+}
+
 void PlatformDependentEmbeddedFileWriter::DeclareFunctionBegin(
     const char* name) {
   DeclareLabel(name);
@@ -184,6 +204,11 @@ int PlatformDependentEmbeddedFileWriter::HexLiteral(uint64_t value) {
 }
 
 void PlatformDependentEmbeddedFileWriter::FilePrologue() {}
+
+void PlatformDependentEmbeddedFileWriter::DeclareExternalFilename(
+    int fileid, const char* filename) {
+  fprintf(fp_, ".file %d \"%s\"\n", fileid, filename);
+}
 
 void PlatformDependentEmbeddedFileWriter::FileEpilogue() {}
 
@@ -247,6 +272,10 @@ void PlatformDependentEmbeddedFileWriter::DeclareLabel(const char* name) {
   fprintf(fp_, "%s:\n", name);
 }
 
+void PlatformDependentEmbeddedFileWriter::SourceInfo(int fileid, int line) {
+  fprintf(fp_, ".loc %d %d\n", fileid, line);
+}
+
 void PlatformDependentEmbeddedFileWriter::DeclareFunctionBegin(
     const char* name) {
   Newline();
@@ -266,6 +295,11 @@ int PlatformDependentEmbeddedFileWriter::HexLiteral(uint64_t value) {
 }
 
 void PlatformDependentEmbeddedFileWriter::FilePrologue() {}
+
+void PlatformDependentEmbeddedFileWriter::DeclareExternalFilename(
+    int fileid, const char* filename) {
+  fprintf(fp_, ".file %d \"%s\"\n", fileid, filename);
+}
 
 void PlatformDependentEmbeddedFileWriter::FileEpilogue() {}
 
@@ -330,6 +364,11 @@ void PlatformDependentEmbeddedFileWriter::DeclareLabel(const char* name) {
           DirectiveAsString(kByte));
 }
 
+void PlatformDependentEmbeddedFileWriter::SourceInfo(int fileid, int line) {
+  // TODO(mvstanton): output source information for MSVC.
+  // It's syntax is #line <line> "<filename>"
+}
+
 void PlatformDependentEmbeddedFileWriter::DeclareFunctionBegin(
     const char* name) {
   fprintf(fp_, "%s%s PROC\n", SYMBOL_PREFIX, name);
@@ -348,6 +387,9 @@ void PlatformDependentEmbeddedFileWriter::FilePrologue() {
   fprintf(fp_, ".MODEL FLAT\n");
 #endif
 }
+
+void PlatformDependentEmbeddedFileWriter::DeclareExternalFilename(
+    int fileid, const char* filename) {}
 
 void PlatformDependentEmbeddedFileWriter::FileEpilogue() {
   fprintf(fp_, "END\n");
@@ -527,6 +569,10 @@ void PlatformDependentEmbeddedFileWriter::DeclareLabel(const char* name) {
   fprintf(fp_, "%s%s:\n", SYMBOL_PREFIX, name);
 }
 
+void PlatformDependentEmbeddedFileWriter::SourceInfo(int fileid, int line) {
+  fprintf(fp_, ".loc %d %d\n", fileid, line);
+}
+
 void PlatformDependentEmbeddedFileWriter::DeclareFunctionBegin(
     const char* name) {
   DeclareLabel(name);
@@ -564,6 +610,11 @@ int PlatformDependentEmbeddedFileWriter::HexLiteral(uint64_t value) {
 }
 
 void PlatformDependentEmbeddedFileWriter::FilePrologue() {}
+
+void PlatformDependentEmbeddedFileWriter::DeclareExternalFilename(
+    int fileid, const char* filename) {
+  fprintf(fp_, ".file %d \"%s\"\n", fileid, filename);
+}
 
 void PlatformDependentEmbeddedFileWriter::FileEpilogue() {}
 

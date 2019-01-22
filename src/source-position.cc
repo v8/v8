@@ -37,7 +37,12 @@ std::ostream& operator<<(std::ostream& out, const SourcePosition& pos) {
   } else {
     out << "<not inlined:";
   }
-  out << pos.ScriptOffset() << ">";
+
+  if (pos.IsExternal()) {
+    out << pos.ExternalLine() << ", " << pos.ExternalFileId() << ">";
+  } else {
+    out << pos.ScriptOffset() << ">";
+  }
   return out;
 }
 
@@ -96,8 +101,14 @@ void SourcePosition::Print(std::ostream& out,
 }
 
 void SourcePosition::PrintJson(std::ostream& out) const {
-  out << "{ \"scriptOffset\" : " << ScriptOffset() << ", "
-      << "  \"inliningId\" : " << InliningId() << "}";
+  if (IsExternal()) {
+    out << "{ \"line\" : " << ExternalLine() << ", "
+        << "  \"fileId\" : " << ExternalFileId() << ", "
+        << "  \"inliningId\" : " << InliningId() << "}";
+  } else {
+    out << "{ \"scriptOffset\" : " << ScriptOffset() << ", "
+        << "  \"inliningId\" : " << InliningId() << "}";
+  }
 }
 
 void SourcePosition::Print(std::ostream& out, Code code) const {

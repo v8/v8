@@ -17,6 +17,8 @@ def asm_to_inl_asm(in_filename, out_filename):
   with open(in_filename, 'r') as infile, open(out_filename, 'wb') as outfile:
     outfile.write('__asm__(\n')
     for line in infile:
+      # Escape " in .S file before outputing it to inline asm file.
+      line = line.replace('"', '\\"')
       outfile.write('  "%s\\n"\n' % line.rstrip())
     outfile.write(');\n')
   return 0

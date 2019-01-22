@@ -747,11 +747,11 @@ class BytecodeGraphBuilder::OsrIteratorState {
  private:
   struct IteratorsStates {
     int exception_handler_index_;
-    SourcePositionTableIterator::IndexAndPosition source_iterator_state_;
+    SourcePositionTableIterator::IndexAndPositionState source_iterator_state_;
 
-    IteratorsStates(
-        int exception_handler_index,
-        SourcePositionTableIterator::IndexAndPosition source_iterator_state)
+    IteratorsStates(int exception_handler_index,
+                    SourcePositionTableIterator::IndexAndPositionState
+                        source_iterator_state)
         : exception_handler_index_(exception_handler_index),
           source_iterator_state_(source_iterator_state) {}
   };

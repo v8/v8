@@ -4,6 +4,7 @@
 
 #include "src/compiler/raw-machine-assembler.h"
 
+#include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/pipeline.h"
 #include "src/compiler/scheduler.h"
@@ -21,6 +22,7 @@ RawMachineAssembler::RawMachineAssembler(
     : isolate_(isolate),
       graph_(graph),
       schedule_(new (zone()) Schedule(zone())),
+      source_positions_(new (zone()) SourcePositionTable(graph)),
       machine_(zone(), word, flags, alignment_requirements),
       common_(zone()),
       simplified_(zone()),
@@ -41,6 +43,14 @@ RawMachineAssembler::RawMachineAssembler(
         AddNode(common()->Parameter(static_cast<int>(i)), graph->start());
   }
   graph->SetEnd(graph->NewNode(common_.End(0)));
+  source_positions_->AddDecorator();
+}
+
+void RawMachineAssembler::SetSourcePosition(const char* file, int line) {
+  int file_id = isolate()->LookupOrAddExternallyCompiledFilename(file);
+  SourcePosition p = SourcePosition::External(line, file_id);
+  DCHECK(p.ExternalLine() == line);
+  source_positions()->SetCurrentPosition(p);
 }
 
 Node* RawMachineAssembler::NullConstant() {
@@ -78,6 +88,7 @@ Schedule* RawMachineAssembler::Export() {
     StdoutStream{} << *schedule_;
   }
   // Invalidate RawMachineAssembler.
+  source_positions_->RemoveDecorator();
   Schedule* schedule = schedule_;
   schedule_ = nullptr;
   return schedule;

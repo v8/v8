@@ -105,6 +105,7 @@ void CodeAssemblerState::SetInitialDebugInformation(const char* msg,
                                                     int line) {
 #if DEBUG
   AssemblerDebugInfo debug_info = {msg, file, line};
+  raw_assembler_->SetSourcePosition(file, line);
   raw_assembler_->SetInitialDebugInformation(debug_info);
 #endif  // DEBUG
 }
@@ -176,11 +177,11 @@ Handle<Code> CodeAssembler::GenerateCode(CodeAssemblerState* state,
   Handle<Code> code;
   Graph* graph = rasm->ExportForOptimization();
 
-  code =
-      Pipeline::GenerateCodeForCodeStub(
-          rasm->isolate(), rasm->call_descriptor(), graph, state->kind_,
-          state->name_, state->builtin_index_, rasm->poisoning_level(), options)
-          .ToHandleChecked();
+  code = Pipeline::GenerateCodeForCodeStub(
+             rasm->isolate(), rasm->call_descriptor(), graph,
+             rasm->source_positions(), state->kind_, state->name_,
+             state->builtin_index_, rasm->poisoning_level(), options)
+             .ToHandleChecked();
 
   state->code_generated_ = true;
   return code;
@@ -422,6 +423,10 @@ void CodeAssembler::Unreachable() {
 void CodeAssembler::Comment(std::string str) {
   if (!FLAG_code_comments) return;
   raw_assembler()->Comment(str);
+}
+
+void CodeAssembler::SetSourcePosition(const char* file, int line) {
+  raw_assembler()->SetSourcePosition(file, line);
 }
 
 void CodeAssembler::Bind(Label* label) { return label->Bind(); }
@@ -1733,6 +1738,7 @@ void CodeAssemblerLabel::Bind(AssemblerDebugInfo debug_info) {
         << "\n#    previous: " << *label_->block();
     FATAL("%s", str.str().c_str());
   }
+  state_->raw_assembler_->SetSourcePosition(debug_info.file, debug_info.line);
   state_->raw_assembler_->Bind(label_, debug_info);
   UpdateVariablesAfterBind();
 }
