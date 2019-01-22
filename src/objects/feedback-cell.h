@@ -14,7 +14,7 @@ namespace v8 {
 namespace internal {
 
 // This is a special cell used to maintain both the link between a
-// closure and it's feedback vector, as well as a way to count the
+// closure and its feedback vector, as well as a way to count the
 // number of closures created for a certain function per native
 // context. There's at most one FeedbackCell for each function in
 // a native context.

@@ -13,7 +13,6 @@ namespace internal {
 
 namespace interpreter {
 class BytecodeArrayIterator;
-class Register;
 }  // namespace interpreter
 
 class BytecodeArray;
@@ -65,7 +64,6 @@ namespace compiler {
 #define CLEAR_ACCUMULATOR_LIST(V)   \
   V(CallWithSpread)                 \
   V(ConstructWithSpread)            \
-  V(CreateClosure)                  \
   V(CreateEmptyObjectLiteral)       \
   V(CreateMappedArguments)          \
   V(CreateRestParameter)            \
@@ -92,6 +90,7 @@ namespace compiler {
   V(CallUndefinedReceiver1)        \
   V(CallUndefinedReceiver2)        \
   V(Construct)                     \
+  V(CreateClosure)                 \
   V(ExtraWide)                     \
   V(Illegal)                       \
   V(LdaConstant)                   \
@@ -108,7 +107,34 @@ namespace compiler {
   CLEAR_ACCUMULATOR_LIST(V)
 
 class JSHeapBroker;
-typedef ZoneVector<Handle<Object>> Hints;
+
+struct FunctionBlueprint {
+  Handle<SharedFunctionInfo> shared;
+  Handle<FeedbackVector> feedback;
+};
+
+class Hints {
+ public:
+  explicit Hints(Zone* zone);
+
+  const ZoneVector<Handle<Object>>& constants() const;
+  const ZoneVector<Handle<Map>>& maps() const;
+  const ZoneVector<FunctionBlueprint>& function_blueprints() const;
+
+  void AddConstant(Handle<Object> constant);
+  void AddMap(Handle<Map> map);
+  void AddFunctionBlueprint(FunctionBlueprint function_blueprint);
+
+  void Add(const Hints& other);
+
+  void Clear();
+
+ private:
+  ZoneVector<Handle<Object>> constants_;
+  ZoneVector<Handle<Map>> maps_;
+  ZoneVector<FunctionBlueprint> function_blueprints_;
+};
+
 typedef ZoneVector<Hints> HintsVector;
 
 // The SerializerForBackgroundCompilation makes sure that the relevant function
@@ -118,12 +144,11 @@ class SerializerForBackgroundCompilation {
  public:
   SerializerForBackgroundCompilation(JSHeapBroker* broker, Zone* zone,
                                      Handle<JSFunction> function);
-  Hints Run();
+  Hints Run();  // NOTE: Returns empty for an already-serialized function.
 
  private:
   SerializerForBackgroundCompilation(JSHeapBroker* broker, Zone* zone,
-                                     Handle<SharedFunctionInfo> sfi,
-                                     Handle<FeedbackVector> feedback,
+                                     FunctionBlueprint function,
                                      const Hints& receiver,
                                      const HintsVector& arguments);
 
@@ -147,7 +172,7 @@ class SerializerForBackgroundCompilation {
 
   JSHeapBroker* broker_;
   Zone* zone_;
-  Handle<SharedFunctionInfo> sfi_;
+  Handle<SharedFunctionInfo> shared_;
   Handle<FeedbackVector> feedback_;
   Environment* environment_;
 };
