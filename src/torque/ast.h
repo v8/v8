@@ -688,6 +688,10 @@ struct NameAndTypeExpression {
   TypeExpression* type;
 };
 
+struct StructFieldExpression {
+  NameAndTypeExpression name_and_type;
+};
+
 struct ClassFieldExpression {
   NameAndTypeExpression name_and_type;
   bool weak;
@@ -883,33 +887,32 @@ struct StructDeclaration : Declaration {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(StructDeclaration)
   StructDeclaration(SourcePosition pos, std::string name,
                     std::vector<Declaration*> methods,
-                    std::vector<NameAndTypeExpression> fields)
+                    std::vector<StructFieldExpression> fields)
       : Declaration(kKind, pos),
         name(std::move(name)),
         methods(std::move(methods)),
         fields(std::move(fields)) {}
   std::string name;
   std::vector<Declaration*> methods;
-  std::vector<NameAndTypeExpression> fields;
+  std::vector<StructFieldExpression> fields;
 };
 
 struct ClassDeclaration : Declaration {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(ClassDeclaration)
   ClassDeclaration(SourcePosition pos, std::string name, bool transient,
-                   base::Optional<std::string> extends,
-                   base::Optional<std::string> generates,
+                   std::string super, base::Optional<std::string> generates,
                    std::vector<Declaration*> methods,
                    std::vector<ClassFieldExpression> fields)
       : Declaration(kKind, pos),
         name(std::move(name)),
         transient(transient),
-        extends(std::move(extends)),
+        super(std::move(super)),
         generates(std::move(generates)),
         methods(std::move(methods)),
         fields(std::move(fields)) {}
   std::string name;
   bool transient;
-  base::Optional<std::string> extends;
+  std::string super;
   base::Optional<std::string> generates;
   std::vector<Declaration*> methods;
   std::vector<ClassFieldExpression> fields;
