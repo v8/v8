@@ -410,14 +410,5 @@ bool PreParser::IdentifierEquals(const PreParserIdentifier& identifier,
   return identifier.string_ == other;
 }
 
-PreParserExpression PreParser::ExpressionFromIdentifier(
-    const PreParserIdentifier& name, int start_position, InferName infer) {
-  DCHECK_IMPLIES(name.string_ == nullptr, has_error());
-  if (name.string_ == nullptr) return PreParserExpression::Default();
-  VariableProxy* proxy =
-      expression_scope()->NewVariable(name.string_, start_position);
-  return PreParserExpression::FromIdentifier(name, proxy, zone());
-}
-
 }  // namespace internal
 }  // namespace v8

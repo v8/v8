@@ -111,9 +111,7 @@ class PreParserExpression {
     return PreParserExpression(TypeField::encode(kSpreadExpression));
   }
 
-  static PreParserExpression FromIdentifier(const PreParserIdentifier& id,
-                                            VariableProxy* variable,
-                                            Zone* zone) {
+  static PreParserExpression FromIdentifier(const PreParserIdentifier& id) {
     return PreParserExpression(TypeField::encode(kIdentifierExpression) |
                                IdentifierTypeField::encode(id.type_));
   }
@@ -1567,7 +1565,12 @@ class PreParser : public ParserBase<PreParser> {
 
   PreParserExpression ExpressionFromIdentifier(
       const PreParserIdentifier& name, int start_position,
-      InferName infer = InferName::kYes);
+      InferName infer = InferName::kYes) {
+    if (name.string_ != nullptr) {
+      expression_scope()->NewVariable(name.string_, start_position);
+    }
+    return PreParserExpression::FromIdentifier(name);
+  }
 
   V8_INLINE Variable* DeclareCatchVariableName(
       Scope* scope, const PreParserIdentifier& identifier) {
