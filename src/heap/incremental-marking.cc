@@ -40,19 +40,8 @@ void IncrementalMarking::Observer::Step(int bytes_allocated, Address addr,
       heap->isolate(),
       RuntimeCallCounterId::kGC_Custom_IncrementalMarkingObserver);
   incremental_marking_.AdvanceIncrementalMarkingOnAllocation();
-  if (incremental_marking_.black_allocation() && addr != kNullAddress) {
-    // AdvanceIncrementalMarkingOnAllocation can start black allocation.
-    // Ensure that the new object is marked black.
-    HeapObject object = HeapObject::FromAddress(addr);
-    if (incremental_marking_.marking_state()->IsWhite(object) &&
-        !(Heap::InNewSpace(object) || heap->new_lo_space()->Contains(object))) {
-      if (heap->IsLargeObject(object)) {
-        incremental_marking_.marking_state()->WhiteToBlack(object);
-      } else {
-        Page::FromAddress(addr)->CreateBlackArea(addr, addr + size);
-      }
-    }
-  }
+  // AdvanceIncrementalMarkingOnAllocation can start incremental marking.
+  incremental_marking_.EnsureBlackAllocated(addr, size);
 }
 
 IncrementalMarking::IncrementalMarking(
@@ -368,13 +357,7 @@ void IncrementalMarking::StartMarking() {
 
   heap_->isolate()->compilation_cache()->MarkCompactPrologue();
 
-#ifdef V8_CONCURRENT_MARKING
-  // The write-barrier does not check the color of the source object.
-  // Start black allocation earlier to ensure faster marking progress.
-  if (!black_allocation_) {
-    StartBlackAllocation();
-  }
-#endif
+  StartBlackAllocation();
 
   // Mark strong roots grey.
   IncrementalMarkingRootMarkingVisitor visitor(this);
@@ -391,7 +374,6 @@ void IncrementalMarking::StartMarking() {
 }
 
 void IncrementalMarking::StartBlackAllocation() {
-  DCHECK(FLAG_black_allocation);
   DCHECK(!black_allocation_);
   DCHECK(IsMarking());
   black_allocation_ = true;
@@ -405,7 +387,6 @@ void IncrementalMarking::StartBlackAllocation() {
 }
 
 void IncrementalMarking::PauseBlackAllocation() {
-  DCHECK(FLAG_black_allocation);
   DCHECK(IsMarking());
   heap()->old_space()->UnmarkLinearAllocationArea();
   heap()->map_space()->UnmarkLinearAllocationArea();
@@ -423,6 +404,22 @@ void IncrementalMarking::FinishBlackAllocation() {
     if (FLAG_trace_incremental_marking) {
       heap()->isolate()->PrintWithTimestamp(
           "[IncrementalMarking] Black allocation finished\n");
+    }
+  }
+}
+
+void IncrementalMarking::EnsureBlackAllocated(Address allocated, size_t size) {
+  if (black_allocation() && allocated != kNullAddress) {
+    HeapObject object = HeapObject::FromAddress(allocated);
+    if (marking_state()->IsWhite(object) &&
+        !(Heap::InNewSpace(object) ||
+          heap_->new_lo_space()->Contains(object))) {
+      if (heap_->IsLargeObject(object)) {
+        marking_state()->WhiteToBlack(object);
+      } else {
+        Page::FromAddress(allocated)->CreateBlackArea(allocated,
+                                                      allocated + size);
+      }
     }
   }
 }
@@ -515,13 +512,6 @@ void IncrementalMarking::FinalizeIncrementally() {
   RetainMaps();
 
   finalize_marking_completed_ = true;
-
-  if (FLAG_black_allocation && !heap()->ShouldReduceMemory() &&
-      !black_allocation_) {
-    // TODO(hpayer): Move to an earlier point as soon as we make faster marking
-    // progress.
-    StartBlackAllocation();
-  }
 
   if (FLAG_trace_incremental_marking) {
     double end = heap_->MonotonicallyIncreasingTimeInMs();

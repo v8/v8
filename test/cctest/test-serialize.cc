@@ -1794,7 +1794,6 @@ TEST(CodeSerializerLargeCodeObjectWithIncrementalMarking) {
   FLAG_always_opt = false;
   const char* filter_flag = "--turbo-filter=NOTHING";
   FlagList::SetFlagsFromString(filter_flag, StrLength(filter_flag));
-  FLAG_black_allocation = true;
   FLAG_manual_evacuation_candidates_selection = true;
 
   LocalContext context;

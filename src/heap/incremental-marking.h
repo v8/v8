@@ -244,6 +244,10 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
 
   void Deactivate();
 
+  // Ensures that the given region is black allocated if it is in the old
+  // generation.
+  void EnsureBlackAllocated(Address allocated, size_t size);
+
  private:
   class Observer : public AllocationObserver {
    public:

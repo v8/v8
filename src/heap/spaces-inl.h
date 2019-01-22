@@ -437,12 +437,12 @@ AllocationResult PagedSpace::AllocateRaw(int size_in_bytes,
 #endif
   HeapObject heap_obj;
   if (!result.IsRetry() && result.To(&heap_obj) && !is_local()) {
-    DCHECK_IMPLIES(
-        heap()->incremental_marking()->black_allocation(),
-        heap()->incremental_marking()->marking_state()->IsBlack(heap_obj));
     AllocationStep(static_cast<int>(size_in_bytes + bytes_since_last),
                    heap_obj->address(), size_in_bytes);
     StartNextInlineAllocationStep();
+    DCHECK_IMPLIES(
+        heap()->incremental_marking()->black_allocation(),
+        heap()->incremental_marking()->marking_state()->IsBlack(heap_obj));
   }
   return result;
 }
