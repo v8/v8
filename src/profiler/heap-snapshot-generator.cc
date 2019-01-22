@@ -489,20 +489,6 @@ void HeapObjectsMap::RemoveDeadEntries() {
          entries_map_.occupancy());
 }
 
-
-SnapshotObjectId HeapObjectsMap::GenerateId(v8::RetainedObjectInfo* info) {
-  SnapshotObjectId id = static_cast<SnapshotObjectId>(info->GetHash());
-  const char* label = info->GetLabel();
-  id ^= StringHasher::HashSequentialString(label,
-                                           static_cast<int>(strlen(label)),
-                                           heap_->HashSeed());
-  intptr_t element_count = info->GetElementCount();
-  if (element_count != -1) {
-    id ^= ComputeUnseededHash(static_cast<uint32_t>(element_count));
-  }
-  return id << 1;
-}
-
 V8HeapExplorer::V8HeapExplorer(HeapSnapshot* snapshot,
                                SnapshottingProgressReportingInterface* progress,
                                v8::HeapProfiler::ObjectNameResolver* resolver)
@@ -1825,57 +1811,6 @@ class EmbedderGraphImpl : public EmbedderGraph {
   std::vector<Edge> edges_;
 };
 
-class GlobalHandlesExtractor : public PersistentHandleVisitor {
- public:
-  explicit GlobalHandlesExtractor(NativeObjectsExplorer* explorer)
-      : explorer_(explorer) {}
-  ~GlobalHandlesExtractor() override = default;
-  void VisitPersistentHandle(Persistent<Value>* value,
-                             uint16_t class_id) override {
-    Handle<Object> object = Utils::OpenPersistent(value);
-    explorer_->VisitSubtreeWrapper(object, class_id);
-  }
-
- private:
-  NativeObjectsExplorer* explorer_;
-};
-
-
-class BasicHeapEntriesAllocator : public HeapEntriesAllocator {
- public:
-  BasicHeapEntriesAllocator(
-      HeapSnapshot* snapshot,
-      HeapEntry::Type entries_type)
-    : snapshot_(snapshot),
-      names_(snapshot_->profiler()->names()),
-      heap_object_map_(snapshot_->profiler()->heap_object_map()),
-      entries_type_(entries_type) {
-  }
-  HeapEntry* AllocateEntry(HeapThing ptr) override;
- private:
-  HeapSnapshot* snapshot_;
-  StringsStorage* names_;
-  HeapObjectsMap* heap_object_map_;
-  HeapEntry::Type entries_type_;
-};
-
-
-HeapEntry* BasicHeapEntriesAllocator::AllocateEntry(HeapThing ptr) {
-  v8::RetainedObjectInfo* info = reinterpret_cast<v8::RetainedObjectInfo*>(ptr);
-  intptr_t elements = info->GetElementCount();
-  intptr_t size = info->GetSizeInBytes();
-  const char* name = elements != -1
-                         ? names_->GetFormatted("%s / %" V8PRIdPTR " entries",
-                                                info->GetLabel(), elements)
-                         : names_->GetCopy(info->GetLabel());
-  return snapshot_->AddEntry(
-      entries_type_,
-      name,
-      heap_object_map_->GenerateId(info),
-      size != -1 ? static_cast<int>(size) : 0,
-      0);
-}
-
 class EmbedderGraphEntriesAllocator : public HeapEntriesAllocator {
  public:
   explicit EmbedderGraphEntriesAllocator(HeapSnapshot* snapshot)
@@ -1927,124 +1862,14 @@ HeapEntry* EmbedderGraphEntriesAllocator::AllocateEntry(HeapThing ptr) {
       static_cast<int>(size), 0);
 }
 
-class NativeGroupRetainedObjectInfo : public v8::RetainedObjectInfo {
- public:
-  explicit NativeGroupRetainedObjectInfo(const char* label)
-      : disposed_(false),
-        hash_(reinterpret_cast<intptr_t>(label)),
-        label_(label) {}
-
-  ~NativeGroupRetainedObjectInfo() override = default;
-  void Dispose() override {
-    CHECK(!disposed_);
-    disposed_ = true;
-    delete this;
-  }
-  bool IsEquivalent(RetainedObjectInfo* other) override {
-    return hash_ == other->GetHash() && !strcmp(label_, other->GetLabel());
-  }
-  intptr_t GetHash() override { return hash_; }
-  const char* GetLabel() override { return label_; }
-
- private:
-  bool disposed_;
-  intptr_t hash_;
-  const char* label_;
-};
-
 NativeObjectsExplorer::NativeObjectsExplorer(
     HeapSnapshot* snapshot, SnapshottingProgressReportingInterface* progress)
     : isolate_(snapshot->profiler()->heap_object_map()->heap()->isolate()),
       snapshot_(snapshot),
       names_(snapshot_->profiler()->names()),
-      embedder_queried_(false),
-      native_groups_(0, SeededStringHasher(isolate_->heap()->HashSeed())),
-      synthetic_entries_allocator_(
-          new BasicHeapEntriesAllocator(snapshot, HeapEntry::kSynthetic)),
-      native_entries_allocator_(
-          new BasicHeapEntriesAllocator(snapshot, HeapEntry::kNative)),
       embedder_graph_entries_allocator_(
           new EmbedderGraphEntriesAllocator(snapshot)) {}
 
-NativeObjectsExplorer::~NativeObjectsExplorer() {
-  for (auto map_entry : objects_by_info_) {
-    v8::RetainedObjectInfo* info = map_entry.first;
-    info->Dispose();
-    std::vector<HeapObject>* objects = map_entry.second;
-    delete objects;
-  }
-  for (auto map_entry : native_groups_) {
-    NativeGroupRetainedObjectInfo* info = map_entry.second;
-    info->Dispose();
-  }
-}
-
-
-int NativeObjectsExplorer::EstimateObjectsCount() {
-  FillRetainedObjects();
-  return static_cast<int>(objects_by_info_.size());
-}
-
-
-void NativeObjectsExplorer::FillRetainedObjects() {
-  if (embedder_queried_) return;
-  v8::HandleScope scope(reinterpret_cast<v8::Isolate*>(isolate_));
-  v8::HeapProfiler::RetainerInfos infos =
-      snapshot_->profiler()->GetRetainerInfos(isolate_);
-  for (auto& pair : infos.groups) {
-    std::vector<HeapObject>* info = GetVectorMaybeDisposeInfo(pair.first);
-    for (auto& persistent : pair.second) {
-      if (persistent->IsEmpty()) continue;
-
-      Handle<Object> object = v8::Utils::OpenHandle(
-          *persistent->Get(reinterpret_cast<v8::Isolate*>(isolate_)));
-      DCHECK(!object.is_null());
-      HeapObject heap_object = HeapObject::cast(*object);
-      info->push_back(heap_object);
-      in_groups_.insert(heap_object);
-    }
-  }
-
-  // Record objects that are not in ObjectGroups, but have class ID.
-  GlobalHandlesExtractor extractor(this);
-  isolate_->global_handles()->IterateAllRootsWithClassIds(&extractor);
-
-  edges_ = std::move(infos.edges);
-  embedder_queried_ = true;
-}
-
-void NativeObjectsExplorer::FillEdges() {
-  v8::HandleScope scope(reinterpret_cast<v8::Isolate*>(isolate_));
-  // Fill in actual edges found.
-  for (auto& pair : edges_) {
-    if (pair.first->IsEmpty() || pair.second->IsEmpty()) continue;
-
-    Handle<Object> parent_object = v8::Utils::OpenHandle(
-        *pair.first->Get(reinterpret_cast<v8::Isolate*>(isolate_)));
-    HeapObject parent = HeapObject::cast(*parent_object);
-    HeapEntry* parent_entry = generator_->FindOrAddEntry(
-        reinterpret_cast<void*>(parent.ptr()), native_entries_allocator_.get());
-    DCHECK_NOT_NULL(parent_entry);
-    Handle<Object> child_object = v8::Utils::OpenHandle(
-        *pair.second->Get(reinterpret_cast<v8::Isolate*>(isolate_)));
-    HeapObject child = HeapObject::cast(*child_object);
-    HeapEntry* child_entry = generator_->FindOrAddEntry(
-        reinterpret_cast<void*>(child.ptr()), native_entries_allocator_.get());
-    parent_entry->SetNamedReference(HeapGraphEdge::kInternal, "native",
-                                    child_entry);
-  }
-  edges_.clear();
-}
-
-std::vector<HeapObject>* NativeObjectsExplorer::GetVectorMaybeDisposeInfo(
-    v8::RetainedObjectInfo* info) {
-  if (objects_by_info_.count(info)) {
-    info->Dispose();
-  } else {
-    objects_by_info_[info] = new std::vector<HeapObject>();
-  }
-  return objects_by_info_[info];
-}
 
 HeapEntry* NativeObjectsExplorer::EntryForEmbedderGraphNode(
     EmbedderGraphImpl::Node* node) {
@@ -2104,79 +1929,9 @@ bool NativeObjectsExplorer::IterateAndExtractReferences(
         from->SetNamedReference(HeapGraphEdge::kInternal, edge.name, to);
       }
     }
-  } else {
-    FillRetainedObjects();
-    FillEdges();
-    if (EstimateObjectsCount() > 0) {
-      for (auto map_entry : objects_by_info_) {
-        v8::RetainedObjectInfo* info = map_entry.first;
-        SetNativeRootReference(info);
-        std::vector<HeapObject>* objects = map_entry.second;
-        for (HeapObject object : *objects) {
-          SetWrapperNativeReferences(object, info);
-        }
-      }
-      SetRootNativeRootsReference();
-    }
   }
   generator_ = nullptr;
   return true;
-}
-
-NativeGroupRetainedObjectInfo* NativeObjectsExplorer::FindOrAddGroupInfo(
-    const char* label) {
-  const char* label_copy = names_->GetCopy(label);
-  if (!native_groups_.count(label_copy)) {
-    native_groups_[label_copy] = new NativeGroupRetainedObjectInfo(label);
-  }
-  return native_groups_[label_copy];
-}
-
-void NativeObjectsExplorer::SetNativeRootReference(
-    v8::RetainedObjectInfo* info) {
-  HeapEntry* child_entry =
-      generator_->FindOrAddEntry(info, native_entries_allocator_.get());
-  DCHECK_NOT_NULL(child_entry);
-  NativeGroupRetainedObjectInfo* group_info =
-      FindOrAddGroupInfo(info->GetGroupLabel());
-  HeapEntry* group_entry = generator_->FindOrAddEntry(
-      group_info, synthetic_entries_allocator_.get());
-  group_entry->SetNamedAutoIndexReference(HeapGraphEdge::kInternal, nullptr,
-                                          child_entry, names_);
-}
-
-void NativeObjectsExplorer::SetWrapperNativeReferences(
-    HeapObject wrapper, v8::RetainedObjectInfo* info) {
-  HeapEntry* wrapper_entry =
-      generator_->FindEntry(reinterpret_cast<void*>(wrapper.ptr()));
-  DCHECK_NOT_NULL(wrapper_entry);
-  HeapEntry* info_entry =
-      generator_->FindOrAddEntry(info, native_entries_allocator_.get());
-  DCHECK_NOT_NULL(info_entry);
-  wrapper_entry->SetNamedReference(HeapGraphEdge::kInternal, "native",
-                                   info_entry);
-  info_entry->SetIndexedAutoIndexReference(HeapGraphEdge::kElement,
-                                           wrapper_entry);
-}
-
-void NativeObjectsExplorer::SetRootNativeRootsReference() {
-  for (auto map_entry : native_groups_) {
-    NativeGroupRetainedObjectInfo* group_info = map_entry.second;
-    HeapEntry* group_entry =
-        generator_->FindOrAddEntry(group_info, native_entries_allocator_.get());
-    DCHECK_NOT_NULL(group_entry);
-    snapshot_->root()->SetIndexedAutoIndexReference(HeapGraphEdge::kElement,
-                                                    group_entry);
-  }
-}
-
-void NativeObjectsExplorer::VisitSubtreeWrapper(Handle<Object> p,
-                                                uint16_t class_id) {
-  if (in_groups_.count(*p)) return;
-  v8::RetainedObjectInfo* info =
-      isolate_->heap_profiler()->ExecuteWrapperClassCallback(class_id, p);
-  if (info == nullptr) return;
-  GetVectorMaybeDisposeInfo(info)->push_back(HeapObject::cast(*p));
 }
 
 HeapSnapshotGenerator::HeapSnapshotGenerator(
@@ -2268,8 +2023,7 @@ void HeapSnapshotGenerator::InitProgressCounter() {
   // Only the forced ProgressReport() at the end of GenerateSnapshot()
   // should signal that the work is finished because signalling finished twice
   // breaks the DevTools frontend.
-  progress_total_ = v8_heap_explorer_.EstimateObjectsCount() +
-                    dom_explorer_.EstimateObjectsCount() + 1;
+  progress_total_ = v8_heap_explorer_.EstimateObjectsCount() + 1;
   progress_counter_ = 0;
 }
 

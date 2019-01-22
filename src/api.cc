@@ -10369,19 +10369,6 @@ void HeapProfiler::DeleteAllHeapSnapshots() {
   reinterpret_cast<i::HeapProfiler*>(this)->DeleteAllSnapshots();
 }
 
-
-void HeapProfiler::SetWrapperClassInfoProvider(uint16_t class_id,
-                                               WrapperInfoCallback callback) {
-  reinterpret_cast<i::HeapProfiler*>(this)->DefineWrapperClass(class_id,
-                                                               callback);
-}
-
-void HeapProfiler::SetGetRetainerInfosCallback(
-    GetRetainerInfosCallback callback) {
-  reinterpret_cast<i::HeapProfiler*>(this)->SetGetRetainerInfosCallback(
-      callback);
-}
-
 void HeapProfiler::SetBuildEmbedderGraphCallback(
     LegacyBuildEmbedderGraphCallback callback) {
   reinterpret_cast<i::HeapProfiler*>(this)->AddBuildEmbedderGraphCallback(
