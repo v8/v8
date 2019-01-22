@@ -205,7 +205,7 @@ String16 descriptionForError(v8::Local<v8::Context> context,
   if (!object->Get(context, toV8String(isolate, "stack"))
            .ToLocal(&stackValue) ||
       !stackValue->IsString()) {
-    return String16();
+    return className;
   }
   String16 stack = toProtocolString(isolate, stackValue.As<v8::String>());
   String16 description = stack;
