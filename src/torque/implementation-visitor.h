@@ -212,8 +212,6 @@ class ImplementationVisitor : public FileVisitor {
   VisitResult Visit(Expression* expr);
   const Type* Visit(Statement* stmt);
 
-  VisitResult TemporaryUninitializedStruct(const StructType* struct_type,
-                                           const std::string& reason);
   VisitResult Visit(StructExpression* decl);
 
   LocationReference GetLocationReference(Expression* location);
@@ -292,6 +290,7 @@ class ImplementationVisitor : public FileVisitor {
 
   struct ConstructorInfo {
     int super_calls;
+    bool accessed_this;
   };
 
   DECLARE_CONTEXTUAL_VARIABLE(ValueBindingsManager,
@@ -397,28 +396,10 @@ class ImplementationVisitor : public FileVisitor {
   Binding<LocalLabel>* LookupLabel(const std::string& name);
   Block* LookupSimpleLabel(const std::string& name);
   template <class Container>
-  Callable* LookupCallable(const QualifiedName& name,
-                           const Container& declaration_container,
-                           const TypeVector& types,
-                           const std::vector<Binding<LocalLabel>*>& labels,
-                           const TypeVector& specialization_types);
-
-  template <class Container>
-  Callable* LookupCallable(const QualifiedName& name,
-                           const Container& declaration_container,
-                           const Arguments& arguments,
-                           const TypeVector& specialization_types);
-
-  Method* LookupMethod(const std::string& name, LocationReference target,
+  Callable* LookupCall(const QualifiedName& name,
+                       const Container& declaration_container,
                        const Arguments& arguments,
                        const TypeVector& specialization_types);
-
-  Method* LookupConstructor(LocationReference target,
-                            const Arguments& arguments,
-                            const TypeVector& specialization_types) {
-    return LookupMethod(kConstructMethodName, target, arguments,
-                        specialization_types);
-  }
 
   const Type* GetCommonType(const Type* left, const Type* right);
 

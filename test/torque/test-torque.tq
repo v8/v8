@@ -736,36 +736,10 @@ namespace test {
     c: int32;
   }
 
-  struct TestCustomStructConstructor {
-    constructor(x: int32, y: Smi) {
-      this.a = x;
-      this.c = x;
-      this.b = y;
-      this.d = y;
-    }
-    a: int32;
-    b: Smi;
-    c: int32;
-    d: Smi;
-  }
-
   macro TestStructConstructor(implicit context: Context)() {
-    // Test default constructor
-    let a: TestOuter = TestOuter{5, TestInner{6, 7}, 8};
-    assert(a.a == 5);
-    assert(a.b.x == 6);
-    assert(a.b.y == 7);
-    assert(a.c == 8);
-    a.b.x = 1;
-    assert(a.b.x == 1);
+    let a: TestOuter = TestOuter{0, TestInner{0, 0}, 0};
     a.b.SetX(2);
     assert(a.b.x == 2);
     assert(a.b.GetX() == 2);
-    // Test custom constructor
-    let w: TestCustomStructConstructor = TestCustomStructConstructor{1, 2};
-    assert(w.a == 1);
-    assert(w.b == 2);
-    assert(w.c == 1);
-    assert(w.d == 2);
   }
 }

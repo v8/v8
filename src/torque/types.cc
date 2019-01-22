@@ -184,38 +184,6 @@ const Type* SubtractType(const Type* a, const Type* b) {
   return TypeOracle::GetUnionType(result);
 }
 
-AggregateType::AggregateType(Kind kind, const Type* parent, Namespace* nspace,
-                             const std::string& name,
-                             const std::vector<Field>& fields)
-    : Type(kind, parent), namespace_(nspace), name_(name), fields_(fields) {
-  // Check the aggregate hierarchy and currently defined class for duplicate
-  // field declarations.
-  auto hierarchy = GetHierarchy();
-  std::map<std::string, const AggregateType*> field_names;
-  for (const AggregateType* aggregate_type : hierarchy) {
-    for (const Field& field : aggregate_type->fields()) {
-      const std::string& field_name = field.name_and_type.name;
-      auto i = field_names.find(field_name);
-      if (i != field_names.end()) {
-        CurrentSourcePosition::Scope current_source_position(field.pos);
-        std::string aggregate_type_name =
-            aggregate_type->IsClassType() ? "class" : "struct";
-        if (i->second == this) {
-          ReportError(aggregate_type_name, " '", name,
-                      "' declares a field with the name '", field_name,
-                      "' more than once");
-        } else {
-          ReportError(aggregate_type_name, " '", name,
-                      "' declares a field with the name '", field_name,
-                      "' that masks an inherited field from class '",
-                      i->second->name(), "'");
-        }
-      }
-      field_names[field_name] = aggregate_type;
-    }
-  }
-}
-
 std::vector<const AggregateType*> AggregateType::GetHierarchy() {
   std::vector<const AggregateType*> hierarchy;
   const AggregateType* current_container_type = this;
@@ -249,7 +217,7 @@ std::string StructType::GetGeneratedTypeName() const {
 std::vector<Method*> AggregateType::Methods(const std::string& name) const {
   std::vector<Method*> result;
   std::copy_if(methods_.begin(), methods_.end(), std::back_inserter(result),
-               [name](Macro* macro) { return macro->ReadableName() == name; });
+               [&](Macro* macro) { return macro->ReadableName() == name; });
   return result;
 }
 
@@ -375,53 +343,19 @@ bool operator<(const Type& a, const Type& b) {
   return a.MangledName() < b.MangledName();
 }
 
-VisitResult ProjectStructField(const StructType* original_struct,
-                               VisitResult structure,
+VisitResult ProjectStructField(VisitResult structure,
                                const std::string& fieldname) {
+  DCHECK(structure.IsOnStack());
   BottomOffset begin = structure.stack_range().begin();
-
-  // Check constructor this super classes for fields.
   const StructType* type = StructType::cast(structure.type());
-  auto& fields = type->fields();
-  for (auto& field : fields) {
+  for (auto& field : type->fields()) {
     BottomOffset end = begin + LoweredSlotCount(field.name_and_type.type);
     if (field.name_and_type.name == fieldname) {
       return VisitResult(field.name_and_type.type, StackRange{begin, end});
     }
     begin = end;
   }
-
-  if (fields.size() > 0 &&
-      fields[0].name_and_type.name == kConstructorStructSuperFieldName) {
-    structure = ProjectStructField(original_struct, structure,
-                                   kConstructorStructSuperFieldName);
-    return ProjectStructField(original_struct, structure, fieldname);
-  } else {
-    base::Optional<const ClassType*> class_type =
-        original_struct->GetDerivedFrom();
-    if (original_struct == type) {
-      if (class_type) {
-        ReportError("class '", (*class_type)->name(),
-                    "' doesn't contain a field '", fieldname, "'");
-      } else {
-        ReportError("struct '", original_struct->name(),
-                    "' doesn't contain a field '", fieldname, "'");
-      }
-    } else {
-      DCHECK(class_type);
-      ReportError(
-          "class '", (*class_type)->name(),
-          "' or one of its derived-from classes doesn't contain a field '",
-          fieldname, "'");
-    }
-  }
-}
-
-VisitResult ProjectStructField(VisitResult structure,
-                               const std::string& fieldname) {
-  DCHECK(structure.IsOnStack());
-  const StructType* type = StructType::cast(structure.type());
-  return ProjectStructField(type, structure, fieldname);
+  UNREACHABLE();
 }
 
 namespace {

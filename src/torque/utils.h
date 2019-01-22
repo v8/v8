@@ -272,8 +272,6 @@ constexpr int kTaggedSize = sizeof(void*);
 
 static const char* const kConstructMethodName = "constructor";
 static const char* const kSuperMethodName = "super";
-static const char* const kConstructorStructSuperFieldName = "_super";
-static const char* const kClassConstructorThisStructPrefix = "_ThisStruct";
 
 // Erase elements of a container that has a constant-time erase function, like
 // std::set or std::list. Calling this on std::vector would have quadratic

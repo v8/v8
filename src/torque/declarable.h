@@ -326,9 +326,7 @@ class Method : public Macro {
   DECLARE_DECLARABLE_BOILERPLATE(Method, Method);
   bool ShouldBeInlined() const override {
     return Macro::ShouldBeInlined() ||
-           signature()
-               .parameter_types.types[signature().implicit_count]
-               ->IsStructType();
+           signature().parameter_types.types[0]->IsStructType();
   }
   AggregateType* aggregate_type() const { return aggregate_type_; }
 

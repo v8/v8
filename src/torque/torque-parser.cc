@@ -42,10 +42,8 @@ enum class ParseResultHolderBase::TypeId {
   kOptionalLabelBlockPtr,
   kNameAndTypeExpression,
   kClassFieldExpression,
-  kStructFieldExpression,
   kStdVectorOfNameAndTypeExpression,
   kStdVectorOfClassFieldExpression,
-  kStdVectorOfStructFieldExpression,
   kIncrementDecrementOperator,
   kOptionalStdString,
   kStdVectorOfStatementPtr,
@@ -110,20 +108,12 @@ V8_EXPORT_PRIVATE const ParseResultTypeId
         ParseResultTypeId::kClassFieldExpression;
 template <>
 V8_EXPORT_PRIVATE const ParseResultTypeId
-    ParseResultHolder<StructFieldExpression>::id =
-        ParseResultTypeId::kStructFieldExpression;
-template <>
-V8_EXPORT_PRIVATE const ParseResultTypeId
     ParseResultHolder<std::vector<NameAndTypeExpression>>::id =
         ParseResultTypeId::kStdVectorOfNameAndTypeExpression;
 template <>
 V8_EXPORT_PRIVATE const ParseResultTypeId
     ParseResultHolder<std::vector<ClassFieldExpression>>::id =
         ParseResultTypeId::kStdVectorOfClassFieldExpression;
-template <>
-V8_EXPORT_PRIVATE const ParseResultTypeId
-    ParseResultHolder<std::vector<StructFieldExpression>>::id =
-        ParseResultTypeId::kStdVectorOfStructFieldExpression;
 template <>
 V8_EXPORT_PRIVATE const ParseResultTypeId
     ParseResultHolder<IncrementDecrementOperator>::id =
@@ -591,7 +581,7 @@ base::Optional<ParseResult> MakeClassDeclaration(
   if (!IsValidTypeName(name)) {
     NamingConventionError("Type", name, "UpperCamelCase");
   }
-  auto extends = child_results->NextAs<std::string>();
+  auto extends = child_results->NextAs<base::Optional<std::string>>();
   auto generates = child_results->NextAs<base::Optional<std::string>>();
   auto methods = child_results->NextAs<std::vector<Declaration*>>();
   auto fields = child_results->NextAs<std::vector<ClassFieldExpression>>();
@@ -633,7 +623,7 @@ base::Optional<ParseResult> MakeStructDeclaration(
     ParseResultIterator* child_results) {
   auto name = child_results->NextAs<std::string>();
   auto methods = child_results->NextAs<std::vector<Declaration*>>();
-  auto fields = child_results->NextAs<std::vector<StructFieldExpression>>();
+  auto fields = child_results->NextAs<std::vector<NameAndTypeExpression>>();
   Declaration* result = MakeNode<StructDeclaration>(
       std::move(name), std::move(methods), std::move(fields));
   return ParseResult{result};
@@ -1129,13 +1119,6 @@ base::Optional<ParseResult> MakeClassField(ParseResultIterator* child_results) {
   return ParseResult{ClassFieldExpression{{std::move(name), type}, weak}};
 }
 
-base::Optional<ParseResult> MakeStructField(
-    ParseResultIterator* child_results) {
-  auto name = child_results->NextAs<std::string>();
-  auto type = child_results->NextAs<TypeExpression*>();
-  return ParseResult{StructFieldExpression{{std::move(name), type}}};
-}
-
 base::Optional<ParseResult> ExtractAssignmentOperator(
     ParseResultIterator* child_results) {
   auto op = child_results->NextAs<std::string>();
@@ -1325,9 +1308,6 @@ struct TorqueGrammar : Grammar {
   Symbol classField = {
       Rule({CheckIf(Token("weak")), &identifier, Token(":"), &type, Token(";")},
            MakeClassField)};
-
-  Symbol structField = {
-      Rule({&identifier, Token(":"), &type, Token(";")}, MakeStructField)};
 
   // Result: ParameterList
   Symbol parameterListNoVararg = {
@@ -1609,7 +1589,7 @@ struct TorqueGrammar : Grammar {
             &externalString, Token(";")},
            MakeExternConstDeclaration),
       Rule({CheckIf(Token("transient")), Token("class"), &identifier,
-            Sequence({Token("extends"), &identifier}),
+            Optional<std::string>(Sequence({Token("extends"), &identifier})),
             Optional<std::string>(
                 Sequence({Token("generates"), &externalString})),
             Token("{"), List<Declaration*>(&method),
@@ -1617,7 +1597,8 @@ struct TorqueGrammar : Grammar {
            MakeClassDeclaration),
       Rule({Token("struct"), &identifier, Token("{"),
             List<Declaration*>(&method),
-            List<StructFieldExpression>(&structField), Token("}")},
+            List<NameAndTypeExpression>(Sequence({&nameAndType, Token(";")})),
+            Token("}")},
            MakeStructDeclaration),
       Rule({CheckIf(Token("transient")), Token("type"), &identifier,
             Optional<std::string>(Sequence({Token("extends"), &identifier})),

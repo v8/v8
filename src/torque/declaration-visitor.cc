@@ -163,6 +163,13 @@ void DeclarationVisitor::Visit(GenericDeclaration* decl) {
   Declarations::DeclareGeneric(decl->callable->name, decl);
 }
 
+static Statement* WrapBodyWithNoThrow(Statement* body, std::string reason) {
+  return MakeNode<ExpressionStatement>(MakeNode<TryLabelExpression>(
+      true, MakeNode<StatementExpression>(body),
+      MakeNode<LabelBlock>("_catch", ParameterList{},
+                           MakeNode<DebugStatement>(reason, true))));
+}
+
 void DeclarationVisitor::Visit(SpecializationDeclaration* decl) {
   if ((decl->body != nullptr) == decl->external) {
     std::stringstream stream;
@@ -234,27 +241,21 @@ void DeclarationVisitor::DeclareMethods(
   // Declare the class' methods
   IdentifierExpression* constructor_this = MakeNode<IdentifierExpression>(
       std::vector<std::string>{}, kThisParameterName);
-  AggregateType* constructor_this_type =
-      container_type->IsStructType()
-          ? container_type
-          : ClassType::cast(container_type)->struct_type();
   for (auto declaration : methods) {
-    CurrentSourcePosition::Scope pos_scope(declaration->pos);
     StandardDeclaration* standard_declaration =
         StandardDeclaration::DynamicCast(declaration);
     DCHECK(standard_declaration);
     TorqueMacroDeclaration* method =
         TorqueMacroDeclaration::DynamicCast(standard_declaration->callable);
     Signature signature = MakeSignature(method->signature.get());
-    signature.parameter_names.insert(
-        signature.parameter_names.begin() + signature.implicit_count,
-        kThisParameterName);
+    signature.parameter_names.insert(signature.parameter_names.begin(),
+                                     kThisParameterName);
+    signature.parameter_types.types.insert(
+        signature.parameter_types.types.begin(), container_type);
+    signature.implicit_count++;
     Statement* body = *(standard_declaration->body);
     std::string method_name(method->name);
     if (method->name == kConstructMethodName) {
-      signature.parameter_types.types.insert(
-          signature.parameter_types.types.begin() + signature.implicit_count,
-          constructor_this_type);
       // Constructor
       if (!signature.return_type->IsVoid()) {
         ReportError("constructors musn't have a return type");
@@ -263,15 +264,15 @@ void DeclarationVisitor::DeclareMethods(
         ReportError("constructors musn't have labels");
       }
       method_name = kConstructMethodName;
-      Declarations::CreateMethod(constructor_this_type, method_name, signature,
-                                 false, body);
-    } else {
-      signature.parameter_types.types.insert(
-          signature.parameter_types.types.begin() + signature.implicit_count,
-          container_type);
-      Declarations::CreateMethod(container_type, method_name, signature, false,
-                                 body);
+      signature.return_type = container_type;
+      ReturnStatement* return_statement = MakeNode<ReturnStatement>(
+          MakeNode<IdentifierExpression>(kThisParameterName));
+      body = MakeNode<BlockStatement>(
+          false, std::vector<Statement*>{body, return_statement});
+      body = WrapBodyWithNoThrow(body, "exception thrown from constructor");
     }
+    Declarations::CreateMethod(container_type, method_name, signature, false,
+                               body);
   }
 
   if (container_type->Constructors().size() != 0) return;
@@ -279,7 +280,7 @@ void DeclarationVisitor::DeclareMethods(
   // Generate default constructor.
   Signature constructor_signature;
   constructor_signature.parameter_types.var_args = false;
-  constructor_signature.return_type = TypeOracle::GetVoidType();
+  constructor_signature.return_type = container_type;
   std::vector<const AggregateType*> hierarchy = container_type->GetHierarchy();
 
   std::vector<Statement*> statements;
@@ -287,7 +288,8 @@ void DeclarationVisitor::DeclareMethods(
 
   size_t parameter_number = 0;
   constructor_signature.parameter_names.push_back(kThisParameterName);
-  constructor_signature.parameter_types.types.push_back(constructor_this_type);
+  constructor_signature.parameter_types.types.push_back(container_type);
+  constructor_signature.implicit_count = 1;
   std::vector<Expression*> super_arguments;
   for (auto current_type : hierarchy) {
     for (auto& f : current_type->fields()) {
@@ -300,7 +302,13 @@ void DeclarationVisitor::DeclareMethods(
       if (container_type != current_type) {
         super_arguments.push_back(MakeNode<IdentifierExpression>(
             std::vector<std::string>{}, parameter_name));
+      } else if (container_type->IsClassType()) {
+        Statement* statement =
+            MakeNode<ExpressionStatement>(MakeNode<StoreObjectFieldExpression>(
+                constructor_this, f.name_and_type.name, value));
+        initializer_statements.push_back(statement);
       } else {
+        DCHECK(container_type->IsStructType());
         LocationExpression* location = MakeNode<FieldAccessExpression>(
             constructor_this, f.name_and_type.name);
         Statement* statement = MakeNode<ExpressionStatement>(
@@ -313,20 +321,26 @@ void DeclarationVisitor::DeclareMethods(
   if (hierarchy.size() > 1) {
     IdentifierExpression* super_identifier = MakeNode<IdentifierExpression>(
         std::vector<std::string>{}, kSuperMethodName);
-    Statement* statement =
+    Statement* super_call_statement =
         MakeNode<ExpressionStatement>(MakeNode<CallMethodExpression>(
             constructor_this, super_identifier, super_arguments,
             std::vector<std::string>{}));
-    statements.push_back(statement);
+    statements.push_back(super_call_statement);
   }
 
   for (auto s : initializer_statements) {
     statements.push_back(s);
   }
 
+  statements.push_back(MakeNode<ReturnStatement>(MakeNode<IdentifierExpression>(
+      std::vector<std::string>{}, kThisParameterName)));
+
   Statement* constructor_body = MakeNode<BlockStatement>(false, statements);
 
-  Declarations::CreateMethod(constructor_this_type, kConstructMethodName,
+  constructor_body = WrapBodyWithNoThrow(constructor_body,
+                                         "exception thrown from constructor");
+
+  Declarations::CreateMethod(container_type, kConstructMethodName,
                              constructor_signature, false, constructor_body);
 }
 
@@ -334,11 +348,8 @@ void DeclarationVisitor::Visit(StructDeclaration* decl) {
   std::vector<Field> fields;
   size_t offset = 0;
   for (auto& field : decl->fields) {
-    const Type* field_type = Declarations::GetType(field.name_and_type.type);
-    fields.push_back({field.name_and_type.type->pos,
-                      {field.name_and_type.name, field_type},
-                      offset,
-                      false});
+    const Type* field_type = Declarations::GetType(field.type);
+    fields.push_back({{field.name, field_type}, offset, false});
     offset += LoweredSlotCount(field_type);
   }
   StructType* struct_type = Declarations::DeclareStruct(decl->name, fields);
@@ -349,14 +360,17 @@ void DeclarationVisitor::Visit(ClassDeclaration* decl) {
   // Compute the offset of the class' first member. If the class extends
   // another class, it's the size of the extended class, otherwise zero.
   size_t first_field_offset = 0;
-  const Type* super_type = Declarations::LookupType(decl->super);
-  if (super_type != TypeOracle::GetTaggedType()) {
-    const ClassType* super_class = ClassType::DynamicCast(super_type);
-    if (!super_class) {
-      ReportError("class \"", decl->name,
-                  "\" must extend either Tagged or an already declared class");
+  if (decl->extends) {
+    const Type* super_type = Declarations::LookupType(*decl->extends);
+    if (super_type != TypeOracle::GetTaggedType()) {
+      const ClassType* super_class = ClassType::DynamicCast(super_type);
+      if (!super_class) {
+        ReportError(
+            "class \"", decl->name,
+            "\" must extend either Tagged or an already declared class");
+      }
+      first_field_offset = super_class->size();
     }
-    first_field_offset = super_class->size();
   }
 
   // The generates clause must create a TNode<>
@@ -371,7 +385,7 @@ void DeclarationVisitor::Visit(ClassDeclaration* decl) {
   }
 
   std::vector<Field> fields;
-  size_t class_offset = first_field_offset;
+  size_t offset = first_field_offset;
   bool seen_strong = false;
   bool seen_weak = false;
   for (ClassFieldExpression& field : decl->fields) {
@@ -398,15 +412,13 @@ void DeclarationVisitor::Visit(ClassDeclaration* decl) {
           "field \"", field.name_and_type.name, "\" of class \"", decl->name,
           "\" must be a subtype of Tagged (other types not yet supported)");
     }
-    fields.push_back({field.name_and_type.type->pos,
-                      {field.name_and_type.name, field_type},
-                      class_offset,
-                      field.weak});
-    class_offset += kTaggedSize;
+    fields.push_back(
+        {{field.name_and_type.name, field_type}, offset, field.weak});
+    offset += kTaggedSize;
   }
 
   auto new_class = Declarations::DeclareClass(
-      super_type, decl->name, decl->transient, generates, fields, class_offset);
+      decl->extends, decl->name, decl->transient, generates, fields, offset);
   DeclareMethods(new_class, decl->methods);
 
   // For each field, construct AST snippits that implement a CSA accessor

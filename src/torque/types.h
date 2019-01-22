@@ -12,7 +12,6 @@
 #include <vector>
 
 #include "src/base/optional.h"
-#include "src/torque/source-positions.h"
 #include "src/torque/utils.h"
 
 namespace v8 {
@@ -44,7 +43,6 @@ static const char* const CONST_FLOAT64_TYPE_STRING = "constexpr float64";
 class Macro;
 class Method;
 class StructType;
-class ClassType;
 class Value;
 class Namespace;
 
@@ -152,7 +150,6 @@ struct NameAndType {
 std::ostream& operator<<(std::ostream& os, const NameAndType& name_and_type);
 
 struct Field {
-  SourcePosition pos;
   NameAndType name_and_type;
   size_t offset;
   bool is_weak;
@@ -409,7 +406,8 @@ class AggregateType : public Type {
 
  protected:
   AggregateType(Kind kind, const Type* parent, Namespace* nspace,
-                const std::string& name, const std::vector<Field>& fields);
+                const std::string& name, const std::vector<Field>& fields)
+      : Type(kind, parent), namespace_(nspace), name_(name), fields_(fields) {}
 
  private:
   Namespace* namespace_;
@@ -424,13 +422,6 @@ class StructType final : public AggregateType {
   std::string ToExplicitString() const override;
   std::string GetGeneratedTypeName() const override;
 
-  void SetDerivedFrom(const ClassType* derived_from) {
-    derived_from_ = derived_from;
-  }
-  base::Optional<const ClassType*> GetDerivedFrom() const {
-    return derived_from_;
-  }
-
  private:
   friend class TypeOracle;
   StructType(Namespace* nspace, const std::string& name,
@@ -438,8 +429,6 @@ class StructType final : public AggregateType {
       : AggregateType(Kind::kStructType, nullptr, nspace, name, fields) {}
 
   const std::string& GetStructName() const { return name(); }
-
-  base::Optional<const ClassType*> derived_from_;
 };
 
 class ClassType final : public AggregateType {
@@ -452,9 +441,7 @@ class ClassType final : public AggregateType {
   std::string GetGeneratedTNodeTypeName() const override;
   bool IsTransient() const override { return transient_; }
   size_t size() const { return size_; }
-  StructType* struct_type() const { return this_struct_; }
   const ClassType* GetSuperClass() const {
-    if (parent() == nullptr) return nullptr;
     return parent()->IsClassType() ? ClassType::DynamicCast(parent()) : nullptr;
   }
 
@@ -462,15 +449,12 @@ class ClassType final : public AggregateType {
   friend class TypeOracle;
   ClassType(const Type* parent, Namespace* nspace, const std::string& name,
             bool transient, const std::string& generates,
-            const std::vector<Field>& fields, StructType* this_struct,
-            size_t size)
+            const std::vector<Field>& fields, size_t size)
       : AggregateType(Kind::kClassType, parent, nspace, name, fields),
-        this_struct_(this_struct),
         transient_(transient),
         size_(size),
         generates_(generates) {}
 
-  StructType* this_struct_;
   bool transient_;
   size_t size_;
   const std::string generates_;

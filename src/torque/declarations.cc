@@ -174,43 +174,16 @@ StructType* Declarations::DeclareStruct(const std::string& name,
   return new_type;
 }
 
-ClassType* Declarations::DeclareClass(const Type* super_class,
+ClassType* Declarations::DeclareClass(base::Optional<std::string> parent,
                                       const std::string& name, bool transient,
                                       const std::string& generates,
                                       std::vector<Field> fields, size_t size) {
-  std::vector<Field> this_struct_fields;
-  size_t struct_offset = 0;
-  const StructType* super_struct_type = nullptr;
-  // In order to ensure "atomicity" of object allocation, a class'
-  // constructors operate on a per-class internal struct rather than the class
-  // directly until the constructor has successfully completed and all class
-  // members are available. Create the appropriate struct type for use in the
-  // class' constructors, including a '_super' field in the struct that
-  // contains the values constructed by calls to super constructors.
-  if (super_class->IsClassType()) {
-    super_struct_type = ClassType::cast(super_class)->struct_type();
-    this_struct_fields.push_back(
-        {CurrentSourcePosition::Get(),
-         {kConstructorStructSuperFieldName, super_struct_type},
-         struct_offset,
-         false});
-    struct_offset += LoweredSlotCount(super_struct_type);
+  const Type* parent_type = nullptr;
+  if (parent) {
+    parent_type = LookupType(QualifiedName{*parent});
   }
-  for (auto& field : fields) {
-    const Type* field_type = field.name_and_type.type;
-    this_struct_fields.push_back({field.pos,
-                                  {field.name_and_type.name, field_type},
-                                  struct_offset,
-                                  false});
-    struct_offset += LoweredSlotCount(field_type);
-  }
-  StructType* this_struct_type = DeclareStruct(
-      kClassConstructorThisStructPrefix + name, this_struct_fields);
-
-  ClassType* new_type =
-      TypeOracle::GetClassType(super_class, name, transient, generates,
-                               std::move(fields), this_struct_type, size);
-  this_struct_type->SetDerivedFrom(new_type);
+  ClassType* new_type = TypeOracle::GetClassType(
+      parent_type, name, transient, generates, std::move(fields), size);
   DeclareType(name, new_type, false);
   return new_type;
 }
