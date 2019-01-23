@@ -1902,7 +1902,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         }
         case kExprRefNull: {
           CHECK_PROTOTYPE_OPCODE(anyref);
-          auto* value = Push(kWasmAnyRef);
+          auto* value = Push(kWasmNullRef);
           CALL_INTERFACE_IF_REACHABLE(RefNull, value);
           len = 1;
           break;
@@ -2563,9 +2563,16 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     return stack_.data() + old_size;
   }
 
+  V8_INLINE bool IsSubType(ValueType expected, ValueType actual) {
+    return (expected == actual) ||
+           (expected == kWasmAnyRef && actual == kWasmNullRef) ||
+           (expected == kWasmAnyRef && actual == kWasmAnyFunc) ||
+           (expected == kWasmAnyFunc && actual == kWasmNullRef);
+  }
+
   V8_INLINE Value Pop(int index, ValueType expected) {
     auto val = Pop();
-    if (!VALIDATE(val.type == expected || val.type == kWasmVar ||
+    if (!VALIDATE(IsSubType(expected, val.type) || val.type == kWasmVar ||
                   expected == kWasmVar)) {
       this->errorf(val.pc, "%s[%d] expected type %s, found %s of type %s",
                    SafeOpcodeNameAt(this->pc_), index,
@@ -2612,7 +2619,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     for (uint32_t i = 0; i < merge->arity; ++i) {
       Value& val = stack_values[i];
       Value& old = (*merge)[i];
-      if (val.type == old.type) continue;
+      if (IsSubType(old.type, val.type)) continue;
       // If {val.type} is polymorphic, which results from unreachable, make
       // it more specific by using the merge value's expected type.
       // If it is not polymorphic, this is a type error.
@@ -2683,7 +2690,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     for (uint32_t i = 0; i < num_returns; ++i) {
       auto& val = stack_values[i];
       ValueType expected_type = this->sig_->GetReturn(i);
-      if (val.type == expected_type) continue;
+      if (IsSubType(expected_type, val.type)) continue;
       // If {val.type} is polymorphic, which results from unreachable,
       // make it more specific by using the return's expected type.
       // If it is not polymorphic, this is a type error.

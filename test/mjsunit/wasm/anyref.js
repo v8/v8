@@ -181,3 +181,27 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
   assertEquals(null, instance.exports.main());
 })();
+
+(function testImplicitReturnNullRefAsAnyRef() {
+  print(arguments.callee.name);
+  const builder = new WasmModuleBuilder();
+  const sig_index = builder.addType(kSig_r_v);
+  builder.addFunction('main', sig_index)
+      .addBody([kExprRefNull])
+      .exportFunc();
+
+  const main = builder.instantiate().exports.main;
+  assertEquals(null, main());
+})();
+
+(function testExplicitReturnNullRefAsAnyRef() {
+  print(arguments.callee.name);
+  const builder = new WasmModuleBuilder();
+  const sig_index = builder.addType(kSig_r_v);
+  builder.addFunction('main', sig_index)
+      .addBody([kExprRefNull, kExprReturn])
+      .exportFunc();
+
+  const main = builder.instantiate().exports.main;
+  assertEquals(null, main());
+})();

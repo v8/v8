@@ -136,3 +136,65 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   const main = builder.instantiate().exports.main;
   assertEquals(null, main());
 })();
+
+(function testAssignNullRefToAnyFuncLocal() {
+  print(arguments.callee.name);
+  const builder = new WasmModuleBuilder();
+  const sig_index = builder.addType(kSig_a_a);
+  builder.addFunction('main', sig_index)
+      .addBody([kExprRefNull, kExprSetLocal, 0, kExprGetLocal, 0])
+      .exportFunc();
+
+  const main = builder.instantiate().exports.main;
+  assertEquals(null, main(main));
+})();
+
+(function testImplicitReturnNullRefAsAnyFunc() {
+  print(arguments.callee.name);
+  const builder = new WasmModuleBuilder();
+  const sig_index = builder.addType(kSig_a_v);
+  builder.addFunction('main', sig_index)
+      .addBody([kExprRefNull])
+      .exportFunc();
+
+  const main = builder.instantiate().exports.main;
+  assertEquals(null, main());
+})();
+
+(function testExplicitReturnNullRefAsAnyFunc() {
+  print(arguments.callee.name);
+  const builder = new WasmModuleBuilder();
+  const sig_index = builder.addType(kSig_a_v);
+  builder.addFunction('main', sig_index)
+      .addBody([kExprRefNull, kExprReturn])
+      .exportFunc();
+
+  const main = builder.instantiate().exports.main;
+  assertEquals(null, main());
+})();
+
+(function testImplicitReturnAnyFuncAsAnyRef() {
+  print(arguments.callee.name);
+  const builder = new WasmModuleBuilder();
+  const sig_index = builder.addType(kSig_r_v);
+  builder.addFunction('main', sig_index)
+      .addLocals({anyfunc_count: 1})
+      .addBody([kExprGetLocal, 0])
+      .exportFunc();
+
+  const main = builder.instantiate().exports.main;
+  assertEquals(null, main());
+})();
+
+(function testExplicitReturnAnyFuncAsAnyRef() {
+  print(arguments.callee.name);
+  const builder = new WasmModuleBuilder();
+  const sig_index = builder.addType(kSig_r_v);
+  builder.addFunction('main', sig_index)
+      .addLocals({anyfunc_count: 1})
+      .addBody([kExprGetLocal, 0, kExprReturn])
+      .exportFunc();
+
+  const main = builder.instantiate().exports.main;
+  assertEquals(null, main());
+})();
