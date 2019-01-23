@@ -545,7 +545,6 @@ TF_BUILTIN(ProxySetProperty, ProxiesCodeStubAssembler) {
   Node* name = Parameter(Descriptor::kName);
   Node* value = Parameter(Descriptor::kValue);
   Node* receiver = Parameter(Descriptor::kReceiverValue);
-  TNode<Smi> language_mode = CAST(Parameter(Descriptor::kLanguageMode));
 
   CSA_ASSERT(this, IsJSProxy(proxy));
 
@@ -597,8 +596,8 @@ TF_BUILTIN(ProxySetProperty, ProxiesCodeStubAssembler) {
   BIND(&failure);
   {
     Label if_throw(this, Label::kDeferred);
-    Branch(SmiEqual(language_mode, SmiConstant(LanguageMode::kStrict)),
-           &if_throw, &success);
+    BranchIfStrictMode(context, &if_throw);
+    Goto(&success);
 
     BIND(&if_throw);
     ThrowTypeError(context, MessageTemplate::kProxyTrapReturnedFalsishFor,
@@ -613,10 +612,7 @@ TF_BUILTIN(ProxySetProperty, ProxiesCodeStubAssembler) {
   {
     Label failure(this), throw_error(this, Label::kDeferred);
 
-    Branch(SmiEqual(language_mode, SmiConstant(LanguageMode::kStrict)),
-           &throw_error, &failure);
-
-    BIND(&failure);
+    BranchIfStrictMode(context, &throw_error);
     Return(UndefinedConstant());
 
     BIND(&throw_error);

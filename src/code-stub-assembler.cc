@@ -9965,19 +9965,50 @@ void CodeStubAssembler::UpdateFeedback(Node* feedback, Node* maybe_vector,
   BIND(&end);
 }
 
-Node* CodeStubAssembler::GetLanguageMode(
-    TNode<SharedFunctionInfo> shared_function_info, Node* context) {
-  VARIABLE(var_language_mode, MachineRepresentation::kTaggedSigned,
-           SmiConstant(LanguageMode::kStrict));
-  Label language_mode_determined(this), language_mode_sloppy(this);
+void CodeStubAssembler::BranchIfStrictMode(Node* context, Label* is_strict) {
+  // Load the closure from the stack. This function can be called from builtins
+  // that are called from bytecode handlers / TurboFan. So essentially we can
+  // have
+  // IET -> BytecodeHandler -> Builtins* or TF -> Builtins*. So, Iterate over
+  // frames as long as CommonFrameConstants::kContextOrFrameTypeOffset is
+  // FrameType. If it is context, that means we are either in optimized /
+  // interpreted frame and safe to load the closure from
+  // JavaScriptFrameConstants::kFunctionOffset. In the current code we only have
+  // a one or two builtin frames on the top of BytecodeHandler/TF frame. So this
+  // could be optimizied further if needed. It is only used when throwing
+  // an exception so not on the critical path.
 
+  // The current frame is always a builtin frame, so safe to start from here.
+  VARIABLE(current_frame_pointer, MachineType::PointerRepresentation(),
+           LoadFramePointer());
+  Label loop(this, &current_frame_pointer), js_frame(this);
+  Goto(&loop);
+
+  BIND(&loop);
+  Node* frame_pointer =
+      Load(MachineType::Pointer(), current_frame_pointer.value());
+  Node* marker_or_context =
+      Load(MachineType::AnyTagged(), frame_pointer,
+           IntPtrConstant(CommonFrameConstants::kContextOrFrameTypeOffset));
+  current_frame_pointer.Bind(frame_pointer);
+  // Smi means it is a marker.
+  Branch(TaggedIsSmi(marker_or_context), &loop, &js_frame);
+
+  BIND(&js_frame);
+  // If it isn't an SMI then it should be an Interpreter or optimized frame.
+  TNode<JSFunction> closure =
+      CAST(Load(MachineType::AnyTagged(), current_frame_pointer.value(),
+                IntPtrConstant(JavaScriptFrameConstants::kFunctionOffset)));
+  TNode<SharedFunctionInfo> sfi =
+      CAST(LoadObjectField(closure, JSFunction::kSharedFunctionInfoOffset));
+
+  Label not_strict(this);
   // Get the language mode from SFI
   TNode<Uint32T> closure_is_strict =
       DecodeWord32<SharedFunctionInfo::IsStrictBit>(LoadObjectField(
-          shared_function_info, SharedFunctionInfo::kFlagsOffset,
-          MachineType::Uint32()));
+          sfi, SharedFunctionInfo::kFlagsOffset, MachineType::Uint32()));
   // It is already strict, we need not check context's language mode.
-  GotoIf(closure_is_strict, &language_mode_determined);
+  GotoIf(closure_is_strict, is_strict);
 
   // SFI::LanguageMode is sloppy, check if context has a stricter mode.
   TNode<ScopeInfo> scope_info =
@@ -9985,35 +10016,15 @@ Node* CodeStubAssembler::GetLanguageMode(
   // If no flags field assume sloppy
   GotoIf(SmiLessThanOrEqual(LoadFixedArrayBaseLength(scope_info),
                             SmiConstant(ScopeInfo::Fields::kFlags)),
-         &language_mode_sloppy);
+         &not_strict);
   TNode<Smi> flags = CAST(LoadFixedArrayElement(
       scope_info, SmiConstant(ScopeInfo::Fields::kFlags)));
   TNode<Uint32T> context_is_strict =
       DecodeWord32<ScopeInfo::LanguageModeField>(SmiToInt32(flags));
-  GotoIf(context_is_strict, &language_mode_determined);
-  Goto(&language_mode_sloppy);
+  GotoIf(context_is_strict, is_strict);
+  Goto(&not_strict);
 
-  // Both Context::ScopeInfo::LanguageMode and SFI::LanguageMode are sloppy.
-  BIND(&language_mode_sloppy);
-  var_language_mode.Bind(SmiConstant(LanguageMode::kSloppy));
-  Goto(&language_mode_determined);
-
-  BIND(&language_mode_determined);
-  return var_language_mode.value();
-}
-
-Node* CodeStubAssembler::GetLanguageMode(TNode<JSFunction> closure,
-                                         Node* context) {
-  TNode<SharedFunctionInfo> sfi =
-      CAST(LoadObjectField(closure, JSFunction::kSharedFunctionInfoOffset));
-  return GetLanguageMode(sfi, context);
-}
-
-Node* CodeStubAssembler::GetLanguageMode(TNode<FeedbackVector> vector,
-                                         Node* context) {
-  TNode<SharedFunctionInfo> sfi =
-      CAST(LoadObjectField(vector, FeedbackVector::kSharedFunctionInfoOffset));
-  return GetLanguageMode(sfi, context);
+  BIND(&not_strict);
 }
 
 void CodeStubAssembler::ReportFeedbackUpdate(

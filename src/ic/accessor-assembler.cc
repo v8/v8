@@ -1429,17 +1429,6 @@ void AccessorAssembler::HandleStoreICProtoHandler(
   }
 }
 
-Node* AccessorAssembler::GetLanguageMode(Node* vector, Node* slot) {
-  VARIABLE(var_language_mode, MachineRepresentation::kTaggedSigned,
-           SmiConstant(LanguageMode::kStrict));
-  Label language_mode_determined(this);
-  BranchIfStrictMode(vector, slot, &language_mode_determined);
-  var_language_mode.Bind(SmiConstant(LanguageMode::kSloppy));
-  Goto(&language_mode_determined);
-  BIND(&language_mode_determined);
-  return var_language_mode.value();
-}
-
 void AccessorAssembler::HandleStoreToProxy(const StoreICParameters* p,
                                            Node* proxy, Label* miss,
                                            ElementSupport support_elements) {
@@ -1449,18 +1438,13 @@ void AccessorAssembler::HandleStoreToProxy(const StoreICParameters* p,
   Label if_index(this), if_unique_name(this),
       to_name_failed(this, Label::kDeferred);
 
-  // TODO(8580): Get the language mode lazily when required to avoid the
-  // computation of GetLanguageMode here. Also make the computation of
-  // language mode not dependent on vector.
-  Node* language_mode = GetLanguageMode(p->vector, p->slot);
-
   if (support_elements == kSupportElements) {
     TryToName(p->name, &if_index, &var_index, &if_unique_name, &var_unique,
               &to_name_failed);
 
     BIND(&if_unique_name);
     CallBuiltin(Builtins::kProxySetProperty, p->context, proxy,
-                var_unique.value(), p->value, p->receiver, language_mode);
+                var_unique.value(), p->value, p->receiver);
     Return(p->value);
 
     // The index case is handled earlier by the runtime.
@@ -1475,7 +1459,7 @@ void AccessorAssembler::HandleStoreToProxy(const StoreICParameters* p,
   } else {
     Node* name = CallBuiltin(Builtins::kToName, p->context, p->name);
     TailCallBuiltin(Builtins::kProxySetProperty, p->context, proxy, name,
-                    p->value, p->receiver, language_mode);
+                    p->value, p->receiver);
   }
 }
 
@@ -1983,43 +1967,6 @@ void AccessorAssembler::NameDictionaryNegativeLookup(Node* object,
   NameDictionaryLookup<NameDictionary>(properties, name, miss, &var_name_index,
                                        &done);
   BIND(&done);
-}
-
-void AccessorAssembler::BranchIfStrictMode(Node* vector, Node* slot,
-                                           Label* if_strict) {
-  Node* sfi =
-      LoadObjectField(vector, FeedbackVector::kSharedFunctionInfoOffset);
-  TNode<FeedbackMetadata> metadata = CAST(LoadObjectField(
-      sfi, SharedFunctionInfo::kOuterScopeInfoOrFeedbackMetadataOffset));
-  Node* slot_int = SmiToInt32(slot);
-
-  // See VectorICComputer::index().
-  const int kItemsPerWord = FeedbackMetadata::VectorICComputer::kItemsPerWord;
-  Node* word_index = Int32Div(slot_int, Int32Constant(kItemsPerWord));
-  Node* word_offset = Int32Mod(slot_int, Int32Constant(kItemsPerWord));
-
-  int32_t first_item = FeedbackMetadata::kHeaderSize - kHeapObjectTag;
-  Node* offset =
-      ElementOffsetFromIndex(ChangeInt32ToIntPtr(word_index), UINT32_ELEMENTS,
-                             INTPTR_PARAMETERS, first_item);
-
-  Node* data = Load(MachineType::Int32(), metadata, offset);
-
-  // See VectorICComputer::decode().
-  const int kBitsPerItem = FeedbackMetadata::kFeedbackSlotKindBits;
-  Node* shift = Int32Mul(word_offset, Int32Constant(kBitsPerItem));
-  const int kMask = FeedbackMetadata::VectorICComputer::kMask;
-  Node* kind = Word32And(Word32Shr(data, shift), Int32Constant(kMask));
-
-  STATIC_ASSERT(FeedbackSlotKind::kStoreGlobalSloppy <=
-                FeedbackSlotKind::kLastSloppyKind);
-  STATIC_ASSERT(FeedbackSlotKind::kStoreKeyedSloppy <=
-                FeedbackSlotKind::kLastSloppyKind);
-  STATIC_ASSERT(FeedbackSlotKind::kStoreNamedSloppy <=
-                FeedbackSlotKind::kLastSloppyKind);
-  GotoIfNot(Int32LessThanOrEqual(kind, Int32Constant(static_cast<int>(
-                                           FeedbackSlotKind::kLastSloppyKind))),
-            if_strict);
 }
 
 void AccessorAssembler::InvalidateValidityCellIfPrototype(Node* map,

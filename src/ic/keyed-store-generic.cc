@@ -923,7 +923,7 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
             exit_point->Return(p->value);
           }
         } else {
-          BranchIfStrictMode(p->vector, p->slot, &strict);
+          BranchIfStrictMode(p->context, &strict);
           exit_point->Return(p->value);
         }
 
@@ -954,7 +954,7 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
           exit_point->Return(p->value);
         }
       } else {
-        BranchIfStrictMode(p->vector, p->slot, &strict);
+        BranchIfStrictMode(p->context, &strict);
         exit_point->Return(p->value);
       }
       if (handle_strict) {
