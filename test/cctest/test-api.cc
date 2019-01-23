@@ -15690,9 +15690,6 @@ TEST(CompileExternalTwoByteSource) {
   }
 }
 
-
-#ifndef V8_INTERPRETED_REGEXP
-
 struct RegExpInterruptionData {
   v8::base::Atomic32 loop_count;
   UC16VectorResource* string_resource;
@@ -15767,9 +15764,6 @@ TEST(RegExpInterruption) {
   regexp_interruption_data.string.Reset();
   i::DeleteArray(uc16_content);
 }
-
-#endif  // V8_INTERPRETED_REGEXP
-
 
 // Test that we cannot set a property on the global object if there
 // is a read-only property in the prototype chain.

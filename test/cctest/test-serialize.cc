@@ -860,7 +860,6 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobStringNotInternalized) {
   FreeCurrentEmbeddedBlob();
 }
 
-#ifndef V8_INTERPRETED_REGEXP
 namespace {
 
 void TestCustomSnapshotDataBlobWithIrregexpCode(
@@ -937,7 +936,6 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobWithIrregexpCodeClearCode) {
   TestCustomSnapshotDataBlobWithIrregexpCode(
       v8::SnapshotCreator::FunctionCodeHandling::kClear);
 }
-#endif  // V8_INTERPRETED_REGEXP
 
 UNINITIALIZED_TEST(SnapshotChecksum) {
   DisableAlwaysOpt();

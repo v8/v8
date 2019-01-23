@@ -1093,6 +1093,15 @@ DEFINE_UINT(serialization_chunk_size, 4096,
 DEFINE_BOOL(regexp_optimization, true, "generate optimized regexp code")
 DEFINE_BOOL(regexp_mode_modifiers, false, "enable inline flags in regexp.")
 
+#ifdef V8_INTERPRETED_REGEXP
+#define V8_INTERPRETED_REGEXP_BOOL true
+#else
+#define V8_INTERPRETED_REGEXP_BOOL false
+#endif
+DEFINE_BOOL(regexp_interpret_all, V8_INTERPRETED_REGEXP_BOOL,
+            "interpret all regexp code")
+#undef V8_INTERPRETED_REGEXP_BOOL
+
 // Testing flags test/cctest/test-{flags,api,serialization}.cc
 DEFINE_BOOL(testing_bool_flag, true, "testing_bool_flag")
 DEFINE_MAYBE_BOOL(testing_maybe_bool_flag, "testing_maybe_bool_flag")
@@ -1158,6 +1167,8 @@ DEFINE_BOOL(jitless, V8_LITE_BOOL,
 // Optimizations (i.e. jitting) are disabled.
 DEFINE_NEG_IMPLICATION(jitless, opt)
 #endif
+// Regexps are interpreted.
+DEFINE_IMPLICATION(jitless, regexp_interpret_all)
 // asm.js validation is disabled since it triggers wasm code generation.
 DEFINE_NEG_IMPLICATION(jitless, validate_asm)
 // Wasm is put into interpreter-only mode. We repeat flag implications down

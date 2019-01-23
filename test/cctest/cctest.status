@@ -537,10 +537,22 @@
 
   # Tests that generate code at runtime.
   'codegen-tester/*': [SKIP],
+  'test-api/RegExpInterruption': [SKIP],
   'test-assembler-*': [SKIP],
   'test-basic-block-profiler/*': [SKIP],
   'test-branch-combine/*': [SKIP],
   'test-multiple-return/*': [SKIP],
+  'test-regexp/MacroAssemblernativeAtStart': [SKIP],
+  'test-regexp/MacroAssemblerNativeBackReferenceLATIN1': [SKIP],
+  'test-regexp/MacroAssemblerNativeBackReferenceUC16': [SKIP],
+  'test-regexp/MacroAssemblerNativeBackRefNoCase': [SKIP],
+  'test-regexp/MacroAssemblerNativeBacktrack': [SKIP],
+  'test-regexp/MacroAssemblerNativeLotsOfRegisters': [SKIP],
+  'test-regexp/MacroAssemblerNativeRegisters': [SKIP],
+  'test-regexp/MacroAssemblerNativeSimple': [SKIP],
+  'test-regexp/MacroAssemblerNativeSimpleUC16': [SKIP],
+  'test-regexp/MacroAssemblerNativeSuccess': [SKIP],
+  'test-regexp/MacroAssemblerStackOverflow': [SKIP],
   'test-run-calls-to-external-references/*': [SKIP],
 }], # lite_mode
 

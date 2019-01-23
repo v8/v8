@@ -192,9 +192,6 @@ class RegExpMacroAssembler {
   Zone* zone_;
 };
 
-
-#ifndef V8_INTERPRETED_REGEXP  // Avoid compiling unused code.
-
 class NativeRegExpMacroAssembler: public RegExpMacroAssembler {
  public:
   // Type of input string to generate code for.
@@ -252,8 +249,6 @@ class NativeRegExpMacroAssembler: public RegExpMacroAssembler {
                         const byte* input_start, const byte* input_end,
                         int* output, int output_size, Isolate* isolate);
 };
-
-#endif  // V8_INTERPRETED_REGEXP
 
 }  // namespace internal
 }  // namespace v8

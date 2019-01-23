@@ -72,7 +72,16 @@ class StatsCounter;
     "IsolateData::fast_c_call_caller_fp_address")                              \
   V(fast_c_call_caller_pc_address,                                             \
     "IsolateData::fast_c_call_caller_pc_address")                              \
-  EXTERNAL_REFERENCE_LIST_NON_INTERPRETED_REGEXP(V)
+  V(address_of_regexp_stack_limit, "RegExpStack::limit_address()")             \
+  V(address_of_regexp_stack_memory_address, "RegExpStack::memory_address()")   \
+  V(address_of_regexp_stack_memory_size, "RegExpStack::memory_size()")         \
+  V(address_of_static_offsets_vector, "OffsetsVector::static_offsets_vector")  \
+  V(re_case_insensitive_compare_uc16,                                          \
+    "NativeRegExpMacroAssembler::CaseInsensitiveCompareUC16()")                \
+  V(re_check_stack_guard_state,                                                \
+    "RegExpMacroAssembler*::CheckStackGuardState()")                           \
+  V(re_grow_stack, "NativeRegExpMacroAssembler::GrowStack()")                  \
+  V(re_word_character_map, "NativeRegExpMacroAssembler::word_character_map")
 
 #define EXTERNAL_REFERENCE_LIST(V)                                            \
   V(abort_with_reason, "abort_with_reason")                                   \
@@ -196,22 +205,6 @@ class StatsCounter;
   V(atomic_pair_compare_exchange_function,                                    \
     "atomic_pair_compare_exchange_function")                                  \
   EXTERNAL_REFERENCE_LIST_INTL(V)
-
-#ifndef V8_INTERPRETED_REGEXP
-#define EXTERNAL_REFERENCE_LIST_NON_INTERPRETED_REGEXP(V)                     \
-  V(address_of_regexp_stack_limit, "RegExpStack::limit_address()")            \
-  V(address_of_regexp_stack_memory_address, "RegExpStack::memory_address()")  \
-  V(address_of_regexp_stack_memory_size, "RegExpStack::memory_size()")        \
-  V(address_of_static_offsets_vector, "OffsetsVector::static_offsets_vector") \
-  V(re_case_insensitive_compare_uc16,                                         \
-    "NativeRegExpMacroAssembler::CaseInsensitiveCompareUC16()")               \
-  V(re_check_stack_guard_state,                                               \
-    "RegExpMacroAssembler*::CheckStackGuardState()")                          \
-  V(re_grow_stack, "NativeRegExpMacroAssembler::GrowStack()")                 \
-  V(re_word_character_map, "NativeRegExpMacroAssembler::word_character_map")
-#else
-#define EXTERNAL_REFERENCE_LIST_NON_INTERPRETED_REGEXP(V)
-#endif  // V8_INTERPRETED_REGEXP
 
 #ifdef V8_INTL_SUPPORT
 #define EXTERNAL_REFERENCE_LIST_INTL(V)                               \

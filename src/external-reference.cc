@@ -27,7 +27,6 @@
 #include "src/wasm/wasm-external-refs.h"
 
 // Include native regexp-macro-assembler.
-#ifndef V8_INTERPRETED_REGEXP
 #if V8_TARGET_ARCH_IA32
 #include "src/regexp/ia32/regexp-macro-assembler-ia32.h"  // NOLINT
 #elif V8_TARGET_ARCH_X64
@@ -47,7 +46,6 @@
 #else  // Unknown architecture.
 #error "Unknown architecture."
 #endif  // Target architecture.
-#endif  // V8_INTERPRETED_REGEXP
 
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/intl-objects.h"
@@ -473,8 +471,6 @@ ExternalReference ExternalReference::invoke_accessor_getter_callback() {
   return ExternalReference::Create(&thunk_fun, thunk_type);
 }
 
-#ifndef V8_INTERPRETED_REGEXP
-
 #if V8_TARGET_ARCH_X64
 #define re_stack_check_func RegExpMacroAssemblerX64::CheckStackGuardState
 #elif V8_TARGET_ARCH_IA32
@@ -530,8 +526,6 @@ ExternalReference ExternalReference::address_of_regexp_stack_memory_size(
     Isolate* isolate) {
   return ExternalReference(isolate->regexp_stack()->memory_size_address());
 }
-
-#endif  // V8_INTERPRETED_REGEXP
 
 FUNCTION_REFERENCE_WITH_TYPE(ieee754_acos_function, base::ieee754::acos,
                              BUILTIN_FP_CALL)

@@ -108,8 +108,6 @@ bool RegExpMacroAssembler::CheckSpecialCharacterClass(uc16 type,
   return false;
 }
 
-#ifndef V8_INTERPRETED_REGEXP  // Avoid unused code, e.g., on ARM.
-
 NativeRegExpMacroAssembler::NativeRegExpMacroAssembler(Isolate* isolate,
                                                        Zone* zone)
     : RegExpMacroAssembler(isolate, zone) {}
@@ -359,8 +357,6 @@ Address NativeRegExpMacroAssembler::GrowStack(Address stack_pointer,
   intptr_t stack_content_size = old_stack_base - stack_pointer;
   return new_stack_base - stack_content_size;
 }
-
-#endif  // V8_INTERPRETED_REGEXP
 
 }  // namespace internal
 }  // namespace v8
