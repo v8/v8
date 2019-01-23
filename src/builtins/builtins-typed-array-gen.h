@@ -35,13 +35,6 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
                               TNode<JSArrayBuffer> buffer,
                               TNode<Object> byte_offset, TNode<Object> length,
                               TNode<Smi> element_size);
-  void ConstructByTypedArray(TNode<Context> context, TNode<JSTypedArray> holder,
-                             TNode<JSTypedArray> typed_array,
-                             TNode<Smi> element_size);
-  void ConstructByIterable(TNode<Context> context, TNode<JSTypedArray> holder,
-                           TNode<JSReceiver> iterable,
-                           TNode<JSReceiver> iterator_fn,
-                           TNode<Smi> element_size);
 
   void SetupTypedArray(TNode<JSTypedArray> holder, TNode<Smi> length,
                        TNode<UintPtrT> byte_offset,
@@ -123,6 +116,8 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
 
   void DispatchTypedArrayByElementsKind(
       TNode<Word32T> elements_kind, const TypedArraySwitchCase& case_function);
+
+  TNode<BoolT> IsSharedArrayBuffer(TNode<JSArrayBuffer> buffer);
 };
 
 }  // namespace internal

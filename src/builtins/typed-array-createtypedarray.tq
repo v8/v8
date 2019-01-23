@@ -3,12 +3,16 @@
 // found in the LICENSE file.
 
 namespace typed_array {
+  extern builtin IterableToListMayPreserveHoles(Context, Object, Callable):
+      JSArray;
   extern builtin TypedArrayInitialize(implicit context: Context)(
       JSTypedArray, PositiveSmi, PositiveSmi, Boolean, JSReceiver): void;
 
   extern macro TypedArrayBuiltinsAssembler::ByteLengthIsValid(Number): bool;
   extern macro TypedArrayBuiltinsAssembler::CallCMemcpy(
       RawPtr, RawPtr, uintptr): void;
+  extern macro TypedArrayBuiltinsAssembler::IsSharedArrayBuffer(JSArrayBuffer):
+      bool;
 
   extern runtime TypedArrayCopyElements(Context, JSTypedArray, Object, Number):
       void;
@@ -69,5 +73,38 @@ namespace typed_array {
         TypedArrayCopyElements(context, typedArray, arrayLike, length);
       }
     }
+  }
+
+  // 22.2.4.4 TypedArray ( object )
+  // ES #sec-typedarray-object
+  macro ConstructByIterable(implicit context: Context)(
+      typedArray: JSTypedArray, iterable: JSReceiver, iteratorFn: Callable,
+      elementSize: Smi): void {
+    const array: JSArray =
+        IterableToListMayPreserveHoles(context, iterable, iteratorFn);
+    ConstructByArrayLike(
+        typedArray, array, array.length, elementSize, GetArrayBufferFunction());
+  }
+
+  // 22.2.4.3 TypedArray ( typedArray )
+  // ES #sec-typedarray-typedarray
+  macro ConstructByTypedArray(implicit context: Context)(
+      typedArray: JSTypedArray, srcTypedArray: JSTypedArray,
+      elementSize: Smi): void {
+    let bufferConstructor: JSReceiver = GetArrayBufferFunction();
+    const srcBuffer: JSArrayBuffer = srcTypedArray.buffer;
+    // TODO(petermarshall): Throw on detached typedArray.
+    let length: Smi = IsDetachedBuffer(srcBuffer) ? 0 : srcTypedArray.length;
+
+    // The spec requires that constructing a typed array using a SAB-backed
+    // typed array use the ArrayBuffer constructor, not the species constructor.
+    // See https://tc39.github.io/ecma262/#sec-typedarray-typedarray.
+    if (!IsSharedArrayBuffer(srcBuffer)) {
+      bufferConstructor = SpeciesConstructor(srcBuffer, bufferConstructor);
+      // TODO(petermarshall): Throw on detached typedArray.
+      if (IsDetachedBuffer(srcBuffer)) length = 0;
+    }
+    ConstructByArrayLike(
+        typedArray, srcTypedArray, length, elementSize, bufferConstructor);
   }
 }

@@ -450,64 +450,6 @@ void TypedArrayBuiltinsAssembler::ConstructByArrayBuffer(
   BIND(&done);
 }
 
-void TypedArrayBuiltinsAssembler::ConstructByTypedArray(
-    TNode<Context> context, TNode<JSTypedArray> holder,
-    TNode<JSTypedArray> typed_array, TNode<Smi> element_size) {
-  CSA_ASSERT(this, TaggedIsPositiveSmi(element_size));
-
-  TNode<JSFunction> const default_constructor = CAST(LoadContextElement(
-      LoadNativeContext(context), Context::ARRAY_BUFFER_FUN_INDEX));
-
-  Label construct(this), if_detached(this), if_notdetached(this),
-      check_for_sab(this), if_buffernotshared(this), check_prototype(this),
-      done(this);
-  TVARIABLE(JSReceiver, buffer_constructor, default_constructor);
-
-  TNode<JSArrayBuffer> source_buffer = LoadObjectField<JSArrayBuffer>(
-      typed_array, JSArrayBufferView::kBufferOffset);
-  Branch(IsDetachedBuffer(source_buffer), &if_detached, &if_notdetached);
-
-  // TODO(petermarshall): Throw on detached typedArray.
-  TVARIABLE(Smi, source_length);
-  BIND(&if_detached);
-  source_length = SmiConstant(0);
-  Goto(&check_for_sab);
-
-  BIND(&if_notdetached);
-  source_length = LoadJSTypedArrayLength(typed_array);
-  Goto(&check_for_sab);
-
-  // The spec requires that constructing a typed array using a SAB-backed typed
-  // array use the ArrayBuffer constructor, not the species constructor. See
-  // https://tc39.github.io/ecma262/#sec-typedarray-typedarray.
-  BIND(&check_for_sab);
-  TNode<Uint32T> bitfield =
-      LoadObjectField<Uint32T>(source_buffer, JSArrayBuffer::kBitFieldOffset);
-  Branch(IsSetWord32<JSArrayBuffer::IsSharedBit>(bitfield), &construct,
-         &if_buffernotshared);
-
-  BIND(&if_buffernotshared);
-  {
-    buffer_constructor =
-        SpeciesConstructor(context, source_buffer, default_constructor);
-    // TODO(petermarshall): Throw on detached typedArray.
-    GotoIfNot(IsDetachedBuffer(source_buffer), &construct);
-    source_length = SmiConstant(0);
-    Goto(&construct);
-  }
-
-  BIND(&construct);
-  {
-    TypedArrayBuiltinsFromDSLAssembler(this->state())
-        .ConstructByArrayLike(context, holder, typed_array,
-                              source_length.value(), element_size,
-                              buffer_constructor.value());
-    Goto(&done);
-  }
-
-  BIND(&done);
-}
-
 Node* TypedArrayBuiltinsAssembler::LoadDataPtr(Node* typed_array) {
   CSA_ASSERT(this, IsJSTypedArray(typed_array));
   Node* elements = LoadElements(typed_array);
@@ -536,25 +478,6 @@ TNode<BoolT> TypedArrayBuiltinsAssembler::ByteLengthIsValid(
 
   BIND(&done);
   return is_valid.value();
-}
-
-void TypedArrayBuiltinsAssembler::ConstructByIterable(
-    TNode<Context> context, TNode<JSTypedArray> holder,
-    TNode<JSReceiver> iterable, TNode<JSReceiver> iterator_fn,
-    TNode<Smi> element_size) {
-  Label fast_path(this), slow_path(this), done(this);
-  CSA_ASSERT(this, IsCallable(iterator_fn));
-
-  TNode<JSArray> array_like =
-      CAST(CallBuiltin(Builtins::kIterableToListMayPreserveHoles, context,
-                       iterable, iterator_fn));
-  TNode<Object> initial_length = LoadJSArrayLength(array_like);
-
-  TNode<JSFunction> default_constructor = CAST(LoadContextElement(
-      LoadNativeContext(context), Context::ARRAY_BUFFER_FUN_INDEX));
-  TypedArrayBuiltinsFromDSLAssembler(this->state())
-      .ConstructByArrayLike(context, holder, array_like, initial_length,
-                            element_size, default_constructor);
 }
 
 TF_BUILTIN(TypedArrayBaseConstructor, TypedArrayBuiltinsAssembler) {
@@ -615,7 +538,8 @@ TF_BUILTIN(CreateTypedArray, TypedArrayBuiltinsAssembler) {
   BIND(&if_arg1istypedarray);
   {
     TNode<JSTypedArray> typed_array = CAST(arg1_heap_object);
-    ConstructByTypedArray(context, result, typed_array, element_size);
+    TypedArrayBuiltinsFromDSLAssembler(state()).ConstructByTypedArray(
+        context, result, typed_array, element_size);
     Goto(&return_result);
   }
 
@@ -629,9 +553,9 @@ TF_BUILTIN(CreateTypedArray, TypedArrayBuiltinsAssembler) {
         &if_iteratorundefined));
     GotoIf(TaggedIsSmi(iteratorFn), &if_iteratornotcallable);
     GotoIfNot(IsCallable(CAST(iteratorFn)), &if_iteratornotcallable);
-
-    ConstructByIterable(context, result, CAST(arg1_heap_object),
-                        CAST(iteratorFn), element_size);
+    TypedArrayBuiltinsFromDSLAssembler(state()).ConstructByIterable(
+        context, result, CAST(arg1_heap_object), CAST(iteratorFn),
+        element_size);
     Goto(&return_result);
 
     BIND(&if_iteratorundefined);
@@ -642,9 +566,9 @@ TF_BUILTIN(CreateTypedArray, TypedArrayBuiltinsAssembler) {
 
       TNode<JSFunction> default_constructor = CAST(LoadContextElement(
           LoadNativeContext(context), Context::ARRAY_BUFFER_FUN_INDEX));
-      TypedArrayBuiltinsFromDSLAssembler(this->state())
-          .ConstructByArrayLike(context, result, array_like, initial_length,
-                                element_size, default_constructor);
+      TypedArrayBuiltinsFromDSLAssembler(state()).ConstructByArrayLike(
+          context, result, array_like, initial_length, element_size,
+          default_constructor);
       Goto(&return_result);
     }
 
@@ -656,8 +580,8 @@ TF_BUILTIN(CreateTypedArray, TypedArrayBuiltinsAssembler) {
   // a number. https://tc39.github.io/ecma262/#sec-typedarray-length
   BIND(&if_arg1isnumber);
   {
-    TypedArrayBuiltinsFromDSLAssembler(this->state())
-        .ConstructByLength(context, result, arg1, element_size);
+    TypedArrayBuiltinsFromDSLAssembler(state()).ConstructByLength(
+        context, result, arg1, element_size);
     Goto(&return_result);
   }
 
@@ -1134,6 +1058,13 @@ void TypedArrayBuiltinsAssembler::DispatchTypedArrayByElementsKind(
   Unreachable();
 
   BIND(&next);
+}
+
+TNode<BoolT> TypedArrayBuiltinsAssembler::IsSharedArrayBuffer(
+    TNode<JSArrayBuffer> buffer) {
+  TNode<Uint32T> bitfield =
+      LoadObjectField<Uint32T>(buffer, JSArrayBuffer::kBitFieldOffset);
+  return IsSetWord32<JSArrayBuffer::IsSharedBit>(bitfield);
 }
 
 // ES #sec-get-%typedarray%.prototype.set
