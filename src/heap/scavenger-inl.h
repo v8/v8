@@ -306,7 +306,7 @@ SlotCallbackResult Scavenger::EvacuateThinString(Map map, THeapObjectSlot slot,
     // ThinStrings always refer to internalized strings, which are always in old
     // space.
     DCHECK(!Heap::InNewSpace(actual));
-    slot.StoreHeapObject(actual);
+    HeapObjectReference::Update(slot, actual);
     return REMOVE_SLOT;
   }
 
@@ -326,7 +326,7 @@ SlotCallbackResult Scavenger::EvacuateShortcutCandidate(Map map,
       object->unchecked_second() == ReadOnlyRoots(heap()).empty_string()) {
     HeapObject first = HeapObject::cast(object->unchecked_first());
 
-    slot.StoreHeapObject(first);
+    HeapObjectReference::Update(slot, first);
 
     if (!Heap::InNewSpace(first)) {
       object->map_slot().Release_Store(
@@ -338,7 +338,7 @@ SlotCallbackResult Scavenger::EvacuateShortcutCandidate(Map map,
     if (first_word.IsForwardingAddress()) {
       HeapObject target = first_word.ToForwardingAddress();
 
-      slot.StoreHeapObject(target);
+      HeapObjectReference::Update(slot, target);
       object->map_slot().Release_Store(
           MapWord::FromForwardingAddress(target).ToMap());
       return Heap::InToSpace(target) ? KEEP_SLOT : REMOVE_SLOT;
@@ -396,13 +396,7 @@ SlotCallbackResult Scavenger::ScavengeObject(THeapObjectSlot p,
   // copied.
   if (first_word.IsForwardingAddress()) {
     HeapObject dest = first_word.ToForwardingAddress();
-    DCHECK(Heap::InFromSpace(*p));
-    if ((*p)->IsWeak()) {
-      p.store(HeapObjectReference::Weak(dest));
-    } else {
-      DCHECK((*p)->IsStrong());
-      p.store(HeapObjectReference::Strong(dest));
-    }
+    HeapObjectReference::Update(p, dest);
     DCHECK_IMPLIES(Heap::InNewSpace(dest),
                    (Heap::InToSpace(dest) ||
                     MemoryChunk::FromHeapObject(dest)->owner()->identity() ==
