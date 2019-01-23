@@ -4,6 +4,7 @@
 
 #include "src/snapshot/embedded-file-writer.h"
 
+#include <algorithm>
 #include <cinttypes>
 
 #include "src/objects/code-inl.h"
@@ -613,7 +614,11 @@ void PlatformDependentEmbeddedFileWriter::FilePrologue() {}
 
 void PlatformDependentEmbeddedFileWriter::DeclareExternalFilename(
     int fileid, const char* filename) {
-  fprintf(fp_, ".file %d \"%s\"\n", fileid, filename);
+  // Replace any Windows style paths (backslashes) with forward
+  // slashes.
+  std::string fixed_filename(filename);
+  std::replace(fixed_filename.begin(), fixed_filename.end(), '\\', '/');
+  fprintf(fp_, ".file %d \"%s\"\n", fileid, fixed_filename.c_str());
 }
 
 void PlatformDependentEmbeddedFileWriter::FileEpilogue() {}
