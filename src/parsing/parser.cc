@@ -578,7 +578,8 @@ FunctionLiteral* Parser::DoParseProgram(Isolate* isolate, ParseInfo* info) {
           factory()->NewExpressionStatement(initial_yield, kNoSourcePosition));
 
       ParseModuleItemList(&body);
-      if (!module()->Validate(this->scope()->AsModuleScope(),
+      if (!has_error() &&
+          !module()->Validate(this->scope()->AsModuleScope(),
                               pending_error_handler(), zone())) {
         scanner()->set_parser_error();
       }
