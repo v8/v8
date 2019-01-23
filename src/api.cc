@@ -905,9 +905,17 @@ void RegisteredExtension::Register(RegisteredExtension* that) {
 
 
 void RegisteredExtension::UnregisterAll() {
+  // Keep a list of all leaked Extension objects, to suppress ASan leak reports.
+  // We cannot suppress via lsan suppressions, since the objects are allocated
+  // at different call sites.
+  // TODO(clemensh): Fix this (https://crbug.com/v8/8725).
+  static std::vector<Extension*>* leaked_extensions =
+      new std::vector<Extension*>;
+
   RegisteredExtension* re = first_extension_;
   while (re != nullptr) {
     RegisteredExtension* next = re->next();
+    leaked_extensions->push_back(re->extension_);
     delete re;
     re = next;
   }
