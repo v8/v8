@@ -531,6 +531,9 @@ class ZoneForwardList;
 // The element types selection for CreateListFromArrayLike.
 enum class ElementTypes { kAll, kStringAndSymbol };
 
+// TODO(mythria): Move this to a better place.
+ShouldThrow GetShouldThrow(Isolate* isolate, Maybe<LanguageMode> language_mode);
+
 // Object is the abstract superclass for all classes in the
 // object hierarchy.
 // Object does not use any virtual functions to avoid the
@@ -784,20 +787,21 @@ class Object {
   // argument.  These cases are either in accordance with the spec or not
   // covered by it (eg., concerning API callbacks).
   V8_WARN_UNUSED_RESULT static Maybe<bool> SetProperty(
-      LookupIterator* it, Handle<Object> value, LanguageMode language_mode,
-      StoreOrigin store_origin);
+      LookupIterator* it, Handle<Object> value, StoreOrigin store_origin,
+      Maybe<LanguageMode> language_mode = Nothing<LanguageMode>());
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> SetProperty(
       Isolate* isolate, Handle<Object> object, Handle<Name> name,
-      Handle<Object> value, LanguageMode language_mode,
-      StoreOrigin store_origin = StoreOrigin::kMaybeKeyed);
+      Handle<Object> value, StoreOrigin store_origin = StoreOrigin::kMaybeKeyed,
+      Maybe<LanguageMode> language_mode = Nothing<LanguageMode>());
   V8_WARN_UNUSED_RESULT static inline MaybeHandle<Object> SetPropertyOrElement(
       Isolate* isolate, Handle<Object> object, Handle<Name> name,
-      Handle<Object> value, LanguageMode language_mode,
+      Handle<Object> value,
+      Maybe<LanguageMode> language_mode = Nothing<LanguageMode>(),
       StoreOrigin store_origin = StoreOrigin::kMaybeKeyed);
 
   V8_WARN_UNUSED_RESULT static Maybe<bool> SetSuperProperty(
-      LookupIterator* it, Handle<Object> value, LanguageMode language_mode,
-      StoreOrigin store_origin);
+      LookupIterator* it, Handle<Object> value, StoreOrigin store_origin,
+      Maybe<LanguageMode> language_mode = Nothing<LanguageMode>());
 
   V8_WARN_UNUSED_RESULT static Maybe<bool> CannotCreateProperty(
       Isolate* isolate, Handle<Object> receiver, Handle<Object> name,
@@ -979,8 +983,8 @@ class Object {
   // Helper for SetProperty and SetSuperProperty.
   // Return value is only meaningful if [found] is set to true on return.
   V8_WARN_UNUSED_RESULT static Maybe<bool> SetPropertyInternal(
-      LookupIterator* it, Handle<Object> value, LanguageMode language_mode,
-      StoreOrigin store_origin, bool* found);
+      LookupIterator* it, Handle<Object> value,
+      Maybe<LanguageMode> language_mode, StoreOrigin store_origin, bool* found);
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<Name> ConvertToName(
       Isolate* isolate, Handle<Object> input);

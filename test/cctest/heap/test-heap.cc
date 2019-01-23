@@ -368,16 +368,11 @@ TEST(GarbageCollection) {
     HandleScope inner_scope(isolate);
     // Allocate a function and keep it in global object's property.
     Handle<JSFunction> function = factory->NewFunctionForTest(name);
-    Object::SetProperty(isolate, global, name, function, LanguageMode::kSloppy)
-        .Check();
+    Object::SetProperty(isolate, global, name, function).Check();
     // Allocate an object.  Unrooted after leaving the scope.
     Handle<JSObject> obj = factory->NewJSObject(function);
-    Object::SetProperty(isolate, obj, prop_name, twenty_three,
-                        LanguageMode::kSloppy)
-        .Check();
-    Object::SetProperty(isolate, obj, prop_namex, twenty_four,
-                        LanguageMode::kSloppy)
-        .Check();
+    Object::SetProperty(isolate, obj, prop_name, twenty_three).Check();
+    Object::SetProperty(isolate, obj, prop_namex, twenty_four).Check();
 
     CHECK_EQ(Smi::FromInt(23),
              *Object::GetProperty(isolate, obj, prop_name).ToHandleChecked());
@@ -399,11 +394,8 @@ TEST(GarbageCollection) {
     HandleScope inner_scope(isolate);
     // Allocate another object, make it reachable from global.
     Handle<JSObject> obj = factory->NewJSObject(function);
-    Object::SetProperty(isolate, global, obj_name, obj, LanguageMode::kSloppy)
-        .Check();
-    Object::SetProperty(isolate, obj, prop_name, twenty_three,
-                        LanguageMode::kSloppy)
-        .Check();
+    Object::SetProperty(isolate, global, obj_name, obj).Check();
+    Object::SetProperty(isolate, obj, prop_name, twenty_three).Check();
   }
 
   // After gc, it should survive.
@@ -944,15 +936,11 @@ TEST(FunctionAllocation) {
 
   Handle<String> prop_name = factory->InternalizeUtf8String("theSlot");
   Handle<JSObject> obj = factory->NewJSObject(function);
-  Object::SetProperty(isolate, obj, prop_name, twenty_three,
-                      LanguageMode::kSloppy)
-      .Check();
+  Object::SetProperty(isolate, obj, prop_name, twenty_three).Check();
   CHECK_EQ(Smi::FromInt(23),
            *Object::GetProperty(isolate, obj, prop_name).ToHandleChecked());
   // Check that we can add properties to function objects.
-  Object::SetProperty(isolate, function, prop_name, twenty_four,
-                      LanguageMode::kSloppy)
-      .Check();
+  Object::SetProperty(isolate, function, prop_name, twenty_four).Check();
   CHECK_EQ(
       Smi::FromInt(24),
       *Object::GetProperty(isolate, function, prop_name).ToHandleChecked());
@@ -983,7 +971,7 @@ TEST(ObjectProperties) {
   CHECK(Just(false) == JSReceiver::HasOwnProperty(obj, first));
 
   // add first
-  Object::SetProperty(isolate, obj, first, one, LanguageMode::kSloppy).Check();
+  Object::SetProperty(isolate, obj, first, one).Check();
   CHECK(Just(true) == JSReceiver::HasOwnProperty(obj, first));
 
   // delete first
@@ -992,8 +980,8 @@ TEST(ObjectProperties) {
   CHECK(Just(false) == JSReceiver::HasOwnProperty(obj, first));
 
   // add first and then second
-  Object::SetProperty(isolate, obj, first, one, LanguageMode::kSloppy).Check();
-  Object::SetProperty(isolate, obj, second, two, LanguageMode::kSloppy).Check();
+  Object::SetProperty(isolate, obj, first, one).Check();
+  Object::SetProperty(isolate, obj, second, two).Check();
   CHECK(Just(true) == JSReceiver::HasOwnProperty(obj, first));
   CHECK(Just(true) == JSReceiver::HasOwnProperty(obj, second));
 
@@ -1007,8 +995,8 @@ TEST(ObjectProperties) {
   CHECK(Just(false) == JSReceiver::HasOwnProperty(obj, second));
 
   // add first and then second
-  Object::SetProperty(isolate, obj, first, one, LanguageMode::kSloppy).Check();
-  Object::SetProperty(isolate, obj, second, two, LanguageMode::kSloppy).Check();
+  Object::SetProperty(isolate, obj, first, one).Check();
+  Object::SetProperty(isolate, obj, second, two).Check();
   CHECK(Just(true) == JSReceiver::HasOwnProperty(obj, first));
   CHECK(Just(true) == JSReceiver::HasOwnProperty(obj, second));
 
@@ -1024,15 +1012,14 @@ TEST(ObjectProperties) {
   // check string and internalized string match
   const char* string1 = "fisk";
   Handle<String> s1 = factory->NewStringFromAsciiChecked(string1);
-  Object::SetProperty(isolate, obj, s1, one, LanguageMode::kSloppy).Check();
+  Object::SetProperty(isolate, obj, s1, one).Check();
   Handle<String> s1_string = factory->InternalizeUtf8String(string1);
   CHECK(Just(true) == JSReceiver::HasOwnProperty(obj, s1_string));
 
   // check internalized string and string match
   const char* string2 = "fugl";
   Handle<String> s2_string = factory->InternalizeUtf8String(string2);
-  Object::SetProperty(isolate, obj, s2_string, one, LanguageMode::kSloppy)
-      .Check();
+  Object::SetProperty(isolate, obj, s2_string, one).Check();
   Handle<String> s2 = factory->NewStringFromAsciiChecked(string2);
   CHECK(Just(true) == JSReceiver::HasOwnProperty(obj, s2));
 }
@@ -1053,9 +1040,7 @@ TEST(JSObjectMaps) {
 
   // Set a propery
   Handle<Smi> twenty_three(Smi::FromInt(23), isolate);
-  Object::SetProperty(isolate, obj, prop_name, twenty_three,
-                      LanguageMode::kSloppy)
-      .Check();
+  Object::SetProperty(isolate, obj, prop_name, twenty_three).Check();
   CHECK_EQ(Smi::FromInt(23),
            *Object::GetProperty(isolate, obj, prop_name).ToHandleChecked());
 
@@ -1136,8 +1121,8 @@ TEST(JSObjectCopy) {
   Handle<Smi> one(Smi::FromInt(1), isolate);
   Handle<Smi> two(Smi::FromInt(2), isolate);
 
-  Object::SetProperty(isolate, obj, first, one, LanguageMode::kSloppy).Check();
-  Object::SetProperty(isolate, obj, second, two, LanguageMode::kSloppy).Check();
+  Object::SetProperty(isolate, obj, first, one).Check();
+  Object::SetProperty(isolate, obj, second, two).Check();
 
   Object::SetElement(isolate, obj, 0, first, LanguageMode::kSloppy).Check();
   Object::SetElement(isolate, obj, 1, second, LanguageMode::kSloppy).Check();
@@ -1162,10 +1147,8 @@ TEST(JSObjectCopy) {
   CHECK_EQ(*value1, *value2);
 
   // Flip the values.
-  Object::SetProperty(isolate, clone, first, two, LanguageMode::kSloppy)
-      .Check();
-  Object::SetProperty(isolate, clone, second, one, LanguageMode::kSloppy)
-      .Check();
+  Object::SetProperty(isolate, clone, first, two).Check();
+  Object::SetProperty(isolate, clone, second, one).Check();
 
   Object::SetElement(isolate, clone, 0, second, LanguageMode::kSloppy).Check();
   Object::SetElement(isolate, clone, 1, first, LanguageMode::kSloppy).Check();
@@ -2983,9 +2966,7 @@ static void AddPropertyTo(
   FLAG_gc_global = true;
   FLAG_retain_maps_for_n_gc = 0;
   CcTest::heap()->set_allocation_timeout(gc_count);
-  Object::SetProperty(isolate, object, prop_name, twenty_three,
-                      LanguageMode::kSloppy)
-      .Check();
+  Object::SetProperty(isolate, object, prop_name, twenty_three).Check();
 }
 
 
@@ -4855,8 +4836,7 @@ TEST(Regress442710) {
   Handle<JSArray> array = factory->NewJSArray(2);
 
   Handle<String> name = factory->InternalizeUtf8String("testArray");
-  Object::SetProperty(isolate, global, name, array, LanguageMode::kSloppy)
-      .Check();
+  Object::SetProperty(isolate, global, name, array).Check();
   CompileRun("testArray[0] = 1; testArray[1] = 2; testArray.shift();");
   CcTest::CollectGarbage(OLD_SPACE);
 }

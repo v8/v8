@@ -123,8 +123,20 @@ RUNTIME_FUNCTION(Runtime_WasmThrowCreate) {
   CONVERT_ARG_CHECKED(WasmExceptionTag, tag_raw, 0);
   CONVERT_SMI_ARG_CHECKED(size, 1);
   // TODO(mstarzinger): Manually box because parameters are not visited yet.
-  Handle<WasmExceptionTag> tag(tag_raw, isolate);
-  Handle<JSReceiver> exception = WasmExceptionPackage::New(isolate, tag, size);
+  Handle<Object> tag(tag_raw, isolate);
+  Handle<Object> exception = isolate->factory()->NewWasmRuntimeError(
+      MessageTemplate::kWasmExceptionError);
+  CHECK(!Object::SetProperty(isolate, exception,
+                             isolate->factory()->wasm_exception_tag_symbol(),
+                             tag, StoreOrigin::kMaybeKeyed,
+                             Just(LanguageMode::kStrict))
+             .is_null());
+  Handle<FixedArray> values = isolate->factory()->NewFixedArray(size);
+  CHECK(!Object::SetProperty(isolate, exception,
+                             isolate->factory()->wasm_exception_values_symbol(),
+                             values, StoreOrigin::kMaybeKeyed,
+                             Just(LanguageMode::kStrict))
+             .is_null());
   return *exception;
 }
 

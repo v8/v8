@@ -4005,8 +4005,8 @@ Maybe<bool> v8::Object::Set(v8::Local<v8::Context> context,
   auto value_obj = Utils::OpenHandle(*value);
   has_pending_exception =
       i::Runtime::SetObjectProperty(isolate, self, key_obj, value_obj,
-                                    i::LanguageMode::kSloppy,
-                                    i::StoreOrigin::kMaybeKeyed)
+                                    i::StoreOrigin::kMaybeKeyed,
+                                    Just(i::LanguageMode::kSloppy))
           .is_null();
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return Just(true);

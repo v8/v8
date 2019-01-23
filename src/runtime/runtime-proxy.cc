@@ -61,6 +61,7 @@ RUNTIME_FUNCTION(Runtime_GetPropertyWithReceiver) {
                    &it, static_cast<OnNonExistent>(on_non_existent->value())));
 }
 
+// TODO(mythria): Remove language_mode parameter.
 RUNTIME_FUNCTION(Runtime_SetPropertyWithReceiver) {
   HandleScope scope(isolate);
 
@@ -69,7 +70,6 @@ RUNTIME_FUNCTION(Runtime_SetPropertyWithReceiver) {
   CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
   CONVERT_ARG_HANDLE_CHECKED(Object, receiver, 3);
-  CONVERT_LANGUAGE_MODE_ARG_CHECKED(language_mode, 4);
 
   bool success = false;
   LookupIterator it = LookupIterator::PropertyOrElement(isolate, receiver, key,
@@ -78,8 +78,8 @@ RUNTIME_FUNCTION(Runtime_SetPropertyWithReceiver) {
     DCHECK(isolate->has_pending_exception());
     return ReadOnlyRoots(isolate).exception();
   }
-  Maybe<bool> result = Object::SetSuperProperty(&it, value, language_mode,
-                                                StoreOrigin::kMaybeKeyed);
+  Maybe<bool> result =
+      Object::SetSuperProperty(&it, value, StoreOrigin::kMaybeKeyed);
   MAYBE_RETURN(result, ReadOnlyRoots(isolate).exception());
   return *isolate->factory()->ToBoolean(result.FromJust());
 }

@@ -341,12 +341,10 @@ RUNTIME_FUNCTION(Runtime_ObjectCreate) {
   return *obj;
 }
 
-MaybeHandle<Object> Runtime::SetObjectProperty(Isolate* isolate,
-                                               Handle<Object> object,
-                                               Handle<Object> key,
-                                               Handle<Object> value,
-                                               LanguageMode language_mode,
-                                               StoreOrigin store_origin) {
+MaybeHandle<Object> Runtime::SetObjectProperty(
+    Isolate* isolate, Handle<Object> object, Handle<Object> key,
+    Handle<Object> value, StoreOrigin store_origin,
+    Maybe<LanguageMode> language_mode) {
   if (object->IsNullOrUndefined(isolate)) {
     THROW_NEW_ERROR(
         isolate,
@@ -371,11 +369,10 @@ MaybeHandle<Object> Runtime::SetObjectProperty(Isolate* isolate,
   }
 
   MAYBE_RETURN_NULL(
-      Object::SetProperty(&it, value, language_mode, store_origin));
+      Object::SetProperty(&it, value, store_origin, language_mode));
 
   return value;
 }
-
 
 RUNTIME_FUNCTION(Runtime_InternalSetPrototype) {
   HandleScope scope(isolate);
@@ -547,6 +544,7 @@ RUNTIME_FUNCTION(Runtime_GetProperty) {
       isolate, Runtime::GetObjectProperty(isolate, receiver_obj, key_obj));
 }
 
+// TODO(mythria): Remove language mode parameter to SetKeyedProperty
 RUNTIME_FUNCTION(Runtime_SetKeyedProperty) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
@@ -554,14 +552,13 @@ RUNTIME_FUNCTION(Runtime_SetKeyedProperty) {
   CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
-  CONVERT_LANGUAGE_MODE_ARG_CHECKED(language_mode, 3);
 
   RETURN_RESULT_OR_FAILURE(
-      isolate,
-      Runtime::SetObjectProperty(isolate, object, key, value, language_mode,
-                                 StoreOrigin::kMaybeKeyed));
+      isolate, Runtime::SetObjectProperty(isolate, object, key, value,
+                                          StoreOrigin::kMaybeKeyed));
 }
 
+// TODO(mythria): Remove language mode parameter to SetNamedProperty
 RUNTIME_FUNCTION(Runtime_SetNamedProperty) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
@@ -569,11 +566,10 @@ RUNTIME_FUNCTION(Runtime_SetNamedProperty) {
   CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
-  CONVERT_LANGUAGE_MODE_ARG_CHECKED(language_mode, 3);
 
   RETURN_RESULT_OR_FAILURE(
       isolate, Runtime::SetObjectProperty(isolate, object, key, value,
-                                          language_mode, StoreOrigin::kNamed));
+                                          StoreOrigin::kNamed));
 }
 
 // Similar to DefineDataPropertyInLiteral, but does not update feedback, and

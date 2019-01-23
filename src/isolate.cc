@@ -942,10 +942,12 @@ MaybeHandle<JSReceiver> Isolate::CaptureAndSetDetailedStackTrace(
     Handle<FixedArray> stack_trace = CaptureCurrentStackTrace(
         stack_trace_for_uncaught_exceptions_frame_limit_,
         stack_trace_for_uncaught_exceptions_options_);
-    RETURN_ON_EXCEPTION(this,
-                        Object::SetProperty(this, error_object, key,
-                                            stack_trace, LanguageMode::kStrict),
-                        JSReceiver);
+    RETURN_ON_EXCEPTION(
+        this,
+        Object::SetProperty(this, error_object, key, stack_trace,
+                            StoreOrigin::kMaybeKeyed,
+                            Just(LanguageMode::kStrict)),
+        JSReceiver);
   }
   return error_object;
 }
@@ -959,7 +961,8 @@ MaybeHandle<JSReceiver> Isolate::CaptureAndSetSimpleStackTrace(
       CaptureSimpleStackTrace(error_object, mode, caller);
   RETURN_ON_EXCEPTION(this,
                       Object::SetProperty(this, error_object, key, stack_trace,
-                                          LanguageMode::kStrict),
+                                          StoreOrigin::kMaybeKeyed,
+                                          Just(LanguageMode::kStrict)),
                       JSReceiver);
   return error_object;
 }

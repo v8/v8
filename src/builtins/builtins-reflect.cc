@@ -218,7 +218,7 @@ BUILTIN(ReflectSet) {
   LookupIterator it = LookupIterator::PropertyOrElement(
       isolate, receiver, name, Handle<JSReceiver>::cast(target));
   Maybe<bool> result = Object::SetSuperProperty(
-      &it, value, LanguageMode::kSloppy, StoreOrigin::kMaybeKeyed);
+      &it, value, StoreOrigin::kMaybeKeyed, Just(LanguageMode::kSloppy));
   MAYBE_RETURN(result, ReadOnlyRoots(isolate).exception());
   return *isolate->factory()->ToBoolean(result.FromJust());
 }

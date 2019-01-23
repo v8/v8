@@ -237,10 +237,7 @@ IGNITION_HANDLER(StaGlobal, InterpreterAssembler) {
   Goto(&end);
 
   Bind(&no_feedback);
-  TNode<JSFunction> closure = CAST(LoadRegister(Register::function_closure()));
-  Node* language_mode = GetLanguageMode(closure, context);
-  CallRuntime(Runtime::kStoreGlobalICNoFeedback_Miss, context, value, name,
-              language_mode);
+  CallRuntime(Runtime::kStoreGlobalICNoFeedback_Miss, context, value, name);
   Goto(&end);
 
   Bind(&end);
@@ -616,11 +613,8 @@ class InterpreterStoreNamedPropertyAssembler : public InterpreterAssembler {
     Goto(&end);
 
     Bind(&no_feedback);
-    TNode<JSFunction> closure =
-        CAST(LoadRegister(Register::function_closure()));
-    Node* language_mode = GetLanguageMode(closure, context);
     var_result.Bind(CallRuntime(Runtime::kStoreICNoFeedback_Miss, context,
-                                value, object, name, language_mode,
+                                value, object, name,
                                 SmiConstant(property_type)));
     Goto(&end);
 
@@ -695,10 +689,8 @@ IGNITION_HANDLER(StaKeyedProperty, InterpreterAssembler) {
   Goto(&end);
 
   Bind(&no_feedback);
-  TNode<JSFunction> closure = CAST(LoadRegister(Register::function_closure()));
-  Node* language_mode = GetLanguageMode(closure, context);
   var_result.Bind(CallRuntime(Runtime::kKeyedStoreICNoFeedback_Miss, context,
-                              value, object, name, language_mode));
+                              value, object, name));
   Goto(&end);
 
   Bind(&end);

@@ -158,16 +158,17 @@ Handle<JSPromise> AwaitPromisesInitCommon(Isolate* isolate,
       Object::SetProperty(
           isolate, reject_handler,
           isolate->factory()->promise_forwarding_handler_symbol(),
-          isolate->factory()->true_value(), LanguageMode::kStrict)
+          isolate->factory()->true_value(), StoreOrigin::kMaybeKeyed,
+          Just(LanguageMode::kStrict))
           .Check();
       Handle<JSPromise>::cast(value)->set_handled_hint(is_predicted_as_caught);
     }
 
     // Mark the dependency to {outer_promise} in case the {throwaway}
     // Promise is found on the Promise stack
-    Object::SetProperty(isolate, throwaway,
-                        isolate->factory()->promise_handled_by_symbol(),
-                        outer_promise, LanguageMode::kStrict)
+    Object::SetProperty(
+        isolate, throwaway, isolate->factory()->promise_handled_by_symbol(),
+        outer_promise, StoreOrigin::kMaybeKeyed, Just(LanguageMode::kStrict))
         .Check();
   }
 

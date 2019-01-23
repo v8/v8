@@ -1567,12 +1567,14 @@ Handle<JSReceiver> WasmExceptionPackage::New(
       MessageTemplate::kWasmExceptionError);
   CHECK(!Object::SetProperty(isolate, exception,
                              isolate->factory()->wasm_exception_tag_symbol(),
-                             exception_tag, LanguageMode::kStrict)
+                             exception_tag, StoreOrigin::kMaybeKeyed,
+                             Just(LanguageMode::kStrict))
              .is_null());
   Handle<FixedArray> values = isolate->factory()->NewFixedArray(size);
   CHECK(!Object::SetProperty(isolate, exception,
                              isolate->factory()->wasm_exception_values_symbol(),
-                             values, LanguageMode::kStrict)
+                             values, StoreOrigin::kMaybeKeyed,
+                             Just(LanguageMode::kStrict))
              .is_null());
   return Handle<JSReceiver>::cast(exception);
 }

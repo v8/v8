@@ -288,12 +288,10 @@ class KeyedLoadIC : public LoadIC {
 class StoreIC : public IC {
  public:
   StoreIC(Isolate* isolate, Handle<FeedbackVector> vector, FeedbackSlot slot,
-          FeedbackSlotKind kind, LanguageMode language_mode)
-      : IC(isolate, vector, slot, kind), language_mode_(language_mode) {
+          FeedbackSlotKind kind)
+      : IC(isolate, vector, slot, kind) {
     DCHECK(IsAnyStore());
   }
-
-  LanguageMode language_mode() const { return language_mode_; }
 
   V8_WARN_UNUSED_RESULT MaybeHandle<Object> Store(
       Handle<Object> object, Handle<Name> name, Handle<Object> value,
@@ -314,11 +312,6 @@ class StoreIC : public IC {
   void UpdateCaches(LookupIterator* lookup, Handle<Object> value,
                     StoreOrigin store_origin);
 
-  // TODO(v8:8580): Instead of storing the language mode, compute it lazily
-  // from the closure and context when needed. We only need it when throwing
-  // exceptions, so it is OK to be slow.
-  LanguageMode language_mode_;
-
  private:
   MaybeObjectHandle ComputeHandler(LookupIterator* lookup);
 
@@ -328,9 +321,8 @@ class StoreIC : public IC {
 class StoreGlobalIC : public StoreIC {
  public:
   StoreGlobalIC(Isolate* isolate, Handle<FeedbackVector> vector,
-                FeedbackSlot slot, FeedbackSlotKind kind,
-                LanguageMode language_mode)
-      : StoreIC(isolate, vector, slot, kind, language_mode) {}
+                FeedbackSlot slot, FeedbackSlotKind kind)
+      : StoreIC(isolate, vector, slot, kind) {}
 
   V8_WARN_UNUSED_RESULT MaybeHandle<Object> Store(Handle<Name> name,
                                                   Handle<Object> value);
@@ -354,9 +346,8 @@ class KeyedStoreIC : public StoreIC {
   }
 
   KeyedStoreIC(Isolate* isolate, Handle<FeedbackVector> vector,
-               FeedbackSlot slot, FeedbackSlotKind kind,
-               LanguageMode language_mode)
-      : StoreIC(isolate, vector, slot, kind, language_mode) {}
+               FeedbackSlot slot, FeedbackSlotKind kind)
+      : StoreIC(isolate, vector, slot, kind) {}
 
   V8_WARN_UNUSED_RESULT MaybeHandle<Object> Store(Handle<Object> object,
                                                   Handle<Object> name,
@@ -390,8 +381,7 @@ class StoreInArrayLiteralIC : public KeyedStoreIC {
   StoreInArrayLiteralIC(Isolate* isolate, Handle<FeedbackVector> vector,
                         FeedbackSlot slot)
       : KeyedStoreIC(isolate, vector, slot,
-                     FeedbackSlotKind::kStoreInArrayLiteral,
-                     LanguageMode::kStrict) {
+                     FeedbackSlotKind::kStoreInArrayLiteral) {
     DCHECK(IsStoreInArrayLiteralICKind(kind()));
   }
 

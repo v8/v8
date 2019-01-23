@@ -123,6 +123,36 @@
 namespace v8 {
 namespace internal {
 
+namespace {
+LanguageMode GetLanguageMode(Isolate* isolate,
+                             Maybe<LanguageMode> language_mode) {
+  if (language_mode.IsJust()) return language_mode.FromJust();
+
+  LanguageMode mode = isolate->context()->scope_info()->language_mode();
+  for (StackFrameIterator it(isolate); !it.done(); it.Advance()) {
+    if (!(it.frame()->is_optimized() || it.frame()->is_interpreted())) {
+      continue;
+    }
+    // Get the language mode from closure.
+    JavaScriptFrame* js_frame = static_cast<JavaScriptFrame*>(it.frame());
+    std::vector<SharedFunctionInfo> functions;
+    js_frame->GetFunctions(&functions);
+    LanguageMode closure_language_mode = functions.back()->language_mode();
+    if (closure_language_mode > mode) {
+      mode = closure_language_mode;
+    }
+    break;
+  }
+  return mode;
+}
+}  // namespace
+
+ShouldThrow GetShouldThrow(Isolate* isolate,
+                           Maybe<LanguageMode> language_mode) {
+  return is_sloppy(GetLanguageMode(isolate, language_mode)) ? kDontThrow
+                                                            : kThrowOnError;
+}
+
 bool ComparisonResultToBool(Operation op, ComparisonResult result) {
   switch (op) {
     case Operation::kLessThan:
@@ -1805,7 +1835,6 @@ MaybeHandle<Object> Object::GetPropertyWithDefinedGetter(
   return Execution::Call(isolate, getter, receiver, 0, nullptr);
 }
 
-
 Maybe<bool> Object::SetPropertyWithDefinedSetter(Handle<Object> receiver,
                                                  Handle<JSReceiver> setter,
                                                  Handle<Object> value,
@@ -2272,7 +2301,7 @@ V8_WARN_UNUSED_RESULT Maybe<bool> FastAssign(
     if (use_set) {
       LookupIterator it(target, next_key, target);
       Maybe<bool> result = Object::SetProperty(
-          &it, prop_value, LanguageMode::kStrict, StoreOrigin::kNamed);
+          &it, prop_value, StoreOrigin::kNamed, Just(LanguageMode::kStrict));
       if (result.IsNothing()) return result;
       if (stable) stable = from->map() == *map;
     } else {
@@ -2335,8 +2364,8 @@ Maybe<bool> JSReceiver::SetOrCopyDataProperties(
         ASSIGN_RETURN_ON_EXCEPTION_VALUE(
             isolate, status,
             Runtime::SetObjectProperty(isolate, target, next_key, prop_value,
-                                       LanguageMode::kStrict,
-                                       StoreOrigin::kMaybeKeyed),
+                                       StoreOrigin::kMaybeKeyed,
+                                       Just(LanguageMode::kStrict)),
             Nothing<bool>());
       } else {
         if (excluded_properties != nullptr &&
@@ -5180,21 +5209,20 @@ Maybe<bool> JSObject::SetPropertyWithInterceptor(LookupIterator* it,
 
 MaybeHandle<Object> Object::SetProperty(Isolate* isolate, Handle<Object> object,
                                         Handle<Name> name, Handle<Object> value,
-                                        LanguageMode language_mode,
-                                        StoreOrigin store_origin) {
+                                        StoreOrigin store_origin,
+                                        Maybe<LanguageMode> language_mode) {
   LookupIterator it(isolate, object, name);
-  MAYBE_RETURN_NULL(SetProperty(&it, value, language_mode, store_origin));
+  MAYBE_RETURN_NULL(SetProperty(&it, value, store_origin, language_mode));
   return value;
 }
 
 Maybe<bool> Object::SetPropertyInternal(LookupIterator* it,
                                         Handle<Object> value,
-                                        LanguageMode language_mode,
+                                        Maybe<LanguageMode> language_mode,
                                         StoreOrigin store_origin, bool* found) {
   it->UpdateProtector();
   DCHECK(it->IsFound());
-  ShouldThrow should_throw =
-      is_sloppy(language_mode) ? kDontThrow : kThrowOnError;
+  ShouldThrow should_throw = GetShouldThrow(it->isolate(), language_mode);
 
   // Make sure that the top context does not change when doing callbacks or
   // interceptor calls.
@@ -5220,8 +5248,9 @@ Maybe<bool> Object::SetPropertyInternal(LookupIterator* it,
           receiver = handle(JSGlobalObject::cast(*receiver)->global_proxy(),
                             it->isolate());
         }
-        return JSProxy::SetProperty(it->GetHolder<JSProxy>(), it->GetName(),
-                                    value, receiver, language_mode);
+        return JSProxy::SetProperty(
+            it->GetHolder<JSProxy>(), it->GetName(), value, receiver,
+            GetLanguageMode(it->isolate(), language_mode));
       }
 
       case LookupIterator::INTERCEPTOR: {
@@ -5304,8 +5333,8 @@ Maybe<bool> Object::SetPropertyInternal(LookupIterator* it,
 }
 
 Maybe<bool> Object::SetProperty(LookupIterator* it, Handle<Object> value,
-                                LanguageMode language_mode,
-                                StoreOrigin store_origin) {
+                                StoreOrigin store_origin,
+                                Maybe<LanguageMode> language_mode) {
   if (it->IsFound()) {
     bool found = true;
     Maybe<bool> result =
@@ -5316,20 +5345,21 @@ Maybe<bool> Object::SetProperty(LookupIterator* it, Handle<Object> value,
   // If the receiver is the JSGlobalObject, the store was contextual. In case
   // the property did not exist yet on the global object itself, we have to
   // throw a reference error in strict mode.  In sloppy mode, we continue.
-  if (is_strict(language_mode) && it->GetReceiver()->IsJSGlobalObject()) {
+  if (is_strict(GetLanguageMode(it->isolate(), language_mode)) &&
+      it->GetReceiver()->IsJSGlobalObject()) {
     it->isolate()->Throw(*it->isolate()->factory()->NewReferenceError(
         MessageTemplate::kNotDefined, it->name()));
     return Nothing<bool>();
   }
 
-  ShouldThrow should_throw =
-      is_sloppy(language_mode) ? kDontThrow : kThrowOnError;
-  return AddDataProperty(it, value, NONE, should_throw, store_origin);
+  return AddDataProperty(it, value, NONE,
+                         GetShouldThrow(it->isolate(), language_mode),
+                         store_origin);
 }
 
 Maybe<bool> Object::SetSuperProperty(LookupIterator* it, Handle<Object> value,
-                                     LanguageMode language_mode,
-                                     StoreOrigin store_origin) {
+                                     StoreOrigin store_origin,
+                                     Maybe<LanguageMode> language_mode) {
   Isolate* isolate = it->isolate();
 
   if (it->IsFound()) {
@@ -5344,8 +5374,7 @@ Maybe<bool> Object::SetSuperProperty(LookupIterator* it, Handle<Object> value,
   // The property either doesn't exist on the holder or exists there as a data
   // property.
 
-  ShouldThrow should_throw =
-      is_sloppy(language_mode) ? kDontThrow : kThrowOnError;
+  ShouldThrow should_throw = GetShouldThrow(it->isolate(), language_mode);
 
   if (!it->GetReceiver()->IsJSReceiver()) {
     return WriteToReadOnlyProperty(it, value, should_throw);
@@ -6058,8 +6087,8 @@ Maybe<bool> JSProxy::SetProperty(Handle<JSProxy> proxy, Handle<Name> name,
   if (trap->IsUndefined(isolate)) {
     LookupIterator it =
         LookupIterator::PropertyOrElement(isolate, receiver, name, target);
-    return Object::SetSuperProperty(&it, value, language_mode,
-                                    StoreOrigin::kMaybeKeyed);
+    return Object::SetSuperProperty(&it, value, StoreOrigin::kMaybeKeyed,
+                                    Just(language_mode));
   }
 
   Handle<Object> trap_result;
@@ -16614,7 +16643,7 @@ MaybeHandle<Object> JSPromise::Resolve(Handle<JSPromise> promise,
     // Mark the dependency of the new {promise} on the {resolution}.
     Object::SetProperty(isolate, resolution,
                         isolate->factory()->promise_handled_by_symbol(),
-                        promise, LanguageMode::kStrict)
+                        promise)
         .Check();
   }
   isolate->native_context()->microtask_queue()->EnqueueMicrotask(*task);
@@ -16937,8 +16966,7 @@ MaybeHandle<JSRegExp> JSRegExp::Initialize(Handle<JSRegExp> regexp,
     RETURN_ON_EXCEPTION(
         isolate,
         Object::SetProperty(isolate, regexp, factory->lastIndex_string(),
-                            Handle<Smi>(Smi::zero(), isolate),
-                            LanguageMode::kStrict),
+                            Handle<Smi>(Smi::zero(), isolate)),
         JSRegExp);
   }
 

@@ -176,7 +176,8 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> SetLengthProperty(
 
   return Object::SetProperty(
       isolate, receiver, isolate->factory()->length_string(),
-      isolate->factory()->NewNumber(length), LanguageMode::kStrict);
+      isolate->factory()->NewNumber(length), StoreOrigin::kMaybeKeyed,
+      Just(LanguageMode::kStrict));
 }
 
 V8_WARN_UNUSED_RESULT Object GenericArrayFill(Isolate* isolate,
@@ -192,7 +193,7 @@ V8_WARN_UNUSED_RESULT Object GenericArrayFill(Isolate* isolate,
     // b. Perform ? Set(O, Pk, value, true).
     RETURN_FAILURE_ON_EXCEPTION(
         isolate, Object::SetPropertyOrElement(isolate, receiver, index, value,
-                                              LanguageMode::kStrict));
+                                              Just(LanguageMode::kStrict)));
 
     // c. Increase k by 1.
     ++start;
@@ -339,8 +340,8 @@ V8_WARN_UNUSED_RESULT Object GenericArrayPush(Isolate* isolate,
           isolate, receiver, isolate->factory()->NewNumber(length), &success);
       // Must succeed since we always pass a valid key.
       DCHECK(success);
-      MAYBE_RETURN(Object::SetProperty(&it, element, LanguageMode::kStrict,
-                                       StoreOrigin::kMaybeKeyed),
+      MAYBE_RETURN(Object::SetProperty(&it, element, StoreOrigin::kMaybeKeyed,
+                                       Just(LanguageMode::kStrict)),
                    ReadOnlyRoots(isolate).exception());
     }
 
@@ -353,7 +354,8 @@ V8_WARN_UNUSED_RESULT Object GenericArrayPush(Isolate* isolate,
   RETURN_FAILURE_ON_EXCEPTION(
       isolate, Object::SetProperty(isolate, receiver,
                                    isolate->factory()->length_string(),
-                                   final_length, LanguageMode::kStrict));
+                                   final_length, StoreOrigin::kMaybeKeyed,
+                                   Just(LanguageMode::kStrict)));
 
   // 8. Return len.
   return *final_length;
@@ -408,7 +410,8 @@ V8_WARN_UNUSED_RESULT Object GenericArrayPop(Isolate* isolate,
     RETURN_FAILURE_ON_EXCEPTION(
         isolate, Object::SetProperty(
                      isolate, receiver, isolate->factory()->length_string(),
-                     Handle<Smi>(Smi::zero(), isolate), LanguageMode::kStrict));
+                     Handle<Smi>(Smi::zero(), isolate),
+                     StoreOrigin::kMaybeKeyed, Just(LanguageMode::kStrict)));
 
     // b. Return undefined.
     return ReadOnlyRoots(isolate).undefined_value();
@@ -435,7 +438,8 @@ V8_WARN_UNUSED_RESULT Object GenericArrayPop(Isolate* isolate,
   RETURN_FAILURE_ON_EXCEPTION(
       isolate, Object::SetProperty(isolate, receiver,
                                    isolate->factory()->length_string(),
-                                   new_length, LanguageMode::kStrict));
+                                   new_length, StoreOrigin::kMaybeKeyed,
+                                   Just(LanguageMode::kStrict)));
 
   // f. Return element.
   return *element;
@@ -526,7 +530,7 @@ V8_WARN_UNUSED_RESULT Object GenericArrayShift(Isolate* isolate,
       // ii. Perform ? Set(O, to, fromVal, true).
       RETURN_FAILURE_ON_EXCEPTION(
           isolate, Object::SetPropertyOrElement(isolate, receiver, to, from_val,
-                                                LanguageMode::kStrict));
+                                                Just(LanguageMode::kStrict)));
     } else {  // e. Else fromPresent is false,
       // i. Perform ? DeletePropertyOrThrow(O, to).
       MAYBE_RETURN(JSReceiver::DeletePropertyOrElement(receiver, to,
@@ -731,9 +735,9 @@ class ArrayConcatVisitor {
         isolate_->factory()->NewNumber(static_cast<double>(index_offset_));
     RETURN_ON_EXCEPTION(
         isolate_,
-        Object::SetProperty(isolate_, result,
-                            isolate_->factory()->length_string(), length,
-                            LanguageMode::kStrict),
+        Object::SetProperty(
+            isolate_, result, isolate_->factory()->length_string(), length,
+            StoreOrigin::kMaybeKeyed, Just(LanguageMode::kStrict)),
         JSReceiver);
     return result;
   }
