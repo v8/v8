@@ -15,6 +15,7 @@ namespace internal {
 namespace wasm {
 
 class NativeModule;
+class WasmCode;
 class WasmError;
 
 enum RuntimeExceptionSupport : bool {
@@ -111,6 +112,8 @@ class CompilationState {
   void AddCallback(callback_t);
 
   bool failed() const;
+
+  void OnFinishedUnit(ExecutionTier, WasmCode*);
 
  private:
   friend class NativeModule;

@@ -53,6 +53,64 @@ namespace {
 
 enum class CompileMode : uint8_t { kRegular, kTiering };
 
+// Background compile jobs hold a shared pointer to this token. The token is
+// used to notify them that they should stop. As soon as they see this (after
+// finishing their current compilation unit), they will stop.
+// This allows to already remove the NativeModule without having to synchronize
+// on background compile jobs.
+class BackgroundCompileToken {
+ public:
+  explicit BackgroundCompileToken(NativeModule* native_module)
+      : native_module_(native_module) {}
+
+  void Cancel() {
+    base::MutexGuard mutex_guard(&mutex_);
+    native_module_ = nullptr;
+  }
+
+  // Only call this while holding the {mutex_}.
+  void CancelLocked() { native_module_ = nullptr; }
+
+ private:
+  friend class BackgroundCompileScope;
+  base::Mutex mutex_;
+  NativeModule* native_module_;
+
+  NativeModule* StartScope() {
+    mutex_.Lock();
+    return native_module_;
+  }
+
+  void ExitScope() { mutex_.Unlock(); }
+};
+
+class CompilationStateImpl;
+
+// Keep these scopes short, as they hold the mutex of the token, which
+// sequentializes all these scopes. The mutex is also acquired from foreground
+// tasks, which should not be blocked for a long time.
+class BackgroundCompileScope {
+ public:
+  explicit BackgroundCompileScope(
+      const std::shared_ptr<BackgroundCompileToken>& token)
+      : token_(token.get()), native_module_(token->StartScope()) {}
+
+  ~BackgroundCompileScope() { token_->ExitScope(); }
+
+  bool cancelled() const { return native_module_ == nullptr; }
+
+  NativeModule* native_module() {
+    DCHECK(!cancelled());
+    return native_module_;
+  }
+
+  inline CompilationStateImpl* compilation_state();
+
+ private:
+  BackgroundCompileToken* const token_;
+  NativeModule* const native_module_;
+};
+
 // The {CompilationStateImpl} keeps track of the compilation state of the
 // owning NativeModule, i.e. which functions are left to be compiled.
 // It contains a task manager to allow parallel and asynchronous background
@@ -193,18 +251,6 @@ class CompilationStateImpl {
     std::vector<WasmCode*> code_to_log_;
   };
 
-  class FreeCallbacksTask : public CancelableTask {
-   public:
-    explicit FreeCallbacksTask(CompilationStateImpl* comp_state)
-        : CancelableTask(&comp_state->foreground_task_manager_),
-          compilation_state_(comp_state) {}
-
-    void RunInternal() override { compilation_state_->callbacks_.clear(); }
-
-   private:
-    CompilationStateImpl* const compilation_state_;
-  };
-
   void NotifyOnEvent(CompilationEvent event, const WasmError* error);
 
   std::vector<std::unique_ptr<WasmCompilationUnit>>& finish_units() {
@@ -215,7 +261,9 @@ class CompilationStateImpl {
   // TODO(mstarzinger): Get rid of the Isolate field to make sure the
   // {CompilationStateImpl} can be shared across multiple Isolates.
   Isolate* const isolate_;
+  WasmEngine* const engine_;
   NativeModule* const native_module_;
+  const std::shared_ptr<BackgroundCompileToken> background_compile_token_;
   const CompileMode compile_mode_;
   // Store the value of {WasmCode::ShouldBeLogged()} at creation time of the
   // compilation state.
@@ -267,30 +315,27 @@ class CompilationStateImpl {
   // the foreground thread.
   std::vector<CompilationState::callback_t> callbacks_;
 
-  // Remember whether {Abort()} was called. When set from the foreground this
-  // ensures no more callbacks will be called afterwards. No guarantees when set
-  // from the background. Only needs to be atomic so that it can be set from
-  // foreground and background.
-  std::atomic<bool> aborted_{false};
-
-  CancelableTaskManager background_task_manager_;
   CancelableTaskManager foreground_task_manager_;
   std::shared_ptr<v8::TaskRunner> foreground_task_runner_;
 
   const size_t max_background_tasks_ = 0;
 };
 
-void UpdateFeatureUseCounts(Isolate* isolate, const WasmFeatures& detected) {
-  if (detected.threads) {
-    isolate->CountUsage(v8::Isolate::UseCounterFeature::kWasmThreadOpcodes);
-  }
-}
-
 CompilationStateImpl* Impl(CompilationState* compilation_state) {
   return reinterpret_cast<CompilationStateImpl*>(compilation_state);
 }
 const CompilationStateImpl* Impl(const CompilationState* compilation_state) {
   return reinterpret_cast<const CompilationStateImpl*>(compilation_state);
+}
+
+CompilationStateImpl* BackgroundCompileScope::compilation_state() {
+  return Impl(native_module()->compilation_state());
+}
+
+void UpdateFeatureUseCounts(Isolate* isolate, const WasmFeatures& detected) {
+  if (detected.threads) {
+    isolate->CountUsage(v8::Isolate::UseCounterFeature::kWasmThreadOpcodes);
+  }
 }
 
 }  // namespace
@@ -321,6 +366,10 @@ void CompilationState::AddCallback(CompilationState::callback_t callback) {
 }
 
 bool CompilationState::failed() const { return Impl(this)->failed(); }
+
+void CompilationState::OnFinishedUnit(ExecutionTier tier, WasmCode* code) {
+  Impl(this)->OnFinishedUnit(tier, code);
+}
 
 // static
 std::unique_ptr<CompilationState> CompilationState::New(
@@ -755,41 +804,81 @@ class FinishCompileTask : public CancelableTask {
 // The runnable task that performs compilations in the background.
 class BackgroundCompileTask : public CancelableTask {
  public:
-  explicit BackgroundCompileTask(CancelableTaskManager* task_manager,
-                                 NativeModule* native_module,
-                                 Counters* counters)
-      : CancelableTask(task_manager),
-        native_module_(native_module),
-        counters_(counters) {}
+  explicit BackgroundCompileTask(CancelableTaskManager* manager,
+                                 std::shared_ptr<BackgroundCompileToken> token,
+                                 std::shared_ptr<Counters> async_counters)
+      : CancelableTask(manager),
+        token_(std::move(token)),
+        async_counters_(std::move(async_counters)) {}
 
   void RunInternal() override {
     TRACE_COMPILE("(3b) Compiling...\n");
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"),
                  "BackgroundCompileTask::RunInternal");
-    // The number of currently running background tasks is reduced in
-    // {OnBackgroundTaskStopped}.
-    CompilationEnv env = native_module_->CreateCompilationEnv();
-    auto* compilation_state = Impl(native_module_->compilation_state());
+
+    // These fields are initialized before getting the first unit of work.
+    base::Optional<CompilationEnv> env;
+    std::shared_ptr<WireBytesStorage> wire_bytes;
+    std::shared_ptr<const WasmModule> module;
+
     WasmFeatures detected_features = kNoWasmFeatures;
     double deadline = MonotonicallyIncreasingTimeInMs() + 50.0;
-    while (!compilation_state->failed()) {
-      if (!FetchAndExecuteCompilationUnit(&env, native_module_,
-                                          compilation_state, &detected_features,
-                                          counters_)) {
-        break;
+    while (true) {
+      // Step 1 (synchronized): Get a WasmCompilationUnit, and initialize some
+      // fields if this is the first unit executed by this task.
+      std::unique_ptr<WasmCompilationUnit> unit;
+      {
+        BackgroundCompileScope compile_scope(token_);
+        if (compile_scope.cancelled()) return;
+        if (!env.has_value()) {
+          env.emplace(compile_scope.native_module()->CreateCompilationEnv());
+          wire_bytes = compile_scope.compilation_state()->GetWireBytesStorage();
+          module = compile_scope.native_module()->shared_module();
+        }
+        unit = compile_scope.compilation_state()->GetNextCompilationUnit();
+        if (unit == nullptr) {
+          compile_scope.compilation_state()->OnBackgroundTaskStopped(
+              detected_features);
+          return;
+        }
       }
-      if (deadline < MonotonicallyIncreasingTimeInMs()) {
-        compilation_state->ReportDetectedFeatures(detected_features);
-        compilation_state->RestartBackgroundCompileTask();
-        return;
+
+      // Step 2: Execute the compilation.
+
+      // Get the tier before starting compilation, as compilation can switch
+      // tiers if baseline bails out.
+      ExecutionTier tier = unit->tier();
+      WasmCompilationResult result = unit->ExecuteCompilation(
+          &env.value(), wire_bytes, async_counters_.get(), &detected_features);
+
+      // Step 3 (synchronized): Publish the compilation result.
+      {
+        BackgroundCompileScope compile_scope(token_);
+        if (compile_scope.cancelled()) return;
+        WasmCode* code =
+            unit->Publish(std::move(result), compile_scope.native_module());
+        if (code == nullptr) {
+          compile_scope.compilation_state()->OnBackgroundTaskStopped(
+              detected_features);
+          // Also, cancel all remaining compilation.
+          token_->CancelLocked();
+          return;
+        }
+        compile_scope.compilation_state()->OnFinishedUnit(tier, code);
+        if (deadline < MonotonicallyIncreasingTimeInMs()) {
+          compile_scope.compilation_state()->ReportDetectedFeatures(
+              detected_features);
+          compile_scope.compilation_state()->RestartBackgroundCompileTask();
+          return;
+        }
       }
     }
-    compilation_state->OnBackgroundTaskStopped(detected_features);
+    UNREACHABLE();  // Loop exits via explicit return.
   }
 
  private:
-  NativeModule* const native_module_;
-  Counters* const counters_;
+  std::shared_ptr<BackgroundCompileToken> token_;
+  std::shared_ptr<Counters> async_counters_;
 };
 
 }  // namespace
@@ -1556,7 +1645,10 @@ bool AsyncStreamingProcessor::Deserialize(Vector<const uint8_t> module_bytes,
 CompilationStateImpl::CompilationStateImpl(internal::Isolate* isolate,
                                            NativeModule* native_module)
     : isolate_(isolate),
+      engine_(isolate->wasm_engine()),
       native_module_(native_module),
+      background_compile_token_(
+          std::make_shared<BackgroundCompileToken>(native_module)),
       compile_mode_(FLAG_wasm_tier_up &&
                             native_module->module()->origin == kWasmOrigin
                         ? CompileMode::kTiering
@@ -1571,14 +1663,13 @@ CompilationStateImpl::CompilationStateImpl(internal::Isolate* isolate,
 }
 
 CompilationStateImpl::~CompilationStateImpl() {
-  DCHECK(background_task_manager_.canceled());
   DCHECK(foreground_task_manager_.canceled());
   CompilationError* error = compile_error_.load(std::memory_order_acquire);
   if (error != nullptr) delete error;
 }
 
 void CompilationStateImpl::CancelAndWait() {
-  background_task_manager_.CancelAndWait();
+  Abort();
   foreground_task_manager_.CancelAndWait();
 }
 
@@ -1719,8 +1810,8 @@ void CompilationStateImpl::OnFinishedUnit(ExecutionTier tier, WasmCode* code) {
 }
 
 void CompilationStateImpl::RestartBackgroundCompileTask() {
-  auto task = base::make_unique<BackgroundCompileTask>(
-      &background_task_manager_, native_module_, isolate_->counters());
+  auto task = engine_->NewBackgroundCompileTask<BackgroundCompileTask>(
+      background_compile_token_, isolate_->async_counters());
 
   // If --wasm-num-compilation-tasks=0 is passed, do only spawn foreground
   // tasks. This is used to make timing deterministic.
@@ -1795,16 +1886,9 @@ void CompilationStateImpl::ScheduleFinisherTask() {
 }
 
 void CompilationStateImpl::Abort() {
-  SetError(0, WasmError{0, "Compilation aborted"});
-  background_task_manager_.CancelAndWait();
-  // No more callbacks after abort. Don't free the std::function objects here,
-  // since this might clear references in the embedder, which is only allowed on
-  // the main thread.
-  aborted_.store(true);
-  if (!callbacks_.empty()) {
-    foreground_task_runner_->PostTask(
-        base::make_unique<FreeCallbacksTask>(this));
-  }
+  background_compile_token_->Cancel();
+  // No more callbacks after abort.
+  callbacks_.clear();
 }
 
 void CompilationStateImpl::SetError(uint32_t func_index,
@@ -1831,7 +1915,6 @@ void CompilationStateImpl::SetError(uint32_t func_index,
 
 void CompilationStateImpl::NotifyOnEvent(CompilationEvent event,
                                          const WasmError* error) {
-  if (aborted_.load()) return;
   HandleScope scope(isolate_);
   for (auto& callback : callbacks_) callback(event, error);
   // If no more events are expected after this one, clear the callbacks to free

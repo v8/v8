@@ -48,10 +48,10 @@ bool V8::Initialize() {
 
 
 void V8::TearDown() {
+  wasm::WasmEngine::GlobalTearDown();
 #if defined(USE_SIMULATOR)
   Simulator::GlobalTearDown();
 #endif
-  wasm::WasmEngine::GlobalTearDown();
   CallDescriptors::TearDown();
   Bootstrapper::TearDownExtensions();
   ElementsAccessor::TearDown();
