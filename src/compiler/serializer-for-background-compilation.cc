@@ -56,7 +56,7 @@ class SerializerForBackgroundCompilation::Environment : public ZoneObject {
                        int parameter_count);
 
   Environment(SerializerForBackgroundCompilation* serializer, Isolate* isolate,
-              int register_count, int parameter_count, Hints receiver,
+              int register_count, int parameter_count,
               const HintsVector& arguments);
 
   int parameter_count() const { return parameter_count_; }
@@ -92,15 +92,11 @@ class SerializerForBackgroundCompilation::Environment : public ZoneObject {
   const int register_count_;
   const int parameter_count_;
   HintsVector environment_hints_;
-  static const int kReceiverIndex = 0;
-  static const int kParameterBase = 1;
-  int register_base() const { return 1 + parameter_count_; }
+  int register_base() const { return parameter_count_; }
   int accumulator_index() const { return register_base() + register_count_; }
   int current_context_index() const { return accumulator_index() + 1; }
   int function_closure_index() const { return current_context_index() + 1; }
-  int environment_hints_size() const {
-    return 1 + parameter_count_ + register_count_ + 3;
-  }
+  int environment_hints_size() const { return function_closure_index() + 1; }
 
   Hints return_value_hints_;
 };
@@ -115,18 +111,15 @@ SerializerForBackgroundCompilation::Environment::Environment(
 
 SerializerForBackgroundCompilation::Environment::Environment(
     SerializerForBackgroundCompilation* serializer, Isolate* isolate,
-    int register_count, int parameter_count, Hints receiver,
-    const HintsVector& arguments)
+    int register_count, int parameter_count, const HintsVector& arguments)
     : Environment(serializer->zone(), isolate, register_count,
                   parameter_count) {
-  environment_hints_[kReceiverIndex] = receiver;
-
   size_t param_count = static_cast<size_t>(parameter_count);
 
   // Copy the hints for the actually passed arguments, at most up to
   // the parameter_count.
   for (size_t i = 0; i < std::min(arguments.size(), param_count); ++i) {
-    environment_hints_[kParameterBase + i] = arguments[i];
+    environment_hints_[i] = arguments[i];
   }
 
   Hints undefined_hint(serializer->zone());
@@ -134,7 +127,7 @@ SerializerForBackgroundCompilation::Environment::Environment(
       serializer->broker()->isolate()->factory()->undefined_value());
   // Pad the rest with "undefined".
   for (size_t i = arguments.size(); i < param_count; ++i) {
-    environment_hints_[kParameterBase + i] = undefined_hint;
+    environment_hints_[i] = undefined_hint;
   }
 }
 
@@ -145,7 +138,7 @@ int SerializerForBackgroundCompilation::Environment::RegisterToLocalIndex(
   if (reg.is_current_context()) return current_context_index();
   if (reg.is_function_closure()) return function_closure_index();
   if (reg.is_parameter()) {
-    return kParameterBase + reg.ToParameterIndex(parameter_count());
+    return reg.ToParameterIndex(parameter_count());
   } else {
     return register_base() + reg.index();
   }
@@ -166,16 +159,15 @@ SerializerForBackgroundCompilation::SerializerForBackgroundCompilation(
 
 SerializerForBackgroundCompilation::SerializerForBackgroundCompilation(
     JSHeapBroker* broker, Zone* zone, FunctionBlueprint function,
-    const Hints& receiver, const HintsVector& arguments)
+    const HintsVector& arguments)
     : broker_(broker),
       zone_(zone),
       shared_(function.shared),
       feedback_(function.feedback),
-      environment_(
-          new (zone) Environment(this, broker->isolate(),
-                                 shared_->GetBytecodeArray()->register_count(),
-                                 shared_->GetBytecodeArray()->parameter_count(),
-                                 receiver, arguments)) {}
+      environment_(new (zone) Environment(
+          this, broker->isolate(),
+          shared_->GetBytecodeArray()->register_count(),
+          shared_->GetBytecodeArray()->parameter_count(), arguments)) {}
 
 Hints SerializerForBackgroundCompilation::Run() {
   SharedFunctionInfoRef shared(broker(), shared_);
@@ -313,7 +305,8 @@ void SerializerForBackgroundCompilation::VisitCallUndefinedReceiver0(
       environment()->register_hints(iterator->GetRegisterOperand(0));
 
   HintsVector parameters(zone());
-  ProcessCallOrConstruct(callee, receiver, parameters);
+  parameters.push_back(receiver);
+  ProcessCallOrConstruct(callee, parameters);
 }
 
 void SerializerForBackgroundCompilation::VisitCallUndefinedReceiver1(
@@ -327,9 +320,10 @@ void SerializerForBackgroundCompilation::VisitCallUndefinedReceiver1(
       environment()->register_hints(iterator->GetRegisterOperand(1));
 
   HintsVector parameters(zone());
+  parameters.push_back(receiver);
   parameters.push_back(arg0);
 
-  ProcessCallOrConstruct(callee, receiver, parameters);
+  ProcessCallOrConstruct(callee, parameters);
 }
 
 void SerializerForBackgroundCompilation::VisitCallUndefinedReceiver2(
@@ -345,10 +339,11 @@ void SerializerForBackgroundCompilation::VisitCallUndefinedReceiver2(
       environment()->register_hints(iterator->GetRegisterOperand(2));
 
   HintsVector parameters(zone());
+  parameters.push_back(receiver);
   parameters.push_back(arg0);
   parameters.push_back(arg1);
 
-  ProcessCallOrConstruct(callee, receiver, parameters);
+  ProcessCallOrConstruct(callee, parameters);
 }
 
 void SerializerForBackgroundCompilation::VisitCallAnyReceiver(
@@ -374,8 +369,9 @@ void SerializerForBackgroundCompilation::VisitCallProperty0(
       environment()->register_hints(iterator->GetRegisterOperand(1));
 
   HintsVector parameters(zone());
+  parameters.push_back(receiver);
 
-  ProcessCallOrConstruct(callee, receiver, parameters);
+  ProcessCallOrConstruct(callee, parameters);
 }
 
 void SerializerForBackgroundCompilation::VisitCallProperty1(
@@ -388,9 +384,10 @@ void SerializerForBackgroundCompilation::VisitCallProperty1(
       environment()->register_hints(iterator->GetRegisterOperand(2));
 
   HintsVector parameters(zone());
+  parameters.push_back(receiver);
   parameters.push_back(arg0);
 
-  ProcessCallOrConstruct(callee, receiver, parameters);
+  ProcessCallOrConstruct(callee, parameters);
 }
 
 void SerializerForBackgroundCompilation::VisitCallProperty2(
@@ -405,14 +402,15 @@ void SerializerForBackgroundCompilation::VisitCallProperty2(
       environment()->register_hints(iterator->GetRegisterOperand(3));
 
   HintsVector parameters(zone());
+  parameters.push_back(receiver);
   parameters.push_back(arg0);
   parameters.push_back(arg1);
 
-  ProcessCallOrConstruct(callee, receiver, parameters);
+  ProcessCallOrConstruct(callee, parameters);
 }
 
 void SerializerForBackgroundCompilation::ProcessCallOrConstruct(
-    const Hints& callee, const Hints& receiver, const HintsVector& arguments) {
+    const Hints& callee, const HintsVector& arguments) {
   environment()->accumulator_hints().Clear();
 
   for (auto hint : callee.constants()) {
@@ -427,14 +425,14 @@ void SerializerForBackgroundCompilation::ProcessCallOrConstruct(
     Handle<FeedbackVector> feedback(function->feedback_vector(),
                                     broker()->isolate());
     SerializerForBackgroundCompilation child_serializer(
-        broker(), zone(), {shared, feedback}, receiver, arguments);
+        broker(), zone(), {shared, feedback}, arguments);
     environment()->accumulator_hints().Add(child_serializer.Run());
   }
 
   for (auto hint : callee.function_blueprints()) {
     if (!hint.shared->IsInlineable()) continue;
     SerializerForBackgroundCompilation child_serializer(broker(), zone(), hint,
-                                                        receiver, arguments);
+                                                        arguments);
     environment()->accumulator_hints().Add(child_serializer.Run());
   }
 }
@@ -445,35 +443,31 @@ void SerializerForBackgroundCompilation::ProcessCallVarArgs(
   const Hints& callee =
       environment()->register_hints(iterator->GetRegisterOperand(0));
   interpreter::Register first_reg = iterator->GetRegisterOperand(1);
-  size_t reg_count = iterator->GetRegisterCountOperand(2);
+  int reg_count = static_cast<int>(iterator->GetRegisterCountOperand(2));
 
-  int arg_count;
+  bool first_reg_is_receiver =
+      receiver_mode != ConvertReceiverMode::kNullOrUndefined;
+
   Hints receiver(zone());
-  interpreter::Register first_arg;
-  if (receiver_mode == ConvertReceiverMode::kNullOrUndefined) {
-    // The receiver is implicit (and undefined), the arguments are in
-    // consecutive registers.
-    arg_count = static_cast<int>(reg_count);
-    receiver.AddConstant(broker()->isolate()->factory()->undefined_value());
-    first_arg = first_reg;
-  } else {
+  if (first_reg_is_receiver) {
     // The receiver is the first register, followed by the arguments in the
     // consecutive registers.
-    arg_count = static_cast<int>(reg_count) - 1;
     receiver.Add(environment()->register_hints(first_reg));
-    first_arg = interpreter::Register(first_reg.index() + 1);
+  } else {
+    // The receiver is implicit (and undefined), the arguments are in
+    // consecutive registers.
+    receiver.AddConstant(broker()->isolate()->factory()->undefined_value());
   }
 
   HintsVector arguments(zone());
-
-  // The function arguments are in consecutive registers.
-  int arg_base = first_arg.index();
-  for (int i = 0; i < arg_count; ++i) {
-    arguments.push_back(
-        environment()->register_hints(interpreter::Register(arg_base + i)));
+  arguments.push_back(receiver);
+  int arg_base = BoolToInt(first_reg_is_receiver);
+  for (int i = arg_base; i < reg_count; ++i) {
+    arguments.push_back(environment()->register_hints(
+        interpreter::Register(first_reg.index() + i)));
   }
 
-  ProcessCallOrConstruct(callee, receiver, arguments);
+  ProcessCallOrConstruct(callee, arguments);
 }
 
 void SerializerForBackgroundCompilation::VisitReturn(
@@ -490,26 +484,20 @@ void SerializerForBackgroundCompilation::VisitConstruct(
   interpreter::Register first_reg = iterator->GetRegisterOperand(1);
   size_t reg_count = iterator->GetRegisterCountOperand(2);
 
-  Hints receiver = environment()->register_hints(first_reg);
-  interpreter::Register first_arg =
-      interpreter::Register(first_reg.index() + 1);
-
-  int arg_count = static_cast<int>(reg_count) - 1;
-
   HintsVector arguments(zone());
-  // Push the target of the construct.
+  // Push the target (callee) of the construct.
   arguments.push_back(callee);
 
   // The function arguments are in consecutive registers.
-  int arg_base = first_arg.index();
-  for (int i = 0; i < arg_count; ++i) {
+  int arg_base = first_reg.index();
+  for (int i = 0; i < static_cast<int>(reg_count); ++i) {
     arguments.push_back(
         environment()->register_hints(interpreter::Register(arg_base + i)));
   }
   // Push the new_target of the construct.
   arguments.push_back(environment()->accumulator_hints());
 
-  ProcessCallOrConstruct(callee, receiver, arguments);
+  ProcessCallOrConstruct(callee, arguments);
 }
 
 #define DEFINE_SKIPPED_JUMP(name, ...)                  \

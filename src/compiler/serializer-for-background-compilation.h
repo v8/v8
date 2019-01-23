@@ -149,7 +149,6 @@ class SerializerForBackgroundCompilation {
  private:
   SerializerForBackgroundCompilation(JSHeapBroker* broker, Zone* zone,
                                      FunctionBlueprint function,
-                                     const Hints& receiver,
                                      const HintsVector& arguments);
 
   void TraverseBytecode();
@@ -165,7 +164,7 @@ class SerializerForBackgroundCompilation {
   JSHeapBroker* broker() const { return broker_; }
   Environment* environment() const { return environment_; }
 
-  void ProcessCallOrConstruct(const Hints& callee, const Hints& receiver,
+  void ProcessCallOrConstruct(const Hints& callee,
                               const HintsVector& arguments);
   void ProcessCallVarArgs(interpreter::BytecodeArrayIterator* iterator,
                           ConvertReceiverMode receiver_mode);
