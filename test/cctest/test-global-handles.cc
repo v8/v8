@@ -69,6 +69,14 @@ void ConstructJSObject(v8::Isolate* isolate, v8::Local<v8::Context> context,
   CHECK(!flag_and_persistent->handle.IsEmpty());
 }
 
+void ConstructJSObject(v8::Isolate* isolate, v8::Global<v8::Object>* global) {
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Object> object(v8::Object::New(isolate));
+  CHECK(!object.IsEmpty());
+  *global = v8::Global<v8::Object>(isolate, object);
+  CHECK(!global->IsEmpty());
+}
+
 void ConstructJSApiObject(v8::Isolate* isolate, v8::Local<v8::Context> context,
                           FlagAndPersistent* flag_and_persistent) {
   v8::HandleScope handle_scope(isolate);
@@ -530,6 +538,33 @@ TEST(SecondPassPhantomCallbacks) {
   InvokeMarkSweep();
   InvokeMarkSweep();
   CHECK(fp.flag);
+}
+
+TEST(MoveStrongGlobal) {
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+
+  v8::Global<v8::Object>* global = new Global<v8::Object>();
+  ConstructJSObject(isolate, global);
+  InvokeMarkSweep();
+  v8::Global<v8::Object> global2(std::move(*global));
+  delete global;
+  InvokeMarkSweep();
+}
+
+TEST(MoveWeakGlobal) {
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+
+  v8::Global<v8::Object>* global = new Global<v8::Object>();
+  ConstructJSObject(isolate, global);
+  InvokeMarkSweep();
+  global->SetWeak();
+  v8::Global<v8::Object> global2(std::move(*global));
+  delete global;
+  InvokeMarkSweep();
 }
 
 }  // namespace internal

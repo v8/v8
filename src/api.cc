@@ -1012,9 +1012,13 @@ i::Address* V8::GlobalizeReference(i::Isolate* isolate, i::Address* obj) {
   return result.location();
 }
 
-i::Address* V8::CopyPersistent(i::Address* obj) {
-  i::Handle<i::Object> result = i::GlobalHandles::CopyGlobal(obj);
+i::Address* V8::CopyGlobalReference(i::Address* from) {
+  i::Handle<i::Object> result = i::GlobalHandles::CopyGlobal(from);
   return result.location();
+}
+
+void V8::MoveGlobalReference(internal::Address** from, internal::Address** to) {
+  i::GlobalHandles::MoveGlobal(from, to);
 }
 
 void V8::RegisterExternallyReferencedObject(i::Address* location,
