@@ -40,7 +40,10 @@ enum WeaknessType {
 // callbacks and finalizers attached to them.
 class GlobalHandles final {
  public:
-  // Copy a global handle
+  // Move a global handle.
+  static void MoveGlobal(Address** from, Address** to);
+
+  // Copy a global handle.
   static Handle<Object> CopyGlobal(Address* location);
 
   // Destroy a global handle.

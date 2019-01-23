@@ -625,6 +625,20 @@ Handle<Object> GlobalHandles::CopyGlobal(Address* location) {
   return global_handles->Create(*location);
 }
 
+void GlobalHandles::MoveGlobal(Address** from, Address** to) {
+  DCHECK_NOT_NULL(*from);
+  DCHECK_NOT_NULL(*to);
+  DCHECK_EQ(*from, *to);
+  Node* node = Node::FromLocation(*from);
+  if (node->IsWeak() && node->IsPhantomResetHandle()) {
+    node->set_parameter(to);
+  }
+
+  // - Strong handles do not require fixups.
+  // - Weak handles with finalizers and callbacks are too general to fix up. For
+  //   those the callers need to ensure consistency.
+}
+
 void GlobalHandles::Destroy(Address* location) {
   if (location != nullptr) {
     NodeSpace<Node>::Release(Node::FromLocation(location));

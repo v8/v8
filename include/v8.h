@@ -758,6 +758,7 @@ class Global : public PersistentBase<T> {
    * A Global with no storage cell.
    */
   V8_INLINE Global() : PersistentBase<T>(nullptr) {}
+
   /**
    * Construct a Global from a Local.
    * When the Local is non-empty, a new storage cell is created
@@ -768,6 +769,7 @@ class Global : public PersistentBase<T> {
       : PersistentBase<T>(PersistentBase<T>::New(isolate, *that)) {
     TYPE_CHECK(T, S);
   }
+
   /**
    * Construct a Global from a PersistentBase.
    * When the Persistent is non-empty, a new storage cell is created
@@ -778,26 +780,20 @@ class Global : public PersistentBase<T> {
       : PersistentBase<T>(PersistentBase<T>::New(isolate, that.val_)) {
     TYPE_CHECK(T, S);
   }
+
   /**
    * Move constructor.
    */
-  V8_INLINE Global(Global&& other) : PersistentBase<T>(other.val_) {
-    other.val_ = nullptr;
-  }
+  V8_INLINE Global(Global&& other);
+
   V8_INLINE ~Global() { this->Reset(); }
+
   /**
    * Move via assignment.
    */
   template <class S>
-  V8_INLINE Global& operator=(Global<S>&& rhs) {  // NOLINT
-    TYPE_CHECK(T, S);
-    if (this != &rhs) {
-      this->Reset();
-      this->val_ = rhs.val_;
-      rhs.val_ = nullptr;
-    }
-    return *this;
-  }
+  V8_INLINE Global& operator=(Global<S>&& rhs);
+
   /**
    * Pass allows returning uniques from functions, etc.
    */
@@ -821,7 +817,6 @@ class Global : public PersistentBase<T> {
 // UniquePersistent is an alias for Global for historical reason.
 template <class T>
 using UniquePersistent = Global<T>;
-
 
  /**
  * A stack-allocated class that governs a number of local handles.
@@ -8565,7 +8560,9 @@ class V8_EXPORT V8 {
 
   static internal::Address* GlobalizeReference(internal::Isolate* isolate,
                                                internal::Address* handle);
-  static internal::Address* CopyPersistent(internal::Address* handle);
+  static void MoveGlobalReference(internal::Address** from,
+                                  internal::Address** to);
+  static internal::Address* CopyGlobalReference(internal::Address* from);
   static void DisposeGlobal(internal::Address* global_handle);
   static void MakeWeak(internal::Address* location, void* data,
                        WeakCallbackInfo<void>::Callback weak_callback,
@@ -8585,6 +8582,8 @@ class V8_EXPORT V8 {
   static void FromJustIsNothing();
   static void ToLocalEmpty();
   static void InternalFieldOutOfBounds(int index);
+  template <class T>
+  friend class Global;
   template <class T> friend class Local;
   template <class T>
   friend class MaybeLocal;
@@ -9512,7 +9511,7 @@ void Persistent<T, M>::Copy(const Persistent<S, M2>& that) {
   this->Reset();
   if (that.IsEmpty()) return;
   internal::Address* p = reinterpret_cast<internal::Address*>(that.val_);
-  this->val_ = reinterpret_cast<T*>(V8::CopyPersistent(p));
+  this->val_ = reinterpret_cast<T*>(V8::CopyGlobalReference(p));
   M::Copy(that, this);
 }
 
@@ -9643,6 +9642,32 @@ uint16_t PersistentBase<T>::WrapperClassId() const {
   internal::Address* obj = reinterpret_cast<internal::Address*>(this->val_);
   uint8_t* addr = reinterpret_cast<uint8_t*>(obj) + I::kNodeClassIdOffset;
   return *reinterpret_cast<uint16_t*>(addr);
+}
+
+template <class T>
+Global<T>::Global(Global&& other) : PersistentBase<T>(other.val_) {
+  if (other.val_ != nullptr) {
+    V8::MoveGlobalReference(reinterpret_cast<internal::Address**>(&other.val_),
+                            reinterpret_cast<internal::Address**>(&this->val_));
+    other.val_ = nullptr;
+  }
+}
+
+template <class T>
+template <class S>
+Global<T>& Global<T>::operator=(Global<S>&& rhs) {
+  TYPE_CHECK(T, S);
+  if (this != &rhs) {
+    this->Reset();
+    if (rhs.val_ != nullptr) {
+      this->val_ = rhs.val_;
+      V8::MoveGlobalReference(
+          reinterpret_cast<internal::Address**>(&rhs.val_),
+          reinterpret_cast<internal::Address**>(&this->val_));
+      rhs.val_ = nullptr;
+    }
+  }
+  return *this;
 }
 
 template <typename T>
