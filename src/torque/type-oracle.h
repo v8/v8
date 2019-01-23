@@ -107,8 +107,16 @@ class TypeOracle : public ContextualClass<TypeOracle> {
     return Get().GetBuiltinType(RAWPTR_TYPE_STRING);
   }
 
+  static const Type* GetMapType() {
+    return Get().GetBuiltinType(MAP_TYPE_STRING);
+  }
+
   static const Type* GetObjectType() {
     return Get().GetBuiltinType(OBJECT_TYPE_STRING);
+  }
+
+  static const Type* GetJSObjectType() {
+    return Get().GetBuiltinType(JSOBJECT_TYPE_STRING);
   }
 
   static const Type* GetTaggedType() {

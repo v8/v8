@@ -11,7 +11,7 @@ namespace object {
         const elements: FixedArray =
             Cast<FixedArray>(array.elements) otherwise IfSlow;
         const length: Smi = array.length;
-        const result: JSObject = AllocateEmptyJSObject();
+        const result: JSObject = new JSObject{};
 
         for (let k: Smi = 0; k < length; ++k) {
           const value: Object = array::LoadElementOrUndefined(elements, k);
@@ -41,7 +41,7 @@ namespace object {
       return ObjectFromEntriesFastCase(iterable) otherwise IfSlow;
     }
     label IfSlow {
-      const result: JSObject = AllocateEmptyJSObject();
+      const result: JSObject = new JSObject{};
       const fastIteratorResultMap: Map =
           Cast<Map>(LoadNativeContext(context)[ITERATOR_RESULT_MAP_INDEX])
           otherwise unreachable;

@@ -230,10 +230,14 @@ struct StoreObjectFieldInstruction : InstructionBase {
 struct CallIntrinsicInstruction : InstructionBase {
   TORQUE_INSTRUCTION_BOILERPLATE()
   CallIntrinsicInstruction(Intrinsic* intrinsic,
+                           TypeVector specialization_types,
                            std::vector<std::string> constexpr_arguments)
-      : intrinsic(intrinsic), constexpr_arguments(constexpr_arguments) {}
+      : intrinsic(intrinsic),
+        specialization_types(std::move(specialization_types)),
+        constexpr_arguments(constexpr_arguments) {}
 
   Intrinsic* intrinsic;
+  TypeVector specialization_types;
   std::vector<std::string> constexpr_arguments;
 };
 

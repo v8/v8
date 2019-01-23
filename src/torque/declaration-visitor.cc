@@ -274,7 +274,7 @@ void DeclarationVisitor::DeclareMethods(
     }
   }
 
-  if (container_type->Constructors().size() != 0) return;
+  if (constructor_this_type->Constructors().size() != 0) return;
 
   // Generate default constructor.
   Signature constructor_signature;

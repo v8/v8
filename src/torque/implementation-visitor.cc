@@ -1251,9 +1251,18 @@ VisitResult ImplementationVisitor::Visit(NewExpression* expr) {
 
   // Output the code to generate an unitialized object of the class size in the
   // GC heap.
+  VisitResult raw_object_map =
+      ProjectStructField(new_struct_result, "map_untyped");
+  Arguments map_cast_arguments;
+  map_cast_arguments.parameters.push_back(raw_object_map);
+  VisitResult object_map = GenerateCall("%RawObjectCast", map_cast_arguments,
+                                        {TypeOracle::GetMapType()}, false);
+  Arguments size_arguments;
+  size_arguments.parameters.push_back(object_map);
+  VisitResult object_size = GenerateCall("%GetAllocationBaseSize",
+                                         size_arguments, {class_type}, false);
   Arguments allocate_arguments;
-  allocate_arguments.parameters.push_back(VisitResult(
-      TypeOracle::GetConstInt31Type(), std::to_string(class_type->size())));
+  allocate_arguments.parameters.push_back(object_size);
   VisitResult allocate_result =
       GenerateCall("%Allocate", allocate_arguments, {class_type}, false);
   DCHECK(allocate_result.IsOnStack());
@@ -2083,8 +2092,8 @@ VisitResult ImplementationVisitor::GenerateCall(
       result << ")";
       return VisitResult(return_type, result.str());
     } else {
-      assembler().Emit(
-          CallIntrinsicInstruction{intrinsic, constexpr_arguments});
+      assembler().Emit(CallIntrinsicInstruction{intrinsic, specialization_types,
+                                                constexpr_arguments});
       size_t return_slot_count =
           LoweredSlotCount(intrinsic->signature().return_type);
       return VisitResult(return_type, assembler().TopRange(return_slot_count));

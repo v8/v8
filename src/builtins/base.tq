@@ -52,6 +52,8 @@ type Number = Smi | HeapNumber;
 type BigInt extends HeapObject generates 'TNode<BigInt>';
 type Numeric = Number | BigInt;
 
+type RootIndex generates 'TNode<Int32T>' constexpr 'RootIndex';
+
 type Map extends HeapObject generates 'TNode<Map>';
 // The accessors for HeapObject's map cannot be declared before Map
 // is declared because forward declarations are not (yet) supported.
@@ -61,9 +63,10 @@ type Map extends HeapObject generates 'TNode<Map>';
 extern operator '.map' macro LoadMap(HeapObject): Map;
 extern transitioning operator '.map=' macro StoreMap(HeapObject, Map);
 
-// This intrinsic should never be called from Torque code. It's used internally
-// by the 'new' operator and only declared here because it's simpler than
-// building the definition from C++.
+// These intrinsics should never be called from Torque code. They're used
+// internally by the 'new' operator and only declared here because it's simpler
+// than building the definition from C++.
+intrinsic %GetAllocationBaseSize<Class: type>(map: Map): intptr;
 intrinsic %Allocate<Class: type>(size: intptr): Class;
 
 type FixedArrayBase extends HeapObject generates 'TNode<FixedArrayBase>';
@@ -79,6 +82,17 @@ type Constructor extends JSReceiver generates 'TNode<JSReceiver>';
 type JSProxy extends JSReceiver generates 'TNode<JSProxy>';
 
 class JSObject extends JSReceiver {
+  constructor(map: Map, properties: FixedArrayBase, elements: FixedArrayBase) {
+    super(map, properties);
+    this.elements = elements;
+  }
+  constructor(implicit context: Context)() {
+    const objectFunction: JSFunction = GetObjectFunction();
+    const map: Map = Cast<Map>(objectFunction.prototype_or_initial_map)
+        otherwise unreachable;
+    super(map, kEmptyFixedArray);
+    this.elements = kEmptyFixedArray;
+  }
   elements: FixedArrayBase;
 }
 
@@ -149,7 +163,7 @@ type NumberDictionary extends HeapObject
 // RawObjectCasts should *never* be used anywhere in Torque code except for
 // in Torque-based UnsafeCast operators preceeded by an appropriate
 // type assert()
-intrinsic %RawObjectCast<A: type>(o: Object): A;
+intrinsic %RawObjectCast<A: type>(o: Tagged): A;
 intrinsic %RawPointerCast<A: type>(p: RawPtr): A;
 intrinsic %RawConstexprCast<To: type, From: type>(f: From): To;
 
@@ -188,7 +202,6 @@ type ExtractFixedArrayFlags
     constexpr 'CodeStubAssembler::ExtractFixedArrayFlags';
 type ParameterMode
     generates 'TNode<Int32T>' constexpr 'ParameterMode';
-type RootIndex generates 'TNode<Int32T>' constexpr 'RootIndex';
 type WriteBarrierMode
     generates 'TNode<Int32T>' constexpr 'WriteBarrierMode';
 
