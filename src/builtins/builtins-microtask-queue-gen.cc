@@ -33,6 +33,8 @@ class MicrotaskQueueBuiltinsAssembler : public CodeStubAssembler {
   TNode<IntPtrT> CalculateRingBufferOffset(TNode<IntPtrT> capacity,
                                            TNode<IntPtrT> start,
                                            TNode<IntPtrT> index);
+
+  void PrepareForContext(TNode<Context> microtask_context);
   void RunSingleMicrotask(TNode<Context> current_context,
                           TNode<Microtask> microtask);
   void IncrementFinishedMicrotaskCount(TNode<RawPtrT> microtask_queue);
@@ -101,6 +103,13 @@ TNode<IntPtrT> MicrotaskQueueBuiltinsAssembler::CalculateRingBufferOffset(
       WordAnd(IntPtrAdd(start, index), IntPtrSub(capacity, IntPtrConstant(1))));
 }
 
+void MicrotaskQueueBuiltinsAssembler::PrepareForContext(
+    TNode<Context> native_context) {
+  CSA_ASSERT(this, IsNativeContext(native_context));
+  EnterMicrotaskContext(native_context);
+  SetCurrentContext(native_context);
+}
+
 void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
     TNode<Context> current_context, TNode<Microtask> microtask) {
   CSA_ASSERT(this, TaggedIsNotSmi(microtask));
@@ -140,10 +149,7 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
     TNode<Context> microtask_context =
         LoadObjectField<Context>(microtask, CallableTask::kContextOffset);
     TNode<Context> native_context = LoadNativeContext(microtask_context);
-
-    CSA_ASSERT(this, IsNativeContext(native_context));
-    EnterMicrotaskContext(native_context);
-    SetCurrentContext(native_context);
+    PrepareForContext(native_context);
 
     TNode<JSReceiver> callable =
         LoadObjectField<JSReceiver>(microtask, CallableTask::kCallableOffset);
@@ -186,9 +192,7 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
     TNode<Context> microtask_context = LoadObjectField<Context>(
         microtask, PromiseResolveThenableJobTask::kContextOffset);
     TNode<Context> native_context = LoadNativeContext(microtask_context);
-    CSA_ASSERT(this, IsNativeContext(native_context));
-    EnterMicrotaskContext(native_context);
-    SetCurrentContext(native_context);
+    PrepareForContext(native_context);
 
     Node* const promise_to_resolve = LoadObjectField(
         microtask, PromiseResolveThenableJobTask::kPromiseToResolveOffset);
@@ -212,9 +216,7 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
     TNode<Context> microtask_context = LoadObjectField<Context>(
         microtask, PromiseReactionJobTask::kContextOffset);
     TNode<Context> native_context = LoadNativeContext(microtask_context);
-    CSA_ASSERT(this, IsNativeContext(native_context));
-    EnterMicrotaskContext(native_context);
-    SetCurrentContext(native_context);
+    PrepareForContext(native_context);
 
     Node* const argument =
         LoadObjectField(microtask, PromiseReactionJobTask::kArgumentOffset);
@@ -247,9 +249,7 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
     TNode<Context> microtask_context = LoadObjectField<Context>(
         microtask, PromiseReactionJobTask::kContextOffset);
     TNode<Context> native_context = LoadNativeContext(microtask_context);
-    CSA_ASSERT(this, IsNativeContext(native_context));
-    EnterMicrotaskContext(native_context);
-    SetCurrentContext(native_context);
+    PrepareForContext(native_context);
 
     Node* const argument =
         LoadObjectField(microtask, PromiseReactionJobTask::kArgumentOffset);
@@ -283,9 +283,7 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
         microtask, WeakFactoryCleanupJobTask::kFactoryOffset);
     TNode<Context> native_context = LoadObjectField<Context>(
         weak_factory, JSWeakFactory::kNativeContextOffset);
-    CSA_ASSERT(this, IsNativeContext(native_context));
-    EnterMicrotaskContext(native_context);
-    SetCurrentContext(native_context);
+    PrepareForContext(native_context);
 
     Node* const result = CallRuntime(Runtime::kWeakFactoryCleanupJob,
                                      native_context, weak_factory);
