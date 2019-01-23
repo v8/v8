@@ -678,6 +678,11 @@ class ArrowHeadParsingScope : public ExpressionParsingScope<Types> {
                                        MessageTemplate::kParamDupe);
       }
     }
+
+    int initializer_position = this->parser()->end_position();
+    for (auto declaration : *result->declarations()) {
+      declaration->var()->set_initializer_position(initializer_position);
+    }
     return result;
   }
 

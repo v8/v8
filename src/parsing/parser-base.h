@@ -480,16 +480,12 @@ class ParserBase {
 
   struct DeclarationParsingResult {
     struct Declaration {
-      Declaration(ExpressionT pattern, int initializer_position,
-                  ExpressionT initializer)
-          : pattern(pattern),
-            initializer_position(initializer_position),
-            initializer(initializer) {}
+      Declaration(ExpressionT pattern, ExpressionT initializer)
+          : pattern(pattern), initializer(initializer) {}
 
       ExpressionT pattern;
-      int initializer_position;
-      int value_beg_position = kNoSourcePosition;
       ExpressionT initializer;
+      int value_beg_pos = kNoSourcePosition;
     };
 
     DeclarationParsingResult()
@@ -3363,6 +3359,7 @@ void ParserBase<Impl>::ParseFormalParameter(FormalParametersT* parameters) {
   //   BindingElement[?Yield, ?GeneratorParameter]
   FuncNameInferrerState fni_state(&fni_);
   int pos = peek_position();
+  auto declaration_it = scope()->declarations()->end();
   ExpressionT pattern = ParseBindingPattern();
   if (impl()->IsIdentifier(pattern)) {
     ClassifyParameter(impl()->AsIdentifier(pattern), pos, end_position());
@@ -3379,9 +3376,15 @@ void ParserBase<Impl>::ParseFormalParameter(FormalParametersT* parameters) {
       return;
     }
 
-    AcceptINScope scope(this, true);
+    AcceptINScope accept_in_scope(this, true);
     initializer = ParseAssignmentExpression();
     impl()->SetFunctionNameFromIdentifierRef(initializer, pattern);
+  }
+
+  auto declaration_end = scope()->declarations()->end();
+  int initializer_end = end_position();
+  for (; declaration_it != declaration_end; ++declaration_it) {
+    declaration_it->var()->set_initializer_position(initializer_end);
   }
 
   impl()->AddFormalParameter(parameters, pattern, initializer, end_position(),
@@ -3473,6 +3476,11 @@ void ParserBase<Impl>::ParseVariableDeclarations(
 
   VariableDeclarationParsingScope declaration(
       impl(), parsing_result->descriptor.mode, names);
+  Scope* target_scope = IsLexicalVariableMode(parsing_result->descriptor.mode)
+                            ? scope()
+                            : scope()->GetDeclarationScope();
+
+  auto declaration_it = target_scope->declarations()->end();
 
   int bindings_start = peek_position();
   do {
@@ -3485,12 +3493,10 @@ void ParserBase<Impl>::ParseVariableDeclarations(
     Scanner::Location variable_loc = scanner()->location();
 
     ExpressionT value = impl()->NullExpression();
-    int initializer_position = kNoSourcePosition;
-    int value_beg_position = kNoSourcePosition;
+    int value_beg_pos = kNoSourcePosition;
     if (Check(Token::ASSIGN)) {
-      value_beg_position = peek_position();
-
       {
+        value_beg_pos = peek_position();
         AcceptINScope scope(this, var_context != kForStatement);
         value = ParseAssignmentExpression();
       }
@@ -3510,9 +3516,6 @@ void ParserBase<Impl>::ParseVariableDeclarations(
       }
 
       impl()->SetFunctionNameFromIdentifierRef(value, pattern);
-
-      // End position of the initializer is after the assignment expression.
-      initializer_position = end_position();
     } else {
       if (var_context != kForStatement || !PeekInOrOf()) {
         // ES6 'const' and binding patterns require initializers.
@@ -3529,14 +3532,16 @@ void ParserBase<Impl>::ParseVariableDeclarations(
           value = factory()->NewUndefinedLiteral(position());
         }
       }
-
-      // End position of the initializer is after the variable.
-      initializer_position = position();
     }
 
-    typename DeclarationParsingResult::Declaration decl(
-        pattern, initializer_position, value);
-    decl.value_beg_position = value_beg_position;
+    int initializer_position = end_position();
+    auto declaration_end = target_scope->declarations()->end();
+    for (; declaration_it != declaration_end; ++declaration_it) {
+      declaration_it->var()->set_initializer_position(initializer_position);
+    }
+
+    typename DeclarationParsingResult::Declaration decl(pattern, value);
+    decl.value_beg_pos = value_beg_pos;
     parsing_result->declarations.push_back(decl);
   } while (Check(Token::COMMA));
 
@@ -5179,9 +5184,20 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseTryStatement() {
             } else {
               catch_info.variable = catch_info.scope->DeclareCatchVariableName(
                   ast_value_factory()->dot_catch_string());
+
+              auto declaration_it = scope()->declarations()->end();
+
               VariableDeclarationParsingScope destructuring(
                   impl(), VariableMode::kLet, nullptr);
               catch_info.pattern = ParseBindingPattern();
+
+              int initializer_position = end_position();
+              auto declaration_end = scope()->declarations()->end();
+              for (; declaration_it != declaration_end; ++declaration_it) {
+                declaration_it->var()->set_initializer_position(
+                    initializer_position);
+              }
+
               RETURN_IF_PARSE_ERROR;
               catch_statements.Add(impl()->RewriteCatchPattern(&catch_info));
             }

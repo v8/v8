@@ -1413,6 +1413,7 @@ Statement* Parser::BuildInitializationBlock(
     DeclarationParsingResult* parsing_result) {
   ScopedPtrList<Statement> statements(pointer_buffer());
   for (const auto& declaration : parsing_result->declarations) {
+    if (!declaration.initializer) continue;
     InitializeVariables(&statements, parsing_result->descriptor.kind,
                         &declaration);
   }
@@ -1594,15 +1595,27 @@ Statement* Parser::RewriteSwitchStatement(SwitchStatement* switch_statement,
   return switch_block;
 }
 
+void Parser::InitializeVariables(
+    ScopedPtrList<Statement>* statements, VariableKind kind,
+    const DeclarationParsingResult::Declaration* declaration) {
+  if (has_error()) return;
+
+  DCHECK_NOT_NULL(declaration->initializer);
+
+  int pos = declaration->value_beg_pos;
+  if (pos == kNoSourcePosition) {
+    pos = declaration->initializer->position();
+  }
+  Assignment* assignment = factory()->NewAssignment(
+      Token::INIT, declaration->pattern, declaration->initializer, pos);
+  statements->Add(factory()->NewExpressionStatement(assignment, pos));
+}
+
 Block* Parser::RewriteCatchPattern(CatchInfo* catch_info) {
   DCHECK_NOT_NULL(catch_info->pattern);
 
-  // Initializer position for variables declared by the pattern.
-  const int initializer_position = position();
-
   DeclarationParsingResult::Declaration decl(
-      catch_info->pattern, initializer_position,
-      factory()->NewVariableProxy(catch_info->variable));
+      catch_info->pattern, factory()->NewVariableProxy(catch_info->variable));
 
   ScopedPtrList<Statement> init_statements(pointer_buffer());
   InitializeVariables(&init_statements, NORMAL_VARIABLE, &decl);
@@ -1797,7 +1810,7 @@ Block* Parser::RewriteForVarInLegacy(const ForInfo& for_info) {
     init_block->statements()->Add(
         factory()->NewExpressionStatement(
             factory()->NewAssignment(Token::ASSIGN, single_var,
-                                     decl.initializer, kNoSourcePosition),
+                                     decl.initializer, decl.value_beg_pos),
             kNoSourcePosition),
         zone());
     return init_block;
@@ -1827,7 +1840,7 @@ void Parser::DesugarBindingInForEachStatement(ForInfo* for_info,
       for_info->parsing_result.declarations[0];
   Variable* temp = NewTemporary(ast_value_factory()->dot_for_string());
   ScopedPtrList<Statement> each_initialization_statements(pointer_buffer());
-  decl.initializer = factory()->NewVariableProxy(temp);
+  decl.initializer = factory()->NewVariableProxy(temp, for_info->position);
   InitializeVariables(&each_initialization_statements, NORMAL_VARIABLE, &decl);
 
   *body_block = factory()->NewBlock(3, false);
@@ -2617,12 +2630,13 @@ Block* Parser::BuildParameterInitializationBlock(
       non_simple_param_init_statements.emplace(pointer_buffer());
       param_init_statements = &non_simple_param_init_statements.value();
       // Rewrite the outer initializer to point to param_scope
+      ReparentExpressionScope(stack_limit(), parameter->pattern, param_scope);
       ReparentExpressionScope(stack_limit(), initial_value, param_scope);
     }
 
     BlockState block_state(&scope_, param_scope);
-    DeclarationParsingResult::Declaration decl(
-        parameter->pattern, parameter->initializer_end_position, initial_value);
+    DeclarationParsingResult::Declaration decl(parameter->pattern,
+                                               initial_value);
 
     InitializeVariables(param_init_statements, PARAMETER_VARIABLE, &decl);
 

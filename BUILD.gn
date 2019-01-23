@@ -2326,7 +2326,6 @@ v8_source_set("v8_base") {
     "src/parsing/parser.h",
     "src/parsing/parsing.cc",
     "src/parsing/parsing.h",
-    "src/parsing/pattern-rewriter.cc",
     "src/parsing/preparse-data-impl.h",
     "src/parsing/preparse-data.cc",
     "src/parsing/preparse-data.h",
