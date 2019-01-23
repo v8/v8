@@ -699,7 +699,7 @@ class Runtime : public AllStatic {
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> SetObjectProperty(
       Isolate* isolate, Handle<Object> object, Handle<Object> key,
       Handle<Object> value, StoreOrigin store_origin,
-      Maybe<LanguageMode> language_mode = Nothing<LanguageMode>());
+      Maybe<ShouldThrow> should_throw = Nothing<ShouldThrow>());
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> GetObjectProperty(
       Isolate* isolate, Handle<Object> object, Handle<Object> key,

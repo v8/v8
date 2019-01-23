@@ -366,24 +366,25 @@ MaybeHandle<JSObject> JSDateTimeFormat::ResolvedOptions(
   //    [[Minute]]           "minute"
   //    [[Second]]           "second"
   //    [[TimeZoneName]]     "timeZoneName"
-  CHECK(JSReceiver::CreateDataProperty(
-            isolate, options, factory->locale_string(), locale, kDontThrow)
+  CHECK(JSReceiver::CreateDataProperty(isolate, options,
+                                       factory->locale_string(), locale,
+                                       Just(kDontThrow))
             .FromJust());
   CHECK(JSReceiver::CreateDataProperty(
             isolate, options, factory->calendar_string(),
             factory->NewStringFromAsciiChecked(calendar_str.c_str()),
-            kDontThrow)
+            Just(kDontThrow))
             .FromJust());
   if (!numbering_system.empty()) {
     CHECK(JSReceiver::CreateDataProperty(
               isolate, options, factory->numberingSystem_string(),
               factory->NewStringFromAsciiChecked(numbering_system.c_str()),
-              kDontThrow)
+              Just(kDontThrow))
               .FromJust());
   }
   CHECK(JSReceiver::CreateDataProperty(isolate, options,
                                        factory->timeZone_string(),
-                                       timezone_value, kDontThrow)
+                                       timezone_value, Just(kDontThrow))
             .FromJust());
 
   // 5.b.i. Let hc be dtf.[[HourCycle]].
@@ -392,23 +393,23 @@ MaybeHandle<JSObject> JSDateTimeFormat::ResolvedOptions(
   if (hc != Intl::HourCycle::kUndefined) {
     CHECK(JSReceiver::CreateDataProperty(
               isolate, options, factory->hourCycle_string(),
-              date_time_format->HourCycleAsString(), kDontThrow)
+              date_time_format->HourCycleAsString(), Just(kDontThrow))
               .FromJust());
     switch (hc) {
       //  ii. If hc is "h11" or "h12", let v be true.
       case Intl::HourCycle::kH11:
       case Intl::HourCycle::kH12:
-        CHECK(JSReceiver::CreateDataProperty(isolate, options,
-                                             factory->hour12_string(),
-                                             factory->true_value(), kDontThrow)
+        CHECK(JSReceiver::CreateDataProperty(
+                  isolate, options, factory->hour12_string(),
+                  factory->true_value(), Just(kDontThrow))
                   .FromJust());
         break;
       // iii. Else if, hc is "h23" or "h24", let v be false.
       case Intl::HourCycle::kH23:
       case Intl::HourCycle::kH24:
-        CHECK(JSReceiver::CreateDataProperty(isolate, options,
-                                             factory->hour12_string(),
-                                             factory->false_value(), kDontThrow)
+        CHECK(JSReceiver::CreateDataProperty(
+                  isolate, options, factory->hour12_string(),
+                  factory->false_value(), Just(kDontThrow))
                   .FromJust());
         break;
       // iv. Else, let v be undefined.
@@ -424,7 +425,7 @@ MaybeHandle<JSObject> JSDateTimeFormat::ResolvedOptions(
                   isolate, options,
                   factory->NewStringFromAsciiChecked(item.property.c_str()),
                   factory->NewStringFromAsciiChecked(pair.value.c_str()),
-                  kDontThrow)
+                  Just(kDontThrow))
                   .FromJust());
         break;
       }
@@ -606,7 +607,7 @@ Maybe<bool> CreateDefault(Isolate* isolate, Handle<JSObject> options,
     MAYBE_RETURN(
         JSReceiver::CreateDataProperty(
             isolate, options, factory->NewStringFromAsciiChecked(prop.c_str()),
-            factory->numeric_string(), kThrowOnError),
+            factory->numeric_string(), Just(kThrowOnError)),
         Nothing<bool>());
   }
   return Just(true);

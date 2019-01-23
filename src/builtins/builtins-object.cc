@@ -90,8 +90,8 @@ Object ObjectDefineAccessor(Isolate* isolate, Handle<Object> object,
   // 5. Perform ? DefinePropertyOrThrow(O, key, desc).
   // To preserve legacy behavior, we ignore errors silently rather than
   // throwing an exception.
-  Maybe<bool> success = JSReceiver::DefineOwnProperty(isolate, receiver, name,
-                                                      &desc, kThrowOnError);
+  Maybe<bool> success = JSReceiver::DefineOwnProperty(
+      isolate, receiver, name, &desc, Just(kThrowOnError));
   MAYBE_RETURN(success, ReadOnlyRoots(isolate).exception());
   if (!success.FromJust()) {
     isolate->CountUsage(v8::Isolate::kDefineGetterOrSetterWouldThrow);
@@ -395,7 +395,7 @@ BUILTIN(ObjectGetOwnPropertyDescriptors) {
     Handle<Object> from_descriptor = descriptor.ToObject(isolate);
 
     Maybe<bool> success = JSReceiver::CreateDataProperty(
-        isolate, descriptors, key, from_descriptor, kDontThrow);
+        isolate, descriptors, key, from_descriptor, Just(kDontThrow));
     CHECK(success.FromJust());
   }
 

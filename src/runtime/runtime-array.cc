@@ -130,11 +130,11 @@ Object RemoveArrayHolesGeneric(Isolate* isolate, Handle<JSReceiver> receiver,
       // the remaining undefineds or delete the remaining properties.
       RETURN_FAILURE_ON_EXCEPTION(
           isolate, Object::SetElement(isolate, receiver, current_pos, element,
-                                      LanguageMode::kStrict));
+                                      ShouldThrow::kThrowOnError));
       RETURN_FAILURE_ON_EXCEPTION(
           isolate, Object::SetElement(isolate, receiver, key,
                                       isolate->factory()->undefined_value(),
-                                      LanguageMode::kStrict));
+                                      ShouldThrow::kThrowOnError));
       ++current_pos;
     }
   }
@@ -152,7 +152,7 @@ Object RemoveArrayHolesGeneric(Isolate* isolate, Handle<JSReceiver> receiver,
     RETURN_FAILURE_ON_EXCEPTION(
         isolate, Object::SetElement(isolate, receiver, current_pos++,
                                     isolate->factory()->undefined_value(),
-                                    LanguageMode::kStrict));
+                                    ShouldThrow::kThrowOnError));
   }
   // TODO(szuend): Re-enable when we also copy from the prototype chain for
   //               JSArrays. Then we can use HasOwnProperty instead of
@@ -336,7 +336,7 @@ Maybe<bool> ConditionalCopy(Isolate* isolate, Handle<JSReceiver> source,
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, set_result,
       Object::SetElement(isolate, target, index, source_element,
-                         LanguageMode::kStrict),
+                         ShouldThrow::kThrowOnError),
       Nothing<bool>());
 
   return Just(true);

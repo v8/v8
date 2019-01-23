@@ -695,10 +695,10 @@ MaybeHandle<Object> Object::GetElement(Isolate* isolate, Handle<Object> object,
 
 MaybeHandle<Object> Object::SetElement(Isolate* isolate, Handle<Object> object,
                                        uint32_t index, Handle<Object> value,
-                                       LanguageMode language_mode) {
+                                       ShouldThrow should_throw) {
   LookupIterator it(isolate, object, index);
   MAYBE_RETURN_NULL(
-      SetProperty(&it, value, StoreOrigin::kMaybeKeyed, Just(language_mode)));
+      SetProperty(&it, value, StoreOrigin::kMaybeKeyed, Just(should_throw)));
   return value;
 }
 
@@ -1179,10 +1179,10 @@ MaybeHandle<Object> Object::GetPropertyOrElement(Isolate* isolate,
 
 MaybeHandle<Object> Object::SetPropertyOrElement(
     Isolate* isolate, Handle<Object> object, Handle<Name> name,
-    Handle<Object> value, Maybe<LanguageMode> language_mode,
+    Handle<Object> value, Maybe<ShouldThrow> should_throw,
     StoreOrigin store_origin) {
   LookupIterator it = LookupIterator::PropertyOrElement(isolate, object, name);
-  MAYBE_RETURN_NULL(SetProperty(&it, value, store_origin, language_mode));
+  MAYBE_RETURN_NULL(SetProperty(&it, value, store_origin, should_throw));
   return value;
 }
 

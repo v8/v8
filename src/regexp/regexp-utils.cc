@@ -53,7 +53,7 @@ MaybeHandle<Object> RegExpUtils::SetLastIndex(Isolate* isolate,
   } else {
     return Object::SetProperty(
         isolate, recv, isolate->factory()->lastIndex_string(), value_as_object,
-        StoreOrigin::kMaybeKeyed, Just(LanguageMode::kStrict));
+        StoreOrigin::kMaybeKeyed, Just(kThrowOnError));
   }
 }
 

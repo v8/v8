@@ -1724,7 +1724,7 @@ void Debug::OnException(Handle<Object> exception, Handle<Object> promise,
     // Mark the promise as already having triggered a message.
     Handle<Symbol> key = isolate_->factory()->promise_debug_marker_symbol();
     Object::SetProperty(isolate_, jspromise, key, key, StoreOrigin::kMaybeKeyed,
-                        Just(LanguageMode::kStrict))
+                        Just(ShouldThrow::kThrowOnError))
         .Assert();
     // Check whether the promise reject is considered an uncaught exception.
     uncaught = !isolate_->PromiseHasUserDefinedRejectHandler(jspromise);

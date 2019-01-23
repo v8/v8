@@ -177,7 +177,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> SetLengthProperty(
   return Object::SetProperty(
       isolate, receiver, isolate->factory()->length_string(),
       isolate->factory()->NewNumber(length), StoreOrigin::kMaybeKeyed,
-      Just(LanguageMode::kStrict));
+      Just(ShouldThrow::kThrowOnError));
 }
 
 V8_WARN_UNUSED_RESULT Object GenericArrayFill(Isolate* isolate,
@@ -191,9 +191,9 @@ V8_WARN_UNUSED_RESULT Object GenericArrayFill(Isolate* isolate,
         isolate->factory()->NewNumber(start));
 
     // b. Perform ? Set(O, Pk, value, true).
-    RETURN_FAILURE_ON_EXCEPTION(
-        isolate, Object::SetPropertyOrElement(isolate, receiver, index, value,
-                                              Just(LanguageMode::kStrict)));
+    RETURN_FAILURE_ON_EXCEPTION(isolate, Object::SetPropertyOrElement(
+                                             isolate, receiver, index, value,
+                                             Just(ShouldThrow::kThrowOnError)));
 
     // c. Increase k by 1.
     ++start;
@@ -333,7 +333,7 @@ V8_WARN_UNUSED_RESULT Object GenericArrayPush(Isolate* isolate,
     if (length <= static_cast<double>(JSArray::kMaxArrayIndex)) {
       RETURN_FAILURE_ON_EXCEPTION(
           isolate, Object::SetElement(isolate, receiver, length, element,
-                                      LanguageMode::kStrict));
+                                      ShouldThrow::kThrowOnError));
     } else {
       bool success;
       LookupIterator it = LookupIterator::PropertyOrElement(
@@ -341,7 +341,7 @@ V8_WARN_UNUSED_RESULT Object GenericArrayPush(Isolate* isolate,
       // Must succeed since we always pass a valid key.
       DCHECK(success);
       MAYBE_RETURN(Object::SetProperty(&it, element, StoreOrigin::kMaybeKeyed,
-                                       Just(LanguageMode::kStrict)),
+                                       Just(ShouldThrow::kThrowOnError)),
                    ReadOnlyRoots(isolate).exception());
     }
 
@@ -355,7 +355,7 @@ V8_WARN_UNUSED_RESULT Object GenericArrayPush(Isolate* isolate,
       isolate, Object::SetProperty(isolate, receiver,
                                    isolate->factory()->length_string(),
                                    final_length, StoreOrigin::kMaybeKeyed,
-                                   Just(LanguageMode::kStrict)));
+                                   Just(ShouldThrow::kThrowOnError)));
 
   // 8. Return len.
   return *final_length;
@@ -408,10 +408,11 @@ V8_WARN_UNUSED_RESULT Object GenericArrayPop(Isolate* isolate,
   if (length == 0) {
     // a. Perform ? Set(O, "length", 0, true).
     RETURN_FAILURE_ON_EXCEPTION(
-        isolate, Object::SetProperty(
-                     isolate, receiver, isolate->factory()->length_string(),
-                     Handle<Smi>(Smi::zero(), isolate),
-                     StoreOrigin::kMaybeKeyed, Just(LanguageMode::kStrict)));
+        isolate, Object::SetProperty(isolate, receiver,
+                                     isolate->factory()->length_string(),
+                                     Handle<Smi>(Smi::zero(), isolate),
+                                     StoreOrigin::kMaybeKeyed,
+                                     Just(ShouldThrow::kThrowOnError)));
 
     // b. Return undefined.
     return ReadOnlyRoots(isolate).undefined_value();
@@ -439,7 +440,7 @@ V8_WARN_UNUSED_RESULT Object GenericArrayPop(Isolate* isolate,
       isolate, Object::SetProperty(isolate, receiver,
                                    isolate->factory()->length_string(),
                                    new_length, StoreOrigin::kMaybeKeyed,
-                                   Just(LanguageMode::kStrict)));
+                                   Just(ShouldThrow::kThrowOnError)));
 
   // f. Return element.
   return *element;
@@ -529,8 +530,9 @@ V8_WARN_UNUSED_RESULT Object GenericArrayShift(Isolate* isolate,
 
       // ii. Perform ? Set(O, to, fromVal, true).
       RETURN_FAILURE_ON_EXCEPTION(
-          isolate, Object::SetPropertyOrElement(isolate, receiver, to, from_val,
-                                                Just(LanguageMode::kStrict)));
+          isolate,
+          Object::SetPropertyOrElement(isolate, receiver, to, from_val,
+                                       Just(ShouldThrow::kThrowOnError)));
     } else {  // e. Else fromPresent is false,
       // i. Perform ? DeletePropertyOrThrow(O, to).
       MAYBE_RETURN(JSReceiver::DeletePropertyOrElement(receiver, to,
@@ -661,8 +663,8 @@ class ArrayConcatVisitor {
 
     if (!is_fixed_array()) {
       LookupIterator it(isolate_, storage_, index, LookupIterator::OWN);
-      MAYBE_RETURN(JSReceiver::CreateDataProperty(&it, elm, kThrowOnError),
-                   false);
+      MAYBE_RETURN(
+          JSReceiver::CreateDataProperty(&it, elm, Just(kThrowOnError)), false);
       return true;
     }
 
@@ -737,7 +739,7 @@ class ArrayConcatVisitor {
         isolate_,
         Object::SetProperty(
             isolate_, result, isolate_->factory()->length_string(), length,
-            StoreOrigin::kMaybeKeyed, Just(LanguageMode::kStrict)),
+            StoreOrigin::kMaybeKeyed, Just(ShouldThrow::kThrowOnError)),
         JSReceiver);
     return result;
   }

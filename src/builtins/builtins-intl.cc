@@ -253,7 +253,7 @@ Object LegacyFormatConstructor(BuiltinArguments args, Isolate* isolate,
     desc.set_configurable(false);
     Maybe<bool> success = JSReceiver::DefineOwnProperty(
         isolate, rec, isolate->factory()->intl_fallback_symbol(), &desc,
-        kThrowOnError);
+        Just(kThrowOnError));
     MAYBE_RETURN(success, ReadOnlyRoots(isolate).exception());
     CHECK(success.FromJust());
     // b. b. Return this.

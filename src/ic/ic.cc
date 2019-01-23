@@ -2127,8 +2127,8 @@ void StoreOwnElement(Isolate* isolate, Handle<JSArray> array,
       isolate, array, index, &success, LookupIterator::OWN);
   DCHECK(success);
 
-  CHECK(JSObject::DefineOwnPropertyIgnoreAttributes(&it, value, NONE,
-                                                    kThrowOnError)
+  CHECK(JSObject::DefineOwnPropertyIgnoreAttributes(
+            &it, value, NONE, Just(ShouldThrow::kThrowOnError))
             .FromJust());
 }
 }  // namespace
@@ -2710,7 +2710,7 @@ RUNTIME_FUNCTION(Runtime_StoreCallbackProperty) {
 
   DCHECK(info->IsCompatibleReceiver(*receiver));
 
-  ShouldThrow should_throw = GetShouldThrow(isolate, Nothing<LanguageMode>());
+  ShouldThrow should_throw = GetShouldThrow(isolate, Nothing<ShouldThrow>());
   PropertyCallbackArguments arguments(isolate, info->data(), *receiver, *holder,
                                       should_throw);
   arguments.CallAccessorSetter(info, name, value);

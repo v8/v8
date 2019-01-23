@@ -109,19 +109,20 @@ Handle<JSObject> JSNumberFormat::ResolvedOptions(
   //    [[MinimumSignificantDigits]]    "minimumSignificantDigits"
   //    [[MaximumSignificantDigits]]    "maximumSignificantDigits"
   //    [[UseGrouping]]                 "useGrouping"
-  CHECK(JSReceiver::CreateDataProperty(
-            isolate, options, factory->locale_string(), locale, kDontThrow)
+  CHECK(JSReceiver::CreateDataProperty(isolate, options,
+                                       factory->locale_string(), locale,
+                                       Just(kDontThrow))
             .FromJust());
   if (!numbering_system.empty()) {
     CHECK(JSReceiver::CreateDataProperty(
               isolate, options, factory->numberingSystem_string(),
               factory->NewStringFromAsciiChecked(numbering_system.c_str()),
-              kDontThrow)
+              Just(kDontThrow))
               .FromJust());
   }
   CHECK(JSReceiver::CreateDataProperty(
             isolate, options, factory->style_string(),
-            number_format_holder->StyleAsString(), kDontThrow)
+            number_format_holder->StyleAsString(), Just(kDontThrow))
             .FromJust());
   if (number_format_holder->style() == Style::CURRENCY) {
     icu::UnicodeString currency(number_format->getCurrency());
@@ -133,49 +134,49 @@ Handle<JSObject> JSNumberFormat::ResolvedOptions(
                       reinterpret_cast<const uint16_t*>(currency.getBuffer()),
                       currency.length()))
                   .ToHandleChecked(),
-              kDontThrow)
+              Just(kDontThrow))
               .FromJust());
 
     CHECK(JSReceiver::CreateDataProperty(
               isolate, options, factory->currencyDisplay_string(),
-              number_format_holder->CurrencyDisplayAsString(), kDontThrow)
+              number_format_holder->CurrencyDisplayAsString(), Just(kDontThrow))
               .FromJust());
   }
   CHECK(JSReceiver::CreateDataProperty(
             isolate, options, factory->minimumIntegerDigits_string(),
             factory->NewNumberFromInt(number_format->getMinimumIntegerDigits()),
-            kDontThrow)
+            Just(kDontThrow))
             .FromJust());
   CHECK(
       JSReceiver::CreateDataProperty(
           isolate, options, factory->minimumFractionDigits_string(),
           factory->NewNumberFromInt(number_format->getMinimumFractionDigits()),
-          kDontThrow)
+          Just(kDontThrow))
           .FromJust());
   CHECK(
       JSReceiver::CreateDataProperty(
           isolate, options, factory->maximumFractionDigits_string(),
           factory->NewNumberFromInt(number_format->getMaximumFractionDigits()),
-          kDontThrow)
+          Just(kDontThrow))
           .FromJust());
   if (decimal_format->areSignificantDigitsUsed()) {
     CHECK(JSReceiver::CreateDataProperty(
               isolate, options, factory->minimumSignificantDigits_string(),
               factory->NewNumberFromInt(
                   decimal_format->getMinimumSignificantDigits()),
-              kDontThrow)
+              Just(kDontThrow))
               .FromJust());
     CHECK(JSReceiver::CreateDataProperty(
               isolate, options, factory->maximumSignificantDigits_string(),
               factory->NewNumberFromInt(
                   decimal_format->getMaximumSignificantDigits()),
-              kDontThrow)
+              Just(kDontThrow))
               .FromJust());
   }
   CHECK(JSReceiver::CreateDataProperty(
             isolate, options, factory->useGrouping_string(),
             factory->ToBoolean((number_format->isGroupingUsed() == TRUE)),
-            kDontThrow)
+            Just(kDontThrow))
             .FromJust());
   return options;
 }

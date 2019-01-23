@@ -55,8 +55,7 @@ static void SetGlobalProperty(const char* name, Object value) {
       isolate->factory()->InternalizeUtf8String(name);
   Handle<JSObject> global(isolate->context()->global_object(), isolate);
   Runtime::SetObjectProperty(isolate, global, internalized_name, object,
-                             StoreOrigin::kMaybeKeyed,
-                             Just(LanguageMode::kSloppy))
+                             StoreOrigin::kMaybeKeyed, Just(kDontThrow))
       .Check();
 }
 

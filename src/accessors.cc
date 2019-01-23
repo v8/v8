@@ -797,7 +797,7 @@ MaybeHandle<JSReceiver> ClearInternalStackTrace(Isolate* isolate,
       Object::SetProperty(
           isolate, error, isolate->factory()->stack_trace_symbol(),
           isolate->factory()->undefined_value(), StoreOrigin::kMaybeKeyed,
-          Just(LanguageMode::kStrict)),
+          Just(ShouldThrow::kThrowOnError)),
       JSReceiver);
   return error;
 }

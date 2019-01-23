@@ -2089,10 +2089,10 @@ class AppendJSArrayCodeStubAssembler : public CodeStubAssembler {
     Handle<JSArray> array = isolate->factory()->NewJSArray(
         kind_, 2, initial_size, INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE);
     Object::SetElement(isolate, array, 0, Handle<Smi>(Smi::FromInt(1), isolate),
-                       LanguageMode::kSloppy)
+                       kDontThrow)
         .Check();
     Object::SetElement(isolate, array, 1, Handle<Smi>(Smi::FromInt(2), isolate),
-                       LanguageMode::kSloppy)
+                       kDontThrow)
         .Check();
     CodeStubArguments args(this, IntPtrConstant(kNumParams));
     TVariable<IntPtrT> arg_index(this);

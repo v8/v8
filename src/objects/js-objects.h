@@ -137,33 +137,35 @@ class JSReceiver : public HeapObject {
   // "virtual" dispatcher to the correct [[DefineOwnProperty]] implementation.
   V8_WARN_UNUSED_RESULT static Maybe<bool> DefineOwnProperty(
       Isolate* isolate, Handle<JSReceiver> object, Handle<Object> key,
-      PropertyDescriptor* desc, ShouldThrow should_throw);
+      PropertyDescriptor* desc, Maybe<ShouldThrow> should_throw);
 
   // ES6 7.3.4 (when passed kDontThrow)
   V8_WARN_UNUSED_RESULT static Maybe<bool> CreateDataProperty(
       Isolate* isolate, Handle<JSReceiver> object, Handle<Name> key,
-      Handle<Object> value, ShouldThrow should_throw);
+      Handle<Object> value, Maybe<ShouldThrow> should_throw);
   V8_WARN_UNUSED_RESULT static Maybe<bool> CreateDataProperty(
-      LookupIterator* it, Handle<Object> value, ShouldThrow should_throw);
+      LookupIterator* it, Handle<Object> value,
+      Maybe<ShouldThrow> should_throw);
 
   // ES6 9.1.6.1
   V8_WARN_UNUSED_RESULT static Maybe<bool> OrdinaryDefineOwnProperty(
       Isolate* isolate, Handle<JSObject> object, Handle<Object> key,
-      PropertyDescriptor* desc, ShouldThrow should_throw);
+      PropertyDescriptor* desc, Maybe<ShouldThrow> should_throw);
   V8_WARN_UNUSED_RESULT static Maybe<bool> OrdinaryDefineOwnProperty(
-      LookupIterator* it, PropertyDescriptor* desc, ShouldThrow should_throw);
+      LookupIterator* it, PropertyDescriptor* desc,
+      Maybe<ShouldThrow> should_throw);
   // ES6 9.1.6.2
   V8_WARN_UNUSED_RESULT static Maybe<bool> IsCompatiblePropertyDescriptor(
       Isolate* isolate, bool extensible, PropertyDescriptor* desc,
       PropertyDescriptor* current, Handle<Name> property_name,
-      ShouldThrow should_throw);
+      Maybe<ShouldThrow> should_throw);
   // ES6 9.1.6.3
   // |it| can be NULL in cases where the ES spec passes |undefined| as the
   // receiver. Exactly one of |it| and |property_name| must be provided.
   V8_WARN_UNUSED_RESULT static Maybe<bool> ValidateAndApplyPropertyDescriptor(
       Isolate* isolate, LookupIterator* it, bool extensible,
       PropertyDescriptor* desc, PropertyDescriptor* current,
-      ShouldThrow should_throw, Handle<Name> property_name);
+      Maybe<ShouldThrow> should_throw, Handle<Name> property_name);
 
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static Maybe<bool>
   GetOwnPropertyDescriptor(Isolate* isolate, Handle<JSReceiver> object,
@@ -359,7 +361,8 @@ class JSObject : public JSReceiver {
   static void EnsureWritableFastElements(Handle<JSObject> object);
 
   V8_WARN_UNUSED_RESULT static Maybe<bool> SetPropertyWithInterceptor(
-      LookupIterator* it, ShouldThrow should_throw, Handle<Object> value);
+      LookupIterator* it, Maybe<ShouldThrow> should_throw,
+      Handle<Object> value);
 
   // The API currently still wants DefineOwnPropertyIgnoreAttributes to convert
   // AccessorInfo objects to data fields. We allow FORCE_FIELD as an exception
@@ -373,7 +376,7 @@ class JSObject : public JSReceiver {
 
   V8_WARN_UNUSED_RESULT static Maybe<bool> DefineOwnPropertyIgnoreAttributes(
       LookupIterator* it, Handle<Object> value, PropertyAttributes attributes,
-      ShouldThrow should_throw,
+      Maybe<ShouldThrow> should_throw,
       AccessorInfoHandling handling = DONT_FORCE_FIELD);
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object>
@@ -398,7 +401,7 @@ class JSObject : public JSReceiver {
   // cannot.
   V8_WARN_UNUSED_RESULT static Maybe<bool> CreateDataProperty(
       LookupIterator* it, Handle<Object> value,
-      ShouldThrow should_throw = kDontThrow);
+      Maybe<ShouldThrow> should_throw = Just(kDontThrow));
 
   static void AddProperty(Isolate* isolate, Handle<JSObject> object,
                           Handle<Name> name, Handle<Object> value,
@@ -794,7 +797,8 @@ class JSObject : public JSReceiver {
   GetPropertyWithFailedAccessCheck(LookupIterator* it);
 
   V8_WARN_UNUSED_RESULT static Maybe<bool> SetPropertyWithFailedAccessCheck(
-      LookupIterator* it, Handle<Object> value, ShouldThrow should_throw);
+      LookupIterator* it, Handle<Object> value,
+      Maybe<ShouldThrow> should_throw);
 
   V8_WARN_UNUSED_RESULT static Maybe<bool> DeletePropertyWithInterceptor(
       LookupIterator* it, ShouldThrow should_throw);

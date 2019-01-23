@@ -946,7 +946,7 @@ MaybeHandle<JSReceiver> Isolate::CaptureAndSetDetailedStackTrace(
         this,
         Object::SetProperty(this, error_object, key, stack_trace,
                             StoreOrigin::kMaybeKeyed,
-                            Just(LanguageMode::kStrict)),
+                            Just(ShouldThrow::kThrowOnError)),
         JSReceiver);
   }
   return error_object;
@@ -962,7 +962,7 @@ MaybeHandle<JSReceiver> Isolate::CaptureAndSetSimpleStackTrace(
   RETURN_ON_EXCEPTION(this,
                       Object::SetProperty(this, error_object, key, stack_trace,
                                           StoreOrigin::kMaybeKeyed,
-                                          Just(LanguageMode::kStrict)),
+                                          Just(ShouldThrow::kThrowOnError)),
                       JSReceiver);
   return error_object;
 }

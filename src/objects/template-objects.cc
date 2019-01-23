@@ -36,7 +36,7 @@ Handle<JSArray> TemplateObjectDescription::CreateTemplateObject(
   raw_desc.set_writable(false);
   JSArray::DefineOwnProperty(isolate, template_object,
                              isolate->factory()->raw_string(), &raw_desc,
-                             kThrowOnError)
+                             Just(kThrowOnError))
       .ToChecked();
 
   // Freeze the {template_object} as well.

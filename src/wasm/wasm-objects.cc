@@ -1568,13 +1568,13 @@ Handle<JSReceiver> WasmExceptionPackage::New(
   CHECK(!Object::SetProperty(isolate, exception,
                              isolate->factory()->wasm_exception_tag_symbol(),
                              exception_tag, StoreOrigin::kMaybeKeyed,
-                             Just(LanguageMode::kStrict))
+                             Just(ShouldThrow::kThrowOnError))
              .is_null());
   Handle<FixedArray> values = isolate->factory()->NewFixedArray(size);
   CHECK(!Object::SetProperty(isolate, exception,
                              isolate->factory()->wasm_exception_values_symbol(),
                              values, StoreOrigin::kMaybeKeyed,
-                             Just(LanguageMode::kStrict))
+                             Just(ShouldThrow::kThrowOnError))
              .is_null());
   return Handle<JSReceiver>::cast(exception);
 }

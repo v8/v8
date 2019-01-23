@@ -344,7 +344,7 @@ RUNTIME_FUNCTION(Runtime_ObjectCreate) {
 MaybeHandle<Object> Runtime::SetObjectProperty(
     Isolate* isolate, Handle<Object> object, Handle<Object> key,
     Handle<Object> value, StoreOrigin store_origin,
-    Maybe<LanguageMode> language_mode) {
+    Maybe<ShouldThrow> should_throw) {
   if (object->IsNullOrUndefined(isolate)) {
     THROW_NEW_ERROR(
         isolate,
@@ -369,7 +369,7 @@ MaybeHandle<Object> Runtime::SetObjectProperty(
   }
 
   MAYBE_RETURN_NULL(
-      Object::SetProperty(&it, value, store_origin, language_mode));
+      Object::SetProperty(&it, value, store_origin, should_throw));
 
   return value;
 }
@@ -586,8 +586,8 @@ RUNTIME_FUNCTION(Runtime_StoreDataPropertyInLiteral) {
   LookupIterator it = LookupIterator::PropertyOrElement(
       isolate, object, key, &success, LookupIterator::OWN);
 
-  Maybe<bool> result =
-      JSObject::DefineOwnPropertyIgnoreAttributes(&it, value, NONE, kDontThrow);
+  Maybe<bool> result = JSObject::DefineOwnPropertyIgnoreAttributes(
+      &it, value, NONE, Just(kDontThrow));
   RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
   DCHECK(result.IsJust());
   USE(result);
@@ -817,9 +817,9 @@ RUNTIME_FUNCTION(Runtime_DefineDataPropertyInLiteral) {
       isolate, object, name, object, LookupIterator::OWN);
   // Cannot fail since this should only be called when
   // creating an object literal.
-  CHECK(
-      JSObject::DefineOwnPropertyIgnoreAttributes(&it, value, attrs, kDontThrow)
-          .IsJust());
+  CHECK(JSObject::DefineOwnPropertyIgnoreAttributes(&it, value, attrs,
+                                                    Just(kDontThrow))
+            .IsJust());
   return *object;
 }
 
@@ -1021,7 +1021,7 @@ RUNTIME_FUNCTION(Runtime_DefineMethodsInternal) {
     }
 
     Maybe<bool> success = JSReceiver::DefineOwnProperty(
-        isolate, target, key, &descriptor, kDontThrow);
+        isolate, target, key, &descriptor, Just(kDontThrow));
     CHECK(success.FromJust());
   }
   return ReadOnlyRoots(isolate).undefined_value();
@@ -1127,7 +1127,7 @@ RUNTIME_FUNCTION(Runtime_CreateDataProperty) {
   LookupIterator it = LookupIterator::PropertyOrElement(
       isolate, o, key, &success, LookupIterator::OWN);
   if (!success) return ReadOnlyRoots(isolate).exception();
-  MAYBE_RETURN(JSReceiver::CreateDataProperty(&it, value, kThrowOnError),
+  MAYBE_RETURN(JSReceiver::CreateDataProperty(&it, value, Just(kThrowOnError)),
                ReadOnlyRoots(isolate).exception());
   return *value;
 }
@@ -1164,7 +1164,7 @@ RUNTIME_FUNCTION(Runtime_AddPrivateField) {
         isolate, NewTypeError(MessageTemplate::kVarRedeclaration, key));
   }
 
-  CHECK(Object::AddDataProperty(&it, value, NONE, kDontThrow,
+  CHECK(Object::AddDataProperty(&it, value, NONE, Just(kDontThrow),
                                 StoreOrigin::kMaybeKeyed)
             .FromJust());
   return ReadOnlyRoots(isolate).undefined_value();

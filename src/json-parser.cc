@@ -126,7 +126,7 @@ bool JsonParseInternalizer::RecurseAndApply(Handle<JSReceiver> holder,
     desc.set_enumerable(true);
     desc.set_writable(true);
     change_result = JSReceiver::DefineOwnProperty(isolate_, holder, name, &desc,
-                                                  kDontThrow);
+                                                  Just(kDontThrow));
   }
   MAYBE_RETURN(change_result, false);
   return true;

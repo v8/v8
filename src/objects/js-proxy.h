@@ -57,7 +57,7 @@ class JSProxy : public JSReceiver {
   // ES6 9.5.6
   V8_WARN_UNUSED_RESULT static Maybe<bool> DefineOwnProperty(
       Isolate* isolate, Handle<JSProxy> object, Handle<Object> key,
-      PropertyDescriptor* desc, ShouldThrow should_throw);
+      PropertyDescriptor* desc, Maybe<ShouldThrow> should_throw);
 
   // ES6 9.5.7
   V8_WARN_UNUSED_RESULT static Maybe<bool> HasProperty(Isolate* isolate,
@@ -85,7 +85,7 @@ class JSProxy : public JSReceiver {
   // ES6 9.5.9
   V8_WARN_UNUSED_RESULT static Maybe<bool> SetProperty(
       Handle<JSProxy> proxy, Handle<Name> name, Handle<Object> value,
-      Handle<Object> receiver, LanguageMode language_mode);
+      Handle<Object> receiver, Maybe<ShouldThrow> should_throw);
 
   // ES6 9.5.10 (when passed LanguageMode::kSloppy)
   V8_WARN_UNUSED_RESULT static Maybe<bool> DeletePropertyOrElement(
@@ -128,7 +128,7 @@ class JSProxy : public JSReceiver {
   static Maybe<bool> SetPrivateSymbol(Isolate* isolate, Handle<JSProxy> proxy,
                                       Handle<Symbol> private_name,
                                       PropertyDescriptor* desc,
-                                      ShouldThrow should_throw);
+                                      Maybe<ShouldThrow> should_throw);
 
   OBJECT_CONSTRUCTORS(JSProxy, JSReceiver);
 };

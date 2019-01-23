@@ -1422,7 +1422,7 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
     }
 
     v8::Maybe<bool> status = JSReceiver::DefineOwnProperty(
-        isolate_, export_to, name, &desc, kThrowOnError);
+        isolate_, export_to, name, &desc, Just(kThrowOnError));
     if (!status.IsJust()) {
       DisallowHeapAllocation no_gc;
       TruncatedUserString<> trunc_name(name->GetCharVector<uint8_t>(no_gc));

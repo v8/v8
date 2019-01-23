@@ -223,7 +223,7 @@ void CreateDataPropertyForOptions(Isolate* isolate, Handle<JSObject> options,
   // This is a brand new JSObject that shouldn't already have the same
   // key so this shouldn't fail.
   CHECK(JSReceiver::CreateDataProperty(isolate, options, key_str, value,
-                                       kDontThrow)
+                                       Just(kDontThrow))
             .FromJust());
 }
 
