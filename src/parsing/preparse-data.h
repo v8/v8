@@ -68,20 +68,24 @@ struct PreparseByteDataConstants {
   static constexpr int kMagicValue = 0xC0DE0DE;
 
   static constexpr size_t kUint32Size = 5;
-  static constexpr size_t kVarintMinSize = 3;
-  static constexpr size_t kVarintEndMarker = 0xF1;
+  static constexpr size_t kVarint32MinSize = 3;
+  static constexpr size_t kVarint32MaxSize = 7;
+  static constexpr size_t kVarint32EndMarker = 0xF1;
   static constexpr size_t kUint8Size = 2;
   static constexpr size_t kQuarterMarker = 0xF2;
   static constexpr size_t kPlaceholderSize = kUint32Size;
 #else
   static constexpr size_t kUint32Size = 4;
-  static constexpr size_t kVarintMinSize = 1;
+  static constexpr size_t kVarint32MinSize = 1;
+  static constexpr size_t kVarint32MaxSize = 5;
   static constexpr size_t kUint8Size = 1;
   static constexpr size_t kPlaceholderSize = 0;
 #endif
 
   static const size_t kSkippableFunctionMinDataSize =
-      4 * kVarintMinSize + 1 * kUint8Size;
+      4 * kVarint32MinSize + 1 * kUint8Size;
+  static const size_t kSkippableFunctionMaxDataSize =
+      4 * kVarint32MaxSize + 1 * kUint8Size;
 };
 
 class PreparseDataBuilder : public ZoneObject,
@@ -117,7 +121,8 @@ class PreparseDataBuilder : public ZoneObject,
 
   class ByteData : public ZoneObject, public PreparseByteDataConstants {
    public:
-    ByteData() : byte_data_(nullptr), free_quarters_in_last_byte_(0) {}
+    ByteData()
+        : byte_data_(nullptr), index_(0), free_quarters_in_last_byte_(0) {}
 
     ~ByteData() {}
 
@@ -127,6 +132,10 @@ class PreparseDataBuilder : public ZoneObject,
     Handle<PreparseData> CopyToHeap(Isolate* isolate, int children_length);
     ZonePreparseData* CopyToZone(Zone* zone, int children_length);
 
+    void Reserve(size_t bytes);
+    void Add(uint8_t byte);
+    int length() const;
+
     void WriteVarint32(uint32_t data);
     void WriteUint8(uint8_t data);
     void WriteQuarter(uint8_t data);
@@ -135,13 +144,15 @@ class PreparseDataBuilder : public ZoneObject,
     void WriteUint32(uint32_t data);
     // For overwriting previously written data at position 0.
     void SaveCurrentSizeAtFirstUint32();
-    int length() const;
 #endif
 
    private:
     union {
-      // Only used during construction (is_finalized_ == false).
-      std::vector<uint8_t>* byte_data_;
+      struct {
+        // Only used during construction (is_finalized_ == false).
+        std::vector<uint8_t>* byte_data_;
+        int index_;
+      };
       // Once the data is finalized, it lives in a Zone, this implies
       // is_finalized_ == true.
       Vector<uint8_t> zone_byte_data_;

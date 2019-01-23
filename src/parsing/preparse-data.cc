@@ -117,41 +117,65 @@ PreparseDataBuilder::DataGatheringScope::~DataGatheringScope() {
   parent->AddChild(builder_);
 }
 
+void PreparseDataBuilder::ByteData::Start(std::vector<uint8_t>* buffer) {
+  DCHECK(!is_finalized_);
+  byte_data_ = buffer;
+  DCHECK_EQ(byte_data_->size(), 0);
+  DCHECK_EQ(index_, 0);
+}
+
+void PreparseDataBuilder::ByteData::Finalize(Zone* zone) {
+  uint8_t* raw_zone_data =
+      static_cast<uint8_t*>(ZoneAllocationPolicy(zone).New(index_));
+  memcpy(raw_zone_data, byte_data_->data(), index_);
+  byte_data_->resize(0);
+  zone_byte_data_ = Vector<uint8_t>(raw_zone_data, index_);
+#ifdef DEBUG
+  is_finalized_ = true;
+#endif
+}
+
+void PreparseDataBuilder::ByteData::Reserve(size_t bytes) {
+  // Make sure we have at least {bytes} capacity left in the buffer_.
+  DCHECK_LE(length(), byte_data_->size());
+  size_t capacity = byte_data_->size() - length();
+  if (capacity >= bytes) return;
+  size_t delta = bytes - capacity;
+  byte_data_->insert(byte_data_->end(), delta, 0);
+}
+
+int PreparseDataBuilder::ByteData::length() const { return index_; }
+
+void PreparseDataBuilder::ByteData::Add(uint8_t byte) {
+  DCHECK_LE(0, index_);
+  DCHECK_LT(index_, byte_data_->size());
+  (*byte_data_)[index_++] = byte;
+}
+
 #ifdef DEBUG
 void PreparseDataBuilder::ByteData::WriteUint32(uint32_t data) {
   DCHECK(!is_finalized_);
-  byte_data_->push_back(kUint32Size);
-  byte_data_->push_back(data & 0xFF);
-  byte_data_->push_back((data >> 8) & 0xFF);
-  byte_data_->push_back((data >> 16) & 0xFF);
-  byte_data_->push_back((data >> 24) & 0xFF);
+  Add(kUint32Size);
+  Add(data & 0xFF);
+  Add((data >> 8) & 0xFF);
+  Add((data >> 16) & 0xFF);
+  Add((data >> 24) & 0xFF);
   free_quarters_in_last_byte_ = 0;
 }
 
 void PreparseDataBuilder::ByteData::SaveCurrentSizeAtFirstUint32() {
-  CHECK(!is_finalized_);
-  uint32_t data = static_cast<uint32_t>(byte_data_->size());
-  uint8_t* start = &byte_data_->front();
-  int i = 0;
-  // Check that that position already holds an item of the expected size.
-  CHECK_GE(byte_data_->size(), kUint32Size);
-  CHECK_EQ(start[i++], kUint32Size);
-  start[i++] = data & 0xFF;
-  start[i++] = (data >> 8) & 0xFF;
-  start[i++] = (data >> 16) & 0xFF;
-  start[i++] = (data >> 24) & 0xFF;
-}
-
-int PreparseDataBuilder::ByteData::length() const {
-  CHECK(!is_finalized_);
-  return static_cast<int>(byte_data_->size());
+  int current_length = length();
+  index_ = 0;
+  CHECK_EQ(byte_data_->at(0), kUint32Size);
+  WriteUint32(current_length);
+  index_ = current_length;
 }
 #endif
 
 void PreparseDataBuilder::ByteData::WriteVarint32(uint32_t data) {
 #ifdef DEBUG
   // Save expected item size in debug mode.
-  byte_data_->push_back(kVarintMinSize);
+  Add(kVarint32MinSize);
 #endif
   // See ValueSerializer::WriteVarint.
   do {
@@ -159,11 +183,10 @@ void PreparseDataBuilder::ByteData::WriteVarint32(uint32_t data) {
     data >>= 7;
     // Add continue bit.
     if (data) next_byte |= 0x80;
-    byte_data_->push_back(next_byte & 0xFF);
+    Add(next_byte & 0xFF);
   } while (data);
 #ifdef DEBUG
-  // Save a varint marker in debug mode.
-  byte_data_->push_back(kVarintEndMarker);
+  Add(kVarint32EndMarker);
 #endif
   free_quarters_in_last_byte_ = 0;
 }
@@ -172,9 +195,9 @@ void PreparseDataBuilder::ByteData::WriteUint8(uint8_t data) {
   DCHECK(!is_finalized_);
 #ifdef DEBUG
   // Save expected item size in debug mode.
-  byte_data_->push_back(kUint8Size);
+  Add(kUint8Size);
 #endif
-  byte_data_->push_back(data);
+  Add(data);
   free_quarters_in_last_byte_ = 0;
 }
 
@@ -184,37 +207,17 @@ void PreparseDataBuilder::ByteData::WriteQuarter(uint8_t data) {
   if (free_quarters_in_last_byte_ == 0) {
 #ifdef DEBUG
     // Save a marker in debug mode.
-    byte_data_->push_back(kQuarterMarker);
+    Add(kQuarterMarker);
 #endif
-    byte_data_->push_back(0);
+    Add(0);
     free_quarters_in_last_byte_ = 3;
   } else {
     --free_quarters_in_last_byte_;
   }
 
   uint8_t shift_amount = free_quarters_in_last_byte_ * 2;
-  DCHECK_EQ(byte_data_->back() & (3 << shift_amount), 0);
-  byte_data_->back() |= (data << shift_amount);
-}
-
-void PreparseDataBuilder::ByteData::Start(std::vector<uint8_t>* buffer) {
-  DCHECK(!is_finalized_);
-  byte_data_ = buffer;
-  DCHECK_EQ(byte_data_->size(), 0);
-}
-
-void PreparseDataBuilder::ByteData::Finalize(Zone* zone) {
-  int size = static_cast<int>(byte_data_->size());
-  uint8_t* raw_zone_data =
-      static_cast<uint8_t*>(ZoneAllocationPolicy(zone).New(size));
-  memcpy(raw_zone_data, &byte_data_->front(), size);
-
-  byte_data_->resize(0);
-
-  zone_byte_data_ = Vector<uint8_t>(raw_zone_data, size);
-#ifdef DEBUG
-  is_finalized_ = true;
-#endif
+  DCHECK_EQ(byte_data_->at(index_ - 1) & (3 << shift_amount), 0);
+  (*byte_data_)[index_ - 1] |= (data << shift_amount);
 }
 
 void PreparseDataBuilder::DataGatheringScope::SetSkippableFunction(
@@ -301,8 +304,10 @@ void PreparseDataBuilder::SaveScopeAllocationData(DeclarationScope* scope,
 
 #ifdef DEBUG
   // Reserve Uint32 for scope_data_start debug info.
+  byte_data_.Reserve(kUint32Size);
   byte_data_.WriteUint32(0);
 #endif
+  byte_data_.Reserve(children_.size() * kSkippableFunctionMaxDataSize);
   DCHECK(finalized_children_);
   for (const auto& builder : children_) {
     // Keep track of functions with inner data. {children_} contains also the
@@ -320,6 +325,7 @@ void PreparseDataBuilder::SaveScopeAllocationData(DeclarationScope* scope,
   byte_data_.SaveCurrentSizeAtFirstUint32();
   // For a data integrity check, write a value between data about skipped inner
   // funcs and data about variables.
+  byte_data_.Reserve(kUint32Size * 3);
   byte_data_.WriteUint32(kMagicValue);
   byte_data_.WriteUint32(scope->start_position());
   byte_data_.WriteUint32(scope->end_position());
@@ -335,6 +341,7 @@ void PreparseDataBuilder::SaveDataForScope(Scope* scope) {
   DCHECK(ScopeNeedsData(scope));
 
 #ifdef DEBUG
+  byte_data_.Reserve(kUint8Size);
   byte_data_.WriteUint8(scope->scope_type());
 #endif
 
@@ -343,6 +350,7 @@ void PreparseDataBuilder::SaveDataForScope(Scope* scope) {
           scope->is_declaration_scope() &&
           scope->AsDeclarationScope()->calls_sloppy_eval()) |
       InnerScopeCallsEvalField::encode(scope->inner_scope_calls_eval());
+  byte_data_.Reserve(kUint8Size);
   byte_data_.WriteUint8(eval);
 
   if (scope->scope_type() == ScopeType::FUNCTION_SCOPE) {
@@ -362,6 +370,7 @@ void PreparseDataBuilder::SaveDataForVariable(Variable* var) {
   // Store the variable name in debug mode; this way we can check that we
   // restore data to the correct variable.
   const AstRawString* name = var->raw_name();
+  byte_data_.Reserve(kUint32Size + (name->length() + 1) * kUint8Size);
   byte_data_.WriteUint8(name->is_one_byte());
   byte_data_.WriteUint32(name->length());
   for (int i = 0; i < name->length(); ++i) {
@@ -373,6 +382,7 @@ void PreparseDataBuilder::SaveDataForVariable(Variable* var) {
                            var->maybe_assigned() == kMaybeAssigned) |
                        VariableContextAllocatedField::encode(
                            var->has_forced_context_allocation());
+  byte_data_.Reserve(kUint8Size);
   byte_data_.WriteQuarter(variable_data);
 }
 
