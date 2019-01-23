@@ -627,7 +627,7 @@ TF_BUILTIN(ProxySetProperty, ProxiesCodeStubAssembler) {
   {
     // 7.a. Return ? target.[[Set]](P, V, Receiver).
     CallRuntime(Runtime::kSetPropertyWithReceiver, context, target, name, value,
-                receiver, language_mode);
+                receiver);
     Return(value);
   }
 

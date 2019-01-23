@@ -801,21 +801,7 @@ MaybeHandle<Object> StoreElementToSuper(Isolate* isolate,
 
 }  // anonymous namespace
 
-RUNTIME_FUNCTION(Runtime_StoreToSuper_Strict) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(4, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, receiver, 0);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, home_object, 1);
-  CONVERT_ARG_HANDLE_CHECKED(Name, name, 2);
-  CONVERT_ARG_HANDLE_CHECKED(Object, value, 3);
-
-  RETURN_RESULT_OR_FAILURE(
-      isolate, StoreToSuper(isolate, home_object, receiver, name, value));
-}
-
-// TODO(mythria): Now that we don't need language mode merge this and
-// Runtime_StoreToSuper_Strict functions.
-RUNTIME_FUNCTION(Runtime_StoreToSuper_Sloppy) {
+RUNTIME_FUNCTION(Runtime_StoreToSuper) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, receiver, 0);
@@ -847,21 +833,7 @@ static MaybeHandle<Object> StoreKeyedToSuper(Isolate* isolate,
   return StoreToSuper(isolate, home_object, receiver, name, value);
 }
 
-RUNTIME_FUNCTION(Runtime_StoreKeyedToSuper_Strict) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(4, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, receiver, 0);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, home_object, 1);
-  CONVERT_ARG_HANDLE_CHECKED(Object, key, 2);
-  CONVERT_ARG_HANDLE_CHECKED(Object, value, 3);
-
-  RETURN_RESULT_OR_FAILURE(
-      isolate, StoreKeyedToSuper(isolate, home_object, receiver, key, value));
-}
-
-// TODO(mythria): Now that we don't need language mode merge this and
-// Runtime_StoreKeyedToSuper_Strict functions.
-RUNTIME_FUNCTION(Runtime_StoreKeyedToSuper_Sloppy) {
+RUNTIME_FUNCTION(Runtime_StoreKeyedToSuper) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, receiver, 0);

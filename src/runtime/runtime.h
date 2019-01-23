@@ -85,10 +85,8 @@ namespace internal {
   F(HomeObjectSymbol, 0, 1)                 \
   F(LoadFromSuper, 3, 1)                    \
   F(LoadKeyedFromSuper, 3, 1)               \
-  F(StoreKeyedToSuper_Sloppy, 4, 1)         \
-  F(StoreKeyedToSuper_Strict, 4, 1)         \
-  F(StoreToSuper_Sloppy, 4, 1)              \
-  F(StoreToSuper_Strict, 4, 1)              \
+  F(StoreKeyedToSuper, 4, 1)                \
+  F(StoreToSuper, 4, 1)                     \
   F(ThrowConstructorNonCallableError, 1, 1) \
   F(ThrowNotSuperConstructor, 2, 1)         \
   F(ThrowStaticPrototypeError, 0, 1)        \
@@ -316,8 +314,8 @@ namespace internal {
   F(OptimizeObjectForAddingMultipleProperties, 2, 1)            \
   F(PerformSideEffectCheckForObject, 1, 1)                      \
   F(SetDataProperties, 2, 1)                                    \
-  F(SetKeyedProperty, 4, 1)                                     \
-  F(SetNamedProperty, 4, 1)                                     \
+  F(SetKeyedProperty, 3, 1)                                     \
+  F(SetNamedProperty, 3, 1)                                     \
   F(StoreDataPropertyInLiteral, 3, 1)                           \
   F(ShrinkPropertyDictionary, 1, 1)                             \
   F(ToFastProperties, 1, 1)                                     \
@@ -363,7 +361,7 @@ namespace internal {
   F(IsJSProxy, 1, 1)                   \
   F(JSProxyGetHandler, 1, 1)           \
   F(JSProxyGetTarget, 1, 1)            \
-  F(SetPropertyWithReceiver, 5, 1)
+  F(SetPropertyWithReceiver, 4, 1)
 
 #define FOR_EACH_INTRINSIC_REGEXP(F, I)             \
   I(IsRegExp, 1, 1)                                 \
@@ -556,7 +554,7 @@ namespace internal {
   F(KeyedStoreIC_Miss, 5, 1)                 \
   F(KeyedStoreICNoFeedback_Miss, 3, 1)       \
   F(StoreInArrayLiteralIC_Miss, 5, 1)        \
-  F(KeyedStoreIC_Slow, 5, 1)                 \
+  F(KeyedStoreIC_Slow, 3, 1)                 \
   F(LoadAccessorProperty, 4, 1)              \
   F(LoadCallbackProperty, 4, 1)              \
   F(LoadElementWithInterceptor, 2, 1)        \

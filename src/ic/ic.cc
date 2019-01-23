@@ -2352,6 +2352,7 @@ RUNTIME_FUNCTION(Runtime_StoreICNoFeedback_Miss) {
   NamedPropertyType property_type =
       static_cast<NamedPropertyType>(is_own_property_value);
 
+  // TODO(mythria): Replace StoreNamedStrict/Sloppy with StoreNamed.
   FeedbackSlotKind kind = FeedbackSlotKind::kStoreNamedStrict;
   if (property_type == NamedPropertyType::kOwn) {
     kind = FeedbackSlotKind::kStoreOwnNamed;
@@ -2384,6 +2385,7 @@ RUNTIME_FUNCTION(Runtime_StoreGlobalICNoFeedback_Miss) {
   Handle<Object> value = args.at(0);
   Handle<Name> key = args.at<Name>(1);
 
+  // TODO(mythria): Replace StoreGlobalStrict/Sloppy with StoreNamed.
   StoreGlobalIC ic(isolate, Handle<FeedbackVector>(), FeedbackSlot(),
                    FeedbackSlotKind::kStoreGlobalStrict);
   RETURN_RESULT_OR_FAILURE(isolate, ic.Store(key, value));
@@ -2480,8 +2482,7 @@ RUNTIME_FUNCTION(Runtime_KeyedStoreICNoFeedback_Miss) {
   Handle<Object> receiver = args.at(1);
   Handle<Object> key = args.at(2);
 
-  // TODO(mythria): Replace StoreKeyedStrict and StoreKeyedSloppy with
-  // StoreKeyed.
+  // TODO(mythria): Replace StoreKeyedStrict/Sloppy with StoreKeyed.
   KeyedStoreIC ic(isolate, Handle<FeedbackVector>(), FeedbackSlot(),
                   FeedbackSlotKind::kStoreKeyedStrict);
   RETURN_RESULT_OR_FAILURE(isolate, ic.Store(receiver, key, value));
@@ -2509,14 +2510,13 @@ RUNTIME_FUNCTION(Runtime_StoreInArrayLiteralIC_Miss) {
   return *value;
 }
 
-// TODO(mythria): We don't need feedback and slot here. Remove those arguments.
 RUNTIME_FUNCTION(Runtime_KeyedStoreIC_Slow) {
   HandleScope scope(isolate);
-  DCHECK_EQ(5, args.length());
+  DCHECK_EQ(3, args.length());
   // Runtime functions don't follow the IC's calling convention.
   Handle<Object> value = args.at(0);
-  Handle<Object> object = args.at(3);
-  Handle<Object> key = args.at(4);
+  Handle<Object> object = args.at(1);
+  Handle<Object> key = args.at(2);
   RETURN_RESULT_OR_FAILURE(
       isolate, Runtime::SetObjectProperty(isolate, object, key, value,
                                           StoreOrigin::kMaybeKeyed));

@@ -61,11 +61,10 @@ RUNTIME_FUNCTION(Runtime_GetPropertyWithReceiver) {
                    &it, static_cast<OnNonExistent>(on_non_existent->value())));
 }
 
-// TODO(mythria): Remove language_mode parameter.
 RUNTIME_FUNCTION(Runtime_SetPropertyWithReceiver) {
   HandleScope scope(isolate);
 
-  DCHECK_EQ(5, args.length());
+  DCHECK_EQ(4, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, holder, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);

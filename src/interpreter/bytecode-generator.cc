@@ -2349,7 +2349,7 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
             VisitForEffect(property->value());
           }
         } else {
-          RegisterList args = register_allocator()->NewRegisterList(4);
+          RegisterList args = register_allocator()->NewRegisterList(3);
 
           builder()->MoveRegister(literal, args[0]);
           builder()->SetExpressionPosition(property->key());
@@ -2357,10 +2357,7 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
           builder()->SetExpressionPosition(property->value());
           VisitForRegisterValue(property->value(), args[2]);
           if (property->emit_store()) {
-            builder()
-                ->LoadLiteral(Smi::FromEnum(LanguageMode::kSloppy))
-                .StoreAccumulatorInRegister(args[3])
-                .CallRuntime(Runtime::kSetKeyedProperty, args);
+            builder()->CallRuntime(Runtime::kSetKeyedProperty, args);
             Register value = args[2];
             VisitSetHomeObject(value, literal, property);
           }
@@ -3645,13 +3642,13 @@ void BytecodeGenerator::BuildAssignment(
     case NAMED_SUPER_PROPERTY: {
       builder()
           ->StoreAccumulatorInRegister(lhs_data.super_property_args()[3])
-          .CallRuntime(StoreToSuperRuntimeId(), lhs_data.super_property_args());
+          .CallRuntime(Runtime::kStoreToSuper, lhs_data.super_property_args());
       break;
     }
     case KEYED_SUPER_PROPERTY: {
       builder()
           ->StoreAccumulatorInRegister(lhs_data.super_property_args()[3])
-          .CallRuntime(StoreKeyedToSuperRuntimeId(),
+          .CallRuntime(Runtime::kStoreKeyedToSuper,
                        lhs_data.super_property_args());
       break;
     }
@@ -4747,13 +4744,13 @@ void BytecodeGenerator::VisitCountOperation(CountOperation* expr) {
     case NAMED_SUPER_PROPERTY: {
       builder()
           ->StoreAccumulatorInRegister(super_property_args[3])
-          .CallRuntime(StoreToSuperRuntimeId(), super_property_args);
+          .CallRuntime(Runtime::kStoreToSuper, super_property_args);
       break;
     }
     case KEYED_SUPER_PROPERTY: {
       builder()
           ->StoreAccumulatorInRegister(super_property_args[3])
-          .CallRuntime(StoreKeyedToSuperRuntimeId(), super_property_args);
+          .CallRuntime(Runtime::kStoreKeyedToSuper, super_property_args);
       break;
     }
   }
@@ -5858,16 +5855,6 @@ FeedbackSlot BytecodeGenerator::GetCachedCreateClosureSlot(
 
 FeedbackSlot BytecodeGenerator::GetDummyCompareICSlot() {
   return dummy_feedback_slot_.Get();
-}
-
-Runtime::FunctionId BytecodeGenerator::StoreToSuperRuntimeId() {
-  return is_strict(language_mode()) ? Runtime::kStoreToSuper_Strict
-                                    : Runtime::kStoreToSuper_Sloppy;
-}
-
-Runtime::FunctionId BytecodeGenerator::StoreKeyedToSuperRuntimeId() {
-  return is_strict(language_mode()) ? Runtime::kStoreKeyedToSuper_Strict
-                                    : Runtime::kStoreKeyedToSuper_Sloppy;
 }
 
 }  // namespace interpreter

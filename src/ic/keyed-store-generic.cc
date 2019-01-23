@@ -1020,19 +1020,8 @@ void KeyedStoreGenericAssembler::KeyedStoreGeneric(
   {
     if (IsKeyedStore()) {
       Comment("KeyedStoreGeneric_slow");
-      if (language_mode.IsJust()) {
-        TailCallRuntime(Runtime::kSetKeyedProperty, context, receiver, key,
-                        value, SmiConstant(language_mode.FromJust()));
-      } else {
-        TVARIABLE(Smi, var_language_mode, SmiConstant(LanguageMode::kStrict));
-        Label call_runtime(this);
-        BranchIfStrictMode(vector, slot, &call_runtime);
-        var_language_mode = SmiConstant(LanguageMode::kSloppy);
-        Goto(&call_runtime);
-        BIND(&call_runtime);
-        TailCallRuntime(Runtime::kSetKeyedProperty, context, receiver, key,
-                        value, var_language_mode.value());
-      }
+      TailCallRuntime(Runtime::kSetKeyedProperty, context, receiver, key,
+                      value);
     } else {
       DCHECK(IsStoreInLiteral());
       TailCallRuntime(Runtime::kStoreDataPropertyInLiteral, context, receiver,
@@ -1127,7 +1116,7 @@ void KeyedStoreGenericAssembler::SetProperty(TNode<Context> context,
                   unique_name, value);
     } else {
       CallRuntime(Runtime::kSetKeyedProperty, context, receiver, unique_name,
-                  value, SmiConstant(language_mode));
+                  value);
     }
     Goto(&done);
   }

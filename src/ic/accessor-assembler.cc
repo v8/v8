@@ -831,13 +831,8 @@ void AccessorAssembler::HandleStoreICNativeDataProperty(
   Node* accessor_info = LoadDescriptorValue(LoadMap(holder), descriptor);
   CSA_CHECK(this, IsAccessorInfo(accessor_info));
 
-  // TODO(8580): Get the language mode lazily when required to avoid the
-  // computation of GetLanguageMode here. Also make the computation of
-  // language mode not dependent on vector.
-  Node* language_mode = GetLanguageMode(p->vector, p->slot);
-
   TailCallRuntime(Runtime::kStoreCallbackProperty, p->context, p->receiver,
-                  holder, accessor_info, p->name, p->value, language_mode);
+                  holder, accessor_info, p->name, p->value);
 }
 
 void AccessorAssembler::HandleStoreICHandlerCase(
@@ -1476,7 +1471,7 @@ void AccessorAssembler::HandleStoreToProxy(const StoreICParameters* p,
 
     BIND(&to_name_failed);
     TailCallRuntime(Runtime::kSetPropertyWithReceiver, p->context, proxy,
-                    p->name, p->value, p->receiver, language_mode);
+                    p->name, p->value, p->receiver);
   } else {
     Node* name = CallBuiltin(Builtins::kToName, p->context, p->name);
     TailCallBuiltin(Builtins::kProxySetProperty, p->context, proxy, name,

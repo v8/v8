@@ -658,11 +658,10 @@ IGNITION_HANDLER(StaNamedPropertyNoFeedback,
   Node* object = LoadRegisterAtOperandIndex(0);
   Node* name = LoadConstantPoolEntryAtOperandIndex(1);
   Node* value = GetAccumulator();
-  Node* language_mode = SmiFromInt32(BytecodeOperandFlag(2));
   Node* context = GetContext();
 
-  Node* result = CallRuntime(Runtime::kSetNamedProperty, context, object, name,
-                             value, language_mode);
+  Node* result =
+      CallRuntime(Runtime::kSetNamedProperty, context, object, name, value);
   SetAccumulator(result);
   Dispatch();
 }

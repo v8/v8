@@ -544,10 +544,9 @@ RUNTIME_FUNCTION(Runtime_GetProperty) {
       isolate, Runtime::GetObjectProperty(isolate, receiver_obj, key_obj));
 }
 
-// TODO(mythria): Remove language mode parameter to SetKeyedProperty
 RUNTIME_FUNCTION(Runtime_SetKeyedProperty) {
   HandleScope scope(isolate);
-  DCHECK_EQ(4, args.length());
+  DCHECK_EQ(3, args.length());
 
   CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
@@ -558,10 +557,9 @@ RUNTIME_FUNCTION(Runtime_SetKeyedProperty) {
                                           StoreOrigin::kMaybeKeyed));
 }
 
-// TODO(mythria): Remove language mode parameter to SetNamedProperty
 RUNTIME_FUNCTION(Runtime_SetNamedProperty) {
   HandleScope scope(isolate);
-  DCHECK_EQ(4, args.length());
+  DCHECK_EQ(3, args.length());
 
   CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
