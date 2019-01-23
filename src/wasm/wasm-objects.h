@@ -40,6 +40,7 @@ class WasmDebugInfo;
 class WasmExceptionTag;
 class WasmInstanceObject;
 class WasmModuleObject;
+class WasmExportedFunction;
 
 template <class CppType>
 class Managed;
@@ -411,6 +412,7 @@ class WasmInstanceObject : public JSObject {
   DECL_ACCESSORS(undefined_value, Oddball)
   DECL_ACCESSORS(null_value, Oddball)
   DECL_ACCESSORS(centry_stub, Code)
+  DECL_OPTIONAL_ACCESSORS(wasm_exported_functions, FixedArray)
   DECL_PRIMITIVE_ACCESSORS(memory_start, byte*)
   DECL_PRIMITIVE_ACCESSORS(memory_size, size_t)
   DECL_PRIMITIVE_ACCESSORS(memory_mask, size_t)
@@ -454,6 +456,7 @@ class WasmInstanceObject : public JSObject {
   V(kUndefinedValueOffset, kTaggedSize)                                   \
   V(kNullValueOffset, kTaggedSize)                                        \
   V(kCEntryStubOffset, kTaggedSize)                                       \
+  V(kWasmExportedFunctionsOffset, kTaggedSize)                            \
   V(kEndOfTaggedFieldsOffset, 0)                                          \
   /* Raw data. */                                                         \
   V(kIndirectFunctionTableSizeOffset, kUInt32Size)                        \
@@ -509,8 +512,23 @@ class WasmInstanceObject : public JSObject {
                                uint32_t table_index, uint32_t dst, uint32_t src,
                                uint32_t count) V8_WARN_UNUSED_RESULT;
 
+  // Copy table entries from an element segment. Returns {false} if the ranges
+  // are out-of-bounds.
+  static bool InitTableEntries(Isolate* isolate,
+                               Handle<WasmInstanceObject> instance,
+                               uint32_t table_index, uint32_t segment_index,
+                               uint32_t dst, uint32_t src,
+                               uint32_t count) V8_WARN_UNUSED_RESULT;
+
   // Iterates all fields in the object except the untagged fields.
   class BodyDescriptor;
+
+  static MaybeHandle<WasmExportedFunction> GetWasmExportedFunction(
+      Isolate* isolate, Handle<WasmInstanceObject> instance, int index);
+  static void SetWasmExportedFunction(Isolate* isolate,
+                                      Handle<WasmInstanceObject> instance,
+                                      int index,
+                                      Handle<WasmExportedFunction> val);
 
   OBJECT_CONSTRUCTORS(WasmInstanceObject, JSObject)
 

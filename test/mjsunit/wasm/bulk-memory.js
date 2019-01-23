@@ -321,28 +321,6 @@ function getMemoryFill(mem) {
       kTrapMemOutOfBounds, () => memoryFill(kPageSize + 1, v, kPageSize));
 })();
 
-(function TestTableInit0() {
-  let builder = new WasmModuleBuilder();
-  let sig_v_iii = builder.addType(kSig_v_iii);
-
-  builder.setTableBounds(5, 5);
-  builder.addElementSegment(0, false, []);
-  builder.addElementSegment(0, false, []);
-
-  builder.addFunction("init0", sig_v_iii)
-    .addBody([
-      kExprGetLocal, 0,
-      kExprGetLocal, 1,
-      kExprGetLocal, 2,
-      kNumericPrefix, kExprTableInit, kTableZero, kSegmentZero])
-    .exportAs("init0");
-
-  let instance = builder.instantiate();
-  let init = instance.exports.init0;
-  // TODO(titzer): we only check that a function containing TableInit can be compiled.
-  //  init(1, 2, 3);
-})();
-
 (function TestTableDropActive() {
   const builder = new WasmModuleBuilder();
   builder.setTableBounds(5, 5);

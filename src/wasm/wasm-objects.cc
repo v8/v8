@@ -19,6 +19,7 @@
 #include "src/wasm/jump-table-assembler.h"
 #include "src/wasm/module-compiler.h"
 #include "src/wasm/module-decoder.h"
+#include "src/wasm/module-instantiate.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-limits.h"
@@ -1475,6 +1476,48 @@ bool WasmInstanceObject::CopyTableEntries(Isolate* isolate,
     }
   }
   return true;
+}
+
+// static
+bool WasmInstanceObject::InitTableEntries(Isolate* isolate,
+                                          Handle<WasmInstanceObject> instance,
+                                          uint32_t table_index,
+                                          uint32_t segment_index, uint32_t dst,
+                                          uint32_t src, uint32_t count) {
+  // Note that this implementation just calls through to module instantiation.
+  // This is intentional, so that the runtime only depends on the object
+  // methods, and not the module instantiation logic.
+  return wasm::LoadElemSegment(isolate, instance, table_index, segment_index,
+                               dst, src, count);
+}
+
+MaybeHandle<WasmExportedFunction> WasmInstanceObject::GetWasmExportedFunction(
+    Isolate* isolate, Handle<WasmInstanceObject> instance, int index) {
+  MaybeHandle<WasmExportedFunction> result;
+  if (instance->has_wasm_exported_functions()) {
+    Object val = instance->wasm_exported_functions()->get(index);
+    if (!val->IsUndefined(isolate)) {
+      result = Handle<WasmExportedFunction>(WasmExportedFunction::cast(val),
+                                            isolate);
+    }
+  }
+  return result;
+}
+
+void WasmInstanceObject::SetWasmExportedFunction(
+    Isolate* isolate, Handle<WasmInstanceObject> instance, int index,
+    Handle<WasmExportedFunction> val) {
+  Handle<FixedArray> functions;
+  if (!instance->has_wasm_exported_functions()) {
+    // lazily-allocate the wasm exported functions.
+    functions = isolate->factory()->NewFixedArray(
+        static_cast<int>(instance->module()->functions.size()));
+    instance->set_wasm_exported_functions(*functions);
+  } else {
+    functions =
+        Handle<FixedArray>(instance->wasm_exported_functions(), isolate);
+  }
+  functions->set(index, *val);
 }
 
 // static

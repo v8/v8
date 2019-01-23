@@ -233,6 +233,8 @@ OPTIONAL_ACCESSORS(WasmInstanceObject, exceptions_table, FixedArray,
 ACCESSORS(WasmInstanceObject, undefined_value, Oddball, kUndefinedValueOffset)
 ACCESSORS(WasmInstanceObject, null_value, Oddball, kNullValueOffset)
 ACCESSORS(WasmInstanceObject, centry_stub, Code, kCEntryStubOffset)
+OPTIONAL_ACCESSORS(WasmInstanceObject, wasm_exported_functions, FixedArray,
+                   kWasmExportedFunctionsOffset)
 
 inline bool WasmInstanceObject::has_indirect_function_table() {
   return indirect_function_table_sig_ids() != nullptr;
