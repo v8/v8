@@ -4572,7 +4572,6 @@ void Genesis::InitializeGlobal_harmony_intl_relative_time_format() {
                         Builtins::kRelativeTimeFormatPrototypeFormatToParts, 2,
                         false);
 }
-
 void Genesis::InitializeGlobal_harmony_intl_segmenter() {
   if (!FLAG_harmony_intl_segmenter) return;
   Handle<JSObject> intl = Handle<JSObject>::cast(
