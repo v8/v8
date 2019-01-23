@@ -1517,6 +1517,104 @@ bool WasmExceptionObject::IsSignatureEqual(const wasm::FunctionSig* sig) {
   return true;
 }
 
+// static
+Handle<JSReceiver> WasmExceptionPackage::New(
+    Isolate* isolate, Handle<WasmExceptionTag> exception_tag, int size) {
+  Handle<Object> exception = isolate->factory()->NewWasmRuntimeError(
+      MessageTemplate::kWasmExceptionError);
+  CHECK(!Object::SetProperty(isolate, exception,
+                             isolate->factory()->wasm_exception_tag_symbol(),
+                             exception_tag, LanguageMode::kStrict)
+             .is_null());
+  Handle<FixedArray> values = isolate->factory()->NewFixedArray(size);
+  CHECK(!Object::SetProperty(isolate, exception,
+                             isolate->factory()->wasm_exception_values_symbol(),
+                             values, LanguageMode::kStrict)
+             .is_null());
+  return Handle<JSReceiver>::cast(exception);
+}
+
+// static
+Handle<Object> WasmExceptionPackage::GetExceptionTag(
+    Isolate* isolate, Handle<Object> exception_object) {
+  if (exception_object->IsJSReceiver()) {
+    Handle<JSReceiver> exception = Handle<JSReceiver>::cast(exception_object);
+    Handle<Object> tag;
+    if (JSReceiver::GetProperty(isolate, exception,
+                                isolate->factory()->wasm_exception_tag_symbol())
+            .ToHandle(&tag)) {
+      return tag;
+    }
+  }
+  return ReadOnlyRoots(isolate).undefined_value_handle();
+}
+
+// static
+Handle<Object> WasmExceptionPackage::GetExceptionValues(
+    Isolate* isolate, Handle<Object> exception_object) {
+  if (exception_object->IsJSReceiver()) {
+    Handle<JSReceiver> exception = Handle<JSReceiver>::cast(exception_object);
+    Handle<Object> values;
+    if (JSReceiver::GetProperty(
+            isolate, exception,
+            isolate->factory()->wasm_exception_values_symbol())
+            .ToHandle(&values)) {
+      DCHECK(values->IsFixedArray());
+      return values;
+    }
+  }
+  return ReadOnlyRoots(isolate).undefined_value_handle();
+}
+
+#ifdef DEBUG
+
+namespace {
+
+constexpr uint32_t kBytesPerExceptionValuesArrayElement = 2;
+
+size_t ComputeEncodedElementSize(wasm::ValueType type) {
+  size_t byte_size =
+      static_cast<size_t>(wasm::ValueTypes::ElementSizeInBytes(type));
+  DCHECK_EQ(byte_size % kBytesPerExceptionValuesArrayElement, 0);
+  DCHECK_LE(1, byte_size / kBytesPerExceptionValuesArrayElement);
+  return byte_size / kBytesPerExceptionValuesArrayElement;
+}
+
+}  // namespace
+
+#endif  // DEBUG
+
+// static
+uint32_t WasmExceptionPackage::GetEncodedSize(
+    const wasm::WasmException* exception) {
+  const wasm::WasmExceptionSig* sig = exception->sig;
+  uint32_t encoded_size = 0;
+  for (size_t i = 0; i < sig->parameter_count(); ++i) {
+    switch (sig->GetParam(i)) {
+      case wasm::kWasmI32:
+      case wasm::kWasmF32:
+        DCHECK_EQ(2, ComputeEncodedElementSize(sig->GetParam(i)));
+        encoded_size += 2;
+        break;
+      case wasm::kWasmI64:
+      case wasm::kWasmF64:
+        DCHECK_EQ(4, ComputeEncodedElementSize(sig->GetParam(i)));
+        encoded_size += 4;
+        break;
+      case wasm::kWasmS128:
+        DCHECK_EQ(8, ComputeEncodedElementSize(sig->GetParam(i)));
+        encoded_size += 8;
+        break;
+      case wasm::kWasmAnyRef:
+        encoded_size += 1;
+        break;
+      default:
+        UNREACHABLE();
+    }
+  }
+  return encoded_size;
+}
+
 bool WasmExportedFunction::IsWasmExportedFunction(Object object) {
   if (!object->IsJSFunction()) return false;
   JSFunction js_function = JSFunction::cast(object);

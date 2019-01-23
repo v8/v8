@@ -874,10 +874,9 @@ RUNTIME_FUNCTION(Runtime_GetWasmExceptionId) {
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, exception, 0);
   CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 1);
-  Handle<Object> tag;
-  if (JSReceiver::GetProperty(isolate, exception,
-                              isolate->factory()->wasm_exception_tag_symbol())
-          .ToHandle(&tag)) {
+  Handle<Object> tag =
+      WasmExceptionPackage::GetExceptionTag(isolate, exception);
+  if (tag->IsWasmExceptionTag()) {
     Handle<FixedArray> exceptions_table(instance->exceptions_table(), isolate);
     for (int index = 0; index < exceptions_table->length(); ++index) {
       if (exceptions_table->get(index) == *tag) return Smi::FromInt(index);
@@ -890,11 +889,9 @@ RUNTIME_FUNCTION(Runtime_GetWasmExceptionValues) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, exception, 0);
-  Handle<Object> values_obj;
-  CHECK(JSReceiver::GetProperty(
-            isolate, exception,
-            isolate->factory()->wasm_exception_values_symbol())
-            .ToHandle(&values_obj));
+  Handle<Object> values_obj =
+      WasmExceptionPackage::GetExceptionValues(isolate, exception);
+  CHECK(values_obj->IsFixedArray());  // Only called with correct input.
   Handle<FixedArray> values = Handle<FixedArray>::cast(values_obj);
   return *isolate->factory()->NewJSArrayWithElements(values);
 }

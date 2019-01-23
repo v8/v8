@@ -538,7 +538,6 @@ class WasmGraphBuilder {
   Node* BuildAsmjsLoadMem(MachineType type, Node* index);
   Node* BuildAsmjsStoreMem(MachineType type, Node* index, Node* val);
 
-  uint32_t GetExceptionEncodedSize(const wasm::WasmException* exception) const;
   void BuildEncodeException32BitValue(Node* values_array, uint32_t* index,
                                       Node* value);
   Node* BuildDecodeException32BitValue(Node* values_array, uint32_t* index);

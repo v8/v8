@@ -2080,6 +2080,77 @@ class ThreadImpl {
     return HandleException(isolate) == WasmInterpreter::Thread::HANDLED;
   }
 
+  void EncodeI32ExceptionValue(Handle<FixedArray> encoded_values,
+                               uint32_t* encoded_index, uint32_t value) {
+    encoded_values->set((*encoded_index)++, Smi::FromInt(value >> 16));
+    encoded_values->set((*encoded_index)++, Smi::FromInt(value & 0xffff));
+  }
+
+  void EncodeI64ExceptionValue(Handle<FixedArray> encoded_values,
+                               uint32_t* encoded_index, uint64_t value) {
+    EncodeI32ExceptionValue(encoded_values, encoded_index,
+                            static_cast<uint32_t>(value >> 32));
+    EncodeI32ExceptionValue(encoded_values, encoded_index,
+                            static_cast<uint32_t>(value));
+  }
+
+  // Allocate, initialize and throw a new exception. The exception values are
+  // being popped off the operand stack. Returns true of the exception is being
+  // handled locally by the interpreter, false otherwise (interpreter exits).
+  bool DoThrowException(const WasmException* exception,
+                        uint32_t index) V8_WARN_UNUSED_RESULT {
+    Isolate* isolate = instance_object_->GetIsolate();
+    Handle<WasmExceptionTag> exception_tag(
+        WasmExceptionTag::cast(
+            instance_object_->exceptions_table()->get(index)),
+        isolate);
+    uint32_t encoded_size = WasmExceptionPackage::GetEncodedSize(exception);
+    Handle<Object> exception_object =
+        WasmExceptionPackage::New(isolate, exception_tag, encoded_size);
+    Handle<FixedArray> encoded_values = Handle<FixedArray>::cast(
+        WasmExceptionPackage::GetExceptionValues(isolate, exception_object));
+    // Encode the exception values on the operand stack into the exception
+    // package allocated above. This encoding has to be in sync with other
+    // backends so that exceptions can be passed between them.
+    const wasm::WasmExceptionSig* sig = exception->sig;
+    uint32_t encoded_index = 0;
+    for (size_t i = 0; i < sig->parameter_count(); ++i) {
+      WasmValue value = sp_[i - sig->parameter_count()];
+      switch (sig->GetParam(i)) {
+        case wasm::kWasmI32: {
+          uint32_t u32 = value.to_u32();
+          EncodeI32ExceptionValue(encoded_values, &encoded_index, u32);
+          break;
+        }
+        case wasm::kWasmF32: {
+          uint32_t f32 = value.to_f32_boxed().get_bits();
+          EncodeI32ExceptionValue(encoded_values, &encoded_index, f32);
+          break;
+        }
+        case wasm::kWasmI64: {
+          uint64_t u64 = value.to_u64();
+          EncodeI64ExceptionValue(encoded_values, &encoded_index, u64);
+          break;
+        }
+        case wasm::kWasmF64: {
+          uint64_t f64 = value.to_f64_boxed().get_bits();
+          EncodeI64ExceptionValue(encoded_values, &encoded_index, f64);
+          break;
+        }
+        case wasm::kWasmAnyRef:
+          UNIMPLEMENTED();
+          break;
+        default:
+          UNREACHABLE();
+      }
+    }
+    DCHECK_EQ(encoded_size, encoded_index);
+    PopN(static_cast<int>(sig->parameter_count()));
+    // Now that the exception is ready, set it as pending.
+    isolate->Throw(*exception_object);
+    return HandleException(isolate) == WasmInterpreter::Thread::HANDLED;
+  }
+
   void Execute(InterpreterCode* code, pc_t pc, int max) {
     DCHECK_NOT_NULL(code->side_table);
     DCHECK(!frames_.empty());
@@ -2182,6 +2253,14 @@ class ThreadImpl {
         case kExprElse: {
           len = LookupTargetDelta(code, pc);
           TRACE("  end => @%zu\n", pc + len);
+          break;
+        }
+        case kExprThrow: {
+          ExceptionIndexImmediate<Decoder::kNoValidate> imm(&decoder,
+                                                            code->at(pc));
+          len = 1 + imm.length;
+          const WasmException* exception = &module()->exceptions[imm.index];
+          if (!DoThrowException(exception, imm.index)) return;
           break;
         }
         case kExprSelect: {

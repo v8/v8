@@ -2068,59 +2068,11 @@ Node* WasmGraphBuilder::MemoryGrow(Node* input) {
                                   call_target, input, Effect(), Control())));
 }
 
-#ifdef DEBUG
-
-namespace {
-
-constexpr uint32_t kBytesPerExceptionValuesArrayElement = 2;
-
-size_t ComputeEncodedElementSize(wasm::ValueType type) {
-  size_t byte_size =
-      static_cast<size_t>(wasm::ValueTypes::ElementSizeInBytes(type));
-  DCHECK_EQ(byte_size % kBytesPerExceptionValuesArrayElement, 0);
-  DCHECK_LE(1, byte_size / kBytesPerExceptionValuesArrayElement);
-  return byte_size / kBytesPerExceptionValuesArrayElement;
-}
-
-}  // namespace
-
-#endif  // DEBUG
-
-uint32_t WasmGraphBuilder::GetExceptionEncodedSize(
-    const wasm::WasmException* exception) const {
-  const wasm::WasmExceptionSig* sig = exception->sig;
-  uint32_t encoded_size = 0;
-  for (size_t i = 0; i < sig->parameter_count(); ++i) {
-    switch (sig->GetParam(i)) {
-      case wasm::kWasmI32:
-      case wasm::kWasmF32:
-        DCHECK_EQ(2, ComputeEncodedElementSize(sig->GetParam(i)));
-        encoded_size += 2;
-        break;
-      case wasm::kWasmI64:
-      case wasm::kWasmF64:
-        DCHECK_EQ(4, ComputeEncodedElementSize(sig->GetParam(i)));
-        encoded_size += 4;
-        break;
-      case wasm::kWasmS128:
-        DCHECK_EQ(8, ComputeEncodedElementSize(sig->GetParam(i)));
-        encoded_size += 8;
-        break;
-      case wasm::kWasmAnyRef:
-        encoded_size += 1;
-        break;
-      default:
-        UNREACHABLE();
-    }
-  }
-  return encoded_size;
-}
-
 Node* WasmGraphBuilder::Throw(uint32_t exception_index,
                               const wasm::WasmException* exception,
                               const Vector<Node*> values) {
   needs_stack_check_ = true;
-  uint32_t encoded_size = GetExceptionEncodedSize(exception);
+  uint32_t encoded_size = WasmExceptionPackage::GetEncodedSize(exception);
   Node* create_parameters[] = {
       LoadExceptionTagFromTable(exception_index),
       BuildChangeUint31ToSmi(Uint32Constant(encoded_size))};
@@ -2308,7 +2260,7 @@ Node** WasmGraphBuilder::GetExceptionValues(
     }
     values[i] = value;
   }
-  DCHECK_EQ(index, GetExceptionEncodedSize(exception));
+  DCHECK_EQ(index, WasmExceptionPackage::GetEncodedSize(exception));
   return values;
 }
 

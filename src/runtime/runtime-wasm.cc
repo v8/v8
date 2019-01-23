@@ -120,21 +120,11 @@ RUNTIME_FUNCTION(Runtime_WasmThrowCreate) {
   DCHECK_EQ(2, args.length());
   DCHECK(isolate->context().is_null());
   isolate->set_context(GetNativeContextFromWasmInstanceOnStackTop(isolate));
-  CONVERT_ARG_CHECKED(HeapObject, tag_raw, 0);
+  CONVERT_ARG_CHECKED(WasmExceptionTag, tag_raw, 0);
   CONVERT_SMI_ARG_CHECKED(size, 1);
   // TODO(mstarzinger): Manually box because parameters are not visited yet.
-  Handle<Object> tag(tag_raw, isolate);
-  Handle<Object> exception = isolate->factory()->NewWasmRuntimeError(
-      MessageTemplate::kWasmExceptionError);
-  CHECK(!Object::SetProperty(isolate, exception,
-                             isolate->factory()->wasm_exception_tag_symbol(),
-                             tag, LanguageMode::kStrict)
-             .is_null());
-  Handle<FixedArray> values = isolate->factory()->NewFixedArray(size);
-  CHECK(!Object::SetProperty(isolate, exception,
-                             isolate->factory()->wasm_exception_values_symbol(),
-                             values, LanguageMode::kStrict)
-             .is_null());
+  Handle<WasmExceptionTag> tag(tag_raw, isolate);
+  Handle<JSReceiver> exception = WasmExceptionPackage::New(isolate, tag, size);
   return *exception;
 }
 
@@ -147,16 +137,7 @@ RUNTIME_FUNCTION(Runtime_WasmExceptionGetTag) {
   CONVERT_ARG_CHECKED(Object, except_obj_raw, 0);
   // TODO(mstarzinger): Manually box because parameters are not visited yet.
   Handle<Object> except_obj(except_obj_raw, isolate);
-  if (!except_obj.is_null() && except_obj->IsJSReceiver()) {
-    Handle<JSReceiver> exception(JSReceiver::cast(*except_obj), isolate);
-    Handle<Object> tag;
-    if (JSReceiver::GetProperty(isolate, exception,
-                                isolate->factory()->wasm_exception_tag_symbol())
-            .ToHandle(&tag)) {
-      return *tag;
-    }
-  }
-  return ReadOnlyRoots(isolate).undefined_value();
+  return *WasmExceptionPackage::GetExceptionTag(isolate, except_obj);
 }
 
 RUNTIME_FUNCTION(Runtime_WasmExceptionGetValues) {
@@ -168,18 +149,7 @@ RUNTIME_FUNCTION(Runtime_WasmExceptionGetValues) {
   CONVERT_ARG_CHECKED(Object, except_obj_raw, 0);
   // TODO(mstarzinger): Manually box because parameters are not visited yet.
   Handle<Object> except_obj(except_obj_raw, isolate);
-  if (!except_obj.is_null() && except_obj->IsJSReceiver()) {
-    Handle<JSReceiver> exception(JSReceiver::cast(*except_obj), isolate);
-    Handle<Object> values;
-    if (JSReceiver::GetProperty(
-            isolate, exception,
-            isolate->factory()->wasm_exception_values_symbol())
-            .ToHandle(&values)) {
-      DCHECK(values->IsFixedArray());
-      return *values;
-    }
-  }
-  return ReadOnlyRoots(isolate).undefined_value();
+  return *WasmExceptionPackage::GetExceptionValues(isolate, except_obj);
 }
 
 RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
