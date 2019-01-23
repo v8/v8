@@ -93,6 +93,10 @@ class JSArray extends JSObject {
         kEmptyFixedArray);
     this.length = 0;
   }
+  constructor(implicit context: Context)(map: Map, elements: FixedArrayBase) {
+    super(map, kEmptyFixedArray, elements);
+    this.length = elements.length;
+  }
   IsEmpty(): bool {
     return this.length == 0;
   }
@@ -232,11 +236,12 @@ const BIGINT64_ELEMENTS:
 
 const kNone:
     constexpr AllocationFlags generates 'CodeStubAssembler::kNone';
-const kDoubleAlignment:
-    constexpr AllocationFlags generates 'kDoubleAlignment';
-const kPretenured: constexpr AllocationFlags generates 'kPretenured';
-const kAllowLargeObjectAllocation:
-    constexpr AllocationFlags generates 'kAllowLargeObjectAllocation';
+const kDoubleAlignment: constexpr AllocationFlags
+    generates 'CodeStubAssembler::kDoubleAlignment';
+const kPretenured:
+    constexpr AllocationFlags generates 'CodeStubAssembler::kPretenured';
+const kAllowLargeObjectAllocation: constexpr AllocationFlags
+    generates 'CodeStubAssembler::kAllowLargeObjectAllocation';
 
 type FixedUint8Array extends FixedTypedArray;
 type FixedInt8Array extends FixedTypedArray;
@@ -1072,8 +1077,8 @@ UnsafeCast<Object>(o: Object): Object {
 }
 
 const kCOWMap: Map = %RawObjectCast<Map>(LoadRoot(kFixedCOWArrayMapRootIndex));
-const kEmptyFixedArray: FixedArrayBase =
-    %RawObjectCast<FixedArrayBase>(LoadRoot(kEmptyFixedArrayRootIndex));
+const kEmptyFixedArray: FixedArray =
+    %RawObjectCast<FixedArray>(LoadRoot(kEmptyFixedArrayRootIndex));
 
 extern macro IsPrototypeInitialArrayPrototype(implicit context: Context)(Map):
     bool;
@@ -1105,6 +1110,7 @@ extern operator '[]' macro LoadFixedArrayElement(
     FixedArray, constexpr int31): Object;
 extern operator '[]=' macro StoreFixedArrayElement(
     FixedArray, intptr, Smi): void;
+extern operator '[]=' macro StoreFixedArrayElement(FixedArray, Smi, Smi): void;
 extern operator '[]=' macro StoreFixedArrayElement(
     FixedArray, intptr, HeapObject): void;
 extern operator '[]=' macro StoreFixedArrayElement(
@@ -1148,6 +1154,16 @@ extern macro IsFastSmiOrTaggedElementsKind(ElementsKind): bool;
 extern macro IsFastSmiElementsKind(ElementsKind): bool;
 extern macro IsHoleyFastElementsKind(ElementsKind): bool;
 
+macro FastHoleyElementsKind(kind: ElementsKind): ElementsKind {
+  if (kind == PACKED_SMI_ELEMENTS) {
+    return HOLEY_SMI_ELEMENTS;
+  } else if (kind == PACKED_DOUBLE_ELEMENTS) {
+    return HOLEY_DOUBLE_ELEMENTS;
+  }
+  assert(kind == PACKED_ELEMENTS);
+  return HOLEY_ELEMENTS;
+}
+
 macro AllowDoubleElements(kind: ElementsKind): ElementsKind {
   if (kind == PACKED_SMI_ELEMENTS) {
     return PACKED_DOUBLE_ELEMENTS;
@@ -1177,6 +1193,8 @@ extern macro CalculateNewElementsCapacity(intptr): intptr;
 
 extern macro AllocateFixedArrayWithHoles(
     intptr, constexpr AllocationFlags): FixedArray;
+extern macro AllocateFixedDoubleArrayWithHoles(
+    intptr, constexpr AllocationFlags): FixedDoubleArray;
 extern macro CopyFixedArrayElements(
     constexpr ElementsKind, FixedArray, constexpr ElementsKind, FixedArray,
     intptr, intptr, intptr): void;
@@ -1186,7 +1204,6 @@ extern macro CopyFixedArrayElements(
 
 extern macro AllocateJSArray(constexpr ElementsKind, Map, intptr, Smi): JSArray;
 extern macro AllocateJSArray(constexpr ElementsKind, Map, Smi, Smi): JSArray;
-
 extern macro AllocateJSObjectFromMap(Map): JSObject;
 
 extern operator '[]=' macro StoreFixedDoubleArrayElementSmi(
@@ -1300,7 +1317,8 @@ LoadElementNoHole<FixedDoubleArray>(implicit context: Context)(
 }
 
 extern macro TransitionElementsKind(
-    JSObject, Map, ElementsKind, ElementsKind): void labels Bailout;
+    JSObject, Map, constexpr ElementsKind,
+    constexpr ElementsKind): void labels Bailout;
 
 extern macro IsCallable(HeapObject): bool;
 extern macro IsJSArray(HeapObject): bool;

@@ -364,14 +364,6 @@ namespace internal {
   TFJ(ArraySomeLoopLazyDeoptContinuation, 5, kReceiver, kCallbackFn, kThisArg, \
       kInitialK, kLength, kResult)                                             \
   TFJ(ArraySome, SharedFunctionInfo::kDontAdaptArgumentsSentinel)              \
-  /* ES6 #sec-array.prototype.foreach */                                       \
-  TFS(ArrayMapLoopContinuation, kReceiver, kCallbackFn, kThisArg, kArray,      \
-      kObject, kInitialK, kLength, kTo)                                        \
-  TFJ(ArrayMapLoopEagerDeoptContinuation, 5, kReceiver, kCallbackFn, kThisArg, \
-      kArray, kInitialK, kLength)                                              \
-  TFJ(ArrayMapLoopLazyDeoptContinuation, 6, kReceiver, kCallbackFn, kThisArg,  \
-      kArray, kInitialK, kLength, kResult)                                     \
-  TFJ(ArrayMap, SharedFunctionInfo::kDontAdaptArgumentsSentinel)               \
   /* ES6 #sec-array.prototype.reduce */                                        \
   TFS(ArrayReduceLoopContinuation, kReceiver, kCallbackFn, kThisArg,           \
       kAccumulator, kObject, kInitialK, kLength, kTo)                          \

@@ -1262,6 +1262,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                               TNode<Smi> value) {
     StoreFixedArrayElement(array, index, value, SKIP_WRITE_BARRIER, 0);
   }
+  void StoreFixedArrayElement(TNode<FixedArray> array, TNode<Smi> index,
+                              TNode<Smi> value) {
+    StoreFixedArrayElement(array, index, value, SKIP_WRITE_BARRIER, 0,
+                           SMI_PARAMETERS);
+  }
 
   void StoreFixedDoubleArrayElement(
       TNode<FixedDoubleArray> object, Node* index, TNode<Float64T> value,
@@ -1528,6 +1533,15 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     TNode<FixedArray> result = UncheckedCast<FixedArray>(
         AllocateFixedArray(PACKED_ELEMENTS, capacity, flags));
     FillFixedArrayWithValue(PACKED_ELEMENTS, result, IntPtrConstant(0),
+                            capacity, RootIndex::kTheHoleValue);
+    return result;
+  }
+
+  TNode<FixedDoubleArray> AllocateFixedDoubleArrayWithHoles(
+      TNode<IntPtrT> capacity, AllocationFlags flags) {
+    TNode<FixedDoubleArray> result = UncheckedCast<FixedDoubleArray>(
+        AllocateFixedArray(PACKED_DOUBLE_ELEMENTS, capacity, flags));
+    FillFixedArrayWithValue(PACKED_DOUBLE_ELEMENTS, result, IntPtrConstant(0),
                             capacity, RootIndex::kTheHoleValue);
     return result;
   }
