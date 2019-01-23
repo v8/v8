@@ -128,6 +128,7 @@ class DotsProgressIndicator(SimpleProgressIndicator):
     self._count = 0
 
   def _on_result_for(self, test, result):
+    super(DotsProgressIndicator, self)._on_result_for(test, result)
     # TODO(majeski): Support for dummy/grouped results
     self._count += 1
     if self._count > 1 and self._count % 50 == 1:
