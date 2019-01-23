@@ -1195,7 +1195,8 @@ class ParserBase {
 
     if (is_for_var_of) {
       Scope* scope = this->scope();
-      while (scope != nullptr && !scope->is_declaration_scope()) {
+      while (!scope->is_declaration_scope() ||
+             (scope->is_eval_scope() && is_sloppy(scope->language_mode()))) {
         if (scope->is_catch_scope()) {
           auto name = scope->catch_variable()->raw_name();
           // If it's a simple binding and the name is declared in the for loop.

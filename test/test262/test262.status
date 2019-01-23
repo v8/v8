@@ -138,9 +138,6 @@
   'built-ins/DataView/prototype/byteLength/detached-buffer': [FAIL],
   'built-ins/DataView/prototype/byteOffset/detached-buffer': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=4231
-  'language/eval-code/direct/var-env-lower-lex-catch-non-strict': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=4951
   'language/expressions/assignment/destructuring/iterator-destructuring-property-reference-target-evaluation-order': [FAIL],
   'language/expressions/assignment/destructuring/keyed-destructuring-property-reference-target-evaluation-order': [FAIL],
