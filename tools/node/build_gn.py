@@ -67,9 +67,10 @@ def GenerateBuildFiles(options):
   else:
     gn_args.append("is_debug=false")
 
+  for arg in options.extra_gn_args:
+    gn_args.append(arg)
+
   flattened_args = ' '.join(gn_args)
-  if options.extra_gn_args:
-    flattened_args += ' ' + options.extra_gn_args
 
   args = [gn, "gen", options.build_path, "-q", "--args=" + flattened_args]
   subprocess.check_call(args)
@@ -106,7 +107,8 @@ def ParseOptions(args):
   parser.add_argument("--bundled-win-toolchain-root",
                       help="Value for DEPOT_TOOLS_WIN_TOOLCHAIN_ROOT")
   parser.add_argument("--depot-tools", help="Absolute path to depot_tools")
-  parser.add_argument("--extra-gn-args", help="Additional GN args")
+  parser.add_argument("--extra-gn-args", help="Additional GN args",
+                      action="append")
   parser.add_argument("--build", help="Run ninja as opposed to gn gen.",
                       action="store_true")
   parser.add_argument("--max-jobs", help="ninja's -j parameter")
