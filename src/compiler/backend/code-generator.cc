@@ -191,9 +191,9 @@ void CodeGenerator::AssembleCode() {
 
   // Assemble instructions in assembly order.
   for (const InstructionBlock* block : code()->ao_blocks()) {
-    // Align loop headers on 16-byte boundaries.
+    // Align loop headers on vendor recommended boundaries.
     if (block->ShouldAlign() && !tasm()->jump_optimization_info()) {
-      tasm()->Align(16);
+      tasm()->CodeTargetAlign();
     }
     if (info->trace_turbo_json_enabled()) {
       block_starts_[block->rpo_number().ToInt()] = tasm()->pc_offset();

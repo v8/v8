@@ -621,6 +621,10 @@ void Assembler::Align(int m) {
   }
 }
 
+void Assembler::CodeTargetAlign() {
+  // Preferred alignment of jump targets on some ARM chips.
+  Align(8);
+}
 
 void Assembler::CheckLabelLinkChain(Label const * label) {
 #ifdef DEBUG
