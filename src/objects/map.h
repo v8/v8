@@ -18,10 +18,16 @@ namespace internal {
 
 enum InstanceType : uint16_t;
 
-#define VISITOR_ID_LIST(V)             \
+#define DATA_ONLY_VISITOR_ID_LIST(V) \
+  V(BigInt)                          \
+  V(ByteArray)                       \
+  V(DataObject)                      \
+  V(FixedDoubleArray)                \
+  V(SeqOneByteString)                \
+  V(SeqTwoByteString)
+
+#define POINTER_VISITOR_ID_LIST(V)     \
   V(AllocationSite)                    \
-  V(BigInt)                            \
-  V(ByteArray)                         \
   V(BytecodeArray)                     \
   V(Cell)                              \
   V(Code)                              \
@@ -29,14 +35,12 @@ enum InstanceType : uint16_t;
   V(ConsString)                        \
   V(Context)                           \
   V(DataHandler)                       \
-  V(DataObject)                        \
   V(DescriptorArray)                   \
   V(EmbedderDataArray)                 \
   V(EphemeronHashTable)                \
   V(FeedbackCell)                      \
   V(FeedbackVector)                    \
   V(FixedArray)                        \
-  V(FixedDoubleArray)                  \
   V(FixedFloat64Array)                 \
   V(FixedTypedArrayBase)               \
   V(FreeSpace)                         \
@@ -57,8 +61,6 @@ enum InstanceType : uint16_t;
   V(PropertyArray)                     \
   V(PropertyCell)                      \
   V(PrototypeInfo)                     \
-  V(SeqOneByteString)                  \
-  V(SeqTwoByteString)                  \
   V(SharedFunctionInfo)                \
   V(ShortcutCandidate)                 \
   V(SlicedString)                      \
@@ -74,20 +76,21 @@ enum InstanceType : uint16_t;
   V(WasmInstanceObject)                \
   V(WeakArray)
 
-// For data objects, JS objects and structs along with generic visitor which
-// can visit object of any size we provide visitors specialized by
-// object size in words.
-// Ids of specialized visitors are declared in a linear order (without
-// holes) starting from the id of visitor specialized for 2 words objects
-// (base visitor id) and ending with the id of generic visitor.
-// Method GetVisitorIdForSize depends on this ordering to calculate visitor
-// id of specialized visitor from given instance size, base visitor id and
-// generic visitor's id.
+// Objects with the same visitor id are processed in the same way by
+// the heap visitors. The visitor ids for data only objects must precede
+// other visitor ids. We rely on kDataOnlyVisitorIdCount for quick check
+// of whether an object contains only data or may contain pointers.
 enum VisitorId {
 #define VISITOR_ID_ENUM_DECL(id) kVisit##id,
-  VISITOR_ID_LIST(VISITOR_ID_ENUM_DECL)
+  DATA_ONLY_VISITOR_ID_LIST(VISITOR_ID_ENUM_DECL) kDataOnlyVisitorIdCount,
+  POINTER_VISITOR_ID_LIST(VISITOR_ID_ENUM_DECL)
 #undef VISITOR_ID_ENUM_DECL
       kVisitorIdCount
+};
+
+enum class ObjectFields {
+  kDataOnly,
+  kMaybePointers,
 };
 
 typedef std::vector<Handle<Map>> MapHandles;
@@ -805,6 +808,12 @@ class Map : public HeapObject {
 #endif
 
   DECL_PRIMITIVE_ACCESSORS(visitor_id, VisitorId)
+
+  static ObjectFields ObjectFieldsFrom(VisitorId visitor_id) {
+    return (visitor_id < kDataOnlyVisitorIdCount)
+               ? ObjectFields::kDataOnly
+               : ObjectFields::kMaybePointers;
+  }
 
   static Handle<Map> TransitionToPrototype(Isolate* isolate, Handle<Map> map,
                                            Handle<Object> prototype);

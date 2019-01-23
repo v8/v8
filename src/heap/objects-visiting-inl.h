@@ -59,6 +59,7 @@ ResultType HeapVisitor<ResultType, ConcreteVisitor>::Visit(Map map,
       return visitor->VisitFreeSpace(map, FreeSpace::cast(object));
     case kVisitWeakArray:
       return visitor->VisitWeakArray(map, object);
+    case kDataOnlyVisitorIdCount:
     case kVisitorIdCount:
       UNREACHABLE();
   }

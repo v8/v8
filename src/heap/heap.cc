@@ -5515,6 +5515,11 @@ void VerifyPointersVisitor::VerifyPointersImpl(TSlot start, TSlot end) {
 void VerifyPointersVisitor::VerifyPointers(HeapObject host,
                                            MaybeObjectSlot start,
                                            MaybeObjectSlot end) {
+  // If this DCHECK fires then you probably added a pointer field
+  // to one of objects in DATA_ONLY_VISITOR_ID_LIST. You can fix
+  // this by moving that object to POINTER_VISITOR_ID_LIST.
+  DCHECK_EQ(ObjectFields::kMaybePointers,
+            Map::ObjectFieldsFrom(host->map()->visitor_id()));
   VerifyPointersImpl(start, end);
 }
 

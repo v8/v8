@@ -91,25 +91,6 @@ bool Scavenger::PromotionList::ShouldEagerlyProcessPromotionList(int task_id) {
   return LocalPushSegmentSize(task_id) < kProcessPromotionListThreshold;
 }
 
-// White list for objects that for sure only contain data.
-bool Scavenger::ContainsOnlyData(VisitorId visitor_id) {
-  switch (visitor_id) {
-    case kVisitSeqOneByteString:
-      return true;
-    case kVisitSeqTwoByteString:
-      return true;
-    case kVisitByteArray:
-      return true;
-    case kVisitFixedDoubleArray:
-      return true;
-    case kVisitDataObject:
-      return true;
-    default:
-      break;
-  }
-  return false;
-}
-
 void Scavenger::PageMemoryFence(MaybeObject object) {
 #ifdef THREAD_SANITIZER
   // Perform a dummy acquire load to tell TSAN that there is no data race
@@ -148,10 +129,9 @@ bool Scavenger::MigrateObject(Map map, HeapObject source, HeapObject target,
 }
 
 template <typename THeapObjectSlot>
-CopyAndForwardResult Scavenger::SemiSpaceCopyObject(Map map,
-                                                    THeapObjectSlot slot,
-                                                    HeapObject object,
-                                                    int object_size) {
+CopyAndForwardResult Scavenger::SemiSpaceCopyObject(
+    Map map, THeapObjectSlot slot, HeapObject object, int object_size,
+    ObjectFields object_fields) {
   static_assert(std::is_same<THeapObjectSlot, FullHeapObjectSlot>::value ||
                     std::is_same<THeapObjectSlot, HeapObjectSlot>::value,
                 "Only FullHeapObjectSlot and HeapObjectSlot are expected here");
@@ -175,8 +155,9 @@ CopyAndForwardResult Scavenger::SemiSpaceCopyObject(Map map,
                  : CopyAndForwardResult::SUCCESS_OLD_GENERATION;
     }
     HeapObjectReference::Update(slot, target);
-
-    copied_list_.Push(ObjectAndSize(target, object_size));
+    if (object_fields == ObjectFields::kMaybePointers) {
+      copied_list_.Push(ObjectAndSize(target, object_size));
+    }
     copied_size_ += object_size;
     return CopyAndForwardResult::SUCCESS_YOUNG_GENERATION;
   }
@@ -186,7 +167,8 @@ CopyAndForwardResult Scavenger::SemiSpaceCopyObject(Map map,
 template <typename THeapObjectSlot>
 CopyAndForwardResult Scavenger::PromoteObject(Map map, THeapObjectSlot slot,
                                               HeapObject object,
-                                              int object_size) {
+                                              int object_size,
+                                              ObjectFields object_fields) {
   static_assert(std::is_same<THeapObjectSlot, FullHeapObjectSlot>::value ||
                     std::is_same<THeapObjectSlot, HeapObjectSlot>::value,
                 "Only FullHeapObjectSlot and HeapObjectSlot are expected here");
@@ -209,7 +191,7 @@ CopyAndForwardResult Scavenger::PromoteObject(Map map, THeapObjectSlot slot,
                  : CopyAndForwardResult::SUCCESS_OLD_GENERATION;
     }
     HeapObjectReference::Update(slot, target);
-    if (!ContainsOnlyData(map->visitor_id())) {
+    if (object_fields == ObjectFields::kMaybePointers) {
       promotion_list_.PushRegularObject(target, object_size);
     }
     promoted_size_ += object_size;
@@ -225,7 +207,8 @@ SlotCallbackResult Scavenger::RememberedSetEntryNeeded(
                                                                   : REMOVE_SLOT;
 }
 
-bool Scavenger::HandleLargeObject(Map map, HeapObject object, int object_size) {
+bool Scavenger::HandleLargeObject(Map map, HeapObject object, int object_size,
+                                  ObjectFields object_fields) {
   // TODO(hpayer): Make this check size based, i.e.
   // object_size > kMaxRegularHeapObjectSize
   if (V8_UNLIKELY(
@@ -237,7 +220,7 @@ bool Scavenger::HandleLargeObject(Map map, HeapObject object, int object_size) {
             map, MapWord::FromForwardingAddress(object).ToMap()) == map) {
       surviving_new_large_objects_.insert({object, map});
 
-      if (!ContainsOnlyData(map->visitor_id())) {
+      if (object_fields == ObjectFields::kMaybePointers) {
         promotion_list_.PushLargeObject(object, map, object_size);
       }
     }
@@ -247,17 +230,16 @@ bool Scavenger::HandleLargeObject(Map map, HeapObject object, int object_size) {
 }
 
 template <typename THeapObjectSlot>
-SlotCallbackResult Scavenger::EvacuateObjectDefault(Map map,
-                                                    THeapObjectSlot slot,
-                                                    HeapObject object,
-                                                    int object_size) {
+SlotCallbackResult Scavenger::EvacuateObjectDefault(
+    Map map, THeapObjectSlot slot, HeapObject object, int object_size,
+    ObjectFields object_fields) {
   static_assert(std::is_same<THeapObjectSlot, FullHeapObjectSlot>::value ||
                     std::is_same<THeapObjectSlot, HeapObjectSlot>::value,
                 "Only FullHeapObjectSlot and HeapObjectSlot are expected here");
   SLOW_DCHECK(object->SizeFromMap(map) == object_size);
   CopyAndForwardResult result;
 
-  if (HandleLargeObject(map, object, object_size)) {
+  if (HandleLargeObject(map, object, object_size, object_fields)) {
     return REMOVE_SLOT;
   }
 
@@ -267,7 +249,7 @@ SlotCallbackResult Scavenger::EvacuateObjectDefault(Map map,
   if (!heap()->ShouldBePromoted(object->address())) {
     // A semi-space copy may fail due to fragmentation. In that case, we
     // try to promote the object.
-    result = SemiSpaceCopyObject(map, slot, object, object_size);
+    result = SemiSpaceCopyObject(map, slot, object, object_size, object_fields);
     if (result != CopyAndForwardResult::FAILURE) {
       return RememberedSetEntryNeeded(result);
     }
@@ -276,13 +258,13 @@ SlotCallbackResult Scavenger::EvacuateObjectDefault(Map map,
   // We may want to promote this object if the object was already semi-space
   // copied in a previes young generation GC or if the semi-space copy above
   // failed.
-  result = PromoteObject(map, slot, object, object_size);
+  result = PromoteObject(map, slot, object, object_size, object_fields);
   if (result != CopyAndForwardResult::FAILURE) {
     return RememberedSetEntryNeeded(result);
   }
 
   // If promotion failed, we try to copy the object to the other semi-space.
-  result = SemiSpaceCopyObject(map, slot, object, object_size);
+  result = SemiSpaceCopyObject(map, slot, object, object_size, object_fields);
   if (result != CopyAndForwardResult::FAILURE) {
     return RememberedSetEntryNeeded(result);
   }
@@ -310,7 +292,10 @@ SlotCallbackResult Scavenger::EvacuateThinString(Map map, THeapObjectSlot slot,
     return REMOVE_SLOT;
   }
 
-  return EvacuateObjectDefault(map, slot, object, object_size);
+  DCHECK_EQ(ObjectFields::kMaybePointers,
+            Map::ObjectFieldsFrom(map->visitor_id()));
+  return EvacuateObjectDefault(map, slot, object, object_size,
+                               ObjectFields::kMaybePointers);
 }
 
 template <typename THeapObjectSlot>
@@ -345,13 +330,16 @@ SlotCallbackResult Scavenger::EvacuateShortcutCandidate(Map map,
     }
     Map map = first_word.ToMap();
     SlotCallbackResult result =
-        EvacuateObjectDefault(map, slot, first, first->SizeFromMap(map));
+        EvacuateObjectDefault(map, slot, first, first->SizeFromMap(map),
+                              Map::ObjectFieldsFrom(map->visitor_id()));
     object->map_slot().Release_Store(
         MapWord::FromForwardingAddress(slot.ToHeapObject()).ToMap());
     return result;
   }
-
-  return EvacuateObjectDefault(map, slot, object, object_size);
+  DCHECK_EQ(ObjectFields::kMaybePointers,
+            Map::ObjectFieldsFrom(map->visitor_id()));
+  return EvacuateObjectDefault(map, slot, object, object_size,
+                               ObjectFields::kMaybePointers);
 }
 
 template <typename THeapObjectSlot>
@@ -365,7 +353,8 @@ SlotCallbackResult Scavenger::EvacuateObject(THeapObjectSlot slot, Map map,
   int size = source->SizeFromMap(map);
   // Cannot use ::cast() below because that would add checks in debug mode
   // that require re-reading the map.
-  switch (map->visitor_id()) {
+  VisitorId visitor_id = map->visitor_id();
+  switch (visitor_id) {
     case kVisitThinString:
       // At the moment we don't allow weak pointers to thin strings.
       DCHECK(!(*slot)->IsWeak());
@@ -377,7 +366,8 @@ SlotCallbackResult Scavenger::EvacuateObject(THeapObjectSlot slot, Map map,
       return EvacuateShortcutCandidate(
           map, slot, ConsString::unchecked_cast(source), size);
     default:
-      return EvacuateObjectDefault(map, slot, source, size);
+      return EvacuateObjectDefault(map, slot, source, size,
+                                   Map::ObjectFieldsFrom(visitor_id));
   }
 }
 
