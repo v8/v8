@@ -180,7 +180,6 @@ class PreparseDataBuilder : public ZoneObject,
   bool HasDataForParent() const;
 
   static bool ScopeNeedsData(Scope* scope);
-  static bool ScopeIsSkippableFunctionScope(Scope* scope);
   void AddSkippableFunction(int start_position, int end_position,
                             int num_parameters, int num_inner_functions,
                             LanguageMode language_mode, bool has_data,

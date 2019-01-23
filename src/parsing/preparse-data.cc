@@ -363,7 +363,7 @@ void PreparseDataBuilder::SaveDataForInnerScopes(Scope* scope) {
   // want to recurse here.
   for (Scope* inner = scope->inner_scope(); inner != nullptr;
        inner = inner->sibling()) {
-    if (ScopeIsSkippableFunctionScope(inner)) {
+    if (inner->IsSkippableFunctionScope()) {
       // Don't save data about function scopes, since they'll have their own
       // PreparseDataBuilder where their data is saved.
       DCHECK_NOT_NULL(inner->AsDeclarationScope()->preparse_data_builder());
@@ -374,17 +374,6 @@ void PreparseDataBuilder::SaveDataForInnerScopes(Scope* scope) {
   }
 }
 
-bool PreparseDataBuilder::ScopeIsSkippableFunctionScope(Scope* scope) {
-  // Lazy non-arrow function scopes are skippable. Lazy functions are exactly
-  // those Scopes which have their own PreparseDataBuilder object. This
-  // logic ensures that the scope allocation data is consistent with the
-  // skippable function data (both agree on where the lazy function boundaries
-  // are).
-  if (scope->scope_type() != ScopeType::FUNCTION_SCOPE) return false;
-  DeclarationScope* declaration_scope = scope->AsDeclarationScope();
-  return !declaration_scope->is_arrow_scope() &&
-         declaration_scope->preparse_data_builder() != nullptr;
-}
 
 Handle<PreparseData> PreparseDataBuilder::ByteData::CopyToHeap(
     Isolate* isolate, int children_length) {

@@ -513,6 +513,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   bool HasSimpleParameters();
   void set_is_debug_evaluate_scope() { is_debug_evaluate_scope_ = true; }
   bool is_debug_evaluate_scope() const { return is_debug_evaluate_scope_; }
+  bool IsSkippableFunctionScope();
 
   bool RemoveInnerScope(Scope* inner_scope) {
     DCHECK_NOT_NULL(inner_scope);
@@ -618,14 +619,15 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
 
   // Variable allocation.
   void AllocateStackSlot(Variable* var);
-  void AllocateHeapSlot(Variable* var);
+  V8_INLINE void AllocateHeapSlot(Variable* var);
   void AllocateNonParameterLocal(Variable* var);
   void AllocateDeclaredGlobal(Variable* var);
-  void AllocateNonParameterLocalsAndDeclaredGlobals();
+  V8_INLINE void AllocateNonParameterLocalsAndDeclaredGlobals();
   void AllocateVariablesRecursively();
 
   void AllocateScopeInfosRecursively(Isolate* isolate,
                                      MaybeHandle<ScopeInfo> outer_scope);
+
   void AllocateDebuggerScopeInfos(Isolate* isolate,
                                   MaybeHandle<ScopeInfo> outer_scope);
 
@@ -779,7 +781,10 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
     zone_ = zone;
   }
 
-  bool ShouldEagerCompile() const;
+  bool ShouldEagerCompile() const {
+    return force_eager_compilation_ || should_eager_compile_;
+  }
+
   void set_should_eager_compile();
 
   void SetScriptScopeInfo(Handle<ScopeInfo> scope_info) {
@@ -988,9 +993,9 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   void PrintParameters();
 #endif
 
-  void AllocateLocals();
-  void AllocateParameterLocals();
-  void AllocateReceiver();
+  V8_INLINE void AllocateLocals();
+  V8_INLINE void AllocateParameterLocals();
+  V8_INLINE void AllocateReceiver();
 
   void ResetAfterPreparsing(AstValueFactory* ast_value_factory, bool aborted);
 
@@ -1021,7 +1026,7 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   }
 
  private:
-  void AllocateParameter(Variable* var, int index);
+  V8_INLINE void AllocateParameter(Variable* var, int index);
 
   // Resolve and fill in the allocation information for all variables
   // in this scopes. Must be called *after* all scopes have been
