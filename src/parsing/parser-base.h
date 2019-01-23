@@ -1078,6 +1078,31 @@ class ParserBase {
                          FunctionLiteral::FunctionType function_type,
                          FunctionBodyType body_type);
 
+  // Check if the scope has conflicting var/let declarations from different
+  // scopes. This covers for example
+  //
+  // function f() { { { var x; } let x; } }
+  // function g() { { var x; let x; } }
+  //
+  // The var declarations are hoisted to the function scope, but originate from
+  // a scope where the name has also been let bound or the var declaration is
+  // hoisted over such a scope.
+  void CheckConflictingVarDeclarations(Scope* scope) {
+    if (has_error()) return;
+    Declaration* decl = scope->CheckConflictingVarDeclarations();
+    if (decl != nullptr) {
+      // In ES6, conflicting variable bindings are early errors.
+      const AstRawString* name = decl->var()->raw_name();
+      int position = decl->position();
+      Scanner::Location location =
+          position == kNoSourcePosition
+              ? Scanner::Location::invalid()
+              : Scanner::Location(position, position + 1);
+      impl()->ReportMessageAt(location, MessageTemplate::kVarRedeclaration,
+                              name);
+    }
+  }
+
   // TODO(nikolaos, marja): The first argument should not really be passed
   // by value. The method is expected to add the parsed statements to the
   // list. This works because in the case of the parser, StatementListT is
@@ -3800,6 +3825,8 @@ void ParserBase<Impl>::ParseFunctionBody(
 
   bool allow_duplicate_parameters = false;
 
+  CheckConflictingVarDeclarations(inner_scope);
+
   if (V8_LIKELY(parameters.is_simple)) {
     DCHECK_EQ(inner_scope, function_scope);
     if (is_sloppy(function_scope->language_mode())) {
@@ -3828,7 +3855,6 @@ void ParserBase<Impl>::ParseFunctionBody(
       if (conflict != nullptr) {
         impl()->ReportVarRedeclarationIn(conflict, inner_scope);
       }
-      impl()->CheckConflictingVarDeclarations(inner_scope);
       impl()->InsertShadowingVarBindingInitializers(inner_block);
     }
   }

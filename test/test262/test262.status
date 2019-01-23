@@ -374,9 +374,6 @@
   'language/literals/regexp/u-unicode-esc-non-hex': [FAIL_PHASE_ONLY],
   'language/literals/regexp/unicode-escape-nls-err': [FAIL_PHASE_ONLY],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=7829
-  'language/block-scope/syntax/redeclaration/function-declaration-attempt-to-redeclare-with-var-declaration-nested-in-function': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=4628
   'language/eval-code/direct/non-definable-function-with-function': [FAIL],
   'language/eval-code/direct/non-definable-function-with-variable': [FAIL],
@@ -574,15 +571,6 @@
   'language/expressions/await/await-monkey-patched-promise': ['--harmony-await-optimization'],
   'language/expressions/await/for-await-of-interleaved': ['--harmony-await-optimization'],
   'language/expressions/await/async-await-interleaved': ['--harmony-await-optimization'],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=8706
-  'language/block-scope/syntax/redeclaration/fn-scope-var-name-redeclaration-attempt-with-async-function': [FAIL],
-  'language/block-scope/syntax/redeclaration/fn-scope-var-name-redeclaration-attempt-with-async-generator': [FAIL],
-  'language/block-scope/syntax/redeclaration/fn-scope-var-name-redeclaration-attempt-with-class': [FAIL],
-  'language/block-scope/syntax/redeclaration/fn-scope-var-name-redeclaration-attempt-with-const': [FAIL],
-  'language/block-scope/syntax/redeclaration/fn-scope-var-name-redeclaration-attempt-with-function': [FAIL],
-  'language/block-scope/syntax/redeclaration/fn-scope-var-name-redeclaration-attempt-with-generator': [FAIL],
-  'language/block-scope/syntax/redeclaration/fn-scope-var-name-redeclaration-attempt-with-let' : [FAIL],
 
   # https://github.com/tc39/test262/issues/2033
   'language/expressions/class/elements/private-derived-cls-direct-eval-err-contains-supercall': [SKIP],

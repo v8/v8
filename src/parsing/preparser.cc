@@ -89,6 +89,7 @@ PreParser::PreParseResult PreParser::PreParseProgram() {
   int start_position = peek_position();
   PreParserScopedStatementList body(pointer_buffer());
   ParseStatementList(&body, Token::EOS);
+  CheckConflictingVarDeclarations(scope);
   original_scope_ = nullptr;
   if (stack_overflow()) return kPreParseStackOverflow;
   if (is_strict(language_mode())) {
@@ -173,6 +174,7 @@ PreParser::PreParseResult PreParser::PreParseFunction(
   }
 
   bool allow_duplicate_parameters = false;
+  CheckConflictingVarDeclarations(inner_scope);
 
   if (formals.is_simple) {
     if (is_sloppy(function_scope->language_mode())) {

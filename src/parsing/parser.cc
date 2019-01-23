@@ -2411,7 +2411,6 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   if (is_strict(language_mode)) {
     CheckStrictOctalLiteral(scope->start_position(), scope->end_position());
   }
-  CheckConflictingVarDeclarations(scope);
 
   FunctionLiteral::ParameterFlag duplicate_parameters =
       has_duplicate_parameters ? FunctionLiteral::kHasDuplicateParameters
@@ -2935,21 +2934,6 @@ Expression* Parser::RewriteClassLiteral(Scope* block_scope,
 
   AddFunctionForNameInference(class_info->constructor);
   return class_literal;
-}
-
-void Parser::CheckConflictingVarDeclarations(Scope* scope) {
-  if (has_error()) return;
-  Declaration* decl = scope->CheckConflictingVarDeclarations();
-  if (decl != nullptr) {
-    // In ES6, conflicting variable bindings are early errors.
-    const AstRawString* name = decl->var()->raw_name();
-    int position = decl->position();
-    Scanner::Location location =
-        position == kNoSourcePosition
-            ? Scanner::Location::invalid()
-            : Scanner::Location(position, position + 1);
-    ReportMessageAt(location, MessageTemplate::kVarRedeclaration, name);
-  }
 }
 
 bool Parser::IsPropertyWithPrivateFieldKey(Expression* expression) {

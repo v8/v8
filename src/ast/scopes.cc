@@ -1139,6 +1139,16 @@ Variable* Scope::NewTemporary(const AstRawString* name,
 }
 
 Declaration* Scope::CheckConflictingVarDeclarations() {
+  bool is_sloppy_eval = is_eval_scope() && is_sloppy(language_mode());
+  // In case of a regular function/script, check all scopes except for the scope
+  // in which the var ends up being declared.
+  Scope* end = this;
+  // In the case of eval, check all scopes up to and including the next
+  // declaration scope.
+  if (is_sloppy_eval) {
+    while (end->is_eval_scope()) end = end->outer_scope_->GetDeclarationScope();
+    end = end->outer_scope_;
+  }
   for (Declaration* decl : decls_) {
     // Lexical vs lexical conflicts within the same scope have already been
     // captured in Parser::Declare. The only conflicts we still need to check
@@ -1147,7 +1157,7 @@ Declaration* Scope::CheckConflictingVarDeclarations() {
     if (decl->IsVariableDeclaration() &&
         decl->AsVariableDeclaration()->AsNested() != nullptr) {
       current = decl->AsVariableDeclaration()->AsNested()->scope();
-    } else if (is_eval_scope() && is_sloppy(language_mode())) {
+    } else if (is_sloppy_eval) {
       if (IsLexicalVariableMode(decl->var()->mode())) continue;
       current = outer_scope_;
     }
@@ -1155,19 +1165,15 @@ Declaration* Scope::CheckConflictingVarDeclarations() {
     DCHECK(decl->var()->mode() == VariableMode::kVar ||
            decl->var()->mode() == VariableMode::kDynamic);
     // Iterate through all scopes until and including the declaration scope.
-    while (true) {
+    do {
       // There is a conflict if there exists a non-VAR binding.
       Variable* other_var =
           current->LookupInScopeOrScopeInfo(decl->var()->raw_name());
       if (other_var != nullptr && IsLexicalVariableMode(other_var->mode())) {
         return decl;
       }
-      if (current->is_declaration_scope() &&
-          !(current->is_eval_scope() && is_sloppy(current->language_mode()))) {
-        break;
-      }
       current = current->outer_scope();
-    }
+    } while (current != end);
   }
   return nullptr;
 }

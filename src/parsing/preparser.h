@@ -1047,8 +1047,6 @@ class PreParser : public ParserBase<PreParser> {
       const PreParserExpression& expression) {
     return expression.IsPropertyWithPrivateFieldKey();
   }
-  V8_INLINE void CheckConflictingVarDeclarations(Scope* scope) {}
-
   V8_INLINE void SetLanguageMode(Scope* scope, LanguageMode mode) {
     scope->SetLanguageMode(mode);
   }
@@ -1092,14 +1090,27 @@ class PreParser : public ParserBase<PreParser> {
   void DeclareVariable(VariableProxy* proxy, VariableKind kind,
                        VariableMode mode, InitializationFlag init, Scope* scope,
                        bool* was_added, int position) {
-    DeclareVariableName(proxy->raw_name(), mode, scope, was_added, kind);
+    DeclareVariableName(proxy->raw_name(), mode, scope, was_added, position,
+                        kind);
   }
 
   void DeclareVariableName(const AstRawString* name, VariableMode mode,
                            Scope* scope, bool* was_added,
+                           int position = kNoSourcePosition,
                            VariableKind kind = NORMAL_VARIABLE) {
-    if (scope->DeclareVariableName(name, mode, was_added, kind) == nullptr) {
+    Variable* var = scope->DeclareVariableName(name, mode, was_added, kind);
+    if (var == nullptr) {
       ReportUnidentifiableError();
+      return;
+    }
+    if (var->scope() != scope) {
+      DCHECK_NE(kNoSourcePosition, position);
+      DCHECK_EQ(VariableMode::kVar, mode);
+      Declaration* nested_declaration =
+          factory()->ast_node_factory()->NewNestedVariableDeclaration(scope,
+                                                                      position);
+      nested_declaration->set_var(var);
+      var->scope()->declarations()->Add(nested_declaration);
     }
   }
 
