@@ -25,8 +25,6 @@ const size_t MicrotaskQueue::kCapacityOffset =
     OFFSET_OF(MicrotaskQueue, capacity_);
 const size_t MicrotaskQueue::kSizeOffset = OFFSET_OF(MicrotaskQueue, size_);
 const size_t MicrotaskQueue::kStartOffset = OFFSET_OF(MicrotaskQueue, start_);
-const size_t MicrotaskQueue::kFinishedMicrotaskCountOffset =
-    OFFSET_OF(MicrotaskQueue, finished_microtask_count_);
 
 const intptr_t MicrotaskQueue::kMinimumCapacity = 8;
 
@@ -116,27 +114,20 @@ int MicrotaskQueue::RunMicrotasks(Isolate* isolate) {
     return 0;
   }
 
-  intptr_t base_count = finished_microtask_count_;
-
   HandleScope handle_scope(isolate);
   MaybeHandle<Object> maybe_exception;
 
   MaybeHandle<Object> maybe_result;
 
-  int processed_microtask_count;
   {
     SetIsRunningMicrotasks scope(&is_running_microtasks_);
     v8::Isolate::SuppressMicrotaskExecutionScope suppress(
         reinterpret_cast<v8::Isolate*>(isolate));
     HandleScopeImplementer::EnteredContextRewindScope rewind_scope(
         isolate->handle_scope_implementer());
-    TRACE_EVENT_BEGIN0("v8.execute", "RunMicrotasks");
+    TRACE_EVENT0("v8.execute", "RunMicrotasks");
     TRACE_EVENT_CALL_STATS_SCOPED(isolate, "v8", "V8.RunMicrotasks");
     maybe_result = Execution::TryRunMicrotasks(isolate, this, &maybe_exception);
-    processed_microtask_count =
-        static_cast<int>(finished_microtask_count_ - base_count);
-    TRACE_EVENT_END1("v8.execute", "RunMicrotasks", "microtask_count",
-                     processed_microtask_count);
   }
 
   // If execution is terminating, clean up and propagate that to TryCatch scope.
@@ -153,7 +144,8 @@ int MicrotaskQueue::RunMicrotasks(Isolate* isolate) {
   DCHECK_EQ(0, size());
   OnCompleted(isolate);
 
-  return processed_microtask_count;
+  // TODO(tzik): Return the number of microtasks run in this round.
+  return 0;
 }
 
 void MicrotaskQueue::IterateMicrotasks(RootVisitor* visitor) {

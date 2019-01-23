@@ -88,7 +88,7 @@ TEST_F(MicrotaskQueueTest, EnqueueAndRun) {
   }));
   EXPECT_EQ(MicrotaskQueue::kMinimumCapacity, microtask_queue()->capacity());
   EXPECT_EQ(1, microtask_queue()->size());
-  EXPECT_EQ(1, microtask_queue()->RunMicrotasks(isolate()));
+  microtask_queue()->RunMicrotasks(isolate());
   EXPECT_TRUE(ran);
   EXPECT_EQ(0, microtask_queue()->size());
 }
@@ -100,7 +100,7 @@ TEST_F(MicrotaskQueueTest, BufferGrowth) {
   // Enqueue and flush the queue first to have non-zero |start_|.
   microtask_queue()->EnqueueMicrotask(
       *NewMicrotask([&count] { EXPECT_EQ(0, count++); }));
-  EXPECT_EQ(1, microtask_queue()->RunMicrotasks(isolate()));
+  microtask_queue()->RunMicrotasks(isolate());
 
   EXPECT_LT(0, microtask_queue()->capacity());
   EXPECT_EQ(0, microtask_queue()->size());
@@ -122,8 +122,7 @@ TEST_F(MicrotaskQueueTest, BufferGrowth) {
   EXPECT_EQ(MicrotaskQueue::kMinimumCapacity + 1, microtask_queue()->size());
 
   // Run all pending Microtasks to ensure they run in the proper order.
-  EXPECT_EQ(MicrotaskQueue::kMinimumCapacity + 1,
-            microtask_queue()->RunMicrotasks(isolate()));
+  microtask_queue()->RunMicrotasks(isolate());
   EXPECT_EQ(MicrotaskQueue::kMinimumCapacity + 2, count);
 }
 
@@ -164,8 +163,7 @@ TEST_F(MicrotaskQueueTest, VisitRoot) {
   for (int i = 0; i < MicrotaskQueue::kMinimumCapacity / 2 + 1; ++i) {
     microtask_queue()->EnqueueMicrotask(*NewMicrotask([] {}));
   }
-  EXPECT_EQ(MicrotaskQueue::kMinimumCapacity / 2 + 1,
-            microtask_queue()->RunMicrotasks(isolate()));
+  microtask_queue()->RunMicrotasks(isolate());
 
   std::vector<Object> expected;
   for (int i = 0; i < MicrotaskQueue::kMinimumCapacity / 2 + 1; ++i) {

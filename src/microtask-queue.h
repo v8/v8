@@ -37,9 +37,9 @@ class V8_EXPORT_PRIVATE MicrotaskQueue {
 
   void EnqueueMicrotask(Microtask microtask);
 
-  // Runs all queued Microtasks.
-  // Returns -1 if the execution is terminating, otherwise, returns the number
-  // of microtasks that ran in this round.
+  // Returns -1 if the execution is terminating, otherwise, returns 0.
+  // TODO(tzik): Update the implementation to return the number of processed
+  // microtasks.
   int RunMicrotasks(Isolate* isolate);
 
   // Iterate all pending Microtasks in this queue as strong roots, so that
@@ -86,7 +86,6 @@ class V8_EXPORT_PRIVATE MicrotaskQueue {
   static const size_t kCapacityOffset;
   static const size_t kSizeOffset;
   static const size_t kStartOffset;
-  static const size_t kFinishedMicrotaskCountOffset;
 
   static const intptr_t kMinimumCapacity;
 
@@ -103,9 +102,6 @@ class V8_EXPORT_PRIVATE MicrotaskQueue {
   intptr_t capacity_ = 0;
   intptr_t start_ = 0;
   Address* ring_buffer_ = nullptr;
-
-  // The number of finished microtask.
-  intptr_t finished_microtask_count_ = 0;
 
   // MicrotaskQueue instances form a doubly linked list loop, so that all
   // instances are reachable through |next_|.

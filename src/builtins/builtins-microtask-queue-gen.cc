@@ -35,7 +35,6 @@ class MicrotaskQueueBuiltinsAssembler : public CodeStubAssembler {
                                            TNode<IntPtrT> index);
   void RunSingleMicrotask(TNode<Context> current_context,
                           TNode<Microtask> microtask);
-  void IncrementFinishedMicrotaskCount(TNode<RawPtrT> microtask_queue);
 
   TNode<Context> GetCurrentContext();
   void SetCurrentContext(TNode<Context> context);
@@ -312,17 +311,6 @@ void MicrotaskQueueBuiltinsAssembler::RunSingleMicrotask(
   BIND(&done);
 }
 
-void MicrotaskQueueBuiltinsAssembler::IncrementFinishedMicrotaskCount(
-    TNode<RawPtrT> microtask_queue) {
-  TNode<IntPtrT> count = UncheckedCast<IntPtrT>(
-      Load(MachineType::IntPtr(), microtask_queue,
-           IntPtrConstant(MicrotaskQueue::kFinishedMicrotaskCountOffset)));
-  TNode<IntPtrT> new_count = IntPtrAdd(count, IntPtrConstant(1));
-  StoreNoWriteBarrier(
-      MachineType::PointerRepresentation(), microtask_queue,
-      IntPtrConstant(MicrotaskQueue::kFinishedMicrotaskCountOffset), new_count);
-}
-
 TNode<Context> MicrotaskQueueBuiltinsAssembler::GetCurrentContext() {
   auto ref = ExternalReference::Create(kContextAddress, isolate());
   return TNode<Context>::UncheckedCast(
@@ -543,7 +531,6 @@ TF_BUILTIN(RunMicrotasks, MicrotaskQueueBuiltinsAssembler) {
   SetMicrotaskQueueStart(microtask_queue, new_start);
 
   RunSingleMicrotask(current_context, microtask);
-  IncrementFinishedMicrotaskCount(microtask_queue);
   Goto(&loop);
 
   BIND(&done);
