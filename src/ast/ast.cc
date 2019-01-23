@@ -477,15 +477,10 @@ void ObjectLiteral::BuildBoilerplateDescription(Isolate* isolate) {
       has_seen_proto = true;
       continue;
     }
-    if (property->is_computed_name()) {
-      continue;
-    }
+    if (property->is_computed_name()) continue;
 
     Literal* key = property->key()->AsLiteral();
-
-    if (!key->IsPropertyName()) {
-      index_keys++;
-    }
+    if (!key->IsPropertyName()) index_keys++;
   }
 
   Handle<ObjectBoilerplateDescription> boilerplate_description =
