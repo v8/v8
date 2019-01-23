@@ -1527,9 +1527,10 @@ class RepresentationSelector {
     if (node->op()->ValueOutputCount() > 0 &&
         node->op()->EffectOutputCount() > 0 &&
         node->opcode() != IrOpcode::kUnreachable && TypeOf(node).IsNone()) {
-      Node* control = node->op()->ControlOutputCount() > 0
-                          ? node
-                          : NodeProperties::GetControlInput(node, 0);
+      Node* control =
+          (node->op()->ControlOutputCount() == 0)
+              ? NodeProperties::GetControlInput(node, 0)
+              : NodeProperties::FindSuccessfulControlProjection(node);
 
       Node* unreachable =
           graph()->NewNode(common()->Unreachable(), node, control);
@@ -1537,9 +1538,18 @@ class RepresentationSelector {
       // Insert unreachable node and replace all the effect uses of the {node}
       // with the new unreachable node.
       for (Edge edge : node->use_edges()) {
-        if (NodeProperties::IsEffectEdge(edge) && edge.from() != unreachable) {
-          edge.UpdateTo(unreachable);
+        if (!NodeProperties::IsEffectEdge(edge)) continue;
+        // Make sure to not overwrite the unreachable node's input. That would
+        // create a cycle.
+        if (edge.from() == unreachable) continue;
+        // Avoid messing up the exceptional path.
+        if (edge.from()->opcode() == IrOpcode::kIfException) {
+          DCHECK(!node->op()->HasProperty(Operator::kNoThrow));
+          DCHECK_EQ(NodeProperties::GetControlInput(edge.from()), node);
+          continue;
         }
+
+        edge.UpdateTo(unreachable);
       }
     }
   }
