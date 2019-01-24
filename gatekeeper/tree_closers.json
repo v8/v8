@@ -19,7 +19,6 @@
           "V8 Linux - noembed",
           "V8 Linux - noembed - debug",
           "V8 Linux - full debug",
-          "V8 Linux - interpreted regexp",
           "V8 Win64 ASAN"
         ],
         "builders": {
