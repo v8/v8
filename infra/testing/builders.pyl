@@ -41,6 +41,7 @@
     'tests': [
       {'name': 'benchmarks', 'variant': 'default'},
       {'name': 'v8testing', 'variant': 'default', 'shards': 4},
+      {'name': 'v8testing', 'variant': 'trusted', 'shards': 4},
       {'name': 'mozilla', 'variant': 'default'},
       {'name': 'test262_variants', 'variant': 'default', 'shards': 6},
     ],
@@ -202,6 +203,7 @@
       {'name': 'test262'},
       {'name': 'v8testing', 'shards': 7},
       {'name': 'v8testing', 'variant': 'extra', 'shards': 3},
+      {'name': 'v8testing', 'variant': 'trusted', 'shards': 2},
     ],
   },
   'v8_linux_arm_lite_rel_ng_triggered': {
@@ -216,6 +218,7 @@
       {'name': 'test262', 'shards': 2},
       {'name': 'v8testing', 'shards': 8},
       {'name': 'v8testing', 'variant': 'extra', 'shards': 3},
+      {'name': 'v8testing', 'variant': 'trusted', 'shards': 2},
     ],
   },
   ##############################################################################
@@ -348,6 +351,7 @@
       {'name': 'test262', 'shards': 2},
       {'name': 'v8testing', 'shards': 10},
       {'name': 'v8testing', 'variant': 'extra', 'shards': 6},
+      {'name': 'v8testing', 'variant': 'trusted', 'shards': 3},
     ],
   },
   'v8_linux_arm64_gc_stress_dbg': {
@@ -362,6 +366,7 @@
       {'name': 'test262', 'shards': 2},
       {'name': 'v8testing', 'shards': 9},
       {'name': 'v8testing', 'variant': 'extra', 'shards': 6},
+      {'name': 'v8testing', 'variant': 'trusted', 'shards': 3},
     ],
   },
   'v8_linux64_arm64_pointer_compression_rel_ng_triggered': {
@@ -1059,6 +1064,7 @@
       {'name': 'mozilla', 'variant': 'default'},
       {'name': 'test262', 'variant': 'default', 'shards': 5},
       {'name': 'v8testing', 'variant': 'default', 'shards': 3},
+      {'name': 'v8testing', 'variant': 'trusted', 'shards': 3},
     ],
   },
   'V8 Arm': {
@@ -1193,6 +1199,7 @@
       {'name': 'test262'},
       {'name': 'v8testing', 'shards': 4},
       {'name': 'v8testing', 'variant': 'extra'},
+      {'name': 'v8testing', 'variant': 'trusted'},
       # Armv8-a.
       {
         'name': 'mozilla',
@@ -1228,6 +1235,7 @@
       {'name': 'test262'},
       {'name': 'v8testing', 'shards': 8},
       {'name': 'v8testing', 'variant': 'extra', 'shards': 3},
+      {'name': 'v8testing', 'variant': 'trusted', 'shards': 2},
       # Armv8-a.
       {
         'name': 'mozilla',
@@ -1284,6 +1292,7 @@
       {'name': 'test262'},
       {'name': 'v8testing', 'shards': 3},
       {'name': 'v8testing', 'variant': 'extra'},
+      {'name': 'v8testing', 'variant': 'trusted'},
     ],
   },
   'V8 Linux - arm64 - sim - debug': {
@@ -1297,6 +1306,7 @@
       {'name': 'test262', 'shards': 2},
       {'name': 'v8testing', 'shards': 10},
       {'name': 'v8testing', 'variant': 'extra', 'shards': 6},
+      {'name': 'v8testing', 'variant': 'trusted', 'shards': 2},
     ],
   },
   'V8 Linux - arm64 - sim - gc stress': {
