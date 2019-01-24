@@ -434,6 +434,12 @@
 }],  # variant == stress_background_compile
 
 ##############################################################################
+['variant == interpreted_regexp', {
+  # Times out: https://crbug.com/v8/8678
+  'test-api/RegExpInterruption': [SKIP],
+}],  # variant == interpreted_regexp
+
+##############################################################################
 ['variant == no_wasm_traps', {
   'test-accessors/*': [SKIP],
   'test-api-interceptors/*': [SKIP],

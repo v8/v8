@@ -10,6 +10,7 @@ ALL_VARIANT_FLAGS = {
   "gc_stats": [["--gc_stats=1"]],
   # Alias of exhaustive variants, but triggering new test framework features.
   "infra_staging": [[]],
+  "interpreted_regexp": [["--regexp-interpret-all"]],
   "no_liftoff": [["--no-wasm-tier-up"]],
   "minor_mc": [["--minor-mc"]],
   # No optimization means disable all optimizations. OptimizeFunctionOnNextCall
