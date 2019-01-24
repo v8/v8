@@ -48,6 +48,7 @@ class ExecutionProc(base.TestProc):
     self._pool = pool.Pool(jobs)
     self._outproc_factory = outproc_factory or (lambda t: t.output_proc)
     self._tests = {}
+    self.loaded_tests = 0
 
   def connect_to(self, next_proc):
     assert False, 'ExecutionProc cannot be connected to anything'
@@ -72,6 +73,8 @@ class ExecutionProc(base.TestProc):
 
     outproc = self._outproc_factory(test)
     self._pool.add([Job(test_id, cmd, outproc, test.keep_output)])
+
+    self.loaded_tests += 1
 
   def result_for(self, test, result):
     assert False, 'ExecutionProc cannot receive results'
