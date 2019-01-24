@@ -1236,6 +1236,7 @@ void JSArray::JSArrayVerify(Isolate* isolate) {
   if (length()->IsSmi() && HasFastElements()) {
     if (elements()->length() > 0) {
       CHECK_IMPLIES(HasDoubleElements(), elements()->IsFixedDoubleArray());
+      CHECK_IMPLIES(HasSmiOrObjectElements(), elements()->IsFixedArray());
     }
     int size = Smi::ToInt(length());
     // Holey / Packed backing stores might have slack or might have not been
