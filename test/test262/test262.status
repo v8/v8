@@ -500,6 +500,9 @@
   'language/expressions/call/eval-spread-empty-leading': [FAIL],
   'language/expressions/call/eval-spread-empty-trailing': [FAIL],
 
+  # https://bugs.chromium.org/p/v8/issues/detail?id=8664
+  'intl402/Collator/missing-unicode-ext-value-defaults-to-true': [FAIL],
+
   # https://bugs.chromium.org/p/v8/issues/detail?id=8717
   'intl402/Segmenter/constructor/constructor/options-granularity-valid': [FAIL],
   'intl402/Segmenter/constructor/constructor/options-lineBreakStyle-invalid': [FAIL],
@@ -600,10 +603,6 @@
   'language/expressions/prefix-increment/arguments-nostrict': [SKIP],
   'language/expressions/prefix-increment/eval': [SKIP],
   'language/expressions/prefix-increment/eval-nostrict': [SKIP],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=8707
-  'language/line-terminators/invalid-string-ls': [SKIP],
-  'language/line-terminators/invalid-string-ps': [SKIP],
 
   # https://github.com/tc39/proposal-class-fields/issues/215
   'language/expressions/class/elements/syntax/early-errors/invalid-names/method-inner-call-expression-bad-reference': [FAIL],
