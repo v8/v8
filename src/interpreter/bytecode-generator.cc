@@ -1221,6 +1221,9 @@ void BytecodeGenerator::VisitBlockDeclarationsAndStatements(Block* stmt) {
 
 void BytecodeGenerator::VisitVariableDeclaration(VariableDeclaration* decl) {
   Variable* variable = decl->var();
+  // Unused variables don't need to be visited.
+  if (!variable->is_used()) return;
+
   switch (variable->location()) {
     case VariableLocation::UNALLOCATED: {
       DCHECK(!variable->binding_needs_init());
@@ -1275,6 +1278,9 @@ void BytecodeGenerator::VisitFunctionDeclaration(FunctionDeclaration* decl) {
   DCHECK(variable->mode() == VariableMode::kLet ||
          variable->mode() == VariableMode::kVar ||
          variable->mode() == VariableMode::kDynamic);
+  // Unused variables don't need to be visited.
+  if (!variable->is_used()) return;
+
   switch (variable->location()) {
     case VariableLocation::UNALLOCATED: {
       FeedbackSlot slot =

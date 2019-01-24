@@ -410,17 +410,23 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   // Implement sloppy block-scoped functions, ES2015 Annex B 3.3
   void InsertSloppyBlockFunctionVarBindings(DeclarationScope* scope);
 
-  VariableProxy* DeclareVariable(const AstRawString* name, VariableMode mode,
-                                 int pos);
-  VariableProxy* DeclareVariable(const AstRawString* name, VariableMode mode,
-                                 InitializationFlag init, int pos);
-  void DeclareVariable(VariableProxy* proxy, VariableKind kind,
-                       VariableMode mode, InitializationFlag init,
-                       Scope* declaration_scope, bool* added, int begin,
-                       int end = kNoSourcePosition);
-  void Declare(Declaration* declaration, VariableProxy* proxy,
+  void DeclareUnboundVariable(const AstRawString* name, VariableMode mode,
+                              InitializationFlag init, int pos);
+  V8_WARN_UNUSED_RESULT
+  VariableProxy* DeclareBoundVariable(const AstRawString* name,
+                                      VariableMode mode, int pos);
+  void DeclareAndBindVariable(VariableProxy* proxy, VariableKind kind,
+                              VariableMode mode, InitializationFlag init,
+                              Scope* declaration_scope, bool* was_added,
+                              int begin, int end = kNoSourcePosition);
+  V8_WARN_UNUSED_RESULT
+  Variable* DeclareVariable(const AstRawString* name, VariableKind kind,
+                            VariableMode mode, InitializationFlag init,
+                            Scope* declaration_scope, bool* was_added,
+                            int begin, int end = kNoSourcePosition);
+  void Declare(Declaration* declaration, const AstRawString* name,
                VariableKind kind, VariableMode mode, InitializationFlag init,
-               Scope* declaration_scope, bool* added,
+               Scope* declaration_scope, bool* was_added, int var_begin_pos,
                int var_end_pos = kNoSourcePosition);
 
   bool TargetStackContainsLabel(const AstRawString* label);

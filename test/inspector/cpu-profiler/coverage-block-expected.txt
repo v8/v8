@@ -970,17 +970,6 @@ Running test: testPreciseCountCoveragePartial
                             }
                         ]
                     }
-                    [6] : {
-                        functionName : nested_4
-                        isBlockCoverage : false
-                        ranges : [
-                            [0] : {
-                                count : 0
-                                endOffset : 201
-                                startOffset : 179
-                            }
-                        ]
-                    }
                 ]
                 scriptId : <scriptId>
                 url : testPreciseCountCoveragePartial
