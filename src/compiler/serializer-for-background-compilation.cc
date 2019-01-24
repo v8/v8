@@ -74,12 +74,17 @@ class SerializerForBackgroundCompilation::Environment : public ZoneObject {
     for (auto& hints : environment_hints_) hints.Clear();
   }
 
+  // Appends the hints for the given register range to {dst} (in order).
+  void ExportRegisterHints(interpreter::Register first, size_t count,
+                           HintsVector& dst);
+
  private:
   explicit Environment(Zone* zone)
       : register_count_(0),
         parameter_count_(0),
         environment_hints_(zone),
         return_value_hints_(zone) {}
+
   Zone* zone() const { return zone_; }
 
   int RegisterToLocalIndex(interpreter::Register reg) const;
@@ -473,27 +478,15 @@ void SerializerForBackgroundCompilation::ProcessCallVarArgs(
   interpreter::Register first_reg = iterator->GetRegisterOperand(1);
   int reg_count = static_cast<int>(iterator->GetRegisterCountOperand(2));
 
-  bool first_reg_is_receiver =
-      receiver_mode != ConvertReceiverMode::kNullOrUndefined;
-
-  Hints receiver(zone());
-  if (first_reg_is_receiver) {
-    // The receiver is the first register, followed by the arguments in the
-    // consecutive registers.
-    receiver.Add(environment()->register_hints(first_reg));
-  } else {
-    // The receiver is implicit (and undefined), the arguments are in
-    // consecutive registers.
-    receiver.AddConstant(broker()->isolate()->factory()->undefined_value());
-  }
-
   HintsVector arguments(zone());
-  arguments.push_back(receiver);
-  int arg_base = BoolToInt(first_reg_is_receiver);
-  for (int i = arg_base; i < reg_count; ++i) {
-    arguments.push_back(environment()->register_hints(
-        interpreter::Register(first_reg.index() + i)));
+  // The receiver is either given in the first register or it is implicitly
+  // the {undefined} value.
+  if (receiver_mode == ConvertReceiverMode::kNullOrUndefined) {
+    Hints receiver(zone());
+    receiver.AddConstant(broker()->isolate()->factory()->undefined_value());
+    arguments.push_back(receiver);
   }
+  environment()->ExportRegisterHints(first_reg, reg_count, arguments);
 
   ProcessCallOrConstruct(callee, arguments);
 }
@@ -504,24 +497,25 @@ void SerializerForBackgroundCompilation::VisitReturn(
   environment()->ClearAccumulatorAndRegisterHints();
 }
 
+void SerializerForBackgroundCompilation::Environment::ExportRegisterHints(
+    interpreter::Register first, size_t count, HintsVector& dst) {
+  dst.resize(dst.size() + count, Hints(zone()));
+  int reg_base = first.index();
+  for (int i = 0; i < static_cast<int>(count); ++i) {
+    dst.push_back(register_hints(interpreter::Register(reg_base + i)));
+  }
+}
+
 void SerializerForBackgroundCompilation::VisitConstruct(
     interpreter::BytecodeArrayIterator* iterator) {
   const Hints& callee =
       environment()->register_hints(iterator->GetRegisterOperand(0));
-
   interpreter::Register first_reg = iterator->GetRegisterOperand(1);
   size_t reg_count = iterator->GetRegisterCountOperand(2);
 
   HintsVector arguments(zone());
-  // Push the target (callee) of the construct.
-  arguments.push_back(callee);
+  environment()->ExportRegisterHints(first_reg, reg_count, arguments);
 
-  // The function arguments are in consecutive registers.
-  int arg_base = first_reg.index();
-  for (int i = 0; i < static_cast<int>(reg_count); ++i) {
-    arguments.push_back(
-        environment()->register_hints(interpreter::Register(arg_base + i)));
-  }
   // TODO(mslekova): Support new.target.
 
   ProcessCallOrConstruct(callee, arguments);
@@ -531,22 +525,12 @@ void SerializerForBackgroundCompilation::VisitConstructWithSpread(
     interpreter::BytecodeArrayIterator* iterator) {
   const Hints& callee =
       environment()->register_hints(iterator->GetRegisterOperand(0));
-
   interpreter::Register first_reg = iterator->GetRegisterOperand(1);
   size_t reg_count = iterator->GetRegisterCountOperand(2);
 
   HintsVector arguments(zone());
-  // Push the target (callee) of the construct.
-  arguments.push_back(callee);
+  environment()->ExportRegisterHints(first_reg, reg_count, arguments);
 
-  // The function arguments are in consecutive registers.
-  // TODO(mslekova): Introduce a helper for this pattern since it appears
-  // a few times.
-  int arg_base = first_reg.index();
-  for (int i = 0; i < static_cast<int>(reg_count); ++i) {
-    arguments.push_back(
-        environment()->register_hints(interpreter::Register(arg_base + i)));
-  }
   // TODO(mslekova): Support new.target.
 
   ProcessCallOrConstruct(callee, arguments, true);
