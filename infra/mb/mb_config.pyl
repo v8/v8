@@ -106,7 +106,6 @@
       'V8 Linux64 - gcov coverage': 'release_x64_gcc_coverage',
       'V8 Linux - predictable': 'release_x86_predictable',
       'V8 Linux - full debug': 'full_debug_x86',
-      'V8 Linux - interpreted regexp': 'release_x86_interpreted_regexp',
       'V8 Random Deopt Fuzzer - debug': 'debug_x64',
     },
     'client.v8.clusterfuzz': {
@@ -538,8 +537,6 @@
       'release_bot', 'x86', 'gcmole'],
     'release_x86_gcmole_trybot': [
       'release_trybot', 'x86', 'gcmole'],
-    'release_x86_interpreted_regexp': [
-      'release_bot', 'x86', 'v8_interpreted_regexp'],
     'release_x86_minimal_symbols': [
       'release_bot', 'x86', 'minimal_symbols'],
     'release_x86_no_i18n_trybot': [
@@ -831,10 +828,6 @@
 
     'v8_full_debug': {
       'gn_args': 'v8_optimized_debug=false',
-    },
-
-    'v8_interpreted_regexp': {
-      'gn_args': 'v8_interpreted_regexp=true',
     },
 
     'v8_optimized_debug': {

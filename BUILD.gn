@@ -98,10 +98,6 @@ declare_args() {
   v8_enable_pointer_compression = false
   v8_enable_31bit_smis_on_64bit_arch = false
 
-  # Interpreted regexp engine exists as platform-independent alternative
-  # based where the regular expression is compiled to a bytecode.
-  v8_interpreted_regexp = false
-
   # Sets -dOBJECT_PRINT.
   v8_enable_object_print = ""
 
@@ -370,9 +366,6 @@ config("features") {
   }
   if (v8_enable_v8_checks) {
     defines += [ "V8_ENABLE_CHECKS" ]
-  }
-  if (v8_interpreted_regexp || v8_enable_lite_mode) {
-    defines += [ "V8_INTERPRETED_REGEXP" ]
   }
   if (v8_deprecation_warnings) {
     defines += [ "V8_DEPRECATION_WARNINGS" ]

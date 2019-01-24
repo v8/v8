@@ -674,16 +674,6 @@
       },
     ],
   },
-  'V8 Linux - interpreted regexp': {
-    'swarming_task_attrs': {
-      'expiration': 14400,
-      'hard_timeout': 3600,
-      'priority': 35,
-    },
-    'tests': [
-      {'name': 'v8testing'},
-    ],
-  },
   'V8 Linux - noi18n - debug': {
     'tests': [
       {'name': 'mozilla', 'variant': 'default'},

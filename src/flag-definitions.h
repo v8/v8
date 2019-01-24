@@ -1092,15 +1092,7 @@ DEFINE_UINT(serialization_chunk_size, 4096,
 // Regexp
 DEFINE_BOOL(regexp_optimization, true, "generate optimized regexp code")
 DEFINE_BOOL(regexp_mode_modifiers, false, "enable inline flags in regexp.")
-
-#ifdef V8_INTERPRETED_REGEXP
-#define V8_INTERPRETED_REGEXP_BOOL true
-#else
-#define V8_INTERPRETED_REGEXP_BOOL false
-#endif
-DEFINE_BOOL(regexp_interpret_all, V8_INTERPRETED_REGEXP_BOOL,
-            "interpret all regexp code")
-#undef V8_INTERPRETED_REGEXP_BOOL
+DEFINE_BOOL(regexp_interpret_all, false,  "interpret all regexp code")
 
 // Testing flags test/cctest/test-{flags,api,serialization}.cc
 DEFINE_BOOL(testing_bool_flag, true, "testing_bool_flag")
