@@ -154,9 +154,52 @@ namespace array {
 
   // Contains the information necessary to create a single, separator delimited,
   // flattened one or two byte string.
-  // The buffer is maintained and updated by BufferInit(), BufferAdd(),
-  // BufferAddSeparators().
+  // The buffer is maintained and updated by Buffer.constructor, Buffer.Add(),
+  // Buffer.AddSeparators().
   struct Buffer {
+    constructor(len: uintptr, sep: String) {
+      const cappedBufferSize: intptr = len > kMaxNewSpaceFixedArrayElements ?
+          kMaxNewSpaceFixedArrayElements :
+          Signed(len);
+      assert(cappedBufferSize > 0);
+      this.fixedArray = AllocateZeroedFixedArray(cappedBufferSize);
+      this.isOneByte = HasOnlyOneByteChars(sep.instanceType);
+      this.index = 0;
+      this.totalStringLength = 0;
+    }
+
+    Add(implicit context: Context)(
+        str: String, nofSeparators: intptr, separatorLength: intptr) {
+      // Add separators if necessary (at the beginning or more than one)
+      const writeSeparators: bool = this.index == 0 | nofSeparators > 1;
+      this.AddSeparators(nofSeparators, separatorLength, writeSeparators);
+
+      this.totalStringLength =
+          AddStringLength(this.totalStringLength, str.length);
+      this.fixedArray =
+          StoreAndGrowFixedArray(this.fixedArray, this.index++, str);
+      this.isOneByte = HasOnlyOneByteChars(str.instanceType) & this.isOneByte;
+    }
+
+    AddSeparators(implicit context: Context)(
+        nofSeparators: intptr, separatorLength: intptr, write: bool) {
+      if (nofSeparators == 0 || separatorLength == 0) return;
+
+      const nofSeparatorsInt: intptr = nofSeparators;
+      const sepsLen: intptr = separatorLength * nofSeparatorsInt;
+      // Detect integer overflow
+      // TODO(tebbi): Replace with overflow-checked multiplication.
+      if (sepsLen / separatorLength != nofSeparatorsInt) deferred {
+          ThrowInvalidStringLength(context);
+        }
+
+      this.totalStringLength = AddStringLength(this.totalStringLength, sepsLen);
+      if (write) deferred {
+          this.fixedArray = StoreAndGrowFixedArray(
+              this.fixedArray, this.index++, Convert<Smi>(nofSeparatorsInt));
+        }
+    }
+
     // Fixed array holding elements that are either:
     //   1) String result of `ToString(next)`.
     //   2) Smi representing the number of consecutive separators.
@@ -183,59 +226,6 @@ namespace array {
     // `true` if the separator and all strings in the buffer are one-byte,
     // otherwise `false`.
     isOneByte: bool;
-  }
-
-  macro BufferInit(len: uintptr, sep: String): Buffer {
-    const cappedBufferSize: intptr = len > kMaxNewSpaceFixedArrayElements ?
-        kMaxNewSpaceFixedArrayElements :
-        Signed(len);
-    assert(cappedBufferSize > 0);
-    const fixedArray: FixedArray = AllocateZeroedFixedArray(cappedBufferSize);
-    const isOneByte: bool = HasOnlyOneByteChars(sep.instanceType);
-    return Buffer{fixedArray, 0, 0, isOneByte};
-  }
-
-  macro BufferAdd(implicit context: Context)(
-      initialBuffer: Buffer, str: String, nofSeparators: intptr,
-      separatorLength: intptr): Buffer {
-    let buffer: Buffer = initialBuffer;
-    // Add separators if necessary (at the beginning or more than one)
-    const writeSeparators: bool = buffer.index == 0 | nofSeparators > 1;
-    buffer = BufferAddSeparators(
-        buffer, nofSeparators, separatorLength, writeSeparators);
-
-    const totalStringLength: intptr =
-        AddStringLength(buffer.totalStringLength, str.length);
-    let index: intptr = buffer.index;
-    const fixedArray: FixedArray =
-        StoreAndGrowFixedArray(buffer.fixedArray, index++, str);
-    const isOneByte: bool =
-        HasOnlyOneByteChars(str.instanceType) & buffer.isOneByte;
-    return Buffer{fixedArray, index, totalStringLength, isOneByte};
-  }
-
-  macro BufferAddSeparators(implicit context: Context)(
-      buffer: Buffer, nofSeparators: intptr, separatorLength: intptr,
-      write: bool): Buffer {
-    if (nofSeparators == 0 || separatorLength == 0) return buffer;
-
-    const nofSeparatorsInt: intptr = nofSeparators;
-    const sepsLen: intptr = separatorLength * nofSeparatorsInt;
-    // Detect integer overflow
-    // TODO(tebbi): Replace with overflow-checked multiplication.
-    if (sepsLen / separatorLength != nofSeparatorsInt) deferred {
-        ThrowInvalidStringLength(context);
-      }
-
-    const totalStringLength: intptr =
-        AddStringLength(buffer.totalStringLength, sepsLen);
-    let index: intptr = buffer.index;
-    let fixedArray: FixedArray = buffer.fixedArray;
-    if (write) deferred {
-        fixedArray = StoreAndGrowFixedArray(
-            buffer.fixedArray, index++, Convert<Smi>(nofSeparatorsInt));
-      }
-    return Buffer{fixedArray, index, totalStringLength, buffer.isOneByte};
   }
 
   macro BufferJoin(implicit context: Context)(buffer: Buffer, sep: String):
@@ -280,7 +270,7 @@ namespace array {
     const separatorLength: intptr = sep.length;
     let nofSeparators: intptr = 0;
     let loadFn: LoadJoinElementFn = initialLoadFn;
-    let buffer: Buffer = BufferInit(len, sep);
+    let buffer: Buffer = Buffer{len, sep};
 
     // 6. Let k be 0.
     let k: uintptr = 0;
@@ -324,12 +314,12 @@ namespace array {
       }
 
       // d. Set R to the string-concatenation of R and next.
-      buffer = BufferAdd(buffer, next, nofSeparators, separatorLength);
+      buffer.Add(next, nofSeparators, separatorLength);
       nofSeparators = 0;
     }
 
     // Add any separators at the end.
-    buffer = BufferAddSeparators(buffer, nofSeparators, separatorLength, true);
+    buffer.AddSeparators(nofSeparators, separatorLength, true);
 
     // 8. Return R.
     return BufferJoin(buffer, sep);
