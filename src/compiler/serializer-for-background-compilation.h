@@ -62,8 +62,6 @@ namespace compiler {
   V(Throw)
 
 #define CLEAR_ACCUMULATOR_LIST(V)   \
-  V(CallWithSpread)                 \
-  V(ConstructWithSpread)            \
   V(CreateEmptyObjectLiteral)       \
   V(CreateMappedArguments)          \
   V(CreateRestParameter)            \
@@ -89,7 +87,9 @@ namespace compiler {
   V(CallUndefinedReceiver0)        \
   V(CallUndefinedReceiver1)        \
   V(CallUndefinedReceiver2)        \
+  V(CallWithSpread)                \
   V(Construct)                     \
+  V(ConstructWithSpread)           \
   V(CreateClosure)                 \
   V(ExtraWide)                     \
   V(Illegal)                       \
@@ -164,10 +164,14 @@ class SerializerForBackgroundCompilation {
   JSHeapBroker* broker() const { return broker_; }
   Environment* environment() const { return environment_; }
 
-  void ProcessCallOrConstruct(const Hints& callee,
-                              const HintsVector& arguments);
+  void ProcessCallOrConstruct(const Hints& callee, const HintsVector& arguments,
+                              bool with_spread = false);
   void ProcessCallVarArgs(interpreter::BytecodeArrayIterator* iterator,
-                          ConvertReceiverMode receiver_mode);
+                          ConvertReceiverMode receiver_mode,
+                          bool with_spread = false);
+
+  Hints RunChildSerializer(FunctionBlueprint function,
+                           const HintsVector& arguments, bool with_spread);
 
   JSHeapBroker* broker_;
   Zone* zone_;

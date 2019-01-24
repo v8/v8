@@ -409,8 +409,37 @@ void SerializerForBackgroundCompilation::VisitCallProperty2(
   ProcessCallOrConstruct(callee, parameters);
 }
 
+void SerializerForBackgroundCompilation::VisitCallWithSpread(
+    interpreter::BytecodeArrayIterator* iterator) {
+  ProcessCallVarArgs(iterator, ConvertReceiverMode::kAny, true);
+}
+
+Hints SerializerForBackgroundCompilation::RunChildSerializer(
+    FunctionBlueprint function, const HintsVector& arguments,
+    bool with_spread) {
+  if (with_spread) {
+    DCHECK_LT(0, arguments.size());
+    // Pad the missing arguments in case we were called with spread operator.
+    // Drop the last actually passed argument, which contains the spread.
+    // We don't know what the spread element produces. Therefore we pretend
+    // that the function is called with the maximal number of parameters and
+    // that we have no information about the parameters that were not
+    // explicitly provided.
+    HintsVector padded = arguments;
+    padded.pop_back();  // Remove the spread element.
+    // Fill the rest with empty hints.
+    padded.resize(function.shared->GetBytecodeArray()->parameter_count(),
+                  Hints(zone()));
+    return RunChildSerializer(function, padded, false);
+  }
+
+  SerializerForBackgroundCompilation child_serializer(broker(), zone(),
+                                                      function, arguments);
+  return child_serializer.Run();
+}
+
 void SerializerForBackgroundCompilation::ProcessCallOrConstruct(
-    const Hints& callee, const HintsVector& arguments) {
+    const Hints& callee, const HintsVector& arguments, bool with_spread) {
   environment()->accumulator_hints().Clear();
 
   for (auto hint : callee.constants()) {
@@ -424,22 +453,21 @@ void SerializerForBackgroundCompilation::ProcessCallOrConstruct(
     Handle<SharedFunctionInfo> shared(function->shared(), broker()->isolate());
     Handle<FeedbackVector> feedback(function->feedback_vector(),
                                     broker()->isolate());
-    SerializerForBackgroundCompilation child_serializer(
-        broker(), zone(), {shared, feedback}, arguments);
-    environment()->accumulator_hints().Add(child_serializer.Run());
+
+    environment()->accumulator_hints().Add(
+        RunChildSerializer({shared, feedback}, arguments, with_spread));
   }
 
   for (auto hint : callee.function_blueprints()) {
     if (!hint.shared->IsInlineable()) continue;
-    SerializerForBackgroundCompilation child_serializer(broker(), zone(), hint,
-                                                        arguments);
-    environment()->accumulator_hints().Add(child_serializer.Run());
+    environment()->accumulator_hints().Add(
+        RunChildSerializer(hint, arguments, with_spread));
   }
 }
 
 void SerializerForBackgroundCompilation::ProcessCallVarArgs(
     interpreter::BytecodeArrayIterator* iterator,
-    ConvertReceiverMode receiver_mode) {
+    ConvertReceiverMode receiver_mode, bool with_spread) {
   const Hints& callee =
       environment()->register_hints(iterator->GetRegisterOperand(0));
   interpreter::Register first_reg = iterator->GetRegisterOperand(1);
@@ -494,10 +522,34 @@ void SerializerForBackgroundCompilation::VisitConstruct(
     arguments.push_back(
         environment()->register_hints(interpreter::Register(arg_base + i)));
   }
-  // Push the new_target of the construct.
-  arguments.push_back(environment()->accumulator_hints());
+  // TODO(mslekova): Support new.target.
 
   ProcessCallOrConstruct(callee, arguments);
+}
+
+void SerializerForBackgroundCompilation::VisitConstructWithSpread(
+    interpreter::BytecodeArrayIterator* iterator) {
+  const Hints& callee =
+      environment()->register_hints(iterator->GetRegisterOperand(0));
+
+  interpreter::Register first_reg = iterator->GetRegisterOperand(1);
+  size_t reg_count = iterator->GetRegisterCountOperand(2);
+
+  HintsVector arguments(zone());
+  // Push the target (callee) of the construct.
+  arguments.push_back(callee);
+
+  // The function arguments are in consecutive registers.
+  // TODO(mslekova): Introduce a helper for this pattern since it appears
+  // a few times.
+  int arg_base = first_reg.index();
+  for (int i = 0; i < static_cast<int>(reg_count); ++i) {
+    arguments.push_back(
+        environment()->register_hints(interpreter::Register(arg_base + i)));
+  }
+  // TODO(mslekova): Support new.target.
+
+  ProcessCallOrConstruct(callee, arguments, true);
 }
 
 #define DEFINE_SKIPPED_JUMP(name, ...)                  \
