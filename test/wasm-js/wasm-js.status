@@ -16,6 +16,7 @@
 ['arch == s390 or arch == s390x or system == aix', {
   # https://bugs.chromium.org/p/v8/issues/detail?id=8402
   'instance/constructor': [SKIP],
+  'constructor/instantiate': [SKIP],
 }],  # 'arch == s390 or arch == s390x or system == aix'
 
 ##############################################################################
