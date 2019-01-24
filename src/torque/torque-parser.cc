@@ -38,6 +38,7 @@ enum class ParseResultHolderBase::TypeId {
   kStatementPtr,
   kDeclarationPtr,
   kTypeExpressionPtr,
+  kOptionalTypeExpressionPtr,
   kLabelBlockPtr,
   kOptionalLabelBlockPtr,
   kNameAndTypeExpression,
@@ -83,6 +84,10 @@ template <>
 V8_EXPORT_PRIVATE const ParseResultTypeId
     ParseResultHolder<TypeExpression*>::id =
         ParseResultTypeId::kTypeExpressionPtr;
+template <>
+V8_EXPORT_PRIVATE const ParseResultTypeId
+    ParseResultHolder<base::Optional<TypeExpression*>>::id =
+        ParseResultTypeId::kOptionalTypeExpressionPtr;
 template <>
 V8_EXPORT_PRIVATE const ParseResultTypeId ParseResultHolder<LabelBlock*>::id =
     ParseResultTypeId::kLabelBlockPtr;
@@ -866,10 +871,13 @@ base::Optional<ParseResult> MakeVarDeclarationStatement(
     NamingConventionError("Variable", name, "lowerCamelCase");
   }
 
-  auto type = child_results->NextAs<TypeExpression*>();
+  auto type = child_results->NextAs<base::Optional<TypeExpression*>>();
   base::Optional<Expression*> initializer;
   if (child_results->HasNext())
     initializer = child_results->NextAs<Expression*>();
+  if (!initializer && !type) {
+    ReportError("Declaration is missing a type.");
+  }
   Statement* result = MakeNode<VarDeclarationStatement>(
       const_qualified, std::move(name), type, initializer);
   return ParseResult{result};
@@ -1522,15 +1530,18 @@ struct TorqueGrammar : Grammar {
             Optional<Expression*>(expression), Token("]")},
            MakeRangeExpression)};
 
+  Symbol* optionalTypeSpecifier =
+      Optional<TypeExpression*>(Sequence({Token(":"), &type}));
+
   // Result: Statement*
   Symbol varDeclaration = {
-      Rule({OneOf({"let", "const"}), &identifier, Token(":"), &type},
+      Rule({OneOf({"let", "const"}), &identifier, optionalTypeSpecifier},
            MakeVarDeclarationStatement)};
 
   // Result: Statement*
   Symbol varDeclarationWithInitialization = {
-      Rule({OneOf({"let", "const"}), &identifier, Token(":"), &type, Token("="),
-            expression},
+      Rule({OneOf({"let", "const"}), &identifier, optionalTypeSpecifier,
+            Token("="), expression},
            MakeVarDeclarationStatement)};
 
   // Result: Statement*

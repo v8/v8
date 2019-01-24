@@ -512,11 +512,6 @@ const Type* ImplementationVisitor::Visit(VarDeclarationStatement* stmt) {
 
 const Type* ImplementationVisitor::Visit(
     VarDeclarationStatement* stmt, BlockBindings<LocalValue>* block_bindings) {
-  if (!stmt->const_qualified && !stmt->type) {
-    ReportError(
-        "variable declaration is missing type. Only 'const' bindings can "
-        "infer the type.");
-  }
   // const qualified variables are required to be initialized properly.
   if (stmt->const_qualified && !stmt->initializer) {
     ReportError("local constant \"", stmt->name, "\" is not initialized.");

@@ -223,7 +223,7 @@ namespace array {
       labels Bailout(JSArray, Smi) {
     let k: Smi = 0;
     let fastO: FastJSArray = Cast<FastJSArray>(o) otherwise unreachable;
-    let vector: Vector = Vector{len};
+    let vector = Vector{len};
     const elementsKind: ElementsKind = fastO.map.elements_kind;
     try {
       if (IsElementsKindLessThanOrEqual(elementsKind, HOLEY_SMI_ELEMENTS)) {
