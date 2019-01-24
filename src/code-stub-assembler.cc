@@ -13061,6 +13061,10 @@ TNode<RawPtrT> CodeStubAssembler::LoadJSArrayBufferBackingStore(
                                   JSArrayBuffer::kBackingStoreOffset);
 }
 
+TNode<UintPtrT> CodeStubAssembler::LoadByteLength(TNode<JSArrayBuffer> buffer) {
+  return LoadObjectField<UintPtrT>(buffer, JSArrayBuffer::kByteLengthOffset);
+}
+
 TNode<JSArrayBuffer> CodeStubAssembler::LoadJSArrayBufferViewBuffer(
     TNode<JSArrayBufferView> array_buffer_view) {
   return LoadObjectField<JSArrayBuffer>(array_buffer_view,

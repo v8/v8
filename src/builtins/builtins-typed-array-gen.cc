@@ -318,138 +318,6 @@ TF_BUILTIN(TypedArrayInitialize, TypedArrayBuiltinsAssembler) {
   Return(UndefinedConstant());
 }
 
-// ES6 #sec-typedarray-buffer-byteoffset-length
-void TypedArrayBuiltinsAssembler::ConstructByArrayBuffer(
-    TNode<Context> context, TNode<JSTypedArray> holder,
-    TNode<JSArrayBuffer> buffer, TNode<Object> byte_offset,
-    TNode<Object> length, TNode<Smi> element_size) {
-  CSA_ASSERT(this, TaggedIsPositiveSmi(element_size));
-
-  VARIABLE(new_byte_length, MachineRepresentation::kTagged, SmiConstant(0));
-  VARIABLE(offset, MachineRepresentation::kTagged, SmiConstant(0));
-
-  Label start_offset_error(this, Label::kDeferred),
-      byte_length_error(this, Label::kDeferred),
-      invalid_offset_error(this, Label::kDeferred);
-  Label offset_is_smi(this), offset_not_smi(this, Label::kDeferred),
-      check_length(this), call_init(this), invalid_length(this),
-      length_undefined(this), length_defined(this), done(this);
-
-  GotoIf(IsUndefined(byte_offset), &check_length);
-
-  offset.Bind(ToInteger_Inline(context, byte_offset,
-                               CodeStubAssembler::kTruncateMinusZero));
-  Branch(TaggedIsSmi(offset.value()), &offset_is_smi, &offset_not_smi);
-
-  // Check that the offset is a multiple of the element size.
-  BIND(&offset_is_smi);
-  {
-    TNode<Smi> smi_offset = CAST(offset.value());
-    GotoIf(SmiEqual(smi_offset, SmiConstant(0)), &check_length);
-    GotoIf(SmiLessThan(smi_offset, SmiConstant(0)), &invalid_length);
-    TNode<Number> remainder = SmiMod(smi_offset, element_size);
-    // TODO(ishell): remove <Object, Object>
-    Branch(WordEqual<Object, Object>(remainder, SmiConstant(0)), &check_length,
-           &start_offset_error);
-  }
-  BIND(&offset_not_smi);
-  {
-    GotoIf(IsTrue(CallBuiltin(Builtins::kLessThan, context, offset.value(),
-                              SmiConstant(0))),
-           &invalid_length);
-    Node* remainder =
-        CallBuiltin(Builtins::kModulus, context, offset.value(), element_size);
-    // Remainder can be a heap number.
-    Branch(IsTrue(CallBuiltin(Builtins::kEqual, context, remainder,
-                              SmiConstant(0))),
-           &check_length, &start_offset_error);
-  }
-
-  BIND(&check_length);
-  Branch(IsUndefined(length), &length_undefined, &length_defined);
-
-  BIND(&length_undefined);
-  {
-    ThrowIfArrayBufferIsDetached(context, buffer, "Construct");
-    TNode<Number> buffer_byte_length = ChangeUintPtrToTagged(
-        LoadObjectField<UintPtrT>(buffer, JSArrayBuffer::kByteLengthOffset));
-
-    Node* remainder = CallBuiltin(Builtins::kModulus, context,
-                                  buffer_byte_length, element_size);
-    // Remainder can be a heap number.
-    GotoIf(IsFalse(CallBuiltin(Builtins::kEqual, context, remainder,
-                               SmiConstant(0))),
-           &byte_length_error);
-
-    new_byte_length.Bind(CallBuiltin(Builtins::kSubtract, context,
-                                     buffer_byte_length, offset.value()));
-
-    Branch(IsTrue(CallBuiltin(Builtins::kLessThan, context,
-                              new_byte_length.value(), SmiConstant(0))),
-           &invalid_offset_error, &call_init);
-  }
-
-  BIND(&length_defined);
-  {
-    TNode<Smi> new_length = ToSmiIndex(context, length, &invalid_length);
-    ThrowIfArrayBufferIsDetached(context, buffer, "Construct");
-    new_byte_length.Bind(SmiMul(new_length, element_size));
-    // Reading the byte length must come after the ToIndex operation, which
-    // could cause the buffer to become detached.
-    TNode<Number> buffer_byte_length = ChangeUintPtrToTagged(
-        LoadObjectField<UintPtrT>(buffer, JSArrayBuffer::kByteLengthOffset));
-
-    Node* end = CallBuiltin(Builtins::kAdd, context, offset.value(),
-                            new_byte_length.value());
-
-    Branch(IsTrue(CallBuiltin(Builtins::kGreaterThan, context, end,
-                              buffer_byte_length)),
-           &invalid_length, &call_init);
-  }
-
-  BIND(&call_init);
-  {
-    TNode<Object> raw_length = CallBuiltin(
-        Builtins::kDivide, context, new_byte_length.value(), element_size);
-    // Force the result into a Smi, or throw a range error if it doesn't fit.
-    TNode<Smi> new_length = ToSmiIndex(context, raw_length, &invalid_length);
-
-    CallBuiltin(Builtins::kTypedArrayInitializeWithBuffer, context, holder,
-                new_length, buffer, element_size, offset.value());
-    Goto(&done);
-  }
-
-  BIND(&invalid_offset_error);
-  { ThrowRangeError(context, MessageTemplate::kInvalidOffset, byte_offset); }
-
-  BIND(&start_offset_error);
-  {
-    Node* holder_map = LoadMap(holder);
-    Node* problem_string = StringConstant("start offset");
-    CallRuntime(Runtime::kThrowInvalidTypedArrayAlignment, context, holder_map,
-                problem_string);
-
-    Unreachable();
-  }
-
-  BIND(&byte_length_error);
-  {
-    Node* holder_map = LoadMap(holder);
-    Node* problem_string = StringConstant("byte length");
-    CallRuntime(Runtime::kThrowInvalidTypedArrayAlignment, context, holder_map,
-                problem_string);
-
-    Unreachable();
-  }
-
-  BIND(&invalid_length);
-  {
-    ThrowRangeError(context, MessageTemplate::kInvalidTypedArrayLength, length);
-  }
-
-  BIND(&done);
-}
-
 Node* TypedArrayBuiltinsAssembler::LoadDataPtr(Node* typed_array) {
   CSA_ASSERT(this, IsJSTypedArray(typed_array));
   Node* elements = LoadElements(typed_array);
@@ -529,8 +397,8 @@ TF_BUILTIN(CreateTypedArray, TypedArrayBuiltinsAssembler) {
   // https://tc39.github.io/ecma262/#sec-typedarray-buffer-byteoffset-length
   BIND(&if_arg1isbuffer);
   {
-    ConstructByArrayBuffer(context, result, CAST(arg1), arg2, arg3,
-                           element_size);
+    TypedArrayBuiltinsFromDSLAssembler(state()).ConstructByArrayBuffer(
+        context, result, CAST(arg1), arg2, arg3, element_size);
     Goto(&return_result);
   }
 

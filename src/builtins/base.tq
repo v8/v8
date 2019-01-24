@@ -288,6 +288,8 @@ const kCalledNonCallable: constexpr MessageTemplate
     generates 'MessageTemplate::kCalledNonCallable';
 const kCalledOnNullOrUndefined: constexpr MessageTemplate
     generates 'MessageTemplate::kCalledOnNullOrUndefined';
+const kInvalidOffset: constexpr MessageTemplate
+    generates 'MessageTemplate::kInvalidOffset';
 const kInvalidTypedArrayLength: constexpr MessageTemplate
     generates 'MessageTemplate::kInvalidTypedArrayLength';
 const kIteratorValueNotAnObject: constexpr MessageTemplate
@@ -523,8 +525,9 @@ extern macro BranchIfNumberEqual(Number, Number): never
 operator '==' macro IsNumberEqual(a: Number, b: Number): bool {
   return (BranchIfNumberEqual(a, b)) ? true : false;
 }
-extern operator '!=' macro BranchIfNumberNotEqual(Number, Number): never
-    labels Taken, NotTaken;
+operator '!=' macro IsNumberNotEqual(a: Number, b: Number): bool {
+  return (BranchIfNumberEqual(a, b)) ? false : true;
+}
 extern operator '<' macro BranchIfNumberLessThan(Number, Number): never
     labels Taken, NotTaken;
 extern operator '<=' macro BranchIfNumberLessThanOrEqual(Number, Number): never
@@ -535,6 +538,10 @@ extern operator '>' macro BranchIfNumberGreaterThan(Number, Number): never
 extern operator '>=' macro BranchIfNumberGreaterThanOrEqual(
     Number, Number): never
     labels Taken, NotTaken;
+
+extern builtin Divide(implicit context: Context)(Object, Object): Numeric;
+extern builtin Modulus(implicit context: Context)(Object, Object): Numeric;
+extern builtin Subtract(implicit context: Context)(Object, Object): Numeric;
 
 extern operator '==' macro WordEqual(Object, Object): bool;
 extern operator '!=' macro WordNotEqual(Object, Object): bool;
@@ -571,6 +578,9 @@ extern operator '&' macro Word32And(int32, int32): int32;
 extern operator '&' macro Word32And(uint32, uint32): uint32;
 extern operator '==' macro
 ConstexprInt31Equal(constexpr int31, constexpr int31): constexpr bool;
+extern operator '>=' macro
+ConstexprInt31GreaterThanEqual(
+    constexpr int31, constexpr int31): constexpr bool;
 
 extern operator '==' macro Word32Equal(int32, int32): bool;
 extern operator '==' macro Word32Equal(uint32, uint32): bool;
@@ -937,6 +947,10 @@ FromConstexpr<uintptr, constexpr uintptr>(i: constexpr uintptr): uintptr {
 FromConstexpr<Smi, constexpr int31>(i: constexpr int31): Smi {
   return %FromConstexpr<Smi>(i);
 }
+FromConstexpr<PositiveSmi, constexpr int31>(i: constexpr int31): PositiveSmi {
+  assert(i >= 0);
+  return %FromConstexpr<PositiveSmi>(i);
+}
 FromConstexpr<String, constexpr string>(s: constexpr string): String {
   return %FromConstexpr<String>(s);
 }
@@ -1114,6 +1128,7 @@ TypedArrayBuiltinsAssembler::LoadTypedArrayBuffer(JSTypedArray): JSArrayBuffer;
 
 extern operator '.data_ptr' macro TypedArrayBuiltinsAssembler::LoadDataPtr(
     JSTypedArray): RawPtr;
+extern operator '.byte_length' macro LoadByteLength(JSArrayBuffer): uintptr;
 
 extern operator '.elements_kind' macro LoadMapElementsKind(Map): ElementsKind;
 extern operator '.elements_kind' macro LoadElementsKind(JSTypedArray):

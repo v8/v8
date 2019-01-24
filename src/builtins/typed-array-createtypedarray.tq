@@ -7,6 +7,8 @@ namespace typed_array {
       JSArray;
   extern builtin TypedArrayInitialize(implicit context: Context)(
       JSTypedArray, PositiveSmi, PositiveSmi, Boolean, JSReceiver): void;
+  extern builtin TypedArrayInitializeWithBuffer(implicit context: Context)(
+      JSTypedArray, PositiveSmi, JSArrayBuffer, PositiveSmi, Number): void;
 
   extern macro TypedArrayBuiltinsAssembler::ByteLengthIsValid(Number): bool;
   extern macro TypedArrayBuiltinsAssembler::CallCMemcpy(
@@ -14,6 +16,8 @@ namespace typed_array {
   extern macro TypedArrayBuiltinsAssembler::IsSharedArrayBuffer(JSArrayBuffer):
       bool;
 
+  extern runtime ThrowInvalidTypedArrayAlignment(implicit context: Context)(
+      Map, String): never;
   extern runtime TypedArrayCopyElements(Context, JSTypedArray, Object, Number):
       void;
 
@@ -106,5 +110,96 @@ namespace typed_array {
     }
     ConstructByArrayLike(
         typedArray, srcTypedArray, length, elementSize, bufferConstructor);
+  }
+
+  // Determines if `bytes` (byte offset or length) cannot be evenly divded by
+  // element size.
+  macro IsUnaligned(implicit context: Context)(bytes: Number, elementSize: Smi):
+      bool {
+    const kZero: Smi = 0;
+    if (bytes == kZero) return false;
+    const remainder: Number =
+        Cast<Number>(Modulus(bytes, elementSize)) otherwise unreachable;
+    return remainder != kZero;
+  }
+
+  // 22.2.4.5 TypedArray ( buffer, byteOffset, length )
+  // ES #sec-typedarray-buffer-byteoffset-length
+  macro ConstructByArrayBuffer(implicit context: Context)(
+      typedArray: JSTypedArray, buffer: JSArrayBuffer, byteOffset: Object,
+      length: Object, elementSize: Smi): void {
+    const positiveElementSize: PositiveSmi =
+        Cast<PositiveSmi>(elementSize) otherwise unreachable;
+    try {
+      let offset: Number = FromConstexpr<Smi>(0);
+      if (byteOffset != Undefined) {
+        // 6. Let offset be ? ToIndex(byteOffset).
+        offset = ToInteger_Inline(context, byteOffset, kTruncateMinusZero);
+        if (offset < 0) goto IfInvalidOffset;
+
+        // 7. If offset modulo elementSize ≠ 0, throw a RangeError exception.
+        if (IsUnaligned(offset, positiveElementSize)) {
+          goto IfInvalidAlignment('start offset');
+        }
+      }
+
+      let newLength: PositiveSmi = 0;
+      // 8. If length is present and length is not undefined, then
+      if (length != Undefined) {
+        // a. Let newLength be ? ToIndex(length).
+        newLength = ToSmiIndex(length) otherwise IfInvalidLength;
+      }
+
+      // 9. If IsDetachedBuffer(buffer) is true, throw a TypeError exception.
+      if (IsDetachedBuffer(buffer)) {
+        ThrowTypeError(context, kDetachedOperation, 'Construct');
+      }
+
+      // 10. Let bufferByteLength be buffer.[[ArrayBufferByteLength]].
+      const bufferByteLength: Number = Convert<Number>(buffer.byte_length);
+
+      // 11. If length is either not present or undefined, then
+      if (length == Undefined) {
+        // a. If bufferByteLength modulo elementSize ≠ 0, throw a RangeError
+        // exception.
+        if (IsUnaligned(bufferByteLength, positiveElementSize)) {
+          goto IfInvalidAlignment('byte length');
+        }
+
+        // b. Let newByteLength be bufferByteLength - offset.
+        // c. If newByteLength < 0, throw a RangeError exception.
+        if (bufferByteLength < offset) goto IfInvalidOffset;
+
+        // Spec step 16 length calculated here to avoid recalculating the length
+        // in the step 12 branch.
+        newLength = ToSmiIndex(
+            Divide((Subtract(bufferByteLength, offset)), positiveElementSize))
+            otherwise IfInvalidLength;
+
+        // 12. Else,
+      } else {
+        // a. Let newByteLength be newLength × elementSize.
+        const newByteLength: Number = SmiMul(newLength, positiveElementSize);
+
+        // b. If offset + newByteLength > bufferByteLength, throw a RangeError
+        // exception.
+        const difference: Number =
+            Cast<Number>(Subtract(bufferByteLength, newByteLength))
+            otherwise unreachable;
+        if (difference < offset) goto IfInvalidLength;
+      }
+
+      TypedArrayInitializeWithBuffer(
+          typedArray, newLength, buffer, positiveElementSize, offset);
+    }
+    label IfInvalidAlignment(problemString: String) deferred {
+      ThrowInvalidTypedArrayAlignment(typedArray.map, problemString);
+    }
+    label IfInvalidLength deferred {
+      ThrowRangeError(context, kInvalidTypedArrayLength, length);
+    }
+    label IfInvalidOffset deferred {
+      ThrowRangeError(context, kInvalidOffset, byteOffset);
+    }
   }
 }
