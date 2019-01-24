@@ -994,11 +994,14 @@ MaybeHandle<String> Intl::NumberToLocaleString(Isolate* isolate,
                                                Handle<Object> num,
                                                Handle<Object> locales,
                                                Handle<Object> options) {
-  Handle<Object> number_obj;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, number_obj,
-                             Object::ToNumber(isolate, num), String);
-
-  double number = number_obj->Number();
+  Handle<Object> numeric_obj;
+  if (FLAG_harmony_intl_bigint) {
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, numeric_obj,
+                               Object::ToNumeric(isolate, num), String);
+  } else {
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, numeric_obj,
+                               Object::ToNumber(isolate, num), String);
+  }
 
   // We only cache the instance when both locales and options are undefined,
   // as that is the only case when the specified side-effects of examining
@@ -1011,8 +1014,8 @@ MaybeHandle<String> Intl::NumberToLocaleString(Isolate* isolate,
             Isolate::ICUObjectCacheType::kDefaultNumberFormat));
     // We may use the cached icu::NumberFormat for a fast path.
     if (cached_number_format != nullptr) {
-      return JSNumberFormat::FormatNumber(isolate, *cached_number_format,
-                                          number);
+      return JSNumberFormat::FormatNumeric(isolate, *cached_number_format,
+                                           numeric_obj);
     }
   }
 
@@ -1036,7 +1039,8 @@ MaybeHandle<String> Intl::NumberToLocaleString(Isolate* isolate,
   // Return FormatNumber(numberFormat, x).
   icu::NumberFormat* icu_number_format =
       number_format->icu_number_format()->raw();
-  return JSNumberFormat::FormatNumber(isolate, *icu_number_format, number);
+  return JSNumberFormat::FormatNumeric(isolate, *icu_number_format,
+                                       numeric_obj);
 }
 
 namespace {

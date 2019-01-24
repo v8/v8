@@ -273,8 +273,9 @@ MaybeHandle<JSArray> GenerateRelativeTimeFormatParts(
 
     Handle<String> unit = UnitAsString(isolate, unit_enum);
 
-    Maybe<int> maybe_format_to_parts =
-        JSNumberFormat::FormatToParts(isolate, array, index, nf, number, unit);
+    Handle<Object> number_obj = factory->NewNumber(number);
+    Maybe<int> maybe_format_to_parts = JSNumberFormat::FormatToParts(
+        isolate, array, index, nf, number_obj, unit);
     MAYBE_RETURN(maybe_format_to_parts, Handle<JSArray>());
     index = maybe_format_to_parts.FromJust();
 

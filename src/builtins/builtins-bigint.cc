@@ -7,6 +7,9 @@
 #include "src/conversions.h"
 #include "src/counters.h"
 #include "src/objects-inl.h"
+#ifdef V8_INTL_SUPPORT
+#include "src/objects/intl-objects.h"
+#endif
 
 namespace v8 {
 namespace internal {
@@ -123,6 +126,16 @@ Object BigIntToStringImpl(Handle<Object> receiver, Handle<Object> radix,
 
 BUILTIN(BigIntPrototypeToLocaleString) {
   HandleScope scope(isolate);
+#ifdef V8_INTL_SUPPORT
+  if (FLAG_harmony_intl_bigint) {
+    RETURN_RESULT_OR_FAILURE(
+        isolate, Intl::NumberToLocaleString(isolate, args.receiver(),
+                                            args.atOrUndefined(isolate, 1),
+                                            args.atOrUndefined(isolate, 2)));
+  }
+  // Fallbacks to old toString implemention if flag is off or no
+  // V8_INTL_SUPPORT
+#endif  // V8_INTL_SUPPORT
   Handle<Object> radix = isolate->factory()->undefined_value();
   return BigIntToStringImpl(args.receiver(), radix, isolate,
                             "BigInt.prototype.toLocaleString");

@@ -181,6 +181,8 @@ class V8_EXPORT_PRIVATE BigInt : public BigIntBase {
     return is_zero() ? 0 : ComputeLongHash(static_cast<uint64_t>(digit(0)));
   }
 
+  bool IsNegative() const { return sign(); }
+
   static bool EqualToString(Isolate* isolate, Handle<BigInt> x,
                             Handle<String> y);
   static bool EqualToNumber(Handle<BigInt> x, Handle<Object> y);
