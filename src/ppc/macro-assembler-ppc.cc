@@ -3139,6 +3139,18 @@ void TurboAssembler::CallForDeoptimization(Address target, int deopt_id) {
   Call(target, RelocInfo::RUNTIME_ENTRY);
 }
 
+void TurboAssembler::ZeroExtByte(Register dst, Register src) {
+  clrldi(dst, src, Operand(56));
+}
+
+void TurboAssembler::ZeroExtHalfWord(Register dst, Register src) {
+  clrldi(dst, src, Operand(48));
+}
+
+void TurboAssembler::ZeroExtWord32(Register dst, Register src) {
+  clrldi(dst, src, Operand(32));
+}
+
 }  // namespace internal
 }  // namespace v8
 

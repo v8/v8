@@ -632,15 +632,17 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen, Instruction* instr,
     __ sync();                                                               \
   } while (false)
 
-#define ASSEMBLE_ATOMIC_COMPARE_EXCHANGE(cmp_inst, load_inst, store_inst)    \
+#define ASSEMBLE_ATOMIC_COMPARE_EXCHANGE(cmp_inst, load_inst, store_inst,    \
+                                         input_ext)                          \
   do {                                                                       \
     MemOperand operand = MemOperand(i.InputRegister(0), i.InputRegister(1)); \
     Label loop;                                                              \
     Label exit;                                                              \
+    __ input_ext(r0, i.InputRegister(2));                                    \
     __ lwsync();                                                             \
     __ bind(&loop);                                                          \
     __ load_inst(i.OutputRegister(), operand);                               \
-    __ cmp_inst(i.OutputRegister(), i.InputRegister(2), cr0);                \
+    __ cmp_inst(i.OutputRegister(), r0, cr0);                                \
     __ bne(&exit, cr0);                                                      \
     __ store_inst(i.InputRegister(3), operand);                              \
     __ bne(&loop, cr0);                                                      \
@@ -654,11 +656,12 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen, Instruction* instr,
     MemOperand operand = MemOperand(i.InputRegister(0), i.InputRegister(1)); \
     Label loop;                                                              \
     Label exit;                                                              \
+    __ ext_instr(r0, i.InputRegister(2));                                    \
     __ lwsync();                                                             \
     __ bind(&loop);                                                          \
     __ load_inst(i.OutputRegister(), operand);                               \
     __ ext_instr(i.OutputRegister(), i.OutputRegister());                    \
-    __ cmp_inst(i.OutputRegister(), i.InputRegister(2));                     \
+    __ cmp_inst(i.OutputRegister(), r0, cr0);                                \
     __ bne(&exit, cr0);                                                      \
     __ store_inst(i.InputRegister(3), operand);                              \
     __ bne(&loop, cr0);                                                      \
@@ -1962,19 +1965,19 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_SIGN_EXT(cmp, lbarx, stbcx, extsb);
       break;
     case kPPC_AtomicCompareExchangeUint8:
-      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE(cmp, lbarx, stbcx);
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE(cmp, lbarx, stbcx, ZeroExtByte);
       break;
     case kWord32AtomicCompareExchangeInt16:
       ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_SIGN_EXT(cmp, lharx, sthcx, extsh);
       break;
     case kPPC_AtomicCompareExchangeUint16:
-      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE(cmp, lharx, sthcx);
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE(cmp, lharx, sthcx, ZeroExtHalfWord);
       break;
     case kPPC_AtomicCompareExchangeWord32:
-      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE(cmpw, lwarx, stwcx);
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE(cmpw, lwarx, stwcx, ZeroExtWord32);
       break;
     case kPPC_AtomicCompareExchangeWord64:
-      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE(cmp, ldarx, stdcx);
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE(cmp, ldarx, stdcx, mr);
       break;
 
 #define ATOMIC_BINOP_CASE(op, inst)                            \

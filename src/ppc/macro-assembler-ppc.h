@@ -478,6 +478,11 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
       // do nothing
     }
   }
+
+  void ZeroExtByte(Register dst, Register src);
+  void ZeroExtHalfWord(Register dst, Register src);
+  void ZeroExtWord32(Register dst, Register src);
+
   // ---------------------------------------------------------------------------
   // Bit testing/extraction
   //
