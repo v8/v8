@@ -100,7 +100,6 @@ class WasmCompilationUnit final {
   WasmEngine* const wasm_engine_;
   const int func_index_;
   ExecutionTier tier_;
-  WasmCode* result_ = nullptr;
 
   // LiftoffCompilationUnit, set if {tier_ == kLiftoff}.
   std::unique_ptr<LiftoffCompilationUnit> liftoff_unit_;
