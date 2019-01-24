@@ -56,11 +56,8 @@ TNode<JSArray> GrowableFixedArray::ToJSArray(TNode<Context> const context) {
   }
 
   TNode<Smi> const result_length = SmiTag(length());
-  TNode<JSArray> const result = AllocateUninitializedJSArrayWithoutElements(
-      array_map, result_length, nullptr);
-
-  StoreObjectField(result, JSObject::kElementsOffset, var_array_.value());
-
+  TNode<JSArray> const result =
+      AllocateJSArray(array_map, var_array_.value(), result_length);
   return result;
 }
 

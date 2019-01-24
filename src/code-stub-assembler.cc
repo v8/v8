@@ -3832,9 +3832,10 @@ TNode<BoolT> CodeStubAssembler::IsValidFastJSArrayCapacity(
                              IntPtrConstant(JSArray::kMaxFastArrayLength)));
 }
 
-TNode<JSArray> CodeStubAssembler::AllocateUninitializedJSArrayWithoutElements(
-    TNode<Map> array_map, TNode<Smi> length, Node* allocation_site) {
-  Comment("begin allocation of JSArray without elements");
+TNode<JSArray> CodeStubAssembler::AllocateJSArray(
+    TNode<Map> array_map, TNode<FixedArrayBase> elements, TNode<Smi> length,
+    Node* allocation_site) {
+  Comment("begin allocation of JSArray passing in elements");
   CSA_SLOW_ASSERT(this, TaggedIsPositiveSmi(length));
 
   int base_size = JSArray::kSize;
@@ -3843,7 +3844,10 @@ TNode<JSArray> CodeStubAssembler::AllocateUninitializedJSArrayWithoutElements(
   }
 
   TNode<IntPtrT> size = IntPtrConstant(base_size);
-  return AllocateUninitializedJSArray(array_map, length, allocation_site, size);
+  TNode<JSArray> result =
+      AllocateUninitializedJSArray(array_map, length, allocation_site, size);
+  StoreObjectFieldNoWriteBarrier(result, JSArray::kElementsOffset, elements);
+  return result;
 }
 
 std::pair<TNode<JSArray>, TNode<FixedArrayBase>>
@@ -3897,10 +3901,8 @@ CodeStubAssembler::AllocateUninitializedJSArrayWithElements(
     // The JSArray and possibly allocation memento next. Note that
     // allocation_flags are *not* passed on here and the resulting JSArray will
     // always be in new space.
-    array = AllocateUninitializedJSArrayWithoutElements(array_map, length,
-                                                        allocation_site);
-    StoreObjectFieldNoWriteBarrier(array.value(), JSObject::kElementsOffset,
-                                   elements.value());
+    array =
+        AllocateJSArray(array_map, elements.value(), length, allocation_site);
 
     Goto(&out);
 
@@ -3969,10 +3971,10 @@ TNode<JSArray> CodeStubAssembler::AllocateJSArray(
   if (IsIntPtrOrSmiConstantZero(capacity, capacity_mode)) {
     // Array is empty. Use the shared empty fixed array instead of allocating a
     // new one.
-    array = AllocateUninitializedJSArrayWithoutElements(array_map, length,
-                                                        allocation_site);
-    StoreObjectFieldRoot(array, JSArray::kElementsOffset,
-                         RootIndex::kEmptyFixedArray);
+    TNode<FixedArrayBase> empty_fixed_array =
+        CAST(LoadRoot(RootIndex::kEmptyFixedArray));
+    array =
+        AllocateJSArray(array_map, empty_fixed_array, length, allocation_site);
   } else if (TryGetIntPtrOrSmiConstantValue(capacity, &capacity_as_constant,
                                             capacity_mode)) {
     CHECK_GT(capacity_as_constant, 0);
@@ -3995,10 +3997,10 @@ TNode<JSArray> CodeStubAssembler::AllocateJSArray(
     {
       // Array is empty. Use the shared empty fixed array instead of allocating
       // a new one.
-      var_array = AllocateUninitializedJSArrayWithoutElements(array_map, length,
-                                                              allocation_site);
-      StoreObjectFieldRoot(var_array.value(), JSArray::kElementsOffset,
-                           RootIndex::kEmptyFixedArray);
+      TNode<FixedArrayBase> empty_fixed_array =
+          CAST(LoadRoot(RootIndex::kEmptyFixedArray));
+      var_array = AllocateJSArray(array_map, empty_fixed_array, length,
+                                  allocation_site);
       Goto(&out);
     }
 
@@ -4035,13 +4037,12 @@ Node* CodeStubAssembler::ExtractFastJSArray(Node* context, Node* array,
   Node* native_context = LoadNativeContext(context);
   TNode<Map> array_map = LoadJSArrayElementsMap(elements_kind, native_context);
 
-  Node* new_elements = ExtractFixedArray(
+  TNode<FixedArrayBase> new_elements = ExtractFixedArray(
       LoadElements(array), begin, count, capacity,
       ExtractFixedArrayFlag::kAllFixedArrays, mode, nullptr, elements_kind);
 
-  TNode<Object> result = AllocateUninitializedJSArrayWithoutElements(
-      array_map, ParameterToTagged(count, mode), allocation_site);
-  StoreObjectField(result, JSObject::kElementsOffset, new_elements);
+  TNode<Object> result = AllocateJSArray(
+      array_map, new_elements, ParameterToTagged(count, mode), allocation_site);
   return result;
 }
 
@@ -4105,9 +4106,8 @@ Node* CodeStubAssembler::CloneFastJSArray(Node* context, Node* array,
   TNode<Map> array_map =
       LoadJSArrayElementsMap(var_elements_kind.value(), native_context);
 
-  TNode<Object> result = AllocateUninitializedJSArrayWithoutElements(
-      array_map, CAST(length), allocation_site);
-  StoreObjectField(result, JSObject::kElementsOffset, var_new_elements.value());
+  TNode<Object> result = AllocateJSArray(
+      array_map, CAST(var_new_elements.value()), CAST(length), allocation_site);
   return result;
 }
 

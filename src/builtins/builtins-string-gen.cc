@@ -1803,9 +1803,7 @@ TNode<JSArray> StringBuiltinsAssembler::StringToArray(
         1, ParameterMode::INTPTR_PARAMETERS, IndexAdvanceMode::kPost);
 
     TNode<Map> array_map = LoadJSArrayElementsMap(PACKED_ELEMENTS, context);
-    result_array =
-        AllocateUninitializedJSArrayWithoutElements(array_map, length_smi);
-    StoreObjectField(result_array.value(), JSObject::kElementsOffset, elements);
+    result_array = AllocateJSArray(array_map, elements, length_smi);
     Goto(&done);
 
     BIND(&fill_thehole_and_call_runtime);

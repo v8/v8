@@ -116,9 +116,7 @@ Node* ProxiesCodeStubAssembler::AllocateJSArrayForCodeStubArguments(
   TNode<Map> array_map =
       LoadJSArrayElementsMap(PACKED_ELEMENTS, native_context);
   TNode<JSArray> array =
-      AllocateUninitializedJSArrayWithoutElements(array_map, length);
-  StoreObjectFieldNoWriteBarrier(array, JSObject::kElementsOffset,
-                                 elements.value());
+      AllocateJSArray(array_map, CAST(elements.value()), length);
 
   return array;
 }

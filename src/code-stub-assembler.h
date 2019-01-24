@@ -1444,9 +1444,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsValidFastJSArrayCapacity(Node* capacity,
                                           ParameterMode capacity_mode);
 
-  // Allocate a JSArray without elements and initialize the header fields.
-  TNode<JSArray> AllocateUninitializedJSArrayWithoutElements(
-      TNode<Map> array_map, TNode<Smi> length, Node* allocation_site = nullptr);
   //
   // Allocate and return a JSArray with initialized header fields and its
   // uninitialized elements.
@@ -1477,6 +1474,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return AllocateJSArray(kind, array_map, capacity, length, nullptr,
                            INTPTR_PARAMETERS);
   }
+
+  // Allocate a JSArray and initialize the header fields.
+  TNode<JSArray> AllocateJSArray(TNode<Map> array_map,
+                                 TNode<FixedArrayBase> elements,
+                                 TNode<Smi> length,
+                                 Node* allocation_site = nullptr);
 
   enum class HoleConversionMode { kDontConvert, kConvertToUndefined };
   // Clone a fast JSArray |array| into a new fast JSArray.
