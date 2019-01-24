@@ -104,33 +104,29 @@ namespace array {
       thisArg: Object, a: JSArray) labels Bailout(Smi, Smi) {
     let k: Smi = 0;
     let to: Smi = 0;
-    const fastOWitness: FastJSArrayWitness =
-        MakeWitness(Cast<FastJSArray>(o) otherwise goto Bailout(k, to));
-    const fastAWitness: FastJSArrayWitness =
-        MakeWitness(Cast<FastJSArray>(a) otherwise goto Bailout(k, to));
+    let fastO =
+    FastJSArrayWitness{Cast<FastJSArray>(o) otherwise goto Bailout(k, to)};
+    let fastA =
+    FastJSArrayWitness{Cast<FastJSArray>(a) otherwise goto Bailout(k, to)};
 
     // Build a fast loop over the smi array.
     for (; k < len; k++) {
-      let fastO: FastJSArray =
-          Testify(fastOWitness) otherwise goto Bailout(k, to);
-
       // Ensure that we haven't walked beyond a possibly updated length.
-      if (k >= fastO.length) goto Bailout(k, to);
+      if (k >= fastO.Get().length) goto Bailout(k, to);
 
       try {
-        const value: Object =
-            LoadElementNoHole<FixedArrayType>(fastO, k) otherwise FoundHole;
+        const value: Object = LoadElementNoHole<FixedArrayType>(fastO.Get(), k)
+            otherwise FoundHole;
         const result: Object =
-            Call(context, callbackfn, thisArg, value, k, fastO);
+            Call(context, callbackfn, thisArg, value, k, fastO.Get());
         if (ToBoolean(result)) {
           try {
             // Since the call to {callbackfn} is observable, we can't
             // use the Bailout label until we've successfully stored.
             // Hence the {SlowStore} label.
-            const fastA: FastJSArray =
-                Testify(fastAWitness) otherwise SlowStore;
-            if (fastA.length != to) goto SlowStore;
-            BuildAppendJSArray(kind, fastA, value)
+            fastA.Recheck() otherwise SlowStore;
+            if (fastA.Get().length != to) goto SlowStore;
+            BuildAppendJSArray(kind, fastA.Get(), value)
                 otherwise SlowStore;
           }
           label SlowStore {
@@ -138,6 +134,7 @@ namespace array {
           }
           to = to + 1;
         }
+        fastO.Recheck() otherwise goto Bailout(k + 1, to);
       }
       label FoundHole {}
     }

@@ -778,24 +778,30 @@ CastHeapObject<FastJSArray>(implicit context: Context)(o: HeapObject):
 }
 
 struct FastJSArrayWitness {
-  array: HeapObject;
+  constructor(array: FastJSArray) {
+    this.stable = this.unstable = array;
+    this.map = array.map;
+  }
+
+  Get(): FastJSArray {
+    return this.unstable;
+  }
+
+  Recheck() labels CastError {
+    if (this.stable.map != this.map) goto CastError;
+    // We don't need to check elements kind or whether the prototype
+    // has changed away from the default JSArray prototype, because
+    // if the map remains the same then those properties hold.
+    //
+    // However, we have to make sure there are no elements in the
+    // prototype chain.
+    if (IsNoElementsProtectorCellInvalid()) goto CastError;
+    this.unstable = %RawObjectCast<FastJSArray>(this.stable);
+  }
+
+  stable: JSArray;
+  unstable: FastJSArray;
   map: Map;
-}
-
-macro MakeWitness(array: FastJSArray): FastJSArrayWitness {
-  return FastJSArrayWitness{array, array.map};
-}
-
-macro Testify(witness: FastJSArrayWitness): FastJSArray labels CastError {
-  if (witness.array.map != witness.map) goto CastError;
-  // We don't need to check elements kind or whether the prototype
-  // has changed away from the default JSArray prototype, because
-  // if the map remains the same then those properties hold.
-  //
-  // However, we have to make sure there are no elements in the
-  // prototype chain.
-  if (IsNoElementsProtectorCellInvalid()) goto CastError;
-  return %RawObjectCast<FastJSArray>(witness.array);
 }
 
 CastHeapObject<FastJSArrayForCopy>(implicit context: Context)(o: HeapObject):

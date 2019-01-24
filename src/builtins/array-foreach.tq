@@ -74,20 +74,19 @@ namespace array {
       o: JSArray, len: Smi, callbackfn: Callable, thisArg: Object) labels
   Bailout(Smi) {
     let k: Smi = 0;
-    const fastOWitness: FastJSArrayWitness =
-        MakeWitness(Cast<FastJSArray>(o) otherwise goto Bailout(k));
+    let fastO =
+    FastJSArrayWitness{Cast<FastJSArray>(o) otherwise goto Bailout(k)};
 
     // Build a fast loop over the smi array.
     for (; k < len; k++) {
-      let fastO: FastJSArray = Testify(fastOWitness) otherwise goto Bailout(k);
-
       // Ensure that we haven't walked beyond a possibly updated length.
-      if (k >= fastO.length) goto Bailout(k);
+      if (k >= fastO.Get().length) goto Bailout(k);
 
       try {
-        const value: Object =
-            LoadElementNoHole<FixedArrayType>(fastO, k) otherwise FoundHole;
-        Call(context, callbackfn, thisArg, value, k, fastO);
+        const value: Object = LoadElementNoHole<FixedArrayType>(fastO.Get(), k)
+            otherwise FoundHole;
+        Call(context, callbackfn, thisArg, value, k, fastO.Get());
+        fastO.Recheck() otherwise goto Bailout(k + 1);
       }
       label FoundHole {}
     }

@@ -189,24 +189,22 @@ namespace array {
       vector: Vector): Vector labels Bailout(Vector, Smi) {
     let k: Smi = 0;
     let v: Vector = vector;
-    const fastOWitness: FastJSArrayWitness =
-        MakeWitness(Cast<FastJSArray>(o) otherwise goto Bailout(v, k));
+    let fastO =
+    FastJSArrayWitness{Cast<FastJSArray>(o) otherwise goto Bailout(v, k)};
 
     // Build a fast loop over the smi array.
     // 7. Repeat, while k < len.
-    for (; k < len; k = k + 1) {
-      let fastO: FastJSArray =
-          Testify(fastOWitness) otherwise goto Bailout(v, k);
-
+    for (; k < len; k++) {
       // Ensure that we haven't walked beyond a possibly updated length.
-      if (k >= fastO.length) goto Bailout(v, k);
+      if (k >= fastO.Get().length) goto Bailout(v, k);
 
       try {
-        const value: Object =
-            LoadElementNoHole<FixedArrayType>(fastO, k) otherwise FoundHole;
+        const value: Object = LoadElementNoHole<FixedArrayType>(fastO.Get(), k)
+            otherwise FoundHole;
         const result: Object =
-            Call(context, callbackfn, thisArg, value, k, fastO);
+            Call(context, callbackfn, thisArg, value, k, fastO.Get());
         v.StoreResult(k, result);
+        fastO.Recheck() otherwise goto Bailout(v, k + 1);
       }
       label FoundHole {
         // Our output array must necessarily be holey because of holes in
