@@ -2642,7 +2642,11 @@ int TranslatedValue::GetChildrenCount() const {
 }
 
 uint64_t TranslatedState::GetUInt64Slot(Address fp, int slot_offset) {
+#if V8_TARGET_ARCH_32_BIT
+  return ReadUnalignedValue<uint64_t>(fp + slot_offset);
+#else
   return Memory<uint64_t>(fp + slot_offset);
+#endif
 }
 
 uint32_t TranslatedState::GetUInt32Slot(Address fp, int slot_offset) {

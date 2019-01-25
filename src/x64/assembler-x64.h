@@ -268,7 +268,7 @@ class ConstPool {
   bool AddSharedEntry(uint64_t data, int offset);
 
   // Check if the instruction is a rip-relative move.
-  bool IsMoveRipRelative(byte* instr);
+  bool IsMoveRipRelative(Address instr);
 
   Assembler* assm_;
 
@@ -1806,12 +1806,14 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void call(Operand operand);
 
  private:
-  byte* addr_at(int pos) { return buffer_start_ + pos; }
-  uint32_t long_at(int pos)  {
-    return *reinterpret_cast<uint32_t*>(addr_at(pos));
+  Address addr_at(int pos) {
+    return reinterpret_cast<Address>(buffer_start_ + pos);
+  }
+  uint32_t long_at(int pos) {
+    return ReadUnalignedValue<uint32_t>(addr_at(pos));
   }
   void long_at_put(int pos, uint32_t x)  {
-    *reinterpret_cast<uint32_t*>(addr_at(pos)) = x;
+    WriteUnalignedValue(addr_at(pos), x);
   }
 
   // code emission

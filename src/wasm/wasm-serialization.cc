@@ -135,12 +135,12 @@ void WriteVersion(Writer* writer) {
 void SetWasmCalleeTag(RelocInfo* rinfo, uint32_t tag) {
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
   DCHECK(rinfo->HasTargetAddressAddress());
-  *(reinterpret_cast<uint32_t*>(rinfo->target_address_address())) = tag;
+  WriteUnalignedValue(rinfo->target_address_address(), tag);
 #elif V8_TARGET_ARCH_ARM64
   Instruction* instr = reinterpret_cast<Instruction*>(rinfo->pc());
   if (instr->IsLdrLiteralX()) {
-    Memory<Address>(rinfo->constant_pool_entry_address()) =
-        static_cast<Address>(tag);
+    WriteUnalignedValue(rinfo->constant_pool_entry_address(),
+                        static_cast<Address>(tag));
   } else {
     DCHECK(instr->IsBranchAndLink() || instr->IsUnconditionalBranch());
     instr->SetBranchImmTarget(
@@ -160,12 +160,11 @@ void SetWasmCalleeTag(RelocInfo* rinfo, uint32_t tag) {
 
 uint32_t GetWasmCalleeTag(RelocInfo* rinfo) {
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
-  return *(reinterpret_cast<uint32_t*>(rinfo->target_address_address()));
+  return ReadUnalignedValue<uint32_t>(rinfo->target_address_address());
 #elif V8_TARGET_ARCH_ARM64
   Instruction* instr = reinterpret_cast<Instruction*>(rinfo->pc());
   if (instr->IsLdrLiteralX()) {
-    return static_cast<uint32_t>(
-        Memory<Address>(rinfo->constant_pool_entry_address()));
+    return ReadUnalignedValue<uint32_t>(rinfo->constant_pool_entry_address());
   } else {
     DCHECK(instr->IsBranchAndLink() || instr->IsUnconditionalBranch());
     return static_cast<uint32_t>(instr->ImmPCOffset() / kInstrSize);

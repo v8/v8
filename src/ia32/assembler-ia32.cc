@@ -207,7 +207,7 @@ bool RelocInfo::IsInConstantPool() {
 
 uint32_t RelocInfo::wasm_call_tag() const {
   DCHECK(rmode_ == WASM_CALL || rmode_ == WASM_STUB_CALL);
-  return Memory<uint32_t>(pc_);
+  return ReadUnalignedValue<uint32_t>(pc_);
 }
 
 // -----------------------------------------------------------------------------
@@ -297,7 +297,7 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
       }
     }
     Address pc = reinterpret_cast<Address>(buffer_start_) + request.offset();
-    Memory<Handle<Object>>(pc) = object;
+    WriteUnalignedValue(pc, object);
   }
 }
 
@@ -3199,8 +3199,8 @@ void Assembler::GrowBuffer() {
 
   // Relocate internal references.
   for (auto pos : internal_reference_positions_) {
-    int32_t* p = reinterpret_cast<int32_t*>(buffer_start_ + pos);
-    *p += pc_delta;
+    Address p = reinterpret_cast<Address>(buffer_start_ + pos);
+    WriteUnalignedValue(p, ReadUnalignedValue<int>(p) + pc_delta);
   }
 
   // Relocate pc-relative references.
@@ -3277,7 +3277,7 @@ void Assembler::emit_operand(int code, Operand adr) {
     pc_ -= sizeof(int32_t);  // pc_ must be *at* disp32
     RecordRelocInfo(adr.rmode_);
     if (adr.rmode_ == RelocInfo::INTERNAL_REFERENCE) {  // Fixup for labels
-      emit_label(*reinterpret_cast<Label**>(pc_));
+      emit_label(ReadUnalignedValue<Label*>(reinterpret_cast<Address>(pc_)));
     } else {
       pc_ += sizeof(int32_t);
     }

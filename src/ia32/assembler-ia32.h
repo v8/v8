@@ -275,8 +275,8 @@ class V8_EXPORT_PRIVATE Operand {
   inline void set_disp8(int8_t disp);
   inline void set_dispr(int32_t disp, RelocInfo::Mode rmode) {
     DCHECK(len_ == 1 || len_ == 2);
-    int32_t* p = reinterpret_cast<int32_t*>(&buf_[len_]);
-    *p = disp;
+    Address p = reinterpret_cast<Address>(&buf_[len_]);
+    WriteUnalignedValue(p, disp);
     len_ += sizeof(int32_t);
     rmode_ = rmode;
   }
@@ -1650,14 +1650,16 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void emit_sse_operand(Register dst, XMMRegister src);
   void emit_sse_operand(XMMRegister dst, Register src);
 
-  byte* addr_at(int pos) { return buffer_start_ + pos; }
+  Address addr_at(int pos) {
+    return reinterpret_cast<Address>(buffer_start_ + pos);
+  }
 
  private:
   uint32_t long_at(int pos)  {
-    return *reinterpret_cast<uint32_t*>(addr_at(pos));
+    return ReadUnalignedValue<uint32_t>(addr_at(pos));
   }
   void long_at_put(int pos, uint32_t x)  {
-    *reinterpret_cast<uint32_t*>(addr_at(pos)) = x;
+    WriteUnalignedValue(addr_at(pos), x);
   }
 
   // code emission
