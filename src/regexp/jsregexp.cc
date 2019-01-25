@@ -444,9 +444,8 @@ int RegExpImpl::IrregexpExecRaw(Isolate* isolate, Handle<JSRegExp> regexp,
       // This means that in case of failure, the output registers array is left
       // untouched and contains the capture results from the previous successful
       // match.  We can use that to set the last match info lazily.
-      NativeRegExpMacroAssembler::Result res =
-          NativeRegExpMacroAssembler::Match(code, subject, output, output_size,
-                                            index, isolate);
+      int res = NativeRegExpMacroAssembler::Match(code, subject, output,
+                                                  output_size, index, isolate);
       if (res != NativeRegExpMacroAssembler::RETRY) {
         DCHECK(res != NativeRegExpMacroAssembler::EXCEPTION ||
                isolate->has_pending_exception());
@@ -456,7 +455,7 @@ int RegExpImpl::IrregexpExecRaw(Isolate* isolate, Handle<JSRegExp> regexp,
                       RE_FAILURE);
         STATIC_ASSERT(static_cast<int>(NativeRegExpMacroAssembler::EXCEPTION) ==
                       RE_EXCEPTION);
-        return static_cast<IrregexpResult>(res);
+        return res;
       }
       // If result is RETRY, the string has changed representation, and we
       // must restart from scratch.

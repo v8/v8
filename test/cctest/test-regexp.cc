@@ -771,9 +771,11 @@ static ArchRegExpMacroAssembler::Result Execute(Code code, String input,
                                                 Address input_start,
                                                 Address input_end,
                                                 int* captures) {
-  return NativeRegExpMacroAssembler::Execute(
-      code, input, start_offset, reinterpret_cast<byte*>(input_start),
-      reinterpret_cast<byte*>(input_end), captures, 0, CcTest::i_isolate());
+  return static_cast<NativeRegExpMacroAssembler::Result>(
+      NativeRegExpMacroAssembler::Execute(code, input, start_offset,
+                                          reinterpret_cast<byte*>(input_start),
+                                          reinterpret_cast<byte*>(input_end),
+                                          captures, 0, CcTest::i_isolate()));
 }
 
 TEST(MacroAssemblerNativeSuccess) {
