@@ -419,8 +419,8 @@ TARGET_TEST_F(InterpreterAssemblerTest, GetContext) {
     EXPECT_THAT(
         m.GetContext(),
         m.IsLoad(MachineType::AnyTagged(), c::IsLoadParentFramePointer(),
-                 c::IsIntPtrConstant(Register::current_context().ToOperand()
-                                     << kPointerSizeLog2)));
+                 c::IsIntPtrConstant(Register::current_context().ToOperand() *
+                                     kPointerSize)));
   }
 }
 
@@ -535,8 +535,8 @@ TARGET_TEST_F(InterpreterAssemblerTest, LoadFeedbackVector) {
 
     Matcher<Node*> load_function_matcher =
         m.IsLoad(MachineType::AnyTagged(), c::IsLoadParentFramePointer(),
-                 c::IsIntPtrConstant(Register::function_closure().ToOperand()
-                                     << kPointerSizeLog2));
+                 c::IsIntPtrConstant(Register::function_closure().ToOperand() *
+                                     kPointerSize));
     Matcher<Node*> load_vector_cell_matcher = m.IsLoad(
         MachineType::AnyTagged(), load_function_matcher,
         c::IsIntPtrConstant(JSFunction::kFeedbackCellOffset - kHeapObjectTag));

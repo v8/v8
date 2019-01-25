@@ -54,7 +54,7 @@ class Smi : public Object {
   static inline Smi FromIntptr(intptr_t value) {
     DCHECK(Smi::IsValid(value));
     int smi_shift_bits = kSmiTagSize + kSmiShiftSize;
-    return Smi((value << smi_shift_bits) | kSmiTag);
+    return Smi((static_cast<Address>(value) << smi_shift_bits) | kSmiTag);
   }
 
   template <typename E,

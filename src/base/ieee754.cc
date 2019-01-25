@@ -309,7 +309,7 @@ int32_t __ieee754_rem_pio2(double x, double *y) {
   GET_LOW_WORD(low, x);
   SET_LOW_WORD(z, low);
   e0 = (ix >> 20) - 1046; /* e0 = ilogb(z)-23; */
-  SET_HIGH_WORD(z, ix - static_cast<int32_t>(e0 << 20));
+  SET_HIGH_WORD(z, ix - static_cast<int32_t>(static_cast<uint32_t>(e0) << 20));
   for (i = 0; i < 2; i++) {
     tx[i] = static_cast<double>(static_cast<int32_t>(z));
     z = (z - tx[i]) * two24;
@@ -1569,9 +1569,12 @@ double exp(double x) {
   /* x is now in primary range */
   t = x * x;
   if (k >= -1021) {
-    INSERT_WORDS(twopk, 0x3FF00000 + (k << 20), 0);
+    INSERT_WORDS(
+        twopk,
+        0x3FF00000 + static_cast<int32_t>(static_cast<uint32_t>(k) << 20), 0);
   } else {
-    INSERT_WORDS(twopk, 0x3FF00000 + ((k + 1000) << 20), 0);
+    INSERT_WORDS(twopk, 0x3FF00000 + (static_cast<uint32_t>(k + 1000) << 20),
+                 0);
   }
   c = x - t * (P1 + t * (P2 + t * (P3 + t * (P4 + t * P5))));
   if (k == 0) {
@@ -2341,7 +2344,10 @@ double expm1(double x) {
   if (k == 0) {
     return x - (x * e - hxs); /* c is 0 */
   } else {
-    INSERT_WORDS(twopk, 0x3FF00000 + (k << 20), 0); /* 2^k */
+    INSERT_WORDS(
+        twopk,
+        0x3FF00000 + static_cast<int32_t>(static_cast<uint32_t>(k) << 20),
+        0); /* 2^k */
     e = (x * (e - c) - c);
     e -= hxs;
     if (k == -1) return 0.5 * (x - e) - 0.5;

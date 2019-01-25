@@ -158,7 +158,8 @@ int UnsignedGreaterEqual(T a, T b) {
 
 template <typename T>
 T LogicalShiftLeft(T a, int shift) {
-  return a << shift;
+  using UnsignedT = typename std::make_unsigned<T>::type;
+  return static_cast<UnsignedT>(a) << shift;
 }
 
 template <typename T>

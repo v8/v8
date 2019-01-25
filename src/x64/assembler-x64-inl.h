@@ -160,14 +160,14 @@ void Assembler::emit_optional_rex_32(Operand op) {
 // byte 1 of 3-byte VEX
 void Assembler::emit_vex3_byte1(XMMRegister reg, XMMRegister rm,
                                 LeadingOpcode m) {
-  byte rxb = ~((reg.high_bit() << 2) | rm.high_bit()) << 5;
+  byte rxb = static_cast<byte>(~((reg.high_bit() << 2) | rm.high_bit())) << 5;
   emit(rxb | m);
 }
 
 
 // byte 1 of 3-byte VEX
 void Assembler::emit_vex3_byte1(XMMRegister reg, Operand rm, LeadingOpcode m) {
-  byte rxb = ~((reg.high_bit() << 2) | rm.data().rex) << 5;
+  byte rxb = static_cast<byte>(~((reg.high_bit() << 2) | rm.data().rex)) << 5;
   emit(rxb | m);
 }
 
@@ -175,7 +175,7 @@ void Assembler::emit_vex3_byte1(XMMRegister reg, Operand rm, LeadingOpcode m) {
 // byte 1 of 2-byte VEX
 void Assembler::emit_vex2_byte1(XMMRegister reg, XMMRegister v, VectorLength l,
                                 SIMDPrefix pp) {
-  byte rv = ~((reg.high_bit() << 4) | v.code()) << 3;
+  byte rv = static_cast<byte>(~((reg.high_bit() << 4) | v.code())) << 3;
   emit(rv | l | pp);
 }
 

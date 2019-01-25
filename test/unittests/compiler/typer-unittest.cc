@@ -303,7 +303,9 @@ class TyperTest : public TypedGraphTest {
 
 namespace {
 
-int32_t shift_left(int32_t x, int32_t y) { return x << (y & 0x1F); }
+int32_t shift_left(int32_t x, int32_t y) {
+  return static_cast<uint32_t>(x) << (y & 0x1F);
+}
 int32_t shift_right(int32_t x, int32_t y) { return x >> (y & 0x1F); }
 int32_t bit_or(int32_t x, int32_t y) { return x | y; }
 int32_t bit_and(int32_t x, int32_t y) { return x & y; }

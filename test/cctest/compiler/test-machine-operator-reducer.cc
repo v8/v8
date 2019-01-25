@@ -335,7 +335,7 @@ TEST(ReduceWord32Shl) {
   FOR_INT32_INPUTS(i) {
     for (int y = 0; y < 32; y++) {
       int32_t x = *i;
-      R.CheckFoldBinop<int32_t>(x << y, x, y);
+      R.CheckFoldBinop<int32_t>(base::ShlWithWraparound(x, y), x, y);
     }
   }
 
@@ -354,7 +354,7 @@ TEST(ReduceWord64Shl) {
   FOR_INT64_INPUTS(i) {
     for (int64_t y = 0; y < 64; y++) {
       int64_t x = *i;
-      R.CheckFoldBinop<int64_t>(x << y, x, y);
+      R.CheckFoldBinop<int64_t>(base::ShlWithWraparound(x, y), x, y);
     }
   }
 

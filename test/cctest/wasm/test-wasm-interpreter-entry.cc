@@ -124,7 +124,7 @@ TEST(TestArgumentPassing_double_int64) {
        WASM_CALL_FUNCTION0(f2.function_index())},
       [](int32_t a, int32_t b) {
         int64_t a64 = static_cast<int64_t>(a) & 0xFFFFFFFF;
-        int64_t b64 = static_cast<int64_t>(b) << 32;
+        int64_t b64 = static_cast<uint64_t>(static_cast<int64_t>(b)) << 32;
         return static_cast<double>(a64 | b64);
       });
 

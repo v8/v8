@@ -32,9 +32,9 @@ WASM_EXEC_TEST(I64Const) {
 
 WASM_EXEC_TEST(I64Const_many) {
   int cntr = 0;
-  FOR_INT32_INPUTS(i) {
+  FOR_UINT32_INPUTS(i) {
     WasmRunner<int64_t> r(execution_tier);
-    const int64_t kExpectedValue = (static_cast<int64_t>(*i) << 32) | cntr;
+    const int64_t kExpectedValue = (static_cast<uint64_t>(*i) << 32) | cntr;
     // return(kExpectedValue)
     BUILD(r, WASM_I64V(kExpectedValue));
     CHECK_EQ(kExpectedValue, r.Call());
@@ -1172,16 +1172,9 @@ WASM_EXEC_TEST(Call_Int64Sub) {
   BUILD(r, WASM_CALL_FUNCTION(t.function_index(), WASM_GET_LOCAL(0),
                               WASM_GET_LOCAL(1)));
 
-  FOR_INT32_INPUTS(i) {
-    FOR_INT32_INPUTS(j) {
-      int64_t a = static_cast<int64_t>(*i) << 32 |
-                  (static_cast<int64_t>(*j) | 0xFFFFFFFF);
-      int64_t b = static_cast<int64_t>(*j) << 32 |
-                  (static_cast<int64_t>(*i) | 0xFFFFFFFF);
-
-      int64_t expected = static_cast<int64_t>(static_cast<uint64_t>(a) -
-                                              static_cast<uint64_t>(b));
-      CHECK_EQ(expected, r.Call(a, b));
+  FOR_INT64_INPUTS(i) {
+    FOR_INT64_INPUTS(j) {
+      CHECK_EQ(base::SubWithWraparound(*i, *j), r.Call(*i, *j));
     }
   }
 }
@@ -1217,7 +1210,8 @@ WASM_EXEC_TEST(LoadStoreI64_sx) {
       r.builder().BlankMemory();
       memory[size - 1] = static_cast<byte>(i);  // set the high order byte.
 
-      int64_t expected = static_cast<int64_t>(i) << ((size - 1) * 8);
+      int64_t expected = static_cast<uint64_t>(static_cast<int64_t>(i))
+                         << ((size - 1) * 8);
 
       CHECK_EQ(expected, r.Call());
       CHECK_EQ(static_cast<byte>(i), memory[8 + size - 1]);

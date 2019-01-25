@@ -179,7 +179,8 @@ bool Parser::ShortcutNumericLiteralBinaryExpression(Expression** x,
         return true;
       }
       case Token::SHL: {
-        int value = DoubleToInt32(x_val) << (DoubleToInt32(y_val) & 0x1F);
+        int value =
+            base::ShlWithWraparound(DoubleToInt32(x_val), DoubleToInt32(y_val));
         *x = factory()->NewNumberLiteral(value, pos);
         return true;
       }

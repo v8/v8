@@ -1438,11 +1438,11 @@ TEST(RunInt32AddAndWord32SarP) {
 TEST(RunInt32AddAndWord32ShlP) {
   {
     RawMachineAssemblerTester<int32_t> m(
-        MachineType::Uint32(), MachineType::Int32(), MachineType::Uint32());
+        MachineType::Uint32(), MachineType::Uint32(), MachineType::Uint32());
     m.Return(m.Int32Add(m.Parameter(0),
                         m.Word32Shl(m.Parameter(1), m.Parameter(2))));
     FOR_UINT32_INPUTS(i) {
-      FOR_INT32_INPUTS(j) {
+      FOR_UINT32_INPUTS(j) {
         FOR_UINT32_SHIFTS(shift) {
           // Use uint32_t because signed overflow is UB in C.
           int32_t expected = *i + (*j << shift);
@@ -1453,10 +1453,10 @@ TEST(RunInt32AddAndWord32ShlP) {
   }
   {
     RawMachineAssemblerTester<int32_t> m(
-        MachineType::Int32(), MachineType::Uint32(), MachineType::Uint32());
+        MachineType::Uint32(), MachineType::Uint32(), MachineType::Uint32());
     m.Return(m.Int32Add(m.Word32Shl(m.Parameter(0), m.Parameter(1)),
                         m.Parameter(2)));
-    FOR_INT32_INPUTS(i) {
+    FOR_UINT32_INPUTS(i) {
       FOR_UINT32_SHIFTS(shift) {
         FOR_UINT32_INPUTS(k) {
           // Use uint32_t because signed overflow is UB in C.
@@ -1604,7 +1604,7 @@ TEST(RunInt32AddInBranch) {
                 right = *j >> shift;
                 break;
               case IrOpcode::kWord32Shl:
-                right = *j << shift;
+                right = static_cast<uint32_t>(*j) << shift;
                 break;
               case IrOpcode::kWord32Shr:
                 right = static_cast<uint32_t>(*j) >> shift;
@@ -1690,7 +1690,7 @@ TEST(RunInt32AddInComparison) {
                 right = *j >> shift;
                 break;
               case IrOpcode::kWord32Shl:
-                right = *j << shift;
+                right = static_cast<uint32_t>(*j) << shift;
                 break;
               case IrOpcode::kWord32Shr:
                 right = static_cast<uint32_t>(*j) >> shift;
@@ -1784,11 +1784,11 @@ TEST(RunInt32SubAndWord32SarP) {
 TEST(RunInt32SubAndWord32ShlP) {
   {
     RawMachineAssemblerTester<int32_t> m(
-        MachineType::Uint32(), MachineType::Int32(), MachineType::Uint32());
+        MachineType::Uint32(), MachineType::Uint32(), MachineType::Uint32());
     m.Return(m.Int32Sub(m.Parameter(0),
                         m.Word32Shl(m.Parameter(1), m.Parameter(2))));
     FOR_UINT32_INPUTS(i) {
-      FOR_INT32_INPUTS(j) {
+      FOR_UINT32_INPUTS(j) {
         FOR_UINT32_SHIFTS(shift) {
           int32_t expected = *i - (*j << shift);
           CHECK_EQ(expected, m.Call(*i, *j, shift));
@@ -1798,10 +1798,10 @@ TEST(RunInt32SubAndWord32ShlP) {
   }
   {
     RawMachineAssemblerTester<int32_t> m(
-        MachineType::Int32(), MachineType::Uint32(), MachineType::Uint32());
+        MachineType::Uint32(), MachineType::Uint32(), MachineType::Uint32());
     m.Return(m.Int32Sub(m.Word32Shl(m.Parameter(0), m.Parameter(1)),
                         m.Parameter(2)));
-    FOR_INT32_INPUTS(i) {
+    FOR_UINT32_INPUTS(i) {
       FOR_UINT32_SHIFTS(shift) {
         FOR_UINT32_INPUTS(k) {
           // Use uint32_t because signed overflow is UB in C.
@@ -1949,7 +1949,7 @@ TEST(RunInt32SubInBranch) {
                 right = *j >> shift;
                 break;
               case IrOpcode::kWord32Shl:
-                right = *j << shift;
+                right = static_cast<uint32_t>(*j) << shift;
                 break;
               case IrOpcode::kWord32Shr:
                 right = static_cast<uint32_t>(*j) >> shift;
@@ -2035,7 +2035,7 @@ TEST(RunInt32SubInComparison) {
                 right = *j >> shift;
                 break;
               case IrOpcode::kWord32Shl:
-                right = *j << shift;
+                right = static_cast<uint32_t>(*j) << shift;
                 break;
               case IrOpcode::kWord32Shr:
                 right = static_cast<uint32_t>(*j) >> shift;
@@ -2627,7 +2627,7 @@ TEST(RunWord32AndInBranch) {
                 right = *j >> shift;
                 break;
               case IrOpcode::kWord32Shl:
-                right = *j << shift;
+                right = static_cast<uint32_t>(*j) << shift;
                 break;
               case IrOpcode::kWord32Shr:
                 right = static_cast<uint32_t>(*j) >> shift;
@@ -2856,7 +2856,7 @@ TEST(RunWord32OrInBranch) {
                 right = *j >> shift;
                 break;
               case IrOpcode::kWord32Shl:
-                right = *j << shift;
+                right = static_cast<uint32_t>(*j) << shift;
                 break;
               case IrOpcode::kWord32Shr:
                 right = static_cast<uint32_t>(*j) >> shift;
@@ -3082,7 +3082,7 @@ TEST(RunWord32XorInBranch) {
                 right = *j >> shift;
                 break;
               case IrOpcode::kWord32Shl:
-                right = *j << shift;
+                right = static_cast<uint32_t>(*j) << shift;
                 break;
               case IrOpcode::kWord32Shr:
                 right = static_cast<uint32_t>(*j) >> shift;

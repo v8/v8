@@ -204,7 +204,7 @@ WASM_I32_BINOP_TEST(RemU, uint32_t, b == 0 ? 0xDEADBEEF : a % b)
 WASM_I32_BINOP_TEST(And, int32_t, a& b)
 WASM_I32_BINOP_TEST(Ior, int32_t, a | b)
 WASM_I32_BINOP_TEST(Xor, int32_t, a ^ b)
-WASM_I32_BINOP_TEST(Shl, int32_t, a << (b & 0x1F))
+WASM_I32_BINOP_TEST(Shl, int32_t, base::ShlWithWraparound(a, b))
 WASM_I32_BINOP_TEST(ShrU, uint32_t, a >> (b & 0x1F))
 WASM_I32_BINOP_TEST(ShrS, int32_t, a >> (b & 0x1F))
 WASM_I32_BINOP_TEST(Ror, uint32_t, (a >> (b & 0x1F)) | (a << ((32 - b) & 0x1F)))
@@ -2039,7 +2039,7 @@ WASM_EXEC_TEST(Int32LoadInt16_signext) {
   BUILD(r, WASM_LOAD_MEM(MachineType::Int16(), WASM_GET_LOCAL(0)));
 
   for (int i = 0; i < kNumBytes; i += 2) {
-    int32_t expected = memory[i] | (static_cast<int8_t>(memory[i + 1]) << 8);
+    int32_t expected = static_cast<int16_t>(memory[i] | (memory[i + 1] << 8));
     CHECK_EQ(expected, r.Call(i));
   }
 }
@@ -3307,9 +3307,11 @@ WASM_EXEC_TEST(I32MulOnDifferentRegisters) {
 }
 
 WASM_EXEC_TEST(I32ShlOnDifferentRegisters) {
-  BinOpOnDifferentRegisters<int32_t>(
-      execution_tier, kWasmI32, ArrayVector(kSome32BitInputs), kExprI32Shl,
-      [](int32_t lhs, int32_t rhs, bool* trap) { return lhs << (rhs & 31); });
+  BinOpOnDifferentRegisters<int32_t>(execution_tier, kWasmI32,
+                                     ArrayVector(kSome32BitInputs), kExprI32Shl,
+                                     [](int32_t lhs, int32_t rhs, bool* trap) {
+                                       return base::ShlWithWraparound(lhs, rhs);
+                                     });
 }
 
 WASM_EXEC_TEST(I32ShrSOnDifferentRegisters) {
@@ -3383,9 +3385,11 @@ WASM_EXEC_TEST(I64MulOnDifferentRegisters) {
 }
 
 WASM_EXEC_TEST(I64ShlOnDifferentRegisters) {
-  BinOpOnDifferentRegisters<int64_t>(
-      execution_tier, kWasmI64, ArrayVector(kSome64BitInputs), kExprI64Shl,
-      [](int64_t lhs, int64_t rhs, bool* trap) { return lhs << (rhs & 63); });
+  BinOpOnDifferentRegisters<int64_t>(execution_tier, kWasmI64,
+                                     ArrayVector(kSome64BitInputs), kExprI64Shl,
+                                     [](int64_t lhs, int64_t rhs, bool* trap) {
+                                       return base::ShlWithWraparound(lhs, rhs);
+                                     });
 }
 
 WASM_EXEC_TEST(I64ShrSOnDifferentRegisters) {

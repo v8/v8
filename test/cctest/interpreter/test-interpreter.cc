@@ -7,6 +7,7 @@
 #include "src/v8.h"
 
 #include "src/api-inl.h"
+#include "src/base/overflowing-math.h"
 #include "src/execution.h"
 #include "src/handles.h"
 #include "src/interpreter/bytecode-array-builder.h"
@@ -239,7 +240,7 @@ static double BinaryOpC(Token::Value op, double lhs, double rhs) {
     case Token::Value::MUL:
       return lhs * rhs;
     case Token::Value::DIV:
-      return lhs / rhs;
+      return base::Divide(lhs, rhs);
     case Token::Value::MOD:
       return Modulo(lhs, rhs);
     case Token::Value::BIT_OR:
@@ -252,10 +253,7 @@ static double BinaryOpC(Token::Value op, double lhs, double rhs) {
       return (v8::internal::DoubleToInt32(lhs) &
               v8::internal::DoubleToInt32(rhs));
     case Token::Value::SHL: {
-      int32_t val = v8::internal::DoubleToInt32(lhs);
-      uint32_t count = v8::internal::DoubleToUint32(rhs) & 0x1F;
-      int32_t result = val << count;
-      return result;
+      return base::ShlWithWraparound(DoubleToInt32(lhs), DoubleToInt32(rhs));
     }
     case Token::Value::SAR: {
       int32_t val = v8::internal::DoubleToInt32(lhs);

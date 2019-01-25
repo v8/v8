@@ -328,7 +328,8 @@ TEST_F(FunctionBodyDecoderTest, Int32Const) {
 TEST_F(FunctionBodyDecoderTest, Int64Const) {
   const int kInc = 4498211;
   for (int32_t i = kMinInt; i < kMaxInt - kInc; i = i + kInc) {
-    byte code[] = {WASM_I64V((static_cast<int64_t>(i) << 32) | i)};
+    byte code[] = {
+        WASM_I64V((static_cast<uint64_t>(static_cast<int64_t>(i)) << 32) | i)};
     EXPECT_VERIFIES_C(l_l, code);
   }
 }

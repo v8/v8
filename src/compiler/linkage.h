@@ -153,7 +153,9 @@ class LinkageLocation {
   LinkageLocation(LocationType type, int32_t location,
                   MachineType machine_type) {
     bit_field_ = TypeField::encode(type) |
-                 ((location << LocationField::kShift) & LocationField::kMask);
+                 // {location} can be -1 (ANY_REGISTER).
+                 ((static_cast<uint32_t>(location) << LocationField::kShift) &
+                  LocationField::kMask);
     machine_type_ = machine_type;
   }
 

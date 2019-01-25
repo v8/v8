@@ -341,7 +341,9 @@ class Decoder {
       DCHECK_LT(pc, end_);
       b = *pc;
       TRACE_IF(trace, "%02x ", b);
-      result = result | ((static_cast<IntType>(b) & 0x7f) << shift);
+      typedef typename std::make_unsigned<IntType>::type Unsigned;
+      result = result |
+               (static_cast<Unsigned>(static_cast<IntType>(b) & 0x7f) << shift);
     }
     if (!is_last_byte && (b & 0x80)) {
       // Make sure that we only instantiate the template for valid byte indexes.

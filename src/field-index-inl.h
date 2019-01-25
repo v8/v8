@@ -57,7 +57,7 @@ inline int FieldIndex::GetLoadByFieldIndex() const {
     result -= FixedArray::kHeaderSize / kTaggedSize;
     result = -result - 1;
   }
-  result <<= 1;
+  result = static_cast<uint32_t>(result) << 1;
   return is_double() ? (result | 1) : result;
 }
 

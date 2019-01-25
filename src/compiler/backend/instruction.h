@@ -195,7 +195,8 @@ class UnallocatedOperand final : public InstructionOperand {
       : UnallocatedOperand(virtual_register) {
     DCHECK(policy == FIXED_SLOT);
     value_ |= BasicPolicyField::encode(policy);
-    value_ |= static_cast<int64_t>(index) << FixedSlotIndexField::kShift;
+    value_ |= static_cast<uint64_t>(static_cast<int64_t>(index))
+              << FixedSlotIndexField::kShift;
     DCHECK(this->fixed_slot_index() == index);
   }
 
@@ -382,7 +383,8 @@ class ImmediateOperand : public InstructionOperand {
   explicit ImmediateOperand(ImmediateType type, int32_t value)
       : InstructionOperand(IMMEDIATE) {
     value_ |= TypeField::encode(type);
-    value_ |= static_cast<int64_t>(value) << ValueField::kShift;
+    value_ |= static_cast<uint64_t>(static_cast<int64_t>(value))
+              << ValueField::kShift;
   }
 
   ImmediateType type() const { return TypeField::decode(value_); }
@@ -420,7 +422,8 @@ class LocationOperand : public InstructionOperand {
     DCHECK(IsSupportedRepresentation(rep));
     value_ |= LocationKindField::encode(location_kind);
     value_ |= RepresentationField::encode(rep);
-    value_ |= static_cast<int64_t>(index) << IndexField::kShift;
+    value_ |= static_cast<uint64_t>(static_cast<int64_t>(index))
+              << IndexField::kShift;
   }
 
   int index() const {

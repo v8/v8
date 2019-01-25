@@ -1974,15 +1974,18 @@ class ThreadImpl {
     Push(WasmValue(Simd128(res)));                                       \
     return true;                                                         \
   }
-        SHIFT_CASE(I32x4Shl, i32x4, int4, 4, a << imm.shift)
+        SHIFT_CASE(I32x4Shl, i32x4, int4, 4,
+                   static_cast<uint32_t>(a) << imm.shift)
         SHIFT_CASE(I32x4ShrS, i32x4, int4, 4, a >> imm.shift)
         SHIFT_CASE(I32x4ShrU, i32x4, int4, 4,
                    static_cast<uint32_t>(a) >> imm.shift)
-        SHIFT_CASE(I16x8Shl, i16x8, int8, 8, a << imm.shift)
+        SHIFT_CASE(I16x8Shl, i16x8, int8, 8,
+                   static_cast<uint16_t>(a) << imm.shift)
         SHIFT_CASE(I16x8ShrS, i16x8, int8, 8, a >> imm.shift)
         SHIFT_CASE(I16x8ShrU, i16x8, int8, 8,
                    static_cast<uint16_t>(a) >> imm.shift)
-        SHIFT_CASE(I8x16Shl, i8x16, int16, 16, a << imm.shift)
+        SHIFT_CASE(I8x16Shl, i8x16, int16, 16,
+                   static_cast<uint8_t>(a) << imm.shift)
         SHIFT_CASE(I8x16ShrS, i8x16, int16, 16, a >> imm.shift)
         SHIFT_CASE(I8x16ShrU, i8x16, int16, 16,
                    static_cast<uint8_t>(a) >> imm.shift)
