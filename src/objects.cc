@@ -23,6 +23,7 @@
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
 #include "src/base/bits.h"
+#include "src/base/overflowing-math.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/bootstrapper.h"
 #include "src/builtins/builtins.h"
@@ -19144,11 +19145,15 @@ Address Smi::LexicographicCompare(Isolate* isolate, Smi x, Smi y) {
   // architectures using 32-bit Smis.
   uint32_t x_scaled = x_value;
   uint32_t y_scaled = y_value;
-  if (x_value < 0 || y_value < 0) {
-    if (y_value >= 0) return Smi::FromInt(-1).ptr();
-    if (x_value >= 0) return Smi::FromInt(1).ptr();
-    x_scaled = -x_value;
-    y_scaled = -y_value;
+  if (x_value < 0) {
+    if (y_value >= 0) {
+      return Smi::FromInt(-1).ptr();
+    } else {
+      y_scaled = base::NegateWithWraparound(y_value);
+    }
+    x_scaled = base::NegateWithWraparound(x_value);
+  } else if (y_value < 0) {
+    return Smi::FromInt(1).ptr();
   }
 
   // clang-format off

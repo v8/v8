@@ -284,14 +284,13 @@ int DateCache::GetLocalOffsetFromOS(int64_t time_ms, bool is_utc) {
 
 void DateCache::ExtendTheAfterSegment(int time_sec, int offset_ms) {
   if (after_->offset_ms == offset_ms &&
-      after_->start_sec <=
-          base::AddWithWraparound(time_sec, kDefaultDSTDeltaInSec) &&
+      after_->start_sec - kDefaultDSTDeltaInSec <= time_sec &&
       time_sec <= after_->end_sec) {
     // Extend the after_ segment.
     after_->start_sec = time_sec;
   } else {
     // The after_ segment is either invalid or starts too late.
-    if (after_->start_sec <= after_->end_sec) {
+    if (!InvalidSegment(after_)) {
       // If the after_ segment is valid, replace it with a new segment.
       after_ = LeastRecentlyUsedDST(before_);
     }
@@ -346,7 +345,7 @@ int DateCache::DaylightSavingsOffsetInMs(int64_t time_ms) {
     return before_->offset_ms;
   }
 
-  if (time_sec > before_->end_sec + kDefaultDSTDeltaInSec) {
+  if (time_sec - kDefaultDSTDeltaInSec > before_->end_sec) {
     // If the before_ segment ends too early, then just
     // query for the offset of the time_sec
     int offset_ms = GetDaylightSavingsOffsetFromOS(time_sec);
@@ -365,8 +364,11 @@ int DateCache::DaylightSavingsOffsetInMs(int64_t time_ms) {
 
   // Check if after_ segment is invalid or starts too late.
   // Note that start_sec of invalid segments is kMaxEpochTimeInSec.
-  if (before_->end_sec + kDefaultDSTDeltaInSec <= after_->start_sec) {
-    int new_after_start_sec = before_->end_sec + kDefaultDSTDeltaInSec;
+  int new_after_start_sec =
+      before_->end_sec < kMaxEpochTimeInSec - kDefaultDSTDeltaInSec
+          ? before_->end_sec + kDefaultDSTDeltaInSec
+          : kMaxEpochTimeInSec;
+  if (new_after_start_sec <= after_->start_sec) {
     int new_offset_ms = GetDaylightSavingsOffsetFromOS(new_after_start_sec);
     ExtendTheAfterSegment(new_after_start_sec, new_offset_ms);
   } else {
