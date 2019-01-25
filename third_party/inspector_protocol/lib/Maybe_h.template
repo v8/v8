@@ -83,7 +83,7 @@ protected:
 template<>
 class Maybe<bool> : public MaybeBase<bool> {
 public:
-    Maybe() { }
+    Maybe() { m_value = false; }
     Maybe(bool value) : MaybeBase(value) { }
     Maybe(Maybe&& other) IP_NOEXCEPT : MaybeBase(std::move(other)) {}
     using MaybeBase::operator=;
@@ -92,7 +92,7 @@ public:
 template<>
 class Maybe<int> : public MaybeBase<int> {
 public:
-    Maybe() { }
+    Maybe() { m_value = 0; }
     Maybe(int value) : MaybeBase(value) { }
     Maybe(Maybe&& other) IP_NOEXCEPT : MaybeBase(std::move(other)) {}
     using MaybeBase::operator=;
@@ -101,7 +101,7 @@ public:
 template<>
 class Maybe<double> : public MaybeBase<double> {
 public:
-    Maybe() { }
+    Maybe() { m_value = 0; }
     Maybe(double value) : MaybeBase(value) { }
     Maybe(Maybe&& other) IP_NOEXCEPT : MaybeBase(std::move(other)) {}
     using MaybeBase::operator=;
