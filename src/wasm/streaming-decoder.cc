@@ -123,7 +123,7 @@ namespace {
 
 class TopTierCompiledCallback {
  public:
-  TopTierCompiledCallback(std::shared_ptr<NativeModule> native_module,
+  TopTierCompiledCallback(std::weak_ptr<NativeModule> native_module,
                           StreamingDecoder::ModuleCompiledCallback callback)
       : native_module_(std::move(native_module)),
         callback_(std::move(callback)) {}
@@ -131,7 +131,11 @@ class TopTierCompiledCallback {
   void operator()(CompilationEvent event, const WasmError* error) const {
     if (event != CompilationEvent::kFinishedTopTierCompilation) return;
     DCHECK_NULL(error);
-    callback_(native_module_);
+    // If the native module is still alive, get back a shared ptr and call the
+    // callback.
+    if (std::shared_ptr<NativeModule> native_module = native_module_.lock()) {
+      callback_(native_module);
+    }
 #ifdef DEBUG
     DCHECK(!called_);
     called_ = true;
@@ -139,7 +143,7 @@ class TopTierCompiledCallback {
   }
 
  private:
-  const std::shared_ptr<NativeModule> native_module_;
+  const std::weak_ptr<NativeModule> native_module_;
   const StreamingDecoder::ModuleCompiledCallback callback_;
 #ifdef DEBUG
   mutable bool called_ = false;
