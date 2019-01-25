@@ -61,7 +61,6 @@ class TestEmbedderHeapTracer final : public v8::EmbedderHeapTracer {
 
   void TracePrologue() final {}
   void TraceEpilogue() final {}
-  void AbortTracing() final {}
   void EnterFinalPause(EmbedderStackState) final {}
 
   bool IsRegisteredFromV8(void* first_field) const {

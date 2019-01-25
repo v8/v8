@@ -7077,15 +7077,6 @@ class V8_EXPORT EmbedderHeapTracer {
    */
   virtual void EnterFinalPause(EmbedderStackState stack_state) = 0;
 
-  /**
-   * Called when tracing is aborted.
-   *
-   * The embedder is expected to throw away all intermediate data and reset to
-   * the initial state.
-   */
-  V8_DEPRECATED("Obsolete as V8 will not abort tracing anymore.",
-                virtual void AbortTracing()) {}
-
   /*
    * Called by the embedder to request immediate finalization of the currently
    * running tracing phase that has been started with TracePrologue and not
