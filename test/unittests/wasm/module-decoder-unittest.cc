@@ -173,7 +173,9 @@ class WasmModuleVerifyTest : public TestWithIsolateAndZone {
     size_t total = sizeof(header) + size;
     auto temp = new byte[total];
     memcpy(temp, header, sizeof(header));
-    memcpy(temp + sizeof(header), module_start, size);
+    if (size > 0) {
+      memcpy(temp + sizeof(header), module_start, size);
+    }
     ModuleResult result = DecodeWasmModule(
         enabled_features_, temp, temp + total, false, kWasmOrigin,
         isolate()->counters(), isolate()->allocator());

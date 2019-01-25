@@ -116,7 +116,9 @@ class FunctionBodyDecoderTest : public TestWithZone {
     // Prepend the local decls to the code.
     local_decls.Emit(buffer);
     // Emit the code.
-    memcpy(buffer + locals_size, code.start(), code.size());
+    if (code.size() > 0) {
+      memcpy(buffer + locals_size, code.start(), code.size());
+    }
     if (append_end == kAppendEnd) {
       // Append an extra end opcode.
       buffer[total_size - 1] = kExprEnd;

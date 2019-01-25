@@ -181,7 +181,9 @@ uint32_t TestingModuleBuilder::AddBytes(Vector<const byte> bytes) {
   uint32_t bytes_offset = old_size ? old_size : 1;
   size_t new_size = bytes_offset + bytes.size();
   OwnedVector<uint8_t> new_bytes = OwnedVector<uint8_t>::New(new_size);
-  memcpy(new_bytes.start(), old_bytes.start(), old_size);
+  if (old_size > 0) {
+    memcpy(new_bytes.start(), old_bytes.start(), old_size);
+  }
   memcpy(new_bytes.start() + bytes_offset, bytes.start(), bytes.length());
   native_module_->SetWireBytes(std::move(new_bytes));
   return bytes_offset;

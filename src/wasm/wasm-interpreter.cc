@@ -2727,7 +2727,9 @@ class ThreadImpl {
     for (WasmValue *val = vals, *end = vals + arity; val != end; ++val) {
       DCHECK_NE(kWasmStmt, val->type());
     }
-    memcpy(sp_, vals, arity * sizeof(*sp_));
+    if (arity > 0) {
+      memcpy(sp_, vals, arity * sizeof(*sp_));
+    }
     sp_ += arity;
   }
 
@@ -2738,7 +2740,9 @@ class ThreadImpl {
         base::bits::RoundUpToPowerOfTwo64((sp_ - stack_.get()) + size);
     size_t new_size = Max(size_t{8}, Max(2 * old_size, requested_size));
     std::unique_ptr<WasmValue[]> new_stack(new WasmValue[new_size]);
-    memcpy(new_stack.get(), stack_.get(), old_size * sizeof(*sp_));
+    if (old_size > 0) {
+      memcpy(new_stack.get(), stack_.get(), old_size * sizeof(*sp_));
+    }
     sp_ = new_stack.get() + (sp_ - stack_.get());
     stack_ = std::move(new_stack);
     stack_limit_ = stack_.get() + new_size;

@@ -73,7 +73,9 @@ int Scanner::LiteralBuffer::NewCapacity(int min_capacity) {
 void Scanner::LiteralBuffer::ExpandBuffer() {
   int min_capacity = Max(kInitialCapacity, backing_store_.length());
   Vector<byte> new_store = Vector<byte>::New(NewCapacity(min_capacity));
-  MemCopy(new_store.start(), backing_store_.start(), position_);
+  if (position_ > 0) {
+    MemCopy(new_store.start(), backing_store_.start(), position_);
+  }
   backing_store_.Dispose();
   backing_store_ = new_store;
 }

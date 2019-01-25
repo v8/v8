@@ -411,8 +411,10 @@ void NativeModule::ReserveCodeTableForTesting(uint32_t max_functions) {
   DCHECK_LE(num_functions(), max_functions);
   WasmCode** new_table = new WasmCode*[max_functions];
   memset(new_table, 0, max_functions * sizeof(*new_table));
-  memcpy(new_table, code_table_.get(),
-         module_->num_declared_functions * sizeof(*new_table));
+  if (module_->num_declared_functions > 0) {
+    memcpy(new_table, code_table_.get(),
+           module_->num_declared_functions * sizeof(*new_table));
+  }
   code_table_.reset(new_table);
 
   // Re-allocate jump table.
@@ -520,12 +522,17 @@ WasmCode* NativeModule::AddAnonymousCode(Handle<Code> code, WasmCode::Kind kind,
   const size_t relocation_size =
       code->is_off_heap_trampoline() ? 0 : code->relocation_size();
   OwnedVector<byte> reloc_info = OwnedVector<byte>::New(relocation_size);
-  memcpy(reloc_info.start(), code->relocation_start(), relocation_size);
+  if (relocation_size > 0) {
+    memcpy(reloc_info.start(), code->relocation_start(), relocation_size);
+  }
   Handle<ByteArray> source_pos_table(code->SourcePositionTable(),
                                      code->GetIsolate());
   OwnedVector<byte> source_pos =
       OwnedVector<byte>::New(source_pos_table->length());
-  source_pos_table->copy_out(0, source_pos.start(), source_pos_table->length());
+  if (source_pos_table->length() > 0) {
+    source_pos_table->copy_out(0, source_pos.start(),
+                               source_pos_table->length());
+  }
   Vector<const byte> instructions(
       reinterpret_cast<byte*>(code->InstructionStart()),
       static_cast<size_t>(code->InstructionSize()));
@@ -586,8 +593,10 @@ WasmCode* NativeModule::AddCode(
     OwnedVector<const byte> source_pos_table, WasmCode::Kind kind,
     WasmCode::Tier tier) {
   OwnedVector<byte> reloc_info = OwnedVector<byte>::New(desc.reloc_size);
-  memcpy(reloc_info.start(), desc.buffer + desc.buffer_size - desc.reloc_size,
-         desc.reloc_size);
+  if (desc.reloc_size > 0) {
+    memcpy(reloc_info.start(), desc.buffer + desc.buffer_size - desc.reloc_size,
+           desc.reloc_size);
+  }
 
   WasmCode* ret = AddOwnedCode(
       index, {desc.buffer, static_cast<size_t>(desc.instr_size)}, stack_slots,

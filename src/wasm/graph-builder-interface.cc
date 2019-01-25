@@ -794,10 +794,12 @@ class WasmGraphBuildingInterface {
     result->effect = from->effect;
 
     result->state = SsaEnv::kReached;
-    result->locals =
-        size > 0 ? reinterpret_cast<TFNode**>(decoder->zone()->New(size))
-                 : nullptr;
-    memcpy(result->locals, from->locals, size);
+    if (size > 0) {
+      result->locals = reinterpret_cast<TFNode**>(decoder->zone()->New(size));
+      memcpy(result->locals, from->locals, size);
+    } else {
+      result->locals = nullptr;
+    }
     result->instance_cache = from->instance_cache;
 
     return result;

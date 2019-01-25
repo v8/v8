@@ -47,7 +47,9 @@ class ChunkSource : public v8::ScriptCompiler::ExternalSourceStream {
     DCHECK_LT(current_, chunks_.size());
     Chunk& next = chunks_[current_++];
     uint8_t* chunk = new uint8_t[next.len];
-    i::MemMove(chunk, next.ptr, next.len);
+    if (next.len > 0) {
+      i::MemMove(chunk, next.ptr, next.len);
+    }
     *src = chunk;
     return next.len;
   }

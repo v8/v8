@@ -1063,7 +1063,9 @@ Node* WasmGraphBuilder::Return(unsigned count, Node** vals) {
   }
 
   buf[0] = mcgraph()->Int32Constant(0);
-  memcpy(buf + 1, vals, sizeof(void*) * count);
+  if (count > 0) {
+    memcpy(buf + 1, vals, sizeof(void*) * count);
+  }
   buf[count + 1] = Effect();
   buf[count + 2] = Control();
   Node* ret =
