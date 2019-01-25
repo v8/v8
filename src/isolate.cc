@@ -2592,7 +2592,6 @@ void Isolate::SetWasmEngine(std::shared_ptr<wasm::WasmEngine> engine) {
   DCHECK_NULL(wasm_engine_);  // Only call once before {Init}.
   wasm_engine_ = std::move(engine);
   wasm_engine_->AddIsolate(this);
-  wasm::WasmCodeManager::InstallSamplingGCCallback(this);
 }
 
 // NOLINTNEXTLINE

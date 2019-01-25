@@ -30,6 +30,7 @@ namespace wasm {
 
 class NativeModule;
 class WasmCodeManager;
+class WasmEngine;
 class WasmMemoryTracker;
 class WasmImportWrapperCache;
 struct WasmModule;
@@ -361,9 +362,9 @@ class V8_EXPORT_PRIVATE NativeModule final {
   friend class WasmCodeManager;
   friend class NativeModuleModificationScope;
 
-  NativeModule(Isolate* isolate, const WasmFeatures& enabled_features,
-               bool can_request_more, VirtualMemory code_space,
-               WasmCodeManager* code_manager,
+  NativeModule(WasmEngine* engine, Isolate* isolate,
+               const WasmFeatures& enabled_features, bool can_request_more,
+               VirtualMemory code_space,
                std::shared_ptr<const WasmModule> module);
 
   WasmCode* AddAnonymousCode(Handle<Code>, WasmCode::Kind kind,
@@ -468,7 +469,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // End of fields protected by {allocation_mutex_}.
   //////////////////////////////////////////////////////////////////////////////
 
-  WasmCodeManager* const code_manager_;
+  WasmEngine* const engine_;
   std::atomic<size_t> committed_code_space_{0};
   int modification_scope_depth_ = 0;
   bool can_request_more_memory_;
@@ -483,36 +484,24 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
  public:
   explicit WasmCodeManager(WasmMemoryTracker* memory_tracker,
                            size_t max_committed);
-  // Create a new NativeModule. The caller is responsible for its
-  // lifetime. The native module will be given some memory for code,
-  // which will be page size aligned. The size of the initial memory
-  // is determined with a heuristic based on the total size of wasm
-  // code. The native module may later request more memory.
-  // TODO(titzer): isolate is only required here for CompilationState.
-  std::unique_ptr<NativeModule> NewNativeModule(
-      Isolate* isolate, const WasmFeatures& enabled_features,
-      size_t code_size_estimate, bool can_request_more,
-      std::shared_ptr<const WasmModule> module);
 
   NativeModule* LookupNativeModule(Address pc) const;
   WasmCode* LookupCode(Address pc) const;
   size_t remaining_uncommitted_code_space() const;
 
-  // Add a sample of all module sizes.
-  void SampleModuleSizes(Isolate* isolate) const;
-
   void SetMaxCommittedMemoryForTesting(size_t limit);
-
-  // TODO(v8:7424): For now we sample module sizes in a GC callback. This will
-  // bias samples towards apps with high memory pressure. We should switch to
-  // using sampling based on regular intervals independent of the GC.
-  static void InstallSamplingGCCallback(Isolate* isolate);
 
   static size_t EstimateNativeModuleCodeSize(const WasmModule* module);
   static size_t EstimateNativeModuleNonCodeSize(const WasmModule* module);
 
  private:
   friend class NativeModule;
+  friend class WasmEngine;
+
+  std::unique_ptr<NativeModule> NewNativeModule(
+      WasmEngine* engine, Isolate* isolate,
+      const WasmFeatures& enabled_features, size_t code_size_estimate,
+      bool can_request_more, std::shared_ptr<const WasmModule> module);
 
   V8_WARN_UNUSED_RESULT VirtualMemory TryAllocate(size_t size,
                                                   void* hint = nullptr);
@@ -522,8 +511,8 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
   // There's no separate Uncommit.
 
   void FreeNativeModule(NativeModule*);
+
   void AssignRanges(Address start, Address end, NativeModule*);
-  void AssignRangesAndAddModule(Address start, Address end, NativeModule*);
 
   WasmMemoryTracker* const memory_tracker_;
   std::atomic<size_t> remaining_uncommitted_code_space_;
@@ -538,7 +527,6 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
   // Protected by {native_modules_mutex_}:
 
   std::map<Address, std::pair<Address, NativeModule*>> lookup_map_;
-  std::unordered_set<NativeModule*> native_modules_;
 
   // End of fields protected by {native_modules_mutex_}.
   //////////////////////////////////////////////////////////////////////////////

@@ -907,7 +907,7 @@ std::unique_ptr<NativeModule> CompileToNativeModule(
       wasm::WasmCodeManager::EstimateNativeModuleCodeSize(module.get());
 
   // Create a new {NativeModule} first.
-  auto native_module = isolate->wasm_engine()->code_manager()->NewNativeModule(
+  auto native_module = isolate->wasm_engine()->NewNativeModule(
       isolate, enabled, code_size_estimate,
       wasm::NativeModule::kCanAllocateMoreMemory, std::move(module));
   native_module->SetWireBytes(std::move(wire_bytes_copy));
@@ -1046,7 +1046,7 @@ void AsyncCompileJob::CreateNativeModule(
 
   size_t code_size_estimate =
       wasm::WasmCodeManager::EstimateNativeModuleCodeSize(module.get());
-  native_module_ = isolate_->wasm_engine()->code_manager()->NewNativeModule(
+  native_module_ = isolate_->wasm_engine()->NewNativeModule(
       isolate_, enabled_features_, code_size_estimate,
       wasm::NativeModule::kCanAllocateMoreMemory, std::move(module));
   native_module_->SetWireBytes({std::move(bytes_copy_), wire_bytes_.length()});

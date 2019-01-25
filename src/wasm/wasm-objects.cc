@@ -210,7 +210,7 @@ Handle<WasmModuleObject> WasmModuleObject::New(
   // Create a new {NativeModule} first.
   size_t code_size_estimate =
       wasm::WasmCodeManager::EstimateNativeModuleCodeSize(shared_module.get());
-  auto native_module = isolate->wasm_engine()->code_manager()->NewNativeModule(
+  auto native_module = isolate->wasm_engine()->NewNativeModule(
       isolate, enabled, code_size_estimate,
       wasm::NativeModule::kCanAllocateMoreMemory, std::move(shared_module));
   native_module->SetWireBytes(std::move(wire_bytes));

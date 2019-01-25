@@ -6,6 +6,7 @@
 
 #include "src/code-tracer.h"
 #include "src/compilation-statistics.h"
+#include "src/counters.h"
 #include "src/objects-inl.h"
 #include "src/objects/heap-number.h"
 #include "src/objects/js-promise.h"
@@ -21,6 +22,12 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
+struct WasmEngine::IsolateInfo {
+  // All native modules that are being used by this Isolate (currently only
+  // grows, never shrinks).
+  std::set<NativeModule*> native_modules;
+};
+
 WasmEngine::WasmEngine()
     : code_manager_(&memory_tracker_, FLAG_wasm_max_code_space * MB) {}
 
@@ -31,6 +38,8 @@ WasmEngine::~WasmEngine() {
   DCHECK(jobs_.empty());
   // All Isolates have been deregistered.
   DCHECK(isolates_.empty());
+  // All NativeModules did die.
+  DCHECK(isolates_per_native_module_.empty());
 }
 
 bool WasmEngine::SyncValidate(Isolate* isolate, const WasmFeatures& enabled,
@@ -246,16 +255,24 @@ std::shared_ptr<NativeModule> WasmEngine::ExportNativeModule(
 }
 
 Handle<WasmModuleObject> WasmEngine::ImportNativeModule(
-    Isolate* isolate, std::shared_ptr<NativeModule> shared_module) {
-  ModuleWireBytes wire_bytes(shared_module->wire_bytes());
-  const WasmModule* module = shared_module->module();
+    Isolate* isolate, std::shared_ptr<NativeModule> shared_native_module) {
+  NativeModule* native_module = shared_native_module.get();
+  ModuleWireBytes wire_bytes(native_module->wire_bytes());
+  const WasmModule* module = native_module->module();
   Handle<Script> script =
       CreateWasmScript(isolate, wire_bytes, module->source_map_url);
-  size_t code_size = shared_module->committed_code_space();
+  size_t code_size = native_module->committed_code_space();
   Handle<WasmModuleObject> module_object = WasmModuleObject::New(
-      isolate, std::move(shared_module), script, code_size);
-  CompileJsToWasmWrappers(isolate, module_object->native_module()->module(),
+      isolate, std::move(shared_native_module), script, code_size);
+  CompileJsToWasmWrappers(isolate, native_module->module(),
                           handle(module_object->export_wrappers(), isolate));
+  {
+    base::MutexGuard lock(&mutex_);
+    DCHECK_EQ(1, isolates_.count(isolate));
+    isolates_[isolate]->native_modules.insert(native_module);
+    DCHECK_EQ(1, isolates_per_native_module_.count(native_module));
+    isolates_per_native_module_[native_module].insert(isolate);
+  }
   return module_object;
 }
 
@@ -315,13 +332,19 @@ bool WasmEngine::HasRunningCompileJob(Isolate* isolate) {
 }
 
 void WasmEngine::DeleteCompileJobsOnIsolate(Isolate* isolate) {
-  base::MutexGuard guard(&mutex_);
-  DCHECK_EQ(1, isolates_.count(isolate));
-  for (auto it = jobs_.begin(); it != jobs_.end();) {
-    if (it->first->isolate() == isolate) {
+  // Under the mutex get all jobs to delete. Then delete them without holding
+  // the mutex, such that deletion can reenter the WasmEngine.
+  std::vector<std::unique_ptr<AsyncCompileJob>> jobs_to_delete;
+  {
+    base::MutexGuard guard(&mutex_);
+    DCHECK_EQ(1, isolates_.count(isolate));
+    for (auto it = jobs_.begin(); it != jobs_.end();) {
+      if (it->first->isolate() != isolate) {
+        ++it;
+        continue;
+      }
+      jobs_to_delete.push_back(std::move(it->second));
       it = jobs_.erase(it);
-    } else {
-      ++it;
     }
   }
 }
@@ -329,13 +352,66 @@ void WasmEngine::DeleteCompileJobsOnIsolate(Isolate* isolate) {
 void WasmEngine::AddIsolate(Isolate* isolate) {
   base::MutexGuard guard(&mutex_);
   DCHECK_EQ(0, isolates_.count(isolate));
-  isolates_.insert(isolate);
+  isolates_.emplace(isolate, base::make_unique<IsolateInfo>());
+
+  // Install sampling GC callback.
+  // TODO(v8:7424): For now we sample module sizes in a GC callback. This will
+  // bias samples towards apps with high memory pressure. We should switch to
+  // using sampling based on regular intervals independent of the GC.
+  auto callback = [](v8::Isolate* v8_isolate, v8::GCType type,
+                     v8::GCCallbackFlags flags, void* data) {
+    Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
+    WasmEngine* engine = isolate->wasm_engine();
+    base::MutexGuard lock(&engine->mutex_);
+    DCHECK_EQ(1, engine->isolates_.count(isolate));
+    for (NativeModule* native_module :
+         engine->isolates_[isolate]->native_modules) {
+      int code_size =
+          static_cast<int>(native_module->committed_code_space() / MB);
+      isolate->counters()->wasm_module_code_size_mb()->AddSample(code_size);
+    }
+  };
+  isolate->heap()->AddGCEpilogueCallback(callback, v8::kGCTypeMarkSweepCompact,
+                                         nullptr);
 }
 
 void WasmEngine::RemoveIsolate(Isolate* isolate) {
   base::MutexGuard guard(&mutex_);
+  auto it = isolates_.find(isolate);
+  DCHECK_NE(isolates_.end(), it);
+  for (NativeModule* native_module : it->second->native_modules) {
+    DCHECK_EQ(1, isolates_per_native_module_[native_module].count(isolate));
+    isolates_per_native_module_[native_module].erase(isolate);
+  }
+  isolates_.erase(it);
+}
+
+std::unique_ptr<NativeModule> WasmEngine::NewNativeModule(
+    Isolate* isolate, const WasmFeatures& enabled, size_t code_size_estimate,
+    bool can_request_more, std::shared_ptr<const WasmModule> module) {
+  std::unique_ptr<NativeModule> native_module =
+      code_manager_.NewNativeModule(this, isolate, enabled, code_size_estimate,
+                                    can_request_more, std::move(module));
+  base::MutexGuard lock(&mutex_);
+  isolates_per_native_module_[native_module.get()].insert(isolate);
   DCHECK_EQ(1, isolates_.count(isolate));
-  isolates_.erase(isolate);
+  isolates_[isolate]->native_modules.insert(native_module.get());
+  return native_module;
+}
+
+void WasmEngine::FreeNativeModule(NativeModule* native_module) {
+  {
+    base::MutexGuard guard(&mutex_);
+    auto it = isolates_per_native_module_.find(native_module);
+    DCHECK_NE(isolates_per_native_module_.end(), it);
+    for (Isolate* isolate : it->second) {
+      DCHECK_EQ(1, isolates_.count(isolate));
+      DCHECK_EQ(1, isolates_[isolate]->native_modules.count(native_module));
+      isolates_[isolate]->native_modules.erase(native_module);
+    }
+    isolates_per_native_module_.erase(it);
+  }
+  code_manager_.FreeNativeModule(native_module);
 }
 
 namespace {
