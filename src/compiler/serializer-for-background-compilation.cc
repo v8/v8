@@ -15,6 +15,12 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+CompilationSubject::CompilationSubject(Handle<JSFunction> closure,
+                                       Isolate* isolate)
+    : blueprint_{handle(closure->shared(), isolate),
+                 handle(closure->feedback_vector(), isolate)},
+      closure_(closure) {}
+
 Hints::Hints(Zone* zone)
     : constants_(zone), maps_(zone), function_blueprints_(zone) {}
 
@@ -52,15 +58,11 @@ void Hints::Clear() {
 
 class SerializerForBackgroundCompilation::Environment : public ZoneObject {
  public:
-  explicit Environment(Zone* zone, Isolate* isolate, int register_count,
-                       int parameter_count);
-
-  Environment(SerializerForBackgroundCompilation* serializer, Isolate* isolate,
-              int register_count, int parameter_count,
+  Environment(Zone* zone, Isolate* isolate, CompilationSubject function);
+  Environment(Zone* zone, Isolate* isolate, CompilationSubject function,
               const HintsVector& arguments);
 
-  int parameter_count() const { return parameter_count_; }
-  int register_count() const { return register_count_; }
+  FunctionBlueprint function() const { return function_; }
 
   Hints& accumulator_hints() { return environment_hints_[accumulator_index()]; }
   Hints& register_hints(interpreter::Register reg) {
@@ -79,26 +81,25 @@ class SerializerForBackgroundCompilation::Environment : public ZoneObject {
                            HintsVector& dst);
 
  private:
-  explicit Environment(Zone* zone)
-      : register_count_(0),
-        parameter_count_(0),
-        environment_hints_(zone),
-        return_value_hints_(zone) {}
-
-  Zone* zone() const { return zone_; }
-
   int RegisterToLocalIndex(interpreter::Register reg) const;
 
-  Zone* zone_;
+  Zone* zone() const { return zone_; }
+  int parameter_count() const { return parameter_count_; }
+  int register_count() const { return register_count_; }
+
+  Zone* const zone_;
+  // Instead of storing the blueprint here, we could extract it from the
+  // (closure) hints but that would be cumbersome.
+  FunctionBlueprint const function_;
+  int const parameter_count_;
+  int const register_count_;
 
   // environment_hints_ contains hints for the contents of the registers,
   // the accumulator and the parameters. The layout is as follows:
-  // [ receiver | parameters | registers | accumulator | context | closure ]
-  const int register_count_;
-  const int parameter_count_;
+  // [ parameters | registers | accumulator | context | closure ]
+  // The first parameter is the receiver.
   HintsVector environment_hints_;
-  int register_base() const { return parameter_count_; }
-  int accumulator_index() const { return register_base() + register_count_; }
+  int accumulator_index() const { return parameter_count() + register_count(); }
   int current_context_index() const { return accumulator_index() + 1; }
   int function_closure_index() const { return current_context_index() + 1; }
   int environment_hints_size() const { return function_closure_index() + 1; }
@@ -107,30 +108,36 @@ class SerializerForBackgroundCompilation::Environment : public ZoneObject {
 };
 
 SerializerForBackgroundCompilation::Environment::Environment(
-    Zone* zone, Isolate* isolate, int register_count, int parameter_count)
+    Zone* zone, Isolate* isolate, CompilationSubject function)
     : zone_(zone),
-      register_count_(register_count),
-      parameter_count_(parameter_count),
+      function_(function.blueprint()),
+      parameter_count_(function_.shared->GetBytecodeArray()->parameter_count()),
+      register_count_(function_.shared->GetBytecodeArray()->register_count()),
       environment_hints_(environment_hints_size(), Hints(zone), zone),
-      return_value_hints_(zone) {}
+      return_value_hints_(zone) {
+  Handle<JSFunction> closure;
+  if (function.closure().ToHandle(&closure)) {
+    environment_hints_[function_closure_index()].AddConstant(closure);
+  } else {
+    environment_hints_[function_closure_index()].AddFunctionBlueprint(
+        function.blueprint());
+  }
+}
 
 SerializerForBackgroundCompilation::Environment::Environment(
-    SerializerForBackgroundCompilation* serializer, Isolate* isolate,
-    int register_count, int parameter_count, const HintsVector& arguments)
-    : Environment(serializer->zone(), isolate, register_count,
-                  parameter_count) {
-  size_t param_count = static_cast<size_t>(parameter_count);
-
+    Zone* zone, Isolate* isolate, CompilationSubject function,
+    const HintsVector& arguments)
+    : Environment(zone, isolate, function) {
   // Copy the hints for the actually passed arguments, at most up to
   // the parameter_count.
+  size_t param_count = static_cast<size_t>(parameter_count());
   for (size_t i = 0; i < std::min(arguments.size(), param_count); ++i) {
     environment_hints_[i] = arguments[i];
   }
 
-  Hints undefined_hint(serializer->zone());
-  undefined_hint.AddConstant(
-      serializer->broker()->isolate()->factory()->undefined_value());
   // Pad the rest with "undefined".
+  Hints undefined_hint(zone);
+  undefined_hint.AddConstant(isolate->factory()->undefined_value());
   for (size_t i = arguments.size(); i < param_count; ++i) {
     environment_hints_[i] = undefined_hint;
   }
@@ -138,57 +145,55 @@ SerializerForBackgroundCompilation::Environment::Environment(
 
 int SerializerForBackgroundCompilation::Environment::RegisterToLocalIndex(
     interpreter::Register reg) const {
-  // TODO(mslekova): We also want to gather hints for the context and
-  // we already have data about the closure that we should record.
+  // TODO(mslekova): We also want to gather hints for the context.
   if (reg.is_current_context()) return current_context_index();
   if (reg.is_function_closure()) return function_closure_index();
   if (reg.is_parameter()) {
     return reg.ToParameterIndex(parameter_count());
   } else {
-    return register_base() + reg.index();
+    return parameter_count() + reg.index();
   }
 }
 
 SerializerForBackgroundCompilation::SerializerForBackgroundCompilation(
-    JSHeapBroker* broker, Zone* zone, Handle<JSFunction> function)
+    JSHeapBroker* broker, Zone* zone, Handle<JSFunction> closure)
     : broker_(broker),
       zone_(zone),
-      shared_(function->shared(), broker->isolate()),
-      feedback_(function->feedback_vector(), broker->isolate()),
-      environment_(new (zone) Environment(
-          zone, broker_->isolate(),
-          shared_->GetBytecodeArray()->register_count(),
-          shared_->GetBytecodeArray()->parameter_count())) {
-  JSFunctionRef(broker, function).Serialize();
+      environment_(new (zone) Environment(zone, broker_->isolate(),
+                                          {closure, broker_->isolate()})) {
+  JSFunctionRef(broker, closure).Serialize();
 }
 
 SerializerForBackgroundCompilation::SerializerForBackgroundCompilation(
-    JSHeapBroker* broker, Zone* zone, FunctionBlueprint function,
+    JSHeapBroker* broker, Zone* zone, CompilationSubject function,
     const HintsVector& arguments)
     : broker_(broker),
       zone_(zone),
-      shared_(function.shared),
-      feedback_(function.feedback),
-      environment_(new (zone) Environment(
-          this, broker->isolate(),
-          shared_->GetBytecodeArray()->register_count(),
-          shared_->GetBytecodeArray()->parameter_count(), arguments)) {}
+      environment_(new (zone) Environment(zone, broker_->isolate(), function,
+                                          arguments)) {
+  Handle<JSFunction> closure;
+  if (function.closure().ToHandle(&closure)) {
+    JSFunctionRef(broker, closure).Serialize();
+  }
+}
 
 Hints SerializerForBackgroundCompilation::Run() {
-  SharedFunctionInfoRef shared(broker(), shared_);
-  FeedbackVectorRef feedback(broker(), feedback_);
-  if (shared.IsSerializedForCompilation(feedback)) {
+  SharedFunctionInfoRef shared(broker(), environment()->function().shared);
+  FeedbackVectorRef feedback_vector(broker(),
+                                    environment()->function().feedback_vector);
+  if (shared.IsSerializedForCompilation(feedback_vector)) {
     return Hints(zone());
   }
-  shared.SetSerializedForCompilation(feedback);
-  feedback.SerializeSlots();
+  shared.SetSerializedForCompilation(feedback_vector);
+  feedback_vector.SerializeSlots();
   TraverseBytecode();
   return environment()->return_value_hints();
 }
 
 void SerializerForBackgroundCompilation::TraverseBytecode() {
   BytecodeArrayRef bytecode_array(
-      broker(), handle(shared_->GetBytecodeArray(), broker()->isolate()));
+      broker(), handle(environment()->function().shared->GetBytecodeArray(),
+                       broker()->isolate()));
   interpreter::BytecodeArrayIterator iterator(bytecode_array.object());
 
   for (; !iterator.done(); iterator.Advance()) {
@@ -285,7 +290,8 @@ void SerializerForBackgroundCompilation::VisitCreateClosure(
       SharedFunctionInfo::cast(iterator->GetConstantForIndexOperand(0)),
       broker()->isolate());
 
-  FeedbackNexus nexus(feedback_, iterator->GetSlotOperand(1));
+  FeedbackNexus nexus(environment()->function().feedback_vector,
+                      iterator->GetSlotOperand(1));
   Handle<Object> cell_value(nexus.GetFeedbackCell()->value(),
                             broker()->isolate());
 
@@ -420,7 +426,7 @@ void SerializerForBackgroundCompilation::VisitCallWithSpread(
 }
 
 Hints SerializerForBackgroundCompilation::RunChildSerializer(
-    FunctionBlueprint function, const HintsVector& arguments,
+    CompilationSubject function, const HintsVector& arguments,
     bool with_spread) {
   if (with_spread) {
     DCHECK_LT(0, arguments.size());
@@ -433,8 +439,9 @@ Hints SerializerForBackgroundCompilation::RunChildSerializer(
     HintsVector padded = arguments;
     padded.pop_back();  // Remove the spread element.
     // Fill the rest with empty hints.
-    padded.resize(function.shared->GetBytecodeArray()->parameter_count(),
-                  Hints(zone()));
+    padded.resize(
+        function.blueprint().shared->GetBytecodeArray()->parameter_count(),
+        Hints(zone()));
     return RunChildSerializer(function, padded, false);
   }
 
@@ -453,20 +460,14 @@ void SerializerForBackgroundCompilation::ProcessCallOrConstruct(
     Handle<JSFunction> function = Handle<JSFunction>::cast(hint);
     if (!function->shared()->IsInlineable()) continue;
 
-    JSFunctionRef(broker(), function).Serialize();
-
-    Handle<SharedFunctionInfo> shared(function->shared(), broker()->isolate());
-    Handle<FeedbackVector> feedback(function->feedback_vector(),
-                                    broker()->isolate());
-
-    environment()->accumulator_hints().Add(
-        RunChildSerializer({shared, feedback}, arguments, with_spread));
+    environment()->accumulator_hints().Add(RunChildSerializer(
+        {function, broker()->isolate()}, arguments, with_spread));
   }
 
   for (auto hint : callee.function_blueprints()) {
     if (!hint.shared->IsInlineable()) continue;
     environment()->accumulator_hints().Add(
-        RunChildSerializer(hint, arguments, with_spread));
+        RunChildSerializer(CompilationSubject(hint), arguments, with_spread));
   }
 }
 

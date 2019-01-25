@@ -6,6 +6,7 @@
 #define V8_COMPILER_SERIALIZER_FOR_BACKGROUND_COMPILATION_H_
 
 #include "src/handles.h"
+#include "src/maybe-handles.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
@@ -110,7 +111,21 @@ class JSHeapBroker;
 
 struct FunctionBlueprint {
   Handle<SharedFunctionInfo> shared;
-  Handle<FeedbackVector> feedback;
+  Handle<FeedbackVector> feedback_vector;
+};
+
+class CompilationSubject {
+ public:
+  explicit CompilationSubject(FunctionBlueprint blueprint)
+      : blueprint_(blueprint) {}
+  CompilationSubject(Handle<JSFunction> closure, Isolate* isolate);
+
+  FunctionBlueprint blueprint() const { return blueprint_; }
+  MaybeHandle<JSFunction> closure() const { return closure_; }
+
+ private:
+  FunctionBlueprint blueprint_;
+  MaybeHandle<JSFunction> closure_;
 };
 
 class Hints {
@@ -143,12 +158,12 @@ typedef ZoneVector<Hints> HintsVector;
 class SerializerForBackgroundCompilation {
  public:
   SerializerForBackgroundCompilation(JSHeapBroker* broker, Zone* zone,
-                                     Handle<JSFunction> function);
+                                     Handle<JSFunction> closure);
   Hints Run();  // NOTE: Returns empty for an already-serialized function.
 
  private:
   SerializerForBackgroundCompilation(JSHeapBroker* broker, Zone* zone,
-                                     FunctionBlueprint function,
+                                     CompilationSubject function,
                                      const HintsVector& arguments);
 
   void TraverseBytecode();
@@ -160,24 +175,22 @@ class SerializerForBackgroundCompilation {
 
   class Environment;
 
-  Zone* zone() const { return zone_; }
-  JSHeapBroker* broker() const { return broker_; }
-  Environment* environment() const { return environment_; }
-
   void ProcessCallOrConstruct(const Hints& callee, const HintsVector& arguments,
                               bool with_spread = false);
   void ProcessCallVarArgs(interpreter::BytecodeArrayIterator* iterator,
                           ConvertReceiverMode receiver_mode,
                           bool with_spread = false);
 
-  Hints RunChildSerializer(FunctionBlueprint function,
+  Hints RunChildSerializer(CompilationSubject function,
                            const HintsVector& arguments, bool with_spread);
 
-  JSHeapBroker* broker_;
-  Zone* zone_;
-  Handle<SharedFunctionInfo> shared_;
-  Handle<FeedbackVector> feedback_;
-  Environment* environment_;
+  JSHeapBroker* broker() const { return broker_; }
+  Zone* zone() const { return zone_; }
+  Environment* environment() const { return environment_; }
+
+  JSHeapBroker* const broker_;
+  Zone* const zone_;
+  Environment* const environment_;
 };
 
 }  // namespace compiler
