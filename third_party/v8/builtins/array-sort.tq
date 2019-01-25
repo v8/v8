@@ -1746,6 +1746,7 @@ namespace array {
     sortState[kInitialReceiverLengthIdx] = len;
 
     try {
+      GotoIfForceSlowPath() otherwise Slow;
       let a: FastJSArray = Cast<FastJSArray>(receiver) otherwise Slow;
 
       const elementsKind: ElementsKind = map.elements_kind;
