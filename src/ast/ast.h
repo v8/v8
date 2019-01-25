@@ -491,26 +491,14 @@ inline NestedVariableDeclaration* VariableDeclaration::AsNested() {
 class FunctionDeclaration final : public Declaration {
  public:
   FunctionLiteral* fun() const { return fun_; }
-  bool declares_sloppy_block_function() const {
-    return DeclaresSloppyBlockFunction::decode(bit_field_);
-  }
 
  private:
   friend class AstNodeFactory;
 
-  class DeclaresSloppyBlockFunction
-      : public BitField<bool, Declaration::kNextBitFieldIndex, 1> {};
-
-  FunctionDeclaration(FunctionLiteral* fun, bool declares_sloppy_block_function,
-                      int pos)
-      : Declaration(pos, kFunctionDeclaration), fun_(fun) {
-    bit_field_ = DeclaresSloppyBlockFunction::update(
-        bit_field_, declares_sloppy_block_function);
-  }
+  FunctionDeclaration(FunctionLiteral* fun, int pos)
+      : Declaration(pos, kFunctionDeclaration), fun_(fun) {}
 
   FunctionLiteral* fun_;
-
-  static const uint8_t kNextBitFieldIndex = DeclaresSloppyBlockFunction::kNext;
 };
 
 
@@ -994,14 +982,30 @@ class SloppyBlockFunctionStatement final : public Statement {
  public:
   Statement* statement() const { return statement_; }
   void set_statement(Statement* statement) { statement_ = statement; }
+  Scope* scope() const { return var_->scope(); }
+  Variable* var() const { return var_; }
+  Token::Value init() const { return TokenField::decode(bit_field_); }
+  const AstRawString* name() const { return var_->raw_name(); }
+  SloppyBlockFunctionStatement** next() { return &next_; }
 
  private:
   friend class AstNodeFactory;
 
-  SloppyBlockFunctionStatement(int pos, Statement* statement)
-      : Statement(pos, kSloppyBlockFunctionStatement), statement_(statement) {}
+  class TokenField
+      : public BitField<Token::Value, Statement::kNextBitFieldIndex, 8> {};
 
+  SloppyBlockFunctionStatement(int pos, Variable* var, Token::Value init,
+                               Statement* statement)
+      : Statement(pos, kSloppyBlockFunctionStatement),
+        var_(var),
+        statement_(statement),
+        next_(nullptr) {
+    bit_field_ = TokenField::update(bit_field_, init);
+  }
+
+  Variable* var_;
   Statement* statement_;
+  SloppyBlockFunctionStatement* next_;
 };
 
 
@@ -2812,10 +2816,8 @@ class AstNodeFactory final {
     return new (zone_) NestedVariableDeclaration(scope, pos);
   }
 
-  FunctionDeclaration* NewFunctionDeclaration(FunctionLiteral* fun,
-                                              bool is_sloppy_block_function,
-                                              int pos) {
-    return new (zone_) FunctionDeclaration(fun, is_sloppy_block_function, pos);
+  FunctionDeclaration* NewFunctionDeclaration(FunctionLiteral* fun, int pos) {
+    return new (zone_) FunctionDeclaration(fun, pos);
   }
 
   Block* NewBlock(int capacity, bool ignore_completion_value) {
@@ -2958,8 +2960,10 @@ class AstNodeFactory final {
     return failure_expression_;
   }
 
-  SloppyBlockFunctionStatement* NewSloppyBlockFunctionStatement(int pos) {
-    return new (zone_) SloppyBlockFunctionStatement(pos, EmptyStatement());
+  SloppyBlockFunctionStatement* NewSloppyBlockFunctionStatement(
+      int pos, Variable* var, Token::Value init) {
+    return new (zone_)
+        SloppyBlockFunctionStatement(pos, var, init, EmptyStatement());
   }
 
   CaseClause* NewCaseClause(Expression* label,

@@ -43,37 +43,6 @@ class VariableMap: public ZoneHashMap {
   void Add(Zone* zone, Variable* var);
 };
 
-
-// Sloppy block-scoped function declarations to var-bind
-class SloppyBlockFunctionMap : public ZoneHashMap {
- public:
-  class Delegate : public ZoneObject {
-   public:
-    Delegate(Scope* scope, SloppyBlockFunctionStatement* statement, int index)
-        : scope_(scope), statement_(statement), next_(nullptr), index_(index) {}
-    void set_statement(Statement* statement);
-
-    void set_next(Delegate* next) { next_ = next; }
-    Delegate* next() const { return next_; }
-    Scope* scope() const { return scope_; }
-    int index() const { return index_; }
-    int position() const { return statement_->position(); }
-
-   private:
-    Scope* scope_;
-    SloppyBlockFunctionStatement* statement_;
-    Delegate* next_;
-    int index_;
-  };
-
-  explicit SloppyBlockFunctionMap(Zone* zone);
-  void Declare(Zone* zone, const AstRawString* name, Scope* scope,
-               SloppyBlockFunctionStatement* statement);
-
- private:
-  int count_;
-};
-
 class Scope;
 
 template <>
@@ -940,16 +909,11 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   void AddLocal(Variable* var);
 
   void DeclareSloppyBlockFunction(
-      const AstRawString* name, Scope* scope,
-      SloppyBlockFunctionStatement* statement = nullptr);
+      SloppyBlockFunctionStatement* sloppy_block_function);
 
-  // Go through sloppy_block_function_map_ and hoist those (into this scope)
+  // Go through sloppy_block_functions_ and hoist those (into this scope)
   // which should be hoisted.
   void HoistSloppyBlockFunctions(AstNodeFactory* factory);
-
-  SloppyBlockFunctionMap* sloppy_block_function_map() {
-    return sloppy_block_function_map_;
-  }
 
   // Compute top scope and allocate variables. For lazy compilation the top
   // scope only contains the single lazily compiled function, so this
@@ -1069,7 +1033,7 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   // Parameter list in source order.
   ZonePtrList<Variable> params_;
   // Map of function names to lists of functions defined in sloppy blocks
-  SloppyBlockFunctionMap* sloppy_block_function_map_;
+  base::ThreadedList<SloppyBlockFunctionStatement> sloppy_block_functions_;
   // Convenience variable.
   Variable* receiver_;
   // Function variable, if any; function scopes only.

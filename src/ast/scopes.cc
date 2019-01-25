@@ -83,28 +83,6 @@ Variable* VariableMap::Lookup(const AstRawString* name) {
   return nullptr;
 }
 
-void SloppyBlockFunctionMap::Delegate::set_statement(Statement* statement) {
-  if (statement_ != nullptr) {
-    statement_->set_statement(statement);
-  }
-}
-
-SloppyBlockFunctionMap::SloppyBlockFunctionMap(Zone* zone)
-    : ZoneHashMap(8, ZoneAllocationPolicy(zone)), count_(0) {}
-
-void SloppyBlockFunctionMap::Declare(Zone* zone, const AstRawString* name,
-                                     Scope* scope,
-                                     SloppyBlockFunctionStatement* statement) {
-  auto* delegate = new (zone) Delegate(scope, statement, count_++);
-  // AstRawStrings are unambiguous, i.e., the same string is always represented
-  // by the same AstRawString*.
-  Entry* p =
-      ZoneHashMap::LookupOrInsert(const_cast<AstRawString*>(name), name->Hash(),
-                                  ZoneAllocationPolicy(zone));
-  delegate->set_next(static_cast<SloppyBlockFunctionMap::Delegate*>(p->value));
-  p->value = delegate;
-}
-
 // ----------------------------------------------------------------------------
 // Implementation of Scope
 
@@ -263,7 +241,6 @@ void DeclarationScope::SetDefaults() {
   has_arguments_parameter_ = false;
   scope_uses_super_property_ = false;
   has_rest_ = false;
-  sloppy_block_function_map_ = nullptr;
   receiver_ = nullptr;
   new_target_ = nullptr;
   function_ = nullptr;
@@ -456,14 +433,8 @@ int Scope::num_parameters() const {
 }
 
 void DeclarationScope::DeclareSloppyBlockFunction(
-    const AstRawString* name, Scope* scope,
-    SloppyBlockFunctionStatement* statement) {
-  if (sloppy_block_function_map_ == nullptr) {
-    sloppy_block_function_map_ =
-        new (zone()->New(sizeof(SloppyBlockFunctionMap)))
-            SloppyBlockFunctionMap(zone());
-  }
-  sloppy_block_function_map_->Declare(zone(), name, scope, statement);
+    SloppyBlockFunctionStatement* sloppy_block_function) {
+  sloppy_block_functions_.Add(sloppy_block_function);
 }
 
 void DeclarationScope::HoistSloppyBlockFunctions(AstNodeFactory* factory) {
@@ -473,8 +444,7 @@ void DeclarationScope::HoistSloppyBlockFunctions(AstNodeFactory* factory) {
   DCHECK(HasSimpleParameters() || is_block_scope() || is_being_lazily_parsed_);
   DCHECK_EQ(factory == nullptr, is_being_lazily_parsed_);
 
-  SloppyBlockFunctionMap* map = sloppy_block_function_map();
-  if (map == nullptr) return;
+  if (sloppy_block_functions_.is_empty()) return;
 
   // In case of complex parameters the current scope is the body scope and the
   // parameters are stored in the outer scope.
@@ -482,14 +452,17 @@ void DeclarationScope::HoistSloppyBlockFunctions(AstNodeFactory* factory) {
   DCHECK(parameter_scope->is_function_scope() || is_eval_scope() ||
          is_script_scope());
 
-  // The declarations need to be added in the order they were seen,
-  // so accumulate declared names sorted by index.
-  ZoneMap<int, const AstRawString*> names_to_declare(zone());
+  DeclarationScope* decl_scope = this;
+  while (decl_scope->is_eval_scope()) {
+    decl_scope = decl_scope->outer_scope()->GetDeclarationScope();
+  }
+  Scope* outer_scope = decl_scope->outer_scope();
 
   // For each variable which is used as a function declaration in a sloppy
   // block,
-  for (ZoneHashMap::Entry* p = map->Start(); p != nullptr; p = map->Next(p)) {
-    const AstRawString* name = static_cast<AstRawString*>(p->key);
+  for (SloppyBlockFunctionStatement* sloppy_block_function :
+       sloppy_block_functions_) {
+    const AstRawString* name = sloppy_block_function->name();
 
     // If the variable wouldn't conflict with a lexical declaration
     // or parameter,
@@ -500,79 +473,52 @@ void DeclarationScope::HoistSloppyBlockFunctions(AstNodeFactory* factory) {
       continue;
     }
 
-    bool declaration_queued = false;
+    // Check if there's a conflict with a lexical declaration
+    Scope* query_scope = sloppy_block_function->scope()->outer_scope();
+    Variable* var = nullptr;
+    bool should_hoist = true;
 
-    // Write in assignments to var for each block-scoped function declaration
-    auto delegates = static_cast<SloppyBlockFunctionMap::Delegate*>(p->value);
-
-    DeclarationScope* decl_scope = this;
-    while (decl_scope->is_eval_scope()) {
-      decl_scope = decl_scope->outer_scope()->GetDeclarationScope();
-    }
-    Scope* outer_scope = decl_scope->outer_scope();
-
-    for (SloppyBlockFunctionMap::Delegate* delegate = delegates;
-         delegate != nullptr; delegate = delegate->next()) {
-      // Check if there's a conflict with a lexical declaration
-      Scope* query_scope = delegate->scope()->outer_scope();
-      Variable* var = nullptr;
-      bool should_hoist = true;
-
-      // Note that we perform this loop for each delegate named 'name',
-      // which may duplicate work if those delegates share scopes.
-      // It is not sufficient to just do a Lookup on query_scope: for
-      // example, that does not prevent hoisting of the function in
-      // `{ let e; try {} catch (e) { function e(){} } }`
-      do {
-        var = query_scope->LookupInScopeOrScopeInfo(name);
-        if (var != nullptr && IsLexicalVariableMode(var->mode())) {
-          should_hoist = false;
-          break;
-        }
-        query_scope = query_scope->outer_scope();
-      } while (query_scope != outer_scope);
-
-      if (!should_hoist) continue;
-
-      if (!declaration_queued) {
-        declaration_queued = true;
-        names_to_declare.insert({delegate->index(), name});
+    // It is not sufficient to just do a Lookup on query_scope: for
+    // example, that does not prevent hoisting of the function in
+    // `{ let e; try {} catch (e) { function e(){} } }`
+    do {
+      var = query_scope->LookupInScopeOrScopeInfo(name);
+      if (var != nullptr && IsLexicalVariableMode(var->mode())) {
+        should_hoist = false;
+        break;
       }
+      query_scope = query_scope->outer_scope();
+    } while (query_scope != outer_scope);
 
-      if (factory) {
-        DCHECK(!is_being_lazily_parsed_);
-        int pos = delegate->position();
-        Assignment* assignment = factory->NewAssignment(
-            Token::ASSIGN, NewUnresolved(factory, name, pos),
-            delegate->scope()->NewUnresolved(factory, name, pos), pos);
-        assignment->set_lookup_hoisting_mode(LookupHoistingMode::kLegacySloppy);
-        Statement* statement = factory->NewExpressionStatement(assignment, pos);
-        delegate->set_statement(statement);
-      }
-    }
-  }
+    if (!should_hoist) continue;
 
-  if (names_to_declare.empty()) return;
-
-  for (const auto& index_and_name : names_to_declare) {
-    const AstRawString* name = index_and_name.second;
     if (factory) {
       DCHECK(!is_being_lazily_parsed_);
-      auto declaration = factory->NewVariableDeclaration(kNoSourcePosition);
+      int pos = sloppy_block_function->position();
+      bool ok = true;
       bool was_added;
+      auto declaration = factory->NewVariableDeclaration(pos);
       // Based on the preceding checks, it doesn't matter what we pass as
       // sloppy_mode_block_scope_function_redefinition.
-      bool ok = true;
-      DeclareVariable(declaration, name, kNoSourcePosition, VariableMode::kVar,
-                      NORMAL_VARIABLE,
-                      Variable::DefaultInitializationFlag(VariableMode::kVar),
-                      &was_added, nullptr, &ok);
+      Variable* var = DeclareVariable(
+          declaration, name, pos, VariableMode::kVar, NORMAL_VARIABLE,
+          Variable::DefaultInitializationFlag(VariableMode::kVar), &was_added,
+          nullptr, &ok);
       DCHECK(ok);
+      VariableProxy* source =
+          factory->NewVariableProxy(sloppy_block_function->var());
+      VariableProxy* target = factory->NewVariableProxy(var);
+      Assignment* assignment = factory->NewAssignment(
+          sloppy_block_function->init(), target, source, pos);
+      assignment->set_lookup_hoisting_mode(LookupHoistingMode::kLegacySloppy);
+      Statement* statement = factory->NewExpressionStatement(assignment, pos);
+      sloppy_block_function->set_statement(statement);
     } else {
       DCHECK(is_being_lazily_parsed_);
       bool was_added;
       Variable* var = DeclareVariableName(name, VariableMode::kVar, &was_added);
-      var->set_maybe_assigned();
+      if (sloppy_block_function->init() == Token::ASSIGN)
+        var->set_maybe_assigned();
     }
   }
 }
@@ -1029,16 +975,9 @@ Variable* Scope::DeclareVariable(
       // In harmony we treat re-declarations as early errors. See ES5 16 for a
       // definition of early errors.
       //
-      // Allow duplicate function decls for web compat, see bug 4693. If the
-      // duplication is allowed, then the var will show up in the
-      // SloppyBlockFunctionMap.
-      SloppyBlockFunctionMap* map =
-          GetDeclarationScope()->sloppy_block_function_map();
-      *ok =
-          map != nullptr && declaration->IsFunctionDeclaration() &&
-          declaration->AsFunctionDeclaration()
-              ->declares_sloppy_block_function() &&
-          map->Lookup(const_cast<AstRawString*>(name), name->Hash()) != nullptr;
+      // Allow duplicate function decls for web compat, see bug 4693.
+      *ok = var->is_sloppy_block_function() &&
+            kind == SLOPPY_BLOCK_FUNCTION_VARIABLE;
       *sloppy_mode_block_scope_function_redefinition = *ok;
     }
   }
@@ -1078,12 +1017,16 @@ Variable* Scope::DeclareVariableName(const AstRawString* name,
   Variable* var = DeclareLocal(name, mode, kind, was_added);
   if (!*was_added) {
     if (IsLexicalVariableMode(mode) || IsLexicalVariableMode(var->mode())) {
-      // Duplicate functions are allowed in the sloppy mode, but if this is not
-      // a function declaration, it's an error. This is an error PreParser
-      // hasn't previously detected.
-      return nullptr;
+      if (!var->is_sloppy_block_function() ||
+          kind != SLOPPY_BLOCK_FUNCTION_VARIABLE) {
+        // Duplicate functions are allowed in the sloppy mode, but if this is
+        // not a function declaration, it's an error. This is an error PreParser
+        // hasn't previously detected.
+        return nullptr;
+      }
+      // Sloppy block function redefinition.
     }
-    if (mode == VariableMode::kVar) var->set_maybe_assigned();
+    var->set_maybe_assigned();
   }
   var->set_is_used();
   return var;
@@ -1428,7 +1371,7 @@ void DeclarationScope::ResetAfterPreparsing(AstValueFactory* ast_value_factory,
   locals_.Clear();
   inner_scope_ = nullptr;
   unresolved_list_.Clear();
-  sloppy_block_function_map_ = nullptr;
+  sloppy_block_functions_.Clear();
   rare_data_ = nullptr;
   has_rest_ = false;
 

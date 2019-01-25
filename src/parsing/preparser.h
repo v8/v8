@@ -1101,16 +1101,14 @@ class PreParser : public ParserBase<PreParser> {
     // Don't bother actually binding the proxy.
   }
 
-  void DeclareVariableName(const AstRawString* name, VariableMode mode,
-                           Scope* scope, bool* was_added,
-                           int position = kNoSourcePosition,
-                           VariableKind kind = NORMAL_VARIABLE) {
+  Variable* DeclareVariableName(const AstRawString* name, VariableMode mode,
+                                Scope* scope, bool* was_added,
+                                int position = kNoSourcePosition,
+                                VariableKind kind = NORMAL_VARIABLE) {
     Variable* var = scope->DeclareVariableName(name, mode, was_added, kind);
     if (var == nullptr) {
       ReportUnidentifiableError();
-      return;
-    }
-    if (var->scope() != scope) {
+    } else if (var->scope() != scope) {
       DCHECK_NE(kNoSourcePosition, position);
       DCHECK_EQ(VariableMode::kVar, mode);
       Declaration* nested_declaration =
@@ -1119,6 +1117,7 @@ class PreParser : public ParserBase<PreParser> {
       nested_declaration->set_var(var);
       var->scope()->declarations()->Add(nested_declaration);
     }
+    return var;
   }
 
   V8_INLINE PreParserBlock RewriteCatchPattern(CatchInfo* catch_info) {
@@ -1183,22 +1182,22 @@ class PreParser : public ParserBase<PreParser> {
     return PreParserStatement::Default();
   }
 
-  V8_INLINE PreParserStatement
-  DeclareFunction(const PreParserIdentifier& variable_name,
-                  const PreParserExpression& function, VariableMode mode,
-                  int beg_pos, int end_pos, bool is_sloppy_block_function,
-                  ZonePtrList<const AstRawString>* names) {
+  V8_INLINE PreParserStatement DeclareFunction(
+      const PreParserIdentifier& variable_name,
+      const PreParserExpression& function, VariableMode mode, VariableKind kind,
+      int beg_pos, int end_pos, ZonePtrList<const AstRawString>* names) {
     DCHECK_NULL(names);
     if (variable_name.string_ != nullptr) {
       bool was_added;
-      if (is_strict(language_mode())) {
-        DeclareVariableName(variable_name.string_, mode, scope(), &was_added);
-      } else {
-        scope()->DeclareVariableName(variable_name.string_, mode, &was_added);
-      }
-      if (is_sloppy_block_function) {
-        GetDeclarationScope()->DeclareSloppyBlockFunction(variable_name.string_,
-                                                          scope());
+      Variable* var = DeclareVariableName(variable_name.string_, mode, scope(),
+                                          &was_added, beg_pos, kind);
+      if (kind == SLOPPY_BLOCK_FUNCTION_VARIABLE) {
+        Token::Value init =
+            loop_nesting_depth() > 0 ? Token::ASSIGN : Token::INIT;
+        SloppyBlockFunctionStatement* statement =
+            factory()->ast_node_factory()->NewSloppyBlockFunctionStatement(
+                end_pos, var, init);
+        GetDeclarationScope()->DeclareSloppyBlockFunction(statement);
       }
     }
     return Statement::Default();

@@ -137,6 +137,9 @@ class Variable final : public ZoneObject {
   }
 
   bool is_parameter() const { return kind() == PARAMETER_VARIABLE; }
+  bool is_sloppy_block_function() {
+    return kind() == SLOPPY_BLOCK_FUNCTION_VARIABLE;
+  }
 
   Variable* local_if_not_shadowed() const {
     DCHECK(mode() == VariableMode::kDynamicLocal &&
@@ -207,7 +210,7 @@ class Variable final : public ZoneObject {
 
   class VariableModeField : public BitField16<VariableMode, 0, 3> {};
   class VariableKindField
-      : public BitField16<VariableKind, VariableModeField::kNext, 2> {};
+      : public BitField16<VariableKind, VariableModeField::kNext, 3> {};
   class LocationField
       : public BitField16<VariableLocation, VariableKindField::kNext, 3> {};
   class ForceContextAllocationField

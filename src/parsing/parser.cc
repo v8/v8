@@ -1438,20 +1438,20 @@ Statement* Parser::BuildInitializationBlock(
 
 Statement* Parser::DeclareFunction(const AstRawString* variable_name,
                                    FunctionLiteral* function, VariableMode mode,
-                                   int beg_pos, int end_pos,
-                                   bool is_sloppy_block_function,
+                                   VariableKind kind, int beg_pos, int end_pos,
                                    ZonePtrList<const AstRawString>* names) {
-  Declaration* declaration = factory()->NewFunctionDeclaration(
-      function, is_sloppy_block_function, beg_pos);
+  Declaration* declaration =
+      factory()->NewFunctionDeclaration(function, beg_pos);
   bool was_added;
-  Declare(declaration, variable_name, NORMAL_VARIABLE, mode,
-          kCreatedInitialized, scope(), &was_added, beg_pos);
+  Declare(declaration, variable_name, kind, mode, kCreatedInitialized, scope(),
+          &was_added, beg_pos);
   if (names) names->Add(variable_name, zone());
-  if (is_sloppy_block_function) {
+  if (kind == SLOPPY_BLOCK_FUNCTION_VARIABLE) {
+    Token::Value init = loop_nesting_depth() > 0 ? Token::ASSIGN : Token::INIT;
     SloppyBlockFunctionStatement* statement =
-        factory()->NewSloppyBlockFunctionStatement(end_pos);
-    GetDeclarationScope()->DeclareSloppyBlockFunction(variable_name, scope(),
-                                                      statement);
+        factory()->NewSloppyBlockFunctionStatement(end_pos, declaration->var(),
+                                                   init);
+    GetDeclarationScope()->DeclareSloppyBlockFunction(statement);
     return statement;
   }
   return factory()->EmptyStatement();

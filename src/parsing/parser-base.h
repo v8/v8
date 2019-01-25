@@ -3648,10 +3648,10 @@ ParserBase<Impl>::ParseHoistableDeclaration(
   FuncNameInferrerState fni_state(&fni_);
   impl()->PushEnclosingName(name);
 
-  FunctionKind kind = FunctionKindFor(flags);
+  FunctionKind function_kind = FunctionKindFor(flags);
 
   FunctionLiteralT function = impl()->ParseFunctionLiteral(
-      name, scanner()->location(), name_validity, kind, pos,
+      name, scanner()->location(), name_validity, function_kind, pos,
       FunctionLiteral::kDeclaration, language_mode(), nullptr);
 
   // In ES6, a function behaves as a lexical binding, except in
@@ -3662,16 +3662,17 @@ ParserBase<Impl>::ParseHoistableDeclaration(
           : VariableMode::kVar;
   // Async functions don't undergo sloppy mode block scoped hoisting, and don't
   // allow duplicates in a block. Both are represented by the
-  // sloppy_block_function_map. Don't add them to the map for async functions.
+  // sloppy_block_functions_. Don't add them to the map for async functions.
   // Generators are also supposed to be prohibited; currently doing this behind
   // a flag and UseCounting violations to assess web compatibility.
-  bool is_sloppy_block_function = is_sloppy(language_mode()) &&
-                                  !scope()->is_declaration_scope() &&
-                                  flags == ParseFunctionFlag::kIsNormal;
+  VariableKind kind = is_sloppy(language_mode()) &&
+                              !scope()->is_declaration_scope() &&
+                              flags == ParseFunctionFlag::kIsNormal
+                          ? SLOPPY_BLOCK_FUNCTION_VARIABLE
+                          : NORMAL_VARIABLE;
 
-  return impl()->DeclareFunction(variable_name, function, mode, pos,
-                                 end_position(), is_sloppy_block_function,
-                                 names);
+  return impl()->DeclareFunction(variable_name, function, mode, kind, pos,
+                                 end_position(), names);
 }
 
 template <typename Impl>
