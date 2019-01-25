@@ -259,17 +259,17 @@ namespace array {
 
   UnsafeCast<CompareBuiltinFn>(implicit context: Context)(o: Object):
       CompareBuiltinFn {
-    return %RawObjectCast<CompareBuiltinFn>(o);
+    return %RawDownCast<CompareBuiltinFn>(o);
   }
   UnsafeCast<LoadFn>(implicit context: Context)(o: Object): LoadFn {
-    return %RawObjectCast<LoadFn>(o);
+    return %RawDownCast<LoadFn>(o);
   }
   UnsafeCast<StoreFn>(implicit context: Context)(o: Object): StoreFn {
-    return %RawObjectCast<StoreFn>(o);
+    return %RawDownCast<StoreFn>(o);
   }
   UnsafeCast<CanUseSameAccessorFn>(implicit context: Context)(o: Object):
       CanUseSameAccessorFn {
-    return %RawObjectCast<CanUseSameAccessorFn>(o);
+    return %RawDownCast<CanUseSameAccessorFn>(o);
   }
 
   builtin SortCompareDefault(

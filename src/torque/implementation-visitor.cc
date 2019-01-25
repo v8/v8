@@ -1250,7 +1250,7 @@ VisitResult ImplementationVisitor::Visit(NewExpression* expr) {
       ProjectStructField(new_struct_result, "map_untyped");
   Arguments map_cast_arguments;
   map_cast_arguments.parameters.push_back(raw_object_map);
-  VisitResult object_map = GenerateCall("%RawObjectCast", map_cast_arguments,
+  VisitResult object_map = GenerateCall("%RawDownCast", map_cast_arguments,
                                         {TypeOracle::GetMapType()}, false);
   Arguments size_arguments;
   size_arguments.parameters.push_back(object_map);

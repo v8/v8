@@ -160,11 +160,10 @@ type SloppyArgumentsElements extends FixedArray
 type NumberDictionary extends HeapObject
     generates 'TNode<NumberDictionary>';
 
-// RawObjectCasts should *never* be used anywhere in Torque code except for
+// %RawDownCast should *never* be used anywhere in Torque code except for
 // in Torque-based UnsafeCast operators preceeded by an appropriate
 // type assert()
-intrinsic %RawObjectCast<A: type>(o: Tagged): A;
-intrinsic %RawPointerCast<A: type>(p: RawPtr): A;
+intrinsic %RawDownCast<To: type, From: type>(x: From): To;
 intrinsic %RawConstexprCast<To: type, From: type>(f: From): To;
 
 type NativeContextSlot generates 'TNode<IntPtrT>' constexpr 'int32_t';
@@ -195,7 +194,7 @@ type JSDataView extends JSArrayBufferView generates 'TNode<JSDataView>';
 
 type InstanceType generates 'TNode<Int32T>' constexpr 'InstanceType';
 type ElementsKind generates 'TNode<Int32T>' constexpr 'ElementsKind';
-type LanguageMode extends Tagged
+type LanguageMode extends Smi
     generates 'TNode<Smi>' constexpr 'LanguageMode';
 type ExtractFixedArrayFlags
     generates 'TNode<Smi>'
@@ -694,7 +693,7 @@ CastHeapObject<JSDataView>(o: HeapObject): JSDataView
 
 CastHeapObject<JSTypedArray>(o: HeapObject): JSTypedArray
     labels CastError {
-  if (IsJSTypedArray(o)) return %RawObjectCast<JSTypedArray>(o);
+  if (IsJSTypedArray(o)) return %RawDownCast<JSTypedArray>(o);
   goto CastError;
 }
 
@@ -710,25 +709,25 @@ CastHeapObject<JSArray>(o: HeapObject): JSArray
 
 CastHeapObject<Context>(o: HeapObject): Context
     labels CastError {
-  if (IsContext(o)) return %RawObjectCast<Context>(o);
+  if (IsContext(o)) return %RawDownCast<Context>(o);
   goto CastError;
 }
 
 CastHeapObject<JSObject>(o: HeapObject): JSObject
     labels CastError {
-  if (IsJSObject(o)) return %RawObjectCast<JSObject>(o);
+  if (IsJSObject(o)) return %RawDownCast<JSObject>(o);
   goto CastError;
 }
 
 CastHeapObject<NumberDictionary>(o: HeapObject): NumberDictionary
     labels CastError {
-  if (IsNumberDictionary(o)) return %RawObjectCast<NumberDictionary>(o);
+  if (IsNumberDictionary(o)) return %RawDownCast<NumberDictionary>(o);
   goto CastError;
 }
 
 CastHeapObject<FixedTypedArrayBase>(o: HeapObject): FixedTypedArrayBase
     labels CastError {
-  if (IsFixedTypedArray(o)) return %RawObjectCast<FixedTypedArrayBase>(o);
+  if (IsFixedTypedArray(o)) return %RawDownCast<FixedTypedArrayBase>(o);
   goto CastError;
 }
 
@@ -744,13 +743,13 @@ CastHeapObject<Constructor>(o: HeapObject): Constructor
 
 CastHeapObject<HeapNumber>(o: HeapObject): HeapNumber
     labels CastError {
-  if (IsHeapNumber(o)) return %RawObjectCast<HeapNumber>(o);
+  if (IsHeapNumber(o)) return %RawDownCast<HeapNumber>(o);
   goto CastError;
 }
 
 CastHeapObject<Map>(implicit context: Context)(o: HeapObject): Map
     labels CastError {
-  if (IsMap(o)) return %RawObjectCast<Map>(o);
+  if (IsMap(o)) return %RawDownCast<Map>(o);
   goto CastError;
 }
 
@@ -766,7 +765,7 @@ CastHeapObject<JSArgumentsObjectWithLength>(implicit context: Context)(
     goto CastError;
   }
   label True {
-    return %RawObjectCast<JSArgumentsObjectWithLength>(o);
+    return %RawDownCast<JSArgumentsObjectWithLength>(o);
   }
 }
 
@@ -784,7 +783,7 @@ CastHeapObject<FastJSArray>(implicit context: Context)(o: HeapObject):
   if (!IsPrototypeInitialArrayPrototype(map)) goto CastError;
 
   if (IsNoElementsProtectorCellInvalid()) goto CastError;
-  return %RawObjectCast<FastJSArray>(o);
+  return %RawDownCast<FastJSArray>(o);
 }
 
 struct FastJSArrayWitness {
@@ -806,7 +805,7 @@ struct FastJSArrayWitness {
     // However, we have to make sure there are no elements in the
     // prototype chain.
     if (IsNoElementsProtectorCellInvalid()) goto CastError;
-    this.unstable = %RawObjectCast<FastJSArray>(this.stable);
+    this.unstable = %RawDownCast<FastJSArray>(this.stable);
   }
 
   stable: JSArray;
@@ -819,7 +818,7 @@ CastHeapObject<FastJSArrayForCopy>(implicit context: Context)(o: HeapObject):
     labels CastError {
   if (IsArraySpeciesProtectorCellInvalid()) goto CastError;
   const a: FastJSArray = Cast<FastJSArray>(o) otherwise CastError;
-  return %RawObjectCast<FastJSArrayForCopy>(o);
+  return %RawDownCast<FastJSArrayForCopy>(o);
 }
 
 CastHeapObject<FastJSArrayWithNoCustomIteration>(implicit context: Context)(
@@ -827,18 +826,18 @@ CastHeapObject<FastJSArrayWithNoCustomIteration>(implicit context: Context)(
     labels CastError {
   if (IsArrayIteratorProtectorCellInvalid()) goto CastError;
   const a: FastJSArray = Cast<FastJSArray>(o) otherwise CastError;
-  return %RawObjectCast<FastJSArrayWithNoCustomIteration>(o);
+  return %RawDownCast<FastJSArrayWithNoCustomIteration>(o);
 }
 
 CastHeapObject<JSReceiver>(implicit context: Context)(o: HeapObject): JSReceiver
     labels CastError {
-  if (IsJSReceiver(o)) return %RawObjectCast<JSReceiver>(o);
+  if (IsJSReceiver(o)) return %RawDownCast<JSReceiver>(o);
   goto CastError;
 }
 
 CastHeapObject<JSFunction>(implicit context: Context)(o: HeapObject): JSFunction
     labels CastError {
-  if (IsJSFunction(o)) return %RawObjectCast<JSFunction>(o);
+  if (IsJSFunction(o)) return %RawDownCast<JSFunction>(o);
   goto CastError;
 }
 
@@ -986,7 +985,7 @@ FromConstexpr<bool, constexpr bool>(b: constexpr bool): bool {
 }
 FromConstexpr<LanguageMode, constexpr LanguageMode>(m: constexpr LanguageMode):
     LanguageMode {
-  return %RawObjectCast<LanguageMode>(%FromConstexpr<Smi>(m));
+  return %RawDownCast<LanguageMode>(%FromConstexpr<Smi>(m));
 }
 FromConstexpr<ElementsKind, constexpr ElementsKind>(e: constexpr ElementsKind):
     ElementsKind {
@@ -1104,16 +1103,16 @@ macro Is<A: type, B: type>(implicit context: Context)(o: B): bool {
 
 macro UnsafeCast<A: type>(implicit context: Context)(o: Object): A {
   assert(Is<A>(o));
-  return %RawObjectCast<A>(o);
+  return %RawDownCast<A>(o);
 }
 
 UnsafeCast<Object>(o: Object): Object {
   return o;
 }
 
-const kCOWMap: Map = %RawObjectCast<Map>(LoadRoot(kFixedCOWArrayMapRootIndex));
+const kCOWMap: Map = %RawDownCast<Map>(LoadRoot(kFixedCOWArrayMapRootIndex));
 const kEmptyFixedArray: FixedArray =
-    %RawObjectCast<FixedArray>(LoadRoot(kEmptyFixedArrayRootIndex));
+    %RawDownCast<FixedArray>(LoadRoot(kEmptyFixedArrayRootIndex));
 
 extern macro IsPrototypeInitialArrayPrototype(implicit context: Context)(Map):
     bool;

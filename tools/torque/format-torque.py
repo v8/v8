@@ -46,8 +46,7 @@ def preprocess(input):
   return input
 
 def postprocess(output):
-  output = re.sub(r'%\s*RawObjectCast', r'%RawObjectCast', output)
-  output = re.sub(r'%\s*RawPointerCast', r'%RawPointerCast', output)
+  output = re.sub(r'%\s*RawDownCast', r'%RawDownCast', output)
   output = re.sub(r'%\s*RawConstexprCast', r'%RawConstexprCast', output)
   output = re.sub(r'%\s*FromConstexpr', r'%FromConstexpr', output)
   output = re.sub(r'%\s*Allocate', r'%Allocate', output)

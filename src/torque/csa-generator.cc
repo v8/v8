@@ -179,30 +179,19 @@ void CSAGenerator::EmitInstruction(const CallIntrinsicInstruction& instruction,
     }
   }
 
-  if (instruction.intrinsic->ExternalName() == "%RawObjectCast") {
+  if (instruction.intrinsic->ExternalName() == "%RawDownCast") {
     if (parameter_types.size() != 1) {
-      ReportError("%RawObjectCast must take a single parameter");
+      ReportError("%RawDownCast must take a single parameter");
+    }
+    if (!return_type->IsSubtypeOf(parameter_types[0])) {
+      ReportError("%RawDownCast error: ", *return_type, " is not a subtype of ",
+                  *parameter_types[0]);
     }
     if (return_type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
       if (return_type->GetGeneratedTNodeTypeName() !=
           parameter_types[0]->GetGeneratedTNodeTypeName()) {
         out_ << "TORQUE_CAST";
       }
-    } else {
-      std::stringstream s;
-      s << "%RawObjectCast must cast to subtype of Tagged (" << *return_type
-        << " is not)";
-      ReportError(s.str());
-    }
-  } else if (instruction.intrinsic->ExternalName() == "%RawPointerCast") {
-    if (parameter_types.size() != 1) {
-      ReportError("%RawPointerCast must take a single parameter");
-    }
-    if (!return_type->IsSubtypeOf(TypeOracle::GetRawPtrType())) {
-      std::stringstream s;
-      s << "%RawObjectCast must cast to subtype of RawPtr (" << *return_type
-        << " is not)";
-      ReportError(s.str());
     }
   } else if (instruction.intrinsic->ExternalName() == "%FromConstexpr") {
     if (parameter_types.size() != 1 || !parameter_types[0]->IsConstexpr()) {
