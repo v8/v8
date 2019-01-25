@@ -216,41 +216,6 @@ class CompilationStateImpl {
         : func_index(func_index), error(std::move(error)) {}
   };
 
-  class LogCodesTask : public CancelableTask {
-   public:
-    LogCodesTask(CancelableTaskManager* manager,
-                 CompilationStateImpl* compilation_state, Isolate* isolate)
-        : CancelableTask(manager),
-          compilation_state_(compilation_state),
-          isolate_(isolate) {
-      // This task should only be created if we should actually log code.
-      DCHECK(WasmCode::ShouldBeLogged(isolate));
-    }
-
-    // Hold the compilation state {mutex_} when calling this method.
-    void AddCode(WasmCode* code) { code_to_log_.push_back(code); }
-
-    void RunInternal() override {
-      // Remove this task from the {CompilationStateImpl}. The next compilation
-      // that finishes will allocate and schedule a new task.
-      {
-        base::MutexGuard guard(&compilation_state_->mutex_);
-        DCHECK_EQ(this, compilation_state_->log_codes_task_);
-        compilation_state_->log_codes_task_ = nullptr;
-      }
-      // If by now we shouldn't log code any more, don't log it.
-      if (!WasmCode::ShouldBeLogged(isolate_)) return;
-      for (WasmCode* code : code_to_log_) {
-        code->LogCode(isolate_);
-      }
-    }
-
-   private:
-    CompilationStateImpl* const compilation_state_;
-    Isolate* const isolate_;
-    std::vector<WasmCode*> code_to_log_;
-  };
-
   void NotifyOnEvent(CompilationEvent event, const WasmError* error);
 
   std::vector<std::unique_ptr<WasmCompilationUnit>>& finish_units() {
@@ -295,10 +260,6 @@ class CompilationStateImpl {
   // Features detected to be used in this module. Features can be detected
   // as a module is being compiled.
   WasmFeatures detected_features_ = kNoWasmFeatures;
-
-  // The foreground task to log finished wasm code. Is {nullptr} if no such task
-  // is currently scheduled.
-  LogCodesTask* log_codes_task_ = nullptr;
 
   // Abstraction over the storage of the wire bytes. Held in a shared_ptr so
   // that background compilation jobs can keep the storage alive while
@@ -1799,13 +1760,7 @@ void CompilationStateImpl::OnFinishedUnit(ExecutionTier tier, WasmCode* code) {
   }
 
   if (should_log_code_ && code != nullptr) {
-    if (log_codes_task_ == nullptr) {
-      auto new_task = base::make_unique<LogCodesTask>(&foreground_task_manager_,
-                                                      this, isolate_);
-      log_codes_task_ = new_task.get();
-      foreground_task_runner_->PostTask(std::move(new_task));
-    }
-    log_codes_task_->AddCode(code);
+    engine_->LogCode(code);
   }
 }
 

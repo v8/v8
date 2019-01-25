@@ -22,10 +22,65 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
+namespace {
+class LogCodesTask : public Task {
+ public:
+  explicit LogCodesTask(base::Mutex* mutex, LogCodesTask** task_slot,
+                        Isolate* isolate)
+      : mutex_(mutex), task_slot_(task_slot), isolate_(isolate) {}
+
+  // Hold the {mutex_} when calling this method.
+  void AddCode(WasmCode* code) { code_to_log_.push_back(code); }
+
+  void Run() override {
+    if (isolate_ == nullptr) return;  // Cancelled.
+    // Remove this task from the {IsolateInfo} in the engine. The next
+    // logging request will allocate and schedule a new task.
+    {
+      base::MutexGuard guard(mutex_);
+      DCHECK_EQ(this, *task_slot_);
+      *task_slot_ = nullptr;
+    }
+    // If by now we should not log code any more, do not log it.
+    if (!WasmCode::ShouldBeLogged(isolate_)) return;
+    for (WasmCode* code : code_to_log_) {
+      code->LogCode(isolate_);
+    }
+  }
+
+  void Cancel() {
+    // Cancel will only be called on Isolate shutdown, which happens on the
+    // Isolate's foreground thread. Thus no synchronization needed.
+    isolate_ = nullptr;
+  }
+
+ private:
+  // The mutex of the WasmEngine.
+  base::Mutex* const mutex_;
+  // The slot in the WasmEngine where this LogCodesTask is stored. This is
+  // cleared by this task before execution.
+  LogCodesTask** const task_slot_;
+  Isolate* isolate_;
+  std::vector<WasmCode*> code_to_log_;
+};
+}  // namespace
+
 struct WasmEngine::IsolateInfo {
+  explicit IsolateInfo(Isolate* isolate) {
+    v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
+    v8::Platform* platform = V8::GetCurrentPlatform();
+    foreground_task_runner = platform->GetForegroundTaskRunner(v8_isolate);
+  }
+
   // All native modules that are being used by this Isolate (currently only
   // grows, never shrinks).
   std::set<NativeModule*> native_modules;
+
+  // The currently scheduled LogCodesTask.
+  LogCodesTask* log_codes_task = nullptr;
+
+  // The foreground task runner of the isolate (can be called from background).
+  std::shared_ptr<v8::TaskRunner> foreground_task_runner;
 };
 
 WasmEngine::WasmEngine()
@@ -352,7 +407,7 @@ void WasmEngine::DeleteCompileJobsOnIsolate(Isolate* isolate) {
 void WasmEngine::AddIsolate(Isolate* isolate) {
   base::MutexGuard guard(&mutex_);
   DCHECK_EQ(0, isolates_.count(isolate));
-  isolates_.emplace(isolate, base::make_unique<IsolateInfo>());
+  isolates_.emplace(isolate, base::make_unique<IsolateInfo>(isolate));
 
   // Install sampling GC callback.
   // TODO(v8:7424): For now we sample module sizes in a GC callback. This will
@@ -383,7 +438,25 @@ void WasmEngine::RemoveIsolate(Isolate* isolate) {
     DCHECK_EQ(1, isolates_per_native_module_[native_module].count(isolate));
     isolates_per_native_module_[native_module].erase(isolate);
   }
+  if (auto* task = it->second->log_codes_task) task->Cancel();
   isolates_.erase(it);
+}
+
+void WasmEngine::LogCode(WasmCode* code) {
+  base::MutexGuard guard(&mutex_);
+  NativeModule* native_module = code->native_module();
+  DCHECK_EQ(1, isolates_per_native_module_.count(native_module));
+  for (Isolate* isolate : isolates_per_native_module_[native_module]) {
+    DCHECK_EQ(1, isolates_.count(isolate));
+    IsolateInfo* info = isolates_[isolate].get();
+    if (info->log_codes_task == nullptr) {
+      auto new_task = base::make_unique<LogCodesTask>(
+          &mutex_, &info->log_codes_task, isolate);
+      info->log_codes_task = new_task.get();
+      info->foreground_task_runner->PostTask(std::move(new_task));
+    }
+    info->log_codes_task->AddCode(code);
+  }
 }
 
 std::unique_ptr<NativeModule> WasmEngine::NewNativeModule(

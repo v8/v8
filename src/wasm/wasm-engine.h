@@ -153,6 +153,11 @@ class V8_EXPORT_PRIVATE WasmEngine {
                                 std::forward<Args>(args)...);
   }
 
+  // Trigger code logging for this WasmCode in all Isolates which have access to
+  // the NativeModule containing this code. This method can be called from
+  // background threads.
+  void LogCode(WasmCode*);
+
   // Create a new NativeModule. The caller is responsible for its
   // lifetime. The native module will be given some memory for code,
   // which will be page size aligned. The size of the initial memory
