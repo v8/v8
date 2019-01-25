@@ -992,6 +992,34 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::Initialize(
     // a. Set dateTimeFormat.[[HourCycle]] to undefined.
     date_time_format->set_hour_cycle(Intl::HourCycle::kUndefined);
   }
+
+  // 12.1.1 InitializeDateTimeFormat ( dateTimeFormat, locales, options )
+  //
+  // Steps 8-9 set opt.[[hc]] to value *other than undefined*
+  // if "hour12" is set or "hourCycle" is set in the option.
+  //
+  // 9.2.6 ResolveLocale (... )
+  // Step 8.h / 8.i and 8.k
+  //
+  // An hour12 option always overrides an hourCycle option.
+  // Additionally hour12 and hourCycle both clear out any existing Unicode
+  // extension key in the input locale.
+  //
+  // See details in https://github.com/tc39/test262/pull/2035
+  if (maybe_get_hour12.FromJust() ||
+      maybe_hour_cycle.FromJust() != Intl::HourCycle::kUndefined) {
+    auto hc_extension_it = r.extensions.find("hc");
+    if (hc_extension_it != r.extensions.end()) {
+      if (date_time_format->hour_cycle() !=
+          Intl::ToHourCycle(hc_extension_it->second.c_str())) {
+        // Remove -hc- if it does not agree with what we used.
+        UErrorCode status = U_ZERO_ERROR;
+        icu_locale.setKeywordValue(uloc_toLegacyKey("hc"), nullptr, status);
+        CHECK(U_SUCCESS(status));
+      }
+    }
+  }
+
   Handle<Managed<icu::Locale>> managed_locale =
       Managed<icu::Locale>::FromRawPtr(isolate, 0, icu_locale.clone());
 
