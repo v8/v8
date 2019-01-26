@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include 'src/builtins/builtins-constructor-gen.h'
+
 namespace typed_array {
   extern builtin IterableToListMayPreserveHoles(Context, Object, Callable):
       JSArray;
@@ -10,9 +12,13 @@ namespace typed_array {
   extern builtin TypedArrayInitializeWithBuffer(implicit context: Context)(
       JSTypedArray, PositiveSmi, JSArrayBuffer, PositiveSmi, Number): void;
 
+  extern macro ConstructorBuiltinsAssembler::EmitFastNewObject(
+      implicit context: Context)(JSFunction, JSReceiver): JSTypedArray;
   extern macro TypedArrayBuiltinsAssembler::ByteLengthIsValid(Number): bool;
   extern macro TypedArrayBuiltinsAssembler::CallCMemcpy(
       RawPtr, RawPtr, uintptr): void;
+  extern macro TypedArrayBuiltinsAssembler::GetTypedArrayElementSize(
+      ElementsKind): intptr;
   extern macro TypedArrayBuiltinsAssembler::IsSharedArrayBuffer(JSArrayBuffer):
       bool;
 
@@ -201,5 +207,75 @@ namespace typed_array {
     label IfInvalidOffset deferred {
       ThrowRangeError(context, kInvalidOffset, byteOffset);
     }
+  }
+
+  transitioning macro ConstructByJSReceiver(implicit context: Context)(
+      array: JSTypedArray, obj: JSReceiver, elementSize: Smi) {
+    try {
+      const iteratorMethod: Object =
+          GetIteratorMethod(obj) otherwise IfIteratorUndefined;
+      const iteratorFn: Callable = Cast<Callable>(iteratorMethod)
+          otherwise ThrowTypeError(context, kIteratorSymbolNonCallable);
+      ConstructByIterable(array, obj, iteratorFn, elementSize);
+    }
+    label IfIteratorUndefined {
+      const lengthObj: Object = GetProperty(obj, kLengthString);
+      const length: Smi = ToSmiLength(lengthObj)
+          otherwise goto IfInvalidLength(lengthObj);
+      ConstructByArrayLike(
+          array, obj, length, elementSize, GetArrayBufferFunction());
+    }
+    label IfInvalidLength(length: Object) {
+      ThrowRangeError(context, kInvalidTypedArrayLength, length);
+    }
+  }
+
+  // 22.2.4 The TypedArray Constructors
+  // ES #sec-typedarray-constructors
+  transitioning builtin CreateTypedArray(
+      context: Context, target: JSFunction, newTarget: JSReceiver, arg1: Object,
+      arg2: Object, arg3: Object): Object {
+    assert(IsConstructor(target));
+    // 4. Let O be ? AllocateTypedArray(constructorName, NewTarget,
+    // "%TypedArrayPrototype%").
+    const array: JSTypedArray = EmitFastNewObject(target, newTarget);
+    // We need to set the byte_offset / byte_length to some sane values
+    // to keep the heap verifier happy.
+    // TODO(bmeurer): Fix this initialization to not use EmitFastNewObject,
+    // which causes the problem, since it puts Undefined into all slots of
+    // the object even though that doesn't make any sense for these fields.
+    array.byte_offset = 0;
+    array.byte_length = 0;
+
+    // 5. Let elementSize be the Number value of the Element Size value in Table
+    // 56 for constructorName.
+    const elementSize: Smi =
+        Convert<Smi>(GetTypedArrayElementSize(array.elements_kind));
+
+    try {
+      typeswitch (arg1) {
+        case (length: Smi): {
+          goto IfConstructByLength(length);
+        }
+        case (buffer: JSArrayBuffer): {
+          ConstructByArrayBuffer(array, buffer, arg2, arg3, elementSize);
+        }
+        case (typedArray: JSTypedArray): {
+          ConstructByTypedArray(array, typedArray, elementSize);
+        }
+        case (obj: JSReceiver): {
+          ConstructByJSReceiver(array, obj, elementSize);
+        }
+        // The first argument was a number or fell through and is treated as
+        // a number. https://tc39.github.io/ecma262/#sec-typedarray-length
+        case (lengthObj: HeapObject): {
+          goto IfConstructByLength(lengthObj);
+        }
+      }
+    }
+    label IfConstructByLength(length: Object) {
+      ConstructByLength(array, length, elementSize);
+    }
+    return array;
   }
 }

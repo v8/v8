@@ -338,6 +338,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return UncheckedCast<JSArray>(heap_object);
   }
 
+  TNode<JSArrayBuffer> HeapObjectToJSArrayBuffer(TNode<HeapObject> heap_object,
+                                                 Label* fail) {
+    GotoIfNot(IsJSArrayBuffer(heap_object), fail);
+    return UncheckedCast<JSArrayBuffer>(heap_object);
+  }
+
   TNode<JSArray> TaggedToFastJSArray(TNode<Context> context,
                                      TNode<Object> value, Label* fail) {
     GotoIf(TaggedIsSmi(value), fail);
@@ -1202,6 +1208,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   template <class T = Object>
   void StoreObjectFieldNoWriteBarrier(TNode<HeapObject> object,
                                       TNode<IntPtrT> offset, TNode<T> value) {
+    StoreObjectFieldNoWriteBarrier(object, offset, value,
+                                   MachineRepresentationOf<T>::value);
+  }
+  template <class T = Object>
+  void StoreObjectFieldNoWriteBarrier(TNode<HeapObject> object, int offset,
+                                      TNode<T> value) {
     StoreObjectFieldNoWriteBarrier(object, offset, value,
                                    MachineRepresentationOf<T>::value);
   }
@@ -2634,6 +2646,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   Node* GetMethod(Node* context, Node* object, Handle<Name> name,
                   Label* if_null_or_undefined);
 
+  TNode<Object> GetIteratorMethod(TNode<Context> context,
+                                  TNode<HeapObject> heap_obj,
+                                  Label* if_iteratorundefined);
+
   template <class... TArgs>
   TNode<Object> CallBuiltin(Builtins::Name id, SloppyTNode<Object> context,
                             TArgs... args) {
@@ -3042,6 +3058,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   // JSTypedArray helpers
   TNode<Smi> LoadJSTypedArrayLength(TNode<JSTypedArray> typed_array);
+  void StoreByteOffset(TNode<JSTypedArray> typed_array,
+                       TNode<UintPtrT> byte_offset);
+  void StoreByteLength(TNode<JSTypedArray> typed_array,
+                       TNode<UintPtrT> byte_length);
 
   TNode<IntPtrT> ElementOffsetFromIndex(Node* index, ElementsKind kind,
                                         ParameterMode mode, int base_size = 0);

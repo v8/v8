@@ -9147,6 +9147,14 @@ Node* CodeStubAssembler::GetMethod(Node* context, Node* object,
   return method;
 }
 
+TNode<Object> CodeStubAssembler::GetIteratorMethod(
+    TNode<Context> context, TNode<HeapObject> heap_obj,
+    Label* if_iteratorundefined) {
+  return CAST(GetMethod(context, heap_obj,
+                        isolate()->factory()->iterator_symbol(),
+                        if_iteratorundefined));
+}
+
 void CodeStubAssembler::LoadPropertyFromFastObject(
     Node* object, Node* map, TNode<DescriptorArray> descriptors,
     Node* name_index, Variable* var_details, Variable* var_value) {
@@ -13086,6 +13094,18 @@ TNode<UintPtrT> CodeStubAssembler::LoadJSArrayBufferViewByteOffset(
 TNode<Smi> CodeStubAssembler::LoadJSTypedArrayLength(
     TNode<JSTypedArray> typed_array) {
   return LoadObjectField<Smi>(typed_array, JSTypedArray::kLengthOffset);
+}
+
+void CodeStubAssembler::StoreByteOffset(TNode<JSTypedArray> typed_array,
+                                        TNode<UintPtrT> byte_offset) {
+  StoreObjectFieldNoWriteBarrier<UintPtrT>(
+      typed_array, JSTypedArray::kByteOffsetOffset, byte_offset);
+}
+
+void CodeStubAssembler::StoreByteLength(TNode<JSTypedArray> typed_array,
+                                        TNode<UintPtrT> byte_length) {
+  StoreObjectFieldNoWriteBarrier<UintPtrT>(
+      typed_array, JSTypedArray::kByteLengthOffset, byte_length);
 }
 
 CodeStubArguments::CodeStubArguments(

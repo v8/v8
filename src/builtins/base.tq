@@ -291,6 +291,8 @@ const kInvalidOffset: constexpr MessageTemplate
     generates 'MessageTemplate::kInvalidOffset';
 const kInvalidTypedArrayLength: constexpr MessageTemplate
     generates 'MessageTemplate::kInvalidTypedArrayLength';
+const kIteratorSymbolNonCallable: constexpr MessageTemplate
+    generates 'MessageTemplate::kIteratorSymbolNonCallable';
 const kIteratorValueNotAnObject: constexpr MessageTemplate
     generates 'MessageTemplate::kIteratorValueNotAnObject';
 const kNotIterable: constexpr MessageTemplate
@@ -635,6 +637,8 @@ extern macro IsValidPositiveSmi(intptr): bool;
 
 extern macro HeapObjectToJSDataView(HeapObject): JSDataView
     labels CastError;
+extern macro HeapObjectToJSArrayBuffer(HeapObject): JSArrayBuffer
+    labels CastError;
 extern macro HeapObjectToJSTypedArray(HeapObject): JSTypedArray
     labels CastError;
 extern macro TaggedToHeapObject(Object): HeapObject
@@ -705,6 +709,11 @@ CastHeapObject<Callable>(o: HeapObject): Callable
 CastHeapObject<JSArray>(o: HeapObject): JSArray
     labels CastError {
   return HeapObjectToJSArray(o) otherwise CastError;
+}
+
+CastHeapObject<JSArrayBuffer>(o: HeapObject): JSArrayBuffer
+    labels CastError {
+  return HeapObjectToJSArrayBuffer(o) otherwise CastError;
 }
 
 CastHeapObject<Context>(o: HeapObject): Context
@@ -1128,6 +1137,10 @@ TypedArrayBuiltinsAssembler::LoadTypedArrayBuffer(JSTypedArray): JSArrayBuffer;
 extern operator '.data_ptr' macro TypedArrayBuiltinsAssembler::LoadDataPtr(
     JSTypedArray): RawPtr;
 extern operator '.byte_length' macro LoadByteLength(JSArrayBuffer): uintptr;
+extern operator '.byte_length=' macro StoreByteLength(
+    JSTypedArray, uintptr): void;
+extern operator '.byte_offset=' macro StoreByteOffset(
+    JSTypedArray, uintptr): void;
 
 extern operator '.elements_kind' macro LoadMapElementsKind(Map): ElementsKind;
 extern operator '.elements_kind' macro LoadElementsKind(JSTypedArray):
@@ -1177,6 +1190,8 @@ macro StoreFixedDoubleArrayElementWithSmiIndex(
   StoreFixedDoubleArrayElement(array, index, value, SMI_PARAMETERS);
 }
 extern macro GetNumberDictionaryNumberOfElements(NumberDictionary): Smi;
+extern macro GetIteratorMethod(implicit context: Context)(HeapObject): Object
+    labels IfIteratorUndefined;
 
 extern macro BasicLoadNumberDictionaryElement(NumberDictionary, intptr): Object
     labels NotData, IfHole;
@@ -1356,6 +1371,7 @@ extern macro TransitionElementsKind(
     constexpr ElementsKind): void labels Bailout;
 
 extern macro IsCallable(HeapObject): bool;
+extern macro IsConstructor(HeapObject): bool;
 extern macro IsJSArray(HeapObject): bool;
 extern macro IsMap(HeapObject): bool;
 extern macro IsJSFunction(HeapObject): bool;
