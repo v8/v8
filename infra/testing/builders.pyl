@@ -490,7 +490,7 @@
     },
     'tests': [
       {'name': 'mozilla'},
-      {'name': 'test262'},
+      {'name': 'test262', 'shards': 2},
       {'name': 'v8testing', 'shards': 3},
       {'name': 'v8testing', 'variant': 'extra', 'shards': 2},
     ],
@@ -946,7 +946,7 @@
     },
     'tests': [
       {'name': 'mozilla'},
-      {'name': 'test262'},
+      {'name': 'test262', 'shards': 2},
       {'name': 'v8testing', 'shards': 2},
       {'name': 'v8testing', 'variant': 'extra'},
     ],
