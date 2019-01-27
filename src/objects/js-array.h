@@ -106,7 +106,6 @@ class JSArray : public JSObject {
   static const int kPreallocatedArrayElements = 4;
 
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JSARRAY_FIELDS)
-#undef JS_ARRAY_FIELDS
 
   static const int kLengthDescriptorIndex = 0;
 

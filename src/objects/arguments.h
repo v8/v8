@@ -30,14 +30,9 @@ class JSArgumentsObject : public JSObject {
 // mode already. Only use the below layout with the specific initial maps.
 class JSArgumentsObjectWithLength : public JSArgumentsObject {
  public:
-// Layout description.
-#define JS_ARGUMENTS_OBJECT_WITH_LENGTH_FIELDS(V) \
-  V(kLengthOffset, kTaggedSize)                   \
-  V(kSize, 0)
-
+  // Layout description.
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
                                 JSARGUMENTS_OBJECT_WITH_LENGTH_FIELDS)
-#undef JS_ARGUMENTS_OBJECT_WITH_LENGTH_FIELDS
 
   // Indices of in-object properties.
   static const int kLengthIndex = 0;
