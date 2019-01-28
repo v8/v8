@@ -920,6 +920,11 @@ void OS::Sleep(TimeDelta interval) {
 
 
 void OS::Abort() {
+  // Give a chance to debug the failure.
+  if (IsDebuggerPresent()) {
+    DebugBreak();
+  }
+
   // Before aborting, make sure to flush output buffers.
   fflush(stdout);
   fflush(stderr);

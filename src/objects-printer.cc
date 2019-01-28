@@ -69,6 +69,11 @@ namespace internal {
 #ifdef OBJECT_PRINT
 
 void Object::Print() const {
+  // Output into debugger's command window if a debugger is attached.
+  DbgStdoutStream dbg_os;
+  this->Print(dbg_os);
+  dbg_os << std::flush;
+
   StdoutStream os;
   this->Print(os);
   os << std::flush;
