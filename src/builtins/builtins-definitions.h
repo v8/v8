@@ -922,7 +922,7 @@ namespace internal {
   TFJ(ProxyRevoke, 0, kReceiver)                                               \
   TFS(ProxyGetProperty, kProxy, kName, kReceiverValue, kOnNonExistent)         \
   TFS(ProxyHasProperty, kProxy, kName)                                         \
-  TFS(ProxySetProperty, kProxy, kName, kValue, kReceiverValue)                 \
+  TFS(ProxySetProperty, kProxy, kName, kValue, kReceiverValue, kLanguageMode)  \
                                                                                \
   /* Reflect */                                                                \
   ASM(ReflectApply, Dummy)                                                     \
