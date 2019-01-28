@@ -46,6 +46,9 @@
 
   # Unable to change locale on Windows:
   'default_locale': [SKIP],
+
+  # Unable to change locale and TZ on Windows:
+  'regress-7770': [SKIP],
 }],  # system == windows'
 
 ['system == android', {
