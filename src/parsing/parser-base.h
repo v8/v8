@@ -1088,7 +1088,7 @@ class ParserBase {
   // The var declarations are hoisted to the function scope, but originate from
   // a scope where the name has also been let bound or the var declaration is
   // hoisted over such a scope.
-  void CheckConflictingVarDeclarations(Scope* scope) {
+  void CheckConflictingVarDeclarations(DeclarationScope* scope) {
     if (has_error()) return;
     Declaration* decl = scope->CheckConflictingVarDeclarations();
     if (decl != nullptr) {
@@ -3853,10 +3853,12 @@ void ParserBase<Impl>::ParseFunctionBody(
       inner_body.Rewind();
       inner_body.Add(inner_block);
       inner_block->set_scope(inner_scope);
-      const AstRawString* conflict = inner_scope->FindVariableDeclaredIn(
-          function_scope, VariableMode::kLastLexicalVariableMode);
-      if (conflict != nullptr) {
-        impl()->ReportVarRedeclarationIn(conflict, inner_scope);
+      if (!impl()->HasCheckedSyntax()) {
+        const AstRawString* conflict = inner_scope->FindVariableDeclaredIn(
+            function_scope, VariableMode::kLastLexicalVariableMode);
+        if (conflict != nullptr) {
+          impl()->ReportVarRedeclarationIn(conflict, inner_scope);
+        }
       }
       impl()->InsertShadowingVarBindingInitializers(inner_block);
     }
@@ -3883,6 +3885,7 @@ void ParserBase<Impl>::CheckArityRestrictions(int param_count,
                                               bool has_rest,
                                               int formals_start_pos,
                                               int formals_end_pos) {
+  if (impl()->HasCheckedSyntax()) return;
   if (IsGetterFunction(function_kind)) {
     if (param_count != 0) {
       impl()->ReportMessageAt(
@@ -3944,7 +3947,7 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
   if (V8_UNLIKELY(FLAG_log_function_events)) timer.Start();
 
   DCHECK_IMPLIES(!has_error(), peek() == Token::ARROW);
-  if (scanner_->HasLineTerminatorBeforeNext()) {
+  if (!impl()->HasCheckedSyntax() && scanner_->HasLineTerminatorBeforeNext()) {
     // ASI inserts `;` after arrow parameters if a line terminator is found.
     // `=> ...` is never a valid expression, so report as syntax error.
     // If next token is not `=>`, it's a syntax error anyways.
@@ -4100,7 +4103,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
   bool is_anonymous = impl()->IsNull(name);
 
   // All parts of a ClassDeclaration and ClassExpression are strict code.
-  if (!is_anonymous) {
+  if (!impl()->HasCheckedSyntax() && !is_anonymous) {
     if (name_is_strict_reserved) {
       impl()->ReportMessageAt(class_name_location,
                               MessageTemplate::kUnexpectedStrictReserved);
@@ -4636,7 +4639,8 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseStatement(
     case Token::VAR:
       return ParseVariableStatement(kStatement, nullptr);
     case Token::ASYNC:
-      if (!scanner()->HasLineTerminatorAfterNext() &&
+      if (!impl()->HasCheckedSyntax() &&
+          !scanner()->HasLineTerminatorAfterNext() &&
           PeekAhead() == Token::FUNCTION) {
         impl()->ReportMessageAt(
             scanner()->peek_location(),
@@ -5237,18 +5241,20 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseTryStatement() {
             catch_statements.Add(inner_block);
 
             // Check for `catch(e) { let e; }` and similar errors.
-            Scope* inner_scope = inner_block->scope();
-            if (inner_scope != nullptr) {
-              const AstRawString* conflict = nullptr;
-              if (impl()->IsNull(catch_info.pattern)) {
-                const AstRawString* name = catch_info.variable->raw_name();
-                if (inner_scope->LookupLocal(name)) conflict = name;
-              } else {
-                conflict = inner_scope->FindVariableDeclaredIn(
-                    scope(), VariableMode::kVar);
-              }
-              if (conflict != nullptr) {
-                impl()->ReportVarRedeclarationIn(conflict, inner_scope);
+            if (!impl()->HasCheckedSyntax()) {
+              Scope* inner_scope = inner_block->scope();
+              if (inner_scope != nullptr) {
+                const AstRawString* conflict = nullptr;
+                if (impl()->IsNull(catch_info.pattern)) {
+                  const AstRawString* name = catch_info.variable->raw_name();
+                  if (inner_scope->LookupLocal(name)) conflict = name;
+                } else {
+                  conflict = inner_scope->FindVariableDeclaredIn(
+                      scope(), VariableMode::kVar);
+                }
+                if (conflict != nullptr) {
+                  impl()->ReportVarRedeclarationIn(conflict, inner_scope);
+                }
               }
             }
 

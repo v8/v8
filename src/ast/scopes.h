@@ -250,14 +250,6 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // TODO(verwaest): Move to DeclarationScope?
   Variable* NewTemporary(const AstRawString* name);
 
-  // ---------------------------------------------------------------------------
-  // Illegal redeclaration support.
-
-  // Check if the scope has conflicting var
-  // declarations, i.e. a var declaration that has been hoisted from a nested
-  // scope over a let binding of the same name.
-  Declaration* CheckConflictingVarDeclarations();
-
   // Find variable with (variable->mode() <= |mode_limit|) that was declared in
   // |scope|. This is used to catch patterns like `try{}catch(e){let e;}` and
   // function([e]) { let e }, which are errors even though the two 'e's are each
@@ -751,6 +743,19 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
     zone_ = zone;
   }
 
+  // ---------------------------------------------------------------------------
+  // Illegal redeclaration support.
+
+  // Check if the scope has conflicting var
+  // declarations, i.e. a var declaration that has been hoisted from a nested
+  // scope over a let binding of the same name.
+  Declaration* CheckConflictingVarDeclarations();
+
+  void set_has_checked_syntax(bool has_checked_syntax) {
+    has_checked_syntax_ = has_checked_syntax;
+  }
+  bool has_checked_syntax() const { return has_checked_syntax_; }
+
   bool ShouldEagerCompile() const {
     return force_eager_compilation_ || should_eager_compile_;
   }
@@ -1025,6 +1030,7 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
 #endif
   bool is_skipped_function_ : 1;
   bool has_inferred_function_name_ : 1;
+  bool has_checked_syntax_ : 1;
 
   int num_parameters_ = 0;
 

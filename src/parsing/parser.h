@@ -373,6 +373,10 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   Scope* NewHiddenCatchScope();
 
+  bool HasCheckedSyntax() {
+    return scope()->GetDeclarationScope()->has_checked_syntax();
+  }
+
   // PatternRewriter and associated methods defined in pattern-rewriter.cc.
   friend class PatternRewriter;
   void InitializeVariables(

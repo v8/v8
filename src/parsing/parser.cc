@@ -786,6 +786,7 @@ FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
 
       // TODO(adamk): We should construct this scope from the ScopeInfo.
       DeclarationScope* scope = NewFunctionScope(kind);
+      scope->set_has_checked_syntax(true);
 
       // This bit only needs to be explicitly set because we're
       // not passing the ScopeInfo to the Scope constructor.

@@ -240,6 +240,7 @@ void DeclarationScope::SetDefaults() {
   force_eager_compilation_ = false;
   has_arguments_parameter_ = false;
   scope_uses_super_property_ = false;
+  has_checked_syntax_ = false;
   has_rest_ = false;
   receiver_ = nullptr;
   new_target_ = nullptr;
@@ -1084,7 +1085,8 @@ Variable* Scope::NewTemporary(const AstRawString* name,
   return var;
 }
 
-Declaration* Scope::CheckConflictingVarDeclarations() {
+Declaration* DeclarationScope::CheckConflictingVarDeclarations() {
+  if (has_checked_syntax_) return nullptr;
   for (Declaration* decl : decls_) {
     // Lexical vs lexical conflicts within the same scope have already been
     // captured in Parser::Declare. The only conflicts we still need to check

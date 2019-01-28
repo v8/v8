@@ -1028,6 +1028,8 @@ class PreParser : public ParserBase<PreParser> {
     return literal;
   }
 
+  bool HasCheckedSyntax() { return false; }
+
   void ParseStatementListAndLogFunction(PreParserFormalParameters* formals);
 
   struct TemplateLiteralState {};
