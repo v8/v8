@@ -1068,11 +1068,14 @@ void AsyncCompileJob::FinishCompile() {
   FinishModule();
 }
 
-void AsyncCompileJob::AsyncCompileFailed(Handle<Object> error_reason) {
+void AsyncCompileJob::AsyncCompileFailed(const char* context,
+                                         const WasmError& error) {
+  ErrorThrower thrower(isolate_, "AsyncCompile");
+  thrower.CompileFailed(context, error);
   // {job} keeps the {this} pointer alive.
   std::shared_ptr<AsyncCompileJob> job =
       isolate_->wasm_engine()->RemoveCompileJob(this);
-  resolver_->OnCompilationFailed(error_reason);
+  resolver_->OnCompilationFailed(thrower.Reify());
 }
 
 void AsyncCompileJob::AsyncCompileSucceeded(Handle<WasmModuleObject> result) {
@@ -1107,20 +1110,8 @@ class AsyncCompileJob::CompilationStateCallback {
         DCHECK(!Impl(job_->native_module_->compilation_state())
                     ->baseline_compilation_finished());
 
-        {
-          SaveContext saved_context(job_->isolate());
-          job_->isolate()->set_context(*job_->native_context_);
-          ErrorThrower thrower(job_->isolate(), "AsyncCompilation");
-          thrower.CompileFailed(nullptr, *error);
-          Handle<Object> error = thrower.Reify();
-
-          DeferredHandleScope deferred(job_->isolate());
-          error = handle(*error, job_->isolate());
-          job_->deferred_handles_.push_back(deferred.Detach());
-
-          job_->DoSync<CompileFailed, kUseExistingForegroundTask>(error);
-        }
-
+        // Note: The WasmError is copied here for use in the foreground task.
+        job_->DoSync<CompileFailed, kUseExistingForegroundTask>(*error);
         break;
       default:
         UNREACHABLE();
@@ -1305,10 +1296,8 @@ class AsyncCompileJob::DecodeFail : public CompileStep {
 
   void RunInForeground(AsyncCompileJob* job) override {
     TRACE_COMPILE("(1b) Decoding failed.\n");
-    ErrorThrower thrower(job->isolate_, "AsyncCompile");
-    thrower.CompileFailed("Wasm decoding failed", error_);
     // {job_} is deleted in AsyncCompileFailed, therefore the {return}.
-    return job->AsyncCompileFailed(thrower.Reify());
+    return job->AsyncCompileFailed("Wasm decoding failed", error_);
   }
 };
 
@@ -1366,16 +1355,15 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
 //==========================================================================
 class AsyncCompileJob::CompileFailed : public CompileStep {
  public:
-  explicit CompileFailed(Handle<Object> error_reason)
-      : error_reason_(error_reason) {}
+  explicit CompileFailed(WasmError error) : error_(std::move(error)) {}
 
   void RunInForeground(AsyncCompileJob* job) override {
     TRACE_COMPILE("(4b) Compilation Failed...\n");
-    return job->AsyncCompileFailed(error_reason_);
+    return job->AsyncCompileFailed("Async compilation failed", error_);
   }
 
  private:
-  Handle<Object> error_reason_;
+  WasmError error_;
 };
 
 void AsyncCompileJob::CompileWrappers() {

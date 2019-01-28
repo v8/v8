@@ -108,7 +108,7 @@ class AsyncCompileJob {
 
   void FinishCompile();
 
-  void AsyncCompileFailed(Handle<Object> error_reason);
+  void AsyncCompileFailed(const char* context, const WasmError&);
 
   void AsyncCompileSucceeded(Handle<WasmModuleObject> result);
 
