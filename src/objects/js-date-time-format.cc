@@ -799,14 +799,26 @@ std::unique_ptr<icu::SimpleDateFormat> CreateICUDateFormat(
 Intl::HourCycle HourCycleDefault(icu::SimpleDateFormat* date_format) {
   icu::UnicodeString pattern;
   date_format->toPattern(pattern);
-  if (pattern.indexOf('K') >= 0) {
-    return Intl::HourCycle::kH11;
-  } else if (pattern.indexOf('h') >= 0) {
-    return Intl::HourCycle::kH12;
-  } else if (pattern.indexOf('H') >= 0) {
-    return Intl::HourCycle::kH23;
-  } else if (pattern.indexOf('k') >= 0) {
-    return Intl::HourCycle::kH24;
+  bool in_quote = false;
+  for (int32_t i = 0; i < pattern.length(); i++) {
+    char16_t ch = pattern[i];
+    switch (ch) {
+      case '\'':
+        in_quote = !in_quote;
+        break;
+      case 'K':
+        if (!in_quote) return Intl::HourCycle::kH11;
+        break;
+      case 'h':
+        if (!in_quote) return Intl::HourCycle::kH12;
+        break;
+      case 'H':
+        if (!in_quote) return Intl::HourCycle::kH23;
+        break;
+      case 'k':
+        if (!in_quote) return Intl::HourCycle::kH24;
+        break;
+    }
   }
   return Intl::HourCycle::kUndefined;
 }
