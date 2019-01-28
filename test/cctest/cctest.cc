@@ -29,8 +29,11 @@
 #include "test/cctest/cctest.h"
 
 #include "include/libplatform/libplatform.h"
+#include "src/compiler.h"
+#include "src/compiler/pipeline.h"
 #include "src/debug/debug.h"
 #include "src/objects-inl.h"
+#include "src/optimized-compilation-info.h"
 #include "src/trap-handler/trap-handler.h"
 #include "test/cctest/print-extension.h"
 #include "test/cctest/profiler-extension.h"
@@ -221,6 +224,36 @@ HandleAndZoneScope::HandleAndZoneScope()
     : main_zone_(new i::Zone(&allocator_, ZONE_NAME)) {}
 
 HandleAndZoneScope::~HandleAndZoneScope() = default;
+
+i::Handle<i::JSFunction> Optimize(i::Handle<i::JSFunction> function,
+                                  i::Zone* zone, i::Isolate* isolate,
+                                  uint32_t flags,
+                                  i::compiler::JSHeapBroker** out_broker) {
+  i::Handle<i::SharedFunctionInfo> shared(function->shared(), isolate);
+  i::IsCompiledScope is_compiled_scope(shared->is_compiled_scope());
+  CHECK(is_compiled_scope.is_compiled() ||
+        i::Compiler::Compile(function, i::Compiler::CLEAR_EXCEPTION,
+                             &is_compiled_scope));
+
+  CHECK_NOT_NULL(zone);
+
+  i::OptimizedCompilationInfo info(zone, isolate, shared, function);
+
+  if (flags & i::OptimizedCompilationInfo::kInliningEnabled) {
+    info.MarkAsInliningEnabled();
+  }
+
+  CHECK(info.shared_info()->HasBytecodeArray());
+  i::JSFunction::EnsureFeedbackVector(function);
+
+  i::Handle<i::Code> code =
+      i::compiler::Pipeline::GenerateCodeForTesting(&info, isolate, out_broker)
+          .ToHandleChecked();
+  info.native_context()->AddOptimizedCode(*code);
+  function->set_code(*code);
+
+  return function;
+}
 
 static void PrintTestList(CcTest* current) {
   if (current == nullptr) return;
