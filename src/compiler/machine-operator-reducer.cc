@@ -1395,8 +1395,7 @@ namespace {
 bool IsFloat64RepresentableAsFloat32(const Float64Matcher& m) {
   if (m.HasValue()) {
     double v = m.Value();
-    float fv = static_cast<float>(v);
-    return static_cast<double>(fv) == v;
+    return DoubleToFloat32(v) == v;
   }
   return false;
 }

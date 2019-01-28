@@ -1218,7 +1218,7 @@ WASM_EXEC_TEST(Block_f) {
 WASM_EXEC_TEST(Block_d) {
   WasmRunner<double, double> r(execution_tier);
   BUILD(r, WASM_BLOCK_D(WASM_GET_LOCAL(0)));
-  FOR_FLOAT64_INPUTS(i) { CHECK_FLOAT_EQ(*i, r.Call(*i)); }
+  FOR_FLOAT64_INPUTS(i) { CHECK_DOUBLE_EQ(*i, r.Call(*i)); }
 }
 
 WASM_EXEC_TEST(Block_br2) {
@@ -1261,7 +1261,7 @@ WASM_EXEC_TEST(Loop_f) {
 WASM_EXEC_TEST(Loop_d) {
   WasmRunner<double, double> r(execution_tier);
   BUILD(r, WASM_LOOP_D(WASM_GET_LOCAL(0)));
-  FOR_FLOAT64_INPUTS(i) { CHECK_FLOAT_EQ(*i, r.Call(*i)); }
+  FOR_FLOAT64_INPUTS(i) { CHECK_DOUBLE_EQ(*i, r.Call(*i)); }
 }
 
 WASM_EXEC_TEST(Loop_empty_br1) {

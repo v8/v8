@@ -3713,7 +3713,7 @@ TEST(RunFloat64Sub) {
 TEST(RunFloat64Neg) {
   BufferedRawMachineAssemblerTester<double> m(MachineType::Float64());
   m.Return(m.AddNode(m.machine()->Float64Neg(), m.Parameter(0)));
-  FOR_FLOAT64_INPUTS(i) { CHECK_FLOAT_EQ(-0.0 - *i, m.Call(*i)); }
+  FOR_FLOAT64_INPUTS(i) { CHECK_DOUBLE_EQ(-0.0 - *i, m.Call(*i)); }
 }
 
 TEST(RunFloat64Mul) {
@@ -3918,7 +3918,7 @@ TEST(RunFloat64SubImm1) {
     BufferedRawMachineAssemblerTester<double> m(MachineType::Float64());
     m.Return(m.Float64Sub(m.Float64Constant(*i), m.Parameter(0)));
 
-    FOR_FLOAT64_INPUTS(j) { CHECK_FLOAT_EQ(*i - *j, m.Call(*j)); }
+    FOR_FLOAT64_INPUTS(j) { CHECK_DOUBLE_EQ(*i - *j, m.Call(*j)); }
   }
 }
 
@@ -3928,7 +3928,7 @@ TEST(RunFloat64SubImm2) {
     BufferedRawMachineAssemblerTester<double> m(MachineType::Float64());
     m.Return(m.Float64Sub(m.Parameter(0), m.Float64Constant(*i)));
 
-    FOR_FLOAT64_INPUTS(j) { CHECK_FLOAT_EQ(*j - *i, m.Call(*j)); }
+    FOR_FLOAT64_INPUTS(j) { CHECK_DOUBLE_EQ(*j - *i, m.Call(*j)); }
   }
 }
 
@@ -4044,7 +4044,7 @@ TEST(RunFloat64MulImm1) {
     BufferedRawMachineAssemblerTester<double> m(MachineType::Float64());
     m.Return(m.Float64Mul(m.Float64Constant(*i), m.Parameter(0)));
 
-    FOR_FLOAT64_INPUTS(j) { CHECK_FLOAT_EQ(*i * *j, m.Call(*j)); }
+    FOR_FLOAT64_INPUTS(j) { CHECK_DOUBLE_EQ(*i * *j, m.Call(*j)); }
   }
 }
 
@@ -4054,7 +4054,7 @@ TEST(RunFloat64MulImm2) {
     BufferedRawMachineAssemblerTester<double> m(MachineType::Float64());
     m.Return(m.Float64Mul(m.Parameter(0), m.Float64Constant(*i)));
 
-    FOR_FLOAT64_INPUTS(j) { CHECK_FLOAT_EQ(*j * *i, m.Call(*j)); }
+    FOR_FLOAT64_INPUTS(j) { CHECK_DOUBLE_EQ(*j * *i, m.Call(*j)); }
   }
 }
 

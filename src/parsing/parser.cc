@@ -197,10 +197,7 @@ bool Parser::ShortcutNumericLiteralBinaryExpression(Expression** x,
         return true;
       }
       case Token::EXP: {
-        double value = Pow(x_val, y_val);
-        int int_value = static_cast<int>(value);
-        *x = factory()->NewNumberLiteral(
-            int_value == value && value != -0.0 ? int_value : value, pos);
+        *x = factory()->NewNumberLiteral(Pow(x_val, y_val), pos);
         return true;
       }
       default:

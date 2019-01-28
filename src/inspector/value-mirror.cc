@@ -56,10 +56,14 @@ Response toProtocolValue(v8::Local<v8::Context> context,
   }
   if (value->IsNumber()) {
     double doubleValue = value.As<v8::Number>()->Value();
-    int intValue = static_cast<int>(doubleValue);
-    if (intValue == doubleValue) {
-      *result = protocol::FundamentalValue::create(intValue);
-      return Response::OK();
+    if (doubleValue >= std::numeric_limits<int>::min() &&
+        doubleValue <= std::numeric_limits<int>::max() &&
+        bit_cast<int64_t>(doubleValue) != bit_cast<int64_t>(-0.0)) {
+      int intValue = static_cast<int>(doubleValue);
+      if (intValue == doubleValue) {
+        *result = protocol::FundamentalValue::create(intValue);
+        return Response::OK();
+      }
     }
     *result = protocol::FundamentalValue::create(doubleValue);
     return Response::OK();
