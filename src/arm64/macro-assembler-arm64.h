@@ -1962,11 +1962,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
                         const CPURegister& arg3 = NoCPUReg);
 
  private:
-  // Helper for implementing JumpIfNotInNewSpace and JumpIfInNewSpace.
-  void InNewSpace(Register object,
-                  Condition cond,  // eq for new space, ne otherwise.
-                  Label* branch);
-
   // Try to represent a double as an int so that integer fast-paths may be
   // used. Not every valid integer value is guaranteed to be caught.
   // It supports both 32-bit and 64-bit integers depending whether 'as_int'

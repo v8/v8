@@ -1238,8 +1238,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   static int CallSizeNotPredictableCodeSize(Address target,
                                             RelocInfo::Mode rmode,
                                             Condition cond = al);
-  void JumpToJSEntry(Register target);
-
   // Notify the garbage collector that we wrote a pointer into an object.
   // |object| is the object being stored into, |value| is the object being
   // stored.  value and scratch registers are clobbered by the operation.

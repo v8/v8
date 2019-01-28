@@ -684,11 +684,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
 
   void LeaveExitFrameEpilogue();
 
-  // Helper for implementing JumpIfNotInNewSpace and JumpIfInNewSpace.
-  void InNewSpace(Register object, Register scratch, Condition cc,
-                  Label* condition_met,
-                  Label::Distance condition_met_distance = Label::kFar);
-
   // Compute memory operands for safepoint stack slots.
   static int SafepointRegisterStackIndex(int reg_code);
 

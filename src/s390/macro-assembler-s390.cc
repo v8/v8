@@ -142,11 +142,6 @@ void TurboAssembler::LoadRootRegisterOffset(Register destination,
 
 void TurboAssembler::Jump(Register target, Condition cond) { b(cond, target); }
 
-void MacroAssembler::JumpToJSEntry(Register target) {
-  Move(ip, target);
-  Jump(ip);
-}
-
 void TurboAssembler::Jump(intptr_t target, RelocInfo::Mode rmode,
                           Condition cond) {
   Label skip;
