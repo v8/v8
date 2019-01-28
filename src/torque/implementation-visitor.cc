@@ -1247,12 +1247,7 @@ VisitResult ImplementationVisitor::Visit(NewExpression* expr) {
 
   // Output the code to generate an unitialized object of the class size in the
   // GC heap.
-  VisitResult raw_object_map =
-      ProjectStructField(new_struct_result, "map_untyped");
-  Arguments map_cast_arguments;
-  map_cast_arguments.parameters.push_back(raw_object_map);
-  VisitResult object_map = GenerateCall("%RawDownCast", map_cast_arguments,
-                                        {TypeOracle::GetMapType()}, false);
+  VisitResult object_map = ProjectStructField(new_struct_result, "map");
   Arguments size_arguments;
   size_arguments.parameters.push_back(object_map);
   VisitResult object_size = GenerateCall("%GetAllocationBaseSize",

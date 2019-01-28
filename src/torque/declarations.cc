@@ -167,50 +167,17 @@ void Declarations::DeclareType(const std::string& name, const Type* type,
   Declare(name, std::unique_ptr<TypeAlias>(new TypeAlias(type, redeclaration)));
 }
 
-StructType* Declarations::DeclareStruct(const std::string& name,
-                                        const std::vector<Field>& fields) {
-  StructType* new_type = TypeOracle::GetStructType(name, fields);
+StructType* Declarations::DeclareStruct(const std::string& name) {
+  StructType* new_type = TypeOracle::GetStructType(name);
   DeclareType(name, new_type, false);
   return new_type;
 }
 
 ClassType* Declarations::DeclareClass(const Type* super_type,
                                       const std::string& name, bool transient,
-                                      const std::string& generates,
-                                      std::vector<Field> fields, size_t size) {
-  std::vector<Field> this_struct_fields;
-  size_t struct_offset = 0;
-  const StructType* super_struct_type = nullptr;
-  // In order to ensure "atomicity" of object allocation, a class'
-  // constructors operate on a per-class internal struct rather than the class
-  // directly until the constructor has successfully completed and all class
-  // members are available. Create the appropriate struct type for use in the
-  // class' constructors, including a '_super' field in the struct that
-  // contains the values constructed by calls to super constructors.
-  if (const ClassType* super_class = ClassType::DynamicCast(super_type)) {
-    super_struct_type = super_class->struct_type();
-    this_struct_fields.push_back(
-        {CurrentSourcePosition::Get(),
-         {kConstructorStructSuperFieldName, super_struct_type},
-         struct_offset,
-         false});
-    struct_offset += LoweredSlotCount(super_struct_type);
-  }
-  for (auto& field : fields) {
-    const Type* field_type = field.name_and_type.type;
-    this_struct_fields.push_back({field.pos,
-                                  {field.name_and_type.name, field_type},
-                                  struct_offset,
-                                  false});
-    struct_offset += LoweredSlotCount(field_type);
-  }
-  StructType* this_struct_type = DeclareStruct(
-      kClassConstructorThisStructPrefix + name, this_struct_fields);
-
+                                      const std::string& generates) {
   ClassType* new_type =
-      TypeOracle::GetClassType(super_type, name, transient, generates,
-                               std::move(fields), this_struct_type, size);
-  this_struct_type->SetDerivedFrom(new_type);
+      TypeOracle::GetClassType(super_type, name, transient, generates);
   DeclareType(name, new_type, false);
   return new_type;
 }

@@ -402,6 +402,8 @@ class AggregateType : public Type {
     return "_method_" + name_ + "_" + name;
   }
 
+  void RegisterField(Field field) { fields_.push_back(field); }
+
   void RegisterMethod(Method* method) { methods_.push_back(method); }
   std::vector<Method*> Constructors() const;
   const std::vector<Method*>& Methods() const { return methods_; }
@@ -411,8 +413,8 @@ class AggregateType : public Type {
 
  protected:
   AggregateType(Kind kind, const Type* parent, Namespace* nspace,
-                const std::string& name, const std::vector<Field>& fields)
-      : Type(kind, parent), namespace_(nspace), name_(name), fields_(fields) {}
+                const std::string& name)
+      : Type(kind, parent), namespace_(nspace), name_(name) {}
 
   void CheckForDuplicateFields();
 
@@ -438,9 +440,8 @@ class StructType final : public AggregateType {
 
  private:
   friend class TypeOracle;
-  StructType(Namespace* nspace, const std::string& name,
-             const std::vector<Field>& fields)
-      : AggregateType(Kind::kStructType, nullptr, nspace, name, fields) {
+  StructType(Namespace* nspace, const std::string& name)
+      : AggregateType(Kind::kStructType, nullptr, nspace, name) {
     CheckForDuplicateFields();
   }
 
@@ -464,17 +465,17 @@ class ClassType final : public AggregateType {
     if (parent() == nullptr) return nullptr;
     return parent()->IsClassType() ? ClassType::DynamicCast(parent()) : nullptr;
   }
+  void SetSize(size_t size) { size_ = size; }
+  void SetThisStruct(StructType* this_struct) { this_struct_ = this_struct; }
 
  private:
   friend class TypeOracle;
   ClassType(const Type* parent, Namespace* nspace, const std::string& name,
-            bool transient, const std::string& generates,
-            const std::vector<Field>& fields, StructType* this_struct,
-            size_t size)
-      : AggregateType(Kind::kClassType, parent, nspace, name, fields),
-        this_struct_(this_struct),
+            bool transient, const std::string& generates)
+      : AggregateType(Kind::kClassType, parent, nspace, name),
+        this_struct_(nullptr),
         transient_(transient),
-        size_(size),
+        size_(0),
         generates_(generates) {
     CheckForDuplicateFields();
   }

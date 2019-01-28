@@ -81,12 +81,10 @@ class Declarations {
   static void DeclareType(const std::string& name, const Type* type,
                           bool redeclaration);
 
-  static StructType* DeclareStruct(const std::string& name,
-                                   const std::vector<Field>& fields);
+  static StructType* DeclareStruct(const std::string& name);
 
   static ClassType* DeclareClass(const Type* super, const std::string& name,
-                                 bool transient, const std::string& generates,
-                                 std::vector<Field> fields, size_t size);
+                                 bool transient, const std::string& generates);
 
   static Macro* CreateMacro(std::string external_name,
                             std::string readable_name,

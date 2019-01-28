@@ -28,20 +28,16 @@ class TypeOracle : public ContextualClass<TypeOracle> {
     return result;
   }
 
-  static StructType* GetStructType(const std::string& name,
-                                   const std::vector<Field>& fields) {
-    StructType* result = new StructType(CurrentNamespace(), name, fields);
+  static StructType* GetStructType(const std::string& name) {
+    StructType* result = new StructType(CurrentNamespace(), name);
     Get().struct_types_.push_back(std::unique_ptr<StructType>(result));
     return result;
   }
 
   static ClassType* GetClassType(const Type* parent, const std::string& name,
-                                 bool transient, const std::string& generates,
-                                 const std::vector<Field>& fields,
-                                 StructType* this_struct, size_t size) {
+                                 bool transient, const std::string& generates) {
     ClassType* result =
-        new ClassType(parent, CurrentNamespace(), name, transient, generates,
-                      fields, this_struct, size);
+        new ClassType(parent, CurrentNamespace(), name, transient, generates);
     Get().struct_types_.push_back(std::unique_ptr<ClassType>(result));
     return result;
   }

@@ -22,7 +22,7 @@ type Smi extends Tagged generates 'TNode<Smi>' constexpr 'Smi';
 type PositiveSmi extends Smi generates 'TNode<Smi>';
 
 class HeapObject extends Tagged {
-  map_untyped: Tagged;
+  map: Map;
 }
 
 type Object = Smi | HeapObject;
@@ -55,13 +55,6 @@ type Numeric = Number | BigInt;
 type RootIndex generates 'TNode<Int32T>' constexpr 'RootIndex';
 
 type Map extends HeapObject generates 'TNode<Map>';
-// The accessors for HeapObject's map cannot be declared before Map
-// is declared because forward declarations are not (yet) supported.
-// TODO(danno): Make circular references in classes possible. One way to do that
-// would be to pre-process all class declarations and create bindings for them
-// with an uninitialized class type, and then process them later properly
-extern operator '.map' macro LoadMap(HeapObject): Map;
-extern transitioning operator '.map=' macro StoreMap(HeapObject, Map);
 
 // These intrinsics should never be called from Torque code. They're used
 // internally by the 'new' operator and only declared here because it's simpler
@@ -75,14 +68,15 @@ type FixedDoubleArray extends FixedArrayBase
     generates 'TNode<FixedDoubleArray>';
 
 class JSReceiver extends HeapObject {
-  properties_or_hash: Object;
+  properties_or_hash: FixedArrayBase | Smi;
 }
 
 type Constructor extends JSReceiver generates 'TNode<JSReceiver>';
 type JSProxy extends JSReceiver generates 'TNode<JSProxy>';
 
 class JSObject extends JSReceiver {
-  constructor(map: Tagged, properties: Object, elements: FixedArrayBase) {
+  constructor(
+      map: Map, properties: FixedArrayBase | Smi, elements: FixedArrayBase) {
     super(map, properties);
     this.elements = elements;
   }

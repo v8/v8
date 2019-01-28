@@ -55,25 +55,28 @@ int WrappedMain(int argc, const char** argv) {
   TypeOracle::Scope type_oracle;
 
   if (output_directory.length() != 0) {
-    DeclarationVisitor().Visit(GlobalContext::Get().ast());
+    DeclarationVisitor declaration_visitor;
 
-    ImplementationVisitor visitor;
+    declaration_visitor.Visit(GlobalContext::Get().ast());
+    declaration_visitor.FinalizeStructsAndClasses();
+
+    ImplementationVisitor implementation_visitor;
     for (Namespace* n : GlobalContext::Get().GetNamespaces()) {
-      visitor.BeginNamespaceFile(n);
+      implementation_visitor.BeginNamespaceFile(n);
     }
 
-    visitor.VisitAllDeclarables();
+    implementation_visitor.VisitAllDeclarables();
 
     std::string output_header_path = output_directory;
     output_header_path += "/builtin-definitions-from-dsl.h";
-    visitor.GenerateBuiltinDefinitions(output_header_path);
+    implementation_visitor.GenerateBuiltinDefinitions(output_header_path);
 
     output_header_path = output_directory + "/class-definitions-from-dsl.h";
-    visitor.GenerateClassDefinitions(output_header_path);
+    implementation_visitor.GenerateClassDefinitions(output_header_path);
 
     for (Namespace* n : GlobalContext::Get().GetNamespaces()) {
-      visitor.EndNamespaceFile(n);
-      visitor.GenerateImplementation(output_directory, n);
+      implementation_visitor.EndNamespaceFile(n);
+      implementation_visitor.GenerateImplementation(output_directory, n);
     }
   }
 
