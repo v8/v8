@@ -541,7 +541,6 @@
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=8243
   'intl402/Locale/extensions-private': [FAIL],
-  'intl402/Locale/getters-privateuse': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=8236
   'intl402/Locale/likely-subtags': [FAIL],
@@ -550,9 +549,6 @@
   'intl402/Locale/extensions-grandfathered': [FAIL],
   'intl402/Locale/getters-grandfathered': [FAIL],
   'intl402/Locale/likely-subtags-grandfathered': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=8613
-  'intl402/RelativeTimeFormat/prototype/resolvedOptions/order': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=6705
   'built-ins/Object/assign/strings-and-symbol-order': [FAIL],
@@ -632,8 +628,6 @@
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=8258
   'intl402/Locale/constructor-options-language-valid-undefined': [FAIL],
-  'intl402/NumberFormat/prototype/format/format-fraction-digits-precision': [FAIL],
-  'intl402/NumberFormat/prototype/format/format-significant-digits-precision': [FAIL],
 
   ##################### DELIBERATE INCOMPATIBILITIES #####################
 
