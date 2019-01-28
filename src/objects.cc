@@ -128,6 +128,8 @@ ShouldThrow GetShouldThrow(Isolate* isolate, Maybe<ShouldThrow> should_throw) {
   if (should_throw.IsJust()) return should_throw.FromJust();
 
   LanguageMode mode = isolate->context()->scope_info()->language_mode();
+  if (mode == LanguageMode::kStrict) return kThrowOnError;
+
   for (StackFrameIterator it(isolate); !it.done(); it.Advance()) {
     if (!(it.frame()->is_optimized() || it.frame()->is_interpreted())) {
       continue;
