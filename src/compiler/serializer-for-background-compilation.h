@@ -35,6 +35,7 @@ namespace compiler {
   V(CreateBlockContext)           \
   V(CreateFunctionContext)        \
   V(CreateEvalContext)            \
+  V(Debugger)                     \
   V(Jump)                         \
   V(JumpConstant)                 \
   V(JumpIfFalse)                  \
@@ -58,10 +59,16 @@ namespace compiler {
   V(JumpLoop)                     \
   V(PushContext)                  \
   V(PopContext)                   \
+  V(ResumeGenerator)              \
   V(ReThrow)                      \
   V(StaContextSlot)               \
   V(StaCurrentContextSlot)        \
-  V(Throw)
+  V(SuspendGenerator)             \
+  V(SwitchOnGeneratorState)       \
+  V(Throw)                        \
+  V(ThrowReferenceErrorIfHole)    \
+  V(ThrowSuperNotCalledIfHole)    \
+  V(ThrowSuperAlreadyCalledIfNotHole)
 
 #define CLEAR_ACCUMULATOR_LIST(V)   \
   V(CreateEmptyObjectLiteral)       \
@@ -103,6 +110,7 @@ namespace compiler {
   V(LdaZero)                       \
   V(Mov)                           \
   V(Return)                        \
+  V(StackCheck)                    \
   V(Star)                          \
   V(Wide)                          \
   CLEAR_ENVIRONMENT_LIST(V)        \
