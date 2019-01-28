@@ -310,6 +310,7 @@ class JSFunctionData : public JSObjectData {
   JSFunctionData(JSHeapBroker* broker, ObjectData** storage,
                  Handle<JSFunction> object);
 
+  bool has_feedback_vector() const { return has_feedback_vector_; }
   bool has_initial_map() const { return has_initial_map_; }
   bool has_prototype() const { return has_prototype_; }
   bool PrototypeRequiresRuntimeLookup() const {
@@ -323,12 +324,14 @@ class JSFunctionData : public JSObjectData {
   MapData* initial_map() const { return initial_map_; }
   ObjectData* prototype() const { return prototype_; }
   SharedFunctionInfoData* shared() const { return shared_; }
+  FeedbackVectorData* feedback_vector() const { return feedback_vector_; }
   int initial_map_instance_size_with_min_slack() const {
     CHECK(serialized_);
     return initial_map_instance_size_with_min_slack_;
   }
 
  private:
+  bool has_feedback_vector_;
   bool has_initial_map_;
   bool has_prototype_;
   bool PrototypeRequiresRuntimeLookup_;
@@ -340,6 +343,7 @@ class JSFunctionData : public JSObjectData {
   MapData* initial_map_ = nullptr;
   ObjectData* prototype_ = nullptr;
   SharedFunctionInfoData* shared_ = nullptr;
+  FeedbackVectorData* feedback_vector_ = nullptr;
   int initial_map_instance_size_with_min_slack_;
 };
 
@@ -833,6 +837,7 @@ MapData::MapData(JSHeapBroker* broker, ObjectData** storage, Handle<Map> object)
 JSFunctionData::JSFunctionData(JSHeapBroker* broker, ObjectData** storage,
                                Handle<JSFunction> object)
     : JSObjectData(broker, storage, object),
+      has_feedback_vector_(object->has_feedback_vector()),
       has_initial_map_(object->has_prototype_slot() &&
                        object->has_initial_map()),
       has_prototype_(object->has_prototype_slot() && object->has_prototype()),
@@ -851,11 +856,16 @@ void JSFunctionData::Serialize(JSHeapBroker* broker) {
   DCHECK_NULL(initial_map_);
   DCHECK_NULL(prototype_);
   DCHECK_NULL(shared_);
+  DCHECK_NULL(feedback_vector_);
 
   context_ = broker->GetOrCreateData(function->context())->AsContext();
   native_context_ =
       broker->GetOrCreateData(function->native_context())->AsNativeContext();
   shared_ = broker->GetOrCreateData(function->shared())->AsSharedFunctionInfo();
+  feedback_vector_ = has_feedback_vector()
+                         ? broker->GetOrCreateData(function->feedback_vector())
+                               ->AsFeedbackVector()
+                         : nullptr;
   initial_map_ = has_initial_map()
                      ? broker->GetOrCreateData(function->initial_map())->AsMap()
                      : nullptr;
@@ -2234,14 +2244,16 @@ BIMODAL_ACCESSOR(JSBoundFunction, FixedArray, bound_arguments)
 BIMODAL_ACCESSOR_C(JSDataView, size_t, byte_length)
 BIMODAL_ACCESSOR_C(JSDataView, size_t, byte_offset)
 
-BIMODAL_ACCESSOR_C(JSFunction, bool, has_prototype)
+BIMODAL_ACCESSOR_C(JSFunction, bool, has_feedback_vector)
 BIMODAL_ACCESSOR_C(JSFunction, bool, has_initial_map)
+BIMODAL_ACCESSOR_C(JSFunction, bool, has_prototype)
 BIMODAL_ACCESSOR_C(JSFunction, bool, PrototypeRequiresRuntimeLookup)
 BIMODAL_ACCESSOR(JSFunction, Context, context)
 BIMODAL_ACCESSOR(JSFunction, NativeContext, native_context)
 BIMODAL_ACCESSOR(JSFunction, Map, initial_map)
 BIMODAL_ACCESSOR(JSFunction, Object, prototype)
 BIMODAL_ACCESSOR(JSFunction, SharedFunctionInfo, shared)
+BIMODAL_ACCESSOR(JSFunction, FeedbackVector, feedback_vector)
 
 BIMODAL_ACCESSOR_C(JSTypedArray, bool, is_on_heap)
 BIMODAL_ACCESSOR_C(JSTypedArray, size_t, length_value)

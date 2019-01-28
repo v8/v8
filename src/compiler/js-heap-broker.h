@@ -231,6 +231,7 @@ class JSFunctionRef : public JSObjectRef {
   using JSObjectRef::JSObjectRef;
   Handle<JSFunction> object() const;
 
+  bool has_feedback_vector() const;
   bool has_initial_map() const;
   bool has_prototype() const;
   bool PrototypeRequiresRuntimeLookup() const;
@@ -243,6 +244,7 @@ class JSFunctionRef : public JSObjectRef {
   ContextRef context() const;
   NativeContextRef native_context() const;
   SharedFunctionInfoRef shared() const;
+  FeedbackVectorRef feedback_vector() const;
   int InitialMapInstanceSizeWithMinSlack() const;
 };
 
