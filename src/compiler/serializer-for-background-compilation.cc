@@ -227,6 +227,9 @@ void SerializerForBackgroundCompilation::VisitExtraWide(
   UNREACHABLE();
 }
 
+void SerializerForBackgroundCompilation::VisitStackCheck(
+    BytecodeArrayIterator* iterator) {}
+
 void SerializerForBackgroundCompilation::VisitLdaUndefined(
     interpreter::BytecodeArrayIterator* iterator) {
   environment()->accumulator_hints().Clear();
