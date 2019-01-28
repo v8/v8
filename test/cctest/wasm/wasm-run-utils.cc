@@ -485,37 +485,6 @@ FunctionSig* WasmRunnerBase::CreateSig(MachineType return_type,
 // static
 bool WasmRunnerBase::trap_happened;
 
-void EXPECT_CALL(double expected, Handle<JSFunction> jsfunc,
-                 Handle<Object>* buffer, int count) {
-  Isolate* isolate = jsfunc->GetIsolate();
-  Handle<Object> global(isolate->context()->global_object(), isolate);
-  MaybeHandle<Object> retval =
-      Execution::Call(isolate, jsfunc, global, count, buffer);
-
-  CHECK(!retval.is_null());
-  Handle<Object> result = retval.ToHandleChecked();
-  if (result->IsSmi()) {
-    CHECK_EQ(expected, Smi::ToInt(*result));
-  } else {
-    CHECK(result->IsHeapNumber());
-    CHECK_FLOAT_EQ(expected, HeapNumber::cast(*result)->value());
-  }
-}
-
-void EXPECT_CALL(double expected, Handle<JSFunction> jsfunc, double a,
-                 double b) {
-  Isolate* isolate = jsfunc->GetIsolate();
-  Handle<Object> buffer[] = {isolate->factory()->NewNumber(a),
-                             isolate->factory()->NewNumber(b)};
-  EXPECT_CALL(expected, jsfunc, buffer, 2);
-}
-
-void EXPECT_CALL(double expected, Handle<JSFunction> jsfunc, double a) {
-  Isolate* isolate = jsfunc->GetIsolate();
-  Handle<Object> buffer[] = {isolate->factory()->NewNumber(a)};
-  EXPECT_CALL(expected, jsfunc, buffer, 1);
-}
-
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

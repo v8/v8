@@ -26,9 +26,8 @@ WASM_EXEC_TEST(TryCatchThrow) {
                             WASM_STMTS(WASM_DROP, WASM_I32V(kResult0))));
 
   // Need to call through JS to allow for creation of stack traces.
-  Handle<JSFunction> jsfunc = r.builder().WrapCode(r.function()->func_index);
-  EXPECT_CALL(kResult0, jsfunc, 0);
-  EXPECT_CALL(kResult1, jsfunc, 1);
+  r.CheckCallViaJS(kResult0, 0);
+  r.CheckCallViaJS(kResult1, 1);
 }
 
 }  // namespace test_run_wasm_exceptions
