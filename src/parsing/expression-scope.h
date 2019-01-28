@@ -49,12 +49,25 @@ class ExpressionScope {
     VariableProxy* result = parser_->NewRawVariable(name, pos);
     if (CanBeExpression()) {
       AsExpressionParsingScope()->TrackVariable(result);
-    } else if (type_ == kParameterDeclaration) {
-      AsParameterDeclarationParsingScope()->Declare(result);
     } else {
-      return AsVariableDeclarationParsingScope()->Declare(result);
+      Variable* var = Declare(name, pos);
+      if (IsVarDeclaration() && !parser()->scope()->is_declaration_scope()) {
+        // Make sure we'll properly resolve the variable since we might be in a
+        // with or catch scope. In those cases the proxy isn't guaranteed to
+        // refer to the declared variable, so consider it unresolved.
+        parser()->scope()->AddUnresolved(result);
+      } else if (var) {
+        result->BindTo(var);
+      }
     }
     return result;
+  }
+
+  Variable* Declare(const AstRawString* name, int pos = kNoSourcePosition) {
+    if (type_ == kParameterDeclaration) {
+      return AsParameterDeclarationParsingScope()->Declare(name, pos);
+    }
+    return AsVariableDeclarationParsingScope()->Declare(name, pos);
   }
 
   void MarkIdentifierAsAssigned() {
@@ -214,6 +227,7 @@ class ExpressionScope {
   bool IsAsyncArrowHeadParsingScope() const {
     return type_ == kMaybeAsyncArrowParameterDeclaration;
   }
+  bool IsVarDeclaration() const { return type_ == kVarDeclaration; }
 
  private:
   friend class AccumulationScope<Types>;
@@ -272,21 +286,22 @@ class VariableDeclarationParsingScope : public ExpressionScope<Types> {
         mode_(mode),
         names_(names) {}
 
-  VariableProxy* Declare(VariableProxy* proxy) {
+  Variable* Declare(const AstRawString* name, int pos) {
     VariableKind kind = NORMAL_VARIABLE;
     bool was_added;
-    this->parser()->DeclareAndBindVariable(
-        proxy, kind, mode_, Variable::DefaultInitializationFlag(mode_),
-        this->parser()->scope(), &was_added, proxy->position());
+    Variable* var = this->parser()->DeclareVariable(
+        name, kind, mode_, Variable::DefaultInitializationFlag(mode_),
+        this->parser()->scope(), &was_added, pos);
     if (was_added &&
         this->parser()->scope()->num_var() > kMaxNumFunctionLocals) {
       this->parser()->ReportMessage(MessageTemplate::kTooManyVariables);
     }
-    if (names_) names_->Add(proxy->raw_name(), this->parser()->zone());
+    if (names_) names_->Add(name, this->parser()->zone());
     if (this->IsLexicalDeclaration()) {
-      if (this->parser()->IsLet(proxy->raw_name())) {
-        this->parser()->ReportMessageAt(proxy->location(),
-                                        MessageTemplate::kLetInLexicalBinding);
+      if (this->parser()->IsLet(name)) {
+        this->parser()->ReportMessageAt(
+            Scanner::Location(pos, pos + name->length()),
+            MessageTemplate::kLetInLexicalBinding);
       }
     } else {
       if (this->parser()->loop_nesting_depth() > 0) {
@@ -307,18 +322,12 @@ class VariableDeclarationParsingScope : public ExpressionScope<Types> {
         //
         // This also handles marking of loop variables in for-in and for-of
         // loops, as determined by loop-nesting-depth.
-        proxy->set_is_assigned();
-      }
-
-      // Make sure we'll properly resolve the variable since we might be in a
-      // with or catch scope. In those cases the assignment isn't guaranteed to
-      // write to the variable declared above.
-      if (!this->parser()->scope()->is_declaration_scope()) {
-        proxy =
-            this->parser()->NewUnresolved(proxy->raw_name(), proxy->position());
+        if (V8_LIKELY(var)) {
+          var->set_maybe_assigned();
+        }
       }
     }
-    return proxy;
+    return var;
   }
 
  private:
@@ -343,16 +352,17 @@ class ParameterDeclarationParsingScope : public ExpressionScope<Types> {
   explicit ParameterDeclarationParsingScope(ParserT* parser)
       : ExpressionScopeT(parser, ExpressionScopeT::kParameterDeclaration) {}
 
-  void Declare(VariableProxy* proxy) {
+  Variable* Declare(const AstRawString* name, int pos) {
     VariableKind kind = PARAMETER_VARIABLE;
     VariableMode mode = VariableMode::kVar;
     bool was_added;
-    this->parser()->DeclareAndBindVariable(
-        proxy, kind, mode, Variable::DefaultInitializationFlag(mode),
-        this->parser()->scope(), &was_added, proxy->position());
+    Variable* var = this->parser()->DeclareVariable(
+        name, kind, mode, Variable::DefaultInitializationFlag(mode),
+        this->parser()->scope(), &was_added, pos);
     if (!has_duplicate() && !was_added) {
-      duplicate_loc_ = proxy->location();
+      duplicate_loc_ = Scanner::Location(pos, pos + name->length());
     }
+    return var;
   }
 
   bool has_duplicate() const { return duplicate_loc_.IsValid(); }

@@ -3473,7 +3473,6 @@ TEST(InnerAssignment) {
         i::Variable* var = scope->LookupForTesting(var_name);
         bool expected = outers[i].assigned || inners[j].assigned;
         CHECK_NOT_NULL(var);
-        CHECK(var->is_used() || !expected);
         bool is_maybe_assigned = var->maybe_assigned() == i::kMaybeAssigned;
         CHECK(is_maybe_assigned == expected ||
               (is_maybe_assigned && inners[j].allow_error_in_inner_function));

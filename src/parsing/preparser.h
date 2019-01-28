@@ -1089,10 +1089,10 @@ class PreParser : public ParserBase<PreParser> {
     return PreParserStatement::Default();
   }
 
-  void DeclareVariable(const AstRawString* name, VariableKind kind,
-                       VariableMode mode, InitializationFlag init, Scope* scope,
-                       bool* was_added, int position) {
-    DeclareVariableName(name, mode, scope, was_added, position, kind);
+  Variable* DeclareVariable(const AstRawString* name, VariableKind kind,
+                            VariableMode mode, InitializationFlag init,
+                            Scope* scope, bool* was_added, int position) {
+    return DeclareVariableName(name, mode, scope, was_added, position, kind);
   }
 
   void DeclareAndBindVariable(const VariableProxy* proxy, VariableKind kind,
@@ -1588,6 +1588,13 @@ class PreParser : public ParserBase<PreParser> {
       expression_scope()->NewVariable(name.string_, start_position);
     }
     return PreParserExpression::FromIdentifier(name);
+  }
+
+  V8_INLINE void DeclareIdentifier(const PreParserIdentifier& name,
+                                   int start_position) {
+    if (name.string_ != nullptr) {
+      expression_scope()->Declare(name.string_, start_position);
+    }
   }
 
   V8_INLINE Variable* DeclareCatchVariableName(

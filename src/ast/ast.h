@@ -3165,6 +3165,8 @@ class AstNodeFactory final {
                             Expression* value,
                             int pos) {
     DCHECK(Token::IsAssignmentOp(op));
+    DCHECK_NOT_NULL(target);
+    DCHECK_NOT_NULL(value);
 
     if (op != Token::INIT && target->IsVariableProxy()) {
       target->AsVariableProxy()->set_is_assigned();

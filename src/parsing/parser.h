@@ -818,6 +818,11 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     return expression_scope()->NewVariable(name, start_position);
   }
 
+  V8_INLINE void DeclareIdentifier(const AstRawString* name,
+                                   int start_position) {
+    expression_scope()->Declare(name, start_position);
+  }
+
   V8_INLINE Variable* DeclareCatchVariableName(Scope* scope,
                                                const AstRawString* name) {
     return scope->DeclareCatchVariableName(name);

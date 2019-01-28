@@ -1817,7 +1817,7 @@ Block* Parser::RewriteForVarInLegacy(const ForInfo& for_info) {
   const DeclarationParsingResult::Declaration& decl =
       for_info.parsing_result.declarations[0];
   if (!IsLexicalVariableMode(for_info.parsing_result.descriptor.mode) &&
-      decl.pattern->IsVariableProxy() && decl.initializer != nullptr) {
+      decl.initializer != nullptr && decl.pattern->IsVariableProxy()) {
     ++use_counts_[v8::Isolate::kForInInitializer];
     const AstRawString* name = decl.pattern->AsVariableProxy()->raw_name();
     VariableProxy* single_var = NewUnresolved(name);
@@ -1855,6 +1855,7 @@ void Parser::DesugarBindingInForEachStatement(ForInfo* for_info,
       for_info->parsing_result.declarations[0];
   Variable* temp = NewTemporary(ast_value_factory()->dot_for_string());
   ScopedPtrList<Statement> each_initialization_statements(pointer_buffer());
+  DCHECK_NOT_NULL(decl.pattern);
   decl.initializer = factory()->NewVariableProxy(temp, for_info->position);
   InitializeVariables(&each_initialization_statements, NORMAL_VARIABLE, &decl);
 

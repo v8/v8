@@ -482,7 +482,9 @@ class ParserBase {
   struct DeclarationParsingResult {
     struct Declaration {
       Declaration(ExpressionT pattern, ExpressionT initializer)
-          : pattern(pattern), initializer(initializer) {}
+          : pattern(pattern), initializer(initializer) {
+        DCHECK_IMPLIES(Impl::IsNull(pattern), Impl::IsNull(initializer));
+      }
 
       ExpressionT pattern;
       ExpressionT initializer;
@@ -3515,13 +3517,42 @@ void ParserBase<Impl>::ParseVariableDeclarations(
     FuncNameInferrerState fni_state(&fni_);
 
     int decl_pos = peek_position();
-    ExpressionT pattern = ParseBindingPattern();
+
+    IdentifierT name;
+    ExpressionT pattern;
+    // Check for an identifier first, so that we can elide the pattern in cases
+    // where there is no initializer (and so no proxy needs to be created).
+    if (V8_LIKELY(Token::IsAnyIdentifier(peek()))) {
+      name = ParseAndClassifyIdentifier(Next());
+      if (V8_UNLIKELY(is_strict(language_mode()) &&
+                      impl()->IsEvalOrArguments(name))) {
+        impl()->ReportMessageAt(scanner()->location(),
+                                MessageTemplate::kStrictEvalArguments);
+        return;
+      }
+      if (peek() == Token::ASSIGN ||
+          (var_context == kForStatement && PeekInOrOf()) ||
+          parsing_result->descriptor.mode == VariableMode::kLet) {
+        // Assignments need the variable expression for the assignment LHS, and
+        // for of/in will need it later, so create the expression now.
+        pattern = impl()->ExpressionFromIdentifier(name, decl_pos);
+      } else {
+        // Otherwise, elide the variable expression and just declare it.
+        impl()->DeclareIdentifier(name, decl_pos);
+        pattern = impl()->NullExpression();
+      }
+    } else {
+      name = impl()->NullIdentifier();
+      pattern = ParseBindingPattern();
+      DCHECK(!impl()->IsIdentifier(pattern));
+    }
 
     Scanner::Location variable_loc = scanner()->location();
 
     ExpressionT value = impl()->NullExpression();
     int value_beg_pos = kNoSourcePosition;
     if (Check(Token::ASSIGN)) {
+      DCHECK(!impl()->IsNull(pattern));
       {
         value_beg_pos = peek_position();
         AcceptINScope scope(this, var_context != kForStatement);
@@ -3544,14 +3575,35 @@ void ParserBase<Impl>::ParseVariableDeclarations(
 
       impl()->SetFunctionNameFromIdentifierRef(value, pattern);
     } else {
+#ifdef DEBUG
+      // We can fall through into here on error paths, so don't DCHECK those.
+      if (!has_error()) {
+        // We should never get identifier patterns for the non-initializer path,
+        // as those expressions should be elided.
+        DCHECK_EQ(!impl()->IsNull(name),
+                  Token::IsAnyIdentifier(scanner()->current_token()));
+        DCHECK_IMPLIES(impl()->IsNull(pattern), !impl()->IsNull(name));
+        // The only times we have a non-null pattern are:
+        //   1. This is a destructuring declaration (with no initializer, which
+        //      is immediately an error),
+        //   2. This is a declaration in a for in/of loop, or
+        //   3. This is a let (which has an implicit undefined initializer)
+        DCHECK_IMPLIES(
+            !impl()->IsNull(pattern),
+            !impl()->IsIdentifier(pattern) ||
+                (var_context == kForStatement && PeekInOrOf()) ||
+                parsing_result->descriptor.mode == VariableMode::kLet);
+      }
+#endif
+
       if (var_context != kForStatement || !PeekInOrOf()) {
         // ES6 'const' and binding patterns require initializers.
         if (parsing_result->descriptor.mode == VariableMode::kConst ||
-            !impl()->IsIdentifier(pattern)) {
+            impl()->IsNull(name)) {
           impl()->ReportMessageAt(
               Scanner::Location(decl_pos, end_position()),
               MessageTemplate::kDeclarationMissingInitializer,
-              !impl()->IsIdentifier(pattern) ? "destructuring" : "const");
+              impl()->IsNull(name) ? "destructuring" : "const");
           return;
         }
         // 'let x' initializes 'x' to undefined.
@@ -3567,8 +3619,14 @@ void ParserBase<Impl>::ParseVariableDeclarations(
       declaration_it->var()->set_initializer_position(initializer_position);
     }
 
+    // Patterns should be elided iff. they don't have an initializer.
+    DCHECK_IMPLIES(impl()->IsNull(pattern),
+                   impl()->IsNull(value) ||
+                       (var_context == kForStatement && PeekInOrOf()));
+
     typename DeclarationParsingResult::Declaration decl(pattern, value);
     decl.value_beg_pos = value_beg_pos;
+
     parsing_result->declarations.push_back(decl);
   } while (Check(Token::COMMA));
 
