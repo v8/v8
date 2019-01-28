@@ -57,14 +57,6 @@ function assertTable(obj, ...elems) {
 
   assertTable(x.table, null, null, null, null, null);
 
-  // 0-count is not oob.
-  x.init0(0, 0, 0);
-  assertTable(x.table, null, null, null, null, null);
-  x.init0(kTableSize+1, 0, 0);
-  assertTable(x.table, null, null, null, null, null);
-  x.init0(0, kTableSize+1, 0);
-  assertTable(x.table, null, null, null, null, null);
-
   // test actual writes.
   x.init0(0, 0, 1);
   assertTable(x.table, x.f0, null, null, null, null);
@@ -109,6 +101,11 @@ function assertTable(obj, ...elems) {
   let x = instance.exports;
 
   assertTable(x.table, null, null, null, null, null);
+
+  // 0-count is oob.
+  assertThrows(() => x.init0(kTableSize+1, 0, 0));
+  assertThrows(() => x.init0(0, kTableSize+1, 0));
+
   assertThrows(() => x.init0(0, 0, 6));
   assertThrows(() => x.init0(0, 1, 5));
   assertThrows(() => x.init0(0, 2, 4));

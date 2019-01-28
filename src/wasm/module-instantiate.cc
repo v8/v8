@@ -1461,7 +1461,6 @@ bool LoadElemSegmentImpl(Isolate* isolate, Handle<WasmInstanceObject> instance,
                          JSToWasmWrapperCache* js_to_wasm_cache,
                          const WasmElemSegment& elem_segment, uint32_t dst,
                          uint32_t src, size_t count) {
-  if (count == 0) return true;  // nothing to do.
   if (!IsInBounds(dst, count, table_instance.table_size)) return false;
   if (!IsInBounds(src, count, elem_segment.entries.size())) return false;
 

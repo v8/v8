@@ -1439,7 +1439,6 @@ bool WasmInstanceObject::CopyTableEntries(Isolate* isolate,
                                           uint32_t table_index, uint32_t dst,
                                           uint32_t src, uint32_t count) {
   CHECK_EQ(0, table_index);  // TODO(titzer): multiple tables in TableCopy
-  if (count == 0) return true;  // no-op
   auto max = instance->indirect_function_table_size();
   if (!IsInBounds(dst, count, max)) return false;
   if (!IsInBounds(src, count, max)) return false;
