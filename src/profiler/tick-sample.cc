@@ -173,8 +173,7 @@ DISABLE_ASAN void TickSample::Init(Isolate* v8_isolate,
     MSAN_MEMORY_IS_INITIALIZED(regs.sp, sizeof(void*));
     // Sample potential return address value for frameless invocation of
     // stubs (we'll figure out later, if this value makes sense).
-    tos = reinterpret_cast<void*>(
-        i::Memory<i::Address>(reinterpret_cast<i::Address>(regs.sp)));
+    tos = i::ReadUnalignedValue<void*>(reinterpret_cast<i::Address>(regs.sp));
   } else {
     tos = nullptr;
   }
