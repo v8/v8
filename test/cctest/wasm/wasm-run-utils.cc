@@ -119,8 +119,7 @@ uint32_t TestingModuleBuilder::AddFunction(FunctionSig* sig, const char* name,
 }
 
 Handle<JSFunction> TestingModuleBuilder::WrapCode(uint32_t index) {
-  // Wrap the code so it can be called as a JS function.
-  Link();
+  SetExecutable();
   FunctionSig* sig = test_module_->functions[index].sig;
   MaybeHandle<Code> maybe_ret_code =
       compiler::CompileJSToWasmWrapper(isolate_, sig, false);

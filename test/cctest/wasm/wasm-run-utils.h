@@ -176,6 +176,7 @@ class TestingModuleBuilder {
   enum FunctionType { kImport, kWasm };
   uint32_t AddFunction(FunctionSig* sig, const char* name, FunctionType type);
 
+  // Wrap the code so it can be called as a JS function.
   Handle<JSFunction> WrapCode(uint32_t index);
 
   void AddIndirectFunctionTable(const uint16_t* function_indexes,
@@ -204,11 +205,8 @@ class TestingModuleBuilder {
   Address globals_start() const {
     return reinterpret_cast<Address>(globals_data_);
   }
-  void Link() {
-    if (linked_) return;
-    linked_ = true;
-    native_module_->SetExecutable(true);
-  }
+
+  void SetExecutable() { native_module_->SetExecutable(true); }
 
   CompilationEnv CreateCompilationEnv();
 
@@ -231,7 +229,6 @@ class TestingModuleBuilder {
   ExecutionTier execution_tier_;
   Handle<WasmInstanceObject> instance_object_;
   NativeModule* native_module_ = nullptr;
-  bool linked_ = false;
   RuntimeExceptionSupport runtime_exception_support_;
   LowerSimd lower_simd_;
 
@@ -453,7 +450,7 @@ class WasmRunner : public WasmRunnerBase {
 
     wrapper_.SetInnerCode(builder_.GetFunctionCode(0));
     wrapper_.SetInstance(builder_.instance_object());
-    builder_.Link();
+    builder_.SetExecutable();
     Handle<Code> wrapper_code = wrapper_.GetWrapperCode();
     compiler::CodeRunner<int32_t> runner(CcTest::InitIsolateOnce(),
                                          wrapper_code, wrapper_.signature());
