@@ -638,6 +638,8 @@ const char* OpcodeName(uint32_t val) {
   return WasmOpcodes::OpcodeName(static_cast<WasmOpcode>(val));
 }
 
+constexpr uint32_t kCatchInArity = 1;
+
 }  // namespace
 
 class SideTable;
@@ -754,6 +756,11 @@ class SideTable : public ZoneObject {
     // bytecodes with their target, as well as determining whether the current
     // bytecodes are within the true or false block of an else.
     ZoneVector<Control> control_stack(&control_transfer_zone);
+    // It also maintains a stack of all nested {try} blocks to resolve local
+    // handler targets for potentially throwing operations. These exceptional
+    // control transfers are treated just like other branches in the resulting
+    // map. This stack contains indices into the above control stack.
+    ZoneVector<size_t> exception_stack(zone);
     uint32_t stack_height = 0;
     uint32_t func_arity =
         static_cast<uint32_t>(code->function->sig->return_count());
@@ -839,6 +846,53 @@ class SideTable : public ZoneObject {
           stack_height = c->end_label->target_stack_height;
           break;
         }
+        case kExprTry: {
+          BlockTypeImmediate<Decoder::kNoValidate> imm(kAllWasmFeatures, &i,
+                                                       i.pc());
+          if (imm.type == kWasmVar) {
+            imm.sig = module->signatures[imm.sig_index];
+          }
+          TRACE("control @%u: Try, arity %d->%d\n", i.pc_offset(),
+                imm.in_arity(), imm.out_arity());
+          CLabel* end_label = CLabel::New(&control_transfer_zone, stack_height,
+                                          imm.out_arity());
+          CLabel* catch_label =
+              CLabel::New(&control_transfer_zone, stack_height, kCatchInArity);
+          control_stack.emplace_back(i.pc(), end_label, catch_label,
+                                     imm.out_arity());
+          exception_stack.push_back(control_stack.size() - 1);
+          copy_unreachable();
+          break;
+        }
+        case kExprCatch: {
+          DCHECK_EQ(control_stack.size() - 1, exception_stack.back());
+          Control* c = &control_stack.back();
+          exception_stack.pop_back();
+          copy_unreachable();
+          TRACE("control @%u: Catch\n", i.pc_offset());
+          if (!control_parent().unreachable) {
+            c->end_label->Ref(i.pc(), stack_height);
+          }
+          DCHECK_NOT_NULL(c->else_label);
+          c->else_label->Bind(i.pc() + 1);
+          c->else_label->Finish(&map_, code->orig_start);
+          c->else_label = nullptr;
+          DCHECK_GE(stack_height, c->end_label->target_stack_height);
+          stack_height = c->end_label->target_stack_height + kCatchInArity;
+          break;
+        }
+        case kExprThrow:
+        case kExprRethrow: {
+          if (exception_stack.empty()) break;  // Nothing to do here.
+          // TODO(mstarzinger): The same needs to be done for calls, not only
+          // for "throw" and "rethrow". Factor this logic out accordingly.
+          DCHECK_GE(control_stack.size() - 1, exception_stack.back());
+          Control* c = &control_stack[exception_stack.back()];
+          if (!unreachable) c->else_label->Ref(i.pc(), stack_height);
+          TRACE("handler @%u: %s -> try @%u\n", i.pc_offset(),
+                OpcodeName(opcode), static_cast<uint32_t>(c->pc - code->start));
+          break;
+        }
         case kExprEnd: {
           Control* c = &control_stack.back();
           TRACE("control @%u: End\n", i.pc_offset());
@@ -892,6 +946,11 @@ class SideTable : public ZoneObject {
     }
     DCHECK_EQ(0, control_stack.size());
     DCHECK_EQ(func_arity, stack_height);
+  }
+
+  bool HasEntryAt(pc_t from) {
+    auto result = map_.find(from);
+    return result != map_.end();
   }
 
   ControlTransferEntry& Lookup(pc_t from) {
@@ -1211,8 +1270,16 @@ class ThreadImpl {
   WasmInterpreter::Thread::ExceptionHandlingResult HandleException(
       Isolate* isolate) {
     DCHECK(isolate->has_pending_exception());
-    // TODO(wasm): Add wasm exception handling (would return HANDLED).
-    USE(isolate->pending_exception());
+    InterpreterCode* code = frames_.back().code;
+    if (code->side_table->HasEntryAt(frames_.back().pc)) {
+      TRACE("----- HANDLE -----\n");
+      // TODO(mstarzinger): Push a reference to the pending exception instead of
+      // the bogus {int32_t(0)} value here once the interpreter supports it.
+      USE(isolate->pending_exception());
+      Push(WasmValue(int32_t{0}));
+      isolate->clear_pending_exception();
+      return WasmInterpreter::Thread::HANDLED;
+    }
     TRACE("----- UNWIND -----\n");
     DCHECK_LT(0, activations_.size());
     Activation& act = activations_.back();
@@ -1324,6 +1391,13 @@ class ThreadImpl {
 
   int LookupTargetDelta(InterpreterCode* code, pc_t pc) {
     return static_cast<int>(code->side_table->Lookup(pc).pc_diff);
+  }
+
+  int JumpToHandlerDelta(InterpreterCode* code, pc_t pc) {
+    ControlTransferEntry& control_transfer_entry = code->side_table->Lookup(pc);
+    DoStackTransfer(sp_ - (control_transfer_entry.sp_diff + kCatchInArity),
+                    control_transfer_entry.target_arity);
+    return control_transfer_entry.pc_diff;
   }
 
   int DoBreak(InterpreterCode* code, pc_t pc, size_t depth) {
@@ -2095,7 +2169,7 @@ class ThreadImpl {
   }
 
   // Allocate, initialize and throw a new exception. The exception values are
-  // being popped off the operand stack. Returns true of the exception is being
+  // being popped off the operand stack. Returns true if the exception is being
   // handled locally by the interpreter, false otherwise (interpreter exits).
   bool DoThrowException(const WasmException* exception,
                         uint32_t index) V8_WARN_UNUSED_RESULT {
@@ -2148,6 +2222,16 @@ class ThreadImpl {
     PopN(static_cast<int>(sig->parameter_count()));
     // Now that the exception is ready, set it as pending.
     isolate->Throw(*exception_object);
+    return HandleException(isolate) == WasmInterpreter::Thread::HANDLED;
+  }
+
+  // Throw a given existing exception. Returns true if the exception is being
+  // handled locally by the interpreter, false otherwise (interpreter exits).
+  bool DoRethrowException(WasmValue* exception) {
+    Isolate* isolate = instance_object_->GetIsolate();
+    // TODO(mstarzinger): Use the passed {exception} here once reference types
+    // as values on the operand stack are supported by the interpreter.
+    isolate->ReThrow(*isolate->factory()->undefined_value());
     return HandleException(isolate) == WasmInterpreter::Thread::HANDLED;
   }
 
@@ -2223,13 +2307,9 @@ class ThreadImpl {
       switch (orig) {
         case kExprNop:
           break;
-        case kExprBlock: {
-          BlockTypeImmediate<Decoder::kNoValidate> imm(kAllWasmFeatures,
-                                                       &decoder, code->at(pc));
-          len = 1 + imm.length;
-          break;
-        }
-        case kExprLoop: {
+        case kExprBlock:
+        case kExprLoop:
+        case kExprTry: {
           BlockTypeImmediate<Decoder::kNoValidate> imm(kAllWasmFeatures,
                                                        &decoder, code->at(pc));
           len = 1 + imm.length;
@@ -2250,7 +2330,8 @@ class ThreadImpl {
           }
           break;
         }
-        case kExprElse: {
+        case kExprElse:
+        case kExprCatch: {
           len = LookupTargetDelta(code, pc);
           TRACE("  end => @%zu\n", pc + len);
           break;
@@ -2258,9 +2339,17 @@ class ThreadImpl {
         case kExprThrow: {
           ExceptionIndexImmediate<Decoder::kNoValidate> imm(&decoder,
                                                             code->at(pc));
-          len = 1 + imm.length;
+          CommitPc(pc);  // Needed for local unwinding.
           const WasmException* exception = &module()->exceptions[imm.index];
           if (!DoThrowException(exception, imm.index)) return;
+          len = JumpToHandlerDelta(code, pc);
+          break;
+        }
+        case kExprRethrow: {
+          WasmValue ex = Pop();
+          CommitPc(pc);  // Needed for local unwinding.
+          if (!DoRethrowException(&ex)) return;
+          len = JumpToHandlerDelta(code, pc);
           break;
         }
         case kExprSelect: {

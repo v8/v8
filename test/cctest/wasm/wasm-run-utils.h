@@ -39,6 +39,7 @@
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/call-tester.h"
 #include "test/cctest/compiler/graph-builder-tester.h"
+#include "test/cctest/compiler/value-helper.h"
 #include "test/common/wasm/flag-utils.h"
 
 namespace v8 {
@@ -183,6 +184,8 @@ class TestingModuleBuilder {
   void PopulateIndirectFunctionTable();
 
   uint32_t AddBytes(Vector<const byte> bytes);
+
+  uint32_t AddException(FunctionSig* sig);
 
   WasmFunction* GetFunctionAt(int index) {
     return &test_module_->functions[index];
@@ -490,6 +493,13 @@ class WasmRunner : public WasmRunnerBase {
 
   Handle<Code> GetWrapperCode() { return wrapper_.GetWrapperCode(); }
 };
+
+// TODO(mstarzinger): Rename these since they are not macros but functions.
+void EXPECT_CALL(double expected, Handle<JSFunction> jsfunc,
+                 Handle<Object>* buffer, int count);
+void EXPECT_CALL(double expected, Handle<JSFunction> jsfunc, double a,
+                 double b);
+void EXPECT_CALL(double expected, Handle<JSFunction> jsfunc, double a);
 
 // A macro to define tests that run in different engine configurations.
 #define WASM_EXEC_TEST(name)                                                  \

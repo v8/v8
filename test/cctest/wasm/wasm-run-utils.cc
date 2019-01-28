@@ -189,6 +189,18 @@ uint32_t TestingModuleBuilder::AddBytes(Vector<const byte> bytes) {
   return bytes_offset;
 }
 
+uint32_t TestingModuleBuilder::AddException(FunctionSig* sig) {
+  DCHECK_EQ(0, sig->return_count());
+  uint32_t index = static_cast<uint32_t>(test_module_->exceptions.size());
+  test_module_->exceptions.push_back(WasmException{sig});
+  Handle<WasmExceptionTag> tag = WasmExceptionTag::New(isolate_, index);
+  Handle<FixedArray> table(instance_object_->exceptions_table(), isolate_);
+  table = isolate_->factory()->CopyFixedArrayAndGrow(table, 1);
+  instance_object_->set_exceptions_table(*table);
+  table->set(index, *tag);
+  return index;
+}
+
 CompilationEnv TestingModuleBuilder::CreateCompilationEnv() {
   return {
       test_module_ptr_,
@@ -221,6 +233,7 @@ Handle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
   native_module_->ReserveCodeTableForTesting(kMaxFunctions);
 
   auto instance = WasmInstanceObject::New(isolate_, module_object);
+  instance->set_exceptions_table(*isolate_->factory()->empty_fixed_array());
   instance->set_globals_start(globals_data_);
   return instance;
 }
@@ -471,6 +484,37 @@ FunctionSig* WasmRunnerBase::CreateSig(MachineType return_type,
 
 // static
 bool WasmRunnerBase::trap_happened;
+
+void EXPECT_CALL(double expected, Handle<JSFunction> jsfunc,
+                 Handle<Object>* buffer, int count) {
+  Isolate* isolate = jsfunc->GetIsolate();
+  Handle<Object> global(isolate->context()->global_object(), isolate);
+  MaybeHandle<Object> retval =
+      Execution::Call(isolate, jsfunc, global, count, buffer);
+
+  CHECK(!retval.is_null());
+  Handle<Object> result = retval.ToHandleChecked();
+  if (result->IsSmi()) {
+    CHECK_EQ(expected, Smi::ToInt(*result));
+  } else {
+    CHECK(result->IsHeapNumber());
+    CHECK_FLOAT_EQ(expected, HeapNumber::cast(*result)->value());
+  }
+}
+
+void EXPECT_CALL(double expected, Handle<JSFunction> jsfunc, double a,
+                 double b) {
+  Isolate* isolate = jsfunc->GetIsolate();
+  Handle<Object> buffer[] = {isolate->factory()->NewNumber(a),
+                             isolate->factory()->NewNumber(b)};
+  EXPECT_CALL(expected, jsfunc, buffer, 2);
+}
+
+void EXPECT_CALL(double expected, Handle<JSFunction> jsfunc, double a) {
+  Isolate* isolate = jsfunc->GetIsolate();
+  Handle<Object> buffer[] = {isolate->factory()->NewNumber(a)};
+  EXPECT_CALL(expected, jsfunc, buffer, 1);
+}
 
 }  // namespace wasm
 }  // namespace internal

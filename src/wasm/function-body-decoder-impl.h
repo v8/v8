@@ -1295,7 +1295,6 @@ class WasmDecoder : public Decoder {
       case kExprIf:
       case kExprRethrow:
         return {1, 0};
-      case kExprCatch:
       case kExprGetLocal:
       case kExprGetGlobal:
       case kExprI32Const:
@@ -1329,6 +1328,7 @@ class WasmDecoder : public Decoder {
       case kExprEnd:
       case kExprElse:
       case kExprTry:
+      case kExprCatch:
       case kExprBrOnExn:
       case kExprNop:
       case kExprReturn:

@@ -248,6 +248,7 @@ v8_source_set("cctest_sources") {
     "wasm/test-run-wasm-asmjs.cc",
     "wasm/test-run-wasm-atomics.cc",
     "wasm/test-run-wasm-atomics64.cc",
+    "wasm/test-run-wasm-exceptions.cc",
     "wasm/test-run-wasm-interpreter.cc",
     "wasm/test-run-wasm-js.cc",
     "wasm/test-run-wasm-module.cc",

@@ -135,6 +135,10 @@
 #define WASM_IF_ELSE_X(index, cond, tstmt, fstmt)                            \
   cond, kExprIf, static_cast<byte>(index), tstmt, kExprElse, fstmt, kExprEnd
 
+#define WASM_TRY_CATCH_T(t, trystmt, catchstmt)                          \
+  kExprTry, static_cast<byte>(ValueTypes::ValueTypeCodeFor(t)), trystmt, \
+      kExprCatch, catchstmt, kExprEnd
+
 #define WASM_SELECT(tval, fval, cond) tval, fval, cond, kExprSelect
 
 #define WASM_RETURN0 kExprReturn
@@ -154,10 +158,12 @@
 #define WASM_CASE(x) static_cast<byte>(x), static_cast<byte>(x >> 8)
 #define WASM_CASE_BR(x) static_cast<byte>(x), static_cast<byte>(0x80 | (x) >> 8)
 
+#define WASM_THROW(index) kExprThrow, static_cast<byte>(index)
+
 //------------------------------------------------------------------------------
 // Misc expressions.
 //------------------------------------------------------------------------------
-#define WASM_ID(...) __VA_ARGS__
+#define WASM_STMTS(...) __VA_ARGS__
 #define WASM_ZERO kExprI32Const, 0
 #define WASM_ONE kExprI32Const, 1
 
