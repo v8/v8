@@ -1490,7 +1490,7 @@ void LiftoffStackSlots::Construct() {
             UNREACHABLE();
         }
         break;
-      case LiftoffAssembler::VarState::KIntConst: {
+      case LiftoffAssembler::VarState::kIntConst: {
         DCHECK(src.type() == kWasmI32 || src.type() == kWasmI64);
         UseScratchRegisterScope temps(asm_);
         Register scratch = temps.Acquire();
