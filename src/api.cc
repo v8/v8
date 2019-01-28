@@ -7306,10 +7306,6 @@ MemorySpan<const uint8_t> CompiledWasmModule::GetWireBytesRef() {
   return {bytes_vec.start(), bytes_vec.size()};
 }
 
-WasmModuleObject::BufferReference WasmModuleObject::GetWasmWireBytesRef() {
-  return GetCompiledModule().GetWireBytesRef();
-}
-
 WasmModuleObject::TransferrableModule
 WasmModuleObject::GetTransferrableModule() {
   if (i::FLAG_wasm_shared_code) {
@@ -7349,12 +7345,6 @@ MaybeLocal<WasmModuleObject> WasmModuleObject::FromTransferrableModule(
     return Deserialize(isolate, AsReference(transferrable_module.serialized_),
                        AsReference(transferrable_module.wire_bytes_));
   }
-}
-
-WasmModuleObject::SerializedModule WasmModuleObject::Serialize() {
-  // TODO(clemensh): Deprecated; remove after M-73 branch.
-  OwnedBuffer serialized = GetCompiledModule().Serialize();
-  return {std::move(serialized.buffer), serialized.size};
 }
 
 MaybeLocal<WasmModuleObject> WasmModuleObject::Deserialize(

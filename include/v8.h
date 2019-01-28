@@ -4317,28 +4317,6 @@ class V8_EXPORT CompiledWasmModule {
 // An instance of WebAssembly.Module.
 class V8_EXPORT WasmModuleObject : public Object {
  public:
-  // TODO(clemensh): Remove after 7.3 branch.
-  V8_DEPRECATED("Use OwnedBuffer", typedef)
-  std::pair<std::unique_ptr<const uint8_t[]>, size_t> SerializedModule;
-
-  /**
-   * A unowned reference to a byte buffer.
-   * TODO(clemensh): Remove after 7.3 branch.
-   */
-  V8_DEPRECATED("Use MemorySpan<const uint8_t>", struct) BufferReference {
-    const uint8_t* start;
-    size_t size;
-    BufferReference(const uint8_t* start, size_t size)
-        : start(start), size(size) {}
-
-    // Implicit conversion to and from MemorySpan<const uint8_t>.
-    BufferReference(MemorySpan<const uint8_t> span)  // NOLINT(runtime/explicit)
-        : start(span.data()), size(span.size()) {}
-    operator MemorySpan<const uint8_t>() const {
-      return MemorySpan<const uint8_t>{start, size};
-    }
-  };
-
   /**
    * An opaque, native heap object for transferring wasm modules. It
    * supports move semantics, and does not support copy semantics.
@@ -4381,23 +4359,10 @@ class V8_EXPORT WasmModuleObject : public Object {
       Isolate* isolate, const TransferrableModule&);
 
   /**
-   * Get the wasm-encoded bytes that were used to compile this module.
-   */
-  V8_DEPRECATED("Use CompiledWasmModule::GetWireBytesRef()",
-                BufferReference GetWasmWireBytesRef());
-
-  /**
    * Get the compiled module for this module object. The compiled module can be
    * shared by several module objects.
    */
   CompiledWasmModule GetCompiledModule();
-
-  /**
-   * Serialize the compiled module. The serialized data does not include the
-   * uncompiled bytes.
-   */
-  V8_DEPRECATED("Use CompiledWasmModule::Serialize()",
-                SerializedModule Serialize());
 
   /**
    * If possible, deserialize the module, otherwise compile it from the provided
