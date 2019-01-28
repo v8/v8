@@ -336,7 +336,7 @@ bytecodes: [
                 B(JumpIfNull), U8(50),
                 B(TestTypeOf), U8(6),
                 B(JumpIfTrue), U8(18),
-                B(Wide), B(LdaSmi), I16(154),
+                B(Wide), B(LdaSmi), I16(155),
                 B(Star), R(18),
                 B(LdaConstant), U8(13),
                 B(Star), R(19),

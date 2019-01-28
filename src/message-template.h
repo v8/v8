@@ -228,6 +228,8 @@ namespace internal {
   T(ProxyOwnKeysNonExtensible,                                                 \
     "'ownKeys' on proxy: trap returned extra keys but proxy target is "        \
     "non-extensible")                                                          \
+  T(ProxyOwnKeysDuplicateEntries,                                              \
+    "'ownKeys' on proxy: trap returned duplicate entries")                     \
   T(ProxyPreventExtensionsExtensible,                                          \
     "'preventExtensions' on proxy: trap returned truish but the proxy target " \
     "is extensible")                                                           \
