@@ -295,21 +295,12 @@ VisitResult ImplementationVisitor::InlineMacro(
 }
 
 void ImplementationVisitor::VisitMacroCommon(Macro* macro) {
-  // Do not generate code for inlined macros.
-  if (macro->ShouldBeInlined()) {
-    return;
-  }
-
   CurrentCallable::Scope current_callable(macro);
   const Signature& signature = macro->signature();
   const Type* return_type = macro->signature().return_type;
   bool can_return = return_type != TypeOracle::GetNeverType();
   bool has_return_value =
       can_return && return_type != TypeOracle::GetVoidType();
-
-  // Struct methods should never generate code, they should always be inlined
-  DCHECK(!macro->IsMethod() ||
-         Method::cast(macro)->aggregate_type()->IsClassType());
 
   header_out() << "  ";
   GenerateMacroFunctionDeclaration(header_out(), "", macro);
@@ -327,14 +318,23 @@ void ImplementationVisitor::VisitMacroCommon(Macro* macro) {
   base::Optional<LocationReference> this_reference;
   if (Method* method = Method::DynamicCast(macro)) {
     const Type* this_type = method->aggregate_type();
-    DCHECK(this_type->IsClassType());
-    lowered_parameter_types.Push(this_type);
-    lowered_parameters.Push(ExternalParameterName(kThisParameterName));
-    VisitResult this_result =
-        VisitResult(this_type, lowered_parameters.TopRange(1));
-    // Mark the this as a temporary to prevent assignment to it.
+    LowerParameter(this_type, ExternalParameterName(kThisParameterName),
+                   &lowered_parameters);
+    StackRange range = lowered_parameter_types.PushMany(LowerType(this_type));
+    VisitResult this_result = VisitResult(this_type, range);
+    // For classes, mark 'this' as a temporary to prevent assignment to it.
+    // Note that using a VariableAccess for non-class types is technically
+    // incorrect because changes to the 'this' variable do not get reflected
+    // to the caller. Therefore struct methods should always be inlined and a
+    // C++ version should never be generated, since it would be incorrect.
+    // However, in order to be able to type- and semantics-check even unused
+    // struct methods, set the this_reference to be the local variable copy of
+    // the passed-in this, which allows the visitor to at least find and report
+    // errors.
     this_reference =
-        LocationReference::Temporary(this_result, "this parameter");
+        (this_type->IsClassType())
+            ? LocationReference::Temporary(this_result, "this parameter")
+            : LocationReference::VariableAccess(this_result);
   }
 
   for (size_t i = 0; i < macro->signature().parameter_names.size(); ++i) {
@@ -378,8 +378,9 @@ void ImplementationVisitor::VisitMacroCommon(Macro* macro) {
     assembler().Bind(label_block);
     std::vector<std::string> label_parameter_variables;
     for (size_t i = 0; i < label_info.types.size(); ++i) {
-      label_parameter_variables.push_back(
-          ExternalLabelParameterName(label_info.name, i));
+      LowerLabelParameter(label_info.types[i],
+                          ExternalLabelParameterName(label_info.name, i),
+                          &label_parameter_variables);
     }
     assembler().Emit(GotoExternalInstruction{ExternalLabelName(label_info.name),
                                              label_parameter_variables});
@@ -1423,9 +1424,14 @@ void ImplementationVisitor::GenerateFunctionDeclaration(
     o << "compiler::CodeAssemblerLabel* " << ExternalLabelName(label_info.name);
     size_t i = 0;
     for (const Type* type : label_info.types) {
-      std::string generated_type_name("compiler::TypedCodeAssemblerVariable<");
-      generated_type_name += type->GetGeneratedTNodeTypeName();
-      generated_type_name += ">*";
+      std::string generated_type_name;
+      if (type->IsStructType()) {
+        generated_type_name = "\n#error no structs allowed in labels\n";
+      } else {
+        generated_type_name = "compiler::TypedCodeAssemblerVariable<";
+        generated_type_name += type->GetGeneratedTNodeTypeName();
+        generated_type_name += ">*";
+      }
       o << ", ";
       o << generated_type_name << " "
         << ExternalLabelParameterName(label_info.name, i);
@@ -2326,6 +2332,21 @@ StackRange ImplementationVisitor::LowerParameter(
   }
 }
 
+void ImplementationVisitor::LowerLabelParameter(
+    const Type* type, const std::string& parameter_name,
+    std::vector<std::string>* lowered_parameters) {
+  if (const StructType* struct_type = StructType::DynamicCast(type)) {
+    for (auto& field : struct_type->fields()) {
+      LowerLabelParameter(
+          field.name_and_type.type,
+          "&((*" + parameter_name + ")." + field.name_and_type.name + ")",
+          lowered_parameters);
+    }
+  } else {
+    lowered_parameters->push_back(parameter_name);
+  }
+}
+
 std::string ImplementationVisitor::ExternalLabelName(
     const std::string& label_name) {
   return "label_" + label_name;
@@ -2393,6 +2414,7 @@ void ImplementationVisitor::GenerateCatchBlock(
 }
 
 void ImplementationVisitor::VisitAllDeclarables() {
+  CurrentCallable::Scope current_callable(nullptr);
   const std::vector<std::unique_ptr<Declarable>>& all_declarables =
       GlobalContext::AllDeclarables();
   // This has to be an index-based loop because all_declarables can be extended

@@ -82,7 +82,7 @@ type Constructor extends JSReceiver generates 'TNode<JSReceiver>';
 type JSProxy extends JSReceiver generates 'TNode<JSProxy>';
 
 class JSObject extends JSReceiver {
-  constructor(map: Map, properties: FixedArrayBase, elements: FixedArrayBase) {
+  constructor(map: Tagged, properties: Object, elements: FixedArrayBase) {
     super(map, properties);
     this.elements = elements;
   }

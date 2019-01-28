@@ -478,15 +478,30 @@ class ImplementationVisitor : public FileVisitor {
   StackRange LowerParameter(const Type* type, const std::string& parameter_name,
                             Stack<std::string>* lowered_parameters);
 
+  void LowerLabelParameter(const Type* type, const std::string& parameter_name,
+                           std::vector<std::string>* lowered_parameters);
+
   std::string ExternalLabelName(const std::string& label_name);
   std::string ExternalLabelParameterName(const std::string& label_name,
                                          size_t i);
   std::string ExternalParameterName(const std::string& name);
 
-  std::ostream& source_out() { return CurrentNamespace()->source_stream(); }
-
-  std::ostream& header_out() { return CurrentNamespace()->header_stream(); }
-
+  std::ostream& source_out() {
+    Callable* callable = CurrentCallable::Get();
+    if (!callable || callable->ShouldGenerateExternalCode()) {
+      return CurrentNamespace()->source_stream();
+    } else {
+      return null_stream_;
+    }
+  }
+  std::ostream& header_out() {
+    Callable* callable = CurrentCallable::Get();
+    if (!callable || callable->ShouldGenerateExternalCode()) {
+      return CurrentNamespace()->header_stream();
+    } else {
+      return null_stream_;
+    }
+  }
   CfgAssembler& assembler() { return *assembler_; }
 
   void SetReturnValue(VisitResult return_value) {
@@ -503,6 +518,7 @@ class ImplementationVisitor : public FileVisitor {
   }
 
   base::Optional<CfgAssembler> assembler_;
+  NullOStream null_stream_;
 };
 
 }  // namespace torque

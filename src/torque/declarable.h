@@ -254,6 +254,7 @@ class Callable : public Scope {
   base::Optional<Statement*> body() const { return body_; }
   bool IsExternal() const { return !body_.has_value(); }
   virtual bool ShouldBeInlined() const { return false; }
+  virtual bool ShouldGenerateExternalCode() const { return !ShouldBeInlined(); }
   bool IsConstructor() const { return readable_name_ == kConstructMethodName; }
 
  protected:

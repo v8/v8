@@ -5,6 +5,8 @@
 #ifndef V8_TORQUE_UTILS_H_
 #define V8_TORQUE_UTILS_H_
 
+#include <ostream>
+#include <streambuf>
 #include <string>
 #include <unordered_set>
 #include <vector>
@@ -288,6 +290,25 @@ void EraseIf(Container* container, F f) {
     }
   }
 }
+
+class NullStreambuf : public std::streambuf {
+ public:
+  virtual int overflow(int c) {
+    setp(buffer_, buffer_ + sizeof(buffer_));
+    return (c == traits_type::eof()) ? '\0' : c;
+  }
+
+ private:
+  char buffer_[64];
+};
+
+class NullOStream : public std::ostream {
+ public:
+  NullOStream() : std::ostream(&buffer_) {}
+
+ private:
+  NullStreambuf buffer_;
+};
 
 }  // namespace torque
 }  // namespace internal
