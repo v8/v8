@@ -10712,9 +10712,16 @@ void CodeStubAssembler::TrapAllocationMemento(Node* object,
     TNode<IntPtrT> page_flags =
         UncheckedCast<IntPtrT>(Load(MachineType::IntPtr(), object_page,
                                     IntPtrConstant(Page::kFlagsOffset)));
-    GotoIf(WordEqual(WordAnd(page_flags,
-                             IntPtrConstant(MemoryChunk::kIsInNewSpaceMask)),
-                     IntPtrConstant(0)),
+    GotoIf(WordEqual(
+               WordAnd(page_flags,
+                       IntPtrConstant(MemoryChunk::kIsInYoungGenerationMask)),
+               IntPtrConstant(0)),
+           &no_memento_found);
+    // TODO(ulan): Support allocation memento for a large object by allocating
+    // additional word for the memento after the large object.
+    GotoIf(WordNotEqual(WordAnd(page_flags,
+                                IntPtrConstant(MemoryChunk::kIsLargePageMask)),
+                        IntPtrConstant(0)),
            &no_memento_found);
   }
 

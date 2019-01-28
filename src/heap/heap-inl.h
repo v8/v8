@@ -351,45 +351,71 @@ bool Heap::InNewSpace(HeapObject heap_object) {
   if (result) {
     // If the object is in NEW_SPACE, then it's not in RO_SPACE so this is safe.
     Heap* heap = Heap::FromWritableHeapObject(heap_object);
-    DCHECK(heap->gc_state_ != NOT_IN_GC || InToSpace(heap_object));
+    DCHECK_IMPLIES(heap->gc_state_ == NOT_IN_GC, InToPage(heap_object));
+  }
+#endif
+  return result;
+}
+
+bool Heap::InYoungGeneration(Object object) {
+  DCHECK(!HasWeakHeapObjectTag(object));
+  return object->IsHeapObject() && InYoungGeneration(HeapObject::cast(object));
+}
+
+// static
+bool Heap::InYoungGeneration(MaybeObject object) {
+  HeapObject heap_object;
+  return object->GetHeapObject(&heap_object) && InYoungGeneration(heap_object);
+}
+
+// static
+bool Heap::InYoungGeneration(HeapObject heap_object) {
+  bool result = MemoryChunk::FromHeapObject(heap_object)->InYoungGeneration();
+#ifdef DEBUG
+  // If in the young generation, then check we're either not in the middle of
+  // GC or the object is in to-space.
+  if (result) {
+    // If the object is in the young generation, then it's not in RO_SPACE so
+    // this is safe.
+    Heap* heap = Heap::FromWritableHeapObject(heap_object);
+    DCHECK_IMPLIES(heap->gc_state_ == NOT_IN_GC, InToPage(heap_object));
   }
 #endif
   return result;
 }
 
 // static
-bool Heap::InFromSpace(Object object) {
+bool Heap::InFromPage(Object object) {
   DCHECK(!HasWeakHeapObjectTag(object));
-  return object->IsHeapObject() && InFromSpace(HeapObject::cast(object));
+  return object->IsHeapObject() && InFromPage(HeapObject::cast(object));
 }
 
 // static
-bool Heap::InFromSpace(MaybeObject object) {
+bool Heap::InFromPage(MaybeObject object) {
   HeapObject heap_object;
-  return object->GetHeapObject(&heap_object) && InFromSpace(heap_object);
+  return object->GetHeapObject(&heap_object) && InFromPage(heap_object);
 }
 
 // static
-bool Heap::InFromSpace(HeapObject heap_object) {
-  return MemoryChunk::FromHeapObject(heap_object)
-      ->IsFlagSet(Page::IN_FROM_SPACE);
+bool Heap::InFromPage(HeapObject heap_object) {
+  return MemoryChunk::FromHeapObject(heap_object)->IsFromPage();
 }
 
 // static
-bool Heap::InToSpace(Object object) {
+bool Heap::InToPage(Object object) {
   DCHECK(!HasWeakHeapObjectTag(object));
-  return object->IsHeapObject() && InToSpace(HeapObject::cast(object));
+  return object->IsHeapObject() && InToPage(HeapObject::cast(object));
 }
 
 // static
-bool Heap::InToSpace(MaybeObject object) {
+bool Heap::InToPage(MaybeObject object) {
   HeapObject heap_object;
-  return object->GetHeapObject(&heap_object) && InToSpace(heap_object);
+  return object->GetHeapObject(&heap_object) && InToPage(heap_object);
 }
 
 // static
-bool Heap::InToSpace(HeapObject heap_object) {
-  return MemoryChunk::FromHeapObject(heap_object)->IsFlagSet(Page::IN_TO_SPACE);
+bool Heap::InToPage(HeapObject heap_object) {
+  return MemoryChunk::FromHeapObject(heap_object)->IsToPage();
 }
 
 bool Heap::InOldSpace(Object object) { return old_space_->Contains(object); }
@@ -489,11 +515,13 @@ AllocationMemento Heap::FindAllocationMemento(Map map, HeapObject object) {
 void Heap::UpdateAllocationSite(Map map, HeapObject object,
                                 PretenuringFeedbackMap* pretenuring_feedback) {
   DCHECK_NE(pretenuring_feedback, &global_pretenuring_feedback_);
-  DCHECK(InFromSpace(object) ||
-         (InToSpace(object) && Page::FromHeapObject(object)->IsFlagSet(
-                                   Page::PAGE_NEW_NEW_PROMOTION)) ||
-         (!InNewSpace(object) && Page::FromHeapObject(object)->IsFlagSet(
-                                     Page::PAGE_NEW_OLD_PROMOTION)));
+#ifdef DEBUG
+  MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
+  DCHECK_IMPLIES(chunk->IsToPage(),
+                 chunk->IsFlagSet(MemoryChunk::PAGE_NEW_NEW_PROMOTION));
+  DCHECK_IMPLIES(!chunk->InYoungGeneration(),
+                 chunk->IsFlagSet(MemoryChunk::PAGE_NEW_OLD_PROMOTION));
+#endif
   if (!FLAG_allocation_site_pretenuring ||
       !AllocationSite::CanTrack(map->instance_type())) {
     return;
@@ -514,9 +542,9 @@ void Heap::ExternalStringTable::AddString(String string) {
   DCHECK(!Contains(string));
 
   if (InNewSpace(string)) {
-    new_space_strings_.push_back(string);
+    young_strings_.push_back(string);
   } else {
-    old_space_strings_.push_back(string);
+    old_strings_.push_back(string);
   }
 }
 

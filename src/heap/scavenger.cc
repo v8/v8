@@ -119,7 +119,7 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
         "Only FullHeapObjectSlot and HeapObjectSlot are expected here");
     scavenger_->PageMemoryFence(MaybeObject::FromObject(target));
 
-    if (Heap::InFromSpace(target)) {
+    if (Heap::InFromPage(target)) {
       SlotCallbackResult result = scavenger_->ScavengeObject(slot, target);
       bool success = (*slot)->GetHeapObject(&target);
       USE(success);
@@ -145,14 +145,14 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
 };
 
 static bool IsUnscavengedHeapObject(Heap* heap, FullObjectSlot p) {
-  return Heap::InFromSpace(*p) &&
+  return Heap::InFromPage(*p) &&
          !HeapObject::cast(*p)->map_word().IsForwardingAddress();
 }
 
 class ScavengeWeakObjectRetainer : public WeakObjectRetainer {
  public:
   Object RetainAs(Object object) override {
-    if (!Heap::InFromSpace(object)) {
+    if (!Heap::InFromPage(object)) {
       return object;
     }
 
@@ -257,7 +257,7 @@ void ScavengerCollector::CollectGarbage() {
   {
     // Update references into new space
     TRACE_GC(heap_->tracer(), GCTracer::Scope::SCAVENGER_SCAVENGE_UPDATE_REFS);
-    heap_->UpdateNewSpaceReferencesInExternalStringTable(
+    heap_->UpdateYoungReferencesInExternalStringTable(
         &Heap::UpdateNewSpaceReferenceInExternalStringTableEntry);
 
     heap_->incremental_marking()->UpdateMarkingWorklistAfterScavenge();
@@ -456,9 +456,9 @@ void RootScavengeVisitor::VisitRootPointers(Root root, const char* description,
 void RootScavengeVisitor::ScavengePointer(FullObjectSlot p) {
   Object object = *p;
   DCHECK(!HasWeakHeapObjectTag(object));
-  if (!Heap::InNewSpace(object)) return;
-
-  scavenger_->ScavengeObject(FullHeapObjectSlot(p), HeapObject::cast(object));
+  if (Heap::InYoungGeneration(object)) {
+    scavenger_->ScavengeObject(FullHeapObjectSlot(p), HeapObject::cast(object));
+  }
 }
 
 RootScavengeVisitor::RootScavengeVisitor(Scavenger* scavenger)

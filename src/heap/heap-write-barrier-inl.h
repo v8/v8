@@ -29,8 +29,8 @@ struct MemoryChunk {
   static constexpr uintptr_t kHeapOffset =
       kFlagsOffset + kUIntptrSize + 4 * kSystemPointerSize;
   static constexpr uintptr_t kMarkingBit = uintptr_t{1} << 18;
-  static constexpr uintptr_t kFromSpaceBit = uintptr_t{1} << 3;
-  static constexpr uintptr_t kToSpaceBit = uintptr_t{1} << 4;
+  static constexpr uintptr_t kFromPageBit = uintptr_t{1} << 3;
+  static constexpr uintptr_t kToPageBit = uintptr_t{1} << 4;
 
   V8_INLINE static heap_internals::MemoryChunk* FromHeapObject(
       HeapObject object) {
@@ -39,9 +39,9 @@ struct MemoryChunk {
 
   V8_INLINE bool IsMarking() const { return GetFlags() & kMarkingBit; }
 
-  V8_INLINE bool InNewSpace() const {
-    constexpr uintptr_t kNewSpaceMask = kFromSpaceBit | kToSpaceBit;
-    return GetFlags() & kNewSpaceMask;
+  V8_INLINE bool InYoungGeneration() const {
+    constexpr uintptr_t kYoungGenerationMask = kFromPageBit | kToPageBit;
+    return GetFlags() & kYoungGenerationMask;
   }
 
   V8_INLINE uintptr_t GetFlags() const {
@@ -65,7 +65,8 @@ inline void GenerationalBarrierInternal(HeapObject object, Address slot,
   heap_internals::MemoryChunk* object_chunk =
       heap_internals::MemoryChunk::FromHeapObject(object);
 
-  if (!value_chunk->InNewSpace() || object_chunk->InNewSpace()) return;
+  if (!value_chunk->InYoungGeneration() || object_chunk->InYoungGeneration())
+    return;
 
   Heap::GenerationalBarrierSlow(object, slot, value);
 }
@@ -116,7 +117,7 @@ inline void GenerationalBarrierForElements(Heap* heap, FixedArray array,
                                            int offset, int length) {
   heap_internals::MemoryChunk* array_chunk =
       heap_internals::MemoryChunk::FromHeapObject(array);
-  if (array_chunk->InNewSpace()) return;
+  if (array_chunk->InYoungGeneration()) return;
 
   Heap::GenerationalBarrierForElementsSlow(heap, array, offset, length);
 }
@@ -125,7 +126,7 @@ inline void GenerationalBarrierForCode(Code host, RelocInfo* rinfo,
                                        HeapObject object) {
   heap_internals::MemoryChunk* object_chunk =
       heap_internals::MemoryChunk::FromHeapObject(object);
-  if (!object_chunk->InNewSpace()) return;
+  if (!object_chunk->InYoungGeneration()) return;
   Heap::GenerationalBarrierForCodeSlow(host, rinfo, object);
 }
 

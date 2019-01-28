@@ -2657,7 +2657,7 @@ Handle<String> String::SlowFlatten(Isolate* isolate, Handle<ConsString> cons,
 
   DCHECK(AllowHeapAllocation::IsAllowed());
   int length = cons->length();
-  PretenureFlag tenure = Heap::InNewSpace(*cons) ? pretenure : TENURED;
+  PretenureFlag tenure = Heap::InYoungGeneration(*cons) ? pretenure : TENURED;
   Handle<SeqString> result;
   if (cons->IsOneByteRepresentation()) {
     Handle<SeqOneByteString> flat = isolate->factory()->NewRawOneByteString(
@@ -15917,9 +15917,10 @@ static bool ShouldConvertToSlowElements(JSObject object, uint32_t capacity,
   if (index - capacity >= JSObject::kMaxGap) return true;
   *new_capacity = JSObject::NewElementsCapacity(index + 1);
   DCHECK_LT(index, *new_capacity);
+  // TODO(ulan): Check if it works with young large objects.
   if (*new_capacity <= JSObject::kMaxUncheckedOldFastElementsLength ||
       (*new_capacity <= JSObject::kMaxUncheckedFastElementsLength &&
-       Heap::InNewSpace(object))) {
+       Heap::InYoungGeneration(object))) {
     return false;
   }
   // If the fast-case backing storage takes up much more memory than a
@@ -17204,8 +17205,8 @@ Handle<Derived> HashTable<Derived, Shape>::EnsureCapacity(
 
   const int kMinCapacityForPretenure = 256;
   bool should_pretenure =
-      pretenure == TENURED ||
-      ((capacity > kMinCapacityForPretenure) && !Heap::InNewSpace(*table));
+      pretenure == TENURED || ((capacity > kMinCapacityForPretenure) &&
+                               !Heap::InYoungGeneration(*table));
   Handle<Derived> new_table = HashTable::New(
       isolate, new_nof, should_pretenure ? TENURED : NOT_TENURED);
 
@@ -17253,7 +17254,7 @@ Handle<Derived> HashTable<Derived, Shape>::Shrink(Isolate* isolate,
 
   const int kMinCapacityForPretenure = 256;
   bool pretenure = (at_least_room_for > kMinCapacityForPretenure) &&
-                   !Heap::InNewSpace(*table);
+                   !Heap::InYoungGeneration(*table);
   Handle<Derived> new_table =
       HashTable::New(isolate, new_capacity, pretenure ? TENURED : NOT_TENURED,
                      USE_CUSTOM_MINIMUM_CAPACITY);

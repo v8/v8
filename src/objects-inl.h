@@ -935,7 +935,7 @@ WriteBarrierMode HeapObject::GetWriteBarrierMode(
     const DisallowHeapAllocation& promise) {
   Heap* heap = Heap::FromWritableHeapObject(*this);
   if (heap->incremental_marking()->IsMarking()) return UPDATE_WRITE_BARRIER;
-  if (Heap::InNewSpace(*this)) return SKIP_WRITE_BARRIER;
+  if (Heap::InYoungGeneration(*this)) return SKIP_WRITE_BARRIER;
   return UPDATE_WRITE_BARRIER;
 }
 

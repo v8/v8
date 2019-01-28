@@ -215,8 +215,10 @@ void Serializer::PutRoot(RootIndex root, HeapObject object,
   STATIC_ASSERT(static_cast<int>(RootIndex::kArgumentsMarker) ==
                 kNumberOfRootArrayConstants - 1);
 
+  // TODO(ulan): Check that it works with young large objects.
   if (how_to_code == kPlain && where_to_point == kStartOfObject &&
-      root_index < kNumberOfRootArrayConstants && !Heap::InNewSpace(object)) {
+      root_index < kNumberOfRootArrayConstants &&
+      !Heap::InYoungGeneration(object)) {
     if (skip == 0) {
       sink_.Put(kRootArrayConstants + root_index, "RootConstant");
     } else {
@@ -699,7 +701,7 @@ void Serializer::ObjectSerializer::VisitPointers(HeapObject host,
           RootsTable::IsImmortalImmovable(root_index) &&
           *current == *(current - 1)) {
         DCHECK_EQ(reference_type, HeapObjectReferenceType::STRONG);
-        DCHECK(!Heap::InNewSpace(current_contents));
+        DCHECK(!Heap::InYoungGeneration(current_contents));
         int repeat_count = 1;
         while (current + repeat_count < end - 1 &&
                *(current + repeat_count) == *current) {

@@ -379,10 +379,7 @@ class Heap {
 
   bool IsImmovable(HeapObject object);
 
-  bool IsLargeObject(HeapObject object);
-  bool IsLargeMemoryChunk(MemoryChunk* chunk);
-
-  bool IsInYoungGeneration(HeapObject object);
+  static bool IsLargeObject(HeapObject object);
 
   // Trim the given array from the left. Note that this relocates the object
   // start and hence is only valid if there is only a single reference to it.
@@ -912,15 +909,20 @@ class Heap {
   // ===========================================================================
 
   // Returns whether the object resides in new space.
+  static inline bool InYoungGeneration(Object object);
+  static inline bool InYoungGeneration(MaybeObject object);
+  static inline bool InYoungGeneration(HeapObject heap_object);
+  // TODO(ulan): Remove once all call sites are changed to use
+  // InYoungGeneration.
   static inline bool InNewSpace(Object object);
   static inline bool InNewSpace(MaybeObject object);
   static inline bool InNewSpace(HeapObject heap_object);
-  static inline bool InFromSpace(Object object);
-  static inline bool InFromSpace(MaybeObject object);
-  static inline bool InFromSpace(HeapObject heap_object);
-  static inline bool InToSpace(Object object);
-  static inline bool InToSpace(MaybeObject object);
-  static inline bool InToSpace(HeapObject heap_object);
+  static inline bool InFromPage(Object object);
+  static inline bool InFromPage(MaybeObject object);
+  static inline bool InFromPage(HeapObject heap_object);
+  static inline bool InToPage(Object object);
+  static inline bool InToPage(MaybeObject object);
+  static inline bool InToPage(HeapObject heap_object);
 
   // Returns whether the object resides in old space.
   inline bool InOldSpace(Object object);
@@ -1295,32 +1297,32 @@ class Heap {
     bool Contains(String string);
 
     void IterateAll(RootVisitor* v);
-    void IterateNewSpaceStrings(RootVisitor* v);
-    void PromoteAllNewSpaceStrings();
+    void IterateYoung(RootVisitor* v);
+    void PromoteYoung();
 
     // Restores internal invariant and gets rid of collected strings. Must be
     // called after each Iterate*() that modified the strings.
     void CleanUpAll();
-    void CleanUpNewSpaceStrings();
+    void CleanUpYoung();
 
     // Finalize all registered external strings and clear tables.
     void TearDown();
 
-    void UpdateNewSpaceReferences(
+    void UpdateYoungReferences(
         Heap::ExternalStringTableUpdaterCallback updater_func);
     void UpdateReferences(
         Heap::ExternalStringTableUpdaterCallback updater_func);
 
    private:
     void Verify();
-    void VerifyNewSpace();
+    void VerifyYoung();
 
     Heap* const heap_;
 
-    // To speed up scavenge collections new space string are kept
-    // separate from old space strings.
-    std::vector<Object> new_space_strings_;
-    std::vector<Object> old_space_strings_;
+    // To speed up scavenge collections young string are kept separate from old
+    // strings.
+    std::vector<Object> young_strings_;
+    std::vector<Object> old_strings_;
 
     DISALLOW_COPY_AND_ASSIGN(ExternalStringTable);
   };
@@ -1557,7 +1559,7 @@ class Heap {
   void Scavenge();
   void EvacuateYoungGeneration();
 
-  void UpdateNewSpaceReferencesInExternalStringTable(
+  void UpdateYoungReferencesInExternalStringTable(
       ExternalStringTableUpdaterCallback updater_func);
 
   void UpdateReferencesInExternalStringTable(

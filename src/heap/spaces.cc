@@ -708,10 +708,7 @@ Page* PagedSpace::InitializePage(MemoryChunk* chunk, Executability executable) {
 Page* SemiSpace::InitializePage(MemoryChunk* chunk, Executability executable) {
   DCHECK_EQ(executable, Executability::NOT_EXECUTABLE);
   bool in_to_space = (id() != kFromSpace);
-  chunk->SetFlag(in_to_space ? MemoryChunk::IN_TO_SPACE
-                             : MemoryChunk::IN_FROM_SPACE);
-  DCHECK(!chunk->IsFlagSet(in_to_space ? MemoryChunk::IN_FROM_SPACE
-                                       : MemoryChunk::IN_TO_SPACE));
+  chunk->SetFlag(in_to_space ? MemoryChunk::TO_PAGE : MemoryChunk::FROM_PAGE);
   Page* page = static_cast<Page*>(chunk);
   page->SetYoungGenerationPageFlags(heap()->incremental_marking()->IsMarking());
   page->AllocateLocalTracker();
@@ -748,6 +745,7 @@ LargePage* LargePage::Initialize(Heap* heap, MemoryChunk* chunk,
   }
 
   LargePage* page = static_cast<LargePage*>(chunk);
+  page->SetFlag(MemoryChunk::LARGE_PAGE);
   page->list_node().Initialize();
   return page;
 }
@@ -1312,7 +1310,7 @@ void MemoryChunk::ReleaseAllocatedMemory() {
   if (young_generation_bitmap_ != nullptr) ReleaseYoungGenerationBitmap();
   if (marking_bitmap_ != nullptr) ReleaseMarkingBitmap();
 
-  if (!heap_->IsLargeMemoryChunk(this)) {
+  if (!IsLargePage()) {
     Page* page = static_cast<Page*>(this);
     page->ReleaseFreeListCategories();
   }
@@ -2198,7 +2196,7 @@ bool SemiSpace::EnsureCurrentCapacity() {
       memory_chunk_list_.Remove(current_page);
       // Clear new space flags to avoid this page being treated as a new
       // space page that is potentially being swept.
-      current_page->SetFlags(0, Page::kIsInNewSpaceMask);
+      current_page->SetFlags(0, Page::kIsInYoungGenerationMask);
       heap()->memory_allocator()->Free<MemoryAllocator::kPooledAndQueue>(
           current_page);
       current_page = next_current;
@@ -2660,17 +2658,16 @@ void SemiSpace::FixPagesFlags(intptr_t flags, intptr_t mask) {
     page->set_owner(this);
     page->SetFlags(flags, mask);
     if (id_ == kToSpace) {
-      page->ClearFlag(MemoryChunk::IN_FROM_SPACE);
-      page->SetFlag(MemoryChunk::IN_TO_SPACE);
+      page->ClearFlag(MemoryChunk::FROM_PAGE);
+      page->SetFlag(MemoryChunk::TO_PAGE);
       page->ClearFlag(MemoryChunk::NEW_SPACE_BELOW_AGE_MARK);
       heap()->incremental_marking()->non_atomic_marking_state()->SetLiveBytes(
           page, 0);
     } else {
-      page->SetFlag(MemoryChunk::IN_FROM_SPACE);
-      page->ClearFlag(MemoryChunk::IN_TO_SPACE);
+      page->SetFlag(MemoryChunk::FROM_PAGE);
+      page->ClearFlag(MemoryChunk::TO_PAGE);
     }
-    DCHECK(page->IsFlagSet(MemoryChunk::IN_TO_SPACE) ||
-           page->IsFlagSet(MemoryChunk::IN_FROM_SPACE));
+    DCHECK(page->InYoungGeneration());
   }
 }
 
@@ -2759,10 +2756,10 @@ void SemiSpace::Verify() {
   for (Page* page : *this) {
     CHECK_EQ(page->owner(), this);
     CHECK(page->InNewSpace());
-    CHECK(page->IsFlagSet(is_from_space ? MemoryChunk::IN_FROM_SPACE
-                                        : MemoryChunk::IN_TO_SPACE));
-    CHECK(!page->IsFlagSet(is_from_space ? MemoryChunk::IN_TO_SPACE
-                                         : MemoryChunk::IN_FROM_SPACE));
+    CHECK(page->IsFlagSet(is_from_space ? MemoryChunk::FROM_PAGE
+                                        : MemoryChunk::TO_PAGE));
+    CHECK(!page->IsFlagSet(is_from_space ? MemoryChunk::TO_PAGE
+                                         : MemoryChunk::FROM_PAGE));
     CHECK(page->IsFlagSet(MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING));
     if (!is_from_space) {
       // The pointers-from-here-are-interesting flag isn't updated dynamically
@@ -3558,13 +3555,14 @@ void LargeObjectSpace::RemoveChunkMapEntries(LargePage* page,
 
 void LargeObjectSpace::PromoteNewLargeObject(LargePage* page) {
   DCHECK_EQ(page->owner()->identity(), NEW_LO_SPACE);
-  DCHECK(page->IsFlagSet(MemoryChunk::IN_FROM_SPACE));
-  DCHECK(!page->IsFlagSet(MemoryChunk::IN_TO_SPACE));
+  DCHECK(page->IsLargePage());
+  DCHECK(page->IsFlagSet(MemoryChunk::FROM_PAGE));
+  DCHECK(!page->IsFlagSet(MemoryChunk::TO_PAGE));
   size_t object_size = static_cast<size_t>(page->GetObject()->Size());
   reinterpret_cast<NewLargeObjectSpace*>(page->owner())
       ->Unregister(page, object_size);
   Register(page, object_size);
-  page->ClearFlag(MemoryChunk::IN_FROM_SPACE);
+  page->ClearFlag(MemoryChunk::FROM_PAGE);
   page->SetOldGenerationPageFlags(heap()->incremental_marking()->IsMarking());
   page->set_owner(this);
 }
@@ -3773,7 +3771,7 @@ AllocationResult NewLargeObjectSpace::AllocateRaw(int object_size) {
   LargePage* page = AllocateLargePage(object_size, NOT_EXECUTABLE);
   if (page == nullptr) return AllocationResult::Retry(identity());
   page->SetYoungGenerationPageFlags(heap()->incremental_marking()->IsMarking());
-  page->SetFlag(MemoryChunk::IN_TO_SPACE);
+  page->SetFlag(MemoryChunk::TO_PAGE);
   page->InitializationMemoryFence();
   return page->GetObject();
 }
@@ -3786,8 +3784,8 @@ size_t NewLargeObjectSpace::Available() {
 void NewLargeObjectSpace::Flip() {
   for (LargePage* chunk = first_page(); chunk != nullptr;
        chunk = chunk->next_page()) {
-    chunk->SetFlag(MemoryChunk::IN_FROM_SPACE);
-    chunk->ClearFlag(MemoryChunk::IN_TO_SPACE);
+    chunk->SetFlag(MemoryChunk::FROM_PAGE);
+    chunk->ClearFlag(MemoryChunk::TO_PAGE);
   }
 }
 

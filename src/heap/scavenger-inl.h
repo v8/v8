@@ -149,8 +149,8 @@ CopyAndForwardResult Scavenger::SemiSpaceCopyObject(
       allocator_.FreeLast(NEW_SPACE, target, object_size);
       MapWord map_word = object->synchronized_map_word();
       HeapObjectReference::Update(slot, map_word.ToForwardingAddress());
-      DCHECK(!Heap::InFromSpace(*slot));
-      return Heap::InToSpace(*slot)
+      DCHECK(!Heap::InFromPage(*slot));
+      return Heap::InToPage(*slot)
                  ? CopyAndForwardResult::SUCCESS_YOUNG_GENERATION
                  : CopyAndForwardResult::SUCCESS_OLD_GENERATION;
     }
@@ -185,8 +185,8 @@ CopyAndForwardResult Scavenger::PromoteObject(Map map, THeapObjectSlot slot,
       allocator_.FreeLast(OLD_SPACE, target, object_size);
       MapWord map_word = object->synchronized_map_word();
       HeapObjectReference::Update(slot, map_word.ToForwardingAddress());
-      DCHECK(!Heap::InFromSpace(*slot));
-      return Heap::InToSpace(*slot)
+      DCHECK(!Heap::InFromPage(*slot));
+      return Heap::InToPage(*slot)
                  ? CopyAndForwardResult::SUCCESS_YOUNG_GENERATION
                  : CopyAndForwardResult::SUCCESS_OLD_GENERATION;
     }
@@ -213,7 +213,7 @@ bool Scavenger::HandleLargeObject(Map map, HeapObject object, int object_size,
   // object_size > kMaxRegularHeapObjectSize
   if (V8_UNLIKELY(
           FLAG_young_generation_large_objects &&
-          MemoryChunk::FromHeapObject(object)->IsInNewLargeObjectSpace())) {
+          MemoryChunk::FromHeapObject(object)->InNewLargeObjectSpace())) {
     DCHECK_EQ(NEW_LO_SPACE,
               MemoryChunk::FromHeapObject(object)->owner()->identity());
     if (object->map_slot().Release_CompareAndSwap(
@@ -287,7 +287,7 @@ SlotCallbackResult Scavenger::EvacuateThinString(Map map, THeapObjectSlot slot,
     String actual = object->actual();
     // ThinStrings always refer to internalized strings, which are always in old
     // space.
-    DCHECK(!Heap::InNewSpace(actual));
+    DCHECK(!Heap::InYoungGeneration(actual));
     HeapObjectReference::Update(slot, actual);
     return REMOVE_SLOT;
   }
@@ -313,7 +313,7 @@ SlotCallbackResult Scavenger::EvacuateShortcutCandidate(Map map,
 
     HeapObjectReference::Update(slot, first);
 
-    if (!Heap::InNewSpace(first)) {
+    if (!Heap::InYoungGeneration(first)) {
       object->map_slot().Release_Store(
           MapWord::FromForwardingAddress(first).ToMap());
       return REMOVE_SLOT;
@@ -326,7 +326,7 @@ SlotCallbackResult Scavenger::EvacuateShortcutCandidate(Map map,
       HeapObjectReference::Update(slot, target);
       object->map_slot().Release_Store(
           MapWord::FromForwardingAddress(target).ToMap());
-      return Heap::InToSpace(target) ? KEEP_SLOT : REMOVE_SLOT;
+      return Heap::InToPage(target) ? KEEP_SLOT : REMOVE_SLOT;
     }
     Map map = first_word.ToMap();
     SlotCallbackResult result =
@@ -348,7 +348,7 @@ SlotCallbackResult Scavenger::EvacuateObject(THeapObjectSlot slot, Map map,
   static_assert(std::is_same<THeapObjectSlot, FullHeapObjectSlot>::value ||
                     std::is_same<THeapObjectSlot, HeapObjectSlot>::value,
                 "Only FullHeapObjectSlot and HeapObjectSlot are expected here");
-  SLOW_DCHECK(Heap::InFromSpace(source));
+  SLOW_DCHECK(Heap::InFromPage(source));
   SLOW_DCHECK(!MapWord::FromMap(map).IsForwardingAddress());
   int size = source->SizeFromMap(map);
   // Cannot use ::cast() below because that would add checks in debug mode
@@ -377,7 +377,7 @@ SlotCallbackResult Scavenger::ScavengeObject(THeapObjectSlot p,
   static_assert(std::is_same<THeapObjectSlot, FullHeapObjectSlot>::value ||
                     std::is_same<THeapObjectSlot, HeapObjectSlot>::value,
                 "Only FullHeapObjectSlot and HeapObjectSlot are expected here");
-  DCHECK(Heap::InFromSpace(object));
+  DCHECK(Heap::InFromPage(object));
 
   // Synchronized load that consumes the publishing CAS of MigrateObject.
   MapWord first_word = object->synchronized_map_word();
@@ -387,12 +387,10 @@ SlotCallbackResult Scavenger::ScavengeObject(THeapObjectSlot p,
   if (first_word.IsForwardingAddress()) {
     HeapObject dest = first_word.ToForwardingAddress();
     HeapObjectReference::Update(p, dest);
-    DCHECK_IMPLIES(Heap::InNewSpace(dest),
-                   (Heap::InToSpace(dest) ||
-                    MemoryChunk::FromHeapObject(dest)->owner()->identity() ==
-                        NEW_LO_SPACE));
+    DCHECK_IMPLIES(Heap::InYoungGeneration(dest),
+                   Heap::InToPage(dest) || Heap::IsLargeObject(dest));
 
-    return Heap::InToSpace(dest) ? KEEP_SLOT : REMOVE_SLOT;
+    return Heap::InYoungGeneration(dest) ? KEEP_SLOT : REMOVE_SLOT;
   }
 
   Map map = first_word.ToMap();
@@ -410,15 +408,15 @@ SlotCallbackResult Scavenger::CheckAndScavengeObject(Heap* heap, TSlot slot) {
       "Only FullMaybeObjectSlot and MaybeObjectSlot are expected here");
   using THeapObjectSlot = typename TSlot::THeapObjectSlot;
   MaybeObject object = *slot;
-  if (Heap::InFromSpace(object)) {
+  if (Heap::InFromPage(object)) {
     HeapObject heap_object = object->GetHeapObject();
 
     SlotCallbackResult result =
         ScavengeObject(THeapObjectSlot(slot), heap_object);
     DCHECK_IMPLIES(result == REMOVE_SLOT,
-                   !heap->IsInYoungGeneration((*slot)->GetHeapObject()));
+                   !heap->InYoungGeneration((*slot)->GetHeapObject()));
     return result;
-  } else if (Heap::InToSpace(object)) {
+  } else if (Heap::InToPage(object)) {
     // Already updated slot. This can happen when processing of the work list
     // is interleaved with processing roots.
     return KEEP_SLOT;
@@ -463,7 +461,7 @@ void ScavengeVisitor::VisitEmbeddedPointer(Code host, RelocInfo* rinfo) {
 
 template <typename TSlot>
 void ScavengeVisitor::VisitHeapObjectImpl(TSlot slot, HeapObject heap_object) {
-  if (Heap::InNewSpace(heap_object)) {
+  if (Heap::InYoungGeneration(heap_object)) {
     scavenger_->ScavengeObject(HeapObjectSlot(slot), heap_object);
   }
 }

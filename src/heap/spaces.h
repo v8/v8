@@ -269,10 +269,12 @@ class MemoryChunk {
     IS_EXECUTABLE = 1u << 0,
     POINTERS_TO_HERE_ARE_INTERESTING = 1u << 1,
     POINTERS_FROM_HERE_ARE_INTERESTING = 1u << 2,
-    // A page in new space has one of the next two flags set.
-    IN_FROM_SPACE = 1u << 3,
-    IN_TO_SPACE = 1u << 4,
-    NEW_SPACE_BELOW_AGE_MARK = 1u << 5,
+    // A page in the from-space or a young large page that was not scavenged
+    // yet.
+    FROM_PAGE = 1u << 3,
+    // A page in the to-space or a young large page that was scavenged.
+    TO_PAGE = 1u << 4,
+    LARGE_PAGE = 1u << 5,
     EVACUATION_CANDIDATE = 1u << 6,
     NEVER_EVACUATE = 1u << 7,
 
@@ -322,7 +324,8 @@ class MemoryChunk {
 
     // |INCREMENTAL_MARKING|: Indicates whether incremental marking is currently
     // enabled.
-    INCREMENTAL_MARKING = 1u << 18
+    INCREMENTAL_MARKING = 1u << 18,
+    NEW_SPACE_BELOW_AGE_MARK = 1u << 19
   };
 
   using Flags = uintptr_t;
@@ -335,10 +338,12 @@ class MemoryChunk {
 
   static const Flags kEvacuationCandidateMask = EVACUATION_CANDIDATE;
 
-  static const Flags kIsInNewSpaceMask = IN_FROM_SPACE | IN_TO_SPACE;
+  static const Flags kIsInYoungGenerationMask = FROM_PAGE | TO_PAGE;
+
+  static const Flags kIsLargePageMask = LARGE_PAGE;
 
   static const Flags kSkipEvacuationSlotsRecordingMask =
-      kEvacuationCandidateMask | kIsInNewSpaceMask;
+      kEvacuationCandidateMask | kIsInYoungGenerationMask;
 
   // |kSweepingDone|: The page state when sweeping is complete or sweeping must
   //   not be performed on that page. Sweeper threads that are done with their
@@ -633,17 +638,20 @@ class MemoryChunk {
     return IsFlagSet(IS_EXECUTABLE) ? EXECUTABLE : NOT_EXECUTABLE;
   }
 
-  bool InNewSpace() { return (flags_ & kIsInNewSpaceMask) != 0; }
+  bool IsFromPage() const { return (flags_ & FROM_PAGE) != 0; }
+  bool IsToPage() const { return (flags_ & TO_PAGE) != 0; }
+  bool IsLargePage() const { return (flags_ & LARGE_PAGE) != 0; }
 
-  bool InToSpace() { return IsFlagSet(IN_TO_SPACE); }
-
-  bool InFromSpace() { return IsFlagSet(IN_FROM_SPACE); }
-
+  bool InYoungGeneration() const {
+    return (flags_ & kIsInYoungGenerationMask) != 0;
+  }
+  bool InNewSpace() const { return InYoungGeneration() && !IsLargePage(); }
+  bool InNewLargeObjectSpace() const {
+    return InYoungGeneration() && IsLargePage();
+  }
   bool InOldSpace() const;
-
   bool InLargeObjectSpace() const;
 
-  inline bool IsInNewLargeObjectSpace() const;
 
   Space* owner() const { return owner_; }
 
@@ -1204,8 +1212,7 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
     }
 
     void AddMemoryChunkSafe(MemoryChunk* chunk) {
-      if (!heap_->IsLargeMemoryChunk(chunk) &&
-          chunk->executable() != EXECUTABLE) {
+      if (!chunk->IsLargePage() && chunk->executable() != EXECUTABLE) {
         AddMemoryChunkSafe<kRegular>(chunk);
       } else {
         AddMemoryChunkSafe<kNonRegular>(chunk);
@@ -2703,7 +2710,7 @@ class NewSpace : public SpaceWithLinearArea {
   }
 
   void MovePageFromSpaceToSpace(Page* page) {
-    DCHECK(page->InFromSpace());
+    DCHECK(page->IsFromPage());
     from_space_.RemovePage(page);
     to_space_.PrependPage(page);
   }

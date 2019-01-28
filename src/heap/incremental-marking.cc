@@ -411,9 +411,7 @@ void IncrementalMarking::FinishBlackAllocation() {
 void IncrementalMarking::EnsureBlackAllocated(Address allocated, size_t size) {
   if (black_allocation() && allocated != kNullAddress) {
     HeapObject object = HeapObject::FromAddress(allocated);
-    if (marking_state()->IsWhite(object) &&
-        !(Heap::InNewSpace(object) ||
-          heap_->new_lo_space()->Contains(object))) {
+    if (marking_state()->IsWhite(object) && !Heap::InYoungGeneration(object)) {
       if (heap_->IsLargeObject(object)) {
         marking_state()->WhiteToBlack(object);
       } else {
@@ -542,7 +540,7 @@ void IncrementalMarking::UpdateMarkingWorklistAfterScavenge() {
                                  HeapObject obj, HeapObject* out) -> bool {
     DCHECK(obj->IsHeapObject());
     // Only pointers to from space have to be updated.
-    if (Heap::InFromSpace(obj)) {
+    if (Heap::InFromPage(obj)) {
       MapWord map_word = obj->map_word();
       if (!map_word.IsForwardingAddress()) {
         // There may be objects on the marking deque that do not exist anymore,
@@ -556,27 +554,30 @@ void IncrementalMarking::UpdateMarkingWorklistAfterScavenge() {
       DCHECK_IMPLIES(marking_state()->IsWhite(obj), obj->IsFiller());
       *out = dest;
       return true;
-    } else if (Heap::InToSpace(obj)) {
-      // The object may be on a page that was moved in new space.
-      DCHECK(Page::FromHeapObject(obj)->IsFlagSet(Page::SWEEP_TO_ITERATE));
+    } else if (Heap::InToPage(obj)) {
+      // The object may be on a large page or on a page that was moved in new
+      // space.
+      DCHECK(Heap::IsLargeObject(obj) ||
+             Page::FromHeapObject(obj)->IsFlagSet(Page::SWEEP_TO_ITERATE));
 #ifdef ENABLE_MINOR_MC
-      if (minor_marking_state->IsGrey(obj)) {
-        *out = obj;
-        return true;
+      if (minor_marking_state->IsWhite(obj)) {
+        return false;
       }
 #endif  // ENABLE_MINOR_MC
-      return false;
+      // Either a large object or an object marked by the minor mark-compactor.
+      *out = obj;
+      return true;
     } else {
       // The object may be on a page that was moved from new to old space. Only
       // applicable during minor MC garbage collections.
       if (Page::FromHeapObject(obj)->IsFlagSet(Page::SWEEP_TO_ITERATE)) {
 #ifdef ENABLE_MINOR_MC
-        if (minor_marking_state->IsGrey(obj)) {
-          *out = obj;
-          return true;
+        if (minor_marking_state->IsWhite(obj)) {
+          return false;
         }
 #endif  // ENABLE_MINOR_MC
-        return false;
+        *out = obj;
+        return true;
       }
       DCHECK_IMPLIES(marking_state()->IsWhite(obj), obj->IsFiller());
       // Skip one word filler objects that appear on the
@@ -599,9 +600,10 @@ T ForwardingAddress(T heap_obj) {
 
   if (map_word.IsForwardingAddress()) {
     return T::cast(map_word.ToForwardingAddress());
-  } else if (Heap::InNewSpace(heap_obj)) {
+  } else if (Heap::InFromPage(heap_obj)) {
     return T();
   } else {
+    // TODO(ulan): Support minor mark-compactor here.
     return heap_obj;
   }
 }
@@ -671,7 +673,7 @@ void IncrementalMarking::UpdateWeakReferencesAfterScavenge() {
 #ifdef DEBUG
   weak_objects_->bytecode_flushing_candidates.Iterate(
       [](SharedFunctionInfo candidate) {
-        DCHECK(!Heap::InNewSpace(candidate));
+        DCHECK(!Heap::InYoungGeneration(candidate));
       });
 #endif
 }

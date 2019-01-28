@@ -1449,7 +1449,7 @@ void JSObjectData::SerializeRecursive(JSHeapBroker* broker, int depth) {
       elements_object->map() == ReadOnlyRoots(isolate).fixed_cow_array_map();
   if (empty_or_cow) {
     // We need to make sure copy-on-write elements are tenured.
-    if (Heap::InNewSpace(*elements_object)) {
+    if (Heap::InYoungGeneration(*elements_object)) {
       elements_object = isolate->factory()->CopyAndTenureFixedCOWArray(
           Handle<FixedArray>::cast(elements_object));
       boilerplate->set_elements(*elements_object);
@@ -2027,7 +2027,7 @@ void JSObjectRef::EnsureElementsTenured() {
     AllowHeapAllocation allow_heap_allocation;
 
     Handle<FixedArrayBase> object_elements = elements().object();
-    if (Heap::InNewSpace(*object_elements)) {
+    if (Heap::InYoungGeneration(*object_elements)) {
       // If we would like to pretenure a fixed cow array, we must ensure that
       // the array is already in old space, otherwise we'll create too many
       // old-to-new-space pointers (overflowing the store buffer).

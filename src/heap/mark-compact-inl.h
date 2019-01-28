@@ -459,7 +459,8 @@ void MarkCompactCollector::MarkRootObject(Root root, HeapObject obj) {
 #ifdef ENABLE_MINOR_MC
 
 void MinorMarkCompactCollector::MarkRootObject(HeapObject obj) {
-  if (Heap::InNewSpace(obj) && non_atomic_marking_state_.WhiteToGrey(obj)) {
+  if (Heap::InYoungGeneration(obj) &&
+      non_atomic_marking_state_.WhiteToGrey(obj)) {
     worklist_->Push(kMainThread, obj);
   }
 }

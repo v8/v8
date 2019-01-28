@@ -361,7 +361,7 @@ TF_BUILTIN(RecordWrite, RecordWriteCodeStubAssembler) {
 
   BIND(&generational_wb);
   {
-    Label test_old_to_new_flags(this);
+    Label test_old_to_young_flags(this);
     Label store_buffer_exit(this), store_buffer_incremental_wb(this);
 
     // When incremental marking is not on, we skip cross generation pointer
@@ -371,23 +371,22 @@ TF_BUILTIN(RecordWrite, RecordWriteCodeStubAssembler) {
     // `src/compiler/<arch>/code-generator-<arch>.cc` before calling this stub,
     // which serves as the cross generation checking.
     Node* slot = Parameter(Descriptor::kSlot);
-    Branch(IsMarking(), &test_old_to_new_flags, &store_buffer_exit);
+    Branch(IsMarking(), &test_old_to_young_flags, &store_buffer_exit);
 
-    BIND(&test_old_to_new_flags);
+    BIND(&test_old_to_young_flags);
     {
       Node* value = Load(MachineType::Pointer(), slot);
 
       // TODO(albertnetymk): Try to cache the page flag for value and object,
       // instead of calling IsPageFlagSet each time.
-      Node* value_in_new_space =
-          IsPageFlagSet(value, MemoryChunk::kIsInNewSpaceMask);
-      GotoIfNot(value_in_new_space, &incremental_wb);
+      Node* value_is_young =
+          IsPageFlagSet(value, MemoryChunk::kIsInYoungGenerationMask);
+      GotoIfNot(value_is_young, &incremental_wb);
 
       Node* object = BitcastTaggedToWord(Parameter(Descriptor::kObject));
-      Node* object_in_new_space =
-          IsPageFlagSet(object, MemoryChunk::kIsInNewSpaceMask);
-      Branch(object_in_new_space, &incremental_wb,
-             &store_buffer_incremental_wb);
+      Node* object_is_young =
+          IsPageFlagSet(object, MemoryChunk::kIsInYoungGenerationMask);
+      Branch(object_is_young, &incremental_wb, &store_buffer_incremental_wb);
     }
 
     BIND(&store_buffer_exit);

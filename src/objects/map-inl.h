@@ -219,7 +219,7 @@ FixedArrayBase Map::GetInitialElements() const {
   } else {
     UNREACHABLE();
   }
-  DCHECK(!Heap::InNewSpace(result));
+  DCHECK(!Heap::InYoungGeneration(result));
   return result;
 }
 

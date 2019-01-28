@@ -979,8 +979,9 @@ MaybeHandle<Map> GetInternalizedStringMap(Factory* f, Handle<String> string) {
 
 MaybeHandle<Map> Factory::InternalizedStringMapForString(
     Handle<String> string) {
-  // If the string is in new space it cannot be used as internalized.
-  if (Heap::InNewSpace(*string)) return MaybeHandle<Map>();
+  // If the string is in the young generation, it cannot be used as
+  // internalized.
+  if (Heap::InYoungGeneration(*string)) return MaybeHandle<Map>();
 
   return GetInternalizedStringMap(this, string);
 }
@@ -1778,7 +1779,7 @@ Handle<BytecodeArray> Factory::NewBytecodeArray(
     isolate()->heap()->FatalProcessOutOfMemory("invalid array length");
   }
   // Bytecode array is pretenured, so constant pool array should be too.
-  DCHECK(!Heap::InNewSpace(*constant_pool));
+  DCHECK(!Heap::InYoungGeneration(*constant_pool));
 
   int size = BytecodeArray::SizeFor(length);
   HeapObject result =
@@ -2047,7 +2048,7 @@ Handle<JSObject> Factory::CopyJSObjectWithAllocationSite(
   HeapObject raw_clone = isolate()->heap()->AllocateRawWithRetryOrFail(
       adjusted_object_size, NEW_SPACE);
 
-  SLOW_DCHECK(Heap::InNewSpace(raw_clone));
+  DCHECK(Heap::InYoungGeneration(raw_clone));
   // Since we know the clone is allocated in new space, we can copy
   // the contents without worrying about updating the write barrier.
   Heap::CopyBlock(raw_clone->address(), source->address(), object_size);
@@ -2235,7 +2236,7 @@ Handle<FixedArray> Factory::CopyFixedArray(Handle<FixedArray> array) {
 
 Handle<FixedArray> Factory::CopyAndTenureFixedCOWArray(
     Handle<FixedArray> array) {
-  DCHECK(Heap::InNewSpace(*array));
+  DCHECK(Heap::InYoungGeneration(*array));
   Handle<FixedArray> result =
       CopyFixedArrayUpTo(array, array->length(), TENURED);
 

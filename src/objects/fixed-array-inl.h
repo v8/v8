@@ -146,7 +146,7 @@ void FixedArray::NoWriteBarrierSet(FixedArray array, int index, Object value) {
   DCHECK_NE(array->map(), array->GetReadOnlyRoots().fixed_cow_array_map());
   DCHECK_GE(index, 0);
   DCHECK_LT(index, array->length());
-  DCHECK(!Heap::InNewSpace(value));
+  DCHECK(!Heap::InYoungGeneration(value));
   RELAXED_WRITE_FIELD(array, kHeaderSize + index * kTaggedSize, value);
 }
 

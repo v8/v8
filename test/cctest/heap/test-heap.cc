@@ -5767,7 +5767,8 @@ TEST(YoungGenerationLargeObjectAllocationScavenge) {
   Handle<FixedArray> array_small = isolate->factory()->NewFixedArray(200000);
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(*array_small);
   CHECK_EQ(NEW_LO_SPACE, chunk->owner()->identity());
-  CHECK(chunk->IsFlagSet(MemoryChunk::IN_TO_SPACE));
+  CHECK(chunk->IsFlagSet(MemoryChunk::LARGE_PAGE));
+  CHECK(chunk->IsFlagSet(MemoryChunk::TO_PAGE));
 
   Handle<Object> number = isolate->factory()->NewHeapNumber(123.456);
   array_small->set(0, *number);
@@ -5778,7 +5779,7 @@ TEST(YoungGenerationLargeObjectAllocationScavenge) {
   // generation large object space.
   chunk = MemoryChunk::FromHeapObject(*array_small);
   CHECK_EQ(LO_SPACE, chunk->owner()->identity());
-  CHECK(!chunk->IsFlagSet(MemoryChunk::IN_TO_SPACE));
+  CHECK(!chunk->InYoungGeneration());
 
   CcTest::CollectAllAvailableGarbage();
 }
@@ -5796,7 +5797,8 @@ TEST(YoungGenerationLargeObjectAllocationMarkCompact) {
   Handle<FixedArray> array_small = isolate->factory()->NewFixedArray(200000);
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(*array_small);
   CHECK_EQ(NEW_LO_SPACE, chunk->owner()->identity());
-  CHECK(chunk->IsFlagSet(MemoryChunk::IN_TO_SPACE));
+  CHECK(chunk->IsFlagSet(MemoryChunk::LARGE_PAGE));
+  CHECK(chunk->IsFlagSet(MemoryChunk::TO_PAGE));
 
   Handle<Object> number = isolate->factory()->NewHeapNumber(123.456);
   array_small->set(0, *number);
@@ -5807,7 +5809,7 @@ TEST(YoungGenerationLargeObjectAllocationMarkCompact) {
   // large object space.
   chunk = MemoryChunk::FromHeapObject(*array_small);
   CHECK_EQ(LO_SPACE, chunk->owner()->identity());
-  CHECK(!chunk->IsFlagSet(MemoryChunk::IN_TO_SPACE));
+  CHECK(!chunk->InYoungGeneration());
 
   CcTest::CollectAllAvailableGarbage();
 }
@@ -5827,7 +5829,7 @@ TEST(YoungGenerationLargeObjectAllocationReleaseScavenger) {
       Handle<FixedArray> array_small = isolate->factory()->NewFixedArray(20000);
       MemoryChunk* chunk = MemoryChunk::FromHeapObject(*array_small);
       CHECK_EQ(NEW_LO_SPACE, chunk->owner()->identity());
-      CHECK(chunk->IsFlagSet(MemoryChunk::IN_TO_SPACE));
+      CHECK(chunk->IsFlagSet(MemoryChunk::TO_PAGE));
     }
   }
 

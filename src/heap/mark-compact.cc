@@ -322,7 +322,8 @@ class FullEvacuationVerifier : public EvacuationVerifier {
 
  protected:
   V8_INLINE void VerifyHeapObjectImpl(HeapObject heap_object) {
-    CHECK_IMPLIES(Heap::InNewSpace(heap_object), Heap::InToSpace(heap_object));
+    CHECK_IMPLIES(Heap::InYoungGeneration(heap_object),
+                  Heap::InToPage(heap_object));
     CHECK(!MarkCompactCollector::IsOnEvacuationCandidate(heap_object));
   }
 
@@ -983,7 +984,7 @@ class InternalizedStringTableCleaner : public ObjectVisitor {
           p.store(the_hole);
         } else {
           // StringTable contains only old space strings.
-          DCHECK(!Heap::InNewSpace(o));
+          DCHECK(!Heap::InYoungGeneration(o));
           MarkCompactCollector::RecordSlot(table_, p, heap_object);
         }
       }
@@ -1117,7 +1118,7 @@ class RecordMigratedSlotVisitor : public ObjectVisitor {
     Code target = Code::GetCodeFromTargetAddress(rinfo->target_address());
     // The target is always in old space, we don't have to record the slot in
     // the old-to-new remembered set.
-    DCHECK(!Heap::InNewSpace(target));
+    DCHECK(!Heap::InYoungGeneration(target));
     collector_->RecordRelocSlot(host, rinfo, target);
   }
 
@@ -1140,9 +1141,10 @@ class RecordMigratedSlotVisitor : public ObjectVisitor {
                                          Address slot) {
     if (value->IsStrongOrWeak()) {
       Page* p = Page::FromAddress(value.ptr());
-      if (p->InNewSpace()) {
-        DCHECK_IMPLIES(p->InToSpace(),
-                       p->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION));
+      if (p->InYoungGeneration()) {
+        DCHECK_IMPLIES(
+            p->IsToPage(),
+            p->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION) || p->IsLargePage());
         RememberedSet<OLD_TO_NEW>::Insert<AccessMode::NON_ATOMIC>(
             MemoryChunk::FromHeapObject(host), slot);
       } else if (p->IsEvacuationCandidate()) {
@@ -1402,7 +1404,7 @@ class EvacuateNewSpacePageVisitor final : public HeapObjectVisitor {
       case NEW_TO_OLD: {
         page->heap()->new_space()->from_space().RemovePage(page);
         Page* new_page = Page::ConvertNewToOld(page);
-        DCHECK(!new_page->InNewSpace());
+        DCHECK(!new_page->InYoungGeneration());
         new_page->SetFlag(Page::PAGE_NEW_OLD_PROMOTION);
         break;
       }
@@ -2448,10 +2450,10 @@ static inline SlotCallbackResult UpdateSlot(TSlot slot,
       "Only [Full]ObjectSlot and [Full]MaybeObjectSlot are expected here");
   MapWord map_word = heap_obj->map_word();
   if (map_word.IsForwardingAddress()) {
-    DCHECK(Heap::InFromSpace(heap_obj) ||
-           MarkCompactCollector::IsOnEvacuationCandidate(heap_obj) ||
-           Page::FromHeapObject(heap_obj)->IsFlagSet(
-               Page::COMPACTION_WAS_ABORTED));
+    DCHECK_IMPLIES(!Heap::InFromPage(heap_obj),
+                   MarkCompactCollector::IsOnEvacuationCandidate(heap_obj) ||
+                       Page::FromHeapObject(heap_obj)->IsFlagSet(
+                           Page::COMPACTION_WAS_ABORTED));
     typename TSlot::TObject target =
         MakeSlotValue<TSlot, reference_type>(map_word.ToForwardingAddress());
     if (access_mode == AccessMode::NON_ATOMIC) {
@@ -2459,7 +2461,7 @@ static inline SlotCallbackResult UpdateSlot(TSlot slot,
     } else {
       slot.Release_CompareAndSwap(old, target);
     }
-    DCHECK(!Heap::InFromSpace(target));
+    DCHECK(!Heap::InFromPage(target));
     DCHECK(!MarkCompactCollector::IsOnEvacuationCandidate(target));
   } else {
     DCHECK(heap_obj->map()->IsMap());
@@ -2640,7 +2642,7 @@ class Evacuator : public Malloced {
       return kPageNewToOld;
     if (chunk->IsFlagSet(MemoryChunk::PAGE_NEW_NEW_PROMOTION))
       return kPageNewToNew;
-    if (chunk->InNewSpace()) return kObjectsNewToOld;
+    if (chunk->InYoungGeneration()) return kObjectsNewToOld;
     return kObjectsOldToOld;
   }
 
@@ -3252,7 +3254,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
     if (!(*slot).GetHeapObject(&heap_object)) {
       return REMOVE_SLOT;
     }
-    if (Heap::InFromSpace(heap_object)) {
+    if (Heap::InFromPage(heap_object)) {
       MapWord map_word = heap_object->map_word();
       if (map_word.IsForwardingAddress()) {
         HeapObjectReference::Update(THeapObjectSlot(slot),
@@ -3265,10 +3267,10 @@ class RememberedSetUpdatingItem : public UpdatingItem {
       // callback in to space, the object is still live.
       // Unfortunately, we do not know about the slot. It could be in a
       // just freed free space object.
-      if (Heap::InToSpace(heap_object)) {
+      if (Heap::InToPage(heap_object)) {
         return KEEP_SLOT;
       }
-    } else if (Heap::InToSpace(heap_object)) {
+    } else if (Heap::InToPage(heap_object)) {
       // Slots can point to "to" space if the page has been moved, or if the
       // slot has been recorded multiple times in the remembered set, or
       // if the slot was already updated during old->old updating.
@@ -3287,7 +3289,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
       }
       return KEEP_SLOT;
     } else {
-      DCHECK(!Heap::InNewSpace(heap_object));
+      DCHECK(!Heap::InYoungGeneration(heap_object));
     }
     return REMOVE_SLOT;
   }
@@ -3801,7 +3803,7 @@ class YoungGenerationMarkingVerifier : public MarkingVerifier {
 
  private:
   V8_INLINE void VerifyHeapObjectImpl(HeapObject heap_object) {
-    CHECK_IMPLIES(Heap::InNewSpace(heap_object), IsMarked(heap_object));
+    CHECK_IMPLIES(Heap::InYoungGeneration(heap_object), IsMarked(heap_object));
   }
 
   template <typename TSlot>
@@ -3834,7 +3836,8 @@ class YoungGenerationEvacuationVerifier : public EvacuationVerifier {
 
  protected:
   V8_INLINE void VerifyHeapObjectImpl(HeapObject heap_object) {
-    CHECK_IMPLIES(Heap::InNewSpace(heap_object), Heap::InToSpace(heap_object));
+    CHECK_IMPLIES(Heap::InYoungGeneration(heap_object),
+                  Heap::InToPage(heap_object));
   }
 
   template <typename TSlot>
@@ -3869,10 +3872,10 @@ class YoungGenerationEvacuationVerifier : public EvacuationVerifier {
 #endif  // VERIFY_HEAP
 
 bool IsUnmarkedObjectForYoungGeneration(Heap* heap, FullObjectSlot p) {
-  DCHECK_IMPLIES(Heap::InNewSpace(*p), Heap::InToSpace(*p));
-  return Heap::InNewSpace(*p) && !heap->minor_mark_compact_collector()
-                                      ->non_atomic_marking_state()
-                                      ->IsGrey(HeapObject::cast(*p));
+  DCHECK_IMPLIES(Heap::InYoungGeneration(*p), Heap::InToPage(*p));
+  return Heap::InYoungGeneration(*p) && !heap->minor_mark_compact_collector()
+                                             ->non_atomic_marking_state()
+                                             ->IsGrey(HeapObject::cast(*p));
 }
 
 }  // namespace
@@ -3924,7 +3927,7 @@ class YoungGenerationMarkingVisitor final
   template <typename TSlot>
   V8_INLINE void VisitPointerImpl(HeapObject host, TSlot slot) {
     typename TSlot::TObject target = *slot;
-    if (Heap::InNewSpace(target)) {
+    if (Heap::InYoungGeneration(target)) {
       // Treat weak references as strong.
       // TODO(marja): Proper weakness handling for minor-mcs.
       HeapObject target_object = target.GetHeapObject();
@@ -4031,9 +4034,10 @@ class YoungGenerationRecordMigratedSlotVisitor final
                                  Address slot) final {
     if (value->IsStrongOrWeak()) {
       Page* p = Page::FromAddress(value.ptr());
-      if (p->InNewSpace()) {
-        DCHECK_IMPLIES(p->InToSpace(),
-                       p->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION));
+      if (p->InYoungGeneration()) {
+        DCHECK_IMPLIES(
+            p->IsToPage(),
+            p->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION) || p->IsLargePage());
         RememberedSet<OLD_TO_NEW>::Insert<AccessMode::NON_ATOMIC>(
             Page::FromAddress(slot), slot);
       } else if (p->IsEvacuationCandidate() && IsLive(host)) {
@@ -4102,7 +4106,7 @@ void MinorMarkCompactCollector::UpdatePointersAfterEvacuation() {
     heap()->ProcessWeakListRoots(&evacuation_object_retainer);
 
     // Update pointers from external string table.
-    heap()->UpdateNewSpaceReferencesInExternalStringTable(
+    heap()->UpdateYoungReferencesInExternalStringTable(
         &UpdateReferenceInExternalStringTableEntry);
   }
 }
@@ -4284,7 +4288,7 @@ class MinorMarkCompactWeakObjectRetainer : public WeakObjectRetainer {
 
   Object RetainAs(Object object) override {
     HeapObject heap_object = HeapObject::cast(object);
-    if (!Heap::InNewSpace(heap_object)) return object;
+    if (!Heap::InYoungGeneration(heap_object)) return object;
 
     // Young generation marking only marks to grey instead of black.
     DCHECK(!marking_state_->IsBlack(heap_object));
@@ -4308,8 +4312,8 @@ void MinorMarkCompactCollector::ClearNonLiveReferences() {
     // Internalized strings are always stored in old space, so there is no need
     // to clean them here.
     YoungGenerationExternalStringTableCleaner external_visitor(this);
-    heap()->external_string_table_.IterateNewSpaceStrings(&external_visitor);
-    heap()->external_string_table_.CleanUpNewSpaceStrings();
+    heap()->external_string_table_.IterateYoung(&external_visitor);
+    heap()->external_string_table_.CleanUpYoung();
   }
 
   {
@@ -4397,7 +4401,7 @@ class YoungGenerationMarkingTask : public ItemParallelJob::Task {
   };
 
   void MarkObject(Object object) {
-    if (!Heap::InNewSpace(object)) return;
+    if (!Heap::InYoungGeneration(object)) return;
     HeapObject heap_object = HeapObject::cast(object);
     if (marking_state_->WhiteToGrey(heap_object)) {
       const int size = visitor_.Visit(heap_object);
@@ -4482,10 +4486,10 @@ class PageMarkingItem : public MarkingItem {
             std::is_same<TSlot, MaybeObjectSlot>::value,
         "Only FullMaybeObjectSlot and MaybeObjectSlot are expected here");
     MaybeObject object = *slot;
-    if (Heap::InNewSpace(object)) {
+    if (Heap::InYoungGeneration(object)) {
       // Marking happens before flipping the young generation, so the object
-      // has to be in ToSpace.
-      DCHECK(Heap::InToSpace(object));
+      // has to be in a to page.
+      DCHECK(Heap::InToPage(object));
       HeapObject heap_object;
       bool success = object.GetHeapObject(&heap_object);
       USE(success);

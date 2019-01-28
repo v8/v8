@@ -119,8 +119,10 @@ void Space::MoveExternalBackingStoreBytes(ExternalBackingStoreType type,
 // SemiSpace
 
 bool SemiSpace::Contains(HeapObject o) {
-  return id_ == kToSpace ? MemoryChunk::FromHeapObject(o)->InToSpace()
-                         : MemoryChunk::FromHeapObject(o)->InFromSpace();
+  MemoryChunk* memory_chunk = MemoryChunk::FromHeapObject(o);
+  if (memory_chunk->IsLargePage()) return false;
+  return id_ == kToSpace ? memory_chunk->IsToPage()
+                         : memory_chunk->IsFromPage();
 }
 
 bool SemiSpace::Contains(Object o) {
@@ -232,10 +234,6 @@ void MemoryChunk::MoveExternalBackingStoreBytes(ExternalBackingStoreType type,
   base::CheckedIncrement(&(to->external_backing_store_bytes_[type]), amount);
   Space::MoveExternalBackingStoreBytes(type, from->owner(), to->owner(),
                                        amount);
-}
-
-bool MemoryChunk::IsInNewLargeObjectSpace() const {
-  return owner()->identity() == NEW_LO_SPACE;
 }
 
 void Page::MarkNeverAllocateForTesting() {

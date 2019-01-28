@@ -2006,7 +2006,8 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
     // has too few used values, normalize it.
     const int kMinLengthForSparsenessCheck = 64;
     if (backing_store->length() < kMinLengthForSparsenessCheck) return;
-    if (Heap::InNewSpace(*backing_store)) return;
+    // TODO(ulan): Check if it works with young large objects.
+    if (Heap::InYoungGeneration(*backing_store)) return;
     uint32_t length = 0;
     if (obj->IsJSArray()) {
       JSArray::cast(*obj)->length()->ToArrayLength(&length);

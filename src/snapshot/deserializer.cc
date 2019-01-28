@@ -648,7 +648,7 @@ bool Deserializer::ReadData(UnalignedSlot current, UnalignedSlot limit,
       case kVariableRepeat: {
         int repeats = source_.GetInt();
         MaybeObject object = current.ReadPrevious();
-        DCHECK(!Heap::InNewSpace(object));
+        DCHECK(!Heap::InYoungGeneration(object));
         for (int i = 0; i < repeats; i++) {
           UnalignedCopy(current, object);
           current.Advance();
@@ -723,7 +723,7 @@ bool Deserializer::ReadData(UnalignedSlot current, UnalignedSlot limit,
         int id = data & kRootArrayConstantsMask;
         RootIndex root_index = static_cast<RootIndex>(id);
         MaybeObject object = MaybeObject::FromObject(isolate->root(root_index));
-        DCHECK(!Heap::InNewSpace(object));
+        DCHECK(!Heap::InYoungGeneration(object));
         UnalignedCopy(current, object);
         current.Advance();
         break;
@@ -747,7 +747,7 @@ bool Deserializer::ReadData(UnalignedSlot current, UnalignedSlot limit,
         }
 
         UnalignedCopy(current, hot_maybe_object);
-        if (write_barrier_needed && Heap::InNewSpace(hot_object)) {
+        if (write_barrier_needed && Heap::InYoungGeneration(hot_object)) {
           HeapObject current_object =
               HeapObject::FromAddress(current_object_address);
           GenerationalBarrier(current_object, current.Slot(), hot_maybe_object);
@@ -771,7 +771,7 @@ bool Deserializer::ReadData(UnalignedSlot current, UnalignedSlot limit,
       SIXTEEN_CASES(kFixedRepeat) {
         int repeats = data - kFixedRepeatStart;
         MaybeObject object = current.ReadPrevious();
-        DCHECK(!Heap::InNewSpace(object));
+        DCHECK(!Heap::InYoungGeneration(object));
         for (int i = 0; i < repeats; i++) {
           UnalignedCopy(current, object);
           current.Advance();
@@ -851,22 +851,22 @@ UnalignedSlot Deserializer::ReadDataCase(Isolate* isolate,
       int id = source_.GetInt();
       RootIndex root_index = static_cast<RootIndex>(id);
       new_object = isolate->root(root_index);
-      emit_write_barrier = Heap::InNewSpace(new_object);
+      emit_write_barrier = Heap::InYoungGeneration(new_object);
       hot_objects_.Add(HeapObject::cast(new_object));
     } else if (where == kReadOnlyObjectCache) {
       int cache_index = source_.GetInt();
       new_object = isolate->read_only_object_cache()->at(cache_index);
-      DCHECK(!Heap::InNewSpace(new_object));
+      DCHECK(!Heap::InYoungGeneration(new_object));
       emit_write_barrier = false;
     } else if (where == kPartialSnapshotCache) {
       int cache_index = source_.GetInt();
       new_object = isolate->partial_snapshot_cache()->at(cache_index);
-      emit_write_barrier = Heap::InNewSpace(new_object);
+      emit_write_barrier = Heap::InYoungGeneration(new_object);
     } else {
       DCHECK_EQ(where, kAttachedReference);
       int index = source_.GetInt();
       new_object = *attached_objects_[index];
-      emit_write_barrier = Heap::InNewSpace(new_object);
+      emit_write_barrier = Heap::InYoungGeneration(new_object);
     }
     if (within == kInnerPointer) {
       DCHECK_EQ(how, kFromCode);

@@ -6578,7 +6578,7 @@ bool v8::String::CanMakeExternal() {
   }
 
   // Only old space strings should be externalized.
-  return !i::Heap::InNewSpace(obj);
+  return !i::Heap::InYoungGeneration(obj);
 }
 
 bool v8::String::StringEquals(Local<String> that) {

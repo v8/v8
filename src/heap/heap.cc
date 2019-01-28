@@ -1969,7 +1969,7 @@ void Heap::EvacuateYoungGeneration() {
   new_space()->set_age_mark(new_space()->top());
 
   // Fix up special trackers.
-  external_string_table_.PromoteAllNewSpaceStrings();
+  external_string_table_.PromoteYoung();
   // GlobalHandles are updated in PostGarbageCollectonProcessing
 
   IncrementYoungSurvivorsCounter(new_space()->Size());
@@ -2061,11 +2061,11 @@ void Heap::ProtectUnprotectedMemoryChunks() {
 }
 
 bool Heap::ExternalStringTable::Contains(String string) {
-  for (size_t i = 0; i < new_space_strings_.size(); ++i) {
-    if (new_space_strings_[i] == string) return true;
+  for (size_t i = 0; i < young_strings_.size(); ++i) {
+    if (young_strings_[i] == string) return true;
   }
-  for (size_t i = 0; i < old_space_strings_.size(); ++i) {
-    if (old_space_strings_[i] == string) return true;
+  for (size_t i = 0; i < old_strings_.size(); ++i) {
+    if (old_strings_[i] == string) return true;
   }
   return false;
 }
@@ -2103,16 +2103,16 @@ String Heap::UpdateNewSpaceReferenceInExternalStringTableEntry(
   return new_string->IsExternalString() ? new_string : String();
 }
 
-void Heap::ExternalStringTable::VerifyNewSpace() {
+void Heap::ExternalStringTable::VerifyYoung() {
 #ifdef DEBUG
   std::set<String> visited_map;
   std::map<MemoryChunk*, size_t> size_map;
   ExternalBackingStoreType type = ExternalBackingStoreType::kExternalString;
-  for (size_t i = 0; i < new_space_strings_.size(); ++i) {
-    String obj = String::cast(new_space_strings_[i]);
+  for (size_t i = 0; i < young_strings_.size(); ++i) {
+    String obj = String::cast(young_strings_[i]);
     MemoryChunk* mc = MemoryChunk::FromHeapObject(obj);
-    DCHECK(mc->InNewSpace());
-    DCHECK(heap_->InNewSpace(obj));
+    DCHECK(mc->InYoungGeneration());
+    DCHECK(heap_->InYoungGeneration(obj));
     DCHECK(!obj->IsTheHole(heap_->isolate()));
     DCHECK(obj->IsExternalString());
     // Note: we can have repeated elements in the table.
@@ -2131,12 +2131,12 @@ void Heap::ExternalStringTable::Verify() {
   std::set<String> visited_map;
   std::map<MemoryChunk*, size_t> size_map;
   ExternalBackingStoreType type = ExternalBackingStoreType::kExternalString;
-  VerifyNewSpace();
-  for (size_t i = 0; i < old_space_strings_.size(); ++i) {
-    String obj = String::cast(old_space_strings_[i]);
+  VerifyYoung();
+  for (size_t i = 0; i < old_strings_.size(); ++i) {
+    String obj = String::cast(old_strings_[i]);
     MemoryChunk* mc = MemoryChunk::FromHeapObject(obj);
-    DCHECK(!mc->InNewSpace());
-    DCHECK(!heap_->InNewSpace(obj));
+    DCHECK(!mc->InYoungGeneration());
+    DCHECK(!heap_->InYoungGeneration(obj));
     DCHECK(!obj->IsTheHole(heap_->isolate()));
     DCHECK(obj->IsExternalString());
     // Note: we can have repeated elements in the table.
@@ -2150,12 +2150,12 @@ void Heap::ExternalStringTable::Verify() {
 #endif
 }
 
-void Heap::ExternalStringTable::UpdateNewSpaceReferences(
+void Heap::ExternalStringTable::UpdateYoungReferences(
     Heap::ExternalStringTableUpdaterCallback updater_func) {
-  if (new_space_strings_.empty()) return;
+  if (young_strings_.empty()) return;
 
-  FullObjectSlot start(&new_space_strings_[0]);
-  FullObjectSlot end(&new_space_strings_[new_space_strings_.size()]);
+  FullObjectSlot start(&young_strings_[0]);
+  FullObjectSlot end(&young_strings_[young_strings_.size()]);
   FullObjectSlot last = start;
 
   for (FullObjectSlot p = start; p < end; ++p) {
@@ -2165,67 +2165,66 @@ void Heap::ExternalStringTable::UpdateNewSpaceReferences(
 
     DCHECK(target->IsExternalString());
 
-    if (InNewSpace(target)) {
+    if (InYoungGeneration(target)) {
       // String is still in new space. Update the table entry.
       last.store(target);
       ++last;
     } else {
       // String got promoted. Move it to the old string list.
-      old_space_strings_.push_back(target);
+      old_strings_.push_back(target);
     }
   }
 
   DCHECK(last <= end);
-  new_space_strings_.resize(last - start);
+  young_strings_.resize(last - start);
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
-    VerifyNewSpace();
+    VerifyYoung();
   }
 #endif
 }
 
-void Heap::ExternalStringTable::PromoteAllNewSpaceStrings() {
-  old_space_strings_.reserve(old_space_strings_.size() +
-                             new_space_strings_.size());
-  std::move(std::begin(new_space_strings_), std::end(new_space_strings_),
-            std::back_inserter(old_space_strings_));
-  new_space_strings_.clear();
+void Heap::ExternalStringTable::PromoteYoung() {
+  old_strings_.reserve(old_strings_.size() + young_strings_.size());
+  std::move(std::begin(young_strings_), std::end(young_strings_),
+            std::back_inserter(old_strings_));
+  young_strings_.clear();
 }
 
-void Heap::ExternalStringTable::IterateNewSpaceStrings(RootVisitor* v) {
-  if (!new_space_strings_.empty()) {
+void Heap::ExternalStringTable::IterateYoung(RootVisitor* v) {
+  if (!young_strings_.empty()) {
     v->VisitRootPointers(
         Root::kExternalStringsTable, nullptr,
-        FullObjectSlot(&new_space_strings_[0]),
-        FullObjectSlot(&new_space_strings_[new_space_strings_.size()]));
+        FullObjectSlot(&young_strings_[0]),
+        FullObjectSlot(&young_strings_[young_strings_.size()]));
   }
 }
 
 void Heap::ExternalStringTable::IterateAll(RootVisitor* v) {
-  IterateNewSpaceStrings(v);
-  if (!old_space_strings_.empty()) {
+  IterateYoung(v);
+  if (!old_strings_.empty()) {
     v->VisitRootPointers(
         Root::kExternalStringsTable, nullptr,
-        FullObjectSlot(old_space_strings_.data()),
-        FullObjectSlot(old_space_strings_.data() + old_space_strings_.size()));
+        FullObjectSlot(old_strings_.data()),
+        FullObjectSlot(old_strings_.data() + old_strings_.size()));
   }
 }
 
-void Heap::UpdateNewSpaceReferencesInExternalStringTable(
+void Heap::UpdateYoungReferencesInExternalStringTable(
     ExternalStringTableUpdaterCallback updater_func) {
-  external_string_table_.UpdateNewSpaceReferences(updater_func);
+  external_string_table_.UpdateYoungReferences(updater_func);
 }
 
 void Heap::ExternalStringTable::UpdateReferences(
     Heap::ExternalStringTableUpdaterCallback updater_func) {
-  if (old_space_strings_.size() > 0) {
-    FullObjectSlot start(old_space_strings_.data());
-    FullObjectSlot end(old_space_strings_.data() + old_space_strings_.size());
+  if (old_strings_.size() > 0) {
+    FullObjectSlot start(old_strings_.data());
+    FullObjectSlot end(old_strings_.data() + old_strings_.size());
     for (FullObjectSlot p = start; p < end; ++p)
       p.store(updater_func(heap_, p));
   }
 
-  UpdateNewSpaceReferences(updater_func);
+  UpdateYoungReferences(updater_func);
 }
 
 void Heap::UpdateReferencesInExternalStringTable(
@@ -2492,20 +2491,7 @@ bool Heap::IsImmovable(HeapObject object) {
 }
 
 bool Heap::IsLargeObject(HeapObject object) {
-  return IsLargeMemoryChunk(MemoryChunk::FromHeapObject(object));
-}
-
-bool Heap::IsLargeMemoryChunk(MemoryChunk* chunk) {
-  return chunk->owner()->identity() == NEW_LO_SPACE ||
-         chunk->owner()->identity() == LO_SPACE ||
-         chunk->owner()->identity() == CODE_LO_SPACE;
-}
-
-bool Heap::IsInYoungGeneration(HeapObject object) {
-  if (MemoryChunk::FromHeapObject(object)->IsInNewLargeObjectSpace()) {
-    return !object->map_word().IsForwardingAddress();
-  }
-  return Heap::InNewSpace(object);
+  return MemoryChunk::FromHeapObject(object)->IsLargePage();
 }
 
 #ifdef ENABLE_SLOW_DCHECKS
@@ -2534,7 +2520,7 @@ class LeftTrimmerVerifierRootVisitor : public RootVisitor {
 namespace {
 bool MayContainRecordedSlots(HeapObject object) {
   // New space object do not have recorded slots.
-  if (MemoryChunk::FromHeapObject(object)->InNewSpace()) return false;
+  if (MemoryChunk::FromHeapObject(object)->InYoungGeneration()) return false;
   // Whitelist objects that definitely do not have pointers.
   if (object->IsByteArray() || object->IsFixedDoubleArray()) return false;
   // Conservatively return true for other objects.
@@ -3645,10 +3631,10 @@ class OldToNewSlotVerifyingVisitor : public SlotVerifyingVisitor {
       : SlotVerifyingVisitor(untyped, typed) {}
 
   bool ShouldHaveBeenRecorded(HeapObject host, MaybeObject target) override {
-    DCHECK_IMPLIES(target->IsStrongOrWeak() && Heap::InNewSpace(target),
-                   Heap::InToSpace(target));
-    return target->IsStrongOrWeak() && Heap::InNewSpace(target) &&
-           !Heap::InNewSpace(host);
+    DCHECK_IMPLIES(target->IsStrongOrWeak() && Heap::InYoungGeneration(target),
+                   Heap::InToPage(target));
+    return target->IsStrongOrWeak() && Heap::InYoungGeneration(target) &&
+           !Heap::InYoungGeneration(host);
   }
 };
 
@@ -3684,7 +3670,7 @@ void Heap::VerifyRememberedSetFor(HeapObject object) {
   Address end = start + object->Size();
   std::set<Address> old_to_new;
   std::set<std::pair<SlotType, Address> > typed_old_to_new;
-  if (!InNewSpace(object)) {
+  if (!InYoungGeneration(object)) {
     store_buffer()->MoveAllEntriesToRememberedSet();
     CollectSlots<OLD_TO_NEW>(chunk, start, end, &old_to_new, &typed_old_to_new);
     OldToNewSlotVerifyingVisitor visitor(&old_to_new, &typed_old_to_new);
@@ -4998,8 +4984,9 @@ Address Heap::store_buffer_overflow_function_address() {
 }
 
 void Heap::ClearRecordedSlot(HeapObject object, ObjectSlot slot) {
+  DCHECK(!IsLargeObject(object));
   Page* page = Page::FromAddress(slot.address());
-  if (!page->InNewSpace()) {
+  if (!page->InYoungGeneration()) {
     DCHECK_EQ(page->owner()->identity(), OLD_SPACE);
     store_buffer()->DeleteEntry(slot.address());
   }
@@ -5007,7 +4994,8 @@ void Heap::ClearRecordedSlot(HeapObject object, ObjectSlot slot) {
 
 #ifdef DEBUG
 void Heap::VerifyClearedSlot(HeapObject object, ObjectSlot slot) {
-  if (InNewSpace(object)) return;
+  DCHECK(!IsLargeObject(object));
+  if (InYoungGeneration(object)) return;
   Page* page = Page::FromAddress(slot.address());
   DCHECK_EQ(page->owner()->identity(), OLD_SPACE);
   store_buffer()->MoveAllEntriesToRememberedSet();
@@ -5020,7 +5008,8 @@ void Heap::VerifyClearedSlot(HeapObject object, ObjectSlot slot) {
 
 void Heap::ClearRecordedSlotRange(Address start, Address end) {
   Page* page = Page::FromAddress(start);
-  if (!page->InNewSpace()) {
+  DCHECK(!page->IsLargePage());
+  if (!page->InYoungGeneration()) {
     DCHECK_EQ(page->owner()->identity(), OLD_SPACE);
     store_buffer()->DeleteEntry(start, end);
   }
@@ -5247,11 +5236,11 @@ void Heap::UpdateTotalGCTime(double duration) {
   }
 }
 
-void Heap::ExternalStringTable::CleanUpNewSpaceStrings() {
+void Heap::ExternalStringTable::CleanUpYoung() {
   int last = 0;
   Isolate* isolate = heap_->isolate();
-  for (size_t i = 0; i < new_space_strings_.size(); ++i) {
-    Object o = new_space_strings_[i];
+  for (size_t i = 0; i < young_strings_.size(); ++i) {
+    Object o = young_strings_[i];
     if (o->IsTheHole(isolate)) {
       continue;
     }
@@ -5259,21 +5248,21 @@ void Heap::ExternalStringTable::CleanUpNewSpaceStrings() {
     // will be processed. Re-processing it will add a duplicate to the vector.
     if (o->IsThinString()) continue;
     DCHECK(o->IsExternalString());
-    if (InNewSpace(o)) {
-      new_space_strings_[last++] = o;
+    if (InYoungGeneration(o)) {
+      young_strings_[last++] = o;
     } else {
-      old_space_strings_.push_back(o);
+      old_strings_.push_back(o);
     }
   }
-  new_space_strings_.resize(last);
+  young_strings_.resize(last);
 }
 
 void Heap::ExternalStringTable::CleanUpAll() {
-  CleanUpNewSpaceStrings();
+  CleanUpYoung();
   int last = 0;
   Isolate* isolate = heap_->isolate();
-  for (size_t i = 0; i < old_space_strings_.size(); ++i) {
-    Object o = old_space_strings_[i];
+  for (size_t i = 0; i < old_strings_.size(); ++i) {
+    Object o = old_strings_[i];
     if (o->IsTheHole(isolate)) {
       continue;
     }
@@ -5281,10 +5270,10 @@ void Heap::ExternalStringTable::CleanUpAll() {
     // will be processed. Re-processing it will add a duplicate to the vector.
     if (o->IsThinString()) continue;
     DCHECK(o->IsExternalString());
-    DCHECK(!InNewSpace(o));
-    old_space_strings_[last++] = o;
+    DCHECK(!InYoungGeneration(o));
+    old_strings_[last++] = o;
   }
-  old_space_strings_.resize(last);
+  old_strings_.resize(last);
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
     Verify();
@@ -5293,20 +5282,20 @@ void Heap::ExternalStringTable::CleanUpAll() {
 }
 
 void Heap::ExternalStringTable::TearDown() {
-  for (size_t i = 0; i < new_space_strings_.size(); ++i) {
-    Object o = new_space_strings_[i];
+  for (size_t i = 0; i < young_strings_.size(); ++i) {
+    Object o = young_strings_[i];
     // Dont finalize thin strings.
     if (o->IsThinString()) continue;
     heap_->FinalizeExternalString(ExternalString::cast(o));
   }
-  new_space_strings_.clear();
-  for (size_t i = 0; i < old_space_strings_.size(); ++i) {
-    Object o = old_space_strings_[i];
+  young_strings_.clear();
+  for (size_t i = 0; i < old_strings_.size(); ++i) {
+    Object o = old_strings_[i];
     // Dont finalize thin strings.
     if (o->IsThinString()) continue;
     heap_->FinalizeExternalString(ExternalString::cast(o));
   }
-  old_space_strings_.clear();
+  old_strings_.clear();
 }
 
 
@@ -5681,7 +5670,7 @@ void Heap::GenerationalBarrierSlow(HeapObject object, Address slot,
 void Heap::GenerationalBarrierForElementsSlow(Heap* heap, FixedArray array,
                                               int offset, int length) {
   for (int i = 0; i < length; i++) {
-    if (!InNewSpace(array->get(offset + i))) continue;
+    if (!InYoungGeneration(array->get(offset + i))) continue;
     heap->store_buffer()->InsertEntry(
         array->RawFieldOfElementAt(offset + i).address());
   }
@@ -5689,7 +5678,7 @@ void Heap::GenerationalBarrierForElementsSlow(Heap* heap, FixedArray array,
 
 void Heap::GenerationalBarrierForCodeSlow(Code host, RelocInfo* rinfo,
                                           HeapObject object) {
-  DCHECK(InNewSpace(object));
+  DCHECK(InYoungGeneration(object));
   Page* source_page = Page::FromHeapObject(host);
   RelocInfo::Mode rmode = rinfo->rmode();
   Address addr = rinfo->pc();
@@ -5756,7 +5745,7 @@ bool Heap::PageFlagsAreConsistent(HeapObject object) {
 
   const bool generation_consistency =
       chunk->owner()->identity() != NEW_SPACE ||
-      (chunk->InNewSpace() && slim_chunk->InNewSpace());
+      (chunk->InYoungGeneration() && slim_chunk->InYoungGeneration());
   const bool marking_consistency =
       !heap->incremental_marking()->IsMarking() ||
       (chunk->IsFlagSet(MemoryChunk::INCREMENTAL_MARKING) &&
@@ -5768,12 +5757,12 @@ bool Heap::PageFlagsAreConsistent(HeapObject object) {
 static_assert(MemoryChunk::Flag::INCREMENTAL_MARKING ==
                   heap_internals::MemoryChunk::kMarkingBit,
               "Incremental marking flag inconsistent");
-static_assert(MemoryChunk::Flag::IN_FROM_SPACE ==
-                  heap_internals::MemoryChunk::kFromSpaceBit,
-              "From space flag inconsistent");
-static_assert(MemoryChunk::Flag::IN_TO_SPACE ==
-                  heap_internals::MemoryChunk::kToSpaceBit,
-              "To space flag inconsistent");
+static_assert(MemoryChunk::Flag::FROM_PAGE ==
+                  heap_internals::MemoryChunk::kFromPageBit,
+              "From page flag inconsistent");
+static_assert(MemoryChunk::Flag::TO_PAGE ==
+                  heap_internals::MemoryChunk::kToPageBit,
+              "To page flag inconsistent");
 static_assert(MemoryChunk::kFlagsOffset ==
                   heap_internals::MemoryChunk::kFlagsOffset,
               "Flag offset inconsistent");
