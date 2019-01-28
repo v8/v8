@@ -5,10 +5,18 @@
 #include 'src/builtins/builtins-typed-array-gen.h'
 
 namespace typed_array {
+  struct TypedArrayElementsInfo {
+    size: PositiveSmi;
+    map: Map;
+    kind: ElementsKind;
+  }
+
   extern runtime TypedArraySortFast(Context, Object): JSTypedArray;
   extern macro TypedArrayBuiltinsAssembler::ValidateTypedArray(
       Context, Object, constexpr string): JSTypedArray;
 
+  extern macro TypedArrayBuiltinsAssembler::GetTypedArrayElementsInfo(
+      JSTypedArray): TypedArrayElementsInfo;
   extern macro LoadFixedTypedArrayElementAsTagged(
       RawPtr, Smi, constexpr ElementsKind, constexpr ParameterMode): Object;
   extern macro StoreFixedTypedArrayElementFromTagged(

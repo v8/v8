@@ -10,7 +10,6 @@
 #include "src/builtins/growable-fixed-array-gen.h"
 #include "src/handles-inl.h"
 #include "src/heap/factory-inl.h"
-#include "torque-generated/builtins-typed-array-from-dsl-gen.h"
 
 namespace v8 {
 namespace internal {
@@ -104,24 +103,6 @@ void TypedArrayBuiltinsAssembler::AttachBuffer(TNode<JSTypedArray> holder,
       MachineType::PointerRepresentation());
 
   StoreObjectField(holder, JSObject::kElementsOffset, elements);
-}
-
-TF_BUILTIN(TypedArrayInitializeWithBuffer, TypedArrayBuiltinsAssembler) {
-  TNode<JSTypedArray> holder = CAST(Parameter(Descriptor::kHolder));
-  TNode<Smi> length = CAST(Parameter(Descriptor::kLength));
-  TNode<JSArrayBuffer> buffer = CAST(Parameter(Descriptor::kBuffer));
-  TNode<Smi> element_size = CAST(Parameter(Descriptor::kElementSize));
-  TNode<Number> byte_offset = CAST(Parameter(Descriptor::kByteOffset));
-
-  TNode<Map> fixed_typed_map = LoadMapForType(holder);
-
-  // SmiMul returns a heap number in case of Smi overflow.
-  TNode<Number> byte_length = SmiMul(length, element_size);
-
-  SetupTypedArray(holder, length, ChangeNonnegativeNumberToUintPtr(byte_offset),
-                  ChangeNonnegativeNumberToUintPtr(byte_length));
-  AttachBuffer(holder, buffer, fixed_typed_map, length, byte_offset);
-  Return(UndefinedConstant());
 }
 
 TF_BUILTIN(TypedArrayInitialize, TypedArrayBuiltinsAssembler) {
@@ -461,6 +442,28 @@ TNode<IntPtrT> TypedArrayBuiltinsAssembler::GetTypedArrayElementSize(
       });
 
   return element_size.value();
+}
+
+TypedArrayBuiltinsFromDSLAssembler::TypedArrayElementsInfo
+TypedArrayBuiltinsAssembler::GetTypedArrayElementsInfo(
+    TNode<JSTypedArray> typed_array) {
+  TNode<Int32T> elements_kind = LoadElementsKind(typed_array);
+  TVARIABLE(Smi, var_element_size);
+  TVARIABLE(Map, var_map);
+  ReadOnlyRoots roots(isolate());
+
+  DispatchTypedArrayByElementsKind(
+      elements_kind,
+      [&](ElementsKind kind, int size, int typed_array_fun_index) {
+        DCHECK_GT(size, 0);
+        var_element_size = SmiConstant(size);
+
+        Handle<Map> map(roots.MapForFixedTypedArray(kind), isolate());
+        var_map = HeapConstant(map);
+      });
+
+  return TypedArrayBuiltinsFromDSLAssembler::TypedArrayElementsInfo{
+      var_element_size.value(), var_map.value(), elements_kind};
 }
 
 TNode<JSFunction> TypedArrayBuiltinsAssembler::GetDefaultConstructor(
