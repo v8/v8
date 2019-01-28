@@ -4188,14 +4188,6 @@ class V8_EXPORT PropertyDescriptor {
   // GenericDescriptor
   PropertyDescriptor();
 
-  // DataDescriptor (implicit / DEPRECATED)
-  // Templatized such that the explicit constructor is chosen first.
-  // TODO(clemensh): Remove after 7.3 branch.
-  template <std::nullptr_t = nullptr>
-  V8_DEPRECATED(
-      "Use explicit constructor",
-      PropertyDescriptor(Local<Value> value));  // NOLINT(runtime/explicit)
-
   // DataDescriptor
   explicit PropertyDescriptor(Local<Value> value);
 
@@ -4235,11 +4227,6 @@ class V8_EXPORT PropertyDescriptor {
  private:
   PrivateData* private_;
 };
-
-// TODO(clemensh): Remove after 7.3 branch.
-template <std::nullptr_t>
-PropertyDescriptor::PropertyDescriptor(Local<Value> value)
-    : PropertyDescriptor(value) {}
 
 /**
  * An instance of the built-in Proxy constructor (ECMA-262, 6th Edition,
