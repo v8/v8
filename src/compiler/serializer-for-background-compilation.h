@@ -5,7 +5,6 @@
 #ifndef V8_COMPILER_SERIALIZER_FOR_BACKGROUND_COMPILATION_H_
 #define V8_COMPILER_SERIALIZER_FOR_BACKGROUND_COMPILATION_H_
 
-#include "src/base/optional.h"
 #include "src/handles.h"
 #include "src/maybe-handles.h"
 #include "src/zone/zone-containers.h"
@@ -144,7 +143,6 @@ class Hints {
   void Add(const Hints& other);
 
   void Clear();
-  bool IsEmpty() const;
 
  private:
   ZoneVector<Handle<Object>> constants_;
@@ -166,7 +164,6 @@ class SerializerForBackgroundCompilation {
  private:
   SerializerForBackgroundCompilation(JSHeapBroker* broker, Zone* zone,
                                      CompilationSubject function,
-                                     base::Optional<Hints> new_target,
                                      const HintsVector& arguments);
 
   void TraverseBytecode();
@@ -178,16 +175,13 @@ class SerializerForBackgroundCompilation {
 
   class Environment;
 
-  void ProcessCallOrConstruct(const Hints& callee,
-                              base::Optional<Hints> new_target,
-                              const HintsVector& arguments,
+  void ProcessCallOrConstruct(const Hints& callee, const HintsVector& arguments,
                               bool with_spread = false);
   void ProcessCallVarArgs(interpreter::BytecodeArrayIterator* iterator,
                           ConvertReceiverMode receiver_mode,
                           bool with_spread = false);
 
   Hints RunChildSerializer(CompilationSubject function,
-                           base::Optional<Hints> new_target,
                            const HintsVector& arguments, bool with_spread);
 
   JSHeapBroker* broker() const { return broker_; }
