@@ -838,33 +838,33 @@ MaybeHandle<String> AsmJsWasmStackFrame::ToString() {
 
 FrameArrayIterator::FrameArrayIterator(Isolate* isolate,
                                        Handle<FrameArray> array, int frame_ix)
-    : isolate_(isolate), array_(array), next_frame_ix_(frame_ix) {}
+    : isolate_(isolate), array_(array), frame_ix_(frame_ix) {}
 
-bool FrameArrayIterator::HasNext() const {
-  return (next_frame_ix_ < array_->FrameCount());
+bool FrameArrayIterator::HasFrame() const {
+  return (frame_ix_ < array_->FrameCount());
 }
 
-void FrameArrayIterator::Next() { next_frame_ix_++; }
+void FrameArrayIterator::Advance() { frame_ix_++; }
 
 StackFrameBase* FrameArrayIterator::Frame() {
-  DCHECK(HasNext());
-  const int flags = array_->Flags(next_frame_ix_)->value();
+  DCHECK(HasFrame());
+  const int flags = array_->Flags(frame_ix_)->value();
   int flag_mask = FrameArray::kIsWasmFrame |
                   FrameArray::kIsWasmInterpretedFrame |
                   FrameArray::kIsAsmJsWasmFrame;
   switch (flags & flag_mask) {
     case 0:
       // JavaScript Frame.
-      js_frame_.FromFrameArray(isolate_, array_, next_frame_ix_);
+      js_frame_.FromFrameArray(isolate_, array_, frame_ix_);
       return &js_frame_;
     case FrameArray::kIsWasmFrame:
     case FrameArray::kIsWasmInterpretedFrame:
       // Wasm Frame:
-      wasm_frame_.FromFrameArray(isolate_, array_, next_frame_ix_);
+      wasm_frame_.FromFrameArray(isolate_, array_, frame_ix_);
       return &wasm_frame_;
     case FrameArray::kIsAsmJsWasmFrame:
       // Asm.js Wasm Frame:
-      asm_wasm_frame_.FromFrameArray(isolate_, array_, next_frame_ix_);
+      asm_wasm_frame_.FromFrameArray(isolate_, array_, frame_ix_);
       return &asm_wasm_frame_;
     default:
       UNREACHABLE();
@@ -1040,7 +1040,7 @@ MaybeHandle<Object> ErrorUtils::FormatStackTrace(Isolate* isolate,
   RETURN_ON_EXCEPTION(isolate, AppendErrorString(isolate, error, &builder),
                       Object);
 
-  for (FrameArrayIterator it(isolate, elems); it.HasNext(); it.Next()) {
+  for (FrameArrayIterator it(isolate, elems); it.HasFrame(); it.Advance()) {
     builder.AppendCString("\n    at ");
 
     StackFrameBase* frame = it.Frame();

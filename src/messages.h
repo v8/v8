@@ -222,14 +222,14 @@ class FrameArrayIterator {
 
   StackFrameBase* Frame();
 
-  bool HasNext() const;
-  void Next();
+  bool HasFrame() const;
+  void Advance();
 
  private:
   Isolate* isolate_;
 
   Handle<FrameArray> array_;
-  int next_frame_ix_;
+  int frame_ix_;
 
   WasmStackFrame wasm_frame_;
   AsmJsWasmStackFrame asm_wasm_frame_;
