@@ -5,8 +5,8 @@
 #ifndef V8_CONTEXTS_H_
 #define V8_CONTEXTS_H_
 
+#include "src/function-kind.h"
 #include "src/objects/fixed-array.h"
-
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
@@ -370,14 +370,15 @@ class ScriptContextTable : public FixedArray {
   static inline Handle<Context> GetContext(Isolate* isolate,
                                            Handle<ScriptContextTable> table,
                                            int i);
+  inline Context get_context(int i) const;
 
   // Lookup a variable `name` in a ScriptContextTable.
   // If it returns true, the variable is found and `result` contains
   // valid information about its location.
   // If it returns false, `result` is untouched.
   V8_WARN_UNUSED_RESULT
-  static bool Lookup(Isolate* isolate, Handle<ScriptContextTable> table,
-                     Handle<String> name, LookupResult* result);
+  static bool Lookup(Isolate* isolate, ScriptContextTable table, String name,
+                     LookupResult* result);
 
   V8_WARN_UNUSED_RESULT
   static Handle<ScriptContextTable> Extend(Handle<ScriptContextTable> table,

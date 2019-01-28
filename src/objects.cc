@@ -38,6 +38,7 @@
 #include "src/field-index.h"
 #include "src/field-type.h"
 #include "src/frames-inl.h"
+#include "src/function-kind.h"
 #include "src/globals.h"
 #include "src/ic/ic.h"
 #include "src/identity-map.h"

@@ -863,13 +863,13 @@ bool ScopeIterator::SetContextExtensionValue(Handle<String> variable_name,
 
 bool ScopeIterator::SetContextVariableValue(Handle<String> variable_name,
                                             Handle<Object> new_value) {
-  Handle<ScopeInfo> scope_info(context_->scope_info(), isolate_);
-
+  DisallowHeapAllocation no_gc;
   VariableMode mode;
   InitializationFlag flag;
   MaybeAssignedFlag maybe_assigned_flag;
-  int slot_index = ScopeInfo::ContextSlotIndex(scope_info, variable_name, &mode,
-                                               &flag, &maybe_assigned_flag);
+  int slot_index =
+      ScopeInfo::ContextSlotIndex(context_->scope_info(), *variable_name, &mode,
+                                  &flag, &maybe_assigned_flag);
   if (slot_index < 0) return false;
 
   context_->set(slot_index, *new_value);
@@ -878,12 +878,13 @@ bool ScopeIterator::SetContextVariableValue(Handle<String> variable_name,
 
 bool ScopeIterator::SetModuleVariableValue(Handle<String> variable_name,
                                            Handle<Object> new_value) {
+  DisallowHeapAllocation no_gc;
   int cell_index;
   VariableMode mode;
   InitializationFlag init_flag;
   MaybeAssignedFlag maybe_assigned_flag;
   cell_index = context_->scope_info()->ModuleIndex(
-      variable_name, &mode, &init_flag, &maybe_assigned_flag);
+      *variable_name, &mode, &init_flag, &maybe_assigned_flag);
 
   // Setting imports is currently not supported.
   if (ModuleDescriptor::GetCellIndexKind(cell_index) !=
@@ -902,7 +903,7 @@ bool ScopeIterator::SetScriptVariableValue(Handle<String> variable_name,
       context_->global_object()->native_context()->script_context_table(),
       isolate_);
   ScriptContextTable::LookupResult lookup_result;
-  if (ScriptContextTable::Lookup(isolate_, script_contexts, variable_name,
+  if (ScriptContextTable::Lookup(isolate_, *script_contexts, *variable_name,
                                  &lookup_result)) {
     Handle<Context> script_context = ScriptContextTable::GetContext(
         isolate_, script_contexts, lookup_result.context_index);

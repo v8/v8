@@ -8,6 +8,7 @@
 #include "src/counters.h"
 #include "src/frames-inl.h"
 #include "src/frames.h"
+#include "src/function-kind.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/cell.h"
 #include "src/objects/descriptor-array.h"

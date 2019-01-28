@@ -8,6 +8,7 @@
 #include "src/base/compiler-specific.h"
 #include "src/base/optional.h"
 #include "src/compiler/refs-map.h"
+#include "src/function-kind.h"
 #include "src/globals.h"
 #include "src/handles.h"
 #include "src/objects.h"

@@ -547,8 +547,7 @@ bool DeclarationScope::Analyze(ParseInfo* info) {
   // 1) top-level code,
   // 2) a function/eval/module on the top-level
   // 3) a function/eval in a scope that was already resolved.
-  DCHECK(scope->scope_type() == SCRIPT_SCOPE ||
-         scope->outer_scope()->scope_type() == SCRIPT_SCOPE ||
+  DCHECK(scope->is_script_scope() || scope->outer_scope()->is_script_scope() ||
          scope->outer_scope()->already_resolved_);
 
   // The outer scope is never lazy.
@@ -786,8 +785,9 @@ void Scope::ReplaceOuterScope(Scope* outer) {
 Variable* Scope::LookupInScopeInfo(const AstRawString* name, Scope* cache) {
   DCHECK(!scope_info_.is_null());
   DCHECK_NULL(cache->variables_.Lookup(name));
+  DisallowHeapAllocation no_gc;
 
-  Handle<String> name_handle = name->string();
+  String name_handle = *name->string();
   // The Scope is backed up by ScopeInfo. This means it cannot operate in a
   // heap-independent mode, and all strings must be internalized immediately. So
   // it's ok to get the Handle<String> here.
@@ -801,12 +801,12 @@ Variable* Scope::LookupInScopeInfo(const AstRawString* name, Scope* cache) {
 
   {
     location = VariableLocation::CONTEXT;
-    index = ScopeInfo::ContextSlotIndex(scope_info_, name_handle, &mode,
+    index = ScopeInfo::ContextSlotIndex(*scope_info_, name_handle, &mode,
                                         &init_flag, &maybe_assigned_flag);
     found = index >= 0;
   }
 
-  if (!found && scope_type() == MODULE_SCOPE) {
+  if (!found && is_module_scope()) {
     location = VariableLocation::MODULE;
     index = scope_info_->ModuleIndex(name_handle, &mode, &init_flag,
                                      &maybe_assigned_flag);
@@ -814,7 +814,7 @@ Variable* Scope::LookupInScopeInfo(const AstRawString* name, Scope* cache) {
   }
 
   if (!found) {
-    index = scope_info_->FunctionContextSlotIndex(*name_handle);
+    index = scope_info_->FunctionContextSlotIndex(name_handle);
     if (index < 0) return nullptr;  // Nowhere found.
     Variable* var = AsDeclarationScope()->DeclareFunctionVar(name, cache);
     DCHECK_EQ(VariableMode::kConst, var->mode());

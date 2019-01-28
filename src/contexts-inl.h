@@ -35,9 +35,12 @@ void ScriptContextTable::set_used(int used) {
 Handle<Context> ScriptContextTable::GetContext(Isolate* isolate,
                                                Handle<ScriptContextTable> table,
                                                int i) {
-  DCHECK(i < table->used());
-  return Handle<Context>::cast(
-      FixedArray::get(*table, i + kFirstContextSlotIndex, isolate));
+  return handle(table->get_context(i), isolate);
+}
+
+Context ScriptContextTable::get_context(int i) const {
+  DCHECK_LT(i, used());
+  return Context::cast(this->get(i + kFirstContextSlotIndex));
 }
 
 OBJECT_CONSTRUCTORS_IMPL(Context, HeapObject)
@@ -193,8 +196,7 @@ int Context::FunctionMapIndex(LanguageMode language_mode, FunctionKind kind,
 
     base = ASYNC_FUNCTION_MAP_INDEX;
 
-  } else if (IsArrowFunction(kind) || IsConciseMethod(kind) ||
-             IsAccessorFunction(kind)) {
+  } else if (IsStrictFunctionWithoutPrototype(kind)) {
     DCHECK_IMPLIES(IsArrowFunction(kind), !needs_home_object);
     CHECK_FOLLOWS4(STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX,
                    METHOD_WITH_NAME_MAP_INDEX,

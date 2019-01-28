@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "include/v8.h"
+#include "src/function-kind.h"
 #include "src/globals.h"
 #include "src/handles.h"
 #include "src/objects/script.h"

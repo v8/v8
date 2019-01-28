@@ -17,6 +17,7 @@
 #include "src/extensions/ignition-statistics-extension.h"
 #include "src/extensions/statistics-extension.h"
 #include "src/extensions/trigger-failure-extension.h"
+#include "src/function-kind.h"
 #include "src/heap/heap.h"
 #include "src/isolate-inl.h"
 #include "src/math-random.h"

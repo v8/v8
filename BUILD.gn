@@ -1962,6 +1962,7 @@ v8_source_set("v8_base") {
     "src/frames-inl.h",
     "src/frames.cc",
     "src/frames.h",
+    "src/function-kind.h",
     "src/futex-emulation.cc",
     "src/futex-emulation.h",
     "src/gdb-jit.cc",

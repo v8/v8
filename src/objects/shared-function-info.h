@@ -6,6 +6,7 @@
 #define V8_OBJECTS_SHARED_FUNCTION_INFO_H_
 
 #include "src/bailout-reason.h"
+#include "src/function-kind.h"
 #include "src/objects.h"
 #include "src/objects/builtin-function-id.h"
 #include "src/objects/script.h"

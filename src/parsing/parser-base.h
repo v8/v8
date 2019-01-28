@@ -16,6 +16,7 @@
 #include "src/base/hashmap.h"
 #include "src/base/v8-fallthrough.h"
 #include "src/counters.h"
+#include "src/function-kind.h"
 #include "src/globals.h"
 #include "src/log.h"
 #include "src/message-template.h"

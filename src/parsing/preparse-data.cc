@@ -255,7 +255,7 @@ void PreparseDataBuilder::FinalizeChildren(Zone* zone) {
 }
 
 bool PreparseDataBuilder::ScopeNeedsData(Scope* scope) {
-  if (scope->scope_type() == ScopeType::FUNCTION_SCOPE) {
+  if (scope->is_function_scope()) {
     // Default constructors don't need data (they cannot contain inner functions
     // defined by the user). Other functions do.
     return !IsDefaultConstructor(scope->AsDeclarationScope()->function_kind());
@@ -353,7 +353,7 @@ void PreparseDataBuilder::SaveDataForScope(Scope* scope) {
   byte_data_.Reserve(kUint8Size);
   byte_data_.WriteUint8(eval);
 
-  if (scope->scope_type() == ScopeType::FUNCTION_SCOPE) {
+  if (scope->is_function_scope()) {
     Variable* function = scope->AsDeclarationScope()->function_var();
     if (function != nullptr) SaveDataForVariable(function);
   }
@@ -595,7 +595,7 @@ void BaseConsumedPreparseData<Data>::RestoreDataForScope(Scope* scope) {
   if (ScopeCallsSloppyEvalField::decode(eval)) scope->RecordEvalCall();
   if (InnerScopeCallsEvalField::decode(eval)) scope->RecordInnerScopeEvalCall();
 
-  if (scope->scope_type() == ScopeType::FUNCTION_SCOPE) {
+  if (scope->is_function_scope()) {
     Variable* function = scope->AsDeclarationScope()->function_var();
     if (function != nullptr) RestoreDataForVariable(function);
   }

@@ -53,7 +53,7 @@ Object DeclareGlobal(
   Handle<ScriptContextTable> script_contexts(
       global->native_context()->script_context_table(), isolate);
   ScriptContextTable::LookupResult lookup;
-  if (ScriptContextTable::Lookup(isolate, script_contexts, name, &lookup) &&
+  if (ScriptContextTable::Lookup(isolate, *script_contexts, *name, &lookup) &&
       IsLexicalVariableMode(lookup.mode)) {
     // ES#sec-globaldeclarationinstantiation 6.a:
     // If envRec.HasLexicalDeclaration(name) is true, throw a SyntaxError
@@ -634,7 +634,7 @@ static Object FindNameClash(Isolate* isolate, Handle<ScopeInfo> scope_info,
     Handle<String> name(scope_info->ContextLocalName(var), isolate);
     VariableMode mode = scope_info->ContextLocalMode(var);
     ScriptContextTable::LookupResult lookup;
-    if (ScriptContextTable::Lookup(isolate, script_context, name, &lookup)) {
+    if (ScriptContextTable::Lookup(isolate, *script_context, *name, &lookup)) {
       if (IsLexicalVariableMode(mode) || IsLexicalVariableMode(lookup.mode)) {
         // ES#sec-globaldeclarationinstantiation 5.b:
         // If envRec.HasLexicalDeclaration(name) is true, throw a SyntaxError

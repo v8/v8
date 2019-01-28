@@ -8,6 +8,7 @@
 #include "src/ast/ast.h"
 #include "src/base/compiler-specific.h"
 #include "src/base/hashmap.h"
+#include "src/function-kind.h"
 #include "src/globals.h"
 #include "src/objects.h"
 #include "src/pointer-with-payload.h"
