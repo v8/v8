@@ -2409,8 +2409,8 @@ bool ends_with(const char* input, const char* suffix) {
   return false;
 }
 
-void SourceGroup::Execute(Isolate* isolate) {
-  bool exception_was_thrown = false;
+bool SourceGroup::Execute(Isolate* isolate) {
+  bool success = true;
   for (int i = begin_offset_; i < end_offset_; ++i) {
     const char* arg = argv_[i];
     if (strcmp(arg, "-e") == 0 && i + 1 < end_offset_) {
@@ -2426,7 +2426,7 @@ void SourceGroup::Execute(Isolate* isolate) {
       if (!Shell::ExecuteString(isolate, source, file_name,
                                 Shell::kNoPrintResult, Shell::kReportExceptions,
                                 Shell::kNoProcessMessageQueue)) {
-        exception_was_thrown = true;
+        success = false;
         break;
       }
       ++i;
@@ -2434,7 +2434,7 @@ void SourceGroup::Execute(Isolate* isolate) {
     } else if (ends_with(arg, ".mjs")) {
       Shell::set_script_executed();
       if (!Shell::ExecuteModule(isolate, arg)) {
-        exception_was_thrown = true;
+        success = false;
         break;
       }
       continue;
@@ -2443,7 +2443,7 @@ void SourceGroup::Execute(Isolate* isolate) {
       arg = argv_[++i];
       Shell::set_script_executed();
       if (!Shell::ExecuteModule(isolate, arg)) {
-        exception_was_thrown = true;
+        success = false;
         break;
       }
       continue;
@@ -2466,13 +2466,11 @@ void SourceGroup::Execute(Isolate* isolate) {
     if (!Shell::ExecuteString(isolate, source, file_name, Shell::kNoPrintResult,
                               Shell::kReportExceptions,
                               Shell::kProcessMessageQueue)) {
-      exception_was_thrown = true;
+      success = false;
       break;
     }
   }
-  if (exception_was_thrown != Shell::options.expected_to_throw) {
-    base::OS::ExitProcess(1);
-  }
+  return success;
 }
 
 Local<String> SourceGroup::ReadFile(Isolate* isolate, const char* name) {
@@ -2929,6 +2927,7 @@ int Shell::RunMain(Isolate* isolate, int argc, char* argv[], bool last_run) {
   for (int i = 1; i < options.num_isolates; ++i) {
     options.isolate_sources[i].StartExecuteInThread();
   }
+  bool success = true;
   {
     SetWaitUntilDone(isolate, false);
     if (options.lcov_file) {
@@ -2945,8 +2944,8 @@ int Shell::RunMain(Isolate* isolate, int argc, char* argv[], bool last_run) {
       Context::Scope cscope(context);
       InspectorClient inspector_client(context, options.enable_inspector);
       PerIsolateData::RealmScope realm_scope(PerIsolateData::Get(isolate));
-      options.isolate_sources[0].Execute(isolate);
-      CompleteMessageLoop(isolate);
+      if (!options.isolate_sources[0].Execute(isolate)) success = false;
+      if (!CompleteMessageLoop(isolate)) success = false;
     }
     if (!use_existing_context) {
       DisposeModuleEmbedderData(context);
@@ -2962,7 +2961,8 @@ int Shell::RunMain(Isolate* isolate, int argc, char* argv[], bool last_run) {
     }
   }
   CleanupWorkers();
-  return 0;
+  // In order to finish successfully, success must be != expected_to_throw.
+  return success == Shell::options.expected_to_throw ? 1 : 0;
 }
 
 
@@ -3025,7 +3025,7 @@ bool ProcessMessages(
 }
 }  // anonymous namespace
 
-void Shell::CompleteMessageLoop(Isolate* isolate) {
+bool Shell::CompleteMessageLoop(Isolate* isolate) {
   auto get_waiting_behaviour = [isolate]() {
     base::MutexGuard guard(isolate_status_lock_.Pointer());
     DCHECK_GT(isolate_status_.count(isolate), 0);
@@ -3037,7 +3037,7 @@ void Shell::CompleteMessageLoop(Isolate* isolate) {
     return should_wait ? platform::MessageLoopBehavior::kWaitForWork
                        : platform::MessageLoopBehavior::kDoNotWait;
   };
-  ProcessMessages(isolate, get_waiting_behaviour);
+  return ProcessMessages(isolate, get_waiting_behaviour);
 }
 
 bool Shell::EmptyMessageQueues(Isolate* isolate) {
