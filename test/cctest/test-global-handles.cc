@@ -344,7 +344,16 @@ TEST(WeakHandleToActiveUnmodifiedJSApiObjectSurvivesScavenge) {
   CcTest::InitializeVM();
   WeakHandleTest(
       CcTest::isolate(), &ConstructJSApiObject,
-      [](FlagAndPersistent* fp) { fp->handle.MarkActive(); },
+      [](FlagAndPersistent* fp) {
+#if __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated"
+#endif
+        fp->handle.MarkActive();
+#if __clang__
+#pragma clang diagnostic pop
+#endif
+      },
       []() { InvokeScavenge(); }, SurvivalMode::kSurvives);
 }
 
@@ -352,7 +361,16 @@ TEST(WeakHandleToActiveUnmodifiedJSApiObjectDiesOnMarkCompact) {
   CcTest::InitializeVM();
   WeakHandleTest(
       CcTest::isolate(), &ConstructJSApiObject,
-      [](FlagAndPersistent* fp) { fp->handle.MarkActive(); },
+      [](FlagAndPersistent* fp) {
+#if __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated"
+#endif
+        fp->handle.MarkActive();
+#if __clang__
+#pragma clang diagnostic pop
+#endif
+      },
       []() { InvokeMarkSweep(); }, SurvivalMode::kDies);
 }
 
@@ -361,7 +379,14 @@ TEST(WeakHandleToActiveUnmodifiedJSApiObjectSurvivesMarkCompactWhenInHandle) {
   WeakHandleTest(
       CcTest::isolate(), &ConstructJSApiObject,
       [](FlagAndPersistent* fp) {
+#if __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated"
+#endif
         fp->handle.MarkActive();
+#if __clang__
+#pragma clang diagnostic pop
+#endif
         v8::Local<v8::Object> handle =
             v8::Local<v8::Object>::New(CcTest::isolate(), fp->handle);
         USE(handle);

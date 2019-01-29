@@ -555,9 +555,10 @@ template <class T> class PersistentBase {
    * independent handle should not assume that it will be preceded by a global
    * GC prologue callback or followed by a global GC epilogue callback.
    */
-  V8_DEPRECATE_SOON(
-      "Objects are always considered independent. "
-      "Use MarkActive to avoid collecting otherwise dead weak handles.",
+  V8_DEPRECATED(
+      "Weak objects are always considered independent. "
+      "Use TracedGlobal when trying to use EmbedderHeapTracer. "
+      "Use a strong handle when trying to keep an object alive.",
       V8_INLINE void MarkIndependent());
 
   /**
@@ -567,15 +568,13 @@ template <class T> class PersistentBase {
    *
    * This bit is cleared after the each garbage collection pass.
    */
-  V8_INLINE void MarkActive();
+  V8_DEPRECATE_SOON("Use TracedGlobal.", V8_INLINE void MarkActive());
 
-  V8_DEPRECATE_SOON("See MarkIndependent.",
-                    V8_INLINE bool IsIndependent() const);
+  V8_DEPRECATED("See MarkIndependent.", V8_INLINE bool IsIndependent() const);
 
   /** Checks if the handle holds the only reference to an object. */
-  V8_DEPRECATE_SOON(
-      "Garbage collection internal state should not be relied on.",
-      V8_INLINE bool IsNearDeath() const);
+  V8_DEPRECATED("Garbage collection internal state should not be relied on.",
+                V8_INLINE bool IsNearDeath() const);
 
   /** Returns true if the handle's reference is weak.  */
   V8_INLINE bool IsWeak() const;
@@ -8444,7 +8443,7 @@ class V8_EXPORT Isolate {
    * garbage collection but is free to visit an arbitrary superset of these
    * objects.
    */
-  V8_DEPRECATE_SOON(
+  V8_DEPRECATED(
       "Use VisitHandlesWithClassIds",
       void VisitHandlesForPartialDependence(PersistentHandleVisitor* visitor));
 
