@@ -593,10 +593,14 @@ config("toolchain") {
   }
 
   if (v8_no_inline) {
-    cflags += [
-      "-fno-inline-functions",
-      "-fno-inline",
-    ]
+    if (is_win) {
+      cflags += [ "/Ob0" ]
+    } else {
+      cflags += [
+        "-fno-inline-functions",
+        "-fno-inline",
+      ]
+    }
   }
 
   if (is_clang) {
