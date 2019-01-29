@@ -1009,11 +1009,6 @@ Address StubFrame::GetCallerStackPointer() const {
   return fp() + ExitFrameConstants::kCallerSPOffset;
 }
 
-
-int StubFrame::GetNumberOfIncomingArguments() const {
-  return 0;
-}
-
 int StubFrame::LookupExceptionHandlerInTable(int* stack_slots) {
   Code code = LookupCode();
   DCHECK(code->is_turbofanned());
@@ -1048,19 +1043,13 @@ bool JavaScriptFrame::HasInlinedFrames() const {
 
 Code JavaScriptFrame::unchecked_code() const { return function()->code(); }
 
-int JavaScriptFrame::GetNumberOfIncomingArguments() const {
-  DCHECK(can_access_heap_objects() &&
-         isolate()->heap()->gc_state() == Heap::NOT_IN_GC);
-  return function()->shared()->internal_formal_parameter_count();
-}
-
-int OptimizedFrame::GetNumberOfIncomingArguments() const {
+int OptimizedFrame::ComputeParametersCount() const {
   Code code = LookupCode();
   if (code->kind() == Code::BUILTIN) {
     return static_cast<int>(
         Memory<intptr_t>(fp() + OptimizedBuiltinFrameConstants::kArgCOffset));
   } else {
-    return JavaScriptFrame::GetNumberOfIncomingArguments();
+    return JavaScriptFrame::ComputeParametersCount();
   }
 }
 
@@ -1247,7 +1236,9 @@ Object JavaScriptFrame::GetParameter(int index) const {
 }
 
 int JavaScriptFrame::ComputeParametersCount() const {
-  return GetNumberOfIncomingArguments();
+  DCHECK(can_access_heap_objects() &&
+         isolate()->heap()->gc_state() == Heap::NOT_IN_GC);
+  return function()->shared()->internal_formal_parameter_count();
 }
 
 int JavaScriptBuiltinContinuationFrame::ComputeParametersCount() const {
@@ -1757,7 +1748,7 @@ void InterpretedFrame::Summarize(std::vector<FrameSummary>* functions) const {
   functions->push_back(summary);
 }
 
-int ArgumentsAdaptorFrame::GetNumberOfIncomingArguments() const {
+int ArgumentsAdaptorFrame::ComputeParametersCount() const {
   return Smi::ToInt(GetExpression(0));
 }
 
@@ -1766,7 +1757,7 @@ Code ArgumentsAdaptorFrame::unchecked_code() const {
       Builtins::kArgumentsAdaptorTrampoline);
 }
 
-int BuiltinFrame::GetNumberOfIncomingArguments() const {
+int BuiltinFrame::ComputeParametersCount() const {
   return Smi::ToInt(GetExpression(0));
 }
 

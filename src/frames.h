@@ -759,8 +759,6 @@ class JavaScriptFrame : public StandardFrame {
 
   Address GetCallerStackPointer() const override;
 
-  virtual int GetNumberOfIncomingArguments() const;
-
   virtual void PrintFrameKind(StringStream* accumulator) const {}
 
  private:
@@ -791,8 +789,6 @@ class StubFrame : public StandardFrame {
 
   Address GetCallerStackPointer() const override;
 
-  virtual int GetNumberOfIncomingArguments() const;
-
   friend class StackFrameIteratorBase;
 };
 
@@ -818,13 +814,13 @@ class OptimizedFrame : public JavaScriptFrame {
   DeoptimizationData GetDeoptimizationData(int* deopt_index) const;
 
   Object receiver() const override;
+  int ComputeParametersCount() const override;
 
   static int StackSlotOffsetRelativeToFp(int slot_index);
 
  protected:
   inline explicit OptimizedFrame(StackFrameIteratorBase* iterator);
 
-  int GetNumberOfIncomingArguments() const override;
 
  private:
   friend class StackFrameIteratorBase;
@@ -897,6 +893,8 @@ class ArgumentsAdaptorFrame: public JavaScriptFrame {
     return static_cast<ArgumentsAdaptorFrame*>(frame);
   }
 
+  int ComputeParametersCount() const override;
+
   // Printing support.
   void Print(StringStream* accumulator, PrintMode mode,
              int index) const override;
@@ -904,7 +902,6 @@ class ArgumentsAdaptorFrame: public JavaScriptFrame {
  protected:
   inline explicit ArgumentsAdaptorFrame(StackFrameIteratorBase* iterator);
 
-  int GetNumberOfIncomingArguments() const override;
 
  private:
   friend class StackFrameIteratorBase;
@@ -920,11 +917,11 @@ class BuiltinFrame final : public JavaScriptFrame {
     DCHECK(frame->is_builtin());
     return static_cast<BuiltinFrame*>(frame);
   }
+  int ComputeParametersCount() const final;
 
  protected:
   inline explicit BuiltinFrame(StackFrameIteratorBase* iterator);
 
-  int GetNumberOfIncomingArguments() const final;
   void PrintFrameKind(StringStream* accumulator) const override;
 
  private:
