@@ -7718,6 +7718,27 @@ Local<DataView> DataView::New(Local<SharedArrayBuffer> shared_array_buffer,
   return Utils::ToLocal(obj);
 }
 
+namespace {
+i::Handle<i::JSArrayBuffer> SetupSharedArrayBuffer(
+    Isolate* isolate, void* data, size_t byte_length,
+    ArrayBufferCreationMode mode) {
+  CHECK(i::FLAG_harmony_sharedarraybuffer);
+  // Embedders must guarantee that the external backing store is valid.
+  CHECK(byte_length == 0 || data != nullptr);
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  LOG_API(i_isolate, SharedArrayBuffer, New);
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
+  i::Handle<i::JSArrayBuffer> obj =
+      i_isolate->factory()->NewJSArrayBuffer(i::SharedFlag::kShared);
+  bool is_wasm_memory =
+      i_isolate->wasm_engine()->memory_tracker()->IsWasmMemory(data);
+  i::JSArrayBuffer::Setup(obj, i_isolate,
+                          mode == ArrayBufferCreationMode::kExternalized, data,
+                          byte_length, i::SharedFlag::kShared, is_wasm_memory);
+  return obj;
+}
+
+}  // namespace
 
 bool v8::SharedArrayBuffer::IsExternal() const {
   return Utils::OpenHandle(this)->is_external();
@@ -7740,14 +7761,15 @@ v8::SharedArrayBuffer::Contents v8::SharedArrayBuffer::Externalize() {
 v8::SharedArrayBuffer::Contents::Contents(
     void* data, size_t byte_length, void* allocation_base,
     size_t allocation_length, Allocator::AllocationMode allocation_mode,
-    DeleterCallback deleter, void* deleter_data)
+    DeleterCallback deleter, void* deleter_data, bool is_growable)
     : data_(data),
       byte_length_(byte_length),
       allocation_base_(allocation_base),
       allocation_length_(allocation_length),
       allocation_mode_(allocation_mode),
       deleter_(deleter),
-      deleter_data_(deleter_data) {
+      deleter_data_(deleter_data),
+      is_growable_(is_growable) {
   DCHECK_LE(allocation_base_, data_);
   DCHECK_LE(byte_length_, allocation_length_);
 }
@@ -7765,7 +7787,8 @@ v8::SharedArrayBuffer::Contents v8::SharedArrayBuffer::GetContents() {
           : reinterpret_cast<Contents::DeleterCallback>(ArrayBufferDeleter),
       self->is_wasm_memory()
           ? static_cast<void*>(self->GetIsolate()->wasm_engine())
-          : static_cast<void*>(self->GetIsolate()->array_buffer_allocator()));
+          : static_cast<void*>(self->GetIsolate()->array_buffer_allocator()),
+      self->is_growable());
   return contents;
 }
 
@@ -7795,22 +7818,19 @@ Local<SharedArrayBuffer> v8::SharedArrayBuffer::New(Isolate* isolate,
 Local<SharedArrayBuffer> v8::SharedArrayBuffer::New(
     Isolate* isolate, void* data, size_t byte_length,
     ArrayBufferCreationMode mode) {
-  CHECK(i::FLAG_harmony_sharedarraybuffer);
-  // Embedders must guarantee that the external backing store is valid.
-  CHECK(byte_length == 0 || data != nullptr);
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  LOG_API(i_isolate, SharedArrayBuffer, New);
-  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  i::Handle<i::JSArrayBuffer> obj =
-      i_isolate->factory()->NewJSArrayBuffer(i::SharedFlag::kShared);
-  bool is_wasm_memory =
-      i_isolate->wasm_engine()->memory_tracker()->IsWasmMemory(data);
-  i::JSArrayBuffer::Setup(obj, i_isolate,
-                          mode == ArrayBufferCreationMode::kExternalized, data,
-                          byte_length, i::SharedFlag::kShared, is_wasm_memory);
-  return Utils::ToLocalShared(obj);
+  i::Handle<i::JSArrayBuffer> buffer =
+      SetupSharedArrayBuffer(isolate, data, byte_length, mode);
+  return Utils::ToLocalShared(buffer);
 }
 
+Local<SharedArrayBuffer> v8::SharedArrayBuffer::New(
+    Isolate* isolate, const SharedArrayBuffer::Contents& contents,
+    ArrayBufferCreationMode mode) {
+  i::Handle<i::JSArrayBuffer> buffer = SetupSharedArrayBuffer(
+      isolate, contents.Data(), contents.ByteLength(), mode);
+  buffer->set_is_growable(contents.IsGrowable());
+  return Utils::ToLocalShared(buffer);
+}
 
 Local<Symbol> v8::Symbol::New(Isolate* isolate, Local<String> name) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);

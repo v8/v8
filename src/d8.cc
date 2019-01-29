@@ -3244,10 +3244,9 @@ class Deserializer : public ValueDeserializer::Delegate {
       Isolate* isolate, uint32_t clone_id) override {
     DCHECK_NOT_NULL(data_);
     if (clone_id < data_->shared_array_buffer_contents().size()) {
-      SharedArrayBuffer::Contents contents =
+      const SharedArrayBuffer::Contents contents =
           data_->shared_array_buffer_contents().at(clone_id);
-      return SharedArrayBuffer::New(isolate_, contents.Data(),
-                                    contents.ByteLength());
+      return SharedArrayBuffer::New(isolate_, contents);
     }
     return MaybeLocal<SharedArrayBuffer>();
   }

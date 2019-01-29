@@ -1055,7 +1055,9 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
                                uint32_t pages) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"), "GrowMemory");
   Handle<JSArrayBuffer> old_buffer(memory_object->array_buffer(), isolate);
-  if (!old_buffer->is_growable()) return -1;
+  // TODO(gdeepti): Remove check for is_shared when Growing Shared memory
+  // is supported.
+  if (!old_buffer->is_growable() || old_buffer->is_shared()) return -1;
 
   // Checks for maximum memory size, compute new size.
   uint32_t maximum_pages = wasm::max_mem_pages();
