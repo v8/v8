@@ -6,6 +6,7 @@
 
 #include "src/api-inl.h"
 #include "src/assembler.h"
+#include "src/compiler.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/pipeline.h"
 #include "src/execution.h"
@@ -141,8 +142,27 @@ Handle<JSFunction> FunctionTester::ForMachineGraph(Graph* graph,
 }
 
 Handle<JSFunction> FunctionTester::Compile(Handle<JSFunction> function) {
+  Handle<SharedFunctionInfo> shared(function->shared(), isolate);
+  IsCompiledScope is_compiled_scope(shared->is_compiled_scope());
+  CHECK(is_compiled_scope.is_compiled() ||
+        Compiler::Compile(function, Compiler::CLEAR_EXCEPTION,
+                          &is_compiled_scope));
+
   Zone zone(isolate->allocator(), ZONE_NAME);
-  return Optimize(function, &zone, isolate, flags_);
+  OptimizedCompilationInfo info(&zone, isolate, shared, function);
+
+  if (flags_ & OptimizedCompilationInfo::kInliningEnabled) {
+    info.MarkAsInliningEnabled();
+  }
+
+  CHECK(info.shared_info()->HasBytecodeArray());
+  JSFunction::EnsureFeedbackVector(function);
+
+  Handle<Code> code =
+      Pipeline::GenerateCodeForTesting(&info, isolate).ToHandleChecked();
+  info.native_context()->AddOptimizedCode(*code);
+  function->set_code(*code);
+  return function;
 }
 
 // Compile the given machine graph instead of the source of the function
