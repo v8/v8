@@ -118,6 +118,9 @@
   # BUG(v8:8296). Flaky OOM test.
   'test-heap/OutOfMemorySmallObjects': [SKIP],
 
+  # BUG(v8:8739). Wasm interpreter does not create proper stack traces.
+  'test-wasm-stack/RunWasmInterpreter_CollectDetailedWasmStack_WasmError': [SKIP],
+
   ############################################################################
   # Slow tests.
   'test-debug/CallFunctionInDebugger': [PASS, ['mode == debug', SLOW]],

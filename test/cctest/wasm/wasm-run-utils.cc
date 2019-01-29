@@ -139,6 +139,14 @@ Handle<JSFunction> TestingModuleBuilder::WrapCode(uint32_t index) {
   new_arr->set(old_arr->length(), *ret_code);
   module_object->set_export_wrappers(*new_arr);
 
+  if (interpreter_) {
+    // Patch the jump table to call the interpreter for this function. This is
+    // only needed for functions with a wrapper. Other functions never get
+    // called through the jump table.
+    wasm::WasmCode* wasm_new_code = compiler::CompileWasmInterpreterEntry(
+        isolate_->wasm_engine(), native_module_, index, sig);
+    native_module_->PublishInterpreterEntry(wasm_new_code, index);
+  }
   return ret;
 }
 

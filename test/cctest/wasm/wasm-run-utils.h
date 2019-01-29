@@ -474,7 +474,9 @@ class WasmRunner : public WasmRunnerBase {
     thread->Reset();
     std::array<WasmValue, sizeof...(p)> args{{WasmValue(p)...}};
     thread->InitFrame(function(), args.data());
-    if (thread->Run() == WasmInterpreter::FINISHED) {
+    thread->Run();
+    CHECK_GT(thread->NumInterpretedCalls(), 0);
+    if (thread->state() == WasmInterpreter::FINISHED) {
       WasmValue val = thread->GetReturnValue();
       possible_nondeterminism_ |= thread->PossibleNondeterminism();
       return val.to<ReturnType>();
@@ -510,13 +512,17 @@ class WasmRunner : public WasmRunnerBase {
       CHECK(result->IsHeapNumber());
       CHECK_DOUBLE_EQ(expected, HeapNumber::cast(*result)->value());
     }
+
+    if (builder_.interpret()) {
+      CHECK_GT(builder_.interpreter()->GetThread(0)->NumInterpretedCalls(), 0);
+    }
   }
 
   void CheckCallViaJS(double expected, ParamTypes... p) {
     Isolate* isolate = builder_.isolate();
     uint32_t function_index = function()->func_index;
     Handle<Object> buffer[] = {isolate->factory()->NewNumber(p)...};
-    return CheckCallViaJS(expected, function_index, buffer, sizeof...(p));
+    CheckCallViaJS(expected, function_index, buffer, sizeof...(p));
   }
 
   Handle<Code> GetWrapperCode() { return wrapper_.GetWrapperCode(); }
