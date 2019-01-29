@@ -52,9 +52,9 @@ int DbgStreamBuf::sync() {
   }
 
   if (pbase() != pptr()) {
-    OutputDebugStringA(
-      std::string(pbase(),
-      static_cast<std::string::size_type>(pptr() - pbase())).c_str());
+    OutputDebugStringA(std::string(pbase(), static_cast<std::string::size_type>(
+                                                pptr() - pbase()))
+                           .c_str());
     setp(pbase(), epptr());
   }
 #endif

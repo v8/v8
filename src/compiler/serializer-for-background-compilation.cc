@@ -15,6 +15,8 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+using BytecodeArrayIterator = interpreter::BytecodeArrayIterator;
+
 CompilationSubject::CompilationSubject(Handle<JSFunction> closure,
                                        Isolate* isolate)
     : blueprint_{handle(closure->shared(), isolate),
@@ -50,17 +52,22 @@ void Hints::Add(const Hints& other) {
   for (auto x : other.function_blueprints()) AddFunctionBlueprint(x);
 }
 
+bool Hints::IsEmpty() const {
+  return constants().empty() && maps().empty() && function_blueprints().empty();
+}
+
 void Hints::Clear() {
   constants_.clear();
   maps_.clear();
   function_blueprints_.clear();
+  DCHECK(IsEmpty());
 }
 
 class SerializerForBackgroundCompilation::Environment : public ZoneObject {
  public:
   Environment(Zone* zone, Isolate* isolate, CompilationSubject function);
   Environment(Zone* zone, Isolate* isolate, CompilationSubject function,
-              const HintsVector& arguments);
+              base::Optional<Hints> new_target, const HintsVector& arguments);
 
   FunctionBlueprint function() const { return function_; }
 
@@ -72,8 +79,12 @@ class SerializerForBackgroundCompilation::Environment : public ZoneObject {
   }
   Hints& return_value_hints() { return return_value_hints_; }
 
-  void ClearAccumulatorAndRegisterHints() {
-    for (auto& hints : environment_hints_) hints.Clear();
+  // Clears all hints except those for the return value and the closure.
+  void ClearEphemeralHints() {
+    DCHECK_EQ(environment_hints_.size(), function_closure_index() + 1);
+    for (int i = 0; i < function_closure_index(); ++i) {
+      environment_hints_[i].Clear();
+    }
   }
 
   // Appends the hints for the given register range to {dst} (in order).
@@ -126,7 +137,7 @@ SerializerForBackgroundCompilation::Environment::Environment(
 
 SerializerForBackgroundCompilation::Environment::Environment(
     Zone* zone, Isolate* isolate, CompilationSubject function,
-    const HintsVector& arguments)
+    base::Optional<Hints> new_target, const HintsVector& arguments)
     : Environment(zone, isolate, function) {
   // Copy the hints for the actually passed arguments, at most up to
   // the parameter_count.
@@ -140,6 +151,16 @@ SerializerForBackgroundCompilation::Environment::Environment(
   undefined_hint.AddConstant(isolate->factory()->undefined_value());
   for (size_t i = arguments.size(); i < param_count; ++i) {
     environment_hints_[i] = undefined_hint;
+  }
+
+  interpreter::Register new_target_reg =
+      function_.shared->GetBytecodeArray()
+          ->incoming_new_target_or_generator_register();
+  if (new_target_reg.is_valid()) {
+    DCHECK(register_hints(new_target_reg).IsEmpty());
+    if (new_target.has_value()) {
+      register_hints(new_target_reg).Add(*new_target);
+    }
   }
 }
 
@@ -166,11 +187,11 @@ SerializerForBackgroundCompilation::SerializerForBackgroundCompilation(
 
 SerializerForBackgroundCompilation::SerializerForBackgroundCompilation(
     JSHeapBroker* broker, Zone* zone, CompilationSubject function,
-    const HintsVector& arguments)
+    base::Optional<Hints> new_target, const HintsVector& arguments)
     : broker_(broker),
       zone_(zone),
       environment_(new (zone) Environment(zone, broker_->isolate(), function,
-                                          arguments)) {
+                                          new_target, arguments)) {
   Handle<JSFunction> closure;
   if (function.closure().ToHandle(&closure)) {
     JSFunctionRef(broker, closure).Serialize();
@@ -194,7 +215,7 @@ void SerializerForBackgroundCompilation::TraverseBytecode() {
   BytecodeArrayRef bytecode_array(
       broker(), handle(environment()->function().shared->GetBytecodeArray(),
                        broker()->isolate()));
-  interpreter::BytecodeArrayIterator iterator(bytecode_array.object());
+  BytecodeArrayIterator iterator(bytecode_array.object());
 
   for (; !iterator.done(); iterator.Advance()) {
     switch (iterator.current_bytecode()) {
@@ -205,7 +226,7 @@ void SerializerForBackgroundCompilation::TraverseBytecode() {
       SUPPORTED_BYTECODE_LIST(DEFINE_BYTECODE_CASE)
 #undef DEFINE_BYTECODE_CASE
       default: {
-        environment()->ClearAccumulatorAndRegisterHints();
+        environment()->ClearEphemeralHints();
         break;
       }
     }
@@ -213,71 +234,71 @@ void SerializerForBackgroundCompilation::TraverseBytecode() {
 }
 
 void SerializerForBackgroundCompilation::VisitIllegal(
-    interpreter::BytecodeArrayIterator* iterator) {
+    BytecodeArrayIterator* iterator) {
   UNREACHABLE();
 }
 
 void SerializerForBackgroundCompilation::VisitWide(
-    interpreter::BytecodeArrayIterator* iterator) {
+    BytecodeArrayIterator* iterator) {
   UNREACHABLE();
 }
 
 void SerializerForBackgroundCompilation::VisitExtraWide(
-    interpreter::BytecodeArrayIterator* iterator) {
+    BytecodeArrayIterator* iterator) {
   UNREACHABLE();
 }
 
 void SerializerForBackgroundCompilation::VisitLdaUndefined(
-    interpreter::BytecodeArrayIterator* iterator) {
+    BytecodeArrayIterator* iterator) {
   environment()->accumulator_hints().Clear();
   environment()->accumulator_hints().AddConstant(
       broker()->isolate()->factory()->undefined_value());
 }
 
 void SerializerForBackgroundCompilation::VisitLdaNull(
-    interpreter::BytecodeArrayIterator* iterator) {
+    BytecodeArrayIterator* iterator) {
   environment()->accumulator_hints().Clear();
   environment()->accumulator_hints().AddConstant(
       broker()->isolate()->factory()->null_value());
 }
 
 void SerializerForBackgroundCompilation::VisitLdaZero(
-    interpreter::BytecodeArrayIterator* iterator) {
+    BytecodeArrayIterator* iterator) {
   environment()->accumulator_hints().Clear();
   environment()->accumulator_hints().AddConstant(
       handle(Smi::FromInt(0), broker()->isolate()));
 }
 
 void SerializerForBackgroundCompilation::VisitLdaSmi(
-    interpreter::BytecodeArrayIterator* iterator) {
+    BytecodeArrayIterator* iterator) {
   environment()->accumulator_hints().Clear();
   environment()->accumulator_hints().AddConstant(handle(
       Smi::FromInt(iterator->GetImmediateOperand(0)), broker()->isolate()));
 }
 
 void SerializerForBackgroundCompilation::VisitLdaConstant(
-    interpreter::BytecodeArrayIterator* iterator) {
+    BytecodeArrayIterator* iterator) {
   environment()->accumulator_hints().Clear();
   environment()->accumulator_hints().AddConstant(
       handle(iterator->GetConstantForIndexOperand(0), broker()->isolate()));
 }
 
 void SerializerForBackgroundCompilation::VisitLdar(
-    interpreter::BytecodeArrayIterator* iterator) {
+    BytecodeArrayIterator* iterator) {
   environment()->accumulator_hints().Clear();
   environment()->accumulator_hints().Add(
       environment()->register_hints(iterator->GetRegisterOperand(0)));
 }
 
 void SerializerForBackgroundCompilation::VisitStar(
-    interpreter::BytecodeArrayIterator* iterator) {
+    BytecodeArrayIterator* iterator) {
   interpreter::Register reg = iterator->GetRegisterOperand(0);
   environment()->register_hints(reg).Clear();
   environment()->register_hints(reg).Add(environment()->accumulator_hints());
 }
 
 void SerializerForBackgroundCompilation::VisitMov(
-    interpreter::BytecodeArrayIterator* iterator) {
+    BytecodeArrayIterator* iterator) {
   interpreter::Register src = iterator->GetRegisterOperand(0);
   interpreter::Register dst = iterator->GetRegisterOperand(1);
   environment()->register_hints(dst).Clear();
@@ -285,7 +306,7 @@ void SerializerForBackgroundCompilation::VisitMov(
 }
 
 void SerializerForBackgroundCompilation::VisitCreateClosure(
-    interpreter::BytecodeArrayIterator* iterator) {
+    BytecodeArrayIterator* iterator) {
   Handle<SharedFunctionInfo> shared(
       SharedFunctionInfo::cast(iterator->GetConstantForIndexOperand(0)),
       broker()->isolate());
@@ -303,12 +324,12 @@ void SerializerForBackgroundCompilation::VisitCreateClosure(
 }
 
 void SerializerForBackgroundCompilation::VisitCallUndefinedReceiver(
-    interpreter::BytecodeArrayIterator* iterator) {
+    BytecodeArrayIterator* iterator) {
   ProcessCallVarArgs(iterator, ConvertReceiverMode::kNullOrUndefined);
 }
 
 void SerializerForBackgroundCompilation::VisitCallUndefinedReceiver0(
-    interpreter::BytecodeArrayIterator* iterator) {
+    BytecodeArrayIterator* iterator) {
   Hints receiver(zone());
   receiver.AddConstant(broker()->isolate()->factory()->undefined_value());
 
@@ -317,11 +338,11 @@ void SerializerForBackgroundCompilation::VisitCallUndefinedReceiver0(
 
   HintsVector parameters(zone());
   parameters.push_back(receiver);
-  ProcessCallOrConstruct(callee, parameters);
+  ProcessCallOrConstruct(callee, base::nullopt, parameters);
 }
 
 void SerializerForBackgroundCompilation::VisitCallUndefinedReceiver1(
-    interpreter::BytecodeArrayIterator* iterator) {
+    BytecodeArrayIterator* iterator) {
   Hints receiver(zone());
   receiver.AddConstant(broker()->isolate()->factory()->undefined_value());
 
@@ -334,11 +355,11 @@ void SerializerForBackgroundCompilation::VisitCallUndefinedReceiver1(
   parameters.push_back(receiver);
   parameters.push_back(arg0);
 
-  ProcessCallOrConstruct(callee, parameters);
+  ProcessCallOrConstruct(callee, base::nullopt, parameters);
 }
 
 void SerializerForBackgroundCompilation::VisitCallUndefinedReceiver2(
-    interpreter::BytecodeArrayIterator* iterator) {
+    BytecodeArrayIterator* iterator) {
   Hints receiver(zone());
   receiver.AddConstant(broker()->isolate()->factory()->undefined_value());
 
@@ -354,26 +375,26 @@ void SerializerForBackgroundCompilation::VisitCallUndefinedReceiver2(
   parameters.push_back(arg0);
   parameters.push_back(arg1);
 
-  ProcessCallOrConstruct(callee, parameters);
+  ProcessCallOrConstruct(callee, base::nullopt, parameters);
 }
 
 void SerializerForBackgroundCompilation::VisitCallAnyReceiver(
-    interpreter::BytecodeArrayIterator* iterator) {
+    BytecodeArrayIterator* iterator) {
   ProcessCallVarArgs(iterator, ConvertReceiverMode::kAny);
 }
 
 void SerializerForBackgroundCompilation::VisitCallNoFeedback(
-    interpreter::BytecodeArrayIterator* iterator) {
+    BytecodeArrayIterator* iterator) {
   ProcessCallVarArgs(iterator, ConvertReceiverMode::kNullOrUndefined);
 }
 
 void SerializerForBackgroundCompilation::VisitCallProperty(
-    interpreter::BytecodeArrayIterator* iterator) {
+    BytecodeArrayIterator* iterator) {
   ProcessCallVarArgs(iterator, ConvertReceiverMode::kNullOrUndefined);
 }
 
 void SerializerForBackgroundCompilation::VisitCallProperty0(
-    interpreter::BytecodeArrayIterator* iterator) {
+    BytecodeArrayIterator* iterator) {
   const Hints& callee =
       environment()->register_hints(iterator->GetRegisterOperand(0));
   const Hints& receiver =
@@ -382,11 +403,11 @@ void SerializerForBackgroundCompilation::VisitCallProperty0(
   HintsVector parameters(zone());
   parameters.push_back(receiver);
 
-  ProcessCallOrConstruct(callee, parameters);
+  ProcessCallOrConstruct(callee, base::nullopt, parameters);
 }
 
 void SerializerForBackgroundCompilation::VisitCallProperty1(
-    interpreter::BytecodeArrayIterator* iterator) {
+    BytecodeArrayIterator* iterator) {
   const Hints& callee =
       environment()->register_hints(iterator->GetRegisterOperand(0));
   const Hints& receiver =
@@ -398,11 +419,11 @@ void SerializerForBackgroundCompilation::VisitCallProperty1(
   parameters.push_back(receiver);
   parameters.push_back(arg0);
 
-  ProcessCallOrConstruct(callee, parameters);
+  ProcessCallOrConstruct(callee, base::nullopt, parameters);
 }
 
 void SerializerForBackgroundCompilation::VisitCallProperty2(
-    interpreter::BytecodeArrayIterator* iterator) {
+    BytecodeArrayIterator* iterator) {
   const Hints& callee =
       environment()->register_hints(iterator->GetRegisterOperand(0));
   const Hints& receiver =
@@ -417,17 +438,17 @@ void SerializerForBackgroundCompilation::VisitCallProperty2(
   parameters.push_back(arg0);
   parameters.push_back(arg1);
 
-  ProcessCallOrConstruct(callee, parameters);
+  ProcessCallOrConstruct(callee, base::nullopt, parameters);
 }
 
 void SerializerForBackgroundCompilation::VisitCallWithSpread(
-    interpreter::BytecodeArrayIterator* iterator) {
+    BytecodeArrayIterator* iterator) {
   ProcessCallVarArgs(iterator, ConvertReceiverMode::kAny, true);
 }
 
 Hints SerializerForBackgroundCompilation::RunChildSerializer(
-    CompilationSubject function, const HintsVector& arguments,
-    bool with_spread) {
+    CompilationSubject function, base::Optional<Hints> new_target,
+    const HintsVector& arguments, bool with_spread) {
   if (with_spread) {
     DCHECK_LT(0, arguments.size());
     // Pad the missing arguments in case we were called with spread operator.
@@ -442,16 +463,17 @@ Hints SerializerForBackgroundCompilation::RunChildSerializer(
     padded.resize(
         function.blueprint().shared->GetBytecodeArray()->parameter_count(),
         Hints(zone()));
-    return RunChildSerializer(function, padded, false);
+    return RunChildSerializer(function, new_target, padded, false);
   }
 
-  SerializerForBackgroundCompilation child_serializer(broker(), zone(),
-                                                      function, arguments);
+  SerializerForBackgroundCompilation child_serializer(
+      broker(), zone(), function, new_target, arguments);
   return child_serializer.Run();
 }
 
 void SerializerForBackgroundCompilation::ProcessCallOrConstruct(
-    const Hints& callee, const HintsVector& arguments, bool with_spread) {
+    const Hints& callee, base::Optional<Hints> new_target,
+    const HintsVector& arguments, bool with_spread) {
   environment()->accumulator_hints().Clear();
 
   for (auto hint : callee.constants()) {
@@ -461,19 +483,19 @@ void SerializerForBackgroundCompilation::ProcessCallOrConstruct(
     if (!function->shared()->IsInlineable()) continue;
 
     environment()->accumulator_hints().Add(RunChildSerializer(
-        {function, broker()->isolate()}, arguments, with_spread));
+        {function, broker()->isolate()}, new_target, arguments, with_spread));
   }
 
   for (auto hint : callee.function_blueprints()) {
     if (!hint.shared->IsInlineable()) continue;
-    environment()->accumulator_hints().Add(
-        RunChildSerializer(CompilationSubject(hint), arguments, with_spread));
+    environment()->accumulator_hints().Add(RunChildSerializer(
+        CompilationSubject(hint), new_target, arguments, with_spread));
   }
 }
 
 void SerializerForBackgroundCompilation::ProcessCallVarArgs(
-    interpreter::BytecodeArrayIterator* iterator,
-    ConvertReceiverMode receiver_mode, bool with_spread) {
+    BytecodeArrayIterator* iterator, ConvertReceiverMode receiver_mode,
+    bool with_spread) {
   const Hints& callee =
       environment()->register_hints(iterator->GetRegisterOperand(0));
   interpreter::Register first_reg = iterator->GetRegisterOperand(1);
@@ -489,13 +511,13 @@ void SerializerForBackgroundCompilation::ProcessCallVarArgs(
   }
   environment()->ExportRegisterHints(first_reg, reg_count, arguments);
 
-  ProcessCallOrConstruct(callee, arguments);
+  ProcessCallOrConstruct(callee, base::nullopt, arguments);
 }
 
 void SerializerForBackgroundCompilation::VisitReturn(
-    interpreter::BytecodeArrayIterator* iterator) {
+    BytecodeArrayIterator* iterator) {
   environment()->return_value_hints().Add(environment()->accumulator_hints());
-  environment()->ClearAccumulatorAndRegisterHints();
+  environment()->ClearEphemeralHints();
 }
 
 void SerializerForBackgroundCompilation::Environment::ExportRegisterHints(
@@ -508,46 +530,44 @@ void SerializerForBackgroundCompilation::Environment::ExportRegisterHints(
 }
 
 void SerializerForBackgroundCompilation::VisitConstruct(
-    interpreter::BytecodeArrayIterator* iterator) {
+    BytecodeArrayIterator* iterator) {
   const Hints& callee =
       environment()->register_hints(iterator->GetRegisterOperand(0));
   interpreter::Register first_reg = iterator->GetRegisterOperand(1);
   size_t reg_count = iterator->GetRegisterCountOperand(2);
+  const Hints& new_target = environment()->accumulator_hints();
 
   HintsVector arguments(zone());
   environment()->ExportRegisterHints(first_reg, reg_count, arguments);
 
-  // TODO(mslekova): Support new.target.
-
-  ProcessCallOrConstruct(callee, arguments);
+  ProcessCallOrConstruct(callee, new_target, arguments);
 }
 
 void SerializerForBackgroundCompilation::VisitConstructWithSpread(
-    interpreter::BytecodeArrayIterator* iterator) {
+    BytecodeArrayIterator* iterator) {
   const Hints& callee =
       environment()->register_hints(iterator->GetRegisterOperand(0));
   interpreter::Register first_reg = iterator->GetRegisterOperand(1);
   size_t reg_count = iterator->GetRegisterCountOperand(2);
+  const Hints& new_target = environment()->accumulator_hints();
 
   HintsVector arguments(zone());
   environment()->ExportRegisterHints(first_reg, reg_count, arguments);
 
-  // TODO(mslekova): Support new.target.
-
-  ProcessCallOrConstruct(callee, arguments, true);
+  ProcessCallOrConstruct(callee, new_target, arguments, true);
 }
 
 #define DEFINE_SKIPPED_JUMP(name, ...)                  \
   void SerializerForBackgroundCompilation::Visit##name( \
-      interpreter::BytecodeArrayIterator* iterator) {   \
-    environment()->ClearAccumulatorAndRegisterHints();  \
+      BytecodeArrayIterator* iterator) {                \
+    environment()->ClearEphemeralHints();               \
   }
 CLEAR_ENVIRONMENT_LIST(DEFINE_SKIPPED_JUMP)
 #undef DEFINE_SKIPPED_JUMP
 
 #define DEFINE_CLEAR_ACCUMULATOR(name, ...)             \
   void SerializerForBackgroundCompilation::Visit##name( \
-      interpreter::BytecodeArrayIterator* iterator) {   \
+      BytecodeArrayIterator* iterator) {                \
     environment()->accumulator_hints().Clear();         \
   }
 CLEAR_ACCUMULATOR_LIST(DEFINE_CLEAR_ACCUMULATOR)
