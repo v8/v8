@@ -88,7 +88,8 @@ class WasmCompilationUnit final {
 
   WasmCode* Publish(WasmCompilationResult, NativeModule*);
 
-  ExecutionTier tier() const { return tier_; }
+  ExecutionTier requested_tier() const { return requested_tier_; }
+  ExecutionTier executed_tier() const { return executed_tier_; }
 
   static void CompileWasmFunction(Isolate*, NativeModule*,
                                   WasmFeatures* detected, const WasmFunction*,
@@ -100,7 +101,8 @@ class WasmCompilationUnit final {
 
   WasmEngine* const wasm_engine_;
   const int func_index_;
-  ExecutionTier tier_;
+  ExecutionTier requested_tier_;
+  ExecutionTier executed_tier_;
 
   // LiftoffCompilationUnit, set if {tier_ == kLiftoff}.
   std::unique_ptr<LiftoffCompilationUnit> liftoff_unit_;

@@ -124,7 +124,7 @@ ExecutionTier WasmCompilationUnit::GetDefaultExecutionTier(
 
 WasmCompilationUnit::WasmCompilationUnit(WasmEngine* wasm_engine, int index,
                                          ExecutionTier tier)
-    : wasm_engine_(wasm_engine), func_index_(index), tier_(tier) {
+    : wasm_engine_(wasm_engine), func_index_(index), requested_tier_(tier) {
   if (V8_UNLIKELY(FLAG_wasm_tier_mask_for_testing) && index < 32 &&
       (FLAG_wasm_tier_mask_for_testing & (1 << index))) {
     tier = ExecutionTier::kOptimized;
@@ -154,11 +154,11 @@ WasmCompilationResult WasmCompilationUnit::ExecuteCompilation(
 
   if (FLAG_trace_wasm_compiler) {
     PrintF("Compiling wasm function %d with %s\n\n", func_index_,
-           GetExecutionTierAsString(tier_));
+           GetExecutionTierAsString(executed_tier_));
   }
 
   WasmCompilationResult result;
-  switch (tier_) {
+  switch (executed_tier_) {
     case ExecutionTier::kBaseline:
       result =
           liftoff_unit_->ExecuteCompilation(env, func_body, counters, detected);
@@ -193,10 +193,8 @@ WasmCode* WasmCompilationUnit::Publish(WasmCompilationResult result,
     return nullptr;
   }
 
-  // The {tier} argument specifies the requested tier, which can differ from the
-  // actually executed tier stored in {unit->tier()}.
   DCHECK(result.succeeded());
-  WasmCode::Tier code_tier = tier_ == ExecutionTier::kBaseline
+  WasmCode::Tier code_tier = executed_tier_ == ExecutionTier::kBaseline
                                  ? WasmCode::kLiftoff
                                  : WasmCode::kTurbofan;
   DCHECK_EQ(result.code_desc.buffer, result.instr_buffer.get());
@@ -214,7 +212,7 @@ void WasmCompilationUnit::SwitchTier(ExecutionTier new_tier) {
   // This method is being called in the constructor, where neither
   // {liftoff_unit_} nor {turbofan_unit_} are set, or to switch tier from
   // kLiftoff to kTurbofan, in which case {liftoff_unit_} is already set.
-  tier_ = new_tier;
+  executed_tier_ = new_tier;
   switch (new_tier) {
     case ExecutionTier::kBaseline:
       DCHECK(!turbofan_unit_);

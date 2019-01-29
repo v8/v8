@@ -496,14 +496,11 @@ bool FetchAndExecuteCompilationUnit(CompilationEnv* env,
       compilation_state->GetNextCompilationUnit();
   if (unit == nullptr) return false;
 
-  // Get the tier before starting compilation, as compilation can switch tiers
-  // if baseline bails out.
-  ExecutionTier tier = unit->tier();
   WasmCompilationResult result = unit->ExecuteCompilation(
       env, compilation_state->GetWireBytesStorage(), counters, detected);
 
   WasmCode* code = unit->Publish(std::move(result), native_module);
-  compilation_state->OnFinishedUnit(tier, code);
+  compilation_state->OnFinishedUnit(unit->requested_tier(), code);
 
   return true;
 }
@@ -806,9 +803,6 @@ class BackgroundCompileTask : public CancelableTask {
 
       // Step 2: Execute the compilation.
 
-      // Get the tier before starting compilation, as compilation can switch
-      // tiers if baseline bails out.
-      ExecutionTier tier = unit->tier();
       WasmCompilationResult result = unit->ExecuteCompilation(
           &env.value(), wire_bytes, async_counters_.get(), &detected_features);
 
@@ -825,7 +819,8 @@ class BackgroundCompileTask : public CancelableTask {
           token_->CancelLocked();
           return;
         }
-        compile_scope.compilation_state()->OnFinishedUnit(tier, code);
+        compile_scope.compilation_state()->OnFinishedUnit(
+            unit->requested_tier(), code);
         if (deadline < MonotonicallyIncreasingTimeInMs()) {
           compile_scope.compilation_state()->ReportDetectedFeatures(
               detected_features);
@@ -1644,7 +1639,8 @@ void CompilationStateImpl::AddCompilationUnits(
 
     if (compile_mode_ == CompileMode::kTiering) {
       DCHECK_EQ(baseline_units.size(), tiering_units.size());
-      DCHECK_EQ(tiering_units.back()->tier(), ExecutionTier::kOptimized);
+      DCHECK_EQ(tiering_units.back()->requested_tier(),
+                ExecutionTier::kOptimized);
       tiering_compilation_units_.insert(
           tiering_compilation_units_.end(),
           std::make_move_iterator(tiering_units.begin()),
