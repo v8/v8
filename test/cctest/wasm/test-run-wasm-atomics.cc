@@ -160,6 +160,28 @@ WASM_EXEC_TEST(I32AtomicCompareExchange8U) {
   }
 }
 
+WASM_EXEC_TEST(I32AtomicCompareExchange_fail) {
+  EXPERIMENTAL_FLAG_SCOPE(threads);
+  WasmRunner<uint32_t, uint32_t, uint32_t> r(execution_tier);
+  r.builder().SetHasSharedMemory();
+  uint32_t* memory =
+      r.builder().AddMemoryElems<uint32_t>(kWasmPageSize / sizeof(uint32_t));
+  BUILD(r, WASM_ATOMICS_TERNARY_OP(
+               kExprI32AtomicCompareExchange, WASM_I32V_1(0), WASM_GET_LOCAL(0),
+               WASM_GET_LOCAL(1), MachineRepresentation::kWord32));
+
+  // The original value at the memory location.
+  uint32_t old_val = 4;
+  // The value we use as the expected value for the compare-exchange so that it
+  // fails.
+  uint32_t expected = 6;
+  // The new value for the compare-exchange.
+  uint32_t new_val = 5;
+
+  r.builder().WriteMemory(&memory[0], old_val);
+  CHECK_EQ(old_val, r.Call(expected, new_val));
+}
+
 WASM_EXEC_TEST(I32AtomicLoad) {
   EXPERIMENTAL_FLAG_SCOPE(threads);
   WasmRunner<uint32_t> r(execution_tier);

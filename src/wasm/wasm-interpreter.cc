@@ -1596,17 +1596,42 @@ class ThreadImpl {
     return false;
   }
 
+  template <typename type, typename op_type, typename func>
+  op_type ExecuteAtomicBinopBE(type val, Address addr, func op) {
+    type old_val;
+    type new_val;
+    old_val = ReadUnalignedValue<type>(addr);
+    do {
+      new_val =
+          ByteReverse(static_cast<type>(op(ByteReverse<type>(old_val), val)));
+    } while (!(std::atomic_compare_exchange_strong(
+        reinterpret_cast<std::atomic<type>*>(addr), &old_val, new_val)));
+    return static_cast<op_type>(ByteReverse<type>(old_val));
+  }
+
+  template <typename type>
+  type AdjustByteOrder(type param) {
+#if V8_TARGET_BIG_ENDIAN
+    return ByteReverse(param);
+#else
+    return param;
+#endif
+  }
+
   bool ExecuteAtomicOp(WasmOpcode opcode, Decoder* decoder,
                        InterpreterCode* code, pc_t pc, int& len) {
+#if V8_TARGET_BIG_ENDIAN
+    constexpr bool kBigEndian = true;
+#else
+    constexpr bool kBigEndian = false;
+#endif
     WasmValue result;
     switch (opcode) {
-// Disabling on Mips as 32 bit atomics are not correctly laid out for load/store
-// on big endian and 64 bit atomics fail to compile.
-#if !(V8_TARGET_ARCH_MIPS && V8_TARGET_BIG_ENDIAN)
-#define ATOMIC_BINOP_CASE(name, type, op_type, operation)                   \
+#define ATOMIC_BINOP_CASE(name, type, op_type, operation, op)               \
   case kExpr##name: {                                                       \
     type val;                                                               \
     Address addr;                                                           \
+    op_type result;                                                         \
     if (!ExtractAtomicOpParams<type, op_type>(decoder, code, addr, pc, len, \
                                               &val)) {                      \
       return false;                                                         \
@@ -1614,74 +1639,95 @@ class ThreadImpl {
     static_assert(sizeof(std::atomic<type>) == sizeof(type),                \
                   "Size mismatch for types std::atomic<" #type              \
                   ">, and " #type);                                         \
-    result = WasmValue(static_cast<op_type>(                                \
-        std::operation(reinterpret_cast<std::atomic<type>*>(addr), val)));  \
-    Push(result);                                                           \
+    if (kBigEndian) {                                                       \
+      auto oplambda = [](type a, type b) { return a op b; };                \
+      result = ExecuteAtomicBinopBE<type, op_type>(val, addr, oplambda);    \
+    } else {                                                                \
+      result = static_cast<op_type>(                                        \
+          std::operation(reinterpret_cast<std::atomic<type>*>(addr), val)); \
+    }                                                                       \
+    Push(WasmValue(result));                                                \
     break;                                                                  \
   }
-      ATOMIC_BINOP_CASE(I32AtomicAdd, uint32_t, uint32_t, atomic_fetch_add);
-      ATOMIC_BINOP_CASE(I32AtomicAdd8U, uint8_t, uint32_t, atomic_fetch_add);
-      ATOMIC_BINOP_CASE(I32AtomicAdd16U, uint16_t, uint32_t, atomic_fetch_add);
-      ATOMIC_BINOP_CASE(I32AtomicSub, uint32_t, uint32_t, atomic_fetch_sub);
-      ATOMIC_BINOP_CASE(I32AtomicSub8U, uint8_t, uint32_t, atomic_fetch_sub);
-      ATOMIC_BINOP_CASE(I32AtomicSub16U, uint16_t, uint32_t, atomic_fetch_sub);
-      ATOMIC_BINOP_CASE(I32AtomicAnd, uint32_t, uint32_t, atomic_fetch_and);
-      ATOMIC_BINOP_CASE(I32AtomicAnd8U, uint8_t, uint32_t, atomic_fetch_and);
-      ATOMIC_BINOP_CASE(I32AtomicAnd16U, uint16_t, uint32_t, atomic_fetch_and);
-      ATOMIC_BINOP_CASE(I32AtomicOr, uint32_t, uint32_t, atomic_fetch_or);
-      ATOMIC_BINOP_CASE(I32AtomicOr8U, uint8_t, uint32_t, atomic_fetch_or);
-      ATOMIC_BINOP_CASE(I32AtomicOr16U, uint16_t, uint32_t, atomic_fetch_or);
-      ATOMIC_BINOP_CASE(I32AtomicXor, uint32_t, uint32_t, atomic_fetch_xor);
-      ATOMIC_BINOP_CASE(I32AtomicXor8U, uint8_t, uint32_t, atomic_fetch_xor);
-      ATOMIC_BINOP_CASE(I32AtomicXor16U, uint16_t, uint32_t, atomic_fetch_xor);
-      ATOMIC_BINOP_CASE(I32AtomicExchange, uint32_t, uint32_t, atomic_exchange);
-      ATOMIC_BINOP_CASE(I32AtomicExchange8U, uint8_t, uint32_t,
-                        atomic_exchange);
+      ATOMIC_BINOP_CASE(I32AtomicAdd, uint32_t, uint32_t, atomic_fetch_add, +);
+      ATOMIC_BINOP_CASE(I32AtomicAdd8U, uint8_t, uint32_t, atomic_fetch_add, +);
+      ATOMIC_BINOP_CASE(I32AtomicAdd16U, uint16_t, uint32_t, atomic_fetch_add,
+                        +);
+      ATOMIC_BINOP_CASE(I32AtomicSub, uint32_t, uint32_t, atomic_fetch_sub, -);
+      ATOMIC_BINOP_CASE(I32AtomicSub8U, uint8_t, uint32_t, atomic_fetch_sub, -);
+      ATOMIC_BINOP_CASE(I32AtomicSub16U, uint16_t, uint32_t, atomic_fetch_sub,
+                        -);
+      ATOMIC_BINOP_CASE(I32AtomicAnd, uint32_t, uint32_t, atomic_fetch_and, &);
+      ATOMIC_BINOP_CASE(I32AtomicAnd8U, uint8_t, uint32_t, atomic_fetch_and, &);
+      ATOMIC_BINOP_CASE(I32AtomicAnd16U, uint16_t, uint32_t,
+                        atomic_fetch_and, &);
+      ATOMIC_BINOP_CASE(I32AtomicOr, uint32_t, uint32_t, atomic_fetch_or, |);
+      ATOMIC_BINOP_CASE(I32AtomicOr8U, uint8_t, uint32_t, atomic_fetch_or, |);
+      ATOMIC_BINOP_CASE(I32AtomicOr16U, uint16_t, uint32_t, atomic_fetch_or, |);
+      ATOMIC_BINOP_CASE(I32AtomicXor, uint32_t, uint32_t, atomic_fetch_xor, ^);
+      ATOMIC_BINOP_CASE(I32AtomicXor8U, uint8_t, uint32_t, atomic_fetch_xor, ^);
+      ATOMIC_BINOP_CASE(I32AtomicXor16U, uint16_t, uint32_t, atomic_fetch_xor,
+                        ^);
+      ATOMIC_BINOP_CASE(I32AtomicExchange, uint32_t, uint32_t, atomic_exchange,
+                        =);
+      ATOMIC_BINOP_CASE(I32AtomicExchange8U, uint8_t, uint32_t, atomic_exchange,
+                        =);
       ATOMIC_BINOP_CASE(I32AtomicExchange16U, uint16_t, uint32_t,
-                        atomic_exchange);
-      ATOMIC_BINOP_CASE(I64AtomicAdd, uint64_t, uint64_t, atomic_fetch_add);
-      ATOMIC_BINOP_CASE(I64AtomicAdd8U, uint8_t, uint64_t, atomic_fetch_add);
-      ATOMIC_BINOP_CASE(I64AtomicAdd16U, uint16_t, uint64_t, atomic_fetch_add);
-      ATOMIC_BINOP_CASE(I64AtomicAdd32U, uint32_t, uint64_t, atomic_fetch_add);
-      ATOMIC_BINOP_CASE(I64AtomicSub, uint64_t, uint64_t, atomic_fetch_sub);
-      ATOMIC_BINOP_CASE(I64AtomicSub8U, uint8_t, uint64_t, atomic_fetch_sub);
-      ATOMIC_BINOP_CASE(I64AtomicSub16U, uint16_t, uint64_t, atomic_fetch_sub);
-      ATOMIC_BINOP_CASE(I64AtomicSub32U, uint32_t, uint64_t, atomic_fetch_sub);
-      ATOMIC_BINOP_CASE(I64AtomicAnd, uint64_t, uint64_t, atomic_fetch_and);
-      ATOMIC_BINOP_CASE(I64AtomicAnd8U, uint8_t, uint64_t, atomic_fetch_and);
-      ATOMIC_BINOP_CASE(I64AtomicAnd16U, uint16_t, uint64_t, atomic_fetch_and);
-      ATOMIC_BINOP_CASE(I64AtomicAnd32U, uint32_t, uint64_t, atomic_fetch_and);
-      ATOMIC_BINOP_CASE(I64AtomicOr, uint64_t, uint64_t, atomic_fetch_or);
-      ATOMIC_BINOP_CASE(I64AtomicOr8U, uint8_t, uint64_t, atomic_fetch_or);
-      ATOMIC_BINOP_CASE(I64AtomicOr16U, uint16_t, uint64_t, atomic_fetch_or);
-      ATOMIC_BINOP_CASE(I64AtomicOr32U, uint32_t, uint64_t, atomic_fetch_or);
-      ATOMIC_BINOP_CASE(I64AtomicXor, uint64_t, uint64_t, atomic_fetch_xor);
-      ATOMIC_BINOP_CASE(I64AtomicXor8U, uint8_t, uint64_t, atomic_fetch_xor);
-      ATOMIC_BINOP_CASE(I64AtomicXor16U, uint16_t, uint64_t, atomic_fetch_xor);
-      ATOMIC_BINOP_CASE(I64AtomicXor32U, uint32_t, uint64_t, atomic_fetch_xor);
-      ATOMIC_BINOP_CASE(I64AtomicExchange, uint64_t, uint64_t, atomic_exchange);
-      ATOMIC_BINOP_CASE(I64AtomicExchange8U, uint8_t, uint64_t,
-                        atomic_exchange);
+                        atomic_exchange, =);
+      ATOMIC_BINOP_CASE(I64AtomicAdd, uint64_t, uint64_t, atomic_fetch_add, +);
+      ATOMIC_BINOP_CASE(I64AtomicAdd8U, uint8_t, uint64_t, atomic_fetch_add, +);
+      ATOMIC_BINOP_CASE(I64AtomicAdd16U, uint16_t, uint64_t, atomic_fetch_add,
+                        +);
+      ATOMIC_BINOP_CASE(I64AtomicAdd32U, uint32_t, uint64_t, atomic_fetch_add,
+                        +);
+      ATOMIC_BINOP_CASE(I64AtomicSub, uint64_t, uint64_t, atomic_fetch_sub, -);
+      ATOMIC_BINOP_CASE(I64AtomicSub8U, uint8_t, uint64_t, atomic_fetch_sub, -);
+      ATOMIC_BINOP_CASE(I64AtomicSub16U, uint16_t, uint64_t, atomic_fetch_sub,
+                        -);
+      ATOMIC_BINOP_CASE(I64AtomicSub32U, uint32_t, uint64_t, atomic_fetch_sub,
+                        -);
+      ATOMIC_BINOP_CASE(I64AtomicAnd, uint64_t, uint64_t, atomic_fetch_and, &);
+      ATOMIC_BINOP_CASE(I64AtomicAnd8U, uint8_t, uint64_t, atomic_fetch_and, &);
+      ATOMIC_BINOP_CASE(I64AtomicAnd16U, uint16_t, uint64_t,
+                        atomic_fetch_and, &);
+      ATOMIC_BINOP_CASE(I64AtomicAnd32U, uint32_t, uint64_t,
+                        atomic_fetch_and, &);
+      ATOMIC_BINOP_CASE(I64AtomicOr, uint64_t, uint64_t, atomic_fetch_or, |);
+      ATOMIC_BINOP_CASE(I64AtomicOr8U, uint8_t, uint64_t, atomic_fetch_or, |);
+      ATOMIC_BINOP_CASE(I64AtomicOr16U, uint16_t, uint64_t, atomic_fetch_or, |);
+      ATOMIC_BINOP_CASE(I64AtomicOr32U, uint32_t, uint64_t, atomic_fetch_or, |);
+      ATOMIC_BINOP_CASE(I64AtomicXor, uint64_t, uint64_t, atomic_fetch_xor, ^);
+      ATOMIC_BINOP_CASE(I64AtomicXor8U, uint8_t, uint64_t, atomic_fetch_xor, ^);
+      ATOMIC_BINOP_CASE(I64AtomicXor16U, uint16_t, uint64_t, atomic_fetch_xor,
+                        ^);
+      ATOMIC_BINOP_CASE(I64AtomicXor32U, uint32_t, uint64_t, atomic_fetch_xor,
+                        ^);
+      ATOMIC_BINOP_CASE(I64AtomicExchange, uint64_t, uint64_t, atomic_exchange,
+                        =);
+      ATOMIC_BINOP_CASE(I64AtomicExchange8U, uint8_t, uint64_t, atomic_exchange,
+                        =);
       ATOMIC_BINOP_CASE(I64AtomicExchange16U, uint16_t, uint64_t,
-                        atomic_exchange);
+                        atomic_exchange, =);
       ATOMIC_BINOP_CASE(I64AtomicExchange32U, uint32_t, uint64_t,
-                        atomic_exchange);
+                        atomic_exchange, =);
 #undef ATOMIC_BINOP_CASE
 #define ATOMIC_COMPARE_EXCHANGE_CASE(name, type, op_type)                   \
   case kExpr##name: {                                                       \
-    type val;                                                               \
-    type val2;                                                              \
+    type old_val;                                                           \
+    type new_val;                                                           \
     Address addr;                                                           \
     if (!ExtractAtomicOpParams<type, op_type>(decoder, code, addr, pc, len, \
-                                              &val, &val2)) {               \
+                                              &old_val, &new_val)) {        \
       return false;                                                         \
     }                                                                       \
     static_assert(sizeof(std::atomic<type>) == sizeof(type),                \
                   "Size mismatch for types std::atomic<" #type              \
                   ">, and " #type);                                         \
+    old_val = AdjustByteOrder<type>(old_val);                               \
+    new_val = AdjustByteOrder<type>(new_val);                               \
     std::atomic_compare_exchange_strong(                                    \
-        reinterpret_cast<std::atomic<type>*>(addr), &val, val2);            \
-    Push(WasmValue(static_cast<op_type>(val)));                             \
+        reinterpret_cast<std::atomic<type>*>(addr), &old_val, new_val);     \
+    Push(WasmValue(static_cast<op_type>(AdjustByteOrder<type>(old_val))));  \
     break;                                                                  \
   }
       ATOMIC_COMPARE_EXCHANGE_CASE(I32AtomicCompareExchange, uint32_t,
@@ -1708,8 +1754,8 @@ class ThreadImpl {
     static_assert(sizeof(std::atomic<type>) == sizeof(type),                   \
                   "Size mismatch for types std::atomic<" #type                 \
                   ">, and " #type);                                            \
-    result = WasmValue(static_cast<op_type>(                                   \
-        std::operation(reinterpret_cast<std::atomic<type>*>(addr))));          \
+    result = WasmValue(static_cast<op_type>(AdjustByteOrder<type>(             \
+        std::operation(reinterpret_cast<std::atomic<type>*>(addr)))));         \
     Push(result);                                                              \
     break;                                                                     \
   }
@@ -1732,7 +1778,8 @@ class ThreadImpl {
     static_assert(sizeof(std::atomic<type>) == sizeof(type),                \
                   "Size mismatch for types std::atomic<" #type              \
                   ">, and " #type);                                         \
-    std::operation(reinterpret_cast<std::atomic<type>*>(addr), val);        \
+    std::operation(reinterpret_cast<std::atomic<type>*>(addr),              \
+                   AdjustByteOrder<type>(val));                             \
     break;                                                                  \
   }
       ATOMIC_STORE_CASE(I32AtomicStore, uint32_t, uint32_t, atomic_store);
@@ -1743,7 +1790,6 @@ class ThreadImpl {
       ATOMIC_STORE_CASE(I64AtomicStore16U, uint16_t, uint64_t, atomic_store);
       ATOMIC_STORE_CASE(I64AtomicStore32U, uint32_t, uint64_t, atomic_store);
 #undef ATOMIC_STORE_CASE
-#endif  // !(V8_TARGET_ARCH_MIPS && V8_TARGET_BIG_ENDIAN)
       default:
         UNREACHABLE();
         return false;

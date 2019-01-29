@@ -1065,34 +1065,30 @@ bool StringToArrayIndex(Stream* stream, uint32_t* index);
 // return an address significantly above the actual current stack position.
 V8_NOINLINE uintptr_t GetCurrentStackPosition();
 
-template <typename V>
-static inline V ByteReverse(V value) {
-  size_t size_of_v = sizeof(value);
-  switch (size_of_v) {
-    case 2:
+static inline uint16_t ByteReverse16(uint16_t value) {
 #if V8_HAS_BUILTIN_BSWAP16
-      return static_cast<V>(__builtin_bswap16(static_cast<uint16_t>(value)));
+      return __builtin_bswap16(value);
 #else
       return value << 8 | (value >> 8 & 0x00FF);
 #endif
-    case 4:
+}
+
+static inline uint32_t ByteReverse32(uint32_t value) {
 #if V8_HAS_BUILTIN_BSWAP32
-      return static_cast<V>(__builtin_bswap32(static_cast<uint32_t>(value)));
+      return __builtin_bswap32(value);
 #else
-    {
-      size_t bits_of_v = size_of_v * kBitsPerByte;
-      return value << (bits_of_v - 8) |
-             ((value << (bits_of_v - 24)) & 0x00FF0000) |
-             ((value >> (bits_of_v - 24)) & 0x0000FF00) |
-             ((value >> (bits_of_v - 8)) & 0x00000FF);
-    }
+      return value << 24 |
+             ((value << 8) & 0x00FF0000) |
+             ((value >> 8) & 0x0000FF00) |
+             ((value >> 24) & 0x00000FF);
 #endif
-    case 8:
+}
+
+static inline uint64_t ByteReverse64(uint64_t value) {
 #if V8_HAS_BUILTIN_BSWAP64
-      return static_cast<V>(__builtin_bswap64(static_cast<uint64_t>(value)));
+      return __builtin_bswap64(value);
 #else
-    {
-      size_t bits_of_v = size_of_v * kBitsPerByte;
+      size_t bits_of_v = sizeof(value) * kBitsPerByte;
       return value << (bits_of_v - 8) |
              ((value << (bits_of_v - 24)) & 0x00FF000000000000) |
              ((value << (bits_of_v - 40)) & 0x0000FF0000000000) |
@@ -1101,8 +1097,21 @@ static inline V ByteReverse(V value) {
              ((value >> (bits_of_v - 40)) & 0x0000000000FF0000) |
              ((value >> (bits_of_v - 24)) & 0x000000000000FF00) |
              ((value >> (bits_of_v - 8)) & 0x00000000000000FF);
-    }
 #endif
+}
+
+template <typename V>
+static inline V ByteReverse(V value) {
+  size_t size_of_v = sizeof(value);
+  switch (size_of_v) {
+    case 1:
+      return value;
+    case 2:
+      return static_cast<V>(ByteReverse16(static_cast<uint16_t>(value)));
+    case 4:
+      return static_cast<V>(ByteReverse32(static_cast<uint32_t>(value)));
+    case 8:
+      return static_cast<V>(ByteReverse64(static_cast<uint64_t>(value)));
     default:
       UNREACHABLE();
   }
