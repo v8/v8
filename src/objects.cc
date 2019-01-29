@@ -15381,7 +15381,6 @@ void BytecodeArray::Disassemble(std::ostream& os) {
   DisallowHeapAllocation no_gc;
 
   os << "Parameter count " << parameter_count() << "\n";
-  os << "Register count " << register_count() << "\n";
   os << "Frame size " << frame_size() << "\n";
 
   Address base_address = GetFirstBytecodeAddress();

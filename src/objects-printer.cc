@@ -459,7 +459,6 @@ void ByteArray::ByteArrayPrint(std::ostream& os) {  // NOLINT
 
 void BytecodeArray::BytecodeArrayPrint(std::ostream& os) {  // NOLINT
   PrintHeader(os, "BytecodeArray");
-  os << "\n";
   Disassemble(os);
 }
 

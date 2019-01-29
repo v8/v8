@@ -1148,8 +1148,7 @@ class SharedFunctionInfoData : public HeapObjectData {
 
   int builtin_id() const { return builtin_id_; }
   BytecodeArrayData* GetBytecodeArray() const { return GetBytecodeArray_; }
-  void SetSerializedForCompilation(JSHeapBroker* broker,
-                                   FeedbackVectorRef feedback);
+  void SetSerializedForCompilation(FeedbackVectorRef feedback);
   bool IsSerializedForCompilation(FeedbackVectorRef feedback) const;
 #define DECL_ACCESSOR(type, name) \
   type name() const { return name##_; }
@@ -1188,10 +1187,8 @@ SharedFunctionInfoData::SharedFunctionInfoData(
 }
 
 void SharedFunctionInfoData::SetSerializedForCompilation(
-    JSHeapBroker* broker, FeedbackVectorRef feedback) {
+    FeedbackVectorRef feedback) {
   CHECK(serialized_for_compilation_.insert(feedback.object()).second);
-  TRACE(broker, "Set function " << object() << " with " << feedback.object()
-                                << " as serialized for compilation.");
 }
 
 bool SharedFunctionInfoData::IsSerializedForCompilation(
@@ -2693,8 +2690,7 @@ void JSFunctionRef::Serialize() {
 void SharedFunctionInfoRef::SetSerializedForCompilation(
     FeedbackVectorRef feedback) {
   CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
-  data()->AsSharedFunctionInfo()->SetSerializedForCompilation(broker(),
-                                                              feedback);
+  data()->AsSharedFunctionInfo()->SetSerializedForCompilation(feedback);
 }
 
 bool SharedFunctionInfoRef::IsSerializedForCompilation(
