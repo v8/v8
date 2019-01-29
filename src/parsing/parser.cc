@@ -1853,7 +1853,7 @@ void Parser::DesugarBindingInForEachStatement(ForInfo* for_info,
       for_info->parsing_result.declarations[0];
   Variable* temp = NewTemporary(ast_value_factory()->dot_for_string());
   ScopedPtrList<Statement> each_initialization_statements(pointer_buffer());
-  DCHECK_NOT_NULL(decl.pattern);
+  DCHECK_IMPLIES(!has_error(), decl.pattern != nullptr);
   decl.initializer = factory()->NewVariableProxy(temp, for_info->position);
   InitializeVariables(&each_initialization_statements, NORMAL_VARIABLE, &decl);
 
