@@ -174,8 +174,6 @@ class LiftoffCompiler {
         compilation_zone_(compilation_zone),
         safepoint_table_builder_(compilation_zone_) {}
 
-  ~LiftoffCompiler() { UnuseLabels(nullptr); }
-
   bool ok() const { return ok_; }
 
   void GetCode(CodeDesc* desc) { asm_.GetCode(nullptr, desc); }
@@ -1973,7 +1971,10 @@ WasmCompilationResult LiftoffCompilationUnit::ExecuteCompilation(
   decoder.Decode();
   liftoff_compile_time_scope.reset();
   LiftoffCompiler* compiler = &decoder.interface();
-  if (decoder.failed()) return WasmCompilationResult{decoder.error()};
+  if (decoder.failed()) {
+    compiler->OnFirstError(&decoder);
+    return WasmCompilationResult{decoder.error()};
+  }
   if (!compiler->ok()) {
     // Liftoff compilation failed.
     counters->liftoff_unsupported_functions()->Increment();
