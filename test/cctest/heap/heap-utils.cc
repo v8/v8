@@ -15,6 +15,10 @@ namespace v8 {
 namespace internal {
 namespace heap {
 
+void InvokeScavenge() { CcTest::CollectGarbage(i::NEW_SPACE); }
+
+void InvokeMarkSweep() { CcTest::CollectAllGarbage(); }
+
 void SealCurrentObjects(Heap* heap) {
   CcTest::CollectAllGarbage();
   CcTest::CollectAllGarbage();

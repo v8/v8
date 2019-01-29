@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <unordered_map>
+#include <vector>
+
 #include "include/v8.h"
 #include "src/api-inl.h"
 #include "src/objects-inl.h"
@@ -9,6 +12,7 @@
 #include "src/objects/script.h"
 #include "src/objects/shared-function-info.h"
 #include "test/cctest/cctest.h"
+#include "test/cctest/heap/heap-utils.h"
 
 namespace v8 {
 namespace internal {
@@ -70,10 +74,19 @@ class TestEmbedderHeapTracer final : public v8::EmbedderHeapTracer {
     return false;
   }
 
+  void ConsiderTracedGlobalAsRoot(bool value) {
+    consider_traced_global_as_root_ = value;
+  }
+
+  bool IsRootForNonTracingGC(const v8::TracedGlobal<v8::Value>& handle) final {
+    return consider_traced_global_as_root_;
+  }
+
  private:
   v8::Isolate* const isolate_;
   std::vector<std::pair<void*, void*>> registered_from_v8_;
   std::vector<v8::Persistent<v8::Object>*> to_register_with_v8_;
+  bool consider_traced_global_as_root_ = true;
 };
 
 class TemporaryEmbedderHeapTracerScope {
@@ -263,6 +276,218 @@ TEST(GarbageCollectionForTesting) {
   int saved_gc_counter = i_isolate->heap()->gc_count();
   tracer.GarbageCollectionForTesting(EmbedderHeapTracer::kUnknown);
   CHECK_GT(i_isolate->heap()->gc_count(), saved_gc_counter);
+}
+
+namespace {
+
+void ConstructJSObject(v8::Isolate* isolate, v8::Local<v8::Context> context,
+                       v8::TracedGlobal<v8::Object>* global) {
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Object> object(v8::Object::New(isolate));
+  CHECK(!object.IsEmpty());
+  *global = v8::TracedGlobal<v8::Object>(isolate, object);
+  CHECK(!global->IsEmpty());
+}
+
+void ConstructJSApiObject(v8::Isolate* isolate, v8::Local<v8::Context> context,
+                          v8::TracedGlobal<v8::Object>* global) {
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Object> object(
+      ConstructTraceableJSApiObject(context, nullptr, nullptr));
+  CHECK(!object.IsEmpty());
+  *global = v8::TracedGlobal<v8::Object>(isolate, object);
+  CHECK(!global->IsEmpty());
+}
+
+enum class SurvivalMode { kSurvives, kDies };
+
+template <typename ModifierFunction, typename ConstructTracedGlobalFunction>
+void TracedGlobalTest(v8::Isolate* isolate,
+                      ConstructTracedGlobalFunction construct_function,
+                      ModifierFunction modifier_function, void (*gc_function)(),
+                      SurvivalMode survives) {
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Context> context = v8::Context::New(isolate);
+  v8::Context::Scope context_scope(context);
+
+  v8::TracedGlobal<v8::Object> global;
+  construct_function(isolate, context, &global);
+  CHECK(InNewSpace(isolate, global));
+  modifier_function(global);
+  gc_function();
+  CHECK_IMPLIES(survives == SurvivalMode::kSurvives, !global.IsEmpty());
+  CHECK_IMPLIES(survives == SurvivalMode::kDies, global.IsEmpty());
+}
+
+}  // namespace
+
+TEST(TracedGlobalReset) {
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+
+  v8::TracedGlobal<v8::Object> traced;
+  ConstructJSObject(isolate, isolate->GetCurrentContext(), &traced);
+  CHECK(!traced.IsEmpty());
+  traced.Reset();
+  CHECK(traced.IsEmpty());
+}
+
+TEST(TracedGlobalInStdVector) {
+  ManualGCScope manual_gc;
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+
+  std::vector<v8::TracedGlobal<v8::Object>> vec;
+  {
+    v8::HandleScope scope(isolate);
+    vec.emplace_back(isolate, v8::Object::New(isolate));
+  }
+  CHECK(!vec[0].IsEmpty());
+  InvokeMarkSweep();
+  CHECK(vec[0].IsEmpty());
+}
+
+TEST(TracedGlobalInStdUnorderedMap) {
+  ManualGCScope manual_gc;
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+
+  std::unordered_map<int, v8::TracedGlobal<v8::Object>> map;
+  {
+    v8::HandleScope scope(isolate);
+    map.emplace(std::piecewise_construct, std::forward_as_tuple(1),
+                std::forward_as_tuple(isolate, v8::Object::New(isolate)));
+  }
+  CHECK(!map[1].IsEmpty());
+  InvokeMarkSweep();
+  CHECK(map[1].IsEmpty());
+}
+
+TEST(TracedGlobalToUnmodifiedJSObjectDiesOnMarkSweep) {
+  CcTest::InitializeVM();
+  TracedGlobalTest(
+      CcTest::isolate(), ConstructJSObject,
+      [](const TracedGlobal<v8::Object>& global) {}, InvokeMarkSweep,
+      SurvivalMode::kDies);
+}
+
+TEST(TracedGlobalToUnmodifiedJSObjectSurvivesMarkSweepWhenHeldAliveOtherwise) {
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::Global<v8::Object> strong_global;
+  TracedGlobalTest(
+      CcTest::isolate(), ConstructJSObject,
+      [isolate, &strong_global](const TracedGlobal<v8::Object>& global) {
+        v8::HandleScope scope(isolate);
+        strong_global = v8::Global<v8::Object>(isolate, global.Get(isolate));
+      },
+      InvokeMarkSweep, SurvivalMode::kSurvives);
+}
+
+TEST(TracedGlobalToUnmodifiedJSObjectSurvivesScavenge) {
+  ManualGCScope manual_gc;
+  CcTest::InitializeVM();
+  TracedGlobalTest(
+      CcTest::isolate(), ConstructJSObject,
+      [](const TracedGlobal<v8::Object>& global) {}, InvokeScavenge,
+      SurvivalMode::kSurvives);
+}
+
+TEST(TracedGlobalToUnmodifiedJSObjectSurvivesScavengeWhenExcludedFromRoots) {
+  ManualGCScope manual_gc;
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+  TestEmbedderHeapTracer tracer(isolate);
+  TemporaryEmbedderHeapTracerScope tracer_scope(isolate, &tracer);
+  tracer.ConsiderTracedGlobalAsRoot(false);
+  TracedGlobalTest(
+      CcTest::isolate(), ConstructJSObject,
+      [](const TracedGlobal<v8::Object>& global) {}, InvokeScavenge,
+      SurvivalMode::kSurvives);
+}
+
+TEST(TracedGlobalToUnmodifiedJSApiObjectSurvivesScavengePerDefault) {
+  ManualGCScope manual_gc;
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+  TestEmbedderHeapTracer tracer(isolate);
+  TemporaryEmbedderHeapTracerScope tracer_scope(isolate, &tracer);
+  tracer.ConsiderTracedGlobalAsRoot(true);
+  TracedGlobalTest(
+      CcTest::isolate(), ConstructJSApiObject,
+      [](const TracedGlobal<v8::Object>& global) {}, InvokeScavenge,
+      SurvivalMode::kSurvives);
+}
+
+TEST(TracedGlobalToUnmodifiedJSApiObjectDiesOnScavengeWhenExcludedFromRoots) {
+  ManualGCScope manual_gc;
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+  TestEmbedderHeapTracer tracer(isolate);
+  TemporaryEmbedderHeapTracerScope tracer_scope(isolate, &tracer);
+  tracer.ConsiderTracedGlobalAsRoot(false);
+  TracedGlobalTest(
+      CcTest::isolate(), ConstructJSApiObject,
+      [](const TracedGlobal<v8::Object>& global) {}, InvokeScavenge,
+      SurvivalMode::kDies);
+}
+
+TEST(TracedGlobalWrapperClassId) {
+  ManualGCScope manual_gc;
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  TestEmbedderHeapTracer tracer(isolate);
+  TemporaryEmbedderHeapTracerScope tracer_scope(isolate, &tracer);
+
+  v8::TracedGlobal<v8::Object> traced;
+  ConstructJSObject(isolate, isolate->GetCurrentContext(), &traced);
+  CHECK_EQ(0, traced.WrapperClassId());
+  traced.SetWrapperClassId(17);
+  CHECK_EQ(17, traced.WrapperClassId());
+}
+
+namespace {
+
+class TracedGlobalVisitor final
+    : public v8::EmbedderHeapTracer::TracedGlobalHandleVisitor {
+ public:
+  ~TracedGlobalVisitor() override = default;
+  void VisitTracedGlobalHandle(const TracedGlobal<Value>& value) final {
+    if (value.WrapperClassId() == 57) {
+      count_++;
+    }
+  }
+
+  size_t count() const { return count_; }
+
+ private:
+  size_t count_ = 0;
+};
+
+}  // namespace
+
+TEST(TracedGlobalIteration) {
+  ManualGCScope manual_gc;
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  TestEmbedderHeapTracer tracer(isolate);
+  TemporaryEmbedderHeapTracerScope tracer_scope(isolate, &tracer);
+
+  v8::TracedGlobal<v8::Object> traced;
+  ConstructJSObject(isolate, isolate->GetCurrentContext(), &traced);
+  CHECK(!traced.IsEmpty());
+  traced.SetWrapperClassId(57);
+  TracedGlobalVisitor visitor;
+  {
+    v8::HandleScope scope(isolate);
+    tracer.IterateTracedGlobalHandles(&visitor);
+  }
+  CHECK_EQ(1, visitor.count());
 }
 
 }  // namespace heap

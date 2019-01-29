@@ -31,6 +31,7 @@
 #include "src/isolate.h"
 #include "src/objects-inl.h"
 #include "test/cctest/cctest.h"
+#include "test/cctest/heap/heap-utils.h"
 
 namespace v8 {
 namespace internal {
@@ -103,12 +104,7 @@ void WeakHandleTest(v8::Isolate* isolate, ConstructFunction construct_function,
 
   FlagAndPersistent fp;
   construct_function(isolate, context, &fp);
-  {
-    v8::HandleScope scope(isolate);
-    v8::Local<v8::Object> tmp = v8::Local<v8::Object>::New(isolate, fp.handle);
-    CHECK(i::Heap::InNewSpace(*v8::Utils::OpenHandle(*tmp)));
-  }
-
+  CHECK(heap::InNewSpace(isolate, fp.handle));
   fp.handle.SetWeak(&fp, &ResetHandleAndSetFlag,
                     v8::WeakCallbackType::kParameter);
   fp.flag = false;
@@ -495,12 +491,7 @@ TEST(GCFromWeakCallbacks) {
     for (int inner_gc = 0; inner_gc < kNumberOfGCTypes; inner_gc++) {
       FlagAndPersistent fp;
       ConstructJSApiObject(isolate, context, &fp);
-      {
-        v8::HandleScope scope(isolate);
-        v8::Local<v8::Object> tmp =
-            v8::Local<v8::Object>::New(isolate, fp.handle);
-        CHECK(i::Heap::InNewSpace(*v8::Utils::OpenHandle(*tmp)));
-      }
+      CHECK(heap::InNewSpace(isolate, fp.handle));
       fp.flag = false;
       fp.handle.SetWeak(&fp, gc_forcing_callback[inner_gc],
                         v8::WeakCallbackType::kParameter);

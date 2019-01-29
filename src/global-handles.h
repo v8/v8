@@ -40,14 +40,19 @@ enum WeaknessType {
 // callbacks and finalizers attached to them.
 class GlobalHandles final {
  public:
+  template <class NodeType>
+  class NodeBlock;
+
   // Move a global handle.
   static void MoveGlobal(Address** from, Address** to);
-
-  // Copy a global handle.
-  static Handle<Object> CopyGlobal(Address* location);
+  static void MoveTracedGlobal(Address** from, Address** to);
 
   // Destroy a global handle.
   static void Destroy(Address* location);
+  static void DestroyTraced(Address* location);
+
+  // Copy a global handle.
+  static Handle<Object> CopyGlobal(Address* location);
 
   // Make the global handle weak and set the callback parameter for the
   // handle.  When the garbage collector recognizes that only weak global
@@ -90,6 +95,9 @@ class GlobalHandles final {
     return Handle<T>::cast(Create(Object(value)));
   }
 
+  Handle<Object> CreateTraced(Object value, Address* slot);
+  Handle<Object> CreateTraced(Address value, Address* slot);
+
   void RecordStats(HeapStats* stats);
 
   size_t InvokeFirstPassWeakCallbacks();
@@ -103,7 +111,6 @@ class GlobalHandles final {
   void IterateStrongRoots(RootVisitor* v);
   void IterateWeakRoots(RootVisitor* v);
   void IterateAllRoots(RootVisitor* v);
-
   void IterateAllNewSpaceRoots(RootVisitor* v);
 
   // Iterates over all handles that have embedder-assigned class ID.
@@ -117,14 +124,21 @@ class GlobalHandles final {
   // and have class IDs
   void IterateWeakRootsInNewSpaceWithClassIds(v8::PersistentHandleVisitor* v);
 
-  // Iterates over weak roots on the heap.
+  // Iterates over all traces handles represented by TracedGlobal.
+  void IterateTracedNodes(
+      v8::EmbedderHeapTracer::TracedGlobalHandleVisitor* visitor);
+
+  // Marks handles with finalizers on the predicate |should_reset_handle| as
+  // pending.
+  void IterateWeakRootsIdentifyFinalizers(
+      WeakSlotCallbackWithHeap should_reset_handle);
+  // Uses the provided visitor |v| to mark handles with finalizers that are
+  // pending.
   void IterateWeakRootsForFinalizers(RootVisitor* v);
+  // Marks handles that are phantom or have callbacks based on the predicate
+  // |should_reset_handle| as pending.
   void IterateWeakRootsForPhantomHandles(
       WeakSlotCallbackWithHeap should_reset_handle);
-
-  // Marks all handles that should be finalized based on the predicate
-  // |should_reset_handle| as pending.
-  void IdentifyWeakHandles(WeakSlotCallbackWithHeap should_reset_handle);
 
   //  Note: The following *NewSpace* methods are used for the Scavenger to
   //  identify and process handles in new space. The set of new space handles is
@@ -167,13 +181,12 @@ class GlobalHandles final {
  private:
   // Internal node structures.
   class Node;
-  template <class NodeType>
-  class NodeBlock;
   template <class BlockType>
   class NodeIterator;
   template <class NodeType>
   class NodeSpace;
   class PendingPhantomCallback;
+  class TracedNode;
 
   bool InRecursiveGC(unsigned gc_processing_counter);
 
@@ -182,6 +195,8 @@ class GlobalHandles final {
   size_t PostScavengeProcessing(unsigned post_processing_count);
   size_t PostMarkSweepProcessing(unsigned post_processing_count);
 
+  template <typename T>
+  void UpdateAndCompactListOfNewSpaceNode(std::vector<T*>* node_list);
   void UpdateListOfNewSpaceNodes();
 
   void ApplyPersistentHandleVisitor(v8::PersistentHandleVisitor* visitor,
@@ -193,6 +208,9 @@ class GlobalHandles final {
   // Contains all nodes holding new space objects. Note: when the list
   // is accessed, some of the objects may have been promoted already.
   std::vector<Node*> new_space_nodes_;
+
+  std::unique_ptr<NodeSpace<TracedNode>> traced_nodes_;
+  std::vector<TracedNode*> traced_new_space_nodes_;
 
   // Field always containing the number of handles to global objects.
   size_t handles_count_ = 0;

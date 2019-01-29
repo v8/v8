@@ -92,6 +92,8 @@ template <class T, class M = NonCopyablePersistentTraits<T> >
 class Persistent;
 template <class T>
 class Global;
+template <class T>
+class TracedGlobal;
 template<class K, class V, class T> class PersistentValueMap;
 template <class K, class V, class T>
 class PersistentValueMapBase;
@@ -275,6 +277,7 @@ class Local {
   V8_INLINE static Local<T> New(Isolate* isolate, Local<T> that);
   V8_INLINE static Local<T> New(Isolate* isolate,
                                 const PersistentBase<T>& that);
+  V8_INLINE static Local<T> New(Isolate* isolate, const TracedGlobal<T>& that);
 
  private:
   friend class Utils;
@@ -303,6 +306,8 @@ class Local {
   template<class F1, class F2> friend class PersistentValueVector;
   template <class F>
   friend class ReturnValue;
+  template <class F>
+  friend class TracedGlobal;
 
   explicit V8_INLINE Local(T* that) : val_(that) {}
   V8_INLINE static Local<T> New(Isolate* isolate, T* that);
@@ -816,6 +821,139 @@ class Global : public PersistentBase<T> {
 // UniquePersistent is an alias for Global for historical reason.
 template <class T>
 using UniquePersistent = Global<T>;
+
+/**
+ * A traced handle with move semantics, similar to std::unique_ptr. The handle
+ * is to be used together with |v8::EmbedderHeapTracer| and specifies edges from
+ * the embedder into V8's heap.
+ *
+ * The exact semantics are:
+ * - Tracing garbage collections use |v8::EmbedderHeapTracer|.
+ * - Non-tracing garbage collections refer to
+ *   |v8::EmbedderHeapTracer::IsRootForNonTracingGC()| whether the handle should
+ *   be treated as root or not.
+ */
+template <typename T>
+class V8_EXPORT TracedGlobal {
+ public:
+  /**
+   * An empty TracedGlobal without storage cell.
+   */
+  TracedGlobal() = default;
+  ~TracedGlobal() { Reset(); }
+
+  /**
+   * Construct a TracedGlobal from a Local.
+   *
+   * When the Local is non-empty, a new storage cell is created
+   * pointing to the same object.
+   */
+  template <class S>
+  TracedGlobal(Isolate* isolate, Local<S> that)
+      : val_(New(isolate, *that, &val_)) {
+    TYPE_CHECK(T, S);
+  }
+
+  /**
+   * Move constructor initializing TracedGlobal from an existing one.
+   */
+  V8_INLINE TracedGlobal(TracedGlobal&& other);
+
+  /**
+   * Move assignment operator initializing TracedGlobal from an existing one.
+   */
+  template <class S>
+  V8_INLINE TracedGlobal& operator=(TracedGlobal<S>&& rhs);
+
+  /**
+   * TracedGlobal only supports move semantics and forbids copying.
+   */
+  TracedGlobal(const TracedGlobal&) = delete;
+  void operator=(const TracedGlobal&) = delete;
+
+  /**
+   * Returns true if this TracedGlobal is empty, i.e., has not been assigned an
+   * object.
+   */
+  bool IsEmpty() const { return val_ == nullptr; }
+
+  /**
+   * If non-empty, destroy the underlying storage cell. |IsEmpty| will return
+   * true after this call.
+   */
+  V8_INLINE void Reset();
+
+  /**
+   * If non-empty, destroy the underlying storage cell and create a new one with
+   * the contents of other if other is non empty
+   */
+  template <class S>
+  V8_INLINE void Reset(Isolate* isolate, const Local<S>& other);
+
+  /**
+   * Construct a Local<T> from this handle.
+   */
+  Local<T> Get(Isolate* isolate) const { return Local<T>::New(isolate, *this); }
+
+  template <class S>
+  V8_INLINE TracedGlobal<S>& As() const {
+    return reinterpret_cast<TracedGlobal<S>&>(
+        const_cast<TracedGlobal<T>&>(*this));
+  }
+
+  template <class S>
+  V8_INLINE bool operator==(const TracedGlobal<S>& that) const {
+    internal::Address* a = reinterpret_cast<internal::Address*>(this->val_);
+    internal::Address* b = reinterpret_cast<internal::Address*>(that.val_);
+    if (a == nullptr) return b == nullptr;
+    if (b == nullptr) return false;
+    return *a == *b;
+  }
+
+  template <class S>
+  V8_INLINE bool operator==(const Local<S>& that) const {
+    internal::Address* a = reinterpret_cast<internal::Address*>(this->val_);
+    internal::Address* b = reinterpret_cast<internal::Address*>(that.val_);
+    if (a == nullptr) return b == nullptr;
+    if (b == nullptr) return false;
+    return *a == *b;
+  }
+
+  template <class S>
+  V8_INLINE bool operator!=(const TracedGlobal<S>& that) const {
+    return !operator==(that);
+  }
+
+  template <class S>
+  V8_INLINE bool operator!=(const Local<S>& that) const {
+    return !operator==(that);
+  }
+
+  /**
+   * Assigns a wrapper class ID to the handle.
+   */
+  V8_INLINE void SetWrapperClassId(uint16_t class_id);
+
+  /**
+   * Returns the class ID previously assigned to this handle or 0 if no class ID
+   * was previously assigned.
+   */
+  V8_INLINE uint16_t WrapperClassId() const;
+
+ private:
+  V8_INLINE static T* New(Isolate* isolate, T* that, T** slot);
+
+  T* operator*() const { return this->val_; }
+
+  T* val_ = nullptr;
+
+  friend class EmbedderHeapTracer;
+  template <typename F>
+  friend class Local;
+  friend class Object;
+  template <typename F>
+  friend class ReturnValue;
+};
 
  /**
  * A stack-allocated class that governs a number of local handles.
@@ -3444,9 +3582,14 @@ class V8_EXPORT Object : public Value {
   /** Gets the number of internal fields for this Object. */
   int InternalFieldCount();
 
-  /** Same as above, but works for Persistents */
+  /** Same as above, but works for PersistentBase. */
   V8_INLINE static int InternalFieldCount(
       const PersistentBase<Object>& object) {
+    return object.val_->InternalFieldCount();
+  }
+
+  /** Same as above, but works for TracedGlobal. */
+  V8_INLINE static int InternalFieldCount(const TracedGlobal<Object>& object) {
     return object.val_->InternalFieldCount();
   }
 
@@ -3463,9 +3606,15 @@ class V8_EXPORT Object : public Value {
    */
   V8_INLINE void* GetAlignedPointerFromInternalField(int index);
 
-  /** Same as above, but works for Persistents */
+  /** Same as above, but works for PersistentBase. */
   V8_INLINE static void* GetAlignedPointerFromInternalField(
       const PersistentBase<Object>& object, int index) {
+    return object.val_->GetAlignedPointerFromInternalField(index);
+  }
+
+  /** Same as above, but works for TracedGlobal. */
+  V8_INLINE static void* GetAlignedPointerFromInternalField(
+      const TracedGlobal<Object>& object, int index) {
     return object.val_->GetAlignedPointerFromInternalField(index);
   }
 
@@ -3754,6 +3903,8 @@ class ReturnValue {
                           void Set(const Persistent<S>& handle));
   template <typename S>
   V8_INLINE void Set(const Global<S>& handle);
+  template <typename S>
+  V8_INLINE void Set(const TracedGlobal<S>& handle);
   template <typename S>
   V8_INLINE void Set(const Local<S> handle);
   // Fast primitive setters
@@ -6982,7 +7133,22 @@ class V8_EXPORT EmbedderHeapTracer {
     kEmpty,
   };
 
+  /**
+   * Interface for iterating through TracedGlobal handles.
+   */
+  class V8_EXPORT TracedGlobalHandleVisitor {
+   public:
+    virtual ~TracedGlobalHandleVisitor() = default;
+    virtual void VisitTracedGlobalHandle(const TracedGlobal<Value>& value) = 0;
+  };
+
   virtual ~EmbedderHeapTracer() = default;
+
+  /**
+   * Iterates all TracedGlobal handles created for the v8::Isolate the tracer is
+   * attached to.
+   */
+  void IterateTracedGlobalHandles(TracedGlobalHandleVisitor* visitor);
 
   /**
    * Called by v8 to register internal fields of found wrappers.
@@ -6992,6 +7158,8 @@ class V8_EXPORT EmbedderHeapTracer {
    */
   virtual void RegisterV8References(
       const std::vector<std::pair<void*, void*> >& embedder_fields) = 0;
+
+  void RegisterEmbedderReference(const TracedGlobal<v8::Value>& ref);
 
   /**
    * Called at the beginning of a GC cycle.
@@ -7039,6 +7207,17 @@ class V8_EXPORT EmbedderHeapTracer {
    * This is an experimental feature.
    */
   void FinalizeTracing();
+
+  /**
+   * Returns true if the TracedGlobal handle should be considered as root for
+   * the currently running non-tracing garbage collection and false otherwise.
+   *
+   * Default implementation will keep all TracedGlobal references as roots.
+   */
+  virtual bool IsRootForNonTracingGC(
+      const v8::TracedGlobal<v8::Value>& handle) {
+    return true;
+  }
 
   /*
    * Called by the embedder to immediately perform a full garbage collection.
@@ -8500,10 +8679,16 @@ class V8_EXPORT V8 {
 
   static internal::Address* GlobalizeReference(internal::Isolate* isolate,
                                                internal::Address* handle);
+  static internal::Address* GlobalizeTracedReference(internal::Isolate* isolate,
+                                                     internal::Address* handle,
+                                                     internal::Address* slot);
   static void MoveGlobalReference(internal::Address** from,
                                   internal::Address** to);
+  static void MoveTracedGlobalReference(internal::Address** from,
+                                        internal::Address** to);
   static internal::Address* CopyGlobalReference(internal::Address* from);
   static void DisposeGlobal(internal::Address* global_handle);
+  static void DisposeTracedGlobal(internal::Address* global_handle);
   static void MakeWeak(internal::Address* location, void* data,
                        WeakCallbackInfo<void>::Callback weak_callback,
                        WeakCallbackType type);
@@ -8529,6 +8714,8 @@ class V8_EXPORT V8 {
   friend class MaybeLocal;
   template <class T>
   friend class Maybe;
+  template <class T>
+  friend class TracedGlobal;
   template <class T>
   friend class WeakCallbackInfo;
   template <class T> friend class Eternal;
@@ -9389,6 +9576,10 @@ Local<T> Local<T>::New(Isolate* isolate, const PersistentBase<T>& that) {
   return New(isolate, that.val_);
 }
 
+template <class T>
+Local<T> Local<T>::New(Isolate* isolate, const TracedGlobal<T>& that) {
+  return New(isolate, that.val_);
+}
 
 template <class T>
 Local<T> Local<T>::New(Isolate* isolate, T* that) {
@@ -9610,6 +9801,76 @@ Global<T>& Global<T>::operator=(Global<S>&& rhs) {
   return *this;
 }
 
+template <class T>
+T* TracedGlobal<T>::New(Isolate* isolate, T* that, T** slot) {
+  if (that == nullptr) return nullptr;
+  internal::Address* p = reinterpret_cast<internal::Address*>(that);
+  return reinterpret_cast<T*>(V8::GlobalizeTracedReference(
+      reinterpret_cast<internal::Isolate*>(isolate), p,
+      reinterpret_cast<internal::Address*>(slot)));
+}
+
+template <class T>
+void TracedGlobal<T>::Reset() {
+  if (IsEmpty()) return;
+  V8::DisposeTracedGlobal(reinterpret_cast<internal::Address*>(val_));
+  val_ = nullptr;
+}
+
+template <class T>
+template <class S>
+void TracedGlobal<T>::Reset(Isolate* isolate, const Local<S>& other) {
+  TYPE_CHECK(T, S);
+  Reset();
+  if (other.IsEmpty()) return;
+  this->val_ = New(isolate, other.val_, &val_);
+}
+
+template <class T>
+TracedGlobal<T>::TracedGlobal(TracedGlobal&& other) : val_(other.val_) {
+  if (other.val_ != nullptr) {
+    V8::MoveTracedGlobalReference(
+        reinterpret_cast<internal::Address**>(&other.val_),
+        reinterpret_cast<internal::Address**>(&this->val_));
+    other.val_ = nullptr;
+  }
+}
+
+template <class T>
+template <class S>
+TracedGlobal<T>& TracedGlobal<T>::operator=(TracedGlobal<S>&& rhs) {
+  TYPE_CHECK(T, S);
+  if (this != &rhs) {
+    this->Reset();
+    if (rhs.val_ != nullptr) {
+      this->val_ = rhs.val_;
+      V8::MoveTracedGlobalReference(
+          reinterpret_cast<internal::Address**>(&rhs.val_),
+          reinterpret_cast<internal::Address**>(&this->val_));
+      rhs.val_ = nullptr;
+    }
+  }
+  return *this;
+}
+
+template <class T>
+void TracedGlobal<T>::SetWrapperClassId(uint16_t class_id) {
+  typedef internal::Internals I;
+  if (IsEmpty()) return;
+  internal::Address* obj = reinterpret_cast<internal::Address*>(this->val_);
+  uint8_t* addr = reinterpret_cast<uint8_t*>(obj) + I::kNodeClassIdOffset;
+  *reinterpret_cast<uint16_t*>(addr) = class_id;
+}
+
+template <class T>
+uint16_t TracedGlobal<T>::WrapperClassId() const {
+  typedef internal::Internals I;
+  if (IsEmpty()) return 0;
+  internal::Address* obj = reinterpret_cast<internal::Address*>(this->val_);
+  uint8_t* addr = reinterpret_cast<uint8_t*>(obj) + I::kNodeClassIdOffset;
+  return *reinterpret_cast<uint16_t*>(addr);
+}
+
 template <typename T>
 ReturnValue<T>::ReturnValue(internal::Address* slot) : value_(slot) {}
 
@@ -9627,6 +9888,17 @@ void ReturnValue<T>::Set(const Persistent<S>& handle) {
 template <typename T>
 template <typename S>
 void ReturnValue<T>::Set(const Global<S>& handle) {
+  TYPE_CHECK(T, S);
+  if (V8_UNLIKELY(handle.IsEmpty())) {
+    *value_ = GetDefaultValue();
+  } else {
+    *value_ = *reinterpret_cast<internal::Address*>(*handle);
+  }
+}
+
+template <typename T>
+template <typename S>
+void ReturnValue<T>::Set(const TracedGlobal<S>& handle) {
   TYPE_CHECK(T, S);
   if (V8_UNLIKELY(handle.IsEmpty())) {
     *value_ = GetDefaultValue();

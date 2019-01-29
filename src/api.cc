@@ -1012,6 +1012,19 @@ i::Address* V8::GlobalizeReference(i::Isolate* isolate, i::Address* obj) {
   return result.location();
 }
 
+i::Address* V8::GlobalizeTracedReference(i::Isolate* isolate, i::Address* obj,
+                                         internal::Address* slot) {
+  LOG_API(isolate, TracedGlobal, New);
+  i::Handle<i::Object> result =
+      isolate->global_handles()->CreateTraced(*obj, slot);
+#ifdef VERIFY_HEAP
+  if (i::FLAG_verify_heap) {
+    i::Object(*obj)->ObjectVerify(isolate);
+  }
+#endif  // VERIFY_HEAP
+  return result.location();
+}
+
 i::Address* V8::CopyGlobalReference(i::Address* from) {
   i::Handle<i::Object> result = i::GlobalHandles::CopyGlobal(from);
   return result.location();
@@ -1019,6 +1032,11 @@ i::Address* V8::CopyGlobalReference(i::Address* from) {
 
 void V8::MoveGlobalReference(internal::Address** from, internal::Address** to) {
   i::GlobalHandles::MoveGlobal(from, to);
+}
+
+void V8::MoveTracedGlobalReference(internal::Address** from,
+                                   internal::Address** to) {
+  i::GlobalHandles::MoveTracedGlobal(from, to);
 }
 
 void V8::RegisterExternallyReferencedObject(i::Address* location,
@@ -1046,6 +1064,10 @@ void V8::AnnotateStrongRetainer(i::Address* location, const char* label) {
 
 void V8::DisposeGlobal(i::Address* location) {
   i::GlobalHandles::Destroy(location);
+}
+
+void V8::DisposeTracedGlobal(internal::Address* location) {
+  i::GlobalHandles::DestroyTraced(location);
 }
 
 Value* V8::Eternalize(Isolate* v8_isolate, Value* value) {
@@ -10467,6 +10489,22 @@ void EmbedderHeapTracer::GarbageCollectionForTesting(
   heap->PreciseCollectAllGarbage(i::Heap::kNoGCFlags,
                                  i::GarbageCollectionReason::kTesting,
                                  kGCCallbackFlagForced);
+}
+
+void EmbedderHeapTracer::RegisterEmbedderReference(
+    const TracedGlobal<v8::Value>& ref) {
+  if (ref.IsEmpty()) return;
+
+  i::Heap* const heap = reinterpret_cast<i::Isolate*>(isolate_)->heap();
+  heap->RegisterExternallyReferencedObject(
+      reinterpret_cast<i::Address*>(ref.val_));
+}
+
+void EmbedderHeapTracer::IterateTracedGlobalHandles(
+    TracedGlobalHandleVisitor* visitor) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(isolate_);
+  i::DisallowHeapAllocation no_allocation;
+  isolate->global_handles()->IterateTracedNodes(visitor);
 }
 
 namespace internal {
