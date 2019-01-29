@@ -341,9 +341,7 @@ void SerializerForBackgroundCompilation::VisitCallUndefinedReceiver0(
   Hints receiver(zone());
   receiver.AddConstant(broker()->isolate()->factory()->undefined_value());
 
-  HintsVector parameters(zone());
-  parameters.push_back(receiver);
-
+  HintsVector parameters({receiver}, zone());
   ProcessCallOrConstruct(callee, base::nullopt, parameters, slot);
 }
 
@@ -358,10 +356,7 @@ void SerializerForBackgroundCompilation::VisitCallUndefinedReceiver1(
   Hints receiver(zone());
   receiver.AddConstant(broker()->isolate()->factory()->undefined_value());
 
-  HintsVector parameters(zone());
-  parameters.push_back(receiver);
-  parameters.push_back(arg0);
-
+  HintsVector parameters({receiver, arg0}, zone());
   ProcessCallOrConstruct(callee, base::nullopt, parameters, slot);
 }
 
@@ -378,11 +373,7 @@ void SerializerForBackgroundCompilation::VisitCallUndefinedReceiver2(
   Hints receiver(zone());
   receiver.AddConstant(broker()->isolate()->factory()->undefined_value());
 
-  HintsVector parameters(zone());
-  parameters.push_back(receiver);
-  parameters.push_back(arg0);
-  parameters.push_back(arg1);
-
+  HintsVector parameters({receiver, arg0, arg1}, zone());
   ProcessCallOrConstruct(callee, base::nullopt, parameters, slot);
 }
 
@@ -409,9 +400,7 @@ void SerializerForBackgroundCompilation::VisitCallProperty0(
       environment()->register_hints(iterator->GetRegisterOperand(1));
   FeedbackSlot slot = FeedbackVector::ToSlot(iterator->GetIndexOperand(2));
 
-  HintsVector parameters(zone());
-  parameters.push_back(receiver);
-
+  HintsVector parameters({receiver}, zone());
   ProcessCallOrConstruct(callee, base::nullopt, parameters, slot);
 }
 
@@ -425,10 +414,7 @@ void SerializerForBackgroundCompilation::VisitCallProperty1(
       environment()->register_hints(iterator->GetRegisterOperand(2));
   FeedbackSlot slot = FeedbackVector::ToSlot(iterator->GetIndexOperand(3));
 
-  HintsVector parameters(zone());
-  parameters.push_back(receiver);
-  parameters.push_back(arg0);
-
+  HintsVector parameters({receiver, arg0}, zone());
   ProcessCallOrConstruct(callee, base::nullopt, parameters, slot);
 }
 
@@ -444,11 +430,7 @@ void SerializerForBackgroundCompilation::VisitCallProperty2(
       environment()->register_hints(iterator->GetRegisterOperand(3));
   FeedbackSlot slot = FeedbackVector::ToSlot(iterator->GetIndexOperand(4));
 
-  HintsVector parameters(zone());
-  parameters.push_back(receiver);
-  parameters.push_back(arg0);
-  parameters.push_back(arg1);
-
+  HintsVector parameters({receiver, arg0, arg1}, zone());
   ProcessCallOrConstruct(callee, base::nullopt, parameters, slot);
 }
 
