@@ -157,6 +157,15 @@ RUNTIME_FUNCTION(Runtime_ThrowReferenceError) {
       isolate, NewReferenceError(MessageTemplate::kNotDefined, name));
 }
 
+RUNTIME_FUNCTION(Runtime_ThrowAccessedUninitializedVariable) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Object, name, 0);
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate,
+      NewReferenceError(MessageTemplate::kAccessedUninitializedVariable, name));
+}
+
 RUNTIME_FUNCTION(Runtime_NewTypeError) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());

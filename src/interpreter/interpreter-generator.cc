@@ -2958,7 +2958,8 @@ IGNITION_HANDLER(ThrowReferenceErrorIfHole, InterpreterAssembler) {
   BIND(&throw_error);
   {
     Node* name = LoadConstantPoolEntryAtOperandIndex(0);
-    CallRuntime(Runtime::kThrowReferenceError, GetContext(), name);
+    CallRuntime(Runtime::kThrowAccessedUninitializedVariable, GetContext(),
+                name);
     // We shouldn't ever return from a throw.
     Abort(AbortReason::kUnexpectedReturnFromThrow);
     Unreachable();

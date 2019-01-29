@@ -292,6 +292,7 @@ namespace internal {
   /* ReferenceError */                                                         \
   T(NotDefined, "% is not defined")                                            \
   T(SuperAlreadyCalled, "Super constructor may only be called once")           \
+  T(AccessedUninitializedVariable, "Cannot access '%' before initialization")  \
   T(UnsupportedSuper, "Unsupported reference to 'super'")                      \
   /* RangeError */                                                             \
   T(BigIntDivZero, "Division by zero")                                         \
