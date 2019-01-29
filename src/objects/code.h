@@ -21,6 +21,7 @@ namespace internal {
 class ByteArray;
 class BytecodeArray;
 class CodeDataContainer;
+class CodeDesc;
 class MaybeObject;
 
 namespace interpreter {

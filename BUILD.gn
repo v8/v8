@@ -1621,6 +1621,8 @@ v8_source_set("v8_base") {
     "src/checks.h",
     "src/code-comments.cc",
     "src/code-comments.h",
+    "src/code-desc.cc",
+    "src/code-desc.h",
     "src/code-events.h",
     "src/code-factory.cc",
     "src/code-factory.h",

@@ -6,6 +6,7 @@
 #define V8_TEST_COMMON_ASSEMBLER_TESTER_H_
 
 #include "src/assembler.h"
+#include "src/code-desc.h"
 
 namespace v8 {
 namespace internal {
