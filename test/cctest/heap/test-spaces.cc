@@ -315,8 +315,6 @@ TEST(LargeObjectSpace) {
 
   CHECK(lo->Contains(HeapObject::cast(obj)));
 
-  CHECK(lo->FindObject(ho->address()) == obj);
-
   CHECK(lo->Contains(ho));
 
   while (true) {

@@ -5355,7 +5355,7 @@ TEST(Regress598319) {
 
   CHECK_EQ(arr.get()->length(), kNumberOfObjects);
   CHECK(heap->lo_space()->Contains(arr.get()));
-  LargePage* page = heap->lo_space()->FindPage(arr.get()->address());
+  LargePage* page = LargePage::FromHeapObject(arr.get());
   CHECK_NOT_NULL(page);
 
   // GC to cleanup state

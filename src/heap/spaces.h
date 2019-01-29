@@ -3025,23 +3025,11 @@ class LargeObjectSpace : public Space {
 
   int PageCount() { return page_count_; }
 
-  // Finds an object for a given address, returns a Smi if it is not found.
-  // The function iterates through all objects in this space, may be slow.
-  Object FindObject(Address a);
-
-  // Finds a large object page containing the given address, returns nullptr
-  // if such a page doesn't exist.
-  LargePage* FindPage(Address a);
-
   // Clears the marking state of live objects.
   void ClearMarkingStateOfLiveObjects();
 
   // Frees unmarked objects.
   void FreeUnmarkedObjects();
-
-  void InsertChunkMapEntries(LargePage* page);
-  void RemoveChunkMapEntries(LargePage* page);
-  void RemoveChunkMapEntries(LargePage* page, Address free_start);
 
   void PromoteNewLargeObject(LargePage* page);
 
@@ -3049,13 +3037,13 @@ class LargeObjectSpace : public Space {
   bool Contains(HeapObject obj);
   // Checks whether an address is in the object area in this space. Iterates
   // all objects in the space. May be slow.
-  bool ContainsSlow(Address addr) { return FindObject(addr)->IsHeapObject(); }
+  bool ContainsSlow(Address addr);
 
   // Checks whether the space is empty.
   bool IsEmpty() { return first_page() == nullptr; }
 
-  void Register(LargePage* page, size_t object_size);
-  void Unregister(LargePage* page, size_t object_size);
+  virtual void AddPage(LargePage* page, size_t object_size);
+  virtual void RemovePage(LargePage* page, size_t object_size);
 
   LargePage* first_page() {
     return reinterpret_cast<LargePage*>(Space::first_page());
@@ -3068,8 +3056,6 @@ class LargeObjectSpace : public Space {
   iterator end() { return iterator(nullptr); }
 
   std::unique_ptr<ObjectIterator> GetObjectIterator() override;
-
-  base::Mutex* chunk_map_mutex() { return &chunk_map_mutex_; }
 
 #ifdef VERIFY_HEAP
   virtual void Verify(Isolate* isolate);
@@ -3089,13 +3075,6 @@ class LargeObjectSpace : public Space {
   size_t objects_size_;  // size of objects
 
  private:
-  // The chunk_map_mutex_ has to be used when the chunk map is accessed
-  // concurrently.
-  base::Mutex chunk_map_mutex_;
-
-  // Page-aligned addresses to their corresponding LargePage.
-  std::unordered_map<Address, LargePage*> chunk_map_;
-
   friend class LargeObjectIterator;
 };
 
@@ -3119,6 +3098,22 @@ class CodeLargeObjectSpace : public LargeObjectSpace {
 
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT AllocationResult
   AllocateRaw(int object_size);
+
+  // Finds a large object page containing the given address, returns nullptr
+  // if such a page doesn't exist.
+  LargePage* FindPage(Address a);
+
+ protected:
+  void AddPage(LargePage* page, size_t object_size) override;
+  void RemovePage(LargePage* page, size_t object_size) override;
+
+ private:
+  static const size_t kInitialChunkMapCapacity = 1024;
+  void InsertChunkMapEntries(LargePage* page);
+  void RemoveChunkMapEntries(LargePage* page);
+
+  // Page-aligned addresses to their corresponding LargePage.
+  std::unordered_map<Address, LargePage*> chunk_map_;
 };
 
 class LargeObjectIterator : public ObjectIterator {
