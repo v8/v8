@@ -64,6 +64,8 @@ v8_source_set("cctest_sources") {
     "compiler/function-tester.cc",
     "compiler/function-tester.h",
     "compiler/graph-builder-tester.h",
+    "compiler/serializer-tester.cc",
+    "compiler/serializer-tester.h",
     "compiler/test-basic-block-profiler.cc",
     "compiler/test-branch-combine.cc",
     "compiler/test-code-assembler.cc",
