@@ -436,8 +436,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   BreakableStatement* LookupBreakTarget(const AstRawString* label);
   IterationStatement* LookupContinueTarget(const AstRawString* label);
 
-  Statement* BuildAssertIsCoercible(Variable* var, ObjectLiteral* pattern);
-
   // Factory methods.
   FunctionLiteral* DefaultConstructor(const AstRawString* name, bool call_super,
                                       int pos, int end_pos);
@@ -528,9 +526,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   Expression* RewriteSpreads(ArrayLiteral* lit);
 
-  friend class InitializerRewriter;
-  void RewriteParameterInitializer(Expression* expr);
-
   Expression* BuildInitialYield(int pos, FunctionKind kind);
   Assignment* BuildCreateJSGeneratorObject(int pos, FunctionKind kind);
 
@@ -539,8 +534,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                             MessageTemplate message, const AstRawString* arg,
                             int pos);
 
-  Statement* FinalizeForOfStatement(ForOfStatement* loop, Variable* completion,
-                                    IteratorType type, int pos);
   Statement* CheckCallable(Variable* var, Expression* error, int pos);
 
   void RewriteAsyncFunctionBody(ScopedPtrList<Statement>* body, Block* block,

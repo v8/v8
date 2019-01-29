@@ -2535,65 +2535,6 @@ bool Parser::SkipFunction(const AstRawString* function_name, FunctionKind kind,
   return true;
 }
 
-Statement* Parser::BuildAssertIsCoercible(Variable* var,
-                                          ObjectLiteral* pattern) {
-  // if (var === null || var === undefined)
-  //     throw /* type error kNonCoercible) */;
-  auto source_position = pattern->position();
-  const AstRawString* property = ast_value_factory()->empty_string();
-  MessageTemplate msg = MessageTemplate::kNonCoercible;
-  for (ObjectLiteralProperty* literal_property : *pattern->properties()) {
-    Expression* key = literal_property->key();
-    if (key->IsPropertyName()) {
-      property = key->AsLiteral()->AsRawPropertyName();
-      msg = MessageTemplate::kNonCoercibleWithProperty;
-      source_position = key->position();
-      break;
-    }
-  }
-
-  Expression* condition = factory()->NewBinaryOperation(
-      Token::OR,
-      factory()->NewCompareOperation(
-          Token::EQ_STRICT, factory()->NewVariableProxy(var),
-          factory()->NewUndefinedLiteral(kNoSourcePosition), kNoSourcePosition),
-      factory()->NewCompareOperation(
-          Token::EQ_STRICT, factory()->NewVariableProxy(var),
-          factory()->NewNullLiteral(kNoSourcePosition), kNoSourcePosition),
-      kNoSourcePosition);
-  Expression* throw_type_error =
-      NewThrowTypeError(msg, property, source_position);
-  IfStatement* if_statement = factory()->NewIfStatement(
-      condition,
-      factory()->NewExpressionStatement(throw_type_error, kNoSourcePosition),
-      factory()->EmptyStatement(), kNoSourcePosition);
-  return if_statement;
-}
-
-class InitializerRewriter final
-    : public AstTraversalVisitor<InitializerRewriter> {
- public:
-  InitializerRewriter(uintptr_t stack_limit, Expression* root, Parser* parser)
-      : AstTraversalVisitor(stack_limit, root), parser_(parser) {}
-
- private:
-  // This is required so that the overriden Visit* methods can be
-  // called by the base class (template).
-  friend class AstTraversalVisitor<InitializerRewriter>;
-
-  // Code in function literals does not need to be eagerly rewritten, it will be
-  // rewritten when scheduled.
-  void VisitFunctionLiteral(FunctionLiteral* expr) {}
-
-  Parser* parser_;
-};
-
-void Parser::RewriteParameterInitializer(Expression* expr) {
-  if (has_error()) return;
-  InitializerRewriter rewriter(stack_limit_, expr, this);
-  rewriter.Run();
-}
-
 Block* Parser::BuildParameterInitializationBlock(
     const ParserFormalParameters& parameters) {
   DCHECK(!parameters.is_simple);
@@ -2606,19 +2547,6 @@ Block* Parser::BuildParameterInitializationBlock(
         factory()->NewVariableProxy(parameters.scope->parameter(index));
     if (parameter->initializer() != nullptr) {
       // IS_UNDEFINED($param) ? initializer : $param
-
-      if (parameter->initializer()->IsClassLiteral()) {
-        //  Initializers could have their own scopes. So set the scope
-        //  here if necessary.
-        BlockState block_state(
-            &scope_, parameter->initializer()->AsClassLiteral()->scope());
-
-        // Ensure initializer is rewritten
-        RewriteParameterInitializer(parameter->initializer());
-      } else {
-        // Ensure initializer is rewritten
-        RewriteParameterInitializer(parameter->initializer());
-      }
 
       auto condition = factory()->NewCompareOperation(
           Token::EQ_STRICT,
