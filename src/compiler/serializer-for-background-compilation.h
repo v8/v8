@@ -186,9 +186,8 @@ class SerializerForBackgroundCompilation {
 
   class Environment;
 
-  void ProcessCallOrConstruct(const Hints& callee,
-                              base::Optional<Hints> new_target,
-                              const HintsVector& arguments,
+  void ProcessCallOrConstruct(Hints callee, base::Optional<Hints> new_target,
+                              const HintsVector& arguments, FeedbackSlot slot,
                               bool with_spread = false);
   void ProcessCallVarArgs(interpreter::BytecodeArrayIterator* iterator,
                           ConvertReceiverMode receiver_mode,

@@ -9,6 +9,7 @@
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/objects/code.h"
 #include "src/objects/shared-function-info-inl.h"
+#include "src/vector-slot-pair.h"
 #include "src/zone/zone.h"
 
 namespace v8 {
@@ -333,52 +334,56 @@ void SerializerForBackgroundCompilation::VisitCallUndefinedReceiver(
 
 void SerializerForBackgroundCompilation::VisitCallUndefinedReceiver0(
     BytecodeArrayIterator* iterator) {
+  const Hints& callee =
+      environment()->register_hints(iterator->GetRegisterOperand(0));
+  FeedbackSlot slot = FeedbackVector::ToSlot(iterator->GetIndexOperand(1));
+
   Hints receiver(zone());
   receiver.AddConstant(broker()->isolate()->factory()->undefined_value());
 
-  const Hints& callee =
-      environment()->register_hints(iterator->GetRegisterOperand(0));
-
   HintsVector parameters(zone());
   parameters.push_back(receiver);
-  ProcessCallOrConstruct(callee, base::nullopt, parameters);
+
+  ProcessCallOrConstruct(callee, base::nullopt, parameters, slot);
 }
 
 void SerializerForBackgroundCompilation::VisitCallUndefinedReceiver1(
     BytecodeArrayIterator* iterator) {
-  Hints receiver(zone());
-  receiver.AddConstant(broker()->isolate()->factory()->undefined_value());
-
   const Hints& callee =
       environment()->register_hints(iterator->GetRegisterOperand(0));
   const Hints& arg0 =
       environment()->register_hints(iterator->GetRegisterOperand(1));
+  FeedbackSlot slot = FeedbackVector::ToSlot(iterator->GetIndexOperand(2));
+
+  Hints receiver(zone());
+  receiver.AddConstant(broker()->isolate()->factory()->undefined_value());
 
   HintsVector parameters(zone());
   parameters.push_back(receiver);
   parameters.push_back(arg0);
 
-  ProcessCallOrConstruct(callee, base::nullopt, parameters);
+  ProcessCallOrConstruct(callee, base::nullopt, parameters, slot);
 }
 
 void SerializerForBackgroundCompilation::VisitCallUndefinedReceiver2(
     BytecodeArrayIterator* iterator) {
-  Hints receiver(zone());
-  receiver.AddConstant(broker()->isolate()->factory()->undefined_value());
-
   const Hints& callee =
       environment()->register_hints(iterator->GetRegisterOperand(0));
   const Hints& arg0 =
       environment()->register_hints(iterator->GetRegisterOperand(1));
   const Hints& arg1 =
       environment()->register_hints(iterator->GetRegisterOperand(2));
+  FeedbackSlot slot = FeedbackVector::ToSlot(iterator->GetIndexOperand(3));
+
+  Hints receiver(zone());
+  receiver.AddConstant(broker()->isolate()->factory()->undefined_value());
 
   HintsVector parameters(zone());
   parameters.push_back(receiver);
   parameters.push_back(arg0);
   parameters.push_back(arg1);
 
-  ProcessCallOrConstruct(callee, base::nullopt, parameters);
+  ProcessCallOrConstruct(callee, base::nullopt, parameters, slot);
 }
 
 void SerializerForBackgroundCompilation::VisitCallAnyReceiver(
@@ -402,11 +407,12 @@ void SerializerForBackgroundCompilation::VisitCallProperty0(
       environment()->register_hints(iterator->GetRegisterOperand(0));
   const Hints& receiver =
       environment()->register_hints(iterator->GetRegisterOperand(1));
+  FeedbackSlot slot = FeedbackVector::ToSlot(iterator->GetIndexOperand(2));
 
   HintsVector parameters(zone());
   parameters.push_back(receiver);
 
-  ProcessCallOrConstruct(callee, base::nullopt, parameters);
+  ProcessCallOrConstruct(callee, base::nullopt, parameters, slot);
 }
 
 void SerializerForBackgroundCompilation::VisitCallProperty1(
@@ -417,12 +423,13 @@ void SerializerForBackgroundCompilation::VisitCallProperty1(
       environment()->register_hints(iterator->GetRegisterOperand(1));
   const Hints& arg0 =
       environment()->register_hints(iterator->GetRegisterOperand(2));
+  FeedbackSlot slot = FeedbackVector::ToSlot(iterator->GetIndexOperand(3));
 
   HintsVector parameters(zone());
   parameters.push_back(receiver);
   parameters.push_back(arg0);
 
-  ProcessCallOrConstruct(callee, base::nullopt, parameters);
+  ProcessCallOrConstruct(callee, base::nullopt, parameters, slot);
 }
 
 void SerializerForBackgroundCompilation::VisitCallProperty2(
@@ -435,13 +442,14 @@ void SerializerForBackgroundCompilation::VisitCallProperty2(
       environment()->register_hints(iterator->GetRegisterOperand(2));
   const Hints& arg1 =
       environment()->register_hints(iterator->GetRegisterOperand(3));
+  FeedbackSlot slot = FeedbackVector::ToSlot(iterator->GetIndexOperand(4));
 
   HintsVector parameters(zone());
   parameters.push_back(receiver);
   parameters.push_back(arg0);
   parameters.push_back(arg1);
 
-  ProcessCallOrConstruct(callee, base::nullopt, parameters);
+  ProcessCallOrConstruct(callee, base::nullopt, parameters, slot);
 }
 
 void SerializerForBackgroundCompilation::VisitCallWithSpread(
@@ -474,9 +482,37 @@ Hints SerializerForBackgroundCompilation::RunChildSerializer(
   return child_serializer.Run();
 }
 
+namespace {
+base::Optional<HeapObjectRef> GetHeapObjectFeedback(
+    JSHeapBroker* broker, Handle<FeedbackVector> feedback_vector,
+    FeedbackSlot slot) {
+  if (slot.IsInvalid()) return base::nullopt;
+  FeedbackNexus nexus(feedback_vector, slot);
+  VectorSlotPair feedback(feedback_vector, slot, nexus.ic_state());
+  DCHECK(feedback.IsValid());
+  if (nexus.IsUninitialized()) return base::nullopt;
+  HeapObject object;
+  if (!nexus.GetFeedback()->GetHeapObject(&object)) return base::nullopt;
+  return HeapObjectRef(broker, handle(object, broker->isolate()));
+}
+}  // namespace
+
 void SerializerForBackgroundCompilation::ProcessCallOrConstruct(
-    const Hints& callee, base::Optional<Hints> new_target,
-    const HintsVector& arguments, bool with_spread) {
+    Hints callee, base::Optional<Hints> new_target,
+    const HintsVector& arguments, FeedbackSlot slot, bool with_spread) {
+  // Incorporate feedback into hints.
+  base::Optional<HeapObjectRef> feedback = GetHeapObjectFeedback(
+      broker(), environment()->function().feedback_vector, slot);
+  if (feedback.has_value() && feedback->map().is_callable()) {
+    if (new_target.has_value()) {
+      // Construct; feedback is new_target.
+      new_target->AddConstant(feedback->object());
+    } else {
+      // Call; feedback is callee.
+      callee.AddConstant(feedback->object());
+    }
+  }
+
   environment()->accumulator_hints().Clear();
 
   for (auto hint : callee.constants()) {
@@ -503,6 +539,10 @@ void SerializerForBackgroundCompilation::ProcessCallVarArgs(
       environment()->register_hints(iterator->GetRegisterOperand(0));
   interpreter::Register first_reg = iterator->GetRegisterOperand(1);
   int reg_count = static_cast<int>(iterator->GetRegisterCountOperand(2));
+  FeedbackSlot slot;
+  if (iterator->current_bytecode() != interpreter::Bytecode::kCallNoFeedback) {
+    slot = FeedbackVector::ToSlot(iterator->GetIndexOperand(3));
+  }
 
   HintsVector arguments(zone());
   // The receiver is either given in the first register or it is implicitly
@@ -514,7 +554,7 @@ void SerializerForBackgroundCompilation::ProcessCallVarArgs(
   }
   environment()->ExportRegisterHints(first_reg, reg_count, arguments);
 
-  ProcessCallOrConstruct(callee, base::nullopt, arguments);
+  ProcessCallOrConstruct(callee, base::nullopt, arguments, slot);
 }
 
 void SerializerForBackgroundCompilation::VisitReturn(
@@ -538,12 +578,13 @@ void SerializerForBackgroundCompilation::VisitConstruct(
       environment()->register_hints(iterator->GetRegisterOperand(0));
   interpreter::Register first_reg = iterator->GetRegisterOperand(1);
   size_t reg_count = iterator->GetRegisterCountOperand(2);
+  FeedbackSlot slot = FeedbackVector::ToSlot(iterator->GetIndexOperand(3));
   const Hints& new_target = environment()->accumulator_hints();
 
   HintsVector arguments(zone());
   environment()->ExportRegisterHints(first_reg, reg_count, arguments);
 
-  ProcessCallOrConstruct(callee, new_target, arguments);
+  ProcessCallOrConstruct(callee, new_target, arguments, slot);
 }
 
 void SerializerForBackgroundCompilation::VisitConstructWithSpread(
@@ -552,12 +593,13 @@ void SerializerForBackgroundCompilation::VisitConstructWithSpread(
       environment()->register_hints(iterator->GetRegisterOperand(0));
   interpreter::Register first_reg = iterator->GetRegisterOperand(1);
   size_t reg_count = iterator->GetRegisterCountOperand(2);
+  FeedbackSlot slot = FeedbackVector::ToSlot(iterator->GetIndexOperand(3));
   const Hints& new_target = environment()->accumulator_hints();
 
   HintsVector arguments(zone());
   environment()->ExportRegisterHints(first_reg, reg_count, arguments);
 
-  ProcessCallOrConstruct(callee, new_target, arguments, true);
+  ProcessCallOrConstruct(callee, new_target, arguments, slot, true);
 }
 
 #define DEFINE_SKIPPED_JUMP(name, ...)                  \
