@@ -2197,7 +2197,9 @@ wasm::WasmCode* Pipeline::GenerateCodeForWasmNativeStub(
 
   CodeGenerator* code_generator = pipeline.code_generator();
   CodeDesc code_desc;
-  code_generator->tasm()->GetCode(nullptr, &code_desc);
+  code_generator->tasm()->GetCode(
+      nullptr, &code_desc, code_generator->safepoint_table_builder(),
+      static_cast<int>(code_generator->GetHandlerTableOffset()));
 
   // We do not expect any tagged parameters being passed to stubs.
   DCHECK_EQ(0, call_descriptor->GetTaggedParameterSlots());
@@ -2445,7 +2447,9 @@ void Pipeline::GenerateCodeForWasmFunction(
 
   auto result = base::make_unique<wasm::WasmCompilationResult>();
   CodeGenerator* code_generator = pipeline.code_generator();
-  code_generator->tasm()->GetCode(nullptr, &result->code_desc);
+  code_generator->tasm()->GetCode(
+      nullptr, &result->code_desc, code_generator->safepoint_table_builder(),
+      static_cast<int>(code_generator->GetHandlerTableOffset()));
 
   result->instr_buffer = instruction_buffer->ReleaseBuffer();
   result->frame_slot_count = code_generator->frame()->GetTotalFrameSlotCount();

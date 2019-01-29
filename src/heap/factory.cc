@@ -78,20 +78,34 @@ void InitializeCode(Heap* heap, Handle<Code> code, int object_size,
       !heap->memory_allocator()->code_range().is_empty(),
       heap->memory_allocator()->code_range().contains(code->address()));
 
-  bool has_unwinding_info = desc.unwinding_info != nullptr;
+  // TODO(jgruber): Remove safepoint table and handler table parameters and drop
+  // the 2 postfix from the local variables below.
+  DCHECK((safepoint_table_offset == 0 && desc.safepoint_table_size == 0) ||
+         (desc.safepoint_table_size > 0 &&
+          desc.safepoint_table_offset == safepoint_table_offset));
+  DCHECK((handler_table_offset == 0 && desc.handler_table_size == 0) ||
+         (desc.handler_table_size > 0 &&
+          desc.handler_table_offset == handler_table_offset));
+
+  const int safepoint_table_offset2 =
+      desc.safepoint_table_size == 0 ? 0 : desc.safepoint_table_offset;
+  const int handler_table_offset2 =
+      desc.handler_table_size == 0 ? 0 : desc.handler_table_offset;
+
+  constexpr bool kIsNotOffHeapTrampoline = false;
+  const bool has_unwinding_info = desc.unwinding_info != nullptr;
 
   code->set_raw_instruction_size(desc.instr_size);
   code->set_relocation_info(*reloc_info);
-  const bool is_off_heap_trampoline = false;
   code->initialize_flags(kind, has_unwinding_info, is_turbofanned, stack_slots,
-                         is_off_heap_trampoline);
-  code->set_safepoint_table_offset(safepoint_table_offset);
-  code->set_handler_table_offset(handler_table_offset);
+                         kIsNotOffHeapTrampoline);
   code->set_code_data_container(*data_container);
   code->set_deoptimization_data(*deopt_data);
   code->set_source_position_table(*source_position_table);
-  code->set_constant_pool_offset(desc.constant_pool_offset());
-  code->set_code_comments_offset(desc.code_comments_offset());
+  code->set_safepoint_table_offset(safepoint_table_offset2);
+  code->set_handler_table_offset(handler_table_offset2);
+  code->set_constant_pool_offset(desc.constant_pool_offset);
+  code->set_code_comments_offset(desc.code_comments_offset);
   code->set_builtin_index(builtin_index);
 
   // Allow self references to created code object by patching the handle to

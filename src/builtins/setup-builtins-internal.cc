@@ -116,7 +116,8 @@ Code BuildWithMacroAssembler(Isolate* isolate, int32_t builtin_index,
   }
 
   CodeDesc desc;
-  masm.GetCode(isolate, &desc);
+  masm.GetCode(isolate, &desc, MacroAssembler::kNoSafepointTable,
+               handler_table_offset);
 
   static constexpr bool kIsNotTurbofanned = false;
   static constexpr int kStackSlots = 0;

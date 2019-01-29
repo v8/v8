@@ -51,6 +51,8 @@
 namespace v8 {
 namespace internal {
 
+class SafepointTableBuilder;
+
 // Utility functions
 
 enum Condition {
@@ -316,10 +318,17 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
                      std::unique_ptr<AssemblerBuffer> = {});
   ~Assembler() override = default;
 
-  // GetCode emits any pending (non-emitted) code and fills the descriptor
-  // desc. GetCode() is idempotent; it returns the same result if no other
-  // Assembler functions are invoked in between GetCode() calls.
-  void GetCode(Isolate* isolate, CodeDesc* desc);
+  // GetCode emits any pending (non-emitted) code and fills the descriptor desc.
+  static constexpr int kNoHandlerTable = 0;
+  static constexpr SafepointTableBuilder* kNoSafepointTable = nullptr;
+  void GetCode(Isolate* isolate, CodeDesc* desc,
+               SafepointTableBuilder* safepoint_table_builder,
+               int handler_table_offset);
+
+  // Convenience wrapper for code without safepoint or handler tables.
+  void GetCode(Isolate* isolate, CodeDesc* desc) {
+    GetCode(isolate, desc, kNoSafepointTable, kNoHandlerTable);
+  }
 
   void FinalizeJumpOptimizationInfo();
 

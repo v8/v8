@@ -134,6 +134,7 @@ class CodeGenerator final : public GapResolver::Assembler {
 
   Zone* zone() const { return zone_; }
   TurboAssembler* tasm() { return &tasm_; }
+  SafepointTableBuilder* safepoint_table_builder() { return &safepoints_; }
   size_t GetSafepointTableOffset() const { return safepoints_.GetCodeOffset(); }
   size_t GetHandlerTableOffset() const { return handler_table_offset_; }
 

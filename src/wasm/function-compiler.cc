@@ -198,6 +198,19 @@ WasmCode* WasmCompilationUnit::Publish(WasmCompilationResult result,
                                  ? WasmCode::kLiftoff
                                  : WasmCode::kTurbofan;
   DCHECK_EQ(result.code_desc.buffer, result.instr_buffer.get());
+
+  // TODO(jgruber): Use the safepoint and handler table offsets in CodeDesc.
+  DCHECK((result.safepoint_table_offset == 0 &&
+          result.code_desc.safepoint_table_size == 0) ||
+         (result.code_desc.safepoint_table_size > 0 &&
+          result.code_desc.safepoint_table_offset ==
+              static_cast<int>(result.safepoint_table_offset)));
+  DCHECK((result.handler_table_offset == 0 &&
+          result.code_desc.handler_table_size == 0) ||
+         (result.code_desc.handler_table_size > 0 &&
+          result.code_desc.handler_table_offset ==
+              static_cast<int>(result.handler_table_offset)));
+
   WasmCode* code = native_module->AddCode(
       func_index_, result.code_desc, result.frame_slot_count,
       result.tagged_parameter_slots, result.safepoint_table_offset,

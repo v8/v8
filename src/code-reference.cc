@@ -50,7 +50,7 @@ struct CodeDescOps {
   const CodeDesc* code_desc;
 
   Address constant_pool() const {
-    return instruction_start() + code_desc->constant_pool_offset();
+    return instruction_start() + code_desc->constant_pool_offset;
   }
   Address instruction_start() const {
     return reinterpret_cast<Address>(code_desc->buffer);
@@ -60,14 +60,14 @@ struct CodeDescOps {
   }
   int instruction_size() const { return code_desc->instr_size; }
   const byte* relocation_start() const {
-    return code_desc->buffer + code_desc->buffer_size - code_desc->reloc_size;
+    return code_desc->buffer + code_desc->reloc_offset;
   }
   const byte* relocation_end() const {
     return code_desc->buffer + code_desc->buffer_size;
   }
   int relocation_size() const { return code_desc->reloc_size; }
   Address code_comments() const {
-    return instruction_start() + code_desc->code_comments_size;
+    return instruction_start() + code_desc->code_comments_offset;
   }
 };
 }  // namespace

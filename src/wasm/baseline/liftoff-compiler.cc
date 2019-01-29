@@ -176,7 +176,10 @@ class LiftoffCompiler {
 
   bool ok() const { return ok_; }
 
-  void GetCode(CodeDesc* desc) { asm_.GetCode(nullptr, desc); }
+  void GetCode(CodeDesc* desc) {
+    asm_.GetCode(nullptr, desc, &safepoint_table_builder_,
+                 Assembler::kNoHandlerTable);
+  }
 
   OwnedVector<uint8_t> GetSourcePositionTable() {
     return source_position_table_builder_.ToSourcePositionTableVector();

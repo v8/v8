@@ -768,32 +768,75 @@ enum ParseRestriction {
 // A CodeDesc describes a buffer holding instructions and relocation
 // information. The instructions start at the beginning of the buffer
 // and grow forward, the relocation information starts at the end of
-// the buffer and grows backward.  A constant pool and a code comments
-// section may exist at the in this order at the end of the instructions.
+// the buffer and grows backward. Inlined metadata sections may exist
+// at the end of the instructions.
 //
 //  │<--------------- buffer_size ----------------------------------->│
 //  │<---------------- instr_size ------------->│      │<-reloc_size->│
-//  │              │<-const pool->│             │      │              │
-//  │                             │<- comments->│      │              │
 //  ├───────────────────────────────────────────┼──────┼──────────────┤
 //  │ instructions │         data               │ free │  reloc info  │
 //  ├───────────────────────────────────────────┴──────┴──────────────┘
-//  buffer
 
-struct CodeDesc {
+// TODO(jgruber): Remove safepoint and handler table offset parameters passed
+// around for Code creation methods and rely on CodeDesc exclusively.
+// TODO(jgruber): Likewise for WasmCompilationResult.
+// TODO(jgruber): Change Code::safepoint_table_offset() semantics to always
+// contain a real offset, and add has_safepoint_table() and
+// safepoint_table_size() helpers. Likewise for other inlined metadata.
+// TODO(jgruber): Update documentation about inlined metadata in code.h.
+// TODO(jgruber): Add a single chokepoint for specifying the instruction area
+// layout (i.e. the order of inlined metadata fields).
+// TODO(jgruber): Systematically maintain inlined metadata offsets and sizes
+// to simplify CodeDesc initialization.
+
+class CodeDesc {
+ public:
+  static void Initialize(CodeDesc* desc, Assembler* assembler,
+                         int safepoint_table_offset, int handler_table_offset,
+                         int constant_pool_offset, int code_comments_offset,
+                         int reloc_info_offset);
+
+#ifdef DEBUG
+  static void Verify(const CodeDesc* desc);
+#else
+  inline static void Verify(const CodeDesc* desc) {}
+#endif
+
+ public:
   byte* buffer = nullptr;
   int buffer_size = 0;
+
+  // The instruction area contains executable code plus inlined metadata.
+
   int instr_size = 0;
-  int reloc_size = 0;
+
+  // Metadata packed into the instructions area.
+
+  int safepoint_table_offset = 0;
+  int safepoint_table_size = 0;
+
+  int handler_table_offset = 0;
+  int handler_table_size = 0;
+
+  int constant_pool_offset = 0;
   int constant_pool_size = 0;
+
+  int code_comments_offset = 0;
   int code_comments_size = 0;
-  byte* unwinding_info = 0;
+
+  // Relocation info is located at the end of the buffer and not part of the
+  // instructions area.
+
+  int reloc_offset = 0;
+  int reloc_size = 0;
+
+  // Unwinding information.
+  // TODO(jgruber,mstarzinger): Pack this into the inlined metadata section.
+
+  byte* unwinding_info = nullptr;
   int unwinding_info_size = 0;
+
   Assembler* origin = nullptr;
-  int constant_pool_offset() const {
-    return code_comments_offset() - constant_pool_size;
-  }
-  int code_comments_offset() const { return instr_size - code_comments_size; }
 };
 
 // State for inline cache call sites. Aliased as IC::State.
@@ -802,7 +845,7 @@ enum InlineCacheState {
   NO_FEEDBACK,
   // Has never been executed.
   UNINITIALIZED,
-  // Has been executed but monomorhic state has been delayed.
+  // Has been executed but monomorphic state has been delayed.
   PREMONOMORPHIC,
   // Has been executed and only one receiver type has been seen.
   MONOMORPHIC,

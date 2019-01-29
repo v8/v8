@@ -12,7 +12,7 @@ namespace v8 {
 namespace internal {
 
 class Code;
-struct CodeDesc;
+class CodeDesc;
 
 namespace wasm {
 class WasmCode;

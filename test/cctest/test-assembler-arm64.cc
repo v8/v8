@@ -162,7 +162,10 @@ static void InitializeVM() {
   core.Dump(&masm);                                         \
   __ PopCalleeSavedRegisters();                             \
   __ Ret();                                                 \
-  __ GetCode(masm.isolate(), nullptr);
+  {                                                         \
+    CodeDesc desc;                                          \
+    __ GetCode(masm.isolate(), &desc);                      \
+  }
 
 #else  // ifdef USE_SIMULATOR.
 // Run the test on real hardware or models.
@@ -198,11 +201,14 @@ static void InitializeVM() {
     test_function();                                 \
   }
 
-#define END()                   \
-  core.Dump(&masm);             \
-  __ PopCalleeSavedRegisters(); \
-  __ Ret();                     \
-  __ GetCode(masm.isolate(), nullptr);
+#define END()                          \
+  core.Dump(&masm);                    \
+  __ PopCalleeSavedRegisters();        \
+  __ Ret();                            \
+  {                                    \
+    CodeDesc desc;                     \
+    __ GetCode(masm.isolate(), &desc); \
+  }
 
 #endif  // ifdef USE_SIMULATOR.
 
