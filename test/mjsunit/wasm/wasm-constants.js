@@ -76,6 +76,7 @@ let kWasmFunctionTypeForm = 0x60;
 let kWasmAnyFunctionTypeForm = 0x70;
 
 let kHasMaximumFlag = 1;
+let kSharedHasMaximumFlag = 3;
 
 // Segment flags
 let kActiveNoIndex = 0;
@@ -492,21 +493,4 @@ function assertTraps(trap, code) {
     return;
   }
   throw new MjsUnitAssertionError('Did not trap, expected: ' + kTrapMsgs[trap]);
-}
-
-function wasmI32Const(val) {
-  let bytes = [kExprI32Const];
-  for (let i = 0; i < 4; ++i) {
-    bytes.push(0x80 | ((val >> (7 * i)) & 0x7f));
-  }
-  bytes.push((val >> (7 * 4)) & 0x7f);
-  return bytes;
-}
-
-function wasmF32Const(f) {
-  return [kExprF32Const].concat(Array.from(new Uint8Array((new Float32Array([f])).buffer)));
-}
-
-function wasmF64Const(f) {
-  return [kExprF64Const].concat(Array.from(new Uint8Array((new Float64Array([f])).buffer)));
 }

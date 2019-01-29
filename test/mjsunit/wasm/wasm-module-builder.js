@@ -4,7 +4,7 @@
 
 // Used for encoding f32 and double constants to bits.
 let __buffer = new ArrayBuffer(8);
-let byte_view = new Int8Array(__buffer);
+let byte_view = new Uint8Array(__buffer);
 let f32_view = new Float32Array(__buffer);
 let f64_view = new Float64Array(__buffer);
 
@@ -26,6 +26,18 @@ class Binary extends Array {
   }
 
   emit_u32v(val) {
+    while (true) {
+      let v = val & 0xff;
+      val = val >>> 7;
+      if (val == 0) {
+        this.push(v);
+        break;
+      }
+      this.push(v | 0x80);
+    }
+  }
+
+  emit_u64v(val) {
     while (true) {
       let v = val & 0xff;
       val = val >>> 7;
@@ -452,9 +464,9 @@ class WasmModuleBuilder {
         const is_shared = wasm.memory.shared !== undefined;
         // Emit flags (bit 0: reszeable max, bit 1: shared memory)
         if (is_shared) {
-          section.emit_u8(has_max ? 3 : 2);
+          section.emit_u8(has_max ? kSharedHasMaximumFlag : 2);
         } else {
-          section.emit_u8(has_max ? 1 : 0);
+          section.emit_u8(has_max ? kHasMaximumFlag : 0);
         }
         section.emit_u32v(wasm.memory.min);
         if (has_max) section.emit_u32v(wasm.memory.max);
@@ -478,7 +490,7 @@ class WasmModuleBuilder {
               break;
             case kWasmI64:
               section.emit_u8(kExprI64Const);
-              section.emit_u32v(global.init);
+              section.emit_u64v(global.init);
               break;
             case kWasmF32:
               section.emit_u8(kExprF32Const);
@@ -735,6 +747,10 @@ class WasmModuleBuilder {
     return buffer;
   }
 
+  toUint8Array(debug = false) {
+      return new Uint8Array(this.toBuffer(debug));
+  }
+
   instantiate(ffi) {
     let module = new WebAssembly.Module(this.toBuffer());
     let instance = new WebAssembly.Instance(module, ffi);
@@ -749,4 +765,24 @@ class WasmModuleBuilder {
   toModule(debug = false) {
     return new WebAssembly.Module(this.toBuffer(debug));
   }
+}
+
+function wasmI32Const(val) {
+  let bytes = [kExprI32Const];
+  for (let i = 0; i < 4; ++i) {
+    bytes.push(0x80 | ((val >> (7 * i)) & 0x7f));
+  }
+  bytes.push((val >> (7 * 4)) & 0x7f);
+  return bytes;
+}
+
+function wasmF32Const(f) {
+  f32_view[0] = f;
+  return [kExprF32Const, byte_view[0], byte_view[1], byte_view[2], byte_view[3]];
+}
+
+function wasmF64Const(f) {
+  f64_view[0] = f;
+  return [kExprF64Const, byte_view[0], byte_view[1], byte_view[2], byte_view[3],
+          byte_view[4], byte_view[5], byte_view[6], byte_view[7]];
 }
