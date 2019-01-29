@@ -174,7 +174,7 @@ class LiftoffCompiler {
         compilation_zone_(compilation_zone),
         safepoint_table_builder_(compilation_zone_) {}
 
-  ~LiftoffCompiler() { BindUnboundLabels(nullptr); }
+  ~LiftoffCompiler() { UnuseLabels(nullptr); }
 
   bool ok() const { return ok_; }
 
@@ -199,7 +199,7 @@ class LiftoffCompiler {
     TRACE("unsupported: %s\n", reason);
     decoder->errorf(decoder->pc_offset(), "unsupported liftoff operation: %s",
                     reason);
-    BindUnboundLabels(decoder);
+    UnuseLabels(decoder);
   }
 
   bool DidAssemblerBailout(FullDecoder* decoder) {
@@ -225,23 +225,21 @@ class LiftoffCompiler {
     return safepoint_table_builder_.GetCodeOffset();
   }
 
-  void BindUnboundLabels(FullDecoder* decoder) {
+  void UnuseLabels(FullDecoder* decoder) {
 #ifdef DEBUG
-    // Bind all labels now, otherwise their destructor will fire a DCHECK error
+    auto Unuse = [](Label* label) {
+      label->Unuse();
+      label->UnuseNear();
+    };
+    // Unuse all labels now, otherwise their destructor will fire a DCHECK error
     // if they where referenced before.
     uint32_t control_depth = decoder ? decoder->control_depth() : 0;
     for (uint32_t i = 0; i < control_depth; ++i) {
       Control* c = decoder->control_at(i);
-      Label* label = c->label.get();
-      if (!label->is_bound()) __ bind(label);
-      if (c->else_state) {
-        Label* else_label = c->else_state->label.get();
-        if (!else_label->is_bound()) __ bind(else_label);
-      }
+      Unuse(c->label.get());
+      if (c->else_state) Unuse(c->else_state->label.get());
     }
-    for (auto& ool : out_of_line_code_) {
-      if (!ool.label.get()->is_bound()) __ bind(ool.label.get());
-    }
+    for (auto& ool : out_of_line_code_) Unuse(ool.label.get());
 #endif
   }
 
@@ -451,7 +449,7 @@ class LiftoffCompiler {
 
   void OnFirstError(FullDecoder* decoder) {
     ok_ = false;
-    BindUnboundLabels(decoder);
+    UnuseLabels(decoder);
     asm_.AbortCompilation();
   }
 
