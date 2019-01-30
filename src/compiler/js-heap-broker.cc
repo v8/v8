@@ -2495,7 +2495,7 @@ ObjectRef::ObjectRef(JSHeapBroker* broker, Handle<Object> object)
     case JSHeapBroker::kRetired:
       UNREACHABLE();
   }
-  CHECK_NOT_NULL(data_);
+  CHECK_WITH_MSG(data_ != nullptr, "Object is not known to the heap broker");
 }
 
 namespace {
@@ -2688,6 +2688,10 @@ void JSFunctionRef::Serialize() {
   if (broker()->mode() == JSHeapBroker::kDisabled) return;
   CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
   data()->AsJSFunction()->Serialize(broker());
+}
+
+bool JSFunctionRef::IsSerializedForCompilation() const {
+  return shared().IsSerializedForCompilation(feedback_vector());
 }
 
 void SharedFunctionInfoRef::SetSerializedForCompilation(

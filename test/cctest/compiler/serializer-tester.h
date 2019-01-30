@@ -14,11 +14,21 @@ namespace compiler {
 
 class ZoneStats;
 
+// The purpose of this class is to provide testing facility for the
+// SerializerForBackgroundCompilation class. On a high-level, it executes the
+// following steps:
+// 1. Wraps the provided source in an IIFE
+// 2. Generates bytecode for the given source
+// 3. Runs the bytecode which *must* return a function
+// 4. Takes the returned function and optimizes it
+// 5. The optimized function is accessible through `function()`
 class SerializerTester : public HandleAndZoneScope {
  public:
   explicit SerializerTester(const char* source);
 
   JSFunctionRef function() const { return function_.value(); }
+  JSHeapBroker* broker() const { return broker_; }
+  Isolate* isolate() { return main_isolate(); }
 
  private:
   CanonicalHandleScope canonical_;
