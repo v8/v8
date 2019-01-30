@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-namespace array {
+namespace array_join {
   type LoadJoinElementFn = builtin(Context, JSReceiver, Number) => Object;
 
   // Fast C call to write a fixed array (see Buffer.fixedArray) to a single
@@ -16,7 +16,7 @@ namespace array {
     return GetProperty(receiver, k);
   }
 
-  LoadJoinElement<DictionaryElements>(
+  LoadJoinElement<array::DictionaryElements>(
       context: Context, receiver: JSReceiver, k: Number): Object {
     const array: JSArray = UnsafeCast<JSArray>(receiver);
     const dict: NumberDictionary = UnsafeCast<NumberDictionary>(array.elements);
@@ -32,7 +32,7 @@ namespace array {
     }
   }
 
-  LoadJoinElement<FastSmiOrObjectElements>(
+  LoadJoinElement<array::FastSmiOrObjectElements>(
       context: Context, receiver: JSReceiver, k: Number): Object {
     const array: JSArray = UnsafeCast<JSArray>(receiver);
     const fixedArray: FixedArray = UnsafeCast<FixedArray>(array.elements);
@@ -40,7 +40,7 @@ namespace array {
     return element == Hole ? kEmptyString : element;
   }
 
-  LoadJoinElement<FastDoubleElements>(
+  LoadJoinElement<array::FastDoubleElements>(
       context: Context, receiver: JSReceiver, k: Number): Object {
     const array: JSArray = UnsafeCast<JSArray>(receiver);
     const fixedDoubleArray: FixedDoubleArray =
@@ -98,7 +98,7 @@ namespace array {
       loadFn: LoadJoinElementFn, receiver: JSReceiver, originalMap: Map,
       originalLen: Number): never
       labels Cannot, Can {
-    if (loadFn == LoadJoinElement<GenericElementsAccessor>) goto Can;
+    if (loadFn == LoadJoinElement<array::GenericElementsAccessor>) goto Can;
 
     const array: JSArray = UnsafeCast<JSArray>(receiver);
     if (originalMap != array.map) goto Cannot;
@@ -280,7 +280,7 @@ namespace array {
       if (CannotUseSameArrayAccessor<T>(
               loadFn, receiver, initialMap, lengthNumber))
         deferred {
-          loadFn = LoadJoinElement<GenericElementsAccessor>;
+          loadFn = LoadJoinElement<array::GenericElementsAccessor>;
         }
 
       if (k > 0) {
@@ -343,9 +343,9 @@ namespace array {
       if (IsNoElementsProtectorCellInvalid()) goto IfSlowPath;
 
       if (IsElementsKindLessThanOrEqual(kind, HOLEY_ELEMENTS)) {
-        loadFn = LoadJoinElement<FastSmiOrObjectElements>;
+        loadFn = LoadJoinElement<array::FastSmiOrObjectElements>;
       } else if (IsElementsKindLessThanOrEqual(kind, HOLEY_DOUBLE_ELEMENTS)) {
-        loadFn = LoadJoinElement<FastDoubleElements>;
+        loadFn = LoadJoinElement<array::FastDoubleElements>;
       } else if (kind == DICTIONARY_ELEMENTS)
         deferred {
           const dict: NumberDictionary =
@@ -362,7 +362,7 @@ namespace array {
               ThrowInvalidStringLength(context);
             }
           } else {
-            loadFn = LoadJoinElement<DictionaryElements>;
+            loadFn = LoadJoinElement<array::DictionaryElements>;
           }
         }
       else {
@@ -370,7 +370,7 @@ namespace array {
       }
     }
     label IfSlowPath {
-      loadFn = LoadJoinElement<GenericElementsAccessor>;
+      loadFn = LoadJoinElement<array::GenericElementsAccessor>;
     }
     return ArrayJoinImpl<JSArray>(
         receiver, sep, lenNumber, useToLocaleString, locales, options, loadFn);

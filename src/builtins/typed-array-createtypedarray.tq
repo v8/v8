@@ -4,7 +4,7 @@
 
 #include 'src/builtins/builtins-constructor-gen.h'
 
-namespace typed_array {
+namespace typed_array_createtypedarray {
   extern builtin IterableToListMayPreserveHoles(Context, Object, Callable):
       JSArray;
   extern builtin TypedArrayInitialize(implicit context: Context)(
@@ -29,7 +29,7 @@ namespace typed_array {
 
   macro TypedArrayInitializeWithBuffer(
       typedArray: JSTypedArray, length: PositiveSmi, buffer: JSArrayBuffer,
-      elementsInfo: TypedArrayElementsInfo, byteOffset: Number) {
+      elementsInfo: typed_array::TypedArrayElementsInfo, byteOffset: Number) {
     const byteLength: Number = SmiMul(length, elementsInfo.size);
 
     SetupTypedArray(
@@ -43,7 +43,7 @@ namespace typed_array {
   // ES #sec-typedarray-length
   macro ConstructByLength(implicit context: Context)(
       typedArray: JSTypedArray, length: Object,
-      elementsInfo: TypedArrayElementsInfo): void {
+      elementsInfo: typed_array::TypedArrayElementsInfo): void {
     const convertedLength: Number =
         ToInteger_Inline(context, length, kTruncateMinusZero);
     // The maximum length of a TypedArray is MaxSmi().
@@ -63,7 +63,7 @@ namespace typed_array {
   // ES #sec-typedarray-object
   macro ConstructByArrayLike(implicit context: Context)(
       typedArray: JSTypedArray, arrayLike: HeapObject, initialLength: Object,
-      elementsInfo: TypedArrayElementsInfo,
+      elementsInfo: typed_array::TypedArrayElementsInfo,
       bufferConstructor: JSReceiver): void {
     // The caller has looked up length on arrayLike, which is observable.
     const length: PositiveSmi = ToSmiLength(initialLength)
@@ -99,7 +99,7 @@ namespace typed_array {
   // ES #sec-typedarray-object
   macro ConstructByIterable(implicit context: Context)(
       typedArray: JSTypedArray, iterable: JSReceiver, iteratorFn: Callable,
-      elementsInfo: TypedArrayElementsInfo): void {
+      elementsInfo: typed_array::TypedArrayElementsInfo): void {
     const array: JSArray =
         IterableToListMayPreserveHoles(context, iterable, iteratorFn);
     ConstructByArrayLike(
@@ -111,7 +111,7 @@ namespace typed_array {
   // ES #sec-typedarray-typedarray
   macro ConstructByTypedArray(implicit context: Context)(
       typedArray: JSTypedArray, srcTypedArray: JSTypedArray,
-      elementsInfo: TypedArrayElementsInfo): void {
+      elementsInfo: typed_array::TypedArrayElementsInfo): void {
     let bufferConstructor: JSReceiver = GetArrayBufferFunction();
     const srcBuffer: JSArrayBuffer = srcTypedArray.buffer;
     // TODO(petermarshall): Throw on detached typedArray.
@@ -144,7 +144,7 @@ namespace typed_array {
   // ES #sec-typedarray-buffer-byteoffset-length
   macro ConstructByArrayBuffer(implicit context: Context)(
       typedArray: JSTypedArray, buffer: JSArrayBuffer, byteOffset: Object,
-      length: Object, elementsInfo: TypedArrayElementsInfo): void {
+      length: Object, elementsInfo: typed_array::TypedArrayElementsInfo): void {
     try {
       let offset: Number = FromConstexpr<Smi>(0);
       if (byteOffset != Undefined) {
@@ -220,7 +220,7 @@ namespace typed_array {
 
   transitioning macro ConstructByJSReceiver(implicit context: Context)(
       array: JSTypedArray, obj: JSReceiver,
-      elementsInfo: TypedArrayElementsInfo) {
+      elementsInfo: typed_array::TypedArrayElementsInfo) {
     try {
       const iteratorMethod: Object =
           GetIteratorMethod(obj) otherwise IfIteratorUndefined;
@@ -259,8 +259,8 @@ namespace typed_array {
 
     // 5. Let elementSize be the Number value of the Element Size value in Table
     // 56 for constructorName.
-    const elementsInfo: TypedArrayElementsInfo =
-        GetTypedArrayElementsInfo(array);
+    const elementsInfo: typed_array::TypedArrayElementsInfo =
+        typed_array::GetTypedArrayElementsInfo(array);
 
     try {
       typeswitch (arg1) {

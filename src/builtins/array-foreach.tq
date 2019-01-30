@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-namespace array {
+namespace array_foreach {
   transitioning javascript builtin
   ArrayForEachLoopEagerDeoptContinuation(implicit context: Context)(
       receiver: Object, callback: Object, thisArg: Object, initialK: Object,
