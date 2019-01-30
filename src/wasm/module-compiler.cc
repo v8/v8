@@ -216,7 +216,7 @@ class CompilationStateImpl {
         : func_index(func_index), error(std::move(error)) {}
   };
 
-  void NotifyOnEvent(CompilationEvent event, const WasmError* error);
+  void NotifyOnEvent(CompilationEvent event);
 
   std::vector<std::unique_ptr<WasmCompilationUnit>>& finish_units() {
     return baseline_compilation_finished() ? tiering_finish_units_
@@ -1081,7 +1081,7 @@ class AsyncCompileJob::CompilationStateCallback {
  public:
   explicit CompilationStateCallback(AsyncCompileJob* job) : job_(job) {}
 
-  void operator()(CompilationEvent event, const WasmError* error) {
+  void operator()(CompilationEvent event) {
     // This callback is only being called from a foreground task.
     switch (event) {
       case CompilationEvent::kFinishedBaselineCompilation:
@@ -1099,14 +1099,12 @@ class AsyncCompileJob::CompilationStateCallback {
         break;
       case CompilationEvent::kFailedCompilation:
         DCHECK(!last_event_.has_value());
-        DCHECK_NOT_NULL(error);
         // Tier-up compilation should not fail if baseline compilation
         // did not fail.
         DCHECK(!Impl(job_->native_module_->compilation_state())
                     ->baseline_compilation_finished());
 
-        // Note: The WasmError is copied here for use in the foreground task.
-        job_->DoSync<CompileFailed, kUseExistingForegroundTask>(*error);
+        job_->DoSync<CompileFailed, kUseExistingForegroundTask>();
         break;
       default:
         UNREACHABLE();
@@ -1350,15 +1348,12 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
 //==========================================================================
 class AsyncCompileJob::CompileFailed : public CompileStep {
  public:
-  explicit CompileFailed(WasmError error) : error_(std::move(error)) {}
-
   void RunInForeground(AsyncCompileJob* job) override {
     TRACE_COMPILE("(4b) Compilation Failed...\n");
-    return job->AsyncCompileFailed("Async compilation failed", error_);
+    WasmError error =
+        Impl(job->native_module_->compilation_state())->GetCompileError();
+    return job->AsyncCompileFailed("Async compilation failed", error);
   }
-
- private:
-  WasmError error_;
 };
 
 void AsyncCompileJob::CompileWrappers() {
@@ -1736,7 +1731,7 @@ void CompilationStateImpl::OnFinishedUnit(ExecutionTier tier, WasmCode* code) {
       for (auto event : {CompilationEvent::kFinishedBaselineCompilation,
                          CompilationEvent::kFinishedTopTierCompilation}) {
         if (!events.contains(event)) continue;
-        NotifyOnEvent(event, nullptr);
+        NotifyOnEvent(event);
       }
     };
     foreground_task_runner_->PostTask(
@@ -1845,17 +1840,14 @@ void CompilationStateImpl::SetError(uint32_t func_index,
   compile_error.release();
   // Schedule a foreground task to call the callback and notify users about the
   // compile error.
-  foreground_task_runner_->PostTask(
-      MakeCancelableTask(&foreground_task_manager_, [this] {
-        WasmError error = GetCompileError();
-        NotifyOnEvent(CompilationEvent::kFailedCompilation, &error);
-      }));
+  foreground_task_runner_->PostTask(MakeCancelableTask(
+      &foreground_task_manager_,
+      [this] { NotifyOnEvent(CompilationEvent::kFailedCompilation); }));
 }
 
-void CompilationStateImpl::NotifyOnEvent(CompilationEvent event,
-                                         const WasmError* error) {
+void CompilationStateImpl::NotifyOnEvent(CompilationEvent event) {
   HandleScope scope(isolate_);
-  for (auto& callback : callbacks_) callback(event, error);
+  for (auto& callback : callbacks_) callback(event);
   // If no more events are expected after this one, clear the callbacks to free
   // memory. We can safely do this here, as this method is only called from
   // foreground tasks.

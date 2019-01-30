@@ -98,7 +98,8 @@ enum class CompilationEvent : uint8_t {
 // This is the PIMPL interface to that private class.
 class CompilationState {
  public:
-  using callback_t = std::function<void(CompilationEvent, const WasmError*)>;
+  using callback_t = std::function<void(CompilationEvent)>;
+
   ~CompilationState();
 
   void CancelAndWait();

@@ -128,9 +128,8 @@ class TopTierCompiledCallback {
       : native_module_(std::move(native_module)),
         callback_(std::move(callback)) {}
 
-  void operator()(CompilationEvent event, const WasmError* error) const {
+  void operator()(CompilationEvent event) const {
     if (event != CompilationEvent::kFinishedTopTierCompilation) return;
-    DCHECK_NULL(error);
     // If the native module is still alive, get back a shared ptr and call the
     // callback.
     if (std::shared_ptr<NativeModule> native_module = native_module_.lock()) {
