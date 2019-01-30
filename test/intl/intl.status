@@ -59,5 +59,7 @@
   'relative-time-format/default-locale-fr-CA': [SKIP],
   'relative-time-format/default-locale-pt-BR': [SKIP],
   'default_locale': [SKIP],
+  # Unable to change locale and TZ on Android:
+  'regress-7770': [SKIP],
 }],  # 'system == android'
 ]
