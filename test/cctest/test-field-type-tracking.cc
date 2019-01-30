@@ -341,6 +341,12 @@ class Expectations {
     return map;
   }
 
+  void ChangeAttributesForAllProperties(PropertyAttributes attributes) {
+    for (int i = 0; i < number_of_properties_; i++) {
+      attributes_[i] = attributes;
+    }
+  }
+
   Handle<Map> AddDataField(Handle<Map> map, PropertyAttributes attributes,
                            PropertyConstness constness,
                            Representation representation,
@@ -2374,23 +2380,33 @@ TEST(ElementsKindTransitionFromMapOwningDescriptor) {
       FieldType::Class(Map::Create(isolate, 0), isolate);
 
   struct TestConfig {
+    TestConfig(PropertyAttributes attributes, Handle<Symbol> symbol)
+        : attributes(attributes), symbol(symbol) {}
+
     Handle<Map> Transition(Handle<Map> map, Expectations& expectations) {
-      Handle<Symbol> frozen_symbol(map->GetReadOnlyRoots().frozen_symbol(),
-                                   CcTest::i_isolate());
       expectations.SetElementsKind(DICTIONARY_ELEMENTS);
-      return Map::CopyForPreventExtensions(CcTest::i_isolate(), map, NONE,
-                                           frozen_symbol,
-                                           "CopyForPreventExtensions");
+      expectations.ChangeAttributesForAllProperties(attributes);
+      return Map::CopyForPreventExtensions(CcTest::i_isolate(), map, attributes,
+                                           symbol, "CopyForPreventExtensions");
     }
     // TODO(ishell): remove once IS_PROTO_TRANS_ISSUE_FIXED is removed.
     bool generalizes_representations() const { return false; }
     bool is_non_equevalent_transition() const { return true; }
+
+    PropertyAttributes attributes;
+    Handle<Symbol> symbol;
   };
-  TestConfig config;
-  TestGeneralizeFieldWithSpecialTransition(
-      config, {PropertyConstness::kMutable, Representation::Smi(), any_type},
-      {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
-      {PropertyConstness::kMutable, Representation::Tagged(), any_type});
+  Factory* factory = isolate->factory();
+  TestConfig configs[] = {{FROZEN, factory->frozen_symbol()},
+                          {SEALED, factory->sealed_symbol()},
+                          {NONE, factory->nonextensible_symbol()}};
+  for (size_t i = 0; i < arraysize(configs); i++) {
+    TestGeneralizeFieldWithSpecialTransition(
+        configs[i],
+        {PropertyConstness::kMutable, Representation::Smi(), any_type},
+        {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
+        {PropertyConstness::kMutable, Representation::Tagged(), any_type});
+  }
 }
 
 
@@ -2404,6 +2420,9 @@ TEST(ElementsKindTransitionFromMapNotOwningDescriptor) {
       FieldType::Class(Map::Create(isolate, 0), isolate);
 
   struct TestConfig {
+    TestConfig(PropertyAttributes attributes, Handle<Symbol> symbol)
+        : attributes(attributes), symbol(symbol) {}
+
     Handle<Map> Transition(Handle<Map> map, Expectations& expectations) {
       Isolate* isolate = CcTest::i_isolate();
       Handle<FieldType> any_type = FieldType::Any(isolate);
@@ -2417,21 +2436,29 @@ TEST(ElementsKindTransitionFromMapNotOwningDescriptor) {
           .ToHandleChecked();
       CHECK(!map->owns_descriptors());
 
-      Handle<Symbol> frozen_symbol(ReadOnlyRoots(isolate).frozen_symbol(),
-                                   isolate);
       expectations.SetElementsKind(DICTIONARY_ELEMENTS);
-      return Map::CopyForPreventExtensions(isolate, map, NONE, frozen_symbol,
+      expectations.ChangeAttributesForAllProperties(attributes);
+      return Map::CopyForPreventExtensions(isolate, map, attributes, symbol,
                                            "CopyForPreventExtensions");
     }
     // TODO(ishell): remove once IS_PROTO_TRANS_ISSUE_FIXED is removed.
     bool generalizes_representations() const { return false; }
     bool is_non_equevalent_transition() const { return true; }
+
+    PropertyAttributes attributes;
+    Handle<Symbol> symbol;
   };
-  TestConfig config;
-  TestGeneralizeFieldWithSpecialTransition(
-      config, {PropertyConstness::kMutable, Representation::Smi(), any_type},
-      {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
-      {PropertyConstness::kMutable, Representation::Tagged(), any_type});
+  Factory* factory = isolate->factory();
+  TestConfig configs[] = {{FROZEN, factory->frozen_symbol()},
+                          {SEALED, factory->sealed_symbol()},
+                          {NONE, factory->nonextensible_symbol()}};
+  for (size_t i = 0; i < arraysize(configs); i++) {
+    TestGeneralizeFieldWithSpecialTransition(
+        configs[i],
+        {PropertyConstness::kMutable, Representation::Smi(), any_type},
+        {PropertyConstness::kMutable, Representation::HeapObject(), value_type},
+        {PropertyConstness::kMutable, Representation::Tagged(), any_type});
+  }
 }
 
 
