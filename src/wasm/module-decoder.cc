@@ -367,7 +367,7 @@ class ModuleDecoderImpl : public Decoder {
     // Check if the section is out-of-order.
     if (section_code < next_ordered_section_ &&
         section_code < kFirstUnorderedSection) {
-      errorf(pc(), "unexpected section: %s", SectionName(section_code));
+      errorf(pc(), "unexpected section <%s>", SectionName(section_code));
       return;
     }
 
@@ -446,18 +446,18 @@ class ModuleDecoderImpl : public Decoder {
         if (enabled_features_.bulk_memory) {
           DecodeDataCountSection();
         } else {
-          errorf(pc(), "unexpected section: %s", SectionName(section_code));
+          errorf(pc(), "unexpected section <%s>", SectionName(section_code));
         }
         break;
       case kExceptionSectionCode:
         if (enabled_features_.eh) {
           DecodeExceptionSection();
         } else {
-          errorf(pc(), "unexpected section: %s", SectionName(section_code));
+          errorf(pc(), "unexpected section <%s>", SectionName(section_code));
         }
         break;
       default:
-        errorf(pc(), "unexpected section: %s", SectionName(section_code));
+        errorf(pc(), "unexpected section <%s>", SectionName(section_code));
         return;
     }
 
@@ -680,7 +680,8 @@ class ModuleDecoderImpl : public Decoder {
       switch (exp->kind) {
         case kExternalFunction: {
           WasmFunction* func = nullptr;
-          exp->index = consume_func_index(module_.get(), &func);
+          exp->index =
+              consume_func_index(module_.get(), &func, "export function index");
           module_->num_exported_functions++;
           if (func) func->exported = true;
           break;
@@ -757,7 +758,8 @@ class ModuleDecoderImpl : public Decoder {
   void DecodeStartSection() {
     WasmFunction* func;
     const byte* pos = pc_;
-    module_->start_function_index = consume_func_index(module_.get(), &func);
+    module_->start_function_index =
+        consume_func_index(module_.get(), &func, "start function index");
     if (func &&
         (func->sig->parameter_count() > 0 || func->sig->return_count() > 0)) {
       error(pos, "invalid start function: non-zero parameter or return count");
@@ -804,7 +806,8 @@ class ModuleDecoderImpl : public Decoder {
       WasmElemSegment* init = &module_->elem_segments.back();
       for (uint32_t j = 0; j < num_elem; j++) {
         WasmFunction* func = nullptr;
-        uint32_t index = consume_func_index(module_.get(), &func);
+        uint32_t index =
+            consume_func_index(module_.get(), &func, "element function index");
         DCHECK_IMPLIES(ok(), func != nullptr);
         if (!ok()) break;
         DCHECK_EQ(index, func->func_index);
@@ -1267,8 +1270,9 @@ class ModuleDecoderImpl : public Decoder {
     return count;
   }
 
-  uint32_t consume_func_index(WasmModule* module, WasmFunction** func) {
-    return consume_index("function index", module->functions, func);
+  uint32_t consume_func_index(WasmModule* module, WasmFunction** func,
+                              const char* name) {
+    return consume_index(name, module->functions, func);
   }
 
   uint32_t consume_global_index(WasmModule* module, WasmGlobal** global) {

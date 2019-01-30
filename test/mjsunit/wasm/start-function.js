@@ -46,7 +46,7 @@ assertThrows(() => {instantiate(kSig_i_v, [kExprI32Const, 0]);});
   assertThrows(
       () => builder.instantiate(), WebAssembly.CompileError,
       'WebAssembly.Module(): Wasm decoding failed: ' +
-          'function index 1 out of bounds (1 entry) @+20');
+          'start function index 1 out of bounds (1 entry) @+20');
 })();
 
 
@@ -63,7 +63,7 @@ assertThrows(() => {instantiate(kSig_i_v, [kExprI32Const, 0]);});
   assertThrows(
       () => builder.instantiate(), WebAssembly.CompileError,
       'WebAssembly.Module(): Wasm decoding failed: ' +
-          'unexpected section: Start @+27');
+          'unexpected section <Start> @+27');
 })();
 
 

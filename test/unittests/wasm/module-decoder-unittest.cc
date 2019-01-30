@@ -584,7 +584,7 @@ TEST_F(WasmModuleVerifyTest, ExceptionSectionBeforeGlobal) {
 
   WASM_FEATURE_SCOPE(eh);
   ModuleResult result = DecodeModule(data, data + sizeof(data));
-  EXPECT_NOT_OK(result, "unexpected section: Global");
+  EXPECT_NOT_OK(result, "unexpected section <Global>");
 }
 
 TEST_F(WasmModuleVerifyTest, ExceptionSectionAfterMemoryBeforeGlobal) {
@@ -596,7 +596,7 @@ TEST_F(WasmModuleVerifyTest, ExceptionSectionAfterMemoryBeforeGlobal) {
 
   WASM_FEATURE_SCOPE(eh);
   ModuleResult result = DecodeModule(data, data + sizeof(data));
-  EXPECT_NOT_OK(result, "unexpected section: Global");
+  EXPECT_NOT_OK(result, "unexpected section <Global>");
 }
 
 TEST_F(WasmModuleVerifyTest, ExceptionImport) {
@@ -2291,7 +2291,7 @@ TEST_F(WasmModuleVerifyTest, DataCountSectionBeforeElement) {
                               SECTION(Element, ENTRY_COUNT(0))};
   WASM_FEATURE_SCOPE(bulk_memory);
   ModuleResult result = DecodeModule(data, data + sizeof(data));
-  EXPECT_NOT_OK(result, "unexpected section: Element");
+  EXPECT_NOT_OK(result, "unexpected section <Element>");
 }
 
 TEST_F(WasmModuleVerifyTest, DataCountSectionAfterStartBeforeElement) {
@@ -2309,7 +2309,7 @@ TEST_F(WasmModuleVerifyTest, DataCountSectionAfterStartBeforeElement) {
   };
   WASM_FEATURE_SCOPE(bulk_memory);
   ModuleResult result = DecodeModule(data, data + sizeof(data));
-  EXPECT_NOT_OK(result, "unexpected section: Element");
+  EXPECT_NOT_OK(result, "unexpected section <Element>");
 }
 
 TEST_F(WasmModuleVerifyTest, MultipleDataCountSections) {

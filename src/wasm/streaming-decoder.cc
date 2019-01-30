@@ -486,7 +486,7 @@ StreamingDecoder::SectionBuffer* StreamingDecoder::CreateNewBuffer(
   // Check the order of sections. Unknown sections can appear at any position.
   if (section_id != kUnknownSectionCode) {
     if (section_id < next_section_id_) {
-      Error("Unexpected section");
+      Error("unexpected section");
       return nullptr;
     }
     next_section_id_ = section_id + 1;
