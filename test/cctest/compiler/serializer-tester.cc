@@ -162,6 +162,24 @@ TEST(SerializeCallArguments) {
       "  return j;"
       "}; f(); return f;");
 }
+
+TEST(SerializeConstruct) {
+  CheckForSerializedInlinee(
+      "function g() {};"
+      "function f() {"
+      "  new g(); return g;"
+      "}; f(); return f;");
+}
+
+TEST(SerializeConstructWithSpread) {
+  CheckForSerializedInlinee(
+      "function g(a, b, c) {};"
+      "const arr = [1, 2];"
+      "function f() {"
+      "  new g(0, ...arr); return g;"
+      "}; f(); return f;");
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

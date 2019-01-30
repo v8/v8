@@ -487,8 +487,9 @@ void SerializerForBackgroundCompilation::ProcessCallOrConstruct(
       broker(), environment()->function().feedback_vector, slot);
   if (feedback.has_value() && feedback->map().is_callable()) {
     if (new_target.has_value()) {
-      // Construct; feedback is new_target.
+      // Construct; feedback is new_target, which often is also the callee.
       new_target->AddConstant(feedback->object());
+      callee.AddConstant(feedback->object());
     } else {
       // Call; feedback is callee.
       callee.AddConstant(feedback->object());
