@@ -49,8 +49,9 @@ void CreateSplinter(TopLevelLiveRange* range, RegisterAllocationData* data,
       range->SetSplinter(splinter);
     }
     Zone* zone = data->allocation_zone();
-    TRACE("creating splinter for range %d between %d and %d\n", range->vreg(),
-          start.ToInstructionIndex(), end.ToInstructionIndex());
+    TRACE("creating splinter %d for range %d between %d and %d\n",
+          range->splinter()->vreg(), range->vreg(), start.ToInstructionIndex(),
+          end.ToInstructionIndex());
     range->Splinter(start, end, zone);
   }
 }
@@ -73,7 +74,10 @@ void SplinterLiveRange(TopLevelLiveRange* range, RegisterAllocationData* data) {
   LifetimePosition last_cut = LifetimePosition::Invalid();
 
   while (interval != nullptr) {
+    // We have to cache these here, as splintering might destroy the original
+    // interval below.
     UseInterval* next_interval = interval->next();
+    LifetimePosition interval_end = interval->end();
     const InstructionBlock* first_block =
         code->GetInstructionBlock(interval->FirstGapIndex());
     const InstructionBlock* last_block =
@@ -88,6 +92,12 @@ void SplinterLiveRange(TopLevelLiveRange* range, RegisterAllocationData* data) {
           first_cut = LifetimePosition::GapFromInstructionIndex(
               current_block->first_instruction_index());
         }
+        // We splinter until the last gap in the block. I assume this is done to
+        // leave a little range to be allocated by normal register allocation
+        // and then use that range to connect when splinters are merged back.
+        // This might be done as control flow resolution does not insert moves
+        // if two consecutive blocks in rpo order are also consecutive in
+        // control flow.
         last_cut = LifetimePosition::GapFromInstructionIndex(
             current_block->last_instruction_index());
       } else {
@@ -98,12 +108,19 @@ void SplinterLiveRange(TopLevelLiveRange* range, RegisterAllocationData* data) {
         }
       }
     }
+    // If we reach the end of an interval with a first_cut and last_cut set, it
+    // means that we can splinter to the end of the interval, as the value dies
+    // in this control flow branch or is not live in the next block. In the
+    // former case, we won't need to reload the value, so we can splinter to the
+    // end of its lifetime. In the latter case, control flow resolution will
+    // have to connect blocks anyway, so we can also splinter to the end of the
+    // block, too.
+    if (first_cut.IsValid()) {
+      CreateSplinter(range, data, first_cut, interval_end);
+      first_cut = LifetimePosition::Invalid();
+      last_cut = LifetimePosition::Invalid();
+    }
     interval = next_interval;
-  }
-  // When the range ends in deferred blocks, first_cut will be valid here.
-  // Splinter from there to the last instruction that was in a deferred block.
-  if (first_cut.IsValid()) {
-    CreateSplinter(range, data, first_cut, last_cut);
   }
 
   // Redo has_slot_use
