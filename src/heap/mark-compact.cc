@@ -2286,9 +2286,7 @@ void MarkCompactCollector::ClearJSWeakRefs() {
   }
   JSWeakRef weak_ref;
   while (weak_objects_.js_weak_refs.Pop(kMainThread, &weak_ref)) {
-    // We do not insert cleared weak cells into the list, so the value
-    // cannot be undefined here.
-    JSReceiver target = JSReceiver::cast(weak_ref->target());
+    HeapObject target = HeapObject::cast(weak_ref->target());
     if (!non_atomic_marking_state()->IsBlackOrGrey(target)) {
       weak_ref->set_target(ReadOnlyRoots(isolate()).undefined_value());
     } else {

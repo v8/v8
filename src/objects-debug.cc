@@ -1297,6 +1297,7 @@ void JSMapIterator::JSMapIteratorVerify(Isolate* isolate) {
 void WeakCell::WeakCellVerify(Isolate* isolate) {
   CHECK(IsWeakCell());
 
+  CHECK(target()->IsJSReceiver() || target()->IsUndefined(isolate));
   CHECK(next()->IsWeakCell() || next()->IsUndefined(isolate));
   if (next()->IsWeakCell()) {
     CHECK_EQ(WeakCell::cast(next())->prev(), *this);

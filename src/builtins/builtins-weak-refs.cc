@@ -136,8 +136,9 @@ BUILTIN(WeakRefConstructor) {
         NewTypeError(
             MessageTemplate::kWeakRefsWeakRefConstructorTargetMustBeObject));
   }
-  isolate->heap()->AddKeepDuringJobTarget(
-      Handle<JSReceiver>::cast(target_object));
+  Handle<JSReceiver> target_receiver =
+      handle(JSReceiver::cast(*target_object), isolate);
+  isolate->heap()->AddKeepDuringJobTarget(target_receiver);
 
   // TODO(marja): Realms.
 
@@ -147,7 +148,7 @@ BUILTIN(WeakRefConstructor) {
       JSObject::New(target, new_target, Handle<AllocationSite>::null()));
 
   Handle<JSWeakRef> weak_ref = Handle<JSWeakRef>::cast(result);
-  weak_ref->set_target(*target_object);
+  weak_ref->set_target(*target_receiver);
   return *weak_ref;
 }
 

@@ -90,7 +90,7 @@ class WeakCell : public HeapObject {
   DECL_CAST(WeakCell)
 
   DECL_ACCESSORS(finalization_group, Object)
-  DECL_ACCESSORS(target, Object)
+  DECL_ACCESSORS(target, HeapObject)
   DECL_ACCESSORS(holdings, Object)
 
   // For storing doubly linked lists of WeakCells in JSFinalizationGroup's
@@ -144,7 +144,7 @@ class JSWeakRef : public JSObject {
   DECL_VERIFIER(JSWeakRef)
   DECL_CAST(JSWeakRef)
 
-  DECL_ACCESSORS(target, Object)
+  DECL_ACCESSORS(target, HeapObject)
 
   static const int kTargetOffset = JSObject::kHeaderSize;
   static const int kSize = kTargetOffset + kPointerSize;

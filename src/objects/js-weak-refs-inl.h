@@ -35,7 +35,7 @@ ACCESSORS(JSFinalizationGroup, next, Object, kNextOffset)
 CAST_ACCESSOR(JSFinalizationGroup)
 
 ACCESSORS(WeakCell, finalization_group, Object, kFinalizationGroupOffset)
-ACCESSORS(WeakCell, target, Object, kTargetOffset)
+ACCESSORS(WeakCell, target, HeapObject, kTargetOffset)
 ACCESSORS(WeakCell, holdings, Object, kHoldingsOffset)
 ACCESSORS(WeakCell, next, Object, kNextOffset)
 ACCESSORS(WeakCell, prev, Object, kPrevOffset)
@@ -45,7 +45,7 @@ ACCESSORS(WeakCell, key_list_prev, Object, kKeyListPrevOffset)
 CAST_ACCESSOR(WeakCell)
 
 CAST_ACCESSOR(JSWeakRef)
-ACCESSORS(JSWeakRef, target, Object, kTargetOffset)
+ACCESSORS(JSWeakRef, target, HeapObject, kTargetOffset)
 
 ACCESSORS(JSFinalizationGroupCleanupIterator, finalization_group,
           JSFinalizationGroup, kFinalizationGroupOffset)
