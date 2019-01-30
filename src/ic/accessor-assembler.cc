@@ -124,8 +124,10 @@ void AccessorAssembler::HandlePolymorphicCase(
     int handler_index = i * kEntrySize + 1;
 
     if (i >= min_feedback_capacity) {
-      if (length == nullptr) length = LoadWeakFixedArrayLength(feedback);
-      GotoIf(SmiGreaterThanOrEqual(SmiConstant(handler_index), CAST(length)),
+      if (length == nullptr) {
+        length = LoadAndUntagWeakFixedArrayLength(feedback);
+      }
+      GotoIf(IntPtrGreaterThanOrEqual(IntPtrConstant(handler_index), length),
              if_miss);
     }
 
@@ -149,7 +151,8 @@ void AccessorAssembler::HandlePolymorphicCase(
   // Loop from {kUnrolledIterations}*kEntrySize to {length}.
   BIND(&loop);
   Node* start_index = IntPtrConstant(kUnrolledIterations * kEntrySize);
-  Node* end_index = LoadAndUntagWeakFixedArrayLength(feedback);
+  Node* end_index =
+      length != nullptr ? length : LoadAndUntagWeakFixedArrayLength(feedback);
   BuildFastLoop(
       start_index, end_index,
       [this, receiver_map, feedback, if_handler, var_handler](Node* index) {
