@@ -479,8 +479,23 @@ MaybeHandle<BigInt> BigInt::Multiply(Isolate* isolate, Handle<BigInt> x,
     return MaybeHandle<BigInt>();
   }
   result->InitializeDigits(result_length);
+  uintptr_t work_estimate = 0;
   for (int i = 0; i < x->length(); i++) {
     MutableBigInt::MultiplyAccumulate(y, x->digit(i), result, i);
+
+    // Multiplication can take a long time. Check for interrupt requests
+    // every now and then (roughly every 10-20 of milliseconds -- rarely
+    // enough not to create noticeable overhead, frequently enough not to
+    // appear frozen).
+    work_estimate += y->length();
+    if (work_estimate > 5000000) {
+      work_estimate = 0;
+      StackLimitCheck interrupt_check(isolate);
+      if (interrupt_check.InterruptRequested() &&
+          isolate->stack_guard()->HandleInterrupts()->IsException(isolate)) {
+        return MaybeHandle<BigInt>();
+      }
+    }
   }
   result->set_sign(x->sign() != y->sign());
   return MutableBigInt::MakeImmutable(result);
@@ -1525,6 +1540,7 @@ bool MutableBigInt::AbsoluteDivLarge(Isolate* isolate,
   // Iterate over the dividend's digit (like the "grad school" algorithm).
   // {vn1} is the divisor's most significant digit.
   digit_t vn1 = divisor->digit(n - 1);
+  uintptr_t work_estimate = 0;
   for (int j = m; j >= 0; j--) {
     // D3.
     // Estimate the current iteration's quotient digit (see Knuth for details).
@@ -1568,6 +1584,20 @@ bool MutableBigInt::AbsoluteDivLarge(Isolate* isolate,
     }
 
     if (quotient != nullptr) q->set_digit(j, qhat);
+
+    // Division can take a long time. Check for interrupt requests every
+    // now and then (roughly every 10-20 of milliseconds -- rarely enough
+    // not to create noticeable overhead, frequently enough not to appear
+    // frozen).
+    work_estimate += n;
+    if (work_estimate > 5000000) {
+      work_estimate = 0;
+      StackLimitCheck interrupt_check(isolate);
+      if (interrupt_check.InterruptRequested() &&
+          isolate->stack_guard()->HandleInterrupts()->IsException(isolate)) {
+        return false;
+      }
+    }
   }
   if (quotient != nullptr) {
     *quotient = q;  // Caller will right-trim.
@@ -2080,6 +2110,7 @@ MaybeHandle<String> MutableBigInt::ToStringGeneric(Isolate* isolate,
     // In the first round, divide the input, allocating a new BigInt for
     // the result == rest; from then on divide the rest in-place.
     Handle<BigIntBase>* dividend = &x;
+    uintptr_t work_estimate = 0;
     do {
       digit_t chunk;
       AbsoluteDivSmall(isolate, *dividend, chunk_divisor, &rest, &chunk);
@@ -2096,6 +2127,32 @@ MaybeHandle<String> MutableBigInt::ToStringGeneric(Isolate* isolate,
       // We can never clear more than one digit per iteration, because
       // chunk_divisor is smaller than max digit value.
       DCHECK_GT(rest->digit(nonzero_digit), 0);
+
+      // String formatting can take a long time. Check for interrupt requests
+      // every now and then (roughly every 10-20 of milliseconds -- rarely
+      // enough not to create noticeable overhead, frequently enough not to
+      // appear frozen).
+      work_estimate += length;
+      if (work_estimate > 500000) {
+        work_estimate = 0;
+        StackLimitCheck interrupt_check(isolate);
+        if (interrupt_check.InterruptRequested()) {
+          {
+            AllowHeapAllocation might_throw;
+            if (isolate->stack_guard()->HandleInterrupts()->IsException(
+                    isolate)) {
+              return MaybeHandle<String>();
+            }
+          }
+          // If there was an interrupt request but no termination, reload
+          // the raw characters pointer (as the string might have moved).
+          chars = result->GetChars(no_gc);
+        }
+        if (interrupt_check.InterruptRequested() &&
+            isolate->stack_guard()->HandleInterrupts()->IsException(isolate)) {
+          return MaybeHandle<String>();
+        }
+      }
     } while (nonzero_digit > 0);
     last_digit = rest->digit(0);
   }
