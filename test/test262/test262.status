@@ -690,6 +690,10 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=7187
   'built-ins/Function/prototype/toString/line-terminator-normalisation-CR': [SKIP],
 
+  # https://bugs.chromium.org/p/v8/issues/detail?id=8759
+  'language/eval-code/direct/var-env-lower-lex-catch-non-strict': [SKIP],
+  'language/statements/try/early-catch-var': [SKIP],
+
   ############################ SLOW TESTS #############################
 
   'annexB/built-ins/RegExp/RegExp-leading-escape-BMP': [PASS, SLOW],
