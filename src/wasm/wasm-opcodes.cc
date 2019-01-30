@@ -368,6 +368,19 @@ bool WasmOpcodes::IsAnyRefOpcode(WasmOpcode opcode) {
   }
 }
 
+bool WasmOpcodes::IsThrowingOpcode(WasmOpcode opcode) {
+  // TODO(8729): Trapping opcodes are not yet considered to be throwing.
+  switch (opcode) {
+    case kExprThrow:
+    case kExprRethrow:
+    case kExprCallFunction:
+    case kExprCallIndirect:
+      return true;
+    default:
+      return false;
+  }
+}
+
 std::ostream& operator<<(std::ostream& os, const FunctionSig& sig) {
   if (sig.return_count() == 0) os << "v";
   for (auto ret : sig.returns()) {

@@ -586,6 +586,7 @@ class V8_EXPORT_PRIVATE WasmOpcodes {
   static bool IsControlOpcode(WasmOpcode opcode);
   static bool IsSignExtensionOpcode(WasmOpcode opcode);
   static bool IsAnyRefOpcode(WasmOpcode opcode);
+  static bool IsThrowingOpcode(WasmOpcode opcode);
   // Check whether the given opcode always jumps, i.e. all instructions after
   // this one in the current block are dead. Returns false for |end|.
   static bool IsUnconditionalJump(WasmOpcode opcode);

@@ -41,16 +41,18 @@ WASM_EXEC_TEST(TryCatchCallDirect) {
   constexpr uint32_t kResult1 = 42;
 
   // Build a throwing helper function.
-  WasmFunctionCompiler& throw_func = r.NewFunction<void>();
+  WasmFunctionCompiler& throw_func = r.NewFunction(sigs.i_ii());
   BUILD(throw_func, WASM_THROW(except));
 
   // Build the main test function.
   BUILD(r, WASM_TRY_CATCH_T(
                kWasmI32,
-               WASM_STMTS(
-                   WASM_I32V(kResult1),
-                   WASM_IF(WASM_I32_EQZ(WASM_GET_LOCAL(0)),
-                           WASM_CALL_FUNCTION0(throw_func.function_index()))),
+               WASM_STMTS(WASM_I32V(kResult1),
+                          WASM_IF(WASM_I32_EQZ(WASM_GET_LOCAL(0)),
+                                  WASM_STMTS(WASM_CALL_FUNCTION(
+                                                 throw_func.function_index(),
+                                                 WASM_I32V(7), WASM_I32V(9)),
+                                             WASM_DROP))),
                WASM_STMTS(WASM_DROP, WASM_I32V(kResult0))));
 
   // Need to call through JS to allow for creation of stack traces.
@@ -68,9 +70,9 @@ WASM_EXEC_TEST(TryCatchCallIndirect) {
   constexpr uint32_t kResult1 = 42;
 
   // Build a throwing helper function.
-  WasmFunctionCompiler& throw_func = r.NewFunction(sigs.v_v());
+  WasmFunctionCompiler& throw_func = r.NewFunction(sigs.i_ii());
   BUILD(throw_func, WASM_THROW(except));
-  r.builder().AddSignature(sigs.v_v());
+  r.builder().AddSignature(sigs.i_ii());
   throw_func.SetSigIndex(0);
 
   // Add an indirect function table.
@@ -85,7 +87,10 @@ WASM_EXEC_TEST(TryCatchCallIndirect) {
                kWasmI32,
                WASM_STMTS(WASM_I32V(kResult1),
                           WASM_IF(WASM_I32_EQZ(WASM_GET_LOCAL(0)),
-                                  WASM_CALL_INDIRECT0(0, WASM_GET_LOCAL(0)))),
+                                  WASM_STMTS(WASM_CALL_INDIRECT2(
+                                                 0, WASM_GET_LOCAL(0),
+                                                 WASM_I32V(7), WASM_I32V(9)),
+                                             WASM_DROP))),
                WASM_STMTS(WASM_DROP, WASM_I32V(kResult0))));
 
   // Need to call through JS to allow for creation of stack traces.
@@ -102,18 +107,22 @@ WASM_EXEC_TEST(TryCatchCallExternal) {
   Handle<JSFunction> js_function =
       Handle<JSFunction>::cast(v8::Utils::OpenHandle(
           *v8::Local<v8::Function>::Cast(CompileRun(source))));
-  ManuallyImportedJSFunction import = {sigs.v_v(), js_function};
+  ManuallyImportedJSFunction import = {sigs.i_ii(), js_function};
   WasmRunner<uint32_t, uint32_t> r(execution_tier, &import);
   constexpr uint32_t kResult0 = 23;
   constexpr uint32_t kResult1 = 42;
   constexpr uint32_t kJSFunc = 0;
 
   // Build the main test function.
-  BUILD(r, WASM_TRY_CATCH_T(kWasmI32,
-                            WASM_STMTS(WASM_I32V(kResult1),
-                                       WASM_IF(WASM_I32_EQZ(WASM_GET_LOCAL(0)),
-                                               WASM_CALL_FUNCTION0(kJSFunc))),
-                            WASM_STMTS(WASM_DROP, WASM_I32V(kResult0))));
+  BUILD(r, WASM_TRY_CATCH_T(
+               kWasmI32,
+               WASM_STMTS(
+                   WASM_I32V(kResult1),
+                   WASM_IF(WASM_I32_EQZ(WASM_GET_LOCAL(0)),
+                           WASM_STMTS(WASM_CALL_FUNCTION(kJSFunc, WASM_I32V(7),
+                                                         WASM_I32V(9)),
+                                      WASM_DROP))),
+               WASM_STMTS(WASM_DROP, WASM_I32V(kResult0))));
 
   // Need to call through JS to allow for creation of stack traces.
   r.CheckCallViaJS(kResult0, 0);

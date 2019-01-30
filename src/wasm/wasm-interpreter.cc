@@ -777,6 +777,7 @@ class SideTable : public ZoneObject {
     for (BytecodeIterator i(code->orig_start, code->orig_end, &code->locals);
          i.has_next(); i.next()) {
       WasmOpcode opcode = i.current();
+      uint32_t exceptional_stack_height = 0;
       if (WasmOpcodes::IsPrefixOpcode(opcode)) opcode = i.prefixed_opcode();
       bool unreachable = control_stack.back().unreachable;
       if (unreachable) {
@@ -791,8 +792,19 @@ class SideTable : public ZoneObject {
         DCHECK_GE(stack_height, stack_effect.first);
         DCHECK_GE(kMaxUInt32, static_cast<uint64_t>(stack_height) -
                                   stack_effect.first + stack_effect.second);
+        exceptional_stack_height = stack_height - stack_effect.first;
         stack_height = stack_height - stack_effect.first + stack_effect.second;
         if (stack_height > max_stack_height_) max_stack_height_ = stack_height;
+      }
+      if (!exception_stack.empty() && WasmOpcodes::IsThrowingOpcode(opcode)) {
+        // Record exceptional control flow from potentially throwing opcodes to
+        // the local handler if one is present. The stack height at the throw
+        // point is assumed to have popped all operands and not pushed any yet.
+        DCHECK_GE(control_stack.size() - 1, exception_stack.back());
+        const Control* c = &control_stack[exception_stack.back()];
+        if (!unreachable) c->else_label->Ref(i.pc(), exceptional_stack_height);
+        TRACE("handler @%u: %s -> try @%u\n", i.pc_offset(), OpcodeName(opcode),
+              static_cast<uint32_t>(c->pc - code->start));
       }
       switch (opcode) {
         case kExprBlock:
@@ -879,21 +891,6 @@ class SideTable : public ZoneObject {
           c->else_label = nullptr;
           DCHECK_GE(stack_height, c->end_label->target_stack_height);
           stack_height = c->end_label->target_stack_height + kCatchInArity;
-          break;
-        }
-        case kExprThrow:
-        case kExprRethrow:
-        case kExprCallFunction: {
-          if (exception_stack.empty()) break;  // Nothing to do here.
-          // TODO(mstarzinger): The same needs to be done for calls, not only
-          // for "throw" and "rethrow". Factor this logic out accordingly.
-          // TODO(mstarzinger): For calls the stack height here is off when the
-          // callee either consumes or produces stack values. Test and fix!
-          DCHECK_GE(control_stack.size() - 1, exception_stack.back());
-          Control* c = &control_stack[exception_stack.back()];
-          if (!unreachable) c->else_label->Ref(i.pc(), stack_height);
-          TRACE("handler @%u: %s -> try @%u\n", i.pc_offset(),
-                OpcodeName(opcode), static_cast<uint32_t>(c->pc - code->start));
           break;
         }
         case kExprEnd: {
@@ -2350,12 +2347,13 @@ class ThreadImpl {
 
 #ifdef DEBUG
       // Compute the stack effect of this opcode, and verify later that the
-      // stack was modified accordingly.
+      // stack was modified accordingly (unless an exception was thrown).
       std::pair<uint32_t, uint32_t> stack_effect =
           StackEffect(codemap_->module(), frames_.back().code->function->sig,
                       code->orig_start + pc, code->orig_end);
       sp_t expected_new_stack_height =
           StackHeight() - stack_effect.first + stack_effect.second;
+      bool exception_was_thrown = false;
 #endif
 
       switch (orig) {
@@ -2536,6 +2534,7 @@ class ThreadImpl {
                 return;
               case ExternalCallResult::EXTERNAL_CAUGHT:
                 len = JumpToHandlerDelta(code, pc);
+                DCHECK(exception_was_thrown = true);
                 break;
             }
             if (result.type != ExternalCallResult::INTERNAL) break;
@@ -2575,6 +2574,7 @@ class ThreadImpl {
               return;
             case ExternalCallResult::EXTERNAL_CAUGHT:
               len = JumpToHandlerDelta(code, pc);
+              DCHECK(exception_was_thrown = true);
               break;
           }
         } break;
@@ -2823,7 +2823,7 @@ class ThreadImpl {
       }
 
 #ifdef DEBUG
-      if (!WasmOpcodes::IsControlOpcode(opcode)) {
+      if (!WasmOpcodes::IsControlOpcode(opcode) && !exception_was_thrown) {
         DCHECK_EQ(expected_new_stack_height, StackHeight());
       }
 #endif
@@ -3030,6 +3030,9 @@ class ThreadImpl {
     TRACE("  => External wasm function returned%s\n",
           maybe_retval.is_null() ? " with exception" : "");
 
+    // Pop arguments off the stack.
+    sp_ -= num_args;
+
     if (maybe_retval.is_null()) {
       // JSEntry may throw a stack overflow before we actually get to wasm code
       // or back to the interpreter, meaning the thread-in-wasm flag won't be
@@ -3042,8 +3045,6 @@ class ThreadImpl {
 
     trap_handler::ClearThreadInWasm();
 
-    // Pop arguments off the stack.
-    sp_ -= num_args;
     // Push return values.
     if (sig->return_count() > 0) {
       // TODO(wasm): Handle multiple returns.
