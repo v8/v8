@@ -3314,9 +3314,13 @@ void LinearScanAllocator::ComputeStateFromManyPredecessors(
 
 bool LinearScanAllocator::ConsiderBlockForControlFlow(
     InstructionBlock* current_block, RpoNumber predecessor) {
-  return (predecessor > current_block->rpo_number()) ||
-         (!current_block->IsDeferred() &&
-          code()->InstructionBlockAt(predecessor)->IsDeferred());
+  // We ignore predecessors on back edges when looking for control flow effects,
+  // as those lie in the future of allocation and we have no data yet. Also,
+  // deferred bocks are ignored on deferred to non-deferred boundaries, as we do
+  // not want them to influence allocation of non deferred code.
+  return (predecessor < current_block->rpo_number()) &&
+         (current_block->IsDeferred() ||
+          !code()->InstructionBlockAt(predecessor)->IsDeferred());
 }
 
 bool LinearScanAllocator::BlockOrImmediatePredecessorIsDeferred(
