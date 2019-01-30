@@ -882,10 +882,13 @@ class SideTable : public ZoneObject {
           break;
         }
         case kExprThrow:
-        case kExprRethrow: {
+        case kExprRethrow:
+        case kExprCallFunction: {
           if (exception_stack.empty()) break;  // Nothing to do here.
           // TODO(mstarzinger): The same needs to be done for calls, not only
           // for "throw" and "rethrow". Factor this logic out accordingly.
+          // TODO(mstarzinger): For calls the stack height here is off when the
+          // callee either consumes or produces stack values. Test and fix!
           DCHECK_GE(control_stack.size() - 1, exception_stack.back());
           Control* c = &control_stack[exception_stack.back()];
           if (!unreachable) c->else_label->Ref(i.pc(), stack_height);
@@ -1082,7 +1085,9 @@ struct ExternalCallResult {
     // The function was executed and returned normally.
     EXTERNAL_RETURNED,
     // The function was executed, threw an exception, and the stack was unwound.
-    EXTERNAL_UNWOUND
+    EXTERNAL_UNWOUND,
+    // The function was executed and threw an exception that was locally caught.
+    EXTERNAL_CAUGHT
   };
   Type type;
   // If type is INTERNAL, this field holds the function to call internally.
@@ -2529,6 +2534,9 @@ class ThreadImpl {
                 break;
               case ExternalCallResult::EXTERNAL_UNWOUND:
                 return;
+              case ExternalCallResult::EXTERNAL_CAUGHT:
+                len = JumpToHandlerDelta(code, pc);
+                break;
             }
             if (result.type != ExternalCallResult::INTERNAL) break;
           }
@@ -2565,6 +2573,9 @@ class ThreadImpl {
               break;
             case ExternalCallResult::EXTERNAL_UNWOUND:
               return;
+            case ExternalCallResult::EXTERNAL_CAUGHT:
+              len = JumpToHandlerDelta(code, pc);
+              break;
           }
         } break;
         case kExprGetGlobal: {
@@ -2928,10 +2939,11 @@ class ThreadImpl {
   }
 
   ExternalCallResult TryHandleException(Isolate* isolate) {
+    DCHECK(isolate->has_pending_exception());  // Assume exceptional return.
     if (HandleException(isolate) == WasmInterpreter::Thread::UNWOUND) {
       return {ExternalCallResult::EXTERNAL_UNWOUND};
     }
-    return {ExternalCallResult::EXTERNAL_RETURNED};
+    return {ExternalCallResult::EXTERNAL_CAUGHT};
   }
 
   ExternalCallResult CallExternalWasmFunction(Isolate* isolate,
