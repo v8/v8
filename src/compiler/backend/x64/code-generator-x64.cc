@@ -201,7 +201,7 @@ class OutOfLineTruncateDoubleToI final : public OutOfLineCode {
         zone_(gen->zone()) {}
 
   void Generate() final {
-    __ subp(rsp, Immediate(kDoubleSize));
+    __ subq(rsp, Immediate(kDoubleSize));
     unwinding_info_writer_->MaybeIncreaseBaseOffsetAt(__ pc_offset(),
                                                       kDoubleSize);
     __ Movsd(MemOperand(rsp, 0), input_);
@@ -214,7 +214,7 @@ class OutOfLineTruncateDoubleToI final : public OutOfLineCode {
       __ Call(BUILTIN_CODE(isolate_, DoubleToI), RelocInfo::CODE_TARGET);
     }
     __ movl(result_, MemOperand(rsp, 0));
-    __ addp(rsp, Immediate(kDoubleSize));
+    __ addq(rsp, Immediate(kDoubleSize));
     unwinding_info_writer_->MaybeIncreaseBaseOffsetAt(__ pc_offset(),
                                                       -kDoubleSize);
   }
@@ -250,7 +250,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     __ CheckPageFlag(value_, scratch0_,
                      MemoryChunk::kPointersToHereAreInterestingMask, zero,
                      exit());
-    __ leap(scratch1_, operand_);
+    __ leaq(scratch1_, operand_);
 
     RememberedSetAction const remembered_set_action =
         mode_ > RecordWriteMode::kValueIsMap ? EMIT_REMEMBERED_SET
@@ -592,7 +592,7 @@ void CodeGenerator::AssemblePopArgumentsAdaptorFrame(Register args_reg,
   Label done;
 
   // Check if current frame is an arguments adaptor frame.
-  __ cmpp(Operand(rbp, CommonFrameConstants::kContextOrFrameTypeOffset),
+  __ cmpq(Operand(rbp, CommonFrameConstants::kContextOrFrameTypeOffset),
           Immediate(StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR)));
   __ j(not_equal, &done, Label::kNear);
 
@@ -708,7 +708,7 @@ void CodeGenerator::GenerateSpeculationPoisonFromCodeStartRegister() {
   // bits cleared if we are speculatively executing the wrong PC.
   __ ComputeCodeStartAddress(rbx);
   __ xorq(kSpeculationPoisonRegister, kSpeculationPoisonRegister);
-  __ cmpp(kJavaScriptCallCodeStartRegister, rbx);
+  __ cmpq(kJavaScriptCallCodeStartRegister, rbx);
   __ movp(rbx, Immediate(-1));
   __ cmovq(equal, kSpeculationPoisonRegister, rbx);
 }
@@ -3741,7 +3741,7 @@ void CodeGenerator::AssembleConstructFrame() {
     const uint32_t saves_fp_count = base::bits::CountPopulation(saves_fp);
     const int stack_size = saves_fp_count * kQuadWordSize;
     // Adjust the stack pointer.
-    __ subp(rsp, Immediate(stack_size));
+    __ subq(rsp, Immediate(stack_size));
     // Store the registers on the stack.
     int slot_idx = 0;
     for (int i = 0; i < XMMRegister::kNumRegisters; i++) {
@@ -3793,7 +3793,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
       slot_idx++;
     }
     // Adjust the stack pointer.
-    __ addp(rsp, Immediate(stack_size));
+    __ addq(rsp, Immediate(stack_size));
   }
 
   unwinding_info_writer_.MarkBlockWillExit();

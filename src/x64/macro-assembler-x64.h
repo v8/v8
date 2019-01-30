@@ -770,9 +770,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
     static const int shift = Field::kShift;
     static const int mask = Field::kMask >> Field::kShift;
     if (shift != 0) {
-      shrp(reg, Immediate(shift));
+      shrq(reg, Immediate(shift));
     }
-    andp(reg, Immediate(mask));
+    andq(reg, Immediate(mask));
   }
 
   // Abort execution if argument is a smi, enabled via --debug-code.

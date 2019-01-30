@@ -642,20 +642,12 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void mulq(Register src);
 
 #define DECLARE_SHIFT_INSTRUCTION(instruction, subcode)                     \
-  void instruction##p(Register dst, Immediate imm8) {                       \
-    shift(dst, imm8, subcode, kSystemPointerSize);                          \
-  }                                                                         \
-                                                                            \
   void instruction##l(Register dst, Immediate imm8) {                       \
     shift(dst, imm8, subcode, kInt32Size);                                  \
   }                                                                         \
                                                                             \
   void instruction##q(Register dst, Immediate imm8) {                       \
     shift(dst, imm8, subcode, kInt64Size);                                  \
-  }                                                                         \
-                                                                            \
-  void instruction##p(Operand dst, Immediate imm8) {                        \
-    shift(dst, imm8, subcode, kSystemPointerSize);                          \
   }                                                                         \
                                                                             \
   void instruction##l(Operand dst, Immediate imm8) {                        \
@@ -666,17 +658,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     shift(dst, imm8, subcode, kInt64Size);                                  \
   }                                                                         \
                                                                             \
-  void instruction##p_cl(Register dst) {                                    \
-    shift(dst, subcode, kSystemPointerSize);                                \
-  }                                                                         \
-                                                                            \
   void instruction##l_cl(Register dst) { shift(dst, subcode, kInt32Size); } \
                                                                             \
   void instruction##q_cl(Register dst) { shift(dst, subcode, kInt64Size); } \
-                                                                            \
-  void instruction##p_cl(Operand dst) {                                     \
-    shift(dst, subcode, kSystemPointerSize);                                \
-  }                                                                         \
                                                                             \
   void instruction##l_cl(Operand dst) { shift(dst, subcode, kInt32Size); }  \
                                                                             \

@@ -119,7 +119,7 @@ void TurboAssembler::LoadRootRegisterOffset(Register destination,
   if (offset == 0) {
     Move(destination, kRootRegister);
   } else {
-    leap(destination, Operand(kRootRegister, static_cast<int32_t>(offset)));
+    leaq(destination, Operand(kRootRegister, static_cast<int32_t>(offset)));
   }
 }
 
@@ -132,7 +132,7 @@ void TurboAssembler::LoadAddress(Register destination,
   if (root_array_available_ && options().enable_root_array_delta_access) {
     intptr_t delta = RootRegisterOffsetForExternalReference(isolate(), source);
     if (is_int32(delta)) {
-      leap(destination, Operand(kRootRegister, static_cast<int32_t>(delta)));
+      leaq(destination, Operand(kRootRegister, static_cast<int32_t>(delta)));
       return;
     }
   }
@@ -199,7 +199,7 @@ void TurboAssembler::CompareRoot(Register with, RootIndex index) {
                Operand(kRootRegister, RootRegisterOffsetForRootIndex(index)));
   } else {
     // Some smi roots contain system pointer size values like stack limits.
-    cmpp(with, Operand(kRootRegister, RootRegisterOffsetForRootIndex(index)));
+    cmpq(with, Operand(kRootRegister, RootRegisterOffsetForRootIndex(index)));
   }
 }
 
@@ -212,7 +212,7 @@ void TurboAssembler::CompareRoot(Operand with, RootIndex index) {
     cmp_tagged(with, kScratchRegister);
   } else {
     // Some smi roots contain system pointer size values like stack limits.
-    cmpp(with, kScratchRegister);
+    cmpq(with, kScratchRegister);
   }
 }
 
@@ -376,7 +376,7 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
   // of the object, so the offset must be a multiple of kTaggedSize.
   DCHECK(IsAligned(offset, kTaggedSize));
 
-  leap(dst, FieldOperand(object, offset));
+  leaq(dst, FieldOperand(object, offset));
   if (emit_debug_code()) {
     Label ok;
     testb(dst, Immediate(kTaggedSize - 1));
@@ -571,7 +571,7 @@ void TurboAssembler::CheckStackAlignment() {
   if (frame_alignment > kSystemPointerSize) {
     DCHECK(base::bits::IsPowerOfTwo(frame_alignment));
     Label alignment_as_expected;
-    testp(rsp, Immediate(frame_alignment_mask));
+    testq(rsp, Immediate(frame_alignment_mask));
     j(zero, &alignment_as_expected, Label::kNear);
     // Abort if stack is not aligned.
     int3();
@@ -719,7 +719,7 @@ int TurboAssembler::PushCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
   // R12 to r15 are callee save on all platforms.
   if (fp_mode == kSaveFPRegs) {
     int delta = kDoubleSize * XMMRegister::kNumRegisters;
-    subp(rsp, Immediate(delta));
+    subq(rsp, Immediate(delta));
     for (int i = 0; i < XMMRegister::kNumRegisters; i++) {
       XMMRegister reg = XMMRegister::from_code(i);
       Movsd(Operand(rsp, i * kDoubleSize), reg);
@@ -739,7 +739,7 @@ int TurboAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
       Movsd(reg, Operand(rsp, i * kDoubleSize));
     }
     int delta = kDoubleSize * XMMRegister::kNumRegisters;
-    addp(rsp, Immediate(kDoubleSize * XMMRegister::kNumRegisters));
+    addq(rsp, Immediate(kDoubleSize * XMMRegister::kNumRegisters));
     bytes += delta;
   }
 
@@ -1179,7 +1179,7 @@ void MacroAssembler::SmiTag(Register dst, Register src) {
     movp(dst, src);
   }
   DCHECK(SmiValuesAre32Bits() || SmiValuesAre31Bits());
-  shlp(dst, Immediate(kSmiShift));
+  shlq(dst, Immediate(kSmiShift));
 }
 
 void TurboAssembler::SmiUntag(Register dst, Register src) {
@@ -1188,7 +1188,7 @@ void TurboAssembler::SmiUntag(Register dst, Register src) {
     movp(dst, src);
   }
   DCHECK(SmiValuesAre32Bits() || SmiValuesAre31Bits());
-  sarp(dst, Immediate(kSmiShift));
+  sarq(dst, Immediate(kSmiShift));
 }
 
 void TurboAssembler::SmiUntag(Register dst, Operand src) {
@@ -1199,14 +1199,14 @@ void TurboAssembler::SmiUntag(Register dst, Operand src) {
   } else {
     DCHECK(SmiValuesAre31Bits());
     movp(dst, src);
-    sarp(dst, Immediate(kSmiShift));
+    sarq(dst, Immediate(kSmiShift));
   }
 }
 
 void MacroAssembler::SmiCompare(Register smi1, Register smi2) {
   AssertSmi(smi1);
   AssertSmi(smi2);
-  cmpp(smi1, smi2);
+  cmpq(smi1, smi2);
 }
 
 void MacroAssembler::SmiCompare(Register dst, Smi src) {
@@ -1300,7 +1300,7 @@ void MacroAssembler::SmiAddConstant(Operand dst, Smi constant) {
         movq(dst, kScratchRegister);
       } else {
         DCHECK_EQ(kSmiShiftSize, 32);
-        addp(dst, Immediate(constant));
+        addq(dst, Immediate(constant));
       }
     }
   }
@@ -1317,9 +1317,9 @@ SmiIndex MacroAssembler::SmiToIndex(Register dst,
       movp(dst, src);
     }
     if (shift < kSmiShift) {
-      sarp(dst, Immediate(kSmiShift - shift));
+      sarq(dst, Immediate(kSmiShift - shift));
     } else {
-      shlp(dst, Immediate(shift - kSmiShift));
+      shlq(dst, Immediate(shift - kSmiShift));
     }
     return SmiIndex(dst, times_1);
   } else {
@@ -1494,7 +1494,7 @@ void TurboAssembler::MoveStringConstant(Register result,
 
 void MacroAssembler::Drop(int stack_elements) {
   if (stack_elements > 0) {
-    addp(rsp, Immediate(stack_elements * kSystemPointerSize));
+    addq(rsp, Immediate(stack_elements * kSystemPointerSize));
   }
 }
 
@@ -1739,7 +1739,7 @@ void TurboAssembler::LoadCodeObjectEntry(Register destination,
     // A non-builtin Code object, the entry point is at
     // Code::raw_instruction_start().
     Move(destination, code_object);
-    addp(destination, Immediate(Code::kHeaderSize - kHeapObjectTag));
+    addq(destination, Immediate(Code::kHeaderSize - kHeapObjectTag));
     jmp(&out);
 
     // A builtin Code object, the entry point is loaded from the builtin entry
@@ -1752,7 +1752,7 @@ void TurboAssembler::LoadCodeObjectEntry(Register destination,
     bind(&out);
   } else {
     Move(destination, code_object);
-    addp(destination, Immediate(Code::kHeaderSize - kHeapObjectTag));
+    addq(destination, Immediate(Code::kHeaderSize - kHeapObjectTag));
   }
 }
 
@@ -2017,7 +2017,7 @@ void MacroAssembler::Pushad() {
   // Use lea for symmetry with Popad.
   int sp_delta = (kNumSafepointRegisters - kNumSafepointSavedRegisters) *
                  kSystemPointerSize;
-  leap(rsp, Operand(rsp, -sp_delta));
+  leaq(rsp, Operand(rsp, -sp_delta));
 }
 
 
@@ -2025,7 +2025,7 @@ void MacroAssembler::Popad() {
   // Popad must not change the flags, so use lea instead of addq.
   int sp_delta = (kNumSafepointRegisters - kNumSafepointSavedRegisters) *
                  kSystemPointerSize;
-  leap(rsp, Operand(rsp, sp_delta));
+  leaq(rsp, Operand(rsp, sp_delta));
   Pop(r15);
   Pop(r14);
   Pop(r12);
@@ -2085,7 +2085,7 @@ void MacroAssembler::PopStackHandler() {
   ExternalReference handler_address =
       ExternalReference::Create(IsolateAddressId::kHandlerAddress, isolate());
   Pop(ExternalReferenceAsOperand(handler_address));
-  addp(rsp, Immediate(StackHandlerConstants::kSize - kSystemPointerSize));
+  addq(rsp, Immediate(StackHandlerConstants::kSize - kSystemPointerSize));
 }
 
 void TurboAssembler::Ret() { ret(0); }
@@ -2095,7 +2095,7 @@ void TurboAssembler::Ret(int bytes_dropped, Register scratch) {
     ret(bytes_dropped);
   } else {
     PopReturnAddressTo(scratch);
-    addp(rsp, Immediate(bytes_dropped));
+    addq(rsp, Immediate(bytes_dropped));
     PushReturnAddressFrom(scratch);
     ret(0);
   }
@@ -2237,7 +2237,7 @@ void MacroAssembler::LoadWeakValue(Register in_out, Label* target_if_cleared) {
   cmpl(in_out, Immediate(kClearedWeakHeapObjectLower32));
   j(equal, target_if_cleared);
 
-  andp(in_out, Immediate(~static_cast<int32_t>(kWeakHeapObjectMask)));
+  andq(in_out, Immediate(~static_cast<int32_t>(kWeakHeapObjectMask)));
 }
 
 void MacroAssembler::IncrementCounter(StatsCounter* counter, int value) {
@@ -2272,7 +2272,7 @@ void MacroAssembler::MaybeDropFrames() {
   ExternalReference restart_fp =
       ExternalReference::debug_restart_fp_address(isolate());
   Load(rbx, restart_fp);
-  testp(rbx, rbx);
+  testq(rbx, rbx);
 
   Label dont_drop;
   j(zero, &dont_drop, Label::kNear);
@@ -2297,18 +2297,18 @@ void TurboAssembler::PrepareForTailCall(const ParameterCount& callee_args_count,
   // after we drop current frame.
   Register new_sp_reg = scratch0;
   if (callee_args_count.is_reg()) {
-    subp(caller_args_count_reg, callee_args_count.reg());
-    leap(new_sp_reg, Operand(rbp, caller_args_count_reg, times_pointer_size,
+    subq(caller_args_count_reg, callee_args_count.reg());
+    leaq(new_sp_reg, Operand(rbp, caller_args_count_reg, times_pointer_size,
                              StandardFrameConstants::kCallerPCOffset));
   } else {
-    leap(new_sp_reg,
+    leaq(new_sp_reg,
          Operand(rbp, caller_args_count_reg, times_pointer_size,
                  StandardFrameConstants::kCallerPCOffset -
                      callee_args_count.immediate() * kSystemPointerSize));
   }
 
   if (FLAG_debug_code) {
-    cmpp(rsp, new_sp_reg);
+    cmpq(rsp, new_sp_reg);
     Check(below, AbortReason::kStackAccessBelowStackPointer);
   }
 
@@ -2326,7 +2326,7 @@ void TurboAssembler::PrepareForTailCall(const ParameterCount& callee_args_count,
   // +2 here is to copy both receiver and return address.
   Register count_reg = caller_args_count_reg;
   if (callee_args_count.is_reg()) {
-    leap(count_reg, Operand(callee_args_count.reg(), 2));
+    leaq(count_reg, Operand(callee_args_count.reg(), 2));
   } else {
     movp(count_reg, Immediate(callee_args_count.immediate() + 2));
     // TODO(ishell): Unroll copying loop for small immediate values.
@@ -2337,11 +2337,11 @@ void TurboAssembler::PrepareForTailCall(const ParameterCount& callee_args_count,
   Label loop, entry;
   jmp(&entry, Label::kNear);
   bind(&loop);
-  decp(count_reg);
+  decq(count_reg);
   movp(tmp_reg, Operand(rsp, count_reg, times_pointer_size, 0));
   movp(Operand(new_sp_reg, count_reg, times_pointer_size, 0), tmp_reg);
   bind(&entry);
-  cmpp(count_reg, Immediate(0));
+  cmpq(count_reg, Immediate(0));
   j(not_equal, &loop, Label::kNear);
 
   // Leave current frame.
@@ -2440,13 +2440,13 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
       // case when we invoke function values without going through the
       // IC mechanism.
       Set(rax, actual.immediate());
-      cmpp(expected.reg(), Immediate(actual.immediate()));
+      cmpq(expected.reg(), Immediate(actual.immediate()));
       j(equal, &invoke, Label::kNear);
       DCHECK(expected.reg() == rbx);
     } else if (expected.reg() != actual.reg()) {
       // Both expected and actual are in (different) registers. This
       // is the case when we invoke functions using call and apply.
-      cmpp(expected.reg(), actual.reg());
+      cmpq(expected.reg(), actual.reg());
       j(equal, &invoke, Label::kNear);
       DCHECK(actual.reg() == rax);
       DCHECK(expected.reg() == rbx);
@@ -2537,7 +2537,7 @@ void TurboAssembler::EnterFrame(StackFrame::Type type) {
 
 void TurboAssembler::LeaveFrame(StackFrame::Type type) {
   if (emit_debug_code()) {
-    cmpp(Operand(rbp, CommonFrameConstants::kContextOrFrameTypeOffset),
+    cmpq(Operand(rbp, CommonFrameConstants::kContextOrFrameTypeOffset),
          Immediate(StackFrame::TypeToMarker(type)));
     Check(equal, AbortReason::kStackFrameTypesMustMatch);
   }
@@ -2592,7 +2592,7 @@ void MacroAssembler::EnterExitFrameEpilogue(int arg_stack_space,
   if (save_doubles) {
     int space = XMMRegister::kNumRegisters * kDoubleSize +
                 arg_stack_space * kRegisterSize;
-    subp(rsp, Immediate(space));
+    subq(rsp, Immediate(space));
     int offset = -ExitFrameConstants::kFixedFrameSizeFromFp;
     const RegisterConfiguration* config = RegisterConfiguration::Default();
     for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
@@ -2601,7 +2601,7 @@ void MacroAssembler::EnterExitFrameEpilogue(int arg_stack_space,
       Movsd(Operand(rbp, offset - ((i + 1) * kDoubleSize)), reg);
     }
   } else if (arg_stack_space > 0) {
-    subp(rsp, Immediate(arg_stack_space * kRegisterSize));
+    subq(rsp, Immediate(arg_stack_space * kRegisterSize));
   }
 
   // Get the required frame alignment for the OS.
@@ -2609,7 +2609,7 @@ void MacroAssembler::EnterExitFrameEpilogue(int arg_stack_space,
   if (kFrameAlignment > 0) {
     DCHECK(base::bits::IsPowerOfTwo(kFrameAlignment));
     DCHECK(is_int8(kFrameAlignment));
-    andp(rsp, Immediate(-kFrameAlignment));
+    andq(rsp, Immediate(-kFrameAlignment));
   }
 
   // Patch the saved entry sp.
@@ -2623,7 +2623,7 @@ void MacroAssembler::EnterExitFrame(int arg_stack_space, bool save_doubles,
   // Set up argv in callee-saved register r15. It is reused in LeaveExitFrame,
   // so it must be retained across the C-call.
   int offset = StandardFrameConstants::kCallerSPOffset - kSystemPointerSize;
-  leap(r15, Operand(rbp, r14, times_pointer_size, offset));
+  leaq(r15, Operand(rbp, r14, times_pointer_size, offset));
 
   EnterExitFrameEpilogue(arg_stack_space, save_doubles);
 }
@@ -2655,7 +2655,7 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles, bool pop_arguments) {
 
     // Drop everything up to and including the arguments and the receiver
     // from the caller stack.
-    leap(rsp, Operand(r15, 1 * kSystemPointerSize));
+    leaq(rsp, Operand(r15, 1 * kSystemPointerSize));
 
     PushReturnAddressFrom(rcx);
   } else {
@@ -2732,8 +2732,8 @@ void TurboAssembler::PrepareCallCFunction(int num_arguments) {
   DCHECK(base::bits::IsPowerOfTwo(frame_alignment));
   int argument_slots_on_stack =
       ArgumentStackSlotsForCFunctionCall(num_arguments);
-  subp(rsp, Immediate((argument_slots_on_stack + 1) * kRegisterSize));
-  andp(rsp, Immediate(-frame_alignment));
+  subq(rsp, Immediate((argument_slots_on_stack + 1) * kRegisterSize));
+  andq(rsp, Immediate(-frame_alignment));
   movp(Operand(rsp, argument_slots_on_stack * kRegisterSize), kScratchRegister);
 }
 
@@ -2787,10 +2787,10 @@ void TurboAssembler::CheckPageFlag(Register object, Register scratch, int mask,
                                    Label::Distance condition_met_distance) {
   DCHECK(cc == zero || cc == not_zero);
   if (scratch == object) {
-    andp(scratch, Immediate(~kPageAlignmentMask));
+    andq(scratch, Immediate(~kPageAlignmentMask));
   } else {
     movp(scratch, Immediate(~kPageAlignmentMask));
-    andp(scratch, object);
+    andq(scratch, object);
   }
   if (mask < (1 << kBitsPerByte)) {
     testb(Operand(scratch, MemoryChunk::kFlagsOffset),
