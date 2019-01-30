@@ -3507,12 +3507,12 @@ void AccessorAssembler::GenerateCloneObjectIC_Slow() {
 
   GotoIfNot(IsEmptyFixedArray(LoadElements(CAST(source))), &call_runtime);
 
-  ForEachEnumerableOwnProperty(context, map, CAST(source),
-                               [=](TNode<Name> key, TNode<Object> value) {
-                                 SetPropertyInLiteral(context, result, key,
-                                                      value);
-                               },
-                               &call_runtime);
+  ForEachEnumerableOwnProperty(
+      context, map, CAST(source), kPropertyAdditionOrder,
+      [=](TNode<Name> key, TNode<Object> value) {
+        SetPropertyInLiteral(context, result, key, value);
+      },
+      &call_runtime);
   Goto(&done);
 
   BIND(&call_runtime);

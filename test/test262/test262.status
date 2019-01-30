@@ -546,9 +546,6 @@
   'intl402/Locale/getters-grandfathered': [FAIL],
   'intl402/Locale/likely-subtags-grandfathered': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=6705
-  'built-ins/Object/assign/strings-and-symbol-order': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=7831
   'language/statements/generators/generator-created-after-decl-inst': [FAIL],
   'language/expressions/generators/generator-created-after-decl-inst': [FAIL],

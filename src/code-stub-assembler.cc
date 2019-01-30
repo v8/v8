@@ -8874,7 +8874,8 @@ void CodeStubAssembler::DescriptorArrayForEach(
 
 void CodeStubAssembler::ForEachEnumerableOwnProperty(
     TNode<Context> context, TNode<Map> map, TNode<JSObject> object,
-    const ForEachKeyValueFunction& body, Label* bailout) {
+    ForEachEnumerationMode mode, const ForEachKeyValueFunction& body,
+    Label* bailout) {
   TNode<Int32T> type = LoadMapInstanceType(map);
   TNode<Uint32T> bit_field3 = EnsureOnlyHasSimpleProperties(map, type, bailout);
 
@@ -8883,17 +8884,48 @@ void CodeStubAssembler::ForEachEnumerableOwnProperty(
       DecodeWord32<Map::NumberOfOwnDescriptorsBits>(bit_field3);
 
   TVARIABLE(BoolT, var_stable, Int32TrueConstant());
-  VariableList list({&var_stable}, zone());
+
+  TVARIABLE(BoolT, var_has_symbol, Int32FalseConstant());
+  // false - iterate only string properties, true - iterate only symbol
+  // properties
+  TVARIABLE(BoolT, var_name_filter, Int32FalseConstant());
+  VariableList list({&var_stable, &var_has_symbol, &var_name_filter}, zone());
+  Label descriptor_array_loop(this,
+                              {&var_stable, &var_has_symbol, &var_name_filter});
+
+  Goto(&descriptor_array_loop);
+  BIND(&descriptor_array_loop);
 
   DescriptorArrayForEach(
       list, Unsigned(Int32Constant(0)), nof_descriptors,
-      [=, &var_stable](TNode<IntPtrT> descriptor_key_index) {
+      [=, &var_stable, &var_has_symbol,
+       &var_name_filter](TNode<IntPtrT> descriptor_key_index) {
         TNode<Name> next_key =
             LoadKeyByKeyIndex(descriptors, descriptor_key_index);
 
         TVARIABLE(Object, var_value, SmiConstant(0));
         Label callback(this), next_iteration(this);
 
+        if (mode == kEnumerationOrder) {
+          // |next_key| is either a string or a symbol
+          // Skip strings or symbols depending on var_name_filter value.
+          Label if_string(this), if_symbol(this), if_name_ok(this);
+
+          Branch(IsSymbol(next_key), &if_symbol, &if_string);
+          BIND(&if_symbol);
+          {
+            var_has_symbol = Int32TrueConstant();
+            // Process symbol property when |var_name_filer| is true.
+            Branch(var_name_filter.value(), &if_name_ok, &next_iteration);
+          }
+          BIND(&if_string);
+          {
+            CSA_ASSERT(this, IsString(next_key));
+            // Process string property when |var_name_filer| is false.
+            Branch(var_name_filter.value(), &next_iteration, &if_name_ok);
+          }
+          BIND(&if_name_ok);
+        }
         {
           TVARIABLE(Map, var_map);
           TVARIABLE(HeapObject, var_meta_storage);
@@ -8986,9 +9018,19 @@ void CodeStubAssembler::ForEachEnumerableOwnProperty(
             Goto(&next_iteration);
           }
         }
-
         BIND(&next_iteration);
       });
+
+  if (mode == kEnumerationOrder) {
+    Label done(this);
+    GotoIf(var_name_filter.value(), &done);
+    GotoIfNot(var_has_symbol.value(), &done);
+    // All string properties are processed, now process symbol properties.
+    var_name_filter = Int32TrueConstant();
+    Goto(&descriptor_array_loop);
+
+    BIND(&done);
+  }
 }
 
 void CodeStubAssembler::DescriptorLookup(

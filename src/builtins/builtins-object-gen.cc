@@ -554,14 +554,14 @@ void ObjectBuiltinsAssembler::ObjectAssignFast(TNode<Context> context,
   GotoIfNot(IsJSObjectInstanceType(from_instance_type), slow);
   GotoIfNot(IsEmptyFixedArray(LoadElements(CAST(from))), slow);
 
-  ForEachEnumerableOwnProperty(context, from_map, CAST(from),
-                               [=](TNode<Name> key, TNode<Object> value) {
-                                 KeyedStoreGenericGenerator::SetProperty(
-                                     state(), context, to,
-                                     to_is_simple_receiver, key, value,
-                                     LanguageMode::kStrict);
-                               },
-                               slow);
+  ForEachEnumerableOwnProperty(
+      context, from_map, CAST(from), kEnumerationOrder,
+      [=](TNode<Name> key, TNode<Object> value) {
+        KeyedStoreGenericGenerator::SetProperty(state(), context, to,
+                                                to_is_simple_receiver, key,
+                                                value, LanguageMode::kStrict);
+      },
+      slow);
 
   Goto(&done);
   BIND(&done);
