@@ -7,6 +7,7 @@
 #include "src/api.h"
 #include "src/code-tracer.h"
 #include "src/contexts.h"
+#include "src/deoptimizer.h"
 #include "src/global-handles.h"
 #include "src/objects-inl.h"
 #include "src/objects/foreign-inl.h"
@@ -30,31 +31,47 @@ StartupSerializer::~StartupSerializer() {
   OutputStatistics("StartupSerializer");
 }
 
+#ifdef DEBUG
 namespace {
 
-// Due to how we currently create the embedded blob, we may encounter both
-// off-heap trampolines and old, outdated full Code objects during
-// serialization. This ensures that we only serialize the canonical version of
-// each builtin.
-// See also CreateOffHeapTrampolines().
-HeapObject MaybeCanonicalizeBuiltin(Isolate* isolate, HeapObject obj) {
-  if (!obj->IsCode()) return obj;
+bool IsUnexpectedCodeObject(Isolate* isolate, HeapObject obj) {
+  if (!obj->IsCode()) return false;
 
-  const int builtin_index = Code::cast(obj)->builtin_index();
-  if (!Builtins::IsBuiltinId(builtin_index)) return obj;
+  Code code = Code::cast(obj);
 
-  return isolate->builtins()->builtin(builtin_index);
+  // TODO(v8:8768): Deopt entry code should not be serialized.
+  if (code->kind() == Code::STUB && isolate->deoptimizer_data() != nullptr) {
+    if (isolate->deoptimizer_data()->IsDeoptEntryCode(code)) return false;
+  }
+
+  if (code->kind() == Code::REGEXP) return false;
+  if (!code->is_builtin()) return true;
+  if (code->is_off_heap_trampoline()) return false;
+
+  // An on-heap builtin. We only expect this for the interpreter entry
+  // trampoline copy stored on the root list and transitively called builtins.
+  // See Heap::interpreter_entry_trampoline_for_profiling.
+
+  switch (code->builtin_index()) {
+    case Builtins::kAbort:
+    case Builtins::kCEntry_Return1_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit:
+    case Builtins::kInterpreterEntryTrampoline:
+    case Builtins::kRecordWrite:
+      return false;
+    default:
+      return true;
+  }
+
+  UNREACHABLE();
 }
 
 }  // namespace
+#endif  // DEBUG
 
 void StartupSerializer::SerializeObject(HeapObject obj, HowToCode how_to_code,
                                         WhereToPoint where_to_point, int skip) {
   DCHECK(!obj->IsJSFunction());
-
-  // TODO(jgruber): Remove canonicalization once off-heap trampoline creation
-  // moves to Isolate::Init().
-  obj = MaybeCanonicalizeBuiltin(isolate(), obj);
+  DCHECK(!IsUnexpectedCodeObject(isolate(), obj));
 
   if (SerializeHotObject(obj, how_to_code, where_to_point, skip)) return;
   if (IsRootAndHasBeenSerialized(obj) &&

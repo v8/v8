@@ -3100,12 +3100,8 @@ void CreateOffHeapTrampolines(Isolate* isolate) {
     Handle<Code> trampoline = isolate->factory()->NewOffHeapTrampolineFor(
         builtins->builtin_handle(i), instruction_start);
 
-    // Note that references to the old, on-heap code objects may still exist on
-    // the heap. This is fine for the sake of serialization, as serialization
-    // will canonicalize all builtins in MaybeCanonicalizeBuiltin().
-    //
-    // From this point onwards, some builtin code objects may be unreachable and
-    // thus collected by the GC.
+    // From this point onwards, the old builtin code object is unreachable and
+    // will be collected by the next GC.
     builtins->set_builtin(i, *trampoline);
 
     if (isolate->logger()->is_listening_to_code_events() ||
@@ -3287,18 +3283,16 @@ bool Isolate::Init(StartupDeserializer* des) {
   setup_delegate_->SetupBuiltins(this);
 #ifndef V8_TARGET_ARCH_ARM
   if (create_heap_objects) {
-    // Create a copy of the the interpreter entry trampoline and store it
-    // on the root list. It is used as a template for further copies that
-    // may later be created to help profile interpreted code.
+    // Store the interpreter entry trampoline on the root list. It is used as a
+    // template for further copies that may later be created to help profile
+    // interpreted code.
     // We currently cannot do this on arm due to RELATIVE_CODE_TARGETs
     // assuming that all possible Code targets may be addressed with an int24
     // offset, effectively limiting code space size to 32MB. We can guarantee
     // this at mksnapshot-time, but not at runtime.
     // See also: https://crbug.com/v8/8713.
-    HandleScope handle_scope(this);
-    Handle<Code> code =
-        factory()->CopyCode(BUILTIN_CODE(this, InterpreterEntryTrampoline));
-    heap_.SetInterpreterEntryTrampolineForProfiling(*code);
+    heap_.SetInterpreterEntryTrampolineForProfiling(
+        heap_.builtin(Builtins::kInterpreterEntryTrampoline));
   }
 #endif
   if (FLAG_embedded_builtins && create_heap_objects) {
@@ -3343,6 +3337,12 @@ bool Isolate::Init(StartupDeserializer* des) {
 
   // Initialize the builtin entry table.
   Builtins::UpdateBuiltinEntryTable(this);
+
+#ifndef V8_TARGET_ARCH_ARM
+  // The IET for profiling should always be a full on-heap Code object.
+  DCHECK(!Code::cast(heap_.interpreter_entry_trampoline_for_profiling())
+              ->is_off_heap_trampoline());
+#endif  // V8_TARGET_ARCH_ARM
 
   if (FLAG_print_builtin_code) builtins()->PrintBuiltinCode();
   if (FLAG_print_builtin_size) builtins()->PrintBuiltinSize();
