@@ -1272,23 +1272,31 @@ class ThreadImpl {
   WasmInterpreter::Thread::ExceptionHandlingResult HandleException(
       Isolate* isolate) {
     DCHECK(isolate->has_pending_exception());
-    InterpreterCode* code = frames_.back().code;
-    if (code->side_table->HasEntryAt(frames_.back().pc)) {
-      TRACE("----- HANDLE -----\n");
-      // TODO(mstarzinger): Push a reference to the pending exception instead of
-      // the bogus {int32_t(0)} value here once the interpreter supports it.
-      USE(isolate->pending_exception());
-      Push(WasmValue(int32_t{0}));
-      isolate->clear_pending_exception();
-      return WasmInterpreter::Thread::HANDLED;
-    }
-    TRACE("----- UNWIND -----\n");
     DCHECK_LT(0, activations_.size());
     Activation& act = activations_.back();
-    DCHECK_LE(act.fp, frames_.size());
-    frames_.resize(act.fp);
-    DCHECK_LE(act.sp, StackHeight());
-    sp_ = stack_.get() + act.sp;
+    while (frames_.size() > act.fp) {
+      Frame& frame = frames_.back();
+      InterpreterCode* code = frame.code;
+      if (code->side_table->HasEntryAt(frame.pc)) {
+        TRACE("----- HANDLE -----\n");
+        // TODO(mstarzinger): Push a reference to the pending exception instead
+        // of a bogus {int32_t(0)} value here once the interpreter supports it.
+        USE(isolate->pending_exception());
+        Push(WasmValue(int32_t{0}));
+        isolate->clear_pending_exception();
+        frame.pc += JumpToHandlerDelta(code, frame.pc);
+        TRACE("  => handler #%zu (#%u @%zu)\n", frames_.size() - 1,
+              code->function->func_index, frame.pc);
+        return WasmInterpreter::Thread::HANDLED;
+      }
+      TRACE("  => drop frame #%zu (#%u @%zu)\n", frames_.size() - 1,
+            code->function->func_index, frame.pc);
+      sp_ = stack_.get() + frame.sp;
+      frames_.pop_back();
+    }
+    TRACE("----- UNWIND -----\n");
+    DCHECK_EQ(act.fp, frames_.size());
+    DCHECK_EQ(act.sp, StackHeight());
     state_ = WasmInterpreter::STOPPED;
     return WasmInterpreter::Thread::UNWOUND;
   }
@@ -1389,6 +1397,16 @@ class ThreadImpl {
       return true;
     }
     return false;
+  }
+
+  void ReloadFromFrameOnException(Decoder* decoder, InterpreterCode** code,
+                                  pc_t* pc, pc_t* limit, int* len) {
+    Frame* top = &frames_.back();
+    *code = top->code;
+    *pc = top->pc;
+    *limit = top->code->end - top->code->start;
+    decoder->Reset(top->code->start, top->code->end);
+    *len = 0;  // The {pc} has already been set correctly.
   }
 
   int LookupTargetDelta(InterpreterCode* code, pc_t pc) {
@@ -2394,14 +2412,14 @@ class ThreadImpl {
           CommitPc(pc);  // Needed for local unwinding.
           const WasmException* exception = &module()->exceptions[imm.index];
           if (!DoThrowException(exception, imm.index)) return;
-          len = JumpToHandlerDelta(code, pc);
+          ReloadFromFrameOnException(&decoder, &code, &pc, &limit, &len);
           break;
         }
         case kExprRethrow: {
           WasmValue ex = Pop();
           CommitPc(pc);  // Needed for local unwinding.
           if (!DoRethrowException(&ex)) return;
-          len = JumpToHandlerDelta(code, pc);
+          ReloadFromFrameOnException(&decoder, &code, &pc, &limit, &len);
           break;
         }
         case kExprSelect: {
@@ -2533,7 +2551,7 @@ class ThreadImpl {
               case ExternalCallResult::EXTERNAL_UNWOUND:
                 return;
               case ExternalCallResult::EXTERNAL_CAUGHT:
-                len = JumpToHandlerDelta(code, pc);
+                ReloadFromFrameOnException(&decoder, &code, &pc, &limit, &len);
                 DCHECK(exception_was_thrown = true);
                 break;
             }
@@ -2573,7 +2591,7 @@ class ThreadImpl {
             case ExternalCallResult::EXTERNAL_UNWOUND:
               return;
             case ExternalCallResult::EXTERNAL_CAUGHT:
-              len = JumpToHandlerDelta(code, pc);
+              ReloadFromFrameOnException(&decoder, &code, &pc, &limit, &len);
               DCHECK(exception_was_thrown = true);
               break;
           }

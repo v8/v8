@@ -56,8 +56,7 @@ WASM_EXEC_TEST(TryCatchCallDirect) {
                WASM_STMTS(WASM_DROP, WASM_I32V(kResult0))));
 
   // Need to call through JS to allow for creation of stack traces.
-  // TODO(mstarzinger): Enable the below tests once implemented.
-  // r.CheckCallViaJS(kResult0, 0);
+  r.CheckCallViaJS(kResult0, 0);
   r.CheckCallViaJS(kResult1, 1);
 }
 
@@ -94,8 +93,7 @@ WASM_EXEC_TEST(TryCatchCallIndirect) {
                WASM_STMTS(WASM_DROP, WASM_I32V(kResult0))));
 
   // Need to call through JS to allow for creation of stack traces.
-  // TODO(mstarzinger): Enable the below tests once implemented.
-  // r.CheckCallViaJS(kResult0, 0);
+  r.CheckCallViaJS(kResult0, 0);
   r.CheckCallViaJS(kResult1, 1);
 }
 
