@@ -19,7 +19,9 @@
 #include "src/objects/js-promise-inl.h"
 #include "src/objects/templates.h"
 #include "src/parsing/parse-info.h"
+#include "src/task-utils.h"
 #include "src/trap-handler/trap-handler.h"
+#include "src/v8.h"
 #include "src/wasm/streaming-decoder.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-limits.h"
@@ -69,15 +71,24 @@ class WasmStreaming::WasmStreamingImpl {
 
   void SetClient(std::shared_ptr<Client> client) {
     // There are no other event notifications so just pass client to decoder.
-    // Wrap the client with a callback here so we can also wrap the result.
+    // Wrap the client with a callback to trigger the callback in a new
+    // foreground task.
+    i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate_);
+    v8::Platform* platform = i::V8::GetCurrentPlatform();
+    std::shared_ptr<TaskRunner> foreground_task_runner =
+        platform->GetForegroundTaskRunner(isolate_);
     streaming_decoder_->SetModuleCompiledCallback(
-        [client](const std::shared_ptr<i::wasm::NativeModule>& native_module) {
-          client->OnModuleCompiled(Utils::Convert(native_module));
+        [client, i_isolate, foreground_task_runner](
+            const std::shared_ptr<i::wasm::NativeModule>& native_module) {
+          foreground_task_runner->PostTask(
+              i::MakeCancelableTask(i_isolate, [client, native_module] {
+                client->OnModuleCompiled(Utils::Convert(native_module));
+              }));
         });
   }
 
  private:
-  Isolate* isolate_ = nullptr;
+  Isolate* const isolate_;
   std::shared_ptr<internal::wasm::StreamingDecoder> streaming_decoder_;
   std::shared_ptr<internal::wasm::CompilationResultResolver> resolver_;
 };

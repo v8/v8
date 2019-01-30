@@ -1087,9 +1087,14 @@ class AsyncCompileJob::CompilationStateCallback {
       case CompilationEvent::kFinishedBaselineCompilation:
         DCHECK(!last_event_.has_value());
         if (job_->DecrementAndCheckFinisherCount()) {
-          SaveContext saved_context(job_->isolate());
-          job_->isolate()->set_context(*job_->native_context_);
-          job_->FinishCompile();
+          AsyncCompileJob* job = job_;
+          job->foreground_task_runner_->PostTask(
+              MakeCancelableTask(job->isolate_, [job] {
+                HandleScope scope(job->isolate_);
+                SaveContext saved_context(job->isolate_);
+                job->isolate_->set_context(*job->native_context_);
+                job->FinishCompile();
+              }));
         }
         break;
       case CompilationEvent::kFinishedTopTierCompilation:
@@ -1097,15 +1102,21 @@ class AsyncCompileJob::CompilationStateCallback {
         // This callback should not react to top tier finished callbacks, since
         // the job might already be gone then.
         break;
-      case CompilationEvent::kFailedCompilation:
+      case CompilationEvent::kFailedCompilation: {
         DCHECK(!last_event_.has_value());
         // Tier-up compilation should not fail if baseline compilation
         // did not fail.
         DCHECK(!Impl(job_->native_module_->compilation_state())
                     ->baseline_compilation_finished());
 
-        job_->DoSync<CompileFailed, kUseExistingForegroundTask>();
+        AsyncCompileJob* job = job_;
+        job->foreground_task_runner_->PostTask(
+            MakeCancelableTask(job->isolate_, [job] {
+              job->DoSync<CompileFailed, kUseExistingForegroundTask>();
+            }));
+
         break;
+      }
       default:
         UNREACHABLE();
     }
@@ -1117,6 +1128,8 @@ class AsyncCompileJob::CompilationStateCallback {
  private:
   AsyncCompileJob* job_;
 #ifdef DEBUG
+  // This will be modified by different threads, but they externally
+  // synchronize, so no explicit synchronization (currently) needed here.
   base::Optional<CompilationEvent> last_event_;
 #endif
 };
@@ -1699,9 +1712,6 @@ void CompilationStateImpl::OnFinishedUnit(ExecutionTier tier, WasmCode* code) {
   // tiering units.
   DCHECK_IMPLIES(!is_tiering_mode, outstanding_tiering_units_ == 0);
 
-  // Bitset of events to deliver.
-  base::EnumSet<CompilationEvent> events;
-
   if (is_tiering_unit) {
     DCHECK_LT(0, outstanding_tiering_units_);
     --outstanding_tiering_units_;
@@ -1709,33 +1719,21 @@ void CompilationStateImpl::OnFinishedUnit(ExecutionTier tier, WasmCode* code) {
       // If baseline compilation has not finished yet, then also trigger
       // {kFinishedBaselineCompilation}.
       if (outstanding_baseline_units_ > 0) {
-        events.Add(CompilationEvent::kFinishedBaselineCompilation);
+        NotifyOnEvent(CompilationEvent::kFinishedBaselineCompilation);
       }
-      events.Add(CompilationEvent::kFinishedTopTierCompilation);
+      NotifyOnEvent(CompilationEvent::kFinishedTopTierCompilation);
     }
   } else {
     DCHECK_LT(0, outstanding_baseline_units_);
     --outstanding_baseline_units_;
     if (outstanding_baseline_units_ == 0) {
-      events.Add(CompilationEvent::kFinishedBaselineCompilation);
+      NotifyOnEvent(CompilationEvent::kFinishedBaselineCompilation);
       // If we are not tiering, then we also trigger the "top tier finished"
       // event when baseline compilation is finished.
       if (!is_tiering_mode) {
-        events.Add(CompilationEvent::kFinishedTopTierCompilation);
+        NotifyOnEvent(CompilationEvent::kFinishedTopTierCompilation);
       }
     }
-  }
-
-  if (!events.empty()) {
-    auto notify_events = [this, events] {
-      for (auto event : {CompilationEvent::kFinishedBaselineCompilation,
-                         CompilationEvent::kFinishedTopTierCompilation}) {
-        if (!events.contains(event)) continue;
-        NotifyOnEvent(event);
-      }
-    };
-    foreground_task_runner_->PostTask(
-        MakeCancelableTask(&foreground_task_manager_, notify_events));
   }
 
   if (should_log_code_ && code != nullptr) {
@@ -1840,13 +1838,10 @@ void CompilationStateImpl::SetError(uint32_t func_index,
   compile_error.release();
   // Schedule a foreground task to call the callback and notify users about the
   // compile error.
-  foreground_task_runner_->PostTask(MakeCancelableTask(
-      &foreground_task_manager_,
-      [this] { NotifyOnEvent(CompilationEvent::kFailedCompilation); }));
+  NotifyOnEvent(CompilationEvent::kFailedCompilation);
 }
 
 void CompilationStateImpl::NotifyOnEvent(CompilationEvent event) {
-  HandleScope scope(isolate_);
   for (auto& callback : callbacks_) callback(event);
   // If no more events are expected after this one, clear the callbacks to free
   // memory. We can safely do this here, as this method is only called from
