@@ -11,6 +11,7 @@
 #include "src/api-inl.h"
 #include "src/compiler/serializer-for-background-compilation.h"
 #include "src/compiler/zone-stats.h"
+#include "src/optimized-compilation-info.h"
 #include "src/zone/zone.h"
 
 namespace v8 {
@@ -33,7 +34,15 @@ SerializerTester::SerializerTester(const char* source)
   function_string += " })();";
   Handle<JSFunction> function = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
       *v8::Local<v8::Function>::Cast(CompileRun(function_string.c_str()))));
-  Optimize(function, main_zone(), main_isolate(), 0, &broker_);
+  uint32_t flags = i::OptimizedCompilationInfo::kInliningEnabled |
+                   i::OptimizedCompilationInfo::kFunctionContextSpecializing |
+                   i::OptimizedCompilationInfo::kAccessorInliningEnabled |
+                   i::OptimizedCompilationInfo::kLoopPeelingEnabled |
+                   i::OptimizedCompilationInfo::kBailoutOnUninitialized |
+                   i::OptimizedCompilationInfo::kAllocationFoldingEnabled |
+                   i::OptimizedCompilationInfo::kSplittingEnabled |
+                   i::OptimizedCompilationInfo::kAnalyzeEnvironmentLiveness;
+  Optimize(function, main_zone(), main_isolate(), flags, &broker_);
   function_ = JSFunctionRef(broker_, function);
 }
 
@@ -45,14 +54,15 @@ TEST(SerializeEmptyFunction) {
 // This helper function allows for testing weather an inlinee candidate
 // was properly serialized. It expects that the top-level function (that is
 // run through the SerializerTester) will return its inlinee candidate.
-void CheckForSerializedInlinee(const char* source) {
+void CheckForSerializedInlinee(const char* source, int argc = 0,
+                               Handle<Object> argv[] = {}) {
   SerializerTester tester(source);
   JSFunctionRef f = tester.function();
   CHECK(f.IsSerializedForCompilation());
 
   MaybeHandle<Object> g_obj = Execution::Call(
       tester.isolate(), tester.function().object(),
-      tester.isolate()->factory()->undefined_value(), 0, nullptr);
+      tester.isolate()->factory()->undefined_value(), argc, argv);
   Handle<Object> g;
   CHECK(g_obj.ToHandle(&g));
 
@@ -76,6 +86,80 @@ TEST(SerializeInlinedFunction) {
       "function g() {};"
       "function f() {"
       "  g(); return g;"
+      "}; f(); return f;");
+}
+
+TEST(SerializeCallUndefinedReceiver) {
+  CheckForSerializedInlinee(
+      "function g(a,b,c) {};"
+      "function f() {"
+      "  g(1,2,3); return g;"
+      "}; f(); return f;");
+}
+
+TEST(SerializeCallUndefinedReceiver2) {
+  CheckForSerializedInlinee(
+      "function g(a,b) {};"
+      "function f() {"
+      "  g(1,2); return g;"
+      "}; f(); return f;");
+}
+
+TEST(SerializeCallProperty) {
+  CheckForSerializedInlinee(
+      "let obj = {"
+      "  g: function g(a,b,c) {}"
+      "};"
+      "function f() {"
+      "  obj.g(1,2,3); return obj.g;"
+      "}; f(); return f;");
+}
+
+TEST(SerializeCallProperty2) {
+  CheckForSerializedInlinee(
+      "let obj = {"
+      "  g: function g(a,b) {}"
+      "};"
+      "function f() {"
+      "  obj.g(1,2); return obj.g;"
+      "}; f(); return f;");
+}
+
+TEST(SerializeCallAnyReceiver) {
+  CheckForSerializedInlinee(
+      "let obj = {"
+      "  g: function g() {}"
+      "};"
+      "function f() {"
+      "  with(obj) {"
+      "    g(); return g;"
+      "  };"
+      "};"
+      "f(); return f;");
+}
+
+TEST(SerializeCallWithSpread) {
+  CheckForSerializedInlinee(
+      "function g(args) {};"
+      "const arr = [1,2,3];"
+      "function f() {"
+      "  g(...arr); return g;"
+      "}; f(); return f;");
+}
+
+// The following test causes the CallIC of `g` to turn megamorphic,
+// thus allowing us to test if we forward arguments hints (`callee` in this
+// example) and correctly serialize the inlining candidate `j`.
+TEST(SerializeCallArguments) {
+  CheckForSerializedInlinee(
+      "function g(callee) { callee(); };"
+      "function h() {};"
+      "function i() {};"
+      "g(h); g(i);"
+      "function f() {"
+      "  function j() {};"
+      "  g(j);"
+      "  return j;"
       "}; f(); return f;");
 }
 }  // namespace compiler
