@@ -656,6 +656,11 @@ config("toolchain") {
       "-Wno-return-type",
     ]
   }
+
+  # Chromium uses a hand-picked subset of UBSan coverage. We want everything.
+  if (is_ubsan) {
+    cflags += [ "-fsanitize=undefined" ]
+  }
 }
 
 # Configs for code coverage with gcov. Separate configs for cflags and ldflags
