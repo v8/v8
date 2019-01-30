@@ -1166,7 +1166,7 @@ class ElementsAccessorBase : public InternalElementsAccessor {
               isolate->factory()->Uint32ToString(i, use_cache);
           list->set(insertion_index, *index_string);
         } else {
-          list->set(insertion_index, Smi::FromInt(i), SKIP_WRITE_BARRIER);
+          list->set(insertion_index, Smi::FromInt(i));
         }
         insertion_index++;
       }
@@ -3753,7 +3753,7 @@ class SloppyArgumentsElementsAccessor
         Handle<String> index_string = isolate->factory()->Uint32ToString(i);
         list->set(insertion_index, *index_string);
       } else {
-        list->set(insertion_index, Smi::FromInt(i), SKIP_WRITE_BARRIER);
+        list->set(insertion_index, Smi::FromInt(i));
       }
       insertion_index++;
     }

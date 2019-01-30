@@ -213,21 +213,21 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
               ParameterNumberField::encode(ParameterNumberField::kMax);
           scope_info->set(context_local_base + local_index, *var->name(), mode);
           scope_info->set(context_local_info_base + local_index,
-                          Smi::FromInt(info), mode);
+                          Smi::FromInt(info));
           break;
         }
         case VariableLocation::MODULE: {
           scope_info->set(module_var_entry + kModuleVariableNameOffset,
                           *var->name(), mode);
           scope_info->set(module_var_entry + kModuleVariableIndexOffset,
-                          Smi::FromInt(var->index()), mode);
+                          Smi::FromInt(var->index()));
           uint32_t properties =
               VariableModeField::encode(var->mode()) |
               InitFlagField::encode(var->initialization_flag()) |
               MaybeAssignedFlagField::encode(var->maybe_assigned()) |
               ParameterNumberField::encode(ParameterNumberField::kMax);
           scope_info->set(module_var_entry + kModuleVariablePropertiesOffset,
-                          Smi::FromInt(properties), mode);
+                          Smi::FromInt(properties));
           module_var_entry += kModuleVariableEntryLength;
           break;
         }
@@ -251,7 +251,7 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
         int info_index = context_local_info_base + index;
         int info = Smi::ToInt(scope_info->get(info_index));
         info = ParameterNumberField::update(info, i);
-        scope_info->set(info_index, Smi::FromInt(info), mode);
+        scope_info->set(info_index, Smi::FromInt(info));
       }
     }
 
@@ -261,7 +261,7 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
     DCHECK_EQ(index, scope_info->ReceiverInfoIndex());
     if (has_receiver) {
       int var_index = scope->AsDeclarationScope()->receiver()->index();
-      scope_info->set(index++, Smi::FromInt(var_index), mode);
+      scope_info->set(index++, Smi::FromInt(var_index));
       // ?? DCHECK(receiver_info != CONTEXT || var_index ==
       // scope_info->ContextLength() - 1);
     }
@@ -277,7 +277,7 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
         name = *var->name();
       }
       scope_info->set(index++, name, mode);
-      scope_info->set(index++, Smi::FromInt(var_index), mode);
+      scope_info->set(index++, Smi::FromInt(var_index));
       DCHECK(function_name_info != CONTEXT ||
              var_index == scope_info->ContextLength() - 1);
     }
@@ -290,8 +290,8 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
 
     DCHECK_EQ(index, scope_info->PositionInfoIndex());
     if (has_position_info) {
-      scope_info->set(index++, Smi::FromInt(scope->start_position()), mode);
-      scope_info->set(index++, Smi::FromInt(scope->end_position()), mode);
+      scope_info->set(index++, Smi::FromInt(scope->start_position()));
+      scope_info->set(index++, Smi::FromInt(scope->end_position()));
     }
 
     // If present, add the outer scope info.
