@@ -12587,34 +12587,57 @@ Handle<Object> SharedFunctionInfo::GetSourceCodeHarmony(
   return builder.Finish().ToHandleChecked();
 }
 
+namespace {
+void TraceInlining(SharedFunctionInfo shared, const char* msg) {
+  if (FLAG_trace_turbo_inlining) {
+    std::cout << Brief(shared) << ": IsInlineable? " << msg << "\n";
+  }
+}
+}  // namespace
+
 bool SharedFunctionInfo::IsInlineable() {
-  // Check that the function has a script associated with it.
-  if (!script()->IsScript()) return false;
+  if (!script()->IsScript()) {
+    TraceInlining(*this, "false (no Script associated with it)");
+    return false;
+  }
 
   if (GetIsolate()->is_precise_binary_code_coverage() &&
       !has_reported_binary_coverage()) {
     // We may miss invocations if this function is inlined.
+    TraceInlining(*this, "false (requires precise binary coverage)");
     return false;
   }
 
-  if (optimization_disabled()) return false;
+  if (optimization_disabled()) {
+    TraceInlining(*this, "false (optimization disabled)");
+    return false;
+  }
 
   // Built-in functions are handled by the JSCallReducer.
-  if (HasBuiltinFunctionId()) return false;
+  if (HasBuiltinFunctionId()) {
+    TraceInlining(*this, "false (is a builtin)");
+    return false;
+  }
 
-  // Only choose user code for inlining.
-  if (!IsUserJavaScript()) return false;
+  if (!IsUserJavaScript()) {
+    TraceInlining(*this, "false (is not user code)");
+    return false;
+  }
 
   // If there is no bytecode array, it is either not compiled or it is compiled
   // with WebAssembly for the asm.js pipeline. In either case we don't want to
   // inline.
-  if (!HasBytecodeArray()) return false;
-
-  // Quick check on the size of the bytecode to avoid inlining large functions.
-  if (GetBytecodeArray()->length() > FLAG_max_inlined_bytecode_size) {
+  if (!HasBytecodeArray()) {
+    TraceInlining(*this, "false (has no BytecodeArray)");
     return false;
   }
 
+  if (GetBytecodeArray()->length() > FLAG_max_inlined_bytecode_size) {
+    TraceInlining(*this, "false (length > FLAG_max_inlined_bytecode_size)");
+    return false;
+  }
+
+  TraceInlining(*this, "true");
   return true;
 }
 
