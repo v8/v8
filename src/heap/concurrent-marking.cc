@@ -237,24 +237,24 @@ class ConcurrentMarkingVisitor final
     return size;
   }
 
-  int VisitJSWeakCell(Map map, JSWeakCell weak_cell) {
-    int size = VisitJSObjectSubclass(map, weak_cell);
-    if (size == 0) {
-      return 0;
-    }
+  int VisitWeakCell(Map map, WeakCell weak_cell) {
+    if (!ShouldVisit(weak_cell)) return 0;
 
+    int size = WeakCell::BodyDescriptor::SizeOf(map, weak_cell);
+    VisitMapPointer(weak_cell, weak_cell->map_slot());
+    WeakCell::BodyDescriptor::IterateBody(map, weak_cell, size, this);
     if (weak_cell->target()->IsHeapObject()) {
       HeapObject target = HeapObject::cast(weak_cell->target());
       if (marking_state_.IsBlackOrGrey(target)) {
-        // Record the slot inside the JSWeakCell, since the
-        // VisitJSObjectSubclass above didn't visit it.
+        // Record the slot inside the WeakCell, since the IterateBody above
+        // didn't visit it.
         ObjectSlot slot =
-            HeapObject::RawField(weak_cell, JSWeakCell::kTargetOffset);
+            HeapObject::RawField(weak_cell, WeakCell::kTargetOffset);
         MarkCompactCollector::RecordSlot(weak_cell, slot, target);
       } else {
-        // JSWeakCell points to a potentially dead object. We have to process
+        // WeakCell points to a potentially dead object. We have to process
         // them when we know the liveness of the whole transitive closure.
-        weak_objects_->js_weak_cells.Push(task_id_, weak_cell);
+        weak_objects_->weak_cells.Push(task_id_, weak_cell);
       }
     }
     return size;
@@ -578,7 +578,7 @@ class ConcurrentMarkingVisitor final
 
     void VisitCustomWeakPointers(HeapObject host, ObjectSlot start,
                                  ObjectSlot end) override {
-      DCHECK(host->IsJSWeakCell() || host->IsJSWeakRef());
+      DCHECK(host->IsWeakCell() || host->IsJSWeakRef());
     }
 
    private:
@@ -833,7 +833,7 @@ void ConcurrentMarking::Run(int task_id, TaskState* task_state) {
     weak_objects_->discovered_ephemerons.FlushToGlobal(task_id);
     weak_objects_->weak_references.FlushToGlobal(task_id);
     weak_objects_->js_weak_refs.FlushToGlobal(task_id);
-    weak_objects_->js_weak_cells.FlushToGlobal(task_id);
+    weak_objects_->weak_cells.FlushToGlobal(task_id);
     weak_objects_->weak_objects_in_code.FlushToGlobal(task_id);
     weak_objects_->bytecode_flushing_candidates.FlushToGlobal(task_id);
     weak_objects_->flushed_js_functions.FlushToGlobal(task_id);

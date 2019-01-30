@@ -196,7 +196,7 @@ enum InstanceType : uint16_t {
   PROMISE_FULFILL_REACTION_JOB_TASK_TYPE,
   PROMISE_REJECT_REACTION_JOB_TASK_TYPE,
   PROMISE_RESOLVE_THENABLE_JOB_TASK_TYPE,
-  WEAK_FACTORY_CLEANUP_JOB_TASK_TYPE,  // LAST_MICROTASK_TYPE
+  FINALIZATION_GROUP_CLEANUP_JOB_TASK_TYPE,  // LAST_MICROTASK_TYPE
 
   ALLOCATION_SITE_TYPE,
   EMBEDDER_DATA_ARRAY_TYPE,
@@ -250,6 +250,7 @@ enum InstanceType : uint16_t {
   UNCOMPILED_DATA_WITHOUT_PREPARSE_DATA_TYPE,
   UNCOMPILED_DATA_WITH_PREPARSE_DATA_TYPE,
   WEAK_ARRAY_LIST_TYPE,
+  WEAK_CELL_TYPE,
 
   // All the following types are subtypes of JSReceiver, which corresponds to
   // objects in the JS sense. The first and the last type in this range are
@@ -292,10 +293,9 @@ enum InstanceType : uint16_t {
   JS_SET_KEY_VALUE_ITERATOR_TYPE,
   JS_SET_VALUE_ITERATOR_TYPE,
   JS_STRING_ITERATOR_TYPE,
-  JS_WEAK_CELL_TYPE,
   JS_WEAK_REF_TYPE,
-  JS_WEAK_FACTORY_CLEANUP_ITERATOR_TYPE,
-  JS_WEAK_FACTORY_TYPE,
+  JS_FINALIZATION_GROUP_CLEANUP_ITERATOR_TYPE,
+  JS_FINALIZATION_GROUP_TYPE,
   JS_WEAK_MAP_TYPE,
   JS_WEAK_SET_TYPE,
 
@@ -354,7 +354,7 @@ enum InstanceType : uint16_t {
   LAST_CONTEXT_TYPE = WITH_CONTEXT_TYPE,
   // Boundaries for testing if given HeapObject is a subclass of Microtask.
   FIRST_MICROTASK_TYPE = CALLABLE_TASK_TYPE,
-  LAST_MICROTASK_TYPE = WEAK_FACTORY_CLEANUP_JOB_TASK_TYPE,
+  LAST_MICROTASK_TYPE = FINALIZATION_GROUP_CLEANUP_JOB_TASK_TYPE,
   // Boundaries for testing for a fixed typed array.
   FIRST_FIXED_TYPED_ARRAY_TYPE = FIXED_INT8_ARRAY_TYPE,
   LAST_FIXED_TYPED_ARRAY_TYPE = FIXED_BIGUINT64_ARRAY_TYPE,
@@ -455,9 +455,9 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
   V(JSStringIterator, JS_STRING_ITERATOR_TYPE)                               \
   V(JSTypedArray, JS_TYPED_ARRAY_TYPE)                                       \
   V(JSValue, JS_VALUE_TYPE)                                                  \
-  V(JSWeakFactory, JS_WEAK_FACTORY_TYPE)                                     \
-  V(JSWeakFactoryCleanupIterator, JS_WEAK_FACTORY_CLEANUP_ITERATOR_TYPE)     \
-  V(JSWeakCell, JS_WEAK_CELL_TYPE)                                           \
+  V(JSFinalizationGroup, JS_FINALIZATION_GROUP_TYPE)                         \
+  V(JSFinalizationGroupCleanupIterator,                                      \
+    JS_FINALIZATION_GROUP_CLEANUP_ITERATOR_TYPE)                             \
   V(JSWeakMap, JS_WEAK_MAP_TYPE)                                             \
   V(JSWeakRef, JS_WEAK_REF_TYPE)                                             \
   V(JSWeakSet, JS_WEAK_SET_TYPE)                                             \
@@ -497,7 +497,8 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
   V(WasmMemoryObject, WASM_MEMORY_TYPE)                                      \
   V(WasmModuleObject, WASM_MODULE_TYPE)                                      \
   V(WasmTableObject, WASM_TABLE_TYPE)                                        \
-  V(WeakArrayList, WEAK_ARRAY_LIST_TYPE)
+  V(WeakArrayList, WEAK_ARRAY_LIST_TYPE)                                     \
+  V(WeakCell, WEAK_CELL_TYPE)
 #ifdef V8_INTL_SUPPORT
 
 #define INSTANCE_TYPE_CHECKERS_SINGLE(V)                     \

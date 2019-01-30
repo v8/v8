@@ -123,7 +123,7 @@ namespace internal {
   V(PROMISE_FULFILL_REACTION_JOB_TASK_TYPE)                        \
   V(PROMISE_REJECT_REACTION_JOB_TASK_TYPE)                         \
   V(PROMISE_RESOLVE_THENABLE_JOB_TASK_TYPE)                        \
-  V(WEAK_FACTORY_CLEANUP_JOB_TASK_TYPE)                            \
+  V(FINALIZATION_GROUP_CLEANUP_JOB_TASK_TYPE)                      \
                                                                    \
   V(ALLOCATION_SITE_TYPE)                                          \
   V(EMBEDDER_DATA_ARRAY_TYPE)                                      \
@@ -175,6 +175,7 @@ namespace internal {
   V(UNCOMPILED_DATA_WITHOUT_PREPARSE_DATA_TYPE)                    \
   V(UNCOMPILED_DATA_WITH_PREPARSE_DATA_TYPE)                       \
   V(WEAK_ARRAY_LIST_TYPE)                                          \
+  V(WEAK_CELL_TYPE)                                                \
                                                                    \
   V(JS_PROXY_TYPE)                                                 \
   V(JS_GLOBAL_OBJECT_TYPE)                                         \
@@ -208,10 +209,9 @@ namespace internal {
   V(JS_SET_KEY_VALUE_ITERATOR_TYPE)                                \
   V(JS_SET_VALUE_ITERATOR_TYPE)                                    \
   V(JS_STRING_ITERATOR_TYPE)                                       \
-  V(JS_WEAK_CELL_TYPE)                                             \
   V(JS_WEAK_REF_TYPE)                                              \
-  V(JS_WEAK_FACTORY_CLEANUP_ITERATOR_TYPE)                         \
-  V(JS_WEAK_FACTORY_TYPE)                                          \
+  V(JS_FINALIZATION_GROUP_CLEANUP_ITERATOR_TYPE)                   \
+  V(JS_FINALIZATION_GROUP_TYPE)                                    \
   V(JS_WEAK_MAP_TYPE)                                              \
   V(JS_WEAK_SET_TYPE)                                              \
   V(JS_TYPED_ARRAY_TYPE)                                           \
@@ -352,8 +352,8 @@ namespace internal {
     promise_reject_reaction_job_task)                                         \
   V(_, PROMISE_RESOLVE_THENABLE_JOB_TASK_TYPE, PromiseResolveThenableJobTask, \
     promise_resolve_thenable_job_task)                                        \
-  V(_, WEAK_FACTORY_CLEANUP_JOB_TASK_TYPE, WeakFactoryCleanupJobTask,         \
-    weak_factory_cleanup_job_task)
+  V(_, FINALIZATION_GROUP_CLEANUP_JOB_TASK_TYPE,                              \
+    FinalizationGroupCleanupJobTask, finalization_group_cleanup_job_task)
 
 // Adapts one STRUCT_LIST_GENERATOR entry to the STRUCT_LIST entry
 #define STRUCT_LIST_ADAPTER(V, NAME, Name, name) V(NAME, Name, name)

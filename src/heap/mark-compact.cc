@@ -1930,7 +1930,7 @@ void MarkCompactCollector::ClearNonLiveReferences() {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_CLEAR_WEAK_REFERENCES);
     ClearWeakReferences();
     ClearWeakCollections();
-    ClearJSWeakCells();
+    ClearJSWeakRefs();
   }
 
   MarkDependentCodeForDeoptimization();
@@ -1939,7 +1939,7 @@ void MarkCompactCollector::ClearNonLiveReferences() {
   DCHECK(weak_objects_.weak_references.IsEmpty());
   DCHECK(weak_objects_.weak_objects_in_code.IsEmpty());
   DCHECK(weak_objects_.js_weak_refs.IsEmpty());
-  DCHECK(weak_objects_.js_weak_cells.IsEmpty());
+  DCHECK(weak_objects_.weak_cells.IsEmpty());
   DCHECK(weak_objects_.bytecode_flushing_candidates.IsEmpty());
   DCHECK(weak_objects_.flushed_js_functions.IsEmpty());
 }
@@ -2280,7 +2280,7 @@ void MarkCompactCollector::ClearWeakReferences() {
   }
 }
 
-void MarkCompactCollector::ClearJSWeakCells() {
+void MarkCompactCollector::ClearJSWeakRefs() {
   if (!FLAG_harmony_weak_refs) {
     return;
   }
@@ -2298,38 +2298,38 @@ void MarkCompactCollector::ClearJSWeakCells() {
       RecordSlot(weak_ref, slot, target);
     }
   }
-  JSWeakCell weak_cell;
-  while (weak_objects_.js_weak_cells.Pop(kMainThread, &weak_cell)) {
-    // We do not insert cleared weak cells into the list, so the value
-    // cannot be a Smi here.
+  WeakCell weak_cell;
+  while (weak_objects_.weak_cells.Pop(kMainThread, &weak_cell)) {
     HeapObject target = HeapObject::cast(weak_cell->target());
     if (!non_atomic_marking_state()->IsBlackOrGrey(target)) {
-      // The value of the JSWeakCell is dead.
-      JSWeakFactory weak_factory = JSWeakFactory::cast(weak_cell->factory());
-      if (!weak_factory->scheduled_for_cleanup()) {
-        heap()->AddDirtyJSWeakFactory(
-            weak_factory,
+      DCHECK(!target->IsUndefined());
+      // The value of the WeakCell is dead.
+      JSFinalizationGroup finalization_group =
+          JSFinalizationGroup::cast(weak_cell->finalization_group());
+      if (!finalization_group->scheduled_for_cleanup()) {
+        heap()->AddDirtyJSFinalizationGroup(
+            finalization_group,
             [](HeapObject object, ObjectSlot slot, Object target) {
               if (target->IsHeapObject()) {
                 RecordSlot(object, slot, HeapObject::cast(target));
               }
             });
       }
-      // We're modifying the pointers in JSWeakCell and JSWeakFactory during GC;
-      // thus we need to record the slots it writes. The normal write barrier is
-      // not enough, since it's disabled before GC.
+      // We're modifying the pointers in WeakCell and JSFinalizationGroup during
+      // GC; thus we need to record the slots it writes. The normal write
+      // barrier is not enough, since it's disabled before GC.
       weak_cell->Nullify(isolate(),
                          [](HeapObject object, ObjectSlot slot, Object target) {
                            if (target->IsHeapObject()) {
                              RecordSlot(object, slot, HeapObject::cast(target));
                            }
                          });
-      DCHECK(weak_factory->NeedsCleanup());
-      DCHECK(weak_factory->scheduled_for_cleanup());
+      DCHECK(finalization_group->NeedsCleanup());
+      DCHECK(finalization_group->scheduled_for_cleanup());
     } else {
-      // The value of the JSWeakCell is alive.
+      // The value of the WeakCell is alive.
       ObjectSlot slot =
-          HeapObject::RawField(weak_cell, JSWeakCell::kTargetOffset);
+          HeapObject::RawField(weak_cell, WeakCell::kTargetOffset);
       RecordSlot(weak_cell, slot, HeapObject::cast(*slot));
     }
   }
@@ -2344,7 +2344,7 @@ void MarkCompactCollector::AbortWeakObjects() {
   weak_objects_.weak_references.Clear();
   weak_objects_.weak_objects_in_code.Clear();
   weak_objects_.js_weak_refs.Clear();
-  weak_objects_.js_weak_cells.Clear();
+  weak_objects_.weak_cells.Clear();
   weak_objects_.bytecode_flushing_candidates.Clear();
   weak_objects_.flushed_js_functions.Clear();
 }

@@ -283,8 +283,6 @@
   V(_, value_string, "value")                                         \
   V(_, valueOf_string, "valueOf")                                     \
   V(_, values_string, "values")                                       \
-  V(_, WeakCell_string, "WeakCell")                                   \
-  V(_, WeakFactory_string, "WeakFactory")                             \
   V(_, WeakMap_string, "WeakMap")                                     \
   V(_, WeakRef_string, "WeakRef")                                     \
   V(_, WeakSet_string, "WeakSet")                                     \

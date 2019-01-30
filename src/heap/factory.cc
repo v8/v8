@@ -1751,12 +1751,13 @@ Handle<PromiseResolveThenableJobTask> Factory::NewPromiseResolveThenableJobTask(
   return microtask;
 }
 
-Handle<WeakFactoryCleanupJobTask> Factory::NewWeakFactoryCleanupJobTask(
-    Handle<JSWeakFactory> weak_factory) {
-  Handle<WeakFactoryCleanupJobTask> microtask =
-      Handle<WeakFactoryCleanupJobTask>::cast(
-          NewStruct(WEAK_FACTORY_CLEANUP_JOB_TASK_TYPE));
-  microtask->set_factory(*weak_factory);
+Handle<FinalizationGroupCleanupJobTask>
+Factory::NewFinalizationGroupCleanupJobTask(
+    Handle<JSFinalizationGroup> finalization_group) {
+  Handle<FinalizationGroupCleanupJobTask> microtask =
+      Handle<FinalizationGroupCleanupJobTask>::cast(
+          NewStruct(FINALIZATION_GROUP_CLEANUP_JOB_TASK_TYPE));
+  microtask->set_finalization_group(*finalization_group);
   return microtask;
 }
 
@@ -2576,6 +2577,16 @@ Handle<JSObject> Factory::NewFunctionPrototype(Handle<JSFunction> function) {
   }
 
   return prototype;
+}
+
+Handle<WeakCell> Factory::NewWeakCell() {
+  // Allocate the WeakCell object in the old space, because 1) WeakCell weakness
+  // handling is only implemented in the old space 2) they're supposedly
+  // long-living. TODO(marja, gsathya): Support WeakCells in Scavenger.
+  Handle<WeakCell> result(WeakCell::cast(AllocateRawWithImmortalMap(
+                              WeakCell::kSize, TENURED, *weak_cell_map())),
+                          isolate());
+  return result;
 }
 
 Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(

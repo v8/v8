@@ -124,6 +124,7 @@ class RootVisitor;
   V(Map, weak_array_list_map, WeakArrayListMap)                                \
   V(Map, ephemeron_hash_table_map, EphemeronHashTableMap)                      \
   V(Map, embedder_data_array_map, EmbedderDataArrayMap)                        \
+  V(Map, weak_cell_map, WeakCellMap)                                           \
   /* String maps */                                                            \
   V(Map, native_source_string_map, NativeSourceStringMap)                      \
   V(Map, string_map, StringMap)                                                \
@@ -284,8 +285,8 @@ class RootVisitor;
   V(TemplateList, message_listeners, MessageListeners)                     \
   /* Support for async stack traces */                                     \
   V(HeapObject, current_microtask, CurrentMicrotask)                       \
-  /* JSWeakFactory objects which need cleanup */                           \
-  V(Object, dirty_js_weak_factories, DirtyJSWeakFactories)                 \
+  /* JSFinalizationGroup objects which need cleanup */                     \
+  V(Object, dirty_js_finalization_groups, DirtyJSFinalizationGroups)       \
   /* KeepDuringJob set for JS WeakRefs */                                  \
   V(HeapObject, weak_refs_keep_during_job, WeakRefsKeepDuringJob)          \
   V(HeapObject, interpreter_entry_trampoline_for_profiling,                \

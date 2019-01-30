@@ -51,7 +51,6 @@ enum InstanceType : uint16_t;
   V(JSObject)                          \
   V(JSObjectFast)                      \
   V(JSTypedArray)                      \
-  V(JSWeakCell)                        \
   V(JSWeakRef)                         \
   V(JSWeakCollection)                  \
   V(Map)                               \
@@ -74,7 +73,8 @@ enum InstanceType : uint16_t;
   V(UncompiledDataWithoutPreparseData) \
   V(UncompiledDataWithPreparseData)    \
   V(WasmInstanceObject)                \
-  V(WeakArray)
+  V(WeakArray)                         \
+  V(WeakCell)
 
 // Objects with the same visitor id are processed in the same way by
 // the heap visitors. The visitor ids for data only objects must precede

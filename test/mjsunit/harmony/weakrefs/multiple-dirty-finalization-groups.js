@@ -5,28 +5,26 @@
 // Flags: --harmony-weak-refs --expose-gc --noincremental-marking
 
 let cleanup_call_count = 0;
-let cleanup_weak_cell_count = 0;
+let cleanup_holdings_count = 0;
 let cleanup = function(iter) {
-  for (wc of iter) {
-    ++cleanup_weak_cell_count;
+  for (holdings of iter) {
+    ++cleanup_holdings_count;
   }
   ++cleanup_call_count;
 }
 
-let wf1 = new WeakFactory(cleanup);
-let wf2 = new WeakFactory(cleanup);
+let fg1 = new FinalizationGroup(cleanup);
+let fg2 = new FinalizationGroup(cleanup);
 
-// Create two objects and WeakCells pointing to them. The objects need to be inside
-// a closure so that we can reliably kill them!
-let weak_cell1;
-let weak_cell2;
+// Create two objects and register them in FinalizationGroups. The objects need
+// to be inside a closure so that we can reliably kill them!
 
 (function() {
   let object1 = {};
-  weak_cell1 = wf1.makeCell(object1);
+  fg1.register(object1, "holdings1");
 
   let object2 = {};
-  weak_cell2 = wf2.makeCell(object2);
+  fg2.register(object2, "holdings2");
 
   // object1 and object2 go out of scope.
 })();
@@ -35,10 +33,10 @@ let weak_cell2;
 gc();
 assertEquals(0, cleanup_call_count);
 
-// Assert that the cleanup function was called and iterated the WeakCells.
+// Assert that the cleanup function was called and iterated the holdings.
 let timeout_func = function() {
   assertEquals(2, cleanup_call_count);
-  assertEquals(2, cleanup_weak_cell_count);
+  assertEquals(2, cleanup_holdings_count);
 }
 
 setTimeout(timeout_func, 0);

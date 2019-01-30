@@ -5,29 +5,28 @@
 // Flags: --harmony-weak-refs --expose-gc --noincremental-marking
 
 let cleanup_count = 0;
-let cleanup_cells = [];
+let cleanup_holdings = [];
 let cleanup = function(iter) {
-  for (wc of iter) {
-    cleanup_cells.push(wc);
+  for (holdings of iter) {
+    cleanup_holdings.push(holdings);
   }
   ++cleanup_count;
 }
 
-let wf = new WeakFactory(cleanup);
-let weak_cell;
+let fg = new FinalizationGroup(cleanup);
 (function() {
   let o = {};
-  weak_cell = wf.makeCell(o);
+  fg.register(o, "holdings");
 
-  // cleanupSome won't do anything since there are no dirty WeakCells.
-  wf.cleanupSome();
+  // cleanupSome won't do anything since there are no reclaimed targets.
+  fg.cleanupSome();
   assertEquals(0, cleanup_count);
 })();
 
-// GC will detect the WeakCell as dirty.
+// GC will detect o as dead.
 gc();
 
-wf.cleanupSome();
+fg.cleanupSome();
 assertEquals(1, cleanup_count);
-assertEquals(1, cleanup_cells.length);
-assertEquals(weak_cell, cleanup_cells[0]);
+assertEquals(1, cleanup_holdings.length);
+assertEquals("holdings", cleanup_holdings[0]);

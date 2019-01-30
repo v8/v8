@@ -419,11 +419,10 @@ class ZoneForwardList;
   V(JSStringIterator)                          \
   V(JSTypedArray)                              \
   V(JSValue)                                   \
-  V(JSWeakCell)                                \
   V(JSWeakRef)                                 \
   V(JSWeakCollection)                          \
-  V(JSWeakFactory)                             \
-  V(JSWeakFactoryCleanupIterator)              \
+  V(JSFinalizationGroup)                       \
+  V(JSFinalizationGroupCleanupIterator)        \
   V(JSWeakMap)                                 \
   V(JSWeakSet)                                 \
   V(LoadHandler)                               \
@@ -489,7 +488,8 @@ class ZoneForwardList;
   V(WasmModuleObject)                          \
   V(WasmTableObject)                           \
   V(WeakFixedArray)                            \
-  V(WeakArrayList)
+  V(WeakArrayList)                             \
+  V(WeakCell)
 
 #ifdef V8_INTL_SUPPORT
 #define HEAP_OBJECT_ORDINARY_TYPE_LIST(V) \

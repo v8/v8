@@ -293,18 +293,18 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case JS_MAP_VALUE_ITERATOR_TYPE:
       JSMapIterator::cast(*this)->JSMapIteratorPrint(os);
       break;
-    case JS_WEAK_CELL_TYPE:
-      JSWeakCell::cast(*this)->JSWeakCellPrint(os);
+    case WEAK_CELL_TYPE:
+      WeakCell::cast(*this)->WeakCellPrint(os);
       break;
     case JS_WEAK_REF_TYPE:
       JSWeakRef::cast(*this)->JSWeakRefPrint(os);
       break;
-    case JS_WEAK_FACTORY_TYPE:
-      JSWeakFactory::cast(*this)->JSWeakFactoryPrint(os);
+    case JS_FINALIZATION_GROUP_TYPE:
+      JSFinalizationGroup::cast(*this)->JSFinalizationGroupPrint(os);
       break;
-    case JS_WEAK_FACTORY_CLEANUP_ITERATOR_TYPE:
-      JSWeakFactoryCleanupIterator::cast(*this)
-          ->JSWeakFactoryCleanupIteratorPrint(os);
+    case JS_FINALIZATION_GROUP_CLEANUP_ITERATOR_TYPE:
+      JSFinalizationGroupCleanupIterator::cast(*this)
+          ->JSFinalizationGroupCleanupIteratorPrint(os);
       break;
     case JS_WEAK_MAP_TYPE:
       JSWeakMap::cast(*this)->JSWeakMapPrint(os);
@@ -1279,14 +1279,16 @@ void JSMapIterator::JSMapIteratorPrint(std::ostream& os) {  // NOLINT
   JSCollectionIteratorPrint(os, "JSMapIterator");
 }
 
-void JSWeakCell::JSWeakCellPrint(std::ostream& os) {
-  JSObjectPrintHeader(os, *this, "JSWeakCell");
-  os << "\n - factory: " << Brief(factory());
+void WeakCell::WeakCellPrint(std::ostream& os) {
+  PrintHeader(os, "WeakCell");
+  os << "\n - finalization_group: " << Brief(finalization_group());
   os << "\n - target: " << Brief(target());
   os << "\n - holdings: " << Brief(holdings());
   os << "\n - prev: " << Brief(prev());
   os << "\n - next: " << Brief(next());
-  JSObjectPrintBody(os, *this);
+  os << "\n - key: " << Brief(key());
+  os << "\n - key_list_prev: " << Brief(key_list_prev());
+  os << "\n - key_list_next: " << Brief(key_list_next());
 }
 
 void JSWeakRef::JSWeakRefPrint(std::ostream& os) {
@@ -1295,26 +1297,27 @@ void JSWeakRef::JSWeakRefPrint(std::ostream& os) {
   JSObjectPrintBody(os, *this);
 }
 
-void JSWeakFactory::JSWeakFactoryPrint(std::ostream& os) {
-  JSObjectPrintHeader(os, *this, "JSWeakFactory");
+void JSFinalizationGroup::JSFinalizationGroupPrint(std::ostream& os) {
+  JSObjectPrintHeader(os, *this, "JSFinalizationGroup");
   os << "\n - native_context: " << Brief(native_context());
   os << "\n - cleanup: " << Brief(cleanup());
   os << "\n - active_cells: " << Brief(active_cells());
   os << "\n - cleared_cells: " << Brief(cleared_cells());
+  os << "\n - key_map: " << Brief(key_map());
   JSObjectPrintBody(os, *this);
 }
 
-void JSWeakFactoryCleanupIterator::JSWeakFactoryCleanupIteratorPrint(
-    std::ostream& os) {
-  JSObjectPrintHeader(os, *this, "JSWeakFactoryCleanupIterator");
-  os << "\n - factory: " << Brief(factory());
+void JSFinalizationGroupCleanupIterator::
+    JSFinalizationGroupCleanupIteratorPrint(std::ostream& os) {
+  JSObjectPrintHeader(os, *this, "JSFinalizationGroupCleanupIterator");
+  os << "\n - finalization_group: " << Brief(finalization_group());
   JSObjectPrintBody(os, *this);
 }
 
-void WeakFactoryCleanupJobTask::WeakFactoryCleanupJobTaskPrint(
+void FinalizationGroupCleanupJobTask::FinalizationGroupCleanupJobTaskPrint(
     std::ostream& os) {
-  PrintHeader(os, "WeakFactoryCleanupJobTask");
-  os << "\n - factory: " << Brief(factory());
+  PrintHeader(os, "FinalizationGroupCleanupJobTask");
+  os << "\n - finalization_group: " << Brief(finalization_group());
 }
 
 void JSWeakMap::JSWeakMapPrint(std::ostream& os) {  // NOLINT

@@ -942,32 +942,36 @@ void Heap::GarbageCollectionEpilogue() {
 
   if (FLAG_harmony_weak_refs) {
     // TODO(marja): (spec): The exact condition on when to schedule the cleanup
-    // task is unclear. This version schedules the cleanup task for a factory
-    // whenever the GC has discovered new dirty WeakCells for it (at that point
-    // it might have leftover dirty WeakCells since an earlier invocation of the
-    // cleanup function didn't iterate through them). See
-    // https://github.com/tc39/proposal-weakrefs/issues/34
+    // task is unclear. This version schedules the cleanup task for a
+    // JSFinalizationGroup whenever the GC has discovered new dirty WeakCells
+    // for it (at that point it might have leftover dirty WeakCells since an
+    // earlier invocation of the cleanup function didn't iterate through
+    // them). See https://github.com/tc39/proposal-weakrefs/issues/34
     HandleScope handle_scope(isolate());
-    while (
-        !isolate()->heap()->dirty_js_weak_factories()->IsUndefined(isolate())) {
-      // Enqueue one microtask per JSWeakFactory.
-      Handle<JSWeakFactory> weak_factory(
-          JSWeakFactory::cast(isolate()->heap()->dirty_js_weak_factories()),
+    while (!isolate()->heap()->dirty_js_finalization_groups()->IsUndefined(
+        isolate())) {
+      // Enqueue one microtask per JSFinalizationGroup.
+      Handle<JSFinalizationGroup> finalization_group(
+          JSFinalizationGroup::cast(
+              isolate()->heap()->dirty_js_finalization_groups()),
           isolate());
-      isolate()->heap()->set_dirty_js_weak_factories(weak_factory->next());
-      weak_factory->set_next(ReadOnlyRoots(isolate()).undefined_value());
-      Handle<NativeContext> context(weak_factory->native_context(), isolate());
+      isolate()->heap()->set_dirty_js_finalization_groups(
+          finalization_group->next());
+      finalization_group->set_next(ReadOnlyRoots(isolate()).undefined_value());
+      Handle<NativeContext> context(finalization_group->native_context(),
+                                    isolate());
       // GC has no native context, but we use the creation context of the
-      // JSWeakFactory for the EnqueueTask operation. This is consitent with the
-      // Promise implementation, assuming the JSFactory creation context is the
-      // "caller's context" in promise functions. An alternative would be to use
-      // the native context of the cleanup function. This difference shouldn't
-      // be observable from JavaScript, since we enter the native context of the
-      // cleanup function before calling it. TODO(marja): Revisit when the spec
-      // clarifies this. See also
+      // JSFinalizationGroup for the EnqueueTask operation. This is consitent
+      // with the Promise implementation, assuming the JSFinalizationGroup's
+      // creation context is the "caller's context" in promise functions. An
+      // alternative would be to use the native context of the cleanup
+      // function. This difference shouldn't be observable from JavaScript,
+      // since we enter the native context of the cleanup function before
+      // calling it. TODO(marja): Revisit when the spec clarifies this. See also
       // https://github.com/tc39/proposal-weakrefs/issues/38 .
-      Handle<WeakFactoryCleanupJobTask> task =
-          isolate()->factory()->NewWeakFactoryCleanupJobTask(weak_factory);
+      Handle<FinalizationGroupCleanupJobTask> task =
+          isolate()->factory()->NewFinalizationGroupCleanupJobTask(
+              finalization_group);
       context->microtask_queue()->EnqueueMicrotask(*task);
     }
   }
@@ -5347,22 +5351,23 @@ void Heap::SetInterpreterEntryTrampolineForProfiling(Code code) {
   set_interpreter_entry_trampoline_for_profiling(code);
 }
 
-void Heap::AddDirtyJSWeakFactory(
-    JSWeakFactory weak_factory,
+void Heap::AddDirtyJSFinalizationGroup(
+    JSFinalizationGroup finalization_group,
     std::function<void(HeapObject object, ObjectSlot slot, Object target)>
         gc_notify_updated_slot) {
-  DCHECK(dirty_js_weak_factories()->IsUndefined(isolate()) ||
-         dirty_js_weak_factories()->IsJSWeakFactory());
-  DCHECK(weak_factory->next()->IsUndefined(isolate()));
-  DCHECK(!weak_factory->scheduled_for_cleanup());
-  weak_factory->set_scheduled_for_cleanup(true);
-  weak_factory->set_next(dirty_js_weak_factories());
-  gc_notify_updated_slot(weak_factory,
-                         weak_factory.RawField(JSWeakFactory::kNextOffset),
-                         dirty_js_weak_factories());
-  set_dirty_js_weak_factories(weak_factory);
+  DCHECK(dirty_js_finalization_groups()->IsUndefined(isolate()) ||
+         dirty_js_finalization_groups()->IsJSFinalizationGroup());
+  DCHECK(finalization_group->next()->IsUndefined(isolate()));
+  DCHECK(!finalization_group->scheduled_for_cleanup());
+  finalization_group->set_scheduled_for_cleanup(true);
+  finalization_group->set_next(dirty_js_finalization_groups());
+  gc_notify_updated_slot(
+      finalization_group,
+      finalization_group.RawField(JSFinalizationGroup::kNextOffset),
+      dirty_js_finalization_groups());
+  set_dirty_js_finalization_groups(finalization_group);
   // Roots are rescanned after objects are moved, so no need to record a slot
-  // for the root pointing to the first JSWeakFactory.
+  // for the root pointing to the first JSFinalizationGroup.
 }
 
 void Heap::AddKeepDuringJobTarget(Handle<JSReceiver> target) {

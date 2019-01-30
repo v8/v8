@@ -14,7 +14,7 @@
 #include "src/heap/sweeper.h"
 #include "src/heap/worklist.h"
 #include "src/objects/heap-object.h"   // For Worklist<HeapObject, ...>
-#include "src/objects/js-weak-refs.h"  // For Worklist<JSWeakCell, ...>
+#include "src/objects/js-weak-refs.h"  // For Worklist<WeakCell, ...>
 
 namespace v8 {
 namespace internal {
@@ -446,7 +446,7 @@ struct WeakObjects {
   Worklist<std::pair<HeapObject, Code>, 64> weak_objects_in_code;
 
   Worklist<JSWeakRef, 64> js_weak_refs;
-  Worklist<JSWeakCell, 64> js_weak_cells;
+  Worklist<WeakCell, 64> weak_cells;
 
   Worklist<SharedFunctionInfo, 64> bytecode_flushing_candidates;
   Worklist<JSFunction, 64> flushed_js_functions;
@@ -658,8 +658,8 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
     weak_objects_.js_weak_refs.Push(kMainThread, weak_ref);
   }
 
-  void AddWeakCell(JSWeakCell weak_cell) {
-    weak_objects_.js_weak_cells.Push(kMainThread, weak_cell);
+  void AddWeakCell(WeakCell weak_cell) {
+    weak_objects_.weak_cells.Push(kMainThread, weak_cell);
   }
 
   inline void AddBytecodeFlushingCandidate(SharedFunctionInfo flush_candidate);
@@ -817,9 +817,9 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   // transition.
   void ClearWeakReferences();
 
-  // Goes through the list of encountered JSWeakCells and clears those with dead
-  // values.
-  void ClearJSWeakCells();
+  // Goes through the list of encountered JSWeakRefs and WeakCells and clears
+  // those with dead values.
+  void ClearJSWeakRefs();
 
   void AbortWeakObjects();
 
@@ -938,7 +938,7 @@ class MarkingVisitor final
   V8_INLINE int VisitMap(Map map, Map object);
   V8_INLINE int VisitSharedFunctionInfo(Map map, SharedFunctionInfo object);
   V8_INLINE int VisitTransitionArray(Map map, TransitionArray object);
-  V8_INLINE int VisitJSWeakCell(Map map, JSWeakCell object);
+  V8_INLINE int VisitWeakCell(Map map, WeakCell object);
   V8_INLINE int VisitJSWeakRef(Map map, JSWeakRef object);
 
   // ObjectVisitor implementation.

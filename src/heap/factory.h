@@ -39,6 +39,7 @@ class ArrayBoilerplateDescription;
 class CoverageInfo;
 class DebugInfo;
 class EnumCache;
+class FinalizationGroupCleanupJobTask;
 class FreshlyAllocatedBigInt;
 class Isolate;
 class JSDataView;
@@ -66,7 +67,7 @@ class TemplateObjectDescription;
 class UncompiledDataWithoutPreparseData;
 class UncompiledDataWithPreparseData;
 class WasmExportedFunctionData;
-class WeakFactoryCleanupJobTask;
+class WeakCell;
 struct SourceRange;
 template <typename T>
 class ZoneVector;
@@ -452,8 +453,8 @@ class V8_EXPORT_PRIVATE Factory {
   Handle<PromiseResolveThenableJobTask> NewPromiseResolveThenableJobTask(
       Handle<JSPromise> promise_to_resolve, Handle<JSReceiver> then,
       Handle<JSReceiver> thenable, Handle<Context> context);
-  Handle<WeakFactoryCleanupJobTask> NewWeakFactoryCleanupJobTask(
-      Handle<JSWeakFactory> weak_factory);
+  Handle<FinalizationGroupCleanupJobTask> NewFinalizationGroupCleanupJobTask(
+      Handle<JSFinalizationGroup> finalization_group);
 
   // Foreign objects are pretenured when allocated by the bootstrapper.
   Handle<Foreign> NewForeign(Address addr,
@@ -508,6 +509,8 @@ class V8_EXPORT_PRIVATE Factory {
                                      AllocationSpace space);
 
   Handle<JSObject> NewFunctionPrototype(Handle<JSFunction> function);
+
+  Handle<WeakCell> NewWeakCell();
 
   // Returns a deep copy of the JavaScript object.
   // Properties and elements are copied too.

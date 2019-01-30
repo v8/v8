@@ -189,9 +189,9 @@ enum ContextLookupFlags {
   V(JS_MODULE_NAMESPACE_MAP, Map, js_module_namespace_map)                     \
   V(JS_SET_FUN_INDEX, JSFunction, js_set_fun)                                  \
   V(JS_SET_MAP_INDEX, Map, js_set_map)                                         \
-  V(JS_WEAK_CELL_MAP_INDEX, Map, js_weak_cell_map)                             \
-  V(JS_WEAK_FACTORY_CLEANUP_ITERATOR_MAP_INDEX, Map,                           \
-    js_weak_factory_cleanup_iterator_map)                                      \
+  V(WEAK_CELL_MAP_INDEX, Map, weak_cell_map)                                   \
+  V(JS_FINALIZATION_GROUP_CLEANUP_ITERATOR_MAP_INDEX, Map,                     \
+    js_finalization_group_cleanup_iterator_map)                                \
   V(JS_WEAK_MAP_FUN_INDEX, JSFunction, js_weak_map_fun)                        \
   V(JS_WEAK_REF_MAP_INDEX, Map, js_weak_ref_map)                               \
   V(JS_WEAK_SET_FUN_INDEX, JSFunction, js_weak_set_fun)                        \

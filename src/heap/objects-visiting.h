@@ -25,7 +25,7 @@ class JSArrayBuffer;
 class JSDataView;
 class JSRegExp;
 class JSTypedArray;
-class JSWeakCell;
+class WeakCell;
 class JSWeakRef;
 class JSWeakCollection;
 class NativeContext;
@@ -58,7 +58,7 @@ class WasmInstanceObject;
   V(JSFunction, JSFunction)                                               \
   V(JSObject, JSObject)                                                   \
   V(JSTypedArray, JSTypedArray)                                           \
-  V(JSWeakCell, JSWeakCell)                                               \
+  V(WeakCell, WeakCell)                                                   \
   V(JSWeakCollection, JSWeakCollection)                                   \
   V(JSWeakRef, JSWeakRef)                                                 \
   V(Map, Map)                                                             \
@@ -144,7 +144,7 @@ class NewSpaceVisitor : public HeapVisitor<int, ConcreteVisitor> {
   }
 
   int VisitSharedFunctionInfo(Map map, SharedFunctionInfo object);
-  int VisitJSWeakCell(Map map, JSWeakCell js_weak_cell);
+  int VisitWeakCell(Map map, WeakCell weak_cell);
 };
 
 class WeakObjectRetainer;

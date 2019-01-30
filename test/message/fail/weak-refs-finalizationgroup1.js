@@ -4,4 +4,4 @@
 
 // Flags: --harmony-weak-refs
 
-let wf = new WeakFactory({});
+let fg = new FinalizationGroup();

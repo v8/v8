@@ -1496,14 +1496,14 @@ int JSObject::GetHeaderSize(InstanceType type,
     case JS_MAP_KEY_VALUE_ITERATOR_TYPE:
     case JS_MAP_VALUE_ITERATOR_TYPE:
       return JSMapIterator::kSize;
-    case JS_WEAK_CELL_TYPE:
-      return JSWeakCell::kSize;
+    case WEAK_CELL_TYPE:
+      return WeakCell::kSize;
     case JS_WEAK_REF_TYPE:
       return JSWeakRef::kSize;
-    case JS_WEAK_FACTORY_TYPE:
-      return JSWeakFactory::kSize;
-    case JS_WEAK_FACTORY_CLEANUP_ITERATOR_TYPE:
-      return JSWeakFactoryCleanupIterator::kSize;
+    case JS_FINALIZATION_GROUP_TYPE:
+      return JSFinalizationGroup::kSize;
+    case JS_FINALIZATION_GROUP_CLEANUP_ITERATOR_TYPE:
+      return JSFinalizationGroupCleanupIterator::kSize;
     case JS_WEAK_MAP_TYPE:
       return JSWeakMap::kSize;
     case JS_WEAK_SET_TYPE:
@@ -3302,8 +3302,8 @@ VisitorId Map::GetVisitorId(Map map) {
     case JS_PROMISE_TYPE:
     case JS_REGEXP_TYPE:
     case JS_REGEXP_STRING_ITERATOR_TYPE:
-    case JS_WEAK_FACTORY_CLEANUP_ITERATOR_TYPE:
-    case JS_WEAK_FACTORY_TYPE:
+    case JS_FINALIZATION_GROUP_CLEANUP_ITERATOR_TYPE:
+    case JS_FINALIZATION_GROUP_TYPE:
 #ifdef V8_INTL_SUPPORT
     case JS_INTL_V8_BREAK_ITERATOR_TYPE:
     case JS_INTL_COLLATOR_TYPE:
@@ -3334,8 +3334,8 @@ VisitorId Map::GetVisitorId(Map map) {
     case JS_WEAK_REF_TYPE:
       return kVisitJSWeakRef;
 
-    case JS_WEAK_CELL_TYPE:
-      return kVisitJSWeakCell;
+    case WEAK_CELL_TYPE:
+      return kVisitWeakCell;
 
     case FILLER_TYPE:
     case FOREIGN_TYPE:
@@ -19302,25 +19302,26 @@ template void
 BaseNameDictionary<NameDictionary, NameDictionaryShape>::CollectKeysTo(
     Handle<NameDictionary> dictionary, KeyAccumulator* keys);
 
-void JSWeakFactory::Cleanup(Handle<JSWeakFactory> weak_factory,
-                            Isolate* isolate) {
+void JSFinalizationGroup::Cleanup(
+    Handle<JSFinalizationGroup> finalization_group, Isolate* isolate) {
   // It's possible that the cleared_cells list is empty, since
-  // WeakCell.clear() was called on all its elements before this task ran. In
-  // that case, don't call the cleanup function.
-  if (!weak_factory->cleared_cells()->IsUndefined(isolate)) {
+  // FinalizationGroup.unregister() removed all its elements before this task
+  // ran. In that case, don't call the cleanup function.
+  if (!finalization_group->cleared_cells()->IsUndefined(isolate)) {
     // Construct the iterator.
-    Handle<JSWeakFactoryCleanupIterator> iterator;
+    Handle<JSFinalizationGroupCleanupIterator> iterator;
     {
       Handle<Map> cleanup_iterator_map(
-          isolate->native_context()->js_weak_factory_cleanup_iterator_map(),
+          isolate->native_context()
+              ->js_finalization_group_cleanup_iterator_map(),
           isolate);
-      iterator = Handle<JSWeakFactoryCleanupIterator>::cast(
+      iterator = Handle<JSFinalizationGroupCleanupIterator>::cast(
           isolate->factory()->NewJSObjectFromMap(
               cleanup_iterator_map, NOT_TENURED,
               Handle<AllocationSite>::null()));
-      iterator->set_factory(*weak_factory);
+      iterator->set_finalization_group(*finalization_group);
     }
-    Handle<Object> cleanup(weak_factory->cleanup(), isolate);
+    Handle<Object> cleanup(finalization_group->cleanup(), isolate);
 
     v8::TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
     v8::Local<v8::Value> result;

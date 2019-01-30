@@ -197,19 +197,18 @@ class JSObject::FastBodyDescriptor final : public BodyDescriptorBase {
   }
 };
 
-class JSWeakCell::BodyDescriptor final : public BodyDescriptorBase {
+class WeakCell::BodyDescriptor final : public BodyDescriptorBase {
  public:
   static bool IsValidSlot(Map map, HeapObject obj, int offset) {
-    return IsValidJSObjectSlotImpl(map, obj, offset);
+    return offset >= HeapObject::kHeaderSize;
   }
 
   template <typename ObjectVisitor>
   static inline void IterateBody(Map map, HeapObject obj, int object_size,
                                  ObjectVisitor* v) {
-    IteratePointers(obj, JSReceiver::kPropertiesOrHashOffset, kTargetOffset, v);
+    IteratePointers(obj, HeapObject::kHeaderSize, kTargetOffset, v);
     IterateCustomWeakPointer(obj, kTargetOffset, v);
-    IterateJSObjectBodyImpl(map, obj, kTargetOffset + kTaggedSize, object_size,
-                            v);
+    IteratePointers(obj, kTargetOffset + kTaggedSize, object_size, v);
   }
 
   static inline int SizeOf(Map map, HeapObject object) {
@@ -902,8 +901,8 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
     case JS_SPECIAL_API_OBJECT_TYPE:
     case JS_MESSAGE_OBJECT_TYPE:
     case JS_BOUND_FUNCTION_TYPE:
-    case JS_WEAK_FACTORY_CLEANUP_ITERATOR_TYPE:
-    case JS_WEAK_FACTORY_TYPE:
+    case JS_FINALIZATION_GROUP_CLEANUP_ITERATOR_TYPE:
+    case JS_FINALIZATION_GROUP_TYPE:
 #ifdef V8_INTL_SUPPORT
     case JS_INTL_V8_BREAK_ITERATOR_TYPE:
     case JS_INTL_COLLATOR_TYPE:
@@ -937,8 +936,8 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
       return Op::template apply<JSTypedArray::BodyDescriptor>(p1, p2, p3, p4);
     case JS_FUNCTION_TYPE:
       return Op::template apply<JSFunction::BodyDescriptor>(p1, p2, p3, p4);
-    case JS_WEAK_CELL_TYPE:
-      return Op::template apply<JSWeakCell::BodyDescriptor>(p1, p2, p3, p4);
+    case WEAK_CELL_TYPE:
+      return Op::template apply<WeakCell::BodyDescriptor>(p1, p2, p3, p4);
     case JS_WEAK_REF_TYPE:
       return Op::template apply<JSWeakRef::BodyDescriptor>(p1, p2, p3, p4);
     case ODDBALL_TYPE:

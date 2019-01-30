@@ -330,18 +330,18 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
       JSAsyncFromSyncIterator::cast(*this)->JSAsyncFromSyncIteratorVerify(
           isolate);
       break;
-    case JS_WEAK_CELL_TYPE:
-      JSWeakCell::cast(*this)->JSWeakCellVerify(isolate);
+    case WEAK_CELL_TYPE:
+      WeakCell::cast(*this)->WeakCellVerify(isolate);
       break;
     case JS_WEAK_REF_TYPE:
       JSWeakRef::cast(*this)->JSWeakRefVerify(isolate);
       break;
-    case JS_WEAK_FACTORY_TYPE:
-      JSWeakFactory::cast(*this)->JSWeakFactoryVerify(isolate);
+    case JS_FINALIZATION_GROUP_TYPE:
+      JSFinalizationGroup::cast(*this)->JSFinalizationGroupVerify(isolate);
       break;
-    case JS_WEAK_FACTORY_CLEANUP_ITERATOR_TYPE:
-      JSWeakFactoryCleanupIterator::cast(*this)
-          ->JSWeakFactoryCleanupIteratorVerify(isolate);
+    case JS_FINALIZATION_GROUP_CLEANUP_ITERATOR_TYPE:
+      JSFinalizationGroupCleanupIterator::cast(*this)
+          ->JSFinalizationGroupCleanupIteratorVerify(isolate);
       break;
     case JS_WEAK_MAP_TYPE:
       JSWeakMap::cast(*this)->JSWeakMapVerify(isolate);
@@ -1294,20 +1294,20 @@ void JSMapIterator::JSMapIteratorVerify(Isolate* isolate) {
   CHECK(index()->IsSmi());
 }
 
-void JSWeakCell::JSWeakCellVerify(Isolate* isolate) {
-  CHECK(IsJSWeakCell());
-  JSObjectVerify(isolate);
+void WeakCell::WeakCellVerify(Isolate* isolate) {
+  CHECK(IsWeakCell());
 
-  CHECK(next()->IsJSWeakCell() || next()->IsUndefined(isolate));
-  if (next()->IsJSWeakCell()) {
-    CHECK_EQ(JSWeakCell::cast(next())->prev(), *this);
+  CHECK(next()->IsWeakCell() || next()->IsUndefined(isolate));
+  if (next()->IsWeakCell()) {
+    CHECK_EQ(WeakCell::cast(next())->prev(), *this);
   }
-  CHECK(prev()->IsJSWeakCell() || prev()->IsUndefined(isolate));
-  if (prev()->IsJSWeakCell()) {
-    CHECK_EQ(JSWeakCell::cast(prev())->next(), *this);
+  CHECK(prev()->IsWeakCell() || prev()->IsUndefined(isolate));
+  if (prev()->IsWeakCell()) {
+    CHECK_EQ(WeakCell::cast(prev())->next(), *this);
   }
 
-  CHECK(factory()->IsUndefined(isolate) || factory()->IsJSWeakFactory());
+  CHECK(finalization_group()->IsUndefined(isolate) ||
+        finalization_group()->IsJSFinalizationGroup());
 }
 
 void JSWeakRef::JSWeakRefVerify(Isolate* isolate) {
@@ -1316,32 +1316,31 @@ void JSWeakRef::JSWeakRefVerify(Isolate* isolate) {
   CHECK(target()->IsUndefined(isolate) || target()->IsJSReceiver());
 }
 
-void JSWeakFactory::JSWeakFactoryVerify(Isolate* isolate) {
-  CHECK(IsJSWeakFactory());
+void JSFinalizationGroup::JSFinalizationGroupVerify(Isolate* isolate) {
+  CHECK(IsJSFinalizationGroup());
   JSObjectVerify(isolate);
   VerifyHeapPointer(isolate, cleanup());
-  CHECK(active_cells()->IsUndefined(isolate) || active_cells()->IsJSWeakCell());
-  if (active_cells()->IsJSWeakCell()) {
-    CHECK(JSWeakCell::cast(active_cells())->prev()->IsUndefined(isolate));
+  CHECK(active_cells()->IsUndefined(isolate) || active_cells()->IsWeakCell());
+  if (active_cells()->IsWeakCell()) {
+    CHECK(WeakCell::cast(active_cells())->prev()->IsUndefined(isolate));
   }
-  CHECK(cleared_cells()->IsUndefined(isolate) ||
-        cleared_cells()->IsJSWeakCell());
-  if (cleared_cells()->IsJSWeakCell()) {
-    CHECK(JSWeakCell::cast(cleared_cells())->prev()->IsUndefined(isolate));
+  CHECK(cleared_cells()->IsUndefined(isolate) || cleared_cells()->IsWeakCell());
+  if (cleared_cells()->IsWeakCell()) {
+    CHECK(WeakCell::cast(cleared_cells())->prev()->IsUndefined(isolate));
   }
 }
 
-void JSWeakFactoryCleanupIterator::JSWeakFactoryCleanupIteratorVerify(
-    Isolate* isolate) {
-  CHECK(IsJSWeakFactoryCleanupIterator());
+void JSFinalizationGroupCleanupIterator::
+    JSFinalizationGroupCleanupIteratorVerify(Isolate* isolate) {
+  CHECK(IsJSFinalizationGroupCleanupIterator());
   JSObjectVerify(isolate);
-  VerifyHeapPointer(isolate, factory());
+  VerifyHeapPointer(isolate, finalization_group());
 }
 
-void WeakFactoryCleanupJobTask::WeakFactoryCleanupJobTaskVerify(
+void FinalizationGroupCleanupJobTask::FinalizationGroupCleanupJobTaskVerify(
     Isolate* isolate) {
-  CHECK(IsWeakFactoryCleanupJobTask());
-  CHECK(factory()->IsJSWeakFactory());
+  CHECK(IsFinalizationGroupCleanupJobTask());
+  CHECK(finalization_group()->IsJSFinalizationGroup());
 }
 
 void JSWeakMap::JSWeakMapVerify(Isolate* isolate) {

@@ -502,6 +502,8 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_MAP(CODE_DATA_CONTAINER_TYPE, CodeDataContainer::kSize,
                  code_data_container)
 
+    ALLOCATE_MAP(WEAK_CELL_TYPE, WeakCell::kSize, weak_cell)
+
     ALLOCATE_MAP(JS_MESSAGE_OBJECT_TYPE, JSMessageObject::kSize, message_object)
     ALLOCATE_MAP(JS_OBJECT_TYPE,
                  JSObject::kHeaderSizeForEmbedderFields + kEmbedderDataSlotSize,
@@ -635,7 +637,7 @@ void Heap::CreateInitialObjects() {
   // There's no "current microtask" in the beginning.
   set_current_microtask(roots.undefined_value());
 
-  set_dirty_js_weak_factories(roots.undefined_value());
+  set_dirty_js_finalization_groups(roots.undefined_value());
   set_weak_refs_keep_during_job(roots.undefined_value());
 
   // Allocate cache for single character one byte strings.

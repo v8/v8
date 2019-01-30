@@ -68,7 +68,7 @@ class HeapObjectsFilter;
 class HeapStats;
 class HistogramTimer;
 class Isolate;
-class JSWeakFactory;
+class JSFinalizationGroup;
 class LocalEmbedderHeapTracer;
 class MemoryAllocator;
 class MemoryReducer;
@@ -684,9 +684,9 @@ class Heap {
   // See also: FLAG_interpreted_frames_native_stack.
   void SetInterpreterEntryTrampolineForProfiling(Code code);
 
-  // Add weak_factory into the dirty_js_weak_factories list.
-  void AddDirtyJSWeakFactory(
-      JSWeakFactory weak_factory,
+  // Add finalization_group into the dirty_js_finalization_groups list.
+  void AddDirtyJSFinalizationGroup(
+      JSFinalizationGroup finalization_group,
       std::function<void(HeapObject object, ObjectSlot slot, Object target)>
           gc_notify_updated_slot);
 

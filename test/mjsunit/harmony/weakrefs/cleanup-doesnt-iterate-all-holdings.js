@@ -7,48 +7,47 @@
 let cleanup_call_count = 0;
 let cleanup = function(iter) {
   if (cleanup_call_count == 0) {
-    // First call: iterate 2 of the 3 cells
-    let cells = [];
-    for (wc of iter) {
-      cells.push(wc);
-      // Don't iterate the rest of the cells
-      if (cells.length == 2) {
+    // First call: iterate 2 of the 3 holdings
+    let holdings_list = [];
+    for (holdings of iter) {
+      holdings_list.push(holdings);
+      // Don't iterate the rest of the holdings
+      if (holdings_list.length == 2) {
         break;
       }
     }
-    assertEquals(cells.length, 2);
-    assertTrue(cells[0].holdings < 3);
-    assertTrue(cells[1].holdings < 3);
+    assertEquals(holdings_list.length, 2);
+    assertTrue(holdings_list[0] < 3);
+    assertTrue(holdings_list[1] < 3);
     // Update call count only after the asserts; this ensures that the test
     // fails even if the exceptions inside the cleanup function are swallowed.
     cleanup_call_count++;
   } else {
-    // Second call: iterate one leftover cell and one new cell.
+    // Second call: iterate one leftover holdings and one holdings.
     assertEquals(1, cleanup_call_count);
-    let cells = [];
-    for (wc of iter) {
-      cells.push(wc);
+    let holdings_list = [];
+    for (holdings of iter) {
+      holdings_list.push(holdings);
     }
-    assertEquals(cells.length, 2);
-    assertTrue((cells[0].holdings < 3 && cells[1].holdings == 100) ||
-               (cells[1].holdings < 3 && cells[0].holdings == 100));
+    assertEquals(holdings_list.length, 2);
+    assertTrue((holdings_list[0] < 3 && holdings_list[1] == 100) ||
+               (holdings_list[1] < 3 && holdings_list[0] == 100));
     // Update call count only after the asserts; this ensures that the test
     // fails even if the exceptions inside the cleanup function are swallowed.
     cleanup_call_count++;
   }
 }
 
-let wf = new WeakFactory(cleanup);
-// Create 3 objects and WeakCells pointing to them. The objects need to be
-// inside a closure so that we can reliably kill them!
-let weak_cells = [];
+let fg = new FinalizationGroup(cleanup);
+// Create 3 objects and register them in the FinalizationGroup. The objects need
+// to be inside a closure so that we can reliably kill them!
 
 (function() {
   let objects = [];
 
   for (let i = 0; i < 3; ++i) {
     objects[i] = {a: i};
-    weak_cells[i] = wf.makeCell(objects[i], i);
+    fg.register(objects[i], i);
   }
 
   gc();
@@ -58,14 +57,14 @@ let weak_cells = [];
   objects = [];
 })();
 
-// This GC will discover dirty WeakCells.
+// This GC will reclaim the targets.
 gc();
 assertEquals(0, cleanup_call_count);
 
 let timeout_func_1 = function() {
   assertEquals(1, cleanup_call_count);
 
-  // Assert that the cleanup function won't be called unless new WeakCells appear.
+  // Assert that the cleanup function won't be called unless new targets appear.
   setTimeout(timeout_func_2, 0);
 }
 
@@ -74,9 +73,9 @@ setTimeout(timeout_func_1, 0);
 let timeout_func_2 = function() {
   assertEquals(1, cleanup_call_count);
 
-  // Create a new WeakCells to be cleaned up.
+  // Create a new object and register it.
   let obj = {};
-  let wc = wf.makeCell(obj, 100);
+  let wc = fg.register(obj, 100);
   obj = null;
 
   gc();

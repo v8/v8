@@ -7,29 +7,25 @@
 let cleanup_called = false;
 let cleanup = function(iter) {
   assertFalse(cleanup_called);
-  let cells = [];
-  for (wc of iter) {
-    cells.push(wc);
+  let holdings_list = [];
+  for (holdings of iter) {
+    holdings_list.push(holdings);
   }
-  assertEquals(cells.length, 2);
-  if (cells[0] == wc1) {
-    assertEquals(cells[0].holdings, 1);
-    assertEquals(cells[1], wc2);
-    assertEquals(cells[1].holdings, 2);
+  assertEquals(holdings_list.length, 2);
+  if (holdings_list[0] == 1) {
+    assertEquals(holdings_list[1], 2);
   } else {
-    assertEquals(cells[0], wc2);
-    assertEquals(cells[0].holdings, 2);
-    assertEquals(cells[1], wc1);
-    assertEquals(cells[1].holdings, 1);
+    assertEquals(holdings_list[0], 2);
+    assertEquals(holdings_list[1], 1);
   }
   cleanup_called = true;
 }
 
-let wf = new WeakFactory(cleanup);
+let fg = new FinalizationGroup(cleanup);
 let o1 = {};
 let o2 = {};
-let wc1 = wf.makeCell(o1, 1);
-let wc2 = wf.makeCell(o2, 2);
+fg.register(o1, 1);
+fg.register(o2, 2);
 
 gc();
 assertFalse(cleanup_called);
@@ -37,8 +33,8 @@ assertFalse(cleanup_called);
 // Drop the last references to o1 and o2.
 o1 = null;
 o2 = null;
-// GC will clear the WeakCells; the cleanup function will be called the next time
-// we enter the event loop.
+// GC will reclaim the target objects; the cleanup function will be called the
+// next time we enter the event loop.
 gc();
 assertFalse(cleanup_called);
 

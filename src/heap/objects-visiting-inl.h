@@ -185,8 +185,8 @@ int NewSpaceVisitor<ConcreteVisitor>::VisitSharedFunctionInfo(
 }
 
 template <typename ConcreteVisitor>
-int NewSpaceVisitor<ConcreteVisitor>::VisitJSWeakCell(Map map,
-                                                      JSWeakCell js_weak_cell) {
+int NewSpaceVisitor<ConcreteVisitor>::VisitWeakCell(Map map,
+                                                    WeakCell weak_cell) {
   UNREACHABLE();
   return 0;
 }

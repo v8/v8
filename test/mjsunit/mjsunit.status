@@ -792,7 +792,6 @@
   'compiler/native-context-specialization-hole-check': [PASS, FAIL],
   'elements-transition-hoisting': [PASS, FAIL],
   'es6/collections-constructor-custom-iterator': [PASS, FAIL],
-  'harmony/weakrefs/clear-clears-factory-pointer': [PASS, FAIL],
   'ignition/throw-if-not-hole': [PASS, FAIL],
   'keyed-load-with-symbol-key': [PASS, FAIL],
   'object-seal': [PASS, FAIL],

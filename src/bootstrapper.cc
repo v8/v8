@@ -4330,55 +4330,43 @@ void Genesis::InitializeGlobal_harmony_weak_refs() {
   Handle<JSGlobalObject> global(native_context()->global_object(), isolate());
 
   {
-    // Create %WeakFactoryPrototype%
-    Handle<String> weak_factory_name = factory->WeakFactory_string();
-    Handle<JSObject> weak_factory_prototype =
+    // Create %FinalizationGroupPrototype%
+    Handle<String> finalization_group_name =
+        factory->NewStringFromStaticChars("FinalizationGroup");
+    Handle<JSObject> finalization_group_prototype =
         factory->NewJSObject(isolate()->object_function(), TENURED);
 
-    // Create %WeakFactory%
-    Handle<JSFunction> weak_factory_fun =
-        CreateFunction(isolate(), weak_factory_name, JS_WEAK_FACTORY_TYPE,
-                       JSWeakFactory::kSize, 0, weak_factory_prototype,
-                       Builtins::kWeakFactoryConstructor);
+    // Create %FinalizationGroup%
+    Handle<JSFunction> finalization_group_fun = CreateFunction(
+        isolate(), finalization_group_name, JS_FINALIZATION_GROUP_TYPE,
+        JSFinalizationGroup::kSize, 0, finalization_group_prototype,
+        Builtins::kFinalizationGroupConstructor);
 
-    weak_factory_fun->shared()->DontAdaptArguments();
-    weak_factory_fun->shared()->set_length(1);
+    finalization_group_fun->shared()->DontAdaptArguments();
+    finalization_group_fun->shared()->set_length(1);
 
     // Install the "constructor" property on the prototype.
-    JSObject::AddProperty(isolate(), weak_factory_prototype,
-                          factory->constructor_string(), weak_factory_fun,
+    JSObject::AddProperty(isolate(), finalization_group_prototype,
+                          factory->constructor_string(), finalization_group_fun,
                           DONT_ENUM);
 
-    InstallToStringTag(isolate(), weak_factory_prototype, weak_factory_name);
+    InstallToStringTag(isolate(), finalization_group_prototype,
+                       finalization_group_name);
 
-    JSObject::AddProperty(isolate(), global, weak_factory_name,
-                          weak_factory_fun, DONT_ENUM);
+    JSObject::AddProperty(isolate(), global, finalization_group_name,
+                          finalization_group_fun, DONT_ENUM);
 
-    SimpleInstallFunction(isolate(), weak_factory_prototype, "makeCell",
-                          Builtins::kWeakFactoryMakeCell, 2, false);
+    SimpleInstallFunction(isolate(), finalization_group_prototype, "register",
+                          Builtins::kFinalizationGroupRegister, 3, false);
 
-    SimpleInstallFunction(isolate(), weak_factory_prototype, "cleanupSome",
-                          Builtins::kWeakFactoryCleanupSome, 0, false);
+    SimpleInstallFunction(isolate(), finalization_group_prototype, "unregister",
+                          Builtins::kFinalizationGroupUnregister, 1, false);
+
+    SimpleInstallFunction(isolate(), finalization_group_prototype,
+                          "cleanupSome",
+                          Builtins::kFinalizationGroupCleanupSome, 0, false);
   }
   {
-    // Create %WeakCellPrototype%
-    Handle<Map> weak_cell_map =
-        factory->NewMap(JS_WEAK_CELL_TYPE, JSWeakCell::kSize);
-    native_context()->set_js_weak_cell_map(*weak_cell_map);
-
-    Handle<JSObject> weak_cell_prototype =
-        factory->NewJSObject(isolate()->object_function(), TENURED);
-    Map::SetPrototype(isolate(), weak_cell_map, weak_cell_prototype);
-
-    InstallToStringTag(isolate(), weak_cell_prototype,
-                       factory->WeakCell_string());
-
-    SimpleInstallGetter(isolate(), weak_cell_prototype,
-                        factory->InternalizeUtf8String("holdings"),
-                        Builtins::kWeakCellHoldingsGetter, false);
-    SimpleInstallFunction(isolate(), weak_cell_prototype, "clear",
-                          Builtins::kWeakCellClear, 0, false);
-
     // Create %WeakRefPrototype%
     Handle<Map> weak_ref_map =
         factory->NewMap(JS_WEAK_REF_TYPE, JSWeakRef::kSize);
@@ -4388,7 +4376,6 @@ void Genesis::InitializeGlobal_harmony_weak_refs() {
     Handle<JSObject> weak_ref_prototype =
         factory->NewJSObject(isolate()->object_function(), TENURED);
     Map::SetPrototype(isolate(), weak_ref_map, weak_ref_prototype);
-    JSObject::ForceSetPrototype(weak_ref_prototype, weak_cell_prototype);
 
     InstallToStringTag(isolate(), weak_ref_prototype,
                        factory->WeakRef_string());
@@ -4415,7 +4402,7 @@ void Genesis::InitializeGlobal_harmony_weak_refs() {
   }
 
   {
-    // Create cleanup iterator for JSWeakFactory.
+    // Create cleanup iterator for JSFinalizationGroup.
     Handle<JSObject> iterator_prototype(
         native_context()->initial_iterator_prototype(), isolate());
 
@@ -4424,16 +4411,17 @@ void Genesis::InitializeGlobal_harmony_weak_refs() {
     JSObject::ForceSetPrototype(cleanup_iterator_prototype, iterator_prototype);
 
     InstallToStringTag(isolate(), cleanup_iterator_prototype,
-                       "JSWeakFactoryCleanupIterator");
+                       "JSFinalizationGroupCleanupIterator");
 
     SimpleInstallFunction(isolate(), cleanup_iterator_prototype, "next",
-                          Builtins::kWeakFactoryCleanupIteratorNext, 0, true);
+                          Builtins::kFinalizationGroupCleanupIteratorNext, 0,
+                          true);
     Handle<Map> cleanup_iterator_map =
-        factory->NewMap(JS_WEAK_FACTORY_CLEANUP_ITERATOR_TYPE,
-                        JSWeakFactoryCleanupIterator::kSize);
+        factory->NewMap(JS_FINALIZATION_GROUP_CLEANUP_ITERATOR_TYPE,
+                        JSFinalizationGroupCleanupIterator::kSize);
     Map::SetPrototype(isolate(), cleanup_iterator_map,
                       cleanup_iterator_prototype);
-    native_context()->set_js_weak_factory_cleanup_iterator_map(
+    native_context()->set_js_finalization_group_cleanup_iterator_map(
         *cleanup_iterator_map);
   }
 }

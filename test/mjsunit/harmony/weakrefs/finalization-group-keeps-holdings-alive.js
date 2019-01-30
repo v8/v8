@@ -7,18 +7,19 @@
 let cleanup_called = false;
 let cleanup = function(iter) {
   assertFalse(cleanup_called);
-  let cells = [];
-  for (wc of iter) {
-    cells.push(wc);
+  let holdings_list = [];
+  for (holdings of iter) {
+    holdings_list.push(holdings);
   }
-  assertEquals(cells.length, 1);
-  assertEquals(cells[0].holdings, "this is my cell");
+  assertEquals(holdings_list.length, 1);
+  assertEquals(holdings_list[0].a, "this is the holdings object");
   cleanup_called = true;
 }
 
-let wf = new WeakFactory(cleanup);
+let fg = new FinalizationGroup(cleanup);
 let o1 = {};
-let wc1 = wf.makeCell(o1, "this is my cell");
+let holdings = {'a': 'this is the holdings object'};
+fg.register(o1, holdings);
 
 gc();
 assertFalse(cleanup_called);
@@ -26,9 +27,9 @@ assertFalse(cleanup_called);
 // Drop the last references to o1.
 o1 = null;
 
-// Drop the last reference to the WeakCell. The WeakFactory keeps it alive, so
-// the cleanup function will be called as normal.
-wc1 = null;
+// Drop the last reference to the holdings. The FinalizationGroup keeps it
+// alive, so the cleanup function will be called as normal.
+holdings = null;
 gc();
 assertFalse(cleanup_called);
 

@@ -1354,12 +1354,11 @@ namespace internal {
   CPP(Trace)                                                                   \
                                                                                \
   /* Weak refs */                                                              \
-  CPP(WeakCellClear)                                                           \
-  CPP(WeakCellHoldingsGetter)                                                  \
-  CPP(WeakFactoryCleanupIteratorNext)                                          \
-  CPP(WeakFactoryCleanupSome)                                                  \
-  CPP(WeakFactoryConstructor)                                                  \
-  CPP(WeakFactoryMakeCell)                                                     \
+  CPP(FinalizationGroupCleanupIteratorNext)                                    \
+  CPP(FinalizationGroupCleanupSome)                                            \
+  CPP(FinalizationGroupConstructor)                                            \
+  CPP(FinalizationGroupRegister)                                               \
+  CPP(FinalizationGroupUnregister)                                             \
   CPP(WeakRefConstructor)                                                      \
   CPP(WeakRefDeref)
 
