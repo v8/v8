@@ -45,9 +45,10 @@ class CombinerProc(base.TestProc):
     group_key = self._get_group_key(test)
     if not group_key:
       # Test not suitable for combining
-      return
+      return False
 
     self._groups[test.suite.name].add_test(group_key, test)
+    return True
 
   def _get_group_key(self, test):
     combiner =  self._get_combiner(test.suite)
@@ -66,17 +67,17 @@ class CombinerProc(base.TestProc):
 
   def _send_next_test(self):
     if self.is_stopped:
-      return
+      return False
 
     if self._count and self._current_num >= self._count:
-      return
+      return False
 
     combined_test = self._create_new_test()
     if not combined_test:
       # Not enough tests
-      return
+      return False
 
-    self._send_test(combined_test)
+    return self._send_test(combined_test)
 
   def _create_new_test(self):
     suite, combiner = self._select_suite()
