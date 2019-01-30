@@ -177,11 +177,11 @@ AbstractCode SharedFunctionInfo::abstract_code() {
 }
 
 Object SharedFunctionInfo::function_data() const {
-  return RELAXED_READ_FIELD(*this, kFunctionDataOffset);
+  return ACQUIRE_READ_FIELD(*this, kFunctionDataOffset);
 }
 
 void SharedFunctionInfo::set_function_data(Object data, WriteBarrierMode mode) {
-  RELAXED_WRITE_FIELD(*this, kFunctionDataOffset, data);
+  RELEASE_WRITE_FIELD(*this, kFunctionDataOffset, data);
   CONDITIONAL_WRITE_BARRIER(*this, kFunctionDataOffset, data, mode);
 }
 
