@@ -33,7 +33,6 @@
   'harmony/modules-skip*': [SKIP],
   'regress/modules-skip*': [SKIP],
   'wasm/exceptions-utils': [SKIP],
-  'wasm/wasm-constants': [SKIP],
   'wasm/wasm-module-builder': [SKIP],
 
   # All tests in the bug directory are expected to fail.

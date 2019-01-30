@@ -3,8 +3,8 @@ test/mjsunit/mjsunit.js:{NUMBER}: CompileError: WebAssembly.compile(): BufferSou
               ^
 Error
     at assertPromiseResult (test/mjsunit/mjsunit.js:{NUMBER}:{NUMBER})
-    at *%(basename)s:13:1
+    at *%(basename)s:{NUMBER}:1
 
 CompileError: WebAssembly.compile(): BufferSource argument is empty
-    at test (*%(basename)s:29:23)
+    at test (*%(basename)s:{NUMBER}:23)
 

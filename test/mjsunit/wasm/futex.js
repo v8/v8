@@ -7,7 +7,6 @@
 
 'use strict';
 
-load("test/mjsunit/wasm/wasm-constants.js");
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
 function WasmAtomicWake(memory, offset, index, num) {
@@ -181,7 +180,6 @@ if (this.Worker) {
   const numWorkers = 4;
 
   let workerScript = `onmessage = function(msg) {
-    load("test/mjsunit/wasm/wasm-constants.js");
     load("test/mjsunit/wasm/wasm-module-builder.js");
     ${WasmI32AtomicWait.toString()}
     ${WasmI64AtomicWait.toString()}

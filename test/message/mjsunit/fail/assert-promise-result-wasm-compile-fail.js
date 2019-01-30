@@ -7,7 +7,6 @@
 // The important part here is that d8 exits with a non-zero exit code.
 
 load('test/mjsunit/mjsunit.js');
-load('test/mjsunit/wasm/wasm-constants.js');
 load('test/mjsunit/wasm/wasm-module-builder.js');
 
 assertPromiseResult((async function test() {
