@@ -332,7 +332,12 @@ class V8_EXPORT_PRIVATE LiveRange : public NON_EXPORTED_BASE(ZoneObject) {
   void set_assigned_register(int reg);
   void UnsetAssignedRegister();
 
+  bool ShouldRecombine() const { return RecombineField::decode(bits_); }
+
+  void SetRecombine() { bits_ = RecombineField::update(bits_, true); }
   bool spilled() const { return SpilledField::decode(bits_); }
+  void AttachToNext();
+  void Unspill();
   void Spill();
 
   RegisterKind kind() const;
@@ -450,6 +455,7 @@ class V8_EXPORT_PRIVATE LiveRange : public NON_EXPORTED_BASE(ZoneObject) {
   typedef BitField<bool, 0, 1> SpilledField;
   typedef BitField<int32_t, 6, 6> AssignedRegisterField;
   typedef BitField<MachineRepresentation, 12, 8> RepresentationField;
+  typedef BitField<bool, 20, 1> RecombineField;
 
   // Unique among children and splinters of the same virtual register.
   int relative_id_;
@@ -654,13 +660,13 @@ class V8_EXPORT_PRIVATE TopLevelLiveRange final : public LiveRange {
 
   void Verify() const;
   void VerifyChildrenInOrder() const;
-
+  LiveRange* GetChildCovers(LifetimePosition pos);
   int GetNextChildId() {
     return IsSplinter() ? splintered_from()->GetNextChildId()
                         : ++last_child_id_;
   }
 
-  int GetChildCount() const { return last_child_id_ + 1; }
+  int GetMaxChildCount() const { return last_child_id_ + 1; }
 
   bool IsSpilledOnlyInDeferredBlocks() const {
     return spilled_in_deferred_blocks_;
@@ -698,6 +704,7 @@ class V8_EXPORT_PRIVATE TopLevelLiveRange final : public LiveRange {
   }
 
  private:
+  friend class LiveRange;
   void SetSplinteredFrom(TopLevelLiveRange* splinter_parent);
 
   typedef BitField<bool, 1, 1> HasSlotUseField;
@@ -724,6 +731,7 @@ class V8_EXPORT_PRIVATE TopLevelLiveRange final : public LiveRange {
   bool spilled_in_deferred_blocks_;
   int spill_start_index_;
   UsePosition* last_pos_;
+  LiveRange* last_child_covers_;
   TopLevelLiveRange* splinter_;
   bool has_preassigned_slot_;
 
@@ -900,6 +908,18 @@ class RegisterAllocationData final : public ZoneObject {
     return preassigned_slot_ranges_;
   }
 
+  void RememberSpillState(RpoNumber block,
+                          const ZoneVector<LiveRange*>& state) {
+    spill_state_[block.ToSize()] = state;
+  }
+
+  ZoneVector<LiveRange*>& GetSpillState(RpoNumber block) {
+    auto& result = spill_state_[block.ToSize()];
+    return result;
+  }
+
+  void ResetSpillState() { spill_state_.clear(); }
+
  private:
   int GetNextLiveRangeId();
 
@@ -924,6 +944,7 @@ class RegisterAllocationData final : public ZoneObject {
   BitVector* fixed_fp_register_use_;
   int virtual_register_count_;
   RangesWithPreassignedSlots preassigned_slot_ranges_;
+  ZoneVector<ZoneVector<LiveRange*>> spill_state_;
 
   DISALLOW_COPY_AND_ASSIGN(RegisterAllocationData);
 };
@@ -1118,6 +1139,41 @@ class LinearScanAllocator final : public RegisterAllocator {
   void AllocateRegisters();
 
  private:
+  struct RangeWithRegister {
+    TopLevelLiveRange* range;
+    int expected_register;
+    struct Hash {
+      size_t operator()(const RangeWithRegister item) const {
+        return item.range->vreg();
+      }
+    };
+    struct Equals {
+      bool operator()(const RangeWithRegister one,
+                      const RangeWithRegister two) const {
+        return one.range == two.range;
+      }
+    };
+
+    explicit RangeWithRegister(LiveRange* a_range)
+        : range(a_range->TopLevel()),
+          expected_register(a_range->assigned_register()) {}
+    RangeWithRegister(TopLevelLiveRange* toplevel, int reg)
+        : range(toplevel), expected_register(reg) {}
+  };
+
+  using RangeWithRegisterSet =
+      ZoneUnorderedSet<RangeWithRegister, RangeWithRegister::Hash,
+                       RangeWithRegister::Equals>;
+
+  void MaybeUndoPreviousSplit(LiveRange* range);
+  void SpillNotLiveRanges(RangeWithRegisterSet& to_be_live,
+                          LifetimePosition position);
+  LiveRange* AssignRegisterOnReload(LiveRange* range, int reg);
+  void ReloadLiveRanges(RangeWithRegisterSet& to_be_live,
+                        LifetimePosition position);
+
+  bool BlockOrImmediatePredecessorIsDeferred(const InstructionBlock* block);
+
   struct LiveRangeOrdering {
     bool operator()(const LiveRange* a, const LiveRange* b) const {
       return a->ShouldBeAllocatedBefore(b);
@@ -1146,6 +1202,15 @@ class LinearScanAllocator final : public RegisterAllocator {
       ZoneVector<LiveRange*>::iterator it, LifetimePosition position);
 
   void ForwardStateTo(LifetimePosition position);
+
+  // Helper methods for choosing state after control flow events.
+
+  bool ConsiderBlockForControlFlow(InstructionBlock* current_block,
+                                   RpoNumber predecessor);
+  RpoNumber ChooseOneOfTwoPredecessorStates(InstructionBlock* current_block,
+                                            LifetimePosition boundary);
+  void ComputeStateFromManyPredecessors(InstructionBlock* current_block,
+                                        RangeWithRegisterSet* to_be_live);
 
   // Helper methods for allocating registers.
   bool TryReuseSpillForPhi(TopLevelLiveRange* range);

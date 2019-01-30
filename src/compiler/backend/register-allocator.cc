@@ -8,6 +8,7 @@
 
 #include "src/assembler-inl.h"
 #include "src/base/adapters.h"
+#include "src/base/small-vector.h"
 #include "src/compiler/linkage.h"
 #include "src/string-stream.h"
 
@@ -120,14 +121,15 @@ class LiveRangeBoundArray {
   bool ShouldInitialize() { return start_ == nullptr; }
 
   void Initialize(Zone* zone, TopLevelLiveRange* range) {
-    length_ = range->GetChildCount();
+    size_t max_child_count = range->GetMaxChildCount();
 
-    start_ = zone->NewArray<LiveRangeBound>(length_);
+    start_ = zone->NewArray<LiveRangeBound>(max_child_count);
+    length_ = 0;
     LiveRangeBound* curr = start_;
     // Normally, spilled ranges do not need connecting moves, because the spill
     // location has been assigned at definition. For ranges spilled in deferred
     // blocks, that is not the case, so we need to connect the spilled children.
-    for (LiveRange *i = range; i != nullptr; i = i->next(), ++curr) {
+    for (LiveRange *i = range; i != nullptr; i = i->next(), ++curr, ++length_) {
       new (curr) LiveRangeBound(i, i->spilled());
     }
   }
@@ -427,6 +429,34 @@ void LiveRange::UnsetAssignedRegister() {
   bits_ = AssignedRegisterField::update(bits_, kUnassignedRegister);
 }
 
+void LiveRange::AttachToNext() {
+  DCHECK_NOT_NULL(next_);
+  DCHECK_NE(TopLevel()->last_child_covers_, next_);
+  last_interval_->set_next(next_->first_interval());
+  next_->first_interval_ = nullptr;
+  last_interval_ = next_->last_interval_;
+  next_->last_interval_ = nullptr;
+  if (first_pos() == nullptr) {
+    first_pos_ = next_->first_pos();
+  } else {
+    UsePosition* ptr = first_pos_;
+    while (ptr->next() != nullptr) {
+      ptr = ptr->next();
+    }
+    ptr->set_next(next_->first_pos());
+  }
+  next_->first_pos_ = nullptr;
+  LiveRange* old_next = next_;
+  next_ = next_->next_;
+  old_next->next_ = nullptr;
+}
+
+void LiveRange::Unspill() {
+  DCHECK(spilled());
+  set_spilled(false);
+  bits_ = AssignedRegisterField::update(bits_, kUnassignedRegister);
+}
+
 void LiveRange::Spill() {
   DCHECK(!spilled());
   DCHECK(!TopLevel()->HasNoSpillType());
@@ -512,6 +542,7 @@ bool LiveRange::CanBeSpilled(LifetimePosition pos) const {
 bool LiveRange::IsTopLevel() const { return top_level_ == this; }
 
 InstructionOperand LiveRange::GetAssignedOperand() const {
+  DCHECK(!IsEmpty());
   if (HasRegisterAssigned()) {
     DCHECK(!spilled());
     return AllocatedOperand(LocationOperand::REGISTER, representation(),
@@ -693,9 +724,14 @@ bool LiveRange::ShouldBeAllocatedBefore(const LiveRange* other) const {
   LifetimePosition other_start = other->Start();
   if (start == other_start) {
     UsePosition* pos = first_pos();
-    if (pos == nullptr) return false;
     UsePosition* other_pos = other->first_pos();
+    // To make the order total, handle the case where both positions are null.
+    if (pos == other_pos) return TopLevel()->vreg() < other->TopLevel()->vreg();
+    if (pos == nullptr) return false;
     if (other_pos == nullptr) return true;
+    // To make the order total, handle the case where both positions are equal.
+    if (pos->pos() == other_pos->pos())
+      return TopLevel()->vreg() < other->TopLevel()->vreg();
     return pos->pos() < other_pos->pos();
   }
   return start < other_start;
@@ -820,6 +856,7 @@ TopLevelLiveRange::TopLevelLiveRange(int vreg, MachineRepresentation rep)
       spilled_in_deferred_blocks_(false),
       spill_start_index_(kMaxInt),
       last_pos_(nullptr),
+      last_child_covers_(this),
       splinter_(nullptr),
       has_preassigned_slot_(false) {
   bits_ |= SpillTypeField::encode(SpillType::kNoSpillType);
@@ -1048,6 +1085,15 @@ void TopLevelLiveRange::VerifyChildrenInOrder() const {
     DCHECK(last_end <= child->Start());
     last_end = child->End();
   }
+}
+
+LiveRange* TopLevelLiveRange::GetChildCovers(LifetimePosition pos) {
+  LiveRange* child = last_child_covers_;
+  while (child != nullptr && child->End() <= pos) {
+    child = child->next();
+  }
+  last_child_covers_ = child;
+  return !child || !child->Covers(pos) ? nullptr : child;
 }
 
 void TopLevelLiveRange::Verify() const {
@@ -1413,7 +1459,9 @@ RegisterAllocationData::RegisterAllocationData(
       assigned_registers_(nullptr),
       assigned_double_registers_(nullptr),
       virtual_register_count_(code->VirtualRegisterCount()),
-      preassigned_slot_ranges_(zone) {
+      preassigned_slot_ranges_(zone),
+      spill_state_(code->InstructionBlockCount(), ZoneVector<LiveRange*>(zone),
+                   zone) {
   if (!kSimpleFPAliasing) {
     fixed_float_live_ranges_.resize(this->config()->num_float_registers(),
                                     nullptr);
@@ -2913,12 +2961,390 @@ LinearScanAllocator::LinearScanAllocator(RegisterAllocationData* data,
   inactive_live_ranges().reserve(8);
 }
 
+void LinearScanAllocator::MaybeUndoPreviousSplit(LiveRange* range) {
+  if (range->next() != nullptr && range->next()->ShouldRecombine()) {
+    LiveRange* to_remove = range->next();
+    TRACE("Recombining %d:%d with %d\n", range->TopLevel()->vreg(),
+          range->relative_id(), to_remove->relative_id());
+
+    // Remove the range from unhandled, as attaching it will change its
+    // state and hence ordering in the unhandled set.
+    auto removed_cnt = unhandled_live_ranges().erase(to_remove);
+    DCHECK_EQ(removed_cnt, 1);
+    USE(removed_cnt);
+
+    range->AttachToNext();
+  } else if (range->next() != nullptr) {
+    TRACE("No recombine for %d:%d to %d\n", range->TopLevel()->vreg(),
+          range->relative_id(), range->next()->relative_id());
+  }
+}
+
+void LinearScanAllocator::SpillNotLiveRanges(RangeWithRegisterSet& to_be_live,
+                                             LifetimePosition position) {
+  for (auto it = active_live_ranges().begin();
+       it != active_live_ranges().end();) {
+    LiveRange* active_range = *it;
+    TopLevelLiveRange* toplevel = (*it)->TopLevel();
+    auto found = to_be_live.find({toplevel, kUnassignedRegister});
+    if (found == to_be_live.end()) {
+      // Is not contained in {to_be_live}, spill it.
+      // Fixed registers are exempt from this. They might have been
+      // added from inactive at the block boundary but we know that
+      // they cannot conflict as they are built before register
+      // allocation starts. It would be algorithmically fine to split
+      // them and reschedule but the code does not allow to do this.
+      if (toplevel->IsFixed()) {
+        TRACE("Keeping reactivated fixed range for %s\n",
+              RegisterName(toplevel->assigned_register()));
+        ++it;
+      } else {
+        // When spilling a previously spilled/reloaded range, we add back the
+        // tail that we might have split off when we reloaded/spilled it
+        // previously. Otherwise we might keep generating small split-offs.
+        MaybeUndoPreviousSplit(active_range);
+        TRACE("Putting back %d:%d\n", toplevel->vreg(),
+              active_range->relative_id());
+        LiveRange* split = SplitRangeAt(active_range, position);
+        DCHECK_NE(split, active_range);
+
+        // Make sure we revisit this range once it has a use that requires
+        // a register.
+        UsePosition* next_use = split->NextRegisterPosition(position);
+        if (next_use != nullptr) {
+          // Move to the start of the gap before use so that we have a space
+          // to perform the potential reload. Otherwise, do not spill but add
+          // to unhandled for reallocation.
+          LifetimePosition revisit_at = next_use->pos().FullStart();
+          TRACE("Next use at %d\n", revisit_at.value());
+          if (!data()->IsBlockBoundary(revisit_at)) {
+            // Leave some space so we have enough gap room.
+            revisit_at = revisit_at.PrevStart().FullStart();
+          }
+          // If this range became life right at the block boundary that we are
+          // currently processing, we do not need to split it. Instead move it
+          // to unhandled right away.
+          if (position < revisit_at) {
+            LiveRange* third_part = SplitRangeAt(split, revisit_at);
+            DCHECK_NE(split, third_part);
+            Spill(split);
+            TRACE("Marking %d:%d to recombine\n", toplevel->vreg(),
+                  third_part->relative_id());
+            third_part->SetRecombine();
+            AddToUnhandled(third_part);
+          } else {
+            AddToUnhandled(split);
+          }
+        } else {
+          Spill(split);
+        }
+        it = ActiveToHandled(it);
+      }
+    } else {
+      // This range is contained in {to_be_live}, so we can keep it.
+      int expected_register = (*found).expected_register;
+      to_be_live.erase(found);
+      if (expected_register == active_range->assigned_register()) {
+        // Was life and in correct register, simply pass through.
+        TRACE("Keeping %d:%d in %s\n", toplevel->vreg(),
+              active_range->relative_id(),
+              RegisterName(active_range->assigned_register()));
+        ++it;
+      } else {
+        // Was life but wrong register. Split and schedule for
+        // allocation.
+        TRACE("Scheduling %d:%d\n", toplevel->vreg(),
+              active_range->relative_id());
+        LiveRange* split = SplitRangeAt(active_range, position);
+        AddToUnhandled(split);
+        it = ActiveToHandled(it);
+      }
+    }
+  }
+}
+
+LiveRange* LinearScanAllocator::AssignRegisterOnReload(LiveRange* range,
+                                                       int reg) {
+  // We know the register is currently free but it might be in
+  // use by a currently inactive range. So we might not be able
+  // to reload for the full distance. In such case, split here.
+  // TODO(herhut):
+  // It might be better if we could use the normal unhandled queue and
+  // give reloading registers pecedence. That way we would compute the
+  // intersection for the entire future.
+  LifetimePosition new_end = range->End();
+  for (const auto inactive : inactive_live_ranges()) {
+    if (kSimpleFPAliasing || !check_fp_aliasing()) {
+      if (inactive->assigned_register() != reg) continue;
+    } else {
+      bool conflict = inactive->assigned_register() == reg;
+      if (!conflict) {
+        int alias_base_index = -1;
+        int aliases = data()->config()->GetAliases(range->representation(), reg,
+                                                   inactive->representation(),
+                                                   &alias_base_index);
+        DCHECK(aliases > 0 || (aliases == 0 && alias_base_index == -1));
+        while (aliases-- && !conflict) {
+          int aliased_reg = alias_base_index + aliases;
+          if (aliased_reg == reg) {
+            conflict = true;
+          }
+        }
+      }
+      if (!conflict) continue;
+    }
+    for (auto interval = inactive->first_interval(); interval != nullptr;
+         interval = interval->next()) {
+      if (interval->start() > new_end) break;
+      if (interval->end() <= range->Start()) continue;
+      if (new_end > interval->start()) new_end = interval->start();
+    }
+  }
+  if (new_end != range->End()) {
+    TRACE("Found new end for %d:%d at %d\n", range->TopLevel()->vreg(),
+          range->relative_id(), new_end.value());
+    LiveRange* tail = SplitRangeAt(range, new_end);
+    AddToUnhandled(tail);
+  }
+  SetLiveRangeAssignedRegister(range, reg);
+  return range;
+}
+
+void LinearScanAllocator::ReloadLiveRanges(RangeWithRegisterSet& to_be_live,
+                                           LifetimePosition position) {
+  // Assumption: All ranges in {to_be_live} are currently spilled and there are
+  // no conflicting registers in the active ranges.
+  // The former is ensured by SpillNotLiveRanges, the latter is by construction
+  // of the to_be_live set.
+  for (RangeWithRegister range_with_register : to_be_live) {
+    TopLevelLiveRange* range = range_with_register.range;
+    int reg = range_with_register.expected_register;
+    LiveRange* to_resurrect = range->GetChildCovers(position);
+    if (to_resurrect == nullptr) {
+      // While the range was life until the end of the predecessor block, it is
+      // not live in this block. Either there is a lifetime gap or the range
+      // died.
+      TRACE("No candidate for %d at %d\n", range->vreg(), position.value());
+    } else {
+      // We might be resurrecting a range that we spilled until its next use
+      // before. In such cases, we have to unsplit it before processing as
+      // otherwise we might get register changes from one range to the other
+      // in the middle of blocks.
+      // If there is a gap between this range and the next, we can just keep
+      // it as a register change won't hurt.
+      MaybeUndoPreviousSplit(to_resurrect);
+      if (to_resurrect->Start() == position) {
+        // This range already starts at this block. It might have been spilled,
+        // so we have to unspill it. Otherwise, it is already in the unhandled
+        // queue waiting for processing.
+        DCHECK(!to_resurrect->HasRegisterAssigned());
+        TRACE("Reload %d:%d starting at %d itself\n", range->vreg(),
+              to_resurrect->relative_id(), position.value());
+        if (to_resurrect->spilled()) {
+          to_resurrect->Unspill();
+          AddToUnhandled(to_resurrect);
+        } else {
+          // Assign the preassigned register if we know. Otherwise, nothing to
+          // do as already in unhandeled.
+          if (reg != kUnassignedRegister) {
+            auto erased_cnt = unhandled_live_ranges().erase(to_resurrect);
+            DCHECK_EQ(erased_cnt, 1);
+            USE(erased_cnt);
+            // We know that there is no conflict with active ranges, so just
+            // assign the register to the range.
+            to_resurrect = AssignRegisterOnReload(to_resurrect, reg);
+            AddToActive(to_resurrect);
+          }
+        }
+      } else {
+        // This range was spilled before. We have to split it and schedule the
+        // second part for allocation (or assign the register if we know).
+        DCHECK(to_resurrect->spilled());
+        LiveRange* split = SplitRangeAt(to_resurrect, position);
+        TRACE("Reload %d:%d starting at %d as %d\n", range->vreg(),
+              to_resurrect->relative_id(), split->Start().value(),
+              split->relative_id());
+        DCHECK_NE(split, to_resurrect);
+        if (reg != kUnassignedRegister) {
+          // We know that there is no conflict with active ranges, so just
+          // assign the register to the range.
+          split = AssignRegisterOnReload(split, reg);
+          AddToActive(split);
+        } else {
+          // Let normal register assignment find a suitable register.
+          AddToUnhandled(split);
+        }
+      }
+    }
+  }
+}
+
+RpoNumber LinearScanAllocator::ChooseOneOfTwoPredecessorStates(
+    InstructionBlock* current_block, LifetimePosition boundary) {
+  using SmallRangeVector =
+      base::SmallVector<TopLevelLiveRange*,
+                        RegisterConfiguration::kMaxRegisters>;
+  // Pick the state that would generate the least spill/reloads.
+  // Compute vectors of ranges with imminent use for both sides.
+  // As GetChildCovers is cached, it is cheaper to repeatedly
+  // call is rather than compute a shared set first.
+  auto& left = data()->GetSpillState(current_block->predecessors()[0]);
+  auto& right = data()->GetSpillState(current_block->predecessors()[1]);
+  SmallRangeVector left_used;
+  for (const auto item : left) {
+    LiveRange* at_next_block = item->TopLevel()->GetChildCovers(boundary);
+    if (at_next_block != nullptr &&
+        at_next_block->NextUsePositionRegisterIsBeneficial(boundary) !=
+            nullptr) {
+      left_used.emplace_back(item->TopLevel());
+    }
+  }
+  SmallRangeVector right_used;
+  for (const auto item : right) {
+    LiveRange* at_next_block = item->TopLevel()->GetChildCovers(boundary);
+    if (at_next_block != nullptr &&
+        at_next_block->NextUsePositionRegisterIsBeneficial(boundary) !=
+            nullptr) {
+      right_used.emplace_back(item->TopLevel());
+    }
+  }
+  if (left_used.empty() && right_used.empty()) {
+    // There are no beneficial register uses. Look at any use at
+    // all. We do not account for all uses, like flowing into a phi.
+    // So we just look at ranges still being live.
+    TRACE("Looking at only uses\n");
+    for (const auto item : left) {
+      LiveRange* at_next_block = item->TopLevel()->GetChildCovers(boundary);
+      if (at_next_block != nullptr &&
+          at_next_block->NextUsePosition(boundary) != nullptr) {
+        left_used.emplace_back(item->TopLevel());
+      }
+    }
+    for (const auto item : right) {
+      LiveRange* at_next_block = item->TopLevel()->GetChildCovers(boundary);
+      if (at_next_block != nullptr &&
+          at_next_block->NextUsePosition(boundary) != nullptr) {
+        right_used.emplace_back(item->TopLevel());
+      }
+    }
+  }
+  // Now left_used and right_used contains those ranges that matter.
+  // Count which side matches this most.
+  TRACE("Vote went %zu vs %zu\n", left_used.size(), right_used.size());
+  return left_used.size() > right_used.size()
+             ? current_block->predecessors()[0]
+             : current_block->predecessors()[1];
+}
+
+void LinearScanAllocator::ComputeStateFromManyPredecessors(
+    InstructionBlock* current_block, RangeWithRegisterSet* to_be_live) {
+  struct Vote {
+    size_t count;
+    int used_registers[RegisterConfiguration::kMaxRegisters];
+  };
+  ZoneMap<TopLevelLiveRange*, Vote> counts(data()->allocation_zone());
+  int deferred_blocks = 0;
+  for (RpoNumber pred : current_block->predecessors()) {
+    if (!ConsiderBlockForControlFlow(current_block, pred)) {
+      // Back edges of a loop count as deferred here too.
+      deferred_blocks++;
+      continue;
+    }
+    const auto& pred_state = data()->GetSpillState(pred);
+    for (LiveRange* range : pred_state) {
+      // We might have spilled the register backwards, so the range we
+      // stored might have lost its register. Ignore those.
+      if (!range->HasRegisterAssigned()) continue;
+      TopLevelLiveRange* toplevel = range->TopLevel();
+      auto previous = counts.find(toplevel);
+      if (previous == counts.end()) {
+        auto result = counts.emplace(std::make_pair(toplevel, Vote{1, {0}}));
+        CHECK(result.second);
+        result.first->second.used_registers[range->assigned_register()]++;
+      } else {
+        previous->second.count++;
+        previous->second.used_registers[range->assigned_register()]++;
+      }
+    }
+  }
+
+  // Choose the live ranges from the majority.
+  const size_t majority =
+      (current_block->PredecessorCount() + 2 - deferred_blocks) / 2;
+  bool taken_registers[RegisterConfiguration::kMaxRegisters] = {0};
+  auto assign_to_live = [this, counts, majority](
+                            std::function<bool(TopLevelLiveRange*)> filter,
+                            RangeWithRegisterSet* to_be_live,
+                            bool* taken_registers) {
+    for (const auto& val : counts) {
+      if (!filter(val.first)) continue;
+      if (val.second.count >= majority) {
+        int register_max = 0;
+        int reg = kUnassignedRegister;
+        for (int idx = 0; idx < RegisterConfiguration::kMaxRegisters; idx++) {
+          int uses = val.second.used_registers[idx];
+          if (uses > register_max) {
+            reg = idx;
+            register_max = val.second.used_registers[idx];
+          } else if (taken_registers[reg] && uses == register_max) {
+            reg = idx;
+          }
+        }
+        if (taken_registers[reg]) {
+          reg = kUnassignedRegister;
+        } else {
+          taken_registers[reg] = true;
+        }
+        to_be_live->emplace(val.first, reg);
+        TRACE("Reset %d as live due vote %zu in %s\n",
+              val.first->TopLevel()->vreg(), val.second.count,
+              reg == kUnassignedRegister ? "unassigned" : RegisterName(reg));
+      }
+    }
+  };
+  // First round, process fixed registers, as these have precedence.
+  // There is only one fixed range per register, so we cannot have
+  // conflicts.
+  assign_to_live([](TopLevelLiveRange* r) { return r->IsFixed(); }, to_be_live,
+                 taken_registers);
+  // Second round, process the rest.
+  assign_to_live([](TopLevelLiveRange* r) { return !r->IsFixed(); }, to_be_live,
+                 taken_registers);
+}
+
+bool LinearScanAllocator::ConsiderBlockForControlFlow(
+    InstructionBlock* current_block, RpoNumber predecessor) {
+  return (predecessor > current_block->rpo_number()) ||
+         (!current_block->IsDeferred() &&
+          code()->InstructionBlockAt(predecessor)->IsDeferred());
+}
+
+bool LinearScanAllocator::BlockOrImmediatePredecessorIsDeferred(
+    const InstructionBlock* block) {
+  if (!FLAG_turbo_preprocess_ranges) return false;
+  if (block->IsDeferred()) return true;
+  if (block->PredecessorCount() == 0) return false;
+  bool pred_is_splinter = false;
+  for (auto pred : block->predecessors()) {
+    if (pred.IsNext(block->rpo_number())) {
+      pred_is_splinter = code()->InstructionBlockAt(pred)->IsDeferred();
+      break;
+    }
+  }
+  return pred_is_splinter;
+}
+
 void LinearScanAllocator::AllocateRegisters() {
   DCHECK(unhandled_live_ranges().empty());
   DCHECK(active_live_ranges().empty());
   DCHECK(inactive_live_ranges().empty());
 
   SplitAndSpillRangesDefinedByMemoryOperand();
+  data()->ResetSpillState();
+
+  if (FLAG_trace_alloc) {
+    PrintRangeOverview(std::cout);
+  }
 
   const size_t live_ranges_size = data()->live_ranges().size();
   for (TopLevelLiveRange* range : data()->live_ranges()) {
@@ -2951,15 +3377,171 @@ void LinearScanAllocator::AllocateRegisters() {
     }
   }
 
-  while (!unhandled_live_ranges().empty()) {
-    LiveRange* current = *unhandled_live_ranges().begin();
-    unhandled_live_ranges().erase(unhandled_live_ranges().begin());
-    LifetimePosition position = current->Start();
+  RpoNumber last_block = RpoNumber::FromInt(0);
+  RpoNumber max_blocks =
+      RpoNumber::FromInt(code()->InstructionBlockCount() - 1);
+  LifetimePosition next_block_boundary =
+      LifetimePosition::InstructionFromInstructionIndex(
+          data()
+              ->code()
+              ->InstructionBlockAt(last_block)
+              ->last_instruction_index())
+          .NextFullStart();
+  // Process all ranges. We also need to ensure that we have seen all block
+  // boundaries. Linear scan might have assigned and spilled ranges before
+  // reaching the last block and hence we would ignore control flow effects for
+  // those. Not only does this produce a potentially bad assignment, it also
+  // breaks with the invariant that we undo spills that happen in deferred code
+  // when crossing a deferred/non-deferred boundary.
+  while (
+      !unhandled_live_ranges().empty() ||
+      (FLAG_turbo_control_flow_aware_allocation && last_block < max_blocks)) {
+    LiveRange* current = unhandled_live_ranges().empty()
+                             ? nullptr
+                             : *unhandled_live_ranges().begin();
+    LifetimePosition position =
+        current ? current->Start() : next_block_boundary;
 #ifdef DEBUG
     allocation_finger_ = position;
 #endif
+    if (FLAG_turbo_control_flow_aware_allocation) {
+      // Check whether we just moved across a block boundary. This will trigger
+      // for the first range that is past the current boundary.
+      if (position >= next_block_boundary) {
+        TRACE("Processing boundary at %d leaving %d\n",
+              next_block_boundary.value(), last_block.ToInt());
+
+        // Forward state to before block boundary
+        LifetimePosition end_of_block = next_block_boundary.PrevStart().End();
+        ForwardStateTo(end_of_block);
+
+        // Remember this state.
+        InstructionBlock* current_block = data()->code()->GetInstructionBlock(
+            next_block_boundary.ToInstructionIndex());
+
+        // Store current spill state (as the state at end of block). For
+        // simplicity, we store the active ranges, e.g., the live ranges that
+        // are not spilled.
+        data()->RememberSpillState(last_block, active_live_ranges());
+
+        bool fallthrough = (current_block->PredecessorCount() == 1) &&
+                           current_block->predecessors()[0].IsNext(
+                               current_block->rpo_number());
+
+        // Only reset the state if this was not a direct fallthrough. Otherwise
+        // control flow resolution will get confused (it does not expect changes
+        // across fallthrough edges.).
+
+        // Also do not process deferred code boundaries. Splintering takes care
+        // of their control flow.
+        fallthrough =
+            fallthrough || BlockOrImmediatePredecessorIsDeferred(current_block);
+
+        if (!fallthrough) {
+#ifdef DEBUG
+          // Allow allocation at current position.
+          allocation_finger_ = next_block_boundary;
+#endif
+
+          // We are currently at next_block_boundary - 1. Move the state to the
+          // actual block boundary position. In particular, we have to
+          // reactivate inactive ranges so that they get rescheduled for
+          // allocation if they were not live at the predecessors.
+          ForwardStateTo(next_block_boundary);
+          RangeWithRegisterSet to_be_live(data()->allocation_zone());
+
+          // If we end up deciding to use the state of the immediate
+          // predecessor, it is better not to perform a change. It would lead to
+          // the same outcome anyway.
+          bool no_change_required = false;
+
+          auto pick_state_from = [this, current_block](
+                                     RpoNumber pred,
+                                     RangeWithRegisterSet* to_be_live) -> bool {
+            TRACE("Using information from B%d\n", pred.ToInt());
+            bool is_noop = pred.IsNext(current_block->rpo_number());
+            if (!is_noop) {
+              auto& spill_state = data()->GetSpillState(pred);
+              TRACE("Not a fallthrough. Adding %zu elements...\n",
+                    spill_state.size());
+              for (const auto range : spill_state) {
+                // Filter out ranges that had their register stolen by backwards
+                // working spill heuristics. These have been spilled after the
+                // fact, so ignore them.
+                if (!range->HasRegisterAssigned()) continue;
+                to_be_live->emplace(range);
+              }
+            }
+            return is_noop;
+          };
+
+          // Multiple cases here:
+          // 1) We have a single predecessor => this is a control flow split, so
+          //     just restore the predecessor state.
+          // 2) We have two predecessors => this is a conditional, so break ties
+          //     based on what to do based on forward uses, trying to benefit
+          //     the same branch if in doubt (make one path fast).
+          // 3) We have many predecessors => this is a switch. Compute union
+          //     based on majority, break ties by looking forward.
+          if (current_block->PredecessorCount() == 1) {
+            TRACE("Single predecessor for B%d\n",
+                  current_block->rpo_number().ToInt());
+            no_change_required =
+                pick_state_from(current_block->predecessors()[0], &to_be_live);
+          } else if (current_block->PredecessorCount() == 2) {
+            TRACE("Two predecessors for B%d\n",
+                  current_block->rpo_number().ToInt());
+            // If one of the branches does not contribute any information,
+            // e.g. because it is deferred or a back edge, we can short cut
+            // here right away.
+            RpoNumber chosen_predecessor = RpoNumber::Invalid();
+            if (!ConsiderBlockForControlFlow(
+                    current_block, current_block->predecessors()[0])) {
+              chosen_predecessor = current_block->predecessors()[1];
+            } else if (!ConsiderBlockForControlFlow(
+                           current_block, current_block->predecessors()[1])) {
+              chosen_predecessor = current_block->predecessors()[0];
+            } else {
+              chosen_predecessor = ChooseOneOfTwoPredecessorStates(
+                  current_block, next_block_boundary);
+            }
+            no_change_required =
+                pick_state_from(chosen_predecessor, &to_be_live);
+
+          } else {
+            // Merge at the end of, e.g., a switch.
+            ComputeStateFromManyPredecessors(current_block, &to_be_live);
+          }
+
+          if (!no_change_required) {
+            SpillNotLiveRanges(to_be_live, next_block_boundary);
+            ReloadLiveRanges(to_be_live, next_block_boundary);
+          }
+
+          // TODO(herhut) Check removal.
+          // Now forward to current position
+          ForwardStateTo(next_block_boundary);
+        }
+        // Update block information
+        last_block = current_block->rpo_number();
+        next_block_boundary = LifetimePosition::InstructionFromInstructionIndex(
+                                  current_block->last_instruction_index())
+                                  .NextFullStart();
+
+        // We might have created new unhandled live ranges, so cycle around the
+        // loop to make sure we pick the top most range in unhandled for
+        // processing.
+        continue;
+      }
+    }
+
+    DCHECK_NOT_NULL(current);
+
     TRACE("Processing interval %d:%d start=%d\n", current->TopLevel()->vreg(),
           current->relative_id(), position.value());
+
+    // Now we can erase current, as we are sure to process it.
+    unhandled_live_ranges().erase(unhandled_live_ranges().begin());
 
     if (current->IsTopLevel() && TryReuseSpillForPhi(current->TopLevel()))
       continue;
@@ -3628,12 +4210,26 @@ void LinearScanAllocator::SpillBetweenUntil(LiveRange* range,
     // The split result intersects with [start, end[.
     // Split it at position between ]start+1, end[, spill the middle part
     // and put the rest to unhandled.
-    LifetimePosition third_part_end = end.PrevStart().End();
+
+    // Make sure that the third part always starts after the start of the
+    // second part, as that likely is the current position of the register
+    // allocator and we cannot add ranges to unhandled that start before
+    // the current position.
+    LifetimePosition split_start = Max(second_part->Start().End(), until);
+
+    // If end is an actual use (which it typically is) we have to split
+    // so that there is a gap before so that we have space for moving the
+    // value into its position.
+    // However, if we have no choice, split right where asked.
+    LifetimePosition third_part_end = Max(split_start, end.PrevStart().End());
+    // Instead of spliting right after or even before the block boundary,
+    // split on the boumndary to avoid extra moves.
     if (data()->IsBlockBoundary(end.Start())) {
-      third_part_end = end.Start();
+      third_part_end = Max(split_start, end.Start());
     }
-    LiveRange* third_part = SplitBetween(
-        second_part, Max(second_part->Start().End(), until), third_part_end);
+
+    LiveRange* third_part =
+        SplitBetween(second_part, split_start, third_part_end);
 
     DCHECK(third_part != second_part);
 
@@ -3925,6 +4521,7 @@ void LiveRangeConnector::ResolveControlFlow(Zone* local_zone) {
           LifetimePosition block_end =
               LifetimePosition::GapFromInstructionIndex(block->code_end());
           const LiveRange* current = result.cur_cover_;
+          // TODO(herhut): This is not the successor if we have control flow!
           const LiveRange* successor = current->next();
           if (current->End() < block_end &&
               (successor == nullptr || successor->spilled())) {

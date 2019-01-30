@@ -410,6 +410,9 @@ DEFINE_BOOL(turbo_sp_frame_access, false,
             "use stack pointer-relative access to frame wherever possible")
 DEFINE_BOOL(turbo_preprocess_ranges, true,
             "run pre-register allocation heuristics")
+DEFINE_BOOL(turbo_control_flow_aware_allocation, false,
+            "consider control flow while allocating registers")
+
 DEFINE_STRING(turbo_filter, "*", "optimization filter for TurboFan compiler")
 DEFINE_BOOL(trace_turbo, false, "trace generated TurboFan IR")
 DEFINE_STRING(trace_turbo_path, nullptr,

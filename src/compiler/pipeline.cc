@@ -2883,7 +2883,9 @@ void PipelineImpl::AllocateRegisters(const RegisterConfiguration* config,
   }
 
   Run<PopulateReferenceMapsPhase>();
+
   Run<ConnectRangesPhase>();
+
   Run<ResolveControlFlowPhase>();
   if (FLAG_turbo_move_optimization) {
     Run<OptimizeMovesPhase>();
