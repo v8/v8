@@ -402,10 +402,12 @@
   V(LoadFieldByIndex)                   \
   V(LoadField)                          \
   V(LoadElement)                        \
+  V(LoadMessage)                        \
   V(LoadTypedElement)                   \
   V(LoadDataViewElement)                \
   V(StoreField)                         \
   V(StoreElement)                       \
+  V(StoreMessage)                       \
   V(StoreTypedElement)                  \
   V(StoreDataViewElement)               \
   V(StoreSignedSmallElement)            \

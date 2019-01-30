@@ -22,10 +22,9 @@ namespace internal {
 namespace compiler {
 
 // static
-FieldAccess AccessBuilder::ForExternalTaggedValue() {
-  FieldAccess access = {kUntaggedBase,       0,
-                        MaybeHandle<Name>(), MaybeHandle<Map>(),
-                        Type::Any(),         MachineType::AnyTagged(),
+FieldAccess AccessBuilder::ForExternalIntPtr() {
+  FieldAccess access = {kUntaggedBase,      0,           MaybeHandle<Name>(),
+                        MaybeHandle<Map>(), Type::Any(), MachineType::IntPtr(),
                         kNoWriteBarrier};
   return access;
 }

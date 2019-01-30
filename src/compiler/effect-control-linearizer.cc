@@ -963,6 +963,12 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kTransitionElementsKind:
       LowerTransitionElementsKind(node);
       break;
+    case IrOpcode::kLoadMessage:
+      result = LowerLoadMessage(node);
+      break;
+    case IrOpcode::kStoreMessage:
+      LowerStoreMessage(node);
+      break;
     case IrOpcode::kLoadFieldByIndex:
       result = LowerLoadFieldByIndex(node);
       break;
@@ -4101,6 +4107,20 @@ void EffectControlLinearizer::LowerTransitionElementsKind(Node* node) {
   __ Goto(&done);
 
   __ Bind(&done);
+}
+
+Node* EffectControlLinearizer::LowerLoadMessage(Node* node) {
+  Node* offset = node->InputAt(0);
+  Node* object_pattern =
+      __ LoadField(AccessBuilder::ForExternalIntPtr(), offset);
+  return __ BitcastWordToTagged(object_pattern);
+}
+
+void EffectControlLinearizer::LowerStoreMessage(Node* node) {
+  Node* offset = node->InputAt(0);
+  Node* object = node->InputAt(1);
+  Node* object_pattern = __ BitcastTaggedToWord(object);
+  __ StoreField(AccessBuilder::ForExternalIntPtr(), offset, object_pattern);
 }
 
 Node* EffectControlLinearizer::LowerLoadFieldByIndex(Node* node) {
