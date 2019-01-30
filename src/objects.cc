@@ -13425,19 +13425,10 @@ void JSFunction::EnsureHasInitialMap(Handle<JSFunction> function) {
     instance_type = JS_OBJECT_TYPE;
   }
 
-  // The constructor should be compiled for the optimization hints to be
-  // available.
-  int expected_nof_properties = 0;
-  IsCompiledScope is_compiled_scope(function->shared()->is_compiled_scope());
-  if (is_compiled_scope.is_compiled() ||
-      Compiler::Compile(function, Compiler::CLEAR_EXCEPTION,
-                        &is_compiled_scope)) {
-    DCHECK(function->shared()->is_compiled());
-    expected_nof_properties = function->shared()->expected_nof_properties();
-  }
-
   int instance_size;
   int inobject_properties;
+  int expected_nof_properties =
+      CalculateExpectedNofProperties(isolate, function);
   CalculateInstanceSizeHelper(instance_type, false, 0, expected_nof_properties,
                               &instance_size, &inobject_properties);
 
@@ -13461,6 +13452,7 @@ void JSFunction::EnsureHasInitialMap(Handle<JSFunction> function) {
 }
 
 namespace {
+
 bool FastInitializeDerivedMap(Isolate* isolate, Handle<JSFunction> new_target,
                               Handle<JSFunction> constructor,
                               Handle<Map> constructor_initial_map) {
@@ -13486,21 +13478,19 @@ bool FastInitializeDerivedMap(Isolate* isolate, Handle<JSFunction> new_target,
   int in_object_properties;
   int embedder_fields =
       JSObject::GetEmbedderFieldCount(*constructor_initial_map);
-  bool success = JSFunction::CalculateInstanceSizeForDerivedClass(
-      new_target, instance_type, embedder_fields, &instance_size,
-      &in_object_properties);
+  int expected_nof_properties =
+      JSFunction::CalculateExpectedNofProperties(isolate, new_target);
+  JSFunction::CalculateInstanceSizeHelper(
+      instance_type, true, embedder_fields, expected_nof_properties,
+      &instance_size, &in_object_properties);
 
-  Handle<Map> map;
-  if (success) {
-    int pre_allocated = constructor_initial_map->GetInObjectProperties() -
-                        constructor_initial_map->UnusedPropertyFields();
-    CHECK_LE(constructor_initial_map->UsedInstanceSize(), instance_size);
-    int unused_property_fields = in_object_properties - pre_allocated;
-    map = Map::CopyInitialMap(isolate, constructor_initial_map, instance_size,
-                              in_object_properties, unused_property_fields);
-  } else {
-    map = Map::CopyInitialMap(isolate, constructor_initial_map);
-  }
+  int pre_allocated = constructor_initial_map->GetInObjectProperties() -
+                      constructor_initial_map->UnusedPropertyFields();
+  CHECK_LE(constructor_initial_map->UsedInstanceSize(), instance_size);
+  int unused_property_fields = in_object_properties - pre_allocated;
+  Handle<Map> map =
+      Map::CopyInitialMap(isolate, constructor_initial_map, instance_size,
+                          in_object_properties, unused_property_fields);
   map->set_new_target_is_base(false);
   Handle<Object> prototype(new_target->instance_prototype(), isolate);
   JSFunction::SetInitialMap(new_target, map, prototype);
@@ -14321,6 +14311,41 @@ int SharedFunctionInfo::FindIndexInScript(Isolate* isolate) const {
   return FunctionLiteral::kIdTypeInvalid;
 }
 
+// static
+int JSFunction::CalculateExpectedNofProperties(Isolate* isolate,
+                                               Handle<JSFunction> function) {
+  int expected_nof_properties = 0;
+  for (PrototypeIterator iter(isolate, function, kStartAtReceiver);
+       !iter.IsAtEnd(); iter.Advance()) {
+    Handle<JSReceiver> current =
+        PrototypeIterator::GetCurrent<JSReceiver>(iter);
+    if (!current->IsJSFunction()) break;
+    Handle<JSFunction> func = Handle<JSFunction>::cast(current);
+    // The super constructor should be compiled for the number of expected
+    // properties to be available.
+    Handle<SharedFunctionInfo> shared(func->shared(), isolate);
+    IsCompiledScope is_compiled_scope(shared->is_compiled_scope());
+    if (is_compiled_scope.is_compiled() ||
+        Compiler::Compile(func, Compiler::CLEAR_EXCEPTION,
+                          &is_compiled_scope)) {
+      DCHECK(shared->is_compiled());
+      int count = shared->expected_nof_properties();
+      // Check that the estimate is sane.
+      if (expected_nof_properties <= JSObject::kMaxInObjectProperties - count) {
+        expected_nof_properties += count;
+      } else {
+        return JSObject::kMaxInObjectProperties;
+      }
+    } else {
+      // In case there was a compilation error for the constructor we will
+      // throw an error during instantiation.
+      break;
+    }
+  }
+  return expected_nof_properties;
+}
+
+// static
 void JSFunction::CalculateInstanceSizeHelper(InstanceType instance_type,
                                              bool has_prototype_slot,
                                              int requested_embedder_fields,
@@ -14353,48 +14378,6 @@ void JSFunction::CalculateInstanceSizeHelper(InstanceType instance_type,
   CHECK_LE(static_cast<unsigned>(*instance_size),
            static_cast<unsigned>(JSObject::kMaxInstanceSize));
 }
-
-// static
-bool JSFunction::CalculateInstanceSizeForDerivedClass(
-    Handle<JSFunction> function, InstanceType instance_type,
-    int requested_embedder_fields, int* instance_size,
-    int* in_object_properties) {
-  Isolate* isolate = function->GetIsolate();
-  int expected_nof_properties = 0;
-  for (PrototypeIterator iter(isolate, function, kStartAtReceiver);
-       !iter.IsAtEnd(); iter.Advance()) {
-    Handle<JSReceiver> current =
-        PrototypeIterator::GetCurrent<JSReceiver>(iter);
-    if (!current->IsJSFunction()) break;
-    Handle<JSFunction> func(Handle<JSFunction>::cast(current));
-    // The super constructor should be compiled for the number of expected
-    // properties to be available.
-    Handle<SharedFunctionInfo> shared(func->shared(), isolate);
-    IsCompiledScope is_compiled_scope(shared->is_compiled_scope());
-    if (is_compiled_scope.is_compiled() ||
-        Compiler::Compile(func, Compiler::CLEAR_EXCEPTION,
-                          &is_compiled_scope)) {
-      DCHECK(shared->is_compiled());
-      int count = shared->expected_nof_properties();
-      // Check that the estimate is sane.
-      if (expected_nof_properties <= JSObject::kMaxInObjectProperties - count) {
-        expected_nof_properties += count;
-      } else {
-        expected_nof_properties = JSObject::kMaxInObjectProperties;
-      }
-    } else {
-      // In case there was a compilation error for the constructor we will
-      // throw an error during instantiation. Hence we directly return 0;
-      return false;
-    }
-    if (!IsDerivedConstructor(shared->kind())) break;
-  }
-  CalculateInstanceSizeHelper(instance_type, true, requested_embedder_fields,
-                              expected_nof_properties, instance_size,
-                              in_object_properties);
-  return true;
-}
-
 
 // Output the source code without any allocation in the heap.
 std::ostream& operator<<(std::ostream& os, const SourceCodeOf& v) {
