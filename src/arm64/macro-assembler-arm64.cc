@@ -2002,13 +2002,18 @@ void TurboAssembler::Call(ExternalReference target) {
 
 void TurboAssembler::CallBuiltinPointer(Register builtin_pointer) {
   STATIC_ASSERT(kSystemPointerSize == 8);
-  STATIC_ASSERT(kSmiShiftSize == 31);
   STATIC_ASSERT(kSmiTagSize == 1);
   STATIC_ASSERT(kSmiTag == 0);
 
   // The builtin_pointer register contains the builtin index as a Smi.
   // Untagging is folded into the indexing operand below.
+#ifdef V8_COMPRESS_POINTERS
+  STATIC_ASSERT(kSmiShiftSize == 0);
+  Lsl(builtin_pointer, builtin_pointer, kSystemPointerSizeLog2 - kSmiShift);
+#else
+  STATIC_ASSERT(kSmiShiftSize == 31);
   Asr(builtin_pointer, builtin_pointer, kSmiShift - kSystemPointerSizeLog2);
+#endif
   Add(builtin_pointer, builtin_pointer,
       IsolateData::builtin_entry_table_offset());
   Ldr(builtin_pointer, MemOperand(kRootRegister, builtin_pointer));
@@ -2733,6 +2738,89 @@ void MacroAssembler::JumpIfNotRoot(const Register& obj, RootIndex index,
   B(ne, if_not_equal);
 }
 
+void TurboAssembler::DecompressTaggedSigned(const Register& destination,
+                                            const MemOperand& field_operand) {
+  RecordComment("[ DecompressTaggedSigned");
+#ifdef DEBUG
+  UseScratchRegisterScope temps(this);
+  Register expected_value = temps.AcquireX();
+  DCHECK(!AreAliased(destination, expected_value));
+  Ldr(expected_value, field_operand);
+  mov(destination, expected_value);
+#else
+  // TODO(ishell): use Ldrsw instead of Ldr,SXTW once kTaggedSize is shrinked
+  Ldr(destination, field_operand);
+#endif
+  Sxtw(destination, destination);
+#ifdef DEBUG
+  Label check_passed;
+  Cmp(destination, expected_value);
+  B(eq, &check_passed);
+  RecordComment("DecompressTaggedSigned failed");
+  brk(0);
+  bind(&check_passed);
+#endif
+  RecordComment("]");
+}
+
+void TurboAssembler::DecompressTaggedPointer(const Register& destination,
+                                             const MemOperand& field_operand) {
+  RecordComment("[ DecompressTaggedPointer");
+#ifdef DEBUG
+  UseScratchRegisterScope temps(this);
+  Register expected_value = temps.AcquireX();
+  DCHECK(!AreAliased(destination, expected_value));
+  Ldr(expected_value, field_operand);
+  mov(destination, expected_value);
+#else
+  // TODO(ishell): use Ldrsw instead of Ldr,SXTW once kTaggedSize is shrinked
+  Ldr(destination, field_operand);
+#endif
+  Add(destination, kRootRegister, Operand(destination, SXTW));
+#ifdef DEBUG
+  Label check_passed;
+  Cmp(destination, expected_value);
+  B(eq, &check_passed);
+  RecordComment("DecompressTaggedPointer failed");
+  brk(0);
+  bind(&check_passed);
+#endif
+  RecordComment("]");
+}
+
+void TurboAssembler::DecompressAnyTagged(const Register& destination,
+                                         const MemOperand& field_operand) {
+  RecordComment("[ DecompressAnyTagged");
+  UseScratchRegisterScope temps(this);
+#ifdef DEBUG
+  Register expected_value = temps.AcquireX();
+  DCHECK(!AreAliased(destination, expected_value));
+  Ldr(expected_value, field_operand);
+  mov(destination, expected_value);
+#else
+  // TODO(ishell): use Ldrsw instead of Ldr,SXTW once kTaggedSize is shrinked
+  Ldr(destination, field_operand);
+#endif
+  // Branchlessly compute |masked_root|:
+  // masked_root = HAS_SMI_TAG(destination) ? 0 : kRootRegister;
+  STATIC_ASSERT((kSmiTagSize == 1) && (kSmiTag == 0));
+  Register masked_root = temps.AcquireX();
+  // Sign extend tag bit to entire register.
+  Sbfx(masked_root, destination, 0, kSmiTagSize);
+  And(masked_root, masked_root, kRootRegister);
+  // Now this add operation will either leave the value unchanged if it is a smi
+  // or add the isolate root if it is a heap object.
+  Add(destination, masked_root, Operand(destination, SXTW));
+#ifdef DEBUG
+  Label check_passed;
+  Cmp(destination, expected_value);
+  B(eq, &check_passed);
+  RecordComment("Decompression failed: Tagged");
+  brk(0);
+  bind(&check_passed);
+#endif
+  RecordComment("]");
+}
 
 void MacroAssembler::CompareAndSplit(const Register& lhs,
                                      const Operand& rhs,
