@@ -176,24 +176,27 @@ PreParser::PreParseResult PreParser::PreParseFunction(
   bool allow_duplicate_parameters = false;
   CheckConflictingVarDeclarations(inner_scope);
 
-  if (formals.is_simple) {
-    if (is_sloppy(function_scope->language_mode())) {
-      function_scope->HoistSloppyBlockFunctions(nullptr);
-    }
+  if (!has_error()) {
+    if (formals.is_simple) {
+      if (is_sloppy(function_scope->language_mode())) {
+        function_scope->HoistSloppyBlockFunctions(nullptr);
+      }
 
-    allow_duplicate_parameters =
-        is_sloppy(function_scope->language_mode()) && !IsConciseMethod(kind);
-  } else {
-    if (is_sloppy(inner_scope->language_mode())) {
-      inner_scope->HoistSloppyBlockFunctions(nullptr);
-    }
+      allow_duplicate_parameters =
+          is_sloppy(function_scope->language_mode()) && !IsConciseMethod(kind);
+    } else {
+      if (is_sloppy(inner_scope->language_mode())) {
+        inner_scope->HoistSloppyBlockFunctions(nullptr);
+      }
 
-    SetLanguageMode(function_scope, inner_scope->language_mode());
-    inner_scope->set_end_position(scanner()->peek_location().end_pos);
-    if (inner_scope->FinalizeBlockScope() != nullptr) {
-      const AstRawString* conflict = inner_scope->FindVariableDeclaredIn(
-          function_scope, VariableMode::kLastLexicalVariableMode);
-      if (conflict != nullptr) ReportVarRedeclarationIn(conflict, inner_scope);
+      SetLanguageMode(function_scope, inner_scope->language_mode());
+      inner_scope->set_end_position(scanner()->peek_location().end_pos);
+      if (inner_scope->FinalizeBlockScope() != nullptr) {
+        const AstRawString* conflict = inner_scope->FindVariableDeclaredIn(
+            function_scope, VariableMode::kLastLexicalVariableMode);
+        if (conflict != nullptr)
+          ReportVarRedeclarationIn(conflict, inner_scope);
+      }
     }
   }
 
