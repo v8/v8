@@ -14,6 +14,8 @@
 namespace v8 {
 namespace internal {
 
+namespace {
+
 Handle<JSFinalizationGroup> ConstructJSFinalizationGroup(Isolate* isolate) {
   Factory* factory = isolate->factory();
   Handle<String> finalization_group_name =
@@ -62,9 +64,9 @@ Handle<JSObject> CreateKey(const char* key_prop_value, Isolate* isolate) {
   return key;
 }
 
-Handle<WeakCell> Register(Handle<JSFinalizationGroup> finalization_group,
-                          Handle<JSObject> target, Handle<Object> holdings,
-                          Handle<Object> key, Isolate* isolate) {
+Handle<WeakCell> FinalizationGroupRegister(
+    Handle<JSFinalizationGroup> finalization_group, Handle<JSObject> target,
+    Handle<Object> holdings, Handle<Object> key, Isolate* isolate) {
   JSFinalizationGroup::Register(finalization_group, target, holdings, key,
                                 isolate);
   CHECK(finalization_group->active_cells()->IsWeakCell());
@@ -76,11 +78,13 @@ Handle<WeakCell> Register(Handle<JSFinalizationGroup> finalization_group,
   return weak_cell;
 }
 
-Handle<WeakCell> Register(Handle<JSFinalizationGroup> finalization_group,
-                          Handle<JSObject> target, Isolate* isolate) {
+Handle<WeakCell> FinalizationGroupRegister(
+    Handle<JSFinalizationGroup> finalization_group, Handle<JSObject> target,
+    Isolate* isolate) {
   Handle<Object> undefined =
       handle(ReadOnlyRoots(isolate).undefined_value(), isolate);
-  return Register(finalization_group, target, undefined, undefined, isolate);
+  return FinalizationGroupRegister(finalization_group, target, undefined,
+                                   undefined, isolate);
 }
 
 void NullifyWeakCell(Handle<WeakCell> weak_cell, Isolate* isolate) {
@@ -146,6 +150,8 @@ void VerifyWeakCellKeyChain(Isolate* isolate, Object list_head, int n_args,
   va_end(args);
 }
 
+}  // namespace
+
 TEST(TestRegister) {
   FLAG_harmony_weak_refs = true;
   CcTest::InitializeVM();
@@ -159,7 +165,7 @@ TEST(TestRegister) {
 
   // Register a weak reference and verify internal data structures.
   Handle<WeakCell> weak_cell1 =
-      Register(finalization_group, js_object, isolate);
+      FinalizationGroupRegister(finalization_group, js_object, isolate);
 
   VerifyWeakCellChain(isolate, finalization_group->active_cells(), 1,
                       *weak_cell1);
@@ -173,7 +179,7 @@ TEST(TestRegister) {
 
   // Register another weak reference and verify internal data structures.
   Handle<WeakCell> weak_cell2 =
-      Register(finalization_group, js_object, isolate);
+      FinalizationGroupRegister(finalization_group, js_object, isolate);
 
   VerifyWeakCellChain(isolate, finalization_group->active_cells(), 2,
                       *weak_cell2, *weak_cell1);
@@ -201,8 +207,8 @@ TEST(TestRegisterWithKey) {
       handle(ReadOnlyRoots(isolate).undefined_value(), isolate);
 
   // Register a weak reference with a key and verify internal data structures.
-  Handle<WeakCell> weak_cell1 =
-      Register(finalization_group, js_object, undefined, key1, isolate);
+  Handle<WeakCell> weak_cell1 = FinalizationGroupRegister(
+      finalization_group, js_object, undefined, key1, isolate);
 
   {
     CHECK(finalization_group->key_map()->IsObjectHashTable());
@@ -214,8 +220,8 @@ TEST(TestRegisterWithKey) {
 
   // Register another weak reference with a different key and verify internal
   // data structures.
-  Handle<WeakCell> weak_cell2 =
-      Register(finalization_group, js_object, undefined, key2, isolate);
+  Handle<WeakCell> weak_cell2 = FinalizationGroupRegister(
+      finalization_group, js_object, undefined, key2, isolate);
 
   {
     CHECK(finalization_group->key_map()->IsObjectHashTable());
@@ -227,8 +233,8 @@ TEST(TestRegisterWithKey) {
 
   // Register another weak reference with key1 and verify internal data
   // structures.
-  Handle<WeakCell> weak_cell3 =
-      Register(finalization_group, js_object, undefined, key1, isolate);
+  Handle<WeakCell> weak_cell3 = FinalizationGroupRegister(
+      finalization_group, js_object, undefined, key1, isolate);
 
   {
     CHECK(finalization_group->key_map()->IsObjectHashTable());
@@ -252,9 +258,9 @@ TEST(TestWeakCellNullify1) {
       isolate->factory()->NewJSObject(isolate->object_function());
 
   Handle<WeakCell> weak_cell1 =
-      Register(finalization_group, js_object, isolate);
+      FinalizationGroupRegister(finalization_group, js_object, isolate);
   Handle<WeakCell> weak_cell2 =
-      Register(finalization_group, js_object, isolate);
+      FinalizationGroupRegister(finalization_group, js_object, isolate);
 
   // Nullify the first WeakCell and verify internal data structures.
   NullifyWeakCell(weak_cell1, isolate);
@@ -287,9 +293,9 @@ TEST(TestWeakCellNullify2) {
       isolate->factory()->NewJSObject(isolate->object_function());
 
   Handle<WeakCell> weak_cell1 =
-      Register(finalization_group, js_object, isolate);
+      FinalizationGroupRegister(finalization_group, js_object, isolate);
   Handle<WeakCell> weak_cell2 =
-      Register(finalization_group, js_object, isolate);
+      FinalizationGroupRegister(finalization_group, js_object, isolate);
 
   // Like TestWeakCellNullify1 but nullify the WeakCells in opposite order.
   NullifyWeakCell(weak_cell2, isolate);
@@ -324,14 +330,14 @@ TEST(TestJSFinalizationGroupPopClearedCellHoldings1) {
       handle(ReadOnlyRoots(isolate).undefined_value(), isolate);
 
   Handle<Object> holdings1 = factory->NewStringFromAsciiChecked("holdings1");
-  Handle<WeakCell> weak_cell1 =
-      Register(finalization_group, js_object, holdings1, undefined, isolate);
+  Handle<WeakCell> weak_cell1 = FinalizationGroupRegister(
+      finalization_group, js_object, holdings1, undefined, isolate);
   Handle<Object> holdings2 = factory->NewStringFromAsciiChecked("holdings2");
-  Handle<WeakCell> weak_cell2 =
-      Register(finalization_group, js_object, holdings2, undefined, isolate);
+  Handle<WeakCell> weak_cell2 = FinalizationGroupRegister(
+      finalization_group, js_object, holdings2, undefined, isolate);
   Handle<Object> holdings3 = factory->NewStringFromAsciiChecked("holdings3");
-  Handle<WeakCell> weak_cell3 =
-      Register(finalization_group, js_object, holdings3, undefined, isolate);
+  Handle<WeakCell> weak_cell3 = FinalizationGroupRegister(
+      finalization_group, js_object, holdings3, undefined, isolate);
 
   NullifyWeakCell(weak_cell2, isolate);
   NullifyWeakCell(weak_cell3, isolate);
@@ -382,11 +388,11 @@ TEST(TestJSFinalizationGroupPopClearedCellHoldings2) {
   Handle<JSObject> key1 = CreateKey("key1", isolate);
 
   Handle<Object> holdings1 = factory->NewStringFromAsciiChecked("holdings1");
-  Handle<WeakCell> weak_cell1 =
-      Register(finalization_group, js_object, holdings1, key1, isolate);
+  Handle<WeakCell> weak_cell1 = FinalizationGroupRegister(
+      finalization_group, js_object, holdings1, key1, isolate);
   Handle<Object> holdings2 = factory->NewStringFromAsciiChecked("holdings2");
-  Handle<WeakCell> weak_cell2 =
-      Register(finalization_group, js_object, holdings2, key1, isolate);
+  Handle<WeakCell> weak_cell2 = FinalizationGroupRegister(
+      finalization_group, js_object, holdings2, key1, isolate);
 
   NullifyWeakCell(weak_cell1, isolate);
   NullifyWeakCell(weak_cell2, isolate);
@@ -437,15 +443,15 @@ TEST(TestUnregisterActiveCells) {
   Handle<Object> undefined =
       handle(ReadOnlyRoots(isolate).undefined_value(), isolate);
 
-  Handle<WeakCell> weak_cell1a =
-      Register(finalization_group, js_object, undefined, key1, isolate);
-  Handle<WeakCell> weak_cell1b =
-      Register(finalization_group, js_object, undefined, key1, isolate);
+  Handle<WeakCell> weak_cell1a = FinalizationGroupRegister(
+      finalization_group, js_object, undefined, key1, isolate);
+  Handle<WeakCell> weak_cell1b = FinalizationGroupRegister(
+      finalization_group, js_object, undefined, key1, isolate);
 
-  Handle<WeakCell> weak_cell2a =
-      Register(finalization_group, js_object, undefined, key2, isolate);
-  Handle<WeakCell> weak_cell2b =
-      Register(finalization_group, js_object, undefined, key2, isolate);
+  Handle<WeakCell> weak_cell2a = FinalizationGroupRegister(
+      finalization_group, js_object, undefined, key2, isolate);
+  Handle<WeakCell> weak_cell2b = FinalizationGroupRegister(
+      finalization_group, js_object, undefined, key2, isolate);
 
   VerifyWeakCellChain(isolate, finalization_group->active_cells(), 4,
                       *weak_cell2b, *weak_cell2a, *weak_cell1b, *weak_cell1a);
@@ -490,15 +496,15 @@ TEST(TestUnregisterActiveAndClearedCells) {
   Handle<Object> undefined =
       handle(ReadOnlyRoots(isolate).undefined_value(), isolate);
 
-  Handle<WeakCell> weak_cell1a =
-      Register(finalization_group, js_object, undefined, key1, isolate);
-  Handle<WeakCell> weak_cell1b =
-      Register(finalization_group, js_object, undefined, key1, isolate);
+  Handle<WeakCell> weak_cell1a = FinalizationGroupRegister(
+      finalization_group, js_object, undefined, key1, isolate);
+  Handle<WeakCell> weak_cell1b = FinalizationGroupRegister(
+      finalization_group, js_object, undefined, key1, isolate);
 
-  Handle<WeakCell> weak_cell2a =
-      Register(finalization_group, js_object, undefined, key2, isolate);
-  Handle<WeakCell> weak_cell2b =
-      Register(finalization_group, js_object, undefined, key2, isolate);
+  Handle<WeakCell> weak_cell2a = FinalizationGroupRegister(
+      finalization_group, js_object, undefined, key2, isolate);
+  Handle<WeakCell> weak_cell2b = FinalizationGroupRegister(
+      finalization_group, js_object, undefined, key2, isolate);
 
   NullifyWeakCell(weak_cell2a, isolate);
 
@@ -545,8 +551,8 @@ TEST(TestWeakCellUnregisterTwice) {
   Handle<Object> undefined =
       handle(ReadOnlyRoots(isolate).undefined_value(), isolate);
 
-  Handle<WeakCell> weak_cell1 =
-      Register(finalization_group, js_object, undefined, key1, isolate);
+  Handle<WeakCell> weak_cell1 = FinalizationGroupRegister(
+      finalization_group, js_object, undefined, key1, isolate);
 
   VerifyWeakCellChain(isolate, finalization_group->active_cells(), 1,
                       *weak_cell1);
@@ -591,8 +597,8 @@ TEST(TestWeakCellUnregisterPopped) {
       isolate->factory()->NewJSObject(isolate->object_function());
   Handle<JSObject> key1 = CreateKey("key1", isolate);
   Handle<Object> holdings1 = factory->NewStringFromAsciiChecked("holdings1");
-  Handle<WeakCell> weak_cell1 =
-      Register(finalization_group, js_object, holdings1, key1, isolate);
+  Handle<WeakCell> weak_cell1 = FinalizationGroupRegister(
+      finalization_group, js_object, holdings1, key1, isolate);
 
   NullifyWeakCell(weak_cell1, isolate);
 
