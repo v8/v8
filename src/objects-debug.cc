@@ -1298,13 +1298,30 @@ void WeakCell::WeakCellVerify(Isolate* isolate) {
   CHECK(IsWeakCell());
 
   CHECK(target()->IsJSReceiver() || target()->IsUndefined(isolate));
+
+  CHECK(prev()->IsWeakCell() || prev()->IsUndefined(isolate));
+  if (prev()->IsWeakCell()) {
+    CHECK_EQ(WeakCell::cast(prev())->next(), *this);
+  }
+
   CHECK(next()->IsWeakCell() || next()->IsUndefined(isolate));
   if (next()->IsWeakCell()) {
     CHECK_EQ(WeakCell::cast(next())->prev(), *this);
   }
-  CHECK(prev()->IsWeakCell() || prev()->IsUndefined(isolate));
-  if (prev()->IsWeakCell()) {
-    CHECK_EQ(WeakCell::cast(prev())->next(), *this);
+
+  CHECK_IMPLIES(key()->IsUndefined(isolate),
+                key_list_prev()->IsUndefined(isolate));
+  CHECK_IMPLIES(key()->IsUndefined(isolate),
+                key_list_next()->IsUndefined(isolate));
+
+  CHECK(key_list_prev()->IsWeakCell() || key_list_prev()->IsUndefined(isolate));
+  if (key_list_prev()->IsWeakCell()) {
+    CHECK_EQ(WeakCell::cast(key_list_prev())->key_list_next(), *this);
+  }
+
+  CHECK(key_list_next()->IsWeakCell() || key_list_next()->IsUndefined(isolate));
+  if (key_list_next()->IsWeakCell()) {
+    CHECK_EQ(WeakCell::cast(key_list_next())->key_list_prev(), *this);
   }
 
   CHECK(finalization_group()->IsUndefined(isolate) ||

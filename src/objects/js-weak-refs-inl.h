@@ -172,7 +172,9 @@ Object JSFinalizationGroup::PopClearedCellHoldings(
       Handle<Object> key = handle(weak_cell->key(), isolate);
       Handle<WeakCell> next =
           handle(WeakCell::cast(weak_cell->key_list_next()), isolate);
-      next->set_key_list_prev(weak_cell->key_list_prev());
+      DCHECK_EQ(next->key_list_prev(), *weak_cell);
+      next->set_key_list_prev(ReadOnlyRoots(isolate).undefined_value());
+      weak_cell->set_key_list_next(ReadOnlyRoots(isolate).undefined_value());
       key_map = ObjectHashTable::Put(key_map, key, next);
       finalization_group->set_key_map(*key_map);
     } else {

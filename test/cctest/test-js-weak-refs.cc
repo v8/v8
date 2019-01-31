@@ -406,9 +406,9 @@ TEST(TestJSFinalizationGroupPopClearedCellHoldings2) {
                            *weak_cell1);
   }
 
-  Object cleared2 =
+  Object cleared1 =
       JSFinalizationGroup::PopClearedCellHoldings(finalization_group, isolate);
-  CHECK_EQ(cleared2, *holdings2);
+  CHECK_EQ(cleared1, *holdings2);
 
   {
     Handle<ObjectHashTable> key_map =
@@ -416,9 +416,9 @@ TEST(TestJSFinalizationGroupPopClearedCellHoldings2) {
     VerifyWeakCellKeyChain(isolate, key_map->Lookup(key1), 1, *weak_cell1);
   }
 
-  Object cleared3 =
+  Object cleared2 =
       JSFinalizationGroup::PopClearedCellHoldings(finalization_group, isolate);
-  CHECK_EQ(cleared3, *holdings1);
+  CHECK_EQ(cleared2, *holdings1);
 
   {
     Handle<ObjectHashTable> key_map =
