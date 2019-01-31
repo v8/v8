@@ -4338,8 +4338,8 @@ Node* WasmGraphBuilder::MemoryInit(uint32_t data_segment_index, Node* dst,
   return BuildCCall(&sig, function, dst, src, size);
 }
 
-Node* WasmGraphBuilder::MemoryDrop(uint32_t data_segment_index,
-                                   wasm::WasmCodePosition position) {
+Node* WasmGraphBuilder::DataDrop(uint32_t data_segment_index,
+                                 wasm::WasmCodePosition position) {
   Node* dropped_data_segments =
       CheckDataSegmentIsPassiveAndNotDropped(data_segment_index, position);
   const Operator* store_op = mcgraph()->machine()->Store(
@@ -4405,8 +4405,8 @@ Node* WasmGraphBuilder::TableInit(uint32_t table_index,
   return result;
 }
 
-Node* WasmGraphBuilder::TableDrop(uint32_t elem_segment_index,
-                                  wasm::WasmCodePosition position) {
+Node* WasmGraphBuilder::ElemDrop(uint32_t elem_segment_index,
+                                 wasm::WasmCodePosition position) {
   Node* dropped_elem_segments =
       CheckElemSegmentIsPassiveAndNotDropped(elem_segment_index, position);
   const Operator* store_op = mcgraph()->machine()->Store(

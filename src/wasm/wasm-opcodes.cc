@@ -198,11 +198,11 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_CONVERT_SAT_OP(Convert, I64, F32, "f32", "trunc")
     CASE_CONVERT_SAT_OP(Convert, I64, F64, "f64", "trunc")
     CASE_OP(MemoryInit, "memory.init")
-    CASE_OP(MemoryDrop, "memory.drop")
+    CASE_OP(DataDrop, "data.drop")
     CASE_OP(MemoryCopy, "memory.copy")
     CASE_OP(MemoryFill, "memory.fill")
     CASE_OP(TableInit, "table.init")
-    CASE_OP(TableDrop, "table.drop")
+    CASE_OP(ElemDrop, "elem.drop")
     CASE_OP(TableCopy, "table.copy")
 
     // SIMD opcodes.

@@ -143,7 +143,7 @@ function getMemoryInit(mem, segment_data) {
       .exportAs('init');
   builder.addFunction('drop', kSig_v_v)
       .addBody([
-        kNumericPrefix, kExprMemoryDrop,
+        kNumericPrefix, kExprDataDrop,
         0,  // Data segment index.
       ])
       .exportAs('drop');
@@ -162,14 +162,14 @@ function getMemoryInit(mem, segment_data) {
   assertTraps(kTrapDataSegmentDropped, () => instance.exports.drop());
 })();
 
-(function TestMemoryDropOnActiveSegment() {
+(function TestDataDropOnActiveSegment() {
   const builder = new WasmModuleBuilder();
   builder.addMemory(1);
   builder.addPassiveDataSegment([1, 2, 3]);
   builder.addDataSegment(0, [4, 5, 6]);
   builder.addFunction('drop', kSig_v_v)
       .addBody([
-        kNumericPrefix, kExprMemoryDrop,
+        kNumericPrefix, kExprDataDrop,
         1,  // Data segment index.
       ])
       .exportAs('drop');
@@ -320,13 +320,13 @@ function getMemoryFill(mem) {
       kTrapMemOutOfBounds, () => memoryFill(kPageSize + 1, v, kPageSize));
 })();
 
-(function TestTableDropActive() {
+(function TestElemDropActive() {
   const builder = new WasmModuleBuilder();
   builder.setTableBounds(5, 5);
   builder.addElementSegment(0, false, [0, 0, 0]);
   builder.addFunction('drop', kSig_v_v)
       .addBody([
-        kNumericPrefix, kExprTableDrop,
+        kNumericPrefix, kExprElemDrop,
         0,  // Element segment index.
       ])
       .exportAs('drop');
@@ -335,13 +335,13 @@ function getMemoryFill(mem) {
   assertTraps(kTrapElemSegmentDropped, () => instance.exports.drop());
 })();
 
-(function TestTableDropTwice() {
+(function TestElemDropTwice() {
   const builder = new WasmModuleBuilder();
   builder.setTableBounds(5, 5);
   builder.addPassiveElementSegment([0, 0, 0]);
   builder.addFunction('drop', kSig_v_v)
       .addBody([
-        kNumericPrefix, kExprTableDrop,
+        kNumericPrefix, kExprElemDrop,
         0,  // Element segment index.
       ])
       .exportAs('drop');

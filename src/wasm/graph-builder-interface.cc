@@ -510,9 +510,8 @@ class WasmGraphBuildingInterface {
     BUILD(MemoryInit, imm.data_segment_index, dst.node, src.node, size.node,
           decoder->position());
   }
-  void MemoryDrop(FullDecoder* decoder,
-                  const MemoryDropImmediate<validate>& imm) {
-    BUILD(MemoryDrop, imm.index, decoder->position());
+  void DataDrop(FullDecoder* decoder, const DataDropImmediate<validate>& imm) {
+    BUILD(DataDrop, imm.index, decoder->position());
   }
   void MemoryCopy(FullDecoder* decoder,
                   const MemoryCopyImmediate<validate>& imm, const Value& dst,
@@ -529,9 +528,8 @@ class WasmGraphBuildingInterface {
     BUILD(TableInit, imm.table.index, imm.elem_segment_index, args[0].node,
           args[1].node, args[2].node, decoder->position());
   }
-  void TableDrop(FullDecoder* decoder,
-                 const TableDropImmediate<validate>& imm) {
-    BUILD(TableDrop, imm.index, decoder->position());
+  void ElemDrop(FullDecoder* decoder, const ElemDropImmediate<validate>& imm) {
+    BUILD(ElemDrop, imm.index, decoder->position());
   }
   void TableCopy(FullDecoder* decoder, const TableCopyImmediate<validate>& imm,
                  Vector<Value> args) {

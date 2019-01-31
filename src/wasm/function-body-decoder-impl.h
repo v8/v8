@@ -479,11 +479,11 @@ struct MemoryInitImmediate {
 };
 
 template <Decoder::ValidateFlag validate>
-struct MemoryDropImmediate {
+struct DataDropImmediate {
   uint32_t index;
   unsigned length;
 
-  inline MemoryDropImmediate(Decoder* decoder, const byte* pc) {
+  inline DataDropImmediate(Decoder* decoder, const byte* pc) {
     index = decoder->read_i32v<validate>(pc + 2, &length, "data segment index");
   }
 };
@@ -521,11 +521,11 @@ struct TableInitImmediate {
 };
 
 template <Decoder::ValidateFlag validate>
-struct TableDropImmediate {
+struct ElemDropImmediate {
   uint32_t index;
   unsigned length;
 
-  inline TableDropImmediate(Decoder* decoder, const byte* pc) {
+  inline ElemDropImmediate(Decoder* decoder, const byte* pc) {
     index = decoder->read_i32v<validate>(pc + 2, &length, "elem segment index");
   }
 };
@@ -713,13 +713,13 @@ struct ControlBase {
     const MemoryAccessImmediate<validate>& imm, Value* result)                \
   F(MemoryInit, const MemoryInitImmediate<validate>& imm, const Value& dst,   \
     const Value& src, const Value& size)                                      \
-  F(MemoryDrop, const MemoryDropImmediate<validate>& imm)                     \
+  F(DataDrop, const DataDropImmediate<validate>& imm)                         \
   F(MemoryCopy, const MemoryCopyImmediate<validate>& imm, const Value& dst,   \
     const Value& src, const Value& size)                                      \
   F(MemoryFill, const MemoryIndexImmediate<validate>& imm, const Value& dst,  \
     const Value& value, const Value& size)                                    \
   F(TableInit, const TableInitImmediate<validate>& imm, Vector<Value> args)   \
-  F(TableDrop, const TableDropImmediate<validate>& imm)                       \
+  F(ElemDrop, const ElemDropImmediate<validate>& imm)                         \
   F(TableCopy, const TableCopyImmediate<validate>& imm, Vector<Value> args)
 
 // Generic Wasm bytecode decoder with utilities for decoding immediates,
@@ -1087,7 +1087,7 @@ class WasmDecoder : public Decoder {
     return true;
   }
 
-  inline bool Validate(MemoryDropImmediate<validate>& imm) {
+  inline bool Validate(DataDropImmediate<validate>& imm) {
     if (!VALIDATE(module_ != nullptr &&
                   imm.index < module_->num_declared_data_segments)) {
       errorf(pc_ + 2, "invalid data segment index: %u", imm.index);
@@ -1122,7 +1122,7 @@ class WasmDecoder : public Decoder {
     return true;
   }
 
-  inline bool Validate(TableDropImmediate<validate>& imm) {
+  inline bool Validate(ElemDropImmediate<validate>& imm) {
     if (!VALIDATE(module_ != nullptr &&
                   imm.index < module_->elem_segments.size())) {
       errorf(pc_ + 2, "invalid element segment index: %u", imm.index);
@@ -1239,8 +1239,8 @@ class WasmDecoder : public Decoder {
             MemoryInitImmediate<validate> imm(decoder, pc);
             return 2 + imm.length;
           }
-          case kExprMemoryDrop: {
-            MemoryDropImmediate<validate> imm(decoder, pc);
+          case kExprDataDrop: {
+            DataDropImmediate<validate> imm(decoder, pc);
             return 2 + imm.length;
           }
           case kExprMemoryCopy: {
@@ -1255,8 +1255,8 @@ class WasmDecoder : public Decoder {
             TableInitImmediate<validate> imm(decoder, pc);
             return 2 + imm.length;
           }
-          case kExprTableDrop: {
-            TableDropImmediate<validate> imm(decoder, pc);
+          case kExprElemDrop: {
+            ElemDropImmediate<validate> imm(decoder, pc);
             return 2 + imm.length;
           }
           case kExprTableCopy: {
@@ -2513,11 +2513,11 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           CALL_INTERFACE_IF_REACHABLE(MemoryInit, imm, dst, src, size);
           break;
         }
-        case kExprMemoryDrop: {
-          MemoryDropImmediate<validate> imm(this, this->pc_);
+        case kExprDataDrop: {
+          DataDropImmediate<validate> imm(this, this->pc_);
           if (!this->Validate(imm)) break;
           len += imm.length;
-          CALL_INTERFACE_IF_REACHABLE(MemoryDrop, imm);
+          CALL_INTERFACE_IF_REACHABLE(DataDrop, imm);
           break;
         }
         case kExprMemoryCopy: {
@@ -2548,11 +2548,11 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           CALL_INTERFACE_IF_REACHABLE(TableInit, imm, VectorOf(args_));
           break;
         }
-        case kExprTableDrop: {
-          TableDropImmediate<validate> imm(this, this->pc_);
+        case kExprElemDrop: {
+          ElemDropImmediate<validate> imm(this, this->pc_);
           if (!this->Validate(imm)) break;
           len += imm.length;
-          CALL_INTERFACE_IF_REACHABLE(TableDrop, imm);
+          CALL_INTERFACE_IF_REACHABLE(ElemDrop, imm);
           break;
         }
         case kExprTableCopy: {

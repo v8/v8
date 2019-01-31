@@ -376,11 +376,11 @@ let kAtomicPrefix = 0xfe;
 
 // Numeric opcodes.
 let kExprMemoryInit = 0x08;
-let kExprMemoryDrop = 0x09;
+let kExprDataDrop = 0x09;
 let kExprMemoryCopy = 0x0a;
 let kExprMemoryFill = 0x0b;
 let kExprTableInit = 0x0c;
-let kExprTableDrop = 0x0d;
+let kExprElemDrop = 0x0d;
 let kExprTableCopy = 0x0e;
 
 // Atomic opcodes.

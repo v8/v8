@@ -2769,16 +2769,16 @@ TEST_F(FunctionBodyDecoderTest, MemoryInitInvalid) {
   }
 }
 
-TEST_F(FunctionBodyDecoderTest, MemoryDrop) {
+TEST_F(FunctionBodyDecoderTest, DataDrop) {
   TestModuleBuilder builder;
   builder.InitializeMemory();
   builder.SetDataSegmentCount(1);
   module = builder.module();
 
-  EXPECT_FAILURE(v_v, WASM_MEMORY_DROP(0));
+  EXPECT_FAILURE(v_v, WASM_DATA_DROP(0));
   WASM_FEATURE_SCOPE(bulk_memory);
-  EXPECT_VERIFIES(v_v, WASM_MEMORY_DROP(0));
-  EXPECT_FAILURE(v_v, WASM_MEMORY_DROP(1));
+  EXPECT_VERIFIES(v_v, WASM_DATA_DROP(0));
+  EXPECT_FAILURE(v_v, WASM_DATA_DROP(1));
 }
 
 TEST_F(FunctionBodyDecoderTest, MemoryCopy) {
@@ -2833,16 +2833,16 @@ TEST_F(FunctionBodyDecoderTest, TableInitInvalid) {
   }
 }
 
-TEST_F(FunctionBodyDecoderTest, TableDrop) {
+TEST_F(FunctionBodyDecoderTest, ElemDrop) {
   TestModuleBuilder builder;
   builder.InitializeTable();
   builder.AddPassiveElementSegment();
   module = builder.module();
 
-  EXPECT_FAILURE(v_v, WASM_TABLE_DROP(0));
+  EXPECT_FAILURE(v_v, WASM_ELEM_DROP(0));
   WASM_FEATURE_SCOPE(bulk_memory);
-  EXPECT_VERIFIES(v_v, WASM_TABLE_DROP(0));
-  EXPECT_FAILURE(v_v, WASM_TABLE_DROP(1));
+  EXPECT_VERIFIES(v_v, WASM_ELEM_DROP(0));
+  EXPECT_FAILURE(v_v, WASM_ELEM_DROP(1));
 }
 
 TEST_F(FunctionBodyDecoderTest, TableCopy) {
@@ -2862,7 +2862,7 @@ TEST_F(FunctionBodyDecoderTest, BulkTableOpsWithoutTable) {
 
   WASM_FEATURE_SCOPE(bulk_memory);
   EXPECT_FAILURE(v_v, WASM_TABLE_INIT(0, WASM_ZERO, WASM_ZERO, WASM_ZERO));
-  EXPECT_FAILURE(v_v, WASM_TABLE_DROP(0));
+  EXPECT_FAILURE(v_v, WASM_ELEM_DROP(0));
   EXPECT_FAILURE(v_v, WASM_TABLE_COPY(WASM_ZERO, WASM_ZERO, WASM_ZERO));
 }
 

@@ -1885,9 +1885,8 @@ class LiftoffCompiler {
                   const Value& src, const Value& size) {
     unsupported(decoder, "memory.init");
   }
-  void MemoryDrop(FullDecoder* decoder,
-                  const MemoryDropImmediate<validate>& imm) {
-    unsupported(decoder, "memory.drop");
+  void DataDrop(FullDecoder* decoder, const DataDropImmediate<validate>& imm) {
+    unsupported(decoder, "data.drop");
   }
   void MemoryCopy(FullDecoder* decoder,
                   const MemoryCopyImmediate<validate>& imm, const Value& dst,
@@ -1903,9 +1902,8 @@ class LiftoffCompiler {
                  Vector<Value> args) {
     unsupported(decoder, "table.init");
   }
-  void TableDrop(FullDecoder* decoder,
-                 const TableDropImmediate<validate>& imm) {
-    unsupported(decoder, "table.drop");
+  void ElemDrop(FullDecoder* decoder, const ElemDropImmediate<validate>& imm) {
+    unsupported(decoder, "elem.drop");
   }
   void TableCopy(FullDecoder* decoder, const TableCopyImmediate<validate>& imm,
                  Vector<Value> args) {

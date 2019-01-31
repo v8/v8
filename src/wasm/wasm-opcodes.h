@@ -410,11 +410,11 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, bool hasBigIntFeature);
   V(I64SConvertSatF64, 0xfc06, l_d) \
   V(I64UConvertSatF64, 0xfc07, l_d) \
   V(MemoryInit, 0xfc08, v_iii)      \
-  V(MemoryDrop, 0xfc09, v_v)        \
+  V(DataDrop, 0xfc09, v_v)          \
   V(MemoryCopy, 0xfc0a, v_iii)      \
   V(MemoryFill, 0xfc0b, v_iii)      \
   V(TableInit, 0xfc0c, v_iii)       \
-  V(TableDrop, 0xfc0d, v_v)         \
+  V(ElemDrop, 0xfc0d, v_v)          \
   V(TableCopy, 0xfc0e, v_iii)
 
 #define FOREACH_ATOMIC_OPCODE(V)                \
