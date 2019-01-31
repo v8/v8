@@ -661,103 +661,124 @@ extern macro HeapObjectToSloppyArgumentsElements(HeapObject):
 extern macro TaggedToNumber(Object): Number
     labels CastError;
 
-macro CastHeapObject<A: type>(o: HeapObject): A
+macro Cast<A: type>(implicit context: Context)(o: Object): A
+    labels CastError {
+  return Cast<A>(TaggedToHeapObject(o) otherwise CastError)
+      otherwise CastError;
+}
+
+Cast<Smi>(o: Object): Smi
+    labels CastError {
+  return TaggedToSmi(o) otherwise CastError;
+}
+
+Cast<PositiveSmi>(o: Object): PositiveSmi
+    labels CastError {
+  return TaggedToPositiveSmi(o) otherwise CastError;
+}
+
+Cast<Number>(o: Object): Number
+    labels CastError {
+  return TaggedToNumber(o) otherwise CastError;
+}
+
+macro Cast<A: type>(o: HeapObject): A
     labels CastError;
 
-CastHeapObject<HeapObject>(o: HeapObject): HeapObject
+Cast<HeapObject>(o: HeapObject): HeapObject
     labels CastError {
   return o;
 }
 
-CastHeapObject<FixedArray>(o: HeapObject): FixedArray
+Cast<FixedArray>(o: HeapObject): FixedArray
     labels CastError {
   return HeapObjectToFixedArray(o) otherwise CastError;
 }
 
-CastHeapObject<FixedDoubleArray>(o: HeapObject): FixedDoubleArray
+Cast<FixedDoubleArray>(o: HeapObject): FixedDoubleArray
     labels CastError {
   return HeapObjectToFixedDoubleArray(o) otherwise CastError;
 }
 
-CastHeapObject<SloppyArgumentsElements>(o: HeapObject): SloppyArgumentsElements
+Cast<SloppyArgumentsElements>(o: HeapObject): SloppyArgumentsElements
     labels CastError {
   return HeapObjectToSloppyArgumentsElements(o) otherwise CastError;
 }
 
-CastHeapObject<JSDataView>(o: HeapObject): JSDataView
+Cast<JSDataView>(o: HeapObject): JSDataView
     labels CastError {
   return HeapObjectToJSDataView(o) otherwise CastError;
 }
 
-CastHeapObject<JSTypedArray>(o: HeapObject): JSTypedArray
+Cast<JSTypedArray>(o: HeapObject): JSTypedArray
     labels CastError {
   if (IsJSTypedArray(o)) return %RawDownCast<JSTypedArray>(o);
   goto CastError;
 }
 
-CastHeapObject<Callable>(o: HeapObject): Callable
+Cast<Callable>(o: HeapObject): Callable
     labels CastError {
   return HeapObjectToCallable(o) otherwise CastError;
 }
 
-CastHeapObject<JSArray>(o: HeapObject): JSArray
+Cast<JSArray>(o: HeapObject): JSArray
     labels CastError {
   return HeapObjectToJSArray(o) otherwise CastError;
 }
 
-CastHeapObject<JSArrayBuffer>(o: HeapObject): JSArrayBuffer
+Cast<JSArrayBuffer>(o: HeapObject): JSArrayBuffer
     labels CastError {
   return HeapObjectToJSArrayBuffer(o) otherwise CastError;
 }
 
-CastHeapObject<Context>(o: HeapObject): Context
+Cast<Context>(o: HeapObject): Context
     labels CastError {
   if (IsContext(o)) return %RawDownCast<Context>(o);
   goto CastError;
 }
 
-CastHeapObject<JSObject>(o: HeapObject): JSObject
+Cast<JSObject>(o: HeapObject): JSObject
     labels CastError {
   if (IsJSObject(o)) return %RawDownCast<JSObject>(o);
   goto CastError;
 }
 
-CastHeapObject<NumberDictionary>(o: HeapObject): NumberDictionary
+Cast<NumberDictionary>(o: HeapObject): NumberDictionary
     labels CastError {
   if (IsNumberDictionary(o)) return %RawDownCast<NumberDictionary>(o);
   goto CastError;
 }
 
-CastHeapObject<FixedTypedArrayBase>(o: HeapObject): FixedTypedArrayBase
+Cast<FixedTypedArrayBase>(o: HeapObject): FixedTypedArrayBase
     labels CastError {
   if (IsFixedTypedArray(o)) return %RawDownCast<FixedTypedArrayBase>(o);
   goto CastError;
 }
 
-CastHeapObject<String>(o: HeapObject): String
+Cast<String>(o: HeapObject): String
     labels CastError {
   return HeapObjectToString(o) otherwise CastError;
 }
 
-CastHeapObject<Constructor>(o: HeapObject): Constructor
+Cast<Constructor>(o: HeapObject): Constructor
     labels CastError {
   return HeapObjectToConstructor(o) otherwise CastError;
 }
 
-CastHeapObject<HeapNumber>(o: HeapObject): HeapNumber
+Cast<HeapNumber>(o: HeapObject): HeapNumber
     labels CastError {
   if (IsHeapNumber(o)) return %RawDownCast<HeapNumber>(o);
   goto CastError;
 }
 
-CastHeapObject<Map>(implicit context: Context)(o: HeapObject): Map
+Cast<Map>(implicit context: Context)(o: HeapObject): Map
     labels CastError {
   if (IsMap(o)) return %RawDownCast<Map>(o);
   goto CastError;
 }
 
-CastHeapObject<JSArgumentsObjectWithLength>(implicit context: Context)(
-    o: HeapObject): JSArgumentsObjectWithLength
+Cast<JSArgumentsObjectWithLength>(implicit context: Context)(o: HeapObject):
+    JSArgumentsObjectWithLength
     labels CastError {
   const map: Map = o.map;
   try {
@@ -772,8 +793,7 @@ CastHeapObject<JSArgumentsObjectWithLength>(implicit context: Context)(
   }
 }
 
-CastHeapObject<FastJSArray>(implicit context: Context)(o: HeapObject):
-    FastJSArray
+Cast<FastJSArray>(implicit context: Context)(o: HeapObject): FastJSArray
     labels CastError {
   const map: Map = o.map;
   if (!IsJSArrayMap(map)) goto CastError;
@@ -816,7 +836,7 @@ struct FastJSArrayWitness {
   map: Map;
 }
 
-CastHeapObject<FastJSArrayForCopy>(implicit context: Context)(o: HeapObject):
+Cast<FastJSArrayForCopy>(implicit context: Context)(o: HeapObject):
     FastJSArrayForCopy
     labels CastError {
   if (IsArraySpeciesProtectorCellInvalid()) goto CastError;
@@ -824,7 +844,7 @@ CastHeapObject<FastJSArrayForCopy>(implicit context: Context)(o: HeapObject):
   return %RawDownCast<FastJSArrayForCopy>(o);
 }
 
-CastHeapObject<FastJSArrayWithNoCustomIteration>(implicit context: Context)(
+Cast<FastJSArrayWithNoCustomIteration>(implicit context: Context)(
     o: HeapObject): FastJSArrayWithNoCustomIteration
     labels CastError {
   if (IsArrayIteratorProtectorCellInvalid()) goto CastError;
@@ -832,44 +852,16 @@ CastHeapObject<FastJSArrayWithNoCustomIteration>(implicit context: Context)(
   return %RawDownCast<FastJSArrayWithNoCustomIteration>(o);
 }
 
-CastHeapObject<JSReceiver>(implicit context: Context)(o: HeapObject): JSReceiver
+Cast<JSReceiver>(implicit context: Context)(o: HeapObject): JSReceiver
     labels CastError {
   if (IsJSReceiver(o)) return %RawDownCast<JSReceiver>(o);
   goto CastError;
 }
 
-CastHeapObject<JSFunction>(implicit context: Context)(o: HeapObject): JSFunction
+Cast<JSFunction>(implicit context: Context)(o: HeapObject): JSFunction
     labels CastError {
   if (IsJSFunction(o)) return %RawDownCast<JSFunction>(o);
   goto CastError;
-}
-
-macro Cast<A: type>(implicit context: Context)(o: HeapObject): A
-    labels CastError {
-  return CastHeapObject<A>(o) otherwise CastError;
-}
-
-// CastHeapObject allows this default-implementation to be non-recursive.
-// Otherwise the generated CSA code might run into infinite recursion.
-macro Cast<A: type>(implicit context: Context)(o: Object): A
-    labels CastError {
-  return CastHeapObject<A>(TaggedToHeapObject(o) otherwise CastError)
-      otherwise CastError;
-}
-
-Cast<Smi>(o: Object): Smi
-    labels CastError {
-  return TaggedToSmi(o) otherwise CastError;
-}
-
-Cast<PositiveSmi>(o: Object): PositiveSmi
-    labels CastError {
-  return TaggedToPositiveSmi(o) otherwise CastError;
-}
-
-Cast<Number>(o: Object): Number
-    labels CastError {
-  return TaggedToNumber(o) otherwise CastError;
 }
 
 extern macro AllocateHeapNumberWithValue(float64): HeapNumber;
