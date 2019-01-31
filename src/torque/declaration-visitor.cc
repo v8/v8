@@ -73,10 +73,21 @@ Builtin* DeclarationVisitor::CreateBuiltin(BuiltinDeclaration* decl,
     }
   }
 
+  for (size_t i = 0; i < signature.types().size(); ++i) {
+    if (const StructType* type =
+            StructType::DynamicCast(signature.types()[i])) {
+      std::stringstream stream;
+      stream << "builtin '" << decl->name << "' uses the struct '"
+             << type->name() << "' as argument '"
+             << signature.parameter_names[i] << "'. This is not supported.";
+      ReportError(stream.str());
+    }
+  }
+
   if (const StructType* struct_type =
           StructType::DynamicCast(signature.return_type)) {
     std::stringstream stream;
-    stream << "builtins (in this case" << decl->name
+    stream << "builtins (in this case " << decl->name
            << ") cannot return structs (in this case " << struct_type->name()
            << ")";
     ReportError(stream.str());
