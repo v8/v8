@@ -99,81 +99,42 @@ TNode<MaybeObject> AccessorAssembler::TryMonomorphicCase(
 
 void AccessorAssembler::HandlePolymorphicCase(
     Node* receiver_map, TNode<WeakFixedArray> feedback, Label* if_handler,
-    TVariable<MaybeObject>* var_handler, Label* if_miss,
-    int min_feedback_capacity) {
+    TVariable<MaybeObject>* var_handler, Label* if_miss) {
   Comment("HandlePolymorphicCase");
   DCHECK_EQ(MachineRepresentation::kTagged, var_handler->rep());
-
-  // Deferred so the unrolled case can omit frame construction in bytecode
-  // handler.
-  Label loop(this, Label::kDeferred);
 
   // Iterate {feedback} array.
   const int kEntrySize = 2;
 
-  // Loading feedback's length is delayed until we need it when looking past
-  // the first {min_feedback_capacity} (map, handler) pairs.
-  Node* length = nullptr;
-  CSA_ASSERT(this, SmiGreaterThanOrEqual(
-                       LoadWeakFixedArrayLength(feedback),
-                       SmiConstant(min_feedback_capacity * kEntrySize)));
+  // Load the {feedback} array length.
+  TNode<IntPtrT> length = LoadAndUntagWeakFixedArrayLength(feedback);
+  CSA_ASSERT(this, IntPtrLessThanOrEqual(IntPtrConstant(1), length));
 
-  const int kUnrolledIterations = IC::kMaxPolymorphicMapCount;
-  for (int i = 0; i < kUnrolledIterations; i++) {
-    int map_index = i * kEntrySize;
-    int handler_index = i * kEntrySize + 1;
-
-    if (i >= min_feedback_capacity) {
-      if (length == nullptr) {
-        length = LoadAndUntagWeakFixedArrayLength(feedback);
-      }
-      GotoIf(IntPtrGreaterThanOrEqual(IntPtrConstant(handler_index), length),
-             if_miss);
-    }
-
-    Label next_entry(this);
+  // This is a hand-crafted loop that only compares against the {length}
+  // in the end, since we already know that we will have at least a single
+  // entry in the {feedback} array anyways.
+  TVARIABLE(IntPtrT, var_index, IntPtrConstant(0));
+  Label loop(this, &var_index), loop_next(this);
+  Goto(&loop);
+  BIND(&loop);
+  {
     TNode<MaybeObject> maybe_cached_map =
-        LoadWeakFixedArrayElement(feedback, map_index);
+        LoadWeakFixedArrayElement(feedback, var_index.value());
     CSA_ASSERT(this, IsWeakOrCleared(maybe_cached_map));
     GotoIf(IsNotWeakReferenceTo(maybe_cached_map, CAST(receiver_map)),
-           &next_entry);
+           &loop_next);
 
     // Found, now call handler.
     TNode<MaybeObject> handler =
-        LoadWeakFixedArrayElement(feedback, handler_index);
+        LoadWeakFixedArrayElement(feedback, var_index.value(), kTaggedSize);
     *var_handler = handler;
     Goto(if_handler);
 
-    BIND(&next_entry);
+    BIND(&loop_next);
+    var_index =
+        Signed(IntPtrAdd(var_index.value(), IntPtrConstant(kEntrySize)));
+    Branch(IntPtrLessThan(var_index.value(), length), &loop, if_miss);
   }
-  Goto(&loop);
-
-  // Loop from {kUnrolledIterations}*kEntrySize to {length}.
-  BIND(&loop);
-  Node* start_index = IntPtrConstant(kUnrolledIterations * kEntrySize);
-  Node* end_index =
-      length != nullptr ? length : LoadAndUntagWeakFixedArrayLength(feedback);
-  BuildFastLoop(
-      start_index, end_index,
-      [this, receiver_map, feedback, if_handler, var_handler](Node* index) {
-        Label next_entry(this);
-        TNode<MaybeObject> maybe_cached_map =
-            LoadWeakFixedArrayElement(feedback, index);
-        CSA_ASSERT(this, IsWeakOrCleared(maybe_cached_map));
-        GotoIf(IsNotWeakReferenceTo(maybe_cached_map, CAST(receiver_map)),
-               &next_entry);
-
-        // Found, now call handler.
-        TNode<MaybeObject> handler =
-            LoadWeakFixedArrayElement(feedback, index, kTaggedSize);
-        *var_handler = handler;
-        Goto(if_handler);
-
-        BIND(&next_entry);
-      },
-      kEntrySize, INTPTR_PARAMETERS, IndexAdvanceMode::kPost);
-  // The loop falls through if no handler was found.
-  Goto(if_miss);
 }
 
 void AccessorAssembler::HandleLoadICHandlerCase(
@@ -2416,7 +2377,7 @@ void AccessorAssembler::LoadIC_BytecodeHandler(const LoadICParameters* p,
           GetHeapObjectIfStrong(feedback, &miss);
       GotoIfNot(IsWeakFixedArrayMap(LoadMap(strong_feedback)), &stub_call);
       HandlePolymorphicCase(recv_map, CAST(strong_feedback), &if_handler,
-                            &var_handler, &miss, 2);
+                            &var_handler, &miss);
     }
   }
 
@@ -2467,7 +2428,7 @@ void AccessorAssembler::LoadIC(const LoadICParameters* p) {
     Comment("LoadIC_try_polymorphic");
     GotoIfNot(IsWeakFixedArrayMap(LoadMap(strong_feedback)), &non_inlined);
     HandlePolymorphicCase(receiver_map, CAST(strong_feedback), &if_handler,
-                          &var_handler, &miss, 2);
+                          &var_handler, &miss);
   }
 
   BIND(&non_inlined);
@@ -2683,7 +2644,7 @@ void AccessorAssembler::KeyedLoadIC(const LoadICParameters* p) {
     Comment("KeyedLoadIC_try_polymorphic");
     GotoIfNot(IsWeakFixedArrayMap(LoadMap(strong_feedback)), &try_megamorphic);
     HandlePolymorphicCase(receiver_map, CAST(strong_feedback), &if_handler,
-                          &var_handler, &miss, 2);
+                          &var_handler, &miss);
   }
 
   BIND(&try_megamorphic);
@@ -2855,8 +2816,7 @@ void AccessorAssembler::KeyedLoadICPolymorphicName(const LoadICParameters* p) {
   TNode<MaybeObject> feedback_element =
       LoadFeedbackVectorSlot(vector, slot, kTaggedSize, SMI_PARAMETERS);
   TNode<WeakFixedArray> array = CAST(feedback_element);
-  HandlePolymorphicCase(receiver_map, array, &if_handler, &var_handler, &miss,
-                        1);
+  HandlePolymorphicCase(receiver_map, array, &if_handler, &var_handler, &miss);
 
   BIND(&if_handler);
   {
@@ -2905,7 +2865,7 @@ void AccessorAssembler::StoreIC(const StoreICParameters* p) {
     Comment("StoreIC_try_polymorphic");
     GotoIfNot(IsWeakFixedArrayMap(LoadMap(strong_feedback)), &try_megamorphic);
     HandlePolymorphicCase(receiver_map, CAST(strong_feedback), &if_handler,
-                          &var_handler, &miss, 2);
+                          &var_handler, &miss);
   }
 
   BIND(&try_megamorphic);
@@ -3087,7 +3047,7 @@ void AccessorAssembler::KeyedStoreIC(const StoreICParameters* p) {
       GotoIfNot(IsWeakFixedArrayMap(LoadMap(strong_feedback)),
                 &try_megamorphic);
       HandlePolymorphicCase(receiver_map, CAST(strong_feedback), &if_handler,
-                            &var_handler, &miss, 2);
+                            &var_handler, &miss);
     }
 
     BIND(&try_megamorphic);
@@ -3112,7 +3072,7 @@ void AccessorAssembler::KeyedStoreIC(const StoreICParameters* p) {
           p->vector, p->slot, kTaggedSize, SMI_PARAMETERS);
       TNode<WeakFixedArray> array = CAST(feedback_element);
       HandlePolymorphicCase(receiver_map, array, &if_handler, &var_handler,
-                            &miss, 1);
+                            &miss);
     }
   }
   BIND(&miss);
@@ -3170,7 +3130,7 @@ void AccessorAssembler::StoreInArrayLiteralIC(const StoreICParameters* p) {
       GotoIfNot(IsWeakFixedArrayMap(LoadMap(strong_feedback)),
                 &try_megamorphic);
       HandlePolymorphicCase(array_map, CAST(strong_feedback), &if_handler,
-                            &var_handler, &miss, 2);
+                            &var_handler, &miss);
     }
 
     BIND(&try_megamorphic);
@@ -3679,7 +3639,7 @@ void AccessorAssembler::GenerateCloneObjectIC() {
     Comment("CloneObjectIC_try_polymorphic");
     GotoIfNot(IsWeakFixedArrayMap(LoadMap(strong_feedback)), &try_megamorphic);
     HandlePolymorphicCase(source_map, CAST(strong_feedback), &if_handler,
-                          &var_handler, &miss, 2);
+                          &var_handler, &miss);
   }
 
   BIND(&try_megamorphic);

@@ -175,7 +175,7 @@ class AccessorAssembler : public CodeStubAssembler {
   void HandlePolymorphicCase(Node* receiver_map, TNode<WeakFixedArray> feedback,
                              Label* if_handler,
                              TVariable<MaybeObject>* var_handler,
-                             Label* if_miss, int min_feedback_capacity);
+                             Label* if_miss);
 
   // LoadIC implementation.
   void HandleLoadICHandlerCase(
