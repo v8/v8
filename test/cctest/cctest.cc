@@ -315,12 +315,9 @@ int main(int argc, char* argv[]) {
   CcTest::set_array_buffer_allocator(
       v8::ArrayBuffer::Allocator::NewDefaultAllocator());
 
-  i::PrintExtension print_extension;
-  v8::RegisterExtension(&print_extension);
-  i::ProfilerExtension profiler_extension;
-  v8::RegisterExtension(&profiler_extension);
-  i::TraceExtension trace_extension;
-  v8::RegisterExtension(&trace_extension);
+  v8::RegisterExtension(v8::base::make_unique<i::PrintExtension>());
+  v8::RegisterExtension(v8::base::make_unique<i::ProfilerExtension>());
+  v8::RegisterExtension(v8::base::make_unique<i::TraceExtension>());
 
   int tests_run = 0;
   bool print_run_count = true;

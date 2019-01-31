@@ -3554,14 +3554,15 @@ UNINITIALIZED_TEST(SnapshotCreatorIncludeGlobalProxy) {
       v8::Isolate::Scope isolate_scope(isolate);
       // We can introduce new extensions, which could override functions already
       // in the snapshot.
-      v8::Extension* extension = new v8::Extension("new extension",
-                                                   "function i() { return 24; }"
-                                                   "function j() { return 25; }"
-                                                   "try {"
-                                                   "  if (o.p == 7) o.p++;"
-                                                   "} catch {}");
+      auto extension =
+          base::make_unique<v8::Extension>("new extension",
+                                           "function i() { return 24; }"
+                                           "function j() { return 25; }"
+                                           "try {"
+                                           "  if (o.p == 7) o.p++;"
+                                           "} catch {}");
       extension->set_auto_enable(true);
-      v8::RegisterExtension(extension);
+      v8::RegisterExtension(std::move(extension));
       {
         // Create a new context from default context snapshot. This will
         // create a new global object from a new global object template

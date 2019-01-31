@@ -66,15 +66,22 @@ class ApiFunction {
 
 class RegisteredExtension {
  public:
-  explicit RegisteredExtension(Extension* extension);
-  static void Register(RegisteredExtension* that);
+  static void Register(Extension*);
+  static void Register(std::unique_ptr<Extension>);
   static void UnregisterAll();
-  Extension* extension() { return extension_; }
-  RegisteredExtension* next() { return next_; }
+  Extension* extension() const {
+    return legacy_unowned_extension_ ? legacy_unowned_extension_
+                                     : extension_.get();
+  }
+  RegisteredExtension* next() const { return next_; }
   static RegisteredExtension* first_extension() { return first_extension_; }
  private:
-  Extension* extension_;
-  RegisteredExtension* next_;
+  explicit RegisteredExtension(Extension*);
+  explicit RegisteredExtension(std::unique_ptr<Extension>);
+  // TODO(clemensh): Remove this after the 7.4 branch.
+  Extension* legacy_unowned_extension_ = nullptr;
+  std::unique_ptr<Extension> extension_;
+  RegisteredExtension* next_ = nullptr;
   static RegisteredExtension* first_extension_;
 };
 

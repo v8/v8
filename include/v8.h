@@ -6489,8 +6489,8 @@ class V8_EXPORT Extension {  // NOLINT
   const String::ExternalOneByteStringResource* source() const {
     return source_;
   }
-  int dependency_count() { return dep_count_; }
-  const char** dependencies() { return deps_; }
+  int dependency_count() const { return dep_count_; }
+  const char** dependencies() const { return deps_; }
   void set_auto_enable(bool value) { auto_enable_ = value; }
   bool auto_enable() { return auto_enable_; }
 
@@ -6507,9 +6507,11 @@ class V8_EXPORT Extension {  // NOLINT
   bool auto_enable_;
 };
 
+V8_DEPRECATE_SOON(
+    "Use unique_ptr version or stop using extension (http://crbug.com/334679).",
+    void V8_EXPORT RegisterExtension(Extension* extension));
 
-void V8_EXPORT RegisterExtension(Extension* extension);
-
+void V8_EXPORT RegisterExtension(std::unique_ptr<Extension>);
 
 // --- Statics ---
 

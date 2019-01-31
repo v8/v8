@@ -53,7 +53,6 @@ void V8::TearDown() {
   Simulator::GlobalTearDown();
 #endif
   CallDescriptors::TearDown();
-  Bootstrapper::TearDownExtensions();
   ElementsAccessor::TearDown();
   RegisteredExtension::UnregisterAll();
   FlagList::ResetAllFlags();  // Frees memory held by string arguments.

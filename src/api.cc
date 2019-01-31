@@ -895,27 +895,31 @@ void V8::SetFlagsFromCommandLine(int* argc, char** argv, bool remove_flags) {
 RegisteredExtension* RegisteredExtension::first_extension_ = nullptr;
 
 RegisteredExtension::RegisteredExtension(Extension* extension)
-    : extension_(extension) { }
+    : legacy_unowned_extension_(extension) {}
 
+RegisteredExtension::RegisteredExtension(std::unique_ptr<Extension> extension)
+    : extension_(std::move(extension)) {}
 
-void RegisteredExtension::Register(RegisteredExtension* that) {
-  that->next_ = first_extension_;
-  first_extension_ = that;
+// static
+void RegisteredExtension::Register(Extension* extension) {
+  RegisteredExtension* new_extension = new RegisteredExtension(extension);
+  new_extension->next_ = first_extension_;
+  first_extension_ = new_extension;
 }
 
+// static
+void RegisteredExtension::Register(std::unique_ptr<Extension> extension) {
+  RegisteredExtension* new_extension =
+      new RegisteredExtension(std::move(extension));
+  new_extension->next_ = first_extension_;
+  first_extension_ = new_extension;
+}
 
+// static
 void RegisteredExtension::UnregisterAll() {
-  // Keep a list of all leaked Extension objects, to suppress ASan leak reports.
-  // We cannot suppress via lsan suppressions, since the objects are allocated
-  // at different call sites.
-  // TODO(clemensh): Fix this (https://crbug.com/v8/8725).
-  static std::vector<Extension*>* leaked_extensions =
-      new std::vector<Extension*>;
-
   RegisteredExtension* re = first_extension_;
   while (re != nullptr) {
     RegisteredExtension* next = re->next();
-    leaked_extensions->push_back(re->extension_);
     delete re;
     re = next;
   }
@@ -938,11 +942,11 @@ class ExtensionResource : public String::ExternalOneByteStringResource {
 };
 }  // anonymous namespace
 
-void RegisterExtension(Extension* that) {
-  RegisteredExtension* extension = new RegisteredExtension(that);
-  RegisteredExtension::Register(extension);
-}
+void RegisterExtension(Extension* that) { RegisteredExtension::Register(that); }
 
+void RegisterExtension(std::unique_ptr<Extension> extension) {
+  RegisteredExtension::Register(std::move(extension));
+}
 
 Extension::Extension(const char* name,
                      const char* source,

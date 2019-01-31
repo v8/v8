@@ -121,42 +121,13 @@ static const char* GCFunctionName() {
   return flag_given ? FLAG_expose_gc_as : "gc";
 }
 
-v8::Extension* Bootstrapper::free_buffer_extension_ = nullptr;
-v8::Extension* Bootstrapper::gc_extension_ = nullptr;
-v8::Extension* Bootstrapper::externalize_string_extension_ = nullptr;
-v8::Extension* Bootstrapper::statistics_extension_ = nullptr;
-v8::Extension* Bootstrapper::trigger_failure_extension_ = nullptr;
-v8::Extension* Bootstrapper::ignition_statistics_extension_ = nullptr;
-
 void Bootstrapper::InitializeOncePerProcess() {
-  free_buffer_extension_ = new FreeBufferExtension;
-  v8::RegisterExtension(free_buffer_extension_);
-  gc_extension_ = new GCExtension(GCFunctionName());
-  v8::RegisterExtension(gc_extension_);
-  externalize_string_extension_ = new ExternalizeStringExtension;
-  v8::RegisterExtension(externalize_string_extension_);
-  statistics_extension_ = new StatisticsExtension;
-  v8::RegisterExtension(statistics_extension_);
-  trigger_failure_extension_ = new TriggerFailureExtension;
-  v8::RegisterExtension(trigger_failure_extension_);
-  ignition_statistics_extension_ = new IgnitionStatisticsExtension;
-  v8::RegisterExtension(ignition_statistics_extension_);
-}
-
-
-void Bootstrapper::TearDownExtensions() {
-  delete free_buffer_extension_;
-  free_buffer_extension_ = nullptr;
-  delete gc_extension_;
-  gc_extension_ = nullptr;
-  delete externalize_string_extension_;
-  externalize_string_extension_ = nullptr;
-  delete statistics_extension_;
-  statistics_extension_ = nullptr;
-  delete trigger_failure_extension_;
-  trigger_failure_extension_ = nullptr;
-  delete ignition_statistics_extension_;
-  ignition_statistics_extension_ = nullptr;
+  v8::RegisterExtension(v8::base::make_unique<FreeBufferExtension>());
+  v8::RegisterExtension(v8::base::make_unique<GCExtension>(GCFunctionName()));
+  v8::RegisterExtension(v8::base::make_unique<ExternalizeStringExtension>());
+  v8::RegisterExtension(v8::base::make_unique<StatisticsExtension>());
+  v8::RegisterExtension(v8::base::make_unique<TriggerFailureExtension>());
+  v8::RegisterExtension(v8::base::make_unique<IgnitionStatisticsExtension>());
 }
 
 void Bootstrapper::TearDown() {
