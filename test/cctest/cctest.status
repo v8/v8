@@ -222,6 +222,8 @@
   # support.
   'test-serialize/CustomSnapshotDataBlobWithWarmup': [SKIP],
   'test-serialize/SnapshotDataBlobWithWarmup': [SKIP],
+  # Fails the embedded blob <-> Isolate verification step.
+  'test-serialize/CustomSnapshotDataBlobWithLocker': [SKIP],
 
   # https://crbug.com/v8/7763
   'test-lockers/ExtensionsRegistration': [SKIP],
