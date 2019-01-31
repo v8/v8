@@ -339,8 +339,8 @@ std::ostream& operator<<(std::ostream& os, const ParameterTypes& p) {
 
 bool Signature::HasSameTypesAs(const Signature& other,
                                ParameterMode mode) const {
-  auto compare_types = GetTypes();
-  auto other_compare_types = other.GetTypes();
+  auto compare_types = types();
+  auto other_compare_types = other.types();
   if (mode == ParameterMode::kIgnoreImplicit) {
     compare_types = GetExplicitTypes();
     other_compare_types = other.GetExplicitTypes();

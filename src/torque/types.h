@@ -583,7 +583,6 @@ struct Signature {
   bool HasSameTypesAs(
       const Signature& other,
       ParameterMode mode = ParameterMode::kProcessImplicit) const;
-  const TypeVector& GetTypes() const { return parameter_types.types; }
   TypeVector GetImplicitTypes() const {
     return TypeVector(parameter_types.types.begin(),
                       parameter_types.types.begin() + implicit_count);
