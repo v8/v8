@@ -1580,9 +1580,9 @@ JSHeapBroker::JSHeapBroker(Isolate* isolate, Zone* broker_zone)
   TRACE(this, "Constructing heap broker.");
 }
 
-std::ostream& JSHeapBroker::Trace() const {
-  std::cout << "[" << this << "] " << std::string(trace_indentation_ * 2, ' ');
-  return std::cout;
+std::ostream& JSHeapBroker::Trace() {
+  return trace_out_ << "[" << this << "] "
+                    << std::string(trace_indentation_ * 2, ' ');
 }
 
 void JSHeapBroker::StartSerializing() {

@@ -5069,7 +5069,8 @@ Handle<Object> SharedFunctionInfo::GetSourceCodeHarmony(
 namespace {
 void TraceInlining(SharedFunctionInfo shared, const char* msg) {
   if (FLAG_trace_turbo_inlining) {
-    std::cout << Brief(shared) << ": IsInlineable? " << msg << "\n";
+    StdoutStream os;
+    os << Brief(shared) << ": IsInlineable? " << msg << "\n";
   }
 }
 }  // namespace

@@ -14,6 +14,7 @@
 #include "src/objects.h"
 #include "src/objects/builtin-function-id.h"
 #include "src/objects/instance-type.h"
+#include "src/ostreams.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
@@ -642,7 +643,7 @@ class V8_EXPORT_PRIVATE JSHeapBroker : public NON_EXPORTED_BASE(ZoneObject) {
   // %ObjectPrototype%.
   bool IsArrayOrObjectPrototype(const JSObjectRef& object) const;
 
-  std::ostream& Trace() const;
+  std::ostream& Trace();
 
   void IncrementTracingIndentation();
   void DecrementTracingIndentation();
@@ -663,8 +664,8 @@ class V8_EXPORT_PRIVATE JSHeapBroker : public NON_EXPORTED_BASE(ZoneObject) {
   ZoneUnorderedSet<Handle<JSObject>, Handle<JSObject>::hash,
                    Handle<JSObject>::equal_to>
       array_and_object_prototypes_;
-
   BrokerMode mode_ = kDisabled;
+  StdoutStream trace_out_;
   unsigned trace_indentation_ = 0;
   PerIsolateCompilerCache* compiler_cache_;
 
