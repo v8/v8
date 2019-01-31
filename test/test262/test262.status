@@ -84,6 +84,11 @@
   'language/expressions/prefix-increment/S11.4.4_A5_*': [FAIL],
   'language/statements/variable/binding-resolution': [FAIL],
 
+  # https://code.google.com/p/v8/issues/detail?id=8771
+  'language/computed-property-names/class/static/method-number': [FAIL],
+  'language/computed-property-names/class/static/method-string': [FAIL],
+  'language/computed-property-names/class/static/method-symbol': [FAIL],
+
   # https://bugs.chromium.org/p/v8/issues/detail?id=4895
   'built-ins/TypedArrayConstructors/internals/DefineOwnProperty/detached-buffer': [FAIL],
   'built-ins/TypedArrayConstructors/internals/DefineOwnProperty/BigInt/detached-buffer': [FAIL],
@@ -501,21 +506,6 @@
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=8717
   'intl402/Segmenter/constructor/constructor/options-granularity-valid': [FAIL],
-  'intl402/Segmenter/constructor/constructor/options-lineBreakStyle-invalid': [FAIL],
-  'intl402/Segmenter/constructor/constructor/options-lineBreakStyle-valid': [FAIL],
-  'intl402/Segmenter/constructor/constructor/options-order': [FAIL],
-  'intl402/Segmenter/constructor/constructor/options-throwing-getters': [FAIL],
-  'intl402/Segmenter/constructor/constructor/options-toobject-prototype': [FAIL],
-  'intl402/Segmenter/constructor/constructor/options-valid-combinations': [FAIL],
-  'intl402/Segmenter/iterator/granularity': [FAIL],
-  'intl402/Segmenter/prototype/resolvedOptions/order': [FAIL],
-  'intl402/Segmenter/prototype/resolvedOptions/type-with-lbs': [FAIL],
-  'intl402/Segmenter/prototype/segment/segment-line': [FAIL],
-  'intl402/Segmenter/prototype/segment/segment-line-following': [FAIL],
-  'intl402/Segmenter/prototype/segment/segment-line-following-modes': [FAIL],
-  'intl402/Segmenter/prototype/segment/segment-line-iterable': [FAIL],
-  'intl402/Segmenter/prototype/segment/segment-line-next': [FAIL],
-  'intl402/Segmenter/prototype/segment/segment-line-preceding': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7472
   'intl402/NumberFormat/currency-digits': [FAIL],
@@ -591,14 +581,6 @@
   'language/expressions/prefix-increment/eval-nostrict': [SKIP],
 
   # https://github.com/tc39/proposal-class-fields/issues/215
-  'language/expressions/class/elements/syntax/early-errors/invalid-names/method-inner-call-expression-bad-reference': [FAIL],
-  'language/expressions/class/elements/syntax/early-errors/invalid-names/method-inner-call-expression-this': [FAIL],
-  'language/expressions/class/elements/syntax/early-errors/invalid-names/method-inner-member-expression-bad-reference': [FAIL],
-  'language/expressions/class/elements/syntax/early-errors/invalid-names/method-inner-member-expression-this': [FAIL],
-  'language/statements/class/elements/syntax/early-errors/invalid-names/method-inner-call-expression-bad-reference': [FAIL],
-  'language/statements/class/elements/syntax/early-errors/invalid-names/method-inner-call-expression-this': [FAIL],
-  'language/statements/class/elements/syntax/early-errors/invalid-names/method-inner-member-expression-bad-reference': [FAIL],
-  'language/statements/class/elements/syntax/early-errors/invalid-names/method-inner-member-expression-this': [FAIL],
   'language/expressions/function/early-errors/invalid-names-call-expression-bad-reference': [FAIL],
   'language/expressions/function/early-errors/invalid-names-call-expression-this': [FAIL],
   'language/expressions/function/early-errors/invalid-names-member-expression-bad-reference': [FAIL],
@@ -686,10 +668,6 @@
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7187
   'built-ins/Function/prototype/toString/line-terminator-normalisation-CR': [SKIP],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=8759
-  'language/eval-code/direct/var-env-lower-lex-catch-non-strict': [SKIP],
-  'language/statements/try/early-catch-var': [SKIP],
 
   ############################ SLOW TESTS #############################
 
