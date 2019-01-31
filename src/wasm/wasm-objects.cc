@@ -916,30 +916,7 @@ MaybeHandle<JSArrayBuffer> MemoryGrowBuffer(Isolate* isolate,
   // Blink's array buffers. The connection between the two is lost, which can
   // lead to Blink not knowing about the other reference to the buffer and
   // freeing it too early.
-  if (!old_buffer->is_external() &&
-      ((new_size < old_buffer->allocation_length()) || old_size == new_size)) {
-    if (old_size != new_size) {
-      DCHECK_NOT_NULL(old_buffer->backing_store());
-      // If adjusting permissions fails, propagate error back to return
-      // failure to grow.
-      if (!i::SetPermissions(GetPlatformPageAllocator(), old_mem_start,
-                             new_size, PageAllocator::kReadWrite)) {
-        return {};
-      }
-      DCHECK_GE(new_size, old_size);
-      reinterpret_cast<v8::Isolate*>(isolate)
-          ->AdjustAmountOfExternalAllocatedMemory(new_size - old_size);
-    }
-    // NOTE: We must allocate a new array buffer here because the spec
-    // assumes that ArrayBuffers do not change size.
-    void* backing_store = old_buffer->backing_store();
-    bool is_external = old_buffer->is_external();
-    // Disconnect buffer early so GC won't free it.
-    i::wasm::DetachMemoryBuffer(isolate, old_buffer, false);
-    Handle<JSArrayBuffer> new_buffer =
-        wasm::SetupArrayBuffer(isolate, backing_store, new_size, is_external);
-    return new_buffer;
-  } else {
+  if (old_buffer->is_external() || new_size > old_buffer->allocation_length()) {
     // We couldn't reuse the old backing store, so create a new one and copy the
     // old contents in.
     Handle<JSArrayBuffer> new_buffer;
@@ -960,6 +937,28 @@ MaybeHandle<JSArrayBuffer> MemoryGrowBuffer(Isolate* isolate,
     DCHECK(old_buffer.is_null() || !old_buffer->is_shared());
     constexpr bool free_memory = true;
     i::wasm::DetachMemoryBuffer(isolate, old_buffer, free_memory);
+    return new_buffer;
+  } else {
+    if (old_size != new_size) {
+      DCHECK_NOT_NULL(old_buffer->backing_store());
+      // If adjusting permissions fails, propagate error back to return
+      // failure to grow.
+      if (!i::SetPermissions(GetPlatformPageAllocator(), old_mem_start,
+                             new_size, PageAllocator::kReadWrite)) {
+        return {};
+      }
+      DCHECK_GE(new_size, old_size);
+      reinterpret_cast<v8::Isolate*>(isolate)
+          ->AdjustAmountOfExternalAllocatedMemory(new_size - old_size);
+    }
+    // NOTE: We must allocate a new array buffer here because the spec
+    // assumes that ArrayBuffers do not change size.
+    void* backing_store = old_buffer->backing_store();
+    bool is_external = old_buffer->is_external();
+    // Disconnect buffer early so GC won't free it.
+    i::wasm::DetachMemoryBuffer(isolate, old_buffer, false);
+    Handle<JSArrayBuffer> new_buffer =
+        wasm::SetupArrayBuffer(isolate, backing_store, new_size, is_external);
     return new_buffer;
   }
 }
