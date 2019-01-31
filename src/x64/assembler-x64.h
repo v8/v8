@@ -236,8 +236,7 @@ static_assert(sizeof(Operand) <= 2 * kSystemPointerSize,
   V(xchg)                             \
   V(xor)
 
-// Shift instructions on operands/registers with kSystemPointerSize, kInt32Size
-// and kInt64Size.
+// Shift instructions on operands/registers with kInt32Size and kInt64Size.
 #define SHIFT_INSTRUCTION_LIST(V) \
   V(rol, 0x0)                     \
   V(ror, 0x1)                     \
@@ -424,9 +423,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // - Instructions on 64-bit (quadword) operands/registers use 'q'.
   // - Instructions on operands/registers with pointer size use 'p'.
 
-  STATIC_ASSERT(kSystemPointerSize == kInt64Size ||
-                kSystemPointerSize == kInt32Size);
-
 #define DECLARE_INSTRUCTION(instruction)                                       \
   template <class P1>                                                          \
   void instruction##_tagged(P1 p1) {                                           \
@@ -551,7 +547,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   void repmovsb();
   void repmovsw();
-  void repmovsp() { emit_repmovs(kSystemPointerSize); }
   void repmovsl() { emit_repmovs(kInt32Size); }
   void repmovsq() { emit_repmovs(kInt64Size); }
 

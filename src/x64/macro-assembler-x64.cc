@@ -1126,15 +1126,11 @@ void TurboAssembler::Set(Register dst, int64_t x) {
 }
 
 void TurboAssembler::Set(Operand dst, intptr_t x) {
-  if (kSystemPointerSize == kInt64Size) {
-    if (is_int32(x)) {
-      movq(dst, Immediate(static_cast<int32_t>(x)));
-    } else {
-      Set(kScratchRegister, x);
-      movq(dst, kScratchRegister);
-    }
-  } else {
+  if (is_int32(x)) {
     movq(dst, Immediate(static_cast<int32_t>(x)));
+  } else {
+    Set(kScratchRegister, x);
+    movq(dst, kScratchRegister);
   }
 }
 
@@ -1292,15 +1288,15 @@ void MacroAssembler::SmiAddConstant(Operand dst, Smi constant) {
            Immediate(constant->value()));
     } else {
       DCHECK(SmiValuesAre31Bits());
-      if (kSystemPointerSize == kInt64Size) {
+      if (kTaggedSize == kInt64Size) {
         // Sign-extend value after addition
         movl(kScratchRegister, dst);
         addl(kScratchRegister, Immediate(constant));
         movsxlq(kScratchRegister, kScratchRegister);
         movq(dst, kScratchRegister);
       } else {
-        DCHECK_EQ(kSmiShiftSize, 32);
-        addq(dst, Immediate(constant));
+        DCHECK_EQ(kTaggedSize, kInt32Size);
+        addl(dst, Immediate(constant));
       }
     }
   }
@@ -1350,7 +1346,7 @@ void TurboAssembler::Push(Smi source) {
   }
   int first_byte_set = base::bits::CountTrailingZeros64(smi) / 8;
   int last_byte_set = (63 - base::bits::CountLeadingZeros64(smi)) / 8;
-  if (first_byte_set == last_byte_set && kSystemPointerSize == kInt64Size) {
+  if (first_byte_set == last_byte_set) {
     // This sequence has only 7 bytes, compared to the 12 bytes below.
     Push(Immediate(0));
     movb(Operand(rsp, first_byte_set),
@@ -1502,7 +1498,7 @@ void MacroAssembler::Drop(int stack_elements) {
 void MacroAssembler::DropUnderReturnAddress(int stack_elements,
                                             Register scratch) {
   DCHECK_GT(stack_elements, 0);
-  if (kSystemPointerSize == kInt64Size && stack_elements == 1) {
+  if (stack_elements == 1) {
     popq(MemOperand(rsp, 0));
     return;
   }
@@ -1512,105 +1508,28 @@ void MacroAssembler::DropUnderReturnAddress(int stack_elements,
   PushReturnAddressFrom(scratch);
 }
 
-void TurboAssembler::Push(Register src) {
-  if (kSystemPointerSize == kInt64Size) {
-    pushq(src);
-  } else {
-    // x32 uses 64-bit push for rbp in the prologue.
-    DCHECK(src.code() != rbp.code());
-    leal(rsp, Operand(rsp, -4));
-    movq(Operand(rsp, 0), src);
-  }
-}
+void TurboAssembler::Push(Register src) { pushq(src); }
 
-void TurboAssembler::Push(Operand src) {
-  if (kSystemPointerSize == kInt64Size) {
-    pushq(src);
-  } else {
-    movq(kScratchRegister, src);
-    leal(rsp, Operand(rsp, -4));
-    movq(Operand(rsp, 0), kScratchRegister);
-  }
-}
+void TurboAssembler::Push(Operand src) { pushq(src); }
 
-void MacroAssembler::PushQuad(Operand src) {
-  if (kSystemPointerSize == kInt64Size) {
-    pushq(src);
-  } else {
-    movq(kScratchRegister, src);
-    pushq(kScratchRegister);
-  }
-}
+void MacroAssembler::PushQuad(Operand src) { pushq(src); }
 
-void TurboAssembler::Push(Immediate value) {
-  if (kSystemPointerSize == kInt64Size) {
-    pushq(value);
-  } else {
-    leal(rsp, Operand(rsp, -4));
-    movq(Operand(rsp, 0), value);
-  }
-}
+void TurboAssembler::Push(Immediate value) { pushq(value); }
 
+void MacroAssembler::PushImm32(int32_t imm32) { pushq_imm32(imm32); }
 
-void MacroAssembler::PushImm32(int32_t imm32) {
-  if (kSystemPointerSize == kInt64Size) {
-    pushq_imm32(imm32);
-  } else {
-    leal(rsp, Operand(rsp, -4));
-    movq(Operand(rsp, 0), Immediate(imm32));
-  }
-}
+void MacroAssembler::Pop(Register dst) { popq(dst); }
 
+void MacroAssembler::Pop(Operand dst) { popq(dst); }
 
-void MacroAssembler::Pop(Register dst) {
-  if (kSystemPointerSize == kInt64Size) {
-    popq(dst);
-  } else {
-    // x32 uses 64-bit pop for rbp in the epilogue.
-    DCHECK(dst.code() != rbp.code());
-    movq(dst, Operand(rsp, 0));
-    leal(rsp, Operand(rsp, 4));
-  }
-}
-
-void MacroAssembler::Pop(Operand dst) {
-  if (kSystemPointerSize == kInt64Size) {
-    popq(dst);
-  } else {
-    Register scratch = dst.AddressUsesRegister(kScratchRegister)
-        ? kRootRegister : kScratchRegister;
-    movq(scratch, Operand(rsp, 0));
-    movq(dst, scratch);
-    leal(rsp, Operand(rsp, 4));
-    if (scratch == kRootRegister) {
-      // Restore kRootRegister.
-      InitializeRootRegister();
-    }
-  }
-}
-
-void MacroAssembler::PopQuad(Operand dst) {
-  if (kSystemPointerSize == kInt64Size) {
-    popq(dst);
-  } else {
-    popq(kScratchRegister);
-    movq(dst, kScratchRegister);
-  }
-}
+void MacroAssembler::PopQuad(Operand dst) { popq(dst); }
 
 void TurboAssembler::Jump(ExternalReference ext) {
   LoadAddress(kScratchRegister, ext);
   jmp(kScratchRegister);
 }
 
-void TurboAssembler::Jump(Operand op) {
-  if (kSystemPointerSize == kInt64Size) {
-    jmp(op);
-  } else {
-    movq(kScratchRegister, op);
-    jmp(kScratchRegister);
-  }
-}
+void TurboAssembler::Jump(Operand op) { jmp(op); }
 
 void TurboAssembler::Jump(Address destination, RelocInfo::Mode rmode) {
   Move(kScratchRegister, destination, rmode);
@@ -1655,7 +1574,7 @@ void TurboAssembler::Call(ExternalReference ext) {
 }
 
 void TurboAssembler::Call(Operand op) {
-  if (kSystemPointerSize == kInt64Size && !CpuFeatures::IsSupported(ATOM)) {
+  if (!CpuFeatures::IsSupported(ATOM)) {
     call(op);
   } else {
     movq(kScratchRegister, op);
@@ -1691,7 +1610,6 @@ void TurboAssembler::Call(Handle<Code> code_object, RelocInfo::Mode rmode) {
 
 void TurboAssembler::CallBuiltinPointer(Register builtin_pointer) {
 #if defined(V8_COMPRESS_POINTERS) || defined(V8_31BIT_SMIS_ON_64BIT_ARCH)
-  STATIC_ASSERT(kSystemPointerSize == 8);
   STATIC_ASSERT(kSmiShiftSize == 0);
   STATIC_ASSERT(kSmiTagSize == 1);
   STATIC_ASSERT(kSmiTag == 0);
@@ -1702,7 +1620,6 @@ void TurboAssembler::CallBuiltinPointer(Register builtin_pointer) {
   Call(Operand(kRootRegister, builtin_pointer, times_4,
                IsolateData::builtin_entry_table_offset()));
 #else   // V8_COMPRESS_POINTERS
-  STATIC_ASSERT(kSystemPointerSize == 8);
   STATIC_ASSERT(kSmiShiftSize == 31);
   STATIC_ASSERT(kSmiTagSize == 1);
   STATIC_ASSERT(kSmiTag == 0);
@@ -2591,7 +2508,7 @@ void MacroAssembler::EnterExitFrameEpilogue(int arg_stack_space,
   // Optionally save all XMM registers.
   if (save_doubles) {
     int space = XMMRegister::kNumRegisters * kDoubleSize +
-                arg_stack_space * kRegisterSize;
+                arg_stack_space * kSystemPointerSize;
     subq(rsp, Immediate(space));
     int offset = -ExitFrameConstants::kFixedFrameSizeFromFp;
     const RegisterConfiguration* config = RegisterConfiguration::Default();
@@ -2601,7 +2518,7 @@ void MacroAssembler::EnterExitFrameEpilogue(int arg_stack_space,
       Movsd(Operand(rbp, offset - ((i + 1) * kDoubleSize)), reg);
     }
   } else if (arg_stack_space > 0) {
-    subq(rsp, Immediate(arg_stack_space * kRegisterSize));
+    subq(rsp, Immediate(arg_stack_space * kSystemPointerSize));
   }
 
   // Get the required frame alignment for the OS.
@@ -2732,9 +2649,10 @@ void TurboAssembler::PrepareCallCFunction(int num_arguments) {
   DCHECK(base::bits::IsPowerOfTwo(frame_alignment));
   int argument_slots_on_stack =
       ArgumentStackSlotsForCFunctionCall(num_arguments);
-  subq(rsp, Immediate((argument_slots_on_stack + 1) * kRegisterSize));
+  subq(rsp, Immediate((argument_slots_on_stack + 1) * kSystemPointerSize));
   andq(rsp, Immediate(-frame_alignment));
-  movq(Operand(rsp, argument_slots_on_stack * kRegisterSize), kScratchRegister);
+  movq(Operand(rsp, argument_slots_on_stack * kSystemPointerSize),
+       kScratchRegister);
 }
 
 void TurboAssembler::CallCFunction(ExternalReference function,
@@ -2779,7 +2697,7 @@ void TurboAssembler::CallCFunction(Register function, int num_arguments) {
   DCHECK_GE(num_arguments, 0);
   int argument_slots_on_stack =
       ArgumentStackSlotsForCFunctionCall(num_arguments);
-  movq(rsp, Operand(rsp, argument_slots_on_stack * kRegisterSize));
+  movq(rsp, Operand(rsp, argument_slots_on_stack * kSystemPointerSize));
 }
 
 void TurboAssembler::CheckPageFlag(Register object, Register scratch, int mask,

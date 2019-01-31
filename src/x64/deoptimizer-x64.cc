@@ -51,8 +51,8 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
     __ pushq(r);
   }
 
-  const int kSavedRegistersAreaSize =
-      kNumberOfRegisters * kRegisterSize + kDoubleRegsSize + kFloatRegsSize;
+  const int kSavedRegistersAreaSize = kNumberOfRegisters * kSystemPointerSize +
+                                      kDoubleRegsSize + kFloatRegsSize;
 
   __ Store(
       ExternalReference::Create(IsolateAddressId::kCEntryFPAddress, isolate),
@@ -89,9 +89,9 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
   // On windows put the arguments on the stack (PrepareCallCFunction
   // has created space for this). On linux pass the arguments in r8 and r9.
 #ifdef _WIN64
-  __ movq(Operand(rsp, 4 * kRegisterSize), arg5);
+  __ movq(Operand(rsp, 4 * kSystemPointerSize), arg5);
   __ LoadAddress(arg5, ExternalReference::isolate_address(isolate));
-  __ movq(Operand(rsp, 5 * kRegisterSize), arg5);
+  __ movq(Operand(rsp, 5 * kSystemPointerSize), arg5);
 #else
   __ movq(r8, arg5);
   __ LoadAddress(r9, ExternalReference::isolate_address(isolate));
@@ -107,7 +107,8 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
 
   // Fill in the input registers.
   for (int i = kNumberOfRegisters -1; i >= 0; i--) {
-    int offset = (i * kRegisterSize) + FrameDescription::registers_offset();
+    int offset =
+        (i * kSystemPointerSize) + FrameDescription::registers_offset();
     __ PopQuad(Operand(rbx, offset));
   }
 
@@ -201,7 +202,8 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
 
   // Push the registers from the last output frame.
   for (int i = 0; i < kNumberOfRegisters; i++) {
-    int offset = (i * kRegisterSize) + FrameDescription::registers_offset();
+    int offset =
+        (i * kSystemPointerSize) + FrameDescription::registers_offset();
     __ PushQuad(Operand(rbx, offset));
   }
 

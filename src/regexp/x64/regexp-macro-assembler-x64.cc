@@ -697,12 +697,12 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
 #else
   // GCC passes arguments in rdi, rsi, rdx, rcx, r8, r9 (and then on stack).
   // Push register parameters on stack for reference.
-  DCHECK_EQ(kInputString, -1 * kRegisterSize);
-  DCHECK_EQ(kStartIndex, -2 * kRegisterSize);
-  DCHECK_EQ(kInputStart, -3 * kRegisterSize);
-  DCHECK_EQ(kInputEnd, -4 * kRegisterSize);
-  DCHECK_EQ(kRegisterOutput, -5 * kRegisterSize);
-  DCHECK_EQ(kNumOutputRegisters, -6 * kRegisterSize);
+  DCHECK_EQ(kInputString, -1 * kSystemPointerSize);
+  DCHECK_EQ(kStartIndex, -2 * kSystemPointerSize);
+  DCHECK_EQ(kInputStart, -3 * kSystemPointerSize);
+  DCHECK_EQ(kInputEnd, -4 * kSystemPointerSize);
+  DCHECK_EQ(kRegisterOutput, -5 * kSystemPointerSize);
+  DCHECK_EQ(kNumOutputRegisters, -6 * kSystemPointerSize);
   __ pushq(rdi);
   __ pushq(rsi);
   __ pushq(rdx);
@@ -1093,26 +1093,13 @@ void RegExpMacroAssemblerX64::PushRegister(int register_index,
   if (check_stack_limit) CheckStackLimit();
 }
 
-STATIC_ASSERT(kSystemPointerSize == kInt64Size ||
-              kSystemPointerSize == kInt32Size);
-
 void RegExpMacroAssemblerX64::ReadCurrentPositionFromRegister(int reg) {
-  if (kSystemPointerSize == kInt64Size) {
-    __ movq(rdi, register_location(reg));
-  } else {
-    // Need sign extension for x32 as rdi might be used as an index register.
-    __ movsxlq(rdi, register_location(reg));
-  }
+  __ movq(rdi, register_location(reg));
 }
 
 
 void RegExpMacroAssemblerX64::ReadPositionFromRegister(Register dst, int reg) {
-  if (kSystemPointerSize == kInt64Size) {
-    __ movq(dst, register_location(reg));
-  } else {
-    // Need sign extension for x32 as dst might be used as an index register.
-    __ movsxlq(dst, register_location(reg));
-  }
+  __ movq(dst, register_location(reg));
 }
 
 
@@ -1196,7 +1183,7 @@ void RegExpMacroAssemblerX64::CallCheckStackGuardState() {
   __ movq(rsi, code_object_pointer());
   // First argument: Next address on the stack (will be address of
   // return address).
-  __ leaq(rdi, Operand(rsp, -kRegisterSize));
+  __ leaq(rdi, Operand(rsp, -kSystemPointerSize));
 #endif
   ExternalReference stack_check =
       ExternalReference::re_check_stack_guard_state(isolate());

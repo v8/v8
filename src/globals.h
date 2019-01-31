@@ -134,13 +134,8 @@ constexpr int kIntptrSize = sizeof(intptr_t);
 constexpr int kUIntptrSize = sizeof(uintptr_t);
 constexpr int kSystemPointerSize = sizeof(void*);
 constexpr int kSystemPointerHexDigits = kSystemPointerSize == 4 ? 8 : 12;
-#if V8_TARGET_ARCH_X64 && V8_TARGET_ARCH_32_BIT
-constexpr int kRegisterSize = kSystemPointerSize + kSystemPointerSize;
-#else
-constexpr int kRegisterSize = kSystemPointerSize;
-#endif
-constexpr int kPCOnStackSize = kRegisterSize;
-constexpr int kFPOnStackSize = kRegisterSize;
+constexpr int kPCOnStackSize = kSystemPointerSize;
+constexpr int kFPOnStackSize = kSystemPointerSize;
 
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
 constexpr int kElidedFrameSlots = kPCOnStackSize / kSystemPointerSize;
@@ -184,13 +179,7 @@ constexpr size_t kReservedCodeRangePages = 0;
 constexpr int kSystemPointerSizeLog2 = 2;
 constexpr intptr_t kIntptrSignBit = 0x80000000;
 constexpr uintptr_t kUintptrAllBitsSet = 0xFFFFFFFFu;
-#if V8_TARGET_ARCH_X64 && V8_TARGET_ARCH_32_BIT
-// x32 port also requires code range.
-constexpr bool kRequiresCodeRange = true;
-constexpr size_t kMaximalCodeRangeSize = 256 * MB;
-constexpr size_t kMinimumCodeRangeSize = 3 * MB;
-constexpr size_t kMinExpectedOSPageSize = 4 * KB;  // OS page.
-#elif V8_HOST_ARCH_PPC && V8_TARGET_ARCH_PPC && V8_OS_LINUX
+#if V8_HOST_ARCH_PPC && V8_TARGET_ARCH_PPC && V8_OS_LINUX
 constexpr bool kRequiresCodeRange = false;
 constexpr size_t kMaximalCodeRangeSize = 0 * MB;
 constexpr size_t kMinimumCodeRangeSize = 0 * MB;

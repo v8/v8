@@ -2874,7 +2874,7 @@ void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
   Label check_negative, process_64_bits, done;
 
   // Account for return address and saved regs.
-  const int kArgumentOffset = 4 * kRegisterSize;
+  const int kArgumentOffset = 4 * kSystemPointerSize;
 
   MemOperand mantissa_operand(MemOperand(rsp, kArgumentOffset));
   MemOperand exponent_operand(
