@@ -2007,7 +2007,7 @@ void TurboAssembler::CallBuiltinPointer(Register builtin_pointer) {
 
   // The builtin_pointer register contains the builtin index as a Smi.
   // Untagging is folded into the indexing operand below.
-#ifdef V8_COMPRESS_POINTERS
+#if defined(V8_COMPRESS_POINTERS) || defined(V8_31BIT_SMIS_ON_64BIT_ARCH)
   STATIC_ASSERT(kSmiShiftSize == 0);
   Lsl(builtin_pointer, builtin_pointer, kSystemPointerSizeLog2 - kSmiShift);
 #else

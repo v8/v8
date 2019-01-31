@@ -339,7 +339,7 @@ config("features") {
   if (v8_enable_pointer_compression) {
     defines += [ "V8_COMPRESS_POINTERS" ]
   }
-  if (v8_enable_31bit_smis_on_64bit_arch) {
+  if (v8_enable_pointer_compression || v8_enable_31bit_smis_on_64bit_arch) {
     defines += [ "V8_31BIT_SMIS_ON_64BIT_ARCH" ]
   }
   if (v8_enable_object_print) {

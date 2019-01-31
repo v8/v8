@@ -1619,7 +1619,7 @@ void TurboAssembler::CallBuiltinPointer(Register builtin_pointer) {
   // of times_8 since smis are already shifted by one).
   Call(Operand(kRootRegister, builtin_pointer, times_4,
                IsolateData::builtin_entry_table_offset()));
-#else   // V8_COMPRESS_POINTERS
+#else   // defined(V8_COMPRESS_POINTERS) || defined(V8_31BIT_SMIS_ON_64BIT_ARCH)
   STATIC_ASSERT(kSmiShiftSize == 31);
   STATIC_ASSERT(kSmiTagSize == 1);
   STATIC_ASSERT(kSmiTag == 0);
