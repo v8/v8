@@ -477,38 +477,6 @@ class InterpreterHandle {
     }
     return local_scope_object;
   }
-
-  Handle<JSArray> GetScopeDetails(Address frame_pointer, int frame_index,
-                                  Handle<WasmDebugInfo> debug_info) {
-    auto frame = GetInterpretedFrame(frame_pointer, frame_index);
-
-    Handle<FixedArray> global_scope =
-        isolate_->factory()->NewFixedArray(ScopeIterator::kScopeDetailsSize);
-    global_scope->set(ScopeIterator::kScopeDetailsTypeIndex,
-                      Smi::FromInt(ScopeIterator::ScopeTypeGlobal));
-    Handle<JSObject> global_scope_object =
-        GetGlobalScopeObject(frame.get(), debug_info);
-    global_scope->set(ScopeIterator::kScopeDetailsObjectIndex,
-                      *global_scope_object);
-
-    Handle<FixedArray> local_scope =
-        isolate_->factory()->NewFixedArray(ScopeIterator::kScopeDetailsSize);
-    local_scope->set(ScopeIterator::kScopeDetailsTypeIndex,
-                     Smi::FromInt(ScopeIterator::ScopeTypeLocal));
-    Handle<JSObject> local_scope_object =
-        GetLocalScopeObject(frame.get(), debug_info);
-    local_scope->set(ScopeIterator::kScopeDetailsObjectIndex,
-                     *local_scope_object);
-
-    Handle<JSArray> global_jsarr =
-        isolate_->factory()->NewJSArrayWithElements(global_scope);
-    Handle<JSArray> local_jsarr =
-        isolate_->factory()->NewJSArrayWithElements(local_scope);
-    Handle<FixedArray> all_scopes = isolate_->factory()->NewFixedArray(2);
-    all_scopes->set(0, *global_jsarr);
-    all_scopes->set(1, *local_jsarr);
-    return isolate_->factory()->NewJSArrayWithElements(all_scopes);
-  }
 };
 
 }  // namespace
@@ -665,13 +633,6 @@ void WasmDebugInfo::Unwind(Address frame_pointer) {
 uint64_t WasmDebugInfo::NumInterpretedCalls() {
   auto* handle = GetInterpreterHandleOrNull(*this);
   return handle ? handle->NumInterpretedCalls() : 0;
-}
-
-// static
-Handle<JSObject> WasmDebugInfo::GetScopeDetails(
-    Handle<WasmDebugInfo> debug_info, Address frame_pointer, int frame_index) {
-  auto* interp_handle = GetInterpreterHandle(*debug_info);
-  return interp_handle->GetScopeDetails(frame_pointer, frame_index, debug_info);
 }
 
 // static
