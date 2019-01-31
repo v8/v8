@@ -1337,6 +1337,7 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobOutdatedContextWithOverflow) {
 
 UNINITIALIZED_TEST(CustomSnapshotDataBlobWithLocker) {
   DisableAlwaysOpt();
+  DisableEmbeddedBlobRefcounting();
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   DisableEmbeddedBlobRefcounting();
@@ -2575,8 +2576,9 @@ TEST(Regress503552) {
   delete cache_data;
 }
 
-TEST(SnapshotCreatorMultipleContexts) {
+UNINITIALIZED_TEST(SnapshotCreatorMultipleContexts) {
   DisableAlwaysOpt();
+  DisableEmbeddedBlobRefcounting();
   v8::StartupData blob;
   {
     v8::SnapshotCreator creator;
@@ -2635,6 +2637,7 @@ TEST(SnapshotCreatorMultipleContexts) {
 
   isolate->Dispose();
   delete[] blob.data;
+  FreeCurrentEmbeddedBlob();
 }
 
 static int serialized_static_field = 314;
@@ -2697,8 +2700,9 @@ intptr_t replaced_external_references[] = {
 intptr_t short_external_references[] = {
     reinterpret_cast<intptr_t>(SerializedCallbackReplacement), 0};
 
-TEST(SnapshotCreatorExternalReferences) {
+UNINITIALIZED_TEST(SnapshotCreatorExternalReferences) {
   DisableAlwaysOpt();
+  DisableEmbeddedBlobRefcounting();
   v8::StartupData blob;
   {
     v8::SnapshotCreator creator(original_external_references);
@@ -2785,10 +2789,12 @@ TEST(SnapshotCreatorExternalReferences) {
   CHECK_EQ(3, serializable_two_byte_resource.dispose_count());
 
   delete[] blob.data;
+  FreeCurrentEmbeddedBlob();
 }
 
-TEST(SnapshotCreatorShortExternalReferences) {
+UNINITIALIZED_TEST(SnapshotCreatorShortExternalReferences) {
   DisableAlwaysOpt();
+  DisableEmbeddedBlobRefcounting();
   v8::StartupData blob;
   {
     v8::SnapshotCreator creator(original_external_references);
@@ -2827,6 +2833,7 @@ TEST(SnapshotCreatorShortExternalReferences) {
     isolate->Dispose();
   }
   delete[] blob.data;
+  FreeCurrentEmbeddedBlob();
 }
 
 v8::StartupData CreateSnapshotWithDefaultAndCustom() {
@@ -2863,8 +2870,9 @@ v8::StartupData CreateSnapshotWithDefaultAndCustom() {
   return creator.CreateBlob(v8::SnapshotCreator::FunctionCodeHandling::kClear);
 }
 
-TEST(SnapshotCreatorNoExternalReferencesDefault) {
+UNINITIALIZED_TEST(SnapshotCreatorNoExternalReferencesDefault) {
   DisableAlwaysOpt();
+  DisableEmbeddedBlobRefcounting();
   v8::StartupData blob = CreateSnapshotWithDefaultAndCustom();
 
   // Deserialize with an incomplete list of external references.
@@ -2885,6 +2893,7 @@ TEST(SnapshotCreatorNoExternalReferencesDefault) {
     isolate->Dispose();
   }
   delete[] blob.data;
+  FreeCurrentEmbeddedBlob();
 }
 
 v8::StartupData CreateCustomSnapshotWithPreparseDataAndNoOuterScope() {
@@ -2910,8 +2919,9 @@ v8::StartupData CreateCustomSnapshotWithPreparseDataAndNoOuterScope() {
   return creator.CreateBlob(v8::SnapshotCreator::FunctionCodeHandling::kClear);
 }
 
-TEST(SnapshotCreatorPreparseDataAndNoOuterScope) {
+UNINITIALIZED_TEST(SnapshotCreatorPreparseDataAndNoOuterScope) {
   DisableAlwaysOpt();
+  DisableEmbeddedBlobRefcounting();
   v8::StartupData blob = CreateCustomSnapshotWithPreparseDataAndNoOuterScope();
 
   // Deserialize with an incomplete list of external references.
@@ -2930,6 +2940,7 @@ TEST(SnapshotCreatorPreparseDataAndNoOuterScope) {
     isolate->Dispose();
   }
   delete[] blob.data;
+  FreeCurrentEmbeddedBlob();
 }
 
 v8::StartupData CreateCustomSnapshotArrayJoinWithKeep() {
@@ -2950,8 +2961,9 @@ v8::StartupData CreateCustomSnapshotArrayJoinWithKeep() {
   return creator.CreateBlob(v8::SnapshotCreator::FunctionCodeHandling::kKeep);
 }
 
-TEST(SnapshotCreatorArrayJoinWithKeep) {
+UNINITIALIZED_TEST(SnapshotCreatorArrayJoinWithKeep) {
   DisableAlwaysOpt();
+  DisableEmbeddedBlobRefcounting();
   v8::StartupData blob = CreateCustomSnapshotArrayJoinWithKeep();
 
   // Deserialize with an incomplete list of external references.
@@ -2971,6 +2983,7 @@ TEST(SnapshotCreatorArrayJoinWithKeep) {
     isolate->Dispose();
   }
   delete[] blob.data;
+  FreeCurrentEmbeddedBlob();
 }
 
 TEST(SnapshotCreatorNoExternalReferencesCustomFail1) {
@@ -3023,8 +3036,9 @@ TEST(SnapshotCreatorNoExternalReferencesCustomFail2) {
   delete[] blob.data;
 }
 
-TEST(SnapshotCreatorUnknownExternalReferences) {
+UNINITIALIZED_TEST(SnapshotCreatorUnknownExternalReferences) {
   DisableAlwaysOpt();
+  DisableEmbeddedBlobRefcounting();
   v8::SnapshotCreator creator;
   v8::Isolate* isolate = creator.GetIsolate();
   {
@@ -3045,10 +3059,12 @@ TEST(SnapshotCreatorUnknownExternalReferences) {
       creator.CreateBlob(v8::SnapshotCreator::FunctionCodeHandling::kClear);
 
   delete[] blob.data;
+  FreeCurrentEmbeddedBlob();
 }
 
-TEST(SnapshotCreatorTemplates) {
+UNINITIALIZED_TEST(SnapshotCreatorTemplates) {
   DisableAlwaysOpt();
+  DisableEmbeddedBlobRefcounting();
   v8::StartupData blob;
 
   {
@@ -3212,10 +3228,12 @@ TEST(SnapshotCreatorTemplates) {
     isolate->Dispose();
   }
   delete[] blob.data;
+  FreeCurrentEmbeddedBlob();
 }
 
-TEST(SnapshotCreatorAddData) {
+UNINITIALIZED_TEST(SnapshotCreatorAddData) {
   DisableAlwaysOpt();
+  DisableEmbeddedBlobRefcounting();
   v8::StartupData blob;
 
   {
@@ -3412,6 +3430,7 @@ TEST(SnapshotCreatorAddData) {
     isolate->Dispose();
   }
   delete[] blob.data;
+  FreeCurrentEmbeddedBlob();
 }
 
 TEST(SnapshotCreatorUnknownHandles) {
@@ -3439,8 +3458,9 @@ TEST(SnapshotCreatorUnknownHandles) {
   delete[] blob.data;
 }
 
-TEST(SnapshotCreatorIncludeGlobalProxy) {
+UNINITIALIZED_TEST(SnapshotCreatorIncludeGlobalProxy) {
   DisableAlwaysOpt();
+  DisableEmbeddedBlobRefcounting();
   v8::StartupData blob;
 
   {
@@ -3628,6 +3648,7 @@ TEST(SnapshotCreatorIncludeGlobalProxy) {
     isolate->Dispose();
   }
   delete[] blob.data;
+  FreeCurrentEmbeddedBlob();
 }
 
 UNINITIALIZED_TEST(ReinitializeHashSeedNotRehashable) {
@@ -3749,7 +3770,7 @@ UNINITIALIZED_TEST(ReinitializeHashSeedRehashable) {
   FreeCurrentEmbeddedBlob();
 }
 
-TEST(SerializationStats) {
+UNINITIALIZED_TEST(SerializationStats) {
   FLAG_profile_deserialization = true;
   FLAG_always_opt = false;
   v8::StartupData blob = CreateSnapshotDataBlob();
@@ -3764,6 +3785,8 @@ TEST(SerializationStats) {
     }
     PrintF("Embedded blob is %d bytes\n", embedded_blob_size);
   }
+
+  FreeCurrentEmbeddedBlob();
 }
 
 void CheckSFIsAreWeak(WeakFixedArray sfis, Isolate* isolate) {
@@ -3782,10 +3805,11 @@ void CheckSFIsAreWeak(WeakFixedArray sfis, Isolate* isolate) {
   CHECK_GT(no_of_weak, 0);
 }
 
-TEST(WeakArraySerializizationInSnapshot) {
+UNINITIALIZED_TEST(WeakArraySerializationInSnapshot) {
   const char* code = "var my_func = function() { }";
 
   DisableAlwaysOpt();
+  DisableEmbeddedBlobRefcounting();
   i::FLAG_allow_natives_syntax = true;
   v8::StartupData blob;
   {
@@ -3827,10 +3851,11 @@ TEST(WeakArraySerializizationInSnapshot) {
     // Verify that the pointers in shared_function_infos are weak.
     WeakFixedArray sfis =
         Script::cast(function->shared()->script())->shared_function_infos();
-    CheckSFIsAreWeak(sfis, CcTest::i_isolate());
+    CheckSFIsAreWeak(sfis, reinterpret_cast<i::Isolate*>(isolate));
   }
   isolate->Dispose();
   delete[] blob.data;
+  FreeCurrentEmbeddedBlob();
 }
 
 TEST(WeakArraySerializationInCodeCache) {
