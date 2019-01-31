@@ -64,11 +64,11 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
   Register arg5 = r11;
 
   // The bailout id is passed using r13 on the stack.
-  __ movp(arg_reg_3, r13);
+  __ movq(arg_reg_3, r13);
 
   // Get the address of the location in the code object
   // and compute the fp-to-sp delta in register arg5.
-  __ movp(arg_reg_4, Operand(rsp, kSavedRegistersAreaSize));
+  __ movq(arg_reg_4, Operand(rsp, kSavedRegistersAreaSize));
   __ leaq(arg5, Operand(rsp, kSavedRegistersAreaSize + kPCOnStackSize));
 
   __ subq(arg5, rbp);
@@ -76,13 +76,13 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
 
   // Allocate a new deoptimizer object.
   __ PrepareCallCFunction(6);
-  __ movp(rax, Immediate(0));
+  __ movq(rax, Immediate(0));
   Label context_check;
-  __ movp(rdi, Operand(rbp, CommonFrameConstants::kContextOrFrameTypeOffset));
+  __ movq(rdi, Operand(rbp, CommonFrameConstants::kContextOrFrameTypeOffset));
   __ JumpIfSmi(rdi, &context_check);
-  __ movp(rax, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
+  __ movq(rax, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
   __ bind(&context_check);
-  __ movp(arg_reg_1, rax);
+  __ movq(arg_reg_1, rax);
   __ Set(arg_reg_2, static_cast<int>(deopt_kind));
   // Args 3 and 4 are already in the right registers.
 
@@ -93,7 +93,7 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
   __ LoadAddress(arg5, ExternalReference::isolate_address(isolate));
   __ movq(Operand(rsp, 5 * kRegisterSize), arg5);
 #else
-  __ movp(r8, arg5);
+  __ movq(r8, arg5);
   __ LoadAddress(r9, ExternalReference::isolate_address(isolate));
 #endif
 
@@ -103,7 +103,7 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
   }
   // Preserve deoptimizer object in register rax and get the input
   // frame descriptor pointer.
-  __ movp(rbx, Operand(rax, Deoptimizer::input_offset()));
+  __ movq(rbx, Operand(rax, Deoptimizer::input_offset()));
 
   // Fill in the input registers.
   for (int i = kNumberOfRegisters -1; i >= 0; i--) {
@@ -133,7 +133,7 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
 
   // Compute a pointer to the unwinding limit in register rcx; that is
   // the first stack slot not part of the input frame.
-  __ movp(rcx, Operand(rbx, FrameDescription::frame_size_offset()));
+  __ movq(rcx, Operand(rbx, FrameDescription::frame_size_offset()));
   __ addq(rcx, rsp);
 
   // Unwind the stack down to - but not including - the unwinding
@@ -153,7 +153,7 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
   // Compute the output frame in the deoptimizer.
   __ pushq(rax);
   __ PrepareCallCFunction(2);
-  __ movp(arg_reg_1, rax);
+  __ movq(arg_reg_1, rax);
   __ LoadAddress(arg_reg_2, ExternalReference::isolate_address(isolate));
   {
     AllowExternalCallThatCantCauseGC scope(masm);
@@ -161,7 +161,7 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
   }
   __ popq(rax);
 
-  __ movp(rsp, Operand(rax, Deoptimizer::caller_frame_top_offset()));
+  __ movq(rsp, Operand(rax, Deoptimizer::caller_frame_top_offset()));
 
   // Replace the current (input) frame with the output frames.
   Label outer_push_loop, inner_push_loop,
@@ -169,13 +169,13 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
   // Outer loop state: rax = current FrameDescription**, rdx = one past the
   // last FrameDescription**.
   __ movl(rdx, Operand(rax, Deoptimizer::output_count_offset()));
-  __ movp(rax, Operand(rax, Deoptimizer::output_offset()));
+  __ movq(rax, Operand(rax, Deoptimizer::output_offset()));
   __ leaq(rdx, Operand(rax, rdx, times_pointer_size, 0));
   __ jmp(&outer_loop_header);
   __ bind(&outer_push_loop);
   // Inner loop state: rbx = current FrameDescription*, rcx = loop index.
-  __ movp(rbx, Operand(rax, 0));
-  __ movp(rcx, Operand(rbx, FrameDescription::frame_size_offset()));
+  __ movq(rbx, Operand(rax, 0));
+  __ movq(rcx, Operand(rbx, FrameDescription::frame_size_offset()));
   __ jmp(&inner_loop_header);
   __ bind(&inner_push_loop);
   __ subq(rcx, Immediate(sizeof(intptr_t)));

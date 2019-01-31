@@ -38,8 +38,8 @@ void DebugCodegen::GenerateFrameDropperTrampoline(MacroAssembler* masm) {
   Register decompr_scratch_for_debug =
       COMPRESS_POINTERS_BOOL ? kScratchRegister : no_reg;
 
-  __ movp(rbp, rbx);
-  __ movp(rdi, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
+  __ movq(rbp, rbx);
+  __ movq(rdi, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
   __ leave();
 
   __ LoadTaggedPointerField(

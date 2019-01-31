@@ -189,7 +189,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void LoadRoot(Register destination, RootIndex index) override;
   void LoadRoot(Operand destination, RootIndex index) {
     LoadRoot(kScratchRegister, index);
-    movp(destination, kScratchRegister);
+    movq(destination, kScratchRegister);
   }
 
   void Push(Register src);
@@ -295,7 +295,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   void Move(Operand dst, Smi source) {
     Register constant = GetSmiConstant(source);
-    movp(dst, constant);
+    movq(dst, constant);
   }
 
   void Move(Register dst, ExternalReference ext);
@@ -318,7 +318,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
     // This method must not be used with heap object references. The stored
     // address is not GC safe. Use the handle version instead.
     DCHECK(rmode > RelocInfo::LAST_GCED_ENUM);
-    movp(dst, ptr, rmode);
+    movq(dst, Immediate64(ptr, rmode));
   }
 
   void MoveStringConstant(Register result, const StringConstantBase* string,

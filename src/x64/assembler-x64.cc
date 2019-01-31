@@ -1648,26 +1648,14 @@ void Assembler::emit_lea(Register dst, Operand src, int size) {
 
 void Assembler::load_rax(Address value, RelocInfo::Mode mode) {
   EnsureSpace ensure_space(this);
-  if (kSystemPointerSize == kInt64Size) {
-    emit(0x48);  // REX.W
-    emit(0xA1);
-    emitp(value, mode);
-  } else {
-    DCHECK_EQ(kSystemPointerSize, kInt32Size);
-    emit(0xA1);
-    emitp(value, mode);
-    // In 64-bit mode, need to zero extend the operand to 8 bytes.
-    // See 2.2.1.4 in Intel64 and IA32 Architectures Software
-    // Developer's Manual Volume 2.
-    emitl(0);
-  }
+  emit(0x48);  // REX.W
+  emit(0xA1);
+  emit(Immediate64(value, mode));
 }
-
 
 void Assembler::load_rax(ExternalReference ref) {
   load_rax(ref.address(), RelocInfo::EXTERNAL_REFERENCE);
 }
-
 
 void Assembler::leave() {
   EnsureSpace ensure_space(this);
@@ -1793,55 +1781,35 @@ void Assembler::emit_mov(Operand dst, Immediate value, int size) {
   emit(value);
 }
 
-void Assembler::movp(Register dst, Address value, RelocInfo::Mode rmode) {
-  if (constpool_.TryRecordEntry(value, rmode)) {
+void Assembler::emit_mov(Register dst, Immediate64 value, int size) {
+  DCHECK_EQ(size, kInt64Size);
+  if (constpool_.TryRecordEntry(value.value_, value.rmode_)) {
     // Emit rip-relative move with offset = 0
     Label label;
-    emit_mov(dst, Operand(&label, 0), kSystemPointerSize);
+    emit_mov(dst, Operand(&label, 0), size);
     bind(&label);
   } else {
     EnsureSpace ensure_space(this);
-    emit_rex(dst, kSystemPointerSize);
+    emit_rex(dst, size);
     emit(0xB8 | dst.low_bits());
-    emitp(value, rmode);
+    emit(value);
   }
 }
 
-void Assembler::movp_heap_number(Register dst, double value) {
+void Assembler::movq_heap_number(Register dst, double value) {
   EnsureSpace ensure_space(this);
-  emit_rex(dst, kSystemPointerSize);
+  emit_rex(dst, kInt64Size);
   emit(0xB8 | dst.low_bits());
   RequestHeapObject(HeapObjectRequest(value));
-  emitp(0, RelocInfo::EMBEDDED_OBJECT);
+  emit(Immediate64(kNullAddress, RelocInfo::EMBEDDED_OBJECT));
 }
 
-void Assembler::movp_string(Register dst, const StringConstantBase* str) {
+void Assembler::movq_string(Register dst, const StringConstantBase* str) {
   EnsureSpace ensure_space(this);
-  emit_rex(dst, kSystemPointerSize);
+  emit_rex(dst, kInt64Size);
   emit(0xB8 | dst.low_bits());
   RequestHeapObject(HeapObjectRequest(str));
-  emitp(0, RelocInfo::EMBEDDED_OBJECT);
-}
-
-void Assembler::movq(Register dst, int64_t value, RelocInfo::Mode rmode) {
-  if (constpool_.TryRecordEntry(value, rmode)) {
-    // Emit rip-relative move with offset = 0
-    Label label;
-    emit_mov(dst, Operand(&label, 0), kInt64Size);
-    bind(&label);
-  } else {
-    EnsureSpace ensure_space(this);
-    emit_rex_64(dst);
-    emit(0xB8 | dst.low_bits());
-    if (!RelocInfo::IsNone(rmode)) {
-      RecordRelocInfo(rmode, value);
-    }
-    emitq(value);
-  }
-}
-
-void Assembler::movq(Register dst, uint64_t value, RelocInfo::Mode rmode) {
-  movq(dst, static_cast<int64_t>(value), rmode);
+  emit(Immediate64(kNullAddress, RelocInfo::EMBEDDED_OBJECT));
 }
 
 // Loads the ip-relative location of the src label into the target location
@@ -2321,21 +2289,10 @@ void Assembler::emit_xchg(Register dst, Operand src, int size) {
 
 void Assembler::store_rax(Address dst, RelocInfo::Mode mode) {
   EnsureSpace ensure_space(this);
-  if (kSystemPointerSize == kInt64Size) {
-    emit(0x48);  // REX.W
-    emit(0xA3);
-    emitp(dst, mode);
-  } else {
-    DCHECK_EQ(kSystemPointerSize, kInt32Size);
-    emit(0xA3);
-    emitp(dst, mode);
-    // In 64-bit mode, need to zero extend the operand to 8 bytes.
-    // See 2.2.1.4 in Intel64 and IA32 Architectures Software
-    // Developer's Manual Volume 2.
-    emitl(0);
-  }
+  emit(0x48);  // REX.W
+  emit(0xA3);
+  emit(Immediate64(dst, mode));
 }
-
 
 void Assembler::store_rax(ExternalReference ref) {
   store_rax(ref.address(), RelocInfo::EXTERNAL_REFERENCE);
@@ -4966,8 +4923,8 @@ void Assembler::dq(Label* label) {
   EnsureSpace ensure_space(this);
   if (label->is_bound()) {
     internal_reference_positions_.push_back(pc_offset());
-    emitp(reinterpret_cast<Address>(buffer_start_) + label->pos(),
-          RelocInfo::INTERNAL_REFERENCE);
+    emit(Immediate64(reinterpret_cast<Address>(buffer_start_) + label->pos(),
+                     RelocInfo::INTERNAL_REFERENCE));
   } else {
     RecordRelocInfo(RelocInfo::INTERNAL_REFERENCE);
     emitl(0);  // Zero for the first 32bit marks it as 64bit absolute address.

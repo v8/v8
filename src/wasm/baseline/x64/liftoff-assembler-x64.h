@@ -170,7 +170,7 @@ void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
       if (RelocInfo::IsNone(rmode)) {
         TurboAssembler::Set(reg.gp(), value.to_i64());
       } else {
-        movq(reg.gp(), value.to_i64(), rmode);
+        movq(reg.gp(), Immediate64(value.to_i64(), rmode));
       }
       break;
     case kWasmF32:
@@ -187,7 +187,7 @@ void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
 void LiftoffAssembler::LoadFromInstance(Register dst, uint32_t offset,
                                         int size) {
   DCHECK_LE(offset, kMaxInt);
-  movp(dst, liftoff::GetInstanceOperand());
+  movq(dst, liftoff::GetInstanceOperand());
   DCHECK(size == 4 || size == 8);
   if (size == 4) {
     movl(dst, Operand(dst, offset));
@@ -199,16 +199,16 @@ void LiftoffAssembler::LoadFromInstance(Register dst, uint32_t offset,
 void LiftoffAssembler::LoadTaggedPointerFromInstance(Register dst,
                                                      uint32_t offset) {
   DCHECK_LE(offset, kMaxInt);
-  movp(dst, liftoff::GetInstanceOperand());
+  movq(dst, liftoff::GetInstanceOperand());
   LoadTaggedPointerField(dst, Operand(dst, offset));
 }
 
 void LiftoffAssembler::SpillInstance(Register instance) {
-  movp(liftoff::GetInstanceOperand(), instance);
+  movq(liftoff::GetInstanceOperand(), instance);
 }
 
 void LiftoffAssembler::FillInstanceInto(Register dst) {
-  movp(dst, liftoff::GetInstanceOperand());
+  movq(dst, liftoff::GetInstanceOperand());
 }
 
 void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,
@@ -1486,7 +1486,7 @@ void LiftoffAssembler::CallC(wasm::FunctionSig* sig,
   DCHECK_LE(arg_bytes, stack_bytes);
 
   // Pass a pointer to the buffer with the arguments to the C function.
-  movp(arg_reg_1, rsp);
+  movq(arg_reg_1, rsp);
 
   constexpr int kNumCCallArgs = 1;
 
@@ -1539,7 +1539,7 @@ void LiftoffAssembler::CallRuntimeStub(WasmCode::RuntimeStubId sid) {
 
 void LiftoffAssembler::AllocateStackSlot(Register addr, uint32_t size) {
   subq(rsp, Immediate(size));
-  movp(addr, rsp);
+  movq(addr, rsp);
 }
 
 void LiftoffAssembler::DeallocateStackSlot(uint32_t size) {
