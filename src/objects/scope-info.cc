@@ -136,7 +136,10 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
   const bool has_function_name = function_name_info != NONE;
   const bool has_position_info = NeedsPositionInfo(scope->scope_type());
   const bool has_receiver = receiver_info == STACK || receiver_info == CONTEXT;
-  const int parameter_count = scope->num_parameters();
+  const int parameter_count =
+      scope->is_declaration_scope()
+          ? scope->AsDeclarationScope()->num_parameters()
+          : 0;
   const bool has_outer_scope_info = !outer_scope.is_null();
   const int length = kVariablePartIndex + 2 * context_local_count +
                      (has_receiver ? 1 : 0) +
@@ -315,7 +318,7 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
   }
 
   DCHECK_EQ(index, scope_info_handle->length());
-  DCHECK_EQ(scope->num_parameters(), scope_info_handle->ParameterCount());
+  DCHECK_EQ(parameter_count, scope_info_handle->ParameterCount());
   DCHECK_EQ(scope->num_heap_slots(), scope_info_handle->ContextLength());
   return scope_info_handle;
 }

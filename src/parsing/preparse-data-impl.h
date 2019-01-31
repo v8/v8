@@ -213,6 +213,12 @@ class ZonePreparseData : public ZoneObject {
   DISALLOW_COPY_AND_ASSIGN(ZonePreparseData);
 };
 
+ZonePreparseData* PreparseDataBuilder::ByteData::CopyToZone(
+    Zone* zone, int children_length) {
+  DCHECK(is_finalized_);
+  return new (zone) ZonePreparseData(zone, &zone_byte_data_, children_length);
+}
+
 // Implementation of ConsumedPreparseData for PreparseData
 // serialized into zone memory.
 class ZoneConsumedPreparseData final

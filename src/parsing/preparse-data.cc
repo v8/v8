@@ -105,9 +105,7 @@ void PreparseDataBuilder::DataGatheringScope::Start(
   function_scope->set_preparse_data_builder(builder_);
 }
 
-PreparseDataBuilder::DataGatheringScope::~DataGatheringScope() {
-  if (builder_ == nullptr) return;
-
+void PreparseDataBuilder::DataGatheringScope::Close() {
   PreparseDataBuilder* parent = builder_->parent_;
   preparser_->set_preparse_data_builder(parent);
   builder_->FinalizeChildren(preparser_->main_zone());
@@ -412,12 +410,6 @@ Handle<PreparseData> PreparseDataBuilder::ByteData::CopyToHeap(
       isolate->factory()->NewPreparseData(data_length, children_length);
   data->copy_in(0, zone_byte_data_.start(), data_length);
   return data;
-}
-
-ZonePreparseData* PreparseDataBuilder::ByteData::CopyToZone(
-    Zone* zone, int children_length) {
-  DCHECK(is_finalized_);
-  return new (zone) ZonePreparseData(zone, &zone_byte_data_, children_length);
 }
 
 Handle<PreparseData> PreparseDataBuilder::Serialize(Isolate* isolate) {

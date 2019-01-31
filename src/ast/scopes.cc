@@ -429,10 +429,6 @@ const ModuleScope* Scope::AsModuleScope() const {
   return static_cast<const ModuleScope*>(this);
 }
 
-int Scope::num_parameters() const {
-  return is_declaration_scope() ? AsDeclarationScope()->num_parameters() : 0;
-}
-
 void DeclarationScope::DeclareSloppyBlockFunction(
     SloppyBlockFunctionStatement* sloppy_block_function) {
   sloppy_block_functions_.Add(sloppy_block_function);
@@ -1285,76 +1281,98 @@ bool WasLazilyParsed(Scope* scope) {
   return scope->is_declaration_scope() &&
          scope->AsDeclarationScope()->was_lazily_parsed();
 }
+
 }  // namespace
+
+template <typename FunctionType>
+void Scope::ForEach(FunctionType callback) {
+  Scope* scope = this;
+  while (true) {
+    Iteration iteration = callback(scope);
+    // Try to descend into inner scopes first.
+    if ((iteration == Iteration::kDescend) && scope->inner_scope_ != nullptr) {
+      scope = scope->inner_scope_;
+    } else {
+      // Find the next outer scope with a sibling.
+      while (scope->sibling_ == nullptr) {
+        if (scope == this) return;
+        scope = scope->outer_scope_;
+      }
+      if (scope == this) return;
+      scope = scope->sibling_;
+    }
+  }
+}
 
 void Scope::CollectNonLocals(DeclarationScope* max_outer_scope,
                              Isolate* isolate, ParseInfo* info,
                              Handle<StringSet>* non_locals) {
-  // Module variables must be allocated before variable resolution
-  // to ensure that UpdateNeedsHoleCheck() can detect import variables.
-  if (is_module_scope()) AsModuleScope()->AllocateModuleVariables();
-
-  // Lazy parsed declaration scopes are already partially analyzed. If there are
-  // unresolved references remaining, they just need to be resolved in outer
-  // scopes.
-  Scope* lookup = WasLazilyParsed(this) ? outer_scope() : this;
-
-  for (VariableProxy* proxy : unresolved_list_) {
-    DCHECK(!proxy->is_resolved());
-    Variable* var =
-        Lookup<kParsedScope>(proxy, lookup, max_outer_scope->outer_scope());
-    if (var == nullptr) {
-      *non_locals = StringSet::Add(isolate, *non_locals, proxy->name());
-    } else {
-      // In this case we need to leave scopes in a way that they can be
-      // allocated. If we resolved variables from lazy parsed scopes, we need
-      // to context allocate the var.
-      ResolveTo(info, proxy, var);
-      if (!var->is_dynamic() && lookup != this) var->ForceContextAllocation();
+  this->ForEach([max_outer_scope, isolate, info, non_locals](Scope* scope) {
+    // Module variables must be allocated before variable resolution
+    // to ensure that UpdateNeedsHoleCheck() can detect import variables.
+    if (scope->is_module_scope()) {
+      scope->AsModuleScope()->AllocateModuleVariables();
     }
-  }
 
-  // Clear unresolved_list_ as it's in an inconsistent state.
-  unresolved_list_.Clear();
+    // Lazy parsed declaration scopes are already partially analyzed. If there
+    // are unresolved references remaining, they just need to be resolved in
+    // outer scopes.
+    Scope* lookup = WasLazilyParsed(scope) ? scope->outer_scope() : scope;
 
-  for (Scope* scope = inner_scope_; scope != nullptr; scope = scope->sibling_) {
-    scope->CollectNonLocals(max_outer_scope, isolate, info, non_locals);
-  }
+    for (VariableProxy* proxy : scope->unresolved_list_) {
+      DCHECK(!proxy->is_resolved());
+      Variable* var =
+          Lookup<kParsedScope>(proxy, lookup, max_outer_scope->outer_scope());
+      if (var == nullptr) {
+        *non_locals = StringSet::Add(isolate, *non_locals, proxy->name());
+      } else {
+        // In this case we need to leave scopes in a way that they can be
+        // allocated. If we resolved variables from lazy parsed scopes, we need
+        // to context allocate the var.
+        scope->ResolveTo(info, proxy, var);
+        if (!var->is_dynamic() && lookup != scope)
+          var->ForceContextAllocation();
+      }
+    }
+
+    // Clear unresolved_list_ as it's in an inconsistent state.
+    scope->unresolved_list_.Clear();
+    return Iteration::kDescend;
+  });
 }
 
 void Scope::AnalyzePartially(DeclarationScope* max_outer_scope,
                              AstNodeFactory* ast_node_factory,
                              UnresolvedList* new_unresolved_list) {
-  DCHECK_IMPLIES(is_declaration_scope(),
-                 !AsDeclarationScope()->was_lazily_parsed());
+  this->ForEach([max_outer_scope, ast_node_factory,
+                 new_unresolved_list](Scope* scope) {
+    DCHECK_IMPLIES(scope->is_declaration_scope(),
+                   !scope->AsDeclarationScope()->was_lazily_parsed());
 
-  for (VariableProxy* proxy = unresolved_list_.first(); proxy != nullptr;
-       proxy = proxy->next_unresolved()) {
-    DCHECK(!proxy->is_resolved());
-    Variable* var =
-        Lookup<kParsedScope>(proxy, this, max_outer_scope->outer_scope());
-    if (var == nullptr) {
-      // Don't copy unresolved references to the script scope, unless it's a
-      // reference to a private name or method. In that case keep it so we
-      // can fail later.
-      if (!max_outer_scope->outer_scope()->is_script_scope() ||
-          proxy->IsPrivateName()) {
-        VariableProxy* copy = ast_node_factory->CopyVariableProxy(proxy);
-        new_unresolved_list->Add(copy);
+    for (VariableProxy* proxy = scope->unresolved_list_.first();
+         proxy != nullptr; proxy = proxy->next_unresolved()) {
+      DCHECK(!proxy->is_resolved());
+      Variable* var =
+          Lookup<kParsedScope>(proxy, scope, max_outer_scope->outer_scope());
+      if (var == nullptr) {
+        // Don't copy unresolved references to the script scope, unless it's a
+        // reference to a private name or method. In that case keep it so we
+        // can fail later.
+        if (!max_outer_scope->outer_scope()->is_script_scope() ||
+            proxy->IsPrivateName()) {
+          VariableProxy* copy = ast_node_factory->CopyVariableProxy(proxy);
+          new_unresolved_list->Add(copy);
+        }
+      } else {
+        var->set_is_used();
+        if (proxy->is_assigned()) var->set_maybe_assigned();
       }
-    } else {
-      var->set_is_used();
-      if (proxy->is_assigned()) var->set_maybe_assigned();
     }
-  }
 
-  // Clear unresolved_list_ as it's in an inconsistent state.
-  unresolved_list_.Clear();
-
-  for (Scope* scope = inner_scope_; scope != nullptr; scope = scope->sibling_) {
-    scope->AnalyzePartially(max_outer_scope, ast_node_factory,
-                            new_unresolved_list);
-  }
+    // Clear unresolved_list_ as it's in an inconsistent state.
+    scope->unresolved_list_.Clear();
+    return Iteration::kDescend;
+  });
 }
 
 Handle<StringSet> DeclarationScope::CollectNonLocals(
@@ -1415,13 +1433,12 @@ bool Scope::IsSkippableFunctionScope() {
 }
 
 void Scope::SavePreparseData(Parser* parser) {
-  if (IsSkippableFunctionScope()) {
-    AsDeclarationScope()->SavePreparseDataForDeclarationScope(parser);
-  }
-
-  for (Scope* scope = inner_scope_; scope != nullptr; scope = scope->sibling_) {
-    scope->SavePreparseData(parser);
-  }
+  this->ForEach([parser](Scope* scope) {
+    if (scope->IsSkippableFunctionScope()) {
+      scope->AsDeclarationScope()->SavePreparseDataForDeclarationScope(parser);
+    }
+    return Iteration::kDescend;
+  });
 }
 
 void DeclarationScope::SavePreparseDataForDeclarationScope(Parser* parser) {
@@ -1671,26 +1688,26 @@ void Scope::Print(int n) {
 }
 
 void Scope::CheckScopePositions() {
-  // Visible leaf scopes must have real positions.
-  if (!is_hidden() && inner_scope_ == nullptr) {
-    DCHECK_NE(kNoSourcePosition, start_position());
-    DCHECK_NE(kNoSourcePosition, end_position());
-  }
-  for (Scope* scope = inner_scope_; scope != nullptr; scope = scope->sibling_) {
-    scope->CheckScopePositions();
-  }
+  this->ForEach([](Scope* scope) {
+    // Visible leaf scopes must have real positions.
+    if (!scope->is_hidden() && scope->inner_scope_ == nullptr) {
+      DCHECK_NE(kNoSourcePosition, scope->start_position());
+      DCHECK_NE(kNoSourcePosition, scope->end_position());
+    }
+    return Iteration::kDescend;
+  });
 }
 
 void Scope::CheckZones() {
   DCHECK(!needs_migration_);
-  for (Scope* scope = inner_scope_; scope != nullptr; scope = scope->sibling_) {
+  this->ForEach([](Scope* scope) {
     if (WasLazilyParsed(scope)) {
       DCHECK_NULL(scope->zone());
       DCHECK_NULL(scope->inner_scope_);
-      continue;
+      return Iteration::kContinue;
     }
-    scope->CheckZones();
-  }
+    return Iteration::kDescend;
+  });
 }
 #endif  // DEBUG
 
@@ -2124,7 +2141,7 @@ void DeclarationScope::AllocateReceiver() {
 }
 
 void Scope::AllocateNonParameterLocal(Variable* var) {
-  DCHECK(var->scope() == this);
+  DCHECK_EQ(var->scope(), this);
   if (var->IsUnallocated() && MustAllocate(var)) {
     if (MustAllocateInContext(var)) {
       AllocateHeapSlot(var);
@@ -2183,46 +2200,47 @@ void ModuleScope::AllocateModuleVariables() {
 }
 
 void Scope::AllocateVariablesRecursively() {
-  DCHECK(!already_resolved_);
-  DCHECK(!WasLazilyParsed(this));
+  this->ForEach([](Scope* scope) -> Iteration {
+    DCHECK(!scope->already_resolved_);
+    if (WasLazilyParsed(scope)) return Iteration::kContinue;
+    DCHECK_EQ(Context::MIN_CONTEXT_SLOTS, scope->num_heap_slots_);
 
-  // Allocate variables for inner scopes.
-  for (Scope* scope = inner_scope_; scope != nullptr; scope = scope->sibling_) {
-    if (WasLazilyParsed(scope)) continue;
-    scope->AllocateVariablesRecursively();
-  }
+    // Allocate variables for this scope.
+    // Parameters must be allocated first, if any.
+    if (scope->is_declaration_scope()) {
+      if (scope->is_function_scope()) {
+        scope->AsDeclarationScope()->AllocateParameterLocals();
+      }
+      scope->AsDeclarationScope()->AllocateReceiver();
+    }
+    scope->AllocateNonParameterLocalsAndDeclaredGlobals();
 
-  DCHECK(!already_resolved_);
-  DCHECK_EQ(Context::MIN_CONTEXT_SLOTS, num_heap_slots_);
+    // Force allocation of a context for this scope if necessary. For a 'with'
+    // scope and for a function scope that makes an 'eval' call we need a
+    // context, even if no local variables were statically allocated in the
+    // scope. Likewise for modules and function scopes representing asm.js
+    // modules. Also force a context, if the scope is stricter than the outer
+    // scope.
+    bool must_have_context =
+        scope->is_with_scope() || scope->is_module_scope() ||
+        scope->IsAsmModule() || scope->ForceContextForLanguageMode() ||
+        (scope->is_function_scope() &&
+         scope->AsDeclarationScope()->calls_sloppy_eval()) ||
+        (scope->is_block_scope() && scope->is_declaration_scope() &&
+         scope->AsDeclarationScope()->calls_sloppy_eval());
 
-  // Allocate variables for this scope.
-  // Parameters must be allocated first, if any.
-  if (is_declaration_scope()) {
-    if (is_function_scope()) AsDeclarationScope()->AllocateParameterLocals();
-    AsDeclarationScope()->AllocateReceiver();
-  }
-  AllocateNonParameterLocalsAndDeclaredGlobals();
+    // If we didn't allocate any locals in the local context, then we only
+    // need the minimal number of slots if we must have a context.
+    if (scope->num_heap_slots_ == Context::MIN_CONTEXT_SLOTS &&
+        !must_have_context) {
+      scope->num_heap_slots_ = 0;
+    }
 
-  // Force allocation of a context for this scope if necessary. For a 'with'
-  // scope and for a function scope that makes an 'eval' call we need a context,
-  // even if no local variables were statically allocated in the scope.
-  // Likewise for modules and function scopes representing asm.js modules.
-  // Also force a context, if the scope is stricter than the outer scope.
-  bool must_have_context =
-      is_with_scope() || is_module_scope() || IsAsmModule() ||
-      ForceContextForLanguageMode() ||
-      (is_function_scope() && AsDeclarationScope()->calls_sloppy_eval()) ||
-      (is_block_scope() && is_declaration_scope() &&
-       AsDeclarationScope()->calls_sloppy_eval());
-
-  // If we didn't allocate any locals in the local context, then we only
-  // need the minimal number of slots if we must have a context.
-  if (num_heap_slots_ == Context::MIN_CONTEXT_SLOTS && !must_have_context) {
-    num_heap_slots_ = 0;
-  }
-
-  // Allocation done.
-  DCHECK(num_heap_slots_ == 0 || num_heap_slots_ >= Context::MIN_CONTEXT_SLOTS);
+    // Allocation done.
+    DCHECK(scope->num_heap_slots_ == 0 ||
+           scope->num_heap_slots_ >= Context::MIN_CONTEXT_SLOTS);
+    return Iteration::kDescend;
+  });
 }
 
 void Scope::AllocateScopeInfosRecursively(Isolate* isolate,

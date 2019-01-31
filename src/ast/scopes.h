@@ -81,9 +81,6 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   typedef base::ThreadedList<VariableProxy, VariableProxy::UnresolvedNext>
       UnresolvedList;
 
-  // TODO(verwaest): Is this needed on Scope?
-  int num_parameters() const;
-
   DeclarationScope* AsDeclarationScope();
   const DeclarationScope* AsDeclarationScope() const;
   ModuleScope* AsModuleScope();
@@ -382,6 +379,33 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
     DCHECK_IMPLIES(ForceContextForLanguageMode(), num_heap_slots() > 0);
     return num_heap_slots() > 0;
   }
+
+  // Use Scope::ForEach for depth first traversal of scopes.
+  // Before:
+  // void Scope::VisitRecursively() {
+  //   DoSomething();
+  //   for (Scope* s = inner_scope_; s != nullptr; s = s->sibling_) {
+  //     if (s->ShouldContinue()) continue;
+  //     s->VisitRecursively();
+  //   }
+  // }
+  //
+  // After:
+  // void Scope::VisitIteratively() {
+  //   this->ForEach([](Scope* s) {
+  //      s->DoSomething();
+  //      return s->ShouldContinue() ? kContinue : kDescend;
+  //   });
+  // }
+  template <typename FunctionType>
+  V8_INLINE void ForEach(FunctionType callback);
+  enum Iteration {
+    // Continue the iteration on the same level, do not recurse/descent into
+    // inner scopes.
+    kContinue,
+    // Recurse/descend into inner scopes.
+    kDescend
+  };
 
   // ---------------------------------------------------------------------------
   // Accessors.

@@ -110,9 +110,14 @@ class PreparseDataBuilder : public ZoneObject,
     void Start(DeclarationScope* function_scope);
     void SetSkippableFunction(DeclarationScope* function_scope,
                               int num_inner_functions);
-    ~DataGatheringScope();
+    inline ~DataGatheringScope() {
+      if (builder_ == nullptr) return;
+      Close();
+    }
 
    private:
+    void Close();
+
     PreParser* preparser_;
     PreparseDataBuilder* builder_;
 
@@ -130,7 +135,7 @@ class PreparseDataBuilder : public ZoneObject,
     void Finalize(Zone* zone);
 
     Handle<PreparseData> CopyToHeap(Isolate* isolate, int children_length);
-    ZonePreparseData* CopyToZone(Zone* zone, int children_length);
+    inline ZonePreparseData* CopyToZone(Zone* zone, int children_length);
 
     void Reserve(size_t bytes);
     void Add(uint8_t byte);
