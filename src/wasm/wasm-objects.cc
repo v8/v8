@@ -1437,9 +1437,13 @@ void CopyTableEntriesImpl(Handle<WasmInstanceObject> instance, uint32_t dst,
 // static
 bool WasmInstanceObject::CopyTableEntries(Isolate* isolate,
                                           Handle<WasmInstanceObject> instance,
-                                          uint32_t table_index, uint32_t dst,
-                                          uint32_t src, uint32_t count) {
-  CHECK_EQ(0, table_index);  // TODO(titzer): multiple tables in TableCopy
+                                          uint32_t table_src_index,
+                                          uint32_t table_dst_index,
+                                          uint32_t dst, uint32_t src,
+                                          uint32_t count) {
+  // TODO(titzer): multiple tables in TableCopy
+  CHECK_EQ(0, table_src_index);
+  CHECK_EQ(0, table_dst_index);
   auto max = instance->indirect_function_table_size();
   if (!IsInBounds(dst, count, max)) return false;
   if (!IsInBounds(src, count, max)) return false;

@@ -378,8 +378,8 @@ class WasmGraphBuilder {
   Node* TableInit(uint32_t table_index, uint32_t elem_segment_index, Node* dst,
                   Node* src, Node* size, wasm::WasmCodePosition position);
   Node* TableDrop(uint32_t elem_segment_index, wasm::WasmCodePosition position);
-  Node* TableCopy(uint32_t table_index, Node* dst, Node* src, Node* size,
-                  wasm::WasmCodePosition position);
+  Node* TableCopy(uint32_t table_src_index, uint32_t table_dst_index, Node* dst,
+                  Node* src, Node* size, wasm::WasmCodePosition position);
 
   bool has_simd() const { return has_simd_; }
 

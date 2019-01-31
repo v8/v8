@@ -19,7 +19,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
       kExprGetLocal, 0,
       kExprGetLocal, 1,
       kExprGetLocal, 2,
-      kNumericPrefix, kExprTableCopy, kTableZero])
+      kNumericPrefix, kExprTableCopy, kTableZero, kTableZero])
     .exportAs("copy");
 
   let instance = builder.instantiate();
@@ -71,7 +71,7 @@ function assertTable(obj, ...elems) {
       kExprGetLocal, 0,
       kExprGetLocal, 1,
       kExprGetLocal, 2,
-      kNumericPrefix, kExprTableCopy, kTableZero])
+      kNumericPrefix, kExprTableCopy, kTableZero, kTableZero])
     .exportAs("copy");
 
   builder.addExportOfKind("table", kExternalTable, 0);
@@ -125,7 +125,7 @@ function assertCall(call, ...elems) {
       kExprGetLocal, 0,
       kExprGetLocal, 1,
       kExprGetLocal, 2,
-      kNumericPrefix, kExprTableCopy, kTableZero])
+      kNumericPrefix, kExprTableCopy, kTableZero, kTableZero])
     .exportAs("copy");
 
   builder.addFunction("call", sig_i_i)
@@ -161,7 +161,7 @@ function assertCall(call, ...elems) {
       kExprGetLocal, 0,
       kExprGetLocal, 1,
       kExprGetLocal, 2,
-      kNumericPrefix, kExprTableCopy, kTableZero])
+      kNumericPrefix, kExprTableCopy, kTableZero, kTableZero])
     .exportAs("copy");
 
   let instance = builder.instantiate();
@@ -225,7 +225,7 @@ function assertCall(call, ...elems) {
         kExprGetLocal, 0,
         kExprGetLocal, 1,
         kExprGetLocal, 2,
-        kNumericPrefix, kExprTableCopy, kTableZero])
+        kNumericPrefix, kExprTableCopy, kTableZero, kTableZero])
       .exportAs("copy");
 
     builder.addFunction("call", sig_i_i)

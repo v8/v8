@@ -509,7 +509,9 @@ class WasmInstanceObject : public JSObject {
   // Copies table entries. Returns {false} if the ranges are out-of-bounds.
   static bool CopyTableEntries(Isolate* isolate,
                                Handle<WasmInstanceObject> instance,
-                               uint32_t table_index, uint32_t dst, uint32_t src,
+                               uint32_t table_src_index,
+                               uint32_t table_dst_index, uint32_t dst,
+                               uint32_t src,
                                uint32_t count) V8_WARN_UNUSED_RESULT;
 
   // Copy table entries from an element segment. Returns {false} if the ranges

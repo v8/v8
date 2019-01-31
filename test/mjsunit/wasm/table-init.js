@@ -46,7 +46,7 @@ function assertTable(obj, ...elems) {
       kExprGetLocal, 0,
       kExprGetLocal, 1,
       kExprGetLocal, 2,
-      kNumericPrefix, kExprTableInit, kTableZero, kSegmentZero])
+      kNumericPrefix, kExprTableInit, kSegmentZero, kTableZero])
     .exportAs("init0");
 
   builder.addExportOfKind("table", kExternalTable, 0);
@@ -91,7 +91,7 @@ function assertTable(obj, ...elems) {
       kExprGetLocal, 0,
       kExprGetLocal, 1,
       kExprGetLocal, 2,
-      kNumericPrefix, kExprTableInit, kTableZero, kSegmentZero])
+      kNumericPrefix, kExprTableInit, kSegmentZero, kTableZero])
     .exportAs("init0");
 
   builder.addExportOfKind("table", kExternalTable, 0);

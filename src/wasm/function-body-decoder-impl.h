@@ -327,8 +327,9 @@ struct CallFunctionImmediate {
 
 template <Decoder::ValidateFlag validate>
 struct MemoryIndexImmediate {
-  uint32_t index;
+  uint32_t index = 0;
   uint32_t length = 1;
+  inline MemoryIndexImmediate() = default;
   inline MemoryIndexImmediate(Decoder* decoder, const byte* pc) {
     index = decoder->read_u8<validate>(pc + 1, "memory index");
     if (!VALIDATE(index == 0)) {
@@ -339,8 +340,9 @@ struct MemoryIndexImmediate {
 
 template <Decoder::ValidateFlag validate>
 struct TableIndexImmediate {
-  uint32_t index;
+  uint32_t index = 0;
   unsigned length = 1;
+  inline TableIndexImmediate() = default;
   inline TableIndexImmediate(Decoder* decoder, const byte* pc) {
     index = decoder->read_u8<validate>(pc + 1, "table index");
     if (!VALIDATE(index == 0)) {
@@ -462,17 +464,17 @@ struct Simd8x16ShuffleImmediate {
 
 template <Decoder::ValidateFlag validate>
 struct MemoryInitImmediate {
-  MemoryIndexImmediate<validate> memory;
   uint32_t data_segment_index = 0;
+  MemoryIndexImmediate<validate> memory;
   unsigned length = 0;
 
-  inline MemoryInitImmediate(Decoder* decoder, const byte* pc)
-      : memory(decoder, pc + 1) {
-    if (!VALIDATE(decoder->ok())) return;
+  inline MemoryInitImmediate(Decoder* decoder, const byte* pc) {
     uint32_t len = 0;
-    data_segment_index = decoder->read_i32v<validate>(
-        pc + 2 + memory.length, &len, "data segment index");
-    length = memory.length + len;
+    data_segment_index =
+        decoder->read_i32v<validate>(pc + 2, &len, "data segment index");
+    if (!VALIDATE(decoder->ok())) return;
+    memory = MemoryIndexImmediate<validate>(decoder, pc + 1 + len);
+    length = len + memory.length;
   }
 };
 
@@ -487,18 +489,34 @@ struct MemoryDropImmediate {
 };
 
 template <Decoder::ValidateFlag validate>
-struct TableInitImmediate {
-  TableIndexImmediate<validate> table;
-  uint32_t elem_segment_index = 0;
+struct MemoryCopyImmediate {
+  MemoryIndexImmediate<validate> memory_src;
+  MemoryIndexImmediate<validate> memory_dst;
   unsigned length = 0;
 
-  inline TableInitImmediate(Decoder* decoder, const byte* pc)
-      : table(decoder, pc + 1) {
+  inline MemoryCopyImmediate(Decoder* decoder, const byte* pc) {
+    memory_src = MemoryIndexImmediate<validate>(decoder, pc + 1);
     if (!VALIDATE(decoder->ok())) return;
+    memory_dst =
+        MemoryIndexImmediate<validate>(decoder, pc + 1 + memory_src.length);
+    if (!VALIDATE(decoder->ok())) return;
+    length = memory_src.length + memory_dst.length;
+  }
+};
+
+template <Decoder::ValidateFlag validate>
+struct TableInitImmediate {
+  uint32_t elem_segment_index = 0;
+  TableIndexImmediate<validate> table;
+  unsigned length = 0;
+
+  inline TableInitImmediate(Decoder* decoder, const byte* pc) {
     uint32_t len = 0;
-    elem_segment_index = decoder->read_i32v<validate>(
-        pc + 2 + table.length, &len, "elem segment index");
-    length = table.length + len;
+    elem_segment_index =
+        decoder->read_i32v<validate>(pc + 2, &len, "elem segment index");
+    if (!VALIDATE(decoder->ok())) return;
+    table = TableIndexImmediate<validate>(decoder, pc + 1 + len);
+    length = len + table.length;
   }
 };
 
@@ -509,6 +527,22 @@ struct TableDropImmediate {
 
   inline TableDropImmediate(Decoder* decoder, const byte* pc) {
     index = decoder->read_i32v<validate>(pc + 2, &length, "elem segment index");
+  }
+};
+
+template <Decoder::ValidateFlag validate>
+struct TableCopyImmediate {
+  TableIndexImmediate<validate> table_src;
+  TableIndexImmediate<validate> table_dst;
+  unsigned length = 0;
+
+  inline TableCopyImmediate(Decoder* decoder, const byte* pc) {
+    table_src = TableIndexImmediate<validate>(decoder, pc + 1);
+    if (!VALIDATE(decoder->ok())) return;
+    table_dst =
+        TableIndexImmediate<validate>(decoder, pc + 1 + table_src.length);
+    if (!VALIDATE(decoder->ok())) return;
+    length = table_src.length + table_dst.length;
   }
 };
 
@@ -680,13 +714,13 @@ struct ControlBase {
   F(MemoryInit, const MemoryInitImmediate<validate>& imm, const Value& dst,   \
     const Value& src, const Value& size)                                      \
   F(MemoryDrop, const MemoryDropImmediate<validate>& imm)                     \
-  F(MemoryCopy, const MemoryIndexImmediate<validate>& imm, const Value& dst,  \
+  F(MemoryCopy, const MemoryCopyImmediate<validate>& imm, const Value& dst,   \
     const Value& src, const Value& size)                                      \
   F(MemoryFill, const MemoryIndexImmediate<validate>& imm, const Value& dst,  \
     const Value& value, const Value& size)                                    \
   F(TableInit, const TableInitImmediate<validate>& imm, Vector<Value> args)   \
   F(TableDrop, const TableDropImmediate<validate>& imm)                       \
-  F(TableCopy, const TableIndexImmediate<validate>& imm, Vector<Value> args)
+  F(TableCopy, const TableCopyImmediate<validate>& imm, Vector<Value> args)
 
 // Generic Wasm bytecode decoder with utilities for decoding immediates,
 // lengths, etc.
@@ -1033,22 +1067,23 @@ class WasmDecoder : public Decoder {
     return true;
   }
 
-  inline bool Validate(MemoryIndexImmediate<validate>& imm) {
+  inline bool Validate(const byte* pc, MemoryIndexImmediate<validate>& imm) {
     if (!VALIDATE(module_ != nullptr && module_->has_memory)) {
-      errorf(pc_ + 1, "memory instruction with no memory");
+      errorf(pc + 1, "memory instruction with no memory");
       return false;
     }
     return true;
   }
 
   inline bool Validate(MemoryInitImmediate<validate>& imm) {
-    if (!Validate(imm.memory)) return false;
     if (!VALIDATE(module_ != nullptr &&
                   imm.data_segment_index <
                       module_->num_declared_data_segments)) {
       errorf(pc_ + 2, "invalid data segment index: %u", imm.data_segment_index);
       return false;
     }
+    if (!Validate(pc_ + imm.length - imm.memory.length - 1, imm.memory))
+      return false;
     return true;
   }
 
@@ -1061,22 +1096,29 @@ class WasmDecoder : public Decoder {
     return true;
   }
 
+  inline bool Validate(MemoryCopyImmediate<validate>& imm) {
+    if (!Validate(pc_ + 1, imm.memory_src)) return false;
+    if (!Validate(pc_ + 2, imm.memory_dst)) return false;
+    return true;
+  }
+
   inline bool Validate(const byte* pc, TableIndexImmediate<validate>& imm) {
     if (!VALIDATE(module_ != nullptr && imm.index < module_->tables.size())) {
-      errorf(pc_ + 1, "invalid table index: %u", imm.index);
+      errorf(pc, "invalid table index: %u", imm.index);
       return false;
     }
     return true;
   }
 
   inline bool Validate(TableInitImmediate<validate>& imm) {
-    if (!Validate(pc_ + 1, imm.table)) return false;
     if (!VALIDATE(module_ != nullptr &&
                   imm.elem_segment_index < module_->elem_segments.size())) {
       errorf(pc_ + 2, "invalid element segment index: %u",
              imm.elem_segment_index);
       return false;
     }
+    if (!Validate(pc_ + imm.length - imm.table.length - 1, imm.table))
+      return false;
     return true;
   }
 
@@ -1086,6 +1128,12 @@ class WasmDecoder : public Decoder {
       errorf(pc_ + 2, "invalid element segment index: %u", imm.index);
       return false;
     }
+    return true;
+  }
+
+  inline bool Validate(TableCopyImmediate<validate>& imm) {
+    if (!Validate(pc_ + 1, imm.table_src)) return false;
+    if (!Validate(pc_ + 2, imm.table_dst)) return false;
     return true;
   }
 
@@ -1195,7 +1243,10 @@ class WasmDecoder : public Decoder {
             MemoryDropImmediate<validate> imm(decoder, pc);
             return 2 + imm.length;
           }
-          case kExprMemoryCopy:
+          case kExprMemoryCopy: {
+            MemoryCopyImmediate<validate> imm(decoder, pc);
+            return 2 + imm.length;
+          }
           case kExprMemoryFill: {
             MemoryIndexImmediate<validate> imm(decoder, pc + 1);
             return 2 + imm.length;
@@ -1209,7 +1260,7 @@ class WasmDecoder : public Decoder {
             return 2 + imm.length;
           }
           case kExprTableCopy: {
-            TableIndexImmediate<validate> imm(decoder, pc + 1);
+            TableCopyImmediate<validate> imm(decoder, pc);
             return 2 + imm.length;
           }
           default:
@@ -2470,7 +2521,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           break;
         }
         case kExprMemoryCopy: {
-          MemoryIndexImmediate<validate> imm(this, this->pc_ + 1);
+          MemoryCopyImmediate<validate> imm(this, this->pc_);
           if (!this->Validate(imm)) break;
           len += imm.length;
           auto size = Pop(2, sig->GetParam(2));
@@ -2481,7 +2532,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         }
         case kExprMemoryFill: {
           MemoryIndexImmediate<validate> imm(this, this->pc_ + 1);
-          if (!this->Validate(imm)) break;
+          if (!this->Validate(this->pc_ + 1, imm)) break;
           len += imm.length;
           auto size = Pop(2, sig->GetParam(2));
           auto value = Pop(1, sig->GetParam(1));
@@ -2505,8 +2556,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           break;
         }
         case kExprTableCopy: {
-          TableIndexImmediate<validate> imm(this, this->pc_ + 1);
-          if (!this->Validate(this->pc_ + 1, imm)) break;
+          TableCopyImmediate<validate> imm(this, this->pc_);
+          if (!this->Validate(imm)) break;
           len += imm.length;
           PopArgs(sig);
           CALL_INTERFACE_IF_REACHABLE(TableCopy, imm, VectorOf(args_));

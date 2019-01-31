@@ -515,7 +515,7 @@ class WasmGraphBuildingInterface {
     BUILD(MemoryDrop, imm.index, decoder->position());
   }
   void MemoryCopy(FullDecoder* decoder,
-                  const MemoryIndexImmediate<validate>& imm, const Value& dst,
+                  const MemoryCopyImmediate<validate>& imm, const Value& dst,
                   const Value& src, const Value& size) {
     BUILD(MemoryCopy, dst.node, src.node, size.node, decoder->position());
   }
@@ -533,10 +533,10 @@ class WasmGraphBuildingInterface {
                  const TableDropImmediate<validate>& imm) {
     BUILD(TableDrop, imm.index, decoder->position());
   }
-  void TableCopy(FullDecoder* decoder, const TableIndexImmediate<validate>& imm,
+  void TableCopy(FullDecoder* decoder, const TableCopyImmediate<validate>& imm,
                  Vector<Value> args) {
-    BUILD(TableCopy, imm.index, args[0].node, args[1].node, args[2].node,
-          decoder->position());
+    BUILD(TableCopy, imm.table_src.index, imm.table_dst.index, args[0].node,
+          args[1].node, args[2].node, decoder->position());
   }
 
  private:

@@ -46,8 +46,8 @@ function getMemoryInit(mem, segment_data) {
         kExprGetLocal, 1,  // Source.
         kExprGetLocal, 2,  // Size in bytes.
         kNumericPrefix, kExprMemoryInit,
-        0,  // Memory index.
         0,  // Data segment index.
+        0,  // Memory index.
       ])
       .exportAs('init');
   return builder.instantiate({'': {mem}}).exports.init;
@@ -115,8 +115,8 @@ function getMemoryInit(mem, segment_data) {
         kExprI32Const, 0,  // Source.
         kExprI32Const, 0,  // Size in bytes.
         kNumericPrefix, kExprMemoryInit,
-        0,  // Memory index.
         1,  // Data segment index.
+        0,  // Memory index.
       ])
       .exportAs('init');
 
@@ -137,8 +137,8 @@ function getMemoryInit(mem, segment_data) {
         kExprI32Const, 0,  // Source.
         kExprI32Const, 0,  // Size in bytes.
         kNumericPrefix, kExprMemoryInit,
-        0,  // Memory index.
         0,  // Data segment index.
+        0,  // Memory index.
       ])
       .exportAs('init');
   builder.addFunction('drop', kSig_v_v)
@@ -185,7 +185,7 @@ function getMemoryCopy(mem) {
     kExprGetLocal, 0,  // Dest.
     kExprGetLocal, 1,  // Source.
     kExprGetLocal, 2,  // Size in bytes.
-    kNumericPrefix, kExprMemoryCopy, 0,
+    kNumericPrefix, kExprMemoryCopy, 0, 0,
   ]).exportAs("copy");
   return builder.instantiate({'': {mem}}).exports.copy;
 }
