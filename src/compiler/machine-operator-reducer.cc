@@ -563,8 +563,7 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
     case IrOpcode::kFloat64Pow: {
       Float64BinopMatcher m(node);
       if (m.IsFoldable()) {
-        return ReplaceFloat64(
-            base::ieee754::pow(m.left().Value(), m.right().Value()));
+        return ReplaceFloat64(Pow(m.left().Value(), m.right().Value()));
       } else if (m.right().Is(0.0)) {  // x ** +-0.0 => 1.0
         return ReplaceFloat64(1.0);
       } else if (m.right().Is(-2.0)) {  // x ** -2.0 => 1 / (x * x)

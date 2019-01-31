@@ -3232,6 +3232,98 @@ void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
   __ Ret();
 }
 
+void Builtins::Generate_MathPowInternal(MacroAssembler* masm) {
+  Register exponent_integer = x12;
+  Register saved_lr = x19;
+  VRegister result_double = d0;
+  VRegister base_double = d0;
+  VRegister exponent_double = d1;
+  VRegister base_double_copy = d2;
+  VRegister scratch1_double = d6;
+  VRegister scratch0_double = d7;
+
+  // A fast-path for integer exponents.
+  Label exponent_is_integer;
+  // Allocate a heap number for the result, and return it.
+  Label done;
+
+  // Unpack the inputs.
+
+  // Handle double (heap number) exponents.
+  // Detect integer exponents stored as doubles and handle those in the
+  // integer fast-path.
+  __ TryRepresentDoubleAsInt64(exponent_integer, exponent_double,
+                               scratch0_double, &exponent_is_integer);
+
+  {
+    AllowExternalCallThatCantCauseGC scope(masm);
+    __ Mov(saved_lr, lr);
+    __ CallCFunction(ExternalReference::power_double_double_function(), 0, 2);
+    __ Mov(lr, saved_lr);
+    __ B(&done);
+  }
+
+  __ Bind(&exponent_is_integer);
+
+  // Find abs(exponent). For negative exponents, we can find the inverse later.
+  Register exponent_abs = x13;
+  __ Cmp(exponent_integer, 0);
+  __ Cneg(exponent_abs, exponent_integer, mi);
+
+  // Repeatedly multiply to calculate the power.
+  //  result = 1.0;
+  //  For each bit n (exponent_integer{n}) {
+  //    if (exponent_integer{n}) {
+  //      result *= base;
+  //    }
+  //    base *= base;
+  //    if (remaining bits in exponent_integer are all zero) {
+  //      break;
+  //    }
+  //  }
+  Label power_loop, power_loop_entry, power_loop_exit;
+  __ Fmov(scratch1_double, base_double);
+  __ Fmov(base_double_copy, base_double);
+  __ Fmov(result_double, 1.0);
+  __ B(&power_loop_entry);
+
+  __ Bind(&power_loop);
+  __ Fmul(scratch1_double, scratch1_double, scratch1_double);
+  __ Lsr(exponent_abs, exponent_abs, 1);
+  __ Cbz(exponent_abs, &power_loop_exit);
+
+  __ Bind(&power_loop_entry);
+  __ Tbz(exponent_abs, 0, &power_loop);
+  __ Fmul(result_double, result_double, scratch1_double);
+  __ B(&power_loop);
+
+  __ Bind(&power_loop_exit);
+
+  // If the exponent was positive, result_double holds the result.
+  __ Tbz(exponent_integer, kXSignBit, &done);
+
+  // The exponent was negative, so find the inverse.
+  __ Fmov(scratch0_double, 1.0);
+  __ Fdiv(result_double, scratch0_double, result_double);
+  // ECMA-262 only requires Math.pow to return an 'implementation-dependent
+  // approximation' of base^exponent. However, mjsunit/math-pow uses Math.pow
+  // to calculate the subnormal value 2^-1074. This method of calculating
+  // negative powers doesn't work because 2^1074 overflows to infinity. To
+  // catch this corner-case, we bail out if the result was 0. (This can only
+  // occur if the divisor is infinity or the base is zero.)
+  __ Fcmp(result_double, 0.0);
+  __ B(&done, ne);
+
+  AllowExternalCallThatCantCauseGC scope(masm);
+  __ Mov(saved_lr, lr);
+  __ Fmov(base_double, base_double_copy);
+  __ Scvtf(exponent_double, exponent_integer);
+  __ CallCFunction(ExternalReference::power_double_double_function(), 0, 2);
+  __ Mov(lr, saved_lr);
+  __ Bind(&done);
+  __ Ret();
+}
+
 void Builtins::Generate_InternalArrayConstructorImpl(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- x0 : argc
