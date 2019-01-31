@@ -402,7 +402,6 @@ class ThreadLocalTop {
   // unify them later.
   Object scheduled_exception_;
   bool external_caught_exception_ = false;
-  SaveContext* save_context_ = nullptr;
 
   // Stack.
   // The frame pointer of the top c entry frame.
@@ -671,8 +670,6 @@ class Isolate final : private HiddenFactory {
   Context context() { return thread_local_top_.context_; }
   inline void set_context(Context context);
   Context* context_address() { return &thread_local_top_.context_; }
-
-  THREAD_LOCAL_TOP_ACCESSOR(SaveContext*, save_context)
 
   // Access to current thread id.
   THREAD_LOCAL_TOP_ACCESSOR(ThreadId, thread_id)
@@ -1947,16 +1944,12 @@ class PromiseOnStack {
 };
 
 
-// If the GCC version is 4.1.x or 4.2.x an additional field is added to the
-// class as a work around for a bug in the generated code found with these
-// versions of GCC. See V8 issue 122 for details.
 class V8_EXPORT_PRIVATE SaveContext {
  public:
   explicit SaveContext(Isolate* isolate);
   ~SaveContext();
 
   Handle<Context> context() { return context_; }
-  SaveContext* prev() { return prev_; }
 
   // Returns true if this save context is below a given JavaScript frame.
   bool IsBelowFrame(StandardFrame* frame);
@@ -1964,7 +1957,6 @@ class V8_EXPORT_PRIVATE SaveContext {
  private:
   Isolate* const isolate_;
   Handle<Context> context_;
-  SaveContext* const prev_;
   Address c_entry_fp_;
 };
 
