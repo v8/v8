@@ -1470,11 +1470,6 @@ class Isolate final : private HiddenFactory {
     return builtins_constants_table_builder_;
   }
 
-  // Hashes bits of the Isolate that are relevant for embedded builtins. In
-  // particular, the embedded blob requires builtin Code object layout and the
-  // builtins constants table to remain unchanged from build-time.
-  size_t HashIsolateForEmbeddedBlob();
-
   static const uint8_t* CurrentEmbeddedBlob();
   static uint32_t CurrentEmbeddedBlobSize();
   static bool CurrentEmbeddedBlobIsBinaryEmbedded();
