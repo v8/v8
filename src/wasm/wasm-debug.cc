@@ -385,17 +385,11 @@ class InterpreterHandle {
     // Activations must be properly stacked:
     DCHECK_EQ(activations_.size() - 1, activations_[frame_pointer]);
     uint32_t activation_id = static_cast<uint32_t>(activations_.size() - 1);
-
-    // Unwind the frames of the current activation if not already unwound.
-    WasmInterpreter::Thread* thread = interpreter()->GetThread(0);
-    if (static_cast<uint32_t>(thread->GetFrameCount()) >
-        thread->ActivationFrameBase(activation_id)) {
-      using ExceptionResult = WasmInterpreter::Thread::ExceptionHandlingResult;
-      ExceptionResult result = thread->HandleException(isolate_);
-      // TODO(wasm): Handle exceptions caught in wasm land.
-      CHECK_EQ(ExceptionResult::UNWOUND, result);
-    }
-
+    // The top activation must have no active frames. The interpreter already
+    // had a chance to handle exceptions and hence dropped all frames.
+    DCHECK_EQ(interpreter()->GetThread(0)->GetFrameCount(),
+              interpreter()->GetThread(0)->ActivationFrameBase(activation_id));
+    // All that remains to be done is finish the activation.
     FinishActivation(frame_pointer, activation_id);
   }
 
