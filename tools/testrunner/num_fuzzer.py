@@ -153,7 +153,7 @@ class NumFuzzer(base_runner.BaseTestRunner):
       execproc,
     ]
     self._prepare_procs(procs)
-    loader.load_tests(tests, initial_batch_size=float('inf')
+    loader.load_tests(tests, initial_batch_size=float('inf'))
 
     # TODO(majeski): maybe some notification from loader would be better?
     if combiner:
