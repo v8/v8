@@ -2850,9 +2850,9 @@ class ThreadImpl {
       if (pc == limit) {
         // Fell off end of code; do an implicit return.
         TRACE("@%-3zu: ImplicitReturn\n", pc);
-        if (!DoReturn(&decoder, &code, &pc, &limit,
-                      code->function->sig->return_count()))
-          return;
+        size_t arity = code->function->sig->return_count();
+        DCHECK_EQ(StackHeight() - arity, frames_.back().llimit());
+        if (!DoReturn(&decoder, &code, &pc, &limit, arity)) return;
         PAUSE_IF_BREAK_FLAG(AfterReturn);
       }
 #undef PAUSE_IF_BREAK_FLAG
@@ -2968,11 +2968,13 @@ class ThreadImpl {
                                               Handle<Object> object_ref,
                                               const WasmCode* code,
                                               FunctionSig* sig) {
+    int num_args = static_cast<int>(sig->parameter_count());
     wasm::WasmFeatures enabled_features =
         wasm::WasmFeaturesFromIsolate(isolate);
 
     if (code->kind() == WasmCode::kWasmToJsWrapper &&
         !IsJSCompatibleSignature(sig, enabled_features.bigint)) {
+      sp_ -= num_args;  // Pop arguments before throwing.
       isolate->Throw(*isolate->factory()->NewTypeError(
           MessageTemplate::kWasmTrapTypeError));
       return TryHandleException(isolate);
@@ -2987,7 +2989,6 @@ class ThreadImpl {
     // Copy the arguments to one buffer.
     // TODO(clemensh): Introduce a helper for all argument buffer
     // con-/destruction.
-    int num_args = static_cast<int>(sig->parameter_count());
     std::vector<uint8_t> arg_buffer(num_args * 8);
     size_t offset = 0;
     WasmValue* wasm_args = sp_ - num_args;

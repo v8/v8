@@ -2201,11 +2201,10 @@ wasm::WasmCode* Pipeline::GenerateCodeForWasmNativeStub(
       nullptr, &code_desc, code_generator->safepoint_table_builder(),
       static_cast<int>(code_generator->GetHandlerTableOffset()));
 
-  // We do not expect any tagged parameters being passed to stubs.
-  DCHECK_EQ(0, call_descriptor->GetTaggedParameterSlots());
   wasm::WasmCode* code = native_module->AddCode(
       wasm::WasmCode::kAnonymousFuncIndex, code_desc,
-      code_generator->frame()->GetTotalFrameSlotCount(), 0,
+      code_generator->frame()->GetTotalFrameSlotCount(),
+      call_descriptor->GetTaggedParameterSlots(),
       code_generator->GetSafepointTableOffset(),
       code_generator->GetHandlerTableOffset(),
       code_generator->GetProtectedInstructions(),
