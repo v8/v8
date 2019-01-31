@@ -1112,7 +1112,12 @@ class AsyncCompileJob::CompilationStateCallback {
         AsyncCompileJob* job = job_;
         job->foreground_task_runner_->PostTask(
             MakeCancelableTask(job->isolate_, [job] {
-              job->DoSync<CompileFailed, kUseExistingForegroundTask>();
+              HandleScope scope(job->isolate_);
+              SaveContext saved_context(job->isolate_);
+              job->isolate_->set_context(*job->native_context_);
+              WasmError error = Impl(job->native_module_->compilation_state())
+                                    ->GetCompileError();
+              return job->AsyncCompileFailed("Async compilation failed", error);
             }));
 
         break;
@@ -1353,19 +1358,6 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
       InitializeCompilationUnits(job->native_module_.get(),
                                  job->isolate()->wasm_engine());
     }
-  }
-};
-
-//==========================================================================
-// Step 4b (sync): Compilation failed. Reject Promise.
-//==========================================================================
-class AsyncCompileJob::CompileFailed : public CompileStep {
- public:
-  void RunInForeground(AsyncCompileJob* job) override {
-    TRACE_COMPILE("(4b) Compilation Failed...\n");
-    WasmError error =
-        Impl(job->native_module_->compilation_state())->GetCompileError();
-    return job->AsyncCompileFailed("Async compilation failed", error);
   }
 };
 
