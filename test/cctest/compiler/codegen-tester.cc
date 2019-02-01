@@ -22,20 +22,16 @@ TEST(CompareWrapper) {
   CompareWrapper wUint32LessThan(IrOpcode::kUint32LessThan);
   CompareWrapper wUint32LessThanOrEqual(IrOpcode::kUint32LessThanOrEqual);
 
-  FOR_INT32_INPUTS(pl) {
-    FOR_INT32_INPUTS(pr) {
-      int32_t a = pl;
-      int32_t b = pr;
+  FOR_INT32_INPUTS(a) {
+    FOR_INT32_INPUTS(b) {
       CHECK_EQ(a == b, wWord32Equal.Int32Compare(a, b));
       CHECK_EQ(a < b, wInt32LessThan.Int32Compare(a, b));
       CHECK_EQ(a <= b, wInt32LessThanOrEqual.Int32Compare(a, b));
     }
   }
 
-  FOR_UINT32_INPUTS(pl) {
-    FOR_UINT32_INPUTS(pr) {
-      uint32_t a = pl;
-      uint32_t b = pr;
+  FOR_UINT32_INPUTS(a) {
+    FOR_UINT32_INPUTS(b) {
       CHECK_EQ(a == b, wWord32Equal.Int32Compare(a, b));
       CHECK_EQ(a < b, wUint32LessThan.Int32Compare(a, b));
       CHECK_EQ(a <= b, wUint32LessThanOrEqual.Int32Compare(a, b));
