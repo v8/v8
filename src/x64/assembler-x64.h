@@ -346,6 +346,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   void FinalizeJumpOptimizationInfo();
 
+  // Unused on this architecture.
+  void MaybeEmitOutOfLineConstantPool() {}
+
   // Read/Modify the code target in the relative branch/call instruction at pc.
   // On the x64 architecture, we use relative jumps with a 32-bit displacement
   // to jump to other Code objects in the Code space in the heap.

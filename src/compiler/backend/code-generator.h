@@ -309,6 +309,7 @@ class CodeGenerator final : public GapResolver::Assembler {
                                 int first_unused_stack_slot);
 
   void FinishCode();
+  void MaybeEmitOutOfLineConstantPool();
 
   // ===========================================================================
   // ============== Architecture-specific gap resolver methods. ================

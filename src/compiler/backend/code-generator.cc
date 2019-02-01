@@ -130,6 +130,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleDeoptimizerCall(
   return kSuccess;
 }
 
+void CodeGenerator::MaybeEmitOutOfLineConstantPool() {
+  tasm()->MaybeEmitOutOfLineConstantPool();
+}
+
 void CodeGenerator::AssembleCode() {
   OptimizedCompilationInfo* info = this->info();
 
@@ -277,6 +281,10 @@ void CodeGenerator::AssembleCode() {
     if (result_ != kSuccess) return;
   }
 
+  // TODO(jgruber): Move all inlined metadata generation into a new,
+  // architecture-independent version of FinishCode. Currently, this includes
+  // the safepoint table, handler table, constant pool, and code comments, in
+  // that order.
   FinishCode();
 
   // Emit the jump tables.
@@ -289,8 +297,8 @@ void CodeGenerator::AssembleCode() {
   }
 
   // The PerfJitLogger logs code up until here, excluding the safepoint
-  // table. Resolve the unwinding info now so it is aware of the same code size
-  // as reported by perf.
+  // table. Resolve the unwinding info now so it is aware of the same code
+  // size as reported by perf.
   unwinding_info_writer_.Finish(tasm()->pc_offset());
 
   safepoints()->Emit(tasm(), frame()->GetTotalFrameSlotCount());
@@ -305,6 +313,7 @@ void CodeGenerator::AssembleCode() {
     }
   }
 
+  tasm()->MaybeEmitOutOfLineConstantPool();
   tasm()->FinalizeJumpOptimizationInfo();
 
   result_ = kSuccess;

@@ -1109,6 +1109,8 @@ class CodeGeneratorTester {
     generator_->FinishCode();
     generator_->safepoints()->Emit(generator_->tasm(),
                                    frame_.GetTotalFrameSlotCount());
+    generator_->MaybeEmitOutOfLineConstantPool();
+
     return generator_->FinalizeCode().ToHandleChecked();
   }
 

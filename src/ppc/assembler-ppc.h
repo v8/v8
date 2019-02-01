@@ -201,6 +201,8 @@ class Assembler : public AssemblerBase {
     GetCode(isolate, desc, kNoSafepointTable, kNoHandlerTable);
   }
 
+  void MaybeEmitOutOfLineConstantPool() { EmitConstantPool(); }
+
   // Label operations & relative jumps (PPUM Appendix D)
   //
   // Takes a branch opcode (cc) and a label (L) and generates

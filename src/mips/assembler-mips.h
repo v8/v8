@@ -164,6 +164,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Assembler functions are invoked in between GetCode() calls.
   void GetCode(Isolate* isolate, CodeDesc* desc);
 
+  // Unused on this architecture.
+  void MaybeEmitOutOfLineConstantPool() {}
+
   // Label operations & relative jumps (PPUM Appendix D).
   //
   // Takes a branch opcode (cc) and a label (L) and generates
