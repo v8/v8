@@ -2746,10 +2746,6 @@ class V8_EXPORT String : public Name {
    public:
     virtual ~ExternalStringResourceBase() = default;
 
-    V8_DEPRECATED("Use IsCacheable().", virtual bool IsCompressible() const) {
-      return false;
-    }
-
     /**
      * If a string is cacheable, the value returned by
      * ExternalStringResource::data() may be cached, otherwise it is not
@@ -6454,20 +6450,6 @@ class V8_EXPORT AccessorSignature : public Data {
 
 
 // --- Extensions ---
-V8_DEPRECATED("Implementation detail", class)
-V8_EXPORT ExternalOneByteStringResourceImpl
-    : public String::ExternalOneByteStringResource {
- public:
-  ExternalOneByteStringResourceImpl() : data_(nullptr), length_(0) {}
-  ExternalOneByteStringResourceImpl(const char* data, size_t length)
-      : data_(data), length_(length) {}
-  const char* data() const override { return data_; }
-  size_t length() const override { return length_; }
-
- private:
-  const char* data_;
-  size_t length_;
-};
 
 /**
  * Ignore
