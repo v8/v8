@@ -9,8 +9,7 @@ import random
 # Probabilities must add up to 100.
 FOOZZIE_EXPERIMENTS = [
   [5, 'ignition', 'ignition_asm', 'd8'],
-  [5, 'ignition', 'trusted', 'd8'],
-  [5, 'ignition', 'trusted_opt', 'd8'],
+  [10, 'ignition', 'jitless', 'd8'],
   [10, 'ignition', 'slow_path', 'd8'],
   [5, 'ignition', 'slow_path_opt', 'd8'],
   [25, 'ignition', 'ignition_turbo', 'd8'],

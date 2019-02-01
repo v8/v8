@@ -51,6 +51,9 @@ CONFIGS = dict(
     '--no-lazy',
     '--no-lazy-inner-functions',
   ],
+  jitless=[
+    '--jitless',
+  ],
   slow_path=[
     '--force-slow-path',
   ],
