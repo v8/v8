@@ -39,10 +39,16 @@ static const char* const BUILTIN_POINTER_TYPE_STRING = "BuiltinPtr";
 static const char* const INTPTR_TYPE_STRING = "intptr";
 static const char* const UINTPTR_TYPE_STRING = "uintptr";
 static const char* const INT32_TYPE_STRING = "int32";
+static const char* const UINT32_TYPE_STRING = "uint32";
+static const char* const INT16_TYPE_STRING = "int16";
+static const char* const UINT16_TYPE_STRING = "uint16";
+static const char* const INT8_TYPE_STRING = "int8";
+static const char* const UINT8_TYPE_STRING = "uint8";
 static const char* const CONST_INT31_TYPE_STRING = "constexpr int31";
 static const char* const CONST_INT32_TYPE_STRING = "constexpr int32";
 static const char* const CONST_FLOAT64_TYPE_STRING = "constexpr float64";
 
+class AggregateType;
 class Macro;
 class Method;
 class StructType;
@@ -154,7 +160,10 @@ struct NameAndType {
 std::ostream& operator<<(std::ostream& os, const NameAndType& name_and_type);
 
 struct Field {
+  std::tuple<size_t, std::string, std::string> GetFieldSizeInformation() const;
+
   SourcePosition pos;
+  const AggregateType* aggregate;
   NameAndType name_and_type;
   size_t offset;
   bool is_weak;
@@ -402,7 +411,10 @@ class AggregateType : public Type {
     return "_method_" + name_ + "_" + name;
   }
 
-  void RegisterField(Field field) { fields_.push_back(field); }
+  const Field& RegisterField(Field field) {
+    fields_.push_back(field);
+    return fields_.back();
+  }
 
   void RegisterMethod(Method* method) { methods_.push_back(method); }
   std::vector<Method*> Constructors() const;
@@ -454,9 +466,7 @@ class ClassType final : public AggregateType {
  public:
   DECLARE_TYPE_BOILERPLATE(ClassType);
   std::string ToExplicitString() const override;
-  std::string GetGeneratedTypeName() const override {
-    return IsConstexpr() ? generates_ : "compiler::TNode<" + generates_ + ">";
-  }
+  std::string GetGeneratedTypeName() const override;
   std::string GetGeneratedTNodeTypeName() const override;
   bool IsTransient() const override { return transient_; }
   size_t size() const { return size_; }
@@ -467,6 +477,7 @@ class ClassType final : public AggregateType {
   }
   void SetSize(size_t size) { size_ = size; }
   void SetThisStruct(StructType* this_struct) { this_struct_ = this_struct; }
+  bool AllowInstantiation() const;
 
  private:
   friend class TypeOracle;

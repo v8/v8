@@ -272,6 +272,8 @@ class ToString {
 
 constexpr int kTaggedSize = sizeof(void*);
 
+static const char* const kBaseNamespaceName = "base";
+static const char* const kTestNamespaceName = "test";
 static const char* const kConstructMethodName = "constructor";
 static const char* const kSuperMethodName = "super";
 static const char* const kConstructorStructSuperFieldName = "_super";

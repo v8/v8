@@ -125,8 +125,9 @@ bool IsKeywordLikeName(const std::string& s) {
 // naming convention and are those exempt from the normal type convention.
 bool IsMachineType(const std::string& s) {
   static const char* const machine_types[]{
-      "void",    "never",   "int32", "uint32", "int64", "intptr", "uintptr",
-      "float32", "float64", "bool",  "string", "bint",  "int31"};
+      "void",    "never",   "int8",    "uint8",  "int16",  "uint16",
+      "int31",   "uint31",  "int32",   "uint32", "int64",  "intptr",
+      "uintptr", "float32", "float64", "bool",   "string", "bint"};
 
   return std::find(std::begin(machine_types), std::end(machine_types), s) !=
          std::end(machine_types);

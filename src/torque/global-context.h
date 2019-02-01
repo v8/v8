@@ -22,7 +22,7 @@ class GlobalContext : public ContextualClass<GlobalContext> {
     CurrentSourcePosition::Scope current_source_position(
         SourcePosition{CurrentSourceFile::Get(), -1, -1});
     default_namespace_ =
-        RegisterDeclarable(base::make_unique<Namespace>("base"));
+        RegisterDeclarable(base::make_unique<Namespace>(kBaseNamespaceName));
   }
   static Namespace* GetDefaultNamespace() { return Get().default_namespace_; }
   template <class T>
@@ -46,12 +46,11 @@ class GlobalContext : public ContextualClass<GlobalContext> {
     return result;
   }
 
-  static void RegisterClass(const std::string& name,
-                            const ClassType* new_class) {
+  static void RegisterClass(const std::string& name, ClassType* new_class) {
     Get().classes_[name] = new_class;
   }
 
-  static const std::map<std::string, const ClassType*>& GetClasses() {
+  static const std::map<std::string, ClassType*>& GetClasses() {
     return Get().classes_;
   }
 
@@ -72,7 +71,7 @@ class GlobalContext : public ContextualClass<GlobalContext> {
   Ast ast_;
   std::vector<std::unique_ptr<Declarable>> declarables_;
   std::vector<std::string> cpp_includes_;
-  std::map<std::string, const ClassType*> classes_;
+  std::map<std::string, ClassType*> classes_;
 };
 
 template <class T>

@@ -147,6 +147,26 @@ class TypeOracle : public ContextualClass<TypeOracle> {
     return Get().GetBuiltinType(INT32_TYPE_STRING);
   }
 
+  static const Type* GetUint32Type() {
+    return Get().GetBuiltinType(UINT32_TYPE_STRING);
+  }
+
+  static const Type* GetInt16Type() {
+    return Get().GetBuiltinType(INT16_TYPE_STRING);
+  }
+
+  static const Type* GetUint16Type() {
+    return Get().GetBuiltinType(UINT16_TYPE_STRING);
+  }
+
+  static const Type* GetInt8Type() {
+    return Get().GetBuiltinType(INT8_TYPE_STRING);
+  }
+
+  static const Type* GetUint8Type() {
+    return Get().GetBuiltinType(UINT8_TYPE_STRING);
+  }
+
   static const Type* GetNeverType() {
     return Get().GetBuiltinType(NEVER_TYPE_STRING);
   }

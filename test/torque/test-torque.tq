@@ -768,4 +768,18 @@ namespace test {
     assert(w.c == 1);
     assert(w.d == 2);
   }
+
+  class TestClassWithAllTypes extends JSObject {
+    a: int8;
+    b: uint8;
+    b2: uint8;
+    b3: uint8;
+    c: int16;
+    d: uint16;
+    e: int32;
+    f: uint32;
+    g: RawPtr;
+    h: intptr;
+    i: uintptr;
+  }
 }

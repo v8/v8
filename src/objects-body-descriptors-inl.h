@@ -247,8 +247,7 @@ class SharedFunctionInfo::BodyDescriptor final : public BodyDescriptorBase {
   static inline void IterateBody(Map map, HeapObject obj, int object_size,
                                  ObjectVisitor* v) {
     IterateCustomWeakPointer(obj, kFunctionDataOffset, v);
-    IteratePointers(obj,
-                    SharedFunctionInfo::kStartOfAlwaysStrongPointerFieldsOffset,
+    IteratePointers(obj, SharedFunctionInfo::kStartOfStrongFieldsOffset,
                     SharedFunctionInfo::kEndOfTaggedFieldsOffset, v);
   }
 

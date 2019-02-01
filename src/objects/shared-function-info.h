@@ -12,6 +12,7 @@
 #include "src/objects/script.h"
 #include "src/objects/smi.h"
 #include "src/objects/struct.h"
+#include "torque-generated/class-definitions-from-dsl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -321,12 +322,6 @@ class SharedFunctionInfo : public HeapObject {
   // [expected_nof_properties]: Expected number of properties for the
   // function. The value is only reliable when the function has been compiled.
   DECL_UINT8_ACCESSORS(expected_nof_properties)
-
-#if V8_SFI_HAS_UNIQUE_ID
-  // [unique_id] - For --trace-maps purposes, an identifier that's persistent
-  // even if the GC moves this SharedFunctionInfo.
-  DECL_INT_ACCESSORS(unique_id)
-#endif
 
   // [function data]: This field holds some additional data for function.
   // Currently it has one of:
@@ -647,37 +642,8 @@ class SharedFunctionInfo : public HeapObject {
   static const uint16_t kFunctionTokenOutOfRange = static_cast<uint16_t>(-1);
   STATIC_ASSERT(kMaximumFunctionTokenOffset + 1 == kFunctionTokenOutOfRange);
 
-#if V8_SFI_HAS_UNIQUE_ID
-  static const int kUniqueIdFieldSize = kInt32Size;
-#else
-  // Just to not break the postmortrem support with conditional offsets
-  static const int kUniqueIdFieldSize = 0;
-#endif
-
-// Layout description.
-#define SHARED_FUNCTION_INFO_FIELDS(V)                    \
-  /* Pointer fields. */                                   \
-  V(kStartOfPointerFieldsOffset, 0)                       \
-  V(kFunctionDataOffset, kTaggedSize)                     \
-  V(kStartOfAlwaysStrongPointerFieldsOffset, 0)           \
-  V(kNameOrScopeInfoOffset, kTaggedSize)                  \
-  V(kOuterScopeInfoOrFeedbackMetadataOffset, kTaggedSize) \
-  V(kScriptOrDebugInfoOffset, kTaggedSize)                \
-  V(kEndOfTaggedFieldsOffset, 0)                          \
-  /* Raw data fields. */                                  \
-  V(kUniqueIdOffset, kUniqueIdFieldSize)                  \
-  V(kLengthOffset, kUInt16Size)                           \
-  V(kFormalParameterCountOffset, kUInt16Size)             \
-  V(kExpectedNofPropertiesOffset, kUInt8Size)             \
-  V(kBuiltinFunctionId, kUInt8Size)                       \
-  V(kFunctionTokenOffsetOffset, kUInt16Size)              \
-  V(kFlagsOffset, kInt32Size)                             \
-  /* Total size. */                                       \
-  V(kSize, 0)
-
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
                                 SHARED_FUNCTION_INFO_FIELDS)
-#undef SHARED_FUNCTION_INFO_FIELDS
 
   static const int kAlignedSize = POINTER_SIZE_ALIGN(kSize);
 
@@ -720,6 +686,14 @@ class SharedFunctionInfo : public HeapObject {
   // This is needed to set up the [[HomeObject]] on the function instance.
   inline bool needs_home_object() const;
 
+  V8_INLINE bool IsSharedFunctionInfoWithID() const {
+#if V8_SFI_HAS_UNIQUE_ID
+    return true;
+#else
+    return false;
+#endif
+  }
+
  private:
   // [name_or_scope_info]: Function name string, kNoSharedNameSentinel or
   // ScopeInfo.
@@ -744,6 +718,22 @@ class SharedFunctionInfo : public HeapObject {
   int FindIndexInScript(Isolate* isolate) const;
 
   OBJECT_CONSTRUCTORS(SharedFunctionInfo, HeapObject);
+};
+
+class SharedFunctionInfoWithID : public SharedFunctionInfo {
+ public:
+  // [unique_id] - For --trace-maps purposes, an identifier that's persistent
+  // even if the GC moves this SharedFunctionInfo.
+  DECL_INT_ACCESSORS(unique_id)
+
+  DECL_CAST(SharedFunctionInfoWithID)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(SharedFunctionInfo::kSize,
+                                SHARED_FUNCTION_INFO_WITH_ID_FIELDS)
+
+  static const int kAlignedSize = POINTER_SIZE_ALIGN(kSize);
+
+  OBJECT_CONSTRUCTORS(SharedFunctionInfoWithID, SharedFunctionInfo)
 };
 
 // Printing support.

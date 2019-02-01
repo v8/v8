@@ -6,6 +6,7 @@
 #include <iostream>
 
 #include "src/torque/declarable.h"
+#include "src/torque/global-context.h"
 
 namespace v8 {
 namespace internal {
@@ -94,6 +95,12 @@ base::Optional<TypeVector> Generic::InferSpecializationTypes(
   }
   return result;
 }
+
+bool Namespace::IsDefaultNamespace() const {
+  return this == GlobalContext::GetDefaultNamespace();
+}
+
+bool Namespace::IsTestNamespace() const { return name() == kTestNamespaceName; }
 
 }  // namespace torque
 }  // namespace internal

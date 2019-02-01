@@ -4,6 +4,7 @@
 
 #include <iostream>
 
+#include "src/globals.h"
 #include "src/torque/declarable.h"
 #include "src/torque/type-oracle.h"
 #include "src/torque/types.h"
@@ -77,8 +78,6 @@ bool Type::IsAbstractName(const std::string& name) const {
 std::string AbstractType::GetGeneratedTNodeTypeName() const {
   return generated_type_;
 }
-
-std::string ClassType::GetGeneratedTNodeTypeName() const { return generates_; }
 
 std::string BuiltinPointerType::ToExplicitString() const {
   std::stringstream result;
@@ -262,12 +261,28 @@ std::string StructType::ToExplicitString() const {
   return result.str();
 }
 
+std::string ClassType::GetGeneratedTNodeTypeName() const {
+  std::string prefix = nspace()->IsDefaultNamespace()
+                           ? std::string{}
+                           : (nspace()->ExternalName() + "::");
+  return prefix + generates_;
+}
+
+std::string ClassType::GetGeneratedTypeName() const {
+  return IsConstexpr() ? GetGeneratedTNodeTypeName()
+                       : "compiler::TNode<" + GetGeneratedTNodeTypeName() + ">";
+}
+
 std::string ClassType::ToExplicitString() const {
   std::stringstream result;
   result << "class " << name() << "{";
   PrintCommaSeparatedList(result, fields());
   result << "}";
   return result.str();
+}
+
+bool ClassType::AllowInstantiation() const {
+  return nspace()->IsDefaultNamespace();
 }
 
 void PrintSignature(std::ostream& os, const Signature& sig, bool with_names) {
@@ -467,6 +482,60 @@ VisitResult VisitResult::NeverResult() {
   VisitResult result;
   result.type_ = TypeOracle::GetNeverType();
   return result;
+}
+
+std::tuple<size_t, std::string, std::string> Field::GetFieldSizeInformation()
+    const {
+  std::string size_string = "#no size";
+  std::string machine_type = "#no machine type";
+  const Type* field_type = this->name_and_type.type;
+  size_t field_size = 0;
+  if (field_type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
+    field_size = kTaggedSize;
+    size_string = "kTaggedSize";
+    machine_type = field_type->IsSubtypeOf(TypeOracle::GetSmiType())
+                       ? "MachineType::TaggedSigned()"
+                       : "MachineType::AnyTagged()";
+  } else if (field_type->IsSubtypeOf(TypeOracle::GetRawPtrType())) {
+    field_size = kSystemPointerSize;
+    size_string = "kSystemPointerSize";
+    machine_type = "MachineType::Pointer()";
+  } else if (field_type == TypeOracle::GetInt32Type()) {
+    field_size = kInt32Size;
+    size_string = "kInt32Size";
+    machine_type = "MachineType::Int32()";
+  } else if (field_type == TypeOracle::GetUint32Type()) {
+    field_size = kInt32Size;
+    size_string = "kInt32Size";
+    machine_type = "MachineType::Uint32()";
+  } else if (field_type == TypeOracle::GetInt16Type()) {
+    field_size = kUInt16Size;
+    size_string = "kUInt16Size";
+    machine_type = "MachineType::Int16()";
+  } else if (field_type == TypeOracle::GetUint16Type()) {
+    field_size = kUInt16Size;
+    size_string = "kUInt16Size";
+    machine_type = "MachineType::Uint16()";
+  } else if (field_type == TypeOracle::GetInt8Type()) {
+    field_size = kUInt8Size;
+    size_string = "kUInt8Size";
+    machine_type = "MachineType::Int8()";
+  } else if (field_type == TypeOracle::GetUint8Type()) {
+    field_size = kUInt8Size;
+    size_string = "kUInt8Size";
+    machine_type = "MachineType::Uint8()";
+  } else if (field_type == TypeOracle::GetIntPtrType()) {
+    field_size = kIntptrSize;
+    size_string = "kIntptrSize";
+    machine_type = "MachineType::IntPtr()";
+  } else if (field_type == TypeOracle::GetUIntPtrType()) {
+    field_size = kIntptrSize;
+    size_string = "kIntptrSize";
+    machine_type = "MachineType::IntPtr()";
+  } else {
+    ReportError("fields of type ", *field_type, " are not (yet) supported");
+  }
+  return std::make_tuple(field_size, size_string, machine_type);
 }
 
 }  // namespace torque

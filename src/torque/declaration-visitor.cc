@@ -515,6 +515,7 @@ void DeclarationVisitor::FinalizeStructFieldsAndMethods(
   for (auto& field : struct_declaration->fields) {
     const Type* field_type = Declarations::GetType(field.name_and_type.type);
     struct_type->RegisterField({field.name_and_type.type->pos,
+                                struct_type,
                                 {field.name_and_type.name, field_type},
                                 offset,
                                 false});
@@ -528,40 +529,29 @@ void DeclarationVisitor::FinalizeClassFieldsAndMethods(
     ClassType* class_type, ClassDeclaration* class_declaration) {
   const ClassType* super_class = class_type->GetSuperClass();
   size_t class_offset = super_class ? super_class->size() : 0;
-  bool seen_strong = false;
-  bool seen_weak = false;
-  for (ClassFieldExpression& field : class_declaration->fields) {
+  for (ClassFieldExpression& field_expression : class_declaration->fields) {
     CurrentSourcePosition::Scope position_activator(
-        field.name_and_type.type->pos);
-    const Type* field_type = Declarations::GetType(field.name_and_type.type);
-    if (field_type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
-      if (field.weak) {
-        seen_weak = true;
-      } else {
-        if (seen_weak) {
-          ReportError("cannot declare strong field \"",
-                      field.name_and_type.name,
-                      "\" after weak Tagged references");
-        }
-        seen_strong = true;
-      }
-    } else {
-      if (seen_strong || seen_weak) {
-        ReportError("cannot declare scalar field \"", field.name_and_type.name,
-                    "\" after strong or weak Tagged references");
-      }
+        field_expression.name_and_type.type->pos);
+    const Type* field_type =
+        Declarations::GetType(field_expression.name_and_type.type);
+    const Field& field = class_type->RegisterField(
+        {field_expression.name_and_type.type->pos,
+         class_type,
+         {field_expression.name_and_type.name, field_type},
+         class_offset,
+         field_expression.weak});
+    size_t field_size;
+    std::string size_string;
+    std::string machine_type;
+    std::tie(field_size, size_string, machine_type) =
+        field.GetFieldSizeInformation();
+    size_t aligned_offset = class_offset & ~(field_size - 1);
+    if (class_offset != aligned_offset) {
+      ReportError("field ", field_expression.name_and_type.name,
+                  " is not aligned to its size (", aligned_offset, " vs ",
+                  class_offset, " for field size ", field_size, ")");
     }
-    if (!field_type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
-      ReportError(
-          "field \"", field.name_and_type.name, "\" of class \"",
-          class_declaration->name,
-          "\" must be a subtype of Tagged (other types not yet supported)");
-    }
-    class_type->RegisterField({field.name_and_type.type->pos,
-                               {field.name_and_type.name, field_type},
-                               class_offset,
-                               field.weak});
-    class_offset += kTaggedSize;
+    class_offset += field_size;
   }
   class_type->SetSize(class_offset);
 
@@ -579,6 +569,7 @@ void DeclarationVisitor::FinalizeClassFieldsAndMethods(
     super_struct_type = super_class->struct_type();
     this_struct_type->RegisterField(
         {CurrentSourcePosition::Get(),
+         super_struct_type,
          {kConstructorStructSuperFieldName, super_struct_type},
          struct_offset,
          false});
@@ -587,6 +578,7 @@ void DeclarationVisitor::FinalizeClassFieldsAndMethods(
   for (auto& field : class_type->fields()) {
     const Type* field_type = field.name_and_type.type;
     this_struct_type->RegisterField({field.pos,
+                                     class_type,
                                      {field.name_and_type.name, field_type},
                                      struct_offset,
                                      false});

@@ -1180,13 +1180,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BytecodeArray> LoadSharedFunctionInfoBytecodeArray(
       SloppyTNode<SharedFunctionInfo> shared);
 
-  TNode<Int32T> LoadSharedFunctionInfoFormalParameterCount(
-      TNode<SharedFunctionInfo> function) {
-    return TNode<Int32T>::UncheckedCast(LoadObjectField(
-        function, SharedFunctionInfo::kFormalParameterCountOffset,
-        MachineType::Uint16()));
-  }
-
   void StoreObjectByteNoWriteBarrier(TNode<HeapObject> object, int offset,
                                      TNode<Word32T> value);
 

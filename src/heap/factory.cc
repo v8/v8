@@ -3675,7 +3675,8 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
     }
     share->set_script_or_debug_info(*undefined_value(), SKIP_WRITE_BARRIER);
 #if V8_SFI_HAS_UNIQUE_ID
-    share->set_unique_id(isolate()->GetNextUniqueSharedFunctionInfoId());
+    Handle<SharedFunctionInfoWithID>::cast(share)->set_unique_id(
+        isolate()->GetNextUniqueSharedFunctionInfoId());
 #endif
 
     // Set integer fields (smi or int, depending on the architecture).

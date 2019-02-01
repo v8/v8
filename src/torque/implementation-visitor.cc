@@ -74,6 +74,8 @@ void ImplementationVisitor::BeginNamespaceFile(Namespace* nspace) {
   if (nspace != GlobalContext::GetDefaultNamespace()) {
     header << "#include \"src/code-stub-assembler.h\"\n";
   }
+  header << "#include \"src/utils.h\"\n";
+  header << "#include \"torque-generated/class-definitions-from-dsl.h\"\n";
   header << "\n";
 
   header << "namespace v8 {\n"
@@ -147,6 +149,32 @@ void ImplementationVisitor::Visit(NamespaceConstant* decl) {
 
 void ImplementationVisitor::Visit(TypeAlias* alias) {
   if (alias->IsRedeclaration()) return;
+  const ClassType* class_type = ClassType::DynamicCast(alias->type());
+  if (class_type) {
+    // Classes that are in the default namespace are defined in the C++
+    // world and all of their fields and methods are declared explicitly.
+    // Internal classes (e.g. ones used for testing that are not in the default
+    // name space) need to be defined by Torque.
+    // TODO(danno): This is a pretty cheesy hack for now. There should be a more
+    // robust mechanism for this, e.g. declaring classes 'extern' or something.
+    if (class_type->nspace()->IsTestNamespace()) {
+      std::string class_name{
+          class_type->GetSuperClass()->GetGeneratedTNodeTypeName()};
+      header_out() << "  class " << class_type->name() << " : public "
+                   << class_name << " {\n";
+      header_out() << "   public:\n";
+      header_out() << "    DEFINE_FIELD_OFFSET_CONSTANTS(" << class_name
+                   << "::kSize, "
+                   << CapifyStringWithUnderscores(class_type->name())
+                   << "_FIELDS)\n";
+      header_out() << "  };\n";
+    } else if (!class_type->nspace()->IsDefaultNamespace()) {
+      ReportError(
+          "classes are currently only supported in the default and test "
+          "namespaces");
+    }
+    return;
+  }
   const StructType* struct_type = StructType::DynamicCast(alias->type());
   if (!struct_type) return;
   const std::string& name = struct_type->name();
@@ -1222,6 +1250,12 @@ VisitResult ImplementationVisitor::Visit(NewExpression* expr) {
   if (class_type == nullptr) {
     ReportError("type for new expression must be a class, \"", *type,
                 "\" is not");
+  }
+
+  if (!class_type->AllowInstantiation()) {
+    // Classes that are only used for testing should never be instantiated.
+    ReportError(*class_type,
+                " cannot be allocated with new (it's used for testing)");
   }
 
   // In order to ensure "atomicity" of object allocation, a class' constructors
@@ -2510,6 +2544,79 @@ void ImplementationVisitor::GenerateBuiltinDefinitions(std::string& file_name) {
   ReplaceFileContentsIfDifferent(file_name, new_contents);
 }
 
+namespace {
+
+enum class FieldSectionType {
+  kNoSection = 0,
+  kWeakSection,
+  kStrongSection,
+  kScalarSection
+};
+
+void PossiblyStartTagged(FieldSectionType* section,
+                         std::set<FieldSectionType>* completed_sections,
+                         std::stringstream* o) {
+  if (completed_sections->count(FieldSectionType::kWeakSection) == 0 &&
+      completed_sections->count(FieldSectionType::kStrongSection) == 0 &&
+      *section != FieldSectionType::kWeakSection &&
+      *section != FieldSectionType::kStrongSection) {
+    *o << "V(kStartOfPointerFieldsOffset, 0) \\\n";
+  }
+}
+
+void PossiblyEndTagged(FieldSectionType* section,
+                       std::set<FieldSectionType>* completed_sections,
+                       std::stringstream* o) {
+  if (completed_sections->count(FieldSectionType::kWeakSection) != 0 &&
+      completed_sections->count(FieldSectionType::kStrongSection) != 0) {
+    *o << "V(kEndOfTaggedFieldsOffset, 0) \\\n";
+  }
+}
+
+void ProcessFieldInSection(FieldSectionType* section,
+                           std::set<FieldSectionType>* completed_sections,
+                           FieldSectionType field_section,
+                           std::stringstream* o) {
+  if (*section != FieldSectionType::kNoSection) {
+    if (*section != field_section) {
+      if (completed_sections->count(field_section) != 0) {
+        ReportError("reopening of weak, strong or scalar field section");
+      }
+      completed_sections->insert(*section);
+      if (*section == FieldSectionType::kWeakSection) {
+        *o << "V(kEndOfWeakFieldsOffset, 0) \\\n";
+        PossiblyEndTagged(section, completed_sections, o);
+      } else if (*section == FieldSectionType::kStrongSection) {
+        *o << "V(kEndOfStrongFieldsOffset, 0) \\\n";
+        PossiblyEndTagged(section, completed_sections, o);
+      }
+    }
+  }
+  if (*section != field_section) {
+    if (field_section == FieldSectionType::kWeakSection) {
+      PossiblyStartTagged(section, completed_sections, o);
+      *o << "V(kStartOfWeakFieldsOffset, 0) \\\n";
+    } else if (field_section == FieldSectionType::kStrongSection) {
+      PossiblyStartTagged(section, completed_sections, o);
+      *o << "V(kStartOfStrongFieldsOffset, 0) \\\n";
+    }
+  }
+  *section = field_section;
+}
+
+void CompleteFieldSection(FieldSectionType* section,
+                          std::set<FieldSectionType>* completed_sections,
+                          FieldSectionType field_section,
+                          std::stringstream* o) {
+  if (completed_sections->count(field_section) == 0) {
+    ProcessFieldInSection(section, completed_sections, field_section, o);
+    ProcessFieldInSection(section, completed_sections,
+                          FieldSectionType::kNoSection, o);
+  }
+}
+
+}  // namespace
+
 void ImplementationVisitor::GenerateClassDefinitions(std::string& file_name) {
   std::stringstream new_contents_stream;
   new_contents_stream << "#ifndef V8_CLASS_BUILTIN_DEFINITIONS_FROM_DSL_H_\n"
@@ -2525,24 +2632,44 @@ void ImplementationVisitor::GenerateClassDefinitions(std::string& file_name) {
     new_contents_stream << "#define ";
     new_contents_stream << CapifyStringWithUnderscores(i.first)
                         << "_FIELDS(V) \\\n";
-    const ClassType* type = i.second;
+    ClassType* type = i.second;
     std::vector<Field> fields = type->fields();
-    new_contents_stream << "V(kStartOfStrongFieldsOffset, 0) \\\n";
+    FieldSectionType section = FieldSectionType::kNoSection;
+    std::set<FieldSectionType> completed_sections;
     for (auto f : fields) {
-      if (!f.is_weak) {
-        new_contents_stream << "V(k" << CamelifyString(f.name_and_type.name)
-                            << "Offset, kTaggedSize) \\\n";
+      CurrentSourcePosition::Scope scope(f.pos);
+      if (f.name_and_type.type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
+        if (f.is_weak) {
+          ProcessFieldInSection(&section, &completed_sections,
+                                FieldSectionType::kWeakSection,
+                                &new_contents_stream);
+        } else {
+          ProcessFieldInSection(&section, &completed_sections,
+                                FieldSectionType::kStrongSection,
+                                &new_contents_stream);
+        }
+      } else {
+        ProcessFieldInSection(&section, &completed_sections,
+                              FieldSectionType::kScalarSection,
+                              &new_contents_stream);
       }
+      size_t field_size;
+      std::string size_string;
+      std::string machine_type;
+      std::tie(field_size, size_string, machine_type) =
+          f.GetFieldSizeInformation();
+      new_contents_stream << "V(k" << CamelifyString(f.name_and_type.name)
+                          << "Offset, " << size_string << ") \\\n";
     }
-    new_contents_stream << "V(kEndOfStrongFieldsOffset, 0) \\\n";
-    new_contents_stream << "V(kStartOfWeakFieldsOffset, 0) \\\n";
-    for (auto f : fields) {
-      if (f.is_weak) {
-        new_contents_stream << "V(k" << CamelifyString(f.name_and_type.name)
-                            << "Offset, kTaggedSize) \\\n";
-      }
-    }
-    new_contents_stream << "V(kEndOfWeakFieldsOffset, 0) \\\n";
+
+    ProcessFieldInSection(&section, &completed_sections,
+                          FieldSectionType::kNoSection, &new_contents_stream);
+    CompleteFieldSection(&section, &completed_sections,
+                         FieldSectionType::kWeakSection, &new_contents_stream);
+    CompleteFieldSection(&section, &completed_sections,
+                         FieldSectionType::kStrongSection,
+                         &new_contents_stream);
+
     new_contents_stream << "V(kSize, 0) \\\n";
     new_contents_stream << "\n";
   }

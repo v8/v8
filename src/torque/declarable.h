@@ -158,6 +158,8 @@ class Namespace : public Scope {
   std::string ExternalName() const {
     return CamelifyString(name()) + "BuiltinsFromDSLAssembler";
   }
+  bool IsDefaultNamespace() const;
+  bool IsTestNamespace() const;
   std::ostream& source_stream() { return source_stream_; }
   std::ostream& header_stream() { return header_stream_; }
   std::string source() { return source_stream_.str(); }

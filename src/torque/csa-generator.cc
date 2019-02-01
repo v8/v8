@@ -683,17 +683,21 @@ void CSAGenerator::EmitInstruction(
   const Field& field =
       instruction.class_type->LookupField(instruction.field_name);
   std::string result_name = FreshNodeName();
-  std::string type_string =
-      field.name_and_type.type->IsSubtypeOf(TypeOracle::GetSmiType())
-          ? "MachineType::TaggedSigned()"
-          : "MachineType::AnyTagged()";
+
+  size_t field_size;
+  std::string size_string;
+  std::string machine_type;
+  std::tie(field_size, size_string, machine_type) =
+      field.GetFieldSizeInformation();
+
   out_ << field.name_and_type.type->GetGeneratedTypeName() << " " << result_name
        << " = "
        << "ca_.UncheckedCast<"
        << field.name_and_type.type->GetGeneratedTNodeTypeName()
        << ">(CodeStubAssembler(state_).LoadObjectField("
-       << stack->Top() + ", " + std::to_string(field.offset) + ", "
-       << type_string + "));\n";
+       << stack->Top() + ", " + field.aggregate->GetGeneratedTNodeTypeName() +
+              "::k" + CamelifyString(field.name_and_type.name) + "Offset, "
+       << machine_type + "));\n";
   stack->Poke(stack->AboveTop() - 1, result_name);
 }
 
