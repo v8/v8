@@ -3146,6 +3146,10 @@ void Tuple3::BriefPrintDetails(std::ostream& os) {
      << Brief(value3());
 }
 
+void ClassPositions::BriefPrintDetails(std::ostream& os) {
+  os << " " << start() << ", " << end();
+}
+
 void ArrayBoilerplateDescription::BriefPrintDetails(std::ostream& os) {
   os << " " << elements_kind() << ", " << Brief(constant_elements());
 }
@@ -9436,10 +9440,11 @@ Handle<String> JSFunction::ToString(Handle<JSFunction> function) {
   // Check if we should print {function} as a class.
   Handle<Object> maybe_class_positions = JSReceiver::GetDataProperty(
       function, isolate->factory()->class_positions_symbol());
-  if (maybe_class_positions->IsTuple2()) {
-    Tuple2 class_positions = Tuple2::cast(*maybe_class_positions);
-    int start_position = Smi::ToInt(class_positions->value1());
-    int end_position = Smi::ToInt(class_positions->value2());
+  if (maybe_class_positions->IsClassPositions()) {
+    ClassPositions class_positions =
+        ClassPositions::cast(*maybe_class_positions);
+    int start_position = class_positions->start();
+    int end_position = class_positions->end();
     Handle<String> script_source(
         String::cast(Script::cast(shared_info->script())->source()), isolate);
     return isolate->factory()->NewSubString(script_source, start_position,

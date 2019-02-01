@@ -24,10 +24,14 @@ Tuple2::Tuple2(Address ptr) : Struct(ptr) {}
 Tuple3::Tuple3(Address ptr) : Tuple2(ptr) {}
 OBJECT_CONSTRUCTORS_IMPL(AccessorPair, Struct)
 
+OBJECT_CONSTRUCTORS_IMPL(ClassPositions, Struct)
+
 CAST_ACCESSOR(AccessorPair)
 CAST_ACCESSOR(Struct)
 CAST_ACCESSOR(Tuple2)
 CAST_ACCESSOR(Tuple3)
+
+CAST_ACCESSOR(ClassPositions)
 
 void Struct::InitializeBody(int object_size) {
   Object value = GetReadOnlyRoots().undefined_value();
@@ -42,6 +46,9 @@ ACCESSORS(Tuple3, value3, Object, kValue3Offset)
 
 ACCESSORS(AccessorPair, getter, Object, kGetterOffset)
 ACCESSORS(AccessorPair, setter, Object, kSetterOffset)
+
+SMI_ACCESSORS(ClassPositions, start, kStartOffset)
+SMI_ACCESSORS(ClassPositions, end, kEndOffset)
 
 Object AccessorPair::get(AccessorComponent component) {
   return component == ACCESSOR_GETTER ? getter() : setter();

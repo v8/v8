@@ -1744,6 +1744,13 @@ void Tuple3::Tuple3Print(std::ostream& os) {  // NOLINT
   os << "\n";
 }
 
+void ClassPositions::ClassPositionsPrint(std::ostream& os) {  // NOLINT
+  PrintHeader(os, "ClassPositions");
+  os << "\n - start position: " << start();
+  os << "\n - end position: " << end();
+  os << "\n";
+}
+
 void ArrayBoilerplateDescription::ArrayBoilerplateDescriptionPrint(
     std::ostream& os) {  // NOLINT
   PrintHeader(os, "ArrayBoilerplateDescription");
