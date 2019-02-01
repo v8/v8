@@ -119,31 +119,6 @@ class AccessorPair : public Struct {
   OBJECT_CONSTRUCTORS(AccessorPair, Struct);
 };
 
-class ClassPositions : public Struct {
- public:
-  DECL_INT_ACCESSORS(start)
-  DECL_INT_ACCESSORS(end)
-
-  DECL_CAST(ClassPositions)
-
-  // Dispatched behavior.
-  DECL_PRINTER(ClassPositions)
-  DECL_VERIFIER(ClassPositions)
-  void BriefPrintDetails(std::ostream& os);
-
-// Layout description.
-#define CLASS_POSITIONS_FIELDS(V) \
-  V(kStartOffset, kTaggedSize)    \
-  V(kEndOffset, kTaggedSize)      \
-  /* Total size. */               \
-  V(kSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, CLASS_POSITIONS_FIELDS)
-#undef CLASS_POSITIONS_FIELDS
-
-  OBJECT_CONSTRUCTORS(ClassPositions, Struct);
-};
-
 }  // namespace internal
 }  // namespace v8
 

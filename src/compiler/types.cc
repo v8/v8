@@ -342,7 +342,6 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
     case ALIASED_ARGUMENTS_ENTRY_TYPE:
     case PROMISE_CAPABILITY_TYPE:
     case PROMISE_REACTION_TYPE:
-    case CLASS_POSITIONS_TYPE:
     case DEBUG_INFO_TYPE:
     case STACK_FRAME_INFO_TYPE:
     case SMALL_ORDERED_HASH_MAP_TYPE:

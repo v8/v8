@@ -493,8 +493,10 @@ Handle<ClassBoilerplate> ClassBoilerplate::BuildClassBoilerplate(
                             attribs);
   }
   {
-    Handle<ClassPositions> class_positions = factory->NewClassPositions(
-        expr->start_position(), expr->end_position());
+    Handle<Smi> start_position(Smi::FromInt(expr->start_position()), isolate);
+    Handle<Smi> end_position(Smi::FromInt(expr->end_position()), isolate);
+    Handle<Tuple2> class_positions =
+        factory->NewTuple2(start_position, end_position, NOT_TENURED);
     static_desc.AddConstant(isolate, factory->class_positions_symbol(),
                             class_positions, DONT_ENUM);
   }

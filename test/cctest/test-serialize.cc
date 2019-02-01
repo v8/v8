@@ -3923,27 +3923,5 @@ TEST(CachedCompileFunctionInContext) {
   }
 }
 
-TEST(SnapshotCreatorAnonClassWithKeep) {
-  DisableAlwaysOpt();
-  v8::SnapshotCreator creator;
-  v8::Isolate* isolate = creator.GetIsolate();
-  {
-    v8::HandleScope handle_scope(isolate);
-    {
-      v8::Local<v8::Context> context = v8::Context::New(isolate);
-      v8::Context::Scope context_scope(context);
-      CompileRun(
-          "function Foo() { return class {}; } \n"
-          "class Bar extends Foo() {}\n"
-          "Foo()\n");
-      creator.SetDefaultContext(context);
-    }
-  }
-  v8::StartupData blob =
-      creator.CreateBlob(v8::SnapshotCreator::FunctionCodeHandling::kKeep);
-
-  delete[] blob.data;
-}
-
 }  // namespace internal
 }  // namespace v8
