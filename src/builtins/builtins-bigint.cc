@@ -103,19 +103,18 @@ Object BigIntToStringImpl(Handle<Object> receiver, Handle<Object> radix,
       isolate, x, ThisBigIntValue(isolate, receiver, builtin_name));
   // 2. If radix is not present, let radixNumber be 10.
   // 3. Else if radix is undefined, let radixNumber be 10.
-  int radix_number;
-  if (radix->IsUndefined(isolate)) {
-    radix_number = 10;
-  } else {
+  int radix_number = 10;
+  if (!radix->IsUndefined(isolate)) {
     // 4. Else, let radixNumber be ? ToInteger(radix).
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, radix,
                                        Object::ToInteger(isolate, radix));
-    radix_number = static_cast<int>(radix->Number());
-  }
-  // 5. If radixNumber < 2 or radixNumber > 36, throw a RangeError exception.
-  if (radix_number < 2 || radix_number > 36) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewRangeError(MessageTemplate::kToRadixFormatRange));
+    double radix_double = radix->Number();
+    // 5. If radixNumber < 2 or radixNumber > 36, throw a RangeError exception.
+    if (radix_double < 2 || radix_double > 36) {
+      THROW_NEW_ERROR_RETURN_FAILURE(
+          isolate, NewRangeError(MessageTemplate::kToRadixFormatRange));
+    }
+    radix_number = static_cast<int>(radix_double);
   }
   // Return the String representation of this Number value using the radix
   // specified by radixNumber.

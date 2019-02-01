@@ -14,3 +14,6 @@ new Date(2146399200000).toString();
 new Date(2146940400000).toString();
 new Date(2147481600000).toString();
 new Date(2148022800000).toString();
+
+// crbug.com/927212
+assertThrows(() => (2n).toString(-2147483657), RangeError);
