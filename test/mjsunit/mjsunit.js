@@ -213,7 +213,7 @@ var prettyPrinted;
   // TODO(neis): Remove try-catch once BigInts are enabled by default.
   try {
     BigIntPrototypeValueOf = BigInt.prototype.valueOf;
-  } catch (e) {}
+  } catch(e) {}
 
   function classOf(object) {
     // Argument must not be null or undefined.
@@ -480,17 +480,14 @@ var prettyPrinted;
     }
   };
 
-  function executeCode(code) {
-    if (typeof code === 'function')  return code();
-    if (typeof code === 'string') return eval(code);
-    failWithMessage(
-        'Given code is neither function nor string, but ' + (typeof code) +
-        ': <' + prettyPrinted(code) + '>');
-  }
 
   assertThrows = function assertThrows(code, type_opt, cause_opt) {
     try {
-      executeCode(code);
+      if (typeof code === 'function') {
+        code();
+      } else {
+        eval(code);
+      }
     } catch (e) {
       if (typeof type_opt === 'function') {
         assertInstanceof(e, type_opt);
@@ -511,10 +508,11 @@ var prettyPrinted;
     failWithMessage("Did not throw exception");
   };
 
+
   assertThrowsEquals = function assertThrowsEquals(fun, val) {
     try {
       fun();
-    } catch (e) {
+    } catch(e) {
       assertSame(val, e);
       return;
     }
@@ -535,11 +533,15 @@ var prettyPrinted;
     }
   };
 
-  assertDoesNotThrow = function assertDoesNotThrow(code, name_opt) {
+
+   assertDoesNotThrow = function assertDoesNotThrow(code, name_opt) {
     try {
-      executeCode(code);
+      if (typeof code === 'function') {
+        return code();
+      } else {
+        return eval(code);
+      }
     } catch (e) {
-      if (e instanceof MjsUnitAssertionError) throw e;
       failWithMessage("threw an exception: " + (e.message || e));
     }
   };
@@ -770,7 +772,7 @@ var prettyPrinted;
         return frame;
       });
       return "" + error.message + "\n" + ArrayPrototypeJoin.call(stack, "\n");
-    } catch (e) {};
+    } catch(e) {};
     return error.stack;
   }
 })();

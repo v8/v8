@@ -26,7 +26,8 @@ function instance(bytes, imports = {}) {
 
 // instantiate should succeed but run should fail.
 function instantiateAndFailAtRuntime(bytes, imports = {}) {
-  var instance = new WebAssembly.Instance(module(bytes), imports);
+  var instance =
+      assertDoesNotThrow(new WebAssembly.Instance(module(bytes), imports));
   instance.exports.run();
 }
 
