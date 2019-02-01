@@ -69,6 +69,18 @@ for (var constructor of typedArrayConstructors) {
   assertThrows(() => array.sort(), TypeError);
 }
 
+// Check that TypedArray.p.sort is stable.
+for (let constructor of typedArrayConstructors) {
+  const template = [2, 1, 0, 4, 4, 4, 4, 4, 4, 4, 4];
+
+  const array = new constructor(template);
+  // Treat 0..3, 4..7, etc. as equal.
+  const compare = (a, b) => (a / 4 | 0) - (b / 4 | 0);
+  array.sort(compare);
+
+  assertArrayLikeEquals(array.slice(0, 3), [2, 1, 0], constructor);
+}
+
 // The following creates a test for each typed element kind, where the array
 // to sort consists of some max/min/zero elements.
 //
