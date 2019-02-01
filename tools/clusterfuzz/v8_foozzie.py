@@ -78,6 +78,11 @@ ADDITIONAL_FLAGS = [
   (0.1, '--stress-compaction-random'),
   (0.1, '--random-gc-interval=2000'),
   (0.2, '--noanalyze-environment-liveness'),
+  (0.1, '--stress-delay-tasks'),
+  (0.01, '--thread-pool-size=1'),
+  (0.01, '--thread-pool-size=2'),
+  (0.01, '--thread-pool-size=4'),
+  (0.01, '--thread-pool-size=8'),
 ]
 
 # Timeout in seconds for one d8 run.
