@@ -14531,7 +14531,7 @@ static void AbsHelperX(int64_t value) {
   __ Mov(x1, value);
 
   if (value != kXMinInt) {
-    expected = labs(value);
+    expected = std::abs(value);
 
     Label next;
     // The result is representable.
@@ -14541,7 +14541,7 @@ static void AbsHelperX(int64_t value) {
     __ Bind(&next);
     __ Abs(x13, x1, nullptr, &done);
   } else {
-    // labs is undefined for kXMinInt but our implementation in the
+    // std::abs is undefined for kXMinInt but our implementation in the
     // MacroAssembler will return kXMinInt in such a case.
     expected = kXMinInt;
 
