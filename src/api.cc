@@ -5823,10 +5823,6 @@ bool TryHandleWebAssemblyTrapWindows(EXCEPTION_POINTERS* exception) {
 }
 #endif
 
-bool V8::RegisterDefaultSignalHandler() {
-  return v8::internal::trap_handler::RegisterDefaultTrapHandler();
-}
-
 bool V8::EnableWebAssemblyTrapHandler(bool use_v8_signal_handler) {
   return v8::internal::trap_handler::EnableTrapHandler(use_v8_signal_handler);
 }
