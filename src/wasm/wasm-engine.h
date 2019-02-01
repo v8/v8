@@ -205,7 +205,8 @@ class V8_EXPORT_PRIVATE WasmEngine {
 
   // We use an AsyncCompileJob as the key for itself so that we can delete the
   // job from the map when it is finished.
-  std::unordered_map<AsyncCompileJob*, std::unique_ptr<AsyncCompileJob>> jobs_;
+  std::unordered_map<AsyncCompileJob*, std::unique_ptr<AsyncCompileJob>>
+      async_compile_jobs_;
 
   std::unique_ptr<CompilationStatistics> compilation_stats_;
   std::unique_ptr<CodeTracer> code_tracer_;

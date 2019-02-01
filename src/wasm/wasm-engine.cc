@@ -90,7 +90,7 @@ WasmEngine::~WasmEngine() {
   // Synchronize on all background compile tasks.
   background_compile_task_manager_.CancelAndWait();
   // All AsyncCompileJobs have been canceled.
-  DCHECK(jobs_.empty());
+  DCHECK(async_compile_jobs_.empty());
   // All Isolates have been deregistered.
   DCHECK(isolates_.empty());
   // All NativeModules did die.
@@ -361,26 +361,26 @@ AsyncCompileJob* WasmEngine::CreateAsyncCompileJob(
   AsyncCompileJob* job =
       new AsyncCompileJob(isolate, enabled, std::move(bytes_copy), length,
                           context, std::move(resolver));
-  // Pass ownership to the unique_ptr in {jobs_}.
+  // Pass ownership to the unique_ptr in {async_compile_jobs_}.
   base::MutexGuard guard(&mutex_);
-  jobs_[job] = std::unique_ptr<AsyncCompileJob>(job);
+  async_compile_jobs_[job] = std::unique_ptr<AsyncCompileJob>(job);
   return job;
 }
 
 std::unique_ptr<AsyncCompileJob> WasmEngine::RemoveCompileJob(
     AsyncCompileJob* job) {
   base::MutexGuard guard(&mutex_);
-  auto item = jobs_.find(job);
-  DCHECK(item != jobs_.end());
+  auto item = async_compile_jobs_.find(job);
+  DCHECK(item != async_compile_jobs_.end());
   std::unique_ptr<AsyncCompileJob> result = std::move(item->second);
-  jobs_.erase(item);
+  async_compile_jobs_.erase(item);
   return result;
 }
 
 bool WasmEngine::HasRunningCompileJob(Isolate* isolate) {
   base::MutexGuard guard(&mutex_);
   DCHECK_EQ(1, isolates_.count(isolate));
-  for (auto& entry : jobs_) {
+  for (auto& entry : async_compile_jobs_) {
     if (entry.first->isolate() == isolate) return true;
   }
   return false;
@@ -393,13 +393,14 @@ void WasmEngine::DeleteCompileJobsOnIsolate(Isolate* isolate) {
   {
     base::MutexGuard guard(&mutex_);
     DCHECK_EQ(1, isolates_.count(isolate));
-    for (auto it = jobs_.begin(); it != jobs_.end();) {
+    for (auto it = async_compile_jobs_.begin();
+         it != async_compile_jobs_.end();) {
       if (it->first->isolate() != isolate) {
         ++it;
         continue;
       }
       jobs_to_delete.push_back(std::move(it->second));
-      it = jobs_.erase(it);
+      it = async_compile_jobs_.erase(it);
     }
   }
 }

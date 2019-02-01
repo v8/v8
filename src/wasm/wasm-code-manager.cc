@@ -894,7 +894,7 @@ NativeModule::~NativeModule() {
   TRACE_HEAP("Deleting native module: %p\n", reinterpret_cast<void*>(this));
   // Cancel all background compilation before resetting any field of the
   // NativeModule or freeing anything.
-  compilation_state_->CancelAndWait();
+  compilation_state_->AbortCompilation();
   engine_->FreeNativeModule(this);
 }
 

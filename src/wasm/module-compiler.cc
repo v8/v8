@@ -123,7 +123,7 @@ class CompilationStateImpl {
 
   // Cancel all background compilation and wait for all tasks to finish. Call
   // this before destructing this object.
-  void CancelAndWait();
+  void AbortCompilation();
 
   // Set the number of compilations unit expected to be executed. Needs to be
   // set before {AddCompilationUnits} is run, which triggers background
@@ -139,9 +139,6 @@ class CompilationStateImpl {
       std::vector<std::unique_ptr<WasmCompilationUnit>>& baseline_units,
       std::vector<std::unique_ptr<WasmCompilationUnit>>& tiering_units);
   std::unique_ptr<WasmCompilationUnit> GetNextCompilationUnit();
-  std::unique_ptr<WasmCompilationUnit> GetNextExecutedUnit();
-
-  bool HasCompilationUnitToFinish();
 
   void OnFinishedUnit(ExecutionTier, WasmCode*);
 
@@ -150,10 +147,6 @@ class CompilationStateImpl {
   void PublishDetectedFeatures(Isolate* isolate, const WasmFeatures& detected);
   void RestartBackgroundCompileTask();
   void RestartBackgroundTasks(size_t max = std::numeric_limits<size_t>::max());
-  // Only one foreground thread (finisher) is allowed to run at a time.
-  // {SetFinisherIsRunning} returns whether the flag changed its state.
-  bool SetFinisherIsRunning(bool value);
-  void ScheduleFinisherTask();
 
   void Abort();
 
@@ -218,11 +211,6 @@ class CompilationStateImpl {
 
   void NotifyOnEvent(CompilationEvent event);
 
-  std::vector<std::unique_ptr<WasmCompilationUnit>>& finish_units() {
-    return baseline_compilation_finished() ? tiering_finish_units_
-                                           : baseline_finish_units_;
-  }
-
   // TODO(mstarzinger): Get rid of the Isolate field to make sure the
   // {CompilationStateImpl} can be shared across multiple Isolates.
   Isolate* const isolate_;
@@ -251,11 +239,7 @@ class CompilationStateImpl {
   std::vector<std::unique_ptr<WasmCompilationUnit>> baseline_compilation_units_;
   std::vector<std::unique_ptr<WasmCompilationUnit>> tiering_compilation_units_;
 
-  bool finisher_is_running_ = false;
   size_t num_background_tasks_ = 0;
-
-  std::vector<std::unique_ptr<WasmCompilationUnit>> baseline_finish_units_;
-  std::vector<std::unique_ptr<WasmCompilationUnit>> tiering_finish_units_;
 
   // Features detected to be used in this module. Features can be detected
   // as a module is being compiled.
@@ -306,7 +290,7 @@ void UpdateFeatureUseCounts(Isolate* isolate, const WasmFeatures& detected) {
 
 CompilationState::~CompilationState() { Impl(this)->~CompilationStateImpl(); }
 
-void CompilationState::CancelAndWait() { Impl(this)->CancelAndWait(); }
+void CompilationState::AbortCompilation() { Impl(this)->AbortCompilation(); }
 
 void CompilationState::SetError(uint32_t func_index, const WasmError& error) {
   Impl(this)->SetError(func_index, error);
@@ -482,9 +466,7 @@ double MonotonicallyIncreasingTimeInMs() {
 }
 
 // Run by each compilation task and by the main thread (i.e. in both
-// foreground and background threads). The no_finisher_callback is called
-// within the result_mutex_ lock when no finishing task is running, i.e. when
-// the finisher_is_running_ flag is not set.
+// foreground and background threads).
 bool FetchAndExecuteCompilationUnit(CompilationEnv* env,
                                     NativeModule* native_module,
                                     CompilationStateImpl* compilation_state,
@@ -518,15 +500,6 @@ void InitializeCompilationUnits(NativeModule* native_module,
   builder.Commit();
 }
 
-void FinishCompilationUnits(CompilationStateImpl* compilation_state) {
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"), "FinishCompilationUnits");
-  while (!compilation_state->failed()) {
-    std::unique_ptr<WasmCompilationUnit> unit =
-        compilation_state->GetNextExecutedUnit();
-    if (unit == nullptr) break;
-  }
-}
-
 void CompileInParallel(Isolate* isolate, NativeModule* native_module) {
   // Data structures for the parallel compilation.
 
@@ -539,12 +512,6 @@ void CompileInParallel(Isolate* isolate, NativeModule* native_module) {
   //    the background threads.
   // 2) The background threads and the main thread pick one compilation unit at
   //    a time and execute the parallel phase of the compilation unit.
-  // 3) After the parallel phase of all compilation units has started, the
-  //    main thread continues to finish all compilation units as long as
-  //    baseline-compilation units are left to be processed.
-  // 4) If tier-up is enabled, the main thread restarts background tasks
-  //    that take care of compiling and finishing the top-tier compilation
-  //    units.
 
   // Turn on the {CanonicalHandleScope} so that the background threads can
   // use the node cache.
@@ -552,10 +519,6 @@ void CompileInParallel(Isolate* isolate, NativeModule* native_module) {
 
   CompilationStateImpl* compilation_state =
       Impl(native_module->compilation_state());
-  // Make sure that no foreground task is spawned for finishing
-  // the compilation units. This foreground thread will be
-  // responsible for finishing compilation.
-  compilation_state->SetFinisherIsRunning(true);
   uint32_t num_wasm_functions =
       native_module->num_functions() - native_module->num_imported_functions();
   compilation_state->SetNumberOfFunctionsToCompile(num_wasm_functions);
@@ -571,38 +534,19 @@ void CompileInParallel(Isolate* isolate, NativeModule* native_module) {
   //    a time and execute the parallel phase of the compilation unit.
   WasmFeatures detected_features;
   CompilationEnv env = native_module->CreateCompilationEnv();
-  while (FetchAndExecuteCompilationUnit(&env, native_module, compilation_state,
-                                        &detected_features,
-                                        isolate->counters()) &&
+  // TODO(wasm): This might already execute TurboFan units on the main thread,
+  // while waiting for baseline compilation to finish. This can introduce
+  // additional delay.
+  // TODO(wasm): This is a busy-wait loop once all units have started executing
+  // in background threads. Replace by a semaphore / barrier.
+  while (!compilation_state->failed() &&
          !compilation_state->baseline_compilation_finished()) {
-    // TODO(clemensh): Refactor ownership of the AsyncCompileJob and remove
-    // this.
-    FinishCompilationUnits(compilation_state);
-
-    if (compilation_state->failed()) break;
-  }
-
-  while (!compilation_state->failed()) {
-    // 3) After the parallel phase of all compilation units has started, the
-    //    main thread continues to finish compilation units as long as
-    //    baseline compilation units are left to be processed. If compilation
-    //    already failed, all background tasks have already been canceled
-    //    in {FinishCompilationUnits}, and there are no units to finish.
-    FinishCompilationUnits(compilation_state);
-
-    if (compilation_state->baseline_compilation_finished()) break;
+    FetchAndExecuteCompilationUnit(&env, native_module, compilation_state,
+                                   &detected_features, isolate->counters());
   }
 
   // Publish features from the foreground and background tasks.
   compilation_state->PublishDetectedFeatures(isolate, detected_features);
-
-  // 4) If tiering-compilation is enabled, we need to set the finisher
-  //    to false, such that the background threads will spawn a foreground
-  //    thread to finish the top-tier compilation units.
-  if (!compilation_state->failed() &&
-      compilation_state->compile_mode() == CompileMode::kTiering) {
-    compilation_state->SetFinisherIsRunning(false);
-  }
 }
 
 void CompileSequentially(Isolate* isolate, NativeModule* native_module,
@@ -702,62 +646,6 @@ void CompileNativeModule(Isolate* isolate, ErrorThrower* thrower,
     }
   }
 }
-
-// The runnable task that finishes compilation in foreground (e.g. updating
-// the NativeModule, the code table, etc.).
-class FinishCompileTask : public CancelableTask {
- public:
-  explicit FinishCompileTask(CompilationStateImpl* compilation_state,
-                             CancelableTaskManager* task_manager)
-      : CancelableTask(task_manager), compilation_state_(compilation_state) {}
-
-  void RunInternal() override {
-    Isolate* isolate = compilation_state_->isolate();
-    HandleScope scope(isolate);
-    SaveContext saved_context(isolate);
-    isolate->set_context(Context());
-
-    TRACE_COMPILE("(4a) Finishing compilation units...\n");
-    if (compilation_state_->failed()) {
-      compilation_state_->SetFinisherIsRunning(false);
-      return;
-    }
-
-    // We execute for 1 ms and then reschedule the task, same as the GC.
-    double deadline = MonotonicallyIncreasingTimeInMs() + 1.0;
-    while (true) {
-      compilation_state_->RestartBackgroundTasks();
-
-      std::unique_ptr<WasmCompilationUnit> unit =
-          compilation_state_->GetNextExecutedUnit();
-
-      if (unit == nullptr) {
-        // It might happen that a background task just scheduled a unit to be
-        // finished, but did not start a finisher task since the flag was still
-        // set. Check for this case, and continue if there is more work.
-        compilation_state_->SetFinisherIsRunning(false);
-        if (compilation_state_->HasCompilationUnitToFinish() &&
-            compilation_state_->SetFinisherIsRunning(true)) {
-          continue;
-        }
-        break;
-      }
-
-      if (compilation_state_->failed()) break;
-
-      if (deadline < MonotonicallyIncreasingTimeInMs()) {
-        // We reached the deadline. We reschedule this task and return
-        // immediately. Since we rescheduled this task already, we do not set
-        // the FinisherIsRunning flag to false.
-        compilation_state_->ScheduleFinisherTask();
-        return;
-      }
-    }
-  }
-
- private:
-  CompilationStateImpl* compilation_state_;
-};
 
 // The runnable task that performs compilations in the background.
 class BackgroundCompileTask : public CancelableTask {
@@ -1611,7 +1499,7 @@ CompilationStateImpl::~CompilationStateImpl() {
   if (error != nullptr) delete error;
 }
 
-void CompilationStateImpl::CancelAndWait() {
+void CompilationStateImpl::AbortCompilation() {
   Abort();
   foreground_task_manager_.CancelAndWait();
 }
@@ -1674,25 +1562,9 @@ CompilationStateImpl::GetNextCompilationUnit() {
   return std::unique_ptr<WasmCompilationUnit>();
 }
 
-std::unique_ptr<WasmCompilationUnit>
-CompilationStateImpl::GetNextExecutedUnit() {
-  std::vector<std::unique_ptr<WasmCompilationUnit>>& units = finish_units();
-  base::MutexGuard guard(&mutex_);
-  if (units.empty()) return {};
-  std::unique_ptr<WasmCompilationUnit> ret = std::move(units.back());
-  units.pop_back();
-  return ret;
-}
-
-bool CompilationStateImpl::HasCompilationUnitToFinish() {
-  return !finish_units().empty();
-}
-
 void CompilationStateImpl::OnFinishedUnit(ExecutionTier tier, WasmCode* code) {
   // This mutex guarantees that events happen in the right order.
   base::MutexGuard guard(&mutex_);
-
-  if (failed()) return;
 
   // If we are *not* compiling in tiering mode, then all units are counted as
   // baseline units.
@@ -1794,18 +1666,6 @@ void CompilationStateImpl::RestartBackgroundTasks(size_t max) {
   for (; num_restart > 0; --num_restart) {
     RestartBackgroundCompileTask();
   }
-}
-
-bool CompilationStateImpl::SetFinisherIsRunning(bool value) {
-  base::MutexGuard guard(&mutex_);
-  if (finisher_is_running_ == value) return false;
-  finisher_is_running_ = value;
-  return true;
-}
-
-void CompilationStateImpl::ScheduleFinisherTask() {
-  foreground_task_runner_->PostTask(
-      base::make_unique<FinishCompileTask>(this, &foreground_task_manager_));
 }
 
 void CompilationStateImpl::Abort() {

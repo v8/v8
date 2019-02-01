@@ -102,7 +102,7 @@ class CompilationState {
 
   ~CompilationState();
 
-  void CancelAndWait();
+  void AbortCompilation();
 
   void SetError(uint32_t func_index, const WasmError& error);
 

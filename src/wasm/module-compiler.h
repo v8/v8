@@ -99,6 +99,7 @@ class AsyncCompileJob {
   // function should finish the asynchronous compilation, see the comment on
   // {outstanding_finishers_}.
   V8_WARN_UNUSED_RESULT bool DecrementAndCheckFinisherCount() {
+    DCHECK_LT(0, outstanding_finishers_.load());
     return outstanding_finishers_.fetch_sub(1) == 1;
   }
 
