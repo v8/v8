@@ -18,11 +18,11 @@
 #include "src/frames.h"
 #include "src/globals.h"
 #include "src/heap/factory.h"
+#include "src/isolate.h"
 #include "src/objects/debug-objects.h"
 #include "src/runtime/runtime.h"
 #include "src/source-position-table.h"
 #include "src/string-stream.h"
-#include "src/v8threads.h"
 
 namespace v8 {
 namespace internal {

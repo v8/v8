@@ -9,6 +9,7 @@
 #include "src/heap/heap-inl.h"
 #include "src/snapshot/read-only-deserializer.h"
 #include "src/snapshot/snapshot.h"
+#include "src/v8threads.h"
 
 namespace v8 {
 namespace internal {

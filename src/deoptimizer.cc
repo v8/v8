@@ -23,6 +23,7 @@
 #include "src/register-configuration.h"
 #include "src/tracing/trace-event.h"
 #include "src/v8.h"
+#include "src/v8threads.h"
 
 // Has to be the last include (doesn't have include guards)
 #include "src/objects/object-macros.h"

@@ -66,6 +66,7 @@
 #include "src/trap-handler/trap-handler.h"
 #include "src/unicode-cache.h"
 #include "src/v8.h"
+#include "src/v8threads.h"
 #include "src/version.h"
 #include "src/visitors.h"
 #include "src/vm-state-inl.h"

@@ -35,6 +35,7 @@
 #include "src/objects/slots.h"
 #include "src/snapshot/natives.h"
 #include "src/snapshot/snapshot.h"
+#include "src/v8threads.h"
 #include "src/wasm/wasm-objects-inl.h"
 
 namespace v8 {

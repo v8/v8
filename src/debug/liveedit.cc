@@ -22,6 +22,7 @@
 #include "src/parsing/parsing.h"
 #include "src/source-position-table.h"
 #include "src/v8.h"
+#include "src/v8threads.h"
 
 namespace v8 {
 namespace internal {

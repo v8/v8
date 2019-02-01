@@ -65,6 +65,7 @@
 #include "src/utils-inl.h"
 #include "src/utils.h"
 #include "src/v8.h"
+#include "src/v8threads.h"
 #include "src/vm-state-inl.h"
 
 // Has to be the last include (doesn't have include guards):
