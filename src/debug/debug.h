@@ -7,27 +7,20 @@
 
 #include <vector>
 
-#include "src/allocation.h"
-#include "src/base/atomicops.h"
-#include "src/base/hashmap.h"
-#include "src/base/platform/platform.h"
 #include "src/debug/debug-interface.h"
 #include "src/debug/interface-types.h"
-#include "src/execution.h"
-#include "src/flags.h"
 #include "src/frames.h"
 #include "src/globals.h"
-#include "src/heap/factory.h"
+#include "src/handles.h"
 #include "src/isolate.h"
 #include "src/objects/debug-objects.h"
-#include "src/runtime/runtime.h"
 #include "src/source-position-table.h"
-#include "src/string-stream.h"
 
 namespace v8 {
 namespace internal {
 
 // Forward declarations.
+class AbstractCode;
 class DebugScope;
 class JSGeneratorObject;
 

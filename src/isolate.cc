@@ -62,6 +62,7 @@
 #include "src/snapshot/embedded-data.h"
 #include "src/snapshot/embedded-file-writer.h"
 #include "src/snapshot/startup-deserializer.h"
+#include "src/string-stream.h"
 #include "src/tracing/tracing-category-observer.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/unicode-cache.h"

@@ -59,6 +59,7 @@
 #include "src/snapshot/natives.h"
 #include "src/snapshot/serializer-common.h"
 #include "src/snapshot/snapshot.h"
+#include "src/string-stream.h"
 #include "src/tracing/trace-event.h"
 #include "src/unicode-decoder.h"
 #include "src/unicode-inl.h"
