@@ -136,8 +136,8 @@ namespace array_map {
         // We need to allocate and copy.
         // First, initialize the elements field before allocation to prevent
         // heap corruption.
-        const elements: FixedDoubleArray =
-            AllocateFixedDoubleArrayWithHoles(SmiUntag(length), kNone);
+        const elements: FixedDoubleArray = AllocateFixedDoubleArrayWithHoles(
+            SmiUntag(length), kAllowLargeObjectAllocation);
         a = new JSArray{map, this.fixedArray};
         for (let i: Smi = 0; i < validLength; i++) {
           typeswitch (this.fixedArray[i]) {
