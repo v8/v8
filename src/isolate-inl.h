@@ -9,7 +9,10 @@
 #include "src/isolate.h"
 #include "src/objects-inl.h"
 #include "src/objects/cell-inl.h"
+#include "src/objects/oddball.h"
+#include "src/objects/property-cell.h"
 #include "src/objects/regexp-match-info.h"
+#include "src/objects/shared-function-info.h"
 
 namespace v8 {
 namespace internal {

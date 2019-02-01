@@ -14,6 +14,7 @@
 #include "src/objects/descriptor-array.h"
 #include "src/objects/literal-objects.h"
 #include "src/objects/map.h"
+#include "src/objects/property-cell.h"
 #include "src/objects/scope-info.h"
 #include "src/objects/slots.h"
 
