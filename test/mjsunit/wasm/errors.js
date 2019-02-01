@@ -4,8 +4,6 @@
 
 // Flags: --expose-wasm --allow-natives-syntax
 
-'use strict';
-
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
 function module(bytes) {
@@ -36,6 +34,7 @@ function builder() {
 }
 
 function assertCompileError(bytes, msg) {
+  if (typeof msg === 'string') msg = 'WebAssembly.Module(): ' + msg;
   assertThrows(() => module(bytes), WebAssembly.CompileError, msg);
 }
 
@@ -49,18 +48,13 @@ function assertLinkError(bytes, imports, msg) {
   assertThrows(() => instance(bytes, imports), WebAssembly.LinkError, msg);
 }
 
-function assertRuntimeError(bytes, imports, msg) {
-  assertThrows(
-      () => instantiateAndFailAtRuntime(bytes, imports),
-      WebAssembly.RuntimeError, msg);
-}
-
 function assertConversionError(bytes, imports, msg) {
   assertThrows(
       () => instantiateAndFailAtRuntime(bytes, imports), TypeError, msg);
 }
 
 (function TestDecodingError() {
+  print(arguments.callee.name);
   assertCompileError("", /is empty/);
   assertCompileError("X", /expected 4 bytes, fell off end @\+0/);
   assertCompileError(
@@ -68,14 +62,16 @@ function assertConversionError(bytes, imports, msg) {
 })();
 
 (function TestValidationError() {
+  print(arguments.callee.name);
   assertCompileError(
-      builder().addFunction("f", kSig_i_v).end().toBuffer(),
-      /function body must end with "end" opcode @/);
+      builder().addFunction('f', kSig_i_v).end().toBuffer(),
+      'Compiling wasm function "f" failed: ' +
+          'function body must end with "end" opcode @+24');
   assertCompileError(
       builder().addFunction('f', kSig_i_v).addBody([kExprReturn])
           .end().toBuffer(),
       /expected 1 elements on the stack for return, found 0 @/);
-  assertCompileError(builder().addFunction("f", kSig_v_v).addBody([
+  assertCompileError(builder().addFunction('f', kSig_v_v).addBody([
     kExprGetLocal, 0
   ]).end().toBuffer(), /invalid local index: 0 @/);
   assertCompileError(
@@ -83,6 +79,7 @@ function assertConversionError(bytes, imports, msg) {
 })();
 
 (function TestTypeError() {
+  print(arguments.callee.name);
   let b;
   b = builder();
   b.addImport("foo", "bar", kSig_v_v);
@@ -98,6 +95,7 @@ function assertConversionError(bytes, imports, msg) {
 })();
 
 (function TestLinkingError() {
+  print(arguments.callee.name);
   let b;
 
   b = builder();
@@ -131,34 +129,33 @@ function assertConversionError(bytes, imports, msg) {
   assertLinkError(
       b.toBuffer(), {foo: {bar: () => new WebAssembly.Memory({initial: 0})}},
       /memory import must be a WebAssembly\.Memory object/);
-
-  b = builder();
-  b.addFunction("startup", kSig_v_v).addBody([
-    kExprUnreachable,
-  ]).end().addStart(0);
-  assertRuntimeError(b.toBuffer(), {}, "unreachable");
 })();
 
-(function TestTrapError() {
-  assertRuntimeError(builder().addFunction("run", kSig_v_v).addBody([
-    kExprUnreachable
-  ]).exportFunc().end().toBuffer(), {}, "unreachable");
+(function TestTrapUnreachable() {
+  print(arguments.callee.name);
+  let instance = builder().addFunction('run', kSig_v_v)
+    .addBody([kExprUnreachable]).exportFunc().end().instantiate();
+  assertTraps(kTrapUnreachable, instance.exports.run);
+})();
 
-  assertRuntimeError(builder().addFunction("run", kSig_v_v).addBody([
-    kExprI32Const, 1,
-    kExprI32Const, 0,
-    kExprI32DivS,
-    kExprDrop
-  ]).exportFunc().end().toBuffer(), {}, "divide by zero");
+(function TestTrapDivByZero() {
+  print(arguments.callee.name);
+  let instance = builder().addFunction('run', kSig_v_v).addBody(
+     [kExprI32Const, 1, kExprI32Const, 0, kExprI32DivS, kExprDrop])
+    .exportFunc().end().instantiate();
+  assertTraps(kTrapDivByZero, instance.exports.run);
+})();
 
-  assertRuntimeError(builder().
-      addFunction("run", kSig_v_v).addBody([]).exportFunc().end().
-      addFunction("start", kSig_v_v).addBody([kExprUnreachable]).end().
-      addStart(1).toBuffer(),
-    {}, "unreachable");
+(function TestUnreachableInStart() {
+  print(arguments.callee.name);
+
+  let b = builder().addFunction("start", kSig_v_v).addBody(
+     [kExprUnreachable]).end().addStart(0);
+  assertTraps(kTrapUnreachable, () => b.instantiate());
 })();
 
 (function TestConversionError() {
+  print(arguments.callee.name);
   let b = builder();
   b.addImport('foo', 'bar', kSig_v_l);
   let buffer = b.addFunction('run', kSig_v_v)
@@ -180,6 +177,7 @@ function assertConversionError(bytes, imports, msg) {
 
 
 (function InternalDebugTrace() {
+  print(arguments.callee.name);
   var builder = new WasmModuleBuilder();
   var sig = builder.addType(kSig_i_dd);
   builder.addImport("mod", "func", sig);

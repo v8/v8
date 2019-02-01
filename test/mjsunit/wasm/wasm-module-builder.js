@@ -484,19 +484,7 @@ let kTrapMsgs = [
 ];
 
 function assertTraps(trap, code) {
-  try {
-    if (typeof code === 'function') {
-      code();
-    } else {
-      eval(code);
-    }
-  } catch (e) {
-    assertEquals('object', typeof e);
-    assertEquals(kTrapMsgs[trap], e.message);
-    // Success.
-    return;
-  }
-  throw new MjsUnitAssertionError('Did not trap, expected: ' + kTrapMsgs[trap]);
+  assertThrows(code, WebAssembly.RuntimeError, kTrapMsgs[trap]);
 }
 
 class Binary extends Array {

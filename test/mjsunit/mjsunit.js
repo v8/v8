@@ -584,13 +584,15 @@ var prettyPrinted;
   }
 
   assertPromiseResult = function(promise, success, fail) {
+    if (success !== undefined) assertEquals('function', typeof success);
+    if (fail !== undefined) assertEquals('function', typeof fail);
     const stack = (new Error()).stack;
 
     var test_promise = promise.then(
         result => {
           try {
             if (--promiseTestCount == 0) testRunner.notifyDone();
-            if (success) success(result);
+            if (success !== undefined) success(result);
           } catch (e) {
             // Use setTimeout to throw the error again to get out of the promise
             // chain.
@@ -602,7 +604,7 @@ var prettyPrinted;
         result => {
           try {
             if (--promiseTestCount == 0) testRunner.notifyDone();
-            if (!fail) throw result;
+            if (fail === undefined) throw result;
             fail(result);
           } catch (e) {
             // Use setTimeout to throw the error again to get out of the promise

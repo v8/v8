@@ -122,12 +122,6 @@ class V8_EXPORT_PRIVATE ErrorThrower {
   PRINTF_FORMAT(2, 3) void LinkError(const char* fmt, ...);
   PRINTF_FORMAT(2, 3) void RuntimeError(const char* fmt, ...);
 
-  void CompileFailed(const char* context, const WasmError& error) {
-    DCHECK(error.has_error());
-    CompileError("%s: %s @+%u", context, error.message().c_str(),
-                 error.offset());
-  }
-
   void CompileFailed(const WasmError& error) {
     DCHECK(error.has_error());
     CompileError("%s @+%u", error.message().c_str(), error.offset());

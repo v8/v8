@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-wasm --allow-natives-syntax
-
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
 async function assertCompiles(buffer) {
@@ -11,13 +9,15 @@ async function assertCompiles(buffer) {
   assertInstanceof(module, WebAssembly.Module);
 }
 
-async function assertCompileError(buffer) {
-  try {
-    await WebAssembly.compile(buffer);
-    assertUnreachable();
-  } catch (e) {
+function assertCompileError(buffer, msg) {
+  assertEquals('string', typeof msg);
+  msg = 'WebAssembly.compile(): ' + msg;
+  function checkException(e) {
     if (!(e instanceof WebAssembly.CompileError)) throw e;
+    assertEquals(msg, e.message, 'Error message');
   }
+  return assertPromiseResult(
+      WebAssembly.compile(buffer), assertUnreachable, checkException);
 }
 
 assertPromiseResult(async function basicCompile() {
@@ -49,7 +49,7 @@ assertPromiseResult(async function basicCompile() {
 
   // Three compilations of the bad module should fail.
   for (var i = 0; i < kNumCompiles; i++) {
-    await assertCompileError(bad_buffer);
+    await assertCompileError(bad_buffer, 'BufferSource argument is empty');
   }
 }());
 
@@ -68,7 +68,10 @@ assertPromiseResult(async function badFunctionInTheMiddle() {
     builder.addFunction('b' + i, sig).addBody([kExprI32Const, 42]);
   }
   let buffer = builder.toBuffer();
-  await assertCompileError(buffer);
+  await assertCompileError(
+      buffer,
+      'Compiling wasm function \"bad\" failed: ' +
+          'expected 1 elements on the stack for fallthru to @1, found 0 @+94');
 }());
 
 assertPromiseResult(async function importWithoutCode() {

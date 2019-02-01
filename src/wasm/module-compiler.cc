@@ -1063,10 +1063,9 @@ void AsyncCompileJob::FinishCompile() {
   FinishModule();
 }
 
-void AsyncCompileJob::AsyncCompileFailed(const char* context,
-                                         const WasmError& error) {
-  ErrorThrower thrower(isolate_, "AsyncCompile");
-  thrower.CompileFailed(context, error);
+void AsyncCompileJob::AsyncCompileFailed(const WasmError& error) {
+  ErrorThrower thrower(isolate_, "WebAssembly.compile()");
+  thrower.CompileFailed(error);
   // {job} keeps the {this} pointer alive.
   std::shared_ptr<AsyncCompileJob> job =
       isolate_->wasm_engine()->RemoveCompileJob(this);
@@ -1117,7 +1116,7 @@ class AsyncCompileJob::CompilationStateCallback {
               job->isolate_->set_context(*job->native_context_);
               WasmError error = Impl(job->native_module_->compilation_state())
                                     ->GetCompileError();
-              return job->AsyncCompileFailed("Async compilation failed", error);
+              return job->AsyncCompileFailed(error);
             }));
 
         break;
@@ -1308,7 +1307,7 @@ class AsyncCompileJob::DecodeFail : public CompileStep {
   void RunInForeground(AsyncCompileJob* job) override {
     TRACE_COMPILE("(1b) Decoding failed.\n");
     // {job_} is deleted in AsyncCompileFailed, therefore the {return}.
-    return job->AsyncCompileFailed("Wasm decoding failed", error_);
+    return job->AsyncCompileFailed(error_);
   }
 };
 
