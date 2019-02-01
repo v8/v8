@@ -127,7 +127,7 @@ class NumFuzzer(base_runner.BaseTestRunner):
     return variables
 
   def _do_execute(self, tests, args, options):
-    loader = LoadProc()
+    loader = LoadProc(tests)
     fuzzer_rng = random.Random(options.fuzzer_random_seed)
 
     combiner = self._create_combiner(fuzzer_rng, options)
