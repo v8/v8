@@ -52,7 +52,7 @@ void RunLoadInt32(const TestAlignment t) {
   }
 
   FOR_INT32_INPUTS(i) {
-    p1 = *i;
+    p1 = i;
     CHECK_EQ(p1, m.Call());
   }
 }
@@ -79,7 +79,7 @@ void RunLoadInt32Offset(TestAlignment t) {
     }
 
     FOR_INT32_INPUTS(j) {
-      p1 = *j;
+      p1 = j;
       CHECK_EQ(p1, m.Call());
     }
   }
@@ -91,9 +91,9 @@ void RunLoadStoreFloat32Offset(TestAlignment t) {
 
   FOR_INT32_INPUTS(i) {
     int32_t magic =
-        base::AddWithWraparound(0x2342AABB, base::MulWithWraparound(*i, 3));
+        base::AddWithWraparound(0x2342AABB, base::MulWithWraparound(i, 3));
     RawMachineAssemblerTester<int32_t> m;
-    int32_t offset = *i;
+    int32_t offset = i;
     byte* from = reinterpret_cast<byte*>(&p1) - offset;
     byte* to = reinterpret_cast<byte*>(&p2) - offset;
     // generate load [#base + #index]
@@ -115,8 +115,8 @@ void RunLoadStoreFloat32Offset(TestAlignment t) {
     m.Return(m.Int32Constant(magic));
 
     FOR_FLOAT32_INPUTS(j) {
-      p1 = *j;
-      p2 = *j - 5;
+      p1 = j;
+      p2 = j - 5;
       CHECK_EQ(magic, m.Call());
       CHECK_DOUBLE_EQ(p1, p2);
     }
@@ -129,9 +129,9 @@ void RunLoadStoreFloat64Offset(TestAlignment t) {
 
   FOR_INT32_INPUTS(i) {
     int32_t magic =
-        base::AddWithWraparound(0x2342AABB, base::MulWithWraparound(*i, 3));
+        base::AddWithWraparound(0x2342AABB, base::MulWithWraparound(i, 3));
     RawMachineAssemblerTester<int32_t> m;
-    int32_t offset = *i;
+    int32_t offset = i;
     byte* from = reinterpret_cast<byte*>(&p1) - offset;
     byte* to = reinterpret_cast<byte*>(&p2) - offset;
     // generate load [#base + #index]
@@ -152,8 +152,8 @@ void RunLoadStoreFloat64Offset(TestAlignment t) {
     m.Return(m.Int32Constant(magic));
 
     FOR_FLOAT64_INPUTS(j) {
-      p1 = *j;
-      p2 = *j - 5;
+      p1 = j;
+      p2 = j - 5;
       CHECK_EQ(magic, m.Call());
       CHECK_DOUBLE_EQ(p1, p2);
     }
@@ -458,12 +458,12 @@ void RunLoadStoreSignExtend32(TestAlignment t) {
   m.Return(load8);
 
   FOR_INT32_INPUTS(i) {
-    buffer[0] = *i;
+    buffer[0] = i;
 
-    CHECK_EQ(static_cast<int8_t>(*i & 0xFF), m.Call());
-    CHECK_EQ(static_cast<int8_t>(*i & 0xFF), buffer[1]);
-    CHECK_EQ(static_cast<int16_t>(*i & 0xFFFF), buffer[2]);
-    CHECK_EQ(*i, buffer[3]);
+    CHECK_EQ(static_cast<int8_t>(i & 0xFF), m.Call());
+    CHECK_EQ(static_cast<int8_t>(i & 0xFF), buffer[1]);
+    CHECK_EQ(static_cast<int16_t>(i & 0xFFFF), buffer[2]);
+    CHECK_EQ(i, buffer[3]);
   }
 }
 
@@ -491,12 +491,12 @@ void RunLoadStoreZeroExtend32(TestAlignment t) {
   m.Return(load8);
 
   FOR_UINT32_INPUTS(i) {
-    buffer[0] = *i;
+    buffer[0] = i;
 
-    CHECK_EQ((*i & 0xFF), m.Call());
-    CHECK_EQ((*i & 0xFF), buffer[1]);
-    CHECK_EQ((*i & 0xFFFF), buffer[2]);
-    CHECK_EQ(*i, buffer[3]);
+    CHECK_EQ((i & 0xFF), m.Call());
+    CHECK_EQ((i & 0xFF), buffer[1]);
+    CHECK_EQ((i & 0xFFFF), buffer[2]);
+    CHECK_EQ(i, buffer[3]);
   }
 }
 }  // namespace
@@ -552,13 +552,13 @@ void RunLoadStoreSignExtend64(TestAlignment t) {
   m.Return(load8);
 
   FOR_INT64_INPUTS(i) {
-    buffer[0] = *i;
+    buffer[0] = i;
 
-    CHECK_EQ(static_cast<int8_t>(*i & 0xFF), m.Call());
-    CHECK_EQ(static_cast<int8_t>(*i & 0xFF), buffer[1]);
-    CHECK_EQ(static_cast<int16_t>(*i & 0xFFFF), buffer[2]);
-    CHECK_EQ(static_cast<int32_t>(*i & 0xFFFFFFFF), buffer[3]);
-    CHECK_EQ(*i, buffer[4]);
+    CHECK_EQ(static_cast<int8_t>(i & 0xFF), m.Call());
+    CHECK_EQ(static_cast<int8_t>(i & 0xFF), buffer[1]);
+    CHECK_EQ(static_cast<int16_t>(i & 0xFFFF), buffer[2]);
+    CHECK_EQ(static_cast<int32_t>(i & 0xFFFFFFFF), buffer[3]);
+    CHECK_EQ(i, buffer[4]);
   }
 }
 
@@ -595,13 +595,13 @@ void RunLoadStoreZeroExtend64(TestAlignment t) {
   m.Return(load8);
 
   FOR_UINT64_INPUTS(i) {
-    buffer[0] = *i;
+    buffer[0] = i;
 
-    CHECK_EQ((*i & 0xFF), m.Call());
-    CHECK_EQ((*i & 0xFF), buffer[1]);
-    CHECK_EQ((*i & 0xFFFF), buffer[2]);
-    CHECK_EQ((*i & 0xFFFFFFFF), buffer[3]);
-    CHECK_EQ(*i, buffer[4]);
+    CHECK_EQ((i & 0xFF), m.Call());
+    CHECK_EQ((i & 0xFF), buffer[1]);
+    CHECK_EQ((i & 0xFFFF), buffer[2]);
+    CHECK_EQ((i & 0xFFFFFFFF), buffer[3]);
+    CHECK_EQ(i, buffer[4]);
   }
 }
 

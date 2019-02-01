@@ -258,7 +258,7 @@ TEST(ReduceWord32And) {
 
   FOR_INT32_INPUTS(pl) {
     FOR_INT32_INPUTS(pr) {
-      int32_t x = *pl, y = *pr;
+      int32_t x = pl, y = pr;
       R.CheckFoldBinop<int32_t>(x & y, x, y);
     }
   }
@@ -284,7 +284,7 @@ TEST(ReduceWord32Or) {
 
   FOR_INT32_INPUTS(pl) {
     FOR_INT32_INPUTS(pr) {
-      int32_t x = *pl, y = *pr;
+      int32_t x = pl, y = pr;
       R.CheckFoldBinop<int32_t>(x | y, x, y);
     }
   }
@@ -310,7 +310,7 @@ TEST(ReduceWord32Xor) {
 
   FOR_INT32_INPUTS(pl) {
     FOR_INT32_INPUTS(pr) {
-      int32_t x = *pl, y = *pr;
+      int32_t x = pl, y = pr;
       R.CheckFoldBinop<int32_t>(x ^ y, x, y);
     }
   }
@@ -334,7 +334,7 @@ TEST(ReduceWord32Shl) {
   // TODO(titzer): out of range shifts
   FOR_INT32_INPUTS(i) {
     for (int y = 0; y < 32; y++) {
-      int32_t x = *i;
+      int32_t x = i;
       R.CheckFoldBinop<int32_t>(base::ShlWithWraparound(x, y), x, y);
     }
   }
@@ -353,7 +353,7 @@ TEST(ReduceWord64Shl) {
 
   FOR_INT64_INPUTS(i) {
     for (int64_t y = 0; y < 64; y++) {
-      int64_t x = *i;
+      int64_t x = i;
       R.CheckFoldBinop<int64_t>(base::ShlWithWraparound(x, y), x, y);
     }
   }
@@ -373,7 +373,7 @@ TEST(ReduceWord32Shr) {
   // TODO(titzer): test out of range shifts
   FOR_UINT32_INPUTS(i) {
     for (uint32_t y = 0; y < 32; y++) {
-      uint32_t x = *i;
+      uint32_t x = i;
       R.CheckFoldBinop<int32_t>(x >> y, x, y);
     }
   }
@@ -392,7 +392,7 @@ TEST(ReduceWord64Shr) {
 
   FOR_UINT64_INPUTS(i) {
     for (uint64_t y = 0; y < 64; y++) {
-      uint64_t x = *i;
+      uint64_t x = i;
       R.CheckFoldBinop<int64_t>(x >> y, x, y);
     }
   }
@@ -412,7 +412,7 @@ TEST(ReduceWord32Sar) {
   // TODO(titzer): test out of range shifts
   FOR_INT32_INPUTS(i) {
     for (int32_t y = 0; y < 32; y++) {
-      int32_t x = *i;
+      int32_t x = i;
       R.CheckFoldBinop<int32_t>(x >> y, x, y);
     }
   }
@@ -431,7 +431,7 @@ TEST(ReduceWord64Sar) {
 
   FOR_INT64_INPUTS(i) {
     for (int64_t y = 0; y < 64; y++) {
-      int64_t x = *i;
+      int64_t x = i;
       R.CheckFoldBinop<int64_t>(x >> y, x, y);
     }
   }
@@ -479,7 +479,7 @@ TEST(Word32Equal) {
 
   FOR_INT32_INPUTS(pl) {
     FOR_INT32_INPUTS(pr) {
-      int32_t x = *pl, y = *pr;
+      int32_t x = pl, y = pr;
       R.CheckFoldBinop<int32_t>(x == y ? 1 : 0, x, y);
     }
   }
@@ -504,7 +504,7 @@ TEST(ReduceInt32Add) {
 
   FOR_INT32_INPUTS(pl) {
     FOR_INT32_INPUTS(pr) {
-      int32_t x = *pl, y = *pr;
+      int32_t x = pl, y = pr;
       R.CheckFoldBinop<int32_t>(base::AddWithWraparound(x, y), x, y);
     }
   }
@@ -525,7 +525,7 @@ TEST(ReduceInt64Add) {
 
   FOR_INT64_INPUTS(pl) {
     FOR_INT64_INPUTS(pr) {
-      int64_t x = *pl, y = *pr;
+      int64_t x = pl, y = pr;
       R.CheckFoldBinop<int64_t>(base::AddWithWraparound(x, y), x, y);
     }
   }
@@ -544,7 +544,7 @@ TEST(ReduceInt32Sub) {
 
   FOR_INT32_INPUTS(pl) {
     FOR_INT32_INPUTS(pr) {
-      int32_t x = *pl, y = *pr;
+      int32_t x = pl, y = pr;
       R.CheckFoldBinop<int32_t>(base::SubWithWraparound(x, y), x, y);
     }
   }
@@ -563,7 +563,7 @@ TEST(ReduceInt64Sub) {
 
   FOR_INT64_INPUTS(pl) {
     FOR_INT64_INPUTS(pr) {
-      int64_t x = *pl, y = *pr;
+      int64_t x = pl, y = pr;
       R.CheckFoldBinop<int64_t>(base::SubWithWraparound(x, y), x, y);
     }
   }
@@ -588,7 +588,7 @@ TEST(ReduceInt32Mul) {
 
   FOR_INT32_INPUTS(pl) {
     FOR_INT32_INPUTS(pr) {
-      int32_t x = *pl, y = *pr;
+      int32_t x = pl, y = pr;
       R.CheckFoldBinop<int32_t>(base::MulWithWraparound(x, y), x, y);
     }
   }
@@ -626,7 +626,7 @@ TEST(ReduceInt32Div) {
 
   FOR_INT32_INPUTS(pl) {
     FOR_INT32_INPUTS(pr) {
-      int32_t x = *pl, y = *pr;
+      int32_t x = pl, y = pr;
       if (y == 0) continue;              // TODO(titzer): test / 0
       int32_t r = y == -1 ? base::NegateWithWraparound(x)
                           : x / y;  // INT_MIN / -1 may explode in C
@@ -655,7 +655,7 @@ TEST(ReduceUint32Div) {
 
   FOR_UINT32_INPUTS(pl) {
     FOR_UINT32_INPUTS(pr) {
-      uint32_t x = *pl, y = *pr;
+      uint32_t x = pl, y = pr;
       if (y == 0) continue;  // TODO(titzer): test / 0
       R.CheckFoldBinop<int32_t>(x / y, x, y);
     }
@@ -684,7 +684,7 @@ TEST(ReduceInt32Mod) {
 
   FOR_INT32_INPUTS(pl) {
     FOR_INT32_INPUTS(pr) {
-      int32_t x = *pl, y = *pr;
+      int32_t x = pl, y = pr;
       if (y == 0) continue;             // TODO(titzer): test % 0
       int32_t r = y == -1 ? 0 : x % y;  // INT_MIN % -1 may explode in C
       R.CheckFoldBinop<int32_t>(r, x, y);
@@ -708,7 +708,7 @@ TEST(ReduceUint32Mod) {
 
   FOR_INT32_INPUTS(pl) {
     FOR_INT32_INPUTS(pr) {
-      uint32_t x = *pl, y = *pr;
+      uint32_t x = pl, y = pr;
       if (y == 0) continue;  // TODO(titzer): test x % 0
       R.CheckFoldBinop<int32_t>(x % y, x, y);
     }
@@ -736,7 +736,7 @@ TEST(ReduceInt32LessThan) {
 
   FOR_INT32_INPUTS(pl) {
     FOR_INT32_INPUTS(pr) {
-      int32_t x = *pl, y = *pr;
+      int32_t x = pl, y = pr;
       R.CheckFoldBinop<int32_t>(x < y ? 1 : 0, x, y);
     }
   }
@@ -756,12 +756,12 @@ TEST(ReduceInt32LessThanOrEqual) {
 
   FOR_INT32_INPUTS(pl) {
     FOR_INT32_INPUTS(pr) {
-      int32_t x = *pl, y = *pr;
+      int32_t x = pl, y = pr;
       R.CheckFoldBinop<int32_t>(x <= y ? 1 : 0, x, y);
     }
   }
 
-  FOR_INT32_INPUTS(i) { R.CheckDontPutConstantOnRight<int32_t>(*i); }
+  FOR_INT32_INPUTS(i) { R.CheckDontPutConstantOnRight<int32_t>(i); }
 
   Node* x = R.Parameter(0);
 
@@ -775,7 +775,7 @@ TEST(ReduceUint32LessThan) {
 
   FOR_UINT32_INPUTS(pl) {
     FOR_UINT32_INPUTS(pr) {
-      uint32_t x = *pl, y = *pr;
+      uint32_t x = pl, y = pr;
       R.CheckFoldBinop<int32_t>(x < y ? 1 : 0, x, y);
     }
   }
@@ -799,7 +799,7 @@ TEST(ReduceUint32LessThanOrEqual) {
 
   FOR_UINT32_INPUTS(pl) {
     FOR_UINT32_INPUTS(pr) {
-      uint32_t x = *pl, y = *pr;
+      uint32_t x = pl, y = pr;
       R.CheckFoldBinop<int32_t>(x <= y ? 1 : 0, x, y);
     }
   }
@@ -848,7 +848,7 @@ TEST(ReduceFloat32Sub) {
 
   FOR_FLOAT32_INPUTS(pl) {
     FOR_FLOAT32_INPUTS(pr) {
-      float x = *pl, y = *pr;
+      float x = pl, y = pr;
       R.CheckFoldBinop<float>(x - y, x, y);
     }
   }
@@ -868,7 +868,7 @@ TEST(ReduceFloat64Sub) {
 
   FOR_FLOAT64_INPUTS(pl) {
     FOR_FLOAT64_INPUTS(pr) {
-      double x = *pl, y = *pr;
+      double x = pl, y = pr;
       R.CheckFoldBinop<double>(x - y, x, y);
     }
   }

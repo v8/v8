@@ -4094,18 +4094,18 @@ namespace {
 std::vector<Float32> Float32Inputs() {
   std::vector<Float32> inputs;
   FOR_FLOAT32_INPUTS(f) {
-    inputs.push_back(Float32::FromBits(bit_cast<uint32_t>(*f)));
+    inputs.push_back(Float32::FromBits(bit_cast<uint32_t>(f)));
   }
-  FOR_UINT32_INPUTS(bits) { inputs.push_back(Float32::FromBits(*bits)); }
+  FOR_UINT32_INPUTS(bits) { inputs.push_back(Float32::FromBits(bits)); }
   return inputs;
 }
 
 std::vector<Float64> Float64Inputs() {
   std::vector<Float64> inputs;
   FOR_FLOAT64_INPUTS(f) {
-    inputs.push_back(Float64::FromBits(bit_cast<uint64_t>(*f)));
+    inputs.push_back(Float64::FromBits(bit_cast<uint64_t>(f)));
   }
-  FOR_UINT64_INPUTS(bits) { inputs.push_back(Float64::FromBits(*bits)); }
+  FOR_UINT64_INPUTS(bits) { inputs.push_back(Float64::FromBits(bits)); }
   return inputs;
 }
 

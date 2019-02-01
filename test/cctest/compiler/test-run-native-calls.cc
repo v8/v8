@@ -542,9 +542,9 @@ static void TestInt32Sub(CallDescriptor* desc) {
 
   FOR_INT32_INPUTS(i) {
     FOR_INT32_INPUTS(j) {
-      int32_t expected = static_cast<int32_t>(static_cast<uint32_t>(*i) -
-                                              static_cast<uint32_t>(*j));
-      int32_t result = runnable.Call(*i, *j);
+      int32_t expected = static_cast<int32_t>(static_cast<uint32_t>(i) -
+                                              static_cast<uint32_t>(j));
+      int32_t result = runnable.Call(i, j);
       CHECK_EQ(expected, result);
     }
   }
