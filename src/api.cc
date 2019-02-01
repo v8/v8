@@ -6233,14 +6233,6 @@ MaybeLocal<v8::Object> ObjectTemplate::NewInstance(Local<Context> context) {
   RETURN_ESCAPED(result);
 }
 
-
-Local<v8::Object> ObjectTemplate::NewInstance() {
-  Local<Context> context =
-      reinterpret_cast<v8::Isolate*>(Utils::OpenHandle(this)->GetIsolate())
-          ->GetCurrentContext();
-  RETURN_TO_LOCAL_UNCHECKED(NewInstance(context), Object);
-}
-
 void v8::ObjectTemplate::CheckCast(Data* that) {
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
   Utils::ApiCheck(obj->IsObjectTemplateInfo(), "v8::ObjectTemplate::Cast",
