@@ -7,6 +7,7 @@
 
 #include "src/objects/shared-function-info.h"
 
+#include "src/ast/ast.h"
 #include "src/feedback-vector-inl.h"
 #include "src/handles-inl.h"
 #include "src/heap/heap-inl.h"
@@ -659,6 +660,10 @@ void UncompiledDataWithPreparseData::Initialize(
   gc_notify_updated_slot(
       data, data->RawField(UncompiledDataWithPreparseData::kPreparseDataOffset),
       scope_data);
+}
+
+bool UncompiledData::has_function_literal_id() {
+  return function_literal_id() != FunctionLiteral::kIdTypeInvalid;
 }
 
 bool SharedFunctionInfo::HasWasmExportedFunctionData() const {

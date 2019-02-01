@@ -5348,7 +5348,7 @@ int SharedFunctionInfo::EndPosition() const {
 int SharedFunctionInfo::FunctionLiteralId(Isolate* isolate) const {
   // Fast path for the common case when the SFI is uncompiled and so the
   // function literal id is already in the uncompiled data.
-  if (HasUncompiledData()) {
+  if (HasUncompiledData() && uncompiled_data()->has_function_literal_id()) {
     int id = uncompiled_data()->function_literal_id();
     // Make sure the id is what we should have found with the slow path.
     DCHECK_EQ(id, FindIndexInScript(isolate));
@@ -5356,7 +5356,7 @@ int SharedFunctionInfo::FunctionLiteralId(Isolate* isolate) const {
   }
 
   // Otherwise, search for the function in the SFI's script's function list,
-  // and return its index in that list.e
+  // and return its index in that list.
   return FindIndexInScript(isolate);
 }
 

@@ -1999,7 +1999,6 @@ void MarkCompactCollector::FlushBytecodeFromSFI(
   String inferred_name = shared_info->inferred_name();
   int start_position = shared_info->StartPosition();
   int end_position = shared_info->EndPosition();
-  int function_literal_id = shared_info->FunctionLiteralId(isolate());
 
   shared_info->DiscardCompiledMetadata(
       isolate(), [](HeapObject object, ObjectSlot slot, HeapObject target) {
@@ -2043,7 +2042,7 @@ void MarkCompactCollector::FlushBytecodeFromSFI(
   UncompiledData uncompiled_data = UncompiledData::cast(compiled_data);
   UncompiledData::Initialize(
       uncompiled_data, inferred_name, start_position, end_position,
-      function_literal_id,
+      FunctionLiteral::kIdTypeInvalid,
       [](HeapObject object, ObjectSlot slot, HeapObject target) {
         RecordSlot(object, slot, target);
       });

@@ -103,6 +103,9 @@ class UncompiledData : public HeapObject {
   DECL_INT32_ACCESSORS(end_position)
   DECL_INT32_ACCESSORS(function_literal_id)
 
+  // Returns true if the UncompiledData contains a valid function_literal_id.
+  inline bool has_function_literal_id();
+
   DECL_CAST(UncompiledData)
 
   inline static void Initialize(
