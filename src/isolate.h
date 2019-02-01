@@ -1384,7 +1384,7 @@ class Isolate final : private HiddenFactory {
                                    size_t heap_limit);
   void AddCallCompletedCallback(CallCompletedCallback callback);
   void RemoveCallCompletedCallback(CallCompletedCallback callback);
-  void FireCallCompletedCallback();
+  void FireCallCompletedCallback(MicrotaskQueue* microtask_queue);
 
   void AddBeforeCallEnteredCallback(BeforeCallEnteredCallback callback);
   void RemoveBeforeCallEnteredCallback(BeforeCallEnteredCallback callback);

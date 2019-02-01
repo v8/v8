@@ -70,6 +70,11 @@ class V8_EXPORT_PRIVATE MicrotaskQueue {
   }
 #endif
 
+  void set_microtasks_policy(v8::MicrotasksPolicy microtasks_policy) {
+    microtasks_policy_ = microtasks_policy;
+  }
+  v8::MicrotasksPolicy microtasks_policy() const { return microtasks_policy_; }
+
   void AddMicrotasksCompletedCallback(MicrotasksCompletedCallback callback);
   void RemoveMicrotasksCompletedCallback(MicrotasksCompletedCallback callback);
   void FireMicrotasksCompletedCallback(Isolate* isolate) const;
@@ -117,6 +122,8 @@ class V8_EXPORT_PRIVATE MicrotaskQueue {
 #ifdef DEBUG
   int debug_microtasks_depth_ = 0;
 #endif
+
+  v8::MicrotasksPolicy microtasks_policy_ = v8::MicrotasksPolicy::kAuto;
 
   bool is_running_microtasks_ = false;
   std::vector<MicrotasksCompletedCallback> microtasks_completed_callbacks_;

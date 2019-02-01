@@ -251,11 +251,9 @@ class InternalEscapableScope : public v8::EscapableHandleScope {
 
 // TODO(jochen): This should be #ifdef DEBUG
 #ifdef V8_CHECK_MICROTASKS_SCOPES_CONSISTENCY
-void CheckMicrotasksScopesConsistency(i::Isolate* isolate) {
-  auto handle_scope_implementer = isolate->handle_scope_implementer();
-  auto* microtask_queue = isolate->default_microtask_queue();
-  if (handle_scope_implementer->microtasks_policy() ==
-      v8::MicrotasksPolicy::kScoped) {
+void CheckMicrotasksScopesConsistency(i::MicrotaskQueue* microtask_queue) {
+  if (microtask_queue &&
+      microtask_queue->microtasks_policy() == v8::MicrotasksPolicy::kScoped) {
     DCHECK(microtask_queue->GetMicrotasksScopeDepth() ||
            !microtask_queue->DebugMicrotasksScopeDepthIsZero());
   }
@@ -292,15 +290,19 @@ class CallDepthScope {
     if (do_callback) isolate_->FireBeforeCallEnteredCallback();
   }
   ~CallDepthScope() {
+    i::MicrotaskQueue* microtask_queue = isolate_->default_microtask_queue();
     if (!context_.IsEmpty()) {
       i::HandleScopeImplementer* impl = isolate_->handle_scope_implementer();
       isolate_->set_context(impl->RestoreContext());
+
+      i::Handle<i::Context> env = Utils::OpenHandle(*context_);
+      microtask_queue = env->native_context()->microtask_queue();
     }
     if (!escaped_) isolate_->handle_scope_implementer()->DecrementCallDepth();
-    if (do_callback) isolate_->FireCallCompletedCallback();
+    if (do_callback) isolate_->FireCallCompletedCallback(microtask_queue);
 // TODO(jochen): This should be #ifdef DEBUG
 #ifdef V8_CHECK_MICROTASKS_SCOPES_CONSISTENCY
-    if (do_callback) CheckMicrotasksScopesConsistency(isolate_);
+    if (do_callback) CheckMicrotasksScopesConsistency(microtask_queue);
 #endif
     isolate_->set_next_v8_call_is_safe_for_termination(safe_for_termination_);
   }
@@ -8317,17 +8319,16 @@ Isolate::AllowJavascriptExecutionScope::~AllowJavascriptExecutionScope() {
   delete reinterpret_cast<i::NoDumpOnJavascriptExecution*>(internal_dump_);
 }
 
-
 Isolate::SuppressMicrotaskExecutionScope::SuppressMicrotaskExecutionScope(
     Isolate* isolate)
-    : isolate_(reinterpret_cast<i::Isolate*>(isolate)) {
+    : isolate_(reinterpret_cast<i::Isolate*>(isolate)),
+      microtask_queue_(isolate_->default_microtask_queue()) {
   isolate_->handle_scope_implementer()->IncrementCallDepth();
-  isolate_->default_microtask_queue()->IncrementMicrotasksSuppressions();
+  microtask_queue_->IncrementMicrotasksSuppressions();
 }
 
-
 Isolate::SuppressMicrotaskExecutionScope::~SuppressMicrotaskExecutionScope() {
-  isolate_->default_microtask_queue()->DecrementMicrotasksSuppressions();
+  microtask_queue_->DecrementMicrotasksSuppressions();
   isolate_->handle_scope_implementer()->DecrementCallDepth();
 }
 
@@ -8544,14 +8545,14 @@ void Isolate::EnqueueMicrotask(MicrotaskCallback callback, void* data) {
 
 void Isolate::SetMicrotasksPolicy(MicrotasksPolicy policy) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
-  isolate->handle_scope_implementer()->set_microtasks_policy(policy);
+  isolate->default_microtask_queue()->set_microtasks_policy(policy);
 }
 
 
 MicrotasksPolicy Isolate::GetMicrotasksPolicy() const {
   i::Isolate* isolate =
       reinterpret_cast<i::Isolate*>(const_cast<Isolate*>(this));
-  return isolate->handle_scope_implementer()->microtasks_policy();
+  return isolate->default_microtask_queue()->microtasks_policy();
 }
 
 
@@ -8868,27 +8869,23 @@ void Isolate::SetAllowAtomicsWait(bool allow) {
 
 MicrotasksScope::MicrotasksScope(Isolate* isolate, MicrotasksScope::Type type)
     : isolate_(reinterpret_cast<i::Isolate*>(isolate)),
+      microtask_queue_(isolate_->default_microtask_queue()),
       run_(type == MicrotasksScope::kRunMicrotasks) {
-  auto* microtask_queue = isolate_->default_microtask_queue();
-  if (run_) microtask_queue->IncrementMicrotasksScopeDepth();
+  if (run_) microtask_queue_->IncrementMicrotasksScopeDepth();
 #ifdef DEBUG
-  if (!run_) microtask_queue->IncrementDebugMicrotasksScopeDepth();
+  if (!run_) microtask_queue_->IncrementDebugMicrotasksScopeDepth();
 #endif
 }
 
-
 MicrotasksScope::~MicrotasksScope() {
-  auto handle_scope_implementer = isolate_->handle_scope_implementer();
-  auto* microtask_queue = isolate_->default_microtask_queue();
   if (run_) {
-    microtask_queue->DecrementMicrotasksScopeDepth();
-    if (MicrotasksPolicy::kScoped ==
-        handle_scope_implementer->microtasks_policy()) {
+    microtask_queue_->DecrementMicrotasksScopeDepth();
+    if (MicrotasksPolicy::kScoped == microtask_queue_->microtasks_policy()) {
       PerformCheckpoint(reinterpret_cast<Isolate*>(isolate_));
     }
   }
 #ifdef DEBUG
-  if (!run_) microtask_queue->DecrementDebugMicrotasksScopeDepth();
+  if (!run_) microtask_queue_->DecrementDebugMicrotasksScopeDepth();
 #endif
 }
 

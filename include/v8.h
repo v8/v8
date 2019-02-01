@@ -119,6 +119,7 @@ class Heap;
 class HeapObject;
 class Isolate;
 class LocalEmbedderHeapTracer;
+class MicrotaskQueue;
 class NeverReadOnlySpaceObject;
 struct ScriptStreamingData;
 template<typename T> class CustomArguments;
@@ -6776,6 +6777,7 @@ class V8_EXPORT MicrotasksScope {
 
  private:
   internal::Isolate* const isolate_;
+  internal::MicrotaskQueue* const microtask_queue_;
   bool run_;
 };
 
@@ -7431,6 +7433,7 @@ class V8_EXPORT Isolate {
 
    private:
     internal::Isolate* const isolate_;
+    internal::MicrotaskQueue* const microtask_queue_;
   };
 
   /**

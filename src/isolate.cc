@@ -4134,17 +4134,16 @@ void Isolate::RemoveCallCompletedCallback(CallCompletedCallback callback) {
   call_completed_callbacks_.erase(pos);
 }
 
-void Isolate::FireCallCompletedCallback() {
+void Isolate::FireCallCompletedCallback(MicrotaskQueue* microtask_queue) {
   if (!handle_scope_implementer()->CallDepthIsZero()) return;
 
   bool run_microtasks =
-      default_microtask_queue()->size() &&
-      !default_microtask_queue()->HasMicrotasksSuppressions() &&
-      handle_scope_implementer()->microtasks_policy() ==
-          v8::MicrotasksPolicy::kAuto;
+      microtask_queue && microtask_queue->size() &&
+      !microtask_queue->HasMicrotasksSuppressions() &&
+      microtask_queue->microtasks_policy() == v8::MicrotasksPolicy::kAuto;
 
   if (run_microtasks) {
-    default_microtask_queue()->RunMicrotasks(this);
+    microtask_queue->RunMicrotasks(this);
   } else {
     // TODO(marja): (spec) The discussion about when to clear the KeepDuringJob
     // set is still open (whether to clear it after every microtask or once

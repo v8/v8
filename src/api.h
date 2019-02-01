@@ -362,7 +362,6 @@ class HandleScopeImplementer {
       : isolate_(isolate),
         spare_(nullptr),
         call_depth_(0),
-        microtasks_policy_(v8::MicrotasksPolicy::kAuto),
         last_handle_before_deferred_block_(nullptr) {
   }
 
@@ -394,9 +393,6 @@ class HandleScopeImplementer {
   inline size_t EnteredContextCount() const { return entered_contexts_.size(); }
 
   inline void EnterMicrotaskContext(Context context);
-
-  inline void set_microtasks_policy(v8::MicrotasksPolicy policy);
-  inline v8::MicrotasksPolicy microtasks_policy() const;
 
   // Returns the last entered context or an empty handle if no
   // contexts have been entered.
@@ -466,8 +462,6 @@ class HandleScopeImplementer {
   Address* spare_;
   int call_depth_;
 
-  v8::MicrotasksPolicy microtasks_policy_;
-
   Address* last_handle_before_deferred_block_;
   // This is only used for threading support.
   HandleScopeData handle_scope_data_;
@@ -484,17 +478,6 @@ class HandleScopeImplementer {
 };
 
 const int kHandleBlockSize = v8::internal::KB - 2;  // fit in one page
-
-
-void HandleScopeImplementer::set_microtasks_policy(
-    v8::MicrotasksPolicy policy) {
-  microtasks_policy_ = policy;
-}
-
-
-v8::MicrotasksPolicy HandleScopeImplementer::microtasks_policy() const {
-  return microtasks_policy_;
-}
 
 void HandleScopeImplementer::SaveContext(Context context) {
   saved_contexts_.push_back(context);
