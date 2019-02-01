@@ -401,13 +401,6 @@ class SystemTest(unittest.TestCase):
       self.assertIn('Failed to load build config', result.stdout, result)
       self.assertEqual(5, result.returncode, result)
 
-  def testGNOption(self):
-    """Test using gn option, but no gn build folder is found."""
-    with temp_base() as basedir:
-      # TODO(machenbach): This should fail gracefully.
-      with self.assertRaises(OSError):
-        run_tests(basedir, '--gn')
-
   def testInconsistentMode(self):
     """Test failing run when attempting to wrongly override the mode."""
     with temp_base() as basedir:
