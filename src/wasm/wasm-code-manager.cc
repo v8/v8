@@ -445,6 +445,8 @@ WasmCode* NativeModule::AddOwnedCode(
     OwnedVector<const byte> reloc_info,
     OwnedVector<const byte> source_position_table, WasmCode::Kind kind,
     WasmCode::Tier tier) {
+  CHECK(!FLAG_jitless);  // TODO(jgruber): Support wasm in jitless mode.
+
   WasmCode* code;
   {
     // Both allocation and insertion in owned_code_ happen in the same critical
