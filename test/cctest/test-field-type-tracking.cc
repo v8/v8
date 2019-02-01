@@ -278,6 +278,7 @@ class Expectations {
     if (details.attributes() != expected_attributes) return false;
 
     Representation expected_representation = representations_[descriptor];
+
     if (!details.representation().Equals(expected_representation)) return false;
 
     Object expected_value = *values_[descriptor];
@@ -2339,9 +2340,12 @@ static void TestGeneralizeFieldWithSpecialTransition(TestConfig& config,
       // If Map::TryUpdate() manages to succeed the result must match the result
       // of Map::Update().
       CHECK_EQ(*new_map2, *tmp_map);
+    } else {
+      // Equivalent transitions should always find the updated map.
+      CHECK(config.is_non_equivalent_transition());
     }
 
-    if (config.is_non_equevalent_transition()) {
+    if (config.is_non_equivalent_transition()) {
       // In case of non-equivalent transition currently we generalize all
       // representations.
       for (int i = 0; i < kPropCount; i++) {
@@ -2350,6 +2354,9 @@ static void TestGeneralizeFieldWithSpecialTransition(TestConfig& config,
       CHECK(new_map2->GetBackPointer()->IsUndefined(isolate));
       CHECK(expectations2.Check(*new_map2));
     } else {
+      expectations2.SetDataField(i, expected.constness, expected.representation,
+                                 expected.type);
+
       CHECK(!new_map2->GetBackPointer()->IsUndefined(isolate));
       CHECK(expectations2.Check(*new_map2));
     }
@@ -2391,7 +2398,7 @@ TEST(ElementsKindTransitionFromMapOwningDescriptor) {
     }
     // TODO(ishell): remove once IS_PROTO_TRANS_ISSUE_FIXED is removed.
     bool generalizes_representations() const { return false; }
-    bool is_non_equevalent_transition() const { return true; }
+    bool is_non_equivalent_transition() const { return false; }
 
     PropertyAttributes attributes;
     Handle<Symbol> symbol;
@@ -2443,7 +2450,7 @@ TEST(ElementsKindTransitionFromMapNotOwningDescriptor) {
     }
     // TODO(ishell): remove once IS_PROTO_TRANS_ISSUE_FIXED is removed.
     bool generalizes_representations() const { return false; }
-    bool is_non_equevalent_transition() const { return true; }
+    bool is_non_equivalent_transition() const { return false; }
 
     PropertyAttributes attributes;
     Handle<Symbol> symbol;
@@ -2487,7 +2494,7 @@ TEST(PrototypeTransitionFromMapOwningDescriptor) {
     bool generalizes_representations() const {
       return !IS_PROTO_TRANS_ISSUE_FIXED;
     }
-    bool is_non_equevalent_transition() const { return true; }
+    bool is_non_equivalent_transition() const { return true; }
   };
   TestConfig config;
   TestGeneralizeFieldWithSpecialTransition(
@@ -2534,7 +2541,7 @@ TEST(PrototypeTransitionFromMapNotOwningDescriptor) {
     bool generalizes_representations() const {
       return !IS_PROTO_TRANS_ISSUE_FIXED;
     }
-    bool is_non_equevalent_transition() const { return true; }
+    bool is_non_equivalent_transition() const { return true; }
   };
   TestConfig config;
   TestGeneralizeFieldWithSpecialTransition(

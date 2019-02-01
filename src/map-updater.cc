@@ -45,8 +45,16 @@ Name MapUpdater::GetKey(int descriptor) const {
 PropertyDetails MapUpdater::GetDetails(int descriptor) const {
   DCHECK_LE(0, descriptor);
   if (descriptor == modified_descriptor_) {
-    return PropertyDetails(new_kind_, new_attributes_, new_location_,
-                           new_constness_, new_representation_);
+    PropertyAttributes attributes = new_attributes_;
+    // If the original map was sealed or frozen, let us used the old
+    // attributes so that we follow the same transition path as before.
+    // Note that the user could not have changed the attributes because
+    // both seal and freeze make the properties non-configurable.
+    if (integrity_level_ == SEALED || integrity_level_ == FROZEN) {
+      attributes = old_descriptors_->GetDetails(descriptor).attributes();
+    }
+    return PropertyDetails(new_kind_, attributes, new_location_, new_constness_,
+                           new_representation_);
   }
   return old_descriptors_->GetDetails(descriptor);
 }
@@ -141,10 +149,12 @@ Handle<Map> MapUpdater::ReconfigureToDataField(int descriptor,
       isolate_, old_map_->instance_type(), &new_constness_,
       &new_representation_, &new_field_type_);
 
-  if (TryRecofigureToDataFieldInplace() == kEnd) return result_map_;
+  if (TryReconfigureToDataFieldInplace() == kEnd) return result_map_;
   if (FindRootMap() == kEnd) return result_map_;
   if (FindTargetMap() == kEnd) return result_map_;
-  ConstructNewMap();
+  if (ConstructNewMap() == kAtIntegrityLevelSource) {
+    ConstructNewMapWithIntegrityLevelTransition();
+  }
   DCHECK_EQ(kEnd, state_);
   return result_map_;
 }
@@ -157,7 +167,9 @@ Handle<Map> MapUpdater::ReconfigureElementsKind(ElementsKind elements_kind) {
 
   if (FindRootMap() == kEnd) return result_map_;
   if (FindTargetMap() == kEnd) return result_map_;
-  ConstructNewMap();
+  if (ConstructNewMap() == kAtIntegrityLevelSource) {
+    ConstructNewMapWithIntegrityLevelTransition();
+  }
   DCHECK_EQ(kEnd, state_);
   return result_map_;
 }
@@ -168,7 +180,9 @@ Handle<Map> MapUpdater::Update() {
 
   if (FindRootMap() == kEnd) return result_map_;
   if (FindTargetMap() == kEnd) return result_map_;
-  ConstructNewMap();
+  if (ConstructNewMap() == kAtIntegrityLevelSource) {
+    ConstructNewMapWithIntegrityLevelTransition();
+  }
   DCHECK_EQ(kEnd, state_);
   if (FLAG_fast_map_update) {
     TransitionsAccessor(isolate_, old_map_).SetMigrationTarget(*result_map_);
@@ -183,7 +197,8 @@ void MapUpdater::GeneralizeField(Handle<Map> map, int modify_index,
   Map::GeneralizeField(isolate_, map, modify_index, new_constness,
                        new_representation, new_field_type);
 
-  DCHECK_EQ(*old_descriptors_, old_map_->instance_descriptors());
+  DCHECK(*old_descriptors_ == old_map_->instance_descriptors() ||
+         *old_descriptors_ == integrity_source_map_->instance_descriptors());
 }
 
 MapUpdater::State MapUpdater::CopyGeneralizeAllFields(const char* reason) {
@@ -194,7 +209,7 @@ MapUpdater::State MapUpdater::CopyGeneralizeAllFields(const char* reason) {
   return state_;  // Done.
 }
 
-MapUpdater::State MapUpdater::TryRecofigureToDataFieldInplace() {
+MapUpdater::State MapUpdater::TryReconfigureToDataFieldInplace() {
   // If it's just a representation generalization case (i.e. property kind and
   // attributes stays unchanged) it's fine to transition from None to anything
   // but double without any modification to the object, because the default
@@ -238,12 +253,44 @@ MapUpdater::State MapUpdater::TryRecofigureToDataFieldInplace() {
   return state_;  // Done.
 }
 
+void MapUpdater::SaveIntegrityLevelTransitions() {
+  integrity_source_map_ =
+      handle(Map::cast(old_map_->GetBackPointer()), isolate_);
+  ReadOnlyRoots roots(isolate_);
+  TransitionsAccessor transitions(isolate_, integrity_source_map_);
+
+  if (transitions.SearchSpecial(roots.frozen_symbol()) == *old_map_) {
+    integrity_level_ = FROZEN;
+    integrity_level_symbol_ = isolate_->factory()->frozen_symbol();
+  } else if (transitions.SearchSpecial(roots.sealed_symbol()) == *old_map_) {
+    integrity_level_ = SEALED;
+    integrity_level_symbol_ = isolate_->factory()->sealed_symbol();
+  } else {
+    CHECK_EQ(transitions.SearchSpecial(roots.nonextensible_symbol()),
+             *old_map_);
+    integrity_level_ = NONE;
+    integrity_level_symbol_ = isolate_->factory()->nonextensible_symbol();
+  }
+
+  // Skip all the other integrity level transitions.
+  while (!integrity_source_map_->is_extensible()) {
+    integrity_source_map_ =
+        handle(Map::cast(integrity_source_map_->GetBackPointer()), isolate_);
+  }
+
+  has_integrity_level_transition_ = true;
+
+  old_descriptors_ =
+      handle(integrity_source_map_->instance_descriptors(), isolate_);
+}
+
 MapUpdater::State MapUpdater::FindRootMap() {
   DCHECK_EQ(kInitialized, state_);
   // Check the state of the root map.
   root_map_ = handle(old_map_->FindRootMap(isolate_), isolate_);
   ElementsKind from_kind = root_map_->elements_kind();
   ElementsKind to_kind = new_elements_kind_;
+
   if (root_map_->is_deprecated()) {
     state_ = kEnd;
     result_map_ = handle(
@@ -252,9 +299,21 @@ MapUpdater::State MapUpdater::FindRootMap() {
     DCHECK(result_map_->is_dictionary_map());
     return state_;
   }
-  int root_nof = root_map_->NumberOfOwnDescriptors();
+
   if (!old_map_->EquivalentToForTransition(*root_map_)) {
     return CopyGeneralizeAllFields("GenAll_NotEquivalent");
+  } else if (old_map_->is_extensible() != root_map_->is_extensible()) {
+    DCHECK(!old_map_->is_extensible());
+    DCHECK(root_map_->is_extensible());
+    // We have an integrity level transition in the tree, let us make a note
+    // of that transition to be able to replay it later.
+    SaveIntegrityLevelTransitions();
+
+    // We want to build transitions to the original element kind (before
+    // the seal transitions), so change {to_kind} accordingly.
+    DCHECK(to_kind == DICTIONARY_ELEMENTS ||
+           IsFixedTypedArrayElementsKind(to_kind));
+    to_kind = integrity_source_map_->elements_kind();
   }
 
   // TODO(ishell): Add a test for SLOW_SLOPPY_ARGUMENTS_ELEMENTS.
@@ -266,6 +325,7 @@ MapUpdater::State MapUpdater::FindRootMap() {
     return CopyGeneralizeAllFields("GenAll_InvalidElementsTransition");
   }
 
+  int root_nof = root_map_->NumberOfOwnDescriptors();
   if (modified_descriptor_ >= 0 && modified_descriptor_ < root_nof) {
     PropertyDetails old_details =
         old_descriptors_->GetDetails(modified_descriptor_);
@@ -379,7 +439,8 @@ MapUpdater::State MapUpdater::FindTargetMap() {
       PropertyDetails details =
           target_descriptors->GetDetails(modified_descriptor_);
       DCHECK_EQ(new_kind_, details.kind());
-      DCHECK_EQ(new_attributes_, details.attributes());
+      DCHECK_EQ(GetDetails(modified_descriptor_).attributes(),
+                details.attributes());
       DCHECK(IsGeneralizableTo(new_constness_, details.constness()));
       DCHECK_EQ(new_location_, details.location());
       DCHECK(new_representation_.fits_into(details.representation()));
@@ -398,9 +459,20 @@ MapUpdater::State MapUpdater::FindTargetMap() {
     if (*target_map_ != *old_map_) {
       old_map_->NotifyLeafMapLayoutChange(isolate_);
     }
-    result_map_ = target_map_;
-    state_ = kEnd;
-    return state_;  // Done.
+    if (!has_integrity_level_transition_) {
+      result_map_ = target_map_;
+      state_ = kEnd;
+      return state_;  // Done.
+    }
+
+    // We try to replay the integrity level transition here.
+    Map transition = TransitionsAccessor(isolate_, target_map_)
+                         .SearchSpecial(*integrity_level_symbol_);
+    if (!transition.is_null()) {
+      result_map_ = handle(transition, isolate_);
+      state_ = kEnd;
+      return state_;  // Done.
+    }
   }
 
   // Find the last compatible target map in the transition tree.
@@ -653,7 +725,11 @@ MapUpdater::State MapUpdater::ConstructNewMap() {
 
   Handle<Map> split_map = FindSplitMap(new_descriptors);
   int split_nof = split_map->NumberOfOwnDescriptors();
-  DCHECK_NE(old_nof_, split_nof);
+  if (old_nof_ == split_nof) {
+    CHECK(has_integrity_level_transition_);
+    state_ = kAtIntegrityLevelSource;
+    return state_;
+  }
 
   PropertyDetails split_details = GetDetails(split_nof);
   TransitionsAccessor transitions(isolate_, split_map);
@@ -717,9 +793,30 @@ MapUpdater::State MapUpdater::ConstructNewMap() {
   split_map->ReplaceDescriptors(isolate_, *new_descriptors,
                                 *new_layout_descriptor);
 
-  result_map_ = new_map;
-  state_ = kEnd;
+  if (has_integrity_level_transition_) {
+    target_map_ = new_map;
+    state_ = kAtIntegrityLevelSource;
+  } else {
+    result_map_ = new_map;
+    state_ = kEnd;
+  }
   return state_;  // Done.
+}
+
+MapUpdater::State MapUpdater::ConstructNewMapWithIntegrityLevelTransition() {
+  DCHECK_EQ(kAtIntegrityLevelSource, state_);
+
+  TransitionsAccessor transitions(isolate_, target_map_);
+  if (!transitions.CanHaveMoreTransitions()) {
+    return CopyGeneralizeAllFields("GenAll_CantHaveMoreTransitions");
+  }
+
+  result_map_ = Map::CopyForPreventExtensions(
+      isolate_, target_map_, integrity_level_, integrity_level_symbol_,
+      "CopyForPreventExtensions");
+
+  state_ = kEnd;
+  return state_;
 }
 
 }  // namespace internal

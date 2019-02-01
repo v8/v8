@@ -3897,8 +3897,6 @@ void DescriptorArray::GeneralizeAllFields() {
   }
 }
 
-
-
 Maybe<bool> JSObject::SetPropertyWithInterceptor(
     LookupIterator* it, Maybe<ShouldThrow> should_throw, Handle<Object> value) {
   DCHECK_EQ(LookupIterator::INTERCEPTOR, it->state());
@@ -8649,10 +8647,6 @@ void IteratingStringHasher::VisitConsString(ConsString cons_string) {
     delete[] buffer;
   }
 }
-
-
-
-
 
 void JSFunction::MarkForOptimization(ConcurrencyMode mode) {
   Isolate* isolate = GetIsolate();

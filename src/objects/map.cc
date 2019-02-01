@@ -922,6 +922,52 @@ MaybeHandle<Map> Map::TryUpdate(Isolate* isolate, Handle<Map> old_map) {
   return handle(new_map, isolate);
 }
 
+namespace {
+
+struct IntegrityLevelTransitionInfo {
+  explicit IntegrityLevelTransitionInfo(Map map)
+      : integrity_level_source_map(map) {}
+
+  bool has_integrity_level_transition = false;
+  PropertyAttributes integrity_level = NONE;
+  Map integrity_level_source_map;
+  Symbol integrity_level_symbol;
+};
+
+IntegrityLevelTransitionInfo DetectIntegrityLevelTransitions(
+    Map map, Isolate* isolate, DisallowHeapAllocation* no_allocation) {
+  IntegrityLevelTransitionInfo info(map);
+
+  DCHECK(!map->is_extensible());
+  Map source_map = Map::cast(map->GetBackPointer());
+
+  ReadOnlyRoots roots(isolate);
+  TransitionsAccessor transitions(isolate, source_map, no_allocation);
+  if (transitions.SearchSpecial(roots.frozen_symbol()) == map) {
+    info.integrity_level = FROZEN;
+    info.integrity_level_symbol = roots.frozen_symbol();
+  } else if (transitions.SearchSpecial(roots.sealed_symbol()) == map) {
+    info.integrity_level = SEALED;
+    info.integrity_level_symbol = roots.sealed_symbol();
+  } else {
+    CHECK_EQ(transitions.SearchSpecial(roots.nonextensible_symbol()), map);
+    info.integrity_level = NONE;
+    info.integrity_level_symbol = roots.nonextensible_symbol();
+  }
+
+  // Skip all the other integrity level transitions.
+  while (!source_map->is_extensible()) {
+    source_map = Map::cast(source_map->GetBackPointer());
+  }
+
+  info.has_integrity_level_transition = true;
+  info.integrity_level_source_map = source_map;
+
+  return info;
+}
+
+}  // namespace
+
 Map Map::TryUpdateSlow(Isolate* isolate, Map old_map) {
   DisallowHeapAllocation no_allocation;
   DisallowDeoptimization no_deoptimization(isolate);
@@ -942,13 +988,36 @@ Map Map::TryUpdateSlow(Isolate* isolate, Map old_map) {
 
   ElementsKind from_kind = root_map->elements_kind();
   ElementsKind to_kind = old_map->elements_kind();
+
+  IntegrityLevelTransitionInfo info(old_map);
+  if (root_map->is_extensible() != old_map->is_extensible()) {
+    DCHECK(!old_map->is_extensible());
+    DCHECK(root_map->is_extensible());
+    info = DetectIntegrityLevelTransitions(old_map, isolate, &no_allocation);
+    // Make sure replay the original elements kind transitions, before
+    // the integrity level transition sets the elements to dictionary mode.
+    DCHECK(to_kind == DICTIONARY_ELEMENTS ||
+           IsFixedTypedArrayElementsKind(to_kind));
+    to_kind = info.integrity_level_source_map->elements_kind();
+  }
   if (from_kind != to_kind) {
     // Try to follow existing elements kind transitions.
     root_map = root_map->LookupElementsTransitionMap(isolate, to_kind);
     if (root_map.is_null()) return Map();
     // From here on, use the map with correct elements kind as root map.
   }
-  return root_map->TryReplayPropertyTransitions(isolate, old_map);
+
+  // Replay the transitions as they were before the integrity level transition.
+  Map result = root_map->TryReplayPropertyTransitions(
+      isolate, info.integrity_level_source_map);
+  if (result.is_null()) return Map();
+
+  if (info.has_integrity_level_transition) {
+    // Now replay the integrity level transition.
+    result = TransitionsAccessor(isolate, result, &no_allocation)
+                 .SearchSpecial(info.integrity_level_symbol);
+  }
+  return result;
 }
 
 Map Map::TryReplayPropertyTransitions(Isolate* isolate, Map old_map) {
@@ -2346,7 +2415,13 @@ bool CheckEquivalent(const Map first, const Map second) {
 }  // namespace
 
 bool Map::EquivalentToForTransition(const Map other) const {
-  if (!CheckEquivalent(*this, other)) return false;
+  CHECK_EQ(GetConstructor(), other->GetConstructor());
+  CHECK_EQ(instance_type(), other->instance_type());
+  CHECK_EQ(bit_field(), other->bit_field());
+  CHECK_EQ(has_hidden_prototype(), other->has_hidden_prototype());
+
+  if (new_target_is_base() != other->new_target_is_base()) return false;
+  if (prototype() != other->prototype()) return false;
   if (instance_type() == JS_FUNCTION_TYPE) {
     // JSFunctions require more checks to ensure that sloppy function is
     // not equivalent to strict function.
