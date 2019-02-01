@@ -782,6 +782,10 @@ int Map::SlackForArraySize(int old_size, int size_limit) {
   return Min(max_slack, old_size / 4);
 }
 
+int Map::InstanceSizeFromSlack(int slack) const {
+  return instance_size() - slack * kTaggedSize;
+}
+
 NEVER_READ_ONLY_SPACE_IMPL(NormalizedMapCache)
 
 int NormalizedMapCache::GetIndex(Handle<Map> map) {
