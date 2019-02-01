@@ -6267,14 +6267,6 @@ MaybeLocal<v8::Function> FunctionTemplate::GetFunction(Local<Context> context) {
   RETURN_ESCAPED(result);
 }
 
-
-Local<v8::Function> FunctionTemplate::GetFunction() {
-  Local<Context> context =
-      reinterpret_cast<v8::Isolate*>(Utils::OpenHandle(this)->GetIsolate())
-          ->GetCurrentContext();
-  RETURN_TO_LOCAL_UNCHECKED(GetFunction(context), Function);
-}
-
 MaybeLocal<v8::Object> FunctionTemplate::NewRemoteInstance() {
   auto self = Utils::OpenHandle(this);
   i::Isolate* isolate = self->GetIsolate();
