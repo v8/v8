@@ -36,6 +36,28 @@ inline Intl::HourCycle JSDateTimeFormat::hour_cycle() const {
   return HourCycleBits::decode(flags());
 }
 
+inline void JSDateTimeFormat::set_date_style(
+    JSDateTimeFormat::DateTimeStyle date_style) {
+  int hints = flags();
+  hints = DateStyleBits::update(hints, date_style);
+  set_flags(hints);
+}
+
+inline JSDateTimeFormat::DateTimeStyle JSDateTimeFormat::date_style() const {
+  return DateStyleBits::decode(flags());
+}
+
+inline void JSDateTimeFormat::set_time_style(
+    JSDateTimeFormat::DateTimeStyle time_style) {
+  int hints = flags();
+  hints = TimeStyleBits::update(hints, time_style);
+  set_flags(hints);
+}
+
+inline JSDateTimeFormat::DateTimeStyle JSDateTimeFormat::time_style() const {
+  return TimeStyleBits::decode(flags());
+}
+
 CAST_ACCESSOR(JSDateTimeFormat);
 
 }  // namespace internal
