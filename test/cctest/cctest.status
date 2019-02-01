@@ -427,6 +427,11 @@
 
 }],  # 'arch == ppc or arch == ppc64 or arch == s390 or arch == s390x'
 
+['arch == ppc64', {
+  # https://crbug.com/v8/8766
+  'test-bytecode-generator/WideRegisters': [SKIP],
+}],
+
 ##############################################################################
 ['variant == stress_incremental_marking', {
   'test-heap-profiler/SamplingHeapProfiler': [SKIP],
