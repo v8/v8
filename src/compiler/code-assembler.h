@@ -1275,15 +1275,21 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   }
 
   template <class... TArgs>
-  Node* ConstructJS(Callable const& callable, Node* context, Node* new_target,
-                    TArgs... args) {
+  Node* ConstructJSWithTarget(Callable const& callable, Node* context,
+                              Node* target, Node* new_target, TArgs... args) {
     int argc = static_cast<int>(sizeof...(args));
     Node* arity = Int32Constant(argc);
     Node* receiver = LoadRoot(RootIndex::kUndefinedValue);
 
     // Construct(target, new_target, arity, receiver, arguments...)
-    return CallStub(callable, context, new_target, new_target, arity, receiver,
+    return CallStub(callable, context, target, new_target, arity, receiver,
                     args...);
+  }
+  template <class... TArgs>
+  Node* ConstructJS(Callable const& callable, Node* context, Node* new_target,
+                    TArgs... args) {
+    return ConstructJSWithTarget(callable, context, new_target, new_target,
+                                 args...);
   }
 
   Node* CallCFunctionN(Signature<MachineType>* signature, int input_count,

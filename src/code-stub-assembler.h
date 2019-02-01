@@ -402,6 +402,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   uintptr_t ConstexprUintPtrShl(uintptr_t a, int32_t b) { return a << b; }
   uintptr_t ConstexprUintPtrShr(uintptr_t a, int32_t b) { return a >> b; }
+  intptr_t ConstexprIntPtrAdd(intptr_t a, intptr_t b) { return a + b; }
+  uintptr_t ConstexprUintPtrAdd(uintptr_t a, uintptr_t b) { return a + b; }
+  intptr_t ConstexprWordNot(intptr_t a) { return ~a; }
+  uintptr_t ConstexprWordNot(uintptr_t a) { return ~a; }
 
   TNode<Object> NoContextConstant();
 
@@ -668,10 +672,18 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   }
 
   template <class... TArgs>
+  TNode<JSReceiver> ConstructWithTarget(TNode<Context> context,
+                                        TNode<JSReceiver> target,
+                                        TNode<JSReceiver> new_target,
+                                        TArgs... args) {
+    return CAST(ConstructJSWithTarget(CodeFactory::Construct(isolate()),
+                                      context, target, new_target,
+                                      implicit_cast<TNode<Object>>(args)...));
+  }
+  template <class... TArgs>
   TNode<JSReceiver> Construct(TNode<Context> context,
                               TNode<JSReceiver> new_target, TArgs... args) {
-    return CAST(ConstructJS(CodeFactory::Construct(isolate()), context,
-                            new_target, implicit_cast<TNode<Object>>(args)...));
+    return ConstructWithTarget(context, new_target, new_target, args...);
   }
 
   template <class A, class F, class G>
@@ -1118,6 +1130,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       SloppyTNode<Object> base, SloppyTNode<IntPtrT> offset, Label* if_hole,
       MachineType machine_type = MachineType::Float64());
   TNode<RawPtrT> LoadFixedTypedArrayBackingStore(
+      TNode<FixedTypedArrayBase> typed_array);
+  TNode<RawPtrT> LoadFixedTypedArrayOnHeapBackingStore(
       TNode<FixedTypedArrayBase> typed_array);
   Node* LoadFixedTypedArrayElementAsTagged(
       Node* data_pointer, Node* index_node, ElementsKind elements_kind,

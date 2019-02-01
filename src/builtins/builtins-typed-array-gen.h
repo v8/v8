@@ -13,6 +13,8 @@ namespace internal {
 
 class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
  public:
+  using ElementsInfo =
+      TypedArrayBuiltinsFromDSLAssembler::TypedArrayElementsInfo;
   explicit TypedArrayBuiltinsAssembler(compiler::CodeAssemblerState* state)
       : CodeStubAssembler(state) {}
 
@@ -38,6 +40,14 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
                     TNode<Map> map, TNode<Smi> length,
                     TNode<Number> byte_offset);
 
+  TNode<JSArrayBuffer> AllocateEmptyOnHeapBuffer(TNode<Context> context,
+                                                 TNode<JSTypedArray> holder,
+                                                 TNode<UintPtrT> byte_length);
+
+  TNode<FixedTypedArrayBase> AllocateOnHeapElements(TNode<Map> map,
+                                                    TNode<IntPtrT> byte_length,
+                                                    TNode<Number> length);
+
   TNode<Map> LoadMapForType(TNode<JSTypedArray> array);
   TNode<UintPtrT> CalculateExternalPointer(TNode<UintPtrT> backing_store,
                                            TNode<Number> byte_offset);
@@ -54,8 +64,7 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
   TNode<IntPtrT> GetTypedArrayElementSize(TNode<Word32T> elements_kind);
 
   // Returns information (byte size and map) about a TypedArray's elements.
-  TypedArrayBuiltinsFromDSLAssembler::TypedArrayElementsInfo
-  GetTypedArrayElementsInfo(TNode<JSTypedArray> typed_array);
+  ElementsInfo GetTypedArrayElementsInfo(TNode<JSTypedArray> typed_array);
 
   TNode<JSArrayBuffer> LoadTypedArrayBuffer(TNode<JSTypedArray> typed_array) {
     return LoadObjectField<JSArrayBuffer>(typed_array,
@@ -96,6 +105,9 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
 
   void CallCMemcpy(TNode<RawPtrT> dest_ptr, TNode<RawPtrT> src_ptr,
                    TNode<UintPtrT> byte_length);
+
+  void CallCMemset(TNode<RawPtrT> dest_ptr, TNode<IntPtrT> value,
+                   TNode<UintPtrT> length);
 
   void CallCCopyFastNumberJSArrayElementsToTypedArray(
       TNode<Context> context, TNode<JSArray> source, TNode<JSTypedArray> dest,

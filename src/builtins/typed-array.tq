@@ -15,6 +15,10 @@ namespace typed_array {
   extern macro TypedArrayBuiltinsAssembler::ValidateTypedArray(
       Context, Object, constexpr string): JSTypedArray;
 
+  extern macro TypedArrayBuiltinsAssembler::CallCMemcpy(
+      RawPtr, RawPtr, uintptr): void;
+  extern macro TypedArrayBuiltinsAssembler::CallCMemset(
+      RawPtr, intptr, uintptr): void;
   extern macro TypedArrayBuiltinsAssembler::GetTypedArrayElementsInfo(
       JSTypedArray): TypedArrayElementsInfo;
   extern macro LoadFixedTypedArrayElementAsTagged(

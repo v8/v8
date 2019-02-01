@@ -1155,8 +1155,6 @@ namespace internal {
   TFJ(SymbolPrototypeValueOf, 0, kReceiver)                                    \
                                                                                \
   /* TypedArray */                                                             \
-  TFS(TypedArrayInitialize, kHolder, kLength, kElementSize, kInitialize,       \
-      kBufferConstructor)                                                      \
   /* ES #sec-typedarray-constructors */                                        \
   TFJ(TypedArrayBaseConstructor, 0, kReceiver)                                 \
   TFJ(GenericConstructorLazyDeoptContinuation, 1, kReceiver, kResult)          \

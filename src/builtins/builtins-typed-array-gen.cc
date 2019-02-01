@@ -66,6 +66,7 @@ void TypedArrayBuiltinsAssembler::SetupTypedArray(TNode<JSTypedArray> holder,
                                                   TNode<Smi> length,
                                                   TNode<UintPtrT> byte_offset,
                                                   TNode<UintPtrT> byte_length) {
+  CSA_ASSERT(this, TaggedIsPositiveSmi(length));
   StoreObjectField(holder, JSTypedArray::kLengthOffset, length);
   StoreObjectFieldNoWriteBarrier(holder, JSArrayBufferView::kByteOffsetOffset,
                                  byte_offset,
@@ -85,6 +86,7 @@ void TypedArrayBuiltinsAssembler::AttachBuffer(TNode<JSTypedArray> holder,
                                                TNode<Map> map,
                                                TNode<Smi> length,
                                                TNode<Number> byte_offset) {
+  CSA_ASSERT(this, TaggedIsPositiveSmi(length));
   StoreObjectField(holder, JSArrayBufferView::kBufferOffset, buffer);
 
   Node* elements = Allocate(FixedTypedArrayBase::kHeaderSize);
@@ -105,198 +107,85 @@ void TypedArrayBuiltinsAssembler::AttachBuffer(TNode<JSTypedArray> holder,
   StoreObjectField(holder, JSObject::kElementsOffset, elements);
 }
 
-TF_BUILTIN(TypedArrayInitialize, TypedArrayBuiltinsAssembler) {
-  TNode<JSTypedArray> holder = CAST(Parameter(Descriptor::kHolder));
-  TNode<Smi> length = CAST(Parameter(Descriptor::kLength));
-  TNode<Smi> element_size = CAST(Parameter(Descriptor::kElementSize));
-  Node* initialize = Parameter(Descriptor::kInitialize);
-  TNode<JSReceiver> buffer_constructor =
-      CAST(Parameter(Descriptor::kBufferConstructor));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+// Allocate a new ArrayBuffer and initialize it with empty properties and
+// elements.
+TNode<JSArrayBuffer> TypedArrayBuiltinsAssembler::AllocateEmptyOnHeapBuffer(
+    TNode<Context> context, TNode<JSTypedArray> holder,
+    TNode<UintPtrT> byte_length) {
+  TNode<Context> native_context = LoadNativeContext(context);
+  TNode<Map> map =
+      CAST(LoadContextElement(native_context, Context::ARRAY_BUFFER_MAP_INDEX));
+  TNode<FixedArray> empty_fixed_array =
+      CAST(LoadRoot(RootIndex::kEmptyFixedArray));
 
-  CSA_ASSERT(this, TaggedIsPositiveSmi(length));
-  CSA_ASSERT(this, TaggedIsPositiveSmi(element_size));
-  CSA_ASSERT(this, IsBoolean(initialize));
+  TNode<JSArrayBuffer> buffer = UncheckedCast<JSArrayBuffer>(
+      Allocate(JSArrayBuffer::kSizeWithEmbedderFields));
+  StoreMapNoWriteBarrier(buffer, map);
+  StoreObjectFieldNoWriteBarrier(buffer, JSArray::kPropertiesOrHashOffset,
+                                 empty_fixed_array);
+  StoreObjectFieldNoWriteBarrier(buffer, JSArray::kElementsOffset,
+                                 empty_fixed_array);
+  // Setup the ArrayBuffer.
+  //  - Set BitField to 0.
+  //  - Set IsExternal and IsDetachable bits of BitFieldSlot.
+  //  - Set the byte_length field to byte_length.
+  //  - Set backing_store to null/Smi(0).
+  //  - Set all embedder fields to Smi(0).
+  if (FIELD_SIZE(JSArrayBuffer::kOptionalPaddingOffset) != 0) {
+    DCHECK_EQ(4, FIELD_SIZE(JSArrayBuffer::kOptionalPaddingOffset));
+    StoreObjectFieldNoWriteBarrier(
+        buffer, JSArrayBuffer::kOptionalPaddingOffset, Int32Constant(0),
+        MachineRepresentation::kWord32);
+  }
+  int32_t bitfield_value = (1 << JSArrayBuffer::IsExternalBit::kShift) |
+                           (1 << JSArrayBuffer::IsDetachableBit::kShift);
+  StoreObjectFieldNoWriteBarrier(buffer, JSArrayBuffer::kBitFieldOffset,
+                                 Int32Constant(bitfield_value),
+                                 MachineRepresentation::kWord32);
 
-  TNode<Smi> byte_offset = SmiConstant(0);
+  StoreObjectFieldNoWriteBarrier(buffer, JSArrayBuffer::kByteLengthOffset,
+                                 byte_length,
+                                 MachineType::PointerRepresentation());
+  StoreObjectFieldNoWriteBarrier(buffer, JSArrayBuffer::kBackingStoreOffset,
+                                 SmiConstant(0));
+  for (int offset = JSArrayBuffer::kHeaderSize;
+       offset < JSArrayBuffer::kSizeWithEmbedderFields; offset += kTaggedSize) {
+    StoreObjectFieldNoWriteBarrier(buffer, offset, SmiConstant(0));
+  }
 
-  static const int32_t fta_base_data_offset =
+  StoreObjectField(holder, JSArrayBufferView::kBufferOffset, buffer);
+  return buffer;
+}
+
+TNode<FixedTypedArrayBase> TypedArrayBuiltinsAssembler::AllocateOnHeapElements(
+    TNode<Map> map, TNode<IntPtrT> total_size, TNode<Number> length) {
+  static const intptr_t fta_base_data_offset =
       FixedTypedArrayBase::kDataOffset - kHeapObjectTag;
 
-  Label setup_holder(this), allocate_on_heap(this), aligned(this),
-      allocate_elements(this), allocate_off_heap(this),
-      allocate_off_heap_custom_constructor(this),
-      allocate_off_heap_no_init(this), attach_buffer(this), done(this);
-  TVARIABLE(IntPtrT, var_total_size);
+  CSA_ASSERT(this, IntPtrGreaterThanOrEqual(total_size, IntPtrConstant(0)));
 
-  // SmiMul returns a heap number in case of Smi overflow.
-  TNode<Number> byte_length = SmiMul(length, element_size);
+  // Allocate a FixedTypedArray and set the length, base pointer and external
+  // pointer.
+  CSA_ASSERT(this, IsRegularHeapObjectSize(total_size));
 
-  TNode<Map> fixed_typed_map = LoadMapForType(holder);
+  TNode<Object> elements;
 
-  // If target and new_target for the buffer differ, allocate off-heap.
-  TNode<JSFunction> default_constructor = CAST(LoadContextElement(
-      LoadNativeContext(context), Context::ARRAY_BUFFER_FUN_INDEX));
-  GotoIfNot(WordEqual(buffer_constructor, default_constructor),
-            &allocate_off_heap_custom_constructor);
-
-  // For buffers with byte_length over the threshold, allocate off-heap.
-  GotoIf(TaggedIsNotSmi(byte_length), &allocate_off_heap);
-  TNode<Smi> smi_byte_length = CAST(byte_length);
-  GotoIf(SmiGreaterThan(smi_byte_length,
-                        SmiConstant(V8_TYPED_ARRAY_MAX_SIZE_IN_HEAP)),
-         &allocate_off_heap);
-  TNode<IntPtrT> word_byte_length = SmiToIntPtr(smi_byte_length);
-  Goto(&allocate_on_heap);
-
-  BIND(&allocate_on_heap);
-  {
-    CSA_ASSERT(this, TaggedIsPositiveSmi(byte_length));
-    // Allocate a new ArrayBuffer and initialize it with empty properties and
-    // elements.
-    Node* native_context = LoadNativeContext(context);
-    Node* map =
-        LoadContextElement(native_context, Context::ARRAY_BUFFER_MAP_INDEX);
-    Node* empty_fixed_array = LoadRoot(RootIndex::kEmptyFixedArray);
-
-    Node* buffer = Allocate(JSArrayBuffer::kSizeWithEmbedderFields);
-    StoreMapNoWriteBarrier(buffer, map);
-    StoreObjectFieldNoWriteBarrier(buffer, JSArray::kPropertiesOrHashOffset,
-                                   empty_fixed_array);
-    StoreObjectFieldNoWriteBarrier(buffer, JSArray::kElementsOffset,
-                                   empty_fixed_array);
-    // Setup the ArrayBuffer.
-    //  - Set BitField to 0.
-    //  - Set IsExternal and IsDetachable bits of BitFieldSlot.
-    //  - Set the byte_length field to byte_length.
-    //  - Set backing_store to null/Smi(0).
-    //  - Set all embedder fields to Smi(0).
-    if (FIELD_SIZE(JSArrayBuffer::kOptionalPaddingOffset) != 0) {
-      DCHECK_EQ(4, FIELD_SIZE(JSArrayBuffer::kOptionalPaddingOffset));
-      StoreObjectFieldNoWriteBarrier(
-          buffer, JSArrayBuffer::kOptionalPaddingOffset, Int32Constant(0),
-          MachineRepresentation::kWord32);
-    }
-    int32_t bitfield_value = (1 << JSArrayBuffer::IsExternalBit::kShift) |
-                             (1 << JSArrayBuffer::IsDetachableBit::kShift);
-    StoreObjectFieldNoWriteBarrier(buffer, JSArrayBuffer::kBitFieldOffset,
-                                   Int32Constant(bitfield_value),
-                                   MachineRepresentation::kWord32);
-
-    StoreObjectFieldNoWriteBarrier(buffer, JSArrayBuffer::kByteLengthOffset,
-                                   SmiToIntPtr(CAST(byte_length)),
-                                   MachineType::PointerRepresentation());
-    StoreObjectFieldNoWriteBarrier(buffer, JSArrayBuffer::kBackingStoreOffset,
-                                   SmiConstant(0));
-    for (int offset = JSArrayBuffer::kHeaderSize;
-         offset < JSArrayBuffer::kSizeWithEmbedderFields;
-         offset += kTaggedSize) {
-      StoreObjectFieldNoWriteBarrier(buffer, offset, SmiConstant(0));
-    }
-
-    StoreObjectField(holder, JSArrayBufferView::kBufferOffset, buffer);
-
-    // Check the alignment.
-    // TODO(ishell): remove <Object, Object>
-    GotoIf(WordEqual<Object, Object>(
-               SmiMod(element_size, SmiConstant(kObjectAlignment)),
-               SmiConstant(0)),
-           &aligned);
-
-    // Fix alignment if needed.
-    DCHECK_EQ(0, FixedTypedArrayBase::kHeaderSize & kObjectAlignmentMask);
-    TNode<IntPtrT> aligned_header_size =
-        IntPtrConstant(FixedTypedArrayBase::kHeaderSize + kObjectAlignmentMask);
-    TNode<IntPtrT> size = IntPtrAdd(word_byte_length, aligned_header_size);
-    var_total_size = WordAnd(size, IntPtrConstant(~kObjectAlignmentMask));
-    Goto(&allocate_elements);
+  if (UnalignedLoadSupported(MachineRepresentation::kFloat64) &&
+      UnalignedStoreSupported(MachineRepresentation::kFloat64)) {
+    elements = AllocateInNewSpace(total_size);
+  } else {
+    elements = AllocateInNewSpace(total_size, kDoubleAlignment);
   }
 
-  BIND(&aligned);
-  {
-    TNode<IntPtrT> header_size =
-        IntPtrConstant(FixedTypedArrayBase::kHeaderSize);
-    var_total_size = IntPtrAdd(word_byte_length, header_size);
-    Goto(&allocate_elements);
-  }
-
-  BIND(&allocate_elements);
-  {
-    // Allocate a FixedTypedArray and set the length, base pointer and external
-    // pointer.
-    CSA_ASSERT(this, IsRegularHeapObjectSize(var_total_size.value()));
-
-    Node* elements;
-
-    if (UnalignedLoadSupported(MachineRepresentation::kFloat64) &&
-        UnalignedStoreSupported(MachineRepresentation::kFloat64)) {
-      elements = AllocateInNewSpace(var_total_size.value());
-    } else {
-      elements = AllocateInNewSpace(var_total_size.value(), kDoubleAlignment);
-    }
-
-    StoreMapNoWriteBarrier(elements, fixed_typed_map);
-    StoreObjectFieldNoWriteBarrier(elements, FixedArray::kLengthOffset, length);
-    StoreObjectFieldNoWriteBarrier(
-        elements, FixedTypedArrayBase::kBasePointerOffset, elements);
-    StoreObjectFieldNoWriteBarrier(elements,
-                                   FixedTypedArrayBase::kExternalPointerOffset,
-                                   IntPtrConstant(fta_base_data_offset),
-                                   MachineType::PointerRepresentation());
-
-    StoreObjectField(holder, JSObject::kElementsOffset, elements);
-
-    GotoIf(IsFalse(initialize), &done);
-    // Initialize the backing store by filling it with 0s.
-    Node* backing_store = IntPtrAdd(BitcastTaggedToWord(elements),
-                                    IntPtrConstant(fta_base_data_offset));
-    // Call out to memset to perform initialization.
-    Node* memset = ExternalConstant(ExternalReference::libc_memset_function());
-    CallCFunction3(MachineType::AnyTagged(), MachineType::Pointer(),
-                   MachineType::IntPtr(), MachineType::UintPtr(), memset,
-                   backing_store, IntPtrConstant(0), word_byte_length);
-    Goto(&done);
-  }
-
-  TVARIABLE(JSArrayBuffer, var_buffer);
-
-  BIND(&allocate_off_heap);
-  {
-    GotoIf(IsFalse(initialize), &allocate_off_heap_no_init);
-    var_buffer = CAST(Construct(context, default_constructor, byte_length));
-    Goto(&attach_buffer);
-  }
-
-  BIND(&allocate_off_heap_custom_constructor);
-  {
-    var_buffer =
-        CAST(CallStub(CodeFactory::Construct(isolate()), context,
-                      default_constructor, buffer_constructor, Int32Constant(1),
-                      UndefinedConstant(), byte_length));
-    Goto(&attach_buffer);
-  }
-
-  BIND(&allocate_off_heap_no_init);
-  {
-    Node* buffer_constructor_noinit = LoadContextElement(
-        LoadNativeContext(context), Context::ARRAY_BUFFER_NOINIT_FUN_INDEX);
-    var_buffer = CAST(CallJS(CodeFactory::Call(isolate()), context,
-                             buffer_constructor_noinit, UndefinedConstant(),
-                             byte_length));
-    Goto(&attach_buffer);
-  }
-
-  BIND(&attach_buffer);
-  {
-    AttachBuffer(holder, var_buffer.value(), fixed_typed_map, length,
-                 byte_offset);
-    Goto(&done);
-  }
-
-  BIND(&done);
-  SetupTypedArray(holder, length, ChangeNonnegativeNumberToUintPtr(byte_offset),
-                  ChangeNonnegativeNumberToUintPtr(byte_length));
-  Return(UndefinedConstant());
+  StoreMapNoWriteBarrier(elements, map);
+  StoreObjectFieldNoWriteBarrier(elements, FixedArray::kLengthOffset, length);
+  StoreObjectFieldNoWriteBarrier(
+      elements, FixedTypedArrayBase::kBasePointerOffset, elements);
+  StoreObjectFieldNoWriteBarrier(elements,
+                                 FixedTypedArrayBase::kExternalPointerOffset,
+                                 IntPtrConstant(fta_base_data_offset),
+                                 MachineType::PointerRepresentation());
+  return CAST(elements);
 }
 
 Node* TypedArrayBuiltinsAssembler::LoadDataPtr(Node* typed_array) {
@@ -749,6 +638,16 @@ void TypedArrayBuiltinsAssembler::CallCMemcpy(TNode<RawPtrT> dest_ptr,
   CallCFunction3(MachineType::AnyTagged(), MachineType::Pointer(),
                  MachineType::Pointer(), MachineType::UintPtr(), memcpy,
                  dest_ptr, src_ptr, byte_length);
+}
+
+void TypedArrayBuiltinsAssembler::CallCMemset(TNode<RawPtrT> dest_ptr,
+                                              TNode<IntPtrT> value,
+                                              TNode<UintPtrT> length) {
+  TNode<ExternalReference> memset =
+      ExternalConstant(ExternalReference::libc_memset_function());
+  CallCFunction3(MachineType::AnyTagged(), MachineType::Pointer(),
+                 MachineType::IntPtr(), MachineType::UintPtr(), memset,
+                 dest_ptr, value, length);
 }
 
 void TypedArrayBuiltinsAssembler::
