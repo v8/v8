@@ -10,7 +10,6 @@ import optparse
 import os
 import shlex
 import sys
-import traceback
 
 
 # Add testrunner to the path.
@@ -267,13 +266,9 @@ class BaseTestRunner(object):
                                             self.mode_name))
       return self._do_execute(tests, args, options)
     except TestRunnerError:
-      traceback.print_exc()
       return utils.EXIT_CODE_INTERNAL_ERROR
     except KeyboardInterrupt:
       return utils.EXIT_CODE_INTERRUPTED
-    except Exception:
-      traceback.print_exc()
-      return utils.EXIT_CODE_INTERNAL_ERROR
     finally:
       command.tear_down()
 
