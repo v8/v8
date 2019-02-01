@@ -941,7 +941,7 @@ class Object {
 
 #ifdef OBJECT_PRINT
   // For our gdb macros, we should perhaps change these in the future.
-  void Print() const;
+  V8_EXPORT_PRIVATE void Print() const;
 
   // Prints this object with details.
   void Print(std::ostream& os) const;  // NOLINT

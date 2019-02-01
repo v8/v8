@@ -353,6 +353,8 @@ void Bootstrapper::DetachGlobal(Handle<Context> env) {
   if (FLAG_track_detached_contexts) {
     isolate_->AddDetachedContext(env);
   }
+
+  env->native_context()->set_microtask_queue(nullptr);
 }
 
 namespace {
