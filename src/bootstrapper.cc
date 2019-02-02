@@ -1733,6 +1733,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     native_context()->set_array_for_each_iterator(*for_each_fun);
     SimpleInstallFunction(isolate_, proto, "filter", Builtins::kArrayFilter, 1,
                           false);
+    SimpleInstallFunction(isolate_, proto, "flat",
+                          Builtins::kArrayPrototypeFlat, 0, false);
+    SimpleInstallFunction(isolate_, proto, "flatMap",
+                          Builtins::kArrayPrototypeFlatMap, 1, false);
     SimpleInstallFunction(isolate_, proto, "map", Builtins::kArrayMap, 1,
                           false);
     SimpleInstallFunction(isolate_, proto, "every", Builtins::kArrayEvery, 1,
@@ -4212,18 +4216,6 @@ void Genesis::InitializeGlobal_harmony_sharedarraybuffer() {
   JSObject::AddProperty(isolate_, global, "Atomics",
                         isolate()->atomics_object(), DONT_ENUM);
   InstallToStringTag(isolate_, isolate()->atomics_object(), "Atomics");
-}
-
-void Genesis::InitializeGlobal_harmony_array_flat() {
-  if (!FLAG_harmony_array_flat) return;
-  Handle<JSFunction> array_constructor(native_context()->array_function(),
-                                       isolate());
-  Handle<JSObject> array_prototype(
-      JSObject::cast(array_constructor->instance_prototype()), isolate());
-  SimpleInstallFunction(isolate(), array_prototype, "flat",
-                        Builtins::kArrayPrototypeFlat, 0, false);
-  SimpleInstallFunction(isolate(), array_prototype, "flatMap",
-                        Builtins::kArrayPrototypeFlatMap, 1, false);
 }
 
 void Genesis::InitializeGlobal_harmony_symbol_description() {

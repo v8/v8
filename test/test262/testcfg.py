@@ -46,8 +46,6 @@ FEATURE_FLAGS = {
   'class-static-fields-public': '--harmony-class-fields',
   'class-fields-private': '--harmony-private-fields',
   'class-static-fields-private': '--harmony-private-fields',
-  'Array.prototype.flat': '--harmony-array-flat',
-  'Array.prototype.flatMap': '--harmony-array-flat',
   'String.prototype.matchAll': '--harmony-string-matchall',
   'Symbol.matchAll': '--harmony-string-matchall',
   'numeric-separator-literal': '--harmony-numeric-separator',
