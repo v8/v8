@@ -147,7 +147,7 @@ class CompilationStateImpl {
   void OnBackgroundTaskStopped(const WasmFeatures& detected);
   void PublishDetectedFeatures(Isolate* isolate, const WasmFeatures& detected);
   void RestartBackgroundCompileTask();
-  void RestartBackgroundTasks(size_t max = std::numeric_limits<size_t>::max());
+  void RestartBackgroundTasks();
 
   void Abort();
 
@@ -236,7 +236,7 @@ class CompilationStateImpl {
   std::vector<std::unique_ptr<WasmCompilationUnit>> baseline_compilation_units_;
   std::vector<std::unique_ptr<WasmCompilationUnit>> tiering_compilation_units_;
 
-  size_t num_background_tasks_ = 0;
+  int num_background_tasks_ = 0;
 
   // Features detected to be used in this module. Features can be detected
   // as a module is being compiled.
@@ -257,7 +257,7 @@ class CompilationStateImpl {
   // the foreground thread.
   std::vector<CompilationState::callback_t> callbacks_;
 
-  const size_t max_background_tasks_ = 0;
+  const int max_background_tasks_ = 0;
 };
 
 CompilationStateImpl* Impl(CompilationState* compilation_state) {
@@ -1626,8 +1626,8 @@ void CompilationStateImpl::PublishDetectedFeatures(
   UpdateFeatureUseCounts(isolate, detected_features_);
 }
 
-void CompilationStateImpl::RestartBackgroundTasks(size_t max) {
-  size_t num_restart;
+void CompilationStateImpl::RestartBackgroundTasks() {
+  int num_restart;
   {
     base::MutexGuard guard(&mutex_);
     // No need to restart tasks if compilation already failed.
@@ -1637,8 +1637,11 @@ void CompilationStateImpl::RestartBackgroundTasks(size_t max) {
     if (num_background_tasks_ == max_background_tasks_) return;
     size_t num_compilation_units =
         baseline_compilation_units_.size() + tiering_compilation_units_.size();
-    size_t stopped_tasks = max_background_tasks_ - num_background_tasks_;
-    num_restart = std::min(max, std::min(num_compilation_units, stopped_tasks));
+    num_restart = max_background_tasks_ - num_background_tasks_;
+    DCHECK_LE(0, num_restart);
+    if (num_compilation_units < static_cast<size_t>(num_restart)) {
+      num_restart = static_cast<int>(num_compilation_units);
+    }
     num_background_tasks_ += num_restart;
   }
 
