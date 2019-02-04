@@ -13848,5 +13848,13 @@ void CodeStubAssembler::GotoIfInitialPrototypePropertiesModified(
   }
 }
 
+TNode<String> CodeStubAssembler::TaggedToDirectString(TNode<Object> value,
+                                                      Label* fail) {
+  ToDirectStringAssembler to_direct(state(), value);
+  to_direct.TryToDirect(fail);
+  to_direct.PointerToData(fail);
+  return CAST(value);
+}
+
 }  // namespace internal
 }  // namespace v8

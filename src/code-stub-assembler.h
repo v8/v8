@@ -322,6 +322,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return UncheckedCast<Smi>(value);
   }
 
+  TNode<String> TaggedToDirectString(TNode<Object> value, Label* fail);
+
   TNode<Number> TaggedToNumber(TNode<Object> value, Label* fail) {
     GotoIfNot(IsNumber(value), fail);
     return UncheckedCast<Number>(value);

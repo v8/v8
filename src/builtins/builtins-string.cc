@@ -290,53 +290,6 @@ BUILTIN(StringPrototypeNormalize) {
 }
 #endif  // !V8_INTL_SUPPORT
 
-BUILTIN(StringPrototypeStartsWith) {
-  HandleScope handle_scope(isolate);
-  TO_THIS_STRING(str, "String.prototype.startsWith");
-
-  // Check if the search string is a regExp and fail if it is.
-  Handle<Object> search = args.atOrUndefined(isolate, 1);
-  Maybe<bool> is_reg_exp = RegExpUtils::IsRegExp(isolate, search);
-  if (is_reg_exp.IsNothing()) {
-    DCHECK(isolate->has_pending_exception());
-    return ReadOnlyRoots(isolate).exception();
-  }
-  if (is_reg_exp.FromJust()) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kFirstArgumentNotRegExp,
-                              isolate->factory()->NewStringFromStaticChars(
-                                  "String.prototype.startsWith")));
-  }
-  Handle<String> search_string;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, search_string,
-                                     Object::ToString(isolate, search));
-
-  Handle<Object> position = args.atOrUndefined(isolate, 2);
-  int start;
-
-  if (position->IsUndefined(isolate)) {
-    start = 0;
-  } else {
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, position,
-                                       Object::ToInteger(isolate, position));
-    start = str->ToValidIndex(*position);
-  }
-
-  if (start + search_string->length() > str->length()) {
-    return ReadOnlyRoots(isolate).false_value();
-  }
-
-  FlatStringReader str_reader(isolate, String::Flatten(isolate, str));
-  FlatStringReader search_reader(isolate,
-                                 String::Flatten(isolate, search_string));
-
-  for (int i = 0; i < search_string->length(); i++) {
-    if (str_reader.Get(start + i) != search_reader.Get(i)) {
-      return ReadOnlyRoots(isolate).false_value();
-    }
-  }
-  return ReadOnlyRoots(isolate).true_value();
-}
 
 #ifndef V8_INTL_SUPPORT
 namespace {

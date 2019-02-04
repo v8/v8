@@ -61,6 +61,10 @@ type Number = Smi | HeapNumber;
 type BigInt extends HeapObject generates 'TNode<BigInt>';
 type Numeric = Number | BigInt;
 
+// A direct string can be accessed directly through CSA without going into the
+// C++ runtime. See also: ToDirectStringAssembler.
+type DirectString extends String generates 'TNode<String>';
+
 type RootIndex generates 'TNode<Int32T>' constexpr 'RootIndex';
 
 type Map extends HeapObject generates 'TNode<Map>';
@@ -321,6 +325,8 @@ const kIteratorValueNotAnObject: constexpr MessageTemplate
     generates 'MessageTemplate::kIteratorValueNotAnObject';
 const kNotIterable: constexpr MessageTemplate
     generates 'MessageTemplate::kNotIterable';
+const kFirstArgumentNotRegExp: constexpr MessageTemplate
+    generates 'MessageTemplate::kFirstArgumentNotRegExp';
 
 const kMaxArrayIndex:
     constexpr uint32 generates 'JSArray::kMaxArrayIndex';
@@ -493,6 +499,8 @@ extern macro LoadAndUntagToWord32Root(constexpr RootIndex): int32;
 
 extern runtime StringEqual(Context, String, String): Oddball;
 extern builtin StringLessThan(Context, String, String): Boolean;
+extern macro StringCharCodeAt(String, intptr): int32;
+extern runtime StringStartsWith(Context, String, String, Number): Boolean;
 
 extern macro StrictEqual(Object, Object): Boolean;
 extern macro SmiLexicographicCompare(Smi, Smi): Smi;
@@ -670,6 +678,7 @@ extern operator '.instanceType' macro LoadInstanceType(HeapObject):
     InstanceType;
 
 extern operator '.length' macro LoadStringLengthAsWord(String): intptr;
+extern operator '.length_smi' macro LoadStringLengthAsSmi(String): Smi;
 
 extern operator '.length' macro GetArgumentsLength(constexpr Arguments): intptr;
 extern operator '[]' macro GetArgumentValue(
@@ -691,6 +700,8 @@ extern macro TaggedToHeapObject(Object): HeapObject
 extern macro TaggedToSmi(Object): Smi
     labels CastError;
 extern macro TaggedToPositiveSmi(Object): PositiveSmi
+    labels CastError;
+extern macro TaggedToDirectString(Object): DirectString
     labels CastError;
 extern macro HeapObjectToJSArray(HeapObject): JSArray
     labels CastError;
@@ -809,6 +820,11 @@ Cast<FixedTypedArrayBase>(o: HeapObject): FixedTypedArrayBase
 Cast<String>(o: HeapObject): String
     labels CastError {
   return HeapObjectToString(o) otherwise CastError;
+}
+
+Cast<DirectString>(o: HeapObject): DirectString
+    labels CastError {
+  return TaggedToDirectString(o) otherwise CastError;
 }
 
 Cast<Constructor>(o: HeapObject): Constructor

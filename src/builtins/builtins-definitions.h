@@ -1118,8 +1118,6 @@ namespace internal {
       SharedFunctionInfo::kDontAdaptArgumentsSentinel)                         \
   /* ES6 #sec-string.prototype.sup */                                          \
   TFJ(StringPrototypeSup, 0, kReceiver)                                        \
-  /* ES6 #sec-string.prototype.startswith */                                   \
-  CPP(StringPrototypeStartsWith)                                               \
   /* ES6 #sec-string.prototype.tostring */                                     \
   TFJ(StringPrototypeToString, 0, kReceiver)                                   \
   TFJ(StringPrototypeTrim, SharedFunctionInfo::kDontAdaptArgumentsSentinel)    \

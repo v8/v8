@@ -882,6 +882,7 @@ torque_files = [
   "src/builtins/extras-utils.tq",
   "src/builtins/object-fromentries.tq",
   "src/builtins/iterator.tq",
+  "src/builtins/string-startswith.tq",
   "src/builtins/typed-array.tq",
   "src/builtins/typed-array-createtypedarray.tq",
   "test/torque/test-torque.tq",
@@ -889,7 +890,6 @@ torque_files = [
 ]
 
 torque_namespaces = [
-  "base",
   "arguments",
   "array",
   "array-copywithin",
@@ -903,14 +903,16 @@ torque_namespaces = [
   "array-splice",
   "array-unshift",
   "array-lastindexof",
+  "base",
   "collections",
-  "iterator",
-  "object",
-  "typed-array",
-  "typed-array-createtypedarray",
   "data-view",
   "extras-utils",
+  "iterator",
+  "object",
+  "string",
   "test",
+  "typed-array",
+  "typed-array-createtypedarray",
 ]
 
 action("run_torque") {
