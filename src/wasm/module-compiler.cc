@@ -792,11 +792,9 @@ AsyncCompileJob::AsyncCompileJob(
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
   v8::Platform* platform = V8::GetCurrentPlatform();
   foreground_task_runner_ = platform->GetForegroundTaskRunner(v8_isolate);
-  // The handle for the context must be deferred.
-  DeferredHandleScope deferred(isolate);
-  native_context_ = Handle<Context>(context->native_context(), isolate);
+  native_context_ =
+      isolate->global_handles()->Create(context->native_context());
   DCHECK(native_context_->IsNativeContext());
-  deferred_handles_.push_back(deferred.Detach());
 }
 
 void AsyncCompileJob::Start() {
@@ -868,7 +866,10 @@ AsyncCompileJob::~AsyncCompileJob() {
   // https://crbug.com/888170.
   if (stream_) stream_->NotifyCompilationEnded();
   CancelPendingForegroundTask();
-  for (auto d : deferred_handles_) delete d;
+  isolate_->global_handles()->Destroy(native_context_.location());
+  if (!module_object_.is_null()) {
+    isolate_->global_handles()->Destroy(module_object_.location());
+  }
 }
 
 void AsyncCompileJob::CreateNativeModule(
@@ -908,14 +909,10 @@ void AsyncCompileJob::PrepareRuntimeObjects() {
 
   size_t code_size_estimate =
       wasm::WasmCodeManager::EstimateNativeModuleCodeSize(module);
-  module_object_ = WasmModuleObject::New(isolate_, native_module_, script,
-                                         code_size_estimate);
+  Handle<WasmModuleObject> module_object = WasmModuleObject::New(
+      isolate_, native_module_, script, code_size_estimate);
 
-  {
-    DeferredHandleScope deferred(isolate_);
-    module_object_ = handle(*module_object_, isolate_);
-    deferred_handles_.push_back(deferred.Detach());
-  }
+  module_object_ = isolate_->global_handles()->Create(*module_object);
 }
 
 // This function assumes that it is executed in a HandleScope, and that a
@@ -1456,12 +1453,8 @@ bool AsyncStreamingProcessor::Deserialize(Vector<const uint8_t> module_bytes,
       DeserializeNativeModule(job_->isolate_, module_bytes, wire_bytes);
   if (result.is_null()) return false;
 
-  job_->module_object_ = result.ToHandleChecked();
-  {
-    DeferredHandleScope deferred(job_->isolate_);
-    job_->module_object_ = handle(*job_->module_object_, job_->isolate_);
-    job_->deferred_handles_.push_back(deferred.Detach());
-  }
+  job_->module_object_ =
+      job_->isolate_->global_handles()->Create(*result.ToHandleChecked());
   job_->native_module_ = job_->module_object_->shared_native_module();
   auto owned_wire_bytes = OwnedVector<uint8_t>::Of(wire_bytes);
   job_->wire_bytes_ = ModuleWireBytes(owned_wire_bytes.as_vector());
