@@ -488,6 +488,63 @@ TEST(TracedGlobalIteration) {
   CHECK_EQ(1, visitor.count());
 }
 
+namespace {
+
+void FinalizationCallback(const WeakCallbackInfo<void>& data) {
+  v8::TracedGlobal<v8::Object>* traced =
+      reinterpret_cast<v8::TracedGlobal<v8::Object>*>(data.GetParameter());
+  CHECK_EQ(reinterpret_cast<void*>(0x4), data.GetInternalField(0));
+  CHECK_EQ(reinterpret_cast<void*>(0x8), data.GetInternalField(1));
+  traced->Reset();
+}
+
+}  // namespace
+
+TEST(TracedGlobalSetFinalizationCallbackScavenge) {
+  ManualGCScope manual_gc;
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  TestEmbedderHeapTracer tracer;
+  tracer.ConsiderTracedGlobalAsRoot(false);
+  TemporaryEmbedderHeapTracerScope tracer_scope(isolate, &tracer);
+
+  v8::TracedGlobal<v8::Object> traced;
+  ConstructJSApiObject(isolate, isolate->GetCurrentContext(), &traced);
+  CHECK(!traced.IsEmpty());
+  {
+    v8::HandleScope scope(isolate);
+    auto local = traced.Get(isolate);
+    local->SetAlignedPointerInInternalField(0, reinterpret_cast<void*>(0x4));
+    local->SetAlignedPointerInInternalField(1, reinterpret_cast<void*>(0x8));
+  }
+  traced.SetFinalizationCallback(&traced, FinalizationCallback);
+  heap::InvokeScavenge();
+  CHECK(traced.IsEmpty());
+}
+
+TEST(TracedGlobalSetFinalizationCallbackMarkSweep) {
+  ManualGCScope manual_gc;
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  TestEmbedderHeapTracer tracer;
+  TemporaryEmbedderHeapTracerScope tracer_scope(isolate, &tracer);
+
+  v8::TracedGlobal<v8::Object> traced;
+  ConstructJSApiObject(isolate, isolate->GetCurrentContext(), &traced);
+  CHECK(!traced.IsEmpty());
+  {
+    v8::HandleScope scope(isolate);
+    auto local = traced.Get(isolate);
+    local->SetAlignedPointerInInternalField(0, reinterpret_cast<void*>(0x4));
+    local->SetAlignedPointerInInternalField(1, reinterpret_cast<void*>(0x8));
+  }
+  traced.SetFinalizationCallback(&traced, FinalizationCallback);
+  heap::InvokeMarkSweep();
+  CHECK(traced.IsEmpty());
+}
+
 }  // namespace heap
 }  // namespace internal
 }  // namespace v8

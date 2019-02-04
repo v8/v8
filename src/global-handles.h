@@ -6,6 +6,7 @@
 #define V8_GLOBAL_HANDLES_H_
 
 #include <type_traits>
+#include <utility>
 #include <vector>
 
 #include "include/v8.h"
@@ -43,16 +44,15 @@ class GlobalHandles final {
   template <class NodeType>
   class NodeBlock;
 
-  // Move a global handle.
+  //
+  // API for regular handles.
+  //
+
   static void MoveGlobal(Address** from, Address** to);
-  static void MoveTracedGlobal(Address** from, Address** to);
 
-  // Destroy a global handle.
-  static void Destroy(Address* location);
-  static void DestroyTraced(Address* location);
-
-  // Copy a global handle.
   static Handle<Object> CopyGlobal(Address* location);
+
+  static void Destroy(Address* location);
 
   // Make the global handle weak and set the callback parameter for the
   // handle.  When the garbage collector recognizes that only weak global
@@ -66,7 +66,6 @@ class GlobalHandles final {
   static void MakeWeak(Address* location, void* parameter,
                        WeakCallbackInfo<void>::Callback weak_callback,
                        v8::WeakCallbackType type);
-
   static void MakeWeak(Address** location_addr);
 
   static void AnnotateStrongRetainer(Address* location, const char* label);
@@ -79,6 +78,16 @@ class GlobalHandles final {
 
   // Tells whether global handle is weak.
   static bool IsWeak(Address* location);
+
+  //
+  // API for traced handles.
+  //
+
+  static void MoveTracedGlobal(Address** from, Address** to);
+  static void DestroyTraced(Address* location);
+  static void SetFinalizationCallbackForTraced(
+      Address* location, void* parameter,
+      WeakCallbackInfo<void>::Callback callback);
 
   explicit GlobalHandles(Isolate* isolate);
   ~GlobalHandles();
@@ -196,6 +205,10 @@ class GlobalHandles final {
   size_t PostMarkSweepProcessing(unsigned post_processing_count);
 
   template <typename T>
+  size_t InvokeFirstPassWeakCallbacks(
+      std::vector<std::pair<T*, PendingPhantomCallback>>* pending);
+
+  template <typename T>
   void UpdateAndCompactListOfNewSpaceNode(std::vector<T*>* node_list);
   void UpdateListOfNewSpaceNodes();
 
@@ -216,7 +229,10 @@ class GlobalHandles final {
   size_t handles_count_ = 0;
   size_t number_of_phantom_handle_resets_ = 0;
 
-  std::vector<PendingPhantomCallback> pending_phantom_callbacks_;
+  std::vector<std::pair<Node*, PendingPhantomCallback>>
+      regular_pending_phantom_callbacks_;
+  std::vector<std::pair<TracedNode*, PendingPhantomCallback>>
+      traced_pending_phantom_callbacks_;
   std::vector<PendingPhantomCallback> second_pass_callbacks_;
   bool second_pass_callbacks_task_posted_ = false;
 
@@ -229,22 +245,23 @@ class GlobalHandles final {
 class GlobalHandles::PendingPhantomCallback final {
  public:
   typedef v8::WeakCallbackInfo<void> Data;
+
+  enum InvocationType { kFirstPass, kSecondPass };
+
   PendingPhantomCallback(
-      Node* node, Data::Callback callback, void* parameter,
+      Data::Callback callback, void* parameter,
       void* embedder_fields[v8::kEmbedderFieldsInWeakCallback])
-      : node_(node), callback_(callback), parameter_(parameter) {
+      : callback_(callback), parameter_(parameter) {
     for (int i = 0; i < v8::kEmbedderFieldsInWeakCallback; ++i) {
       embedder_fields_[i] = embedder_fields[i];
     }
   }
 
-  void Invoke(Isolate* isolate);
+  void Invoke(Isolate* isolate, InvocationType type);
 
-  Node* node() const { return node_; }
   Data::Callback callback() const { return callback_; }
 
  private:
-  Node* node_;
   Data::Callback callback_;
   void* parameter_;
   void* embedder_fields_[v8::kEmbedderFieldsInWeakCallback];

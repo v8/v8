@@ -345,6 +345,21 @@ class NodeBase {
   } data_;
 };
 
+namespace {
+
+void ExtractInternalFields(JSObject jsobject, void** embedder_fields, int len) {
+  int field_count = jsobject->GetEmbedderFieldCount();
+  for (int i = 0; i < len; ++i) {
+    if (field_count == i) break;
+    void* pointer;
+    if (EmbedderDataSlot(jsobject, i).ToAlignedPointer(&pointer)) {
+      embedder_fields[i] = pointer;
+    }
+  }
+}
+
+}  // namespace
+
 class GlobalHandles::Node final : public NodeBase<GlobalHandles::Node> {
  public:
   // State transition diagram:
@@ -519,7 +534,8 @@ class GlobalHandles::Node final : public NodeBase<GlobalHandles::Node> {
   }
 
   void CollectPhantomCallbackData(
-      std::vector<PendingPhantomCallback>* pending_phantom_callbacks) {
+      std::vector<std::pair<Node*, PendingPhantomCallback>>*
+          pending_phantom_callbacks) {
     DCHECK(weakness_type() == PHANTOM_WEAK ||
            weakness_type() == PHANTOM_WEAK_2_EMBEDDER_FIELDS);
     DCHECK(state() == PENDING);
@@ -528,29 +544,23 @@ class GlobalHandles::Node final : public NodeBase<GlobalHandles::Node> {
     void* embedder_fields[v8::kEmbedderFieldsInWeakCallback] = {nullptr,
                                                                 nullptr};
     if (weakness_type() != PHANTOM_WEAK && object()->IsJSObject()) {
-      JSObject jsobject = JSObject::cast(object());
-      int field_count = jsobject->GetEmbedderFieldCount();
-      for (int i = 0; i < v8::kEmbedderFieldsInWeakCallback; ++i) {
-        if (field_count == i) break;
-        void* pointer;
-        if (EmbedderDataSlot(jsobject, i).ToAlignedPointer(&pointer)) {
-          embedder_fields[i] = pointer;
-        }
-      }
+      ExtractInternalFields(JSObject::cast(object()), embedder_fields,
+                            v8::kEmbedderFieldsInWeakCallback);
     }
 
     // Zap with something dangerous.
-    location().store(Object(0x6057CA11));
+    location().store(Object(0xCA11));
 
-    pending_phantom_callbacks->push_back(PendingPhantomCallback(
-        this, weak_callback_, parameter(), embedder_fields));
+    pending_phantom_callbacks->push_back(std::make_pair(
+        this,
+        PendingPhantomCallback(weak_callback_, parameter(), embedder_fields)));
     DCHECK(IsInUse());
     set_state(NEAR_DEATH);
   }
 
   void ResetPhantomHandle() {
-    DCHECK(weakness_type() == PHANTOM_WEAK_RESET_HANDLE);
-    DCHECK(state() == PENDING);
+    DCHECK_EQ(PHANTOM_WEAK_RESET_HANDLE, weakness_type());
+    DCHECK_EQ(PENDING, state());
     DCHECK_NULL(weak_callback_);
     Address** handle = reinterpret_cast<Address**>(parameter());
     *handle = nullptr;
@@ -626,7 +636,7 @@ class GlobalHandles::TracedNode final
  public:
   TracedNode() { set_in_new_space_list(false); }
 
-  enum State { FREE = 0, NORMAL };
+  enum State { FREE = 0, NORMAL, NEAR_DEATH };
 
   State state() const { return NodeState::decode(flags_); }
   void set_state(State state) { flags_ = NodeState::update(flags_, state); }
@@ -634,6 +644,8 @@ class GlobalHandles::TracedNode final
   void MarkAsFree() { set_state(FREE); }
   void MarkAsUsed() { set_state(NORMAL); }
   bool IsInUse() const { return state() != FREE; }
+  bool IsRetainer() const { return state() == NORMAL; }
+  bool IsPhantomResetHandle() const { return callback_ == nullptr; }
 
   bool is_in_new_space_list() const { return IsInNewSpaceList::decode(flags_); }
   void set_in_new_space_list(bool v) {
@@ -642,6 +654,31 @@ class GlobalHandles::TracedNode final
 
   bool is_root() const { return IsRoot::decode(flags_); }
   void set_root(bool v) { flags_ = IsRoot::update(flags_, v); }
+
+  void SetFinalizationCallback(void* parameter,
+                               WeakCallbackInfo<void>::Callback callback) {
+    set_parameter(parameter);
+    callback_ = callback;
+  }
+
+  void CollectPhantomCallbackData(
+      std::vector<std::pair<TracedNode*, PendingPhantomCallback>>*
+          pending_phantom_callbacks) {
+    DCHECK(IsInUse());
+    DCHECK_NOT_NULL(callback_);
+
+    void* embedder_fields[v8::kEmbedderFieldsInWeakCallback] = {nullptr,
+                                                                nullptr};
+    ExtractInternalFields(JSObject::cast(object()), embedder_fields,
+                          v8::kEmbedderFieldsInWeakCallback);
+
+    // Zap with something dangerous.
+    location().store(Object(0xCA11));
+
+    pending_phantom_callbacks->push_back(std::make_pair(
+        this, PendingPhantomCallback(callback_, parameter(), embedder_fields)));
+    set_state(NEAR_DEATH);
+  }
 
   void ResetPhantomHandle() {
     DCHECK(IsInUse());
@@ -652,12 +689,21 @@ class GlobalHandles::TracedNode final
   }
 
  protected:
-  class NodeState : public BitField8<State, 0, 1> {};
+  class NodeState : public BitField8<State, 0, 2> {};
   class IsInNewSpaceList : public BitField8<bool, NodeState::kNext, 1> {};
   class IsRoot : public BitField8<bool, IsInNewSpaceList::kNext, 1> {};
 
-  void ClearImplFields() { set_root(true); }
-  void CheckImplFieldsAreCleared() const { DCHECK(is_root()); }
+  void ClearImplFields() {
+    set_root(true);
+    callback_ = nullptr;
+  }
+
+  void CheckImplFieldsAreCleared() const {
+    DCHECK(is_root());
+    DCHECK_NULL(callback_);
+  }
+
+  WeakCallbackInfo<void>::Callback callback_;
 
   friend class NodeBase<GlobalHandles::TracedNode>;
 
@@ -744,6 +790,13 @@ void GlobalHandles::DestroyTraced(Address* location) {
   }
 }
 
+void GlobalHandles::SetFinalizationCallbackForTraced(
+    Address* location, void* parameter,
+    WeakCallbackInfo<void>::Callback callback) {
+  TracedNode::FromLocation(location)->SetFinalizationCallback(parameter,
+                                                              callback);
+}
+
 typedef v8::WeakCallbackInfo<void>::Callback GenericCallback;
 
 void GlobalHandles::MakeWeak(Address* location, void* parameter,
@@ -798,15 +851,19 @@ void GlobalHandles::IterateWeakRootsForPhantomHandles(
         ++number_of_phantom_handle_resets_;
       } else if (node->IsPhantomCallback()) {
         node->MarkPending();
-        node->CollectPhantomCallbackData(&pending_phantom_callbacks_);
+        node->CollectPhantomCallbackData(&regular_pending_phantom_callbacks_);
       }
     }
   }
   for (TracedNode* node : *traced_nodes_) {
     if (node->IsInUse() &&
         should_reset_handle(isolate()->heap(), node->location())) {
-      node->ResetPhantomHandle();
-      ++number_of_phantom_handle_resets_;
+      if (node->IsPhantomResetHandle()) {
+        node->ResetPhantomHandle();
+        ++number_of_phantom_handle_resets_;
+      } else {
+        node->CollectPhantomCallbackData(&traced_pending_phantom_callbacks_);
+      }
     }
   }
 }
@@ -903,7 +960,7 @@ void GlobalHandles::IterateNewSpaceWeakUnmodifiedRootsForPhantomHandles(
           ++number_of_phantom_handle_resets_;
         } else if (node->IsPhantomCallback()) {
           node->MarkPending();
-          node->CollectPhantomCallbackData(&pending_phantom_callbacks_);
+          node->CollectPhantomCallbackData(&regular_pending_phantom_callbacks_);
         } else {
           UNREACHABLE();
         }
@@ -920,8 +977,12 @@ void GlobalHandles::IterateNewSpaceWeakUnmodifiedRootsForPhantomHandles(
     DCHECK_IMPLIES(node->is_root(),
                    !should_reset_handle(isolate_->heap(), node->location()));
     if (should_reset_handle(isolate_->heap(), node->location())) {
-      node->ResetPhantomHandle();
-      ++number_of_phantom_handle_resets_;
+      if (node->IsPhantomResetHandle()) {
+        node->ResetPhantomHandle();
+        ++number_of_phantom_handle_resets_;
+      } else {
+        node->CollectPhantomCallbackData(&traced_pending_phantom_callbacks_);
+      }
     } else {
       if (!node->is_root()) {
         node->set_root(true);
@@ -946,9 +1007,7 @@ void GlobalHandles::InvokeSecondPassPhantomCallbacks() {
   while (!second_pass_callbacks_.empty()) {
     auto callback = second_pass_callbacks_.back();
     second_pass_callbacks_.pop_back();
-    DCHECK_NULL(callback.node());
-    // Fire second pass callback
-    callback.Invoke(isolate());
+    callback.Invoke(isolate(), PendingPhantomCallback::kSecondPass);
   }
 }
 
@@ -1023,21 +1082,36 @@ void GlobalHandles::UpdateListOfNewSpaceNodes() {
   UpdateAndCompactListOfNewSpaceNode(&traced_new_space_nodes_);
 }
 
-size_t GlobalHandles::InvokeFirstPassWeakCallbacks() {
+template <typename T>
+size_t GlobalHandles::InvokeFirstPassWeakCallbacks(
+    std::vector<std::pair<T*, PendingPhantomCallback>>* pending) {
   size_t freed_nodes = 0;
-  std::vector<PendingPhantomCallback> pending_phantom_callbacks;
-  pending_phantom_callbacks.swap(pending_phantom_callbacks_);
+  std::vector<std::pair<T*, PendingPhantomCallback>> pending_phantom_callbacks;
+  pending_phantom_callbacks.swap(*pending);
   {
     // The initial pass callbacks must simply clear the nodes.
-    for (auto callback : pending_phantom_callbacks) {
-      // Skip callbacks that have already been processed once.
-      if (callback.node() == nullptr) continue;
-      callback.Invoke(isolate());
-      if (callback.callback()) second_pass_callbacks_.push_back(callback);
+    for (auto& pair : pending_phantom_callbacks) {
+      T* node = pair.first;
+      DCHECK_EQ(T::NEAR_DEATH, node->state());
+      pair.second.Invoke(isolate(), PendingPhantomCallback::kFirstPass);
+
+      // Transition to second pass. It is required that the first pass callback
+      // resets the handle using |v8::PersistentBase::Reset|. Also see comments
+      // on |v8::WeakCallbackInfo|.
+      CHECK_WITH_MSG(T::FREE == node->state(),
+                     "Handle not reset in first callback. See comments on "
+                     "|v8::WeakCallbackInfo|.");
+
+      if (pair.second.callback()) second_pass_callbacks_.push_back(pair.second);
       freed_nodes++;
     }
   }
   return freed_nodes;
+}
+
+size_t GlobalHandles::InvokeFirstPassWeakCallbacks() {
+  return InvokeFirstPassWeakCallbacks(&regular_pending_phantom_callbacks_) +
+         InvokeFirstPassWeakCallbacks(&traced_pending_phantom_callbacks_);
 }
 
 void GlobalHandles::InvokeOrScheduleSecondPassPhantomCallbacks(
@@ -1059,11 +1133,10 @@ void GlobalHandles::InvokeOrScheduleSecondPassPhantomCallbacks(
   }
 }
 
-void GlobalHandles::PendingPhantomCallback::Invoke(Isolate* isolate) {
+void GlobalHandles::PendingPhantomCallback::Invoke(Isolate* isolate,
+                                                   InvocationType type) {
   Data::Callback* callback_addr = nullptr;
-  if (node_ != nullptr) {
-    // Initialize for first pass callback.
-    DCHECK(node_->state() == Node::NEAR_DEATH);
+  if (type == kFirstPass) {
     callback_addr = &callback_;
   }
   Data data(reinterpret_cast<v8::Isolate*>(isolate), parameter_,
@@ -1071,15 +1144,6 @@ void GlobalHandles::PendingPhantomCallback::Invoke(Isolate* isolate) {
   Data::Callback callback = callback_;
   callback_ = nullptr;
   callback(data);
-  if (node_ != nullptr) {
-    // Transition to second pass. It is required that the first pass callback
-    // resets the handle using |v8::PersistentBase::Reset|. Also see comments on
-    // |v8::WeakCallbackInfo|.
-    CHECK_WITH_MSG(Node::FREE == node_->state(),
-                   "Handle not reset in first callback. See comments on "
-                   "|v8::WeakCallbackInfo|.");
-    node_ = nullptr;
-  }
 }
 
 bool GlobalHandles::InRecursiveGC(unsigned gc_processing_counter) {
@@ -1143,7 +1207,7 @@ void GlobalHandles::IterateAllRoots(RootVisitor* v) {
     }
   }
   for (TracedNode* node : *traced_nodes_) {
-    if (node->IsInUse()) {
+    if (node->IsRetainer()) {
       v->VisitRootPointer(Root::kGlobalHandles, nullptr, node->location());
     }
   }
@@ -1158,7 +1222,7 @@ void GlobalHandles::IterateAllNewSpaceRoots(RootVisitor* v) {
     }
   }
   for (TracedNode* node : traced_new_space_nodes_) {
-    if (node->IsInUse()) {
+    if (node->IsRetainer()) {
       v->VisitRootPointer(Root::kGlobalHandles, nullptr, node->location());
     }
   }

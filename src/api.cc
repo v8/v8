@@ -1074,6 +1074,13 @@ void V8::DisposeTracedGlobal(internal::Address* location) {
   i::GlobalHandles::DestroyTraced(location);
 }
 
+void V8::SetFinalizationCallbackTraced(
+    internal::Address* location, void* parameter,
+    WeakCallbackInfo<void>::Callback callback) {
+  i::GlobalHandles::SetFinalizationCallbackForTraced(location, parameter,
+                                                     callback);
+}
+
 Value* V8::Eternalize(Isolate* v8_isolate, Value* value) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   i::Object object = *Utils::OpenHandle(value);
