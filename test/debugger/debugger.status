@@ -127,6 +127,7 @@
 ['lite_mode', {
   # TODO(v8:7777): Re-enable once wasm is supported in jitless mode.
   'debug/wasm/*': [SKIP],
+  'regress/regress-crbug-840288': [SKIP],
   'wasm-*': [SKIP],
 }], # lite_mode
 

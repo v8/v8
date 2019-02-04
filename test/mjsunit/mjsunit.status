@@ -349,6 +349,11 @@
   'spread-large-array': [SKIP],
 
   # TODO(v8:7777): Re-enable once wasm is supported in jitless mode.
+  'regress/regress-5888': [SKIP],
+  'regress/regress-5911': [SKIP],
+  'regress/regress-813440': [SKIP],
+  'regress/regress-crbug-746835': [SKIP],
+  'regress/regress-crbug-772056': [SKIP],
   'regress/wasm/*': [SKIP],
   'tools/compiler-trace-flags': [SKIP],
   'wasm/*': [SKIP],
