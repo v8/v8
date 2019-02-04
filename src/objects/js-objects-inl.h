@@ -13,6 +13,7 @@
 #include "src/lookup-inl.h"
 #include "src/objects/embedder-data-slot-inl.h"
 #include "src/objects/feedback-cell-inl.h"
+#include "src/objects/hash-table-inl.h"
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/property-array-inl.h"
 #include "src/objects/shared-function-info.h"
@@ -975,6 +976,34 @@ ACCESSORS(JSAsyncFromSyncIterator, next, Object, kNextOffset)
 
 ACCESSORS(JSStringIterator, string, String, kStringOffset)
 SMI_ACCESSORS(JSStringIterator, index, kNextIndexOffset)
+
+static inline bool ShouldConvertToSlowElements(JSObject object,
+                                               uint32_t capacity,
+                                               uint32_t index,
+                                               uint32_t* new_capacity) {
+  STATIC_ASSERT(JSObject::kMaxUncheckedOldFastElementsLength <=
+                JSObject::kMaxUncheckedFastElementsLength);
+  if (index < capacity) {
+    *new_capacity = capacity;
+    return false;
+  }
+  if (index - capacity >= JSObject::kMaxGap) return true;
+  *new_capacity = JSObject::NewElementsCapacity(index + 1);
+  DCHECK_LT(index, *new_capacity);
+  // TODO(ulan): Check if it works with young large objects.
+  if (*new_capacity <= JSObject::kMaxUncheckedOldFastElementsLength ||
+      (*new_capacity <= JSObject::kMaxUncheckedFastElementsLength &&
+       Heap::InYoungGeneration(object))) {
+    return false;
+  }
+  // If the fast-case backing storage takes up much more memory than a
+  // dictionary backing storage would, the object should have slow elements.
+  int used_elements = object->GetFastElementsUsage();
+  uint32_t size_threshold = NumberDictionary::kPreferFastElementsSizeFactor *
+                            NumberDictionary::ComputeCapacity(used_elements) *
+                            NumberDictionary::kEntrySize;
+  return size_threshold <= *new_capacity;
+}
 
 }  // namespace internal
 }  // namespace v8
