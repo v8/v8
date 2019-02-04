@@ -213,7 +213,7 @@ var prettyPrinted;
   // TODO(neis): Remove try-catch once BigInts are enabled by default.
   try {
     BigIntPrototypeValueOf = BigInt.prototype.valueOf;
-  } catch(e) {}
+  } catch (e) {}
 
   function classOf(object) {
     // Argument must not be null or undefined.
@@ -480,14 +480,17 @@ var prettyPrinted;
     }
   };
 
+  function executeCode(code) {
+    if (typeof code === 'function')  return code();
+    if (typeof code === 'string') return eval(code);
+    failWithMessage(
+        'Given code is neither function nor string, but ' + (typeof code) +
+        ': <' + prettyPrinted(code) + '>');
+  }
 
   assertThrows = function assertThrows(code, type_opt, cause_opt) {
     try {
-      if (typeof code === 'function') {
-        code();
-      } else {
-        eval(code);
-      }
+      executeCode(code);
     } catch (e) {
       if (typeof type_opt === 'function') {
         assertInstanceof(e, type_opt);
@@ -508,11 +511,10 @@ var prettyPrinted;
     failWithMessage("Did not throw exception");
   };
 
-
   assertThrowsEquals = function assertThrowsEquals(fun, val) {
     try {
       fun();
-    } catch(e) {
+    } catch (e) {
       assertSame(val, e);
       return;
     }
@@ -533,15 +535,11 @@ var prettyPrinted;
     }
   };
 
-
-   assertDoesNotThrow = function assertDoesNotThrow(code, name_opt) {
+  assertDoesNotThrow = function assertDoesNotThrow(code, name_opt) {
     try {
-      if (typeof code === 'function') {
-        return code();
-      } else {
-        return eval(code);
-      }
+      executeCode(code);
     } catch (e) {
+      if (e instanceof MjsUnitAssertionError) throw e;
       failWithMessage("threw an exception: " + (e.message || e));
     }
   };
@@ -669,7 +667,9 @@ var prettyPrinted;
     // option is provided. Such tests must add --opt to flags comment.
     assertFalse((opt_status & V8OptimizationStatus.kNeverOptimize) !== 0,
                 "test does not make sense with --no-opt");
-    assertTrue((opt_status & V8OptimizationStatus.kIsFunction) !== 0, name_opt);
+    assertTrue(
+        (opt_status & V8OptimizationStatus.kIsFunction) !== 0,
+        'should be a function: ' + name_opt);
     if (skip_if_maybe_deopted &&
         (opt_status & V8OptimizationStatus.kMaybeDeopted) !== 0) {
       // When --deopt-every-n-times flag is specified it's no longer guaranteed
@@ -677,7 +677,9 @@ var prettyPrinted;
       // to stress test the deoptimizer.
       return;
     }
-    assertTrue((opt_status & V8OptimizationStatus.kOptimized) !== 0, name_opt);
+    assertTrue(
+        (opt_status & V8OptimizationStatus.kOptimized) !== 0,
+        'should be optimized: ' + name_opt);
   }
 
   isNeverOptimizeLiteMode = function isNeverOptimizeLiteMode() {
@@ -774,7 +776,7 @@ var prettyPrinted;
         return frame;
       });
       return "" + error.message + "\n" + ArrayPrototypeJoin.call(stack, "\n");
-    } catch(e) {};
+    } catch (e) {};
     return error.stack;
   }
 })();
