@@ -5177,8 +5177,7 @@ bool Bootstrapper::InstallExtensions(Handle<Context> native_context,
   // Don't install extensions into the snapshot.
   if (isolate_->serializer_enabled()) return true;
   BootstrapperActive active(this);
-  SaveContext saved_context(isolate_);
-  isolate_->set_context(*native_context);
+  SaveAndSwitchContext saved_context(isolate_, *native_context);
   return Genesis::InstallExtensions(isolate_, native_context, extensions) &&
          Genesis::InstallSpecialObjects(isolate_, native_context);
 }

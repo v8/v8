@@ -4551,6 +4551,12 @@ bool SaveContext::IsBelowFrame(StandardFrame* frame) {
   return (c_entry_fp_ == 0) || (c_entry_fp_ > frame->sp());
 }
 
+SaveAndSwitchContext::SaveAndSwitchContext(Isolate* isolate,
+                                           Context new_context)
+    : SaveContext(isolate) {
+  isolate->set_context(new_context);
+}
+
 #ifdef DEBUG
 AssertNoContextChange::AssertNoContextChange(Isolate* isolate)
     : isolate_(isolate), context_(isolate->context(), isolate) {}

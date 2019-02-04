@@ -2996,8 +2996,7 @@ bool ProcessMessages(
     const std::function<platform::MessageLoopBehavior()>& behavior) {
   while (true) {
     i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-    i::SaveContext saved_context(i_isolate);
-    i_isolate->set_context(i::Context());
+    i::SaveAndSwitchContext saved_context(i_isolate, i::Context());
     SealHandleScope shs(isolate);
     while (v8::platform::PumpMessageLoop(g_default_platform, isolate,
                                          behavior())) {

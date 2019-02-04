@@ -958,8 +958,7 @@ Handle<BytecodeArray> BytecodeGenerator::FinalizeBytecode(
 #ifdef DEBUG
   // Unoptimized compilation should be context-independent. Verify that we don't
   // access the native context by nulling it out during finalization.
-  SaveContext save(isolate);
-  isolate->set_context(Context());
+  SaveAndSwitchContext save(isolate, Context());
 #endif
 
   AllocateDeferredConstants(isolate, script);

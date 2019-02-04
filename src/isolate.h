@@ -90,7 +90,6 @@ class PromiseOnStack;
 class RegExpStack;
 class RootVisitor;
 class RuntimeProfiler;
-class SaveContext;
 class SetupIsolateDelegate;
 class Simulator;
 class StartupDeserializer;
@@ -1943,10 +1942,12 @@ class PromiseOnStack {
   PromiseOnStack* prev_;
 };
 
-
+// SaveContext scopes save the current context on the Isolate on creation, and
+// restore it on destruction.
 class V8_EXPORT_PRIVATE SaveContext {
  public:
   explicit SaveContext(Isolate* isolate);
+
   ~SaveContext();
 
   Handle<Context> context() { return context_; }
@@ -1958,6 +1959,13 @@ class V8_EXPORT_PRIVATE SaveContext {
   Isolate* const isolate_;
   Handle<Context> context_;
   Address c_entry_fp_;
+};
+
+// Like SaveContext, but also switches the Context to a new one in the
+// constructor.
+class V8_EXPORT_PRIVATE SaveAndSwitchContext : public SaveContext {
+ public:
+  SaveAndSwitchContext(Isolate* isolate, Context new_context);
 };
 
 class AssertNoContextChange {
