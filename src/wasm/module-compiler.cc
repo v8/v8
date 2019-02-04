@@ -149,8 +149,6 @@ class CompilationStateImpl {
   void RestartBackgroundCompileTask();
   void RestartBackgroundTasks();
 
-  void Abort();
-
   void SetError(uint32_t func_index, const WasmError& error);
 
   Isolate* isolate() const { return isolate_; }
@@ -856,7 +854,7 @@ AsyncCompileJob::~AsyncCompileJob() {
   // If the runtime objects were not created yet, then initial compilation did
   // not finish yet. In this case we can abort compilation.
   if (native_module_ && module_object_.is_null()) {
-    Impl(native_module_->compilation_state())->Abort();
+    Impl(native_module_->compilation_state())->AbortCompilation();
   }
   // Tell the streaming decoder that the AsyncCompileJob is not available
   // anymore.
@@ -1287,7 +1285,7 @@ void AsyncStreamingProcessor::FinishAsyncCompileJobWithError(
   // Check if there is already a CompiledModule, in which case we have to clean
   // up the CompilationStateImpl as well.
   if (job_->native_module_) {
-    Impl(job_->native_module_->compilation_state())->Abort();
+    Impl(job_->native_module_->compilation_state())->AbortCompilation();
 
     job_->DoSync<AsyncCompileJob::DecodeFail,
                  AsyncCompileJob::kUseExistingForegroundTask>(error);
@@ -1489,7 +1487,9 @@ CompilationStateImpl::~CompilationStateImpl() {
 }
 
 void CompilationStateImpl::AbortCompilation() {
-  Abort();
+  background_compile_token_->Cancel();
+  // No more callbacks after abort.
+  callbacks_.clear();
 }
 
 void CompilationStateImpl::SetNumberOfFunctionsToCompile(size_t num_functions) {
@@ -1648,12 +1648,6 @@ void CompilationStateImpl::RestartBackgroundTasks() {
   for (; num_restart > 0; --num_restart) {
     RestartBackgroundCompileTask();
   }
-}
-
-void CompilationStateImpl::Abort() {
-  background_compile_token_->Cancel();
-  // No more callbacks after abort.
-  callbacks_.clear();
 }
 
 void CompilationStateImpl::SetError(uint32_t func_index,
