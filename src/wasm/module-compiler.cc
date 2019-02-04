@@ -257,9 +257,6 @@ class CompilationStateImpl {
   // the foreground thread.
   std::vector<CompilationState::callback_t> callbacks_;
 
-  CancelableTaskManager foreground_task_manager_;
-  std::shared_ptr<v8::TaskRunner> foreground_task_runner_;
-
   const size_t max_background_tasks_ = 0;
 };
 
@@ -1477,21 +1474,15 @@ CompilationStateImpl::CompilationStateImpl(
       async_counters_(std::move(async_counters)),
       max_background_tasks_(std::max(
           1, std::min(FLAG_wasm_num_compilation_tasks,
-                      V8::GetCurrentPlatform()->NumberOfWorkerThreads()))) {
-  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate_);
-  v8::Platform* platform = V8::GetCurrentPlatform();
-  foreground_task_runner_ = platform->GetForegroundTaskRunner(v8_isolate);
-}
+                      V8::GetCurrentPlatform()->NumberOfWorkerThreads()))) {}
 
 CompilationStateImpl::~CompilationStateImpl() {
-  DCHECK(foreground_task_manager_.canceled());
   CompilationError* error = compile_error_.load(std::memory_order_acquire);
   if (error != nullptr) delete error;
 }
 
 void CompilationStateImpl::AbortCompilation() {
   Abort();
-  foreground_task_manager_.CancelAndWait();
 }
 
 void CompilationStateImpl::SetNumberOfFunctionsToCompile(size_t num_functions) {
@@ -1595,13 +1586,6 @@ void CompilationStateImpl::OnFinishedUnit(ExecutionTier tier, WasmCode* code) {
 void CompilationStateImpl::RestartBackgroundCompileTask() {
   auto task = engine_->NewBackgroundCompileTask<BackgroundCompileTask>(
       background_compile_token_, async_counters_);
-
-  // If --wasm-num-compilation-tasks=0 is passed, do only spawn foreground
-  // tasks. This is used to make timing deterministic.
-  if (FLAG_wasm_num_compilation_tasks == 0) {
-    foreground_task_runner_->PostTask(std::move(task));
-    return;
-  }
 
   if (baseline_compilation_finished()) {
     V8::GetCurrentPlatform()->CallLowPriorityTaskOnWorkerThread(
