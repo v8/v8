@@ -403,8 +403,7 @@ MaybeHandle<Code> CodeGenerator::FinalizeCode() {
   MaybeHandle<Code> maybe_code = isolate()->factory()->TryNewCode(
       desc, info()->code_kind(), Handle<Object>(), info()->builtin_index(),
       source_positions, deopt_data, kMovable, true,
-      frame()->GetTotalFrameSlotCount(), safepoints()->GetCodeOffset(),
-      handler_table_offset_);
+      frame()->GetTotalFrameSlotCount());
 
   Handle<Code> code;
   if (!maybe_code.ToHandle(&code)) {

@@ -121,13 +121,11 @@ Code BuildWithMacroAssembler(Isolate* isolate, int32_t builtin_index,
 
   static constexpr bool kIsNotTurbofanned = false;
   static constexpr int kStackSlots = 0;
-  static constexpr int kSafepointTableOffset = 0;
 
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::BUILTIN, masm.CodeObject(), builtin_index,
       MaybeHandle<ByteArray>(), DeoptimizationData::Empty(isolate), kMovable,
-      kIsNotTurbofanned, kStackSlots, kSafepointTableOffset,
-      handler_table_offset);
+      kIsNotTurbofanned, kStackSlots);
   PostBuildProfileAndTracing(isolate, *code, s_name);
   return *code;
 }

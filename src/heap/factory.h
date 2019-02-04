@@ -785,9 +785,7 @@ class V8_EXPORT_PRIVATE Factory {
                        MaybeHandle<DeoptimizationData> maybe_deopt_data =
                            MaybeHandle<DeoptimizationData>(),
                        Movability movability = kMovable,
-                       bool is_turbofanned = false, int stack_slots = 0,
-                       int safepoint_table_offset = 0,
-                       int handler_table_offset = 0);
+                       bool is_turbofanned = false, int stack_slots = 0);
 
   // Like NewCode, this function allocates a new code object (fully
   // initialized). It may return an empty handle if the allocation does not
@@ -800,8 +798,7 @@ class V8_EXPORT_PRIVATE Factory {
       MaybeHandle<DeoptimizationData> maybe_deopt_data =
           MaybeHandle<DeoptimizationData>(),
       Movability movability = kMovable, bool is_turbofanned = false,
-      int stack_slots = 0, int safepoint_table_offset = 0,
-      int handler_table_offset = 0);
+      int stack_slots = 0);
 
   // Allocates a new code object and initializes it as the trampoline to the
   // given off-heap entry point.

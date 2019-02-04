@@ -234,7 +234,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // code below, i.e. it can be called concurrently from background threads.
   WasmCode* AddCode(uint32_t index, const CodeDesc& desc, uint32_t stack_slots,
                     uint32_t tagged_parameter_slots,
-                    size_t safepoint_table_offset, size_t handler_table_offset,
                     OwnedVector<trap_handler::ProtectedInstructionData>
                         protected_instructions,
                     OwnedVector<const byte> source_position_table,

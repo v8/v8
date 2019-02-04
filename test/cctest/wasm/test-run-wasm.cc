@@ -3474,7 +3474,7 @@ TEST(Liftoff_tier_up) {
     desc.buffer = buffer.get();
     desc.instr_size = static_cast<int>(sub_size);
     WasmCode* code = native_module->AddCode(
-        add.function_index(), desc, 0, 0, 0, 0, {}, OwnedVector<byte>(),
+        add.function_index(), desc, 0, 0, {}, OwnedVector<byte>(),
         WasmCode::kFunction, WasmCode::kOther);
     native_module->PublishCode(code);
 

@@ -2205,8 +2205,6 @@ wasm::WasmCode* Pipeline::GenerateCodeForWasmNativeStub(
       wasm::WasmCode::kAnonymousFuncIndex, code_desc,
       code_generator->frame()->GetTotalFrameSlotCount(),
       call_descriptor->GetTaggedParameterSlots(),
-      code_generator->GetSafepointTableOffset(),
-      code_generator->GetHandlerTableOffset(),
       code_generator->GetProtectedInstructions(),
       code_generator->GetSourcePositionTable(),
       static_cast<wasm::WasmCode::Kind>(wasm_kind), wasm::WasmCode::kOther);
@@ -2453,8 +2451,6 @@ void Pipeline::GenerateCodeForWasmFunction(
   result->instr_buffer = instruction_buffer->ReleaseBuffer();
   result->frame_slot_count = code_generator->frame()->GetTotalFrameSlotCount();
   result->tagged_parameter_slots = call_descriptor->GetTaggedParameterSlots();
-  result->safepoint_table_offset = code_generator->GetSafepointTableOffset();
-  result->handler_table_offset = code_generator->GetHandlerTableOffset();
   result->source_positions = code_generator->GetSourcePositionTable();
   result->protected_instructions = code_generator->GetProtectedInstructions();
 
@@ -2465,7 +2461,7 @@ void Pipeline::GenerateCodeForWasmFunction(
     std::stringstream disassembler_stream;
     Disassembler::Decode(
         nullptr, &disassembler_stream, result->code_desc.buffer,
-        result->code_desc.buffer + result->safepoint_table_offset,
+        result->code_desc.buffer + result->code_desc.instr_size,
         CodeReference(&result->code_desc));
     for (auto const c : disassembler_stream.str()) {
       json_of << AsEscapedUC16ForJSON(c);

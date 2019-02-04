@@ -589,8 +589,7 @@ WasmCode* NativeModule::AddAnonymousCode(Handle<Code> code, WasmCode::Kind kind,
 
 WasmCode* NativeModule::AddCode(
     uint32_t index, const CodeDesc& desc, uint32_t stack_slots,
-    uint32_t tagged_parameter_slots, size_t safepoint_table_offset,
-    size_t handler_table_offset,
+    uint32_t tagged_parameter_slots,
     OwnedVector<trap_handler::ProtectedInstructionData> protected_instructions,
     OwnedVector<const byte> source_pos_table, WasmCode::Kind kind,
     WasmCode::Tier tier) {
@@ -599,6 +598,13 @@ WasmCode* NativeModule::AddCode(
     memcpy(reloc_info.start(), desc.buffer + desc.buffer_size - desc.reloc_size,
            desc.reloc_size);
   }
+
+  // TODO(jgruber): Remove this translation. It exists only because CodeDesc
+  // contains real offsets but WasmCode expects an offset of 0 to mean 'empty'.
+  const int safepoint_table_offset =
+      desc.safepoint_table_size == 0 ? 0 : desc.safepoint_table_offset;
+  const int handler_table_offset =
+      desc.handler_table_size == 0 ? 0 : desc.handler_table_offset;
 
   WasmCode* ret = AddOwnedCode(
       index, {desc.buffer, static_cast<size_t>(desc.instr_size)}, stack_slots,

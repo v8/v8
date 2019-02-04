@@ -2000,7 +2000,6 @@ WasmCompilationResult LiftoffCompilationUnit::ExecuteCompilation(
   result.protected_instructions = compiler->GetProtectedInstructions();
   result.frame_slot_count = compiler->GetTotalFrameSlotCount();
   result.tagged_parameter_slots = call_descriptor->GetTaggedParameterSlots();
-  result.safepoint_table_offset = compiler->GetSafepointTableOffset();
 
   DCHECK(result.succeeded());
   return result;

@@ -71,25 +71,19 @@ void InitializeCode(Heap* heap, Handle<Code> code, int object_size,
                     Handle<DeoptimizationData> deopt_data,
                     Handle<ByteArray> reloc_info,
                     Handle<CodeDataContainer> data_container,
-                    bool is_turbofanned, int stack_slots,
-                    int safepoint_table_offset, int handler_table_offset) {
+                    bool is_turbofanned, int stack_slots) {
   DCHECK(IsAligned(code->address(), kCodeAlignment));
   DCHECK_IMPLIES(
       !heap->memory_allocator()->code_range().is_empty(),
       heap->memory_allocator()->code_range().contains(code->address()));
 
-  // TODO(jgruber): Remove safepoint table and handler table parameters and drop
-  // the 2 postfix from the local variables below.
-  DCHECK((safepoint_table_offset == 0 && desc.safepoint_table_size == 0) ||
-         (desc.safepoint_table_size > 0 &&
-          desc.safepoint_table_offset == safepoint_table_offset));
-  DCHECK((handler_table_offset == 0 && desc.handler_table_size == 0) ||
-         (desc.handler_table_size > 0 &&
-          desc.handler_table_offset == handler_table_offset));
-
-  const int safepoint_table_offset2 =
+  // TODO(jgruber): Simplify the meaning of relevant fields on Code objects.
+  // Offset fields should probably always contain a real offset; or
+  // alternatively, constant pool and code comment offset fields should behave
+  // similarly (i.e. an offset of 0 means 'empty').
+  const int safepoint_table_offset =
       desc.safepoint_table_size == 0 ? 0 : desc.safepoint_table_offset;
-  const int handler_table_offset2 =
+  const int handler_table_offset =
       desc.handler_table_size == 0 ? 0 : desc.handler_table_offset;
 
   constexpr bool kIsNotOffHeapTrampoline = false;
@@ -102,8 +96,8 @@ void InitializeCode(Heap* heap, Handle<Code> code, int object_size,
   code->set_code_data_container(*data_container);
   code->set_deoptimization_data(*deopt_data);
   code->set_source_position_table(*source_position_table);
-  code->set_safepoint_table_offset(safepoint_table_offset2);
-  code->set_handler_table_offset(handler_table_offset2);
+  code->set_safepoint_table_offset(safepoint_table_offset);
+  code->set_handler_table_offset(handler_table_offset);
   code->set_constant_pool_offset(desc.constant_pool_offset);
   code->set_code_comments_offset(desc.code_comments_offset);
   code->set_builtin_index(builtin_index);
@@ -2732,8 +2726,7 @@ MaybeHandle<Code> Factory::TryNewCode(
     const CodeDesc& desc, Code::Kind kind, Handle<Object> self_ref,
     int32_t builtin_index, MaybeHandle<ByteArray> maybe_source_position_table,
     MaybeHandle<DeoptimizationData> maybe_deopt_data, Movability movability,
-    bool is_turbofanned, int stack_slots, int safepoint_table_offset,
-    int handler_table_offset) {
+    bool is_turbofanned, int stack_slots) {
   // Allocate objects needed for code initialization.
   Handle<ByteArray> reloc_info = NewByteArray(
       desc.reloc_size,
@@ -2771,8 +2764,7 @@ MaybeHandle<Code> Factory::TryNewCode(
 
     InitializeCode(heap, code, object_size, desc, kind, self_ref, builtin_index,
                    source_position_table, deopt_data, reloc_info,
-                   data_container, is_turbofanned, stack_slots,
-                   safepoint_table_offset, handler_table_offset);
+                   data_container, is_turbofanned, stack_slots);
 
     // Flush the instruction cache before changing the permissions.
     // Note: we do this before setting permissions to ReadExecute because on
@@ -2789,8 +2781,7 @@ Handle<Code> Factory::NewCode(
     const CodeDesc& desc, Code::Kind kind, Handle<Object> self_ref,
     int32_t builtin_index, MaybeHandle<ByteArray> maybe_source_position_table,
     MaybeHandle<DeoptimizationData> maybe_deopt_data, Movability movability,
-    bool is_turbofanned, int stack_slots, int safepoint_table_offset,
-    int handler_table_offset) {
+    bool is_turbofanned, int stack_slots) {
   // Allocate objects needed for code initialization.
   Handle<ByteArray> reloc_info = NewByteArray(
       desc.reloc_size,
@@ -2825,8 +2816,7 @@ Handle<Code> Factory::NewCode(
 
     InitializeCode(heap, code, object_size, desc, kind, self_ref, builtin_index,
                    source_position_table, deopt_data, reloc_info,
-                   data_container, is_turbofanned, stack_slots,
-                   safepoint_table_offset, handler_table_offset);
+                   data_container, is_turbofanned, stack_slots);
 
     // Flush the instruction cache before changing the permissions.
     // Note: we do this before setting permissions to ReadExecute because on
