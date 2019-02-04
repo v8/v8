@@ -29,7 +29,7 @@ ARCH_GUESS = utils.DefaultArch()
 VARIANTS = ["default"]
 
 MORE_VARIANTS = [
-  "nooptimization",
+  "jitless",
   "stress",
   "stress_background_compile",
   "stress_incremental_marking",
@@ -43,7 +43,7 @@ VARIANT_ALIASES = {
   # Shortcut for the two above ("more" first - it has the longer running tests).
   "exhaustive": MORE_VARIANTS + VARIANTS,
   # Additional variants, run on a subset of bots.
-  "extra": ["future", "interpreted_regexp", "no_liftoff", "no_wasm_traps"],
+  "extra": ["nooptimization", "future", "no_liftoff", "no_wasm_traps"],
 }
 
 GC_STRESS_FLAGS = ["--gc-interval=500", "--stress-compaction",

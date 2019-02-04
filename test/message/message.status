@@ -54,7 +54,7 @@
 }],  # no_i18n == True
 
 ##############################################################################
-['lite_mode', {
+['lite_mode or variant == jitless', {
   # TODO(v8:7777): Re-enable once wasm is supported in jitless mode.
   'mjsunit/fail/assert-promise-result-wasm-compile-fail': [SKIP],
   'fail/wasm-*': [SKIP],
@@ -62,6 +62,6 @@
 
   # Test output requires --validate-asm, which is disabled in jitless mode.
   'asm-*': [SKIP],
-}], # lite_mode
+}], # lite_mode or variant == jitless
 
 ]

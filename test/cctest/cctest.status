@@ -481,7 +481,7 @@
 }],
 
 ##############################################################################
-['lite_mode', {
+['lite_mode or variant == jitless', {
 
   # TODO(8394): First execution events don't work in lite_mode. Enable this after
   # we fix the lite mode to track the first execution.
@@ -572,6 +572,40 @@
   'test-regexp/MacroAssemblerNativeSuccess': [SKIP],
   'test-regexp/MacroAssemblerStackOverflow': [SKIP],
   'test-run-calls-to-external-references/*': [SKIP],
-}], # lite_mode
+}], # lite_mode or variant == jitless
+
+##############################################################################
+['variant == jitless', {
+  # https://crbug.com/v8/7777
+  'serializer-tester/SerializeCallAnyReceiver': [SKIP],
+  'serializer-tester/SerializeCallArguments': [SKIP],
+  'serializer-tester/SerializeCallProperty': [SKIP],
+  'serializer-tester/SerializeCallProperty2': [SKIP],
+  'serializer-tester/SerializeCallUndefinedReceiver': [SKIP],
+  'serializer-tester/SerializeCallUndefinedReceiver2': [SKIP],
+  'serializer-tester/SerializeCallWithSpread': [SKIP],
+  'serializer-tester/SerializeConstruct': [SKIP],
+  'serializer-tester/SerializeConstructWithSpread': [SKIP],
+  'serializer-tester/SerializeInlinedClosure': [SKIP],
+  'serializer-tester/SerializeInlinedFunction': [SKIP],
+  'test-api/TurboAsmDisablesDetach': [SKIP],
+  'test-cpu-profiler/TickLinesOptimized': [SKIP],
+  'test-heap/TestOptimizeAfterBytecodeFlushingCandidate': [SKIP],
+  'test-run-wasm-exceptions/RunWasmInterpreter_TryCatchCallDirect': [SKIP],
+  'test-run-wasm-exceptions/RunWasmInterpreter_TryCatchCallExternal': [SKIP],
+  'test-run-wasm-exceptions/RunWasmInterpreter_TryCatchCallIndirect': [SKIP],
+  'test-run-wasm-exceptions/RunWasmInterpreter_TryCatchThrow': [SKIP],
+  'test-run-wasm-exceptions/RunWasmInterpreter_TryCatchTrapTypeError': [SKIP],
+  'test-run-wasm-exceptions/RunWasmLiftoff_TryCatchCallDirect': [SKIP],
+  'test-run-wasm-exceptions/RunWasmLiftoff_TryCatchCallExternal': [SKIP],
+  'test-run-wasm-exceptions/RunWasmLiftoff_TryCatchCallIndirect': [SKIP],
+  'test-run-wasm-exceptions/RunWasmLiftoff_TryCatchThrow': [SKIP],
+  'test-run-wasm-exceptions/RunWasmLiftoff_TryCatchTrapTypeError': [SKIP],
+  'test-run-wasm-exceptions/RunWasmTurbofan_TryCatchCallDirect': [SKIP],
+  'test-run-wasm-exceptions/RunWasmTurbofan_TryCatchCallExternal': [SKIP],
+  'test-run-wasm-exceptions/RunWasmTurbofan_TryCatchCallIndirect': [SKIP],
+  'test-run-wasm-exceptions/RunWasmTurbofan_TryCatchThrow': [SKIP],
+  'test-run-wasm-exceptions/RunWasmTurbofan_TryCatchTrapTypeError': [SKIP],
+}], # variant == jitless
 
 ]

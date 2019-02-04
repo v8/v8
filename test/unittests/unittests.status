@@ -22,10 +22,10 @@
 }],  # '(arch == arm or arch == mips) and not simulator_run'
 
 ##############################################################################
-['lite_mode', {
+['lite_mode or variant == jitless', {
   # TODO(v8:7777): Re-enable once wasm is supported in jitless mode.
   'ValueSerializerTestWithWasm.*': [SKIP],
   'Parameterized/WasmCodeManagerTest.*': [SKIP],
-}], # lite_mode
+}], # lite_mode or variant == jitless
 
 ]

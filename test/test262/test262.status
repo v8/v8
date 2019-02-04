@@ -1293,6 +1293,14 @@
   'built-ins/RegExp/CharacterClassEscapes/character-class-non-word-class-escape-plus-quantifier-flags-u': [SKIP],
 }],  # variant == interpreted_regexp
 
+##############################################################################
+['variant == jitless', {
+  # https://crbug.com/v8/7777
+  'built-ins/RegExp/CharacterClassEscapes/character-class-non-digit-class-escape-plus-quantifier-flags-u': [SKIP],
+  'built-ins/RegExp/CharacterClassEscapes/character-class-non-whitespace-class-escape-plus-quantifier-flags-u': [SKIP],
+  'built-ins/RegExp/CharacterClassEscapes/character-class-non-word-class-escape-plus-quantifier-flags-u': [SKIP],
+}], # variant == jitless
+
 ['variant == no_wasm_traps', {
   '*': [SKIP],
 }],  # variant == no_wasm_traps
