@@ -383,10 +383,12 @@ WasmCode::~WasmCode() {
 NativeModule::NativeModule(WasmEngine* engine, Isolate* isolate,
                            const WasmFeatures& enabled, bool can_request_more,
                            VirtualMemory code_space,
-                           std::shared_ptr<const WasmModule> module)
+                           std::shared_ptr<const WasmModule> module,
+                           std::shared_ptr<Counters> async_counters)
     : enabled_features_(enabled),
       module_(std::move(module)),
-      compilation_state_(CompilationState::New(isolate, this)),
+      compilation_state_(
+          CompilationState::New(isolate, this, std::move(async_counters))),
       import_wrapper_cache_(std::unique_ptr<WasmImportWrapperCache>(
           new WasmImportWrapperCache(this))),
       free_code_space_(code_space.region()),
@@ -1057,9 +1059,9 @@ std::unique_ptr<NativeModule> WasmCodeManager::NewNativeModule(
   Address start = code_space.address();
   size_t size = code_space.size();
   Address end = code_space.end();
-  std::unique_ptr<NativeModule> ret(
-      new NativeModule(engine, isolate, enabled, can_request_more,
-                       std::move(code_space), std::move(module)));
+  std::unique_ptr<NativeModule> ret(new NativeModule(
+      engine, isolate, enabled, can_request_more, std::move(code_space),
+      std::move(module), isolate->async_counters()));
   TRACE_HEAP("New NativeModule %p: Mem: %" PRIuPTR ",+%zu\n", ret.get(), start,
              size);
   base::MutexGuard lock(&native_modules_mutex_);

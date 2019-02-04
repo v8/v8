@@ -370,7 +370,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
   NativeModule(WasmEngine* engine, Isolate* isolate,
                const WasmFeatures& enabled_features, bool can_request_more,
                VirtualMemory code_space,
-               std::shared_ptr<const WasmModule> module);
+               std::shared_ptr<const WasmModule> module,
+               std::shared_ptr<Counters> async_counters);
 
   WasmCode* AddAnonymousCode(Handle<Code>, WasmCode::Kind kind,
                              const char* name = nullptr);

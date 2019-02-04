@@ -118,7 +118,8 @@ class BackgroundCompileScope {
 // It's public interface {CompilationState} lives in compilation-environment.h.
 class CompilationStateImpl {
  public:
-  CompilationStateImpl(internal::Isolate*, NativeModule*);
+  CompilationStateImpl(internal::Isolate*, NativeModule*,
+                       std::shared_ptr<Counters>);
   ~CompilationStateImpl();
 
   // Cancel all background compilation and wait for all tasks to finish. Call
@@ -218,6 +219,7 @@ class CompilationStateImpl {
   NativeModule* const native_module_;
   const std::shared_ptr<BackgroundCompileToken> background_compile_token_;
   const CompileMode compile_mode_;
+  const std::shared_ptr<Counters> async_counters_;
 
   // Compilation error, atomically updated, but at most once (nullptr -> error).
   // Uses acquire-release semantics (acquire on load, release on update).
@@ -313,9 +315,11 @@ void CompilationState::OnFinishedUnit(ExecutionTier tier, WasmCode* code) {
 
 // static
 std::unique_ptr<CompilationState> CompilationState::New(
-    Isolate* isolate, NativeModule* native_module) {
-  return std::unique_ptr<CompilationState>(reinterpret_cast<CompilationState*>(
-      new CompilationStateImpl(isolate, native_module)));
+    Isolate* isolate, NativeModule* native_module,
+    std::shared_ptr<Counters> async_counters) {
+  return std::unique_ptr<CompilationState>(
+      reinterpret_cast<CompilationState*>(new CompilationStateImpl(
+          isolate, native_module, std::move(async_counters))));
 }
 
 // End of PIMPL implementation of {CompilationState}.
@@ -1458,8 +1462,9 @@ bool AsyncStreamingProcessor::Deserialize(Vector<const uint8_t> module_bytes,
   return true;
 }
 
-CompilationStateImpl::CompilationStateImpl(internal::Isolate* isolate,
-                                           NativeModule* native_module)
+CompilationStateImpl::CompilationStateImpl(
+    internal::Isolate* isolate, NativeModule* native_module,
+    std::shared_ptr<Counters> async_counters)
     : isolate_(isolate),
       engine_(isolate->wasm_engine()),
       native_module_(native_module),
@@ -1469,6 +1474,7 @@ CompilationStateImpl::CompilationStateImpl(internal::Isolate* isolate,
                             native_module->module()->origin == kWasmOrigin
                         ? CompileMode::kTiering
                         : CompileMode::kRegular),
+      async_counters_(std::move(async_counters)),
       max_background_tasks_(std::max(
           1, std::min(FLAG_wasm_num_compilation_tasks,
                       V8::GetCurrentPlatform()->NumberOfWorkerThreads()))) {
@@ -1588,7 +1594,7 @@ void CompilationStateImpl::OnFinishedUnit(ExecutionTier tier, WasmCode* code) {
 
 void CompilationStateImpl::RestartBackgroundCompileTask() {
   auto task = engine_->NewBackgroundCompileTask<BackgroundCompileTask>(
-      background_compile_token_, isolate_->async_counters());
+      background_compile_token_, async_counters_);
 
   // If --wasm-num-compilation-tasks=0 is passed, do only spawn foreground
   // tasks. This is used to make timing deterministic.

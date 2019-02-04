@@ -5,6 +5,8 @@
 #ifndef V8_WASM_COMPILATION_ENVIRONMENT_H_
 #define V8_WASM_COMPILATION_ENVIRONMENT_H_
 
+#include <memory>
+
 #include "src/wasm/wasm-features.h"
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-module.h"
@@ -12,6 +14,9 @@
 
 namespace v8 {
 namespace internal {
+
+class Counters;
+
 namespace wasm {
 
 class NativeModule;
@@ -121,7 +126,8 @@ class CompilationState {
   friend class WasmCompilationUnit;
   CompilationState() = delete;
 
-  static std::unique_ptr<CompilationState> New(Isolate*, NativeModule*);
+  static std::unique_ptr<CompilationState> New(Isolate*, NativeModule*,
+                                               std::shared_ptr<Counters>);
 };
 
 }  // namespace wasm
