@@ -22,7 +22,9 @@ CompilationSubject::CompilationSubject(Handle<JSFunction> closure,
                                        Isolate* isolate)
     : blueprint_{handle(closure->shared(), isolate),
                  handle(closure->feedback_vector(), isolate)},
-      closure_(closure) {}
+      closure_(closure) {
+  CHECK(closure->has_feedback_vector());
+}
 
 Hints::Hints(Zone* zone)
     : constants_(zone), maps_(zone), function_blueprints_(zone) {}
@@ -502,7 +504,8 @@ void SerializerForBackgroundCompilation::ProcessCallOrConstruct(
     if (!hint->IsJSFunction()) continue;
 
     Handle<JSFunction> function = Handle<JSFunction>::cast(hint);
-    if (!function->shared()->IsInlineable()) continue;
+    if (!function->shared()->IsInlineable() || !function->has_feedback_vector())
+      continue;
 
     environment()->accumulator_hints().Add(RunChildSerializer(
         {function, broker()->isolate()}, new_target, arguments, with_spread));
