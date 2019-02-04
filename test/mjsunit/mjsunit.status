@@ -232,6 +232,9 @@
 
   # BUG(v8:8169)
   'external-backing-store-gc': [SKIP],
+
+  # https://crbug.com/v8/8781
+  'compiler/string-from-code-point': [PASS, FAIL],
 }],  # ALWAYS
 
 ['novfp3 == True', {
