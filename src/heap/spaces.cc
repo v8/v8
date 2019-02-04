@@ -3310,6 +3310,8 @@ void ReadOnlySpace::SetPermissionsForPages(PageAllocator::Permission access) {
     // page allocator manually.
     v8::PageAllocator* page_allocator =
         memory_allocator->page_allocator(page->executable());
+    // TODO(v8:7464): Map the whole space's memory read only (do not ignore the
+    // first page).
     CHECK(SetPermissions(page_allocator, page->address() + area_start_offset,
                          page->size() - area_start_offset, access));
   }

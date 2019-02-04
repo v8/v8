@@ -650,7 +650,6 @@ typedef bool (*WeakSlotCallbackWithHeap)(Heap* heap, FullObjectSlot pointer);
 // NOTE: SpaceIterator depends on AllocationSpace enumeration values being
 // consecutive.
 enum AllocationSpace {
-  // TODO(v8:7464): Actually map this space's memory as read-only.
   RO_SPACE,    // Immortal, immovable and immutable objects,
   NEW_SPACE,   // Young generation semispaces for regular objects collected with
                // Scavenger.
