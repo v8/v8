@@ -218,11 +218,6 @@ class CompilationStateImpl {
   NativeModule* const native_module_;
   const std::shared_ptr<BackgroundCompileToken> background_compile_token_;
   const CompileMode compile_mode_;
-  // Store the value of {WasmCode::ShouldBeLogged()} at creation time of the
-  // compilation state.
-  // TODO(wasm): We might lose log events if logging is enabled while
-  // compilation is running.
-  bool const should_log_code_;
 
   // Compilation error, atomically updated, but at most once (nullptr -> error).
   // Uses acquire-release semantics (acquire on load, release on update).
@@ -1474,7 +1469,6 @@ CompilationStateImpl::CompilationStateImpl(internal::Isolate* isolate,
                             native_module->module()->origin == kWasmOrigin
                         ? CompileMode::kTiering
                         : CompileMode::kRegular),
-      should_log_code_(WasmCode::ShouldBeLogged(isolate)),
       max_background_tasks_(std::max(
           1, std::min(FLAG_wasm_num_compilation_tasks,
                       V8::GetCurrentPlatform()->NumberOfWorkerThreads()))) {
@@ -1589,9 +1583,7 @@ void CompilationStateImpl::OnFinishedUnit(ExecutionTier tier, WasmCode* code) {
     }
   }
 
-  if (should_log_code_ && code != nullptr) {
-    engine_->LogCode(code);
-  }
+  if (code != nullptr) engine_->LogCode(code);
 }
 
 void CompilationStateImpl::RestartBackgroundCompileTask() {
