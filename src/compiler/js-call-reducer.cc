@@ -2565,23 +2565,29 @@ Reduction JSCallReducer::ReduceArrayIndexOfIncludes(
     return NoChange();
   }
 
-  Handle<Map> map;
-  if (!NodeProperties::GetMapWitness(broker(), node).ToHandle(&map))
+  Node* receiver = NodeProperties::GetValueInput(node, 1);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+
+  ZoneHandleSet<Map> receiver_maps;
+  NodeProperties::InferReceiverMapsResult result =
+      NodeProperties::InferReceiverMaps(broker(), receiver, effect,
+                                        &receiver_maps);
+  if (result == NodeProperties::kNoReceiverMaps) return NoChange();
+
+  ElementsKind kind;
+  if (!CanInlineArrayIteratingBuiltin(broker(), receiver_maps, &kind)) {
     return NoChange();
+  }
 
-  MapRef receiver_map(broker(), map);
-  if (!receiver_map.supports_fast_array_iteration()) return NoChange();
-
-  ElementsKind const elements_kind = receiver_map.elements_kind();
-  if (IsHoleyElementsKind(elements_kind)) {
+  if (IsHoleyElementsKind(kind)) {
     dependencies()->DependOnProtector(
         PropertyCellRef(broker(), factory()->no_elements_protector()));
   }
 
-  Callable const callable =
-      search_variant == SearchVariant::kIndexOf
-          ? GetCallableForArrayIndexOf(elements_kind, isolate())
-          : GetCallableForArrayIncludes(elements_kind, isolate());
+  Callable const callable = search_variant == SearchVariant::kIndexOf
+                                ? GetCallableForArrayIndexOf(kind, isolate())
+                                : GetCallableForArrayIncludes(kind, isolate());
   CallDescriptor const* const desc = Linkage::GetStubCallDescriptor(
       graph()->zone(), callable.descriptor(),
       callable.descriptor().GetStackParameterCount(), CallDescriptor::kNoFlags,
@@ -2589,9 +2595,6 @@ Reduction JSCallReducer::ReduceArrayIndexOfIncludes(
   // The stub expects the following arguments: the receiver array, its elements,
   // the search_element, the array length, and the index to start searching
   // from.
-  Node* receiver = NodeProperties::GetValueInput(node, 1);
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
   Node* elements = effect = graph()->NewNode(
       simplified()->LoadField(AccessBuilder::ForJSObjectElements()), receiver,
       effect, control);
@@ -2599,8 +2602,8 @@ Reduction JSCallReducer::ReduceArrayIndexOfIncludes(
                              ? NodeProperties::GetValueInput(node, 2)
                              : jsgraph()->UndefinedConstant();
   Node* length = effect = graph()->NewNode(
-      simplified()->LoadField(AccessBuilder::ForJSArrayLength(elements_kind)),
-      receiver, effect, control);
+      simplified()->LoadField(AccessBuilder::ForJSArrayLength(kind)), receiver,
+      effect, control);
   Node* new_from_index = jsgraph()->ZeroConstant();
   if (node->op()->ValueInputCount() >= 4) {
     Node* from_index = NodeProperties::GetValueInput(node, 3);
