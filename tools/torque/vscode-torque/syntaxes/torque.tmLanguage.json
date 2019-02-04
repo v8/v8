@@ -17,19 +17,8 @@
 			"match": "\\b(assert|check|debug|unreachable|Cast|Convert|FromConstexpr|UnsafeCast)\\b"
 		},
 		{
-			"match": "\\b(extends)\\s+([A-Za-z0-9]+)",
-			"captures": {
-				"1": {
-					"name": "keyword.other.torque"
-				},
-				"2": {
-					"name": "support.type"
-				}
-			}
-		},
-		{
-			"name": "support.variable.torque",
-			"match": "\\b(true|True|false|False|Undefined|Hole|Null)\\b"
+			"name": "constant.other.torque",
+			"match": "\\b(true|True|false|False|Undefined|Hole|Null|k[A-Z][A-Za-z0-9]+)\\b"
 		},
 		{
 			"begin": "\\b<(?=[A-Za-z][0-9A-Za-z_|, ]*>)",
@@ -96,6 +85,17 @@
 		"common": {
 			"patterns": [
 				{
+					"match": "\\b(extends)\\s+([A-Za-z0-9]+)",
+					"captures": {
+						"1": {
+							"name": "keyword.other.torque"
+						},
+						"2": {
+							"name": "support.type.torque"
+						}
+					}
+				},
+				{
 					"name": "keyword.control.torque",
 					"match": "\\b(if|else|while|for|return|continue|break|goto|otherwise|try|label|catch)\\b"
 				},
@@ -114,7 +114,7 @@
 							"name": "keyword.other.torque"
 						},
 						"2": {
-							"name": "support.type"
+							"name": "support.type.torque"
 						}
 					}
 				},
@@ -125,7 +125,7 @@
 							"name": "keyword.other.torque"
 						},
 						"2": {
-							"name": "support.type"
+							"name": "support.type.torque"
 						}
 					}
 				},
