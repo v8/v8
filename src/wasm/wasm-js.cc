@@ -1092,13 +1092,11 @@ void WebAssemblyMemory(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (enabled_features.threads) {
     // Shared property of descriptor
     Local<String> shared_key = v8_str(isolate, "shared");
-    Maybe<bool> has_shared = descriptor->Has(context, shared_key);
-    if (!has_shared.IsNothing() && has_shared.FromJust()) {
-      v8::MaybeLocal<v8::Value> maybe = descriptor->Get(context, shared_key);
-      v8::Local<v8::Value> value;
-      if (maybe.ToLocal(&value)) {
-        is_shared_memory = value->BooleanValue(isolate);
-      }
+    v8::MaybeLocal<v8::Value> maybe_value =
+        descriptor->Get(context, shared_key);
+    v8::Local<v8::Value> value;
+    if (maybe_value.ToLocal(&value)) {
+      is_shared_memory = value->BooleanValue(isolate);
     }
     // Throw TypeError if shared is true, and the descriptor has no "maximum"
     if (is_shared_memory && maximum == -1) {

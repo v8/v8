@@ -129,3 +129,17 @@ function assertMemoryIsValid(memory, shared) {
   assertEquals(0, instance.exports.main(0, 0x11111111));
   assertEquals(0x11111111, instance.exports.main(0, 0x11111111));
 })();
+
+(function TestMemoryConstructorShouldCallHasProperty() {
+  print("TestMemoryConstructorShouldCallHasProperty");
+  // from test/wasm-js/data/test/js-api/memory/constructor.any.js
+  const proxy = new Proxy({}, {
+    has(o, x) {
+      throw new Error(`Should not call [[HasProperty]] with ${x}`);
+    },
+    get(o, x) {
+      return 0;
+    },
+  });
+  new WebAssembly.Memory(proxy);
+})();
