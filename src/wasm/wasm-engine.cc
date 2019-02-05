@@ -25,22 +25,24 @@ namespace wasm {
 namespace {
 class LogCodesTask : public Task {
  public:
-  explicit LogCodesTask(base::Mutex* mutex, LogCodesTask** task_slot,
-                        Isolate* isolate)
-      : mutex_(mutex), task_slot_(task_slot), isolate_(isolate) {}
+  LogCodesTask(base::Mutex* mutex, LogCodesTask** task_slot, Isolate* isolate)
+      : mutex_(mutex), task_slot_(task_slot), isolate_(isolate) {
+    DCHECK_NOT_NULL(task_slot);
+    DCHECK_NOT_NULL(isolate);
+  }
+
+  ~LogCodesTask() {
+    // If the platform deletes this task before executing it, we also deregister
+    // it to avoid use-after-free from still-running background threads.
+    if (!cancelled()) DeregisterTask();
+  }
 
   // Hold the {mutex_} when calling this method.
   void AddCode(WasmCode* code) { code_to_log_.push_back(code); }
 
   void Run() override {
-    if (isolate_ == nullptr) return;  // Cancelled.
-    // Remove this task from the {IsolateInfo} in the engine. The next
-    // logging request will allocate and schedule a new task.
-    {
-      base::MutexGuard guard(mutex_);
-      DCHECK_EQ(this, *task_slot_);
-      *task_slot_ = nullptr;
-    }
+    if (cancelled()) return;
+    DeregisterTask();
     // If by now we should not log code any more, do not log it.
     if (!WasmCode::ShouldBeLogged(isolate_)) return;
     for (WasmCode* code : code_to_log_) {
@@ -54,12 +56,27 @@ class LogCodesTask : public Task {
     isolate_ = nullptr;
   }
 
+  bool cancelled() const { return isolate_ == nullptr; }
+
+  void DeregisterTask() {
+    // The task will only be deregistered from the foreground thread (executing
+    // this task or calling its destructor), thus we do not need synchronization
+    // on this field access.
+    if (task_slot_ == nullptr) return;  // already deregistered.
+    // Remove this task from the {IsolateInfo} in the engine. The next
+    // logging request will allocate and schedule a new task.
+    base::MutexGuard guard(mutex_);
+    DCHECK_EQ(this, *task_slot_);
+    *task_slot_ = nullptr;
+    task_slot_ = nullptr;
+  }
+
  private:
   // The mutex of the WasmEngine.
   base::Mutex* const mutex_;
   // The slot in the WasmEngine where this LogCodesTask is stored. This is
-  // cleared by this task before execution.
-  LogCodesTask** const task_slot_;
+  // cleared by this task before execution or on task destruction.
+  LogCodesTask** task_slot_;
   Isolate* isolate_;
   std::vector<WasmCode*> code_to_log_;
 };
