@@ -782,4 +782,27 @@ namespace test {
     h: intptr;
     i: uintptr;
   }
+
+  macro TestClassWithAllTypesLoadsAndStores(
+      t: TestClassWithAllTypes, r: RawPtr, v1: int8, v2: uint8, v3: int16,
+      v4: uint16) {
+    t.a = v1;
+    t.b = v2;
+    t.c = v3;
+    t.d = v4;
+    t.e = 0;
+    t.f = 0;
+    t.g = r;
+    t.h = 0;
+    t.i = 0;
+    t.a = t.a;
+    t.b = t.b;
+    t.c = t.c;
+    t.d = t.d;
+    t.e = t.e;
+    t.f = t.f;
+    t.g = t.g;
+    t.h = t.h;
+    t.i = t.i;
+  }
 }

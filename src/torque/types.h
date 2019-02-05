@@ -160,6 +160,9 @@ struct NameAndType {
 std::ostream& operator<<(std::ostream& os, const NameAndType& name_and_type);
 
 struct Field {
+  // TODO(danno): This likely should be refactored, the handling of the types
+  // using the universal grab-bag utility with std::tie, as well as the
+  // reliance of string types is quite clunky.
   std::tuple<size_t, std::string, std::string> GetFieldSizeInformation() const;
 
   SourcePosition pos;
