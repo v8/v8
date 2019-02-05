@@ -258,7 +258,7 @@ void ScavengerCollector::CollectGarbage() {
     // Update references into new space
     TRACE_GC(heap_->tracer(), GCTracer::Scope::SCAVENGER_SCAVENGE_UPDATE_REFS);
     heap_->UpdateYoungReferencesInExternalStringTable(
-        &Heap::UpdateNewSpaceReferenceInExternalStringTableEntry);
+        &Heap::UpdateYoungReferenceInExternalStringTableEntry);
 
     heap_->incremental_marking()->UpdateMarkingWorklistAfterScavenge();
   }
@@ -298,7 +298,7 @@ void ScavengerCollector::CollectGarbage() {
   });
 
   // Update how much has survived scavenge.
-  heap_->IncrementYoungSurvivorsCounter(heap_->SurvivedNewSpaceObjectSize());
+  heap_->IncrementYoungSurvivorsCounter(heap_->SurvivedYoungObjectSize());
 }
 
 void ScavengerCollector::HandleSurvivingNewLargeObjects() {

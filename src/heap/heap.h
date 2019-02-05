@@ -901,7 +901,7 @@ class Heap {
   // data and clearing the resource pointer.
   inline void FinalizeExternalString(String string);
 
-  static String UpdateNewSpaceReferenceInExternalStringTableEntry(
+  static String UpdateYoungReferenceInExternalStringTableEntry(
       Heap* heap, FullObjectSlot pointer);
 
   // ===========================================================================
@@ -1055,7 +1055,7 @@ class Heap {
     return semi_space_copied_object_size_;
   }
 
-  inline size_t SurvivedNewSpaceObjectSize() {
+  inline size_t SurvivedYoungObjectSize() {
     return promoted_objects_size_ + semi_space_copied_object_size_;
   }
 

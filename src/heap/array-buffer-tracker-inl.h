@@ -18,6 +18,9 @@ namespace internal {
 void ArrayBufferTracker::RegisterNew(Heap* heap, JSArrayBuffer buffer) {
   if (buffer->backing_store() == nullptr) return;
 
+  // ArrayBuffer tracking works only for small objects.
+  DCHECK(!heap->IsLargeObject(buffer));
+
   const size_t length = buffer->byte_length();
   Page* page = Page::FromHeapObject(buffer);
   {

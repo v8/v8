@@ -286,7 +286,8 @@ GarbageCollector Heap::SelectGarbageCollector(AllocationSpace space,
   }
 
   // Over-estimate the new space size using capacity to allow some slack.
-  if (!CanExpandOldGeneration(new_space_->TotalCapacity())) {
+  if (!CanExpandOldGeneration(new_space_->TotalCapacity() +
+                              new_lo_space()->Size())) {
     isolate_->counters()
         ->gc_compactor_caused_by_oldspace_exhaustion()
         ->Increment();
@@ -1274,7 +1275,8 @@ bool Heap::CollectGarbage(AllocationSpace space,
   GarbageCollector collector = SelectGarbageCollector(space, &collector_reason);
   is_current_gc_forced_ = gc_callback_flags & v8::kGCCallbackFlagForced;
 
-  if (!CanExpandOldGeneration(new_space()->Capacity())) {
+  if (!CanExpandOldGeneration(new_space()->Capacity() +
+                              new_lo_space()->Size())) {
     InvokeNearHeapLimitCallback();
   }
 
@@ -1683,7 +1685,8 @@ bool Heap::PerformGarbageCollection(
 
   EnsureFromSpaceIsCommitted();
 
-  size_t start_new_space_size = Heap::new_space()->Size();
+  size_t start_young_generation_size =
+      Heap::new_space()->Size() + new_lo_space()->Size();
 
   {
     Heap::SkipStoreBufferScope skip_store_buffer_scope(store_buffer_);
@@ -1706,7 +1709,8 @@ bool Heap::PerformGarbageCollection(
         break;
       case SCAVENGER:
         if ((fast_promotion_mode_ &&
-             CanExpandOldGeneration(new_space()->Size()))) {
+             CanExpandOldGeneration(new_space()->Size() +
+                                    new_lo_space()->Size()))) {
           tracer()->NotifyYoungGenerationHandling(
               YoungGenerationHandling::kFastPromotionDuringScavenge);
           EvacuateYoungGeneration();
@@ -1722,14 +1726,14 @@ bool Heap::PerformGarbageCollection(
     ProcessPretenuringFeedback();
   }
 
-  UpdateSurvivalStatistics(static_cast<int>(start_new_space_size));
+  UpdateSurvivalStatistics(static_cast<int>(start_young_generation_size));
   ConfigureInitialOldGenerationSize();
 
   if (collector != MARK_COMPACTOR) {
     // Objects that died in the new space might have been accounted
     // as bytes marked ahead of schedule by the incremental marker.
     incremental_marking()->UpdateMarkedBytesAfterScavenge(
-        start_new_space_size - SurvivedNewSpaceObjectSize());
+        start_young_generation_size - SurvivedYoungObjectSize());
   }
 
   if (!fast_promotion_mode_ || collector == MARK_COMPACTOR) {
@@ -1949,7 +1953,8 @@ void Heap::EvacuateYoungGeneration() {
   ConcurrentMarking::PauseScope pause_scope(concurrent_marking());
   if (!FLAG_concurrent_marking) {
     DCHECK(fast_promotion_mode_);
-    DCHECK(CanExpandOldGeneration(new_space()->Size()));
+    DCHECK(
+        CanExpandOldGeneration(new_space()->Size() + new_lo_space()->Size()));
   }
 
   mark_compact_collector()->sweeper()->EnsureIterabilityCompleted();
@@ -1974,12 +1979,21 @@ void Heap::EvacuateYoungGeneration() {
   new_space()->ResetLinearAllocationArea();
   new_space()->set_age_mark(new_space()->top());
 
+  for (auto it = new_lo_space()->begin(); it != new_lo_space()->end();) {
+    LargePage* page = *it;
+    // Increment has to happen after we save the page, because it is going to
+    // be removed below.
+    it++;
+    lo_space()->PromoteNewLargeObject(page);
+  }
+
   // Fix up special trackers.
   external_string_table_.PromoteYoung();
   // GlobalHandles are updated in PostGarbageCollectonProcessing
 
-  IncrementYoungSurvivorsCounter(new_space()->Size());
-  IncrementPromotedObjectsSize(new_space()->Size());
+  size_t promoted = new_space()->Size() + new_lo_space()->Size();
+  IncrementYoungSurvivorsCounter(promoted);
+  IncrementPromotedObjectsSize(promoted);
   IncrementSemiSpaceCopiedObjectSize(0);
 
   LOG(isolate_, ResourceEvent("scavenge", "end"));
@@ -2077,24 +2091,31 @@ bool Heap::ExternalStringTable::Contains(String string) {
   return false;
 }
 
-String Heap::UpdateNewSpaceReferenceInExternalStringTableEntry(
-    Heap* heap, FullObjectSlot p) {
-  MapWord first_word = HeapObject::cast(*p)->map_word();
+String Heap::UpdateYoungReferenceInExternalStringTableEntry(Heap* heap,
+                                                            FullObjectSlot p) {
+  HeapObject obj = HeapObject::cast(*p);
+  MapWord first_word = obj->map_word();
 
-  if (!first_word.IsForwardingAddress()) {
-    // Unreachable external string can be finalized.
-    String string = String::cast(*p);
-    if (!string->IsExternalString()) {
-      // Original external string has been internalized.
-      DCHECK(string->IsThinString());
+  String new_string;
+
+  if (InFromPage(obj)) {
+    if (!first_word.IsForwardingAddress()) {
+      // Unreachable external string can be finalized.
+      String string = String::cast(obj);
+      if (!string->IsExternalString()) {
+        // Original external string has been internalized.
+        DCHECK(string->IsThinString());
+        return String();
+      }
+      heap->FinalizeExternalString(string);
       return String();
     }
-    heap->FinalizeExternalString(string);
-    return String();
+    new_string = String::cast(first_word.ToForwardingAddress());
+  } else {
+    new_string = String::cast(obj);
   }
 
   // String is still reachable.
-  String new_string = String::cast(first_word.ToForwardingAddress());
   if (new_string->IsThinString()) {
     // Filtering Thin strings out of the external string table.
     return String();
