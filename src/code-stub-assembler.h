@@ -3048,7 +3048,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Uint32T> LoadJSArrayBufferBitField(TNode<JSArrayBuffer> array_buffer);
   TNode<RawPtrT> LoadJSArrayBufferBackingStore(
       TNode<JSArrayBuffer> array_buffer);
-  TNode<UintPtrT> LoadByteLength(TNode<JSArrayBuffer> buffer);
   Node* IsDetachedBuffer(Node* buffer);
   void ThrowIfArrayBufferIsDetached(SloppyTNode<Context> context,
                                     TNode<JSArrayBuffer> array_buffer,
@@ -3067,10 +3066,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   // JSTypedArray helpers
   TNode<Smi> LoadJSTypedArrayLength(TNode<JSTypedArray> typed_array);
-  void StoreByteOffset(TNode<JSTypedArray> typed_array,
-                       TNode<UintPtrT> byte_offset);
-  void StoreByteLength(TNode<JSTypedArray> typed_array,
-                       TNode<UintPtrT> byte_length);
 
   TNode<IntPtrT> ElementOffsetFromIndex(Node* index, ElementsKind kind,
                                         ParameterMode mode, int base_size = 0);

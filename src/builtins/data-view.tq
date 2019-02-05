@@ -5,14 +5,6 @@
 #include 'src/builtins/builtins-data-view-gen.h'
 
 namespace data_view {
-  extern operator '.buffer'
-      macro LoadJSArrayBufferViewBuffer(JSArrayBufferView): JSArrayBuffer;
-  extern operator '.byte_length'
-      macro LoadJSArrayBufferViewByteLength(JSArrayBufferView): uintptr;
-  extern operator '.byte_offset'
-      macro LoadJSArrayBufferViewByteOffset(JSArrayBufferView): uintptr;
-  extern operator '.backing_store'
-      macro LoadJSArrayBufferBackingStore(JSArrayBuffer): RawPtr;
 
   macro MakeDataViewGetterNameString(kind: constexpr ElementsKind): String {
     if constexpr (kind == UINT8_ELEMENTS) {

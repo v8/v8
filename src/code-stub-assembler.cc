@@ -13141,10 +13141,6 @@ TNode<RawPtrT> CodeStubAssembler::LoadJSArrayBufferBackingStore(
                                   JSArrayBuffer::kBackingStoreOffset);
 }
 
-TNode<UintPtrT> CodeStubAssembler::LoadByteLength(TNode<JSArrayBuffer> buffer) {
-  return LoadObjectField<UintPtrT>(buffer, JSArrayBuffer::kByteLengthOffset);
-}
-
 TNode<JSArrayBuffer> CodeStubAssembler::LoadJSArrayBufferViewBuffer(
     TNode<JSArrayBufferView> array_buffer_view) {
   return LoadObjectField<JSArrayBuffer>(array_buffer_view,
@@ -13166,18 +13162,6 @@ TNode<UintPtrT> CodeStubAssembler::LoadJSArrayBufferViewByteOffset(
 TNode<Smi> CodeStubAssembler::LoadJSTypedArrayLength(
     TNode<JSTypedArray> typed_array) {
   return LoadObjectField<Smi>(typed_array, JSTypedArray::kLengthOffset);
-}
-
-void CodeStubAssembler::StoreByteOffset(TNode<JSTypedArray> typed_array,
-                                        TNode<UintPtrT> byte_offset) {
-  StoreObjectFieldNoWriteBarrier<UintPtrT>(
-      typed_array, JSTypedArray::kByteOffsetOffset, byte_offset);
-}
-
-void CodeStubAssembler::StoreByteLength(TNode<JSTypedArray> typed_array,
-                                        TNode<UintPtrT> byte_length) {
-  StoreObjectFieldNoWriteBarrier<UintPtrT>(
-      typed_array, JSTypedArray::kByteLengthOffset, byte_length);
 }
 
 CodeStubArguments::CodeStubArguments(

@@ -66,11 +66,6 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
   // Returns information (byte size and map) about a TypedArray's elements.
   ElementsInfo GetTypedArrayElementsInfo(TNode<JSTypedArray> typed_array);
 
-  TNode<JSArrayBuffer> LoadTypedArrayBuffer(TNode<JSTypedArray> typed_array) {
-    return LoadObjectField<JSArrayBuffer>(typed_array,
-                                          JSTypedArray::kBufferOffset);
-  }
-
   TNode<JSFunction> GetDefaultConstructor(TNode<Context> context,
                                           TNode<JSTypedArray> exemplar);
 

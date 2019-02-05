@@ -213,11 +213,19 @@ extern operator '[]=' macro StoreContextElement(
 extern operator '[]' macro LoadContextElement(Context, intptr): Object;
 extern operator '[]' macro LoadContextElement(Context, Smi): Object;
 
-type JSArrayBuffer extends JSObject generates 'TNode<JSArrayBuffer>';
-type JSArrayBufferView extends JSObject
-    generates 'TNode<JSArrayBufferView>';
-type JSTypedArray extends JSArrayBufferView
-    generates 'TNode<JSTypedArray>';
+class JSArrayBuffer extends JSObject {
+  byte_length: uintptr;
+  backing_store: RawPtr;
+}
+
+class JSArrayBufferView extends JSObject {
+  buffer: JSArrayBuffer;
+  byte_offset: uintptr;
+  byte_length: uintptr;
+}
+
+class JSTypedArray extends JSArrayBufferView {}
+
 type JSDataView extends JSArrayBufferView generates 'TNode<JSDataView>';
 
 type InstanceType generates 'TNode<Int32T>' constexpr 'InstanceType';
@@ -1202,16 +1210,8 @@ extern macro IsArraySpeciesProtectorCellInvalid(): bool;
 extern macro IsTypedArraySpeciesProtectorCellInvalid(): bool;
 extern macro IsPromiseSpeciesProtectorCellInvalid(): bool;
 
-extern operator '.buffer' macro
-TypedArrayBuiltinsAssembler::LoadTypedArrayBuffer(JSTypedArray): JSArrayBuffer;
-
 extern operator '.data_ptr' macro TypedArrayBuiltinsAssembler::LoadDataPtr(
     JSTypedArray): RawPtr;
-extern operator '.byte_length' macro LoadByteLength(JSArrayBuffer): uintptr;
-extern operator '.byte_length=' macro StoreByteLength(
-    JSTypedArray, uintptr): void;
-extern operator '.byte_offset=' macro StoreByteOffset(
-    JSTypedArray, uintptr): void;
 
 extern operator '.elements_kind' macro LoadMapElementsKind(Map): ElementsKind;
 extern operator '.elements_kind' macro LoadElementsKind(JSTypedArray):
