@@ -5386,17 +5386,13 @@ void ObjectVisitor::VisitRelocInfo(RelocIterator* it) {
 }
 
 int Code::safepoint_table_size() const {
-  if (safepoint_table_offset() == 0) return 0;
-  const int end_offset = handler_table_offset() != 0 ? handler_table_offset()
-                                                     : constant_pool_offset();
-  DCHECK_GE(end_offset - safepoint_table_offset(), 0);
-  return end_offset - safepoint_table_offset();
+  DCHECK_GE(handler_table_offset() - safepoint_table_offset(), 0);
+  return handler_table_offset() - safepoint_table_offset();
 }
 
 bool Code::has_safepoint_table() const { return safepoint_table_size() > 0; }
 
 int Code::handler_table_size() const {
-  if (handler_table_offset() == 0) return 0;
   DCHECK_GE(constant_pool_offset() - handler_table_offset(), 0);
   return constant_pool_offset() - handler_table_offset();
 }
@@ -5406,6 +5402,7 @@ bool Code::has_handler_table() const { return handler_table_size() > 0; }
 int Code::constant_pool_size() const {
   const int size = code_comments_offset() - constant_pool_offset();
   DCHECK_IMPLIES(!FLAG_enable_embedded_constant_pool, size == 0);
+  DCHECK_GE(size, 0);
   return size;
 }
 
@@ -5418,12 +5415,7 @@ int Code::code_comments_size() const {
 
 bool Code::has_code_comments() const { return code_comments_size() > 0; }
 
-int Code::ExecutableInstructionSize() const {
-  return safepoint_table_offset() != 0
-             ? safepoint_table_offset()
-             : (handler_table_offset() != 0 ? handler_table_offset()
-                                            : constant_pool_offset());
-}
+int Code::ExecutableInstructionSize() const { return safepoint_table_offset(); }
 
 void Code::ClearEmbeddedObjects(Heap* heap) {
   HeapObject undefined = ReadOnlyRoots(heap).undefined_value();

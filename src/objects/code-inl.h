@@ -196,7 +196,9 @@ OBJECT_CONSTRUCTORS_IMPL(Code, HeapObject)
 NEVER_READ_ONLY_SPACE_IMPL(Code)
 
 INT_ACCESSORS(Code, raw_instruction_size, kInstructionSizeOffset)
+INT_ACCESSORS(Code, safepoint_table_offset, kSafepointTableOffsetOffset)
 INT_ACCESSORS(Code, handler_table_offset, kHandlerTableOffsetOffset)
+INT_ACCESSORS(Code, code_comments_offset, kCodeCommentsOffsetOffset)
 #define CODE_ACCESSORS(name, type, offset)           \
   ACCESSORS_CHECKED2(Code, name, type, offset, true, \
                      !Heap::InYoungGeneration(value))
@@ -482,17 +484,6 @@ int Code::stack_slots() const {
   return StackSlotsField::decode(READ_UINT32_FIELD(this, kFlagsOffset));
 }
 
-int Code::safepoint_table_offset() const {
-  return READ_INT32_FIELD(this, kSafepointTableOffsetOffset);
-}
-
-void Code::set_safepoint_table_offset(int offset) {
-  CHECK_LE(0, offset);
-  DCHECK(has_safepoint_info() || offset == 0);  // Allow zero initialization.
-  DCHECK(IsAligned(offset, static_cast<unsigned>(kIntSize)));
-  WRITE_INT32_FIELD(this, kSafepointTableOffsetOffset, offset);
-}
-
 bool Code::marked_for_deoptimization() const {
   DCHECK(kind() == OPTIMIZED_FUNCTION);
   int32_t flags = code_data_container()->kind_specific_flags();
@@ -540,31 +531,18 @@ bool Code::is_wasm_code() const { return kind() == WASM_FUNCTION; }
 
 int Code::constant_pool_offset() const {
   if (!FLAG_enable_embedded_constant_pool) return code_comments_offset();
-  return READ_INT_FIELD(this, kConstantPoolOffset);
+  return READ_INT_FIELD(this, kConstantPoolOffsetOffset);
 }
 
 void Code::set_constant_pool_offset(int value) {
   if (!FLAG_enable_embedded_constant_pool) return;
   DCHECK_LE(value, InstructionSize());
-  WRITE_INT_FIELD(this, kConstantPoolOffset, value);
+  WRITE_INT_FIELD(this, kConstantPoolOffsetOffset, value);
 }
 
 Address Code::constant_pool() const {
   if (!has_constant_pool()) return kNullAddress;
   return InstructionStart() + constant_pool_offset();
-}
-
-int Code::code_comments_offset() const {
-  int offset = READ_INT_FIELD(this, kCodeCommentsOffset);
-  DCHECK_LE(0, offset);
-  DCHECK_LE(offset, InstructionSize());
-  return offset;
-}
-
-void Code::set_code_comments_offset(int offset) {
-  DCHECK_LE(0, offset);
-  DCHECK_LE(offset, InstructionSize());
-  WRITE_INT_FIELD(this, kCodeCommentsOffset, offset);
 }
 
 Address Code::code_comments() const {

@@ -22,10 +22,6 @@ namespace internal {
 //  │ instructions │         data               │ free │  reloc info  │
 //  ├───────────────────────────────────────────┴──────┴──────────────┘
 
-// TODO(jgruber): Change Code::safepoint_table_offset() semantics to always
-// contain a real offset, and add has_safepoint_table() and
-// safepoint_table_size() helpers. Likewise for other inlined metadata.
-// TODO(jgruber): Update documentation about inlined metadata in code.h.
 // TODO(jgruber): Add a single chokepoint for specifying the instruction area
 // layout (i.e. the order of inlined metadata fields).
 // TODO(jgruber): Systematically maintain inlined metadata offsets and sizes

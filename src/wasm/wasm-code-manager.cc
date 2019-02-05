@@ -540,16 +540,23 @@ WasmCode* NativeModule::AddAnonymousCode(Handle<Code> code, WasmCode::Kind kind,
   Vector<const byte> instructions(
       reinterpret_cast<byte*>(code->InstructionStart()),
       static_cast<size_t>(code->InstructionSize()));
-  int stack_slots = code->has_safepoint_info() ? code->stack_slots() : 0;
-  int safepoint_table_offset =
-      code->has_safepoint_info() ? code->safepoint_table_offset() : 0;
+  const int stack_slots = code->has_safepoint_info() ? code->stack_slots() : 0;
+
+  // TODO(jgruber,v8:8758): Remove this translation. It exists only because
+  // Code objects contains real offsets but WasmCode expects an offset of 0 to
+  // mean 'empty'.
+  const int safepoint_table_offset =
+      code->has_safepoint_table() ? code->safepoint_table_offset() : 0;
+  const int handler_table_offset =
+      code->has_handler_table() ? code->handler_table_offset() : 0;
+
   WasmCode* ret =
       AddOwnedCode(WasmCode::kAnonymousFuncIndex,  // index
                    instructions,                   // instructions
                    stack_slots,                    // stack_slots
                    0,                              // tagged_parameter_slots
                    safepoint_table_offset,         // safepoint_table_offset
-                   code->handler_table_offset(),   // handler_table_offset
+                   handler_table_offset,           // handler_table_offset
                    code->constant_pool_offset(),   // constant_pool_offset
                    code->code_comments_offset(),   // code_comments_offset
                    instructions.size(),            // unpadded_binary_size
@@ -601,8 +608,9 @@ WasmCode* NativeModule::AddCode(
            desc.reloc_size);
   }
 
-  // TODO(jgruber): Remove this translation. It exists only because CodeDesc
-  // contains real offsets but WasmCode expects an offset of 0 to mean 'empty'.
+  // TODO(jgruber,v8:8758): Remove this translation. It exists only because
+  // CodeDesc contains real offsets but WasmCode expects an offset of 0 to mean
+  // 'empty'.
   const int safepoint_table_offset =
       desc.safepoint_table_size == 0 ? 0 : desc.safepoint_table_offset;
   const int handler_table_offset =

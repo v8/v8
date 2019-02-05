@@ -275,8 +275,11 @@ class Code : public HeapObject {
   //  |       instructions       |
   //  |           ...            |
   //  +--------------------------+
-  //  |      relocation info     |
-  //  |           ...            |
+  //  |     embedded metadata    |  <-- safepoint_table_offset()
+  //  |           ...            |  <-- handler_table_offset()
+  //  |                          |  <-- constant_pool_offset()
+  //  |                          |  <-- code_comments_offset()
+  //  |                          |
   //  +--------------------------+  <-- raw_instruction_end()
   //
   // If has_unwinding_info() is false, raw_instruction_end() points to the first
@@ -370,25 +373,26 @@ class Code : public HeapObject {
   class OptimizedCodeIterator;
 
   // Layout description.
-#define CODE_FIELDS(V)                                                      \
-  V(kRelocationInfoOffset, kTaggedSize)                                     \
-  V(kDeoptimizationDataOffset, kTaggedSize)                                 \
-  V(kSourcePositionTableOffset, kTaggedSize)                                \
-  V(kCodeDataContainerOffset, kTaggedSize)                                  \
-  /* Data or code not directly visited by GC directly starts here. */       \
-  /* The serializer needs to copy bytes starting from here verbatim. */     \
-  /* Objects embedded into code is visited via reloc info. */               \
-  V(kDataStart, 0)                                                          \
-  V(kInstructionSizeOffset, kIntSize)                                       \
-  V(kFlagsOffset, kIntSize)                                                 \
-  V(kSafepointTableOffsetOffset, kIntSize)                                  \
-  V(kHandlerTableOffsetOffset, kIntSize)                                    \
-  V(kConstantPoolOffset, FLAG_enable_embedded_constant_pool ? kIntSize : 0) \
-  V(kBuiltinIndexOffset, kIntSize)                                          \
-  V(kCodeCommentsOffset, kIntSize)                                          \
-  /* Add padding to align the instruction start following right after */    \
-  /* the Code object header. */                                             \
-  V(kHeaderPaddingStart, CODE_POINTER_PADDING(kHeaderPaddingStart))         \
+#define CODE_FIELDS(V)                                                   \
+  V(kRelocationInfoOffset, kTaggedSize)                                  \
+  V(kDeoptimizationDataOffset, kTaggedSize)                              \
+  V(kSourcePositionTableOffset, kTaggedSize)                             \
+  V(kCodeDataContainerOffset, kTaggedSize)                               \
+  /* Data or code not directly visited by GC directly starts here. */    \
+  /* The serializer needs to copy bytes starting from here verbatim. */  \
+  /* Objects embedded into code is visited via reloc info. */            \
+  V(kDataStart, 0)                                                       \
+  V(kInstructionSizeOffset, kIntSize)                                    \
+  V(kFlagsOffset, kIntSize)                                              \
+  V(kSafepointTableOffsetOffset, kIntSize)                               \
+  V(kHandlerTableOffsetOffset, kIntSize)                                 \
+  V(kConstantPoolOffsetOffset,                                           \
+    FLAG_enable_embedded_constant_pool ? kIntSize : 0)                   \
+  V(kCodeCommentsOffsetOffset, kIntSize)                                 \
+  V(kBuiltinIndexOffset, kIntSize)                                       \
+  /* Add padding to align the instruction start following right after */ \
+  /* the Code object header. */                                          \
+  V(kHeaderPaddingStart, CODE_POINTER_PADDING(kHeaderPaddingStart))      \
   V(kHeaderSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, CODE_FIELDS)

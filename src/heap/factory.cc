@@ -77,15 +77,6 @@ void InitializeCode(Heap* heap, Handle<Code> code, int object_size,
       !heap->memory_allocator()->code_range().is_empty(),
       heap->memory_allocator()->code_range().contains(code->address()));
 
-  // TODO(jgruber): Simplify the meaning of relevant fields on Code objects.
-  // Offset fields should probably always contain a real offset; or
-  // alternatively, constant pool and code comment offset fields should behave
-  // similarly (i.e. an offset of 0 means 'empty').
-  const int safepoint_table_offset =
-      desc.safepoint_table_size == 0 ? 0 : desc.safepoint_table_offset;
-  const int handler_table_offset =
-      desc.handler_table_size == 0 ? 0 : desc.handler_table_offset;
-
   constexpr bool kIsNotOffHeapTrampoline = false;
   const bool has_unwinding_info = desc.unwinding_info != nullptr;
 
@@ -96,8 +87,8 @@ void InitializeCode(Heap* heap, Handle<Code> code, int object_size,
   code->set_code_data_container(*data_container);
   code->set_deoptimization_data(*deopt_data);
   code->set_source_position_table(*source_position_table);
-  code->set_safepoint_table_offset(safepoint_table_offset);
-  code->set_handler_table_offset(handler_table_offset);
+  code->set_safepoint_table_offset(desc.safepoint_table_offset);
+  code->set_handler_table_offset(desc.handler_table_offset);
   code->set_constant_pool_offset(desc.constant_pool_offset);
   code->set_code_comments_offset(desc.code_comments_offset);
   code->set_builtin_index(builtin_index);
@@ -2871,18 +2862,16 @@ Handle<Code> Factory::NewOffHeapTrampolineFor(Handle<Code> code,
     const bool set_is_off_heap_trampoline = true;
     const int stack_slots =
         code->has_safepoint_info() ? code->stack_slots() : 0;
+    result->code_data_container()->set_kind_specific_flags(
+        code->code_data_container()->kind_specific_flags());
     result->initialize_flags(code->kind(), code->has_unwinding_info(),
                              code->is_turbofanned(), stack_slots,
                              set_is_off_heap_trampoline);
-    result->set_builtin_index(code->builtin_index());
+    result->set_safepoint_table_offset(code->safepoint_table_offset());
     result->set_handler_table_offset(code->handler_table_offset());
-    result->code_data_container()->set_kind_specific_flags(
-        code->code_data_container()->kind_specific_flags());
     result->set_constant_pool_offset(code->constant_pool_offset());
-    if (code->has_safepoint_info()) {
-      result->set_safepoint_table_offset(code->safepoint_table_offset());
-    }
     result->set_code_comments_offset(code->code_comments_offset());
+    result->set_builtin_index(code->builtin_index());
 
     // Replace the newly generated trampoline's RelocInfo ByteArray with the
     // canonical one stored in the roots to avoid duplicating it for every
