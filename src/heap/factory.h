@@ -889,6 +889,7 @@ class V8_EXPORT_PRIVATE Factory {
       MessageTemplate message, Handle<Object> argument, int start_position,
       int end_position, Handle<Script> script, Handle<Object> stack_frames);
 
+  Handle<ClassPositions> NewClassPositions(int start, int end);
   Handle<DebugInfo> NewDebugInfo(Handle<SharedFunctionInfo> shared);
 
   Handle<CoverageInfo> NewCoverageInfo(const ZoneVector<SourceRange>& slots);

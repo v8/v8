@@ -1814,6 +1814,12 @@ void Tuple3::Tuple3Verify(Isolate* isolate) {
   VerifyObjectField(isolate, kValue3Offset);
 }
 
+void ClassPositions::ClassPositionsVerify(Isolate* isolate) {
+  CHECK(IsClassPositions());
+  VerifySmiField(kStartOffset);
+  VerifySmiField(kEndOffset);
+}
+
 void ObjectBoilerplateDescription::ObjectBoilerplateDescriptionVerify(
     Isolate* isolate) {
   CHECK(IsObjectBoilerplateDescription());

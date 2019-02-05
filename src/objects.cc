@@ -2143,6 +2143,10 @@ void Tuple3::BriefPrintDetails(std::ostream& os) {
      << Brief(value3());
 }
 
+void ClassPositions::BriefPrintDetails(std::ostream& os) {
+  os << " " << start() << ", " << end();
+}
+
 void ArrayBoilerplateDescription::BriefPrintDetails(std::ostream& os) {
   os << " " << elements_kind() << ", " << Brief(constant_elements());
 }

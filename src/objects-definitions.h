@@ -98,6 +98,7 @@ namespace internal {
   V(ALLOCATION_MEMENTO_TYPE)                                       \
   V(ASM_WASM_DATA_TYPE)                                            \
   V(ASYNC_GENERATOR_REQUEST_TYPE)                                  \
+  V(CLASS_POSITIONS_TYPE)                                          \
   V(DEBUG_INFO_TYPE)                                               \
   V(FUNCTION_TEMPLATE_INFO_TYPE)                                   \
   V(FUNCTION_TEMPLATE_RARE_DATA_TYPE)                              \
@@ -321,6 +322,7 @@ namespace internal {
   V(_, ASM_WASM_DATA_TYPE, AsmWasmData, asm_wasm_data)                        \
   V(_, ASYNC_GENERATOR_REQUEST_TYPE, AsyncGeneratorRequest,                   \
     async_generator_request)                                                  \
+  V(_, CLASS_POSITIONS_TYPE, ClassPositions, class_positions)                 \
   V(_, DEBUG_INFO_TYPE, DebugInfo, debug_info)                                \
   V(_, FUNCTION_TEMPLATE_INFO_TYPE, FunctionTemplateInfo,                     \
     function_template_info)                                                   \

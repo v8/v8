@@ -3785,6 +3785,14 @@ Handle<String> Factory::NumberToString(Smi number, bool check_cache) {
                                 check_cache);
 }
 
+Handle<ClassPositions> Factory::NewClassPositions(int start, int end) {
+  Handle<ClassPositions> class_positions =
+      Handle<ClassPositions>::cast(NewStruct(CLASS_POSITIONS_TYPE, TENURED));
+  class_positions->set_start(start);
+  class_positions->set_end(end);
+  return class_positions;
+}
+
 Handle<DebugInfo> Factory::NewDebugInfo(Handle<SharedFunctionInfo> shared) {
   DCHECK(!shared->HasDebugInfo());
   Heap* heap = isolate()->heap();
