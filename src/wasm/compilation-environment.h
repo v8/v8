@@ -126,7 +126,7 @@ class CompilationState {
   friend class WasmCompilationUnit;
   CompilationState() = delete;
 
-  static std::unique_ptr<CompilationState> New(Isolate*, NativeModule*,
+  static std::unique_ptr<CompilationState> New(NativeModule*,
                                                std::shared_ptr<Counters>);
 };
 

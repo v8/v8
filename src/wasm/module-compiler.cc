@@ -118,8 +118,7 @@ class BackgroundCompileScope {
 // It's public interface {CompilationState} lives in compilation-environment.h.
 class CompilationStateImpl {
  public:
-  CompilationStateImpl(internal::Isolate*, NativeModule*,
-                       std::shared_ptr<Counters>);
+  CompilationStateImpl(NativeModule*, std::shared_ptr<Counters> async_counters);
   ~CompilationStateImpl();
 
   // Cancel all background compilation and wait for all tasks to finish. Call
@@ -150,8 +149,6 @@ class CompilationStateImpl {
   void RestartBackgroundTasks();
 
   void SetError(uint32_t func_index, const WasmError& error);
-
-  Isolate* isolate() const { return isolate_; }
 
   bool failed() const {
     return compile_error_.load(std::memory_order_relaxed) != nullptr;
@@ -210,10 +207,6 @@ class CompilationStateImpl {
 
   void NotifyOnEvent(CompilationEvent event);
 
-  // TODO(mstarzinger): Get rid of the Isolate field to make sure the
-  // {CompilationStateImpl} can be shared across multiple Isolates.
-  Isolate* const isolate_;
-  WasmEngine* const engine_;
   NativeModule* const native_module_;
   const std::shared_ptr<BackgroundCompileToken> background_compile_token_;
   const CompileMode compile_mode_;
@@ -310,11 +303,9 @@ void CompilationState::OnFinishedUnit(ExecutionTier tier, WasmCode* code) {
 
 // static
 std::unique_ptr<CompilationState> CompilationState::New(
-    Isolate* isolate, NativeModule* native_module,
-    std::shared_ptr<Counters> async_counters) {
-  return std::unique_ptr<CompilationState>(
-      reinterpret_cast<CompilationState*>(new CompilationStateImpl(
-          isolate, native_module, std::move(async_counters))));
+    NativeModule* native_module, std::shared_ptr<Counters> async_counters) {
+  return std::unique_ptr<CompilationState>(reinterpret_cast<CompilationState*>(
+      new CompilationStateImpl(native_module, std::move(async_counters))));
 }
 
 // End of PIMPL implementation of {CompilationState}.
@@ -1458,11 +1449,8 @@ bool AsyncStreamingProcessor::Deserialize(Vector<const uint8_t> module_bytes,
 }
 
 CompilationStateImpl::CompilationStateImpl(
-    internal::Isolate* isolate, NativeModule* native_module,
-    std::shared_ptr<Counters> async_counters)
-    : isolate_(isolate),
-      engine_(isolate->wasm_engine()),
-      native_module_(native_module),
+    NativeModule* native_module, std::shared_ptr<Counters> async_counters)
+    : native_module_(native_module),
       background_compile_token_(
           std::make_shared<BackgroundCompileToken>(native_module)),
       compile_mode_(FLAG_wasm_tier_up &&
@@ -1581,12 +1569,13 @@ void CompilationStateImpl::OnFinishedUnit(ExecutionTier tier, WasmCode* code) {
   }
 
   // TODO(clemensh): Fix and reenable code logging (https://crbug.com/v8/8783).
-  // if (code != nullptr) engine_->LogCode(code);
+  // if (code != nullptr) native_module_->engine()->LogCode(code);
 }
 
 void CompilationStateImpl::RestartBackgroundCompileTask() {
-  auto task = engine_->NewBackgroundCompileTask<BackgroundCompileTask>(
-      background_compile_token_, async_counters_);
+  auto task =
+      native_module_->engine()->NewBackgroundCompileTask<BackgroundCompileTask>(
+          background_compile_token_, async_counters_);
 
   if (baseline_compilation_finished()) {
     V8::GetCurrentPlatform()->CallLowPriorityTaskOnWorkerThread(

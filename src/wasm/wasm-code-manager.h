@@ -23,8 +23,9 @@
 namespace v8 {
 namespace internal {
 
-class CodeDesc;
 class Code;
+class CodeDesc;
+class Isolate;
 
 namespace wasm {
 
@@ -349,6 +350,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   const WasmModule* module() const { return module_.get(); }
   std::shared_ptr<const WasmModule> shared_module() const { return module_; }
   size_t committed_code_space() const { return committed_code_space_.load(); }
+  WasmEngine* engine() const { return engine_; }
 
   void SetWireBytes(OwnedVector<const uint8_t> wire_bytes);
 
@@ -367,9 +369,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
   friend class WasmCodeManager;
   friend class NativeModuleModificationScope;
 
-  NativeModule(WasmEngine* engine, Isolate* isolate,
-               const WasmFeatures& enabled_features, bool can_request_more,
-               VirtualMemory code_space,
+  NativeModule(WasmEngine* engine, const WasmFeatures& enabled_features,
+               bool can_request_more, VirtualMemory code_space,
                std::shared_ptr<const WasmModule> module,
                std::shared_ptr<Counters> async_counters);
 
