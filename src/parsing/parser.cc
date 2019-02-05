@@ -1444,6 +1444,11 @@ Statement* Parser::DeclareFunction(const AstRawString* variable_name,
   bool was_added;
   Declare(declaration, variable_name, kind, mode, kCreatedInitialized, scope(),
           &was_added, beg_pos);
+  if (source_range_map_ != nullptr) {
+    // Force the function to be allocated when collecting source coverage, so
+    // that even dead functions get source coverage data.
+    declaration->var()->set_is_used();
+  }
   if (names) names->Add(variable_name, zone());
   if (kind == SLOPPY_BLOCK_FUNCTION_VARIABLE) {
     Token::Value init = loop_nesting_depth() > 0 ? Token::ASSIGN : Token::INIT;
