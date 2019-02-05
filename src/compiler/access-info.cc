@@ -567,22 +567,28 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
 bool AccessInfoFactory::ComputePropertyAccessInfos(
     MapHandles const& maps, Handle<Name> name, AccessMode access_mode,
     ZoneVector<PropertyAccessInfo>* access_infos) {
+  ZoneVector<PropertyAccessInfo> infos(zone());
+  infos.reserve(maps.size());
   for (Handle<Map> map : maps) {
     if (Map::TryUpdate(isolate(), map).ToHandle(&map)) {
       PropertyAccessInfo access_info;
       if (!ComputePropertyAccessInfo(map, name, access_mode, &access_info)) {
         return false;
       }
-      // Try to merge the {access_info} with an existing one.
-      bool merged = false;
-      for (PropertyAccessInfo& other_info : *access_infos) {
-        if (other_info.Merge(&access_info, access_mode, zone())) {
-          merged = true;
-          break;
-        }
-      }
-      if (!merged) access_infos->push_back(access_info);
+      infos.push_back(access_info);
     }
+  }
+
+  // Merge as many as possible and push into {access_infos}.
+  for (auto it = infos.begin(), end = infos.end(); it != end; ++it) {
+    bool merged = false;
+    for (auto ot = it + 1; ot != end; ++ot) {
+      if (ot->Merge(&(*it), access_mode, zone())) {
+        merged = true;
+        break;
+      }
+    }
+    if (!merged) access_infos->push_back(*it);
   }
   return true;
 }
