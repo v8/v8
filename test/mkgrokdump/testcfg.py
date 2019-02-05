@@ -11,11 +11,6 @@ from testrunner.outproc import mkgrokdump
 
 SHELL = 'mkgrokdump'
 
-
-class TestLoader(testsuite.TestLoader):
-  pass
-
-#TODO(tmrts): refactor the test creation logic to migrate to TestLoader
 class TestSuite(testsuite.TestSuite):
   def __init__(self, *args, **kwargs):
     super(TestSuite, self).__init__(*args, **kwargs)
@@ -24,11 +19,8 @@ class TestSuite(testsuite.TestSuite):
     self.expected_path = os.path.join(v8_path, 'tools', 'v8heapconst.py')
 
   def ListTests(self):
-    test = self._test_loader._create_test(SHELL, self)
+    test = self._create_test(SHELL)
     return [test]
-
-  def _test_loader_class(self):
-    return TestLoader
 
   def _test_class(self):
     return TestCase

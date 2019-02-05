@@ -36,8 +36,8 @@ from testrunner.objects import testcase
 SHELL = 'cctest'
 
 
-class TestLoader(testsuite.TestLoader):
-  def _list_test_filenames(self):
+class TestSuite(testsuite.TestSuite):
+  def ListTests(self):
     shell = os.path.abspath(os.path.join(self.test_config.shell_dir, SHELL))
     if utils.IsWindows():
       shell += ".exe"
@@ -46,19 +46,14 @@ class TestLoader(testsuite.TestLoader):
         shell=shell,
         args=["--list"] + self.test_config.extra_flags)
     output = cmd.execute()
-    # TODO make errors visible (see duplicated code in 'unittests')
     if output.exit_code != 0:
       print cmd
       print output.stdout
       print output.stderr
       return []
-
-    return output.stdout.strip().split()
-
-
-class TestSuite(testsuite.TestSuite):
-  def _test_loader_class(self):
-    return TestLoader
+    tests = map(self._create_test, output.stdout.strip().split())
+    tests.sort(key=lambda t: t.path)
+    return tests
 
   def _test_class(self):
     return TestCase
