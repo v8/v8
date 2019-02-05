@@ -84,6 +84,7 @@ void InitializeCode(Heap* heap, Handle<Code> code, int object_size,
   code->set_relocation_info(*reloc_info);
   code->initialize_flags(kind, has_unwinding_info, is_turbofanned, stack_slots,
                          kIsNotOffHeapTrampoline);
+  code->set_builtin_index(builtin_index);
   code->set_code_data_container(*data_container);
   code->set_deoptimization_data(*deopt_data);
   code->set_source_position_table(*source_position_table);
@@ -91,7 +92,6 @@ void InitializeCode(Heap* heap, Handle<Code> code, int object_size,
   code->set_handler_table_offset(desc.handler_table_offset);
   code->set_constant_pool_offset(desc.constant_pool_offset);
   code->set_code_comments_offset(desc.code_comments_offset);
-  code->set_builtin_index(builtin_index);
 
   // Allow self references to created code object by patching the handle to
   // point to the newly allocated Code object.
