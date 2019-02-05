@@ -23,7 +23,7 @@ MAX_TRIES = 3
 TIMEOUT = 120
 
 # Predictable mode works only when run on the host os.
-command.setup(utils.GuessOS())
+command.setup(utils.GuessOS(), None)
 
 def main(args):
   def allocation_str(stdout):

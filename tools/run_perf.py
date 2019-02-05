@@ -662,7 +662,7 @@ class DesktopPlatform(Platform):
     self.command_prefix = []
 
     # Setup command class to OS specific version.
-    command.setup(utils.GuessOS())
+    command.setup(utils.GuessOS(), options.device)
 
     if options.prioritize or options.affinitize != None:
       self.command_prefix = ["schedtool"]
@@ -916,7 +916,7 @@ def Main(args):
                     help="Adapt to path structure used on buildbots and adds "
                          "timestamps/level to all logged status messages",
                     default=False, action="store_true")
-  parser.add_option("--device",
+  parser.add_option("-d", "--device",
                     help="The device ID to run Android tests on. If not given "
                          "it will be autodetected.")
   parser.add_option("--extra-flags",

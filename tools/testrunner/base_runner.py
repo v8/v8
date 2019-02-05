@@ -251,7 +251,7 @@ class BaseTestRunner(object):
         print ' '.join(sys.argv)
 
       self._load_build_config(options)
-      command.setup(self.target_os)
+      command.setup(self.target_os, options.device)
 
       try:
         self._process_default_options(options)
@@ -309,6 +309,9 @@ class BaseTestRunner(object):
 
     parser.add_option("-j", help="The number of parallel tasks to run",
                       default=0, type=int)
+    parser.add_option("-d", "--device",
+                      help="The device ID to run Android tests on. If not "
+                           "given it will be autodetected.")
 
     # Shard
     parser.add_option("--shard-count", default=1, type=int,
