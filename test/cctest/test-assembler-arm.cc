@@ -167,7 +167,6 @@ TEST(3) {
   T t;
 
   Assembler assm(AssemblerOptions{});
-  Label L, C;
 
   __ mov(ip, Operand(sp));
   __ stm(db_w, sp, r4.bit() | fp.bit() | lr.bit());
@@ -236,7 +235,6 @@ TEST(4) {
   // Create a function that accepts &t, and loads, manipulates, and stores
   // the doubles and floats.
   Assembler assm(AssemblerOptions{});
-  Label L, C;
 
   if (CpuFeatures::IsSupported(VFPv3)) {
     CpuFeatureScope scope(&assm, VFPv3);
@@ -1029,7 +1027,6 @@ TEST(13) {
   // Create a function that accepts &t, and loads, manipulates, and stores
   // the doubles and floats.
   Assembler assm(AssemblerOptions{});
-  Label L, C;
 
   if (CpuFeatures::IsSupported(VFPv3)) {
     CpuFeatureScope scope(&assm, VFPv3);
@@ -2935,7 +2932,6 @@ TEST(ARMv8_float32_vrintX) {
   // Create a function that accepts &t, and loads, manipulates, and stores
   // the floats.
   Assembler assm(AssemblerOptions{});
-  Label L, C;
 
 
   if (CpuFeatures::IsSupported(ARMv8)) {
@@ -3037,7 +3033,6 @@ TEST(ARMv8_vrintX) {
   // Create a function that accepts &t, and loads, manipulates, and stores
   // the doubles and floats.
   Assembler assm(AssemblerOptions{});
-  Label L, C;
 
 
   if (CpuFeatures::IsSupported(ARMv8)) {

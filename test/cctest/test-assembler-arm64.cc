@@ -2166,7 +2166,7 @@ TEST(far_branch_veneer_broken_link_chain) {
 
   START();
 
-  Label skip, fail, done;
+  Label fail, done;
   Label test_1, test_2, test_3;
   Label far_target;
 

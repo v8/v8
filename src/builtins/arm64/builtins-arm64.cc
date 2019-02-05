@@ -203,7 +203,7 @@ void Generate_StackOverflowCheck(MacroAssembler* masm, Register num_args,
   // Check the stack for overflow.
   // We are not trying to catch interruptions (e.g. debug break and
   // preemption) here, so the "real stack limit" is checked.
-  Label enough_stack_space;
+
   __ LoadRoot(scratch, RootIndex::kRealStackLimit);
   // Make scratch the space we have left. The stack might already be overflowed
   // here which will cause scratch to become negative.
@@ -650,7 +650,7 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
 
   // Push the JS entry frame marker. Also set js_entry_sp if this is the
   // outermost JS call.
-  Label non_outermost_js, done;
+  Label done;
   ExternalReference js_entry_sp = ExternalReference::Create(
       IsolateAddressId::kJSEntrySPAddress, masm->isolate());
   __ Mov(x10, js_entry_sp);
@@ -1889,7 +1889,6 @@ void Builtins::Generate_FunctionPrototypeCall(MacroAssembler* masm) {
   //    Copy arguments two slots higher in memory, overwriting the original
   //    receiver and padding.
   {
-    Label loop;
     Register copy_from = x10;
     Register copy_to = x11;
     Register count = x12;

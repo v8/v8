@@ -4889,7 +4889,9 @@ void Assembler::EmitVeneers(bool force_emit, bool need_protection, int margin) {
 
   EmitVeneersGuard();
 
+#ifdef DEBUG
   Label veneer_size_check;
+#endif
 
   std::multimap<int, FarBranchInfo>::iterator it, it_to_delete;
 

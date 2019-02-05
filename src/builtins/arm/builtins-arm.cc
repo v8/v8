@@ -52,7 +52,6 @@ void Builtins::Generate_InternalArrayConstructor(MacroAssembler* masm) {
   //  -- lr     : return address
   //  -- sp[...]: constructor arguments
   // -----------------------------------
-  Label generic_array_code, one_or_more_arguments, two_or_more_arguments;
 
   if (FLAG_debug_code) {
     // Initial map for the builtin InternalArray functions should be maps.
@@ -2718,7 +2717,7 @@ void Builtins::Generate_MathPowInternal(MacroAssembler* masm) {
   const Register integer_exponent = r4;
   const Register scratch = r5;
 
-  Label call_runtime, done, int_exponent;
+  Label done, int_exponent;
 
   // Detect integer exponents stored as double.
   __ TryDoubleToInt32Exact(integer_exponent, double_exponent, double_scratch);

@@ -904,7 +904,6 @@ Handle<HeapObject> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
     SafeCallTarget(&stack_overflow_label_);
     // Reached if the backtrack-stack limit has been hit.
 
-    Label grow_failed;
     // Save registers before calling C function
     __ push(esi);
     __ push(edi);

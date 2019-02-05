@@ -903,7 +903,7 @@ Handle<HeapObject> RegExpMacroAssemblerMIPS::GetCode(Handle<String> source) {
       RegList regexp_registers = current_input_offset().bit() |
           current_character().bit();
       __ MultiPush(regexp_registers);
-      Label grow_failed;
+
       // Call GrowStack(backtrack_stackpointer(), &stack_base)
       static const int num_arguments = 3;
       __ PrepareCallCFunction(num_arguments, a0);

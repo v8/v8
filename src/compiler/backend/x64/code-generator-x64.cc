@@ -1396,7 +1396,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kSSEFloat32Max: {
-      Label compare_nan, compare_swap, done_compare;
+      Label compare_swap, done_compare;
       if (instr->InputAt(1)->IsFPRegister()) {
         __ Ucomiss(i.InputDoubleRegister(0), i.InputDoubleRegister(1));
       } else {
@@ -1451,7 +1451,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kSSEFloat64Max: {
-      Label compare_nan, compare_swap, done_compare;
+      Label compare_swap, done_compare;
       if (instr->InputAt(1)->IsFPRegister()) {
         __ Ucomisd(i.InputDoubleRegister(0), i.InputDoubleRegister(1));
       } else {

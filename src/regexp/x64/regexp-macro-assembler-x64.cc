@@ -954,7 +954,6 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
     SafeCallTarget(&stack_overflow_label_);
     // Reached if the backtrack-stack limit has been hit.
 
-    Label grow_failed;
     // Save registers before calling C function
 #ifndef _WIN64
     // Callee-save in Microsoft 64-bit ABI, but not in AMD64 ABI.

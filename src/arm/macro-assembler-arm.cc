@@ -1173,8 +1173,7 @@ void TurboAssembler::LslPair(Register dst_low, Register dst_high,
                              Register src_low, Register src_high,
                              uint32_t shift) {
   DCHECK(!AreAliased(dst_high, src_low));
-  Label less_than_32;
-  Label done;
+
   if (shift == 0) {
     Move(dst_high, src_high);
     Move(dst_low, src_low);
@@ -1222,8 +1221,7 @@ void TurboAssembler::LsrPair(Register dst_low, Register dst_high,
                              Register src_low, Register src_high,
                              uint32_t shift) {
   DCHECK(!AreAliased(dst_low, src_high));
-  Label less_than_32;
-  Label done;
+
   if (shift == 32) {
     mov(dst_low, src_high);
     mov(dst_high, Operand(0));
@@ -1270,8 +1268,7 @@ void TurboAssembler::AsrPair(Register dst_low, Register dst_high,
                              Register src_low, Register src_high,
                              uint32_t shift) {
   DCHECK(!AreAliased(dst_low, src_high));
-  Label less_than_32;
-  Label done;
+
   if (shift == 32) {
     mov(dst_low, src_high);
     asr(dst_high, src_high, Operand(31));

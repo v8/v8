@@ -237,8 +237,7 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
   }
 
   // Replace the current (input) frame with the output frames.
-  Label outer_push_loop, inner_push_loop,
-      outer_loop_header, inner_loop_header;
+  Label outer_push_loop, outer_loop_header;
   __ Ldrsw(x1, MemOperand(x4, Deoptimizer::output_count_offset()));
   __ Ldr(x0, MemOperand(x4, Deoptimizer::output_offset()));
   __ Add(x1, x0, Operand(x1, LSL, kPointerSizeLog2));

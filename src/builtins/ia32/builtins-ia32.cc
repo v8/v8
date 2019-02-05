@@ -1813,7 +1813,6 @@ void Builtins::Generate_InternalArrayConstructor(MacroAssembler* masm) {
   //  -- esp[0] : return address
   //  -- esp[4] : last argument
   // -----------------------------------
-  Label generic_array_code;
 
   if (FLAG_debug_code) {
     // Initial map for the builtin InternalArray function should be a map.
@@ -2894,7 +2893,7 @@ void Builtins::Generate_MathPowInternal(MacroAssembler* masm) {
   const XMMRegister double_exponent = xmm1;
   const XMMRegister double_scratch = xmm4;
 
-  Label call_runtime, done, exponent_not_smi, int_exponent;
+  Label call_runtime, done, int_exponent;
 
   // Save 1 in double_result - we need this several times later on.
   __ mov(scratch, Immediate(1));

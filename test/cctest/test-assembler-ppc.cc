@@ -175,7 +175,6 @@ TEST(3) {
   T t;
 
   Assembler assm(AssemblerOptions{});
-  Label L, C;
 
   __ function_descriptor();
 

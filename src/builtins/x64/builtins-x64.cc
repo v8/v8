@@ -1857,7 +1857,6 @@ void Builtins::Generate_InternalArrayConstructor(MacroAssembler* masm) {
   //  -- rsp[0] : return address
   //  -- rsp[8] : last argument
   // -----------------------------------
-  Label generic_array_code;
 
   if (FLAG_debug_code) {
     Register decompr_scratch_for_debug =
@@ -2943,7 +2942,7 @@ void Builtins::Generate_MathPowInternal(MacroAssembler* masm) {
   const XMMRegister double_exponent = xmm1;
   const XMMRegister double_scratch = xmm4;
 
-  Label call_runtime, done, exponent_not_smi, int_exponent;
+  Label call_runtime, done, int_exponent;
 
   // Save 1 in double_result - we need this several times later on.
   __ movq(scratch, Immediate(1));
@@ -3137,7 +3136,6 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
   Label promote_scheduled_exception;
   Label delete_allocated_handles;
   Label leave_exit_frame;
-  Label write_back;
 
   Isolate* isolate = masm->isolate();
   Factory* factory = isolate->factory();
