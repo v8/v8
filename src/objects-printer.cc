@@ -947,7 +947,7 @@ void PrintContextWithHeader(std::ostream& os, Context context,
   os << "\n - length: " << context->length();
   os << "\n - scope_info: " << Brief(context->scope_info());
   os << "\n - previous: " << Brief(context->previous());
-  os << "\n - extension_object: " << Brief(context->extension_object());
+  os << "\n - extension: " << Brief(context->extension());
   os << "\n - native_context: " << Brief(context->native_context());
   PrintFixedArrayElements(os, context);
   os << "\n";
