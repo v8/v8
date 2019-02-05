@@ -1683,7 +1683,7 @@ Object Isolate::UnwindAndFindHandler() {
         StubFrame* stub_frame = static_cast<StubFrame*>(frame);
         Code code = stub_frame->LookupCode();
         if (!code->IsCode() || code->kind() != Code::BUILTIN ||
-            !code->handler_table_offset() || !code->is_turbofanned()) {
+            !code->has_handler_table() || !code->is_turbofanned()) {
           break;
         }
 
@@ -1874,7 +1874,7 @@ Isolate::CatchType Isolate::PredictExceptionCatcher() {
       case StackFrame::STUB: {
         Handle<Code> code(frame->LookupCode(), this);
         if (!code->IsCode() || code->kind() != Code::BUILTIN ||
-            !code->handler_table_offset() || !code->is_turbofanned()) {
+            !code->has_handler_table() || !code->is_turbofanned()) {
           break;
         }
 
@@ -2465,7 +2465,7 @@ Handle<Object> Isolate::GetPromiseOnStackOnThrow() {
     } else if (frame->type() == StackFrame::STUB) {
       Code code = frame->LookupCode();
       if (!code->IsCode() || code->kind() != Code::BUILTIN ||
-          !code->handler_table_offset() || !code->is_turbofanned()) {
+          !code->has_handler_table() || !code->is_turbofanned()) {
         continue;
       }
       catch_prediction = code->GetBuiltinCatchPrediction();

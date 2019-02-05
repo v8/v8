@@ -1113,7 +1113,7 @@ Script JavaScriptFrame::script() const {
 
 int JavaScriptFrame::LookupExceptionHandlerInTable(
     int* stack_depth, HandlerTable::CatchPrediction* prediction) {
-  DCHECK_EQ(0, LookupCode()->handler_table_offset());
+  DCHECK(!LookupCode()->has_handler_table());
   DCHECK(!LookupCode()->is_optimized_code());
   return -1;
 }

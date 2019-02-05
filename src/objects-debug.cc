@@ -1202,6 +1202,9 @@ void CodeDataContainer::CodeDataContainerVerify(Isolate* isolate) {
 }
 
 void Code::CodeVerify(Isolate* isolate) {
+  // TODO(v8:8758): Should be <= handler_table_offset once we have real offsets.
+  CHECK_LE(safepoint_table_offset(), constant_pool_offset());
+  CHECK_LE(handler_table_offset(), constant_pool_offset());
   CHECK_LE(constant_pool_offset(), code_comments_offset());
   CHECK_LE(code_comments_offset(), InstructionSize());
   CHECK(IsAligned(raw_instruction_start(), kCodeAlignment));

@@ -5385,6 +5385,46 @@ void ObjectVisitor::VisitRelocInfo(RelocIterator* it) {
   }
 }
 
+int Code::safepoint_table_size() const {
+  if (safepoint_table_offset() == 0) return 0;
+  const int end_offset = handler_table_offset() != 0 ? handler_table_offset()
+                                                     : constant_pool_offset();
+  DCHECK_GE(end_offset - safepoint_table_offset(), 0);
+  return end_offset - safepoint_table_offset();
+}
+
+bool Code::has_safepoint_table() const { return safepoint_table_size() > 0; }
+
+int Code::handler_table_size() const {
+  if (handler_table_offset() == 0) return 0;
+  DCHECK_GE(constant_pool_offset() - handler_table_offset(), 0);
+  return constant_pool_offset() - handler_table_offset();
+}
+
+bool Code::has_handler_table() const { return handler_table_size() > 0; }
+
+int Code::constant_pool_size() const {
+  const int size = code_comments_offset() - constant_pool_offset();
+  DCHECK_IMPLIES(!FLAG_enable_embedded_constant_pool, size == 0);
+  return size;
+}
+
+bool Code::has_constant_pool() const { return constant_pool_size() > 0; }
+
+int Code::code_comments_size() const {
+  DCHECK_GE(InstructionSize() - code_comments_offset(), 0);
+  return InstructionSize() - code_comments_offset();
+}
+
+bool Code::has_code_comments() const { return code_comments_size() > 0; }
+
+int Code::ExecutableInstructionSize() const {
+  return safepoint_table_offset() != 0
+             ? safepoint_table_offset()
+             : (handler_table_offset() != 0 ? handler_table_offset()
+                                            : constant_pool_offset());
+}
+
 void Code::ClearEmbeddedObjects(Heap* heap) {
   HeapObject undefined = ReadOnlyRoots(heap).undefined_value();
   int mode_mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
@@ -5992,16 +6032,8 @@ void Code::Disassemble(const char* name, std::ostream& os, Address current_pc) {
   }
 
   {
-    int size = InstructionSize();
-    int safepoint_offset =
-        has_safepoint_info() ? safepoint_table_offset() : size;
-    int const_pool_offset = constant_pool_offset();
-    int handler_offset = handler_table_offset() ? handler_table_offset() : size;
-    int comments_offset = code_comments_offset();
-
     // Stop before reaching any embedded tables
-    int code_size = std::min(
-        {handler_offset, safepoint_offset, const_pool_offset, comments_offset});
+    int code_size = ExecutableInstructionSize();
     os << "Instructions (size = " << code_size << ")\n";
     DisassembleCodeRange(isolate, os, *this, InstructionStart(), code_size,
                          current_pc);
@@ -6010,8 +6042,8 @@ void Code::Disassemble(const char* name, std::ostream& os, Address current_pc) {
       DCHECK_EQ(pool_size & kPointerAlignmentMask, 0);
       os << "\nConstant Pool (size = " << pool_size << ")\n";
       Vector<char> buf = Vector<char>::New(50);
-      intptr_t* ptr =
-          reinterpret_cast<intptr_t*>(InstructionStart() + const_pool_offset);
+      intptr_t* ptr = reinterpret_cast<intptr_t*>(InstructionStart() +
+                                                  constant_pool_offset());
       for (int i = 0; i < pool_size; i += kSystemPointerSize, ptr++) {
         SNPrintF(buf, "%4d %08" V8PRIxPTR, i, *ptr);
         os << static_cast<const void*>(ptr) << "  " << buf.start() << "\n";
@@ -6080,7 +6112,7 @@ void Code::Disassemble(const char* name, std::ostream& os, Address current_pc) {
     os << "\n";
   }
 
-  if (handler_table_offset() > 0) {
+  if (has_handler_table()) {
     HandlerTable table(*this);
     os << "Handler Table (size = " << table.NumberOfReturnEntries() << ")\n";
     if (kind() == OPTIMIZED_FUNCTION) {
@@ -6104,7 +6136,7 @@ void Code::Disassemble(const char* name, std::ostream& os, Address current_pc) {
     os << "\n";
   }
 
-  if (code_comments_offset() < InstructionSize()) {
+  if (has_code_comments()) {
     PrintCodeCommentsSection(os, code_comments());
   }
 }

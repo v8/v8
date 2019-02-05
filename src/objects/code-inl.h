@@ -483,7 +483,6 @@ int Code::stack_slots() const {
 }
 
 int Code::safepoint_table_offset() const {
-  DCHECK(has_safepoint_info());
   return READ_INT32_FIELD(this, kSafepointTableOffsetOffset);
 }
 
@@ -550,18 +549,9 @@ void Code::set_constant_pool_offset(int value) {
   WRITE_INT_FIELD(this, kConstantPoolOffset, value);
 }
 
-int Code::constant_pool_size() const {
-  if (!FLAG_enable_embedded_constant_pool) return 0;
-  return code_comments_offset() - constant_pool_offset();
-}
 Address Code::constant_pool() const {
-  if (FLAG_enable_embedded_constant_pool) {
-    int offset = constant_pool_offset();
-    if (offset < code_comments_offset()) {
-      return InstructionStart() + offset;
-    }
-  }
-  return kNullAddress;
+  if (!has_constant_pool()) return kNullAddress;
+  return InstructionStart() + constant_pool_offset();
 }
 
 int Code::code_comments_offset() const {
@@ -578,11 +568,8 @@ void Code::set_code_comments_offset(int offset) {
 }
 
 Address Code::code_comments() const {
-  int offset = code_comments_offset();
-  if (offset < InstructionSize()) {
-    return InstructionStart() + offset;
-  }
-  return kNullAddress;
+  if (!has_code_comments()) return kNullAddress;
+  return InstructionStart() + code_comments_offset();
 }
 
 Code Code::GetCodeFromTargetAddress(Address address) {

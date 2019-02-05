@@ -70,8 +70,8 @@ class Code : public HeapObject {
 
   // Returns the size of the native instructions, including embedded
   // data such as the safepoints table. For off-heap code objects
-  // this may from instruction_size in that this will return the size of the
-  // off-heap instruction stream rather than the on-heap trampoline located
+  // this may differ from instruction_size in that this will return the size of
+  // the off-heap instruction stream rather than the on-heap trampoline located
   // at instruction_start.
   inline int InstructionSize() const;
   int OffHeapInstructionSize() const;
@@ -97,17 +97,6 @@ class Code : public HeapObject {
   // Note that this field is stored in the {CodeDataContainer} to be mutable.
   inline Object next_code_link() const;
   inline void set_next_code_link(Object value);
-
-  // [constant_pool offset]: Offset of the constant pool.
-  // Valid for FLAG_enable_embedded_constant_pool only
-  inline int constant_pool_offset() const;
-  inline void set_constant_pool_offset(int offset);
-  inline int constant_pool_size() const;
-
-  // [code_comments_offset]: Offset of the code comment section.
-  inline int code_comments_offset() const;
-  inline void set_code_comments_offset(int offset);
-  inline Address code_comments() const;
 
   // Unchecked accessors to be used during GC.
   inline ByteArray unchecked_relocation_info() const;
@@ -156,11 +145,32 @@ class Code : public HeapObject {
   // instruction stream where the safepoint table starts.
   inline int safepoint_table_offset() const;
   inline void set_safepoint_table_offset(int offset);
+  int safepoint_table_size() const;
+  bool has_safepoint_table() const;
 
   // [handler_table_offset]: The offset in the instruction stream where the
   // exception handler table starts.
   inline int handler_table_offset() const;
   inline void set_handler_table_offset(int offset);
+  int handler_table_size() const;
+  bool has_handler_table() const;
+
+  // [constant_pool offset]: Offset of the constant pool.
+  // Valid for FLAG_enable_embedded_constant_pool only
+  inline int constant_pool_offset() const;
+  inline void set_constant_pool_offset(int offset);
+  int constant_pool_size() const;
+  bool has_constant_pool() const;
+
+  // [code_comments_offset]: Offset of the code comment section.
+  inline int code_comments_offset() const;
+  inline void set_code_comments_offset(int offset);
+  inline Address code_comments() const;
+  int code_comments_size() const;
+  bool has_code_comments() const;
+
+  // The size of the executable instruction area, without embedded metadata.
+  int ExecutableInstructionSize() const;
 
   // [marked_for_deoptimization]: For kind OPTIMIZED_FUNCTION tells whether
   // the code is going to be deoptimized.
@@ -553,8 +563,8 @@ class AbstractCode : public HeapObject {
 
   // Returns the size of the native instructions, including embedded
   // data such as the safepoints table. For off-heap code objects
-  // this may from instruction_size in that this will return the size of the
-  // off-heap instruction stream rather than the on-heap trampoline located
+  // this may differ from instruction_size in that this will return the size of
+  // the off-heap instruction stream rather than the on-heap trampoline located
   // at instruction_start.
   inline int InstructionSize();
 
