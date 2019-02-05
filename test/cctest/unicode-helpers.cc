@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 #include "test/cctest/unicode-helpers.h"
-#include "src/unicode-inl.h"
 
 int Ucs2CharLength(unibrow::uchar c) {
   if (c == unibrow::Utf8::kIncomplete || c == unibrow::Utf8::kBufferEmpty) {
@@ -20,9 +19,10 @@ int Utf8LengthHelper(const char* s) {
   unibrow::Utf8::State state = unibrow::Utf8::State::kAccept;
 
   int length = 0;
-  const uint8_t* c = reinterpret_cast<const uint8_t*>(s);
-  while (*c != '\0') {
-    unibrow::uchar tmp = unibrow::Utf8::ValueOfIncremental(&c, &state, &buffer);
+  size_t i = 0;
+  while (s[i] != '\0') {
+    unibrow::uchar tmp =
+        unibrow::Utf8::ValueOfIncremental(s[i], &i, &state, &buffer);
     length += Ucs2CharLength(tmp);
   }
   unibrow::uchar tmp = unibrow::Utf8::ValueOfIncrementalFinish(&state);
