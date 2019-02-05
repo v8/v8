@@ -37,11 +37,6 @@ class VariantsGenerator(testsuite.VariantsGenerator):
     return self._standard_variant
 
 
-class TestLoader(testsuite.TestLoader):
-  pass
-
-
-# TODO(tmrts): refactor the python template parsing then use the TestLoader.
 class TestSuite(testsuite.TestSuite):
   def _ParsePythonTestTemplates(self, result, filename):
     pathname = os.path.join(self.root, filename + ".pyt")
@@ -76,11 +71,8 @@ class TestSuite(testsuite.TestSuite):
     return result
 
   def _create_test(self, path, source, template_flags):
-    return self._test_loader._create_test(
-        path, self, source=source, template_flags=template_flags)
-
-  def _test_loader_class(self):
-    return TestLoader
+    return super(TestSuite, self)._create_test(
+        path, source=source, template_flags=template_flags)
 
   def _test_class(self):
     return TestCase

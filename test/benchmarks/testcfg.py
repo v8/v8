@@ -34,9 +34,13 @@ from testrunner.local import testsuite
 from testrunner.objects import testcase
 
 
-class TestLoader(testsuite.TestLoader):
-  def _list_test_filenames(self):
-    return [
+class TestSuite(testsuite.TestSuite):
+  def __init__(self, *args, **kwargs):
+    super(TestSuite, self).__init__(*args, **kwargs)
+    self.testroot = os.path.join(self.root, "data")
+
+  def ListTests(self):
+    tests = map(self._create_test, [
         "kraken/ai-astar",
         "kraken/audio-beat-detection",
         "kraken/audio-dft",
@@ -94,16 +98,8 @@ class TestLoader(testsuite.TestLoader):
         "sunspider/string-tagcloud",
         "sunspider/string-unpack-code",
         "sunspider/string-validate-input",
-    ]
-
-
-class TestSuite(testsuite.TestSuite):
-  def __init__(self, *args, **kwargs):
-    super(TestSuite, self).__init__(*args, **kwargs)
-    self.testroot = os.path.join(self.root, "data")
-
-  def _test_loader_class(self):
-    return TestLoader
+    ])
+    return tests
 
   def _test_class(self):
     return TestCase
