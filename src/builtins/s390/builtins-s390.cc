@@ -45,7 +45,6 @@ void Builtins::Generate_InternalArrayConstructor(MacroAssembler* masm) {
   //  -- lr     : return address
   //  -- sp[...]: constructor arguments
   // -----------------------------------
-  Label generic_array_code, one_or_more_arguments, two_or_more_arguments;
 
   if (FLAG_debug_code) {
     // Initial map for the builtin InternalArray functions should be maps.
@@ -92,7 +91,6 @@ static void GenerateTailCallToReturnedCode(MacroAssembler* masm,
 namespace {
 
 void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
-  Label post_instantiation_deopt_entry;
   // ----------- S t a t e -------------
   //  -- r2     : number of arguments
   //  -- r3     : constructor function
@@ -2879,7 +2877,7 @@ void Builtins::Generate_MathPowInternal(MacroAssembler* masm) {
   const Register scratch = r1;
   const Register scratch2 = r9;
 
-  Label call_runtime, done, int_exponent;
+  Label done, int_exponent;
 
   // Detect integer exponents stored as double.
   __ TryDoubleToInt32Exact(scratch, double_exponent, scratch2, double_scratch);

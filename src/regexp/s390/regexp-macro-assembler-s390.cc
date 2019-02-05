@@ -356,7 +356,6 @@ void RegExpMacroAssemblerS390::CheckNotBackReference(int start_reg,
                                                      bool read_backward,
                                                      Label* on_no_match) {
   Label fallthrough;
-  Label success;
 
   // Find length of back-referenced capture.
   __ LoadP(r2, register_location(start_reg));

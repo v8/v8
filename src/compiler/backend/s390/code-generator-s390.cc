@@ -2639,7 +2639,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register index = i.InputRegister(1);
       Register value = i.InputRegister(2);
       Register output = i.OutputRegister();
-      Label two, unaligned, done;
+      Label two, done;
       __ la(r1, MemOperand(base, index));
       __ tmll(r1, Operand(3));
       __ b(Condition(2), &two);
