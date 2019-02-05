@@ -1747,10 +1747,6 @@ Object Isolate::UnwindAndFindHandler() {
         if (trap_handler::IsThreadInWasm()) {
           trap_handler::ClearThreadInWasm();
         }
-        WasmInterpreterEntryFrame* interpreter_frame =
-            WasmInterpreterEntryFrame::cast(frame);
-        // TODO(wasm): Implement try-catch in the interpreter.
-        interpreter_frame->debug_info()->Unwind(frame->fp());
       } break;
 
       case StackFrame::JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH: {

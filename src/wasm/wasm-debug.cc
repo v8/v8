@@ -216,15 +216,21 @@ class InterpreterHandle {
           Handle<Object> exception =
               isolate_->factory()->NewWasmRuntimeError(message_id);
           isolate_->Throw(*exception);
-          // Handle this exception. Return without trying to read back the
-          // return value.
+          // Handle this exception locally within the activation.
           auto result = thread->HandleException(isolate_);
-          return result == WasmInterpreter::Thread::HANDLED;
-        } break;
+          if (result == WasmInterpreter::Thread::HANDLED) break;
+          // If no local handler was found, we fall-thru to {STOPPED}.
+          DCHECK_EQ(WasmInterpreter::State::STOPPED, thread->state());
+          V8_FALLTHROUGH;
+        }
         case WasmInterpreter::State::STOPPED:
-          // An exception happened, and the current activation was unwound.
+          // An exception happened, and the current activation was unwound
+          // without hitting a local exception handler. All that remains to be
+          // done is finish the activation and let the exception propagate.
           DCHECK_EQ(thread->ActivationFrameBase(activation_id),
                     thread->GetFrameCount());
+          DCHECK(isolate_->has_pending_exception());
+          FinishActivation(frame_pointer, activation_id);
           return false;
         // RUNNING should never occur here.
         case WasmInterpreter::State::RUNNING:
@@ -377,20 +383,6 @@ class InterpreterHandle {
     DCHECK_GT(frame_range.second - frame_range.first, idx);
 
     return thread->GetFrame(frame_range.first + idx);
-  }
-
-  void Unwind(Address frame_pointer) {
-    // Find the current activation.
-    DCHECK_EQ(1, activations_.count(frame_pointer));
-    // Activations must be properly stacked:
-    DCHECK_EQ(activations_.size() - 1, activations_[frame_pointer]);
-    uint32_t activation_id = static_cast<uint32_t>(activations_.size() - 1);
-    // The top activation must have no active frames. The interpreter already
-    // had a chance to handle exceptions and hence dropped all frames.
-    DCHECK_EQ(interpreter()->GetThread(0)->GetFrameCount(),
-              interpreter()->GetThread(0)->ActivationFrameBase(activation_id));
-    // All that remains to be done is finish the activation.
-    FinishActivation(frame_pointer, activation_id);
   }
 
   uint64_t NumInterpretedCalls() {
@@ -624,10 +616,6 @@ std::vector<std::pair<uint32_t, int>> WasmDebugInfo::GetInterpretedStack(
 wasm::WasmInterpreter::FramePtr WasmDebugInfo::GetInterpretedFrame(
     Address frame_pointer, int idx) {
   return GetInterpreterHandle(*this)->GetInterpretedFrame(frame_pointer, idx);
-}
-
-void WasmDebugInfo::Unwind(Address frame_pointer) {
-  return GetInterpreterHandle(*this)->Unwind(frame_pointer);
 }
 
 uint64_t WasmDebugInfo::NumInterpretedCalls() {
