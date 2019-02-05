@@ -3090,6 +3090,17 @@ class NewLargeObjectSpace : public LargeObjectSpace {
   void Flip();
 
   void FreeAllObjects();
+
+  // The last allocated object that is not guaranteed to be initialized when
+  // the concurrent marker visits it.
+  Address pending_object() {
+    return pending_object_.load(std::memory_order_relaxed);
+  }
+
+  void ResetPendingObject() { pending_object_.store(0); }
+
+ private:
+  std::atomic<Address> pending_object_;
 };
 
 class CodeLargeObjectSpace : public LargeObjectSpace {

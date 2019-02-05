@@ -1061,6 +1061,7 @@ size_t IncrementalMarking::Step(size_t bytes_to_process,
   if (state_ == MARKING) {
     if (FLAG_concurrent_marking) {
       heap_->new_space()->ResetOriginalTop();
+      heap_->new_lo_space()->ResetPendingObject();
       // It is safe to merge back all objects that were on hold to the shared
       // work list at Step because we are at a safepoint where all objects
       // are properly initialized.

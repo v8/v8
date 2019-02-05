@@ -2594,6 +2594,7 @@ void MarkCompactCollector::EvacuatePrologue() {
   new_space->ResetLinearAllocationArea();
 
   heap()->new_lo_space()->Flip();
+  heap()->new_lo_space()->ResetPendingObject();
 
   // Old space.
   DCHECK(old_space_evacuation_pages_.empty());

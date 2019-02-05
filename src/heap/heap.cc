@@ -2014,6 +2014,7 @@ void Heap::Scavenge() {
   // We also flip the young generation large object space. All large objects
   // will be in the from space.
   new_lo_space()->Flip();
+  new_lo_space()->ResetPendingObject();
 
   // Implements Cheney's copying algorithm
   LOG(isolate_, ResourceEvent("scavenge", "begin"));

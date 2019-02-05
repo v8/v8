@@ -3737,16 +3737,18 @@ void Page::Print() {
 #endif  // DEBUG
 
 NewLargeObjectSpace::NewLargeObjectSpace(Heap* heap)
-    : LargeObjectSpace(heap, NEW_LO_SPACE) {}
+    : LargeObjectSpace(heap, NEW_LO_SPACE), pending_object_(0) {}
 
 AllocationResult NewLargeObjectSpace::AllocateRaw(int object_size) {
   // TODO(hpayer): Add heap growing strategy here.
   LargePage* page = AllocateLargePage(object_size, NOT_EXECUTABLE);
   if (page == nullptr) return AllocationResult::Retry(identity());
+  HeapObject result = page->GetObject();
   page->SetYoungGenerationPageFlags(heap()->incremental_marking()->IsMarking());
   page->SetFlag(MemoryChunk::TO_PAGE);
+  pending_object_.store(result->address(), std::memory_order_relaxed);
   page->InitializationMemoryFence();
-  return page->GetObject();
+  return result;
 }
 
 size_t NewLargeObjectSpace::Available() {
