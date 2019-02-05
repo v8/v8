@@ -262,6 +262,7 @@ std::string StructType::ToExplicitString() const {
 }
 
 std::string ClassType::GetGeneratedTNodeTypeName() const {
+  if (!IsExtern()) return generates_;
   std::string prefix = nspace()->IsDefaultNamespace()
                            ? std::string{}
                            : (nspace()->ExternalName() + "::");
@@ -282,7 +283,7 @@ std::string ClassType::ToExplicitString() const {
 }
 
 bool ClassType::AllowInstantiation() const {
-  return nspace()->IsDefaultNamespace();
+  return !IsExtern() || nspace()->IsDefaultNamespace();
 }
 
 void PrintSignature(std::ostream& os, const Signature& sig, bool with_names) {

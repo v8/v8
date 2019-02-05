@@ -35,9 +35,10 @@ class TypeOracle : public ContextualClass<TypeOracle> {
   }
 
   static ClassType* GetClassType(const Type* parent, const std::string& name,
-                                 bool transient, const std::string& generates) {
-    ClassType* result =
-        new ClassType(parent, CurrentNamespace(), name, transient, generates);
+                                 bool is_extern, bool transient,
+                                 const std::string& generates) {
+    ClassType* result = new ClassType(parent, CurrentNamespace(), name,
+                                      is_extern, transient, generates);
     Get().struct_types_.push_back(std::unique_ptr<ClassType>(result));
     return result;
   }
@@ -93,6 +94,10 @@ class TypeOracle : public ContextualClass<TypeOracle> {
 
   static const Type* GetConstexprBoolType() {
     return Get().GetBuiltinType(CONSTEXPR_BOOL_TYPE_STRING);
+  }
+
+  static const Type* GetConstexprIntPtrType() {
+    return Get().GetBuiltinType(CONSTEXPR_INTPTR_TYPE_STRING);
   }
 
   static const Type* GetVoidType() {

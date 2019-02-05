@@ -1217,6 +1217,12 @@ TNode<HeapObject> CodeStubAssembler::Allocate(TNode<IntPtrT> size_in_bytes,
                                               AllocationFlags flags) {
   Comment("Allocate");
   bool const new_space = !(flags & kPretenured);
+  if (!(flags & kAllowLargeObjectAllocation)) {
+    intptr_t size_constant;
+    if (ToIntPtrConstant(size_in_bytes, size_constant)) {
+      CHECK_LE(size_constant, kMaxRegularHeapObjectSize);
+    }
+  }
   if (!(flags & kDoubleAlignment) && !(flags & kAllowLargeObjectAllocation)) {
     return OptimizedAllocate(size_in_bytes, new_space
                                                 ? PretenureFlag::NOT_TENURED

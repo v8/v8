@@ -22,6 +22,7 @@ namespace torque {
 static const char* const CONSTEXPR_TYPE_PREFIX = "constexpr ";
 static const char* const NEVER_TYPE_STRING = "never";
 static const char* const CONSTEXPR_BOOL_TYPE_STRING = "constexpr bool";
+static const char* const CONSTEXPR_INTPTR_TYPE_STRING = "constexpr intptr";
 static const char* const BOOL_TYPE_STRING = "bool";
 static const char* const VOID_TYPE_STRING = "void";
 static const char* const ARGUMENTS_TYPE_STRING = "constexpr Arguments";
@@ -471,6 +472,7 @@ class ClassType final : public AggregateType {
   std::string ToExplicitString() const override;
   std::string GetGeneratedTypeName() const override;
   std::string GetGeneratedTNodeTypeName() const override;
+  bool IsExtern() const { return is_extern_; }
   bool IsTransient() const override { return transient_; }
   size_t size() const { return size_; }
   StructType* struct_type() const { return this_struct_; }
@@ -485,9 +487,10 @@ class ClassType final : public AggregateType {
  private:
   friend class TypeOracle;
   ClassType(const Type* parent, Namespace* nspace, const std::string& name,
-            bool transient, const std::string& generates)
+            bool is_extern, bool transient, const std::string& generates)
       : AggregateType(Kind::kClassType, parent, nspace, name),
         this_struct_(nullptr),
+        is_extern_(is_extern),
         transient_(transient),
         size_(0),
         generates_(generates) {
@@ -495,6 +498,7 @@ class ClassType final : public AggregateType {
   }
 
   StructType* this_struct_;
+  bool is_extern_;
   bool transient_;
   size_t size_;
   const std::string generates_;

@@ -244,6 +244,9 @@ void CSAGenerator::EmitInstruction(const CallIntrinsicInstruction& instruction,
   } else if (instruction.intrinsic->ExternalName() == "%Allocate") {
     out_ << "ca_.UncheckedCast<" << return_type->GetGeneratedTNodeTypeName()
          << ">(CodeStubAssembler(state_).Allocate";
+  } else if (instruction.intrinsic->ExternalName() ==
+             "%AllocateInternalClass") {
+    out_ << "CodeStubAssembler(state_).AllocateUninitializedFixedArray";
   } else {
     ReportError("no built in intrinsic with name " +
                 instruction.intrinsic->ExternalName());
@@ -690,14 +693,21 @@ void CSAGenerator::EmitInstruction(
   std::tie(field_size, size_string, machine_type) =
       field.GetFieldSizeInformation();
 
-  out_ << field.name_and_type.type->GetGeneratedTypeName() << " " << result_name
-       << " = "
-       << "ca_.UncheckedCast<"
-       << field.name_and_type.type->GetGeneratedTNodeTypeName()
-       << ">(CodeStubAssembler(state_).LoadObjectField("
-       << stack->Top() + ", " + field.aggregate->GetGeneratedTNodeTypeName() +
-              "::k" + CamelifyString(field.name_and_type.name) + "Offset, "
-       << machine_type + "));\n";
+  if (instruction.class_type->IsExtern()) {
+    out_ << field.name_and_type.type->GetGeneratedTypeName() << " "
+         << result_name << " = ca_.UncheckedCast<"
+         << field.name_and_type.type->GetGeneratedTNodeTypeName()
+         << ">(CodeStubAssembler(state_).LoadObjectField(" << stack->Top()
+         << ", " << field.aggregate->GetGeneratedTNodeTypeName() << "::k"
+         << CamelifyString(field.name_and_type.name) << "Offset, "
+         << machine_type + "));\n";
+  } else {
+    out_ << field.name_and_type.type->GetGeneratedTypeName() << " "
+         << result_name << " = ca_.UncheckedCast<"
+         << field.name_and_type.type->GetGeneratedTNodeTypeName()
+         << ">(CodeStubAssembler(state_).LoadFixedArrayElement(" << stack->Top()
+         << ", " << (field.offset / kTaggedSize) << "));\n";
+  }
   stack->Poke(stack->AboveTop() - 1, result_name);
 }
 
@@ -708,26 +718,31 @@ void CSAGenerator::EmitInstruction(
   stack->Push(value);
   const Field& field =
       instruction.class_type->LookupField(instruction.field_name);
-  if (field.name_and_type.type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
-    if (field.offset == 0) {
-      out_ << "    CodeStubAssembler(state_).StoreMap(" + object + ", " +
-                  value + ");\n";
+  if (instruction.class_type->IsExtern()) {
+    if (field.name_and_type.type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
+      if (field.offset == 0) {
+        out_ << "    CodeStubAssembler(state_).StoreMap(" << object << ", "
+             << value << ");\n";
+      } else {
+        out_ << "    CodeStubAssembler(state_).StoreObjectField(" << object
+             << ", " << field.offset << ", " << value << ");\n";
+      }
     } else {
-      out_ << "    CodeStubAssembler(state_).StoreObjectField(" + object +
-                  ", " + std::to_string(field.offset) + ", " + value + ");\n";
+      size_t field_size;
+      std::string size_string;
+      std::string machine_type;
+      std::tie(field_size, size_string, machine_type) =
+          field.GetFieldSizeInformation();
+      if (field.offset == 0) {
+        ReportError("the first field in a class object must be a map");
+      }
+      out_ << "    CodeStubAssembler(state_).StoreObjectFieldNoWriteBarrier("
+           << object << ", " << field.offset << ", " << value << ", "
+           << machine_type << ".representation());\n";
     }
   } else {
-    size_t field_size;
-    std::string size_string;
-    std::string machine_type;
-    std::tie(field_size, size_string, machine_type) =
-        field.GetFieldSizeInformation();
-    if (field.offset == 0) {
-      ReportError("the first field in a class object must be a map");
-    }
-    out_ << "    CodeStubAssembler(state_).StoreObjectFieldNoWriteBarrier("
-         << object << ", " << std::to_string(field.offset) + ", " << value
-         << ", " << machine_type << ".representation());\n";
+    out_ << "    CodeStubAssembler(state_).StoreFixedArrayElement(" << object
+         << ", " << (field.offset / kTaggedSize) << ", " << value << ");\n";
   }
 }
 

@@ -774,7 +774,7 @@ namespace test {
     assert(w.d == 2);
   }
 
-  class TestClassWithAllTypes extends JSObject {
+  extern class TestClassWithAllTypes extends JSObject {
     a: int8;
     b: uint8;
     b2: uint8;
@@ -809,5 +809,26 @@ namespace test {
     t.g = t.g;
     t.h = t.h;
     t.i = t.i;
+  }
+
+  class InternalClass {
+    constructor(x: Smi) {
+      this.a = x;
+      this.b = x + 1;
+    }
+    Flip() labels NotASmi {
+      const tmp = Cast<Smi>(this.b) otherwise NotASmi;
+      this.b = this.a;
+      this.a = tmp;
+    }
+    a: Smi;
+    b: Number;
+  }
+
+  macro TestInternalClass(implicit context: Context)() {
+    const o = new InternalClass{5};
+    o.Flip() otherwise unreachable;
+    check(o.a == 6);
+    check(o.b == 5);
   }
 }

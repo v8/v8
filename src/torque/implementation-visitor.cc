@@ -150,7 +150,7 @@ void ImplementationVisitor::Visit(NamespaceConstant* decl) {
 void ImplementationVisitor::Visit(TypeAlias* alias) {
   if (alias->IsRedeclaration()) return;
   const ClassType* class_type = ClassType::DynamicCast(alias->type());
-  if (class_type) {
+  if (class_type && class_type->IsExtern()) {
     // Classes that are in the default namespace are defined in the C++
     // world and all of their fields and methods are declared explicitly.
     // Internal classes (e.g. ones used for testing that are not in the default
@@ -170,7 +170,7 @@ void ImplementationVisitor::Visit(TypeAlias* alias) {
       header_out() << "  };\n";
     } else if (!class_type->nspace()->IsDefaultNamespace()) {
       ReportError(
-          "classes are currently only supported in the default and test "
+          "extern classes are currently only supported in the default and test "
           "namespaces");
     }
     return;
@@ -1281,16 +1281,26 @@ VisitResult ImplementationVisitor::Visit(NewExpression* expr) {
 
   // Output the code to generate an unitialized object of the class size in the
   // GC heap.
-  VisitResult object_map = ProjectStructField(new_struct_result, "map");
-  Arguments size_arguments;
-  size_arguments.parameters.push_back(object_map);
-  VisitResult object_size = GenerateCall("%GetAllocationBaseSize",
-                                         size_arguments, {class_type}, false);
-  Arguments allocate_arguments;
-  allocate_arguments.parameters.push_back(object_size);
-  VisitResult allocate_result =
-      GenerateCall("%Allocate", allocate_arguments, {class_type}, false);
-  DCHECK(allocate_result.IsOnStack());
+  VisitResult allocate_result;
+  if (class_type->IsExtern()) {
+    VisitResult object_map = ProjectStructField(new_struct_result, "map");
+    Arguments size_arguments;
+    size_arguments.parameters.push_back(object_map);
+    VisitResult object_size = GenerateCall("%GetAllocationBaseSize",
+                                           size_arguments, {class_type}, false);
+    Arguments allocate_arguments;
+    allocate_arguments.parameters.push_back(object_size);
+    allocate_result =
+        GenerateCall("%Allocate", allocate_arguments, {class_type}, false);
+    DCHECK(allocate_result.IsOnStack());
+  } else {
+    Arguments allocate_arguments;
+    allocate_arguments.parameters.push_back(
+        VisitResult(TypeOracle::GetConstexprIntPtrType(),
+                    std::to_string(class_type->size() / kTaggedSize)));
+    allocate_result = GenerateCall("%AllocateInternalClass", allocate_arguments,
+                                   {class_type}, false);
+  }
 
   // Fill in the fields of the newly allocated class by copying the values
   // from the struct that was built by the constructor. So that the generaeted

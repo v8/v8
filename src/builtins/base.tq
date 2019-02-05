@@ -21,9 +21,7 @@ type Smi extends Tagged generates 'TNode<Smi>' constexpr 'Smi';
 // A Smi that is greater than or equal to 0. See TaggedIsPositiveSmi.
 type PositiveSmi extends Smi generates 'TNode<Smi>';
 
-class HeapObject extends Tagged {
-  map: Map;
-}
+extern class HeapObject extends Tagged { map: Map; }
 
 type Object = Smi | HeapObject;
 type int32 generates 'TNode<Int32T>' constexpr 'int32_t';
@@ -69,25 +67,26 @@ type RootIndex generates 'TNode<Int32T>' constexpr 'RootIndex';
 
 type Map extends HeapObject generates 'TNode<Map>';
 
-// These intrinsics should never be called from Torque code. They're used
-// internally by the 'new' operator and only declared here because it's simpler
-// than building the definition from C++.
-intrinsic %GetAllocationBaseSize<Class: type>(map: Map): intptr;
-intrinsic %Allocate<Class: type>(size: intptr): Class;
-
 type FixedArrayBase extends HeapObject generates 'TNode<FixedArrayBase>';
 type FixedArray extends FixedArrayBase generates 'TNode<FixedArray>';
 type FixedDoubleArray extends FixedArrayBase
     generates 'TNode<FixedDoubleArray>';
 
-class JSReceiver extends HeapObject {
+// These intrinsics should never be called from Torque code. They're used
+// internally by the 'new' operator and only declared here because it's simpler
+// than building the definition from C++.
+intrinsic %GetAllocationBaseSize<Class: type>(map: Map): intptr;
+intrinsic %Allocate<Class: type>(size: intptr): Class;
+intrinsic %AllocateInternalClass<Class: type>(slotCount: constexpr intptr): Class;
+
+extern class JSReceiver extends HeapObject {
   properties_or_hash: FixedArrayBase | Smi;
 }
 
 type Constructor extends JSReceiver generates 'TNode<JSReceiver>';
 type JSProxy extends JSReceiver generates 'TNode<JSProxy>';
 
-class JSObject extends JSReceiver {
+extern class JSObject extends JSReceiver {
   constructor(
       map: Map, properties: FixedArrayBase | Smi, elements: FixedArrayBase) {
     super(map, properties);
@@ -103,11 +102,9 @@ class JSObject extends JSReceiver {
   elements: FixedArrayBase;
 }
 
-class JSArgumentsObjectWithLength extends JSObject {
-  length: Object;
-}
+extern class JSArgumentsObjectWithLength extends JSObject { length: Object; }
 
-class JSArray extends JSObject {
+extern class JSArray extends JSObject {
   constructor(implicit context: Context)() {
     super(
         GetFastPackedSmiElementsJSArrayMap(), kEmptyFixedArray,
@@ -143,7 +140,7 @@ type DebugInfo extends HeapObject;
 
 type ScopeInfo extends Object generates 'TNode<ScopeInfo>';
 
-class SharedFunctionInfo extends HeapObject {
+extern class SharedFunctionInfo extends HeapObject {
   weak function_data: Object;
   name_or_scope_info: String | NoSharedNameSentinel | ScopeInfo;
   outer_scope_info_or_feedback_metadata: HeapObject;
@@ -156,11 +153,11 @@ class SharedFunctionInfo extends HeapObject {
   flags: int32;
 }
 
-class SharedFunctionInfoWithID extends SharedFunctionInfo {
+extern class SharedFunctionInfoWithID extends SharedFunctionInfo {
   unique_id: int32;
 }
 
-class JSFunction extends JSObject {
+extern class JSFunction extends JSObject {
   shared_function_info: SharedFunctionInfo;
   context: Context;
   feedback_cell: Smi;
@@ -168,7 +165,7 @@ class JSFunction extends JSObject {
   weak prototype_or_initial_map: JSReceiver | Map;
 }
 
-class JSBoundFunction extends JSObject {
+extern class JSBoundFunction extends JSObject {
   bound_target_function: JSReceiver;
   bound_this: Object;
   bound_arguments: FixedArray;
@@ -213,18 +210,18 @@ extern operator '[]=' macro StoreContextElement(
 extern operator '[]' macro LoadContextElement(Context, intptr): Object;
 extern operator '[]' macro LoadContextElement(Context, Smi): Object;
 
-class JSArrayBuffer extends JSObject {
+extern class JSArrayBuffer extends JSObject {
   byte_length: uintptr;
   backing_store: RawPtr;
 }
 
-class JSArrayBufferView extends JSObject {
+extern class JSArrayBufferView extends JSObject {
   buffer: JSArrayBuffer;
   byte_offset: uintptr;
   byte_length: uintptr;
 }
 
-class JSTypedArray extends JSArrayBufferView {}
+extern class JSTypedArray extends JSArrayBufferView {}
 
 type JSDataView extends JSArrayBufferView generates 'TNode<JSDataView>';
 

@@ -348,30 +348,47 @@ void DeclarationVisitor::Visit(StructDeclaration* decl) {
 }
 
 void DeclarationVisitor::Visit(ClassDeclaration* decl) {
-  // Compute the offset of the class' first member. If the class extends
-  // another class, it's the size of the extended class, otherwise zero.
-  const Type* super_type = Declarations::LookupType(decl->super);
-  if (super_type != TypeOracle::GetTaggedType()) {
-    const ClassType* super_class = ClassType::DynamicCast(super_type);
-    if (!super_class) {
-      ReportError("class \"", decl->name,
-                  "\" must extend either Tagged or an already declared class");
+  ClassType* new_class;
+  if (decl->is_extern) {
+    if (!decl->super) {
+      ReportError("Extern class must extend another type.");
     }
-  }
-
-  // The generates clause must create a TNode<>
-  std::string generates = decl->name;
-  if (decl->generates) {
-    if (generates.length() < 7 || generates.substr(0, 6) != "TNode<" ||
-        generates.substr(generates.length() - 1, 1) != ">") {
-      ReportError("generated type \"", generates,
-                  "\" should be of the form \"TNode<...>\"");
+    // Compute the offset of the class' first member. If the class extends
+    // another class, it's the size of the extended class, otherwise zero.
+    const Type* super_type = Declarations::LookupType(*decl->super);
+    if (super_type != TypeOracle::GetTaggedType()) {
+      const ClassType* super_class = ClassType::DynamicCast(super_type);
+      if (!super_class) {
+        ReportError(
+            "class \"", decl->name,
+            "\" must extend either Tagged or an already declared class");
+      }
     }
-    generates = generates.substr(6, generates.length() - 7);
-  }
 
-  auto new_class = Declarations::DeclareClass(super_type, decl->name,
-                                              decl->transient, generates);
+    // The generates clause must create a TNode<>
+    std::string generates = decl->name;
+    if (decl->generates) {
+      if (generates.length() < 7 || generates.substr(0, 6) != "TNode<" ||
+          generates.substr(generates.length() - 1, 1) != ">") {
+        ReportError("generated type \"", generates,
+                    "\" should be of the form \"TNode<...>\"");
+      }
+      generates = generates.substr(6, generates.length() - 7);
+    }
+
+    new_class = Declarations::DeclareClass(
+        super_type, decl->name, decl->is_extern, decl->transient, generates);
+  } else {
+    if (decl->super) {
+      ReportError("Only extern classes can inherit.");
+    }
+    if (decl->generates) {
+      ReportError("Only extern classes can specify a generated type.");
+    }
+    new_class = Declarations::DeclareClass(TypeOracle::GetTaggedType(),
+                                           decl->name, decl->is_extern,
+                                           decl->transient, "FixedArray");
+  }
   GlobalContext::RegisterClass(decl->name, new_class);
   class_declarations_.push_back(
       std::make_tuple(CurrentScope::Get(), decl, new_class));
@@ -534,6 +551,14 @@ void DeclarationVisitor::FinalizeClassFieldsAndMethods(
         field_expression.name_and_type.type->pos);
     const Type* field_type =
         Declarations::GetType(field_expression.name_and_type.type);
+    if (!class_declaration->is_extern) {
+      if (!field_type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
+        ReportError("Non-extern classes do not support untagged fields.");
+      }
+      if (field_expression.weak) {
+        ReportError("Non-extern classes do not support weak fields.");
+      }
+    }
     const Field& field = class_type->RegisterField(
         {field_expression.name_and_type.type->pos,
          class_type,

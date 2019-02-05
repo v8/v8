@@ -899,20 +899,23 @@ struct StructDeclaration : Declaration {
 
 struct ClassDeclaration : Declaration {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(ClassDeclaration)
-  ClassDeclaration(SourcePosition pos, std::string name, bool transient,
-                   std::string super, base::Optional<std::string> generates,
+  ClassDeclaration(SourcePosition pos, std::string name, bool is_extern,
+                   bool transient, base::Optional<std::string> super,
+                   base::Optional<std::string> generates,
                    std::vector<Declaration*> methods,
                    std::vector<ClassFieldExpression> fields)
       : Declaration(kKind, pos),
         name(std::move(name)),
+        is_extern(is_extern),
         transient(transient),
         super(std::move(super)),
         generates(std::move(generates)),
         methods(std::move(methods)),
         fields(std::move(fields)) {}
   std::string name;
+  bool is_extern;
   bool transient;
-  std::string super;
+  base::Optional<std::string> super;
   base::Optional<std::string> generates;
   std::vector<Declaration*> methods;
   std::vector<ClassFieldExpression> fields;
