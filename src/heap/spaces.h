@@ -2973,6 +2973,10 @@ class ReadOnlySpace : public PagedSpace {
 
   explicit ReadOnlySpace(Heap* heap);
 
+  // TODO(v8:7464): Remove this once PagedSpace::TearDown no longer writes to
+  // memory_chunk_list_.
+  ~ReadOnlySpace() override { MarkAsReadWrite(); }
+
   bool writable() const { return !is_marked_read_only_; }
 
   void ClearStringPaddingIfNeeded();

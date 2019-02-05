@@ -3296,9 +3296,6 @@ void ReadOnlyPage::MakeHeaderRelocatable() {
 }
 
 void ReadOnlySpace::SetPermissionsForPages(PageAllocator::Permission access) {
-  const size_t page_size = MemoryAllocator::GetCommitPageSize();
-  const size_t area_start_offset =
-      RoundUp(MemoryChunkLayout::ObjectStartOffsetInDataPage(), page_size);
   MemoryAllocator* memory_allocator = heap()->memory_allocator();
   for (Page* p : *this) {
     ReadOnlyPage* page = static_cast<ReadOnlyPage*>(p);
@@ -3310,10 +3307,8 @@ void ReadOnlySpace::SetPermissionsForPages(PageAllocator::Permission access) {
     // page allocator manually.
     v8::PageAllocator* page_allocator =
         memory_allocator->page_allocator(page->executable());
-    // TODO(v8:7464): Map the whole space's memory read only (do not ignore the
-    // first page).
-    CHECK(SetPermissions(page_allocator, page->address() + area_start_offset,
-                         page->size() - area_start_offset, access));
+    CHECK(
+        SetPermissions(page_allocator, page->address(), page->size(), access));
   }
 }
 
