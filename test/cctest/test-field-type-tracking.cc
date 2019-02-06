@@ -124,18 +124,10 @@ class Expectations {
     kinds_[index] = kind;
     locations_[index] = location;
     if (kind == kData && location == kField &&
-        IsTransitionableFastElementsKind(elements_kind_) &&
-        Map::IsInplaceGeneralizableField(constness, representation,
-                                         FieldType::cast(*value))) {
-      // Maps with transitionable elements kinds must have non in-place
-      // generalizable fields.
-      if (FLAG_track_constant_fields && FLAG_modify_map_inplace &&
-          constness == PropertyConstness::kConst) {
-        constness = PropertyConstness::kMutable;
-      }
-      if (representation.IsHeapObject() && !FieldType::cast(*value)->IsAny()) {
-        value = FieldType::Any(isolate_);
-      }
+        IsTransitionableFastElementsKind(elements_kind_)) {
+      // Maps with transitionable elements kinds must have the most general
+      // field type.
+      value = FieldType::Any(isolate_);
     }
     constnesses_[index] = constness;
     attributes_[index] = attributes;
@@ -1140,6 +1132,7 @@ static void TestReconfigureDataFieldAttribute_GeneralizeFieldTrivial(
   MapRef map_ref(&broker, map);
   map_ref.SerializeOwnDescriptors();
   dependencies.DependOnFieldType(map_ref, kSplitProp);
+  dependencies.DependOnFieldConstness(map_ref, kSplitProp);
 
   // Reconfigure attributes of property |kSplitProp| of |map2| to NONE, which
   // should generalize representations in |map1|.
@@ -1921,7 +1914,9 @@ static void TestReconfigureElementsKind_GeneralizeFieldTrivial(
   CompilationDependencies dependencies(isolate, &zone);
   MapRef map_ref(&broker, map);
   map_ref.SerializeOwnDescriptors();
+
   dependencies.DependOnFieldType(map_ref, kDiffProp);
+  dependencies.DependOnFieldConstness(map_ref, kDiffProp);
 
   // Reconfigure elements kinds of |map2|, which should generalize
   // representations in |map|.
@@ -1942,7 +1937,8 @@ static void TestReconfigureElementsKind_GeneralizeFieldTrivial(
                             expected.representation, expected.type);
   CHECK(!map->is_deprecated());
   CHECK_EQ(*map, *new_map);
-  CHECK(dependencies.AreValid());
+  CHECK_EQ(IsGeneralizableTo(to.constness, from.constness),
+           dependencies.AreValid());
 
   CHECK(!new_map->is_deprecated());
   CHECK(expectations.Check(*new_map));

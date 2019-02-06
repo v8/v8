@@ -644,10 +644,10 @@ Handle<DescriptorArray> MapUpdater::BuildDescriptorArray() {
 
       // If the |new_elements_kind_| is still transitionable then the old map's
       // elements kind is also transitionable and therefore the old descriptors
-      // array must already have non in-place generalizable fields.
-      CHECK_IMPLIES(is_transitionable_fast_elements_kind_,
-                    !Map::IsInplaceGeneralizableField(
-                        next_constness, next_representation, *next_field_type));
+      // array must already have generalized field type.
+      CHECK_IMPLIES(
+          is_transitionable_fast_elements_kind_,
+          Map::IsMostGeneralFieldType(next_representation, *next_field_type));
 
       MaybeObjectHandle wrapped_type(
           Map::WrapFieldType(isolate_, next_field_type));

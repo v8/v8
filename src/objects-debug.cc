@@ -605,8 +605,7 @@ void JSObject::JSObjectVerify(Isolate* isolate) {
           CHECK(!field_type->NowStable() || field_type->NowContains(value));
         }
         CHECK_IMPLIES(is_transitionable_fast_elements_kind,
-                      !Map::IsInplaceGeneralizableField(details.constness(), r,
-                                                        field_type));
+                      Map::IsMostGeneralFieldType(r, field_type));
       }
     }
 

@@ -55,6 +55,15 @@ class V8_EXPORT_PRIVATE CompilationDependencies : public ZoneObject {
   // field is identified by the arguments.
   void DependOnFieldType(const MapRef& map, int descriptor);
 
+  // Return a field's constness and, if kConst, record the assumption that it
+  // remains kConst. The field is identified by the arguments.
+  //
+  // For arrays, arguments objects and value wrappers, only consider the field
+  // kConst if the map is stable (and register stability dependency in that
+  // case).  This is to ensure that fast elements kind transitions cannot be
+  // used to mutate fields without deoptimization of the dependent code.
+  PropertyConstness DependOnFieldConstness(const MapRef& map, int descriptor);
+
   // Record the assumption that neither {cell}'s {CellType} changes, nor the
   // {IsReadOnly()} flag of {cell}'s {PropertyDetails}.
   void DependOnGlobalProperty(const PropertyCellRef& cell);

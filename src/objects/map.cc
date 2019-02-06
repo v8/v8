@@ -2443,9 +2443,8 @@ bool Map::EquivalentToForElementsKindTransition(const Map other) const {
   for (int i = 0; i < nof; i++) {
     PropertyDetails details = descriptors->GetDetails(i);
     if (details.location() == kField) {
-      DCHECK(!IsInplaceGeneralizableField(details.constness(),
-                                          details.representation(),
-                                          descriptors->GetFieldType(i)));
+      DCHECK(IsMostGeneralFieldType(details.representation(),
+                                    descriptors->GetFieldType(i)));
     }
   }
 #endif

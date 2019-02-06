@@ -504,11 +504,10 @@ class Map : public HeapObject {
                               int modify_index, PropertyConstness new_constness,
                               Representation new_representation,
                               Handle<FieldType> new_field_type);
-  // Returns true if |descriptor|'th property is a field that may be generalized
-  // by just updating current map.
-  static inline bool IsInplaceGeneralizableField(PropertyConstness constness,
-                                                 Representation representation,
-                                                 FieldType field_type);
+  // Returns true if the |field_type| is the most general one for
+  // given |representation|.
+  static inline bool IsMostGeneralFieldType(Representation representation,
+                                            FieldType field_type);
 
   // Generalizes constness, representation and field_type if objects with given
   // instance type can have fast elements that can be transitioned by stubs or

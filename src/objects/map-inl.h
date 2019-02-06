@@ -102,19 +102,9 @@ InterceptorInfo Map::GetIndexedInterceptor() {
   return InterceptorInfo::cast(info->GetIndexedPropertyHandler());
 }
 
-bool Map::IsInplaceGeneralizableField(PropertyConstness constness,
-                                      Representation representation,
-                                      FieldType field_type) {
-  if (FLAG_track_constant_fields && FLAG_modify_map_inplace &&
-      (constness == PropertyConstness::kConst)) {
-    // VariableMode::kConst -> PropertyConstness::kMutable field generalization
-    // may happen in-place.
-    return true;
-  }
-  if (representation.IsHeapObject() && !field_type->IsAny()) {
-    return true;
-  }
-  return false;
+bool Map::IsMostGeneralFieldType(Representation representation,
+                                 FieldType field_type) {
+  return !representation.IsHeapObject() || field_type->IsAny();
 }
 
 bool Map::CanHaveFastTransitionableElementsKind(InstanceType instance_type) {
@@ -135,13 +125,7 @@ void Map::GeneralizeIfCanHaveTransitionableFastElementsKind(
     // kind transitions because they are inserted into the transition tree
     // before field transitions. In order to avoid complexity of handling
     // such a case we ensure that all maps with transitionable elements kinds
-    // do not have fields that can be generalized in-place (without creation
-    // of a new map).
-    if (FLAG_track_constant_fields && FLAG_modify_map_inplace) {
-      // The constness is either already PropertyConstness::kMutable or should
-      // become PropertyConstness::kMutable if it was VariableMode::kConst.
-      *constness = PropertyConstness::kMutable;
-    }
+    // have the most general field type.
     if (representation->IsHeapObject()) {
       // The field type is either already Any or should become Any if it was
       // something else.

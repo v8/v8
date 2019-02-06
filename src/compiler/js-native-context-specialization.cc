@@ -473,7 +473,10 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
           *(factory()->has_instance_symbol()), *(holder_map.object()));
       CHECK_NE(descriptor_index, DescriptorArray::kNotFound);
       holder_map.SerializeOwnDescriptors();
-      dependencies()->DependOnFieldType(holder_map, descriptor_index);
+      if (dependencies()->DependOnFieldConstness(
+              holder_map, descriptor_index) != PropertyConstness::kConst) {
+        return NoChange();
+      }
     }
 
     if (found_on_proto) {
