@@ -53,7 +53,7 @@ class TestLoader(testsuite.TestLoader):
       print output.stderr
       return []
 
-    return output.stdout.strip().split()
+    return sorted(output.stdout.strip().split())
 
 
 class TestSuite(testsuite.TestSuite):

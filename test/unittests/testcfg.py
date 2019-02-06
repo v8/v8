@@ -52,7 +52,7 @@ class TestLoader(testsuite.TestLoader):
       elif test_case and test_desc:
         test_names.append(test_case + test_desc)
 
-    return test_names
+    return sorted(test_names)
 
 
 class TestSuite(testsuite.TestSuite):

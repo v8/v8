@@ -90,7 +90,9 @@ class TestLoader(object):
     self.test_root = test_root
 
   def _list_test_filenames(self):
-    """Implemented by the subclassed TestLoaders to list filenames."""
+    """Implemented by the subclassed TestLoaders to list filenames.
+
+    Filenames are expected to be sorted and are deterministic."""
     raise NotImplementedError
 
   def _should_filter_by_name(self, name):
@@ -118,9 +120,8 @@ class TestLoader(object):
 
   def list_tests(self):
     """Loads and returns the test objects for a TestSuite"""
-    cases = []
-    filenames = sorted(self._list_test_filenames())
-    for filename in filenames:
+    # TODO: detect duplicate tests.
+    for filename in self._list_test_filenames():
       if self._should_filter_by_name(filename):
         continue
 
@@ -129,9 +130,7 @@ class TestLoader(object):
       if self._should_filter_by_test(case):
         continue
 
-      cases.append(case)
-
-    return cases
+      yield case
 
 
 class GenericTestLoader(TestLoader):
@@ -179,19 +178,19 @@ class GenericTestLoader(TestLoader):
     return os.path.relpath(abspath, test_root)
 
   def _list_test_filenames(self):
-    filenames = []
-    for test_dir in self.test_dirs:
+    for test_dir in sorted(self.test_dirs):
       test_root = os.path.join(self.test_root, test_dir)
       for dirname, dirs, files in os.walk(test_root, followlinks=True):
+        dirs.sort()
         for dir in dirs:
           if dir in self.excluded_dirs or dir.startswith('.'):
             dirs.remove(dir)
 
+        files.sort()
         for filename in files:
           abspath = os.path.join(dirname, filename)
-          filenames.append(self._to_relpath(abspath, test_root))
 
-    return filenames
+          yield self._to_relpath(abspath, test_root)
 
 
 class JSTestLoader(GenericTestLoader):
