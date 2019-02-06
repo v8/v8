@@ -104,7 +104,7 @@
   },
   'v8_linux_nosnap_rel': {
     'tests': [
-      {'name': 'v8testing', 'variant': 'default', 'shards': 4},
+      {'name': 'v8testing', 'variant': 'default', 'shards': 6},
     ],
   },
   'v8_linux_nosnap_dbg': {
@@ -217,7 +217,7 @@
       {'name': 'mozilla', 'shards': 2},
       {'name': 'test262', 'shards': 2},
       {'name': 'v8testing', 'shards': 8},
-      {'name': 'v8testing', 'variant': 'extra', 'shards': 3},
+      {'name': 'v8testing', 'variant': 'extra', 'shards': 6},
       {'name': 'v8testing', 'variant': 'trusted', 'shards': 2},
     ],
   },
@@ -1226,7 +1226,7 @@
       {'name': 'mozilla'},
       {'name': 'test262'},
       {'name': 'v8testing', 'shards': 8},
-      {'name': 'v8testing', 'variant': 'extra', 'shards': 3},
+      {'name': 'v8testing', 'variant': 'extra', 'shards': 4},
       {'name': 'v8testing', 'variant': 'trusted', 'shards': 2},
       # Armv8-a.
       {
