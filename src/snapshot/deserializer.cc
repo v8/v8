@@ -373,12 +373,7 @@ HeapObject Deserializer::GetBackReferencedObject(int space) {
   return obj;
 }
 
-// This routine writes the new object into the pointer provided.
-// The reason for this strange interface is that otherwise the object is
-// written very late, which means the FreeSpace map is not set up by the
-// time we need to use it to mark the space at the end of a page free.
-void Deserializer::ReadObject(int space_number, UnalignedSlot write_back,
-                              HeapObjectReferenceType reference_type) {
+HeapObject Deserializer::ReadObject(int space_number) {
   const int size = source_.GetInt() << kObjectAlignmentBits;
 
   Address address =
@@ -394,10 +389,6 @@ void Deserializer::ReadObject(int space_number, UnalignedSlot write_back,
     obj = PostProcessNewObject(obj, space_number);
   }
 
-  MaybeObject write_back_obj = reference_type == HeapObjectReferenceType::STRONG
-                                   ? HeapObjectReference::Strong(obj)
-                                   : HeapObjectReference::Weak(obj);
-  UnalignedCopy(write_back, write_back_obj);
 #ifdef DEBUG
   if (obj->IsCode()) {
     DCHECK(space_number == CODE_SPACE || space_number == CODE_LO_SPACE);
@@ -405,6 +396,7 @@ void Deserializer::ReadObject(int space_number, UnalignedSlot write_back,
     DCHECK(space_number != CODE_SPACE && space_number != CODE_LO_SPACE);
   }
 #endif  // DEBUG
+  return obj;
 }
 
 UnalignedSlot Deserializer::ReadRepeatedObject(UnalignedSlot current,
@@ -836,13 +828,17 @@ UnalignedSlot Deserializer::ReadDataCase(Isolate* isolate,
     if (allocator()->GetAndClearNextReferenceIsWeak()) {
       reference_type = HeapObjectReferenceType::WEAK;
     }
-    ReadObject(space_number, current, reference_type);
+    HeapObject heap_object = ReadObject(space_number);
+    HeapObjectReference heap_object_ref =
+        reference_type == HeapObjectReferenceType::STRONG
+            ? HeapObjectReference::Strong(heap_object)
+            : HeapObjectReference::Weak(heap_object);
+    UnalignedCopy(current, heap_object_ref);
     emit_write_barrier = (space_number == NEW_SPACE);
   } else {
     Object new_object; /* May not be a real Object pointer. */
     if (where == kNewObject) {
-      ReadObject(space_number, UnalignedSlot(&new_object),
-                 HeapObjectReferenceType::STRONG);
+      new_object = ReadObject(space_number);
     } else if (where == kBackref) {
       emit_write_barrier = (space_number == NEW_SPACE);
       new_object = GetBackReferencedObject(data & kSpaceMask);

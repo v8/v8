@@ -136,8 +136,7 @@ class Deserializer : public SerializerDeserializer {
   inline UnalignedSlot ReadExternalReferenceCase(
       HowToCode how, UnalignedSlot current, Address current_object_address);
 
-  void ReadObject(int space_number, UnalignedSlot write_back,
-                  HeapObjectReferenceType reference_type);
+  HeapObject ReadObject(int space_number);
 
   UnalignedSlot ReadRepeatedObject(UnalignedSlot current, int repeat_count);
 
