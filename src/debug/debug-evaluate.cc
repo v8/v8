@@ -949,7 +949,6 @@ static bool TransitivelyCalledBuiltinHasNoSideEffect(Builtins::Name caller,
     case Builtins::kFlattenIntoArray:
     case Builtins::kGetProperty:
     case Builtins::kHasProperty:
-    case Builtins::kMathPowInternal:
     case Builtins::kNonNumberToNumber:
     case Builtins::kNonPrimitiveToPrimitive_Number:
     case Builtins::kNumberToString:
