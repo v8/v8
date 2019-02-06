@@ -2004,6 +2004,37 @@ void Scope::ResolveTo(ParseInfo* info, VariableProxy* proxy, Variable* var) {
   proxy->BindTo(var);
 }
 
+bool Scope::ResolvePreparsedVariable(VariableProxy* proxy, Scope* scope,
+                                     Scope* end) {
+  // Resolve the variable in all parsed scopes to force context allocation.
+  for (; scope != end; scope = scope->outer_scope_) {
+    Variable* var = scope->LookupLocal(proxy->raw_name());
+    if (var != nullptr) {
+      var->set_is_used();
+      if (!var->is_dynamic()) {
+        var->ForceContextAllocation();
+        if (proxy->is_assigned()) var->set_maybe_assigned();
+      }
+      return true;
+    }
+  }
+
+  if (!proxy->IsPrivateName()) return true;
+
+  // If we're resolving a private name, throw an exception of we didn't manage
+  // to resolve. In case of eval, also look in all outer scope-info backed
+  // scopes except for the script scope. Don't throw an exception if a reference
+  // was found.
+  Scope* start = scope;
+  for (; !scope->is_script_scope(); scope = scope->outer_scope_) {
+    if (scope->LookupInScopeInfo(proxy->raw_name(), start) != nullptr) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 bool Scope::ResolveVariablesRecursively(ParseInfo* info) {
   DCHECK(info->script_scope()->is_script_scope());
   // Lazy parsed declaration scopes are already partially analyzed. If there are
@@ -2011,20 +2042,18 @@ bool Scope::ResolveVariablesRecursively(ParseInfo* info) {
   // scopes.
   if (WasLazilyParsed(this)) {
     DCHECK_EQ(variables_.occupancy(), 0);
+    Scope* end = info->scope();
+    // Resolve in all parsed scopes except for the script scope.
+    if (!end->is_script_scope()) end = end->outer_scope();
+
     for (VariableProxy* proxy : unresolved_list_) {
-      Variable* var = Lookup<kParsedScope>(proxy, outer_scope(), nullptr);
-      if (var == nullptr) {
+      if (!ResolvePreparsedVariable(proxy, outer_scope(), end)) {
         info->pending_error_handler()->ReportMessageAt(
             proxy->position(), proxy->position() + 1,
             MessageTemplate::kInvalidPrivateFieldResolution, proxy->raw_name(),
             kSyntaxError);
         DCHECK(proxy->IsPrivateName());
         return false;
-      }
-      var->set_is_used();
-      if (!var->is_dynamic()) {
-        var->ForceContextAllocation();
-        if (proxy->is_assigned()) var->set_maybe_assigned();
       }
     }
   } else {

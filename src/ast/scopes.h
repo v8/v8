@@ -588,6 +588,8 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   static Variable* LookupSloppyEval(VariableProxy* proxy, Scope* scope,
                                     Scope* outer_scope_end, Scope* entry_point,
                                     bool force_context_allocation);
+  static bool ResolvePreparsedVariable(VariableProxy* proxy, Scope* scope,
+                                       Scope* end);
   void ResolveTo(ParseInfo* info, VariableProxy* proxy, Variable* var);
   V8_WARN_UNUSED_RESULT bool ResolveVariable(ParseInfo* info,
                                              VariableProxy* proxy);
