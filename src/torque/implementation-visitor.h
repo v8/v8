@@ -201,8 +201,9 @@ struct Arguments {
   std::vector<Binding<LocalLabel>*> labels;
 };
 
+// Determine if a callable should be considered as an overload.
 bool IsCompatibleSignature(const Signature& sig, const TypeVector& types,
-                           const std::vector<Binding<LocalLabel>*>& labels);
+                           size_t label_count);
 
 class ImplementationVisitor : public FileVisitor {
  public:

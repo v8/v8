@@ -1571,16 +1571,9 @@ Callable* ImplementationVisitor::LookupCallable(
     const Signature& signature = overload_signatures[i];
     bool try_bool_context = labels.size() == 0 &&
                             signature.return_type == TypeOracle::GetNeverType();
-    base::Optional<Binding<LocalLabel>*> true_label;
-    base::Optional<Binding<LocalLabel>*> false_label;
-    if (try_bool_context) {
-      true_label = TryLookupLabel(kTrueLabelName);
-      false_label = TryLookupLabel(kFalseLabelName);
-    }
-    if (IsCompatibleSignature(signature, parameter_types, labels) ||
-        (true_label && false_label &&
-         IsCompatibleSignature(signature, parameter_types,
-                               {*true_label, *false_label}))) {
+    if (IsCompatibleSignature(signature, parameter_types, labels.size()) ||
+        (try_bool_context &&
+         IsCompatibleSignature(signature, parameter_types, 2))) {
       candidates.push_back(i);
     }
   }
@@ -1864,7 +1857,7 @@ VisitResult ImplementationVisitor::GeneratePointerCall(
   ParameterTypes types{type->parameter_types(), false};
   Signature sig;
   sig.parameter_types = types;
-  if (!IsCompatibleSignature(sig, parameter_types, {})) {
+  if (!IsCompatibleSignature(sig, parameter_types, 0)) {
     std::stringstream stream;
     stream << "parameters do not match function pointer signature. Expected: ("
            << type->parameter_types() << ") but got: (" << parameter_types
@@ -1914,10 +1907,19 @@ VisitResult ImplementationVisitor::GenerateCall(
   // return but have a True and False label
   if (arguments.labels.size() == 0 &&
       callable->signature().labels.size() == 2) {
-    Binding<LocalLabel>* true_label = LookupLabel(kTrueLabelName);
-    arguments.labels.push_back(true_label);
-    Binding<LocalLabel>* false_label = LookupLabel(kFalseLabelName);
-    arguments.labels.push_back(false_label);
+    base::Optional<Binding<LocalLabel>*> true_label =
+        TryLookupLabel(kTrueLabelName);
+    base::Optional<Binding<LocalLabel>*> false_label =
+        TryLookupLabel(kFalseLabelName);
+    if (!true_label || !false_label) {
+      ReportError(
+          callable->ReadableName(),
+          " does not return a value, but has to be called in a branching "
+          "context (e.g., conditional or if-condition). You can fix this by "
+          "adding \"? true : false\".");
+    }
+    arguments.labels.push_back(*true_label);
+    arguments.labels.push_back(*false_label);
   }
 
   const Type* return_type = callable->signature().return_type;
@@ -2408,15 +2410,11 @@ DEFINE_CONTEXTUAL_VARIABLE(ImplementationVisitor::CurrentReturnValue)
 DEFINE_CONTEXTUAL_VARIABLE(ImplementationVisitor::CurrentConstructorInfo)
 
 bool IsCompatibleSignature(const Signature& sig, const TypeVector& types,
-                           const std::vector<Binding<LocalLabel>*>& labels) {
+                           size_t label_count) {
   auto i = sig.parameter_types.types.begin() + sig.implicit_count;
   if ((sig.parameter_types.types.size() - sig.implicit_count) > types.size())
     return false;
-  // TODO(danno): The test below is actually insufficient. The labels'
-  // parameters must be checked too. ideally, the named part of
-  // LabelDeclarationVector would be factored out so that the label count and
-  // parameter types could be passed separately.
-  if (sig.labels.size() != labels.size()) return false;
+  if (sig.labels.size() != label_count) return false;
   for (auto current : types) {
     if (i == sig.parameter_types.types.end()) {
       if (!sig.parameter_types.var_args) return false;

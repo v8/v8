@@ -498,6 +498,15 @@ namespace test {
     check(UnsafeCast<Smi>(ExampleGenericOverload<Object>(xObject)) == 5);
   }
 
+  macro TestEquality(implicit context: Context)() {
+    const notEqual: bool =
+        AllocateHeapNumberWithValue(0.5) != AllocateHeapNumberWithValue(0.5);
+    check(!notEqual);
+    const equal: bool =
+        AllocateHeapNumberWithValue(0.5) == AllocateHeapNumberWithValue(0.5);
+    check(equal);
+  }
+
   macro BoolToBranch(x: bool): never
       labels Taken, NotTaken {
     if (x) {
