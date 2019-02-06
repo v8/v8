@@ -1557,7 +1557,6 @@ v8_source_set("v8_base") {
     "src/asmjs/asm-scanner.h",
     "src/asmjs/asm-types.cc",
     "src/asmjs/asm-types.h",
-    "src/assembler-arch-inl.h",
     "src/assembler-arch.h",
     "src/assembler-inl.h",
     "src/assembler.cc",
