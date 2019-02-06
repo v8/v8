@@ -1939,7 +1939,6 @@ Handle<DescriptorArray> Factory::NewDescriptorArray(int number_of_descriptors,
   // Zero-length case must be handled outside.
   DCHECK_LT(0, number_of_all_descriptors);
   int size = DescriptorArray::SizeFor(number_of_all_descriptors);
-  DCHECK_LT(size, kMaxRegularHeapObjectSize);
   AllocationSpace space = Heap::SelectSpace(pretenure);
   HeapObject obj = isolate()->heap()->AllocateRawWithRetryOrFail(size, space);
   obj->set_map_after_allocation(*descriptor_array_map(), SKIP_WRITE_BARRIER);

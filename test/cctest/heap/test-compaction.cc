@@ -96,8 +96,9 @@ HEAP_TEST(CompactionPartiallyAbortedPage) {
 
   const int objects_per_page = 10;
   const int object_size =
-      static_cast<int>(MemoryChunkLayout::AllocatableMemoryInDataPage()) /
-      objects_per_page;
+      Min(kMaxRegularHeapObjectSize,
+          static_cast<int>(MemoryChunkLayout::AllocatableMemoryInDataPage()) /
+              objects_per_page);
 
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
@@ -175,8 +176,9 @@ HEAP_TEST(CompactionPartiallyAbortedPageIntraAbortedPointers) {
 
   const int objects_per_page = 10;
   const int object_size =
-      static_cast<int>(MemoryChunkLayout::AllocatableMemoryInDataPage()) /
-      objects_per_page;
+      Min(kMaxRegularHeapObjectSize,
+          static_cast<int>(MemoryChunkLayout::AllocatableMemoryInDataPage()) /
+              objects_per_page);
 
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
@@ -267,8 +269,9 @@ HEAP_TEST(CompactionPartiallyAbortedPageWithStoreBufferEntries) {
 
   const int objects_per_page = 10;
   const int object_size =
-      static_cast<int>(MemoryChunkLayout::AllocatableMemoryInDataPage()) /
-      objects_per_page;
+      Min(kMaxRegularHeapObjectSize,
+          static_cast<int>(MemoryChunkLayout::AllocatableMemoryInDataPage()) /
+              objects_per_page);
 
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();

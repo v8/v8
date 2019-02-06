@@ -5330,7 +5330,8 @@ TEST(Regress598319) {
   Heap* heap = CcTest::heap();
   Isolate* isolate = heap->isolate();
 
-  const int kNumberOfObjects = kMaxRegularHeapObjectSize / kTaggedSize;
+  // The size of the array should be larger than kProgressBarScanningChunk.
+  const int kNumberOfObjects = Max(FixedArray::kMaxRegularLength + 1, 128 * KB);
 
   struct Arr {
     Arr(Isolate* isolate, int number_of_objects) {

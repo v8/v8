@@ -1927,21 +1927,25 @@ TEST(CodeSerializerThreeBigStrings) {
 
   v8::HandleScope scope(CcTest::isolate());
 
+  const int32_t length_of_a = kMaxRegularHeapObjectSize * 2;
+  const int32_t length_of_b = kMaxRegularHeapObjectSize / 2;
+  const int32_t length_of_c = kMaxRegularHeapObjectSize / 2;
+
   Vector<const uint8_t> source_a =
       ConstructSource(StaticCharVector("var a = \""), StaticCharVector("a"),
-                      StaticCharVector("\";"), 700000);
+                      StaticCharVector("\";"), length_of_a);
   Handle<String> source_a_str =
       f->NewStringFromOneByte(source_a).ToHandleChecked();
 
   Vector<const uint8_t> source_b =
       ConstructSource(StaticCharVector("var b = \""), StaticCharVector("b"),
-                      StaticCharVector("\";"), 400000);
+                      StaticCharVector("\";"), length_of_b);
   Handle<String> source_b_str =
       f->NewStringFromOneByte(source_b).ToHandleChecked();
 
   Vector<const uint8_t> source_c =
       ConstructSource(StaticCharVector("var c = \""), StaticCharVector("c"),
-                      StaticCharVector("\";"), 400000);
+                      StaticCharVector("\";"), length_of_c);
   Handle<String> source_c_str =
       f->NewStringFromOneByte(source_c).ToHandleChecked();
 
@@ -1974,10 +1978,10 @@ TEST(CodeSerializerThreeBigStrings) {
   v8::Maybe<int32_t> result =
       CompileRun("(a + b).length")
           ->Int32Value(v8::Isolate::GetCurrent()->GetCurrentContext());
-  CHECK_EQ(400000 + 700000, result.FromJust());
+  CHECK_EQ(length_of_a + length_of_b, result.FromJust());
   result = CompileRun("(b + c).length")
                ->Int32Value(v8::Isolate::GetCurrent()->GetCurrentContext());
-  CHECK_EQ(400000 + 400000, result.FromJust());
+  CHECK_EQ(length_of_b + length_of_c, result.FromJust());
   Heap* heap = isolate->heap();
   v8::Local<v8::String> result_str =
       CompileRun("a")
@@ -1987,20 +1991,12 @@ TEST(CodeSerializerThreeBigStrings) {
   result_str = CompileRun("b")
                    ->ToString(CcTest::isolate()->GetCurrentContext())
                    .ToLocalChecked();
-#if V8_HOST_ARCH_PPC
-  CHECK(heap->InSpace(*v8::Utils::OpenHandle(*result_str), LO_SPACE));
-#else
   CHECK(heap->InSpace(*v8::Utils::OpenHandle(*result_str), OLD_SPACE));
-#endif
 
   result_str = CompileRun("c")
                    ->ToString(CcTest::isolate()->GetCurrentContext())
                    .ToLocalChecked();
-#if V8_HOST_ARCH_PPC
-  CHECK(heap->InSpace(*v8::Utils::OpenHandle(*result_str), LO_SPACE));
-#else
   CHECK(heap->InSpace(*v8::Utils::OpenHandle(*result_str), OLD_SPACE));
-#endif
 
   delete cache;
   source_a.Dispose();
