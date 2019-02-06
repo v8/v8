@@ -788,6 +788,12 @@ Cast<Callable>(o: HeapObject): Callable
   return HeapObjectToCallable(o) otherwise CastError;
 }
 
+Cast<Undefined | Callable>(o: HeapObject): Undefined | Callable
+    labels CastError {
+  if (o == Undefined) return Undefined;
+  return HeapObjectToCallable(o) otherwise CastError;
+}
+
 Cast<JSArray>(o: HeapObject): JSArray
     labels CastError {
   return HeapObjectToJSArray(o) otherwise CastError;

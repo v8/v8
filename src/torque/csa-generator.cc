@@ -600,7 +600,7 @@ void CSAGenerator::EmitInstruction(const BranchInstruction& instruction,
 
 void CSAGenerator::EmitInstruction(
     const ConstexprBranchInstruction& instruction, Stack<std::string>* stack) {
-  out_ << "    if (" << instruction.condition << ") {\n";
+  out_ << "    if ((" << instruction.condition << ")) {\n";
   out_ << "      ca_.Goto(&" << BlockName(instruction.if_true);
   for (const std::string& value : *stack) {
     out_ << ", " << value;

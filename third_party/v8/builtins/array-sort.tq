@@ -32,67 +32,125 @@ namespace array {
   // otherwise we might wrongly bail to the slow path.
   type TempArrayElements;
 
-  // The following index constants describe the layout of the sortState.
-  // The sortState is currently implemented as a FixedArray of
-  // size kSortStateSize.
+  class SortState {
+    constructor(implicit context: Context)(
+        receiver: JSReceiver, comparefn: Undefined | Callable,
+        initialReceiverLength: Number, forceGeneric: constexpr bool) {
+      this.receiver = receiver;
+      this.userCmpFn = comparefn;
+      this.sortComparePtr =
+          comparefn != Undefined ? SortCompareUserFn : SortCompareDefault;
+      this.bailoutStatus = kSuccess;
+      const map = receiver.map;
+      this.initialReceiverMap = map;
+      this.initialReceiverLength = initialReceiverLength;
 
-  // The receiver of the Array.p.sort call.
-  const kReceiverIdx: constexpr int31 = 0;
+      this.minGallop = kMinGallopWins;
+      this.tempArray = kEmptyFixedArray;
 
-  // The initial map and length of the receiver. After calling into JS, these
-  // are reloaded and checked. If they changed we bail to the baseline
-  // GenericElementsAccessor.
-  const kInitialReceiverMapIdx: constexpr int31 = 1;
-  const kInitialReceiverLengthIdx: constexpr int31 = 2;
+      this.pendingRunsSize = 0;
+      this.pendingRuns =
+          AllocateZeroedFixedArray(Convert<intptr>(kMaxMergePending));
 
-  // If the user provided a comparison function, it is stored here.
-  const kUserCmpFnIdx: constexpr int31 = 3;
+      try {
+        if constexpr (forceGeneric) {
+          goto Generic;
+        } else {
+          GotoIfForceSlowPath() otherwise Slow;
+          let a: FastJSArray = Cast<FastJSArray>(receiver) otherwise Slow;
 
-  // Function pointer to the comparison function. This can either be a builtin
-  // that calls the user-provided comparison function or "SortDefault", which
-  // uses ToString and a lexicographical compare.
-  const kSortComparePtrIdx: constexpr int31 = 4;
+          const elementsKind: ElementsKind = map.elements_kind;
+          this.accessor = kFastElementsAccessorId;
+          if (IsDoubleElementsKind(elementsKind)) {
+            this.loadFn = Load<FastDoubleElements>;
+            this.storeFn = Store<FastDoubleElements>;
+            this.canUseSameAccessorFn = CanUseSameAccessor<FastDoubleElements>;
+          } else if (elementsKind == PACKED_SMI_ELEMENTS) {
+            this.loadFn = Load<FastPackedSmiElements>;
+            this.storeFn = Store<FastPackedSmiElements>;
+            this.canUseSameAccessorFn =
+                CanUseSameAccessor<FastPackedSmiElements>;
+          } else {
+            this.loadFn = Load<FastSmiOrObjectElements>;
+            this.storeFn = Store<FastSmiOrObjectElements>;
+            this.canUseSameAccessorFn =
+                CanUseSameAccessor<FastSmiOrObjectElements>;
+          }
+          return;
+        }
+      }
+      label Slow {
+        if (map.elements_kind == DICTIONARY_ELEMENTS && IsExtensibleMap(map) &&
+            !IsCustomElementsReceiverInstanceType(map.instance_type)) {
+          this.accessor = kFastElementsAccessorId;
+          this.loadFn = Load<DictionaryElements>;
+          this.storeFn = Store<DictionaryElements>;
+          this.canUseSameAccessorFn = CanUseSameAccessor<DictionaryElements>;
+        } else {
+          goto Generic;
+        }
+      }
+      label Generic {
+        this.accessor = kGenericElementsAccessorId;
+        this.loadFn = Load<GenericElementsAccessor>;
+        this.storeFn = Store<GenericElementsAccessor>;
+        this.canUseSameAccessorFn = CanUseSameAccessor<GenericElementsAccessor>;
+      }
+    }
 
-  // The following three function pointer represent a Accessor/Path.
-  // These are used to Load/Store elements and to check whether to bail to the
-  // baseline GenericElementsAccessor.
-  const kLoadFnIdx: constexpr int31 = 5;
-  const kStoreFnIdx: constexpr int31 = 6;
-  const kCanUseSameAccessorFnIdx: constexpr int31 = 7;
+    // The receiver of the Array.p.sort call.
+    receiver: JSReceiver;
 
-  // If this field has the value kFailure, we need to bail to the baseline
-  // GenericElementsAccessor.
-  const kBailoutStatusIdx: constexpr int31 = 8;
+    // The initial map and length of the receiver. After calling into JS, these
+    // are reloaded and checked. If they changed we bail to the baseline
+    // GenericElementsAccessor.
+    initialReceiverMap: Map;
+    initialReceiverLength: Number;
 
-  // This controls when we get *into* galloping mode. It's initialized to
-  // kMinGallop. mergeLow and mergeHigh tend to nudge it higher for random data,
-  // and lower for highly structured data.
-  const kMinGallopIdx: constexpr int31 = 9;
+    // If the user provided a comparison function, it is stored here.
+    userCmpFn: Undefined | Callable;
 
-  // A stack of sortState[kPendingRunsSizeIdx] pending runs yet to be merged.
-  // Run #i starts at sortState[kPendingRunsIdx][2 * i] and extends for
-  // sortState[kPendingRunsIdx][2 * i + 1] elements:
-  //
-  //   [..., base (i-1), length (i-1), base i, length i]
-  //
-  // It's always true (so long as the indices are in bounds) that
-  //
-  //   base of run #i + length of run #i == base of run #i + 1
-  //
-  const kPendingRunsSizeIdx: constexpr int31 = 10;
-  const kPendingRunsIdx: constexpr int31 = 11;
+    // Function pointer to the comparison function. This can either be a builtin
+    // that calls the user-provided comparison function or "SortDefault", which
+    // uses ToString and a lexicographical compare.
+    sortComparePtr: CompareBuiltinFn;
 
-  // The current size of the temporary array.
-  const kTempArraySizeIdx: constexpr int31 = 12;
+    // The following three function pointer represent a Accessor/Path.
+    // These are used to Load/Store elements and to check whether to bail to the
+    // baseline GenericElementsAccessor.
+    loadFn: LoadFn;
+    storeFn: StoreFn;
+    canUseSameAccessorFn: CanUseSameAccessorFn;
 
-  // Pointer to the temporary array.
-  const kTempArrayIdx: constexpr int31 = 13;
+    // If this field has the value kFailure, we need to bail to the baseline
+    // GenericElementsAccessor.
+    bailoutStatus: Smi;
 
-  // Contains a Smi constant describing which accessors to use. This is used
-  // for reloading the right elements and for a sanity check.
-  const kAccessorIdx: constexpr int31 = 14;
+    // This controls when we get *into* galloping mode. It's initialized to
+    // kMinGallop. mergeLow and mergeHigh tend to nudge it higher for random
+    // data, and lower for highly structured data.
+    minGallop: Smi;
 
-  const kSortStateSize: intptr = 15;
+    // A stack of sortState.pendingRunsSize pending runs yet to be merged.
+    // Run #i starts at sortState.pendingRuns[2 * i] and extends for
+    // sortState.pendingRuns[2 * i + 1] elements:
+    //
+    //   [..., base (i-1), length (i-1), base i, length i]
+    //
+    // It's always true (so long as the indices are in bounds) that
+    //
+    //   base of run #i + length of run #i == base of run #i + 1
+    //
+    pendingRunsSize: Smi;
+    pendingRuns: FixedArray;
+
+    // Pointer to the temporary array.
+    tempArray: FixedArray;
+
+    // A Smi constant describing which accessors to use. This is used
+    // for reloading the right elements and for a sanity check.
+    accessor: Smi;
+  }
 
   const kFailure: Smi = -1;
   const kSuccess: Smi = 0;
@@ -112,8 +170,8 @@ namespace array {
   // it is first requested, but it has always at least this size.
   const kSortStateTempSize: Smi = 32;
 
-  type LoadFn = builtin(Context, FixedArray, Smi) => Object;
-  type StoreFn = builtin(Context, FixedArray, Smi, Object) => Smi;
+  type LoadFn = builtin(Context, SortState, Smi) => Object;
+  type StoreFn = builtin(Context, SortState, Smi, Object) => Smi;
   type CanUseSameAccessorFn = builtin(Context, JSReceiver, Object, Number) =>
       Boolean;
   type CompareBuiltinFn = builtin(Context, Object, Object, Object) => Number;
@@ -125,23 +183,20 @@ namespace array {
   // through a hole.
 
   transitioning builtin Load<ElementsAccessor: type>(
-      context: Context, sortState: FixedArray, index: Smi): Object {
-    const receiver = GetReceiver(sortState);
-    return GetProperty(receiver, index);
+      context: Context, sortState: SortState, index: Smi): Object {
+    return GetProperty(sortState.receiver, index);
   }
 
   Load<FastPackedSmiElements>(
-      context: Context, sortState: FixedArray, index: Smi): Object {
-    const receiver = GetReceiver(sortState);
-    const object = UnsafeCast<JSObject>(receiver);
+      context: Context, sortState: SortState, index: Smi): Object {
+    const object = UnsafeCast<JSObject>(sortState.receiver);
     const elements = UnsafeCast<FixedArray>(object.elements);
     return elements[index];
   }
 
   Load<FastSmiOrObjectElements>(
-      context: Context, sortState: FixedArray, index: Smi): Object {
-    const receiver = GetReceiver(sortState);
-    const object = UnsafeCast<JSObject>(receiver);
+      context: Context, sortState: SortState, index: Smi): Object {
+    const object = UnsafeCast<JSObject>(sortState.receiver);
     const elements = UnsafeCast<FixedArray>(object.elements);
     const result: Object = elements[index];
     if (IsTheHole(result)) {
@@ -153,11 +208,10 @@ namespace array {
     return result;
   }
 
-  Load<FastDoubleElements>(context: Context, sortState: FixedArray, index: Smi):
+  Load<FastDoubleElements>(context: Context, sortState: SortState, index: Smi):
       Object {
     try {
-      const receiver = GetReceiver(sortState);
-      const object = UnsafeCast<JSObject>(receiver);
+      const object = UnsafeCast<JSObject>(sortState.receiver);
       const elements = UnsafeCast<FixedDoubleArray>(object.elements);
       const value = LoadDoubleWithHoleCheck(elements, index) otherwise Bailout;
       return AllocateHeapNumberWithValue(value);
@@ -170,11 +224,10 @@ namespace array {
     }
   }
 
-  Load<DictionaryElements>(context: Context, sortState: FixedArray, index: Smi):
+  Load<DictionaryElements>(context: Context, sortState: SortState, index: Smi):
       Object {
     try {
-      const receiver = GetReceiver(sortState);
-      const object = UnsafeCast<JSObject>(receiver);
+      const object = UnsafeCast<JSObject>(sortState.receiver);
       const dictionary = UnsafeCast<NumberDictionary>(object.elements);
       const intptrIndex = Convert<intptr>(index);
       return BasicLoadNumberDictionaryElement(dictionary, intptrIndex)
@@ -185,42 +238,38 @@ namespace array {
     }
   }
 
-  Load<TempArrayElements>(context: Context, sortState: FixedArray, index: Smi):
+  Load<TempArrayElements>(context: Context, sortState: SortState, index: Smi):
       Object {
-    const elements = GetTempArray(sortState);
+    const elements = sortState.tempArray;
     assert(IsFixedArray(elements));
     return elements[index];
   }
 
   transitioning builtin Store<ElementsAccessor: type>(
-      context: Context, sortState: FixedArray, index: Smi, value: Object): Smi {
-    const receiver = GetReceiver(sortState);
-    SetProperty(receiver, index, value);
+      context: Context, sortState: SortState, index: Smi, value: Object): Smi {
+    SetProperty(sortState.receiver, index, value);
     return kSuccess;
   }
 
   Store<FastPackedSmiElements>(
-      context: Context, sortState: FixedArray, index: Smi, value: Object): Smi {
-    const receiver = GetReceiver(sortState);
-    const object = UnsafeCast<JSObject>(receiver);
+      context: Context, sortState: SortState, index: Smi, value: Object): Smi {
+    const object = UnsafeCast<JSObject>(sortState.receiver);
     const elements = UnsafeCast<FixedArray>(object.elements);
     StoreFixedArrayElementSmi(elements, index, value, SKIP_WRITE_BARRIER);
     return kSuccess;
   }
 
   Store<FastSmiOrObjectElements>(
-      context: Context, sortState: FixedArray, index: Smi, value: Object): Smi {
-    const receiver = GetReceiver(sortState);
-    const object = UnsafeCast<JSObject>(receiver);
+      context: Context, sortState: SortState, index: Smi, value: Object): Smi {
+    const object = UnsafeCast<JSObject>(sortState.receiver);
     const elements = UnsafeCast<FixedArray>(object.elements);
     elements[index] = value;
     return kSuccess;
   }
 
   Store<FastDoubleElements>(
-      context: Context, sortState: FixedArray, index: Smi, value: Object): Smi {
-    const receiver = GetReceiver(sortState);
-    const object = UnsafeCast<JSObject>(receiver);
+      context: Context, sortState: SortState, index: Smi, value: Object): Smi {
+    const object = UnsafeCast<JSObject>(sortState.receiver);
     const elements = UnsafeCast<FixedDoubleArray>(object.elements);
     const heapVal = UnsafeCast<HeapNumber>(value);
     // Make sure we do not store signalling NaNs into double arrays.
@@ -230,9 +279,8 @@ namespace array {
   }
 
   Store<DictionaryElements>(
-      context: Context, sortState: FixedArray, index: Smi, value: Object): Smi {
-    const receiver = GetReceiver(sortState);
-    const object = UnsafeCast<JSObject>(receiver);
+      context: Context, sortState: SortState, index: Smi, value: Object): Smi {
+    const object = UnsafeCast<JSObject>(sortState.receiver);
     const dictionary = UnsafeCast<NumberDictionary>(object.elements);
     const intptrIndex = Convert<intptr>(index);
     try {
@@ -243,7 +291,7 @@ namespace array {
     label ReadOnly {
       // We cannot write to read-only data properties. Throw the same TypeError
       // as SetProperty would.
-      const receiver = GetReceiver(sortState);
+      const receiver = sortState.receiver;
       ThrowTypeError(
           context, kStrictReadOnlyProperty, index, Typeof(receiver), receiver);
     }
@@ -253,8 +301,8 @@ namespace array {
   }
 
   Store<TempArrayElements>(
-      context: Context, sortState: FixedArray, index: Smi, value: Object): Smi {
-    const elements = GetTempArray(sortState);
+      context: Context, sortState: SortState, index: Smi, value: Object): Smi {
+    const elements = sortState.tempArray;
     elements[index] = value;
     return kSuccess;
   }
@@ -344,20 +392,19 @@ namespace array {
     return SelectBooleanConstant(obj.map == initialReceiverMap);
   }
 
-  macro CallCompareFn(implicit context: Context, sortState: FixedArray)(
+  macro CallCompareFn(implicit context: Context, sortState: SortState)(
       x: Object, y: Object): Number
       labels Bailout {
-    const userCmpFn: Object = sortState[kUserCmpFnIdx];
-    const sortCompare: CompareBuiltinFn =
-        UnsafeCast<CompareBuiltinFn>(sortState[kSortComparePtrIdx]);
+    const userCmpFn: Undefined | Callable = sortState.userCmpFn;
+    const sortCompare: CompareBuiltinFn = sortState.sortComparePtr;
 
     const result: Number = sortCompare(context, userCmpFn, x, y);
 
-    const receiver: JSReceiver = GetReceiver(sortState);
-    const initialReceiverMap: Object = sortState[kInitialReceiverMapIdx];
-    const initialReceiverLength: Number = GetInitialReceiverLength(sortState);
+    const receiver: JSReceiver = sortState.receiver;
+    const initialReceiverMap: Map = sortState.initialReceiverMap;
+    const initialReceiverLength: Number = sortState.initialReceiverLength;
     const canUseSameAccessorFn: CanUseSameAccessorFn =
-        GetCanUseSameAccessorFn(sortState);
+        sortState.canUseSameAccessorFn;
 
     if (!canUseSameAccessorFn(
             context, receiver, initialReceiverMap, initialReceiverLength)) {
@@ -366,49 +413,13 @@ namespace array {
     return result;
   }
 
-  macro GetInitialReceiverLength(implicit context:
-                                     Context)(sortState: FixedArray): Number {
-    return UnsafeCast<Number>(sortState[kInitialReceiverLengthIdx]);
-  }
-
-  macro GetLoadFn(implicit context: Context)(sortState: FixedArray): LoadFn {
-    return UnsafeCast<LoadFn>(sortState[kLoadFnIdx]);
-  }
-
-  macro GetStoreFn(implicit context: Context)(sortState: FixedArray): StoreFn {
-    return UnsafeCast<StoreFn>(sortState[kStoreFnIdx]);
-  }
-
-  macro GetCanUseSameAccessorFn(implicit context: Context)(
-      sortState: FixedArray): CanUseSameAccessorFn {
-    return UnsafeCast<CanUseSameAccessorFn>(
-        sortState[kCanUseSameAccessorFnIdx]);
-  }
-
-  macro GetReceiver(implicit context: Context)(sortState: FixedArray):
-      JSReceiver {
-    return UnsafeCast<JSReceiver>(sortState[kReceiverIdx]);
-  }
-
-  // Returns the temporary array without changing its size.
-  macro GetTempArray(implicit context: Context)(sortState: FixedArray):
-      FixedArray {
-    return UnsafeCast<FixedArray>(sortState[kTempArrayIdx]);
-  }
-
   // Re-loading the stack-size is done in a few places. The small macro allows
   // for easier invariant checks at all use sites.
-  macro GetPendingRunsSize(implicit context: Context)(sortState: FixedArray):
+  macro GetPendingRunsSize(implicit context: Context)(sortState: SortState):
       Smi {
-    assert(TaggedIsSmi(sortState[kPendingRunsSizeIdx]));
-    const stackSize: Smi = UnsafeCast<Smi>(sortState[kPendingRunsSizeIdx]);
-
+    const stackSize: Smi = sortState.pendingRunsSize;
     assert(stackSize >= 0);
     return stackSize;
-  }
-
-  macro SetPendingRunsSize(sortState: FixedArray, value: Smi) {
-    sortState[kPendingRunsSizeIdx] = value;
   }
 
   macro GetPendingRunBase(implicit context:
@@ -430,48 +441,45 @@ namespace array {
   }
 
   macro PushRun(implicit context:
-                    Context)(sortState: FixedArray, base: Smi, length: Smi) {
+                    Context)(sortState: SortState, base: Smi, length: Smi) {
     assert(GetPendingRunsSize(sortState) < kMaxMergePending);
 
     const stackSize: Smi = GetPendingRunsSize(sortState);
-    const pendingRuns: FixedArray =
-        UnsafeCast<FixedArray>(sortState[kPendingRunsIdx]);
+    const pendingRuns: FixedArray = sortState.pendingRuns;
 
     SetPendingRunBase(pendingRuns, stackSize, base);
     SetPendingRunLength(pendingRuns, stackSize, length);
 
-    SetPendingRunsSize(sortState, stackSize + 1);
+    sortState.pendingRunsSize = stackSize + 1;
   }
 
   // Returns the temporary array and makes sure that it is big enough.
   // TODO(szuend): Implement a better re-size strategy.
   macro GetTempArray(implicit context: Context)(
-      sortState: FixedArray, requestedSize: Smi): FixedArray {
+      sortState: SortState, requestedSize: Smi): FixedArray {
     const minSize: Smi = SmiMax(kSortStateTempSize, requestedSize);
 
-    const currentSize: Smi = UnsafeCast<Smi>(sortState[kTempArraySizeIdx]);
+    const currentSize: Smi = UnsafeCast<Smi>(sortState.tempArray.length);
     if (currentSize >= minSize) {
-      return GetTempArray(sortState);
+      return sortState.tempArray;
     }
 
     const tempArray: FixedArray =
         AllocateZeroedFixedArray(Convert<intptr>(minSize));
 
-    sortState[kTempArraySizeIdx] = minSize;
-    sortState[kTempArrayIdx] = tempArray;
+    sortState.tempArray = tempArray;
     return tempArray;
   }
 
   // This macro jumps to the Bailout label iff kBailoutStatus is kFailure.
-  macro EnsureSuccess(implicit context:
-                          Context)(sortState: FixedArray) labels Bailout {
-    const status: Smi = UnsafeCast<Smi>(sortState[kBailoutStatusIdx]);
-    if (status == kFailure) goto Bailout;
+  macro EnsureSuccess(implicit context: Context)(sortState:
+                                                     SortState) labels Bailout {
+    if (sortState.bailoutStatus == kFailure) goto Bailout;
   }
 
   // Sets kBailoutStatus to kFailure and returns kFailure.
-  macro Failure(sortState: FixedArray): Smi {
-    sortState[kBailoutStatusIdx] = kFailure;
+  macro Failure(sortState: SortState): Smi {
+    sortState.bailoutStatus = kFailure;
     return kFailure;
   }
 
@@ -479,7 +487,7 @@ namespace array {
   // readable since we can use labels and do not have to check kBailoutStatus
   // or the return value.
 
-  macro CallLoad(implicit context: Context, sortState: FixedArray)(
+  macro CallLoad(implicit context: Context, sortState: SortState)(
       load: LoadFn, index: Smi): Object
       labels Bailout {
     const result: Object = load(context, sortState, index);
@@ -487,7 +495,7 @@ namespace array {
     return result;
   }
 
-  macro CallStore(implicit context: Context, sortState: FixedArray)(
+  macro CallStore(implicit context: Context, sortState: SortState)(
       store: StoreFn, index: Smi, value: Object) labels Bailout {
     store(context, sortState, index, value);
     EnsureSuccess(sortState) otherwise Bailout;
@@ -495,7 +503,7 @@ namespace array {
 
   transitioning macro CallCopyFromTempArray(
       implicit context: Context,
-      sortState: FixedArray)(dstPos: Smi, srcPos: Smi, length: Smi)
+      sortState: SortState)(dstPos: Smi, srcPos: Smi, length: Smi)
       labels Bailout {
     CopyFromTempArray(context, sortState, dstPos, srcPos, length);
     EnsureSuccess(sortState) otherwise Bailout;
@@ -503,13 +511,13 @@ namespace array {
 
   transitioning macro CallCopyWithinSortArray(
       implicit context: Context,
-      sortState: FixedArray)(srcPos: Smi, dstPos: Smi, length: Smi)
+      sortState: SortState)(srcPos: Smi, dstPos: Smi, length: Smi)
       labels Bailout {
     CopyWithinSortArray(context, sortState, srcPos, dstPos, length);
     EnsureSuccess(sortState) otherwise Bailout;
   }
 
-  macro CallGallopRight(implicit context: Context, sortState: FixedArray)(
+  macro CallGallopRight(implicit context: Context, sortState: SortState)(
       load: LoadFn, key: Object, base: Smi, length: Smi, hint: Smi): Smi
       labels Bailout {
     const result: Smi =
@@ -518,7 +526,7 @@ namespace array {
     return result;
   }
 
-  macro CallGallopLeft(implicit context: Context, sortState: FixedArray)(
+  macro CallGallopLeft(implicit context: Context, sortState: SortState)(
       load: LoadFn, key: Object, base: Smi, length: Smi, hint: Smi): Smi
       labels Bailout {
     const result: Smi =
@@ -528,20 +536,20 @@ namespace array {
   }
 
   transitioning macro
-  CallMergeAt(implicit context: Context, sortState: FixedArray)(i: Smi)
+  CallMergeAt(implicit context: Context, sortState: SortState)(i: Smi)
       labels Bailout {
     MergeAt(context, sortState, i);
     EnsureSuccess(sortState) otherwise Bailout;
   }
 
   transitioning macro
-  CopyToTempArray(implicit context: Context, sortState: FixedArray)(
+  CopyToTempArray(implicit context: Context, sortState: SortState)(
       load: LoadFn, srcPos: Smi, tempArray: FixedArray, dstPos: Smi,
       length: Smi)
       labels Bailout {
     assert(srcPos >= 0);
     assert(dstPos >= 0);
-    assert(srcPos <= GetInitialReceiverLength(sortState) - length);
+    assert(srcPos <= sortState.initialReceiverLength - length);
     assert(dstPos <= tempArray.length - length);
 
     let srcIdx: Smi = srcPos;
@@ -555,15 +563,15 @@ namespace array {
   }
 
   transitioning builtin CopyFromTempArray(
-      context: Context, sortState: FixedArray, dstPos: Smi, srcPos: Smi,
+      context: Context, sortState: SortState, dstPos: Smi, srcPos: Smi,
       length: Smi): Smi {
-    const tempArray = GetTempArray(sortState);
+    const tempArray = sortState.tempArray;
     assert(srcPos >= 0);
     assert(dstPos >= 0);
     assert(srcPos <= tempArray.length - length);
-    assert(dstPos <= GetInitialReceiverLength(sortState) - length);
+    assert(dstPos <= sortState.initialReceiverLength - length);
 
-    let store: StoreFn = GetStoreFn(sortState);
+    let store: StoreFn = sortState.storeFn;
 
     let srcIdx: Smi = srcPos;
     let dstIdx: Smi = dstPos;
@@ -580,16 +588,16 @@ namespace array {
   }
 
   transitioning builtin CopyWithinSortArray(
-      context: Context, sortState: FixedArray, srcPos: Smi, dstPos: Smi,
+      context: Context, sortState: SortState, srcPos: Smi, dstPos: Smi,
       length: Smi): Smi {
     assert(srcPos >= 0);
     assert(dstPos >= 0);
-    assert(srcPos <= GetInitialReceiverLength(sortState) - length);
-    assert(dstPos <= GetInitialReceiverLength(sortState) - length);
+    assert(srcPos <= sortState.initialReceiverLength - length);
+    assert(dstPos <= sortState.initialReceiverLength - length);
 
     try {
-      let load: LoadFn = GetLoadFn(sortState);
-      let store: StoreFn = GetStoreFn(sortState);
+      let load: LoadFn = sortState.loadFn;
+      let store: StoreFn = sortState.storeFn;
 
       if (srcPos < dstPos) {
         let srcIdx: Smi = srcPos + length - 1;
@@ -623,13 +631,13 @@ namespace array {
   // On entry, must have low <= start <= high, and that [low, start) is
   // already sorted. Pass start == low if you do not know!.
   builtin BinaryInsertionSort(
-      context: Context, sortState: FixedArray, low: Smi, startArg: Smi,
+      context: Context, sortState: SortState, low: Smi, startArg: Smi,
       high: Smi): Smi {
     assert(low <= startArg && startArg <= high);
 
     try {
-      const load: LoadFn = GetLoadFn(sortState);
-      const store: StoreFn = GetStoreFn(sortState);
+      const load: LoadFn = sortState.loadFn;
+      const store: StoreFn = sortState.storeFn;
 
       let start: Smi = low == startArg ? (startArg + 1) : startArg;
 
@@ -696,12 +704,12 @@ namespace array {
   // In addition, if the run is "descending", it is reversed, so the
   // returned length is always an ascending sequence.
   macro CountAndMakeRun(
-      context: Context, sortState: FixedArray, lowArg: Smi, high: Smi): Smi
+      context: Context, sortState: SortState, lowArg: Smi, high: Smi): Smi
       labels Bailout {
     assert(lowArg < high);
 
-    const load: LoadFn = GetLoadFn(sortState);
-    const store: StoreFn = GetStoreFn(sortState);
+    const load: LoadFn = sortState.loadFn;
+    const store: StoreFn = sortState.storeFn;
 
     let low: Smi = lowArg + 1;
     if (low == high) return 1;
@@ -741,7 +749,7 @@ namespace array {
   }
 
   macro ReverseRange(
-      context: Context, sortState: FixedArray, load: LoadFn, store: StoreFn,
+      context: Context, sortState: SortState, load: LoadFn, store: StoreFn,
       from: Smi, to: Smi)
       labels Bailout {
     let low: Smi = from;
@@ -758,7 +766,7 @@ namespace array {
   // Merges the two runs at stack indices i and i + 1.
   // Returns kFailure if we need to bailout, kSuccess otherwise.
   transitioning builtin
-  MergeAt(context: Context, sortState: FixedArray, i: Smi): Smi {
+  MergeAt(context: Context, sortState: SortState, i: Smi): Smi {
     const stackSize: Smi = GetPendingRunsSize(sortState);
 
     // We are only allowed to either merge the two top-most runs, or leave
@@ -767,10 +775,9 @@ namespace array {
     assert(i >= 0);
     assert(i == stackSize - 2 || i == stackSize - 3);
 
-    const load: LoadFn = GetLoadFn(sortState);
+    const load: LoadFn = sortState.loadFn;
 
-    const pendingRuns: FixedArray =
-        UnsafeCast<FixedArray>(sortState[kPendingRunsIdx]);
+    const pendingRuns: FixedArray = sortState.pendingRuns;
     let baseA: Smi = GetPendingRunBase(pendingRuns, i);
     let lengthA: Smi = GetPendingRunLength(pendingRuns, i);
     let baseB: Smi = GetPendingRunBase(pendingRuns, i + 1);
@@ -788,7 +795,7 @@ namespace array {
       SetPendingRunBase(pendingRuns, i + 1, base);
       SetPendingRunLength(pendingRuns, i + 1, length);
     }
-    SetPendingRunsSize(sortState, stackSize - 1);
+    sortState.pendingRunsSize = stackSize - 1;
 
     try {
       // Where does b start in a? Elements in a before that can be ignored,
@@ -844,7 +851,7 @@ namespace array {
   // pretending that array[base - 1] is minus infinity and array[base + len]
   // is plus infinity. In other words, key belongs at index base + k.
   builtin GallopLeft(
-      context: Context, sortState: FixedArray, load: LoadFn, key: Object,
+      context: Context, sortState: SortState, load: LoadFn, key: Object,
       base: Smi, length: Smi, hint: Smi): Smi {
     assert(length > 0 && base >= 0);
     assert(0 <= hint && hint < length);
@@ -950,7 +957,7 @@ namespace array {
   //
   // or kFailure on error.
   builtin GallopRight(
-      context: Context, sortState: FixedArray, load: LoadFn, key: Object,
+      context: Context, sortState: SortState, load: LoadFn, key: Object,
       base: Smi, length: Smi, hint: Smi): Smi {
     assert(length > 0 && base >= 0);
     assert(0 <= hint && hint < length);
@@ -1045,7 +1052,7 @@ namespace array {
   }
 
   // Copies a single element inside the array/object (NOT the tempArray).
-  macro CopyElement(implicit context: Context, sortState: FixedArray)(
+  macro CopyElement(implicit context: Context, sortState: SortState)(
       load: LoadFn, store: StoreFn, from: Smi, to: Smi)
       labels Bailout {
     const element = CallLoad(load, from) otherwise Bailout;
@@ -1058,10 +1065,8 @@ namespace array {
   // array[baseB] < array[baseA],
   // that array[baseA + lengthA - 1] belongs at the end of the merge,
   // and should have lengthA <= lengthB.
-  transitioning macro MergeLow(
-      implicit context: Context,
-      sortState:
-          FixedArray)(baseA: Smi, lengthAArg: Smi, baseB: Smi, lengthBArg: Smi)
+  transitioning macro MergeLow(implicit context: Context, sortState: SortState)(
+      baseA: Smi, lengthAArg: Smi, baseB: Smi, lengthBArg: Smi)
       labels Bailout {
     assert(0 < lengthAArg && 0 < lengthBArg);
     assert(0 <= baseA && 0 < baseB);
@@ -1070,8 +1075,8 @@ namespace array {
     let lengthA: Smi = lengthAArg;
     let lengthB: Smi = lengthBArg;
 
-    const load: LoadFn = GetLoadFn(sortState);
-    const store: StoreFn = GetStoreFn(sortState);
+    const load: LoadFn = sortState.loadFn;
+    const store: StoreFn = sortState.storeFn;
 
     const tempArray: FixedArray = GetTempArray(sortState, lengthA);
     CopyToTempArray(load, baseA, tempArray, 0, lengthA) otherwise Bailout;
@@ -1086,7 +1091,7 @@ namespace array {
       if (--lengthB == 0) goto Succeed;
       if (lengthA == 1) goto CopyB;
 
-      let minGallop: Smi = UnsafeCast<Smi>(sortState[kMinGallopIdx]);
+      let minGallop: Smi = sortState.minGallop;
       // TODO(szuend): Replace with something that does not have a runtime
       //               overhead as soon as its available in Torque.
       while (Int32TrueConstant()) {
@@ -1140,7 +1145,7 @@ namespace array {
           assert(lengthA > 1 && lengthB > 0);
 
           minGallop = SmiMax(1, minGallop - 1);
-          sortState[kMinGallopIdx] = minGallop;
+          sortState.minGallop = minGallop;
 
           let keyRight = CallLoad(load, cursorB) otherwise Bailout;
           nofWinsA = CallGallopRight(
@@ -1180,7 +1185,7 @@ namespace array {
           if (--lengthA == 1) goto CopyB;
         }
         ++minGallop;  // Penalize it for leaving galloping mode
-        sortState[kMinGallopIdx] = minGallop;
+        sortState.minGallop = minGallop;
       }
     }
     label Succeed {
@@ -1203,7 +1208,7 @@ namespace array {
   transitioning macro MergeHigh(
       implicit context: Context,
       sortState:
-          FixedArray)(baseA: Smi, lengthAArg: Smi, baseB: Smi, lengthBArg: Smi)
+          SortState)(baseA: Smi, lengthAArg: Smi, baseB: Smi, lengthBArg: Smi)
       labels Bailout {
     assert(0 < lengthAArg && 0 < lengthBArg);
     assert(0 <= baseA && 0 < baseB);
@@ -1212,8 +1217,8 @@ namespace array {
     let lengthA: Smi = lengthAArg;
     let lengthB: Smi = lengthBArg;
 
-    const load: LoadFn = GetLoadFn(sortState);
-    const store: StoreFn = GetStoreFn(sortState);
+    const load: LoadFn = sortState.loadFn;
+    const store: StoreFn = sortState.storeFn;
 
     const tempArray: FixedArray = GetTempArray(sortState, lengthB);
     CopyToTempArray(load, baseB, tempArray, 0, lengthB) otherwise Bailout;
@@ -1229,7 +1234,7 @@ namespace array {
       if (--lengthA == 0) goto Succeed;
       if (lengthB == 1) goto CopyA;
 
-      let minGallop: Smi = UnsafeCast<Smi>(sortState[kMinGallopIdx]);
+      let minGallop: Smi = sortState.minGallop;
       // TODO(szuend): Replace with something that does not have a runtime
       //               overhead as soon as its available in Torque.
       while (Int32TrueConstant()) {
@@ -1284,7 +1289,7 @@ namespace array {
           assert(lengthA > 0 && lengthB > 1);
 
           minGallop = SmiMax(1, minGallop - 1);
-          sortState[kMinGallopIdx] = minGallop;
+          sortState.minGallop = minGallop;
 
           let k: Smi = CallGallopRight(
               load, tempArray[cursorTemp], baseA, lengthA, lengthA - 1)
@@ -1328,7 +1333,7 @@ namespace array {
           if (--lengthA == 0) goto Succeed;
         }
         ++minGallop;
-        sortState[kMinGallopIdx] = minGallop;
+        sortState.minGallop = minGallop;
       }
     }
     label Succeed {
@@ -1394,10 +1399,9 @@ namespace array {
   // TODO(szuend): Remove unnecessary loads. This macro was refactored to
   //               improve readability, introducing unnecessary loads in the
   //               process. Determine if all these extra loads are ok.
-  transitioning macro MergeCollapse(context: Context, sortState: FixedArray)
+  transitioning macro MergeCollapse(context: Context, sortState: SortState)
       labels Bailout {
-    const pendingRuns: FixedArray =
-        UnsafeCast<FixedArray>(sortState[kPendingRunsIdx]);
+    const pendingRuns: FixedArray = sortState.pendingRuns;
 
     // Reload the stack size because MergeAt might change it.
     while (GetPendingRunsSize(sortState) > 1) {
@@ -1424,10 +1428,9 @@ namespace array {
   // Regardless of invariants, merge all runs on the stack until only one
   // remains. This is used at the end of the mergesort.
   transitioning macro
-  MergeForceCollapse(context: Context, sortState: FixedArray)
+  MergeForceCollapse(context: Context, sortState: SortState)
       labels Bailout {
-    let pendingRuns: FixedArray =
-        UnsafeCast<FixedArray>(sortState[kPendingRunsIdx]);
+    let pendingRuns: FixedArray = sortState.pendingRuns;
 
     // Reload the stack size becuase MergeAt might change it.
     while (GetPendingRunsSize(sortState) > 1) {
@@ -1442,36 +1445,9 @@ namespace array {
     }
   }
 
-  macro InitializeSortState(sortState: FixedArray) {
-    sortState[kMinGallopIdx] = SmiConstant(kMinGallopWins);
-    sortState[kTempArraySizeIdx] = SmiConstant(0);
-
-    SetPendingRunsSize(sortState, 0);
-    let pendingRuns: FixedArray =
-        AllocateZeroedFixedArray(Convert<intptr>(kMaxMergePending));
-    sortState[kPendingRunsIdx] = pendingRuns;
-  }
-
-  macro InitializeSortStateAccessor<Accessor: type>(sortState: FixedArray) {
-    sortState[kAccessorIdx] = kFastElementsAccessorId;
-    sortState[kLoadFnIdx] = Load<Accessor>;
-    sortState[kStoreFnIdx] = Store<Accessor>;
-    sortState[kCanUseSameAccessorFnIdx] = CanUseSameAccessor<Accessor>;
-  }
-
-  InitializeSortStateAccessor<GenericElementsAccessor>(sortState: FixedArray) {
-    sortState[kAccessorIdx] = kGenericElementsAccessorId;
-    sortState[kLoadFnIdx] = Load<GenericElementsAccessor>;
-    sortState[kStoreFnIdx] = Store<GenericElementsAccessor>;
-    sortState[kCanUseSameAccessorFnIdx] =
-        CanUseSameAccessor<GenericElementsAccessor>;
-  }
-
   transitioning macro
-  ArrayTimSortImpl(context: Context, sortState: FixedArray, length: Smi)
+  ArrayTimSortImpl(context: Context, sortState: SortState, length: Smi)
       labels Bailout {
-    InitializeSortState(sortState);
-
     if (length < 2) return;
     let remaining: Smi = length;
 
@@ -1506,25 +1482,26 @@ namespace array {
 
     MergeForceCollapse(context, sortState) otherwise Bailout;
     assert(GetPendingRunsSize(sortState) == 1);
-    assert(
-        GetPendingRunLength(
-            UnsafeCast<FixedArray>(sortState[kPendingRunsIdx]), 0) == length);
+    assert(GetPendingRunLength(sortState.pendingRuns, 0) == length);
   }
 
   transitioning builtin
-  ArrayTimSort(context: Context, sortState: FixedArray, length: Smi): Object {
+  ArrayTimSort(context: Context, sortState: SortState, length: Smi): Object {
     try {
       ArrayTimSortImpl(context, sortState, length) otherwise Slow;
     }
     label Slow {
-      if (sortState[kAccessorIdx] == kGenericElementsAccessorId) {
+      if (sortState.accessor == kGenericElementsAccessorId) {
         // We were already on the slow path. This must not happen.
         unreachable;
       }
-      sortState[kBailoutStatusIdx] = kSuccess;
-
-      InitializeSortStateAccessor<GenericElementsAccessor>(sortState);
-      ArrayTimSort(context, sortState, length);
+      const newSortState: SortState = new SortState{
+        sortState.receiver,
+        sortState.userCmpFn,
+        sortState.initialReceiverLength,
+        true
+      };
+      ArrayTimSort(context, newSortState, length);
     }
     return kSuccess;
   }
@@ -1549,20 +1526,11 @@ namespace array {
     // 1. If comparefn is not undefined and IsCallable(comparefn) is false,
     //    throw a TypeError exception.
     const comparefnObj: Object = arguments[0];
-    if (comparefnObj != Undefined && !TaggedIsCallable(comparefnObj)) {
-      ThrowTypeError(context, kBadSortComparisonFunction, comparefnObj);
-    }
+    const comparefn = Cast<(Undefined | Callable)>(comparefnObj) otherwise
+    ThrowTypeError(context, kBadSortComparisonFunction, comparefnObj);
 
     // 2. Let obj be ? ToObject(this value).
     const obj: JSReceiver = ToObject(context, receiver);
-
-    const sortState: FixedArray = AllocateZeroedFixedArray(kSortStateSize);
-
-    sortState[kReceiverIdx] = obj;
-    sortState[kUserCmpFnIdx] = comparefnObj;
-    sortState[kSortComparePtrIdx] =
-        comparefnObj != Undefined ? SortCompareUserFn : SortCompareDefault;
-    sortState[kBailoutStatusIdx] = kSuccess;
 
     // 3. Let len be ? ToLength(? Get(obj, "length")).
     const len: Number = GetLengthProperty(obj);
@@ -1574,33 +1542,8 @@ namespace array {
     const nofNonUndefined: Smi = PrepareElementsForSort(context, obj, len);
     assert(nofNonUndefined <= len);
 
-    let map: Map = obj.map;
-    sortState[kInitialReceiverMapIdx] = map;
-    sortState[kInitialReceiverLengthIdx] = len;
-
-    try {
-      GotoIfForceSlowPath() otherwise Slow;
-      let a: FastJSArray = Cast<FastJSArray>(receiver) otherwise Slow;
-
-      const elementsKind: ElementsKind = map.elements_kind;
-      if (IsDoubleElementsKind(elementsKind)) {
-        InitializeSortStateAccessor<FastDoubleElements>(sortState);
-      } else if (elementsKind == PACKED_SMI_ELEMENTS) {
-        InitializeSortStateAccessor<FastPackedSmiElements>(sortState);
-      } else {
-        InitializeSortStateAccessor<FastSmiOrObjectElements>(sortState);
-      }
-      ArrayTimSort(context, sortState, nofNonUndefined);
-    }
-    label Slow {
-      if (map.elements_kind == DICTIONARY_ELEMENTS && IsExtensibleMap(map) &&
-          !IsCustomElementsReceiverInstanceType(map.instance_type)) {
-        InitializeSortStateAccessor<DictionaryElements>(sortState);
-      } else {
-        InitializeSortStateAccessor<GenericElementsAccessor>(sortState);
-      }
-      ArrayTimSort(context, sortState, nofNonUndefined);
-    }
+    const sortState: SortState = new SortState{obj, comparefn, len, false};
+    ArrayTimSort(context, sortState, nofNonUndefined);
 
     return receiver;
   }
