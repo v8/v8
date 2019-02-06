@@ -278,7 +278,22 @@ class RelocInfo {
   V8_INLINE void WipeOut();
 
   template <typename ObjectVisitor>
-  inline void Visit(ObjectVisitor* v);
+  void Visit(ObjectVisitor* visitor) {
+    Mode mode = rmode();
+    if (IsEmbeddedObject(mode)) {
+      visitor->VisitEmbeddedPointer(host(), this);
+    } else if (IsCodeTargetMode(mode)) {
+      visitor->VisitCodeTarget(host(), this);
+    } else if (IsExternalReference(mode)) {
+      visitor->VisitExternalReference(host(), this);
+    } else if (IsInternalReference(mode) || IsInternalReferenceEncoded(mode)) {
+      visitor->VisitInternalReference(host(), this);
+    } else if (IsRuntimeEntry(mode)) {
+      visitor->VisitRuntimeEntry(host(), this);
+    } else if (IsOffHeapTarget(mode)) {
+      visitor->VisitOffHeapTarget(host(), this);
+    }
+  }
 
   // Check whether the given code contains relocation information that
   // either is position-relative or movable by the garbage collector.
@@ -379,7 +394,7 @@ class RelocIterator : public Malloced {
   explicit RelocIterator(Vector<byte> instructions,
                          Vector<const byte> reloc_info, Address const_pool,
                          int mode_mask = -1);
-  RelocIterator(RelocIterator&&) = default;
+  RelocIterator(RelocIterator&&) V8_NOEXCEPT = default;
 
   // Iteration
   bool done() const { return done_; }

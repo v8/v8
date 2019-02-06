@@ -288,24 +288,6 @@ Handle<Code> Assembler::relative_code_target_object_handle_at(
   return GetCodeTarget(code_target_index);
 }
 
-template <typename ObjectVisitor>
-void RelocInfo::Visit(ObjectVisitor* visitor) {
-  Mode mode = rmode();
-  if (IsEmbeddedObject(mode)) {
-    visitor->VisitEmbeddedPointer(host(), this);
-  } else if (IsCodeTargetMode(mode)) {
-    visitor->VisitCodeTarget(host(), this);
-  } else if (IsExternalReference(mode)) {
-    visitor->VisitExternalReference(host(), this);
-  } else if (IsInternalReference(mode) || IsInternalReferenceEncoded(mode)) {
-    visitor->VisitInternalReference(host(), this);
-  } else if (IsRuntimeEntry(mode)) {
-    visitor->VisitRuntimeEntry(host(), this);
-  } else if (IsOffHeapTarget(mode)) {
-    visitor->VisitOffHeapTarget(host(), this);
-  }
-}
-
 // -----------------------------------------------------------------------------
 // Assembler.
 

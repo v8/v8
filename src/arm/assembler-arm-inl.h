@@ -184,24 +184,6 @@ Handle<Code> Assembler::relative_code_target_object_handle_at(
   return GetCodeTarget(code_target_index);
 }
 
-template <typename ObjectVisitor>
-void RelocInfo::Visit(ObjectVisitor* visitor) {
-  RelocInfo::Mode mode = rmode();
-  if (mode == RelocInfo::EMBEDDED_OBJECT) {
-    visitor->VisitEmbeddedPointer(host(), this);
-  } else if (RelocInfo::IsCodeTargetMode(mode)) {
-    visitor->VisitCodeTarget(host(), this);
-  } else if (mode == RelocInfo::EXTERNAL_REFERENCE) {
-    visitor->VisitExternalReference(host(), this);
-  } else if (mode == RelocInfo::INTERNAL_REFERENCE) {
-    visitor->VisitInternalReference(host(), this);
-  } else if (RelocInfo::IsRuntimeEntry(mode)) {
-    visitor->VisitRuntimeEntry(host(), this);
-  } else if (RelocInfo::IsOffHeapTarget(mode)) {
-    visitor->VisitOffHeapTarget(host(), this);
-  }
-}
-
 Operand::Operand(int32_t immediate, RelocInfo::Mode rmode) : rmode_(rmode) {
   value_.immediate = immediate;
 }

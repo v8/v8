@@ -170,24 +170,6 @@ void RelocInfo::WipeOut() {
   }
 }
 
-template <typename ObjectVisitor>
-void RelocInfo::Visit(ObjectVisitor* visitor) {
-  RelocInfo::Mode mode = rmode();
-  if (mode == RelocInfo::EMBEDDED_OBJECT) {
-    visitor->VisitEmbeddedPointer(host(), this);
-  } else if (RelocInfo::IsCodeTargetMode(mode)) {
-    visitor->VisitCodeTarget(host(), this);
-  } else if (mode == RelocInfo::EXTERNAL_REFERENCE) {
-    visitor->VisitExternalReference(host(), this);
-  } else if (mode == RelocInfo::INTERNAL_REFERENCE) {
-    visitor->VisitInternalReference(host(), this);
-  } else if (IsRuntimeEntry(mode)) {
-    visitor->VisitRuntimeEntry(host(), this);
-  } else if (RelocInfo::IsOffHeapTarget(mode)) {
-    visitor->VisitOffHeapTarget(host(), this);
-  }
-}
-
 void Assembler::emit(uint32_t x) {
   WriteUnalignedValue(reinterpret_cast<Address>(pc_), x);
   pc_ += sizeof(uint32_t);
