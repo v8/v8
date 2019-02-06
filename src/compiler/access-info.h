@@ -33,9 +33,6 @@ enum class AccessMode { kLoad, kStore, kStoreInLiteral };
 
 std::ostream& operator<<(std::ostream&, AccessMode);
 
-// Mapping of transition source to transition target.
-typedef std::vector<std::pair<Handle<Map>, Handle<Map>>> MapTransitionList;
-
 // This class encapsulates all information required to access a certain element.
 class ElementAccessInfo final {
  public:
@@ -45,13 +42,17 @@ class ElementAccessInfo final {
 
   ElementsKind elements_kind() const { return elements_kind_; }
   MapHandles const& receiver_maps() const { return receiver_maps_; }
-  MapTransitionList& transitions() { return transitions_; }
-  MapTransitionList const& transitions() const { return transitions_; }
+  MapHandles const& transition_sources() const { return transition_sources_; }
+
+  void AddTransitionSource(Handle<Map> map) {
+    CHECK_EQ(receiver_maps_.size(), 1);
+    transition_sources_.push_back(map);
+  }
 
  private:
   ElementsKind elements_kind_;
   MapHandles receiver_maps_;
-  MapTransitionList transitions_;
+  MapHandles transition_sources_;
 };
 
 // This class encapsulates all information required to access a certain

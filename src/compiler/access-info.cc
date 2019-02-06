@@ -71,7 +71,9 @@ ElementAccessInfo::ElementAccessInfo() = default;
 
 ElementAccessInfo::ElementAccessInfo(MapHandles const& receiver_maps,
                                      ElementsKind elements_kind)
-    : elements_kind_(elements_kind), receiver_maps_(receiver_maps) {}
+    : elements_kind_(elements_kind), receiver_maps_(receiver_maps) {
+  CHECK(!receiver_maps.empty());
+}
 
 // static
 PropertyAccessInfo PropertyAccessInfo::NotFound(MapHandles const& receiver_maps,
@@ -300,7 +302,7 @@ bool AccessInfoFactory::ComputeElementAccessInfos(
   // Separate the actual receiver maps and the possible transition sources.
   MapHandles receiver_maps;
   receiver_maps.reserve(maps.size());
-  MapTransitionList transitions(maps.size());
+  std::vector<std::pair<Handle<Map>, Handle<Map>>> transitions(maps.size());
   for (Handle<Map> map : maps) {
     if (Map::TryUpdate(isolate(), map).ToHandle(&map)) {
       // Don't generate elements kind transitions from stable maps.
@@ -327,7 +329,7 @@ bool AccessInfoFactory::ComputeElementAccessInfos(
     // Collect the possible transitions for the {receiver_map}.
     for (auto transition : transitions) {
       if (transition.second.is_identical_to(receiver_map)) {
-        access_info.transitions().push_back(transition);
+        access_info.AddTransitionSource(transition.first);
       }
     }
 

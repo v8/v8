@@ -1511,9 +1511,9 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
       ElementAccessInfo access_info = access_infos.front();
 
       // Perform possible elements kind transitions.
-      for (auto transition : access_info.transitions()) {
-        Handle<Map> const transition_source = transition.first;
-        Handle<Map> const transition_target = transition.second;
+      Handle<Map> const transition_target = access_info.receiver_maps().front();
+      for (auto transition_source : access_info.transition_sources()) {
+        DCHECK_EQ(access_info.receiver_maps().size(), 1);
         effect = graph()->NewNode(
             simplified()->TransitionElementsKind(ElementsTransition(
                 IsSimpleMapChangeTransition(transition_source->elements_kind(),
@@ -1561,9 +1561,10 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
         Node* this_control = fallthrough_control;
 
         // Perform possible elements kind transitions.
-        for (auto transition : access_info.transitions()) {
-          Handle<Map> const transition_source = transition.first;
-          Handle<Map> const transition_target = transition.second;
+        Handle<Map> const transition_target =
+            access_info.receiver_maps().front();
+        for (auto transition_source : access_info.transition_sources()) {
+          DCHECK_EQ(access_info.receiver_maps().size(), 1);
           this_effect = graph()->NewNode(
               simplified()->TransitionElementsKind(
                   ElementsTransition(IsSimpleMapChangeTransition(
