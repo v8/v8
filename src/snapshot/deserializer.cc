@@ -45,15 +45,9 @@ class UnalignedSlot {
 
   inline void Advance(int bytes = kPointerSize) { ptr_ += bytes; }
 
-  MaybeObject Read() {
-    Address result;
-    memcpy(&result, reinterpret_cast<void*>(ptr_), sizeof(result));
-    return MaybeObject(result);
-  }
   inline void Write(Address value) {
     memcpy(reinterpret_cast<void*>(ptr_), &value, sizeof(value));
   }
-  MaybeObjectSlot Slot() { return MaybeObjectSlot(ptr_); }
 
   Address address() { return ptr_; }
 
@@ -751,7 +745,9 @@ bool Deserializer::ReadData(UnalignedSlot current, UnalignedSlot limit,
         if (write_barrier_needed && Heap::InYoungGeneration(hot_object)) {
           HeapObject current_object =
               HeapObject::FromAddress(current_object_address);
-          GenerationalBarrier(current_object, current.Slot(), hot_maybe_object);
+          GenerationalBarrier(current_object,
+                              MaybeObjectSlot(current.address()),
+                              hot_maybe_object);
         }
         current.Advance();
         break;
@@ -820,91 +816,92 @@ UnalignedSlot Deserializer::ReadDataCase(Isolate* isolate,
                                          Address current_object_address,
                                          byte data, bool write_barrier_needed) {
   bool emit_write_barrier = false;
-  bool current_was_incremented = false;
   int space_number = space_number_if_any == kAnyOldSpace ? (data & kSpaceMask)
                                                          : space_number_if_any;
-  HeapObjectReferenceType reference_type = HeapObjectReferenceType::STRONG;
+  HeapObject heap_object;
+  HeapObjectReferenceType reference_type =
+      allocator()->GetAndClearNextReferenceIsWeak()
+          ? HeapObjectReferenceType::WEAK
+          : HeapObjectReferenceType::STRONG;
+
   if (where == kNewObject && how == kPlain && within == kStartOfObject) {
-    if (allocator()->GetAndClearNextReferenceIsWeak()) {
-      reference_type = HeapObjectReferenceType::WEAK;
-    }
-    HeapObject heap_object = ReadObject(space_number);
-    HeapObjectReference heap_object_ref =
-        reference_type == HeapObjectReferenceType::STRONG
-            ? HeapObjectReference::Strong(heap_object)
-            : HeapObjectReference::Weak(heap_object);
-    UnalignedCopy(current, heap_object_ref);
+    heap_object = ReadObject(space_number);
     emit_write_barrier = (space_number == NEW_SPACE);
   } else {
-    Object new_object; /* May not be a real Object pointer. */
     if (where == kNewObject) {
-      new_object = ReadObject(space_number);
+      heap_object = ReadObject(space_number);
+      emit_write_barrier = (space_number == NEW_SPACE);
     } else if (where == kBackref) {
       emit_write_barrier = (space_number == NEW_SPACE);
-      new_object = GetBackReferencedObject(data & kSpaceMask);
+      heap_object = GetBackReferencedObject(data & kSpaceMask);
     } else if (where == kBackrefWithSkip) {
       int skip = source_.GetInt();
       current.Advance(skip);
       emit_write_barrier = (space_number == NEW_SPACE);
-      new_object = GetBackReferencedObject(data & kSpaceMask);
+      heap_object = GetBackReferencedObject(data & kSpaceMask);
     } else if (where == kRootArray) {
       int id = source_.GetInt();
       RootIndex root_index = static_cast<RootIndex>(id);
-      new_object = isolate->root(root_index);
-      emit_write_barrier = Heap::InYoungGeneration(new_object);
-      hot_objects_.Add(HeapObject::cast(new_object));
+      heap_object = HeapObject::cast(isolate->root(root_index));
+      emit_write_barrier = Heap::InYoungGeneration(heap_object);
+      hot_objects_.Add(heap_object);
     } else if (where == kReadOnlyObjectCache) {
       int cache_index = source_.GetInt();
-      new_object = isolate->read_only_object_cache()->at(cache_index);
-      DCHECK(!Heap::InYoungGeneration(new_object));
+      heap_object =
+          HeapObject::cast(isolate->read_only_object_cache()->at(cache_index));
+      DCHECK(!Heap::InYoungGeneration(heap_object));
       emit_write_barrier = false;
     } else if (where == kPartialSnapshotCache) {
       int cache_index = source_.GetInt();
-      new_object = isolate->partial_snapshot_cache()->at(cache_index);
-      emit_write_barrier = Heap::InYoungGeneration(new_object);
+      heap_object =
+          HeapObject::cast(isolate->partial_snapshot_cache()->at(cache_index));
+      emit_write_barrier = Heap::InYoungGeneration(heap_object);
     } else {
       DCHECK_EQ(where, kAttachedReference);
       int index = source_.GetInt();
-      new_object = *attached_objects_[index];
-      emit_write_barrier = Heap::InYoungGeneration(new_object);
-    }
-    if (within == kInnerPointer) {
-      DCHECK_EQ(how, kFromCode);
-      if (new_object->IsCode()) {
-        new_object = Object(Code::cast(new_object)->raw_instruction_start());
-      } else {
-        Cell cell = Cell::cast(new_object);
-        new_object = Object(cell->ValueAddress());
-      }
+      heap_object = *attached_objects_[index];
+      emit_write_barrier = Heap::InYoungGeneration(heap_object);
     }
     if (how == kFromCode) {
-      DCHECK(!allocator()->next_reference_is_weak());
+      Address value;
+      if (within == kInnerPointer) {
+        if (heap_object->IsCode()) {
+          value = Code::cast(heap_object)->raw_instruction_start();
+        } else {
+          value = Cell::cast(heap_object)->ValueAddress();
+        }
+      } else {
+        value = heap_object->ptr();
+      }
+      DCHECK_EQ(reference_type, HeapObjectReferenceType::STRONG);
       Address location_of_branch_data = current.address();
       int skip = Assembler::deserialization_special_target_size(
           location_of_branch_data);
       Assembler::deserialization_set_special_target_at(
           location_of_branch_data,
-          Code::cast(HeapObject::FromAddress(current_object_address)),
-          new_object->ptr());
+          Code::cast(HeapObject::FromAddress(current_object_address)), value);
       current.Advance(skip);
-      current_was_incremented = true;
+      // Nothing else to be done in this case.
+      DCHECK(!write_barrier_needed);
+      return current;
+
     } else {
-      MaybeObject new_maybe_object = MaybeObject::FromObject(new_object);
-      if (allocator()->GetAndClearNextReferenceIsWeak()) {
-        new_maybe_object = MaybeObject::MakeWeak(new_maybe_object);
-      }
-      UnalignedCopy(current, new_maybe_object);
+      DCHECK_EQ(how, kPlain);
+      DCHECK_EQ(within, kStartOfObject);
     }
   }
+  HeapObjectReference heap_object_ref =
+      reference_type == HeapObjectReferenceType::STRONG
+          ? HeapObjectReference::Strong(heap_object)
+          : HeapObjectReference::Weak(heap_object);
+  UnalignedCopy(current, heap_object_ref);
   if (emit_write_barrier && write_barrier_needed) {
-    HeapObject object = HeapObject::FromAddress(current_object_address);
-    SLOW_DCHECK(isolate->heap()->Contains(object));
-    GenerationalBarrier(object, current.Slot(), current.Read());
+    HeapObject host_object = HeapObject::FromAddress(current_object_address);
+    SLOW_DCHECK(isolate->heap()->Contains(host_object));
+    GenerationalBarrier(host_object, MaybeObjectSlot(current.address()),
+                        heap_object_ref);
   }
-  if (!current_was_incremented) {
-    current.Advance();
-  }
-
+  current.Advance();
   return current;
 }
 
