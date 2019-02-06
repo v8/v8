@@ -166,6 +166,20 @@ TEST(Utf8StreamAsciiOnly) {
   } while (c != v8::internal::Utf16CharacterStream::kEndOfInput);
 }
 
+TEST(Utf8StreamMaxNonSurrogateCharCode) {
+  const char* chunks[] = {"\uffff\uffff", ""};
+  ChunkSource chunk_source(chunks);
+  std::unique_ptr<v8::internal::Utf16CharacterStream> stream(
+      v8::internal::ScannerStream::For(
+          &chunk_source, v8::ScriptCompiler::StreamedSource::UTF8));
+
+  // Read the correct character.
+  uint16_t max = unibrow::Utf16::kMaxNonSurrogateCharCode;
+  CHECK_EQ(max, static_cast<uint32_t>(stream->Advance()));
+  CHECK_EQ(max, static_cast<uint32_t>(stream->Advance()));
+  CHECK_EQ(i::Utf16CharacterStream::kEndOfInput, stream->Advance());
+}
+
 TEST(Utf8StreamBOM) {
   // Construct test string w/ UTF-8 BOM (byte order mark)
   char data[3 + arraysize(unicode_utf8)] = {"\xef\xbb\xbf"};

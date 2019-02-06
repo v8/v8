@@ -42,7 +42,7 @@
 #include "src/objects/stack-frame-info-inl.h"
 #include "src/objects/struct-inl.h"
 #include "src/unicode-cache.h"
-#include "src/unicode-decoder.h"
+#include "src/unicode-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -661,13 +661,38 @@ MaybeHandle<String> Factory::NewStringFromUtf8(Vector<const char> string,
     return NewStringFromOneByte(Vector<const uint8_t>::cast(string), pretenure);
   }
 
-  // Non-ASCII and we need to decode.
-  auto non_ascii = string.SubVector(non_ascii_start, length);
-  Access<UnicodeCache::Utf8Decoder> decoder(
-      isolate()->unicode_cache()->utf8_decoder());
-  decoder->Reset(non_ascii);
+  std::unique_ptr<uint16_t[]> buffer(new uint16_t[length - non_ascii_start]);
 
-  int utf16_length = static_cast<int>(decoder->Utf16Length());
+  const uint8_t* cursor =
+      reinterpret_cast<const uint8_t*>(&string[non_ascii_start]);
+  const uint8_t* end = reinterpret_cast<const uint8_t*>(string.end());
+
+  uint16_t* output_cursor = buffer.get();
+
+  uint32_t incomplete_char = 0;
+  unibrow::Utf8::State state = unibrow::Utf8::State::kAccept;
+
+  while (cursor < end) {
+    unibrow::uchar t =
+        unibrow::Utf8::ValueOfIncremental(&cursor, &state, &incomplete_char);
+
+    if (V8_LIKELY(t <= unibrow::Utf16::kMaxNonSurrogateCharCode)) {
+      *(output_cursor++) = static_cast<uc16>(t);  // The most frequent case.
+    } else if (t == unibrow::Utf8::kIncomplete) {
+      continue;
+    } else {
+      *(output_cursor++) = unibrow::Utf16::LeadSurrogate(t);
+      *(output_cursor++) = unibrow::Utf16::TrailSurrogate(t);
+    }
+  }
+
+  unibrow::uchar t = unibrow::Utf8::ValueOfIncrementalFinish(&state);
+  if (t != unibrow::Utf8::kBufferEmpty) {
+    *(output_cursor++) = static_cast<uc16>(t);
+  }
+
+  DCHECK_LE(output_cursor, buffer.get() + length - non_ascii_start);
+  int utf16_length = static_cast<int>(output_cursor - buffer.get());
   DCHECK_GT(utf16_length, 0);
 
   // Allocate string.
@@ -676,15 +701,13 @@ MaybeHandle<String> Factory::NewStringFromUtf8(Vector<const char> string,
       isolate(), result,
       NewRawTwoByteString(non_ascii_start + utf16_length, pretenure), String);
 
-  // Copy ASCII portion.
+  DCHECK_LE(non_ascii_start + utf16_length, length);
+
   DisallowHeapAllocation no_gc;
   uint16_t* data = result->GetChars(no_gc);
-  for (int i = 0; i < non_ascii_start; i++) {
-    *data++ = *ascii_data++;
-  }
+  CopyChars(data, ascii_data, non_ascii_start);
+  CopyChars(data + non_ascii_start, buffer.get(), utf16_length);
 
-  // Now write the remainder.
-  decoder->WriteUtf16(data, utf16_length, non_ascii);
   return result;
 }
 
