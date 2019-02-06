@@ -382,6 +382,7 @@ type Null extends Oddball generates 'TNode<Oddball>';
 type Undefined extends Oddball generates 'TNode<Oddball>';
 type True extends Oddball generates 'TNode<Oddball>';
 type False extends Oddball generates 'TNode<Oddball>';
+type EmptyString extends String generates 'TNode<String>';
 type Boolean = True | False;
 
 type NumberOrUndefined = Number | Undefined;
@@ -393,7 +394,7 @@ extern macro TrueConstant(): True;
 extern macro FalseConstant(): False;
 extern macro Int32TrueConstant(): bool;
 extern macro Int32FalseConstant(): bool;
-extern macro EmptyStringConstant(): String;
+extern macro EmptyStringConstant(): EmptyString;
 extern macro LengthStringConstant(): String;
 
 const Hole: Hole = TheHoleConstant();
@@ -401,7 +402,7 @@ const Null: Null = NullConstant();
 const Undefined: Undefined = UndefinedConstant();
 const True: True = TrueConstant();
 const False: False = FalseConstant();
-const kEmptyString: String = EmptyStringConstant();
+const kEmptyString: EmptyString = EmptyStringConstant();
 const kLengthString: String = LengthStringConstant();
 
 const true: constexpr bool generates 'true';
@@ -597,8 +598,22 @@ extern builtin Divide(implicit context: Context)(Object, Object): Numeric;
 extern builtin Modulus(implicit context: Context)(Object, Object): Numeric;
 extern builtin Subtract(implicit context: Context)(Object, Object): Numeric;
 
-extern operator '==' macro WordEqual(Object, Object): bool;
-extern operator '!=' macro WordNotEqual(Object, Object): bool;
+// The type of all tagged values that can safely be compared with WordEqual.
+type TaggedWithIdentity =
+    JSReceiver | FixedArrayBase | Oddball | Map | EmptyString;
+
+extern operator '==' macro WordEqual(TaggedWithIdentity, Object): bool;
+extern operator '==' macro WordEqual(Object, TaggedWithIdentity): bool;
+extern operator '==' macro WordEqual(
+    TaggedWithIdentity, TaggedWithIdentity): bool;
+extern operator '!=' macro WordNotEqual(TaggedWithIdentity, Object): bool;
+extern operator '!=' macro WordNotEqual(Object, TaggedWithIdentity): bool;
+extern operator '!=' macro WordNotEqual(
+    TaggedWithIdentity, TaggedWithIdentity): bool;
+// Do not overload == and != if it is unclear if object identity is the right
+// equality.
+extern macro WordEqual(Object, Object): bool;
+extern macro WordNotEqual(Object, Object): bool;
 
 extern operator '+' macro SmiAdd(Smi, Smi): Smi;
 extern operator '-' macro SmiSub(Smi, Smi): Smi;

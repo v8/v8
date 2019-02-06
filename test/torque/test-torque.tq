@@ -30,8 +30,8 @@ namespace test {
   }
 
   macro LabelTestHelper3(): never
-      labels Label3(String, Smi) {
-    goto Label3('foo', 7);
+      labels Label3(Oddball, Smi) {
+    goto Label3(Null, 7);
   }
 
   macro TestConstexpr1() {
@@ -74,8 +74,8 @@ namespace test {
     try {
       LabelTestHelper3() otherwise Label3;
     }
-    label Label3(str: String, smi: Smi) {
-      check(str == 'foo');
+    label Label3(o: Oddball, smi: Smi) {
+      check(o == Null);
       check(smi == 7);
       return True;
     }
@@ -156,7 +156,6 @@ namespace test {
       check(GenericMacroTest<Object>(True) == True);
       check((GenericMacroTestWithLabels<Smi>(0) otherwise Fail) == Undefined);
       check((GenericMacroTestWithLabels<Smi>(0) otherwise Fail) == Undefined);
-      check((GenericMacroTestWithLabels<Object>(smi0) otherwise Fail) == smi0);
       try {
         GenericMacroTestWithLabels<Object>(False) otherwise Expected;
       }
