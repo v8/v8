@@ -50,12 +50,6 @@ class UnalignedSlot {
     memcpy(&result, reinterpret_cast<void*>(ptr_), sizeof(result));
     return MaybeObject(result);
   }
-  MaybeObject ReadPrevious() {
-    Address result;
-    memcpy(&result, reinterpret_cast<void*>(ptr_ - kPointerSize),
-           sizeof(result));
-    return MaybeObject(result);
-  }
   inline void Write(Address value) {
     memcpy(reinterpret_cast<void*>(ptr_), &value, sizeof(value));
   }
@@ -115,8 +109,8 @@ Deserializer::~Deserializer() {
 // process.  It is also called on the body of each function.
 void Deserializer::VisitRootPointers(Root root, const char* description,
                                      FullObjectSlot start, FullObjectSlot end) {
-  // The space must be new space.  Any other space would cause ReadChunk to try
-  // to update the remembered using nullptr as the address.
+  // We are reading to a location outside of JS heap, so pass NEW_SPACE to
+  // avoid triggering write barriers.
   // TODO(ishell): this will not work once we actually compress pointers.
   STATIC_ASSERT(kTaggedSize == kSystemPointerSize);
   ReadData(UnalignedSlot(start.address()), UnalignedSlot(end.address()),
@@ -413,6 +407,26 @@ void Deserializer::ReadObject(int space_number, UnalignedSlot write_back,
 #endif  // DEBUG
 }
 
+UnalignedSlot Deserializer::ReadRepeatedObject(UnalignedSlot current,
+                                               int repeat_count) {
+  CHECK_LE(2, repeat_count);
+  MaybeObject object;
+  // We are reading to a location outside of JS heap, so pass NEW_SPACE to
+  // avoid triggering write barriers.
+  bool filled = ReadData(UnalignedSlot(&object), UnalignedSlot(&object + 1),
+                         NEW_SPACE, kNullAddress);
+  CHECK(filled);
+  DCHECK(HAS_HEAP_OBJECT_TAG(object.ptr()));
+  DCHECK(!Heap::InYoungGeneration(object));
+  for (int i = 0; i < repeat_count; i++) {
+    // Repeated values are not subject to the write barrier so we don't need
+    // to trigger it.
+    UnalignedCopy(current, object);
+    current.Advance();
+  }
+  return current;
+}
+
 static void NoExternalReferencesCallback() {
   // The following check will trigger if a function or object template
   // with references to native functions have been deserialized from
@@ -646,13 +660,8 @@ bool Deserializer::ReadData(UnalignedSlot current, UnalignedSlot limit,
       }
 
       case kVariableRepeat: {
-        int repeats = source_.GetInt();
-        MaybeObject object = current.ReadPrevious();
-        DCHECK(!Heap::InYoungGeneration(object));
-        for (int i = 0; i < repeats; i++) {
-          UnalignedCopy(current, object);
-          current.Advance();
-        }
+        int repeats = DecodeVariableRepeatCount(source_.GetInt());
+        current = ReadRepeatedObject(current, repeats);
         break;
       }
 
@@ -769,13 +778,8 @@ bool Deserializer::ReadData(UnalignedSlot current, UnalignedSlot limit,
 
       STATIC_ASSERT(kNumberOfFixedRepeat == 16);
       SIXTEEN_CASES(kFixedRepeat) {
-        int repeats = data - kFixedRepeatStart;
-        MaybeObject object = current.ReadPrevious();
-        DCHECK(!Heap::InYoungGeneration(object));
-        for (int i = 0; i < repeats; i++) {
-          UnalignedCopy(current, object);
-          current.Advance();
-        }
+        int repeats = DecodeFixedRepeatCount(data);
+        current = ReadRepeatedObject(current, repeats);
         break;
       }
 

@@ -289,6 +289,15 @@ void Serializer::PutNextChunk(int space) {
   sink_.Put(space, "NextChunkSpace");
 }
 
+void Serializer::PutRepeat(int repeat_count) {
+  if (repeat_count <= kLastEncodableFixedRepeatCount) {
+    sink_.Put(EncodeFixedRepeat(repeat_count), "FixedRepeat");
+  } else {
+    sink_.Put(kVariableRepeat, "VariableRepeat");
+    sink_.PutInt(EncodeVariableRepeatCount(repeat_count), "repeat count");
+  }
+}
+
 void Serializer::Pad(int padding_offset) {
   // The non-branching GetInt will read up to 3 bytes too far, so we need
   // to pad the snapshot to make sure we don't read over the end.
@@ -693,37 +702,33 @@ void Serializer::ObjectSerializer::VisitPointers(HeapObject host,
     while (current < end &&
            (*current)->GetHeapObject(&current_contents, &reference_type)) {
       RootIndex root_index;
+      // Compute repeat count and write repeat prefix if applicable.
       // Repeats are not subject to the write barrier so we can only use
       // immortal immovable root members. They are never in new space.
-      if (current != start &&
+      MaybeObjectSlot repeat_end = current + 1;
+      if (repeat_end < end &&
           serializer_->root_index_map()->Lookup(current_contents,
                                                 &root_index) &&
           RootsTable::IsImmortalImmovable(root_index) &&
-          *current == *(current - 1)) {
+          *current == *repeat_end) {
         DCHECK_EQ(reference_type, HeapObjectReferenceType::STRONG);
         DCHECK(!Heap::InYoungGeneration(current_contents));
-        int repeat_count = 1;
-        while (current + repeat_count < end - 1 &&
-               *(current + repeat_count) == *current) {
-          repeat_count++;
+        while (repeat_end < end && *repeat_end == *current) {
+          repeat_end++;
         }
-        current += repeat_count;
+        int repeat_count = static_cast<int>(repeat_end - current);
+        current = repeat_end;
         bytes_processed_so_far_ += repeat_count * kTaggedSize;
-        if (repeat_count > kNumberOfFixedRepeat) {
-          sink_->Put(kVariableRepeat, "VariableRepeat");
-          sink_->PutInt(repeat_count, "repeat count");
-        } else {
-          sink_->Put(kFixedRepeatStart + repeat_count, "FixedRepeat");
-        }
+        serializer_->PutRepeat(repeat_count);
       } else {
-        if (reference_type == HeapObjectReferenceType::WEAK) {
-          sink_->Put(kWeakPrefix, "WeakReference");
-        }
-        serializer_->SerializeObject(current_contents, kPlain, kStartOfObject,
-                                     0);
         bytes_processed_so_far_ += kTaggedSize;
         ++current;
       }
+      // Now write the object itself.
+      if (reference_type == HeapObjectReferenceType::WEAK) {
+        sink_->Put(kWeakPrefix, "WeakReference");
+      }
+      serializer_->SerializeObject(current_contents, kPlain, kStartOfObject, 0);
     }
   }
 }

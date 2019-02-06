@@ -209,6 +209,7 @@ class Serializer : public SerializerDeserializer {
   // Emit alignment prefix if necessary, return required padding space in bytes.
   int PutAlignmentPrefix(HeapObject object);
   void PutNextChunk(int space);
+  void PutRepeat(int repeat_count);
 
   // Returns true if the object was successfully serialized as a root.
   bool SerializeRoot(HeapObject obj, HowToCode how_to_code,

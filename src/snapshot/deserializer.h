@@ -139,6 +139,8 @@ class Deserializer : public SerializerDeserializer {
   void ReadObject(int space_number, UnalignedSlot write_back,
                   HeapObjectReferenceType reference_type);
 
+  UnalignedSlot ReadRepeatedObject(UnalignedSlot current, int repeat_count);
+
   // Special handling for serialized code like hooking up internalized strings.
   HeapObject PostProcessNewObject(HeapObject obj, int space);
 

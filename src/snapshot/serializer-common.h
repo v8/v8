@@ -262,7 +262,6 @@ class SerializerDeserializer : public RootVisitor {
   static const int kNumberOfFixedRepeat = 0x10;
   // 0xe0..0xef
   static const int kFixedRepeat = 0xe0;
-  static const int kFixedRepeatStart = kFixedRepeat - 1;
 
   // 8 hot (recently seen or back-referenced) objects with optional skip.
   static const int kNumberOfHotObjects = 8;
@@ -278,6 +277,39 @@ class SerializerDeserializer : public RootVisitor {
 
   // Sentinel after a new object to indicate that double alignment is needed.
   static const int kDoubleAlignmentSentinel = 0;
+
+  // Repeat count encoding helpers.
+  static const int kFirstEncodableRepeatCount = 2;
+  static const int kLastEncodableFixedRepeatCount =
+      kFirstEncodableRepeatCount + kNumberOfFixedRepeat - 1;
+  static const int kFirstEncodableVariableRepeatCount =
+      kLastEncodableFixedRepeatCount + 1;
+
+  // Encodes repeat count into a fixed repeat bytecode.
+  static int EncodeFixedRepeat(int repeat_count) {
+    DCHECK(IsInRange(repeat_count, kFirstEncodableRepeatCount,
+                     kLastEncodableFixedRepeatCount));
+    return kFixedRepeat + repeat_count - kFirstEncodableRepeatCount;
+  }
+
+  // Decodes repeat count from a fixed repeat bytecode.
+  static int DecodeFixedRepeatCount(int bytecode) {
+    DCHECK(
+        IsInRange(bytecode, kFixedRepeat, kFixedRepeat + kNumberOfFixedRepeat));
+    return bytecode - kFixedRepeat + kFirstEncodableRepeatCount;
+  }
+
+  // Encodes repeat count into a serialized variable repeat count value.
+  static int EncodeVariableRepeatCount(int repeat_count) {
+    DCHECK_LE(kFirstEncodableVariableRepeatCount, repeat_count);
+    return repeat_count - kFirstEncodableVariableRepeatCount;
+  }
+
+  // Decodes repeat count from a serialized variable repeat count value.
+  static int DecodeVariableRepeatCount(int value) {
+    DCHECK_LE(0, value);
+    return value + kFirstEncodableVariableRepeatCount;
+  }
 
   // ---------- member variable ----------
   HotObjectsList hot_objects_;
