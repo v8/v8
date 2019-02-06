@@ -992,9 +992,9 @@ DEFINE_BOOL(trace_ic, false,
 DEFINE_IMPLICATION(trace_ic, log_code)
 DEFINE_INT(ic_stats, 0, "inline cache state transitions statistics")
 DEFINE_VALUE_IMPLICATION(trace_ic, ic_stats, 1)
-DEFINE_BOOL_READONLY(track_constant_fields, true,
+DEFINE_BOOL_READONLY(track_constant_fields, false,
                      "enable constant field tracking")
-DEFINE_BOOL_READONLY(modify_map_inplace, true, "enable in-place map updates")
+DEFINE_BOOL_READONLY(modify_map_inplace, false, "enable in-place map updates")
 DEFINE_BOOL_READONLY(fast_map_update, false,
                      "enable fast map update by caching the migration target")
 DEFINE_INT(max_polymorphic_map_count, 4,
