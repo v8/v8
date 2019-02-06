@@ -45,14 +45,9 @@ namespace array_join {
     const array: JSArray = UnsafeCast<JSArray>(receiver);
     const fixedDoubleArray: FixedDoubleArray =
         UnsafeCast<FixedDoubleArray>(array.elements);
-    try {
-      const element: float64 = LoadDoubleWithHoleCheck(
-          fixedDoubleArray, UnsafeCast<Smi>(k)) otherwise IfHole;
-      return AllocateHeapNumberWithValue(element);
-    }
-    label IfHole {
-      return kEmptyString;
-    }
+    const element: float64 = LoadDoubleWithHoleCheck(
+        fixedDoubleArray, UnsafeCast<Smi>(k)) otherwise return kEmptyString;
+    return AllocateHeapNumberWithValue(element);
   }
 
   builtin LoadJoinTypedElement<T: type>(

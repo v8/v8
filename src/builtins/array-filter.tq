@@ -113,30 +113,26 @@ namespace array_filter {
     for (; k < len; k++) {
       // Ensure that we haven't walked beyond a possibly updated length.
       if (k >= fastO.Get().length) goto Bailout(k, to);
-
-      try {
-        const value: Object = LoadElementNoHole<FixedArrayType>(fastO.Get(), k)
-            otherwise FoundHole;
-        const result: Object =
-            Call(context, callbackfn, thisArg, value, k, fastO.Get());
-        if (ToBoolean(result)) {
-          try {
-            // Since the call to {callbackfn} is observable, we can't
-            // use the Bailout label until we've successfully stored.
-            // Hence the {SlowStore} label.
-            fastA.Recheck() otherwise SlowStore;
-            if (fastA.Get().length != to) goto SlowStore;
-            BuildAppendJSArray(kind, fastA.Get(), value)
-                otherwise SlowStore;
-          }
-          label SlowStore {
-            CreateDataProperty(a, to, value);
-          }
-          to = to + 1;
+      const value: Object = LoadElementNoHole<FixedArrayType>(fastO.Get(), k)
+          otherwise continue;
+      const result: Object =
+          Call(context, callbackfn, thisArg, value, k, fastO.Get());
+      if (ToBoolean(result)) {
+        try {
+          // Since the call to {callbackfn} is observable, we can't
+          // use the Bailout label until we've successfully stored.
+          // Hence the {SlowStore} label.
+          fastA.Recheck() otherwise SlowStore;
+          if (fastA.Get().length != to) goto SlowStore;
+          BuildAppendJSArray(kind, fastA.Get(), value)
+              otherwise SlowStore;
         }
-        fastO.Recheck() otherwise goto Bailout(k + 1, to);
+        label SlowStore {
+          CreateDataProperty(a, to, value);
+        }
+        to = to + 1;
       }
-      label FoundHole {}
+      fastO.Recheck() otherwise goto Bailout(k + 1, to);
     }
   }
 

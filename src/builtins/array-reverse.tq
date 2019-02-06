@@ -21,15 +21,10 @@ namespace array_reverse {
   LoadElement<array::FastPackedDoubleElements, float64>(
       implicit context: Context)(elements: FixedArrayBase, index: Smi):
       float64 {
-    try {
-      const elems: FixedDoubleArray = UnsafeCast<FixedDoubleArray>(elements);
-      return LoadDoubleWithHoleCheck(elems, index) otherwise Hole;
-    }
-    label Hole {
-      // This macro is only used for PACKED_DOUBLE, loading the hole should
-      // be impossible.
-      unreachable;
-    }
+    const elems: FixedDoubleArray = UnsafeCast<FixedDoubleArray>(elements);
+    // This macro is only used for PACKED_DOUBLE, loading the hole should
+    // be impossible.
+    return LoadDoubleWithHoleCheck(elems, index) otherwise unreachable;
   }
 
   macro StoreElement<ElementsAccessor: type, T: type>(

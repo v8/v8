@@ -81,14 +81,10 @@ namespace array_foreach {
     for (; k < len; k++) {
       // Ensure that we haven't walked beyond a possibly updated length.
       if (k >= fastO.Get().length) goto Bailout(k);
-
-      try {
-        const value: Object = LoadElementNoHole<FixedArrayType>(fastO.Get(), k)
-            otherwise FoundHole;
-        Call(context, callbackfn, thisArg, value, k, fastO.Get());
-        fastO.Recheck() otherwise goto Bailout(k + 1);
-      }
-      label FoundHole {}
+      const value: Object = LoadElementNoHole<FixedArrayType>(fastO.Get(), k)
+          otherwise continue;
+      Call(context, callbackfn, thisArg, value, k, fastO.Get());
+      fastO.Recheck() otherwise goto Bailout(k + 1);
     }
   }
 
