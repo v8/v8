@@ -504,9 +504,6 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=8664
   'intl402/Collator/missing-unicode-ext-value-defaults-to-true': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=8717
-  'intl402/Segmenter/constructor/constructor/options-granularity-valid': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=7472
   'intl402/NumberFormat/currency-digits': [FAIL],
 
