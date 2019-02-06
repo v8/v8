@@ -413,6 +413,11 @@ namespace test {
     label Exit {
       check(j == 10);
     }
+
+    // Test if we can handle uninitialized values on the stack.
+    let i: Smi;
+    for (let j: Smi = 0; j < 10; ++j) {
+    }
   }
 
   macro TestSubtyping(x: Smi) {

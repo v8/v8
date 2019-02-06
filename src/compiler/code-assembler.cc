@@ -1820,6 +1820,8 @@ void CodeAssemblerParameterizedLabelBase::AddInputs(std::vector<Node*> inputs) {
   if (!phi_nodes_.empty()) {
     DCHECK_EQ(inputs.size(), phi_nodes_.size());
     for (size_t i = 0; i < inputs.size(); ++i) {
+      // We use {nullptr} as a sentinel for an uninitialized value.
+      if (phi_nodes_[i] == nullptr) continue;
       state_->raw_assembler_->AppendPhiInput(phi_nodes_[i], inputs[i]);
     }
   } else {
