@@ -31,10 +31,6 @@ class IC {
 
   static constexpr int kMaxKeyedPolymorphism = 4;
 
-  // A polymorphic IC can handle at most 4 distinct maps before transitioning
-  // to megamorphic state.
-  static constexpr int kMaxPolymorphicMapCount = 4;
-
   // Construct the IC structure with the given number of extra
   // JavaScript frames on the stack.
   IC(Isolate* isolate, Handle<FeedbackVector> vector, FeedbackSlot slot,

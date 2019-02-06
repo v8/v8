@@ -784,8 +784,8 @@ void FeedbackNexus::ConfigureCloneObject(Handle<Map> source_map,
       }
       break;
     case POLYMORPHIC: {
-      static constexpr int kMaxElements =
-          IC::kMaxPolymorphicMapCount * kCloneObjectPolymorphicEntrySize;
+      const int kMaxElements =
+          FLAG_max_polymorphic_map_count * kCloneObjectPolymorphicEntrySize;
       Handle<WeakFixedArray> array = Handle<WeakFixedArray>::cast(feedback);
       int i = 0;
       for (; i < array->length(); i += kCloneObjectPolymorphicEntrySize) {

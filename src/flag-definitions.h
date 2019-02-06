@@ -997,6 +997,8 @@ DEFINE_BOOL_READONLY(track_constant_fields, false,
 DEFINE_BOOL_READONLY(modify_map_inplace, false, "enable in-place map updates")
 DEFINE_BOOL_READONLY(fast_map_update, false,
                      "enable fast map update by caching the migration target")
+DEFINE_INT(max_polymorphic_map_count, 4,
+           "maximum number of maps to track in POLYMORPHIC state")
 
 // macro-assembler-ia32.cc
 DEFINE_BOOL(native_code_counters, false,
