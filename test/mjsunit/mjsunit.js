@@ -107,13 +107,20 @@ var assertNotNull;
 // Assert that the passed function or eval code throws an exception.
 // The optional second argument is an exception constructor that the
 // thrown exception is checked against with "instanceof".
-// The optional third argument is a message type string that is compared
-// to the type property on the thrown exception.
+// The optional third argument is a message type string or RegExp object that is
+// compared to the message of the thrown exception.
 var assertThrows;
 
 // Assert that the passed function throws an exception.
 // The exception is checked against the second argument using assertEquals.
 var assertThrowsEquals;
+
+// Assert that the passed promise does not resolve, but eventually throws an
+// exception. The optional second argument is an exception constructor that the
+// thrown exception is checked against with "instanceof".
+// The optional third argument is a message type string or RegExp object that is
+// compared to the message of the thrown exception.
+var assertThrowsAsync;
 
 // Assert that the passed function or eval code does not throw an exception.
 var assertDoesNotThrow;
@@ -488,27 +495,33 @@ var prettyPrinted;
         ': <' + prettyPrinted(code) + '>');
   }
 
+  function checkException(e, type_opt, cause_opt) {
+    if (type_opt !== undefined) {
+      assertEquals('function', typeof type_opt);
+      assertInstanceof(e, type_opt);
+    }
+    if (RegExp !== undefined && cause_opt instanceof RegExp) {
+      assertMatches(cause_opt, e.message, 'Error message');
+    } else if (cause_opt !== undefined) {
+      assertEquals(cause_opt, e.message, 'Error message');
+    }
+  }
+
   assertThrows = function assertThrows(code, type_opt, cause_opt) {
+    if (type_opt !== undefined && typeof type_opt !== 'function') {
+      failWithMessage(
+          'invalid use of assertThrows, maybe you want assertThrowsEquals');
+    }
     try {
       executeCode(code);
     } catch (e) {
-      if (typeof type_opt === 'function') {
-        assertInstanceof(e, type_opt);
-      } else if (type_opt !== void 0) {
-        failWithMessage(
-            'invalid use of assertThrows, maybe you want assertThrowsEquals');
-      }
-      if (arguments.length >= 3) {
-        if (cause_opt instanceof RegExp) {
-          assertMatches(cause_opt, e.message, "Error message");
-        } else {
-          assertEquals(cause_opt, e.message, "Error message");
-        }
-      }
-      // Success.
+      checkException(e, type_opt, cause_opt);
       return;
     }
-    failWithMessage("Did not throw exception");
+    let msg = 'Did not throw exception';
+    if (type_opt !== undefined && type_opt.name !== undefined)
+      msg += ', expected ' + type_opt.name;
+    failWithMessage(msg);
   };
 
   assertThrowsEquals = function assertThrowsEquals(fun, val) {
@@ -518,9 +531,24 @@ var prettyPrinted;
       assertSame(val, e);
       return;
     }
-    failWithMessage("Did not throw exception");
+    failWithMessage('Did not throw exception, expected ' + prettyPrinted(val));
   };
 
+  assertThrowsAsync = function assertThrowsAsync(promise, type_opt, cause_opt) {
+    if (type_opt !== undefined && typeof type_opt !== 'function') {
+      failWithMessage(
+          'invalid use of assertThrows, maybe you want assertThrowsEquals');
+    }
+    let msg = 'Promise did not throw exception';
+    if (type_opt !== undefined && type_opt.name !== undefined)
+      msg += ', expected ' + type_opt.name;
+    return assertPromiseResult(
+        promise,
+        // Use setTimeout to throw the error again to get out of the promise
+        // chain.
+        res => setTimeout(_ => fail('<throw>', res, msg), 0),
+        e => checkException(e, type_opt, cause_opt));
+  };
 
   assertInstanceof = function assertInstanceof(obj, type) {
     if (!(obj instanceof type)) {
@@ -584,6 +612,7 @@ var prettyPrinted;
   assertPromiseResult = function(promise, success, fail) {
     if (success !== undefined) assertEquals('function', typeof success);
     if (fail !== undefined) assertEquals('function', typeof fail);
+    assertInstanceof(promise, Promise);
     const stack = (new Error()).stack;
 
     var test_promise = promise.then(

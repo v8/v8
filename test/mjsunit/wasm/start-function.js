@@ -151,9 +151,7 @@ assertThrows(() => {instantiate(kSig_i_v, [kExprI32Const, 0]);});
 
   assertThrows(
       () => builder.instantiate(), WebAssembly.RuntimeError, /unreachable/);
-  assertPromiseResult(builder.asyncInstantiate(), assertUnreachable,
-    e => assertInstanceof(e, WebAssembly.RuntimeError));
-  assertPromiseResult(WebAssembly.instantiate(builder.toModule()),
-    assertUnreachable,
-    e => assertInstanceof(e, WebAssembly.RuntimeError));
+  assertThrowsAsync(builder.asyncInstantiate(), WebAssembly.RuntimeError);
+  assertThrowsAsync(
+      WebAssembly.instantiate(builder.toModule()), WebAssembly.RuntimeError);
 })();

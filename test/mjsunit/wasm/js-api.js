@@ -773,11 +773,7 @@ assertEq(compile, compileDesc.value);
 assertEq(compile.length, 1);
 assertEq(compile.name, 'compile');
 function assertCompileError(args, err, msg) {
-  var error = null;
-  assertPromiseResult(compile(...args), unexpectedSuccess, error => {
-    assertTrue(error instanceof err);
-    // TODO  assertTrue(Boolean(error.message.match(msg)));
-  });
+  assertThrowsAsync(compile(...args), err /* TODO , msg */);
 }
 assertCompileError([], TypeError, /requires more than 0 arguments/);
 assertCompileError(
@@ -819,11 +815,7 @@ assertEq(instantiate, instantiateDesc.value);
 assertEq(instantiate.length, 1);
 assertEq(instantiate.name, 'instantiate');
 function assertInstantiateError(args, err, msg) {
-  var error = null;
-  assertPromiseResult(instantiate(...args), unexpectedSuccess, error => {
-    assertTrue(error instanceof err);
-    // TODO assertTrue(Boolean(error.message.match(msg)));
-  });
+  assertThrowsAsync(instantiate(...args), err /* TODO , msg */);
 }
 var scratch_memory = new WebAssembly.Memory({ initial: 0 });
 assertInstantiateError([], TypeError, /requires more than 0 arguments/);

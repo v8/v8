@@ -96,11 +96,8 @@ assertFalse(WebAssembly.validate(bytes(88, 88, 88, 88, 88, 88, 88, 88)));
   print('InvalidBinaryAsyncCompilation...');
   let builder = new WasmModuleBuilder();
   builder.addFunction('f', kSig_i_i).addBody([kExprCallFunction, 0]);
-  let promise = WebAssembly.compile(builder.toBuffer());
-  assertPromiseResult(
-      promise, compiled => assertUnreachable(
-                   'should not be able to compile invalid blob.'),
-      e => assertInstanceof(e, WebAssembly.CompileError));
+  assertThrowsAsync(
+      WebAssembly.compile(builder.toBuffer()), WebAssembly.CompileError);
 })();
 
 // Multiple instances tests.

@@ -11,13 +11,9 @@ async function assertCompiles(buffer) {
 
 function assertCompileError(buffer, msg) {
   assertEquals('string', typeof msg);
-  msg = 'WebAssembly.compile(): ' + msg;
-  function checkException(e) {
-    if (!(e instanceof WebAssembly.CompileError)) throw e;
-    assertEquals(msg, e.message, 'Error message');
-  }
-  return assertPromiseResult(
-      WebAssembly.compile(buffer), assertUnreachable, checkException);
+  return assertThrowsAsync(
+      WebAssembly.compile(buffer), WebAssembly.CompileError,
+      'WebAssembly.compile(): ' + msg);
 }
 
 assertPromiseResult(async function basicCompile() {
