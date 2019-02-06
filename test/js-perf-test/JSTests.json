@@ -1305,6 +1305,22 @@
       ]
     },
     {
+      "name": "Intl",
+      "path": ["Intl"],
+      "main": "run.js",
+      "resources": [ "constructor.js" ],
+      "flags": [],
+      "results_regexp": "^%s\\-Intl\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "NewIntlCollator"},
+        {"name": "NewIntlDateTimeFormat"},
+        {"name": "NewIntlNumberFormat"},
+        {"name": "NewIntlPluralRules"},
+        {"name": "NewIntlListFormat"},
+        {"name": "NewIntlRelativeTimeFormat"}
+      ]
+    },
+    {
       "name": "Inspector",
       "path": ["Inspector"],
       "main": "run.js",
