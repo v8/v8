@@ -3625,6 +3625,10 @@ if (is_component_build) {
       ":v8_maybe_snapshot",
     ]
 
+    if (v8_use_snapshot) {
+      public_deps += [ ":v8_initializers" ]
+    }
+
     configs = [ ":internal_config" ]
 
     public_configs = [ ":external_config" ]
