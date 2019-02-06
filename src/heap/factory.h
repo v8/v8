@@ -440,6 +440,8 @@ class V8_EXPORT_PRIVATE Factory {
   Handle<BreakPointInfo> NewBreakPointInfo(int source_position);
   Handle<BreakPoint> NewBreakPoint(int id, Handle<String> condition);
   Handle<StackFrameInfo> NewStackFrameInfo();
+  Handle<StackFrameInfo> NewStackFrameInfo(Handle<FrameArray> frame_array,
+                                           int index);
   Handle<SourcePositionTableWithFrameCache>
   NewSourcePositionTableWithFrameCache(
       Handle<ByteArray> source_position_table,

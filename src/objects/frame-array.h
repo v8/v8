@@ -39,6 +39,7 @@ class FrameArray : public FixedArray {
   inline bool IsWasmFrame(int frame_ix) const;
   inline bool IsWasmInterpretedFrame(int frame_ix) const;
   inline bool IsAsmJsWasmFrame(int frame_ix) const;
+  inline bool IsAnyWasmFrame(int frame_ix) const;
   inline int FrameCount() const;
 
   void ShrinkToFit(Isolate* isolate);

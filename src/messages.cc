@@ -294,6 +294,11 @@ Handle<Object> StackFrameBase::GetEvalOrigin() {
   return FormatEvalOrigin(isolate_, GetScript()).ToHandleChecked();
 }
 
+int StackFrameBase::GetScriptId() const {
+  if (!HasScript()) return -1;
+  return GetScript()->id();
+}
+
 bool StackFrameBase::IsEval() {
   return HasScript() &&
          GetScript()->compilation_type() == Script::COMPILATION_TYPE_EVAL;
