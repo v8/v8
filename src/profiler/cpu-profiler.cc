@@ -17,6 +17,7 @@
 #include "src/log.h"
 #include "src/profiler/cpu-profiler-inl.h"
 #include "src/vm-state-inl.h"
+#include "src/wasm/wasm-engine.h"
 
 namespace v8 {
 namespace internal {
@@ -367,6 +368,7 @@ void CpuProfiler::StartProcessorIfNotStarted() {
     processor_->AddCurrentStack();
     return;
   }
+  isolate_->wasm_engine()->EnableCodeLogging(isolate_);
   Logger* logger = isolate_->logger();
   // Disable logging when using the new implementation.
   saved_is_logging_ = logger->is_logging();

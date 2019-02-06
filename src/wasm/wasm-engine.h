@@ -158,6 +158,11 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // background threads.
   void LogCode(WasmCode*);
 
+  // Enable code logging for the given Isolate. Initially, code logging is
+  // enabled if {WasmCode::ShouldBeLogged(Isolate*)} returns true during
+  // {AddIsolate}.
+  void EnableCodeLogging(Isolate*);
+
   // Create a new NativeModule. The caller is responsible for its
   // lifetime. The native module will be given some memory for code,
   // which will be page size aligned. The size of the initial memory

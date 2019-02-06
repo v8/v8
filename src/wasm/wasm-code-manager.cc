@@ -148,6 +148,9 @@ void WasmCode::RegisterTrapHandlerData() {
 bool WasmCode::HasTrapHandlerIndex() const { return trap_handler_index_ >= 0; }
 
 bool WasmCode::ShouldBeLogged(Isolate* isolate) {
+  // The return value is cached in {WasmEngine::IsolateData::log_codes}. Ensure
+  // to call {WasmEngine::EnableCodeLogging} if this return value would change
+  // for any isolate. Otherwise we might lose code events.
   return isolate->logger()->is_listening_to_code_events() ||
          isolate->is_profiling();
 }

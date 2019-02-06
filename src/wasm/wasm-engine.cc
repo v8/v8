@@ -83,7 +83,8 @@ class LogCodesTask : public Task {
 }  // namespace
 
 struct WasmEngine::IsolateInfo {
-  explicit IsolateInfo(Isolate* isolate) {
+  explicit IsolateInfo(Isolate* isolate)
+      : log_codes(WasmCode::ShouldBeLogged(isolate)) {
     v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
     v8::Platform* platform = V8::GetCurrentPlatform();
     foreground_task_runner = platform->GetForegroundTaskRunner(v8_isolate);
@@ -92,6 +93,9 @@ struct WasmEngine::IsolateInfo {
   // All native modules that are being used by this Isolate (currently only
   // grows, never shrinks).
   std::set<NativeModule*> native_modules;
+
+  // Caches whether code needs to be logged on this isolate.
+  bool log_codes;
 
   // The currently scheduled LogCodesTask.
   LogCodesTask* log_codes_task = nullptr;
@@ -467,6 +471,7 @@ void WasmEngine::LogCode(WasmCode* code) {
   for (Isolate* isolate : isolates_per_native_module_[native_module]) {
     DCHECK_EQ(1, isolates_.count(isolate));
     IsolateInfo* info = isolates_[isolate].get();
+    if (info->log_codes == false) continue;
     if (info->log_codes_task == nullptr) {
       auto new_task = base::make_unique<LogCodesTask>(
           &mutex_, &info->log_codes_task, isolate);
@@ -475,6 +480,13 @@ void WasmEngine::LogCode(WasmCode* code) {
     }
     info->log_codes_task->AddCode(code);
   }
+}
+
+void WasmEngine::EnableCodeLogging(Isolate* isolate) {
+  base::MutexGuard guard(&mutex_);
+  auto it = isolates_.find(isolate);
+  DCHECK_NE(isolates_.end(), it);
+  it->second->log_codes = true;
 }
 
 std::unique_ptr<NativeModule> WasmEngine::NewNativeModule(
