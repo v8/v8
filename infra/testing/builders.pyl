@@ -424,6 +424,7 @@
       'os': 'Windows-7-SP1',
     },
     'tests': [
+      {'name': 'mozilla'},
       {'name': 'test262'},
       {'name': 'v8testing', 'shards': 2},
     ],
@@ -467,6 +468,7 @@
       'os': 'Windows-7-SP1',
     },
     'tests': [
+      {'name': 'mozilla'},
       {'name': 'test262'},
       {'name': 'v8testing', 'shards': 2},
       {'name': 'v8testing', 'variant': 'extra'},
