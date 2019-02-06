@@ -247,25 +247,25 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
         LoadFixedArrayElement(data, JSRegExp::kIrregexpCaptureNameMapIndex);
     GotoIf(WordEqual(maybe_names, SmiZero()), &out);
 
-    // Allocate a new object to store the named capture properties.
-    // TODO(jgruber): Could be optimized by adding the object map to the heap
-    // root list.
-
-    TNode<Context> native_context = LoadNativeContext(context);
-    TNode<Map> map = CAST(LoadContextElement(
-        native_context, Context::SLOW_OBJECT_WITH_NULL_PROTOTYPE_MAP));
-    TNode<NameDictionary> properties =
-        AllocateNameDictionary(NameDictionary::kInitialCapacity);
-
-    TNode<JSObject> group_object =
-        CAST(AllocateJSObjectFromMap(map, properties));
-    StoreObjectField(result, JSRegExpResult::kGroupsOffset, group_object);
-
     // One or more named captures exist, add a property for each one.
 
     TNode<FixedArray> names = CAST(maybe_names);
     TNode<IntPtrT> names_length = LoadAndUntagFixedArrayBaseLength(names);
     CSA_ASSERT(this, IntPtrGreaterThan(names_length, IntPtrZero()));
+
+    // Allocate a new object to store the named capture properties.
+    // TODO(jgruber): Could be optimized by adding the object map to the heap
+    // root list.
+
+    TNode<IntPtrT> num_properties = WordSar(names_length, 1);
+    TNode<Context> native_context = LoadNativeContext(context);
+    TNode<Map> map = CAST(LoadContextElement(
+        native_context, Context::SLOW_OBJECT_WITH_NULL_PROTOTYPE_MAP));
+    TNode<NameDictionary> properties = AllocateNameDictionary(num_properties);
+
+    TNode<JSObject> group_object =
+        CAST(AllocateJSObjectFromMap(map, properties));
+    StoreObjectField(result, JSRegExpResult::kGroupsOffset, group_object);
 
     TVARIABLE(IntPtrT, var_i, IntPtrZero());
 
@@ -285,15 +285,32 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
       TNode<HeapObject> capture =
           CAST(LoadFixedArrayElement(result_elements, SmiUntag(index)));
 
-      // TODO(jgruber): Calling into runtime to create each property is slow.
-      // Either we should create properties entirely in CSA (should be doable),
-      // or only call runtime once and loop there.
-      CallRuntime(Runtime::kCreateDataProperty, context, group_object, name,
-                  capture);
+      // TODO(v8:8213): For maintainability, we should call a CSA/Torque
+      // implementation of CreateDataProperty instead.
+
+      // At this point the spec says to call CreateDataProperty. However, we can
+      // skip most of the steps and go straight to adding a dictionary entry
+      // because we know a bunch of useful facts:
+      // - All keys are non-numeric internalized strings
+      // - No keys repeat
+      // - Receiver has no prototype
+      // - Receiver isn't used as a prototype
+      // - Receiver isn't any special object like a Promise intrinsic object
+      // - Receiver is extensible
+      // - Receiver has no interceptors
+      Label add_dictionary_property_slow(this, Label::kDeferred);
+      Add<NameDictionary>(properties, name, capture,
+                          &add_dictionary_property_slow);
 
       var_i = i_plus_2;
       Branch(IntPtrGreaterThanOrEqual(var_i.value(), names_length), &out,
              &loop);
+
+      BIND(&add_dictionary_property_slow);
+      // If the dictionary needs resizing, the above Add call will jump here
+      // before making any changes. This shouldn't happen because we allocated
+      // the dictionary with enough space above.
+      Unreachable();
     }
   }
 
