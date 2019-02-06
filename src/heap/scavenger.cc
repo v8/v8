@@ -245,6 +245,8 @@ void ScavengerCollector::CollectGarbage() {
       // Finalize parallel scavenging.
       TRACE_GC(heap_->tracer(), GCTracer::Scope::SCAVENGER_SCAVENGE_FINALIZE);
 
+      DCHECK(surviving_new_large_objects_.empty());
+
       for (int i = 0; i < num_scavenge_tasks; i++) {
         scavengers[i]->Finalize();
         delete scavengers[i];

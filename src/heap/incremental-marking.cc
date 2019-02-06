@@ -209,6 +209,11 @@ void IncrementalMarking::DeactivateIncrementalWriteBarrier() {
   DeactivateIncrementalWriteBarrierForSpace(heap_->code_space());
   DeactivateIncrementalWriteBarrierForSpace(heap_->new_space());
 
+  for (LargePage* p : *heap_->new_lo_space()) {
+    p->SetYoungGenerationPageFlags(false);
+    DCHECK(p->IsLargePage());
+  }
+
   for (LargePage* p : *heap_->lo_space()) {
     p->SetOldGenerationPageFlags(false);
   }
@@ -238,6 +243,11 @@ void IncrementalMarking::ActivateIncrementalWriteBarrier() {
   ActivateIncrementalWriteBarrier(heap_->map_space());
   ActivateIncrementalWriteBarrier(heap_->code_space());
   ActivateIncrementalWriteBarrier(heap_->new_space());
+
+  for (LargePage* p : *heap_->new_lo_space()) {
+    p->SetYoungGenerationPageFlags(true);
+    DCHECK(p->IsLargePage());
+  }
 
   for (LargePage* p : *heap_->lo_space()) {
     p->SetOldGenerationPageFlags(true);

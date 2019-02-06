@@ -2025,6 +2025,7 @@ class Heap {
   friend class MarkCompactCollector;
   friend class MarkCompactCollectorBase;
   friend class MinorMarkCompactCollector;
+  friend class NewLargeObjectSpace;
   friend class NewSpace;
   friend class ObjectStatsCollector;
   friend class Page;

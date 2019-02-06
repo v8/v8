@@ -19017,16 +19017,9 @@ TEST(GetHeapSpaceStatistics) {
     v8::HeapSpaceStatistics space_statistics;
     isolate->GetHeapSpaceStatistics(&space_statistics, i);
     CHECK_NOT_NULL(space_statistics.space_name());
-    if (strcmp(space_statistics.space_name(), "new_large_object_space") == 0 ||
-        strcmp(space_statistics.space_name(), "code_large_object_space") == 0) {
-      continue;
-    }
-    CHECK_GT(space_statistics.space_size(), 0u);
     total_size += space_statistics.space_size();
-    CHECK_GT(space_statistics.space_used_size(), 0u);
     total_used_size += space_statistics.space_used_size();
     total_available_size += space_statistics.space_available_size();
-    CHECK_GT(space_statistics.physical_space_size(), 0u);
     total_physical_size += space_statistics.physical_space_size();
   }
   total_available_size += CcTest::heap()->memory_allocator()->Available();

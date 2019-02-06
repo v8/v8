@@ -3653,7 +3653,8 @@ void LargeObjectSpace::Verify(Isolate* isolate) {
           object->IsFreeSpace() || object->IsFeedbackMetadata() ||
           object->IsContext() ||
           object->IsUncompiledDataWithoutPreparseData() ||
-          object->IsPreparseData())) {
+          object->IsPreparseData()) &&
+        !FLAG_young_generation_large_objects) {
       FATAL("Found invalid Object (instance_type=%i) in large object space.",
             object->map()->instance_type());
     }
@@ -3736,25 +3737,40 @@ void Page::Print() {
 
 #endif  // DEBUG
 
-NewLargeObjectSpace::NewLargeObjectSpace(Heap* heap)
-    : LargeObjectSpace(heap, NEW_LO_SPACE), pending_object_(0) {}
+NewLargeObjectSpace::NewLargeObjectSpace(Heap* heap, size_t capacity)
+    : LargeObjectSpace(heap, NEW_LO_SPACE),
+      pending_object_(0),
+      capacity_(capacity) {}
 
 AllocationResult NewLargeObjectSpace::AllocateRaw(int object_size) {
-  // TODO(hpayer): Add heap growing strategy here.
+  // Do not allocate more objects if promoting the existing object would exceed
+  // the old generation capacity.
+  if (!heap()->CanExpandOldGeneration(SizeOfObjects())) {
+    return AllocationResult::Retry(identity());
+  }
+
+  // Allocation for the first object must succeed independent from the capacity.
+  if (SizeOfObjects() > 0 && static_cast<size_t>(object_size) > Available()) {
+    return AllocationResult::Retry(identity());
+  }
+
   LargePage* page = AllocateLargePage(object_size, NOT_EXECUTABLE);
   if (page == nullptr) return AllocationResult::Retry(identity());
+
+  // The size of the first object may exceed the capacity.
+  capacity_ = Max(capacity_, SizeOfObjects());
+
   HeapObject result = page->GetObject();
   page->SetYoungGenerationPageFlags(heap()->incremental_marking()->IsMarking());
   page->SetFlag(MemoryChunk::TO_PAGE);
   pending_object_.store(result->address(), std::memory_order_relaxed);
   page->InitializationMemoryFence();
+  DCHECK(page->IsLargePage());
+  DCHECK_EQ(page->owner()->identity(), NEW_LO_SPACE);
   return result;
 }
 
-size_t NewLargeObjectSpace::Available() {
-  // TODO(hpayer): Update as soon as we have a growing strategy.
-  return 0;
-}
+size_t NewLargeObjectSpace::Available() { return capacity_ - SizeOfObjects(); }
 
 void NewLargeObjectSpace::Flip() {
   for (LargePage* chunk = first_page(); chunk != nullptr;
@@ -3776,6 +3792,10 @@ void NewLargeObjectSpace::FreeAllObjects() {
   // Right-trimming does not update the objects_size_ counter. We are lazily
   // updating it after every GC.
   objects_size_ = 0;
+}
+
+void NewLargeObjectSpace::SetCapacity(size_t capacity) {
+  capacity_ = Max(capacity, SizeOfObjects());
 }
 
 CodeLargeObjectSpace::CodeLargeObjectSpace(Heap* heap)

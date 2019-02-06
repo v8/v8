@@ -3080,7 +3080,7 @@ class LargeObjectSpace : public Space {
 
 class NewLargeObjectSpace : public LargeObjectSpace {
  public:
-  explicit NewLargeObjectSpace(Heap* heap);
+  NewLargeObjectSpace(Heap* heap, size_t capacity);
 
   V8_WARN_UNUSED_RESULT AllocationResult AllocateRaw(int object_size);
 
@@ -3090,6 +3090,8 @@ class NewLargeObjectSpace : public LargeObjectSpace {
   void Flip();
 
   void FreeAllObjects();
+
+  void SetCapacity(size_t capacity);
 
   // The last allocated object that is not guaranteed to be initialized when
   // the concurrent marker visits it.
@@ -3101,6 +3103,7 @@ class NewLargeObjectSpace : public LargeObjectSpace {
 
  private:
   std::atomic<Address> pending_object_;
+  size_t capacity_;
 };
 
 class CodeLargeObjectSpace : public LargeObjectSpace {

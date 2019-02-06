@@ -1176,6 +1176,7 @@ void Heap::CollectAllAvailableGarbage(GarbageCollectionReason gc_reason) {
 
   set_current_gc_flags(kNoGCFlags);
   new_space_->Shrink();
+  new_lo_space_->SetCapacity(new_space_->Capacity());
   UncommitFromSpace();
   EagerlyFreeExternalMemory();
 
@@ -1945,6 +1946,7 @@ void Heap::CheckNewSpaceExpansionCriteria() {
     new_space_->Grow();
     survived_since_last_expansion_ = 0;
   }
+  new_lo_space()->SetCapacity(new_space()->Capacity());
 }
 
 void Heap::EvacuateYoungGeneration() {
@@ -2924,6 +2926,7 @@ void Heap::ReduceNewSpaceSize() {
       ((allocation_throughput != 0) &&
        (allocation_throughput < kLowAllocationThroughput))) {
     new_space_->Shrink();
+    new_lo_space_->SetCapacity(new_space_->Capacity());
     UncommitFromSpace();
   }
 }
@@ -4466,7 +4469,8 @@ void Heap::SetUp() {
   space_[CODE_SPACE] = code_space_ = new CodeSpace(this);
   space_[MAP_SPACE] = map_space_ = new MapSpace(this);
   space_[LO_SPACE] = lo_space_ = new LargeObjectSpace(this);
-  space_[NEW_LO_SPACE] = new_lo_space_ = new NewLargeObjectSpace(this);
+  space_[NEW_LO_SPACE] = new_lo_space_ =
+      new NewLargeObjectSpace(this, new_space_->Capacity());
   space_[CODE_LO_SPACE] = code_lo_space_ = new CodeLargeObjectSpace(this);
 
   for (int i = 0; i < static_cast<int>(v8::Isolate::kUseCounterFeatureCount);

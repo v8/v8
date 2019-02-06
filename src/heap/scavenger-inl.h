@@ -326,7 +326,7 @@ SlotCallbackResult Scavenger::EvacuateShortcutCandidate(Map map,
       HeapObjectReference::Update(slot, target);
       object->map_slot().Release_Store(
           MapWord::FromForwardingAddress(target).ToMap());
-      return Heap::InToPage(target) ? KEEP_SLOT : REMOVE_SLOT;
+      return Heap::InYoungGeneration(target) ? KEEP_SLOT : REMOVE_SLOT;
     }
     Map map = first_word.ToMap();
     SlotCallbackResult result =
