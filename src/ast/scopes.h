@@ -474,6 +474,8 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // Find the innermost outer scope that needs a context.
   Scope* GetOuterScopeWithContext();
 
+  bool HasThisReference() const;
+
   // Analyze() must have been called once to create the ScopeInfo.
   Handle<ScopeInfo> scope_info() const {
     DCHECK(!scope_info_.is_null());
@@ -754,6 +756,8 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
     return var;
   }
 
+  void DeserializeReceiver(AstValueFactory* ast_value_factory);
+
 #ifdef DEBUG
   void set_is_being_lazily_parsed(bool is_being_lazily_parsed) {
     is_being_lazily_parsed_ = is_being_lazily_parsed;
@@ -837,17 +841,12 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
 
   // The variable corresponding to the 'this' value.
   Variable* receiver() {
-    DCHECK(has_this_declaration());
+    DCHECK(has_this_declaration() || is_script_scope());
     DCHECK_NOT_NULL(receiver_);
     return receiver_;
   }
 
-  // TODO(wingo): Add a GLOBAL_SCOPE scope type which will lexically allocate
-  // "this" (and no other variable) on the native context.  Script scopes then
-  // will not have a "this" declaration.
-  bool has_this_declaration() const {
-    return (is_function_scope() && !is_arrow_scope()) || is_module_scope();
-  }
+  bool has_this_declaration() const { return has_this_declaration_; }
 
   // The variable corresponding to the 'new.target' value.
   Variable* new_target_var() { return new_target_; }
@@ -1019,6 +1018,13 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
     return preparse_data_builder_;
   }
 
+  void set_has_this_reference() { has_this_reference_ = true; }
+  bool has_this_reference() const { return has_this_reference_; }
+  void UsesThis() {
+    set_has_this_reference();
+    GetReceiverScope()->receiver()->ForceContextAllocation();
+  }
+
  private:
   V8_INLINE void AllocateParameter(Variable* var, int index);
 
@@ -1055,11 +1061,13 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   bool is_skipped_function_ : 1;
   bool has_inferred_function_name_ : 1;
   bool has_checked_syntax_ : 1;
-
-  int num_parameters_ = 0;
+  bool has_this_reference_ : 1;
+  bool has_this_declaration_ : 1;
 
   // If the scope is a function scope, this is the function kind.
   const FunctionKind function_kind_;
+
+  int num_parameters_ = 0;
 
   // Parameter list in source order.
   ZonePtrList<Variable> params_;

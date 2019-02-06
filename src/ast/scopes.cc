@@ -110,10 +110,8 @@ DeclarationScope::DeclarationScope(Zone* zone,
     : Scope(zone), function_kind_(kNormalFunction), params_(4, zone) {
   DCHECK_EQ(scope_type_, SCRIPT_SCOPE);
   SetDefaults();
-
-  // Make sure that if we don't find the global 'this', it won't be declared as
-  // a regular dynamic global by predeclaring it with the right variable kind.
-  DeclareDynamicGlobal(ast_value_factory->this_string(), THIS_VARIABLE, this);
+  receiver_ = DeclareDynamicGlobal(ast_value_factory->this_string(),
+                                   THIS_VARIABLE, this);
 }
 
 DeclarationScope::DeclarationScope(Zone* zone, Scope* outer_scope,
@@ -241,6 +239,9 @@ void DeclarationScope::SetDefaults() {
   has_arguments_parameter_ = false;
   scope_uses_super_property_ = false;
   has_checked_syntax_ = false;
+  has_this_reference_ = false;
+  has_this_declaration_ =
+      (is_function_scope() && !is_arrow_scope()) || is_module_scope();
   has_rest_ = false;
   receiver_ = nullptr;
   new_target_ = nullptr;
@@ -333,15 +334,16 @@ Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
   Scope* outer_scope = nullptr;
   while (!scope_info.is_null()) {
     if (scope_info->scope_type() == WITH_SCOPE) {
-      // For scope analysis, debug-evaluate is equivalent to a with scope.
-      outer_scope =
-          new (zone) Scope(zone, WITH_SCOPE, handle(scope_info, isolate));
-
-      // TODO(yangguo): Remove once debug-evaluate properly keeps track of the
-      // function scope in which we are evaluating.
       if (scope_info->IsDebugEvaluateScope()) {
+        outer_scope = new (zone)
+            DeclarationScope(zone, FUNCTION_SCOPE, handle(scope_info, isolate));
         outer_scope->set_is_debug_evaluate_scope();
+      } else {
+        // For scope analysis, debug-evaluate is equivalent to a with scope.
+        outer_scope =
+            new (zone) Scope(zone, WITH_SCOPE, handle(scope_info, isolate));
       }
+
     } else if (scope_info->scope_type() == SCRIPT_SCOPE) {
       // If we reach a script scope, it's the outermost scope. Install the
       // scope info of this script context onto the existing script scope to
@@ -571,20 +573,16 @@ bool DeclarationScope::Analyze(ParseInfo* info) {
 }
 
 void DeclarationScope::DeclareThis(AstValueFactory* ast_value_factory) {
-  DCHECK(!already_resolved_);
-  DCHECK(is_declaration_scope());
   DCHECK(has_this_declaration());
 
   bool derived_constructor = IsDerivedConstructor(function_kind_);
-  bool was_added;
-  Variable* var =
-      Declare(zone(), ast_value_factory->this_string(),
-              derived_constructor ? VariableMode::kConst : VariableMode::kVar,
-              THIS_VARIABLE,
-              derived_constructor ? kNeedsInitialization : kCreatedInitialized,
-              kNotAssigned, &was_added);
-  DCHECK(was_added);
-  receiver_ = var;
+
+  receiver_ = new (zone())
+      Variable(this, ast_value_factory->this_string(),
+               derived_constructor ? VariableMode::kConst : VariableMode::kVar,
+               THIS_VARIABLE,
+               derived_constructor ? kNeedsInitialization : kCreatedInitialized,
+               kNotAssigned);
 }
 
 void DeclarationScope::DeclareArguments(AstValueFactory* ast_value_factory) {
@@ -819,18 +817,14 @@ Variable* Scope::LookupInScopeInfo(const AstRawString* name, Scope* cache) {
     return cache->variables_.Lookup(name);
   }
 
-  VariableKind kind = NORMAL_VARIABLE;
-  if (location == VariableLocation::CONTEXT &&
-      index == scope_info_->ReceiverContextSlotIndex()) {
-    kind = THIS_VARIABLE;
+  if (!is_module_scope()) {
+    DCHECK_NE(index, scope_info_->ReceiverContextSlotIndex());
   }
-  // TODO(marja, rossberg): Correctly declare FUNCTION, CLASS, NEW_TARGET, and
-  // ARGUMENTS bindings as their corresponding VariableKind.
 
   bool was_added;
   Variable* var =
-      cache->variables_.Declare(zone(), this, name, mode, kind, init_flag,
-                                maybe_assigned_flag, &was_added);
+      cache->variables_.Declare(zone(), this, name, mode, NORMAL_VARIABLE,
+                                init_flag, maybe_assigned_flag, &was_added);
   DCHECK(was_added);
   var->AllocateTo(location, index);
   return var;
@@ -1152,6 +1146,21 @@ const AstRawString* Scope::FindVariableDeclaredIn(Scope* scope,
   return nullptr;
 }
 
+void DeclarationScope::DeserializeReceiver(AstValueFactory* ast_value_factory) {
+  if (is_script_scope()) {
+    DCHECK_NOT_NULL(receiver_);
+    return;
+  }
+  DCHECK(has_this_declaration());
+  DeclareThis(ast_value_factory);
+  if (is_debug_evaluate_scope()) {
+    receiver_->AllocateTo(VariableLocation::LOOKUP, -1);
+  } else {
+    receiver_->AllocateTo(VariableLocation::CONTEXT,
+                          scope_info_->ReceiverContextSlotIndex());
+  }
+}
+
 bool DeclarationScope::AllocateVariables(ParseInfo* info) {
   // Module variables must be allocated before variable resolution
   // to ensure that UpdateNeedsHoleCheck() can detect import variables.
@@ -1166,6 +1175,21 @@ bool DeclarationScope::AllocateVariables(ParseInfo* info) {
   if (!was_lazily_parsed()) AllocateVariablesRecursively();
 
   return true;
+}
+
+bool Scope::HasThisReference() const {
+  if (is_declaration_scope() && AsDeclarationScope()->has_this_reference()) {
+    return true;
+  }
+
+  for (Scope* scope = inner_scope_; scope != nullptr; scope = scope->sibling_) {
+    if (!scope->is_declaration_scope() ||
+        !scope->AsDeclarationScope()->has_this_declaration()) {
+      if (scope->HasThisReference()) return true;
+    }
+  }
+
+  return false;
 }
 
 bool Scope::AllowsLazyParsingWithoutUnresolvedVariables(
@@ -1260,9 +1284,9 @@ bool Scope::ShouldBanArguments() {
 
 DeclarationScope* Scope::GetReceiverScope() {
   Scope* scope = this;
-  while (!scope->is_script_scope() &&
-         (!scope->is_function_scope() ||
-          scope->AsDeclarationScope()->is_arrow_scope())) {
+  while (!scope->is_declaration_scope() ||
+         (!scope->is_script_scope() &&
+          !scope->AsDeclarationScope()->has_this_declaration())) {
     scope = scope->outer_scope();
   }
   return scope->AsDeclarationScope();
@@ -1805,16 +1829,6 @@ template Variable* Scope::Lookup<Scope::kDeserializedScope>(
     VariableProxy* proxy, Scope* scope, Scope* outer_scope_end,
     Scope* entry_point, bool force_context_allocation);
 
-namespace {
-bool CanBeShadowed(Scope* scope, Variable* var) {
-  if (var == nullptr) return false;
-
-  // "this" can't be shadowed by "eval"-introduced bindings or by "with" scopes.
-  // TODO(wingo): There are other variables in this category; add them.
-  return !var->is_this();
-}
-};  // namespace
-
 Variable* Scope::LookupWith(VariableProxy* proxy, Scope* scope,
                             Scope* outer_scope_end, Scope* entry_point,
                             bool force_context_allocation) {
@@ -1827,7 +1841,7 @@ Variable* Scope::LookupWith(VariableProxy* proxy, Scope* scope,
           : Lookup<kDeserializedScope>(proxy, scope->outer_scope_,
                                        outer_scope_end, entry_point);
 
-  if (!CanBeShadowed(scope, var)) return var;
+  if (var == nullptr) return var;
 
   // The current scope is a with scope, so the variable binding can not be
   // statically resolved. However, note that it was necessary to do a lookup
@@ -1861,7 +1875,7 @@ Variable* Scope::LookupSloppyEval(VariableProxy* proxy, Scope* scope,
                                  nullptr, force_context_allocation)
           : Lookup<kDeserializedScope>(proxy, scope->outer_scope_,
                                        outer_scope_end, entry);
-  if (!CanBeShadowed(scope, var)) return var;
+  if (var == nullptr) return var;
 
   // A variable binding may have been found in an outer scope, but the current
   // scope makes a sloppy 'eval' call, so the found variable may not be the
@@ -1951,12 +1965,6 @@ void UpdateNeedsHoleCheck(Variable* var, VariableProxy* proxy, Scope* scope) {
     return SetNeedsHoleCheck(var, proxy);
   }
 
-  if (var->is_this()) {
-    DCHECK(IsDerivedConstructor(scope->GetClosureScope()->function_kind()));
-    // TODO(littledan): implement 'this' hole check elimination.
-    return SetNeedsHoleCheck(var, proxy);
-  }
-
   // We should always have valid source positions.
   DCHECK_NE(var->initializer_position(), kNoSourcePosition);
   DCHECK_NE(proxy->position(), kNoSourcePosition);
@@ -2039,7 +2047,7 @@ bool Scope::MustAllocate(Variable* var) {
   // Give var a read/write use if there is a chance it might be accessed
   // via an eval() call.  This is only possible if the variable has a
   // visible name.
-  if ((var->is_this() || !var->raw_name()->IsEmpty()) &&
+  if (!var->raw_name()->IsEmpty() &&
       (inner_scope_calls_eval_ || is_catch_scope() || is_script_scope())) {
     var->set_is_used();
     if (inner_scope_calls_eval_) var->set_maybe_assigned();

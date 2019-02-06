@@ -3108,7 +3108,8 @@ BytecodeGenerator::AssignmentLhsData BytecodeGenerator::PrepareAssignmentLhs(
           register_allocator()->NewRegisterList(4);
       SuperPropertyReference* super_property =
           property->obj()->AsSuperPropertyReference();
-      VisitForRegisterValue(super_property->this_var(), super_property_args[0]);
+      BuildThisAccess();
+      builder()->StoreAccumulatorInRegister(super_property_args[0]);
       VisitForRegisterValue(super_property->home_object(),
                             super_property_args[1]);
       builder()
@@ -3122,7 +3123,8 @@ BytecodeGenerator::AssignmentLhsData BytecodeGenerator::PrepareAssignmentLhs(
           register_allocator()->NewRegisterList(4);
       SuperPropertyReference* super_property =
           property->obj()->AsSuperPropertyReference();
-      VisitForRegisterValue(super_property->this_var(), super_property_args[0]);
+      BuildThisAccess();
+      builder()->StoreAccumulatorInRegister(super_property_args[0]);
       VisitForRegisterValue(super_property->home_object(),
                             super_property_args[1]);
       VisitForRegisterValue(property->key(), super_property_args[2]);
@@ -4165,7 +4167,8 @@ void BytecodeGenerator::VisitNamedSuperPropertyLoad(Property* property,
   SuperPropertyReference* super_property =
       property->obj()->AsSuperPropertyReference();
   RegisterList args = register_allocator()->NewRegisterList(3);
-  VisitForRegisterValue(super_property->this_var(), args[0]);
+  BuildThisAccess();
+  builder()->StoreAccumulatorInRegister(args[0]);
   VisitForRegisterValue(super_property->home_object(), args[1]);
 
   builder()->SetExpressionPosition(property);
@@ -4185,7 +4188,8 @@ void BytecodeGenerator::VisitKeyedSuperPropertyLoad(Property* property,
   SuperPropertyReference* super_property =
       property->obj()->AsSuperPropertyReference();
   RegisterList args = register_allocator()->NewRegisterList(3);
-  VisitForRegisterValue(super_property->this_var(), args[0]);
+  BuildThisAccess();
+  builder()->StoreAccumulatorInRegister(args[0]);
   VisitForRegisterValue(super_property->home_object(), args[1]);
   VisitForRegisterValue(property->key(), args[2]);
 
@@ -4453,8 +4457,8 @@ void BytecodeGenerator::VisitCallSuper(Call* expr) {
   // Default constructors don't need have to do the assignment because
   // 'this' isn't accessed in default constructors.
   if (!IsDefaultConstructor(info()->literal()->kind())) {
-    BuildVariableAssignment(super->this_var()->var(), Token::INIT,
-                            HoleCheckMode::kRequired);
+    Variable* var = closure_scope()->GetReceiverScope()->receiver();
+    BuildVariableAssignment(var, Token::INIT, HoleCheckMode::kRequired);
   }
 
   // The derived constructor has the correct bit set always, so we
@@ -4584,7 +4588,7 @@ void BytecodeGenerator::VisitDelete(UnaryOperation* unary) {
     Register object = VisitForRegisterValue(property->obj());
     VisitForAccumulatorValue(property->key());
     builder()->Delete(object, language_mode());
-  } else if (expr->IsVariableProxy() && !expr->AsVariableProxy()->is_this() &&
+  } else if (expr->IsVariableProxy() &&
              !expr->AsVariableProxy()->is_new_target()) {
     // Delete of an unqualified identifier is allowed in sloppy mode but is
     // not allowed in strict mode.
@@ -4667,7 +4671,8 @@ void BytecodeGenerator::VisitCountOperation(CountOperation* expr) {
       RegisterList load_super_args = super_property_args.Truncate(3);
       SuperPropertyReference* super_property =
           property->obj()->AsSuperPropertyReference();
-      VisitForRegisterValue(super_property->this_var(), load_super_args[0]);
+      BuildThisAccess();
+      builder()->StoreAccumulatorInRegister(load_super_args[0]);
       VisitForRegisterValue(super_property->home_object(), load_super_args[1]);
       builder()
           ->LoadLiteral(property->key()->AsLiteral()->AsRawPropertyName())
@@ -4680,7 +4685,8 @@ void BytecodeGenerator::VisitCountOperation(CountOperation* expr) {
       RegisterList load_super_args = super_property_args.Truncate(3);
       SuperPropertyReference* super_property =
           property->obj()->AsSuperPropertyReference();
-      VisitForRegisterValue(super_property->this_var(), load_super_args[0]);
+      BuildThisAccess();
+      builder()->StoreAccumulatorInRegister(load_super_args[0]);
       VisitForRegisterValue(super_property->home_object(), load_super_args[1]);
       VisitForRegisterValue(property->key(), load_super_args[2]);
       builder()->CallRuntime(Runtime::kLoadKeyedFromSuper, load_super_args);
@@ -5134,8 +5140,19 @@ void BytecodeGenerator::VisitTemplateLiteral(TemplateLiteral* expr) {
   }
 }
 
-void BytecodeGenerator::VisitThisFunction(ThisFunction* expr) {
-  builder()->LoadAccumulatorWithRegister(Register::function_closure());
+void BytecodeGenerator::BuildThisAccess() {
+  DeclarationScope* receiver_scope = closure_scope()->GetReceiverScope();
+  Variable* var = receiver_scope->receiver();
+  // TODO(littledan): implement 'this' hole check elimination.
+  HoleCheckMode hole_check_mode =
+      IsDerivedConstructor(receiver_scope->function_kind())
+          ? HoleCheckMode::kRequired
+          : HoleCheckMode::kElided;
+  BuildVariableLoad(var, hole_check_mode);
+}
+
+void BytecodeGenerator::VisitThisExpression(ThisExpression* expr) {
+  BuildThisAccess();
 }
 
 void BytecodeGenerator::VisitSuperCallReference(SuperCallReference* expr) {

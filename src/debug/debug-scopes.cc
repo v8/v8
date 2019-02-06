@@ -155,6 +155,11 @@ void ScopeIterator::TryParseAndRetrieveScopes(ScopeIterator::Option option) {
       DCHECK(non_locals_.is_null());
       non_locals_ = info_->literal()->scope()->CollectNonLocals(
           isolate_, info_, StringSet::New(isolate_));
+      if (!closure_scope_->has_this_declaration() &&
+          closure_scope_->HasThisReference()) {
+        non_locals_ = StringSet::Add(isolate_, non_locals_,
+                                     isolate_->factory()->this_string());
+      }
     }
 
     CHECK(DeclarationScope::Analyze(info_));
@@ -304,7 +309,8 @@ ScopeIterator::ScopeType ScopeIterator::Type() const {
     switch (current_scope_->scope_type()) {
       case FUNCTION_SCOPE:
         DCHECK_IMPLIES(current_scope_->NeedsContext(),
-                       context_->IsFunctionContext());
+                       context_->IsFunctionContext() ||
+                           context_->IsDebugEvaluateContext());
         return ScopeTypeLocal;
       case MODULE_SCOPE:
         DCHECK_IMPLIES(current_scope_->NeedsContext(),
@@ -316,9 +322,8 @@ ScopeIterator::ScopeType ScopeIterator::Type() const {
             context_->IsScriptContext() || context_->IsNativeContext());
         return ScopeTypeScript;
       case WITH_SCOPE:
-        DCHECK_IMPLIES(
-            current_scope_->NeedsContext(),
-            context_->IsWithContext() || context_->IsDebugEvaluateContext());
+        DCHECK_IMPLIES(current_scope_->NeedsContext(),
+                       context_->IsWithContext());
         return ScopeTypeWith;
       case CATCH_SCOPE:
         DCHECK(context_->IsCatchContext());
@@ -340,7 +345,8 @@ ScopeIterator::ScopeType ScopeIterator::Type() const {
     // fake it.
     return seen_script_scope_ ? ScopeTypeGlobal : ScopeTypeScript;
   }
-  if (context_->IsFunctionContext() || context_->IsEvalContext()) {
+  if (context_->IsFunctionContext() || context_->IsEvalContext() ||
+      context_->IsDebugEvaluateContext()) {
     return ScopeTypeClosure;
   }
   if (context_->IsCatchContext()) {
@@ -355,7 +361,7 @@ ScopeIterator::ScopeType ScopeIterator::Type() const {
   if (context_->IsScriptContext()) {
     return ScopeTypeScript;
   }
-  DCHECK(context_->IsWithContext() || context_->IsDebugEvaluateContext());
+  DCHECK(context_->IsWithContext());
   return ScopeTypeWith;
 }
 
@@ -605,15 +611,20 @@ bool ScopeIterator::VisitContextLocals(const Visitor& visitor,
 }
 
 bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode) const {
-  for (Variable* var : *current_scope_->locals()) {
-    if (var->is_this()) {
-      // Only collect "this" for DebugEvaluate. The debugger will manually add
-      // "this" in a different way, and if we'd add it here as well, it shows up
-      // twice.
-      if (mode == Mode::ALL) continue;
-    } else if (ScopeInfo::VariableIsSynthetic(*var->name())) {
-      continue;
+  if (mode == Mode::STACK && current_scope_->is_declaration_scope() &&
+      current_scope_->AsDeclarationScope()->has_this_declaration()) {
+    Handle<Object> receiver = frame_inspector_ == nullptr
+                                  ? handle(generator_->receiver(), isolate_)
+                                  : frame_inspector_->GetReceiver();
+    if (receiver->IsOptimizedOut(isolate_) || receiver->IsTheHole(isolate_)) {
+      receiver = isolate_->factory()->undefined_value();
     }
+    if (visitor(isolate_->factory()->this_string(), receiver)) return true;
+  }
+
+  for (Variable* var : *current_scope_->locals()) {
+    DCHECK(!var->is_this());
+    if (ScopeInfo::VariableIsSynthetic(*var->name())) continue;
 
     int index = var->index();
     Handle<Object> value;
@@ -623,30 +634,20 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode) const {
         break;
 
       case VariableLocation::UNALLOCATED:
-        if (!var->is_this()) continue;
-        // No idea why this diverges...
-        value = frame_inspector_->GetReceiver();
-        break;
+        continue;
 
       case VariableLocation::PARAMETER: {
         if (frame_inspector_ == nullptr) {
           // Get the variable from the suspended generator.
           DCHECK(!generator_.is_null());
-          if (var->is_this()) {
-            value = handle(generator_->receiver(), isolate_);
-          } else {
-            FixedArray parameters_and_registers =
-                generator_->parameters_and_registers();
-            DCHECK_LT(index, parameters_and_registers->length());
-            value = handle(parameters_and_registers->get(index), isolate_);
-          }
+          FixedArray parameters_and_registers =
+              generator_->parameters_and_registers();
+          DCHECK_LT(index, parameters_and_registers->length());
+          value = handle(parameters_and_registers->get(index), isolate_);
         } else {
-          value = var->is_this() ? frame_inspector_->GetReceiver()
-                                 : frame_inspector_->GetParameter(index);
+          value = frame_inspector_->GetParameter(index);
 
           if (value->IsOptimizedOut(isolate_)) {
-            value = isolate_->factory()->undefined_value();
-          } else if (var->is_this() && value->IsTheHole(isolate_)) {
             value = isolate_->factory()->undefined_value();
           }
         }
@@ -727,7 +728,7 @@ void ScopeIterator::VisitLocalScope(const Visitor& visitor, Mode mode) const {
       // but don't force |this| to be context-allocated. Otherwise we'd find the
       // wrong |this| value.
       if (!closure_scope_->has_this_declaration() &&
-          !non_locals_->Has(isolate_, isolate_->factory()->this_string())) {
+          !closure_scope_->HasThisReference()) {
         if (visitor(isolate_->factory()->this_string(),
                     isolate_->factory()->undefined_value()))
           return;

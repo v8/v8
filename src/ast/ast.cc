@@ -175,8 +175,8 @@ VariableProxy::VariableProxy(Variable* var, int start_position)
     : Expression(start_position, kVariableProxy),
       raw_name_(var->raw_name()),
       next_unresolved_(nullptr) {
-  bit_field_ |= IsThisField::encode(var->is_this()) |
-                IsAssignedField::encode(false) |
+  DCHECK(!var->is_this());
+  bit_field_ |= IsAssignedField::encode(false) |
                 IsResolvedField::encode(false) |
                 HoleCheckModeField::encode(HoleCheckMode::kElided);
   BindTo(var);
@@ -191,7 +191,7 @@ VariableProxy::VariableProxy(const VariableProxy* copy_from)
 }
 
 void VariableProxy::BindTo(Variable* var) {
-  DCHECK((is_this() && var->is_this()) || raw_name() == var->raw_name());
+  DCHECK_EQ(raw_name(), var->raw_name());
   set_var(var);
   set_is_resolved();
   var->set_is_used();

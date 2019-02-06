@@ -100,7 +100,7 @@ namespace internal {
   V(SuperCallReference)         \
   V(SuperPropertyReference)     \
   V(TemplateLiteral)            \
-  V(ThisFunction)               \
+  V(ThisExpression)             \
   V(Throw)                      \
   V(UnaryOperation)             \
   V(VariableProxy)              \
@@ -1516,11 +1516,15 @@ class ArrayLiteral final : public AggregateLiteral {
 
 enum class HoleCheckMode { kRequired, kElided };
 
+class ThisExpression final : public Expression {
+ private:
+  friend class AstNodeFactory;
+  ThisExpression() : Expression(kNoSourcePosition, kThisExpression) {}
+};
+
 class VariableProxy final : public Expression {
  public:
-  bool IsValidReferenceExpression() const {
-    return !is_this() && !is_new_target();
-  }
+  bool IsValidReferenceExpression() const { return !is_new_target(); }
 
   Handle<String> name() const { return raw_name()->string(); }
   const AstRawString* raw_name() const {
@@ -1540,8 +1544,6 @@ class VariableProxy final : public Expression {
   Scanner::Location location() {
     return Scanner::Location(position(), position() + raw_name()->length());
   }
-
-  bool is_this() const { return IsThisField::decode(bit_field_); }
 
   bool is_assigned() const { return IsAssignedField::decode(bit_field_); }
   void set_is_assigned() {
@@ -1615,8 +1617,8 @@ class VariableProxy final : public Expression {
       : Expression(start_position, kVariableProxy),
         raw_name_(name),
         next_unresolved_(nullptr) {
-    bit_field_ |= IsThisField::encode(variable_kind == THIS_VARIABLE) |
-                  IsAssignedField::encode(false) |
+    DCHECK_NE(THIS_VARIABLE, variable_kind);
+    bit_field_ |= IsAssignedField::encode(false) |
                   IsResolvedField::encode(false) |
                   IsRemovedFromUnresolvedField::encode(false) |
                   HoleCheckModeField::encode(HoleCheckMode::kElided);
@@ -1624,9 +1626,8 @@ class VariableProxy final : public Expression {
 
   explicit VariableProxy(const VariableProxy* copy_from);
 
-  class IsThisField : public BitField<bool, Expression::kNextBitFieldIndex, 1> {
-  };
-  class IsAssignedField : public BitField<bool, IsThisField::kNext, 1> {};
+  class IsAssignedField
+      : public BitField<bool, Expression::kNextBitFieldIndex, 1> {};
   class IsResolvedField : public BitField<bool, IsAssignedField::kNext, 1> {};
   class IsRemovedFromUnresolvedField
       : public BitField<bool, IsResolvedField::kNext, 1> {};
@@ -2571,56 +2572,41 @@ class NativeFunctionLiteral final : public Expression {
 };
 
 
-class ThisFunction final : public Expression {
- private:
-  friend class AstNodeFactory;
-  explicit ThisFunction(int pos) : Expression(pos, kThisFunction) {}
-};
-
-
 class SuperPropertyReference final : public Expression {
  public:
-  VariableProxy* this_var() const { return this_var_; }
   Expression* home_object() const { return home_object_; }
 
  private:
   friend class AstNodeFactory;
 
-  SuperPropertyReference(VariableProxy* this_var, Expression* home_object,
-                         int pos)
-      : Expression(pos, kSuperPropertyReference),
-        this_var_(this_var),
-        home_object_(home_object) {
-    DCHECK(this_var->is_this());
+  // We take in ThisExpression* only as a proof that it was accessed.
+  SuperPropertyReference(Expression* home_object, int pos)
+      : Expression(pos, kSuperPropertyReference), home_object_(home_object) {
     DCHECK(home_object->IsProperty());
   }
 
-  VariableProxy* this_var_;
   Expression* home_object_;
 };
 
 
 class SuperCallReference final : public Expression {
  public:
-  VariableProxy* this_var() const { return this_var_; }
   VariableProxy* new_target_var() const { return new_target_var_; }
   VariableProxy* this_function_var() const { return this_function_var_; }
 
  private:
   friend class AstNodeFactory;
 
-  SuperCallReference(VariableProxy* this_var, VariableProxy* new_target_var,
+  // We take in ThisExpression* only as a proof that it was accessed.
+  SuperCallReference(VariableProxy* new_target_var,
                      VariableProxy* this_function_var, int pos)
       : Expression(pos, kSuperCallReference),
-        this_var_(this_var),
         new_target_var_(new_target_var),
         this_function_var_(this_function_var) {
-    DCHECK(this_var->is_this());
     DCHECK(new_target_var->raw_name()->IsOneByteEqualTo(".new.target"));
     DCHECK(this_function_var->raw_name()->IsOneByteEqualTo(".this_function"));
   }
 
-  VariableProxy* this_var_;
   VariableProxy* new_target_var_;
   VariableProxy* this_function_var_;
 };
@@ -2802,6 +2788,7 @@ class AstNodeFactory final {
       : zone_(zone),
         ast_value_factory_(ast_value_factory),
         empty_statement_(new (zone) class EmptyStatement()),
+        this_expression_(new (zone) class ThisExpression()),
         failure_expression_(new (zone) class FailureExpression()) {}
 
   AstNodeFactory* ast_node_factory() { return this; }
@@ -2954,6 +2941,10 @@ class AstNodeFactory final {
 
   class EmptyStatement* EmptyStatement() {
     return empty_statement_;
+  }
+
+  class ThisExpression* ThisExpression() {
+    return this_expression_;
   }
 
   class FailureExpression* FailureExpression() {
@@ -3266,22 +3257,16 @@ class AstNodeFactory final {
     return new (zone_) DoExpression(block, result, pos);
   }
 
-  ThisFunction* NewThisFunction(int pos) {
-    return new (zone_) ThisFunction(pos);
-  }
-
-  SuperPropertyReference* NewSuperPropertyReference(VariableProxy* this_var,
-                                                    Expression* home_object,
+  SuperPropertyReference* NewSuperPropertyReference(Expression* home_object,
                                                     int pos) {
-    return new (zone_) SuperPropertyReference(this_var, home_object, pos);
+    return new (zone_) SuperPropertyReference(home_object, pos);
   }
 
-  SuperCallReference* NewSuperCallReference(VariableProxy* this_var,
-                                            VariableProxy* new_target_var,
+  SuperCallReference* NewSuperCallReference(VariableProxy* new_target_var,
                                             VariableProxy* this_function_var,
                                             int pos) {
     return new (zone_)
-        SuperCallReference(this_var, new_target_var, this_function_var, pos);
+        SuperCallReference(new_target_var, this_function_var, pos);
   }
 
   EmptyParentheses* NewEmptyParentheses(int pos) {
@@ -3319,6 +3304,7 @@ class AstNodeFactory final {
   Zone* zone_;
   AstValueFactory* ast_value_factory_;
   class EmptyStatement* empty_statement_;
+  class ThisExpression* this_expression_;
   class FailureExpression* failure_expression_;
 };
 

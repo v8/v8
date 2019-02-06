@@ -565,8 +565,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   V8_INLINE static bool IsThisProperty(Expression* expression) {
     DCHECK_NOT_NULL(expression);
     Property* property = expression->AsProperty();
-    return property != nullptr && property->obj()->IsVariableProxy() &&
-           property->obj()->AsVariableProxy()->is_this();
+    return property != nullptr && property->obj()->IsThisExpression();
   }
 
   // This returns true if the expression is an indentifier (wrapped
@@ -574,8 +573,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   // has been converted to a variable proxy.
   V8_INLINE static bool IsIdentifier(Expression* expression) {
     VariableProxy* operand = expression->AsVariableProxy();
-    return operand != nullptr && !operand->is_this() &&
-           !operand->is_new_target();
+    return operand != nullptr && !operand->is_new_target();
   }
 
   V8_INLINE static const AstRawString* AsIdentifier(Expression* expression) {
@@ -790,9 +788,9 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     return ast_value_factory()->GetOneByteString(string);
   }
 
-  V8_INLINE Expression* ThisExpression(int pos = kNoSourcePosition) {
-    return NewUnresolved(ast_value_factory()->this_string(), pos,
-                         THIS_VARIABLE);
+  class ThisExpression* ThisExpression() {
+    UseThis();
+    return factory()->ThisExpression();
   }
 
   Expression* NewSuperPropertyReference(int pos);

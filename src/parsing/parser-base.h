@@ -954,6 +954,26 @@ class ParserBase {
     if (is_strict(language_mode)) parameters.ValidateStrictMode(impl());
   }
 
+  // Needs to be called if the reference needs to be available from the current
+  // point. It causes the receiver to be context allocated if necessary.
+  // Returns the receiver variable that we're referencing.
+  V8_INLINE Variable* UseThis() {
+    DeclarationScope* closure_scope = scope()->GetClosureScope();
+    DeclarationScope* receiver_scope = closure_scope->GetReceiverScope();
+    Variable* var = receiver_scope->receiver();
+    var->set_is_used();
+    if (closure_scope == receiver_scope) {
+      // It's possible that we're parsing the head of an arrow function, in
+      // which case we haven't realized yet that closure_scope !=
+      // receiver_scope. Mark through the ExpressionScope for now.
+      expression_scope()->RecordThisUse();
+    } else {
+      closure_scope->set_has_this_reference();
+      var->ForceContextAllocation();
+    }
+    return var;
+  }
+
   V8_INLINE IdentifierT ParseAndClassifyIdentifier(Token::Value token);
   // Parses an identifier or a strict mode future reserved word. Allows passing
   // in function_kind for the case of parsing the identifier in a function
@@ -1661,7 +1681,7 @@ ParserBase<Impl>::ParsePrimaryExpression() {
   switch (token) {
     case Token::THIS: {
       Consume(Token::THIS);
-      return impl()->ThisExpression(beg_pos);
+      return impl()->ThisExpression();
     }
 
     case Token::ASSIGN_DIV:
@@ -3259,6 +3279,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseSuperExpression(
       IsClassConstructor(kind)) {
     if (Token::IsProperty(peek())) {
       scope->RecordSuperPropertyUsage();
+      UseThis();
       return impl()->NewSuperPropertyReference(pos);
     }
     // new super() is never allowed.
@@ -3266,6 +3287,8 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseSuperExpression(
     if (!is_new && peek() == Token::LPAREN && IsDerivedConstructor(kind)) {
       // TODO(rossberg): This might not be the correct FunctionState for the
       // method here.
+      expression_scope()->RecordThisUse();
+      UseThis()->set_maybe_assigned();
       return impl()->NewSuperCallReference(pos);
     }
   }
@@ -3841,8 +3864,10 @@ void ParserBase<Impl>::ParseFunctionBody(
       }
 
       if (IsDerivedConstructor(kind)) {
+        ExpressionParsingScope expression_scope(impl());
         inner_body.Add(factory()->NewReturnStatement(impl()->ThisExpression(),
                                                      kNoSourcePosition));
+        expression_scope.ValidateExpression();
       }
       Expect(closing_token);
     }
@@ -4982,7 +5007,9 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseReturnStatement() {
   ExpressionT return_value = impl()->NullExpression();
   if (scanner()->HasLineTerminatorBeforeNext() || Token::IsAutoSemicolon(tok)) {
     if (IsDerivedConstructor(function_state_->kind())) {
-      return_value = impl()->ThisExpression(loc.beg_pos);
+      ExpressionParsingScope expression_scope(impl());
+      return_value = impl()->ThisExpression();
+      expression_scope.ValidateExpression();
     }
   } else {
     return_value = ParseExpression();

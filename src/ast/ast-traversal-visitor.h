@@ -468,7 +468,7 @@ void AstTraversalVisitor<Subclass>::VisitCompareOperation(
 }
 
 template <class Subclass>
-void AstTraversalVisitor<Subclass>::VisitThisFunction(ThisFunction* expr) {
+void AstTraversalVisitor<Subclass>::VisitThisExpression(ThisExpression* expr) {
   PROCESS_EXPRESSION(expr);
 }
 
@@ -556,7 +556,6 @@ template <class Subclass>
 void AstTraversalVisitor<Subclass>::VisitSuperPropertyReference(
     SuperPropertyReference* expr) {
   PROCESS_EXPRESSION(expr);
-  RECURSE_EXPRESSION(VisitVariableProxy(expr->this_var()));
   RECURSE_EXPRESSION(Visit(expr->home_object()));
 }
 
@@ -564,7 +563,6 @@ template <class Subclass>
 void AstTraversalVisitor<Subclass>::VisitSuperCallReference(
     SuperCallReference* expr) {
   PROCESS_EXPRESSION(expr);
-  RECURSE_EXPRESSION(VisitVariableProxy(expr->this_var()));
   RECURSE_EXPRESSION(VisitVariableProxy(expr->new_target_var()));
   RECURSE_EXPRESSION(VisitVariableProxy(expr->this_function_var()));
 }

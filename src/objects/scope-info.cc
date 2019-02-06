@@ -80,11 +80,6 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
         break;
     }
   }
-  DCHECK(module_vars_count == 0 || scope->is_module_scope());
-
-  // Make sure we allocate the correct amount.
-  DCHECK_EQ(scope->ContextLocalCount(), context_local_count);
-
   // Determine use and location of the "this" binding if it is present.
   VariableAllocationInfo receiver_info;
   if (scope->is_declaration_scope() &&
@@ -94,6 +89,7 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
       receiver_info = UNUSED;
     } else if (var->IsContextSlot()) {
       receiver_info = CONTEXT;
+      context_local_count++;
     } else {
       DCHECK(var->IsParameter());
       receiver_info = STACK;
@@ -101,6 +97,11 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
   } else {
     receiver_info = NONE;
   }
+
+  DCHECK(module_vars_count == 0 || scope->is_module_scope());
+
+  // Make sure we allocate the correct amount.
+  DCHECK_EQ(scope->ContextLocalCount(), context_local_count);
 
   const bool has_new_target =
       scope->is_declaration_scope() &&
@@ -255,6 +256,22 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
         int info = Smi::ToInt(scope_info->get(info_index));
         info = ParameterNumberField::update(info, i);
         scope_info->set(info_index, Smi::FromInt(info));
+      }
+
+      // TODO(verwaest): Remove this unnecessary entry.
+      if (scope->AsDeclarationScope()->has_this_declaration()) {
+        Variable* var = scope->AsDeclarationScope()->receiver();
+        if (var->location() == VariableLocation::CONTEXT) {
+          int local_index = var->index() - Context::MIN_CONTEXT_SLOTS;
+          uint32_t info =
+              VariableModeField::encode(var->mode()) |
+              InitFlagField::encode(var->initialization_flag()) |
+              MaybeAssignedFlagField::encode(var->maybe_assigned()) |
+              ParameterNumberField::encode(ParameterNumberField::kMax);
+          scope_info->set(context_local_base + local_index, *var->name(), mode);
+          scope_info->set(context_local_info_base + local_index,
+                          Smi::FromInt(info));
+        }
       }
     }
 

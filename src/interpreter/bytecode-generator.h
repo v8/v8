@@ -204,6 +204,8 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void BuildAssignment(const AssignmentLhsData& data, Token::Value op,
                        LookupHoistingMode lookup_hoisting_mode);
 
+  void BuildThisAccess();
+
   Expression* GetDestructuringDefaultValue(Expression** target);
   void BuildDestructuringArrayAssignment(
       ArrayLiteral* pattern, Token::Value op,
