@@ -729,11 +729,20 @@ Maybe<std::string> Intl::CanonicalizeLanguageTag(Isolate* isolate,
   }
   std::string locale(locale_str->ToCString().get());
 
+  return Intl::CanonicalizeLanguageTag(isolate, locale);
+}
+
+Maybe<std::string> Intl::CanonicalizeLanguageTag(Isolate* isolate,
+                                                 const std::string& locale_in) {
+  std::string locale = locale_in;
+
   if (locale.length() == 0 ||
       !String::IsAscii(locale.data(), static_cast<int>(locale.length()))) {
     THROW_NEW_ERROR_RETURN_VALUE(
         isolate,
-        NewRangeError(MessageTemplate::kInvalidLanguageTag, locale_str),
+        NewRangeError(
+            MessageTemplate::kInvalidLanguageTag,
+            isolate->factory()->NewStringFromAsciiChecked(locale.c_str())),
         Nothing<std::string>());
   }
 
@@ -774,14 +783,18 @@ Maybe<std::string> Intl::CanonicalizeLanguageTag(Isolate* isolate,
   if (U_FAILURE(error) || icu_locale.isBogus()) {
     THROW_NEW_ERROR_RETURN_VALUE(
         isolate,
-        NewRangeError(MessageTemplate::kInvalidLanguageTag, locale_str),
+        NewRangeError(
+            MessageTemplate::kInvalidLanguageTag,
+            isolate->factory()->NewStringFromAsciiChecked(locale.c_str())),
         Nothing<std::string>());
   }
   Maybe<std::string> maybe_to_language_tag = Intl::ToLanguageTag(icu_locale);
   if (maybe_to_language_tag.IsNothing()) {
     THROW_NEW_ERROR_RETURN_VALUE(
         isolate,
-        NewRangeError(MessageTemplate::kInvalidLanguageTag, locale_str),
+        NewRangeError(
+            MessageTemplate::kInvalidLanguageTag,
+            isolate->factory()->NewStringFromAsciiChecked(locale.c_str())),
         Nothing<std::string>());
   }
 

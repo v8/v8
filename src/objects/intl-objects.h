@@ -132,6 +132,9 @@ class Intl {
   static Maybe<std::string> CanonicalizeLanguageTag(Isolate* isolate,
                                                     Handle<Object> locale_in);
 
+  static Maybe<std::string> CanonicalizeLanguageTag(Isolate* isolate,
+                                                    const std::string& locale);
+
   // https://tc39.github.io/ecma402/#sec-canonicalizelocalelist
   // {only_return_one_result} is an optimization for callers that only
   // care about the first result.
