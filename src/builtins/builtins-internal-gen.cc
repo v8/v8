@@ -21,11 +21,7 @@ template <typename T>
 using TNode = compiler::TNode<T>;
 
 // -----------------------------------------------------------------------------
-// Interrupt and stack checks.
-
-void Builtins::Generate_InterruptCheck(MacroAssembler* masm) {
-  masm->TailCallRuntime(Runtime::kInterrupt);
-}
+// Stack checks.
 
 void Builtins::Generate_StackCheck(MacroAssembler* masm) {
   masm->TailCallRuntime(Runtime::kStackGuard);

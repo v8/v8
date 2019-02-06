@@ -97,10 +97,6 @@ namespace internal {
   ASM(JSConstructEntryTrampoline, Dummy)                                       \
   ASM(ResumeGeneratorTrampoline, ResumeGenerator)                              \
                                                                                \
-  /* Stack and interrupt check */                                              \
-  ASM(InterruptCheck, Dummy)                                                   \
-  ASM(StackCheck, Dummy)                                                       \
-                                                                               \
   /* String helpers */                                                         \
   TFC(StringCharAt, StringAt, 1)                                               \
   TFC(StringCodePointAtUTF16, StringAt, 1)                                     \
@@ -1336,6 +1332,7 @@ namespace internal {
   TFS(SubString, kString, kFrom, kTo)                                          \
                                                                                \
   /* Miscellaneous */                                                          \
+  ASM(StackCheck, Dummy)                                                       \
   ASM(DoubleToI, Dummy)                                                        \
   TFC(GetProperty, GetProperty, 1)                                             \
   TFS(SetProperty, kReceiver, kKey, kValue)                                    \
