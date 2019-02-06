@@ -104,14 +104,14 @@ TEST(TestFlushICacheOfWritable) {
     CHECK(SetPermissions(GetPlatformPageAllocator(), buffer->start(),
                          buffer->size(), v8::PageAllocator::kReadWrite));
     FloodWithInc(isolate, buffer.get());
-    Assembler::FlushICache(buffer->start(), buffer->size());
+    FlushInstructionCache(buffer->start(), buffer->size());
     CHECK(SetPermissions(GetPlatformPageAllocator(), buffer->start(),
                          buffer->size(), v8::PageAllocator::kReadExecute));
     CHECK_EQ(23 + kNumInstr, f.Call(23));  // Call into generated code.
     CHECK(SetPermissions(GetPlatformPageAllocator(), buffer->start(),
                          buffer->size(), v8::PageAllocator::kReadWrite));
     FloodWithNop(isolate, buffer.get());
-    Assembler::FlushICache(buffer->start(), buffer->size());
+    FlushInstructionCache(buffer->start(), buffer->size());
     CHECK(SetPermissions(GetPlatformPageAllocator(), buffer->start(),
                          buffer->size(), v8::PageAllocator::kReadExecute));
     CHECK_EQ(23, f.Call(23));  // Call into generated code.
@@ -151,14 +151,14 @@ CONDITIONAL_TEST(TestFlushICacheOfExecutable) {
     FloodWithInc(isolate, buffer.get());
     CHECK(SetPermissions(GetPlatformPageAllocator(), buffer->start(),
                          buffer->size(), v8::PageAllocator::kReadExecute));
-    Assembler::FlushICache(buffer->start(), buffer->size());
+    FlushInstructionCache(buffer->start(), buffer->size());
     CHECK_EQ(23 + kNumInstr, f.Call(23));  // Call into generated code.
     CHECK(SetPermissions(GetPlatformPageAllocator(), buffer->start(),
                          buffer->size(), v8::PageAllocator::kReadWrite));
     FloodWithNop(isolate, buffer.get());
     CHECK(SetPermissions(GetPlatformPageAllocator(), buffer->start(),
                          buffer->size(), v8::PageAllocator::kReadExecute));
-    Assembler::FlushICache(buffer->start(), buffer->size());
+    FlushInstructionCache(buffer->start(), buffer->size());
     CHECK_EQ(23, f.Call(23));  // Call into generated code.
   }
 }
@@ -180,10 +180,10 @@ TEST(TestFlushICacheOfWritableAndExecutable) {
     CHECK(SetPermissions(GetPlatformPageAllocator(), buffer->start(),
                          buffer->size(), v8::PageAllocator::kReadWriteExecute));
     FloodWithInc(isolate, buffer.get());
-    Assembler::FlushICache(buffer->start(), buffer->size());
+    FlushInstructionCache(buffer->start(), buffer->size());
     CHECK_EQ(23 + kNumInstr, f.Call(23));  // Call into generated code.
     FloodWithNop(isolate, buffer.get());
-    Assembler::FlushICache(buffer->start(), buffer->size());
+    FlushInstructionCache(buffer->start(), buffer->size());
     CHECK_EQ(23, f.Call(23));  // Call into generated code.
   }
 }

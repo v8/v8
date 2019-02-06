@@ -4352,7 +4352,7 @@ void Assembler::set_target_value_at(Address pc, uint64_t target,
              (target & kImm16Mask);
 
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-    Assembler::FlushICache(pc, 4 * kInstrSize);
+    FlushInstructionCache(pc, 4 * kInstrSize);
   }
 }
 

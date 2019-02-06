@@ -573,8 +573,8 @@ bool NativeModuleDeserializer::ReadCode(uint32_t fn_index, Reader* reader) {
   code->Validate();
 
   // Finally, flush the icache for that code.
-  Assembler::FlushICache(code->instructions().start(),
-                         code->instructions().size());
+  FlushInstructionCache(code->instructions().start(),
+                        code->instructions().size());
 
   return true;
 }

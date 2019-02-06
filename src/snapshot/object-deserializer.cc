@@ -59,8 +59,8 @@ void ObjectDeserializer::FlushICache() {
   for (Code code : new_code_objects()) {
     // Record all references to embedded objects in the new code object.
     WriteBarrierForCode(code);
-    Assembler::FlushICache(code->raw_instruction_start(),
-                           code->raw_instruction_size());
+    FlushInstructionCache(code->raw_instruction_start(),
+                          code->raw_instruction_size());
   }
 }
 

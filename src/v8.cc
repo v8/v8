@@ -21,7 +21,6 @@
 #include "src/libsampler/sampler.h"
 #include "src/objects-inl.h"
 #include "src/profiler/heap-profiler.h"
-#include "src/reloc-info.h"
 #include "src/runtime-profiler.h"
 #include "src/simulator.h"
 #include "src/snapshot/natives.h"

@@ -4114,7 +4114,7 @@ void Assembler::set_target_value_at(Address pc, uint32_t target,
   }
 
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-    Assembler::FlushICache(pc, 2 * sizeof(int32_t));
+    FlushInstructionCache(pc, 2 * sizeof(int32_t));
   }
 }
 

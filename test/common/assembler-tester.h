@@ -46,7 +46,7 @@ class TestingAssemblerBuffer : public AssemblerBuffer {
     // some older ARM kernels there is a bug which causes an access error on
     // cache flush instructions to trigger access error on non-writable memory.
     // See https://bugs.chromium.org/p/v8/issues/detail?id=8157
-    Assembler::FlushICache(buffer_, size_);
+    FlushInstructionCache(buffer_, size_);
 
     bool result = SetPermissions(GetPlatformPageAllocator(), buffer_, size_,
                                  v8::PageAllocator::kReadExecute);

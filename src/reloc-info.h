@@ -5,8 +5,8 @@
 #ifndef V8_RELOC_INFO_H_
 #define V8_RELOC_INFO_H_
 
+#include "src/flush-instruction-cache.h"
 #include "src/globals.h"
-#include "src/objects.h"
 #include "src/objects/code.h"
 
 namespace v8 {

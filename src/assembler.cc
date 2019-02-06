@@ -39,7 +39,6 @@
 #include "src/disassembler.h"
 #include "src/isolate.h"
 #include "src/ostreams.h"
-#include "src/simulator.h"  // For flushing instruction cache.
 #include "src/snapshot/embedded-data.h"
 #include "src/snapshot/serializer-common.h"
 #include "src/snapshot/snapshot.h"
@@ -160,17 +159,6 @@ AssemblerBase::AssemblerBase(const AssemblerOptions& options,
 }
 
 AssemblerBase::~AssemblerBase() = default;
-
-void AssemblerBase::FlushICache(void* start, size_t size) {
-  if (size == 0) return;
-
-#if defined(USE_SIMULATOR)
-  base::MutexGuard lock_guard(Simulator::i_cache_mutex());
-  Simulator::FlushICache(Simulator::i_cache(), start, size);
-#else
-  CpuFeatures::FlushICache(start, size);
-#endif  // USE_SIMULATOR
-}
 
 void AssemblerBase::Print(Isolate* isolate) {
   StdoutStream os;

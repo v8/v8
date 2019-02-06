@@ -268,11 +268,6 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
 
   static const int kMinimalBufferSize = 4*KB;
 
-  static void FlushICache(void* start, size_t size);
-  static void FlushICache(Address start, size_t size) {
-    return FlushICache(reinterpret_cast<void*>(start), size);
-  }
-
  protected:
   // Add 'target' to the {code_targets_} vector, if necessary, and return the
   // offset at which it is stored.

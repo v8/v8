@@ -598,7 +598,7 @@ void Assembler::deserialization_set_special_target_at(Address location,
       target = location;
     }
     instr->SetBranchImmTarget(reinterpret_cast<Instruction*>(target));
-    Assembler::FlushICache(location, kInstrSize);
+    FlushInstructionCache(location, kInstrSize);
   } else {
     DCHECK_EQ(instr->InstructionBits(), 0);
     Memory<Address>(location) = target;
@@ -635,7 +635,7 @@ void Assembler::set_target_address_at(Address pc, Address constant_pool,
     }
     instr->SetBranchImmTarget(reinterpret_cast<Instruction*>(target));
     if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-      Assembler::FlushICache(pc, kInstrSize);
+      FlushInstructionCache(pc, kInstrSize);
     }
   }
 }

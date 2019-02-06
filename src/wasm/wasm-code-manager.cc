@@ -503,8 +503,8 @@ void NativeModule::SetLazyBuiltin(Handle<Code> code) {
         i + module_->num_imported_functions, lazy_compile_target,
         WasmCode::kNoFlushICache);
   }
-  Assembler::FlushICache(jump_table_->instructions().start(),
-                         jump_table_->instructions().size());
+  FlushInstructionCache(jump_table_->instructions().start(),
+                        jump_table_->instructions().size());
 }
 
 void NativeModule::SetRuntimeStubs(Isolate* isolate) {
@@ -591,8 +591,8 @@ WasmCode* NativeModule::AddAnonymousCode(Handle<Code> code, WasmCode::Kind kind,
 
   // Flush the i-cache here instead of in AddOwnedCode, to include the changes
   // made while iterating over the RelocInfo above.
-  Assembler::FlushICache(ret->instructions().start(),
-                         ret->instructions().size());
+  FlushInstructionCache(ret->instructions().start(),
+                        ret->instructions().size());
   ret->MaybePrint(name);
   ret->Validate();
   return ret;
@@ -652,8 +652,8 @@ WasmCode* NativeModule::AddCode(
 
   // Flush the i-cache here instead of in AddOwnedCode, to include the changes
   // made while iterating over the RelocInfo above.
-  Assembler::FlushICache(ret->instructions().start(),
-                         ret->instructions().size());
+  FlushInstructionCache(ret->instructions().start(),
+                        ret->instructions().size());
   ret->MaybePrint();
   ret->Validate();
   return ret;

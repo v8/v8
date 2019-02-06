@@ -236,7 +236,7 @@ void Assembler::set_target_address_at(Address pc, Address constant_pool,
                                       ICacheFlushMode icache_flush_mode) {
   WriteUnalignedValue(pc, static_cast<int32_t>(target - pc - 4));
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-    Assembler::FlushICache(pc, sizeof(int32_t));
+    FlushInstructionCache(pc, sizeof(int32_t));
   }
 }
 
@@ -335,7 +335,7 @@ void RelocInfo::set_target_external_reference(
   DCHECK(rmode_ == RelocInfo::EXTERNAL_REFERENCE);
   WriteUnalignedValue(pc_, target);
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-    Assembler::FlushICache(pc_, sizeof(Address));
+    FlushInstructionCache(pc_, sizeof(Address));
   }
 }
 
@@ -356,7 +356,7 @@ void RelocInfo::set_target_object(Heap* heap, HeapObject target,
   DCHECK(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
   WriteUnalignedValue(pc_, target->ptr());
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-    Assembler::FlushICache(pc_, sizeof(Address));
+    FlushInstructionCache(pc_, sizeof(Address));
   }
   if (write_barrier_mode == UPDATE_WRITE_BARRIER && !host().is_null()) {
     WriteBarrierForCode(host(), this, target);

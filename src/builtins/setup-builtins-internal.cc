@@ -268,8 +268,8 @@ void SetupIsolateDelegate::ReplacePlaceholders(Isolate* isolate) {
       flush_icache = true;
     }
     if (flush_icache) {
-      Assembler::FlushICache(code->raw_instruction_start(),
-                             code->raw_instruction_size());
+      FlushInstructionCache(code->raw_instruction_start(),
+                            code->raw_instruction_size());
     }
   }
 }

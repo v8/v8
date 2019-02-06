@@ -64,7 +64,7 @@ class JumpTableAssembler : public TurboAssembler {
     jtasm.EmitLazyCompileJumpSlot(func_index, lazy_compile_target);
     jtasm.NopBytes(kJumpTableSlotSize - jtasm.pc_offset());
     if (flush_i_cache) {
-      Assembler::FlushICache(slot, kJumpTableSlotSize);
+      FlushInstructionCache(slot, kJumpTableSlotSize);
     }
   }
 
@@ -76,7 +76,7 @@ class JumpTableAssembler : public TurboAssembler {
     jtasm.EmitJumpSlot(new_target);
     jtasm.NopBytes(kJumpTableSlotSize - jtasm.pc_offset());
     if (flush_i_cache) {
-      Assembler::FlushICache(slot, kJumpTableSlotSize);
+      FlushInstructionCache(slot, kJumpTableSlotSize);
     }
   }
 
