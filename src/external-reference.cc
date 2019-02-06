@@ -567,8 +567,6 @@ FUNCTION_REFERENCE_WITH_TYPE(ieee754_tan_function, base::ieee754::tan,
                              BUILTIN_FP_CALL)
 FUNCTION_REFERENCE_WITH_TYPE(ieee754_tanh_function, base::ieee754::tanh,
                              BUILTIN_FP_CALL)
-FUNCTION_REFERENCE_WITH_TYPE(ieee754_pow_function, base::ieee754::pow,
-                             BUILTIN_FP_FP_CALL)
 
 void* libc_memchr(void* string, int character, size_t search_length) {
   return memchr(string, character, search_length);
@@ -760,8 +758,19 @@ static Address InvalidatePrototypeChainsWrapper(Address raw_map) {
 FUNCTION_REFERENCE(invalidate_prototype_chains_function,
                    InvalidatePrototypeChainsWrapper)
 
+double power_double_double(double x, double y) {
+  // The checks for special cases can be dropped in ia32 because it has already
+  // been done in generated code before bailing out here.
+  if (std::isnan(y) || ((x == 1 || x == -1) && std::isinf(y))) {
+    return std::numeric_limits<double>::quiet_NaN();
+  }
+  return Pow(x, y);
+}
+
 double modulo_double_double(double x, double y) { return Modulo(x, y); }
 
+FUNCTION_REFERENCE_WITH_TYPE(power_double_double_function, power_double_double,
+                             BUILTIN_FP_FP_CALL)
 FUNCTION_REFERENCE_WITH_TYPE(mod_two_doubles_operation, modulo_double_double,
                              BUILTIN_FP_FP_CALL)
 

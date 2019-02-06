@@ -982,9 +982,20 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kIeee754Float64Log10:
       ASSEMBLE_IEEE754_UNOP(log10);
       break;
-    case kIeee754Float64Pow:
-      ASSEMBLE_IEEE754_BINOP(pow);
+    case kIeee754Float64Pow: {
+      // TODO(bmeurer): Improve integration of the stub.
+      if (i.InputDoubleRegister(1) != xmm2) {
+        __ movaps(xmm2, i.InputDoubleRegister(0));
+        __ movaps(xmm1, i.InputDoubleRegister(1));
+      } else {
+        __ movaps(xmm0, i.InputDoubleRegister(0));
+        __ movaps(xmm1, xmm2);
+        __ movaps(xmm2, xmm0);
+      }
+      __ Call(BUILTIN_CODE(isolate(), MathPowInternal), RelocInfo::CODE_TARGET);
+      __ movaps(i.OutputDoubleRegister(), xmm3);
       break;
+    }
     case kIeee754Float64Sin:
       ASSEMBLE_IEEE754_UNOP(sin);
       break;

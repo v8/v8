@@ -2868,6 +2868,97 @@ void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
   __ Ret();
 }
 
+void Builtins::Generate_MathPowInternal(MacroAssembler* masm) {
+  const Register exponent = r4;
+  const DoubleRegister double_base = d1;
+  const DoubleRegister double_exponent = d2;
+  const DoubleRegister double_result = d3;
+  const DoubleRegister double_scratch = d0;
+  const Register scratch = r1;
+  const Register scratch2 = r9;
+
+  Label done, int_exponent;
+
+  // Detect integer exponents stored as double.
+  __ TryDoubleToInt32Exact(scratch, double_exponent, scratch2, double_scratch);
+  __ beq(&int_exponent, Label::kNear);
+
+  __ push(r14);
+  {
+    AllowExternalCallThatCantCauseGC scope(masm);
+    __ PrepareCallCFunction(0, 2, scratch);
+    __ MovToFloatParameters(double_base, double_exponent);
+    __ CallCFunction(ExternalReference::power_double_double_function(), 0, 2);
+  }
+  __ pop(r14);
+  __ MovFromFloatResult(double_result);
+  __ b(&done);
+
+  // Calculate power with integer exponent.
+  __ bind(&int_exponent);
+
+  // Get two copies of exponent in the registers scratch and exponent.
+  // Exponent has previously been stored into scratch as untagged integer.
+  __ LoadRR(exponent, scratch);
+
+  __ ldr(double_scratch, double_base);  // Back up base.
+  __ LoadImmP(scratch2, Operand(1));
+  __ ConvertIntToDouble(double_result, scratch2);
+
+  // Get absolute value of exponent.
+  Label positive_exponent;
+  __ CmpP(scratch, Operand::Zero());
+  __ bge(&positive_exponent, Label::kNear);
+  __ LoadComplementRR(scratch, scratch);
+  __ bind(&positive_exponent);
+
+  Label while_true, no_carry, loop_end;
+  __ bind(&while_true);
+  __ mov(scratch2, Operand(1));
+  __ AndP(scratch2, scratch);
+  __ beq(&no_carry, Label::kNear);
+  __ mdbr(double_result, double_scratch);
+  __ bind(&no_carry);
+  __ ShiftRightP(scratch, scratch, Operand(1));
+  __ LoadAndTestP(scratch, scratch);
+  __ beq(&loop_end, Label::kNear);
+  __ mdbr(double_scratch, double_scratch);
+  __ b(&while_true);
+  __ bind(&loop_end);
+
+  __ CmpP(exponent, Operand::Zero());
+  __ bge(&done);
+
+  // get 1/double_result:
+  __ ldr(double_scratch, double_result);
+  __ LoadImmP(scratch2, Operand(1));
+  __ ConvertIntToDouble(double_result, scratch2);
+  __ ddbr(double_result, double_scratch);
+
+  // Test whether result is zero.  Bail out to check for subnormal result.
+  // Due to subnormals, x^-y == (1/x)^y does not hold in all cases.
+  __ lzdr(kDoubleRegZero);
+  __ cdbr(double_result, kDoubleRegZero);
+  __ bne(&done, Label::kNear);
+  // double_exponent may not containe the exponent value if the input was a
+  // smi.  We set it with exponent value before bailing out.
+  __ ConvertIntToDouble(double_exponent, exponent);
+
+  // Returning or bailing out.
+  __ push(r14);
+  {
+    AllowExternalCallThatCantCauseGC scope(masm);
+    __ PrepareCallCFunction(0, 2, scratch);
+    __ MovToFloatParameters(double_base, double_exponent);
+    __ CallCFunction(ExternalReference::power_double_double_function(), 0, 2);
+  }
+  __ pop(r14);
+  __ MovFromFloatResult(double_result);
+
+  __ bind(&done);
+  __ Ret();
+}
+
 void Builtins::Generate_InternalArrayConstructorImpl(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- r2 : argc
