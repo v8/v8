@@ -2562,9 +2562,9 @@ class V8_EXPORT Value : public Data {
 
   bool BooleanValue(Isolate* isolate) const;
 
-  V8_DEPRECATE_SOON("BooleanValue can never throw. Use Isolate version.",
-                    V8_WARN_UNUSED_RESULT Maybe<bool> BooleanValue(
-                        Local<Context> context) const);
+  V8_DEPRECATED("BooleanValue can never throw. Use Isolate version.",
+                V8_WARN_UNUSED_RESULT Maybe<bool> BooleanValue(
+                    Local<Context> context) const);
   V8_WARN_UNUSED_RESULT Maybe<double> NumberValue(Local<Context> context) const;
   V8_WARN_UNUSED_RESULT Maybe<int64_t> IntegerValue(
       Local<Context> context) const;
