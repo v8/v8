@@ -723,7 +723,7 @@ MaybeLocal<Value> WebAssemblyInstantiateImpl(Isolate* isolate,
 
   i::MaybeHandle<i::Object> instance_object;
   {
-    ScheduledErrorThrower thrower(i_isolate, "WebAssembly Instantiation");
+    ScheduledErrorThrower thrower(i_isolate, "WebAssembly.Instance()");
 
     // TODO(ahaas): These checks on the module should not be necessary here They
     // are just a workaround for https://crbug.com/837417.
@@ -862,7 +862,7 @@ void WebAssemblyInstantiate(const v8::FunctionCallbackInfo<v8::Value>& args) {
   i_isolate->CountUsage(
       v8::Isolate::UseCounterFeature::kWebAssemblyInstantiation);
 
-  ScheduledErrorThrower thrower(i_isolate, "WebAssembly Instantiation");
+  ScheduledErrorThrower thrower(i_isolate, "WebAssembly.instantiate()");
 
   HandleScope scope(isolate);
 

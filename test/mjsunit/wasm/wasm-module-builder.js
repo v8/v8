@@ -8,15 +8,30 @@ let byte_view = new Uint8Array(__buffer);
 let f32_view = new Float32Array(__buffer);
 let f64_view = new Float64Array(__buffer);
 
-function bytes() {
-  var buffer = new ArrayBuffer(arguments.length);
-  var view = new Uint8Array(buffer);
-  for (var i = 0; i < arguments.length; i++) {
-    var val = arguments[i];
-    if ((typeof val) == "string") val = val.charCodeAt(0);
+// The bytes function receives one of
+//  - several arguments, each of which is either a number or a string of length
+//    1; if it's a string, the charcode of the contained character is used.
+//  - a single array argument containing the actual arguments
+//  - a single string; the returned buffer will contain the char codes of all
+//    contained characters.
+function bytes(...input) {
+  if (input.length == 1 && typeof input[0] == 'array') input = input[0];
+  if (input.length == 1 && typeof input[0] == 'string') {
+    let len = input[0].length;
+    let view = new Uint8Array(len);
+    for (let i = 0; i < len; i++) view[i] = input[0].charCodeAt(i);
+    return view.buffer;
+  }
+  let view = new Uint8Array(input.length);
+  for (let i = 0; i < input.length; i++) {
+    let val = input[i];
+    if (typeof val == 'string') {
+      assertEquals(1, val.length, 'string inputs must have length 1');
+      val = val.charCodeAt(0);
+    }
     view[i] = val | 0;
   }
-  return buffer;
+  return view.buffer;
 }
 
 // Header declaration constants
@@ -34,23 +49,10 @@ var kHeaderSize = 8;
 var kPageSize = 65536;
 var kSpecMaxPages = 65535;
 
-function bytesWithHeader() {
-  var buffer = new ArrayBuffer(kHeaderSize + arguments.length);
-  var view = new Uint8Array(buffer);
-  view[0] = kWasmH0;
-  view[1] = kWasmH1;
-  view[2] = kWasmH2;
-  view[3] = kWasmH3;
-  view[4] = kWasmV0;
-  view[5] = kWasmV1;
-  view[6] = kWasmV2;
-  view[7] = kWasmV3;
-  for (var i = 0; i < arguments.length; i++) {
-    var val = arguments[i];
-    if ((typeof val) == "string") val = val.charCodeAt(0);
-    view[kHeaderSize + i] = val | 0;
-  }
-  return buffer;
+function bytesWithHeader(...input) {
+  const header =
+      [kWasmH0, kWasmH1, kWasmH2, kWasmH3, kWasmV0, kWasmV1, kWasmV2, kWasmV3];
+  return bytes(header + input);
 }
 
 let kDeclNoLocals = 0;

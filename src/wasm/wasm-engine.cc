@@ -228,7 +228,7 @@ MaybeHandle<WasmInstanceObject> WasmEngine::SyncInstantiate(
 void WasmEngine::AsyncInstantiate(
     Isolate* isolate, std::unique_ptr<InstantiationResultResolver> resolver,
     Handle<WasmModuleObject> module_object, MaybeHandle<JSReceiver> imports) {
-  ErrorThrower thrower(isolate, "WebAssembly Instantiation");
+  ErrorThrower thrower(isolate, "WebAssembly.instantiate()");
   // Instantiate a TryCatch so that caught exceptions won't progagate out.
   // They will still be set as pending exceptions on the isolate.
   // TODO(clemensh): Avoid TryCatch, use Execution::TryCall internally to invoke
