@@ -882,6 +882,7 @@ torque_files = [
   "src/builtins/extras-utils.tq",
   "src/builtins/object-fromentries.tq",
   "src/builtins/iterator.tq",
+  "src/builtins/string-endswith.tq",
   "src/builtins/string-startswith.tq",
   "src/builtins/typed-array.tq",
   "src/builtins/typed-array-createtypedarray.tq",

@@ -1061,8 +1061,6 @@ namespace internal {
   TFJ(StringPrototypeCodePointAt, 1, kReceiver, kPosition)                     \
   /* ES6 #sec-string.prototype.concat */                                       \
   TFJ(StringPrototypeConcat, SharedFunctionInfo::kDontAdaptArgumentsSentinel)  \
-  /* ES6 #sec-string.prototype.endswith */                                     \
-  CPP(StringPrototypeEndsWith)                                                 \
   /* ES6 #sec-string.prototype.fontcolor */                                    \
   TFJ(StringPrototypeFontcolor, 1, kReceiver, kValue)                          \
   /* ES6 #sec-string.prototype.fontsize */                                     \

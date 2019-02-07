@@ -713,7 +713,7 @@ RUNTIME_FUNCTION(Runtime_StringMaxLength) {
   return Smi::FromInt(String::kMaxLength);
 }
 
-RUNTIME_FUNCTION(Runtime_StringStartsWith) {
+RUNTIME_FUNCTION(Runtime_StringCompareSequence) {
   HandleScope handle_scope(isolate);
   DCHECK_EQ(3, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, string, 0);

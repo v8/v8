@@ -506,7 +506,7 @@ extern macro LoadAndUntagToWord32Root(constexpr RootIndex): int32;
 extern runtime StringEqual(Context, String, String): Oddball;
 extern builtin StringLessThan(Context, String, String): Boolean;
 extern macro StringCharCodeAt(String, intptr): int32;
-extern runtime StringStartsWith(Context, String, String, Number): Boolean;
+extern runtime StringCompareSequence(Context, String, String, Number): Boolean;
 
 extern macro StrictEqual(Object, Object): Boolean;
 extern macro SmiLexicographicCompare(Smi, Smi): Smi;
