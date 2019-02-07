@@ -747,11 +747,10 @@ MaybeHandle<JSArray> JSNumberFormat::FormatToParts(
   return result;
 }
 
-std::set<std::string> JSNumberFormat::GetAvailableLocales() {
-  int32_t num_locales = 0;
-  const icu::Locale* icu_available_locales =
-      icu::NumberFormat::getAvailableLocales(num_locales);
-  return Intl::BuildLocaleSet(icu_available_locales, num_locales);
+const std::set<std::string>& JSNumberFormat::GetAvailableLocales() {
+  static base::LazyInstance<Intl::AvailableLocales<icu::NumberFormat>>::type
+      available_locales = LAZY_INSTANCE_INITIALIZER;
+  return available_locales.Pointer()->Get();
 }
 
 }  // namespace internal

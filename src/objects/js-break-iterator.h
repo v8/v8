@@ -35,7 +35,7 @@ class JSV8BreakIterator : public JSObject {
   static Handle<JSObject> ResolvedOptions(
       Isolate* isolate, Handle<JSV8BreakIterator> break_iterator);
 
-  static std::set<std::string> GetAvailableLocales();
+  static const std::set<std::string>& GetAvailableLocales();
 
   static void AdoptText(Isolate* isolate,
                         Handle<JSV8BreakIterator> break_iterator,

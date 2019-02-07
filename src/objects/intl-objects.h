@@ -250,6 +250,30 @@ class Intl {
       const std::vector<std::string>& requested_locales, MatcherOption options,
       const std::set<std::string>& relevant_extension_keys);
 
+  // A helper template to implement the GetAvailableLocales
+  // Usage in src/objects/js-XXX.cc
+  //
+  // const std::set<std::string>& JSXxx::GetAvailableLocales() {
+  //   static base::LazyInstance<Intl::AvailableLocales<icu::YYY>>::type
+  //       available_locales = LAZY_INSTANCE_INITIALIZER;
+  //   return available_locales.Pointer()->Get();
+  // }
+  template <typename T>
+  class AvailableLocales {
+   public:
+    AvailableLocales() {
+      int32_t num_locales = 0;
+      const icu::Locale* icu_available_locales =
+          T::getAvailableLocales(num_locales);
+      set = Intl::BuildLocaleSet(icu_available_locales, num_locales);
+    }
+    virtual ~AvailableLocales() {}
+    const std::set<std::string>& Get() const { return set; }
+
+   private:
+    std::set<std::string> set;
+  };
+
   // Utility function to set text to BreakIterator.
   static Managed<icu::UnicodeString> SetTextToBreakIterator(
       Isolate* isolate, Handle<String> text,

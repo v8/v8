@@ -409,11 +409,10 @@ MaybeHandle<Object> JSRelativeTimeFormat::Format(
       formatted.length()));
 }
 
-std::set<std::string> JSRelativeTimeFormat::GetAvailableLocales() {
-  int32_t num_locales = 0;
-  const icu::Locale* icu_available_locales =
-      icu::DateFormat::getAvailableLocales(num_locales);
-  return Intl::BuildLocaleSet(icu_available_locales, num_locales);
+const std::set<std::string>& JSRelativeTimeFormat::GetAvailableLocales() {
+  static base::LazyInstance<Intl::AvailableLocales<icu::DateFormat>>::type
+      available_locales = LAZY_INSTANCE_INITIALIZER;
+  return available_locales.Pointer()->Get();
 }
 
 }  // namespace internal

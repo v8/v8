@@ -64,7 +64,7 @@ class JSNumberFormat : public JSObject {
       Isolate* isolate, const icu::NumberFormat& number_format,
       Handle<Object> numeric_obj);
 
-  static std::set<std::string> GetAvailableLocales();
+  static const std::set<std::string>& GetAvailableLocales();
 
   Handle<String> StyleAsString() const;
   Handle<String> CurrencyDisplayAsString() const;

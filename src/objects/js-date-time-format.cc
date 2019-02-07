@@ -54,7 +54,7 @@ class PatternItem {
   std::vector<const char*> allowed_values;
 };
 
-const std::vector<PatternItem> GetPatternItems() {
+static const std::vector<PatternItem> BuildPatternItems() {
   const std::vector<const char*> kLongShort = {"long", "short"};
   const std::vector<const char*> kNarrowLongShort = {"narrow", "long", "short"};
   const std::vector<const char*> k2DigitNumeric = {"2-digit", "numeric"};
@@ -107,6 +107,22 @@ const std::vector<PatternItem> GetPatternItems() {
   return kPatternItems;
 }
 
+class PatternItems {
+ public:
+  PatternItems() : data(BuildPatternItems()) {}
+  virtual ~PatternItems() {}
+  const std::vector<PatternItem>& Get() const { return data; }
+
+ private:
+  const std::vector<PatternItem> data;
+};
+
+static const std::vector<PatternItem>& GetPatternItems() {
+  static base::LazyInstance<PatternItems>::type items =
+      LAZY_INSTANCE_INITIALIZER;
+  return items.Pointer()->Get();
+}
+
 class PatternData {
  public:
   PatternData(const std::string property, std::vector<PatternMap> pairs,
@@ -154,23 +170,57 @@ const std::vector<PatternData> CreateData(const char* digit2,
 //                                  kk   24
 //   K      hour in am/pm (0~11)    K    0
 //                                  KK   00
-const std::vector<PatternData> GetPatternData(Intl::HourCycle hour_cycle) {
-  const std::vector<PatternData> data = CreateData("jj", "j");
-  const std::vector<PatternData> data_h11 = CreateData("KK", "K");
-  const std::vector<PatternData> data_h12 = CreateData("hh", "h");
-  const std::vector<PatternData> data_h23 = CreateData("HH", "H");
-  const std::vector<PatternData> data_h24 = CreateData("kk", "k");
+
+class Pattern {
+ public:
+  Pattern(const char* d1, const char* d2) : data(CreateData(d1, d2)) {}
+  virtual ~Pattern() {}
+  virtual const std::vector<PatternData>& Get() const { return data; }
+
+ private:
+  std::vector<PatternData> data;
+};
+
+#define DEFFINE_TRAIT(name, d1, d2)              \
+  struct name {                                  \
+    static void Construct(void* allocated_ptr) { \
+      new (allocated_ptr) Pattern(d1, d2);       \
+    }                                            \
+  };
+DEFFINE_TRAIT(H11Trait, "KK", "K")
+DEFFINE_TRAIT(H12Trait, "hh", "h")
+DEFFINE_TRAIT(H23Trait, "HH", "H")
+DEFFINE_TRAIT(H24Trait, "kk", "k")
+DEFFINE_TRAIT(HDefaultTrait, "jj", "j")
+#undef DEFFINE_TRAIT
+
+const std::vector<PatternData>& GetPatternData(Intl::HourCycle hour_cycle) {
   switch (hour_cycle) {
-    case Intl::HourCycle::kH11:
-      return data_h11;
-    case Intl::HourCycle::kH12:
-      return data_h12;
-    case Intl::HourCycle::kH23:
-      return data_h23;
-    case Intl::HourCycle::kH24:
-      return data_h24;
-    case Intl::HourCycle::kUndefined:
-      return data;
+    case Intl::HourCycle::kH11: {
+      static base::LazyInstance<Pattern, H11Trait>::type h11 =
+          LAZY_INSTANCE_INITIALIZER;
+      return h11.Pointer()->Get();
+    }
+    case Intl::HourCycle::kH12: {
+      static base::LazyInstance<Pattern, H12Trait>::type h12 =
+          LAZY_INSTANCE_INITIALIZER;
+      return h12.Pointer()->Get();
+    }
+    case Intl::HourCycle::kH23: {
+      static base::LazyInstance<Pattern, H23Trait>::type h23 =
+          LAZY_INSTANCE_INITIALIZER;
+      return h23.Pointer()->Get();
+    }
+    case Intl::HourCycle::kH24: {
+      static base::LazyInstance<Pattern, H24Trait>::type h24 =
+          LAZY_INSTANCE_INITIALIZER;
+      return h24.Pointer()->Get();
+    }
+    case Intl::HourCycle::kUndefined: {
+      static base::LazyInstance<Pattern, HDefaultTrait>::type hDefault =
+          LAZY_INSTANCE_INITIALIZER;
+      return hDefault.Pointer()->Get();
+    }
     default:
       UNREACHABLE();
   }
@@ -1362,11 +1412,10 @@ MaybeHandle<Object> JSDateTimeFormat::FormatToParts(
   return result;
 }
 
-std::set<std::string> JSDateTimeFormat::GetAvailableLocales() {
-  int32_t num_locales = 0;
-  const icu::Locale* icu_available_locales =
-      icu::DateFormat::getAvailableLocales(num_locales);
-  return Intl::BuildLocaleSet(icu_available_locales, num_locales);
+const std::set<std::string>& JSDateTimeFormat::GetAvailableLocales() {
+  static base::LazyInstance<Intl::AvailableLocales<icu::DateFormat>>::type
+      available_locales = LAZY_INSTANCE_INITIALIZER;
+  return available_locales.Pointer()->Get();
 }
 
 Handle<String> JSDateTimeFormat::HourCycleAsString() const {

@@ -484,11 +484,10 @@ MaybeHandle<JSCollator> JSCollator::Initialize(Isolate* isolate,
   return collator;
 }
 
-std::set<std::string> JSCollator::GetAvailableLocales() {
-  int32_t num_locales = 0;
-  const icu::Locale* icu_available_locales =
-      icu::Collator::getAvailableLocales(num_locales);
-  return Intl::BuildLocaleSet(icu_available_locales, num_locales);
+const std::set<std::string>& JSCollator::GetAvailableLocales() {
+  static base::LazyInstance<Intl::AvailableLocales<icu::Collator>>::type
+      available_locales = LAZY_INSTANCE_INITIALIZER;
+  return available_locales.Pointer()->Get();
 }
 
 }  // namespace internal
