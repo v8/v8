@@ -147,12 +147,8 @@ bool Serializer::SerializeHotObject(HeapObject obj, HowToCode how_to_code,
     obj->ShortPrint();
     PrintF("\n");
   }
-  if (skip != 0) {
-    sink_.Put(kHotObjectWithSkip + index, "HotObjectWithSkip");
-    sink_.PutInt(skip, "HotObjectSkipDistance");
-  } else {
-    sink_.Put(kHotObject + index, "HotObject");
-  }
+  // TODO(ishell): remove kHotObjectWithSkip
+  sink_.Put(kHotObject + index, "HotObject");
   return true;
 }
 
@@ -182,13 +178,8 @@ bool Serializer::SerializeBackReference(HeapObject obj, HowToCode how_to_code,
 
     PutAlignmentPrefix(obj);
     AllocationSpace space = reference.space();
-    if (skip == 0) {
-      sink_.Put(kBackref + how_to_code + where_to_point + space, "BackRef");
-    } else {
-      sink_.Put(kBackrefWithSkip + how_to_code + where_to_point + space,
-                "BackRefWithSkip");
-      sink_.PutInt(skip, "BackRefSkipDistance");
-    }
+    // TODO(ishell): remove kBackrefWithSkip
+    sink_.Put(kBackref + how_to_code + where_to_point + space, "BackRef");
     PutBackReference(obj, reference);
   }
   return true;
@@ -219,12 +210,8 @@ void Serializer::PutRoot(RootIndex root, HeapObject object,
   if (how_to_code == kPlain && where_to_point == kStartOfObject &&
       root_index < kNumberOfRootArrayConstants &&
       !Heap::InYoungGeneration(object)) {
-    if (skip == 0) {
-      sink_.Put(kRootArrayConstants + root_index, "RootConstant");
-    } else {
-      sink_.Put(kRootArrayConstantsWithSkip + root_index, "RootConstant");
-      sink_.PutInt(skip, "SkipInPutRoot");
-    }
+    // TODO(ishell): remove kRootArrayConstantsWithSkip
+    sink_.Put(kRootArrayConstants + root_index, "RootConstant");
   } else {
     FlushSkip(skip);
     sink_.Put(kRootArray + how_to_code + where_to_point, "RootSerialization");
@@ -735,7 +722,8 @@ void Serializer::ObjectSerializer::VisitPointers(HeapObject host,
 
 void Serializer::ObjectSerializer::VisitEmbeddedPointer(Code host,
                                                         RelocInfo* rinfo) {
-  int skip = SkipTo(rinfo->target_address_address());
+  // TODO(ishell): remove skip parameter from bytecode.
+  int skip = 0;
   HowToCode how_to_code = rinfo->IsCodedSpecially() ? kFromCode : kPlain;
   Object object = rinfo->target_object();
   serializer_->SerializeObject(HeapObject::cast(object), how_to_code,
@@ -745,7 +733,12 @@ void Serializer::ObjectSerializer::VisitEmbeddedPointer(Code host,
 
 void Serializer::ObjectSerializer::VisitExternalReference(Foreign host,
                                                           Address* p) {
-  int skip = SkipTo(reinterpret_cast<Address>(p));
+  // TODO(ishell): handle gap between map field and payload field
+  // once we shrink kTaggedSize.
+  STATIC_ASSERT(static_cast<int>(Foreign::kForeignAddressOffset) ==
+                static_cast<int>(HeapObject::kHeaderSize));
+  DCHECK_EQ(0, SkipTo(reinterpret_cast<Address>(p)));
+
   Address target = *p;
   auto encoded_reference = serializer_->EncodeExternalReference(target);
   if (encoded_reference.is_from_api()) {
@@ -753,14 +746,12 @@ void Serializer::ObjectSerializer::VisitExternalReference(Foreign host,
   } else {
     sink_->Put(kExternalReference + kPlain + kStartOfObject, "ExternalRef");
   }
-  sink_->PutInt(skip, "SkipB4ExternalRef");
   sink_->PutInt(encoded_reference.index(), "reference index");
   bytes_processed_so_far_ += kSystemPointerSize;
 }
 
 void Serializer::ObjectSerializer::VisitExternalReference(Code host,
                                                           RelocInfo* rinfo) {
-  int skip = SkipTo(rinfo->target_address_address());
   Address target = rinfo->target_external_reference();
   auto encoded_reference = serializer_->EncodeExternalReference(target);
   if (encoded_reference.is_from_api()) {
@@ -771,7 +762,6 @@ void Serializer::ObjectSerializer::VisitExternalReference(Code host,
     sink_->Put(kExternalReference + how_to_code + kStartOfObject,
                "ExternalRef");
   }
-  sink_->PutInt(skip, "SkipB4ExternalRef");
   DCHECK_NE(target, kNullAddress);  // Code does not reference null.
   sink_->PutInt(encoded_reference.index(), "reference index");
   bytes_processed_so_far_ += rinfo->target_address_size();
@@ -802,15 +792,8 @@ void Serializer::ObjectSerializer::VisitInternalReference(Code host,
 
 void Serializer::ObjectSerializer::VisitRuntimeEntry(Code host,
                                                      RelocInfo* rinfo) {
-  int skip = SkipTo(rinfo->target_address_address());
-  HowToCode how_to_code = rinfo->IsCodedSpecially() ? kFromCode : kPlain;
-  Address target = rinfo->target_address();
-  auto encoded_reference = serializer_->EncodeExternalReference(target);
-  DCHECK(!encoded_reference.is_from_api());
-  sink_->Put(kExternalReference + how_to_code + kStartOfObject, "ExternalRef");
-  sink_->PutInt(skip, "SkipB4ExternalRef");
-  sink_->PutInt(encoded_reference.index(), "reference index");
-  bytes_processed_so_far_ += rinfo->target_address_size();
+  // We no longer serialize code that contains runtime entries.
+  UNREACHABLE();
 }
 
 void Serializer::ObjectSerializer::VisitOffHeapTarget(Code host,
@@ -824,40 +807,9 @@ void Serializer::ObjectSerializer::VisitOffHeapTarget(Code host,
   Code target = InstructionStream::TryLookupCode(serializer_->isolate(), addr);
   CHECK(Builtins::IsIsolateIndependentBuiltin(target));
 
-  int skip = SkipTo(rinfo->target_address_address());
   sink_->Put(kOffHeapTarget, "OffHeapTarget");
-  sink_->PutInt(skip, "SkipB4OffHeapTarget");
   sink_->PutInt(target->builtin_index(), "builtin index");
   bytes_processed_so_far_ += rinfo->target_address_size();
-}
-
-namespace {
-
-class CompareRelocInfo {
- public:
-  bool operator()(RelocInfo x, RelocInfo y) {
-    // Everything that does not use target_address_address will compare equal.
-    Address x_num = 0;
-    Address y_num = 0;
-    if (x.HasTargetAddressAddress()) x_num = x.target_address_address();
-    if (y.HasTargetAddressAddress()) y_num = y.target_address_address();
-    return x_num > y_num;
-  }
-};
-
-}  // namespace
-
-void Serializer::ObjectSerializer::VisitRelocInfo(RelocIterator* it) {
-  std::priority_queue<RelocInfo, std::vector<RelocInfo>, CompareRelocInfo>
-      reloc_queue;
-  for (; !it->done(); it->next()) {
-    reloc_queue.push(*it->rinfo());
-  }
-  while (!reloc_queue.empty()) {
-    RelocInfo rinfo = reloc_queue.top();
-    reloc_queue.pop();
-    rinfo.Visit(this);
-  }
 }
 
 void Serializer::ObjectSerializer::VisitCodeTarget(Code host,
@@ -865,7 +817,8 @@ void Serializer::ObjectSerializer::VisitCodeTarget(Code host,
 #ifdef V8_TARGET_ARCH_ARM
   DCHECK(!RelocInfo::IsRelativeCodeTarget(rinfo->rmode()));
 #endif
-  int skip = SkipTo(rinfo->target_address_address());
+  // TODO(ishell): remove skip parameter from bytecode.
+  int skip = 0;
   Code object = Code::GetCodeFromTargetAddress(rinfo->target_address());
   serializer_->SerializeObject(object, kFromCode, kInnerPointer, skip);
   bytes_processed_so_far_ += rinfo->target_address_size();

@@ -136,8 +136,19 @@ class Deserializer : public SerializerDeserializer {
   inline UnalignedSlot ReadExternalReferenceCase(
       HowToCode how, UnalignedSlot current, Address current_object_address);
 
+  HeapObject ReadObject();
   HeapObject ReadObject(int space_number);
+  void ReadCodeObjectBody(int space_number, Address code_object_address);
 
+ public:
+  void VisitCodeTarget(Code host, RelocInfo* rinfo);
+  void VisitEmbeddedPointer(Code host, RelocInfo* rinfo);
+  void VisitRuntimeEntry(Code host, RelocInfo* rinfo);
+  void VisitExternalReference(Code host, RelocInfo* rinfo);
+  void VisitInternalReference(Code host, RelocInfo* rinfo);
+  void VisitOffHeapTarget(Code host, RelocInfo* rinfo);
+
+ private:
   UnalignedSlot ReadRepeatedObject(UnalignedSlot current, int repeat_count);
 
   // Special handling for serialized code like hooking up internalized strings.
