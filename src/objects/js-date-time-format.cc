@@ -1003,6 +1003,28 @@ std::unique_ptr<icu::SimpleDateFormat> DateTimeStylePattern(
                              generator);
 }
 
+class DateTimePatternGeneratorCache {
+ public:
+  // Return a clone copy that the caller have to free.
+  icu::DateTimePatternGenerator* CreateGenerator(const icu::Locale& locale) {
+    std::string key(locale.getBaseName());
+    base::MutexGuard guard(&mutex_);
+    auto it = map_.find(key);
+    if (it != map_.end()) {
+      return it->second->clone();
+    }
+    UErrorCode status = U_ZERO_ERROR;
+    map_[key].reset(icu::DateTimePatternGenerator::createInstance(
+        icu::Locale(key.c_str()), status));
+    CHECK(U_SUCCESS(status));
+    return map_[key]->clone();
+  }
+
+ private:
+  std::map<std::string, std::unique_ptr<icu::DateTimePatternGenerator>> map_;
+  base::Mutex mutex_;
+};
+
 }  // namespace
 
 enum FormatMatcherOption { kBestFit, kBasic };
@@ -1093,14 +1115,14 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::Initialize(
                     JSDateTimeFormat);
   }
 
-  icu::Locale no_extension_locale(icu_locale.getBaseName());
-  UErrorCode status = U_ZERO_ERROR;
+  static base::LazyInstance<DateTimePatternGeneratorCache>::type
+      generator_cache = LAZY_INSTANCE_INITIALIZER;
+
   std::unique_ptr<icu::DateTimePatternGenerator> generator(
-      icu::DateTimePatternGenerator::createInstance(no_extension_locale,
-                                                    status));
-  CHECK(U_SUCCESS(status));
+      generator_cache.Pointer()->CreateGenerator(icu_locale));
 
   // 15.Let hcDefault be dataLocaleData.[[hourCycle]].
+  UErrorCode status = U_ZERO_ERROR;
   icu::UnicodeString hour_pattern = generator->getBestPattern("jjmm", status);
   CHECK(U_SUCCESS(status));
   Intl::HourCycle hc_default = HourCycleFromPattern(hour_pattern);
