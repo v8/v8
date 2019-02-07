@@ -16,6 +16,7 @@
 #include "src/counters.h"
 #include "src/deoptimizer.h"
 #include "src/frames-inl.h"
+#include "src/ic/stub-cache.h"
 #include "src/isolate-inl.h"
 #include "src/objects/heap-object-inl.h"
 #include "src/objects/smi.h"
@@ -102,6 +103,14 @@ bool WasmInstanceOverride(const v8::FunctionCallbackInfo<v8::Value>& args) {
 }
 
 }  // namespace
+
+RUNTIME_FUNCTION(Runtime_ClearMegamorphicStubCache) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(0, args.length());
+  isolate->load_stub_cache()->Clear();
+  isolate->store_stub_cache()->Clear();
+  return ReadOnlyRoots(isolate).undefined_value();
+}
 
 RUNTIME_FUNCTION(Runtime_ConstructDouble) {
   HandleScope scope(isolate);

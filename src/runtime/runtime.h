@@ -433,6 +433,7 @@ namespace internal {
   F(SymbolIsPrivate, 1, 1)
 
 #define FOR_EACH_INTRINSIC_TEST(F, I)         \
+  F(ClearMegamorphicStubCache, 0, 1)          \
   F(Abort, 1, 1)                              \
   F(AbortJS, 1, 1)                            \
   F(ClearFunctionFeedback, 1, 1)              \
