@@ -1242,6 +1242,16 @@ class LiftoffCompiler {
     __ Store(addr, no_reg, offset, reg, type, {}, nullptr, true);
   }
 
+  void GetTable(FullDecoder* decoder, const Value& index, Value* result,
+                TableIndexImmediate<validate>& imm) {
+    unsupported(decoder, "table_get");
+  }
+
+  void SetTable(FullDecoder* decoder, const Value& index, const Value& value,
+                TableIndexImmediate<validate>& imm) {
+    unsupported(decoder, "table_set");
+  }
+
   void Unreachable(FullDecoder* decoder) {
     Label* unreachable_label = AddOutOfLineTrap(
         decoder->position(), WasmCode::kThrowWasmTrapUnreachable);

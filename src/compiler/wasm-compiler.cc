@@ -3215,6 +3215,14 @@ Node* WasmGraphBuilder::SetGlobal(uint32_t index, Node* val) {
       graph()->NewNode(op, base, offset, val, Effect(), Control()));
 }
 
+Node* WasmGraphBuilder::GetTable(uint32_t table_index, Node* index) {
+  UNIMPLEMENTED();
+}
+
+Node* WasmGraphBuilder::SetTable(uint32_t table_index, Node* index, Node* val) {
+  UNIMPLEMENTED();
+}
+
 Node* WasmGraphBuilder::CheckBoundsAndAlignment(
     uint8_t access_size, Node* index, uint32_t offset,
     wasm::WasmCodePosition position) {

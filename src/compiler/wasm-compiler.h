@@ -272,12 +272,14 @@ class WasmGraphBuilder {
 
   Node* Invert(Node* node);
 
+  Node* GetGlobal(uint32_t index);
+  Node* SetGlobal(uint32_t index, Node* val);
+  Node* GetTable(uint32_t table_index, Node* index);
+  Node* SetTable(uint32_t table_index, Node* index, Node* val);
   //-----------------------------------------------------------------------
   // Operations that concern the linear memory.
   //-----------------------------------------------------------------------
   Node* CurrentMemoryPages();
-  Node* GetGlobal(uint32_t index);
-  Node* SetGlobal(uint32_t index, Node* val);
   Node* TraceMemoryOperation(bool is_store, MachineRepresentation, Node* index,
                              uint32_t offset, wasm::WasmCodePosition);
   Node* LoadMem(wasm::ValueType type, MachineType memtype, Node* index,

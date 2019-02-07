@@ -345,9 +345,6 @@ struct TableIndexImmediate {
   inline TableIndexImmediate() = default;
   inline TableIndexImmediate(Decoder* decoder, const byte* pc) {
     index = decoder->read_u8<validate>(pc + 1, "table index");
-    if (!VALIDATE(index == 0)) {
-      decoder->errorf(pc + 1, "expected table index 0, found %u", index);
-    }
   }
 };
 
@@ -678,6 +675,10 @@ struct ControlBase {
     const LocalIndexImmediate<validate>& imm)                                 \
   F(GetGlobal, Value* result, const GlobalIndexImmediate<validate>& imm)      \
   F(SetGlobal, const Value& value, const GlobalIndexImmediate<validate>& imm) \
+  F(GetTable, const Value& index, Value* result,                              \
+    const TableIndexImmediate<validate>& imm)                                 \
+  F(SetTable, const Value& index, const Value& value,                         \
+    const TableIndexImmediate<validate>& imm)                                 \
   F(Unreachable)                                                              \
   F(Select, const Value& cond, const Value& fval, const Value& tval,          \
     Value* result)                                                            \
@@ -1153,12 +1154,16 @@ class WasmDecoder : public Decoder {
         BranchDepthImmediate<validate> imm(decoder, pc);
         return 1 + imm.length;
       }
-      case kExprSetGlobal:
-      case kExprGetGlobal: {
+      case kExprGetGlobal:
+      case kExprSetGlobal: {
         GlobalIndexImmediate<validate> imm(decoder, pc);
         return 1 + imm.length;
       }
-
+      case kExprGetTable:
+      case kExprSetTable: {
+        TableIndexImmediate<validate> imm(decoder, pc);
+        return 1 + imm.length;
+      }
       case kExprCallFunction: {
         CallFunctionImmediate<validate> imm(decoder, pc);
         return 1 + imm.length;
@@ -1332,9 +1337,11 @@ class WasmDecoder : public Decoder {
     switch (opcode) {
       case kExprSelect:
         return {3, 1};
+      case kExprSetTable:
       FOREACH_STORE_MEM_OPCODE(DECLARE_OPCODE_CASE)
         return {2, 0};
       FOREACH_LOAD_MEM_OPCODE(DECLARE_OPCODE_CASE)
+      case kExprGetTable:
       case kExprTeeLocal:
       case kExprMemoryGrow:
         return {1, 1};
@@ -2009,6 +2016,28 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           CALL_INTERFACE_IF_REACHABLE(SetGlobal, value, imm);
           break;
         }
+        case kExprGetTable: {
+          CHECK_PROTOTYPE_OPCODE(anyref);
+          TableIndexImmediate<validate> imm(this, this->pc_);
+          len = 1 + imm.length;
+          if (!this->Validate(this->pc_, imm)) break;
+          DCHECK_NOT_NULL(this->module_);
+          auto index = Pop(0, kWasmI32);
+          auto* result = Push(this->module_->tables[imm.index].type);
+          CALL_INTERFACE_IF_REACHABLE(GetTable, index, result, imm);
+          break;
+        }
+        case kExprSetTable: {
+          CHECK_PROTOTYPE_OPCODE(anyref);
+          TableIndexImmediate<validate> imm(this, this->pc_);
+          len = 1 + imm.length;
+          if (!this->Validate(this->pc_, imm)) break;
+          auto value = Pop(0, this->module_->tables[imm.index].type);
+          auto index = Pop(0, kWasmI32);
+          CALL_INTERFACE_IF_REACHABLE(SetTable, index, value, imm);
+          break;
+        }
+
         case kExprI32LoadMem8S:
           len = 1 + DecodeLoadMem(LoadType::kI32Load8S);
           break;

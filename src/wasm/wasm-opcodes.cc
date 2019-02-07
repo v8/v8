@@ -144,6 +144,8 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_OP(TeeLocal, "tee_local")
     CASE_OP(GetGlobal, "get_global")
     CASE_OP(SetGlobal, "set_global")
+    CASE_OP(GetTable, "get_table")
+    CASE_OP(SetTable, "set_table")
     CASE_ALL_OP(Const, "const")
     CASE_OP(MemorySize, "memory.size")
     CASE_OP(MemoryGrow, "memory.grow")

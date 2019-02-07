@@ -287,6 +287,16 @@ class WasmGraphBuildingInterface {
     BUILD(SetGlobal, imm.index, value.node);
   }
 
+  void GetTable(FullDecoder* decoder, const Value& index, Value* result,
+                const TableIndexImmediate<validate>& imm) {
+    result->node = BUILD(GetTable, imm.index, index.node);
+  }
+
+  void SetTable(FullDecoder* decoder, const Value& index, const Value& value,
+                const TableIndexImmediate<validate>& imm) {
+    BUILD(SetTable, imm.index, index.node, value.node);
+  }
+
   void Unreachable(FullDecoder* decoder) {
     BUILD(Unreachable, decoder->position());
   }

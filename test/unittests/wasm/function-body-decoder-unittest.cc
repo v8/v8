@@ -256,6 +256,18 @@ class TestModuleBuilder {
     return static_cast<byte>(mod.exceptions.size() - 1);
   }
 
+  byte AddTable(ValueType type, uint32_t initial_size, bool has_maximum_size,
+                uint32_t maximum_size) {
+    CHECK(type == kWasmAnyRef || type == kWasmAnyFunc);
+    mod.tables.emplace_back();
+    WasmTable& table = mod.tables.back();
+    table.type = type;
+    table.initial_size = initial_size;
+    table.has_maximum_size = has_maximum_size;
+    table.maximum_size = maximum_size;
+    return static_cast<byte>(mod.tables.size() - 1);
+  }
+
   void InitializeMemory() {
     mod.has_memory = true;
     mod.initial_pages = 1;
@@ -1815,6 +1827,95 @@ TEST_F(FunctionBodyDecoderTest, AllSetGlobalCombinations) {
       }
     }
   }
+}
+
+TEST_F(FunctionBodyDecoderTest, SetTable) {
+  WASM_FEATURE_SCOPE(anyref);
+  TestModuleBuilder builder;
+  module = builder.module();
+  byte tab_ref1 = builder.AddTable(kWasmAnyRef, 10, true, 20);
+  byte tab_func1 = builder.AddTable(kWasmAnyFunc, 20, true, 30);
+  byte tab_func2 = builder.AddTable(kWasmAnyFunc, 10, false, 20);
+  byte tab_ref2 = builder.AddTable(kWasmAnyRef, 10, false, 20);
+  ValueType sig_types[]{kWasmAnyRef, kWasmAnyFunc, kWasmI32};
+  FunctionSig sig(0, 3, sig_types);
+  byte local_ref = 0;
+  byte local_func = 1;
+  byte local_int = 2;
+  EXPECT_VERIFIES_S(
+      &sig, WASM_SET_TABLE(tab_ref1, WASM_I32V(6), WASM_GET_LOCAL(local_ref)));
+  EXPECT_VERIFIES_S(&sig, WASM_SET_TABLE(tab_func1, WASM_I32V(5),
+                                         WASM_GET_LOCAL(local_func)));
+  EXPECT_VERIFIES_S(&sig, WASM_SET_TABLE(tab_func2, WASM_I32V(7),
+                                         WASM_GET_LOCAL(local_func)));
+  EXPECT_VERIFIES_S(
+      &sig, WASM_SET_TABLE(tab_ref2, WASM_I32V(8), WASM_GET_LOCAL(local_ref)));
+
+  // We can store anyfunc values as anyref, but not the other way around.
+  EXPECT_VERIFIES_S(
+      &sig, WASM_SET_TABLE(tab_ref1, WASM_I32V(4), WASM_GET_LOCAL(local_func)));
+  EXPECT_FAILURE_S(
+      &sig, WASM_SET_TABLE(tab_func1, WASM_I32V(9), WASM_GET_LOCAL(local_ref)));
+  EXPECT_FAILURE_S(
+      &sig, WASM_SET_TABLE(tab_func2, WASM_I32V(3), WASM_GET_LOCAL(local_ref)));
+  EXPECT_VERIFIES_S(
+      &sig, WASM_SET_TABLE(tab_ref2, WASM_I32V(2), WASM_GET_LOCAL(local_func)));
+  EXPECT_FAILURE_S(
+      &sig, WASM_SET_TABLE(tab_ref1, WASM_I32V(9), WASM_GET_LOCAL(local_int)));
+  EXPECT_FAILURE_S(
+      &sig, WASM_SET_TABLE(tab_func1, WASM_I32V(3), WASM_GET_LOCAL(local_int)));
+  // Out-of-bounds table index should fail.
+  byte oob_tab = 37;
+  EXPECT_FAILURE_S(
+      &sig, WASM_SET_TABLE(oob_tab, WASM_I32V(9), WASM_GET_LOCAL(local_ref)));
+  EXPECT_FAILURE_S(
+      &sig, WASM_SET_TABLE(oob_tab, WASM_I32V(3), WASM_GET_LOCAL(local_func)));
+}
+
+TEST_F(FunctionBodyDecoderTest, GetTable) {
+  WASM_FEATURE_SCOPE(anyref);
+  TestModuleBuilder builder;
+  module = builder.module();
+  byte tab_ref1 = builder.AddTable(kWasmAnyRef, 10, true, 20);
+  byte tab_func1 = builder.AddTable(kWasmAnyFunc, 20, true, 30);
+  byte tab_func2 = builder.AddTable(kWasmAnyFunc, 10, false, 20);
+  byte tab_ref2 = builder.AddTable(kWasmAnyRef, 10, false, 20);
+  ValueType sig_types[]{kWasmAnyRef, kWasmAnyFunc, kWasmI32};
+  FunctionSig sig(0, 3, sig_types);
+  byte local_ref = 0;
+  byte local_func = 1;
+  byte local_int = 2;
+  EXPECT_VERIFIES_S(
+      &sig, WASM_SET_LOCAL(local_ref, WASM_GET_TABLE(tab_ref1, WASM_I32V(6))));
+  EXPECT_VERIFIES_S(
+      &sig, WASM_SET_LOCAL(local_ref, WASM_GET_TABLE(tab_ref2, WASM_I32V(8))));
+  EXPECT_VERIFIES_S(
+      &sig,
+      WASM_SET_LOCAL(local_func, WASM_GET_TABLE(tab_func1, WASM_I32V(5))));
+  EXPECT_VERIFIES_S(
+      &sig,
+      WASM_SET_LOCAL(local_func, WASM_GET_TABLE(tab_func2, WASM_I32V(7))));
+
+  // We can store anyfunc values as anyref, but not the other way around.
+  EXPECT_FAILURE_S(
+      &sig, WASM_SET_LOCAL(local_func, WASM_GET_TABLE(tab_ref1, WASM_I32V(4))));
+  EXPECT_VERIFIES_S(
+      &sig, WASM_SET_LOCAL(local_ref, WASM_GET_TABLE(tab_func1, WASM_I32V(9))));
+  EXPECT_VERIFIES_S(
+      &sig, WASM_SET_LOCAL(local_ref, WASM_GET_TABLE(tab_func2, WASM_I32V(3))));
+  EXPECT_FAILURE_S(
+      &sig, WASM_SET_LOCAL(local_func, WASM_GET_TABLE(tab_ref2, WASM_I32V(2))));
+
+  EXPECT_FAILURE_S(
+      &sig, WASM_SET_LOCAL(local_int, WASM_GET_TABLE(tab_ref1, WASM_I32V(9))));
+  EXPECT_FAILURE_S(
+      &sig, WASM_SET_LOCAL(local_int, WASM_GET_TABLE(tab_func1, WASM_I32V(3))));
+  // Out-of-bounds table index should fail.
+  byte oob_tab = 37;
+  EXPECT_FAILURE_S(
+      &sig, WASM_SET_LOCAL(local_ref, WASM_GET_TABLE(oob_tab, WASM_I32V(9))));
+  EXPECT_FAILURE_S(
+      &sig, WASM_SET_LOCAL(local_func, WASM_GET_TABLE(oob_tab, WASM_I32V(3))));
 }
 
 TEST_F(FunctionBodyDecoderTest, WasmMemoryGrow) {
