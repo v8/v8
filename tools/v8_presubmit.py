@@ -114,7 +114,8 @@ def TorqueLintWorker(command):
       error_count += 1
     sys.stdout.write(out_lines)
     if error_count != 0:
-        sys.stdout.write("tip: use 'tools/torque/format-torque.py -i <filename>'\n");
+        sys.stdout.write(
+          "warning: formatting and overwriting unformatted Torque files\n")
     return error_count
   except KeyboardInterrupt:
     process.kill()
@@ -371,7 +372,7 @@ class TorqueLintProcessor(CacheableSourceFileProcessor):
   def GetProcessorScript(self):
     torque_tools = os.path.join(TOOLS_PATH, "torque")
     torque_path = os.path.join(torque_tools, "format-torque.py")
-    arguments = ['-l']
+    arguments = ["-il"]
     if os.path.isfile(torque_path):
       return torque_path, arguments
 

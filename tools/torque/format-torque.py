@@ -86,7 +86,7 @@ def postprocess(output):
 
   return output
 
-def process(filename, only_lint, use_stdout):
+def process(filename, lint, should_format):
   with open(filename, 'r') as content_file:
     content = content_file.read()
 
@@ -100,12 +100,11 @@ def process(filename, only_lint, use_stdout):
     print "error code " + str(rc) + " running clang-format. Exiting..."
     sys.exit(rc);
 
-  if only_lint:
+  if lint:
     if (output != original_input):
       print >>sys.stderr, filename + ' requires formatting'
-  elif use_stdout:
-    print output
-  else:
+
+  if should_format:
     output_file = open(filename, 'w')
     output_file.write(output);
     output_file.close()
@@ -122,20 +121,28 @@ def Main():
     print_usage();
     sys.exit(-1)
 
-  use_stdout = True
-  lint = False
+  def is_option(arg):
+    return arg in ['-i', '-l', '-il']
 
-  if sys.argv[1] == '-i':
-    use_stdout = False
-  elif sys.argv[1] == '-l':
-    lint = True
+  should_format = lint = False
+  use_stdout = True
+
+  flag, files = sys.argv[1], sys.argv[2:]
+  if is_option(flag):
+    if '-i' == flag:
+      should_format = True
+    elif '-l' == flag:
+      lint = True
+    else:
+      lint = True
+      should_format = True
   else:
-    print "error: -i or -l must be specified as the first argument"
+    print "error: -i and/or -l flags must be specified"
     print_usage();
     sys.exit(-1);
 
-  for filename in sys.argv[2:]:
-    process(filename, lint, use_stdout)
+  for filename in files:
+    process(filename, lint, should_format)
 
   return 0
 
