@@ -306,6 +306,13 @@
   # BUG(v8:4237)
   'regress/regress-3976': [SKIP],
 
+  # BUG(v8:8799): Bytecode flushing breaks tagged template literals
+  'es6/templates': [SKIP],
+
+  # BUG(v8:8801): Bytecode flushing interacts poorly with assertOptimized
+  'regress/regress-7254': [SKIP],
+  'array-push5': [SKIP],
+
   # Slow tests.
   'array-constructor': [PASS, SLOW],
   'json': [PASS, SLOW],
