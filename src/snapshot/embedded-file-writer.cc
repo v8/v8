@@ -175,7 +175,9 @@ void PlatformDependentEmbeddedFileWriter::AlignToCodeAlignment() {
   fprintf(fp_, ".balign 32\n");
 }
 
-void PlatformDependentEmbeddedFileWriter::AlignToDataAlignment() {}
+void PlatformDependentEmbeddedFileWriter::AlignToDataAlignment() {
+  fprintf(fp_, ".balign 8\n");
+}
 
 void PlatformDependentEmbeddedFileWriter::Comment(const char* string) {
   fprintf(fp_, "// %s\n", string);
@@ -262,7 +264,9 @@ void PlatformDependentEmbeddedFileWriter::AlignToCodeAlignment() {
   fprintf(fp_, ".align 5\n");
 }
 
-void PlatformDependentEmbeddedFileWriter::AlignToDataAlignment() {}
+void PlatformDependentEmbeddedFileWriter::AlignToDataAlignment() {
+  fprintf(fp_, ".align 3\n");
+}
 
 void PlatformDependentEmbeddedFileWriter::Comment(const char* string) {
   fprintf(fp_, "// %s\n", string);
@@ -354,7 +358,9 @@ void PlatformDependentEmbeddedFileWriter::AlignToCodeAlignment() {
   fprintf(fp_, "ALIGN 4\n");
 }
 
-void PlatformDependentEmbeddedFileWriter::AlignToDataAlignment() {}
+void PlatformDependentEmbeddedFileWriter::AlignToDataAlignment() {
+  fprintf(fp_, "ALIGN 4\n");
+}
 
 void PlatformDependentEmbeddedFileWriter::Comment(const char* string) {
   fprintf(fp_, "; %s\n", string);
