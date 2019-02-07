@@ -489,7 +489,7 @@ void FilterForEnumerableProperties(Handle<JSReceiver> receiver,
 
     // args are invalid after args.Call(), create a new one in every iteration.
     PropertyCallbackArguments args(accumulator->isolate(), interceptor->data(),
-                                   *receiver, *object, kDontThrow);
+                                   *receiver, *object, Just(kDontThrow));
 
     Handle<Object> element = accessor->Get(result, i);
     Handle<Object> attributes;
@@ -521,7 +521,7 @@ Maybe<bool> CollectInterceptorKeysInternal(Handle<JSReceiver> receiver,
                                            IndexedOrNamed type) {
   Isolate* isolate = accumulator->isolate();
   PropertyCallbackArguments enum_args(isolate, interceptor->data(), *receiver,
-                                      *object, kDontThrow);
+                                      *object, Just(kDontThrow));
 
   Handle<JSObject> result;
   if (!interceptor->enumerator()->IsUndefined(isolate)) {

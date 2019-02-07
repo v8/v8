@@ -182,6 +182,12 @@ class Internals {
   static const int kUndefinedOddballKind = 5;
   static const int kNullOddballKind = 3;
 
+  // Constants used by PropertyCallbackInfo to check if we should throw when an
+  // error occurs.
+  static const int kThrowOnError = 0;
+  static const int kDontThrow = 1;
+  static const int kInferShouldThrowMode = 2;
+
   // Soft limit for AdjustAmountofExternalAllocatedMemory. Trigger an
   // incremental GC once the external memory reaches this limit.
   static constexpr int kExternalAllocationSoftLimit = 64 * 1024 * 1024;
@@ -366,6 +372,11 @@ V8_INLINE void PerformCastCheck(T* data) {
 // {obj} must be the raw tagged pointer representation of a HeapObject
 // that's guaranteed to never be in ReadOnlySpace.
 V8_EXPORT internal::Isolate* IsolateFromNeverReadOnlySpaceObject(Address obj);
+
+// Returns if we need to throw when an error occurs. This infers the language
+// mode based on the current context and the closure. This returns true if the
+// language mode is strict.
+V8_EXPORT bool ShouldThrowOnError(v8::internal::Isolate* isolate);
 
 }  // namespace internal
 }  // namespace v8

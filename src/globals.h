@@ -800,7 +800,10 @@ enum WhereToStart { kStartAtReceiver, kStartAtPrototype };
 
 enum ResultSentinel { kNotFound = -1, kUnsupported = -2 };
 
-enum ShouldThrow { kThrowOnError, kDontThrow };
+enum ShouldThrow {
+  kThrowOnError = Internals::kThrowOnError,
+  kDontThrow = Internals::kDontThrow
+};
 
 // The Store Buffer (GC).
 typedef enum {

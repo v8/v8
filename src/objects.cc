@@ -1379,7 +1379,7 @@ MaybeHandle<Object> Object::GetPropertyWithAccessor(LookupIterator* it) {
     }
 
     PropertyCallbackArguments args(isolate, info->data(), *receiver, *holder,
-                                   kDontThrow);
+                                   Just(kDontThrow));
     Handle<Object> result = args.CallAccessorGetter(info, name);
     RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
     if (result.is_null()) return isolate->factory()->undefined_value();
@@ -1489,9 +1489,8 @@ Maybe<bool> Object::SetPropertyWithAccessor(
     // AccessorInfo was created by the API or internally (see accessors.cc).
     // Here we handle both cases using GenericNamedPropertySetterCallback and
     // its Call method.
-    ShouldThrow should_throw = GetShouldThrow(isolate, maybe_should_throw);
     PropertyCallbackArguments args(isolate, info->data(), *receiver, *holder,
-                                   should_throw);
+                                   maybe_should_throw);
     Handle<Object> result = args.CallAccessorSetter(info, name, value);
     // In the case of AccessorNameSetterCallback, we know that the result value
     // cannot have been set, so the result of Call will be null.  In the case of
@@ -1499,7 +1498,8 @@ Maybe<bool> Object::SetPropertyWithAccessor(
     // (signalling an exception) or a boolean Oddball.
     RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, Nothing<bool>());
     if (result.is_null()) return Just(true);
-    DCHECK(result->BooleanValue(isolate) || should_throw == kDontThrow);
+    DCHECK(result->BooleanValue(isolate) ||
+           GetShouldThrow(isolate, maybe_should_throw) == kDontThrow);
     return Just(result->BooleanValue(isolate));
   }
 

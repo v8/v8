@@ -2710,9 +2710,8 @@ RUNTIME_FUNCTION(Runtime_StoreCallbackProperty) {
 
   DCHECK(info->IsCompatibleReceiver(*receiver));
 
-  ShouldThrow should_throw = GetShouldThrow(isolate, Nothing<ShouldThrow>());
   PropertyCallbackArguments arguments(isolate, info->data(), *receiver, *holder,
-                                      should_throw);
+                                      Nothing<ShouldThrow>());
   arguments.CallAccessorSetter(info, name, value);
   RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
   return *value;
@@ -2728,7 +2727,7 @@ RUNTIME_FUNCTION(Runtime_LoadCallbackProperty) {
   DCHECK(info->IsCompatibleReceiver(*receiver));
 
   PropertyCallbackArguments custom_args(isolate, info->data(), *receiver,
-                                        *holder, kThrowOnError);
+                                        *holder, Just(kThrowOnError));
   Handle<Object> result = custom_args.CallAccessorGetter(info, name);
   RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
   if (result.is_null()) return ReadOnlyRoots(isolate).undefined_value();
@@ -2776,7 +2775,7 @@ RUNTIME_FUNCTION(Runtime_LoadPropertyWithInterceptor) {
 
   Handle<InterceptorInfo> interceptor(holder->GetNamedInterceptor(), isolate);
   PropertyCallbackArguments arguments(isolate, interceptor->data(), *receiver,
-                                      *holder, kDontThrow);
+                                      *holder, Just(kDontThrow));
   Handle<Object> result = arguments.CallNamedGetter(interceptor, name);
 
   RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
@@ -2838,7 +2837,7 @@ RUNTIME_FUNCTION(Runtime_StorePropertyWithInterceptor) {
 
   DCHECK(!interceptor->non_masking());
   PropertyCallbackArguments arguments(isolate, interceptor->data(), *receiver,
-                                      *receiver, kDontThrow);
+                                      *receiver, Just(kDontThrow));
 
   Handle<Object> result = arguments.CallNamedSetter(interceptor, name, value);
   RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
@@ -2870,7 +2869,7 @@ RUNTIME_FUNCTION(Runtime_LoadElementWithInterceptor) {
   Handle<InterceptorInfo> interceptor(receiver->GetIndexedInterceptor(),
                                       isolate);
   PropertyCallbackArguments arguments(isolate, interceptor->data(), *receiver,
-                                      *receiver, kDontThrow);
+                                      *receiver, Just(kDontThrow));
   Handle<Object> result = arguments.CallIndexedGetter(interceptor, index);
 
   RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);

@@ -973,7 +973,7 @@ MaybeHandle<Object> GetPropertyWithInterceptorInternal(
         isolate, receiver, Object::ConvertReceiver(isolate, receiver), Object);
   }
   PropertyCallbackArguments args(isolate, interceptor->data(), *receiver,
-                                 *holder, kDontThrow);
+                                 *holder, Just(kDontThrow));
 
   if (it->IsElement()) {
     result = args.CallIndexedGetter(interceptor, it->index());
@@ -1006,7 +1006,7 @@ Maybe<PropertyAttributes> GetPropertyAttributesWithInterceptorInternal(
                                      Nothing<PropertyAttributes>());
   }
   PropertyCallbackArguments args(isolate, interceptor->data(), *receiver,
-                                 *holder, kDontThrow);
+                                 *holder, Just(kDontThrow));
   if (!interceptor->query()->IsUndefined(isolate)) {
     Handle<Object> result;
     if (it->IsElement()) {
@@ -1053,8 +1053,7 @@ Maybe<bool> SetPropertyWithInterceptorInternal(
                                      Nothing<bool>());
   }
   PropertyCallbackArguments args(isolate, interceptor->data(), *receiver,
-                                 *holder,
-                                 GetShouldThrow(isolate, should_throw));
+                                 *holder, should_throw);
 
   if (it->IsElement()) {
     // TODO(neis): In the future, we may want to actually return the
@@ -1087,8 +1086,7 @@ Maybe<bool> DefinePropertyWithInterceptorInternal(
                                      Nothing<bool>());
   }
   PropertyCallbackArguments args(isolate, interceptor->data(), *receiver,
-                                 *holder,
-                                 GetShouldThrow(isolate, should_throw));
+                                 *holder, should_throw);
 
   std::unique_ptr<v8::PropertyDescriptor> descriptor(
       new v8::PropertyDescriptor());
@@ -1512,7 +1510,7 @@ Maybe<bool> GetPropertyDescriptorWithInterceptor(LookupIterator* it,
   }
 
   PropertyCallbackArguments args(isolate, interceptor->data(), *receiver,
-                                 *holder, kDontThrow);
+                                 *holder, Just(kDontThrow));
   if (it->IsElement()) {
     result = args.CallIndexedDescriptor(interceptor, it->index());
   } else {
@@ -3538,7 +3536,7 @@ Maybe<bool> JSObject::DeletePropertyWithInterceptor(LookupIterator* it,
   }
 
   PropertyCallbackArguments args(isolate, interceptor->data(), *receiver,
-                                 *holder, should_throw);
+                                 *holder, Just(should_throw));
   Handle<Object> result;
   if (it->IsElement()) {
     result = args.CallIndexedDeleter(interceptor, it->index());
