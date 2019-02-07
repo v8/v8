@@ -823,30 +823,57 @@ std::unique_ptr<icu::TimeZone> CreateTimeZone(Isolate* isolate,
   return tz;
 }
 
-std::unique_ptr<icu::Calendar> CreateCalendar(Isolate* isolate,
-                                              const icu::Locale& icu_locale,
-                                              const char* timezone) {
-  std::unique_ptr<icu::TimeZone> tz = CreateTimeZone(isolate, timezone);
-  if (tz.get() == nullptr) return std::unique_ptr<icu::Calendar>();
+class CalendarCache {
+ public:
+  icu::Calendar* CreateCalendar(const icu::Locale& locale, icu::TimeZone* tz) {
+    icu::UnicodeString tz_id;
+    tz->getID(tz_id);
+    std::string key;
+    tz_id.toUTF8String<std::string>(key);
+    key += ":";
+    key += locale.getName();
 
-  // Create a calendar using locale, and apply time zone to it.
-  UErrorCode status = U_ZERO_ERROR;
-  std::unique_ptr<icu::Calendar> calendar(
-      icu::Calendar::createInstance(tz.release(), icu_locale, status));
-  CHECK(U_SUCCESS(status));
-  CHECK_NOT_NULL(calendar.get());
-
-  if (calendar->getDynamicClassID() ==
-      icu::GregorianCalendar::getStaticClassID()) {
-    icu::GregorianCalendar* gc =
-        static_cast<icu::GregorianCalendar*>(calendar.get());
+    base::MutexGuard guard(&mutex_);
+    auto it = map_.find(key);
+    if (it != map_.end()) {
+      delete tz;
+      return it->second->clone();
+    }
+    // Create a calendar using locale, and apply time zone to it.
     UErrorCode status = U_ZERO_ERROR;
-    // The beginning of ECMAScript time, namely -(2**53)
-    const double start_of_time = -9007199254740992;
-    gc->setGregorianChange(start_of_time, status);
-    DCHECK(U_SUCCESS(status));
+    std::unique_ptr<icu::Calendar> calendar(
+        icu::Calendar::createInstance(tz, locale, status));
+    CHECK(U_SUCCESS(status));
+    CHECK_NOT_NULL(calendar.get());
+
+    if (calendar->getDynamicClassID() ==
+        icu::GregorianCalendar::getStaticClassID()) {
+      icu::GregorianCalendar* gc =
+          static_cast<icu::GregorianCalendar*>(calendar.get());
+      UErrorCode status = U_ZERO_ERROR;
+      // The beginning of ECMAScript time, namely -(2**53)
+      const double start_of_time = -9007199254740992;
+      gc->setGregorianChange(start_of_time, status);
+      DCHECK(U_SUCCESS(status));
+    }
+
+    if (map_.size() > 8) {  // Cache at most 8 calendars.
+      map_.clear();
+    }
+    map_[key].reset(calendar.release());
+    return map_[key]->clone();
   }
-  return calendar;
+
+ private:
+  std::map<std::string, std::unique_ptr<icu::Calendar>> map_;
+  base::Mutex mutex_;
+};
+
+icu::Calendar* CreateCalendar(Isolate* isolate, const icu::Locale& icu_locale,
+                              icu::TimeZone* tz) {
+  static base::LazyInstance<CalendarCache>::type calendar_cache =
+      LAZY_INSTANCE_INITIALIZER;
+  return calendar_cache.Pointer()->CreateCalendar(icu_locale, tz);
 }
 
 std::unique_ptr<icu::SimpleDateFormat> CreateICUDateFormat(
@@ -876,6 +903,43 @@ std::unique_ptr<icu::SimpleDateFormat> CreateICUDateFormat(
 
   CHECK_NOT_NULL(date_format.get());
   return date_format;
+}
+
+class DateFormatCache {
+ public:
+  icu::SimpleDateFormat* Create(const icu::Locale& icu_locale,
+                                const icu::UnicodeString& skeleton,
+                                icu::DateTimePatternGenerator& generator) {
+    std::string key;
+    skeleton.toUTF8String<std::string>(key);
+    key += ":";
+    key += icu_locale.getName();
+
+    base::MutexGuard guard(&mutex_);
+    auto it = map_.find(key);
+    if (it != map_.end()) {
+      return static_cast<icu::SimpleDateFormat*>(it->second->clone());
+    }
+
+    if (map_.size() > 8) {  // Cache at most 8 DateFormats.
+      map_.clear();
+    }
+    map_[key] = CreateICUDateFormat(icu_locale, skeleton, generator);
+    return static_cast<icu::SimpleDateFormat*>(map_[key]->clone());
+  }
+
+ private:
+  std::map<std::string, std::unique_ptr<icu::SimpleDateFormat>> map_;
+  base::Mutex mutex_;
+};
+
+std::unique_ptr<icu::SimpleDateFormat> CreateICUDateFormatFromCache(
+    const icu::Locale& icu_locale, const icu::UnicodeString& skeleton,
+    icu::DateTimePatternGenerator& generator) {
+  static base::LazyInstance<DateFormatCache>::type cache =
+      LAZY_INSTANCE_INITIALIZER;
+  return std::unique_ptr<icu::SimpleDateFormat>(
+      cache.Pointer()->Create(icu_locale, skeleton, generator));
 }
 
 Intl::HourCycle HourCycleFromPattern(const icu::UnicodeString pattern) {
@@ -999,8 +1063,8 @@ std::unique_ptr<icu::SimpleDateFormat> DateTimeStylePattern(
     return result;
   }
 
-  return CreateICUDateFormat(icu_locale, ReplaceSkeleton(skeleton, hc),
-                             generator);
+  return CreateICUDateFormatFromCache(icu_locale, ReplaceSkeleton(skeleton, hc),
+                                      generator);
 }
 
 class DateTimePatternGeneratorCache {
@@ -1102,8 +1166,17 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::Initialize(
                             "Intl.DateTimeFormat", &timezone);
   MAYBE_RETURN(maybe_timezone, Handle<JSDateTimeFormat>());
 
+  std::unique_ptr<icu::TimeZone> tz = CreateTimeZone(isolate, timezone.get());
+  if (tz.get() == nullptr) {
+    THROW_NEW_ERROR(isolate,
+                    NewRangeError(MessageTemplate::kInvalidTimeZone,
+                                  isolate->factory()->NewStringFromAsciiChecked(
+                                      timezone.get())),
+                    JSDateTimeFormat);
+  }
+
   std::unique_ptr<icu::Calendar> calendar(
-      CreateCalendar(isolate, icu_locale, timezone.get()));
+      CreateCalendar(isolate, icu_locale, tz.release()));
 
   // 18.b If the result of IsValidTimeZoneName(timeZone) is false, then
   // i. Throw a RangeError exception.
@@ -1261,12 +1334,12 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::Initialize(
 
     icu::UnicodeString skeleton_ustr(skeleton.c_str());
     icu_date_format =
-        CreateICUDateFormat(icu_locale, skeleton_ustr, *generator);
+        CreateICUDateFormatFromCache(icu_locale, skeleton_ustr, *generator);
     if (icu_date_format.get() == nullptr) {
       // Remove extensions and try again.
       icu_locale = icu::Locale(icu_locale.getBaseName());
       icu_date_format =
-          CreateICUDateFormat(icu_locale, skeleton_ustr, *generator);
+          CreateICUDateFormatFromCache(icu_locale, skeleton_ustr, *generator);
       if (icu_date_format.get() == nullptr) {
         FATAL("Failed to create ICU date format, are ICU data files missing?");
       }
