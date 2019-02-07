@@ -1251,7 +1251,7 @@ void Heap::ReportExternalMemoryPressure() {
     // Extend the gc callback flags with external memory flags.
     current_gc_callback_flags_ = static_cast<GCCallbackFlags>(
         current_gc_callback_flags_ | kGCCallbackFlagsForExternalMemory);
-    incremental_marking()->AdvanceIncrementalMarking(
+    incremental_marking()->AdvanceWithDeadline(
         deadline, IncrementalMarking::GC_VIA_STACK_GUARD, StepOrigin::kV8);
   }
 }
@@ -3129,14 +3129,11 @@ bool Heap::PerformIdleTimeAction(GCIdleTimeAction action,
       result = true;
       break;
     case DO_INCREMENTAL_STEP: {
-      const double remaining_idle_time_in_ms =
-          incremental_marking()->AdvanceIncrementalMarking(
-              deadline_in_ms, IncrementalMarking::NO_GC_VIA_STACK_GUARD,
-              StepOrigin::kTask);
-      if (remaining_idle_time_in_ms > 0.0) {
-        FinalizeIncrementalMarkingIfComplete(
-            GarbageCollectionReason::kFinalizeMarkingViaTask);
-      }
+      incremental_marking()->AdvanceWithDeadline(
+          deadline_in_ms, IncrementalMarking::NO_GC_VIA_STACK_GUARD,
+          StepOrigin::kTask);
+      FinalizeIncrementalMarkingIfComplete(
+          GarbageCollectionReason::kFinalizeMarkingViaTask);
       result = incremental_marking()->IsStopped();
       break;
     }

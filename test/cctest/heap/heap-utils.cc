@@ -153,6 +153,7 @@ void SimulateFullSpace(v8::internal::NewSpace* space,
 }
 
 void SimulateIncrementalMarking(i::Heap* heap, bool force_completion) {
+  const double kStepSizeInMs = 100;
   CHECK(FLAG_incremental_marking);
   i::IncrementalMarking* marking = heap->incremental_marking();
   i::MarkCompactCollector* collector = heap->mark_compact_collector();
@@ -171,8 +172,8 @@ void SimulateIncrementalMarking(i::Heap* heap, bool force_completion) {
   if (!force_completion) return;
 
   while (!marking->IsComplete()) {
-    marking->Step(i::MB, i::IncrementalMarking::NO_GC_VIA_STACK_GUARD,
-                  i::StepOrigin::kV8);
+    marking->V8Step(kStepSizeInMs, i::IncrementalMarking::NO_GC_VIA_STACK_GUARD,
+                    i::StepOrigin::kV8);
     if (marking->IsReadyToOverApproximateWeakClosure()) {
       marking->FinalizeIncrementally();
     }

@@ -328,7 +328,7 @@ void GCTracer::Stop(GarbageCollector collector) {
       RecordIncrementalMarkingSpeed(current_.incremental_marking_bytes,
                                     current_.incremental_marking_duration);
       recorded_incremental_mark_compacts_.Push(
-          MakeBytesAndDuration(current_.start_object_size, duration));
+          MakeBytesAndDuration(current_.end_object_size, duration));
       RecordGCSumCounters(duration);
       ResetIncrementalMarkingCounters();
       combined_mark_compact_speed_cache_ = 0.0;
@@ -340,7 +340,7 @@ void GCTracer::Stop(GarbageCollector collector) {
       RecordMutatorUtilization(
           current_.end_time, duration + current_.incremental_marking_duration);
       recorded_mark_compacts_.Push(
-          MakeBytesAndDuration(current_.start_object_size, duration));
+          MakeBytesAndDuration(current_.end_object_size, duration));
       RecordGCSumCounters(duration);
       ResetIncrementalMarkingCounters();
       combined_mark_compact_speed_cache_ = 0.0;
@@ -959,9 +959,15 @@ double GCTracer::FinalIncrementalMarkCompactSpeedInBytesPerMillisecond() const {
 }
 
 double GCTracer::CombinedMarkCompactSpeedInBytesPerMillisecond() {
+  const double kMinimumMarkingSpeed = 0.5;
   if (combined_mark_compact_speed_cache_ > 0)
     return combined_mark_compact_speed_cache_;
-  const double kMinimumMarkingSpeed = 0.5;
+  // MarkCompact speed is more stable than incremental marking speed, because
+  // there might not be many incremental marking steps because of concurrent
+  // marking.
+  combined_mark_compact_speed_cache_ = MarkCompactSpeedInBytesPerMillisecond();
+  if (combined_mark_compact_speed_cache_ > 0)
+    return combined_mark_compact_speed_cache_;
   double speed1 = IncrementalMarkingSpeedInBytesPerMillisecond();
   double speed2 = FinalIncrementalMarkCompactSpeedInBytesPerMillisecond();
   if (speed1 < kMinimumMarkingSpeed || speed2 < kMinimumMarkingSpeed) {

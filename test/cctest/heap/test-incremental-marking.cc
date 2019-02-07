@@ -71,7 +71,7 @@ class MockPlatform : public TestPlatform {
 
     void PostDelayedTask(std::unique_ptr<Task> task,
                          double delay_in_seconds) override {
-      UNREACHABLE();
+      task_ = std::move(task);
     };
 
     void PostIdleTask(std::unique_ptr<IdleTask> task) override {
