@@ -17,30 +17,18 @@
 #include "src/base/bits.h"
 #include "src/base/tsan.h"
 #include "src/builtins/builtins.h"
-#include "src/contexts-inl.h"
-#include "src/conversions-inl.h"
-#include "src/feedback-vector-inl.h"
-#include "src/field-index-inl.h"
+#include "src/conversions.h"
+#include "src/double.h"
 #include "src/handles-inl.h"
 #include "src/heap/factory.h"
-#include "src/heap/heap-inl.h"  // crbug.com/v8/8499
-#include "src/isolate-inl.h"
 #include "src/keys.h"
-#include "src/layout-descriptor-inl.h"
-#include "src/lookup-cache-inl.h"
 #include "src/lookup-inl.h"
-#include "src/maybe-handles-inl.h"
 #include "src/objects/bigint.h"
-#include "src/objects/descriptor-array-inl.h"
-#include "src/objects/embedder-data-array-inl.h"
-#include "src/objects/free-space-inl.h"
 #include "src/objects/heap-number-inl.h"
-#include "src/objects/heap-object.h"  // TODO(jkummerow): See below [1].
+#include "src/objects/heap-object.h"
 #include "src/objects/js-proxy-inl.h"
 #include "src/objects/literal-objects.h"
-#include "src/objects/maybe-object-inl.h"
-#include "src/objects/oddball-inl.h"
-#include "src/objects/ordered-hash-table-inl.h"
+#include "src/objects/oddball.h"
 #include "src/objects/regexp-match-info.h"
 #include "src/objects/scope-info.h"
 #include "src/objects/slots-inl.h"
@@ -49,17 +37,7 @@
 #include "src/objects/templates.h"
 #include "src/property-details.h"
 #include "src/property.h"
-#include "src/prototype-inl.h"
-#include "src/roots-inl.h"
-#include "src/transitions-inl.h"
 #include "src/v8memory.h"
-
-// [1] This file currently contains the definitions of many
-// HeapObject::IsFoo() predicates, which in turn require #including
-// many other -inl.h files. Find a way to avoid this. Idea:
-// Since e.g. HeapObject::IsSeqString requires things from string-inl.h,
-// and presumably is mostly used from places that require/include string-inl.h
-// anyway, maybe that's where it should be defined?
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -82,11 +60,6 @@ int PropertyDetails::field_width_in_words() const {
   if (!FLAG_unbox_double_fields) return 1;
   if (kDoubleSize == kTaggedSize) return 1;
   return representation().IsDouble() ? kDoubleSize / kTaggedSize : 1;
-}
-
-bool HeapObject::IsUncompiledData() const {
-  return IsUncompiledDataWithoutPreparseData() ||
-         IsUncompiledDataWithPreparseData();
 }
 
 bool HeapObject::IsSloppyArgumentsElements() const {
@@ -330,11 +303,6 @@ bool HeapObject::IsSymbolWrapper() const {
   return IsJSValue() && JSValue::cast(*this)->value()->IsSymbol();
 }
 
-bool HeapObject::IsBoolean() const {
-  return IsOddball() &&
-         ((Oddball::cast(*this)->kind() & Oddball::kNotBooleanMask) == 0);
-}
-
 bool HeapObject::IsJSArrayBufferView() const {
   return IsJSDataView() || IsJSTypedArray();
 }
@@ -342,10 +310,6 @@ bool HeapObject::IsJSArrayBufferView() const {
 bool HeapObject::IsStringSet() const { return IsHashTable(); }
 
 bool HeapObject::IsObjectHashSet() const { return IsHashTable(); }
-
-bool HeapObject::IsNormalizedMapCache() const {
-  return NormalizedMapCache::IsNormalizedMapCache(*this);
-}
 
 bool HeapObject::IsCompilationCacheTable() const { return IsHashTable(); }
 
@@ -432,40 +396,8 @@ bool Object::IsMinusZero() const {
 }
 
 OBJECT_CONSTRUCTORS_IMPL(HeapObject, Object)
-OBJECT_CONSTRUCTORS_IMPL(HashTableBase, FixedArray)
-
-template <typename Derived, typename Shape>
-HashTable<Derived, Shape>::HashTable(Address ptr) : HashTableBase(ptr) {
-  SLOW_DCHECK(IsHashTable());
-}
-
-template <typename Derived, typename Shape>
-ObjectHashTableBase<Derived, Shape>::ObjectHashTableBase(Address ptr)
-    : HashTable<Derived, Shape>(ptr) {}
-
-ObjectHashTable::ObjectHashTable(Address ptr)
-    : ObjectHashTableBase<ObjectHashTable, ObjectHashTableShape>(ptr) {
-  SLOW_DCHECK(IsObjectHashTable());
-}
-
-EphemeronHashTable::EphemeronHashTable(Address ptr)
-    : ObjectHashTableBase<EphemeronHashTable, EphemeronHashTableShape>(ptr) {
-  SLOW_DCHECK(IsEphemeronHashTable());
-}
-
-ObjectHashSet::ObjectHashSet(Address ptr)
-    : HashTable<ObjectHashSet, ObjectHashSetShape>(ptr) {
-  SLOW_DCHECK(IsObjectHashSet());
-}
-
 OBJECT_CONSTRUCTORS_IMPL(RegExpMatchInfo, FixedArray)
 OBJECT_CONSTRUCTORS_IMPL(ScopeInfo, FixedArray)
-
-NormalizedMapCache::NormalizedMapCache(Address ptr) : WeakFixedArray(ptr) {
-  // TODO(jkummerow): Introduce IsNormalizedMapCache() and use
-  // OBJECT_CONSTRUCTORS_IMPL macro?
-}
-
 OBJECT_CONSTRUCTORS_IMPL(BigIntBase, HeapObject)
 OBJECT_CONSTRUCTORS_IMPL(BigInt, BigIntBase)
 OBJECT_CONSTRUCTORS_IMPL(FreshlyAllocatedBigInt, BigIntBase)
@@ -476,13 +408,8 @@ OBJECT_CONSTRUCTORS_IMPL(TemplateObjectDescription, Tuple2)
 // Cast operations
 
 CAST_ACCESSOR(BigInt)
-CAST_ACCESSOR(ObjectBoilerplateDescription)
-CAST_ACCESSOR(EphemeronHashTable)
 CAST_ACCESSOR(HeapObject)
-CAST_ACCESSOR(NormalizedMapCache)
 CAST_ACCESSOR(Object)
-CAST_ACCESSOR(ObjectHashSet)
-CAST_ACCESSOR(ObjectHashTable)
 CAST_ACCESSOR(RegExpMatchInfo)
 CAST_ACCESSOR(ScopeInfo)
 CAST_ACCESSOR(TemplateObjectDescription)
@@ -490,23 +417,6 @@ CAST_ACCESSOR(TemplateObjectDescription)
 bool Object::HasValidElements() {
   // Dictionary is covered under FixedArray.
   return IsFixedArray() || IsFixedDoubleArray() || IsFixedTypedArrayBase();
-}
-
-bool Object::KeyEquals(Object second) {
-  Object first = *this;
-  if (second->IsNumber()) {
-    if (first->IsNumber()) return first->Number() == second->Number();
-    Object temp = first;
-    first = second;
-    second = temp;
-  }
-  if (first->IsNumber()) {
-    DCHECK_LE(0, first->Number());
-    uint32_t expected = static_cast<uint32_t>(first->Number());
-    uint32_t index;
-    return Name::cast(second)->AsArrayIndex(&index) && index == expected;
-  }
-  return Name::cast(first)->Equals(Name::cast(second));
 }
 
 bool Object::FilterKey(PropertyFilter filter) {
@@ -518,33 +428,6 @@ bool Object::FilterKey(PropertyFilter filter) {
     if (filter & SKIP_STRINGS) return true;
   }
   return false;
-}
-
-Handle<Object> Object::NewStorageFor(Isolate* isolate, Handle<Object> object,
-                                     Representation representation) {
-  if (!representation.IsDouble()) return object;
-  auto result = isolate->factory()->NewMutableHeapNumberWithHoleNaN();
-  if (object->IsUninitialized(isolate)) {
-    result->set_value_as_bits(kHoleNanInt64);
-  } else if (object->IsMutableHeapNumber()) {
-    // Ensure that all bits of the double value are preserved.
-    result->set_value_as_bits(
-        MutableHeapNumber::cast(*object)->value_as_bits());
-  } else {
-    result->set_value(object->Number());
-  }
-  return result;
-}
-
-Handle<Object> Object::WrapForRead(Isolate* isolate, Handle<Object> object,
-                                   Representation representation) {
-  DCHECK(!object->IsUninitialized(isolate));
-  if (!representation.IsDouble()) {
-    DCHECK(object->FitsRepresentation(representation));
-    return object;
-  }
-  return isolate->factory()->NewHeapNumber(
-      MutableHeapNumber::cast(*object)->value());
 }
 
 Representation Object::OptimalRepresentation() {
@@ -603,7 +486,7 @@ MaybeHandle<JSReceiver> Object::ToObject(Isolate* isolate,
                                          Handle<Object> object,
                                          const char* method_name) {
   if (object->IsJSReceiver()) return Handle<JSReceiver>::cast(object);
-  return ToObject(isolate, object, isolate->native_context(), method_name);
+  return ToObjectImpl(isolate, object, method_name);
 }
 
 
@@ -878,17 +761,6 @@ HeapObject Object::GetHeapObject() const {
   return HeapObject::cast(*this);
 }
 
-void Object::VerifyApiCallResultType() {
-#if DEBUG
-  if (IsSmi()) return;
-  DCHECK(IsHeapObject());
-  if (!(IsString() || IsSymbol() || IsJSReceiver() || IsHeapNumber() ||
-        IsBigInt() || IsUndefined() || IsTrue() || IsFalse() || IsNull())) {
-    FATAL("API call returned invalid object");
-  }
-#endif  // DEBUG
-}
-
 int RegExpMatchInfo::NumberOfCaptureRegisters() {
   DCHECK_GE(length(), kLastMatchOverhead);
   Object obj = get(kNumberOfCapturesIndex);
@@ -951,148 +823,8 @@ AllocationAlignment HeapObject::RequiredAlignment(Map map) {
   return kWordAligned;
 }
 
-bool HeapObject::NeedsRehashing() const {
-  switch (map()->instance_type()) {
-    case DESCRIPTOR_ARRAY_TYPE:
-      return DescriptorArray::cast(*this)->number_of_descriptors() > 1;
-    case TRANSITION_ARRAY_TYPE:
-      return TransitionArray::cast(*this)->number_of_entries() > 1;
-    case ORDERED_HASH_MAP_TYPE:
-      return OrderedHashMap::cast(*this)->NumberOfElements() > 0;
-    case ORDERED_HASH_SET_TYPE:
-      return OrderedHashSet::cast(*this)->NumberOfElements() > 0;
-    case NAME_DICTIONARY_TYPE:
-    case GLOBAL_DICTIONARY_TYPE:
-    case NUMBER_DICTIONARY_TYPE:
-    case SIMPLE_NUMBER_DICTIONARY_TYPE:
-    case STRING_TABLE_TYPE:
-    case HASH_TABLE_TYPE:
-    case SMALL_ORDERED_HASH_MAP_TYPE:
-    case SMALL_ORDERED_HASH_SET_TYPE:
-    case SMALL_ORDERED_NAME_DICTIONARY_TYPE:
-      return true;
-    default:
-      return false;
-  }
-}
-
 Address HeapObject::GetFieldAddress(int field_offset) const {
   return FIELD_ADDR(this, field_offset);
-}
-
-ACCESSORS(EnumCache, keys, FixedArray, kKeysOffset)
-ACCESSORS(EnumCache, indices, FixedArray, kIndicesOffset)
-
-DEFINE_DEOPT_ELEMENT_ACCESSORS(TranslationByteArray, ByteArray)
-DEFINE_DEOPT_ELEMENT_ACCESSORS(InlinedFunctionCount, Smi)
-DEFINE_DEOPT_ELEMENT_ACCESSORS(LiteralArray, FixedArray)
-DEFINE_DEOPT_ELEMENT_ACCESSORS(OsrBytecodeOffset, Smi)
-DEFINE_DEOPT_ELEMENT_ACCESSORS(OsrPcOffset, Smi)
-DEFINE_DEOPT_ELEMENT_ACCESSORS(OptimizationId, Smi)
-DEFINE_DEOPT_ELEMENT_ACCESSORS(InliningPositions, PodArray<InliningPosition>)
-
-DEFINE_DEOPT_ENTRY_ACCESSORS(BytecodeOffsetRaw, Smi)
-DEFINE_DEOPT_ENTRY_ACCESSORS(TranslationIndex, Smi)
-DEFINE_DEOPT_ENTRY_ACCESSORS(Pc, Smi)
-
-int HeapObject::SizeFromMap(Map map) const {
-  int instance_size = map->instance_size();
-  if (instance_size != kVariableSizeSentinel) return instance_size;
-  // Only inline the most frequent cases.
-  InstanceType instance_type = map->instance_type();
-  if (IsInRange(instance_type, FIRST_FIXED_ARRAY_TYPE, LAST_FIXED_ARRAY_TYPE)) {
-    return FixedArray::SizeFor(
-        FixedArray::unchecked_cast(*this)->synchronized_length());
-  }
-  if (IsInRange(instance_type, FIRST_CONTEXT_TYPE, LAST_CONTEXT_TYPE)) {
-    // Native context has fixed size.
-    DCHECK_NE(instance_type, NATIVE_CONTEXT_TYPE);
-    return Context::SizeFor(Context::unchecked_cast(*this)->length());
-  }
-  if (instance_type == ONE_BYTE_STRING_TYPE ||
-      instance_type == ONE_BYTE_INTERNALIZED_STRING_TYPE) {
-    // Strings may get concurrently truncated, hence we have to access its
-    // length synchronized.
-    return SeqOneByteString::SizeFor(
-        SeqOneByteString::unchecked_cast(*this)->synchronized_length());
-  }
-  if (instance_type == BYTE_ARRAY_TYPE) {
-    return ByteArray::SizeFor(
-        ByteArray::unchecked_cast(*this)->synchronized_length());
-  }
-  if (instance_type == BYTECODE_ARRAY_TYPE) {
-    return BytecodeArray::SizeFor(
-        BytecodeArray::unchecked_cast(*this)->synchronized_length());
-  }
-  if (instance_type == FREE_SPACE_TYPE) {
-    return FreeSpace::unchecked_cast(*this)->relaxed_read_size();
-  }
-  if (instance_type == STRING_TYPE ||
-      instance_type == INTERNALIZED_STRING_TYPE) {
-    // Strings may get concurrently truncated, hence we have to access its
-    // length synchronized.
-    return SeqTwoByteString::SizeFor(
-        SeqTwoByteString::unchecked_cast(*this)->synchronized_length());
-  }
-  if (instance_type == FIXED_DOUBLE_ARRAY_TYPE) {
-    return FixedDoubleArray::SizeFor(
-        FixedDoubleArray::unchecked_cast(*this)->synchronized_length());
-  }
-  if (instance_type == FEEDBACK_METADATA_TYPE) {
-    return FeedbackMetadata::SizeFor(
-        FeedbackMetadata::unchecked_cast(*this)->synchronized_slot_count());
-  }
-  if (instance_type == DESCRIPTOR_ARRAY_TYPE) {
-    return DescriptorArray::SizeFor(
-        DescriptorArray::unchecked_cast(*this)->number_of_all_descriptors());
-  }
-  if (IsInRange(instance_type, FIRST_WEAK_FIXED_ARRAY_TYPE,
-                LAST_WEAK_FIXED_ARRAY_TYPE)) {
-    return WeakFixedArray::SizeFor(
-        WeakFixedArray::unchecked_cast(*this)->synchronized_length());
-  }
-  if (instance_type == WEAK_ARRAY_LIST_TYPE) {
-    return WeakArrayList::SizeForCapacity(
-        WeakArrayList::unchecked_cast(*this)->synchronized_capacity());
-  }
-  if (IsInRange(instance_type, FIRST_FIXED_TYPED_ARRAY_TYPE,
-                LAST_FIXED_TYPED_ARRAY_TYPE)) {
-    return FixedTypedArrayBase::unchecked_cast(*this)->TypedArraySize(
-        instance_type);
-  }
-  if (instance_type == SMALL_ORDERED_HASH_SET_TYPE) {
-    return SmallOrderedHashSet::SizeFor(
-        SmallOrderedHashSet::unchecked_cast(*this)->Capacity());
-  }
-  if (instance_type == SMALL_ORDERED_HASH_MAP_TYPE) {
-    return SmallOrderedHashMap::SizeFor(
-        SmallOrderedHashMap::unchecked_cast(*this)->Capacity());
-  }
-  if (instance_type == SMALL_ORDERED_NAME_DICTIONARY_TYPE) {
-    return SmallOrderedNameDictionary::SizeFor(
-        SmallOrderedNameDictionary::unchecked_cast(*this)->Capacity());
-  }
-  if (instance_type == PROPERTY_ARRAY_TYPE) {
-    return PropertyArray::SizeFor(
-        PropertyArray::cast(*this)->synchronized_length());
-  }
-  if (instance_type == FEEDBACK_VECTOR_TYPE) {
-    return FeedbackVector::SizeFor(
-        FeedbackVector::unchecked_cast(*this)->length());
-  }
-  if (instance_type == BIGINT_TYPE) {
-    return BigInt::SizeFor(BigInt::unchecked_cast(*this)->length());
-  }
-  if (instance_type == PREPARSE_DATA_TYPE) {
-    PreparseData data = PreparseData::unchecked_cast(*this);
-    return PreparseData::SizeFor(data->data_length(), data->children_length());
-  }
-  if (instance_type == CODE_TYPE) {
-    return Code::unchecked_cast(*this)->CodeSize();
-  }
-  DCHECK_EQ(instance_type, EMBEDDER_DATA_ARRAY_TYPE);
-  return EmbedderDataArray::SizeFor(
-      EmbedderDataArray::unchecked_cast(*this)->length());
 }
 
 ACCESSORS(TemplateObjectDescription, raw_strings, FixedArray, kRawStringsOffset)
@@ -1193,8 +925,6 @@ MaybeHandle<Object> Object::GetPropertyOrElement(Handle<Object> receiver,
                                                         receiver, name, holder);
   return GetProperty(&it);
 }
-
-
 
 // static
 Object Object::GetSimpleHash(Object object) {

@@ -15,6 +15,7 @@
 #include "src/conversions.h"
 #include "src/counters.h"
 #include "src/heap/mark-compact-inl.h"
+#include "src/ic/handler-configuration-inl.h"
 #include "src/interpreter/interpreter.h"
 #include "src/isolate-inl.h"
 #include "src/log.h"
@@ -41,6 +42,7 @@
 #include "src/objects/scope-info.h"
 #include "src/objects/stack-frame-info-inl.h"
 #include "src/objects/struct-inl.h"
+#include "src/transitions-inl.h"
 #include "src/unicode-cache.h"
 #include "src/unicode-inl.h"
 

@@ -340,6 +340,7 @@ Maybe<bool> JSReceiver::SetOrCopyDataProperties(
 
   return Just(true);
 }
+
 String JSReceiver::class_name() {
   ReadOnlyRoots roots = GetReadOnlyRoots();
   if (IsFunction()) return roots.Function_string();

@@ -121,7 +121,7 @@ class HeapObject : public Object {
   // Given a heap object's map pointer, returns the heap size in bytes
   // Useful when the map pointer field is used for other purposes.
   // GC internal.
-  inline int SizeFromMap(Map map) const;
+  V8_EXPORT_PRIVATE int SizeFromMap(Map map) const;
 
   // Returns the field at offset in obj, as a read/write Object reference.
   // Does no checking, and is safe to use during GC, while maps are invalid.
@@ -164,7 +164,7 @@ class HeapObject : public Object {
   // Whether the object needs rehashing. That is the case if the object's
   // content depends on FLAG_hash_seed. When the object is deserialized into
   // a heap with a different hash seed, these objects need to adapt.
-  inline bool NeedsRehashing() const;
+  bool NeedsRehashing() const;
 
   // Rehashing support is not implemented for all objects that need rehashing.
   // With objects that need rehashing but cannot be rehashed, rehashing has to

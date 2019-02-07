@@ -313,6 +313,7 @@ header = '''
 #include "src/frames-inl.h" /* for architecture-specific frame constants */
 #include "src/contexts.h"
 #include "src/objects.h"
+#include "src/objects/data-handler.h"
 #include "src/objects/js-promise.h"
 #include "src/objects/js-regexp-string-iterator.h"
 

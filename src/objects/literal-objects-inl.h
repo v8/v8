@@ -17,6 +17,8 @@ namespace internal {
 
 OBJECT_CONSTRUCTORS_IMPL(ObjectBoilerplateDescription, FixedArray)
 
+CAST_ACCESSOR(ObjectBoilerplateDescription)
+
 SMI_ACCESSORS(ObjectBoilerplateDescription, flags,
               FixedArray::OffsetOfElementAt(kLiteralTypeOffset));
 

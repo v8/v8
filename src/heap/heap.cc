@@ -3579,6 +3579,12 @@ void Heap::Verify() {
   VerifyPointersVisitor visitor(this);
   IterateRoots(&visitor, VISIT_ONLY_STRONG);
 
+  if (!isolate()->context().is_null() &&
+      !isolate()->normalized_map_cache()->IsUndefined(isolate())) {
+    NormalizedMapCache::cast(*isolate()->normalized_map_cache())
+        ->NormalizedMapCacheVerify(isolate());
+  }
+
   VerifySmisVisitor smis_visitor;
   IterateSmiRoots(&smis_visitor);
 

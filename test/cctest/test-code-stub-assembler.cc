@@ -21,9 +21,11 @@
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
+#include "src/objects/ordered-hash-table-inl.h"
 #include "src/objects/promise-inl.h"
 #include "src/objects/smi.h"
 #include "src/objects/struct-inl.h"
+#include "src/transitions-inl.h"
 #include "test/cctest/compiler/code-assembler-tester.h"
 #include "test/cctest/compiler/function-tester.h"
 

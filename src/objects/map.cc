@@ -22,7 +22,7 @@
 #include "src/ostreams.h"
 #include "src/property.h"
 #include "src/roots.h"
-#include "src/transitions.h"
+#include "src/transitions-inl.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {

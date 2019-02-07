@@ -8,6 +8,7 @@
 #include "src/objects/js-objects.h"
 
 #include "src/feedback-vector.h"
+#include "src/field-index-inl.h"
 #include "src/heap/heap-write-barrier.h"
 #include "src/keys.h"
 #include "src/lookup-inl.h"

@@ -30,6 +30,9 @@ OBJECT_CONSTRUCTORS_IMPL(EnumCache, Tuple2)
 CAST_ACCESSOR(DescriptorArray)
 CAST_ACCESSOR(EnumCache)
 
+ACCESSORS(EnumCache, keys, FixedArray, kKeysOffset)
+ACCESSORS(EnumCache, indices, FixedArray, kIndicesOffset)
+
 ACCESSORS(DescriptorArray, enum_cache, EnumCache, kEnumCacheOffset)
 RELAXED_INT16_ACCESSORS(DescriptorArray, number_of_all_descriptors,
                         kNumberOfAllDescriptorsOffset)

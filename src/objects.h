@@ -634,23 +634,16 @@ class Object {
 
   inline bool FitsRepresentation(Representation representation);
 
-  // Checks whether two valid primitive encodings of a property name resolve to
-  // the same logical property. E.g., the smi 1, the string "1" and the double
-  // 1 all refer to the same property, so this helper will return true.
-  inline bool KeyEquals(Object other);
-
   inline bool FilterKey(PropertyFilter filter);
 
   Handle<FieldType> OptimalType(Isolate* isolate,
                                 Representation representation);
 
-  inline static Handle<Object> NewStorageFor(Isolate* isolate,
-                                             Handle<Object> object,
-                                             Representation representation);
+  static Handle<Object> NewStorageFor(Isolate* isolate, Handle<Object> object,
+                                      Representation representation);
 
-  inline static Handle<Object> WrapForRead(Isolate* isolate,
-                                           Handle<Object> object,
-                                           Representation representation);
+  static Handle<Object> WrapForRead(Isolate* isolate, Handle<Object> object,
+                                    Representation representation);
 
   // Returns true if the object is of the correct type to be used as a
   // implementation of a JSObject's elements.
@@ -681,8 +674,8 @@ class Object {
   V8_WARN_UNUSED_RESULT static inline MaybeHandle<JSReceiver> ToObject(
       Isolate* isolate, Handle<Object> object,
       const char* method_name = nullptr);
-  V8_WARN_UNUSED_RESULT static MaybeHandle<JSReceiver> ToObject(
-      Isolate* isolate, Handle<Object> object, Handle<Context> native_context,
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSReceiver> ToObjectImpl(
+      Isolate* isolate, Handle<Object> object,
       const char* method_name = nullptr);
 
   // ES6 section 9.2.1.2, OrdinaryCallBindThis for sloppy callee.

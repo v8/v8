@@ -46,6 +46,11 @@ Handle<Object> Oddball::ToNumber(Isolate* isolate, Handle<Oddball> input) {
   return handle(input->to_number(), isolate);
 }
 
+bool HeapObject::IsBoolean() const {
+  return IsOddball() &&
+         ((Oddball::cast(*this)->kind() & Oddball::kNotBooleanMask) == 0);
+}
+
 }  // namespace internal
 }  // namespace v8
 

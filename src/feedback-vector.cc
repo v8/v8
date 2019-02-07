@@ -4,6 +4,7 @@
 
 #include "src/feedback-vector.h"
 #include "src/feedback-vector-inl.h"
+#include "src/ic/handler-configuration-inl.h"
 #include "src/ic/ic-inl.h"
 #include "src/objects.h"
 #include "src/objects/data-handler-inl.h"

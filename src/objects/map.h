@@ -1005,12 +1005,11 @@ class NormalizedMapCache : public WeakFixedArray {
   void Set(Handle<Map> fast_map, Handle<Map> normalized_map);
 
   DECL_CAST(NormalizedMapCache)
-
-  static inline bool IsNormalizedMapCache(const HeapObject obj);
-
   DECL_VERIFIER(NormalizedMapCache)
 
  private:
+  friend bool HeapObject::IsNormalizedMapCache() const;
+
   static const int kEntries = 64;
 
   static inline int GetIndex(Handle<Map> map);

@@ -13,7 +13,7 @@
 #include "src/objects-inl.h"
 #include "src/objects/api-callbacks-inl.h"
 #include "src/objects/cell-inl.h"
-#include "src/objects/descriptor-array.h"
+#include "src/objects/descriptor-array-inl.h"
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/prototype-info-inl.h"
 #include "src/objects/shared-function-info.h"
@@ -770,23 +770,19 @@ int Map::InstanceSizeFromSlack(int slack) const {
   return instance_size() - slack * kTaggedSize;
 }
 
+OBJECT_CONSTRUCTORS_IMPL(NormalizedMapCache, WeakFixedArray)
+CAST_ACCESSOR(NormalizedMapCache)
 NEVER_READ_ONLY_SPACE_IMPL(NormalizedMapCache)
 
 int NormalizedMapCache::GetIndex(Handle<Map> map) {
   return map->Hash() % NormalizedMapCache::kEntries;
 }
 
-bool NormalizedMapCache::IsNormalizedMapCache(const HeapObject obj) {
-  if (!obj->IsWeakFixedArray()) return false;
-  if (WeakFixedArray::cast(obj)->length() != NormalizedMapCache::kEntries) {
+bool HeapObject::IsNormalizedMapCache() const {
+  if (!IsWeakFixedArray()) return false;
+  if (WeakFixedArray::cast(*this)->length() != NormalizedMapCache::kEntries) {
     return false;
   }
-#ifdef VERIFY_HEAP
-  if (FLAG_verify_heap) {
-    NormalizedMapCache cache = NormalizedMapCache::cast(obj);
-    cache->NormalizedMapCacheVerify(cache->GetIsolate());
-  }
-#endif
   return true;
 }
 

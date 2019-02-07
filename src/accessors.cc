@@ -9,6 +9,7 @@
 #include "src/counters.h"
 #include "src/deoptimizer.h"
 #include "src/execution.h"
+#include "src/field-index-inl.h"
 #include "src/frames-inl.h"
 #include "src/heap/factory.h"
 #include "src/isolate-inl.h"

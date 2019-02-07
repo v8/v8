@@ -6,6 +6,7 @@
 
 #include "src/api-arguments-inl.h"
 #include "src/elements-inl.h"
+#include "src/field-index-inl.h"
 #include "src/handles-inl.h"
 #include "src/heap/factory.h"
 #include "src/identity-map.h"
@@ -14,6 +15,7 @@
 #include "src/objects/api-callbacks.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/module-inl.h"
+#include "src/objects/ordered-hash-table-inl.h"
 #include "src/property-descriptor.h"
 #include "src/prototype.h"
 

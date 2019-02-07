@@ -55,8 +55,10 @@
 #include "src/objects/code-inl.h"
 #include "src/objects/compilation-cache-inl.h"
 #include "src/objects/debug-objects-inl.h"
+#include "src/objects/embedder-data-array-inl.h"
 #include "src/objects/foreign.h"
 #include "src/objects/frame-array-inl.h"
+#include "src/objects/free-space-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/js-array-inl.h"
 #ifdef V8_INTL_SUPPORT
@@ -101,6 +103,7 @@
 #include "src/string-builder-inl.h"
 #include "src/string-search.h"
 #include "src/string-stream.h"
+#include "src/transitions-inl.h"
 #include "src/unicode-decoder.h"
 #include "src/unicode-inl.h"
 #include "src/utils-inl.h"
@@ -179,11 +182,38 @@ Handle<FieldType> Object::OptimalType(Isolate* isolate,
   return FieldType::Any(isolate);
 }
 
-MaybeHandle<JSReceiver> Object::ToObject(Isolate* isolate,
-                                         Handle<Object> object,
-                                         Handle<Context> native_context,
-                                         const char* method_name) {
-  if (object->IsJSReceiver()) return Handle<JSReceiver>::cast(object);
+Handle<Object> Object::NewStorageFor(Isolate* isolate, Handle<Object> object,
+                                     Representation representation) {
+  if (!representation.IsDouble()) return object;
+  auto result = isolate->factory()->NewMutableHeapNumberWithHoleNaN();
+  if (object->IsUninitialized(isolate)) {
+    result->set_value_as_bits(kHoleNanInt64);
+  } else if (object->IsMutableHeapNumber()) {
+    // Ensure that all bits of the double value are preserved.
+    result->set_value_as_bits(
+        MutableHeapNumber::cast(*object)->value_as_bits());
+  } else {
+    result->set_value(object->Number());
+  }
+  return result;
+}
+
+Handle<Object> Object::WrapForRead(Isolate* isolate, Handle<Object> object,
+                                   Representation representation) {
+  DCHECK(!object->IsUninitialized(isolate));
+  if (!representation.IsDouble()) {
+    DCHECK(object->FitsRepresentation(representation));
+    return object;
+  }
+  return isolate->factory()->NewHeapNumber(
+      MutableHeapNumber::cast(*object)->value());
+}
+
+MaybeHandle<JSReceiver> Object::ToObjectImpl(Isolate* isolate,
+                                             Handle<Object> object,
+                                             const char* method_name) {
+  DCHECK(!object->IsJSReceiver());  // Use ToObject() for fast path.
+  Handle<Context> native_context = isolate->native_context();
   Handle<JSFunction> constructor;
   if (object->IsSmi()) {
     constructor = handle(native_context->number_function(), isolate);
@@ -488,8 +518,7 @@ Handle<String> Object::NoSideEffectsToString(Isolate* isolate,
       return isolate->factory()->NewStringFromAsciiChecked("[object Unknown]");
     }
 
-    receiver = Object::ToObject(isolate, input, isolate->native_context())
-                   .ToHandleChecked();
+    receiver = Object::ToObjectImpl(isolate, input).ToHandleChecked();
   }
 
   Handle<String> builtin_tag = handle(receiver->class_name(), isolate);
@@ -2165,6 +2194,130 @@ bool HeapObject::IsValidSlot(Map map, int offset) {
                                                     *this, offset, 0);
 }
 
+int HeapObject::SizeFromMap(Map map) const {
+  int instance_size = map->instance_size();
+  if (instance_size != kVariableSizeSentinel) return instance_size;
+  // Only inline the most frequent cases.
+  InstanceType instance_type = map->instance_type();
+  if (IsInRange(instance_type, FIRST_FIXED_ARRAY_TYPE, LAST_FIXED_ARRAY_TYPE)) {
+    return FixedArray::SizeFor(
+        FixedArray::unchecked_cast(*this)->synchronized_length());
+  }
+  if (IsInRange(instance_type, FIRST_CONTEXT_TYPE, LAST_CONTEXT_TYPE)) {
+    // Native context has fixed size.
+    DCHECK_NE(instance_type, NATIVE_CONTEXT_TYPE);
+    return Context::SizeFor(Context::unchecked_cast(*this)->length());
+  }
+  if (instance_type == ONE_BYTE_STRING_TYPE ||
+      instance_type == ONE_BYTE_INTERNALIZED_STRING_TYPE) {
+    // Strings may get concurrently truncated, hence we have to access its
+    // length synchronized.
+    return SeqOneByteString::SizeFor(
+        SeqOneByteString::unchecked_cast(*this)->synchronized_length());
+  }
+  if (instance_type == BYTE_ARRAY_TYPE) {
+    return ByteArray::SizeFor(
+        ByteArray::unchecked_cast(*this)->synchronized_length());
+  }
+  if (instance_type == BYTECODE_ARRAY_TYPE) {
+    return BytecodeArray::SizeFor(
+        BytecodeArray::unchecked_cast(*this)->synchronized_length());
+  }
+  if (instance_type == FREE_SPACE_TYPE) {
+    return FreeSpace::unchecked_cast(*this)->relaxed_read_size();
+  }
+  if (instance_type == STRING_TYPE ||
+      instance_type == INTERNALIZED_STRING_TYPE) {
+    // Strings may get concurrently truncated, hence we have to access its
+    // length synchronized.
+    return SeqTwoByteString::SizeFor(
+        SeqTwoByteString::unchecked_cast(*this)->synchronized_length());
+  }
+  if (instance_type == FIXED_DOUBLE_ARRAY_TYPE) {
+    return FixedDoubleArray::SizeFor(
+        FixedDoubleArray::unchecked_cast(*this)->synchronized_length());
+  }
+  if (instance_type == FEEDBACK_METADATA_TYPE) {
+    return FeedbackMetadata::SizeFor(
+        FeedbackMetadata::unchecked_cast(*this)->synchronized_slot_count());
+  }
+  if (instance_type == DESCRIPTOR_ARRAY_TYPE) {
+    return DescriptorArray::SizeFor(
+        DescriptorArray::unchecked_cast(*this)->number_of_all_descriptors());
+  }
+  if (IsInRange(instance_type, FIRST_WEAK_FIXED_ARRAY_TYPE,
+                LAST_WEAK_FIXED_ARRAY_TYPE)) {
+    return WeakFixedArray::SizeFor(
+        WeakFixedArray::unchecked_cast(*this)->synchronized_length());
+  }
+  if (instance_type == WEAK_ARRAY_LIST_TYPE) {
+    return WeakArrayList::SizeForCapacity(
+        WeakArrayList::unchecked_cast(*this)->synchronized_capacity());
+  }
+  if (IsInRange(instance_type, FIRST_FIXED_TYPED_ARRAY_TYPE,
+                LAST_FIXED_TYPED_ARRAY_TYPE)) {
+    return FixedTypedArrayBase::unchecked_cast(*this)->TypedArraySize(
+        instance_type);
+  }
+  if (instance_type == SMALL_ORDERED_HASH_SET_TYPE) {
+    return SmallOrderedHashSet::SizeFor(
+        SmallOrderedHashSet::unchecked_cast(*this)->Capacity());
+  }
+  if (instance_type == SMALL_ORDERED_HASH_MAP_TYPE) {
+    return SmallOrderedHashMap::SizeFor(
+        SmallOrderedHashMap::unchecked_cast(*this)->Capacity());
+  }
+  if (instance_type == SMALL_ORDERED_NAME_DICTIONARY_TYPE) {
+    return SmallOrderedNameDictionary::SizeFor(
+        SmallOrderedNameDictionary::unchecked_cast(*this)->Capacity());
+  }
+  if (instance_type == PROPERTY_ARRAY_TYPE) {
+    return PropertyArray::SizeFor(
+        PropertyArray::cast(*this)->synchronized_length());
+  }
+  if (instance_type == FEEDBACK_VECTOR_TYPE) {
+    return FeedbackVector::SizeFor(
+        FeedbackVector::unchecked_cast(*this)->length());
+  }
+  if (instance_type == BIGINT_TYPE) {
+    return BigInt::SizeFor(BigInt::unchecked_cast(*this)->length());
+  }
+  if (instance_type == PREPARSE_DATA_TYPE) {
+    PreparseData data = PreparseData::unchecked_cast(*this);
+    return PreparseData::SizeFor(data->data_length(), data->children_length());
+  }
+  if (instance_type == CODE_TYPE) {
+    return Code::unchecked_cast(*this)->CodeSize();
+  }
+  DCHECK_EQ(instance_type, EMBEDDER_DATA_ARRAY_TYPE);
+  return EmbedderDataArray::SizeFor(
+      EmbedderDataArray::unchecked_cast(*this)->length());
+}
+
+bool HeapObject::NeedsRehashing() const {
+  switch (map()->instance_type()) {
+    case DESCRIPTOR_ARRAY_TYPE:
+      return DescriptorArray::cast(*this)->number_of_descriptors() > 1;
+    case TRANSITION_ARRAY_TYPE:
+      return TransitionArray::cast(*this)->number_of_entries() > 1;
+    case ORDERED_HASH_MAP_TYPE:
+      return OrderedHashMap::cast(*this)->NumberOfElements() > 0;
+    case ORDERED_HASH_SET_TYPE:
+      return OrderedHashSet::cast(*this)->NumberOfElements() > 0;
+    case NAME_DICTIONARY_TYPE:
+    case GLOBAL_DICTIONARY_TYPE:
+    case NUMBER_DICTIONARY_TYPE:
+    case SIMPLE_NUMBER_DICTIONARY_TYPE:
+    case STRING_TABLE_TYPE:
+    case HASH_TABLE_TYPE:
+    case SMALL_ORDERED_HASH_MAP_TYPE:
+    case SMALL_ORDERED_HASH_SET_TYPE:
+    case SMALL_ORDERED_NAME_DICTIONARY_TYPE:
+      return true;
+    default:
+      return false;
+  }
+}
 
 bool HeapObject::CanBeRehashed() const {
   DCHECK(NeedsRehashing());

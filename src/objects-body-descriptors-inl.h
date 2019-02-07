@@ -8,6 +8,7 @@
 #include "src/feedback-vector.h"
 #include "src/objects-body-descriptors.h"
 #include "src/objects/cell.h"
+#include "src/objects/data-handler.h"
 #include "src/objects/foreign-inl.h"
 #include "src/objects/hash-table.h"
 #include "src/objects/js-collection.h"

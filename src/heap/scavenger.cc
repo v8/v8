@@ -14,6 +14,9 @@
 #include "src/heap/scavenger-inl.h"
 #include "src/heap/sweeper.h"
 #include "src/objects-body-descriptors-inl.h"
+#include "src/objects/data-handler-inl.h"
+#include "src/objects/embedder-data-array-inl.h"
+#include "src/transitions-inl.h"
 #include "src/utils-inl.h"
 
 namespace v8 {

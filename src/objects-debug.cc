@@ -12,6 +12,7 @@
 #include "src/disassembler.h"
 #include "src/elements.h"
 #include "src/field-type.h"
+#include "src/ic/handler-configuration-inl.h"
 #include "src/layout-descriptor.h"
 #include "src/objects-inl.h"
 #include "src/objects/arguments-inl.h"
@@ -59,7 +60,7 @@
 #include "src/objects/struct-inl.h"
 #include "src/ostreams.h"
 #include "src/regexp/jsregexp.h"
-#include "src/transitions.h"
+#include "src/transitions-inl.h"
 #include "src/wasm/wasm-objects-inl.h"
 
 namespace v8 {

@@ -107,6 +107,11 @@ CAST_ACCESSOR(UncompiledDataWithPreparseData)
 ACCESSORS(UncompiledDataWithPreparseData, preparse_data, PreparseData,
           kPreparseDataOffset)
 
+bool HeapObject::IsUncompiledData() const {
+  return IsUncompiledDataWithoutPreparseData() ||
+         IsUncompiledDataWithPreparseData();
+}
+
 OBJECT_CONSTRUCTORS_IMPL(InterpreterData, Struct)
 
 CAST_ACCESSOR(InterpreterData)
