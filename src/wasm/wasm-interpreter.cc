@@ -1267,6 +1267,19 @@ class ThreadImpl {
     return activations_[id].fp;
   }
 
+  WasmInterpreter::Thread::ExceptionHandlingResult RaiseException(
+      Isolate* isolate, Handle<Object> exception) {
+    DCHECK_EQ(WasmInterpreter::TRAPPED, state_);
+    isolate->Throw(*exception);  // Will check that none is pending.
+    if (HandleException(isolate) == WasmInterpreter::Thread::UNWOUND) {
+      DCHECK_EQ(WasmInterpreter::STOPPED, state_);
+      return WasmInterpreter::Thread::UNWOUND;
+    }
+    state_ = WasmInterpreter::PAUSED;
+    return WasmInterpreter::Thread::HANDLED;
+  }
+
+ private:
   // Handle a thrown exception. Returns whether the exception was handled inside
   // the current activation. Unwinds the interpreted stack accordingly.
   WasmInterpreter::Thread::ExceptionHandlingResult HandleException(
@@ -1301,7 +1314,6 @@ class ThreadImpl {
     return WasmInterpreter::Thread::UNWOUND;
   }
 
- private:
   // Entries on the stack of functions being evaluated.
   struct Frame {
     InterpreterCode* code;
@@ -3283,8 +3295,9 @@ WasmInterpreter::State WasmInterpreter::Thread::Run(int num_steps) {
 void WasmInterpreter::Thread::Pause() { return ToImpl(this)->Pause(); }
 void WasmInterpreter::Thread::Reset() { return ToImpl(this)->Reset(); }
 WasmInterpreter::Thread::ExceptionHandlingResult
-WasmInterpreter::Thread::HandleException(Isolate* isolate) {
-  return ToImpl(this)->HandleException(isolate);
+WasmInterpreter::Thread::RaiseException(Isolate* isolate,
+                                        Handle<Object> exception) {
+  return ToImpl(this)->RaiseException(isolate, exception);
 }
 pc_t WasmInterpreter::Thread::GetBreakpointPc() {
   return ToImpl(this)->GetBreakpointPc();

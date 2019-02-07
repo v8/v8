@@ -158,6 +158,37 @@ WASM_EXEC_TEST(TryCatchTrapTypeError) {
   r.CheckCallViaJS(kResult1, 1);
 }
 
+// TODO(8729): The semantics of this are not yet specified and might change,
+// this test aims at keeping semantics of various execution tiers consistent.
+// TODO(mstarzinger): Add further tests for different kinds of traps.
+WASM_EXEC_TEST(TryCatchTrapUnreachable) {
+  TestSignatures sigs;
+  EXPERIMENTAL_FLAG_SCOPE(eh);
+  WasmRunner<uint32_t, uint32_t> r(execution_tier, nullptr, "main",
+                                   kRuntimeExceptionSupport);
+  constexpr uint32_t kResult0 = 23;
+  constexpr uint32_t kResult1 = 42;
+
+  // Build a trapping helper function.
+  WasmFunctionCompiler& trap_func = r.NewFunction(sigs.i_ii());
+  BUILD(trap_func, WASM_UNREACHABLE);
+
+  // Build the main test function.
+  BUILD(r, WASM_TRY_CATCH_T(
+               kWasmI32,
+               WASM_STMTS(WASM_I32V(kResult1),
+                          WASM_IF(WASM_I32_EQZ(WASM_GET_LOCAL(0)),
+                                  WASM_STMTS(WASM_CALL_FUNCTION(
+                                                 trap_func.function_index(),
+                                                 WASM_I32V(7), WASM_I32V(9)),
+                                             WASM_DROP))),
+               WASM_STMTS(WASM_DROP, WASM_I32V(kResult0))));
+
+  // Need to call through JS to allow for creation of stack traces.
+  r.CheckCallViaJS(kResult0, 0);
+  r.CheckCallViaJS(kResult1, 1);
+}
+
 }  // namespace test_run_wasm_exceptions
 }  // namespace wasm
 }  // namespace internal

@@ -215,9 +215,7 @@ class InterpreterHandle {
               WasmOpcodes::TrapReasonToMessageId(thread->GetTrapReason());
           Handle<Object> exception =
               isolate_->factory()->NewWasmRuntimeError(message_id);
-          isolate_->Throw(*exception);
-          // Handle this exception locally within the activation.
-          auto result = thread->HandleException(isolate_);
+          auto result = thread->RaiseException(isolate_, exception);
           if (result == WasmInterpreter::Thread::HANDLED) break;
           // If no local handler was found, we fall-thru to {STOPPED}.
           DCHECK_EQ(WasmInterpreter::State::STOPPED, thread->state());
