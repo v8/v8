@@ -41,6 +41,7 @@
 #include "src/objects-inl.h"
 #include "src/profiler/cpu-profiler-inl.h"
 #include "src/profiler/profiler-listener.h"
+#include "src/profiler/tracing-cpu-profiler.h"
 #include "src/source-position-table.h"
 #include "src/utils.h"
 #include "test/cctest/cctest.h"
@@ -2405,11 +2406,16 @@ class CpuProfileEventChecker : public v8::platform::tracing::TraceWriter {
     profile_id_ = trace_event->id();
     v8::ConvertableToTraceFormat* arg =
         trace_event->arg_convertables()[0].get();
+    result_json_ += result_json_.empty() ? "[" : ",\n";
     arg->AppendAsTraceFormat(&result_json_);
   }
-  void Flush() override {}
+  void Flush() override { result_json_ += "]"; }
 
-  std::string result_json() const { return result_json_; }
+  const std::string& result_json() const { return result_json_; }
+  void Reset() {
+    result_json_.clear();
+    profile_id_ = 0;
+  }
 
  private:
   std::string result_json_;
@@ -2419,50 +2425,61 @@ class CpuProfileEventChecker : public v8::platform::tracing::TraceWriter {
 }  // namespace
 
 TEST(TracingCpuProfiler) {
-  v8::Platform* old_platform = i::V8::GetCurrentPlatform();
-  std::unique_ptr<v8::Platform> default_platform =
-      v8::platform::NewDefaultPlatform();
-  i::V8::SetPlatformForTesting(default_platform.get());
-
-  auto tracing = base::make_unique<v8::platform::tracing::TracingController>();
-  v8::platform::tracing::TracingController* tracing_controller = tracing.get();
-  static_cast<v8::platform::DefaultPlatform*>(default_platform.get())
-      ->SetTracingController(std::move(tracing));
+  v8::HandleScope scope(CcTest::isolate());
+  v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
+  v8::Context::Scope context_scope(env);
 
   CpuProfileEventChecker* event_checker = new CpuProfileEventChecker();
   TraceBuffer* ring_buffer =
       TraceBuffer::CreateTraceBufferRingBuffer(1, event_checker);
+  auto* tracing_controller =
+      static_cast<v8::platform::tracing::TracingController*>(
+          i::V8::GetCurrentPlatform()->GetTracingController());
   tracing_controller->Initialize(ring_buffer);
-  TraceConfig* trace_config = new TraceConfig();
-  trace_config->AddIncludedCategory(
-      TRACE_DISABLED_BY_DEFAULT("v8.cpu_profiler"));
 
-  LocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
-  {
+  bool result = false;
+  for (int run_duration = 50; !result; run_duration += 50) {
+    TraceConfig* trace_config = new TraceConfig();
+    trace_config->AddIncludedCategory(
+        TRACE_DISABLED_BY_DEFAULT("v8.cpu_profiler"));
+    trace_config->AddIncludedCategory(
+        TRACE_DISABLED_BY_DEFAULT("v8.cpu_profiler.hires"));
+
+    std::string test_code = R"(
+        function foo() {
+          let s = 0;
+          const endTime = Date.now() + )" +
+                            std::to_string(run_duration) + R"(
+          while (Date.now() < endTime) s += Math.cos(s);
+          return s;
+        }
+        foo();)";
+
     tracing_controller->StartTracing(trace_config);
-    CompileRun("function foo() { } foo();");
+    CompileRun(test_code.c_str());
     tracing_controller->StopTracing();
-    CompileRun("function bar() { } bar();");
+
+    std::string profile_json = event_checker->result_json();
+    event_checker->Reset();
+    CHECK_LT(0u, profile_json.length());
+    printf("Profile JSON: %s\n", profile_json.c_str());
+
+    std::string profile_checker_code = R"(
+        function checkProfile(json) {
+          const profile_header = json[0];
+          if (typeof profile_header['startTime'] !== 'number')
+            return false;
+          return json.some(event => (event.lines || []).some(line => line));
+        }
+        checkProfile()" + profile_json +
+                                       ")";
+    result = CompileRunChecked(CcTest::isolate(), profile_checker_code.c_str())
+                 ->IsTrue();
   }
 
-  const char* profile_checker =
-      "function checkProfile(profile) {\n"
-      "  if (typeof profile['startTime'] !== 'number') return 'startTime';\n"
-      "  return '';\n"
-      "}\n"
-      "checkProfile(";
-  std::string profile_json = event_checker->result_json();
-  CHECK_LT(0u, profile_json.length());
-  printf("Profile JSON: %s\n", profile_json.c_str());
-  std::string code = profile_checker + profile_json + ")";
-  v8::Local<v8::Value> result =
-      CompileRunChecked(CcTest::isolate(), code.c_str());
-  v8::String::Utf8Value value(CcTest::isolate(), result);
-  printf("Check result: %*s\n", value.length(), *value);
-  CHECK_EQ(0, value.length());
-
-  i::V8::SetPlatformForTesting(old_platform);
+  static_cast<v8::platform::tracing::TracingController*>(
+      i::V8::GetCurrentPlatform()->GetTracingController())
+      ->Initialize(nullptr);
 }
 
 TEST(Issue763073) {

@@ -9990,13 +9990,13 @@ const CpuProfileNode* CpuProfile::GetTopDownRoot() const {
 
 const CpuProfileNode* CpuProfile::GetSample(int index) const {
   const i::CpuProfile* profile = reinterpret_cast<const i::CpuProfile*>(this);
-  return reinterpret_cast<const CpuProfileNode*>(profile->sample(index));
+  return reinterpret_cast<const CpuProfileNode*>(profile->sample(index).node);
 }
 
 
 int64_t CpuProfile::GetSampleTimestamp(int index) const {
   const i::CpuProfile* profile = reinterpret_cast<const i::CpuProfile*>(this);
-  return (profile->sample_timestamp(index) - base::TimeTicks())
+  return (profile->sample(index).timestamp - base::TimeTicks())
       .InMicroseconds();
 }
 
