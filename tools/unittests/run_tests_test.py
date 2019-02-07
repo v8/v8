@@ -173,7 +173,7 @@ class SystemTest(unittest.TestCase):
           'sweet/bananas',
           'sweet/raspberries',
       )
-      self.assertIn('Done running sweet/bananas: pass', result.stdout, result)
+      self.assertIn('Done running sweet/bananas default: pass', result.stdout, result)
       # TODO(majeski): Implement for test processors
       # self.assertIn('Total time:', result.stderr, result)
       # self.assertIn('sweet/bananas', result.stderr, result)
@@ -233,7 +233,7 @@ class SystemTest(unittest.TestCase):
           'sweet/strawberries',
           infra_staging=False,
       )
-      self.assertIn('Done running sweet/strawberries: FAIL', result.stdout, result)
+      self.assertIn('Done running sweet/strawberries default: FAIL', result.stdout, result)
       self.assertEqual(1, result.returncode, result)
 
   def check_cleaned_json_output(
@@ -278,7 +278,7 @@ class SystemTest(unittest.TestCase):
           'sweet/strawberries',
           infra_staging=False,
       )
-      self.assertIn('Done running sweet/strawberries: FAIL', result.stdout, result)
+      self.assertIn('Done running sweet/strawberries default: FAIL', result.stdout, result)
       # With test processors we don't count reruns as separated failures.
       # TODO(majeski): fix it?
       self.assertIn('1 tests failed', result.stdout, result)
@@ -308,7 +308,7 @@ class SystemTest(unittest.TestCase):
           infra_staging=False,
       )
       self.assertIn(
-        'Done running sweet/bananaflakes: pass', result.stdout, result)
+        'Done running sweet/bananaflakes default: pass', result.stdout, result)
       self.assertIn('All tests succeeded', result.stdout, result)
       self.assertEqual(0, result.returncode, result)
       self.maxDiff = None
@@ -498,7 +498,8 @@ class SystemTest(unittest.TestCase):
           infra_staging=False,
       )
       self.assertIn('1 tests ran', result.stdout, result)
-      self.assertIn('Done running sweet/bananas: FAIL', result.stdout, result)
+      self.assertIn(
+        'Done running sweet/bananas default: FAIL', result.stdout, result)
       self.assertIn('Test had no allocation output', result.stdout, result)
       self.assertIn('--predictable --verify_predictable', result.stdout, result)
       self.assertEqual(1, result.returncode, result)
@@ -634,10 +635,10 @@ class SystemTest(unittest.TestCase):
           'sweet/blackberries',  # FAIL
           'sweet/raspberries',   # should not run
       )
-      self.assertIn('sweet/mangoes: pass', result.stdout, result)
-      self.assertIn('sweet/strawberries: FAIL', result.stdout, result)
+      self.assertIn('sweet/mangoes default: pass', result.stdout, result)
+      self.assertIn('sweet/strawberries default: FAIL', result.stdout, result)
       self.assertIn('Too many failures, exiting...', result.stdout, result)
-      self.assertIn('sweet/blackberries: FAIL', result.stdout, result)
+      self.assertIn('sweet/blackberries default: FAIL', result.stdout, result)
       self.assertNotIn('Done running sweet/raspberries', result.stdout, result)
       self.assertIn('2 tests failed', result.stdout, result)
       self.assertIn('3 tests ran', result.stdout, result)

@@ -113,7 +113,9 @@ class VerboseProgressIndicator(SimpleProgressIndicator):
         outcome = 'FAIL'
     else:
       outcome = 'pass'
-    self._print('Done running %s: %s' % (test, outcome))
+
+    self._print('Done running %s %s: %s' % (
+      test, test.variant or 'default', outcome))
 
   def _on_heartbeat(self):
     if time.time() - self._last_printed_time > 30:
