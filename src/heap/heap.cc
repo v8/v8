@@ -1704,6 +1704,8 @@ void Heap::UpdateSurvivalStatistics(int start_new_space_size) {
 
 bool Heap::PerformGarbageCollection(
     GarbageCollector collector, const v8::GCCallbackFlags gc_callback_flags) {
+  DisallowJavascriptExecution no_js(isolate());
+
   size_t freed_global_handles = 0;
 
   if (!IsYoungGenerationCollector(collector)) {
@@ -1728,6 +1730,7 @@ bool Heap::PerformGarbageCollection(
         EmbedderHeapTracer::EmbedderStackState::kUnknown);
     if (scope.CheckReenter()) {
       AllowHeapAllocation allow_allocation;
+      AllowJavascriptExecution allow_js(isolate());
       TRACE_GC(tracer(), GCTracer::Scope::HEAP_EXTERNAL_PROLOGUE);
       VMState<EXTERNAL> state(isolate_);
       HandleScope handle_scope(isolate_);
@@ -1817,6 +1820,7 @@ bool Heap::PerformGarbageCollection(
     gc_post_processing_depth_++;
     {
       AllowHeapAllocation allow_allocation;
+      AllowJavascriptExecution allow_js(isolate());
       freed_global_handles +=
           isolate_->global_handles()->PostGarbageCollectionProcessing(
               collector, gc_callback_flags);
@@ -1866,6 +1870,7 @@ bool Heap::PerformGarbageCollection(
     GCCallbacksScope scope(this);
     if (scope.CheckReenter()) {
       AllowHeapAllocation allow_allocation;
+      AllowJavascriptExecution allow_js(isolate());
       TRACE_GC(tracer(), GCTracer::Scope::HEAP_EXTERNAL_EPILOGUE);
       VMState<EXTERNAL> state(isolate_);
       HandleScope handle_scope(isolate_);
