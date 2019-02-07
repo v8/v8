@@ -790,6 +790,31 @@ void Serializer::ObjectSerializer::VisitCodeTarget(Code host,
   bytes_processed_so_far_ += rinfo->target_address_size();
 }
 
+namespace {
+
+// Similar to OutputRawData, but substitutes the given field with the given
+// value instead of reading it from the object.
+void OutputRawWithCustomField(SnapshotByteSink* sink, Address object_start,
+                              int written_so_far, int bytes_to_write,
+                              int field_offset, int field_size,
+                              const byte* field_value) {
+  int offset = field_offset - written_so_far;
+  if (0 <= offset && offset < bytes_to_write) {
+    DCHECK_GE(bytes_to_write, offset + field_size);
+    sink->PutRaw(reinterpret_cast<byte*>(object_start + written_so_far), offset,
+                 "Bytes");
+    sink->PutRaw(field_value, field_size, "Bytes");
+    written_so_far += offset + field_size;
+    bytes_to_write -= offset + field_size;
+    sink->PutRaw(reinterpret_cast<byte*>(object_start + written_so_far),
+                 bytes_to_write, "Bytes");
+  } else {
+    sink->PutRaw(reinterpret_cast<byte*>(object_start + written_so_far),
+                 bytes_to_write, "Bytes");
+  }
+}
+}  // anonymous namespace
+
 void Serializer::ObjectSerializer::OutputRawData(Address up_to) {
   Address object_start = object_->address();
   int base = bytes_processed_so_far_;
@@ -814,21 +839,21 @@ void Serializer::ObjectSerializer::OutputRawData(Address up_to) {
         reinterpret_cast<void*>(object_start + base), bytes_to_output);
 #endif  // MEMORY_SANITIZER
     if (object_->IsBytecodeArray()) {
-      // The code age byte can be changed concurrently by GC.
-      const int bytes_to_age_byte = BytecodeArray::kBytecodeAgeOffset - base;
-      if (0 <= bytes_to_age_byte && bytes_to_age_byte < bytes_to_output) {
-        sink_->PutRaw(reinterpret_cast<byte*>(object_start + base),
-                      bytes_to_age_byte, "Bytes");
-        byte bytecode_age = BytecodeArray::kNoAgeBytecodeAge;
-        sink_->PutRaw(&bytecode_age, 1, "Bytes");
-        const int bytes_written = bytes_to_age_byte + 1;
-        sink_->PutRaw(
-            reinterpret_cast<byte*>(object_start + base + bytes_written),
-            bytes_to_output - bytes_written, "Bytes");
-      } else {
-        sink_->PutRaw(reinterpret_cast<byte*>(object_start + base),
-                      bytes_to_output, "Bytes");
-      }
+      // The bytecode age field can be changed by GC concurrently.
+      byte field_value = BytecodeArray::kNoAgeBytecodeAge;
+      OutputRawWithCustomField(sink_, object_start, base, bytes_to_output,
+                               BytecodeArray::kBytecodeAgeOffset,
+                               sizeof(field_value), &field_value);
+    } else if (object_->IsDescriptorArray()) {
+      // The number of marked descriptors field can be changed by GC
+      // concurrently.
+      byte field_value[2];
+      field_value[0] = 0;
+      field_value[1] = 0;
+      OutputRawWithCustomField(
+          sink_, object_start, base, bytes_to_output,
+          DescriptorArray::kRawNumberOfMarkedDescriptorsOffset,
+          sizeof(field_value), field_value);
     } else {
       sink_->PutRaw(reinterpret_cast<byte*>(object_start + base),
                     bytes_to_output, "Bytes");
