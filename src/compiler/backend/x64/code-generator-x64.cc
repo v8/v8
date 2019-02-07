@@ -1015,7 +1015,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       auto ool = new (zone())
           OutOfLineRecordWrite(this, object, operand, value, scratch0, scratch1,
                                mode, DetermineStubCallMode());
-      __ movq(operand, value);
+      __ StoreTaggedField(operand, value);
       __ CheckPageFlag(object, scratch0,
                        MemoryChunk::kPointersFromHereAreInterestingMask,
                        not_zero, ool->entry());
@@ -1927,21 +1927,29 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kX64MovqDecompressTaggedSigned: {
       CHECK(instr->HasOutput());
-      __ DecompressTaggedSigned(i.OutputRegister(), i.MemoryOperand(),
-                                DEBUG_BOOL ? i.TempRegister(0) : no_reg);
+      __ DecompressTaggedSigned(i.OutputRegister(), i.MemoryOperand());
       break;
     }
     case kX64MovqDecompressTaggedPointer: {
       CHECK(instr->HasOutput());
-      __ DecompressTaggedPointer(i.OutputRegister(), i.MemoryOperand(),
-                                 DEBUG_BOOL ? i.TempRegister(0) : no_reg);
+      __ DecompressTaggedPointer(i.OutputRegister(), i.MemoryOperand());
       break;
     }
     case kX64MovqDecompressAnyTagged: {
       CHECK(instr->HasOutput());
       __ DecompressAnyTagged(i.OutputRegister(), i.MemoryOperand(),
-                             i.TempRegister(0),
-                             DEBUG_BOOL ? i.TempRegister(1) : no_reg);
+                             i.TempRegister(0));
+      break;
+    }
+    case kX64MovqCompressTagged: {
+      CHECK(!instr->HasOutput());
+      size_t index = 0;
+      Operand operand = i.MemoryOperand(&index);
+      if (HasImmediateInput(instr, index)) {
+        __ StoreTaggedField(operand, i.InputImmediate(index));
+      } else {
+        __ StoreTaggedField(operand, i.InputRegister(index));
+      }
       break;
     }
     case kX64Movq:

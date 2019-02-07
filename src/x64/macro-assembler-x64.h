@@ -511,11 +511,12 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void StoreTaggedField(Operand dst_field_operand, Register value);
 
   void DecompressTaggedSigned(Register destination, Operand field_operand,
-                              Register scratch_for_debug);
+                              Register scratch_for_debug = no_reg);
   void DecompressTaggedPointer(Register destination, Operand field_operand,
-                               Register scratch_for_debug);
+                               Register scratch_for_debug = no_reg);
   void DecompressAnyTagged(Register destination, Operand field_operand,
-                           Register scratch, Register scratch_for_debug);
+                           Register scratch,
+                           Register scratch_for_debug = no_reg);
 
  protected:
   static const int kSmiShift = kSmiTagSize + kSmiShiftSize;
