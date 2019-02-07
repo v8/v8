@@ -123,8 +123,6 @@ class AccessorAssembler : public CodeStubAssembler {
 
   void JumpIfDataProperty(Node* details, Label* writable, Label* readonly);
 
-  void BranchIfStrictMode(Node* vector, Node* slot, Label* if_strict);
-
   void InvalidateValidityCellIfPrototype(Node* map, Node* bitfield2 = nullptr);
 
   void OverwriteExistingFastDataProperty(Node* object, Node* object_map,
@@ -273,8 +271,6 @@ class AccessorAssembler : public CodeStubAssembler {
                            const OnCodeHandler& on_code_handler,
                            const OnFoundOnReceiver& on_found_on_receiver,
                            Label* miss, ICMode ic_mode);
-
-  Node* GetLanguageMode(Node* vector, Node* slot);
 
   Node* PrepareValueForStore(Node* handler_word, Node* holder,
                              Representation representation, Node* value,

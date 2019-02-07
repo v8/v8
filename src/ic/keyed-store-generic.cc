@@ -912,29 +912,21 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
 
       BIND(&not_callable);
       {
-        bool handle_strict = true;
-        Label strict(this);
         LanguageMode language_mode;
         if (maybe_language_mode.To(&language_mode)) {
           if (language_mode == LanguageMode::kStrict) {
-            Goto(&strict);
-          } else {
-            handle_strict = false;
-            exit_point->Return(p->value);
-          }
-        } else {
-          BranchIfStrictMode(p->vector, p->slot, &strict);
-          exit_point->Return(p->value);
-        }
-
-        if (handle_strict) {
-          BIND(&strict);
-          {
             exit_point->ReturnCallRuntime(
                 Runtime::kThrowTypeError, p->context,
                 SmiConstant(MessageTemplate::kNoSetterInCallback), p->name,
                 var_accessor_holder.value());
+          } else {
+            exit_point->Return(p->value);
           }
+        } else {
+          CallRuntime(Runtime::kThrowTypeErrorIfStrict, p->context,
+                      SmiConstant(MessageTemplate::kNoSetterInCallback),
+                      p->name, var_accessor_holder.value());
+          exit_point->Return(p->value);
         }
       }
     }
@@ -943,27 +935,20 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
   if (!ShouldReconfigureExisting()) {
     BIND(&readonly);
     {
-      bool handle_strict = true;
-      Label strict(this);
       LanguageMode language_mode;
       if (maybe_language_mode.To(&language_mode)) {
         if (language_mode == LanguageMode::kStrict) {
-          Goto(&strict);
-        } else {
-          handle_strict = false;
-          exit_point->Return(p->value);
-        }
-      } else {
-        BranchIfStrictMode(p->vector, p->slot, &strict);
-        exit_point->Return(p->value);
-      }
-      if (handle_strict) {
-        BIND(&strict);
-        {
           Node* type = Typeof(p->receiver);
           ThrowTypeError(p->context, MessageTemplate::kStrictReadOnlyProperty,
                          p->name, type, p->receiver);
+        } else {
+          exit_point->Return(p->value);
         }
+      } else {
+        CallRuntime(Runtime::kThrowTypeErrorIfStrict, p->context,
+                    SmiConstant(MessageTemplate::kStrictReadOnlyProperty),
+                    p->name, Typeof(p->receiver), p->receiver);
+        exit_point->Return(p->value);
       }
     }
   }

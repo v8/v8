@@ -95,6 +95,13 @@ RUNTIME_FUNCTION(Runtime_ThrowTypeError) {
   THROW_ERROR(isolate, args, NewTypeError);
 }
 
+RUNTIME_FUNCTION(Runtime_ThrowTypeErrorIfStrict) {
+  if (GetShouldThrow(isolate, Nothing<ShouldThrow>()) ==
+      ShouldThrow::kDontThrow)
+    return ReadOnlyRoots(isolate).undefined_value();
+  THROW_ERROR(isolate, args, NewTypeError);
+}
+
 #undef THROW_ERROR
 
 namespace {

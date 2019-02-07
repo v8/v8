@@ -248,6 +248,7 @@ namespace internal {
   F(ThrowSymbolIteratorInvalid, 0, 1)                \
   F(ThrowThrowMethodMissing, 0, 1)                   \
   F(ThrowTypeError, -1 /* >= 1 */, 1)                \
+  F(ThrowTypeErrorIfStrict, -1 /* >= 1 */, 1)        \
   F(Typeof, 1, 1)                                    \
   F(UnwindAndFindExceptionHandler, 0, 1)             \
   F(FinalizationGroupCleanupJob, 1, 1)
