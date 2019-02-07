@@ -1687,7 +1687,7 @@ bool Heap::PerformGarbageCollection(
   EnsureFromSpaceIsCommitted();
 
   size_t start_young_generation_size =
-      Heap::new_space()->Size() + new_lo_space()->Size();
+      Heap::new_space()->Size() + new_lo_space()->SizeOfObjects();
 
   {
     Heap::SkipStoreBufferScope skip_store_buffer_scope(store_buffer_);

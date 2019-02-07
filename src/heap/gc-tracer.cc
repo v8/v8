@@ -247,7 +247,7 @@ void GCTracer::Start(GarbageCollector collector,
   current_.start_memory_size = heap_->memory_allocator()->Size();
   current_.start_holes_size = CountTotalHolesSize(heap_);
   current_.young_object_size =
-      heap_->new_space()->Size() + heap_->new_lo_space()->Size();
+      heap_->new_space()->Size() + heap_->new_lo_space()->SizeOfObjects();
 
   current_.incremental_marking_bytes = 0;
   current_.incremental_marking_duration = 0;
