@@ -737,24 +737,11 @@ void Serializer::ObjectSerializer::VisitExternalReference(Code host,
 
 void Serializer::ObjectSerializer::VisitInternalReference(Code host,
                                                           RelocInfo* rinfo) {
-  // We do not use skip from last patched pc to find the pc to patch, since
-  // target_address_address may not return addresses in ascending order when
-  // used for internal references. External references may be stored at the
-  // end of the code in the constant pool, whereas internal references are
-  // inline. That would cause the skip to be negative. Instead, we store the
-  // offset from code entry.
   Address entry = Code::cast(object_)->entry();
-  DCHECK_GE(rinfo->target_internal_reference_address(), entry);
-  uintptr_t pc_offset = rinfo->target_internal_reference_address() - entry;
-  DCHECK_LE(pc_offset, Code::cast(object_)->raw_instruction_size());
   DCHECK_GE(rinfo->target_internal_reference(), entry);
   uintptr_t target_offset = rinfo->target_internal_reference() - entry;
   DCHECK_LE(target_offset, Code::cast(object_)->raw_instruction_size());
-  sink_->Put(rinfo->rmode() == RelocInfo::INTERNAL_REFERENCE
-                 ? kInternalReference
-                 : kInternalReferenceEncoded,
-             "InternalRef");
-  sink_->PutInt(pc_offset, "internal ref address");
+  sink_->Put(kInternalReference, "InternalRef");
   sink_->PutInt(target_offset, "internal ref value");
 }
 

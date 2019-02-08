@@ -459,22 +459,15 @@ void Deserializer::VisitExternalReference(Code host, RelocInfo* rinfo) {
 
 void Deserializer::VisitInternalReference(Code host, RelocInfo* rinfo) {
   byte data = source_.Get();
-  CHECK(data == kInternalReference || data == kInternalReferenceEncoded);
+  CHECK_EQ(data, kInternalReference);
 
-  // Internal reference address is not encoded via skip, but by offset
-  // from code entry.
-  int pc_offset = source_.GetInt();
+  // Internal reference target is encoded as an offset from code entry.
   int target_offset = source_.GetInt();
-  DCHECK(0 <= pc_offset && pc_offset <= host->raw_instruction_size());
-  DCHECK(0 <= target_offset && target_offset <= host->raw_instruction_size());
-  Address pc = host->entry() + pc_offset;
-  // TODO(ishell): don't encode pc_offset as it can be taken from the rinfo.
-  DCHECK_EQ(pc, rinfo->pc());
+  DCHECK_LT(static_cast<unsigned>(target_offset),
+            static_cast<unsigned>(host->raw_instruction_size()));
   Address target = host->entry() + target_offset;
   Assembler::deserialization_set_target_internal_reference_at(
-      pc, target,
-      data == kInternalReference ? RelocInfo::INTERNAL_REFERENCE
-                                 : RelocInfo::INTERNAL_REFERENCE_ENCODED);
+      rinfo->pc(), target, rinfo->rmode());
 }
 
 void Deserializer::VisitOffHeapTarget(Code host, RelocInfo* rinfo) {
@@ -535,32 +528,31 @@ bool Deserializer::ReadData(UnalignedSlot current, UnalignedSlot limit,
   while (current < limit) {
     byte data = source_.Get();
     switch (data) {
-#define CASE_STATEMENT(where, space_number)    \
-  case where + space_number:                   \
-    STATIC_ASSERT((where & ~kWhereMask) == 0); \
+#define CASE_STATEMENT(bytecode, space_number) \
+  case bytecode + space_number:                \
     STATIC_ASSERT((space_number & ~kSpaceMask) == 0);
 
-#define CASE_BODY(where, space_number_if_any)                                \
-  current = ReadDataCase<where, space_number_if_any>(                        \
+#define CASE_BODY(bytecode, space_number_if_any)                             \
+  current = ReadDataCase<bytecode, space_number_if_any>(                     \
       isolate, current, current_object_address, data, write_barrier_needed); \
   break;
 
 // This generates a case and a body for the new space (which has to do extra
 // write barrier handling) and handles the other spaces with fall-through cases
 // and one body.
-#define ALL_SPACES(where)           \
-  CASE_STATEMENT(where, NEW_SPACE)  \
-  CASE_BODY(where, NEW_SPACE)       \
-  CASE_STATEMENT(where, OLD_SPACE)  \
-  V8_FALLTHROUGH;                   \
-  CASE_STATEMENT(where, CODE_SPACE) \
-  V8_FALLTHROUGH;                   \
-  CASE_STATEMENT(where, MAP_SPACE)  \
-  V8_FALLTHROUGH;                   \
-  CASE_STATEMENT(where, LO_SPACE)   \
-  V8_FALLTHROUGH;                   \
-  CASE_STATEMENT(where, RO_SPACE)   \
-  CASE_BODY(where, kAnyOldSpace)
+#define ALL_SPACES(bytecode)           \
+  CASE_STATEMENT(bytecode, NEW_SPACE)  \
+  CASE_BODY(bytecode, NEW_SPACE)       \
+  CASE_STATEMENT(bytecode, OLD_SPACE)  \
+  V8_FALLTHROUGH;                      \
+  CASE_STATEMENT(bytecode, CODE_SPACE) \
+  V8_FALLTHROUGH;                      \
+  CASE_STATEMENT(bytecode, MAP_SPACE)  \
+  V8_FALLTHROUGH;                      \
+  CASE_STATEMENT(bytecode, LO_SPACE)   \
+  V8_FALLTHROUGH;                      \
+  CASE_STATEMENT(bytecode, RO_SPACE)   \
+  CASE_BODY(bytecode, kAnyOldSpace)
 
 #define FOUR_CASES(byte_code) \
   case byte_code:             \
@@ -574,9 +566,9 @@ bool Deserializer::ReadData(UnalignedSlot current, UnalignedSlot limit,
   FOUR_CASES(byte_code + 8)      \
   FOUR_CASES(byte_code + 12)
 
-#define SINGLE_CASE(where, space) \
-  CASE_STATEMENT(where, space)    \
-  CASE_BODY(where, space)
+#define SINGLE_CASE(bytecode, space) \
+  CASE_STATEMENT(bytecode, space)    \
+  CASE_BODY(bytecode, space)
 
       // Deserialize a new object and write a pointer to it to the current
       // object.
@@ -610,7 +602,6 @@ bool Deserializer::ReadData(UnalignedSlot current, UnalignedSlot limit,
         break;
       }
 
-      case kInternalReferenceEncoded:
       case kInternalReference:
       case kOffHeapTarget: {
         // These bytecodes are expected only during RelocInfo iteration.
@@ -801,7 +792,7 @@ Address Deserializer::ReadExternalReferenceCase() {
   return external_reference_table_->address(reference_id);
 }
 
-template <SerializerDeserializer::Where where, int space_number_if_any>
+template <SerializerDeserializer::Bytecode bytecode, int space_number_if_any>
 UnalignedSlot Deserializer::ReadDataCase(Isolate* isolate,
                                          UnalignedSlot current,
                                          Address current_object_address,
@@ -815,31 +806,31 @@ UnalignedSlot Deserializer::ReadDataCase(Isolate* isolate,
           ? HeapObjectReferenceType::WEAK
           : HeapObjectReferenceType::STRONG;
 
-  if (where == kNewObject) {
+  if (bytecode == kNewObject) {
     heap_object = ReadObject(space_number);
     emit_write_barrier = (space_number == NEW_SPACE);
-  } else if (where == kBackref) {
+  } else if (bytecode == kBackref) {
+    heap_object = GetBackReferencedObject(space_number);
     emit_write_barrier = (space_number == NEW_SPACE);
-    heap_object = GetBackReferencedObject(data & kSpaceMask);
-  } else if (where == kRootArray) {
+  } else if (bytecode == kRootArray) {
     int id = source_.GetInt();
     RootIndex root_index = static_cast<RootIndex>(id);
     heap_object = HeapObject::cast(isolate->root(root_index));
     emit_write_barrier = Heap::InYoungGeneration(heap_object);
     hot_objects_.Add(heap_object);
-  } else if (where == kReadOnlyObjectCache) {
+  } else if (bytecode == kReadOnlyObjectCache) {
     int cache_index = source_.GetInt();
     heap_object =
         HeapObject::cast(isolate->read_only_object_cache()->at(cache_index));
     DCHECK(!Heap::InYoungGeneration(heap_object));
     emit_write_barrier = false;
-  } else if (where == kPartialSnapshotCache) {
+  } else if (bytecode == kPartialSnapshotCache) {
     int cache_index = source_.GetInt();
     heap_object =
         HeapObject::cast(isolate->partial_snapshot_cache()->at(cache_index));
     emit_write_barrier = Heap::InYoungGeneration(heap_object);
   } else {
-    DCHECK_EQ(where, kAttachedReference);
+    DCHECK_EQ(bytecode, kAttachedReference);
     int index = source_.GetInt();
     heap_object = *attached_objects_[index];
     emit_write_barrier = Heap::InYoungGeneration(heap_object);
