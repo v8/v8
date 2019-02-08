@@ -1811,18 +1811,9 @@ Reduction JSNativeContextSpecialization::ReduceSoftDeoptimize(
   return Changed(node);
 }
 
-Reduction JSNativeContextSpecialization::ReduceJSLoadProperty(Node* node) {
-  DCHECK_EQ(IrOpcode::kJSLoadProperty, node->opcode());
-  PropertyAccess const& p = PropertyAccessOf(node->op());
-  Node* receiver = NodeProperties::GetValueInput(node, 0);
-  Node* name = NodeProperties::GetValueInput(node, 1);
-  Node* value = jsgraph()->Dead();
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
-
-  // We can optimize a property load if it's being used inside a for..in,
-  // so for code like this:
-  //
+Reduction JSNativeContextSpecialization::ReduceJSLoadPropertyWithEnumeratedKey(
+    Node* node) {
+  // We can optimize a property load if it's being used inside a for..in:
   //   for (name in receiver) {
   //     value = receiver[name];
   //     ...
@@ -1859,64 +1850,81 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadProperty(Node* node) {
   // Also note that it's safe to look through the {JSToObject}, since the
   // [[Get]] operation does an implicit ToObject anyway, and these operations
   // are not observable.
+
+  DCHECK_EQ(IrOpcode::kJSLoadProperty, node->opcode());
+  Node* receiver = NodeProperties::GetValueInput(node, 0);
+  Node* name = NodeProperties::GetValueInput(node, 1);
+  DCHECK_EQ(IrOpcode::kJSForInNext, name->opcode());
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+
+  if (ForInModeOf(name->op()) != ForInMode::kUseEnumCacheKeysAndIndices) {
+    return NoChange();
+  }
+
+  Node* object = NodeProperties::GetValueInput(name, 0);
+  Node* enumerator = NodeProperties::GetValueInput(name, 2);
+  Node* index = NodeProperties::GetValueInput(name, 3);
+  if (object->opcode() == IrOpcode::kJSToObject) {
+    object = NodeProperties::GetValueInput(object, 0);
+  }
+  if (object != receiver) return NoChange();
+
+  // No need to repeat the map check if we can prove that there's no
+  // observable side effect between {effect} and {name].
+  if (!NodeProperties::NoObservableSideEffectBetween(effect, name)) {
+    // Check that the {receiver} map is still valid.
+    Node* receiver_map = effect =
+        graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
+                         receiver, effect, control);
+    Node* check = graph()->NewNode(simplified()->ReferenceEqual(), receiver_map,
+                                   enumerator);
+    effect =
+        graph()->NewNode(simplified()->CheckIf(DeoptimizeReason::kWrongMap),
+                         check, effect, control);
+  }
+
+  // Load the enum cache indices from the {cache_type}.
+  Node* descriptor_array = effect = graph()->NewNode(
+      simplified()->LoadField(AccessBuilder::ForMapDescriptors()), enumerator,
+      effect, control);
+  Node* enum_cache = effect = graph()->NewNode(
+      simplified()->LoadField(AccessBuilder::ForDescriptorArrayEnumCache()),
+      descriptor_array, effect, control);
+  Node* enum_indices = effect = graph()->NewNode(
+      simplified()->LoadField(AccessBuilder::ForEnumCacheIndices()), enum_cache,
+      effect, control);
+
+  // Ensure that the {enum_indices} are valid.
+  Node* check = graph()->NewNode(
+      simplified()->BooleanNot(),
+      graph()->NewNode(simplified()->ReferenceEqual(), enum_indices,
+                       jsgraph()->EmptyFixedArrayConstant()));
+  effect = graph()->NewNode(
+      simplified()->CheckIf(DeoptimizeReason::kWrongEnumIndices), check, effect,
+      control);
+
+  // Determine the index from the {enum_indices}.
+  index = effect = graph()->NewNode(
+      simplified()->LoadElement(
+          AccessBuilder::ForFixedArrayElement(PACKED_SMI_ELEMENTS)),
+      enum_indices, index, effect, control);
+
+  // Load the actual field value.
+  Node* value = effect = graph()->NewNode(simplified()->LoadFieldByIndex(),
+                                          receiver, index, effect, control);
+  ReplaceWithValue(node, value, effect, control);
+  return Replace(value);
+}
+
+Reduction JSNativeContextSpecialization::ReduceJSLoadProperty(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSLoadProperty, node->opcode());
+  PropertyAccess const& p = PropertyAccessOf(node->op());
+  Node* name = NodeProperties::GetValueInput(node, 1);
+
   if (name->opcode() == IrOpcode::kJSForInNext) {
-    ForInMode const mode = ForInModeOf(name->op());
-    if (mode == ForInMode::kUseEnumCacheKeysAndIndices) {
-      Node* object = NodeProperties::GetValueInput(name, 0);
-      Node* enumerator = NodeProperties::GetValueInput(name, 2);
-      Node* index = NodeProperties::GetValueInput(name, 3);
-      if (object->opcode() == IrOpcode::kJSToObject) {
-        object = NodeProperties::GetValueInput(object, 0);
-      }
-      if (object == receiver) {
-        // No need to repeat the map check if we can prove that there's no
-        // observable side effect between {effect} and {name].
-        if (!NodeProperties::NoObservableSideEffectBetween(effect, name)) {
-          // Check that the {receiver} map is still valid.
-          Node* receiver_map = effect =
-              graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
-                               receiver, effect, control);
-          Node* check = graph()->NewNode(simplified()->ReferenceEqual(),
-                                         receiver_map, enumerator);
-          effect = graph()->NewNode(
-              simplified()->CheckIf(DeoptimizeReason::kWrongMap), check, effect,
-              control);
-        }
-
-        // Load the enum cache indices from the {cache_type}.
-        Node* descriptor_array = effect = graph()->NewNode(
-            simplified()->LoadField(AccessBuilder::ForMapDescriptors()),
-            enumerator, effect, control);
-        Node* enum_cache = effect =
-            graph()->NewNode(simplified()->LoadField(
-                                 AccessBuilder::ForDescriptorArrayEnumCache()),
-                             descriptor_array, effect, control);
-        Node* enum_indices = effect = graph()->NewNode(
-            simplified()->LoadField(AccessBuilder::ForEnumCacheIndices()),
-            enum_cache, effect, control);
-
-        // Ensure that the {enum_indices} are valid.
-        Node* check = graph()->NewNode(
-            simplified()->BooleanNot(),
-            graph()->NewNode(simplified()->ReferenceEqual(), enum_indices,
-                             jsgraph()->EmptyFixedArrayConstant()));
-        effect = graph()->NewNode(
-            simplified()->CheckIf(DeoptimizeReason::kWrongEnumIndices), check,
-            effect, control);
-
-        // Determine the index from the {enum_indices}.
-        index = effect = graph()->NewNode(
-            simplified()->LoadElement(
-                AccessBuilder::ForFixedArrayElement(PACKED_SMI_ELEMENTS)),
-            enum_indices, index, effect, control);
-
-        // Load the actual field value.
-        Node* value = effect = graph()->NewNode(
-            simplified()->LoadFieldByIndex(), receiver, index, effect, control);
-        ReplaceWithValue(node, value, effect, control);
-        return Replace(value);
-      }
-    }
+    Reduction reduction = ReduceJSLoadPropertyWithEnumeratedKey(node);
+    if (reduction.Changed()) return reduction;
   }
 
   // Extract receiver maps from the keyed load IC using the FeedbackNexus.
@@ -1927,6 +1935,7 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadProperty(Node* node) {
   KeyedAccessLoadMode load_mode = nexus.GetKeyedAccessLoadMode();
 
   // Try to lower the keyed access based on the {nexus}.
+  Node* value = jsgraph()->Dead();
   return ReduceKeyedAccess(node, name, value, nexus, AccessMode::kLoad,
                            load_mode, STANDARD_STORE);
 }

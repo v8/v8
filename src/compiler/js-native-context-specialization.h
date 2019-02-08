@@ -116,6 +116,8 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   Reduction ReduceSoftDeoptimize(Node* node, DeoptimizeReason reason);
   Reduction ReduceJSToString(Node* node);
 
+  Reduction ReduceJSLoadPropertyWithEnumeratedKey(Node* node);
+
   const StringConstantBase* CreateDelayedStringConstant(Node* node);
 
   // A triple of nodes that represents a continuation.
