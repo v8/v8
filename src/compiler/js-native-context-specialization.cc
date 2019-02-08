@@ -574,7 +574,6 @@ JSNativeContextSpecialization::InferHasInPrototypeChain(
     }
   }
   DCHECK_IMPLIES(all, !none);
-  DCHECK_IMPLIES(none, !all);
 
   if (all) return kIsInPrototypeChain;
   if (none) return kIsNotInPrototypeChain;
@@ -3132,7 +3131,7 @@ bool JSNativeContextSpecialization::CanTreatHoleAsUndefined(
 bool JSNativeContextSpecialization::ExtractReceiverMaps(
     Node* receiver, Node* effect, FeedbackNexus const& nexus,
     MapHandles* receiver_maps) {
-  DCHECK_EQ(0, receiver_maps->size());
+  DCHECK(receiver_maps->empty());
   if (nexus.IsUninitialized()) return true;
 
   // See if we can infer a concrete type for the {receiver}. Solely relying on
