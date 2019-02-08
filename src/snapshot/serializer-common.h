@@ -147,8 +147,8 @@ class SerializerDeserializer : public RootVisitor {
   V(0x7b)                               \
   V(0x7c)
 
-  // ---------- byte code range 0x00..0x7f ----------
-  // Byte codes in this range represent Where, HowToCode and WhereToPoint.
+  // ---------- byte code range 0x00..0x3f ----------
+  // Byte codes in this range represent Where and HowToCode.
   // Where the pointed-to object can be found:
   // The static assert below will trigger when the number of preallocated spaces
   // changed. If that happens, update the bytecode ranges in the comments below.
@@ -188,16 +188,6 @@ class SerializerDeserializer : public RootVisitor {
   };
 
   static const int kHowToCodeMask = 0x20;
-
-  // Where to point within the object.
-  enum WhereToPoint {
-    // Points to start of object
-    kStartOfObject = 0,
-    // Points to instruction in code object or payload of cell.
-    kInnerPointer = 0x40
-  };
-
-  static const int kWhereToPointMask = 0x40;
 
   // ---------- Misc ----------
   // Do nothing, used for padding.

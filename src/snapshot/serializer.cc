@@ -91,7 +91,7 @@ void Serializer::SerializeDeferredObjects() {
   while (!deferred_objects_.empty()) {
     HeapObject obj = deferred_objects_.back();
     deferred_objects_.pop_back();
-    ObjectSerializer obj_serializer(this, obj, &sink_, kPlain, kStartOfObject);
+    ObjectSerializer obj_serializer(this, obj, &sink_, kPlain);
     obj_serializer.SerializeDeferred();
   }
   sink_.Put(kSynchronize, "Finished with deferred objects");
@@ -110,7 +110,7 @@ void Serializer::SerializeRootObject(Object object) {
   if (object->IsSmi()) {
     PutSmi(Smi::cast(object));
   } else {
-    SerializeObject(HeapObject::cast(object), kPlain, kStartOfObject);
+    SerializeObject(HeapObject::cast(object), kPlain);
   }
 }
 
@@ -123,21 +123,19 @@ void Serializer::PrintStack() {
 }
 #endif  // DEBUG
 
-bool Serializer::SerializeRoot(HeapObject obj, HowToCode how_to_code,
-                               WhereToPoint where_to_point) {
+bool Serializer::SerializeRoot(HeapObject obj, HowToCode how_to_code) {
   RootIndex root_index;
   // Derived serializers are responsible for determining if the root has
   // actually been serialized before calling this.
   if (root_index_map()->Lookup(obj, &root_index)) {
-    PutRoot(root_index, obj, how_to_code, where_to_point);
+    PutRoot(root_index, obj, how_to_code);
     return true;
   }
   return false;
 }
 
-bool Serializer::SerializeHotObject(HeapObject obj, HowToCode how_to_code,
-                                    WhereToPoint where_to_point) {
-  if (how_to_code != kPlain || where_to_point != kStartOfObject) return false;
+bool Serializer::SerializeHotObject(HeapObject obj, HowToCode how_to_code) {
+  if (how_to_code != kPlain) return false;
   // Encode a reference to a hot object by its index in the working set.
   int index = hot_objects_.Find(obj);
   if (index == HotObjectsList::kNotFound) return false;
@@ -152,8 +150,7 @@ bool Serializer::SerializeHotObject(HeapObject obj, HowToCode how_to_code,
   return true;
 }
 
-bool Serializer::SerializeBackReference(HeapObject obj, HowToCode how_to_code,
-                                        WhereToPoint where_to_point) {
+bool Serializer::SerializeBackReference(HeapObject obj, HowToCode how_to_code) {
   SerializerReference reference =
       reference_map_.LookupReference(reinterpret_cast<void*>(obj.ptr()));
   if (!reference.is_valid()) return false;
@@ -166,7 +163,7 @@ bool Serializer::SerializeBackReference(HeapObject obj, HowToCode how_to_code,
       PrintF(" Encoding attached reference %d\n",
              reference.attached_reference_index());
     }
-    PutAttachedReference(reference, how_to_code, where_to_point);
+    PutAttachedReference(reference, how_to_code);
   } else {
     DCHECK(reference.is_back_reference());
     if (FLAG_trace_serializer) {
@@ -177,7 +174,7 @@ bool Serializer::SerializeBackReference(HeapObject obj, HowToCode how_to_code,
 
     PutAlignmentPrefix(obj);
     AllocationSpace space = reference.space();
-    sink_.Put(kBackref + how_to_code + where_to_point + space, "BackRef");
+    sink_.Put(kBackref + how_to_code + space, "BackRef");
     PutBackReference(obj, reference);
   }
   return true;
@@ -189,8 +186,7 @@ bool Serializer::ObjectIsBytecodeHandler(HeapObject obj) const {
 }
 
 void Serializer::PutRoot(RootIndex root, HeapObject object,
-                         SerializerDeserializer::HowToCode how_to_code,
-                         SerializerDeserializer::WhereToPoint where_to_point) {
+                         SerializerDeserializer::HowToCode how_to_code) {
   int root_index = static_cast<int>(root);
   if (FLAG_trace_serializer) {
     PrintF(" Encoding root %d:", root_index);
@@ -204,12 +200,11 @@ void Serializer::PutRoot(RootIndex root, HeapObject object,
                 kNumberOfRootArrayConstants - 1);
 
   // TODO(ulan): Check that it works with young large objects.
-  if (how_to_code == kPlain && where_to_point == kStartOfObject &&
-      root_index < kNumberOfRootArrayConstants &&
+  if (how_to_code == kPlain && root_index < kNumberOfRootArrayConstants &&
       !Heap::InYoungGeneration(object)) {
     sink_.Put(kRootArrayConstants + root_index, "RootConstant");
   } else {
-    sink_.Put(kRootArray + how_to_code + where_to_point, "RootSerialization");
+    sink_.Put(kRootArray + how_to_code, "RootSerialization");
     sink_.PutInt(root_index, "root_index");
     hot_objects_.Add(object);
   }
@@ -245,13 +240,9 @@ void Serializer::PutBackReference(HeapObject object,
 }
 
 void Serializer::PutAttachedReference(SerializerReference reference,
-                                      HowToCode how_to_code,
-                                      WhereToPoint where_to_point) {
+                                      HowToCode how_to_code) {
   DCHECK(reference.is_attached_reference());
-  DCHECK((how_to_code == kPlain && where_to_point == kStartOfObject) ||
-         (how_to_code == kFromCode && where_to_point == kStartOfObject) ||
-         (how_to_code == kFromCode && where_to_point == kInnerPointer));
-  sink_.Put(kAttachedReference + how_to_code + where_to_point, "AttachedRef");
+  sink_.Put(kAttachedReference + how_to_code, "AttachedRef");
   sink_.PutInt(reference.attached_reference_index(), "AttachedRefIndex");
 }
 
@@ -349,7 +340,7 @@ void Serializer::ObjectSerializer::SerializePrologue(AllocationSpace space,
                                     back_reference);
 
   // Serialize the map (first word of the object).
-  serializer_->SerializeObject(map, kPlain, kStartOfObject);
+  serializer_->SerializeObject(map, kPlain);
 }
 
 int32_t Serializer::ObjectSerializer::SerializeBackingStore(
@@ -708,7 +699,7 @@ void Serializer::ObjectSerializer::VisitPointers(HeapObject host,
       if (reference_type == HeapObjectReferenceType::WEAK) {
         sink_->Put(kWeakPrefix, "WeakReference");
       }
-      serializer_->SerializeObject(current_contents, kPlain, kStartOfObject);
+      serializer_->SerializeObject(current_contents, kPlain);
     }
   }
 }
@@ -717,8 +708,7 @@ void Serializer::ObjectSerializer::VisitEmbeddedPointer(Code host,
                                                         RelocInfo* rinfo) {
   HowToCode how_to_code = rinfo->IsCodedSpecially() ? kFromCode : kPlain;
   Object object = rinfo->target_object();
-  serializer_->SerializeObject(HeapObject::cast(object), how_to_code,
-                               kStartOfObject);
+  serializer_->SerializeObject(HeapObject::cast(object), how_to_code);
   bytes_processed_so_far_ += rinfo->target_address_size();
 }
 
@@ -729,7 +719,7 @@ void Serializer::ObjectSerializer::VisitExternalReference(Foreign host,
   if (encoded_reference.is_from_api()) {
     sink_->Put(kApiReference, "ApiRef");
   } else {
-    sink_->Put(kExternalReference + kPlain + kStartOfObject, "ExternalRef");
+    sink_->Put(kExternalReference + kPlain, "ExternalRef");
   }
   sink_->PutInt(encoded_reference.index(), "reference index");
   bytes_processed_so_far_ += kSystemPointerSize;
@@ -744,8 +734,7 @@ void Serializer::ObjectSerializer::VisitExternalReference(Code host,
     sink_->Put(kApiReference, "ApiRef");
   } else {
     HowToCode how_to_code = rinfo->IsCodedSpecially() ? kFromCode : kPlain;
-    sink_->Put(kExternalReference + how_to_code + kStartOfObject,
-               "ExternalRef");
+    sink_->Put(kExternalReference + how_to_code, "ExternalRef");
   }
   DCHECK_NE(target, kNullAddress);  // Code does not reference null.
   sink_->PutInt(encoded_reference.index(), "reference index");
@@ -803,7 +792,7 @@ void Serializer::ObjectSerializer::VisitCodeTarget(Code host,
   DCHECK(!RelocInfo::IsRelativeCodeTarget(rinfo->rmode()));
 #endif
   Code object = Code::GetCodeFromTargetAddress(rinfo->target_address());
-  serializer_->SerializeObject(object, kFromCode, kInnerPointer);
+  serializer_->SerializeObject(object, kFromCode);
   bytes_processed_so_far_ += rinfo->target_address_size();
 }
 

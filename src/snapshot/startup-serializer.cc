@@ -69,19 +69,15 @@ bool IsUnexpectedCodeObject(Isolate* isolate, HeapObject obj) {
 }  // namespace
 #endif  // DEBUG
 
-void StartupSerializer::SerializeObject(HeapObject obj, HowToCode how_to_code,
-                                        WhereToPoint where_to_point) {
+void StartupSerializer::SerializeObject(HeapObject obj, HowToCode how_to_code) {
   DCHECK(!obj->IsJSFunction());
   DCHECK(!IsUnexpectedCodeObject(isolate(), obj));
 
-  if (SerializeHotObject(obj, how_to_code, where_to_point)) return;
-  if (IsRootAndHasBeenSerialized(obj) &&
-      SerializeRoot(obj, how_to_code, where_to_point))
+  if (SerializeHotObject(obj, how_to_code)) return;
+  if (IsRootAndHasBeenSerialized(obj) && SerializeRoot(obj, how_to_code))
     return;
-  if (SerializeUsingReadOnlyObjectCache(&sink_, obj, how_to_code,
-                                        where_to_point))
-    return;
-  if (SerializeBackReference(obj, how_to_code, where_to_point)) return;
+  if (SerializeUsingReadOnlyObjectCache(&sink_, obj, how_to_code)) return;
+  if (SerializeBackReference(obj, how_to_code)) return;
 
   bool use_simulator = false;
 #ifdef USE_SIMULATOR
@@ -116,8 +112,7 @@ void StartupSerializer::SerializeObject(HeapObject obj, HowToCode how_to_code,
 
   // Object has not yet been serialized.  Serialize it here.
   DCHECK(!isolate()->heap()->read_only_space()->Contains(obj));
-  ObjectSerializer object_serializer(this, obj, &sink_, how_to_code,
-                                     where_to_point);
+  ObjectSerializer object_serializer(this, obj, &sink_, how_to_code);
   object_serializer.Serialize();
 }
 
@@ -160,18 +155,15 @@ SerializedHandleChecker::SerializedHandleChecker(Isolate* isolate,
 }
 
 bool StartupSerializer::SerializeUsingReadOnlyObjectCache(
-    SnapshotByteSink* sink, HeapObject obj, HowToCode how_to_code,
-    WhereToPoint where_to_point) {
-  return read_only_serializer_->SerializeUsingReadOnlyObjectCache(
-      sink, obj, how_to_code, where_to_point);
+    SnapshotByteSink* sink, HeapObject obj, HowToCode how_to_code) {
+  return read_only_serializer_->SerializeUsingReadOnlyObjectCache(sink, obj,
+                                                                  how_to_code);
 }
 
 void StartupSerializer::SerializeUsingPartialSnapshotCache(
-    SnapshotByteSink* sink, HeapObject obj, HowToCode how_to_code,
-    WhereToPoint where_to_point) {
+    SnapshotByteSink* sink, HeapObject obj, HowToCode how_to_code) {
   int cache_index = SerializeInObjectCache(obj);
-  sink->Put(kPartialSnapshotCache + how_to_code + where_to_point,
-            "PartialSnapshotCache");
+  sink->Put(kPartialSnapshotCache + how_to_code, "PartialSnapshotCache");
   sink->PutInt(cache_index, "partial_snapshot_cache_index");
 }
 

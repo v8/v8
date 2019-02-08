@@ -58,21 +58,17 @@ class CodeSerializer : public Serializer {
   CodeSerializer(Isolate* isolate, uint32_t source_hash);
   ~CodeSerializer() override { OutputStatistics("CodeSerializer"); }
 
-  virtual void SerializeCodeObject(Code code_object, HowToCode how_to_code,
-                                   WhereToPoint where_to_point) {
+  virtual void SerializeCodeObject(Code code_object, HowToCode how_to_code) {
     UNREACHABLE();
   }
 
   virtual bool ElideObject(Object obj) { return false; }
-  void SerializeGeneric(HeapObject heap_object, HowToCode how_to_code,
-                        WhereToPoint where_to_point);
+  void SerializeGeneric(HeapObject heap_object, HowToCode how_to_code);
 
  private:
-  void SerializeObject(HeapObject o, HowToCode how_to_code,
-                       WhereToPoint where_to_point) override;
+  void SerializeObject(HeapObject o, HowToCode how_to_code) override;
 
-  bool SerializeReadOnlyObject(HeapObject obj, HowToCode how_to_code,
-                               WhereToPoint where_to_point);
+  bool SerializeReadOnlyObject(HeapObject obj, HowToCode how_to_code);
 
   DISALLOW_HEAP_ALLOCATION(no_gc_);
   uint32_t source_hash_;

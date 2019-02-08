@@ -126,7 +126,7 @@ class Deserializer : public SerializerDeserializer {
 
   // A helper function for ReadData, templatized on the bytecode for efficiency.
   // Returns the new value of {current}.
-  template <int where, int how, int within, int space_number_if_any>
+  template <Where where, int space_number_if_any>
   inline UnalignedSlot ReadDataCase(Isolate* isolate, UnalignedSlot current,
                                     Address current_object_address, byte data,
                                     bool write_barrier_needed);

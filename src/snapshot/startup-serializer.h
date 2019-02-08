@@ -34,18 +34,16 @@ class StartupSerializer : public RootsSerializer {
   // ReadOnlyObjectCache bytecode into |sink|. Returns whether this was
   // successful.
   bool SerializeUsingReadOnlyObjectCache(SnapshotByteSink* sink, HeapObject obj,
-                                         HowToCode how_to_code,
-                                         WhereToPoint where_to_point);
+                                         HowToCode how_to_code);
 
   // Adds |obj| to the partial snapshot object cache if not already present and
   // emits a PartialSnapshotCache bytecode into |sink|.
   void SerializeUsingPartialSnapshotCache(SnapshotByteSink* sink,
-                                          HeapObject obj, HowToCode how_to_code,
-                                          WhereToPoint where_to_point);
+                                          HeapObject obj,
+                                          HowToCode how_to_code);
 
  private:
-  void SerializeObject(HeapObject o, HowToCode how_to_code,
-                       WhereToPoint where_to_point) override;
+  void SerializeObject(HeapObject o, HowToCode how_to_code) override;
 
   ReadOnlySerializer* read_only_serializer_;
   std::vector<AccessorInfo> accessor_infos_;

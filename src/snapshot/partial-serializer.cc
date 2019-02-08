@@ -68,24 +68,23 @@ void PartialSerializer::Serialize(Context* o, bool include_global_proxy) {
   Pad();
 }
 
-void PartialSerializer::SerializeObject(HeapObject obj, HowToCode how_to_code,
-                                        WhereToPoint where_to_point) {
+void PartialSerializer::SerializeObject(HeapObject obj, HowToCode how_to_code) {
   DCHECK(!ObjectIsBytecodeHandler(obj));  // Only referenced in dispatch table.
 
-  if (SerializeHotObject(obj, how_to_code, where_to_point)) return;
+  if (SerializeHotObject(obj, how_to_code)) return;
 
-  if (SerializeRoot(obj, how_to_code, where_to_point)) return;
+  if (SerializeRoot(obj, how_to_code)) return;
 
-  if (SerializeBackReference(obj, how_to_code, where_to_point)) return;
+  if (SerializeBackReference(obj, how_to_code)) return;
 
-  if (startup_serializer_->SerializeUsingReadOnlyObjectCache(
-          &sink_, obj, how_to_code, where_to_point)) {
+  if (startup_serializer_->SerializeUsingReadOnlyObjectCache(&sink_, obj,
+                                                             how_to_code)) {
     return;
   }
 
   if (ShouldBeInThePartialSnapshotCache(obj)) {
-    startup_serializer_->SerializeUsingPartialSnapshotCache(
-        &sink_, obj, how_to_code, where_to_point);
+    startup_serializer_->SerializeUsingPartialSnapshotCache(&sink_, obj,
+                                                            how_to_code);
     return;
   }
 
@@ -104,7 +103,7 @@ void PartialSerializer::SerializeObject(HeapObject obj, HowToCode how_to_code,
   // Clear literal boilerplates and feedback.
   if (obj->IsFeedbackVector()) FeedbackVector::cast(obj)->ClearSlots(isolate());
 
-  if (SerializeJSObjectWithEmbedderFields(obj, how_to_code, where_to_point)) {
+  if (SerializeJSObjectWithEmbedderFields(obj, how_to_code)) {
     return;
   }
 
@@ -119,7 +118,7 @@ void PartialSerializer::SerializeObject(HeapObject obj, HowToCode how_to_code,
   CheckRehashability(obj);
 
   // Object has not yet been serialized.  Serialize it here.
-  ObjectSerializer serializer(this, obj, &sink_, how_to_code, where_to_point);
+  ObjectSerializer serializer(this, obj, &sink_, how_to_code);
   serializer.Serialize();
 }
 
@@ -141,7 +140,7 @@ bool DataIsEmpty(const StartupData& data) { return data.raw_size == 0; }
 }  // anonymous namespace
 
 bool PartialSerializer::SerializeJSObjectWithEmbedderFields(
-    Object obj, HowToCode how_to_code, WhereToPoint where_to_point) {
+    Object obj, HowToCode how_to_code) {
   if (!obj->IsJSObject()) return false;
   JSObject js_obj = JSObject::cast(obj);
   int embedder_fields_count = js_obj->GetEmbedderFieldCount();
@@ -192,8 +191,7 @@ bool PartialSerializer::SerializeJSObjectWithEmbedderFields(
 
   // 3) Serialize the object. References from embedder fields to heap objects or
   //    smis are serialized regularly.
-  ObjectSerializer(this, js_obj, &sink_, how_to_code, where_to_point)
-      .Serialize();
+  ObjectSerializer(this, js_obj, &sink_, how_to_code).Serialize();
 
   // 4) Obtain back reference for the serialized object.
   SerializerReference reference =

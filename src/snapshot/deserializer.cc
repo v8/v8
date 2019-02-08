@@ -442,15 +442,14 @@ void Deserializer::VisitRuntimeEntry(Code host, RelocInfo* rinfo) {
 
 void Deserializer::VisitExternalReference(Code host, RelocInfo* rinfo) {
   byte data = source_.Get();
-  CHECK(data == kExternalReference + kPlain + kStartOfObject ||
-        data == kExternalReference + kFromCode + kStartOfObject);
+  CHECK(data == kExternalReference + kPlain ||
+        data == kExternalReference + kFromCode);
 
   uint32_t reference_id = static_cast<uint32_t>(source_.GetInt());
   Address address = external_reference_table_->address(reference_id);
 
-  DCHECK_EQ(rinfo->IsCodedSpecially(),
-            data == kExternalReference + kFromCode + kStartOfObject);
-  if (data == kExternalReference + kFromCode + kStartOfObject) {
+  DCHECK_EQ(rinfo->IsCodedSpecially(), data == kExternalReference + kFromCode);
+  if (data == kExternalReference + kFromCode) {
     Address location_of_branch_data = rinfo->pc();
     Assembler::deserialization_set_special_target_at(location_of_branch_data,
                                                      host, address);
@@ -537,34 +536,33 @@ bool Deserializer::ReadData(UnalignedSlot current, UnalignedSlot limit,
   while (current < limit) {
     byte data = source_.Get();
     switch (data) {
-#define CASE_STATEMENT(where, how, within, space_number) \
-  case where + how + within + space_number:              \
-    STATIC_ASSERT((where & ~kWhereMask) == 0);           \
-    STATIC_ASSERT((how & ~kHowToCodeMask) == 0);         \
-    STATIC_ASSERT((within & ~kWhereToPointMask) == 0);   \
+#define CASE_STATEMENT(where, how, space_number) \
+  case where + how + space_number:               \
+    STATIC_ASSERT((where & ~kWhereMask) == 0);   \
+    STATIC_ASSERT((how & ~kHowToCodeMask) == 0); \
     STATIC_ASSERT((space_number & ~kSpaceMask) == 0);
 
-#define CASE_BODY(where, how, within, space_number_if_any)                   \
-  current = ReadDataCase<where, how, within, space_number_if_any>(           \
+#define CASE_BODY(where, how, space_number_if_any)                           \
+  current = ReadDataCase<where, space_number_if_any>(                        \
       isolate, current, current_object_address, data, write_barrier_needed); \
   break;
 
 // This generates a case and a body for the new space (which has to do extra
 // write barrier handling) and handles the other spaces with fall-through cases
 // and one body.
-#define ALL_SPACES(where, how, within)           \
-  CASE_STATEMENT(where, how, within, NEW_SPACE)  \
-  CASE_BODY(where, how, within, NEW_SPACE)       \
-  CASE_STATEMENT(where, how, within, OLD_SPACE)  \
-  V8_FALLTHROUGH;                                \
-  CASE_STATEMENT(where, how, within, CODE_SPACE) \
-  V8_FALLTHROUGH;                                \
-  CASE_STATEMENT(where, how, within, MAP_SPACE)  \
-  V8_FALLTHROUGH;                                \
-  CASE_STATEMENT(where, how, within, LO_SPACE)   \
-  V8_FALLTHROUGH;                                \
-  CASE_STATEMENT(where, how, within, RO_SPACE)   \
-  CASE_BODY(where, how, within, kAnyOldSpace)
+#define ALL_SPACES(where, how)           \
+  CASE_STATEMENT(where, how, NEW_SPACE)  \
+  CASE_BODY(where, how, NEW_SPACE)       \
+  CASE_STATEMENT(where, how, OLD_SPACE)  \
+  V8_FALLTHROUGH;                        \
+  CASE_STATEMENT(where, how, CODE_SPACE) \
+  V8_FALLTHROUGH;                        \
+  CASE_STATEMENT(where, how, MAP_SPACE)  \
+  V8_FALLTHROUGH;                        \
+  CASE_STATEMENT(where, how, LO_SPACE)   \
+  V8_FALLTHROUGH;                        \
+  CASE_STATEMENT(where, how, RO_SPACE)   \
+  CASE_BODY(where, how, kAnyOldSpace)
 
 #define FOUR_CASES(byte_code) \
   case byte_code:             \
@@ -578,58 +576,43 @@ bool Deserializer::ReadData(UnalignedSlot current, UnalignedSlot limit,
   FOUR_CASES(byte_code + 8)      \
   FOUR_CASES(byte_code + 12)
 
-#define SINGLE_CASE(where, how, within, space) \
-  CASE_STATEMENT(where, how, within, space)    \
-  CASE_BODY(where, how, within, space)
+#define SINGLE_CASE(where, how, space) \
+  CASE_STATEMENT(where, how, space)    \
+  CASE_BODY(where, how, space)
 
       // Deserialize a new object and write a pointer to it to the current
       // object.
-      ALL_SPACES(kNewObject, kPlain, kStartOfObject)
+      ALL_SPACES(kNewObject, kPlain)
       // Deserialize a new code object and write a pointer to its first
       // instruction to the current code object.
-      ALL_SPACES(kNewObject, kFromCode, kInnerPointer)
+      ALL_SPACES(kNewObject, kFromCode)
       // Find a recently deserialized object using its offset from the current
       // allocation point and write a pointer to it to the current object.
-      ALL_SPACES(kBackref, kPlain, kStartOfObject)
-#if V8_CODE_EMBEDS_OBJECT_POINTER
-      // Deserialize a new object from pointer found in code and write
-      // a pointer to it to the current object. Required only for MIPS, PPC, ARM
-      // or S390 with embedded constant pool, and omitted on the other
-      // architectures because it is fully unrolled and would cause bloat.
-      ALL_SPACES(kNewObject, kFromCode, kStartOfObject)
-      // Find a recently deserialized code object using its offset from the
-      // current allocation point and write a pointer to it to the current
-      // object. Required only for MIPS, PPC, ARM or S390 with embedded
-      // constant pool.
-      ALL_SPACES(kBackref, kFromCode, kStartOfObject)
-#endif
+      ALL_SPACES(kBackref, kPlain)
       // Find a recently deserialized code object using its offset from the
       // current allocation point and write a pointer to its first instruction
       // to the current code object or the instruction pointer in a function
       // object.
-      ALL_SPACES(kBackref, kFromCode, kInnerPointer)
+      ALL_SPACES(kBackref, kFromCode)
       // Find an object in the roots array and write a pointer to it to the
       // current object.
-      SINGLE_CASE(kRootArray, kPlain, kStartOfObject, 0)
+      SINGLE_CASE(kRootArray, kPlain, 0)
 #if V8_CODE_EMBEDS_OBJECT_POINTER
       // Find an object in the roots array and write a pointer to it to in code.
-      SINGLE_CASE(kRootArray, kFromCode, kStartOfObject, 0)
+      SINGLE_CASE(kRootArray, kFromCode, 0)
 #endif
       // Find an object in the partial snapshots cache and write a pointer to it
       // to the current object.
-      SINGLE_CASE(kPartialSnapshotCache, kPlain, kStartOfObject, 0)
-      SINGLE_CASE(kPartialSnapshotCache, kFromCode, kStartOfObject, 0)
-      SINGLE_CASE(kPartialSnapshotCache, kFromCode, kInnerPointer, 0)
+      SINGLE_CASE(kPartialSnapshotCache, kPlain, 0)
+      SINGLE_CASE(kPartialSnapshotCache, kFromCode, 0)
       // Find an object in the partial snapshots cache and write a pointer to it
       // to the current object.
-      SINGLE_CASE(kReadOnlyObjectCache, kPlain, kStartOfObject, 0)
-      SINGLE_CASE(kReadOnlyObjectCache, kFromCode, kStartOfObject, 0)
-      SINGLE_CASE(kReadOnlyObjectCache, kFromCode, kInnerPointer, 0)
+      SINGLE_CASE(kReadOnlyObjectCache, kPlain, 0)
+      SINGLE_CASE(kReadOnlyObjectCache, kFromCode, 0)
       // Find an object in the attached references and write a pointer to it to
       // the current object.
-      SINGLE_CASE(kAttachedReference, kPlain, kStartOfObject, 0)
-      SINGLE_CASE(kAttachedReference, kFromCode, kStartOfObject, 0)
-      SINGLE_CASE(kAttachedReference, kFromCode, kInnerPointer, 0)
+      SINGLE_CASE(kAttachedReference, kPlain, 0)
+      SINGLE_CASE(kAttachedReference, kFromCode, 0)
 
 #undef CASE_STATEMENT
 #undef CASE_BODY
@@ -637,13 +620,11 @@ bool Deserializer::ReadData(UnalignedSlot current, UnalignedSlot limit,
 
       // Find an external reference and write a pointer to it to the current
       // object.
-      case kExternalReference + kPlain + kStartOfObject:
+      case kExternalReference + kPlain:
         current =
             ReadExternalReferenceCase(kPlain, current, current_object_address);
         break;
-      // Find an external reference and write a pointer to it in the current
-      // code object.
-      case kExternalReference + kFromCode + kStartOfObject:
+      case kExternalReference + kFromCode:
         UNREACHABLE();
         break;
 
@@ -847,7 +828,7 @@ UnalignedSlot Deserializer::ReadExternalReferenceCase(
   return current;
 }
 
-template <int where, int how, int within, int space_number_if_any>
+template <SerializerDeserializer::Where where, int space_number_if_any>
 UnalignedSlot Deserializer::ReadDataCase(Isolate* isolate,
                                          UnalignedSlot current,
                                          Address current_object_address,
