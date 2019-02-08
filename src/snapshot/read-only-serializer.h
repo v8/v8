@@ -30,11 +30,11 @@ class ReadOnlySerializer : public RootsSerializer {
   // successful.
   bool SerializeUsingReadOnlyObjectCache(SnapshotByteSink* sink, HeapObject obj,
                                          HowToCode how_to_code,
-                                         WhereToPoint where_to_point, int skip);
+                                         WhereToPoint where_to_point);
 
  private:
   void SerializeObject(HeapObject o, HowToCode how_to_code,
-                       WhereToPoint where_to_point, int skip) override;
+                       WhereToPoint where_to_point) override;
   bool MustBeDeferred(HeapObject object) override;
 
   DISALLOW_COPY_AND_ASSIGN(ReadOnlySerializer);

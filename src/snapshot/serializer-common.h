@@ -123,6 +123,8 @@ class SerializerDeserializer : public RootVisitor {
   void RestoreExternalReferenceRedirectors(
       const std::vector<CallHandlerInfo>& call_handler_infos);
 
+// TODO(ishell): reassign bytecodes and update this list
+// once HowToCode and WhereToPoint are gone.
 #define UNUSED_SERIALIZER_BYTE_CODES(V) \
   V(0x0e)                               \
   V(0x2e)                               \
@@ -156,8 +158,6 @@ class SerializerDeserializer : public RootVisitor {
     kNewObject = 0x00,
     // 0x08..0x0d  Reference to previous object from space.
     kBackref = 0x08,
-    // 0x10..0x15  Reference to previous object from space after skip.
-    kBackrefWithSkip = 0x10,
 
     // 0x06        Object in the partial snapshot cache.
     kPartialSnapshotCache = 0x06,
@@ -200,8 +200,6 @@ class SerializerDeserializer : public RootVisitor {
   static const int kWhereToPointMask = 0x40;
 
   // ---------- Misc ----------
-  // Skip.
-  static const int kSkip = 0x0f;
   // Do nothing, used for padding.
   static const int kNop = 0x2f;
   // Move to next reserved chunk.
@@ -247,8 +245,6 @@ class SerializerDeserializer : public RootVisitor {
   static const int kNumberOfRootArrayConstants = 0x20;
   // 0x80..0x9f
   static const int kRootArrayConstants = 0x80;
-  // 0xa0..0xbf
-  static const int kRootArrayConstantsWithSkip = 0xa0;
   static const int kRootArrayConstantsMask = 0x1f;
 
   // 32 common raw data lengths.
@@ -268,8 +264,6 @@ class SerializerDeserializer : public RootVisitor {
   STATIC_ASSERT(kNumberOfHotObjects == HotObjectsList::kSize);
   // 0xf0..0xf7
   static const int kHotObject = 0xf0;
-  // 0xf8..0xff
-  static const int kHotObjectWithSkip = 0xf8;
   static const int kHotObjectMask = 0x07;
 
   // ---------- special values ----------

@@ -591,7 +591,6 @@ bool Deserializer::ReadData(UnalignedSlot current, UnalignedSlot limit,
       // Find a recently deserialized object using its offset from the current
       // allocation point and write a pointer to it to the current object.
       ALL_SPACES(kBackref, kPlain, kStartOfObject)
-      ALL_SPACES(kBackrefWithSkip, kPlain, kStartOfObject)
 #if V8_CODE_EMBEDS_OBJECT_POINTER
       // Deserialize a new object from pointer found in code and write
       // a pointer to it to the current object. Required only for MIPS, PPC, ARM
@@ -603,14 +602,12 @@ bool Deserializer::ReadData(UnalignedSlot current, UnalignedSlot limit,
       // object. Required only for MIPS, PPC, ARM or S390 with embedded
       // constant pool.
       ALL_SPACES(kBackref, kFromCode, kStartOfObject)
-      ALL_SPACES(kBackrefWithSkip, kFromCode, kStartOfObject)
 #endif
       // Find a recently deserialized code object using its offset from the
       // current allocation point and write a pointer to its first instruction
       // to the current code object or the instruction pointer in a function
       // object.
       ALL_SPACES(kBackref, kFromCode, kInnerPointer)
-      ALL_SPACES(kBackrefWithSkip, kFromCode, kInnerPointer)
       // Find an object in the roots array and write a pointer to it to the
       // current object.
       SINGLE_CASE(kRootArray, kPlain, kStartOfObject, 0)
@@ -637,12 +634,6 @@ bool Deserializer::ReadData(UnalignedSlot current, UnalignedSlot limit,
 #undef CASE_STATEMENT
 #undef CASE_BODY
 #undef ALL_SPACES
-
-      case kSkip: {
-        int size = source_.GetInt();
-        current.Advance(size);
-        break;
-      }
 
       // Find an external reference and write a pointer to it to the current
       // object.
@@ -777,13 +768,6 @@ bool Deserializer::ReadData(UnalignedSlot current, UnalignedSlot limit,
       STATIC_ASSERT(kNumberOfRootArrayConstants <=
                     static_cast<int>(RootIndex::kLastImmortalImmovableRoot));
       STATIC_ASSERT(kNumberOfRootArrayConstants == 32);
-      SIXTEEN_CASES(kRootArrayConstantsWithSkip)
-      SIXTEEN_CASES(kRootArrayConstantsWithSkip + 16) {
-        int skip = source_.GetInt();
-        current.Advance(skip);
-        V8_FALLTHROUGH;
-      }
-
       SIXTEEN_CASES(kRootArrayConstants)
       SIXTEEN_CASES(kRootArrayConstants + 16) {
         int id = data & kRootArrayConstantsMask;
@@ -796,13 +780,6 @@ bool Deserializer::ReadData(UnalignedSlot current, UnalignedSlot limit,
       }
 
       STATIC_ASSERT(kNumberOfHotObjects == 8);
-      FOUR_CASES(kHotObjectWithSkip)
-      FOUR_CASES(kHotObjectWithSkip + 4) {
-        int skip = source_.GetInt();
-        current.Advance(skip);
-        V8_FALLTHROUGH;
-      }
-
       FOUR_CASES(kHotObject)
       FOUR_CASES(kHotObject + 4) {
         int index = data & kHotObjectMask;
@@ -888,11 +865,6 @@ UnalignedSlot Deserializer::ReadDataCase(Isolate* isolate,
     heap_object = ReadObject(space_number);
     emit_write_barrier = (space_number == NEW_SPACE);
   } else if (where == kBackref) {
-    emit_write_barrier = (space_number == NEW_SPACE);
-    heap_object = GetBackReferencedObject(data & kSpaceMask);
-  } else if (where == kBackrefWithSkip) {
-    int skip = source_.GetInt();
-    current.Advance(skip);
     emit_write_barrier = (space_number == NEW_SPACE);
     heap_object = GetBackReferencedObject(data & kSpaceMask);
   } else if (where == kRootArray) {

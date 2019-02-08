@@ -69,23 +69,23 @@ void PartialSerializer::Serialize(Context* o, bool include_global_proxy) {
 }
 
 void PartialSerializer::SerializeObject(HeapObject obj, HowToCode how_to_code,
-                                        WhereToPoint where_to_point, int skip) {
+                                        WhereToPoint where_to_point) {
   DCHECK(!ObjectIsBytecodeHandler(obj));  // Only referenced in dispatch table.
 
-  if (SerializeHotObject(obj, how_to_code, where_to_point, skip)) return;
+  if (SerializeHotObject(obj, how_to_code, where_to_point)) return;
 
-  if (SerializeRoot(obj, how_to_code, where_to_point, skip)) return;
+  if (SerializeRoot(obj, how_to_code, where_to_point)) return;
 
-  if (SerializeBackReference(obj, how_to_code, where_to_point, skip)) return;
+  if (SerializeBackReference(obj, how_to_code, where_to_point)) return;
 
   if (startup_serializer_->SerializeUsingReadOnlyObjectCache(
-          &sink_, obj, how_to_code, where_to_point, skip)) {
+          &sink_, obj, how_to_code, where_to_point)) {
     return;
   }
 
   if (ShouldBeInThePartialSnapshotCache(obj)) {
     startup_serializer_->SerializeUsingPartialSnapshotCache(
-        &sink_, obj, how_to_code, where_to_point, skip);
+        &sink_, obj, how_to_code, where_to_point);
     return;
   }
 
@@ -100,8 +100,6 @@ void PartialSerializer::SerializeObject(HeapObject obj, HowToCode how_to_code,
   DCHECK(!obj->IsTemplateInfo());
   // We should not end up at another native context.
   DCHECK_IMPLIES(obj != context_, !obj->IsNativeContext());
-
-  FlushSkip(skip);
 
   // Clear literal boilerplates and feedback.
   if (obj->IsFeedbackVector()) FeedbackVector::cast(obj)->ClearSlots(isolate());

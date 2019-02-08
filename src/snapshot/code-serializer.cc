@@ -98,8 +98,7 @@ ScriptData* CodeSerializer::SerializeSharedFunctionInfo(
 
 bool CodeSerializer::SerializeReadOnlyObject(HeapObject obj,
                                              HowToCode how_to_code,
-                                             WhereToPoint where_to_point,
-                                             int skip) {
+                                             WhereToPoint where_to_point) {
   PagedSpace* read_only_space = isolate()->heap()->read_only_space();
   if (!read_only_space->Contains(obj)) return false;
 
@@ -117,21 +116,19 @@ bool CodeSerializer::SerializeReadOnlyObject(HeapObject obj,
   SerializerReference back_reference =
       SerializerReference::BackReference(RO_SPACE, chunk_index, chunk_offset);
   reference_map()->Add(reinterpret_cast<void*>(obj->ptr()), back_reference);
-  CHECK(SerializeBackReference(obj, how_to_code, where_to_point, skip));
+  CHECK(SerializeBackReference(obj, how_to_code, where_to_point));
   return true;
 }
 
 void CodeSerializer::SerializeObject(HeapObject obj, HowToCode how_to_code,
-                                     WhereToPoint where_to_point, int skip) {
-  if (SerializeHotObject(obj, how_to_code, where_to_point, skip)) return;
+                                     WhereToPoint where_to_point) {
+  if (SerializeHotObject(obj, how_to_code, where_to_point)) return;
 
-  if (SerializeRoot(obj, how_to_code, where_to_point, skip)) return;
+  if (SerializeRoot(obj, how_to_code, where_to_point)) return;
 
-  if (SerializeBackReference(obj, how_to_code, where_to_point, skip)) return;
+  if (SerializeBackReference(obj, how_to_code, where_to_point)) return;
 
-  if (SerializeReadOnlyObject(obj, how_to_code, where_to_point, skip)) return;
-
-  FlushSkip(skip);
+  if (SerializeReadOnlyObject(obj, how_to_code, where_to_point)) return;
 
   if (obj->IsCode()) {
     Code code_object = Code::cast(obj);
@@ -151,8 +148,8 @@ void CodeSerializer::SerializeObject(HeapObject obj, HowToCode how_to_code,
 
   ReadOnlyRoots roots(isolate());
   if (ElideObject(obj)) {
-    return SerializeObject(roots.undefined_value(), how_to_code, where_to_point,
-                           skip);
+    return SerializeObject(roots.undefined_value(), how_to_code,
+                           where_to_point);
   }
 
   if (obj->IsScript()) {

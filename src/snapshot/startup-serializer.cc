@@ -70,20 +70,19 @@ bool IsUnexpectedCodeObject(Isolate* isolate, HeapObject obj) {
 #endif  // DEBUG
 
 void StartupSerializer::SerializeObject(HeapObject obj, HowToCode how_to_code,
-                                        WhereToPoint where_to_point, int skip) {
+                                        WhereToPoint where_to_point) {
   DCHECK(!obj->IsJSFunction());
   DCHECK(!IsUnexpectedCodeObject(isolate(), obj));
 
-  if (SerializeHotObject(obj, how_to_code, where_to_point, skip)) return;
+  if (SerializeHotObject(obj, how_to_code, where_to_point)) return;
   if (IsRootAndHasBeenSerialized(obj) &&
-      SerializeRoot(obj, how_to_code, where_to_point, skip))
+      SerializeRoot(obj, how_to_code, where_to_point))
     return;
   if (SerializeUsingReadOnlyObjectCache(&sink_, obj, how_to_code,
-                                        where_to_point, skip))
+                                        where_to_point))
     return;
-  if (SerializeBackReference(obj, how_to_code, where_to_point, skip)) return;
+  if (SerializeBackReference(obj, how_to_code, where_to_point)) return;
 
-  FlushSkip(skip);
   bool use_simulator = false;
 #ifdef USE_SIMULATOR
   use_simulator = true;
@@ -162,16 +161,14 @@ SerializedHandleChecker::SerializedHandleChecker(Isolate* isolate,
 
 bool StartupSerializer::SerializeUsingReadOnlyObjectCache(
     SnapshotByteSink* sink, HeapObject obj, HowToCode how_to_code,
-    WhereToPoint where_to_point, int skip) {
+    WhereToPoint where_to_point) {
   return read_only_serializer_->SerializeUsingReadOnlyObjectCache(
-      sink, obj, how_to_code, where_to_point, skip);
+      sink, obj, how_to_code, where_to_point);
 }
 
 void StartupSerializer::SerializeUsingPartialSnapshotCache(
     SnapshotByteSink* sink, HeapObject obj, HowToCode how_to_code,
-    WhereToPoint where_to_point, int skip) {
-  FlushSkip(sink, skip);
-
+    WhereToPoint where_to_point) {
   int cache_index = SerializeInObjectCache(obj);
   sink->Put(kPartialSnapshotCache + how_to_code + where_to_point,
             "PartialSnapshotCache");

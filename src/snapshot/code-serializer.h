@@ -69,10 +69,10 @@ class CodeSerializer : public Serializer {
 
  private:
   void SerializeObject(HeapObject o, HowToCode how_to_code,
-                       WhereToPoint where_to_point, int skip) override;
+                       WhereToPoint where_to_point) override;
 
   bool SerializeReadOnlyObject(HeapObject obj, HowToCode how_to_code,
-                               WhereToPoint where_to_point, int skip);
+                               WhereToPoint where_to_point);
 
   DISALLOW_HEAP_ALLOCATION(no_gc_);
   uint32_t source_hash_;

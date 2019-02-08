@@ -192,7 +192,7 @@ class Serializer : public SerializerDeserializer {
 
   void SerializeDeferredObjects();
   virtual void SerializeObject(HeapObject o, HowToCode how_to_code,
-                               WhereToPoint where_to_point, int skip) = 0;
+                               WhereToPoint where_to_point) = 0;
 
   virtual bool MustBeDeferred(HeapObject object);
 
@@ -201,7 +201,7 @@ class Serializer : public SerializerDeserializer {
   void SerializeRootObject(Object object);
 
   void PutRoot(RootIndex root_index, HeapObject object, HowToCode how,
-               WhereToPoint where, int skip);
+               WhereToPoint where);
   void PutSmi(Smi smi);
   void PutBackReference(HeapObject object, SerializerReference reference);
   void PutAttachedReference(SerializerReference reference,
@@ -213,24 +213,18 @@ class Serializer : public SerializerDeserializer {
 
   // Returns true if the object was successfully serialized as a root.
   bool SerializeRoot(HeapObject obj, HowToCode how_to_code,
-                     WhereToPoint where_to_point, int skip);
+                     WhereToPoint where_to_point);
 
   // Returns true if the object was successfully serialized as hot object.
   bool SerializeHotObject(HeapObject obj, HowToCode how_to_code,
-                          WhereToPoint where_to_point, int skip);
+                          WhereToPoint where_to_point);
 
   // Returns true if the object was successfully serialized as back reference.
   bool SerializeBackReference(HeapObject obj, HowToCode how_to_code,
-                              WhereToPoint where_to_point, int skip);
+                              WhereToPoint where_to_point);
 
   // Returns true if the given heap object is a bytecode handler code object.
   bool ObjectIsBytecodeHandler(HeapObject obj) const;
-
-  static inline void FlushSkip(SnapshotByteSink* sink, int skip) {
-    // TODO(ishell): remove kSkip and friends as they are no longer needed.
-  }
-
-  inline void FlushSkip(int skip) { FlushSkip(&sink_, skip); }
 
   ExternalReferenceEncoder::Value EncodeExternalReference(Address addr) {
     return external_reference_encoder_.Encode(addr);
@@ -341,7 +335,6 @@ class Serializer::ObjectSerializer : public ObjectVisitor {
   void SerializeContent(Map map, int size);
   void OutputRawData(Address up_to);
   void OutputCode(int size);
-  int SkipTo(Address to);
   int32_t SerializeBackingStore(void* backing_store, int32_t byte_length);
   void SerializeJSTypedArray();
   void SerializeJSArrayBuffer();

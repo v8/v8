@@ -28,7 +28,7 @@ class PartialSerializer : public Serializer {
 
  private:
   void SerializeObject(HeapObject o, HowToCode how_to_code,
-                       WhereToPoint where_to_point, int skip) override;
+                       WhereToPoint where_to_point) override;
 
   bool ShouldBeInThePartialSnapshotCache(HeapObject o);
 
