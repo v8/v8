@@ -382,7 +382,9 @@ void CpuProfiler::StartProcessorIfNotStarted() {
   }
   processor_.reset(new SamplingEventsProcessor(isolate_, generator_.get(),
                                                sampling_interval_));
-  if (!profiler_listener_) {
+  if (profiler_listener_) {
+    profiler_listener_->set_observer(processor_.get());
+  } else {
     profiler_listener_.reset(new ProfilerListener(isolate_, processor_.get()));
   }
   logger->AddCodeEventListener(profiler_listener_.get());

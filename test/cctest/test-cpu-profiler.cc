@@ -2688,6 +2688,22 @@ TEST(MultipleProfilers) {
   profiler2->StopProfiling("2");
 }
 
+// Tests that logged CodeCreateEvent calls do not crash a reused CpuProfiler.
+// crbug.com/929928
+TEST(CrashReusedProfiler) {
+  LocalContext env;
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::HandleScope scope(isolate);
+
+  std::unique_ptr<CpuProfiler> profiler(new CpuProfiler(isolate));
+  profiler->StartProfiling("1");
+  profiler->StopProfiling("1");
+
+  profiler->StartProfiling("2");
+  CreateCode(&env);
+  profiler->StopProfiling("2");
+}
+
 void ProfileSomeCode(v8::Isolate* isolate) {
   v8::Isolate::Scope isolate_scope(isolate);
   v8::HandleScope scope(isolate);
