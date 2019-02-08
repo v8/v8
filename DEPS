@@ -24,7 +24,7 @@ deps = {
   'v8/third_party/instrumented_libraries':
     Var('chromium_url') + '/chromium/src/third_party/instrumented_libraries.git' + '@' + 'a959e4f0cb643003f2d75d179cede449979e3e77',
   'v8/buildtools':
-    Var('chromium_url') + '/chromium/buildtools.git' + '@' + '6fbda1b24c1893a893b17aa219b765b9e7c801d8',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '106e9fce3799633f42b45ca8bbe9e84e1e23560',
   'v8/base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + 'e31a1706337ccb9a658b37d29a018c81695c6518',
   'v8/third_party/android_ndk': {
