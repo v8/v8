@@ -191,7 +191,7 @@ class Serializer : public SerializerDeserializer {
   };
 
   void SerializeDeferredObjects();
-  virtual void SerializeObject(HeapObject o, HowToCode how_to_code) = 0;
+  virtual void SerializeObject(HeapObject o) = 0;
 
   virtual bool MustBeDeferred(HeapObject object);
 
@@ -199,24 +199,23 @@ class Serializer : public SerializerDeserializer {
                          FullObjectSlot start, FullObjectSlot end) override;
   void SerializeRootObject(Object object);
 
-  void PutRoot(RootIndex root_index, HeapObject object, HowToCode how);
+  void PutRoot(RootIndex root_index, HeapObject object);
   void PutSmi(Smi smi);
   void PutBackReference(HeapObject object, SerializerReference reference);
-  void PutAttachedReference(SerializerReference reference,
-                            HowToCode how_to_code);
+  void PutAttachedReference(SerializerReference reference);
   // Emit alignment prefix if necessary, return required padding space in bytes.
   int PutAlignmentPrefix(HeapObject object);
   void PutNextChunk(int space);
   void PutRepeat(int repeat_count);
 
   // Returns true if the object was successfully serialized as a root.
-  bool SerializeRoot(HeapObject obj, HowToCode how_to_code);
+  bool SerializeRoot(HeapObject obj);
 
   // Returns true if the object was successfully serialized as hot object.
-  bool SerializeHotObject(HeapObject obj, HowToCode how_to_code);
+  bool SerializeHotObject(HeapObject obj);
 
   // Returns true if the object was successfully serialized as back reference.
-  bool SerializeBackReference(HeapObject obj, HowToCode how_to_code);
+  bool SerializeBackReference(HeapObject obj);
 
   // Returns true if the given heap object is a bytecode handler code object.
   bool ObjectIsBytecodeHandler(HeapObject obj) const;
@@ -290,11 +289,10 @@ class RelocInfoIterator;
 class Serializer::ObjectSerializer : public ObjectVisitor {
  public:
   ObjectSerializer(Serializer* serializer, HeapObject obj,
-                   SnapshotByteSink* sink, HowToCode how_to_code)
+                   SnapshotByteSink* sink)
       : serializer_(serializer),
         object_(obj),
         sink_(sink),
-        reference_representation_(how_to_code),
         bytes_processed_so_far_(0) {
 #ifdef DEBUG
     serializer_->PushStack(obj);
@@ -338,7 +336,6 @@ class Serializer::ObjectSerializer : public ObjectVisitor {
   Serializer* serializer_;
   HeapObject object_;
   SnapshotByteSink* sink_;
-  int reference_representation_;
   int bytes_processed_so_far_;
 };
 

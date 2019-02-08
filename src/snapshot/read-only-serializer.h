@@ -28,11 +28,11 @@ class ReadOnlySerializer : public RootsSerializer {
   // read-only object cache if not already present and emit a
   // ReadOnlyObjectCache bytecode into |sink|. Returns whether this was
   // successful.
-  bool SerializeUsingReadOnlyObjectCache(SnapshotByteSink* sink, HeapObject obj,
-                                         HowToCode how_to_code);
+  bool SerializeUsingReadOnlyObjectCache(SnapshotByteSink* sink,
+                                         HeapObject obj);
 
  private:
-  void SerializeObject(HeapObject o, HowToCode how_to_code) override;
+  void SerializeObject(HeapObject o) override;
   bool MustBeDeferred(HeapObject object) override;
 
   DISALLOW_COPY_AND_ASSIGN(ReadOnlySerializer);

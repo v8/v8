@@ -148,7 +148,7 @@ class SerializerDeserializer : public RootVisitor {
   V(0x7c)
 
   // ---------- byte code range 0x00..0x3f ----------
-  // Byte codes in this range represent Where and HowToCode.
+  // Byte codes in this range represent Where.
   // Where the pointed-to object can be found:
   // The static assert below will trigger when the number of preallocated spaces
   // changed. If that happens, update the bytecode ranges in the comments below.
@@ -178,16 +178,6 @@ class SerializerDeserializer : public RootVisitor {
   static const int kWhereMask = 0x1f;
   static const int kSpaceMask = 7;
   STATIC_ASSERT(kNumberOfSpaces <= kSpaceMask + 1);
-
-  // How to code the pointer to the object.
-  enum HowToCode {
-    // Straight pointer.
-    kPlain = 0,
-    // A pointer inlined in code. What this means depends on the architecture.
-    kFromCode = 0x20
-  };
-
-  static const int kHowToCodeMask = 0x20;
 
   // ---------- Misc ----------
   // Do nothing, used for padding.

@@ -132,9 +132,7 @@ class Deserializer : public SerializerDeserializer {
                                     bool write_barrier_needed);
 
   // A helper function for ReadData for reading external references.
-  // Returns the new value of {current}.
-  inline UnalignedSlot ReadExternalReferenceCase(
-      HowToCode how, UnalignedSlot current, Address current_object_address);
+  inline Address ReadExternalReferenceCase();
 
   HeapObject ReadObject();
   HeapObject ReadObject(int space_number);

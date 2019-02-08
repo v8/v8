@@ -96,8 +96,7 @@ ScriptData* CodeSerializer::SerializeSharedFunctionInfo(
   return data.GetScriptData();
 }
 
-bool CodeSerializer::SerializeReadOnlyObject(HeapObject obj,
-                                             HowToCode how_to_code) {
+bool CodeSerializer::SerializeReadOnlyObject(HeapObject obj) {
   PagedSpace* read_only_space = isolate()->heap()->read_only_space();
   if (!read_only_space->Contains(obj)) return false;
 
@@ -115,18 +114,18 @@ bool CodeSerializer::SerializeReadOnlyObject(HeapObject obj,
   SerializerReference back_reference =
       SerializerReference::BackReference(RO_SPACE, chunk_index, chunk_offset);
   reference_map()->Add(reinterpret_cast<void*>(obj->ptr()), back_reference);
-  CHECK(SerializeBackReference(obj, how_to_code));
+  CHECK(SerializeBackReference(obj));
   return true;
 }
 
-void CodeSerializer::SerializeObject(HeapObject obj, HowToCode how_to_code) {
-  if (SerializeHotObject(obj, how_to_code)) return;
+void CodeSerializer::SerializeObject(HeapObject obj) {
+  if (SerializeHotObject(obj)) return;
 
-  if (SerializeRoot(obj, how_to_code)) return;
+  if (SerializeRoot(obj)) return;
 
-  if (SerializeBackReference(obj, how_to_code)) return;
+  if (SerializeBackReference(obj)) return;
 
-  if (SerializeReadOnlyObject(obj, how_to_code)) return;
+  if (SerializeReadOnlyObject(obj)) return;
 
   if (obj->IsCode()) {
     Code code_object = Code::cast(obj);
@@ -139,14 +138,14 @@ void CodeSerializer::SerializeObject(HeapObject obj, HowToCode how_to_code) {
       case Code::STUB:
       case Code::BUILTIN:
       default:
-        return SerializeCodeObject(code_object, how_to_code);
+        return SerializeCodeObject(code_object);
     }
     UNREACHABLE();
   }
 
   ReadOnlyRoots roots(isolate());
   if (ElideObject(obj)) {
-    return SerializeObject(roots.undefined_value(), how_to_code);
+    return SerializeObject(roots.undefined_value());
   }
 
   if (obj->IsScript()) {
@@ -164,7 +163,7 @@ void CodeSerializer::SerializeObject(HeapObject obj, HowToCode how_to_code) {
     // object graph.
     FixedArray host_options = script_obj->host_defined_options();
     script_obj->set_host_defined_options(roots.empty_fixed_array());
-    SerializeGeneric(obj, how_to_code);
+    SerializeGeneric(obj);
     script_obj->set_host_defined_options(host_options);
     script_obj->set_context_data(context_data);
     return;
@@ -189,7 +188,7 @@ void CodeSerializer::SerializeObject(HeapObject obj, HowToCode how_to_code) {
     }
     DCHECK(!sfi->HasDebugInfo());
 
-    SerializeGeneric(obj, how_to_code);
+    SerializeGeneric(obj);
 
     // Restore debug info
     if (!debug_info.is_null()) {
@@ -215,13 +214,12 @@ void CodeSerializer::SerializeObject(HeapObject obj, HowToCode how_to_code) {
   // We expect no instantiated function objects or contexts.
   CHECK(!obj->IsJSFunction() && !obj->IsContext());
 
-  SerializeGeneric(obj, how_to_code);
+  SerializeGeneric(obj);
 }
 
-void CodeSerializer::SerializeGeneric(HeapObject heap_object,
-                                      HowToCode how_to_code) {
+void CodeSerializer::SerializeGeneric(HeapObject heap_object) {
   // Object has not yet been serialized.  Serialize it here.
-  ObjectSerializer serializer(this, heap_object, &sink_, how_to_code);
+  ObjectSerializer serializer(this, heap_object, &sink_);
   serializer.Serialize();
 }
 

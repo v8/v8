@@ -24,21 +24,20 @@ ReadOnlySerializer::~ReadOnlySerializer() {
   OutputStatistics("ReadOnlySerializer");
 }
 
-void ReadOnlySerializer::SerializeObject(HeapObject obj,
-                                         HowToCode how_to_code) {
+void ReadOnlySerializer::SerializeObject(HeapObject obj) {
   CHECK(isolate()->heap()->read_only_space()->Contains(obj));
   CHECK_IMPLIES(obj->IsString(), obj->IsInternalizedString());
 
-  if (SerializeHotObject(obj, how_to_code)) return;
-  if (IsRootAndHasBeenSerialized(obj) && SerializeRoot(obj, how_to_code)) {
+  if (SerializeHotObject(obj)) return;
+  if (IsRootAndHasBeenSerialized(obj) && SerializeRoot(obj)) {
     return;
   }
-  if (SerializeBackReference(obj, how_to_code)) return;
+  if (SerializeBackReference(obj)) return;
 
   CheckRehashability(obj);
 
   // Object has not yet been serialized.  Serialize it here.
-  ObjectSerializer object_serializer(this, obj, &sink_, how_to_code);
+  ObjectSerializer object_serializer(this, obj, &sink_);
   object_serializer.Serialize();
 }
 
@@ -79,7 +78,7 @@ bool ReadOnlySerializer::MustBeDeferred(HeapObject object) {
 }
 
 bool ReadOnlySerializer::SerializeUsingReadOnlyObjectCache(
-    SnapshotByteSink* sink, HeapObject obj, HowToCode how_to_code) {
+    SnapshotByteSink* sink, HeapObject obj) {
   if (!isolate()->heap()->read_only_space()->Contains(obj)) return false;
 
   // Get the cache index and serialize it into the read-only snapshot if
@@ -87,7 +86,7 @@ bool ReadOnlySerializer::SerializeUsingReadOnlyObjectCache(
   int cache_index = SerializeInObjectCache(obj);
 
   // Writing out the cache entry into the calling serializer's sink.
-  sink->Put(kReadOnlyObjectCache + how_to_code, "ReadOnlyObjectCache");
+  sink->Put(kReadOnlyObjectCache, "ReadOnlyObjectCache");
   sink->PutInt(cache_index, "read_only_object_cache_index");
 
   return true;
