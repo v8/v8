@@ -2274,6 +2274,11 @@ ParserBase<Impl>::ParseObjectPropertyDefinition(ParsePropertyInfo* prop_info,
   Token::Value name_token = peek();
   Scanner::Location next_loc = scanner()->peek_location();
 
+  if (name_token == Token::PRIVATE_NAME) {
+    ReportUnexpectedToken(Next());
+    return impl()->NullLiteralProperty();
+  }
+
   ExpressionT name_expression = ParseProperty(prop_info);
   IdentifierT name = prop_info->name;
   ParseFunctionFlags function_flags = prop_info->function_flags;

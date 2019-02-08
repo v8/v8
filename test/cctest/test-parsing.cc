@@ -5620,6 +5620,8 @@ TEST(PrivateMembersInNonClassNoErrors) {
                                    {"function() {", "}"},
                                    {"() => {", "}"},
                                    {"class C { test() {", "} }"},
+                                   {"const {", "} = {}"},
+                                   {"({", "} = {})"},
                                    {nullptr, nullptr}};
   const char* class_body_data[] = {
     "#a = 1",
