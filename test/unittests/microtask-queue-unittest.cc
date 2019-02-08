@@ -10,9 +10,7 @@
 #include <vector>
 
 #include "src/heap/factory.h"
-#include "src/objects-inl.h"
 #include "src/objects/foreign.h"
-#include "src/objects/js-array-inl.h"
 #include "src/visitors.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -27,29 +25,7 @@ void RunStdFunction(void* data) {
   (*f)();
 }
 
-template <typename TMixin>
-class WithFinalizationGroupMixin : public TMixin {
- public:
-  WithFinalizationGroupMixin() {
-    FLAG_harmony_weak_refs = true;
-    FLAG_expose_gc = true;
-  }
-
- private:
-  SaveFlags save_flags_;
-
-  DISALLOW_COPY_AND_ASSIGN(WithFinalizationGroupMixin);
-};
-
-using TestWithNativeContextAndFinalizationGroup =  //
-    WithInternalIsolateMixin<                      //
-        WithContextMixin<                          //
-            WithFinalizationGroupMixin<            //
-                WithIsolateScopeMixin<             //
-                    WithSharedIsolateMixin<        //
-                        ::testing::Test>>>>>;
-
-class MicrotaskQueueTest : public TestWithNativeContextAndFinalizationGroup {
+class MicrotaskQueueTest : public TestWithNativeContext {
  public:
   template <typename F>
   Handle<Microtask> NewMicrotask(F&& f) {
@@ -207,115 +183,6 @@ TEST_F(MicrotaskQueueTest, VisitRoot) {
   std::sort(expected.begin(), expected.end());
   std::sort(actual.begin(), actual.end());
   EXPECT_EQ(expected, actual);
-}
-
-TEST_F(MicrotaskQueueTest, DetachGlobal_Enqueue) {
-  EXPECT_EQ(0, microtask_queue()->size());
-
-  // Detach MicrotaskQueue from the current context.
-  context()->DetachGlobal();
-
-  // No microtask should be enqueued after DetachGlobal call.
-  EXPECT_EQ(0, microtask_queue()->size());
-  RunJS("Promise.resolve().then(()=>{})");
-  EXPECT_EQ(0, microtask_queue()->size());
-}
-
-TEST_F(MicrotaskQueueTest, DetachGlobal_Run) {
-  EXPECT_EQ(0, microtask_queue()->size());
-
-  // Enqueue microtasks to the current context.
-  Handle<JSArray> ran = RunJS<JSArray>(
-      "var ran = [false, false, false, false];"
-      "Promise.resolve().then(() => { ran[0] = true; });"
-      "Promise.reject().catch(() => { ran[1] = true; });"
-      "ran");
-
-  Handle<JSFunction> function =
-      RunJS<JSFunction>("(function() { ran[2] = true; })");
-  Handle<CallableTask> callable =
-      factory()->NewCallableTask(function, Utils::OpenHandle(*context()));
-  microtask_queue()->EnqueueMicrotask(*callable);
-
-  // The handler should not run at this point.
-  const int kNumExpectedTasks = 3;
-  for (int i = 0; i < kNumExpectedTasks; ++i) {
-    EXPECT_TRUE(
-        Object::GetElement(isolate(), ran, i).ToHandleChecked()->IsFalse());
-  }
-  EXPECT_EQ(kNumExpectedTasks, microtask_queue()->size());
-
-  // Detach MicrotaskQueue from the current context.
-  context()->DetachGlobal();
-
-  // RunMicrotasks processes pending Microtasks, but Microtasks that are
-  // associated to a detached context should be cancelled and should not take
-  // effect.
-  microtask_queue()->RunMicrotasks(isolate());
-  EXPECT_EQ(0, microtask_queue()->size());
-  for (int i = 0; i < kNumExpectedTasks; ++i) {
-    EXPECT_TRUE(
-        Object::GetElement(isolate(), ran, i).ToHandleChecked()->IsFalse());
-  }
-}
-
-TEST_F(MicrotaskQueueTest, DetachGlobal_FinalizationGroup) {
-  // Enqueue an FinalizationGroupCleanupTask.
-  Handle<JSArray> ran = RunJS<JSArray>(
-      "var ran = [false];"
-      "var wf = new FinalizationGroup(() => { ran[0] = true; });"
-      "(function() { wf.register({}, {}); })();"
-      "gc();"
-      "ran");
-
-  EXPECT_TRUE(
-      Object::GetElement(isolate(), ran, 0).ToHandleChecked()->IsFalse());
-  EXPECT_EQ(1, microtask_queue()->size());
-
-  // Detach MicrotaskQueue from the current context.
-  context()->DetachGlobal();
-
-  microtask_queue()->RunMicrotasks(isolate());
-
-  // RunMicrotasks processes the pending Microtask, but Microtasks that are
-  // associated to a detached context should be cancelled and should not take
-  // effect.
-  EXPECT_EQ(0, microtask_queue()->size());
-  EXPECT_TRUE(
-      Object::GetElement(isolate(), ran, 0).ToHandleChecked()->IsFalse());
-}
-
-namespace {
-
-void DummyPromiseHook(PromiseHookType type, Local<Promise> promise,
-                      Local<Value> parent) {}
-
-}  // namespace
-
-TEST_F(MicrotaskQueueTest, DetachGlobal_PromiseResolveThenableJobTask) {
-  // Use a PromiseHook to switch the implementation to ResolvePromise runtime,
-  // instead of ResolvePromise builtin.
-  v8_isolate()->SetPromiseHook(&DummyPromiseHook);
-
-  RunJS(
-      "var resolve;"
-      "var promise = new Promise(r => { resolve = r; });"
-      "promise.then(() => {});"
-      "resolve({});");
-
-  // A PromiseResolveThenableJobTask is pending in the MicrotaskQueue.
-  EXPECT_EQ(1, microtask_queue()->size());
-
-  // Detach MicrotaskQueue from the current context.
-  context()->DetachGlobal();
-
-  // RunMicrotasks processes the pending Microtask, but Microtasks that are
-  // associated to a detached context should be cancelled and should not take
-  // effect.
-  // As PromiseResolveThenableJobTask queues another task for resolution,
-  // the return value is 2 if it ran.
-  EXPECT_EQ(1, microtask_queue()->RunMicrotasks(isolate()));
-  EXPECT_EQ(0, microtask_queue()->size());
 }
 
 }  // namespace internal
