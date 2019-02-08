@@ -430,6 +430,10 @@ Handle<String> MorphLocale(Isolate* isolate, String locale,
   UErrorCode status = U_ZERO_ERROR;
   icu::Locale icu_locale =
       icu::Locale::forLanguageTag(locale.ToCString().get(), status);
+  // TODO(ftang): Remove the following lines after ICU-8420 fixed.
+  // Due to ICU-8420 "und" is turn into "" by forLanguageTag,
+  // we have to work around to use icu::Locale("und") directly
+  if (icu_locale.getName()[0] == '\0') icu_locale = icu::Locale("und");
   CHECK(U_SUCCESS(status));
   CHECK(!icu_locale.isBogus());
   (*morph_func)(&icu_locale, &status);
