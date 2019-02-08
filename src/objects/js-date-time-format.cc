@@ -1508,9 +1508,7 @@ MaybeHandle<Object> JSDateTimeFormat::FormatToParts(
 }
 
 const std::set<std::string>& JSDateTimeFormat::GetAvailableLocales() {
-  static base::LazyInstance<Intl::AvailableLocales<icu::DateFormat>>::type
-      available_locales = LAZY_INSTANCE_INITIALIZER;
-  return available_locales.Pointer()->Get();
+  return Intl::GetAvailableLocalesForDateFormat();
 }
 
 Handle<String> JSDateTimeFormat::HourCycleAsString() const {

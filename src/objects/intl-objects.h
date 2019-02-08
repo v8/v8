@@ -291,6 +291,10 @@ class Intl {
   static const uint8_t* ToLatin1LowerTable();
 
   static String ConvertOneByteToLower(String src, String dst);
+
+  static const std::set<std::string>& GetAvailableLocalesForLocale();
+
+  static const std::set<std::string>& GetAvailableLocalesForDateFormat();
 };
 
 }  // namespace internal

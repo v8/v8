@@ -18,7 +18,6 @@
 #include "src/objects/intl-objects.h"
 #include "src/objects/js-number-format.h"
 #include "src/objects/js-relative-time-format-inl.h"
-#include "unicode/datefmt.h"
 #include "unicode/numfmt.h"
 #include "unicode/reldatefmt.h"
 
@@ -410,9 +409,9 @@ MaybeHandle<Object> JSRelativeTimeFormat::Format(
 }
 
 const std::set<std::string>& JSRelativeTimeFormat::GetAvailableLocales() {
-  static base::LazyInstance<Intl::AvailableLocales<icu::DateFormat>>::type
-      available_locales = LAZY_INSTANCE_INITIALIZER;
-  return available_locales.Pointer()->Get();
+  // Since RelativeTimeFormatter does not have a method to list all
+  // available locales, work around by calling the DateFormat.
+  return Intl::GetAvailableLocalesForDateFormat();
 }
 
 }  // namespace internal

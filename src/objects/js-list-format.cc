@@ -412,13 +412,10 @@ MaybeHandle<String> JSListFormat::FormatList(Isolate* isolate,
 }
 
 const std::set<std::string>& JSListFormat::GetAvailableLocales() {
-  // TODO(ftang): for now just use
-  // icu::Locale::getAvailableLocales(count) until we migrate to
-  // Intl::GetAvailableLocales().
+  // Since ListFormatter does not have a method to list all supported
+  // locales, use the one in icu::Locale per comments in
   // ICU FR at https://unicode-org.atlassian.net/browse/ICU-20015
-  static base::LazyInstance<Intl::AvailableLocales<icu::Locale>>::type
-      available_locales = LAZY_INSTANCE_INITIALIZER;
-  return available_locales.Pointer()->Get();
+  return Intl::GetAvailableLocalesForLocale();
 }
 
 // ecma42 #sec-formatlisttoparts

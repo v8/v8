@@ -320,9 +320,7 @@ const std::set<std::string>& JSPluralRules::GetAvailableLocales() {
   // PluralRules is missing an appropriate getAvailableLocales method,
   // so we should filter from all locales, but it's not clear how; see
   // https://ssl.icu-project.org/trac/ticket/12756
-  static base::LazyInstance<Intl::AvailableLocales<icu::Locale>>::type
-      available_locales = LAZY_INSTANCE_INITIALIZER;
-  return available_locales.Pointer()->Get();
+  return Intl::GetAvailableLocalesForLocale();
 }
 
 }  // namespace internal
