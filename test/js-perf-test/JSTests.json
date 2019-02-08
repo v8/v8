@@ -1374,6 +1374,20 @@
       ]
     },
     {
+      "name": "ObjectFreeze",
+      "path": ["ObjectFreeze"],
+      "main": "run.js",
+      "flags": [],
+      "resources": [
+	      "tagged-template.js"
+      ],
+      "results_regexp": "^%s\\-Numbers\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "TaggedTemplate"},
+        {"name": "TaggedTemplateLoose"}
+      ]
+    },
+    {
       "name": "TurboFan",
       "path": ["TurboFan"],
       "main": "run.js",
