@@ -129,6 +129,7 @@ class StatsCounter;
   V(ieee754_log10_function, "base::ieee754::log10")                           \
   V(ieee754_log1p_function, "base::ieee754::log1p")                           \
   V(ieee754_log2_function, "base::ieee754::log2")                             \
+  V(ieee754_pow_function, "base::ieee754::pow")                               \
   V(ieee754_sin_function, "base::ieee754::sin")                               \
   V(ieee754_sinh_function, "base::ieee754::sinh")                             \
   V(ieee754_tan_function, "base::ieee754::tan")                               \
@@ -151,7 +152,6 @@ class StatsCounter;
   V(mod_two_doubles_operation, "mod_two_doubles")                             \
   V(new_deoptimizer_function, "Deoptimizer::New()")                           \
   V(orderedhashmap_gethash_raw, "orderedhashmap_gethash_raw")                 \
-  V(power_double_double_function, "power_double_double_function")             \
   V(printf_function, "printf")                                                \
   V(refill_math_random, "MathRandom::RefillCache")                            \
   V(search_string_raw_one_one, "search_string_raw_one_one")                   \
@@ -324,9 +324,6 @@ size_t hash_value(ExternalReference);
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, ExternalReference);
 
 void abort_with_reason(int reason);
-
-// Computes pow(x, y) with the special cases in the spec for Math.pow.
-double power_double_double(double x, double y);
 
 }  // namespace internal
 }  // namespace v8

@@ -1959,8 +1959,9 @@ TEST_F(MachineOperatorReducerTest, Float64PowWithConstant) {
       Reduction const r = Reduce(graph()->NewNode(
           machine()->Float64Pow(), Float64Constant(x), Float64Constant(y)));
       ASSERT_TRUE(r.Changed());
-      EXPECT_THAT(r.replacement(),
-                  IsFloat64Constant(NanSensitiveDoubleEq(Pow(x, y))));
+      EXPECT_THAT(
+          r.replacement(),
+          IsFloat64Constant(NanSensitiveDoubleEq(base::ieee754::pow(x, y))));
     }
   }
 }
