@@ -54,40 +54,6 @@ static const WasmOpcode kInt32BinopOpcodes[] = {
 #define WASM_BRV_IF_ZERO(depth, val) \
   val, WASM_ZERO, kExprBrIf, static_cast<byte>(depth)
 
-#define EXPECT_VERIFIES_C(sig, x) \
-  Verify(true, sigs.sig(), ArrayVector(x), kAppendEnd)
-
-#define EXPECT_FAILURE_C(sig, x, ...) \
-  Verify(false, sigs.sig(), ArrayVector(x), kAppendEnd, ##__VA_ARGS__)
-
-#define EXPECT_VERIFIES_SC(sig, x) Verify(true, sig, ArrayVector(x), kAppendEnd)
-
-#define EXPECT_FAILURE_SC(sig, x) Verify(false, sig, ArrayVector(x), kAppendEnd)
-
-#define EXPECT_VERIFIES_S(env, ...)                   \
-  do {                                                \
-    static byte code[] = {__VA_ARGS__};               \
-    Verify(true, env, ArrayVector(code), kAppendEnd); \
-  } while (false)
-
-#define EXPECT_FAILURE_S(env, ...)                     \
-  do {                                                 \
-    static byte code[] = {__VA_ARGS__};                \
-    Verify(false, env, ArrayVector(code), kAppendEnd); \
-  } while (false)
-
-#define EXPECT_VERIFIES(sig, ...)             \
-  do {                                        \
-    static const byte code[] = {__VA_ARGS__}; \
-    EXPECT_VERIFIES_C(sig, code);             \
-  } while (false)
-
-#define EXPECT_FAILURE(sig, ...)              \
-  do {                                        \
-    static const byte code[] = {__VA_ARGS__}; \
-    EXPECT_FAILURE_C(sig, code);              \
-  } while (false)
-
 class FunctionBodyDecoderTest : public TestWithZone {
  public:
   typedef std::pair<uint32_t, ValueType> LocalsDecl;
@@ -127,13 +93,28 @@ class FunctionBodyDecoderTest : public TestWithZone {
     return {buffer, total_size};
   }
 
+  template <size_t N>
+  Vector<const byte> CodeToVector(const byte (&code)[N]) {
+    return ArrayVector(code);
+  }
+
+  Vector<const byte> CodeToVector(
+      const std::initializer_list<const byte>& code) {
+    return VectorOf(&*code.begin(), code.size());
+  }
+
+  Vector<const byte> CodeToVector(Vector<const byte> vec) { return vec; }
+
   // Prepends local variable declarations and renders nice error messages for
   // verification failures.
-  void Verify(bool expected_success, FunctionSig* sig, Vector<const byte> code,
-              AppendEnd append_end, const char* message = nullptr) {
-    code = PrepareBytecode(code, append_end);
+  template <typename Code = std::initializer_list<const byte>>
+  void Validate(bool expected_success, FunctionSig* sig, Code&& raw_code,
+                AppendEnd append_end = kAppendEnd,
+                const char* message = nullptr) {
+    Vector<const byte> code =
+        PrepareBytecode(CodeToVector(std::forward<Code>(raw_code)), append_end);
 
-    // Verify the code.
+    // Validate the code.
     FunctionBody body(sig, 0, code.start(), code.end());
     WasmFeatures unused_detected_features;
     DecodeResult result =
@@ -153,10 +134,24 @@ class FunctionBodyDecoderTest : public TestWithZone {
     }
   }
 
+  template <typename Code = std::initializer_list<const byte>>
+  void ExpectValidates(FunctionSig* sig, Code&& raw_code,
+                       AppendEnd append_end = kAppendEnd,
+                       const char* message = nullptr) {
+    Validate(true, sig, std::forward<Code>(raw_code), append_end, message);
+  }
+
+  template <typename Code = std::initializer_list<const byte>>
+  void ExpectFailure(FunctionSig* sig, Code&& raw_code,
+                     AppendEnd append_end = kAppendEnd,
+                     const char* message = nullptr) {
+    Validate(false, sig, std::forward<Code>(raw_code), append_end, message);
+  }
+
   void TestBinop(WasmOpcode opcode, FunctionSig* success) {
     // op(local[0], local[1])
     byte code[] = {WASM_BINOP(opcode, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1))};
-    EXPECT_VERIFIES_SC(success, code);
+    ExpectValidates(success, code);
 
     // Try all combinations of return and parameter types.
     for (size_t i = 0; i < arraysize(kValueTypes); i++) {
@@ -168,7 +163,7 @@ class FunctionBodyDecoderTest : public TestWithZone {
               types[2] != success->GetParam(1)) {
             // Test signature mismatch.
             FunctionSig sig(1, 2, types);
-            EXPECT_FAILURE_SC(&sig, code);
+            ExpectFailure(&sig, code);
           }
         }
       }
@@ -185,7 +180,7 @@ class FunctionBodyDecoderTest : public TestWithZone {
     {
       ValueType types[] = {ret_type, param_type};
       FunctionSig sig(1, 1, types);
-      EXPECT_VERIFIES_SC(&sig, code);
+      ExpectValidates(&sig, code);
     }
 
     // Try all combinations of return and parameter types.
@@ -195,7 +190,7 @@ class FunctionBodyDecoderTest : public TestWithZone {
         if (types[0] != ret_type || types[1] != param_type) {
           // Test signature mismatch.
           FunctionSig sig(1, 1, types);
-          EXPECT_FAILURE_SC(&sig, code);
+          ExpectFailure(&sig, code);
         }
       }
     }
@@ -299,33 +294,33 @@ TEST_F(FunctionBodyDecoderTest, Int32Const1) {
   byte code[] = {kExprI32Const, 0};
   for (int i = -64; i <= 63; i++) {
     code[1] = static_cast<byte>(i & 0x7F);
-    EXPECT_VERIFIES_C(i_i, code);
+    ExpectValidates(sigs.i_i(), code);
   }
 }
 
 TEST_F(FunctionBodyDecoderTest, RefNull) {
   WASM_FEATURE_SCOPE(anyref);
   byte code[] = {kExprRefNull};
-  EXPECT_VERIFIES_C(r_v, code);
+  ExpectValidates(sigs.r_v(), code);
 }
 
 TEST_F(FunctionBodyDecoderTest, EmptyFunction) {
-  Verify(true, sigs.v_v(), {}, kAppendEnd);
-  Verify(false, sigs.i_i(), {}, kAppendEnd);
+  Validate(true, sigs.v_v(), {}, kAppendEnd);
+  Validate(false, sigs.i_i(), {}, kAppendEnd);
 }
 
 TEST_F(FunctionBodyDecoderTest, IncompleteIf1) {
   byte code[] = {kExprIf};
-  EXPECT_FAILURE_C(v_v, code);
-  EXPECT_FAILURE_C(i_i, code);
+  ExpectFailure(sigs.v_v(), code);
+  ExpectFailure(sigs.i_i(), code);
 }
 
 TEST_F(FunctionBodyDecoderTest, Int32Const_fallthru) {
-  EXPECT_VERIFIES(i_i, WASM_I32V_1(0));
+  ExpectValidates(sigs.i_i(), {WASM_I32V_1(0)});
 }
 
 TEST_F(FunctionBodyDecoderTest, Int32Const_fallthru2) {
-  EXPECT_FAILURE(i_i, WASM_I32V_1(0), WASM_I32V_1(1));
+  ExpectFailure(sigs.i_i(), {WASM_I32V_1(0), WASM_I32V_1(1)});
 }
 
 TEST_F(FunctionBodyDecoderTest, Int32Const) {
@@ -333,7 +328,7 @@ TEST_F(FunctionBodyDecoderTest, Int32Const) {
   for (int32_t i = kMinInt; i < kMaxInt - kInc; i = i + kInc) {
     // TODO(binji): expand test for other sized int32s; 1 through 5 bytes.
     byte code[] = {WASM_I32V(i)};
-    EXPECT_VERIFIES_C(i_i, code);
+    ExpectValidates(sigs.i_i(), code);
   }
 }
 
@@ -342,7 +337,7 @@ TEST_F(FunctionBodyDecoderTest, Int64Const) {
   for (int32_t i = kMinInt; i < kMaxInt - kInc; i = i + kInc) {
     byte code[] = {
         WASM_I64V((static_cast<uint64_t>(static_cast<int64_t>(i)) << 32) | i)};
-    EXPECT_VERIFIES_C(l_l, code);
+    ExpectValidates(sigs.l_l(), code);
   }
 }
 
@@ -351,7 +346,7 @@ TEST_F(FunctionBodyDecoderTest, Float32Const) {
   Address ptr = reinterpret_cast<Address>(code + 1);
   for (int i = 0; i < 30; i++) {
     WriteLittleEndianValue<float>(ptr, i * -7.75f);
-    EXPECT_VERIFIES_C(f_ff, code);
+    ExpectValidates(sigs.f_ff(), code);
   }
 }
 
@@ -360,7 +355,7 @@ TEST_F(FunctionBodyDecoderTest, Float64Const) {
   Address ptr = reinterpret_cast<Address>(code + 1);
   for (int i = 0; i < 30; i++) {
     WriteLittleEndianValue<double>(ptr, i * 33.45);
-    EXPECT_VERIFIES_C(d_dd, code);
+    ExpectValidates(sigs.d_dd(), code);
   }
 }
 
@@ -368,31 +363,31 @@ TEST_F(FunctionBodyDecoderTest, Int32Const_off_end) {
   byte code[] = {kExprI32Const, 0xAA, 0xBB, 0xCC, 0x44};
 
   for (size_t size = 1; size <= 4; ++size) {
-    Verify(false, sigs.i_i(), {code, size}, kAppendEnd);
+    Validate(false, sigs.i_i(), VectorOf(code, size), kAppendEnd);
     // Should also fail without the trailing 'end' opcode.
-    Verify(false, sigs.i_i(), {code, size}, kOmitEnd);
+    Validate(false, sigs.i_i(), VectorOf(code, size), kOmitEnd);
   }
 }
 
 TEST_F(FunctionBodyDecoderTest, GetLocal0_param) {
-  EXPECT_VERIFIES_C(i_i, kCodeGetLocal0);
+  ExpectValidates(sigs.i_i(), kCodeGetLocal0);
 }
 
 TEST_F(FunctionBodyDecoderTest, GetLocal0_local) {
   AddLocals(kWasmI32, 1);
-  EXPECT_VERIFIES_C(i_v, kCodeGetLocal0);
+  ExpectValidates(sigs.i_v(), kCodeGetLocal0);
 }
 
 TEST_F(FunctionBodyDecoderTest, TooManyLocals) {
   AddLocals(kWasmI32, 4034986500);
-  EXPECT_FAILURE_C(i_v, kCodeGetLocal0);
+  ExpectFailure(sigs.i_v(), kCodeGetLocal0);
 }
 
 TEST_F(FunctionBodyDecoderTest, GetLocal0_param_n) {
   FunctionSig* array[] = {sigs.i_i(), sigs.i_ii(), sigs.i_iii()};
 
   for (size_t i = 0; i < arraysize(array); i++) {
-    EXPECT_VERIFIES_SC(array[i], kCodeGetLocal0);
+    ExpectValidates(array[i], kCodeGetLocal0);
   }
 }
 
@@ -401,148 +396,148 @@ TEST_F(FunctionBodyDecoderTest, GetLocalN_local) {
     AddLocals(kWasmI32, 1);
     for (byte j = 0; j < i; j++) {
       byte code[] = {kExprGetLocal, j};
-      EXPECT_VERIFIES_C(i_v, code);
+      ExpectValidates(sigs.i_v(), code);
     }
   }
 }
 
 TEST_F(FunctionBodyDecoderTest, GetLocal0_fail_no_params) {
-  EXPECT_FAILURE_C(i_v, kCodeGetLocal0);
+  ExpectFailure(sigs.i_v(), kCodeGetLocal0);
 }
 
 TEST_F(FunctionBodyDecoderTest, GetLocal1_fail_no_locals) {
-  EXPECT_FAILURE_C(i_i, kCodeGetLocal1);
+  ExpectFailure(sigs.i_i(), kCodeGetLocal1);
 }
 
 TEST_F(FunctionBodyDecoderTest, GetLocal_off_end) {
   static const byte code[] = {kExprGetLocal};
-  EXPECT_FAILURE_C(i_i, code);
+  ExpectFailure(sigs.i_i(), code);
 }
 
 TEST_F(FunctionBodyDecoderTest, NumLocalBelowLimit) {
   AddLocals(kWasmI32, kV8MaxWasmFunctionLocals - 1);
-  EXPECT_VERIFIES(v_v, WASM_NOP);
+  ExpectValidates(sigs.v_v(), {WASM_NOP});
 }
 
 TEST_F(FunctionBodyDecoderTest, NumLocalAtLimit) {
   AddLocals(kWasmI32, kV8MaxWasmFunctionLocals);
-  EXPECT_VERIFIES(v_v, WASM_NOP);
+  ExpectValidates(sigs.v_v(), {WASM_NOP});
 }
 
 TEST_F(FunctionBodyDecoderTest, NumLocalAboveLimit) {
   AddLocals(kWasmI32, kV8MaxWasmFunctionLocals + 1);
-  EXPECT_FAILURE(v_v, WASM_NOP);
+  ExpectFailure(sigs.v_v(), {WASM_NOP});
 }
 
 TEST_F(FunctionBodyDecoderTest, GetLocal_varint) {
   const int kMaxLocals = kV8MaxWasmFunctionLocals - 1;
   AddLocals(kWasmI32, kMaxLocals);
 
-  EXPECT_VERIFIES(i_i, kExprGetLocal, U32V_1(66));
-  EXPECT_VERIFIES(i_i, kExprGetLocal, U32V_2(7777));
-  EXPECT_VERIFIES(i_i, kExprGetLocal, U32V_3(8888));
-  EXPECT_VERIFIES(i_i, kExprGetLocal, U32V_4(9999));
+  ExpectValidates(sigs.i_i(), {kExprGetLocal, U32V_1(66)});
+  ExpectValidates(sigs.i_i(), {kExprGetLocal, U32V_2(7777)});
+  ExpectValidates(sigs.i_i(), {kExprGetLocal, U32V_3(8888)});
+  ExpectValidates(sigs.i_i(), {kExprGetLocal, U32V_4(9999)});
 
-  EXPECT_VERIFIES(i_i, kExprGetLocal, U32V_5(kMaxLocals - 1));
+  ExpectValidates(sigs.i_i(), {kExprGetLocal, U32V_5(kMaxLocals - 1)});
 
-  EXPECT_FAILURE(i_i, kExprGetLocal, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF);
+  ExpectFailure(sigs.i_i(), {kExprGetLocal, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF});
 
-  EXPECT_VERIFIES(i_i, kExprGetLocal, U32V_4(kMaxLocals - 1));
-  EXPECT_VERIFIES(i_i, kExprGetLocal, U32V_4(kMaxLocals));
-  EXPECT_FAILURE(i_i, kExprGetLocal, U32V_4(kMaxLocals + 1));
+  ExpectValidates(sigs.i_i(), {kExprGetLocal, U32V_4(kMaxLocals - 1)});
+  ExpectValidates(sigs.i_i(), {kExprGetLocal, U32V_4(kMaxLocals)});
+  ExpectFailure(sigs.i_i(), {kExprGetLocal, U32V_4(kMaxLocals + 1)});
 
-  EXPECT_FAILURE(i_v, kExprGetLocal, U32V_4(kMaxLocals));
-  EXPECT_FAILURE(i_v, kExprGetLocal, U32V_4(kMaxLocals + 1));
+  ExpectFailure(sigs.i_v(), {kExprGetLocal, U32V_4(kMaxLocals)});
+  ExpectFailure(sigs.i_v(), {kExprGetLocal, U32V_4(kMaxLocals + 1)});
 }
 
 TEST_F(FunctionBodyDecoderTest, GetLocal_toomany) {
   AddLocals(kWasmI32, kV8MaxWasmFunctionLocals - 100);
   AddLocals(kWasmI32, 100);
 
-  EXPECT_VERIFIES(i_v, kExprGetLocal, U32V_1(66));
-  EXPECT_FAILURE(i_i, kExprGetLocal, U32V_1(66));
+  ExpectValidates(sigs.i_v(), {kExprGetLocal, U32V_1(66)});
+  ExpectFailure(sigs.i_i(), {kExprGetLocal, U32V_1(66)});
 }
 
 TEST_F(FunctionBodyDecoderTest, Binops_off_end) {
   byte code1[] = {0};  // [opcode]
   for (size_t i = 0; i < arraysize(kInt32BinopOpcodes); i++) {
     code1[0] = kInt32BinopOpcodes[i];
-    EXPECT_FAILURE_C(i_i, code1);
+    ExpectFailure(sigs.i_i(), code1);
   }
 
   byte code3[] = {kExprGetLocal, 0, 0};  // [expr] [opcode]
   for (size_t i = 0; i < arraysize(kInt32BinopOpcodes); i++) {
     code3[2] = kInt32BinopOpcodes[i];
-    EXPECT_FAILURE_C(i_i, code3);
+    ExpectFailure(sigs.i_i(), code3);
   }
 
   byte code4[] = {kExprGetLocal, 0, 0, 0};  // [expr] [opcode] [opcode]
   for (size_t i = 0; i < arraysize(kInt32BinopOpcodes); i++) {
     code4[2] = kInt32BinopOpcodes[i];
     code4[3] = kInt32BinopOpcodes[i];
-    EXPECT_FAILURE_C(i_i, code4);
+    ExpectFailure(sigs.i_i(), code4);
   }
 }
 
 TEST_F(FunctionBodyDecoderTest, BinopsAcrossBlock1) {
   static const byte code[] = {WASM_ZERO, kExprBlock,  kLocalI32,
                               WASM_ZERO, kExprI32Add, kExprEnd};
-  EXPECT_FAILURE_C(i_i, code);
+  ExpectFailure(sigs.i_i(), code);
 }
 
 TEST_F(FunctionBodyDecoderTest, BinopsAcrossBlock2) {
   static const byte code[] = {WASM_ZERO, WASM_ZERO,   kExprBlock,
                               kLocalI32, kExprI32Add, kExprEnd};
-  EXPECT_FAILURE_C(i_i, code);
+  ExpectFailure(sigs.i_i(), code);
 }
 
 TEST_F(FunctionBodyDecoderTest, BinopsAcrossBlock3) {
   static const byte code[] = {WASM_ZERO,   WASM_ZERO, kExprIf,     kLocalI32,
                               kExprI32Add, kExprElse, kExprI32Add, kExprEnd};
-  EXPECT_FAILURE_C(i_i, code);
+  ExpectFailure(sigs.i_i(), code);
 }
 
 TEST_F(FunctionBodyDecoderTest, Nop) {
   static const byte code[] = {kExprNop};
-  EXPECT_VERIFIES_C(v_v, code);
+  ExpectValidates(sigs.v_v(), code);
 }
 
 TEST_F(FunctionBodyDecoderTest, SetLocal0_void) {
-  EXPECT_FAILURE(i_i, WASM_SET_LOCAL(0, WASM_ZERO));
+  ExpectFailure(sigs.i_i(), {WASM_SET_LOCAL(0, WASM_ZERO)});
 }
 
 TEST_F(FunctionBodyDecoderTest, SetLocal0_param) {
-  EXPECT_FAILURE_C(i_i, kCodeSetLocal0);
-  EXPECT_FAILURE_C(f_ff, kCodeSetLocal0);
-  EXPECT_FAILURE_C(d_dd, kCodeSetLocal0);
+  ExpectFailure(sigs.i_i(), kCodeSetLocal0);
+  ExpectFailure(sigs.f_ff(), kCodeSetLocal0);
+  ExpectFailure(sigs.d_dd(), kCodeSetLocal0);
 }
 
 TEST_F(FunctionBodyDecoderTest, TeeLocal0_param) {
-  EXPECT_VERIFIES_C(i_i, kCodeTeeLocal0);
-  EXPECT_FAILURE_C(f_ff, kCodeTeeLocal0);
-  EXPECT_FAILURE_C(d_dd, kCodeTeeLocal0);
+  ExpectValidates(sigs.i_i(), kCodeTeeLocal0);
+  ExpectFailure(sigs.f_ff(), kCodeTeeLocal0);
+  ExpectFailure(sigs.d_dd(), kCodeTeeLocal0);
 }
 
 TEST_F(FunctionBodyDecoderTest, SetLocal0_local) {
-  EXPECT_FAILURE_C(i_v, kCodeSetLocal0);
-  EXPECT_FAILURE_C(v_v, kCodeSetLocal0);
+  ExpectFailure(sigs.i_v(), kCodeSetLocal0);
+  ExpectFailure(sigs.v_v(), kCodeSetLocal0);
   AddLocals(kWasmI32, 1);
-  EXPECT_FAILURE_C(i_v, kCodeSetLocal0);
-  EXPECT_VERIFIES_C(v_v, kCodeSetLocal0);
+  ExpectFailure(sigs.i_v(), kCodeSetLocal0);
+  ExpectValidates(sigs.v_v(), kCodeSetLocal0);
 }
 
 TEST_F(FunctionBodyDecoderTest, TeeLocal0_local) {
-  EXPECT_FAILURE_C(i_v, kCodeTeeLocal0);
+  ExpectFailure(sigs.i_v(), kCodeTeeLocal0);
   AddLocals(kWasmI32, 1);
-  EXPECT_VERIFIES_C(i_v, kCodeTeeLocal0);
+  ExpectValidates(sigs.i_v(), kCodeTeeLocal0);
 }
 
 TEST_F(FunctionBodyDecoderTest, TeeLocalN_local) {
   for (byte i = 1; i < 8; i++) {
     AddLocals(kWasmI32, 1);
     for (byte j = 0; j < i; j++) {
-      EXPECT_FAILURE(v_v, WASM_TEE_LOCAL(j, WASM_I32V_1(i)));
-      EXPECT_VERIFIES(i_i, WASM_TEE_LOCAL(j, WASM_I32V_1(i)));
+      ExpectFailure(sigs.v_v(), {WASM_TEE_LOCAL(j, WASM_I32V_1(i))});
+      ExpectValidates(sigs.i_i(), {WASM_TEE_LOCAL(j, WASM_I32V_1(i))});
     }
   }
 }
@@ -556,7 +551,7 @@ TEST_F(FunctionBodyDecoderTest, BlockN) {
     buffer[0] = kExprBlock;
     buffer[1] = kLocalVoid;
     buffer[i + 2] = kExprEnd;
-    Verify(true, sigs.v_i(), {buffer, i + 3}, kAppendEnd);
+    Validate(true, sigs.v_i(), VectorOf(buffer, i + 3), kAppendEnd);
   }
 }
 
@@ -564,235 +559,246 @@ TEST_F(FunctionBodyDecoderTest, BlockN) {
 
 TEST_F(FunctionBodyDecoderTest, Block0) {
   static const byte code[] = {WASM_EMPTY_BLOCK};
-  EXPECT_VERIFIES_C(v_v, code);
-  EXPECT_FAILURE_C(i_i, code);
+  ExpectValidates(sigs.v_v(), code);
+  ExpectFailure(sigs.i_i(), code);
 }
 
 TEST_F(FunctionBodyDecoderTest, Block0_fallthru1) {
   static const byte code[] = {WASM_BLOCK(WASM_EMPTY_BLOCK)};
-  EXPECT_VERIFIES_C(v_v, code);
-  EXPECT_FAILURE_C(i_i, code);
+  ExpectValidates(sigs.v_v(), code);
+  ExpectFailure(sigs.i_i(), code);
 }
 
 TEST_F(FunctionBodyDecoderTest, Block0Block0) {
   static const byte code[] = {WASM_EMPTY_BLOCK, WASM_EMPTY_BLOCK};
-  EXPECT_VERIFIES_C(v_v, code);
-  EXPECT_FAILURE_C(i_i, code);
+  ExpectValidates(sigs.v_v(), code);
+  ExpectFailure(sigs.i_i(), code);
 }
 
 TEST_F(FunctionBodyDecoderTest, Block0_end) {
-  EXPECT_FAILURE(v_v, WASM_EMPTY_BLOCK, kExprEnd);
+  ExpectFailure(sigs.v_v(), {WASM_EMPTY_BLOCK, kExprEnd});
 }
 
 #undef WASM_EMPTY_BLOCK
 
 TEST_F(FunctionBodyDecoderTest, Block1) {
   byte code[] = {WASM_BLOCK_I(WASM_GET_LOCAL(0))};
-  EXPECT_VERIFIES_C(i_i, code);
-  EXPECT_FAILURE_C(v_i, code);
-  EXPECT_FAILURE_C(d_dd, code);
-  EXPECT_FAILURE_C(i_f, code);
-  EXPECT_FAILURE_C(i_d, code);
+  ExpectValidates(sigs.i_i(), code);
+  ExpectFailure(sigs.v_i(), code);
+  ExpectFailure(sigs.d_dd(), code);
+  ExpectFailure(sigs.i_f(), code);
+  ExpectFailure(sigs.i_d(), code);
 }
 
 TEST_F(FunctionBodyDecoderTest, Block1_i) {
   byte code[] = {WASM_BLOCK_I(WASM_ZERO)};
-  EXPECT_VERIFIES_C(i_i, code);
-  EXPECT_FAILURE_C(f_ff, code);
-  EXPECT_FAILURE_C(d_dd, code);
-  EXPECT_FAILURE_C(l_ll, code);
+  ExpectValidates(sigs.i_i(), code);
+  ExpectFailure(sigs.f_ff(), code);
+  ExpectFailure(sigs.d_dd(), code);
+  ExpectFailure(sigs.l_ll(), code);
 }
 
 TEST_F(FunctionBodyDecoderTest, Block1_f) {
   byte code[] = {WASM_BLOCK_F(WASM_F32(0))};
-  EXPECT_FAILURE_C(i_i, code);
-  EXPECT_VERIFIES_C(f_ff, code);
-  EXPECT_FAILURE_C(d_dd, code);
-  EXPECT_FAILURE_C(l_ll, code);
+  ExpectFailure(sigs.i_i(), code);
+  ExpectValidates(sigs.f_ff(), code);
+  ExpectFailure(sigs.d_dd(), code);
+  ExpectFailure(sigs.l_ll(), code);
 }
 
 TEST_F(FunctionBodyDecoderTest, Block1_continue) {
-  EXPECT_VERIFIES(v_v, WASM_LOOP(WASM_BR(0)));
+  ExpectValidates(sigs.v_v(), {WASM_LOOP(WASM_BR(0))});
 }
 
 TEST_F(FunctionBodyDecoderTest, Block1_br) {
-  EXPECT_VERIFIES(v_v, B1(WASM_BR(0)));
-  EXPECT_VERIFIES(v_v, B1(WASM_BR(1)));
-  EXPECT_FAILURE(v_v, B1(WASM_BR(2)));
+  ExpectValidates(sigs.v_v(), {B1(WASM_BR(0))});
+  ExpectValidates(sigs.v_v(), {B1(WASM_BR(1))});
+  ExpectFailure(sigs.v_v(), {B1(WASM_BR(2))});
 }
 
 TEST_F(FunctionBodyDecoderTest, Block2_br) {
-  EXPECT_VERIFIES(v_v, B2(WASM_NOP, WASM_BR(0)));
-  EXPECT_VERIFIES(v_v, B2(WASM_BR(0), WASM_NOP));
-  EXPECT_VERIFIES(v_v, B2(WASM_BR(0), WASM_BR(0)));
+  ExpectValidates(sigs.v_v(), {B2(WASM_NOP, WASM_BR(0))});
+  ExpectValidates(sigs.v_v(), {B2(WASM_BR(0), WASM_NOP)});
+  ExpectValidates(sigs.v_v(), {B2(WASM_BR(0), WASM_BR(0))});
 }
 
 TEST_F(FunctionBodyDecoderTest, Block2) {
-  EXPECT_FAILURE(i_i, WASM_BLOCK(WASM_NOP, WASM_NOP));
-  EXPECT_FAILURE(i_i, WASM_BLOCK_I(WASM_NOP, WASM_NOP));
-  EXPECT_VERIFIES(i_i, WASM_BLOCK_I(WASM_NOP, WASM_ZERO));
-  EXPECT_VERIFIES(i_i, WASM_BLOCK_I(WASM_ZERO, WASM_NOP));
-  EXPECT_FAILURE(i_i, WASM_BLOCK_I(WASM_ZERO, WASM_ZERO));
+  ExpectFailure(sigs.i_i(), {WASM_BLOCK(WASM_NOP, WASM_NOP)});
+  ExpectFailure(sigs.i_i(), {WASM_BLOCK_I(WASM_NOP, WASM_NOP)});
+  ExpectValidates(sigs.i_i(), {WASM_BLOCK_I(WASM_NOP, WASM_ZERO)});
+  ExpectValidates(sigs.i_i(), {WASM_BLOCK_I(WASM_ZERO, WASM_NOP)});
+  ExpectFailure(sigs.i_i(), {WASM_BLOCK_I(WASM_ZERO, WASM_ZERO)});
 }
 
 TEST_F(FunctionBodyDecoderTest, Block2b) {
   byte code[] = {WASM_BLOCK_I(WASM_SET_LOCAL(0, WASM_ZERO), WASM_ZERO)};
-  EXPECT_VERIFIES_C(i_i, code);
-  EXPECT_FAILURE_C(v_v, code);
-  EXPECT_FAILURE_C(f_ff, code);
+  ExpectValidates(sigs.i_i(), code);
+  ExpectFailure(sigs.v_v(), code);
+  ExpectFailure(sigs.f_ff(), code);
 }
 
 TEST_F(FunctionBodyDecoderTest, Block2_fallthru) {
-  EXPECT_VERIFIES(
-      i_i, B2(WASM_SET_LOCAL(0, WASM_ZERO), WASM_SET_LOCAL(0, WASM_ZERO)),
-      WASM_I32V_1(23));
+  ExpectValidates(sigs.i_i(), {B2(WASM_SET_LOCAL(0, WASM_ZERO),
+                                  WASM_SET_LOCAL(0, WASM_ZERO)),
+                               WASM_I32V_1(23)});
 }
 
 TEST_F(FunctionBodyDecoderTest, Block3) {
-  EXPECT_VERIFIES(i_i,
-                  WASM_BLOCK_I(WASM_SET_LOCAL(0, WASM_ZERO),
-                               WASM_SET_LOCAL(0, WASM_ZERO), WASM_I32V_1(11)));
+  ExpectValidates(sigs.i_i(), {WASM_BLOCK_I(WASM_SET_LOCAL(0, WASM_ZERO),
+                                            WASM_SET_LOCAL(0, WASM_ZERO),
+                                            WASM_I32V_1(11))});
 }
 
 TEST_F(FunctionBodyDecoderTest, Block5) {
-  EXPECT_FAILURE(v_i, WASM_BLOCK(WASM_ZERO));
+  ExpectFailure(sigs.v_i(), {WASM_BLOCK(WASM_ZERO)});
 
-  EXPECT_FAILURE(v_i, WASM_BLOCK(WASM_ZERO, WASM_ZERO));
+  ExpectFailure(sigs.v_i(), {WASM_BLOCK(WASM_ZERO, WASM_ZERO)});
 
-  EXPECT_FAILURE(v_i, WASM_BLOCK(WASM_ZERO, WASM_ZERO, WASM_ZERO));
+  ExpectFailure(sigs.v_i(), {WASM_BLOCK(WASM_ZERO, WASM_ZERO, WASM_ZERO)});
 
-  EXPECT_FAILURE(v_i, WASM_BLOCK(WASM_ZERO, WASM_ZERO, WASM_ZERO, WASM_ZERO));
+  ExpectFailure(sigs.v_i(),
+                {WASM_BLOCK(WASM_ZERO, WASM_ZERO, WASM_ZERO, WASM_ZERO)});
 
-  EXPECT_FAILURE(
-      v_i, WASM_BLOCK(WASM_ZERO, WASM_ZERO, WASM_ZERO, WASM_ZERO, WASM_ZERO));
+  ExpectFailure(sigs.v_i(), {WASM_BLOCK(WASM_ZERO, WASM_ZERO, WASM_ZERO,
+                                        WASM_ZERO, WASM_ZERO)});
 }
 
 TEST_F(FunctionBodyDecoderTest, BlockType) {
-  EXPECT_VERIFIES(i_i, WASM_BLOCK_I(WASM_GET_LOCAL(0)));
-  EXPECT_VERIFIES(l_l, WASM_BLOCK_L(WASM_GET_LOCAL(0)));
-  EXPECT_VERIFIES(f_f, WASM_BLOCK_F(WASM_GET_LOCAL(0)));
-  EXPECT_VERIFIES(d_d, WASM_BLOCK_D(WASM_GET_LOCAL(0)));
+  ExpectValidates(sigs.i_i(), {WASM_BLOCK_I(WASM_GET_LOCAL(0))});
+  ExpectValidates(sigs.l_l(), {WASM_BLOCK_L(WASM_GET_LOCAL(0))});
+  ExpectValidates(sigs.f_f(), {WASM_BLOCK_F(WASM_GET_LOCAL(0))});
+  ExpectValidates(sigs.d_d(), {WASM_BLOCK_D(WASM_GET_LOCAL(0))});
 }
 
 TEST_F(FunctionBodyDecoderTest, BlockType_fail) {
-  EXPECT_FAILURE(i_i, WASM_BLOCK_L(WASM_I64V_1(0)));
-  EXPECT_FAILURE(i_i, WASM_BLOCK_F(WASM_F32(0.0)));
-  EXPECT_FAILURE(i_i, WASM_BLOCK_D(WASM_F64(1.1)));
+  ExpectFailure(sigs.i_i(), {WASM_BLOCK_L(WASM_I64V_1(0))});
+  ExpectFailure(sigs.i_i(), {WASM_BLOCK_F(WASM_F32(0.0))});
+  ExpectFailure(sigs.i_i(), {WASM_BLOCK_D(WASM_F64(1.1))});
 
-  EXPECT_FAILURE(l_l, WASM_BLOCK_I(WASM_ZERO));
-  EXPECT_FAILURE(l_l, WASM_BLOCK_F(WASM_F32(0.0)));
-  EXPECT_FAILURE(l_l, WASM_BLOCK_D(WASM_F64(1.1)));
+  ExpectFailure(sigs.l_l(), {WASM_BLOCK_I(WASM_ZERO)});
+  ExpectFailure(sigs.l_l(), {WASM_BLOCK_F(WASM_F32(0.0))});
+  ExpectFailure(sigs.l_l(), {WASM_BLOCK_D(WASM_F64(1.1))});
 
-  EXPECT_FAILURE(f_ff, WASM_BLOCK_I(WASM_ZERO));
-  EXPECT_FAILURE(f_ff, WASM_BLOCK_L(WASM_I64V_1(0)));
-  EXPECT_FAILURE(f_ff, WASM_BLOCK_D(WASM_F64(1.1)));
+  ExpectFailure(sigs.f_ff(), {WASM_BLOCK_I(WASM_ZERO)});
+  ExpectFailure(sigs.f_ff(), {WASM_BLOCK_L(WASM_I64V_1(0))});
+  ExpectFailure(sigs.f_ff(), {WASM_BLOCK_D(WASM_F64(1.1))});
 
-  EXPECT_FAILURE(d_dd, WASM_BLOCK_I(WASM_ZERO));
-  EXPECT_FAILURE(d_dd, WASM_BLOCK_L(WASM_I64V_1(0)));
-  EXPECT_FAILURE(d_dd, WASM_BLOCK_F(WASM_F32(0.0)));
+  ExpectFailure(sigs.d_dd(), {WASM_BLOCK_I(WASM_ZERO)});
+  ExpectFailure(sigs.d_dd(), {WASM_BLOCK_L(WASM_I64V_1(0))});
+  ExpectFailure(sigs.d_dd(), {WASM_BLOCK_F(WASM_F32(0.0))});
 }
 
 TEST_F(FunctionBodyDecoderTest, BlockF32) {
   static const byte code[] = {WASM_BLOCK_F(kExprF32Const, 0, 0, 0, 0)};
-  EXPECT_VERIFIES_C(f_ff, code);
-  EXPECT_FAILURE_C(i_i, code);
-  EXPECT_FAILURE_C(d_dd, code);
+  ExpectValidates(sigs.f_ff(), code);
+  ExpectFailure(sigs.i_i(), code);
+  ExpectFailure(sigs.d_dd(), code);
 }
 
 TEST_F(FunctionBodyDecoderTest, BlockN_off_end) {
   byte code[] = {WASM_BLOCK(kExprNop, kExprNop, kExprNop, kExprNop)};
-  EXPECT_VERIFIES_C(v_v, code);
+  ExpectValidates(sigs.v_v(), code);
   for (size_t i = 1; i < arraysize(code); i++) {
-    Verify(false, sigs.v_v(), {code, i}, kAppendEnd);
-    Verify(false, sigs.v_v(), {code, i}, kOmitEnd);
+    Validate(false, sigs.v_v(), VectorOf(code, i), kAppendEnd);
+    Validate(false, sigs.v_v(), VectorOf(code, i), kOmitEnd);
   }
 }
 
 TEST_F(FunctionBodyDecoderTest, Block2_continue) {
-  EXPECT_VERIFIES(v_v, WASM_LOOP(WASM_NOP, WASM_BR(0)));
-  EXPECT_VERIFIES(v_v, WASM_LOOP(WASM_NOP, WASM_BR(1)));
-  EXPECT_FAILURE(v_v, WASM_LOOP(WASM_NOP, WASM_BR(2)));
+  ExpectValidates(sigs.v_v(), {WASM_LOOP(WASM_NOP, WASM_BR(0))});
+  ExpectValidates(sigs.v_v(), {WASM_LOOP(WASM_NOP, WASM_BR(1))});
+  ExpectFailure(sigs.v_v(), {WASM_LOOP(WASM_NOP, WASM_BR(2))});
 }
 
 TEST_F(FunctionBodyDecoderTest, Block3_continue) {
-  EXPECT_VERIFIES(v_v, B1(WASM_LOOP(WASM_NOP, WASM_BR(0))));
-  EXPECT_VERIFIES(v_v, B1(WASM_LOOP(WASM_NOP, WASM_BR(1))));
-  EXPECT_VERIFIES(v_v, B1(WASM_LOOP(WASM_NOP, WASM_BR(2))));
-  EXPECT_FAILURE(v_v, B1(WASM_LOOP(WASM_NOP, WASM_BR(3))));
+  ExpectValidates(sigs.v_v(), {B1(WASM_LOOP(WASM_NOP, WASM_BR(0)))});
+  ExpectValidates(sigs.v_v(), {B1(WASM_LOOP(WASM_NOP, WASM_BR(1)))});
+  ExpectValidates(sigs.v_v(), {B1(WASM_LOOP(WASM_NOP, WASM_BR(2)))});
+  ExpectFailure(sigs.v_v(), {B1(WASM_LOOP(WASM_NOP, WASM_BR(3)))});
 }
 
 TEST_F(FunctionBodyDecoderTest, NestedBlock_return) {
-  EXPECT_VERIFIES(i_i, B1(B1(WASM_RETURN1(WASM_ZERO))), WASM_ZERO);
+  ExpectValidates(sigs.i_i(), {B1(B1(WASM_RETURN1(WASM_ZERO))), WASM_ZERO});
 }
 
 TEST_F(FunctionBodyDecoderTest, BlockBrBinop) {
-  EXPECT_VERIFIES(i_i, WASM_I32_AND(WASM_BLOCK_I(WASM_BRV(0, WASM_I32V_1(1))),
-                                    WASM_I32V_1(2)));
+  ExpectValidates(sigs.i_i(),
+                  {WASM_I32_AND(WASM_BLOCK_I(WASM_BRV(0, WASM_I32V_1(1))),
+                                WASM_I32V_1(2))});
 }
 
 TEST_F(FunctionBodyDecoderTest, If_empty1) {
-  EXPECT_VERIFIES(v_v, WASM_ZERO, WASM_IF_OP, kExprEnd);
+  ExpectValidates(sigs.v_v(), {WASM_ZERO, WASM_IF_OP, kExprEnd});
 }
 
 TEST_F(FunctionBodyDecoderTest, If_empty2) {
-  EXPECT_VERIFIES(v_v, WASM_ZERO, WASM_IF_OP, kExprElse, kExprEnd);
+  ExpectValidates(sigs.v_v(), {WASM_ZERO, WASM_IF_OP, kExprElse, kExprEnd});
 }
 
 TEST_F(FunctionBodyDecoderTest, If_empty3) {
-  EXPECT_VERIFIES(v_v, WASM_ZERO, WASM_IF_OP, WASM_NOP, kExprElse, kExprEnd);
-  EXPECT_FAILURE(v_v, WASM_ZERO, WASM_IF_OP, WASM_ZERO, kExprElse, kExprEnd);
+  ExpectValidates(sigs.v_v(),
+                  {WASM_ZERO, WASM_IF_OP, WASM_NOP, kExprElse, kExprEnd});
+  ExpectFailure(sigs.v_v(),
+                {WASM_ZERO, WASM_IF_OP, WASM_ZERO, kExprElse, kExprEnd});
 }
 
 TEST_F(FunctionBodyDecoderTest, If_empty4) {
-  EXPECT_VERIFIES(v_v, WASM_ZERO, WASM_IF_OP, kExprElse, WASM_NOP, kExprEnd);
-  EXPECT_FAILURE(v_v, WASM_ZERO, WASM_IF_OP, kExprElse, WASM_ZERO, kExprEnd);
+  ExpectValidates(sigs.v_v(),
+                  {WASM_ZERO, WASM_IF_OP, kExprElse, WASM_NOP, kExprEnd});
+  ExpectFailure(sigs.v_v(),
+                {WASM_ZERO, WASM_IF_OP, kExprElse, WASM_ZERO, kExprEnd});
 }
 
 TEST_F(FunctionBodyDecoderTest, If_empty_stack) {
   byte code[] = {kExprIf};
-  EXPECT_FAILURE_C(v_v, code);
-  EXPECT_FAILURE_C(i_i, code);
+  ExpectFailure(sigs.v_v(), code);
+  ExpectFailure(sigs.i_i(), code);
 }
 
 TEST_F(FunctionBodyDecoderTest, If_incomplete1) {
   byte code[] = {kExprI32Const, 0, kExprIf};
-  EXPECT_FAILURE_C(v_v, code);
-  EXPECT_FAILURE_C(i_i, code);
+  ExpectFailure(sigs.v_v(), code);
+  ExpectFailure(sigs.i_i(), code);
 }
 
 TEST_F(FunctionBodyDecoderTest, If_incomplete2) {
   byte code[] = {kExprI32Const, 0, kExprIf, kExprNop};
-  EXPECT_FAILURE_C(v_v, code);
-  EXPECT_FAILURE_C(i_i, code);
+  ExpectFailure(sigs.v_v(), code);
+  ExpectFailure(sigs.i_i(), code);
 }
 
 TEST_F(FunctionBodyDecoderTest, If_else_else) {
   byte code[] = {kExprI32Const, 0, WASM_IF_OP, kExprElse, kExprElse, kExprEnd};
-  EXPECT_FAILURE_C(v_v, code);
-  EXPECT_FAILURE_C(i_i, code);
+  ExpectFailure(sigs.v_v(), code);
+  ExpectFailure(sigs.i_i(), code);
 }
 
 TEST_F(FunctionBodyDecoderTest, IfEmpty) {
-  EXPECT_VERIFIES(v_i, kExprGetLocal, 0, WASM_IF_OP, kExprEnd);
+  ExpectValidates(sigs.v_i(), {kExprGetLocal, 0, WASM_IF_OP, kExprEnd});
 }
 
 TEST_F(FunctionBodyDecoderTest, IfSet) {
-  EXPECT_VERIFIES(v_i,
-                  WASM_IF(WASM_GET_LOCAL(0), WASM_SET_LOCAL(0, WASM_ZERO)));
-  EXPECT_VERIFIES(v_i, WASM_IF_ELSE(WASM_GET_LOCAL(0),
-                                    WASM_SET_LOCAL(0, WASM_ZERO), WASM_NOP));
+  ExpectValidates(sigs.v_i(),
+                  {WASM_IF(WASM_GET_LOCAL(0), WASM_SET_LOCAL(0, WASM_ZERO))});
+  ExpectValidates(sigs.v_i(),
+                  {WASM_IF_ELSE(WASM_GET_LOCAL(0), WASM_SET_LOCAL(0, WASM_ZERO),
+                                WASM_NOP)});
 }
 
 TEST_F(FunctionBodyDecoderTest, IfElseEmpty) {
-  EXPECT_VERIFIES(v_i, WASM_GET_LOCAL(0), WASM_IF_OP, kExprElse, kExprEnd);
-  EXPECT_VERIFIES(v_i, WASM_IF_ELSE(WASM_GET_LOCAL(0), WASM_NOP, WASM_NOP));
+  ExpectValidates(sigs.v_i(),
+                  {WASM_GET_LOCAL(0), WASM_IF_OP, kExprElse, kExprEnd});
+  ExpectValidates(sigs.v_i(),
+                  {WASM_IF_ELSE(WASM_GET_LOCAL(0), WASM_NOP, WASM_NOP)});
 }
 
 TEST_F(FunctionBodyDecoderTest, IfElseUnreachable1) {
-  EXPECT_VERIFIES(i_i, WASM_IF_ELSE_I(WASM_GET_LOCAL(0), WASM_UNREACHABLE,
-                                      WASM_GET_LOCAL(0)));
-  EXPECT_VERIFIES(i_i, WASM_IF_ELSE_I(WASM_GET_LOCAL(0), WASM_GET_LOCAL(0),
-                                      WASM_UNREACHABLE));
+  ExpectValidates(
+      sigs.i_i(),
+      {WASM_IF_ELSE_I(WASM_GET_LOCAL(0), WASM_UNREACHABLE, WASM_GET_LOCAL(0))});
+  ExpectValidates(
+      sigs.i_i(),
+      {WASM_IF_ELSE_I(WASM_GET_LOCAL(0), WASM_GET_LOCAL(0), WASM_UNREACHABLE)});
 }
 
 TEST_F(FunctionBodyDecoderTest, IfElseUnreachable2) {
@@ -804,9 +810,9 @@ TEST_F(FunctionBodyDecoderTest, IfElseUnreachable2) {
     FunctionSig sig(1, 1, types);
 
     if (kValueTypes[i] == kWasmI32) {
-      EXPECT_VERIFIES_SC(&sig, code);
+      ExpectValidates(&sig, code);
     } else {
-      EXPECT_FAILURE_SC(&sig, code);
+      ExpectFailure(&sig, code);
     }
   }
 }
@@ -814,236 +820,251 @@ TEST_F(FunctionBodyDecoderTest, IfElseUnreachable2) {
 TEST_F(FunctionBodyDecoderTest, OneArmedIfWithArity) {
   static const byte code[] = {WASM_ZERO, kExprIf, kLocalI32, WASM_ONE,
                               kExprEnd};
-  EXPECT_FAILURE_C(i_v, code,
-                   "start-arity and end-arity of one-armed if must match");
+  ExpectFailure(sigs.i_v(), code, kAppendEnd,
+                "start-arity and end-arity of one-armed if must match");
 }
 
 TEST_F(FunctionBodyDecoderTest, IfBreak) {
-  EXPECT_VERIFIES(v_i, WASM_IF(WASM_GET_LOCAL(0), WASM_BR(0)));
-  EXPECT_VERIFIES(v_i, WASM_IF(WASM_GET_LOCAL(0), WASM_BR(1)));
-  EXPECT_FAILURE(v_i, WASM_IF(WASM_GET_LOCAL(0), WASM_BR(2)));
+  ExpectValidates(sigs.v_i(), {WASM_IF(WASM_GET_LOCAL(0), WASM_BR(0))});
+  ExpectValidates(sigs.v_i(), {WASM_IF(WASM_GET_LOCAL(0), WASM_BR(1))});
+  ExpectFailure(sigs.v_i(), {WASM_IF(WASM_GET_LOCAL(0), WASM_BR(2))});
 }
 
 TEST_F(FunctionBodyDecoderTest, IfElseBreak) {
-  EXPECT_VERIFIES(v_i, WASM_IF_ELSE(WASM_GET_LOCAL(0), WASM_NOP, WASM_BR(0)));
-  EXPECT_VERIFIES(v_i, WASM_IF_ELSE(WASM_GET_LOCAL(0), WASM_NOP, WASM_BR(1)));
-  EXPECT_FAILURE(v_i, WASM_IF_ELSE(WASM_GET_LOCAL(0), WASM_NOP, WASM_BR(2)));
+  ExpectValidates(sigs.v_i(),
+                  {WASM_IF_ELSE(WASM_GET_LOCAL(0), WASM_NOP, WASM_BR(0))});
+  ExpectValidates(sigs.v_i(),
+                  {WASM_IF_ELSE(WASM_GET_LOCAL(0), WASM_NOP, WASM_BR(1))});
+  ExpectFailure(sigs.v_i(),
+                {WASM_IF_ELSE(WASM_GET_LOCAL(0), WASM_NOP, WASM_BR(2))});
 }
 
 TEST_F(FunctionBodyDecoderTest, Block_else) {
   byte code[] = {kExprI32Const, 0, kExprBlock, kExprElse, kExprEnd};
-  EXPECT_FAILURE_C(v_v, code);
-  EXPECT_FAILURE_C(i_i, code);
+  ExpectFailure(sigs.v_v(), code);
+  ExpectFailure(sigs.i_i(), code);
 }
 
 TEST_F(FunctionBodyDecoderTest, IfNop) {
-  EXPECT_VERIFIES(v_i, WASM_IF(WASM_GET_LOCAL(0), WASM_NOP));
-  EXPECT_VERIFIES(v_i, WASM_IF_ELSE(WASM_GET_LOCAL(0), WASM_NOP, WASM_NOP));
+  ExpectValidates(sigs.v_i(), {WASM_IF(WASM_GET_LOCAL(0), WASM_NOP)});
+  ExpectValidates(sigs.v_i(),
+                  {WASM_IF_ELSE(WASM_GET_LOCAL(0), WASM_NOP, WASM_NOP)});
 }
 
 TEST_F(FunctionBodyDecoderTest, If_end) {
-  EXPECT_VERIFIES(v_i, kExprGetLocal, 0, WASM_IF_OP, kExprEnd);
-  EXPECT_FAILURE(v_i, kExprGetLocal, 0, WASM_IF_OP, kExprEnd, kExprEnd);
+  ExpectValidates(sigs.v_i(), {kExprGetLocal, 0, WASM_IF_OP, kExprEnd});
+  ExpectFailure(sigs.v_i(), {kExprGetLocal, 0, WASM_IF_OP, kExprEnd, kExprEnd});
 }
 
 TEST_F(FunctionBodyDecoderTest, If_falloff1) {
-  EXPECT_FAILURE(v_i, kExprGetLocal, 0, kExprIf);
-  EXPECT_FAILURE(v_i, kExprGetLocal, 0, WASM_IF_OP);
-  EXPECT_FAILURE(v_i, kExprGetLocal, 0, WASM_IF_OP, kExprNop, kExprElse);
+  ExpectFailure(sigs.v_i(), {kExprGetLocal, 0, kExprIf});
+  ExpectFailure(sigs.v_i(), {kExprGetLocal, 0, WASM_IF_OP});
+  ExpectFailure(sigs.v_i(),
+                {kExprGetLocal, 0, WASM_IF_OP, kExprNop, kExprElse});
 }
 
 TEST_F(FunctionBodyDecoderTest, IfElseNop) {
-  EXPECT_VERIFIES(v_i, WASM_IF_ELSE(WASM_GET_LOCAL(0),
-                                    WASM_SET_LOCAL(0, WASM_ZERO), WASM_NOP));
+  ExpectValidates(sigs.v_i(),
+                  {WASM_IF_ELSE(WASM_GET_LOCAL(0), WASM_SET_LOCAL(0, WASM_ZERO),
+                                WASM_NOP)});
 }
 
 TEST_F(FunctionBodyDecoderTest, IfBlock1) {
-  EXPECT_VERIFIES(
-      v_i, WASM_IF_ELSE(WASM_GET_LOCAL(0), B1(WASM_SET_LOCAL(0, WASM_ZERO)),
-                        WASM_NOP));
+  ExpectValidates(sigs.v_i(),
+                  {WASM_IF_ELSE(WASM_GET_LOCAL(0),
+                                B1(WASM_SET_LOCAL(0, WASM_ZERO)), WASM_NOP)});
 }
 
 TEST_F(FunctionBodyDecoderTest, IfBlock1b) {
-  EXPECT_VERIFIES(v_i,
-                  WASM_IF(WASM_GET_LOCAL(0), B1(WASM_SET_LOCAL(0, WASM_ZERO))));
+  ExpectValidates(sigs.v_i(), {WASM_IF(WASM_GET_LOCAL(0),
+                                       B1(WASM_SET_LOCAL(0, WASM_ZERO)))});
 }
 
 TEST_F(FunctionBodyDecoderTest, IfBlock2a) {
-  EXPECT_VERIFIES(v_i,
-                  WASM_IF(WASM_GET_LOCAL(0), B2(WASM_SET_LOCAL(0, WASM_ZERO),
-                                                WASM_SET_LOCAL(0, WASM_ZERO))));
+  ExpectValidates(sigs.v_i(), {WASM_IF(WASM_GET_LOCAL(0),
+                                       B2(WASM_SET_LOCAL(0, WASM_ZERO),
+                                          WASM_SET_LOCAL(0, WASM_ZERO)))});
 }
 
 TEST_F(FunctionBodyDecoderTest, IfBlock2b) {
-  EXPECT_VERIFIES(
-      v_i, WASM_IF_ELSE(WASM_GET_LOCAL(0), B2(WASM_SET_LOCAL(0, WASM_ZERO),
-                                              WASM_SET_LOCAL(0, WASM_ZERO)),
-                        WASM_NOP));
+  ExpectValidates(sigs.v_i(), {WASM_IF_ELSE(WASM_GET_LOCAL(0),
+                                            B2(WASM_SET_LOCAL(0, WASM_ZERO),
+                                               WASM_SET_LOCAL(0, WASM_ZERO)),
+                                            WASM_NOP)});
 }
 
 TEST_F(FunctionBodyDecoderTest, IfElseSet) {
-  EXPECT_VERIFIES(v_i,
-                  WASM_IF_ELSE(WASM_GET_LOCAL(0), WASM_SET_LOCAL(0, WASM_ZERO),
-                               WASM_SET_LOCAL(0, WASM_I32V_1(1))));
+  ExpectValidates(sigs.v_i(),
+                  {WASM_IF_ELSE(WASM_GET_LOCAL(0), WASM_SET_LOCAL(0, WASM_ZERO),
+                                WASM_SET_LOCAL(0, WASM_I32V_1(1)))});
 }
 
 TEST_F(FunctionBodyDecoderTest, Loop0) {
-  EXPECT_VERIFIES(v_v, WASM_LOOP_OP, kExprEnd);
+  ExpectValidates(sigs.v_v(), {WASM_LOOP_OP, kExprEnd});
 }
 
 TEST_F(FunctionBodyDecoderTest, Loop1) {
   static const byte code[] = {WASM_LOOP(WASM_SET_LOCAL(0, WASM_ZERO))};
-  EXPECT_VERIFIES_C(v_i, code);
-  EXPECT_FAILURE_C(v_v, code);
-  EXPECT_FAILURE_C(f_ff, code);
+  ExpectValidates(sigs.v_i(), code);
+  ExpectFailure(sigs.v_v(), code);
+  ExpectFailure(sigs.f_ff(), code);
 }
 
 TEST_F(FunctionBodyDecoderTest, Loop2) {
-  EXPECT_VERIFIES(v_i, WASM_LOOP(WASM_SET_LOCAL(0, WASM_ZERO),
-                                 WASM_SET_LOCAL(0, WASM_ZERO)));
+  ExpectValidates(sigs.v_i(), {WASM_LOOP(WASM_SET_LOCAL(0, WASM_ZERO),
+                                         WASM_SET_LOCAL(0, WASM_ZERO))});
 }
 
 TEST_F(FunctionBodyDecoderTest, Loop1_continue) {
-  EXPECT_VERIFIES(v_v, WASM_LOOP(WASM_BR(0)));
+  ExpectValidates(sigs.v_v(), {WASM_LOOP(WASM_BR(0))});
 }
 
 TEST_F(FunctionBodyDecoderTest, Loop1_break) {
-  EXPECT_VERIFIES(v_v, WASM_LOOP(WASM_BR(1)));
+  ExpectValidates(sigs.v_v(), {WASM_LOOP(WASM_BR(1))});
 }
 
 TEST_F(FunctionBodyDecoderTest, Loop2_continue) {
-  EXPECT_VERIFIES(v_i, WASM_LOOP(WASM_SET_LOCAL(0, WASM_ZERO), WASM_BR(0)));
+  ExpectValidates(sigs.v_i(),
+                  {WASM_LOOP(WASM_SET_LOCAL(0, WASM_ZERO), WASM_BR(0))});
 }
 
 TEST_F(FunctionBodyDecoderTest, Loop2_break) {
-  EXPECT_VERIFIES(v_i, WASM_LOOP(WASM_SET_LOCAL(0, WASM_ZERO), WASM_BR(1)));
+  ExpectValidates(sigs.v_i(),
+                  {WASM_LOOP(WASM_SET_LOCAL(0, WASM_ZERO), WASM_BR(1))});
 }
 
 TEST_F(FunctionBodyDecoderTest, InfiniteLoop1) {
-  EXPECT_VERIFIES(i_i, WASM_LOOP(WASM_BR(0)), WASM_ZERO);
-  EXPECT_VERIFIES(i_i, WASM_LOOP(WASM_BR(0)), WASM_ZERO);
-  EXPECT_VERIFIES(i_i, WASM_LOOP_I(WASM_BRV(1, WASM_ZERO)));
+  ExpectValidates(sigs.i_i(), {WASM_LOOP(WASM_BR(0)), WASM_ZERO});
+  ExpectValidates(sigs.i_i(), {WASM_LOOP(WASM_BR(0)), WASM_ZERO});
+  ExpectValidates(sigs.i_i(), {WASM_LOOP_I(WASM_BRV(1, WASM_ZERO))});
 }
 
 TEST_F(FunctionBodyDecoderTest, InfiniteLoop2) {
-  EXPECT_FAILURE(i_i, WASM_LOOP(WASM_BR(0), WASM_ZERO), WASM_ZERO);
+  ExpectFailure(sigs.i_i(), {WASM_LOOP(WASM_BR(0), WASM_ZERO), WASM_ZERO});
 }
 
 TEST_F(FunctionBodyDecoderTest, Loop2_unreachable) {
-  EXPECT_VERIFIES(i_i, WASM_LOOP_I(WASM_BR(0), WASM_NOP));
+  ExpectValidates(sigs.i_i(), {WASM_LOOP_I(WASM_BR(0), WASM_NOP)});
 }
 
 TEST_F(FunctionBodyDecoderTest, LoopType) {
-  EXPECT_VERIFIES(i_i, WASM_LOOP_I(WASM_GET_LOCAL(0)));
-  EXPECT_VERIFIES(l_l, WASM_LOOP_L(WASM_GET_LOCAL(0)));
-  EXPECT_VERIFIES(f_f, WASM_LOOP_F(WASM_GET_LOCAL(0)));
-  EXPECT_VERIFIES(d_d, WASM_LOOP_D(WASM_GET_LOCAL(0)));
+  ExpectValidates(sigs.i_i(), {WASM_LOOP_I(WASM_GET_LOCAL(0))});
+  ExpectValidates(sigs.l_l(), {WASM_LOOP_L(WASM_GET_LOCAL(0))});
+  ExpectValidates(sigs.f_f(), {WASM_LOOP_F(WASM_GET_LOCAL(0))});
+  ExpectValidates(sigs.d_d(), {WASM_LOOP_D(WASM_GET_LOCAL(0))});
 }
 
 TEST_F(FunctionBodyDecoderTest, LoopType_void) {
-  EXPECT_FAILURE(v_v, WASM_LOOP_I(WASM_ZERO));
-  EXPECT_FAILURE(v_v, WASM_LOOP_L(WASM_I64V_1(0)));
-  EXPECT_FAILURE(v_v, WASM_LOOP_F(WASM_F32(0.0)));
-  EXPECT_FAILURE(v_v, WASM_LOOP_D(WASM_F64(1.1)));
+  ExpectFailure(sigs.v_v(), {WASM_LOOP_I(WASM_ZERO)});
+  ExpectFailure(sigs.v_v(), {WASM_LOOP_L(WASM_I64V_1(0))});
+  ExpectFailure(sigs.v_v(), {WASM_LOOP_F(WASM_F32(0.0))});
+  ExpectFailure(sigs.v_v(), {WASM_LOOP_D(WASM_F64(1.1))});
 }
 
 TEST_F(FunctionBodyDecoderTest, LoopType_fail) {
-  EXPECT_FAILURE(i_i, WASM_LOOP_L(WASM_I64V_1(0)));
-  EXPECT_FAILURE(i_i, WASM_LOOP_F(WASM_F32(0.0)));
-  EXPECT_FAILURE(i_i, WASM_LOOP_D(WASM_F64(1.1)));
+  ExpectFailure(sigs.i_i(), {WASM_LOOP_L(WASM_I64V_1(0))});
+  ExpectFailure(sigs.i_i(), {WASM_LOOP_F(WASM_F32(0.0))});
+  ExpectFailure(sigs.i_i(), {WASM_LOOP_D(WASM_F64(1.1))});
 
-  EXPECT_FAILURE(l_l, WASM_LOOP_I(WASM_ZERO));
-  EXPECT_FAILURE(l_l, WASM_LOOP_F(WASM_F32(0.0)));
-  EXPECT_FAILURE(l_l, WASM_LOOP_D(WASM_F64(1.1)));
+  ExpectFailure(sigs.l_l(), {WASM_LOOP_I(WASM_ZERO)});
+  ExpectFailure(sigs.l_l(), {WASM_LOOP_F(WASM_F32(0.0))});
+  ExpectFailure(sigs.l_l(), {WASM_LOOP_D(WASM_F64(1.1))});
 
-  EXPECT_FAILURE(f_ff, WASM_LOOP_I(WASM_ZERO));
-  EXPECT_FAILURE(f_ff, WASM_LOOP_L(WASM_I64V_1(0)));
-  EXPECT_FAILURE(f_ff, WASM_LOOP_D(WASM_F64(1.1)));
+  ExpectFailure(sigs.f_ff(), {WASM_LOOP_I(WASM_ZERO)});
+  ExpectFailure(sigs.f_ff(), {WASM_LOOP_L(WASM_I64V_1(0))});
+  ExpectFailure(sigs.f_ff(), {WASM_LOOP_D(WASM_F64(1.1))});
 
-  EXPECT_FAILURE(d_dd, WASM_LOOP_I(WASM_ZERO));
-  EXPECT_FAILURE(d_dd, WASM_LOOP_L(WASM_I64V_1(0)));
-  EXPECT_FAILURE(d_dd, WASM_LOOP_F(WASM_F32(0.0)));
+  ExpectFailure(sigs.d_dd(), {WASM_LOOP_I(WASM_ZERO)});
+  ExpectFailure(sigs.d_dd(), {WASM_LOOP_L(WASM_I64V_1(0))});
+  ExpectFailure(sigs.d_dd(), {WASM_LOOP_F(WASM_F32(0.0))});
 }
 
 TEST_F(FunctionBodyDecoderTest, ReturnVoid1) {
   static const byte code[] = {kExprNop};
-  EXPECT_VERIFIES_C(v_v, code);
-  EXPECT_FAILURE_C(i_i, code);
-  EXPECT_FAILURE_C(i_f, code);
+  ExpectValidates(sigs.v_v(), code);
+  ExpectFailure(sigs.i_i(), code);
+  ExpectFailure(sigs.i_f(), code);
 }
 
 TEST_F(FunctionBodyDecoderTest, ReturnVoid2) {
   static const byte code[] = {WASM_BLOCK(WASM_BR(0))};
-  EXPECT_VERIFIES_C(v_v, code);
-  EXPECT_FAILURE_C(i_i, code);
-  EXPECT_FAILURE_C(i_f, code);
+  ExpectValidates(sigs.v_v(), code);
+  ExpectFailure(sigs.i_i(), code);
+  ExpectFailure(sigs.i_f(), code);
 }
 
 TEST_F(FunctionBodyDecoderTest, ReturnVoid3) {
-  EXPECT_FAILURE(v_v, kExprI32Const, 0);
-  EXPECT_FAILURE(v_v, kExprI64Const, 0);
-  EXPECT_FAILURE(v_v, kExprF32Const, 0, 0, 0, 0);
-  EXPECT_FAILURE(v_v, kExprF64Const, 0, 0, 0, 0, 0, 0, 0, 0);
-  EXPECT_FAILURE(v_v, kExprRefNull);
+  ExpectFailure(sigs.v_v(), {kExprI32Const, 0});
+  ExpectFailure(sigs.v_v(), {kExprI64Const, 0});
+  ExpectFailure(sigs.v_v(), {kExprF32Const, 0, 0, 0, 0});
+  ExpectFailure(sigs.v_v(), {kExprF64Const, 0, 0, 0, 0, 0, 0, 0, 0});
+  ExpectFailure(sigs.v_v(), {kExprRefNull});
 
-  EXPECT_FAILURE(v_i, kExprGetLocal, 0);
+  ExpectFailure(sigs.v_i(), {kExprGetLocal, 0});
 }
 
 TEST_F(FunctionBodyDecoderTest, Unreachable1) {
-  EXPECT_VERIFIES(v_v, WASM_UNREACHABLE);
-  EXPECT_VERIFIES(v_v, WASM_UNREACHABLE, WASM_UNREACHABLE);
-  EXPECT_VERIFIES(i_i, WASM_UNREACHABLE, WASM_ZERO);
+  ExpectValidates(sigs.v_v(), {WASM_UNREACHABLE});
+  ExpectValidates(sigs.v_v(), {WASM_UNREACHABLE, WASM_UNREACHABLE});
+  ExpectValidates(sigs.i_i(), {WASM_UNREACHABLE, WASM_ZERO});
 }
 
 TEST_F(FunctionBodyDecoderTest, Unreachable2) {
-  EXPECT_FAILURE(v_v, B2(WASM_UNREACHABLE, WASM_ZERO));
-  EXPECT_FAILURE(v_v, B2(WASM_BR(0), WASM_ZERO));
+  ExpectFailure(sigs.v_v(), {B2(WASM_UNREACHABLE, WASM_ZERO)});
+  ExpectFailure(sigs.v_v(), {B2(WASM_BR(0), WASM_ZERO)});
 }
 
 TEST_F(FunctionBodyDecoderTest, UnreachableLoop1) {
-  EXPECT_FAILURE(v_v, WASM_LOOP(WASM_UNREACHABLE, WASM_ZERO));
-  EXPECT_FAILURE(v_v, WASM_LOOP(WASM_BR(0), WASM_ZERO));
-  EXPECT_VERIFIES(v_v, WASM_LOOP(WASM_UNREACHABLE, WASM_NOP));
-  EXPECT_VERIFIES(v_v, WASM_LOOP(WASM_BR(0), WASM_NOP));
+  ExpectFailure(sigs.v_v(), {WASM_LOOP(WASM_UNREACHABLE, WASM_ZERO)});
+  ExpectFailure(sigs.v_v(), {WASM_LOOP(WASM_BR(0), WASM_ZERO)});
+  ExpectValidates(sigs.v_v(), {WASM_LOOP(WASM_UNREACHABLE, WASM_NOP)});
+  ExpectValidates(sigs.v_v(), {WASM_LOOP(WASM_BR(0), WASM_NOP)});
 }
 
 TEST_F(FunctionBodyDecoderTest, Unreachable_binop1) {
-  EXPECT_VERIFIES(i_i, WASM_I32_AND(WASM_ZERO, WASM_UNREACHABLE));
-  EXPECT_VERIFIES(i_i, WASM_I32_AND(WASM_UNREACHABLE, WASM_ZERO));
+  ExpectValidates(sigs.i_i(), {WASM_I32_AND(WASM_ZERO, WASM_UNREACHABLE)});
+  ExpectValidates(sigs.i_i(), {WASM_I32_AND(WASM_UNREACHABLE, WASM_ZERO)});
 }
 
 TEST_F(FunctionBodyDecoderTest, Unreachable_binop2) {
-  EXPECT_VERIFIES(i_i, WASM_I32_AND(WASM_F32(0.0), WASM_UNREACHABLE));
-  EXPECT_FAILURE(i_i, WASM_I32_AND(WASM_UNREACHABLE, WASM_F32(0.0)));
+  ExpectValidates(sigs.i_i(), {WASM_I32_AND(WASM_F32(0.0), WASM_UNREACHABLE)});
+  ExpectFailure(sigs.i_i(), {WASM_I32_AND(WASM_UNREACHABLE, WASM_F32(0.0))});
 }
 
 TEST_F(FunctionBodyDecoderTest, Unreachable_select1) {
-  EXPECT_VERIFIES(i_i, WASM_SELECT(WASM_UNREACHABLE, WASM_ZERO, WASM_ZERO));
-  EXPECT_VERIFIES(i_i, WASM_SELECT(WASM_ZERO, WASM_UNREACHABLE, WASM_ZERO));
-  EXPECT_VERIFIES(i_i, WASM_SELECT(WASM_ZERO, WASM_ZERO, WASM_UNREACHABLE));
+  ExpectValidates(sigs.i_i(),
+                  {WASM_SELECT(WASM_UNREACHABLE, WASM_ZERO, WASM_ZERO)});
+  ExpectValidates(sigs.i_i(),
+                  {WASM_SELECT(WASM_ZERO, WASM_UNREACHABLE, WASM_ZERO)});
+  ExpectValidates(sigs.i_i(),
+                  {WASM_SELECT(WASM_ZERO, WASM_ZERO, WASM_UNREACHABLE)});
 }
 
 TEST_F(FunctionBodyDecoderTest, Unreachable_select2) {
-  EXPECT_VERIFIES(i_i, WASM_SELECT(WASM_F32(0.0), WASM_UNREACHABLE, WASM_ZERO));
-  EXPECT_FAILURE(i_i, WASM_SELECT(WASM_UNREACHABLE, WASM_F32(0.0), WASM_ZERO));
-  EXPECT_FAILURE(i_i, WASM_SELECT(WASM_UNREACHABLE, WASM_ZERO, WASM_F32(0.0)));
+  ExpectValidates(sigs.i_i(),
+                  {WASM_SELECT(WASM_F32(0.0), WASM_UNREACHABLE, WASM_ZERO)});
+  ExpectFailure(sigs.i_i(),
+                {WASM_SELECT(WASM_UNREACHABLE, WASM_F32(0.0), WASM_ZERO)});
+  ExpectFailure(sigs.i_i(),
+                {WASM_SELECT(WASM_UNREACHABLE, WASM_ZERO, WASM_F32(0.0))});
 }
 
 TEST_F(FunctionBodyDecoderTest, If1) {
-  EXPECT_VERIFIES(
-      i_i, WASM_IF_ELSE_I(WASM_GET_LOCAL(0), WASM_I32V_1(9), WASM_I32V_1(8)));
-  EXPECT_VERIFIES(i_i, WASM_IF_ELSE_I(WASM_GET_LOCAL(0), WASM_I32V_1(9),
-                                      WASM_GET_LOCAL(0)));
-  EXPECT_VERIFIES(i_i, WASM_IF_ELSE_I(WASM_GET_LOCAL(0), WASM_GET_LOCAL(0),
-                                      WASM_I32V_1(8)));
+  ExpectValidates(sigs.i_i(), {WASM_IF_ELSE_I(WASM_GET_LOCAL(0), WASM_I32V_1(9),
+                                              WASM_I32V_1(8))});
+  ExpectValidates(sigs.i_i(), {WASM_IF_ELSE_I(WASM_GET_LOCAL(0), WASM_I32V_1(9),
+                                              WASM_GET_LOCAL(0))});
+  ExpectValidates(
+      sigs.i_i(),
+      {WASM_IF_ELSE_I(WASM_GET_LOCAL(0), WASM_GET_LOCAL(0), WASM_I32V_1(8))});
 }
 
 TEST_F(FunctionBodyDecoderTest, If_off_end) {
   static const byte kCode[] = {
       WASM_IF_ELSE(WASM_GET_LOCAL(0), WASM_GET_LOCAL(0), WASM_GET_LOCAL(0))};
   for (size_t len = 3; len < arraysize(kCode); len++) {
-    Verify(false, sigs.i_i(), {kCode, len}, kAppendEnd);
-    Verify(false, sigs.i_i(), {kCode, len}, kOmitEnd);
+    Validate(false, sigs.i_i(), VectorOf(kCode, len), kAppendEnd);
+    Validate(false, sigs.i_i(), VectorOf(kCode, len), kOmitEnd);
   }
 }
 
@@ -1051,56 +1072,56 @@ TEST_F(FunctionBodyDecoderTest, If_type1) {
   // float|double ? 1 : 2
   static const byte kCode[] = {
       WASM_IF_ELSE_I(WASM_GET_LOCAL(0), WASM_I32V_1(0), WASM_I32V_1(2))};
-  EXPECT_VERIFIES_C(i_i, kCode);
-  EXPECT_FAILURE_C(i_f, kCode);
-  EXPECT_FAILURE_C(i_d, kCode);
+  ExpectValidates(sigs.i_i(), kCode);
+  ExpectFailure(sigs.i_f(), kCode);
+  ExpectFailure(sigs.i_d(), kCode);
 }
 
 TEST_F(FunctionBodyDecoderTest, If_type2) {
   // 1 ? float|double : 2
   static const byte kCode[] = {
       WASM_IF_ELSE_I(WASM_I32V_1(1), WASM_GET_LOCAL(0), WASM_I32V_1(1))};
-  EXPECT_VERIFIES_C(i_i, kCode);
-  EXPECT_FAILURE_C(i_f, kCode);
-  EXPECT_FAILURE_C(i_d, kCode);
+  ExpectValidates(sigs.i_i(), kCode);
+  ExpectFailure(sigs.i_f(), kCode);
+  ExpectFailure(sigs.i_d(), kCode);
 }
 
 TEST_F(FunctionBodyDecoderTest, If_type3) {
   // stmt ? 0 : 1
   static const byte kCode[] = {
       WASM_IF_ELSE_I(WASM_NOP, WASM_I32V_1(0), WASM_I32V_1(1))};
-  EXPECT_FAILURE_C(i_i, kCode);
-  EXPECT_FAILURE_C(i_f, kCode);
-  EXPECT_FAILURE_C(i_d, kCode);
+  ExpectFailure(sigs.i_i(), kCode);
+  ExpectFailure(sigs.i_f(), kCode);
+  ExpectFailure(sigs.i_d(), kCode);
 }
 
 TEST_F(FunctionBodyDecoderTest, If_type4) {
   // 0 ? stmt : 1
   static const byte kCode[] = {
       WASM_IF_ELSE_I(WASM_GET_LOCAL(0), WASM_NOP, WASM_I32V_1(1))};
-  EXPECT_FAILURE_C(i_i, kCode);
-  EXPECT_FAILURE_C(i_f, kCode);
-  EXPECT_FAILURE_C(i_d, kCode);
+  ExpectFailure(sigs.i_i(), kCode);
+  ExpectFailure(sigs.i_f(), kCode);
+  ExpectFailure(sigs.i_d(), kCode);
 }
 
 TEST_F(FunctionBodyDecoderTest, If_type5) {
   // 0 ? 1 : stmt
   static const byte kCode[] = {
       WASM_IF_ELSE_I(WASM_ZERO, WASM_I32V_1(1), WASM_NOP)};
-  EXPECT_FAILURE_C(i_i, kCode);
-  EXPECT_FAILURE_C(i_f, kCode);
-  EXPECT_FAILURE_C(i_d, kCode);
+  ExpectFailure(sigs.i_i(), kCode);
+  ExpectFailure(sigs.i_f(), kCode);
+  ExpectFailure(sigs.i_d(), kCode);
 }
 
 TEST_F(FunctionBodyDecoderTest, Int64Local_param) {
-  EXPECT_VERIFIES_C(l_l, kCodeGetLocal0);
+  ExpectValidates(sigs.l_l(), kCodeGetLocal0);
 }
 
 TEST_F(FunctionBodyDecoderTest, Int64Locals) {
   for (byte i = 1; i < 8; i++) {
     AddLocals(kWasmI64, 1);
     for (byte j = 0; j < i; j++) {
-      EXPECT_VERIFIES(l_v, WASM_GET_LOCAL(j));
+      ExpectValidates(sigs.l_v(), {WASM_GET_LOCAL(j)});
     }
   }
 }
@@ -1165,47 +1186,49 @@ TEST_F(FunctionBodyDecoderTest, MacrosStmt) {
   TestModuleBuilder builder;
   module = builder.module();
   builder.InitializeMemory();
-  EXPECT_VERIFIES(v_i, WASM_SET_LOCAL(0, WASM_I32V_3(87348)));
-  EXPECT_VERIFIES(v_i, WASM_STORE_MEM(MachineType::Int32(), WASM_I32V_1(24),
-                                      WASM_I32V_1(40)));
-  EXPECT_VERIFIES(v_i, WASM_IF(WASM_GET_LOCAL(0), WASM_NOP));
-  EXPECT_VERIFIES(v_i, WASM_IF_ELSE(WASM_GET_LOCAL(0), WASM_NOP, WASM_NOP));
-  EXPECT_VERIFIES(v_v, WASM_NOP);
-  EXPECT_VERIFIES(v_v, B1(WASM_NOP));
-  EXPECT_VERIFIES(v_v, WASM_LOOP(WASM_NOP));
-  EXPECT_VERIFIES(v_v, WASM_LOOP(WASM_BR(0)));
+  ExpectValidates(sigs.v_i(), {WASM_SET_LOCAL(0, WASM_I32V_3(87348))});
+  ExpectValidates(
+      sigs.v_i(),
+      {WASM_STORE_MEM(MachineType::Int32(), WASM_I32V_1(24), WASM_I32V_1(40))});
+  ExpectValidates(sigs.v_i(), {WASM_IF(WASM_GET_LOCAL(0), WASM_NOP)});
+  ExpectValidates(sigs.v_i(),
+                  {WASM_IF_ELSE(WASM_GET_LOCAL(0), WASM_NOP, WASM_NOP)});
+  ExpectValidates(sigs.v_v(), {WASM_NOP});
+  ExpectValidates(sigs.v_v(), {B1(WASM_NOP)});
+  ExpectValidates(sigs.v_v(), {WASM_LOOP(WASM_NOP)});
+  ExpectValidates(sigs.v_v(), {WASM_LOOP(WASM_BR(0))});
 }
 
 TEST_F(FunctionBodyDecoderTest, MacrosContinue) {
-  EXPECT_VERIFIES(v_v, WASM_LOOP(WASM_CONTINUE(0)));
+  ExpectValidates(sigs.v_v(), {WASM_LOOP(WASM_CONTINUE(0))});
 }
 
 TEST_F(FunctionBodyDecoderTest, MacrosVariadic) {
-  EXPECT_VERIFIES(v_v, B2(WASM_NOP, WASM_NOP));
-  EXPECT_VERIFIES(v_v, B3(WASM_NOP, WASM_NOP, WASM_NOP));
-  EXPECT_VERIFIES(v_v, WASM_LOOP(WASM_NOP, WASM_NOP));
-  EXPECT_VERIFIES(v_v, WASM_LOOP(WASM_NOP, WASM_NOP, WASM_NOP));
+  ExpectValidates(sigs.v_v(), {B2(WASM_NOP, WASM_NOP)});
+  ExpectValidates(sigs.v_v(), {B3(WASM_NOP, WASM_NOP, WASM_NOP)});
+  ExpectValidates(sigs.v_v(), {WASM_LOOP(WASM_NOP, WASM_NOP)});
+  ExpectValidates(sigs.v_v(), {WASM_LOOP(WASM_NOP, WASM_NOP, WASM_NOP)});
 }
 
 TEST_F(FunctionBodyDecoderTest, MacrosNestedBlocks) {
-  EXPECT_VERIFIES(v_v, B2(WASM_NOP, B2(WASM_NOP, WASM_NOP)));
-  EXPECT_VERIFIES(v_v, B3(WASM_NOP,                  // --
-                          B2(WASM_NOP, WASM_NOP),    // --
-                          B2(WASM_NOP, WASM_NOP)));  // --
-  EXPECT_VERIFIES(v_v, B1(B1(B2(WASM_NOP, WASM_NOP))));
+  ExpectValidates(sigs.v_v(), {B2(WASM_NOP, B2(WASM_NOP, WASM_NOP))});
+  ExpectValidates(sigs.v_v(), {B3(WASM_NOP,                   // --
+                                  B2(WASM_NOP, WASM_NOP),     // --
+                                  B2(WASM_NOP, WASM_NOP))});  // --
+  ExpectValidates(sigs.v_v(), {B1(B1(B2(WASM_NOP, WASM_NOP)))});
 }
 
 TEST_F(FunctionBodyDecoderTest, MultipleReturn) {
   static ValueType kIntTypes5[] = {kWasmI32, kWasmI32, kWasmI32, kWasmI32,
                                    kWasmI32};
   FunctionSig sig_ii_v(2, 0, kIntTypes5);
-  EXPECT_VERIFIES_S(&sig_ii_v, WASM_RETURNN(2, WASM_ZERO, WASM_ONE));
-  EXPECT_FAILURE_S(&sig_ii_v, WASM_RETURNN(1, WASM_ZERO));
+  ExpectValidates(&sig_ii_v, {WASM_RETURNN(2, WASM_ZERO, WASM_ONE)});
+  ExpectFailure(&sig_ii_v, {WASM_RETURNN(1, WASM_ZERO)});
 
   FunctionSig sig_iii_v(3, 0, kIntTypes5);
-  EXPECT_VERIFIES_S(&sig_iii_v,
-                    WASM_RETURNN(3, WASM_ZERO, WASM_ONE, WASM_I32V_1(44)));
-  EXPECT_FAILURE_S(&sig_iii_v, WASM_RETURNN(2, WASM_ZERO, WASM_ONE));
+  ExpectValidates(&sig_iii_v,
+                  {WASM_RETURNN(3, WASM_ZERO, WASM_ONE, WASM_I32V_1(44))});
+  ExpectFailure(&sig_iii_v, {WASM_RETURNN(2, WASM_ZERO, WASM_ONE)});
 }
 
 TEST_F(FunctionBodyDecoderTest, MultipleReturn_fallthru) {
@@ -1213,74 +1236,124 @@ TEST_F(FunctionBodyDecoderTest, MultipleReturn_fallthru) {
                                    kWasmI32};
   FunctionSig sig_ii_v(2, 0, kIntTypes5);
 
-  EXPECT_VERIFIES_S(&sig_ii_v, WASM_ZERO, WASM_ONE);
-  EXPECT_FAILURE_S(&sig_ii_v, WASM_ZERO);
+  ExpectValidates(&sig_ii_v, {WASM_ZERO, WASM_ONE});
+  ExpectFailure(&sig_ii_v, {WASM_ZERO});
 
   FunctionSig sig_iii_v(3, 0, kIntTypes5);
-  EXPECT_VERIFIES_S(&sig_iii_v, WASM_ZERO, WASM_ONE, WASM_I32V_1(44));
-  EXPECT_FAILURE_S(&sig_iii_v, WASM_ZERO, WASM_ONE);
+  ExpectValidates(&sig_iii_v, {WASM_ZERO, WASM_ONE, WASM_I32V_1(44)});
+  ExpectFailure(&sig_iii_v, {WASM_ZERO, WASM_ONE});
 }
 
 TEST_F(FunctionBodyDecoderTest, MacrosInt32) {
-  EXPECT_VERIFIES(i_i, WASM_I32_ADD(WASM_GET_LOCAL(0), WASM_I32V_1(12)));
-  EXPECT_VERIFIES(i_i, WASM_I32_SUB(WASM_GET_LOCAL(0), WASM_I32V_1(13)));
-  EXPECT_VERIFIES(i_i, WASM_I32_MUL(WASM_GET_LOCAL(0), WASM_I32V_1(14)));
-  EXPECT_VERIFIES(i_i, WASM_I32_DIVS(WASM_GET_LOCAL(0), WASM_I32V_1(15)));
-  EXPECT_VERIFIES(i_i, WASM_I32_DIVU(WASM_GET_LOCAL(0), WASM_I32V_1(16)));
-  EXPECT_VERIFIES(i_i, WASM_I32_REMS(WASM_GET_LOCAL(0), WASM_I32V_1(17)));
-  EXPECT_VERIFIES(i_i, WASM_I32_REMU(WASM_GET_LOCAL(0), WASM_I32V_1(18)));
-  EXPECT_VERIFIES(i_i, WASM_I32_AND(WASM_GET_LOCAL(0), WASM_I32V_1(19)));
-  EXPECT_VERIFIES(i_i, WASM_I32_IOR(WASM_GET_LOCAL(0), WASM_I32V_1(20)));
-  EXPECT_VERIFIES(i_i, WASM_I32_XOR(WASM_GET_LOCAL(0), WASM_I32V_1(21)));
-  EXPECT_VERIFIES(i_i, WASM_I32_SHL(WASM_GET_LOCAL(0), WASM_I32V_1(22)));
-  EXPECT_VERIFIES(i_i, WASM_I32_SHR(WASM_GET_LOCAL(0), WASM_I32V_1(23)));
-  EXPECT_VERIFIES(i_i, WASM_I32_SAR(WASM_GET_LOCAL(0), WASM_I32V_1(24)));
-  EXPECT_VERIFIES(i_i, WASM_I32_ROR(WASM_GET_LOCAL(0), WASM_I32V_1(24)));
-  EXPECT_VERIFIES(i_i, WASM_I32_ROL(WASM_GET_LOCAL(0), WASM_I32V_1(24)));
-  EXPECT_VERIFIES(i_i, WASM_I32_EQ(WASM_GET_LOCAL(0), WASM_I32V_1(25)));
-  EXPECT_VERIFIES(i_i, WASM_I32_NE(WASM_GET_LOCAL(0), WASM_I32V_1(25)));
+  ExpectValidates(sigs.i_i(),
+                  {WASM_I32_ADD(WASM_GET_LOCAL(0), WASM_I32V_1(12))});
+  ExpectValidates(sigs.i_i(),
+                  {WASM_I32_SUB(WASM_GET_LOCAL(0), WASM_I32V_1(13))});
+  ExpectValidates(sigs.i_i(),
+                  {WASM_I32_MUL(WASM_GET_LOCAL(0), WASM_I32V_1(14))});
+  ExpectValidates(sigs.i_i(),
+                  {WASM_I32_DIVS(WASM_GET_LOCAL(0), WASM_I32V_1(15))});
+  ExpectValidates(sigs.i_i(),
+                  {WASM_I32_DIVU(WASM_GET_LOCAL(0), WASM_I32V_1(16))});
+  ExpectValidates(sigs.i_i(),
+                  {WASM_I32_REMS(WASM_GET_LOCAL(0), WASM_I32V_1(17))});
+  ExpectValidates(sigs.i_i(),
+                  {WASM_I32_REMU(WASM_GET_LOCAL(0), WASM_I32V_1(18))});
+  ExpectValidates(sigs.i_i(),
+                  {WASM_I32_AND(WASM_GET_LOCAL(0), WASM_I32V_1(19))});
+  ExpectValidates(sigs.i_i(),
+                  {WASM_I32_IOR(WASM_GET_LOCAL(0), WASM_I32V_1(20))});
+  ExpectValidates(sigs.i_i(),
+                  {WASM_I32_XOR(WASM_GET_LOCAL(0), WASM_I32V_1(21))});
+  ExpectValidates(sigs.i_i(),
+                  {WASM_I32_SHL(WASM_GET_LOCAL(0), WASM_I32V_1(22))});
+  ExpectValidates(sigs.i_i(),
+                  {WASM_I32_SHR(WASM_GET_LOCAL(0), WASM_I32V_1(23))});
+  ExpectValidates(sigs.i_i(),
+                  {WASM_I32_SAR(WASM_GET_LOCAL(0), WASM_I32V_1(24))});
+  ExpectValidates(sigs.i_i(),
+                  {WASM_I32_ROR(WASM_GET_LOCAL(0), WASM_I32V_1(24))});
+  ExpectValidates(sigs.i_i(),
+                  {WASM_I32_ROL(WASM_GET_LOCAL(0), WASM_I32V_1(24))});
+  ExpectValidates(sigs.i_i(),
+                  {WASM_I32_EQ(WASM_GET_LOCAL(0), WASM_I32V_1(25))});
+  ExpectValidates(sigs.i_i(),
+                  {WASM_I32_NE(WASM_GET_LOCAL(0), WASM_I32V_1(25))});
 
-  EXPECT_VERIFIES(i_i, WASM_I32_LTS(WASM_GET_LOCAL(0), WASM_I32V_1(26)));
-  EXPECT_VERIFIES(i_i, WASM_I32_LES(WASM_GET_LOCAL(0), WASM_I32V_1(27)));
-  EXPECT_VERIFIES(i_i, WASM_I32_LTU(WASM_GET_LOCAL(0), WASM_I32V_1(28)));
-  EXPECT_VERIFIES(i_i, WASM_I32_LEU(WASM_GET_LOCAL(0), WASM_I32V_1(29)));
+  ExpectValidates(sigs.i_i(),
+                  {WASM_I32_LTS(WASM_GET_LOCAL(0), WASM_I32V_1(26))});
+  ExpectValidates(sigs.i_i(),
+                  {WASM_I32_LES(WASM_GET_LOCAL(0), WASM_I32V_1(27))});
+  ExpectValidates(sigs.i_i(),
+                  {WASM_I32_LTU(WASM_GET_LOCAL(0), WASM_I32V_1(28))});
+  ExpectValidates(sigs.i_i(),
+                  {WASM_I32_LEU(WASM_GET_LOCAL(0), WASM_I32V_1(29))});
 
-  EXPECT_VERIFIES(i_i, WASM_I32_GTS(WASM_GET_LOCAL(0), WASM_I32V_1(26)));
-  EXPECT_VERIFIES(i_i, WASM_I32_GES(WASM_GET_LOCAL(0), WASM_I32V_1(27)));
-  EXPECT_VERIFIES(i_i, WASM_I32_GTU(WASM_GET_LOCAL(0), WASM_I32V_1(28)));
-  EXPECT_VERIFIES(i_i, WASM_I32_GEU(WASM_GET_LOCAL(0), WASM_I32V_1(29)));
+  ExpectValidates(sigs.i_i(),
+                  {WASM_I32_GTS(WASM_GET_LOCAL(0), WASM_I32V_1(26))});
+  ExpectValidates(sigs.i_i(),
+                  {WASM_I32_GES(WASM_GET_LOCAL(0), WASM_I32V_1(27))});
+  ExpectValidates(sigs.i_i(),
+                  {WASM_I32_GTU(WASM_GET_LOCAL(0), WASM_I32V_1(28))});
+  ExpectValidates(sigs.i_i(),
+                  {WASM_I32_GEU(WASM_GET_LOCAL(0), WASM_I32V_1(29))});
 }
 
 TEST_F(FunctionBodyDecoderTest, MacrosInt64) {
-  EXPECT_VERIFIES(l_ll, WASM_I64_ADD(WASM_GET_LOCAL(0), WASM_I64V_1(12)));
-  EXPECT_VERIFIES(l_ll, WASM_I64_SUB(WASM_GET_LOCAL(0), WASM_I64V_1(13)));
-  EXPECT_VERIFIES(l_ll, WASM_I64_MUL(WASM_GET_LOCAL(0), WASM_I64V_1(14)));
-  EXPECT_VERIFIES(l_ll, WASM_I64_DIVS(WASM_GET_LOCAL(0), WASM_I64V_1(15)));
-  EXPECT_VERIFIES(l_ll, WASM_I64_DIVU(WASM_GET_LOCAL(0), WASM_I64V_1(16)));
-  EXPECT_VERIFIES(l_ll, WASM_I64_REMS(WASM_GET_LOCAL(0), WASM_I64V_1(17)));
-  EXPECT_VERIFIES(l_ll, WASM_I64_REMU(WASM_GET_LOCAL(0), WASM_I64V_1(18)));
-  EXPECT_VERIFIES(l_ll, WASM_I64_AND(WASM_GET_LOCAL(0), WASM_I64V_1(19)));
-  EXPECT_VERIFIES(l_ll, WASM_I64_IOR(WASM_GET_LOCAL(0), WASM_I64V_1(20)));
-  EXPECT_VERIFIES(l_ll, WASM_I64_XOR(WASM_GET_LOCAL(0), WASM_I64V_1(21)));
+  ExpectValidates(sigs.l_ll(),
+                  {WASM_I64_ADD(WASM_GET_LOCAL(0), WASM_I64V_1(12))});
+  ExpectValidates(sigs.l_ll(),
+                  {WASM_I64_SUB(WASM_GET_LOCAL(0), WASM_I64V_1(13))});
+  ExpectValidates(sigs.l_ll(),
+                  {WASM_I64_MUL(WASM_GET_LOCAL(0), WASM_I64V_1(14))});
+  ExpectValidates(sigs.l_ll(),
+                  {WASM_I64_DIVS(WASM_GET_LOCAL(0), WASM_I64V_1(15))});
+  ExpectValidates(sigs.l_ll(),
+                  {WASM_I64_DIVU(WASM_GET_LOCAL(0), WASM_I64V_1(16))});
+  ExpectValidates(sigs.l_ll(),
+                  {WASM_I64_REMS(WASM_GET_LOCAL(0), WASM_I64V_1(17))});
+  ExpectValidates(sigs.l_ll(),
+                  {WASM_I64_REMU(WASM_GET_LOCAL(0), WASM_I64V_1(18))});
+  ExpectValidates(sigs.l_ll(),
+                  {WASM_I64_AND(WASM_GET_LOCAL(0), WASM_I64V_1(19))});
+  ExpectValidates(sigs.l_ll(),
+                  {WASM_I64_IOR(WASM_GET_LOCAL(0), WASM_I64V_1(20))});
+  ExpectValidates(sigs.l_ll(),
+                  {WASM_I64_XOR(WASM_GET_LOCAL(0), WASM_I64V_1(21))});
 
-  EXPECT_VERIFIES(l_ll, WASM_I64_SHL(WASM_GET_LOCAL(0), WASM_I64V_1(22)));
-  EXPECT_VERIFIES(l_ll, WASM_I64_SHR(WASM_GET_LOCAL(0), WASM_I64V_1(23)));
-  EXPECT_VERIFIES(l_ll, WASM_I64_SAR(WASM_GET_LOCAL(0), WASM_I64V_1(24)));
-  EXPECT_VERIFIES(l_ll, WASM_I64_ROR(WASM_GET_LOCAL(0), WASM_I64V_1(24)));
-  EXPECT_VERIFIES(l_ll, WASM_I64_ROL(WASM_GET_LOCAL(0), WASM_I64V_1(24)));
+  ExpectValidates(sigs.l_ll(),
+                  {WASM_I64_SHL(WASM_GET_LOCAL(0), WASM_I64V_1(22))});
+  ExpectValidates(sigs.l_ll(),
+                  {WASM_I64_SHR(WASM_GET_LOCAL(0), WASM_I64V_1(23))});
+  ExpectValidates(sigs.l_ll(),
+                  {WASM_I64_SAR(WASM_GET_LOCAL(0), WASM_I64V_1(24))});
+  ExpectValidates(sigs.l_ll(),
+                  {WASM_I64_ROR(WASM_GET_LOCAL(0), WASM_I64V_1(24))});
+  ExpectValidates(sigs.l_ll(),
+                  {WASM_I64_ROL(WASM_GET_LOCAL(0), WASM_I64V_1(24))});
 
-  EXPECT_VERIFIES(i_ll, WASM_I64_LTS(WASM_GET_LOCAL(0), WASM_I64V_1(26)));
-  EXPECT_VERIFIES(i_ll, WASM_I64_LES(WASM_GET_LOCAL(0), WASM_I64V_1(27)));
-  EXPECT_VERIFIES(i_ll, WASM_I64_LTU(WASM_GET_LOCAL(0), WASM_I64V_1(28)));
-  EXPECT_VERIFIES(i_ll, WASM_I64_LEU(WASM_GET_LOCAL(0), WASM_I64V_1(29)));
+  ExpectValidates(sigs.i_ll(),
+                  {WASM_I64_LTS(WASM_GET_LOCAL(0), WASM_I64V_1(26))});
+  ExpectValidates(sigs.i_ll(),
+                  {WASM_I64_LES(WASM_GET_LOCAL(0), WASM_I64V_1(27))});
+  ExpectValidates(sigs.i_ll(),
+                  {WASM_I64_LTU(WASM_GET_LOCAL(0), WASM_I64V_1(28))});
+  ExpectValidates(sigs.i_ll(),
+                  {WASM_I64_LEU(WASM_GET_LOCAL(0), WASM_I64V_1(29))});
 
-  EXPECT_VERIFIES(i_ll, WASM_I64_GTS(WASM_GET_LOCAL(0), WASM_I64V_1(26)));
-  EXPECT_VERIFIES(i_ll, WASM_I64_GES(WASM_GET_LOCAL(0), WASM_I64V_1(27)));
-  EXPECT_VERIFIES(i_ll, WASM_I64_GTU(WASM_GET_LOCAL(0), WASM_I64V_1(28)));
-  EXPECT_VERIFIES(i_ll, WASM_I64_GEU(WASM_GET_LOCAL(0), WASM_I64V_1(29)));
+  ExpectValidates(sigs.i_ll(),
+                  {WASM_I64_GTS(WASM_GET_LOCAL(0), WASM_I64V_1(26))});
+  ExpectValidates(sigs.i_ll(),
+                  {WASM_I64_GES(WASM_GET_LOCAL(0), WASM_I64V_1(27))});
+  ExpectValidates(sigs.i_ll(),
+                  {WASM_I64_GTU(WASM_GET_LOCAL(0), WASM_I64V_1(28))});
+  ExpectValidates(sigs.i_ll(),
+                  {WASM_I64_GEU(WASM_GET_LOCAL(0), WASM_I64V_1(29))});
 
-  EXPECT_VERIFIES(i_ll, WASM_I64_EQ(WASM_GET_LOCAL(0), WASM_I64V_1(25)));
-  EXPECT_VERIFIES(i_ll, WASM_I64_NE(WASM_GET_LOCAL(0), WASM_I64V_1(25)));
+  ExpectValidates(sigs.i_ll(),
+                  {WASM_I64_EQ(WASM_GET_LOCAL(0), WASM_I64V_1(25))});
+  ExpectValidates(sigs.i_ll(),
+                  {WASM_I64_NE(WASM_GET_LOCAL(0), WASM_I64V_1(25))});
 }
 
 TEST_F(FunctionBodyDecoderTest, AllSimpleExpressions) {
@@ -1307,8 +1380,8 @@ TEST_F(FunctionBodyDecoderTest, MemorySize) {
   module = builder.module();
   builder.InitializeMemory();
   byte code[] = {kExprMemorySize, 0};
-  EXPECT_VERIFIES_C(i_i, code);
-  EXPECT_FAILURE_C(f_ff, code);
+  ExpectValidates(sigs.i_i(), code);
+  ExpectFailure(sigs.f_ff(), code);
 }
 
 TEST_F(FunctionBodyDecoderTest, LoadMemOffset) {
@@ -1318,7 +1391,7 @@ TEST_F(FunctionBodyDecoderTest, LoadMemOffset) {
   for (int offset = 0; offset < 128; offset += 7) {
     byte code[] = {kExprI32Const, 0, kExprI32LoadMem, ZERO_ALIGNMENT,
                    static_cast<byte>(offset)};
-    EXPECT_VERIFIES_C(i_i, code);
+    ExpectValidates(sigs.i_i(), code);
   }
 }
 
@@ -1351,9 +1424,9 @@ TEST_F(FunctionBodyDecoderTest, LoadMemAlignment) {
       byte code[] = {WASM_ZERO, static_cast<byte>(values[i].instruction),
                      alignment, ZERO_OFFSET, WASM_DROP};
       if (static_cast<uint32_t>(alignment) <= values[i].maximum_aligment) {
-        EXPECT_VERIFIES_C(v_i, code);
+        ExpectValidates(sigs.v_i(), code);
       } else {
-        EXPECT_FAILURE_C(v_i, code);
+        ExpectFailure(sigs.v_i(), code);
       }
     }
   }
@@ -1366,7 +1439,7 @@ TEST_F(FunctionBodyDecoderTest, StoreMemOffset) {
   for (byte offset = 0; offset < 128; offset += 7) {
     byte code[] = {WASM_STORE_MEM_OFFSET(MachineType::Int32(), offset,
                                          WASM_ZERO, WASM_ZERO)};
-    EXPECT_VERIFIES_C(v_i, code);
+    ExpectValidates(sigs.v_i(), code);
   }
 }
 
@@ -1374,8 +1447,8 @@ TEST_F(FunctionBodyDecoderTest, StoreMemOffset_void) {
   TestModuleBuilder builder;
   module = builder.module();
   builder.InitializeMemory();
-  EXPECT_FAILURE(i_i, WASM_STORE_MEM_OFFSET(MachineType::Int32(), 0, WASM_ZERO,
-                                            WASM_ZERO));
+  ExpectFailure(sigs.i_i(), {WASM_STORE_MEM_OFFSET(MachineType::Int32(), 0,
+                                                   WASM_ZERO, WASM_ZERO)});
 }
 
 #define BYTE0(x) ((x)&0x7F)
@@ -1392,28 +1465,28 @@ TEST_F(FunctionBodyDecoderTest, LoadMemOffset_varint) {
   TestModuleBuilder builder;
   module = builder.module();
   builder.InitializeMemory();
-  EXPECT_VERIFIES(i_i, WASM_ZERO, kExprI32LoadMem, ZERO_ALIGNMENT,
-                  VARINT1(0x45));
-  EXPECT_VERIFIES(i_i, WASM_ZERO, kExprI32LoadMem, ZERO_ALIGNMENT,
-                  VARINT2(0x3999));
-  EXPECT_VERIFIES(i_i, WASM_ZERO, kExprI32LoadMem, ZERO_ALIGNMENT,
-                  VARINT3(0x344445));
-  EXPECT_VERIFIES(i_i, WASM_ZERO, kExprI32LoadMem, ZERO_ALIGNMENT,
-                  VARINT4(0x36666667));
+  ExpectValidates(sigs.i_i(),
+                  {WASM_ZERO, kExprI32LoadMem, ZERO_ALIGNMENT, VARINT1(0x45)});
+  ExpectValidates(sigs.i_i(), {WASM_ZERO, kExprI32LoadMem, ZERO_ALIGNMENT,
+                               VARINT2(0x3999)});
+  ExpectValidates(sigs.i_i(), {WASM_ZERO, kExprI32LoadMem, ZERO_ALIGNMENT,
+                               VARINT3(0x344445)});
+  ExpectValidates(sigs.i_i(), {WASM_ZERO, kExprI32LoadMem, ZERO_ALIGNMENT,
+                               VARINT4(0x36666667)});
 }
 
 TEST_F(FunctionBodyDecoderTest, StoreMemOffset_varint) {
   TestModuleBuilder builder;
   module = builder.module();
   builder.InitializeMemory();
-  EXPECT_VERIFIES(v_i, WASM_ZERO, WASM_ZERO, kExprI32StoreMem, ZERO_ALIGNMENT,
-                  VARINT1(0x33));
-  EXPECT_VERIFIES(v_i, WASM_ZERO, WASM_ZERO, kExprI32StoreMem, ZERO_ALIGNMENT,
-                  VARINT2(0x1111));
-  EXPECT_VERIFIES(v_i, WASM_ZERO, WASM_ZERO, kExprI32StoreMem, ZERO_ALIGNMENT,
-                  VARINT3(0x222222));
-  EXPECT_VERIFIES(v_i, WASM_ZERO, WASM_ZERO, kExprI32StoreMem, ZERO_ALIGNMENT,
-                  VARINT4(0x44444444));
+  ExpectValidates(sigs.v_i(), {WASM_ZERO, WASM_ZERO, kExprI32StoreMem,
+                               ZERO_ALIGNMENT, VARINT1(0x33)});
+  ExpectValidates(sigs.v_i(), {WASM_ZERO, WASM_ZERO, kExprI32StoreMem,
+                               ZERO_ALIGNMENT, VARINT2(0x1111)});
+  ExpectValidates(sigs.v_i(), {WASM_ZERO, WASM_ZERO, kExprI32StoreMem,
+                               ZERO_ALIGNMENT, VARINT3(0x222222)});
+  ExpectValidates(sigs.v_i(), {WASM_ZERO, WASM_ZERO, kExprI32StoreMem,
+                               ZERO_ALIGNMENT, VARINT4(0x44444444)});
 }
 
 #undef BYTE0
@@ -1437,9 +1510,9 @@ TEST_F(FunctionBodyDecoderTest, AllLoadMemCombinations) {
       byte code[] = {WASM_LOAD_MEM(mem_type, WASM_ZERO)};
       FunctionSig sig(1, 0, &local_type);
       if (local_type == ValueTypes::ValueTypeFor(mem_type)) {
-        EXPECT_VERIFIES_SC(&sig, code);
+        ExpectValidates(&sig, code);
       } else {
-        EXPECT_FAILURE_SC(&sig, code);
+        ExpectFailure(&sig, code);
       }
     }
   }
@@ -1456,9 +1529,9 @@ TEST_F(FunctionBodyDecoderTest, AllStoreMemCombinations) {
       byte code[] = {WASM_STORE_MEM(mem_type, WASM_ZERO, WASM_GET_LOCAL(0))};
       FunctionSig sig(0, 1, &local_type);
       if (local_type == ValueTypes::ValueTypeFor(mem_type)) {
-        EXPECT_VERIFIES_SC(&sig, code);
+        ExpectValidates(&sig, code);
       } else {
-        EXPECT_FAILURE_SC(&sig, code);
+        ExpectFailure(&sig, code);
       }
     }
   }
@@ -1473,10 +1546,10 @@ TEST_F(FunctionBodyDecoderTest, SimpleCalls) {
   builder.AddFunction(sigs.i_i());
   builder.AddFunction(sigs.i_ii());
 
-  EXPECT_VERIFIES_S(sig, WASM_CALL_FUNCTION0(0));
-  EXPECT_VERIFIES_S(sig, WASM_CALL_FUNCTION(1, WASM_I32V_1(27)));
-  EXPECT_VERIFIES_S(sig,
-                    WASM_CALL_FUNCTION(2, WASM_I32V_1(37), WASM_I32V_2(77)));
+  ExpectValidates(sig, {WASM_CALL_FUNCTION0(0)});
+  ExpectValidates(sig, {WASM_CALL_FUNCTION(1, WASM_I32V_1(27))});
+  ExpectValidates(sig,
+                  {WASM_CALL_FUNCTION(2, WASM_I32V_1(37), WASM_I32V_2(77))});
 }
 
 TEST_F(FunctionBodyDecoderTest, CallsWithTooFewArguments) {
@@ -1488,9 +1561,9 @@ TEST_F(FunctionBodyDecoderTest, CallsWithTooFewArguments) {
   builder.AddFunction(sigs.i_ii());
   builder.AddFunction(sigs.f_ff());
 
-  EXPECT_FAILURE_S(sig, WASM_CALL_FUNCTION0(0));
-  EXPECT_FAILURE_S(sig, WASM_CALL_FUNCTION(1, WASM_ZERO));
-  EXPECT_FAILURE_S(sig, WASM_CALL_FUNCTION(2, WASM_GET_LOCAL(0)));
+  ExpectFailure(sig, {WASM_CALL_FUNCTION0(0)});
+  ExpectFailure(sig, {WASM_CALL_FUNCTION(1, WASM_ZERO)});
+  ExpectFailure(sig, {WASM_CALL_FUNCTION(2, WASM_GET_LOCAL(0))});
 }
 
 TEST_F(FunctionBodyDecoderTest, CallsWithMismatchedSigs2) {
@@ -1500,9 +1573,9 @@ TEST_F(FunctionBodyDecoderTest, CallsWithMismatchedSigs2) {
 
   builder.AddFunction(sigs.i_i());
 
-  EXPECT_FAILURE_S(sig, WASM_CALL_FUNCTION(0, WASM_I64V_1(17)));
-  EXPECT_FAILURE_S(sig, WASM_CALL_FUNCTION(0, WASM_F32(17.1)));
-  EXPECT_FAILURE_S(sig, WASM_CALL_FUNCTION(0, WASM_F64(17.1)));
+  ExpectFailure(sig, {WASM_CALL_FUNCTION(0, WASM_I64V_1(17))});
+  ExpectFailure(sig, {WASM_CALL_FUNCTION(0, WASM_F32(17.1))});
+  ExpectFailure(sig, {WASM_CALL_FUNCTION(0, WASM_F64(17.1))});
 }
 
 TEST_F(FunctionBodyDecoderTest, CallsWithMismatchedSigs3) {
@@ -1512,15 +1585,15 @@ TEST_F(FunctionBodyDecoderTest, CallsWithMismatchedSigs3) {
 
   builder.AddFunction(sigs.i_f());
 
-  EXPECT_FAILURE_S(sig, WASM_CALL_FUNCTION(0, WASM_I32V_1(17)));
-  EXPECT_FAILURE_S(sig, WASM_CALL_FUNCTION(0, WASM_I64V_1(27)));
-  EXPECT_FAILURE_S(sig, WASM_CALL_FUNCTION(0, WASM_F64(37.2)));
+  ExpectFailure(sig, {WASM_CALL_FUNCTION(0, WASM_I32V_1(17))});
+  ExpectFailure(sig, {WASM_CALL_FUNCTION(0, WASM_I64V_1(27))});
+  ExpectFailure(sig, {WASM_CALL_FUNCTION(0, WASM_F64(37.2))});
 
   builder.AddFunction(sigs.i_d());
 
-  EXPECT_FAILURE_S(sig, WASM_CALL_FUNCTION(1, WASM_I32V_1(16)));
-  EXPECT_FAILURE_S(sig, WASM_CALL_FUNCTION(1, WASM_I64V_1(16)));
-  EXPECT_FAILURE_S(sig, WASM_CALL_FUNCTION(1, WASM_F32(17.6)));
+  ExpectFailure(sig, {WASM_CALL_FUNCTION(1, WASM_I32V_1(16))});
+  ExpectFailure(sig, {WASM_CALL_FUNCTION(1, WASM_I64V_1(16))});
+  ExpectFailure(sig, {WASM_CALL_FUNCTION(1, WASM_F32(17.6))});
 }
 
 TEST_F(FunctionBodyDecoderTest, MultiReturn) {
@@ -1534,9 +1607,9 @@ TEST_F(FunctionBodyDecoderTest, MultiReturn) {
   builder.AddFunction(&sig_v_ii);
   builder.AddFunction(&sig_ii_v);
 
-  EXPECT_VERIFIES_S(&sig_ii_v, WASM_CALL_FUNCTION0(1));
-  EXPECT_VERIFIES(v_v, WASM_CALL_FUNCTION0(1), WASM_DROP, WASM_DROP);
-  EXPECT_VERIFIES(v_v, WASM_CALL_FUNCTION0(1), kExprCallFunction, 0);
+  ExpectValidates(&sig_ii_v, {WASM_CALL_FUNCTION0(1)});
+  ExpectValidates(sigs.v_v(), {WASM_CALL_FUNCTION0(1), WASM_DROP, WASM_DROP});
+  ExpectValidates(sigs.v_v(), {WASM_CALL_FUNCTION0(1), kExprCallFunction, 0});
 }
 
 TEST_F(FunctionBodyDecoderTest, MultiReturnType) {
@@ -1554,12 +1627,12 @@ TEST_F(FunctionBodyDecoderTest, MultiReturnType) {
           module = builder.module();
           builder.AddFunction(&sig_cd_v);
 
-          EXPECT_VERIFIES_S(&sig_cd_v, WASM_CALL_FUNCTION0(0));
+          ExpectValidates(&sig_cd_v, {WASM_CALL_FUNCTION0(0)});
 
           if (a == c && b == d) {
-            EXPECT_VERIFIES_S(&sig_ab_v, WASM_CALL_FUNCTION0(0));
+            ExpectValidates(&sig_ab_v, {WASM_CALL_FUNCTION0(0)});
           } else {
-            EXPECT_FAILURE_S(&sig_ab_v, WASM_CALL_FUNCTION0(0));
+            ExpectFailure(&sig_ab_v, {WASM_CALL_FUNCTION0(0)});
           }
         }
       }
@@ -1577,10 +1650,10 @@ TEST_F(FunctionBodyDecoderTest, SimpleIndirectCalls) {
   byte f1 = builder.AddSignature(sigs.i_i());
   byte f2 = builder.AddSignature(sigs.i_ii());
 
-  EXPECT_VERIFIES_S(sig, WASM_CALL_INDIRECT0(f0, WASM_ZERO));
-  EXPECT_VERIFIES_S(sig, WASM_CALL_INDIRECT1(f1, WASM_ZERO, WASM_I32V_1(22)));
-  EXPECT_VERIFIES_S(sig, WASM_CALL_INDIRECT2(f2, WASM_ZERO, WASM_I32V_1(32),
-                                             WASM_I32V_2(72)));
+  ExpectValidates(sig, {WASM_CALL_INDIRECT0(f0, WASM_ZERO)});
+  ExpectValidates(sig, {WASM_CALL_INDIRECT1(f1, WASM_ZERO, WASM_I32V_1(22))});
+  ExpectValidates(sig, {WASM_CALL_INDIRECT2(f2, WASM_ZERO, WASM_I32V_1(32),
+                                            WASM_I32V_2(72))});
 }
 
 TEST_F(FunctionBodyDecoderTest, IndirectCallsOutOfBounds) {
@@ -1589,15 +1662,15 @@ TEST_F(FunctionBodyDecoderTest, IndirectCallsOutOfBounds) {
   builder.InitializeTable();
   module = builder.module();
 
-  EXPECT_FAILURE_S(sig, WASM_CALL_INDIRECT0(0, WASM_ZERO));
+  ExpectFailure(sig, {WASM_CALL_INDIRECT0(0, WASM_ZERO)});
   builder.AddSignature(sigs.i_v());
-  EXPECT_VERIFIES_S(sig, WASM_CALL_INDIRECT0(0, WASM_ZERO));
+  ExpectValidates(sig, {WASM_CALL_INDIRECT0(0, WASM_ZERO)});
 
-  EXPECT_FAILURE_S(sig, WASM_CALL_INDIRECT1(1, WASM_ZERO, WASM_I32V_1(22)));
+  ExpectFailure(sig, {WASM_CALL_INDIRECT1(1, WASM_ZERO, WASM_I32V_1(22))});
   builder.AddSignature(sigs.i_i());
-  EXPECT_VERIFIES_S(sig, WASM_CALL_INDIRECT1(1, WASM_ZERO, WASM_I32V_1(27)));
+  ExpectValidates(sig, {WASM_CALL_INDIRECT1(1, WASM_ZERO, WASM_I32V_1(27))});
 
-  EXPECT_FAILURE_S(sig, WASM_CALL_INDIRECT1(2, WASM_ZERO, WASM_I32V_1(27)));
+  ExpectFailure(sig, {WASM_CALL_INDIRECT1(2, WASM_ZERO, WASM_I32V_1(27))});
 }
 
 TEST_F(FunctionBodyDecoderTest, IndirectCallsWithMismatchedSigs3) {
@@ -1608,19 +1681,19 @@ TEST_F(FunctionBodyDecoderTest, IndirectCallsWithMismatchedSigs3) {
 
   byte f0 = builder.AddFunction(sigs.i_f());
 
-  EXPECT_FAILURE_S(sig, WASM_CALL_INDIRECT1(f0, WASM_ZERO, WASM_I32V_1(17)));
-  EXPECT_FAILURE_S(sig, WASM_CALL_INDIRECT1(f0, WASM_ZERO, WASM_I64V_1(27)));
-  EXPECT_FAILURE_S(sig, WASM_CALL_INDIRECT1(f0, WASM_ZERO, WASM_F64(37.2)));
+  ExpectFailure(sig, {WASM_CALL_INDIRECT1(f0, WASM_ZERO, WASM_I32V_1(17))});
+  ExpectFailure(sig, {WASM_CALL_INDIRECT1(f0, WASM_ZERO, WASM_I64V_1(27))});
+  ExpectFailure(sig, {WASM_CALL_INDIRECT1(f0, WASM_ZERO, WASM_F64(37.2))});
 
-  EXPECT_FAILURE_S(sig, WASM_CALL_INDIRECT0(f0, WASM_I32V_1(17)));
-  EXPECT_FAILURE_S(sig, WASM_CALL_INDIRECT0(f0, WASM_I64V_1(27)));
-  EXPECT_FAILURE_S(sig, WASM_CALL_INDIRECT0(f0, WASM_F64(37.2)));
+  ExpectFailure(sig, {WASM_CALL_INDIRECT0(f0, WASM_I32V_1(17))});
+  ExpectFailure(sig, {WASM_CALL_INDIRECT0(f0, WASM_I64V_1(27))});
+  ExpectFailure(sig, {WASM_CALL_INDIRECT0(f0, WASM_F64(37.2))});
 
   byte f1 = builder.AddFunction(sigs.i_d());
 
-  EXPECT_FAILURE_S(sig, WASM_CALL_INDIRECT1(f1, WASM_ZERO, WASM_I32V_1(16)));
-  EXPECT_FAILURE_S(sig, WASM_CALL_INDIRECT1(f1, WASM_ZERO, WASM_I64V_1(16)));
-  EXPECT_FAILURE_S(sig, WASM_CALL_INDIRECT1(f1, WASM_ZERO, WASM_F32(17.6)));
+  ExpectFailure(sig, {WASM_CALL_INDIRECT1(f1, WASM_ZERO, WASM_I32V_1(16))});
+  ExpectFailure(sig, {WASM_CALL_INDIRECT1(f1, WASM_ZERO, WASM_I64V_1(16))});
+  ExpectFailure(sig, {WASM_CALL_INDIRECT1(f1, WASM_ZERO, WASM_F32(17.6))});
 }
 
 TEST_F(FunctionBodyDecoderTest, IndirectCallsWithoutTableCrash) {
@@ -1632,10 +1705,10 @@ TEST_F(FunctionBodyDecoderTest, IndirectCallsWithoutTableCrash) {
   byte f1 = builder.AddSignature(sigs.i_i());
   byte f2 = builder.AddSignature(sigs.i_ii());
 
-  EXPECT_FAILURE_S(sig, WASM_CALL_INDIRECT0(f0, WASM_ZERO));
-  EXPECT_FAILURE_S(sig, WASM_CALL_INDIRECT1(f1, WASM_ZERO, WASM_I32V_1(22)));
-  EXPECT_FAILURE_S(sig, WASM_CALL_INDIRECT2(f2, WASM_ZERO, WASM_I32V_1(32),
-                                            WASM_I32V_2(72)));
+  ExpectFailure(sig, {WASM_CALL_INDIRECT0(f0, WASM_ZERO)});
+  ExpectFailure(sig, {WASM_CALL_INDIRECT1(f1, WASM_ZERO, WASM_I32V_1(22))});
+  ExpectFailure(sig, {WASM_CALL_INDIRECT2(f2, WASM_ZERO, WASM_I32V_1(32),
+                                          WASM_I32V_2(72))});
 }
 
 TEST_F(FunctionBodyDecoderTest, IncompleteIndirectCall) {
@@ -1645,7 +1718,7 @@ TEST_F(FunctionBodyDecoderTest, IncompleteIndirectCall) {
   module = builder.module();
 
   static byte code[] = {kExprCallIndirect};
-  Verify(false, sig, ArrayVector(code), kOmitEnd);
+  Validate(false, sig, ArrayVector(code), kOmitEnd);
 }
 
 TEST_F(FunctionBodyDecoderTest, IncompleteStore) {
@@ -1656,7 +1729,7 @@ TEST_F(FunctionBodyDecoderTest, IncompleteStore) {
   module = builder.module();
 
   static byte code[] = {kExprI32StoreMem};
-  Verify(false, sig, ArrayVector(code), kOmitEnd);
+  Validate(false, sig, ArrayVector(code), kOmitEnd);
 }
 
 TEST_F(FunctionBodyDecoderTest, IncompleteS8x16Shuffle) {
@@ -1669,7 +1742,7 @@ TEST_F(FunctionBodyDecoderTest, IncompleteS8x16Shuffle) {
 
   static byte code[] = {kSimdPrefix,
                         static_cast<byte>(kExprS8x16Shuffle & 0xff)};
-  Verify(false, sig, ArrayVector(code), kOmitEnd);
+  Validate(false, sig, ArrayVector(code), kOmitEnd);
 }
 
 TEST_F(FunctionBodyDecoderTest, SimpleImportCalls) {
@@ -1681,10 +1754,10 @@ TEST_F(FunctionBodyDecoderTest, SimpleImportCalls) {
   byte f1 = builder.AddImport(sigs.i_i());
   byte f2 = builder.AddImport(sigs.i_ii());
 
-  EXPECT_VERIFIES_S(sig, WASM_CALL_FUNCTION0(f0));
-  EXPECT_VERIFIES_S(sig, WASM_CALL_FUNCTION(f1, WASM_I32V_1(22)));
-  EXPECT_VERIFIES_S(sig,
-                    WASM_CALL_FUNCTION(f2, WASM_I32V_1(32), WASM_I32V_2(72)));
+  ExpectValidates(sig, {WASM_CALL_FUNCTION0(f0)});
+  ExpectValidates(sig, {WASM_CALL_FUNCTION(f1, WASM_I32V_1(22))});
+  ExpectValidates(sig,
+                  {WASM_CALL_FUNCTION(f2, WASM_I32V_1(32), WASM_I32V_2(72))});
 }
 
 TEST_F(FunctionBodyDecoderTest, ImportCallsWithMismatchedSigs3) {
@@ -1694,17 +1767,17 @@ TEST_F(FunctionBodyDecoderTest, ImportCallsWithMismatchedSigs3) {
 
   byte f0 = builder.AddImport(sigs.i_f());
 
-  EXPECT_FAILURE_S(sig, WASM_CALL_FUNCTION0(f0));
-  EXPECT_FAILURE_S(sig, WASM_CALL_FUNCTION(f0, WASM_I32V_1(17)));
-  EXPECT_FAILURE_S(sig, WASM_CALL_FUNCTION(f0, WASM_I64V_1(27)));
-  EXPECT_FAILURE_S(sig, WASM_CALL_FUNCTION(f0, WASM_F64(37.2)));
+  ExpectFailure(sig, {WASM_CALL_FUNCTION0(f0)});
+  ExpectFailure(sig, {WASM_CALL_FUNCTION(f0, WASM_I32V_1(17))});
+  ExpectFailure(sig, {WASM_CALL_FUNCTION(f0, WASM_I64V_1(27))});
+  ExpectFailure(sig, {WASM_CALL_FUNCTION(f0, WASM_F64(37.2))});
 
   byte f1 = builder.AddImport(sigs.i_d());
 
-  EXPECT_FAILURE_S(sig, WASM_CALL_FUNCTION0(f1));
-  EXPECT_FAILURE_S(sig, WASM_CALL_FUNCTION(f1, WASM_I32V_1(16)));
-  EXPECT_FAILURE_S(sig, WASM_CALL_FUNCTION(f1, WASM_I64V_1(16)));
-  EXPECT_FAILURE_S(sig, WASM_CALL_FUNCTION(f1, WASM_F32(17.6)));
+  ExpectFailure(sig, {WASM_CALL_FUNCTION0(f1)});
+  ExpectFailure(sig, {WASM_CALL_FUNCTION(f1, WASM_I32V_1(16))});
+  ExpectFailure(sig, {WASM_CALL_FUNCTION(f1, WASM_I64V_1(16))});
+  ExpectFailure(sig, {WASM_CALL_FUNCTION(f1, WASM_F32(17.6))});
 }
 
 TEST_F(FunctionBodyDecoderTest, Int32Globals) {
@@ -1714,9 +1787,9 @@ TEST_F(FunctionBodyDecoderTest, Int32Globals) {
 
   builder.AddGlobal(kWasmI32);
 
-  EXPECT_VERIFIES_S(sig, WASM_GET_GLOBAL(0));
-  EXPECT_FAILURE_S(sig, WASM_SET_GLOBAL(0, WASM_GET_LOCAL(0)));
-  EXPECT_VERIFIES_S(sig, WASM_SET_GLOBAL(0, WASM_GET_LOCAL(0)), WASM_ZERO);
+  ExpectValidates(sig, {WASM_GET_GLOBAL(0)});
+  ExpectFailure(sig, {WASM_SET_GLOBAL(0, WASM_GET_LOCAL(0))});
+  ExpectValidates(sig, {WASM_SET_GLOBAL(0, WASM_GET_LOCAL(0)), WASM_ZERO});
 }
 
 TEST_F(FunctionBodyDecoderTest, ImmutableGlobal) {
@@ -1727,8 +1800,8 @@ TEST_F(FunctionBodyDecoderTest, ImmutableGlobal) {
   uint32_t g0 = builder.AddGlobal(kWasmI32, true);
   uint32_t g1 = builder.AddGlobal(kWasmI32, false);
 
-  EXPECT_VERIFIES_S(sig, WASM_SET_GLOBAL(g0, WASM_ZERO));
-  EXPECT_FAILURE_S(sig, WASM_SET_GLOBAL(g1, WASM_ZERO));
+  ExpectValidates(sig, {WASM_SET_GLOBAL(g0, WASM_ZERO)});
+  ExpectFailure(sig, {WASM_SET_GLOBAL(g1, WASM_ZERO)});
 }
 
 TEST_F(FunctionBodyDecoderTest, Int32Globals_fail) {
@@ -1741,15 +1814,15 @@ TEST_F(FunctionBodyDecoderTest, Int32Globals_fail) {
   builder.AddGlobal(kWasmF32);
   builder.AddGlobal(kWasmF64);
 
-  EXPECT_FAILURE_S(sig, WASM_GET_GLOBAL(0));
-  EXPECT_FAILURE_S(sig, WASM_GET_GLOBAL(1));
-  EXPECT_FAILURE_S(sig, WASM_GET_GLOBAL(2));
-  EXPECT_FAILURE_S(sig, WASM_GET_GLOBAL(3));
+  ExpectFailure(sig, {WASM_GET_GLOBAL(0)});
+  ExpectFailure(sig, {WASM_GET_GLOBAL(1)});
+  ExpectFailure(sig, {WASM_GET_GLOBAL(2)});
+  ExpectFailure(sig, {WASM_GET_GLOBAL(3)});
 
-  EXPECT_FAILURE_S(sig, WASM_SET_GLOBAL(0, WASM_GET_LOCAL(0)), WASM_ZERO);
-  EXPECT_FAILURE_S(sig, WASM_SET_GLOBAL(1, WASM_GET_LOCAL(0)), WASM_ZERO);
-  EXPECT_FAILURE_S(sig, WASM_SET_GLOBAL(2, WASM_GET_LOCAL(0)), WASM_ZERO);
-  EXPECT_FAILURE_S(sig, WASM_SET_GLOBAL(3, WASM_GET_LOCAL(0)), WASM_ZERO);
+  ExpectFailure(sig, {WASM_SET_GLOBAL(0, WASM_GET_LOCAL(0)), WASM_ZERO});
+  ExpectFailure(sig, {WASM_SET_GLOBAL(1, WASM_GET_LOCAL(0)), WASM_ZERO});
+  ExpectFailure(sig, {WASM_SET_GLOBAL(2, WASM_GET_LOCAL(0)), WASM_ZERO});
+  ExpectFailure(sig, {WASM_SET_GLOBAL(3, WASM_GET_LOCAL(0)), WASM_ZERO});
 }
 
 TEST_F(FunctionBodyDecoderTest, Int64Globals) {
@@ -1760,13 +1833,13 @@ TEST_F(FunctionBodyDecoderTest, Int64Globals) {
   builder.AddGlobal(kWasmI64);
   builder.AddGlobal(kWasmI64);
 
-  EXPECT_VERIFIES_S(sig, WASM_GET_GLOBAL(0));
-  EXPECT_VERIFIES_S(sig, WASM_GET_GLOBAL(1));
+  ExpectValidates(sig, {WASM_GET_GLOBAL(0)});
+  ExpectValidates(sig, {WASM_GET_GLOBAL(1)});
 
-  EXPECT_VERIFIES_S(sig, WASM_SET_GLOBAL(0, WASM_GET_LOCAL(0)),
-                    WASM_GET_LOCAL(0));
-  EXPECT_VERIFIES_S(sig, WASM_SET_GLOBAL(1, WASM_GET_LOCAL(0)),
-                    WASM_GET_LOCAL(0));
+  ExpectValidates(sig,
+                  {WASM_SET_GLOBAL(0, WASM_GET_LOCAL(0)), WASM_GET_LOCAL(0)});
+  ExpectValidates(sig,
+                  {WASM_SET_GLOBAL(1, WASM_GET_LOCAL(0)), WASM_GET_LOCAL(0)});
 }
 
 TEST_F(FunctionBodyDecoderTest, Float32Globals) {
@@ -1776,9 +1849,9 @@ TEST_F(FunctionBodyDecoderTest, Float32Globals) {
 
   builder.AddGlobal(kWasmF32);
 
-  EXPECT_VERIFIES_S(sig, WASM_GET_GLOBAL(0));
-  EXPECT_VERIFIES_S(sig, WASM_SET_GLOBAL(0, WASM_GET_LOCAL(0)),
-                    WASM_GET_LOCAL(0));
+  ExpectValidates(sig, {WASM_GET_GLOBAL(0)});
+  ExpectValidates(sig,
+                  {WASM_SET_GLOBAL(0, WASM_GET_LOCAL(0)), WASM_GET_LOCAL(0)});
 }
 
 TEST_F(FunctionBodyDecoderTest, Float64Globals) {
@@ -1788,9 +1861,9 @@ TEST_F(FunctionBodyDecoderTest, Float64Globals) {
 
   builder.AddGlobal(kWasmF64);
 
-  EXPECT_VERIFIES_S(sig, WASM_GET_GLOBAL(0));
-  EXPECT_VERIFIES_S(sig, WASM_SET_GLOBAL(0, WASM_GET_LOCAL(0)),
-                    WASM_GET_LOCAL(0));
+  ExpectValidates(sig, {WASM_GET_GLOBAL(0)});
+  ExpectValidates(sig,
+                  {WASM_SET_GLOBAL(0, WASM_GET_LOCAL(0)), WASM_GET_LOCAL(0)});
 }
 
 TEST_F(FunctionBodyDecoderTest, AllGetGlobalCombinations) {
@@ -1803,9 +1876,9 @@ TEST_F(FunctionBodyDecoderTest, AllGetGlobalCombinations) {
       module = builder.module();
       builder.AddGlobal(global_type);
       if (local_type == global_type) {
-        EXPECT_VERIFIES_S(&sig, WASM_GET_GLOBAL(0));
+        ExpectValidates(&sig, {WASM_GET_GLOBAL(0)});
       } else {
-        EXPECT_FAILURE_S(&sig, WASM_GET_GLOBAL(0));
+        ExpectFailure(&sig, {WASM_GET_GLOBAL(0)});
       }
     }
   }
@@ -1821,9 +1894,9 @@ TEST_F(FunctionBodyDecoderTest, AllSetGlobalCombinations) {
       module = builder.module();
       builder.AddGlobal(global_type);
       if (local_type == global_type) {
-        EXPECT_VERIFIES_S(&sig, WASM_SET_GLOBAL(0, WASM_GET_LOCAL(0)));
+        ExpectValidates(&sig, {WASM_SET_GLOBAL(0, WASM_GET_LOCAL(0))});
       } else {
-        EXPECT_FAILURE_S(&sig, WASM_SET_GLOBAL(0, WASM_GET_LOCAL(0)));
+        ExpectFailure(&sig, {WASM_SET_GLOBAL(0, WASM_GET_LOCAL(0))});
       }
     }
   }
@@ -1842,34 +1915,34 @@ TEST_F(FunctionBodyDecoderTest, SetTable) {
   byte local_ref = 0;
   byte local_func = 1;
   byte local_int = 2;
-  EXPECT_VERIFIES_S(
-      &sig, WASM_SET_TABLE(tab_ref1, WASM_I32V(6), WASM_GET_LOCAL(local_ref)));
-  EXPECT_VERIFIES_S(&sig, WASM_SET_TABLE(tab_func1, WASM_I32V(5),
-                                         WASM_GET_LOCAL(local_func)));
-  EXPECT_VERIFIES_S(&sig, WASM_SET_TABLE(tab_func2, WASM_I32V(7),
-                                         WASM_GET_LOCAL(local_func)));
-  EXPECT_VERIFIES_S(
-      &sig, WASM_SET_TABLE(tab_ref2, WASM_I32V(8), WASM_GET_LOCAL(local_ref)));
+  ExpectValidates(&sig, {WASM_SET_TABLE(tab_ref1, WASM_I32V(6),
+                                        WASM_GET_LOCAL(local_ref))});
+  ExpectValidates(&sig, {WASM_SET_TABLE(tab_func1, WASM_I32V(5),
+                                        WASM_GET_LOCAL(local_func))});
+  ExpectValidates(&sig, {WASM_SET_TABLE(tab_func2, WASM_I32V(7),
+                                        WASM_GET_LOCAL(local_func))});
+  ExpectValidates(&sig, {WASM_SET_TABLE(tab_ref2, WASM_I32V(8),
+                                        WASM_GET_LOCAL(local_ref))});
 
   // We can store anyfunc values as anyref, but not the other way around.
-  EXPECT_VERIFIES_S(
-      &sig, WASM_SET_TABLE(tab_ref1, WASM_I32V(4), WASM_GET_LOCAL(local_func)));
-  EXPECT_FAILURE_S(
-      &sig, WASM_SET_TABLE(tab_func1, WASM_I32V(9), WASM_GET_LOCAL(local_ref)));
-  EXPECT_FAILURE_S(
-      &sig, WASM_SET_TABLE(tab_func2, WASM_I32V(3), WASM_GET_LOCAL(local_ref)));
-  EXPECT_VERIFIES_S(
-      &sig, WASM_SET_TABLE(tab_ref2, WASM_I32V(2), WASM_GET_LOCAL(local_func)));
-  EXPECT_FAILURE_S(
-      &sig, WASM_SET_TABLE(tab_ref1, WASM_I32V(9), WASM_GET_LOCAL(local_int)));
-  EXPECT_FAILURE_S(
-      &sig, WASM_SET_TABLE(tab_func1, WASM_I32V(3), WASM_GET_LOCAL(local_int)));
+  ExpectValidates(&sig, {WASM_SET_TABLE(tab_ref1, WASM_I32V(4),
+                                        WASM_GET_LOCAL(local_func))});
+  ExpectFailure(&sig, {WASM_SET_TABLE(tab_func1, WASM_I32V(9),
+                                      WASM_GET_LOCAL(local_ref))});
+  ExpectFailure(&sig, {WASM_SET_TABLE(tab_func2, WASM_I32V(3),
+                                      WASM_GET_LOCAL(local_ref))});
+  ExpectValidates(&sig, {WASM_SET_TABLE(tab_ref2, WASM_I32V(2),
+                                        WASM_GET_LOCAL(local_func))});
+  ExpectFailure(&sig, {WASM_SET_TABLE(tab_ref1, WASM_I32V(9),
+                                      WASM_GET_LOCAL(local_int))});
+  ExpectFailure(&sig, {WASM_SET_TABLE(tab_func1, WASM_I32V(3),
+                                      WASM_GET_LOCAL(local_int))});
   // Out-of-bounds table index should fail.
   byte oob_tab = 37;
-  EXPECT_FAILURE_S(
-      &sig, WASM_SET_TABLE(oob_tab, WASM_I32V(9), WASM_GET_LOCAL(local_ref)));
-  EXPECT_FAILURE_S(
-      &sig, WASM_SET_TABLE(oob_tab, WASM_I32V(3), WASM_GET_LOCAL(local_func)));
+  ExpectFailure(
+      &sig, {WASM_SET_TABLE(oob_tab, WASM_I32V(9), WASM_GET_LOCAL(local_ref))});
+  ExpectFailure(&sig, {WASM_SET_TABLE(oob_tab, WASM_I32V(3),
+                                      WASM_GET_LOCAL(local_func))});
 }
 
 TEST_F(FunctionBodyDecoderTest, GetTable) {
@@ -1885,37 +1958,41 @@ TEST_F(FunctionBodyDecoderTest, GetTable) {
   byte local_ref = 0;
   byte local_func = 1;
   byte local_int = 2;
-  EXPECT_VERIFIES_S(
-      &sig, WASM_SET_LOCAL(local_ref, WASM_GET_TABLE(tab_ref1, WASM_I32V(6))));
-  EXPECT_VERIFIES_S(
-      &sig, WASM_SET_LOCAL(local_ref, WASM_GET_TABLE(tab_ref2, WASM_I32V(8))));
-  EXPECT_VERIFIES_S(
+  ExpectValidates(
       &sig,
-      WASM_SET_LOCAL(local_func, WASM_GET_TABLE(tab_func1, WASM_I32V(5))));
-  EXPECT_VERIFIES_S(
+      {WASM_SET_LOCAL(local_ref, WASM_GET_TABLE(tab_ref1, WASM_I32V(6)))});
+  ExpectValidates(
       &sig,
-      WASM_SET_LOCAL(local_func, WASM_GET_TABLE(tab_func2, WASM_I32V(7))));
+      {WASM_SET_LOCAL(local_ref, WASM_GET_TABLE(tab_ref2, WASM_I32V(8)))});
+  ExpectValidates(
+      &sig,
+      {WASM_SET_LOCAL(local_func, WASM_GET_TABLE(tab_func1, WASM_I32V(5)))});
+  ExpectValidates(
+      &sig,
+      {WASM_SET_LOCAL(local_func, WASM_GET_TABLE(tab_func2, WASM_I32V(7)))});
 
   // We can store anyfunc values as anyref, but not the other way around.
-  EXPECT_FAILURE_S(
-      &sig, WASM_SET_LOCAL(local_func, WASM_GET_TABLE(tab_ref1, WASM_I32V(4))));
-  EXPECT_VERIFIES_S(
-      &sig, WASM_SET_LOCAL(local_ref, WASM_GET_TABLE(tab_func1, WASM_I32V(9))));
-  EXPECT_VERIFIES_S(
-      &sig, WASM_SET_LOCAL(local_ref, WASM_GET_TABLE(tab_func2, WASM_I32V(3))));
-  EXPECT_FAILURE_S(
-      &sig, WASM_SET_LOCAL(local_func, WASM_GET_TABLE(tab_ref2, WASM_I32V(2))));
+  ExpectFailure(&sig, {WASM_SET_LOCAL(local_func,
+                                      WASM_GET_TABLE(tab_ref1, WASM_I32V(4)))});
+  ExpectValidates(
+      &sig,
+      {WASM_SET_LOCAL(local_ref, WASM_GET_TABLE(tab_func1, WASM_I32V(9)))});
+  ExpectValidates(
+      &sig,
+      {WASM_SET_LOCAL(local_ref, WASM_GET_TABLE(tab_func2, WASM_I32V(3)))});
+  ExpectFailure(&sig, {WASM_SET_LOCAL(local_func,
+                                      WASM_GET_TABLE(tab_ref2, WASM_I32V(2)))});
 
-  EXPECT_FAILURE_S(
-      &sig, WASM_SET_LOCAL(local_int, WASM_GET_TABLE(tab_ref1, WASM_I32V(9))));
-  EXPECT_FAILURE_S(
-      &sig, WASM_SET_LOCAL(local_int, WASM_GET_TABLE(tab_func1, WASM_I32V(3))));
+  ExpectFailure(&sig, {WASM_SET_LOCAL(local_int,
+                                      WASM_GET_TABLE(tab_ref1, WASM_I32V(9)))});
+  ExpectFailure(&sig, {WASM_SET_LOCAL(
+                          local_int, WASM_GET_TABLE(tab_func1, WASM_I32V(3)))});
   // Out-of-bounds table index should fail.
   byte oob_tab = 37;
-  EXPECT_FAILURE_S(
-      &sig, WASM_SET_LOCAL(local_ref, WASM_GET_TABLE(oob_tab, WASM_I32V(9))));
-  EXPECT_FAILURE_S(
-      &sig, WASM_SET_LOCAL(local_func, WASM_GET_TABLE(oob_tab, WASM_I32V(3))));
+  ExpectFailure(
+      &sig, {WASM_SET_LOCAL(local_ref, WASM_GET_TABLE(oob_tab, WASM_I32V(9)))});
+  ExpectFailure(&sig, {WASM_SET_LOCAL(local_func,
+                                      WASM_GET_TABLE(oob_tab, WASM_I32V(3)))});
 }
 
 TEST_F(FunctionBodyDecoderTest, WasmMemoryGrow) {
@@ -1924,8 +2001,8 @@ TEST_F(FunctionBodyDecoderTest, WasmMemoryGrow) {
   builder.InitializeMemory();
 
   byte code[] = {WASM_GET_LOCAL(0), kExprMemoryGrow, 0};
-  EXPECT_VERIFIES_C(i_i, code);
-  EXPECT_FAILURE_C(i_d, code);
+  ExpectValidates(sigs.i_i(), code);
+  ExpectFailure(sigs.i_d(), code);
 }
 
 TEST_F(FunctionBodyDecoderTest, AsmJsMemoryGrow) {
@@ -1934,7 +2011,7 @@ TEST_F(FunctionBodyDecoderTest, AsmJsMemoryGrow) {
   builder.InitializeMemory();
 
   byte code[] = {WASM_GET_LOCAL(0), kExprMemoryGrow, 0};
-  EXPECT_FAILURE_C(i_i, code);
+  ExpectFailure(sigs.i_i(), code);
 }
 
 TEST_F(FunctionBodyDecoderTest, AsmJsBinOpsCheckOrigin) {
@@ -1976,7 +2053,7 @@ TEST_F(FunctionBodyDecoderTest, AsmJsBinOpsCheckOrigin) {
     for (size_t i = 0; i < arraysize(AsmJsBinOps); i++) {
       byte code[] = {
           WASM_BINOP(AsmJsBinOps[i].op, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1))};
-      EXPECT_FAILURE_SC(AsmJsBinOps[i].sig, code);
+      ExpectFailure(AsmJsBinOps[i].sig, code);
     }
   }
 }
@@ -2023,43 +2100,47 @@ TEST_F(FunctionBodyDecoderTest, AsmJsUnOpsCheckOrigin) {
     builder.InitializeMemory();
     for (size_t i = 0; i < arraysize(AsmJsUnOps); i++) {
       byte code[] = {WASM_UNOP(AsmJsUnOps[i].op, WASM_GET_LOCAL(0))};
-      EXPECT_FAILURE_SC(AsmJsUnOps[i].sig, code);
+      ExpectFailure(AsmJsUnOps[i].sig, code);
     }
   }
 }
 
 TEST_F(FunctionBodyDecoderTest, BreakEnd) {
-  EXPECT_VERIFIES(
-      i_i, WASM_BLOCK_I(WASM_I32_ADD(WASM_BRV(0, WASM_ZERO), WASM_ZERO)));
-  EXPECT_VERIFIES(
-      i_i, WASM_BLOCK_I(WASM_I32_ADD(WASM_ZERO, WASM_BRV(0, WASM_ZERO))));
+  ExpectValidates(
+      sigs.i_i(),
+      {WASM_BLOCK_I(WASM_I32_ADD(WASM_BRV(0, WASM_ZERO), WASM_ZERO))});
+  ExpectValidates(
+      sigs.i_i(),
+      {WASM_BLOCK_I(WASM_I32_ADD(WASM_ZERO, WASM_BRV(0, WASM_ZERO)))});
 }
 
 TEST_F(FunctionBodyDecoderTest, BreakIfBinop) {
-  EXPECT_VERIFIES(i_i, WASM_BLOCK_I(WASM_I32_ADD(
-                           WASM_BRV_IF(0, WASM_ZERO, WASM_ZERO), WASM_ZERO)));
-  EXPECT_VERIFIES(i_i, WASM_BLOCK_I(WASM_I32_ADD(
-                           WASM_ZERO, WASM_BRV_IF(0, WASM_ZERO, WASM_ZERO))));
-  EXPECT_VERIFIES_S(
+  ExpectValidates(sigs.i_i(),
+                  {WASM_BLOCK_I(WASM_I32_ADD(
+                      WASM_BRV_IF(0, WASM_ZERO, WASM_ZERO), WASM_ZERO))});
+  ExpectValidates(sigs.i_i(),
+                  {WASM_BLOCK_I(WASM_I32_ADD(
+                      WASM_ZERO, WASM_BRV_IF(0, WASM_ZERO, WASM_ZERO)))});
+  ExpectValidates(
       sigs.f_ff(),
-      WASM_BLOCK_F(WASM_F32_ABS(WASM_BRV_IF(0, WASM_F32(0.0f), WASM_ZERO))));
+      {WASM_BLOCK_F(WASM_F32_ABS(WASM_BRV_IF(0, WASM_F32(0.0f), WASM_ZERO)))});
 }
 
 TEST_F(FunctionBodyDecoderTest, BreakIfBinop_fail) {
-  EXPECT_FAILURE_S(
+  ExpectFailure(
       sigs.f_ff(),
-      WASM_BLOCK_F(WASM_F32_ABS(WASM_BRV_IF(0, WASM_ZERO, WASM_ZERO))));
-  EXPECT_FAILURE_S(
+      {WASM_BLOCK_F(WASM_F32_ABS(WASM_BRV_IF(0, WASM_ZERO, WASM_ZERO)))});
+  ExpectFailure(
       sigs.i_i(),
-      WASM_BLOCK_I(WASM_F32_ABS(WASM_BRV_IF(0, WASM_F32(0.0f), WASM_ZERO))));
+      {WASM_BLOCK_I(WASM_F32_ABS(WASM_BRV_IF(0, WASM_F32(0.0f), WASM_ZERO)))});
 }
 
 TEST_F(FunctionBodyDecoderTest, BreakIfUnrNarrow) {
-  EXPECT_FAILURE_S(
+  ExpectFailure(
       sigs.f_ff(),
-      WASM_BLOCK_I(WASM_BRV_IF(0, WASM_UNREACHABLE, WASM_UNREACHABLE),
-                   WASM_RETURN0),
-      WASM_F32(0.0));
+      {WASM_BLOCK_I(WASM_BRV_IF(0, WASM_UNREACHABLE, WASM_UNREACHABLE),
+                    WASM_RETURN0),
+       WASM_F32(0.0)});
 }
 
 TEST_F(FunctionBodyDecoderTest, BreakNesting1) {
@@ -2070,9 +2151,9 @@ TEST_F(FunctionBodyDecoderTest, BreakNesting1) {
                   WASM_SET_LOCAL(0, WASM_I32V_1(1))),
         WASM_ZERO)};
     if (i < 3) {
-      EXPECT_VERIFIES_C(i_i, code);
+      ExpectValidates(sigs.i_i(), code);
     } else {
-      EXPECT_FAILURE_C(i_i, code);
+      ExpectFailure(sigs.i_i(), code);
     }
   }
 }
@@ -2081,9 +2162,9 @@ TEST_F(FunctionBodyDecoderTest, BreakNesting2) {
   for (int i = 0; i < 7; i++) {
     byte code[] = {B1(WASM_LOOP(WASM_IF(WASM_ZERO, WASM_BR(i)), WASM_NOP))};
     if (i <= 3) {
-      EXPECT_VERIFIES_C(v_v, code);
+      ExpectValidates(sigs.v_v(), code);
     } else {
-      EXPECT_FAILURE_C(v_v, code);
+      ExpectFailure(sigs.v_v(), code);
     }
   }
 }
@@ -2094,24 +2175,25 @@ TEST_F(FunctionBodyDecoderTest, BreakNesting3) {
     byte code[] = {
         WASM_BLOCK(WASM_LOOP(B1(WASM_IF(WASM_ZERO, WASM_BR(i + 1)))))};
     if (i < 4) {
-      EXPECT_VERIFIES_C(v_v, code);
+      ExpectValidates(sigs.v_v(), code);
     } else {
-      EXPECT_FAILURE_C(v_v, code);
+      ExpectFailure(sigs.v_v(), code);
     }
   }
 }
 
 TEST_F(FunctionBodyDecoderTest, BreaksWithMultipleTypes) {
-  EXPECT_FAILURE(i_i, B2(WASM_BRV_IF_ZERO(0, WASM_I32V_1(7)), WASM_F32(7.7)));
+  ExpectFailure(sigs.i_i(),
+                {B2(WASM_BRV_IF_ZERO(0, WASM_I32V_1(7)), WASM_F32(7.7))});
 
-  EXPECT_FAILURE(i_i, B2(WASM_BRV_IF_ZERO(0, WASM_I32V_1(7)),
-                         WASM_BRV_IF_ZERO(0, WASM_F32(7.7))));
-  EXPECT_FAILURE(i_i, B3(WASM_BRV_IF_ZERO(0, WASM_I32V_1(8)),
-                         WASM_BRV_IF_ZERO(0, WASM_I32V_1(0)),
-                         WASM_BRV_IF_ZERO(0, WASM_F32(7.7))));
-  EXPECT_FAILURE(i_i, B3(WASM_BRV_IF_ZERO(0, WASM_I32V_1(9)),
-                         WASM_BRV_IF_ZERO(0, WASM_F32(7.7)),
-                         WASM_BRV_IF_ZERO(0, WASM_I32V_1(11))));
+  ExpectFailure(sigs.i_i(), {B2(WASM_BRV_IF_ZERO(0, WASM_I32V_1(7)),
+                                WASM_BRV_IF_ZERO(0, WASM_F32(7.7)))});
+  ExpectFailure(sigs.i_i(), {B3(WASM_BRV_IF_ZERO(0, WASM_I32V_1(8)),
+                                WASM_BRV_IF_ZERO(0, WASM_I32V_1(0)),
+                                WASM_BRV_IF_ZERO(0, WASM_F32(7.7)))});
+  ExpectFailure(sigs.i_i(), {B3(WASM_BRV_IF_ZERO(0, WASM_I32V_1(9)),
+                                WASM_BRV_IF_ZERO(0, WASM_F32(7.7)),
+                                WASM_BRV_IF_ZERO(0, WASM_I32V_1(11)))});
 }
 
 TEST_F(FunctionBodyDecoderTest, BreakNesting_6_levels) {
@@ -2132,9 +2214,9 @@ TEST_F(FunctionBodyDecoderTest, BreakNesting_6_levels) {
       }
 
       if (i <= depth) {
-        EXPECT_VERIFIES_C(v_v, code);
+        ExpectValidates(sigs.v_v(), code);
       } else {
-        EXPECT_FAILURE_C(v_v, code);
+        ExpectFailure(sigs.v_v(), code);
       }
     }
   }
@@ -2148,17 +2230,19 @@ TEST_F(FunctionBodyDecoderTest, Break_TypeCheck) {
     byte code[] = {WASM_BLOCK_T(
         sig->GetReturn(), WASM_IF(WASM_ZERO, WASM_BRV(0, WASM_GET_LOCAL(0))),
         WASM_GET_LOCAL(0))};
-    EXPECT_VERIFIES_SC(sig, code);
+    ExpectValidates(sig, code);
   }
 
   // unify i32 and f32 => fail
-  EXPECT_FAILURE(i_i, WASM_BLOCK_I(WASM_IF(WASM_ZERO, WASM_BRV(0, WASM_ZERO)),
-                                   WASM_F32(1.2)));
+  ExpectFailure(sigs.i_i(),
+                {WASM_BLOCK_I(WASM_IF(WASM_ZERO, WASM_BRV(0, WASM_ZERO)),
+                              WASM_F32(1.2))});
 
   // unify f64 and f64 => OK
-  EXPECT_VERIFIES(
-      d_dd, WASM_BLOCK_D(WASM_IF(WASM_ZERO, WASM_BRV(0, WASM_GET_LOCAL(0))),
-                         WASM_F64(1.2)));
+  ExpectValidates(
+      sigs.d_dd(),
+      {WASM_BLOCK_D(WASM_IF(WASM_ZERO, WASM_BRV(0, WASM_GET_LOCAL(0))),
+                    WASM_F64(1.2))});
 }
 
 TEST_F(FunctionBodyDecoderTest, Break_TypeCheckAll1) {
@@ -2171,9 +2255,9 @@ TEST_F(FunctionBodyDecoderTest, Break_TypeCheckAll1) {
           WASM_GET_LOCAL(1))};
 
       if (i == j) {
-        EXPECT_VERIFIES_SC(&sig, code);
+        ExpectValidates(&sig, code);
       } else {
-        EXPECT_FAILURE_SC(&sig, code);
+        ExpectFailure(&sig, code);
       }
     }
   }
@@ -2189,9 +2273,9 @@ TEST_F(FunctionBodyDecoderTest, Break_TypeCheckAll2) {
                                     WASM_GET_LOCAL(1))};
 
       if (i == j) {
-        EXPECT_VERIFIES_SC(&sig, code);
+        ExpectValidates(&sig, code);
       } else {
-        EXPECT_FAILURE_SC(&sig, code);
+        ExpectFailure(&sig, code);
       }
     }
   }
@@ -2207,9 +2291,9 @@ TEST_F(FunctionBodyDecoderTest, Break_TypeCheckAll3) {
                                     WASM_BRV_IF_ZERO(0, WASM_GET_LOCAL(0)))};
 
       if (i == j) {
-        EXPECT_VERIFIES_SC(&sig, code);
+        ExpectValidates(&sig, code);
       } else {
-        EXPECT_FAILURE_SC(&sig, code);
+        ExpectFailure(&sig, code);
       }
     }
   }
@@ -2227,9 +2311,9 @@ TEST_F(FunctionBodyDecoderTest, Break_Unify) {
           WASM_GET_LOCAL(which ^ 1))};
 
       if (type == kWasmI32) {
-        EXPECT_VERIFIES_SC(&sig, code1);
+        ExpectValidates(&sig, code1);
       } else {
-        EXPECT_FAILURE_SC(&sig, code1);
+        ExpectFailure(&sig, code1);
       }
     }
   }
@@ -2244,9 +2328,9 @@ TEST_F(FunctionBodyDecoderTest, BreakIf_cond_type) {
           types[0], WASM_BRV_IF(0, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)))};
 
       if (types[2] == kWasmI32) {
-        EXPECT_VERIFIES_SC(&sig, code);
+        ExpectValidates(&sig, code);
       } else {
-        EXPECT_FAILURE_SC(&sig, code);
+        ExpectFailure(&sig, code);
       }
     }
   }
@@ -2263,9 +2347,9 @@ TEST_F(FunctionBodyDecoderTest, BreakIf_val_type) {
           WASM_DROP, WASM_GET_LOCAL(0))};
 
       if (i == j) {
-        EXPECT_VERIFIES_SC(&sig, code);
+        ExpectValidates(&sig, code);
       } else {
-        EXPECT_FAILURE_SC(&sig, code);
+        ExpectFailure(&sig, code);
       }
     }
   }
@@ -2281,9 +2365,9 @@ TEST_F(FunctionBodyDecoderTest, BreakIf_Unify) {
                                   WASM_DROP, WASM_GET_LOCAL(which ^ 1))};
 
       if (type == kWasmI32) {
-        EXPECT_VERIFIES_SC(&sig, code);
+        ExpectValidates(&sig, code);
       } else {
-        EXPECT_FAILURE_SC(&sig, code);
+        ExpectFailure(&sig, code);
       }
     }
   }
@@ -2291,51 +2375,51 @@ TEST_F(FunctionBodyDecoderTest, BreakIf_Unify) {
 
 TEST_F(FunctionBodyDecoderTest, BrTable0) {
   static byte code[] = {kExprBrTable, 0, BR_TARGET(0)};
-  EXPECT_FAILURE_C(v_v, code);
+  ExpectFailure(sigs.v_v(), code);
 }
 
 TEST_F(FunctionBodyDecoderTest, BrTable0b) {
   static byte code[] = {kExprI32Const, 11, kExprBrTable, 0, BR_TARGET(0)};
-  EXPECT_VERIFIES_C(v_v, code);
-  EXPECT_FAILURE_C(i_i, code);
+  ExpectValidates(sigs.v_v(), code);
+  ExpectFailure(sigs.i_i(), code);
 }
 
 TEST_F(FunctionBodyDecoderTest, BrTable0c) {
   static byte code[] = {kExprI32Const, 11, kExprBrTable, 0, BR_TARGET(1)};
-  EXPECT_FAILURE_C(v_v, code);
-  EXPECT_FAILURE_C(i_i, code);
+  ExpectFailure(sigs.v_v(), code);
+  ExpectFailure(sigs.i_i(), code);
 }
 
 TEST_F(FunctionBodyDecoderTest, BrTable1a) {
   static byte code[] = {B1(WASM_BR_TABLE(WASM_I32V_2(67), 0, BR_TARGET(0)))};
-  EXPECT_VERIFIES_C(v_v, code);
+  ExpectValidates(sigs.v_v(), code);
 }
 
 TEST_F(FunctionBodyDecoderTest, BrTable1b) {
   static byte code[] = {B1(WASM_BR_TABLE(WASM_ZERO, 0, BR_TARGET(0)))};
-  EXPECT_VERIFIES_C(v_v, code);
-  EXPECT_FAILURE_C(i_i, code);
-  EXPECT_FAILURE_C(f_ff, code);
-  EXPECT_FAILURE_C(d_dd, code);
+  ExpectValidates(sigs.v_v(), code);
+  ExpectFailure(sigs.i_i(), code);
+  ExpectFailure(sigs.f_ff(), code);
+  ExpectFailure(sigs.d_dd(), code);
 }
 
 TEST_F(FunctionBodyDecoderTest, BrTable2a) {
   static byte code[] = {
       B1(WASM_BR_TABLE(WASM_I32V_2(67), 1, BR_TARGET(0), BR_TARGET(0)))};
-  EXPECT_VERIFIES_C(v_v, code);
+  ExpectValidates(sigs.v_v(), code);
 }
 
 TEST_F(FunctionBodyDecoderTest, BrTable2b) {
   static byte code[] = {WASM_BLOCK(WASM_BLOCK(
       WASM_BR_TABLE(WASM_I32V_2(67), 1, BR_TARGET(0), BR_TARGET(1))))};
-  EXPECT_VERIFIES_C(v_v, code);
+  ExpectValidates(sigs.v_v(), code);
 }
 
 TEST_F(FunctionBodyDecoderTest, BrTable_off_end) {
   static byte code[] = {B1(WASM_BR_TABLE(WASM_GET_LOCAL(0), 0, BR_TARGET(0)))};
   for (size_t len = 1; len < sizeof(code); len++) {
-    Verify(false, sigs.i_i(), {code, len}, kAppendEnd);
-    Verify(false, sigs.i_i(), {code, len}, kOmitEnd);
+    Validate(false, sigs.i_i(), VectorOf(code, len), kAppendEnd);
+    Validate(false, sigs.i_i(), VectorOf(code, len), kOmitEnd);
   }
 }
 
@@ -2343,9 +2427,9 @@ TEST_F(FunctionBodyDecoderTest, BrTable_invalid_br1) {
   for (int depth = 0; depth < 4; depth++) {
     byte code[] = {B1(WASM_BR_TABLE(WASM_GET_LOCAL(0), 0, BR_TARGET(depth)))};
     if (depth <= 1) {
-      EXPECT_VERIFIES_C(v_i, code);
+      ExpectValidates(sigs.v_i(), code);
     } else {
-      EXPECT_FAILURE_C(v_i, code);
+      ExpectFailure(sigs.v_i(), code);
     }
   }
 }
@@ -2355,135 +2439,146 @@ TEST_F(FunctionBodyDecoderTest, BrTable_invalid_br2) {
     byte code[] = {
         WASM_LOOP(WASM_BR_TABLE(WASM_GET_LOCAL(0), 0, BR_TARGET(depth)))};
     if (depth < 2) {
-      EXPECT_VERIFIES_C(v_i, code);
+      ExpectValidates(sigs.v_i(), code);
     } else {
-      EXPECT_FAILURE_C(v_i, code);
+      ExpectFailure(sigs.v_i(), code);
     }
   }
 }
 
 TEST_F(FunctionBodyDecoderTest, BrTable_arity_mismatch1) {
-  EXPECT_FAILURE(
-      v_v,
-      WASM_BLOCK(WASM_BLOCK_I(
-          WASM_ONE, WASM_BR_TABLE(WASM_ONE, 1, BR_TARGET(0), BR_TARGET(1)))));
+  ExpectFailure(
+      sigs.v_v(),
+      {WASM_BLOCK(WASM_BLOCK_I(
+          WASM_ONE, WASM_BR_TABLE(WASM_ONE, 1, BR_TARGET(0), BR_TARGET(1))))});
 }
 
 TEST_F(FunctionBodyDecoderTest, BrTable_arity_mismatch2) {
-  EXPECT_FAILURE(
-      v_v,
-      WASM_BLOCK_I(WASM_BLOCK(
-          WASM_ONE, WASM_BR_TABLE(WASM_ONE, 1, BR_TARGET(0), BR_TARGET(1)))));
+  ExpectFailure(
+      sigs.v_v(),
+      {WASM_BLOCK_I(WASM_BLOCK(
+          WASM_ONE, WASM_BR_TABLE(WASM_ONE, 1, BR_TARGET(0), BR_TARGET(1))))});
 }
 
 TEST_F(FunctionBodyDecoderTest, BrTable_arity_mismatch_loop1) {
-  EXPECT_FAILURE(
-      v_v,
-      WASM_LOOP(WASM_BLOCK_I(
-          WASM_ONE, WASM_BR_TABLE(WASM_ONE, 1, BR_TARGET(0), BR_TARGET(1)))));
+  ExpectFailure(
+      sigs.v_v(),
+      {WASM_LOOP(WASM_BLOCK_I(
+          WASM_ONE, WASM_BR_TABLE(WASM_ONE, 1, BR_TARGET(0), BR_TARGET(1))))});
 }
 
 TEST_F(FunctionBodyDecoderTest, BrTable_arity_mismatch_loop2) {
-  EXPECT_FAILURE(
-      v_v,
-      WASM_BLOCK_I(WASM_LOOP(
-          WASM_ONE, WASM_BR_TABLE(WASM_ONE, 1, BR_TARGET(0), BR_TARGET(1)))));
+  ExpectFailure(
+      sigs.v_v(),
+      {WASM_BLOCK_I(WASM_LOOP(
+          WASM_ONE, WASM_BR_TABLE(WASM_ONE, 1, BR_TARGET(0), BR_TARGET(1))))});
 }
 
 TEST_F(FunctionBodyDecoderTest, BrTable_loop_block) {
-  EXPECT_VERIFIES(
-      v_v,
-      WASM_LOOP(WASM_BLOCK(
-          WASM_ONE, WASM_BR_TABLE(WASM_ONE, 1, BR_TARGET(0), BR_TARGET(1)))));
+  ExpectValidates(
+      sigs.v_v(),
+      {WASM_LOOP(WASM_BLOCK(
+          WASM_ONE, WASM_BR_TABLE(WASM_ONE, 1, BR_TARGET(0), BR_TARGET(1))))});
 }
 
 TEST_F(FunctionBodyDecoderTest, BrTable_block_loop) {
-  EXPECT_VERIFIES(
-      v_v,
-      WASM_LOOP(WASM_BLOCK(
-          WASM_ONE, WASM_BR_TABLE(WASM_ONE, 1, BR_TARGET(0), BR_TARGET(1)))));
+  ExpectValidates(
+      sigs.v_v(),
+      {WASM_LOOP(WASM_BLOCK(
+          WASM_ONE, WASM_BR_TABLE(WASM_ONE, 1, BR_TARGET(0), BR_TARGET(1))))});
 }
 
 TEST_F(FunctionBodyDecoderTest, BrTable_type_mismatch1) {
-  EXPECT_FAILURE(
-      v_v,
-      WASM_BLOCK_I(WASM_BLOCK_F(
-          WASM_ONE, WASM_BR_TABLE(WASM_ONE, 1, BR_TARGET(0), BR_TARGET(1)))));
+  ExpectFailure(
+      sigs.v_v(),
+      {WASM_BLOCK_I(WASM_BLOCK_F(
+          WASM_ONE, WASM_BR_TABLE(WASM_ONE, 1, BR_TARGET(0), BR_TARGET(1))))});
 }
 
 TEST_F(FunctionBodyDecoderTest, BrTable_type_mismatch2) {
-  EXPECT_FAILURE(
-      v_v,
-      WASM_BLOCK_F(WASM_BLOCK_I(
-          WASM_ONE, WASM_BR_TABLE(WASM_ONE, 1, BR_TARGET(0), BR_TARGET(1)))));
+  ExpectFailure(
+      sigs.v_v(),
+      {WASM_BLOCK_F(WASM_BLOCK_I(
+          WASM_ONE, WASM_BR_TABLE(WASM_ONE, 1, BR_TARGET(0), BR_TARGET(1))))});
 }
 
 TEST_F(FunctionBodyDecoderTest, BrTable_type_mismatch_unreachable) {
-  EXPECT_FAILURE(v_v,
-                 WASM_BLOCK_F(WASM_BLOCK_I(
-                     WASM_UNREACHABLE,
-                     WASM_BR_TABLE(WASM_ONE, 1, BR_TARGET(0), BR_TARGET(1)))));
+  ExpectFailure(sigs.v_v(),
+                {WASM_BLOCK_F(WASM_BLOCK_I(
+                    WASM_UNREACHABLE,
+                    WASM_BR_TABLE(WASM_ONE, 1, BR_TARGET(0), BR_TARGET(1))))});
 }
 
 TEST_F(FunctionBodyDecoderTest, BrUnreachable1) {
-  EXPECT_VERIFIES(v_i, WASM_GET_LOCAL(0), kExprBrTable, 0, BR_TARGET(0));
+  ExpectValidates(sigs.v_i(),
+                  {WASM_GET_LOCAL(0), kExprBrTable, 0, BR_TARGET(0)});
 }
 
 TEST_F(FunctionBodyDecoderTest, BrUnreachable2) {
-  EXPECT_VERIFIES(v_i, WASM_GET_LOCAL(0), kExprBrTable, 0, BR_TARGET(0),
-                  WASM_NOP);
-  EXPECT_FAILURE(v_i, WASM_GET_LOCAL(0), kExprBrTable, 0, BR_TARGET(0),
-                 WASM_ZERO);
+  ExpectValidates(sigs.v_i(),
+                  {WASM_GET_LOCAL(0), kExprBrTable, 0, BR_TARGET(0), WASM_NOP});
+  ExpectFailure(sigs.v_i(),
+                {WASM_GET_LOCAL(0), kExprBrTable, 0, BR_TARGET(0), WASM_ZERO});
 }
 
 TEST_F(FunctionBodyDecoderTest, Brv1) {
-  EXPECT_VERIFIES(i_i, WASM_BLOCK_I(WASM_BRV(0, WASM_ZERO)));
-  EXPECT_VERIFIES(i_i, WASM_BLOCK_I(WASM_LOOP_I(WASM_BRV(2, WASM_ZERO))));
+  ExpectValidates(sigs.i_i(), {WASM_BLOCK_I(WASM_BRV(0, WASM_ZERO))});
+  ExpectValidates(sigs.i_i(),
+                  {WASM_BLOCK_I(WASM_LOOP_I(WASM_BRV(2, WASM_ZERO)))});
 }
 
 TEST_F(FunctionBodyDecoderTest, Brv1_type) {
-  EXPECT_VERIFIES(i_ii, WASM_BLOCK_I(WASM_BRV(0, WASM_GET_LOCAL(0))));
-  EXPECT_VERIFIES(l_ll, WASM_BLOCK_L(WASM_BRV(0, WASM_GET_LOCAL(0))));
-  EXPECT_VERIFIES(f_ff, WASM_BLOCK_F(WASM_BRV(0, WASM_GET_LOCAL(0))));
-  EXPECT_VERIFIES(d_dd, WASM_BLOCK_D(WASM_BRV(0, WASM_GET_LOCAL(0))));
+  ExpectValidates(sigs.i_ii(), {WASM_BLOCK_I(WASM_BRV(0, WASM_GET_LOCAL(0)))});
+  ExpectValidates(sigs.l_ll(), {WASM_BLOCK_L(WASM_BRV(0, WASM_GET_LOCAL(0)))});
+  ExpectValidates(sigs.f_ff(), {WASM_BLOCK_F(WASM_BRV(0, WASM_GET_LOCAL(0)))});
+  ExpectValidates(sigs.d_dd(), {WASM_BLOCK_D(WASM_BRV(0, WASM_GET_LOCAL(0)))});
 }
 
 TEST_F(FunctionBodyDecoderTest, Brv1_type_n) {
-  EXPECT_FAILURE(i_f, WASM_BLOCK_I(WASM_BRV(0, WASM_GET_LOCAL(0))));
-  EXPECT_FAILURE(i_d, WASM_BLOCK_I(WASM_BRV(0, WASM_GET_LOCAL(0))));
+  ExpectFailure(sigs.i_f(), {WASM_BLOCK_I(WASM_BRV(0, WASM_GET_LOCAL(0)))});
+  ExpectFailure(sigs.i_d(), {WASM_BLOCK_I(WASM_BRV(0, WASM_GET_LOCAL(0)))});
 }
 
 TEST_F(FunctionBodyDecoderTest, BrvIf1) {
-  EXPECT_VERIFIES(i_v, WASM_BLOCK_I(WASM_BRV_IF_ZERO(0, WASM_ZERO)));
+  ExpectValidates(sigs.i_v(), {WASM_BLOCK_I(WASM_BRV_IF_ZERO(0, WASM_ZERO))});
 }
 
 TEST_F(FunctionBodyDecoderTest, BrvIf1_type) {
-  EXPECT_VERIFIES(i_i, WASM_BLOCK_I(WASM_BRV_IF_ZERO(0, WASM_GET_LOCAL(0))));
-  EXPECT_VERIFIES(l_l, WASM_BLOCK_L(WASM_BRV_IF_ZERO(0, WASM_GET_LOCAL(0))));
-  EXPECT_VERIFIES(f_ff, WASM_BLOCK_F(WASM_BRV_IF_ZERO(0, WASM_GET_LOCAL(0))));
-  EXPECT_VERIFIES(d_dd, WASM_BLOCK_D(WASM_BRV_IF_ZERO(0, WASM_GET_LOCAL(0))));
+  ExpectValidates(sigs.i_i(),
+                  {WASM_BLOCK_I(WASM_BRV_IF_ZERO(0, WASM_GET_LOCAL(0)))});
+  ExpectValidates(sigs.l_l(),
+                  {WASM_BLOCK_L(WASM_BRV_IF_ZERO(0, WASM_GET_LOCAL(0)))});
+  ExpectValidates(sigs.f_ff(),
+                  {WASM_BLOCK_F(WASM_BRV_IF_ZERO(0, WASM_GET_LOCAL(0)))});
+  ExpectValidates(sigs.d_dd(),
+                  {WASM_BLOCK_D(WASM_BRV_IF_ZERO(0, WASM_GET_LOCAL(0)))});
 }
 
 TEST_F(FunctionBodyDecoderTest, BrvIf1_type_n) {
-  EXPECT_FAILURE(i_f, WASM_BLOCK_I(WASM_BRV_IF_ZERO(0, WASM_GET_LOCAL(0))));
-  EXPECT_FAILURE(i_d, WASM_BLOCK_I(WASM_BRV_IF_ZERO(0, WASM_GET_LOCAL(0))));
+  ExpectFailure(sigs.i_f(),
+                {WASM_BLOCK_I(WASM_BRV_IF_ZERO(0, WASM_GET_LOCAL(0)))});
+  ExpectFailure(sigs.i_d(),
+                {WASM_BLOCK_I(WASM_BRV_IF_ZERO(0, WASM_GET_LOCAL(0)))});
 }
 
 TEST_F(FunctionBodyDecoderTest, Select) {
-  EXPECT_VERIFIES(i_i,
-                  WASM_SELECT(WASM_GET_LOCAL(0), WASM_GET_LOCAL(0), WASM_ZERO));
-  EXPECT_VERIFIES(f_ff, WASM_SELECT(WASM_F32(0.0), WASM_F32(0.0), WASM_ZERO));
-  EXPECT_VERIFIES(d_dd, WASM_SELECT(WASM_F64(0.0), WASM_F64(0.0), WASM_ZERO));
-  EXPECT_VERIFIES(l_l, WASM_SELECT(WASM_I64V_1(0), WASM_I64V_1(0), WASM_ZERO));
+  ExpectValidates(sigs.i_i(), {WASM_SELECT(WASM_GET_LOCAL(0), WASM_GET_LOCAL(0),
+                                           WASM_ZERO)});
+  ExpectValidates(sigs.f_ff(),
+                  {WASM_SELECT(WASM_F32(0.0), WASM_F32(0.0), WASM_ZERO)});
+  ExpectValidates(sigs.d_dd(),
+                  {WASM_SELECT(WASM_F64(0.0), WASM_F64(0.0), WASM_ZERO)});
+  ExpectValidates(sigs.l_l(),
+                  {WASM_SELECT(WASM_I64V_1(0), WASM_I64V_1(0), WASM_ZERO)});
 }
 
 TEST_F(FunctionBodyDecoderTest, Select_fail1) {
-  EXPECT_FAILURE(
-      i_i, WASM_SELECT(WASM_F32(0.0), WASM_GET_LOCAL(0), WASM_GET_LOCAL(0)));
-  EXPECT_FAILURE(
-      i_i, WASM_SELECT(WASM_GET_LOCAL(0), WASM_F32(0.0), WASM_GET_LOCAL(0)));
-  EXPECT_FAILURE(
-      i_i, WASM_SELECT(WASM_GET_LOCAL(0), WASM_GET_LOCAL(0), WASM_F32(0.0)));
+  ExpectFailure(sigs.i_i(), {WASM_SELECT(WASM_F32(0.0), WASM_GET_LOCAL(0),
+                                         WASM_GET_LOCAL(0))});
+  ExpectFailure(sigs.i_i(), {WASM_SELECT(WASM_GET_LOCAL(0), WASM_F32(0.0),
+                                         WASM_GET_LOCAL(0))});
+  ExpectFailure(sigs.i_i(), {WASM_SELECT(WASM_GET_LOCAL(0), WASM_GET_LOCAL(0),
+                                         WASM_F32(0.0))});
 }
 
 TEST_F(FunctionBodyDecoderTest, Select_fail2) {
@@ -2494,29 +2589,29 @@ TEST_F(FunctionBodyDecoderTest, Select_fail2) {
     ValueType types[] = {type, kWasmI32, type};
     FunctionSig sig(1, 2, types);
 
-    EXPECT_VERIFIES_S(&sig, WASM_SELECT(WASM_GET_LOCAL(1), WASM_GET_LOCAL(1),
-                                        WASM_GET_LOCAL(0)));
+    ExpectValidates(&sig, {WASM_SELECT(WASM_GET_LOCAL(1), WASM_GET_LOCAL(1),
+                                       WASM_GET_LOCAL(0))});
 
-    EXPECT_FAILURE_S(&sig, WASM_SELECT(WASM_GET_LOCAL(1), WASM_GET_LOCAL(0),
-                                       WASM_GET_LOCAL(0)));
+    ExpectFailure(&sig, {WASM_SELECT(WASM_GET_LOCAL(1), WASM_GET_LOCAL(0),
+                                     WASM_GET_LOCAL(0))});
 
-    EXPECT_FAILURE_S(&sig, WASM_SELECT(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1),
-                                       WASM_GET_LOCAL(0)));
+    ExpectFailure(&sig, {WASM_SELECT(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1),
+                                     WASM_GET_LOCAL(0))});
 
-    EXPECT_FAILURE_S(&sig, WASM_SELECT(WASM_GET_LOCAL(0), WASM_GET_LOCAL(0),
-                                       WASM_GET_LOCAL(1)));
+    ExpectFailure(&sig, {WASM_SELECT(WASM_GET_LOCAL(0), WASM_GET_LOCAL(0),
+                                     WASM_GET_LOCAL(1))});
   }
 }
 
 TEST_F(FunctionBodyDecoderTest, Select_TypeCheck) {
-  EXPECT_FAILURE(
-      i_i, WASM_SELECT(WASM_F32(9.9), WASM_GET_LOCAL(0), WASM_GET_LOCAL(0)));
+  ExpectFailure(sigs.i_i(), {WASM_SELECT(WASM_F32(9.9), WASM_GET_LOCAL(0),
+                                         WASM_GET_LOCAL(0))});
 
-  EXPECT_FAILURE(
-      i_i, WASM_SELECT(WASM_GET_LOCAL(0), WASM_F64(0.25), WASM_GET_LOCAL(0)));
+  ExpectFailure(sigs.i_i(), {WASM_SELECT(WASM_GET_LOCAL(0), WASM_F64(0.25),
+                                         WASM_GET_LOCAL(0))});
 
-  EXPECT_FAILURE(i_i,
-                 WASM_SELECT(WASM_F32(9.9), WASM_GET_LOCAL(0), WASM_I64V_1(0)));
+  ExpectFailure(sigs.i_i(), {WASM_SELECT(WASM_F32(9.9), WASM_GET_LOCAL(0),
+                                         WASM_I64V_1(0))});
 }
 
 TEST_F(FunctionBodyDecoderTest, Throw) {
@@ -2526,12 +2621,12 @@ TEST_F(FunctionBodyDecoderTest, Throw) {
   byte ex1 = builder.AddException(sigs.v_v());
   byte ex2 = builder.AddException(sigs.v_i());
   byte ex3 = builder.AddException(sigs.v_ii());
-  EXPECT_VERIFIES(v_v, kExprThrow, ex1);
-  EXPECT_VERIFIES(v_v, WASM_I32V(0), kExprThrow, ex2);
-  EXPECT_FAILURE(v_v, WASM_F32(0.0), kExprThrow, ex2);
-  EXPECT_VERIFIES(v_v, WASM_I32V(0), WASM_I32V(0), kExprThrow, ex3);
-  EXPECT_FAILURE(v_v, WASM_F32(0.0), WASM_I32V(0), kExprThrow, ex3);
-  EXPECT_FAILURE(v_v, kExprThrow, 99);
+  ExpectValidates(sigs.v_v(), {kExprThrow, ex1});
+  ExpectValidates(sigs.v_v(), {WASM_I32V(0), kExprThrow, ex2});
+  ExpectFailure(sigs.v_v(), {WASM_F32(0.0), kExprThrow, ex2});
+  ExpectValidates(sigs.v_v(), {WASM_I32V(0), WASM_I32V(0), kExprThrow, ex3});
+  ExpectFailure(sigs.v_v(), {WASM_F32(0.0), WASM_I32V(0), kExprThrow, ex3});
+  ExpectFailure(sigs.v_v(), {kExprThrow, 99});
 }
 
 TEST_F(FunctionBodyDecoderTest, ThrowUnreachable) {
@@ -2540,12 +2635,14 @@ TEST_F(FunctionBodyDecoderTest, ThrowUnreachable) {
   module = builder.module();
   byte ex1 = builder.AddException(sigs.v_v());
   byte ex2 = builder.AddException(sigs.v_i());
-  EXPECT_VERIFIES(i_i, WASM_GET_LOCAL(0), kExprThrow, ex1, WASM_NOP);
-  EXPECT_VERIFIES(v_i, WASM_GET_LOCAL(0), kExprThrow, ex2, WASM_NOP);
-  EXPECT_VERIFIES(i_i, WASM_GET_LOCAL(0), kExprThrow, ex1, WASM_ZERO);
-  EXPECT_FAILURE(v_i, WASM_GET_LOCAL(0), kExprThrow, ex2, WASM_ZERO);
-  EXPECT_FAILURE(i_i, WASM_GET_LOCAL(0), kExprThrow, ex1, WASM_F32(0.0));
-  EXPECT_FAILURE(v_i, WASM_GET_LOCAL(0), kExprThrow, ex2, WASM_F32(0.0));
+  ExpectValidates(sigs.i_i(), {WASM_GET_LOCAL(0), kExprThrow, ex1, WASM_NOP});
+  ExpectValidates(sigs.v_i(), {WASM_GET_LOCAL(0), kExprThrow, ex2, WASM_NOP});
+  ExpectValidates(sigs.i_i(), {WASM_GET_LOCAL(0), kExprThrow, ex1, WASM_ZERO});
+  ExpectFailure(sigs.v_i(), {WASM_GET_LOCAL(0), kExprThrow, ex2, WASM_ZERO});
+  ExpectFailure(sigs.i_i(),
+                {WASM_GET_LOCAL(0), kExprThrow, ex1, WASM_F32(0.0)});
+  ExpectFailure(sigs.v_i(),
+                {WASM_GET_LOCAL(0), kExprThrow, ex2, WASM_F32(0.0)});
 }
 
 #define WASM_TRY_OP kExprTry, kLocalVoid
@@ -2556,21 +2653,22 @@ TEST_F(FunctionBodyDecoderTest, TryCatch) {
   WASM_FEATURE_SCOPE(eh);
   TestModuleBuilder builder;
   module = builder.module();
-  EXPECT_VERIFIES(v_v, WASM_TRY_OP, kExprCatch, kExprDrop, kExprEnd);
-  EXPECT_FAILURE(v_v, WASM_TRY_OP, kExprCatch, kExprCatch, kExprEnd);
-  EXPECT_FAILURE(v_v, WASM_TRY_OP, kExprEnd);    // Missing catch.
-  EXPECT_FAILURE(v_v, WASM_TRY_OP, kExprCatch);  // Missing end.
-  EXPECT_FAILURE(v_v, kExprCatch, kExprEnd);     // Missing try.
+  ExpectValidates(sigs.v_v(), {WASM_TRY_OP, kExprCatch, kExprDrop, kExprEnd});
+  ExpectFailure(sigs.v_v(), {WASM_TRY_OP, kExprCatch, kExprCatch, kExprEnd});
+  ExpectFailure(sigs.v_v(), {WASM_TRY_OP, kExprEnd});    // Missing catch.
+  ExpectFailure(sigs.v_v(), {WASM_TRY_OP, kExprCatch});  // Missing end.
+  ExpectFailure(sigs.v_v(), {kExprCatch, kExprEnd});     // Missing try.
 }
 
 TEST_F(FunctionBodyDecoderTest, Rethrow) {
   WASM_FEATURE_SCOPE(eh);
   TestModuleBuilder builder;
   module = builder.module();
-  EXPECT_VERIFIES(v_v, WASM_TRY_OP, kExprCatch, kExprRethrow, kExprEnd);
-  EXPECT_FAILURE(v_v, WASM_TRY_OP, kExprRethrow, kExprCatch, kExprEnd);
-  EXPECT_FAILURE(v_v, WASM_BLOCK(kExprRethrow));
-  EXPECT_FAILURE(v_v, kExprRethrow);
+  ExpectValidates(sigs.v_v(),
+                  {WASM_TRY_OP, kExprCatch, kExprRethrow, kExprEnd});
+  ExpectFailure(sigs.v_v(), {WASM_TRY_OP, kExprRethrow, kExprCatch, kExprEnd});
+  ExpectFailure(sigs.v_v(), {WASM_BLOCK(kExprRethrow)});
+  ExpectFailure(sigs.v_v(), {kExprRethrow});
 }
 
 TEST_F(FunctionBodyDecoderTest, BrOnExn) {
@@ -2579,23 +2677,24 @@ TEST_F(FunctionBodyDecoderTest, BrOnExn) {
   module = builder.module();
   byte ex1 = builder.AddException(sigs.v_v());
   byte ex2 = builder.AddException(sigs.v_i());
-  EXPECT_VERIFIES(v_v, WASM_TRY_OP, kExprCatch, WASM_BR_ON_EXN(0, ex1),
-                  kExprDrop, kExprEnd);
-  EXPECT_VERIFIES(v_v, WASM_TRY_OP, kExprCatch, WASM_BR_ON_EXN(1, ex1),
-                  kExprDrop, kExprEnd);
-  EXPECT_VERIFIES(v_v, WASM_TRY_OP, kExprCatch, WASM_BR_ON_EXN(0, ex1),
-                  WASM_BR_ON_EXN(0, ex1), kExprDrop, kExprEnd);
-  EXPECT_VERIFIES(v_v, WASM_BLOCK(WASM_TRY_OP, kExprCatch,
-                                  WASM_BR_ON_EXN(1, ex1), kExprDrop, kExprEnd));
-  EXPECT_VERIFIES(i_v,
-                  WASM_BLOCK_I(WASM_TRY_OP, kExprCatch, WASM_BR_ON_EXN(1, ex2),
-                               kExprDrop, kExprEnd, kExprI32Const, 0));
-  EXPECT_FAILURE(v_v, WASM_TRY_OP, kExprCatch, WASM_BR_ON_EXN(2, ex1),
-                 kExprDrop, kExprEnd);
-  EXPECT_FAILURE(v_v, WASM_TRY_OP, kExprCatch, kExprDrop,
-                 WASM_BR_ON_EXN(0, ex1), kExprEnd);
-  EXPECT_FAILURE(v_v, WASM_TRY_OP, kExprCatch, WASM_BR_ON_EXN(0, ex1),
-                 kExprEnd);
+  ExpectValidates(sigs.v_v(), {WASM_TRY_OP, kExprCatch, WASM_BR_ON_EXN(0, ex1),
+                               kExprDrop, kExprEnd});
+  ExpectValidates(sigs.v_v(), {WASM_TRY_OP, kExprCatch, WASM_BR_ON_EXN(1, ex1),
+                               kExprDrop, kExprEnd});
+  ExpectValidates(sigs.v_v(), {WASM_TRY_OP, kExprCatch, WASM_BR_ON_EXN(0, ex1),
+                               WASM_BR_ON_EXN(0, ex1), kExprDrop, kExprEnd});
+  ExpectValidates(sigs.v_v(),
+                  {WASM_BLOCK(WASM_TRY_OP, kExprCatch, WASM_BR_ON_EXN(1, ex1),
+                              kExprDrop, kExprEnd)});
+  ExpectValidates(sigs.i_v(),
+                  {WASM_BLOCK_I(WASM_TRY_OP, kExprCatch, WASM_BR_ON_EXN(1, ex2),
+                                kExprDrop, kExprEnd, kExprI32Const, 0)});
+  ExpectFailure(sigs.v_v(), {WASM_TRY_OP, kExprCatch, WASM_BR_ON_EXN(2, ex1),
+                             kExprDrop, kExprEnd});
+  ExpectFailure(sigs.v_v(), {WASM_TRY_OP, kExprCatch, kExprDrop,
+                             WASM_BR_ON_EXN(0, ex1), kExprEnd});
+  ExpectFailure(sigs.v_v(),
+                {WASM_TRY_OP, kExprCatch, WASM_BR_ON_EXN(0, ex1), kExprEnd});
 }
 
 #undef WASM_BR_ON_EXN
@@ -2606,15 +2705,19 @@ TEST_F(FunctionBodyDecoderTest, MultiValBlock1) {
   TestModuleBuilder builder;
   module = builder.module();
   byte f0 = builder.AddSignature(sigs.ii_v());
-  EXPECT_VERIFIES(i_ii, WASM_BLOCK_X(f0, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)),
-                  kExprI32Add);
-  EXPECT_FAILURE(i_ii, WASM_BLOCK_X(f0, WASM_NOP), kExprI32Add);
-  EXPECT_FAILURE(i_ii, WASM_BLOCK_X(f0, WASM_GET_LOCAL(0)), kExprI32Add);
-  EXPECT_FAILURE(i_ii, WASM_BLOCK_X(f0, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1),
-                                    WASM_GET_LOCAL(0)),
-                 kExprI32Add);
-  EXPECT_FAILURE(i_ii, WASM_BLOCK_X(f0, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)),
-                 kExprF32Add);
+  ExpectValidates(
+      sigs.i_ii(),
+      {WASM_BLOCK_X(f0, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)), kExprI32Add});
+  ExpectFailure(sigs.i_ii(), {WASM_BLOCK_X(f0, WASM_NOP), kExprI32Add});
+  ExpectFailure(sigs.i_ii(),
+                {WASM_BLOCK_X(f0, WASM_GET_LOCAL(0)), kExprI32Add});
+  ExpectFailure(sigs.i_ii(),
+                {WASM_BLOCK_X(f0, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1),
+                              WASM_GET_LOCAL(0)),
+                 kExprI32Add});
+  ExpectFailure(
+      sigs.i_ii(),
+      {WASM_BLOCK_X(f0, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)), kExprF32Add});
 }
 
 TEST_F(FunctionBodyDecoderTest, MultiValBlock2) {
@@ -2622,17 +2725,20 @@ TEST_F(FunctionBodyDecoderTest, MultiValBlock2) {
   TestModuleBuilder builder;
   module = builder.module();
   byte f0 = builder.AddSignature(sigs.ii_v());
-  EXPECT_VERIFIES(i_ii, WASM_BLOCK_X(f0, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)),
-                  WASM_I32_ADD(WASM_NOP, WASM_NOP));
-  EXPECT_FAILURE(i_ii, WASM_BLOCK_X(f0, WASM_NOP),
-                 WASM_I32_ADD(WASM_NOP, WASM_NOP));
-  EXPECT_FAILURE(i_ii, WASM_BLOCK_X(f0, WASM_GET_LOCAL(0)),
-                 WASM_I32_ADD(WASM_NOP, WASM_NOP));
-  EXPECT_FAILURE(i_ii, WASM_BLOCK_X(f0, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1),
-                                    WASM_GET_LOCAL(0)),
-                 WASM_I32_ADD(WASM_NOP, WASM_NOP));
-  EXPECT_FAILURE(i_ii, WASM_BLOCK_X(f0, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)),
-                 WASM_F32_ADD(WASM_NOP, WASM_NOP));
+  ExpectValidates(sigs.i_ii(),
+                  {WASM_BLOCK_X(f0, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)),
+                   WASM_I32_ADD(WASM_NOP, WASM_NOP)});
+  ExpectFailure(sigs.i_ii(),
+                {WASM_BLOCK_X(f0, WASM_NOP), WASM_I32_ADD(WASM_NOP, WASM_NOP)});
+  ExpectFailure(sigs.i_ii(), {WASM_BLOCK_X(f0, WASM_GET_LOCAL(0)),
+                              WASM_I32_ADD(WASM_NOP, WASM_NOP)});
+  ExpectFailure(sigs.i_ii(),
+                {WASM_BLOCK_X(f0, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1),
+                              WASM_GET_LOCAL(0)),
+                 WASM_I32_ADD(WASM_NOP, WASM_NOP)});
+  ExpectFailure(sigs.i_ii(),
+                {WASM_BLOCK_X(f0, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)),
+                 WASM_F32_ADD(WASM_NOP, WASM_NOP)});
 }
 
 TEST_F(FunctionBodyDecoderTest, MultiValBlockBr) {
@@ -2640,11 +2746,11 @@ TEST_F(FunctionBodyDecoderTest, MultiValBlockBr) {
   TestModuleBuilder builder;
   module = builder.module();
   byte f0 = builder.AddSignature(sigs.ii_v());
-  EXPECT_FAILURE(i_ii, WASM_BLOCK_X(f0, WASM_GET_LOCAL(0), WASM_BR(0)),
-                 kExprI32Add);
-  EXPECT_VERIFIES(i_ii, WASM_BLOCK_X(f0, WASM_GET_LOCAL(0),
-                                     WASM_GET_LOCAL(1), WASM_BR(0)),
-                  kExprI32Add);
+  ExpectFailure(sigs.i_ii(),
+                {WASM_BLOCK_X(f0, WASM_GET_LOCAL(0), WASM_BR(0)), kExprI32Add});
+  ExpectValidates(sigs.i_ii(), {WASM_BLOCK_X(f0, WASM_GET_LOCAL(0),
+                                             WASM_GET_LOCAL(1), WASM_BR(0)),
+                                kExprI32Add});
 }
 
 TEST_F(FunctionBodyDecoderTest, MultiValLoop1) {
@@ -2652,15 +2758,17 @@ TEST_F(FunctionBodyDecoderTest, MultiValLoop1) {
   TestModuleBuilder builder;
   module = builder.module();
   byte f0 = builder.AddSignature(sigs.ii_v());
-  EXPECT_VERIFIES(i_ii, WASM_LOOP_X(f0, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)),
-                  kExprI32Add);
-  EXPECT_FAILURE(i_ii, WASM_LOOP_X(f0, WASM_NOP), kExprI32Add);
-  EXPECT_FAILURE(i_ii, WASM_LOOP_X(f0, WASM_GET_LOCAL(0)), kExprI32Add);
-  EXPECT_FAILURE(i_ii, WASM_LOOP_X(f0, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1),
-                                   WASM_GET_LOCAL(0)),
-                 kExprI32Add);
-  EXPECT_FAILURE(i_ii, WASM_LOOP_X(f0, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)),
-                 kExprF32Add);
+  ExpectValidates(
+      sigs.i_ii(),
+      {WASM_LOOP_X(f0, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)), kExprI32Add});
+  ExpectFailure(sigs.i_ii(), {WASM_LOOP_X(f0, WASM_NOP), kExprI32Add});
+  ExpectFailure(sigs.i_ii(), {WASM_LOOP_X(f0, WASM_GET_LOCAL(0)), kExprI32Add});
+  ExpectFailure(sigs.i_ii(), {WASM_LOOP_X(f0, WASM_GET_LOCAL(0),
+                                          WASM_GET_LOCAL(1), WASM_GET_LOCAL(0)),
+                              kExprI32Add});
+  ExpectFailure(
+      sigs.i_ii(),
+      {WASM_LOOP_X(f0, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)), kExprF32Add});
 }
 
 TEST_F(FunctionBodyDecoderTest, MultiValIf) {
@@ -2668,62 +2776,61 @@ TEST_F(FunctionBodyDecoderTest, MultiValIf) {
   TestModuleBuilder builder;
   module = builder.module();
   byte f0 = builder.AddSignature(sigs.ii_v());
-  EXPECT_VERIFIES(
-      i_ii, WASM_IF_ELSE_X(f0, WASM_GET_LOCAL(0),
-                           WASM_SEQ(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)),
-                           WASM_SEQ(WASM_GET_LOCAL(1), WASM_GET_LOCAL(0))),
-      kExprI32Add);
-  EXPECT_FAILURE(
-      i_ii, WASM_IF_ELSE_X(f0, WASM_GET_LOCAL(0), WASM_NOP, WASM_NOP),
-      kExprI32Add);
-  EXPECT_FAILURE(
-      i_ii, WASM_IF_ELSE_X(f0, WASM_GET_LOCAL(0),
-                           WASM_NOP,
-                           WASM_SEQ(WASM_GET_LOCAL(1), WASM_GET_LOCAL(0))),
-      kExprI32Add);
-  EXPECT_FAILURE(
-      i_ii, WASM_IF_ELSE_X(f0, WASM_GET_LOCAL(0),
-                           WASM_SEQ(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)),
-                           WASM_NOP),
-      kExprI32Add);
-  EXPECT_FAILURE(
-      i_ii, WASM_IF_ELSE_X(f0, WASM_GET_LOCAL(0),
-                           WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)),
-      kExprI32Add);
-  EXPECT_FAILURE(
-      i_ii, WASM_IF_ELSE_X(f0, WASM_GET_LOCAL(0),
-                           WASM_GET_LOCAL(0),
-                           WASM_SEQ(WASM_GET_LOCAL(1), WASM_GET_LOCAL(0))),
-      kExprI32Add);
-  EXPECT_FAILURE(
-      i_ii, WASM_IF_ELSE_X(f0, WASM_GET_LOCAL(0),
-                           WASM_SEQ(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)),
-                           WASM_GET_LOCAL(1)),
-      kExprI32Add);
-  EXPECT_FAILURE(
-      i_ii, WASM_IF_ELSE_X(f0, WASM_GET_LOCAL(0),
-                           WASM_SEQ(WASM_GET_LOCAL(0), WASM_GET_LOCAL(0),
-                                    WASM_GET_LOCAL(0)),
-                           WASM_SEQ(WASM_GET_LOCAL(1), WASM_GET_LOCAL(0),
-                                    WASM_GET_LOCAL(0))),
-      kExprI32Add);
-  EXPECT_FAILURE(
-      i_ii, WASM_IF_ELSE_X(f0, WASM_GET_LOCAL(0),
-                           WASM_SEQ(WASM_GET_LOCAL(0), WASM_GET_LOCAL(0),
-                                    WASM_GET_LOCAL(0)),
-                           WASM_SEQ(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1))),
-      kExprI32Add);
-  EXPECT_FAILURE(
-      i_ii, WASM_IF_ELSE_X(f0, WASM_GET_LOCAL(0),
-                           WASM_SEQ(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)),
-                           WASM_SEQ(WASM_GET_LOCAL(1), WASM_GET_LOCAL(1),
-                                    WASM_GET_LOCAL(1))),
-      kExprI32Add);
-  EXPECT_FAILURE(
-      i_ii, WASM_IF_ELSE_X(f0, WASM_GET_LOCAL(0),
-                           WASM_SEQ(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)),
-                           WASM_SEQ(WASM_GET_LOCAL(1), WASM_GET_LOCAL(0))),
-      kExprF32Add);
+  ExpectValidates(
+      sigs.i_ii(),
+      {WASM_IF_ELSE_X(f0, WASM_GET_LOCAL(0),
+                      WASM_SEQ(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)),
+                      WASM_SEQ(WASM_GET_LOCAL(1), WASM_GET_LOCAL(0))),
+       kExprI32Add});
+  ExpectFailure(
+      sigs.i_ii(),
+      {WASM_IF_ELSE_X(f0, WASM_GET_LOCAL(0), WASM_NOP, WASM_NOP), kExprI32Add});
+  ExpectFailure(sigs.i_ii(),
+                {WASM_IF_ELSE_X(f0, WASM_GET_LOCAL(0), WASM_NOP,
+                                WASM_SEQ(WASM_GET_LOCAL(1), WASM_GET_LOCAL(0))),
+                 kExprI32Add});
+  ExpectFailure(
+      sigs.i_ii(),
+      {WASM_IF_ELSE_X(f0, WASM_GET_LOCAL(0),
+                      WASM_SEQ(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)), WASM_NOP),
+       kExprI32Add});
+  ExpectFailure(sigs.i_ii(),
+                {WASM_IF_ELSE_X(f0, WASM_GET_LOCAL(0), WASM_GET_LOCAL(0),
+                                WASM_GET_LOCAL(1)),
+                 kExprI32Add});
+  ExpectFailure(sigs.i_ii(),
+                {WASM_IF_ELSE_X(f0, WASM_GET_LOCAL(0), WASM_GET_LOCAL(0),
+                                WASM_SEQ(WASM_GET_LOCAL(1), WASM_GET_LOCAL(0))),
+                 kExprI32Add});
+  ExpectFailure(sigs.i_ii(),
+                {WASM_IF_ELSE_X(f0, WASM_GET_LOCAL(0),
+                                WASM_SEQ(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)),
+                                WASM_GET_LOCAL(1)),
+                 kExprI32Add});
+  ExpectFailure(
+      sigs.i_ii(),
+      {WASM_IF_ELSE_X(
+           f0, WASM_GET_LOCAL(0),
+           WASM_SEQ(WASM_GET_LOCAL(0), WASM_GET_LOCAL(0), WASM_GET_LOCAL(0)),
+           WASM_SEQ(WASM_GET_LOCAL(1), WASM_GET_LOCAL(0), WASM_GET_LOCAL(0))),
+       kExprI32Add});
+  ExpectFailure(sigs.i_ii(),
+                {WASM_IF_ELSE_X(f0, WASM_GET_LOCAL(0),
+                                WASM_SEQ(WASM_GET_LOCAL(0), WASM_GET_LOCAL(0),
+                                         WASM_GET_LOCAL(0)),
+                                WASM_SEQ(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1))),
+                 kExprI32Add});
+  ExpectFailure(sigs.i_ii(),
+                {WASM_IF_ELSE_X(f0, WASM_GET_LOCAL(0),
+                                WASM_SEQ(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)),
+                                WASM_SEQ(WASM_GET_LOCAL(1), WASM_GET_LOCAL(1),
+                                         WASM_GET_LOCAL(1))),
+                 kExprI32Add});
+  ExpectFailure(sigs.i_ii(),
+                {WASM_IF_ELSE_X(f0, WASM_GET_LOCAL(0),
+                                WASM_SEQ(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)),
+                                WASM_SEQ(WASM_GET_LOCAL(1), WASM_GET_LOCAL(0))),
+                 kExprF32Add});
 }
 
 TEST_F(FunctionBodyDecoderTest, BlockParam) {
@@ -2732,24 +2839,27 @@ TEST_F(FunctionBodyDecoderTest, BlockParam) {
   module = builder.module();
   byte f1 = builder.AddSignature(sigs.i_i());
   byte f2 = builder.AddSignature(sigs.i_ii());
-  EXPECT_VERIFIES(i_ii, WASM_GET_LOCAL(0),
-                  WASM_BLOCK_X(f1, WASM_GET_LOCAL(1),
-                               WASM_I32_ADD(WASM_NOP, WASM_NOP)));
-  EXPECT_VERIFIES(i_ii, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1),
-                  WASM_BLOCK_X(f2, WASM_I32_ADD(WASM_NOP, WASM_NOP)));
-  EXPECT_VERIFIES(i_ii, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1),
-                  WASM_BLOCK_X(f1, WASM_NOP),
-                  WASM_I32_ADD(WASM_NOP, WASM_NOP));
-  EXPECT_FAILURE(i_ii, WASM_BLOCK_X(f1, WASM_NOP),
-                 WASM_RETURN1(WASM_GET_LOCAL(0)));
-  EXPECT_FAILURE(i_ii, WASM_BLOCK_X(f1, WASM_GET_LOCAL(0)),
-                 WASM_RETURN1(WASM_GET_LOCAL(0)));
-  EXPECT_FAILURE(i_ii, WASM_GET_LOCAL(0),
-                 WASM_BLOCK_X(f2, WASM_I32_ADD(WASM_NOP, WASM_NOP)),
-                 WASM_RETURN1(WASM_GET_LOCAL(0)));
-  EXPECT_FAILURE(i_ii, WASM_GET_LOCAL(0),
-                 WASM_BLOCK_X(f1, WASM_F32_NEG(WASM_NOP)),
-                 WASM_RETURN1(WASM_GET_LOCAL(0)));
+  ExpectValidates(
+      sigs.i_ii(),
+      {WASM_GET_LOCAL(0),
+       WASM_BLOCK_X(f1, WASM_GET_LOCAL(1), WASM_I32_ADD(WASM_NOP, WASM_NOP))});
+  ExpectValidates(sigs.i_ii(),
+                  {WASM_GET_LOCAL(0), WASM_GET_LOCAL(1),
+                   WASM_BLOCK_X(f2, WASM_I32_ADD(WASM_NOP, WASM_NOP))});
+  ExpectValidates(sigs.i_ii(), {WASM_GET_LOCAL(0), WASM_GET_LOCAL(1),
+                                WASM_BLOCK_X(f1, WASM_NOP),
+                                WASM_I32_ADD(WASM_NOP, WASM_NOP)});
+  ExpectFailure(sigs.i_ii(),
+                {WASM_BLOCK_X(f1, WASM_NOP), WASM_RETURN1(WASM_GET_LOCAL(0))});
+  ExpectFailure(sigs.i_ii(), {WASM_BLOCK_X(f1, WASM_GET_LOCAL(0)),
+                              WASM_RETURN1(WASM_GET_LOCAL(0))});
+  ExpectFailure(
+      sigs.i_ii(),
+      {WASM_GET_LOCAL(0), WASM_BLOCK_X(f2, WASM_I32_ADD(WASM_NOP, WASM_NOP)),
+       WASM_RETURN1(WASM_GET_LOCAL(0))});
+  ExpectFailure(sigs.i_ii(),
+                {WASM_GET_LOCAL(0), WASM_BLOCK_X(f1, WASM_F32_NEG(WASM_NOP)),
+                 WASM_RETURN1(WASM_GET_LOCAL(0))});
 }
 
 TEST_F(FunctionBodyDecoderTest, LoopParam) {
@@ -2758,24 +2868,25 @@ TEST_F(FunctionBodyDecoderTest, LoopParam) {
   module = builder.module();
   byte f1 = builder.AddSignature(sigs.i_i());
   byte f2 = builder.AddSignature(sigs.i_ii());
-  EXPECT_VERIFIES(i_ii, WASM_GET_LOCAL(0),
-                  WASM_LOOP_X(f1, WASM_GET_LOCAL(1),
-                              WASM_I32_ADD(WASM_NOP, WASM_NOP)));
-  EXPECT_VERIFIES(i_ii, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1),
-                  WASM_LOOP_X(f2, WASM_I32_ADD(WASM_NOP, WASM_NOP)));
-  EXPECT_VERIFIES(i_ii, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1),
-                  WASM_LOOP_X(f1, WASM_NOP),
-                  WASM_I32_ADD(WASM_NOP, WASM_NOP));
-  EXPECT_FAILURE(i_ii, WASM_LOOP_X(f1, WASM_NOP),
-                 WASM_RETURN1(WASM_GET_LOCAL(0)));
-  EXPECT_FAILURE(i_ii, WASM_LOOP_X(f1, WASM_GET_LOCAL(0)),
-                 WASM_RETURN1(WASM_GET_LOCAL(0)));
-  EXPECT_FAILURE(i_ii, WASM_GET_LOCAL(0),
-                 WASM_LOOP_X(f2, WASM_I32_ADD(WASM_NOP, WASM_NOP)),
-                 WASM_RETURN1(WASM_GET_LOCAL(0)));
-  EXPECT_FAILURE(i_ii, WASM_GET_LOCAL(0),
-                 WASM_LOOP_X(f1, WASM_F32_NEG(WASM_NOP)),
-                 WASM_RETURN1(WASM_GET_LOCAL(0)));
+  ExpectValidates(sigs.i_ii(), {WASM_GET_LOCAL(0),
+                                WASM_LOOP_X(f1, WASM_GET_LOCAL(1),
+                                            WASM_I32_ADD(WASM_NOP, WASM_NOP))});
+  ExpectValidates(sigs.i_ii(),
+                  {WASM_GET_LOCAL(0), WASM_GET_LOCAL(1),
+                   WASM_LOOP_X(f2, WASM_I32_ADD(WASM_NOP, WASM_NOP))});
+  ExpectValidates(sigs.i_ii(), {WASM_GET_LOCAL(0), WASM_GET_LOCAL(1),
+                                WASM_LOOP_X(f1, WASM_NOP),
+                                WASM_I32_ADD(WASM_NOP, WASM_NOP)});
+  ExpectFailure(sigs.i_ii(),
+                {WASM_LOOP_X(f1, WASM_NOP), WASM_RETURN1(WASM_GET_LOCAL(0))});
+  ExpectFailure(sigs.i_ii(), {WASM_LOOP_X(f1, WASM_GET_LOCAL(0)),
+                              WASM_RETURN1(WASM_GET_LOCAL(0))});
+  ExpectFailure(sigs.i_ii(), {WASM_GET_LOCAL(0),
+                              WASM_LOOP_X(f2, WASM_I32_ADD(WASM_NOP, WASM_NOP)),
+                              WASM_RETURN1(WASM_GET_LOCAL(0))});
+  ExpectFailure(sigs.i_ii(),
+                {WASM_GET_LOCAL(0), WASM_LOOP_X(f1, WASM_F32_NEG(WASM_NOP)),
+                 WASM_RETURN1(WASM_GET_LOCAL(0))});
 }
 
 TEST_F(FunctionBodyDecoderTest, LoopParamBr) {
@@ -2784,20 +2895,21 @@ TEST_F(FunctionBodyDecoderTest, LoopParamBr) {
   module = builder.module();
   byte f1 = builder.AddSignature(sigs.i_i());
   byte f2 = builder.AddSignature(sigs.i_ii());
-  EXPECT_VERIFIES(i_ii, WASM_GET_LOCAL(0),
-                  WASM_LOOP_X(f1, WASM_BR(0)));
-  EXPECT_VERIFIES(i_ii, WASM_GET_LOCAL(0),
-                  WASM_LOOP_X(f1, WASM_BRV(0, WASM_GET_LOCAL(1))));
-  EXPECT_VERIFIES(i_ii, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1),
-                  WASM_LOOP_X(f2, WASM_BR(0)));
-  EXPECT_VERIFIES(i_ii, WASM_GET_LOCAL(0),
-                  WASM_LOOP_X(f1, WASM_BLOCK_X(f1, WASM_BR(1))));
-  EXPECT_FAILURE(i_ii, WASM_GET_LOCAL(0),
-                 WASM_LOOP_X(f1, WASM_BLOCK(WASM_BR(1))),
-                 WASM_RETURN1(WASM_GET_LOCAL(0)));
-  EXPECT_FAILURE(i_ii, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1),
-                 WASM_LOOP_X(f2, WASM_BLOCK_X(f1, WASM_BR(1))),
-                 WASM_RETURN1(WASM_GET_LOCAL(0)));
+  ExpectValidates(sigs.i_ii(),
+                  {WASM_GET_LOCAL(0), WASM_LOOP_X(f1, WASM_BR(0))});
+  ExpectValidates(
+      sigs.i_ii(),
+      {WASM_GET_LOCAL(0), WASM_LOOP_X(f1, WASM_BRV(0, WASM_GET_LOCAL(1)))});
+  ExpectValidates(sigs.i_ii(), {WASM_GET_LOCAL(0), WASM_GET_LOCAL(1),
+                                WASM_LOOP_X(f2, WASM_BR(0))});
+  ExpectValidates(sigs.i_ii(), {WASM_GET_LOCAL(0),
+                                WASM_LOOP_X(f1, WASM_BLOCK_X(f1, WASM_BR(1)))});
+  ExpectFailure(sigs.i_ii(),
+                {WASM_GET_LOCAL(0), WASM_LOOP_X(f1, WASM_BLOCK(WASM_BR(1))),
+                 WASM_RETURN1(WASM_GET_LOCAL(0))});
+  ExpectFailure(sigs.i_ii(), {WASM_GET_LOCAL(0), WASM_GET_LOCAL(1),
+                              WASM_LOOP_X(f2, WASM_BLOCK_X(f1, WASM_BR(1))),
+                              WASM_RETURN1(WASM_GET_LOCAL(0))});
 }
 
 TEST_F(FunctionBodyDecoderTest, IfParam) {
@@ -2806,29 +2918,32 @@ TEST_F(FunctionBodyDecoderTest, IfParam) {
   module = builder.module();
   byte f1 = builder.AddSignature(sigs.i_i());
   byte f2 = builder.AddSignature(sigs.i_ii());
-  EXPECT_VERIFIES(i_ii, WASM_GET_LOCAL(0),
-                  WASM_IF_X(f1, WASM_GET_LOCAL(0),
-                            WASM_I32_ADD(WASM_NOP, WASM_GET_LOCAL(1))));
-  EXPECT_VERIFIES(i_ii, WASM_GET_LOCAL(0),
-                  WASM_IF_ELSE_X(f1, WASM_GET_LOCAL(0),
-                                 WASM_I32_ADD(WASM_NOP, WASM_GET_LOCAL(1)),
-                                 WASM_I32_EQZ(WASM_NOP)));
-  EXPECT_VERIFIES(i_ii, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1),
-                  WASM_IF_ELSE_X(f2, WASM_GET_LOCAL(0),
-                                 WASM_I32_ADD(WASM_NOP, WASM_NOP),
-                                 WASM_I32_MUL(WASM_NOP, WASM_NOP)));
-  EXPECT_VERIFIES(i_ii, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1),
-                  WASM_IF_X(f1, WASM_GET_LOCAL(0), WASM_NOP),
-                  WASM_I32_ADD(WASM_NOP, WASM_NOP));
-  EXPECT_VERIFIES(i_ii, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1),
-                  WASM_IF_ELSE_X(f1, WASM_GET_LOCAL(0),
-                                 WASM_NOP, WASM_I32_EQZ(WASM_NOP)),
-                  WASM_I32_ADD(WASM_NOP, WASM_NOP));
+  ExpectValidates(sigs.i_ii(),
+                  {WASM_GET_LOCAL(0),
+                   WASM_IF_X(f1, WASM_GET_LOCAL(0),
+                             WASM_I32_ADD(WASM_NOP, WASM_GET_LOCAL(1)))});
+  ExpectValidates(sigs.i_ii(),
+                  {WASM_GET_LOCAL(0),
+                   WASM_IF_ELSE_X(f1, WASM_GET_LOCAL(0),
+                                  WASM_I32_ADD(WASM_NOP, WASM_GET_LOCAL(1)),
+                                  WASM_I32_EQZ(WASM_NOP))});
+  ExpectValidates(
+      sigs.i_ii(),
+      {WASM_GET_LOCAL(0), WASM_GET_LOCAL(1),
+       WASM_IF_ELSE_X(f2, WASM_GET_LOCAL(0), WASM_I32_ADD(WASM_NOP, WASM_NOP),
+                      WASM_I32_MUL(WASM_NOP, WASM_NOP))});
+  ExpectValidates(sigs.i_ii(), {WASM_GET_LOCAL(0), WASM_GET_LOCAL(1),
+                                WASM_IF_X(f1, WASM_GET_LOCAL(0), WASM_NOP),
+                                WASM_I32_ADD(WASM_NOP, WASM_NOP)});
+  ExpectValidates(sigs.i_ii(), {WASM_GET_LOCAL(0), WASM_GET_LOCAL(1),
+                                WASM_IF_ELSE_X(f1, WASM_GET_LOCAL(0), WASM_NOP,
+                                               WASM_I32_EQZ(WASM_NOP)),
+                                WASM_I32_ADD(WASM_NOP, WASM_NOP)});
 }
 
 TEST_F(FunctionBodyDecoderTest, Regression709741) {
   AddLocals(kWasmI32, kV8MaxWasmFunctionLocals - 1);
-  EXPECT_VERIFIES(v_v, WASM_NOP);
+  ExpectValidates(sigs.v_v(), {WASM_NOP});
   byte code[] = {WASM_NOP, WASM_END};
 
   for (size_t i = 0; i < arraysize(code); ++i) {
@@ -2850,10 +2965,13 @@ TEST_F(FunctionBodyDecoderTest, MemoryInit) {
   builder.SetDataSegmentCount(1);
   module = builder.module();
 
-  EXPECT_FAILURE(v_v, WASM_MEMORY_INIT(0, WASM_ZERO, WASM_ZERO, WASM_ZERO));
+  ExpectFailure(sigs.v_v(),
+                {WASM_MEMORY_INIT(0, WASM_ZERO, WASM_ZERO, WASM_ZERO)});
   WASM_FEATURE_SCOPE(bulk_memory);
-  EXPECT_VERIFIES(v_v, WASM_MEMORY_INIT(0, WASM_ZERO, WASM_ZERO, WASM_ZERO));
-  EXPECT_FAILURE(v_v, WASM_TABLE_INIT(1, WASM_ZERO, WASM_ZERO, WASM_ZERO));
+  ExpectValidates(sigs.v_v(),
+                  {WASM_MEMORY_INIT(0, WASM_ZERO, WASM_ZERO, WASM_ZERO)});
+  ExpectFailure(sigs.v_v(),
+                {WASM_TABLE_INIT(1, WASM_ZERO, WASM_ZERO, WASM_ZERO)});
 }
 
 TEST_F(FunctionBodyDecoderTest, MemoryInitInvalid) {
@@ -2866,7 +2984,7 @@ TEST_F(FunctionBodyDecoderTest, MemoryInitInvalid) {
   byte code[] = {WASM_MEMORY_INIT(0, WASM_ZERO, WASM_ZERO, WASM_ZERO),
                  WASM_END};
   for (size_t i = 0; i <= arraysize(code); ++i) {
-    Verify(i == arraysize(code), sigs.v_v(), {code, i}, kOmitEnd);
+    Validate(i == arraysize(code), sigs.v_v(), VectorOf(code, i), kOmitEnd);
   }
 }
 
@@ -2876,10 +2994,10 @@ TEST_F(FunctionBodyDecoderTest, DataDrop) {
   builder.SetDataSegmentCount(1);
   module = builder.module();
 
-  EXPECT_FAILURE(v_v, WASM_DATA_DROP(0));
+  ExpectFailure(sigs.v_v(), {WASM_DATA_DROP(0)});
   WASM_FEATURE_SCOPE(bulk_memory);
-  EXPECT_VERIFIES(v_v, WASM_DATA_DROP(0));
-  EXPECT_FAILURE(v_v, WASM_DATA_DROP(1));
+  ExpectValidates(sigs.v_v(), {WASM_DATA_DROP(0)});
+  ExpectFailure(sigs.v_v(), {WASM_DATA_DROP(1)});
 }
 
 TEST_F(FunctionBodyDecoderTest, MemoryCopy) {
@@ -2887,9 +3005,11 @@ TEST_F(FunctionBodyDecoderTest, MemoryCopy) {
   builder.InitializeMemory();
   module = builder.module();
 
-  EXPECT_FAILURE(v_v, WASM_MEMORY_COPY(WASM_ZERO, WASM_ZERO, WASM_ZERO));
+  ExpectFailure(sigs.v_v(),
+                {WASM_MEMORY_COPY(WASM_ZERO, WASM_ZERO, WASM_ZERO)});
   WASM_FEATURE_SCOPE(bulk_memory);
-  EXPECT_VERIFIES(v_v, WASM_MEMORY_COPY(WASM_ZERO, WASM_ZERO, WASM_ZERO));
+  ExpectValidates(sigs.v_v(),
+                  {WASM_MEMORY_COPY(WASM_ZERO, WASM_ZERO, WASM_ZERO)});
 }
 
 TEST_F(FunctionBodyDecoderTest, MemoryFill) {
@@ -2897,16 +3017,21 @@ TEST_F(FunctionBodyDecoderTest, MemoryFill) {
   builder.InitializeMemory();
   module = builder.module();
 
-  EXPECT_FAILURE(v_v, WASM_MEMORY_FILL(WASM_ZERO, WASM_ZERO, WASM_ZERO));
+  ExpectFailure(sigs.v_v(),
+                {WASM_MEMORY_FILL(WASM_ZERO, WASM_ZERO, WASM_ZERO)});
   WASM_FEATURE_SCOPE(bulk_memory);
-  EXPECT_VERIFIES(v_v, WASM_MEMORY_FILL(WASM_ZERO, WASM_ZERO, WASM_ZERO));
+  ExpectValidates(sigs.v_v(),
+                  {WASM_MEMORY_FILL(WASM_ZERO, WASM_ZERO, WASM_ZERO)});
 }
 
 TEST_F(FunctionBodyDecoderTest, BulkMemoryOpsWithoutMemory) {
   WASM_FEATURE_SCOPE(bulk_memory);
-  EXPECT_FAILURE(v_v, WASM_MEMORY_INIT(0, WASM_ZERO, WASM_ZERO, WASM_ZERO));
-  EXPECT_FAILURE(v_v, WASM_MEMORY_COPY(WASM_ZERO, WASM_ZERO, WASM_ZERO));
-  EXPECT_FAILURE(v_v, WASM_MEMORY_FILL(WASM_ZERO, WASM_ZERO, WASM_ZERO));
+  ExpectFailure(sigs.v_v(),
+                {WASM_MEMORY_INIT(0, WASM_ZERO, WASM_ZERO, WASM_ZERO)});
+  ExpectFailure(sigs.v_v(),
+                {WASM_MEMORY_COPY(WASM_ZERO, WASM_ZERO, WASM_ZERO)});
+  ExpectFailure(sigs.v_v(),
+                {WASM_MEMORY_FILL(WASM_ZERO, WASM_ZERO, WASM_ZERO)});
 }
 
 TEST_F(FunctionBodyDecoderTest, TableInit) {
@@ -2915,10 +3040,13 @@ TEST_F(FunctionBodyDecoderTest, TableInit) {
   builder.AddPassiveElementSegment();
   module = builder.module();
 
-  EXPECT_FAILURE(v_v, WASM_TABLE_INIT(0, WASM_ZERO, WASM_ZERO, WASM_ZERO));
+  ExpectFailure(sigs.v_v(),
+                {WASM_TABLE_INIT(0, WASM_ZERO, WASM_ZERO, WASM_ZERO)});
   WASM_FEATURE_SCOPE(bulk_memory);
-  EXPECT_VERIFIES(v_v, WASM_TABLE_INIT(0, WASM_ZERO, WASM_ZERO, WASM_ZERO));
-  EXPECT_FAILURE(v_v, WASM_TABLE_INIT(1, WASM_ZERO, WASM_ZERO, WASM_ZERO));
+  ExpectValidates(sigs.v_v(),
+                  {WASM_TABLE_INIT(0, WASM_ZERO, WASM_ZERO, WASM_ZERO)});
+  ExpectFailure(sigs.v_v(),
+                {WASM_TABLE_INIT(1, WASM_ZERO, WASM_ZERO, WASM_ZERO)});
 }
 
 TEST_F(FunctionBodyDecoderTest, TableInitInvalid) {
@@ -2930,7 +3058,7 @@ TEST_F(FunctionBodyDecoderTest, TableInitInvalid) {
   WASM_FEATURE_SCOPE(bulk_memory);
   byte code[] = {WASM_TABLE_INIT(0, WASM_ZERO, WASM_ZERO, WASM_ZERO), WASM_END};
   for (size_t i = 0; i <= arraysize(code); ++i) {
-    Verify(i == arraysize(code), sigs.v_v(), {code, i}, kOmitEnd);
+    Validate(i == arraysize(code), sigs.v_v(), VectorOf(code, i), kOmitEnd);
   }
 }
 
@@ -2940,10 +3068,10 @@ TEST_F(FunctionBodyDecoderTest, ElemDrop) {
   builder.AddPassiveElementSegment();
   module = builder.module();
 
-  EXPECT_FAILURE(v_v, WASM_ELEM_DROP(0));
+  ExpectFailure(sigs.v_v(), {WASM_ELEM_DROP(0)});
   WASM_FEATURE_SCOPE(bulk_memory);
-  EXPECT_VERIFIES(v_v, WASM_ELEM_DROP(0));
-  EXPECT_FAILURE(v_v, WASM_ELEM_DROP(1));
+  ExpectValidates(sigs.v_v(), {WASM_ELEM_DROP(0)});
+  ExpectFailure(sigs.v_v(), {WASM_ELEM_DROP(1)});
 }
 
 TEST_F(FunctionBodyDecoderTest, TableCopy) {
@@ -2951,9 +3079,10 @@ TEST_F(FunctionBodyDecoderTest, TableCopy) {
   builder.InitializeTable();
   module = builder.module();
 
-  EXPECT_FAILURE(v_v, WASM_TABLE_COPY(WASM_ZERO, WASM_ZERO, WASM_ZERO));
+  ExpectFailure(sigs.v_v(), {WASM_TABLE_COPY(WASM_ZERO, WASM_ZERO, WASM_ZERO)});
   WASM_FEATURE_SCOPE(bulk_memory);
-  EXPECT_VERIFIES(v_v, WASM_TABLE_COPY(WASM_ZERO, WASM_ZERO, WASM_ZERO));
+  ExpectValidates(sigs.v_v(),
+                  {WASM_TABLE_COPY(WASM_ZERO, WASM_ZERO, WASM_ZERO)});
 }
 
 TEST_F(FunctionBodyDecoderTest, BulkTableOpsWithoutTable) {
@@ -2962,9 +3091,10 @@ TEST_F(FunctionBodyDecoderTest, BulkTableOpsWithoutTable) {
   builder.AddPassiveElementSegment();
 
   WASM_FEATURE_SCOPE(bulk_memory);
-  EXPECT_FAILURE(v_v, WASM_TABLE_INIT(0, WASM_ZERO, WASM_ZERO, WASM_ZERO));
-  EXPECT_FAILURE(v_v, WASM_ELEM_DROP(0));
-  EXPECT_FAILURE(v_v, WASM_TABLE_COPY(WASM_ZERO, WASM_ZERO, WASM_ZERO));
+  ExpectFailure(sigs.v_v(),
+                {WASM_TABLE_INIT(0, WASM_ZERO, WASM_ZERO, WASM_ZERO)});
+  ExpectFailure(sigs.v_v(), {WASM_ELEM_DROP(0)});
+  ExpectFailure(sigs.v_v(), {WASM_TABLE_COPY(WASM_ZERO, WASM_ZERO, WASM_ZERO)});
 }
 
 class BranchTableIteratorTest : public TestWithZone {
@@ -3489,14 +3619,6 @@ TEST_F(BytecodeIteratorTest, WithLocalDecls) {
 #undef WASM_IF_OP
 #undef WASM_LOOP_OP
 #undef WASM_BRV_IF_ZERO
-#undef EXPECT_VERIFIES_C
-#undef EXPECT_FAILURE_C
-#undef EXPECT_VERIFIES_SC
-#undef EXPECT_FAILURE_SC
-#undef EXPECT_VERIFIES_S
-#undef EXPECT_FAILURE_S
-#undef EXPECT_VERIFIES
-#undef EXPECT_FAILURE
 
 }  // namespace function_body_decoder_unittest
 }  // namespace wasm
