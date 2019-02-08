@@ -383,7 +383,7 @@ class MemoryChunk {
       + kSystemPointerSize      // Address area_end_
       + kSystemPointerSize      // Address owner_
       + kIntptrSize             // intptr_t progress_bar_
-      + kIntptrSize             // std::atomic<intptr_t> live_byte_count_
+      + kIntptrSize             // intptr_t live_byte_count_
       + kSystemPointerSize * NUMBER_OF_REMEMBERED_SET_TYPES  // SlotSet* array
       + kSystemPointerSize *
             NUMBER_OF_REMEMBERED_SET_TYPES  // TypedSlotSet* array
@@ -721,7 +721,7 @@ class MemoryChunk {
   std::atomic<intptr_t> progress_bar_;
 
   // Count of bytes marked black on page.
-  std::atomic<intptr_t> live_byte_count_;
+  intptr_t live_byte_count_;
 
   // A single slot set for small pages (of size kPageSize) or an array of slot
   // set for large pages. In the latter case the number of entries in the array
