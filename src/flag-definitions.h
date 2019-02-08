@@ -1016,6 +1016,7 @@ DEFINE_IMPLICATION(trace_maps, log_code)
 
 // parser.cc
 DEFINE_BOOL(allow_natives_syntax, false, "allow natives syntax")
+DEFINE_BOOL(preparse, false, "only preparse the input")
 
 // simulator-arm.cc, simulator-arm64.cc and simulator-mips.cc
 DEFINE_BOOL(trace_sim, false, "Trace simulator execution")

@@ -6022,7 +6022,8 @@ class V8_EXPORT FunctionTemplate : public Template {
    * function template.  By default, instances of a function template
    * are not ignored.
    */
-  void SetHiddenPrototype(bool value);
+  V8_DEPRECATED("This feature is incompatible with ES6+.",
+                void SetHiddenPrototype(bool value));
 
   /**
    * Sets the ReadOnly flag in the attributes of the 'prototype' property

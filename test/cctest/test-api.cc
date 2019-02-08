@@ -11003,197 +11003,6 @@ THREADED_TEST(ShadowObject) {
 }
 
 
-THREADED_TEST(HiddenPrototype) {
-  LocalContext context;
-  v8::Isolate* isolate = context->GetIsolate();
-  v8::HandleScope handle_scope(isolate);
-
-  Local<v8::FunctionTemplate> t0 = v8::FunctionTemplate::New(isolate);
-  t0->InstanceTemplate()->Set(v8_str("x"), v8_num(0));
-  Local<v8::FunctionTemplate> t1 = v8::FunctionTemplate::New(isolate);
-  t1->SetHiddenPrototype(true);
-  t1->InstanceTemplate()->Set(v8_str("y"), v8_num(1));
-  Local<v8::FunctionTemplate> t2 = v8::FunctionTemplate::New(isolate);
-  t2->SetHiddenPrototype(true);
-  t2->InstanceTemplate()->Set(v8_str("z"), v8_num(2));
-  Local<v8::FunctionTemplate> t3 = v8::FunctionTemplate::New(isolate);
-  t3->InstanceTemplate()->Set(v8_str("u"), v8_num(3));
-
-  Local<v8::Object> o0 = t0->GetFunction(context.local())
-                             .ToLocalChecked()
-                             ->NewInstance(context.local())
-                             .ToLocalChecked();
-  Local<v8::Object> o1 = t1->GetFunction(context.local())
-                             .ToLocalChecked()
-                             ->NewInstance(context.local())
-                             .ToLocalChecked();
-  Local<v8::Object> o2 = t2->GetFunction(context.local())
-                             .ToLocalChecked()
-                             ->NewInstance(context.local())
-                             .ToLocalChecked();
-  Local<v8::Object> o3 = t3->GetFunction(context.local())
-                             .ToLocalChecked()
-                             ->NewInstance(context.local())
-                             .ToLocalChecked();
-
-  // Setting the prototype on an object skips hidden prototypes.
-  CHECK_EQ(0, o0->Get(context.local(), v8_str("x"))
-                  .ToLocalChecked()
-                  ->Int32Value(context.local())
-                  .FromJust());
-  CHECK(o0->Set(context.local(), v8_str("__proto__"), o1).FromJust());
-  CHECK_EQ(0, o0->Get(context.local(), v8_str("x"))
-                  .ToLocalChecked()
-                  ->Int32Value(context.local())
-                  .FromJust());
-  CHECK_EQ(1, o0->Get(context.local(), v8_str("y"))
-                  .ToLocalChecked()
-                  ->Int32Value(context.local())
-                  .FromJust());
-  CHECK(o0->Set(context.local(), v8_str("__proto__"), o2).FromJust());
-  CHECK_EQ(0, o0->Get(context.local(), v8_str("x"))
-                  .ToLocalChecked()
-                  ->Int32Value(context.local())
-                  .FromJust());
-  CHECK_EQ(1, o0->Get(context.local(), v8_str("y"))
-                  .ToLocalChecked()
-                  ->Int32Value(context.local())
-                  .FromJust());
-  CHECK_EQ(2, o0->Get(context.local(), v8_str("z"))
-                  .ToLocalChecked()
-                  ->Int32Value(context.local())
-                  .FromJust());
-  CHECK(o0->Set(context.local(), v8_str("__proto__"), o3).FromJust());
-  CHECK_EQ(0, o0->Get(context.local(), v8_str("x"))
-                  .ToLocalChecked()
-                  ->Int32Value(context.local())
-                  .FromJust());
-  CHECK_EQ(1, o0->Get(context.local(), v8_str("y"))
-                  .ToLocalChecked()
-                  ->Int32Value(context.local())
-                  .FromJust());
-  CHECK_EQ(2, o0->Get(context.local(), v8_str("z"))
-                  .ToLocalChecked()
-                  ->Int32Value(context.local())
-                  .FromJust());
-  CHECK_EQ(3, o0->Get(context.local(), v8_str("u"))
-                  .ToLocalChecked()
-                  ->Int32Value(context.local())
-                  .FromJust());
-
-  // Getting the prototype of o0 should get the first visible one
-  // which is o3.  Therefore, z should not be defined on the prototype
-  // object.
-  Local<Value> proto =
-      o0->Get(context.local(), v8_str("__proto__")).ToLocalChecked();
-  CHECK(proto->IsObject());
-  CHECK(proto.As<v8::Object>()
-            ->Get(context.local(), v8_str("z"))
-            .ToLocalChecked()
-            ->IsUndefined());
-}
-
-
-THREADED_TEST(HiddenPrototypeSet) {
-  LocalContext context;
-  v8::Isolate* isolate = context->GetIsolate();
-  v8::HandleScope handle_scope(isolate);
-
-  Local<v8::FunctionTemplate> ot = v8::FunctionTemplate::New(isolate);
-  Local<v8::FunctionTemplate> ht = v8::FunctionTemplate::New(isolate);
-  ht->SetHiddenPrototype(true);
-  Local<v8::FunctionTemplate> pt = v8::FunctionTemplate::New(isolate);
-  ht->InstanceTemplate()->Set(v8_str("x"), v8_num(0));
-
-  Local<v8::Object> o = ot->GetFunction(context.local())
-                            .ToLocalChecked()
-                            ->NewInstance(context.local())
-                            .ToLocalChecked();
-  Local<v8::Object> h = ht->GetFunction(context.local())
-                            .ToLocalChecked()
-                            ->NewInstance(context.local())
-                            .ToLocalChecked();
-  Local<v8::Object> p = pt->GetFunction(context.local())
-                            .ToLocalChecked()
-                            ->NewInstance(context.local())
-                            .ToLocalChecked();
-  CHECK(o->Set(context.local(), v8_str("__proto__"), h).FromJust());
-  CHECK(h->Set(context.local(), v8_str("__proto__"), p).FromJust());
-
-  // Setting a property that exists on the hidden prototype goes there.
-  CHECK(o->Set(context.local(), v8_str("x"), v8_num(7)).FromJust());
-  CHECK_EQ(7, o->Get(context.local(), v8_str("x"))
-                  .ToLocalChecked()
-                  ->Int32Value(context.local())
-                  .FromJust());
-  CHECK_EQ(7, h->Get(context.local(), v8_str("x"))
-                  .ToLocalChecked()
-                  ->Int32Value(context.local())
-                  .FromJust());
-  CHECK(p->Get(context.local(), v8_str("x")).ToLocalChecked()->IsUndefined());
-
-  // Setting a new property should not be forwarded to the hidden prototype.
-  CHECK(o->Set(context.local(), v8_str("y"), v8_num(6)).FromJust());
-  CHECK_EQ(6, o->Get(context.local(), v8_str("y"))
-                  .ToLocalChecked()
-                  ->Int32Value(context.local())
-                  .FromJust());
-  CHECK(h->Get(context.local(), v8_str("y")).ToLocalChecked()->IsUndefined());
-  CHECK(p->Get(context.local(), v8_str("y")).ToLocalChecked()->IsUndefined());
-
-  // Setting a property that only exists on a prototype of the hidden prototype
-  // is treated normally again.
-  CHECK(p->Set(context.local(), v8_str("z"), v8_num(8)).FromJust());
-  CHECK_EQ(8, o->Get(context.local(), v8_str("z"))
-                  .ToLocalChecked()
-                  ->Int32Value(context.local())
-                  .FromJust());
-  CHECK_EQ(8, h->Get(context.local(), v8_str("z"))
-                  .ToLocalChecked()
-                  ->Int32Value(context.local())
-                  .FromJust());
-  CHECK_EQ(8, p->Get(context.local(), v8_str("z"))
-                  .ToLocalChecked()
-                  ->Int32Value(context.local())
-                  .FromJust());
-  CHECK(o->Set(context.local(), v8_str("z"), v8_num(9)).FromJust());
-  CHECK_EQ(9, o->Get(context.local(), v8_str("z"))
-                  .ToLocalChecked()
-                  ->Int32Value(context.local())
-                  .FromJust());
-  CHECK_EQ(8, h->Get(context.local(), v8_str("z"))
-                  .ToLocalChecked()
-                  ->Int32Value(context.local())
-                  .FromJust());
-  CHECK_EQ(8, p->Get(context.local(), v8_str("z"))
-                  .ToLocalChecked()
-                  ->Int32Value(context.local())
-                  .FromJust());
-}
-
-
-// Regression test for issue 2457.
-THREADED_TEST(HiddenPrototypeIdentityHash) {
-  LocalContext context;
-  v8::HandleScope handle_scope(context->GetIsolate());
-
-  Local<FunctionTemplate> t = FunctionTemplate::New(context->GetIsolate());
-  t->SetHiddenPrototype(true);
-  t->InstanceTemplate()->Set(v8_str("foo"), v8_num(75));
-  Local<Object> p = t->GetFunction(context.local())
-                        .ToLocalChecked()
-                        ->NewInstance(context.local())
-                        .ToLocalChecked();
-  Local<Object> o = Object::New(context->GetIsolate());
-  CHECK(o->SetPrototype(context.local(), p).FromJust());
-
-  int hash = o->GetIdentityHash();
-  USE(hash);
-  CHECK(o->Set(context.local(), v8_str("foo"), v8_num(42)).FromJust());
-  CHECK_EQ(hash, o->GetIdentityHash());
-}
-
-
 THREADED_TEST(SetPrototype) {
   LocalContext context;
   v8::Isolate* isolate = context->GetIsolate();
@@ -11202,10 +11011,8 @@ THREADED_TEST(SetPrototype) {
   Local<v8::FunctionTemplate> t0 = v8::FunctionTemplate::New(isolate);
   t0->InstanceTemplate()->Set(v8_str("x"), v8_num(0));
   Local<v8::FunctionTemplate> t1 = v8::FunctionTemplate::New(isolate);
-  t1->SetHiddenPrototype(true);
   t1->InstanceTemplate()->Set(v8_str("y"), v8_num(1));
   Local<v8::FunctionTemplate> t2 = v8::FunctionTemplate::New(isolate);
-  t2->SetHiddenPrototype(true);
   t2->InstanceTemplate()->Set(v8_str("z"), v8_num(2));
   Local<v8::FunctionTemplate> t3 = v8::FunctionTemplate::New(isolate);
   t3->InstanceTemplate()->Set(v8_str("u"), v8_num(3));
@@ -11227,7 +11034,6 @@ THREADED_TEST(SetPrototype) {
                              ->NewInstance(context.local())
                              .ToLocalChecked();
 
-  // Setting the prototype on an object does not skip hidden prototypes.
   CHECK_EQ(0, o0->Get(context.local(), v8_str("x"))
                   .ToLocalChecked()
                   ->Int32Value(context.local())
@@ -11272,15 +11078,11 @@ THREADED_TEST(SetPrototype) {
                   ->Int32Value(context.local())
                   .FromJust());
 
-  // Getting the prototype of o0 should get the first visible one
-  // which is o3.  Therefore, z should not be defined on the prototype
-  // object.
   Local<Value> proto =
       o0->Get(context.local(), v8_str("__proto__")).ToLocalChecked();
   CHECK(proto->IsObject());
-  CHECK(proto.As<v8::Object>()->Equals(context.local(), o3).FromJust());
+  CHECK(proto.As<v8::Object>()->Equals(context.local(), o1).FromJust());
 
-  // However, Object::GetPrototype ignores hidden prototype.
   Local<Value> proto0 = o0->GetPrototype();
   CHECK(proto0->IsObject());
   CHECK(proto0.As<v8::Object>()->Equals(context.local(), o1).FromJust());
@@ -11305,16 +11107,13 @@ THREADED_TEST(Regress91517) {
   v8::HandleScope handle_scope(isolate);
 
   Local<v8::FunctionTemplate> t1 = v8::FunctionTemplate::New(isolate);
-  t1->SetHiddenPrototype(true);
   t1->InstanceTemplate()->Set(v8_str("foo"), v8_num(1));
   Local<v8::FunctionTemplate> t2 = v8::FunctionTemplate::New(isolate);
-  t2->SetHiddenPrototype(true);
   t2->InstanceTemplate()->Set(v8_str("fuz1"), v8_num(2));
   t2->InstanceTemplate()->Set(v8_str("objects"),
                               v8::ObjectTemplate::New(isolate));
   t2->InstanceTemplate()->Set(v8_str("fuz2"), v8_num(2));
   Local<v8::FunctionTemplate> t3 = v8::FunctionTemplate::New(isolate);
-  t3->SetHiddenPrototype(true);
   t3->InstanceTemplate()->Set(v8_str("boo"), v8_num(3));
   Local<v8::FunctionTemplate> t4 = v8::FunctionTemplate::New(isolate);
   t4->InstanceTemplate()->Set(v8_str("baz"), v8_num(4));
@@ -11343,7 +11142,6 @@ THREADED_TEST(Regress91517) {
                              ->NewInstance(context.local())
                              .ToLocalChecked();
 
-  // Create prototype chain of hidden prototypes.
   CHECK(o4->SetPrototype(context.local(), o3).FromJust());
   CHECK(o3->SetPrototype(context.local(), o2).FromJust());
   CHECK(o2->SetPrototype(context.local(), o1).FromJust());
@@ -11354,79 +11152,14 @@ THREADED_TEST(Regress91517) {
   // PROPERTY_FILTER_NONE = 0
   CompileRun("var names = %GetOwnPropertyKeys(obj, 0);");
 
-  ExpectInt32("names.length", 1006);
+  ExpectInt32("names.length", 1);
   ExpectTrue("names.indexOf(\"baz\") >= 0");
-  ExpectTrue("names.indexOf(\"boo\") >= 0");
-  ExpectTrue("names.indexOf(\"foo\") >= 0");
-  ExpectTrue("names.indexOf(\"fuz1\") >= 0");
-  ExpectTrue("names.indexOf(\"objects\") >= 0");
-  ExpectTrue("names.indexOf(\"fuz2\") >= 0");
-  ExpectFalse("names[1005] == undefined");
-}
-
-
-// Getting property names of an object with a hidden and inherited
-// prototype should not duplicate the accessor properties inherited.
-THREADED_TEST(Regress269562) {
-  i::FLAG_allow_natives_syntax = true;
-  LocalContext context;
-  v8::HandleScope handle_scope(context->GetIsolate());
-
-  Local<v8::FunctionTemplate> t1 =
-      v8::FunctionTemplate::New(context->GetIsolate());
-  t1->SetHiddenPrototype(true);
-
-  Local<v8::ObjectTemplate> i1 = t1->InstanceTemplate();
-  i1->SetAccessor(v8_str("foo"),
-                  SimpleAccessorGetter, SimpleAccessorSetter);
-  i1->SetAccessor(v8_str("bar"),
-                  SimpleAccessorGetter, SimpleAccessorSetter);
-  i1->SetAccessor(v8_str("baz"),
-                  SimpleAccessorGetter, SimpleAccessorSetter);
-  i1->Set(v8_str("n1"), v8_num(1));
-  i1->Set(v8_str("n2"), v8_num(2));
-
-  Local<v8::Object> o1 = t1->GetFunction(context.local())
-                             .ToLocalChecked()
-                             ->NewInstance(context.local())
-                             .ToLocalChecked();
-  Local<v8::FunctionTemplate> t2 =
-      v8::FunctionTemplate::New(context->GetIsolate());
-  t2->SetHiddenPrototype(true);
-
-  // Inherit from t1 and mark prototype as hidden.
-  t2->Inherit(t1);
-  t2->InstanceTemplate()->Set(v8_str("mine"), v8_num(4));
-
-  Local<v8::Object> o2 = t2->GetFunction(context.local())
-                             .ToLocalChecked()
-                             ->NewInstance(context.local())
-                             .ToLocalChecked();
-  CHECK(o2->SetPrototype(context.local(), o1).FromJust());
-
-  v8::Local<v8::Symbol> sym =
-      v8::Symbol::New(context->GetIsolate(), v8_str("s1"));
-  CHECK(o1->Set(context.local(), sym, v8_num(3)).FromJust());
-  o1->SetPrivate(context.local(),
-                 v8::Private::New(context->GetIsolate(), v8_str("h1")),
-                 v8::Integer::New(context->GetIsolate(), 2013))
-      .FromJust();
-
-  // Call the runtime version of GetOwnPropertyNames() on
-  // the natively created object through JavaScript.
-  CHECK(context->Global()->Set(context.local(), v8_str("obj"), o2).FromJust());
-  CHECK(context->Global()->Set(context.local(), v8_str("sym"), sym).FromJust());
-  // PROPERTY_FILTER_NONE = 0
-  CompileRun("var names = %GetOwnPropertyKeys(obj, 0);");
-
-  ExpectInt32("names.length", 7);
-  ExpectTrue("names.indexOf(\"foo\") >= 0");
-  ExpectTrue("names.indexOf(\"bar\") >= 0");
-  ExpectTrue("names.indexOf(\"baz\") >= 0");
-  ExpectTrue("names.indexOf(\"n1\") >= 0");
-  ExpectTrue("names.indexOf(\"n2\") >= 0");
-  ExpectTrue("names.indexOf(sym) >= 0");
-  ExpectTrue("names.indexOf(\"mine\") >= 0");
+  ExpectFalse("names.indexOf(\"boo\") >= 0");
+  ExpectFalse("names.indexOf(\"foo\") >= 0");
+  ExpectFalse("names.indexOf(\"fuz1\") >= 0");
+  ExpectFalse("names.indexOf(\"objects\") >= 0");
+  ExpectFalse("names.indexOf(\"fuz2\") >= 0");
+  ExpectTrue("names[1005] == undefined");
 }
 
 
@@ -12289,20 +12022,18 @@ THREADED_TEST(CallICFastApi_DirectCall_GCMoveStub) {
             .FromJust());
   // call the api function multiple times to ensure direct call stub creation.
   CompileRun(
-        "function f() {"
-        "  for (var i = 1; i <= 30; i++) {"
-        "    nativeobject.callback();"
-        "  }"
-        "}"
-        "f();");
+      "function f() {"
+      "  for (var i = 1; i <= 30; i++) {"
+      "    nativeobject.callback();"
+      "  }"
+      "}"
+      "f();");
 }
-
 
 void ThrowingDirectApiCallback(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
   args.GetIsolate()->ThrowException(v8_str("g"));
 }
-
 
 THREADED_TEST(CallICFastApi_DirectCall_Throw) {
   LocalContext context;
@@ -12310,9 +12041,9 @@ THREADED_TEST(CallICFastApi_DirectCall_Throw) {
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> nativeobject_templ =
       v8::ObjectTemplate::New(isolate);
-  nativeobject_templ->Set(isolate, "callback",
-                          v8::FunctionTemplate::New(isolate,
-                                                    ThrowingDirectApiCallback));
+  nativeobject_templ->Set(
+      isolate, "callback",
+      v8::FunctionTemplate::New(isolate, ThrowingDirectApiCallback));
   v8::Local<v8::Object> nativeobject_obj =
       nativeobject_templ->NewInstance(context.local()).ToLocalChecked();
   CHECK(context->Global()
@@ -12330,9 +12061,7 @@ THREADED_TEST(CallICFastApi_DirectCall_Throw) {
   CHECK(v8_str("ggggg")->Equals(context.local(), result).FromJust());
 }
 
-
 static int p_getter_count_3;
-
 
 static Local<Value> DoDirectGetter() {
   if (++p_getter_count_3 % 3 == 0) {
@@ -12342,16 +12071,13 @@ static Local<Value> DoDirectGetter() {
   return v8_str("Direct Getter Result");
 }
 
-
 static void DirectGetterCallback(
-    Local<String> name,
-    const v8::PropertyCallbackInfo<v8::Value>& info) {
+    Local<String> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
   CheckReturnValue(info, FUNCTION_ADDR(DirectGetterCallback));
   info.GetReturnValue().Set(DoDirectGetter());
 }
 
-
-template<typename Accessor>
+template <typename Accessor>
 static void LoadICFastApi_DirectCall_GCMoveStub(Accessor accessor) {
   LocalContext context;
   v8::Isolate* isolate = context->GetIsolate();
@@ -12375,18 +12101,14 @@ static void LoadICFastApi_DirectCall_GCMoveStub(Accessor accessor) {
   CHECK_EQ(31, p_getter_count_3);
 }
 
-
 THREADED_PROFILED_TEST(LoadICFastApi_DirectCall_GCMoveStub) {
   LoadICFastApi_DirectCall_GCMoveStub(DirectGetterCallback);
 }
 
-
 void ThrowingDirectGetterCallback(
-    Local<String> name,
-    const v8::PropertyCallbackInfo<v8::Value>& info) {
+    Local<String> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
   info.GetIsolate()->ThrowException(v8_str("g"));
 }
-
 
 THREADED_TEST(LoadICFastApi_DirectCall_Throw) {
   LocalContext context;
@@ -12406,7 +12128,6 @@ THREADED_TEST(LoadICFastApi_DirectCall_Throw) {
       "result;");
   CHECK(v8_str("ggggg")->Equals(context.local(), result).FromJust());
 }
-
 
 THREADED_PROFILED_TEST(InterceptorCallICFastApi_TrivialSignature) {
   int interceptor_call_count = 0;
@@ -12444,259 +12165,6 @@ THREADED_PROFILED_TEST(InterceptorCallICFastApi_TrivialSignature) {
   CHECK_EQ(100, interceptor_call_count);
 }
 
-
-THREADED_PROFILED_TEST(InterceptorCallICFastApi_SimpleSignature) {
-  int interceptor_call_count = 0;
-  v8::Isolate* isolate = CcTest::isolate();
-  v8::HandleScope scope(isolate);
-  v8::Local<v8::FunctionTemplate> fun_templ =
-      v8::FunctionTemplate::New(isolate);
-  v8::Local<v8::FunctionTemplate> method_templ = v8::FunctionTemplate::New(
-      isolate, FastApiCallback_SimpleSignature, v8_str("method_data"),
-      v8::Signature::New(isolate, fun_templ));
-  v8::Local<v8::ObjectTemplate> proto_templ = fun_templ->PrototypeTemplate();
-  proto_templ->Set(v8_str("method"), method_templ);
-  fun_templ->SetHiddenPrototype(true);
-  v8::Local<v8::ObjectTemplate> templ = fun_templ->InstanceTemplate();
-  templ->SetHandler(v8::NamedPropertyHandlerConfiguration(
-      InterceptorCallICFastApi, nullptr, nullptr, nullptr, nullptr,
-      v8::External::New(isolate, &interceptor_call_count)));
-  LocalContext context;
-  v8::Local<v8::Function> fun =
-      fun_templ->GetFunction(context.local()).ToLocalChecked();
-  GenerateSomeGarbage();
-  CHECK(context->Global()
-            ->Set(context.local(), v8_str("o"),
-                  fun->NewInstance(context.local()).ToLocalChecked())
-            .FromJust());
-  CompileRun(
-      "o.foo = 17;"
-      "var receiver = {};"
-      "receiver.__proto__ = o;"
-      "var result = 0;"
-      "for (var i = 0; i < 100; i++) {"
-      "  result = receiver.method(41);"
-      "}");
-  CHECK_EQ(42, context->Global()
-                   ->Get(context.local(), v8_str("result"))
-                   .ToLocalChecked()
-                   ->Int32Value(context.local())
-                   .FromJust());
-  CHECK_EQ(100, interceptor_call_count);
-}
-
-
-THREADED_PROFILED_TEST(InterceptorCallICFastApi_SimpleSignature_Miss1) {
-  int interceptor_call_count = 0;
-  v8::Isolate* isolate = CcTest::isolate();
-  v8::HandleScope scope(isolate);
-  v8::Local<v8::FunctionTemplate> fun_templ =
-      v8::FunctionTemplate::New(isolate);
-  v8::Local<v8::FunctionTemplate> method_templ = v8::FunctionTemplate::New(
-      isolate, FastApiCallback_SimpleSignature, v8_str("method_data"),
-      v8::Signature::New(isolate, fun_templ));
-  v8::Local<v8::ObjectTemplate> proto_templ = fun_templ->PrototypeTemplate();
-  proto_templ->Set(v8_str("method"), method_templ);
-  fun_templ->SetHiddenPrototype(true);
-  v8::Local<v8::ObjectTemplate> templ = fun_templ->InstanceTemplate();
-  templ->SetHandler(v8::NamedPropertyHandlerConfiguration(
-      InterceptorCallICFastApi, nullptr, nullptr, nullptr, nullptr,
-      v8::External::New(isolate, &interceptor_call_count)));
-  LocalContext context;
-  v8::Local<v8::Function> fun =
-      fun_templ->GetFunction(context.local()).ToLocalChecked();
-  GenerateSomeGarbage();
-  CHECK(context->Global()
-            ->Set(context.local(), v8_str("o"),
-                  fun->NewInstance(context.local()).ToLocalChecked())
-            .FromJust());
-  CompileRun(
-      "o.foo = 17;"
-      "var receiver = {};"
-      "receiver.__proto__ = o;"
-      "var result = 0;"
-      "var saved_result = 0;"
-      "for (var i = 0; i < 100; i++) {"
-      "  result = receiver.method(41);"
-      "  if (i == 50) {"
-      "    saved_result = result;"
-      "    receiver = {method: function(x) { return x - 1 }};"
-      "  }"
-      "}");
-  CHECK_EQ(40, context->Global()
-                   ->Get(context.local(), v8_str("result"))
-                   .ToLocalChecked()
-                   ->Int32Value(context.local())
-                   .FromJust());
-  CHECK_EQ(42, context->Global()
-                   ->Get(context.local(), v8_str("saved_result"))
-                   .ToLocalChecked()
-                   ->Int32Value(context.local())
-                   .FromJust());
-  CHECK_GE(interceptor_call_count, 50);
-}
-
-
-THREADED_PROFILED_TEST(InterceptorCallICFastApi_SimpleSignature_Miss2) {
-  int interceptor_call_count = 0;
-  v8::Isolate* isolate = CcTest::isolate();
-  v8::HandleScope scope(isolate);
-  v8::Local<v8::FunctionTemplate> fun_templ =
-      v8::FunctionTemplate::New(isolate);
-  v8::Local<v8::FunctionTemplate> method_templ = v8::FunctionTemplate::New(
-      isolate, FastApiCallback_SimpleSignature, v8_str("method_data"),
-      v8::Signature::New(isolate, fun_templ));
-  v8::Local<v8::ObjectTemplate> proto_templ = fun_templ->PrototypeTemplate();
-  proto_templ->Set(v8_str("method"), method_templ);
-  fun_templ->SetHiddenPrototype(true);
-  v8::Local<v8::ObjectTemplate> templ = fun_templ->InstanceTemplate();
-  templ->SetHandler(v8::NamedPropertyHandlerConfiguration(
-      InterceptorCallICFastApi, nullptr, nullptr, nullptr, nullptr,
-      v8::External::New(isolate, &interceptor_call_count)));
-  LocalContext context;
-  v8::Local<v8::Function> fun =
-      fun_templ->GetFunction(context.local()).ToLocalChecked();
-  GenerateSomeGarbage();
-  CHECK(context->Global()
-            ->Set(context.local(), v8_str("o"),
-                  fun->NewInstance(context.local()).ToLocalChecked())
-            .FromJust());
-  CompileRun(
-      "o.foo = 17;"
-      "var receiver = {};"
-      "receiver.__proto__ = o;"
-      "var result = 0;"
-      "var saved_result = 0;"
-      "for (var i = 0; i < 100; i++) {"
-      "  result = receiver.method(41);"
-      "  if (i == 50) {"
-      "    saved_result = result;"
-      "    o.method = function(x) { return x - 1 };"
-      "  }"
-      "}");
-  CHECK_EQ(40, context->Global()
-                   ->Get(context.local(), v8_str("result"))
-                   .ToLocalChecked()
-                   ->Int32Value(context.local())
-                   .FromJust());
-  CHECK_EQ(42, context->Global()
-                   ->Get(context.local(), v8_str("saved_result"))
-                   .ToLocalChecked()
-                   ->Int32Value(context.local())
-                   .FromJust());
-  CHECK_GE(interceptor_call_count, 50);
-}
-
-
-THREADED_PROFILED_TEST(InterceptorCallICFastApi_SimpleSignature_Miss3) {
-  int interceptor_call_count = 0;
-  v8::Isolate* isolate = CcTest::isolate();
-  v8::HandleScope scope(isolate);
-  v8::Local<v8::FunctionTemplate> fun_templ =
-      v8::FunctionTemplate::New(isolate);
-  v8::Local<v8::FunctionTemplate> method_templ = v8::FunctionTemplate::New(
-      isolate, FastApiCallback_SimpleSignature, v8_str("method_data"),
-      v8::Signature::New(isolate, fun_templ));
-  v8::Local<v8::ObjectTemplate> proto_templ = fun_templ->PrototypeTemplate();
-  proto_templ->Set(v8_str("method"), method_templ);
-  fun_templ->SetHiddenPrototype(true);
-  v8::Local<v8::ObjectTemplate> templ = fun_templ->InstanceTemplate();
-  templ->SetHandler(v8::NamedPropertyHandlerConfiguration(
-      InterceptorCallICFastApi, nullptr, nullptr, nullptr, nullptr,
-      v8::External::New(isolate, &interceptor_call_count)));
-  LocalContext context;
-  v8::Local<v8::Function> fun =
-      fun_templ->GetFunction(context.local()).ToLocalChecked();
-  GenerateSomeGarbage();
-  CHECK(context->Global()
-            ->Set(context.local(), v8_str("o"),
-                  fun->NewInstance(context.local()).ToLocalChecked())
-            .FromJust());
-  v8::TryCatch try_catch(isolate);
-  CompileRun(
-      "o.foo = 17;"
-      "var receiver = {};"
-      "receiver.__proto__ = o;"
-      "var result = 0;"
-      "var saved_result = 0;"
-      "for (var i = 0; i < 100; i++) {"
-      "  result = receiver.method(41);"
-      "  if (i == 50) {"
-      "    saved_result = result;"
-      "    receiver = 333;"
-      "  }"
-      "}");
-  CHECK(try_catch.HasCaught());
-  // TODO(verwaest): Adjust message.
-  CHECK(
-      v8_str("TypeError: receiver.method is not a function")
-          ->Equals(
-              context.local(),
-              try_catch.Exception()->ToString(context.local()).ToLocalChecked())
-          .FromJust());
-  CHECK_EQ(42, context->Global()
-                   ->Get(context.local(), v8_str("saved_result"))
-                   .ToLocalChecked()
-                   ->Int32Value(context.local())
-                   .FromJust());
-  CHECK_GE(interceptor_call_count, 50);
-}
-
-
-THREADED_PROFILED_TEST(InterceptorCallICFastApi_SimpleSignature_TypeError) {
-  int interceptor_call_count = 0;
-  v8::Isolate* isolate = CcTest::isolate();
-  v8::HandleScope scope(isolate);
-  v8::Local<v8::FunctionTemplate> fun_templ =
-      v8::FunctionTemplate::New(isolate);
-  v8::Local<v8::FunctionTemplate> method_templ = v8::FunctionTemplate::New(
-      isolate, FastApiCallback_SimpleSignature, v8_str("method_data"),
-      v8::Signature::New(isolate, fun_templ));
-  v8::Local<v8::ObjectTemplate> proto_templ = fun_templ->PrototypeTemplate();
-  proto_templ->Set(v8_str("method"), method_templ);
-  fun_templ->SetHiddenPrototype(true);
-  v8::Local<v8::ObjectTemplate> templ = fun_templ->InstanceTemplate();
-  templ->SetHandler(v8::NamedPropertyHandlerConfiguration(
-      InterceptorCallICFastApi, nullptr, nullptr, nullptr, nullptr,
-      v8::External::New(isolate, &interceptor_call_count)));
-  LocalContext context;
-  v8::Local<v8::Function> fun =
-      fun_templ->GetFunction(context.local()).ToLocalChecked();
-  GenerateSomeGarbage();
-  CHECK(context->Global()
-            ->Set(context.local(), v8_str("o"),
-                  fun->NewInstance(context.local()).ToLocalChecked())
-            .FromJust());
-  v8::TryCatch try_catch(isolate);
-  CompileRun(
-      "o.foo = 17;"
-      "var receiver = {};"
-      "receiver.__proto__ = o;"
-      "var result = 0;"
-      "var saved_result = 0;"
-      "for (var i = 0; i < 100; i++) {"
-      "  result = receiver.method(41);"
-      "  if (i == 50) {"
-      "    saved_result = result;"
-      "    receiver = {method: receiver.method};"
-      "  }"
-      "}");
-  CHECK(try_catch.HasCaught());
-  CHECK(
-      v8_str("TypeError: Illegal invocation")
-          ->Equals(
-              context.local(),
-              try_catch.Exception()->ToString(context.local()).ToLocalChecked())
-          .FromJust());
-  CHECK_EQ(42, context->Global()
-                   ->Get(context.local(), v8_str("saved_result"))
-                   .ToLocalChecked()
-                   ->Int32Value(context.local())
-                   .FromJust());
-  CHECK_GE(interceptor_call_count, 50);
-}
-
-
 THREADED_PROFILED_TEST(CallICFastApi_TrivialSignature) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
@@ -12729,193 +12197,6 @@ THREADED_PROFILED_TEST(CallICFastApi_TrivialSignature) {
                    ->Int32Value(context.local())
                    .FromJust());
 }
-
-
-THREADED_PROFILED_TEST(CallICFastApi_SimpleSignature) {
-  v8::Isolate* isolate = CcTest::isolate();
-  v8::HandleScope scope(isolate);
-  v8::Local<v8::FunctionTemplate> fun_templ =
-      v8::FunctionTemplate::New(isolate);
-  v8::Local<v8::FunctionTemplate> method_templ = v8::FunctionTemplate::New(
-      isolate, FastApiCallback_SimpleSignature, v8_str("method_data"),
-      v8::Signature::New(isolate, fun_templ));
-  v8::Local<v8::ObjectTemplate> proto_templ = fun_templ->PrototypeTemplate();
-  proto_templ->Set(v8_str("method"), method_templ);
-  fun_templ->SetHiddenPrototype(true);
-  v8::Local<v8::ObjectTemplate> templ(fun_templ->InstanceTemplate());
-  CHECK(!templ.IsEmpty());
-  LocalContext context;
-  v8::Local<v8::Function> fun =
-      fun_templ->GetFunction(context.local()).ToLocalChecked();
-  GenerateSomeGarbage();
-  CHECK(context->Global()
-            ->Set(context.local(), v8_str("o"),
-                  fun->NewInstance(context.local()).ToLocalChecked())
-            .FromJust());
-  CompileRun(
-      "o.foo = 17;"
-      "var receiver = {};"
-      "receiver.__proto__ = o;"
-      "var result = 0;"
-      "for (var i = 0; i < 100; i++) {"
-      "  result = receiver.method(41);"
-      "}");
-
-  CHECK_EQ(42, context->Global()
-                   ->Get(context.local(), v8_str("result"))
-                   .ToLocalChecked()
-                   ->Int32Value(context.local())
-                   .FromJust());
-}
-
-
-THREADED_PROFILED_TEST(CallICFastApi_SimpleSignature_Miss1) {
-  v8::Isolate* isolate = CcTest::isolate();
-  v8::HandleScope scope(isolate);
-  v8::Local<v8::FunctionTemplate> fun_templ =
-      v8::FunctionTemplate::New(isolate);
-  v8::Local<v8::FunctionTemplate> method_templ = v8::FunctionTemplate::New(
-      isolate, FastApiCallback_SimpleSignature, v8_str("method_data"),
-      v8::Signature::New(isolate, fun_templ));
-  v8::Local<v8::ObjectTemplate> proto_templ = fun_templ->PrototypeTemplate();
-  proto_templ->Set(v8_str("method"), method_templ);
-  fun_templ->SetHiddenPrototype(true);
-  v8::Local<v8::ObjectTemplate> templ(fun_templ->InstanceTemplate());
-  CHECK(!templ.IsEmpty());
-  LocalContext context;
-  v8::Local<v8::Function> fun =
-      fun_templ->GetFunction(context.local()).ToLocalChecked();
-  GenerateSomeGarbage();
-  CHECK(context->Global()
-            ->Set(context.local(), v8_str("o"),
-                  fun->NewInstance(context.local()).ToLocalChecked())
-            .FromJust());
-  CompileRun(
-      "o.foo = 17;"
-      "var receiver = {};"
-      "receiver.__proto__ = o;"
-      "var result = 0;"
-      "var saved_result = 0;"
-      "for (var i = 0; i < 100; i++) {"
-      "  result = receiver.method(41);"
-      "  if (i == 50) {"
-      "    saved_result = result;"
-      "    receiver = {method: function(x) { return x - 1 }};"
-      "  }"
-      "}");
-  CHECK_EQ(40, context->Global()
-                   ->Get(context.local(), v8_str("result"))
-                   .ToLocalChecked()
-                   ->Int32Value(context.local())
-                   .FromJust());
-  CHECK_EQ(42, context->Global()
-                   ->Get(context.local(), v8_str("saved_result"))
-                   .ToLocalChecked()
-                   ->Int32Value(context.local())
-                   .FromJust());
-}
-
-
-THREADED_PROFILED_TEST(CallICFastApi_SimpleSignature_Miss2) {
-  v8::Isolate* isolate = CcTest::isolate();
-  v8::HandleScope scope(isolate);
-  v8::Local<v8::FunctionTemplate> fun_templ =
-      v8::FunctionTemplate::New(isolate);
-  v8::Local<v8::FunctionTemplate> method_templ = v8::FunctionTemplate::New(
-      isolate, FastApiCallback_SimpleSignature, v8_str("method_data"),
-      v8::Signature::New(isolate, fun_templ));
-  v8::Local<v8::ObjectTemplate> proto_templ = fun_templ->PrototypeTemplate();
-  proto_templ->Set(v8_str("method"), method_templ);
-  fun_templ->SetHiddenPrototype(true);
-  v8::Local<v8::ObjectTemplate> templ(fun_templ->InstanceTemplate());
-  CHECK(!templ.IsEmpty());
-  LocalContext context;
-  v8::Local<v8::Function> fun =
-      fun_templ->GetFunction(context.local()).ToLocalChecked();
-  GenerateSomeGarbage();
-  CHECK(context->Global()
-            ->Set(context.local(), v8_str("o"),
-                  fun->NewInstance(context.local()).ToLocalChecked())
-            .FromJust());
-  v8::TryCatch try_catch(isolate);
-  CompileRun(
-      "o.foo = 17;"
-      "var receiver = {};"
-      "receiver.__proto__ = o;"
-      "var result = 0;"
-      "var saved_result = 0;"
-      "for (var i = 0; i < 100; i++) {"
-      "  result = receiver.method(41);"
-      "  if (i == 50) {"
-      "    saved_result = result;"
-      "    receiver = 333;"
-      "  }"
-      "}");
-  CHECK(try_catch.HasCaught());
-  // TODO(verwaest): Adjust message.
-  CHECK(
-      v8_str("TypeError: receiver.method is not a function")
-          ->Equals(
-              context.local(),
-              try_catch.Exception()->ToString(context.local()).ToLocalChecked())
-          .FromJust());
-  CHECK_EQ(42, context->Global()
-                   ->Get(context.local(), v8_str("saved_result"))
-                   .ToLocalChecked()
-                   ->Int32Value(context.local())
-                   .FromJust());
-}
-
-
-THREADED_PROFILED_TEST(CallICFastApi_SimpleSignature_TypeError) {
-  v8::Isolate* isolate = CcTest::isolate();
-  v8::HandleScope scope(isolate);
-  v8::Local<v8::FunctionTemplate> fun_templ =
-      v8::FunctionTemplate::New(isolate);
-  v8::Local<v8::FunctionTemplate> method_templ = v8::FunctionTemplate::New(
-      isolate, FastApiCallback_SimpleSignature, v8_str("method_data"),
-      v8::Signature::New(isolate, fun_templ));
-  v8::Local<v8::ObjectTemplate> proto_templ = fun_templ->PrototypeTemplate();
-  proto_templ->Set(v8_str("method"), method_templ);
-  fun_templ->SetHiddenPrototype(true);
-  v8::Local<v8::ObjectTemplate> templ(fun_templ->InstanceTemplate());
-  CHECK(!templ.IsEmpty());
-  LocalContext context;
-  v8::Local<v8::Function> fun =
-      fun_templ->GetFunction(context.local()).ToLocalChecked();
-  GenerateSomeGarbage();
-  CHECK(context->Global()
-            ->Set(context.local(), v8_str("o"),
-                  fun->NewInstance(context.local()).ToLocalChecked())
-            .FromJust());
-  v8::TryCatch try_catch(isolate);
-  CompileRun(
-      "o.foo = 17;"
-      "var receiver = {};"
-      "receiver.__proto__ = o;"
-      "var result = 0;"
-      "var saved_result = 0;"
-      "for (var i = 0; i < 100; i++) {"
-      "  result = receiver.method(41);"
-      "  if (i == 50) {"
-      "    saved_result = result;"
-      "    receiver = Object.create(receiver);"
-      "  }"
-      "}");
-  CHECK(try_catch.HasCaught());
-  CHECK(
-      v8_str("TypeError: Illegal invocation")
-          ->Equals(
-              context.local(),
-              try_catch.Exception()->ToString(context.local()).ToLocalChecked())
-          .FromJust());
-  CHECK_EQ(42, context->Global()
-                   ->Get(context.local(), v8_str("saved_result"))
-                   .ToLocalChecked()
-                   ->Int32Value(context.local())
-                   .FromJust());
-}
-
 
 static void ThrowingGetter(Local<String> name,
                            const v8::PropertyCallbackInfo<v8::Value>& info) {
@@ -21876,92 +21157,6 @@ THREADED_TEST(Regress1516) {
 }
 
 
-THREADED_TEST(Regress93759) {
-  v8::Isolate* isolate = CcTest::isolate();
-  HandleScope scope(isolate);
-
-  // Template for object with security check.
-  Local<ObjectTemplate> no_proto_template = v8::ObjectTemplate::New(isolate);
-  no_proto_template->SetAccessCheckCallback(AccessAlwaysBlocked);
-
-  // Templates for objects with hidden prototypes and possibly security check.
-  Local<FunctionTemplate> hidden_proto_template =
-      v8::FunctionTemplate::New(isolate);
-  hidden_proto_template->SetHiddenPrototype(true);
-
-  Local<FunctionTemplate> protected_hidden_proto_template =
-      v8::FunctionTemplate::New(isolate);
-  protected_hidden_proto_template->InstanceTemplate()->SetAccessCheckCallback(
-      AccessAlwaysBlocked);
-  protected_hidden_proto_template->SetHiddenPrototype(true);
-
-  // Context for "foreign" objects used in test.
-  Local<Context> context = v8::Context::New(isolate);
-  context->Enter();
-
-  // Plain object, no security check.
-  Local<Object> simple_object = Object::New(isolate);
-
-  // Object with explicit security check.
-  Local<Object> protected_object =
-      no_proto_template->NewInstance(context).ToLocalChecked();
-
-  // JSGlobalProxy object, always have security check.
-  Local<Object> proxy_object = context->Global();
-
-  // Global object, the  prototype of proxy_object. No security checks.
-  Local<Object> global_object =
-      proxy_object->GetPrototype()->ToObject(context).ToLocalChecked();
-
-  // Hidden prototype without security check.
-  Local<Object> hidden_prototype = hidden_proto_template->GetFunction(context)
-                                       .ToLocalChecked()
-                                       ->NewInstance(context)
-                                       .ToLocalChecked();
-  Local<Object> object_with_hidden =
-    Object::New(isolate);
-  object_with_hidden->SetPrototype(context, hidden_prototype).FromJust();
-
-  context->Exit();
-
-  LocalContext context2;
-  v8::Local<v8::Object> global = context2->Global();
-
-  // Setup global variables.
-  CHECK(global->Set(context2.local(), v8_str("simple"), simple_object)
-            .FromJust());
-  CHECK(global->Set(context2.local(), v8_str("protected"), protected_object)
-            .FromJust());
-  CHECK(global->Set(context2.local(), v8_str("global"), global_object)
-            .FromJust());
-  CHECK(
-      global->Set(context2.local(), v8_str("proxy"), proxy_object).FromJust());
-  CHECK(global->Set(context2.local(), v8_str("hidden"), object_with_hidden)
-            .FromJust());
-
-  Local<Value> result1 = CompileRun("Object.getPrototypeOf(simple)");
-  CHECK(result1->Equals(context2.local(), simple_object->GetPrototype())
-            .FromJust());
-
-  Local<Value> result2 = CompileRun("Object.getPrototypeOf(protected)");
-  CHECK(result2->IsNull());
-
-  Local<Value> result3 = CompileRun("Object.getPrototypeOf(global)");
-  CHECK(result3->Equals(context2.local(), global_object->GetPrototype())
-            .FromJust());
-
-  Local<Value> result4 = CompileRun("Object.getPrototypeOf(proxy)");
-  CHECK(result4->IsNull());
-
-  Local<Value> result5 = CompileRun("Object.getPrototypeOf(hidden)");
-  CHECK(result5->Equals(context2.local(), object_with_hidden->GetPrototype()
-                                              ->ToObject(context2.local())
-                                              .ToLocalChecked()
-                                              ->GetPrototype())
-            .FromJust());
-}
-
-
 static void TestReceiver(Local<Value> expected_result,
                          Local<Value> expected_receiver,
                          const char* code) {
@@ -24175,7 +23370,6 @@ class ApiCallOptimizationChecker {
     {
       Local<v8::FunctionTemplate> parent_template =
         FunctionTemplate::New(isolate);
-      parent_template->SetHiddenPrototype(true);
       Local<v8::FunctionTemplate> function_template
           = FunctionTemplate::New(isolate);
       function_template->Inherit(parent_template);
@@ -24204,7 +23398,6 @@ class ApiCallOptimizationChecker {
     // Get the holder objects.
     Local<Object> inner_global =
         Local<Object>::Cast(context->Global()->GetPrototype());
-    // Install functions on hidden prototype object if there is one.
     data = Object::New(isolate);
     Local<FunctionTemplate> function_template = FunctionTemplate::New(
         isolate, OptimizationCallback, data, signature);
@@ -24458,47 +23651,6 @@ TEST(ChainSignatureCheck) {
               x->GetFunction(context.local()).ToLocalChecked())
       .FromJust();
   CompileRun("var s = new sig_obj();");
-  {
-    TryCatch try_catch(isolate);
-    CompileRun("x()");
-    CHECK(try_catch.HasCaught());
-  }
-  {
-    TryCatch try_catch(isolate);
-    CompileRun("x.call(1)");
-    CHECK(try_catch.HasCaught());
-  }
-  {
-    TryCatch try_catch(isolate);
-    auto result = CompileRun("s.x = x; s.x()");
-    CHECK(!try_catch.HasCaught());
-    CHECK_EQ(42, result->Int32Value(context.local()).FromJust());
-  }
-  {
-    TryCatch try_catch(isolate);
-    auto result = CompileRun("x.call(s)");
-    CHECK(!try_catch.HasCaught());
-    CHECK_EQ(42, result->Int32Value(context.local()).FromJust());
-  }
-}
-
-
-TEST(PrototypeSignatureCheck) {
-  LocalContext context;
-  auto isolate = context->GetIsolate();
-  v8::HandleScope scope(isolate);
-  auto global = context->Global();
-  auto sig_obj = FunctionTemplate::New(isolate);
-  sig_obj->SetHiddenPrototype(true);
-  auto sig = v8::Signature::New(isolate, sig_obj);
-  auto x = FunctionTemplate::New(isolate, Returns42, Local<Value>(), sig);
-  global->Set(context.local(), v8_str("sig_obj"),
-              sig_obj->GetFunction(context.local()).ToLocalChecked())
-      .FromJust();
-  global->Set(context.local(), v8_str("x"),
-              x->GetFunction(context.local()).ToLocalChecked())
-      .FromJust();
-  CompileRun("s = {}; s.__proto__ = new sig_obj();");
   {
     TryCatch try_catch(isolate);
     CompileRun("x()");
