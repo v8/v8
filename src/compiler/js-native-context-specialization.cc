@@ -1085,8 +1085,12 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
 
   // Nothing to do if we have no non-deprecated maps.
   if (access_infos.empty()) {
-    return ReduceSoftDeoptimize(
-        node, DeoptimizeReason::kInsufficientTypeFeedbackForGenericNamedAccess);
+    if (flags() & kBailoutOnUninitialized) {
+      return ReduceSoftDeoptimize(
+          node,
+          DeoptimizeReason::kInsufficientTypeFeedbackForGenericNamedAccess);
+    }
+    return NoChange();
   }
 
   // Ensure that {index} matches the specified {name} (if {index} is given).
