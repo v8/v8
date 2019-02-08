@@ -799,7 +799,7 @@ Maybe<std::string> Intl::CanonicalizeLanguageTag(Isolate* isolate,
         Nothing<std::string>());
   }
 
-  return Intl::ToLanguageTag(icu_locale);
+  return maybe_to_language_tag;
 }
 
 Maybe<std::vector<std::string>> Intl::CanonicalizeLocaleList(
