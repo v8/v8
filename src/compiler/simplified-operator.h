@@ -163,6 +163,30 @@ std::ostream& operator<<(std::ostream&, CheckParameters const&);
 
 CheckParameters const& CheckParametersOf(Operator const*) V8_WARN_UNUSED_RESULT;
 
+class CheckBoundsParameters final {
+ public:
+  enum Mode { kAbortOnOutOfBounds, kDeoptOnOutOfBounds };
+
+  CheckBoundsParameters(const VectorSlotPair& feedback, Mode mode)
+      : check_parameters_(feedback), mode_(mode) {}
+
+  Mode mode() const { return mode_; }
+  const CheckParameters& check_parameters() const { return check_parameters_; }
+
+ private:
+  CheckParameters check_parameters_;
+  Mode mode_;
+};
+
+bool operator==(CheckBoundsParameters const&, CheckBoundsParameters const&);
+
+size_t hash_value(CheckBoundsParameters const&);
+
+std::ostream& operator<<(std::ostream&, CheckBoundsParameters const&);
+
+CheckBoundsParameters const& CheckBoundsParametersOf(Operator const*)
+    V8_WARN_UNUSED_RESULT;
+
 class CheckIfParameters final {
  public:
   explicit CheckIfParameters(DeoptimizeReason reason,
@@ -709,7 +733,8 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
                                                 const VectorSlotPair& feedback);
   const Operator* CheckedUint32Div();
   const Operator* CheckedUint32Mod();
-  const Operator* CheckedUint32Bounds(const VectorSlotPair& feedback);
+  const Operator* CheckedUint32Bounds(const VectorSlotPair& feedback,
+                                      CheckBoundsParameters::Mode mode);
   const Operator* CheckedUint32ToInt32(const VectorSlotPair& feedback);
   const Operator* CheckedUint32ToTaggedSigned(const VectorSlotPair& feedback);
   const Operator* CheckedUint64Bounds(const VectorSlotPair& feedback);

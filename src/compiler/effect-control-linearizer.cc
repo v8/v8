@@ -2061,11 +2061,30 @@ Node* EffectControlLinearizer::LowerCheckedUint32Bounds(Node* node,
                                                         Node* frame_state) {
   Node* index = node->InputAt(0);
   Node* limit = node->InputAt(1);
-  const CheckParameters& params = CheckParametersOf(node->op());
+  const CheckBoundsParameters& params = CheckBoundsParametersOf(node->op());
 
   Node* check = __ Uint32LessThan(index, limit);
-  __ DeoptimizeIfNot(DeoptimizeReason::kOutOfBounds, params.feedback(), check,
-                     frame_state, IsSafetyCheck::kCriticalSafetyCheck);
+  switch (params.mode()) {
+    case CheckBoundsParameters::kDeoptOnOutOfBounds:
+      __ DeoptimizeIfNot(DeoptimizeReason::kOutOfBounds,
+                         params.check_parameters().feedback(), check,
+                         frame_state, IsSafetyCheck::kCriticalSafetyCheck);
+      break;
+    case CheckBoundsParameters::kAbortOnOutOfBounds: {
+      auto if_abort = __ MakeDeferredLabel();
+      auto done = __ MakeLabel();
+
+      __ Branch(check, &done, &if_abort);
+
+      __ Bind(&if_abort);
+      __ Unreachable();
+      __ Goto(&done);
+
+      __ Bind(&done);
+      break;
+    }
+  }
+
   return index;
 }
 

@@ -812,12 +812,13 @@ bool operator==(CheckMinusZeroParameters const& lhs,
   V(CheckedTaggedSignedToInt32, 1, 1)    \
   V(CheckedTaggedToTaggedPointer, 1, 1)  \
   V(CheckedTaggedToTaggedSigned, 1, 1)   \
-  V(CheckedUint32Bounds, 2, 1)           \
   V(CheckedUint32ToInt32, 1, 1)          \
   V(CheckedUint32ToTaggedSigned, 1, 1)   \
   V(CheckedUint64Bounds, 2, 1)           \
   V(CheckedUint64ToInt32, 1, 1)          \
   V(CheckedUint64ToTaggedSigned, 1, 1)
+
+#define CHECKED_BOUNDS_OP_LIST(V) V(CheckedUint32Bounds)
 
 struct SimplifiedOperatorGlobalCache final {
 #define PURE(Name, properties, value_input_count, control_input_count)     \
@@ -866,6 +867,21 @@ struct SimplifiedOperatorGlobalCache final {
   Name##Operator k##Name;
   CHECKED_WITH_FEEDBACK_OP_LIST(CHECKED_WITH_FEEDBACK)
 #undef CHECKED_WITH_FEEDBACK
+
+#define CHECKED_BOUNDS(Name)                                                  \
+  struct Name##Operator final : public Operator1<CheckBoundsParameters> {     \
+    Name##Operator(VectorSlotPair feedback, CheckBoundsParameters::Mode mode) \
+        : Operator1<CheckBoundsParameters>(                                   \
+              IrOpcode::k##Name, Operator::kFoldable | Operator::kNoThrow,    \
+              #Name, 2, 1, 1, 1, 1, 0,                                        \
+              CheckBoundsParameters(feedback, mode)) {}                       \
+  };                                                                          \
+  Name##Operator k##Name##Deopting = {                                        \
+      VectorSlotPair(), CheckBoundsParameters::kDeoptOnOutOfBounds};          \
+  Name##Operator k##Name##Aborting = {                                        \
+      VectorSlotPair(), CheckBoundsParameters::kAbortOnOutOfBounds};
+  CHECKED_BOUNDS_OP_LIST(CHECKED_BOUNDS)
+#undef CHECKED_BOUNDS
 
   template <DeoptimizeReason kDeoptimizeReason>
   struct CheckIfOperator final : public Operator1<CheckIfParameters> {
@@ -1183,6 +1199,23 @@ GET_FROM_CACHE(LoadFieldByIndex)
         CheckParameters(feedback));                                         \
   }
 CHECKED_WITH_FEEDBACK_OP_LIST(GET_FROM_CACHE_WITH_FEEDBACK)
+#undef GET_FROM_CACHE_WITH_FEEDBACK
+
+#define GET_FROM_CACHE_WITH_FEEDBACK(Name)                                \
+  const Operator* SimplifiedOperatorBuilder::Name(                        \
+      const VectorSlotPair& feedback, CheckBoundsParameters::Mode mode) { \
+    if (!feedback.IsValid()) {                                            \
+      switch (mode) {                                                     \
+        case CheckBoundsParameters::kDeoptOnOutOfBounds:                  \
+          return &cache_.k##Name##Deopting;                               \
+        case CheckBoundsParameters::kAbortOnOutOfBounds:                  \
+          return &cache_.k##Name##Aborting;                               \
+      }                                                                   \
+    }                                                                     \
+    return new (zone())                                                   \
+        SimplifiedOperatorGlobalCache::Name##Operator(feedback, mode);    \
+  }
+CHECKED_BOUNDS_OP_LIST(GET_FROM_CACHE_WITH_FEEDBACK)
 #undef GET_FROM_CACHE_WITH_FEEDBACK
 
 bool IsCheckedWithFeedback(const Operator* op) {
@@ -1509,10 +1542,41 @@ std::ostream& operator<<(std::ostream& os, CheckParameters const& p) {
 }
 
 CheckParameters const& CheckParametersOf(Operator const* op) {
+  if (op->opcode() == IrOpcode::kCheckedUint32Bounds) {
+    return OpParameter<CheckBoundsParameters>(op).check_parameters();
+  }
 #define MAKE_OR(name, arg2, arg3) op->opcode() == IrOpcode::k##name ||
   CHECK((CHECKED_WITH_FEEDBACK_OP_LIST(MAKE_OR) false));
 #undef MAKE_OR
   return OpParameter<CheckParameters>(op);
+}
+
+bool operator==(CheckBoundsParameters const& lhs,
+                CheckBoundsParameters const& rhs) {
+  return lhs.check_parameters() == rhs.check_parameters() &&
+         lhs.mode() == rhs.mode();
+}
+
+size_t hash_value(CheckBoundsParameters const& p) {
+  return base::hash_combine(hash_value(p.check_parameters()), p.mode());
+}
+
+std::ostream& operator<<(std::ostream& os, CheckBoundsParameters const& p) {
+  os << p.check_parameters() << ",";
+  switch (p.mode()) {
+    case CheckBoundsParameters::kDeoptOnOutOfBounds:
+      os << "deopt";
+      break;
+    case CheckBoundsParameters::kAbortOnOutOfBounds:
+      os << "abort";
+      break;
+  }
+  return os;
+}
+
+CheckBoundsParameters const& CheckBoundsParametersOf(Operator const* op) {
+  CHECK_EQ(op->opcode(), IrOpcode::kCheckedUint32Bounds);
+  return OpParameter<CheckBoundsParameters>(op);
 }
 
 bool operator==(CheckIfParameters const& lhs, CheckIfParameters const& rhs) {
@@ -1698,6 +1762,7 @@ const Operator* SimplifiedOperatorBuilder::TransitionAndStoreNonNumberElement(
 #undef EFFECT_DEPENDENT_OP_LIST
 #undef SPECULATIVE_NUMBER_BINOP_LIST
 #undef CHECKED_WITH_FEEDBACK_OP_LIST
+#undef CHECKED_BOUNDS_OP_LIST
 #undef CHECKED_OP_LIST
 #undef ACCESS_OP_LIST
 

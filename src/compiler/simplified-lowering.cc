@@ -1566,6 +1566,8 @@ class RepresentationSelector {
         VisitBinop(node, UseInfo::TruncatingWord32(),
                    MachineRepresentation::kWord32);
         if (lower()) {
+          CheckBoundsParameters::Mode mode =
+              CheckBoundsParameters::kDeoptOnOutOfBounds;
           if (lowering->poisoning_level_ ==
                   PoisoningMitigationLevel::kDontPoison &&
               (index_type.IsNone() || length_type.IsNone() ||
@@ -1573,11 +1575,10 @@ class RepresentationSelector {
                 index_type.Max() < length_type.Min()))) {
             // The bounds check is redundant if we already know that
             // the index is within the bounds of [0.0, length[.
-            DeferReplacement(node, node->InputAt(0));
-          } else {
-            NodeProperties::ChangeOp(
-                node, simplified()->CheckedUint32Bounds(p.feedback()));
+            mode = CheckBoundsParameters::kAbortOnOutOfBounds;
           }
+          NodeProperties::ChangeOp(
+              node, simplified()->CheckedUint32Bounds(p.feedback(), mode));
         }
       } else {
         VisitBinop(
@@ -1586,7 +1587,9 @@ class RepresentationSelector {
             UseInfo::TruncatingWord32(), MachineRepresentation::kWord32);
         if (lower()) {
           NodeProperties::ChangeOp(
-              node, simplified()->CheckedUint32Bounds(p.feedback()));
+              node,
+              simplified()->CheckedUint32Bounds(
+                  p.feedback(), CheckBoundsParameters::kDeoptOnOutOfBounds));
         }
       }
     } else {
