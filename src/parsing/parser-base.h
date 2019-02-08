@@ -400,7 +400,7 @@ class ParserBase {
     }
 
     void set_next_function_is_likely_called() {
-      next_function_is_likely_called_ = true;
+      next_function_is_likely_called_ = !FLAG_max_lazy;
     }
 
     void RecordFunctionOrEvalCall() { contains_function_or_eval_ = true; }
