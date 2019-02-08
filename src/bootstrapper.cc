@@ -2850,7 +2850,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     SimpleInstallFunction(isolate(), intl, "getCanonicalLocales",
                           Builtins::kIntlGetCanonicalLocales, 1, false);
 
-    {
+    {  // -- D a t e T i m e F o r m a t
       Handle<JSFunction> date_time_format_constructor = InstallFunction(
           isolate_, intl, "DateTimeFormat", JS_INTL_DATE_TIME_FORMAT_TYPE,
           JSDateTimeFormat::kSize, 0, factory->the_hole_value(),
@@ -2883,7 +2883,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           Builtins::kDateTimeFormatPrototypeFormat, false);
     }
 
-    {
+    {  // -- N u m b e r F o r m a t
       Handle<JSFunction> number_format_constructor = InstallFunction(
           isolate_, intl, "NumberFormat", JS_INTL_NUMBER_FORMAT_TYPE,
           JSNumberFormat::kSize, 0, factory->the_hole_value(),
@@ -2915,7 +2915,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           Builtins::kNumberFormatPrototypeFormatNumber, false);
     }
 
-    {
+    {  // -- C o l l a t o r
       Handle<JSFunction> collator_constructor = InstallFunction(
           isolate_, intl, "Collator", JS_INTL_COLLATOR_TYPE, JSCollator::kSize,
           0, factory->the_hole_value(), Builtins::kCollatorConstructor);
@@ -2941,7 +2941,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           Builtins::kCollatorPrototypeCompare, false);
     }
 
-    {
+    {  // -- V 8 B r e a k I t e r a t o r
       Handle<JSFunction> v8_break_iterator_constructor = InstallFunction(
           isolate_, intl, "v8BreakIterator", JS_INTL_V8_BREAK_ITERATOR_TYPE,
           JSV8BreakIterator::kSize, 0, factory->the_hole_value(),
@@ -2982,7 +2982,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           Builtins::kV8BreakIteratorPrototypeBreakType, false);
     }
 
-    {
+    {  // -- P l u r a l R u l e s
       Handle<JSFunction> plural_rules_constructor = InstallFunction(
           isolate_, intl, "PluralRules", JS_INTL_PLURAL_RULES_TYPE,
           JSPluralRules::kSize, 0, factory->the_hole_value(),
@@ -3004,6 +3004,36 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
       SimpleInstallFunction(isolate_, prototype, "select",
                             Builtins::kPluralRulesPrototypeSelect, 1, false);
+    }
+
+    {  // -- R e l a t i v e T i m e F o r m a t e
+      Handle<JSFunction> relative_time_format_fun = InstallFunction(
+          isolate(), intl, "RelativeTimeFormat",
+          JS_INTL_RELATIVE_TIME_FORMAT_TYPE, JSRelativeTimeFormat::kSize, 0,
+          factory->the_hole_value(), Builtins::kRelativeTimeFormatConstructor);
+      relative_time_format_fun->shared()->set_length(0);
+      relative_time_format_fun->shared()->DontAdaptArguments();
+
+      SimpleInstallFunction(
+          isolate(), relative_time_format_fun, "supportedLocalesOf",
+          Builtins::kRelativeTimeFormatSupportedLocalesOf, 1, false);
+
+      // Setup %RelativeTimeFormatPrototype%.
+      Handle<JSObject> prototype(
+          JSObject::cast(relative_time_format_fun->instance_prototype()),
+          isolate());
+
+      InstallToStringTag(isolate(), prototype, "Intl.RelativeTimeFormat");
+
+      SimpleInstallFunction(
+          isolate(), prototype, "resolvedOptions",
+          Builtins::kRelativeTimeFormatPrototypeResolvedOptions, 0, false);
+      SimpleInstallFunction(isolate(), prototype, "format",
+                            Builtins::kRelativeTimeFormatPrototypeFormat, 2,
+                            false);
+      SimpleInstallFunction(isolate(), prototype, "formatToParts",
+                            Builtins::kRelativeTimeFormatPrototypeFormatToParts,
+                            2, false);
     }
   }
 #endif  // V8_INTL_SUPPORT
@@ -4493,42 +4523,6 @@ void Genesis::InitializeGlobal_harmony_locale() {
                       Builtins::kLocalePrototypeNumberingSystem, true);
 }
 
-void Genesis::InitializeGlobal_harmony_intl_relative_time_format() {
-  if (!FLAG_harmony_intl_relative_time_format) return;
-  Handle<JSObject> intl = Handle<JSObject>::cast(
-      JSReceiver::GetProperty(
-          isolate(),
-          Handle<JSReceiver>(native_context()->global_object(), isolate()),
-          factory()->InternalizeUtf8String("Intl"))
-          .ToHandleChecked());
-
-  Handle<JSFunction> relative_time_format_fun = InstallFunction(
-      isolate(), intl, "RelativeTimeFormat", JS_INTL_RELATIVE_TIME_FORMAT_TYPE,
-      JSRelativeTimeFormat::kSize, 0, factory()->the_hole_value(),
-      Builtins::kRelativeTimeFormatConstructor);
-  relative_time_format_fun->shared()->set_length(0);
-  relative_time_format_fun->shared()->DontAdaptArguments();
-
-  SimpleInstallFunction(
-      isolate(), relative_time_format_fun, "supportedLocalesOf",
-      Builtins::kRelativeTimeFormatSupportedLocalesOf, 1, false);
-
-  // Setup %RelativeTimeFormatPrototype%.
-  Handle<JSObject> prototype(
-      JSObject::cast(relative_time_format_fun->instance_prototype()),
-      isolate());
-
-  InstallToStringTag(isolate(), prototype, "Intl.RelativeTimeFormat");
-
-  SimpleInstallFunction(isolate(), prototype, "resolvedOptions",
-                        Builtins::kRelativeTimeFormatPrototypeResolvedOptions,
-                        0, false);
-  SimpleInstallFunction(isolate(), prototype, "format",
-                        Builtins::kRelativeTimeFormatPrototypeFormat, 2, false);
-  SimpleInstallFunction(isolate(), prototype, "formatToParts",
-                        Builtins::kRelativeTimeFormatPrototypeFormatToParts, 2,
-                        false);
-}
 void Genesis::InitializeGlobal_harmony_intl_segmenter() {
   if (!FLAG_harmony_intl_segmenter) return;
   Handle<JSObject> intl = Handle<JSObject>::cast(
