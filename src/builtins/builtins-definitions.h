@@ -48,7 +48,7 @@ namespace internal {
   ASM(CallFunction_ReceiverIsNotNullOrUndefined, CallTrampoline)               \
   ASM(CallFunction_ReceiverIsAny, CallTrampoline)                              \
   /* ES6 section 9.4.1.1 [[Call]] ( thisArgument, argumentsList) */            \
-  ASM(CallBoundFunction, Dummy)                                                \
+  ASM(CallBoundFunction, CallTrampoline)                                       \
   /* ES6 section 7.3.12 Call(F, V, [argumentsList]) */                         \
   ASM(Call_ReceiverIsNullOrUndefined, CallTrampoline)                          \
   ASM(Call_ReceiverIsNotNullOrUndefined, CallTrampoline)                       \
@@ -66,8 +66,8 @@ namespace internal {
   /* ES6 section 9.2.2 [[Construct]] ( argumentsList, newTarget) */            \
   ASM(ConstructFunction, JSTrampoline)                                         \
   /* ES6 section 9.4.1.2 [[Construct]] (argumentsList, newTarget) */           \
-  ASM(ConstructBoundFunction, Dummy)                                           \
-  ASM(ConstructedNonConstructable, Dummy)                                      \
+  ASM(ConstructBoundFunction, JSTrampoline)                                    \
+  ASM(ConstructedNonConstructable, JSTrampoline)                               \
   /* ES6 section 7.3.13 Construct (F, [argumentsList], [newTarget]) */         \
   ASM(Construct, JSTrampoline)                                                 \
   ASM(ConstructVarargs, ConstructVarargs)                                      \
@@ -303,8 +303,8 @@ namespace internal {
   TFC(ArraySingleArgumentConstructor_HoleyDouble_DisableAllocationSites,       \
       ArraySingleArgumentConstructor, 1)                                       \
   TFC(ArrayNArgumentsConstructor, ArrayNArgumentsConstructor, 1)               \
-  ASM(InternalArrayConstructor, Dummy)                                         \
-  ASM(InternalArrayConstructorImpl, Dummy)                                     \
+  ASM(InternalArrayConstructor, JSTrampoline)                                  \
+  ASM(InternalArrayConstructorImpl, JSTrampoline)                              \
   TFC(InternalArrayNoArgumentConstructor_Packed, ArrayNoArgumentConstructor,   \
       1)                                                                       \
   CPP(ArrayConcat)                                                             \
