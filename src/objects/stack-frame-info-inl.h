@@ -21,18 +21,18 @@ NEVER_READ_ONLY_SPACE_IMPL(StackFrameInfo)
 
 CAST_ACCESSOR(StackFrameInfo)
 
-SMI_ACCESSORS(StackFrameInfo, line_number, kLineNumberIndex)
-SMI_ACCESSORS(StackFrameInfo, column_number, kColumnNumberIndex)
-SMI_ACCESSORS(StackFrameInfo, script_id, kScriptIdIndex)
-ACCESSORS(StackFrameInfo, script_name, Object, kScriptNameIndex)
+SMI_ACCESSORS(StackFrameInfo, line_number, kLineNumberOffset)
+SMI_ACCESSORS(StackFrameInfo, column_number, kColumnNumberOffset)
+SMI_ACCESSORS(StackFrameInfo, script_id, kScriptIdOffset)
+ACCESSORS(StackFrameInfo, script_name, Object, kScriptNameOffset)
 ACCESSORS(StackFrameInfo, script_name_or_source_url, Object,
-          kScriptNameOrSourceUrlIndex)
-ACCESSORS(StackFrameInfo, function_name, Object, kFunctionNameIndex)
-SMI_ACCESSORS(StackFrameInfo, flag, kFlagIndex)
+          kScriptNameOrSourceUrlOffset)
+ACCESSORS(StackFrameInfo, function_name, Object, kFunctionNameOffset)
+SMI_ACCESSORS(StackFrameInfo, flag, kFlagOffset)
 BOOL_ACCESSORS(StackFrameInfo, flag, is_eval, kIsEvalBit)
 BOOL_ACCESSORS(StackFrameInfo, flag, is_constructor, kIsConstructorBit)
 BOOL_ACCESSORS(StackFrameInfo, flag, is_wasm, kIsWasmBit)
-SMI_ACCESSORS(StackFrameInfo, id, kIdIndex)
+SMI_ACCESSORS(StackFrameInfo, id, kIdOffset)
 
 }  // namespace internal
 }  // namespace v8
