@@ -217,15 +217,16 @@ class RecordWriteCodeStubAssembler : public CodeStubAssembler {
     return Load(MachineType::Uint8(), is_marking_addr);
   }
 
-  Node* IsPageFlagSet(Node* object, int mask) {
-    Node* page = WordAnd(object, IntPtrConstant(~kPageAlignmentMask));
-    Node* flags = Load(MachineType::Pointer(), page,
-                       IntPtrConstant(MemoryChunk::kFlagsOffset));
+  TNode<BoolT> IsPageFlagSet(TNode<IntPtrT> object, int mask) {
+    TNode<IntPtrT> page = PageFromAddress(object);
+    TNode<IntPtrT> flags =
+        UncheckedCast<IntPtrT>(Load(MachineType::Pointer(), page,
+                                    IntPtrConstant(MemoryChunk::kFlagsOffset)));
     return WordNotEqual(WordAnd(flags, IntPtrConstant(mask)),
                         IntPtrConstant(0));
   }
 
-  Node* IsWhite(Node* object) {
+  TNode<BoolT> IsWhite(TNode<IntPtrT> object) {
     DCHECK_EQ(strcmp(Marking::kWhiteBitPattern, "00"), 0);
     Node* cell;
     Node* mask;
@@ -237,8 +238,8 @@ class RecordWriteCodeStubAssembler : public CodeStubAssembler {
                        Int32Constant(0));
   }
 
-  void GetMarkBit(Node* object, Node** cell, Node** mask) {
-    Node* page = WordAnd(object, IntPtrConstant(~kPageAlignmentMask));
+  void GetMarkBit(TNode<IntPtrT> object, Node** cell, Node** mask) {
+    TNode<IntPtrT> page = PageFromAddress(object);
     Node* bitmap = Load(MachineType::Pointer(), page,
                         IntPtrConstant(MemoryChunk::kMarkBitmapOffset));
 
@@ -366,21 +367,24 @@ TF_BUILTIN(RecordWrite, RecordWriteCodeStubAssembler) {
     // `kPointersToHereAreInterestingMask` in
     // `src/compiler/<arch>/code-generator-<arch>.cc` before calling this stub,
     // which serves as the cross generation checking.
-    Node* slot = Parameter(Descriptor::kSlot);
+    TNode<IntPtrT> slot = UncheckedCast<IntPtrT>(Parameter(Descriptor::kSlot));
     Branch(IsMarking(), &test_old_to_young_flags, &store_buffer_exit);
 
     BIND(&test_old_to_young_flags);
     {
-      Node* value = Load(MachineType::Pointer(), slot);
+      // TODO(ishell): do a new-space range check instead.
+      TNode<IntPtrT> value =
+          BitcastTaggedToWord(Load(MachineType::TaggedPointer(), slot));
 
       // TODO(albertnetymk): Try to cache the page flag for value and object,
       // instead of calling IsPageFlagSet each time.
-      Node* value_is_young =
+      TNode<BoolT> value_is_young =
           IsPageFlagSet(value, MemoryChunk::kIsInYoungGenerationMask);
       GotoIfNot(value_is_young, &incremental_wb);
 
-      Node* object = BitcastTaggedToWord(Parameter(Descriptor::kObject));
-      Node* object_is_young =
+      TNode<IntPtrT> object =
+          BitcastTaggedToWord(Parameter(Descriptor::kObject));
+      TNode<BoolT> object_is_young =
           IsPageFlagSet(object, MemoryChunk::kIsInYoungGenerationMask);
       Branch(object_is_young, &incremental_wb, &store_buffer_incremental_wb);
     }
@@ -407,8 +411,9 @@ TF_BUILTIN(RecordWrite, RecordWriteCodeStubAssembler) {
   {
     Label call_incremental_wb(this);
 
-    Node* slot = Parameter(Descriptor::kSlot);
-    Node* value = Load(MachineType::Pointer(), slot);
+    TNode<IntPtrT> slot = UncheckedCast<IntPtrT>(Parameter(Descriptor::kSlot));
+    TNode<IntPtrT> value =
+        BitcastTaggedToWord(Load(MachineType::TaggedPointer(), slot));
 
     // There are two cases we need to call incremental write barrier.
     // 1) value_is_white
@@ -419,7 +424,7 @@ TF_BUILTIN(RecordWrite, RecordWriteCodeStubAssembler) {
     GotoIfNot(IsPageFlagSet(value, MemoryChunk::kEvacuationCandidateMask),
               &exit);
 
-    Node* object = BitcastTaggedToWord(Parameter(Descriptor::kObject));
+    TNode<IntPtrT> object = BitcastTaggedToWord(Parameter(Descriptor::kObject));
     Branch(
         IsPageFlagSet(object, MemoryChunk::kSkipEvacuationSlotsRecordingMask),
         &exit, &call_incremental_wb);
@@ -431,7 +436,8 @@ TF_BUILTIN(RecordWrite, RecordWriteCodeStubAssembler) {
       Node* isolate_constant =
           ExternalConstant(ExternalReference::isolate_address(isolate()));
       Node* fp_mode = Parameter(Descriptor::kFPMode);
-      Node* object = BitcastTaggedToWord(Parameter(Descriptor::kObject));
+      TNode<IntPtrT> object =
+          BitcastTaggedToWord(Parameter(Descriptor::kObject));
       CallCFunction3WithCallerSavedRegistersMode(
           MachineType::Int32(), MachineType::Pointer(), MachineType::Pointer(),
           MachineType::Pointer(), function, object, slot, isolate_constant,

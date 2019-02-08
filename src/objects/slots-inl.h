@@ -111,7 +111,11 @@ void FullHeapObjectSlot::StoreHeapObject(HeapObject value) const {
 inline void MemsetTagged(ObjectSlot start, Object value, size_t counter) {
   // TODO(ishell): revisit this implementation, maybe use "rep stosl"
   STATIC_ASSERT(kTaggedSize == kSystemPointerSize);
-  MemsetPointer(start.location(), value.ptr(), counter);
+  Address raw_value = value.ptr();
+#ifdef V8_COMPRESS_POINTERS
+  raw_value = CompressTagged(raw_value);
+#endif
+  MemsetPointer(start.location(), raw_value, counter);
 }
 
 // Sets |counter| number of kSystemPointerSize-sized values starting at |start|

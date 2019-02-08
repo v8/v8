@@ -3417,9 +3417,10 @@ class CodeStubArguments {
   // further with passing all the JS arguments as is.
   void SetReceiver(TNode<Object> object) const;
 
-  TNode<RawPtr<Object>> AtIndexPtr(
-      Node* index, CodeStubAssembler::ParameterMode mode =
-                       CodeStubAssembler::INTPTR_PARAMETERS) const;
+  // Computes address of the index'th argument.
+  TNode<WordT> AtIndexPtr(Node* index,
+                          CodeStubAssembler::ParameterMode mode =
+                              CodeStubAssembler::INTPTR_PARAMETERS) const;
 
   // |index| is zero-based and does not include the receiver
   TNode<Object> AtIndex(Node* index,
@@ -3476,7 +3477,7 @@ class CodeStubArguments {
   CodeStubAssembler::ParameterMode argc_mode_;
   ReceiverMode receiver_mode_;
   Node* argc_;
-  TNode<RawPtr<Object>> arguments_;
+  TNode<WordT> arguments_;
   Node* fp_;
 };
 

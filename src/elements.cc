@@ -460,8 +460,13 @@ static void SortIndices(
             [isolate](Tagged_t elementA, Tagged_t elementB) {
               // TODO(ishell): revisit the code below
               STATIC_ASSERT(kTaggedSize == kSystemPointerSize);
+#ifdef V8_COMPRESS_POINTERS
+              Object a(DecompressTaggedAny(isolate->isolate_root(), elementA));
+              Object b(DecompressTaggedAny(isolate->isolate_root(), elementB));
+#else
               Object a(elementA);
               Object b(elementB);
+#endif
               if (a->IsSmi() || !a->IsUndefined(isolate)) {
                 if (!b->IsSmi() && b->IsUndefined(isolate)) {
                   return true;

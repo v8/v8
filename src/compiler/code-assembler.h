@@ -917,6 +917,13 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   Node* Load(MachineType rep, Node* base, Node* offset,
              LoadSensitivity needs_poisoning = LoadSensitivity::kSafe);
   Node* AtomicLoad(MachineType rep, Node* base, Node* offset);
+  // Load uncompressed tagged value from (most likely off JS heap) memory
+  // location.
+  Node* LoadFullTagged(
+      Node* base, LoadSensitivity needs_poisoning = LoadSensitivity::kSafe);
+  Node* LoadFullTagged(
+      Node* base, Node* offset,
+      LoadSensitivity needs_poisoning = LoadSensitivity::kSafe);
 
   // Load a value from the root array.
   TNode<Object> LoadRoot(RootIndex root_index);
@@ -927,6 +934,12 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   Node* StoreNoWriteBarrier(MachineRepresentation rep, Node* base, Node* value);
   Node* StoreNoWriteBarrier(MachineRepresentation rep, Node* base, Node* offset,
                             Node* value);
+  // Stores uncompressed tagged value to (most likely off JS heap) memory
+  // location without write barrier.
+  Node* StoreFullTaggedNoWriteBarrier(Node* base, Node* tagged_value);
+  Node* StoreFullTaggedNoWriteBarrier(Node* base, Node* offset,
+                                      Node* tagged_value);
+
   // Optimized memory operations that map to Turbofan simplified nodes.
   TNode<HeapObject> OptimizedAllocate(TNode<IntPtrT> size,
                                       PretenureFlag pretenure);

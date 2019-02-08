@@ -2897,8 +2897,7 @@ IGNITION_HANDLER(SetPendingMessage, InterpreterAssembler) {
       ExternalReference::address_of_pending_message_obj(isolate()));
   Node* previous_message = Load(MachineType::TaggedPointer(), pending_message);
   Node* new_message = GetAccumulator();
-  StoreNoWriteBarrier(MachineRepresentation::kTaggedPointer, pending_message,
-                      new_message);
+  StoreFullTaggedNoWriteBarrier(pending_message, new_message);
   SetAccumulator(previous_message);
   Dispatch();
 }

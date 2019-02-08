@@ -951,6 +951,18 @@ Node* CodeAssembler::Load(MachineType rep, Node* base, Node* offset,
   return raw_assembler()->Load(rep, base, offset, needs_poisoning);
 }
 
+Node* CodeAssembler::LoadFullTagged(Node* base,
+                                    LoadSensitivity needs_poisoning) {
+  return BitcastWordToTagged(
+      Load(MachineType::Pointer(), base, needs_poisoning));
+}
+
+Node* CodeAssembler::LoadFullTagged(Node* base, Node* offset,
+                                    LoadSensitivity needs_poisoning) {
+  return BitcastWordToTagged(
+      Load(MachineType::Pointer(), base, offset, needs_poisoning));
+}
+
 Node* CodeAssembler::AtomicLoad(MachineType rep, Node* base, Node* offset) {
   return raw_assembler()->AtomicLoad(rep, base, offset);
 }
@@ -972,7 +984,7 @@ TNode<Object> CodeAssembler::LoadRoot(RootIndex root_index) {
       ExternalConstant(ExternalReference::isolate_root(isolate()));
   int offset = IsolateData::root_slot_offset(root_index);
   return UncheckedCast<Object>(
-      Load(MachineType::AnyTagged(), isolate_root, IntPtrConstant(offset)));
+      LoadFullTagged(isolate_root, IntPtrConstant(offset)));
 }
 
 Node* CodeAssembler::Store(Node* base, Node* value) {
@@ -1005,6 +1017,18 @@ Node* CodeAssembler::StoreNoWriteBarrier(MachineRepresentation rep, Node* base,
 Node* CodeAssembler::StoreNoWriteBarrier(MachineRepresentation rep, Node* base,
                                          Node* offset, Node* value) {
   return raw_assembler()->Store(rep, base, offset, value, kNoWriteBarrier);
+}
+
+Node* CodeAssembler::StoreFullTaggedNoWriteBarrier(Node* base,
+                                                   Node* tagged_value) {
+  return StoreNoWriteBarrier(MachineType::PointerRepresentation(), base,
+                             BitcastTaggedToWord(tagged_value));
+}
+
+Node* CodeAssembler::StoreFullTaggedNoWriteBarrier(Node* base, Node* offset,
+                                                   Node* tagged_value) {
+  return StoreNoWriteBarrier(MachineType::PointerRepresentation(), base, offset,
+                             BitcastTaggedToWord(tagged_value));
 }
 
 Node* CodeAssembler::AtomicStore(MachineRepresentation rep, Node* base,
@@ -1041,8 +1065,8 @@ Node* CodeAssembler::StoreRoot(RootIndex root_index, Node* value) {
   Node* isolate_root =
       ExternalConstant(ExternalReference::isolate_root(isolate()));
   int offset = IsolateData::root_slot_offset(root_index);
-  return StoreNoWriteBarrier(MachineRepresentation::kTagged, isolate_root,
-                             IntPtrConstant(offset), value);
+  return StoreFullTaggedNoWriteBarrier(isolate_root, IntPtrConstant(offset),
+                                       value);
 }
 
 Node* CodeAssembler::Retain(Node* value) {

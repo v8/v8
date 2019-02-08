@@ -326,15 +326,13 @@ void MicrotaskQueueBuiltinsAssembler::IncrementFinishedMicrotaskCount(
 
 TNode<Context> MicrotaskQueueBuiltinsAssembler::GetCurrentContext() {
   auto ref = ExternalReference::Create(kContextAddress, isolate());
-  return TNode<Context>::UncheckedCast(
-      Load(MachineType::AnyTagged(), ExternalConstant(ref)));
+  return TNode<Context>::UncheckedCast(LoadFullTagged(ExternalConstant(ref)));
 }
 
 void MicrotaskQueueBuiltinsAssembler::SetCurrentContext(
     TNode<Context> context) {
   auto ref = ExternalReference::Create(kContextAddress, isolate());
-  StoreNoWriteBarrier(MachineRepresentation::kTagged, ExternalConstant(ref),
-                      context);
+  StoreFullTaggedNoWriteBarrier(ExternalConstant(ref), context);
 }
 
 TNode<IntPtrT> MicrotaskQueueBuiltinsAssembler::GetEnteredContextCount() {
@@ -378,23 +376,22 @@ void MicrotaskQueueBuiltinsAssembler::EnterMicrotaskContext(
         IntPtrConstant(HandleScopeImplementer::kEnteredContextsOffset +
                        ContextStack::kDataOffset);
     Node* data = Load(MachineType::Pointer(), hsi, data_offset);
-    StoreNoWriteBarrier(MachineType::Pointer().representation(), data,
-                        TimesSystemPointerSize(size),
-                        BitcastTaggedToWord(native_context));
+    StoreFullTaggedNoWriteBarrier(data, TimesSystemPointerSize(size),
+                                  native_context);
 
     TNode<IntPtrT> new_size = IntPtrAdd(size, IntPtrConstant(1));
-    StoreNoWriteBarrier(MachineType::IntPtr().representation(), hsi,
-                        size_offset, new_size);
+    StoreNoWriteBarrier(MachineType::PointerRepresentation(), hsi, size_offset,
+                        new_size);
 
     using FlagStack = DetachableVector<int8_t>;
     TNode<IntPtrT> flag_data_offset =
         IntPtrConstant(HandleScopeImplementer::kIsMicrotaskContextOffset +
                        FlagStack::kDataOffset);
     Node* flag_data = Load(MachineType::Pointer(), hsi, flag_data_offset);
-    StoreNoWriteBarrier(MachineType::Int8().representation(), flag_data, size,
+    StoreNoWriteBarrier(MachineRepresentation::kWord8, flag_data, size,
                         BoolConstant(true));
     StoreNoWriteBarrier(
-        MachineType::IntPtr().representation(), hsi,
+        MachineType::PointerRepresentation(), hsi,
         IntPtrConstant(HandleScopeImplementer::kIsMicrotaskContextOffset +
                        FlagStack::kSizeOffset),
         new_size);
@@ -432,12 +429,12 @@ void MicrotaskQueueBuiltinsAssembler::RewindEnteredContext(
   CSA_ASSERT(this, IntPtrLessThanOrEqual(saved_entered_context_count, size));
 #endif
 
-  StoreNoWriteBarrier(MachineType::IntPtr().representation(), hsi, size_offset,
+  StoreNoWriteBarrier(MachineType::PointerRepresentation(), hsi, size_offset,
                       saved_entered_context_count);
 
   using FlagStack = DetachableVector<int8_t>;
   StoreNoWriteBarrier(
-      MachineType::IntPtr().representation(), hsi,
+      MachineType::PointerRepresentation(), hsi,
       IntPtrConstant(HandleScopeImplementer::kIsMicrotaskContextOffset +
                      FlagStack::kSizeOffset),
       saved_entered_context_count);
