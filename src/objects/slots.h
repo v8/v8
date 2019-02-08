@@ -137,6 +137,8 @@ class FullMaybeObjectSlot
   explicit FullMaybeObjectSlot(Address ptr) : SlotBase(ptr) {}
   explicit FullMaybeObjectSlot(Object* ptr)
       : SlotBase(reinterpret_cast<Address>(ptr)) {}
+  explicit FullMaybeObjectSlot(MaybeObject* ptr)
+      : SlotBase(reinterpret_cast<Address>(ptr)) {}
   template <typename T>
   explicit FullMaybeObjectSlot(SlotBase<T, TData, kSlotDataSize> slot)
       : SlotBase(slot.address()) {}

@@ -25,45 +25,19 @@
 namespace v8 {
 namespace internal {
 
-// This is like a MaybeObjectSlot, except it doesn't enforce alignment.
-// Most slots used below are aligned, but when writing into Code objects,
-// they might not be, hence the use of UnalignedSlot and UnalignedCopy.
-class UnalignedSlot {
- public:
-  explicit UnalignedSlot(ObjectSlot slot) : ptr_(slot.address()) {}
-  explicit UnalignedSlot(Address address) : ptr_(address) {}
-  explicit UnalignedSlot(MaybeObject* slot)
-      : ptr_(reinterpret_cast<Address>(slot)) {}
-  explicit UnalignedSlot(Object* slot)
-      : ptr_(reinterpret_cast<Address>(slot)) {}
-
-  inline bool operator<(const UnalignedSlot& other) const {
-    return ptr_ < other.ptr_;
-  }
-  inline bool operator==(const UnalignedSlot& other) const {
-    return ptr_ == other.ptr_;
-  }
-
-  inline void Advance(int bytes = kPointerSize) { ptr_ += bytes; }
-
-  inline void Write(Address value) {
-    memcpy(reinterpret_cast<void*>(ptr_), &value, sizeof(value));
-  }
-
-  Address address() { return ptr_; }
-
- private:
-  Address ptr_;
-};
-
-void Deserializer::UnalignedCopy(UnalignedSlot dest, MaybeObject value) {
+template <typename TSlot>
+TSlot Deserializer::Write(TSlot dest, MaybeObject value) {
   DCHECK(!allocator()->next_reference_is_weak());
-  dest.Write(value.ptr());
+  dest.store(value);
+  return dest + 1;
 }
 
-void Deserializer::UnalignedCopy(UnalignedSlot dest, Address value) {
+template <typename TSlot>
+TSlot Deserializer::WriteAddress(TSlot dest, Address value) {
   DCHECK(!allocator()->next_reference_is_weak());
-  dest.Write(value);
+  memcpy(dest.ToVoidPtr(), &value, kSystemPointerSize);
+  STATIC_ASSERT(IsAligned(kSystemPointerSize, TSlot::kSlotDataSize));
+  return dest + (kSystemPointerSize / TSlot::kSlotDataSize);
 }
 
 void Deserializer::Initialize(Isolate* isolate) {
@@ -106,10 +80,8 @@ void Deserializer::VisitRootPointers(Root root, const char* description,
                                      FullObjectSlot start, FullObjectSlot end) {
   // We are reading to a location outside of JS heap, so pass NEW_SPACE to
   // avoid triggering write barriers.
-  // TODO(ishell): this will not work once we actually compress pointers.
-  STATIC_ASSERT(kTaggedSize == kSystemPointerSize);
-  ReadData(UnalignedSlot(start.address()), UnalignedSlot(end.address()),
-           NEW_SPACE, kNullAddress);
+  ReadData(FullMaybeObjectSlot(start), FullMaybeObjectSlot(end), NEW_SPACE,
+           kNullAddress);
 }
 
 void Deserializer::Synchronize(VisitorSynchronization::SyncTag tag) {
@@ -134,8 +106,8 @@ void Deserializer::DeserializeDeferredObjects() {
         HeapObject object = GetBackReferencedObject(space);
         int size = source_.GetInt() << kPointerSizeLog2;
         Address obj_address = object->address();
-        UnalignedSlot start(obj_address + kPointerSize);
-        UnalignedSlot end(obj_address + size);
+        MaybeObjectSlot start(obj_address + kPointerSize);
+        MaybeObjectSlot end(obj_address + size);
         bool filled = ReadData(start, end, space, obj_address);
         CHECK(filled);
         DCHECK(CanBeDeferred(object));
@@ -374,8 +346,9 @@ HeapObject Deserializer::ReadObject() {
   MaybeObject object;
   // We are reading to a location outside of JS heap, so pass NEW_SPACE to
   // avoid triggering write barriers.
-  bool filled = ReadData(UnalignedSlot(&object), UnalignedSlot(&object + 1),
-                         NEW_SPACE, kNullAddress);
+  bool filled =
+      ReadData(FullMaybeObjectSlot(&object), FullMaybeObjectSlot(&object + 1),
+               NEW_SPACE, kNullAddress);
   CHECK(filled);
   return object.GetHeapObjectAssumeStrong();
 }
@@ -388,8 +361,8 @@ HeapObject Deserializer::ReadObject(int space_number) {
   HeapObject obj = HeapObject::FromAddress(address);
 
   isolate_->heap()->OnAllocationEvent(obj, size);
-  UnalignedSlot current(address);
-  UnalignedSlot limit(address + size);
+  MaybeObjectSlot current(address);
+  MaybeObjectSlot limit(address + size);
 
   if (ReadData(current, limit, space_number, address)) {
     // Only post process if object content has not been deferred.
@@ -411,8 +384,8 @@ void Deserializer::ReadCodeObjectBody(int space_number,
   // At this point the code object is already allocated, its map field is
   // initialized and its raw data fields and code stream are also read.
   // Now we read the rest of code header's fields.
-  UnalignedSlot current(code_object_address + HeapObject::kHeaderSize);
-  UnalignedSlot limit(code_object_address + Code::kDataStart);
+  MaybeObjectSlot current(code_object_address + HeapObject::kHeaderSize);
+  MaybeObjectSlot limit(code_object_address + Code::kDataStart);
   bool filled = ReadData(current, limit, space_number, code_object_address);
   CHECK(filled);
 
@@ -493,17 +466,16 @@ void Deserializer::VisitOffHeapTarget(Code host, RelocInfo* rinfo) {
   }
 }
 
-UnalignedSlot Deserializer::ReadRepeatedObject(UnalignedSlot current,
-                                               int repeat_count) {
+template <typename TSlot>
+TSlot Deserializer::ReadRepeatedObject(TSlot current, int repeat_count) {
   CHECK_LE(2, repeat_count);
 
-  HeapObject object = ReadObject();
-  DCHECK(!Heap::InYoungGeneration(object));
+  HeapObject heap_object = ReadObject();
+  DCHECK(!Heap::InYoungGeneration(heap_object));
   for (int i = 0; i < repeat_count; i++) {
     // Repeated values are not subject to the write barrier so we don't need
     // to trigger it.
-    UnalignedCopy(current, object.ptr());
-    current.Advance();
+    current = Write(current, MaybeObject::FromObject(heap_object));
   }
   return current;
 }
@@ -516,8 +488,9 @@ static void NoExternalReferencesCallback() {
   CHECK_WITH_MSG(false, "No external references provided via API");
 }
 
-bool Deserializer::ReadData(UnalignedSlot current, UnalignedSlot limit,
-                            int source_space, Address current_object_address) {
+template <typename TSlot>
+bool Deserializer::ReadData(TSlot current, TSlot limit, int source_space,
+                            Address current_object_address) {
   Isolate* const isolate = isolate_;
   // Write barrier support costs around 1% in startup time.  In fact there
   // are no new space objects in current boot snapshots, so it's not needed,
@@ -533,7 +506,7 @@ bool Deserializer::ReadData(UnalignedSlot current, UnalignedSlot limit,
     STATIC_ASSERT((space_number & ~kSpaceMask) == 0);
 
 #define CASE_BODY(bytecode, space_number_if_any)                             \
-  current = ReadDataCase<bytecode, space_number_if_any>(                     \
+  current = ReadDataCase<TSlot, bytecode, space_number_if_any>(              \
       isolate, current, current_object_address, data, write_barrier_needed); \
   break;
 
@@ -597,8 +570,7 @@ bool Deserializer::ReadData(UnalignedSlot current, UnalignedSlot limit,
       // object.
       case kExternalReference: {
         Address address = ReadExternalReferenceCase();
-        UnalignedCopy(current, address);
-        current.Advance();
+        current = WriteAddress(current, address);
         break;
       }
 
@@ -637,25 +609,26 @@ bool Deserializer::ReadData(UnalignedSlot current, UnalignedSlot limit,
       // Deserialize raw data of variable length.
       case kVariableRawData: {
         int size_in_bytes = source_.GetInt();
-        byte* raw_data_out = reinterpret_cast<byte*>(current.address());
-        source_.CopyRaw(raw_data_out, size_in_bytes);
-        current.Advance(size_in_bytes);
+        DCHECK(IsAligned(size_in_bytes, kTaggedSize));
+        source_.CopyRaw(current.ToVoidPtr(), size_in_bytes);
+        current = TSlot(current.address() + size_in_bytes);
         break;
       }
 
       // Deserialize raw code directly into the body of the code object.
-      // Do not move current.
       case kVariableRawCode: {
         // VariableRawCode can only occur right after the heap object header.
         DCHECK_EQ(current.address(), current_object_address + kTaggedSize);
         int size_in_bytes = source_.GetInt();
+        DCHECK(IsAligned(size_in_bytes, kTaggedSize));
         source_.CopyRaw(
-            reinterpret_cast<byte*>(current_object_address + Code::kDataStart),
+            reinterpret_cast<void*>(current_object_address + Code::kDataStart),
             size_in_bytes);
+        // Deserialize tagged fields in the code object header and reloc infos.
         ReadCodeObjectBody(source_space, current_object_address);
         // Set current to the code object end.
-        current.Advance(Code::kDataStart - HeapObject::kHeaderSize +
-                        size_in_bytes);
+        current = TSlot(current.address() + Code::kDataStart -
+                        HeapObject::kHeaderSize + size_in_bytes);
         CHECK_EQ(current, limit);
         break;
       }
@@ -689,14 +662,12 @@ bool Deserializer::ReadData(UnalignedSlot current, UnalignedSlot limit,
         } else {
           address = reinterpret_cast<Address>(NoExternalReferencesCallback);
         }
-        UnalignedCopy(current, address);
-        current.Advance();
+        current = WriteAddress(current, address);
         break;
       }
 
       case kClearedWeakReference:
-        UnalignedCopy(current, HeapObjectReference::ClearedValue(isolate_));
-        current.Advance();
+        current = Write(current, HeapObjectReference::ClearedValue(isolate_));
         break;
 
       case kWeakPrefix:
@@ -725,8 +696,7 @@ bool Deserializer::ReadData(UnalignedSlot current, UnalignedSlot limit,
         RootIndex root_index = static_cast<RootIndex>(id);
         MaybeObject object = MaybeObject::FromObject(isolate->root(root_index));
         DCHECK(!Heap::InYoungGeneration(object));
-        UnalignedCopy(current, object);
-        current.Advance();
+        current = Write(current, object);
         break;
       }
 
@@ -739,8 +709,9 @@ bool Deserializer::ReadData(UnalignedSlot current, UnalignedSlot limit,
         if (allocator()->GetAndClearNextReferenceIsWeak()) {
           hot_maybe_object = MaybeObject::MakeWeak(hot_maybe_object);
         }
-
-        UnalignedCopy(current, hot_maybe_object);
+        // Don't update current pointer here as it may be needed for write
+        // barrier.
+        Write(current, hot_maybe_object);
         if (write_barrier_needed && Heap::InYoungGeneration(hot_object)) {
           HeapObject current_object =
               HeapObject::FromAddress(current_object_address);
@@ -748,7 +719,7 @@ bool Deserializer::ReadData(UnalignedSlot current, UnalignedSlot limit,
                               MaybeObjectSlot(current.address()),
                               hot_maybe_object);
         }
-        current.Advance();
+        ++current;
         break;
       }
 
@@ -756,10 +727,9 @@ bool Deserializer::ReadData(UnalignedSlot current, UnalignedSlot limit,
       STATIC_ASSERT(kNumberOfFixedRawData == 32);
       SIXTEEN_CASES(kFixedRawData)
       SIXTEEN_CASES(kFixedRawData + 16) {
-        byte* raw_data_out = reinterpret_cast<byte*>(current.address());
-        int size_in_bytes = (data - kFixedRawDataStart) << kPointerSizeLog2;
-        source_.CopyRaw(raw_data_out, size_in_bytes);
-        current.Advance(size_in_bytes);
+        int size_in_tagged = data - kFixedRawDataStart;
+        source_.CopyRaw(current.ToVoidPtr(), size_in_tagged * kTaggedSize);
+        current += size_in_tagged;
         break;
       }
 
@@ -792,11 +762,11 @@ Address Deserializer::ReadExternalReferenceCase() {
   return external_reference_table_->address(reference_id);
 }
 
-template <SerializerDeserializer::Bytecode bytecode, int space_number_if_any>
-UnalignedSlot Deserializer::ReadDataCase(Isolate* isolate,
-                                         UnalignedSlot current,
-                                         Address current_object_address,
-                                         byte data, bool write_barrier_needed) {
+template <typename TSlot, SerializerDeserializer::Bytecode bytecode,
+          int space_number_if_any>
+TSlot Deserializer::ReadDataCase(Isolate* isolate, TSlot current,
+                                 Address current_object_address, byte data,
+                                 bool write_barrier_needed) {
   bool emit_write_barrier = false;
   int space_number = space_number_if_any == kAnyOldSpace ? (data & kSpaceMask)
                                                          : space_number_if_any;
@@ -839,15 +809,15 @@ UnalignedSlot Deserializer::ReadDataCase(Isolate* isolate,
       reference_type == HeapObjectReferenceType::STRONG
           ? HeapObjectReference::Strong(heap_object)
           : HeapObjectReference::Weak(heap_object);
-  UnalignedCopy(current, heap_object_ref);
+  // Don't update current pointer here as it may be needed for write barrier.
+  Write(current, heap_object_ref);
   if (emit_write_barrier && write_barrier_needed) {
     HeapObject host_object = HeapObject::FromAddress(current_object_address);
     SLOW_DCHECK(isolate->heap()->Contains(host_object));
     GenerationalBarrier(host_object, MaybeObjectSlot(current.address()),
                         heap_object_ref);
   }
-  current.Advance();
-  return current;
+  return current + 1;
 }
 
 }  // namespace internal

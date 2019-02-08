@@ -481,6 +481,7 @@ void Serializer::ObjectSerializer::SerializeExternalStringAsSequentialString() {
 
   // Output the rest of the imaginary string.
   int bytes_to_output = allocation_size - HeapObject::kHeaderSize;
+  DCHECK(IsAligned(bytes_to_output, kTaggedSize));
 
   // Output raw data header. Do not bother with common raw length cases here.
   sink_->Put(kVariableRawData, "RawDataForString");
@@ -876,6 +877,7 @@ void Serializer::ObjectSerializer::OutputCode(int size) {
 
   Address start = off_heap_code->address() + Code::kDataStart;
   int bytes_to_output = size - Code::kDataStart;
+  DCHECK(IsAligned(bytes_to_output, kTaggedSize));
 
   sink_->Put(kVariableRawCode, "VariableRawCode");
   sink_->PutInt(bytes_to_output, "length");
