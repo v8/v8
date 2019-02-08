@@ -163,7 +163,7 @@ class MapUpdater {
                        Representation new_representation,
                        Handle<FieldType> new_field_type);
 
-  void SaveIntegrityLevelTransitions();
+  bool TrySaveIntegrityLevelTransitions();
 
   Isolate* isolate_;
   Handle<Map> old_map_;

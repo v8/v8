@@ -939,10 +939,24 @@ IntegrityLevelTransitionInfo DetectIntegrityLevelTransitions(
   IntegrityLevelTransitionInfo info(map);
 
   DCHECK(!map->is_extensible());
-  Map source_map = Map::cast(map->GetBackPointer());
+  Map source_map = map;
+  // Skip integrity level transitions.
+  while (!source_map->is_extensible()) {
+    source_map = Map::cast(source_map->GetBackPointer());
+  }
 
+  // If there are some non-integrity-level transitions after the first
+  // non-extensible transitions, e.g., if there were private symbols transitions
+  // after the first integrity level transition, then we just bail out.
+  if (map->NumberOfOwnDescriptors() != source_map->NumberOfOwnDescriptors()) {
+    return info;
+  }
+
+  // Figure out the most restrictive integrity level transition (it should
+  // be the last one in the transition tree).
   ReadOnlyRoots roots(isolate);
-  TransitionsAccessor transitions(isolate, source_map, no_allocation);
+  TransitionsAccessor transitions(isolate, Map::cast(map->GetBackPointer()),
+                                  no_allocation);
   if (transitions.SearchSpecial(roots.frozen_symbol()) == map) {
     info.integrity_level = FROZEN;
     info.integrity_level_symbol = roots.frozen_symbol();
@@ -953,11 +967,6 @@ IntegrityLevelTransitionInfo DetectIntegrityLevelTransitions(
     CHECK_EQ(transitions.SearchSpecial(roots.nonextensible_symbol()), map);
     info.integrity_level = NONE;
     info.integrity_level_symbol = roots.nonextensible_symbol();
-  }
-
-  // Skip all the other integrity level transitions.
-  while (!source_map->is_extensible()) {
-    source_map = Map::cast(source_map->GetBackPointer());
   }
 
   info.has_integrity_level_transition = true;
@@ -994,6 +1003,9 @@ Map Map::TryUpdateSlow(Isolate* isolate, Map old_map) {
     DCHECK(!old_map->is_extensible());
     DCHECK(root_map->is_extensible());
     info = DetectIntegrityLevelTransitions(old_map, isolate, &no_allocation);
+    // Bail out if there were some private symbol transitions mixed up
+    // with the integrity level transitions.
+    if (!info.has_integrity_level_transition) return Map();
     // Make sure replay the original elements kind transitions, before
     // the integrity level transition sets the elements to dictionary mode.
     DCHECK(to_kind == DICTIONARY_ELEMENTS ||

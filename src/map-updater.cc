@@ -253,12 +253,28 @@ MapUpdater::State MapUpdater::TryReconfigureToDataFieldInplace() {
   return state_;  // Done.
 }
 
-void MapUpdater::SaveIntegrityLevelTransitions() {
-  integrity_source_map_ =
-      handle(Map::cast(old_map_->GetBackPointer()), isolate_);
-  ReadOnlyRoots roots(isolate_);
-  TransitionsAccessor transitions(isolate_, integrity_source_map_);
+bool MapUpdater::TrySaveIntegrityLevelTransitions() {
+  // Skip integrity level transitions.
+  integrity_source_map_ = old_map_;
+  while (!integrity_source_map_->is_extensible()) {
+    integrity_source_map_ =
+        handle(Map::cast(integrity_source_map_->GetBackPointer()), isolate_);
+  }
 
+  // If there are some non-integrity-level transitions after the first
+  // non-extensible transitions, e.g., if there were private symbols transitions
+  // after the first integrity level transition, then we just bail out and
+  // generalize all the fields.
+  if (old_map_->NumberOfOwnDescriptors() !=
+      integrity_source_map_->NumberOfOwnDescriptors()) {
+    return false;
+  }
+
+  // Figure out the most restrictive integrity level transition (it should
+  // be the last one in the transition tree).
+  ReadOnlyRoots roots(isolate_);
+  TransitionsAccessor transitions(
+      isolate_, handle(Map::cast(old_map_->GetBackPointer()), isolate_));
   if (transitions.SearchSpecial(roots.frozen_symbol()) == *old_map_) {
     integrity_level_ = FROZEN;
     integrity_level_symbol_ = isolate_->factory()->frozen_symbol();
@@ -272,16 +288,10 @@ void MapUpdater::SaveIntegrityLevelTransitions() {
     integrity_level_symbol_ = isolate_->factory()->nonextensible_symbol();
   }
 
-  // Skip all the other integrity level transitions.
-  while (!integrity_source_map_->is_extensible()) {
-    integrity_source_map_ =
-        handle(Map::cast(integrity_source_map_->GetBackPointer()), isolate_);
-  }
-
   has_integrity_level_transition_ = true;
-
   old_descriptors_ =
       handle(integrity_source_map_->instance_descriptors(), isolate_);
+  return true;
 }
 
 MapUpdater::State MapUpdater::FindRootMap() {
@@ -307,7 +317,9 @@ MapUpdater::State MapUpdater::FindRootMap() {
     DCHECK(root_map_->is_extensible());
     // We have an integrity level transition in the tree, let us make a note
     // of that transition to be able to replay it later.
-    SaveIntegrityLevelTransitions();
+    if (!TrySaveIntegrityLevelTransitions()) {
+      return CopyGeneralizeAllFields("GenAll_PrivateSymbolsOnNonExtensible");
+    }
 
     // We want to build transitions to the original element kind (before
     // the seal transitions), so change {to_kind} accordingly.
