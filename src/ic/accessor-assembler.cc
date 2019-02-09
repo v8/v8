@@ -2895,18 +2895,14 @@ void AccessorAssembler::StoreIC(const StoreICParameters* p) {
 }
 
 void AccessorAssembler::StoreGlobalIC(const StoreICParameters* pp) {
-  Label if_lexical_var(this), if_heapobject(this);
+  Label if_lexical_var(this), if_property_cell(this);
   TNode<MaybeObject> maybe_weak_ref =
       LoadFeedbackVectorSlot(pp->vector, pp->slot, 0, SMI_PARAMETERS);
-  Branch(TaggedIsSmi(maybe_weak_ref), &if_lexical_var, &if_heapobject);
+  Branch(TaggedIsSmi(maybe_weak_ref), &if_lexical_var, &if_property_cell);
 
-  BIND(&if_heapobject);
+  BIND(&if_property_cell);
   {
     Label try_handler(this), miss(this, Label::kDeferred);
-    GotoIf(
-        WordEqual(maybe_weak_ref, LoadRoot(RootIndex::kpremonomorphic_symbol)),
-        &miss);
-
     CSA_ASSERT(this, IsWeakOrCleared(maybe_weak_ref));
     TNode<PropertyCell> property_cell =
         CAST(GetHeapObjectAssumeWeak(maybe_weak_ref, &try_handler));

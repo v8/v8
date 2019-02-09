@@ -570,13 +570,6 @@ InlineCacheState FeedbackNexus::StateFromFeedback() const {
     case FeedbackSlotKind::kLoadGlobalInsideTypeof: {
       if (feedback->IsSmi()) return MONOMORPHIC;
 
-      if (feedback == MaybeObject::FromObject(
-                          *FeedbackVector::PremonomorphicSentinel(isolate))) {
-        DCHECK(kind() == FeedbackSlotKind::kStoreGlobalSloppy ||
-               kind() == FeedbackSlotKind::kStoreGlobalStrict);
-        return PREMONOMORPHIC;
-      }
-
       DCHECK(feedback->IsWeakOrCleared());
       MaybeObject extra = GetFeedbackExtra();
       if (!feedback->IsCleared() ||
