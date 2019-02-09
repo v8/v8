@@ -45,6 +45,8 @@
 #include "src/compilation-cache.h"
 #include "src/debug/debug.h"
 #include "src/execution.h"
+#include "src/feedback-vector-inl.h"
+#include "src/feedback-vector.h"
 #include "src/futex-emulation.h"
 #include "src/global-handles.h"
 #include "src/heap/incremental-marking.h"
@@ -10951,7 +10953,6 @@ static void ShadowIndexedGet(uint32_t index,
 static void ShadowNamedGet(Local<Name> key,
                            const v8::PropertyCallbackInfo<v8::Value>&) {}
 
-
 THREADED_TEST(ShadowObject) {
   shadow_y = shadow_y_setter_call_count = shadow_y_getter_call_count = 0;
   v8::Isolate* isolate = CcTest::isolate();
@@ -11002,6 +11003,55 @@ THREADED_TEST(ShadowObject) {
   CHECK_EQ(42, value->Int32Value(context.local()).FromJust());
 }
 
+THREADED_TEST(ShadowObjectAndDataProperty) {
+  // This test mimics the kind of shadow property the Chromium embedder
+  // uses for undeclared globals. The IC subsystem has special handling
+  // for this case, using a PREMONOMORPHIC state to delay entering
+  // MONOMORPHIC state until enough information is available to support
+  // efficient access and good feedback for optimization.
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope handle_scope(isolate);
+
+  Local<ObjectTemplate> global_template = v8::ObjectTemplate::New(isolate);
+  LocalContext context(nullptr, global_template);
+
+  Local<v8::FunctionTemplate> t = v8::FunctionTemplate::New(isolate);
+  t->InstanceTemplate()->SetHandler(
+      v8::NamedPropertyHandlerConfiguration(ShadowNamedGet));
+
+  Local<Value> o = t->GetFunction(context.local())
+                       .ToLocalChecked()
+                       ->NewInstance(context.local())
+                       .ToLocalChecked();
+  CHECK(context->Global()
+            ->Set(context.local(), v8_str("__proto__"), o)
+            .FromJust());
+
+  CompileRun(
+      "function foo(x) { i = x; }"
+      "foo(0)");
+
+  i::Handle<i::JSFunction> foo(i::Handle<i::JSFunction>::cast(
+      v8::Utils::OpenHandle(*context->Global()
+                                 ->Get(context.local(), v8_str("foo"))
+                                 .ToLocalChecked())));
+  CHECK(foo->has_feedback_vector());
+  i::FeedbackSlot slot = i::FeedbackVector::ToSlot(0);
+  i::FeedbackNexus nexus(foo->feedback_vector(), slot);
+  CHECK_EQ(i::FeedbackSlotKind::kStoreGlobalSloppy, nexus.kind());
+  CHECK_EQ(i::PREMONOMORPHIC, nexus.StateFromFeedback());
+  CompileRun("foo(1)");
+  CHECK_EQ(i::MONOMORPHIC, nexus.StateFromFeedback());
+  // We go a bit further, checking that the form of monomorphism is
+  // a PropertyCell in the vector. This is because we want to make sure
+  // we didn't settle for a "poor man's monomorphism," such as a
+  // slow_stub bailout which would mean a trip to the runtime on all
+  // subsequent stores, and a lack of feedback for the optimizing
+  // compiler downstream.
+  i::HeapObject heap_object;
+  CHECK(nexus.GetFeedback().GetHeapObject(&heap_object));
+  CHECK(heap_object->IsPropertyCell());
+}
 
 THREADED_TEST(SetPrototype) {
   LocalContext context;
