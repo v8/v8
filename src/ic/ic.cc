@@ -1471,6 +1471,24 @@ void StoreIC::UpdateCaches(LookupIterator* lookup, Handle<Object> value,
     }
     handler = ComputeHandler(lookup);
   } else {
+    if (state() == UNINITIALIZED && IsStoreGlobalIC() &&
+        lookup->state() == LookupIterator::INTERCEPTOR) {
+      InterceptorInfo info =
+          lookup->GetHolder<JSObject>()->GetNamedInterceptor();
+      if (!lookup->HolderIsReceiverOrHiddenPrototype() &&
+          !info->getter()->IsUndefined(isolate())) {
+        // Utilize premonomorphic state for global store ics that run into
+        // an interceptor because the property doesn't exist yet.
+        // After we actually set the property, we'll have more information.
+        // Premonomorphism gives us a chance to find more information the
+        // second time.
+        TRACE_HANDLER_STATS(isolate(), StoreGlobalIC_Premonomorphic);
+        ConfigureVectorState(receiver_map());
+        TraceIC("StoreGlobalIC", lookup->name());
+        return;
+      }
+    }
+
     set_slow_stub_reason("LookupForWrite said 'false'");
     // TODO(marja): change slow_stub to return MaybeObjectHandle.
     handler = MaybeObjectHandle(slow_stub());
