@@ -924,7 +924,10 @@ class DateFormatCache {
     if (map_.size() > 8) {  // Cache at most 8 DateFormats.
       map_.clear();
     }
-    map_[key] = CreateICUDateFormat(icu_locale, skeleton, generator);
+    std::unique_ptr<icu::SimpleDateFormat> instance(
+        CreateICUDateFormat(icu_locale, skeleton, generator));
+    if (instance.get() == nullptr) return nullptr;
+    map_[key] = std::move(instance);
     return static_cast<icu::SimpleDateFormat*>(map_[key]->clone());
   }
 
