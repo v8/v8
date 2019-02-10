@@ -147,8 +147,8 @@ void CodeGenerator::AssembleCode() {
   }
 
   // Check that {kJavaScriptCallCodeStartRegister} has been set correctly.
-  if (FLAG_debug_code & (info->code_kind() == Code::OPTIMIZED_FUNCTION ||
-                         info->code_kind() == Code::BYTECODE_HANDLER)) {
+  if (FLAG_debug_code && (info->code_kind() == Code::OPTIMIZED_FUNCTION ||
+                          info->code_kind() == Code::BYTECODE_HANDLER)) {
     tasm()->RecordComment("-- Prologue: check code start register --");
     AssembleCodeStartRegisterCheck();
   }
