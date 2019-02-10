@@ -3678,8 +3678,8 @@ void CodeGenerator::AssembleConstructFrame() {
 
     unwinding_info_writer_.MarkFrameConstructed(pc_base);
   }
-  int shrink_slots = frame()->GetTotalFrameSlotCount() -
-                     call_descriptor->CalculateFixedFrameSize();
+  int required_slots = frame()->GetTotalFrameSlotCount() -
+                       call_descriptor->CalculateFixedFrameSize();
 
   if (info()->is_osr()) {
     // TurboFan OSR-compiled functions cannot be entered directly.
@@ -3691,16 +3691,16 @@ void CodeGenerator::AssembleConstructFrame() {
     // remaining stack slots.
     if (FLAG_code_comments) __ RecordComment("-- OSR entrypoint --");
     osr_pc_offset_ = __ pc_offset();
-    shrink_slots -= static_cast<int>(osr_helper()->UnoptimizedFrameSlots());
+    required_slots -= static_cast<int>(osr_helper()->UnoptimizedFrameSlots());
     ResetSpeculationPoison();
   }
 
   const RegList saves = call_descriptor->CalleeSavedRegisters();
   const RegList saves_fp = call_descriptor->CalleeSavedFPRegisters();
 
-  if (shrink_slots > 0) {
+  if (required_slots > 0) {
     DCHECK(frame_access_state()->has_frame());
-    if (info()->IsWasm() && shrink_slots > 128) {
+    if (info()->IsWasm() && required_slots > 128) {
       // For WebAssembly functions with big frames we have to do the stack
       // overflow check before we construct the frame. Otherwise we may not
       // have enough space on the stack to call the runtime for the stack
@@ -3710,12 +3710,13 @@ void CodeGenerator::AssembleConstructFrame() {
       // If the frame is bigger than the stack, we throw the stack overflow
       // exception unconditionally. Thereby we can avoid the integer overflow
       // check in the condition code.
-      if (shrink_slots * kSystemPointerSize < FLAG_stack_size * 1024) {
+      if (required_slots * kSystemPointerSize < FLAG_stack_size * 1024) {
         __ movq(kScratchRegister,
                 FieldOperand(kWasmInstanceRegister,
                              WasmInstanceObject::kRealStackLimitAddressOffset));
         __ movq(kScratchRegister, Operand(kScratchRegister, 0));
-        __ addq(kScratchRegister, Immediate(shrink_slots * kSystemPointerSize));
+        __ addq(kScratchRegister,
+                Immediate(required_slots * kSystemPointerSize));
         __ cmpq(rsp, kScratchRegister);
         __ j(above_equal, &done);
       }
@@ -3732,12 +3733,12 @@ void CodeGenerator::AssembleConstructFrame() {
     }
 
     // Skip callee-saved and return slots, which are created below.
-    shrink_slots -= base::bits::CountPopulation(saves);
-    shrink_slots -= base::bits::CountPopulation(saves_fp) *
-                    (kQuadWordSize / kSystemPointerSize);
-    shrink_slots -= frame()->GetReturnSlotCount();
-    if (shrink_slots > 0) {
-      __ subq(rsp, Immediate(shrink_slots * kSystemPointerSize));
+    required_slots -= base::bits::CountPopulation(saves);
+    required_slots -= base::bits::CountPopulation(saves_fp) *
+                      (kQuadWordSize / kSystemPointerSize);
+    required_slots -= frame()->GetReturnSlotCount();
+    if (required_slots > 0) {
+      __ subq(rsp, Immediate(required_slots * kSystemPointerSize));
     }
   }
 
