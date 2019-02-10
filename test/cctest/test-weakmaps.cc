@@ -247,6 +247,39 @@ TEST(Regress399527) {
   CcTest::CollectAllGarbage();
 }
 
+TEST(WeakMapsWithChainedEntries) {
+  ManualGCScope manual_gc_scope;
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+  i::Isolate* i_isolate = CcTest::i_isolate();
+  v8::HandleScope scope(isolate);
+
+  const int initial_gc_count = i_isolate->heap()->gc_count();
+  Handle<JSWeakMap> weakmap1 = i_isolate->factory()->NewJSWeakMap();
+  Handle<JSWeakMap> weakmap2 = i_isolate->factory()->NewJSWeakMap();
+  v8::Global<v8::Object> g1;
+  v8::Global<v8::Object> g2;
+  {
+    v8::HandleScope scope(isolate);
+    v8::Local<v8::Object> o1 = v8::Object::New(isolate);
+    g1.Reset(isolate, o1);
+    g1.SetWeak();
+    v8::Local<v8::Object> o2 = v8::Object::New(isolate);
+    g2.Reset(isolate, o2);
+    g2.SetWeak();
+    Handle<Object> i_o1 = v8::Utils::OpenHandle(*o1);
+    Handle<Object> i_o2 = v8::Utils::OpenHandle(*o2);
+    int32_t hash1 = i_o1->GetOrCreateHash(i_isolate)->value();
+    int32_t hash2 = i_o2->GetOrCreateHash(i_isolate)->value();
+    JSWeakCollection::Set(weakmap1, i_o1, i_o2, hash1);
+    JSWeakCollection::Set(weakmap2, i_o2, i_o1, hash2);
+  }
+  CcTest::CollectGarbage(OLD_SPACE);
+  CHECK(g1.IsEmpty());
+  CHECK(g2.IsEmpty());
+  CHECK_EQ(1, i_isolate->heap()->gc_count() - initial_gc_count);
+}
+
 }  // namespace test_weakmaps
 }  // namespace internal
 }  // namespace v8
