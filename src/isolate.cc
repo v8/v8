@@ -1084,6 +1084,46 @@ Address Isolate::GetAbstractPC(int* line, int* column) {
   return frame->pc();
 }
 
+namespace {
+
+class StackFrameCacheHelper : public AllStatic {
+ public:
+  static MaybeHandle<StackFrameInfo> LookupCachedFrame(
+      Isolate* isolate, Handle<AbstractCode> code, int code_offset) {
+    if (FLAG_optimize_for_size) return MaybeHandle<StackFrameInfo>();
+
+    const auto maybe_cache = handle(code->stack_frame_cache(), isolate);
+    if (!maybe_cache->IsSimpleNumberDictionary())
+      return MaybeHandle<StackFrameInfo>();
+
+    const auto cache = Handle<SimpleNumberDictionary>::cast(maybe_cache);
+    const int entry = cache->FindEntry(isolate, code_offset);
+    if (entry != NumberDictionary::kNotFound) {
+      return handle(StackFrameInfo::cast(cache->ValueAt(entry)), isolate);
+    }
+    return MaybeHandle<StackFrameInfo>();
+  }
+
+  static void CacheFrameAndUpdateCache(Isolate* isolate,
+                                       Handle<AbstractCode> code,
+                                       int code_offset,
+                                       Handle<StackFrameInfo> frame) {
+    if (FLAG_optimize_for_size) return;
+
+    const auto maybe_cache = handle(code->stack_frame_cache(), isolate);
+    const auto cache = maybe_cache->IsSimpleNumberDictionary()
+                           ? Handle<SimpleNumberDictionary>::cast(maybe_cache)
+                           : SimpleNumberDictionary::New(isolate, 1);
+    Handle<SimpleNumberDictionary> new_cache =
+        SimpleNumberDictionary::Set(isolate, cache, code_offset, frame);
+    if (*new_cache != *cache || !maybe_cache->IsSimpleNumberDictionary()) {
+      AbstractCode::SetStackFrameCache(code, new_cache);
+    }
+  }
+};
+
+}  // anonymous namespace
+
 class CaptureStackTraceHelper {
  public:
   explicit CaptureStackTraceHelper(Isolate* isolate) : isolate_(isolate) {}
@@ -1096,26 +1136,11 @@ class CaptureStackTraceHelper {
 
   Handle<StackFrameInfo> NewStackFrameObject(
       const FrameSummary::JavaScriptFrameSummary& summ) {
-    int code_offset;
-    Handle<ByteArray> source_position_table;
-    Handle<Object> maybe_cache;
-    Handle<SimpleNumberDictionary> cache;
-    if (!FLAG_optimize_for_size) {
-      code_offset = summ.code_offset();
-      source_position_table =
-          handle(summ.abstract_code()->source_position_table(), isolate_);
-      maybe_cache = handle(summ.abstract_code()->stack_frame_cache(), isolate_);
-      if (maybe_cache->IsSimpleNumberDictionary()) {
-        cache = Handle<SimpleNumberDictionary>::cast(maybe_cache);
-      } else {
-        cache = SimpleNumberDictionary::New(isolate_, 1);
-      }
-      int entry = cache->FindEntry(isolate_, code_offset);
-      if (entry != NumberDictionary::kNotFound) {
-        Handle<StackFrameInfo> frame(
-            StackFrameInfo::cast(cache->ValueAt(entry)), isolate_);
-        return frame;
-      }
+    MaybeHandle<StackFrameInfo> maybe_frame =
+        StackFrameCacheHelper::LookupCachedFrame(isolate_, summ.abstract_code(),
+                                                 summ.code_offset());
+    if (!maybe_frame.is_null()) {
+      return maybe_frame.ToHandleChecked();
     }
 
     Handle<StackFrameInfo> frame = factory()->NewStackFrameInfo();
@@ -1136,14 +1161,10 @@ class CaptureStackTraceHelper {
     frame->set_function_name(*function_name);
     frame->set_is_constructor(summ.is_constructor());
     frame->set_is_wasm(false);
-    if (!FLAG_optimize_for_size) {
-      auto new_cache =
-          SimpleNumberDictionary::Set(isolate_, cache, code_offset, frame);
-      if (*new_cache != *cache || !maybe_cache->IsNumberDictionary()) {
-        AbstractCode::SetStackFrameCache(summ.abstract_code(), new_cache);
-      }
-    }
     frame->set_id(next_id());
+
+    StackFrameCacheHelper::CacheFrameAndUpdateCache(
+        isolate_, summ.abstract_code(), summ.code_offset(), frame);
     return frame;
   }
 
