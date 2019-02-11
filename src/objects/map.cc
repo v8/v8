@@ -2432,9 +2432,9 @@ bool CheckEquivalent(const Map first, const Map second) {
 bool Map::EquivalentToForTransition(const Map other) const {
   CHECK_EQ(GetConstructor(), other->GetConstructor());
   CHECK_EQ(instance_type(), other->instance_type());
-  CHECK_EQ(bit_field(), other->bit_field());
   CHECK_EQ(has_hidden_prototype(), other->has_hidden_prototype());
 
+  if (bit_field() != other->bit_field()) return false;
   if (new_target_is_base() != other->new_target_is_base()) return false;
   if (prototype() != other->prototype()) return false;
   if (instance_type() == JS_FUNCTION_TYPE) {
