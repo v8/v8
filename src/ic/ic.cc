@@ -2463,12 +2463,24 @@ RUNTIME_FUNCTION(Runtime_KeyedStoreIC_Miss) {
   // Runtime functions don't follow the IC's calling convention.
   Handle<Object> value = args.at(0);
   Handle<Smi> slot = args.at<Smi>(1);
-  Handle<FeedbackVector> vector = args.at<FeedbackVector>(2);
+  Handle<HeapObject> maybe_vector = args.at<HeapObject>(2);
   Handle<Object> receiver = args.at(3);
   Handle<Object> key = args.at(4);
-
   FeedbackSlot vector_slot = FeedbackVector::ToSlot(slot->value());
-  FeedbackSlotKind kind = vector->GetKind(vector_slot);
+
+  // When the feedback vector is not valid the slot can only be of type
+  // StoreKeyed. Storing in array literals falls back to
+  // StoreInArrayLiterIC_Miss. This function is also used from store handlers
+  // installed in feedback vectors. In such cases, we need to get the kind from
+  // feedback vector slot since the handlers are used for both for StoreKeyed
+  // and StoreInArrayLiteral kinds.
+  FeedbackSlotKind kind = FeedbackSlotKind::kStoreKeyedStrict;
+  Handle<FeedbackVector> vector = Handle<FeedbackVector>();
+  if (!maybe_vector->IsUndefined()) {
+    DCHECK(maybe_vector->IsFeedbackVector());
+    vector = Handle<FeedbackVector>::cast(maybe_vector);
+    kind = vector->GetKind(vector_slot);
+  }
 
   // The elements store stubs miss into this function, but they are shared by
   // different ICs.
@@ -2485,20 +2497,6 @@ RUNTIME_FUNCTION(Runtime_KeyedStoreIC_Miss) {
     ic.Store(Handle<JSArray>::cast(receiver), key, value);
     return *value;
   }
-}
-
-RUNTIME_FUNCTION(Runtime_KeyedStoreICNoFeedback_Miss) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(3, args.length());
-  // Runtime functions don't follow the IC's calling convention.
-  Handle<Object> value = args.at(0);
-  Handle<Object> receiver = args.at(1);
-  Handle<Object> key = args.at(2);
-
-  // TODO(mythria): Replace StoreKeyedStrict/Sloppy with StoreKeyed.
-  KeyedStoreIC ic(isolate, Handle<FeedbackVector>(), FeedbackSlot(),
-                  FeedbackSlotKind::kStoreKeyedStrict);
-  RETURN_RESULT_OR_FAILURE(isolate, ic.Store(receiver, key, value));
 }
 
 RUNTIME_FUNCTION(Runtime_StoreInArrayLiteralIC_Miss) {

@@ -2982,10 +2982,13 @@ void AccessorAssembler::KeyedStoreIC(const StoreICParameters* p) {
     Label if_handler(this, &var_handler),
         try_polymorphic(this, Label::kDeferred),
         try_megamorphic(this, Label::kDeferred),
+        no_feedback(this, Label::kDeferred),
         try_polymorphic_name(this, Label::kDeferred);
 
     Node* receiver_map = LoadReceiverMap(p->receiver);
     GotoIf(IsDeprecatedMap(receiver_map), &miss);
+
+    GotoIf(IsUndefined(p->vector), &no_feedback);
 
     // Check monomorphic case.
     TNode<MaybeObject> feedback =
@@ -3013,11 +3016,15 @@ void AccessorAssembler::KeyedStoreIC(const StoreICParameters* p) {
     {
       // Check megamorphic case.
       Comment("KeyedStoreIC_try_megamorphic");
-      GotoIfNot(
+      Branch(
           WordEqual(strong_feedback, LoadRoot(RootIndex::kmegamorphic_symbol)),
-          &try_polymorphic_name);
+          &no_feedback, &try_polymorphic_name);
+    }
+
+    BIND(&no_feedback);
+    {
       TailCallBuiltin(Builtins::kKeyedStoreIC_Megamorphic, p->context,
-                      p->receiver, p->name, p->value, p->slot, p->vector);
+                      p->receiver, p->name, p->value, p->slot);
     }
 
     BIND(&try_polymorphic_name);

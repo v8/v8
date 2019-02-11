@@ -668,20 +668,9 @@ IGNITION_HANDLER(StaKeyedProperty, InterpreterAssembler) {
   Node* maybe_vector = LoadFeedbackVectorUnchecked();
   Node* context = GetContext();
 
-  Label no_feedback(this, Label::kDeferred), end(this);
   VARIABLE(var_result, MachineRepresentation::kTagged);
-  GotoIf(IsUndefined(maybe_vector), &no_feedback);
-
   var_result.Bind(CallBuiltin(Builtins::kKeyedStoreIC, context, object, name,
                               value, smi_slot, maybe_vector));
-  Goto(&end);
-
-  Bind(&no_feedback);
-  var_result.Bind(CallRuntime(Runtime::kKeyedStoreICNoFeedback_Miss, context,
-                              value, object, name));
-  Goto(&end);
-
-  Bind(&end);
   // To avoid special logic in the deoptimizer to re-materialize the value in
   // the accumulator, we overwrite the accumulator after the IC call. It
   // doesn't really matter what we write to the accumulator here, since we

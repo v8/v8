@@ -211,7 +211,7 @@ namespace internal {
   /* Handlers */                                                               \
   TFH(KeyedLoadIC_PolymorphicName, LoadWithVector)                             \
   TFH(KeyedLoadIC_Slow, LoadWithVector)                                        \
-  TFH(KeyedStoreIC_Megamorphic, StoreWithVector)                               \
+  TFH(KeyedStoreIC_Megamorphic, Store)                                         \
   TFH(KeyedStoreIC_Slow, StoreWithVector)                                      \
   TFH(LoadGlobalIC_Slow, LoadWithVector)                                       \
   TFH(LoadIC_FunctionPrototype, LoadWithVector)                                \
