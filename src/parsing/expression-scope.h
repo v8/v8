@@ -163,11 +163,6 @@ class ExpressionScope {
     AsExpressionParsingScope()->RecordExpressionError(loc, message);
   }
 
-  void RecordLexicalDeclarationError(const Scanner::Location& loc,
-                                     MessageTemplate message) {
-    if (IsLexicalDeclaration()) Report(loc, message);
-  }
-
   void RecordNonSimpleParameter() {
     if (!IsArrowHeadParsingScope()) return;
     AsArrowHeadParsingScope()->RecordNonSimpleParameter();

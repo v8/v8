@@ -2333,10 +2333,6 @@ ParserBase<Impl>::ParseObjectPropertyDefinition(ParsePropertyInfo* prop_info,
 
       DCHECK(!prop_info->is_computed_name);
 
-      if (name_token == Token::LET) {
-        expression_scope()->RecordLexicalDeclarationError(
-            scanner()->location(), MessageTemplate::kLetInLexicalBinding);
-      }
       if (name_token == Token::AWAIT) {
         DCHECK(!is_async_function());
         expression_scope()->RecordAsyncArrowParametersError(
