@@ -277,6 +277,9 @@ RUNTIME_FUNCTION(Runtime_AllocateInTargetSpace) {
   bool double_align = AllocateDoubleAlignFlag::decode(flags);
   AllocationSpace space = AllocateTargetSpace::decode(flags);
   CHECK(size <= kMaxRegularHeapObjectSize || space == LO_SPACE);
+  if (FLAG_young_generation_large_objects && space == LO_SPACE) {
+    space = NEW_LO_SPACE;
+  }
   return *isolate->factory()->NewFillerObject(size, double_align, space);
 }
 

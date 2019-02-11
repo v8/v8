@@ -155,7 +155,9 @@ Heap::Heap()
 }
 
 size_t Heap::MaxReserved() {
+  const size_t kMaxNewLargeObjectSpaceSize = max_semi_space_size_;
   return static_cast<size_t>(2 * max_semi_space_size_ +
+                             kMaxNewLargeObjectSpaceSize +
                              max_old_generation_size_);
 }
 
@@ -268,7 +270,7 @@ bool Heap::HasBeenSetUp() {
 GarbageCollector Heap::SelectGarbageCollector(AllocationSpace space,
                                               const char** reason) {
   // Is global GC requested?
-  if (space != NEW_SPACE) {
+  if (space != NEW_SPACE && space != NEW_LO_SPACE) {
     isolate_->counters()->gc_compactor_caused_by_request()->Increment();
     *reason = "GC in old space requested";
     return MARK_COMPACTOR;
