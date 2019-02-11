@@ -2762,6 +2762,11 @@ void TurboAssembler::LoadAnyTaggedField(const Register& destination,
 #endif
 }
 
+void TurboAssembler::StoreTaggedField(const Register& value,
+                                      const MemOperand& dst_field_operand) {
+  Str(value, dst_field_operand);
+}
+
 void TurboAssembler::DecompressTaggedSigned(const Register& destination,
                                             const MemOperand& field_operand) {
   RecordComment("[ DecompressTaggedSigned");
