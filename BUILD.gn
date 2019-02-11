@@ -222,20 +222,6 @@ v8_toolset_for_shell = "host"
 ###############################################################################
 # Configurations
 #
-config("internal_config") {
-  visibility = [ ":*" ]  # Only targets in this file can depend on this.
-
-  include_dirs = [
-    ".",
-    "$target_gen_dir",
-  ]
-
-  configs = [ "//build/config/compiler:wexit_time_destructors" ]
-
-  if (is_component_build) {
-    defines = [ "BUILDING_V8_SHARED" ]
-  }
-}
 
 config("internal_config_base") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
@@ -244,6 +230,21 @@ config("internal_config_base") {
     ".",
     "$target_gen_dir",
   ]
+}
+
+config("internal_config") {
+  defines = []
+  visibility = [ ":*" ]  # Only targets in this file can depend on this.
+
+  configs = [
+    "//build/config/compiler:wexit_time_destructors",
+    ":internal_config_base",
+    ":v8_header_features",
+  ]
+
+  if (is_component_build) {
+    defines += [ "BUILDING_V8_SHARED" ]
+  }
 }
 
 # This config should be applied to code using the libplatform.
@@ -274,17 +275,9 @@ config("libsampler_config") {
 # itself.
 config("external_config") {
   defines = []
+  configs = [ ":v8_header_features" ]
   if (is_component_build) {
     defines += [ "USING_V8_SHARED" ]
-  }
-  if (v8_enable_v8_checks) {
-    defines += [ "V8_ENABLE_CHECKS" ]  # Used in "include/v8.h".
-  }
-  if (v8_deprecation_warnings) {
-    defines += [ "V8_DEPRECATION_WARNINGS" ]
-  }
-  if (v8_imminent_deprecation_warnings) {
-    defines += [ "V8_IMMINENT_DEPRECATION_WARNINGS" ]
   }
   include_dirs = [
     "include",
@@ -300,10 +293,38 @@ config("external_startup_data") {
   }
 }
 
+# Put defines that are used in public headers here; public headers are
+# defined in "v8_headers" and are included by embedders of V8.
+config("v8_header_features") {
+  visibility = [ ":*" ]
+
+  defines = []
+
+  if (v8_enable_v8_checks) {
+    defines += [ "V8_ENABLE_CHECKS" ]  # Used in "include/v8.h".
+  }
+  if (v8_enable_pointer_compression) {
+    defines += [ "V8_COMPRESS_POINTERS" ]
+  }
+  if (v8_enable_pointer_compression || v8_enable_31bit_smis_on_64bit_arch) {
+    defines += [ "V8_31BIT_SMIS_ON_64BIT_ARCH" ]
+  }
+  if (v8_deprecation_warnings) {
+    defines += [ "V8_DEPRECATION_WARNINGS" ]
+  }
+  if (v8_imminent_deprecation_warnings) {
+    defines += [ "V8_IMMINENT_DEPRECATION_WARNINGS" ]
+  }
+}
+
+# Put defines here that are only used in our internal files and NEVER in
+# external headers that embedders (such as chromium and node) might include.
 config("features") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
   defines = []
+
+  configs = [ ":v8_header_features" ]
 
   if (v8_embedder_string != "") {
     defines += [ "V8_EMBEDDER_STRING=\"$v8_embedder_string\"" ]
@@ -336,12 +357,6 @@ config("features") {
   if (v8_enable_minor_mc) {
     defines += [ "ENABLE_MINOR_MC" ]
   }
-  if (v8_enable_pointer_compression) {
-    defines += [ "V8_COMPRESS_POINTERS" ]
-  }
-  if (v8_enable_pointer_compression || v8_enable_31bit_smis_on_64bit_arch) {
-    defines += [ "V8_31BIT_SMIS_ON_64BIT_ARCH" ]
-  }
   if (v8_enable_object_print) {
     defines += [ "OBJECT_PRINT" ]
   }
@@ -363,15 +378,6 @@ config("features") {
   if (v8_enable_test_features) {
     defines += [ "V8_ENABLE_ALLOCATION_TIMEOUT" ]
     defines += [ "V8_ENABLE_FORCE_SLOW_PATH" ]
-  }
-  if (v8_enable_v8_checks) {
-    defines += [ "V8_ENABLE_CHECKS" ]
-  }
-  if (v8_deprecation_warnings) {
-    defines += [ "V8_DEPRECATION_WARNINGS" ]
-  }
-  if (v8_imminent_deprecation_warnings) {
-    defines += [ "V8_IMMINENT_DEPRECATION_WARNINGS" ]
   }
   if (v8_enable_i18n_support) {
     defines += [ "V8_INTL_SUPPORT" ]
@@ -1492,6 +1498,7 @@ v8_header_set("v8_version") {
 # can depend upon to get basic v8 types.
 v8_header_set("v8_headers") {
   configs = [ ":internal_config" ]
+  public_configs = [ ":v8_header_features" ]
 
   sources = [
     "include/v8-internal.h",
@@ -3325,7 +3332,7 @@ v8_source_set("v8_libsampler") {
     "src/libsampler/sampler.h",
   ]
 
-  configs = [ ":internal_config_base" ]
+  configs = [ ":internal_config" ]
 
   public_configs = [ ":libsampler_config" ]
 

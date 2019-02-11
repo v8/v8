@@ -63,22 +63,18 @@ inspector_protocol_generate("protocol_generated_sources") {
 
 config("inspector_config") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
-  if (is_component_build) {
-    defines = [ "BUILDING_V8_SHARED" ]
-  }
+
+  configs = [ "../../:internal_config" ]
+  include_dirs = [ "../../include" ]
 }
 
 v8_source_set("inspector") {
   deps = [
     ":protocol_generated_sources",
   ]
+
   configs = [ ":inspector_config" ]
-  include_dirs = [
-    "../..",
-    "../../include",
-    "$target_gen_dir/../..",
-    "$target_gen_dir/../../include",
-  ]
+
   sources = rebase_path(_protocol_generated, ".", target_gen_dir)
   sources += [
     "../../include/v8-inspector-protocol.h",
