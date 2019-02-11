@@ -660,6 +660,7 @@ class GlobalHandles::TracedNode final
     set_parameter(parameter);
     callback_ = callback;
   }
+  bool HasFinalizationCallback() const { return callback_ != nullptr; }
 
   void CollectPhantomCallbackData(
       std::vector<std::pair<TracedNode*, PendingPhantomCallback>>*
@@ -775,7 +776,12 @@ void GlobalHandles::MoveTracedGlobal(Address** from, Address** to) {
   DCHECK_NOT_NULL(*to);
   DCHECK_EQ(*from, *to);
   TracedNode* node = TracedNode::FromLocation(*from);
-  node->set_parameter(to);
+  // Only set the backpointer for clearing a phantom handle when there is no
+  // finalization callback attached. As soon as a callback is attached to a node
+  // the embedder is on its own when resetting a handle.
+  if (!node->HasFinalizationCallback()) {
+    node->set_parameter(to);
+  }
 }
 
 void GlobalHandles::Destroy(Address* location) {
