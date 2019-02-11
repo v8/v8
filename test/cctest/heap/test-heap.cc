@@ -189,7 +189,7 @@ HEAP_TEST(TestNewSpaceRefsInCopiedCode) {
   HandleScope sc(isolate);
 
   Handle<HeapNumber> value = factory->NewHeapNumber(1.000123);
-  CHECK(Heap::InNewSpace(*value));
+  CHECK(Heap::InYoungGeneration(*value));
 
   i::byte buffer[i::Assembler::kMinimalBufferSize];
   MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes,
@@ -691,7 +691,7 @@ TEST(WeakGlobalHandlesMark) {
   // Make sure the objects are promoted.
   CcTest::CollectGarbage(OLD_SPACE);
   CcTest::CollectGarbage(NEW_SPACE);
-  CHECK(!Heap::InNewSpace(*h1) && !Heap::InNewSpace(*h2));
+  CHECK(!Heap::InYoungGeneration(*h1) && !Heap::InYoungGeneration(*h2));
 
   std::pair<Handle<Object>*, int> handle_and_id(&h2, 1234);
   GlobalHandles::MakeWeak(
@@ -2338,7 +2338,7 @@ HEAP_TEST(Regress845060) {
 
   // Preparation: create a string in new space.
   Local<Value> str = CompileRun("var str = (new Array(10000)).join('x'); str");
-  CHECK(Heap::InNewSpace(*v8::Utils::OpenHandle(*str)));
+  CHECK(Heap::InYoungGeneration(*v8::Utils::OpenHandle(*str)));
 
   // Idle incremental marking sets the "kReduceMemoryFootprint" flag, which
   // causes from_space to be unmapped after scavenging.
@@ -2349,7 +2349,7 @@ HEAP_TEST(Regress845060) {
   // promoted to old space. Unmapping of from_space causes accesses to any
   // stale raw pointers to crash.
   CompileRun("while (%InNewSpace(str)) { str.split(''); }");
-  CHECK(!Heap::InNewSpace(*v8::Utils::OpenHandle(*str)));
+  CHECK(!Heap::InYoungGeneration(*v8::Utils::OpenHandle(*str)));
 }
 
 TEST(IdleNotificationFinishMarking) {
@@ -2418,7 +2418,7 @@ TEST(OptimizedAllocationAlwaysInNewSpace) {
   i::Handle<JSReceiver> o =
       v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(res));
 
-  CHECK(Heap::InNewSpace(*o));
+  CHECK(Heap::InYoungGeneration(*o));
 }
 
 
@@ -2556,7 +2556,7 @@ TEST(OptimizedPretenuringNestedInObjectProperties) {
 
   // Nested literal sites are only pretenured if the top level
   // literal is pretenured
-  CHECK(Heap::InNewSpace(*o));
+  CHECK(Heap::InYoungGeneration(*o));
 }
 
 TEST(OptimizedPretenuringMixedInObjectProperties) {
@@ -2884,7 +2884,7 @@ TEST(OptimizedAllocationArrayLiterals) {
   i::Handle<JSObject> o = Handle<JSObject>::cast(
       v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(res)));
 
-  CHECK(Heap::InNewSpace(o->elements()));
+  CHECK(Heap::InYoungGeneration(o->elements()));
 }
 
 static int CountMapTransitions(i::Isolate* isolate, Map map) {
@@ -4163,10 +4163,10 @@ TEST(NewSpaceObjectsInOptimizedCode) {
                                            ->Get(context.local(), v8_str("foo"))
                                            .ToLocalChecked())));
 
-    CHECK(Heap::InNewSpace(*foo));
+    CHECK(Heap::InYoungGeneration(*foo));
     CcTest::CollectGarbage(NEW_SPACE);
     CcTest::CollectGarbage(NEW_SPACE);
-    CHECK(!Heap::InNewSpace(*foo));
+    CHECK(!Heap::InYoungGeneration(*foo));
 #ifdef VERIFY_HEAP
     CcTest::heap()->Verify();
 #endif
@@ -4829,8 +4829,8 @@ TEST(Regress507979) {
 
   Handle<FixedArray> o1 = isolate->factory()->NewFixedArray(kFixedArrayLen);
   Handle<FixedArray> o2 = isolate->factory()->NewFixedArray(kFixedArrayLen);
-  CHECK(Heap::InNewSpace(*o1));
-  CHECK(Heap::InNewSpace(*o2));
+  CHECK(Heap::InYoungGeneration(*o1));
+  CHECK(Heap::InYoungGeneration(*o2));
 
   HeapIterator it(isolate->heap(), i::HeapIterator::kFilterUnreachable);
 
@@ -5079,7 +5079,7 @@ void AllocateInSpace(Isolate* isolate, size_t bytes, AllocationSpace space) {
       static_cast<int>((bytes - FixedArray::kHeaderSize) / kTaggedSize);
   Handle<FixedArray> array = factory->NewFixedArray(
       elements, space == NEW_SPACE ? NOT_TENURED : TENURED);
-  CHECK((space == NEW_SPACE) == Heap::InNewSpace(*array));
+  CHECK((space == NEW_SPACE) == Heap::InYoungGeneration(*array));
   CHECK_EQ(bytes, static_cast<size_t>(array->Size()));
 }
 
@@ -5327,7 +5327,7 @@ HEAP_TEST(Regress587004) {
   Handle<FixedArray> array = factory->NewFixedArray(N, TENURED);
   CHECK(heap->old_space()->Contains(*array));
   Handle<Object> number = factory->NewHeapNumber(1.0);
-  CHECK(Heap::InNewSpace(*number));
+  CHECK(Heap::InYoungGeneration(*number));
   for (int i = 0; i < N; i++) {
     array->set(i, *number);
   }
@@ -6355,7 +6355,7 @@ HEAP_TEST(Regress779503) {
     // The byte array filled with kHeapObjectTag ensures that we cannot read
     // from the slot again and interpret it as heap value. Doing so will crash.
     Handle<ByteArray> byte_array = isolate->factory()->NewByteArray(kArraySize);
-    CHECK(Heap::InNewSpace(*byte_array));
+    CHECK(Heap::InYoungGeneration(*byte_array));
     for (int i = 0; i < kArraySize; i++) {
       byte_array->set(i, kHeapObjectTag);
     }
@@ -6365,7 +6365,7 @@ HEAP_TEST(Regress779503) {
       // The FixedArray in old space serves as space for slots.
       Handle<FixedArray> fixed_array =
           isolate->factory()->NewFixedArray(kArraySize, TENURED);
-      CHECK(!Heap::InNewSpace(*fixed_array));
+      CHECK(!Heap::InYoungGeneration(*fixed_array));
       for (int i = 0; i < kArraySize; i++) {
         fixed_array->set(i, *byte_array);
       }
@@ -6374,7 +6374,7 @@ HEAP_TEST(Regress779503) {
     // currently scavenging.
     heap->delay_sweeper_tasks_for_testing_ = true;
     CcTest::CollectGarbage(OLD_SPACE);
-    CHECK(Heap::InNewSpace(*byte_array));
+    CHECK(Heap::InYoungGeneration(*byte_array));
   }
   // Scavenging and sweeping the same page will crash as slots will be
   // overridden.
@@ -6568,7 +6568,7 @@ TEST(Regress8617) {
   Handle<Object> foo =
       v8::Utils::OpenHandle(*CompileRun("function foo() { return 42; };"
                                         "foo;"));
-  if (heap->InNewSpace(*foo)) {
+  if (heap->InYoungGeneration(*foo)) {
     CcTest::CollectGarbage(NEW_SPACE);
     CcTest::CollectGarbage(NEW_SPACE);
   }

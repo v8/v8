@@ -193,7 +193,7 @@ TEST(ExternalString_PromotedThinString) {
     i::Handle<i::String> isymbol1 = factory->InternalizeString(string1);
     CHECK(isymbol1->IsInternalizedString());
     CHECK(string1->IsExternalString());
-    CHECK(!heap->InNewSpace(*isymbol1));
+    CHECK(!heap->InYoungGeneration(*isymbol1));
 
     // New external string in the young space. This string has the same content
     // as the previous one (that was already internalized).
@@ -209,7 +209,7 @@ TEST(ExternalString_PromotedThinString) {
     i::Handle<i::String> isymbol2 = factory->InternalizeString(istring);
     CHECK(isymbol2->IsInternalizedString());
     CHECK(istring->IsThinString());
-    CHECK(heap->InNewSpace(*istring));
+    CHECK(heap->InYoungGeneration(*istring));
 
     // Collect thin string. References to the thin string will be updated to
     // point to the actual external string in the old space.

@@ -58,10 +58,10 @@ void InvokeScavenge();
 void InvokeMarkSweep();
 
 template <typename GlobalOrPersistent>
-bool InNewSpace(v8::Isolate* isolate, const GlobalOrPersistent& global) {
+bool InYoungGeneration(v8::Isolate* isolate, const GlobalOrPersistent& global) {
   v8::HandleScope scope(isolate);
   auto tmp = global.Get(isolate);
-  return i::Heap::InNewSpace(*v8::Utils::OpenHandle(*tmp));
+  return i::Heap::InYoungGeneration(*v8::Utils::OpenHandle(*tmp));
 }
 
 }  // namespace heap

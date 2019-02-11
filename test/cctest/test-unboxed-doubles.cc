@@ -1454,7 +1454,7 @@ static void TestWriteBarrier(Handle<Map> map, Handle<Map> new_map,
     obj_value = factory->NewHeapNumber(0.);
   }
 
-  CHECK(Heap::InNewSpace(*obj_value));
+  CHECK(Heap::InYoungGeneration(*obj_value));
 
   {
     FieldIndex index = FieldIndex::ForDescriptor(*map, tagged_descriptor);

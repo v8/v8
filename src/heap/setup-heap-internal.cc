@@ -284,7 +284,7 @@ bool Heap::CreateInitialMaps() {
   }
   set_undefined_value(Oddball::cast(obj));
   Oddball::cast(obj)->set_kind(Oddball::kUndefined);
-  DCHECK(!InNewSpace(roots.undefined_value()));
+  DCHECK(!InYoungGeneration(roots.undefined_value()));
   {
     AllocationResult allocation = Allocate(roots.the_hole_map(), RO_SPACE);
     if (!allocation.To(&obj)) return false;
@@ -600,7 +600,7 @@ bool Heap::CreateInitialMaps() {
   TYPED_ARRAYS(ALLOCATE_EMPTY_FIXED_TYPED_ARRAY)
 #undef ALLOCATE_EMPTY_FIXED_TYPED_ARRAY
 
-  DCHECK(!InNewSpace(roots.empty_fixed_array()));
+  DCHECK(!InYoungGeneration(roots.empty_fixed_array()));
 
   roots.bigint_map()->SetConstructorFunctionIndex(
       Context::BIGINT_FUNCTION_INDEX);

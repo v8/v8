@@ -106,7 +106,8 @@ std::vector<Handle<FixedArray>> CreatePadding(Heap* heap, int padding_size,
       }
     }
     handles.push_back(isolate->factory()->NewFixedArray(length, tenure));
-    CHECK((tenure == NOT_TENURED && Heap::InNewSpace(*handles.back())) ||
+    CHECK((tenure == NOT_TENURED &&
+           heap->new_space()->Contains(*handles.back())) ||
           (tenure == TENURED && heap->InOldSpace(*handles.back())));
     free_memory -= handles.back()->Size();
   }

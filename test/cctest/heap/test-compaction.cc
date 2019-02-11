@@ -305,7 +305,7 @@ HEAP_TEST(CompactionPartiallyAbortedPageWithStoreBufferEntries) {
       root_array->set(0, *compaction_page_handles.back());
       Handle<FixedArray> new_space_array =
           isolate->factory()->NewFixedArray(1, NOT_TENURED);
-      CHECK(Heap::InNewSpace(*new_space_array));
+      CHECK(Heap::InYoungGeneration(*new_space_array));
       compaction_page_handles.front()->set(1, *new_space_array);
       CheckAllObjectsOnPage(compaction_page_handles, to_be_aborted_page);
     }
@@ -332,7 +332,7 @@ HEAP_TEST(CompactionPartiallyAbortedPageWithStoreBufferEntries) {
       while (current->get(0) != ReadOnlyRoots(heap).undefined_value()) {
         current =
             Handle<FixedArray>(FixedArray::cast(current->get(0)), isolate);
-        CHECK(!Heap::InNewSpace(*current));
+        CHECK(!Heap::InYoungGeneration(*current));
         CHECK(current->IsFixedArray());
         if (Page::FromHeapObject(*current) != to_be_aborted_page) {
           in_place = false;

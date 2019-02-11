@@ -173,7 +173,7 @@ TEST(Regress2060a) {
     HandleScope scope(isolate);
     for (int i = 0; i < 32; i++) {
       Handle<JSObject> object = factory->NewJSObject(function, TENURED);
-      CHECK(!Heap::InNewSpace(*object));
+      CHECK(!Heap::InYoungGeneration(*object));
       CHECK(!first_page->Contains(object->address()));
       int32_t hash = key->GetOrCreateHash(isolate)->value();
       JSWeakCollection::Set(weakmap, key, object, hash);
@@ -211,7 +211,7 @@ TEST(Regress2060b) {
   Handle<JSObject> keys[32];
   for (int i = 0; i < 32; i++) {
     keys[i] = factory->NewJSObject(function, TENURED);
-    CHECK(!Heap::InNewSpace(*keys[i]));
+    CHECK(!Heap::InYoungGeneration(*keys[i]));
     CHECK(!first_page->Contains(keys[i]->address()));
   }
   Handle<JSWeakMap> weakmap = isolate->factory()->NewJSWeakMap();

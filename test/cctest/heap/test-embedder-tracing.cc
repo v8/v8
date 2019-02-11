@@ -310,7 +310,7 @@ void TracedGlobalTest(v8::Isolate* isolate,
 
   v8::TracedGlobal<v8::Object> global;
   construct_function(isolate, context, &global);
-  CHECK(InNewSpace(isolate, global));
+  CHECK(InYoungGeneration(isolate, global));
   modifier_function(global);
   gc_function();
   CHECK_IMPLIES(survives == SurvivalMode::kSurvives, !global.IsEmpty());

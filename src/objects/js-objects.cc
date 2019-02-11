@@ -4613,7 +4613,9 @@ bool JSObject::UpdateAllocationSite(Handle<JSObject> object,
                                     ElementsKind to_kind) {
   if (!object->IsJSArray()) return false;
 
-  if (!Heap::InNewSpace(*object)) return false;
+  if (!Heap::InYoungGeneration(*object)) return false;
+
+  if (Heap::IsLargeObject(*object)) return false;
 
   Handle<AllocationSite> site;
   {

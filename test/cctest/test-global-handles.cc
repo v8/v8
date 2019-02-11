@@ -104,7 +104,7 @@ void WeakHandleTest(v8::Isolate* isolate, ConstructFunction construct_function,
 
   FlagAndPersistent fp;
   construct_function(isolate, context, &fp);
-  CHECK(heap::InNewSpace(isolate, fp.handle));
+  CHECK(heap::InYoungGeneration(isolate, fp.handle));
   fp.handle.SetWeak(&fp, &ResetHandleAndSetFlag,
                     v8::WeakCallbackType::kParameter);
   fp.flag = false;
@@ -516,7 +516,7 @@ TEST(GCFromWeakCallbacks) {
     for (int inner_gc = 0; inner_gc < kNumberOfGCTypes; inner_gc++) {
       FlagAndPersistent fp;
       ConstructJSApiObject(isolate, context, &fp);
-      CHECK(heap::InNewSpace(isolate, fp.handle));
+      CHECK(heap::InYoungGeneration(isolate, fp.handle));
       fp.flag = false;
       fp.handle.SetWeak(&fp, gc_forcing_callback[inner_gc],
                         v8::WeakCallbackType::kParameter);
