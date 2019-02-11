@@ -189,17 +189,24 @@ class SystemTest(unittest.TestCase):
             '--variants=default,stress',
             '--shard-count=2',
             '--shard-run=%d' % shard,
-            'sweet/bananas',
+            'sweet/blackberries',
             'sweet/raspberries',
             infra_staging=False,
         )
         # One of the shards gets one variant of each test.
         self.assertIn('2 tests ran', result.stdout, result)
         if shard == 1:
-          self.assertIn('Done running sweet/bananas', result.stdout, result)
+          self.assertIn(
+            'Done running sweet/raspberries default', result.stdout, result)
+          self.assertIn(
+            'Done running sweet/raspberries stress', result.stdout, result)
+          self.assertEqual(0, result.returncode, result)
         else:
-          self.assertIn('Done running sweet/raspberries', result.stdout, result)
-        self.assertEqual(0, result.returncode, result)
+          self.assertIn(
+            'sweet/blackberries default: FAIL', result.stdout, result)
+          self.assertIn(
+            'sweet/blackberries stress: FAIL', result.stdout, result)
+          self.assertEqual(1, result.returncode, result)
 
   @unittest.skip("incompatible with test processors")
   def testSharded(self):

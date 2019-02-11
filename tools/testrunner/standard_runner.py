@@ -295,10 +295,10 @@ class StandardTestRunner(base_runner.BaseTestRunner):
         loader,
         NameFilterProc(args) if args else None,
         StatusFileFilterProc(options.slow_tests, options.pass_fail_tests),
-        self._create_shard_proc(options),
         VariantProc(self._variants),
         StatusFileFilterProc(options.slow_tests, options.pass_fail_tests),
         self._create_predictable_filter(),
+        self._create_shard_proc(options),
         self._create_seed_proc(options),
         sigproc,
       ] + indicators + [
