@@ -184,7 +184,9 @@ class LiveObjectRange {
       : chunk_(chunk),
         bitmap_(bitmap),
         start_(chunk_->area_start()),
-        end_(chunk->area_end()) {}
+        end_(chunk->area_end()) {
+    DCHECK(!chunk->IsLargePage());
+  }
 
   inline iterator begin();
   inline iterator end();

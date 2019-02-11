@@ -3093,7 +3093,7 @@ class NewLargeObjectSpace : public LargeObjectSpace {
 
   void Flip();
 
-  void FreeAllObjects();
+  void FreeDeadObjects(const std::function<bool(HeapObject)>& is_dead);
 
   void SetCapacity(size_t capacity);
 

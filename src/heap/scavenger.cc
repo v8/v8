@@ -292,7 +292,7 @@ void ScavengerCollector::CollectGarbage() {
   // Since we promote all surviving large objects immediatelly, all remaining
   // large objects must be dead.
   // TODO(hpayer): Don't free all as soon as we have an intermediate generation.
-  heap_->new_lo_space()->FreeAllObjects();
+  heap_->new_lo_space()->FreeDeadObjects([](HeapObject) { return true; });
 
   RememberedSet<OLD_TO_NEW>::IterateMemoryChunks(heap_, [](MemoryChunk* chunk) {
     if (chunk->SweepingDone()) {

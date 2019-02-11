@@ -2937,11 +2937,13 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
   }
 
   // Promote young generation large objects.
-  LargePage* current = heap()->new_lo_space()->first_page();
   IncrementalMarking::NonAtomicMarkingState* marking_state =
       heap()->incremental_marking()->non_atomic_marking_state();
-  while (current) {
-    LargePage* next_current = current->next_page();
+
+  for (auto it = heap()->new_lo_space()->begin();
+       it != heap()->new_lo_space()->end();) {
+    LargePage* current = *it;
+    it++;
     HeapObject object = current->GetObject();
     DCHECK(!marking_state->IsGrey(object));
     if (marking_state->IsBlack(object)) {
@@ -2949,7 +2951,6 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
       current->SetFlag(Page::PAGE_NEW_OLD_PROMOTION);
       evacuation_job.AddItem(new EvacuationItem(current));
     }
-    current = next_current;
   }
 
   if (evacuation_job.NumberOfItems() == 0) return;
@@ -3015,13 +3016,13 @@ void LiveObjectVisitor::VisitBlackObjectsNoFail(MemoryChunk* chunk,
                                                 IterationMode iteration_mode) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
                "LiveObjectVisitor::VisitBlackObjectsNoFail");
-  DCHECK_NE(chunk->owner()->identity(), NEW_LO_SPACE);
-  if (chunk->owner()->identity() == LO_SPACE) {
+  if (chunk->IsLargePage()) {
     HeapObject object = reinterpret_cast<LargePage*>(chunk)->GetObject();
-    DCHECK(marking_state->IsBlack(object));
-    const bool success = visitor->Visit(object, object->Size());
-    USE(success);
-    DCHECK(success);
+    if (marking_state->IsBlack(object)) {
+      const bool success = visitor->Visit(object, object->Size());
+      USE(success);
+      DCHECK(success);
+    }
   } else {
     for (auto object_and_size :
          LiveObjectRange<kBlackObjects>(chunk, marking_state->bitmap(chunk))) {
@@ -3044,13 +3045,22 @@ void LiveObjectVisitor::VisitGreyObjectsNoFail(MemoryChunk* chunk,
                                                IterationMode iteration_mode) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
                "LiveObjectVisitor::VisitGreyObjectsNoFail");
-  for (auto object_and_size :
-       LiveObjectRange<kGreyObjects>(chunk, marking_state->bitmap(chunk))) {
-    HeapObject const object = object_and_size.first;
-    DCHECK(marking_state->IsGrey(object));
-    const bool success = visitor->Visit(object, object_and_size.second);
-    USE(success);
-    DCHECK(success);
+  if (chunk->IsLargePage()) {
+    HeapObject object = reinterpret_cast<LargePage*>(chunk)->GetObject();
+    if (marking_state->IsGrey(object)) {
+      const bool success = visitor->Visit(object, object->Size());
+      USE(success);
+      DCHECK(success);
+    }
+  } else {
+    for (auto object_and_size :
+         LiveObjectRange<kGreyObjects>(chunk, marking_state->bitmap(chunk))) {
+      HeapObject const object = object_and_size.first;
+      DCHECK(marking_state->IsGrey(object));
+      const bool success = visitor->Visit(object, object_and_size.second);
+      USE(success);
+      DCHECK(success);
+    }
   }
   if (iteration_mode == kClearMarkbits) {
     marking_state->ClearLiveness(chunk);
@@ -4038,10 +4048,10 @@ class YoungGenerationRecordMigratedSlotVisitor final
             p->IsToPage(),
             p->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION) || p->IsLargePage());
         RememberedSet<OLD_TO_NEW>::Insert<AccessMode::NON_ATOMIC>(
-            Page::FromAddress(slot), slot);
+            Page::FromHeapObject(host), slot);
       } else if (p->IsEvacuationCandidate() && IsLive(host)) {
         RememberedSet<OLD_TO_OLD>::Insert<AccessMode::NON_ATOMIC>(
-            Page::FromAddress(slot), slot);
+            Page::FromHeapObject(host), slot);
       }
     }
   }
@@ -4176,6 +4186,10 @@ void MinorMarkCompactCollector::CollectGarbage() {
         heap()->concurrent_marking()->ClearMemoryChunkData(p);
       }
     }
+    // Since we promote all surviving large objects immediatelly, all remaining
+    // large objects must be dead.
+    // TODO(ulan): Don't free all as soon as we have an intermediate generation.
+    heap()->new_lo_space()->FreeDeadObjects([](HeapObject) { return true; });
   }
 
   RememberedSet<OLD_TO_NEW>::IterateMemoryChunks(
@@ -4193,6 +4207,7 @@ void MinorMarkCompactCollector::CollectGarbage() {
 void MinorMarkCompactCollector::MakeIterable(
     Page* p, MarkingTreatmentMode marking_mode,
     FreeSpaceTreatmentMode free_space_mode) {
+  CHECK(!p->IsLargePage());
   // We have to clear the full collectors markbits for the areas that we
   // remove here.
   MarkCompactCollector* full_collector = heap()->mark_compact_collector();
@@ -4332,6 +4347,9 @@ void MinorMarkCompactCollector::EvacuatePrologue() {
   }
   new_space->Flip();
   new_space->ResetLinearAllocationArea();
+
+  heap()->new_lo_space()->Flip();
+  heap()->new_lo_space()->ResetPendingObject();
 }
 
 void MinorMarkCompactCollector::EvacuateEpilogue() {
@@ -4666,7 +4684,7 @@ void YoungGenerationEvacuator::RawEvacuatePage(MemoryChunk* chunk,
           LiveObjectVisitor::kKeepMarking);
       new_to_old_page_visitor_.account_moved_bytes(
           marking_state->live_bytes(chunk));
-      if (chunk->owner()->identity() != NEW_LO_SPACE) {
+      if (!chunk->IsLargePage()) {
         // TODO(mlippautz): If cleaning array buffers is too slow here we can
         // delay it until the next GC.
         ArrayBufferTracker::FreeDead(static_cast<Page*>(chunk), marking_state);
@@ -4689,7 +4707,7 @@ void YoungGenerationEvacuator::RawEvacuatePage(MemoryChunk* chunk,
           LiveObjectVisitor::kKeepMarking);
       new_to_new_page_visitor_.account_moved_bytes(
           marking_state->live_bytes(chunk));
-      DCHECK_NE(chunk->owner()->identity(), NEW_LO_SPACE);
+      DCHECK(!chunk->IsLargePage());
       // TODO(mlippautz): If cleaning array buffers is too slow here we can
       // delay it until the next GC.
       ArrayBufferTracker::FreeDead(static_cast<Page*>(chunk), marking_state);
@@ -4729,6 +4747,20 @@ void MinorMarkCompactCollector::EvacuatePagesInParallel() {
       }
     }
     evacuation_job.AddItem(new EvacuationItem(page));
+  }
+
+  // Promote young generation large objects.
+  for (auto it = heap()->new_lo_space()->begin();
+       it != heap()->new_lo_space()->end();) {
+    LargePage* current = *it;
+    it++;
+    HeapObject object = current->GetObject();
+    DCHECK(!non_atomic_marking_state_.IsBlack(object));
+    if (non_atomic_marking_state_.IsGrey(object)) {
+      heap_->lo_space()->PromoteNewLargeObject(current);
+      current->SetFlag(Page::PAGE_NEW_OLD_PROMOTION);
+      evacuation_job.AddItem(new EvacuationItem(current));
+    }
   }
   if (evacuation_job.NumberOfItems() == 0) return;
 
