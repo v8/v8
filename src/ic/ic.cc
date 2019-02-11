@@ -1082,6 +1082,40 @@ void KeyedLoadIC::UpdateLoadElement(Handle<HeapObject> receiver,
   }
 }
 
+namespace {
+
+bool AllowConvertHoleElementToUndefined(Isolate* isolate,
+                                        Handle<Map> receiver_map) {
+  if (receiver_map->IsJSTypedArrayMap()) {
+    // For JSTypedArray we never lookup elements in the prototype chain.
+    return true;
+  }
+
+  // For other {receiver}s we need to check the "no elements" protector.
+  if (isolate->IsNoElementsProtectorIntact()) {
+    if (receiver_map->IsStringMap()) {
+      return true;
+    }
+    if (receiver_map->IsJSObjectMap()) {
+      // For other JSObjects (including JSArrays) we can only continue if
+      // the {receiver}s prototype is either the initial Object.prototype
+      // or the initial Array.prototype, which are both guarded by the
+      // "no elements" protector checked above.
+      Handle<Object> receiver_prototype(receiver_map->prototype(), isolate);
+
+      if (isolate->IsInAnyContext(*receiver_prototype,
+                                  Context::INITIAL_ARRAY_PROTOTYPE_INDEX) ||
+          isolate->IsInAnyContext(*receiver_prototype,
+                                  Context::INITIAL_OBJECT_PROTOTYPE_INDEX)) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+}  // namespace
+
 Handle<Object> KeyedLoadIC::LoadElementHandler(Handle<Map> receiver_map,
                                                KeyedAccessLoadMode load_mode) {
   if (receiver_map->has_indexed_interceptor() &&
@@ -1119,11 +1153,9 @@ Handle<Object> KeyedLoadIC::LoadElementHandler(Handle<Map> receiver_map,
   }
   DCHECK(IsFastElementsKind(elements_kind) ||
          IsFixedTypedArrayElementsKind(elements_kind));
-  // TODO(jkummerow): Use IsHoleyOrDictionaryElementsKind(elements_kind).
   bool convert_hole_to_undefined =
-      is_js_array && elements_kind == HOLEY_ELEMENTS &&
-      *receiver_map ==
-          isolate()->raw_native_context()->GetInitialJSArrayMap(elements_kind);
+      IsHoleyElementsKind(elements_kind) &&
+      AllowConvertHoleElementToUndefined(isolate(), receiver_map);
   TRACE_HANDLER_STATS(isolate(), KeyedLoadIC_LoadElementDH);
   return LoadHandler::LoadElement(isolate(), elements_kind,
                                   convert_hole_to_undefined, is_js_array,
@@ -1199,31 +1231,11 @@ bool IsOutOfBoundsAccess(Handle<Object> receiver, uint32_t index) {
 KeyedAccessLoadMode GetLoadMode(Isolate* isolate, Handle<Object> receiver,
                                 uint32_t index) {
   if (IsOutOfBoundsAccess(receiver, index)) {
-    if (receiver->IsJSTypedArray()) {
-      // For JSTypedArray we never lookup elements in the prototype chain.
+    DCHECK(receiver->IsHeapObject());
+    Handle<Map> receiver_map(Handle<HeapObject>::cast(receiver)->map(),
+                             isolate);
+    if (AllowConvertHoleElementToUndefined(isolate, receiver_map)) {
       return LOAD_IGNORE_OUT_OF_BOUNDS;
-    }
-
-    // For other {receiver}s we need to check the "no elements" protector.
-    if (isolate->IsNoElementsProtectorIntact()) {
-      if (receiver->IsString()) {
-        // ToObject(receiver) will have the initial String.prototype.
-        return LOAD_IGNORE_OUT_OF_BOUNDS;
-      }
-      if (receiver->IsJSObject()) {
-        // For other JSObjects (including JSArrays) we can only continue if
-        // the {receiver}s prototype is either the initial Object.prototype
-        // or the initial Array.prototype, which are both guarded by the
-        // "no elements" protector checked above.
-        Handle<Object> receiver_prototype(
-            JSObject::cast(*receiver)->map()->prototype(), isolate);
-        if (isolate->IsInAnyContext(*receiver_prototype,
-                                    Context::INITIAL_ARRAY_PROTOTYPE_INDEX) ||
-            isolate->IsInAnyContext(*receiver_prototype,
-                                    Context::INITIAL_OBJECT_PROTOTYPE_INDEX)) {
-          return LOAD_IGNORE_OUT_OF_BOUNDS;
-        }
-      }
     }
   }
   return STANDARD_LOAD;
