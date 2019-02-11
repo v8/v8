@@ -415,15 +415,9 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
                      static_cast<uint32_t>(len)};
 
   if (interpreter_) {
-    // Add the code to the interpreter.
+    // Add the code to the interpreter; do not generate compiled code.
     interpreter_->SetFunctionCodeForTesting(function_, start, end);
-  }
-
-  // TODO(wasm): tests that go through JS depend on having a compiled version
-  // of each function, even if the execution tier is the interpreter. Fix.
-  auto tier = builder_->execution_tier();
-  if (tier == ExecutionTier::kInterpreter) {
-    tier = ExecutionTier::kOptimized;
+    return;
   }
 
   Vector<const uint8_t> wire_bytes = builder_->instance_object()
@@ -441,7 +435,7 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
   NativeModule* native_module =
       builder_->instance_object()->module_object()->native_module();
   WasmCompilationUnit unit(isolate()->wasm_engine(), function_->func_index,
-                           tier);
+                           builder_->execution_tier());
   WasmFeatures unused_detected_features;
   WasmCompilationResult result = unit.ExecuteCompilation(
       &env, native_module->compilation_state()->GetWireBytesStorage(),
