@@ -230,17 +230,16 @@ void ScavengerCollector::CollectGarbage() {
       // Scavenge weak global handles.
       TRACE_GC(heap_->tracer(),
                GCTracer::Scope::SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_PROCESS);
-      isolate_->global_handles()->MarkNewSpaceWeakUnmodifiedObjectsPending(
+      isolate_->global_handles()->MarkYoungWeakUnmodifiedObjectsPending(
           &IsUnscavengedHeapObject);
-      isolate_->global_handles()
-          ->IterateNewSpaceWeakUnmodifiedRootsForFinalizers(
-              &root_scavenge_visitor);
+      isolate_->global_handles()->IterateYoungWeakUnmodifiedRootsForFinalizers(
+          &root_scavenge_visitor);
       scavengers[kMainThreadId]->Process();
 
       DCHECK(copied_list.IsEmpty());
       DCHECK(promotion_list.IsEmpty());
       isolate_->global_handles()
-          ->IterateNewSpaceWeakUnmodifiedRootsForPhantomHandles(
+          ->IterateYoungWeakUnmodifiedRootsForPhantomHandles(
               &root_scavenge_visitor, &IsUnscavengedHeapObject);
     }
 

@@ -3910,10 +3910,10 @@ void Heap::IterateStrongRoots(RootVisitor* v, VisitMode mode) {
       break;
     case VISIT_ALL_IN_SCAVENGE:
     case VISIT_ALL_IN_MINOR_MC_MARK:
-      isolate_->global_handles()->IterateNewSpaceStrongAndDependentRoots(v);
+      isolate_->global_handles()->IterateYoungStrongAndDependentRoots(v);
       break;
     case VISIT_ALL_IN_MINOR_MC_UPDATE:
-      isolate_->global_handles()->IterateAllNewSpaceRoots(v);
+      isolate_->global_handles()->IterateAllYoungRoots(v);
       break;
     case VISIT_ALL_IN_SWEEP_NEWSPACE:
     case VISIT_ALL:
@@ -3926,7 +3926,7 @@ void Heap::IterateStrongRoots(RootVisitor* v, VisitMode mode) {
   // serializer. Values referenced by eternal handles need to be added manually.
   if (mode != VISIT_FOR_SERIALIZATION) {
     if (isMinorGC) {
-      isolate_->eternal_handles()->IterateNewSpaceRoots(v);
+      isolate_->eternal_handles()->IterateYoungRoots(v);
     } else {
       isolate_->eternal_handles()->IterateAllRoots(v);
     }

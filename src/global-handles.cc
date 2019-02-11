@@ -383,7 +383,7 @@ class GlobalHandles::Node final : public NodeBase<GlobalHandles::Node> {
                   Internals::kNodeIsIndependentShift);
     STATIC_ASSERT(static_cast<int>(IsActive::kShift) ==
                   Internals::kNodeIsActiveShift);
-    set_in_new_space_list(false);
+    set_in_young_list(false);
   }
 
   void Zap() {
@@ -416,12 +416,8 @@ class GlobalHandles::Node final : public NodeBase<GlobalHandles::Node> {
     flags_ = IsActive::update(flags_, v);
   }
 
-  bool is_in_new_space_list() {
-    return IsInNewSpaceList::decode(flags_);
-  }
-  void set_in_new_space_list(bool v) {
-    flags_ = IsInNewSpaceList::update(flags_, v);
-  }
+  bool is_in_young_list() const { return IsInYoungList::decode(flags_); }
+  void set_in_young_list(bool v) { flags_ = IsInYoungList::update(flags_, v); }
 
   WeaknessType weakness_type() const {
     return NodeWeaknessType::decode(flags_);
@@ -614,14 +610,14 @@ class GlobalHandles::Node final : public NodeBase<GlobalHandles::Node> {
   }
 
   // This stores three flags (independent, partially_dependent and
-  // in_new_space_list) and a State.
+  // in_young_list) and a State.
   class NodeState : public BitField8<State, 0, 3> {};
   class IsIndependent : public BitField8<bool, NodeState::kNext, 1> {};
   // The following two fields are mutually exclusive
   class IsActive : public BitField8<bool, IsIndependent::kNext, 1> {};
-  class IsInNewSpaceList : public BitField8<bool, IsActive::kNext, 1> {};
+  class IsInYoungList : public BitField8<bool, IsActive::kNext, 1> {};
   class NodeWeaknessType
-      : public BitField8<WeaknessType, IsInNewSpaceList::kNext, 2> {};
+      : public BitField8<WeaknessType, IsInYoungList::kNext, 2> {};
 
   // Handle specific callback - might be a weak reference in disguise.
   WeakCallbackInfo<void>::Callback weak_callback_;
@@ -634,7 +630,7 @@ class GlobalHandles::Node final : public NodeBase<GlobalHandles::Node> {
 class GlobalHandles::TracedNode final
     : public NodeBase<GlobalHandles::TracedNode> {
  public:
-  TracedNode() { set_in_new_space_list(false); }
+  TracedNode() { set_in_young_list(false); }
 
   enum State { FREE = 0, NORMAL, NEAR_DEATH };
 
@@ -647,10 +643,8 @@ class GlobalHandles::TracedNode final
   bool IsRetainer() const { return state() == NORMAL; }
   bool IsPhantomResetHandle() const { return callback_ == nullptr; }
 
-  bool is_in_new_space_list() const { return IsInNewSpaceList::decode(flags_); }
-  void set_in_new_space_list(bool v) {
-    flags_ = IsInNewSpaceList::update(flags_, v);
-  }
+  bool is_in_young_list() const { return IsInYoungList::decode(flags_); }
+  void set_in_young_list(bool v) { flags_ = IsInYoungList::update(flags_, v); }
 
   bool is_root() const { return IsRoot::decode(flags_); }
   void set_root(bool v) { flags_ = IsRoot::update(flags_, v); }
@@ -691,8 +685,8 @@ class GlobalHandles::TracedNode final
 
  protected:
   class NodeState : public BitField8<State, 0, 2> {};
-  class IsInNewSpaceList : public BitField8<bool, NodeState::kNext, 1> {};
-  class IsRoot : public BitField8<bool, IsInNewSpaceList::kNext, 1> {};
+  class IsInYoungList : public BitField8<bool, NodeState::kNext, 1> {};
+  class IsRoot : public BitField8<bool, IsInYoungList::kNext, 1> {};
 
   void ClearImplFields() {
     set_root(true);
@@ -720,9 +714,9 @@ GlobalHandles::~GlobalHandles() { regular_nodes_.reset(nullptr); }
 
 Handle<Object> GlobalHandles::Create(Object value) {
   GlobalHandles::Node* result = regular_nodes_->Acquire(value);
-  if (Heap::InNewSpace(value) && !result->is_in_new_space_list()) {
-    new_space_nodes_.push_back(result);
-    result->set_in_new_space_list(true);
+  if (Heap::InYoungGeneration(value) && !result->is_in_young_list()) {
+    young_nodes_.push_back(result);
+    result->set_in_young_list(true);
   }
   return result->handle();
 }
@@ -733,9 +727,9 @@ Handle<Object> GlobalHandles::Create(Address value) {
 
 Handle<Object> GlobalHandles::CreateTraced(Object value, Address* slot) {
   GlobalHandles::TracedNode* result = traced_nodes_->Acquire(value);
-  if (Heap::InNewSpace(value) && !result->is_in_new_space_list()) {
-    traced_new_space_nodes_.push_back(result);
-    result->set_in_new_space_list(true);
+  if (Heap::InYoungGeneration(value) && !result->is_in_young_list()) {
+    traced_young_nodes_.push_back(result);
+    result->set_in_young_list(true);
   }
   result->set_parameter(slot);
   return result->handle();
@@ -888,7 +882,7 @@ void GlobalHandles::IterateWeakRootsIdentifyFinalizers(
 
 void GlobalHandles::IdentifyWeakUnmodifiedObjects(
     WeakSlotCallback is_unmodified) {
-  for (Node* node : new_space_nodes_) {
+  for (Node* node : young_nodes_) {
     if (node->IsWeak() && !is_unmodified(node->location())) {
       node->set_active(true);
     }
@@ -896,7 +890,7 @@ void GlobalHandles::IdentifyWeakUnmodifiedObjects(
 
   LocalEmbedderHeapTracer* const tracer =
       isolate()->heap()->local_embedder_heap_tracer();
-  for (TracedNode* node : traced_new_space_nodes_) {
+  for (TracedNode* node : traced_young_nodes_) {
     if (node->IsInUse()) {
       DCHECK(node->is_root());
       if (is_unmodified(node->location())) {
@@ -908,8 +902,8 @@ void GlobalHandles::IdentifyWeakUnmodifiedObjects(
   }
 }
 
-void GlobalHandles::IterateNewSpaceStrongAndDependentRoots(RootVisitor* v) {
-  for (Node* node : new_space_nodes_) {
+void GlobalHandles::IterateYoungStrongAndDependentRoots(RootVisitor* v) {
+  for (Node* node : young_nodes_) {
     if (node->IsStrongRetainer() ||
         (node->IsWeakRetainer() && !node->is_independent() &&
          node->is_active())) {
@@ -917,17 +911,17 @@ void GlobalHandles::IterateNewSpaceStrongAndDependentRoots(RootVisitor* v) {
                           node->location());
     }
   }
-  for (TracedNode* node : traced_new_space_nodes_) {
+  for (TracedNode* node : traced_young_nodes_) {
     if (node->IsInUse() && node->is_root()) {
       v->VisitRootPointer(Root::kGlobalHandles, nullptr, node->location());
     }
   }
 }
 
-void GlobalHandles::MarkNewSpaceWeakUnmodifiedObjectsPending(
+void GlobalHandles::MarkYoungWeakUnmodifiedObjectsPending(
     WeakSlotCallbackWithHeap is_dead) {
-  for (Node* node : new_space_nodes_) {
-    DCHECK(node->is_in_new_space_list());
+  for (Node* node : young_nodes_) {
+    DCHECK(node->is_in_young_list());
     if ((node->is_independent() || !node->is_active()) && node->IsWeak() &&
         is_dead(isolate_->heap(), node->location())) {
       if (!node->IsPhantomCallback() && !node->IsPhantomResetHandle()) {
@@ -937,10 +931,10 @@ void GlobalHandles::MarkNewSpaceWeakUnmodifiedObjectsPending(
   }
 }
 
-void GlobalHandles::IterateNewSpaceWeakUnmodifiedRootsForFinalizers(
+void GlobalHandles::IterateYoungWeakUnmodifiedRootsForFinalizers(
     RootVisitor* v) {
-  for (Node* node : new_space_nodes_) {
-    DCHECK(node->is_in_new_space_list());
+  for (Node* node : young_nodes_) {
+    DCHECK(node->is_in_young_list());
     if ((node->is_independent() || !node->is_active()) &&
         node->IsWeakRetainer() && (node->state() == Node::PENDING)) {
       DCHECK(!node->IsPhantomCallback());
@@ -952,10 +946,10 @@ void GlobalHandles::IterateNewSpaceWeakUnmodifiedRootsForFinalizers(
   }
 }
 
-void GlobalHandles::IterateNewSpaceWeakUnmodifiedRootsForPhantomHandles(
+void GlobalHandles::IterateYoungWeakUnmodifiedRootsForPhantomHandles(
     RootVisitor* v, WeakSlotCallbackWithHeap should_reset_handle) {
-  for (Node* node : new_space_nodes_) {
-    DCHECK(node->is_in_new_space_list());
+  for (Node* node : young_nodes_) {
+    DCHECK(node->is_in_young_list());
     if ((node->is_independent() || !node->is_active()) &&
         node->IsWeakRetainer() && (node->state() != Node::PENDING)) {
       if (should_reset_handle(isolate_->heap(), node->location())) {
@@ -977,7 +971,7 @@ void GlobalHandles::IterateNewSpaceWeakUnmodifiedRootsForPhantomHandles(
       }
     }
   }
-  for (TracedNode* node : traced_new_space_nodes_) {
+  for (TracedNode* node : traced_young_nodes_) {
     if (!node->IsInUse()) continue;
 
     DCHECK_IMPLIES(node->is_root(),
@@ -1019,7 +1013,7 @@ void GlobalHandles::InvokeSecondPassPhantomCallbacks() {
 
 size_t GlobalHandles::PostScavengeProcessing(unsigned post_processing_count) {
   size_t freed_nodes = 0;
-  for (Node* node : new_space_nodes_) {
+  for (Node* node : young_nodes_) {
     // Filter free nodes.
     if (!node->IsRetainer()) continue;
 
@@ -1060,21 +1054,21 @@ size_t GlobalHandles::PostMarkSweepProcessing(unsigned post_processing_count) {
 }
 
 template <typename T>
-void GlobalHandles::UpdateAndCompactListOfNewSpaceNode(
+void GlobalHandles::UpdateAndCompactListOfYoungNode(
     std::vector<T*>* node_list) {
   size_t last = 0;
   for (T* node : *node_list) {
-    DCHECK(node->is_in_new_space_list());
+    DCHECK(node->is_in_young_list());
     if (node->IsInUse()) {
-      if (Heap::InNewSpace(node->object())) {
+      if (Heap::InYoungGeneration(node->object())) {
         (*node_list)[last++] = node;
         isolate_->heap()->IncrementNodesCopiedInNewSpace();
       } else {
-        node->set_in_new_space_list(false);
+        node->set_in_young_list(false);
         isolate_->heap()->IncrementNodesPromoted();
       }
     } else {
-      node->set_in_new_space_list(false);
+      node->set_in_young_list(false);
       isolate_->heap()->IncrementNodesDiedInNewSpace();
     }
   }
@@ -1083,9 +1077,9 @@ void GlobalHandles::UpdateAndCompactListOfNewSpaceNode(
   node_list->shrink_to_fit();
 }
 
-void GlobalHandles::UpdateListOfNewSpaceNodes() {
-  UpdateAndCompactListOfNewSpaceNode(&new_space_nodes_);
-  UpdateAndCompactListOfNewSpaceNode(&traced_new_space_nodes_);
+void GlobalHandles::UpdateListOfYoungNodes() {
+  UpdateAndCompactListOfYoungNode(&young_nodes_);
+  UpdateAndCompactListOfYoungNode(&traced_young_nodes_);
 }
 
 template <typename T>
@@ -1177,7 +1171,7 @@ size_t GlobalHandles::PostGarbageCollectionProcessing(
                      : PostMarkSweepProcessing(post_processing_count);
   if (InRecursiveGC(post_processing_count)) return freed_nodes;
 
-  UpdateListOfNewSpaceNodes();
+  UpdateListOfYoungNodes();
   return freed_nodes;
 }
 
@@ -1220,14 +1214,14 @@ void GlobalHandles::IterateAllRoots(RootVisitor* v) {
 }
 
 DISABLE_CFI_PERF
-void GlobalHandles::IterateAllNewSpaceRoots(RootVisitor* v) {
-  for (Node* node : new_space_nodes_) {
+void GlobalHandles::IterateAllYoungRoots(RootVisitor* v) {
+  for (Node* node : young_nodes_) {
     if (node->IsRetainer()) {
       v->VisitRootPointer(Root::kGlobalHandles, node->label(),
                           node->location());
     }
   }
-  for (TracedNode* node : traced_new_space_nodes_) {
+  for (TracedNode* node : traced_young_nodes_) {
     if (node->IsRetainer()) {
       v->VisitRootPointer(Root::kGlobalHandles, nullptr, node->location());
     }
@@ -1266,20 +1260,19 @@ void GlobalHandles::IterateTracedNodes(
 }
 
 DISABLE_CFI_PERF
-void GlobalHandles::IterateAllRootsInNewSpaceWithClassIds(
+void GlobalHandles::IterateAllYoungRootsWithClassIds(
     v8::PersistentHandleVisitor* visitor) {
-  for (Node* node : new_space_nodes_) {
+  for (Node* node : young_nodes_) {
     if (node->IsRetainer() && node->has_wrapper_class_id()) {
       ApplyPersistentHandleVisitor(visitor, node);
     }
   }
 }
 
-
 DISABLE_CFI_PERF
-void GlobalHandles::IterateWeakRootsInNewSpaceWithClassIds(
+void GlobalHandles::IterateYoungWeakRootsWithClassIds(
     v8::PersistentHandleVisitor* visitor) {
-  for (Node* node : new_space_nodes_) {
+  for (Node* node : young_nodes_) {
     if (node->has_wrapper_class_id() && node->IsWeak()) {
       ApplyPersistentHandleVisitor(visitor, node);
     }
@@ -1359,8 +1352,8 @@ void EternalHandles::IterateAllRoots(RootVisitor* visitor) {
   }
 }
 
-void EternalHandles::IterateNewSpaceRoots(RootVisitor* visitor) {
-  for (int index : new_space_indices_) {
+void EternalHandles::IterateYoungRoots(RootVisitor* visitor) {
+  for (int index : young_node_indices_) {
     visitor->VisitRootPointer(Root::kEternalHandles, nullptr,
                               FullObjectSlot(GetLocation(index)));
   }
@@ -1368,13 +1361,13 @@ void EternalHandles::IterateNewSpaceRoots(RootVisitor* visitor) {
 
 void EternalHandles::PostGarbageCollectionProcessing() {
   size_t last = 0;
-  for (int index : new_space_indices_) {
-    if (Heap::InNewSpace(Object(*GetLocation(index)))) {
-      new_space_indices_[last++] = index;
+  for (int index : young_node_indices_) {
+    if (Heap::InYoungGeneration(Object(*GetLocation(index)))) {
+      young_node_indices_[last++] = index;
     }
   }
-  DCHECK_LE(last, new_space_indices_.size());
-  new_space_indices_.resize(last);
+  DCHECK_LE(last, young_node_indices_.size());
+  young_node_indices_.resize(last);
 }
 
 void EternalHandles::Create(Isolate* isolate, Object object, int* index) {
@@ -1392,8 +1385,8 @@ void EternalHandles::Create(Isolate* isolate, Object object, int* index) {
   }
   DCHECK_EQ(the_hole->ptr(), blocks_[block][offset]);
   blocks_[block][offset] = object->ptr();
-  if (Heap::InNewSpace(object)) {
-    new_space_indices_.push_back(size_);
+  if (Heap::InYoungGeneration(object)) {
+    young_node_indices_.push_back(size_);
   }
   *index = size_++;
 }

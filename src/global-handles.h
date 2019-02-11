@@ -120,18 +120,18 @@ class GlobalHandles final {
   void IterateStrongRoots(RootVisitor* v);
   void IterateWeakRoots(RootVisitor* v);
   void IterateAllRoots(RootVisitor* v);
-  void IterateAllNewSpaceRoots(RootVisitor* v);
+  void IterateAllYoungRoots(RootVisitor* v);
 
   // Iterates over all handles that have embedder-assigned class ID.
   void IterateAllRootsWithClassIds(v8::PersistentHandleVisitor* v);
 
   // Iterates over all handles in the new space that have embedder-assigned
   // class ID.
-  void IterateAllRootsInNewSpaceWithClassIds(v8::PersistentHandleVisitor* v);
+  void IterateAllYoungRootsWithClassIds(v8::PersistentHandleVisitor* v);
 
   // Iterate over all handles in the new space that are weak, unmodified
   // and have class IDs
-  void IterateWeakRootsInNewSpaceWithClassIds(v8::PersistentHandleVisitor* v);
+  void IterateYoungWeakRootsWithClassIds(v8::PersistentHandleVisitor* v);
 
   // Iterates over all traces handles represented by TracedGlobal.
   void IterateTracedNodes(
@@ -149,22 +149,21 @@ class GlobalHandles final {
   void IterateWeakRootsForPhantomHandles(
       WeakSlotCallbackWithHeap should_reset_handle);
 
-  //  Note: The following *NewSpace* methods are used for the Scavenger to
-  //  identify and process handles in new space. The set of new space handles is
-  //  complete but the methods may encounter handles that are already in old
-  //  space.
+  //  Note: The following *Young* methods are used for the Scavenger to
+  //  identify and process handles in the young generation. The set of young
+  //  handles is complete but the methods may encounter handles that are
+  //  already in old space.
 
   // Iterates over strong and dependent handles. See the note above.
-  void IterateNewSpaceStrongAndDependentRoots(RootVisitor* v);
+  void IterateYoungStrongAndDependentRoots(RootVisitor* v);
 
   // Marks weak unmodified handles satisfying |is_dead| as pending.
-  void MarkNewSpaceWeakUnmodifiedObjectsPending(
-      WeakSlotCallbackWithHeap is_dead);
+  void MarkYoungWeakUnmodifiedObjectsPending(WeakSlotCallbackWithHeap is_dead);
 
   // Iterates over weak independent or unmodified handles.
   // See the note above.
-  void IterateNewSpaceWeakUnmodifiedRootsForFinalizers(RootVisitor* v);
-  void IterateNewSpaceWeakUnmodifiedRootsForPhantomHandles(
+  void IterateYoungWeakUnmodifiedRootsForFinalizers(RootVisitor* v);
+  void IterateYoungWeakUnmodifiedRootsForPhantomHandles(
       RootVisitor* v, WeakSlotCallbackWithHeap should_reset_handle);
 
   // Identify unmodified objects that are in weak state and marks them
@@ -209,8 +208,8 @@ class GlobalHandles final {
       std::vector<std::pair<T*, PendingPhantomCallback>>* pending);
 
   template <typename T>
-  void UpdateAndCompactListOfNewSpaceNode(std::vector<T*>* node_list);
-  void UpdateListOfNewSpaceNodes();
+  void UpdateAndCompactListOfYoungNode(std::vector<T*>* node_list);
+  void UpdateListOfYoungNodes();
 
   void ApplyPersistentHandleVisitor(v8::PersistentHandleVisitor* visitor,
                                     Node* node);
@@ -218,12 +217,12 @@ class GlobalHandles final {
   Isolate* const isolate_;
 
   std::unique_ptr<NodeSpace<Node>> regular_nodes_;
-  // Contains all nodes holding new space objects. Note: when the list
+  // Contains all nodes holding young objects. Note: when the list
   // is accessed, some of the objects may have been promoted already.
-  std::vector<Node*> new_space_nodes_;
+  std::vector<Node*> young_nodes_;
 
   std::unique_ptr<NodeSpace<TracedNode>> traced_nodes_;
-  std::vector<TracedNode*> traced_new_space_nodes_;
+  std::vector<TracedNode*> traced_young_nodes_;
 
   // Field always containing the number of handles to global objects.
   size_t handles_count_ = 0;
@@ -282,8 +281,8 @@ class EternalHandles final {
 
   // Iterates over all handles.
   void IterateAllRoots(RootVisitor* visitor);
-  // Iterates over all handles which might be in new space.
-  void IterateNewSpaceRoots(RootVisitor* visitor);
+  // Iterates over all handles which might be in the young generation.
+  void IterateYoungRoots(RootVisitor* visitor);
   // Rebuilds new space list.
   void PostGarbageCollectionProcessing();
 
@@ -304,7 +303,7 @@ class EternalHandles final {
 
   int size_ = 0;
   std::vector<Address*> blocks_;
-  std::vector<int> new_space_indices_;
+  std::vector<int> young_node_indices_;
 
   DISALLOW_COPY_AND_ASSIGN(EternalHandles);
 };
