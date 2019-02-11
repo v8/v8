@@ -3808,6 +3808,8 @@ void ParserBase<Impl>::ParseFunctionBody(
     StatementListT* body, IdentifierT function_name, int pos,
     const FormalParametersT& parameters, FunctionKind kind,
     FunctionLiteral::FunctionType function_type, FunctionBodyType body_type) {
+  FunctionBodyParsingScope body_parsing_scope(impl());
+
   if (IsResumableFunction(kind)) impl()->PrepareGeneratorVariables();
 
   DeclarationScope* function_scope = parameters.scope;
