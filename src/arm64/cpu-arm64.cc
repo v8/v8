@@ -39,7 +39,7 @@ class CacheLineSizes {
 
 void CpuFeatures::FlushICache(void* address, size_t length) {
 #if defined(V8_OS_WIN)
-  FlushInstructionCache(GetCurrentProcess(), address, length);
+  ::FlushInstructionCache(GetCurrentProcess(), address, length);
 #elif defined(V8_HOST_ARCH_ARM64)
   // The code below assumes user space cache operations are allowed. The goal
   // of this routine is to make sure the code generated is visible to the I
