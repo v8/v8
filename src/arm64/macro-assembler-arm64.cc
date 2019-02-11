@@ -2762,6 +2762,10 @@ void TurboAssembler::LoadAnyTaggedField(const Register& destination,
 #endif
 }
 
+void TurboAssembler::SmiUntagField(Register dst, const MemOperand& src) {
+  SmiUntag(dst, src);
+}
+
 void TurboAssembler::StoreTaggedField(const Register& value,
                                       const MemOperand& dst_field_operand) {
   Str(value, dst_field_operand);

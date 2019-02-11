@@ -1780,9 +1780,9 @@ void Builtins::Generate_InterpreterOnStackReplacement(MacroAssembler* masm) {
 
   // Load the OSR entrypoint offset from the deoptimization data.
   // <osr_offset> = <deopt_data>[#header_size + #osr_pc_offset]
-  __ SmiUntag(x1,
-              FieldMemOperand(x1, FixedArray::OffsetOfElementAt(
-                                      DeoptimizationData::kOsrPcOffsetIndex)));
+  __ SmiUntagField(
+      x1, FieldMemOperand(x1, FixedArray::OffsetOfElementAt(
+                                  DeoptimizationData::kOsrPcOffsetIndex)));
 
   // Compute the target address = code_obj + header_size + osr_offset
   // <entry_addr> = <code_obj> + #header_size + <osr_offset>
@@ -2467,8 +2467,8 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
   Label no_bound_arguments;
   __ LoadTaggedPointerField(
       bound_argv, FieldMemOperand(x1, JSBoundFunction::kBoundArgumentsOffset));
-  __ SmiUntag(bound_argc,
-              FieldMemOperand(bound_argv, FixedArray::kLengthOffset));
+  __ SmiUntagField(bound_argc,
+                   FieldMemOperand(bound_argv, FixedArray::kLengthOffset));
   __ Cbz(bound_argc, &no_bound_arguments);
   {
     // ----------- S t a t e -------------
