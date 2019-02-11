@@ -1176,7 +1176,16 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void ResetSpeculationPoisonRegister();
 
   // ---------------------------------------------------------------------------
-  // Pointer compresstion Support
+  // Pointer compression Support
+
+  // Loads a field containing a HeapObject and decompresses it if pointer
+  // compression is enabled.
+  void LoadTaggedPointerField(const Register& destination,
+                              const MemOperand& field_operand);
+
+  // Loads a field containing any tagged value and decompresses it if necessary.
+  void LoadAnyTaggedField(const Register& destination,
+                          const MemOperand& field_operand);
 
   void DecompressTaggedSigned(const Register& destination,
                               const MemOperand& field_operand);

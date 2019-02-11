@@ -693,12 +693,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         // Check the function's context matches the context argument.
         UseScratchRegisterScope scope(tasm());
         Register temp = scope.AcquireX();
-        __ Ldr(temp, FieldMemOperand(func, JSFunction::kContextOffset));
+        __ LoadTaggedPointerField(
+            temp, FieldMemOperand(func, JSFunction::kContextOffset));
         __ cmp(cp, temp);
         __ Assert(eq, AbortReason::kWrongFunctionContext);
       }
       static_assert(kJavaScriptCallCodeStartRegister == x2, "ABI mismatch");
-      __ Ldr(x2, FieldMemOperand(func, JSFunction::kCodeOffset));
+      __ LoadTaggedPointerField(x2,
+                                FieldMemOperand(func, JSFunction::kCodeOffset));
       __ CallCodeObject(x2);
       RecordCallPosition(instr);
       frame_access_state()->ClearSPDelta();
@@ -2464,8 +2466,9 @@ void CodeGenerator::AssembleConstructFrame() {
         __ Str(kWasmInstanceRegister,
                MemOperand(fp, WasmCompiledFrameConstants::kWasmInstanceOffset));
       }
-      __ Ldr(x2, FieldMemOperand(kWasmInstanceRegister,
-                                 WasmInstanceObject::kCEntryStubOffset));
+      __ LoadTaggedPointerField(
+          x2, FieldMemOperand(kWasmInstanceRegister,
+                              WasmInstanceObject::kCEntryStubOffset));
       __ Mov(cp, Smi::zero());
       __ CallRuntimeWithCEntry(Runtime::kThrowWasmStackOverflow, x2);
       // We come from WebAssembly, there are no references for the GC.

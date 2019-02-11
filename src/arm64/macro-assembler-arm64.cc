@@ -1616,7 +1616,8 @@ void MacroAssembler::AssertConstructor(Register object) {
     UseScratchRegisterScope temps(this);
     Register temp = temps.AcquireX();
 
-    Ldr(temp, FieldMemOperand(object, HeapObject::kMapOffset));
+    LoadTaggedPointerField(temp,
+                           FieldMemOperand(object, HeapObject::kMapOffset));
     Ldrb(temp, FieldMemOperand(temp, Map::kBitFieldOffset));
     Tst(temp, Operand(Map::IsConstructorBit::kMask));
 
@@ -1656,7 +1657,7 @@ void MacroAssembler::AssertGeneratorObject(Register object) {
   // Load map
   UseScratchRegisterScope temps(this);
   Register temp = temps.AcquireX();
-  Ldr(temp, FieldMemOperand(object, HeapObject::kMapOffset));
+  LoadTaggedPointerField(temp, FieldMemOperand(object, HeapObject::kMapOffset));
 
   Label do_check;
   // Load instance type and check if JSGeneratorObject
@@ -1682,7 +1683,8 @@ void MacroAssembler::AssertUndefinedOrAllocationSite(Register object) {
     Label done_checking;
     AssertNotSmi(object);
     JumpIfRoot(object, RootIndex::kUndefinedValue, &done_checking);
-    Ldr(scratch, FieldMemOperand(object, HeapObject::kMapOffset));
+    LoadTaggedPointerField(scratch,
+                           FieldMemOperand(object, HeapObject::kMapOffset));
     CompareInstanceType(scratch, scratch, ALLOCATION_SITE_TYPE);
     Assert(eq, AbortReason::kExpectedUndefinedOrCell);
     Bind(&done_checking);
@@ -1848,9 +1850,9 @@ void TurboAssembler::LoadFromConstantsTable(Register destination,
                                             int constant_index) {
   DCHECK(RootsTable::IsImmortalImmovable(RootIndex::kBuiltinsConstantsTable));
   LoadRoot(destination, RootIndex::kBuiltinsConstantsTable);
-  Ldr(destination,
-      FieldMemOperand(destination,
-                      FixedArray::kHeaderSize + constant_index * kPointerSize));
+  LoadTaggedPointerField(
+      destination, FieldMemOperand(destination, FixedArray::OffsetOfElementAt(
+                                                    constant_index)));
 }
 
 void TurboAssembler::LoadRootRelative(Register destination, int32_t offset) {
@@ -2357,7 +2359,8 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
     // allow recompilation to take effect without changing any of the
     // call sites.
     Register code = kJavaScriptCallCodeStartRegister;
-    Ldr(code, FieldMemOperand(function, JSFunction::kCodeOffset));
+    LoadTaggedPointerField(code,
+                           FieldMemOperand(function, JSFunction::kCodeOffset));
     if (flag == CALL_FUNCTION) {
       CallCodeObject(code);
     } else {
@@ -2383,12 +2386,14 @@ void MacroAssembler::InvokeFunction(Register function, Register new_target,
 
   Register expected_reg = x2;
 
-  Ldr(cp, FieldMemOperand(function, JSFunction::kContextOffset));
+  LoadTaggedPointerField(cp,
+                         FieldMemOperand(function, JSFunction::kContextOffset));
   // The number of arguments is stored as an int32_t, and -1 is a marker
   // (SharedFunctionInfo::kDontAdaptArgumentsSentinel), so we need sign
   // extension to correctly handle it.
-  Ldr(expected_reg, FieldMemOperand(function,
-                                    JSFunction::kSharedFunctionInfoOffset));
+  LoadTaggedPointerField(
+      expected_reg,
+      FieldMemOperand(function, JSFunction::kSharedFunctionInfoOffset));
   Ldrh(expected_reg,
        FieldMemOperand(expected_reg,
                        SharedFunctionInfo::kFormalParameterCountOffset));
@@ -2409,7 +2414,8 @@ void MacroAssembler::InvokeFunction(Register function,
   DCHECK(function.Is(x1));
 
   // Set up the context.
-  Ldr(cp, FieldMemOperand(function, JSFunction::kContextOffset));
+  LoadTaggedPointerField(cp,
+                         FieldMemOperand(function, JSFunction::kContextOffset));
 
   InvokeFunctionCode(function, no_reg, expected, actual, flag);
 }
@@ -2697,7 +2703,7 @@ void MacroAssembler::CompareObjectType(Register object,
                                        Register map,
                                        Register type_reg,
                                        InstanceType type) {
-  Ldr(map, FieldMemOperand(object, HeapObject::kMapOffset));
+  LoadTaggedPointerField(map, FieldMemOperand(object, HeapObject::kMapOffset));
   CompareInstanceType(map, type_reg, type);
 }
 
@@ -2736,6 +2742,24 @@ void MacroAssembler::JumpIfNotRoot(const Register& obj, RootIndex index,
                                    Label* if_not_equal) {
   CompareRoot(obj, index);
   B(ne, if_not_equal);
+}
+
+void TurboAssembler::LoadTaggedPointerField(const Register& destination,
+                                            const MemOperand& field_operand) {
+#ifdef V8_COMPRESS_POINTERS
+  DecompressTaggedPointer(destination, field_operand);
+#else
+  Ldr(destination, field_operand);
+#endif
+}
+
+void TurboAssembler::LoadAnyTaggedField(const Register& destination,
+                                        const MemOperand& field_operand) {
+#ifdef V8_COMPRESS_POINTERS
+  DecompressAnyTagged(destination, field_operand);
+#else
+  Ldr(destination, field_operand);
+#endif
 }
 
 void TurboAssembler::DecompressTaggedSigned(const Register& destination,
@@ -3188,8 +3212,8 @@ void TurboAssembler::Abort(AbortReason reason) {
 }
 
 void MacroAssembler::LoadNativeContextSlot(int index, Register dst) {
-  Ldr(dst, NativeContextMemOperand());
-  Ldr(dst, ContextMemOperand(dst, index));
+  LoadTaggedPointerField(dst, NativeContextMemOperand());
+  LoadTaggedPointerField(dst, ContextMemOperand(dst, index));
 }
 
 
