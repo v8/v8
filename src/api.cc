@@ -4437,20 +4437,9 @@ MaybeLocal<Array> v8::Object::GetPropertyNames(
   RETURN_ESCAPED(Utils::ToLocal(result));
 }
 
-
-Local<Array> v8::Object::GetPropertyNames() {
-  auto context = ContextFromNeverReadOnlySpaceObject(Utils::OpenHandle(this));
-  RETURN_TO_LOCAL_UNCHECKED(GetPropertyNames(context), Array);
-}
-
 MaybeLocal<Array> v8::Object::GetOwnPropertyNames(Local<Context> context) {
   return GetOwnPropertyNames(
       context, static_cast<v8::PropertyFilter>(ONLY_ENUMERABLE | SKIP_SYMBOLS));
-}
-
-Local<Array> v8::Object::GetOwnPropertyNames() {
-  auto context = ContextFromNeverReadOnlySpaceObject(Utils::OpenHandle(this));
-  RETURN_TO_LOCAL_UNCHECKED(GetOwnPropertyNames(context), Array);
 }
 
 MaybeLocal<Array> v8::Object::GetOwnPropertyNames(
@@ -4714,12 +4703,6 @@ Maybe<bool> v8::Object::HasRealNamedProperty(Local<Context> context,
 }
 
 
-bool v8::Object::HasRealNamedProperty(Local<String> key) {
-  auto context = ContextFromNeverReadOnlySpaceObject(Utils::OpenHandle(this));
-  return HasRealNamedProperty(context, key).FromMaybe(false);
-}
-
-
 Maybe<bool> v8::Object::HasRealIndexedProperty(Local<Context> context,
                                                uint32_t index) {
   auto isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
@@ -4733,13 +4716,6 @@ Maybe<bool> v8::Object::HasRealIndexedProperty(Local<Context> context,
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return result;
 }
-
-
-bool v8::Object::HasRealIndexedProperty(uint32_t index) {
-  auto context = ContextFromNeverReadOnlySpaceObject(Utils::OpenHandle(this));
-  return HasRealIndexedProperty(context, index).FromMaybe(false);
-}
-
 
 Maybe<bool> v8::Object::HasRealNamedCallbackProperty(Local<Context> context,
                                                      Local<Name> key) {
@@ -4755,13 +4731,6 @@ Maybe<bool> v8::Object::HasRealNamedCallbackProperty(Local<Context> context,
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return result;
 }
-
-
-bool v8::Object::HasRealNamedCallbackProperty(Local<String> key) {
-  auto context = ContextFromNeverReadOnlySpaceObject(Utils::OpenHandle(this));
-  return HasRealNamedCallbackProperty(context, key).FromMaybe(false);
-}
-
 
 bool v8::Object::HasNamedLookupInterceptor() {
   auto self = Utils::OpenHandle(this);
@@ -4948,14 +4917,6 @@ MaybeLocal<Function> Function::New(Local<Context> context,
   return templ->GetFunction(context);
 }
 
-
-Local<Function> Function::New(Isolate* v8_isolate, FunctionCallback callback,
-                              Local<Value> data, int length) {
-  return Function::New(v8_isolate->GetCurrentContext(), callback, data, length,
-                       ConstructorBehavior::kAllow)
-      .FromMaybe(Local<Function>());
-}
-
 MaybeLocal<Object> Function::NewInstance(Local<Context> context, int argc,
                                          v8::Local<v8::Value> argv[]) const {
   return NewInstanceWithSideEffectType(context, argc, argv,
@@ -5030,14 +4991,6 @@ MaybeLocal<v8::Value> Function::Call(Local<Context> context,
   RETURN_ON_FAILED_EXECUTION(Value);
   RETURN_ESCAPED(result);
 }
-
-
-Local<v8::Value> Function::Call(v8::Local<v8::Value> recv, int argc,
-                                v8::Local<v8::Value> argv[]) {
-  auto context = ContextFromNeverReadOnlySpaceObject(Utils::OpenHandle(this));
-  RETURN_TO_LOCAL_UNCHECKED(Call(context, recv, argc, argv), Value);
-}
-
 
 void Function::SetName(v8::Local<v8::String> name) {
   auto self = Utils::OpenHandle(this);
@@ -8788,9 +8741,6 @@ CALLBACK_SETTER(AllowWasmCodeGenerationCallback,
 
 CALLBACK_SETTER(WasmModuleCallback, ExtensionCallback, wasm_module_callback)
 CALLBACK_SETTER(WasmInstanceCallback, ExtensionCallback, wasm_instance_callback)
-
-CALLBACK_SETTER(WasmCompileStreamingCallback, ApiImplementationCallback,
-                wasm_compile_streaming_callback)
 
 CALLBACK_SETTER(WasmStreamingCallback, WasmStreamingCallback,
                 wasm_streaming_callback)
