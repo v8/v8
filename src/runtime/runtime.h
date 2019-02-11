@@ -571,7 +571,6 @@ namespace internal {
   F(StoreGlobalICNoFeedback_Miss, 2, 1)      \
   F(StoreGlobalIC_Slow, 5, 1)                \
   F(StoreIC_Miss, 5, 1)                      \
-  F(StoreICNoFeedback_Miss, 4, 1)            \
   F(StoreInArrayLiteralIC_Slow, 5, 1)        \
   F(StorePropertyWithInterceptor, 5, 1)      \
   F(CloneObjectIC_Miss, 4, 1)

@@ -2350,46 +2350,27 @@ RUNTIME_FUNCTION(Runtime_StoreIC_Miss) {
   // Runtime functions don't follow the IC's calling convention.
   Handle<Object> value = args.at(0);
   Handle<Smi> slot = args.at<Smi>(1);
-  Handle<FeedbackVector> vector = args.at<FeedbackVector>(2);
+  Handle<HeapObject> maybe_vector = args.at<HeapObject>(2);
   Handle<Object> receiver = args.at(3);
   Handle<Name> key = args.at<Name>(4);
 
   FeedbackSlot vector_slot = FeedbackVector::ToSlot(slot->value());
-  FeedbackSlotKind kind = vector->GetKind(vector_slot);
-  if (IsStoreICKind(kind) || IsStoreOwnICKind(kind)) {
-    StoreIC ic(isolate, vector, vector_slot, kind);
-    ic.UpdateState(receiver, key);
-    RETURN_RESULT_OR_FAILURE(isolate, ic.Store(receiver, key, value));
-  } else if (IsStoreGlobalICKind(kind)) {
-    DCHECK_EQ(isolate->native_context()->global_proxy(), *receiver);
-    receiver = isolate->global_object();
-    StoreGlobalIC ic(isolate, vector, vector_slot, kind);
-    ic.UpdateState(receiver, key);
-    RETURN_RESULT_OR_FAILURE(isolate, ic.Store(key, value));
-  } else {
-    DCHECK(IsKeyedStoreICKind(kind));
-    KeyedStoreIC ic(isolate, vector, vector_slot, kind);
-    ic.UpdateState(receiver, key);
-    RETURN_RESULT_OR_FAILURE(isolate, ic.Store(receiver, key, value));
-  }
-}
 
-RUNTIME_FUNCTION(Runtime_StoreICNoFeedback_Miss) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(4, args.length());
-  Handle<Object> value = args.at(0);
-  Handle<Object> receiver = args.at(1);
-  Handle<Name> key = args.at<Name>(2);
-  CONVERT_INT32_ARG_CHECKED(is_own_property_value, 3);
-  NamedPropertyType property_type =
-      static_cast<NamedPropertyType>(is_own_property_value);
-
-  // TODO(mythria): Replace StoreNamedStrict/Sloppy with StoreNamed.
+  // When there is no feedback vector it is OK to use the StoreNamedStrict as
+  // the feedback slot kind. We only need if it is StoreOwnICKind when
+  // installing the handler for storing const properties. This will happen only
+  // when feedback vector is available.
   FeedbackSlotKind kind = FeedbackSlotKind::kStoreNamedStrict;
-  if (property_type == NamedPropertyType::kOwn) {
-    kind = FeedbackSlotKind::kStoreOwnNamed;
+  Handle<FeedbackVector> vector = Handle<FeedbackVector>();
+  if (!maybe_vector->IsUndefined()) {
+    DCHECK(maybe_vector->IsFeedbackVector());
+    vector = Handle<FeedbackVector>::cast(maybe_vector);
+    kind = vector->GetKind(vector_slot);
   }
-  StoreIC ic(isolate, Handle<FeedbackVector>(), FeedbackSlot(), kind);
+
+  DCHECK(IsStoreICKind(kind) || IsStoreOwnICKind(kind));
+  StoreIC ic(isolate, vector, vector_slot, kind);
+  ic.UpdateState(receiver, key);
   RETURN_RESULT_OR_FAILURE(isolate, ic.Store(receiver, key, value));
 }
 

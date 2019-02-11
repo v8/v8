@@ -2789,10 +2789,13 @@ void AccessorAssembler::StoreIC(const StoreICParameters* p) {
       if_handler_from_stub_cache(this, &var_handler, Label::kDeferred),
       try_polymorphic(this, Label::kDeferred),
       try_megamorphic(this, Label::kDeferred),
-      try_uninitialized(this, Label::kDeferred), miss(this, Label::kDeferred);
+      try_uninitialized(this, Label::kDeferred), miss(this, Label::kDeferred),
+      no_feedback(this, Label::kDeferred);
 
   Node* receiver_map = LoadReceiverMap(p->receiver);
   GotoIf(IsDeprecatedMap(receiver_map), &miss);
+
+  GotoIf(IsUndefined(p->vector), &no_feedback);
 
   // Check monomorphic case.
   TNode<MaybeObject> feedback =
@@ -2828,12 +2831,17 @@ void AccessorAssembler::StoreIC(const StoreICParameters* p) {
   BIND(&try_uninitialized);
   {
     // Check uninitialized case.
-    GotoIfNot(
+    Branch(
         WordEqual(strong_feedback, LoadRoot(RootIndex::kuninitialized_symbol)),
-        &miss);
+        &no_feedback, &miss);
+  }
+
+  BIND(&no_feedback);
+  {
     TailCallBuiltin(Builtins::kStoreIC_Uninitialized, p->context, p->receiver,
                     p->name, p->value, p->slot, p->vector);
   }
+
   BIND(&miss);
   {
     TailCallRuntime(Runtime::kStoreIC_Miss, p->context, p->value, p->slot,

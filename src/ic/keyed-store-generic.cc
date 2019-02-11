@@ -1048,7 +1048,7 @@ void KeyedStoreGenericAssembler::StoreIC_Uninitialized() {
   Node* vector = Parameter(Descriptor::kVector);
   Node* context = Parameter(Descriptor::kContext);
 
-  Label miss(this);
+  Label miss(this, Label::kDeferred), store_property(this);
 
   GotoIf(TaggedIsSmi(receiver), &miss);
   Node* receiver_map = LoadMap(receiver);
@@ -1058,19 +1058,29 @@ void KeyedStoreGenericAssembler::StoreIC_Uninitialized() {
   GotoIf(IsSpecialReceiverInstanceType(instance_type), &miss);
 
   // Optimistically write the state transition to the vector.
+  GotoIf(IsUndefined(vector), &store_property);
   StoreFeedbackVectorSlot(vector, slot,
                           LoadRoot(RootIndex::kpremonomorphic_symbol),
                           SKIP_WRITE_BARRIER, 0, SMI_PARAMETERS);
+  Goto(&store_property);
 
-  StoreICParameters p(context, receiver, name, value, slot, vector);
-  EmitGenericPropertyStore(receiver, receiver_map, &p, &miss);
+  BIND(&store_property);
+  {
+    StoreICParameters p(context, receiver, name, value, slot, vector);
+    EmitGenericPropertyStore(receiver, receiver_map, &p, &miss);
+  }
 
   BIND(&miss);
   {
+    Label call_runtime(this);
     // Undo the optimistic state transition.
+    GotoIf(IsUndefined(vector), &call_runtime);
     StoreFeedbackVectorSlot(vector, slot,
                             LoadRoot(RootIndex::kuninitialized_symbol),
                             SKIP_WRITE_BARRIER, 0, SMI_PARAMETERS);
+    Goto(&call_runtime);
+
+    BIND(&call_runtime);
     TailCallRuntime(Runtime::kStoreIC_Miss, context, value, slot, vector,
                     receiver, name);
   }

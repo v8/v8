@@ -606,19 +606,8 @@ class InterpreterStoreNamedPropertyAssembler : public InterpreterAssembler {
     Node* context = GetContext();
 
     VARIABLE(var_result, MachineRepresentation::kTagged);
-    Label no_feedback(this, Label::kDeferred), end(this);
-    GotoIf(IsUndefined(maybe_vector), &no_feedback);
     var_result.Bind(CallStub(ic.descriptor(), code_target, context, object,
                              name, value, smi_slot, maybe_vector));
-    Goto(&end);
-
-    Bind(&no_feedback);
-    var_result.Bind(CallRuntime(Runtime::kStoreICNoFeedback_Miss, context,
-                                value, object, name,
-                                SmiConstant(property_type)));
-    Goto(&end);
-
-    Bind(&end);
     // To avoid special logic in the deoptimizer to re-materialize the value in
     // the accumulator, we overwrite the accumulator after the IC call. It
     // doesn't really matter what we write to the accumulator here, since we
