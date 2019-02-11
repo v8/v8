@@ -290,12 +290,10 @@ bool AccessInfoFactory::ComputeElementAccessInfos(
   MapHandles possible_transition_targets;
   possible_transition_targets.reserve(maps.size());
   for (Handle<Map> map : maps) {
-    if (Map::TryUpdate(isolate(), map).ToHandle(&map)) {
-      if (CanInlineElementAccess(map) &&
-          IsFastElementsKind(map->elements_kind()) &&
-          GetInitialFastElementsKind() != map->elements_kind()) {
-        possible_transition_targets.push_back(map);
-      }
+    if (CanInlineElementAccess(map) &&
+        IsFastElementsKind(map->elements_kind()) &&
+        GetInitialFastElementsKind() != map->elements_kind()) {
+      possible_transition_targets.push_back(map);
     }
   }
 
@@ -304,18 +302,16 @@ bool AccessInfoFactory::ComputeElementAccessInfos(
   receiver_maps.reserve(maps.size());
   std::vector<std::pair<Handle<Map>, Handle<Map>>> transitions(maps.size());
   for (Handle<Map> map : maps) {
-    if (Map::TryUpdate(isolate(), map).ToHandle(&map)) {
-      // Don't generate elements kind transitions from stable maps.
-      Map transition_target = map->is_stable()
-                                  ? Map()
-                                  : map->FindElementsKindTransitionedMap(
-                                        isolate(), possible_transition_targets);
-      if (transition_target.is_null()) {
-        receiver_maps.push_back(map);
-      } else {
-        transitions.push_back(
-            std::make_pair(map, handle(transition_target, isolate())));
-      }
+    // Don't generate elements kind transitions from stable maps.
+    Map transition_target = map->is_stable()
+                                ? Map()
+                                : map->FindElementsKindTransitionedMap(
+                                      isolate(), possible_transition_targets);
+    if (transition_target.is_null()) {
+      receiver_maps.push_back(map);
+    } else {
+      transitions.push_back(
+          std::make_pair(map, handle(transition_target, isolate())));
     }
   }
 
@@ -572,13 +568,11 @@ bool AccessInfoFactory::ComputePropertyAccessInfos(
   ZoneVector<PropertyAccessInfo> infos(zone());
   infos.reserve(maps.size());
   for (Handle<Map> map : maps) {
-    if (Map::TryUpdate(isolate(), map).ToHandle(&map)) {
-      PropertyAccessInfo access_info;
-      if (!ComputePropertyAccessInfo(map, name, access_mode, &access_info)) {
-        return false;
-      }
-      infos.push_back(access_info);
+    PropertyAccessInfo access_info;
+    if (!ComputePropertyAccessInfo(map, name, access_mode, &access_info)) {
+      return false;
     }
+    infos.push_back(access_info);
   }
 
   // Merge as many as possible and push into {access_infos}.

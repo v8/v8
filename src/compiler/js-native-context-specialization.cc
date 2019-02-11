@@ -3128,6 +3128,19 @@ bool JSNativeContextSpecialization::CanTreatHoleAsUndefined(
   return true;
 }
 
+namespace {
+void TryUpdateThenDropDeprecated(Isolate* isolate, MapHandles* maps) {
+  for (auto it = maps->begin(); it != maps->end();) {
+    if (Map::TryUpdate(isolate, *it).ToHandle(&*it)) {
+      DCHECK(!(*it)->is_deprecated());
+      ++it;
+    } else {
+      it = maps->erase(it);
+    }
+  }
+}
+}  // namespace
+
 bool JSNativeContextSpecialization::ExtractReceiverMaps(
     Node* receiver, Node* effect, FeedbackNexus const& nexus,
     MapHandles* receiver_maps) {
@@ -3142,7 +3155,7 @@ bool JSNativeContextSpecialization::ExtractReceiverMaps(
     bool use_inference =
         !IsKeyedStoreICKind(kind) && !IsStoreInArrayLiteralICKind(kind);
     if (use_inference && InferReceiverMaps(receiver, effect, receiver_maps)) {
-      // We can assume that {receiver} still has the inferred {receiver_maps}.
+      TryUpdateThenDropDeprecated(isolate(), receiver_maps);
       return true;
     }
   }
@@ -3162,6 +3175,7 @@ bool JSNativeContextSpecialization::ExtractReceiverMaps(
                          }),
           receiver_maps->end());
     }
+    TryUpdateThenDropDeprecated(isolate(), receiver_maps);
     return true;
   }
 

@@ -208,9 +208,6 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
                            MapHandles* receiver_maps);
 
   // Try to infer maps for the given {receiver} at the current {effect}.
-  // If maps are returned then you can be sure that the {receiver} definitely
-  // has one of the returned maps at this point in the program (identified
-  // by {effect}).
   bool InferReceiverMaps(Node* receiver, Node* effect,
                          MapHandles* receiver_maps);
   // Try to infer a root map for the {receiver} independent of the current
