@@ -4709,8 +4709,14 @@ TEST(RunRefDiamond) {
   m.Goto(&end);
   m.Bind(&end);
   Node* phi = m.Phi(MachineRepresentation::kTagged, k2, k1);
-  m.Store(MachineRepresentation::kTagged, m.PointerConstant(&buffer),
-          m.Int32Constant(0), phi, kNoWriteBarrier);
+  if (COMPRESS_POINTERS_BOOL) {
+    // Since |buffer| is located off-heap, use full pointer store.
+    m.Store(MachineType::PointerRepresentation(), m.PointerConstant(&buffer),
+            m.Int32Constant(0), m.BitcastTaggedToWord(phi), kNoWriteBarrier);
+  } else {
+    m.Store(MachineRepresentation::kTagged, m.PointerConstant(&buffer),
+            m.Int32Constant(0), phi, kNoWriteBarrier);
+  }
   m.Return(m.Int32Constant(magic));
 
   CHECK_EQ(magic, m.Call());
@@ -4743,8 +4749,14 @@ TEST(RunDoubleRefDiamond) {
   Node* rphi = m.Phi(MachineRepresentation::kTagged, r2, r1);
   m.Store(MachineRepresentation::kFloat64, m.PointerConstant(&dbuffer),
           m.Int32Constant(0), dphi, kNoWriteBarrier);
-  m.Store(MachineRepresentation::kTagged, m.PointerConstant(&rbuffer),
-          m.Int32Constant(0), rphi, kNoWriteBarrier);
+  if (COMPRESS_POINTERS_BOOL) {
+    // Since |buffer| is located off-heap, use full pointer store.
+    m.Store(MachineType::PointerRepresentation(), m.PointerConstant(&rbuffer),
+            m.Int32Constant(0), m.BitcastTaggedToWord(rphi), kNoWriteBarrier);
+  } else {
+    m.Store(MachineRepresentation::kTagged, m.PointerConstant(&rbuffer),
+            m.Int32Constant(0), rphi, kNoWriteBarrier);
+  }
   m.Return(m.Int32Constant(magic));
 
   CHECK_EQ(magic, m.Call());
@@ -4788,8 +4800,14 @@ TEST(RunDoubleRefDoubleDiamond) {
 
   m.Store(MachineRepresentation::kFloat64, m.PointerConstant(&dbuffer),
           m.Int32Constant(0), dphi2, kNoWriteBarrier);
-  m.Store(MachineRepresentation::kTagged, m.PointerConstant(&rbuffer),
-          m.Int32Constant(0), rphi2, kNoWriteBarrier);
+  if (COMPRESS_POINTERS_BOOL) {
+    // Since |buffer| is located off-heap, use full pointer store.
+    m.Store(MachineType::PointerRepresentation(), m.PointerConstant(&rbuffer),
+            m.Int32Constant(0), m.BitcastTaggedToWord(rphi2), kNoWriteBarrier);
+  } else {
+    m.Store(MachineRepresentation::kTagged, m.PointerConstant(&rbuffer),
+            m.Int32Constant(0), rphi2, kNoWriteBarrier);
+  }
   m.Return(m.Int32Constant(magic));
 
   CHECK_EQ(magic, m.Call());

@@ -189,6 +189,34 @@ TEST(RunUnalignedLoadStoreFloat64Offset) {
 
 namespace {
 
+// Mostly same as CHECK_EQ() but customized for compressed tagged values.
+template <typename CType>
+void CheckEq(CType in_value, CType out_value) {
+  CHECK_EQ(in_value, out_value);
+}
+
+#ifdef V8_COMPRESS_POINTERS
+// Specializations for checking the result of compressing store.
+template <>
+void CheckEq<Object>(Object in_value, Object out_value) {
+  Isolate* isolate = CcTest::InitIsolateOnce();
+  // |out_value| is compressed. Check that it's valid.
+  CHECK_EQ(CompressTagged(in_value->ptr()), out_value->ptr());
+  CHECK_EQ(in_value->ptr(),
+           DecompressTaggedAny(isolate->isolate_root(), out_value->ptr()));
+}
+
+template <>
+void CheckEq<HeapObject>(HeapObject in_value, HeapObject out_value) {
+  return CheckEq<Object>(in_value, out_value);
+}
+
+template <>
+void CheckEq<Smi>(Smi in_value, Smi out_value) {
+  return CheckEq<Object>(in_value, out_value);
+}
+#endif
+
 // Initializes the buffer with some raw data respecting requested representation
 // of the values.
 template <typename CType>
@@ -252,19 +280,9 @@ void RunLoadImmIndex(MachineType rep, TestAlignment t) {
         UNREACHABLE();
       }
 
-      CHECK_EQ(buffer[i], m.Call());
+      CheckEq<CType>(buffer[i], m.Call());
     }
   }
-}
-
-template <typename CType>
-CType NullValue() {
-  return CType{0};
-}
-
-template <>
-HeapObject NullValue<HeapObject>() {
-  return HeapObject();
 }
 
 template <typename CType>
@@ -272,7 +290,11 @@ void RunLoadStore(MachineType rep, TestAlignment t) {
   const int kNumElems = 16;
   CType in_buffer[kNumElems];
   CType out_buffer[kNumElems];
+  uintptr_t zap_data[] = {kZapValue, kZapValue};
+  CType zap_value;
 
+  STATIC_ASSERT(sizeof(CType) <= sizeof(zap_data));
+  MemCopy(&zap_value, &zap_data, sizeof(CType));
   InitBuffer(in_buffer, kNumElems, rep);
 
   for (int32_t x = 0; x < kNumElems; x++) {
@@ -294,12 +316,15 @@ void RunLoadStore(MachineType rep, TestAlignment t) {
 
     m.Return(m.Int32Constant(OK));
 
-    memset(out_buffer, 0, sizeof(out_buffer));
+    for (int32_t z = 0; z < kNumElems; z++) {
+      out_buffer[z] = zap_value;
+    }
     CHECK_NE(in_buffer[x], out_buffer[y]);
     CHECK_EQ(OK, m.Call());
-    CHECK_EQ(in_buffer[x], out_buffer[y]);
+    // Mostly same as CHECK_EQ() but customized for compressed tagged values.
+    CheckEq<CType>(in_buffer[x], out_buffer[y]);
     for (int32_t z = 0; z < kNumElems; z++) {
-      if (z != y) CHECK_EQ(NullValue<CType>(), out_buffer[z]);
+      if (z != y) CHECK_EQ(zap_value, out_buffer[z]);
     }
   }
 }
@@ -335,7 +360,8 @@ void RunUnalignedLoadStoreUnalignedAccess(MachineType rep) {
       // Direct read of &out_buffer[y] may cause unaligned access in C++ code
       // so we use MemCopy() to handle that.
       MemCopy(&out, &out_buffer[y], sizeof(CType));
-      CHECK_EQ(in, out);
+      // Mostly same as CHECK_EQ() but customized for compressed tagged values.
+      CheckEq<CType>(in, out);
     }
   }
 }
