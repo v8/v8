@@ -10,7 +10,7 @@
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/objects-inl.h"
-#include "test/cctest/types-fuzz.h"
+#include "test/common/types-fuzz.h"
 #include "test/unittests/compiler/graph-unittest.h"
 
 namespace v8 {

@@ -45,13 +45,13 @@ class Types {
   name = Type::name();            \
   types.push_back(name);
     PROPER_BITSET_TYPE_LIST(DECLARE_TYPE)
-    #undef DECLARE_TYPE
+#undef DECLARE_TYPE
 
     SignedSmall = Type::SignedSmall();
     UnsignedSmall = Type::UnsignedSmall();
 
-    object_map = isolate->factory()->NewMap(
-        JS_OBJECT_TYPE, JSObject::kHeaderSize);
+    object_map =
+        isolate->factory()->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
 
     smi = handle(Smi::FromInt(666), isolate);
     boxed_smi = isolate->factory()->NewHeapNumber(666);
@@ -161,9 +161,9 @@ class Types {
   Type Fuzz(int depth = 4) {
     switch (rng_->NextInt(depth == 0 ? 3 : 20)) {
       case 0: {  // bitset
-        #define COUNT_BITSET_TYPES(type, value) + 1
+#define COUNT_BITSET_TYPES(type, value) +1
         int n = 0 PROPER_BITSET_TYPE_LIST(COUNT_BITSET_TYPES);
-        #undef COUNT_BITSET_TYPES
+#undef COUNT_BITSET_TYPES
         // Pick a bunch of named bitsets and return their intersection.
         Type result = Type::Any();
         for (int i = 0, m = 1 + rng_->NextInt(3); i < m; ++i) {
@@ -179,7 +179,7 @@ class Types {
     }                                                        \
   }
           PROPER_BITSET_TYPE_LIST(PICK_BITSET_TYPE)
-          #undef PICK_BITSET_TYPE
+#undef PICK_BITSET_TYPE
         }
         return result;
       }

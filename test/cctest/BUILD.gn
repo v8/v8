@@ -241,7 +241,6 @@ v8_source_set("cctest_sources") {
     "torque/test-torque.cc",
     "trace-extension.cc",
     "trace-extension.h",
-    "types-fuzz.h",
     "unicode-helpers.cc",
     "unicode-helpers.h",
     "wasm/test-c-wasm-entry.cc",
@@ -358,6 +357,7 @@ v8_source_set("cctest_sources") {
 
   public_deps = [
     ":resources",
+    "..:common_test_headers",
     "../..:v8_initializers",
     "../..:v8_libbase",
     "../..:v8_libplatform",
