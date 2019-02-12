@@ -254,14 +254,14 @@ class WasmTableObject : public JSObject {
  public:
   DECL_CAST(WasmTableObject)
 
-  DECL_ACCESSORS(functions, FixedArray)
+  DECL_ACCESSORS(elements, FixedArray)
   // TODO(titzer): introduce DECL_I64_ACCESSORS macro
   DECL_ACCESSORS(maximum_length, Object)
   DECL_ACCESSORS(dispatch_tables, FixedArray)
 
 // Layout description.
 #define WASM_TABLE_OBJECT_FIELDS(V)     \
-  V(kFunctionsOffset, kTaggedSize)      \
+  V(kElementsOffset, kTaggedSize)       \
   V(kMaximumLengthOffset, kTaggedSize)  \
   V(kDispatchTablesOffset, kTaggedSize) \
   V(kSize, 0)
@@ -405,6 +405,7 @@ class WasmInstanceObject : public JSObject {
   DECL_OPTIONAL_ACCESSORS(imported_mutable_globals_buffers, FixedArray)
   DECL_OPTIONAL_ACCESSORS(debug_info, WasmDebugInfo)
   DECL_OPTIONAL_ACCESSORS(table_object, WasmTableObject)
+  DECL_OPTIONAL_ACCESSORS(tables, FixedArray)
   DECL_ACCESSORS(imported_function_refs, FixedArray)
   DECL_OPTIONAL_ACCESSORS(indirect_function_table_refs, FixedArray)
   DECL_OPTIONAL_ACCESSORS(managed_native_allocations, Foreign)
@@ -449,6 +450,7 @@ class WasmInstanceObject : public JSObject {
   V(kImportedMutableGlobalsBuffersOffset, kTaggedSize)                    \
   V(kDebugInfoOffset, kTaggedSize)                                        \
   V(kTableObjectOffset, kTaggedSize)                                      \
+  V(kTablesOffset, kTaggedSize)                                           \
   V(kImportedFunctionRefsOffset, kTaggedSize)                             \
   V(kIndirectFunctionTableRefsOffset, kTaggedSize)                        \
   V(kManagedNativeAllocationsOffset, kTaggedSize)                         \

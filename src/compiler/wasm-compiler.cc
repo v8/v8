@@ -3215,12 +3215,67 @@ Node* WasmGraphBuilder::SetGlobal(uint32_t index, Node* val) {
       graph()->NewNode(op, base, offset, val, Effect(), Control()));
 }
 
-Node* WasmGraphBuilder::GetTable(uint32_t table_index, Node* index) {
-  UNIMPLEMENTED();
+void WasmGraphBuilder::GetTableBaseAndOffset(uint32_t table_index, Node* index,
+                                             wasm::WasmCodePosition position,
+                                             Node** base_node,
+                                             Node** offset_node) {
+  Node* tables = LOAD_INSTANCE_FIELD(Tables, MachineType::TaggedPointer());
+  Node* table = LOAD_FIXED_ARRAY_SLOT_ANY(tables, table_index);
+
+  int storage_field_size = WasmTableObject::kElementsOffsetEnd -
+                           WasmTableObject::kElementsOffset + 1;
+  Node* storage = LOAD_RAW(
+      table, wasm::ObjectAccess::ToTagged(WasmTableObject::kElementsOffset),
+      assert_size(storage_field_size, MachineType::TaggedPointer()));
+
+  int length_field_size =
+      FixedArray::kLengthOffsetEnd - FixedArray::kLengthOffset + 1;
+  Node* storage_size =
+      LOAD_RAW(storage, wasm::ObjectAccess::ToTagged(FixedArray::kLengthOffset),
+               assert_size(length_field_size, MachineType::TaggedSigned()));
+
+  storage_size = BuildChangeSmiToInt32(storage_size);
+  // Bounds check against the table size.
+  Node* in_bounds = graph()->NewNode(mcgraph()->machine()->Uint32LessThan(),
+                                     index, storage_size);
+  TrapIfFalse(wasm::kTrapTableOutOfBounds, in_bounds, position);
+
+  // From the index, calculate the actual offset in the FixeArray. This
+  // is kHeaderSize + (index * kTaggedSize). kHeaderSize can be acquired with
+  // wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(0).
+  Node* index_times_tagged_size =
+      graph()->NewNode(mcgraph()->machine()->IntMul(), Uint32ToUintptr(index),
+                       mcgraph()->Int32Constant(kTaggedSize));
+
+  *offset_node = graph()->NewNode(
+      mcgraph()->machine()->IntAdd(), index_times_tagged_size,
+      mcgraph()->IntPtrConstant(
+          wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(0)));
+
+  *base_node = storage;
 }
 
-Node* WasmGraphBuilder::SetTable(uint32_t table_index, Node* index, Node* val) {
-  UNIMPLEMENTED();
+Node* WasmGraphBuilder::GetTable(uint32_t table_index, Node* index,
+                                 wasm::WasmCodePosition position) {
+  Node* base = nullptr;
+  Node* offset = nullptr;
+  GetTableBaseAndOffset(table_index, index, position, &base, &offset);
+  return SetEffect(
+      graph()->NewNode(mcgraph()->machine()->Load(MachineType::AnyTagged()),
+                       base, offset, Effect(), Control()));
+}
+
+Node* WasmGraphBuilder::SetTable(uint32_t table_index, Node* index, Node* val,
+                                 wasm::WasmCodePosition position) {
+  Node* base = nullptr;
+  Node* offset = nullptr;
+  GetTableBaseAndOffset(table_index, index, position, &base, &offset);
+
+  const Operator* op = mcgraph()->machine()->Store(
+      StoreRepresentation(MachineRepresentation::kTagged, kFullWriteBarrier));
+
+  Node* store = graph()->NewNode(op, base, offset, val, Effect(), Control());
+  return SetEffect(store);
 }
 
 Node* WasmGraphBuilder::CheckBoundsAndAlignment(

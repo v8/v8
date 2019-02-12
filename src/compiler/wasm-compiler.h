@@ -274,8 +274,10 @@ class WasmGraphBuilder {
 
   Node* GetGlobal(uint32_t index);
   Node* SetGlobal(uint32_t index, Node* val);
-  Node* GetTable(uint32_t table_index, Node* index);
-  Node* SetTable(uint32_t table_index, Node* index, Node* val);
+  Node* GetTable(uint32_t table_index, Node* index,
+                 wasm::WasmCodePosition position);
+  Node* SetTable(uint32_t table_index, Node* index, Node* val,
+                 wasm::WasmCodePosition position);
   //-----------------------------------------------------------------------
   // Operations that concern the linear memory.
   //-----------------------------------------------------------------------
@@ -322,6 +324,10 @@ class WasmGraphBuilder {
 
   void GetBaseAndOffsetForImportedMutableAnyRefGlobal(
       const wasm::WasmGlobal& global, Node** base, Node** offset);
+
+  void GetTableBaseAndOffset(uint32_t table_index, Node* index,
+                             wasm::WasmCodePosition position, Node** base_node,
+                             Node** offset_node);
 
   // Utilities to manipulate sets of instance cache nodes.
   void InitInstanceCache(WasmInstanceCacheNodes* instance_cache);

@@ -783,16 +783,19 @@ Handle<WasmTableObject> WasmTableObject::New(Isolate* isolate, uint32_t initial,
   auto table_obj = Handle<WasmTableObject>::cast(
       isolate->factory()->NewJSObject(table_ctor));
 
-  *js_functions = isolate->factory()->NewFixedArray(initial);
+  Handle<FixedArray> backing_store = isolate->factory()->NewFixedArray(initial);
   Object null = ReadOnlyRoots(isolate).null_value();
   for (int i = 0; i < static_cast<int>(initial); ++i) {
-    (*js_functions)->set(i, null);
+    backing_store->set(i, null);
   }
-  table_obj->set_functions(**js_functions);
+  table_obj->set_elements(*backing_store);
   Handle<Object> max = isolate->factory()->NewNumberFromUint(maximum);
   table_obj->set_maximum_length(*max);
 
   table_obj->set_dispatch_tables(ReadOnlyRoots(isolate).empty_fixed_array());
+  if (js_functions != nullptr) {
+    *js_functions = backing_store;
+  }
   return Handle<WasmTableObject>::cast(table_obj);
 }
 
@@ -825,7 +828,7 @@ void WasmTableObject::Grow(Isolate* isolate, uint32_t count) {
 
   Handle<FixedArray> dispatch_tables(this->dispatch_tables(), isolate);
   DCHECK_EQ(0, dispatch_tables->length() % kDispatchTableNumElements);
-  uint32_t old_size = functions()->length();
+  uint32_t old_size = elements()->length();
 
   // Tables are stored in the instance object, no code patching is
   // necessary. We simply have to grow the raw tables in each instance
@@ -846,7 +849,7 @@ void WasmTableObject::Grow(Isolate* isolate, uint32_t count) {
 
 void WasmTableObject::Set(Isolate* isolate, Handle<WasmTableObject> table,
                           uint32_t table_index, Handle<JSFunction> function) {
-  Handle<FixedArray> array(table->functions(), isolate);
+  Handle<FixedArray> array(table->elements(), isolate);
   if (function.is_null()) {
     ClearDispatchTables(isolate, table, table_index);  // Degenerate case.
     array->set(table_index, ReadOnlyRoots(isolate).null_value());
@@ -1447,7 +1450,7 @@ bool WasmInstanceObject::CopyTableEntries(Isolate* isolate,
   auto max = instance->indirect_function_table_size();
   if (!IsInBounds(dst, count, max)) return false;
   if (!IsInBounds(src, count, max)) return false;
-  if (dst == src) return true;                         // no-op
+  if (dst == src) return true;  // no-op
 
   if (!instance->has_table_object()) {
     // No table object, only need to update this instance.
@@ -1469,7 +1472,7 @@ bool WasmInstanceObject::CopyTableEntries(Isolate* isolate,
   }
 
   // Copy the function entries.
-  Handle<FixedArray> functions(table->functions(), isolate);
+  Handle<FixedArray> functions(table->elements(), isolate);
   if (src < dst) {
     for (uint32_t i = count; i > 0; i--) {
       functions->set(dst + i - 1, functions->get(src + i - 1));

@@ -524,6 +524,7 @@ class ModuleDecoderImpl : public Decoder {
           // ===== Imported table ==========================================
           if (!AddTable(module_.get())) break;
           import->index = static_cast<uint32_t>(module_->tables.size());
+          module_->num_imported_tables++;
           module_->tables.emplace_back();
           WasmTable* table = &module_->tables.back();
           table->imported = true;
@@ -1573,13 +1574,10 @@ class ModuleDecoderImpl : public Decoder {
       flags = consume_u32v("flags");
       if (failed()) return;
     } else {
-      flags = consume_u32v(name);
-      if (failed()) return;
-
-      if (flags != 0) {
-        errorf(pos, "illegal %s %u != 0", name, flags);
-        return;
-      }
+      // Without the bulk memory proposal, we should still read the table index.
+      // This is the same as reading the `ActiveWithIndex` flag with the bulk
+      // memory proposal.
+      flags = SegmentFlags::kActiveWithIndex;
     }
 
     bool read_index;
