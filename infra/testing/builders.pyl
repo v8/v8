@@ -1529,11 +1529,6 @@
   ##############################################################################
   # Branches.
   'V8 Linux - beta branch': {
-    'swarming_task_attrs': {
-      'expiration': 14400,
-      'hard_timeout': 5400,
-      'priority': 35,
-    },
     'tests': [
       {'name': 'mozilla'},
       {'name': 'test262'},
@@ -1541,11 +1536,6 @@
     ],
   },
   'V8 Linux - beta branch - debug': {
-    'swarming_task_attrs': {
-      'expiration': 14400,
-      'hard_timeout': 5400,
-      'priority': 35,
-    },
     'tests': [
       {'name': 'mozilla'},
       {'name': 'test262'},
@@ -1553,11 +1543,6 @@
     ],
   },
   'V8 Linux - stable branch': {
-    'swarming_task_attrs': {
-      'expiration': 14400,
-      'hard_timeout': 5400,
-      'priority': 35,
-    },
     'tests': [
       {'name': 'mozilla'},
       {'name': 'test262'},
@@ -1565,11 +1550,6 @@
     ],
   },
   'V8 Linux - stable branch - debug': {
-    'swarming_task_attrs': {
-      'expiration': 14400,
-      'hard_timeout': 5400,
-      'priority': 35,
-    },
     'tests': [
       {'name': 'mozilla'},
       {'name': 'test262'},
@@ -1577,11 +1557,6 @@
     ],
   },
   'V8 Linux64 - beta branch': {
-    'swarming_task_attrs': {
-      'expiration': 14400,
-      'hard_timeout': 5400,
-      'priority': 35,
-    },
     'tests': [
       {'name': 'mozilla'},
       {'name': 'test262'},
@@ -1589,11 +1564,6 @@
     ],
   },
   'V8 Linux64 - beta branch - debug': {
-    'swarming_task_attrs': {
-      'expiration': 14400,
-      'hard_timeout': 5400,
-      'priority': 35,
-    },
     'tests': [
       {'name': 'mozilla'},
       {'name': 'test262'},
@@ -1601,11 +1571,6 @@
     ],
   },
   'V8 Linux64 - stable branch': {
-    'swarming_task_attrs': {
-      'expiration': 14400,
-      'hard_timeout': 5400,
-      'priority': 35,
-    },
     'tests': [
       {'name': 'mozilla'},
       {'name': 'test262'},
@@ -1613,11 +1578,6 @@
     ],
   },
   'V8 Linux64 - stable branch - debug': {
-    'swarming_task_attrs': {
-      'expiration': 14400,
-      'hard_timeout': 5400,
-      'priority': 35,
-    },
     'tests': [
       {'name': 'mozilla'},
       {'name': 'test262'},
@@ -1625,11 +1585,6 @@
     ],
   },
   'V8 arm - sim - beta branch': {
-    'swarming_task_attrs': {
-      'expiration': 14400,
-      'hard_timeout': 5400,
-      'priority': 35,
-    },
     'tests': [
       {'name': 'mozilla'},
       {'name': 'test262'},
@@ -1637,11 +1592,6 @@
     ],
   },
   'V8 arm - sim - beta branch - debug': {
-    'swarming_task_attrs': {
-      'expiration': 14400,
-      'hard_timeout': 5400,
-      'priority': 35,
-    },
     'tests': [
       {'name': 'mozilla'},
       {'name': 'test262'},
@@ -1649,11 +1599,6 @@
     ],
   },
   'V8 arm - sim - stable branch': {
-    'swarming_task_attrs': {
-      'expiration': 14400,
-      'hard_timeout': 5400,
-      'priority': 35,
-    },
     'tests': [
       {'name': 'mozilla'},
       {'name': 'test262'},
@@ -1661,11 +1606,6 @@
     ],
   },
   'V8 arm - sim - stable branch - debug': {
-    'swarming_task_attrs': {
-      'expiration': 14400,
-      'hard_timeout': 5400,
-      'priority': 35,
-    },
     'tests': [
       {'name': 'mozilla'},
       {'name': 'test262'},
@@ -1673,81 +1613,41 @@
     ],
   },
   'V8 mips64el - sim - beta branch': {
-    'swarming_task_attrs': {
-      'expiration': 14400,
-      'hard_timeout': 5400,
-      'priority': 35,
-    },
     'tests': [
       {'name': 'unittests'},
     ],
   },
   'V8 mips64el - sim - stable branch': {
-    'swarming_task_attrs': {
-      'expiration': 14400,
-      'hard_timeout': 5400,
-      'priority': 35,
-    },
     'tests': [
       {'name': 'unittests'},
     ],
   },
   'V8 mipsel - sim - beta branch': {
-    'swarming_task_attrs': {
-      'expiration': 14400,
-      'hard_timeout': 5400,
-      'priority': 35,
-    },
     'tests': [
       {'name': 'v8testing', 'shards': 4},
     ],
   },
   'V8 mipsel - sim - stable branch': {
-    'swarming_task_attrs': {
-      'expiration': 14400,
-      'hard_timeout': 5400,
-      'priority': 35,
-    },
     'tests': [
       {'name': 'v8testing', 'shards': 4},
     ],
   },
   'V8 ppc64 - sim - beta branch': {
-    'swarming_task_attrs': {
-      'expiration': 14400,
-      'hard_timeout': 5400,
-      'priority': 35,
-    },
     'tests': [
       {'name': 'unittests'},
     ],
   },
   'V8 ppc64 - sim - stable branch': {
-    'swarming_task_attrs': {
-      'expiration': 14400,
-      'hard_timeout': 5400,
-      'priority': 35,
-    },
     'tests': [
       {'name': 'unittests'},
     ],
   },
   'V8 s390x - sim - beta branch': {
-    'swarming_task_attrs': {
-      'expiration': 14400,
-      'hard_timeout': 5400,
-      'priority': 35,
-    },
     'tests': [
       {'name': 'unittests'},
     ],
   },
   'V8 s390x - sim - stable branch': {
-    'swarming_task_attrs': {
-      'expiration': 14400,
-      'hard_timeout': 5400,
-      'priority': 35,
-    },
     'tests': [
       {'name': 'unittests'},
     ],
