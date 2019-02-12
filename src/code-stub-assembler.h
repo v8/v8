@@ -839,8 +839,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Int32T> LoadAndUntagToWord32ObjectField(Node* object, int offset);
   // Load a SMI and untag it.
   TNode<IntPtrT> LoadAndUntagSmi(Node* base, int index);
-  // Load a SMI root, untag it, and convert to Word32.
-  TNode<Int32T> LoadAndUntagToWord32Root(RootIndex root_index);
 
   TNode<MaybeObject> LoadMaybeWeakObjectField(SloppyTNode<HeapObject> object,
                                               int offset) {

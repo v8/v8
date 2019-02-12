@@ -1402,23 +1402,6 @@ TNode<IntPtrT> CodeStubAssembler::LoadAndUntagSmi(Node* base, int index) {
   }
 }
 
-TNode<Int32T> CodeStubAssembler::LoadAndUntagToWord32Root(
-    RootIndex root_index) {
-  Node* isolate_root =
-      ExternalConstant(ExternalReference::isolate_root(isolate()));
-  int offset = IsolateData::root_slot_offset(root_index);
-  if (SmiValuesAre32Bits()) {
-#if V8_TARGET_LITTLE_ENDIAN
-    offset += 4;
-#endif
-    return UncheckedCast<Int32T>(
-        Load(MachineType::Int32(), isolate_root, IntPtrConstant(offset)));
-  } else {
-    return SmiToInt32(
-        Load(MachineType::AnyTagged(), isolate_root, IntPtrConstant(offset)));
-  }
-}
-
 void CodeStubAssembler::StoreAndTagSmi(Node* base, int offset, Node* value) {
   if (SmiValuesAre32Bits()) {
     int zero_offset = offset + 4;
