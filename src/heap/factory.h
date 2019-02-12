@@ -62,6 +62,7 @@ class PromiseResolveThenableJobTask;
 class RegExpMatchInfo;
 class ScriptContextTable;
 class StackFrameInfo;
+class StackTraceFrame;
 class StoreHandler;
 class TemplateObjectDescription;
 class UncompiledDataWithoutPreparseData;
@@ -439,6 +440,8 @@ class V8_EXPORT_PRIVATE Factory {
 
   Handle<BreakPointInfo> NewBreakPointInfo(int source_position);
   Handle<BreakPoint> NewBreakPoint(int id, Handle<String> condition);
+  Handle<StackTraceFrame> NewStackTraceFrame(Handle<FrameArray> frame_array,
+                                             int index);
   Handle<StackFrameInfo> NewStackFrameInfo();
   Handle<StackFrameInfo> NewStackFrameInfo(Handle<FrameArray> frame_array,
                                            int index);

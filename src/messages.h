@@ -85,6 +85,9 @@ class StackFrameBase {
 
   virtual MaybeHandle<String> ToString() = 0;
 
+  // Used to signal that the requested field is unknown.
+  static const int kNone = -1;
+
  protected:
   StackFrameBase() = default;
   explicit StackFrameBase(Isolate* isolate) : isolate_(isolate) {}
@@ -161,9 +164,9 @@ class WasmStackFrame : public StackFrameBase {
 
   int GetPosition() const override;
   int GetLineNumber() override { return wasm_func_index_; }
-  int GetColumnNumber() override { return -1; }
+  int GetColumnNumber() override { return kNone; }
 
-  int GetPromiseIndex() const override { return -1; }
+  int GetPromiseIndex() const override { return kNone; }
 
   bool IsNative() override { return false; }
   bool IsToplevel() override { return false; }

@@ -295,7 +295,7 @@ Handle<Object> StackFrameBase::GetEvalOrigin() {
 }
 
 int StackFrameBase::GetScriptId() const {
-  if (!HasScript()) return -1;
+  if (!HasScript()) return kNone;
   return GetScript()->id();
 }
 
@@ -467,7 +467,7 @@ Handle<Object> JSStackFrame::GetTypeName() {
 int JSStackFrame::GetLineNumber() {
   DCHECK_LE(0, GetPosition());
   if (HasScript()) return Script::GetLineNumber(GetScript(), GetPosition()) + 1;
-  return -1;
+  return kNone;
 }
 
 int JSStackFrame::GetColumnNumber() {
@@ -475,11 +475,11 @@ int JSStackFrame::GetColumnNumber() {
   if (HasScript()) {
     return Script::GetColumnNumber(GetScript(), GetPosition()) + 1;
   }
-  return -1;
+  return kNone;
 }
 
 int JSStackFrame::GetPromiseIndex() const {
-  return is_promise_all_ ? offset_ : -1;
+  return is_promise_all_ ? offset_ : kNone;
 }
 
 bool JSStackFrame::IsNative() {
@@ -521,14 +521,14 @@ void AppendFileLocation(Isolate* isolate, StackFrameBase* call_site,
   }
 
   int line_number = call_site->GetLineNumber();
-  if (line_number != -1) {
+  if (line_number != StackFrameBase::kNone) {
     builder->AppendCharacter(':');
     Handle<String> line_string = isolate->factory()->NumberToString(
         handle(Smi::FromInt(line_number), isolate), isolate);
     builder->AppendString(line_string);
 
     int column_number = call_site->GetColumnNumber();
-    if (column_number != -1) {
+    if (column_number != StackFrameBase::kNone) {
       builder->AppendCharacter(':');
       Handle<String> column_string = isolate->factory()->NumberToString(
           handle(Smi::FromInt(column_number), isolate), isolate);

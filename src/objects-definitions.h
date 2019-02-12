@@ -112,6 +112,7 @@ namespace internal {
   V(PROTOTYPE_INFO_TYPE)                                           \
   V(SCRIPT_TYPE)                                                   \
   V(STACK_FRAME_INFO_TYPE)                                         \
+  V(STACK_TRACE_FRAME_TYPE)                                        \
   V(TUPLE2_TYPE)                                                   \
   V(TUPLE3_TYPE)                                                   \
   V(ARRAY_BOILERPLATE_DESCRIPTION_TYPE)                            \
@@ -338,6 +339,7 @@ namespace internal {
   V(_, PROTOTYPE_INFO_TYPE, PrototypeInfo, prototype_info)                    \
   V(_, SCRIPT_TYPE, Script, script)                                           \
   V(_, STACK_FRAME_INFO_TYPE, StackFrameInfo, stack_frame_info)               \
+  V(_, STACK_TRACE_FRAME_TYPE, StackTraceFrame, stack_trace_frame)            \
   V(_, TUPLE2_TYPE, Tuple2, tuple2)                                           \
   V(_, TUPLE3_TYPE, Tuple3, tuple3)                                           \
   V(_, ARRAY_BOILERPLATE_DESCRIPTION_TYPE, ArrayBoilerplateDescription,       \

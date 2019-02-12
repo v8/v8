@@ -159,6 +159,7 @@
 //       - BreakPoint
 //       - BreakPointInfo
 //       - StackFrameInfo
+//       - StackTraceFrame
 //       - SourcePositionTableWithFrameCache
 //       - CodeCache
 //       - PrototypeInfo

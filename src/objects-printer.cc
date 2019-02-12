@@ -2207,6 +2207,12 @@ void DebugInfo::DebugInfoPrint(std::ostream& os) {  // NOLINT
   os << "\n - coverage_info: " << Brief(coverage_info());
 }
 
+void StackTraceFrame::StackTraceFramePrint(std::ostream& os) {  // NOLINT
+  PrintHeader(os, "StackTraceFrame");
+  os << "\n - frame_index: " << frame_index();
+  os << "\n - id: " << id();
+  os << "\n - frame_info: " << Brief(frame_info());
+}
 
 void StackFrameInfo::StackFrameInfoPrint(std::ostream& os) {  // NOLINT
   PrintHeader(os, "StackFrame");

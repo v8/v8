@@ -2054,6 +2054,14 @@ void DebugInfo::DebugInfoVerify(Isolate* isolate) {
   VerifyPointer(isolate, break_points());
 }
 
+void StackTraceFrame::StackTraceFrameVerify(Isolate* isolate) {
+  CHECK(IsStackTraceFrame());
+  VerifySmiField(kFrameIndexOffset);
+  VerifySmiField(kIdOffset);
+  VerifyPointer(isolate, frame_array());
+  VerifyPointer(isolate, frame_info());
+}
+
 void StackFrameInfo::StackFrameInfoVerify(Isolate* isolate) {
   CHECK(IsStackFrameInfo());
   VerifyPointer(isolate, script_name());

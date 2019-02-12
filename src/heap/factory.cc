@@ -3872,6 +3872,20 @@ Handle<BreakPoint> Factory::NewBreakPoint(int id, Handle<String> condition) {
   return new_break_point;
 }
 
+Handle<StackTraceFrame> Factory::NewStackTraceFrame(
+    Handle<FrameArray> frame_array, int index) {
+  Handle<StackTraceFrame> frame = Handle<StackTraceFrame>::cast(
+      NewStruct(STACK_TRACE_FRAME_TYPE, NOT_TENURED));
+  frame->set_frame_array(*frame_array);
+  frame->set_frame_index(index);
+  frame->set_frame_info(*undefined_value());
+
+  int id = isolate()->last_stack_frame_info_id() + 1;
+  isolate()->set_last_stack_frame_info_id(id);
+  frame->set_id(id);
+  return frame;
+}
+
 Handle<StackFrameInfo> Factory::NewStackFrameInfo() {
   Handle<StackFrameInfo> stack_frame_info = Handle<StackFrameInfo>::cast(
       NewStruct(STACK_FRAME_INFO_TYPE, NOT_TENURED));
