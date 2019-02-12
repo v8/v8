@@ -30,6 +30,7 @@ namespace {{namespace}} {
 class Value;
 
 using String = std::string;
+using ProtocolMessage = std::string;
 
 class {{config.lib.export_macro}} StringBuilder {
  public:
@@ -90,7 +91,9 @@ class {{config.lib.export_macro}} StringUtil {
     return std::vector<uint8_t>(str.begin(), str.end());
   }
 
-  static std::unique_ptr<Value> parseJSON(const String&);
+  static std::unique_ptr<Value> parseMessage(const std::string& message, bool binary);
+  static ProtocolMessage jsonToMessage(String message);
+  static ProtocolMessage binaryToMessage(std::vector<uint8_t> message);
 };
 
 // A read-only sequence of uninterpreted bytes with reference-counted storage.

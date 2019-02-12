@@ -28,6 +28,8 @@ public:
         return std::unique_ptr<Value>(new Value());
     }
 
+    static std::unique_ptr<Value> parseBinary(const uint8_t*data, unsigned size);
+
     enum ValueType {
         TypeNull = 0,
         TypeBoolean,
@@ -47,11 +49,13 @@ public:
     virtual bool asDouble(double* output) const;
     virtual bool asInteger(int* output) const;
     virtual bool asString(String* output) const;
-    virtual bool asSerialized(String* output) const;
 
     virtual void writeJSON(StringBuilder* output) const;
     virtual std::unique_ptr<Value> clone() const;
-    String serialize() override;
+    String toJSONString() const;
+    String serializeToJSON() override;
+    std::vector<uint8_t> serializeToBinary() override;
+
 
 protected:
     Value() : m_type(TypeNull) { }
@@ -124,19 +128,26 @@ private:
 
 class {{config.lib.export_macro}} SerializedValue : public Value {
 public:
-    static std::unique_ptr<SerializedValue> create(const String& value)
+    static std::unique_ptr<SerializedValue> fromJSON(const String& value)
     {
         return std::unique_ptr<SerializedValue>(new SerializedValue(value));
     }
 
-    bool asSerialized(String* output) const override;
+    static std::unique_ptr<SerializedValue> fromBinary(std::vector<uint8_t> value)
+    {
+        return std::unique_ptr<SerializedValue>(new SerializedValue(std::move(value)));
+    }
+
     void writeJSON(StringBuilder* output) const override;
     std::unique_ptr<Value> clone() const override;
 
 private:
-    explicit SerializedValue(const String& value) : Value(TypeSerialized), m_serializedValue(value) { }
-
-    String m_serializedValue;
+    explicit SerializedValue(const String& json) : Value(TypeSerialized), m_serializedJSON(json) { }
+    explicit SerializedValue(std::vector<uint8_t> binary) : Value(TypeSerialized), m_serializedBinary(std::move(binary)) { }
+    SerializedValue(const String& json, const std::vector<uint8_t>& binary)
+        : Value(TypeSerialized), m_serializedJSON(json), m_serializedBinary(binary) { }
+    String m_serializedJSON;
+    std::vector<uint8_t> m_serializedBinary;
 };
 
 class {{config.lib.export_macro}} DictionaryValue : public Value {

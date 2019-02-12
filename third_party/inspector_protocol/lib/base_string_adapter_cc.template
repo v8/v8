@@ -128,10 +128,26 @@ std::unique_ptr<base::Value> toBaseValue(Value* value, int depth) {
 }
 
 // static
-std::unique_ptr<Value> StringUtil::parseJSON(
-    const std::string& json) {
-  std::unique_ptr<base::Value> value = base::JSONReader::Read(json);
+std::unique_ptr<Value> StringUtil::parseMessage(
+    const std::string& message, bool binary) {
+  if (binary) {
+    return Value::parseBinary(
+        reinterpret_cast<const uint8_t*>(message.data()),
+        message.length());
+  }
+  std::unique_ptr<base::Value> value = base::JSONReader::Read(message);
   return toProtocolValue(value.get(), 1000);
+}
+
+// static
+ProtocolMessage StringUtil::jsonToMessage(String message) {
+  return message;
+}
+
+// static
+ProtocolMessage StringUtil::binaryToMessage(std::vector<uint8_t> message) {
+  // TODO(pfeldman): figure out what to do with this copy.
+  return std::string(reinterpret_cast<const char*>(message.data()), message.size());
 }
 
 StringBuilder::StringBuilder() {}

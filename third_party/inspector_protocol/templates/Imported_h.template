@@ -28,8 +28,17 @@ struct ValueConversions<{{"::".join(config.imported.namespace)}}::{{domain.domai
             errors->addError("value expected");
             return nullptr;
         }
-        String json = value->serialize();
-        auto result = {{"::".join(config.imported.namespace)}}::{{domain.domain}}::API::{{type.id}}::fromJSONString({{config.imported.to_imported_string % "json"}});
+
+        // TODO(pfeldman): toggle to true and delete the json branch when binary is ready.
+        bool binary_protocol = false;
+        std::unique_ptr<{{"::".join(config.imported.namespace)}}::{{domain.domain}}::API::{{type.id}}> result;
+        if (binary_protocol) {
+            std::vector<uint8_t> binary = value->serializeToBinary();
+            result = {{"::".join(config.imported.namespace)}}::{{domain.domain}}::API::{{type.id}}::fromBinary(std::move(binary));
+        } else {
+            String json = value->serializeToJSON();
+            result = {{"::".join(config.imported.namespace)}}::{{domain.domain}}::API::{{type.id}}::fromJSONString({{config.imported.to_imported_string % "json"}});
+        }
         if (!result)
             errors->addError("cannot parse");
         return result;
@@ -37,8 +46,15 @@ struct ValueConversions<{{"::".join(config.imported.namespace)}}::{{domain.domai
 
     static std::unique_ptr<protocol::Value> toValue(const {{"::".join(config.imported.namespace)}}::{{domain.domain}}::API::{{type.id}}* value)
     {
-        auto json = value->toJSONString();
-        return SerializedValue::create({{config.imported.from_imported_string % "std::move(json)"}});
+        // TODO(pfeldman): toggle to true and delete the json branch when binary is ready.
+        bool binary_protocol = false;
+        if (binary_protocol) {
+            return SerializedValue::fromBinary(value->toBinary());
+        } else {
+            auto json = value->toJSONString();
+            String local_json = ({{config.imported.from_imported_string % "std::move(json)"}});
+            return SerializedValue::fromJSON(local_json);
+        }
     }
 
     static std::unique_ptr<protocol::Value> toValue(const std::unique_ptr<{{"::".join(config.imported.namespace)}}::{{domain.domain}}::API::{{type.id}}>& value)

@@ -62,6 +62,11 @@ void escapeStringForJSONInternal(const Char* str, unsigned len,
 
 } // anonymous namespace
 
+// static
+std::unique_ptr<Value> Value::parseBinary(const uint8_t* data, unsigned size) {
+  return nullptr;
+}
+
 bool Value::asBoolean(bool*) const
 {
     return false;
@@ -82,11 +87,6 @@ bool Value::asString(String*) const
     return false;
 }
 
-bool Value::asSerialized(String*) const
-{
-    return false;
-}
-
 void Value::writeJSON(StringBuilder* output) const
 {
     DCHECK(m_type == TypeNull);
@@ -98,12 +98,20 @@ std::unique_ptr<Value> Value::clone() const
     return Value::null();
 }
 
-String Value::serialize()
+String Value::toJSONString() const
 {
     StringBuilder result;
     StringUtil::builderReserve(result, 512);
     writeJSON(&result);
     return StringUtil::builderToString(result);
+}
+
+String Value::serializeToJSON() {
+    return toJSONString();
+}
+
+std::vector<uint8_t> Value::serializeToBinary() {
+    return std::vector<uint8_t>();
 }
 
 bool FundamentalValue::asBoolean(bool* output) const
@@ -183,21 +191,15 @@ std::unique_ptr<Value> StringValue::clone() const
     return StringValue::create(m_stringValue);
 }
 
-bool SerializedValue::asSerialized(String* output) const
-{
-    *output = m_serializedValue;
-    return true;
-}
-
 void SerializedValue::writeJSON(StringBuilder* output) const
 {
     DCHECK(type() == TypeSerialized);
-    StringUtil::builderAppend(*output, m_serializedValue);
+    StringUtil::builderAppend(*output, m_serializedJSON);
 }
 
 std::unique_ptr<Value> SerializedValue::clone() const
 {
-    return SerializedValue::create(m_serializedValue);
+    return std::unique_ptr<SerializedValue>(new SerializedValue(m_serializedJSON, m_serializedBinary));
 }
 
 DictionaryValue::~DictionaryValue()

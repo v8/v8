@@ -51,8 +51,10 @@ namespace {{param.name | to_title_case}}Enum {
 class {{config.exported.export_macro}} {{type.id}} {
 public:
     virtual {{config.exported.string_out}} toJSONString() const = 0;
+    virtual std::vector<uint8_t> toBinary() const = 0;
     virtual ~{{type.id}}() { }
     static std::unique_ptr<protocol::{{domain.domain}}::API::{{type.id}}> fromJSONString(const {{config.exported.string_in}}& json);
+    static std::unique_ptr<protocol::{{domain.domain}}::API::{{type.id}}> fromBinary(std::vector<uint8_t> binary);
 };
   {% endfor %}
 
