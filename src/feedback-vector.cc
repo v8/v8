@@ -749,11 +749,7 @@ bool FeedbackNexus::ConfigureLexicalVarMode(int script_context_index,
                SlotIndexBits::encode(context_slot_index) |
                ImmutabilityBit::encode(immutable);
 
-  // Force {config} to be in Smi range by propagating the most significant Smi
-  // bit. This does not change any of the bitfield's bits.
-  config = (config << (32 - kSmiValueSize)) >> (32 - kSmiValueSize);
-
-  SetFeedback(Smi::FromInt(config));
+  SetFeedback(Smi::From31BitPattern(config));
   Isolate* isolate = GetIsolate();
   SetFeedbackExtra(*FeedbackVector::UninitializedSentinel(isolate),
                    SKIP_WRITE_BARRIER);

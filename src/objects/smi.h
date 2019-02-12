@@ -57,6 +57,13 @@ class Smi : public Object {
     return Smi((static_cast<Address>(value) << smi_shift_bits) | kSmiTag);
   }
 
+  // Given {value} in [0, 2^31-1], force it into Smi range by changing at most
+  // the MSB (leaving the lower 31 bit unchanged).
+  static inline Smi From31BitPattern(int value) {
+    return Smi::FromInt((value << (32 - kSmiValueSize)) >>
+                        (32 - kSmiValueSize));
+  }
+
   template <typename E,
             typename = typename std::enable_if<std::is_enum<E>::value>::type>
   static inline Smi FromEnum(E value) {
