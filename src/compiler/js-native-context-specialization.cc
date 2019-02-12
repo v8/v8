@@ -1498,7 +1498,6 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
     value = BuildIndexedStringLoad(receiver, index, length, &effect, &control,
                                    load_mode);
   } else {
-    // Retrieve the native context from the given {node}.
     // Compute element access infos for the receiver maps.
     AccessInfoFactory access_info_factory(
         broker(), dependencies(), native_context().object(), graph()->zone());
