@@ -2869,59 +2869,47 @@ Reduction JSCallReducer::ReduceCallApiFunction(
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
   CallParameters const& p = CallParametersOf(node->op());
   int const argc = static_cast<int>(p.arity()) - 2;
-  Node* target = NodeProperties::GetValueInput(node, 0);
   Node* global_proxy =
       jsgraph()->Constant(native_context().global_proxy_object());
   Node* receiver = (p.convert_mode() == ConvertReceiverMode::kNullOrUndefined)
                        ? global_proxy
                        : NodeProperties::GetValueInput(node, 1);
   Node* holder;
+  Node* context = NodeProperties::GetContextInput(node);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
-  // See if we can optimize this API call to {target}.
+  // See if we can optimize this API call to {shared}.
   Handle<FunctionTemplateInfo> function_template_info(
       FunctionTemplateInfo::cast(shared.object()->function_data()), isolate());
   CallOptimization call_optimization(isolate(), function_template_info);
   if (!call_optimization.is_simple_api_call()) return NoChange();
 
-  // If the {target} accepts any kind of {receiver}, we only need to
-  // ensure that the {receiver} is actually a JSReceiver at this point,
-  // and also pass that as the {holder}. There are two independent bits
-  // here:
-  //
-  //  a. When the "accept any receiver" bit is set, it means we don't
-  //     need to perform access checks, even if the {receiver}'s map
-  //     has the "needs access check" bit set.
-  //  b. When the {function_template_info} has no signature, we don't
-  //     need to do the compatible receiver check, since all receivers
-  //     are considered compatible at that point, and the {receiver}
-  //     will be pass as the {holder}.
-  //
-  if (function_template_info->accept_any_receiver() &&
-      function_template_info->signature()->IsUndefined(isolate())) {
-    receiver = holder = effect =
-        graph()->NewNode(simplified()->ConvertReceiver(p.convert_mode()),
-                         receiver, global_proxy, effect, control);
-  } else {
-    // Infer the {receiver} maps, and check if we can inline the API function
-    // callback based on those. Note that we don't need to know the concrete
-    // {receiver} maps at this point and we also don't need to install any
-    // stability dependencies, since the only relevant information regarding
-    // the {receiver} is the {Map::constructor} field on the root map (which
-    // is different from the JavaScript exposed "constructor" property) and
-    // that field cannot change. So if we know that {receiver} had a certain
-    // constructor at some point in the past (i.e. it had a certain map),
-    // then this constructor is going to be the same later, since this
-    // information cannot change with map transitions. The same is true for
-    // the instance type, e.g. we still know that the instance type is JSObject
-    // even if that information is unreliable, and the "access check needed"
-    // bit, which also cannot change later.
-    ZoneHandleSet<Map> receiver_maps;
-    NodeProperties::InferReceiverMapsResult result =
-        NodeProperties::InferReceiverMaps(broker(), receiver, effect,
-                                          &receiver_maps);
-    if (result == NodeProperties::kNoReceiverMaps) return NoChange();
+  // Try to infer the {receiver} maps from the graph.
+  ZoneHandleSet<Map> receiver_maps;
+  NodeProperties::InferReceiverMapsResult result =
+      NodeProperties::InferReceiverMaps(broker(), receiver, effect,
+                                        &receiver_maps);
+  if (result != NodeProperties::kNoReceiverMaps) {
+    // Check that all {receiver_maps} are actually JSReceiver maps and
+    // that the {function_template_info} accepts them without access
+    // checks (even if "access check needed" is set for {receiver}).
+    //
+    // Note that we don't need to know the concrete {receiver} maps here,
+    // meaning it's fine if the {receiver_maps} are unreliable, and we also
+    // don't need to install any stability dependencies, since the only
+    // relevant information regarding the {receiver} is the Map::constructor
+    // field on the root map (which is different from the JavaScript exposed
+    // "constructor" property) and that field cannot change.
+    //
+    // So if we know that {receiver} had a certain constructor at some point
+    // in the past (i.e. it had a certain map), then this constructor is going
+    // to be the same later, since this information cannot change with map
+    // transitions.
+    //
+    // The same is true for the instance type, e.g. we still know that the
+    // instance type is JSObject even if that information is unreliable, and
+    // the "access check needed" bit, which also cannot change later.
     for (Handle<Map> map : receiver_maps) {
       MapRef receiver_map(broker(), map);
       if (!receiver_map.IsJSReceiverMap() ||
@@ -2948,15 +2936,31 @@ Reduction JSCallReducer::ReduceCallApiFunction(
     holder = lookup == CallOptimization::kHolderFound
                  ? jsgraph()->HeapConstant(api_holder)
                  : receiver;
+  } else if (function_template_info->accept_any_receiver() &&
+             function_template_info->signature()->IsUndefined(isolate())) {
+    // We haven't found any {receiver_maps}, but we might still be able to
+    // optimize the API call depending on the {function_template_info}.
+    // If the API function accepts any kind of {receiver}, we only need to
+    // ensure that the {receiver} is actually a JSReceiver at this point,
+    // and also pass that as the {holder}. There are two independent bits
+    // here:
+    //
+    //  a. When the "accept any receiver" bit is set, it means we don't
+    //     need to perform access checks, even if the {receiver}'s map
+    //     has the "needs access check" bit set.
+    //  b. When the {function_template_info} has no signature, we don't
+    //     need to do the compatible receiver check, since all receivers
+    //     are considered compatible at that point, and the {receiver}
+    //     will be pass as the {holder}.
+    //
+    receiver = holder = effect =
+        graph()->NewNode(simplified()->ConvertReceiver(p.convert_mode()),
+                         receiver, global_proxy, effect, control);
+  } else {
+    // We cannot do a fast API call in this case.
+    return NoChange();
   }
 
-  // Load the {target}s context.
-  Node* context = effect = graph()->NewNode(
-      simplified()->LoadField(AccessBuilder::ForJSFunctionContext()), target,
-      effect, control);
-
-  // CallApiCallbackStub's register arguments: code, target, call data, holder,
-  // function address.
   // TODO(turbofan): Consider introducing a JSCallApiCallback operator for
   // this and lower it during JSGenericLowering, and unify this with the
   // JSNativeContextSpecialization::InlineApiCall method a bit.
