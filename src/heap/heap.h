@@ -2010,7 +2010,6 @@ class Heap {
   friend class AlwaysAllocateScope;
   friend class ArrayBufferCollector;
   friend class ConcurrentMarking;
-  friend class EphemeronHashTableMarkingTask;
   friend class GCCallbacksScope;
   friend class GCTracer;
   friend class MemoryController;

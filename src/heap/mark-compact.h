@@ -906,7 +906,6 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   // used, so it is okay if this counter overflows and wraps around.
   unsigned epoch_ = 0;
 
-  friend class EphemeronHashTableMarkingTask;
   friend class FullEvacuator;
   friend class Heap;
   friend class RecordMigratedSlotVisitor;

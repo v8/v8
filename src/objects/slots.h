@@ -110,7 +110,7 @@ class FullObjectSlot
   // raw value.
   inline bool contains_value(Address raw_value) const;
 
-  inline Object operator*() const;
+  inline const Object operator*() const;
   inline void store(Object value) const;
 
   inline Object Acquire_Load() const;
@@ -143,7 +143,7 @@ class FullMaybeObjectSlot
   explicit FullMaybeObjectSlot(SlotBase<T, TData, kSlotDataSize> slot)
       : SlotBase(slot.address()) {}
 
-  inline MaybeObject operator*() const;
+  inline const MaybeObject operator*() const;
   inline void store(MaybeObject value) const;
 
   inline MaybeObject Relaxed_Load() const;
@@ -169,7 +169,7 @@ class FullHeapObjectSlot
   explicit FullHeapObjectSlot(SlotBase<T, TData, kSlotDataSize> slot)
       : SlotBase(slot.address()) {}
 
-  inline HeapObjectReference operator*() const;
+  inline const HeapObjectReference operator*() const;
   inline void store(HeapObjectReference value) const;
 
   inline HeapObject ToHeapObject() const;
