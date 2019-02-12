@@ -604,7 +604,7 @@ class FeedbackNexus final {
   void Print(std::ostream& os);  // NOLINT
 
   // For map-based ICs (load, keyed-load, store, keyed-store).
-  Map FindFirstMap() const;
+  Map GetFirstMap() const;
 
   InlineCacheState StateFromFeedback() const;
   int ExtractMaps(MapHandles* maps) const;
@@ -648,7 +648,7 @@ class FeedbackNexus final {
 
   // For KeyedLoad and KeyedStore ICs.
   IcCheckType GetKeyType() const;
-  Name FindFirstName() const;
+  Name GetName() const;
 
   // For Call ICs.
   int GetCallCount();

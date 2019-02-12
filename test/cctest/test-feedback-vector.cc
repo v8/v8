@@ -433,7 +433,7 @@ TEST(VectorLoadICStates) {
       CcTest::global()->Get(context.local(), v8_str("o"));
   Handle<JSObject> o =
       Handle<JSObject>::cast(v8::Utils::OpenHandle(*v8_o.ToLocalChecked()));
-  CHECK_EQ(o->map(), nexus.FindFirstMap());
+  CHECK_EQ(o->map(), nexus.GetFirstMap());
 
   // Now go polymorphic.
   CompileRun("f({ blarg: 3, foo: 2 })");
@@ -453,7 +453,7 @@ TEST(VectorLoadICStates) {
   // Finally driven megamorphic.
   CompileRun("f({ blarg: 3, gran: 3, torino: 10, foo: 2 })");
   CHECK_EQ(MEGAMORPHIC, nexus.StateFromFeedback());
-  CHECK(nexus.FindFirstMap().is_null());
+  CHECK(nexus.GetFirstMap().is_null());
 
   // After a collection, state should not be reset to PREMONOMORPHIC.
   CcTest::CollectAllGarbage();
@@ -523,7 +523,7 @@ TEST(VectorLoadICOnSmi) {
   CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
   // Verify that the monomorphic map is the one we expect.
   Map number_map = ReadOnlyRoots(heap).heap_number_map();
-  CHECK_EQ(number_map, nexus.FindFirstMap());
+  CHECK_EQ(number_map, nexus.GetFirstMap());
 
   // Now go polymorphic on o.
   CompileRun("f(o)");

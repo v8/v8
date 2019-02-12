@@ -277,7 +277,7 @@ bool IC::RecomputeHandlerForName(Handle<Object> name) {
   if (is_keyed()) {
     // Determine whether the failure is due to a name failure.
     if (!name->IsName()) return false;
-    Name stub_name = nexus()->FindFirstName();
+    Name stub_name = nexus()->GetName();
     if (*name != stub_name) return false;
   }
 
@@ -547,7 +547,7 @@ bool IC::UpdatePolymorphicIC(Handle<Name> name,
                              const MaybeObjectHandle& handler) {
   DCHECK(IsHandler(*handler));
   if (is_keyed() && state() != RECOMPUTE_HANDLER) {
-    if (nexus()->FindFirstName() != *name) return false;
+    if (nexus()->GetName() != *name) return false;
   }
   Handle<Map> map = receiver_map();
   MapHandles maps;
@@ -596,7 +596,7 @@ bool IC::UpdatePolymorphicIC(Handle<Name> name,
   if (number_of_valid_maps == 1) {
     ConfigureVectorState(name, receiver_map(), handler);
   } else {
-    if (is_keyed() && nexus()->FindFirstName() != *name) return false;
+    if (is_keyed() && nexus()->GetName() != *name) return false;
     if (handler_to_overwrite >= 0) {
       handlers[handler_to_overwrite] = handler;
       if (!map.is_identical_to(maps.at(handler_to_overwrite))) {

@@ -1814,7 +1814,7 @@ Reduction JSNativeContextSpecialization::ReduceKeyedAccess(
   }
 
   // Check if we have feedback for a named access.
-  Name name = nexus.FindFirstName();
+  Name name = nexus.GetName();
   if (!name.is_null()) {
     return ReduceNamedAccess(node, value, receiver_maps,
                              handle(name, isolate()), access_mode, index);
@@ -2402,7 +2402,7 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreDataPropertyInLiteral(
 
   DCHECK_EQ(MONOMORPHIC, nexus.ic_state());
 
-  Map map = nexus.FindFirstMap();
+  Map map = nexus.GetFirstMap();
   if (map.is_null()) {
     // Maps are weakly held in the type feedback vector, we may not have one.
     return NoChange();
