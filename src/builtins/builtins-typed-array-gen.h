@@ -38,7 +38,7 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
                        TNode<UintPtrT> byte_length);
   void AttachBuffer(TNode<JSTypedArray> holder, TNode<JSArrayBuffer> buffer,
                     TNode<Map> map, TNode<Smi> length,
-                    TNode<Number> byte_offset);
+                    TNode<UintPtrT> byte_offset);
 
   TNode<JSArrayBuffer> AllocateEmptyOnHeapBuffer(TNode<Context> context,
                                                  TNode<JSTypedArray> holder,
@@ -49,10 +49,10 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
                                                     TNode<Number> length);
 
   TNode<Map> LoadMapForType(TNode<JSTypedArray> array);
+  TNode<BoolT> IsMockArrayBufferAllocatorFlag();
   TNode<UintPtrT> CalculateExternalPointer(TNode<UintPtrT> backing_store,
-                                           TNode<Number> byte_offset);
+                                           TNode<UintPtrT> byte_offset);
   Node* LoadDataPtr(Node* typed_array);
-  TNode<BoolT> ByteLengthIsValid(TNode<Number> byte_length);
 
   // Returns true if kind is either UINT8_ELEMENTS or UINT8_CLAMPED_ELEMENTS.
   TNode<Word32T> IsUint8ElementsKind(TNode<Word32T> kind);

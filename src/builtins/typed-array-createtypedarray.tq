@@ -14,15 +14,12 @@ namespace typed_array_createtypedarray {
       implicit context: Context)(JSTypedArray, uintptr): JSArrayBuffer;
   extern macro TypedArrayBuiltinsAssembler::AllocateOnHeapElements(
       Map, intptr, Number): FixedTypedArrayBase;
-  extern macro TypedArrayBuiltinsAssembler::ByteLengthIsValid(Number): bool;
-  extern macro TypedArrayBuiltinsAssembler::GetTypedArrayElementsInfo(
-      ElementsKind): typed_array::TypedArrayElementsInfo;
   extern macro TypedArrayBuiltinsAssembler::IsSharedArrayBuffer(JSArrayBuffer):
       bool;
   extern macro TypedArrayBuiltinsAssembler::SetupTypedArray(
       JSTypedArray, Smi, uintptr, uintptr): void;
   extern macro TypedArrayBuiltinsAssembler::AttachBuffer(
-      JSTypedArray, JSArrayBuffer, Map, Smi, Number): void;
+      JSTypedArray, JSArrayBuffer, Map, Smi, uintptr): void;
 
   extern runtime ThrowInvalidTypedArrayAlignment(implicit context: Context)(
       Map, String): never;
@@ -39,10 +36,8 @@ namespace typed_array_createtypedarray {
       initialize: constexpr bool, typedArray: JSTypedArray, length: PositiveSmi,
       elementsInfo: typed_array::TypedArrayElementsInfo,
       bufferConstructor: JSReceiver): Object {
-    assert(Is<PositiveSmi>(length));
-
-    const byteLengthNum = SmiMul(length, elementsInfo.size);
-    const byteLength = Convert<uintptr>(byteLengthNum);
+    const byteLength = elementsInfo.CalculateByteLength(length);
+    const byteLengthNum = Convert<Number>(byteLength);
     const defaultConstructor = GetArrayBufferFunction();
 
     try {
@@ -76,7 +71,7 @@ namespace typed_array_createtypedarray {
     }
     label AttachBuffer(bufferObj: Object) {
       const buffer = Cast<JSArrayBuffer>(bufferObj) otherwise unreachable;
-      const byteOffset: Smi = 0;
+      const byteOffset: uintptr = 0;
       AttachBuffer(typedArray, buffer, elementsInfo.map, length, byteOffset);
     }
 
@@ -84,18 +79,6 @@ namespace typed_array_createtypedarray {
     SetupTypedArray(typedArray, length, byteOffset, byteLength);
 
     return Undefined;
-  }
-
-  macro TypedArrayInitializeWithBuffer(
-      typedArray: JSTypedArray, length: PositiveSmi, buffer: JSArrayBuffer,
-      elementsInfo: typed_array::TypedArrayElementsInfo, byteOffset: Number) {
-    const byteLength: Number = SmiMul(length, elementsInfo.size);
-
-    SetupTypedArray(
-        typedArray, length, Convert<uintptr>(byteOffset),
-        Convert<uintptr>(byteLength));
-
-    AttachBuffer(typedArray, buffer, elementsInfo.map, length, byteOffset);
   }
 
   // 22.2.4.2 TypedArray ( length )
@@ -141,10 +124,9 @@ namespace typed_array_createtypedarray {
         goto IfSlow;
 
       } else if (length > 0) {
-        const byteLength: Number = SmiMul(length, elementsInfo.size);
-        assert(ByteLengthIsValid(byteLength));
-        typed_array::CallCMemcpy(
-            typedArray.data_ptr, src.data_ptr, Convert<uintptr>(byteLength));
+        const byteLength = elementsInfo.CalculateByteLength(length);
+        assert(byteLength <= kTypedArrayMaxByteLength);
+        typed_array::CallCMemcpy(typedArray.data_ptr, src.data_ptr, byteLength);
       }
     }
     label IfSlow deferred {
@@ -187,36 +169,27 @@ namespace typed_array_createtypedarray {
     goto IfConstructByArrayLike(srcTypedArray, length, bufferConstructor);
   }
 
-  // Determines if `bytes` (byte offset or length) cannot be evenly divded by
-  // element size.
-  macro IsUnaligned(implicit context: Context)(bytes: Number, elementSize: Smi):
-      bool {
-    const kZero: Smi = 0;
-    if (bytes == kZero) return false;
-    const remainder: Number =
-        Cast<Number>(Modulus(bytes, elementSize)) otherwise unreachable;
-    return remainder != kZero;
-  }
-
   // 22.2.4.5 TypedArray ( buffer, byteOffset, length )
   // ES #sec-typedarray-buffer-byteoffset-length
   macro ConstructByArrayBuffer(implicit context: Context)(
       typedArray: JSTypedArray, buffer: JSArrayBuffer, byteOffset: Object,
       length: Object, elementsInfo: typed_array::TypedArrayElementsInfo): void {
     try {
-      let offset: Number = FromConstexpr<Smi>(0);
+      let offset: uintptr = 0;
       if (byteOffset != Undefined) {
         // 6. Let offset be ? ToIndex(byteOffset).
-        offset = ToInteger_Inline(context, byteOffset, kTruncateMinusZero);
-        if (offset < 0) goto IfInvalidOffset;
+        offset = TryNumberToUintPtr(
+            ToInteger_Inline(context, byteOffset, kTruncateMinusZero))
+            otherwise goto IfInvalidOffset;
 
         // 7. If offset modulo elementSize ≠ 0, throw a RangeError exception.
-        if (IsUnaligned(offset, elementsInfo.size)) {
+        if (elementsInfo.IsUnaligned(offset)) {
           goto IfInvalidAlignment('start offset');
         }
       }
 
       let newLength: PositiveSmi = 0;
+      let newByteLength: uintptr;
       // 8. If length is present and length is not undefined, then
       if (length != Undefined) {
         // a. Let newLength be ? ToIndex(length).
@@ -229,13 +202,13 @@ namespace typed_array_createtypedarray {
       }
 
       // 10. Let bufferByteLength be buffer.[[ArrayBufferByteLength]].
-      const bufferByteLength: Number = Convert<Number>(buffer.byte_length);
+      const bufferByteLength: uintptr = buffer.byte_length;
 
       // 11. If length is either not present or undefined, then
       if (length == Undefined) {
         // a. If bufferByteLength modulo elementSize ≠ 0, throw a RangeError
         // exception.
-        if (IsUnaligned(bufferByteLength, elementsInfo.size)) {
+        if (elementsInfo.IsUnaligned(bufferByteLength)) {
           goto IfInvalidAlignment('byte length');
         }
 
@@ -245,25 +218,24 @@ namespace typed_array_createtypedarray {
 
         // Spec step 16 length calculated here to avoid recalculating the length
         // in the step 12 branch.
-        newLength = ToSmiIndex(
-            Divide((Subtract(bufferByteLength, offset)), elementsInfo.size))
-            otherwise IfInvalidLength;
+        newByteLength = bufferByteLength - offset;
+        newLength = elementsInfo.CalculateLength(newByteLength)
+            otherwise IfInvalidOffset;
 
         // 12. Else,
       } else {
         // a. Let newByteLength be newLength × elementSize.
-        const newByteLength: Number = SmiMul(newLength, elementsInfo.size);
+        newByteLength = elementsInfo.CalculateByteLength(newLength);
 
         // b. If offset + newByteLength > bufferByteLength, throw a RangeError
         // exception.
-        const difference: Number =
-            Cast<Number>(Subtract(bufferByteLength, newByteLength))
-            otherwise unreachable;
-        if (difference < offset) goto IfInvalidLength;
+        if ((bufferByteLength < newByteLength) ||
+            (offset > bufferByteLength - newByteLength))
+          goto IfInvalidLength;
       }
 
-      TypedArrayInitializeWithBuffer(
-          typedArray, newLength, buffer, elementsInfo, offset);
+      SetupTypedArray(typedArray, newLength, offset, newByteLength);
+      AttachBuffer(typedArray, buffer, elementsInfo.map, newLength, offset);
     }
     label IfInvalidAlignment(problemString: String) deferred {
       ThrowInvalidTypedArrayAlignment(typedArray.map, problemString);

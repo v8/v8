@@ -6,11 +6,38 @@
 
 namespace typed_array {
   struct TypedArrayElementsInfo {
-    size: PositiveSmi;
+    // Calculates the number of bytes required for specified number of elements.
+    CalculateByteLength(length: uintptr): uintptr {
+      const byteLength = length << this.sizeLog2;
+      // Verify no overflow has ocurred.
+      assert(byteLength >>> this.sizeLog2 == length);
+      return byteLength;
+    }
+    CalculateByteLength(length: PositiveSmi): uintptr {
+      return this.CalculateByteLength(Convert<uintptr>(length));
+    }
+
+    // Calculates the maximum number of elements supported by a specified number
+    // of bytes.
+    CalculateLength(byteLength: uintptr): PositiveSmi labels IfInvalid {
+      return TryUintPtrToPositiveSmi(byteLength >>> this.sizeLog2)
+          otherwise IfInvalid;
+    }
+
+    // Determines if `bytes` (byte offset or length) cannot be evenly divided by
+    // element size.
+    IsUnaligned(bytes: uintptr): bool {
+      // Exploits the fact the element size is a power of 2. Determining whether
+      // there is remainder (not aligned) can be achieved efficiently with bit
+      // masking. Shift is safe as sizeLog2 can be 3 at most (see
+      // ElementsKindToShiftSize).
+      return (bytes & ((1 << this.sizeLog2) - 1)) != 0;
+    }
+
+    sizeLog2: uintptr;
     map: Map;
     kind: ElementsKind;
   }
-
   extern runtime TypedArraySortFast(Context, Object): JSTypedArray;
   extern macro TypedArrayBuiltinsAssembler::ValidateTypedArray(
       Context, Object, constexpr string): JSTypedArray;

@@ -417,6 +417,11 @@ ExternalReference ExternalReference::address_of_min_int() {
   return ExternalReference(reinterpret_cast<Address>(&double_min_int_constant));
 }
 
+ExternalReference
+ExternalReference::address_of_mock_arraybuffer_allocator_flag() {
+  return ExternalReference(&FLAG_mock_arraybuffer_allocator);
+}
+
 ExternalReference ExternalReference::address_of_runtime_stats_flag() {
   return ExternalReference(&FLAG_runtime_stats);
 }
