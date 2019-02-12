@@ -63,7 +63,7 @@ void escapeStringForJSONInternal(const Char* str, unsigned len,
 } // anonymous namespace
 
 // static
-std::unique_ptr<Value> Value::parseBinary(const uint8_t* data, unsigned size) {
+std::unique_ptr<Value> Value::parseBinary(const uint8_t* data, size_t size) {
   return nullptr;
 }
 

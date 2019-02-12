@@ -329,7 +329,7 @@ void V8InspectorSessionImpl::reportAllContexts(V8RuntimeAgentImpl* agent) {
 void V8InspectorSessionImpl::dispatchProtocolMessage(
     const StringView& message) {
   bool binary_protocol =
-      message.is8Bit() && message.length() && message.characters8()[0] == 0xDA;
+      message.is8Bit() && message.length() && message.characters8()[0] == 0xD8;
   if (binary_protocol) use_binary_protocol_ = true;
   int callId;
   std::unique_ptr<protocol::Value> parsed_message;

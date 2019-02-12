@@ -34,7 +34,7 @@ struct ValueConversions<{{"::".join(config.imported.namespace)}}::{{domain.domai
         std::unique_ptr<{{"::".join(config.imported.namespace)}}::{{domain.domain}}::API::{{type.id}}> result;
         if (binary_protocol) {
             std::vector<uint8_t> binary = value->serializeToBinary();
-            result = {{"::".join(config.imported.namespace)}}::{{domain.domain}}::API::{{type.id}}::fromBinary(std::move(binary));
+            result = {{"::".join(config.imported.namespace)}}::{{domain.domain}}::API::{{type.id}}::fromBinary(binary.data(), binary.size());
         } else {
             String json = value->serializeToJSON();
             result = {{"::".join(config.imported.namespace)}}::{{domain.domain}}::API::{{type.id}}::fromJSONString({{config.imported.to_imported_string % "json"}});

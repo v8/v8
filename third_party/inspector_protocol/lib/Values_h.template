@@ -28,7 +28,7 @@ public:
         return std::unique_ptr<Value>(new Value());
     }
 
-    static std::unique_ptr<Value> parseBinary(const uint8_t*data, unsigned size);
+    static std::unique_ptr<Value> parseBinary(const uint8_t* data, size_t size);
 
     enum ValueType {
         TypeNull = 0,

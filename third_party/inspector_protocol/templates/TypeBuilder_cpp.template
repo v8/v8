@@ -120,6 +120,16 @@ std::unique_ptr<API::{{type.id}}> API::{{type.id}}::fromJSONString(const {{confi
     return protocol::{{domain.domain}}::{{type.id}}::fromValue(value.get(), &errors);
 }
 
+// static
+std::unique_ptr<API::{{type.id}}> API::{{type.id}}::fromBinary(const uint8_t* data, size_t length)
+{
+    ErrorSupport errors;
+    std::unique_ptr<Value> value = Value::parseBinary(data, length);
+    if (!value)
+        return nullptr;
+    return protocol::{{domain.domain}}::{{type.id}}::fromValue(value.get(), &errors);
+}
+
     {% endif %}
   {% endfor %}
 

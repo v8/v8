@@ -67,6 +67,16 @@ class StringUtil {
       const ProtocolMessage&);
   static ProtocolMessage jsonToMessage(String message);
   static ProtocolMessage binaryToMessage(std::vector<uint8_t> message);
+
+  static String fromUTF8(const uint8_t* data, size_t length) {
+    return String16::fromUTF8(reinterpret_cast<const char*>(data), length);
+  }
+  static void writeUTF8(const String& string, std::vector<uint8_t>* out) {
+    // TODO(pfeldman): get rid of the copy here.
+    std::string utf8 = string.utf8();
+    const uint8_t* data = reinterpret_cast<const uint8_t*>(utf8.data());
+    out->insert(out->end(), data, data + utf8.length());
+  }
 };
 
 // A read-only sequence of uninterpreted bytes with reference-counted storage.
