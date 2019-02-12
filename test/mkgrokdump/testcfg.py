@@ -13,7 +13,8 @@ SHELL = 'mkgrokdump'
 
 
 class TestLoader(testsuite.TestLoader):
-  pass
+  def _list_test_filenames(self):
+    yield SHELL
 
 #TODO(tmrts): refactor the test creation logic to migrate to TestLoader
 class TestSuite(testsuite.TestSuite):
@@ -22,10 +23,6 @@ class TestSuite(testsuite.TestSuite):
 
     v8_path = os.path.dirname(os.path.dirname(os.path.abspath(self.root)))
     self.expected_path = os.path.join(v8_path, 'tools', 'v8heapconst.py')
-
-  def ListTests(self):
-    test = self._test_loader._create_test(SHELL, self)
-    return [test]
 
   def _test_loader_class(self):
     return TestLoader
