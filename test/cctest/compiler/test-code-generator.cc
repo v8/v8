@@ -382,7 +382,7 @@ class TestEnvironment : public HandleAndZoneScope {
 
   TestEnvironment()
       : blocks_(1, NewBlock(main_zone(), RpoNumber::FromInt(0)), main_zone()),
-        code_(main_isolate(), main_zone(), &blocks_),
+        instructions_(main_isolate(), main_zone(), &blocks_),
         rng_(CcTest::random_number_generator()),
         supported_reps_({MachineRepresentation::kTagged,
                          MachineRepresentation::kFloat32,
@@ -573,8 +573,8 @@ class TestEnvironment : public HandleAndZoneScope {
   }
 
   int AllocateConstant(Constant constant) {
-    int virtual_register = code_.NextVirtualRegister();
-    code_.AddConstant(virtual_register, constant);
+    int virtual_register = instructions_.NextVirtualRegister();
+    instructions_.AddConstant(virtual_register, constant);
     return virtual_register;
   }
 
@@ -721,8 +721,8 @@ class TestEnvironment : public HandleAndZoneScope {
           OperandToStatePosition(AllocatedOperand::cast(move->destination()));
       InstructionOperand from = move->source();
       if (from.IsConstant()) {
-        Constant constant =
-            code_.GetConstant(ConstantOperand::cast(from).virtual_register());
+        Constant constant = instructions_.GetConstant(
+            ConstantOperand::cast(from).virtual_register());
         Handle<Object> constant_value;
         switch (constant.type()) {
           case Constant::kInt32:
@@ -924,13 +924,13 @@ class TestEnvironment : public HandleAndZoneScope {
   }
 
   v8::base::RandomNumberGenerator* rng() const { return rng_; }
-  InstructionSequence* code() { return &code_; }
+  InstructionSequence* instructions() { return &instructions_; }
   CallDescriptor* test_descriptor() { return test_descriptor_; }
   int stack_slot_count() const { return stack_slot_count_; }
 
  private:
   ZoneVector<InstructionBlock*> blocks_;
-  InstructionSequence code_;
+  InstructionSequence instructions_;
   v8::base::RandomNumberGenerator* rng_;
   // The layout describes the type of each element in the environment, in order.
   std::vector<AllocatedOperand> layout_;
@@ -995,9 +995,10 @@ class CodeGeneratorTester {
     }
 
     generator_ = new CodeGenerator(
-        environment->main_zone(), &frame_, &linkage_, environment->code(),
-        &info_, environment->main_isolate(), base::Optional<OsrHelper>(),
-        kNoSourcePosition, nullptr, PoisoningMitigationLevel::kDontPoison,
+        environment->main_zone(), &frame_, &linkage_,
+        environment->instructions(), &info_, environment->main_isolate(),
+        base::Optional<OsrHelper>(), kNoSourcePosition, nullptr,
+        PoisoningMitigationLevel::kDontPoison,
         AssemblerOptions::Default(environment->main_isolate()),
         Builtins::kNoBuiltinId);
 
@@ -1123,7 +1124,7 @@ class CodeGeneratorTester {
       generator_->AssembleMove(&move.second, &move.first);
     }
 
-    InstructionSequence* sequence = generator_->code();
+    InstructionSequence* sequence = generator_->instructions();
 
     sequence->StartBlock(RpoNumber::FromInt(0));
     // The environment expects this code to tail-call to it's first parameter
