@@ -146,6 +146,8 @@ class SystemTest(unittest.TestCase):
     sys.path.append(TOOLS_ROOT)
     global standard_runner
     from testrunner import standard_runner
+    global num_fuzzer
+    from testrunner import num_fuzzer
     from testrunner.local import command
     from testrunner.local import pool
     command.setup_testing()
@@ -650,6 +652,17 @@ class SystemTest(unittest.TestCase):
       self.assertIn('2 tests failed', result.stdout, result)
       self.assertIn('3 tests ran', result.stdout, result)
       self.assertEqual(1, result.returncode, result)
+
+  def testNumFuzzer(self):
+    sys_args = ['--command-prefix', sys.executable, '--outdir', 'out/Release']
+
+    with temp_base() as basedir:
+      with capture() as (stdout, stderr):
+        code = num_fuzzer.NumFuzzer(basedir=basedir).execute(sys_args)
+        result = Result(stdout.getvalue(), stderr.getvalue(), code)
+
+      self.assertEqual(0, result.returncode, result)
+
 
 if __name__ == '__main__':
   unittest.main()
