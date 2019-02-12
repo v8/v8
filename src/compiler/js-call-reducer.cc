@@ -2870,58 +2870,84 @@ Reduction JSCallReducer::ReduceCallApiFunction(
   CallParameters const& p = CallParametersOf(node->op());
   int const argc = static_cast<int>(p.arity()) - 2;
   Node* target = NodeProperties::GetValueInput(node, 0);
-  Node* receiver =
-      (p.convert_mode() == ConvertReceiverMode::kNullOrUndefined)
-          ? jsgraph()->Constant(native_context().global_proxy_object())
-          : NodeProperties::GetValueInput(node, 1);
+  Node* global_proxy =
+      jsgraph()->Constant(native_context().global_proxy_object());
+  Node* receiver = (p.convert_mode() == ConvertReceiverMode::kNullOrUndefined)
+                       ? global_proxy
+                       : NodeProperties::GetValueInput(node, 1);
+  Node* holder;
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
+  // See if we can optimize this API call to {target}.
   Handle<FunctionTemplateInfo> function_template_info(
       FunctionTemplateInfo::cast(shared.object()->function_data()), isolate());
-
-  // Infer the {receiver} maps, and check if we can inline the API function
-  // callback based on those.
-  ZoneHandleSet<Map> receiver_maps;
-  NodeProperties::InferReceiverMapsResult result =
-      NodeProperties::InferReceiverMaps(broker(), receiver, effect,
-                                        &receiver_maps);
-  if (result == NodeProperties::kNoReceiverMaps) return NoChange();
-  for (Handle<Map> map : receiver_maps) {
-    MapRef receiver_map(broker(), map);
-    if (!receiver_map.IsJSObjectMap() ||
-        (!function_template_info->accept_any_receiver() &&
-         receiver_map.is_access_check_needed())) {
-      return NoChange();
-    }
-    // In case of unreliable {receiver} information, the {receiver_maps}
-    // must all be stable in order to consume the information.
-    if (result == NodeProperties::kUnreliableReceiverMaps) {
-      if (!receiver_map.is_stable()) return NoChange();
-    }
-  }
-
-  // See if we can constant-fold the compatible receiver checks.
   CallOptimization call_optimization(isolate(), function_template_info);
   if (!call_optimization.is_simple_api_call()) return NoChange();
-  CallOptimization::HolderLookup lookup;
-  Handle<JSObject> api_holder =
-      call_optimization.LookupHolderOfExpectedType(receiver_maps[0], &lookup);
-  if (lookup == CallOptimization::kHolderNotFound) return NoChange();
-  for (size_t i = 1; i < receiver_maps.size(); ++i) {
-    CallOptimization::HolderLookup lookupi;
-    Handle<JSObject> holder = call_optimization.LookupHolderOfExpectedType(
-        receiver_maps[i], &lookupi);
-    if (lookup != lookupi) return NoChange();
-    if (!api_holder.is_identical_to(holder)) return NoChange();
-  }
 
-  // Install stability dependencies for unreliable {receiver_maps}.
-  if (result == NodeProperties::kUnreliableReceiverMaps) {
+  // If the {target} accepts any kind of {receiver}, we only need to
+  // ensure that the {receiver} is actually a JSReceiver at this point,
+  // and also pass that as the {holder}. There are two independent bits
+  // here:
+  //
+  //  a. When the "accept any receiver" bit is set, it means we don't
+  //     need to perform access checks, even if the {receiver}'s map
+  //     has the "needs access check" bit set.
+  //  b. When the {function_template_info} has no signature, we don't
+  //     need to do the compatible receiver check, since all receivers
+  //     are considered compatible at that point, and the {receiver}
+  //     will be pass as the {holder}.
+  //
+  if (function_template_info->accept_any_receiver() &&
+      function_template_info->signature()->IsUndefined(isolate())) {
+    receiver = holder = effect =
+        graph()->NewNode(simplified()->ConvertReceiver(p.convert_mode()),
+                         receiver, global_proxy, effect, control);
+  } else {
+    // Infer the {receiver} maps, and check if we can inline the API function
+    // callback based on those. Note that we don't need to know the concrete
+    // {receiver} maps at this point and we also don't need to install any
+    // stability dependencies, since the only relevant information regarding
+    // the {receiver} is the {Map::constructor} field on the root map (which
+    // is different from the JavaScript exposed "constructor" property) and
+    // that field cannot change. So if we know that {receiver} had a certain
+    // constructor at some point in the past (i.e. it had a certain map),
+    // then this constructor is going to be the same later, since this
+    // information cannot change with map transitions. The same is true for
+    // the instance type, e.g. we still know that the instance type is JSObject
+    // even if that information is unreliable, and the "access check needed"
+    // bit, which also cannot change later.
+    ZoneHandleSet<Map> receiver_maps;
+    NodeProperties::InferReceiverMapsResult result =
+        NodeProperties::InferReceiverMaps(broker(), receiver, effect,
+                                          &receiver_maps);
+    if (result == NodeProperties::kNoReceiverMaps) return NoChange();
     for (Handle<Map> map : receiver_maps) {
       MapRef receiver_map(broker(), map);
-      dependencies()->DependOnStableMap(receiver_map);
+      if (!receiver_map.IsJSReceiverMap() ||
+          (receiver_map.is_access_check_needed() &&
+           !function_template_info->accept_any_receiver())) {
+        return NoChange();
+      }
     }
+
+    // See if we can constant-fold the compatible receiver checks.
+    CallOptimization::HolderLookup lookup;
+    Handle<JSObject> api_holder =
+        call_optimization.LookupHolderOfExpectedType(receiver_maps[0], &lookup);
+    if (lookup == CallOptimization::kHolderNotFound) return NoChange();
+    for (size_t i = 1; i < receiver_maps.size(); ++i) {
+      CallOptimization::HolderLookup lookupi;
+      Handle<JSObject> holderi = call_optimization.LookupHolderOfExpectedType(
+          receiver_maps[i], &lookupi);
+      if (lookup != lookupi) return NoChange();
+      if (!api_holder.is_identical_to(holderi)) return NoChange();
+    }
+
+    // Determine the appropriate holder for the {lookup}.
+    holder = lookup == CallOptimization::kHolderFound
+                 ? jsgraph()->HeapConstant(api_holder)
+                 : receiver;
   }
 
   // Load the {target}s context.
@@ -2944,9 +2970,6 @@ Reduction JSCallReducer::ReduceCallApiFunction(
       cid.GetStackParameterCount() + argc + 1 /* implicit receiver */,
       CallDescriptor::kNeedsFrameState);
   ApiFunction api_function(v8::ToCData<Address>(call_handler_info->callback()));
-  Node* holder = lookup == CallOptimization::kHolderFound
-                     ? jsgraph()->HeapConstant(api_holder)
-                     : receiver;
   ExternalReference function_reference = ExternalReference::Create(
       &api_function, ExternalReference::DIRECT_API_CALL);
   node->InsertInput(graph()->zone(), 0,
