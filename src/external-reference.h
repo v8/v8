@@ -92,6 +92,8 @@ class StatsCounter;
   V(address_of_harmony_await_optimization_flag,                               \
     "FLAG_harmony_await_optimization")                                        \
   V(address_of_min_int, "LDoubleConstant::min_int")                           \
+  V(address_of_mock_arraybuffer_allocator_flag,                               \
+    "FLAG_mock_arraybuffer_allocator")                                        \
   V(address_of_one_half, "LDoubleConstant::one_half")                         \
   V(address_of_runtime_stats_flag, "FLAG_runtime_stats")                      \
   V(address_of_the_hole_nan, "the_hole_nan")                                  \

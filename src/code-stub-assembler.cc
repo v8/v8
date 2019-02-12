@@ -5691,20 +5691,28 @@ TNode<Float64T> CodeStubAssembler::ChangeNumberToFloat64(
   return result.value();
 }
 
-TNode<UintPtrT> CodeStubAssembler::ChangeNonnegativeNumberToUintPtr(
-    TNode<Number> value) {
+TNode<UintPtrT> CodeStubAssembler::TryNumberToUintPtr(TNode<Number> value,
+                                                      Label* if_negative) {
   TVARIABLE(UintPtrT, result);
   Label done(this, &result);
   Branch(TaggedIsSmi(value),
          [&] {
            TNode<Smi> value_smi = CAST(value);
-           CSA_SLOW_ASSERT(this, SmiLessThan(SmiConstant(-1), value_smi));
+           if (if_negative == nullptr) {
+             CSA_SLOW_ASSERT(this, SmiLessThan(SmiConstant(-1), value_smi));
+           } else {
+             GotoIfNot(TaggedIsPositiveSmi(value), if_negative);
+           }
            result = UncheckedCast<UintPtrT>(SmiToIntPtr(value_smi));
            Goto(&done);
          },
          [&] {
            TNode<HeapNumber> value_hn = CAST(value);
-           result = ChangeFloat64ToUintPtr(LoadHeapNumberValue(value_hn));
+           TNode<Float64T> value = LoadHeapNumberValue(value_hn);
+           if (if_negative != nullptr) {
+             GotoIf(Float64LessThan(value, Float64Constant(0.0)), if_negative);
+           }
+           result = ChangeFloat64ToUintPtr(value);
            Goto(&done);
          });
 
@@ -13786,4 +13794,11 @@ TNode<String> CodeStubAssembler::TaggedToDirectString(TNode<Object> value,
 }
 
 }  // namespace internal
+
+// TODO(pwong): Remove. This is a workaround for crbug.com/v8/8719
+namespace {}  // namespace
+
+// TODO(pwong): Remove. This is a workaround for crbug.com/v8/8719
+namespace {}  // namespace
+
 }  // namespace v8

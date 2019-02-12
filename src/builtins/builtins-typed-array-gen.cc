@@ -44,6 +44,15 @@ TNode<Map> TypedArrayBuiltinsAssembler::LoadMapForType(
   return var_typed_map.value();
 }
 
+TNode<BoolT> TypedArrayBuiltinsAssembler::IsMockArrayBufferAllocatorFlag() {
+  TNode<Word32T> flag_value = UncheckedCast<Word32T>(Load(
+      MachineType::Uint8(),
+      ExternalConstant(
+          ExternalReference::address_of_mock_arraybuffer_allocator_flag())));
+  return Word32NotEqual(Word32And(flag_value, Int32Constant(0xFF)),
+                        Int32Constant(0));
+}
+
 // The byte_offset can be higher than Smi range, in which case to perform the
 // pointer arithmetic necessary to calculate external_pointer, converting
 // byte_offset to an intptr is more difficult. The max byte_offset is 8 * MaxSmi
@@ -52,9 +61,22 @@ TNode<Map> TypedArrayBuiltinsAssembler::LoadMapForType(
 // bit platforms could theoretically have an offset up to 2^35 - 1, so we may
 // need to convert the float heap number to an intptr.
 TNode<UintPtrT> TypedArrayBuiltinsAssembler::CalculateExternalPointer(
-    TNode<UintPtrT> backing_store, TNode<Number> byte_offset) {
-  return Unsigned(
-      IntPtrAdd(backing_store, ChangeNonnegativeNumberToUintPtr(byte_offset)));
+    TNode<UintPtrT> backing_store, TNode<UintPtrT> byte_offset) {
+  TNode<UintPtrT> external_pointer = UintPtrAdd(backing_store, byte_offset);
+
+#ifdef DEBUG
+  // Assert no overflow has occurred. Only assert if the mock array buffer
+  // allocator is NOT used. When the mock array buffer is used, impossibly
+  // large allocations are allowed that would erroneously cause an overflow and
+  // this assertion to fail.
+  Label next(this);
+  GotoIf(IsMockArrayBufferAllocatorFlag(), &next);
+  CSA_ASSERT(this, UintPtrGreaterThanOrEqual(external_pointer, backing_store));
+  Goto(&next);
+  BIND(&next);
+#endif  // DEBUG
+
+  return external_pointer;
 }
 
 // Setup the TypedArray which is under construction.
@@ -85,7 +107,7 @@ void TypedArrayBuiltinsAssembler::AttachBuffer(TNode<JSTypedArray> holder,
                                                TNode<JSArrayBuffer> buffer,
                                                TNode<Map> map,
                                                TNode<Smi> length,
-                                               TNode<Number> byte_offset) {
+                                               TNode<UintPtrT> byte_offset) {
   CSA_ASSERT(this, TaggedIsPositiveSmi(length));
   StoreObjectField(holder, JSArrayBufferView::kBufferOffset, buffer);
 
@@ -193,29 +215,6 @@ Node* TypedArrayBuiltinsAssembler::LoadDataPtr(Node* typed_array) {
   Node* elements = LoadElements(typed_array);
   CSA_ASSERT(this, IsFixedTypedArray(elements));
   return LoadFixedTypedArrayBackingStore(CAST(elements));
-}
-
-TNode<BoolT> TypedArrayBuiltinsAssembler::ByteLengthIsValid(
-    TNode<Number> byte_length) {
-  Label smi(this), done(this);
-  TVARIABLE(BoolT, is_valid);
-  GotoIf(TaggedIsSmi(byte_length), &smi);
-
-  TNode<Float64T> float_value = LoadHeapNumberValue(CAST(byte_length));
-  TNode<Float64T> max_byte_length_double =
-      Float64Constant(FixedTypedArrayBase::kMaxByteLength);
-  is_valid = Float64LessThanOrEqual(float_value, max_byte_length_double);
-  Goto(&done);
-
-  BIND(&smi);
-  TNode<IntPtrT> max_byte_length =
-      IntPtrConstant(FixedTypedArrayBase::kMaxByteLength);
-  is_valid =
-      UintPtrLessThanOrEqual(SmiUntag(CAST(byte_length)), max_byte_length);
-  Goto(&done);
-
-  BIND(&done);
-  return is_valid.value();
 }
 
 TF_BUILTIN(TypedArrayBaseConstructor, TypedArrayBuiltinsAssembler) {
@@ -337,7 +336,7 @@ TypedArrayBuiltinsFromDSLAssembler::TypedArrayElementsInfo
 TypedArrayBuiltinsAssembler::GetTypedArrayElementsInfo(
     TNode<JSTypedArray> typed_array) {
   TNode<Int32T> elements_kind = LoadElementsKind(typed_array);
-  TVARIABLE(Smi, var_element_size);
+  TVARIABLE(UintPtrT, var_size_log2);
   TVARIABLE(Map, var_map);
   ReadOnlyRoots roots(isolate());
 
@@ -345,14 +344,14 @@ TypedArrayBuiltinsAssembler::GetTypedArrayElementsInfo(
       elements_kind,
       [&](ElementsKind kind, int size, int typed_array_fun_index) {
         DCHECK_GT(size, 0);
-        var_element_size = SmiConstant(size);
+        var_size_log2 = UintPtrConstant(ElementsKindToShiftSize(kind));
 
         Handle<Map> map(roots.MapForFixedTypedArray(kind), isolate());
         var_map = HeapConstant(map);
       });
 
   return TypedArrayBuiltinsFromDSLAssembler::TypedArrayElementsInfo{
-      var_element_size.value(), var_map.value(), elements_kind};
+      var_size_log2.value(), var_map.value(), elements_kind};
 }
 
 TNode<JSFunction> TypedArrayBuiltinsAssembler::GetDefaultConstructor(
