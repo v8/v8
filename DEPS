@@ -25,6 +25,14 @@ deps = {
     Var('chromium_url') + '/chromium/src/third_party/instrumented_libraries.git' + '@' + 'a959e4f0cb643003f2d75d179cede449979e3e77',
   'v8/buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '106e9fce3799633f42b45ca8bbe9e84e1e23560',
+  'v8/buildtools/clang_format/script':
+    Var('chromium_url') + '/chromium/llvm-project/cfe/tools/clang-format.git' + '@' + '96636aa0e9f047f17447f2d45a094d0b59ed7917',
+  'v8/buildtools/third_party/libc++/trunk':
+    Var('chromium_url') + '/chromium/llvm-project/libcxx.git' + '@' + 'e713cc0acf1ae8b82f451bf58ebef67a46ceddfb',
+  'v8/buildtools/third_party/libc++abi/trunk':
+    Var('chromium_url') + '/chromium/llvm-project/libcxxabi.git' + '@' + '307bb62985575b2e3216a8cfd7e122e0574f33a9',
+  'v8/buildtools/third_party/libunwind/trunk':
+    Var('chromium_url') + '/external/llvm.org/libunwind.git' + '@' + '69d9b84cca8354117b9fe9705a4430d789ee599b',
   'v8/base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + 'e31a1706337ccb9a658b37d29a018c81695c6518',
   'v8/third_party/android_ndk': {
@@ -108,7 +116,6 @@ deps = {
 }
 
 recursedeps = [
-  'v8/buildtools',
   'v8/third_party/android_tools',
 ]
 
