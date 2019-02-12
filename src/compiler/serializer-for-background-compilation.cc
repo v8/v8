@@ -4,6 +4,8 @@
 
 #include "src/compiler/serializer-for-background-compilation.h"
 
+#include <sstream>
+
 #include "src/compiler/js-heap-broker.h"
 #include "src/handles-inl.h"
 #include "src/interpreter/bytecode-array-iterator.h"
@@ -29,24 +31,22 @@ CompilationSubject::CompilationSubject(Handle<JSFunction> closure,
 Hints::Hints(Zone* zone)
     : constants_(zone), maps_(zone), function_blueprints_(zone) {}
 
-const ZoneVector<Handle<Object>>& Hints::constants() const {
-  return constants_;
-}
+const ConstantsSet& Hints::constants() const { return constants_; }
 
-const ZoneVector<Handle<Map>>& Hints::maps() const { return maps_; }
+const MapsSet& Hints::maps() const { return maps_; }
 
-const ZoneVector<FunctionBlueprint>& Hints::function_blueprints() const {
+const BlueprintsSet& Hints::function_blueprints() const {
   return function_blueprints_;
 }
 
 void Hints::AddConstant(Handle<Object> constant) {
-  constants_.push_back(constant);
+  constants_.insert(constant);
 }
 
-void Hints::AddMap(Handle<Map> map) { maps_.push_back(map); }
+void Hints::AddMap(Handle<Map> map) { maps_.insert(map); }
 
 void Hints::AddFunctionBlueprint(FunctionBlueprint function_blueprint) {
-  function_blueprints_.push_back(function_blueprint);
+  function_blueprints_.insert(function_blueprint);
 }
 
 void Hints::Add(const Hints& other) {
@@ -59,6 +59,27 @@ bool Hints::IsEmpty() const {
   return constants().empty() && maps().empty() && function_blueprints().empty();
 }
 
+std::ostream& operator<<(std::ostream& out,
+                         const FunctionBlueprint& blueprint) {
+  out << Brief(*blueprint.shared) << std::endl;
+  out << Brief(*blueprint.feedback_vector) << std::endl;
+  return out;
+}
+
+std::ostream& operator<<(std::ostream& out, const Hints& hints) {
+  !hints.constants().empty() &&
+      out << "\t\tConstants (" << hints.constants().size() << "):" << std::endl;
+  for (auto x : hints.constants()) out << Brief(*x) << std::endl;
+  !hints.maps().empty() && out << "\t\tMaps (" << hints.maps().size()
+                               << "):" << std::endl;
+  for (auto x : hints.maps()) out << Brief(*x) << std::endl;
+  !hints.function_blueprints().empty() &&
+      out << "\t\tBlueprints (" << hints.function_blueprints().size()
+          << "):" << std::endl;
+  for (auto x : hints.function_blueprints()) out << x;
+  return out;
+}
+
 void Hints::Clear() {
   constants_.clear();
   maps_.clear();
@@ -68,9 +89,17 @@ void Hints::Clear() {
 
 class SerializerForBackgroundCompilation::Environment : public ZoneObject {
  public:
-  Environment(Zone* zone, Isolate* isolate, CompilationSubject function);
+  Environment(Zone* zone, CompilationSubject function);
   Environment(Zone* zone, Isolate* isolate, CompilationSubject function,
               base::Optional<Hints> new_target, const HintsVector& arguments);
+
+  // When control flow bytecodes are encountered, e.g. a conditional jump,
+  // the current environment needs to be stashed together with the target jump
+  // address. Later, when this target bytecode is handled, the stashed
+  // environment will be merged into the current one.
+  void Merge(Environment* other);
+
+  friend std::ostream& operator<<(std::ostream& out, const Environment& env);
 
   FunctionBlueprint function() const { return function_; }
 
@@ -122,7 +151,7 @@ class SerializerForBackgroundCompilation::Environment : public ZoneObject {
 };
 
 SerializerForBackgroundCompilation::Environment::Environment(
-    Zone* zone, Isolate* isolate, CompilationSubject function)
+    Zone* zone, CompilationSubject function)
     : zone_(zone),
       function_(function.blueprint()),
       parameter_count_(function_.shared->GetBytecodeArray()->parameter_count()),
@@ -141,7 +170,7 @@ SerializerForBackgroundCompilation::Environment::Environment(
 SerializerForBackgroundCompilation::Environment::Environment(
     Zone* zone, Isolate* isolate, CompilationSubject function,
     base::Optional<Hints> new_target, const HintsVector& arguments)
-    : Environment(zone, isolate, function) {
+    : Environment(zone, function) {
   // Copy the hints for the actually passed arguments, at most up to
   // the parameter_count.
   size_t param_count = static_cast<size_t>(parameter_count());
@@ -167,6 +196,44 @@ SerializerForBackgroundCompilation::Environment::Environment(
   }
 }
 
+void SerializerForBackgroundCompilation::Environment::Merge(
+    Environment* other) {
+  // Presumably the source and the target would have the same layout
+  // so this is enforced here.
+  CHECK_EQ(parameter_count(), other->parameter_count());
+  CHECK_EQ(register_count(), other->register_count());
+  CHECK_EQ(environment_hints_size(), other->environment_hints_size());
+
+  for (size_t i = 0; i < environment_hints_.size(); ++i) {
+    environment_hints_[i].Add(other->environment_hints_[i]);
+  }
+  return_value_hints_.Add(other->return_value_hints_);
+}
+
+std::ostream& operator<<(
+    std::ostream& out,
+    const SerializerForBackgroundCompilation::Environment& env) {
+  std::ostringstream output_stream;
+  output_stream << "Function ";
+  env.function_.shared->Name()->Print(output_stream);
+  output_stream << "Parameter count: " << env.parameter_count() << std::endl;
+  output_stream << "Register count: " << env.register_count() << std::endl;
+
+  output_stream << "Hints (" << env.environment_hints_.size() << "):\n";
+  for (size_t i = 0; i < env.environment_hints_.size(); ++i) {
+    if (env.environment_hints_[i].IsEmpty()) continue;
+
+    output_stream << "\tSlot " << i << std::endl;
+    output_stream << env.environment_hints_[i];
+  }
+  output_stream << "Return value:\n";
+  output_stream << env.return_value_hints_
+                << "===========================================\n";
+
+  out << output_stream.str();
+  return out;
+}
+
 int SerializerForBackgroundCompilation::Environment::RegisterToLocalIndex(
     interpreter::Register reg) const {
   // TODO(mslekova): We also want to gather hints for the context.
@@ -183,8 +250,8 @@ SerializerForBackgroundCompilation::SerializerForBackgroundCompilation(
     JSHeapBroker* broker, Zone* zone, Handle<JSFunction> closure)
     : broker_(broker),
       zone_(zone),
-      environment_(new (zone) Environment(zone, broker_->isolate(),
-                                          {closure, broker_->isolate()})) {
+      environment_(new (zone) Environment(zone, {closure, broker_->isolate()})),
+      stashed_environments_(zone) {
   JSFunctionRef(broker, closure).Serialize();
 }
 
@@ -194,7 +261,8 @@ SerializerForBackgroundCompilation::SerializerForBackgroundCompilation(
     : broker_(broker),
       zone_(zone),
       environment_(new (zone) Environment(zone, broker_->isolate(), function,
-                                          new_target, arguments)) {
+                                          new_target, arguments)),
+      stashed_environments_(zone) {
   Handle<JSFunction> closure;
   if (function.closure().ToHandle(&closure)) {
     JSFunctionRef(broker, closure).Serialize();
@@ -221,6 +289,7 @@ void SerializerForBackgroundCompilation::TraverseBytecode() {
   BytecodeArrayIterator iterator(bytecode_array.object());
 
   for (; !iterator.done(); iterator.Advance()) {
+    MergeAfterJump(&iterator);
     switch (iterator.current_bytecode()) {
 #define DEFINE_BYTECODE_CASE(name)     \
   case interpreter::Bytecode::k##name: \
@@ -461,6 +530,13 @@ Hints SerializerForBackgroundCompilation::RunChildSerializer(
     return RunChildSerializer(function, new_target, padded, false);
   }
 
+  if (FLAG_trace_heap_broker) {
+    std::ostream& out = broker()->Trace();
+    out << "\nWill run child serializer with environment:\n"
+        << "===========================================\n"
+        << *environment();
+  }
+
   SerializerForBackgroundCompilation child_serializer(
       broker(), zone(), function, new_target, arguments);
   return child_serializer.Run();
@@ -543,6 +619,25 @@ void SerializerForBackgroundCompilation::ProcessCallVarArgs(
   ProcessCallOrConstruct(callee, base::nullopt, arguments, slot);
 }
 
+void SerializerForBackgroundCompilation::ProcessJump(
+    interpreter::BytecodeArrayIterator* iterator) {
+  int jump_target = iterator->GetJumpTargetOffset();
+  int current_offset = iterator->current_offset();
+  if (current_offset >= jump_target) return;
+
+  stashed_environments_[jump_target] = new (zone()) Environment(*environment());
+}
+
+void SerializerForBackgroundCompilation::MergeAfterJump(
+    interpreter::BytecodeArrayIterator* iterator) {
+  int current_offset = iterator->current_offset();
+  auto stash = stashed_environments_.find(current_offset);
+  if (stash != stashed_environments_.end()) {
+    environment()->Merge(stash->second);
+    stashed_environments_.erase(stash);
+  }
+}
+
 void SerializerForBackgroundCompilation::VisitReturn(
     BytecodeArrayIterator* iterator) {
   environment()->return_value_hints().Add(environment()->accumulator_hints());
@@ -588,13 +683,13 @@ void SerializerForBackgroundCompilation::VisitConstructWithSpread(
   ProcessCallOrConstruct(callee, new_target, arguments, slot, true);
 }
 
-#define DEFINE_SKIPPED_JUMP(name, ...)                  \
+#define DEFINE_CLEAR_ENVIRONMENT(name, ...)             \
   void SerializerForBackgroundCompilation::Visit##name( \
       BytecodeArrayIterator* iterator) {                \
     environment()->ClearEphemeralHints();               \
   }
-CLEAR_ENVIRONMENT_LIST(DEFINE_SKIPPED_JUMP)
-#undef DEFINE_SKIPPED_JUMP
+CLEAR_ENVIRONMENT_LIST(DEFINE_CLEAR_ENVIRONMENT)
+#undef DEFINE_CLEAR_ENVIRONMENT
 
 #define DEFINE_CLEAR_ACCUMULATOR(name, ...)             \
   void SerializerForBackgroundCompilation::Visit##name( \
@@ -603,6 +698,29 @@ CLEAR_ENVIRONMENT_LIST(DEFINE_SKIPPED_JUMP)
   }
 CLEAR_ACCUMULATOR_LIST(DEFINE_CLEAR_ACCUMULATOR)
 #undef DEFINE_CLEAR_ACCUMULATOR
+
+#define DEFINE_CONDITIONAL_JUMP(name, ...)              \
+  void SerializerForBackgroundCompilation::Visit##name( \
+      BytecodeArrayIterator* iterator) {                \
+    ProcessJump(iterator);                              \
+  }
+CONDITIONAL_JUMPS_LIST(DEFINE_CONDITIONAL_JUMP)
+#undef DEFINE_CONDITIONAL_JUMP
+
+#define DEFINE_UNCONDITIONAL_JUMP(name, ...)            \
+  void SerializerForBackgroundCompilation::Visit##name( \
+      BytecodeArrayIterator* iterator) {                \
+    ProcessJump(iterator);                              \
+    environment()->ClearEphemeralHints();               \
+  }
+UNCONDITIONAL_JUMPS_LIST(DEFINE_UNCONDITIONAL_JUMP)
+#undef DEFINE_UNCONDITIONAL_JUMP
+
+#define DEFINE_IGNORE(name, ...)                        \
+  void SerializerForBackgroundCompilation::Visit##name( \
+      BytecodeArrayIterator* iterator) {}
+INGORED_BYTECODE_LIST(DEFINE_IGNORE)
+#undef DEFINE_IGNORE
 
 }  // namespace compiler
 }  // namespace internal

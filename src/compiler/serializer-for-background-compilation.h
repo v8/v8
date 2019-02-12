@@ -36,8 +36,37 @@ namespace compiler {
   V(CreateFunctionContext)        \
   V(CreateEvalContext)            \
   V(Debugger)                     \
-  V(Jump)                         \
-  V(JumpConstant)                 \
+  V(PushContext)                  \
+  V(PopContext)                   \
+  V(ResumeGenerator)              \
+  V(ReThrow)                      \
+  V(StaContextSlot)               \
+  V(StaCurrentContextSlot)        \
+  V(SuspendGenerator)             \
+  V(SwitchOnGeneratorState)       \
+  V(Throw)
+
+#define CLEAR_ACCUMULATOR_LIST(V)   \
+  V(CreateEmptyObjectLiteral)       \
+  V(CreateMappedArguments)          \
+  V(CreateRestParameter)            \
+  V(CreateUnmappedArguments)        \
+  V(LdaContextSlot)                 \
+  V(LdaCurrentContextSlot)          \
+  V(LdaGlobal)                      \
+  V(LdaGlobalInsideTypeof)          \
+  V(LdaImmutableContextSlot)        \
+  V(LdaImmutableCurrentContextSlot) \
+  V(LdaKeyedProperty)               \
+  V(LdaNamedProperty)               \
+  V(LdaNamedPropertyNoFeedback)
+
+#define UNCONDITIONAL_JUMPS_LIST(V) \
+  V(Jump)                           \
+  V(JumpConstant)                   \
+  V(JumpLoop)
+
+#define CONDITIONAL_JUMPS_LIST(V) \
   V(JumpIfFalse)                  \
   V(JumpIfFalseConstant)          \
   V(JumpIfJSReceiver)             \
@@ -55,35 +84,25 @@ namespace compiler {
   V(JumpIfTrue)                   \
   V(JumpIfTrueConstant)           \
   V(JumpIfUndefined)              \
-  V(JumpIfUndefinedConstant)      \
-  V(JumpLoop)                     \
-  V(PushContext)                  \
-  V(PopContext)                   \
-  V(ResumeGenerator)              \
-  V(ReThrow)                      \
-  V(StaContextSlot)               \
-  V(StaCurrentContextSlot)        \
-  V(SuspendGenerator)             \
-  V(SwitchOnGeneratorState)       \
-  V(Throw)                        \
-  V(ThrowReferenceErrorIfHole)    \
-  V(ThrowSuperNotCalledIfHole)    \
-  V(ThrowSuperAlreadyCalledIfNotHole)
+  V(JumpIfUndefinedConstant)
 
-#define CLEAR_ACCUMULATOR_LIST(V)   \
-  V(CreateEmptyObjectLiteral)       \
-  V(CreateMappedArguments)          \
-  V(CreateRestParameter)            \
-  V(CreateUnmappedArguments)        \
-  V(LdaContextSlot)                 \
-  V(LdaCurrentContextSlot)          \
-  V(LdaGlobal)                      \
-  V(LdaGlobalInsideTypeof)          \
-  V(LdaImmutableContextSlot)        \
-  V(LdaImmutableCurrentContextSlot) \
-  V(LdaKeyedProperty)               \
-  V(LdaNamedProperty)               \
-  V(LdaNamedPropertyNoFeedback)
+#define INGORED_BYTECODE_LIST(V) \
+  V(TestEqual)                   \
+  V(TestEqualStrict)             \
+  V(TestLessThan)                \
+  V(TestGreaterThan)             \
+  V(TestLessThanOrEqual)         \
+  V(TestGreaterThanOrEqual)      \
+  V(TestReferenceEqual)          \
+  V(TestInstanceOf)              \
+  V(TestIn)                      \
+  V(TestUndetectable)            \
+  V(TestNull)                    \
+  V(TestUndefined)               \
+  V(TestTypeOf)                  \
+  V(ThrowReferenceErrorIfHole)   \
+  V(ThrowSuperNotCalledIfHole)   \
+  V(ThrowSuperAlreadyCalledIfNotHole)
 
 #define SUPPORTED_BYTECODE_LIST(V) \
   V(CallAnyReceiver)               \
@@ -114,13 +133,30 @@ namespace compiler {
   V(Star)                          \
   V(Wide)                          \
   CLEAR_ENVIRONMENT_LIST(V)        \
-  CLEAR_ACCUMULATOR_LIST(V)
+  CLEAR_ACCUMULATOR_LIST(V)        \
+  CONDITIONAL_JUMPS_LIST(V)        \
+  UNCONDITIONAL_JUMPS_LIST(V)      \
+  INGORED_BYTECODE_LIST(V)
 
 class JSHeapBroker;
+
+template <typename T>
+struct HandleComparator {
+  bool operator()(const Handle<T>& lhs, const Handle<T>& rhs) const {
+    return lhs.address() < rhs.address();
+  }
+};
 
 struct FunctionBlueprint {
   Handle<SharedFunctionInfo> shared;
   Handle<FeedbackVector> feedback_vector;
+
+  bool operator<(const FunctionBlueprint& other) const {
+    // A feedback vector is never used for more than one SFI, so it could
+    // be used for strict ordering of blueprints.
+    return HandleComparator<FeedbackVector>()(feedback_vector,
+                                              other.feedback_vector);
+  }
 };
 
 class CompilationSubject {
@@ -137,13 +173,17 @@ class CompilationSubject {
   MaybeHandle<JSFunction> closure_;
 };
 
+typedef ZoneSet<Handle<Object>, HandleComparator<Object>> ConstantsSet;
+typedef ZoneSet<Handle<Map>, HandleComparator<Map>> MapsSet;
+typedef ZoneSet<FunctionBlueprint> BlueprintsSet;
+
 class Hints {
  public:
   explicit Hints(Zone* zone);
 
-  const ZoneVector<Handle<Object>>& constants() const;
-  const ZoneVector<Handle<Map>>& maps() const;
-  const ZoneVector<FunctionBlueprint>& function_blueprints() const;
+  const ConstantsSet& constants() const;
+  const MapsSet& maps() const;
+  const BlueprintsSet& function_blueprints() const;
 
   void AddConstant(Handle<Object> constant);
   void AddMap(Handle<Map> map);
@@ -155,9 +195,9 @@ class Hints {
   bool IsEmpty() const;
 
  private:
-  ZoneVector<Handle<Object>> constants_;
-  ZoneVector<Handle<Map>> maps_;
-  ZoneVector<FunctionBlueprint> function_blueprints_;
+  ConstantsSet constants_;
+  MapsSet maps_;
+  BlueprintsSet function_blueprints_;
 };
 
 typedef ZoneVector<Hints> HintsVector;
@@ -170,6 +210,8 @@ class SerializerForBackgroundCompilation {
   SerializerForBackgroundCompilation(JSHeapBroker* broker, Zone* zone,
                                      Handle<JSFunction> closure);
   Hints Run();  // NOTE: Returns empty for an already-serialized function.
+
+  class Environment;
 
  private:
   SerializerForBackgroundCompilation(JSHeapBroker* broker, Zone* zone,
@@ -184,14 +226,14 @@ class SerializerForBackgroundCompilation {
   SUPPORTED_BYTECODE_LIST(DECLARE_VISIT_BYTECODE)
 #undef DECLARE_VISIT_BYTECODE
 
-  class Environment;
-
   void ProcessCallOrConstruct(Hints callee, base::Optional<Hints> new_target,
                               const HintsVector& arguments, FeedbackSlot slot,
                               bool with_spread = false);
   void ProcessCallVarArgs(interpreter::BytecodeArrayIterator* iterator,
                           ConvertReceiverMode receiver_mode,
                           bool with_spread = false);
+  void ProcessJump(interpreter::BytecodeArrayIterator* iterator);
+  void MergeAfterJump(interpreter::BytecodeArrayIterator* iterator);
 
   Hints RunChildSerializer(CompilationSubject function,
                            base::Optional<Hints> new_target,
@@ -204,6 +246,7 @@ class SerializerForBackgroundCompilation {
   JSHeapBroker* const broker_;
   Zone* const zone_;
   Environment* const environment_;
+  ZoneUnorderedMap<int, Environment*> stashed_environments_;
 };
 
 }  // namespace compiler

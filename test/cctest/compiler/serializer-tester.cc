@@ -28,6 +28,8 @@ SerializerTester::SerializerTester(const char* source)
   FLAG_use_ic = true;
   // We need manual control over when a given function is optimized.
   FLAG_always_opt = false;
+  // We need allocation of executable memory for the compilation.
+  FLAG_jitless = false;
 
   std::string function_string = "(function() { ";
   function_string += source;
@@ -177,6 +179,36 @@ TEST(SerializeConstructWithSpread) {
       "const arr = [1, 2];"
       "function f() {"
       "  new g(0, ...arr); return g;"
+      "}; f(); return f;");
+}
+
+TEST(SerializeConditionalJump) {
+  CheckForSerializedInlinee(
+      "function g(callee) { callee(); };"
+      "function h() {};"
+      "function i() {};"
+      "let a = true;"
+      "g(h); g(i);"
+      "function f() {"
+      "  function q() {};"
+      "  if (a) g(q);"
+      "  return q;"
+      "}; f(); return f;");
+}
+
+TEST(SerializeUnconditionalJump) {
+  CheckForSerializedInlinee(
+      "function g(callee) { callee(); };"
+      "function h() {};"
+      "function i() {};"
+      "let a = false;"
+      "g(h); g(i);"
+      "function f() {"
+      "  function p() {};"
+      "  function q() {};"
+      "  if (a) g(q);"
+      "  else g(p);"
+      "  return p;"
       "}; f(); return f;");
 }
 
