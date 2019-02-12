@@ -134,7 +134,8 @@ class NumFuzzer(base_runner.BaseTestRunner):
     results = self._create_result_tracker(options)
     execproc = ExecutionProc(options.j)
     sigproc = self._create_signal_proc()
-    indicators = self._create_progress_indicators(options)
+    indicators = self._create_progress_indicators(
+      tests.test_count_estimate, options)
     procs = [
       loader,
       NameFilterProc(args) if args else None,

@@ -283,7 +283,8 @@ class StandardTestRunner(base_runner.BaseTestRunner):
       print '>>> Running with test processors'
       loader = LoadProc(tests)
       results = self._create_result_tracker(options)
-      indicators = self._create_progress_indicators(options)
+      indicators = self._create_progress_indicators(
+          tests.test_count_estimate, options)
 
       outproc_factory = None
       if self.build_config.predictable:

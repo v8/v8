@@ -610,7 +610,9 @@ class BaseTestRunner(object):
     names = self._args_to_suite_names(args, options.test_root)
     test_config = self._create_test_config(options)
     variables = self._get_statusfile_variables(options)
-    slow_chain, fast_chain = [], []
+
+    # Head generator with no elements
+    test_chain = testsuite.TestGenerator(0, [], [])
     for name in names:
       if options.verbose:
         print '>>> Loading test suite: %s' % name
@@ -618,17 +620,10 @@ class BaseTestRunner(object):
           os.path.join(options.test_root, name), test_config)
 
       if self._is_testsuite_supported(suite, options):
-        slow_tests, fast_tests = suite.load_tests_from_disk(variables)
-        slow_chain.append(slow_tests)
-        fast_chain.append(fast_tests)
+        tests = suite.load_tests_from_disk(variables)
+        test_chain.merge(tests)
 
-    for tests in slow_chain:
-      for test in tests:
-        yield test
-
-    for tests in fast_chain:
-      for test in tests:
-        yield test
+    return test_chain
 
   def _is_testsuite_supported(self, suite, options):
     """A predicate that can be overridden to filter out unsupported TestSuite
@@ -762,13 +757,20 @@ class BaseTestRunner(object):
 
     return shard_run, shard_count
 
-  def _create_progress_indicators(self, options):
+  def _create_progress_indicators(self, test_count, options):
     procs = [PROGRESS_INDICATORS[options.progress]()]
     if options.json_test_results:
       procs.append(progress.JsonTestProgressIndicator(
         options.json_test_results,
         self.build_config.arch,
         self.mode_options.execution_mode))
+
+    for proc in procs:
+      try:
+        proc.set_test_count(test_count)
+      except AttributeError:
+        pass
+
     return procs
 
   def _create_result_tracker(self, options):

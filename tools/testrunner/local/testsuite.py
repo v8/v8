@@ -28,6 +28,7 @@
 
 import fnmatch
 import imp
+import itertools
 import os
 from contextlib import contextmanager
 
@@ -88,6 +89,7 @@ class TestLoader(object):
     self.test_class = test_class
     self.test_config = test_config
     self.test_root = test_root
+    self.test_count_estimation = len(list(self._list_test_filenames()))
 
   def _list_test_filenames(self):
     """Implemented by the subclassed TestLoaders to list filenames.
@@ -199,6 +201,34 @@ class JSTestLoader(GenericTestLoader):
     return ".js"
 
 
+class TestGenerator(object):
+  def __init__(self, test_count_estimate, slow_tests, fast_tests):
+    self.test_count_estimate = test_count_estimate
+    self.slow_tests = slow_tests
+    self.fast_tests = fast_tests
+    self._rebuild_iterator()
+
+  def _rebuild_iterator(self):
+    self._iterator = itertools.chain(self.slow_tests, self.fast_tests)
+
+  def __iter__(self):
+    return self
+
+  def __next__(self):
+    return self.next()
+
+  def next(self):
+    return next(self._iterator)
+
+  def merge(self, test_generator):
+    self.test_count_estimate += test_generator.test_count_estimate
+    self.slow_tests = itertools.chain(
+      self.slow_tests, test_generator.slow_tests)
+    self.fast_tests = itertools.chain(
+      self.fast_tests, test_generator.fast_tests)
+    self._rebuild_iterator()
+
+
 @contextmanager
 def _load_testsuite_module(name, root):
   f = None
@@ -236,14 +266,22 @@ class TestSuite(object):
   def ListTests(self):
     return self._test_loader.list_tests()
 
+  def __initialize_test_count_estimation(self):
+    # Retrieves a single test to initialize the test generator.
+    next(iter(self.ListTests()))
+
+  def __calculate_test_count(self):
+    self.__initialize_test_count_estimation()
+    return self._test_loader.test_count_estimation
+
   def load_tests_from_disk(self, statusfile_variables):
     self.statusfile = statusfile.StatusFile(
       self.status_file(), statusfile_variables)
 
+    test_count = self.__calculate_test_count()
     slow_tests = (test for test in self.ListTests() if test.is_slow)
     fast_tests = (test for test in self.ListTests() if not test.is_slow)
-
-    return slow_tests, fast_tests
+    return TestGenerator(test_count, slow_tests, fast_tests)
 
   def get_variants_gen(self, variants):
     return self._variants_gen_class()(variants)
