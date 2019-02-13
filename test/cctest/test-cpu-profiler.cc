@@ -2721,6 +2721,38 @@ TEST(CrashReusedProfiler) {
   profiler->StopProfiling("2");
 }
 
+// Tests that samples from different profilers on the same isolate do not leak
+// samples to each other. See crbug.com/v8/8835.
+TEST(MultipleProfilersSampleIndependently) {
+  LocalContext env;
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::HandleScope scope(isolate);
+
+  // Create two profilers- one slow ticking one, and one fast ticking one.
+  // Ensure that the slow ticking profiler does not receive samples from the
+  // fast ticking one.
+  std::unique_ptr<CpuProfiler> slow_profiler(
+      new CpuProfiler(CcTest::i_isolate()));
+  slow_profiler->set_sampling_interval(base::TimeDelta::FromSeconds(1));
+  slow_profiler->StartProfiling("1", true);
+
+  CompileRun(R"(
+    function start() {
+      let val = 1;
+      for (let i = 0; i < 10e3; i++) {
+        val = (val * 2) % 3;
+      }
+      return val;
+    }
+  )");
+  v8::Local<v8::Function> function = GetFunction(env.local(), "start");
+  ProfilerHelper helper(env.local());
+  v8::CpuProfile* profile = helper.Run(function, nullptr, 0, 100, 0, true);
+
+  auto slow_profile = slow_profiler->StopProfiling("1");
+  CHECK_GT(profile->GetSamplesCount(), slow_profile->samples_count());
+}
+
 void ProfileSomeCode(v8::Isolate* isolate) {
   v8::Isolate::Scope isolate_scope(isolate);
   v8::HandleScope scope(isolate);
