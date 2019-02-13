@@ -3028,7 +3028,7 @@ IGNITION_HANDLER(Debugger, InterpreterAssembler) {
     SetAccumulator(return_value);                                          \
     DispatchToBytecode(original_bytecode, BytecodeOffset());               \
   }
-DEBUG_BREAK_BYTECODE_LIST(DEBUG_BREAK);
+DEBUG_BREAK_BYTECODE_LIST(DEBUG_BREAK)
 #undef DEBUG_BREAK
 
 // IncBlockCounter <slot>

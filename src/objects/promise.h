@@ -50,7 +50,7 @@ class PromiseReactionJobTask : public Microtask {
   DECL_CAST(PromiseReactionJobTask)
   DECL_VERIFIER(PromiseReactionJobTask)
 
-  OBJECT_CONSTRUCTORS(PromiseReactionJobTask, Microtask)
+  OBJECT_CONSTRUCTORS(PromiseReactionJobTask, Microtask);
 };
 
 // Struct to hold state required for a PromiseReactionJob of type "Fulfill".
@@ -61,7 +61,7 @@ class PromiseFulfillReactionJobTask : public PromiseReactionJobTask {
   DECL_PRINTER(PromiseFulfillReactionJobTask)
   DECL_VERIFIER(PromiseFulfillReactionJobTask)
 
-  OBJECT_CONSTRUCTORS(PromiseFulfillReactionJobTask, PromiseReactionJobTask)
+  OBJECT_CONSTRUCTORS(PromiseFulfillReactionJobTask, PromiseReactionJobTask);
 };
 
 // Struct to hold state required for a PromiseReactionJob of type "Reject".
@@ -72,7 +72,7 @@ class PromiseRejectReactionJobTask : public PromiseReactionJobTask {
   DECL_PRINTER(PromiseRejectReactionJobTask)
   DECL_VERIFIER(PromiseRejectReactionJobTask)
 
-  OBJECT_CONSTRUCTORS(PromiseRejectReactionJobTask, PromiseReactionJobTask)
+  OBJECT_CONSTRUCTORS(PromiseRejectReactionJobTask, PromiseReactionJobTask);
 };
 
 // A container struct to hold state required for PromiseResolveThenableJob.
@@ -101,7 +101,7 @@ class PromiseResolveThenableJobTask : public Microtask {
   DECL_PRINTER(PromiseResolveThenableJobTask)
   DECL_VERIFIER(PromiseResolveThenableJobTask)
 
-  OBJECT_CONSTRUCTORS(PromiseResolveThenableJobTask, Microtask)
+  OBJECT_CONSTRUCTORS(PromiseResolveThenableJobTask, Microtask);
 };
 
 // Struct to hold the state of a PromiseCapability.

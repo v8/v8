@@ -111,7 +111,7 @@ class FixedArrayBase : public HeapObject {
   // their ptr() is a Smi.
   inline FixedArrayBase(Address ptr, AllowInlineSmiStorage allow_smi);
 
-  OBJECT_CONSTRUCTORS(FixedArrayBase, HeapObject)
+  OBJECT_CONSTRUCTORS(FixedArrayBase, HeapObject);
 };
 
 // FixedArray describes fixed-sized arrays with element type Object.
@@ -583,7 +583,7 @@ class PodArray : public ByteArray {
 class FixedTypedArrayBase : public FixedArrayBase {
  public:
   // [base_pointer]: Either points to the FixedTypedArrayBase itself or nullptr.
-  DECL_ACCESSORS(base_pointer, Object);
+  DECL_ACCESSORS(base_pointer, Object)
 
   // [external_pointer]: Contains the offset between base_pointer and the start
   // of the data. If the base_pointer is a nullptr, the external_pointer

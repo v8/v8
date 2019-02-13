@@ -2401,11 +2401,11 @@ std::string ImplementationVisitor::ExternalParameterName(
   return std::string("p_") + name;
 }
 
-DEFINE_CONTEXTUAL_VARIABLE(ImplementationVisitor::ValueBindingsManager);
-DEFINE_CONTEXTUAL_VARIABLE(ImplementationVisitor::LabelBindingsManager);
-DEFINE_CONTEXTUAL_VARIABLE(ImplementationVisitor::CurrentCallable);
-DEFINE_CONTEXTUAL_VARIABLE(ImplementationVisitor::CurrentReturnValue);
-DEFINE_CONTEXTUAL_VARIABLE(ImplementationVisitor::CurrentConstructorInfo);
+DEFINE_CONTEXTUAL_VARIABLE(ImplementationVisitor::ValueBindingsManager)
+DEFINE_CONTEXTUAL_VARIABLE(ImplementationVisitor::LabelBindingsManager)
+DEFINE_CONTEXTUAL_VARIABLE(ImplementationVisitor::CurrentCallable)
+DEFINE_CONTEXTUAL_VARIABLE(ImplementationVisitor::CurrentReturnValue)
+DEFINE_CONTEXTUAL_VARIABLE(ImplementationVisitor::CurrentConstructorInfo)
 
 bool IsCompatibleSignature(const Signature& sig, const TypeVector& types,
                            const std::vector<Binding<LocalLabel>*>& labels) {

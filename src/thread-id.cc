@@ -14,7 +14,7 @@ base::Atomic32 ThreadId::highest_thread_id_ = 0;
 namespace {
 
 DEFINE_LAZY_LEAKY_OBJECT_GETTER(base::Thread::LocalStorageKey, GetThreadIdKey,
-                                base::Thread::CreateThreadLocalKey());
+                                base::Thread::CreateThreadLocalKey())
 
 }  // namespace
 

@@ -1416,7 +1416,7 @@ class JSMessageObject : public JSObject {
                               kSize>
       BodyDescriptor;
 
-  OBJECT_CONSTRUCTORS(JSMessageObject, JSObject)
+  OBJECT_CONSTRUCTORS(JSMessageObject, JSObject);
 };
 
 // The [Async-from-Sync Iterator] object

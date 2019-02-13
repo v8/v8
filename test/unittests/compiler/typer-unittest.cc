@@ -508,7 +508,7 @@ TEST_MONOTONICITY(ToBoolean)
     TestBinaryMonotonicity(simplified_.name(), Type::Number(), \
                            Type::Number());                    \
   }
-SIMPLIFIED_NUMBER_BINOP_LIST(TEST_MONOTONICITY);
+SIMPLIFIED_NUMBER_BINOP_LIST(TEST_MONOTONICITY)
 #undef TEST_MONOTONICITY
 
 // SIMPLIFIED BINOPs without hint, without input restriction

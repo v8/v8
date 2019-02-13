@@ -527,7 +527,7 @@ class UnlinkWeakNextScope {
  private:
   HeapObject object_;
   Object next_;
-  DISALLOW_HEAP_ALLOCATION(no_gc_);
+  DISALLOW_HEAP_ALLOCATION(no_gc_)
 };
 
 void Serializer::ObjectSerializer::Serialize() {

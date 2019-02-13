@@ -717,8 +717,8 @@ class CPURegList {
 #define kCallerSavedV CPURegList::GetCallerSavedV()
 
 // Define a {RegisterName} method for {Register} and {VRegister}.
-DEFINE_REGISTER_NAMES(Register, GENERAL_REGISTERS);
-DEFINE_REGISTER_NAMES(VRegister, VECTOR_REGISTERS);
+DEFINE_REGISTER_NAMES(Register, GENERAL_REGISTERS)
+DEFINE_REGISTER_NAMES(VRegister, VECTOR_REGISTERS)
 
 // Give alias names to registers for calling conventions.
 constexpr Register kReturnRegister0 = x0;

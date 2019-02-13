@@ -37,7 +37,7 @@ ACCESSORS(AccessorInfo, expected_receiver_type, Object,
 ACCESSORS_CHECKED2(AccessorInfo, getter, Object, kGetterOffset, true,
                    Foreign::IsNormalized(value))
 ACCESSORS_CHECKED2(AccessorInfo, setter, Object, kSetterOffset, true,
-                   Foreign::IsNormalized(value));
+                   Foreign::IsNormalized(value))
 ACCESSORS(AccessorInfo, js_getter, Object, kJsGetterOffset)
 ACCESSORS(AccessorInfo, data, Object, kDataOffset)
 

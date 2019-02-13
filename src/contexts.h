@@ -669,7 +669,7 @@ class Context : public HeapObject {
   static bool IsBootstrappingOrValidParentContext(Object object, Context kid);
 #endif
 
-  OBJECT_CONSTRUCTORS(Context, HeapObject)
+  OBJECT_CONSTRUCTORS(Context, HeapObject);
 };
 
 class NativeContext : public Context {

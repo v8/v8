@@ -307,7 +307,7 @@ class UnallocatedOperand final : public InstructionOperand {
     return LifetimeField::decode(value_) == USED_AT_START;
   }
 
-  INSTRUCTION_OPERAND_CASTS(UnallocatedOperand, UNALLOCATED);
+  INSTRUCTION_OPERAND_CASTS(UnallocatedOperand, UNALLOCATED)
 
   // The encoding used for UnallocatedOperand operands depends on the policy
   // that is
@@ -370,7 +370,7 @@ class ConstantOperand : public InstructionOperand {
     return InstructionOperand::New(zone, ConstantOperand(virtual_register));
   }
 
-  INSTRUCTION_OPERAND_CASTS(ConstantOperand, CONSTANT);
+  INSTRUCTION_OPERAND_CASTS(ConstantOperand, CONSTANT)
 
   STATIC_ASSERT(KindField::kSize == 3);
   class VirtualRegisterField : public BitField64<uint32_t, 3, 32> {};
@@ -403,7 +403,7 @@ class ImmediateOperand : public InstructionOperand {
     return InstructionOperand::New(zone, ImmediateOperand(type, value));
   }
 
-  INSTRUCTION_OPERAND_CASTS(ImmediateOperand, IMMEDIATE);
+  INSTRUCTION_OPERAND_CASTS(ImmediateOperand, IMMEDIATE)
 
   STATIC_ASSERT(KindField::kSize == 3);
   class TypeField : public BitField64<ImmediateType, 3, 1> {};
@@ -521,7 +521,7 @@ class V8_EXPORT_PRIVATE ExplicitOperand
     return InstructionOperand::New(zone, ExplicitOperand(kind, rep, index));
   }
 
-  INSTRUCTION_OPERAND_CASTS(ExplicitOperand, EXPLICIT);
+  INSTRUCTION_OPERAND_CASTS(ExplicitOperand, EXPLICIT)
 };
 
 class AllocatedOperand : public LocationOperand {
@@ -534,7 +534,7 @@ class AllocatedOperand : public LocationOperand {
     return InstructionOperand::New(zone, AllocatedOperand(kind, rep, index));
   }
 
-  INSTRUCTION_OPERAND_CASTS(AllocatedOperand, ALLOCATED);
+  INSTRUCTION_OPERAND_CASTS(AllocatedOperand, ALLOCATED)
 };
 
 #undef INSTRUCTION_OPERAND_CASTS

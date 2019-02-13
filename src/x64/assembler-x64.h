@@ -1100,12 +1100,12 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void instr##pd(XMMRegister dst, XMMRegister src) { cmppd(dst, src, imm8); } \
   void instr##pd(XMMRegister dst, Operand src) { cmppd(dst, src, imm8); }
 
-  SSE_CMP_P(cmpeq, 0x0);
-  SSE_CMP_P(cmplt, 0x1);
-  SSE_CMP_P(cmple, 0x2);
-  SSE_CMP_P(cmpneq, 0x4);
-  SSE_CMP_P(cmpnlt, 0x5);
-  SSE_CMP_P(cmpnle, 0x6);
+  SSE_CMP_P(cmpeq, 0x0)
+  SSE_CMP_P(cmplt, 0x1)
+  SSE_CMP_P(cmple, 0x2)
+  SSE_CMP_P(cmpneq, 0x4)
+  SSE_CMP_P(cmpnlt, 0x5)
+  SSE_CMP_P(cmpnle, 0x6)
 
 #undef SSE_CMP_P
 
@@ -1316,18 +1316,18 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     impl(opcode, dst, src1, src2);                                  \
   }
 
-  AVX_SP_3(vsqrt, 0x51);
-  AVX_SP_3(vadd, 0x58);
-  AVX_SP_3(vsub, 0x5c);
-  AVX_SP_3(vmul, 0x59);
-  AVX_SP_3(vdiv, 0x5e);
-  AVX_SP_3(vmin, 0x5d);
-  AVX_SP_3(vmax, 0x5f);
-  AVX_P_3(vand, 0x54);
-  AVX_P_3(vor, 0x56);
-  AVX_P_3(vxor, 0x57);
-  AVX_3(vcvtsd2ss, 0x5a, vsd);
-  AVX_3(vhaddps, 0x7c, vsd);
+  AVX_SP_3(vsqrt, 0x51)
+  AVX_SP_3(vadd, 0x58)
+  AVX_SP_3(vsub, 0x5c)
+  AVX_SP_3(vmul, 0x59)
+  AVX_SP_3(vdiv, 0x5e)
+  AVX_SP_3(vmin, 0x5d)
+  AVX_SP_3(vmax, 0x5f)
+  AVX_P_3(vand, 0x54)
+  AVX_P_3(vor, 0x56)
+  AVX_P_3(vxor, 0x57)
+  AVX_3(vcvtsd2ss, 0x5a, vsd)
+  AVX_3(vhaddps, 0x7c, vsd)
 
 #undef AVX_3
 #undef AVX_S_3
@@ -1492,12 +1492,12 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     vcmppd(dst, src1, src2, imm8);                                      \
   }
 
-  AVX_CMP_P(vcmpeq, 0x0);
-  AVX_CMP_P(vcmplt, 0x1);
-  AVX_CMP_P(vcmple, 0x2);
-  AVX_CMP_P(vcmpneq, 0x4);
-  AVX_CMP_P(vcmpnlt, 0x5);
-  AVX_CMP_P(vcmpnle, 0x6);
+  AVX_CMP_P(vcmpeq, 0x0)
+  AVX_CMP_P(vcmplt, 0x1)
+  AVX_CMP_P(vcmple, 0x2)
+  AVX_CMP_P(vcmpneq, 0x4)
+  AVX_CMP_P(vcmpnlt, 0x5)
+  AVX_CMP_P(vcmpnle, 0x6)
 
 #undef AVX_CMP_P
 

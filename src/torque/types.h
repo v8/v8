@@ -177,7 +177,7 @@ std::ostream& operator<<(std::ostream& os, const Field& name_and_type);
 
 class TopType final : public Type {
  public:
-  DECLARE_TYPE_BOILERPLATE(TopType);
+  DECLARE_TYPE_BOILERPLATE(TopType)
   virtual std::string MangledName() const { return "top"; }
   virtual std::string GetGeneratedTypeName() const { UNREACHABLE(); }
   virtual std::string GetGeneratedTNodeTypeName() const {
@@ -206,7 +206,7 @@ class TopType final : public Type {
 
 class AbstractType final : public Type {
  public:
-  DECLARE_TYPE_BOILERPLATE(AbstractType);
+  DECLARE_TYPE_BOILERPLATE(AbstractType)
   const std::string& name() const { return name_; }
   std::string ToExplicitString() const override { return name(); }
   std::string MangledName() const override {
@@ -253,7 +253,7 @@ class AbstractType final : public Type {
 // For now, builtin pointers are restricted to Torque-defined builtins.
 class BuiltinPointerType final : public Type {
  public:
-  DECLARE_TYPE_BOILERPLATE(BuiltinPointerType);
+  DECLARE_TYPE_BOILERPLATE(BuiltinPointerType)
   std::string ToExplicitString() const override;
   std::string MangledName() const override;
   std::string GetGeneratedTypeName() const override {
@@ -307,7 +307,7 @@ struct TypeLess {
 
 class UnionType final : public Type {
  public:
-  DECLARE_TYPE_BOILERPLATE(UnionType);
+  DECLARE_TYPE_BOILERPLATE(UnionType)
   std::string ToExplicitString() const override;
   std::string MangledName() const override;
   std::string GetGeneratedTypeName() const override {
@@ -397,9 +397,9 @@ const Type* SubtractType(const Type* a, const Type* b);
 
 class AggregateType : public Type {
  public:
-  DECLARE_TYPE_BOILERPLATE(AggregateType);
+  DECLARE_TYPE_BOILERPLATE(AggregateType)
   std::string MangledName() const override { return name_; }
-  std::string GetGeneratedTypeName() const override { UNREACHABLE(); };
+  std::string GetGeneratedTypeName() const override { UNREACHABLE(); }
   std::string GetGeneratedTNodeTypeName() const override { UNREACHABLE(); }
   const Type* NonConstexprVersion() const override { return this; }
 
@@ -443,7 +443,7 @@ class AggregateType : public Type {
 
 class StructType final : public AggregateType {
  public:
-  DECLARE_TYPE_BOILERPLATE(StructType);
+  DECLARE_TYPE_BOILERPLATE(StructType)
   std::string ToExplicitString() const override;
   std::string GetGeneratedTypeName() const override;
 
@@ -468,7 +468,7 @@ class StructType final : public AggregateType {
 
 class ClassType final : public AggregateType {
  public:
-  DECLARE_TYPE_BOILERPLATE(ClassType);
+  DECLARE_TYPE_BOILERPLATE(ClassType)
   std::string ToExplicitString() const override;
   std::string GetGeneratedTypeName() const override;
   std::string GetGeneratedTNodeTypeName() const override;

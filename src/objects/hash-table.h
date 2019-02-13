@@ -126,7 +126,7 @@ class V8_EXPORT_PRIVATE HashTableBase : public NON_EXPORTED_BASE(FixedArray) {
     return (last + number) & (size - 1);
   }
 
-  OBJECT_CONSTRUCTORS(HashTableBase, FixedArray)
+  OBJECT_CONSTRUCTORS(HashTableBase, FixedArray);
 };
 
 template <typename Derived, typename Shape>
@@ -241,7 +241,7 @@ class HashTable : public HashTableBase {
   // Rehashes this hash-table into the new table.
   void Rehash(Isolate* isolate, Derived new_table);
 
-  OBJECT_CONSTRUCTORS(HashTable, HashTableBase)
+  OBJECT_CONSTRUCTORS(HashTable, HashTableBase);
 };
 
 // HashTableKey is an abstract superclass for virtual key behavior.
@@ -318,7 +318,7 @@ class ObjectHashTableBase : public HashTable<Derived, Shape> {
   void AddEntry(int entry, Object key, Object value);
   void RemoveEntry(int entry);
 
-  OBJECT_CONSTRUCTORS(ObjectHashTableBase, HashTable<Derived, Shape>)
+  OBJECT_CONSTRUCTORS(ObjectHashTableBase, HashTable<Derived, Shape>);
 };
 
 // ObjectHashTable maps keys that are arbitrary objects to object values by
@@ -331,7 +331,7 @@ class ObjectHashTable
 
   OBJECT_CONSTRUCTORS(
       ObjectHashTable,
-      ObjectHashTableBase<ObjectHashTable, ObjectHashTableShape>)
+      ObjectHashTableBase<ObjectHashTable, ObjectHashTableShape>);
 };
 
 class EphemeronHashTableShape : public ObjectHashTableShape {
@@ -354,7 +354,7 @@ class EphemeronHashTable
 
   OBJECT_CONSTRUCTORS(
       EphemeronHashTable,
-      ObjectHashTableBase<EphemeronHashTable, EphemeronHashTableShape>)
+      ObjectHashTableBase<EphemeronHashTable, EphemeronHashTableShape>);
 };
 
 class ObjectHashSetShape : public ObjectHashTableShape {
@@ -374,7 +374,7 @@ class ObjectHashSet : public HashTable<ObjectHashSet, ObjectHashSetShape> {
   DECL_CAST(ObjectHashSet)
 
   OBJECT_CONSTRUCTORS(ObjectHashSet,
-                      HashTable<ObjectHashSet, ObjectHashSetShape>)
+                      HashTable<ObjectHashSet, ObjectHashSetShape>);
 };
 
 }  // namespace internal

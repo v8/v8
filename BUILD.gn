@@ -607,6 +607,9 @@ config("toolchain") {
     cflags += [
       "-Wmissing-field-initializers",
 
+      # TODO(thakis): Remove once enabled globally, https://crbug.com/926235
+      "-Wextra-semi",
+
       # TODO(hans): Remove once http://crbug.com/428099 is resolved.
       "-Winconsistent-missing-override",
     ]

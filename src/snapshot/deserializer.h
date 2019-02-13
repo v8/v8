@@ -202,7 +202,7 @@ class StringTableInsertionKey : public StringTableKey {
   uint32_t ComputeHashField(String string);
 
   String string_;
-  DISALLOW_HEAP_ALLOCATION(no_gc);
+  DISALLOW_HEAP_ALLOCATION(no_gc)
 };
 
 }  // namespace internal

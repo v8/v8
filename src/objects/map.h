@@ -1018,7 +1018,7 @@ class NormalizedMapCache : public WeakFixedArray {
   Object get(int index);
   void set(int index, Object value);
 
-  OBJECT_CONSTRUCTORS(NormalizedMapCache, WeakFixedArray)
+  OBJECT_CONSTRUCTORS(NormalizedMapCache, WeakFixedArray);
 };
 
 }  // namespace internal

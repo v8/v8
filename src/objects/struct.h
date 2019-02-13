@@ -23,7 +23,7 @@ class Struct : public HeapObject {
   DECL_CAST(Struct)
   void BriefPrintDetails(std::ostream& os);
 
-  OBJECT_CONSTRUCTORS(Struct, HeapObject)
+  OBJECT_CONSTRUCTORS(Struct, HeapObject);
 };
 
 class Tuple2 : public Struct {

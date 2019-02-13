@@ -1169,7 +1169,7 @@ struct SimplifiedOperatorGlobalCache final {
 
 namespace {
 DEFINE_LAZY_LEAKY_OBJECT_GETTER(SimplifiedOperatorGlobalCache,
-                                GetSimplifiedOperatorGlobalCache);
+                                GetSimplifiedOperatorGlobalCache)
 }
 
 SimplifiedOperatorBuilder::SimplifiedOperatorBuilder(Zone* zone)

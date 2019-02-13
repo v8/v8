@@ -230,7 +230,7 @@ struct IsValidExternalReferenceType<Result (Class::*)(Args...)> {
   }
 
 FUNCTION_REFERENCE(incremental_marking_record_write_function,
-                   IncrementalMarking::RecordWriteFromCode);
+                   IncrementalMarking::RecordWriteFromCode)
 
 ExternalReference ExternalReference::store_buffer_overflow_function() {
   return ExternalReference(
@@ -913,7 +913,7 @@ static int EnterMicrotaskContextWrapper(HandleScopeImplementer* hsi,
   return 0;
 }
 
-FUNCTION_REFERENCE(call_enter_context_function, EnterMicrotaskContextWrapper);
+FUNCTION_REFERENCE(call_enter_context_function, EnterMicrotaskContextWrapper)
 
 bool operator==(ExternalReference lhs, ExternalReference rhs) {
   return lhs.address() == rhs.address();

@@ -287,7 +287,7 @@ class CpuProfilersManager {
   base::Mutex mutex_;
 };
 
-DEFINE_LAZY_LEAKY_OBJECT_GETTER(CpuProfilersManager, GetProfilersManager);
+DEFINE_LAZY_LEAKY_OBJECT_GETTER(CpuProfilersManager, GetProfilersManager)
 
 }  // namespace
 

@@ -2848,7 +2848,7 @@ class PageEvacuationTask : public ItemParallelJob::Task {
       evacuator_->EvacuatePage(item->chunk());
       item->MarkFinished();
     }
-  };
+  }
 
  private:
   Evacuator* evacuator_;
@@ -3170,7 +3170,7 @@ class PointersUpdatingTask : public ItemParallelJob::Task {
       item->Process();
       item->MarkFinished();
     }
-  };
+  }
 
  private:
   GCTracer* tracer_;
@@ -4415,7 +4415,7 @@ class YoungGenerationMarkingTask : public ItemParallelJob::Task {
       PrintIsolate(collector_->isolate(), "marking[%p]: time=%f\n",
                    static_cast<void*>(this), marking_time);
     }
-  };
+  }
 
   void MarkObject(Object object) {
     if (!Heap::InYoungGeneration(object)) return;

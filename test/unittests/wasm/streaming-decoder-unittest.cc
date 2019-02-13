@@ -81,7 +81,7 @@ class MockStreamingProcessor : public StreamingProcessor {
   bool Deserialize(Vector<const uint8_t> module_bytes,
                    Vector<const uint8_t> wire_bytes) override {
     return false;
-  };
+  }
 
  private:
   MockStreamingResult* const result_;

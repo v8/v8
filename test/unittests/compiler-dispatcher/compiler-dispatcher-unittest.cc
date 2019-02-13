@@ -292,7 +292,7 @@ class MockPlatform : public v8::Platform {
     void PostDelayedTask(std::unique_ptr<Task> task,
                          double delay_in_seconds) override {
       UNREACHABLE();
-    };
+    }
 
     void PostIdleTask(std::unique_ptr<IdleTask> task) override {
       DCHECK(IdleTasksEnabled());
@@ -301,7 +301,7 @@ class MockPlatform : public v8::Platform {
       platform_->idle_task_ = task.release();
     }
 
-    bool IdleTasksEnabled() override { return true; };
+    bool IdleTasksEnabled() override { return true; }
 
    private:
     MockPlatform* platform_;

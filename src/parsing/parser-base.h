@@ -278,13 +278,13 @@ class ParserBase {
   bool allow_##name() const { return allow_##name##_; } \
   void set_allow_##name(bool allow) { allow_##name##_ = allow; }
 
-  ALLOW_ACCESSORS(natives);
-  ALLOW_ACCESSORS(harmony_public_fields);
-  ALLOW_ACCESSORS(harmony_static_fields);
-  ALLOW_ACCESSORS(harmony_dynamic_import);
-  ALLOW_ACCESSORS(harmony_import_meta);
-  ALLOW_ACCESSORS(harmony_private_methods);
-  ALLOW_ACCESSORS(eval_cache);
+  ALLOW_ACCESSORS(natives)
+  ALLOW_ACCESSORS(harmony_public_fields)
+  ALLOW_ACCESSORS(harmony_static_fields)
+  ALLOW_ACCESSORS(harmony_dynamic_import)
+  ALLOW_ACCESSORS(harmony_import_meta)
+  ALLOW_ACCESSORS(harmony_private_methods)
+  ALLOW_ACCESSORS(eval_cache)
 
 #undef ALLOW_ACCESSORS
 

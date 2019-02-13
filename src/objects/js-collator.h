@@ -57,7 +57,7 @@ class JSCollator : public JSObject {
 #undef JS_COLLATOR_FIELDS
 
   DECL_ACCESSORS(icu_collator, Managed<icu::Collator>)
-  DECL_ACCESSORS(bound_compare, Object);
+  DECL_ACCESSORS(bound_compare, Object)
 
   OBJECT_CONSTRUCTORS(JSCollator, JSObject);
 };

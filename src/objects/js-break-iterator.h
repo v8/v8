@@ -87,7 +87,7 @@ class JSV8BreakIterator : public JSObject {
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, BREAK_ITERATOR_FIELDS)
 #undef BREAK_ITERATOR_FIELDS
 
-  OBJECT_CONSTRUCTORS(JSV8BreakIterator, JSObject)
+  OBJECT_CONSTRUCTORS(JSV8BreakIterator, JSObject);
 };
 
 }  // namespace internal

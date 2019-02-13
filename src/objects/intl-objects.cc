@@ -1730,7 +1730,7 @@ class ICUTimezoneCache : public base::TimezoneCache {
  public:
   ICUTimezoneCache() : timezone_(nullptr) { Clear(); }
 
-  ~ICUTimezoneCache() override { Clear(); };
+  ~ICUTimezoneCache() override { Clear(); }
 
   const char* LocalTimezone(double time_ms) override;
 

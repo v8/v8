@@ -1378,7 +1378,7 @@ class ElementsAccessorBase : public InternalElementsAccessor {
                                              Handle<JSObject> object,
                                              uint32_t length) final {
     return Subclass::CreateListFromArrayLikeImpl(isolate, object, length);
-  };
+  }
 
   static Handle<FixedArray> CreateListFromArrayLikeImpl(Isolate* isolate,
                                                         Handle<JSObject> object,

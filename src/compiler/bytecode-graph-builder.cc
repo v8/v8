@@ -2805,7 +2805,7 @@ void BytecodeGraphBuilder::VisitDebugger() {
 // We cannot create a graph from the debugger copy of the bytecode array.
 #define DEBUG_BREAK(Name, ...) \
   void BytecodeGraphBuilder::Visit##Name() { UNREACHABLE(); }
-DEBUG_BREAK_BYTECODE_LIST(DEBUG_BREAK);
+DEBUG_BREAK_BYTECODE_LIST(DEBUG_BREAK)
 #undef DEBUG_BREAK
 
 void BytecodeGraphBuilder::VisitIncBlockCounter() {

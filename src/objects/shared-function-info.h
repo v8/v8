@@ -629,7 +629,7 @@ class SharedFunctionInfo : public HeapObject {
     Script::Iterator script_iterator_;
     WeakArrayList::Iterator noscript_sfi_iterator_;
     SharedFunctionInfo::ScriptIterator sfi_iterator_;
-    DISALLOW_HEAP_ALLOCATION(no_gc_);
+    DISALLOW_HEAP_ALLOCATION(no_gc_)
     DISALLOW_COPY_AND_ASSIGN(GlobalIterator);
   };
 
@@ -733,7 +733,7 @@ class SharedFunctionInfoWithID : public SharedFunctionInfo {
 
   static const int kAlignedSize = POINTER_SIZE_ALIGN(kSize);
 
-  OBJECT_CONSTRUCTORS(SharedFunctionInfoWithID, SharedFunctionInfo)
+  OBJECT_CONSTRUCTORS(SharedFunctionInfoWithID, SharedFunctionInfo);
 };
 
 // Printing support.

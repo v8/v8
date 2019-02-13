@@ -94,28 +94,28 @@ class V8_EXPORT_PRIVATE ParseInfo {
   FLAG_ACCESSOR(kIsDeclaration, is_declaration, set_declaration)
   FLAG_ACCESSOR(kRequiresInstanceMembersInitializer,
                 requires_instance_members_initializer,
-                set_requires_instance_members_initializer);
+                set_requires_instance_members_initializer)
   FLAG_ACCESSOR(kMightAlwaysOpt, might_always_opt, set_might_always_opt)
   FLAG_ACCESSOR(kAllowNativeSyntax, allow_natives_syntax,
                 set_allow_natives_syntax)
   FLAG_ACCESSOR(kAllowLazyCompile, allow_lazy_compile, set_allow_lazy_compile)
   FLAG_ACCESSOR(kAllowNativeSyntax, allow_native_syntax,
-                set_allow_native_syntax);
+                set_allow_native_syntax)
   FLAG_ACCESSOR(kAllowHarmonyPublicFields, allow_harmony_public_fields,
-                set_allow_harmony_public_fields);
+                set_allow_harmony_public_fields)
   FLAG_ACCESSOR(kAllowHarmonyStaticFields, allow_harmony_static_fields,
-                set_allow_harmony_static_fields);
+                set_allow_harmony_static_fields)
   FLAG_ACCESSOR(kAllowHarmonyDynamicImport, allow_harmony_dynamic_import,
-                set_allow_harmony_dynamic_import);
+                set_allow_harmony_dynamic_import)
   FLAG_ACCESSOR(kAllowHarmonyImportMeta, allow_harmony_import_meta,
-                set_allow_harmony_import_meta);
+                set_allow_harmony_import_meta)
   FLAG_ACCESSOR(kAllowHarmonyNumericSeparator, allow_harmony_numeric_separator,
-                set_allow_harmony_numeric_separator);
+                set_allow_harmony_numeric_separator)
   FLAG_ACCESSOR(kAllowHarmonyPrivateFields, allow_harmony_private_fields,
-                set_allow_harmony_private_fields);
+                set_allow_harmony_private_fields)
   FLAG_ACCESSOR(kAllowHarmonyPrivateMethods, allow_harmony_private_methods,
-                set_allow_harmony_private_methods);
-  FLAG_ACCESSOR(kIsOneshotIIFE, is_oneshot_iife, set_is_oneshot_iife);
+                set_allow_harmony_private_methods)
+  FLAG_ACCESSOR(kIsOneshotIIFE, is_oneshot_iife, set_is_oneshot_iife)
 #undef FLAG_ACCESSOR
 
   void set_parse_restriction(ParseRestriction restriction) {

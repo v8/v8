@@ -25,7 +25,7 @@
   const Type* operator->() const { return this; } \
                                                   \
  protected:                                       \
-  explicit inline Type(Address ptr);
+  explicit inline Type(Address ptr)
 
 #define OBJECT_CONSTRUCTORS_IMPL(Type, Super) \
   inline Type::Type(Address ptr) : Super(ptr) { SLOW_DCHECK(Is##Type()); }

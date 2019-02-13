@@ -100,7 +100,7 @@ class JSPromise : public JSObject {
                                                 Handle<Object> argument,
                                                 PromiseReaction::Type type);
 
-  OBJECT_CONSTRUCTORS(JSPromise, JSObject)
+  OBJECT_CONSTRUCTORS(JSPromise, JSObject);
 };
 
 }  // namespace internal

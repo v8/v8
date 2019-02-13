@@ -172,7 +172,7 @@ class FinalizationGroupCleanupJobTask : public Microtask {
                                 FINALIZATION_GROUP_CLEANUP_JOB_TASK_FIELDS)
 #undef FINALIZATION_GROUP_CLEANUP_JOB_TASK_FIELDS
 
-  OBJECT_CONSTRUCTORS(FinalizationGroupCleanupJobTask, Microtask)
+  OBJECT_CONSTRUCTORS(FinalizationGroupCleanupJobTask, Microtask);
 };
 
 class JSFinalizationGroupCleanupIterator : public JSObject {

@@ -847,7 +847,7 @@ class ConstructStubDescriptor : public CallInterfaceDescriptor {
  public:
   // TODO(jgruber): Remove the unused allocation site parameter.
   DEFINE_JS_PARAMETERS(kAllocationSite)
-  DEFINE_JS_PARAMETER_TYPES(MachineType::AnyTagged());
+  DEFINE_JS_PARAMETER_TYPES(MachineType::AnyTagged())
 
   // TODO(ishell): Use DECLARE_JS_COMPATIBLE_DESCRIPTOR if registers match
   DECLARE_DESCRIPTOR(ConstructStubDescriptor, CallInterfaceDescriptor)
@@ -870,7 +870,7 @@ class AllocateHeapNumberDescriptor : public CallInterfaceDescriptor {
 class ArrayConstructorDescriptor : public CallInterfaceDescriptor {
  public:
   DEFINE_JS_PARAMETERS(kAllocationSite)
-  DEFINE_JS_PARAMETER_TYPES(MachineType::AnyTagged());
+  DEFINE_JS_PARAMETER_TYPES(MachineType::AnyTagged())
 
   DECLARE_JS_COMPATIBLE_DESCRIPTOR(ArrayConstructorDescriptor,
                                    CallInterfaceDescriptor, 1)

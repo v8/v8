@@ -456,7 +456,7 @@ class BuilderProducedPreparseData final : public ProducedPreparseData {
 
   ZonePreparseData* Serialize(Zone* zone) final {
     return builder_->Serialize(zone);
-  };
+  }
 
  private:
   PreparseDataBuilder* builder_;
@@ -475,7 +475,7 @@ class OnHeapProducedPreparseData final : public ProducedPreparseData {
   ZonePreparseData* Serialize(Zone* zone) final {
     // Not required.
     UNREACHABLE();
-  };
+  }
 
  private:
   Handle<PreparseData> data_;
@@ -489,7 +489,7 @@ class ZoneProducedPreparseData final : public ProducedPreparseData {
     return data_->Serialize(isolate);
   }
 
-  ZonePreparseData* Serialize(Zone* zone) final { return data_; };
+  ZonePreparseData* Serialize(Zone* zone) final { return data_; }
 
  private:
   ZonePreparseData* data_;

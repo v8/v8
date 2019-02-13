@@ -26,8 +26,8 @@ struct SourcePosition {
   int column;
 };
 
-DECLARE_CONTEXTUAL_VARIABLE(CurrentSourceFile, SourceId)
-DECLARE_CONTEXTUAL_VARIABLE(CurrentSourcePosition, SourcePosition)
+DECLARE_CONTEXTUAL_VARIABLE(CurrentSourceFile, SourceId);
+DECLARE_CONTEXTUAL_VARIABLE(CurrentSourcePosition, SourcePosition);
 
 class SourceFileMap : public ContextualClass<SourceFileMap> {
  public:

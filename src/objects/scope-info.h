@@ -321,7 +321,7 @@ class ScopeInfo : public FixedArray {
   friend std::ostream& operator<<(std::ostream& os,
                                   ScopeInfo::VariableAllocationInfo var);
 
-  OBJECT_CONSTRUCTORS(ScopeInfo, FixedArray)
+  OBJECT_CONSTRUCTORS(ScopeInfo, FixedArray);
 };
 
 std::ostream& operator<<(std::ostream& os,

@@ -59,7 +59,7 @@ class BaseConsumedPreparseData : public ConsumedPreparseData {
 
      private:
       ByteData* consumed_data_;
-      DISALLOW_HEAP_ALLOCATION(no_gc);
+      DISALLOW_HEAP_ALLOCATION(no_gc)
     };
 
     void SetPosition(int position) {

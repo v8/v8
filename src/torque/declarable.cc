@@ -12,7 +12,7 @@ namespace v8 {
 namespace internal {
 namespace torque {
 
-DEFINE_CONTEXTUAL_VARIABLE(CurrentScope);
+DEFINE_CONTEXTUAL_VARIABLE(CurrentScope)
 
 std::ostream& operator<<(std::ostream& os, const QualifiedName& name) {
   for (const std::string& qualifier : name.namespace_qualification) {

@@ -246,7 +246,7 @@ class WasmModuleObject : public JSObject {
                                                   Handle<WasmModuleObject>,
                                                   int position);
 
-  OBJECT_CONSTRUCTORS(WasmModuleObject, JSObject)
+  OBJECT_CONSTRUCTORS(WasmModuleObject, JSObject);
 };
 
 // Representation of a WebAssembly.Table JavaScript-level object.
@@ -291,7 +291,7 @@ class WasmTableObject : public JSObject {
   static void ClearDispatchTables(Isolate* isolate,
                                   Handle<WasmTableObject> table, int index);
 
-  OBJECT_CONSTRUCTORS(WasmTableObject, JSObject)
+  OBJECT_CONSTRUCTORS(WasmTableObject, JSObject);
 };
 
 // Representation of a WebAssembly.Memory JavaScript-level object.
@@ -328,7 +328,7 @@ class WasmMemoryObject : public JSObject {
 
   static int32_t Grow(Isolate*, Handle<WasmMemoryObject>, uint32_t pages);
 
-  OBJECT_CONSTRUCTORS(WasmMemoryObject, JSObject)
+  OBJECT_CONSTRUCTORS(WasmMemoryObject, JSObject);
 };
 
 // Representation of a WebAssembly.Global JavaScript-level object.
@@ -388,7 +388,7 @@ class WasmGlobalObject : public JSObject {
   // not have a fixed address.
   inline Address address() const;
 
-  OBJECT_CONSTRUCTORS(WasmGlobalObject, JSObject)
+  OBJECT_CONSTRUCTORS(WasmGlobalObject, JSObject);
 };
 
 // Representation of a WebAssembly.Instance JavaScript-level object.
@@ -534,7 +534,7 @@ class WasmInstanceObject : public JSObject {
                                       int index,
                                       Handle<WasmExportedFunction> val);
 
-  OBJECT_CONSTRUCTORS(WasmInstanceObject, JSObject)
+  OBJECT_CONSTRUCTORS(WasmInstanceObject, JSObject);
 
  private:
   static void InitDataSegmentArrays(Handle<WasmInstanceObject>,
@@ -569,7 +569,7 @@ class WasmExceptionObject : public JSObject {
                                          const wasm::FunctionSig* sig,
                                          Handle<HeapObject> exception_tag);
 
-  OBJECT_CONSTRUCTORS(WasmExceptionObject, JSObject)
+  OBJECT_CONSTRUCTORS(WasmExceptionObject, JSObject);
 };
 
 // A Wasm exception that has been thrown out of Wasm code.
@@ -610,7 +610,7 @@ class WasmExportedFunction : public JSFunction {
   wasm::FunctionSig* sig();
 
   DECL_CAST(WasmExportedFunction)
-  OBJECT_CONSTRUCTORS(WasmExportedFunction, JSFunction)
+  OBJECT_CONSTRUCTORS(WasmExportedFunction, JSFunction);
 };
 
 // Information for a WasmExportedFunction which is referenced as the function
@@ -618,10 +618,10 @@ class WasmExportedFunction : public JSFunction {
 // see the {SharedFunctionInfo::HasWasmExportedFunctionData} predicate.
 class WasmExportedFunctionData : public Struct {
  public:
-  DECL_ACCESSORS(wrapper_code, Code);
+  DECL_ACCESSORS(wrapper_code, Code)
   DECL_ACCESSORS(instance, WasmInstanceObject)
-  DECL_INT_ACCESSORS(jump_table_offset);
-  DECL_INT_ACCESSORS(function_index);
+  DECL_INT_ACCESSORS(jump_table_offset)
+  DECL_INT_ACCESSORS(function_index)
 
   DECL_CAST(WasmExportedFunctionData)
 
@@ -641,15 +641,15 @@ class WasmExportedFunctionData : public Struct {
                                 WASM_EXPORTED_FUNCTION_DATA_FIELDS)
 #undef WASM_EXPORTED_FUNCTION_DATA_FIELDS
 
-  OBJECT_CONSTRUCTORS(WasmExportedFunctionData, Struct)
+  OBJECT_CONSTRUCTORS(WasmExportedFunctionData, Struct);
 };
 
 class WasmDebugInfo : public Struct {
  public:
   NEVER_READ_ONLY_SPACE
   DECL_ACCESSORS(wasm_instance, WasmInstanceObject)
-  DECL_ACCESSORS(interpreter_handle, Object);  // Foreign or undefined
-  DECL_ACCESSORS(interpreted_functions, FixedArray);
+  DECL_ACCESSORS(interpreter_handle, Object)  // Foreign or undefined
+  DECL_ACCESSORS(interpreted_functions, FixedArray)
   DECL_OPTIONAL_ACCESSORS(locals_names, FixedArray)
   DECL_OPTIONAL_ACCESSORS(c_wasm_entries, FixedArray)
   DECL_OPTIONAL_ACCESSORS(c_wasm_entry_map, Managed<wasm::SignatureMap>)
@@ -732,7 +732,7 @@ class WasmDebugInfo : public Struct {
   static Handle<JSFunction> GetCWasmEntry(Handle<WasmDebugInfo>,
                                           wasm::FunctionSig*);
 
-  OBJECT_CONSTRUCTORS(WasmDebugInfo, Struct)
+  OBJECT_CONSTRUCTORS(WasmDebugInfo, Struct);
 };
 
 // Tags provide an object identity for each exception defined in a wasm module
@@ -746,7 +746,7 @@ class WasmExceptionTag : public Struct {
   // Note that this index is only useful for debugging purposes and it is not
   // unique across modules. The GC however does not allow objects without at
   // least one field, hence this also serves as a padding field for now.
-  DECL_INT_ACCESSORS(index);
+  DECL_INT_ACCESSORS(index)
 
   DECL_CAST(WasmExceptionTag)
   DECL_PRINTER(WasmExceptionTag)
@@ -761,7 +761,7 @@ class WasmExceptionTag : public Struct {
   DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize, WASM_EXCEPTION_TAG_FIELDS)
 #undef WASM_EXCEPTION_TAG_FIELDS
 
-  OBJECT_CONSTRUCTORS(WasmExceptionTag, Struct)
+  OBJECT_CONSTRUCTORS(WasmExceptionTag, Struct);
 };
 
 class AsmWasmData : public Struct {
@@ -792,7 +792,7 @@ class AsmWasmData : public Struct {
   DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize, ASM_WASM_DATA_FIELDS)
 #undef ASM_WASM_DATA_FIELDS
 
-  OBJECT_CONSTRUCTORS(AsmWasmData, Struct)
+  OBJECT_CONSTRUCTORS(AsmWasmData, Struct);
 };
 
 #undef DECL_OPTIONAL_ACCESSORS

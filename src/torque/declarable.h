@@ -106,7 +106,7 @@ class Declarable {
 
 class Scope : public Declarable {
  public:
-  DECLARE_DECLARABLE_BOILERPLATE(Scope, scope);
+  DECLARE_DECLARABLE_BOILERPLATE(Scope, scope)
   explicit Scope(Declarable::Kind kind) : Declarable(kind) {}
 
   std::vector<Declarable*> LookupShallow(const QualifiedName& name) {
@@ -151,7 +151,7 @@ class Scope : public Declarable {
 
 class Namespace : public Scope {
  public:
-  DECLARE_DECLARABLE_BOILERPLATE(Namespace, namespace);
+  DECLARE_DECLARABLE_BOILERPLATE(Namespace, namespace)
   explicit Namespace(const std::string& name)
       : Scope(Declarable::kNamespace), name_(name) {}
   const std::string& name() const { return name_; }
@@ -183,7 +183,7 @@ inline Namespace* CurrentNamespace() {
 
 class Value : public Declarable {
  public:
-  DECLARE_DECLARABLE_BOILERPLATE(Value, value);
+  DECLARE_DECLARABLE_BOILERPLATE(Value, value)
   const std::string& name() const { return name_; }
   virtual bool IsConst() const { return true; }
   VisitResult value() const { return *value_; }
@@ -206,7 +206,7 @@ class Value : public Declarable {
 
 class NamespaceConstant : public Value {
  public:
-  DECLARE_DECLARABLE_BOILERPLATE(NamespaceConstant, constant);
+  DECLARE_DECLARABLE_BOILERPLATE(NamespaceConstant, constant)
 
   const std::string& constant_name() const { return constant_name_; }
   Expression* body() { return body_; }
@@ -228,7 +228,7 @@ class NamespaceConstant : public Value {
 
 class ExternConstant : public Value {
  public:
-  DECLARE_DECLARABLE_BOILERPLATE(ExternConstant, constant);
+  DECLARE_DECLARABLE_BOILERPLATE(ExternConstant, constant)
 
  private:
   friend class Declarations;
@@ -240,7 +240,7 @@ class ExternConstant : public Value {
 
 class Callable : public Scope {
  public:
-  DECLARE_DECLARABLE_BOILERPLATE(Callable, callable);
+  DECLARE_DECLARABLE_BOILERPLATE(Callable, callable)
   const std::string& ExternalName() const { return external_name_; }
   const std::string& ReadableName() const { return readable_name_; }
   const Signature& signature() const { return signature_; }
@@ -285,7 +285,7 @@ class Callable : public Scope {
 
 class Macro : public Callable {
  public:
-  DECLARE_DECLARABLE_BOILERPLATE(Macro, macro);
+  DECLARE_DECLARABLE_BOILERPLATE(Macro, macro)
   bool ShouldBeInlined() const override {
     for (const LabelDeclaration& label : signature().labels) {
       for (const Type* type : label.types) {
@@ -326,7 +326,7 @@ class Macro : public Callable {
 
 class Method : public Macro {
  public:
-  DECLARE_DECLARABLE_BOILERPLATE(Method, Method);
+  DECLARE_DECLARABLE_BOILERPLATE(Method, Method)
   bool ShouldBeInlined() const override {
     return Macro::ShouldBeInlined() ||
            signature()
@@ -350,7 +350,7 @@ class Method : public Macro {
 class Builtin : public Callable {
  public:
   enum Kind { kStub, kFixedArgsJavaScript, kVarArgsJavaScript };
-  DECLARE_DECLARABLE_BOILERPLATE(Builtin, builtin);
+  DECLARE_DECLARABLE_BOILERPLATE(Builtin, builtin)
   Kind kind() const { return kind_; }
   bool IsStub() const { return kind_ == kStub; }
   bool IsVarArgsJavaScript() const { return kind_ == kVarArgsJavaScript; }
@@ -370,7 +370,7 @@ class Builtin : public Callable {
 
 class RuntimeFunction : public Callable {
  public:
-  DECLARE_DECLARABLE_BOILERPLATE(RuntimeFunction, runtime);
+  DECLARE_DECLARABLE_BOILERPLATE(RuntimeFunction, runtime)
 
  private:
   friend class Declarations;
@@ -382,7 +382,7 @@ class RuntimeFunction : public Callable {
 
 class Intrinsic : public Callable {
  public:
-  DECLARE_DECLARABLE_BOILERPLATE(Intrinsic, intrinsic);
+  DECLARE_DECLARABLE_BOILERPLATE(Intrinsic, intrinsic)
 
  private:
   friend class Declarations;
@@ -397,7 +397,7 @@ class Intrinsic : public Callable {
 
 class Generic : public Declarable {
  public:
-  DECLARE_DECLARABLE_BOILERPLATE(Generic, generic);
+  DECLARE_DECLARABLE_BOILERPLATE(Generic, generic)
 
   GenericDeclaration* declaration() const { return declaration_; }
   const std::vector<std::string> generic_parameters() const {
@@ -441,7 +441,7 @@ struct SpecializationKey {
 
 class TypeAlias : public Declarable {
  public:
-  DECLARE_DECLARABLE_BOILERPLATE(TypeAlias, type_alias);
+  DECLARE_DECLARABLE_BOILERPLATE(TypeAlias, type_alias)
 
   const Type* type() const { return type_; }
   bool IsRedeclaration() const { return redeclaration_; }

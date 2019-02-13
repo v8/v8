@@ -59,7 +59,7 @@ class CodeReference {
     Handle<Code> js_code_;
   };
 
-  DISALLOW_NEW_AND_DELETE();
+  DISALLOW_NEW_AND_DELETE()
 };
 ASSERT_TRIVIALLY_COPYABLE(CodeReference);
 

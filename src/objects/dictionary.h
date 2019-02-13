@@ -86,7 +86,7 @@ class Dictionary : public HashTable<Derived, Shape> {
                                                      Handle<Object> value,
                                                      PropertyDetails details);
 
-  OBJECT_CONSTRUCTORS(Dictionary, HashTable<Derived, Shape>)
+  OBJECT_CONSTRUCTORS(Dictionary, HashTable<Derived, Shape>);
 };
 
 template <typename Key>
@@ -188,7 +188,7 @@ class BaseNameDictionary : public Dictionary<Derived, Shape> {
       Isolate* isolate, Handle<Derived> dictionary, Key key,
       Handle<Object> value, PropertyDetails details, int* entry_out = nullptr);
 
-  OBJECT_CONSTRUCTORS(BaseNameDictionary, Dictionary<Derived, Shape>)
+  OBJECT_CONSTRUCTORS(BaseNameDictionary, Dictionary<Derived, Shape>);
 };
 
 class NameDictionary
@@ -204,7 +204,7 @@ class NameDictionary
   inline int hash() const;
 
   OBJECT_CONSTRUCTORS(NameDictionary,
-                      BaseNameDictionary<NameDictionary, NameDictionaryShape>)
+                      BaseNameDictionary<NameDictionary, NameDictionaryShape>);
 };
 
 class GlobalDictionaryShape : public NameDictionaryShape {
@@ -241,7 +241,7 @@ class GlobalDictionary
 
   OBJECT_CONSTRUCTORS(
       GlobalDictionary,
-      BaseNameDictionary<GlobalDictionary, GlobalDictionaryShape>)
+      BaseNameDictionary<GlobalDictionary, GlobalDictionaryShape>);
 };
 
 class NumberDictionaryBaseShape : public BaseDictionaryShape<uint32_t> {
@@ -301,7 +301,7 @@ class SimpleNumberDictionary
 
   OBJECT_CONSTRUCTORS(
       SimpleNumberDictionary,
-      Dictionary<SimpleNumberDictionary, SimpleNumberDictionaryShape>)
+      Dictionary<SimpleNumberDictionary, SimpleNumberDictionaryShape>);
 };
 
 extern template class EXPORT_TEMPLATE_DECLARE(
@@ -361,7 +361,7 @@ class NumberDictionary
   static const uint32_t kPreferFastElementsSizeFactor = 3;
 
   OBJECT_CONSTRUCTORS(NumberDictionary,
-                      Dictionary<NumberDictionary, NumberDictionaryShape>)
+                      Dictionary<NumberDictionary, NumberDictionaryShape>);
 };
 
 }  // namespace internal

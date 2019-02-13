@@ -93,7 +93,7 @@ class StringTable : public HashTable<StringTable, StringTableShape> {
   template <bool seq_one_byte>
   friend class JsonParser;
 
-  OBJECT_CONSTRUCTORS(StringTable, HashTable<StringTable, StringTableShape>)
+  OBJECT_CONSTRUCTORS(StringTable, HashTable<StringTable, StringTableShape>);
 };
 
 class StringSetShape : public BaseShape<String> {
@@ -114,7 +114,7 @@ class StringSet : public HashTable<StringSet, StringSetShape> {
   bool Has(Isolate* isolate, Handle<String> name);
 
   DECL_CAST(StringSet)
-  OBJECT_CONSTRUCTORS(StringSet, HashTable<StringSet, StringSetShape>)
+  OBJECT_CONSTRUCTORS(StringSet, HashTable<StringSet, StringSetShape>);
 };
 
 }  // namespace internal

@@ -3531,7 +3531,7 @@ class ToDirectStringAssembler : public CodeStubAssembler {
   const Flags flags_;
 };
 
-DEFINE_OPERATORS_FOR_FLAGS(CodeStubAssembler::AllocationFlags);
+DEFINE_OPERATORS_FOR_FLAGS(CodeStubAssembler::AllocationFlags)
 
 }  // namespace internal
 }  // namespace v8

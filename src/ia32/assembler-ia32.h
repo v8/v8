@@ -899,10 +899,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }                                                  \
   void instr##ps(XMMRegister dst, Operand src) { cmpps(dst, src, imm8); }
 
-  SSE_CMP_P(cmpeq, 0x0);
-  SSE_CMP_P(cmplt, 0x1);
-  SSE_CMP_P(cmple, 0x2);
-  SSE_CMP_P(cmpneq, 0x4);
+  SSE_CMP_P(cmpeq, 0x0)
+  SSE_CMP_P(cmplt, 0x1)
+  SSE_CMP_P(cmple, 0x2)
+  SSE_CMP_P(cmpneq, 0x4)
 
 #undef SSE_CMP_P
 
@@ -1517,7 +1517,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     vpd(opcode, dst, src1, src2);                                         \
   }
 
-  PACKED_OP_LIST(AVX_PACKED_OP_DECLARE);
+  PACKED_OP_LIST(AVX_PACKED_OP_DECLARE)
   void vps(byte op, XMMRegister dst, XMMRegister src1, Operand src2);
   void vpd(byte op, XMMRegister dst, XMMRegister src1, Operand src2);
 
@@ -1530,10 +1530,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     vcmpps(dst, src1, src2, imm8);                                      \
   }
 
-  AVX_CMP_P(vcmpeq, 0x0);
-  AVX_CMP_P(vcmplt, 0x1);
-  AVX_CMP_P(vcmple, 0x2);
-  AVX_CMP_P(vcmpneq, 0x4);
+  AVX_CMP_P(vcmpeq, 0x0)
+  AVX_CMP_P(vcmplt, 0x1)
+  AVX_CMP_P(vcmple, 0x2)
+  AVX_CMP_P(vcmpneq, 0x4)
 
 #undef AVX_CMP_P
 

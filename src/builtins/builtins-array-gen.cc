@@ -3424,39 +3424,39 @@ TF_BUILTIN(ArrayNArgumentsConstructor, ArrayBuiltinsAssembler) {
 
 // The ArrayNoArgumentConstructor builtin family.
 GENERATE_ARRAY_CTOR(NoArgument, PackedSmi, PACKED_SMI_ELEMENTS, DontOverride,
-                    DONT_OVERRIDE);
+                    DONT_OVERRIDE)
 GENERATE_ARRAY_CTOR(NoArgument, HoleySmi, HOLEY_SMI_ELEMENTS, DontOverride,
-                    DONT_OVERRIDE);
+                    DONT_OVERRIDE)
 GENERATE_ARRAY_CTOR(NoArgument, PackedSmi, PACKED_SMI_ELEMENTS,
-                    DisableAllocationSites, DISABLE_ALLOCATION_SITES);
+                    DisableAllocationSites, DISABLE_ALLOCATION_SITES)
 GENERATE_ARRAY_CTOR(NoArgument, HoleySmi, HOLEY_SMI_ELEMENTS,
-                    DisableAllocationSites, DISABLE_ALLOCATION_SITES);
+                    DisableAllocationSites, DISABLE_ALLOCATION_SITES)
 GENERATE_ARRAY_CTOR(NoArgument, Packed, PACKED_ELEMENTS, DisableAllocationSites,
-                    DISABLE_ALLOCATION_SITES);
+                    DISABLE_ALLOCATION_SITES)
 GENERATE_ARRAY_CTOR(NoArgument, Holey, HOLEY_ELEMENTS, DisableAllocationSites,
-                    DISABLE_ALLOCATION_SITES);
+                    DISABLE_ALLOCATION_SITES)
 GENERATE_ARRAY_CTOR(NoArgument, PackedDouble, PACKED_DOUBLE_ELEMENTS,
-                    DisableAllocationSites, DISABLE_ALLOCATION_SITES);
+                    DisableAllocationSites, DISABLE_ALLOCATION_SITES)
 GENERATE_ARRAY_CTOR(NoArgument, HoleyDouble, HOLEY_DOUBLE_ELEMENTS,
-                    DisableAllocationSites, DISABLE_ALLOCATION_SITES);
+                    DisableAllocationSites, DISABLE_ALLOCATION_SITES)
 
 // The ArraySingleArgumentConstructor builtin family.
 GENERATE_ARRAY_CTOR(SingleArgument, PackedSmi, PACKED_SMI_ELEMENTS,
-                    DontOverride, DONT_OVERRIDE);
+                    DontOverride, DONT_OVERRIDE)
 GENERATE_ARRAY_CTOR(SingleArgument, HoleySmi, HOLEY_SMI_ELEMENTS, DontOverride,
-                    DONT_OVERRIDE);
+                    DONT_OVERRIDE)
 GENERATE_ARRAY_CTOR(SingleArgument, PackedSmi, PACKED_SMI_ELEMENTS,
-                    DisableAllocationSites, DISABLE_ALLOCATION_SITES);
+                    DisableAllocationSites, DISABLE_ALLOCATION_SITES)
 GENERATE_ARRAY_CTOR(SingleArgument, HoleySmi, HOLEY_SMI_ELEMENTS,
-                    DisableAllocationSites, DISABLE_ALLOCATION_SITES);
+                    DisableAllocationSites, DISABLE_ALLOCATION_SITES)
 GENERATE_ARRAY_CTOR(SingleArgument, Packed, PACKED_ELEMENTS,
-                    DisableAllocationSites, DISABLE_ALLOCATION_SITES);
+                    DisableAllocationSites, DISABLE_ALLOCATION_SITES)
 GENERATE_ARRAY_CTOR(SingleArgument, Holey, HOLEY_ELEMENTS,
-                    DisableAllocationSites, DISABLE_ALLOCATION_SITES);
+                    DisableAllocationSites, DISABLE_ALLOCATION_SITES)
 GENERATE_ARRAY_CTOR(SingleArgument, PackedDouble, PACKED_DOUBLE_ELEMENTS,
-                    DisableAllocationSites, DISABLE_ALLOCATION_SITES);
+                    DisableAllocationSites, DISABLE_ALLOCATION_SITES)
 GENERATE_ARRAY_CTOR(SingleArgument, HoleyDouble, HOLEY_DOUBLE_ELEMENTS,
-                    DisableAllocationSites, DISABLE_ALLOCATION_SITES);
+                    DisableAllocationSites, DISABLE_ALLOCATION_SITES)
 
 #undef GENERATE_ARRAY_CTOR
 

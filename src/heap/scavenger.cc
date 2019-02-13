@@ -65,7 +65,7 @@ class ScavengingTask final : public ItemParallelJob::Task {
                    static_cast<void*>(this), scavenging_time,
                    scavenger_->bytes_copied(), scavenger_->bytes_promoted());
     }
-  };
+  }
 
  private:
   Heap* const heap_;

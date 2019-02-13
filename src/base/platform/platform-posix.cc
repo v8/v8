@@ -93,7 +93,7 @@ bool g_hard_abort = false;
 const char* g_gc_fake_mmap = nullptr;
 
 DEFINE_LAZY_LEAKY_OBJECT_GETTER(RandomNumberGenerator,
-                                GetPlatformRandomNumberGenerator);
+                                GetPlatformRandomNumberGenerator)
 static LazyMutex rng_mutex = LAZY_MUTEX_INITIALIZER;
 
 #if !V8_OS_FUCHSIA

@@ -212,7 +212,7 @@ Matcher<Node*> IsNumberAdd(const Matcher<Node*>& lhs_matcher,
                             const Matcher<Node*>& rhs_matcher,                \
                             const Matcher<Node*>& effect_matcher,             \
                             const Matcher<Node*>& control_matcher);
-SIMPLIFIED_SPECULATIVE_NUMBER_BINOP_LIST(DECLARE_SPECULATIVE_BINOP_MATCHER);
+SIMPLIFIED_SPECULATIVE_NUMBER_BINOP_LIST(DECLARE_SPECULATIVE_BINOP_MATCHER)
 DECLARE_SPECULATIVE_BINOP_MATCHER(SpeculativeNumberEqual)
 DECLARE_SPECULATIVE_BINOP_MATCHER(SpeculativeNumberLessThan)
 DECLARE_SPECULATIVE_BINOP_MATCHER(SpeculativeNumberLessThanOrEqual)

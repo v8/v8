@@ -520,7 +520,7 @@ void WasmEngine::FreeNativeModule(NativeModule* native_module) {
 namespace {
 
 DEFINE_LAZY_LEAKY_OBJECT_GETTER(std::shared_ptr<WasmEngine>,
-                                GetSharedWasmEngine);
+                                GetSharedWasmEngine)
 
 }  // namespace
 

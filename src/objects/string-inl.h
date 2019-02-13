@@ -551,7 +551,7 @@ void ConsString::set_second(Isolate* isolate, String value,
   CONDITIONAL_WRITE_BARRIER(*this, kSecondOffset, value, mode);
 }
 
-ACCESSORS(ThinString, actual, String, kActualOffset);
+ACCESSORS(ThinString, actual, String, kActualOffset)
 
 HeapObject ThinString::unchecked_actual() const {
   return HeapObject::unchecked_cast(READ_FIELD(*this, kActualOffset));

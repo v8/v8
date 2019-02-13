@@ -206,7 +206,7 @@ class IncrementalStringBuilder {
    private:
     DestChar* start_;
     DestChar* cursor_;
-    DISALLOW_HEAP_ALLOCATION(no_gc_);
+    DISALLOW_HEAP_ALLOCATION(no_gc_)
   };
 
   template <typename DestChar>

@@ -484,7 +484,7 @@ class Code::OptimizedCodeIterator {
   Code current_code_;
   Isolate* isolate_;
 
-  DISALLOW_HEAP_ALLOCATION(no_gc);
+  DISALLOW_HEAP_ALLOCATION(no_gc)
   DISALLOW_COPY_AND_ASSIGN(OptimizedCodeIterator);
 };
 
@@ -601,7 +601,7 @@ class AbstractCode : public HeapObject {
   // nesting that is deeper than 5 levels into account.
   static const int kMaxLoopNestingMarker = 6;
 
-  OBJECT_CONSTRUCTORS(AbstractCode, HeapObject)
+  OBJECT_CONSTRUCTORS(AbstractCode, HeapObject);
 };
 
 // Dependent code is a singly linked list of weak fixed arrays. Each array
@@ -712,7 +712,7 @@ class DependentCode : public WeakFixedArray {
   class CountField : public BitField<int, 3, 27> {};
   STATIC_ASSERT(kGroupCount <= GroupField::kMax + 1);
 
-  OBJECT_CONSTRUCTORS(DependentCode, WeakFixedArray)
+  OBJECT_CONSTRUCTORS(DependentCode, WeakFixedArray);
 };
 
 // BytecodeArray represents a sequence of interpreter bytecodes.
@@ -928,7 +928,7 @@ class DeoptimizationData : public FixedArray {
 
   static int LengthFor(int entry_count) { return IndexForEntry(entry_count); }
 
-  OBJECT_CONSTRUCTORS(DeoptimizationData, FixedArray)
+  OBJECT_CONSTRUCTORS(DeoptimizationData, FixedArray);
 };
 
 class SourcePositionTableWithFrameCache : public Tuple2 {

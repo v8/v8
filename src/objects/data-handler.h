@@ -56,7 +56,7 @@ class DataHandler : public Struct {
 
   class BodyDescriptor;
 
-  OBJECT_CONSTRUCTORS(DataHandler, Struct)
+  OBJECT_CONSTRUCTORS(DataHandler, Struct);
 };
 
 }  // namespace internal

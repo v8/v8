@@ -722,8 +722,7 @@ struct JSOperatorGlobalCache final {
 };
 
 namespace {
-DEFINE_LAZY_LEAKY_OBJECT_GETTER(JSOperatorGlobalCache,
-                                GetJSOperatorGlobalCache);
+DEFINE_LAZY_LEAKY_OBJECT_GETTER(JSOperatorGlobalCache, GetJSOperatorGlobalCache)
 }
 
 JSOperatorBuilder::JSOperatorBuilder(Zone* zone)

@@ -163,7 +163,7 @@ class V8_EXPORT_PRIVATE ErrorThrower {
 
   // ErrorThrower should always be stack-allocated, since it constitutes a scope
   // (things happen in the destructor).
-  DISALLOW_NEW_AND_DELETE();
+  DISALLOW_NEW_AND_DELETE()
   DISALLOW_COPY_AND_ASSIGN(ErrorThrower);
 };
 

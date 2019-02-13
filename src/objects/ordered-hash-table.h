@@ -222,7 +222,7 @@ class OrderedHashTable : public FixedArray {
     return set(RemovedHolesIndex() + index, Smi::FromInt(removed_index));
   }
 
-  OBJECT_CONSTRUCTORS(OrderedHashTable, FixedArray)
+  OBJECT_CONSTRUCTORS(OrderedHashTable, FixedArray);
 
  private:
   friend class OrderedNameDictionaryHandler;
@@ -248,7 +248,7 @@ class OrderedHashSet : public OrderedHashTable<OrderedHashSet, 1> {
   static inline bool Is(Handle<HeapObject> table);
   static const int kPrefixSize = 0;
 
-  OBJECT_CONSTRUCTORS(OrderedHashSet, OrderedHashTable<OrderedHashSet, 1>)
+  OBJECT_CONSTRUCTORS(OrderedHashSet, OrderedHashTable<OrderedHashSet, 1>);
 };
 
 class OrderedHashMap : public OrderedHashTable<OrderedHashMap, 2> {
@@ -279,7 +279,7 @@ class OrderedHashMap : public OrderedHashTable<OrderedHashMap, 2> {
   static const int kValueOffset = 1;
   static const int kPrefixSize = 0;
 
-  OBJECT_CONSTRUCTORS(OrderedHashMap, OrderedHashTable<OrderedHashMap, 2>)
+  OBJECT_CONSTRUCTORS(OrderedHashMap, OrderedHashTable<OrderedHashMap, 2>);
 };
 
 // This is similar to the OrderedHashTable, except for the memory
@@ -571,7 +571,7 @@ class SmallOrderedHashTable : public HeapObject {
   friend class OrderedNameDictionaryHandler;
   friend class CodeStubAssembler;
 
-  OBJECT_CONSTRUCTORS(SmallOrderedHashTable, HeapObject)
+  OBJECT_CONSTRUCTORS(SmallOrderedHashTable, HeapObject);
 };
 
 class SmallOrderedHashSet : public SmallOrderedHashTable<SmallOrderedHashSet> {
@@ -597,7 +597,7 @@ class SmallOrderedHashSet : public SmallOrderedHashTable<SmallOrderedHashSet> {
                                             Handle<SmallOrderedHashSet> table,
                                             int new_capacity);
   OBJECT_CONSTRUCTORS(SmallOrderedHashSet,
-                      SmallOrderedHashTable<SmallOrderedHashSet>)
+                      SmallOrderedHashTable<SmallOrderedHashSet>);
 };
 
 class SmallOrderedHashMap : public SmallOrderedHashTable<SmallOrderedHashMap> {
@@ -627,7 +627,7 @@ class SmallOrderedHashMap : public SmallOrderedHashTable<SmallOrderedHashMap> {
                                             int new_capacity);
 
   OBJECT_CONSTRUCTORS(SmallOrderedHashMap,
-                      SmallOrderedHashTable<SmallOrderedHashMap>)
+                      SmallOrderedHashTable<SmallOrderedHashMap>);
 };
 
 // TODO(gsathya): Rename this to OrderedHashTable, after we rename
@@ -713,7 +713,7 @@ class OrderedNameDictionary
   static const int kPrefixSize = 1;
 
   OBJECT_CONSTRUCTORS(OrderedNameDictionary,
-                      OrderedHashTable<OrderedNameDictionary, 3>)
+                      OrderedHashTable<OrderedNameDictionary, 3>);
 };
 
 class OrderedNameDictionaryHandler
@@ -807,7 +807,7 @@ class SmallOrderedNameDictionary
   static inline RootIndex GetMapRootIndex();
 
   OBJECT_CONSTRUCTORS(SmallOrderedNameDictionary,
-                      SmallOrderedHashTable<SmallOrderedNameDictionary>)
+                      SmallOrderedHashTable<SmallOrderedNameDictionary>);
 };
 
 class JSCollectionIterator : public JSObject {

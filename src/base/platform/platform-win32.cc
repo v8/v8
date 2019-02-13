@@ -690,7 +690,7 @@ void OS::StrNCpy(char* dest, int length, const char* src, size_t n) {
 #undef STRUNCATE
 
 DEFINE_LAZY_LEAKY_OBJECT_GETTER(RandomNumberGenerator,
-                                GetPlatformRandomNumberGenerator);
+                                GetPlatformRandomNumberGenerator)
 static LazyMutex rng_mutex = LAZY_MUTEX_INITIALIZER;
 
 void OS::Initialize(bool hard_abort, const char* const gc_fake_mmap) {

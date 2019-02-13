@@ -49,7 +49,7 @@ class ObjectBoilerplateDescription : public FixedArray {
  private:
   bool has_number_of_properties() const;
 
-  OBJECT_CONSTRUCTORS(ObjectBoilerplateDescription, FixedArray)
+  OBJECT_CONSTRUCTORS(ObjectBoilerplateDescription, FixedArray);
 };
 
 class ArrayBoilerplateDescription : public Struct {
@@ -155,7 +155,7 @@ class ClassBoilerplate : public FixedArray {
  private:
   DECL_INT_ACCESSORS(flags)
 
-  OBJECT_CONSTRUCTORS(ClassBoilerplate, FixedArray)
+  OBJECT_CONSTRUCTORS(ClassBoilerplate, FixedArray);
 };
 
 }  // namespace internal

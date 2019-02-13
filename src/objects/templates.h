@@ -277,7 +277,7 @@ class ObjectTemplateInfo : public TemplateInfo {
   class EmbedderFieldCount
       : public BitField<int, IsImmutablePrototype::kNext, 29> {};
 
-  OBJECT_CONSTRUCTORS(ObjectTemplateInfo, TemplateInfo)
+  OBJECT_CONSTRUCTORS(ObjectTemplateInfo, TemplateInfo);
 };
 
 }  // namespace internal

@@ -87,14 +87,14 @@ struct CodeDescOps {
     }                                            \
   }
 
-DISPATCH(Address, constant_pool);
-DISPATCH(Address, instruction_start);
-DISPATCH(Address, instruction_end);
-DISPATCH(int, instruction_size);
-DISPATCH(const byte*, relocation_start);
-DISPATCH(const byte*, relocation_end);
-DISPATCH(int, relocation_size);
-DISPATCH(Address, code_comments);
+DISPATCH(Address, constant_pool)
+DISPATCH(Address, instruction_start)
+DISPATCH(Address, instruction_end)
+DISPATCH(int, instruction_size)
+DISPATCH(const byte*, relocation_start)
+DISPATCH(const byte*, relocation_end)
+DISPATCH(int, relocation_size)
+DISPATCH(Address, code_comments)
 
 #undef DISPATCH
 

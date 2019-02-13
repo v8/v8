@@ -209,7 +209,7 @@ class MutableBigInt : public FreshlyAllocatedBigInt {
 
   NEVER_READ_ONLY_SPACE
 
-  OBJECT_CONSTRUCTORS(MutableBigInt, FreshlyAllocatedBigInt)
+  OBJECT_CONSTRUCTORS(MutableBigInt, FreshlyAllocatedBigInt);
 };
 
 OBJECT_CONSTRUCTORS_IMPL(MutableBigInt, FreshlyAllocatedBigInt)
