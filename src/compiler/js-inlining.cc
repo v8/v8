@@ -465,10 +465,6 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
         info_->shared_info()->DebugName()->ToCString().get(),
         (exception_target != nullptr) ? " (inside try-block)" : "");
 
-  // Get the bytecode array.
-  Handle<BytecodeArray> bytecode_array =
-      handle(shared_info->GetBytecodeArray(), isolate());
-
   // Determine the targets feedback vector and its context.
   Node* context;
   Handle<FeedbackVector> feedback_vector;
@@ -484,6 +480,9 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
                        << Brief(*feedback.object()) << ")");
     }
   }
+
+  Handle<BytecodeArray> bytecode_array =
+      handle(shared_info->GetBytecodeArray(), isolate());
 
   // Remember that we inlined this function.
   int inlining_id = info_->AddInlinedFunction(
