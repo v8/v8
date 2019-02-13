@@ -1098,7 +1098,7 @@ void SharedFunctionInfo::SharedFunctionInfoVerify(Isolate* isolate) {
   }
 
   int expected_map_index = Context::FunctionMapIndex(
-      language_mode(), kind(), true, HasSharedName(), needs_home_object());
+      language_mode(), kind(), HasSharedName(), needs_home_object());
   CHECK_EQ(expected_map_index, function_map_index());
 
   if (scope_info()->length() > 0) {
