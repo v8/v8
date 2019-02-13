@@ -556,9 +556,6 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
 
   Label invoke, handler_entry, exit;
 
-  // Called from C
-  __ function_descriptor();
-
   {
     NoRootArrayScope no_root_array(masm);
 
@@ -2605,16 +2602,6 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   __ Move(isolate_reg, ExternalReference::isolate_address(masm->isolate()));
 
   Register target = r15;
-  if (ABI_USES_FUNCTION_DESCRIPTORS) {
-    // AIX/PPC64BE Linux use a function descriptor.
-    __ LoadP(ToRegister(ABI_TOC_REGISTER), MemOperand(r15, kPointerSize));
-    __ LoadP(ip, MemOperand(r15, 0));  // Instruction address
-    target = ip;
-  } else if (ABI_CALL_VIA_IP) {
-    __ Move(ip, r15);
-    target = ip;
-  }
-
   __ StoreReturnAddressAndCall(target);
 
   // If return value is on the stack, pop it to registers.

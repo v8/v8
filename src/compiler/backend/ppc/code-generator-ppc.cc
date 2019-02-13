@@ -2289,7 +2289,6 @@ void CodeGenerator::AssembleConstructFrame() {
   auto call_descriptor = linkage()->GetIncomingDescriptor();
   if (frame_access_state()->has_frame()) {
     if (call_descriptor->IsCFunctionCall()) {
-      __ function_descriptor();
       __ mflr(r0);
       if (FLAG_enable_embedded_constant_pool) {
         __ Push(r0, fp, kConstantPoolRegister);
