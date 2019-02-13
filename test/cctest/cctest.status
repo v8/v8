@@ -528,7 +528,7 @@
   'test-heap/IncrementalMarkingStepMakesBigProgressWithLargeObjects': [SKIP],
 
   # TODO(v8:7777): Re-enable once wasm is supported in jitless mode.
-  'test-api/WasmStreamingFinishWithSuccess': [SKIP],
+  'test-api/WasmStreaming*': [SKIP],
   'test-c-wasm-entry/*': [SKIP],
   'test-jump-table-assembler/*': [SKIP],
   'test-run-wasm-64/*': [SKIP],
