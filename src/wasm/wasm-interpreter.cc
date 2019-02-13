@@ -1326,13 +1326,6 @@ class ThreadImpl {
     sp_t llimit() { return plimit() + code->locals.type_list.size(); }
   };
 
-  struct Block {
-    pc_t pc;
-    sp_t sp;
-    size_t fp;
-    uint32_t arity;
-  };
-
   friend class InterpretedFrameImpl;
 
   CodeMap* codemap_;
