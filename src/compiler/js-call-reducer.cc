@@ -2875,7 +2875,6 @@ Reduction JSCallReducer::ReduceCallApiFunction(
                        ? global_proxy
                        : NodeProperties::GetValueInput(node, 1);
   Node* holder;
-  Node* context = NodeProperties::GetContextInput(node);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
@@ -2978,14 +2977,11 @@ Reduction JSCallReducer::ReduceCallApiFunction(
       &api_function, ExternalReference::DIRECT_API_CALL);
   node->InsertInput(graph()->zone(), 0,
                     jsgraph()->HeapConstant(call_api_callback.code()));
-  node->ReplaceInput(1, context);
-  node->InsertInput(graph()->zone(), 2,
-                    jsgraph()->ExternalConstant(function_reference));
-  node->InsertInput(graph()->zone(), 3, jsgraph()->Constant(argc));
-  node->InsertInput(graph()->zone(), 4, jsgraph()->Constant(data));
-  node->InsertInput(graph()->zone(), 5, holder);
-  node->ReplaceInput(6, receiver);
-  node->RemoveInput(7 + argc);           // Remove context input.
+  node->ReplaceInput(1, jsgraph()->ExternalConstant(function_reference));
+  node->InsertInput(graph()->zone(), 2, jsgraph()->Constant(argc));
+  node->InsertInput(graph()->zone(), 3, jsgraph()->Constant(data));
+  node->InsertInput(graph()->zone(), 4, holder);
+  node->ReplaceInput(5, receiver);       // Update receiver input.
   node->ReplaceInput(8 + argc, effect);  // Update effect input.
   NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
   return Changed(node);

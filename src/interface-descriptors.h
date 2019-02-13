@@ -993,16 +993,12 @@ class CEntry1ArgvOnStackDescriptor : public CallInterfaceDescriptor {
 
 class ApiCallbackDescriptor : public CallInterfaceDescriptor {
  public:
-  DEFINE_PARAMETERS_NO_CONTEXT(kTargetContext,       // register argument
-                               kApiFunctionAddress,  // register argument
-                               kArgc,                // register argument
-                               kCallData,            // stack argument 1
-                               kHolder)              // stack argument 2
-  //                           receiver is implicit stack argument 3
-  //                           argv are implicit stack arguments [4, 4 + kArgc[
-  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kTargetContext
-                         MachineType::Pointer(),    // kApiFunctionAddress
-                         MachineType::IntPtr(),     // kArgc
+  DEFINE_PARAMETERS(kApiFunctionAddress, kActualArgumentsCount, kCallData,
+                    kHolder)
+  //                           receiver is implicit stack argument 1
+  //                           argv are implicit stack arguments [2, 2 + kArgc[
+  DEFINE_PARAMETER_TYPES(MachineType::Pointer(),    // kApiFunctionAddress
+                         MachineType::IntPtr(),     // kActualArgumentsCount
                          MachineType::AnyTagged(),  // kCallData
                          MachineType::AnyTagged())  // kHolder
   DECLARE_DESCRIPTOR(ApiCallbackDescriptor, CallInterfaceDescriptor)

@@ -2108,16 +2108,17 @@ Node* JSNativeContextSpecialization::InlineApiCall(
   // Add CallApiCallbackStub's register argument as well.
   Node* context = jsgraph()->Constant(native_context());
   Node* inputs[11] = {
-      code,   context, function_reference, jsgraph()->Constant(argc), data,
-      holder, receiver};
-  int index = 7 + argc;
+      code,    function_reference, jsgraph()->Constant(argc), data, holder,
+      receiver};
+  int index = 6 + argc;
+  inputs[index++] = context;
   inputs[index++] = frame_state;
   inputs[index++] = *effect;
   inputs[index++] = *control;
   // This needs to stay here because of the edge case described in
   // http://crbug.com/675648.
   if (value != nullptr) {
-    inputs[7] = value;
+    inputs[6] = value;
   }
 
   return *effect = *control =
