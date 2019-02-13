@@ -3038,32 +3038,23 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
 
 void Builtins::Generate_CallApiCallback(MacroAssembler* masm) {
   // ----------- S t a t e -------------
-  //  -- cp                  : kTargetContext
-  //  -- r3                  : kApiFunctionAddress
-  //  -- r4                  : kArgc
-  //  --
+  //  -- cp                  : context
+  //  -- r4                  : api function address
+  //  -- r4                  : arguments count (not including the receiver)
+  //  -- r5                  : call data
+  //  -- r2                  : holder
   //  -- sp[0]               : last argument
   //  -- ...
   //  -- sp[(argc - 1) * 4]  : first argument
   //  -- sp[(argc + 0) * 4]  : receiver
-  //  -- sp[(argc + 1) * 4]  : kHolder
-  //  -- sp[(argc + 2) * 4]  : kCallData
   // -----------------------------------
 
   Register api_function_address = r3;
   Register argc = r4;
+  Register call_data = r5;
+  Register holder = r2;
   Register scratch = r6;
-  Register index = r7;  // For indexing MemOperands.
-
-  DCHECK(!AreAliased(api_function_address, argc, scratch, index));
-
-  // Stack offsets (without argc).
-  static constexpr int kReceiverOffset = 0;
-  static constexpr int kHolderOffset = kReceiverOffset + 1;
-  static constexpr int kCallDataOffset = kHolderOffset + 1;
-
-  // Extra stack arguments are: the receiver, kHolder, kCallData.
-  static constexpr int kExtraStackArgumentCount = 3;
+  DCHECK(!AreAliased(api_function_address, argc, call_data, holder, scratch));
 
   typedef FunctionCallbackArguments FCA;
 
@@ -3089,26 +3080,22 @@ void Builtins::Generate_CallApiCallback(MacroAssembler* masm) {
   __ lay(sp, MemOperand(sp, -(FCA::kArgsLength * kPointerSize)));
 
   // kHolder.
-  __ AddP(index, argc, Operand(FCA::kArgsLength + kHolderOffset));
-  __ ShiftLeftP(r1, index, Operand(kPointerSizeLog2));
-  __ LoadP(scratch, MemOperand(sp, r1));
-  __ StoreP(scratch, MemOperand(sp, 0 * kPointerSize));
+  __ StoreP(holder, MemOperand(sp, 0 * kPointerSize));
 
   // kIsolate.
   __ Move(scratch, ExternalReference::isolate_address(masm->isolate()));
   __ StoreP(scratch, MemOperand(sp, 1 * kPointerSize));
 
-  // kReturnValueDefaultValue, kReturnValue, and kNewTarget.
+  // kReturnValueDefaultValue and kReturnValue.
   __ LoadRoot(scratch, RootIndex::kUndefinedValue);
   __ StoreP(scratch, MemOperand(sp, 2 * kPointerSize));
   __ StoreP(scratch, MemOperand(sp, 3 * kPointerSize));
-  __ StoreP(scratch, MemOperand(sp, 5 * kPointerSize));
 
   // kData.
-  __ AddP(index, argc, Operand(FCA::kArgsLength + kCallDataOffset));
-  __ ShiftLeftP(r1, index, Operand(kPointerSizeLog2));
-  __ LoadP(scratch, MemOperand(sp, r1));
-  __ StoreP(scratch, MemOperand(sp, 4 * kPointerSize));
+  __ StoreP(call_data, MemOperand(sp, 4 * kPointerSize));
+
+  // kNewTarget.
+  __ StoreP(scratch, MemOperand(sp, 5 * kPointerSize));
 
   // Keep a pointer to kHolder (= implicit_args) in a scratch register.
   // We use it below to set up the FunctionCallbackInfo object.
@@ -3148,7 +3135,7 @@ void Builtins::Generate_CallApiCallback(MacroAssembler* masm) {
   // We also store the number of bytes to drop from the stack after returning
   // from the API function here.
   __ mov(scratch,
-         Operand((FCA::kArgsLength + kExtraStackArgumentCount) * kPointerSize));
+         Operand((FCA::kArgsLength + 1 /* receiver */) * kPointerSize));
   __ ShiftLeftP(r1, argc, Operand(kPointerSizeLog2));
   __ AddP(scratch, r1);
   __ StoreP(scratch,
