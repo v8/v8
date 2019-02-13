@@ -1131,7 +1131,7 @@ void FeedbackNexus::Print(std::ostream& os) {  // NOLINT
     case FeedbackSlotKind::kStoreKeyedStrict:
     case FeedbackSlotKind::kStoreInArrayLiteral:
     case FeedbackSlotKind::kCloneObject: {
-      os << InlineCacheState2String(StateFromFeedback());
+      os << InlineCacheState2String(ic_state());
       break;
     }
     case FeedbackSlotKind::kBinaryOp: {

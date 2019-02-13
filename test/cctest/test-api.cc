@@ -11044,9 +11044,9 @@ THREADED_TEST(ShadowObjectAndDataProperty) {
   i::FeedbackSlot slot = i::FeedbackVector::ToSlot(0);
   i::FeedbackNexus nexus(foo->feedback_vector(), slot);
   CHECK_EQ(i::FeedbackSlotKind::kStoreGlobalSloppy, nexus.kind());
-  CHECK_EQ(i::PREMONOMORPHIC, nexus.StateFromFeedback());
+  CHECK_EQ(i::PREMONOMORPHIC, nexus.ic_state());
   CompileRun("foo(1)");
-  CHECK_EQ(i::MONOMORPHIC, nexus.StateFromFeedback());
+  CHECK_EQ(i::MONOMORPHIC, nexus.ic_state());
   // We go a bit further, checking that the form of monomorphism is
   // a PropertyCell in the vector. This is because we want to make sure
   // we didn't settle for a "poor man's monomorphism," such as a
@@ -11094,9 +11094,9 @@ THREADED_TEST(ShadowObjectAndDataPropertyTurbo) {
   i::FeedbackSlot slot = i::FeedbackVector::ToSlot(0);
   i::FeedbackNexus nexus(foo->feedback_vector(), slot);
   CHECK_EQ(i::FeedbackSlotKind::kStoreGlobalSloppy, nexus.kind());
-  CHECK_EQ(i::PREMONOMORPHIC, nexus.StateFromFeedback());
+  CHECK_EQ(i::PREMONOMORPHIC, nexus.ic_state());
   CompileRun("%OptimizeFunctionOnNextCall(foo); foo(1)");
-  CHECK_EQ(i::MONOMORPHIC, nexus.StateFromFeedback());
+  CHECK_EQ(i::MONOMORPHIC, nexus.ic_state());
   i::HeapObject heap_object;
   CHECK(nexus.GetFeedback().GetHeapObject(&heap_object));
   CHECK(heap_object->IsPropertyCell());

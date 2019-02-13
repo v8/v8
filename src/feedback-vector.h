@@ -596,23 +596,22 @@ class FeedbackNexus final {
     return vector()->GetLanguageMode(slot());
   }
 
-  InlineCacheState ic_state() const { return StateFromFeedback(); }
-  bool IsUninitialized() const { return StateFromFeedback() == UNINITIALIZED; }
-  bool IsMegamorphic() const { return StateFromFeedback() == MEGAMORPHIC; }
-  bool IsGeneric() const { return StateFromFeedback() == GENERIC; }
+  InlineCacheState ic_state() const;
+  bool IsUninitialized() const { return ic_state() == UNINITIALIZED; }
+  bool IsMegamorphic() const { return ic_state() == MEGAMORPHIC; }
+  bool IsGeneric() const { return ic_state() == GENERIC; }
 
   void Print(std::ostream& os);  // NOLINT
 
   // For map-based ICs (load, keyed-load, store, keyed-store).
   Map GetFirstMap() const;
 
-  InlineCacheState StateFromFeedback() const;
   int ExtractMaps(MapHandles* maps) const;
   MaybeObjectHandle FindHandlerForMap(Handle<Map> map) const;
   bool FindHandlers(MaybeObjectHandles* code_list, int length = -1) const;
 
   bool IsCleared() const {
-    InlineCacheState state = StateFromFeedback();
+    InlineCacheState state = ic_state();
     return !FLAG_use_ic || state == UNINITIALIZED || state == PREMONOMORPHIC;
   }
 

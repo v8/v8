@@ -88,7 +88,7 @@ const char* GetModifier(KeyedAccessStoreMode mode) {
 void IC::TraceIC(const char* type, Handle<Object> name) {
   if (FLAG_ic_stats) {
     if (AddressIsDeoptimizedCode()) return;
-    State new_state = nexus()->StateFromFeedback();
+    State new_state = nexus()->ic_state();
     TraceIC(type, name, state(), new_state);
   }
 }
@@ -200,7 +200,7 @@ IC::IC(Isolate* isolate, Handle<FeedbackVector> vector, FeedbackSlot slot,
   }
   pc_address_ = StackFrame::ResolveReturnAddressLocation(pc_address);
   DCHECK_IMPLIES(!vector.is_null(), kind_ == nexus_.kind());
-  state_ = (vector.is_null()) ? NO_FEEDBACK : nexus_.StateFromFeedback();
+  state_ = (vector.is_null()) ? NO_FEEDBACK : nexus_.ic_state();
   old_state_ = state_;
 }
 

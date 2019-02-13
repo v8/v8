@@ -552,7 +552,7 @@ Map FeedbackNexus::GetFirstMap() const {
   return Map();
 }
 
-InlineCacheState FeedbackNexus::StateFromFeedback() const {
+InlineCacheState FeedbackNexus::ic_state() const {
   Isolate* isolate = GetIsolate();
   MaybeObject feedback = GetFeedback();
 
