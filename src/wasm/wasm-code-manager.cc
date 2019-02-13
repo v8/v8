@@ -193,19 +193,6 @@ void WasmCode::LogCode(Isolate* isolate) const {
   }
 }
 
-const char* WasmCode::GetRuntimeStubName() const {
-  DCHECK_EQ(WasmCode::kRuntimeStub, kind());
-#define RETURN_NAME(Name)                                               \
-  if (native_module_->runtime_stub_table_[WasmCode::k##Name] == this) { \
-    return #Name;                                                       \
-  }
-#define RETURN_NAME_TRAP(Name) RETURN_NAME(ThrowWasm##Name)
-  WASM_RUNTIME_STUB_LIST(RETURN_NAME, RETURN_NAME_TRAP)
-#undef RETURN_NAME_TRAP
-#undef RETURN_NAME
-  return "<unknown>";
-}
-
 void WasmCode::Validate() const {
 #ifdef DEBUG
   // We expect certain relocation info modes to never appear in {WasmCode}
@@ -220,6 +207,7 @@ void WasmCode::Validate() const {
         WasmCode* code = native_module_->Lookup(target);
         CHECK_NOT_NULL(code);
         CHECK_EQ(WasmCode::kJumpTable, code->kind());
+        CHECK_EQ(native_module()->jump_table_, code);
         CHECK(code->contains(target));
         break;
       }
@@ -227,8 +215,14 @@ void WasmCode::Validate() const {
         Address target = it.rinfo()->wasm_stub_call_address();
         WasmCode* code = native_module_->Lookup(target);
         CHECK_NOT_NULL(code);
+#ifdef V8_EMBEDDED_BUILTINS
+        CHECK_EQ(WasmCode::kJumpTable, code->kind());
+        CHECK_EQ(native_module()->runtime_stub_table_, code);
+        CHECK(code->contains(target));
+#else
         CHECK_EQ(WasmCode::kRuntimeStub, code->kind());
         CHECK_EQ(target, code->instruction_start());
+#endif
         break;
       }
       case RelocInfo::INTERNAL_REFERENCE:
@@ -407,7 +401,8 @@ NativeModule::NativeModule(WasmEngine* engine, const WasmFeatures& enabled,
     code_table_.reset(new WasmCode*[num_wasm_functions]);
     memset(code_table_.get(), 0, num_wasm_functions * sizeof(WasmCode*));
 
-    jump_table_ = CreateEmptyJumpTable(num_wasm_functions);
+    jump_table_ = CreateEmptyJumpTable(
+        JumpTableAssembler::SizeForNumberOfSlots(num_wasm_functions));
   }
 }
 
@@ -422,7 +417,8 @@ void NativeModule::ReserveCodeTableForTesting(uint32_t max_functions) {
   code_table_.reset(new_table);
 
   // Re-allocate jump table.
-  jump_table_ = CreateEmptyJumpTable(max_functions);
+  jump_table_ = CreateEmptyJumpTable(
+      JumpTableAssembler::SizeForNumberOfSlots(max_functions));
 }
 
 void NativeModule::LogWasmCodes(Isolate* isolate) {
@@ -508,16 +504,48 @@ void NativeModule::SetLazyBuiltin(Handle<Code> code) {
 }
 
 void NativeModule::SetRuntimeStubs(Isolate* isolate) {
+  // TODO(mstarzinger): Switch this from accessing the {Isolate} to using the
+  // embedded blob directly. This will allow us to do this from the background.
   HandleScope scope(isolate);
-  DCHECK_NULL(runtime_stub_table_[0]);  // Only called once.
+  DCHECK_EQ(kNullAddress, runtime_stub_entries_[0]);  // Only called once.
+#ifdef V8_EMBEDDED_BUILTINS
+  WasmCode* jump_table =
+      CreateEmptyJumpTable(JumpTableAssembler::SizeForNumberOfStubSlots(
+          WasmCode::kRuntimeStubCount));
+  Address base = jump_table->instruction_start();
+#define RUNTIME_STUB(Name) {Builtins::k##Name, WasmCode::k##Name},
+#define RUNTIME_STUB_TRAP(Name) RUNTIME_STUB(ThrowWasm##Name)
+  std::pair<Builtins::Name, WasmCode::RuntimeStubId> wasm_runtime_stubs[] = {
+      WASM_RUNTIME_STUB_LIST(RUNTIME_STUB, RUNTIME_STUB_TRAP)};
+#undef RUNTIME_STUB
+#undef RUNTIME_STUB_TRAP
+  for (auto pair : wasm_runtime_stubs) {
+    Handle<Code> builtin_code = isolate->builtins()->builtin_handle(pair.first);
+    CHECK(builtin_code->is_off_heap_trampoline());
+    JumpTableAssembler::EmitRuntimeStubSlot(
+        base, pair.second, builtin_code->OffHeapInstructionStart(),
+        WasmCode::kNoFlushICache);
+    uint32_t slot_offset =
+        JumpTableAssembler::StubSlotIndexToOffset(pair.second);
+    runtime_stub_entries_[pair.second] = base + slot_offset;
+  }
+  FlushInstructionCache(jump_table->instructions().start(),
+                        jump_table->instructions().size());
+  DCHECK_NULL(runtime_stub_table_);
+  runtime_stub_table_ = jump_table;
+#else  // V8_EMBEDDED_BUILTINS
+  USE(runtime_stub_table_);  // Actually unused, but avoids ifdef's in header.
 #define COPY_BUILTIN(Name)                                                     \
-  runtime_stub_table_[WasmCode::k##Name] =                                     \
+  runtime_stub_entries_[WasmCode::k##Name] =                                   \
       AddAnonymousCode(isolate->builtins()->builtin_handle(Builtins::k##Name), \
-                       WasmCode::kRuntimeStub, #Name);
+                       WasmCode::kRuntimeStub, #Name)                          \
+          ->instruction_start();
 #define COPY_BUILTIN_TRAP(Name) COPY_BUILTIN(ThrowWasm##Name)
   WASM_RUNTIME_STUB_LIST(COPY_BUILTIN, COPY_BUILTIN_TRAP)
 #undef COPY_BUILTIN_TRAP
 #undef COPY_BUILTIN
+#endif  // V8_EMBEDDED_BUILTINS
+  DCHECK_NE(kNullAddress, runtime_stub_entries_[0]);
 }
 
 WasmCode* NativeModule::AddAnonymousCode(Handle<Code> code, WasmCode::Kind kind,
@@ -580,10 +608,9 @@ WasmCode* NativeModule::AddAnonymousCode(Handle<Code> code, WasmCode::Kind kind,
     if (RelocInfo::IsWasmStubCall(mode)) {
       uint32_t stub_call_tag = orig_it.rinfo()->wasm_call_tag();
       DCHECK_LT(stub_call_tag, WasmCode::kRuntimeStubCount);
-      WasmCode* code =
-          runtime_stub(static_cast<WasmCode::RuntimeStubId>(stub_call_tag));
-      it.rinfo()->set_wasm_stub_call_address(code->instruction_start(),
-                                             SKIP_ICACHE_FLUSH);
+      Address entry = runtime_stub_entry(
+          static_cast<WasmCode::RuntimeStubId>(stub_call_tag));
+      it.rinfo()->set_wasm_stub_call_address(entry, SKIP_ICACHE_FLUSH);
     } else {
       it.rinfo()->apply(delta);
     }
@@ -641,10 +668,9 @@ WasmCode* NativeModule::AddCode(
     } else if (RelocInfo::IsWasmStubCall(mode)) {
       uint32_t stub_call_tag = it.rinfo()->wasm_call_tag();
       DCHECK_LT(stub_call_tag, WasmCode::kRuntimeStubCount);
-      WasmCode* code =
-          runtime_stub(static_cast<WasmCode::RuntimeStubId>(stub_call_tag));
-      it.rinfo()->set_wasm_stub_call_address(code->instruction_start(),
-                                             SKIP_ICACHE_FLUSH);
+      Address entry = runtime_stub_entry(
+          static_cast<WasmCode::RuntimeStubId>(stub_call_tag));
+      it.rinfo()->set_wasm_stub_call_address(entry, SKIP_ICACHE_FLUSH);
     } else {
       it.rinfo()->apply(delta);
     }
@@ -712,11 +738,10 @@ std::vector<WasmCode*> NativeModule::SnapshotCodeTable() const {
   return result;
 }
 
-WasmCode* NativeModule::CreateEmptyJumpTable(uint32_t num_wasm_functions) {
+WasmCode* NativeModule::CreateEmptyJumpTable(uint32_t jump_table_size) {
   // Only call this if we really need a jump table.
-  DCHECK_LT(0, num_wasm_functions);
-  OwnedVector<byte> instructions = OwnedVector<byte>::New(
-      JumpTableAssembler::SizeForNumberOfSlots(num_wasm_functions));
+  DCHECK_LT(0, jump_table_size);
+  OwnedVector<byte> instructions = OwnedVector<byte>::New(jump_table_size);
   memset(instructions.start(), 0, instructions.size());
   return AddOwnedCode(WasmCode::kAnonymousFuncIndex,  // index
                       instructions.as_vector(),       // instructions
@@ -908,6 +933,18 @@ void NativeModule::DisableTrapHandler() {
 
   // TODO(clemensh): Actually free the owned code, such that the memory can be
   // recycled.
+}
+
+const char* NativeModule::GetRuntimeStubName(Address runtime_stub_entry) const {
+#define RETURN_NAME(Name)                                               \
+  if (runtime_stub_entries_[WasmCode::k##Name] == runtime_stub_entry) { \
+    return #Name;                                                       \
+  }
+#define RETURN_NAME_TRAP(Name) RETURN_NAME(ThrowWasm##Name)
+  WASM_RUNTIME_STUB_LIST(RETURN_NAME, RETURN_NAME_TRAP)
+#undef RETURN_NAME_TRAP
+#undef RETURN_NAME
+  return "<unknown>";
 }
 
 NativeModule::~NativeModule() {

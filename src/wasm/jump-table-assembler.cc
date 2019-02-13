@@ -40,6 +40,10 @@ void JumpTableAssembler::EmitLazyCompileJumpSlot(uint32_t func_index,
   PatchConstPool();  // force patching entries for partial const pool
 }
 
+void JumpTableAssembler::EmitRuntimeStubSlot(Address builtin_target) {
+  JumpToInstructionStream(builtin_target);
+}
+
 void JumpTableAssembler::EmitJumpSlot(Address target) {
   movq(kScratchRegister, static_cast<uint64_t>(target));
   jmp(kScratchRegister);
@@ -55,6 +59,10 @@ void JumpTableAssembler::EmitLazyCompileJumpSlot(uint32_t func_index,
                                                  Address lazy_compile_target) {
   mov(kWasmCompileLazyFuncIndexRegister, func_index);  // 5 bytes
   jmp(lazy_compile_target, RelocInfo::NONE);  // 5 bytes
+}
+
+void JumpTableAssembler::EmitRuntimeStubSlot(Address builtin_target) {
+  JumpToInstructionStream(builtin_target);
 }
 
 void JumpTableAssembler::EmitJumpSlot(Address target) {
@@ -81,6 +89,11 @@ void JumpTableAssembler::EmitLazyCompileJumpSlot(uint32_t func_index,
   EmitJumpSlot(lazy_compile_target);
 }
 
+void JumpTableAssembler::EmitRuntimeStubSlot(Address builtin_target) {
+  JumpToInstructionStream(builtin_target);
+  CheckConstPool(true, false);  // force emit of const pool
+}
+
 void JumpTableAssembler::EmitJumpSlot(Address target) {
   // Note that {Move32BitImmediate} emits [ldr, constant] for the relocation
   // mode used below, we need this to allow concurrent patching of this slot.
@@ -101,6 +114,11 @@ void JumpTableAssembler::EmitLazyCompileJumpSlot(uint32_t func_index,
                                                  Address lazy_compile_target) {
   Mov(kWasmCompileLazyFuncIndexRegister.W(), func_index);  // max. 2 instr
   Jump(lazy_compile_target, RelocInfo::NONE);  // 1 instr
+}
+
+void JumpTableAssembler::EmitRuntimeStubSlot(Address builtin_target) {
+  JumpToInstructionStream(builtin_target);
+  CheckConstPool(true, false);  // force emit of const pool
 }
 
 void JumpTableAssembler::EmitJumpSlot(Address target) {
@@ -190,6 +208,10 @@ void JumpTableAssembler::NopBytes(int bytes) {
 #else
 void JumpTableAssembler::EmitLazyCompileJumpSlot(uint32_t func_index,
                                                  Address lazy_compile_target) {
+  UNIMPLEMENTED();
+}
+
+void JumpTableAssembler::EmitRuntimeStubSlot(Address builtin_target) {
   UNIMPLEMENTED();
 }
 

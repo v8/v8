@@ -289,9 +289,8 @@ NativeModuleSerializer::NativeModuleSerializer(
   // TODO(mtrofin): persist the export wrappers. Ideally, we'd only persist
   // the unique ones, i.e. the cache.
   for (uint32_t i = 0; i < WasmCode::kRuntimeStubCount; ++i) {
-    Address addr =
-        native_module_->runtime_stub(static_cast<WasmCode::RuntimeStubId>(i))
-            ->instruction_start();
+    Address addr = native_module_->runtime_stub_entry(
+        static_cast<WasmCode::RuntimeStubId>(i));
     wasm_stub_targets_lookup_.insert(std::make_pair(addr, i));
   }
 }
@@ -543,10 +542,8 @@ bool NativeModuleDeserializer::ReadCode(uint32_t fn_index, Reader* reader) {
       case RelocInfo::WASM_STUB_CALL: {
         uint32_t tag = GetWasmCalleeTag(iter.rinfo());
         DCHECK_LT(tag, WasmCode::kRuntimeStubCount);
-        Address target =
-            native_module_
-                ->runtime_stub(static_cast<WasmCode::RuntimeStubId>(tag))
-                ->instruction_start();
+        Address target = native_module_->runtime_stub_entry(
+            static_cast<WasmCode::RuntimeStubId>(tag));
         iter.rinfo()->set_wasm_stub_call_address(target, SKIP_ICACHE_FLUSH);
         break;
       }
