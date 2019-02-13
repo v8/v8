@@ -80,18 +80,28 @@
 })();
 
 (function test() {
-  function mkArray() {
-    const N = 128 * 1024;
+  // Conservative arrays lengths in slow and fast mode.
+  const kFastModeLength = 1024;
+  const kSlowModeLength = 512 * 1024;
+  function mkArray(length) {
     let a = [0.1];
-    a.length = N;
+    a.length = length;
     return a;
   }
   function foo(a) { a.push(0.23441233123); }
-  foo(mkArray());
-  foo(mkArray());
+
+  // 1. Optimize foo to handle fast mode arrays.
+  foo(mkArray(kFastModeLength));
+  foo(mkArray(kFastModeLength));
   %OptimizeFunctionOnNextCall(foo);
-  foo(mkArray());
+  foo(mkArray(kFastModeLength));
+
+  // 2. Given a slow mode array, foo will deopt.
+  foo(mkArray(kSlowModeLength));
+
+  // 3. Optimize foo again.
   %OptimizeFunctionOnNextCall(foo);
-  foo(mkArray());
+  foo(mkArray(kSlowModeLength));
+  // 4. It should stay optimized.
   assertOptimized(foo);
 })();
