@@ -1321,6 +1321,9 @@ v8_source_set("v8_initializers") {
 
   deps = [
     ":torque_generated_initializers",
+  ]
+
+  public_deps = [
     ":v8_base",
   ]
 
@@ -2970,8 +2973,6 @@ v8_source_set("v8_base") {
 
   defines = []
   deps = [
-    ":generate_bytecode_builtins_list",
-    ":run_torque",
     ":v8_headers",
     ":v8_libbase",
     ":v8_libsampler",
@@ -2979,10 +2980,13 @@ v8_source_set("v8_base") {
     "src/inspector:inspector",
   ]
 
+  public_deps = [
+    ":generate_bytecode_builtins_list",
+    ":run_torque",
+  ]
+
   if (v8_enable_i18n_support) {
-    public_deps = [
-      "//third_party/icu",
-    ]
+    public_deps += [ "//third_party/icu" ]
     if (is_win) {
       deps += [ "//third_party/icu:icudata" ]
     }
