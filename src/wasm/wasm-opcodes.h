@@ -38,22 +38,24 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, bool hasBigIntFeature);
   V(Return, 0x0f, _)
 
 // Constants, locals, globals, and calls.
-#define FOREACH_MISC_OPCODE(V) \
-  V(CallFunction, 0x10, _)     \
-  V(CallIndirect, 0x11, _)     \
-  V(Drop, 0x1a, _)             \
-  V(Select, 0x1b, _)           \
-  V(GetLocal, 0x20, _)         \
-  V(SetLocal, 0x21, _)         \
-  V(TeeLocal, 0x22, _)         \
-  V(GetGlobal, 0x23, _)        \
-  V(SetGlobal, 0x24, _)        \
-  V(GetTable, 0x25, _)         \
-  V(SetTable, 0x26, _)         \
-  V(I32Const, 0x41, _)         \
-  V(I64Const, 0x42, _)         \
-  V(F32Const, 0x43, _)         \
-  V(F64Const, 0x44, _)         \
+#define FOREACH_MISC_OPCODE(V)   \
+  V(CallFunction, 0x10, _)       \
+  V(CallIndirect, 0x11, _)       \
+  V(ReturnCall, 0x12, _)         \
+  V(ReturnCallIndirect, 0x13, _) \
+  V(Drop, 0x1a, _)               \
+  V(Select, 0x1b, _)             \
+  V(GetLocal, 0x20, _)           \
+  V(SetLocal, 0x21, _)           \
+  V(TeeLocal, 0x22, _)           \
+  V(GetGlobal, 0x23, _)          \
+  V(SetGlobal, 0x24, _)          \
+  V(GetTable, 0x25, _)           \
+  V(SetTable, 0x26, _)           \
+  V(I32Const, 0x41, _)           \
+  V(I64Const, 0x42, _)           \
+  V(F32Const, 0x43, _)           \
+  V(F64Const, 0x44, _)           \
   V(RefNull, 0xd0, _)
 
 // Load memory expressions.

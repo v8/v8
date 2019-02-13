@@ -405,10 +405,22 @@ class WasmGraphBuildingInterface {
     DoCall(decoder, nullptr, imm.sig, imm.index, args, returns);
   }
 
+  void ReturnCall(FullDecoder* decoder,
+                  const CallFunctionImmediate<validate>& imm,
+                  const Value args[]) {
+    UNIMPLEMENTED();
+  }
+
   void CallIndirect(FullDecoder* decoder, const Value& index,
                     const CallIndirectImmediate<validate>& imm,
                     const Value args[], Value returns[]) {
     DoCall(decoder, index.node, imm.sig, imm.sig_index, args, returns);
+  }
+
+  void ReturnCallIndirect(FullDecoder* decoder, const Value& index,
+                          const CallIndirectImmediate<validate>& imm,
+                          const Value args[]) {
+    UNIMPLEMENTED();
   }
 
   void SimdOp(FullDecoder* decoder, WasmOpcode opcode, Vector<Value> args,

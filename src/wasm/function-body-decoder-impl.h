@@ -697,6 +697,10 @@ struct ControlBase {
   F(CallIndirect, const Value& index,                                         \
     const CallIndirectImmediate<validate>& imm, const Value args[],           \
     Value returns[])                                                          \
+  F(ReturnCall, const CallFunctionImmediate<validate>& imm,                   \
+    const Value args[])                                                       \
+  F(ReturnCallIndirect, const Value& index,                                   \
+    const CallIndirectImmediate<validate>& imm, const Value args[])           \
   F(SimdOp, WasmOpcode opcode, Vector<Value> args, Value* result)             \
   F(SimdLaneOp, WasmOpcode opcode, const SimdLaneImmediate<validate>& imm,    \
     const Vector<Value> inputs, Value* result)                                \
@@ -864,6 +868,8 @@ class WasmDecoder : public Decoder {
         case kExprMemoryGrow:
         case kExprCallFunction:
         case kExprCallIndirect:
+        case kExprReturnCall:
+        case kExprReturnCallIndirect:
           // Add instance cache nodes to the assigned set.
           // TODO(titzer): make this more clear.
           assigned->Add(locals_count - 1);
@@ -915,6 +921,16 @@ class WasmDecoder : public Decoder {
     }
     imm.global = &module_->globals[imm.index];
     imm.type = imm.global->type;
+    return true;
+  }
+
+  inline bool CanTailCall(FunctionSig* tgt_sig) {
+    if (tgt_sig == nullptr) return false;
+    size_t num_returns = sig_->return_count();
+    if (num_returns != tgt_sig->return_count()) return false;
+    for (size_t i = 0; i < num_returns; ++i) {
+      if (sig_->GetReturn(i) != tgt_sig->GetReturn(i)) return false;
+    }
     return true;
   }
 
@@ -1164,11 +1180,13 @@ class WasmDecoder : public Decoder {
         TableIndexImmediate<validate> imm(decoder, pc);
         return 1 + imm.length;
       }
-      case kExprCallFunction: {
+      case kExprCallFunction:
+      case kExprReturnCall: {
         CallFunctionImmediate<validate> imm(decoder, pc);
         return 1 + imm.length;
       }
-      case kExprCallIndirect: {
+      case kExprCallIndirect:
+      case kExprReturnCallIndirect: {
         CallIndirectImmediate<validate> imm(decoder, pc);
         return 1 + imm.length;
       }
@@ -1390,6 +1408,8 @@ class WasmDecoder : public Decoder {
       case kExprBrOnExn:
       case kExprNop:
       case kExprReturn:
+      case kExprReturnCall:
+      case kExprReturnCallIndirect:
       case kExprUnreachable:
         return {0, 0};
       case kNumericPrefix:
@@ -2148,6 +2168,39 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           auto* returns = PushReturns(imm.sig);
           CALL_INTERFACE_IF_REACHABLE(CallIndirect, index, imm, args_.data(),
                                       returns);
+          break;
+        }
+        case kExprReturnCall: {
+          CHECK_PROTOTYPE_OPCODE(return_call);
+
+          CallFunctionImmediate<validate> imm(this, this->pc_);
+          len = 1 + imm.length;
+          if (!this->Validate(this->pc_, imm)) break;
+          if (!this->CanTailCall(imm.sig)) {
+            OPCODE_ERROR(opcode, "tail call return types mismatch");
+            break;
+          }
+
+          PopArgs(imm.sig);
+
+          CALL_INTERFACE_IF_REACHABLE(ReturnCall, imm, args_.data());
+          EndControl();
+          break;
+        }
+        case kExprReturnCallIndirect: {
+          CHECK_PROTOTYPE_OPCODE(return_call);
+          CallIndirectImmediate<validate> imm(this, this->pc_);
+          len = 1 + imm.length;
+          if (!this->Validate(this->pc_, imm)) break;
+          if (!this->CanTailCall(imm.sig)) {
+            OPCODE_ERROR(opcode, "tail call return types mismatch");
+            break;
+          }
+          auto index = Pop(0, kWasmI32);
+          PopArgs(imm.sig);
+          CALL_INTERFACE_IF_REACHABLE(ReturnCallIndirect, index, imm,
+                                      args_.data());
+          EndControl();
           break;
         }
         case kNumericPrefix: {

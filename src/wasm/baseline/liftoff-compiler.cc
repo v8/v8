@@ -1854,7 +1854,17 @@ class LiftoffCompiler {
 
     __ FinishCall(imm.sig, call_descriptor);
   }
+  void ReturnCall(FullDecoder* decoder,
+                  const CallFunctionImmediate<validate>& imm,
+                  const Value args[]) {
+    unsupported(decoder, "return_call");
+  }
 
+  void ReturnCallIndirect(FullDecoder* decoder, const Value& index_val,
+                          const CallIndirectImmediate<validate>& imm,
+                          const Value args[]) {
+    unsupported(decoder, "return_call_indirect");
+  }
   void SimdOp(FullDecoder* decoder, WasmOpcode opcode, Vector<Value> args,
               Value* result) {
     unsupported(decoder, "simd");
