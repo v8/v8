@@ -34,10 +34,11 @@ DateCache::DateCache()
           base::OS::CreateTimezoneCache()
 #endif
               ) {
-  ResetDateCache();
+  ResetDateCache(base::TimezoneCache::TimeZoneDetection::kSkip);
 }
 
-void DateCache::ResetDateCache() {
+void DateCache::ResetDateCache(
+    base::TimezoneCache::TimeZoneDetection time_zone_detection) {
   if (stamp_->value() >= Smi::kMaxValue) {
     stamp_ = Smi::zero();
   } else {
@@ -58,7 +59,7 @@ void DateCache::ResetDateCache() {
 #ifdef V8_INTL_SUPPORT
   }
 #endif
-  tz_cache_->Clear();
+  tz_cache_->Clear(time_zone_detection);
   tz_name_ = nullptr;
   dst_tz_name_ = nullptr;
 }

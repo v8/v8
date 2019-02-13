@@ -5289,6 +5289,21 @@ class V8_EXPORT Date : public Object {
   V8_INLINE static Date* Cast(Value* obj);
 
   /**
+   * Time zone redetection indicator for
+   * DateTimeConfigurationChangeNotification.
+   *
+   * kSkip indicates V8 that the notification should not trigger redetecting
+   * host time zone. kRedetect indicates V8 that host time zone should be
+   * redetected, and used to set the default time zone.
+   *
+   * The host time zone detection may require file system access or similar
+   * operations unlikely to be available inside a sandbox. If v8 is run inside a
+   * sandbox, the host time zone has to be detected outside the sandbox before
+   * calling DateTimeConfigurationChangeNotification function.
+   */
+  enum class TimeZoneDetection { kSkip, kRedetect };
+
+  /**
    * Notification that the embedder has changed the time zone,
    * daylight savings time, or other date / time configuration
    * parameters.  V8 keeps a cache of various values used for
@@ -5300,7 +5315,9 @@ class V8_EXPORT Date : public Object {
    * This API should not be called more than needed as it will
    * negatively impact the performance of date operations.
    */
-  static void DateTimeConfigurationChangeNotification(Isolate* isolate);
+  static void DateTimeConfigurationChangeNotification(
+      Isolate* isolate,
+      TimeZoneDetection time_zone_detection = TimeZoneDetection::kSkip);
 
  private:
   static void CheckCast(Value* obj);

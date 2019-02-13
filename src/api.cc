@@ -6761,12 +6761,23 @@ double v8::Date::ValueOf() const {
   return jsdate->value()->Number();
 }
 
+// Assert that the static TimeZoneDetection cast in
+// DateTimeConfigurationChangeNotification is valid.
+#define TIME_ZONE_DETECTION_ASSERT_EQ(value)                  \
+  STATIC_ASSERT(                                              \
+      static_cast<int>(v8::Date::TimeZoneDetection::value) == \
+      static_cast<int>(base::TimezoneCache::TimeZoneDetection::value))
+TIME_ZONE_DETECTION_ASSERT_EQ(kSkip);
+TIME_ZONE_DETECTION_ASSERT_EQ(kRedetect);
+#undef TIME_ZONE_DETECTION_ASSERT_EQ
 
-void v8::Date::DateTimeConfigurationChangeNotification(Isolate* isolate) {
+void v8::Date::DateTimeConfigurationChangeNotification(
+    Isolate* isolate, TimeZoneDetection time_zone_detection) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   LOG_API(i_isolate, Date, DateTimeConfigurationChangeNotification);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  i_isolate->date_cache()->ResetDateCache();
+  i_isolate->date_cache()->ResetDateCache(
+      static_cast<base::TimezoneCache::TimeZoneDetection>(time_zone_detection));
 #ifdef V8_INTL_SUPPORT
   i_isolate->clear_cached_icu_object(
       i::Isolate::ICUObjectCacheType::kDefaultSimpleDateFormat);
@@ -6776,7 +6787,6 @@ void v8::Date::DateTimeConfigurationChangeNotification(Isolate* isolate) {
       i::Isolate::ICUObjectCacheType::kDefaultSimpleDateFormatForDate);
 #endif  // V8_INTL_SUPPORT
 }
-
 
 MaybeLocal<v8::RegExp> v8::RegExp::New(Local<Context> context,
                                        Local<String> pattern, Flags flags) {

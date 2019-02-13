@@ -1728,9 +1728,9 @@ MaybeHandle<String> Intl::Normalize(Isolate* isolate, Handle<String> string,
 // functionality in a straightforward way.
 class ICUTimezoneCache : public base::TimezoneCache {
  public:
-  ICUTimezoneCache() : timezone_(nullptr) { Clear(); }
+  ICUTimezoneCache() : timezone_(nullptr) { Clear(TimeZoneDetection::kSkip); }
 
-  ~ICUTimezoneCache() override { Clear(); }
+  ~ICUTimezoneCache() override { Clear(TimeZoneDetection::kSkip); }
 
   const char* LocalTimezone(double time_ms) override;
 
@@ -1738,7 +1738,7 @@ class ICUTimezoneCache : public base::TimezoneCache {
 
   double LocalTimeOffset(double time_ms, bool is_utc) override;
 
-  void Clear() override;
+  void Clear(TimeZoneDetection time_zone_detection) override;
 
  private:
   icu::TimeZone* GetTimeZone();
@@ -1811,11 +1811,14 @@ double ICUTimezoneCache::LocalTimeOffset(double time_ms, bool is_utc) {
   return raw_offset + dst_offset;
 }
 
-void ICUTimezoneCache::Clear() {
+void ICUTimezoneCache::Clear(TimeZoneDetection time_zone_detection) {
   delete timezone_;
   timezone_ = nullptr;
   timezone_name_.clear();
   dst_timezone_name_.clear();
+  if (time_zone_detection == TimeZoneDetection::kRedetect) {
+    icu::TimeZone::adoptDefault(icu::TimeZone::detectHostTimeZone());
+  }
 }
 
 base::TimezoneCache* Intl::CreateTimeZoneCache() {
