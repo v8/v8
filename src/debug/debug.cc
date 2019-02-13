@@ -1336,10 +1336,10 @@ bool Debug::GetPossibleBreakpoints(Handle<Script> script, int start_position,
 
     bool was_compiled = false;
     for (const auto& candidate : candidates) {
-      // Code that cannot be compiled lazily are internal and not debuggable.
-      DCHECK(candidate->allows_lazy_compilation());
       IsCompiledScope is_compiled_scope(candidate->is_compiled_scope());
       if (!is_compiled_scope.is_compiled()) {
+        // Code that cannot be compiled lazily are internal and not debuggable.
+        DCHECK(candidate->allows_lazy_compilation());
         if (!Compiler::Compile(candidate, Compiler::CLEAR_EXCEPTION,
                                &is_compiled_scope)) {
           return false;

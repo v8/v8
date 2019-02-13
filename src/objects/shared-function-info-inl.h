@@ -498,10 +498,8 @@ void SharedFunctionInfo::set_bytecode_array(BytecodeArray bytecode) {
 bool SharedFunctionInfo::ShouldFlushBytecode() {
   if (!FLAG_flush_bytecode) return false;
 
-  // TODO(rmcilroy): Enable bytecode flushing for resumable functions amd class
-  // member initializers.
-  if (IsResumableFunction(kind()) ||
-      IsClassMembersInitializerFunction(kind()) || !allows_lazy_compilation()) {
+  // TODO(rmcilroy): Enable bytecode flushing for resumable functions.
+  if (IsResumableFunction(kind()) || !allows_lazy_compilation()) {
     return false;
   }
 
