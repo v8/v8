@@ -883,7 +883,7 @@ void Simulator::TrashCallerSaveRegisters() {
     return WriteEx(addr, value);                                 \
   }
 
-RW_VAR_LIST(GENERATE_RW_FUNC);
+RW_VAR_LIST(GENERATE_RW_FUNC)
 #undef GENERATE_RW_FUNC
 
 // Returns the limit of the stack area to enable checking for stack overflows.

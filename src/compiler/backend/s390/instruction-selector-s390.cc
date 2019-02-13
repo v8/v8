@@ -37,7 +37,7 @@ enum class OperandMode : uint32_t {
 };
 
 typedef base::Flags<OperandMode, uint32_t> OperandModes;
-DEFINE_OPERATORS_FOR_FLAGS(OperandModes);
+DEFINE_OPERATORS_FOR_FLAGS(OperandModes)
 OperandModes immediateModeMask =
     OperandMode::kShift32Imm | OperandMode::kShift64Imm |
     OperandMode::kInt32Imm | OperandMode::kInt32Imm_Negate |
@@ -562,7 +562,7 @@ void VisitBinOp(InstructionSelector* selector, Node* node,
     FlagsContinuation cont;                                               \
     Visit##type1##type2##Op(selector, node, opcode, operand_mode, &cont); \
   }
-VISIT_OP_LIST(DECLARE_VISIT_HELPER_FUNCTIONS);
+VISIT_OP_LIST(DECLARE_VISIT_HELPER_FUNCTIONS)
 #undef DECLARE_VISIT_HELPER_FUNCTIONS
 #undef VISIT_OP_LIST_32
 #undef VISIT_OP_LIST
@@ -1544,10 +1544,10 @@ static inline bool TryMatchDoubleConstructFromInsert(
     Visit##type##BinOp(this, node, op, mode);           \
   }
 
-WORD32_BIN_OP_LIST(DECLARE_BIN_OP);
-WORD32_UNARY_OP_LIST(DECLARE_UNARY_OP);
-FLOAT_UNARY_OP_LIST(DECLARE_UNARY_OP);
-FLOAT_BIN_OP_LIST(DECLARE_BIN_OP);
+WORD32_BIN_OP_LIST(DECLARE_BIN_OP)
+WORD32_UNARY_OP_LIST(DECLARE_UNARY_OP)
+FLOAT_UNARY_OP_LIST(DECLARE_UNARY_OP)
+FLOAT_BIN_OP_LIST(DECLARE_BIN_OP)
 
 #if V8_TARGET_ARCH_S390X
 WORD64_UNARY_OP_LIST(DECLARE_UNARY_OP)
