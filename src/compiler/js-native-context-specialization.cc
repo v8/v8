@@ -1009,7 +1009,9 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadGlobal(Node* node) {
 
   DCHECK(nexus.kind() == FeedbackSlotKind::kLoadGlobalInsideTypeof ||
          nexus.kind() == FeedbackSlotKind::kLoadGlobalNotInsideTypeof);
-  if (nexus.GetFeedback()->IsCleared()) return NoChange();
+  if (nexus.ic_state() != MONOMORPHIC || nexus.GetFeedback()->IsCleared()) {
+    return NoChange();
+  }
   Handle<Object> feedback(nexus.GetFeedback()->GetHeapObjectOrSmi(), isolate());
 
   if (feedback->IsSmi()) {
@@ -1058,7 +1060,9 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreGlobal(Node* node) {
 
   DCHECK(nexus.kind() == FeedbackSlotKind::kStoreGlobalSloppy ||
          nexus.kind() == FeedbackSlotKind::kStoreGlobalStrict);
-  if (nexus.GetFeedback()->IsCleared()) return NoChange();
+  if (nexus.ic_state() != MONOMORPHIC || nexus.GetFeedback()->IsCleared()) {
+    return NoChange();
+  }
   Handle<Object> feedback(nexus.GetFeedback()->GetHeapObjectOrSmi(), isolate());
 
   if (feedback->IsSmi()) {

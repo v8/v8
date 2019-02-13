@@ -11058,6 +11058,50 @@ THREADED_TEST(ShadowObjectAndDataProperty) {
   CHECK(heap_object->IsPropertyCell());
 }
 
+THREADED_TEST(ShadowObjectAndDataPropertyTurbo) {
+  // This test is the same as the previous one except that it triggers
+  // optimization of {foo} after its first invocation.
+  i::FLAG_allow_natives_syntax = true;
+
+  if (i::FLAG_lite_mode) return;
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope handle_scope(isolate);
+
+  Local<ObjectTemplate> global_template = v8::ObjectTemplate::New(isolate);
+  LocalContext context(nullptr, global_template);
+
+  Local<v8::FunctionTemplate> t = v8::FunctionTemplate::New(isolate);
+  t->InstanceTemplate()->SetHandler(
+      v8::NamedPropertyHandlerConfiguration(ShadowNamedGet));
+
+  Local<Value> o = t->GetFunction(context.local())
+                       .ToLocalChecked()
+                       ->NewInstance(context.local())
+                       .ToLocalChecked();
+  CHECK(context->Global()
+            ->Set(context.local(), v8_str("__proto__"), o)
+            .FromJust());
+
+  CompileRun(
+      "function foo(x) { i = x; }"
+      "foo(0)");
+
+  i::Handle<i::JSFunction> foo(i::Handle<i::JSFunction>::cast(
+      v8::Utils::OpenHandle(*context->Global()
+                                 ->Get(context.local(), v8_str("foo"))
+                                 .ToLocalChecked())));
+  CHECK(foo->has_feedback_vector());
+  i::FeedbackSlot slot = i::FeedbackVector::ToSlot(0);
+  i::FeedbackNexus nexus(foo->feedback_vector(), slot);
+  CHECK_EQ(i::FeedbackSlotKind::kStoreGlobalSloppy, nexus.kind());
+  CHECK_EQ(i::PREMONOMORPHIC, nexus.StateFromFeedback());
+  CompileRun("%OptimizeFunctionOnNextCall(foo); foo(1)");
+  CHECK_EQ(i::MONOMORPHIC, nexus.StateFromFeedback());
+  i::HeapObject heap_object;
+  CHECK(nexus.GetFeedback().GetHeapObject(&heap_object));
+  CHECK(heap_object->IsPropertyCell());
+}
+
 THREADED_TEST(SetPrototype) {
   LocalContext context;
   v8::Isolate* isolate = context->GetIsolate();
