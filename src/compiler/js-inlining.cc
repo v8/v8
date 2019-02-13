@@ -408,14 +408,6 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
     return NoChange();
   }
 
-  // Function contains break points.
-  if (shared_info->HasBreakInfo()) {
-    TRACE("Not inlining %s into %s because callee may contain break points\n",
-          shared_info->DebugName()->ToCString().get(),
-          info_->shared_info()->DebugName()->ToCString().get());
-    return NoChange();
-  }
-
   // To ensure inlining always terminates, we have an upper limit on inlining
   // the nested calls.
   int nesting_level = 0;

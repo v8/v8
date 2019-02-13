@@ -5241,6 +5241,11 @@ bool SharedFunctionInfo::IsInlineable() {
     return false;
   }
 
+  if (HasBreakInfo()) {
+    TraceInlining(*this, "false (may contain break points)");
+    return false;
+  }
+
   TraceInlining(*this, "true");
   return true;
 }
