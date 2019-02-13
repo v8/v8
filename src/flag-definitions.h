@@ -1178,10 +1178,6 @@ DEFINE_NEG_IMPLICATION(jitless, validate_asm)
 DEFINE_IMPLICATION(jitless, wasm_interpret_all)
 DEFINE_NEG_IMPLICATION(jitless, asm_wasm_lazy_compilation)
 DEFINE_NEG_IMPLICATION(jitless, wasm_lazy_compilation)
-// Even in interpreter-only mode, wasm currently still creates executable
-// memory at runtime. Disable until this changes.
-// TODO(jgruber): Remove this once / if wasm can run without executable memory.
-DEFINE_NEG_IMPLICATION(jitless, expose_wasm)
 
 // Enable recompilation of function with optimized code.
 DEFINE_BOOL(opt, !V8_LITE_BOOL, "use adaptive optimizations")

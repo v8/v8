@@ -364,7 +364,6 @@
   'regress/regress-813440': [SKIP],
   'regress/regress-crbug-746835': [SKIP],
   'regress/regress-crbug-772056': [SKIP],
-  'regress/regress-crbug-816961': [SKIP],
   'regress/wasm/*': [SKIP],
   'tools/compiler-trace-flags': [SKIP],
   'wasm/*': [SKIP],
