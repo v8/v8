@@ -127,21 +127,7 @@ void CodeSerializer::SerializeObject(HeapObject obj) {
 
   if (SerializeReadOnlyObject(obj)) return;
 
-  if (obj->IsCode()) {
-    Code code_object = Code::cast(obj);
-    switch (code_object->kind()) {
-      case Code::OPTIMIZED_FUNCTION:  // No optimized code compiled yet.
-      case Code::REGEXP:              // No regexp literals initialized yet.
-      case Code::NUMBER_OF_KINDS:     // Pseudo enum value.
-      case Code::BYTECODE_HANDLER:    // No direct references to handlers.
-        break;                        // hit UNREACHABLE below.
-      case Code::STUB:
-      case Code::BUILTIN:
-      default:
-        return SerializeCodeObject(code_object);
-    }
-    UNREACHABLE();
-  }
+  CHECK(!obj->IsCode());
 
   ReadOnlyRoots roots(isolate());
   if (ElideObject(obj)) {
@@ -328,8 +314,6 @@ SerializedCodeData::SerializedCodeData(const std::vector<byte>* payload,
   SetMagicNumber();
   SetHeaderValue(kVersionHashOffset, Version::Hash());
   SetHeaderValue(kSourceHashOffset, cs->source_hash());
-  SetHeaderValue(kCpuFeaturesOffset,
-                 static_cast<uint32_t>(CpuFeatures::SupportedFeatures()));
   SetHeaderValue(kFlagHashOffset, FlagList::Hash());
   SetHeaderValue(kNumReservationsOffset,
                  static_cast<uint32_t>(reservations.size()));
@@ -359,16 +343,12 @@ SerializedCodeData::SanityCheckResult SerializedCodeData::SanityCheck(
   if (magic_number != kMagicNumber) return MAGIC_NUMBER_MISMATCH;
   uint32_t version_hash = GetHeaderValue(kVersionHashOffset);
   uint32_t source_hash = GetHeaderValue(kSourceHashOffset);
-  uint32_t cpu_features = GetHeaderValue(kCpuFeaturesOffset);
   uint32_t flags_hash = GetHeaderValue(kFlagHashOffset);
   uint32_t payload_length = GetHeaderValue(kPayloadLengthOffset);
   uint32_t c1 = GetHeaderValue(kChecksumPartAOffset);
   uint32_t c2 = GetHeaderValue(kChecksumPartBOffset);
   if (version_hash != Version::Hash()) return VERSION_MISMATCH;
   if (source_hash != expected_source_hash) return SOURCE_MISMATCH;
-  if (cpu_features != static_cast<uint32_t>(CpuFeatures::SupportedFeatures())) {
-    return CPU_FEATURES_MISMATCH;
-  }
   if (flags_hash != FlagList::Hash()) return FLAGS_MISMATCH;
   uint32_t max_payload_length =
       this->size_ -
