@@ -25,7 +25,7 @@ class JSProxy : public JSReceiver {
   // [target]: The target property.
   DECL_ACCESSORS(target, Object)
 
-  static MaybeHandle<Context> GetFunctionRealm(Handle<JSProxy> proxy);
+  static MaybeHandle<NativeContext> GetFunctionRealm(Handle<JSProxy> proxy);
 
   DECL_CAST(JSProxy)
 

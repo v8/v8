@@ -476,7 +476,7 @@ Handle<String> JSReceiver::GetConstructorName(Handle<JSReceiver> receiver) {
   return GetConstructorHelper(receiver).second;
 }
 
-Handle<Context> JSReceiver::GetCreationContext() {
+Handle<NativeContext> JSReceiver::GetCreationContext() {
   JSReceiver receiver = *this;
   // Externals are JSObjects with null as a constructor.
   DCHECK(!receiver->IsExternal(GetIsolate()));
@@ -486,7 +486,7 @@ Handle<Context> JSReceiver::GetCreationContext() {
     function = JSFunction::cast(constructor);
   } else if (constructor->IsFunctionTemplateInfo()) {
     // Remote objects don't have a creation context.
-    return Handle<Context>::null();
+    return Handle<NativeContext>::null();
   } else if (receiver->IsJSGeneratorObject()) {
     function = JSGeneratorObject::cast(receiver)->function();
   } else {
@@ -497,13 +497,14 @@ Handle<Context> JSReceiver::GetCreationContext() {
   }
 
   return function->has_context()
-             ? Handle<Context>(function->context()->native_context(),
-                               receiver->GetIsolate())
-             : Handle<Context>::null();
+             ? Handle<NativeContext>(function->context()->native_context(),
+                                     receiver->GetIsolate())
+             : Handle<NativeContext>::null();
 }
 
 // static
-MaybeHandle<Context> JSReceiver::GetFunctionRealm(Handle<JSReceiver> receiver) {
+MaybeHandle<NativeContext> JSReceiver::GetFunctionRealm(
+    Handle<JSReceiver> receiver) {
   if (receiver->IsJSProxy()) {
     return JSProxy::GetFunctionRealm(Handle<JSProxy>::cast(receiver));
   }
@@ -3001,7 +3002,7 @@ Handle<Map> JSObject::GetElementsTransitionMap(Handle<JSObject> object,
 }
 
 // static
-MaybeHandle<Context> JSObject::GetFunctionRealm(Handle<JSObject> object) {
+MaybeHandle<NativeContext> JSObject::GetFunctionRealm(Handle<JSObject> object) {
   DCHECK(object->map()->is_constructor());
   DCHECK(!object->IsJSFunction());
   return object->GetCreationContext();
@@ -4767,7 +4768,7 @@ bool JSObject::IsDroppableApiWrapper() {
 }
 
 // static
-MaybeHandle<Context> JSBoundFunction::GetFunctionRealm(
+MaybeHandle<NativeContext> JSBoundFunction::GetFunctionRealm(
     Handle<JSBoundFunction> function) {
   DCHECK(function->map()->is_constructor());
   return JSReceiver::GetFunctionRealm(
@@ -4863,7 +4864,8 @@ Maybe<int> JSFunction::GetLength(Isolate* isolate,
 }
 
 // static
-Handle<Context> JSFunction::GetFunctionRealm(Handle<JSFunction> function) {
+Handle<NativeContext> JSFunction::GetFunctionRealm(
+    Handle<JSFunction> function) {
   DCHECK(function->map()->is_constructor());
   return handle(function->context()->native_context(), function->GetIsolate());
 }

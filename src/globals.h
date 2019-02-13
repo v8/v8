@@ -565,6 +565,7 @@ class MessageLocation;
 class ModuleScope;
 class Name;
 class NameDictionary;
+class NativeContext;
 class NewSpace;
 class NewLargeObjectSpace;
 class NumberDictionary;

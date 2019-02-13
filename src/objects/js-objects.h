@@ -77,7 +77,8 @@ class JSReceiver : public HeapObject {
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> OrdinaryToPrimitive(
       Handle<JSReceiver> receiver, OrdinaryToPrimitiveHint hint);
 
-  static MaybeHandle<Context> GetFunctionRealm(Handle<JSReceiver> receiver);
+  static MaybeHandle<NativeContext> GetFunctionRealm(
+      Handle<JSReceiver> receiver);
 
   // Get the first non-hidden prototype.
   static inline MaybeHandle<Object> GetPrototype(Isolate* isolate,
@@ -203,7 +204,7 @@ class JSReceiver : public HeapObject {
   // function that was used to instantiate the object).
   static Handle<String> GetConstructorName(Handle<JSReceiver> receiver);
 
-  Handle<Context> GetCreationContext();
+  Handle<NativeContext> GetCreationContext();
 
   V8_WARN_UNUSED_RESULT static inline Maybe<PropertyAttributes>
   GetPropertyAttributes(Handle<JSReceiver> object, Handle<Name> name);
@@ -281,7 +282,7 @@ class JSObject : public JSReceiver {
       Handle<JSFunction> constructor, Handle<JSReceiver> new_target,
       Handle<AllocationSite> site);
 
-  static MaybeHandle<Context> GetFunctionRealm(Handle<JSObject> object);
+  static MaybeHandle<NativeContext> GetFunctionRealm(Handle<JSObject> object);
 
   // 9.1.12 ObjectCreate ( proto [ , internalSlotsList ] )
   // Notice: This is NOT 19.1.2.2 Object.create ( O, Properties )
@@ -921,7 +922,7 @@ class JSBoundFunction : public JSObject {
                                      Handle<JSBoundFunction> function);
   static Maybe<int> GetLength(Isolate* isolate,
                               Handle<JSBoundFunction> function);
-  static MaybeHandle<Context> GetFunctionRealm(
+  static MaybeHandle<NativeContext> GetFunctionRealm(
       Handle<JSBoundFunction> function);
 
   DECL_CAST(JSBoundFunction)
@@ -960,11 +961,11 @@ class JSFunction : public JSObject {
   inline bool has_context() const;
   inline void set_context(Object context);
   inline JSGlobalProxy global_proxy();
-  inline Context native_context();
+  inline NativeContext native_context();
 
   static Handle<Object> GetName(Isolate* isolate, Handle<JSFunction> function);
   static Maybe<int> GetLength(Isolate* isolate, Handle<JSFunction> function);
-  static Handle<Context> GetFunctionRealm(Handle<JSFunction> function);
+  static Handle<NativeContext> GetFunctionRealm(Handle<JSFunction> function);
 
   // [code]: The generated code object for this function.  Executed
   // when the function is invoked, e.g. foo() or new foo(). See
@@ -1173,7 +1174,7 @@ class JSGlobalProxy : public JSObject {
 class JSGlobalObject : public JSObject {
  public:
   // [native context]: the natives corresponding to this global object.
-  DECL_ACCESSORS(native_context, Context)
+  DECL_ACCESSORS(native_context, NativeContext)
 
   // [global proxy]: the global proxy object of the context
   DECL_ACCESSORS(global_proxy, JSObject)

@@ -4845,7 +4845,8 @@ Local<v8::Object> v8::Object::Clone() {
 
 Local<v8::Context> v8::Object::CreationContext() {
   auto self = Utils::OpenHandle(this);
-  return Utils::ToLocal(self->GetCreationContext());
+  i::Handle<i::Context> context = self->GetCreationContext();
+  return Utils::ToLocal(context);
 }
 
 
