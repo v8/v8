@@ -236,11 +236,11 @@ Map Context::GetInitialJSArrayMap(ElementsKind kind) const {
 
 MicrotaskQueue* NativeContext::microtask_queue() const {
   return reinterpret_cast<MicrotaskQueue*>(
-      READ_INTPTR_FIELD(this, kMicrotaskQueueOffset));
+      READ_INTPTR_FIELD(*this, kMicrotaskQueueOffset));
 }
 
 void NativeContext::set_microtask_queue(MicrotaskQueue* microtask_queue) {
-  WRITE_INTPTR_FIELD(this, kMicrotaskQueueOffset,
+  WRITE_INTPTR_FIELD(*this, kMicrotaskQueueOffset,
                      reinterpret_cast<intptr_t>(microtask_queue));
 }
 

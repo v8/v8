@@ -25,12 +25,12 @@ INT32_ACCESSORS(String, length, kLengthOffset)
 
 int String::synchronized_length() const {
   return base::AsAtomic32::Acquire_Load(
-      reinterpret_cast<const int32_t*>(FIELD_ADDR(this, kLengthOffset)));
+      reinterpret_cast<const int32_t*>(FIELD_ADDR(*this, kLengthOffset)));
 }
 
 void String::synchronized_set_length(int value) {
   base::AsAtomic32::Release_Store(
-      reinterpret_cast<int32_t*>(FIELD_ADDR(this, kLengthOffset)), value);
+      reinterpret_cast<int32_t*>(FIELD_ADDR(*this, kLengthOffset)), value);
 }
 
 OBJECT_CONSTRUCTORS_IMPL(String, Name)
@@ -382,7 +382,7 @@ String String::GetUnderlying() {
   STATIC_ASSERT(static_cast<int>(ConsString::kFirstOffset) ==
                 static_cast<int>(ThinString::kActualOffset));
   const int kUnderlyingOffset = SlicedString::kParentOffset;
-  return String::cast(READ_FIELD(this, kUnderlyingOffset));
+  return String::cast(READ_FIELD(*this, kUnderlyingOffset));
 }
 
 template <class Visitor>
@@ -467,17 +467,17 @@ uint32_t String::ToValidIndex(Object number) {
 
 uint16_t SeqOneByteString::SeqOneByteStringGet(int index) {
   DCHECK(index >= 0 && index < length());
-  return READ_BYTE_FIELD(this, kHeaderSize + index * kCharSize);
+  return READ_BYTE_FIELD(*this, kHeaderSize + index * kCharSize);
 }
 
 void SeqOneByteString::SeqOneByteStringSet(int index, uint16_t value) {
   DCHECK(index >= 0 && index < length() && value <= kMaxOneByteCharCode);
-  WRITE_BYTE_FIELD(this, kHeaderSize + index * kCharSize,
+  WRITE_BYTE_FIELD(*this, kHeaderSize + index * kCharSize,
                    static_cast<byte>(value));
 }
 
 Address SeqOneByteString::GetCharsAddress() {
-  return FIELD_ADDR(this, kHeaderSize);
+  return FIELD_ADDR(*this, kHeaderSize);
 }
 
 uint8_t* SeqOneByteString::GetChars(const DisallowHeapAllocation& no_gc) {
@@ -486,22 +486,22 @@ uint8_t* SeqOneByteString::GetChars(const DisallowHeapAllocation& no_gc) {
 }
 
 Address SeqTwoByteString::GetCharsAddress() {
-  return FIELD_ADDR(this, kHeaderSize);
+  return FIELD_ADDR(*this, kHeaderSize);
 }
 
 uc16* SeqTwoByteString::GetChars(const DisallowHeapAllocation& no_gc) {
   USE(no_gc);
-  return reinterpret_cast<uc16*>(FIELD_ADDR(this, kHeaderSize));
+  return reinterpret_cast<uc16*>(FIELD_ADDR(*this, kHeaderSize));
 }
 
 uint16_t SeqTwoByteString::SeqTwoByteStringGet(int index) {
   DCHECK(index >= 0 && index < length());
-  return READ_UINT16_FIELD(this, kHeaderSize + index * kShortSize);
+  return READ_UINT16_FIELD(*this, kHeaderSize + index * kShortSize);
 }
 
 void SeqTwoByteString::SeqTwoByteStringSet(int index, uint16_t value) {
   DCHECK(index >= 0 && index < length());
-  WRITE_UINT16_FIELD(this, kHeaderSize + index * kShortSize, value);
+  WRITE_UINT16_FIELD(*this, kHeaderSize + index * kShortSize, value);
 }
 
 int SeqTwoByteString::SeqTwoByteStringSize(InstanceType instance_type) {
@@ -526,7 +526,7 @@ void SlicedString::set_parent(Isolate* isolate, String parent,
 SMI_ACCESSORS(SlicedString, offset, kOffsetOffset)
 
 String ConsString::first() {
-  return String::cast(READ_FIELD(this, kFirstOffset));
+  return String::cast(READ_FIELD(*this, kFirstOffset));
 }
 
 Object ConsString::unchecked_first() { return READ_FIELD(*this, kFirstOffset); }

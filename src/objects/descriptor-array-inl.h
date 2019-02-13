@@ -54,7 +54,7 @@ inline int16_t DescriptorArray::CompareAndSwapRawNumberOfMarkedDescriptors(
     int16_t expected, int16_t value) {
   return base::Relaxed_CompareAndSwap(
       reinterpret_cast<base::Atomic16*>(
-          FIELD_ADDR(this, kRawNumberOfMarkedDescriptorsOffset)),
+          FIELD_ADDR(*this, kRawNumberOfMarkedDescriptorsOffset)),
       expected, value);
 }
 

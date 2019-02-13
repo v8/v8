@@ -586,7 +586,7 @@ MaybeHandle<Object> Object::SetElement(Isolate* isolate, Handle<Object> object,
 }
 
 ObjectSlot HeapObject::RawField(int byte_offset) const {
-  return ObjectSlot(FIELD_ADDR(this, byte_offset));
+  return ObjectSlot(FIELD_ADDR(*this, byte_offset));
 }
 
 ObjectSlot HeapObject::RawField(const HeapObject obj, int byte_offset) {
@@ -594,7 +594,7 @@ ObjectSlot HeapObject::RawField(const HeapObject obj, int byte_offset) {
 }
 
 MaybeObjectSlot HeapObject::RawMaybeWeakField(int byte_offset) const {
-  return MaybeObjectSlot(FIELD_ADDR(this, byte_offset));
+  return MaybeObjectSlot(FIELD_ADDR(*this, byte_offset));
 }
 
 MaybeObjectSlot HeapObject::RawMaybeWeakField(HeapObject obj, int byte_offset) {
@@ -618,15 +618,16 @@ HeapObject MapWord::ToForwardingAddress() {
 
 #ifdef VERIFY_HEAP
 void HeapObject::VerifyObjectField(Isolate* isolate, int offset) {
-  VerifyPointer(isolate, READ_FIELD(this, offset));
+  VerifyPointer(isolate, READ_FIELD(*this, offset));
 }
 
 void HeapObject::VerifyMaybeObjectField(Isolate* isolate, int offset) {
-  MaybeObject::VerifyMaybeObjectPointer(isolate, READ_WEAK_FIELD(this, offset));
+  MaybeObject::VerifyMaybeObjectPointer(isolate,
+                                        READ_WEAK_FIELD(*this, offset));
 }
 
 void HeapObject::VerifySmiField(int offset) {
-  CHECK(READ_FIELD(this, offset)->IsSmi());
+  CHECK(READ_FIELD(*this, offset)->IsSmi());
 }
 
 #endif
@@ -824,7 +825,7 @@ AllocationAlignment HeapObject::RequiredAlignment(Map map) {
 }
 
 Address HeapObject::GetFieldAddress(int field_offset) const {
-  return FIELD_ADDR(this, field_offset);
+  return FIELD_ADDR(*this, field_offset);
 }
 
 ACCESSORS(TemplateObjectDescription, raw_strings, FixedArray, kRawStringsOffset)

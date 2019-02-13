@@ -406,7 +406,7 @@ class SmallOrderedHashTable : public HeapObject {
   Object KeyAt(int entry) const {
     DCHECK_LT(entry, Capacity());
     Offset entry_offset = GetDataEntryOffset(entry, Derived::kKeyIndex);
-    return READ_FIELD(this, entry_offset);
+    return READ_FIELD(*this, entry_offset);
   }
 
   DECL_VERIFIER(SmallOrderedHashTable)
@@ -449,7 +449,7 @@ class SmallOrderedHashTable : public HeapObject {
   }
 
   Address GetHashTableStartAddress(int capacity) const {
-    return FIELD_ADDR(this,
+    return FIELD_ADDR(*this,
                       DataTableStartOffset() + DataTableSizeFor(capacity));
   }
 
@@ -491,7 +491,7 @@ class SmallOrderedHashTable : public HeapObject {
     DCHECK_LT(entry, Capacity());
     DCHECK_LE(static_cast<unsigned>(relative_index), Derived::kEntrySize);
     Offset entry_offset = GetDataEntryOffset(entry, relative_index);
-    return READ_FIELD(this, entry_offset);
+    return READ_FIELD(*this, entry_offset);
   }
 
   int HashToBucket(int hash) const { return hash & (NumberOfBuckets() - 1); }
@@ -542,13 +542,13 @@ class SmallOrderedHashTable : public HeapObject {
   byte getByte(Offset offset, ByteIndex index) const {
     DCHECK(offset < DataTableStartOffset() ||
            offset >= GetBucketsStartOffset());
-    return READ_BYTE_FIELD(this, offset + (index * kOneByteSize));
+    return READ_BYTE_FIELD(*this, offset + (index * kOneByteSize));
   }
 
   void setByte(Offset offset, ByteIndex index, byte value) {
     DCHECK(offset < DataTableStartOffset() ||
            offset >= GetBucketsStartOffset());
-    WRITE_BYTE_FIELD(this, offset + (index * kOneByteSize), value);
+    WRITE_BYTE_FIELD(*this, offset + (index * kOneByteSize), value);
   }
 
   Offset GetDataEntryOffset(int entry, int relative_index) const {

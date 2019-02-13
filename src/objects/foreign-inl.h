@@ -26,11 +26,11 @@ bool Foreign::IsNormalized(Object value) {
 }
 
 Address Foreign::foreign_address() {
-  return READ_UINTPTR_FIELD(this, kForeignAddressOffset);
+  return READ_UINTPTR_FIELD(*this, kForeignAddressOffset);
 }
 
 void Foreign::set_foreign_address(Address value) {
-  WRITE_UINTPTR_FIELD(this, kForeignAddressOffset, value);
+  WRITE_UINTPTR_FIELD(*this, kForeignAddressOffset, value);
 }
 
 }  // namespace internal

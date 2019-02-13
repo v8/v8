@@ -184,22 +184,22 @@ class MutableBigInt : public FreshlyAllocatedBigInt {
 // Internal field setters. Non-mutable BigInts don't have these.
 #include "src/objects/object-macros.h"
   inline void set_sign(bool new_sign) {
-    int32_t bitfield = RELAXED_READ_INT32_FIELD(this, kBitfieldOffset);
+    int32_t bitfield = RELAXED_READ_INT32_FIELD(*this, kBitfieldOffset);
     bitfield = SignBits::update(bitfield, new_sign);
-    RELAXED_WRITE_INT32_FIELD(this, kBitfieldOffset, bitfield);
+    RELAXED_WRITE_INT32_FIELD(*this, kBitfieldOffset, bitfield);
   }
   inline void synchronized_set_length(int new_length) {
-    int32_t bitfield = RELAXED_READ_INT32_FIELD(this, kBitfieldOffset);
+    int32_t bitfield = RELAXED_READ_INT32_FIELD(*this, kBitfieldOffset);
     bitfield = LengthBits::update(bitfield, new_length);
-    RELEASE_WRITE_INT32_FIELD(this, kBitfieldOffset, bitfield);
+    RELEASE_WRITE_INT32_FIELD(*this, kBitfieldOffset, bitfield);
   }
   inline void initialize_bitfield(bool sign, int length) {
     int32_t bitfield = LengthBits::encode(length) | SignBits::encode(sign);
-    WRITE_INT32_FIELD(this, kBitfieldOffset, bitfield);
+    WRITE_INT32_FIELD(*this, kBitfieldOffset, bitfield);
   }
   inline void set_digit(int n, digit_t value) {
     SLOW_DCHECK(0 <= n && n < length());
-    Address address = FIELD_ADDR(this, kDigitsOffset + n * kDigitSize);
+    Address address = FIELD_ADDR(*this, kDigitsOffset + n * kDigitSize);
     (*reinterpret_cast<digit_t*>(address)) = value;
   }
 

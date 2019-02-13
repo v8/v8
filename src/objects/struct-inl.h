@@ -36,7 +36,7 @@ CAST_ACCESSOR(ClassPositions)
 void Struct::InitializeBody(int object_size) {
   Object value = GetReadOnlyRoots().undefined_value();
   for (int offset = kHeaderSize; offset < object_size; offset += kPointerSize) {
-    WRITE_FIELD(this, offset, value);
+    WRITE_FIELD(*this, offset, value);
   }
 }
 

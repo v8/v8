@@ -209,20 +209,20 @@ FixedArrayBase Map::GetInitialElements() const {
 
 VisitorId Map::visitor_id() const {
   return static_cast<VisitorId>(
-      RELAXED_READ_BYTE_FIELD(this, kVisitorIdOffset));
+      RELAXED_READ_BYTE_FIELD(*this, kVisitorIdOffset));
 }
 
 void Map::set_visitor_id(VisitorId id) {
   CHECK_LT(static_cast<unsigned>(id), 256);
-  RELAXED_WRITE_BYTE_FIELD(this, kVisitorIdOffset, static_cast<byte>(id));
+  RELAXED_WRITE_BYTE_FIELD(*this, kVisitorIdOffset, static_cast<byte>(id));
 }
 
 int Map::instance_size_in_words() const {
-  return RELAXED_READ_BYTE_FIELD(this, kInstanceSizeInWordsOffset);
+  return RELAXED_READ_BYTE_FIELD(*this, kInstanceSizeInWordsOffset);
 }
 
 void Map::set_instance_size_in_words(int value) {
-  RELAXED_WRITE_BYTE_FIELD(this, kInstanceSizeInWordsOffset,
+  RELAXED_WRITE_BYTE_FIELD(*this, kInstanceSizeInWordsOffset,
                            static_cast<byte>(value));
 }
 
@@ -239,14 +239,14 @@ void Map::set_instance_size(int value) {
 
 int Map::inobject_properties_start_or_constructor_function_index() const {
   return RELAXED_READ_BYTE_FIELD(
-      this, kInObjectPropertiesStartOrConstructorFunctionIndexOffset);
+      *this, kInObjectPropertiesStartOrConstructorFunctionIndexOffset);
 }
 
 void Map::set_inobject_properties_start_or_constructor_function_index(
     int value) {
   CHECK_LT(static_cast<unsigned>(value), 256);
   RELAXED_WRITE_BYTE_FIELD(
-      this, kInObjectPropertiesStartOrConstructorFunctionIndexOffset,
+      *this, kInObjectPropertiesStartOrConstructorFunctionIndexOffset,
       static_cast<byte>(value));
 }
 
@@ -289,11 +289,11 @@ Handle<Map> Map::AddMissingTransitionsForTesting(
 
 InstanceType Map::instance_type() const {
   return static_cast<InstanceType>(
-      READ_UINT16_FIELD(this, kInstanceTypeOffset));
+      READ_UINT16_FIELD(*this, kInstanceTypeOffset));
 }
 
 void Map::set_instance_type(InstanceType value) {
-  WRITE_UINT16_FIELD(this, kInstanceTypeOffset, value);
+  WRITE_UINT16_FIELD(*this, kInstanceTypeOffset, value);
 }
 
 int Map::UnusedPropertyFields() const {
@@ -322,12 +322,12 @@ int Map::UnusedInObjectProperties() const {
 }
 
 int Map::used_or_unused_instance_size_in_words() const {
-  return RELAXED_READ_BYTE_FIELD(this, kUsedOrUnusedInstanceSizeInWordsOffset);
+  return RELAXED_READ_BYTE_FIELD(*this, kUsedOrUnusedInstanceSizeInWordsOffset);
 }
 
 void Map::set_used_or_unused_instance_size_in_words(int value) {
   CHECK_LE(static_cast<unsigned>(value), 255);
-  RELAXED_WRITE_BYTE_FIELD(this, kUsedOrUnusedInstanceSizeInWordsOffset,
+  RELAXED_WRITE_BYTE_FIELD(*this, kUsedOrUnusedInstanceSizeInWordsOffset,
                            static_cast<byte>(value));
 }
 
@@ -415,16 +415,18 @@ void Map::AccountAddedOutOfObjectPropertyField(int unused_in_property_array) {
   DCHECK_EQ(unused_in_property_array, UnusedPropertyFields());
 }
 
-byte Map::bit_field() const { return READ_BYTE_FIELD(this, kBitFieldOffset); }
+byte Map::bit_field() const { return READ_BYTE_FIELD(*this, kBitFieldOffset); }
 
 void Map::set_bit_field(byte value) {
-  WRITE_BYTE_FIELD(this, kBitFieldOffset, value);
+  WRITE_BYTE_FIELD(*this, kBitFieldOffset, value);
 }
 
-byte Map::bit_field2() const { return READ_BYTE_FIELD(this, kBitField2Offset); }
+byte Map::bit_field2() const {
+  return READ_BYTE_FIELD(*this, kBitField2Offset);
+}
 
 void Map::set_bit_field2(byte value) {
-  WRITE_BYTE_FIELD(this, kBitField2Offset, value);
+  WRITE_BYTE_FIELD(*this, kBitField2Offset, value);
 }
 
 bool Map::is_abandoned_prototype_map() const {
@@ -549,7 +551,7 @@ bool Map::IsPrimitiveMap() const {
   return instance_type() <= LAST_PRIMITIVE_TYPE;
 }
 
-Object Map::prototype() const { return READ_FIELD(this, kPrototypeOffset); }
+Object Map::prototype() const { return READ_FIELD(*this, kPrototypeOffset); }
 
 void Map::set_prototype(Object value, WriteBarrierMode mode) {
   DCHECK(value->IsNull() || value->IsJSReceiver());
@@ -616,13 +618,13 @@ void Map::InitializeDescriptors(Isolate* isolate, DescriptorArray descriptors,
 
 void Map::set_bit_field3(uint32_t bits) {
   if (kInt32Size != kTaggedSize) {
-    RELAXED_WRITE_UINT32_FIELD(this, kBitField3Offset + kInt32Size, 0);
+    RELAXED_WRITE_UINT32_FIELD(*this, kBitField3Offset + kInt32Size, 0);
   }
-  RELAXED_WRITE_UINT32_FIELD(this, kBitField3Offset, bits);
+  RELAXED_WRITE_UINT32_FIELD(*this, kBitField3Offset, bits);
 }
 
 uint32_t Map::bit_field3() const {
-  return RELAXED_READ_UINT32_FIELD(this, kBitField3Offset);
+  return RELAXED_READ_UINT32_FIELD(*this, kBitField3Offset);
 }
 
 LayoutDescriptor Map::GetLayoutDescriptor() const {
@@ -678,7 +680,7 @@ Map Map::ElementsTransitionMap() {
 
 Object Map::prototype_info() const {
   DCHECK(is_prototype_map());
-  return READ_FIELD(this, Map::kTransitionsOrPrototypeInfoOffset);
+  return READ_FIELD(*this, Map::kTransitionsOrPrototypeInfoOffset);
 }
 
 void Map::set_prototype_info(Object value, WriteBarrierMode mode) {

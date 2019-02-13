@@ -25,13 +25,13 @@ class ValueSerializer;
 class BigIntBase : public HeapObject {
  public:
   inline int length() const {
-    int32_t bitfield = RELAXED_READ_INT32_FIELD(this, kBitfieldOffset);
+    int32_t bitfield = RELAXED_READ_INT32_FIELD(*this, kBitfieldOffset);
     return LengthBits::decode(static_cast<uint32_t>(bitfield));
   }
 
   // For use by the GC.
   inline int synchronized_length() const {
-    int32_t bitfield = ACQUIRE_READ_INT32_FIELD(this, kBitfieldOffset);
+    int32_t bitfield = ACQUIRE_READ_INT32_FIELD(*this, kBitfieldOffset);
     return LengthBits::decode(static_cast<uint32_t>(bitfield));
   }
 
@@ -81,13 +81,13 @@ class BigIntBase : public HeapObject {
 
   // sign() == true means negative.
   inline bool sign() const {
-    int32_t bitfield = RELAXED_READ_INT32_FIELD(this, kBitfieldOffset);
+    int32_t bitfield = RELAXED_READ_INT32_FIELD(*this, kBitfieldOffset);
     return SignBits::decode(static_cast<uint32_t>(bitfield));
   }
 
   inline digit_t digit(int n) const {
     SLOW_DCHECK(0 <= n && n < length());
-    Address address = FIELD_ADDR(this, kDigitsOffset + n * kDigitSize);
+    Address address = FIELD_ADDR(*this, kDigitsOffset + n * kDigitSize);
     return *reinterpret_cast<digit_t*>(address);
   }
 
