@@ -116,7 +116,6 @@ void AstTraversalVisitor<Subclass>::VisitStatements(
   for (int i = 0; i < stmts->length(); ++i) {
     Statement* stmt = stmts->at(i);
     RECURSE(Visit(stmt));
-    if (stmt->IsJump()) break;
   }
 }
 

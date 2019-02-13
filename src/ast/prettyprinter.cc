@@ -782,6 +782,8 @@ const char* AstPrinter::PrintProgram(FunctionLiteral* program) {
   { IndentedScope indent(this, "FUNC", program->position());
     PrintIndented("KIND");
     Print(" %d\n", program->kind());
+    PrintIndented("LITERAL ID");
+    Print(" %d\n", program->function_literal_id());
     PrintIndented("SUSPEND COUNT");
     Print(" %d\n", program->suspend_count());
     PrintLiteralIndented("NAME", program->raw_name(), true);
@@ -1033,6 +1035,8 @@ void AstPrinter::VisitDebuggerStatement(DebuggerStatement* node) {
 
 void AstPrinter::VisitFunctionLiteral(FunctionLiteral* node) {
   IndentedScope indent(this, "FUNC LITERAL", node->position());
+  PrintIndented("LITERAL ID");
+  Print(" %d\n", node->function_literal_id());
   PrintLiteralIndented("NAME", node->raw_name(), false);
   PrintLiteralIndented("INFERRED NAME", node->raw_inferred_name(), false);
   // We don't want to see the function literal in this case: it
