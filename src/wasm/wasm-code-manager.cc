@@ -722,8 +722,8 @@ WasmCode* NativeModule::CreateEmptyJumpTable(uint32_t num_wasm_functions) {
                       instructions.as_vector(),       // instructions
                       0,                              // stack_slots
                       0,                              // tagged_parameter_slots
-                      instructions.size(),            // safepoint_table_offset
-                      instructions.size(),            // handler_table_offset
+                      0,                              // safepoint_table_offset
+                      0,                              // handler_table_offset
                       instructions.size(),            // constant_pool_offset
                       instructions.size(),            // code_comments_offset
                       instructions.size(),            // unpadded_binary_size
