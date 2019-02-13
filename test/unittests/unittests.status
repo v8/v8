@@ -24,6 +24,7 @@
 ##############################################################################
 ['lite_mode or variant == jitless', {
   # TODO(v8:7777): Re-enable once wasm is supported in jitless mode.
+  'ValueSerializerTestWithSharedArrayBufferClone.RoundTripWebAssemblyMemory': [SKIP],
   'ValueSerializerTestWithWasm.*': [SKIP],
   'Parameterized/WasmCodeManagerTest.*': [SKIP],
 }], # lite_mode or variant == jitless
