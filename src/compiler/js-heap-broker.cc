@@ -11,6 +11,7 @@
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/per-isolate-compiler-cache.h"
 #include "src/objects-inl.h"
+#include "src/objects/allocation-site-inl.h"
 #include "src/objects/cell-inl.h"
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/instance-type-inl.h"
@@ -1452,7 +1453,7 @@ void JSObjectData::SerializeRecursive(JSHeapBroker* broker, int depth) {
       elements_object->map() == ReadOnlyRoots(isolate).fixed_cow_array_map();
   if (empty_or_cow) {
     // We need to make sure copy-on-write elements are tenured.
-    if (Heap::InYoungGeneration(*elements_object)) {
+    if (ObjectInYoungGeneration(*elements_object)) {
       elements_object = isolate->factory()->CopyAndTenureFixedCOWArray(
           Handle<FixedArray>::cast(elements_object));
       boilerplate->set_elements(*elements_object);
@@ -2030,7 +2031,7 @@ void JSObjectRef::EnsureElementsTenured() {
     AllowHeapAllocation allow_heap_allocation;
 
     Handle<FixedArrayBase> object_elements = elements().object();
-    if (Heap::InYoungGeneration(*object_elements)) {
+    if (ObjectInYoungGeneration(*object_elements)) {
       // If we would like to pretenure a fixed cow array, we must ensure that
       // the array is already in old space, otherwise we'll create too many
       // old-to-new-space pointers (overflowing the store buffer).

@@ -13,6 +13,7 @@
 #include "src/elements.h"
 #include "src/field-type.h"
 #include "src/handles-inl.h"
+#include "src/heap/heap-inl.h"
 #include "src/ic/ic.h"
 #include "src/isolate.h"
 #include "src/layout-descriptor.h"
@@ -2039,9 +2040,8 @@ void JSObject::EnsureWritableFastElements(Handle<JSObject> object) {
   DCHECK(object->HasSmiOrObjectElements() ||
          object->HasFastStringWrapperElements());
   FixedArray raw_elems = FixedArray::cast(object->elements());
-  Heap* heap = object->GetHeap();
-  if (raw_elems->map() != ReadOnlyRoots(heap).fixed_cow_array_map()) return;
-  Isolate* isolate = heap->isolate();
+  Isolate* isolate = object->GetIsolate();
+  if (raw_elems->map() != ReadOnlyRoots(isolate).fixed_cow_array_map()) return;
   Handle<FixedArray> elems(raw_elems, isolate);
   Handle<FixedArray> writable_elems = isolate->factory()->CopyFixedArrayWithMap(
       elems, isolate->factory()->fixed_array_map());

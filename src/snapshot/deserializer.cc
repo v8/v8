@@ -5,6 +5,7 @@
 #include "src/snapshot/deserializer.h"
 
 #include "src/assembler-inl.h"
+#include "src/heap/heap-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/interpreter/interpreter.h"
 #include "src/isolate.h"

@@ -14,6 +14,7 @@
 #include "src/regexp/jsregexp.h"
 #include "src/regexp/property-sequences.h"
 #include "src/utils.h"
+#include "src/zone/zone-list-inl.h"
 
 #ifdef V8_INTL_SUPPORT
 #include "unicode/uniset.h"

@@ -62,7 +62,7 @@ class HeapObject : public Object {
   HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
 #undef IS_TYPE_FUNCTION_DECL
 
-  V8_INLINE bool IsExternal(Isolate* isolate) const;
+  bool IsExternal(Isolate* isolate) const;
 
 // Oddball checks are faster when they are raw pointer comparisons, so the
 // isolate/read-only roots overloads should be preferred where possible.

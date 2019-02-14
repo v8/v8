@@ -12,9 +12,11 @@
 #include "src/disassembler.h"
 #include "src/elements.h"
 #include "src/field-type.h"
+#include "src/heap/heap-write-barrier-inl.h"
 #include "src/ic/handler-configuration-inl.h"
 #include "src/layout-descriptor.h"
 #include "src/objects-inl.h"
+#include "src/objects/allocation-site-inl.h"
 #include "src/objects/arguments-inl.h"
 #include "src/objects/bigint.h"
 #include "src/objects/cell-inl.h"
@@ -635,12 +637,12 @@ void JSObject::JSObjectVerify(Isolate* isolate) {
 
 void Map::MapVerify(Isolate* isolate) {
   Heap* heap = isolate->heap();
-  CHECK(!Heap::InYoungGeneration(*this));
+  CHECK(!ObjectInYoungGeneration(*this));
   CHECK(FIRST_TYPE <= instance_type() && instance_type() <= LAST_TYPE);
   CHECK(instance_size() == kVariableSizeSentinel ||
         (kTaggedSize <= instance_size() &&
          static_cast<size_t>(instance_size()) < heap->Capacity()));
-  CHECK(GetBackPointer()->IsUndefined(heap->isolate()) ||
+  CHECK(GetBackPointer()->IsUndefined(isolate) ||
         !Map::cast(GetBackPointer())->is_stable());
   HeapObject::VerifyHeapPointer(isolate, prototype());
   HeapObject::VerifyHeapPointer(isolate, instance_descriptors());
@@ -991,7 +993,7 @@ void String::StringVerify(Isolate* isolate) {
   CHECK(length() >= 0 && length() <= Smi::kMaxValue);
   CHECK_IMPLIES(length() == 0, *this == ReadOnlyRoots(isolate).empty_string());
   if (IsInternalizedString()) {
-    CHECK(!Heap::InYoungGeneration(*this));
+    CHECK(!ObjectInYoungGeneration(*this));
   }
   if (IsConsString()) {
     ConsString::cast(*this)->ConsStringVerify(isolate);

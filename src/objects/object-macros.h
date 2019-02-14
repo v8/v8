@@ -278,21 +278,21 @@
 
 #define WRITE_BARRIER(object, offset, value)                        \
   do {                                                              \
-    DCHECK_NOT_NULL(Heap::FromWritableHeapObject(object));          \
+    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));             \
     MarkingBarrier(object, (object)->RawField(offset), value);      \
     GenerationalBarrier(object, (object)->RawField(offset), value); \
   } while (false)
 
 #define WEAK_WRITE_BARRIER(object, offset, value)                            \
   do {                                                                       \
-    DCHECK_NOT_NULL(Heap::FromWritableHeapObject(object));                   \
+    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                      \
     MarkingBarrier(object, (object)->RawMaybeWeakField(offset), value);      \
     GenerationalBarrier(object, (object)->RawMaybeWeakField(offset), value); \
   } while (false)
 
 #define CONDITIONAL_WRITE_BARRIER(object, offset, value, mode)        \
   do {                                                                \
-    DCHECK_NOT_NULL(Heap::FromWritableHeapObject(object));            \
+    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));               \
     if (mode != SKIP_WRITE_BARRIER) {                                 \
       if (mode == UPDATE_WRITE_BARRIER) {                             \
         MarkingBarrier(object, (object)->RawField(offset), value);    \
@@ -303,7 +303,7 @@
 
 #define CONDITIONAL_WEAK_WRITE_BARRIER(object, offset, value, mode)            \
   do {                                                                         \
-    DCHECK_NOT_NULL(Heap::FromWritableHeapObject(object));                     \
+    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                        \
     if (mode != SKIP_WRITE_BARRIER) {                                          \
       if (mode == UPDATE_WRITE_BARRIER) {                                      \
         MarkingBarrier(object, (object)->RawMaybeWeakField(offset), value);    \

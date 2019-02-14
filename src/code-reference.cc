@@ -4,6 +4,7 @@
 
 #include "src/code-reference.h"
 
+#include "src/code-desc.h"
 #include "src/globals.h"
 #include "src/handles-inl.h"
 #include "src/objects-inl.h"

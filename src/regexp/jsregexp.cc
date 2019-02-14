@@ -13,6 +13,7 @@
 #include "src/elements.h"
 #include "src/execution.h"
 #include "src/heap/factory.h"
+#include "src/heap/heap-inl.h"
 #include "src/isolate-inl.h"
 #include "src/message-template.h"
 #include "src/ostreams.h"
@@ -28,6 +29,7 @@
 #include "src/string-search.h"
 #include "src/unicode-decoder.h"
 #include "src/unicode-inl.h"
+#include "src/zone/zone-list-inl.h"
 
 #ifdef V8_INTL_SUPPORT
 #include "unicode/uniset.h"
@@ -6754,7 +6756,7 @@ RegExpEngine::CompilationResult RegExpEngine::Compile(
 bool RegExpEngine::TooMuchRegExpCode(Isolate* isolate, Handle<String> pattern) {
   Heap* heap = isolate->heap();
   bool too_much = pattern->length() > RegExpImpl::kRegExpTooLargeToOptimize;
-  if (heap->isolate()->total_regexp_code_generated() >
+  if (isolate->total_regexp_code_generated() >
           RegExpImpl::kRegExpCompiledLimit &&
       heap->CommittedMemoryExecutable() >
           RegExpImpl::kRegExpExecutableMemoryLimit) {

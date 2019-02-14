@@ -15,6 +15,7 @@
 #include "src/field-type.h"
 #include "src/global-handles.h"
 #include "src/heap/factory.h"
+#include "src/heap/heap-inl.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/spaces.h"
 #include "src/ic/ic.h"

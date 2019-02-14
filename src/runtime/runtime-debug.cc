@@ -15,6 +15,7 @@
 #include "src/debug/liveedit.h"
 #include "src/frames-inl.h"
 #include "src/globals.h"
+#include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
 #include "src/interpreter/bytecode-array-accessor.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/interpreter/interpreter.h"

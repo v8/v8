@@ -14,11 +14,15 @@
 #include "src/compiler.h"
 #include "src/conversions.h"
 #include "src/counters.h"
+#include "src/hash-seed-inl.h"
+#include "src/heap/heap-inl.h"
+#include "src/heap/incremental-marking.h"
 #include "src/heap/mark-compact-inl.h"
 #include "src/ic/handler-configuration-inl.h"
 #include "src/interpreter/interpreter.h"
 #include "src/isolate-inl.h"
 #include "src/log.h"
+#include "src/objects/allocation-site-inl.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/arguments-inl.h"
 #include "src/objects/bigint.h"
@@ -607,12 +611,12 @@ Handle<AccessorPair> Factory::NewAccessorPair() {
 
 // Internalized strings are created in the old generation (data space).
 Handle<String> Factory::InternalizeUtf8String(Vector<const char> string) {
-  Utf8StringKey key(string, isolate()->heap()->HashSeed());
+  Utf8StringKey key(string, HashSeed(isolate()));
   return InternalizeStringWithKey(&key);
 }
 
 Handle<String> Factory::InternalizeOneByteString(Vector<const uint8_t> string) {
-  OneByteStringKey key(string, isolate()->heap()->HashSeed());
+  OneByteStringKey key(string, HashSeed(isolate()));
   return InternalizeStringWithKey(&key);
 }
 
@@ -623,7 +627,7 @@ Handle<String> Factory::InternalizeOneByteString(
 }
 
 Handle<String> Factory::InternalizeTwoByteString(Vector<const uc16> string) {
-  TwoByteStringKey key(string, isolate()->heap()->HashSeed());
+  TwoByteStringKey key(string, HashSeed(isolate()));
   return InternalizeStringWithKey(&key);
 }
 

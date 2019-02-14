@@ -16,6 +16,7 @@
 #include "src/debug/debug.h"
 #include "src/external-reference-table.h"
 #include "src/frames-inl.h"
+#include "src/heap/heap-inl.h"  // For MemoryChunk.
 #include "src/macro-assembler.h"
 #include "src/objects/heap-number.h"
 #include "src/register-configuration.h"

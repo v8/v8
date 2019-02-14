@@ -8,7 +8,7 @@
 #include "include/v8.h"
 
 #include "src/frames.h"
-#include "src/heap/heap.h"
+#include "src/heap/heap-inl.h"
 #include "src/heap/spaces.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"

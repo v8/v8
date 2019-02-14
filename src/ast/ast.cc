@@ -23,6 +23,7 @@
 #include "src/property-details.h"
 #include "src/property.h"
 #include "src/string-stream.h"
+#include "src/zone/zone-list-inl.h"
 
 namespace v8 {
 namespace internal {

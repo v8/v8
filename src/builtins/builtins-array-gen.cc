@@ -12,6 +12,7 @@
 #include "src/code-stub-assembler.h"
 #include "src/frame-constants.h"
 #include "src/heap/factory-inl.h"
+#include "src/objects/allocation-site-inl.h"
 #include "src/objects/arguments-inl.h"
 #include "src/objects/property-cell.h"
 

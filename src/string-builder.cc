@@ -166,7 +166,7 @@ ReplacementStringBuilder::ReplacementStringBuilder(Heap* heap,
                                                    Handle<String> subject,
                                                    int estimated_part_count)
     : heap_(heap),
-      array_builder_(heap->isolate(), estimated_part_count),
+      array_builder_(Isolate::FromHeap(heap), estimated_part_count),
       subject_(subject),
       character_count_(0),
       is_one_byte_(subject->IsOneByteRepresentation()) {
@@ -176,7 +176,7 @@ ReplacementStringBuilder::ReplacementStringBuilder(Heap* heap,
 }
 
 void ReplacementStringBuilder::EnsureCapacity(int elements) {
-  array_builder_.EnsureCapacity(heap_->isolate(), elements);
+  array_builder_.EnsureCapacity(Isolate::FromHeap(heap_), elements);
 }
 
 void ReplacementStringBuilder::AddString(Handle<String> string) {
@@ -190,7 +190,7 @@ void ReplacementStringBuilder::AddString(Handle<String> string) {
 }
 
 MaybeHandle<String> ReplacementStringBuilder::ToString() {
-  Isolate* isolate = heap_->isolate();
+  Isolate* isolate = Isolate::FromHeap(heap_);
   if (array_builder_.length() == 0) {
     return isolate->factory()->empty_string();
   }

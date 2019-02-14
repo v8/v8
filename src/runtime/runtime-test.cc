@@ -16,6 +16,8 @@
 #include "src/counters.h"
 #include "src/deoptimizer.h"
 #include "src/frames-inl.h"
+#include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
+#include "src/heap/heap-write-barrier-inl.h"
 #include "src/ic/stub-cache.h"
 #include "src/isolate-inl.h"
 #include "src/objects/heap-object-inl.h"
@@ -805,7 +807,7 @@ RUNTIME_FUNCTION(Runtime_InNewSpace) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_CHECKED(Object, obj, 0);
-  return isolate->heap()->ToBoolean(Heap::InYoungGeneration(obj));
+  return isolate->heap()->ToBoolean(ObjectInYoungGeneration(obj));
 }
 
 RUNTIME_FUNCTION(Runtime_IsAsmWasmCode) {

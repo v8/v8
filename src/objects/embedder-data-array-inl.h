@@ -7,7 +7,7 @@
 
 #include "src/objects/embedder-data-array.h"
 
-//#include "src/objects-inl.h"  // Needed for write barriers
+#include "src/objects/instance-type-inl.h"
 #include "src/objects/maybe-object-inl.h"
 #include "src/objects/slots.h"
 

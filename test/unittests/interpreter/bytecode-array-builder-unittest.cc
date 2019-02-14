@@ -7,6 +7,7 @@
 #include "src/v8.h"
 
 #include "src/ast/scopes.h"
+#include "src/hash-seed-inl.h"
 #include "src/interpreter/bytecode-array-builder.h"
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/interpreter/bytecode-jump-table.h"
@@ -34,7 +35,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   BytecodeArrayBuilder builder(zone(), 1, 131, &feedback_spec);
   Factory* factory = isolate()->factory();
   AstValueFactory ast_factory(zone(), isolate()->ast_string_constants(),
-                              isolate()->heap()->HashSeed());
+                              HashSeed(isolate()));
   DeclarationScope scope(zone(), &ast_factory);
 
   CHECK_EQ(builder.locals_count(), 131);
@@ -534,7 +535,7 @@ TEST_F(BytecodeArrayBuilderTest, Parameters) {
 TEST_F(BytecodeArrayBuilderTest, Constants) {
   BytecodeArrayBuilder builder(zone(), 1, 0);
   AstValueFactory ast_factory(zone(), isolate()->ast_string_constants(),
-                              isolate()->heap()->HashSeed());
+                              HashSeed(isolate()));
 
   double heap_num_1 = 3.14;
   double heap_num_2 = 5.2;

@@ -7,7 +7,7 @@
 #include "src/ast/ast.h"
 #include "src/base/bits.h"
 #include "src/counters.h"
-#include "src/heap/heap.h"
+#include "src/heap/heap-inl.h"  // For InYoungGeneration().
 #include "src/ic/ic-inl.h"
 
 namespace v8 {

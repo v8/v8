@@ -7,7 +7,10 @@
 
 #include "src/objects/free-space.h"
 
-#include "src/heap/heap-inl.h"
+#include "src/heap/heap-write-barrier-inl.h"
+#include "src/heap/heap.h"
+#include "src/isolate.h"
+#include "src/objects-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -24,8 +27,9 @@ int FreeSpace::Size() { return size(); }
 
 FreeSpace FreeSpace::next() {
 #ifdef DEBUG
-  Heap* heap = Heap::FromWritableHeapObject(*this);
-  Object free_space_map = heap->isolate()->root(RootIndex::kFreeSpaceMap);
+  Heap* heap = GetHeapFromWritableObject(*this);
+  Object free_space_map =
+      Isolate::FromHeap(heap)->root(RootIndex::kFreeSpaceMap);
   DCHECK_IMPLIES(!map_slot().contains_value(free_space_map->ptr()),
                  !heap->deserialization_complete() &&
                      map_slot().contains_value(kNullAddress));
@@ -36,8 +40,9 @@ FreeSpace FreeSpace::next() {
 
 void FreeSpace::set_next(FreeSpace next) {
 #ifdef DEBUG
-  Heap* heap = Heap::FromWritableHeapObject(*this);
-  Object free_space_map = heap->isolate()->root(RootIndex::kFreeSpaceMap);
+  Heap* heap = GetHeapFromWritableObject(*this);
+  Object free_space_map =
+      Isolate::FromHeap(heap)->root(RootIndex::kFreeSpaceMap);
   DCHECK_IMPLIES(!map_slot().contains_value(free_space_map->ptr()),
                  !heap->deserialization_complete() &&
                      map_slot().contains_value(kNullAddress));
@@ -47,7 +52,7 @@ void FreeSpace::set_next(FreeSpace next) {
 }
 
 FreeSpace FreeSpace::cast(HeapObject o) {
-  SLOW_DCHECK(!Heap::FromWritableHeapObject(o)->deserialization_complete() ||
+  SLOW_DCHECK(!GetHeapFromWritableObject(o)->deserialization_complete() ||
               o->IsFreeSpace());
   return bit_cast<FreeSpace>(o);
 }

@@ -608,11 +608,6 @@ class Isolate final : private HiddenFactory {
     return isolate;
   }
 
-  // Get the isolate that the given HeapObject lives in, returning true on
-  // success. If the object is not writable (i.e. lives in read-only space),
-  // return false.
-  inline static bool FromWritableHeapObject(HeapObject obj, Isolate** isolate);
-
   // Usually called by Init(), but can be called early e.g. to allow
   // testing components that require logging but not the whole
   // isolate.
@@ -970,6 +965,10 @@ class Isolate final : private HiddenFactory {
   }
   StackGuard* stack_guard() { return &stack_guard_; }
   Heap* heap() { return &heap_; }
+  static Isolate* FromHeap(Heap* heap) {
+    return reinterpret_cast<Isolate*>(reinterpret_cast<Address>(heap) -
+                                      OFFSET_OF(Isolate, heap_));
+  }
 
   const IsolateData* isolate_data() const { return &isolate_data_; }
   IsolateData* isolate_data() { return &isolate_data_; }
@@ -1924,10 +1923,8 @@ class Isolate final : private HiddenFactory {
   DISALLOW_COPY_AND_ASSIGN(Isolate);
 };
 
-
 #undef FIELD_ACCESSOR
 #undef THREAD_LOCAL_TOP_ACCESSOR
-
 
 class PromiseOnStack {
  public:

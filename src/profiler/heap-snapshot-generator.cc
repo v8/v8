@@ -14,6 +14,7 @@
 #include "src/layout-descriptor.h"
 #include "src/objects-body-descriptors.h"
 #include "src/objects-inl.h"
+#include "src/objects/allocation-site-inl.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/cell-inl.h"
 #include "src/objects/feedback-cell-inl.h"
@@ -788,8 +789,9 @@ void V8HeapExplorer::ExtractJSObjectReferences(HeapEntry* entry,
   ExtractPropertyReferences(js_obj, entry);
   ExtractElementReferences(js_obj, entry);
   ExtractInternalReferences(js_obj, entry);
-  PrototypeIterator iter(heap_->isolate(), js_obj);
-  ReadOnlyRoots roots(heap_);
+  Isolate* isolate = Isolate::FromHeap(heap_);
+  PrototypeIterator iter(isolate, js_obj);
+  ReadOnlyRoots roots(isolate);
   SetPropertyReference(entry, roots.proto_string(), iter.GetCurrent());
   if (obj->IsJSBoundFunction()) {
     JSBoundFunction js_fun = JSBoundFunction::cast(obj);
@@ -810,7 +812,7 @@ void V8HeapExplorer::ExtractJSObjectReferences(HeapEntry* entry,
     JSFunction js_fun = JSFunction::cast(js_obj);
     if (js_fun->has_prototype_slot()) {
       Object proto_or_map = js_fun->prototype_or_initial_map();
-      if (!proto_or_map->IsTheHole(heap_->isolate())) {
+      if (!proto_or_map->IsTheHole(isolate)) {
         if (!proto_or_map->IsMap()) {
           SetPropertyReference(entry, roots.prototype_string(), proto_or_map,
                                nullptr,
@@ -1694,7 +1696,7 @@ void V8HeapExplorer::SetGcSubrootReference(Root root, const char* description,
 
 const char* V8HeapExplorer::GetStrongGcSubrootName(Object object) {
   if (strong_gc_subroot_names_.empty()) {
-    Isolate* isolate = heap_->isolate();
+    Isolate* isolate = Isolate::FromHeap(heap_);
     for (RootIndex root_index = RootIndex::kFirstStrongOrReadOnlyRoot;
          root_index <= RootIndex::kLastStrongOrReadOnlyRoot; ++root_index) {
       const char* name = RootsTable::name(root_index);
@@ -1739,7 +1741,7 @@ class GlobalObjectsEnumerator : public RootVisitor {
 
 // Modifies heap. Must not be run during heap traversal.
 void V8HeapExplorer::TagGlobalObjects() {
-  Isolate* isolate = heap_->isolate();
+  Isolate* isolate = Isolate::FromHeap(heap_);
   HandleScope scope(isolate);
   GlobalObjectsEnumerator enumerator;
   isolate->global_handles()->IterateAllRoots(&enumerator);
@@ -1864,12 +1866,12 @@ HeapEntry* EmbedderGraphEntriesAllocator::AllocateEntry(HeapThing ptr) {
 
 NativeObjectsExplorer::NativeObjectsExplorer(
     HeapSnapshot* snapshot, SnapshottingProgressReportingInterface* progress)
-    : isolate_(snapshot->profiler()->heap_object_map()->heap()->isolate()),
+    : isolate_(
+          Isolate::FromHeap(snapshot->profiler()->heap_object_map()->heap())),
       snapshot_(snapshot),
       names_(snapshot_->profiler()->names()),
       embedder_graph_entries_allocator_(
           new EmbedderGraphEntriesAllocator(snapshot)) {}
-
 
 HeapEntry* NativeObjectsExplorer::EntryForEmbedderGraphNode(
     EmbedderGraphImpl::Node* node) {
@@ -1973,7 +1975,7 @@ bool HeapSnapshotGenerator::GenerateSnapshot() {
   heap_->PreciseCollectAllGarbage(Heap::kNoGCFlags,
                                   GarbageCollectionReason::kHeapProfiler);
 
-  NullContextScope null_context_scope(heap_->isolate());
+  NullContextScope null_context_scope(Isolate::FromHeap(heap_));
 
 #ifdef VERIFY_HEAP
   Heap* debug_heap = heap_;

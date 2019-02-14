@@ -7,8 +7,7 @@
 
 #include "src/objects/name.h"
 
-#include "src/heap/heap-inl.h"
-#include "src/heap/heap-write-barrier.h"
+#include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/map-inl.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -92,7 +91,7 @@ uint32_t Name::Hash() {
   // Also the string must be writable, because read-only strings will have their
   // hash values precomputed.
   return String::cast(*this)->ComputeAndSetHash(
-      Heap::FromWritableHeapObject(*this)->isolate());
+      Isolate::FromHeap(GetHeapFromWritableObject(*this)));
 }
 
 bool Name::IsInterestingSymbol() const {

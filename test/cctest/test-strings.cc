@@ -37,6 +37,7 @@
 #include "src/api-inl.h"
 #include "src/base/platform/elapsed-timer.h"
 #include "src/heap/factory.h"
+#include "src/heap/heap-inl.h"
 #include "src/messages.h"
 #include "src/objects-inl.h"
 #include "src/unicode-decoder.h"

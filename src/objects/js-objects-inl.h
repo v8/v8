@@ -433,9 +433,9 @@ Object JSObject::InObjectPropertyAtPut(int index, Object value,
 void JSObject::InitializeBody(Map map, int start_offset,
                               Object pre_allocated_value, Object filler_value) {
   DCHECK_IMPLIES(filler_value->IsHeapObject(),
-                 !Heap::InYoungGeneration(filler_value));
+                 !ObjectInYoungGeneration(filler_value));
   DCHECK_IMPLIES(pre_allocated_value->IsHeapObject(),
-                 !Heap::InYoungGeneration(pre_allocated_value));
+                 !ObjectInYoungGeneration(pre_allocated_value));
   int size = map->instance_size();
   int offset = start_offset;
   if (filler_value != pre_allocated_value) {
@@ -548,13 +548,13 @@ Code JSFunction::code() const {
 }
 
 void JSFunction::set_code(Code value) {
-  DCHECK(!Heap::InYoungGeneration(value));
+  DCHECK(!ObjectInYoungGeneration(value));
   RELAXED_WRITE_FIELD(*this, kCodeOffset, value);
   MarkingBarrier(*this, RawField(kCodeOffset), value);
 }
 
 void JSFunction::set_code_no_write_barrier(Code value) {
-  DCHECK(!Heap::InYoungGeneration(value));
+  DCHECK(!ObjectInYoungGeneration(value));
   RELAXED_WRITE_FIELD(*this, kCodeOffset, value);
 }
 
@@ -851,8 +851,8 @@ NumberDictionary JSObject::element_dictionary() {
 
 void JSReceiver::initialize_properties() {
   ReadOnlyRoots roots = GetReadOnlyRoots();
-  DCHECK(!Heap::InYoungGeneration(roots.empty_fixed_array()));
-  DCHECK(!Heap::InYoungGeneration(roots.empty_property_dictionary()));
+  DCHECK(!ObjectInYoungGeneration(roots.empty_fixed_array()));
+  DCHECK(!ObjectInYoungGeneration(roots.empty_property_dictionary()));
   if (map()->is_dictionary_map()) {
     WRITE_FIELD(*this, kPropertiesOrHashOffset,
                 roots.empty_property_dictionary());
@@ -996,7 +996,7 @@ static inline bool ShouldConvertToSlowElements(JSObject object,
   // TODO(ulan): Check if it works with young large objects.
   if (*new_capacity <= JSObject::kMaxUncheckedOldFastElementsLength ||
       (*new_capacity <= JSObject::kMaxUncheckedFastElementsLength &&
-       Heap::InYoungGeneration(object))) {
+       ObjectInYoungGeneration(object))) {
     return false;
   }
   // If the fast-case backing storage takes up much more memory than a

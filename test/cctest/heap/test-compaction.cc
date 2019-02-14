@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/heap/factory.h"
+#include "src/heap/heap-inl.h"
 #include "src/heap/mark-compact.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"

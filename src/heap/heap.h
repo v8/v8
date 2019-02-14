@@ -509,8 +509,6 @@ class Heap {
 
   void IncrementDeferredCount(v8::Isolate::UseCounterFeature feature);
 
-  inline uint64_t HashSeed();
-
   inline int NextScriptId();
   inline int NextDebuggingId();
   inline int GetNextTemplateSerialNumber();
@@ -894,8 +892,8 @@ class Heap {
 
   // Called when a string's resource is changed. The size of the payload is sent
   // as argument of the method.
-  inline void UpdateExternalString(String string, size_t old_payload,
-                                   size_t new_payload);
+  void UpdateExternalString(String string, size_t old_payload,
+                            size_t new_payload);
 
   // Finalizes an external string by deleting the associated external
   // data and clearing the resource pointer.

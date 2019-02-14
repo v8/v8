@@ -21,12 +21,13 @@
 #include "src/double.h"
 #include "src/handles-inl.h"
 #include "src/heap/factory.h"
+#include "src/heap/heap-write-barrier-inl.h"
 #include "src/keys.h"
-#include "src/lookup-inl.h"
+#include "src/lookup-inl.h"  // TODO(jkummerow): Drop.
 #include "src/objects/bigint.h"
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/heap-object.h"
-#include "src/objects/js-proxy-inl.h"
+#include "src/objects/js-proxy-inl.h"  // TODO(jkummerow): Drop.
 #include "src/objects/literal-objects.h"
 #include "src/objects/oddball.h"
 #include "src/objects/regexp-match-info.h"
@@ -80,10 +81,6 @@ bool HeapObject::IsDataHandler() const {
 }
 
 bool HeapObject::IsClassBoilerplate() const { return IsFixedArrayExact(); }
-
-bool HeapObject::IsExternal(Isolate* isolate) const {
-  return map()->FindRootMap(isolate) == isolate->heap()->external_map();
-}
 
 #define IS_TYPE_FUNCTION_DEF(type_)                                \
   bool Object::Is##type_() const {                                 \
@@ -395,7 +392,6 @@ bool Object::IsMinusZero() const {
          i::IsMinusZero(HeapNumber::cast(*this)->value());
 }
 
-OBJECT_CONSTRUCTORS_IMPL(HeapObject, Object)
 OBJECT_CONSTRUCTORS_IMPL(RegExpMatchInfo, FixedArray)
 OBJECT_CONSTRUCTORS_IMPL(ScopeInfo, FixedArray)
 OBJECT_CONSTRUCTORS_IMPL(BigIntBase, HeapObject)
@@ -408,8 +404,6 @@ OBJECT_CONSTRUCTORS_IMPL(TemplateObjectDescription, Tuple2)
 // Cast operations
 
 CAST_ACCESSOR(BigInt)
-CAST_ACCESSOR(HeapObject)
-CAST_ACCESSOR(Object)
 CAST_ACCESSOR(RegExpMatchInfo)
 CAST_ACCESSOR(ScopeInfo)
 CAST_ACCESSOR(TemplateObjectDescription)
@@ -635,7 +629,7 @@ void HeapObject::VerifySmiField(int offset) {
 ReadOnlyRoots HeapObject::GetReadOnlyRoots() const {
   // TODO(v8:7464): When RO_SPACE is embedded, this will access a global
   // variable instead.
-  return ReadOnlyRoots(MemoryChunk::FromHeapObject(*this)->heap());
+  return ReadOnlyRoots(GetHeapFromWritableObject(*this));
 }
 
 Map HeapObject::map() const { return map_word().ToMap(); }
@@ -643,7 +637,7 @@ Map HeapObject::map() const { return map_word().ToMap(); }
 void HeapObject::set_map(Map value) {
   if (!value.is_null()) {
 #ifdef VERIFY_HEAP
-    Heap::FromWritableHeapObject(*this)->VerifyObjectLayoutChange(*this, value);
+    GetHeapFromWritableObject(*this)->VerifyObjectLayoutChange(*this, value);
 #endif
   }
   set_map_word(MapWord::FromMap(value));
@@ -661,7 +655,7 @@ Map HeapObject::synchronized_map() const {
 void HeapObject::synchronized_set_map(Map value) {
   if (!value.is_null()) {
 #ifdef VERIFY_HEAP
-    Heap::FromWritableHeapObject(*this)->VerifyObjectLayoutChange(*this, value);
+    GetHeapFromWritableObject(*this)->VerifyObjectLayoutChange(*this, value);
 #endif
   }
   synchronized_set_map_word(MapWord::FromMap(value));
@@ -677,7 +671,7 @@ void HeapObject::synchronized_set_map(Map value) {
 void HeapObject::set_map_no_write_barrier(Map value) {
   if (!value.is_null()) {
 #ifdef VERIFY_HEAP
-    Heap::FromWritableHeapObject(*this)->VerifyObjectLayoutChange(*this, value);
+    GetHeapFromWritableObject(*this)->VerifyObjectLayoutChange(*this, value);
 #endif
   }
   set_map_word(MapWord::FromMap(value));
@@ -806,10 +800,7 @@ void RegExpMatchInfo::SetCapture(int i, int value) {
 
 WriteBarrierMode HeapObject::GetWriteBarrierMode(
     const DisallowHeapAllocation& promise) {
-  Heap* heap = Heap::FromWritableHeapObject(*this);
-  if (heap->incremental_marking()->IsMarking()) return UPDATE_WRITE_BARRIER;
-  if (Heap::InYoungGeneration(*this)) return SKIP_WRITE_BARRIER;
-  return UPDATE_WRITE_BARRIER;
+  return GetWriteBarrierModeForObject(*this, &promise);
 }
 
 AllocationAlignment HeapObject::RequiredAlignment(Map map) {
@@ -994,7 +985,7 @@ Relocatable::~Relocatable() {
 // offset of the address in respective MemoryChunk.
 static inline uint32_t ObjectAddressForHashing(Address object) {
   uint32_t value = static_cast<uint32_t>(object);
-  return value & MemoryChunk::kAlignmentMask;
+  return value & kPageAlignmentMask;
 }
 
 static inline Handle<Object> MakeEntryPair(Isolate* isolate, uint32_t index,

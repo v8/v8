@@ -10,6 +10,8 @@
 #include "src/bootstrapper.h"
 #include "src/disasm.h"
 #include "src/disassembler.h"
+#include "src/heap/heap-inl.h"                // For InOldSpace.
+#include "src/heap/heap-write-barrier-inl.h"  // For GetIsolateFromWritableObj.
 #include "src/interpreter/bytecodes.h"
 #include "src/objects-inl.h"
 #include "src/objects/arguments-inl.h"
@@ -96,8 +98,9 @@ void HeapObject::PrintHeader(std::ostream& os, const char* id) {  // NOLINT
     os << map()->instance_type();
   }
   os << "]";
-  MemoryChunk* chunk = MemoryChunk::FromAddress(ptr());
-  if (chunk->owner()->identity() == OLD_SPACE) os << " in OldSpace";
+  if (GetHeapFromWritableObject(*this)->InOldSpace(*this)) {
+    os << " in OldSpace";
+  }
   if (!IsMap()) os << "\n - map: " << Brief(map());
 }
 
@@ -2446,7 +2449,7 @@ void Map::MapPrint(std::ostream& os) {  // NOLINT
   Isolate* isolate;
   // Read-only maps can't have transitions, which is fortunate because we need
   // the isolate to iterate over the transitions.
-  if (Isolate::FromWritableHeapObject(*this, &isolate)) {
+  if (GetIsolateFromWritableObject(*this, &isolate)) {
     DisallowHeapAllocation no_gc;
     TransitionsAccessor transitions(isolate, *this, &no_gc);
     int nof_transitions = transitions.NumberOfTransitions();

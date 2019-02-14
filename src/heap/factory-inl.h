@@ -12,8 +12,10 @@
 #include "src/handles-inl.h"
 #include "src/isolate-inl.h"
 #include "src/objects-inl.h"
+#include "src/objects/feedback-cell.h"
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/oddball.h"
+#include "src/objects/string-inl.h"
 #include "src/string-hasher.h"
 
 namespace v8 {

@@ -40,6 +40,7 @@
 #include "src/base/optional.h"
 #include "src/collector.h"
 #include "src/debug/debug.h"
+#include "src/heap/heap-inl.h"
 #include "src/objects-inl.h"
 #include "src/profiler/allocation-tracker.h"
 #include "src/profiler/heap-profiler.h"

@@ -9,6 +9,7 @@
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/code-stub-assembler.h"
 #include "src/heap/factory-inl.h"
+#include "src/heap/heap-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/js-collection.h"
 #include "torque-generated/builtins-base-from-dsl-gen.h"

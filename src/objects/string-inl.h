@@ -9,6 +9,7 @@
 
 #include "src/conversions-inl.h"
 #include "src/handles-inl.h"
+#include "src/hash-seed-inl.h"
 #include "src/heap/factory.h"
 #include "src/objects/name-inl.h"
 #include "src/objects/smi-inl.h"
@@ -243,7 +244,7 @@ class SeqOneByteSubStringKey : public StringTableKey {
     // We have to set the hash later.
     DisallowHeapAllocation no_gc;
     uint32_t hash = StringHasher::HashSequentialString(
-        string->GetChars(no_gc) + from, length, isolate->heap()->HashSeed());
+        string->GetChars(no_gc) + from, length, HashSeed(isolate));
     set_hash_field(hash);
 
     DCHECK_LE(0, length_);
@@ -603,8 +604,9 @@ void ExternalOneByteString::SetResource(
     Isolate* isolate, const ExternalOneByteString::Resource* resource) {
   set_resource(resource);
   size_t new_payload = resource == nullptr ? 0 : resource->length();
-  if (new_payload > 0)
+  if (new_payload > 0) {
     isolate->heap()->UpdateExternalString(*this, 0, new_payload);
+  }
 }
 
 void ExternalOneByteString::set_resource(
@@ -638,8 +640,9 @@ void ExternalTwoByteString::SetResource(
     Isolate* isolate, const ExternalTwoByteString::Resource* resource) {
   set_resource(resource);
   size_t new_payload = resource == nullptr ? 0 : resource->length() * 2;
-  if (new_payload > 0)
+  if (new_payload > 0) {
     isolate->heap()->UpdateExternalString(*this, 0, new_payload);
+  }
 }
 
 void ExternalTwoByteString::set_resource(

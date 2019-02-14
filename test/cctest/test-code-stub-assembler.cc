@@ -14,6 +14,7 @@
 #include "src/code-stub-assembler.h"
 #include "src/compiler/node.h"
 #include "src/debug/debug.h"
+#include "src/hash-seed-inl.h"
 #include "src/heap/heap-inl.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
@@ -350,7 +351,7 @@ TEST(ComputeIntegerHash) {
     Handle<Smi> key(Smi::FromInt(k), isolate);
     Handle<Object> result = ft.Call(key).ToHandleChecked();
 
-    uint32_t hash = ComputeSeededHash(k, isolate->heap()->HashSeed());
+    uint32_t hash = ComputeSeededHash(k, HashSeed(isolate));
     Smi expected = Smi::FromInt(hash);
     CHECK_EQ(expected, Smi::cast(*result));
   }

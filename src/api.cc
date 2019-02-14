@@ -45,6 +45,7 @@
 #include "src/gdb-jit.h"
 #include "src/global-handles.h"
 #include "src/globals.h"
+#include "src/heap/heap-inl.h"
 #include "src/icu_util.h"
 #include "src/isolate-inl.h"
 #include "src/json-parser.h"
@@ -5595,7 +5596,7 @@ Local<Value> Symbol::Name() const {
   i::Handle<i::Symbol> sym = Utils::OpenHandle(this);
 
   i::Isolate* isolate;
-  if (!i::Isolate::FromWritableHeapObject(*sym, &isolate)) {
+  if (!i::GetIsolateFromWritableObject(*sym, &isolate)) {
     // If the Symbol is in RO_SPACE, then its name must be too. Since RO_SPACE
     // objects are immovable we can use the Handle(Address*) constructor with
     // the address of the name field in the Symbol object without needing an
@@ -6495,10 +6496,10 @@ bool v8::String::MakeExternal(v8::String::ExternalStringResource* resource) {
     return false;
   }
 
-  // It is safe to call FromWritable because SupportsExternalization already
-  // checked that the object is writable.
+  // It is safe to call GetIsolateFromWritableHeapObject because
+  // SupportsExternalization already checked that the object is writable.
   i::Isolate* isolate;
-  i::Isolate::FromWritableHeapObject(obj, &isolate);
+  i::GetIsolateFromWritableObject(obj, &isolate);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
 
   CHECK(resource && resource->data());
@@ -6524,10 +6525,10 @@ bool v8::String::MakeExternal(
     return false;
   }
 
-  // It is safe to call FromWritable because SupportsExternalization already
-  // checked that the object is writable.
+  // It is safe to call GetIsolateFromWritableHeapObject because
+  // SupportsExternalization already checked that the object is writable.
   i::Isolate* isolate;
-  i::Isolate::FromWritableHeapObject(obj, &isolate);
+  i::GetIsolateFromWritableObject(obj, &isolate);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
 
   CHECK(resource && resource->data());

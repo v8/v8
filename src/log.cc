@@ -1759,7 +1759,8 @@ static int EnumerateWasmModuleObjects(
     if (obj->IsWasmModuleObject()) {
       WasmModuleObject module = WasmModuleObject::cast(obj);
       if (module_objects != nullptr) {
-        module_objects[module_objects_count] = handle(module, heap->isolate());
+        module_objects[module_objects_count] =
+            handle(module, Isolate::FromHeap(heap));
       }
       module_objects_count++;
     }

@@ -10,7 +10,7 @@
 #include "src/ast/ast.h"
 #include "src/feedback-vector-inl.h"
 #include "src/handles-inl.h"
-#include "src/heap/heap-inl.h"
+#include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/scope-info.h"
 #include "src/objects/templates.h"
@@ -611,7 +611,7 @@ void SharedFunctionInfo::ClearPreparseData() {
   // Trim off the pre-parsed scope data from the uncompiled data by swapping the
   // map, leaving only an uncompiled data without pre-parsed scope.
   DisallowHeapAllocation no_gc;
-  Heap* heap = Heap::FromWritableHeapObject(data);
+  Heap* heap = GetHeapFromWritableObject(data);
 
   // Swap the map.
   heap->NotifyObjectLayoutChange(data, UncompiledDataWithPreparseData::kSize,

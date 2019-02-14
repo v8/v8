@@ -8,8 +8,8 @@
 #include "src/builtins/builtins.h"
 #include "src/code-events.h"
 #include "src/compiler/code-assembler.h"
-
 #include "src/handles-inl.h"
+#include "src/heap/heap-inl.h"  // For MemoryAllocator::code_range.
 #include "src/interface-descriptors.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/interpreter/interpreter-generator.h"

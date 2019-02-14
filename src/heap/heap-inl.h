@@ -294,19 +294,6 @@ void Heap::RegisterExternalString(String string) {
   external_string_table_.AddString(string);
 }
 
-void Heap::UpdateExternalString(String string, size_t old_payload,
-                                size_t new_payload) {
-  DCHECK(string->IsExternalString());
-  Page* page = Page::FromHeapObject(string);
-
-  if (old_payload > new_payload)
-    page->DecrementExternalBackingStoreBytes(
-        ExternalBackingStoreType::kExternalString, old_payload - new_payload);
-  else
-    page->IncrementExternalBackingStoreBytes(
-        ExternalBackingStoreType::kExternalString, new_payload - old_payload);
-}
-
 void Heap::FinalizeExternalString(String string) {
   DCHECK(string->IsExternalString());
   Page* page = Page::FromHeapObject(string);
@@ -551,14 +538,6 @@ void Heap::ExternalStringTable::AddString(String string) {
 Oddball Heap::ToBoolean(bool condition) {
   ReadOnlyRoots roots(this);
   return condition ? roots.true_value() : roots.false_value();
-}
-
-uint64_t Heap::HashSeed() {
-  uint64_t seed;
-  ReadOnlyRoots(this).hash_seed()->copy_out(0, reinterpret_cast<byte*>(&seed),
-                                            kInt64Size);
-  DCHECK(FLAG_randomize_hashes || seed == 0);
-  return seed;
 }
 
 int Heap::NextScriptId() {

@@ -201,10 +201,10 @@ INT_ACCESSORS(Code, handler_table_offset, kHandlerTableOffsetOffset)
 INT_ACCESSORS(Code, code_comments_offset, kCodeCommentsOffsetOffset)
 #define CODE_ACCESSORS(name, type, offset)           \
   ACCESSORS_CHECKED2(Code, name, type, offset, true, \
-                     !Heap::InYoungGeneration(value))
+                     !ObjectInYoungGeneration(value))
 #define SYNCHRONIZED_CODE_ACCESSORS(name, type, offset)           \
   SYNCHRONIZED_ACCESSORS_CHECKED2(Code, name, type, offset, true, \
-                                  !Heap::InYoungGeneration(value))
+                                  !ObjectInYoungGeneration(value))
 
 CODE_ACCESSORS(relocation_info, ByteArray, kRelocationInfoOffset)
 CODE_ACCESSORS(deoptimization_data, FixedArray, kDeoptimizationDataOffset)

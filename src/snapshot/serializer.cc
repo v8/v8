@@ -5,7 +5,7 @@
 #include "src/snapshot/serializer.h"
 
 #include "src/assembler-inl.h"
-#include "src/heap/heap.h"
+#include "src/heap/heap-inl.h"  // For Space::identity().
 #include "src/interpreter/interpreter.h"
 #include "src/objects/code.h"
 #include "src/objects/js-array-buffer-inl.h"

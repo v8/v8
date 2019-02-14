@@ -27,6 +27,7 @@
 #include "src/runtime/runtime.h"
 #include "src/string-stream.h"
 #include "src/tracing/trace-event.h"
+#include "src/zone/zone-list-inl.h"
 
 namespace v8 {
 namespace internal {

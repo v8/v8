@@ -11,6 +11,8 @@
 #include "src/deoptimizer.h"
 #include "src/frame-constants.h"
 #include "src/frames.h"
+// For interpreter_entry_return_pc_offset. TODO(jkummerow): Drop.
+#include "src/heap/heap-inl.h"
 #include "src/macro-assembler-inl.h"
 #include "src/mips64/constants-mips64.h"
 #include "src/objects-inl.h"

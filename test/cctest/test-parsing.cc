@@ -50,6 +50,7 @@
 #include "src/parsing/rewriter.h"
 #include "src/parsing/scanner-character-streams.h"
 #include "src/parsing/token.h"
+#include "src/zone/zone-list-inl.h"  // crbug.com/v8/8816
 
 #include "test/cctest/cctest.h"
 #include "test/cctest/scope-test-helper.h"
@@ -613,9 +614,8 @@ TEST(ScanHTMLEndComments) {
     i::Scanner scanner(stream.get(), false);
     scanner.Initialize();
     i::Zone zone(i_isolate->allocator(), ZONE_NAME);
-    i::AstValueFactory ast_value_factory(&zone,
-                                         i_isolate->ast_string_constants(),
-                                         i_isolate->heap()->HashSeed());
+    i::AstValueFactory ast_value_factory(
+        &zone, i_isolate->ast_string_constants(), HashSeed(i_isolate));
     i::PendingCompilationErrorHandler pending_error_handler;
     i::PreParser preparser(&zone, &scanner, stack_limit, &ast_value_factory,
                            &pending_error_handler,
@@ -632,9 +632,8 @@ TEST(ScanHTMLEndComments) {
     i::Scanner scanner(stream.get(), false);
     scanner.Initialize();
     i::Zone zone(i_isolate->allocator(), ZONE_NAME);
-    i::AstValueFactory ast_value_factory(&zone,
-                                         i_isolate->ast_string_constants(),
-                                         i_isolate->heap()->HashSeed());
+    i::AstValueFactory ast_value_factory(
+        &zone, i_isolate->ast_string_constants(), HashSeed(i_isolate));
     i::PendingCompilationErrorHandler pending_error_handler;
     i::PreParser preparser(&zone, &scanner, stack_limit, &ast_value_factory,
                            &pending_error_handler,
@@ -705,9 +704,8 @@ TEST(StandAlonePreParser) {
     scanner.Initialize();
 
     i::Zone zone(i_isolate->allocator(), ZONE_NAME);
-    i::AstValueFactory ast_value_factory(&zone,
-                                         i_isolate->ast_string_constants(),
-                                         i_isolate->heap()->HashSeed());
+    i::AstValueFactory ast_value_factory(
+        &zone, i_isolate->ast_string_constants(), HashSeed(i_isolate));
     i::PendingCompilationErrorHandler pending_error_handler;
     i::PreParser preparser(&zone, &scanner, stack_limit, &ast_value_factory,
                            &pending_error_handler,
@@ -725,8 +723,8 @@ TEST(StandAlonePreParserNoNatives) {
   v8::V8::Initialize();
 
   i::Isolate* isolate = CcTest::i_isolate();
-  CcTest::i_isolate()->stack_guard()->SetStackLimit(
-      i::GetCurrentStackPosition() - 128 * 1024);
+  isolate->stack_guard()->SetStackLimit(i::GetCurrentStackPosition() -
+                                        128 * 1024);
 
   const char* programs[] = {"%ArgleBargle(glop);", "var x = %_IsSmi(42);",
                             nullptr};
@@ -738,10 +736,9 @@ TEST(StandAlonePreParserNoNatives) {
     scanner.Initialize();
 
     // Preparser defaults to disallowing natives syntax.
-    i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
-    i::AstValueFactory ast_value_factory(
-        &zone, CcTest::i_isolate()->ast_string_constants(),
-        CcTest::i_isolate()->heap()->HashSeed());
+    i::Zone zone(isolate->allocator(), ZONE_NAME);
+    i::AstValueFactory ast_value_factory(&zone, isolate->ast_string_constants(),
+                                         HashSeed(isolate));
     i::PendingCompilationErrorHandler pending_error_handler;
     i::PreParser preparser(&zone, &scanner, stack_limit, &ast_value_factory,
                            &pending_error_handler,
@@ -772,15 +769,14 @@ TEST(RegressChromium62639) {
   auto stream = i::ScannerStream::ForTesting(program);
   i::Scanner scanner(stream.get(), false);
   scanner.Initialize();
-  i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
-  i::AstValueFactory ast_value_factory(
-      &zone, CcTest::i_isolate()->ast_string_constants(),
-      CcTest::i_isolate()->heap()->HashSeed());
+  i::Zone zone(isolate->allocator(), ZONE_NAME);
+  i::AstValueFactory ast_value_factory(&zone, isolate->ast_string_constants(),
+                                       HashSeed(isolate));
   i::PendingCompilationErrorHandler pending_error_handler;
-  i::PreParser preparser(
-      &zone, &scanner, CcTest::i_isolate()->stack_guard()->real_climit(),
-      &ast_value_factory, &pending_error_handler,
-      isolate->counters()->runtime_call_stats(), isolate->logger());
+  i::PreParser preparser(&zone, &scanner, isolate->stack_guard()->real_climit(),
+                         &ast_value_factory, &pending_error_handler,
+                         isolate->counters()->runtime_call_stats(),
+                         isolate->logger());
   i::PreParser::PreParseResult result = preparser.PreParseProgram();
   // Even in the case of a syntax error, kPreParseSuccess is returned.
   CHECK_EQ(i::PreParser::kPreParseSuccess, result);
@@ -807,10 +803,9 @@ TEST(PreParseOverflow) {
   i::Scanner scanner(stream.get(), false);
   scanner.Initialize();
 
-  i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
-  i::AstValueFactory ast_value_factory(
-      &zone, CcTest::i_isolate()->ast_string_constants(),
-      CcTest::i_isolate()->heap()->HashSeed());
+  i::Zone zone(isolate->allocator(), ZONE_NAME);
+  i::AstValueFactory ast_value_factory(&zone, isolate->ast_string_constants(),
+                                       HashSeed(isolate));
   i::PendingCompilationErrorHandler pending_error_handler;
   i::PreParser preparser(
       &zone, &scanner, stack_limit, &ast_value_factory, &pending_error_handler,
@@ -911,7 +906,7 @@ void TestScanRegExp(const char* re_source, const char* expected) {
   i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
   i::AstValueFactory ast_value_factory(
       &zone, CcTest::i_isolate()->ast_string_constants(),
-      CcTest::i_isolate()->heap()->HashSeed());
+      HashSeed(CcTest::i_isolate()));
   const i::AstRawString* current_symbol =
       scanner.CurrentSymbol(&ast_value_factory);
   ast_value_factory.Internalize(CcTest::i_isolate());
@@ -1595,10 +1590,9 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
     std::unique_ptr<i::Utf16CharacterStream> stream(
         i::ScannerStream::For(isolate, source));
     i::Scanner scanner(stream.get(), is_module);
-    i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
-    i::AstValueFactory ast_value_factory(
-        &zone, CcTest::i_isolate()->ast_string_constants(),
-        CcTest::i_isolate()->heap()->HashSeed());
+    i::Zone zone(isolate->allocator(), ZONE_NAME);
+    i::AstValueFactory ast_value_factory(&zone, isolate->ast_string_constants(),
+                                         HashSeed(isolate));
     i::PreParser preparser(&zone, &scanner, stack_limit, &ast_value_factory,
                            &pending_error_handler,
                            isolate->counters()->runtime_call_stats(),
@@ -3235,7 +3229,7 @@ TEST(SerializationOfMaybeAssignmentFlag) {
   i::Handle<i::JSFunction> f = i::Handle<i::JSFunction>::cast(o);
   i::Context context = f->context();
   i::AstValueFactory avf(&zone, isolate->ast_string_constants(),
-                         isolate->heap()->HashSeed());
+                         HashSeed(isolate));
   const i::AstRawString* name = avf.GetOneByteString("result");
   avf.Internalize(isolate);
   i::Handle<i::String> str = name->string();
@@ -3285,7 +3279,7 @@ TEST(IfArgumentsArrayAccessedThenParametersMaybeAssigned) {
   i::Handle<i::JSFunction> f = i::Handle<i::JSFunction>::cast(o);
   i::Context context = f->context();
   i::AstValueFactory avf(&zone, isolate->ast_string_constants(),
-                         isolate->heap()->HashSeed());
+                         HashSeed(isolate));
   const i::AstRawString* name_x = avf.GetOneByteString("x");
   avf.Internalize(isolate);
 
@@ -4200,7 +4194,7 @@ namespace {
 i::Scope* DeserializeFunctionScope(i::Isolate* isolate, i::Zone* zone,
                                    i::Handle<i::JSObject> m, const char* name) {
   i::AstValueFactory avf(zone, isolate->ast_string_constants(),
-                         isolate->heap()->HashSeed());
+                         HashSeed(isolate));
   i::Handle<i::JSFunction> f = i::Handle<i::JSFunction>::cast(
       i::JSReceiver::GetProperty(isolate, m, name).ToHandleChecked());
   i::DeclarationScope* script_scope =

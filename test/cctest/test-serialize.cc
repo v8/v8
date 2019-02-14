@@ -37,6 +37,8 @@
 #include "src/compilation-cache.h"
 #include "src/compiler.h"
 #include "src/debug/debug.h"
+#include "src/hash-seed-inl.h"
+#include "src/heap/heap-inl.h"
 #include "src/heap/spaces.h"
 #include "src/interpreter/interpreter.h"
 #include "src/macro-assembler-inl.h"
@@ -3681,7 +3683,7 @@ UNINITIALIZED_TEST(ReinitializeHashSeedNotRehashable) {
   {
     // Check that no rehashing has been performed.
     CHECK_EQ(static_cast<uint64_t>(42),
-             reinterpret_cast<i::Isolate*>(isolate)->heap()->HashSeed());
+             HashSeed(reinterpret_cast<i::Isolate*>(isolate)));
     v8::Isolate::Scope isolate_scope(isolate);
     v8::HandleScope handle_scope(isolate);
     v8::Local<v8::Context> context = v8::Context::New(isolate);
@@ -3746,7 +3748,7 @@ UNINITIALIZED_TEST(ReinitializeHashSeedRehashable) {
   {
     // Check that rehashing has been performed.
     CHECK_EQ(static_cast<uint64_t>(1337),
-             reinterpret_cast<i::Isolate*>(isolate)->heap()->HashSeed());
+             HashSeed(reinterpret_cast<i::Isolate*>(isolate)));
     v8::Isolate::Scope isolate_scope(isolate);
     v8::HandleScope handle_scope(isolate);
     v8::Local<v8::Context> context = v8::Context::New(isolate);

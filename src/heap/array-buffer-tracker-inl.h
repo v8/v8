@@ -7,8 +7,8 @@
 
 #include "src/conversions-inl.h"
 #include "src/heap/array-buffer-tracker.h"
-#include "src/heap/heap.h"
-#include "src/heap/spaces.h"
+#include "src/heap/heap-inl.h"
+#include "src/heap/spaces-inl.h"
 #include "src/objects.h"
 #include "src/objects/js-array-buffer-inl.h"
 

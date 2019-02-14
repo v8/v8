@@ -10,6 +10,7 @@
 #include "src/base/template-utils.h"
 #include "src/compiler-dispatcher/compiler-dispatcher.h"
 #include "src/counters.h"
+#include "src/hash-seed-inl.h"
 #include "src/heap/heap-inl.h"
 #include "src/log.h"
 #include "src/objects-inl.h"
@@ -43,7 +44,7 @@ ParseInfo::ParseInfo(AccountingAllocator* zone_allocator)
 
 ParseInfo::ParseInfo(Isolate* isolate, AccountingAllocator* zone_allocator)
     : ParseInfo(zone_allocator) {
-  set_hash_seed(isolate->heap()->HashSeed());
+  set_hash_seed(HashSeed(isolate));
   set_stack_limit(isolate->stack_guard()->real_climit());
   set_runtime_call_stats(isolate->counters()->runtime_call_stats());
   set_logger(isolate->logger());

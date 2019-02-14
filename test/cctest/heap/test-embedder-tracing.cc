@@ -7,6 +7,7 @@
 
 #include "include/v8.h"
 #include "src/api-inl.h"
+#include "src/heap/heap-inl.h"
 #include "src/objects-inl.h"
 #include "src/objects/module.h"
 #include "src/objects/script.h"

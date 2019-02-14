@@ -5,8 +5,10 @@
 #include "src/snapshot/object-deserializer.h"
 
 #include "src/assembler-inl.h"
+#include "src/heap/heap-inl.h"
 #include "src/isolate.h"
 #include "src/objects.h"
+#include "src/objects/allocation-site-inl.h"
 #include "src/objects/slots.h"
 #include "src/snapshot/code-serializer.h"
 

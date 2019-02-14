@@ -2,7 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/heap/heap.h"
+#include "src/heap/heap-inl.h"
+#include "src/objects/cell.h"
+#include "src/objects/feedback-cell.h"
+#include "src/objects/script.h"
 #include "src/roots-inl.h"
 #include "test/cctest/cctest.h"
 

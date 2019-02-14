@@ -15,6 +15,7 @@
 #include "src/external-reference-table.h"
 #include "src/frame-constants.h"
 #include "src/frames-inl.h"
+#include "src/heap/heap-inl.h"  // For MemoryChunk.
 #include "src/macro-assembler-inl.h"
 #include "src/register-configuration.h"
 #include "src/runtime/runtime.h"

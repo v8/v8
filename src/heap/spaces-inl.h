@@ -5,11 +5,13 @@
 #ifndef V8_HEAP_SPACES_INL_H_
 #define V8_HEAP_SPACES_INL_H_
 
+#include "src/heap/spaces.h"
+
 #include "src/base/atomic-utils.h"
 #include "src/base/bounded-page-allocator.h"
 #include "src/base/v8-fallthrough.h"
+#include "src/heap/heap-inl.h"
 #include "src/heap/incremental-marking.h"
-#include "src/heap/spaces.h"
 #include "src/msan.h"
 #include "src/objects/code-inl.h"
 

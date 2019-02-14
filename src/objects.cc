@@ -38,6 +38,7 @@
 #include "src/frames-inl.h"
 #include "src/function-kind.h"
 #include "src/globals.h"
+#include "src/heap/heap-inl.h"
 #include "src/ic/ic.h"
 #include "src/identity-map.h"
 #include "src/isolate-inl.h"
@@ -48,6 +49,7 @@
 #include "src/message-template.h"
 #include "src/microtask-queue.h"
 #include "src/objects-body-descriptors-inl.h"
+#include "src/objects/allocation-site-inl.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/arguments-inl.h"
 #include "src/objects/bigint.h"
@@ -577,6 +579,11 @@ bool Object::BooleanValue(Isolate* isolate) {
   if (IsHeapNumber()) return DoubleToBoolean(HeapNumber::cast(*this)->value());
   if (IsBigInt()) return BigInt::cast(*this)->ToBoolean();
   return true;
+}
+
+Object Object::ToBoolean(Isolate* isolate) {
+  if (IsBoolean()) return *this;
+  return isolate->heap()->ToBoolean(BooleanValue(isolate));
 }
 
 namespace {
@@ -2388,6 +2395,10 @@ void HeapObject::RehashBasedOnMap(Isolate* isolate) {
     default:
       break;
   }
+}
+
+bool HeapObject::IsExternal(Isolate* isolate) const {
+  return map()->FindRootMap(isolate) == isolate->heap()->external_map();
 }
 
 const char* Representation::Mnemonic() const {
@@ -6695,7 +6706,7 @@ MaybeHandle<String> StringTable::LookupTwoCharsStringIfExists(
     Isolate* isolate,
     uint16_t c1,
     uint16_t c2) {
-  TwoCharHashTableKey key(c1, c2, isolate->heap()->HashSeed());
+  TwoCharHashTableKey key(c1, c2, HashSeed(isolate));
   Handle<StringTable> string_table = isolate->factory()->string_table();
   int entry = string_table->FindEntry(isolate, &key);
   if (entry == kNotFound) return MaybeHandle<String>();
@@ -7000,7 +7011,7 @@ Address StringTable::LookupStringIfExists_NoAllocate(Isolate* isolate,
   Heap* heap = isolate->heap();
   StringTable table = heap->string_table();
 
-  StringTableNoAllocateKey key(string, heap->HashSeed());
+  StringTableNoAllocateKey key(string, HashSeed(isolate));
 
   // String could be an array index.
   uint32_t hash = string->hash_field();

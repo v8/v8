@@ -524,12 +524,17 @@ class ReadOnlyRoots {
 
   V8_INLINE Map MapForFixedTypedArray(ExternalArrayType array_type);
   V8_INLINE Map MapForFixedTypedArray(ElementsKind elements_kind);
-  V8_INLINE FixedTypedArrayBase EmptyFixedTypedArrayForMap(const Map map);
+  V8_INLINE FixedTypedArrayBase
+  EmptyFixedTypedArrayForTypedArray(ElementsKind elements_kind);
 
   // Iterate over all the read-only roots. This is not necessary for garbage
   // collection and is usually only performed as part of (de)serialization or
   // heap verification.
   void Iterate(RootVisitor* visitor);
+
+#ifdef DEBUG
+  V8_EXPORT_PRIVATE bool CheckType(RootIndex index) const;
+#endif
 
  private:
   RootsTable& roots_table_;

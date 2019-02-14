@@ -13,7 +13,10 @@
 #include "src/debug/debug.h"
 #include "src/deoptimizer.h"
 #include "src/elements.h"
+#include "src/hash-seed-inl.h"
 #include "src/heap/heap.h"
+// For IncrementalMarking::RecordWriteFromCode. TODO(jkummerow): Drop.
+#include "src/heap/heap-inl.h"
 #include "src/ic/stub-cache.h"
 #include "src/interpreter/interpreter.h"
 #include "src/isolate.h"
@@ -650,7 +653,7 @@ FUNCTION_REFERENCE(jsreceiver_create_identity_hash,
 
 static uint32_t ComputeSeededIntegerHash(Isolate* isolate, uint32_t key) {
   DisallowHeapAllocation no_gc;
-  return ComputeSeededHash(key, isolate->heap()->HashSeed());
+  return ComputeSeededHash(key, HashSeed(isolate));
 }
 
 FUNCTION_REFERENCE(compute_integer_hash, ComputeSeededIntegerHash)
@@ -698,11 +701,6 @@ template ExternalReference
 ExternalReference::search_string_raw<const uc16, const uint8_t>();
 template ExternalReference
 ExternalReference::search_string_raw<const uc16, const uc16>();
-
-ExternalReference ExternalReference::page_flags(Page* page) {
-  return ExternalReference(reinterpret_cast<Address>(page) +
-                           MemoryChunk::kFlagsOffset);
-}
 
 ExternalReference ExternalReference::FromRawAddress(Address address) {
   return ExternalReference(address);

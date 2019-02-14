@@ -8,8 +8,11 @@
 #include "src/debug/debug.h"
 #include "src/elements.h"
 #include "src/heap/factory.h"
+#include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
+#include "src/heap/heap-write-barrier-inl.h"
 #include "src/isolate-inl.h"
 #include "src/keys.h"
+#include "src/objects/allocation-site-inl.h"
 #include "src/objects/arguments-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/js-array-inl.h"
@@ -208,7 +211,7 @@ Object RemoveArrayHoles(Isolate* isolate, Handle<JSReceiver> receiver,
         JSObject::GetElementsTransitionMap(object, HOLEY_ELEMENTS);
 
     PretenureFlag tenure =
-        Heap::InYoungGeneration(*object) ? NOT_TENURED : TENURED;
+        ObjectInYoungGeneration(*object) ? NOT_TENURED : TENURED;
     Handle<FixedArray> fast_elements =
         isolate->factory()->NewFixedArray(dict->NumberOfElements(), tenure);
     dict->CopyValuesTo(*fast_elements);

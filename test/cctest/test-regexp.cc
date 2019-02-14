@@ -46,6 +46,7 @@
 #include "src/string-stream.h"
 #include "src/unicode-inl.h"
 #include "src/v8.h"
+#include "src/zone/zone-list-inl.h"
 
 #if V8_TARGET_ARCH_ARM
 #include "src/regexp/arm/regexp-macro-assembler-arm.h"

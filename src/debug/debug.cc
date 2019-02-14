@@ -23,6 +23,7 @@
 #include "src/frames-inl.h"
 #include "src/global-handles.h"
 #include "src/globals.h"
+#include "src/heap/heap-inl.h"  // For NextDebuggingId.
 #include "src/interpreter/bytecode-array-accessor.h"
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/interpreter/interpreter.h"

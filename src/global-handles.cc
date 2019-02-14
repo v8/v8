@@ -8,6 +8,7 @@
 #include "src/base/compiler-specific.h"
 #include "src/cancelable-task.h"
 #include "src/heap/embedder-tracing.h"
+#include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects-inl.h"
 #include "src/objects/slots.h"
 #include "src/task-utils.h"
@@ -714,7 +715,7 @@ GlobalHandles::~GlobalHandles() { regular_nodes_.reset(nullptr); }
 
 Handle<Object> GlobalHandles::Create(Object value) {
   GlobalHandles::Node* result = regular_nodes_->Acquire(value);
-  if (Heap::InYoungGeneration(value) && !result->is_in_young_list()) {
+  if (ObjectInYoungGeneration(value) && !result->is_in_young_list()) {
     young_nodes_.push_back(result);
     result->set_in_young_list(true);
   }
@@ -727,7 +728,7 @@ Handle<Object> GlobalHandles::Create(Address value) {
 
 Handle<Object> GlobalHandles::CreateTraced(Object value, Address* slot) {
   GlobalHandles::TracedNode* result = traced_nodes_->Acquire(value);
-  if (Heap::InYoungGeneration(value) && !result->is_in_young_list()) {
+  if (ObjectInYoungGeneration(value) && !result->is_in_young_list()) {
     traced_young_nodes_.push_back(result);
     result->set_in_young_list(true);
   }
@@ -1060,7 +1061,7 @@ void GlobalHandles::UpdateAndCompactListOfYoungNode(
   for (T* node : *node_list) {
     DCHECK(node->is_in_young_list());
     if (node->IsInUse()) {
-      if (Heap::InYoungGeneration(node->object())) {
+      if (ObjectInYoungGeneration(node->object())) {
         (*node_list)[last++] = node;
         isolate_->heap()->IncrementNodesCopiedInNewSpace();
       } else {
@@ -1362,7 +1363,7 @@ void EternalHandles::IterateYoungRoots(RootVisitor* visitor) {
 void EternalHandles::PostGarbageCollectionProcessing() {
   size_t last = 0;
   for (int index : young_node_indices_) {
-    if (Heap::InYoungGeneration(Object(*GetLocation(index)))) {
+    if (ObjectInYoungGeneration(Object(*GetLocation(index)))) {
       young_node_indices_[last++] = index;
     }
   }
@@ -1385,7 +1386,7 @@ void EternalHandles::Create(Isolate* isolate, Object object, int* index) {
   }
   DCHECK_EQ(the_hole->ptr(), blocks_[block][offset]);
   blocks_[block][offset] = object->ptr();
-  if (Heap::InYoungGeneration(object)) {
+  if (ObjectInYoungGeneration(object)) {
     young_node_indices_.push_back(size_);
   }
   *index = size_++;

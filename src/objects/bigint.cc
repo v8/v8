@@ -19,8 +19,14 @@
 
 #include "src/objects/bigint.h"
 
+#include "src/conversions.h"
 #include "src/double.h"
+#include "src/heap/factory.h"
+#include "src/heap/heap-write-barrier-inl.h"
+#include "src/isolate-inl.h"
+#include "src/objects-inl.h"
 #include "src/objects/heap-number-inl.h"
+#include "src/objects/instance-type-inl.h"
 #include "src/objects/smi.h"
 
 namespace v8 {

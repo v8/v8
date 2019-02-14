@@ -7,15 +7,18 @@
 
 #include "src/objects/fixed-array.h"
 
+#include "src/base/tsan.h"
 #include "src/conversions.h"
 #include "src/handles-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
+#include "src/objects-inl.h"
 #include "src/objects/bigint.h"
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/map.h"
 #include "src/objects/maybe-object-inl.h"
 #include "src/objects/oddball.h"
 #include "src/objects/slots.h"
+#include "src/roots-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -146,7 +149,7 @@ void FixedArray::NoWriteBarrierSet(FixedArray array, int index, Object value) {
   DCHECK_NE(array->map(), array->GetReadOnlyRoots().fixed_cow_array_map());
   DCHECK_GE(index, 0);
   DCHECK_LT(index, array->length());
-  DCHECK(!Heap::InYoungGeneration(value));
+  DCHECK(!ObjectInYoungGeneration(value));
   RELAXED_WRITE_FIELD(array, kHeaderSize + index * kTaggedSize, value);
 }
 
@@ -324,7 +327,7 @@ uint64_t FixedDoubleArray::get_representation(int index) {
 Handle<Object> FixedDoubleArray::get(FixedDoubleArray array, int index,
                                      Isolate* isolate) {
   if (array->is_the_hole(index)) {
-    return isolate->factory()->the_hole_value();
+    return ReadOnlyRoots(isolate).the_hole_value_handle();
   } else {
     return isolate->factory()->NewNumber(array->get_scalar(index));
   }

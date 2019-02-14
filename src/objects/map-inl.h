@@ -8,7 +8,7 @@
 #include "src/objects/map.h"
 
 #include "src/field-type.h"
-#include "src/heap/heap-inl.h"
+#include "src/heap/heap-write-barrier-inl.h"
 #include "src/layout-descriptor-inl.h"
 #include "src/objects-inl.h"
 #include "src/objects/api-callbacks-inl.h"
@@ -197,13 +197,14 @@ FixedArrayBase Map::GetInitialElements() const {
   } else if (has_fast_sloppy_arguments_elements()) {
     result = GetReadOnlyRoots().empty_sloppy_arguments_elements();
   } else if (has_fixed_typed_array_elements()) {
-    result = GetReadOnlyRoots().EmptyFixedTypedArrayForMap(*this);
+    result =
+        GetReadOnlyRoots().EmptyFixedTypedArrayForTypedArray(elements_kind());
   } else if (has_dictionary_elements()) {
     result = GetReadOnlyRoots().empty_slow_element_dictionary();
   } else {
     UNREACHABLE();
   }
-  DCHECK(!Heap::InYoungGeneration(result));
+  DCHECK(!ObjectInYoungGeneration(result));
   return result;
 }
 

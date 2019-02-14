@@ -9,7 +9,7 @@
 #include "src/contexts.h"
 #include "src/heap-symbols.h"
 #include "src/heap/factory.h"
-#include "src/heap/heap.h"
+#include "src/heap/heap-inl.h"
 #include "src/ic/handler-configuration.h"
 #include "src/interpreter/interpreter.h"
 #include "src/isolate.h"

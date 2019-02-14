@@ -9,6 +9,7 @@
 #include "src/builtins/builtins.h"
 #include "src/code-factory.h"
 #include "src/heap/factory-inl.h"
+#include "src/heap/heap-inl.h"
 #include "src/objects.h"
 #include "src/objects/property-cell.h"
 

@@ -7,6 +7,7 @@
 #include "src/api.h"
 #include "src/code-tracer.h"
 #include "src/global-handles.h"
+#include "src/heap/heap-inl.h"  // For InReadOnlySpace.
 #include "src/objects-inl.h"
 #include "src/objects/slots.h"
 #include "src/snapshot/startup-serializer.h"
@@ -25,7 +26,7 @@ ReadOnlySerializer::~ReadOnlySerializer() {
 }
 
 void ReadOnlySerializer::SerializeObject(HeapObject obj) {
-  CHECK(isolate()->heap()->read_only_space()->Contains(obj));
+  CHECK(isolate()->heap()->InReadOnlySpace(obj));
   CHECK_IMPLIES(obj->IsString(), obj->IsInternalizedString());
 
   if (SerializeHotObject(obj)) return;
@@ -79,7 +80,7 @@ bool ReadOnlySerializer::MustBeDeferred(HeapObject object) {
 
 bool ReadOnlySerializer::SerializeUsingReadOnlyObjectCache(
     SnapshotByteSink* sink, HeapObject obj) {
-  if (!isolate()->heap()->read_only_space()->Contains(obj)) return false;
+  if (!isolate()->heap()->InReadOnlySpace(obj)) return false;
 
   // Get the cache index and serialize it into the read-only snapshot if
   // necessary.

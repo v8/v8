@@ -7,7 +7,10 @@
 
 #include "src/objects/oddball.h"
 
+#include "src/handles.h"
 #include "src/heap/heap-write-barrier-inl.h"
+#include "src/objects-inl.h"
+#include "src/objects/string-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -45,7 +48,7 @@ void Oddball::set_kind(byte value) {
 
 // static
 Handle<Object> Oddball::ToNumber(Isolate* isolate, Handle<Oddball> input) {
-  return handle(input->to_number(), isolate);
+  return Handle<Object>(input->to_number(), isolate);
 }
 
 bool HeapObject::IsBoolean() const {

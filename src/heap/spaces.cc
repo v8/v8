@@ -670,6 +670,8 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
   }
 
   DCHECK_EQ(kFlagsOffset, OFFSET_OF(MemoryChunk, flags_));
+  DCHECK_EQ(kHeapOffset, OFFSET_OF(MemoryChunk, heap_));
+  DCHECK_EQ(kOwnerOffset, OFFSET_OF(MemoryChunk, owner_));
 
   if (executable == EXECUTABLE) {
     chunk->SetFlag(IS_EXECUTABLE);
@@ -1463,6 +1465,12 @@ void MemoryChunk::ReleaseMarkingBitmap() {
 
 // -----------------------------------------------------------------------------
 // PagedSpace implementation
+
+void Space::CheckOffsetsAreConsistent() const {
+  static_assert(Space::kIdOffset == heap_internals::Space::kIdOffset,
+                "ID offset inconsistent");
+  DCHECK_EQ(Space::kIdOffset, OFFSET_OF(Space, id_));
+}
 
 void Space::AddAllocationObserver(AllocationObserver* observer) {
   allocation_observers_.push_back(observer);

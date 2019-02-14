@@ -14,6 +14,7 @@
 #include "src/parsing/preparser.h"
 #include "src/unicode.h"
 #include "src/utils.h"
+#include "src/zone/zone-list-inl.h"
 
 namespace v8 {
 namespace internal {

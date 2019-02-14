@@ -652,6 +652,7 @@ class Object {
 
   // ECMA-262 9.2.
   bool BooleanValue(Isolate* isolate);
+  Object ToBoolean(Isolate* isolate);
 
   // ES6 section 7.2.11 Abstract Relational Comparison
   V8_WARN_UNUSED_RESULT static Maybe<ComparisonResult> Compare(
@@ -928,7 +929,8 @@ class Object {
 
   void ShortPrint(std::ostream& os) const;  // NOLINT
 
-  DECL_CAST(Object)
+  inline static Object cast(Object object) { return object; }
+  inline static Object unchecked_cast(Object object) { return object; }
 
   // Layout description.
   static const int kHeaderSize = 0;  // Object does not take up any space.

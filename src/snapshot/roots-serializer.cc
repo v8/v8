@@ -40,7 +40,7 @@ void RootsSerializer::Synchronize(VisitorSynchronization::SyncTag tag) {
 void RootsSerializer::VisitRootPointers(Root root, const char* description,
                                         FullObjectSlot start,
                                         FullObjectSlot end) {
-  RootsTable& roots_table = isolate()->heap()->roots_table();
+  RootsTable& roots_table = isolate()->roots_table();
   if (start ==
       roots_table.begin() + static_cast<int>(first_root_to_be_serialized_)) {
     // Serializing the root list needs special handling:

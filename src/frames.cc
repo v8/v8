@@ -199,7 +199,7 @@ bool IsInterpreterFramePc(Isolate* isolate, Address pc,
     // an InterpretedFrame,  so we do these fast checks first
     if (StackFrame::IsTypeMarker(marker) || maybe_function->IsSmi()) {
       return false;
-    } else if (!isolate->heap()->code_space()->ContainsSlow(pc)) {
+    } else if (!isolate->heap()->InSpaceSlow(pc, CODE_SPACE)) {
       return false;
     }
     interpreter_entry_trampoline =

@@ -35,6 +35,8 @@
 #include "src/deoptimizer.h"
 #include "src/elements.h"
 #include "src/frames-inl.h"
+#include "src/hash-seed-inl.h"
+#include "src/heap/heap-inl.h"
 #include "src/ic/stub-cache.h"
 #include "src/interpreter/interpreter.h"
 #include "src/isolate-inl.h"
@@ -52,6 +54,7 @@
 #include "src/objects/smi.h"
 #include "src/objects/stack-frame-info-inl.h"
 #include "src/ostreams.h"
+#include "src/profiler/heap-profiler.h"
 #include "src/profiler/tracing-cpu-profiler.h"
 #include "src/prototype.h"
 #include "src/ptr-compr.h"
@@ -3472,7 +3475,7 @@ bool Isolate::Init(StartupDeserializer* des) {
 
   {
     HandleScope scope(this);
-    ast_string_constants_ = new AstStringConstants(this, heap()->HashSeed());
+    ast_string_constants_ = new AstStringConstants(this, HashSeed(this));
   }
 
   initialized_from_snapshot_ = (des != nullptr);

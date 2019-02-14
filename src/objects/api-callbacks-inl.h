@@ -7,9 +7,10 @@
 
 #include "src/objects/api-callbacks.h"
 
-#include "src/heap/heap-inl.h"
+#include "src/heap/heap-write-barrier-inl.h"
 #include "src/heap/heap-write-barrier.h"
 #include "src/objects/foreign-inl.h"
+#include "src/objects/js-objects-inl.h"
 #include "src/objects/name.h"
 #include "src/objects/templates.h"
 

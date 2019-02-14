@@ -4,6 +4,7 @@
 
 #include "src/wasm/module-instantiate.h"
 #include "src/asmjs/asm-js.h"
+#include "src/heap/heap-inl.h"  // For CodeSpaceMemoryModificationScope.
 #include "src/property-descriptor.h"
 #include "src/utils.h"
 #include "src/wasm/js-to-wasm-wrapper-cache-inl.h"

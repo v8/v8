@@ -114,11 +114,6 @@ class Space;
 
 // Some assertion macros used in the debugging mode.
 
-#define DCHECK_PAGE_ALIGNED(address) DCHECK_EQ(0, (address)&kPageAlignmentMask)
-
-#define DCHECK_OBJECT_ALIGNED(address) \
-  DCHECK_EQ(0, (address)&kObjectAlignmentMask)
-
 #define DCHECK_OBJECT_SIZE(size) \
   DCHECK((0 < size) && (size <= kMaxRegularHeapObjectSize))
 
@@ -370,6 +365,8 @@ class MemoryChunk {
       kReservationOffset + 3 * kSystemPointerSize;
   static const intptr_t kHeaderSentinelOffset =
       kHeapOffset + kSystemPointerSize;
+  static const intptr_t kOwnerOffset =
+      kHeaderSentinelOffset + kSystemPointerSize;
 
   static const size_t kHeaderSize =
       kSizeOffset               // NOLINT
@@ -709,12 +706,12 @@ class MemoryChunk {
   // guaranteed to not contain such a pointer.
   Address header_sentinel_;
 
+  // The space owning this memory chunk.
+  std::atomic<Space*> owner_;
+
   // Start and end of allocatable memory on this chunk.
   Address area_start_;
   Address area_end_;
-
-  // The space owning this memory chunk.
-  std::atomic<Space*> owner_;
 
   // Used by the incremental marker to keep track of the scanning progress in
   // large objects that have a progress bar and are scanned in increments.
@@ -981,7 +978,10 @@ class Space : public Malloced {
     external_backing_store_bytes_[ExternalBackingStoreType::kArrayBuffer] = 0;
     external_backing_store_bytes_[ExternalBackingStoreType::kExternalString] =
         0;
+    CheckOffsetsAreConsistent();
   }
+
+  void CheckOffsetsAreConsistent() const;
 
   static inline void MoveExternalBackingStoreBytes(
       ExternalBackingStoreType type, Space* from, Space* to, size_t amount);
@@ -1092,6 +1092,8 @@ class Space : public Malloced {
   std::atomic<size_t>* external_backing_store_bytes_;
 
  private:
+  static const intptr_t kIdOffset = 9 * kSystemPointerSize;
+
   bool allocation_observers_paused_;
   Heap* heap_;
   AllocationSpace id_;

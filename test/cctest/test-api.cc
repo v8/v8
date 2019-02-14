@@ -49,6 +49,7 @@
 #include "src/feedback-vector.h"
 #include "src/futex-emulation.h"
 #include "src/global-handles.h"
+#include "src/heap/heap-inl.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/local-allocator.h"
 #include "src/lookup.h"

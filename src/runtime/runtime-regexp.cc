@@ -7,11 +7,11 @@
 #include "src/arguments-inl.h"
 #include "src/conversions-inl.h"
 #include "src/counters.h"
+#include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
 #include "src/isolate-inl.h"
 #include "src/message-template.h"
 #include "src/objects/js-array-inl.h"
 #include "src/regexp/jsregexp-inl.h"
-#include "src/regexp/jsregexp.h"
 #include "src/regexp/regexp-utils.h"
 #include "src/runtime/runtime-utils.h"
 #include "src/string-builder-inl.h"

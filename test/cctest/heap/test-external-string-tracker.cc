@@ -4,6 +4,7 @@
 
 #include "src/api-inl.h"
 #include "src/api.h"
+#include "src/heap/heap-inl.h"
 #include "src/heap/spaces.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"

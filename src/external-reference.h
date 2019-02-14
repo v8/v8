@@ -287,8 +287,6 @@ class ExternalReference {
   template <typename SubjectChar, typename PatternChar>
   static ExternalReference search_string_raw();
 
-  static ExternalReference page_flags(Page* page);
-
   static ExternalReference FromRawAddress(Address address);
 
 #define DECL_EXTERNAL_REFERENCE(name, desc) static ExternalReference name();

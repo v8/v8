@@ -6,6 +6,7 @@
 
 #include "src/counters.h"
 #include "src/debug/debug.h"
+#include "src/heap/heap-inl.h"
 #include "src/log.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"

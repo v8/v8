@@ -37,8 +37,10 @@
 #include "src/execution.h"
 #include "src/field-type.h"
 #include "src/global-handles.h"
+#include "src/hash-seed-inl.h"
 #include "src/heap/factory.h"
 #include "src/heap/gc-tracer.h"
+#include "src/heap/heap-inl.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/mark-compact.h"
 #include "src/heap/memory-reducer.h"
@@ -6315,7 +6317,7 @@ UNINITIALIZED_TEST(ReinitializeStringHashSeed) {
     {
       v8::Isolate::Scope isolate_scope(isolate);
       CHECK_EQ(static_cast<uint64_t>(1337 * i),
-               reinterpret_cast<i::Isolate*>(isolate)->heap()->HashSeed());
+               HashSeed(reinterpret_cast<i::Isolate*>(isolate)));
       v8::HandleScope handle_scope(isolate);
       v8::Local<v8::Context> context = v8::Context::New(isolate);
       CHECK(!context.IsEmpty());

@@ -8,6 +8,7 @@
 #include "src/asan.h"
 #include "src/counters.h"
 #include "src/frames-inl.h"
+#include "src/heap/heap-inl.h"  // For MemoryAllocator::code_range.
 #include "src/msan.h"
 #include "src/simulator.h"
 #include "src/vm-state-inl.h"

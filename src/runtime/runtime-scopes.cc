@@ -11,6 +11,7 @@
 #include "src/counters.h"
 #include "src/deoptimizer.h"
 #include "src/frames-inl.h"
+#include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
 #include "src/isolate-inl.h"
 #include "src/message-template.h"
 #include "src/objects/heap-object-inl.h"

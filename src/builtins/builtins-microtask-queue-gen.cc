@@ -9,6 +9,7 @@
 #include "src/objects/js-weak-refs.h"
 #include "src/objects/microtask-inl.h"
 #include "src/objects/promise.h"
+#include "src/objects/smi-inl.h"
 
 namespace v8 {
 namespace internal {

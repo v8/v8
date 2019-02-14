@@ -11,6 +11,8 @@
 #include "src/compiler.h"
 #include "src/execution.h"
 #include "src/handles.h"
+#include "src/hash-seed-inl.h"
+#include "src/heap/heap-inl.h"
 #include "src/interpreter/bytecode-array-builder.h"
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/interpreter/bytecode-flags.h"
@@ -162,7 +164,7 @@ TEST(InterpreterLoadLiteral) {
   // Heap numbers.
   {
     AstValueFactory ast_factory(zone, isolate->ast_string_constants(),
-                                isolate->heap()->HashSeed());
+                                HashSeed(isolate));
 
     BytecodeArrayBuilder builder(zone, 1, 0);
 
@@ -180,7 +182,7 @@ TEST(InterpreterLoadLiteral) {
   // Strings.
   {
     AstValueFactory ast_factory(zone, isolate->ast_string_constants(),
-                                isolate->heap()->HashSeed());
+                                HashSeed(isolate));
 
     BytecodeArrayBuilder builder(zone, 1, 0);
 
@@ -486,7 +488,7 @@ TEST(InterpreterStringAdd) {
   Zone* zone = handles.main_zone();
   Factory* factory = isolate->factory();
   AstValueFactory ast_factory(zone, isolate->ast_string_constants(),
-                              isolate->heap()->HashSeed());
+                              HashSeed(isolate));
 
   struct TestCase {
     const AstRawString* lhs;
@@ -579,7 +581,7 @@ TEST(InterpreterParameter8) {
   Isolate* isolate = handles.main_isolate();
   Zone* zone = handles.main_zone();
   AstValueFactory ast_factory(zone, isolate->ast_string_constants(),
-                              isolate->heap()->HashSeed());
+                              HashSeed(isolate));
   FeedbackVectorSpec feedback_spec(zone);
   BytecodeArrayBuilder builder(zone, 8, 0, &feedback_spec);
 
@@ -632,7 +634,7 @@ TEST(InterpreterBinaryOpTypeFeedback) {
   i::Isolate* isolate = handles.main_isolate();
   Zone* zone = handles.main_zone();
   AstValueFactory ast_factory(zone, isolate->ast_string_constants(),
-                              isolate->heap()->HashSeed());
+                              HashSeed(isolate));
 
   struct BinaryOpExpectation {
     Token::Value op;
@@ -766,7 +768,7 @@ TEST(InterpreterBinaryOpSmiTypeFeedback) {
   i::Isolate* isolate = handles.main_isolate();
   Zone* zone = handles.main_zone();
   AstValueFactory ast_factory(zone, isolate->ast_string_constants(),
-                              isolate->heap()->HashSeed());
+                              HashSeed(isolate));
 
   struct BinaryOpExpectation {
     Token::Value op;
@@ -1131,7 +1133,7 @@ TEST(InterpreterLoadNamedProperty) {
   Isolate* isolate = handles.main_isolate();
   Zone* zone = handles.main_zone();
   AstValueFactory ast_factory(zone, isolate->ast_string_constants(),
-                              isolate->heap()->HashSeed());
+                              HashSeed(isolate));
 
   FeedbackVectorSpec feedback_spec(zone);
   FeedbackSlot slot = feedback_spec.AddLoadICSlot();
@@ -1183,7 +1185,7 @@ TEST(InterpreterLoadKeyedProperty) {
   Isolate* isolate = handles.main_isolate();
   Zone* zone = handles.main_zone();
   AstValueFactory ast_factory(zone, isolate->ast_string_constants(),
-                              isolate->heap()->HashSeed());
+                              HashSeed(isolate));
 
   FeedbackVectorSpec feedback_spec(zone);
   FeedbackSlot slot = feedback_spec.AddKeyedLoadICSlot();
@@ -1225,7 +1227,7 @@ TEST(InterpreterStoreNamedProperty) {
   Isolate* isolate = handles.main_isolate();
   Zone* zone = handles.main_zone();
   AstValueFactory ast_factory(zone, isolate->ast_string_constants(),
-                              isolate->heap()->HashSeed());
+                              HashSeed(isolate));
 
   FeedbackVectorSpec feedback_spec(zone);
   FeedbackSlot slot = feedback_spec.AddStoreICSlot(LanguageMode::kStrict);
@@ -1288,7 +1290,7 @@ TEST(InterpreterStoreKeyedProperty) {
   Isolate* isolate = handles.main_isolate();
   Zone* zone = handles.main_zone();
   AstValueFactory ast_factory(zone, isolate->ast_string_constants(),
-                              isolate->heap()->HashSeed());
+                              HashSeed(isolate));
 
   FeedbackVectorSpec feedback_spec(zone);
   FeedbackSlot slot = feedback_spec.AddKeyedStoreICSlot(LanguageMode::kSloppy);
@@ -1340,7 +1342,7 @@ TEST(InterpreterCall) {
   Zone* zone = handles.main_zone();
   Factory* factory = isolate->factory();
   AstValueFactory ast_factory(zone, isolate->ast_string_constants(),
-                              isolate->heap()->HashSeed());
+                              HashSeed(isolate));
 
   FeedbackVectorSpec feedback_spec(zone);
   FeedbackSlot slot = feedback_spec.AddLoadICSlot();
@@ -1652,7 +1654,7 @@ TEST(InterpreterJumpConstantWith16BitOperand) {
   Isolate* isolate = handles.main_isolate();
   Zone* zone = handles.main_zone();
   AstValueFactory ast_factory(zone, isolate->ast_string_constants(),
-                              isolate->heap()->HashSeed());
+                              HashSeed(isolate));
   FeedbackVectorSpec feedback_spec(zone);
   BytecodeArrayBuilder builder(zone, 1, 257, &feedback_spec);
 
@@ -1713,7 +1715,7 @@ TEST(InterpreterJumpWith32BitOperand) {
   Isolate* isolate = handles.main_isolate();
   Zone* zone = handles.main_zone();
   AstValueFactory ast_factory(zone, isolate->ast_string_constants(),
-                              isolate->heap()->HashSeed());
+                              HashSeed(isolate));
   BytecodeArrayBuilder builder(zone, 1, 1);
   Register reg(0);
   BytecodeLabel done;
@@ -1852,7 +1854,7 @@ TEST(InterpreterHeapNumberComparisons) {
         Isolate* isolate = handles.main_isolate();
         Zone* zone = handles.main_zone();
         AstValueFactory ast_factory(zone, isolate->ast_string_constants(),
-                                    isolate->heap()->HashSeed());
+                                    HashSeed(isolate));
 
         FeedbackVectorSpec feedback_spec(zone);
         BytecodeArrayBuilder builder(zone, 1, 1, &feedback_spec);
@@ -1899,7 +1901,7 @@ TEST(InterpreterBigIntComparisons) {
         Isolate* isolate = handles.main_isolate();
         Zone* zone = handles.main_zone();
         AstValueFactory ast_factory(zone, isolate->ast_string_constants(),
-                                    isolate->heap()->HashSeed());
+                                    HashSeed(isolate));
 
         FeedbackVectorSpec feedback_spec(zone);
         BytecodeArrayBuilder builder(zone, 1, 1, &feedback_spec);
@@ -1944,7 +1946,7 @@ TEST(InterpreterStringComparisons) {
     for (size_t i = 0; i < arraysize(inputs); i++) {
       for (size_t j = 0; j < arraysize(inputs); j++) {
         AstValueFactory ast_factory(zone, isolate->ast_string_constants(),
-                                    isolate->heap()->HashSeed());
+                                    HashSeed(isolate));
 
         CanonicalHandleScope canonical(isolate);
         const char* lhs = inputs[i].c_str();
@@ -2027,7 +2029,7 @@ TEST(InterpreterMixedComparisons) {
             Isolate* isolate = handles.main_isolate();
             Zone* zone = handles.main_zone();
             AstValueFactory ast_factory(zone, isolate->ast_string_constants(),
-                                        isolate->heap()->HashSeed());
+                                        HashSeed(isolate));
             FeedbackVectorSpec feedback_spec(zone);
             BytecodeArrayBuilder builder(zone, 1, 0, &feedback_spec);
 
@@ -2265,7 +2267,7 @@ TEST(InterpreterTestIn) {
   Zone* zone = handles.main_zone();
   Factory* factory = isolate->factory();
   AstValueFactory ast_factory(zone, isolate->ast_string_constants(),
-                              isolate->heap()->HashSeed());
+                              HashSeed(isolate));
   // Allocate an array
   Handle<i::JSArray> array =
       factory->NewJSArray(0, i::ElementsKind::PACKED_SMI_ELEMENTS);
@@ -2323,7 +2325,7 @@ TEST(InterpreterUnaryNotNonBoolean) {
   Isolate* isolate = handles.main_isolate();
   Zone* zone = handles.main_zone();
   AstValueFactory ast_factory(zone, isolate->ast_string_constants(),
-                              isolate->heap()->HashSeed());
+                              HashSeed(isolate));
 
   std::pair<LiteralForTest, bool> object_type_tuples[] = {
       std::make_pair(LiteralForTest(LiteralForTest::kUndefined), true),

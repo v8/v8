@@ -4,6 +4,7 @@
 
 #include "src/objects/ordered-hash-table.h"
 
+#include "src/heap/heap-inl.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
 #include "src/objects/js-collection-inl.h"

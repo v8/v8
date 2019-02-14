@@ -75,6 +75,52 @@
 namespace v8 {
 namespace internal {
 
+// These are outside the Heap class so they can be forward-declared
+// in heap-write-barrier-inl.h.
+bool Heap_PageFlagsAreConsistent(HeapObject object) {
+  return Heap::PageFlagsAreConsistent(object);
+}
+
+void Heap_GenerationalBarrierSlow(HeapObject object, Address slot,
+                                  HeapObject value) {
+  Heap::GenerationalBarrierSlow(object, slot, value);
+}
+
+void Heap_MarkingBarrierSlow(HeapObject object, Address slot,
+                             HeapObject value) {
+  Heap::MarkingBarrierSlow(object, slot, value);
+}
+
+void Heap_WriteBarrierForCodeSlow(Code host) {
+  Heap::WriteBarrierForCodeSlow(host);
+}
+
+void Heap_GenerationalBarrierForCodeSlow(Code host, RelocInfo* rinfo,
+                                         HeapObject object) {
+  Heap::GenerationalBarrierForCodeSlow(host, rinfo, object);
+}
+
+void Heap_MarkingBarrierForCodeSlow(Code host, RelocInfo* rinfo,
+                                    HeapObject object) {
+  Heap::MarkingBarrierForCodeSlow(host, rinfo, object);
+}
+
+void Heap_GenerationalBarrierForElementsSlow(Heap* heap, FixedArray array,
+                                             int offset, int length) {
+  Heap::GenerationalBarrierForElementsSlow(heap, array, offset, length);
+}
+
+void Heap_MarkingBarrierForElementsSlow(Heap* heap, HeapObject object) {
+  Heap::MarkingBarrierForElementsSlow(heap, object);
+}
+
+void Heap_MarkingBarrierForDescriptorArraySlow(Heap* heap, HeapObject host,
+                                               HeapObject descriptor_array,
+                                               int number_of_own_descriptors) {
+  Heap::MarkingBarrierForDescriptorArraySlow(heap, host, descriptor_array,
+                                             number_of_own_descriptors);
+}
+
 void Heap::SetArgumentsAdaptorDeoptPCOffset(int pc_offset) {
   DCHECK_EQ(Smi::kZero, arguments_adaptor_deopt_pc_offset());
   set_arguments_adaptor_deopt_pc_offset(Smi::FromInt(pc_offset));
@@ -2093,6 +2139,20 @@ bool Heap::ExternalStringTable::Contains(String string) {
     if (old_strings_[i] == string) return true;
   }
   return false;
+}
+
+void Heap::UpdateExternalString(String string, size_t old_payload,
+                                size_t new_payload) {
+  DCHECK(string->IsExternalString());
+  Page* page = Page::FromHeapObject(string);
+
+  if (old_payload > new_payload) {
+    page->DecrementExternalBackingStoreBytes(
+        ExternalBackingStoreType::kExternalString, old_payload - new_payload);
+  } else {
+    page->IncrementExternalBackingStoreBytes(
+        ExternalBackingStoreType::kExternalString, new_payload - old_payload);
+  }
 }
 
 String Heap::UpdateYoungReferenceInExternalStringTableEntry(Heap* heap,
@@ -5807,6 +5867,9 @@ static_assert(MemoryChunk::kFlagsOffset ==
 static_assert(MemoryChunk::kHeapOffset ==
                   heap_internals::MemoryChunk::kHeapOffset,
               "Heap offset inconsistent");
+static_assert(MemoryChunk::kOwnerOffset ==
+                  heap_internals::MemoryChunk::kOwnerOffset,
+              "Owner offset inconsistent");
 
 void Heap::SetEmbedderStackStateForNextFinalizaton(
     EmbedderHeapTracer::EmbedderStackState stack_state) {
