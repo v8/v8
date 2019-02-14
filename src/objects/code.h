@@ -737,7 +737,7 @@ class BytecodeArray : public FixedArrayBase {
   }
 
   // Setter and getter
-  inline byte get(int index);
+  inline byte get(int index) const;
   inline void set(int index, byte value);
 
   // Returns data start address.
@@ -784,6 +784,7 @@ class BytecodeArray : public FixedArrayBase {
   DECL_ACCESSORS(source_position_table, Object)
 
   inline ByteArray SourcePositionTable();
+  inline bool HasSourcePositionTable();
   inline void ClearFrameCacheFromSourcePositionTable();
 
   DECL_CAST(BytecodeArray)
@@ -814,6 +815,9 @@ class BytecodeArray : public FixedArrayBase {
   // Clear uninitialized padding space. This ensures that the snapshot content
   // is deterministic.
   inline void clear_padding();
+
+  // Compares only the bytecode array but not any of the header fields.
+  bool IsBytecodeEqual(const BytecodeArray other) const;
 
 // Layout description.
 #define BYTECODE_ARRAY_FIELDS(V)                           \

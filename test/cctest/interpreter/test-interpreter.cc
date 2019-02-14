@@ -8,6 +8,7 @@
 
 #include "src/api-inl.h"
 #include "src/base/overflowing-math.h"
+#include "src/compiler.h"
 #include "src/execution.h"
 #include "src/handles.h"
 #include "src/interpreter/bytecode-array-builder.h"
@@ -5057,6 +5058,82 @@ TEST(InterpreterGetBytecodeHandler) {
       interpreter->GetBytecodeHandler(Bytecode::kAdd, OperandScale::kDouble);
 
   CHECK_EQ(add_wide_handler->builtin_index(), Builtins::kAddWideHandler);
+}
+
+TEST(InterpreterCollectSourcePositions) {
+  FLAG_enable_lazy_source_positions = true;
+  HandleAndZoneScope handles;
+  Isolate* isolate = handles.main_isolate();
+
+  const char* source =
+      "(function () {\n"
+      "  return 1;\n"
+      "})";
+
+  Handle<JSFunction> function = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
+      *v8::Local<v8::Function>::Cast(CompileRun(source))));
+
+  Handle<SharedFunctionInfo> sfi = handle(function->shared(), isolate);
+  Handle<BytecodeArray> bytecode_array =
+      handle(sfi->GetBytecodeArray(), isolate);
+  ByteArray source_position_table = bytecode_array->SourcePositionTable();
+  CHECK_EQ(source_position_table->length(), 0);
+
+  Compiler::CollectSourcePositions(isolate, sfi);
+
+  source_position_table = bytecode_array->SourcePositionTable();
+  CHECK_GT(source_position_table->length(), 0);
+}
+
+namespace {
+
+void CheckStringEqual(const char* expected_ptr, Handle<Object> actual_handle) {
+  v8::String::Utf8Value utf8(
+      v8::Isolate::GetCurrent(),
+      v8::Utils::ToLocal(Handle<String>::cast(actual_handle)));
+  std::string expected(expected_ptr);
+  std::string actual(*utf8);
+  CHECK_EQ(expected, actual);
+}
+
+}  // namespace
+
+TEST(InterpreterCollectSourcePositions_GenerateStackTrace) {
+  FLAG_enable_lazy_source_positions = true;
+  HandleAndZoneScope handles;
+  Isolate* isolate = handles.main_isolate();
+
+  const char* source =
+      R"javascript(
+      (function () {
+        try {
+          throw new Error();
+        } catch (e) {
+          return e.stack;
+        }
+      });
+      )javascript";
+
+  Handle<JSFunction> function = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
+      *v8::Local<v8::Function>::Cast(CompileRun(source))));
+
+  Handle<SharedFunctionInfo> sfi = handle(function->shared(), isolate);
+  Handle<BytecodeArray> bytecode_array =
+      handle(sfi->GetBytecodeArray(), isolate);
+  ByteArray source_position_table = bytecode_array->SourcePositionTable();
+  CHECK_EQ(source_position_table->length(), 0);
+
+  {
+    Handle<Object> result =
+        Execution::Call(isolate, function,
+                        ReadOnlyRoots(isolate).undefined_value_handle(), 0,
+                        nullptr)
+            .ToHandleChecked();
+    CheckStringEqual("Error\n    at <anonymous>:4:17", result);
+  }
+
+  source_position_table = bytecode_array->SourcePositionTable();
+  CHECK_GT(source_position_table->length(), 0);
 }
 
 }  // namespace interpreter

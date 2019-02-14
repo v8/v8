@@ -1303,6 +1303,11 @@ FrameSummary::JavaScriptFrameSummary::JavaScriptFrameSummary(
       parameters_(parameters, isolate) {
   DCHECK(abstract_code->IsBytecodeArray() ||
          Code::cast(abstract_code)->kind() != Code::OPTIMIZED_FUNCTION);
+  // TODO(v8:8510): Move this to the SourcePosition getter.
+  if (FLAG_enable_lazy_source_positions && abstract_code->IsBytecodeArray()) {
+    SharedFunctionInfo::EnsureSourcePositionsAvailable(
+        isolate, handle(function->shared(), isolate));
+  }
 }
 
 bool FrameSummary::JavaScriptFrameSummary::is_subject_to_debugging() const {

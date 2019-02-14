@@ -1820,7 +1820,7 @@ Handle<BytecodeArray> Factory::NewBytecodeArray(
   instance->set_bytecode_age(BytecodeArray::kNoAgeBytecodeAge);
   instance->set_constant_pool(*constant_pool);
   instance->set_handler_table(*empty_byte_array());
-  instance->set_source_position_table(*empty_byte_array());
+  instance->set_source_position_table(*undefined_value());
   CopyBytes(reinterpret_cast<byte*>(instance->GetFirstBytecodeAddress()),
             raw_bytecodes, length);
   instance->clear_padding();

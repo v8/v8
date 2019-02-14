@@ -603,7 +603,7 @@ void CodeDataContainer::clear_padding() {
          kSize - kUnalignedSize);
 }
 
-byte BytecodeArray::get(int index) {
+byte BytecodeArray::get(int index) const {
   DCHECK(index >= 0 && index < this->length());
   return READ_BYTE_FIELD(*this, kHeaderSize + index * kCharSize);
 }
@@ -712,9 +712,17 @@ Address BytecodeArray::GetFirstBytecodeAddress() {
   return ptr() - kHeapObjectTag + kHeaderSize;
 }
 
+bool BytecodeArray::HasSourcePositionTable() {
+  Object maybe_table = source_position_table();
+  return !maybe_table->IsUndefined();
+}
+
 ByteArray BytecodeArray::SourcePositionTable() {
   Object maybe_table = source_position_table();
   if (maybe_table->IsByteArray()) return ByteArray::cast(maybe_table);
+  ReadOnlyRoots roots = GetReadOnlyRoots();
+  if (maybe_table->IsUndefined(roots)) return roots.empty_byte_array();
+
   DCHECK(maybe_table->IsSourcePositionTableWithFrameCache());
   return SourcePositionTableWithFrameCache::cast(maybe_table)
       ->source_position_table();
@@ -722,7 +730,7 @@ ByteArray BytecodeArray::SourcePositionTable() {
 
 void BytecodeArray::ClearFrameCacheFromSourcePositionTable() {
   Object maybe_table = source_position_table();
-  if (maybe_table->IsByteArray()) return;
+  if (maybe_table->IsUndefined() || maybe_table->IsByteArray()) return;
   DCHECK(maybe_table->IsSourcePositionTableWithFrameCache());
   set_source_position_table(SourcePositionTableWithFrameCache::cast(maybe_table)
                                 ->source_position_table());

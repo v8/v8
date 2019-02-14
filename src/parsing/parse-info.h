@@ -116,6 +116,8 @@ class V8_EXPORT_PRIVATE ParseInfo {
   FLAG_ACCESSOR(kAllowHarmonyPrivateMethods, allow_harmony_private_methods,
                 set_allow_harmony_private_methods)
   FLAG_ACCESSOR(kIsOneshotIIFE, is_oneshot_iife, set_is_oneshot_iife)
+  FLAG_ACCESSOR(kCollectSourcePositions, collect_source_positions,
+                set_collect_source_positions)
 #undef FLAG_ACCESSOR
 
   void set_parse_restriction(ParseRestriction restriction) {
@@ -312,7 +314,8 @@ class V8_EXPORT_PRIVATE ParseInfo {
     kAllowHarmonyNumericSeparator = 1 << 26,
     kAllowHarmonyPrivateFields = 1 << 27,
     kAllowHarmonyPrivateMethods = 1 << 28,
-    kIsOneshotIIFE = 1 << 29
+    kIsOneshotIIFE = 1 << 29,
+    kCollectSourcePositions = 1 << 30,
   };
 
   //------------- Inputs to parsing and scope analysis -----------------------

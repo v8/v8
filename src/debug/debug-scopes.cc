@@ -519,6 +519,8 @@ int ScopeIterator::GetSourcePosition() {
     return frame_inspector_->GetSourcePosition();
   } else {
     DCHECK(!generator_.is_null());
+    SharedFunctionInfo::EnsureSourcePositionsAvailable(
+        isolate_, handle(generator_->function()->shared(), isolate_));
     return generator_->source_position();
   }
 }

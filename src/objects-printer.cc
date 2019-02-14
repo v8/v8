@@ -782,16 +782,25 @@ void JSGeneratorObject::JSGeneratorObjectPrint(std::ostream& os) {  // NOLINT
     SharedFunctionInfo fun_info = function()->shared();
     if (fun_info->HasSourceCode()) {
       Script script = Script::cast(fun_info->script());
-      int lin = script->GetLineNumber(source_position()) + 1;
-      int col = script->GetColumnNumber(source_position()) + 1;
       String script_name = script->name()->IsString()
                                ? String::cast(script->name())
                                : GetReadOnlyRoots().empty_string();
-      os << "\n - source position: " << source_position();
-      os << " (";
-      script_name->PrintUC16(os);
-      os << ", lin " << lin;
-      os << ", col " << col;
+
+      os << "\n - source position: ";
+      // Can't collect source positions here if not available as that would
+      // allocate memory.
+      if (fun_info->HasBytecodeArray() &&
+          fun_info->GetBytecodeArray()->HasSourcePositionTable()) {
+        os << source_position();
+        os << " (";
+        script_name->PrintUC16(os);
+        int lin = script->GetLineNumber(source_position()) + 1;
+        int col = script->GetColumnNumber(source_position()) + 1;
+        os << ", lin " << lin;
+        os << ", col " << col;
+      } else {
+        os << "unavailable";
+      }
       os << ")";
     }
   }

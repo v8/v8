@@ -165,7 +165,7 @@ void SetStackFrameCacheCommon(Isolate* isolate, Handle<Code> code,
         ->set_stack_frame_cache(*cache);
     return;
   }
-  DCHECK(maybe_table->IsByteArray());
+  DCHECK(maybe_table->IsUndefined() || maybe_table->IsByteArray());
   Handle<ByteArray> table(Handle<ByteArray>::cast(maybe_table));
   Handle<SourcePositionTableWithFrameCache> table_with_cache =
       isolate->factory()->NewSourcePositionTableWithFrameCache(table, cache);
@@ -192,7 +192,7 @@ namespace {
 template <typename Code>
 void DropStackFrameCacheCommon(Code code) {
   i::Object maybe_table = code->source_position_table();
-  if (maybe_table->IsByteArray()) return;
+  if (maybe_table->IsUndefined() || maybe_table->IsByteArray()) return;
   DCHECK(maybe_table->IsSourcePositionTableWithFrameCache());
   code->set_source_position_table(
       i::SourcePositionTableWithFrameCache::cast(maybe_table)

@@ -880,6 +880,7 @@ class RuntimeCallTimer final {
   V(CompileBackgroundRewriteReturnResult)      \
   V(CompileBackgroundScopeAnalysis)            \
   V(CompileBackgroundScript)                   \
+  V(CompileCollectSourcePositions)             \
   V(CompileDeserialize)                        \
   V(CompileEnqueueOnDispatcher)                \
   V(CompileEval)                               \
@@ -1246,6 +1247,8 @@ class RuntimeCallTimerScope {
   HT(gc_low_memory_notification, V8.GCLowMemoryNotification, 10000,            \
      MILLISECOND)                                                              \
   /* Compilation times. */                                                     \
+  HT(collect_source_positions, V8.CollectSourcePositions, 1000000,             \
+     MICROSECOND)                                                              \
   HT(compile, V8.CompileMicroSeconds, 1000000, MICROSECOND)                    \
   HT(compile_eval, V8.CompileEvalMicroSeconds, 1000000, MICROSECOND)           \
   /* Serialization as part of compilation (code caching) */                    \

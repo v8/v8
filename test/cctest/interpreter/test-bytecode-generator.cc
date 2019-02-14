@@ -91,6 +91,7 @@ class InitializedIgnitionHandleScope : public InitializedHandleScope {
   InitializedIgnitionHandleScope() {
     i::FLAG_always_opt = false;
     i::FLAG_allow_natives_syntax = true;
+    i::FLAG_enable_lazy_source_positions = false;
   }
 };
 

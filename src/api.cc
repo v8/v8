@@ -9609,8 +9609,11 @@ debug::Location debug::GeneratorObject::SuspendedLocation() {
   CHECK(obj->is_suspended());
   i::Object maybe_script = obj->function()->shared()->script();
   if (!maybe_script->IsScript()) return debug::Location();
-  i::Handle<i::Script> script(i::Script::cast(maybe_script), obj->GetIsolate());
+  i::Isolate* isolate = obj->GetIsolate();
+  i::Handle<i::Script> script(i::Script::cast(maybe_script), isolate);
   i::Script::PositionInfo info;
+  i::SharedFunctionInfo::EnsureSourcePositionsAvailable(
+      isolate, i::handle(obj->function()->shared(), isolate));
   i::Script::GetPositionInfo(script, obj->source_position(), &info,
                              i::Script::WITH_OFFSET);
   return debug::Location(info.line, info.column);

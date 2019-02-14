@@ -48,6 +48,8 @@ ParseInfo::ParseInfo(Isolate* isolate, AccountingAllocator* zone_allocator)
   set_runtime_call_stats(isolate->counters()->runtime_call_stats());
   set_logger(isolate->logger());
   set_ast_string_constants(isolate->ast_string_constants());
+  set_collect_source_positions(!FLAG_enable_lazy_source_positions ||
+                               isolate->NeedsDetailedOptimizedCodeLineInfo());
   if (isolate->is_block_code_coverage()) set_block_coverage_enabled();
   if (isolate->is_collecting_type_profile()) set_collect_type_profile();
   if (isolate->compiler_dispatcher()->IsEnabled()) {

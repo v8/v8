@@ -5509,6 +5509,25 @@ void SharedFunctionInfo::SetPosition(int start_position, int end_position) {
 }
 
 // static
+void SharedFunctionInfo::EnsureSourcePositionsAvailable(
+    Isolate* isolate, Handle<SharedFunctionInfo> shared_info) {
+  if (FLAG_enable_lazy_source_positions && shared_info->HasBytecodeArray() &&
+      !shared_info->GetBytecodeArray()->HasSourcePositionTable()) {
+    Compiler::CollectSourcePositions(isolate, shared_info);
+  }
+}
+
+bool BytecodeArray::IsBytecodeEqual(const BytecodeArray other) const {
+  if (length() != other->length()) return false;
+
+  for (int i = 0; i < length(); ++i) {
+    if (get(i) != other->get(i)) return false;
+  }
+
+  return true;
+}
+
+// static
 void JSArray::Initialize(Handle<JSArray> array, int capacity, int length) {
   DCHECK_GE(capacity, 0);
   array->GetIsolate()->factory()->NewJSArrayStorage(
@@ -8131,6 +8150,7 @@ void PropertyCell::SetValueWithInvalidation(Isolate* isolate,
 int JSGeneratorObject::source_position() const {
   CHECK(is_suspended());
   DCHECK(function()->shared()->HasBytecodeArray());
+  DCHECK(function()->shared()->GetBytecodeArray()->HasSourcePositionTable());
 
   int code_offset = Smi::ToInt(input_or_debug_pos());
 

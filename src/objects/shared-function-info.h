@@ -584,6 +584,9 @@ class SharedFunctionInfo : public HeapObject {
   void SetFunctionTokenPosition(int function_token_position,
                                 int start_position);
 
+  static void EnsureSourcePositionsAvailable(
+      Isolate* isolate, Handle<SharedFunctionInfo> shared_info);
+
   inline bool construct_as_builtin() const;
 
   // Determines and sets the ConstructAsBuiltinBit in |flags|, based on the

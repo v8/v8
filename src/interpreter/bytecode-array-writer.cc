@@ -45,16 +45,20 @@ Handle<BytecodeArray> BytecodeArrayWriter::ToBytecodeArray(
   int frame_size = register_count * kSystemPointerSize;
   Handle<FixedArray> constant_pool =
       constant_array_builder()->ToFixedArray(isolate);
-  Handle<ByteArray> source_position_table =
-      source_position_table_builder()->ToSourcePositionTable(isolate);
   Handle<BytecodeArray> bytecode_array = isolate->factory()->NewBytecodeArray(
       bytecode_size, &bytecodes()->front(), frame_size, parameter_count,
       constant_pool);
   bytecode_array->set_handler_table(*handler_table);
-  bytecode_array->set_source_position_table(*source_position_table);
-  LOG_CODE_EVENT(isolate, CodeLinePosInfoRecordEvent(
-                              bytecode_array->GetFirstBytecodeAddress(),
-                              *source_position_table));
+  // TODO(v8:8510): Need to support native functions that should always have
+  // source positions suppressed and should write empty_byte_array here.
+  if (!source_position_table_builder_.Omit()) {
+    Handle<ByteArray> source_position_table =
+        source_position_table_builder()->ToSourcePositionTable(isolate);
+    bytecode_array->set_source_position_table(*source_position_table);
+    LOG_CODE_EVENT(isolate, CodeLinePosInfoRecordEvent(
+                                bytecode_array->GetFirstBytecodeAddress(),
+                                *source_position_table));
+  }
   return bytecode_array;
 }
 
