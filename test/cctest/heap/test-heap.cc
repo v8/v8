@@ -1785,8 +1785,9 @@ static HeapObject NewSpaceAllocateAligned(int size,
 static Address AlignNewSpace(AllocationAlignment alignment, int offset) {
   Address* top_addr = CcTest::heap()->new_space()->allocation_top_address();
   int fill = Heap::GetFillToAlign(*top_addr, alignment);
-  if (fill) {
-    NewSpaceAllocateAligned(fill + offset, kWordAligned);
+  int allocation = fill + offset;
+  if (allocation) {
+    NewSpaceAllocateAligned(allocation, kWordAligned);
   }
   return *top_addr;
 }
@@ -1908,6 +1909,64 @@ TEST(TestAlignedOverAllocation) {
   }
 }
 
+TEST(HeapNumberAlignment) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  Factory* factory = isolate->factory();
+  Heap* heap = isolate->heap();
+  HandleScope sc(isolate);
+
+  const auto required_alignment =
+      HeapObject::RequiredAlignment(*factory->heap_number_map());
+  const int maximum_misalignment =
+      Heap::GetMaximumFillToAlign(required_alignment);
+
+  for (int offset = 0; offset <= maximum_misalignment; offset += kTaggedSize) {
+    AlignNewSpace(required_alignment, offset);
+    Handle<Object> number_new = factory->NewNumber(1.000123);
+    CHECK(number_new->IsHeapNumber());
+    CHECK(Heap::InNewSpace(*number_new));
+    CHECK_EQ(0, Heap::GetFillToAlign(HeapObject::cast(*number_new)->address(),
+                                     required_alignment));
+
+    AlignOldSpace(required_alignment, offset);
+    Handle<Object> number_old = factory->NewNumber(1.000321, TENURED);
+    CHECK(number_old->IsHeapNumber());
+    CHECK(heap->InOldSpace(*number_old));
+    CHECK_EQ(0, Heap::GetFillToAlign(HeapObject::cast(*number_old)->address(),
+                                     required_alignment));
+  }
+}
+
+TEST(MutableHeapNumberAlignment) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  Factory* factory = isolate->factory();
+  Heap* heap = isolate->heap();
+  HandleScope sc(isolate);
+
+  const auto required_alignment =
+      HeapObject::RequiredAlignment(*factory->mutable_heap_number_map());
+  const int maximum_misalignment =
+      Heap::GetMaximumFillToAlign(required_alignment);
+
+  for (int offset = 0; offset <= maximum_misalignment; offset += kTaggedSize) {
+    AlignNewSpace(required_alignment, offset);
+    Handle<Object> number_new = factory->NewMutableHeapNumber(1.000123);
+    CHECK(number_new->IsMutableHeapNumber());
+    CHECK(Heap::InNewSpace(*number_new));
+    CHECK_EQ(0, Heap::GetFillToAlign(HeapObject::cast(*number_new)->address(),
+                                     required_alignment));
+
+    AlignOldSpace(required_alignment, offset);
+    Handle<Object> number_old =
+        factory->NewMutableHeapNumber(1.000321, TENURED);
+    CHECK(number_old->IsMutableHeapNumber());
+    CHECK(heap->InOldSpace(*number_old));
+    CHECK_EQ(0, Heap::GetFillToAlign(HeapObject::cast(*number_old)->address(),
+                                     required_alignment));
+  }
+}
 
 TEST(TestSizeOfObjectsVsHeapIteratorPrecision) {
   CcTest::InitializeVM();

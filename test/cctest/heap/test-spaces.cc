@@ -394,7 +394,7 @@ TEST(SizeOfInitialHeap) {
 #endif  // DEBUG
 
 static HeapObject AllocateUnaligned(NewSpace* space, int size) {
-  AllocationResult allocation = space->AllocateRawUnaligned(size);
+  AllocationResult allocation = space->AllocateRaw(size, kWordAligned);
   CHECK(!allocation.IsRetry());
   HeapObject filler;
   CHECK(allocation.To(&filler));
@@ -404,7 +404,7 @@ static HeapObject AllocateUnaligned(NewSpace* space, int size) {
 }
 
 static HeapObject AllocateUnaligned(PagedSpace* space, int size) {
-  AllocationResult allocation = space->AllocateRaw(size, kDoubleUnaligned);
+  AllocationResult allocation = space->AllocateRaw(size, kWordAligned);
   CHECK(!allocation.IsRetry());
   HeapObject filler;
   CHECK(allocation.To(&filler));
