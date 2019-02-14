@@ -508,6 +508,20 @@
           ]
         },
         {
+          "name": "StringToLocaleCase",
+          "main": "run.js",
+          "resources": [ "string-toLocaleCase.js" ],
+          "test_flags": [ "string-toLocaleCase" ],
+          "results_regexp": "^%s\\-Strings\\(Score\\): (.+)$",
+          "run_count": 1,
+          "tests": [
+            {"name": "StringToLocaleLowerCase"},
+            {"name": "StringToLocaleUpperCase"},
+            {"name": "StringToLocaleLowerCaseTR"},
+            {"name": "StringToLocaleUpperCaseTR"}
+          ]
+        },
+        {
           "name": "StringMatchAll",
           "main": "run.js",
           "resources": [ "string-matchall.js" ],
