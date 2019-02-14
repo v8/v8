@@ -348,8 +348,7 @@ MapUpdater::State MapUpdater::FindRootMap() {
     if (old_details.location() != kField) {
       return CopyGeneralizeAllFields("GenAll_RootModification2");
     }
-    if (new_constness_ != old_details.constness() &&
-        (!FLAG_modify_map_inplace || !old_map_->is_prototype_map())) {
+    if (new_constness_ != old_details.constness() && !FLAG_modify_map_inplace) {
       return CopyGeneralizeAllFields("GenAll_RootModification3");
     }
     if (!new_representation_.fits_into(old_details.representation())) {
@@ -367,10 +366,6 @@ MapUpdater::State MapUpdater::FindRootMap() {
 
     // Modify root map in-place.
     if (FLAG_modify_map_inplace && new_constness_ != old_details.constness()) {
-      // Only prototype root maps are allowed to be updated in-place.
-      // TODO(ishell): fix all the stubs that use prototype map check to
-      // ensure that the prototype was not modified.
-      DCHECK(old_map_->is_prototype_map());
       DCHECK(old_map_->is_stable());
       DCHECK(IsGeneralizableTo(old_details.constness(), new_constness_));
       GeneralizeField(old_map_, modified_descriptor_, new_constness_,
