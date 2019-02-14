@@ -858,7 +858,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       auto ool = new (zone()) OutOfLineRecordWrite(
           this, object, index, value, scratch0, scratch1, mode,
           DetermineStubCallMode(), &unwinding_info_writer_);
-      __ Str(value, MemOperand(object, index));
+      __ StoreTaggedField(value, MemOperand(object, index));
       __ CheckPageFlagSet(object, scratch0,
                           MemoryChunk::kPointersFromHereAreInterestingMask,
                           ool->entry());
@@ -1588,6 +1588,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kArm64StrQ:
       __ Str(i.InputSimd128Register(0), i.MemoryOperand(1));
+      break;
+    case kArm64StrCompressTagged:
+      __ StoreTaggedField(i.InputOrZeroRegister64(0), i.MemoryOperand(1));
       break;
     case kArm64DsbIsb:
       __ Dsb(FullSystem, BarrierAll);
