@@ -367,9 +367,9 @@ Node* ArrayBuiltinsAssembler::FindProcessor(Node* k_value, Node* k) {
         TYPED_ARRAYS(INSTANCE_TYPE)
 #undef INSTANCE_TYPE
     };
-    std::vector<Label> labels;
+    std::list<Label> labels;
     for (size_t i = 0; i < instance_types.size(); ++i) {
-      labels.push_back(Label(this));
+      labels.emplace_back(this);
     }
     std::vector<Label*> label_ptrs;
     for (Label& label : labels) {
@@ -390,8 +390,9 @@ Node* ArrayBuiltinsAssembler::FindProcessor(Node* k_value, Node* k) {
     Switch(instance_type, &unexpected_instance_type, instance_types.data(),
            label_ptrs.data(), labels.size());
 
-    for (size_t i = 0; i < labels.size(); ++i) {
-      BIND(&labels[i]);
+    size_t i = 0;
+    for (auto it = labels.begin(); it != labels.end(); ++i, ++it) {
+      BIND(&*it);
       Label done(this);
       source_elements_kind_ = ElementsKindForInstanceType(
           static_cast<InstanceType>(instance_types[i]));
