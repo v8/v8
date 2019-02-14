@@ -45,6 +45,7 @@ BUILTIN(StringPrototypeToUpperCaseIntl) {
 
 BUILTIN(StringPrototypeNormalizeIntl) {
   HandleScope handle_scope(isolate);
+  isolate->CountUsage(v8::Isolate::UseCounterFeature::kStringNormalize);
   TO_THIS_STRING(string, "String.prototype.normalize");
 
   Handle<Object> form_input = args.atOrUndefined(isolate, 1);
