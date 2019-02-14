@@ -924,12 +924,12 @@ class WasmDecoder : public Decoder {
     return true;
   }
 
-  inline bool CanTailCall(FunctionSig* tgt_sig) {
-    if (tgt_sig == nullptr) return false;
+  inline bool CanReturnCall(FunctionSig* target_sig) {
+    if (target_sig == nullptr) return false;
     size_t num_returns = sig_->return_count();
-    if (num_returns != tgt_sig->return_count()) return false;
+    if (num_returns != target_sig->return_count()) return false;
     for (size_t i = 0; i < num_returns; ++i) {
-      if (sig_->GetReturn(i) != tgt_sig->GetReturn(i)) return false;
+      if (sig_->GetReturn(i) != target_sig->GetReturn(i)) return false;
     }
     return true;
   }
@@ -2176,7 +2176,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           CallFunctionImmediate<validate> imm(this, this->pc_);
           len = 1 + imm.length;
           if (!this->Validate(this->pc_, imm)) break;
-          if (!this->CanTailCall(imm.sig)) {
+          if (!this->CanReturnCall(imm.sig)) {
             OPCODE_ERROR(opcode, "tail call return types mismatch");
             break;
           }
@@ -2192,7 +2192,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           CallIndirectImmediate<validate> imm(this, this->pc_);
           len = 1 + imm.length;
           if (!this->Validate(this->pc_, imm)) break;
-          if (!this->CanTailCall(imm.sig)) {
+          if (!this->CanReturnCall(imm.sig)) {
             OPCODE_ERROR(opcode, "tail call return types mismatch");
             break;
           }
