@@ -10,7 +10,7 @@ browser from Google.
 
 V8 can run standalone, or can be embedded into any C++ application.
 
-V8 Project page: https://github.com/v8/v8/wiki
+V8 Documentation: https://v8.dev/docs
 
 
 Getting the Code
@@ -37,4 +37,4 @@ Contributing
 =============
 
 Please follow the instructions mentioned on the
-[V8 wiki](https://github.com/v8/v8/wiki/Contributing).
+[V8 contributing docs](https://v8.dev/docs/contribute).
