@@ -245,6 +245,7 @@ consts_misc = [
 #
 extras_accessors = [
     'JSFunction, context, Context, kContextOffset',
+    'JSFunction, shared, SharedFunctionInfo, kSharedFunctionInfoOffset',
     'HeapObject, map, Map, kMapOffset',
     'JSObject, elements, Object, kElementsOffset',
     'JSObject, internal_fields, uintptr_t, kHeaderSize',
