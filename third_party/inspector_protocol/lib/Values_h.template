@@ -36,6 +36,7 @@ public:
         TypeInteger,
         TypeDouble,
         TypeString,
+        TypeBinary,
         TypeObject,
         TypeArray,
         TypeSerialized
@@ -49,13 +50,14 @@ public:
     virtual bool asDouble(double* output) const;
     virtual bool asInteger(int* output) const;
     virtual bool asString(String* output) const;
+    virtual bool asBinary(Binary* output) const;
 
     virtual void writeJSON(StringBuilder* output) const;
+    virtual void writeBinary(std::vector<uint8_t>* bytes) const;
     virtual std::unique_ptr<Value> clone() const;
     String toJSONString() const;
     String serializeToJSON() override;
     std::vector<uint8_t> serializeToBinary() override;
-
 
 protected:
     Value() : m_type(TypeNull) { }
@@ -89,6 +91,7 @@ public:
     bool asDouble(double* output) const override;
     bool asInteger(int* output) const override;
     void writeJSON(StringBuilder* output) const override;
+    void writeBinary(std::vector<uint8_t>* bytes) const override;
     std::unique_ptr<Value> clone() const override;
 
 private:
@@ -117,6 +120,7 @@ public:
 
     bool asString(String* output) const override;
     void writeJSON(StringBuilder* output) const override;
+    void writeBinary(std::vector<uint8_t>* bytes) const override;
     std::unique_ptr<Value> clone() const override;
 
 private:
@@ -124,6 +128,24 @@ private:
     explicit StringValue(const char* value) : Value(TypeString), m_stringValue(value) { }
 
     String m_stringValue;
+};
+
+class {{config.lib.export_macro}} BinaryValue : public Value {
+public:
+    static std::unique_ptr<BinaryValue> create(const Binary& value)
+    {
+        return std::unique_ptr<BinaryValue>(new BinaryValue(value));
+    }
+
+    bool asBinary(Binary* output) const override;
+    void writeJSON(StringBuilder* output) const override;
+    void writeBinary(std::vector<uint8_t>* bytes) const override;
+    std::unique_ptr<Value> clone() const override;
+
+private:
+    explicit BinaryValue(const Binary& value) : Value(TypeBinary), m_binaryValue(value) { }
+
+    Binary m_binaryValue;
 };
 
 class {{config.lib.export_macro}} SerializedValue : public Value {
@@ -139,6 +161,7 @@ public:
     }
 
     void writeJSON(StringBuilder* output) const override;
+    void writeBinary(std::vector<uint8_t>* bytes) const override;
     std::unique_ptr<Value> clone() const override;
 
 private:
@@ -171,6 +194,7 @@ public:
     }
 
     void writeJSON(StringBuilder* output) const override;
+    void writeBinary(std::vector<uint8_t>* bytes) const override;
     std::unique_ptr<Value> clone() const override;
 
     size_t size() const { return m_data.size(); }
@@ -239,6 +263,7 @@ public:
     ~ListValue() override;
 
     void writeJSON(StringBuilder* output) const override;
+    void writeBinary(std::vector<uint8_t>* bytes) const override;
     std::unique_ptr<Value> clone() const override;
 
     void pushValue(std::unique_ptr<Value>);

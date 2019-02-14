@@ -27,6 +27,16 @@ struct ProtocolMessage {
   std::vector<uint8_t> binary;
 };
 
+class StringUTF8Adapter {
+ public:
+  explicit StringUTF8Adapter(const String& string) : string_(string.utf8()) {}
+  const char* Data() const { return string_.data(); }
+  size_t length() const { return string_.length(); }
+
+ private:
+  std::string string_;
+};
+
 class StringUtil {
  public:
   static String substring(const String& s, size_t pos, size_t len) {
@@ -91,6 +101,7 @@ class Binary {
   static Binary fromBase64(const String& base64, bool* success) {
     UNIMPLEMENTED();
   }
+  static Binary fromSpan(const uint8_t* data, size_t size) { UNIMPLEMENTED(); }
 };
 }  // namespace protocol
 

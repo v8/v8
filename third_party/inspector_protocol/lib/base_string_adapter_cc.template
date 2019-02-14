@@ -223,6 +223,12 @@ Binary Binary::fromString(std::string data) {
   return Binary(base::RefCountedString::TakeString(&data));
 }
 
+// static
+Binary Binary::fromSpan(const uint8_t* data, size_t size) {
+  return Binary(scoped_refptr<base::RefCountedBytes>(
+      new base::RefCountedBytes(data, size)));
+}
+
 {% for namespace in config.protocol.namespace %}
 } // namespace {{namespace}}
 {% endfor %}
