@@ -5871,7 +5871,7 @@ Handle<Object> JSPromise::Fulfill(Handle<JSPromise> promise,
   Isolate* const isolate = promise->GetIsolate();
 
   // 1. Assert: The value of promise.[[PromiseState]] is "pending".
-  DCHECK_EQ(Promise::kPending, promise->status());
+  CHECK_EQ(Promise::kPending, promise->status());
 
   // 2. Let reactions be promise.[[PromiseFulfillReactions]].
   Handle<Object> reactions(promise->reactions(), isolate);
@@ -5899,7 +5899,7 @@ Handle<Object> JSPromise::Reject(Handle<JSPromise> promise,
                           isolate->factory()->undefined_value());
 
   // 1. Assert: The value of promise.[[PromiseState]] is "pending".
-  DCHECK_EQ(Promise::kPending, promise->status());
+  CHECK_EQ(Promise::kPending, promise->status());
 
   // 2. Let reactions be promise.[[PromiseRejectReactions]].
   Handle<Object> reactions(promise->reactions(), isolate);
@@ -6001,7 +6001,7 @@ Handle<Object> JSPromise::TriggerPromiseReactions(Isolate* isolate,
                                                   Handle<Object> reactions,
                                                   Handle<Object> argument,
                                                   PromiseReaction::Type type) {
-  DCHECK(reactions->IsSmi() || reactions->IsPromiseReaction());
+  CHECK(reactions->IsSmi() || reactions->IsPromiseReaction());
 
   // We need to reverse the {reactions} here, since we record them
   // on the JSPromise in the reverse order.
