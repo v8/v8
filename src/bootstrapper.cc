@@ -3040,6 +3040,33 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                             Builtins::kRelativeTimeFormatPrototypeFormatToParts,
                             2, false);
     }
+
+    {  // -- L i s t F o r m a t
+      Handle<JSFunction> list_format_fun = InstallFunction(
+          isolate(), intl, "ListFormat", JS_INTL_LIST_FORMAT_TYPE,
+          JSListFormat::kSize, 0, factory->the_hole_value(),
+          Builtins::kListFormatConstructor);
+      list_format_fun->shared()->set_length(0);
+      list_format_fun->shared()->DontAdaptArguments();
+
+      SimpleInstallFunction(isolate(), list_format_fun, "supportedLocalesOf",
+                            Builtins::kListFormatSupportedLocalesOf, 1, false);
+
+      // Setup %ListFormatPrototype%.
+      Handle<JSObject> prototype(
+          JSObject::cast(list_format_fun->instance_prototype()), isolate());
+
+      InstallToStringTag(isolate(), prototype, "Intl.ListFormat");
+
+      SimpleInstallFunction(isolate(), prototype, "resolvedOptions",
+                            Builtins::kListFormatPrototypeResolvedOptions, 0,
+                            false);
+      SimpleInstallFunction(isolate(), prototype, "format",
+                            Builtins::kListFormatPrototypeFormat, 1, false);
+      SimpleInstallFunction(isolate(), prototype, "formatToParts",
+                            Builtins::kListFormatPrototypeFormatToParts, 1,
+                            false);
+    }
   }
 #endif  // V8_INTL_SUPPORT
 
@@ -4418,40 +4445,6 @@ void Genesis::InitializeGlobal_harmony_weak_refs() {
 }
 
 #ifdef V8_INTL_SUPPORT
-void Genesis::InitializeGlobal_harmony_intl_list_format() {
-  if (!FLAG_harmony_intl_list_format) return;
-  Handle<JSObject> intl = Handle<JSObject>::cast(
-      JSReceiver::GetProperty(
-          isolate(),
-          Handle<JSReceiver>(native_context()->global_object(), isolate()),
-          factory()->InternalizeUtf8String("Intl"))
-          .ToHandleChecked());
-
-  Handle<JSFunction> list_format_fun =
-      InstallFunction(isolate(), intl, "ListFormat", JS_INTL_LIST_FORMAT_TYPE,
-                      JSListFormat::kSize, 0, factory()->the_hole_value(),
-                      Builtins::kListFormatConstructor);
-  list_format_fun->shared()->set_length(0);
-  list_format_fun->shared()->DontAdaptArguments();
-
-  SimpleInstallFunction(isolate(), list_format_fun, "supportedLocalesOf",
-                        Builtins::kListFormatSupportedLocalesOf, 1, false);
-
-  // Setup %ListFormatPrototype%.
-  Handle<JSObject> prototype(
-      JSObject::cast(list_format_fun->instance_prototype()), isolate());
-
-  InstallToStringTag(isolate(), prototype, "Intl.ListFormat");
-
-  SimpleInstallFunction(isolate(), prototype, "resolvedOptions",
-                        Builtins::kListFormatPrototypeResolvedOptions, 0,
-                        false);
-  SimpleInstallFunction(isolate(), prototype, "format",
-                        Builtins::kListFormatPrototypeFormat, 1, false);
-  SimpleInstallFunction(isolate(), prototype, "formatToParts",
-                        Builtins::kListFormatPrototypeFormatToParts, 1, false);
-}
-
 void Genesis::InitializeGlobal_harmony_locale() {
   if (!FLAG_harmony_locale) return;
 
