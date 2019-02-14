@@ -288,22 +288,6 @@ size_t Isolate::HashIsolateForEmbeddedBlob() {
   return hash;
 }
 
-void ThreadLocalTop::Initialize(Isolate* isolate) {
-  *this = ThreadLocalTop();
-  isolate_ = isolate;
-#ifdef USE_SIMULATOR
-  simulator_ = Simulator::current(isolate);
-#endif
-  thread_id_ = ThreadId::Current();
-  thread_in_wasm_flag_address_ = reinterpret_cast<Address>(
-      trap_handler::GetThreadInWasmThreadLocalAddress());
-}
-
-void ThreadLocalTop::Free() {
-  // Match unmatched PopPromise calls.
-  while (promise_on_stack_) isolate_->PopPromise();
-}
-
 
 base::Thread::LocalStorageKey Isolate::isolate_key_;
 base::Thread::LocalStorageKey Isolate::per_isolate_thread_data_key_;
@@ -394,7 +378,7 @@ void Isolate::Iterate(RootVisitor* v, ThreadLocalTop* thread) {
   v->VisitRootPointer(Root::kTop, nullptr,
                       FullObjectSlot(&thread->scheduled_exception_));
 
-  for (v8::TryCatch* block = thread->try_catch_handler(); block != nullptr;
+  for (v8::TryCatch* block = thread->try_catch_handler_; block != nullptr;
        block = block->next_) {
     // TODO(3770): Make TryCatch::exception_ an Address (and message_obj_ too).
     v->VisitRootPointer(
@@ -453,13 +437,13 @@ bool Isolate::IsDeferredHandle(Address* handle) {
 
 
 void Isolate::RegisterTryCatchHandler(v8::TryCatch* that) {
-  thread_local_top()->set_try_catch_handler(that);
+  thread_local_top()->try_catch_handler_ = that;
 }
 
 
 void Isolate::UnregisterTryCatchHandler(v8::TryCatch* that) {
-  DCHECK(thread_local_top()->try_catch_handler() == that);
-  thread_local_top()->set_try_catch_handler(that->next_);
+  DCHECK(thread_local_top()->try_catch_handler_ == that);
+  thread_local_top()->try_catch_handler_ = that->next_;
 }
 
 
@@ -1995,7 +1979,7 @@ void Isolate::CancelScheduledExceptionFromTryCatch(v8::TryCatch* handler) {
       clear_scheduled_exception();
     }
   }
-  if (reinterpret_cast<void*>(thread_local_top_.pending_message_obj_.ptr()) ==
+  if (reinterpret_cast<void*>(thread_local_top()->pending_message_obj_.ptr()) ==
       handler->message_obj_) {
     clear_pending_message();
   }
@@ -2229,7 +2213,7 @@ void Isolate::ReportPendingMessagesImpl(bool report_externally) {
   Object exception = pending_exception();
 
   // Clear the pending message object early to avoid endless recursion.
-  Object message_obj = thread_local_top_.pending_message_obj_;
+  Object message_obj = thread_local_top()->pending_message_obj_;
   clear_pending_message();
 
   // For uncatchable exceptions we do nothing. If needed, the exception and the
@@ -2309,27 +2293,27 @@ void Isolate::ReportPendingMessagesFromJavaScript() {
 
   auto PropagateToExternalHandler = [=]() {
     if (IsHandledByJavaScript()) {
-      thread_local_top_.external_caught_exception_ = false;
+      thread_local_top()->external_caught_exception_ = false;
       return false;
     }
 
     if (!IsHandledExternally()) {
-      thread_local_top_.external_caught_exception_ = false;
+      thread_local_top()->external_caught_exception_ = false;
       return true;
     }
 
-    thread_local_top_.external_caught_exception_ = true;
+    thread_local_top()->external_caught_exception_ = true;
     v8::TryCatch* handler = try_catch_handler();
-    DCHECK(thread_local_top_.pending_message_obj_->IsJSMessageObject() ||
-           thread_local_top_.pending_message_obj_->IsTheHole(this));
+    DCHECK(thread_local_top()->pending_message_obj_->IsJSMessageObject() ||
+           thread_local_top()->pending_message_obj_->IsTheHole(this));
     handler->can_continue_ = true;
     handler->has_terminated_ = false;
     handler->exception_ = reinterpret_cast<void*>(pending_exception().ptr());
     // Propagate to the external try-catch only if we got an actual message.
-    if (thread_local_top_.pending_message_obj_->IsTheHole(this)) return true;
+    if (thread_local_top()->pending_message_obj_->IsTheHole(this)) return true;
 
     handler->message_obj_ =
-        reinterpret_cast<void*>(thread_local_top_.pending_message_obj_.ptr());
+        reinterpret_cast<void*>(thread_local_top()->pending_message_obj_.ptr());
     return true;
   };
 
@@ -2342,11 +2326,11 @@ void Isolate::ReportPendingMessagesFromJavaScript() {
 MessageLocation Isolate::GetMessageLocation() {
   DCHECK(has_pending_exception());
 
-  if (thread_local_top_.pending_exception_ !=
+  if (thread_local_top()->pending_exception_ !=
           ReadOnlyRoots(heap()).termination_exception() &&
-      !thread_local_top_.pending_message_obj_->IsTheHole(this)) {
+      !thread_local_top()->pending_message_obj_->IsTheHole(this)) {
     Handle<JSMessageObject> message_obj(
-        JSMessageObject::cast(thread_local_top_.pending_message_obj_), this);
+        JSMessageObject::cast(thread_local_top()->pending_message_obj_), this);
     Handle<Script> script(message_obj->script(), this);
     int start_pos = message_obj->start_position();
     int end_pos = message_obj->end_position();
@@ -3121,7 +3105,7 @@ Isolate::~Isolate() {
   default_microtask_queue_ = nullptr;
 }
 
-void Isolate::InitializeThreadLocal() { thread_local_top_.Initialize(this); }
+void Isolate::InitializeThreadLocal() { thread_local_top()->Initialize(this); }
 
 void Isolate::SetTerminationOnExternalTryCatch() {
   if (try_catch_handler() == nullptr) return;
@@ -3135,30 +3119,30 @@ bool Isolate::PropagatePendingExceptionToExternalTryCatch() {
   Object exception = pending_exception();
 
   if (IsJavaScriptHandlerOnTop(exception)) {
-    thread_local_top_.external_caught_exception_ = false;
+    thread_local_top()->external_caught_exception_ = false;
     return false;
   }
 
   if (!IsExternalHandlerOnTop(exception)) {
-    thread_local_top_.external_caught_exception_ = false;
+    thread_local_top()->external_caught_exception_ = false;
     return true;
   }
 
-  thread_local_top_.external_caught_exception_ = true;
+  thread_local_top()->external_caught_exception_ = true;
   if (!is_catchable_by_javascript(exception)) {
     SetTerminationOnExternalTryCatch();
   } else {
     v8::TryCatch* handler = try_catch_handler();
-    DCHECK(thread_local_top_.pending_message_obj_->IsJSMessageObject() ||
-           thread_local_top_.pending_message_obj_->IsTheHole(this));
+    DCHECK(thread_local_top()->pending_message_obj_->IsJSMessageObject() ||
+           thread_local_top()->pending_message_obj_->IsTheHole(this));
     handler->can_continue_ = true;
     handler->has_terminated_ = false;
     handler->exception_ = reinterpret_cast<void*>(pending_exception().ptr());
     // Propagate to the external try-catch only if we got an actual message.
-    if (thread_local_top_.pending_message_obj_->IsTheHole(this)) return true;
+    if (thread_local_top()->pending_message_obj_->IsTheHole(this)) return true;
 
     handler->message_obj_ =
-        reinterpret_cast<void*>(thread_local_top_.pending_message_obj_.ptr());
+        reinterpret_cast<void*>(thread_local_top()->pending_message_obj_.ptr());
   }
   return true;
 }

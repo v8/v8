@@ -315,7 +315,7 @@ class CallDepthScope {
     handle_scope_implementer->DecrementCallDepth();
     bool clear_exception =
         handle_scope_implementer->CallDepthIsZero() &&
-        isolate_->thread_local_top()->try_catch_handler() == nullptr;
+        isolate_->thread_local_top()->try_catch_handler_ == nullptr;
     isolate_->OptionalRescheduleException(clear_exception);
   }
 
