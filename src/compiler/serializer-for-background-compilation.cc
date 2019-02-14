@@ -407,7 +407,7 @@ void SerializerForBackgroundCompilation::VisitCallUndefinedReceiver0(
     BytecodeArrayIterator* iterator) {
   const Hints& callee =
       environment()->register_hints(iterator->GetRegisterOperand(0));
-  FeedbackSlot slot = FeedbackVector::ToSlot(iterator->GetIndexOperand(1));
+  FeedbackSlot slot = iterator->GetSlotOperand(1);
 
   Hints receiver(zone());
   receiver.AddConstant(broker()->isolate()->factory()->undefined_value());
@@ -422,7 +422,7 @@ void SerializerForBackgroundCompilation::VisitCallUndefinedReceiver1(
       environment()->register_hints(iterator->GetRegisterOperand(0));
   const Hints& arg0 =
       environment()->register_hints(iterator->GetRegisterOperand(1));
-  FeedbackSlot slot = FeedbackVector::ToSlot(iterator->GetIndexOperand(2));
+  FeedbackSlot slot = iterator->GetSlotOperand(2);
 
   Hints receiver(zone());
   receiver.AddConstant(broker()->isolate()->factory()->undefined_value());
@@ -439,7 +439,7 @@ void SerializerForBackgroundCompilation::VisitCallUndefinedReceiver2(
       environment()->register_hints(iterator->GetRegisterOperand(1));
   const Hints& arg1 =
       environment()->register_hints(iterator->GetRegisterOperand(2));
-  FeedbackSlot slot = FeedbackVector::ToSlot(iterator->GetIndexOperand(3));
+  FeedbackSlot slot = iterator->GetSlotOperand(3);
 
   Hints receiver(zone());
   receiver.AddConstant(broker()->isolate()->factory()->undefined_value());
@@ -469,7 +469,7 @@ void SerializerForBackgroundCompilation::VisitCallProperty0(
       environment()->register_hints(iterator->GetRegisterOperand(0));
   const Hints& receiver =
       environment()->register_hints(iterator->GetRegisterOperand(1));
-  FeedbackSlot slot = FeedbackVector::ToSlot(iterator->GetIndexOperand(2));
+  FeedbackSlot slot = iterator->GetSlotOperand(2);
 
   HintsVector parameters({receiver}, zone());
   ProcessCallOrConstruct(callee, base::nullopt, parameters, slot);
@@ -483,7 +483,7 @@ void SerializerForBackgroundCompilation::VisitCallProperty1(
       environment()->register_hints(iterator->GetRegisterOperand(1));
   const Hints& arg0 =
       environment()->register_hints(iterator->GetRegisterOperand(2));
-  FeedbackSlot slot = FeedbackVector::ToSlot(iterator->GetIndexOperand(3));
+  FeedbackSlot slot = iterator->GetSlotOperand(3);
 
   HintsVector parameters({receiver, arg0}, zone());
   ProcessCallOrConstruct(callee, base::nullopt, parameters, slot);
@@ -499,7 +499,7 @@ void SerializerForBackgroundCompilation::VisitCallProperty2(
       environment()->register_hints(iterator->GetRegisterOperand(2));
   const Hints& arg1 =
       environment()->register_hints(iterator->GetRegisterOperand(3));
-  FeedbackSlot slot = FeedbackVector::ToSlot(iterator->GetIndexOperand(4));
+  FeedbackSlot slot = iterator->GetSlotOperand(4);
 
   HintsVector parameters({receiver, arg0, arg1}, zone());
   ProcessCallOrConstruct(callee, base::nullopt, parameters, slot);
@@ -603,7 +603,7 @@ void SerializerForBackgroundCompilation::ProcessCallVarArgs(
   int reg_count = static_cast<int>(iterator->GetRegisterCountOperand(2));
   FeedbackSlot slot;
   if (iterator->current_bytecode() != interpreter::Bytecode::kCallNoFeedback) {
-    slot = FeedbackVector::ToSlot(iterator->GetIndexOperand(3));
+    slot = iterator->GetSlotOperand(3);
   }
 
   HintsVector arguments(zone());
@@ -659,7 +659,7 @@ void SerializerForBackgroundCompilation::VisitConstruct(
       environment()->register_hints(iterator->GetRegisterOperand(0));
   interpreter::Register first_reg = iterator->GetRegisterOperand(1);
   size_t reg_count = iterator->GetRegisterCountOperand(2);
-  FeedbackSlot slot = FeedbackVector::ToSlot(iterator->GetIndexOperand(3));
+  FeedbackSlot slot = iterator->GetSlotOperand(3);
   const Hints& new_target = environment()->accumulator_hints();
 
   HintsVector arguments(zone());
@@ -674,7 +674,7 @@ void SerializerForBackgroundCompilation::VisitConstructWithSpread(
       environment()->register_hints(iterator->GetRegisterOperand(0));
   interpreter::Register first_reg = iterator->GetRegisterOperand(1);
   size_t reg_count = iterator->GetRegisterCountOperand(2);
-  FeedbackSlot slot = FeedbackVector::ToSlot(iterator->GetIndexOperand(3));
+  FeedbackSlot slot = iterator->GetSlotOperand(3);
   const Hints& new_target = environment()->accumulator_hints();
 
   HintsVector arguments(zone());
