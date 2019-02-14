@@ -61,6 +61,12 @@ namespace internal {
   TFC(CallWithArrayLike, CallWithArrayLike, 1)                                 \
   ASM(CallForwardVarargs, CallForwardVarargs)                                  \
   ASM(CallFunctionForwardVarargs, CallForwardVarargs)                          \
+  /* Call an API callback via a {FunctionTemplateInfo}, doing appropriate */   \
+  /* access and compatible receiver checks. */                                 \
+  TFC(CallFunctionTemplate_CheckAccess, CallFunctionTemplate, 1)               \
+  TFC(CallFunctionTemplate_CheckCompatibleReceiver, CallFunctionTemplate, 1)   \
+  TFC(CallFunctionTemplate_CheckAccessAndCompatibleReceiver,                   \
+      CallFunctionTemplate, 1)                                                 \
                                                                                \
   /* Construct */                                                              \
   /* ES6 section 9.2.2 [[Construct]] ( argumentsList, newTarget) */            \

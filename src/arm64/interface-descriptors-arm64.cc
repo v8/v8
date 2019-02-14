@@ -99,6 +99,14 @@ void CallForwardVarargsDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
+void CallFunctionTemplateDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  // x1 : function template info
+  // x2 : number of arguments (on the stack, not including receiver)
+  Register registers[] = {x1, x2};
+  data->InitializePlatformSpecific(arraysize(registers), registers);
+}
+
 void CallWithSpreadDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   // x0 : number of arguments (on the stack, not including receiver)

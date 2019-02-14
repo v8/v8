@@ -31,6 +31,7 @@ namespace internal {
   V(BigIntToWasmI64)                  \
   V(BinaryOp)                         \
   V(CallForwardVarargs)               \
+  V(CallFunctionTemplate)             \
   V(CallTrampoline)                   \
   V(CallVarargs)                      \
   V(CallWithArrayLike)                \
@@ -791,6 +792,14 @@ class CallForwardVarargsDescriptor : public CallInterfaceDescriptor {
                          MachineType::Int32(),      // kActualArgumentsCount
                          MachineType::Int32())      // kStartIndex
   DECLARE_DESCRIPTOR(CallForwardVarargsDescriptor, CallInterfaceDescriptor)
+};
+
+class CallFunctionTemplateDescriptor : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS(kFunctionTemplateInfo, kArgumentsCount)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kFunctionTemplateInfo
+                         MachineType::IntPtr())     // kArgumentsCount
+  DECLARE_DESCRIPTOR(CallFunctionTemplateDescriptor, CallInterfaceDescriptor)
 };
 
 class CallWithSpreadDescriptor : public CallInterfaceDescriptor {

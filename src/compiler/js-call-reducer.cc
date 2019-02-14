@@ -2956,8 +2956,27 @@ Reduction JSCallReducer::ReduceCallApiFunction(
         graph()->NewNode(simplified()->ConvertReceiver(p.convert_mode()),
                          receiver, global_proxy, effect, control);
   } else {
-    // We cannot do a fast API call in this case.
-    return NoChange();
+    // We don't have enough information to eliminate the access check
+    // and/or the compatible receiver check, so use the generic builtin
+    // that does those checks dynamically. This is still significantly
+    // faster than the generic call sequence.
+    Builtins::Name builtin_name =
+        !function_template_info->accept_any_receiver()
+            ? (function_template_info->signature()->IsUndefined(isolate())
+                   ? Builtins::kCallFunctionTemplate_CheckAccess
+                   : Builtins::
+                         kCallFunctionTemplate_CheckAccessAndCompatibleReceiver)
+            : Builtins::kCallFunctionTemplate_CheckCompatibleReceiver;
+    Callable callable = Builtins::CallableFor(isolate(), builtin_name);
+    auto call_descriptor = Linkage::GetStubCallDescriptor(
+        graph()->zone(), callable.descriptor(),
+        argc + 1 /* implicit receiver */, CallDescriptor::kNeedsFrameState);
+    node->InsertInput(graph()->zone(), 0,
+                      jsgraph()->HeapConstant(callable.code()));
+    node->ReplaceInput(1, jsgraph()->HeapConstant(function_template_info));
+    node->InsertInput(graph()->zone(), 2, jsgraph()->Constant(argc));
+    NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
+    return Changed(node);
   }
 
   // TODO(turbofan): Consider introducing a JSCallApiCallback operator for
@@ -2969,8 +2988,7 @@ Reduction JSCallReducer::ReduceCallApiFunction(
   Callable call_api_callback = CodeFactory::CallApiCallback(isolate());
   CallInterfaceDescriptor cid = call_api_callback.descriptor();
   auto call_descriptor = Linkage::GetStubCallDescriptor(
-      graph()->zone(), cid,
-      cid.GetStackParameterCount() + argc + 1 /* implicit receiver */,
+      graph()->zone(), cid, argc + 1 /* implicit receiver */,
       CallDescriptor::kNeedsFrameState);
   ApiFunction api_function(v8::ToCData<Address>(call_handler_info->callback()));
   ExternalReference function_reference = ExternalReference::Create(

@@ -205,6 +205,7 @@ namespace internal {
 #endif  // V8_INTL_SUPPORT
 
 #define FOR_EACH_INTRINSIC_INTERNAL(F, I)            \
+  F(AccessCheck, 1, 1)                               \
   F(AllocateInNewSpace, 1, 1)                        \
   F(AllocateInTargetSpace, 2, 1)                     \
   F(AllocateSeqOneByteString, 1, 1)                  \

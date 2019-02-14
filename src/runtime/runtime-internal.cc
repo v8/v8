@@ -27,6 +27,17 @@
 namespace v8 {
 namespace internal {
 
+RUNTIME_FUNCTION(Runtime_AccessCheck) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
+  if (!isolate->MayAccess(handle(isolate->context(), isolate), object)) {
+    isolate->ReportFailedAccessCheck(object);
+    RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
+  }
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
 RUNTIME_FUNCTION(Runtime_CheckIsBootstrapping) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(0, args.length());
