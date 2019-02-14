@@ -146,6 +146,10 @@ void JumpTableAssembler::EmitLazyCompileJumpSlot(uint32_t func_index,
   b(r1);  // 2 bytes
 }
 
+void JumpTableAssembler::EmitRuntimeStubSlot(Address builtin_target) {
+  JumpToInstructionStream(builtin_target);
+}
+
 void JumpTableAssembler::EmitJumpSlot(Address target) {
   mov(r1, Operand(target));
   b(r1);
@@ -189,6 +193,10 @@ void JumpTableAssembler::EmitLazyCompileJumpSlot(uint32_t func_index,
   mov(r0, Operand(lazy_compile_target));
   mtctr(r0);
   bctr();
+}
+
+void JumpTableAssembler::EmitRuntimeStubSlot(Address builtin_target) {
+  JumpToInstructionStream(builtin_target);
 }
 
 void JumpTableAssembler::EmitJumpSlot(Address target) {

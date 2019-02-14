@@ -130,17 +130,13 @@ class JumpTableAssembler : public MacroAssembler {
   static constexpr int kJumpTableSlotSize = 3 * kInstrSize;
   static constexpr int kJumpTableStubSlotSize = 6 * kInstrSize;
 #elif V8_TARGET_ARCH_S390X
-  static constexpr int kJumpTableLineSize = 20;
+  static constexpr int kJumpTableLineSize = 128;
   static constexpr int kJumpTableSlotSize = 20;
-#elif V8_TARGET_ARCH_S390
-  static constexpr int kJumpTableLineSize = 14;
-  static constexpr int kJumpTableSlotSize = 14;
+  static constexpr int kJumpTableStubSlotSize = 14;
 #elif V8_TARGET_ARCH_PPC64
-  static constexpr int kJumpTableLineSize = 48;
+  static constexpr int kJumpTableLineSize = 64;
   static constexpr int kJumpTableSlotSize = 48;
-#elif V8_TARGET_ARCH_PPC
-  static constexpr int kJumpTableLineSize = 24;
-  static constexpr int kJumpTableSlotSize = 24;
+  static constexpr int kJumpTableStubSlotSize = 7 * kInstrSize;
 #elif V8_TARGET_ARCH_MIPS
   static constexpr int kJumpTableLineSize = 6 * kInstrSize;
   static constexpr int kJumpTableSlotSize = 6 * kInstrSize;
