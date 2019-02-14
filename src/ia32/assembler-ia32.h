@@ -204,9 +204,11 @@ enum ScaleFactor {
   times_4 = 2,
   times_8 = 3,
   times_int_size = times_4,
-  times_half_pointer_size = times_2,
-  times_pointer_size = times_4,
-  times_twice_pointer_size = times_8
+
+  times_half_system_pointer_size = times_2,
+  times_system_pointer_size = times_4,
+
+  times_tagged_size = times_4,
 };
 
 class V8_EXPORT_PRIVATE Operand {
@@ -298,7 +300,7 @@ class V8_EXPORT_PRIVATE Operand {
   friend class Assembler;
 };
 ASSERT_TRIVIALLY_COPYABLE(Operand);
-static_assert(sizeof(Operand) <= 2 * kPointerSize,
+static_assert(sizeof(Operand) <= 2 * kSystemPointerSize,
               "Operand must be small enough to pass it by value");
 
 // -----------------------------------------------------------------------------
@@ -417,11 +419,11 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
       Address pc, Address target,
       RelocInfo::Mode mode = RelocInfo::INTERNAL_REFERENCE);
 
-  static constexpr int kSpecialTargetSize = kPointerSize;
+  static constexpr int kSpecialTargetSize = kSystemPointerSize;
 
   // Distance between the address of the code target in the call instruction
   // and the return address
-  static constexpr int kCallTargetAddressOffset = kPointerSize;
+  static constexpr int kCallTargetAddressOffset = kSystemPointerSize;
 
   // One byte opcode for test al, 0xXX.
   static constexpr byte kTestAlByte = 0xA8;

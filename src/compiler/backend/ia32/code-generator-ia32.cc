@@ -4012,7 +4012,7 @@ void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
   Label* const table = AddJumpTable(cases, case_count);
   __ cmp(input, Immediate(case_count));
   __ j(above_equal, GetLabel(i.InputRpo(1)));
-  __ jmp(Operand::JumpTable(input, times_4, table));
+  __ jmp(Operand::JumpTable(input, times_system_pointer_size, table));
 }
 
 // The calling convention for JSFunctions on IA32 passes arguments on the
@@ -4307,7 +4307,8 @@ void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
     Register pop_reg = g.ToRegister(pop);
     Register scratch_reg = pop_reg == ecx ? edx : ecx;
     __ pop(scratch_reg);
-    __ lea(esp, Operand(esp, pop_reg, times_4, static_cast<int>(pop_size)));
+    __ lea(esp, Operand(esp, pop_reg, times_system_pointer_size,
+                        static_cast<int>(pop_size)));
     __ jmp(scratch_reg);
   }
 }
