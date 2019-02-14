@@ -383,7 +383,7 @@ StreamingDecoder::DecodeSectionLength::NextWithValue(
   if (!buf) return nullptr;
   if (value_ == 0) {
     if (section_id_ == SectionCode::kCodeSectionCode) {
-      return streaming->Error("Code section cannot have size 0");
+      return streaming->Error("code section cannot have size 0");
     }
     streaming->ProcessSection(buf);
     if (!streaming->ok()) return nullptr;
@@ -414,14 +414,14 @@ StreamingDecoder::DecodeNumberOfFunctions::NextWithValue(
   // Copy the bytes we read into the section buffer.
   Vector<uint8_t> payload_buf = section_buffer_->payload();
   if (payload_buf.size() < bytes_consumed_) {
-    return streaming->Error("Invalid code section length");
+    return streaming->Error("invalid code section length");
   }
   memcpy(payload_buf.start(), buffer().start(), bytes_consumed_);
 
   // {value} is the number of functions.
   if (value_ == 0) {
     if (payload_buf.size() != bytes_consumed_) {
-      return streaming->Error("not all code section bytes were consumed");
+      return streaming->Error("not all code section bytes were used");
     }
     return base::make_unique<DecodeSectionID>(streaming->module_offset());
   }
@@ -440,12 +440,12 @@ StreamingDecoder::DecodeFunctionLength::NextWithValue(
   // Copy the bytes we consumed into the section buffer.
   Vector<uint8_t> fun_length_buffer = section_buffer_->bytes() + buffer_offset_;
   if (fun_length_buffer.size() < bytes_consumed_) {
-    return streaming->Error("Invalid code section length");
+    return streaming->Error("read past code section end");
   }
   memcpy(fun_length_buffer.start(), buffer().start(), bytes_consumed_);
 
   // {value} is the length of the function.
-  if (value_ == 0) return streaming->Error("Invalid function length (0)");
+  if (value_ == 0) return streaming->Error("invalid function length (0)");
 
   if (buffer_offset_ + bytes_consumed_ + value_ > section_buffer_->length()) {
     return streaming->Error("not enough code section bytes");
@@ -486,7 +486,7 @@ StreamingDecoder::SectionBuffer* StreamingDecoder::CreateNewBuffer(
   // Check the order of sections. Unknown sections can appear at any position.
   if (section_id != kUnknownSectionCode) {
     if (section_id < next_section_id_) {
-      Error("unexpected section");
+      Error("section out of order");
       return nullptr;
     }
     next_section_id_ = section_id + 1;
