@@ -5592,7 +5592,7 @@ TEST(RunWord64EqualInBranchP) {
 
 
 TEST(RunChangeInt32ToInt64P) {
-  if (kPointerSize < 8) return;
+  if (kSystemPointerSize < 8) return;
   int64_t actual = -1;
   RawMachineAssemblerTester<int32_t> m(MachineType::Int32());
   m.StoreToPointer(&actual, MachineRepresentation::kWord64,
@@ -5607,7 +5607,7 @@ TEST(RunChangeInt32ToInt64P) {
 
 
 TEST(RunChangeUint32ToUint64P) {
-  if (kPointerSize < 8) return;
+  if (kSystemPointerSize < 8) return;
   int64_t actual = -1;
   RawMachineAssemblerTester<int32_t> m(MachineType::Uint32());
   m.StoreToPointer(&actual, MachineRepresentation::kWord64,
@@ -5622,7 +5622,7 @@ TEST(RunChangeUint32ToUint64P) {
 
 
 TEST(RunTruncateInt64ToInt32P) {
-  if (kPointerSize < 8) return;
+  if (kSystemPointerSize < 8) return;
   int64_t expected = -1;
   RawMachineAssemblerTester<int32_t> m;
   m.Return(m.TruncateInt64ToInt32(

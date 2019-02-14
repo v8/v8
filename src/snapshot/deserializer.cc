@@ -104,9 +104,10 @@ void Deserializer::DeserializeDeferredObjects() {
         DCHECK_LE(space, kNumberOfSpaces);
         DCHECK_EQ(code - space, kNewObject);
         HeapObject object = GetBackReferencedObject(space);
-        int size = source_.GetInt() << kPointerSizeLog2;
+        int size = source_.GetInt() << kTaggedSizeLog2;
         Address obj_address = object->address();
-        MaybeObjectSlot start(obj_address + kPointerSize);
+        // Object's map is already initialized, now read the rest.
+        MaybeObjectSlot start(obj_address + kTaggedSize);
         MaybeObjectSlot end(obj_address + size);
         bool filled = ReadData(start, end, space, obj_address);
         CHECK(filled);

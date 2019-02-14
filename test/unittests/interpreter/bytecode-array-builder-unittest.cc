@@ -439,7 +439,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   ast_factory.Internalize(isolate());
   Handle<BytecodeArray> the_array = builder.ToBytecodeArray(isolate());
   CHECK_EQ(the_array->frame_size(),
-           builder.total_register_count() * kPointerSize);
+           builder.total_register_count() * kSystemPointerSize);
 
   // Build scorecard of bytecodes encountered in the BytecodeArray.
   std::vector<int> scorecard(Bytecodes::ToByte(Bytecode::kLast) + 1);
@@ -504,7 +504,7 @@ TEST_F(BytecodeArrayBuilderTest, FrameSizesLookGood) {
 
       Handle<BytecodeArray> the_array = builder.ToBytecodeArray(isolate());
       int total_registers = locals + temps;
-      CHECK_EQ(the_array->frame_size(), total_registers * kPointerSize);
+      CHECK_EQ(the_array->frame_size(), total_registers * kSystemPointerSize);
     }
   }
 }

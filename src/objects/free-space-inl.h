@@ -30,7 +30,7 @@ FreeSpace FreeSpace::next() {
                  !heap->deserialization_complete() &&
                      map_slot().contains_value(kNullAddress));
 #endif
-  DCHECK_LE(kNextOffset + kPointerSize, relaxed_read_size());
+  DCHECK_LE(kNextOffset + kTaggedSize, relaxed_read_size());
   return FreeSpace::unchecked_cast(*ObjectSlot(address() + kNextOffset));
 }
 
@@ -42,7 +42,7 @@ void FreeSpace::set_next(FreeSpace next) {
                  !heap->deserialization_complete() &&
                      map_slot().contains_value(kNullAddress));
 #endif
-  DCHECK_LE(kNextOffset + kPointerSize, relaxed_read_size());
+  DCHECK_LE(kNextOffset + kTaggedSize, relaxed_read_size());
   ObjectSlot(address() + kNextOffset).Relaxed_Store(next);
 }
 

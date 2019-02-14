@@ -1114,7 +1114,7 @@ TEST(DoScavenge) {
 
   // Construct a double value that looks like a pointer to the new space object
   // and store it into the obj.
-  Address fake_object = temp->ptr() + kPointerSize;
+  Address fake_object = temp->ptr() + kSystemPointerSize;
   double boom_value = bit_cast<double>(fake_object);
 
   FieldIndex field_index = FieldIndex::ForDescriptor(obj->map(), 0);
@@ -1261,11 +1261,11 @@ static void TestLayoutDescriptorHelper(Isolate* isolate,
     CHECK_EQ(expected_tagged, helper.IsTagged(index.offset(), instance_size,
                                               &end_of_region_offset));
     CHECK_GT(end_of_region_offset, 0);
-    CHECK_EQ(end_of_region_offset % kPointerSize, 0);
+    CHECK_EQ(end_of_region_offset % kTaggedSize, 0);
     CHECK(end_of_region_offset <= instance_size);
 
     for (int offset = index.offset(); offset < end_of_region_offset;
-         offset += kPointerSize) {
+         offset += kTaggedSize) {
       CHECK_EQ(expected_tagged, helper.IsTagged(index.offset()));
     }
     if (end_of_region_offset < instance_size) {
@@ -1275,7 +1275,7 @@ static void TestLayoutDescriptorHelper(Isolate* isolate,
     }
   }
 
-  for (int offset = 0; offset < JSObject::kHeaderSize; offset += kPointerSize) {
+  for (int offset = 0; offset < JSObject::kHeaderSize; offset += kTaggedSize) {
     // Header queries
     CHECK(helper.IsTagged(offset));
     int end_of_region_offset;
@@ -1468,7 +1468,7 @@ static void TestWriteBarrier(Handle<Map> map, Handle<Map> new_map,
   // |boom_value| to the slot that was earlier recorded by write barrier.
   JSObject::MigrateToMap(obj, new_map);
 
-  Address fake_object = obj_value->ptr() + kPointerSize;
+  Address fake_object = obj_value->ptr() + kTaggedSize;
   uint64_t boom_value = bit_cast<uint64_t>(fake_object);
 
   FieldIndex double_field_index =

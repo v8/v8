@@ -41,8 +41,8 @@ class RelocInfo {
   static const char* const kFillerCommentString;
 
   // The minimum size of a comment is equal to two bytes for the extra tagged
-  // pc and kPointerSize for the actual pointer to the comment.
-  static const int kMinRelocCommentSize = 2 + kPointerSize;
+  // pc and kSystemPointerSize for the actual pointer to the comment.
+  static const int kMinRelocCommentSize = 2 + kSystemPointerSize;
 
   // The maximum size for a call instruction including pc-jump.
   static const int kMaxCallSize = 6;
@@ -352,7 +352,7 @@ class RelocInfoWriter {
 
   // Max size (bytes) of a written RelocInfo. Longest encoding is
   // ExtraTag, VariableLengthPCJump, ExtraTag, pc_delta, data_delta.
-  static constexpr int kMaxSize = 1 + 4 + 1 + 1 + kPointerSize;
+  static constexpr int kMaxSize = 1 + 4 + 1 + 1 + kSystemPointerSize;
 
  private:
   inline uint32_t WriteLongPCJump(uint32_t pc_delta);

@@ -4022,7 +4022,7 @@ UNINITIALIZED_TEST(DebugSetOutOfMemoryListener) {
     CHECK(!near_heap_limit_callback_called);
     // The following allocation fails unless the out-of-memory callback
     // increases the heap limit.
-    int length = 10 * i::MB / i::kPointerSize;
+    int length = 10 * i::MB / i::kTaggedSize;
     i_isolate->factory()->NewFixedArray(length, i::TENURED);
     CHECK(near_heap_limit_callback_called);
     isolate->RemoveNearHeapLimitCallback(NearHeapLimitCallback, 0);

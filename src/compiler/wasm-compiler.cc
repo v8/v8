@@ -4381,10 +4381,10 @@ Node* WasmGraphBuilder::MemoryInit(uint32_t data_segment_index, Node* dst,
     // Load segment's base pointer from WasmInstanceObject::data_segment_starts.
     Node* seg_start_array =
         LOAD_INSTANCE_FIELD(DataSegmentStarts, MachineType::Pointer());
-    STATIC_ASSERT(wasm::kV8MaxWasmDataSegments <= kMaxUInt32 >>
-                  kPointerSizeLog2);
+    STATIC_ASSERT(wasm::kV8MaxWasmDataSegments <=
+                  kMaxUInt32 / kSystemPointerSize);
     Node* scaled_index = Uint32ToUintptr(graph()->NewNode(
-        m->Word32Shl(), seg_index, Int32Constant(kPointerSizeLog2)));
+        m->Word32Shl(), seg_index, Int32Constant(kSystemPointerSizeLog2)));
     Node* seg_start = SetEffect(
         graph()->NewNode(m->Load(MachineType::Pointer()), seg_start_array,
                          scaled_index, Effect(), Control()));

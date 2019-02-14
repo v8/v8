@@ -82,7 +82,6 @@ consts_misc = [
     { 'name': 'SmiTagMask',             'value': 'kSmiTagMask' },
     { 'name': 'SmiValueShift',          'value': 'kSmiTagSize' },
     { 'name': 'SmiShiftSize',           'value': 'kSmiShiftSize' },
-    { 'name': 'PointerSizeLog2',        'value': 'kPointerSizeLog2' },
 
     { 'name': 'OddballFalse',           'value': 'Oddball::kFalse' },
     { 'name': 'OddballTrue',            'value': 'Oddball::kTrue' },

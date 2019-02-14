@@ -29,8 +29,10 @@ namespace {
 int GetSlotSizeInBytes(MachineRepresentation rep) {
   switch (rep) {
     case MachineRepresentation::kTagged:
+      // Spill slots for tagged values are always uncompressed.
+      return kSystemPointerSize;
     case MachineRepresentation::kFloat32:
-      return kPointerSize;
+      return kSystemPointerSize;
     case MachineRepresentation::kFloat64:
       return kDoubleSize;
     case MachineRepresentation::kSimd128:
@@ -521,7 +523,7 @@ class TestEnvironment : public HandleAndZoneScope {
         // Keep a map of (MachineRepresentation . std::vector<int>) with
         // allocated slots to pick from for each representation.
         int slot = slot_parameter_n;
-        slot_parameter_n -= (GetSlotSizeInBytes(rep) / kPointerSize);
+        slot_parameter_n -= (GetSlotSizeInBytes(rep) / kSystemPointerSize);
         AddStackSlot(&test_signature, rep, slot);
         entry->second--;
       }
@@ -535,7 +537,7 @@ class TestEnvironment : public HandleAndZoneScope {
     for (int i = 0; i < kSmiConstantCount; i++) {
       intptr_t smi_value = static_cast<intptr_t>(
           Smi::FromInt(rng_->NextInt(Smi::kMaxValue)).ptr());
-      Constant constant = kPointerSize == 8
+      Constant constant = kSystemPointerSize == 8
                               ? Constant(static_cast<int64_t>(smi_value))
                               : Constant(static_cast<int32_t>(smi_value));
       AddConstant(MachineRepresentation::kTagged, AllocateConstant(constant));

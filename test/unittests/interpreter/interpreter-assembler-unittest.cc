@@ -72,8 +72,9 @@ Matcher<Node*> InterpreterAssemblerTest::InterpreterAssemblerForTest::IsStore(
 
 Matcher<Node*> InterpreterAssemblerTest::InterpreterAssemblerForTest::IsWordNot(
     const Matcher<Node*>& value_matcher) {
-  return kPointerSize == 8 ? IsWord64Xor(value_matcher, c::IsInt64Constant(-1))
-                           : IsWord32Xor(value_matcher, c::IsInt32Constant(-1));
+  return kSystemPointerSize == 8
+             ? IsWord64Xor(value_matcher, c::IsInt64Constant(-1))
+             : IsWord32Xor(value_matcher, c::IsInt32Constant(-1));
 }
 
 Matcher<Node*>
@@ -321,7 +322,7 @@ TARGET_TEST_F(InterpreterAssemblerTest, Jump) {
           MachineType::Pointer(),
           c::IsParameter(InterpreterDispatchDescriptor::kDispatchTable),
           c::IsWordShl(target_bytecode_matcher,
-                       c::IsIntPtrConstant(kPointerSizeLog2)));
+                       c::IsIntPtrConstant(kSystemPointerSizeLog2)));
 
       EXPECT_THAT(
           tail_call_node,
@@ -458,7 +459,8 @@ TARGET_TEST_F(InterpreterAssemblerTest, LoadConstantPoolEntry) {
               MachineType::AnyTagged(), constant_pool_matcher,
               c::IsIntPtrAdd(
                   c::IsIntPtrConstant(FixedArray::kHeaderSize - kHeapObjectTag),
-                  c::IsWordShl(index, c::IsIntPtrConstant(kPointerSizeLog2))),
+                  c::IsWordShl(index,
+                               c::IsIntPtrConstant(kSystemPointerSizeLog2))),
               LoadSensitivity::kCritical));
     }
   }

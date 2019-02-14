@@ -267,7 +267,7 @@ void RunLoadImmIndex(MachineType rep, TestAlignment t) {
         // When pointer compression is enabled then we need to access only
         // the lower 32-bit of the tagged value while the buffer contains
         // full 64-bit values.
-        base_pointer = LSB(base_pointer, kPointerSize / 2);
+        base_pointer = LSB(base_pointer, kSystemPointerSize / 2);
       }
 #endif
       Node* base = m.PointerConstant(base_pointer);
@@ -589,7 +589,7 @@ void RunLoadStoreSignExtend64(TestAlignment t) {
 }
 
 void RunLoadStoreZeroExtend64(TestAlignment t) {
-  if (kPointerSize < 8) return;
+  if (kSystemPointerSize < 8) return;
   uint64_t buffer[5];
   RawMachineAssemblerTester<uint64_t> m;
   Node* load8 = m.LoadFromPointer(LSB(&buffer[0], 1), MachineType::Uint8());

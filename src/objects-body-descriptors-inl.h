@@ -220,7 +220,7 @@ class WeakCell::BodyDescriptor final : public BodyDescriptorBase {
 class JSWeakRef::BodyDescriptor final : public BodyDescriptorBase {
  public:
   static bool IsValidSlot(Map map, HeapObject obj, int offset) {
-    return JSObject::BodyDescriptor::IsValidSlot(map, obj, offset);
+    return IsValidJSObjectSlotImpl(map, obj, offset);
   }
 
   template <typename ObjectVisitor>
@@ -228,7 +228,8 @@ class JSWeakRef::BodyDescriptor final : public BodyDescriptorBase {
                                  ObjectVisitor* v) {
     IteratePointers(obj, JSReceiver::kPropertiesOrHashOffset, kTargetOffset, v);
     IterateCustomWeakPointer(obj, kTargetOffset, v);
-    IteratePointers(obj, kTargetOffset + kPointerSize, object_size, v);
+    IterateJSObjectBodyImpl(map, obj, kTargetOffset + kTaggedSize, object_size,
+                            v);
   }
 
   static inline int SizeOf(Map map, HeapObject object) {

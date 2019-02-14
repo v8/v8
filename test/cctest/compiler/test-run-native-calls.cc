@@ -143,7 +143,7 @@ class Allocator {
   }
   int StackWords(MachineType type) {
     int size = 1 << ElementSizeLog2Of(type.representation());
-    return size <= kPointerSize ? 1 : size / kPointerSize;
+    return size <= kSystemPointerSize ? 1 : size / kSystemPointerSize;
   }
   void Reset() {
     stack_offset_ = 0;
@@ -831,7 +831,8 @@ TEST_INT32_SELECT(63)
 
 TEST(Int64Select_registers) {
   if (GetRegConfig()->num_allocatable_general_registers() < 2) return;
-  if (kPointerSize < 8) return;  // TODO(titzer): int64 on 32-bit platforms
+  // TODO(titzer): int64 on 32-bit platforms
+  if (kSystemPointerSize < 8) return;
 
   int rarray[] = {GetRegConfig()->GetAllocatableGeneralCode(0)};
   ArgsBuffer<int64_t>::Sig sig(2);
