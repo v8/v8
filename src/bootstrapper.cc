@@ -2159,6 +2159,11 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                                  Builtins::kSymbolPrototypeValueOf, 0, true,
                                  BuiltinFunctionId::kSymbolPrototypeValueOf);
 
+    // Install the Symbol.prototype.description getter.
+    SimpleInstallGetter(isolate_, prototype,
+                        factory->InternalizeUtf8String("description"),
+                        Builtins::kSymbolPrototypeDescriptionGetter, true);
+
     // Install the @@toPrimitive function.
     InstallFunctionAtSymbol(
         isolate_, prototype, factory->to_primitive_symbol(),
@@ -4246,18 +4251,6 @@ void Genesis::InitializeGlobal_harmony_sharedarraybuffer() {
   JSObject::AddProperty(isolate_, global, "Atomics",
                         isolate()->atomics_object(), DONT_ENUM);
   InstallToStringTag(isolate_, isolate()->atomics_object(), "Atomics");
-}
-
-void Genesis::InitializeGlobal_harmony_symbol_description() {
-  if (!FLAG_harmony_symbol_description) return;
-
-  // Symbol.prototype.description
-  Handle<JSFunction> symbol_fun(native_context()->symbol_function(), isolate());
-  Handle<JSObject> symbol_prototype(
-      JSObject::cast(symbol_fun->instance_prototype()), isolate());
-  SimpleInstallGetter(isolate(), symbol_prototype,
-                      factory()->InternalizeUtf8String("description"),
-                      Builtins::kSymbolPrototypeDescriptionGetter, true);
 }
 
 void Genesis::InitializeGlobal_harmony_string_matchall() {

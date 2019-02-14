@@ -234,7 +234,6 @@ DEFINE_IMPLICATION(harmony_private_methods, harmony_private_fields)
   V(harmony_sharedarraybuffer, "harmony sharedarraybuffer")                    \
   V(harmony_import_meta, "harmony import.meta property")                       \
   V(harmony_dynamic_import, "harmony dynamic import")                          \
-  V(harmony_symbol_description, "harmony Symbol.prototype.description")        \
   V(harmony_global, "harmony global")                                          \
   V(harmony_json_stringify, "well-formed JSON.stringify")                      \
   V(harmony_public_fields, "harmony public instance fields in class literals") \
