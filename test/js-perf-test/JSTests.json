@@ -483,6 +483,20 @@
           ]
         },
         {
+          "name": "StringNormalize",
+          "main": "run.js",
+          "resources": [ "string-normalize.js" ],
+          "test_flags": [ "string-normalize" ],
+          "results_regexp": "^%s\\-Strings\\(Score\\): (.+)$",
+          "run_count": 1,
+          "tests": [
+            {"name": "StringNormalize"},
+            {"name": "StringNormalizeNFD"},
+            {"name": "StringNormalizeNFKC"},
+            {"name": "StringNormalizeNFKD"}
+          ]
+        },
+        {
           "name": "StringLocaleCompare",
           "main": "run.js",
           "resources": [ "string-localeCompare.js" ],
