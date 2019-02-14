@@ -115,7 +115,7 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
     // -----------------------------------
     __ jmp(&entry);
     __ bind(&loop);
-    __ Push(Operand(rbx, rcx, times_pointer_size, 0));
+    __ Push(Operand(rbx, rcx, times_system_pointer_size, 0));
     __ bind(&entry);
     __ decq(rcx);
     __ j(greater_equal, &loop, Label::kNear);
@@ -286,7 +286,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
     // -----------------------------------
     __ jmp(&entry, Label::kNear);
     __ bind(&loop);
-    __ Push(Operand(rbx, rcx, times_pointer_size, 0));
+    __ Push(Operand(rbx, rcx, times_system_pointer_size, 0));
     __ bind(&entry);
     __ decq(rcx);
     __ j(greater_equal, &loop, Label::kNear);
@@ -648,7 +648,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     __ Set(rcx, 0);  // Set loop variable to 0.
     __ jmp(&entry, Label::kNear);
     __ bind(&loop);
-    __ movq(kScratchRegister, Operand(rbx, rcx, times_pointer_size, 0));
+    __ movq(kScratchRegister, Operand(rbx, rcx, times_system_pointer_size, 0));
     __ Push(Operand(kScratchRegister, 0));  // dereference handle
     __ addq(rcx, Immediate(1));
     __ bind(&entry);
@@ -1061,7 +1061,8 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
 #undef JUMP_IF_EQUAL
 
   // Otherwise, load the size of the current bytecode and advance the offset.
-  __ addl(bytecode_offset, Operand(bytecode_size_table, bytecode, times_4, 0));
+  __ addl(bytecode_offset,
+          Operand(bytecode_size_table, bytecode, times_int_size, 0));
 }
 
 // Generate code for entering a JS function with the interpreter.
@@ -1185,7 +1186,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
                    BytecodeArray::kIncomingNewTargetOrGeneratorRegisterOffset));
   __ testl(rax, rax);
   __ j(zero, &no_incoming_new_target_or_generator_register, Label::kNear);
-  __ movq(Operand(rbp, rax, times_pointer_size, 0), rdx);
+  __ movq(Operand(rbp, rax, times_system_pointer_size, 0), rdx);
   __ bind(&no_incoming_new_target_or_generator_register);
 
   // Load accumulator with undefined.
@@ -1200,9 +1201,9 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
       ExternalReference::interpreter_dispatch_table_address(masm->isolate()));
   __ movzxbq(r11, Operand(kInterpreterBytecodeArrayRegister,
                           kInterpreterBytecodeOffsetRegister, times_1, 0));
-  __ movq(
-      kJavaScriptCallCodeStartRegister,
-      Operand(kInterpreterDispatchTableRegister, r11, times_pointer_size, 0));
+  __ movq(kJavaScriptCallCodeStartRegister,
+          Operand(kInterpreterDispatchTableRegister, r11,
+                  times_system_pointer_size, 0));
   __ call(kJavaScriptCallCodeStartRegister);
   masm->isolate()->heap()->SetInterpreterEntryReturnPCOffset(masm->pc_offset());
 
@@ -1449,9 +1450,9 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   // Dispatch to the target bytecode.
   __ movzxbq(r11, Operand(kInterpreterBytecodeArrayRegister,
                           kInterpreterBytecodeOffsetRegister, times_1, 0));
-  __ movq(
-      kJavaScriptCallCodeStartRegister,
-      Operand(kInterpreterDispatchTableRegister, r11, times_pointer_size, 0));
+  __ movq(kJavaScriptCallCodeStartRegister,
+          Operand(kInterpreterDispatchTableRegister, r11,
+                  times_system_pointer_size, 0));
   __ jmp(kJavaScriptCallCodeStartRegister);
 }
 
@@ -1543,7 +1544,7 @@ void Builtins::Generate_InstantiateAsmJs(MacroAssembler* masm) {
 
     __ PopReturnAddressTo(rbx);
     __ incq(rcx);
-    __ leaq(rsp, Operand(rsp, rcx, times_pointer_size, 0));
+    __ leaq(rsp, Operand(rsp, rcx, times_system_pointer_size, 0));
     __ PushReturnAddressFrom(rbx);
     __ ret(0);
 
@@ -1659,7 +1660,8 @@ void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
     }
     __ bind(&no_this_arg);
     __ PopReturnAddressTo(rcx);
-    __ leaq(rsp, Operand(rsp, rax, times_pointer_size, kSystemPointerSize));
+    __ leaq(rsp,
+            Operand(rsp, rax, times_system_pointer_size, kSystemPointerSize));
     __ Push(rdx);
     __ PushReturnAddressFrom(rcx);
   }
@@ -1775,7 +1777,8 @@ void Builtins::Generate_ReflectApply(MacroAssembler* masm) {
     __ movq(rbx, args.GetArgumentOperand(3));  // argumentsList
     __ bind(&done);
     __ PopReturnAddressTo(rcx);
-    __ leaq(rsp, Operand(rsp, rax, times_pointer_size, kSystemPointerSize));
+    __ leaq(rsp,
+            Operand(rsp, rax, times_system_pointer_size, kSystemPointerSize));
     __ Push(rdx);
     __ PushReturnAddressFrom(rcx);
   }
@@ -1827,7 +1830,8 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
     __ movq(rdx, args.GetArgumentOperand(3));  // new.target
     __ bind(&done);
     __ PopReturnAddressTo(rcx);
-    __ leaq(rsp, Operand(rsp, rax, times_pointer_size, kSystemPointerSize));
+    __ leaq(rsp,
+            Operand(rsp, rax, times_system_pointer_size, kSystemPointerSize));
     __ PushRoot(RootIndex::kUndefinedValue);
     __ PushReturnAddressFrom(rcx);
   }
@@ -1941,7 +1945,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
 
     // Copy receiver and all expected arguments.
     const int offset = StandardFrameConstants::kCallerSPOffset;
-    __ leaq(rax, Operand(rbp, rax, times_pointer_size, offset));
+    __ leaq(rax, Operand(rbp, rax, times_system_pointer_size, offset));
     __ Set(r8, -1);  // account for receiver
 
     Label copy;
@@ -1963,7 +1967,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
 
     // Copy receiver and all actual arguments.
     const int offset = StandardFrameConstants::kCallerSPOffset;
-    __ leaq(rdi, Operand(rbp, rax, times_pointer_size, offset));
+    __ leaq(rdi, Operand(rbp, rax, times_system_pointer_size, offset));
     __ Set(r8, -1);  // account for receiver
 
     Label copy;
@@ -2336,7 +2340,7 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
     // Reserve stack space for the [[BoundArguments]].
     {
       Label done;
-      __ leaq(kScratchRegister, Operand(rbx, times_pointer_size, 0));
+      __ leaq(kScratchRegister, Operand(rbx, times_system_pointer_size, 0));
       __ subq(rsp, kScratchRegister);
       // Check the stack for overflow. We are not trying to catch interruptions
       // (i.e. debug break and preemption) here, so check the "real stack
@@ -2344,7 +2348,7 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
       __ CompareRoot(rsp, RootIndex::kRealStackLimit);
       __ j(above_equal, &done, Label::kNear);
       // Restore the stack pointer.
-      __ leaq(rsp, Operand(rsp, rbx, times_pointer_size, 0));
+      __ leaq(rsp, Operand(rsp, rbx, times_system_pointer_size, 0));
       {
         FrameScope scope(masm, StackFrame::MANUAL);
         __ EnterFrame(StackFrame::INTERNAL);
@@ -2360,10 +2364,12 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
     {
       Label loop;
       __ Set(rcx, 0);
-      __ leaq(rbx, Operand(rsp, rbx, times_pointer_size, 0));
+      __ leaq(rbx, Operand(rsp, rbx, times_system_pointer_size, 0));
       __ bind(&loop);
-      __ movq(kScratchRegister, Operand(rbx, rcx, times_pointer_size, 0));
-      __ movq(Operand(rsp, rcx, times_pointer_size, 0), kScratchRegister);
+      __ movq(kScratchRegister,
+              Operand(rbx, rcx, times_system_pointer_size, 0));
+      __ movq(Operand(rsp, rcx, times_system_pointer_size, 0),
+              kScratchRegister);
       __ incl(rcx);
       __ cmpl(rcx, rax);
       __ j(less, &loop);
@@ -2385,7 +2391,7 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
                             FieldOperand(rcx, rbx, times_tagged_size,
                                          FixedArray::kHeaderSize - kTaggedSize),
                             decompr_scratch, decompr_scratch_for_debug);
-      __ movq(Operand(rsp, rax, times_pointer_size, 0), r12);
+      __ movq(Operand(rsp, rax, times_system_pointer_size, 0), r12);
       __ leal(rax, Operand(rax, 1));
       __ decl(rbx);
       __ j(greater, &loop);
@@ -3255,7 +3261,7 @@ void Builtins::Generate_CallApiCallback(MacroAssembler* masm) {
 
   // FunctionCallbackInfo::values_ (points at the first varargs argument passed
   // on the stack).
-  __ leaq(scratch, Operand(scratch, argc, times_pointer_size,
+  __ leaq(scratch, Operand(scratch, argc, times_system_pointer_size,
                            (FCA::kArgsLength - 1) * kSystemPointerSize));
   __ movq(StackSpaceOperand(1), scratch);
 
@@ -3265,7 +3271,7 @@ void Builtins::Generate_CallApiCallback(MacroAssembler* masm) {
   // We also store the number of bytes to drop from the stack after returning
   // from the API function here.
   __ leaq(kScratchRegister,
-          Operand(argc, times_pointer_size,
+          Operand(argc, times_system_pointer_size,
                   (FCA::kArgsLength + 1 /* receiver */) * kSystemPointerSize));
   __ movq(StackSpaceOperand(3), kScratchRegister);
 

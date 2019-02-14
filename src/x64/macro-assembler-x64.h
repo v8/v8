@@ -921,7 +921,8 @@ inline Operand ContextOperand(Register context, int index) {
 
 
 inline Operand ContextOperand(Register context, Register index) {
-  return Operand(context, index, times_pointer_size, Context::SlotOffset(0));
+  return Operand(context, index, times_system_pointer_size,
+                 Context::SlotOffset(0));
 }
 
 

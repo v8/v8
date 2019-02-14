@@ -50,9 +50,9 @@ Operand StackArgumentsAccessor::GetArgumentOperand(int index) {
                            kSystemPointerSize);
   } else {
     // argument[0] is at base_reg_ + displacement_to_last_argument +
-    // argument_count_reg_ * times_pointer_size + (receiver - 1) *
+    // argument_count_reg_ * times_system_pointer_size + (receiver - 1) *
     // kSystemPointerSize.
-    return Operand(base_reg_, argument_count_reg_, times_pointer_size,
+    return Operand(base_reg_, argument_count_reg_, times_system_pointer_size,
                    displacement_to_last_argument +
                        (receiver - 1 - index) * kSystemPointerSize);
   }
@@ -1664,8 +1664,9 @@ void TurboAssembler::LoadCodeObjectEntry(Register destination,
     // table.
     bind(&if_code_is_builtin);
     movl(destination, FieldOperand(code_object, Code::kBuiltinIndexOffset));
-    movq(destination, Operand(kRootRegister, destination, times_pointer_size,
-                              IsolateData::builtin_entry_table_offset()));
+    movq(destination,
+         Operand(kRootRegister, destination, times_system_pointer_size,
+                 IsolateData::builtin_entry_table_offset()));
 
     bind(&out);
   } else {
@@ -2216,11 +2217,12 @@ void TurboAssembler::PrepareForTailCall(const ParameterCount& callee_args_count,
   Register new_sp_reg = scratch0;
   if (callee_args_count.is_reg()) {
     subq(caller_args_count_reg, callee_args_count.reg());
-    leaq(new_sp_reg, Operand(rbp, caller_args_count_reg, times_pointer_size,
-                             StandardFrameConstants::kCallerPCOffset));
+    leaq(new_sp_reg,
+         Operand(rbp, caller_args_count_reg, times_system_pointer_size,
+                 StandardFrameConstants::kCallerPCOffset));
   } else {
     leaq(new_sp_reg,
-         Operand(rbp, caller_args_count_reg, times_pointer_size,
+         Operand(rbp, caller_args_count_reg, times_system_pointer_size,
                  StandardFrameConstants::kCallerPCOffset -
                      callee_args_count.immediate() * kSystemPointerSize));
   }
@@ -2256,8 +2258,8 @@ void TurboAssembler::PrepareForTailCall(const ParameterCount& callee_args_count,
   jmp(&entry, Label::kNear);
   bind(&loop);
   decq(count_reg);
-  movq(tmp_reg, Operand(rsp, count_reg, times_pointer_size, 0));
-  movq(Operand(new_sp_reg, count_reg, times_pointer_size, 0), tmp_reg);
+  movq(tmp_reg, Operand(rsp, count_reg, times_system_pointer_size, 0));
+  movq(Operand(new_sp_reg, count_reg, times_system_pointer_size, 0), tmp_reg);
   bind(&entry);
   cmpq(count_reg, Immediate(0));
   j(not_equal, &loop, Label::kNear);
@@ -2541,7 +2543,7 @@ void MacroAssembler::EnterExitFrame(int arg_stack_space, bool save_doubles,
   // Set up argv in callee-saved register r15. It is reused in LeaveExitFrame,
   // so it must be retained across the C-call.
   int offset = StandardFrameConstants::kCallerSPOffset - kSystemPointerSize;
-  leaq(r15, Operand(rbp, r14, times_pointer_size, offset));
+  leaq(r15, Operand(rbp, r14, times_system_pointer_size, offset));
 
   EnterExitFrameEpilogue(arg_stack_space, save_doubles);
 }

@@ -528,7 +528,8 @@ TEST(OperandOffset) {
   __ j(not_equal, &exit);
   __ incq(rax);
 
-  Operand sp2c2 = Operand(rsp, rcx, times_pointer_size, 2 * kSystemPointerSize);
+  Operand sp2c2 =
+      Operand(rsp, rcx, times_system_pointer_size, 2 * kSystemPointerSize);
 
   // Test 6.
   __ movl(rdx, sp2c2);  // Sanity check.
@@ -582,7 +583,7 @@ TEST(OperandOffset) {
   __ incq(rax);
 
   Operand bp2c4 =
-      Operand(rbp, rcx, times_pointer_size, -4 * kSystemPointerSize);
+      Operand(rbp, rcx, times_system_pointer_size, -4 * kSystemPointerSize);
 
   // Test 14:
   __ movl(rdx, bp2c4);  // Sanity check.
@@ -638,7 +639,7 @@ TEST(OperandOffset) {
   __ incq(rax);
 
   Operand bx2c2 =
-      Operand(rbx, rcx, times_pointer_size, -2 * kSystemPointerSize);
+      Operand(rbx, rcx, times_system_pointer_size, -2 * kSystemPointerSize);
 
   // Test 23.
   __ movl(rdx, bx2c2);  // Sanity check.

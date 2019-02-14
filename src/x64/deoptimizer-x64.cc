@@ -171,7 +171,7 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
   // last FrameDescription**.
   __ movl(rdx, Operand(rax, Deoptimizer::output_count_offset()));
   __ movq(rax, Operand(rax, Deoptimizer::output_offset()));
-  __ leaq(rdx, Operand(rax, rdx, times_pointer_size, 0));
+  __ leaq(rdx, Operand(rax, rdx, times_system_pointer_size, 0));
   __ jmp(&outer_loop_header);
   __ bind(&outer_push_loop);
   // Inner loop state: rbx = current FrameDescription*, rcx = loop index.
