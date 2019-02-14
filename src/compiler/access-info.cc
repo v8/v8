@@ -271,6 +271,42 @@ bool AccessInfoFactory::ComputeElementAccessInfo(
   return true;
 }
 
+typedef std::vector<std::pair<Handle<Map>, Handle<Map>>> TransitionList;
+
+namespace {
+void ProcessFeedbackMaps(Isolate* isolate, MapHandles const& maps,
+                         MapHandles* receiver_maps,
+                         TransitionList* transitions) {
+  DCHECK(receiver_maps->empty());
+  DCHECK(transitions->empty());
+
+  // Collect possible transition targets.
+  MapHandles possible_transition_targets;
+  possible_transition_targets.reserve(maps.size());
+  for (Handle<Map> map : maps) {
+    if (CanInlineElementAccess(map) &&
+        IsFastElementsKind(map->elements_kind()) &&
+        GetInitialFastElementsKind() != map->elements_kind()) {
+      possible_transition_targets.push_back(map);
+    }
+  }
+
+  // Separate the actual receiver maps and the possible transition sources.
+  for (Handle<Map> map : maps) {
+    // Don't generate elements kind transitions from stable maps.
+    Map transition_target = map->is_stable()
+                                ? Map()
+                                : map->FindElementsKindTransitionedMap(
+                                      isolate, possible_transition_targets);
+    if (transition_target.is_null()) {
+      receiver_maps->push_back(map);
+    } else {
+      transitions->emplace_back(map, handle(transition_target, isolate));
+    }
+  }
+}
+}  // namespace
+
 bool AccessInfoFactory::ComputeElementAccessInfos(
     MapHandles const& maps, AccessMode access_mode,
     ZoneVector<ElementAccessInfo>* access_infos) const {
@@ -286,34 +322,9 @@ bool AccessInfoFactory::ComputeElementAccessInfos(
     }
   }
 
-  // Collect possible transition targets.
-  MapHandles possible_transition_targets;
-  possible_transition_targets.reserve(maps.size());
-  for (Handle<Map> map : maps) {
-    if (CanInlineElementAccess(map) &&
-        IsFastElementsKind(map->elements_kind()) &&
-        GetInitialFastElementsKind() != map->elements_kind()) {
-      possible_transition_targets.push_back(map);
-    }
-  }
-
-  // Separate the actual receiver maps and the possible transition sources.
   MapHandles receiver_maps;
-  receiver_maps.reserve(maps.size());
-  std::vector<std::pair<Handle<Map>, Handle<Map>>> transitions(maps.size());
-  for (Handle<Map> map : maps) {
-    // Don't generate elements kind transitions from stable maps.
-    Map transition_target = map->is_stable()
-                                ? Map()
-                                : map->FindElementsKindTransitionedMap(
-                                      isolate(), possible_transition_targets);
-    if (transition_target.is_null()) {
-      receiver_maps.push_back(map);
-    } else {
-      transitions.push_back(
-          std::make_pair(map, handle(transition_target, isolate())));
-    }
-  }
+  TransitionList transitions;
+  ProcessFeedbackMaps(isolate(), maps, &receiver_maps, &transitions);
 
   for (Handle<Map> receiver_map : receiver_maps) {
     // Compute the element access information.
