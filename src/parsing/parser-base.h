@@ -1978,11 +1978,17 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseProperty(
         prop_info->ParsePropertyKindFromToken(peek());
       }
       prop_info->name = impl()->GetSymbol();
-      if (prop_info->position == PropertyPosition::kObjectLiteral ||
-          (!allow_harmony_private_methods() &&
-           (IsAccessor(prop_info->kind) ||
-            prop_info->kind == ParsePropertyKind::kMethod))) {
+      if (V8_UNLIKELY(prop_info->position ==
+                      PropertyPosition::kObjectLiteral)) {
+        ReportUnexpectedToken(Token::PRIVATE_NAME);
+        prop_info->kind = ParsePropertyKind::kNotSet;
+        return impl()->FailureExpression();
+      }
+      if (V8_UNLIKELY(!allow_harmony_private_methods() &&
+                      (IsAccessor(prop_info->kind) ||
+                       prop_info->kind == ParsePropertyKind::kMethod))) {
         ReportUnexpectedToken(Next());
+        prop_info->kind = ParsePropertyKind::kNotSet;
         return impl()->FailureExpression();
       }
       break;
@@ -2274,12 +2280,10 @@ ParserBase<Impl>::ParseObjectPropertyDefinition(ParsePropertyInfo* prop_info,
   Token::Value name_token = peek();
   Scanner::Location next_loc = scanner()->peek_location();
 
-  if (name_token == Token::PRIVATE_NAME) {
-    ReportUnexpectedToken(Next());
-    return impl()->NullLiteralProperty();
-  }
-
   ExpressionT name_expression = ParseProperty(prop_info);
+
+  DCHECK_IMPLIES(name_token == Token::PRIVATE_NAME, has_error());
+
   IdentifierT name = prop_info->name;
   ParseFunctionFlags function_flags = prop_info->function_flags;
   ParsePropertyKind kind = prop_info->kind;
