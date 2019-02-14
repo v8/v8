@@ -6,6 +6,7 @@
 
 #include "src/objects-inl.h"
 #include "src/objects.h"
+#include "src/ostreams.h"
 #include "src/v8.h"
 #include "src/wasm/function-body-decoder-impl.h"
 #include "src/wasm/function-body-decoder.h"
@@ -3224,251 +3225,145 @@ TEST_F(BranchTableIteratorTest, error0) {
 #undef CHECK_BR_TABLE_LENGTH
 #undef CHECK_BR_TABLE_ERROR
 
+struct PrintOpcodes {
+  const byte* start;
+  const byte* end;
+};
+std::ostream& operator<<(std::ostream& out, const PrintOpcodes& range) {
+  out << "First opcode: \""
+      << WasmOpcodes::OpcodeName(static_cast<WasmOpcode>(*range.start))
+      << "\"\nall bytes: [";
+  for (const byte* b = range.start; b < range.end; ++b) {
+    out << (b == range.start ? "" : ", ") << uint32_t{*b} << "/"
+        << AsHex(*b, 2, true);
+  }
+  return out << "]";
+}
+
 class WasmOpcodeLengthTest : public TestWithZone {
  public:
   WasmOpcodeLengthTest() : TestWithZone() {}
+
+  template <typename... Bytes>
+  void ExpectLength(unsigned expected, Bytes... bytes) {
+    const byte code[] = {bytes..., 0, 0, 0, 0, 0, 0, 0, 0};
+    EXPECT_EQ(expected, OpcodeLength(code, code + sizeof(code)))
+        << PrintOpcodes{code, code + sizeof...(bytes)};
+  }
 };
 
-#define EXPECT_LENGTH(expected, opcode)                          \
-  {                                                              \
-    static const byte code[] = {opcode, 0, 0, 0, 0, 0, 0, 0, 0}; \
-    EXPECT_EQ(static_cast<unsigned>(expected),                   \
-              OpcodeLength(code, code + sizeof(code)));          \
-  }
-
-#define EXPECT_LENGTH_N(expected, ...)                  \
-  {                                                     \
-    static const byte code[] = {__VA_ARGS__};           \
-    EXPECT_EQ(static_cast<unsigned>(expected),          \
-              OpcodeLength(code, code + sizeof(code))); \
-  }
-
 TEST_F(WasmOpcodeLengthTest, Statements) {
-  EXPECT_LENGTH(1, kExprNop);
-  EXPECT_LENGTH(1, kExprElse);
-  EXPECT_LENGTH(1, kExprEnd);
-  EXPECT_LENGTH(1, kExprSelect);
-  EXPECT_LENGTH(1, kExprCatch);
-  EXPECT_LENGTH(1, kExprRethrow);
-  EXPECT_LENGTH(2, kExprBr);
-  EXPECT_LENGTH(2, kExprBrIf);
-  EXPECT_LENGTH(2, kExprThrow);
-  EXPECT_LENGTH(3, kExprBrOnExn);
-  EXPECT_LENGTH_N(2, kExprBlock, kLocalI32);
-  EXPECT_LENGTH_N(2, kExprLoop, kLocalI32);
-  EXPECT_LENGTH_N(2, kExprIf, kLocalI32);
-  EXPECT_LENGTH_N(2, kExprTry, kLocalI32);
+  ExpectLength(1, kExprNop);
+  ExpectLength(1, kExprElse);
+  ExpectLength(1, kExprEnd);
+  ExpectLength(1, kExprSelect);
+  ExpectLength(1, kExprCatch);
+  ExpectLength(1, kExprRethrow);
+  ExpectLength(2, kExprBr);
+  ExpectLength(2, kExprBrIf);
+  ExpectLength(2, kExprThrow);
+  ExpectLength(3, kExprBrOnExn);
+  ExpectLength(2, kExprBlock, kLocalI32);
+  ExpectLength(2, kExprLoop, kLocalI32);
+  ExpectLength(2, kExprIf, kLocalI32);
+  ExpectLength(2, kExprTry, kLocalI32);
 }
 
 TEST_F(WasmOpcodeLengthTest, MiscExpressions) {
-  EXPECT_LENGTH(5, kExprF32Const);
-  EXPECT_LENGTH(9, kExprF64Const);
-  EXPECT_LENGTH(1, kExprRefNull);
-  EXPECT_LENGTH(2, kExprGetLocal);
-  EXPECT_LENGTH(2, kExprSetLocal);
-  EXPECT_LENGTH(2, kExprGetGlobal);
-  EXPECT_LENGTH(2, kExprSetGlobal);
-  EXPECT_LENGTH(2, kExprCallFunction);
-  EXPECT_LENGTH(3, kExprCallIndirect);
+  ExpectLength(5, kExprF32Const);
+  ExpectLength(9, kExprF64Const);
+  ExpectLength(1, kExprRefNull);
+  ExpectLength(2, kExprGetLocal);
+  ExpectLength(2, kExprSetLocal);
+  ExpectLength(2, kExprGetGlobal);
+  ExpectLength(2, kExprSetGlobal);
+  ExpectLength(2, kExprCallFunction);
+  ExpectLength(3, kExprCallIndirect);
 }
 
 TEST_F(WasmOpcodeLengthTest, I32Const) {
-  EXPECT_LENGTH_N(2, kExprI32Const, U32V_1(1));
-  EXPECT_LENGTH_N(3, kExprI32Const, U32V_2(999));
-  EXPECT_LENGTH_N(4, kExprI32Const, U32V_3(9999));
-  EXPECT_LENGTH_N(5, kExprI32Const, U32V_4(999999));
-  EXPECT_LENGTH_N(6, kExprI32Const, U32V_5(99999999));
+  ExpectLength(2, kExprI32Const, U32V_1(1));
+  ExpectLength(3, kExprI32Const, U32V_2(999));
+  ExpectLength(4, kExprI32Const, U32V_3(9999));
+  ExpectLength(5, kExprI32Const, U32V_4(999999));
+  ExpectLength(6, kExprI32Const, U32V_5(99999999));
 }
 
 TEST_F(WasmOpcodeLengthTest, I64Const) {
-  EXPECT_LENGTH_N(2, kExprI64Const, U32V_1(1));
-  EXPECT_LENGTH_N(3, kExprI64Const, U32V_2(99));
-  EXPECT_LENGTH_N(4, kExprI64Const, U32V_3(9999));
-  EXPECT_LENGTH_N(5, kExprI64Const, U32V_4(99999));
-  EXPECT_LENGTH_N(6, kExprI64Const, U32V_5(9999999));
-  EXPECT_LENGTH_N(7, WASM_I64V_6(777777));
-  EXPECT_LENGTH_N(8, WASM_I64V_7(7777777));
-  EXPECT_LENGTH_N(9, WASM_I64V_8(77777777));
-  EXPECT_LENGTH_N(10, WASM_I64V_9(777777777));
+  ExpectLength(2, kExprI64Const, U32V_1(1));
+  ExpectLength(3, kExprI64Const, U32V_2(99));
+  ExpectLength(4, kExprI64Const, U32V_3(9999));
+  ExpectLength(5, kExprI64Const, U32V_4(99999));
+  ExpectLength(6, kExprI64Const, U32V_5(9999999));
+  ExpectLength(7, WASM_I64V_6(777777));
+  ExpectLength(8, WASM_I64V_7(7777777));
+  ExpectLength(9, WASM_I64V_8(77777777));
+  ExpectLength(10, WASM_I64V_9(777777777));
 }
 
 TEST_F(WasmOpcodeLengthTest, VariableLength) {
-  EXPECT_LENGTH_N(2, kExprGetGlobal, U32V_1(1));
-  EXPECT_LENGTH_N(3, kExprGetGlobal, U32V_2(33));
-  EXPECT_LENGTH_N(4, kExprGetGlobal, U32V_3(44));
-  EXPECT_LENGTH_N(5, kExprGetGlobal, U32V_4(66));
-  EXPECT_LENGTH_N(6, kExprGetGlobal, U32V_5(77));
+  ExpectLength(2, kExprGetGlobal, U32V_1(1));
+  ExpectLength(3, kExprGetGlobal, U32V_2(33));
+  ExpectLength(4, kExprGetGlobal, U32V_3(44));
+  ExpectLength(5, kExprGetGlobal, U32V_4(66));
+  ExpectLength(6, kExprGetGlobal, U32V_5(77));
 }
 
 TEST_F(WasmOpcodeLengthTest, LoadsAndStores) {
-  EXPECT_LENGTH(3, kExprI32LoadMem8S);
-  EXPECT_LENGTH(3, kExprI32LoadMem8U);
-  EXPECT_LENGTH(3, kExprI32LoadMem16S);
-  EXPECT_LENGTH(3, kExprI32LoadMem16U);
-  EXPECT_LENGTH(3, kExprI32LoadMem);
-  EXPECT_LENGTH(3, kExprI64LoadMem8S);
-  EXPECT_LENGTH(3, kExprI64LoadMem8U);
-  EXPECT_LENGTH(3, kExprI64LoadMem16S);
-  EXPECT_LENGTH(3, kExprI64LoadMem16U);
-  EXPECT_LENGTH(3, kExprI64LoadMem32S);
-  EXPECT_LENGTH(3, kExprI64LoadMem32U);
-  EXPECT_LENGTH(3, kExprI64LoadMem);
-  EXPECT_LENGTH(3, kExprF32LoadMem);
-  EXPECT_LENGTH(3, kExprF64LoadMem);
+  ExpectLength(3, kExprI32LoadMem8S);
+  ExpectLength(3, kExprI32LoadMem8U);
+  ExpectLength(3, kExprI32LoadMem16S);
+  ExpectLength(3, kExprI32LoadMem16U);
+  ExpectLength(3, kExprI32LoadMem);
+  ExpectLength(3, kExprI64LoadMem8S);
+  ExpectLength(3, kExprI64LoadMem8U);
+  ExpectLength(3, kExprI64LoadMem16S);
+  ExpectLength(3, kExprI64LoadMem16U);
+  ExpectLength(3, kExprI64LoadMem32S);
+  ExpectLength(3, kExprI64LoadMem32U);
+  ExpectLength(3, kExprI64LoadMem);
+  ExpectLength(3, kExprF32LoadMem);
+  ExpectLength(3, kExprF64LoadMem);
 
-  EXPECT_LENGTH(3, kExprI32StoreMem8);
-  EXPECT_LENGTH(3, kExprI32StoreMem16);
-  EXPECT_LENGTH(3, kExprI32StoreMem);
-  EXPECT_LENGTH(3, kExprI64StoreMem8);
-  EXPECT_LENGTH(3, kExprI64StoreMem16);
-  EXPECT_LENGTH(3, kExprI64StoreMem32);
-  EXPECT_LENGTH(3, kExprI64StoreMem);
-  EXPECT_LENGTH(3, kExprF32StoreMem);
-  EXPECT_LENGTH(3, kExprF64StoreMem);
+  ExpectLength(3, kExprI32StoreMem8);
+  ExpectLength(3, kExprI32StoreMem16);
+  ExpectLength(3, kExprI32StoreMem);
+  ExpectLength(3, kExprI64StoreMem8);
+  ExpectLength(3, kExprI64StoreMem16);
+  ExpectLength(3, kExprI64StoreMem32);
+  ExpectLength(3, kExprI64StoreMem);
+  ExpectLength(3, kExprF32StoreMem);
+  ExpectLength(3, kExprF64StoreMem);
 }
 
 TEST_F(WasmOpcodeLengthTest, MiscMemExpressions) {
-  EXPECT_LENGTH(2, kExprMemorySize);
-  EXPECT_LENGTH(2, kExprMemoryGrow);
+  ExpectLength(2, kExprMemorySize);
+  ExpectLength(2, kExprMemoryGrow);
 }
 
 TEST_F(WasmOpcodeLengthTest, SimpleExpressions) {
-  EXPECT_LENGTH(1, kExprI32Add);
-  EXPECT_LENGTH(1, kExprI32Sub);
-  EXPECT_LENGTH(1, kExprI32Mul);
-  EXPECT_LENGTH(1, kExprI32DivS);
-  EXPECT_LENGTH(1, kExprI32DivU);
-  EXPECT_LENGTH(1, kExprI32RemS);
-  EXPECT_LENGTH(1, kExprI32RemU);
-  EXPECT_LENGTH(1, kExprI32And);
-  EXPECT_LENGTH(1, kExprI32Ior);
-  EXPECT_LENGTH(1, kExprI32Xor);
-  EXPECT_LENGTH(1, kExprI32Shl);
-  EXPECT_LENGTH(1, kExprI32ShrU);
-  EXPECT_LENGTH(1, kExprI32ShrS);
-  EXPECT_LENGTH(1, kExprI32Eq);
-  EXPECT_LENGTH(1, kExprI32Ne);
-  EXPECT_LENGTH(1, kExprI32LtS);
-  EXPECT_LENGTH(1, kExprI32LeS);
-  EXPECT_LENGTH(1, kExprI32LtU);
-  EXPECT_LENGTH(1, kExprI32LeU);
-  EXPECT_LENGTH(1, kExprI32GtS);
-  EXPECT_LENGTH(1, kExprI32GeS);
-  EXPECT_LENGTH(1, kExprI32GtU);
-  EXPECT_LENGTH(1, kExprI32GeU);
-  EXPECT_LENGTH(1, kExprI32Clz);
-  EXPECT_LENGTH(1, kExprI32Ctz);
-  EXPECT_LENGTH(1, kExprI32Popcnt);
-  EXPECT_LENGTH(1, kExprI32Eqz);
-  EXPECT_LENGTH(1, kExprI64Add);
-  EXPECT_LENGTH(1, kExprI64Sub);
-  EXPECT_LENGTH(1, kExprI64Mul);
-  EXPECT_LENGTH(1, kExprI64DivS);
-  EXPECT_LENGTH(1, kExprI64DivU);
-  EXPECT_LENGTH(1, kExprI64RemS);
-  EXPECT_LENGTH(1, kExprI64RemU);
-  EXPECT_LENGTH(1, kExprI64And);
-  EXPECT_LENGTH(1, kExprI64Ior);
-  EXPECT_LENGTH(1, kExprI64Xor);
-  EXPECT_LENGTH(1, kExprI64Shl);
-  EXPECT_LENGTH(1, kExprI64ShrU);
-  EXPECT_LENGTH(1, kExprI64ShrS);
-  EXPECT_LENGTH(1, kExprI64Eq);
-  EXPECT_LENGTH(1, kExprI64Ne);
-  EXPECT_LENGTH(1, kExprI64LtS);
-  EXPECT_LENGTH(1, kExprI64LeS);
-  EXPECT_LENGTH(1, kExprI64LtU);
-  EXPECT_LENGTH(1, kExprI64LeU);
-  EXPECT_LENGTH(1, kExprI64GtS);
-  EXPECT_LENGTH(1, kExprI64GeS);
-  EXPECT_LENGTH(1, kExprI64GtU);
-  EXPECT_LENGTH(1, kExprI64GeU);
-  EXPECT_LENGTH(1, kExprI64Clz);
-  EXPECT_LENGTH(1, kExprI64Ctz);
-  EXPECT_LENGTH(1, kExprI64Popcnt);
-  EXPECT_LENGTH(1, kExprF32Add);
-  EXPECT_LENGTH(1, kExprF32Sub);
-  EXPECT_LENGTH(1, kExprF32Mul);
-  EXPECT_LENGTH(1, kExprF32Div);
-  EXPECT_LENGTH(1, kExprF32Min);
-  EXPECT_LENGTH(1, kExprF32Max);
-  EXPECT_LENGTH(1, kExprF32Abs);
-  EXPECT_LENGTH(1, kExprF32Neg);
-  EXPECT_LENGTH(1, kExprF32CopySign);
-  EXPECT_LENGTH(1, kExprF32Ceil);
-  EXPECT_LENGTH(1, kExprF32Floor);
-  EXPECT_LENGTH(1, kExprF32Trunc);
-  EXPECT_LENGTH(1, kExprF32NearestInt);
-  EXPECT_LENGTH(1, kExprF32Sqrt);
-  EXPECT_LENGTH(1, kExprF32Eq);
-  EXPECT_LENGTH(1, kExprF32Ne);
-  EXPECT_LENGTH(1, kExprF32Lt);
-  EXPECT_LENGTH(1, kExprF32Le);
-  EXPECT_LENGTH(1, kExprF32Gt);
-  EXPECT_LENGTH(1, kExprF32Ge);
-  EXPECT_LENGTH(1, kExprF64Add);
-  EXPECT_LENGTH(1, kExprF64Sub);
-  EXPECT_LENGTH(1, kExprF64Mul);
-  EXPECT_LENGTH(1, kExprF64Div);
-  EXPECT_LENGTH(1, kExprF64Min);
-  EXPECT_LENGTH(1, kExprF64Max);
-  EXPECT_LENGTH(1, kExprF64Abs);
-  EXPECT_LENGTH(1, kExprF64Neg);
-  EXPECT_LENGTH(1, kExprF64CopySign);
-  EXPECT_LENGTH(1, kExprF64Ceil);
-  EXPECT_LENGTH(1, kExprF64Floor);
-  EXPECT_LENGTH(1, kExprF64Trunc);
-  EXPECT_LENGTH(1, kExprF64NearestInt);
-  EXPECT_LENGTH(1, kExprF64Sqrt);
-  EXPECT_LENGTH(1, kExprF64Eq);
-  EXPECT_LENGTH(1, kExprF64Ne);
-  EXPECT_LENGTH(1, kExprF64Lt);
-  EXPECT_LENGTH(1, kExprF64Le);
-  EXPECT_LENGTH(1, kExprF64Gt);
-  EXPECT_LENGTH(1, kExprF64Ge);
-  EXPECT_LENGTH(1, kExprI32SConvertF32);
-  EXPECT_LENGTH(1, kExprI32SConvertF64);
-  EXPECT_LENGTH(1, kExprI32UConvertF32);
-  EXPECT_LENGTH(1, kExprI32UConvertF64);
-  EXPECT_LENGTH(1, kExprI32ConvertI64);
-  EXPECT_LENGTH(1, kExprI64SConvertF32);
-  EXPECT_LENGTH(1, kExprI64SConvertF64);
-  EXPECT_LENGTH(1, kExprI64UConvertF32);
-  EXPECT_LENGTH(1, kExprI64UConvertF64);
-  EXPECT_LENGTH(1, kExprI64SConvertI32);
-  EXPECT_LENGTH(1, kExprI64UConvertI32);
-  EXPECT_LENGTH(1, kExprF32SConvertI32);
-  EXPECT_LENGTH(1, kExprF32UConvertI32);
-  EXPECT_LENGTH(1, kExprF32SConvertI64);
-  EXPECT_LENGTH(1, kExprF32UConvertI64);
-  EXPECT_LENGTH(1, kExprF32ConvertF64);
-  EXPECT_LENGTH(1, kExprF32ReinterpretI32);
-  EXPECT_LENGTH(1, kExprF64SConvertI32);
-  EXPECT_LENGTH(1, kExprF64UConvertI32);
-  EXPECT_LENGTH(1, kExprF64SConvertI64);
-  EXPECT_LENGTH(1, kExprF64UConvertI64);
-  EXPECT_LENGTH(1, kExprF64ConvertF32);
-  EXPECT_LENGTH(1, kExprF64ReinterpretI64);
-  EXPECT_LENGTH(1, kExprI32ReinterpretF32);
-  EXPECT_LENGTH(1, kExprI64ReinterpretF64);
+#define SIMPLE_OPCODE(name, byte, sig) byte,
+  static constexpr uint8_t kSimpleOpcodes[] = {
+      FOREACH_SIMPLE_OPCODE(SIMPLE_OPCODE)};
+#undef SIMPLE_OPCODE
+  for (uint8_t simple_opcode : kSimpleOpcodes) {
+    ExpectLength(1, simple_opcode);
+  }
 }
 
 TEST_F(WasmOpcodeLengthTest, SimdExpressions) {
 #define TEST_SIMD(name, opcode, sig) \
-  EXPECT_LENGTH_N(2, kSimdPrefix, static_cast<byte>(kExpr##name & 0xFF));
+  ExpectLength(2, kSimdPrefix, static_cast<byte>(kExpr##name & 0xFF));
   FOREACH_SIMD_0_OPERAND_OPCODE(TEST_SIMD)
 #undef TEST_SIMD
 #define TEST_SIMD(name, opcode, sig) \
-  EXPECT_LENGTH_N(3, kSimdPrefix, static_cast<byte>(kExpr##name & 0xFF));
+  ExpectLength(3, kSimdPrefix, static_cast<byte>(kExpr##name & 0xFF));
   FOREACH_SIMD_1_OPERAND_OPCODE(TEST_SIMD)
 #undef TEST_SIMD
-  EXPECT_LENGTH_N(18, kSimdPrefix, static_cast<byte>(kExprS8x16Shuffle & 0xFF));
+  ExpectLength(18, kSimdPrefix, static_cast<byte>(kExprS8x16Shuffle & 0xFF));
   // test for bad simd opcode
-  EXPECT_LENGTH_N(2, kSimdPrefix, 0xFF);
+  ExpectLength(2, kSimdPrefix, 0xFF);
 }
-
-#undef EXPECT_LENGTH
-#undef EXPECT_LENGTH_N
 
 typedef ZoneVector<ValueType> TypesOfLocals;
 
