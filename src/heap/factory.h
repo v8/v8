@@ -16,7 +16,6 @@
 #include "src/messages.h"
 #include "src/objects/code.h"
 #include "src/objects/dictionary.h"
-#include "src/objects/hash-table.h"
 #include "src/objects/js-array.h"
 #include "src/objects/js-regexp.h"
 #include "src/objects/ordered-hash-table.h"

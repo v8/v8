@@ -5,8 +5,7 @@
 #ifndef V8_OBJECTS_TEMPLATE_OBJECTS_H_
 #define V8_OBJECTS_TEMPLATE_OBJECTS_H_
 
-#include "src/objects.h"
-#include "src/objects/hash-table.h"
+#include "src/objects/fixed-array.h"
 #include "src/objects/struct.h"
 
 // Has to be the last include (doesn't have include guards):
