@@ -371,7 +371,6 @@ namespace internal {
   F(RegExpExec, 4, 1)                               \
   F(RegExpExecMultiple, 4, 1)                       \
   F(RegExpInitializeAndCompile, 3, 1)               \
-  F(RegExpInternalReplace, 3, 1)                    \
   F(RegExpReplace, 3, 1)                            \
   F(RegExpSplit, 3, 1)                              \
   F(StringReplaceNonGlobalRegExpWithFunction, 3, 1) \
@@ -413,6 +412,7 @@ namespace internal {
   F(StringBuilderJoin, 3, 1)              \
   F(StringCharCodeAt, 2, 1)               \
   F(StringEqual, 2, 1)                    \
+  F(StringEscapeQuotes, 1, 1)             \
   F(StringGreaterThan, 2, 1)              \
   F(StringGreaterThanOrEqual, 2, 1)       \
   F(StringIncludes, 3, 1)                 \

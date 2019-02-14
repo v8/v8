@@ -283,7 +283,6 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(ThrowReferenceError)                      \
   V(ThrowSymbolIteratorInvalid)               \
   /* Strings */                               \
-  V(RegExpInternalReplace)                    \
   V(StringIncludes)                           \
   V(StringIndexOf)                            \
   V(StringReplaceOneCharWithString)           \

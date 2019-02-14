@@ -2609,19 +2609,9 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                                          writable, Representation::Tagged());
     initial_map->AppendDescriptor(isolate(), &d);
 
-    {  // Internal: RegExpInternalMatch
-      Handle<JSFunction> function =
-          SimpleCreateFunction(isolate_, isolate_->factory()->empty_string(),
-                               Builtins::kRegExpInternalMatch, 2, true);
-      native_context()->set(Context::REGEXP_INTERNAL_MATCH, *function);
-    }
-
-    // Create the last match info. One for external use, and one for internal
-    // use when we don't want to modify the externally visible match info.
+    // Create the last match info.
     Handle<RegExpMatchInfo> last_match_info = factory->NewRegExpMatchInfo();
     native_context()->set_regexp_last_match_info(*last_match_info);
-    Handle<RegExpMatchInfo> internal_match_info = factory->NewRegExpMatchInfo();
-    native_context()->set_regexp_internal_match_info(*internal_match_info);
 
     // Force the RegExp constructor to fast properties, so that we can use the
     // fast paths for various things like

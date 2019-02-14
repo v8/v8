@@ -564,13 +564,8 @@ Handle<RegExpMatchInfo> RegExpImpl::SetLastMatchInfo(
   result->SetNumberOfCaptureRegisters(capture_register_count);
 
   if (*result != *last_match_info) {
-    // The match info has been reallocated, update the corresponding reference
-    // on the native context.
-    if (*last_match_info == *isolate->regexp_last_match_info()) {
-      isolate->native_context()->set_regexp_last_match_info(*result);
-    } else if (*last_match_info == *isolate->regexp_internal_match_info()) {
-      isolate->native_context()->set_regexp_internal_match_info(*result);
-    }
+    DCHECK_EQ(*last_match_info, *isolate->regexp_last_match_info());
+    isolate->native_context()->set_regexp_last_match_info(*result);
   }
 
   DisallowHeapAllocation no_allocation;

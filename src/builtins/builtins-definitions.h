@@ -937,7 +937,6 @@ namespace internal {
   CPP(RegExpCapture9Getter)                                                    \
   /* ES #sec-regexp-pattern-flags */                                           \
   TFJ(RegExpConstructor, 2, kReceiver, kPattern, kFlags)                       \
-  TFJ(RegExpInternalMatch, 2, kReceiver, kRegExp, kString)                     \
   CPP(RegExpInputGetter)                                                       \
   CPP(RegExpInputSetter)                                                       \
   CPP(RegExpLastMatchGetter)                                                   \

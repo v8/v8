@@ -736,5 +736,56 @@ RUNTIME_FUNCTION(Runtime_StringCompareSequence) {
 
   return ReadOnlyRoots(isolate).true_value();
 }
+
+RUNTIME_FUNCTION(Runtime_StringEscapeQuotes) {
+  HandleScope handle_scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(String, string, 0);
+
+  // Equivalent to global replacement `string.replace(/"/g, "&quot")`, but this
+  // does not modify any global state (e.g. the regexp match info).
+
+  const int string_length = string->length();
+  Handle<String> quotes =
+      isolate->factory()->LookupSingleCharacterStringFromCode('"');
+
+  int index = String::IndexOf(isolate, string, quotes, 0);
+
+  // No quotes, nothing to do.
+  if (index == -1) return *string;
+
+  // Find all quotes.
+  std::vector<int> indices = {index};
+  while (index + 1 < string_length) {
+    index = String::IndexOf(isolate, string, quotes, index + 1);
+    if (index == -1) break;
+    indices.emplace_back(index);
+  }
+
+  // Build the replacement string.
+  Handle<String> replacement =
+      isolate->factory()->NewStringFromAsciiChecked("&quot;");
+  const int estimated_part_count = static_cast<int>(indices.size()) * 2 + 1;
+  ReplacementStringBuilder builder(isolate->heap(), string,
+                                   estimated_part_count);
+
+  int prev_index = -1;  // Start at -1 to avoid special-casing the first match.
+  for (int index : indices) {
+    const int slice_start = prev_index + 1;
+    const int slice_end = index;
+    if (slice_end > slice_start) {
+      builder.AddSubjectSlice(slice_start, slice_end);
+    }
+    builder.AddString(replacement);
+    prev_index = index;
+  }
+
+  if (prev_index < string_length - 1) {
+    builder.AddSubjectSlice(prev_index + 1, string_length);
+  }
+
+  return *builder.ToString().ToHandleChecked();
+}
+
 }  // namespace internal
 }  // namespace v8

@@ -2572,8 +2572,8 @@ class StringHtmlAssembler : public StringBuiltinsAssembler {
                              const char* method_name, const char* tag_name,
                              const char* attr, Node* const value) {
     Node* const string = ToThisString(context, receiver, method_name);
-    Node* const value_string =
-        EscapeQuotes(context, ToString_Inline(context, value));
+    TNode<String> value_string =
+        EscapeQuotes(CAST(context), ToString_Inline(context, value));
     std::string open_tag_attr =
         "<" + std::string(tag_name) + " " + std::string(attr) + "=\"";
     std::string close_tag = "</" + std::string(tag_name) + ">";
@@ -2593,20 +2593,8 @@ class StringHtmlAssembler : public StringBuiltinsAssembler {
     return var_result.value();
   }
 
-  Node* EscapeQuotes(Node* const context, Node* const string) {
-    CSA_ASSERT(this, IsString(string));
-    Node* const regexp_function = LoadContextElement(
-        LoadNativeContext(context), Context::REGEXP_FUNCTION_INDEX);
-    Node* const initial_map = LoadObjectField(
-        regexp_function, JSFunction::kPrototypeOrInitialMapOffset);
-    // TODO(pwong): Refactor to not allocate RegExp
-    Node* const regexp =
-        CallRuntime(Runtime::kRegExpInitializeAndCompile, context,
-                    AllocateJSObjectFromMap(initial_map), StringConstant("\""),
-                    StringConstant("g"));
-
-    return CallRuntime(Runtime::kRegExpInternalReplace, context, regexp, string,
-                       StringConstant("&quot;"));
+  TNode<String> EscapeQuotes(TNode<Context> context, TNode<String> string) {
+    return CAST(CallRuntime(Runtime::kStringEscapeQuotes, context, string));
   }
 };
 

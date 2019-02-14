@@ -3091,30 +3091,6 @@ TF_BUILTIN(RegExpPrototypeReplace, RegExpBuiltinsAssembler) {
                                 string, replace_value));
 }
 
-// Simple string matching functionality for internal use which does not modify
-// the last match info.
-TF_BUILTIN(RegExpInternalMatch, RegExpBuiltinsAssembler) {
-  TNode<JSRegExp> regexp = CAST(Parameter(Descriptor::kRegExp));
-  TNode<String> string = CAST(Parameter(Descriptor::kString));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-
-  TNode<Context> native_context = LoadNativeContext(context);
-  TNode<RegExpMatchInfo> internal_match_info = CAST(LoadContextElement(
-      native_context, Context::REGEXP_INTERNAL_MATCH_INFO_INDEX));
-  TNode<HeapObject> maybe_match_indices =
-      CAST(CallBuiltin(Builtins::kRegExpExecInternal, context, regexp, string,
-                       SmiZero(), internal_match_info));
-  TNode<Oddball> null = NullConstant();
-  Label if_matched(this);
-  GotoIfNot(WordEqual(maybe_match_indices, null), &if_matched);
-  Return(null);
-
-  BIND(&if_matched);
-  TNode<RegExpMatchInfo> match_indices = CAST(maybe_match_indices);
-  Return(
-      ConstructNewResultFromMatchInfo(context, regexp, match_indices, string));
-}
-
 class RegExpStringIteratorAssembler : public RegExpBuiltinsAssembler {
  public:
   explicit RegExpStringIteratorAssembler(compiler::CodeAssemblerState* state)
