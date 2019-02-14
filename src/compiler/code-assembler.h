@@ -272,6 +272,16 @@ enum class ObjectType {
 #undef ENUM_ELEMENT
 #undef ENUM_STRUCT_ELEMENT
 
+enum class CheckBounds { kAlways, kDebugOnly };
+inline bool NeedsBoundsCheck(CheckBounds check_bounds) {
+  switch (check_bounds) {
+    case CheckBounds::kAlways:
+      return true;
+    case CheckBounds::kDebugOnly:
+      return DEBUG_BOOL;
+  }
+}
+
 class AccessCheckNeeded;
 class BigIntWrapper;
 class ClassBoilerplate;

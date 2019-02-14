@@ -449,7 +449,7 @@ DEFINE_BOOL(trace_verify_csa, false, "trace code stubs verification")
 DEFINE_STRING(csa_trap_on_node, nullptr,
               "trigger break point when a node with given id is created in "
               "given stub. The format is: StubName,NodeId")
-DEFINE_BOOL_READONLY(fixed_array_bounds_checks, DEBUG_BOOL,
+DEFINE_BOOL_READONLY(fixed_array_bounds_checks, true,
                      "enable FixedArray bounds checks")
 DEFINE_BOOL(turbo_stats, false, "print TurboFan statistics")
 DEFINE_BOOL(turbo_stats_nvp, false,

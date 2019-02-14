@@ -705,8 +705,8 @@ void CSAGenerator::EmitInstruction(
     out_ << field.name_and_type.type->GetGeneratedTypeName() << " "
          << result_name << " = ca_.UncheckedCast<"
          << field.name_and_type.type->GetGeneratedTNodeTypeName()
-         << ">(CodeStubAssembler(state_).LoadFixedArrayElement(" << stack->Top()
-         << ", " << (field.offset / kTaggedSize) << "));\n";
+         << ">(CodeStubAssembler(state_).UnsafeLoadFixedArrayElement("
+         << stack->Top() << ", " << (field.offset / kTaggedSize) << "));\n";
   }
   stack->Poke(stack->AboveTop() - 1, result_name);
 }
@@ -741,8 +741,9 @@ void CSAGenerator::EmitInstruction(
            << machine_type << ".representation());\n";
     }
   } else {
-    out_ << "    CodeStubAssembler(state_).StoreFixedArrayElement(" << object
-         << ", " << (field.offset / kTaggedSize) << ", " << value << ");\n";
+    out_ << "    CodeStubAssembler(state_).UnsafeStoreFixedArrayElement("
+         << object << ", " << (field.offset / kTaggedSize) << ", " << value
+         << ");\n";
   }
 }
 

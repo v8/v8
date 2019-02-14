@@ -1955,10 +1955,14 @@ void CodeStubAssembler::FixedArrayBoundsCheck(TNode<FixedArrayBase> array,
 
 TNode<Object> CodeStubAssembler::LoadFixedArrayElement(
     TNode<FixedArray> object, Node* index_node, int additional_offset,
-    ParameterMode parameter_mode, LoadSensitivity needs_poisoning) {
+    ParameterMode parameter_mode, LoadSensitivity needs_poisoning,
+    CheckBounds check_bounds) {
   CSA_ASSERT(this, IsFixedArraySubclass(object));
   CSA_ASSERT(this, IsNotWeakFixedArraySubclass(object));
-  FixedArrayBoundsCheck(object, index_node, additional_offset, parameter_mode);
+  if (NeedsBoundsCheck(check_bounds)) {
+    FixedArrayBoundsCheck(object, index_node, additional_offset,
+                          parameter_mode);
+  }
   TNode<MaybeObject> element =
       LoadArrayElement(object, FixedArray::kHeaderSize, index_node,
                        additional_offset, parameter_mode, needs_poisoning);
@@ -2804,10 +2808,12 @@ void CodeStubAssembler::StoreFixedArrayOrPropertyArrayElement(
 
 void CodeStubAssembler::StoreFixedDoubleArrayElement(
     TNode<FixedDoubleArray> object, Node* index_node, TNode<Float64T> value,
-    ParameterMode parameter_mode) {
+    ParameterMode parameter_mode, CheckBounds check_bounds) {
   CSA_ASSERT(this, IsFixedDoubleArray(object));
   CSA_SLOW_ASSERT(this, MatchesParameterMode(index_node, parameter_mode));
-  FixedArrayBoundsCheck(object, index_node, 0, parameter_mode);
+  if (NeedsBoundsCheck(check_bounds)) {
+    FixedArrayBoundsCheck(object, index_node, 0, parameter_mode);
+  }
   Node* offset =
       ElementOffsetFromIndex(index_node, PACKED_DOUBLE_ELEMENTS, parameter_mode,
                              FixedArray::kHeaderSize - kHeapObjectTag);
@@ -3615,7 +3621,7 @@ void CodeStubAssembler::FindOrderedHashTableEntry(
       CAST(table), CollectionType::NumberOfBucketsIndex())));
   Node* const bucket =
       WordAnd(hash, IntPtrSub(number_of_buckets, IntPtrConstant(1)));
-  Node* const first_entry = SmiUntag(CAST(LoadFixedArrayElement(
+  Node* const first_entry = SmiUntag(CAST(UnsafeLoadFixedArrayElement(
       CAST(table), bucket,
       CollectionType::HashTableStartIndex() * kTaggedSize)));
 
@@ -3640,9 +3646,9 @@ void CodeStubAssembler::FindOrderedHashTableEntry(
         UintPtrLessThan(
             var_entry.value(),
             SmiUntag(SmiAdd(
-                CAST(LoadFixedArrayElement(
+                CAST(UnsafeLoadFixedArrayElement(
                     CAST(table), CollectionType::NumberOfElementsIndex())),
-                CAST(LoadFixedArrayElement(
+                CAST(UnsafeLoadFixedArrayElement(
                     CAST(table),
                     CollectionType::NumberOfDeletedElementsIndex()))))));
 
@@ -3661,7 +3667,7 @@ void CodeStubAssembler::FindOrderedHashTableEntry(
 
     BIND(&continue_next_entry);
     // Load the index of the next entry in the bucket chain.
-    var_entry.Bind(SmiUntag(CAST(LoadFixedArrayElement(
+    var_entry.Bind(SmiUntag(CAST(UnsafeLoadFixedArrayElement(
         CAST(table), entry_start,
         (CollectionType::HashTableStartIndex() + CollectionType::kChainOffset) *
             kTaggedSize))));

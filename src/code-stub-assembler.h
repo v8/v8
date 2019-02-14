@@ -1013,7 +1013,17 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Object> LoadFixedArrayElement(
       TNode<FixedArray> object, Node* index, int additional_offset = 0,
       ParameterMode parameter_mode = INTPTR_PARAMETERS,
-      LoadSensitivity needs_poisoning = LoadSensitivity::kSafe);
+      LoadSensitivity needs_poisoning = LoadSensitivity::kSafe,
+      CheckBounds check_bounds = CheckBounds::kAlways);
+
+  TNode<Object> UnsafeLoadFixedArrayElement(
+      TNode<FixedArray> object, Node* index, int additional_offset = 0,
+      ParameterMode parameter_mode = INTPTR_PARAMETERS,
+      LoadSensitivity needs_poisoning = LoadSensitivity::kSafe) {
+    return LoadFixedArrayElement(object, index, additional_offset,
+                                 parameter_mode, needs_poisoning,
+                                 CheckBounds::kDebugOnly);
+  }
 
   TNode<Object> LoadFixedArrayElement(TNode<FixedArray> object,
                                       TNode<IntPtrT> index,
@@ -1035,6 +1045,13 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return LoadFixedArrayElement(object, IntPtrConstant(index),
                                  additional_offset, INTPTR_PARAMETERS,
                                  needs_poisoning);
+  }
+  TNode<Object> UnsafeLoadFixedArrayElement(
+      TNode<FixedArray> object, int index, int additional_offset = 0,
+      LoadSensitivity needs_poisoning = LoadSensitivity::kSafe) {
+    return LoadFixedArrayElement(object, IntPtrConstant(index),
+                                 additional_offset, INTPTR_PARAMETERS,
+                                 needs_poisoning, CheckBounds::kDebugOnly);
   }
   TNode<Object> LoadFixedArrayElement(TNode<FixedArray> object,
                                       TNode<Smi> index) {
@@ -1233,14 +1250,29 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Store an array element to a FixedArray.
   void StoreFixedArrayElement(
       TNode<FixedArray> object, int index, SloppyTNode<Object> value,
-      WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER) {
+      WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER,
+      CheckBounds check_bounds = CheckBounds::kAlways) {
     return StoreFixedArrayElement(object, IntPtrConstant(index), value,
-                                  barrier_mode);
+                                  barrier_mode, 0, INTPTR_PARAMETERS,
+                                  check_bounds);
+  }
+  void UnsafeStoreFixedArrayElement(
+      TNode<FixedArray> object, int index, SloppyTNode<Object> value,
+      WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER) {
+    return StoreFixedArrayElement(object, index, value, barrier_mode,
+                                  CheckBounds::kDebugOnly);
   }
   void StoreFixedArrayElement(TNode<FixedArray> object, int index,
-                              TNode<Smi> value) {
+                              TNode<Smi> value,
+                              CheckBounds check_bounds = CheckBounds::kAlways) {
     return StoreFixedArrayElement(object, IntPtrConstant(index), value,
-                                  SKIP_WRITE_BARRIER);
+                                  SKIP_WRITE_BARRIER, 0, INTPTR_PARAMETERS,
+                                  check_bounds);
+  }
+  void UnsafeStoreFixedArrayElement(TNode<FixedArray> object, int index,
+                                    TNode<Smi> value) {
+    return StoreFixedArrayElement(object, index, value,
+                                  CheckBounds::kDebugOnly);
   }
 
   void StoreJSArrayLength(TNode<JSArray> array, TNode<Smi> length);
@@ -1256,10 +1288,23 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       TNode<FixedArray> array, Node* index, SloppyTNode<Object> value,
       WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER,
       int additional_offset = 0,
-      ParameterMode parameter_mode = INTPTR_PARAMETERS) {
-    FixedArrayBoundsCheck(array, index, additional_offset, parameter_mode);
+      ParameterMode parameter_mode = INTPTR_PARAMETERS,
+      CheckBounds check_bounds = CheckBounds::kAlways) {
+    if (NeedsBoundsCheck(check_bounds)) {
+      FixedArrayBoundsCheck(array, index, additional_offset, parameter_mode);
+    }
     StoreFixedArrayOrPropertyArrayElement(array, index, value, barrier_mode,
                                           additional_offset, parameter_mode);
+  }
+
+  void UnsafeStoreFixedArrayElement(
+      TNode<FixedArray> array, Node* index, SloppyTNode<Object> value,
+      WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER,
+      int additional_offset = 0,
+      ParameterMode parameter_mode = INTPTR_PARAMETERS) {
+    return StoreFixedArrayElement(array, index, value, barrier_mode,
+                                  additional_offset, parameter_mode,
+                                  CheckBounds::kDebugOnly);
   }
 
   void StorePropertyArrayElement(
@@ -1289,7 +1334,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   void StoreFixedDoubleArrayElement(
       TNode<FixedDoubleArray> object, Node* index, TNode<Float64T> value,
-      ParameterMode parameter_mode = INTPTR_PARAMETERS);
+      ParameterMode parameter_mode = INTPTR_PARAMETERS,
+      CheckBounds check_bounds = CheckBounds::kAlways);
+  void UnsafeStoreFixedDoubleArrayElement(
+      TNode<FixedDoubleArray> object, Node* index, TNode<Float64T> value,
+      ParameterMode parameter_mode = INTPTR_PARAMETERS) {
+    return StoreFixedDoubleArrayElement(object, index, value, parameter_mode,
+                                        CheckBounds::kDebugOnly);
+  }
 
   void StoreFixedDoubleArrayElementSmi(TNode<FixedDoubleArray> object,
                                        TNode<Smi> index,
