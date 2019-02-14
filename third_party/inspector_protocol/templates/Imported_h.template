@@ -17,6 +17,37 @@
 {% for namespace in config.protocol.namespace %}
 namespace {{namespace}} {
 {% endfor %}
+
+using Exported = {{"::".join(config.imported.namespace)}}::Exported;
+
+#ifndef {{"_".join(config.protocol.namespace)}}_imported_imported_h
+#define {{"_".join(config.protocol.namespace)}}_imported_imported_h
+
+class {{config.lib.export_macro}} ImportedValue : public Value {
+public:
+    static std::unique_ptr<ImportedValue> fromExported(const Exported* value) {
+        return std::unique_ptr<ImportedValue>(new ImportedValue(value));
+    }
+
+    void writeJSON(StringBuilder* output) const override {
+        auto json = m_exported->toJSONString();
+        String local_json = ({{config.imported.from_imported_string % "std::move(json)"}});
+        StringUtil::builderAppend(*output, local_json);
+    }
+    void writeBinary(std::vector<uint8_t>* output) const override {
+        m_exported->writeBinary(output);
+    }
+    std::unique_ptr<Value> clone() const override {
+        return std::unique_ptr<Value>(new ImportedValue(m_exported));
+    }
+
+private:
+    explicit ImportedValue(const Exported* exported) : Value(TypeImported), m_exported(exported) { }
+    const Exported* m_exported;
+};
+
+#endif // !defined({{"_".join(config.protocol.namespace)}}_imported_imported_h)
+
   {% for type in domain.types %}
     {% if not (type.type == "object") or not ("properties" in type) or not protocol.is_imported(domain.domain, type.id) %}{% continue %}{% endif %}
 
@@ -29,32 +60,17 @@ struct ValueConversions<{{"::".join(config.imported.namespace)}}::{{domain.domai
             return nullptr;
         }
 
-        // TODO(pfeldman): toggle to true and delete the json branch when binary is ready.
-        bool binary_protocol = false;
-        std::unique_ptr<{{"::".join(config.imported.namespace)}}::{{domain.domain}}::API::{{type.id}}> result;
-        if (binary_protocol) {
-            std::vector<uint8_t> binary = value->serializeToBinary();
-            result = {{"::".join(config.imported.namespace)}}::{{domain.domain}}::API::{{type.id}}::fromBinary(binary.data(), binary.size());
-        } else {
-            String json = value->serializeToJSON();
-            result = {{"::".join(config.imported.namespace)}}::{{domain.domain}}::API::{{type.id}}::fromJSONString({{config.imported.to_imported_string % "json"}});
-        }
+        std::vector<uint8_t> binary;
+        value->writeBinary(&binary);
+        auto result = {{"::".join(config.imported.namespace)}}::{{domain.domain}}::API::{{type.id}}::fromBinary(binary.data(), binary.size());
         if (!result)
             errors->addError("cannot parse");
         return result;
     }
 
-    static std::unique_ptr<protocol::Value> toValue(const {{"::".join(config.imported.namespace)}}::{{domain.domain}}::API::{{type.id}}* value)
+    static std::unique_ptr<protocol::Value> toValue(const {{"::".join(config.imported.namespace)}}::{{domain.domain}}::API::{{type.id}}* exported)
     {
-        // TODO(pfeldman): toggle to true and delete the json branch when binary is ready.
-        bool binary_protocol = false;
-        if (binary_protocol) {
-            return SerializedValue::fromBinary(value->toBinary());
-        } else {
-            auto json = value->toJSONString();
-            String local_json = ({{config.imported.from_imported_string % "std::move(json)"}});
-            return SerializedValue::fromJSON(local_json);
-        }
+        return ImportedValue::fromExported(exported);
     }
 
     static std::unique_ptr<protocol::Value> toValue(const std::unique_ptr<{{"::".join(config.imported.namespace)}}::{{domain.domain}}::API::{{type.id}}>& value)
@@ -62,6 +78,7 @@ struct ValueConversions<{{"::".join(config.imported.namespace)}}::{{domain.domai
         return toValue(value.get());
     }
 };
+
   {% endfor %}
 
 {% for namespace in config.protocol.namespace %}

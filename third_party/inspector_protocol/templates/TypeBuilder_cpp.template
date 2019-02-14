@@ -105,9 +105,9 @@ std::unique_ptr<{{type.id}}> {{type.id}}::clone() const
     return {{config.exported.to_string_out % "json"}};
 }
 
-std::vector<uint8_t> {{type.id}}::toBinary() const
+void {{type.id}}::writeBinary(std::vector<uint8_t>* out) const
 {
-    return toValue()->serializeToBinary();
+    toValue()->writeBinary(out);
 }
 
 // static

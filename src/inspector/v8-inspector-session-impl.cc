@@ -76,6 +76,8 @@ V8InspectorSessionImpl::V8InspectorSessionImpl(V8InspectorImpl* inspector,
     m_state = protocol::DictionaryValue::create();
   }
 
+  m_state->getBoolean("use_binary_protocol", &use_binary_protocol_);
+
   m_runtimeAgent.reset(new V8RuntimeAgentImpl(
       this, this, agentState(protocol::Runtime::Metainfo::domainName)));
   protocol::Runtime::Dispatcher::wire(&m_dispatcher, m_runtimeAgent.get());
@@ -330,7 +332,11 @@ void V8InspectorSessionImpl::dispatchProtocolMessage(
     const StringView& message) {
   bool binary_protocol =
       message.is8Bit() && message.length() && message.characters8()[0] == 0xD8;
-  if (binary_protocol) use_binary_protocol_ = true;
+  if (binary_protocol) {
+    use_binary_protocol_ = true;
+    m_state->setBoolean("use_binary_protocol", true);
+  }
+
   int callId;
   std::unique_ptr<protocol::Value> parsed_message;
   if (binary_protocol) {

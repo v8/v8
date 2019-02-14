@@ -39,7 +39,8 @@ public:
         TypeBinary,
         TypeObject,
         TypeArray,
-        TypeSerialized
+        TypeSerialized,
+        TypeImported
     };
 
     ValueType type() const { return m_type; }

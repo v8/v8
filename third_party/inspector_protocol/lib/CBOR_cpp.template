@@ -15,34 +15,9 @@ namespace {{namespace}} {
 
 // ===== encoding/cbor.cc =====
 
+using namespace cbor;
+
 namespace {
-using cbor_internals::MajorType;
-
-// Indicates the number of bits the "initial byte" needs to be shifted to the
-// right after applying |kMajorTypeMask| to produce the major type in the
-// lowermost bits.
-static constexpr uint8_t kMajorTypeBitShift = 5u;
-// Mask selecting the low-order 5 bits of the "initial byte", which is where
-// the additional information is encoded.
-static constexpr uint8_t kAdditionalInformationMask = 0x1f;
-// Mask selecting the high-order 3 bits of the "initial byte", which indicates
-// the major type of the encoded value.
-static constexpr uint8_t kMajorTypeMask = 0xe0;
-// Indicates the integer is in the following byte.
-static constexpr uint8_t kAdditionalInformation1Byte = 24u;
-// Indicates the integer is in the next 2 bytes.
-static constexpr uint8_t kAdditionalInformation2Bytes = 25u;
-// Indicates the integer is in the next 4 bytes.
-static constexpr uint8_t kAdditionalInformation4Bytes = 26u;
-// Indicates the integer is in the next 8 bytes.
-static constexpr uint8_t kAdditionalInformation8Bytes = 27u;
-
-// Encodes the initial byte, consisting of the |type| in the first 3 bits
-// followed by 5 bits of |additional_info|.
-constexpr uint8_t EncodeInitialByte(MajorType type, uint8_t additional_info) {
-  return (uint8_t(type) << kMajorTypeBitShift) |
-         (additional_info & kAdditionalInformationMask);
-}
 
 // See RFC 7049 Section 2.3, Table 2.
 static constexpr uint8_t kEncodedTrue =
@@ -53,37 +28,12 @@ static constexpr uint8_t kEncodedNull =
     EncodeInitialByte(MajorType::SIMPLE_VALUE, 22);
 static constexpr uint8_t kInitialByteForDouble =
     EncodeInitialByte(MajorType::SIMPLE_VALUE, 27);
+
 }  // namespace
 
 uint8_t EncodeTrue() { return kEncodedTrue; }
 uint8_t EncodeFalse() { return kEncodedFalse; }
 uint8_t EncodeNull() { return kEncodedNull; }
-
-namespace {
-// TAG 24 indicates that what follows is a byte string which is
-// encoded in CBOR format. We use this as a wrapper for
-// maps and arrays, allowing us to skip them, because the
-// byte string carries its size (byte length).
-// https://tools.ietf.org/html/rfc7049#section-2.4.4.1
-static constexpr uint8_t kInitialByteForEnvelope =
-    EncodeInitialByte(MajorType::TAG, 24);
-// The initial byte for a byte string with at most 2^32 bytes
-// of payload. This is used for envelope encoding, even if
-// the byte string is shorter.
-static constexpr uint8_t kInitialByteFor32BitLengthByteString =
-    EncodeInitialByte(MajorType::BYTE_STRING, 26);
-
-// See RFC 7049 Section 2.2.1, indefinite length arrays / maps have additional
-// info = 31.
-static constexpr uint8_t kInitialByteIndefiniteLengthArray =
-    EncodeInitialByte(MajorType::ARRAY, 31);
-static constexpr uint8_t kInitialByteIndefiniteLengthMap =
-    EncodeInitialByte(MajorType::MAP, 31);
-// See RFC 7049 Section 2.3, Table 1; this is used for finishing indefinite
-// length maps / arrays.
-static constexpr uint8_t kStopByte =
-    EncodeInitialByte(MajorType::SIMPLE_VALUE, 31);
-}  // namespace
 
 uint8_t EncodeIndefiniteLengthArrayStart() {
   return kInitialByteIndefiniteLengthArray;
@@ -122,7 +72,7 @@ void WriteTokenStart(MajorType type, uint64_t value,
   if (value < 24) {
     // Values 0-23 are encoded directly into the additional info of the
     // initial byte.
-    encoded->push_back(EncodeInitialByte(type, /*additiona_info=*/value));
+    encoded->push_back(EncodeInitialByte(type, /*additional_info=*/value));
     return;
   }
   if (value <= std::numeric_limits<uint8_t>::max()) {
@@ -156,9 +106,9 @@ namespace {
 // See also: https://commandcenter.blogspot.com/2012/04/byte-order-fallacy.html
 template <typename T>
 T ReadBytesMostSignificantByteFirst(span<uint8_t> in) {
-  assert(size_t(in.size()) >= sizeof(T));
+  assert(static_cast<std::size_t>(in.size()) >= sizeof(T));
   T result = 0;
-  for (size_t shift_bytes = 0; shift_bytes < sizeof(T); ++shift_bytes)
+  for (std::size_t shift_bytes = 0; shift_bytes < sizeof(T); ++shift_bytes)
     result |= T(in[sizeof(T) - 1 - shift_bytes]) << (shift_bytes * 8);
   return result;
 }
@@ -185,19 +135,22 @@ int8_t ReadTokenStart(span<uint8_t> bytes, MajorType* type, uint64_t* value) {
   }
   if (additional_information == kAdditionalInformation2Bytes) {
     // Values 256-65535: 1 initial byte + 2 bytes payload.
-    if (static_cast<size_t>(bytes.size()) < 1 + sizeof(uint16_t)) return -1;
+    if (static_cast<std::size_t>(bytes.size()) < 1 + sizeof(uint16_t))
+      return -1;
     *value = ReadBytesMostSignificantByteFirst<uint16_t>(bytes.subspan(1));
     return 3;
   }
   if (additional_information == kAdditionalInformation4Bytes) {
     // 32 bit uint: 1 initial byte + 4 bytes payload.
-    if (static_cast<size_t>(bytes.size()) < 1 + sizeof(uint32_t)) return -1;
+    if (static_cast<std::size_t>(bytes.size()) < 1 + sizeof(uint32_t))
+      return -1;
     *value = ReadBytesMostSignificantByteFirst<uint32_t>(bytes.subspan(1));
     return 5;
   }
   if (additional_information == kAdditionalInformation8Bytes) {
     // 64 bit uint: 1 initial byte + 8 bytes payload.
-    if (static_cast<size_t>(bytes.size()) < 1 + sizeof(uint64_t)) return -1;
+    if (static_cast<std::size_t>(bytes.size()) < 1 + sizeof(uint64_t))
+      return -1;
     *value = ReadBytesMostSignificantByteFirst<uint64_t>(bytes.subspan(1));
     return 9;
   }
@@ -205,7 +158,6 @@ int8_t ReadTokenStart(span<uint8_t> bytes, MajorType* type, uint64_t* value) {
 }
 }  // namespace cbor_internals
 
-using cbor_internals::MajorType;
 using cbor_internals::WriteTokenStart;
 using cbor_internals::ReadTokenStart;
 
@@ -669,7 +621,8 @@ void CBORTokenizer::ReadNextToken(bool enter_envelope) {
         SetError(Error::CBOR_INVALID_BINARY);
         return;
       }
-      SetToken(CBORTokenTag::BINARY, std::ptrdiff_t(token_byte_length));
+      SetToken(CBORTokenTag::BINARY,
+               static_cast<std::ptrdiff_t>(token_byte_length));
       return;
     }
     case kInitialByteForDouble: {  // DOUBLE
@@ -696,7 +649,7 @@ void CBORTokenizer::ReadNextToken(bool enter_envelope) {
       // Make sure the payload is contained within the message.
       if (token_start_internal_value_ + kEncodedEnvelopeHeaderSize +
               status_.pos >
-          size_t(bytes_.size())) {
+          static_cast<std::size_t>(bytes_.size())) {
         SetError(Error::CBOR_INVALID_ENVELOPE);
         return;
       }
@@ -731,8 +684,8 @@ void CBORTokenizer::ReadNextToken(bool enter_envelope) {
           SetToken(CBORTokenTag::INT32, token_start_length);
           return;
         case MajorType::STRING: {  // STRING8.
-          if (!success ||
-              remainder.size() < int64_t(token_start_internal_value_)) {
+          if (!success || remainder.size() < static_cast<int64_t>(
+                                                 token_start_internal_value_)) {
             SetError(Error::CBOR_INVALID_STRING8);
             return;
           }
@@ -742,7 +695,8 @@ void CBORTokenizer::ReadNextToken(bool enter_envelope) {
         }
         case MajorType::BYTE_STRING: {  // STRING16.
           if (!success ||
-              remainder.size() < int64_t(token_start_internal_value_) ||
+              remainder.size() <
+                  static_cast<int64_t>(token_start_internal_value_) ||
               // Must be divisible by 2 since UTF16 is 2 bytes per character.
               token_start_internal_value_ & 1) {
             SetError(Error::CBOR_INVALID_STRING16);
@@ -773,6 +727,75 @@ void CBORTokenizer::SetError(Error error) {
   token_tag_ = CBORTokenTag::ERROR_VALUE;
   status_.error = error;
 }
+
+#if 0
+void DumpCBOR(span<uint8_t> cbor) {
+  std::string indent;
+  CBORTokenizer tokenizer(cbor);
+  while (true) {
+    fprintf(stderr, "%s", indent.c_str());
+    switch (tokenizer.TokenTag()) {
+      case CBORTokenTag::ERROR_VALUE:
+        fprintf(stderr, "ERROR {status.error=%d, status.pos=%ld}\n",
+               tokenizer.Status().error, tokenizer.Status().pos);
+        return;
+      case CBORTokenTag::DONE:
+        fprintf(stderr, "DONE\n");
+        return;
+      case CBORTokenTag::TRUE_VALUE:
+        fprintf(stderr, "TRUE_VALUE\n");
+        break;
+      case CBORTokenTag::FALSE_VALUE:
+        fprintf(stderr, "FALSE_VALUE\n");
+        break;
+      case CBORTokenTag::NULL_VALUE:
+        fprintf(stderr, "NULL_VALUE\n");
+        break;
+      case CBORTokenTag::INT32:
+        fprintf(stderr, "INT32 [%d]\n", tokenizer.GetInt32());
+        break;
+      case CBORTokenTag::DOUBLE:
+        fprintf(stderr, "DOUBLE [%lf]\n", tokenizer.GetDouble());
+        break;
+      case CBORTokenTag::STRING8: {
+        span<uint8_t> v = tokenizer.GetString8();
+        std::string t(v.begin(), v.end());
+        fprintf(stderr, "STRING8 [%s]\n", t.c_str());
+        break;
+      }
+      case CBORTokenTag::STRING16: {
+        span<uint8_t> v = tokenizer.GetString16WireRep();
+        std::string t(v.begin(), v.end());
+        fprintf(stderr, "STRING16 [%s]\n", t.c_str());
+        break;
+      }
+      case CBORTokenTag::BINARY: {
+        span<uint8_t> v = tokenizer.GetBinary();
+        std::string t(v.begin(), v.end());
+        fprintf(stderr, "BINARY [%s]\n", t.c_str());
+        break;
+      }
+      case CBORTokenTag::MAP_START:
+        fprintf(stderr, "MAP_START\n");
+        indent += "  ";
+        break;
+      case CBORTokenTag::ARRAY_START:
+        fprintf(stderr, "ARRAY_START\n");
+        indent += "  ";
+        break;
+      case CBORTokenTag::STOP:
+        fprintf(stderr, "STOP\n");
+        indent.erase(0, 2);
+        break;
+      case CBORTokenTag::ENVELOPE:
+        fprintf(stderr, "ENVELOPE\n");
+        tokenizer.EnterEnvelope();
+        continue;
+    }
+    tokenizer.Next();
+  }
+}
+#endif
 
 
 {% for namespace in config.protocol.namespace %}

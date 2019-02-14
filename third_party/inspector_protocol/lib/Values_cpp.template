@@ -168,6 +168,7 @@ std::unique_ptr<DictionaryValue> parseMap(
     String key;
     if (tokenizer->TokenTag() == CBORTokenTag::STRING8) {
       span<uint8_t> key_span = tokenizer->GetString8();
+      tokenizer->Next();
       key = StringUtil::fromUTF8(key_span.data(), key_span.size());
     } else if (tokenizer->TokenTag() == CBORTokenTag::STRING16) {
       return nullptr;  // STRING16 not supported yet.
@@ -178,6 +179,7 @@ std::unique_ptr<DictionaryValue> parseMap(
     // Parse value.
     auto value = parseValue(stack_depth, tokenizer);
     if (!value) return nullptr;
+    dict->setValue(key, std::move(value));
   }
   tokenizer->Next();
   return dict;
