@@ -591,24 +591,6 @@
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=6538
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=6541
-  'language/export/escaped-as-export-specifier': [FAIL],
-  'language/export/escaped-from': [FAIL],
-  'language/expressions/object/method-definition/escaped-get': [FAIL],
-  'language/expressions/object/method-definition/escaped-set': [FAIL],
-  'language/import/escaped-as-import-specifier': [FAIL],
-  'language/import/escaped-as-namespace-import': [FAIL],
-  'language/import/escaped-from': [FAIL],
-  'language/statements/for-await-of/escaped-of': [FAIL],
-  'language/statements/for-of/escaped-of': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=6543
-  'language/statements/labeled/value-await-non-module-escaped': [FAIL],
-  'language/statements/labeled/value-yield-non-strict-escaped': [FAIL],
-  'language/expressions/async-arrow-function/escaped-async-line-terminator': [FAIL],
-  'language/expressions/class/class-name-ident-await-escaped': [FAIL],
-  'language/statements/class/class-name-ident-await-escaped': [FAIL],
-
   ############################ INVALID TESTS #############################
 
   # Test makes unjustified assumptions about the number of calls to SortCompare.

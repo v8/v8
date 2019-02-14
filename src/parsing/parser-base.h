@@ -797,6 +797,7 @@ class ParserBase {
 
   bool PeekContextualKeyword(const AstRawString* name) {
     return peek() == Token::IDENTIFIER &&
+           !scanner()->next_literal_contains_escapes() &&
            scanner()->NextSymbol(ast_value_factory()) == name;
   }
 
@@ -808,13 +809,20 @@ class ParserBase {
     return false;
   }
 
-  void ExpectMetaProperty(const AstRawString* property_name,
-                          const char* full_name, int pos);
-
-  void ExpectContextualKeyword(const AstRawString* name) {
+  void ExpectContextualKeyword(const AstRawString* name,
+                               const char* fullname = nullptr, int pos = -1) {
     Expect(Token::IDENTIFIER);
     if (V8_UNLIKELY(scanner()->CurrentSymbol(ast_value_factory()) != name)) {
       ReportUnexpectedToken(scanner()->current_token());
+    }
+    if (V8_UNLIKELY(scanner()->literal_contains_escapes())) {
+      const char* full = fullname == nullptr
+                             ? reinterpret_cast<const char*>(name->raw_data())
+                             : fullname;
+      int start = pos == -1 ? position() : pos;
+      impl()->ReportMessageAt(Scanner::Location(start, end_position()),
+                              MessageTemplate::kInvalidEscapedMetaProperty,
+                              full);
     }
   }
 
@@ -1472,7 +1480,6 @@ template <typename Impl>
 typename ParserBase<Impl>::IdentifierT
 ParserBase<Impl>::ParseAndClassifyIdentifier(Token::Value next) {
   DCHECK_EQ(scanner()->current_token(), next);
-  STATIC_ASSERT(Token::IDENTIFIER + 1 == Token::ASYNC);
   if (V8_LIKELY(IsInRange(next, Token::IDENTIFIER, Token::ASYNC))) {
     IdentifierT name = impl()->GetSymbol();
     if (V8_UNLIKELY(impl()->IsArguments(name) &&
@@ -1648,7 +1655,8 @@ ParserBase<Impl>::ParsePrimaryExpression() {
     FunctionKind kind = FunctionKind::kArrowFunction;
 
     if (V8_UNLIKELY(token == Token::ASYNC &&
-                    !scanner()->HasLineTerminatorBeforeNext())) {
+                    !scanner()->HasLineTerminatorBeforeNext() &&
+                    !scanner()->literal_contains_escapes())) {
       // async function ...
       if (peek() == Token::FUNCTION) return ParseAsyncFunctionLiteral();
 
@@ -1929,6 +1937,9 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseProperty(
       impl()->PushLiteralName(prop_info->name);
       return factory()->NewStringLiteral(prop_info->name, position());
     }
+    if (V8_UNLIKELY(scanner()->literal_contains_escapes())) {
+      impl()->ReportUnexpectedToken(Token::ESCAPED_KEYWORD);
+    }
     prop_info->function_flags = ParseFunctionFlag::kIsAsync;
     prop_info->kind = ParsePropertyKind::kMethod;
   }
@@ -1939,20 +1950,20 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseProperty(
   }
 
   if (prop_info->kind == ParsePropertyKind::kNotSet &&
-      Check(Token::IDENTIFIER)) {
-    IdentifierT symbol = impl()->GetSymbol();
-    if (!prop_info->ParsePropertyKindFromToken(peek())) {
-      if (impl()->IdentifierEquals(symbol, ast_value_factory()->get_string())) {
-        prop_info->kind = ParsePropertyKind::kAccessorGetter;
-      } else if (impl()->IdentifierEquals(symbol,
-                                          ast_value_factory()->set_string())) {
-        prop_info->kind = ParsePropertyKind::kAccessorSetter;
-      }
-    }
-    if (!IsAccessor(prop_info->kind)) {
-      prop_info->name = symbol;
+      IsInRange(peek(), Token::GET, Token::SET)) {
+    Token::Value token = Next();
+    if (prop_info->ParsePropertyKindFromToken(peek())) {
+      prop_info->name = impl()->GetSymbol();
       impl()->PushLiteralName(prop_info->name);
       return factory()->NewStringLiteral(prop_info->name, position());
+    }
+    if (V8_UNLIKELY(scanner()->literal_contains_escapes())) {
+      impl()->ReportUnexpectedToken(Token::ESCAPED_KEYWORD);
+    }
+    if (token == Token::GET) {
+      prop_info->kind = ParsePropertyKind::kAccessorGetter;
+    } else if (token == Token::SET) {
+      prop_info->kind = ParsePropertyKind::kAccessorSetter;
     }
   }
 
@@ -2682,6 +2693,9 @@ ParserBase<Impl>::ParseYieldExpression() {
   expression_scope()->RecordParameterInitializerError(
       scanner()->peek_location(), MessageTemplate::kYieldInParameter);
   Consume(Token::YIELD);
+  if (V8_UNLIKELY(scanner()->literal_contains_escapes())) {
+    impl()->ReportUnexpectedToken(Token::ESCAPED_KEYWORD);
+  }
 
   CheckStackOverflow();
 
@@ -2906,6 +2920,9 @@ ParserBase<Impl>::ParseAwaitExpression() {
       MessageTemplate::kAwaitExpressionFormalParameter);
   int await_pos = peek_position();
   Consume(Token::AWAIT);
+  if (V8_UNLIKELY(scanner()->literal_contains_escapes())) {
+    impl()->ReportUnexpectedToken(Token::ESCAPED_KEYWORD);
+  }
 
   CheckStackOverflow();
 
@@ -2987,7 +3004,8 @@ ParserBase<Impl>::ParseLeftHandSideContinuation(ExpressionT result) {
 
   if (V8_UNLIKELY(peek() == Token::LPAREN && impl()->IsIdentifier(result) &&
                   scanner()->current_token() == Token::ASYNC &&
-                  !scanner()->HasLineTerminatorBeforeNext())) {
+                  !scanner()->HasLineTerminatorBeforeNext() &&
+                  !scanner()->literal_contains_escapes())) {
     DCHECK(impl()->IsAsync(impl()->AsIdentifier(result)));
     int pos = position();
 
@@ -3249,8 +3267,9 @@ ParserBase<Impl>::ParseImportExpressions() {
 
   Consume(Token::IMPORT);
   int pos = position();
-  if (allow_harmony_import_meta() && peek() == Token::PERIOD) {
-    ExpectMetaProperty(ast_value_factory()->meta_string(), "import.meta", pos);
+  if (allow_harmony_import_meta() && Check(Token::PERIOD)) {
+    ExpectContextualKeyword(ast_value_factory()->meta_string(), "import.meta",
+                            pos);
     if (!parsing_module_) {
       impl()->ReportMessageAt(scanner()->location(),
                               MessageTemplate::kImportMetaOutsideModule);
@@ -3304,22 +3323,12 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseSuperExpression(
 }
 
 template <typename Impl>
-void ParserBase<Impl>::ExpectMetaProperty(const AstRawString* property_name,
-                                          const char* full_name, int pos) {
-  Consume(Token::PERIOD);
-  ExpectContextualKeyword(property_name);
-  if (V8_UNLIKELY(scanner()->literal_contains_escapes())) {
-    impl()->ReportMessageAt(Scanner::Location(pos, end_position()),
-                            MessageTemplate::kInvalidEscapedMetaProperty,
-                            full_name);
-  }
-}
-
-template <typename Impl>
 typename ParserBase<Impl>::ExpressionT
 ParserBase<Impl>::ParseNewTargetExpression() {
   int pos = position();
-  ExpectMetaProperty(ast_value_factory()->target_string(), "new.target", pos);
+  Consume(Token::PERIOD);
+  ExpectContextualKeyword(ast_value_factory()->target_string(), "new.target",
+                          pos);
 
   if (!GetReceiverScope()->is_function_scope()) {
     impl()->ReportMessageAt(scanner()->location(),
@@ -3801,6 +3810,9 @@ ParserBase<Impl>::ParseAsyncFunctionDeclaration(
   //   async [no LineTerminator here] function BindingIdentifier[Await]
   //       ( FormalParameters[Await] ) { AsyncFunctionBody }
   DCHECK_EQ(scanner()->current_token(), Token::ASYNC);
+  if (V8_UNLIKELY(scanner()->literal_contains_escapes())) {
+    impl()->ReportUnexpectedToken(Token::ESCAPED_KEYWORD);
+  }
   int pos = position();
   DCHECK(!scanner()->HasLineTerminatorBeforeNext());
   Consume(Token::FUNCTION);
@@ -3978,6 +3990,8 @@ bool ParserBase<Impl>::IsNextLetKeyword() {
                       // tokens.
     case Token::YIELD:
     case Token::AWAIT:
+    case Token::GET:
+    case Token::SET:
     case Token::ASYNC:
       return true;
     case Token::FUTURE_STRICT_RESERVED_WORD:
@@ -4258,6 +4272,9 @@ ParserBase<Impl>::ParseAsyncFunctionLiteral() {
   //   async [no LineTerminator here] function BindingIdentifier[Await]
   //       ( FormalParameters[Await] ) { AsyncFunctionBody }
   DCHECK_EQ(scanner()->current_token(), Token::ASYNC);
+  if (V8_UNLIKELY(scanner()->literal_contains_escapes())) {
+    impl()->ReportUnexpectedToken(Token::ESCAPED_KEYWORD);
+  }
   int pos = position();
   Consume(Token::FUNCTION);
   IdentifierT name = impl()->NullIdentifier();

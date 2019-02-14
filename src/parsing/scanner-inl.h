@@ -42,6 +42,8 @@ namespace internal {
   KEYWORD("finally", Token::FINALLY)                        \
   KEYWORD("for", Token::FOR)                                \
   KEYWORD("function", Token::FUNCTION)                      \
+  KEYWORD_GROUP('g')                                        \
+  KEYWORD("get", Token::GET)                                \
   KEYWORD_GROUP('i')                                        \
   KEYWORD("if", Token::IF)                                  \
   KEYWORD("implements", Token::FUTURE_STRICT_RESERVED_WORD) \
@@ -62,6 +64,7 @@ namespace internal {
   KEYWORD_GROUP('r')                                        \
   KEYWORD("return", Token::RETURN)                          \
   KEYWORD_GROUP('s')                                        \
+  KEYWORD("set", Token::SET)                                \
   KEYWORD("static", Token::STATIC)                          \
   KEYWORD("super", Token::SUPER)                            \
   KEYWORD("switch", Token::SWITCH)                          \

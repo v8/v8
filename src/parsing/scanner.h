@@ -316,6 +316,10 @@ class Scanner {
     return LiteralContainsEscapes(current());
   }
 
+  bool next_literal_contains_escapes() const {
+    return LiteralContainsEscapes(next());
+  }
+
   const AstRawString* CurrentSymbol(AstValueFactory* ast_value_factory) const;
 
   const AstRawString* NextSymbol(AstValueFactory* ast_value_factory) const;
@@ -517,7 +521,6 @@ class Scanner {
     bool CanAccessLiteral() const {
       return token == Token::PRIVATE_NAME || token == Token::ILLEGAL ||
              token == Token::UNINITIALIZED || token == Token::REGEXP_LITERAL ||
-             token == Token::ESCAPED_KEYWORD ||
              IsInRange(token, Token::NUMBER, Token::STRING) ||
              (Token::IsAnyIdentifier(token) && !Token::IsKeyword(token)) ||
              IsInRange(token, Token::TEMPLATE_SPAN, Token::TEMPLATE_TAIL);
