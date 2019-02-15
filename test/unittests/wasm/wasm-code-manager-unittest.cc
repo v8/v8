@@ -190,9 +190,9 @@ class WasmCodeManagerTest : public TestWithContext,
   }
 };
 
-INSTANTIATE_TEST_CASE_P(Parameterized, WasmCodeManagerTest,
-                        ::testing::Values(Fixed, Growable),
-                        PrintWasmCodeManageTestParam);
+INSTANTIATE_TEST_SUITE_P(Parameterized, WasmCodeManagerTest,
+                         ::testing::Values(Fixed, Growable),
+                         PrintWasmCodeManageTestParam);
 
 TEST_P(WasmCodeManagerTest, EmptyCase) {
   SetMaxCommittedMemory(0 * page());
