@@ -565,7 +565,8 @@ void CodeGenerator::BailoutIfDeoptimized() {
   UseScratchRegisterScope temps(tasm());
   Register scratch = temps.AcquireX();
   int offset = Code::kCodeDataContainerOffset - Code::kHeaderSize;
-  __ Ldr(scratch, MemOperand(kJavaScriptCallCodeStartRegister, offset));
+  __ LoadTaggedPointerField(
+      scratch, MemOperand(kJavaScriptCallCodeStartRegister, offset));
   __ Ldr(scratch,
          FieldMemOperand(scratch, CodeDataContainer::kKindSpecificFlagsOffset));
   Label not_deoptimized;
@@ -2525,10 +2526,12 @@ void CodeGenerator::AssembleConstructFrame() {
       } break;
       case CallDescriptor::kCallWasmImportWrapper: {
         UseScratchRegisterScope temps(tasm());
-        __ ldr(kJSFunctionRegister,
-               FieldMemOperand(kWasmInstanceRegister, Tuple2::kValue2Offset));
-        __ ldr(kWasmInstanceRegister,
-               FieldMemOperand(kWasmInstanceRegister, Tuple2::kValue1Offset));
+        __ LoadTaggedPointerField(
+            kJSFunctionRegister,
+            FieldMemOperand(kWasmInstanceRegister, Tuple2::kValue2Offset));
+        __ LoadTaggedPointerField(
+            kWasmInstanceRegister,
+            FieldMemOperand(kWasmInstanceRegister, Tuple2::kValue1Offset));
         __ Claim(required_slots +
                  2);  // Claim extra slots for marker + instance.
         Register scratch = temps.AcquireX();

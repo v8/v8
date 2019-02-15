@@ -2769,56 +2769,34 @@ void TurboAssembler::SmiUntagField(Register dst, const MemOperand& src) {
 
 void TurboAssembler::StoreTaggedField(const Register& value,
                                       const MemOperand& dst_field_operand) {
+#ifdef V8_COMPRESS_POINTERS
+  RecordComment("[ StoreTagged");
+  // Use temporary register to zero out and don't trash value register
+  UseScratchRegisterScope temps(this);
+  Register compressed_value = temps.AcquireX();
+  Uxtw(compressed_value, value);
+  Str(compressed_value, dst_field_operand);
+  RecordComment("]");
+#else
   Str(value, dst_field_operand);
+#endif
 }
 
 void TurboAssembler::DecompressTaggedSigned(const Register& destination,
                                             const MemOperand& field_operand) {
   RecordComment("[ DecompressTaggedSigned");
-#ifdef DEBUG
-  UseScratchRegisterScope temps(this);
-  Register expected_value = temps.AcquireX();
-  DCHECK(!AreAliased(destination, expected_value));
-  Ldr(expected_value, field_operand);
-  mov(destination, expected_value);
-#else
-  // TODO(ishell): use Ldrsw instead of Ldr,SXTW once kTaggedSize is shrinked
+  // TODO(solanes): use Ldrsw instead of Ldr,SXTW once kTaggedSize is shrinked
   Ldr(destination, field_operand);
-#endif
   Sxtw(destination, destination);
-#ifdef DEBUG
-  Label check_passed;
-  Cmp(destination, expected_value);
-  B(eq, &check_passed);
-  RecordComment("DecompressTaggedSigned failed");
-  brk(0);
-  bind(&check_passed);
-#endif
   RecordComment("]");
 }
 
 void TurboAssembler::DecompressTaggedPointer(const Register& destination,
                                              const MemOperand& field_operand) {
   RecordComment("[ DecompressTaggedPointer");
-#ifdef DEBUG
-  UseScratchRegisterScope temps(this);
-  Register expected_value = temps.AcquireX();
-  DCHECK(!AreAliased(destination, expected_value));
-  Ldr(expected_value, field_operand);
-  mov(destination, expected_value);
-#else
-  // TODO(ishell): use Ldrsw instead of Ldr,SXTW once kTaggedSize is shrinked
+  // TODO(solanes): use Ldrsw instead of Ldr,SXTW once kTaggedSize is shrinked
   Ldr(destination, field_operand);
-#endif
   Add(destination, kRootRegister, Operand(destination, SXTW));
-#ifdef DEBUG
-  Label check_passed;
-  Cmp(destination, expected_value);
-  B(eq, &check_passed);
-  RecordComment("DecompressTaggedPointer failed");
-  brk(0);
-  bind(&check_passed);
-#endif
   RecordComment("]");
 }
 
@@ -2826,15 +2804,8 @@ void TurboAssembler::DecompressAnyTagged(const Register& destination,
                                          const MemOperand& field_operand) {
   RecordComment("[ DecompressAnyTagged");
   UseScratchRegisterScope temps(this);
-#ifdef DEBUG
-  Register expected_value = temps.AcquireX();
-  DCHECK(!AreAliased(destination, expected_value));
-  Ldr(expected_value, field_operand);
-  mov(destination, expected_value);
-#else
-  // TODO(ishell): use Ldrsw instead of Ldr,SXTW once kTaggedSize is shrinked
+  // TODO(solanes): use Ldrsw instead of Ldr,SXTW once kTaggedSize is shrinked
   Ldr(destination, field_operand);
-#endif
   // Branchlessly compute |masked_root|:
   // masked_root = HAS_SMI_TAG(destination) ? 0 : kRootRegister;
   STATIC_ASSERT((kSmiTagSize == 1) && (kSmiTag == 0));
@@ -2845,14 +2816,6 @@ void TurboAssembler::DecompressAnyTagged(const Register& destination,
   // Now this add operation will either leave the value unchanged if it is a smi
   // or add the isolate root if it is a heap object.
   Add(destination, masked_root, Operand(destination, SXTW));
-#ifdef DEBUG
-  Label check_passed;
-  Cmp(destination, expected_value);
-  B(eq, &check_passed);
-  RecordComment("Decompression failed: Tagged");
-  brk(0);
-  bind(&check_passed);
-#endif
   RecordComment("]");
 }
 
@@ -3107,7 +3070,7 @@ void MacroAssembler::RecordWrite(Register object, Register address,
     UseScratchRegisterScope temps(this);
     Register temp = temps.AcquireX();
 
-    Ldr(temp, MemOperand(address));
+    LoadTaggedPointerField(temp, MemOperand(address));
     Cmp(temp, value);
     Check(eq, AbortReason::kWrongAddressOrValuePassedToRecordWrite);
   }

@@ -1778,7 +1778,8 @@ void Builtins::Generate_InterpreterOnStackReplacement(MacroAssembler* masm) {
 
   // Load deoptimization data from the code object.
   // <deopt_data> = <code>[#deoptimization_data_offset]
-  __ Ldr(x1, MemOperand(x0, Code::kDeoptimizationDataOffset - kHeapObjectTag));
+  __ LoadTaggedPointerField(
+      x1, FieldMemOperand(x0, Code::kDeoptimizationDataOffset));
 
   // Load the OSR entrypoint offset from the deoptimization data.
   // <osr_offset> = <deopt_data>[#header_size + #osr_pc_offset]
@@ -2242,7 +2243,7 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
     // TODO(all): Consider using Ldp and Stp.
     __ Bind(&loop);
     __ Sub(len, len, 1);
-    __ Ldr(scratch, MemOperand(src, kPointerSize, PostIndex));
+    __ LoadAnyTaggedField(scratch, MemOperand(src, kPointerSize, PostIndex));
     __ Cmp(scratch, the_hole_value);
     __ Csel(scratch, scratch, undefined_value, ne);
     __ Poke(scratch, Operand(len, LSL, kPointerSizeLog2));
@@ -2553,7 +2554,7 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
         __ Lsl(counter, bound_argc, kPointerSizeLog2);
         __ Bind(&loop);
         __ Sub(counter, counter, kPointerSize);
-        __ Ldr(scratch, MemOperand(bound_argv, counter));
+        __ LoadAnyTaggedField(scratch, MemOperand(bound_argv, counter));
         // Poke into claimed area of stack.
         __ Str(scratch, MemOperand(copy_to, kPointerSize, PostIndex));
         __ Cbnz(counter, &loop);
