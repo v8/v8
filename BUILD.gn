@@ -3618,6 +3618,7 @@ if (is_component_build) {
     public_deps = [
       ":torque_base",
       ":v8_base",
+      ":v8_headers",
       ":v8_maybe_snapshot",
     ]
 

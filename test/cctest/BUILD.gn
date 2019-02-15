@@ -43,6 +43,19 @@ v8_executable("cctest") {
   }
 }
 
+v8_header_set("cctest_headers") {
+  testonly = true
+
+  configs = [
+    "../..:external_config",
+    "../..:internal_config_base",
+  ]
+
+  sources = [
+    "cctest.h",
+  ]
+}
+
 v8_source_set("cctest_sources") {
   testonly = true
 
@@ -55,7 +68,6 @@ v8_source_set("cctest_sources") {
     "../common/wasm/test-signatures.h",
     "../common/wasm/wasm-macro-gen.h",
     "cctest.cc",
-    "cctest.h",
     "compiler/c-signature.h",
     "compiler/call-tester.h",
     "compiler/code-assembler-tester.h",
@@ -356,6 +368,7 @@ v8_source_set("cctest_sources") {
   ]
 
   public_deps = [
+    ":cctest_headers",
     ":resources",
     "..:common_test_headers",
     "../..:v8_initializers",
@@ -440,6 +453,8 @@ action("resources") {
 }
 
 v8_executable("generate-bytecode-expectations") {
+  testonly = true
+
   sources = [
     "interpreter/bytecode-expectations-printer.cc",
     "interpreter/bytecode-expectations-printer.h",
@@ -452,6 +467,7 @@ v8_executable("generate-bytecode-expectations") {
   ]
 
   deps = [
+    ":cctest_headers",
     "../..:v8",
     "../..:v8_libbase",
     "../..:v8_libplatform",
