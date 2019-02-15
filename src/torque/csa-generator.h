@@ -18,10 +18,7 @@ class CSAGenerator {
  public:
   CSAGenerator(const ControlFlowGraph& cfg, std::ostream& out,
                base::Optional<Builtin::Kind> linkage = base::nullopt)
-      : cfg_(cfg),
-        out_(out),
-        linkage_(linkage),
-        previous_position_(SourcePosition::Invalid()) {}
+      : cfg_(cfg), out_(out), linkage_(linkage) {}
   base::Optional<Stack<std::string>> EmitGraph(Stack<std::string> parameters);
 
   static constexpr const char* ARGUMENTS_VARIABLE_STRING = "arguments";
@@ -34,9 +31,6 @@ class CSAGenerator {
   std::ostream& out_;
   size_t fresh_id_ = 0;
   base::Optional<Builtin::Kind> linkage_;
-  SourcePosition previous_position_;
-
-  void EmitSourcePosition(SourcePosition pos, bool always_emit = false);
 
   std::string PreCallableExceptionPreparation(
       base::Optional<Block*> catch_block);
