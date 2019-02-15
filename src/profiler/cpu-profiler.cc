@@ -8,7 +8,6 @@
 #include <utility>
 
 #include "src/base/lazy-instance.h"
-#include "src/base/platform/mutex.h"
 #include "src/base/template-utils.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer.h"
@@ -108,6 +107,10 @@ void ProfilerEventsProcessor::AddSample(TickSample sample) {
 
 void ProfilerEventsProcessor::StopSynchronously() {
   if (!base::Relaxed_AtomicExchange(&running_, 0)) return;
+  {
+    base::MutexGuard guard(&running_mutex_);
+    running_cond_.NotifyOne();
+  }
   Join();
 }
 
@@ -179,6 +182,7 @@ SamplingEventsProcessor::ProcessOneSample() {
 }
 
 void SamplingEventsProcessor::Run() {
+  base::MutexGuard guard(&running_mutex_);
   while (!!base::Relaxed_Load(&running_)) {
     base::TimeTicks nextSampleTime =
         base::TimeTicks::HighResolutionNow() + period_;
@@ -206,7 +210,18 @@ void SamplingEventsProcessor::Run() {
       } else  // NOLINT
 #endif
       {
-        base::OS::Sleep(nextSampleTime - now);
+        // Allow another thread to interrupt the delay between samples in the
+        // event of profiler shutdown.
+        while (now < nextSampleTime &&
+               running_cond_.WaitFor(&running_mutex_, nextSampleTime - now)) {
+          // If true was returned, we got interrupted before the timeout
+          // elapsed. If this was not due to a change in running state, a
+          // spurious wakeup occurred (thus we should continue to wait).
+          if (!base::Relaxed_Load(&running_)) {
+            break;
+          }
+          now = base::TimeTicks::HighResolutionNow();
+        }
       }
     }
 

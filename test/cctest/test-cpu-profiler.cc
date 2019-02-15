@@ -2805,6 +2805,24 @@ TEST(MultipleIsolates) {
   thread2.Join();
 }
 
+// Tests that StopProfiling doesn't wait for the next sample tick in order to
+// stop, but rather exits early before a given wait threshold.
+TEST(FastStopProfiling) {
+  static const base::TimeDelta kLongInterval = base::TimeDelta::FromSeconds(10);
+  static const base::TimeDelta kWaitThreshold = base::TimeDelta::FromSeconds(5);
+
+  std::unique_ptr<CpuProfiler> profiler(new CpuProfiler(CcTest::i_isolate()));
+  profiler->set_sampling_interval(kLongInterval);
+  profiler->StartProfiling("", true);
+
+  v8::Platform* platform = v8::internal::V8::GetCurrentPlatform();
+  double start = platform->CurrentClockTimeMillis();
+  profiler->StopProfiling("");
+  double duration = platform->CurrentClockTimeMillis() - start;
+
+  CHECK_LT(duration, kWaitThreshold.InMillisecondsF());
+}
+
 int GetSourcePositionEntryCount(i::Isolate* isolate, const char* source) {
   i::Handle<i::JSFunction> function = i::Handle<i::JSFunction>::cast(
       v8::Utils::OpenHandle(*CompileRun(source)));
