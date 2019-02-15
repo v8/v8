@@ -136,7 +136,7 @@ void JumpTableAssembler::NopBytes(int bytes) {
   }
 }
 
-#elif V8_TARGET_ARCH_S390
+#elif V8_TARGET_ARCH_S390X
 void JumpTableAssembler::EmitLazyCompileJumpSlot(uint32_t func_index,
                                                  Address lazy_compile_target) {
   // Load function index to r7. 6 bytes
@@ -184,7 +184,7 @@ void JumpTableAssembler::NopBytes(int bytes) {
   }
 }
 
-#elif V8_TARGET_ARCH_PPC
+#elif V8_TARGET_ARCH_PPC64
 void JumpTableAssembler::EmitLazyCompileJumpSlot(uint32_t func_index,
                                                  Address lazy_compile_target) {
   // Load function index to register. max 5 instrs
