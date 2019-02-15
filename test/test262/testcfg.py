@@ -56,6 +56,7 @@ FEATURE_FLAGS = {
   'well-formed-json-stringify': '--harmony-json-stringify',
   'export-star-as-namespace-from-module': '--harmony-namespace-exports',
   'Object.fromEntries': '--harmony-object-from-entries',
+  'hashbang': '--harmony-hashbang',
 }
 
 SKIPPED_FEATURES = set(['class-methods-private',
