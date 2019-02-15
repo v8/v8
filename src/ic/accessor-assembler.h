@@ -295,6 +295,7 @@ class AccessorAssembler : public CodeStubAssembler {
                        Label* miss, ExitPoint* exit_point);
   void NameDictionaryNegativeLookup(Node* object, SloppyTNode<Name> name,
                                     Label* miss);
+  TNode<BoolT> IsPropertyDetailsConst(Node* details);
 
   // Stub cache access helpers.
 

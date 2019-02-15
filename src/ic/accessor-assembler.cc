@@ -1046,6 +1046,11 @@ void AccessorAssembler::CheckFieldType(TNode<DescriptorArray> descriptors,
   BIND(&all_fine);
 }
 
+TNode<BoolT> AccessorAssembler::IsPropertyDetailsConst(Node* details) {
+  return Word32Equal(DecodeWord32<PropertyDetails::ConstnessField>(details),
+                     Int32Constant(static_cast<int32_t>(VariableMode::kConst)));
+}
+
 void AccessorAssembler::OverwriteExistingFastDataProperty(
     Node* object, Node* object_map, Node* descriptors,
     Node* descriptor_name_index, Node* details, Node* value, Label* slow,
@@ -1062,15 +1067,6 @@ void AccessorAssembler::OverwriteExistingFastDataProperty(
 
   BIND(&if_field);
   {
-    if (FLAG_track_constant_fields && !do_transitioning_store) {
-      // TODO(ishell): Taking the slow path is not necessary if new and old
-      // values are identical.
-      GotoIf(Word32Equal(
-                 DecodeWord32<PropertyDetails::ConstnessField>(details),
-                 Int32Constant(static_cast<int32_t>(VariableMode::kConst))),
-             slow);
-    }
-
     Node* representation =
         DecodeWord32<PropertyDetails::RepresentationField>(details);
 
@@ -1100,6 +1096,13 @@ void AccessorAssembler::OverwriteExistingFastDataProperty(
         if (FLAG_unbox_double_fields) {
           if (do_transitioning_store) {
             StoreMap(object, object_map);
+          } else if (FLAG_track_constant_fields) {
+            Label if_mutable(this);
+            GotoIfNot(IsPropertyDetailsConst(details), &if_mutable);
+            Node* current_value =
+                LoadObjectField(object, field_offset, MachineType::Float64());
+            Branch(Float64Equal(current_value, double_value), &done, slow);
+            BIND(&if_mutable);
           }
           StoreObjectFieldNoWriteBarrier(object, field_offset, double_value,
                                          MachineRepresentation::kFloat64);
@@ -1111,6 +1114,13 @@ void AccessorAssembler::OverwriteExistingFastDataProperty(
             StoreObjectField(object, field_offset, mutable_heap_number);
           } else {
             Node* mutable_heap_number = LoadObjectField(object, field_offset);
+            if (FLAG_track_constant_fields) {
+              Label if_mutable(this);
+              GotoIfNot(IsPropertyDetailsConst(details), &if_mutable);
+              Node* current_value = LoadHeapNumberValue(mutable_heap_number);
+              Branch(Float64Equal(current_value, double_value), &done, slow);
+              BIND(&if_mutable);
+            }
             StoreHeapNumberValue(mutable_heap_number, double_value);
           }
         }
@@ -1121,6 +1131,13 @@ void AccessorAssembler::OverwriteExistingFastDataProperty(
       {
         if (do_transitioning_store) {
           StoreMap(object, object_map);
+        } else if (FLAG_track_constant_fields) {
+          Label if_mutable(this);
+          GotoIfNot(IsPropertyDetailsConst(details), &if_mutable);
+          Node* current_value =
+              LoadObjectField(object, field_offset, MachineType::AnyTagged());
+          Branch(WordEqual(current_value, value), &done, slow);
+          BIND(&if_mutable);
         }
         StoreObjectField(object, field_offset, value);
         Goto(&done);
@@ -1170,11 +1187,26 @@ void AccessorAssembler::OverwriteExistingFastDataProperty(
           Node* mutable_heap_number =
               LoadPropertyArrayElement(properties, backing_store_index);
           Node* double_value = ChangeNumberToFloat64(value);
+          if (FLAG_track_constant_fields) {
+            Label if_mutable(this);
+            GotoIfNot(IsPropertyDetailsConst(details), &if_mutable);
+            Node* current_value = LoadHeapNumberValue(mutable_heap_number);
+            Branch(Float64Equal(current_value, double_value), &done, slow);
+            BIND(&if_mutable);
+          }
           StoreHeapNumberValue(mutable_heap_number, double_value);
           Goto(&done);
         }
         BIND(&tagged_rep);
         {
+          if (FLAG_track_constant_fields) {
+            Label if_mutable(this);
+            GotoIfNot(IsPropertyDetailsConst(details), &if_mutable);
+            Node* current_value =
+                LoadPropertyArrayElement(properties, backing_store_index);
+            Branch(WordEqual(current_value, value), &done, slow);
+            BIND(&if_mutable);
+          }
           StorePropertyArrayElement(properties, backing_store_index, value);
           Goto(&done);
         }
