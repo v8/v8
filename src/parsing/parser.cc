@@ -1447,7 +1447,7 @@ Statement* Parser::DeclareFunction(const AstRawString* variable_name,
   bool was_added;
   Declare(declaration, variable_name, kind, mode, kCreatedInitialized, scope(),
           &was_added, beg_pos);
-  if (source_range_map_ != nullptr) {
+  if (info()->coverage_enabled()) {
     // Force the function to be allocated when collecting source coverage, so
     // that even dead functions get source coverage data.
     declaration->var()->set_is_used();

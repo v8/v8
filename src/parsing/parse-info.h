@@ -84,6 +84,7 @@ class V8_EXPORT_PRIVATE ParseInfo {
   FLAG_ACCESSOR(kIsAsmWasmBroken, is_asm_wasm_broken, set_asm_wasm_broken)
   FLAG_ACCESSOR(kContainsAsmModule, contains_asm_module,
                 set_contains_asm_module)
+  FLAG_ACCESSOR(kCoverageEnabled, coverage_enabled, set_coverage_enabled)
   FLAG_ACCESSOR(kBlockCoverageEnabled, block_coverage_enabled,
                 set_block_coverage_enabled)
   FLAG_ACCESSOR(kOnBackgroundThread, on_background_thread,
@@ -296,26 +297,27 @@ class V8_EXPORT_PRIVATE ParseInfo {
     kIsNamedExpression = 1 << 8,
     kLazyCompile = 1 << 9,
     kCollectTypeProfile = 1 << 10,
-    kBlockCoverageEnabled = 1 << 11,
-    kIsAsmWasmBroken = 1 << 12,
-    kOnBackgroundThread = 1 << 13,
-    kWrappedAsFunction = 1 << 14,  // Implicitly wrapped as function.
-    kAllowEvalCache = 1 << 15,
-    kIsDeclaration = 1 << 16,
-    kRequiresInstanceMembersInitializer = 1 << 17,
-    kContainsAsmModule = 1 << 18,
-    kMightAlwaysOpt = 1 << 19,
-    kAllowLazyCompile = 1 << 20,
-    kAllowNativeSyntax = 1 << 21,
-    kAllowHarmonyPublicFields = 1 << 22,
-    kAllowHarmonyStaticFields = 1 << 23,
-    kAllowHarmonyDynamicImport = 1 << 24,
-    kAllowHarmonyImportMeta = 1 << 25,
-    kAllowHarmonyNumericSeparator = 1 << 26,
-    kAllowHarmonyPrivateFields = 1 << 27,
-    kAllowHarmonyPrivateMethods = 1 << 28,
-    kIsOneshotIIFE = 1 << 29,
-    kCollectSourcePositions = 1 << 30,
+    kCoverageEnabled = 1 << 11,
+    kBlockCoverageEnabled = 1 << 12,
+    kIsAsmWasmBroken = 1 << 13,
+    kOnBackgroundThread = 1 << 14,
+    kWrappedAsFunction = 1 << 15,  // Implicitly wrapped as function.
+    kAllowEvalCache = 1 << 16,
+    kIsDeclaration = 1 << 17,
+    kRequiresInstanceMembersInitializer = 1 << 18,
+    kContainsAsmModule = 1 << 19,
+    kMightAlwaysOpt = 1 << 20,
+    kAllowLazyCompile = 1 << 21,
+    kAllowNativeSyntax = 1 << 22,
+    kAllowHarmonyPublicFields = 1 << 23,
+    kAllowHarmonyStaticFields = 1 << 24,
+    kAllowHarmonyDynamicImport = 1 << 25,
+    kAllowHarmonyImportMeta = 1 << 26,
+    kAllowHarmonyNumericSeparator = 1 << 27,
+    kAllowHarmonyPrivateFields = 1 << 28,
+    kAllowHarmonyPrivateMethods = 1 << 29,
+    kIsOneshotIIFE = 1 << 30,
+    kCollectSourcePositions = 1 << 31,
   };
 
   //------------- Inputs to parsing and scope analysis -----------------------
