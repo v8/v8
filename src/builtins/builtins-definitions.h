@@ -350,22 +350,6 @@ namespace internal {
   TFS(CloneFastJSArray, kSource)                                               \
   TFS(CloneFastJSArrayFillingHoles, kSource)                                   \
   TFS(ExtractFastJSArray, kSource, kBegin, kCount)                             \
-  /* ES6 #sec-array.prototype.every */                                         \
-  TFS(ArrayEveryLoopContinuation, kReceiver, kCallbackFn, kThisArg, kArray,    \
-      kObject, kInitialK, kLength, kTo)                                        \
-  TFJ(ArrayEveryLoopEagerDeoptContinuation, 4, kReceiver, kCallbackFn,         \
-      kThisArg, kInitialK, kLength)                                            \
-  TFJ(ArrayEveryLoopLazyDeoptContinuation, 5, kReceiver, kCallbackFn,          \
-      kThisArg, kInitialK, kLength, kResult)                                   \
-  TFJ(ArrayEvery, SharedFunctionInfo::kDontAdaptArgumentsSentinel)             \
-  /* ES6 #sec-array.prototype.some */                                          \
-  TFS(ArraySomeLoopContinuation, kReceiver, kCallbackFn, kThisArg, kArray,     \
-      kObject, kInitialK, kLength, kTo)                                        \
-  TFJ(ArraySomeLoopEagerDeoptContinuation, 4, kReceiver, kCallbackFn,          \
-      kThisArg, kInitialK, kLength)                                            \
-  TFJ(ArraySomeLoopLazyDeoptContinuation, 5, kReceiver, kCallbackFn, kThisArg, \
-      kInitialK, kLength, kResult)                                             \
-  TFJ(ArraySome, SharedFunctionInfo::kDontAdaptArgumentsSentinel)              \
   /* ES6 #sec-array.prototype.reduce */                                        \
   TFS(ArrayReduceLoopContinuation, kReceiver, kCallbackFn, kThisArg,           \
       kAccumulator, kObject, kInitialK, kLength, kTo)                          \

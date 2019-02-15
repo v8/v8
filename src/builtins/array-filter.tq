@@ -14,14 +14,12 @@ namespace array_filter {
     // Also, this great mass of casts is necessary because the signature
     // of Torque javascript builtins requires Object type for all parameters
     // other than {context}.
-    const jsreceiver: JSReceiver =
-        Cast<JSReceiver>(receiver) otherwise unreachable;
-    const callbackfn: Callable = Cast<Callable>(callback) otherwise unreachable;
-    const outputArray: JSReceiver =
-        Cast<JSReceiver>(array) otherwise unreachable;
-    const numberK: Number = Cast<Number>(initialK) otherwise unreachable;
-    const numberTo: Number = Cast<Number>(initialTo) otherwise unreachable;
-    const numberLength: Number = Cast<Number>(length) otherwise unreachable;
+    const jsreceiver = Cast<JSReceiver>(receiver) otherwise unreachable;
+    const callbackfn = Cast<Callable>(callback) otherwise unreachable;
+    const outputArray = Cast<JSReceiver>(array) otherwise unreachable;
+    const numberK = Cast<Number>(initialK) otherwise unreachable;
+    const numberTo = Cast<Number>(initialTo) otherwise unreachable;
+    const numberLength = Cast<Number>(length) otherwise unreachable;
 
     return ArrayFilterLoopContinuation(
         jsreceiver, callbackfn, thisArg, outputArray, jsreceiver, numberK,
@@ -36,14 +34,12 @@ namespace array_filter {
     // All continuation points in the optimized filter implementation are
     // after the ToObject(O) call that ensures we are dealing with a
     // JSReceiver.
-    const jsreceiver: JSReceiver =
-        Cast<JSReceiver>(receiver) otherwise unreachable;
-    const callbackfn: Callable = Cast<Callable>(callback) otherwise unreachable;
-    const outputArray: JSReceiver =
-        Cast<JSReceiver>(array) otherwise unreachable;
-    let numberK: Number = Cast<Number>(initialK) otherwise unreachable;
-    let numberTo: Number = Cast<Number>(initialTo) otherwise unreachable;
-    const numberLength: Number = Cast<Number>(length) otherwise unreachable;
+    const jsreceiver = Cast<JSReceiver>(receiver) otherwise unreachable;
+    const callbackfn = Cast<Callable>(callback) otherwise unreachable;
+    const outputArray = Cast<JSReceiver>(array) otherwise unreachable;
+    let numberK = Cast<Number>(initialK) otherwise unreachable;
+    let numberTo = Cast<Number>(initialTo) otherwise unreachable;
+    const numberLength = Cast<Number>(length) otherwise unreachable;
 
     // This custom lazy deopt point is right after the callback. filter() needs
     // to pick up at the next step, which is setting the callback result in
@@ -142,10 +138,9 @@ namespace array_filter {
       labels Bailout(Smi, Smi) {
     let k: Smi = 0;
     let to: Smi = 0;
-    const smiLen: Smi = Cast<Smi>(len) otherwise goto Bailout(k, to);
-    const fastArray: FastJSArray =
-        Cast<FastJSArray>(array) otherwise goto Bailout(k, to);
-    let fastO: FastJSArray = Cast<FastJSArray>(o) otherwise goto Bailout(k, to);
+    const smiLen = Cast<Smi>(len) otherwise goto Bailout(k, to);
+    const fastArray = Cast<FastJSArray>(array) otherwise goto Bailout(k, to);
+    let fastO = Cast<FastJSArray>(o) otherwise goto Bailout(k, to);
     EnsureArrayPushable(fastArray.map) otherwise goto Bailout(k, to);
     const elementsKind: ElementsKind = fastO.map.elements_kind;
     if (IsElementsKindLessThanOrEqual(elementsKind, HOLEY_SMI_ELEMENTS)) {
@@ -172,7 +167,7 @@ namespace array_filter {
       receiver: JSReceiver): JSReceiver labels Slow {
     const len: Smi = 0;
     if (IsArraySpeciesProtectorCellInvalid()) goto Slow;
-    const o: FastJSArray = Cast<FastJSArray>(receiver) otherwise Slow;
+    const o = Cast<FastJSArray>(receiver) otherwise Slow;
     const newMap: Map =
         LoadJSArrayElementsMap(o.map.elements_kind, LoadNativeContext(context));
     return AllocateJSArray(PACKED_SMI_ELEMENTS, newMap, len, len);
@@ -197,8 +192,7 @@ namespace array_filter {
       if (arguments.length == 0) {
         goto TypeError;
       }
-      const callbackfn: Callable =
-          Cast<Callable>(arguments[0]) otherwise TypeError;
+      const callbackfn = Cast<Callable>(arguments[0]) otherwise TypeError;
 
       // 4. If thisArg is present, let T be thisArg; else let T be undefined.
       const thisArg: Object = arguments.length > 1 ? arguments[1] : Undefined;
