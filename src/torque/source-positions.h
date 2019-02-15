@@ -14,6 +14,10 @@ namespace internal {
 namespace torque {
 
 class SourceId {
+ public:
+  static SourceId Invalid() { return SourceId(-1); }
+  int operator==(const SourceId& s) const { return id_ == s.id_; }
+
  private:
   explicit SourceId(int id) : id_(id) {}
   int id_;
@@ -24,6 +28,17 @@ struct SourcePosition {
   SourceId source;
   int line;
   int column;
+  static SourcePosition Invalid() {
+    SourcePosition pos{SourceId::Invalid(), -1, -1};
+    return pos;
+  }
+  int operator==(const SourcePosition& pos) const {
+    return line == pos.line && column == pos.column && source == pos.source;
+  }
+  int operator!=(const SourcePosition& pos) const { return !(*this == pos); }
+  bool CompareIgnoreColumn(const SourcePosition& pos) const {
+    return line == pos.line && source == pos.source;
+  }
 };
 
 DECLARE_CONTEXTUAL_VARIABLE(CurrentSourceFile, SourceId);
