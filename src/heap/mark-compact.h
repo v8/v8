@@ -701,10 +701,13 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
   unsigned epoch() const { return epoch_; }
 
- private:
   explicit MarkCompactCollector(Heap* heap);
   ~MarkCompactCollector() override;
 
+  // Used by wrapper tracing.
+  V8_INLINE void MarkExternallyReferencedObject(HeapObject obj);
+
+ private:
   void ComputeEvacuationHeuristics(size_t area_size,
                                    int* target_fragmentation_percent,
                                    size_t* max_evacuated_bytes);
@@ -723,9 +726,6 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   // Marks the object black and adds it to the marking work list.
   // This is for non-incremental marking only.
   V8_INLINE void MarkRootObject(Root root, HeapObject obj);
-
-  // Used by wrapper tracing.
-  V8_INLINE void MarkExternallyReferencedObject(HeapObject obj);
 
   // Mark the heap roots and all objects reachable from them.
   void MarkRoots(RootVisitor* root_visitor,
@@ -905,7 +905,6 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   unsigned epoch_ = 0;
 
   friend class FullEvacuator;
-  friend class Heap;
   friend class RecordMigratedSlotVisitor;
 };
 

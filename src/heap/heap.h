@@ -624,14 +624,14 @@ class Heap {
   // Getters to other components. ==============================================
   // ===========================================================================
 
-  GCTracer* tracer() { return tracer_; }
+  GCTracer* tracer() { return tracer_.get(); }
 
-  MemoryAllocator* memory_allocator() { return memory_allocator_; }
+  MemoryAllocator* memory_allocator() { return memory_allocator_.get(); }
 
   inline Isolate* isolate();
 
   MarkCompactCollector* mark_compact_collector() {
-    return mark_compact_collector_;
+    return mark_compact_collector_.get();
   }
 
   MinorMarkCompactCollector* minor_mark_compact_collector() {
@@ -639,7 +639,7 @@ class Heap {
   }
 
   ArrayBufferCollector* array_buffer_collector() {
-    return array_buffer_collector_;
+    return array_buffer_collector_.get();
   }
 
   // ===========================================================================
@@ -829,13 +829,15 @@ class Heap {
       Reservation* reservations, const std::vector<HeapObject>& large_objects,
       const std::vector<Address>& maps);
 
-  IncrementalMarking* incremental_marking() { return incremental_marking_; }
+  IncrementalMarking* incremental_marking() {
+    return incremental_marking_.get();
+  }
 
   // ===========================================================================
   // Concurrent marking API. ===================================================
   // ===========================================================================
 
-  ConcurrentMarking* concurrent_marking() { return concurrent_marking_; }
+  ConcurrentMarking* concurrent_marking() { return concurrent_marking_.get(); }
 
   // The runtime uses this function to notify potentially unsafe object layout
   // changes that require special synchronization with the concurrent marker.
@@ -873,7 +875,7 @@ class Heap {
   // ===========================================================================
 
   LocalEmbedderHeapTracer* local_embedder_heap_tracer() const {
-    return local_embedder_heap_tracer_;
+    return local_embedder_heap_tracer_.get();
   }
 
   void SetEmbedderHeapTracer(EmbedderHeapTracer* tracer);
@@ -1377,6 +1379,7 @@ class Heap {
   static const int kInitialFeedbackCapacity = 256;
 
   Heap();
+  ~Heap();
 
   // Selects the proper allocation space based on the pretenuring decision.
   static AllocationSpace SelectSpace(PretenureFlag pretenure) {
@@ -1400,7 +1403,7 @@ class Heap {
   ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
 
-  StoreBuffer* store_buffer() { return store_buffer_; }
+  StoreBuffer* store_buffer() { return store_buffer_.get(); }
 
   void set_current_gc_flags(int flags) {
     current_gc_flags_ = flags;
@@ -1621,8 +1624,8 @@ class Heap {
   // Growing strategy. =========================================================
   // ===========================================================================
 
-  HeapController* heap_controller() { return heap_controller_; }
-  MemoryReducer* memory_reducer() { return memory_reducer_; }
+  HeapController* heap_controller() { return heap_controller_.get(); }
+  MemoryReducer* memory_reducer() { return memory_reducer_.get(); }
 
   // For some webpages RAIL mode does not switch from PERFORMANCE_LOAD.
   // This constant limits the effect of load RAIL mode on GC.
@@ -1900,23 +1903,23 @@ class Heap {
   // Last time a garbage collection happened.
   double last_gc_time_ = 0.0;
 
-  GCTracer* tracer_ = nullptr;
-  MarkCompactCollector* mark_compact_collector_ = nullptr;
+  std::unique_ptr<GCTracer> tracer_;
+  std::unique_ptr<MarkCompactCollector> mark_compact_collector_;
   MinorMarkCompactCollector* minor_mark_compact_collector_ = nullptr;
-  ScavengerCollector* scavenger_collector_ = nullptr;
-  ArrayBufferCollector* array_buffer_collector_ = nullptr;
-  MemoryAllocator* memory_allocator_ = nullptr;
-  StoreBuffer* store_buffer_ = nullptr;
-  HeapController* heap_controller_ = nullptr;
-  IncrementalMarking* incremental_marking_ = nullptr;
-  ConcurrentMarking* concurrent_marking_ = nullptr;
-  GCIdleTimeHandler* gc_idle_time_handler_ = nullptr;
-  MemoryReducer* memory_reducer_ = nullptr;
-  ObjectStats* live_object_stats_ = nullptr;
-  ObjectStats* dead_object_stats_ = nullptr;
-  ScavengeJob* scavenge_job_ = nullptr;
-  AllocationObserver* idle_scavenge_observer_ = nullptr;
-  LocalEmbedderHeapTracer* local_embedder_heap_tracer_ = nullptr;
+  std::unique_ptr<ScavengerCollector> scavenger_collector_;
+  std::unique_ptr<ArrayBufferCollector> array_buffer_collector_;
+  std::unique_ptr<MemoryAllocator> memory_allocator_;
+  std::unique_ptr<StoreBuffer> store_buffer_;
+  std::unique_ptr<HeapController> heap_controller_;
+  std::unique_ptr<IncrementalMarking> incremental_marking_;
+  std::unique_ptr<ConcurrentMarking> concurrent_marking_;
+  std::unique_ptr<GCIdleTimeHandler> gc_idle_time_handler_;
+  std::unique_ptr<MemoryReducer> memory_reducer_;
+  std::unique_ptr<ObjectStats> live_object_stats_;
+  std::unique_ptr<ObjectStats> dead_object_stats_;
+  std::unique_ptr<ScavengeJob> scavenge_job_;
+  std::unique_ptr<AllocationObserver> idle_scavenge_observer_;
+  std::unique_ptr<LocalEmbedderHeapTracer> local_embedder_heap_tracer_;
   StrongRootsList* strong_roots_list_ = nullptr;
 
   // This counter is increased before each GC and never reset.

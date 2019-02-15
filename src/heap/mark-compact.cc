@@ -1741,8 +1741,8 @@ void MarkCompactCollector::ProcessTopOptimizedFrame(ObjectVisitor* visitor) {
 void MarkCompactCollector::RecordObjectStats() {
   if (V8_UNLIKELY(FLAG_gc_stats)) {
     heap()->CreateObjectStats();
-    ObjectStatsCollector collector(heap(), heap()->live_object_stats_,
-                                   heap()->dead_object_stats_);
+    ObjectStatsCollector collector(heap(), heap()->live_object_stats_.get(),
+                                   heap()->dead_object_stats_.get());
     collector.Collect();
     if (V8_UNLIKELY(FLAG_gc_stats &
                     v8::tracing::TracingCategoryObserver::ENABLED_BY_TRACING)) {

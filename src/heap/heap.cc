@@ -200,6 +200,8 @@ Heap::Heap()
   RememberUnmappedPage(kNullAddress, false);
 }
 
+Heap::~Heap() = default;
+
 size_t Heap::MaxReserved() {
   const size_t kMaxNewLargeObjectSpaceSize = max_semi_space_size_;
   return static_cast<size_t>(2 * max_semi_space_size_ +
@@ -1738,7 +1740,7 @@ bool Heap::PerformGarbageCollection(
       Heap::new_space()->Size() + new_lo_space()->SizeOfObjects();
 
   {
-    Heap::SkipStoreBufferScope skip_store_buffer_scope(store_buffer_);
+    Heap::SkipStoreBufferScope skip_store_buffer_scope(store_buffer_.get());
 
     switch (collector) {
       case MARK_COMPACTOR:
@@ -4496,30 +4498,30 @@ void Heap::SetUp() {
       ~kMmapRegionMask;
 
   // Set up memory allocator.
-  memory_allocator_ =
-      new MemoryAllocator(isolate_, MaxReserved(), code_range_size_);
+  memory_allocator_.reset(
+      new MemoryAllocator(isolate_, MaxReserved(), code_range_size_));
 
-  store_buffer_ = new StoreBuffer(this);
+  store_buffer_.reset(new StoreBuffer(this));
 
-  heap_controller_ = new HeapController(this);
+  heap_controller_.reset(new HeapController(this));
 
-  mark_compact_collector_ = new MarkCompactCollector(this);
+  mark_compact_collector_.reset(new MarkCompactCollector(this));
 
-  scavenger_collector_ = new ScavengerCollector(this);
+  scavenger_collector_.reset(new ScavengerCollector(this));
 
-  incremental_marking_ =
+  incremental_marking_.reset(
       new IncrementalMarking(this, mark_compact_collector_->marking_worklist(),
-                             mark_compact_collector_->weak_objects());
+                             mark_compact_collector_->weak_objects()));
 
   if (FLAG_concurrent_marking || FLAG_parallel_marking) {
     MarkCompactCollector::MarkingWorklist* marking_worklist =
         mark_compact_collector_->marking_worklist();
-    concurrent_marking_ = new ConcurrentMarking(
+    concurrent_marking_.reset(new ConcurrentMarking(
         this, marking_worklist->shared(), marking_worklist->on_hold(),
-        mark_compact_collector_->weak_objects(), marking_worklist->embedder());
+        mark_compact_collector_->weak_objects(), marking_worklist->embedder()));
   } else {
-    concurrent_marking_ =
-        new ConcurrentMarking(this, nullptr, nullptr, nullptr, nullptr);
+    concurrent_marking_.reset(
+        new ConcurrentMarking(this, nullptr, nullptr, nullptr, nullptr));
   }
 
   for (int i = FIRST_SPACE; i <= LAST_SPACE; i++) {
@@ -4543,20 +4545,20 @@ void Heap::SetUp() {
     deferred_counters_[i] = 0;
   }
 
-  tracer_ = new GCTracer(this);
+  tracer_.reset(new GCTracer(this));
 #ifdef ENABLE_MINOR_MC
   minor_mark_compact_collector_ = new MinorMarkCompactCollector(this);
 #else
   minor_mark_compact_collector_ = nullptr;
 #endif  // ENABLE_MINOR_MC
-  array_buffer_collector_ = new ArrayBufferCollector(this);
-  gc_idle_time_handler_ = new GCIdleTimeHandler();
-  memory_reducer_ = new MemoryReducer(this);
+  array_buffer_collector_.reset(new ArrayBufferCollector(this));
+  gc_idle_time_handler_.reset(new GCIdleTimeHandler());
+  memory_reducer_.reset(new MemoryReducer(this));
   if (V8_UNLIKELY(FLAG_gc_stats)) {
-    live_object_stats_ = new ObjectStats(this);
-    dead_object_stats_ = new ObjectStats(this);
+    live_object_stats_.reset(new ObjectStats(this));
+    dead_object_stats_.reset(new ObjectStats(this));
   }
-  local_embedder_heap_tracer_ = new LocalEmbedderHeapTracer(isolate());
+  local_embedder_heap_tracer_.reset(new LocalEmbedderHeapTracer(isolate()));
 
   LOG(isolate_, IntPtrTEvent("heap-capacity", Capacity()));
   LOG(isolate_, IntPtrTEvent("heap-available", Available()));
@@ -4571,10 +4573,10 @@ void Heap::SetUp() {
 #endif  // ENABLE_MINOR_MC
 
   if (FLAG_idle_time_scavenge) {
-    scavenge_job_ = new ScavengeJob();
-    idle_scavenge_observer_ = new IdleScavengeObserver(
-        *this, ScavengeJob::kBytesAllocatedBeforeNextIdleTask);
-    new_space()->AddAllocationObserver(idle_scavenge_observer_);
+    scavenge_job_.reset(new ScavengeJob());
+    idle_scavenge_observer_.reset(new IdleScavengeObserver(
+        *this, ScavengeJob::kBytesAllocatedBeforeNextIdleTask));
+    new_space()->AddAllocationObserver(idle_scavenge_observer_.get());
   }
 
   SetGetExternallyAllocatedMemoryInBytesCallback(
@@ -4744,11 +4746,9 @@ void Heap::TearDown() {
   }
 
   if (FLAG_idle_time_scavenge) {
-    new_space()->RemoveAllocationObserver(idle_scavenge_observer_);
-    delete idle_scavenge_observer_;
-    idle_scavenge_observer_ = nullptr;
-    delete scavenge_job_;
-    scavenge_job_ = nullptr;
+    new_space()->RemoveAllocationObserver(idle_scavenge_observer_.get());
+    idle_scavenge_observer_.reset();
+    scavenge_job_.reset();
   }
 
   if (FLAG_stress_marking > 0) {
@@ -4763,15 +4763,11 @@ void Heap::TearDown() {
     stress_scavenge_observer_ = nullptr;
   }
 
-  if (heap_controller_ != nullptr) {
-    delete heap_controller_;
-    heap_controller_ = nullptr;
-  }
+  heap_controller_.reset();
 
-  if (mark_compact_collector_ != nullptr) {
+  if (mark_compact_collector_) {
     mark_compact_collector_->TearDown();
-    delete mark_compact_collector_;
-    mark_compact_collector_ = nullptr;
+    mark_compact_collector_.reset();
   }
 
 #ifdef ENABLE_MINOR_MC
@@ -4782,43 +4778,22 @@ void Heap::TearDown() {
   }
 #endif  // ENABLE_MINOR_MC
 
-  if (scavenger_collector_ != nullptr) {
-    delete scavenger_collector_;
-    scavenger_collector_ = nullptr;
-  }
+  scavenger_collector_.reset();
+  array_buffer_collector_.reset();
+  incremental_marking_.reset();
+  concurrent_marking_.reset();
 
-  if (array_buffer_collector_ != nullptr) {
-    delete array_buffer_collector_;
-    array_buffer_collector_ = nullptr;
-  }
-
-  delete incremental_marking_;
-  incremental_marking_ = nullptr;
-
-  delete concurrent_marking_;
-  concurrent_marking_ = nullptr;
-
-  delete gc_idle_time_handler_;
-  gc_idle_time_handler_ = nullptr;
+  gc_idle_time_handler_.reset();
 
   if (memory_reducer_ != nullptr) {
     memory_reducer_->TearDown();
-    delete memory_reducer_;
-    memory_reducer_ = nullptr;
+    memory_reducer_.reset();
   }
 
-  if (live_object_stats_ != nullptr) {
-    delete live_object_stats_;
-    live_object_stats_ = nullptr;
-  }
+  live_object_stats_.reset();
+  dead_object_stats_.reset();
 
-  if (dead_object_stats_ != nullptr) {
-    delete dead_object_stats_;
-    dead_object_stats_ = nullptr;
-  }
-
-  delete local_embedder_heap_tracer_;
-  local_embedder_heap_tracer_ = nullptr;
+  local_embedder_heap_tracer_.reset();
 
   external_string_table_.TearDown();
 
@@ -4827,8 +4802,7 @@ void Heap::TearDown() {
   // store.
   ArrayBufferTracker::TearDown(this);
 
-  delete tracer_;
-  tracer_ = nullptr;
+  tracer_.reset();
 
   for (int i = FIRST_SPACE; i <= LAST_SPACE; i++) {
     delete space_[i];
@@ -4846,11 +4820,8 @@ void Heap::TearDown() {
   }
   strong_roots_list_ = nullptr;
 
-  delete store_buffer_;
-  store_buffer_ = nullptr;
-
-  delete memory_allocator_;
-  memory_allocator_ = nullptr;
+  store_buffer_.reset();
+  memory_allocator_.reset();
 }
 
 void Heap::AddGCPrologueCallback(v8::Isolate::GCCallbackWithData callback,
@@ -5664,10 +5635,10 @@ bool Heap::AllowedToBeMigrated(HeapObject obj, AllocationSpace dst) {
 void Heap::CreateObjectStats() {
   if (V8_LIKELY(FLAG_gc_stats == 0)) return;
   if (!live_object_stats_) {
-    live_object_stats_ = new ObjectStats(this);
+    live_object_stats_.reset(new ObjectStats(this));
   }
   if (!dead_object_stats_) {
-    dead_object_stats_ = new ObjectStats(this);
+    dead_object_stats_.reset(new ObjectStats(this));
   }
 }
 
