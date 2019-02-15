@@ -202,8 +202,10 @@ void CheckEq<Object>(Object in_value, Object out_value) {
   Isolate* isolate = CcTest::InitIsolateOnce();
   // |out_value| is compressed. Check that it's valid.
   CHECK_EQ(CompressTagged(in_value->ptr()), out_value->ptr());
+  STATIC_ASSERT(kTaggedSize == kSystemPointerSize);
   CHECK_EQ(in_value->ptr(),
-           DecompressTaggedAny(isolate->isolate_root(), out_value->ptr()));
+           DecompressTaggedAny(isolate->isolate_root(),
+                               static_cast<int32_t>(out_value->ptr())));
 }
 
 template <>

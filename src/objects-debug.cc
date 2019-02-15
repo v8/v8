@@ -594,6 +594,9 @@ void JSObject::JSObjectVerify(Isolate* isolate) {
           DCHECK(r.IsDouble());
           continue;
         }
+        if (COMPRESS_POINTERS_BOOL && index.is_inobject()) {
+          VerifyObjectField(isolate, index.offset());
+        }
         Object value = RawFastPropertyAt(index);
         if (r.IsDouble()) DCHECK(value->IsMutableHeapNumber());
         if (value->IsUninitialized(isolate)) continue;

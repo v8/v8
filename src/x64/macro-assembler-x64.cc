@@ -218,33 +218,29 @@ void TurboAssembler::CompareRoot(Operand with, RootIndex index) {
 }
 
 void TurboAssembler::LoadTaggedPointerField(Register destination,
-                                            Operand field_operand,
-                                            Register scratch_for_debug) {
+                                            Operand field_operand) {
 #ifdef V8_COMPRESS_POINTERS
-  DecompressTaggedPointer(destination, field_operand, scratch_for_debug);
+  DecompressTaggedPointer(destination, field_operand);
 #else
-  movq(destination, field_operand);
+  mov_tagged(destination, field_operand);
 #endif
 }
 
 void TurboAssembler::LoadAnyTaggedField(Register destination,
-                                        Operand field_operand, Register scratch,
-                                        Register scratch_for_debug) {
+                                        Operand field_operand,
+                                        Register scratch) {
 #ifdef V8_COMPRESS_POINTERS
-  DecompressAnyTagged(destination, field_operand, scratch, scratch_for_debug);
+  DecompressAnyTagged(destination, field_operand, scratch);
 #else
-  movq(destination, field_operand);
+  mov_tagged(destination, field_operand);
 #endif
 }
 
 void TurboAssembler::PushTaggedPointerField(Operand field_operand,
-                                            Register scratch,
-                                            Register scratch_for_debug) {
+                                            Register scratch) {
 #ifdef V8_COMPRESS_POINTERS
-  DCHECK(!AreAliased(scratch, scratch_for_debug));
   DCHECK(!field_operand.AddressUsesRegister(scratch));
-  DCHECK(!field_operand.AddressUsesRegister(scratch_for_debug));
-  DecompressTaggedPointer(scratch, field_operand, scratch_for_debug);
+  DecompressTaggedPointer(scratch, field_operand);
   Push(scratch);
 #else
   Push(field_operand);
@@ -252,14 +248,12 @@ void TurboAssembler::PushTaggedPointerField(Operand field_operand,
 }
 
 void TurboAssembler::PushTaggedAnyField(Operand field_operand,
-                                        Register scratch1, Register scratch2,
-                                        Register scratch_for_debug) {
+                                        Register scratch1, Register scratch2) {
 #ifdef V8_COMPRESS_POINTERS
-  DCHECK(!AreAliased(scratch1, scratch2, scratch_for_debug));
+  DCHECK(!AreAliased(scratch1, scratch2));
   DCHECK(!field_operand.AddressUsesRegister(scratch1));
   DCHECK(!field_operand.AddressUsesRegister(scratch2));
-  DCHECK(!field_operand.AddressUsesRegister(scratch_for_debug));
-  DecompressAnyTagged(scratch1, field_operand, scratch2, scratch_for_debug);
+  DecompressAnyTagged(scratch1, field_operand, scratch2);
   Push(scratch1);
 #else
   Push(field_operand);
@@ -272,71 +266,49 @@ void TurboAssembler::SmiUntagField(Register dst, Operand src) {
 
 void TurboAssembler::StoreTaggedField(Operand dst_field_operand,
                                       Immediate value) {
+#ifdef V8_COMPRESS_POINTERS
+  RecordComment("[ StoreTagged");
+  movl(dst_field_operand, value);
+  movl(Operand(dst_field_operand, 4), Immediate(0));
+  RecordComment("]");
+#else
   movq(dst_field_operand, value);
+#endif
 }
 
 void TurboAssembler::StoreTaggedField(Operand dst_field_operand,
                                       Register value) {
+#ifdef V8_COMPRESS_POINTERS
+  RecordComment("[ StoreTagged");
+  movl(dst_field_operand, value);
+  movl(Operand(dst_field_operand, 4), Immediate(0));
+  RecordComment("]");
+#else
   movq(dst_field_operand, value);
+#endif
 }
 
 void TurboAssembler::DecompressTaggedSigned(Register destination,
-                                            Operand field_operand,
-                                            Register scratch_for_debug) {
-  DCHECK(!AreAliased(destination, scratch_for_debug));
+                                            Operand field_operand) {
   RecordComment("[ DecompressTaggedSigned");
-  if (DEBUG_BOOL && scratch_for_debug.is_valid()) {
-    Register expected_value = scratch_for_debug;
-    movq(expected_value, field_operand);
-    movsxlq(destination, expected_value);
-    Label check_passed;
-    cmpq(destination, expected_value);
-    j(equal, &check_passed);
-    RecordComment("DecompressTaggedSigned failed");
-    int3();
-    bind(&check_passed);
-  } else {
-    movsxlq(destination, field_operand);
-  }
+  movsxlq(destination, field_operand);
   RecordComment("]");
 }
 
 void TurboAssembler::DecompressTaggedPointer(Register destination,
-                                             Operand field_operand,
-                                             Register scratch_for_debug) {
-  DCHECK(!AreAliased(destination, scratch_for_debug));
+                                             Operand field_operand) {
   RecordComment("[ DecompressTaggedPointer");
-  if (DEBUG_BOOL && scratch_for_debug.is_valid()) {
-    Register expected_value = scratch_for_debug;
-    movq(expected_value, field_operand);
-    movsxlq(destination, expected_value);
-    addq(destination, kRootRegister);
-    Label check_passed;
-    cmpq(destination, expected_value);
-    j(equal, &check_passed);
-    RecordComment("DecompressTaggedPointer failed");
-    int3();
-    bind(&check_passed);
-  } else {
-    movsxlq(destination, field_operand);
-    addq(destination, kRootRegister);
-  }
+  movsxlq(destination, field_operand);
+  addq(destination, kRootRegister);
   RecordComment("]");
 }
 
 void TurboAssembler::DecompressAnyTagged(Register destination,
                                          Operand field_operand,
-                                         Register scratch,
-                                         Register scratch_for_debug) {
-  DCHECK(!AreAliased(destination, scratch, scratch_for_debug));
+                                         Register scratch) {
+  DCHECK(!AreAliased(destination, scratch));
   RecordComment("[ DecompressAnyTagged");
-  Register expected_value = scratch_for_debug;
-  if (DEBUG_BOOL && expected_value.is_valid()) {
-    movq(expected_value, field_operand);
-    movsxlq(destination, expected_value);
-  } else {
-    movsxlq(destination, field_operand);
-  }
+  movsxlq(destination, field_operand);
   // Branchlessly compute |masked_root|:
   // masked_root = HAS_SMI_TAG(destination) ? 0 : kRootRegister;
   STATIC_ASSERT((kSmiTagSize == 1) && (kSmiTag < 32));
@@ -348,14 +320,6 @@ void TurboAssembler::DecompressAnyTagged(Register destination,
   // Now this add operation will either leave the value unchanged if it is a smi
   // or add the isolate root if it is a heap object.
   addq(destination, masked_root);
-  if (DEBUG_BOOL && expected_value.is_valid()) {
-    Label check_passed;
-    cmpq(destination, expected_value);
-    j(equal, &check_passed);
-    RecordComment("Decompression failed: Tagged");
-    int3();
-    bind(&check_passed);
-  }
   RecordComment("]");
 }
 
