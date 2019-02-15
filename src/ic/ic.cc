@@ -1154,7 +1154,8 @@ Handle<Object> KeyedLoadIC::LoadElementHandler(Handle<Map> receiver_map,
   DCHECK(IsFastElementsKind(elements_kind) ||
          IsFixedTypedArrayElementsKind(elements_kind));
   bool convert_hole_to_undefined =
-      IsHoleyElementsKind(elements_kind) &&
+      (elements_kind == HOLEY_SMI_ELEMENTS ||
+       elements_kind == HOLEY_ELEMENTS) &&
       AllowConvertHoleElementToUndefined(isolate(), receiver_map);
   TRACE_HANDLER_STATS(isolate(), KeyedLoadIC_LoadElementDH);
   return LoadHandler::LoadElement(isolate(), elements_kind,
