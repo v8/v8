@@ -67,10 +67,13 @@ type RootIndex generates 'TNode<Int32T>' constexpr 'RootIndex';
 
 type Map extends HeapObject generates 'TNode<Map>';
 
-type FixedArrayBase extends HeapObject generates 'TNode<FixedArrayBase>';
-type FixedArray extends FixedArrayBase generates 'TNode<FixedArray>';
-type FixedDoubleArray extends FixedArrayBase
-    generates 'TNode<FixedDoubleArray>';
+extern class FixedArrayBase extends HeapObject { length: Smi; }
+
+extern class FixedArray extends FixedArrayBase { objects[length]: Object; }
+
+extern class FixedDoubleArray extends FixedArrayBase {
+  floats[length]: float64;
+}
 
 // These intrinsics should never be called from Torque code. They're used
 // internally by the 'new' operator and only declared here because it's simpler
@@ -176,8 +179,8 @@ type FixedTypedArrayBase extends FixedArrayBase
     generates 'TNode<FixedTypedArrayBase>';
 type FixedTypedArray extends FixedTypedArrayBase
     generates 'TNode<FixedTypedArray>';
-type SloppyArgumentsElements extends FixedArray
-    generates 'TNode<FixedArray>';
+extern class SloppyArgumentsElements extends FixedArray
+    generates 'TNode<FixedArray>' {}
 type NumberDictionary extends HeapObject
     generates 'TNode<NumberDictionary>';
 
@@ -1241,46 +1244,50 @@ extern operator '.elements_kind' macro LoadElementsKind(JSTypedArray):
 extern operator '.length' macro LoadJSTypedArrayLength(JSTypedArray): Smi;
 extern operator '.length' macro LoadFastJSArrayLength(FastJSArray): Smi;
 
-extern operator '.length' macro LoadFixedArrayBaseLength(FixedArrayBase): Smi;
 extern operator '.length_intptr' macro LoadAndUntagFixedArrayBaseLength(
     FixedArrayBase): intptr;
-extern operator '[]' macro LoadFixedArrayElement(FixedArray, intptr): Object;
-extern operator '[]' macro LoadFixedArrayElement(FixedArray, Smi): Object;
-extern operator '[]' macro LoadFixedArrayElement(
+extern operator '.objects[]' macro LoadFixedArrayElement(
+    FixedArray, intptr): Object;
+extern operator '.objects[]' macro LoadFixedArrayElement(
+    FixedArray, Smi): Object;
+extern operator '.objects[]' macro LoadFixedArrayElement(
     FixedArray, constexpr int31): Object;
-extern operator '[]=' macro StoreFixedArrayElement(
+extern operator '.objects[]=' macro StoreFixedArrayElement(
     FixedArray, intptr, Smi): void;
-extern operator '[]=' macro StoreFixedArrayElement(FixedArray, Smi, Smi): void;
-extern operator '[]=' macro StoreFixedArrayElement(
+extern operator '.objects[]=' macro StoreFixedArrayElement(
+    FixedArray, Smi, Smi): void;
+extern operator '.objects[]=' macro StoreFixedArrayElement(
     FixedArray, intptr, HeapObject): void;
-extern operator '[]=' macro StoreFixedArrayElement(
+extern operator '.objects[]=' macro StoreFixedArrayElement(
     FixedArray, constexpr int31, Smi): void;
-extern operator '[]=' macro StoreFixedArrayElement(
+extern operator '.objects[]=' macro StoreFixedArrayElement(
     FixedArray, constexpr int31, HeapObject): void;
-extern operator '[]=' macro StoreFixedArrayElementSmi(
+extern operator '.objects[]=' macro StoreFixedArrayElementSmi(
     FixedArray, Smi, Object): void;
-operator '[]=' macro StoreFixedDoubleArrayNumber(
-    a: FixedDoubleArray, index: Smi, value: Number): void {
-  a[index] = Convert<float64>(value);
-}
-
-extern macro StoreFixedArrayElementSmi(
+extern operator '.objects[]=' macro StoreFixedArrayElementSmi(
     FixedArray, Smi, Object, constexpr WriteBarrierMode): void;
+extern macro StoreFixedArrayElement(
+    FixedArray, intptr, Object, constexpr WriteBarrierMode): void;
+extern operator '.floats[]=' macro StoreFixedDoubleArrayElement(
+    FixedDoubleArray, intptr, float64): void;
+extern operator '.floats[]=' macro StoreFixedDoubleArrayElementSmi(
+    FixedDoubleArray, Smi, float64): void;
+operator '.floats[]=' macro StoreFixedDoubleArrayElementSmi(
+    a: FixedDoubleArray, i: Smi, n: Number): void {
+  StoreFixedDoubleArrayElementSmi(a, i, Convert<float64>(n));
+}
+operator '[]=' macro StoreFixedDoubleArrayDirect(
+    a: FixedDoubleArray, i: Smi, v: Number) {
+  a.floats[i] = Convert<float64>(v);
+}
+operator '[]=' macro StoreFixedArrayDirect(a: FixedArray, i: Smi, v: Object) {
+  a.objects[i] = v;
+}
 
 extern operator '.instance_type' macro LoadMapInstanceType(Map): int32;
 
-extern macro LoadFixedDoubleArrayElement(FixedDoubleArray, Smi): float64;
 extern macro Float64SilenceNaN(float64): float64;
 
-extern macro StoreFixedDoubleArrayElement(
-    FixedDoubleArray, Object, float64, constexpr ParameterMode);
-extern macro StoreFixedArrayElement(
-    FixedArray, intptr, Object, constexpr WriteBarrierMode): void;
-
-macro StoreFixedDoubleArrayElementWithSmiIndex(
-    array: FixedDoubleArray, index: Smi, value: float64) {
-  StoreFixedDoubleArrayElement(array, index, value, SMI_PARAMETERS);
-}
 extern macro GetNumberDictionaryNumberOfElements(NumberDictionary): Smi;
 extern macro GetIteratorMethod(implicit context: Context)(HeapObject): Object
     labels IfIteratorUndefined;
@@ -1347,9 +1354,6 @@ extern macro CopyFixedArrayElements(
 extern macro AllocateJSArray(constexpr ElementsKind, Map, intptr, Smi): JSArray;
 extern macro AllocateJSArray(constexpr ElementsKind, Map, Smi, Smi): JSArray;
 extern macro AllocateJSObjectFromMap(Map): JSObject;
-
-extern operator '[]=' macro StoreFixedDoubleArrayElementSmi(
-    FixedDoubleArray, Smi, float64): void;
 
 extern macro LoadDoubleWithHoleCheck(FixedDoubleArray, Smi): float64
     labels IfHole;
@@ -1437,7 +1441,7 @@ LoadElementNoHole<FixedArray>(implicit context: Context)(
   try {
     let elements: FixedArray =
         Cast<FixedArray>(a.elements) otherwise Unexpected;
-    let e: Object = elements[index];
+    let e: Object = elements.objects[index];
     if (e == Hole) {
       goto IfHole;
     }

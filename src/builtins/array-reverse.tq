@@ -8,23 +8,24 @@ namespace array_reverse {
 
   LoadElement<array::FastPackedSmiElements, Smi>(implicit context: Context)(
       elements: FixedArrayBase, index: Smi): Smi {
-    const elems: FixedArray = UnsafeCast<FixedArray>(elements);
-    return UnsafeCast<Smi>(elems[index]);
+    const elements: FixedArray = UnsafeCast<FixedArray>(elements);
+    return UnsafeCast<Smi>(elements.objects[index]);
   }
 
   LoadElement<array::FastPackedObjectElements, Object>(
       implicit context: Context)(elements: FixedArrayBase, index: Smi): Object {
-    const elems: FixedArray = UnsafeCast<FixedArray>(elements);
-    return elems[index];
+    const elements: FixedArray = UnsafeCast<FixedArray>(elements);
+    return elements.objects[index];
   }
 
   LoadElement<array::FastPackedDoubleElements, float64>(
       implicit context: Context)(elements: FixedArrayBase, index: Smi):
       float64 {
-    const elems: FixedDoubleArray = UnsafeCast<FixedDoubleArray>(elements);
+    const elements: FixedDoubleArray = UnsafeCast<FixedDoubleArray>(elements);
     // This macro is only used for PACKED_DOUBLE, loading the hole should
     // be impossible.
-    return LoadDoubleWithHoleCheck(elems, index) otherwise unreachable;
+    return LoadDoubleWithHoleCheck(elements, index)
+        otherwise unreachable;
   }
 
   macro StoreElement<ElementsAccessor: type, T: type>(
@@ -40,15 +41,15 @@ namespace array_reverse {
   StoreElement<array::FastPackedObjectElements, Object>(
       implicit context:
           Context)(elements: FixedArrayBase, index: Smi, value: Object) {
-    const elems: FixedArray = UnsafeCast<FixedArray>(elements);
-    elems[index] = value;
+    const elements: FixedArray = UnsafeCast<FixedArray>(elements);
+    elements.objects[index] = value;
   }
 
   StoreElement<array::FastPackedDoubleElements, float64>(
       implicit context:
           Context)(elements: FixedArrayBase, index: Smi, value: float64) {
     const elems: FixedDoubleArray = UnsafeCast<FixedDoubleArray>(elements);
-    StoreFixedDoubleArrayElementWithSmiIndex(elems, index, value);
+    StoreFixedDoubleArrayElementSmi(elems, index, value);
   }
 
   // Fast-path for all PACKED_* elements kinds. These do not need to check

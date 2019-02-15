@@ -191,14 +191,14 @@ namespace array {
       context: Context, sortState: SortState, index: Smi): Object {
     const object = UnsafeCast<JSObject>(sortState.receiver);
     const elements = UnsafeCast<FixedArray>(object.elements);
-    return elements[index];
+    return elements.objects[index];
   }
 
   Load<FastSmiOrObjectElements>(
       context: Context, sortState: SortState, index: Smi): Object {
     const object = UnsafeCast<JSObject>(sortState.receiver);
     const elements = UnsafeCast<FixedArray>(object.elements);
-    const result: Object = elements[index];
+    const result: Object = elements.objects[index];
     if (IsTheHole(result)) {
       // The pre-processing step removed all holes by compacting all elements
       // at the start of the array. Finding a hole means the cmp function or
@@ -242,7 +242,7 @@ namespace array {
       Object {
     const elements = sortState.tempArray;
     assert(IsFixedArray(elements));
-    return elements[index];
+    return elements.objects[index];
   }
 
   transitioning builtin Store<ElementsAccessor: type>(
@@ -263,7 +263,7 @@ namespace array {
       context: Context, sortState: SortState, index: Smi, value: Object): Smi {
     const object = UnsafeCast<JSObject>(sortState.receiver);
     const elements = UnsafeCast<FixedArray>(object.elements);
-    elements[index] = value;
+    elements.objects[index] = value;
     return kSuccess;
   }
 
@@ -274,7 +274,7 @@ namespace array {
     const heapVal = UnsafeCast<HeapNumber>(value);
     // Make sure we do not store signalling NaNs into double arrays.
     const val = Float64SilenceNaN(Convert<float64>(heapVal));
-    StoreFixedDoubleArrayElementWithSmiIndex(elements, index, val);
+    StoreFixedDoubleArrayElementSmi(elements, index, val);
     return kSuccess;
   }
 
@@ -303,7 +303,7 @@ namespace array {
   Store<TempArrayElements>(
       context: Context, sortState: SortState, index: Smi, value: Object): Smi {
     const elements = sortState.tempArray;
-    elements[index] = value;
+    elements.objects[index] = value;
     return kSuccess;
   }
 
@@ -424,20 +424,20 @@ namespace array {
 
   macro GetPendingRunBase(implicit context:
                               Context)(pendingRuns: FixedArray, run: Smi): Smi {
-    return UnsafeCast<Smi>(pendingRuns[run << 1]);
+    return UnsafeCast<Smi>(pendingRuns.objects[run << 1]);
   }
 
   macro SetPendingRunBase(pendingRuns: FixedArray, run: Smi, value: Smi) {
-    pendingRuns[run << 1] = value;
+    pendingRuns.objects[run << 1] = value;
   }
 
   macro GetPendingRunLength(implicit context: Context)(
       pendingRuns: FixedArray, run: Smi): Smi {
-    return UnsafeCast<Smi>(pendingRuns[(run << 1) + 1]);
+    return UnsafeCast<Smi>(pendingRuns.objects[(run << 1) + 1]);
   }
 
   macro SetPendingRunLength(pendingRuns: FixedArray, run: Smi, value: Smi) {
-    pendingRuns[(run << 1) + 1] = value;
+    pendingRuns.objects[(run << 1) + 1] = value;
   }
 
   macro PushRun(implicit context:
@@ -558,7 +558,7 @@ namespace array {
 
     while (srcIdx < to) {
       const element = CallLoad(load, srcIdx++) otherwise Bailout;
-      tempArray[dstIdx++] = element;
+      tempArray.objects[dstIdx++] = element;
     }
   }
 
@@ -578,7 +578,7 @@ namespace array {
     let to: Smi = srcPos + length;
     try {
       while (srcIdx < to) {
-        CallStore(store, dstIdx++, tempArray[srcIdx++]) otherwise Bailout;
+        CallStore(store, dstIdx++, tempArray.objects[srcIdx++]) otherwise Bailout;
       }
       return kSuccess;
     }
@@ -1107,7 +1107,7 @@ namespace array {
 
           let elementB = CallLoad(load, cursorB) otherwise Bailout;
           let order =
-              CallCompareFn(elementB, tempArray[cursorTemp]) otherwise Bailout;
+              CallCompareFn(elementB, tempArray.objects[cursorTemp]) otherwise Bailout;
 
           if (order < 0) {
             CopyElement(load, store, cursorB, dest) otherwise Bailout;
@@ -1121,7 +1121,7 @@ namespace array {
             if (lengthB == 0) goto Succeed;
             if (nofWinsB >= minGallop) break;
           } else {
-            CallStore(store, dest, tempArray[cursorTemp]) otherwise Bailout;
+            CallStore(store, dest, tempArray.objects[cursorTemp]) otherwise Bailout;
 
             ++cursorTemp;
             ++dest;
@@ -1169,7 +1169,7 @@ namespace array {
           if (--lengthB == 0) goto Succeed;
 
           nofWinsB =
-              CallGallopLeft(load, tempArray[cursorTemp], cursorB, lengthB, 0)
+              CallGallopLeft(load, tempArray.objects[cursorTemp], cursorB, lengthB, 0)
               otherwise Bailout;
           assert(nofWinsB >= 0);
           if (nofWinsB > 0) {
@@ -1181,7 +1181,7 @@ namespace array {
 
             if (lengthB == 0) goto Succeed;
           }
-          CallStore(store, dest++, tempArray[cursorTemp++]) otherwise Bailout;
+          CallStore(store, dest++, tempArray.objects[cursorTemp++]) otherwise Bailout;
           if (--lengthA == 1) goto CopyB;
         }
         ++minGallop;  // Penalize it for leaving galloping mode
@@ -1197,7 +1197,7 @@ namespace array {
       assert(lengthA == 1 && lengthB > 0);
       // The last element of run A belongs at the end of the merge.
       CallCopyWithinSortArray(cursorB, dest, lengthB) otherwise Bailout;
-      CallStore(store, dest + lengthB, tempArray[cursorTemp]) otherwise Bailout;
+      CallStore(store, dest + lengthB, tempArray.objects[cursorTemp]) otherwise Bailout;
     }
   }
 
@@ -1250,7 +1250,7 @@ namespace array {
 
           let elementA = CallLoad(load, cursorA) otherwise Bailout;
           let order =
-              CallCompareFn(tempArray[cursorTemp], elementA) otherwise Bailout;
+              CallCompareFn(tempArray.objects[cursorTemp], elementA) otherwise Bailout;
 
           if (order < 0) {
             CopyElement(load, store, cursorA, dest) otherwise Bailout;
@@ -1264,7 +1264,7 @@ namespace array {
             if (lengthA == 0) goto Succeed;
             if (nofWinsA >= minGallop) break;
           } else {
-            CallStore(store, dest, tempArray[cursorTemp]) otherwise Bailout;
+            CallStore(store, dest, tempArray.objects[cursorTemp]) otherwise Bailout;
 
             --cursorTemp;
             --dest;
@@ -1292,7 +1292,7 @@ namespace array {
           sortState.minGallop = minGallop;
 
           let k: Smi = CallGallopRight(
-              load, tempArray[cursorTemp], baseA, lengthA, lengthA - 1)
+              load, tempArray.objects[cursorTemp], baseA, lengthA, lengthA - 1)
               otherwise Bailout;
           assert(k >= 0);
           nofWinsA = lengthA - k;
@@ -1306,7 +1306,7 @@ namespace array {
             lengthA = lengthA - nofWinsA;
             if (lengthA == 0) goto Succeed;
           }
-          CallStore(store, dest--, tempArray[cursorTemp--]) otherwise Bailout;
+          CallStore(store, dest--, tempArray.objects[cursorTemp--]) otherwise Bailout;
           if (--lengthB == 1) goto CopyA;
 
           let key = CallLoad(load, cursorA) otherwise Bailout;
@@ -1350,7 +1350,7 @@ namespace array {
       dest = dest - lengthA;
       cursorA = cursorA - lengthA;
       CallCopyWithinSortArray(cursorA + 1, dest + 1, lengthA) otherwise Bailout;
-      CallStore(store, dest, tempArray[cursorTemp]) otherwise Bailout;
+      CallStore(store, dest, tempArray.objects[cursorTemp]) otherwise Bailout;
     }
   }
 

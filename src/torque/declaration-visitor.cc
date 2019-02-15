@@ -287,6 +287,11 @@ void DeclarationVisitor::DeclareMethods(
 
   if (constructor_this_type->Constructors().size() != 0) return;
 
+  // TODO(danno): Currently, default constructors for classes with
+  // open-ended arrays at the end are not supported. For now, if one is
+  // encountered, don't actually create the constructor.
+  if (container_type->HasIndexedField()) return;
+
   // Generate default constructor.
   Signature constructor_signature;
   constructor_signature.parameter_types.var_args = false;
@@ -302,6 +307,7 @@ void DeclarationVisitor::DeclareMethods(
   std::vector<Expression*> super_arguments;
   for (auto current_type : hierarchy) {
     for (auto& f : current_type->fields()) {
+      DCHECK(!f.index);
       std::string parameter_name("p" + std::to_string(parameter_number++));
       constructor_signature.parameter_names.push_back(parameter_name);
       constructor_signature.parameter_types.types.push_back(
@@ -368,6 +374,7 @@ void DeclarationVisitor::Visit(ClassDeclaration* decl) {
     // The generates clause must create a TNode<>
     std::string generates = decl->name;
     if (decl->generates) {
+      generates = *decl->generates;
       if (generates.length() < 7 || generates.substr(0, 6) != "TNode<" ||
           generates.substr(generates.length() - 1, 1) != ">") {
         ReportError("generated type \"", generates,
@@ -533,6 +540,7 @@ void DeclarationVisitor::FinalizeStructFieldsAndMethods(
     const Type* field_type = Declarations::GetType(field.name_and_type.type);
     struct_type->RegisterField({field.name_and_type.type->pos,
                                 struct_type,
+                                base::nullopt,
                                 {field.name_and_type.name, field_type},
                                 offset,
                                 false});
@@ -546,6 +554,7 @@ void DeclarationVisitor::FinalizeClassFieldsAndMethods(
     ClassType* class_type, ClassDeclaration* class_declaration) {
   const ClassType* super_class = class_type->GetSuperClass();
   size_t class_offset = super_class ? super_class->size() : 0;
+  bool seen_indexed_field = false;
   for (ClassFieldExpression& field_expression : class_declaration->fields) {
     CurrentSourcePosition::Scope position_activator(
         field_expression.name_and_type.type->pos);
@@ -553,30 +562,55 @@ void DeclarationVisitor::FinalizeClassFieldsAndMethods(
         Declarations::GetType(field_expression.name_and_type.type);
     if (!class_declaration->is_extern) {
       if (!field_type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
-        ReportError("Non-extern classes do not support untagged fields.");
+        ReportError("non-extern classes do not support untagged fields");
       }
       if (field_expression.weak) {
-        ReportError("Non-extern classes do not support weak fields.");
+        ReportError("non-extern classes do not support weak fields");
       }
     }
-    const Field& field = class_type->RegisterField(
-        {field_expression.name_and_type.type->pos,
-         class_type,
-         {field_expression.name_and_type.name, field_type},
-         class_offset,
-         field_expression.weak});
-    size_t field_size;
-    std::string size_string;
-    std::string machine_type;
-    std::tie(field_size, size_string, machine_type) =
-        field.GetFieldSizeInformation();
-    size_t aligned_offset = class_offset & ~(field_size - 1);
-    if (class_offset != aligned_offset) {
-      ReportError("field ", field_expression.name_and_type.name,
-                  " is not aligned to its size (", aligned_offset, " vs ",
-                  class_offset, " for field size ", field_size, ")");
+    if (field_expression.index) {
+      if (seen_indexed_field ||
+          (super_class && super_class->HasIndexedField())) {
+        ReportError(
+            "only one indexable field is currently supported per class");
+      }
+      seen_indexed_field = true;
+      const Field* index_field =
+          &(class_type->LookupField(*field_expression.index));
+      class_type->RegisterField(
+          {field_expression.name_and_type.type->pos,
+           class_type,
+           index_field,
+           {field_expression.name_and_type.name, field_type},
+           class_offset,
+           field_expression.weak});
+    } else {
+      if (seen_indexed_field) {
+        ReportError("cannot declare non-indexable field \"",
+                    field_expression.name_and_type.name,
+                    "\" after an indexable field "
+                    "declaration");
+      }
+      const Field& field = class_type->RegisterField(
+          {field_expression.name_and_type.type->pos,
+           class_type,
+           base::nullopt,
+           {field_expression.name_and_type.name, field_type},
+           class_offset,
+           field_expression.weak});
+      size_t field_size;
+      std::string size_string;
+      std::string machine_type;
+      std::tie(field_size, size_string, machine_type) =
+          field.GetFieldSizeInformation();
+      size_t aligned_offset = class_offset & ~(field_size - 1);
+      if (class_offset != aligned_offset) {
+        ReportError("field ", field_expression.name_and_type.name,
+                    " is not aligned to its size (", aligned_offset, " vs ",
+                    class_offset, " for field size ", field_size, ")");
+      }
+      class_offset += field_size;
     }
-    class_offset += field_size;
   }
   class_type->SetSize(class_offset);
 
@@ -595,15 +629,18 @@ void DeclarationVisitor::FinalizeClassFieldsAndMethods(
     this_struct_type->RegisterField(
         {CurrentSourcePosition::Get(),
          super_struct_type,
+         base::nullopt,
          {kConstructorStructSuperFieldName, super_struct_type},
          struct_offset,
          false});
     struct_offset += LoweredSlotCount(super_struct_type);
   }
   for (auto& field : class_type->fields()) {
+    if (field.index) continue;
     const Type* field_type = field.name_and_type.type;
     this_struct_type->RegisterField({field.pos,
                                      class_type,
+                                     base::nullopt,
                                      {field.name_and_type.name, field_type},
                                      struct_offset,
                                      false});
@@ -616,6 +653,7 @@ void DeclarationVisitor::FinalizeClassFieldsAndMethods(
   // function and define a corresponding '.field' operator. The
   // implementation iterator will turn the snippits into code.
   for (auto& field : class_type->fields()) {
+    if (field.index) continue;
     CurrentSourcePosition::Scope position_activator(field.pos);
     IdentifierExpression* parameter =
         MakeNode<IdentifierExpression>(std::string{"o"});

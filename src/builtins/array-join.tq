@@ -36,7 +36,7 @@ namespace array_join {
       context: Context, receiver: JSReceiver, k: Number): Object {
     const array: JSArray = UnsafeCast<JSArray>(receiver);
     const fixedArray: FixedArray = UnsafeCast<FixedArray>(array.elements);
-    const element: Object = fixedArray[UnsafeCast<Smi>(k)];
+    const element: Object = fixedArray.objects[UnsafeCast<Smi>(k)];
     return element == Hole ? kEmptyString : element;
   }
 
@@ -134,7 +134,7 @@ namespace array_join {
     const length: intptr = fixedArray.length_intptr;
     assert(index <= length);
     if (index < length) {
-      fixedArray[index] = element;
+      fixedArray.objects[index] = element;
       return fixedArray;
     } else
       deferred {
@@ -142,7 +142,7 @@ namespace array_join {
         assert(index < newLength);
         const newfixedArray: FixedArray =
             ExtractFixedArray(fixedArray, 0, length, newLength, kFixedArrays);
-        newfixedArray[index] = element;
+        newfixedArray.objects[index] = element;
         return newfixedArray;
       }
   }
@@ -231,7 +231,7 @@ namespace array_join {
     // Fast path when there's only one buffer element.
     if (buffer.index == 1) {
       const fixedArray: FixedArray = buffer.fixedArray;
-      typeswitch (fixedArray[0]) {
+      typeswitch (fixedArray.objects[0]) {
         // When the element is a string, just return it and completely avoid
         // allocating another string.
         case (str: String): {
@@ -442,11 +442,11 @@ namespace array_join {
       stack: FixedArray, receiver: JSReceiver): Boolean {
     const capacity: intptr = stack.length_intptr;
     for (let i: intptr = 0; i < capacity; i++) {
-      const previouslyVisited: Object = stack[i];
+      const previouslyVisited: Object = stack.objects[i];
 
       // Add `receiver` to the first open slot
       if (previouslyVisited == Hole) {
-        stack[i] = receiver;
+        stack.objects[i] = receiver;
         return True;
       }
 
@@ -470,8 +470,8 @@ namespace array_join {
     try {
       const stack: FixedArray = LoadJoinStack()
           otherwise IfUninitialized;
-      if (stack[0] == Hole) {
-        stack[0] = receiver;
+      if (stack.objects[0] == Hole) {
+        stack.objects[0] = receiver;
       } else if (JoinStackPush(stack, receiver) == False)
         deferred {
           goto ReceiverNotAdded;
@@ -480,7 +480,7 @@ namespace array_join {
     label IfUninitialized {
       const stack: FixedArray =
           AllocateFixedArrayWithHoles(kMinJoinStackSize, kNone);
-      stack[0] = receiver;
+      stack.objects[0] = receiver;
       SetJoinStack(stack);
     }
     goto ReceiverAdded;
@@ -492,7 +492,7 @@ namespace array_join {
       stack: FixedArray, receiver: JSReceiver): Object {
     const len: intptr = stack.length_intptr;
     for (let i: intptr = 0; i < len; i++) {
-      if (stack[i] == receiver) {
+      if (stack.objects[i] == receiver) {
         // Shrink the Join Stack if the stack will be empty and is larger than
         // the minimum size.
         if (i == 0 && len > kMinJoinStackSize) deferred {
@@ -501,7 +501,7 @@ namespace array_join {
             SetJoinStack(newStack);
           }
         else {
-          stack[i] = Hole;
+          stack.objects[i] = Hole;
         }
         return Undefined;
       }
@@ -517,7 +517,7 @@ namespace array_join {
 
     // Builtin call was not nested (receiver is the first entry) and
     // did not contain other nested arrays that expanded the stack.
-    if (stack[0] == receiver && len == kMinJoinStackSize) {
+    if (stack.objects[0] == receiver && len == kMinJoinStackSize) {
       StoreFixedArrayElement(stack, 0, Hole, SKIP_WRITE_BARRIER);
     } else
       deferred {

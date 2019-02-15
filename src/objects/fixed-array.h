@@ -9,6 +9,7 @@
 #include "src/objects/instance-type.h"
 #include "src/objects/slots.h"
 #include "src/objects/smi.h"
+#include "torque-generated/class-definitions-from-dsl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -97,14 +98,10 @@ class FixedArrayBase : public HeapObject {
 #endif  // V8_HOST_ARCH_32_BIT
 
   // Layout description.
-#define FIXED_ARRAY_BASE_FIELDS(V) \
-  V(kLengthOffset, kTaggedSize)    \
-  /* Header size. */               \
-  V(kHeaderSize, 0)
-
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
                                 FIXED_ARRAY_BASE_FIELDS)
-#undef FIXED_ARRAY_BASE_FIELDS
+
+  static const int kHeaderSize = kSize;
 
  protected:
   // Special-purpose constructor for subclasses that have fast paths where

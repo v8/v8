@@ -126,23 +126,23 @@ namespace typed_array {
       if (left < middle && right >= to) {
         // If the left run has elements, but the right does not, we take
         // from the left.
-        target[targetIndex] = source[left++];
+        target.objects[targetIndex] = source.objects[left++];
       } else if (left < middle) {
         // If both have elements, we need to compare.
-        const leftElement: Object = source[left];
-        const rightElement: Object = source[right];
+        const leftElement: Object = source.objects[left];
+        const rightElement: Object = source.objects[right];
         if (CallCompare(leftElement, rightElement) <= 0) {
-          target[targetIndex] = leftElement;
+          target.objects[targetIndex] = leftElement;
           left++;
         } else {
-          target[targetIndex] = rightElement;
+          target.objects[targetIndex] = rightElement;
           right++;
         }
       } else {
         // No elements on the left, but the right does, so we take
         // from the right.
         assert(left == middle);
-        target[targetIndex] = source[right++];
+        target.objects[targetIndex] = source.objects[right++];
       }
     }
   }
@@ -253,14 +253,15 @@ namespace typed_array {
 
     for (let i: Smi = 0; i < len; ++i) {
       const element: Object = loadfn(context, array, i);
-      work1[i] = element;
-      work2[i] = element;
+      work1.objects[i] = element;
+      work2.objects[i] = element;
     }
 
     TypedArrayMergeSort(work2, 0, len, work1);
 
     // work1 contains the sorted numbers. Write them back.
-    for (let i: Smi = 0; i < len; ++i) storefn(context, array, i, work1[i]);
+    for (let i: Smi = 0; i < len; ++i)
+      storefn(context, array, i, work1.objects[i]);
 
     return array;
   }

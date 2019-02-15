@@ -694,6 +694,7 @@ struct StructFieldExpression {
 
 struct ClassFieldExpression {
   NameAndTypeExpression name_and_type;
+  base::Optional<std::string> index;
   bool weak;
 };
 

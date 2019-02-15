@@ -45,6 +45,7 @@ static const char* const INT16_TYPE_STRING = "int16";
 static const char* const UINT16_TYPE_STRING = "uint16";
 static const char* const INT8_TYPE_STRING = "int8";
 static const char* const UINT8_TYPE_STRING = "uint8";
+static const char* const FLOAT64_TYPE_STRING = "float64";
 static const char* const CONST_INT31_TYPE_STRING = "constexpr int31";
 static const char* const CONST_INT32_TYPE_STRING = "constexpr int32";
 static const char* const CONST_FLOAT64_TYPE_STRING = "constexpr float64";
@@ -168,6 +169,7 @@ struct Field {
 
   SourcePosition pos;
   const AggregateType* aggregate;
+  base::Optional<const Field*> index;
   NameAndType name_and_type;
   size_t offset;
   bool is_weak;
@@ -404,9 +406,11 @@ class AggregateType : public Type {
   const Type* NonConstexprVersion() const override { return this; }
 
   bool IsConstexpr() const override { return false; }
+  virtual bool HasIndexedField() const { return false; }
 
   void SetFields(std::vector<Field> fields) { fields_ = std::move(fields); }
   const std::vector<Field>& fields() const { return fields_; }
+  bool HasField(const std::string& name) const;
   const Field& LookupField(const std::string& name) const;
   const std::string& name() const { return name_; }
   Namespace* nspace() const { return namespace_; }
@@ -415,7 +419,7 @@ class AggregateType : public Type {
     return "_method_" + name_ + "_" + name;
   }
 
-  const Field& RegisterField(Field field) {
+  virtual const Field& RegisterField(Field field) {
     fields_.push_back(field);
     return fields_.back();
   }
@@ -474,6 +478,7 @@ class ClassType final : public AggregateType {
   std::string GetGeneratedTNodeTypeName() const override;
   bool IsExtern() const { return is_extern_; }
   bool IsTransient() const override { return transient_; }
+  bool HasIndexedField() const override;
   size_t size() const { return size_; }
   StructType* struct_type() const { return this_struct_; }
   const ClassType* GetSuperClass() const {
@@ -483,24 +488,23 @@ class ClassType final : public AggregateType {
   void SetSize(size_t size) { size_ = size; }
   void SetThisStruct(StructType* this_struct) { this_struct_ = this_struct; }
   bool AllowInstantiation() const;
+  const Field& RegisterField(Field field) override {
+    if (field.index) {
+      has_indexed_field_ = true;
+    }
+    return AggregateType::RegisterField(field);
+  }
 
  private:
   friend class TypeOracle;
   ClassType(const Type* parent, Namespace* nspace, const std::string& name,
-            bool is_extern, bool transient, const std::string& generates)
-      : AggregateType(Kind::kClassType, parent, nspace, name),
-        this_struct_(nullptr),
-        is_extern_(is_extern),
-        transient_(transient),
-        size_(0),
-        generates_(generates) {
-    CheckForDuplicateFields();
-  }
+            bool is_extern, bool transient, const std::string& generates);
 
   StructType* this_struct_;
   bool is_extern_;
   bool transient_;
   size_t size_;
+  bool has_indexed_field_;
   const std::string generates_;
 };
 

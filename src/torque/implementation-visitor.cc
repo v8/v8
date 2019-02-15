@@ -1729,15 +1729,30 @@ LocationReference ImplementationVisitor::GetLocationReference(
         ProjectStructField(reference.temporary(), expr->field),
         reference.temporary_description());
   }
-  return LocationReference::FieldAccess(GenerateFetchFromLocation(reference),
-                                        expr->field);
+  VisitResult object_result = GenerateFetchFromLocation(reference);
+  if (const ClassType* class_type =
+          ClassType::DynamicCast(object_result.type())) {
+    if (class_type->HasField(expr->field)) {
+      const Field& field = (class_type->LookupField(expr->field));
+      if (field.index) {
+        return LocationReference::IndexedFieldAccess(object_result,
+                                                     expr->field);
+      }
+    }
+  }
+  return LocationReference::FieldAccess(object_result, expr->field);
 }
 
 LocationReference ImplementationVisitor::GetLocationReference(
     ElementAccessExpression* expr) {
-  VisitResult array = Visit(expr->array);
+  LocationReference reference = GetLocationReference(expr->array);
   VisitResult index = Visit(expr->index);
-  return LocationReference::ArrayAccess(array, index);
+  if (reference.IsIndexedFieldAccess()) {
+    return LocationReference::IndexedFieldIndexedAccess(reference, index);
+  } else {
+    return LocationReference::ArrayAccess(GenerateFetchFromLocation(reference),
+                                          index);
+  }
 }
 
 LocationReference ImplementationVisitor::GetLocationReference(
@@ -1806,6 +1821,10 @@ VisitResult ImplementationVisitor::GenerateFetchFromLocation(
   } else if (reference.IsVariableAccess()) {
     return GenerateCopy(reference.variable());
   } else {
+    if (reference.IsIndexedFieldAccess()) {
+      ReportError(
+          "fetching a value directly from an indexed field isn't allowed");
+    }
     DCHECK(reference.IsCallAccess());
     return GenerateCall(reference.eval_function(),
                         Arguments{reference.call_arguments(), {}});
@@ -1824,6 +1843,8 @@ void ImplementationVisitor::GenerateAssignToLocation(
         GenerateImplicitConvert(variable.type(), assignment_value);
     assembler().Poke(variable.stack_range(), converted_value.stack_range(),
                      variable.type());
+  } else if (reference.IsIndexedFieldAccess()) {
+    ReportError("assigning a value directly to an indexed field isn't allowed");
   } else {
     DCHECK(reference.IsTemporary());
     ReportError("cannot assign to temporary ",

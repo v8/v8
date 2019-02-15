@@ -226,6 +226,18 @@ std::vector<const AggregateType*> AggregateType::GetHierarchy() {
   return hierarchy;
 }
 
+bool AggregateType::HasField(const std::string& name) const {
+  for (auto& field : fields_) {
+    if (field.name_and_type.name == name) return true;
+  }
+  if (parent() != nullptr) {
+    if (auto parent_class = ClassType::DynamicCast(parent())) {
+      return parent_class->HasField(name);
+    }
+  }
+  return false;
+}
+
 const Field& AggregateType::LookupField(const std::string& name) const {
   for (auto& field : fields_) {
     if (field.name_and_type.name == name) return field;
@@ -235,7 +247,7 @@ const Field& AggregateType::LookupField(const std::string& name) const {
       return parent_class->LookupField(name);
     }
   }
-  ReportError("no field ", name, "found");
+  ReportError("no field ", name, " found");
 }
 
 std::string StructType::GetGeneratedTypeName() const {
@@ -259,6 +271,33 @@ std::string StructType::ToExplicitString() const {
   PrintCommaSeparatedList(result, fields());
   result << "}";
   return result.str();
+}
+
+ClassType::ClassType(const Type* parent, Namespace* nspace,
+                     const std::string& name, bool is_extern, bool transient,
+                     const std::string& generates)
+    : AggregateType(Kind::kClassType, parent, nspace, name),
+      this_struct_(nullptr),
+      is_extern_(is_extern),
+      transient_(transient),
+      size_(0),
+      has_indexed_field_(false),
+      generates_(generates) {
+  CheckForDuplicateFields();
+  if (parent) {
+    if (const ClassType* super_class = ClassType::DynamicCast(parent)) {
+      if (super_class->HasIndexedField()) {
+        has_indexed_field_ = true;
+      }
+    }
+  }
+}
+
+bool ClassType::HasIndexedField() const {
+  if (has_indexed_field_) return true;
+  const ClassType* super_class = GetSuperClass();
+  if (super_class) return super_class->HasIndexedField();
+  return false;
 }
 
 std::string ClassType::GetGeneratedTNodeTypeName() const {
@@ -525,6 +564,10 @@ std::tuple<size_t, std::string, std::string> Field::GetFieldSizeInformation()
     field_size = kUInt8Size;
     size_string = "kUInt8Size";
     machine_type = "MachineType::Uint8()";
+  } else if (field_type == TypeOracle::GetFloat64Type()) {
+    field_size = kDoubleSize;
+    size_string = "kDoubleSize";
+    machine_type = "MachineType::Float64()";
   } else if (field_type == TypeOracle::GetIntPtrType()) {
     field_size = kIntptrSize;
     size_string = "kIntptrSize";

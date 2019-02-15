@@ -172,6 +172,10 @@ class TypeOracle : public ContextualClass<TypeOracle> {
     return Get().GetBuiltinType(UINT8_TYPE_STRING);
   }
 
+  static const Type* GetFloat64Type() {
+    return Get().GetBuiltinType(FLOAT64_TYPE_STRING);
+  }
+
   static const Type* GetNeverType() {
     return Get().GetBuiltinType(NEVER_TYPE_STRING);
   }
