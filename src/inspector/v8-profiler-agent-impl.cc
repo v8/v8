@@ -8,7 +8,6 @@
 
 #include "src/base/atomicops.h"
 #include "src/debug/debug-interface.h"
-#include "src/flags.h"  // TODO(jgruber): Remove include and DEPS entry.
 #include "src/inspector/protocol/Protocol.h"
 #include "src/inspector/string-util.h"
 #include "src/inspector/v8-debugger.h"
