@@ -510,15 +510,6 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=8849
   'intl402/Intl/getCanonicalLocales/non-iana-canon': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=8260
-  'intl402/Locale/constructor-non-iana-canon': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=8246
-  'intl402/Locale/constructor-tag': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=8242
-  'intl402/Locale/likely-subtags-grandfathered': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=7483
   'annexB/built-ins/Function/createdynfn-html-close-comment-params': [FAIL],
 
