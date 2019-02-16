@@ -204,11 +204,10 @@ DEFINE_IMPLICATION(harmony_private_methods, harmony_private_fields)
   V(harmony_weak_refs, "harmony weak references")                         \
 
 #ifdef V8_INTL_SUPPORT
-#define HARMONY_INPROGRESS(V)                                              \
-  HARMONY_INPROGRESS_BASE(V)                                               \
-  V(harmony_intl_bigint, "BigInt.prototype.toLocaleString")                \
-  V(harmony_intl_datetime_style, "dateStyle timeStyle for DateTimeFormat") \
-  V(harmony_locale, "Intl.Locale")
+#define HARMONY_INPROGRESS(V)                               \
+  HARMONY_INPROGRESS_BASE(V)                                \
+  V(harmony_intl_bigint, "BigInt.prototype.toLocaleString") \
+  V(harmony_intl_datetime_style, "dateStyle timeStyle for DateTimeFormat")
 #else
 #define HARMONY_INPROGRESS(V) HARMONY_INPROGRESS_BASE(V)
 #endif
@@ -220,8 +219,9 @@ DEFINE_IMPLICATION(harmony_private_methods, harmony_private_fields)
   V(harmony_hashbang, "harmony hashbang syntax")
 
 #ifdef V8_INTL_SUPPORT
-#define HARMONY_STAGED(V)                        \
-  HARMONY_STAGED_BASE(V)                         \
+#define HARMONY_STAGED(V)          \
+  HARMONY_STAGED_BASE(V)           \
+  V(harmony_locale, "Intl.Locale") \
   V(harmony_intl_segmenter, "Intl.Segmenter")
 #else
 #define HARMONY_STAGED(V) HARMONY_STAGED_BASE(V)
