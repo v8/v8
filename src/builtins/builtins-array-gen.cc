@@ -2091,7 +2091,8 @@ void ArrayIncludesIndexofAssembler::GenerateSmiOrObject(
   {
     GotoIfNot(UintPtrLessThan(index_var.value(), array_length_untagged),
               &return_not_found);
-    Node* element_k = LoadFixedArrayElement(CAST(elements), index_var.value());
+    Node* element_k =
+        UnsafeLoadFixedArrayElement(CAST(elements), index_var.value());
     GotoIf(WordEqual(element_k, search_element), &return_found);
 
     Increment(&index_var);
@@ -2103,7 +2104,8 @@ void ArrayIncludesIndexofAssembler::GenerateSmiOrObject(
 
     GotoIfNot(UintPtrLessThan(index_var.value(), array_length_untagged),
               &return_not_found);
-    Node* element_k = LoadFixedArrayElement(CAST(elements), index_var.value());
+    Node* element_k =
+        UnsafeLoadFixedArrayElement(CAST(elements), index_var.value());
     GotoIf(IsUndefined(element_k), &return_found);
     GotoIf(IsTheHole(element_k), &return_found);
 
@@ -2123,7 +2125,7 @@ void ArrayIncludesIndexofAssembler::GenerateSmiOrObject(
       GotoIfNot(UintPtrLessThan(index_var.value(), array_length_untagged),
                 &return_not_found);
       Node* element_k =
-          LoadFixedArrayElement(CAST(elements), index_var.value());
+          UnsafeLoadFixedArrayElement(CAST(elements), index_var.value());
       GotoIfNot(TaggedIsSmi(element_k), &not_smi);
       Branch(Float64Equal(search_num.value(), SmiToFloat64(element_k)),
              &return_found, &continue_loop);
@@ -2145,7 +2147,7 @@ void ArrayIncludesIndexofAssembler::GenerateSmiOrObject(
       GotoIfNot(UintPtrLessThan(index_var.value(), array_length_untagged),
                 &return_not_found);
       Node* element_k =
-          LoadFixedArrayElement(CAST(elements), index_var.value());
+          UnsafeLoadFixedArrayElement(CAST(elements), index_var.value());
       GotoIf(TaggedIsSmi(element_k), &continue_loop);
       GotoIfNot(IsHeapNumber(CAST(element_k)), &continue_loop);
       BranchIfFloat64IsNaN(LoadHeapNumberValue(element_k), &return_found,
@@ -2168,7 +2170,8 @@ void ArrayIncludesIndexofAssembler::GenerateSmiOrObject(
     BIND(&next_iteration);
     GotoIfNot(UintPtrLessThan(index_var.value(), array_length_untagged),
               &return_not_found);
-    Node* element_k = LoadFixedArrayElement(CAST(elements), index_var.value());
+    Node* element_k =
+        UnsafeLoadFixedArrayElement(CAST(elements), index_var.value());
     GotoIf(TaggedIsSmi(element_k), &continue_loop);
     GotoIf(WordEqual(search_element_string, element_k), &return_found);
     Node* element_k_type = LoadInstanceType(element_k);
@@ -2196,7 +2199,8 @@ void ArrayIncludesIndexofAssembler::GenerateSmiOrObject(
     GotoIfNot(UintPtrLessThan(index_var.value(), array_length_untagged),
               &return_not_found);
 
-    Node* element_k = LoadFixedArrayElement(CAST(elements), index_var.value());
+    Node* element_k =
+        UnsafeLoadFixedArrayElement(CAST(elements), index_var.value());
     Label continue_loop(this);
     GotoIf(TaggedIsSmi(element_k), &continue_loop);
     GotoIfNot(IsBigInt(CAST(element_k)), &continue_loop);
