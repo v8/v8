@@ -163,12 +163,12 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
     TNode<RegExpMatchInfo> match_info, TNode<String> string) {
   Label named_captures(this), out(this);
 
-  TNode<IntPtrT> num_indices = SmiUntag(CAST(LoadFixedArrayElement(
+  TNode<IntPtrT> num_indices = SmiUntag(CAST(UnsafeLoadFixedArrayElement(
       match_info, RegExpMatchInfo::kNumberOfCapturesIndex)));
   TNode<Smi> num_results = SmiTag(WordShr(num_indices, 1));
-  TNode<Smi> start = CAST(
-      LoadFixedArrayElement(match_info, RegExpMatchInfo::kFirstCaptureIndex));
-  TNode<Smi> end = CAST(LoadFixedArrayElement(
+  TNode<Smi> start = CAST(UnsafeLoadFixedArrayElement(
+      match_info, RegExpMatchInfo::kFirstCaptureIndex));
+  TNode<Smi> end = CAST(UnsafeLoadFixedArrayElement(
       match_info, RegExpMatchInfo::kFirstCaptureIndex + 1));
 
   // Calculate the substring of the first match before creating the result array
@@ -181,7 +181,7 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
       AllocateRegExpResult(context, num_results, start, string);
   TNode<FixedArray> result_elements = CAST(LoadElements(result));
 
-  StoreFixedArrayElement(result_elements, 0, first, SKIP_WRITE_BARRIER);
+  UnsafeStoreFixedArrayElement(result_elements, 0, first, SKIP_WRITE_BARRIER);
 
   // If no captures exist we can skip named capture handling as well.
   GotoIf(SmiEqual(num_results, SmiConstant(1)), &out);
@@ -202,18 +202,20 @@ TNode<JSRegExpResult> RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
   {
     TNode<IntPtrT> from_cursor = var_from_cursor.value();
     TNode<IntPtrT> to_cursor = var_to_cursor.value();
-    TNode<Smi> start = CAST(LoadFixedArrayElement(match_info, from_cursor));
+    TNode<Smi> start =
+        CAST(UnsafeLoadFixedArrayElement(match_info, from_cursor));
 
     Label next_iter(this);
     GotoIf(SmiEqual(start, SmiConstant(-1)), &next_iter);
 
     TNode<IntPtrT> from_cursor_plus1 =
         IntPtrAdd(from_cursor, IntPtrConstant(1));
-    TNode<Smi> end = CAST(LoadFixedArrayElement(match_info, from_cursor_plus1));
+    TNode<Smi> end =
+        CAST(UnsafeLoadFixedArrayElement(match_info, from_cursor_plus1));
 
     TNode<String> capture =
         CAST(CallBuiltin(Builtins::kSubString, context, string, start, end));
-    StoreFixedArrayElement(result_elements, to_cursor, capture);
+    UnsafeStoreFixedArrayElement(result_elements, to_cursor, capture);
     Goto(&next_iter);
 
     BIND(&next_iter);
@@ -398,8 +400,8 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
 
     // Check (number_of_captures + 1) * 2 <= offsets vector size
     // Or              number_of_captures <= offsets vector size / 2 - 1
-    TNode<Smi> capture_count =
-        CAST(LoadFixedArrayElement(data, JSRegExp::kIrregexpCaptureCountIndex));
+    TNode<Smi> capture_count = CAST(UnsafeLoadFixedArrayElement(
+        data, JSRegExp::kIrregexpCaptureCountIndex));
 
     const int kOffsetsSize = Isolate::kJSRegexpStaticOffsetsVectorSize;
     STATIC_ASSERT(kOffsetsSize >= 2);
@@ -439,7 +441,7 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
                         int_string_length, String::ONE_BYTE_ENCODING,
                         &var_string_start, &var_string_end);
       var_code =
-          LoadFixedArrayElement(data, JSRegExp::kIrregexpLatin1CodeIndex);
+          UnsafeLoadFixedArrayElement(data, JSRegExp::kIrregexpLatin1CodeIndex);
       Goto(&next);
     }
 
@@ -448,7 +450,8 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
       GetStringPointers(direct_string_data, to_direct.offset(), int_last_index,
                         int_string_length, String::TWO_BYTE_ENCODING,
                         &var_string_start, &var_string_end);
-      var_code = LoadFixedArrayElement(data, JSRegExp::kIrregexpUC16CodeIndex);
+      var_code =
+          UnsafeLoadFixedArrayElement(data, JSRegExp::kIrregexpUC16CodeIndex);
       Goto(&next);
     }
 
@@ -568,21 +571,21 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
     TNode<Smi> available_slots =
         SmiSub(LoadFixedArrayBaseLength(match_info),
                SmiConstant(RegExpMatchInfo::kLastMatchOverhead));
-    TNode<Smi> capture_count =
-        CAST(LoadFixedArrayElement(data, JSRegExp::kIrregexpCaptureCountIndex));
+    TNode<Smi> capture_count = CAST(UnsafeLoadFixedArrayElement(
+        data, JSRegExp::kIrregexpCaptureCountIndex));
     // Calculate number of register_count = (capture_count + 1) * 2.
     TNode<Smi> register_count =
         SmiShl(SmiAdd(capture_count, SmiConstant(1)), 1);
     GotoIf(SmiGreaterThan(register_count, available_slots), &runtime);
 
     // Fill match_info.
-
-    StoreFixedArrayElement(match_info, RegExpMatchInfo::kNumberOfCapturesIndex,
-                           register_count, SKIP_WRITE_BARRIER);
-    StoreFixedArrayElement(match_info, RegExpMatchInfo::kLastSubjectIndex,
-                           string);
-    StoreFixedArrayElement(match_info, RegExpMatchInfo::kLastInputIndex,
-                           string);
+    UnsafeStoreFixedArrayElement(match_info,
+                                 RegExpMatchInfo::kNumberOfCapturesIndex,
+                                 register_count, SKIP_WRITE_BARRIER);
+    UnsafeStoreFixedArrayElement(match_info, RegExpMatchInfo::kLastSubjectIndex,
+                                 string);
+    UnsafeStoreFixedArrayElement(match_info, RegExpMatchInfo::kLastInputIndex,
+                                 string);
 
     // Fill match and capture offsets in match_info.
     {
@@ -765,7 +768,7 @@ RegExpBuiltinsAssembler::RegExpPrototypeExecBodyWithoutResult(
     GotoIfNot(should_update_last_index, &out);
 
     // Update the new last index from {match_indices}.
-    TNode<Number> new_lastindex = CAST(LoadFixedArrayElement(
+    TNode<Number> new_lastindex = CAST(UnsafeLoadFixedArrayElement(
         CAST(match_indices), RegExpMatchInfo::kFirstCaptureIndex + 1));
 
     StoreLastIndex(context, regexp, new_lastindex, is_fastpath);
@@ -1025,9 +1028,10 @@ TF_BUILTIN(RegExpExecAtom, RegExpBuiltinsAssembler) {
   CSA_ASSERT(this, TaggedIsPositiveSmi(last_index));
 
   TNode<FixedArray> data = CAST(LoadObjectField(regexp, JSRegExp::kDataOffset));
-  CSA_ASSERT(this,
-             SmiEqual(CAST(LoadFixedArrayElement(data, JSRegExp::kTagIndex)),
-                      SmiConstant(JSRegExp::ATOM)));
+  CSA_ASSERT(
+      this,
+      SmiEqual(CAST(UnsafeLoadFixedArrayElement(data, JSRegExp::kTagIndex)),
+               SmiConstant(JSRegExp::ATOM)));
 
   // Callers ensure that last_index is in-bounds.
   CSA_ASSERT(this,
@@ -1035,7 +1039,7 @@ TF_BUILTIN(RegExpExecAtom, RegExpBuiltinsAssembler) {
                                     LoadStringLengthAsWord(subject_string)));
 
   Node* const needle_string =
-      LoadFixedArrayElement(data, JSRegExp::kAtomPatternIndex);
+      UnsafeLoadFixedArrayElement(data, JSRegExp::kAtomPatternIndex);
   CSA_ASSERT(this, IsString(needle_string));
 
   TNode<Smi> const match_from =
@@ -1057,16 +1061,19 @@ TF_BUILTIN(RegExpExecAtom, RegExpBuiltinsAssembler) {
     TNode<Smi> const match_to =
         SmiAdd(match_from, LoadStringLengthAsSmi(needle_string));
 
-    StoreFixedArrayElement(match_info, RegExpMatchInfo::kNumberOfCapturesIndex,
-                           SmiConstant(kNumRegisters), SKIP_WRITE_BARRIER);
-    StoreFixedArrayElement(match_info, RegExpMatchInfo::kLastSubjectIndex,
-                           subject_string);
-    StoreFixedArrayElement(match_info, RegExpMatchInfo::kLastInputIndex,
-                           subject_string);
-    StoreFixedArrayElement(match_info, RegExpMatchInfo::kFirstCaptureIndex,
-                           match_from, SKIP_WRITE_BARRIER);
-    StoreFixedArrayElement(match_info, RegExpMatchInfo::kFirstCaptureIndex + 1,
-                           match_to, SKIP_WRITE_BARRIER);
+    UnsafeStoreFixedArrayElement(
+        match_info, RegExpMatchInfo::kNumberOfCapturesIndex,
+        SmiConstant(kNumRegisters), SKIP_WRITE_BARRIER);
+    UnsafeStoreFixedArrayElement(match_info, RegExpMatchInfo::kLastSubjectIndex,
+                                 subject_string);
+    UnsafeStoreFixedArrayElement(match_info, RegExpMatchInfo::kLastInputIndex,
+                                 subject_string);
+    UnsafeStoreFixedArrayElement(match_info,
+                                 RegExpMatchInfo::kFirstCaptureIndex,
+                                 match_from, SKIP_WRITE_BARRIER);
+    UnsafeStoreFixedArrayElement(match_info,
+                                 RegExpMatchInfo::kFirstCaptureIndex + 1,
+                                 match_to, SKIP_WRITE_BARRIER);
 
     Return(match_info);
   }
@@ -2820,42 +2827,43 @@ Node* RegExpBuiltinsAssembler::ReplaceGlobalCallableFastPath(
     Node* const to = SmiUntag(res_length);
     const int increment = 1;
 
-    BuildFastLoop(from, to,
-                  [this, res_elems, isolate, native_context, context, undefined,
-                   replace_callable](Node* index) {
-                    Node* const elem = LoadFixedArrayElement(res_elems, index);
+    BuildFastLoop(
+        from, to,
+        [this, res_elems, isolate, native_context, context, undefined,
+         replace_callable](Node* index) {
+          Node* const elem = LoadFixedArrayElement(res_elems, index);
 
-                    Label do_continue(this);
-                    GotoIf(TaggedIsSmi(elem), &do_continue);
+          Label do_continue(this);
+          GotoIf(TaggedIsSmi(elem), &do_continue);
 
-                    // elem must be an Array.
-                    // Use the apply argument as backing for global RegExp
-                    // properties.
+          // elem must be an Array.
+          // Use the apply argument as backing for global RegExp
+          // properties.
 
-                    CSA_ASSERT(this, HasInstanceType(elem, JS_ARRAY_TYPE));
+          CSA_ASSERT(this, HasInstanceType(elem, JS_ARRAY_TYPE));
 
-                    // TODO(jgruber): Remove indirection through
-                    // Call->ReflectApply.
-                    Callable call_callable = CodeFactory::Call(isolate);
-                    Node* const reflect_apply = LoadContextElement(
-                        native_context, Context::REFLECT_APPLY_INDEX);
+          // TODO(jgruber): Remove indirection through
+          // Call->ReflectApply.
+          Callable call_callable = CodeFactory::Call(isolate);
+          Node* const reflect_apply =
+              LoadContextElement(native_context, Context::REFLECT_APPLY_INDEX);
 
-                    Node* const replacement_obj =
-                        CallJS(call_callable, context, reflect_apply, undefined,
-                               replace_callable, undefined, elem);
+          Node* const replacement_obj =
+              CallJS(call_callable, context, reflect_apply, undefined,
+                     replace_callable, undefined, elem);
 
-                    // Overwrite the i'th element in the results with the string
-                    // we got back from the callback function.
+          // Overwrite the i'th element in the results with the string
+          // we got back from the callback function.
 
-                    TNode<String> const replacement_str =
-                        ToString_Inline(context, replacement_obj);
-                    StoreFixedArrayElement(res_elems, index, replacement_str);
+          TNode<String> const replacement_str =
+              ToString_Inline(context, replacement_obj);
+          StoreFixedArrayElement(res_elems, index, replacement_str);
 
-                    Goto(&do_continue);
-                    BIND(&do_continue);
-                  },
-                  increment, CodeStubAssembler::INTPTR_PARAMETERS,
-                  CodeStubAssembler::IndexAdvanceMode::kPost);
+          Goto(&do_continue);
+          BIND(&do_continue);
+        },
+        increment, CodeStubAssembler::INTPTR_PARAMETERS,
+        CodeStubAssembler::IndexAdvanceMode::kPost);
 
     Goto(&create_result);
   }
@@ -2908,9 +2916,9 @@ Node* RegExpBuiltinsAssembler::ReplaceSimpleStringFastPath(
 
     // Successful match.
     {
-      TNode<Smi> const match_start = CAST(LoadFixedArrayElement(
+      TNode<Smi> const match_start = CAST(UnsafeLoadFixedArrayElement(
           var_match_indices, RegExpMatchInfo::kFirstCaptureIndex));
-      TNode<Smi> const match_end = CAST(LoadFixedArrayElement(
+      TNode<Smi> const match_end = CAST(UnsafeLoadFixedArrayElement(
           var_match_indices, RegExpMatchInfo::kFirstCaptureIndex + 1));
 
       TNode<Smi> const replace_length = LoadStringLengthAsSmi(replace_string);
