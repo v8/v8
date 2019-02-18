@@ -31,6 +31,8 @@ DEFAULT_BOTS = [
 
 PUBLIC_BENCHMARKS = [
   'arewefastyet',
+  'ares6',
+  'blazor',
   'compile',
   'embenchen',
   'emscripten',
