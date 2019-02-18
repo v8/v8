@@ -1016,6 +1016,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       LoadSensitivity needs_poisoning = LoadSensitivity::kSafe,
       CheckBounds check_bounds = CheckBounds::kAlways);
 
+  // This doesn't emit a bounds-check. As part of the security-performance
+  // tradeoff, only use it if it is performance critical.
   TNode<Object> UnsafeLoadFixedArrayElement(
       TNode<FixedArray> object, Node* index, int additional_offset = 0,
       ParameterMode parameter_mode = INTPTR_PARAMETERS,
@@ -1046,6 +1048,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                  additional_offset, INTPTR_PARAMETERS,
                                  needs_poisoning);
   }
+  // This doesn't emit a bounds-check. As part of the security-performance
+  // tradeoff, only use it if it is performance critical.
   TNode<Object> UnsafeLoadFixedArrayElement(
       TNode<FixedArray> object, int index, int additional_offset = 0,
       LoadSensitivity needs_poisoning = LoadSensitivity::kSafe) {
@@ -1256,6 +1260,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                   barrier_mode, 0, INTPTR_PARAMETERS,
                                   check_bounds);
   }
+  // This doesn't emit a bounds-check. As part of the security-performance
+  // tradeoff, only use it if it is performance critical.
   void UnsafeStoreFixedArrayElement(
       TNode<FixedArray> object, int index, SloppyTNode<Object> value,
       WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER) {
@@ -1269,6 +1275,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                   SKIP_WRITE_BARRIER, 0, INTPTR_PARAMETERS,
                                   check_bounds);
   }
+  // This doesn't emit a bounds-check. As part of the security-performance
+  // tradeoff, only use it if it is performance critical.
   void UnsafeStoreFixedArrayElement(TNode<FixedArray> object, int index,
                                     TNode<Smi> value) {
     return StoreFixedArrayElement(object, index, value,
@@ -1297,6 +1305,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                           additional_offset, parameter_mode);
   }
 
+  // This doesn't emit a bounds-check. As part of the security-performance
+  // tradeoff, only use it if it is performance critical.
   void UnsafeStoreFixedArrayElement(
       TNode<FixedArray> array, Node* index, SloppyTNode<Object> value,
       WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER,
@@ -1336,6 +1346,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       TNode<FixedDoubleArray> object, Node* index, TNode<Float64T> value,
       ParameterMode parameter_mode = INTPTR_PARAMETERS,
       CheckBounds check_bounds = CheckBounds::kAlways);
+  // This doesn't emit a bounds-check. As part of the security-performance
+  // tradeoff, only use it if it is performance critical.
   void UnsafeStoreFixedDoubleArrayElement(
       TNode<FixedDoubleArray> object, Node* index, TNode<Float64T> value,
       ParameterMode parameter_mode = INTPTR_PARAMETERS) {

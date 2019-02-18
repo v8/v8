@@ -3617,7 +3617,7 @@ void CodeStubAssembler::FindOrderedHashTableEntry(
     const std::function<void(Node*, Label*, Label*)>& key_compare,
     Variable* entry_start_position, Label* entry_found, Label* not_found) {
   // Get the index of the bucket.
-  Node* const number_of_buckets = SmiUntag(CAST(LoadFixedArrayElement(
+  Node* const number_of_buckets = SmiUntag(CAST(UnsafeLoadFixedArrayElement(
       CAST(table), CollectionType::NumberOfBucketsIndex())));
   Node* const bucket =
       WordAnd(hash, IntPtrSub(number_of_buckets, IntPtrConstant(1)));
@@ -3659,7 +3659,7 @@ void CodeStubAssembler::FindOrderedHashTableEntry(
                   number_of_buckets);
 
     // Load the key from the entry.
-    Node* const candidate_key = LoadFixedArrayElement(
+    Node* const candidate_key = UnsafeLoadFixedArrayElement(
         CAST(table), entry_start,
         CollectionType::HashTableStartIndex() * kTaggedSize);
 
