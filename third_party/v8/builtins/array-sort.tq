@@ -20,22 +20,14 @@ namespace array {
   //          <- FastSmiOrObject
   //          <- FastDouble
   //          <- Dictionary
-  //
-  // The only exception is TempArrayElements, since it does not describe the
-  // "elements" of the receiver, but instead is used as an "adaptor" so
-  // GallopLeft/GallopRight can be reused with the temporary array.
   const kGenericElementsAccessorId: Smi = 0;
   const kFastElementsAccessorId: Smi = 1;
-
-  // This is a special type, used to access the temporary array which is always
-  // PACKED_ELEMENTS. As a result, we do not need a sanity check for it,
-  // otherwise we might wrongly bail to the slow path.
-  type TempArrayElements;
 
   class SortState {
     constructor(implicit context: Context)(
         receiver: JSReceiver, comparefn: Undefined | Callable,
-        initialReceiverLength: Number, forceGeneric: constexpr bool) {
+        initialReceiverLength: Number, sortLength: Smi,
+        forceGeneric: constexpr bool) {
       this.receiver = receiver;
       this.userCmpFn = comparefn;
       this.sortComparePtr =
@@ -46,6 +38,8 @@ namespace array {
       this.initialReceiverLength = initialReceiverLength;
 
       this.minGallop = kMinGallopWins;
+
+      this.workArray = AllocateZeroedFixedArray(Convert<intptr>(sortLength));
       this.tempArray = kEmptyFixedArray;
 
       this.pendingRunsSize = 0;
@@ -98,6 +92,22 @@ namespace array {
       }
     }
 
+    Compare(implicit context: Context)(x: Object, y: Object): Number {
+      const sortCompare: CompareBuiltinFn = this.sortComparePtr;
+      return sortCompare(context, this.userCmpFn, x, y);
+    }
+
+    CheckAccessor(implicit context: Context)() labels Bailout {
+      const canUseSameAccessorFn: CanUseSameAccessorFn =
+          this.canUseSameAccessorFn;
+
+      if (!canUseSameAccessorFn(
+              context, this.receiver, this.initialReceiverMap,
+              this.initialReceiverLength)) {
+        goto Bailout;
+      }
+    }
+
     // The receiver of the Array.p.sort call.
     receiver: JSReceiver;
 
@@ -143,6 +153,11 @@ namespace array {
     //
     pendingRunsSize: Smi;
     pendingRuns: FixedArray;
+
+    // This is a copy of the original array/object that needs sorting.
+    // workArray is never exposed to user-code, and as such cannot change
+    // shape and won't be left-trimmed.
+    workArray: FixedArray;
 
     // Pointer to the temporary array.
     tempArray: FixedArray;
@@ -238,13 +253,6 @@ namespace array {
     }
   }
 
-  Load<TempArrayElements>(context: Context, sortState: SortState, index: Smi):
-      Object {
-    const elements = sortState.tempArray;
-    assert(IsFixedArray(elements));
-    return elements.objects[index];
-  }
-
   transitioning builtin Store<ElementsAccessor: type>(
       context: Context, sortState: SortState, index: Smi, value: Object): Smi {
     SetProperty(sortState.receiver, index, value);
@@ -298,13 +306,6 @@ namespace array {
     label Fail {
       return Failure(sortState);
     }
-  }
-
-  Store<TempArrayElements>(
-      context: Context, sortState: SortState, index: Smi, value: Object): Smi {
-    const elements = sortState.tempArray;
-    elements.objects[index] = value;
-    return kSuccess;
   }
 
   UnsafeCast<CompareBuiltinFn>(implicit context: Context)(o: Object):
@@ -390,27 +391,6 @@ namespace array {
       initialReceiverLength: Number): Boolean {
     let obj: JSReceiver = UnsafeCast<JSReceiver>(receiver);
     return SelectBooleanConstant(obj.map == initialReceiverMap);
-  }
-
-  macro CallCompareFn(implicit context: Context, sortState: SortState)(
-      x: Object, y: Object): Number
-      labels Bailout {
-    const userCmpFn: Undefined | Callable = sortState.userCmpFn;
-    const sortCompare: CompareBuiltinFn = sortState.sortComparePtr;
-
-    const result: Number = sortCompare(context, userCmpFn, x, y);
-
-    const receiver: JSReceiver = sortState.receiver;
-    const initialReceiverMap: Map = sortState.initialReceiverMap;
-    const initialReceiverLength: Number = sortState.initialReceiverLength;
-    const canUseSameAccessorFn: CanUseSameAccessorFn =
-        sortState.canUseSameAccessorFn;
-
-    if (!canUseSameAccessorFn(
-            context, receiver, initialReceiverMap, initialReceiverLength)) {
-      goto Bailout;
-    }
-    return result;
   }
 
   // Re-loading the stack-size is done in a few places. The small macro allows
@@ -501,123 +481,37 @@ namespace array {
     EnsureSuccess(sortState) otherwise Bailout;
   }
 
-  transitioning macro CallCopyFromTempArray(
-      implicit context: Context,
-      sortState: SortState)(dstPos: Smi, srcPos: Smi, length: Smi)
-      labels Bailout {
-    CopyFromTempArray(context, sortState, dstPos, srcPos, length);
-    EnsureSuccess(sortState) otherwise Bailout;
-  }
-
-  transitioning macro CallCopyWithinSortArray(
-      implicit context: Context,
-      sortState: SortState)(srcPos: Smi, dstPos: Smi, length: Smi)
-      labels Bailout {
-    CopyWithinSortArray(context, sortState, srcPos, dstPos, length);
-    EnsureSuccess(sortState) otherwise Bailout;
-  }
-
-  macro CallGallopRight(implicit context: Context, sortState: SortState)(
-      load: LoadFn, key: Object, base: Smi, length: Smi, hint: Smi): Smi
-      labels Bailout {
-    const result: Smi =
-        GallopRight(context, sortState, load, key, base, length, hint);
-    EnsureSuccess(sortState) otherwise Bailout;
-    return result;
-  }
-
-  macro CallGallopLeft(implicit context: Context, sortState: SortState)(
-      load: LoadFn, key: Object, base: Smi, length: Smi, hint: Smi): Smi
-      labels Bailout {
-    const result: Smi =
-        GallopLeft(context, sortState, load, key, base, length, hint);
-    EnsureSuccess(sortState) otherwise Bailout;
-    return result;
-  }
-
-  transitioning macro
-  CallMergeAt(implicit context: Context, sortState: SortState)(i: Smi)
-      labels Bailout {
-    MergeAt(context, sortState, i);
-    EnsureSuccess(sortState) otherwise Bailout;
-  }
-
-  transitioning macro
-  CopyToTempArray(implicit context: Context, sortState: SortState)(
-      load: LoadFn, srcPos: Smi, tempArray: FixedArray, dstPos: Smi,
-      length: Smi)
-      labels Bailout {
+  transitioning builtin
+  Copy(implicit context: Context)(
+      source: FixedArray, srcPos: Smi, target: FixedArray, dstPos: Smi,
+      length: Smi): Object {
     assert(srcPos >= 0);
     assert(dstPos >= 0);
-    assert(srcPos <= sortState.initialReceiverLength - length);
-    assert(dstPos <= tempArray.length - length);
+    assert(srcPos <= source.length - length);
+    assert(dstPos <= target.length - length);
 
-    let srcIdx: Smi = srcPos;
-    let dstIdx: Smi = dstPos;
-    let to: Smi = srcPos + length;
+    // TODO(szuend): Investigate whether this builtin should be replaced
+    //               by CopyElements/MoveElements for perfomance.
 
-    while (srcIdx < to) {
-      const element = CallLoad(load, srcIdx++) otherwise Bailout;
-      tempArray.objects[dstIdx++] = element;
-    }
-  }
+    // source and target might be the same array. To avoid overwriting
+    // values in the case of overlaping ranges, elements are copied from
+    // the back when srcPos < dstPos.
+    if (srcPos < dstPos) {
+      let srcIdx: Smi = srcPos + length - 1;
+      let dstIdx: Smi = dstPos + length - 1;
+      while (srcIdx >= srcPos) {
+        target.objects[dstIdx--] = source.objects[srcIdx--];
+      }
+    } else {
+      let srcIdx: Smi = srcPos;
+      let dstIdx: Smi = dstPos;
+      let to: Smi = srcPos + length;
 
-  transitioning builtin CopyFromTempArray(
-      context: Context, sortState: SortState, dstPos: Smi, srcPos: Smi,
-      length: Smi): Smi {
-    const tempArray = sortState.tempArray;
-    assert(srcPos >= 0);
-    assert(dstPos >= 0);
-    assert(srcPos <= tempArray.length - length);
-    assert(dstPos <= sortState.initialReceiverLength - length);
-
-    let store: StoreFn = sortState.storeFn;
-
-    let srcIdx: Smi = srcPos;
-    let dstIdx: Smi = dstPos;
-    let to: Smi = srcPos + length;
-    try {
       while (srcIdx < to) {
-        CallStore(store, dstIdx++, tempArray.objects[srcIdx++]) otherwise Bailout;
+        target.objects[dstIdx++] = source.objects[srcIdx++];
       }
-      return kSuccess;
     }
-    label Bailout {
-      return Failure(sortState);
-    }
-  }
-
-  transitioning builtin CopyWithinSortArray(
-      context: Context, sortState: SortState, srcPos: Smi, dstPos: Smi,
-      length: Smi): Smi {
-    assert(srcPos >= 0);
-    assert(dstPos >= 0);
-    assert(srcPos <= sortState.initialReceiverLength - length);
-    assert(dstPos <= sortState.initialReceiverLength - length);
-
-    try {
-      let load: LoadFn = sortState.loadFn;
-      let store: StoreFn = sortState.storeFn;
-
-      if (srcPos < dstPos) {
-        let srcIdx: Smi = srcPos + length - 1;
-        let dstIdx: Smi = dstPos + length - 1;
-        while (srcIdx >= srcPos) {
-          CopyElement(load, store, srcIdx--, dstIdx--) otherwise Bailout;
-        }
-      } else {
-        let srcIdx: Smi = srcPos;
-        let dstIdx: Smi = dstPos;
-        let to: Smi = srcPos + length;
-        while (srcIdx < to) {
-          CopyElement(load, store, srcIdx++, dstIdx++) otherwise Bailout;
-        }
-      }
-      return kSuccess;
-    }
-    label Bailout {
-      return Failure(sortState);
-    }
+    return kSuccess;
   }
 
   // BinaryInsertionSort is the best method for sorting small arrays: it
@@ -635,55 +529,48 @@ namespace array {
       high: Smi): Smi {
     assert(low <= startArg && startArg <= high);
 
-    try {
-      const load: LoadFn = sortState.loadFn;
-      const store: StoreFn = sortState.storeFn;
+    const workArray = sortState.workArray;
 
-      let start: Smi = low == startArg ? (startArg + 1) : startArg;
+    let start: Smi = low == startArg ? (startArg + 1) : startArg;
 
-      for (; start < high; ++start) {
-        // Set left to where a[start] belongs.
-        let left: Smi = low;
-        let right: Smi = start;
+    for (; start < high; ++start) {
+      // Set left to where a[start] belongs.
+      let left: Smi = low;
+      let right: Smi = start;
 
-        const pivot = CallLoad(load, right) otherwise Bailout;
+      const pivot = workArray.objects[right];
 
-        // Invariants:
-        //   pivot >= all in [low, left).
-        //   pivot  < all in [right, start).
-        assert(left < right);
+      // Invariants:
+      //   pivot >= all in [low, left).
+      //   pivot  < all in [right, start).
+      assert(left < right);
 
-        // Find pivot insertion point.
-        while (left < right) {
-          const mid: Smi = left + ((right - left) >> 1);
-          const midElement = CallLoad(load, mid) otherwise Bailout;
-          const order = CallCompareFn(pivot, midElement) otherwise Bailout;
+      // Find pivot insertion point.
+      while (left < right) {
+        const mid: Smi = left + ((right - left) >> 1);
+        const order = sortState.Compare(pivot, workArray.objects[mid]);
 
-          if (order < 0) {
-            right = mid;
-          } else {
-            left = mid + 1;
-          }
+        if (order < 0) {
+          right = mid;
+        } else {
+          left = mid + 1;
         }
-        assert(left == right);
-
-        // The invariants still hold, so:
-        //   pivot >= all in [low, left) and
-        //   pivot  < all in [left, start),
-        //
-        // so pivot belongs at left. Note that if there are elements equal
-        // to pivot, left points to the first slot after them -- that's why
-        // this sort is stable. Slide over to make room.
-        for (let p: Smi = start; p > left; --p) {
-          CopyElement(load, store, p - 1, p) otherwise Bailout;
-        }
-        CallStore(store, left, pivot) otherwise Bailout;
       }
-      return kSuccess;
+      assert(left == right);
+
+      // The invariants still hold, so:
+      //   pivot >= all in [low, left) and
+      //   pivot  < all in [left, start),
+      //
+      // so pivot belongs at left. Note that if there are elements equal
+      // to pivot, left points to the first slot after them -- that's why
+      // this sort is stable. Slide over to make room.
+      for (let p: Smi = start; p > left; --p) {
+        workArray.objects[p] = workArray.objects[p - 1];
+      }
+      workArray.objects[left] = pivot;
     }
-    label Bailout {
-      return Failure(sortState);
-    }
+    return kSuccess;
   }
 
   // Return the length of the run beginning at low, in the range [low,
@@ -703,22 +590,20 @@ namespace array {
   //
   // In addition, if the run is "descending", it is reversed, so the
   // returned length is always an ascending sequence.
-  macro CountAndMakeRun(
-      context: Context, sortState: SortState, lowArg: Smi, high: Smi): Smi
-      labels Bailout {
+  macro CountAndMakeRun(implicit context: Context, sortState: SortState)(
+      lowArg: Smi, high: Smi): Smi {
     assert(lowArg < high);
 
-    const load: LoadFn = sortState.loadFn;
-    const store: StoreFn = sortState.storeFn;
+    const workArray = sortState.workArray;
 
     let low: Smi = lowArg + 1;
     if (low == high) return 1;
 
     let runLength: Smi = 2;
 
-    const elementLow = CallLoad(load, low) otherwise Bailout;
-    const elementLowPred = CallLoad(load, low - 1) otherwise Bailout;
-    let order = CallCompareFn(elementLow, elementLowPred) otherwise Bailout;
+    const elementLow = workArray.objects[low];
+    const elementLowPred = workArray.objects[low - 1];
+    let order = sortState.Compare(elementLow, elementLowPred);
 
     // TODO(szuend): Replace with "order < 0" once Torque supports it.
     //               Currently the operator<(Number, Number) has return type
@@ -727,8 +612,8 @@ namespace array {
 
     let previousElement: Object = elementLow;
     for (let idx: Smi = low + 1; idx < high; ++idx) {
-      const currentElement = CallLoad(load, idx) otherwise Bailout;
-      order = CallCompareFn(currentElement, previousElement) otherwise Bailout;
+      const currentElement = workArray.objects[idx];
+      order = sortState.Compare(currentElement, previousElement);
 
       if (isDescending) {
         if (order >= 0) break;
@@ -741,32 +626,28 @@ namespace array {
     }
 
     if (isDescending) {
-      ReverseRange(context, sortState, load, store, lowArg, lowArg + runLength)
-          otherwise Bailout;
+      ReverseRange(workArray, lowArg, lowArg + runLength);
     }
 
     return runLength;
   }
 
-  macro ReverseRange(
-      context: Context, sortState: SortState, load: LoadFn, store: StoreFn,
-      from: Smi, to: Smi)
-      labels Bailout {
+  macro ReverseRange(array: FixedArray, from: Smi, to: Smi) {
     let low: Smi = from;
     let high: Smi = to - 1;
 
     while (low < high) {
-      const elementLow = CallLoad(load, low) otherwise Bailout;
-      const elementHigh = CallLoad(load, high) otherwise Bailout;
-      CallStore(store, low++, elementHigh) otherwise Bailout;
-      CallStore(store, high--, elementLow) otherwise Bailout;
+      const elementLow = array.objects[low];
+      const elementHigh = array.objects[high];
+      array.objects[low++] = elementHigh;
+      array.objects[high--] = elementLow;
     }
   }
 
   // Merges the two runs at stack indices i and i + 1.
   // Returns kFailure if we need to bailout, kSuccess otherwise.
   transitioning builtin
-  MergeAt(context: Context, sortState: SortState, i: Smi): Smi {
+  MergeAt(implicit context: Context, sortState: SortState)(i: Smi): Smi {
     const stackSize: Smi = GetPendingRunsSize(sortState);
 
     // We are only allowed to either merge the two top-most runs, or leave
@@ -775,7 +656,7 @@ namespace array {
     assert(i >= 0);
     assert(i == stackSize - 2 || i == stackSize - 3);
 
-    const load: LoadFn = sortState.loadFn;
+    const workArray = sortState.workArray;
 
     const pendingRuns: FixedArray = sortState.pendingRuns;
     let baseA: Smi = GetPendingRunBase(pendingRuns, i);
@@ -800,9 +681,8 @@ namespace array {
     try {
       // Where does b start in a? Elements in a before that can be ignored,
       // because they are already in place.
-      const keyRight = CallLoad(load, baseB) otherwise Bailout;
-      const k: Smi = CallGallopRight(load, keyRight, baseA, lengthA, 0)
-          otherwise Bailout;
+      const keyRight = workArray.objects[baseB];
+      const k: Smi = GallopRight(workArray, keyRight, baseA, lengthA, 0);
       assert(k >= 0);
 
       baseA = baseA + k;
@@ -812,9 +692,8 @@ namespace array {
 
       // Where does a end in b? Elements in b after that can be ignored,
       // because they are already in place.
-      let keyLeft = CallLoad(load, baseA + lengthA - 1) otherwise Bailout;
-      lengthB = CallGallopLeft(load, keyLeft, baseB, lengthB, lengthB - 1)
-          otherwise Bailout;
+      const keyLeft = workArray.objects[baseA + lengthA - 1];
+      lengthB = GallopLeft(workArray, keyLeft, baseB, lengthB, lengthB - 1);
       assert(lengthB >= 0);
       if (lengthB == 0) return kSuccess;
 
@@ -850,101 +729,92 @@ namespace array {
   //
   // pretending that array[base - 1] is minus infinity and array[base + len]
   // is plus infinity. In other words, key belongs at index base + k.
-  builtin GallopLeft(
-      context: Context, sortState: SortState, load: LoadFn, key: Object,
-      base: Smi, length: Smi, hint: Smi): Smi {
+  builtin GallopLeft(implicit context: Context, sortState: SortState)(
+      array: FixedArray, key: Object, base: Smi, length: Smi, hint: Smi): Smi {
     assert(length > 0 && base >= 0);
     assert(0 <= hint && hint < length);
 
     let lastOfs: Smi = 0;
     let offset: Smi = 1;
 
-    try {
-      const baseHintElement = CallLoad(load, base + hint) otherwise Bailout;
-      let order = CallCompareFn(baseHintElement, key) otherwise Bailout;
+    const baseHintElement = array.objects[base + hint];
+    let order = sortState.Compare(baseHintElement, key);
+
+    if (order < 0) {
+      // a[base + hint] < key: gallop right, until
+      // a[base + hint + lastOfs] < key <= a[base + hint + offset].
+
+      // a[base + length - 1] is highest.
+      let maxOfs: Smi = length - hint;
+      while (offset < maxOfs) {
+        const offsetElement = array.objects[base + hint + offset];
+        order = sortState.Compare(offsetElement, key);
+
+        // a[base + hint + offset] >= key? Break.
+        if (order >= 0) break;
+
+        lastOfs = offset;
+        offset = (offset << 1) + 1;
+
+        // Integer overflow.
+        if (offset <= 0) offset = maxOfs;
+      }
+
+      if (offset > maxOfs) offset = maxOfs;
+
+      // Translate back to positive offsets relative to base.
+      lastOfs = lastOfs + hint;
+      offset = offset + hint;
+    } else {
+      // key <= a[base + hint]: gallop left, until
+      // a[base + hint - offset] < key <= a[base + hint - lastOfs].
+      assert(order >= 0);
+
+      // a[base + hint] is lowest.
+      let maxOfs: Smi = hint + 1;
+      while (offset < maxOfs) {
+        const offsetElement = array.objects[base + hint - offset];
+        order = sortState.Compare(offsetElement, key);
+
+        if (order < 0) break;
+
+        lastOfs = offset;
+        offset = (offset << 1) + 1;
+
+        // Integer overflow.
+        if (offset <= 0) offset = maxOfs;
+      }
+
+      if (offset > maxOfs) offset = maxOfs;
+
+      // Translate back to positive offsets relative to base.
+      const tmp: Smi = lastOfs;
+      lastOfs = hint - offset;
+      offset = hint - tmp;
+    }
+
+    assert(-1 <= lastOfs && lastOfs < offset && offset <= length);
+
+    // Now a[base+lastOfs] < key <= a[base+offset], so key belongs
+    // somewhere to the right of lastOfs but no farther right than offset.
+    // Do a binary search, with invariant:
+    //   a[base + lastOfs - 1] < key <= a[base + offset].
+    lastOfs++;
+    while (lastOfs < offset) {
+      const m: Smi = lastOfs + ((offset - lastOfs) >> 1);
+
+      order = sortState.Compare(array.objects[base + m], key);
 
       if (order < 0) {
-        // a[base + hint] < key: gallop right, until
-        // a[base + hint + lastOfs] < key <= a[base + hint + offset].
-
-        // a[base + length - 1] is highest.
-        let maxOfs: Smi = length - hint;
-        while (offset < maxOfs) {
-          const offsetElement =
-              CallLoad(load, base + hint + offset) otherwise Bailout;
-          order = CallCompareFn(offsetElement, key) otherwise Bailout;
-
-          // a[base + hint + offset] >= key? Break.
-          if (order >= 0) break;
-
-          lastOfs = offset;
-          offset = (offset << 1) + 1;
-
-          // Integer overflow.
-          if (offset <= 0) offset = maxOfs;
-        }
-
-        if (offset > maxOfs) offset = maxOfs;
-
-        // Translate back to positive offsets relative to base.
-        lastOfs = lastOfs + hint;
-        offset = offset + hint;
+        lastOfs = m + 1;  // a[base + m] < key.
       } else {
-        // key <= a[base + hint]: gallop left, until
-        // a[base + hint - offset] < key <= a[base + hint - lastOfs].
-        assert(order >= 0);
-
-        // a[base + hint] is lowest.
-        let maxOfs: Smi = hint + 1;
-        while (offset < maxOfs) {
-          const offsetElement =
-              CallLoad(load, base + hint - offset) otherwise Bailout;
-          order = CallCompareFn(offsetElement, key) otherwise Bailout;
-
-          if (order < 0) break;
-
-          lastOfs = offset;
-          offset = (offset << 1) + 1;
-
-          // Integer overflow.
-          if (offset <= 0) offset = maxOfs;
-        }
-
-        if (offset > maxOfs) offset = maxOfs;
-
-        // Translate back to positive offsets relative to base.
-        const tmp: Smi = lastOfs;
-        lastOfs = hint - offset;
-        offset = hint - tmp;
+        offset = m;  // key <= a[base + m].
       }
-
-      assert(-1 <= lastOfs && lastOfs < offset && offset <= length);
-
-      // Now a[base+lastOfs] < key <= a[base+offset], so key belongs
-      // somewhere to the right of lastOfs but no farther right than offset.
-      // Do a binary search, with invariant:
-      //   a[base + lastOfs - 1] < key <= a[base + offset].
-      lastOfs++;
-      while (lastOfs < offset) {
-        const m: Smi = lastOfs + ((offset - lastOfs) >> 1);
-
-        const baseMElement = CallLoad(load, base + m) otherwise Bailout;
-        order = CallCompareFn(baseMElement, key) otherwise Bailout;
-
-        if (order < 0) {
-          lastOfs = m + 1;  // a[base + m] < key.
-        } else {
-          offset = m;  // key <= a[base + m].
-        }
-      }
-      // so a[base + offset - 1] < key <= a[base + offset].
-      assert(lastOfs == offset);
-      assert(0 <= offset && offset <= length);
-      return offset;
     }
-    label Bailout {
-      return Failure(sortState);
-    }
+    // so a[base + offset - 1] < key <= a[base + offset].
+    assert(lastOfs == offset);
+    assert(0 <= offset && offset <= length);
+    return offset;
   }
 
   // Exactly like GallopLeft, except that if key already exists in
@@ -956,99 +826,90 @@ namespace array {
   // array[base + offset - 1] <= key < array[base + offset]
   //
   // or kFailure on error.
-  builtin GallopRight(
-      context: Context, sortState: SortState, load: LoadFn, key: Object,
-      base: Smi, length: Smi, hint: Smi): Smi {
+  builtin GallopRight(implicit context: Context, sortState: SortState)(
+      array: FixedArray, key: Object, base: Smi, length: Smi, hint: Smi): Smi {
     assert(length > 0 && base >= 0);
     assert(0 <= hint && hint < length);
 
     let lastOfs: Smi = 0;
     let offset: Smi = 1;
 
-    try {
-      const baseHintElement = CallLoad(load, base + hint) otherwise Bailout;
-      let order = CallCompareFn(key, baseHintElement) otherwise Bailout;
+    const baseHintElement = array.objects[base + hint];
+    let order = sortState.Compare(key, baseHintElement);
+
+    if (order < 0) {
+      // key < a[base + hint]: gallop left, until
+      // a[base + hint - offset] <= key < a[base + hint - lastOfs].
+
+      // a[base + hint] is lowest.
+      let maxOfs: Smi = hint + 1;
+      while (offset < maxOfs) {
+        const offsetElement = array.objects[base + hint - offset];
+        order = sortState.Compare(key, offsetElement);
+
+        if (order >= 0) break;
+
+        lastOfs = offset;
+        offset = (offset << 1) + 1;
+
+        // Integer overflow.
+        if (offset <= 0) offset = maxOfs;
+      }
+
+      if (offset > maxOfs) offset = maxOfs;
+
+      // Translate back to positive offsets relative to base.
+      const tmp: Smi = lastOfs;
+      lastOfs = hint - offset;
+      offset = hint - tmp;
+    } else {
+      // a[base + hint] <= key: gallop right, until
+      // a[base + hint + lastOfs] <= key < a[base + hint + offset].
+
+      // a[base + length - 1] is highest.
+      let maxOfs: Smi = length - hint;
+      while (offset < maxOfs) {
+        const offsetElement = array.objects[base + hint + offset];
+        order = sortState.Compare(key, offsetElement);
+
+        // a[base + hint + ofs] <= key.
+        if (order < 0) break;
+
+        lastOfs = offset;
+        offset = (offset << 1) + 1;
+
+        // Integer overflow.
+        if (offset <= 0) offset = maxOfs;
+      }
+
+      if (offset > maxOfs) offset = maxOfs;
+
+      // Translate back to positive offests relative to base.
+      lastOfs = lastOfs + hint;
+      offset = offset + hint;
+    }
+    assert(-1 <= lastOfs && lastOfs < offset && offset <= length);
+
+    // Now a[base + lastOfs] <= key < a[base + ofs], so key belongs
+    // somewhere to the right of lastOfs but no farther right than ofs.
+    // Do a binary search, with invariant
+    // a[base + lastOfs - 1] < key <= a[base + ofs].
+    lastOfs++;
+    while (lastOfs < offset) {
+      const m: Smi = lastOfs + ((offset - lastOfs) >> 1);
+
+      order = sortState.Compare(key, array.objects[base + m]);
 
       if (order < 0) {
-        // key < a[base + hint]: gallop left, until
-        // a[base + hint - offset] <= key < a[base + hint - lastOfs].
-
-        // a[base + hint] is lowest.
-        let maxOfs: Smi = hint + 1;
-        while (offset < maxOfs) {
-          const offsetElement =
-              CallLoad(load, base + hint - offset) otherwise Bailout;
-          order = CallCompareFn(key, offsetElement) otherwise Bailout;
-
-          if (order >= 0) break;
-
-          lastOfs = offset;
-          offset = (offset << 1) + 1;
-
-          // Integer overflow.
-          if (offset <= 0) offset = maxOfs;
-        }
-
-        if (offset > maxOfs) offset = maxOfs;
-
-        // Translate back to positive offsets relative to base.
-        const tmp: Smi = lastOfs;
-        lastOfs = hint - offset;
-        offset = hint - tmp;
+        offset = m;  // key < a[base + m].
       } else {
-        // a[base + hint] <= key: gallop right, until
-        // a[base + hint + lastOfs] <= key < a[base + hint + offset].
-
-        // a[base + length - 1] is highest.
-        let maxOfs: Smi = length - hint;
-        while (offset < maxOfs) {
-          const offsetElement =
-              CallLoad(load, base + hint + offset) otherwise Bailout;
-          order = CallCompareFn(key, offsetElement) otherwise Bailout;
-
-          // a[base + hint + ofs] <= key.
-          if (order < 0) break;
-
-          lastOfs = offset;
-          offset = (offset << 1) + 1;
-
-          // Integer overflow.
-          if (offset <= 0) offset = maxOfs;
-        }
-
-        if (offset > maxOfs) offset = maxOfs;
-
-        // Translate back to positive offests relative to base.
-        lastOfs = lastOfs + hint;
-        offset = offset + hint;
+        lastOfs = m + 1;  // a[base + m] <= key.
       }
-      assert(-1 <= lastOfs && lastOfs < offset && offset <= length);
-
-      // Now a[base + lastOfs] <= key < a[base + ofs], so key belongs
-      // somewhere to the right of lastOfs but no farther right than ofs.
-      // Do a binary search, with invariant
-      // a[base + lastOfs - 1] < key <= a[base + ofs].
-      lastOfs++;
-      while (lastOfs < offset) {
-        const m: Smi = lastOfs + ((offset - lastOfs) >> 1);
-
-        const baseMElement = CallLoad(load, base + m) otherwise Bailout;
-        order = CallCompareFn(key, baseMElement) otherwise Bailout;
-
-        if (order < 0) {
-          offset = m;  // key < a[base + m].
-        } else {
-          lastOfs = m + 1;  // a[base + m] <= key.
-        }
-      }
-      // so a[base + offset - 1] <= key < a[base + offset].
-      assert(lastOfs == offset);
-      assert(0 <= offset && offset <= length);
-      return offset;
     }
-    label Bailout {
-      return Failure(sortState);
-    }
+    // so a[base + offset - 1] <= key < a[base + offset].
+    assert(lastOfs == offset);
+    assert(0 <= offset && offset <= length);
+    return offset;
   }
 
   // Copies a single element inside the array/object (NOT the tempArray).
@@ -1075,17 +936,15 @@ namespace array {
     let lengthA: Smi = lengthAArg;
     let lengthB: Smi = lengthBArg;
 
-    const load: LoadFn = sortState.loadFn;
-    const store: StoreFn = sortState.storeFn;
-
+    const workArray = sortState.workArray;
     const tempArray: FixedArray = GetTempArray(sortState, lengthA);
-    CopyToTempArray(load, baseA, tempArray, 0, lengthA) otherwise Bailout;
+    Copy(workArray, baseA, tempArray, 0, lengthA);
 
     let dest: Smi = baseA;
     let cursorTemp: Smi = 0;
     let cursorB: Smi = baseB;
 
-    CopyElement(load, store, cursorB++, dest++) otherwise Bailout;
+    workArray.objects[dest++] = workArray.objects[cursorB++];
 
     try {
       if (--lengthB == 0) goto Succeed;
@@ -1105,15 +964,12 @@ namespace array {
         while (Int32TrueConstant()) {
           assert(lengthA > 1 && lengthB > 0);
 
-          let elementB = CallLoad(load, cursorB) otherwise Bailout;
-          let order =
-              CallCompareFn(elementB, tempArray.objects[cursorTemp]) otherwise Bailout;
+          let order = sortState.Compare(
+              workArray.objects[cursorB], tempArray.objects[cursorTemp]);
 
           if (order < 0) {
-            CopyElement(load, store, cursorB, dest) otherwise Bailout;
+            workArray.objects[dest++] = workArray.objects[cursorB++];
 
-            ++cursorB;
-            ++dest;
             ++nofWinsB;
             --lengthB;
             nofWinsA = 0;
@@ -1121,10 +977,8 @@ namespace array {
             if (lengthB == 0) goto Succeed;
             if (nofWinsB >= minGallop) break;
           } else {
-            CallStore(store, dest, tempArray.objects[cursorTemp]) otherwise Bailout;
+            workArray.objects[dest++] = tempArray.objects[cursorTemp++];
 
-            ++cursorTemp;
-            ++dest;
             ++nofWinsA;
             --lengthA;
             nofWinsB = 0;
@@ -1147,14 +1001,12 @@ namespace array {
           minGallop = SmiMax(1, minGallop - 1);
           sortState.minGallop = minGallop;
 
-          let keyRight = CallLoad(load, cursorB) otherwise Bailout;
-          nofWinsA = CallGallopRight(
-              Load<TempArrayElements>, keyRight, cursorTemp, lengthA, 0)
-              otherwise Bailout;
+          nofWinsA = GallopRight(
+              tempArray, workArray.objects[cursorB], cursorTemp, lengthA, 0);
           assert(nofWinsA >= 0);
 
           if (nofWinsA > 0) {
-            CallCopyFromTempArray(dest, cursorTemp, nofWinsA) otherwise Bailout;
+            Copy(tempArray, cursorTemp, workArray, dest, nofWinsA);
             dest = dest + nofWinsA;
             cursorTemp = cursorTemp + nofWinsA;
             lengthA = lengthA - nofWinsA;
@@ -1165,15 +1017,14 @@ namespace array {
             // consistent, but we can't assume that it is.
             if (lengthA == 0) goto Succeed;
           }
-          CopyElement(load, store, cursorB++, dest++) otherwise Bailout;
+          workArray.objects[dest++] = workArray.objects[cursorB++];
           if (--lengthB == 0) goto Succeed;
 
-          nofWinsB =
-              CallGallopLeft(load, tempArray.objects[cursorTemp], cursorB, lengthB, 0)
-              otherwise Bailout;
+          nofWinsB = GallopLeft(
+              workArray, tempArray.objects[cursorTemp], cursorB, lengthB, 0);
           assert(nofWinsB >= 0);
           if (nofWinsB > 0) {
-            CallCopyWithinSortArray(cursorB, dest, nofWinsB) otherwise Bailout;
+            Copy(workArray, cursorB, workArray, dest, nofWinsB);
 
             dest = dest + nofWinsB;
             cursorB = cursorB + nofWinsB;
@@ -1181,7 +1032,7 @@ namespace array {
 
             if (lengthB == 0) goto Succeed;
           }
-          CallStore(store, dest++, tempArray.objects[cursorTemp++]) otherwise Bailout;
+          workArray.objects[dest++] = tempArray.objects[cursorTemp++];
           if (--lengthA == 1) goto CopyB;
         }
         ++minGallop;  // Penalize it for leaving galloping mode
@@ -1190,14 +1041,14 @@ namespace array {
     }
     label Succeed {
       if (lengthA > 0) {
-        CallCopyFromTempArray(dest, cursorTemp, lengthA) otherwise Bailout;
+        Copy(tempArray, cursorTemp, workArray, dest, lengthA);
       }
     }
     label CopyB {
       assert(lengthA == 1 && lengthB > 0);
       // The last element of run A belongs at the end of the merge.
-      CallCopyWithinSortArray(cursorB, dest, lengthB) otherwise Bailout;
-      CallStore(store, dest + lengthB, tempArray.objects[cursorTemp]) otherwise Bailout;
+      Copy(workArray, cursorB, workArray, dest, lengthB);
+      workArray.objects[dest + lengthB] = tempArray.objects[cursorTemp];
     }
   }
 
@@ -1217,18 +1068,16 @@ namespace array {
     let lengthA: Smi = lengthAArg;
     let lengthB: Smi = lengthBArg;
 
-    const load: LoadFn = sortState.loadFn;
-    const store: StoreFn = sortState.storeFn;
-
+    const workArray = sortState.workArray;
     const tempArray: FixedArray = GetTempArray(sortState, lengthB);
-    CopyToTempArray(load, baseB, tempArray, 0, lengthB) otherwise Bailout;
+    Copy(workArray, baseB, tempArray, 0, lengthB);
 
     // MergeHigh merges the two runs backwards.
     let dest: Smi = baseB + lengthB - 1;
     let cursorTemp: Smi = lengthB - 1;
     let cursorA: Smi = baseA + lengthA - 1;
 
-    CopyElement(load, store, cursorA--, dest--) otherwise Bailout;
+    workArray.objects[dest--] = workArray.objects[cursorA--];
 
     try {
       if (--lengthA == 0) goto Succeed;
@@ -1248,15 +1097,12 @@ namespace array {
         while (Int32TrueConstant()) {
           assert(lengthA > 0 && lengthB > 1);
 
-          let elementA = CallLoad(load, cursorA) otherwise Bailout;
-          let order =
-              CallCompareFn(tempArray.objects[cursorTemp], elementA) otherwise Bailout;
+          let order = sortState.Compare(
+              tempArray.objects[cursorTemp], workArray.objects[cursorA]);
 
           if (order < 0) {
-            CopyElement(load, store, cursorA, dest) otherwise Bailout;
+            workArray.objects[dest--] = workArray.objects[cursorA--];
 
-            --cursorA;
-            --dest;
             ++nofWinsA;
             --lengthA;
             nofWinsB = 0;
@@ -1264,10 +1110,8 @@ namespace array {
             if (lengthA == 0) goto Succeed;
             if (nofWinsA >= minGallop) break;
           } else {
-            CallStore(store, dest, tempArray.objects[cursorTemp]) otherwise Bailout;
+            workArray.objects[dest--] = tempArray.objects[cursorTemp--];
 
-            --cursorTemp;
-            --dest;
             ++nofWinsB;
             --lengthB;
             nofWinsA = 0;
@@ -1291,36 +1135,32 @@ namespace array {
           minGallop = SmiMax(1, minGallop - 1);
           sortState.minGallop = minGallop;
 
-          let k: Smi = CallGallopRight(
-              load, tempArray.objects[cursorTemp], baseA, lengthA, lengthA - 1)
-              otherwise Bailout;
+          let k: Smi = GallopRight(
+              workArray, tempArray.objects[cursorTemp], baseA, lengthA,
+              lengthA - 1);
           assert(k >= 0);
           nofWinsA = lengthA - k;
 
           if (nofWinsA > 0) {
             dest = dest - nofWinsA;
             cursorA = cursorA - nofWinsA;
-            CallCopyWithinSortArray(cursorA + 1, dest + 1, nofWinsA)
-                otherwise Bailout;
+            Copy(workArray, cursorA + 1, workArray, dest + 1, nofWinsA);
 
             lengthA = lengthA - nofWinsA;
             if (lengthA == 0) goto Succeed;
           }
-          CallStore(store, dest--, tempArray.objects[cursorTemp--]) otherwise Bailout;
+          workArray.objects[dest--] = tempArray.objects[cursorTemp--];
           if (--lengthB == 1) goto CopyA;
 
-          let key = CallLoad(load, cursorA) otherwise Bailout;
-          k = CallGallopLeft(
-              Load<TempArrayElements>, key, 0, lengthB, lengthB - 1)
-              otherwise Bailout;
+          k = GallopLeft(
+              tempArray, workArray.objects[cursorA], 0, lengthB, lengthB - 1);
           assert(k >= 0);
           nofWinsB = lengthB - k;
 
           if (nofWinsB > 0) {
             dest = dest - nofWinsB;
             cursorTemp = cursorTemp - nofWinsB;
-            CallCopyFromTempArray(dest + 1, cursorTemp + 1, nofWinsB)
-                otherwise Bailout;
+            Copy(tempArray, cursorTemp + 1, workArray, dest + 1, nofWinsB);
 
             lengthB = lengthB - nofWinsB;
             if (lengthB == 1) goto CopyA;
@@ -1329,7 +1169,7 @@ namespace array {
             // consistent, but we can't assume that it is.
             if (lengthB == 0) goto Succeed;
           }
-          CopyElement(load, store, cursorA--, dest--) otherwise Bailout;
+          workArray.objects[dest--] = workArray.objects[cursorA--];
           if (--lengthA == 0) goto Succeed;
         }
         ++minGallop;
@@ -1339,8 +1179,7 @@ namespace array {
     label Succeed {
       if (lengthB > 0) {
         assert(lengthA == 0);
-        CallCopyFromTempArray(dest - (lengthB - 1), 0, lengthB)
-            otherwise Bailout;
+        Copy(tempArray, 0, workArray, dest - (lengthB - 1), lengthB);
       }
     }
     label CopyA {
@@ -1349,8 +1188,8 @@ namespace array {
       // The first element of run B belongs at the front of the merge.
       dest = dest - lengthA;
       cursorA = cursorA - lengthA;
-      CallCopyWithinSortArray(cursorA + 1, dest + 1, lengthA) otherwise Bailout;
-      CallStore(store, dest, tempArray.objects[cursorTemp]) otherwise Bailout;
+      Copy(workArray, cursorA + 1, workArray, dest + 1, lengthA);
+      workArray.objects[dest] = tempArray.objects[cursorTemp];
     }
   }
 
@@ -1414,11 +1253,11 @@ namespace array {
           --n;
         }
 
-        CallMergeAt(n) otherwise Bailout;
+        MergeAt(n);
       } else if (
           GetPendingRunLength(pendingRuns, n) <=
           GetPendingRunLength(pendingRuns, n + 1)) {
-        CallMergeAt(n) otherwise Bailout;
+        MergeAt(n);
       } else {
         break;
       }
@@ -1441,7 +1280,7 @@ namespace array {
               GetPendingRunLength(pendingRuns, n + 1)) {
         --n;
       }
-      CallMergeAt(n) otherwise Bailout;
+      MergeAt(n);
     }
   }
 
@@ -1456,9 +1295,7 @@ namespace array {
     let low: Smi = 0;
     const minRunLength: Smi = ComputeMinRunLength(remaining);
     while (remaining != 0) {
-      let currentRunLength: Smi =
-          CountAndMakeRun(context, sortState, low, low + remaining)
-          otherwise Bailout;
+      let currentRunLength: Smi = CountAndMakeRun(low, low + remaining);
 
       // If the run is short, extend it to min(minRunLength, remaining).
       if (currentRunLength < minRunLength) {
@@ -1485,10 +1322,46 @@ namespace array {
     assert(GetPendingRunLength(sortState.pendingRuns, 0) == length);
   }
 
+  transitioning macro
+  CopyReceiverElementsToWorkArray(
+      implicit context: Context, sortState: SortState)(length: Smi)
+      labels Bailout {
+    // TODO(szuend): Investigate if we can use COW arrays or a memcpy + range
+    //               barrier to speed this step up.
+    const loadFn = sortState.loadFn;
+    const workArray = sortState.workArray;
+
+    for (let i: Smi = 0; i < length; ++i) {
+      workArray.objects[i] = CallLoad(loadFn, i) otherwise Bailout;
+    }
+  }
+
+  transitioning macro
+  CopyWorkArrayToReceiver(implicit context: Context, sortState: SortState)(
+      length: Smi)
+      labels Bailout {
+    // TODO(szuend): Build fast-path that simply installs the work array as the
+    // new backing store where applicable.
+    const storeFn = sortState.storeFn;
+    const workArray = sortState.workArray;
+
+    for (let i: Smi = 0; i < length; ++i) {
+      CallStore(storeFn, i, workArray.objects[i]) otherwise Bailout;
+    }
+  }
+
   transitioning builtin
   ArrayTimSort(context: Context, sortState: SortState, length: Smi): Object {
     try {
+      CopyReceiverElementsToWorkArray(length) otherwise Slow;
       ArrayTimSortImpl(context, sortState, length) otherwise Slow;
+
+      // The comparison function or toString might have changed the
+      // receiver, if that is the case, we switch to the slow path.
+      // TODO(szuend): Introduce "special" slow path that only copies,
+      //               but skips the whole re-sorting.
+      sortState.CheckAccessor() otherwise Slow;
+      CopyWorkArrayToReceiver(length) otherwise Slow;
     }
     label Slow {
       if (sortState.accessor == kGenericElementsAccessorId) {
@@ -1499,6 +1372,7 @@ namespace array {
         sortState.receiver,
         sortState.userCmpFn,
         sortState.initialReceiverLength,
+        sortState.workArray.length,
         true
       };
       ArrayTimSort(context, newSortState, length);
@@ -1542,7 +1416,10 @@ namespace array {
     const nofNonUndefined: Smi = PrepareElementsForSort(context, obj, len);
     assert(nofNonUndefined <= len);
 
-    const sortState: SortState = new SortState{obj, comparefn, len, false};
+    if (nofNonUndefined < 2) return receiver;
+
+    const sortState: SortState = new
+    SortState{obj, comparefn, len, nofNonUndefined, false};
     ArrayTimSort(context, sortState, nofNonUndefined);
 
     return receiver;
