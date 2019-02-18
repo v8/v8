@@ -82,7 +82,7 @@ class AccessorAssembler : public CodeStubAssembler {
     Node* holder;
   };
 
-  void LoadGlobalIC(TNode<FeedbackVector> vector, Node* slot,
+  void LoadGlobalIC(Node* vector, Node* slot,
                     const LazyNode<Context>& lazy_context,
                     const LazyNode<Name>& lazy_name, TypeofMode typeof_mode,
                     ExitPoint* exit_point,
@@ -275,6 +275,10 @@ class AccessorAssembler : public CodeStubAssembler {
   Node* PrepareValueForStore(Node* handler_word, Node* holder,
                              Representation representation, Node* value,
                              Label* bailout);
+
+  void BranchIfPrototypeShouldbeFast(Node* receiver_map,
+                                     Label* prototype_not_fast,
+                                     Label* prototype_fast);
 
   // Extends properties backing store by JSObject::kFieldsAdded elements,
   // returns updated properties backing store.

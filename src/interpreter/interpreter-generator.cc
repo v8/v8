@@ -176,20 +176,10 @@ class InterpreterLoadGlobalAssembler : public InterpreterAssembler {
       return CAST(name);
     };
 
-    Label miss(this, Label::kDeferred);
     ParameterMode slot_mode = CodeStubAssembler::INTPTR_PARAMETERS;
-    GotoIf(IsUndefined(maybe_feedback_vector), &miss);
-    accessor_asm.LoadGlobalIC(CAST(maybe_feedback_vector), feedback_slot,
+    accessor_asm.LoadGlobalIC(maybe_feedback_vector, feedback_slot,
                               lazy_context, lazy_name, typeof_mode, &exit_point,
                               slot_mode);
-
-    BIND(&miss);
-    {
-      exit_point.ReturnCallRuntime(
-          Runtime::kLoadGlobalIC_Miss, lazy_context(), lazy_name(),
-          ParameterToTagged(feedback_slot, slot_mode), maybe_feedback_vector,
-          SmiConstant(typeof_mode));
-    }
   }
 };
 
@@ -568,22 +558,9 @@ IGNITION_HANDLER(LdaKeyedProperty, InterpreterAssembler) {
   Node* feedback_vector = LoadFeedbackVectorUnchecked();
   Node* context = GetContext();
 
-  Label no_feedback(this, Label::kDeferred), end(this);
   VARIABLE(var_result, MachineRepresentation::kTagged);
-  GotoIf(IsUndefined(feedback_vector), &no_feedback);
   var_result.Bind(CallBuiltin(Builtins::kKeyedLoadIC, context, object, name,
                               smi_slot, feedback_vector));
-  Goto(&end);
-
-  BIND(&no_feedback);
-  {
-    Comment("KeyedLoadIC_no_feedback");
-    var_result.Bind(CallRuntime(Runtime::kKeyedLoadIC_Miss, context, object,
-                                name, smi_slot, feedback_vector));
-    Goto(&end);
-  }
-
-  BIND(&end);
   SetAccumulator(var_result.value());
   Dispatch();
 }

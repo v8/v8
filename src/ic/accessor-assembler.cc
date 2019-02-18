@@ -2079,10 +2079,10 @@ void AccessorAssembler::GenericPropertyLoad(Node* receiver, Node* receiver_map,
   // for a handler in the stub cache.
   TNode<DescriptorArray> descriptors = LoadMapDescriptors(receiver_map);
 
-  Label if_descriptor_found(this), stub_cache(this);
+  Label if_descriptor_found(this), try_stub_cache(this);
   TVARIABLE(IntPtrT, var_name_index);
-  Label* notfound =
-      use_stub_cache == kUseStubCache ? &stub_cache : &lookup_prototype_chain;
+  Label* notfound = use_stub_cache == kUseStubCache ? &try_stub_cache
+                                                    : &lookup_prototype_chain;
   DescriptorLookup(p->name, descriptors, bitfield3, &if_descriptor_found,
                    &var_name_index, notfound);
 
@@ -2095,6 +2095,13 @@ void AccessorAssembler::GenericPropertyLoad(Node* receiver, Node* receiver_map,
   }
 
   if (use_stub_cache == kUseStubCache) {
+    Label stub_cache(this);
+    BIND(&try_stub_cache);
+    // When there is no feedback vector don't use stub cache.
+    GotoIfNot(IsUndefined(p->vector), &stub_cache);
+    // Fall back to the slow path for private symbols.
+    Branch(IsPrivateSymbol(p->name), slow, &lookup_prototype_chain);
+
     BIND(&stub_cache);
     Comment("stub cache probe for fast property load");
     TVARIABLE(MaybeObject, var_handler);
@@ -2329,16 +2336,17 @@ void AccessorAssembler::LoadIC_BytecodeHandler(const LoadICParameters* p,
   // changes in control flow and logic. We currently have no way of ensuring
   // that no frame is constructed, so it's easy to break this optimization by
   // accident.
-  Label stub_call(this, Label::kDeferred), miss(this, Label::kDeferred);
+  Label stub_call(this, Label::kDeferred), miss(this, Label::kDeferred),
+      no_feedback(this, Label::kDeferred);
 
-  GotoIf(IsUndefined(p->vector), &miss);
+  Node* recv_map = LoadReceiverMap(p->receiver);
+  GotoIf(IsDeprecatedMap(recv_map), &miss);
+
+  GotoIf(IsUndefined(p->vector), &no_feedback);
 
   // Inlined fast path.
   {
     Comment("LoadIC_BytecodeHandler_fast");
-
-    Node* recv_map = LoadReceiverMap(p->receiver);
-    GotoIf(IsDeprecatedMap(recv_map), &miss);
 
     TVARIABLE(MaybeObject, var_handler);
     Label try_polymorphic(this), if_handler(this, &var_handler);
@@ -2370,6 +2378,15 @@ void AccessorAssembler::LoadIC_BytecodeHandler(const LoadICParameters* p,
     Node* code_target = HeapConstant(ic.code());
     exit_point->ReturnCallStub(ic.descriptor(), code_target, p->context,
                                p->receiver, p->name, p->slot, p->vector);
+  }
+
+  BIND(&no_feedback);
+  {
+    Comment("LoadIC_BytecodeHandler_nofeedback");
+    // Call into the stub that implements the non-inlined parts of LoadIC.
+    exit_point->ReturnCallStub(
+        Builtins::CallableFor(isolate(), Builtins::kLoadIC_Uninitialized),
+        p->context, p->receiver, p->name, p->slot, p->vector);
   }
 
   BIND(&miss);
@@ -2456,20 +2473,61 @@ void AccessorAssembler::LoadIC_Noninlined(const LoadICParameters* p,
   }
 }
 
+// TODO(8860): This check is only required so we can make prototypes fast on
+// the first load. This is not really useful when there is no feedback vector
+// and may not be important when lazily allocating feedback vectors. Once lazy
+// allocation of feedback vectors has landed try to eliminate this check.
+void AccessorAssembler::BranchIfPrototypeShouldbeFast(Node* receiver_map,
+                                                      Label* prototype_not_fast,
+                                                      Label* prototype_fast) {
+  VARIABLE(var_map, MachineRepresentation::kTagged);
+  var_map.Bind(receiver_map);
+  Label loop_body(this, &var_map);
+  Goto(&loop_body);
+
+  BIND(&loop_body);
+  {
+    Node* map = var_map.value();
+    Node* prototype = LoadMapPrototype(map);
+    GotoIf(IsNull(prototype), prototype_fast);
+    TNode<PrototypeInfo> proto_info =
+        LoadMapPrototypeInfo(receiver_map, prototype_not_fast);
+    GotoIf(IsNull(prototype), prototype_not_fast);
+    TNode<Uint32T> flags =
+        LoadObjectField<Uint32T>(proto_info, PrototypeInfo::kBitFieldOffset);
+    GotoIf(Word32Equal(flags, Uint32Constant(0)), prototype_not_fast);
+
+    Node* prototype_map = LoadMap(prototype);
+    var_map.Bind(prototype_map);
+    Goto(&loop_body);
+  }
+}
+
 void AccessorAssembler::LoadIC_Uninitialized(const LoadICParameters* p) {
-  Label miss(this, Label::kDeferred);
+  Label miss(this, Label::kDeferred),
+      check_if_fast_prototype(this, Label::kDeferred),
+      check_function_prototype(this);
   Node* receiver = p->receiver;
   GotoIf(TaggedIsSmi(receiver), &miss);
   Node* receiver_map = LoadMap(receiver);
   Node* instance_type = LoadMapInstanceType(receiver_map);
 
+  GotoIf(IsUndefined(p->vector), &check_if_fast_prototype);
   // Optimistically write the state transition to the vector.
   StoreFeedbackVectorSlot(p->vector, p->slot,
                           LoadRoot(RootIndex::kpremonomorphic_symbol),
                           SKIP_WRITE_BARRIER, 0, SMI_PARAMETERS);
   StoreWeakReferenceInFeedbackVector(p->vector, p->slot, receiver_map,
                                      kTaggedSize, SMI_PARAMETERS);
+  Goto(&check_function_prototype);
 
+  BIND(&check_if_fast_prototype);
+  {
+    BranchIfPrototypeShouldbeFast(receiver_map, &miss,
+                                  &check_function_prototype);
+  }
+
+  BIND(&check_function_prototype);
   {
     // Special case for Function.prototype load, because it's very common
     // for ICs that are only executed once (MyFunc.prototype.foo = ...).
@@ -2489,28 +2547,34 @@ void AccessorAssembler::LoadIC_Uninitialized(const LoadICParameters* p) {
 
   BIND(&miss);
   {
+    Label call_runtime(this, Label::kDeferred);
+    GotoIf(IsUndefined(p->vector), &call_runtime);
     // Undo the optimistic state transition.
     StoreFeedbackVectorSlot(p->vector, p->slot,
                             LoadRoot(RootIndex::kuninitialized_symbol),
                             SKIP_WRITE_BARRIER, 0, SMI_PARAMETERS);
+    Goto(&call_runtime);
 
+    BIND(&call_runtime);
     TailCallRuntime(Runtime::kLoadIC_Miss, p->context, p->receiver, p->name,
                     p->slot, p->vector);
   }
 }
 
-void AccessorAssembler::LoadGlobalIC(TNode<FeedbackVector> vector, Node* slot,
+void AccessorAssembler::LoadGlobalIC(Node* vector, Node* slot,
                                      const LazyNode<Context>& lazy_context,
                                      const LazyNode<Name>& lazy_name,
                                      TypeofMode typeof_mode,
                                      ExitPoint* exit_point,
                                      ParameterMode slot_mode) {
   Label try_handler(this, Label::kDeferred), miss(this, Label::kDeferred);
-  LoadGlobalIC_TryPropertyCellCase(vector, slot, lazy_context, exit_point,
+  GotoIf(IsUndefined(vector), &miss);
+
+  LoadGlobalIC_TryPropertyCellCase(CAST(vector), slot, lazy_context, exit_point,
                                    &try_handler, &miss, slot_mode);
 
   BIND(&try_handler);
-  LoadGlobalIC_TryHandlerCase(vector, slot, lazy_context, lazy_name,
+  LoadGlobalIC_TryHandlerCase(CAST(vector), slot, lazy_context, lazy_name,
                               typeof_mode, exit_point, &miss, slot_mode);
 
   BIND(&miss);
@@ -2600,10 +2664,12 @@ void AccessorAssembler::KeyedLoadIC(const LoadICParameters* p) {
   Label if_handler(this, &var_handler), try_polymorphic(this, Label::kDeferred),
       try_megamorphic(this, Label::kDeferred),
       try_polymorphic_name(this, Label::kDeferred),
-      miss(this, Label::kDeferred);
+      miss(this, Label::kDeferred), generic(this, Label::kDeferred);
 
   Node* receiver_map = LoadReceiverMap(p->receiver);
   GotoIf(IsDeprecatedMap(receiver_map), &miss);
+
+  GotoIf(IsUndefined(p->vector), &generic);
 
   // Check monomorphic case.
   TNode<MaybeObject> feedback =
@@ -2630,13 +2696,17 @@ void AccessorAssembler::KeyedLoadIC(const LoadICParameters* p) {
   {
     // Check megamorphic case.
     Comment("KeyedLoadIC_try_megamorphic");
-    GotoIfNot(
-        WordEqual(strong_feedback, LoadRoot(RootIndex::kmegamorphic_symbol)),
-        &try_polymorphic_name);
+    Branch(WordEqual(strong_feedback, LoadRoot(RootIndex::kmegamorphic_symbol)),
+           &generic, &try_polymorphic_name);
+  }
+
+  BIND(&generic);
+  {
     // TODO(jkummerow): Inline this? Or some of it?
     TailCallBuiltin(Builtins::kKeyedLoadIC_Megamorphic, p->context, p->receiver,
                     p->name, p->slot, p->vector);
   }
+
   BIND(&try_polymorphic_name);
   {
     // We might have a name in feedback, and a weak fixed array in the next
@@ -3275,11 +3345,12 @@ void AccessorAssembler::GenerateLoadGlobalIC(TypeofMode typeof_mode) {
   Node* context = Parameter(Descriptor::kContext);
 
   ExitPoint direct_exit(this);
-  LoadGlobalIC(CAST(vector), slot,
-               // lazy_context
-               [=] { return CAST(context); },
-               // lazy_name
-               [=] { return CAST(name); }, typeof_mode, &direct_exit);
+  LoadGlobalIC(
+      vector, slot,
+      // lazy_context
+      [=] { return CAST(context); },
+      // lazy_name
+      [=] { return CAST(name); }, typeof_mode, &direct_exit);
 }
 
 void AccessorAssembler::GenerateLoadGlobalICTrampoline(TypeofMode typeof_mode) {
