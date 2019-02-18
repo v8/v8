@@ -516,6 +516,46 @@ StackTraceFailureMessage::StackTraceFailureMessage(Isolate* isolate, void* ptr1,
   }
 }
 
+namespace {
+
+class StackFrameCacheHelper : public AllStatic {
+ public:
+  static MaybeHandle<StackTraceFrame> LookupCachedFrame(
+      Isolate* isolate, Handle<AbstractCode> code, int code_offset) {
+    if (FLAG_optimize_for_size) return MaybeHandle<StackTraceFrame>();
+
+    const auto maybe_cache = handle(code->stack_frame_cache(), isolate);
+    if (!maybe_cache->IsSimpleNumberDictionary())
+      return MaybeHandle<StackTraceFrame>();
+
+    const auto cache = Handle<SimpleNumberDictionary>::cast(maybe_cache);
+    const int entry = cache->FindEntry(isolate, code_offset);
+    if (entry != NumberDictionary::kNotFound) {
+      return handle(StackTraceFrame::cast(cache->ValueAt(entry)), isolate);
+    }
+    return MaybeHandle<StackTraceFrame>();
+  }
+
+  static void CacheFrameAndUpdateCache(Isolate* isolate,
+                                       Handle<AbstractCode> code,
+                                       int code_offset,
+                                       Handle<StackTraceFrame> frame) {
+    if (FLAG_optimize_for_size) return;
+
+    const auto maybe_cache = handle(code->stack_frame_cache(), isolate);
+    const auto cache = maybe_cache->IsSimpleNumberDictionary()
+                           ? Handle<SimpleNumberDictionary>::cast(maybe_cache)
+                           : SimpleNumberDictionary::New(isolate, 1);
+    Handle<SimpleNumberDictionary> new_cache =
+        SimpleNumberDictionary::Set(isolate, cache, code_offset, frame);
+    if (*new_cache != *cache || !maybe_cache->IsSimpleNumberDictionary()) {
+      AbstractCode::SetStackFrameCache(code, new_cache);
+    }
+  }
+};
+
+}  // anonymous namespace
+
 class FrameArrayBuilder {
  public:
   enum FrameFilterMode { ALL, CURRENT_SECURITY_CONTEXT };
@@ -678,6 +718,40 @@ class FrameArrayBuilder {
   Handle<FrameArray> GetElements() {
     elements_->ShrinkToFit(isolate_);
     return elements_;
+  }
+
+  // Creates a StackTraceFrame object for each frame in the FrameArray.
+  Handle<FixedArray> GetElementsAsStackTraceFrameArray() {
+    elements_->ShrinkToFit(isolate_);
+    const int frame_count = elements_->FrameCount();
+    Handle<FixedArray> stack_trace =
+        isolate_->factory()->NewFixedArray(frame_count);
+
+    for (int i = 0; i < frame_count; ++i) {
+      // Caching stack frames only happens for non-Wasm frames.
+      if (!elements_->IsAnyWasmFrame(i)) {
+        MaybeHandle<StackTraceFrame> maybe_frame =
+            StackFrameCacheHelper::LookupCachedFrame(
+                isolate_, handle(elements_->Code(i), isolate_),
+                Smi::ToInt(elements_->Offset(i)));
+        if (!maybe_frame.is_null()) {
+          Handle<StackTraceFrame> frame = maybe_frame.ToHandleChecked();
+          stack_trace->set(i, *frame);
+          continue;
+        }
+      }
+
+      Handle<StackTraceFrame> frame =
+          isolate_->factory()->NewStackTraceFrame(elements_, i);
+      stack_trace->set(i, *frame);
+
+      if (!elements_->IsAnyWasmFrame(i)) {
+        StackFrameCacheHelper::CacheFrameAndUpdateCache(
+            isolate_, handle(elements_->Code(i), isolate_),
+            Smi::ToInt(elements_->Offset(i)), frame);
+      }
+    }
+    return stack_trace;
   }
 
  private:
@@ -1071,154 +1145,54 @@ Address Isolate::GetAbstractPC(int* line, int* column) {
   return frame->pc();
 }
 
-namespace {
-
-class StackFrameCacheHelper : public AllStatic {
- public:
-  static MaybeHandle<StackFrameInfo> LookupCachedFrame(
-      Isolate* isolate, Handle<AbstractCode> code, int code_offset) {
-    if (FLAG_optimize_for_size) return MaybeHandle<StackFrameInfo>();
-
-    const auto maybe_cache = handle(code->stack_frame_cache(), isolate);
-    if (!maybe_cache->IsSimpleNumberDictionary())
-      return MaybeHandle<StackFrameInfo>();
-
-    const auto cache = Handle<SimpleNumberDictionary>::cast(maybe_cache);
-    const int entry = cache->FindEntry(isolate, code_offset);
-    if (entry != NumberDictionary::kNotFound) {
-      return handle(StackFrameInfo::cast(cache->ValueAt(entry)), isolate);
-    }
-    return MaybeHandle<StackFrameInfo>();
-  }
-
-  static void CacheFrameAndUpdateCache(Isolate* isolate,
-                                       Handle<AbstractCode> code,
-                                       int code_offset,
-                                       Handle<StackFrameInfo> frame) {
-    if (FLAG_optimize_for_size) return;
-
-    const auto maybe_cache = handle(code->stack_frame_cache(), isolate);
-    const auto cache = maybe_cache->IsSimpleNumberDictionary()
-                           ? Handle<SimpleNumberDictionary>::cast(maybe_cache)
-                           : SimpleNumberDictionary::New(isolate, 1);
-    Handle<SimpleNumberDictionary> new_cache =
-        SimpleNumberDictionary::Set(isolate, cache, code_offset, frame);
-    if (*new_cache != *cache || !maybe_cache->IsSimpleNumberDictionary()) {
-      AbstractCode::SetStackFrameCache(code, new_cache);
-    }
-  }
-};
-
-}  // anonymous namespace
-
-class CaptureStackTraceHelper {
- public:
-  explicit CaptureStackTraceHelper(Isolate* isolate) : isolate_(isolate) {}
-
-  Handle<StackFrameInfo> NewStackFrameObject(FrameSummary& summ) {
-    if (summ.IsJavaScript()) return NewStackFrameObject(summ.AsJavaScript());
-    if (summ.IsWasm()) return NewStackFrameObject(summ.AsWasm());
-    UNREACHABLE();
-  }
-
-  Handle<StackFrameInfo> NewStackFrameObject(
-      const FrameSummary::JavaScriptFrameSummary& summ) {
-    MaybeHandle<StackFrameInfo> maybe_frame =
-        StackFrameCacheHelper::LookupCachedFrame(isolate_, summ.abstract_code(),
-                                                 summ.code_offset());
-    if (!maybe_frame.is_null()) {
-      return maybe_frame.ToHandleChecked();
-    }
-
-    Handle<StackFrameInfo> frame = factory()->NewStackFrameInfo();
-    Handle<Script> script = Handle<Script>::cast(summ.script());
-    Script::PositionInfo info;
-    bool valid_pos = Script::GetPositionInfo(script, summ.SourcePosition(),
-                                             &info, Script::WITH_OFFSET);
-    if (valid_pos) {
-      frame->set_line_number(info.line + 1);
-      frame->set_column_number(info.column + 1);
-    }
-    frame->set_script_id(script->id());
-    frame->set_script_name(script->name());
-    frame->set_script_name_or_source_url(script->GetNameOrSourceURL());
-    frame->set_is_eval(script->compilation_type() ==
-                       Script::COMPILATION_TYPE_EVAL);
-    Handle<String> function_name = summ.FunctionName();
-    frame->set_function_name(*function_name);
-    frame->set_is_constructor(summ.is_constructor());
-    frame->set_is_wasm(false);
-    frame->set_id(next_id());
-
-    StackFrameCacheHelper::CacheFrameAndUpdateCache(
-        isolate_, summ.abstract_code(), summ.code_offset(), frame);
-    return frame;
-  }
-
-  Handle<StackFrameInfo> NewStackFrameObject(
-      const FrameSummary::WasmFrameSummary& summ) {
-    Handle<StackFrameInfo> info = factory()->NewStackFrameInfo();
-
-    Handle<WasmModuleObject> module_object(
-        summ.wasm_instance()->module_object(), isolate_);
-    Handle<String> name = WasmModuleObject::GetFunctionName(
-        isolate_, module_object, summ.function_index());
-    info->set_function_name(*name);
-    // Encode the function index as line number (1-based).
-    info->set_line_number(summ.function_index() + 1);
-    // Encode the byte offset as column (1-based).
-    int position = summ.byte_offset();
-    // Make position 1-based.
-    if (position >= 0) ++position;
-    info->set_column_number(position);
-    info->set_script_id(summ.script()->id());
-    info->set_is_wasm(true);
-    info->set_id(next_id());
-    return info;
-  }
-
- private:
-  inline Factory* factory() { return isolate_->factory(); }
-
-  int next_id() const {
-    int id = isolate_->last_stack_frame_info_id() + 1;
-    isolate_->set_last_stack_frame_info_id(id);
-    return id;
-  }
-
-  Isolate* isolate_;
-};
-
 Handle<FixedArray> Isolate::CaptureCurrentStackTrace(
     int frame_limit, StackTrace::StackTraceOptions options) {
   DisallowJavascriptExecution no_js(this);
-  CaptureStackTraceHelper helper(this);
 
   // Ensure no negative values.
   int limit = Max(frame_limit, 0);
-  Handle<FixedArray> stack_trace_elems = factory()->NewFixedArray(limit);
+  FrameArrayBuilder::FrameFilterMode filter_mode =
+      (options & StackTrace::kExposeFramesAcrossSecurityOrigins)
+          ? FrameArrayBuilder::ALL
+          : FrameArrayBuilder::CURRENT_SECURITY_CONTEXT;
+  FrameArrayBuilder builder(this, SKIP_NONE, limit,
+                            factory()->undefined_value(), filter_mode);
 
-  int frames_seen = 0;
-  for (StackTraceFrameIterator it(this); !it.done() && (frames_seen < limit);
+  for (StackTraceFrameIterator it(this); !it.done() && !builder.full();
        it.Advance()) {
     StandardFrame* frame = it.frame();
     // Set initial size to the maximum inlining level + 1 for the outermost
     // function.
     std::vector<FrameSummary> frames;
     frame->Summarize(&frames);
-    for (size_t i = frames.size(); i != 0 && frames_seen < limit; i--) {
+    for (size_t i = frames.size(); i != 0 && !builder.full(); i--) {
       FrameSummary& frame = frames[i - 1];
       if (!frame.is_subject_to_debugging()) continue;
-      // Filter frames from other security contexts.
-      if (!(options & StackTrace::kExposeFramesAcrossSecurityOrigins) &&
-          !this->context()->HasSameSecurityTokenAs(*frame.native_context()))
-        continue;
-      Handle<StackFrameInfo> new_frame_obj = helper.NewStackFrameObject(frame);
-      stack_trace_elems->set(frames_seen, *new_frame_obj);
-      frames_seen++;
+
+      if (frame.IsJavaScript()) {
+        //=========================================================
+        // Handle a JavaScript frame.
+        //=========================================================
+        auto const& java_script = frame.AsJavaScript();
+        builder.AppendJavaScriptFrame(java_script);
+      } else if (frame.IsWasmCompiled()) {
+        //=========================================================
+        // Handle a WASM compiled frame.
+        //=========================================================
+        auto const& wasm_compiled = frame.AsWasmCompiled();
+        builder.AppendWasmCompiledFrame(wasm_compiled);
+      } else if (frame.IsWasmInterpreted()) {
+        //=========================================================
+        // Handle a WASM interpreted frame.
+        //=========================================================
+        auto const& wasm_interpreted = frame.AsWasmInterpreted();
+        builder.AppendWasmInterpretedFrame(wasm_interpreted);
+      }
     }
   }
-  return FixedArray::ShrinkOrEmpty(this, stack_trace_elems, frames_seen);
+
+  // TODO(yangguo): Queue this structured stack trace for preprocessing on GC.
+  return builder.GetElementsAsStackTraceFrameArray();
 }
 
 

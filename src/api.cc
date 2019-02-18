@@ -56,6 +56,7 @@
 #include "src/objects/api-callbacks.h"
 #include "src/objects/embedder-data-array-inl.h"
 #include "src/objects/embedder-data-slot-inl.h"
+#include "src/objects/frame-array-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/js-array-inl.h"
@@ -2949,8 +2950,8 @@ Local<StackFrame> StackTrace::GetFrame(Isolate* v8_isolate,
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   EscapableHandleScope scope(v8_isolate);
   auto obj = handle(Utils::OpenHandle(this)->get(index), isolate);
-  auto info = i::Handle<i::StackFrameInfo>::cast(obj);
-  return scope.Escape(Utils::StackFrameToLocal(info));
+  auto frame = i::Handle<i::StackTraceFrame>::cast(obj);
+  return scope.Escape(Utils::StackFrameToLocal(frame));
 }
 
 int StackTrace::GetFrameCount() const {
@@ -2973,29 +2974,26 @@ Local<StackTrace> StackTrace::CurrentStackTrace(
 // --- S t a c k F r a m e ---
 
 int StackFrame::GetLineNumber() const {
-  int v = Utils::OpenHandle(this)->line_number();
-  return v ? v : Message::kNoLineNumberInfo;
+  return i::StackTraceFrame::GetLineNumber(Utils::OpenHandle(this));
 }
 
 
 int StackFrame::GetColumn() const {
-  int v = Utils::OpenHandle(this)->column_number();
-  return v ? v : Message::kNoLineNumberInfo;
+  return i::StackTraceFrame::GetColumnNumber(Utils::OpenHandle(this));
 }
 
 
 int StackFrame::GetScriptId() const {
-  int v = Utils::OpenHandle(this)->script_id();
-  return v ? v : Message::kNoScriptIdInfo;
+  return i::StackTraceFrame::GetScriptId(Utils::OpenHandle(this));
 }
 
 Local<String> StackFrame::GetScriptName() const {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   EscapableHandleScope scope(reinterpret_cast<Isolate*>(isolate));
-  i::Handle<i::StackFrameInfo> self = Utils::OpenHandle(this);
-  i::Handle<i::Object> obj(self->script_name(), isolate);
-  return obj->IsString()
-             ? scope.Escape(Local<String>::Cast(Utils::ToLocal(obj)))
+  i::Handle<i::Object> name =
+      i::StackTraceFrame::GetFileName(Utils::OpenHandle(this));
+  return name->IsString()
+             ? scope.Escape(Local<String>::Cast(Utils::ToLocal(name)))
              : Local<String>();
 }
 
@@ -3003,10 +3001,10 @@ Local<String> StackFrame::GetScriptName() const {
 Local<String> StackFrame::GetScriptNameOrSourceURL() const {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   EscapableHandleScope scope(reinterpret_cast<Isolate*>(isolate));
-  i::Handle<i::StackFrameInfo> self = Utils::OpenHandle(this);
-  i::Handle<i::Object> obj(self->script_name_or_source_url(), isolate);
-  return obj->IsString()
-             ? scope.Escape(Local<String>::Cast(Utils::ToLocal(obj)))
+  i::Handle<i::Object> name =
+      i::StackTraceFrame::GetScriptNameOrSourceUrl(Utils::OpenHandle(this));
+  return name->IsString()
+             ? scope.Escape(Local<String>::Cast(Utils::ToLocal(name)))
              : Local<String>();
 }
 
@@ -3014,21 +3012,24 @@ Local<String> StackFrame::GetScriptNameOrSourceURL() const {
 Local<String> StackFrame::GetFunctionName() const {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   EscapableHandleScope scope(reinterpret_cast<Isolate*>(isolate));
-  i::Handle<i::StackFrameInfo> self = Utils::OpenHandle(this);
-  i::Handle<i::Object> obj(self->function_name(), isolate);
-  return obj->IsString()
-             ? scope.Escape(Local<String>::Cast(Utils::ToLocal(obj)))
+  i::Handle<i::Object> name =
+      i::StackTraceFrame::GetFunctionName(Utils::OpenHandle(this));
+  return name->IsString()
+             ? scope.Escape(Local<String>::Cast(Utils::ToLocal(name)))
              : Local<String>();
 }
 
-bool StackFrame::IsEval() const { return Utils::OpenHandle(this)->is_eval(); }
-
-bool StackFrame::IsConstructor() const {
-  return Utils::OpenHandle(this)->is_constructor();
+bool StackFrame::IsEval() const {
+  return i::StackTraceFrame::IsEval(Utils::OpenHandle(this));
 }
 
-bool StackFrame::IsWasm() const { return Utils::OpenHandle(this)->is_wasm(); }
+bool StackFrame::IsConstructor() const {
+  return i::StackTraceFrame::IsConstructor(Utils::OpenHandle(this));
+}
 
+bool StackFrame::IsWasm() const {
+  return i::StackTraceFrame::IsWasm(Utils::OpenHandle(this));
+}
 
 // --- J S O N ---
 
