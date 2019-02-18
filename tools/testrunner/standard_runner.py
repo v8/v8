@@ -320,6 +320,16 @@ class StandardTestRunner(base_runner.BaseTestRunner):
       for indicator in indicators:
         indicator.finished()
 
+
+      if tests.test_count_estimate:
+        percentage = float(results.total) / tests.test_count_estimate * 100
+      else:
+        percentage = 0
+
+      print ('>>> %d base tests produced %d tests (%d%s)'
+             ' non-filtered tests') % (
+          tests.test_count_estimate, results.total, percentage, '%')
+
       print '>>> %d tests ran' % (results.total - results.remaining)
 
       exit_code = utils.EXIT_CODE_PASS
