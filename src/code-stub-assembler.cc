@@ -7414,7 +7414,8 @@ TNode<String> CodeStubAssembler::NumberToString(TNode<Number> input) {
         WordAnd(word_hash, WordSar(mask, SmiShiftBitsConstant()));
 
     // Cache entry's key must be a heap number
-    Node* number_key = LoadFixedArrayElement(CAST(number_string_cache), index);
+    Node* number_key =
+        UnsafeLoadFixedArrayElement(CAST(number_string_cache), index);
     GotoIf(TaggedIsSmi(number_key), &runtime);
     GotoIfNot(IsHeapNumber(number_key), &runtime);
 
@@ -7427,8 +7428,8 @@ TNode<String> CodeStubAssembler::NumberToString(TNode<Number> input) {
     GotoIfNot(Word32Equal(high, high_compare), &runtime);
 
     // Heap number match, return value from cache entry.
-    result = CAST(
-        LoadFixedArrayElement(CAST(number_string_cache), index, kTaggedSize));
+    result = CAST(UnsafeLoadFixedArrayElement(CAST(number_string_cache), index,
+                                              kTaggedSize));
     Goto(&done);
   }
 
@@ -7437,13 +7438,13 @@ TNode<String> CodeStubAssembler::NumberToString(TNode<Number> input) {
     // Load the smi key, make sure it matches the smi we're looking for.
     Node* smi_index = BitcastWordToTagged(
         WordAnd(WordShl(BitcastTaggedToWord(smi_input.value()), one), mask));
-    Node* smi_key = LoadFixedArrayElement(CAST(number_string_cache), smi_index,
-                                          0, SMI_PARAMETERS);
+    Node* smi_key = UnsafeLoadFixedArrayElement(CAST(number_string_cache),
+                                                smi_index, 0, SMI_PARAMETERS);
     GotoIf(WordNotEqual(smi_key, smi_input.value()), &runtime);
 
     // Smi match, return value from cache entry.
-    result = CAST(LoadFixedArrayElement(CAST(number_string_cache), smi_index,
-                                        kTaggedSize, SMI_PARAMETERS));
+    result = CAST(UnsafeLoadFixedArrayElement(
+        CAST(number_string_cache), smi_index, kTaggedSize, SMI_PARAMETERS));
     Goto(&done);
   }
 
