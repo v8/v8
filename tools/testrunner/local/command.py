@@ -2,6 +2,8 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+# for py2/py3 compatibility
+from __future__ import print_function
 
 import os
 import re
@@ -62,7 +64,7 @@ class BaseCommand(object):
 
   def execute(self):
     if self.verbose:
-      print '# %s' % self
+      print('# %s' % self)
 
     process = self._start_process()
 
@@ -187,7 +189,7 @@ class WindowsCommand(BaseCommand):
 
   def _kill_process(self, process):
     if self.verbose:
-      print 'Attempting to kill process %d' % process.pid
+      print('Attempting to kill process %d' % process.pid)
       sys.stdout.flush()
     tk = subprocess.Popen(
         'taskkill /T /F /PID %d' % process.pid,
@@ -196,10 +198,10 @@ class WindowsCommand(BaseCommand):
     )
     stdout, stderr = tk.communicate()
     if self.verbose:
-      print 'Taskkill results for %d' % process.pid
-      print stdout
-      print stderr
-      print 'Return code: %d' % tk.returncode
+      print('Taskkill results for %d' % process.pid)
+      print(stdout)
+      print(stderr)
+      print('Return code: %d' % tk.returncode)
       sys.stdout.flush()
 
 
@@ -237,7 +239,7 @@ class AndroidCommand(BaseCommand):
     This pushes all required files to the device and then runs the command.
     """
     if self.verbose:
-      print '# %s' % self
+      print('# %s' % self)
 
     self.driver.push_executable(self.shell_dir, 'bin', self.shell_name)
 

@@ -2,6 +2,9 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+# for py2/py3 compatibility
+from __future__ import print_function
+
 import json
 import os
 import sys
@@ -15,10 +18,10 @@ def print_failure_header(test):
     negative_marker = '[negative] '
   else:
     negative_marker = ''
-  print "=== %(label)s %(negative)s===" % {
+  print("=== %(label)s %(negative)s===" % {
     'label': test,
     'negative': negative_marker,
-  }
+  })
 
 
 class ResultsTracker(base.TestProcObserver):
@@ -41,7 +44,7 @@ class ResultsTracker(base.TestProcObserver):
     if result.has_unexpected_output:
       self.failed += 1
       if self.max_failures and self.failed >= self.max_failures:
-        print '>>> Too many failures, exiting...'
+        print('>>> Too many failures, exiting...')
         self.stop()
 
 
@@ -64,33 +67,33 @@ class SimpleProgressIndicator(ProgressIndicator):
 
   def finished(self):
     crashed = 0
-    print
+    print()
     for test, result in self._failed:
       print_failure_header(test)
       if result.output.stderr:
-        print "--- stderr ---"
-        print result.output.stderr.strip()
+        print("--- stderr ---")
+        print(result.output.stderr.strip())
       if result.output.stdout:
-        print "--- stdout ---"
-        print result.output.stdout.strip()
-      print "Command: %s" % result.cmd.to_string()
+        print("--- stdout ---")
+        print(result.output.stdout.strip())
+      print("Command: %s" % result.cmd.to_string())
       if result.output.HasCrashed():
-        print "exit code: %d" % result.output.exit_code
-        print "--- CRASHED ---"
+        print("exit code: %d" % result.output.exit_code)
+        print("--- CRASHED ---")
         crashed += 1
       if result.output.HasTimedOut():
-        print "--- TIMEOUT ---"
+        print("--- TIMEOUT ---")
     if len(self._failed) == 0:
-      print "==="
-      print "=== All tests succeeded"
-      print "==="
+      print("===")
+      print("=== All tests succeeded")
+      print("===")
     else:
-      print
-      print "==="
-      print "=== %i tests failed" % len(self._failed)
+      print()
+      print("===")
+      print("=== %i tests failed" % len(self._failed))
       if crashed > 0:
-        print "=== %i tests CRASHED" % crashed
-      print "==="
+        print("=== %i tests CRASHED" % crashed)
+      print("===")
 
 
 class VerboseProgressIndicator(SimpleProgressIndicator):
@@ -99,7 +102,7 @@ class VerboseProgressIndicator(SimpleProgressIndicator):
     self._last_printed_time = time.time()
 
   def _print(self, text):
-    print text
+    print(text)
     sys.stdout.flush()
     self._last_printed_time = time.time()
 
@@ -181,19 +184,19 @@ class CompactProgressIndicator(ProgressIndicator):
       self._clear_line(self._last_status_length)
       print_failure_header(test)
       if len(stdout):
-        print self._templates['stdout'] % stdout
+        print(self._templates['stdout'] % stdout)
       if len(stderr):
-        print self._templates['stderr'] % stderr
-      print "Command: %s" % result.cmd
+        print(self._templates['stderr'] % stderr)
+      print("Command: %s" % result.cmd)
       if output.HasCrashed():
-        print "exit code: %d" % output.exit_code
-        print "--- CRASHED ---"
+        print("exit code: %d" % output.exit_code)
+        print("--- CRASHED ---")
       if output.HasTimedOut():
-        print "--- TIMEOUT ---"
+        print("--- TIMEOUT ---")
 
   def finished(self):
     self._print_progress('Done')
-    print
+    print()
 
   def _print_progress(self, name):
     self._clear_line(self._last_status_length)
@@ -212,7 +215,7 @@ class CompactProgressIndicator(ProgressIndicator):
     }
     status = self._truncate(status, 78)
     self._last_status_length = len(status)
-    print status,
+    print(status, end=' ')
     sys.stdout.flush()
 
   def _truncate(self, string, length):
@@ -238,7 +241,7 @@ class ColorProgressIndicator(CompactProgressIndicator):
     super(ColorProgressIndicator, self).__init__(templates)
 
   def _clear_line(self, last_length):
-    print "\033[1K\r",
+    print("\033[1K\r", end=' ')
 
 
 class MonochromeProgressIndicator(CompactProgressIndicator):
@@ -252,7 +255,7 @@ class MonochromeProgressIndicator(CompactProgressIndicator):
     super(MonochromeProgressIndicator, self).__init__(templates)
 
   def _clear_line(self, last_length):
-    print ("\r" + (" " * last_length) + "\r"),
+    print(("\r" + (" " * last_length) + "\r"), end=' ')
 
 
 class JsonTestProgressIndicator(ProgressIndicator):
@@ -321,7 +324,7 @@ class JsonTestProgressIndicator(ProgressIndicator):
           float(len(self.tests)))
 
     # Sort tests by duration.
-    self.tests.sort(key=lambda (_, duration, cmd): duration, reverse=True)
+    self.tests.sort(key=lambda __duration_cmd: __duration_cmd[1], reverse=True)
     slowest_tests = [
       {
         "name": str(test),

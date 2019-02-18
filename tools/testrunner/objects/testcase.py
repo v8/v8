@@ -53,6 +53,12 @@ MODULE_RESOURCES_PATTERN_1 = re.compile(
 MODULE_RESOURCES_PATTERN_2 = re.compile(
     r"(?:import|export).*from (?:'|\")([^'\"]+)(?:'|\")")
 
+try:
+  cmp             # Python 2
+except NameError:
+  def cmp(x, y):  # Python 3
+    return (x > y) - (x < y)
+
 
 class TestCase(object):
   def __init__(self, suite, path, name, test_config):

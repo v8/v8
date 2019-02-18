@@ -4,6 +4,9 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+# for py2/py3 compatibility
+from __future__ import print_function
+from functools import reduce
 
 import os
 import re
@@ -217,7 +220,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
 
       def CheckTestMode(name, option):  # pragma: no cover
         if not option in ["run", "skip", "dontcare"]:
-          print "Unknown %s mode %s" % (name, option)
+          print("Unknown %s mode %s" % (name, option))
           raise base_runner.TestRunnerError()
       CheckTestMode("slow test", options.slow_tests)
       CheckTestMode("pass|fail test", options.pass_fail_tests)
@@ -240,7 +243,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
 
       for v in user_variants:
         if v not in ALL_VARIANTS:
-          print 'Unknown variant: %s' % v
+          print('Unknown variant: %s' % v)
           raise base_runner.TestRunnerError()
       assert False, 'Unreachable'
 
@@ -280,7 +283,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
     def _do_execute(self, tests, args, options):
       jobs = options.j
 
-      print '>>> Running with test processors'
+      print('>>> Running with test processors')
       loader = LoadProc(tests)
       results = self._create_result_tracker(options)
       indicators = self._create_progress_indicators(
@@ -326,11 +329,11 @@ class StandardTestRunner(base_runner.BaseTestRunner):
       else:
         percentage = 0
 
-      print ('>>> %d base tests produced %d tests (%d%s)'
+      print (('>>> %d base tests produced %d tests (%d%s)'
              ' non-filtered tests') % (
-          tests.test_count_estimate, results.total, percentage, '%')
+          tests.test_count_estimate, results.total, percentage, '%'))
 
-      print '>>> %d tests ran' % (results.total - results.remaining)
+      print('>>> %d tests ran' % (results.total - results.remaining))
 
       exit_code = utils.EXIT_CODE_PASS
       if results.failed:

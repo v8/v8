@@ -2,13 +2,15 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+# for py2/py3 compatibility
+from __future__ import print_function
+
 from collections import defaultdict
 import time
 
 from . import base
 from ..objects import testcase
 from ..outproc import base as outproc
-
 
 class CombinerProc(base.TestProc):
   def __init__(self, rng, min_group_size, max_group_size, count):
@@ -62,7 +64,7 @@ class CombinerProc(base.TestProc):
     self._send_next_test()
 
   def generate_initial_tests(self, num=1):
-    for _ in xrange(0, num):
+    for _ in range(0, num):
       self._send_next_test()
 
   def _send_next_test(self):
@@ -122,4 +124,4 @@ class TestGroups(object):
 
     group_key = rng.choice(self._keys)
     tests = self._groups[group_key]
-    return [rng.choice(tests) for _ in xrange(0, max_size)]
+    return [rng.choice(tests) for _ in range(0, max_size)]

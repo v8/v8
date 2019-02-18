@@ -35,7 +35,7 @@ class SeedProc(base.TestProcProducer):
 
   def _next_test(self, test):
     is_loaded = False
-    for _ in xrange(0, self._parallel_subtests):
+    for _ in range(0, self._parallel_subtests):
       is_loaded |= self._try_send_next_test(test)
 
     return is_loaded

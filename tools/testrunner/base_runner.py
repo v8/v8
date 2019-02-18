@@ -2,6 +2,9 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+# for py2/py3 compatibility
+from __future__ import print_function
+from functools import reduce
 
 from collections import OrderedDict
 import json
@@ -11,6 +14,7 @@ import os
 import shlex
 import sys
 import traceback
+
 
 
 # Add testrunner to the path.
@@ -248,7 +252,7 @@ class BaseTestRunner(object):
       if options.swarming:
         # Swarming doesn't print how isolated commands are called. Lets make
         # this less cryptic by printing it ourselves.
-        print ' '.join(sys.argv)
+        print(' '.join(sys.argv))
 
       self._load_build_config(options)
       command.setup(self.target_os, options.device)
@@ -373,7 +377,7 @@ class BaseTestRunner(object):
 
     if any(map(lambda v: v and ',' in v,
                 [options.arch, options.mode])):  # pragma: no cover
-      print 'Multiple arch/mode are deprecated'
+      print('Multiple arch/mode are deprecated')
       raise TestRunnerError()
 
     return options, args
@@ -386,13 +390,13 @@ class BaseTestRunner(object):
         pass
 
     if not self.build_config:  # pragma: no cover
-      print 'Failed to load build config'
+      print('Failed to load build config')
       raise TestRunnerError
 
-    print 'Build found: %s' % self.outdir
+    print('Build found: %s' % self.outdir)
     if str(self.build_config):
-      print '>>> Autodetected:'
-      print self.build_config
+      print('>>> Autodetected:')
+      print(self.build_config)
 
     # Represents the OS where tests are run on. Same as host OS except for
     # Android, which is determined by build output.
@@ -469,7 +473,7 @@ class BaseTestRunner(object):
     build_config_mode = 'debug' if self.build_config.is_debug else 'release'
     if options.mode:
       if options.mode not in MODES:  # pragma: no cover
-        print '%s mode is invalid' % options.mode
+        print('%s mode is invalid' % options.mode)
         raise TestRunnerError()
       if MODES[options.mode].execution_mode != build_config_mode:
         print ('execution mode (%s) for %s is inconsistent with build config '
@@ -615,7 +619,7 @@ class BaseTestRunner(object):
     test_chain = testsuite.TestGenerator(0, [], [])
     for name in names:
       if options.verbose:
-        print '>>> Loading test suite: %s' % name
+        print('>>> Loading test suite: %s' % name)
       suite = testsuite.TestSuite.Load(
           os.path.join(options.test_root, name), test_config)
 
@@ -710,7 +714,7 @@ class BaseTestRunner(object):
 
   def _prepare_procs(self, procs):
     procs = filter(None, procs)
-    for i in xrange(0, len(procs) - 1):
+    for i in range(0, len(procs) - 1):
       procs[i].connect_to(procs[i + 1])
     procs[0].setup()
 
@@ -751,8 +755,8 @@ class BaseTestRunner(object):
       # TODO(machenbach): Turn this into an assert. If that's wrong on the
       # bots, printing will be quite useless. Or refactor this code to make
       # sure we get a return code != 0 after testing if we got here.
-      print "shard-run not a valid number, should be in [1:shard-count]"
-      print "defaulting back to running all tests"
+      print("shard-run not a valid number, should be in [1:shard-count]")
+      print("defaulting back to running all tests")
       return 1, 1
 
     return shard_run, shard_count
