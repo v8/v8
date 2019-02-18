@@ -1052,6 +1052,7 @@ DEFINE_BOOL(stack_trace_on_illegal, false,
             "print stack trace when an illegal exception is thrown")
 DEFINE_BOOL(abort_on_uncaught_exception, false,
             "abort program (dump core) when an uncaught exception is thrown")
+// TODO(jgruber,machenbach): Rename to --correctness-fuzzer-suppressions.
 DEFINE_BOOL(abort_on_stack_or_string_length_overflow, false,
             "Abort program when the stack overflows or a string exceeds "
             "maximum length (as opposed to throwing RangeError). This is "
@@ -1178,10 +1179,7 @@ DEFINE_NEG_IMPLICATION(jitless, validate_asm)
 DEFINE_IMPLICATION(jitless, wasm_interpret_all)
 DEFINE_NEG_IMPLICATION(jitless, asm_wasm_lazy_compilation)
 DEFINE_NEG_IMPLICATION(jitless, wasm_lazy_compilation)
-// Even in interpreter-only mode, wasm currently still creates executable
-// memory at runtime. Disable until this changes.
-// TODO(jgruber): Remove this once / if wasm can run without executable memory.
-DEFINE_NEG_IMPLICATION(jitless, expose_wasm)
+// --jitless also implies --no-expose-wasm, see InitializeOncePerProcessImpl.
 
 // Enable recompilation of function with optimized code.
 DEFINE_BOOL(opt, !V8_LITE_BOOL, "use adaptive optimizations")
