@@ -1927,7 +1927,7 @@ TEST(HeapNumberAlignment) {
     AlignNewSpace(required_alignment, offset);
     Handle<Object> number_new = factory->NewNumber(1.000123);
     CHECK(number_new->IsHeapNumber());
-    CHECK(Heap::InNewSpace(*number_new));
+    CHECK(Heap::InYoungGeneration(*number_new));
     CHECK_EQ(0, Heap::GetFillToAlign(HeapObject::cast(*number_new)->address(),
                                      required_alignment));
 
@@ -1956,7 +1956,7 @@ TEST(MutableHeapNumberAlignment) {
     AlignNewSpace(required_alignment, offset);
     Handle<Object> number_new = factory->NewMutableHeapNumber(1.000123);
     CHECK(number_new->IsMutableHeapNumber());
-    CHECK(Heap::InNewSpace(*number_new));
+    CHECK(Heap::InYoungGeneration(*number_new));
     CHECK_EQ(0, Heap::GetFillToAlign(HeapObject::cast(*number_new)->address(),
                                      required_alignment));
 
@@ -2021,6 +2021,8 @@ TEST(GrowAndShrinkNewSpace) {
 
   // Make sure we're in a consistent state to start out.
   CcTest::CollectAllGarbage();
+  CcTest::CollectAllGarbage();
+  new_space->Shrink();
 
   // Explicitly growing should double the space capacity.
   size_t old_capacity, new_capacity;
@@ -3150,6 +3152,9 @@ TEST(ReleaseOverReservedPages) {
   Factory* factory = isolate->factory();
   Heap* heap = isolate->heap();
   v8::HandleScope scope(CcTest::isolate());
+  // Ensure that the young generation is empty.
+  CcTest::CollectGarbage(NEW_SPACE);
+  CcTest::CollectGarbage(NEW_SPACE);
   static const int number_of_test_pages = 20;
 
   // Prepare many pages with low live-bytes count.
@@ -3183,7 +3188,7 @@ TEST(ReleaseOverReservedPages) {
   // boots, but if the 20 small arrays don't fit on the first page then that's
   // an indication that it is too small.
   CcTest::CollectAllAvailableGarbage();
-  CHECK_EQ(initial_page_count, old_space->CountTotalPages());
+  CHECK_GE(initial_page_count, old_space->CountTotalPages());
 }
 
 static int forced_gc_counter = 0;
@@ -6133,7 +6138,7 @@ HEAP_TEST(Regress670675) {
   if (marking->IsStopped()) {
     marking->Start(i::GarbageCollectionReason::kTesting);
   }
-  size_t array_length = Page::kPageSize / kTaggedSize + 100;
+  size_t array_length = 128 * KB;
   size_t n = heap->OldGenerationSpaceAvailable() / array_length;
   for (size_t i = 0; i < n + 40; i++) {
     {

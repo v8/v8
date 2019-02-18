@@ -172,6 +172,7 @@ class FullMarkingVerifier : public MarkingVerifier {
   void Run() override {
     VerifyRoots(VISIT_ONLY_STRONG);
     VerifyMarking(heap_->new_space());
+    VerifyMarking(heap_->new_lo_space());
     VerifyMarking(heap_->old_space());
     VerifyMarking(heap_->code_space());
     VerifyMarking(heap_->map_space());
@@ -1141,7 +1142,7 @@ class RecordMigratedSlotVisitor : public ObjectVisitor {
   inline virtual void RecordMigratedSlot(HeapObject host, MaybeObject value,
                                          Address slot) {
     if (value->IsStrongOrWeak()) {
-      Page* p = Page::FromAddress(value.ptr());
+      MemoryChunk* p = MemoryChunk::FromAddress(value.ptr());
       if (p->InYoungGeneration()) {
         DCHECK_IMPLIES(
             p->IsToPage(),
@@ -4042,16 +4043,16 @@ class YoungGenerationRecordMigratedSlotVisitor final
   inline void RecordMigratedSlot(HeapObject host, MaybeObject value,
                                  Address slot) final {
     if (value->IsStrongOrWeak()) {
-      Page* p = Page::FromAddress(value.ptr());
+      MemoryChunk* p = MemoryChunk::FromAddress(value.ptr());
       if (p->InYoungGeneration()) {
         DCHECK_IMPLIES(
             p->IsToPage(),
             p->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION) || p->IsLargePage());
         RememberedSet<OLD_TO_NEW>::Insert<AccessMode::NON_ATOMIC>(
-            Page::FromHeapObject(host), slot);
+            MemoryChunk::FromHeapObject(host), slot);
       } else if (p->IsEvacuationCandidate() && IsLive(host)) {
         RememberedSet<OLD_TO_OLD>::Insert<AccessMode::NON_ATOMIC>(
-            Page::FromHeapObject(host), slot);
+            MemoryChunk::FromHeapObject(host), slot);
       }
     }
   }

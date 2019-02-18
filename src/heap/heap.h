@@ -912,11 +912,6 @@ class Heap {
   static inline bool InYoungGeneration(Object object);
   static inline bool InYoungGeneration(MaybeObject object);
   static inline bool InYoungGeneration(HeapObject heap_object);
-  // TODO(ulan): Remove once all call sites are changed to use
-  // InYoungGeneration.
-  static inline bool InNewSpace(Object object);
-  static inline bool InNewSpace(MaybeObject object);
-  static inline bool InNewSpace(HeapObject heap_object);
   static inline bool InFromPage(Object object);
   static inline bool InFromPage(MaybeObject object);
   static inline bool InFromPage(HeapObject heap_object);

@@ -316,34 +316,6 @@ void Heap::FinalizeExternalString(String string) {
 
 Address Heap::NewSpaceTop() { return new_space_->top(); }
 
-// static
-bool Heap::InNewSpace(Object object) {
-  DCHECK(!HasWeakHeapObjectTag(object));
-  return object->IsHeapObject() && InNewSpace(HeapObject::cast(object));
-}
-
-// static
-bool Heap::InNewSpace(MaybeObject object) {
-  HeapObject heap_object;
-  return object->GetHeapObject(&heap_object) && InNewSpace(heap_object);
-}
-
-// static
-bool Heap::InNewSpace(HeapObject heap_object) {
-  // Inlined check from NewSpace::Contains.
-  bool result = MemoryChunk::FromHeapObject(heap_object)->InNewSpace();
-#ifdef DEBUG
-  // If in NEW_SPACE, then check we're either not in the middle of GC or the
-  // object is in to-space.
-  if (result) {
-    // If the object is in NEW_SPACE, then it's not in RO_SPACE so this is safe.
-    Heap* heap = Heap::FromWritableHeapObject(heap_object);
-    DCHECK_IMPLIES(heap->gc_state_ == NOT_IN_GC, InToPage(heap_object));
-  }
-#endif
-  return result;
-}
-
 bool Heap::InYoungGeneration(Object object) {
   DCHECK(!HasWeakHeapObjectTag(object));
   return object->IsHeapObject() && InYoungGeneration(HeapObject::cast(object));
@@ -528,7 +500,7 @@ void Heap::ExternalStringTable::AddString(String string) {
   DCHECK(string->IsExternalString());
   DCHECK(!Contains(string));
 
-  if (InNewSpace(string)) {
+  if (InYoungGeneration(string)) {
     young_strings_.push_back(string);
   } else {
     old_strings_.push_back(string);

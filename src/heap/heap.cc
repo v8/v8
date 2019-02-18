@@ -256,7 +256,8 @@ size_t Heap::CommittedMemoryOfUnmapper() {
 size_t Heap::CommittedMemory() {
   if (!HasBeenSetUp()) return 0;
 
-  return new_space_->CommittedMemory() + CommittedOldGenerationMemory();
+  return new_space_->CommittedMemory() + new_lo_space_->Size() +
+         CommittedOldGenerationMemory();
 }
 
 
