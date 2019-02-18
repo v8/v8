@@ -4689,7 +4689,8 @@ void Heap::NotifyOldGenerationExpansion() {
   const size_t kMemoryReducerActivationThreshold = 1 * MB;
   if (old_generation_capacity_after_bootstrap_ && ms_count_ == 0 &&
       OldGenerationCapacity() >= old_generation_capacity_after_bootstrap_ +
-                                     kMemoryReducerActivationThreshold) {
+                                     kMemoryReducerActivationThreshold &&
+      FLAG_memory_reducer_for_small_heaps) {
     MemoryReducer::Event event;
     event.type = MemoryReducer::kPossibleGarbage;
     event.time_ms = MonotonicallyIncreasingTimeInMs();
