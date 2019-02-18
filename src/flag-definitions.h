@@ -850,6 +850,10 @@ DEFINE_STRING(mcpu, "auto", "enable optimization for specific cpu")
 DEFINE_BOOL(partial_constant_pool, true,
             "enable use of partial constant pools (X64 only)")
 
+// Controlling source positions for Torque/CSA code.
+DEFINE_BOOL(enable_source_at_csa_bind, false,
+            "Include source information in the binary at CSA bind locations.")
+
 // Deprecated ARM flags (replaced by arm_arch).
 DEFINE_MAYBE_BOOL(enable_armv7, "deprecated (use --arm_arch instead)")
 DEFINE_MAYBE_BOOL(enable_vfp3, "deprecated (use --arm_arch instead)")

@@ -322,15 +322,16 @@ class EmbeddedFileWriter : public EmbeddedFileWriterInterface {
 
   static int WriteByteChunk(PlatformDependentEmbeddedFileWriter* w,
                             int current_line_length, const uint8_t* data) {
-    const uint64_t* quad_ptr1 = reinterpret_cast<const uint64_t*>(data);
-    const uint64_t* quad_ptr2 = reinterpret_cast<const uint64_t*>(data + 8);
+    const size_t size = kInt64Size;
 
+    uint64_t part1, part2;
+    // Use memcpy for the reads since {data} is not guaranteed to be aligned.
 #ifdef V8_TARGET_BIG_ENDIAN
-    uint64_t part1 = *quad_ptr1;
-    uint64_t part2 = *quad_ptr2;
+    memcpy(&part1, data, size);
+    memcpy(&part2, data + size, size);
 #else
-    uint64_t part1 = *quad_ptr2;
-    uint64_t part2 = *quad_ptr1;
+    memcpy(&part1, data + size, size);
+    memcpy(&part2, data, size);
 #endif  // V8_TARGET_BIG_ENDIAN
 
     if (part1 != 0) {

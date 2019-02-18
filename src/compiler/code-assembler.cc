@@ -1762,7 +1762,9 @@ void CodeAssemblerLabel::Bind(AssemblerDebugInfo debug_info) {
         << "\n#    previous: " << *label_->block();
     FATAL("%s", str.str().c_str());
   }
-  state_->raw_assembler_->SetSourcePosition(debug_info.file, debug_info.line);
+  if (FLAG_enable_source_at_csa_bind) {
+    state_->raw_assembler_->SetSourcePosition(debug_info.file, debug_info.line);
+  }
   state_->raw_assembler_->Bind(label_, debug_info);
   UpdateVariablesAfterBind();
 }
