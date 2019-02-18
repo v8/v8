@@ -281,8 +281,8 @@ class Config(object):
       match = csa_trap.search(output)
       extra_opt = match.group(1) if match else ""
       cmdline = re.compile("python ../../tools/run.py ./mksnapshot (.*)")
-      match = cmdline.search(output)
-      cmdline = PrepareMksnapshotCmdline(match.group(1), path) + extra_opt
+      orig_cmdline = cmdline.search(output).group(1).strip()
+      cmdline = PrepareMksnapshotCmdline(orig_cmdline, path) + extra_opt
       _Notify("V8 build requires your attention",
               "Detected mksnapshot failure, re-running in GDB...")
       _Call(cmdline)
