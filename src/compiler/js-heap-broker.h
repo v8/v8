@@ -121,7 +121,7 @@ class ObjectRef {
   bool IsNullOrUndefined() const;
 
   bool BooleanValue() const;
-  double OddballToNumber() const;
+  Maybe<double> OddballToNumber() const;
 
   Isolate* isolate() const;
 

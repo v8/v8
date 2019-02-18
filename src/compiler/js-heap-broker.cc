@@ -2426,26 +2426,26 @@ bool ObjectRef::BooleanValue() const {
   return IsSmi() ? (AsSmi() != 0) : data()->AsHeapObject()->boolean_value();
 }
 
-double ObjectRef::OddballToNumber() const {
+Maybe<double> ObjectRef::OddballToNumber() const {
   OddballType type = AsHeapObject().map().oddball_type();
 
   switch (type) {
     case OddballType::kBoolean: {
       ObjectRef true_ref(broker(),
                          broker()->isolate()->factory()->true_value());
-      return this->equals(true_ref) ? 1 : 0;
+      return this->equals(true_ref) ? Just(1.0) : Just(0.0);
       break;
     }
     case OddballType::kUndefined: {
-      return std::numeric_limits<double>::quiet_NaN();
+      return Just(std::numeric_limits<double>::quiet_NaN());
       break;
     }
     case OddballType::kNull: {
-      return 0;
+      return Just(0.0);
       break;
     }
     default: {
-      UNREACHABLE();
+      return Nothing<double>();
       break;
     }
   }
