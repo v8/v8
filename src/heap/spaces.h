@@ -430,7 +430,7 @@ class MemoryChunk {
     if (mark == kNullAddress) return;
     // Need to subtract one from the mark because when a chunk is full the
     // top points to the next address after the chunk, which effectively belongs
-    // to another chunk. See the comment to Page::FromTopOrLimit.
+    // to another chunk. See the comment to Page::FromAllocationAreaAddress.
     MemoryChunk* chunk = MemoryChunk::FromAddress(mark - 1);
     intptr_t new_mark = static_cast<intptr_t>(mark - chunk->address());
     intptr_t old_mark = 0;
@@ -795,7 +795,7 @@ static_assert(sizeof(std::atomic<intptr_t>) == kSystemPointerSize,
 //
 // The only way to get a page pointer is by calling factory methods:
 //   Page* p = Page::FromAddress(addr); or
-//   Page* p = Page::FromTopOrLimit(top);
+//   Page* p = Page::FromAllocationAreaAddress(address);
 class Page : public MemoryChunk {
  public:
   static const intptr_t kCopyAllFlags = ~0;
