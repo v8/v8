@@ -1988,10 +1988,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Number> ChangeUintPtrToTagged(TNode<UintPtrT> value);
   TNode<Uint32T> ChangeNumberToUint32(TNode<Number> value);
   TNode<Float64T> ChangeNumberToFloat64(SloppyTNode<Number> value);
-  TNode<UintPtrT> TryNumberToUintPtr(TNode<Number> value, Label* if_negative);
-  TNode<UintPtrT> ChangeNonnegativeNumberToUintPtr(TNode<Number> value) {
-    return TryNumberToUintPtr(value, nullptr);
-  }
+  TNode<UintPtrT> ChangeNonnegativeNumberToUintPtr(TNode<Number> value);
 
   void TaggedToNumeric(Node* context, Node* value, Label* done,
                        Variable* var_numeric);
