@@ -63,11 +63,19 @@ void IncrementalMarkingJob::ScheduleTask(Heap* heap, TaskType task_type) {
             EmbedderHeapTracer::EmbedderStackState::kUnknown, task_type));
       }
     } else {
-      taskrunner->PostDelayedTask(
-          base::make_unique<Task>(
-              heap->isolate(), this,
-              EmbedderHeapTracer::EmbedderStackState::kUnknown, task_type),
-          kDelayInSeconds);
+      if (taskrunner->NonNestableDelayedTasksEnabled()) {
+        taskrunner->PostNonNestableDelayedTask(
+            base::make_unique<Task>(
+                heap->isolate(), this,
+                EmbedderHeapTracer::EmbedderStackState::kEmpty, task_type),
+            kDelayInSeconds);
+      } else {
+        taskrunner->PostDelayedTask(
+            base::make_unique<Task>(
+                heap->isolate(), this,
+                EmbedderHeapTracer::EmbedderStackState::kUnknown, task_type),
+            kDelayInSeconds);
+      }
     }
   }
 }
