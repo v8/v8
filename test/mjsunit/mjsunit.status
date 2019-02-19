@@ -312,6 +312,7 @@
   # BUG(v8:8801): Bytecode flushing interacts poorly with assertOptimized
   'regress/regress-7254': [SKIP],
   'array-push5': [SKIP],
+  'compiler/deopt-array-push': [SKIP],
 
   # Slow tests.
   'array-constructor': [PASS, SLOW],
