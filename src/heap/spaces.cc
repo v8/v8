@@ -3463,6 +3463,7 @@ AllocationResult LargeObjectSpace::AllocateRaw(int object_size,
       heap()->incremental_marking()->marking_state()->IsBlack(object));
   page->InitializationMemoryFence();
   heap()->NotifyOldGenerationExpansion();
+  AllocationStep(object_size, object->address(), object_size);
   return object;
 }
 
@@ -3479,7 +3480,6 @@ LargePage* LargeObjectSpace::AllocateLargePage(int object_size,
 
   heap()->CreateFillerObjectAt(object->address(), object_size,
                                ClearRecordedSlots::kNo);
-  AllocationStep(object_size, object->address(), object_size);
   return page;
 }
 
@@ -3779,6 +3779,7 @@ AllocationResult NewLargeObjectSpace::AllocateRaw(int object_size) {
   page->InitializationMemoryFence();
   DCHECK(page->IsLargePage());
   DCHECK_EQ(page->owner()->identity(), NEW_LO_SPACE);
+  AllocationStep(object_size, result->address(), object_size);
   return result;
 }
 
