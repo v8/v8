@@ -21,7 +21,6 @@
 #include "src/objects/oddball.h"
 #include "src/ostreams.h"
 #include "src/property.h"
-#include "src/roots.h"
 #include "src/transitions-inl.h"
 #include "src/zone/zone-containers.h"
 
@@ -938,40 +937,40 @@ IntegrityLevelTransitionInfo DetectIntegrityLevelTransitions(
     Map map, Isolate* isolate, DisallowHeapAllocation* no_allocation) {
   IntegrityLevelTransitionInfo info(map);
 
+  // Figure out the most restrictive integrity level transition (it should
+  // be the last one in the transition tree).
   DCHECK(!map->is_extensible());
-  Map source_map = map;
-  // Skip integrity level transitions.
-  while (!source_map->is_extensible()) {
-    source_map = Map::cast(source_map->GetBackPointer());
-  }
-
-  // If there are some non-integrity-level transitions after the first
-  // non-extensible transitions, e.g., if there were private symbols transitions
-  // after the first integrity level transition, then we just bail out.
-  if (map->NumberOfOwnDescriptors() != source_map->NumberOfOwnDescriptors()) {
+  Map previous = Map::cast(map->GetBackPointer());
+  TransitionsAccessor last_transitions(isolate, previous, no_allocation);
+  if (!last_transitions.HasIntegrityLevelTransitionTo(
+          map, &(info.integrity_level_symbol), &(info.integrity_level))) {
+    // The last transition was not integrity level transition - just bail out.
+    // This can happen in the following cases:
+    // - there are private symbol transitions following the integrity level
+    //   transitions (see crbug.com/v8/8854).
+    // - there is a getter added in addition to an existing setter (or a setter
+    //   in addition to an existing getter).
     return info;
   }
 
-  // Figure out the most restrictive integrity level transition (it should
-  // be the last one in the transition tree).
-  ReadOnlyRoots roots(isolate);
-  TransitionsAccessor transitions(isolate, Map::cast(map->GetBackPointer()),
-                                  no_allocation);
-  if (transitions.SearchSpecial(roots.frozen_symbol()) == map) {
-    info.integrity_level = FROZEN;
-    info.integrity_level_symbol = roots.frozen_symbol();
-  } else if (transitions.SearchSpecial(roots.sealed_symbol()) == map) {
-    info.integrity_level = SEALED;
-    info.integrity_level_symbol = roots.sealed_symbol();
-  } else {
-    CHECK_EQ(transitions.SearchSpecial(roots.nonextensible_symbol()), map);
-    info.integrity_level = NONE;
-    info.integrity_level_symbol = roots.nonextensible_symbol();
+  Map source_map = previous;
+  // Now walk up the back pointer chain and skip all integrity level
+  // transitions. If we encounter any non-integrity level transition interleaved
+  // with integrity level transitions, just bail out.
+  while (!source_map->is_extensible()) {
+    previous = Map::cast(source_map->GetBackPointer());
+    TransitionsAccessor transitions(isolate, previous, no_allocation);
+    if (!transitions.HasIntegrityLevelTransitionTo(source_map)) {
+      return info;
+    }
+    source_map = previous;
   }
+
+  // Integrity-level transitions never change number of descriptors.
+  CHECK_EQ(map->NumberOfOwnDescriptors(), source_map->NumberOfOwnDescriptors());
 
   info.has_integrity_level_transition = true;
   info.integrity_level_source_map = source_map;
-
   return info;
 }
 
