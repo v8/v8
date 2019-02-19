@@ -2823,19 +2823,27 @@ TEST(FastStopProfiling) {
   CHECK_LT(duration, kWaitThreshold.InMillisecondsF());
 }
 
-int GetSourcePositionEntryCount(i::Isolate* isolate, const char* source) {
+enum class EntryCountMode { kAll, kOnlyInlined };
+
+// Count the number of unique source positions.
+int GetSourcePositionEntryCount(i::Isolate* isolate, const char* source,
+                                EntryCountMode mode = EntryCountMode::kAll) {
+  std::unordered_set<int64_t> raw_position_set;
   i::Handle<i::JSFunction> function = i::Handle<i::JSFunction>::cast(
       v8::Utils::OpenHandle(*CompileRun(source)));
   if (function->IsInterpreted()) return -1;
   i::Handle<i::Code> code(function->code(), isolate);
   i::SourcePositionTableIterator iterator(
       ByteArray::cast(code->source_position_table()));
-  int count = 0;
+
   while (!iterator.done()) {
-    count++;
+    if (mode == EntryCountMode::kAll ||
+        iterator.source_position().isInlined()) {
+      raw_position_set.insert(iterator.source_position().raw());
+    }
     iterator.Advance();
   }
-  return count;
+  return static_cast<int>(raw_position_set.size());
 }
 
 UNINITIALIZED_TEST(DetailedSourcePositionAPI) {
@@ -2873,6 +2881,67 @@ UNINITIALIZED_TEST(DetailedSourcePositionAPI) {
 
     CHECK((non_detailed_positions == -1 && detailed_positions == -1) ||
           non_detailed_positions < detailed_positions);
+  }
+
+  isolate->Dispose();
+}
+
+UNINITIALIZED_TEST(DetailedSourcePositionAPI_Inlining) {
+  i::FLAG_detailed_line_info = false;
+  i::FLAG_stress_inline = true;
+  i::FLAG_always_opt = false;
+  i::FLAG_allow_natives_syntax = true;
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+
+  const char* source = R"(
+    function foo(x) {
+      return bar(x) + 1;
+    }
+
+    function bar(x) {
+      var y = 1;
+      for (var i = 0; i < x; ++i) {
+        y = y * x;
+      }
+      return x;
+    }
+
+    foo(5);
+    %OptimizeFunctionOnNextCall(foo);
+    foo(5);
+    foo;
+  )";
+
+  {
+    v8::Isolate::Scope isolate_scope(isolate);
+    v8::HandleScope handle_scope(isolate);
+    v8::Local<v8::Context> context = v8::Context::New(isolate);
+    v8::Context::Scope context_scope(context);
+    i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+
+    CHECK(!i_isolate->NeedsDetailedOptimizedCodeLineInfo());
+
+    int non_detailed_positions =
+        GetSourcePositionEntryCount(i_isolate, source, EntryCountMode::kAll);
+    int non_detailed_inlined_positions = GetSourcePositionEntryCount(
+        i_isolate, source, EntryCountMode::kOnlyInlined);
+
+    v8::CpuProfiler::UseDetailedSourcePositionsForProfiling(isolate);
+    CHECK(i_isolate->NeedsDetailedOptimizedCodeLineInfo());
+
+    int detailed_positions =
+        GetSourcePositionEntryCount(i_isolate, source, EntryCountMode::kAll);
+    int detailed_inlined_positions = GetSourcePositionEntryCount(
+        i_isolate, source, EntryCountMode::kOnlyInlined);
+
+    if (non_detailed_positions == -1) {
+      CHECK_EQ(non_detailed_positions, detailed_positions);
+    } else {
+      CHECK_LT(non_detailed_positions, detailed_positions);
+      CHECK_LT(non_detailed_inlined_positions, detailed_inlined_positions);
+    }
   }
 
   isolate->Dispose();

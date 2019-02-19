@@ -930,6 +930,11 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl(
     compilation_info()->MarkAsFunctionContextSpecializing();
   }
 
+  if (compilation_info()->is_source_positions_enabled()) {
+    SharedFunctionInfo::EnsureSourcePositionsAvailable(
+        isolate, compilation_info()->shared_info());
+  }
+
   data_.set_start_source_position(
       compilation_info()->shared_info()->StartPosition());
 

@@ -449,6 +449,10 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
     return NoChange();
   }
 
+  if (info_->is_source_positions_enabled()) {
+    SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate(), shared_info);
+  }
+
   // ----------------------------------------------------------------
   // After this point, we've made a decision to inline this function.
   // We shall not bailout from inlining if we got here.
