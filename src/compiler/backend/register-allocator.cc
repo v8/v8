@@ -3965,21 +3965,24 @@ int LinearScanAllocator::PickRegisterThatIsAvailableLongest(
   // cloberred after the call except for the argument registers, which are
   // set before the call. Hence, the argument registers always get ignored,
   // as their available time is shorter.
-  int reg = hint_reg == kUnassignedRegister ? codes[0] : hint_reg;
+  int reg = (hint_reg == kUnassignedRegister) ? codes[0] : hint_reg;
+  int current_free = -1;
   for (int i = 0; i < num_codes; ++i) {
     int code = codes[i];
     // Prefer registers that have no fixed uses to avoid blocking later hints.
     // We use the first register that has no fixed uses to ensure we use
     // byte addressable registers in ia32 first.
     int candidate_free = free_until_pos[code].ToInstructionIndex();
-    int current_free = free_until_pos[reg].ToInstructionIndex();
-    if (candidate_free > current_free ||
+    TRACE("Register %s in free until %d\n", RegisterName(code), candidate_free);
+    if ((candidate_free > current_free) ||
         (candidate_free == current_free && reg != hint_reg &&
-         data()->HasFixedUse(current->representation(), reg) &&
-         !data()->HasFixedUse(current->representation(), code))) {
+         (data()->HasFixedUse(current->representation(), reg) &&
+          !data()->HasFixedUse(current->representation(), code)))) {
       reg = code;
+      current_free = candidate_free;
     }
   }
+
   return reg;
 }
 
@@ -4122,7 +4125,8 @@ void LinearScanAllocator::AllocateBlockedReg(LiveRange* current,
 
   // Compute register hint if it exists.
   int hint_reg = kUnassignedRegister;
-  register_use->HintRegister(&hint_reg) ||
+  current->RegisterFromControlFlow(&hint_reg) ||
+      register_use->HintRegister(&hint_reg) ||
       current->RegisterFromBundle(&hint_reg);
   int reg = PickRegisterThatIsAvailableLongest(current, hint_reg, use_pos);
 
