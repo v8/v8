@@ -58,7 +58,7 @@ TestingModuleBuilder::TestingModuleBuilder(
   }
 }
 
-byte* TestingModuleBuilder::AddMemory(uint32_t size, SharedFlag shared) {
+byte* TestingModuleBuilder::AddMemory(uint32_t size) {
   CHECK(!test_module_->has_memory);
   CHECK_NULL(mem_start_);
   CHECK_EQ(0, mem_size_);
@@ -68,7 +68,7 @@ byte* TestingModuleBuilder::AddMemory(uint32_t size, SharedFlag shared) {
   test_module_->has_memory = true;
   uint32_t alloc_size = RoundUp(size, kWasmPageSize);
   Handle<JSArrayBuffer> new_buffer;
-  CHECK(NewArrayBuffer(isolate_, alloc_size, shared).ToHandle(&new_buffer));
+  CHECK(NewArrayBuffer(isolate_, alloc_size).ToHandle(&new_buffer));
   CHECK(!new_buffer.is_null());
   mem_start_ = reinterpret_cast<byte*>(new_buffer->backing_store());
   mem_size_ = size;
