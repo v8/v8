@@ -88,7 +88,7 @@ class TestingModuleBuilder {
 
   void ChangeOriginToAsmjs() { test_module_->origin = kAsmJsOrigin; }
 
-  byte* AddMemory(uint32_t size);
+  byte* AddMemory(uint32_t size, SharedFlag shared = SharedFlag::kNotShared);
 
   size_t CodeTableLength() const { return native_module_->num_functions(); }
 

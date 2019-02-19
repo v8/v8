@@ -65,6 +65,8 @@
 #include "src/wasm/wasm-js.h"
 #include "test/cctest/heap/heap-tester.h"
 #include "test/cctest/heap/heap-utils.h"
+#include "test/cctest/wasm/wasm-run-utils.h"
+#include "test/common/wasm/wasm-macro-gen.h"
 
 static const bool kLogThreading = false;
 
@@ -27558,15 +27560,8 @@ void AtomicsWaitCallbackForTesting(
   }
 }
 
-TEST(AtomicsWaitCallback) {
-  LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
-  v8::HandleScope scope(isolate);
-
-  Local<Value> sab = CompileRun(
-      "sab = new SharedArrayBuffer(12);"
-      "int32arr = new Int32Array(sab, 4);"
-      "sab");
+// Must be called from within HandleScope
+void AtomicsWaitCallbackCommon(v8::Isolate* isolate, Local<Value> sab) {
   CHECK(sab->IsSharedArrayBuffer());
 
   AtomicsWaitCallbackInfo info;
@@ -27582,7 +27577,7 @@ TEST(AtomicsWaitCallback) {
     info.expected_event = v8::Isolate::AtomicsWaitEvent::kTerminatedExecution;
     info.action = AtomicsWaitCallbackAction::Interrupt;
     info.ncalls = 0;
-    CompileRun("Atomics.wait(int32arr, 0, 0);");
+    CompileRun("wait(0, 0);");
     CHECK_EQ(info.ncalls, 2);
     CHECK(try_catch.HasTerminated());
   }
@@ -27595,7 +27590,7 @@ TEST(AtomicsWaitCallback) {
     info.expected_event = v8::Isolate::AtomicsWaitEvent::kNotEqual;
     info.action = AtomicsWaitCallbackAction::KeepWaiting;
     info.ncalls = 0;
-    CompileRun("Atomics.wait(int32arr, 1, 1);");  // real value is 0 != 1
+    CompileRun("wait(1, 1);");  // real value is 0 != 1
     CHECK_EQ(info.ncalls, 2);
     CHECK(!try_catch.HasCaught());
   }
@@ -27608,7 +27603,7 @@ TEST(AtomicsWaitCallback) {
     info.expected_event = v8::Isolate::AtomicsWaitEvent::kTimedOut;
     info.action = AtomicsWaitCallbackAction::KeepWaiting;
     info.ncalls = 0;
-    CompileRun("Atomics.wait(int32arr, 1, 0, 0.125);");  // timeout
+    CompileRun("wait(1, 0, 0.125);");  // timeout
     CHECK_EQ(info.ncalls, 2);
     CHECK(!try_catch.HasCaught());
   }
@@ -27621,7 +27616,7 @@ TEST(AtomicsWaitCallback) {
     info.expected_event = v8::Isolate::AtomicsWaitEvent::kAPIStopped;
     info.action = AtomicsWaitCallbackAction::StopAndThrowInFirstCall;
     info.ncalls = 0;
-    CompileRun("Atomics.wait(int32arr, 1, 0);");
+    CompileRun("wait(1, 0);");
     CHECK_EQ(info.ncalls, 1);  // Only one extra call
     CHECK(try_catch.HasCaught());
     CHECK(try_catch.Exception()->IsInt32());
@@ -27636,7 +27631,7 @@ TEST(AtomicsWaitCallback) {
     info.expected_event = v8::Isolate::AtomicsWaitEvent::kAPIStopped;
     info.action = AtomicsWaitCallbackAction::StopAndThrowInSecondCall;
     info.ncalls = 0;
-    CompileRun("Atomics.wait(int32arr, 1, 0);");
+    CompileRun("wait(1, 0);");
     CHECK_EQ(info.ncalls, 2);
     CHECK(try_catch.HasCaught());
     CHECK(try_catch.Exception()->IsInt32());
@@ -27654,7 +27649,7 @@ TEST(AtomicsWaitCallback) {
     info.ncalls = 0;
     CompileRun(
         "int32arr[1] = 200;"
-        "Atomics.wait(int32arr, 1, 200);");
+        "wait(1, 200);");
     CHECK_EQ(info.ncalls, 2);
     CHECK(try_catch.HasCaught());
     CHECK(try_catch.Exception()->IsInt32());
@@ -27670,13 +27665,105 @@ TEST(AtomicsWaitCallback) {
     info.expected_event = v8::Isolate::AtomicsWaitEvent::kAPIStopped;
     info.action = AtomicsWaitCallbackAction::StopFromThreadAndThrow;
     info.ncalls = 0;
-    CompileRun("Atomics.wait(int32arr, 0, 0);");
+    CompileRun(
+        "int32arr[1] = 0;"
+        "wait(0, 0);");
     CHECK_EQ(info.ncalls, 2);
     CHECK(try_catch.HasCaught());
     CHECK(try_catch.Exception()->IsInt32());
     CHECK_EQ(try_catch.Exception().As<v8::Int32>()->Value(), 42);
   }
 }
+
+TEST(AtomicsWaitCallback) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  const char* init = R"(
+      let sab = new SharedArrayBuffer(16);
+      let int32arr = new Int32Array(sab, 4);
+      let wait = function(id, val, timeout) {
+        if(arguments.length == 2) return Atomics.wait(int32arr, id, val);
+        return Atomics.wait(int32arr, id, val, timeout);
+      };
+      sab;)";
+  AtomicsWaitCallbackCommon(isolate, CompileRun(init));
+}
+
+namespace v8 {
+namespace internal {
+namespace wasm {
+TEST(WasmI32AtomicWaitCallback) {
+  FlagScope<bool> wasm_threads_flag(&i::FLAG_experimental_wasm_threads, true);
+  WasmRunner<int32_t, int32_t, int32_t, double> r(ExecutionTier::kOptimized);
+  r.builder().AddMemory(kWasmPageSize, SharedFlag::kShared);
+  r.builder().SetHasSharedMemory();
+  BUILD(r, WASM_ATOMICS_WAIT(kExprI32AtomicWait, WASM_GET_LOCAL(0),
+                             WASM_GET_LOCAL(1),
+                             WASM_I64_SCONVERT_F64(WASM_GET_LOCAL(2)), 4));
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  Handle<JSFunction> func = r.builder().WrapCode(0);
+  CHECK(env->Global()
+            ->Set(env.local(), v8_str("func"), v8::Utils::ToLocal(func))
+            .FromJust());
+  Handle<JSArrayBuffer> memory(
+      r.builder().instance_object()->memory_object()->array_buffer(),
+      i_isolate);
+  CHECK(env->Global()
+            ->Set(env.local(), v8_str("sab"), v8::Utils::ToLocal(memory))
+            .FromJust());
+
+  const char* init = R"(
+      let int32arr = new Int32Array(sab, 4);
+      let wait = function(id, val, timeout) {
+        if(arguments.length === 2)
+          return func(id << 2, val, -1);
+        return func(id << 2, val, timeout*1000000);
+      };
+      sab;)";
+  AtomicsWaitCallbackCommon(isolate, CompileRun(init));
+}
+
+TEST(WasmI64AtomicWaitCallback) {
+  FlagScope<bool> wasm_threads_flag(&i::FLAG_experimental_wasm_threads, true);
+  WasmRunner<int32_t, int32_t, double, double> r(ExecutionTier::kOptimized);
+  r.builder().AddMemory(kWasmPageSize, SharedFlag::kShared);
+  r.builder().SetHasSharedMemory();
+  BUILD(r, WASM_ATOMICS_WAIT(kExprI64AtomicWait, WASM_GET_LOCAL(0),
+                             WASM_I64_SCONVERT_F64(WASM_GET_LOCAL(1)),
+                             WASM_I64_SCONVERT_F64(WASM_GET_LOCAL(2)), 4));
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  Handle<JSFunction> func = r.builder().WrapCode(0);
+  CHECK(env->Global()
+            ->Set(env.local(), v8_str("func"), v8::Utils::ToLocal(func))
+            .FromJust());
+  Handle<JSArrayBuffer> memory(
+      r.builder().instance_object()->memory_object()->array_buffer(),
+      i_isolate);
+  CHECK(env->Global()
+            ->Set(env.local(), v8_str("sab"), v8::Utils::ToLocal(memory))
+            .FromJust());
+
+  const char* init = R"(
+      let int32arr = new Int32Array(sab, 4);
+      let wait = function(id, val, timeout) {
+        if(arguments.length === 2)
+          return func(id << 2, val, -1);
+        return func(id << 2, val, timeout*1000000);
+      };
+      sab;)";
+  AtomicsWaitCallbackCommon(isolate, CompileRun(init));
+}
+
+}  // namespace wasm
+}  // namespace internal
+}  // namespace v8
 
 TEST(BigIntAPI) {
   LocalContext env;
