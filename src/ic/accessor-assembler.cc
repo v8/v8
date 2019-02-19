@@ -3092,6 +3092,9 @@ void AccessorAssembler::StoreInArrayLiteralIC(const StoreICParameters* p) {
 
     Node* array_map = LoadReceiverMap(p->receiver);
     GotoIf(IsDeprecatedMap(array_map), &miss);
+
+    GotoIf(IsUndefined(p->vector), &miss);
+
     TNode<MaybeObject> feedback =
         TryMonomorphicCase(p->slot, p->vector, array_map, &if_handler,
                            &var_handler, &try_polymorphic);
@@ -3497,6 +3500,7 @@ void AccessorAssembler::GenerateCloneObjectIC_Slow() {
   {
     Label cont(this);
     GotoIf(IsJSObjectInstanceType(type), &cont);
+    GotoIf(InstanceTypeEqual(type, JS_PROXY_TYPE), &call_runtime);
     GotoIfNot(IsStringInstanceType(type), &done);
     Branch(SmiEqual(LoadStringLengthAsSmi(CAST(source)), SmiConstant(0)), &done,
            &call_runtime);
@@ -3531,10 +3535,13 @@ void AccessorAssembler::GenerateCloneObjectIC() {
   TVARIABLE(MaybeObject, var_handler);
   Label if_handler(this, &var_handler);
   Label miss(this, Label::kDeferred), try_polymorphic(this, Label::kDeferred),
-      try_megamorphic(this, Label::kDeferred);
+      try_megamorphic(this, Label::kDeferred), slow(this, Label::kDeferred);
 
   TNode<Map> source_map = LoadMap(UncheckedCast<HeapObject>(source));
   GotoIf(IsDeprecatedMap(source_map), &miss);
+
+  GotoIf(IsUndefined(vector), &slow);
+
   TNode<MaybeObject> feedback = TryMonomorphicCase(
       slot, vector, source_map, &if_handler, &var_handler, &try_polymorphic);
 
@@ -3651,6 +3658,11 @@ void AccessorAssembler::GenerateCloneObjectIC() {
     GotoIfNot(
         WordEqual(strong_feedback, LoadRoot(RootIndex::kmegamorphic_symbol)),
         &miss);
+    Goto(&slow);
+  }
+
+  BIND(&slow);
+  {
     TailCallBuiltin(Builtins::kCloneObjectIC_Slow, context, source, flags, slot,
                     vector);
   }

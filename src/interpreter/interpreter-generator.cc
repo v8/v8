@@ -694,19 +694,8 @@ IGNITION_HANDLER(StaInArrayLiteral, InterpreterAssembler) {
   Node* context = GetContext();
 
   VARIABLE(var_result, MachineRepresentation::kTagged);
-  Label no_feedback(this, Label::kDeferred), end(this);
-  GotoIf(IsUndefined(feedback_vector), &no_feedback);
-
   var_result.Bind(CallBuiltin(Builtins::kStoreInArrayLiteralIC, context, array,
                               index, value, smi_slot, feedback_vector));
-  Goto(&end);
-
-  BIND(&no_feedback);
-  var_result.Bind(CallRuntime(Runtime::kStoreInArrayLiteralIC_Miss, context,
-                              value, smi_slot, feedback_vector, array, index));
-  Goto(&end);
-
-  BIND(&end);
   // To avoid special logic in the deoptimizer to re-materialize the value in
   // the accumulator, we overwrite the accumulator after the IC call. It
   // doesn't really matter what we write to the accumulator here, since we
@@ -2432,22 +2421,10 @@ IGNITION_HANDLER(CreateRegExpLiteral, InterpreterAssembler) {
   Node* context = GetContext();
 
   VARIABLE(result, MachineRepresentation::kTagged);
-  Label no_feedback(this, Label::kDeferred), end(this);
-  GotoIf(IsUndefined(feedback_vector), &no_feedback);
 
   ConstructorBuiltinsAssembler constructor_assembler(state());
   result.Bind(constructor_assembler.EmitCreateRegExpLiteral(
       feedback_vector, slot_id, pattern, flags, context));
-  Goto(&end);
-
-  BIND(&no_feedback);
-  {
-    result.Bind(CallRuntime(Runtime::kCreateRegExpLiteral, context,
-                            feedback_vector, SmiTag(slot_id), pattern, flags));
-    Goto(&end);
-  }
-
-  BIND(&end);
   SetAccumulator(result.value());
   Dispatch();
 }
@@ -2613,18 +2590,8 @@ IGNITION_HANDLER(CloneObject, InterpreterAssembler) {
   Node* context = GetContext();
 
   Variable var_result(this, MachineRepresentation::kTagged);
-  Label no_feedback(this), end(this);
-  GotoIf(IsUndefined(maybe_feedback_vector), &no_feedback);
   var_result.Bind(CallBuiltin(Builtins::kCloneObjectIC, context, source,
                               smi_flags, smi_slot, maybe_feedback_vector));
-  Goto(&end);
-
-  BIND(&no_feedback);
-  var_result.Bind(CallRuntime(Runtime::kCloneObjectIC_Miss, context, source,
-                              smi_flags, smi_slot, maybe_feedback_vector));
-  Goto(&end);
-
-  BIND(&end);
   SetAccumulator(var_result.value());
   Dispatch();
 }
