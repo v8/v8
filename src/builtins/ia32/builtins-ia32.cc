@@ -3147,14 +3147,13 @@ void Builtins::Generate_CallApiCallback(MacroAssembler* masm) {
 
   Register api_function_address = edx;
   Register argc = ecx;
-  XMMRegister call_data = xmm0;
+  Register call_data = eax;
   Register holder = edi;
-  Register scratch = eax;
 
-  // Park call_data in xmm0.
-  __ movd(call_data, eax);
+  // Park argc in xmm0.
+  __ movd(xmm0, argc);
 
-  DCHECK(!AreAliased(api_function_address, argc, holder, scratch));
+  DCHECK(!AreAliased(api_function_address, argc, holder));
 
   typedef FunctionCallbackArguments FCA;
 
@@ -3180,34 +3179,21 @@ void Builtins::Generate_CallApiCallback(MacroAssembler* masm) {
   //   esp[5 * kSystemPointerSize]: kData
   //   esp[6 * kSystemPointerSize]: undefined (kNewTarget)
 
-  // Reserve space on the stack.
-  __ sub(esp, Immediate(FCA::kArgsLength * kSystemPointerSize));
+  __ PopReturnAddressTo(ecx);
+  __ PushRoot(RootIndex::kUndefinedValue);
+  __ Push(call_data);
+  __ PushRoot(RootIndex::kUndefinedValue);
+  __ PushRoot(RootIndex::kUndefinedValue);
+  __ Push(Immediate(ExternalReference::isolate_address(masm->isolate())));
+  __ Push(holder);
+  __ PushReturnAddressFrom(ecx);
 
-  // Return address (the old stack location is overwritten later on).
-  __ mov(scratch, Operand(esp, FCA::kArgsLength * kSystemPointerSize));
-  __ mov(Operand(esp, 0 * kSystemPointerSize), scratch);
-
-  // kHolder.
-  __ mov(Operand(esp, 1 * kSystemPointerSize), holder);
-
-  // kIsolate.
-  __ Move(scratch,
-          Immediate(ExternalReference::isolate_address(masm->isolate())));
-  __ mov(Operand(esp, 2 * kSystemPointerSize), scratch);
-
-  // kReturnValueDefaultValue and kReturnValue.
-  __ LoadRoot(scratch, RootIndex::kUndefinedValue);
-  __ mov(Operand(esp, 3 * kSystemPointerSize), scratch);
-  __ mov(Operand(esp, 4 * kSystemPointerSize), scratch);
-
-  // kData.
-  __ movd(Operand(esp, 5 * kSystemPointerSize), call_data);
-
-  // kNewTarget.
-  __ mov(Operand(esp, 6 * kSystemPointerSize), scratch);
+  // Reload argc from xmm0.
+  __ movd(argc, xmm0);
 
   // Keep a pointer to kHolder (= implicit_args) in a scratch register.
   // We use it below to set up the FunctionCallbackInfo object.
+  Register scratch = eax;
   __ lea(scratch, Operand(esp, 1 * kSystemPointerSize));
 
   // The API function takes a reference to v8::Arguments. If the CPU profiler

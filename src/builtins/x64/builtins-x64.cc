@@ -3129,32 +3129,15 @@ void Builtins::Generate_CallApiCallback(MacroAssembler* masm) {
   //   rsp[5 * kSystemPointerSize]: kData
   //   rsp[6 * kSystemPointerSize]: undefined (kNewTarget)
 
-  // Reserve space on the stack.
-  __ subq(rsp, Immediate(FCA::kArgsLength * kSystemPointerSize));
-
-  // Return address (the old stack location is overwritten later on).
-  __ movq(kScratchRegister,
-          Operand(rsp, FCA::kArgsLength * kSystemPointerSize));
-  __ movq(Operand(rsp, 0 * kSystemPointerSize), kScratchRegister);
-
-  // kHolder.
-  __ movq(Operand(rsp, 1 * kSystemPointerSize), holder);
-
-  // kIsolate.
-  __ Move(kScratchRegister,
-          ExternalReference::isolate_address(masm->isolate()));
-  __ movq(Operand(rsp, 2 * kSystemPointerSize), kScratchRegister);
-
-  // kReturnValueDefaultValue and kReturnValue.
+  __ PopReturnAddressTo(rax);
   __ LoadRoot(kScratchRegister, RootIndex::kUndefinedValue);
-  __ movq(Operand(rsp, 3 * kSystemPointerSize), kScratchRegister);
-  __ movq(Operand(rsp, 4 * kSystemPointerSize), kScratchRegister);
-
-  // kData.
-  __ movq(Operand(rsp, 5 * kSystemPointerSize), call_data);
-
-  // kNewTarget.
-  __ movq(Operand(rsp, 6 * kSystemPointerSize), kScratchRegister);
+  __ Push(kScratchRegister);
+  __ Push(call_data);
+  __ Push(kScratchRegister);
+  __ Push(kScratchRegister);
+  __ PushAddress(ExternalReference::isolate_address(masm->isolate()));
+  __ Push(holder);
+  __ PushReturnAddressFrom(rax);
 
   // Keep a pointer to kHolder (= implicit_args) in a scratch register.
   // We use it below to set up the FunctionCallbackInfo object.
