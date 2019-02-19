@@ -367,7 +367,6 @@ MapUpdater::State MapUpdater::FindRootMap() {
 
     // Modify root map in-place.
     if (FLAG_modify_map_inplace && new_constness_ != old_details.constness()) {
-      DCHECK(old_map_->is_stable());
       DCHECK(IsGeneralizableTo(old_details.constness(), new_constness_));
       GeneralizeField(old_map_, modified_descriptor_, new_constness_,
                       old_details.representation(),
