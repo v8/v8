@@ -1503,6 +1503,8 @@ void Debug::CreateBreakInfo(Handle<SharedFunctionInfo> shared) {
   if (CanBreakAtEntry(shared)) flags |= DebugInfo::kCanBreakAtEntry;
   debug_info->set_flags(flags);
   debug_info->set_break_points(*break_points);
+
+  SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate_, shared);
 }
 
 Handle<DebugInfo> Debug::GetOrCreateDebugInfo(
