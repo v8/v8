@@ -16,7 +16,7 @@ namespace v8 {
 namespace platform {
 namespace tracing {
 
-#define MAX_CATEGORY_GROUPS 200
+static const size_t kMaxCategoryGroups = 200;
 
 // Parallel arrays g_category_groups and g_category_group_enabled are separate
 // so that a pointer to a member of g_category_group_enabled can be easily
@@ -24,13 +24,13 @@ namespace tracing {
 // only with char enabled pointers from g_category_group_enabled, and we can
 // convert internally to determine the category name from the char enabled
 // pointer.
-const char* g_category_groups[MAX_CATEGORY_GROUPS] = {
+const char* g_category_groups[kMaxCategoryGroups] = {
     "toplevel",
-    "tracing categories exhausted; must increase MAX_CATEGORY_GROUPS",
+    "tracing categories exhausted; must increase kMaxCategoryGroups",
     "__metadata"};
 
 // The enabled flag is char instead of bool so that the API can be used from C.
-unsigned char g_category_group_enabled[MAX_CATEGORY_GROUPS] = {0};
+unsigned char g_category_group_enabled[kMaxCategoryGroups] = {0};
 // Indexes here have to match the g_category_groups array indexes above.
 const int g_category_categories_exhausted = 1;
 // Metadata category not used in V8.
@@ -118,11 +118,6 @@ void TracingController::UpdateTraceEventDuration(
                                CurrentCpuTimestampMicroseconds());
 }
 
-const uint8_t* TracingController::GetCategoryGroupEnabled(
-    const char* category_group) {
-  return GetCategoryGroupEnabledInternal(category_group);
-}
-
 const char* TracingController::GetCategoryGroupName(
     const uint8_t* category_group_enabled) {
   // Calculate the index of the category group by finding
@@ -133,7 +128,7 @@ const char* TracingController::GetCategoryGroupName(
   // Check for out of bounds category pointers.
   DCHECK(category_ptr >= category_begin &&
          category_ptr < reinterpret_cast<uintptr_t>(g_category_group_enabled +
-                                                    MAX_CATEGORY_GROUPS));
+                                                    kMaxCategoryGroups));
   uintptr_t category_index =
       (category_ptr - category_begin) / sizeof(g_category_group_enabled[0]);
   return g_category_groups[category_index];
@@ -197,9 +192,9 @@ void TracingController::UpdateCategoryGroupEnabledFlags() {
   for (size_t i = 0; i < category_index; i++) UpdateCategoryGroupEnabledFlag(i);
 }
 
-const uint8_t* TracingController::GetCategoryGroupEnabledInternal(
+const uint8_t* TracingController::GetCategoryGroupEnabled(
     const char* category_group) {
-  // Check that category groups does not contain double quote
+  // Check that category group does not contain double quote
   DCHECK(!strchr(category_group, '"'));
 
   // The g_category_groups is append only, avoid using a lock for the fast path.
@@ -226,8 +221,8 @@ const uint8_t* TracingController::GetCategoryGroupEnabledInternal(
 
   // Create a new category group.
   // Check that there is a slot for the new category_group.
-  DCHECK(category_index < MAX_CATEGORY_GROUPS);
-  if (category_index < MAX_CATEGORY_GROUPS) {
+  DCHECK(category_index < kMaxCategoryGroups);
+  if (category_index < kMaxCategoryGroups) {
     // Don't hold on to the category_group pointer, so that we can create
     // category groups with strings not known at compile time (this is
     // required by SetWatchEvent).
