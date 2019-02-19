@@ -118,6 +118,9 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   Reduction ReduceKeyedLoadFromHeapConstant(Node* node, Node* index,
                                             FeedbackNexus const& nexus,
                                             KeyedAccessLoadMode load_mode);
+  Reduction ReduceElementAccessOnString(Node* node, Node* index, Node* value,
+                                        AccessMode access_mode,
+                                        KeyedAccessLoadMode load_mode);
 
   Reduction ReduceSoftDeoptimize(Node* node, DeoptimizeReason reason);
   Reduction ReduceJSToString(Node* node);
