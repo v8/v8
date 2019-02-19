@@ -5446,6 +5446,15 @@ int JSFunction::CalculateExpectedNofProperties(Isolate* isolate,
       break;
     }
   }
+  // Inobject slack tracking will reclaim redundant inobject space
+  // later, so we can afford to adjust the estimate generously,
+  // meaning we over-allocate by at least 8 slots in the beginning.
+  if (expected_nof_properties > 0) {
+    expected_nof_properties += 8;
+    if (expected_nof_properties > JSObject::kMaxInObjectProperties) {
+      expected_nof_properties = JSObject::kMaxInObjectProperties;
+    }
+  }
   return expected_nof_properties;
 }
 

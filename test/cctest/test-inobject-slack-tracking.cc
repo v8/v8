@@ -1287,6 +1287,77 @@ TEST(SubclassTranspiledClassHierarchy) {
   CHECK_EQ(JS_OBJECT_TYPE, obj->map()->instance_type());
 }
 
+TEST(Regress8853_ClassConstructor) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+
+  // For classes without any this.prop assignments in their
+  // constructors we start out with 10 inobject properties.
+  Handle<JSObject> obj = CompileRunI<JSObject>("new (class {});\n");
+  CHECK(obj->map()->IsInobjectSlackTrackingInProgress());
+  CHECK(IsObjectShrinkable(*obj));
+  CHECK_EQ(10, obj->map()->GetInObjectProperties());
+
+  // For classes with N explicit this.prop assignments in their
+  // constructors we start out with N+8 inobject properties.
+  obj = CompileRunI<JSObject>(
+      "new (class {\n"
+      "  constructor() {\n"
+      "    this.x = 1;\n"
+      "    this.y = 2;\n"
+      "    this.z = 3;\n"
+      "  }\n"
+      "});\n");
+  CHECK(obj->map()->IsInobjectSlackTrackingInProgress());
+  CHECK(IsObjectShrinkable(*obj));
+  CHECK_EQ(3 + 8, obj->map()->GetInObjectProperties());
+}
+
+TEST(Regress8853_ClassHierarchy) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+
+  // For class hierarchies without any this.prop assignments in their
+  // constructors we reserve 2 inobject properties per constructor plus
+  // 8 inobject properties slack on top.
+  std::string base = "(class {})";
+  for (int i = 1; i < 10; ++i) {
+    std::string script = "new " + base + ";\n";
+    Handle<JSObject> obj = CompileRunI<JSObject>(script.c_str());
+    CHECK(obj->map()->IsInobjectSlackTrackingInProgress());
+    CHECK(IsObjectShrinkable(*obj));
+    CHECK_EQ(8 + 2 * i, obj->map()->GetInObjectProperties());
+    base = "(class extends " + base + " {})";
+  }
+}
+
+TEST(Regress8853_FunctionConstructor) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+
+  // For constructor functions without any this.prop assignments in
+  // them we start out with 10 inobject properties.
+  Handle<JSObject> obj = CompileRunI<JSObject>("new (function() {});\n");
+  CHECK(obj->map()->IsInobjectSlackTrackingInProgress());
+  CHECK(IsObjectShrinkable(*obj));
+  CHECK_EQ(10, obj->map()->GetInObjectProperties());
+
+  // For constructor functions with N explicit this.prop assignments
+  // in them we start out with N+8 inobject properties.
+  obj = CompileRunI<JSObject>(
+      "new (function() {\n"
+      "  this.a = 1;\n"
+      "  this.b = 2;\n"
+      "  this.c = 3;\n"
+      "  this.d = 3;\n"
+      "  this.c = 3;\n"
+      "  this.f = 3;\n"
+      "});\n");
+  CHECK(obj->map()->IsInobjectSlackTrackingInProgress());
+  CHECK(IsObjectShrinkable(*obj));
+  CHECK_EQ(6 + 8, obj->map()->GetInObjectProperties());
+}
+
 }  // namespace test_inobject_slack_tracking
 }  // namespace internal
 }  // namespace v8

@@ -5423,10 +5423,6 @@ void SharedFunctionInfo::SetExpectedNofPropertiesFromEstimate(
   // to be added later.
   if (estimate == 0) estimate = 2;
 
-  // Inobject slack tracking will reclaim redundant inobject space later,
-  // so we can afford to adjust the estimate generously.
-  estimate += 8;
-
   // Limit actual estimate to fit in a 8 bit field, we will never allocate
   // more than this in any case.
   STATIC_ASSERT(JSObject::kMaxInObjectProperties <= kMaxUInt8);
