@@ -996,16 +996,14 @@ StepResult IncrementalMarking::AdvanceWithDeadline(
   double remaining_time_in_ms = 0.0;
   StepResult result;
   do {
+    StepResult embedder_result = EmbedderStep(kStepSizeInMs / 2);
     StepResult v8_result =
         V8Step(kStepSizeInMs / 2, completion_action, step_origin);
-    remaining_time_in_ms =
-        deadline_in_ms - heap()->MonotonicallyIncreasingTimeInMs();
-    StepResult embedder_result =
-        EmbedderStep(Min(kStepSizeInMs, remaining_time_in_ms));
     result = CombineStepResults(v8_result, embedder_result);
     remaining_time_in_ms =
         deadline_in_ms - heap()->MonotonicallyIncreasingTimeInMs();
-  } while (remaining_time_in_ms >= kStepSizeInMs &&
+  } while (remaining_time_in_ms > kStepSizeInMs && !IsComplete() &&
+           !marking_worklist()->IsEmpty() &&
            result == StepResult::kMoreWorkRemaining);
   return result;
 }
