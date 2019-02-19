@@ -119,7 +119,7 @@ void IncrementalMarkingJob::Task::RunInternal() {
   if (!incremental_marking->IsStopped()) {
     StepResult step_result = Step(heap, stack_state_);
     if (!incremental_marking->IsStopped()) {
-      job_->ScheduleTask(heap, step_result == StepResult::kDone
+      job_->ScheduleTask(heap, step_result == StepResult::kNoImmediateWork
                                    ? TaskType::kDelayed
                                    : TaskType::kNormal);
     }

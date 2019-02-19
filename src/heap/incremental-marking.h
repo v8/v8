@@ -20,7 +20,11 @@ class Object;
 class PagedSpace;
 
 enum class StepOrigin { kV8, kTask };
-enum class StepResult { kDone, kMoreWorkRemaining };
+enum class StepResult {
+  kNoImmediateWork,
+  kMoreWorkRemaining,
+  kWaitingForFinalization
+};
 
 class V8_EXPORT_PRIVATE IncrementalMarking {
  public:

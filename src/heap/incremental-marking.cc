@@ -792,7 +792,7 @@ intptr_t IncrementalMarking::ProcessMarkingWorklist(
 }
 
 StepResult IncrementalMarking::EmbedderStep(double duration_ms) {
-  if (!ShouldDoEmbedderStep()) return StepResult::kDone;
+  if (!ShouldDoEmbedderStep()) return StepResult::kNoImmediateWork;
 
   constexpr size_t kObjectsToProcessBeforeInterrupt = 500;
 
@@ -819,7 +819,8 @@ StepResult IncrementalMarking::EmbedderStep(double duration_ms) {
   } while (!empty_worklist &&
            (heap_->MonotonicallyIncreasingTimeInMs() < deadline));
   heap_->local_embedder_heap_tracer()->SetEmbedderWorklistEmpty(empty_worklist);
-  return empty_worklist ? StepResult::kDone : StepResult::kMoreWorkRemaining;
+  return empty_worklist ? StepResult::kNoImmediateWork
+                        : StepResult::kMoreWorkRemaining;
 }
 
 void IncrementalMarking::Hurry() {
@@ -975,9 +976,13 @@ void IncrementalMarking::ScheduleBytesToMarkBasedOnTime(double time_ms) {
 
 namespace {
 StepResult CombineStepResults(StepResult a, StepResult b) {
-  if (a == StepResult::kDone && b == StepResult::kDone)
-    return StepResult::kDone;
-  return StepResult::kMoreWorkRemaining;
+  if (a == StepResult::kMoreWorkRemaining ||
+      b == StepResult::kMoreWorkRemaining)
+    return StepResult::kMoreWorkRemaining;
+  if (a == StepResult::kWaitingForFinalization ||
+      b == StepResult::kWaitingForFinalization)
+    return StepResult::kWaitingForFinalization;
+  return StepResult::kNoImmediateWork;
 }
 }  // anonymous namespace
 
@@ -996,14 +1001,16 @@ StepResult IncrementalMarking::AdvanceWithDeadline(
   double remaining_time_in_ms = 0.0;
   StepResult result;
   do {
-    StepResult embedder_result = EmbedderStep(kStepSizeInMs / 2);
     StepResult v8_result =
         V8Step(kStepSizeInMs / 2, completion_action, step_origin);
+    remaining_time_in_ms =
+        deadline_in_ms - heap()->MonotonicallyIncreasingTimeInMs();
+    StepResult embedder_result =
+        EmbedderStep(Min(kStepSizeInMs, remaining_time_in_ms));
     result = CombineStepResults(v8_result, embedder_result);
     remaining_time_in_ms =
         deadline_in_ms - heap()->MonotonicallyIncreasingTimeInMs();
-  } while (remaining_time_in_ms > kStepSizeInMs && !IsComplete() &&
-           !marking_worklist()->IsEmpty() &&
+  } while (remaining_time_in_ms >= kStepSizeInMs &&
            result == StepResult::kMoreWorkRemaining);
   return result;
 }
@@ -1167,7 +1174,7 @@ StepResult IncrementalMarking::V8Step(double max_step_size_in_ms,
         heap()->tracer()->IncrementalMarkingSpeedInBytesPerMillisecond());
     bytes_to_process = Min(ComputeStepSizeInBytes(step_origin), max_step_size);
     if (bytes_to_process == 0) {
-      result = StepResult::kDone;
+      result = StepResult::kNoImmediateWork;
     }
 
     bytes_processed =
@@ -1176,15 +1183,17 @@ StepResult IncrementalMarking::V8Step(double max_step_size_in_ms,
     bytes_marked_ += bytes_processed;
 
     if (marking_worklist()->IsEmpty()) {
+      result = StepResult::kNoImmediateWork;
       if (heap_->local_embedder_heap_tracer()
               ->ShouldFinalizeIncrementalMarking()) {
         if (!finalize_marking_completed_) {
           FinalizeMarking(action);
           FastForwardSchedule();
-          result = StepResult::kMoreWorkRemaining;
+          result = StepResult::kWaitingForFinalization;
           incremental_marking_job()->Start(heap_);
         } else {
           MarkingComplete(action);
+          result = StepResult::kWaitingForFinalization;
         }
       } else {
         heap_->local_embedder_heap_tracer()->NotifyV8MarkingWorklistWasEmpty();
