@@ -391,7 +391,8 @@ LiveRange::LiveRange(int relative_id, MachineRepresentation rep,
       splitting_pointer_(nullptr) {
   DCHECK(AllocatedOperand::IsSupportedRepresentation(rep));
   bits_ = AssignedRegisterField::encode(kUnassignedRegister) |
-          RepresentationField::encode(rep);
+          RepresentationField::encode(rep) |
+          ControlFlowRegisterHint::encode(kUnassignedRegister);
 }
 
 void LiveRange::VerifyPositions() const {
@@ -723,6 +724,17 @@ bool LiveRange::ShouldBeAllocatedBefore(const LiveRange* other) const {
   LifetimePosition start = Start();
   LifetimePosition other_start = other->Start();
   if (start == other_start) {
+    // Prefer register that has a controlflow hint to make sure it gets
+    // allocated first. This allows the control flow aware alloction to
+    // just put ranges back into the queue without other ranges interfering.
+    if (controlflow_hint() < other->controlflow_hint()) {
+      return true;
+    }
+    // The other has a smaller hint.
+    if (other->controlflow_hint() != kUnassignedRegister) {
+      return false;
+    }
+    // No hint, use first use position.
     UsePosition* pos = first_pos();
     UsePosition* other_pos = other->first_pos();
     // To make the order total, handle the case where both positions are null.
@@ -3056,6 +3068,7 @@ void LinearScanAllocator::SpillNotLiveRanges(RangeWithRegisterSet& to_be_live,
         TRACE("Scheduling %d:%d\n", toplevel->vreg(),
               active_range->relative_id());
         LiveRange* split = SplitRangeAt(active_range, position);
+        split->set_controlflow_hint(expected_register);
         AddToUnhandled(split);
         it = ActiveToHandled(it);
       }
@@ -3142,6 +3155,7 @@ void LinearScanAllocator::ReloadLiveRanges(RangeWithRegisterSet& to_be_live,
               to_resurrect->relative_id(), position.value());
         if (to_resurrect->spilled()) {
           to_resurrect->Unspill();
+          to_resurrect->set_controlflow_hint(reg);
           AddToUnhandled(to_resurrect);
         } else {
           // Assign the preassigned register if we know. Otherwise, nothing to
@@ -3172,6 +3186,7 @@ void LinearScanAllocator::ReloadLiveRanges(RangeWithRegisterSet& to_be_live,
           AddToActive(split);
         } else {
           // Let normal register assignment find a suitable register.
+          split->set_controlflow_hint(reg);
           AddToUnhandled(split);
         }
       }
@@ -3830,7 +3845,8 @@ void LinearScanAllocator::ProcessCurrentRange(LiveRange* current) {
 bool LinearScanAllocator::TryAllocatePreferredReg(
     LiveRange* current, const Vector<LifetimePosition>& free_until_pos) {
   int hint_register;
-  if (current->FirstHintPosition(&hint_register) != nullptr ||
+  if (current->RegisterFromControlFlow(&hint_register) ||
+      current->FirstHintPosition(&hint_register) != nullptr ||
       current->RegisterFromBundle(&hint_register)) {
     TRACE(
         "Found reg hint %s (free until [%d) for live range %d:%d (end %d[).\n",
@@ -3894,7 +3910,8 @@ bool LinearScanAllocator::TryAllocateFreeReg(
     LiveRange* current, const Vector<LifetimePosition>& free_until_pos) {
   // Compute register hint, if such exists.
   int hint_reg = kUnassignedRegister;
-  current->FirstHintPosition(&hint_reg) != nullptr ||
+  current->RegisterFromControlFlow(&hint_reg) ||
+      current->FirstHintPosition(&hint_reg) != nullptr ||
       current->RegisterFromBundle(&hint_reg);
 
   int reg =

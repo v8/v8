@@ -335,6 +335,20 @@ class V8_EXPORT_PRIVATE LiveRange : public NON_EXPORTED_BASE(ZoneObject) {
   bool ShouldRecombine() const { return RecombineField::decode(bits_); }
 
   void SetRecombine() { bits_ = RecombineField::update(bits_, true); }
+  void set_controlflow_hint(int reg) {
+    bits_ = ControlFlowRegisterHint::update(bits_, reg);
+  }
+  int controlflow_hint() const {
+    return ControlFlowRegisterHint::decode(bits_);
+  }
+  bool RegisterFromControlFlow(int* reg) {
+    int hint = controlflow_hint();
+    if (hint != kUnassignedRegister) {
+      *reg = hint;
+      return true;
+    }
+    return false;
+  }
   bool spilled() const { return SpilledField::decode(bits_); }
   void AttachToNext();
   void Unspill();
@@ -453,9 +467,11 @@ class V8_EXPORT_PRIVATE LiveRange : public NON_EXPORTED_BASE(ZoneObject) {
   void VerifyIntervals() const;
 
   typedef BitField<bool, 0, 1> SpilledField;
+  // Bits (1,6] are used by TopLevelLiveRange.
   typedef BitField<int32_t, 6, 6> AssignedRegisterField;
   typedef BitField<MachineRepresentation, 12, 8> RepresentationField;
   typedef BitField<bool, 20, 1> RecombineField;
+  typedef BitField<uint8_t, 21, 6> ControlFlowRegisterHint;
 
   // Unique among children and splinters of the same virtual register.
   int relative_id_;
