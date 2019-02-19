@@ -20,7 +20,7 @@ namespace v8 {
 namespace base {
 
 // ----------------------------------------------------------------------------
-// Mutex
+// Mutex - a replacement for std::mutex
 //
 // This class is a synchronization primitive that can be used to protect shared
 // data from being simultaneously accessed by multiple threads. A mutex offers
@@ -106,9 +106,8 @@ typedef LazyStaticInstance<Mutex, DefaultConstructTrait<Mutex>,
 
 #define LAZY_MUTEX_INITIALIZER LAZY_STATIC_INSTANCE_INITIALIZER
 
-
 // -----------------------------------------------------------------------------
-// RecursiveMutex
+// RecursiveMutex - a replacement for std::recursive_mutex
 //
 // This class is a synchronization primitive that can be used to protect shared
 // data from being simultaneously accessed by multiple threads. A recursive
@@ -158,13 +157,6 @@ class V8_BASE_EXPORT RecursiveMutex final {
   typedef CRITICAL_SECTION NativeHandle;
 #endif
 
-  NativeHandle& native_handle() {
-    return native_handle_;
-  }
-  const NativeHandle& native_handle() const {
-    return native_handle_;
-  }
-
  private:
   NativeHandle native_handle_;
 #ifdef DEBUG
@@ -210,16 +202,20 @@ template <typename Mutex, NullBehavior Behavior = NullBehavior::kRequireNotNull>
 class LockGuard final {
  public:
   explicit LockGuard(Mutex* mutex) : mutex_(mutex) {
-    if (Behavior == NullBehavior::kRequireNotNull || mutex_ != nullptr) {
-      mutex_->Lock();
-    }
+    if (has_mutex()) mutex_->Lock();
   }
   ~LockGuard() {
-    if (mutex_ != nullptr) mutex_->Unlock();
+    if (has_mutex()) mutex_->Unlock();
   }
 
  private:
-  Mutex* mutex_;
+  Mutex* const mutex_;
+
+  bool V8_INLINE has_mutex() const {
+    DCHECK_IMPLIES(Behavior == NullBehavior::kRequireNotNull,
+                   mutex_ != nullptr);
+    return Behavior == NullBehavior::kRequireNotNull || mutex_ != nullptr;
+  }
 
   DISALLOW_COPY_AND_ASSIGN(LockGuard);
 };
