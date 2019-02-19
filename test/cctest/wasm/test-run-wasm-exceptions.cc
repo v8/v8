@@ -158,20 +158,23 @@ WASM_EXEC_TEST(TryCatchTrapTypeError) {
   r.CheckCallViaJS(kResult1, 1);
 }
 
+namespace {
+
 // TODO(8729): The semantics of this are not yet specified and might change,
 // this test aims at keeping semantics of various execution tiers consistent.
-// TODO(mstarzinger): Add further tests for different kinds of traps.
-WASM_EXEC_TEST(TryCatchTrapUnreachable) {
+void TestTryCatchTrap(byte* code, size_t code_size,
+                      ExecutionTier execution_tier) {
   TestSignatures sigs;
   EXPERIMENTAL_FLAG_SCOPE(eh);
   WasmRunner<uint32_t, uint32_t> r(execution_tier, nullptr, "main",
                                    kRuntimeExceptionSupport);
+  r.builder().AddMemory(kWasmPageSize);
   constexpr uint32_t kResult0 = 23;
   constexpr uint32_t kResult1 = 42;
 
   // Build a trapping helper function.
   WasmFunctionCompiler& trap_func = r.NewFunction(sigs.i_ii());
-  BUILD(trap_func, WASM_UNREACHABLE);
+  trap_func.Build(code, code + code_size);
 
   // Build the main test function.
   BUILD(r, WASM_TRY_CATCH_T(
@@ -187,6 +190,28 @@ WASM_EXEC_TEST(TryCatchTrapUnreachable) {
   // Need to call through JS to allow for creation of stack traces.
   r.CheckCallViaJS(kResult0, 0);
   r.CheckCallViaJS(kResult1, 1);
+}
+
+}  // namespace
+
+WASM_EXEC_TEST(TryCatchTrapUnreachable) {
+  byte code[] = {WASM_UNREACHABLE};
+  TestTryCatchTrap(code, arraysize(code), execution_tier);
+}
+
+WASM_EXEC_TEST(TryCatchTrapMemOutOfBounds) {
+  byte code[] = {WASM_LOAD_MEM(MachineType::Int32(), WASM_I32V_1(-1))};
+  TestTryCatchTrap(code, arraysize(code), execution_tier);
+}
+
+WASM_EXEC_TEST(TryCatchTrapDivByZero) {
+  byte code[] = {WASM_I32_DIVS(WASM_GET_LOCAL(0), WASM_I32V_1(0))};
+  TestTryCatchTrap(code, arraysize(code), execution_tier);
+}
+
+WASM_EXEC_TEST(TryCatchTrapRemByZero) {
+  byte code[] = {WASM_I32_REMS(WASM_GET_LOCAL(0), WASM_I32V_1(0))};
+  TestTryCatchTrap(code, arraysize(code), execution_tier);
 }
 
 }  // namespace test_run_wasm_exceptions
