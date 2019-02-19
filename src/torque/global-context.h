@@ -20,7 +20,7 @@ class GlobalContext : public ContextualClass<GlobalContext> {
   explicit GlobalContext(Ast ast) : verbose_(false), ast_(std::move(ast)) {
     CurrentScope::Scope current_scope(nullptr);
     CurrentSourcePosition::Scope current_source_position(
-        SourcePosition{CurrentSourceFile::Get(), -1, -1});
+        SourcePosition{CurrentSourceFile::Get(), {-1, -1}, {-1, -1}});
     default_namespace_ =
         RegisterDeclarable(base::make_unique<Namespace>(kBaseNamespaceName));
   }

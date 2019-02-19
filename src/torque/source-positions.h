@@ -24,20 +24,26 @@ class SourceId {
   friend class SourceFileMap;
 };
 
-struct SourcePosition {
-  SourceId source;
+struct LineAndColumn {
   int line;
   int column;
+
+  static LineAndColumn Invalid() { return {-1, -1}; }
+};
+
+struct SourcePosition {
+  SourceId source;
+  LineAndColumn start;
+  LineAndColumn end;
+
   static SourcePosition Invalid() {
-    SourcePosition pos{SourceId::Invalid(), -1, -1};
+    SourcePosition pos{SourceId::Invalid(), LineAndColumn::Invalid(),
+                       LineAndColumn::Invalid()};
     return pos;
   }
-  int operator==(const SourcePosition& pos) const {
-    return line == pos.line && column == pos.column && source == pos.source;
-  }
-  int operator!=(const SourcePosition& pos) const { return !(*this == pos); }
-  bool CompareIgnoreColumn(const SourcePosition& pos) const {
-    return line == pos.line && source == pos.source;
+
+  bool CompareStartIgnoreColumn(const SourcePosition& pos) const {
+    return start.line == pos.start.line && source == pos.source;
   }
 };
 
@@ -62,7 +68,8 @@ class SourceFileMap : public ContextualClass<SourceFileMap> {
 
 inline std::string PositionAsString(SourcePosition pos) {
   return SourceFileMap::GetSource(pos.source) + ":" +
-         std::to_string(pos.line + 1) + ":" + std::to_string(pos.column + 1);
+         std::to_string(pos.start.line + 1) + ":" +
+         std::to_string(pos.start.column + 1);
 }
 
 inline std::ostream& operator<<(std::ostream& out, SourcePosition pos) {

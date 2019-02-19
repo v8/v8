@@ -2558,7 +2558,7 @@ void ImplementationVisitor::GenerateBuiltinDefinitions(std::string& file_name) {
         Declarations::FindSomeInternalBuiltinWithType(type);
     if (!example_builtin) {
       CurrentSourcePosition::Scope current_source_position(
-          SourcePosition{CurrentSourceFile::Get(), -1, -1});
+          SourcePosition{CurrentSourceFile::Get(), {-1, -1}, {-1, -1}});
       ReportError("unable to find any builtin with type \"", *type, "\"");
     }
     new_contents_stream << "  V(" << type->function_pointer_type_id() << ","

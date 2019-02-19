@@ -56,11 +56,11 @@ Stack<std::string> CSAGenerator::EmitBlock(const Block* block) {
 
 void CSAGenerator::EmitSourcePosition(SourcePosition pos, bool always_emit) {
   const std::string& file = SourceFileMap::GetSource(pos.source);
-  if (always_emit || !previous_position_.CompareIgnoreColumn(pos)) {
+  if (always_emit || !previous_position_.CompareStartIgnoreColumn(pos)) {
     // Lines in Torque SourcePositions are zero-based, while the
     // CodeStubAssembler and downwind systems are one-based.
-    out_ << "    ca_.SetSourcePosition(\"" << file << "\", " << (pos.line + 1)
-         << ");\n";
+    out_ << "    ca_.SetSourcePosition(\"" << file << "\", "
+         << (pos.start.line + 1) << ");\n";
     previous_position_ = pos;
   }
 }
@@ -679,7 +679,7 @@ void CSAGenerator::EmitInstruction(const AbortInstruction& instruction,
           StringLiteralQuote(SourceFileMap::GetSource(instruction.pos.source));
       out_ << "    CodeStubAssembler(state_).FailAssert("
            << StringLiteralQuote(instruction.message) << ", " << file << ", "
-           << instruction.pos.line + 1 << ");\n";
+           << instruction.pos.start.line + 1 << ");\n";
       break;
     }
   }
