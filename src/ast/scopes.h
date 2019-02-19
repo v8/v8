@@ -1138,27 +1138,21 @@ Scope::Snapshot::Snapshot(Scope* scope)
 
 class ModuleScope final : public DeclarationScope {
  public:
-  ModuleScope(DeclarationScope* script_scope,
-              AstValueFactory* ast_value_factory);
+  ModuleScope(DeclarationScope* script_scope, AstValueFactory* avfactory);
 
-  // Deserialization.
-  // The generated ModuleDescriptor does not preserve all information.  In
-  // particular, its module_requests map will be empty because we no longer need
-  // the map after parsing.
+  // Deserialization. Does not restore the module descriptor.
   ModuleScope(Isolate* isolate, Handle<ScopeInfo> scope_info,
-              AstValueFactory* ast_value_factory);
+              AstValueFactory* avfactory);
 
-  ModuleDescriptor* module() const {
-    DCHECK_NOT_NULL(module_descriptor_);
-    return module_descriptor_;
-  }
+  // Returns nullptr in a deserialized scope.
+  ModuleDescriptor* module() const { return module_descriptor_; }
 
   // Set MODULE as VariableLocation for all variables that will live in a
   // module's export table.
   void AllocateModuleVariables();
 
  private:
-  ModuleDescriptor* module_descriptor_;
+  ModuleDescriptor* const module_descriptor_;
 };
 
 }  // namespace internal

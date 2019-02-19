@@ -125,59 +125,19 @@ DeclarationScope::DeclarationScope(Zone* zone, Scope* outer_scope,
 }
 
 ModuleScope::ModuleScope(DeclarationScope* script_scope,
-                         AstValueFactory* ast_value_factory)
-    : DeclarationScope(ast_value_factory->zone(), script_scope, MODULE_SCOPE,
-                       kModule) {
-  Zone* zone = ast_value_factory->zone();
-  module_descriptor_ = new (zone) ModuleDescriptor(zone);
+                         AstValueFactory* avfactory)
+    : DeclarationScope(avfactory->zone(), script_scope, MODULE_SCOPE, kModule),
+      module_descriptor_(new (avfactory->zone())
+                             ModuleDescriptor(avfactory->zone())) {
   set_language_mode(LanguageMode::kStrict);
-  DeclareThis(ast_value_factory);
+  DeclareThis(avfactory);
 }
 
 ModuleScope::ModuleScope(Isolate* isolate, Handle<ScopeInfo> scope_info,
                          AstValueFactory* avfactory)
-    : DeclarationScope(avfactory->zone(), MODULE_SCOPE, scope_info) {
-  Zone* zone = avfactory->zone();
-  Handle<ModuleInfo> module_info(scope_info->ModuleDescriptorInfo(), isolate);
-
+    : DeclarationScope(avfactory->zone(), MODULE_SCOPE, scope_info),
+      module_descriptor_(nullptr) {
   set_language_mode(LanguageMode::kStrict);
-  module_descriptor_ = new (zone) ModuleDescriptor(zone);
-
-  // Deserialize special exports.
-  Handle<FixedArray> special_exports(module_info->special_exports(), isolate);
-  for (int i = 0, n = special_exports->length(); i < n; ++i) {
-    Handle<ModuleInfoEntry> serialized_entry(
-        ModuleInfoEntry::cast(special_exports->get(i)), isolate);
-    module_descriptor_->AddSpecialExport(
-        ModuleDescriptor::Entry::Deserialize(isolate, avfactory,
-                                             serialized_entry),
-        avfactory->zone());
-  }
-
-  // Deserialize regular exports.
-  module_descriptor_->DeserializeRegularExports(isolate, avfactory,
-                                                module_info);
-
-  // Deserialize namespace imports.
-  Handle<FixedArray> namespace_imports(module_info->namespace_imports(),
-                                       isolate);
-  for (int i = 0, n = namespace_imports->length(); i < n; ++i) {
-    Handle<ModuleInfoEntry> serialized_entry(
-        ModuleInfoEntry::cast(namespace_imports->get(i)), isolate);
-    module_descriptor_->AddNamespaceImport(
-        ModuleDescriptor::Entry::Deserialize(isolate, avfactory,
-                                             serialized_entry),
-        avfactory->zone());
-  }
-
-  // Deserialize regular imports.
-  Handle<FixedArray> regular_imports(module_info->regular_imports(), isolate);
-  for (int i = 0, n = regular_imports->length(); i < n; ++i) {
-    Handle<ModuleInfoEntry> serialized_entry(
-        ModuleInfoEntry::cast(regular_imports->get(i)), isolate);
-    module_descriptor_->AddRegularImport(ModuleDescriptor::Entry::Deserialize(
-        isolate, avfactory, serialized_entry));
-  }
 }
 
 Scope::Scope(Zone* zone, ScopeType scope_type, Handle<ScopeInfo> scope_info)
