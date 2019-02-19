@@ -1,4 +1,5 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
+
 # Copyright 2018 the V8 project authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can
 # be found in the LICENSE file.
@@ -21,6 +22,9 @@ will output
   [10/10] Number('undefined')    : avg 156,990.10 stddev  16,327.56 (144,718.00 - 202,840.00) Kps
   [10/10] [default]              : avg  22,885.80 stddev   1,941.80 ( 17,584.00 -  24,266.00) Kps
 """
+
+# for py2/py3 compatibility
+from __future__ import print_function
 
 import argparse
 import math

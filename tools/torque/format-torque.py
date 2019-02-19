@@ -6,6 +6,9 @@
 """This program either generates the parser files for Torque, generating
 the source and header files directly in V8's src directory."""
 
+# for py2/py3 compatibility
+from __future__ import print_function
+
 import subprocess
 import sys
 import re
@@ -96,13 +99,13 @@ def process(filename, lint, should_format):
   output, err = p.communicate(preprocess(content))
   output = postprocess(output)
   rc = p.returncode
-  if (rc <> 0):
-    print "error code " + str(rc) + " running clang-format. Exiting..."
+  if (rc != 0):
+    print("error code " + str(rc) + " running clang-format. Exiting...")
     sys.exit(rc);
 
   if lint:
     if (output != original_input):
-      print >>sys.stderr, filename + ' requires formatting'
+      print(filename + ' requires formatting', file=sys.stderr)
 
   if should_format:
     output_file = open(filename, 'w')
@@ -110,14 +113,14 @@ def process(filename, lint, should_format):
     output_file.close()
 
 def print_usage():
-  print 'format-torque -i file1[, file2[, ...]]'
-  print '    format and overwrite input files'
-  print 'format-torque -l file1[, file2[, ...]]'
-  print '    merely indicate which files need formatting'
+  print('format-torque -i file1[, file2[, ...]]')
+  print('    format and overwrite input files')
+  print('format-torque -l file1[, file2[, ...]]')
+  print('    merely indicate which files need formatting')
 
 def Main():
   if len(sys.argv) < 3:
-    print "error: at least 2 arguments required"
+    print("error: at least 2 arguments required")
     print_usage();
     sys.exit(-1)
 
@@ -137,7 +140,7 @@ def Main():
       lint = True
       should_format = True
   else:
-    print "error: -i and/or -l flags must be specified"
+    print("error: -i and/or -l flags must be specified")
     print_usage();
     sys.exit(-1);
 

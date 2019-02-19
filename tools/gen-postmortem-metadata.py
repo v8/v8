@@ -46,6 +46,9 @@
 # the generated libv8 binary.
 #
 
+# for py2/py3 compatibility
+from __future__ import print_function
+
 import re
 import sys
 
@@ -628,7 +631,7 @@ def emit_set(out, consts):
 # Emit the whole output file.
 #
 def emit_config():
-        out = file(sys.argv[1], 'w');
+        out = open(sys.argv[1], 'w');
 
         out.write(header);
 
