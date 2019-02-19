@@ -2856,7 +2856,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Functions used for testing.
   int GetConstantPoolEntriesSizeForTesting() const {
     // Do not include branch over the pool.
-    return constpool_.EntryCount() * kPointerSize;
+    return constpool_.EntryCount() * kSystemPointerSize;
   }
 
   static constexpr int GetCheckConstPoolIntervalForTesting() {

@@ -583,7 +583,7 @@ int Assembler::deserialization_special_target_size(Address location) {
     return kSpecialTargetSize;
   } else {
     DCHECK_EQ(instr->InstructionBits(), 0);
-    return kPointerSize;
+    return kSystemPointerSize;
   }
 }
 
@@ -645,7 +645,7 @@ int RelocInfo::target_address_size() {
     return Assembler::kSpecialTargetSize;
   } else {
     DCHECK(reinterpret_cast<Instruction*>(pc_)->IsLdrLiteralX());
-    return kPointerSize;
+    return kSystemPointerSize;
   }
 }
 

@@ -252,9 +252,9 @@ uintptr_t Simulator::PushAddress(uintptr_t address) {
   intptr_t new_sp = sp() - 2 * kXRegSize;
   uintptr_t* alignment_slot =
     reinterpret_cast<uintptr_t*>(new_sp + kXRegSize);
-  memcpy(alignment_slot, &kSlotsZapValue, kPointerSize);
+  memcpy(alignment_slot, &kSlotsZapValue, kSystemPointerSize);
   uintptr_t* stack_slot = reinterpret_cast<uintptr_t*>(new_sp);
-  memcpy(stack_slot, &address, kPointerSize);
+  memcpy(stack_slot, &address, kSystemPointerSize);
   set_sp(new_sp);
   return new_sp;
 }

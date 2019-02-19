@@ -377,7 +377,7 @@ int ConstPool::WorstCaseSize() {
   //   blr xzr
   //   nop
   // All entries are 64-bit for now.
-  return 4 * kInstrSize + EntryCount() * kPointerSize;
+  return 4 * kInstrSize + EntryCount() * kSystemPointerSize;
 }
 
 
@@ -395,7 +395,7 @@ int ConstPool::SizeIfEmittedAtCurrentPc(bool require_jump) {
       IsAligned(assm_->pc_offset() + prologue_size, 8) ? 0 : kInstrSize;
 
   // All entries are 64-bit for now.
-  return prologue_size + EntryCount() * kPointerSize;
+  return prologue_size + EntryCount() * kSystemPointerSize;
 }
 
 

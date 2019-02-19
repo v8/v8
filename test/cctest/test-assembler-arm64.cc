@@ -14721,7 +14721,7 @@ TEST(jump_tables_forward) {
     Label base;
 
     __ Adr(x10, &base);
-    __ Ldr(x11, MemOperand(x10, index, LSL, kPointerSizeLog2));
+    __ Ldr(x11, MemOperand(x10, index, LSL, kSystemPointerSizeLog2));
     __ Br(x11);
     __ Bind(&base);
     for (int i = 0; i < kNumCases; ++i) {
@@ -14789,7 +14789,7 @@ TEST(jump_tables_backward) {
     Label base;
 
     __ Adr(x10, &base);
-    __ Ldr(x11, MemOperand(x10, index, LSL, kPointerSizeLog2));
+    __ Ldr(x11, MemOperand(x10, index, LSL, kSystemPointerSizeLog2));
     __ Br(x11);
     __ Bind(&base);
     for (int i = 0; i < kNumCases; ++i) {
