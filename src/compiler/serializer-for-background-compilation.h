@@ -152,8 +152,10 @@ struct FunctionBlueprint {
   Handle<FeedbackVector> feedback_vector;
 
   bool operator<(const FunctionBlueprint& other) const {
-    // A feedback vector is never used for more than one SFI, so it could
+    // A feedback vector is never used for more than one SFI, so it can
     // be used for strict ordering of blueprints.
+    DCHECK_IMPLIES(feedback_vector.equals(other.feedback_vector),
+                   shared.equals(other.shared));
     return HandleComparator<FeedbackVector>()(feedback_vector,
                                               other.feedback_vector);
   }
