@@ -1271,6 +1271,21 @@ void LinearScanAllocator::PrintRangeRow(std::ostream& os,
   os << std::setw(3) << toplevel->vreg()
      << (toplevel->IsSplinter() ? "s:" : ": ");
 
+  const char* kind_string;
+  switch (toplevel->spill_type()) {
+    case TopLevelLiveRange::SpillType::kSpillRange:
+      kind_string = "ss";
+      break;
+    case TopLevelLiveRange::SpillType::kDeferredSpillRange:
+      kind_string = "sd";
+      break;
+    case TopLevelLiveRange::SpillType::kSpillOperand:
+      kind_string = "so";
+      break;
+    default:
+      kind_string = "s?";
+  }
+
   for (const LiveRange* range = toplevel; range != nullptr;
        range = range->next()) {
     for (UseInterval* interval = range->first_interval(); interval != nullptr;
@@ -1287,7 +1302,7 @@ void LinearScanAllocator::PrintRangeRow(std::ostream& os,
       int max_prefix_length = std::min(length + 1, kMaxPrefixLength);
       int prefix;
       if (range->spilled()) {
-        prefix = snprintf(buffer, max_prefix_length, "|ss");
+        prefix = snprintf(buffer, max_prefix_length, "|%s", kind_string);
       } else {
         const char* reg_name;
         if (range->assigned_register() == kUnassignedRegister) {
@@ -1311,7 +1326,7 @@ void LinearScanAllocator::PrintRangeRow(std::ostream& os,
 
 void LinearScanAllocator::PrintRangeOverview(std::ostream& os) {
   PrintBlockRow(os, code()->instruction_blocks());
-  for (auto toplevel : data()->fixed_live_ranges()) {
+  for (auto const toplevel : data()->fixed_live_ranges()) {
     if (toplevel == nullptr) continue;
     PrintRangeRow(os, toplevel);
   }
