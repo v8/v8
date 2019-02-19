@@ -256,10 +256,9 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // jump table will be populated with that copy.
   void SetLazyBuiltin(Handle<Code> code);
 
-  // Initializes all runtime stubs by copying them over from the JS-allocated
-  // heap into this native module. It must be called exactly once per native
-  // module before adding other WasmCode so that runtime stub ids can be
-  // resolved during relocation.
+  // Initializes all runtime stubs by setting up entry addresses in the runtime
+  // stub table. It must be called exactly once per native module before adding
+  // other WasmCode so that runtime stub ids can be resolved during relocation.
   void SetRuntimeStubs(Isolate* isolate);
 
   // Makes the code available to the system (by entering it into the code table

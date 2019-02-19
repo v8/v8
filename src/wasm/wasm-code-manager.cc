@@ -17,6 +17,7 @@
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
 #include "src/ostreams.h"
+#include "src/snapshot/embedded-data.h"
 #include "src/wasm/compilation-environment.h"
 #include "src/wasm/function-compiler.h"
 #include "src/wasm/jump-table-assembler.h"
@@ -503,16 +504,16 @@ void NativeModule::SetLazyBuiltin(Handle<Code> code) {
                         jump_table_->instructions().size());
 }
 
+// TODO(mstarzinger): Remove {Isolate} parameter once {V8_EMBEDDED_BUILTINS}
+// was removed and embedded builtins are no longer optional.
 void NativeModule::SetRuntimeStubs(Isolate* isolate) {
-  // TODO(mstarzinger): Switch this from accessing the {Isolate} to using the
-  // embedded blob directly. This will allow us to do this from the background.
-  HandleScope scope(isolate);
   DCHECK_EQ(kNullAddress, runtime_stub_entries_[0]);  // Only called once.
 #ifdef V8_EMBEDDED_BUILTINS
   WasmCode* jump_table =
       CreateEmptyJumpTable(JumpTableAssembler::SizeForNumberOfStubSlots(
           WasmCode::kRuntimeStubCount));
   Address base = jump_table->instruction_start();
+  EmbeddedData embedded_data = EmbeddedData::FromBlob();
 #define RUNTIME_STUB(Name) {Builtins::k##Name, WasmCode::k##Name},
 #define RUNTIME_STUB_TRAP(Name) RUNTIME_STUB(ThrowWasm##Name)
   std::pair<Builtins::Name, WasmCode::RuntimeStubId> wasm_runtime_stubs[] = {
@@ -520,11 +521,10 @@ void NativeModule::SetRuntimeStubs(Isolate* isolate) {
 #undef RUNTIME_STUB
 #undef RUNTIME_STUB_TRAP
   for (auto pair : wasm_runtime_stubs) {
-    Handle<Code> builtin_code = isolate->builtins()->builtin_handle(pair.first);
-    CHECK(builtin_code->is_off_heap_trampoline());
-    JumpTableAssembler::EmitRuntimeStubSlot(
-        base, pair.second, builtin_code->OffHeapInstructionStart(),
-        WasmCode::kNoFlushICache);
+    CHECK(embedded_data.ContainsBuiltin(pair.first));
+    Address builtin = embedded_data.InstructionStartOfBuiltin(pair.first);
+    JumpTableAssembler::EmitRuntimeStubSlot(base, pair.second, builtin,
+                                            WasmCode::kNoFlushICache);
     uint32_t slot_offset =
         JumpTableAssembler::StubSlotIndexToOffset(pair.second);
     runtime_stub_entries_[pair.second] = base + slot_offset;
@@ -534,6 +534,7 @@ void NativeModule::SetRuntimeStubs(Isolate* isolate) {
   DCHECK_NULL(runtime_stub_table_);
   runtime_stub_table_ = jump_table;
 #else  // V8_EMBEDDED_BUILTINS
+  HandleScope scope(isolate);
   USE(runtime_stub_table_);  // Actually unused, but avoids ifdef's in header.
 #define COPY_BUILTIN(Name)                                                     \
   runtime_stub_entries_[WasmCode::k##Name] =                                   \
