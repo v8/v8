@@ -380,11 +380,13 @@ StreamingDecoder::DecodeSectionLength::NextWithValue(
   SectionBuffer* buf =
       streaming->CreateNewBuffer(module_offset_, section_id_, value_,
                                  buffer().SubVector(0, bytes_consumed_));
-  if (!buf) return nullptr;
+  DCHECK_NOT_NULL(buf);
   if (value_ == 0) {
     if (section_id_ == SectionCode::kCodeSectionCode) {
       return streaming->Error("code section cannot have size 0");
     }
+    // Process section without payload as well, to enforce section order and
+    // other feature checks specific to each individual section.
     streaming->ProcessSection(buf);
     if (!streaming->ok()) return nullptr;
     // There is no payload, we go to the next section immediately.
@@ -483,14 +485,8 @@ StreamingDecoder::StreamingDecoder(
 StreamingDecoder::SectionBuffer* StreamingDecoder::CreateNewBuffer(
     uint32_t module_offset, uint8_t section_id, size_t length,
     Vector<const uint8_t> length_bytes) {
-  // Check the order of sections. Unknown sections can appear at any position.
-  if (section_id != kUnknownSectionCode) {
-    if (section_id < next_section_id_) {
-      Error("section out of order");
-      return nullptr;
-    }
-    next_section_id_ = section_id + 1;
-  }
+  // Section buffers are allocated in the same order they appear in the module,
+  // they will be processed and later on concatenated in that same order.
   section_buffers_.emplace_back(std::make_shared<SectionBuffer>(
       module_offset, section_id, length, length_bytes));
   return section_buffers_.back().get();

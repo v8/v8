@@ -1174,8 +1174,6 @@ class ModuleDecoderImpl : public Decoder {
     }
   }
 
-  // Decodes a single data segment entry inside a module starting at {pc_}.
-
   // Calculate individual global offsets and total size of globals table.
   void CalculateGlobalOffsets(WasmModule* module) {
     uint32_t untagged_offset = 0;
