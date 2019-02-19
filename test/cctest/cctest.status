@@ -575,6 +575,14 @@
 }], # lite_mode or variant == jitless
 
 ##############################################################################
+['lite_mode', {
+  # TODO(v8:8510): Tests that currently fail with lazy source positions.
+  'test-cpu-profiler/TickLinesBaseline': [SKIP],
+  'test-cpu-profiler/TickLinesOptimized': [SKIP],
+  'test-cpu-profiler/Inlining2': [SKIP],
+}], # lite_mode
+
+##############################################################################
 ['variant == jitless', {
   # https://crbug.com/v8/7777
   'serializer-tester/SerializeCallAnyReceiver': [SKIP],

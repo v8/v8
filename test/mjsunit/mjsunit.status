@@ -393,6 +393,12 @@
 }],  # 'lite_mode or variant == jitless'
 
 ##############################################################################
+['lite_mode', {
+  # TODO(v8:8510): Tests that currently fail with lazy source positions.
+  'stack-traces-overflow': [SKIP],
+}], # lite_mode
+
+##############################################################################
 ['variant == jitless', {
   # https://crbug.com/v8/7777
   'array-literal-transitions': [SKIP],
