@@ -92,6 +92,8 @@ namespace array {
 
     // Build a fast loop over the smi array.
     for (; k < len; k++) {
+      fastO.Recheck() otherwise goto Bailout(k);
+
       // Ensure that we haven't walked beyond a possibly updated length.
       if (k >= fastO.Get().length) goto Bailout(k);
 
@@ -105,7 +107,6 @@ namespace array {
         }
       }
       label FoundHole {}
-      fastO.Recheck() otherwise goto Bailout(k + 1);
     }
     return True;
   }

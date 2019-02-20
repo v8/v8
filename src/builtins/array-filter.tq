@@ -107,6 +107,8 @@ namespace array_filter {
 
     // Build a fast loop over the smi array.
     for (; k < len; k++) {
+      fastO.Recheck() otherwise goto Bailout(k, to);
+
       // Ensure that we haven't walked beyond a possibly updated length.
       if (k >= fastO.Get().length) goto Bailout(k, to);
       const value: Object = LoadElementNoHole<FixedArrayType>(fastO.Get(), k)
@@ -128,7 +130,6 @@ namespace array_filter {
         }
         to = to + 1;
       }
-      fastO.Recheck() otherwise goto Bailout(k + 1, to);
     }
   }
 

@@ -191,6 +191,8 @@ namespace array_map {
     // Build a fast loop over the smi array.
     // 7. Repeat, while k < len.
     for (; k < len; k++) {
+      fastO.Recheck() otherwise goto Bailout(v, k);
+
       // Ensure that we haven't walked beyond a possibly updated length.
       if (k >= fastO.Get().length) goto Bailout(v, k);
 
@@ -200,7 +202,6 @@ namespace array_map {
         const result: Object =
             Call(context, callbackfn, thisArg, value, k, fastO.Get());
         v.StoreResult(k, result);
-        fastO.Recheck() otherwise goto Bailout(v, k + 1);
       }
       label FoundHole {
         // Our output array must necessarily be holey because of holes in

@@ -77,12 +77,13 @@ namespace array_foreach {
 
     // Build a fast loop over the smi array.
     for (; k < len; k++) {
+      fastO.Recheck() otherwise goto Bailout(k);
+
       // Ensure that we haven't walked beyond a possibly updated length.
       if (k >= fastO.Get().length) goto Bailout(k);
       const value: Object = LoadElementNoHole<FixedArrayType>(fastO.Get(), k)
           otherwise continue;
       Call(context, callbackfn, thisArg, value, k, fastO.Get());
-      fastO.Recheck() otherwise goto Bailout(k + 1);
     }
   }
 
