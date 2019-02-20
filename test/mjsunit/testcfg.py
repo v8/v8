@@ -35,11 +35,6 @@ from testrunner.local import testsuite
 from testrunner.objects import testcase
 from testrunner.outproc import base as outproc
 
-try:
-  basestring       # Python 2
-except NameError:  # Python 3
-  basestring = str
-
 FILES_PATTERN = re.compile(r"//\s+Files:(.*)")
 ENV_PATTERN = re.compile(r"//\s+Environment Variables:(.*)")
 SELF_SCRIPT_PATTERN = re.compile(r"//\s+Env: TEST_FILE_NAME")

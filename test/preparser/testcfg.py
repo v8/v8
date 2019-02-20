@@ -25,6 +25,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
 import os
 
 from testrunner.local import testsuite
@@ -65,8 +66,7 @@ class TestSuite(testsuite.TestSuite):
           testsource = testsource.replace("$" + key, replacement[key]);
         Test(testname, testsource, expectation)
       return MkTest
-    with open(pathname) as in_file:
-      exec(in_file.read(), {"Test": Test, "Template": Template})
+    execfile(pathname, {"Test": Test, "Template": Template})
 
   def ListTests(self):
     result = []
