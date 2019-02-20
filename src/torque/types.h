@@ -120,8 +120,8 @@ class Type : public TypeBase {
     return IsAbstractName(CONSTEXPR_BOOL_TYPE_STRING);
   }
   bool IsVoidOrNever() const { return IsVoid() || IsNever(); }
-  virtual std::string GetGeneratedTypeName() const = 0;
-  virtual std::string GetGeneratedTNodeTypeName() const = 0;
+  std::string GetGeneratedTypeName() const;
+  std::string GetGeneratedTNodeTypeName() const;
   virtual bool IsConstexpr() const = 0;
   virtual bool IsTransient() const { return false; }
   virtual const Type* NonConstexprVersion() const = 0;
@@ -135,6 +135,8 @@ class Type : public TypeBase {
   void set_parent(const Type* t) { parent_ = t; }
   int Depth() const;
   virtual std::string ToExplicitString() const = 0;
+  virtual std::string GetGeneratedTypeNameImpl() const = 0;
+  virtual std::string GetGeneratedTNodeTypeNameImpl() const = 0;
 
  private:
   bool IsAbstractName(const std::string& name) const;
@@ -180,14 +182,14 @@ std::ostream& operator<<(std::ostream& os, const Field& name_and_type);
 class TopType final : public Type {
  public:
   DECLARE_TYPE_BOILERPLATE(TopType)
-  virtual std::string MangledName() const { return "top"; }
-  virtual std::string GetGeneratedTypeName() const { UNREACHABLE(); }
-  virtual std::string GetGeneratedTNodeTypeName() const {
+  std::string MangledName() const override { return "top"; }
+  std::string GetGeneratedTypeNameImpl() const override { UNREACHABLE(); }
+  std::string GetGeneratedTNodeTypeNameImpl() const override {
     return source_type_->GetGeneratedTNodeTypeName();
   }
-  virtual bool IsConstexpr() const { return false; }
-  virtual const Type* NonConstexprVersion() const { return nullptr; }
-  virtual std::string ToExplicitString() const {
+  bool IsConstexpr() const override { return false; }
+  const Type* NonConstexprVersion() const override { return nullptr; }
+  std::string ToExplicitString() const override {
     std::stringstream s;
     s << "inaccessible " + source_type_->ToString();
     return s.str();
@@ -216,11 +218,11 @@ class AbstractType final : public Type {
     std::replace(str.begin(), str.end(), ' ', '_');
     return "AT" + str;
   }
-  std::string GetGeneratedTypeName() const override {
+  std::string GetGeneratedTypeNameImpl() const override {
     return IsConstexpr() ? generated_type_
                          : "compiler::TNode<" + generated_type_ + ">";
   }
-  std::string GetGeneratedTNodeTypeName() const override;
+  std::string GetGeneratedTNodeTypeNameImpl() const override;
   bool IsConstexpr() const override {
     return name().substr(0, strlen(CONSTEXPR_TYPE_PREFIX)) ==
            CONSTEXPR_TYPE_PREFIX;
@@ -258,10 +260,10 @@ class BuiltinPointerType final : public Type {
   DECLARE_TYPE_BOILERPLATE(BuiltinPointerType)
   std::string ToExplicitString() const override;
   std::string MangledName() const override;
-  std::string GetGeneratedTypeName() const override {
+  std::string GetGeneratedTypeNameImpl() const override {
     return parent()->GetGeneratedTypeName();
   }
-  std::string GetGeneratedTNodeTypeName() const override {
+  std::string GetGeneratedTNodeTypeNameImpl() const override {
     return parent()->GetGeneratedTNodeTypeName();
   }
   bool IsConstexpr() const override {
@@ -312,10 +314,10 @@ class UnionType final : public Type {
   DECLARE_TYPE_BOILERPLATE(UnionType)
   std::string ToExplicitString() const override;
   std::string MangledName() const override;
-  std::string GetGeneratedTypeName() const override {
+  std::string GetGeneratedTypeNameImpl() const override {
     return "compiler::TNode<" + GetGeneratedTNodeTypeName() + ">";
   }
-  std::string GetGeneratedTNodeTypeName() const override;
+  std::string GetGeneratedTNodeTypeNameImpl() const override;
 
   bool IsConstexpr() const override {
     DCHECK_EQ(false, parent()->IsConstexpr());
@@ -401,8 +403,8 @@ class AggregateType : public Type {
  public:
   DECLARE_TYPE_BOILERPLATE(AggregateType)
   std::string MangledName() const override { return name_; }
-  std::string GetGeneratedTypeName() const override { UNREACHABLE(); }
-  std::string GetGeneratedTNodeTypeName() const override { UNREACHABLE(); }
+  std::string GetGeneratedTypeNameImpl() const override { UNREACHABLE(); }
+  std::string GetGeneratedTNodeTypeNameImpl() const override { UNREACHABLE(); }
   const Type* NonConstexprVersion() const override { return this; }
 
   bool IsConstexpr() const override { return false; }
@@ -449,7 +451,7 @@ class StructType final : public AggregateType {
  public:
   DECLARE_TYPE_BOILERPLATE(StructType)
   std::string ToExplicitString() const override;
-  std::string GetGeneratedTypeName() const override;
+  std::string GetGeneratedTypeNameImpl() const override;
 
   void SetDerivedFrom(const ClassType* derived_from) {
     derived_from_ = derived_from;
@@ -474,8 +476,8 @@ class ClassType final : public AggregateType {
  public:
   DECLARE_TYPE_BOILERPLATE(ClassType)
   std::string ToExplicitString() const override;
-  std::string GetGeneratedTypeName() const override;
-  std::string GetGeneratedTNodeTypeName() const override;
+  std::string GetGeneratedTypeNameImpl() const override;
+  std::string GetGeneratedTNodeTypeNameImpl() const override;
   bool IsExtern() const { return is_extern_; }
   bool IsTransient() const override { return transient_; }
   bool HasIndexedField() const override;

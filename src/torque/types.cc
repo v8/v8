@@ -75,7 +75,25 @@ bool Type::IsAbstractName(const std::string& name) const {
   return AbstractType::cast(this)->name() == name;
 }
 
-std::string AbstractType::GetGeneratedTNodeTypeName() const {
+std::string Type::GetGeneratedTypeName() const {
+  std::string result = GetGeneratedTypeNameImpl();
+  if (result.empty() || result == "compiler::TNode<>") {
+    ReportError("Generated type is required for type '", ToString(),
+                "'. Use 'generates' clause in definition.");
+  }
+  return result;
+}
+
+std::string Type::GetGeneratedTNodeTypeName() const {
+  std::string result = GetGeneratedTNodeTypeNameImpl();
+  if (result.empty()) {
+    ReportError("Generated TNode type is required for type '", ToString(),
+                "'. Use 'generates' clause in definition.");
+  }
+  return result;
+}
+
+std::string AbstractType::GetGeneratedTNodeTypeNameImpl() const {
   return generated_type_;
 }
 
@@ -124,7 +142,7 @@ std::string UnionType::MangledName() const {
   return result.str();
 }
 
-std::string UnionType::GetGeneratedTNodeTypeName() const {
+std::string UnionType::GetGeneratedTNodeTypeNameImpl() const {
   if (types_.size() <= 3) {
     std::set<std::string> members;
     for (const Type* t : types_) {
@@ -250,7 +268,7 @@ const Field& AggregateType::LookupField(const std::string& name) const {
   ReportError("no field ", name, " found");
 }
 
-std::string StructType::GetGeneratedTypeName() const {
+std::string StructType::GetGeneratedTypeNameImpl() const {
   return nspace()->ExternalName() + "::" + name();
 }
 
@@ -300,7 +318,7 @@ bool ClassType::HasIndexedField() const {
   return false;
 }
 
-std::string ClassType::GetGeneratedTNodeTypeName() const {
+std::string ClassType::GetGeneratedTNodeTypeNameImpl() const {
   if (!IsExtern()) return generates_;
   std::string prefix = nspace()->IsDefaultNamespace()
                            ? std::string{}
@@ -308,7 +326,7 @@ std::string ClassType::GetGeneratedTNodeTypeName() const {
   return prefix + generates_;
 }
 
-std::string ClassType::GetGeneratedTypeName() const {
+std::string ClassType::GetGeneratedTypeNameImpl() const {
   return IsConstexpr() ? GetGeneratedTNodeTypeName()
                        : "compiler::TNode<" + GetGeneratedTNodeTypeName() + ">";
 }
