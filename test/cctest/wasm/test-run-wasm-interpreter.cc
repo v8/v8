@@ -143,6 +143,118 @@ TEST(Run_Wasm_nested_ifs_i) {
   CHECK_EQ(14, r.Call(0, 0));
 }
 
+// Repeated from test-run-wasm.cc to avoid poluting header files.
+template <typename T>
+static T factorial(T v) {
+  T expected = 1;
+  for (T i = v; i > 1; i--) {
+    expected *= i;
+  }
+  return expected;
+}
+
+// Basic test of return call in interpreter. Good old factorial.
+TEST(Run_Wasm_returnCallFactorial) {
+  EXPERIMENTAL_FLAG_SCOPE(return_call);
+  // Run in bounded amount of stack - 8kb.
+  FlagScope<int32_t> stack_size(&v8::internal::FLAG_stack_size, 8);
+
+  WasmRunner<int32_t, int32_t> r(ExecutionTier::kInterpreter);
+
+  WasmFunctionCompiler& fact_fn = r.NewFunction<int32_t, int32_t>("fact");
+  WasmFunctionCompiler& fact_aux_fn =
+      r.NewFunction<int32_t, int32_t, int32_t>("fact_aux");
+
+  BUILD(r, WASM_CALL_FUNCTION(fact_fn.function_index(), WASM_GET_LOCAL(0)));
+
+  BUILD(fact_fn, WASM_RETURN_CALL_FUNCTION(fact_aux_fn.function_index(),
+                                           WASM_GET_LOCAL(0), WASM_I32V(1)));
+
+  BUILD(fact_aux_fn,
+        WASM_IF_ELSE_I(
+            WASM_I32_EQ(WASM_I32V(1), WASM_GET_LOCAL(0)), WASM_GET_LOCAL(1),
+            WASM_RETURN_CALL_FUNCTION(
+                fact_aux_fn.function_index(),
+                WASM_I32_SUB(WASM_GET_LOCAL(0), WASM_I32V(1)),
+                WASM_I32_MUL(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)))));
+
+  // Runs out of stack space without using return call.
+  int test_values[] = {1, 2, 5, 10, 20, 20000};
+
+  for (int v : test_values) {
+    int32_t found = r.Call(v);
+    CHECK_EQ(factorial(v), found);
+  }
+}
+
+TEST(Run_Wasm_returnCallFactorial64) {
+  EXPERIMENTAL_FLAG_SCOPE(return_call);
+
+  int32_t test_values[] = {1, 2, 5, 10, 20};
+  WasmRunner<int64_t, int32_t> r(ExecutionTier::kInterpreter);
+
+  WasmFunctionCompiler& fact_fn = r.NewFunction<int64_t, int32_t>("fact");
+  WasmFunctionCompiler& fact_aux_fn =
+      r.NewFunction<int64_t, int32_t, int64_t>("fact_aux");
+  BUILD(r, WASM_CALL_FUNCTION(fact_fn.function_index(), WASM_GET_LOCAL(0)));
+
+  BUILD(fact_fn, WASM_RETURN_CALL_FUNCTION(fact_aux_fn.function_index(),
+                                           WASM_GET_LOCAL(0), WASM_I64V(1)));
+
+  BUILD(fact_aux_fn,
+        WASM_IF_ELSE_L(
+            WASM_I32_EQ(WASM_I32V(1), WASM_GET_LOCAL(0)), WASM_GET_LOCAL(1),
+            WASM_RETURN_CALL_FUNCTION(
+                fact_aux_fn.function_index(),
+                WASM_I32_SUB(WASM_GET_LOCAL(0), WASM_I32V(1)),
+                WASM_I64_MUL(WASM_I64_SCONVERT_I32(WASM_GET_LOCAL(0)),
+                             WASM_GET_LOCAL(1)))));
+
+  for (int32_t v : test_values) {
+    CHECK_EQ(factorial<int64_t>(v), r.Call(v));
+  }
+}
+
+TEST(Run_Wasm_tailCallIndirectFactorial) {
+  EXPERIMENTAL_FLAG_SCOPE(return_call);
+
+  TestSignatures sigs;
+
+  WasmRunner<int32_t, int32_t> r(ExecutionTier::kInterpreter);
+
+  WasmFunctionCompiler& fact_fn = r.NewFunction(sigs.i_i(), "fact");
+
+  WasmFunctionCompiler& fact_aux_fn = r.NewFunction(sigs.i_ii(), "fact_aux");
+  fact_aux_fn.SetSigIndex(0);
+
+  r.builder().AddSignature(sigs.i_ii());
+
+  // Function table.
+  uint16_t indirect_function_table[] = {
+      static_cast<uint16_t>(fact_aux_fn.function_index())};
+
+  r.builder().AddIndirectFunctionTable(indirect_function_table,
+                                       arraysize(indirect_function_table));
+  r.builder().PopulateIndirectFunctionTable();
+
+  BUILD(r, WASM_CALL_FUNCTION(fact_fn.function_index(), WASM_GET_LOCAL(0)));
+
+  BUILD(fact_fn, WASM_RETURN_CALL_INDIRECT(0, WASM_I32V(0), WASM_GET_LOCAL(0),
+                                           WASM_I32V(1)));
+
+  BUILD(fact_aux_fn,
+        WASM_IF_ELSE_I(
+            WASM_I32_EQ(WASM_I32V(1), WASM_GET_LOCAL(0)), WASM_GET_LOCAL(1),
+            WASM_RETURN_CALL_INDIRECT(
+                0, WASM_I32V(0), WASM_I32_SUB(WASM_GET_LOCAL(0), WASM_I32V(1)),
+                WASM_I32_MUL(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)))));
+
+  int32_t test_values[] = {1, 2, 5, 10, 20};
+
+  for (int32_t v : test_values) {
+    CHECK_EQ(factorial(v), r.Call(v));
+  }
+}
 // Make tests more robust by not hard-coding offsets of various operations.
 // The {Find} method finds the offsets for the given bytecodes, returning
 // the offsets in an array.
