@@ -95,7 +95,7 @@ def process(filename, lint, should_format):
 
   original_input = content
 
-  p = Popen(['clang-format', '-assume-filename=.ts'], stdin=PIPE, stdout=PIPE, stderr=PIPE, shell=True)
+  p = Popen(['clang-format', '-assume-filename=.ts'], stdin=PIPE, stdout=PIPE, stderr=PIPE)
   output, err = p.communicate(preprocess(content))
   output = postprocess(output)
   rc = p.returncode
