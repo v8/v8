@@ -65,24 +65,21 @@ class BackgroundCompileToken {
       : native_module_(native_module) {}
 
   void Cancel() {
-    base::MutexGuard mutex_guard(&mutex_);
+    base::SharedMutexGuard<base::kExclusive> mutex_guard(&mutex_);
     native_module_ = nullptr;
   }
 
-  // Only call this while holding the {mutex_}.
-  void CancelLocked() { native_module_ = nullptr; }
-
  private:
   friend class BackgroundCompileScope;
-  base::Mutex mutex_;
+  base::SharedMutex mutex_;
   NativeModule* native_module_;
 
   NativeModule* StartScope() {
-    mutex_.Lock();
+    mutex_.LockShared();
     return native_module_;
   }
 
-  void ExitScope() { mutex_.Unlock(); }
+  void ExitScope() { mutex_.UnlockShared(); }
 };
 
 class CompilationStateImpl;
@@ -681,6 +678,7 @@ class BackgroundCompileTask : public CancelableTask {
           &env.value(), wire_bytes, async_counters_.get(), &detected_features);
 
       // Step 3 (synchronized): Publish the compilation result.
+      bool cancel_compilation = false;
       {
         BackgroundCompileScope compile_scope(token_);
         if (compile_scope.cancelled()) return;
@@ -690,17 +688,21 @@ class BackgroundCompileTask : public CancelableTask {
           compile_scope.compilation_state()->OnBackgroundTaskStopped(
               detected_features);
           // Also, cancel all remaining compilation.
-          token_->CancelLocked();
-          return;
+          cancel_compilation = true;
+        } else {
+          compile_scope.compilation_state()->OnFinishedUnit(
+              unit->requested_tier(), code);
+          if (deadline < MonotonicallyIncreasingTimeInMs()) {
+            compile_scope.compilation_state()->ReportDetectedFeatures(
+                detected_features);
+            compile_scope.compilation_state()->RestartBackgroundCompileTask();
+            return;
+          }
         }
-        compile_scope.compilation_state()->OnFinishedUnit(
-            unit->requested_tier(), code);
-        if (deadline < MonotonicallyIncreasingTimeInMs()) {
-          compile_scope.compilation_state()->ReportDetectedFeatures(
-              detected_features);
-          compile_scope.compilation_state()->RestartBackgroundCompileTask();
-          return;
-        }
+      }
+      if (cancel_compilation) {
+        token_->Cancel();
+        return;
       }
     }
     UNREACHABLE();  // Loop exits via explicit return.
