@@ -1578,28 +1578,28 @@
     'tests': [
       {'name': 'mozilla'},
       {'name': 'test262'},
-      {'name': 'v8testing', 'shards': 2},
+      {'name': 'v8testing', 'shards': 4},
     ],
   },
   'V8 arm - sim - beta branch - debug': {
     'tests': [
       {'name': 'mozilla'},
       {'name': 'test262'},
-      {'name': 'v8testing', 'shards': 3},
+      {'name': 'v8testing', 'shards': 8},
     ],
   },
   'V8 arm - sim - stable branch': {
     'tests': [
       {'name': 'mozilla'},
       {'name': 'test262'},
-      {'name': 'v8testing', 'shards': 2},
+      {'name': 'v8testing', 'shards': 4},
     ],
   },
   'V8 arm - sim - stable branch - debug': {
     'tests': [
       {'name': 'mozilla'},
       {'name': 'test262'},
-      {'name': 'v8testing', 'shards': 3},
+      {'name': 'v8testing', 'shards': 8},
     ],
   },
   'V8 mips64el - sim - beta branch': {
