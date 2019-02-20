@@ -24,10 +24,6 @@ namespace wasm {
 
 #define __ masm.
 
-// TODO(v8:7424,v8:8018): Extend this test to all architectures.
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM || \
-    V8_TARGET_ARCH_ARM64
-
 namespace {
 
 static volatile int global_stop_bit = 0;
@@ -109,6 +105,20 @@ Address GenerateJumpTableThunk(
   __ Tbnz(scratch, 0, &exit);
   __ Mov(scratch, Immediate(jump_target, RelocInfo::NONE));
   __ Br(scratch);
+#elif V8_TARGET_ARCH_PPC64
+  __ mov(scratch, Operand(stop_bit_address, RelocInfo::NONE));
+  __ LoadP(scratch, MemOperand(scratch));
+  __ cmpi(scratch, Operand::Zero());
+  __ bne(&exit);
+  __ mov(scratch, Operand(jump_target, RelocInfo::NONE));
+  __ Jump(scratch);
+#elif V8_TARGET_ARCH_S390X
+  __ mov(scratch, Operand(stop_bit_address, RelocInfo::NONE));
+  __ LoadP(scratch, MemOperand(scratch));
+  __ CmpP(scratch, Operand(0));
+  __ bne(&exit);
+  __ mov(scratch, Operand(jump_target, RelocInfo::NONE));
+  __ Jump(scratch);
 #else
 #error Unsupported architecture
 #endif
@@ -235,9 +245,6 @@ TEST(JumpTablePatchingStress) {
     for (auto& runner : runners) runner.Join();
   }
 }
-
-#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM ||
-        // V8_TARGET_ARCH_ARM64
 
 #undef __
 #undef TRACE
