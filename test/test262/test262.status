@@ -493,9 +493,6 @@
   'annexB/language/statements/for-await-of/iterator-close-return-emulates-undefined-throws-when-called': [FAIL],
   'annexB/language/statements/for-of/iterator-close-return-emulates-undefined-throws-when-called': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=7468
-  'language/statements/class/elements/privatename-not-valid-earlyerr-script-8': [SKIP],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=5690
   'language/expressions/call/eval-spread': [FAIL],
   'language/expressions/call/eval-spread-empty-leading': [FAIL],
@@ -566,18 +563,6 @@
   'language/expressions/prefix-increment/eval': [SKIP],
   'language/expressions/prefix-increment/eval-nostrict': [SKIP],
 
-  # https://github.com/tc39/proposal-class-fields/issues/215
-  'language/expressions/function/early-errors/invalid-names-call-expression-bad-reference': [FAIL],
-  'language/expressions/function/early-errors/invalid-names-call-expression-this': [FAIL],
-  'language/expressions/function/early-errors/invalid-names-member-expression-bad-reference': [FAIL],
-  'language/expressions/function/early-errors/invalid-names-member-expression-this': [FAIL],
-  'language/expressions/class/elements/syntax/early-errors/grammar-private-field-super-access': [FAIL],
-  'language/statements/function/early-errors/invalid-names-call-expression-bad-reference': [FAIL],
-  'language/statements/function/early-errors/invalid-names-call-expression-this': [FAIL],
-  'language/statements/function/early-errors/invalid-names-member-expression-bad-reference': [FAIL],
-  'language/statements/function/early-errors/invalid-names-member-expression-this': [FAIL],
-  'language/statements/class/elements/syntax/early-errors/grammar-private-field-super-access': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=8850
   'language/comments/hashbang/escaped-bang-041': [FAIL],
   'language/comments/hashbang/escaped-bang-u0021': [FAIL],
@@ -602,6 +587,10 @@
   'language/comments/hashbang/preceding-multi-line-comment': [FAIL],
   'language/comments/hashbang/preceding-whitespace': [FAIL],
   'language/comments/hashbang/use-strict': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=8872
+  'language/statements/class/elements/syntax/early-errors/grammar-private-field-super-access': [SKIP],
+  'language/expressions/class/elements/syntax/early-errors/grammar-private-field-super-access': [SKIP],
 
   ######################## NEEDS INVESTIGATION ###########################
 
