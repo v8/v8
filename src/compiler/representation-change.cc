@@ -524,7 +524,9 @@ Node* RepresentationChanger::GetTaggedRepresentationFor(
                    Type::Unsigned32())) {  // float64 -> uint32 -> tagged
       node = InsertChangeFloat64ToUint32(node);
       op = simplified()->ChangeUint32ToTagged();
-    } else if (output_type.Is(Type::Number())) {
+    } else if (output_type.Is(Type::Number()) ||
+               (output_type.Is(Type::NumberOrOddball()) &&
+                truncation.IsUsedAsFloat64())) {
       op = simplified()->ChangeFloat64ToTagged(
           output_type.Maybe(Type::MinusZero())
               ? CheckForMinusZeroMode::kCheckForMinusZero
