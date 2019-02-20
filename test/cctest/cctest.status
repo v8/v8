@@ -78,7 +78,6 @@
   'test-cpu-profiler/CollectCpuProfileCallerLineNumbers': [SKIP],
   'test-cpu-profiler/CollectCpuProfileSamples': [SKIP],
   'test-cpu-profiler/CollectDeoptEvents': [SKIP],
-  'test-cpu-profiler/CpuProfileDeepStack': [SKIP],
   'test-cpu-profiler/DeoptAtFirstLevelInlinedSource': [SKIP],
   'test-cpu-profiler/DeoptAtSecondLevelInlinedSource': [SKIP],
   'test-cpu-profiler/DeoptUntrackedFunction': [SKIP],
