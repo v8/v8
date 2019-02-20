@@ -588,10 +588,6 @@
   'language/comments/hashbang/preceding-whitespace': [FAIL],
   'language/comments/hashbang/use-strict': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=8872
-  'language/statements/class/elements/syntax/early-errors/grammar-private-field-super-access': [SKIP],
-  'language/expressions/class/elements/syntax/early-errors/grammar-private-field-super-access': [SKIP],
-
   ######################## NEEDS INVESTIGATION ###########################
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7833

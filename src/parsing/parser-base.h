@@ -3318,6 +3318,13 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseSuperExpression(
   if (IsConciseMethod(kind) || IsAccessorFunction(kind) ||
       IsClassConstructor(kind)) {
     if (Token::IsProperty(peek())) {
+      if (peek() == Token::PERIOD && PeekAhead() == Token::PRIVATE_NAME) {
+        Consume(Token::PERIOD);
+        Consume(Token::PRIVATE_NAME);
+
+        impl()->ReportMessage(MessageTemplate::kUnexpectedPrivateField);
+        return impl()->FailureExpression();
+      }
       scope->RecordSuperPropertyUsage();
       UseThis();
       return impl()->NewSuperPropertyReference(pos);
