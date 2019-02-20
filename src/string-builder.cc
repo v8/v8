@@ -226,6 +226,7 @@ MaybeHandle<String> ReplacementStringBuilder::ToString() {
 void ReplacementStringBuilder::AddElement(Object element) {
   DCHECK(element->IsSmi() || element->IsString());
   DCHECK(array_builder_.capacity() > array_builder_.length());
+  EnsureCapacity(1);
   array_builder_.Add(element);
 }
 

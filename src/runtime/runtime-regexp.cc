@@ -652,16 +652,9 @@ V8_WARN_UNUSED_RESULT static Object StringReplaceGlobalRegExpWithString(
   int expected_parts = (compiled_replacement.parts() + 1) * 4 + 1;
   ReplacementStringBuilder builder(isolate->heap(), subject, expected_parts);
 
-  // Number of parts added by compiled replacement plus preceding
-  // string and possibly suffix after last match.  It is possible for
-  // all components to use two elements when encoded as two smis.
-  const int parts_added_per_loop = 2 * (compiled_replacement.parts() + 2);
-
   int prev = 0;
 
   do {
-    builder.EnsureCapacity(parts_added_per_loop);
-
     int start = current_match[0];
     int end = current_match[1];
 
@@ -682,7 +675,6 @@ V8_WARN_UNUSED_RESULT static Object StringReplaceGlobalRegExpWithString(
   if (global_cache.HasException()) return ReadOnlyRoots(isolate).exception();
 
   if (prev < subject_length) {
-    builder.EnsureCapacity(2);
     builder.AddSubjectSlice(prev, subject_length);
   }
 

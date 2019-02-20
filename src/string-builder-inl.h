@@ -65,6 +65,7 @@ class ReplacementStringBuilder {
   ReplacementStringBuilder(Heap* heap, Handle<String> subject,
                            int estimated_part_count);
 
+  // Caution: Callers must ensure the builder has enough capacity.
   static inline void AddSubjectSlice(FixedArrayBuilder* builder, int from,
                                      int to) {
     DCHECK_GE(from, 0);
@@ -82,9 +83,8 @@ class ReplacementStringBuilder {
     }
   }
 
-  void EnsureCapacity(int elements);
-
   void AddSubjectSlice(int from, int to) {
+    EnsureCapacity(2);  // Subject slices are encoded with up to two smis.
     AddSubjectSlice(&array_builder_, from, to);
     IncrementCharacterCount(to - from);
   }
@@ -104,6 +104,7 @@ class ReplacementStringBuilder {
 
  private:
   void AddElement(Object element);
+  void EnsureCapacity(int elements);
 
   Heap* heap_;
   FixedArrayBuilder array_builder_;
