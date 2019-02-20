@@ -19,7 +19,7 @@ type Tagged generates 'TNode<Object>' constexpr 'ObjectPtr';
 type Smi extends Tagged generates 'TNode<Smi>' constexpr 'Smi';
 
 // A Smi that is greater than or equal to 0. See TaggedIsPositiveSmi.
-type PositiveSmi extends Smi generates 'TNode<Smi>';
+type PositiveSmi extends Smi;
 
 extern class HeapObject extends Tagged { map: Map; }
 
@@ -51,7 +51,7 @@ type AbstractCode extends HeapObject generates 'TNode<AbstractCode>';
 type Code extends AbstractCode generates 'TNode<Code>';
 type BuiltinPtr extends Smi generates 'TNode<BuiltinPtr>';
 type Context extends HeapObject generates 'TNode<Context>';
-type NativeContext extends Context generates 'TNode<Context>';
+type NativeContext extends Context;
 type String extends HeapObject generates 'TNode<String>';
 type Oddball extends HeapObject generates 'TNode<Oddball>';
 type HeapNumber extends HeapObject generates 'TNode<HeapNumber>';
@@ -61,7 +61,7 @@ type Numeric = Number | BigInt;
 
 // A direct string can be accessed directly through CSA without going into the
 // C++ runtime. See also: ToDirectStringAssembler.
-type DirectString extends String generates 'TNode<String>';
+type DirectString extends String;
 
 type RootIndex generates 'TNode<Int32T>' constexpr 'RootIndex';
 
@@ -86,7 +86,7 @@ extern class JSReceiver extends HeapObject {
   properties_or_hash: FixedArrayBase | Smi;
 }
 
-type Constructor extends JSReceiver generates 'TNode<JSReceiver>';
+type Constructor extends JSReceiver;
 type JSProxy extends JSReceiver generates 'TNode<JSProxy>';
 
 extern class JSObject extends JSReceiver {
@@ -126,16 +126,13 @@ extern class JSArray extends JSObject {
 
 // A HeapObject with a JSArray map, and either fast packed elements, or fast
 // holey elements when the global NoElementsProtector is not invalidated.
-transient type FastJSArray extends JSArray
-    generates 'TNode<JSArray>';
+transient type FastJSArray extends JSArray;
 
 // A FastJSArray when the global ArraySpeciesProtector is not invalidated.
-transient type FastJSArrayForCopy extends FastJSArray
-    generates 'TNode<JSArray>';
+transient type FastJSArrayForCopy extends FastJSArray;
 
 // A FastJSArray when the global ArrayIteratorProtector is not invalidated.
-transient type FastJSArrayWithNoCustomIteration extends FastJSArray
-    generates 'TNode<JSArray>';
+transient type FastJSArrayWithNoCustomIteration extends FastJSArray;
 
 type NoSharedNameSentinel extends Smi;
 type Script extends HeapObject;
@@ -179,8 +176,7 @@ type FixedTypedArrayBase extends FixedArrayBase
     generates 'TNode<FixedTypedArrayBase>';
 type FixedTypedArray extends FixedTypedArrayBase
     generates 'TNode<FixedTypedArray>';
-extern class SloppyArgumentsElements extends FixedArray
-    generates 'TNode<FixedArray>' {}
+extern class SloppyArgumentsElements extends FixedArray {}
 type NumberDictionary extends HeapObject
     generates 'TNode<NumberDictionary>';
 
@@ -230,8 +226,7 @@ type JSDataView extends JSArrayBufferView generates 'TNode<JSDataView>';
 
 type InstanceType generates 'TNode<Int32T>' constexpr 'InstanceType';
 type ElementsKind generates 'TNode<Int32T>' constexpr 'ElementsKind';
-type LanguageMode extends Smi
-    generates 'TNode<Smi>' constexpr 'LanguageMode';
+type LanguageMode extends Smi constexpr 'LanguageMode';
 type ExtractFixedArrayFlags
     generates 'TNode<Smi>'
     constexpr 'CodeStubAssembler::ExtractFixedArrayFlags';
@@ -383,12 +378,12 @@ const kInvalidDataViewAccessorOffset: constexpr MessageTemplate
 const kStrictReadOnlyProperty: constexpr MessageTemplate
     generates 'MessageTemplate::kStrictReadOnlyProperty';
 
-type Hole extends Oddball generates 'TNode<Oddball>';
-type Null extends Oddball generates 'TNode<Oddball>';
-type Undefined extends Oddball generates 'TNode<Oddball>';
-type True extends Oddball generates 'TNode<Oddball>';
-type False extends Oddball generates 'TNode<Oddball>';
-type EmptyString extends String generates 'TNode<String>';
+type Hole extends Oddball;
+type Null extends Oddball;
+type Undefined extends Oddball;
+type True extends Oddball;
+type False extends Oddball;
+type EmptyString extends String;
 type Boolean = True | False;
 
 type NumberOrUndefined = Number | Undefined;

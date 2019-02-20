@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-type FrameType extends Smi
-    generates 'TNode<Smi>' constexpr 'StackFrame::Type';
+type FrameType extends Smi constexpr 'StackFrame::Type';
 const ARGUMENTS_ADAPTOR_FRAME: constexpr FrameType
     generates 'StackFrame::ARGUMENTS_ADAPTOR';
 const STUB_FRAME: constexpr FrameType
@@ -30,14 +29,10 @@ Cast<FrameType>(o: Object): FrameType
   return %RawDownCast<FrameType>(o);
 }
 
-type FrameBase extends RawPtr
-    generates 'TNode<RawPtrT>' constexpr 'void*';
-type StandardFrame extends FrameBase
-    generates 'TNode<RawPtrT>' constexpr 'void*';
-type ArgumentsAdaptorFrame extends FrameBase
-    generates 'TNode<RawPtrT>' constexpr 'void*';
-type StubFrame extends FrameBase
-    generates 'TNode<RawPtrT>' constexpr 'void*';
+type FrameBase extends RawPtr constexpr 'void*';
+type StandardFrame extends FrameBase constexpr 'void*';
+type ArgumentsAdaptorFrame extends FrameBase constexpr 'void*';
+type StubFrame extends FrameBase constexpr 'void*';
 type Frame = ArgumentsAdaptorFrame | StandardFrame | StubFrame;
 
 extern macro LoadFramePointer(): Frame;

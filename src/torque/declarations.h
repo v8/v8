@@ -74,7 +74,7 @@ class Declarations {
   static Namespace* DeclareNamespace(const std::string& name);
 
   static const AbstractType* DeclareAbstractType(
-      const std::string& name, bool transient, const std::string& generated,
+      const std::string& name, bool transient, std::string generated,
       base::Optional<const AbstractType*> non_constexpr_version,
       const base::Optional<std::string>& parent = {});
 

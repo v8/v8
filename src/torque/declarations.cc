@@ -147,13 +147,16 @@ Namespace* Declarations::DeclareNamespace(const std::string& name) {
 }
 
 const AbstractType* Declarations::DeclareAbstractType(
-    const std::string& name, bool transient, const std::string& generated,
+    const std::string& name, bool transient, std::string generated,
     base::Optional<const AbstractType*> non_constexpr_version,
     const base::Optional<std::string>& parent) {
   CheckAlreadyDeclared<TypeAlias>(name, "type");
   const Type* parent_type = nullptr;
   if (parent) {
     parent_type = LookupType(QualifiedName{*parent});
+  }
+  if (generated == "" && parent) {
+    generated = parent_type->GetGeneratedTNodeTypeName();
   }
   const AbstractType* type = TypeOracle::GetAbstractType(
       parent_type, name, transient, generated, non_constexpr_version);
