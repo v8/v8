@@ -70,8 +70,8 @@ let kStartSectionCode = 8;       // Start function declaration
 let kElementSectionCode = 9;     // Elements section
 let kCodeSectionCode = 10;       // Function code
 let kDataSectionCode = 11;       // Data segments
-let kExceptionSectionCode = 12;  // Exception section (between Global & Export)
-let kDataCountSectionCode = 13;  // Data segments
+let kDataCountSectionCode = 12;  // Data segment count (between Element & Code)
+let kExceptionSectionCode = 13;  // Exception section (between Global & Export)
 
 // Name section types
 let kModuleNameCode = 0;
