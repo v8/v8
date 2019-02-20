@@ -620,7 +620,7 @@ WasmCode* NativeModule::AddCode(
   const int handler_table_offset =
       desc.handler_table_size == 0 ? 0 : desc.handler_table_offset;
 
-  WasmCode* ret = AddOwnedCode(
+  WasmCode* code = AddOwnedCode(
       index, {desc.buffer, static_cast<size_t>(desc.instr_size)}, stack_slots,
       tagged_parameter_slots, safepoint_table_offset, handler_table_offset,
       desc.constant_pool_offset, desc.code_comments_offset, desc.instr_size,
@@ -628,12 +628,12 @@ WasmCode* NativeModule::AddCode(
       std::move(source_pos_table), kind, tier);
 
   // Apply the relocation delta by iterating over the RelocInfo.
-  intptr_t delta = ret->instructions().start() - desc.buffer;
+  intptr_t delta = code->instructions().start() - desc.buffer;
   int mode_mask = RelocInfo::kApplyMask |
                   RelocInfo::ModeMask(RelocInfo::WASM_CALL) |
                   RelocInfo::ModeMask(RelocInfo::WASM_STUB_CALL);
-  for (RelocIterator it(ret->instructions(), ret->reloc_info(),
-                        ret->constant_pool(), mode_mask);
+  for (RelocIterator it(code->instructions(), code->reloc_info(),
+                        code->constant_pool(), mode_mask);
        !it.done(); it.next()) {
     RelocInfo::Mode mode = it.rinfo()->rmode();
     if (RelocInfo::IsWasmCall(mode)) {
@@ -653,11 +653,23 @@ WasmCode* NativeModule::AddCode(
 
   // Flush the i-cache here instead of in AddOwnedCode, to include the changes
   // made while iterating over the RelocInfo above.
-  FlushInstructionCache(ret->instructions().start(),
-                        ret->instructions().size());
-  ret->MaybePrint();
-  ret->Validate();
-  return ret;
+  FlushInstructionCache(code->instructions().start(),
+                        code->instructions().size());
+  code->MaybePrint();
+  code->Validate();
+
+  if (!code->protected_instructions_.is_empty()) {
+    code->RegisterTrapHandlerData();
+  }
+
+  base::MutexGuard lock(&allocation_mutex_);
+  // Skip publishing code if there is an active redirection to the interpreter
+  // for the given function index, in order to preserve the redirection.
+  if (!code->IsAnonymous() && !has_interpreter_redirection(code->index())) {
+    InstallCode(code);
+  }
+
+  return code;
 }
 
 WasmCode* NativeModule::AddDeserializedCode(
@@ -683,18 +695,6 @@ WasmCode* NativeModule::AddDeserializedCode(
   // Note: we do not flush the i-cache here, since the code needs to be
   // relocated anyway. The caller is responsible for flushing the i-cache later.
   return code;
-}
-
-void NativeModule::PublishCode(WasmCode* code) {
-  base::MutexGuard lock(&allocation_mutex_);
-  // Skip publishing code if there is an active redirection to the interpreter
-  // for the given function index, in order to preserve the redirection.
-  if (has_interpreter_redirection(code->index())) return;
-
-  if (!code->protected_instructions_.is_empty()) {
-    code->RegisterTrapHandlerData();
-  }
-  InstallCode(code);
 }
 
 void NativeModule::PublishInterpreterEntry(WasmCode* code,

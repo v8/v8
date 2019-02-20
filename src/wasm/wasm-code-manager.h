@@ -231,6 +231,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   // {AddCode} is thread safe w.r.t. other calls to {AddCode} or methods adding
   // code below, i.e. it can be called concurrently from background threads.
+  // {AddCode} also makes the code available to the system by entering it into
+  // the code table and patching the jump table.
   WasmCode* AddCode(uint32_t index, const CodeDesc& desc, uint32_t stack_slots,
                     uint32_t tagged_parameter_slots,
                     OwnedVector<trap_handler::ProtectedInstructionData>
@@ -260,11 +262,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // stub table. It must be called exactly once per native module before adding
   // other WasmCode so that runtime stub ids can be resolved during relocation.
   void SetRuntimeStubs(Isolate* isolate);
-
-  // Makes the code available to the system (by entering it into the code table
-  // and patching the jump table). Callers have to take care not to race with
-  // threads executing the old code.
-  void PublishCode(WasmCode* code);
 
   // Switch a function to an interpreter entry wrapper. When adding interpreter
   // wrappers, we do not insert them in the code_table, however, we let them
