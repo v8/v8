@@ -78,13 +78,16 @@ uint64_t TracingController::AddTraceEvent(
     std::unique_ptr<v8::ConvertableToTraceFormat>* arg_convertables,
     unsigned int flags) {
   uint64_t handle = 0;
-  if (mode_ != DISABLED) {
+  if (recording_.load(std::memory_order_acquire)) {
     TraceObject* trace_object = trace_buffer_->AddTraceEvent(&handle);
     if (trace_object) {
-      trace_object->Initialize(
-          phase, category_enabled_flag, name, scope, id, bind_id, num_args,
-          arg_names, arg_types, arg_values, arg_convertables, flags,
-          CurrentTimestampMicroseconds(), CurrentCpuTimestampMicroseconds());
+      {
+        base::MutexGuard lock(mutex_.get());
+        trace_object->Initialize(
+            phase, category_enabled_flag, name, scope, id, bind_id, num_args,
+            arg_names, arg_types, arg_values, arg_convertables, flags,
+            CurrentTimestampMicroseconds(), CurrentCpuTimestampMicroseconds());
+      }
     }
   }
   return handle;
@@ -98,13 +101,16 @@ uint64_t TracingController::AddTraceEventWithTimestamp(
     std::unique_ptr<v8::ConvertableToTraceFormat>* arg_convertables,
     unsigned int flags, int64_t timestamp) {
   uint64_t handle = 0;
-  if (mode_ != DISABLED) {
+  if (recording_.load(std::memory_order_acquire)) {
     TraceObject* trace_object = trace_buffer_->AddTraceEvent(&handle);
     if (trace_object) {
-      trace_object->Initialize(phase, category_enabled_flag, name, scope, id,
-                               bind_id, num_args, arg_names, arg_types,
-                               arg_values, arg_convertables, flags, timestamp,
-                               CurrentCpuTimestampMicroseconds());
+      {
+        base::MutexGuard lock(mutex_.get());
+        trace_object->Initialize(phase, category_enabled_flag, name, scope, id,
+                                 bind_id, num_args, arg_names, arg_types,
+                                 arg_values, arg_convertables, flags, timestamp,
+                                 CurrentCpuTimestampMicroseconds());
+      }
     }
   }
   return handle;
@@ -139,7 +145,7 @@ void TracingController::StartTracing(TraceConfig* trace_config) {
   std::unordered_set<v8::TracingController::TraceStateObserver*> observers_copy;
   {
     base::MutexGuard lock(mutex_.get());
-    mode_ = RECORDING_MODE;
+    recording_.store(true, std::memory_order_release);
     UpdateCategoryGroupEnabledFlags();
     observers_copy = observers_;
   }
@@ -149,11 +155,11 @@ void TracingController::StartTracing(TraceConfig* trace_config) {
 }
 
 void TracingController::StopTracing() {
-  if (mode_ == DISABLED) {
+  bool expected = true;
+  if (!recording_.compare_exchange_strong(expected, false)) {
     return;
   }
   DCHECK(trace_buffer_);
-  mode_ = DISABLED;
   UpdateCategoryGroupEnabledFlags();
   std::unordered_set<v8::TracingController::TraceStateObserver*> observers_copy;
   {
@@ -163,13 +169,16 @@ void TracingController::StopTracing() {
   for (auto o : observers_copy) {
     o->OnTraceDisabled();
   }
-  trace_buffer_->Flush();
+  {
+    base::MutexGuard lock(mutex_.get());
+    trace_buffer_->Flush();
+  }
 }
 
 void TracingController::UpdateCategoryGroupEnabledFlag(size_t category_index) {
   unsigned char enabled_flag = 0;
   const char* category_group = g_category_groups[category_index];
-  if (mode_ == RECORDING_MODE &&
+  if (recording_.load(std::memory_order_acquire) &&
       trace_config_->IsCategoryGroupEnabled(category_group)) {
     enabled_flag |= ENABLED_FOR_RECORDING;
   }
@@ -178,7 +187,8 @@ void TracingController::UpdateCategoryGroupEnabledFlag(size_t category_index) {
   // TODO(primiano): this is a temporary workaround for catapult:#2341,
   // to guarantee that metadata events are always added even if the category
   // filter is "-*". See crbug.com/618054 for more details and long-term fix.
-  if (mode_ == RECORDING_MODE && !strcmp(category_group, "__metadata")) {
+  if (recording_.load(std::memory_order_acquire) &&
+      !strcmp(category_group, "__metadata")) {
     enabled_flag |= ENABLED_FOR_RECORDING;
   }
 
@@ -188,7 +198,7 @@ void TracingController::UpdateCategoryGroupEnabledFlag(size_t category_index) {
 }
 
 void TracingController::UpdateCategoryGroupEnabledFlags() {
-  size_t category_index = base::Relaxed_Load(&g_category_index);
+  size_t category_index = base::Acquire_Load(&g_category_index);
   for (size_t i = 0; i < category_index; i++) UpdateCategoryGroupEnabledFlag(i);
 }
 
@@ -248,7 +258,7 @@ void TracingController::AddTraceStateObserver(
   {
     base::MutexGuard lock(mutex_.get());
     observers_.insert(observer);
-    if (mode_ != RECORDING_MODE) return;
+    if (!recording_.load(std::memory_order_acquire)) return;
   }
   // Fire the observer if recording is already in progress.
   observer->OnTraceEnabled();

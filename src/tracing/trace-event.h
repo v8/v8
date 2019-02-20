@@ -646,9 +646,11 @@ class ScopedTracer {
   ScopedTracer() : p_data_(nullptr) {}
 
   ~ScopedTracer() {
-    if (p_data_ && *data_.category_group_enabled)
+    if (p_data_ && base::Relaxed_Load(reinterpret_cast<const base::Atomic8*>(
+                       data_.category_group_enabled))) {
       TRACE_EVENT_API_UPDATE_TRACE_EVENT_DURATION(
           data_.category_group_enabled, data_.name, data_.event_handle);
+    }
   }
 
   void Initialize(const uint8_t* category_group_enabled, const char* name,
