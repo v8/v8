@@ -2888,6 +2888,7 @@ UNINITIALIZED_TEST(DetailedSourcePositionAPI) {
 
 UNINITIALIZED_TEST(DetailedSourcePositionAPI_Inlining) {
   i::FLAG_detailed_line_info = false;
+  i::FLAG_turbo_inlining = true;
   i::FLAG_stress_inline = true;
   i::FLAG_always_opt = false;
   i::FLAG_allow_natives_syntax = true;
