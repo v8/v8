@@ -257,6 +257,15 @@
       {'name': 'v8testing', 'variant': 'minor_mc', 'shards': 1},
     ],
   },
+  'v8_linux64_gc_stress_custom_snapshot_dbg_ng_triggered': {
+    'tests': [
+      {
+        'name': 'mjsunit',
+        'test_args': ['--gc-stress', '--no-harness'],
+        'shards': 3,
+      },
+    ],
+  },
   'v8_linux64_fyi_rel_ng_triggered': {
     'tests': [
       # Stress sampling.
