@@ -99,7 +99,7 @@ def _V8PresubmitChecks(input_api, output_api):
   if not TorqueLintProcessor().RunOnFiles(
       input_api.AffectedFiles(file_filter=FilterTorqueFile,
                               include_deletes=False)):
-    results.append(output_api.PresubmitError("Torque format check failed"))
+    results.append(output_api.PresubmitPromptOrNotify("Torque format check failed"))
   if not SourceProcessor().RunOnFiles(
       input_api.AffectedFiles(include_deletes=False)):
     results.append(output_api.PresubmitError(
