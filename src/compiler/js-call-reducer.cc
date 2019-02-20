@@ -7055,8 +7055,8 @@ Reduction JSCallReducer::ReduceRegExpPrototypeTest(Node* node) {
 
   // Compute property access info for "exec" on {resolution}.
   PropertyAccessInfo ai_exec;
-  AccessInfoFactory access_info_factory(
-      broker(), dependencies(), native_context().object(), graph()->zone());
+  AccessInfoFactory access_info_factory(broker(), dependencies(),
+                                        graph()->zone());
   if (!access_info_factory.ComputePropertyAccessInfo(
           MapHandles(regexp_maps.begin(), regexp_maps.end()),
           factory()->exec_string(), AccessMode::kLoad, &ai_exec)) {

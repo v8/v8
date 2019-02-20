@@ -251,15 +251,11 @@ Handle<Cell> PropertyAccessInfo::export_cell() const {
 
 AccessInfoFactory::AccessInfoFactory(JSHeapBroker* broker,
                                      CompilationDependencies* dependencies,
-                                     Handle<Context> native_context, Zone* zone)
+                                     Zone* zone)
     : broker_(broker),
       dependencies_(dependencies),
-      native_context_(native_context),
-      isolate_(native_context->GetIsolate()),
       type_cache_(TypeCache::Get()),
-      zone_(zone) {
-  DCHECK(native_context->IsNativeContext());
-}
+      zone_(zone) {}
 
 bool AccessInfoFactory::ComputeElementAccessInfo(
     Handle<Map> map, AccessMode access_mode,
@@ -427,7 +423,8 @@ bool AccessInfoFactory::ComputeAccessorDescriptorAccessInfo(
   if (!accessor->IsJSFunction()) {
     CallOptimization optimization(isolate(), accessor);
     if (!optimization.is_simple_api_call()) return false;
-    if (optimization.IsCrossContextLazyAccessorPair(*native_context_, *map)) {
+    if (optimization.IsCrossContextLazyAccessorPair(
+            *broker()->native_context().object(), *map)) {
       return false;
     }
 
@@ -540,7 +537,7 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
       // Perform the implicit ToObject for primitives here.
       // Implemented according to ES6 section 7.3.2 GetV (V, P).
       Handle<JSFunction> constructor;
-      if (Map::GetConstructorFunction(map, native_context())
+      if (Map::GetConstructorFunction(map, broker()->native_context().object())
               .ToHandle(&constructor)) {
         map = handle(constructor->initial_map(), isolate());
         DCHECK(map->prototype()->IsJSObject());
@@ -657,7 +654,7 @@ bool AccessInfoFactory::LookupSpecialFieldAccessor(
     Handle<Map> map, Handle<Name> name, PropertyAccessInfo* access_info) const {
   // Check for String::length field accessor.
   if (map->IsStringMap()) {
-    if (Name::Equals(isolate(), name, factory()->length_string())) {
+    if (Name::Equals(isolate(), name, isolate()->factory()->length_string())) {
       *access_info = PropertyAccessInfo::StringLength(MapHandles{map});
       return true;
     }
@@ -669,7 +666,8 @@ bool AccessInfoFactory::LookupSpecialFieldAccessor(
     Type field_type = Type::NonInternal();
     MachineRepresentation field_representation = MachineRepresentation::kTagged;
     if (map->IsJSArrayMap()) {
-      DCHECK(Name::Equals(isolate(), factory()->length_string(), name));
+      DCHECK(
+          Name::Equals(isolate(), isolate()->factory()->length_string(), name));
       // The JSArray::length property is a smi in the range
       // [0, FixedDoubleArray::kMaxLength] in case of fast double
       // elements, a smi in the range [0, FixedArray::kMaxLength]
@@ -752,7 +750,6 @@ bool AccessInfoFactory::LookupTransition(
   return true;
 }
 
-Factory* AccessInfoFactory::factory() const { return isolate()->factory(); }
 
 }  // namespace compiler
 }  // namespace internal
