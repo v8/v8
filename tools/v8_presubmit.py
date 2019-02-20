@@ -688,9 +688,8 @@ def Main():
     print("Running C++ lint check...")
     success &= CppLintProcessor(use_cache=use_linter_cache).RunOnPath(workspace)
 
-  print("Running Torque formatting check...")
-  success &= TorqueLintProcessor(use_cache=use_linter_cache).RunOnPath(
-    workspace)
+  print("Running Torque formatting check... (ignoring results)")
+  TorqueLintProcessor(use_cache=use_linter_cache).RunOnPath(workspace)
   print("Running copyright header, trailing whitespaces and " \
         "two empty lines between declarations check...")
   success &= SourceProcessor().RunOnPath(workspace)
