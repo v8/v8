@@ -1022,6 +1022,27 @@
       ]
     },
     {
+      "name": "ArrayInOperator",
+      "path": ["ArrayInOperator"],
+      "main": "run.js",
+      "resources": [],
+      "results_regexp": "^%s\\-ArrayInOperator\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "PackedSMI"},
+        {"name": "PackedDouble"},
+        {"name": "PackedElements"},
+        {"name": "HoleySMI"},
+        {"name": "HoleyDouble"},
+        {"name": "HoleyElements"},
+        {"name": "SparseSMI"},
+        {"name": "SparseDouble"},
+        {"name": "SparseElements"},
+        {"name": "TypedUint8"},
+        {"name": "TypedInt32"},
+        {"name": "TypedFloat64"}
+      ]
+    },
+    {
       "name": "ArraySort",
       "path": ["ArraySort"],
       "main": "run.js",
