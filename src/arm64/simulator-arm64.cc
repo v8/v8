@@ -2278,7 +2278,8 @@ void Simulator::VisitMoveWideImmediate(Instruction* instr) {
         unsigned reg_code = instr->Rd();
         int64_t prev_xn_val = is_64_bits ? xreg(reg_code)
                                          : wreg(reg_code);
-        new_xn_val = (prev_xn_val & ~(0xFFFFL << shift)) | shifted_imm16;
+        new_xn_val =
+            (prev_xn_val & ~(INT64_C(0xFFFF) << shift)) | shifted_imm16;
         break;
     }
     case MOVZ_w:
