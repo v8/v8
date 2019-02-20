@@ -4295,7 +4295,7 @@ Node* WasmGraphBuilder::AtomicOp(wasm::WasmOpcode opcode, Node* const* inputs,
 
     case wasm::kExprI64AtomicWait: {
       Node* index = CheckBoundsAndAlignment(
-          wasm::ValueTypes::MemSize(MachineType::Uint32()), inputs[0], offset,
+          wasm::ValueTypes::MemSize(MachineType::Uint64()), inputs[0], offset,
           position);
       // Now that we've bounds-checked, compute the effective address.
       Node* address = graph()->NewNode(mcgraph()->machine()->Int32Add(),

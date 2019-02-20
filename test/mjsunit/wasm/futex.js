@@ -113,6 +113,42 @@ function WasmI64AtomicWait(memory, offset, index, val_low,
   });
 })();
 
+(function TestInvalidAlignment() {
+  let memory = new WebAssembly.Memory({initial: 1, maximum: 1, shared: true});
+
+  // Wait and wake must be 4 byte aligned.
+  [1, 2, 3].forEach(function(invalid) {
+    assertThrows(function() {
+      WasmAtomicWake(memory, invalid, 0, -1)
+    }, Error);
+    assertThrows(function() {
+      WasmAtomicWake(memory, 0, invalid, -1)
+    }, Error);
+    assertThrows(function() {
+      WasmI32AtomicWait(memory, invalid, 0, 0, -1)
+    }, Error);
+    assertThrows(function() {
+      WasmI32AtomicWait(memory, 0, invalid, 0, -1)
+    }, Error);
+    assertThrows(function() {
+      WasmI64AtomicWait(memory, invalid, 0, 0, 0, -1)
+    }, Error);
+    assertThrows(function() {
+      WasmI64AtomicWait(memory, 0, invalid, 0, 0, -1)
+    }, Error);
+  });
+
+  //WasmI64AtomicWait must be 8 byte aligned.
+  [4, 5, 6, 7].forEach(function(invalid) {
+    assertThrows(function() {
+      WasmI64AtomicWait(memory, 0, invalid, 0, 0, -1)
+    }, Error);
+    assertThrows(function() {
+      WasmI64AtomicWait(memory, invalid, 0, 0, 0, -1)
+    }, Error);
+  });
+})();
+
 (function TestI32WaitTimeout() {
   let memory = new WebAssembly.Memory({initial: 1, maximum: 1, shared: true});
   var waitMs = 100;
