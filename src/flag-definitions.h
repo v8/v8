@@ -220,7 +220,6 @@ DEFINE_IMPLICATION(harmony_private_methods, harmony_private_fields)
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_STAGED(V)          \
   HARMONY_STAGED_BASE(V)           \
-  V(harmony_locale, "Intl.Locale") \
   V(harmony_intl_segmenter, "Intl.Segmenter")
 #else
 #define HARMONY_STAGED(V) HARMONY_STAGED_BASE(V)
@@ -243,7 +242,9 @@ DEFINE_IMPLICATION(harmony_private_methods, harmony_private_fields)
   V(harmony_private_fields, "harmony private fields in class literals")
 
 #ifdef V8_INTL_SUPPORT
-#define HARMONY_SHIPPING(V) HARMONY_SHIPPING_BASE(V)
+#define HARMONY_SHIPPING(V) \
+  HARMONY_SHIPPING_BASE(V)  \
+  V(harmony_locale, "Intl.Locale")
 #else
 #define HARMONY_SHIPPING(V) HARMONY_SHIPPING_BASE(V)
 #endif
