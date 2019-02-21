@@ -2010,58 +2010,6 @@ void TurboAssembler::CheckPageFlag(
   }
 }
 
-////////////////////////////////////////////////////////////////////////////////
-//
-// New MacroAssembler Interfaces added for S390
-//
-////////////////////////////////////////////////////////////////////////////////
-// Primarily used for loading constants
-// This should really move to be in macro-assembler as it
-// is really a pseudo instruction
-// Some usages of this intend for a FIXED_SEQUENCE to be used
-// @TODO - break this dependency so we can optimize mov() in general
-// and only use the generic version when we require a fixed sequence
-void MacroAssembler::LoadRepresentation(Register dst, const MemOperand& mem,
-                                        Representation r, Register scratch) {
-  DCHECK(!r.IsDouble());
-  if (r.IsInteger8()) {
-    LoadB(dst, mem);
-  } else if (r.IsUInteger8()) {
-    LoadlB(dst, mem);
-  } else if (r.IsInteger16()) {
-    LoadHalfWordP(dst, mem, scratch);
-  } else if (r.IsUInteger16()) {
-    LoadHalfWordP(dst, mem, scratch);
-#if V8_TARGET_ARCH_S390X
-  } else if (r.IsInteger32()) {
-    LoadW(dst, mem, scratch);
-#endif
-  } else {
-    LoadP(dst, mem, scratch);
-  }
-}
-
-void MacroAssembler::StoreRepresentation(Register src, const MemOperand& mem,
-                                         Representation r, Register scratch) {
-  DCHECK(!r.IsDouble());
-  if (r.IsInteger8() || r.IsUInteger8()) {
-    StoreByte(src, mem, scratch);
-  } else if (r.IsInteger16() || r.IsUInteger16()) {
-    StoreHalfWord(src, mem, scratch);
-#if V8_TARGET_ARCH_S390X
-  } else if (r.IsInteger32()) {
-    StoreW(src, mem, scratch);
-#endif
-  } else {
-    if (r.IsHeapObject()) {
-      AssertNotSmi(src);
-    } else if (r.IsSmi()) {
-      AssertSmi(src);
-    }
-    StoreP(src, mem, scratch);
-  }
-}
-
 Register GetRegisterThatIsNotOneOf(Register reg1, Register reg2, Register reg3,
                                    Register reg4, Register reg5,
                                    Register reg6) {

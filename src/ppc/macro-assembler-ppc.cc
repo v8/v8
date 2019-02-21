@@ -2729,50 +2729,6 @@ void MacroAssembler::StoreByte(Register src, const MemOperand& mem,
   }
 }
 
-
-void MacroAssembler::LoadRepresentation(Register dst, const MemOperand& mem,
-                                        Representation r, Register scratch) {
-  DCHECK(!r.IsDouble());
-  if (r.IsInteger8()) {
-    LoadByte(dst, mem, scratch);
-    extsb(dst, dst);
-  } else if (r.IsUInteger8()) {
-    LoadByte(dst, mem, scratch);
-  } else if (r.IsInteger16()) {
-    LoadHalfWordArith(dst, mem, scratch);
-  } else if (r.IsUInteger16()) {
-    LoadHalfWord(dst, mem, scratch);
-#if V8_TARGET_ARCH_PPC64
-  } else if (r.IsInteger32()) {
-    LoadWordArith(dst, mem, scratch);
-#endif
-  } else {
-    LoadP(dst, mem, scratch);
-  }
-}
-
-
-void MacroAssembler::StoreRepresentation(Register src, const MemOperand& mem,
-                                         Representation r, Register scratch) {
-  DCHECK(!r.IsDouble());
-  if (r.IsInteger8() || r.IsUInteger8()) {
-    StoreByte(src, mem, scratch);
-  } else if (r.IsInteger16() || r.IsUInteger16()) {
-    StoreHalfWord(src, mem, scratch);
-#if V8_TARGET_ARCH_PPC64
-  } else if (r.IsInteger32()) {
-    StoreWord(src, mem, scratch);
-#endif
-  } else {
-    if (r.IsHeapObject()) {
-      AssertNotSmi(src);
-    } else if (r.IsSmi()) {
-      AssertSmi(src);
-    }
-    StoreP(src, mem, scratch);
-  }
-}
-
 void TurboAssembler::LoadDouble(DoubleRegister dst, const MemOperand& mem,
                                 Register scratch) {
   Register base = mem.ra();
