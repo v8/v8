@@ -1712,6 +1712,17 @@ ParserBase<Impl>::ParsePrimaryExpression() {
     case Token::DIV:
       return ParseRegExpLiteral();
 
+    case Token::FUNCTION:
+      return ParseFunctionExpression();
+
+    case Token::SUPER: {
+      const bool is_new = false;
+      return ParseSuperExpression(is_new);
+    }
+    case Token::IMPORT:
+      if (!allow_harmony_dynamic_import()) break;
+      return ParseImportExpressions();
+
     case Token::LBRACK:
       return ParseArrayLiteral();
 
@@ -3257,22 +3268,11 @@ ParserBase<Impl>::ParseMemberExpression() {
   //     ('[' Expression ']' | '.' Identifier | Arguments | TemplateLiteral)*
   //
   // The '[' Expression ']' and '.' Identifier parts are parsed by
-  // ParseMemberExpressionContinuation, and the Arguments part is parsed by the
-  // caller.
+  // ParseMemberExpressionContinuation, and everything preceeding it is merged
+  // into ParsePrimaryExpression.
 
   // Parse the initial primary or function expression.
-  ExpressionT result;
-  if (peek() == Token::FUNCTION) {
-    result = ParseFunctionExpression();
-  } else if (peek() == Token::SUPER) {
-    const bool is_new = false;
-    result = ParseSuperExpression(is_new);
-  } else if (allow_harmony_dynamic_import() && peek() == Token::IMPORT) {
-    result = ParseImportExpressions();
-  } else {
-    result = ParsePrimaryExpression();
-  }
-
+  ExpressionT result = ParsePrimaryExpression();
   return ParseMemberExpressionContinuation(result);
 }
 
