@@ -432,6 +432,8 @@ class WasmInstanceObject : public JSObject {
   DECL_PRIMITIVE_ACCESSORS(dropped_data_segments, byte*)
   DECL_PRIMITIVE_ACCESSORS(dropped_elem_segments, byte*)
 
+  // Clear uninitialized padding space. This ensures that the snapshot content
+  // is deterministic. Depending on the V8 build mode there could be no padding.
   V8_INLINE void clear_padding();
 
   // Dispatched behavior.

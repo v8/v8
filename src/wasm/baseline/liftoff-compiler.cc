@@ -1799,11 +1799,12 @@ class LiftoffCompiler {
     DEBUG_CODE_COMMENT("Check indirect call signature");
     // Load the signature from {instance->ift_sig_ids[key]}
     LOAD_INSTANCE_FIELD(table, IndirectFunctionTableSigIds, kSystemPointerSize);
-    __ LoadConstant(LiftoffRegister(tmp_const),
-                    WasmValue(static_cast<uint32_t>(sizeof(uint32_t))));
-    // TODO(wasm): use a emit_i32_shli() instead of a multiply.
+    // Multiply {index} by 4 to represent kInt32Size items.
+    STATIC_ASSERT(kInt32Size == 4);
+    // TODO(wasm): use a emit_i32_shli() instead of two adds.
     // (currently cannot use shl on ia32/x64 because it clobbers %rcx).
-    __ emit_i32_mul(index, index, tmp_const);
+    __ emit_i32_add(index, index, index);
+    __ emit_i32_add(index, index, index);
     __ Load(LiftoffRegister(scratch), table, index, 0, LoadType::kI32Load,
             pinned);
 
@@ -1815,20 +1816,28 @@ class LiftoffCompiler {
     __ emit_cond_jump(kUnequal, sig_mismatch_label,
                       LiftoffAssembler::kWasmIntPtr, scratch, tmp_const);
 
+    // At this point {index} has already been multiplied by 4.
     DEBUG_CODE_COMMENT("Execute indirect call");
-    if (kSystemPointerSize == 8) {
-      // {index} has already been multiplied by 4. Multiply by another 2.
-      __ LoadConstant(LiftoffRegister(tmp_const), WasmValue(2));
-      __ emit_i32_mul(index, index, tmp_const);
+    if (kTaggedSize != kInt32Size) {
+      DCHECK_EQ(kTaggedSize, kInt32Size * 2);
+      // Multiply {index} by another 2 to represent kTaggedSize items.
+      __ emit_i32_add(index, index, index);
     }
+    // At this point {index} has already been multiplied by kTaggedSize.
 
     // Load the instance from {instance->ift_instances[key]}
     LOAD_TAGGED_PTR_INSTANCE_FIELD(table, IndirectFunctionTableRefs);
-    // {index} has already been multiplied by kSystemPointerSizeLog2.
-    STATIC_ASSERT(kTaggedSize == kSystemPointerSize);
     __ LoadTaggedPointer(tmp_const, table, index,
                          ObjectAccess::ElementOffsetInTaggedFixedArray(0),
                          pinned);
+
+    if (kTaggedSize != kSystemPointerSize) {
+      DCHECK_EQ(kSystemPointerSize, kTaggedSize * 2);
+      // Multiply {index} by another 2 to represent kSystemPointerSize items.
+      __ emit_i32_add(index, index, index);
+    }
+    // At this point {index} has already been multiplied by kSystemPointerSize.
+
     Register* explicit_instance = &tmp_const;
 
     // Load the target from {instance->ift_targets[key]}
