@@ -536,12 +536,16 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
       // JSAdd("", x:primitive) => JSToString(x)
       NodeProperties::ReplaceValueInputs(node, r.right());
       NodeProperties::ChangeOp(node, javascript()->ToString());
+      NodeProperties::SetType(
+          node, Type::Intersect(r.type(), Type::String(), graph()->zone()));
       Reduction const reduction = ReduceJSToString(node);
       return reduction.Changed() ? reduction : Changed(node);
     } else if (r.RightInputIs(empty_string_type_)) {
       // JSAdd(x:primitive, "") => JSToString(x)
       NodeProperties::ReplaceValueInputs(node, r.left());
       NodeProperties::ChangeOp(node, javascript()->ToString());
+      NodeProperties::SetType(
+          node, Type::Intersect(r.type(), Type::String(), graph()->zone()));
       Reduction const reduction = ReduceJSToString(node);
       return reduction.Changed() ? reduction : Changed(node);
     }
