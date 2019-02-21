@@ -100,7 +100,7 @@ void MicrotaskQueueBuiltinsAssembler::SetMicrotaskQueueStart(
 
 TNode<IntPtrT> MicrotaskQueueBuiltinsAssembler::CalculateRingBufferOffset(
     TNode<IntPtrT> capacity, TNode<IntPtrT> start, TNode<IntPtrT> index) {
-  return TimesTaggedSize(
+  return TimesSystemPointerSize(
       WordAnd(IntPtrAdd(start, index), IntPtrSub(capacity, IntPtrConstant(1))));
 }
 
@@ -482,9 +482,9 @@ TF_BUILTIN(EnqueueMicrotask, MicrotaskQueueBuiltinsAssembler) {
 
   // |microtask_queue| has an unused slot to store |microtask|.
   {
-    StoreNoWriteBarrier(
-        MachineType::TaggedPointer().representation(), ring_buffer,
-        CalculateRingBufferOffset(capacity, start, size), microtask);
+    StoreNoWriteBarrier(MachineType::PointerRepresentation(), ring_buffer,
+                        CalculateRingBufferOffset(capacity, start, size),
+                        BitcastTaggedToWord(microtask));
     StoreNoWriteBarrier(MachineType::PointerRepresentation(), microtask_queue,
                         IntPtrConstant(MicrotaskQueue::kSizeOffset),
                         IntPtrAdd(size, IntPtrConstant(1)));
@@ -528,8 +528,9 @@ TF_BUILTIN(RunMicrotasks, MicrotaskQueueBuiltinsAssembler) {
 
   TNode<IntPtrT> offset =
       CalculateRingBufferOffset(capacity, start, IntPtrConstant(0));
-  TNode<Microtask> microtask =
-      CAST(Load(MachineType::TaggedPointer(), ring_buffer, offset));
+  TNode<RawPtrT> microtask_pointer =
+      UncheckedCast<RawPtrT>(Load(MachineType::Pointer(), ring_buffer, offset));
+  TNode<Microtask> microtask = CAST(BitcastWordToTagged(microtask_pointer));
 
   TNode<IntPtrT> new_size = IntPtrSub(size, IntPtrConstant(1));
   TNode<IntPtrT> new_start = WordAnd(IntPtrAdd(start, IntPtrConstant(1)),

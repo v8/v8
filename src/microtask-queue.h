@@ -12,7 +12,6 @@
 #include "include/v8-internal.h"  // For Address.
 #include "include/v8.h"
 #include "src/base/macros.h"
-#include "src/objects/slots.h"
 
 namespace v8 {
 namespace internal {
@@ -108,7 +107,7 @@ class V8_EXPORT_PRIVATE MicrotaskQueue {
   intptr_t size_ = 0;
   intptr_t capacity_ = 0;
   intptr_t start_ = 0;
-  ObjectSlot ring_buffer_;
+  Address* ring_buffer_ = nullptr;
 
   // The number of finished microtask.
   intptr_t finished_microtask_count_ = 0;

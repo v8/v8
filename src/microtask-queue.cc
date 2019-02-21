@@ -64,7 +64,7 @@ MicrotaskQueue::~MicrotaskQueue() {
     next_->prev_ = prev_;
     prev_->next_ = next_;
   }
-  delete[] reinterpret_cast<Microtask*>(ring_buffer_.address());
+  delete[] ring_buffer_;
 }
 
 // static
@@ -86,8 +86,7 @@ void MicrotaskQueue::EnqueueMicrotask(Microtask microtask) {
   }
 
   DCHECK_LT(size_, capacity_);
-  (ring_buffer_ + static_cast<int>((start_ + size_) % capacity_))
-      .store(microtask);
+  ring_buffer_[(start_ + size_) % capacity_] = microtask.ptr();
   ++size_;
 }
 
@@ -142,8 +141,8 @@ int MicrotaskQueue::RunMicrotasks(Isolate* isolate) {
 
   // If execution is terminating, clean up and propagate that to TryCatch scope.
   if (maybe_result.is_null() && maybe_exception.is_null()) {
-    delete[] reinterpret_cast<Microtask*>(ring_buffer_.address());
-    ring_buffer_ = ObjectSlot();
+    delete[] ring_buffer_;
+    ring_buffer_ = nullptr;
     capacity_ = 0;
     size_ = 0;
     start_ = 0;
@@ -162,12 +161,12 @@ void MicrotaskQueue::IterateMicrotasks(RootVisitor* visitor) {
     // Iterate pending Microtasks as root objects to avoid the write barrier for
     // all single Microtask. If this hurts the GC performance, use a FixedArray.
     visitor->VisitRootPointers(
-        Root::kStrongRoots, nullptr, ring_buffer_ + static_cast<int>(start_),
-        ring_buffer_ + static_cast<int>(std::min(start_ + size_, capacity_)));
+        Root::kStrongRoots, nullptr, FullObjectSlot(ring_buffer_ + start_),
+        FullObjectSlot(ring_buffer_ + std::min(start_ + size_, capacity_)));
     visitor->VisitRootPointers(
-        Root::kStrongRoots, nullptr, ring_buffer_,
-        ring_buffer_ + static_cast<int>(
-                           std::max<intptr_t>(start_ + size_ - capacity_, 0)));
+        Root::kStrongRoots, nullptr, FullObjectSlot(ring_buffer_),
+        FullObjectSlot(ring_buffer_ + std::max(start_ + size_ - capacity_,
+                                               static_cast<intptr_t>(0))));
   }
 
   if (capacity_ <= kMinimumCapacity) {
@@ -220,14 +219,12 @@ void MicrotaskQueue::OnCompleted(Isolate* isolate) {
 
 void MicrotaskQueue::ResizeBuffer(intptr_t new_capacity) {
   DCHECK_LE(size_, new_capacity);
-  ObjectSlot new_ring_buffer(
-      reinterpret_cast<Address>(new Microtask[new_capacity]));
+  Address* new_ring_buffer = new Address[new_capacity];
   for (intptr_t i = 0; i < size_; ++i) {
-    (new_ring_buffer + static_cast<int>(i))
-        .store(*(ring_buffer_ + static_cast<int>((start_ + i) % capacity_)));
+    new_ring_buffer[i] = ring_buffer_[(start_ + i) % capacity_];
   }
 
-  delete[] reinterpret_cast<Microtask*>(ring_buffer_.address());
+  delete[] ring_buffer_;
   ring_buffer_ = new_ring_buffer;
   capacity_ = new_capacity;
   start_ = 0;
