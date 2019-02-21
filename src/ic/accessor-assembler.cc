@@ -1796,13 +1796,14 @@ void AccessorAssembler::EmitElementLoad(
   BIND(&if_fast_packed);
   {
     Comment("fast packed elements");
-    exit_point->Return(LoadFixedArrayElement(CAST(elements), intptr_index));
+    exit_point->Return(
+        UnsafeLoadFixedArrayElement(CAST(elements), intptr_index));
   }
 
   BIND(&if_fast_holey);
   {
     Comment("fast holey elements");
-    Node* element = LoadFixedArrayElement(CAST(elements), intptr_index);
+    Node* element = UnsafeLoadFixedArrayElement(CAST(elements), intptr_index);
     GotoIf(WordEqual(element, TheHoleConstant()), if_hole);
     exit_point->Return(element);
   }
