@@ -2234,7 +2234,10 @@ Node* AccessorAssembler::StubCachePrimaryOffset(Node* name, Node* map) {
   // Using only the low bits in 64-bit mode is unlikely to increase the
   // risk of collision even if the heap is spread over an area larger than
   // 4Gb (and not at all if it isn't).
-  Node* map32 = TruncateIntPtrToInt32(BitcastTaggedToWord(map));
+  Node* map_word = BitcastTaggedToWord(map);
+
+  Node* map32 = TruncateIntPtrToInt32(UncheckedCast<IntPtrT>(
+      WordXor(map_word, WordShr(map_word, StubCache::kMapKeyShift))));
   // Base the offset on a simple combination of name and map.
   Node* hash = Int32Add(hash_field, map32);
   uint32_t mask = (StubCache::kPrimaryTableSize - 1)
