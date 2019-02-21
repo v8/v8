@@ -223,40 +223,6 @@ std::ostream& operator<<(std::ostream& os, CheckMapsFlags flags) {
   return os;
 }
 
-MapsParameterInfo::MapsParameterInfo(ZoneHandleSet<Map> const& maps)
-    : maps_(maps), instance_type_(Nothing<InstanceType>()) {
-  DCHECK_LT(0, maps.size());
-  instance_type_ = Just(maps.at(0)->instance_type());
-  for (size_t i = 1; i < maps.size(); ++i) {
-    if (instance_type_.FromJust() != maps.at(i)->instance_type()) {
-      instance_type_ = Nothing<InstanceType>();
-      break;
-    }
-  }
-}
-
-std::ostream& operator<<(std::ostream& os, MapsParameterInfo const& p) {
-  ZoneHandleSet<Map> const& maps = p.maps();
-  InstanceType instance_type;
-  if (p.instance_type().To(&instance_type)) {
-    os << ", " << instance_type;
-  }
-  for (size_t i = 0; i < maps.size(); ++i) {
-    os << ", " << Brief(*maps[i]);
-  }
-  return os;
-}
-
-bool operator==(MapsParameterInfo const& lhs, MapsParameterInfo const& rhs) {
-  return lhs.maps() == rhs.maps();
-}
-
-bool operator!=(MapsParameterInfo const& lhs, MapsParameterInfo const& rhs) {
-  return !(lhs == rhs);
-}
-
-size_t hash_value(MapsParameterInfo const& p) { return hash_value(p.maps()); }
-
 bool operator==(CheckMapsParameters const& lhs,
                 CheckMapsParameters const& rhs) {
   return lhs.flags() == rhs.flags() && lhs.maps() == rhs.maps() &&
@@ -268,7 +234,7 @@ size_t hash_value(CheckMapsParameters const& p) {
 }
 
 std::ostream& operator<<(std::ostream& os, CheckMapsParameters const& p) {
-  os << p.flags() << p.maps_info();
+  os << p.flags() << p.maps();
   if (p.feedback().IsValid()) {
     os << "; " << p.feedback();
   }
@@ -280,14 +246,14 @@ CheckMapsParameters const& CheckMapsParametersOf(Operator const* op) {
   return OpParameter<CheckMapsParameters>(op);
 }
 
-MapsParameterInfo const& CompareMapsParametersOf(Operator const* op) {
+ZoneHandleSet<Map> const& CompareMapsParametersOf(Operator const* op) {
   DCHECK_EQ(IrOpcode::kCompareMaps, op->opcode());
-  return OpParameter<MapsParameterInfo>(op);
+  return OpParameter<ZoneHandleSet<Map>>(op);
 }
 
-MapsParameterInfo const& MapGuardMapsOf(Operator const* op) {
+ZoneHandleSet<Map> const& MapGuardMapsOf(Operator const* op) {
   DCHECK_EQ(IrOpcode::kMapGuard, op->opcode());
-  return OpParameter<MapsParameterInfo>(op);
+  return OpParameter<ZoneHandleSet<Map>>(op);
 }
 
 size_t hash_value(CheckTaggedInputMode mode) {
@@ -1417,21 +1383,23 @@ const Operator* SimplifiedOperatorBuilder::CheckMaps(
 }
 
 const Operator* SimplifiedOperatorBuilder::MapGuard(ZoneHandleSet<Map> maps) {
-  return new (zone()) Operator1<MapsParameterInfo>(  // --
-      IrOpcode::kMapGuard, Operator::kEliminatable,  // opcode
-      "MapGuard",                                    // name
-      1, 1, 1, 0, 1, 0,                              // counts
-      MapsParameterInfo(maps));                      // parameter
+  DCHECK_LT(0, maps.size());
+  return new (zone()) Operator1<ZoneHandleSet<Map>>(  // --
+      IrOpcode::kMapGuard, Operator::kEliminatable,   // opcode
+      "MapGuard",                                     // name
+      1, 1, 1, 0, 1, 0,                               // counts
+      maps);                                          // parameter
 }
 
 const Operator* SimplifiedOperatorBuilder::CompareMaps(
     ZoneHandleSet<Map> maps) {
-  return new (zone()) Operator1<MapsParameterInfo>(  // --
-      IrOpcode::kCompareMaps,                        // opcode
-      Operator::kEliminatable,                       // flags
-      "CompareMaps",                                 // name
-      1, 1, 1, 1, 1, 0,                              // counts
-      MapsParameterInfo(maps));                      // parameter
+  DCHECK_LT(0, maps.size());
+  return new (zone()) Operator1<ZoneHandleSet<Map>>(  // --
+      IrOpcode::kCompareMaps,                         // opcode
+      Operator::kEliminatable,                        // flags
+      "CompareMaps",                                  // name
+      1, 1, 1, 1, 1, 0,                               // counts
+      maps);                                          // parameter
 }
 
 const Operator* SimplifiedOperatorBuilder::ConvertReceiver(
