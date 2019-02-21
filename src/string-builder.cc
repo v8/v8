@@ -141,7 +141,6 @@ void FixedArrayBuilder::EnsureCapacity(Isolate* isolate, int elements) {
 
 void FixedArrayBuilder::Add(Object value) {
   DCHECK(!value->IsSmi());
-  DCHECK(length_ < capacity());
   array_->set(length_, value);
   length_++;
   has_non_smi_elements_ = true;
@@ -149,7 +148,6 @@ void FixedArrayBuilder::Add(Object value) {
 
 void FixedArrayBuilder::Add(Smi value) {
   DCHECK(value->IsSmi());
-  DCHECK(length_ < capacity());
   array_->set(length_, value);
   length_++;
 }
@@ -225,7 +223,6 @@ MaybeHandle<String> ReplacementStringBuilder::ToString() {
 
 void ReplacementStringBuilder::AddElement(Object element) {
   DCHECK(element->IsSmi() || element->IsString());
-  DCHECK(array_builder_.capacity() > array_builder_.length());
   EnsureCapacity(1);
   array_builder_.Add(element);
 }
