@@ -176,7 +176,12 @@ DISABLE_ASAN void TickSample::Init(Isolate* v8_isolate,
     MSAN_MEMORY_IS_INITIALIZED(regs.sp, sizeof(void*));
     // Sample potential return address value for frameless invocation of
     // stubs (we'll figure out later, if this value makes sense).
-    tos = i::ReadUnalignedValue<void*>(reinterpret_cast<i::Address>(regs.sp));
+
+    // TODO(petermarshall): This read causes guard page violations on Windows.
+    // Either fix this mechanism for frameless stubs or remove it.
+    // tos =
+    // i::ReadUnalignedValue<void*>(reinterpret_cast<i::Address>(regs.sp));
+    tos = nullptr;
   } else {
     tos = nullptr;
   }
