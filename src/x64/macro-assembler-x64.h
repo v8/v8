@@ -704,10 +704,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // ---------------------------------------------------------------------------
   // Macro instructions.
 
-  // Load/store with specific representation.
-  void Load(Register dst, Operand src, Representation r);
-  void Store(Operand dst, Register src, Representation r);
-
   void Cmp(Register dst, Handle<Object> source);
   void Cmp(Operand dst, Handle<Object> source);
   void Cmp(Register dst, Smi src);

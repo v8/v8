@@ -87,16 +87,10 @@ class Representation {
  public:
   enum Kind {
     kNone,
-    kInteger8,
-    kUInteger8,
-    kInteger16,
-    kUInteger16,
     kSmi,
-    kInteger32,
     kDouble,
     kHeapObject,
     kTagged,
-    kExternal,
     kNumRepresentations
   };
 
@@ -104,15 +98,9 @@ class Representation {
 
   static Representation None() { return Representation(kNone); }
   static Representation Tagged() { return Representation(kTagged); }
-  static Representation Integer8() { return Representation(kInteger8); }
-  static Representation UInteger8() { return Representation(kUInteger8); }
-  static Representation Integer16() { return Representation(kInteger16); }
-  static Representation UInteger16() { return Representation(kUInteger16); }
   static Representation Smi() { return Representation(kSmi); }
-  static Representation Integer32() { return Representation(kInteger32); }
   static Representation Double() { return Representation(kDouble); }
   static Representation HeapObject() { return Representation(kHeapObject); }
-  static Representation External() { return Representation(kExternal); }
 
   static Representation FromKind(Kind kind) { return Representation(kind); }
 
@@ -130,15 +118,7 @@ class Representation {
   }
 
   bool is_more_general_than(const Representation& other) const {
-    if (kind_ == kExternal && other.kind_ == kNone) return true;
-    if (kind_ == kExternal && other.kind_ == kExternal) return false;
-    if (kind_ == kNone && other.kind_ == kExternal) return false;
-
-    DCHECK_NE(kind_, kExternal);
-    DCHECK_NE(other.kind_, kExternal);
     if (IsHeapObject()) return other.IsNone();
-    if (kind_ == kUInteger8 && other.kind_ == kInteger8) return false;
-    if (kind_ == kUInteger16 && other.kind_ == kInteger16) return false;
     return kind_ > other.kind_;
   }
 
@@ -154,35 +134,35 @@ class Representation {
 
   int size() const {
     DCHECK(!IsNone());
-    if (IsInteger8() || IsUInteger8()) return kUInt8Size;
-    if (IsInteger16() || IsUInteger16()) return kUInt16Size;
-    if (IsInteger32()) return kInt32Size;
     if (IsDouble()) return kDoubleSize;
-    if (IsExternal()) return kSystemPointerSize;
     DCHECK(IsTagged() || IsSmi() || IsHeapObject());
     return kTaggedSize;
   }
 
   Kind kind() const { return static_cast<Kind>(kind_); }
   bool IsNone() const { return kind_ == kNone; }
-  bool IsInteger8() const { return kind_ == kInteger8; }
-  bool IsUInteger8() const { return kind_ == kUInteger8; }
-  bool IsInteger16() const { return kind_ == kInteger16; }
-  bool IsUInteger16() const { return kind_ == kUInteger16; }
   bool IsTagged() const { return kind_ == kTagged; }
   bool IsSmi() const { return kind_ == kSmi; }
   bool IsSmiOrTagged() const { return IsSmi() || IsTagged(); }
-  bool IsInteger32() const { return kind_ == kInteger32; }
-  bool IsSmiOrInteger32() const { return IsSmi() || IsInteger32(); }
   bool IsDouble() const { return kind_ == kDouble; }
   bool IsHeapObject() const { return kind_ == kHeapObject; }
-  bool IsExternal() const { return kind_ == kExternal; }
-  bool IsSpecialization() const {
-    return IsInteger8() || IsUInteger8() ||
-      IsInteger16() || IsUInteger16() ||
-      IsSmi() || IsInteger32() || IsDouble();
+  bool IsSpecialization() const { return IsSmi() || IsDouble(); }
+
+  const char* Mnemonic() const {
+    switch (kind_) {
+      case kNone:
+        return "v";
+      case kTagged:
+        return "t";
+      case kSmi:
+        return "s";
+      case kDouble:
+        return "d";
+      case kHeapObject:
+        return "h";
+    }
+    UNREACHABLE();
   }
-  const char* Mnemonic() const;
 
  private:
   explicit Representation(Kind k) : kind_(k) { }
@@ -357,7 +337,7 @@ class PropertyDetails {
 
   // Bit fields for fast objects.
   class RepresentationField
-      : public BitField<uint32_t, AttributesField::kNext, 4> {};
+      : public BitField<uint32_t, AttributesField::kNext, 3> {};
   class DescriptorPointer
       : public BitField<uint32_t, RepresentationField::kNext,
                         kDescriptorIndexBitCount> {};  // NOLINT

@@ -2401,20 +2401,6 @@ bool HeapObject::IsExternal(Isolate* isolate) const {
   return map()->FindRootMap(isolate) == isolate->heap()->external_map();
 }
 
-const char* Representation::Mnemonic() const {
-  switch (kind_) {
-    case kNone: return "v";
-    case kTagged: return "t";
-    case kSmi: return "s";
-    case kDouble: return "d";
-    case kInteger32: return "i";
-    case kHeapObject: return "h";
-    case kExternal: return "x";
-    default:
-      UNREACHABLE();
-  }
-}
-
 void DescriptorArray::GeneralizeAllFields() {
   int length = number_of_descriptors();
   for (int i = 0; i < length; i++) {

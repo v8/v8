@@ -1043,41 +1043,6 @@ void TurboAssembler::Cvttss2uiq(Register dst, XMMRegister src, Label* success) {
   ConvertFloatToUint64<XMMRegister, false>(this, dst, src, success);
 }
 
-void MacroAssembler::Load(Register dst, Operand src, Representation r) {
-  DCHECK(!r.IsDouble());
-  if (r.IsInteger8()) {
-    movsxbq(dst, src);
-  } else if (r.IsUInteger8()) {
-    movzxbl(dst, src);
-  } else if (r.IsInteger16()) {
-    movsxwq(dst, src);
-  } else if (r.IsUInteger16()) {
-    movzxwl(dst, src);
-  } else if (r.IsInteger32()) {
-    movl(dst, src);
-  } else {
-    movq(dst, src);
-  }
-}
-
-void MacroAssembler::Store(Operand dst, Register src, Representation r) {
-  DCHECK(!r.IsDouble());
-  if (r.IsInteger8() || r.IsUInteger8()) {
-    movb(dst, src);
-  } else if (r.IsInteger16() || r.IsUInteger16()) {
-    movw(dst, src);
-  } else if (r.IsInteger32()) {
-    movl(dst, src);
-  } else {
-    if (r.IsHeapObject()) {
-      AssertNotSmi(src);
-    } else if (r.IsSmi()) {
-      AssertSmi(src);
-    }
-    movq(dst, src);
-  }
-}
-
 void TurboAssembler::Set(Register dst, int64_t x) {
   if (x == 0) {
     xorl(dst, dst);

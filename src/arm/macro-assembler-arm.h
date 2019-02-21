@@ -560,9 +560,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   void Sbfx(Register dst, Register src, int lsb, int width,
             Condition cond = al);
 
-  void Load(Register dst, const MemOperand& src, Representation r);
-  void Store(Register src, const MemOperand& dst, Representation r);
-
   // ---------------------------------------------------------------------------
   // GC Support
 
