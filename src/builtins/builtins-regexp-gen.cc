@@ -1925,9 +1925,9 @@ void RegExpBuiltinsAssembler::RegExpPrototypeMatchBody(Node* const context,
             RegExpPrototypeExecBodyWithoutResult(CAST(context), CAST(regexp),
                                                  string, &if_didnotmatch, true);
 
-        Node* const match_from = LoadFixedArrayElement(
+        Node* const match_from = UnsafeLoadFixedArrayElement(
             match_indices, RegExpMatchInfo::kFirstCaptureIndex);
-        Node* const match_to = LoadFixedArrayElement(
+        Node* const match_to = UnsafeLoadFixedArrayElement(
             match_indices, RegExpMatchInfo::kFirstCaptureIndex + 1);
 
         var_match.Bind(CallBuiltin(Builtins::kSubString, context, string,
@@ -2403,7 +2403,7 @@ void RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(Node* const context,
                                                 length, allocation_site, mode);
 
         TNode<FixedArray> fixed_array = CAST(LoadElements(result));
-        StoreFixedArrayElement(fixed_array, 0, string);
+        UnsafeStoreFixedArrayElement(fixed_array, 0, string);
 
         Return(result);
       }
@@ -2456,7 +2456,7 @@ void RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(Node* const context,
     }
 
     TNode<FixedArray> match_indices = CAST(match_indices_ho);
-    TNode<Smi> const match_from = CAST(LoadFixedArrayElement(
+    TNode<Smi> const match_from = CAST(UnsafeLoadFixedArrayElement(
         match_indices, RegExpMatchInfo::kFirstCaptureIndex));
 
     // We're done if the match starts beyond the string.
@@ -2466,7 +2466,7 @@ void RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(Node* const context,
       BIND(&next);
     }
 
-    TNode<Smi> const match_to = CAST(LoadFixedArrayElement(
+    TNode<Smi> const match_to = CAST(UnsafeLoadFixedArrayElement(
         match_indices, RegExpMatchInfo::kFirstCaptureIndex + 1));
 
     // Advance index and continue if the match is empty.

@@ -27,7 +27,7 @@ void GrowableFixedArray::Push(TNode<Object> const value) {
   BIND(&store);
   {
     TNode<FixedArray> const array = var_array_.value();
-    StoreFixedArrayElement(array, length, value);
+    UnsafeStoreFixedArrayElement(array, length, value);
 
     var_length_ = IntPtrAdd(length, IntPtrConstant(1));
   }

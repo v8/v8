@@ -648,8 +648,8 @@ Node* InterpreterAssembler::BytecodeOperandIntrinsicId(int operand_index) {
 Node* InterpreterAssembler::LoadConstantPoolEntry(Node* index) {
   TNode<FixedArray> constant_pool = CAST(LoadObjectField(
       BytecodeArrayTaggedPointer(), BytecodeArray::kConstantPoolOffset));
-  return LoadFixedArrayElement(constant_pool, UncheckedCast<IntPtrT>(index),
-                               LoadSensitivity::kCritical);
+  return UnsafeLoadFixedArrayElement(
+      constant_pool, UncheckedCast<IntPtrT>(index), LoadSensitivity::kCritical);
 }
 
 Node* InterpreterAssembler::LoadAndUntagConstantPoolEntry(Node* index) {
