@@ -2040,6 +2040,7 @@ Map Factory::InitializeMap(Map map, InstanceType type, int instance_size,
                    Map::OwnsDescriptorsBit::encode(true) |
                    Map::ConstructionCounterBits::encode(Map::kNoSlackTracking);
   map->set_bit_field3(bit_field3);
+  map->clear_padding();
   map->set_elements_kind(elements_kind);
   map->set_new_target_is_base(true);
   isolate()->counters()->maps_created()->Increment();

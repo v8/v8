@@ -618,14 +618,18 @@ void Map::InitializeDescriptors(Isolate* isolate, DescriptorArray descriptors,
 }
 
 void Map::set_bit_field3(uint32_t bits) {
-  if (kInt32Size != kTaggedSize) {
-    RELAXED_WRITE_UINT32_FIELD(*this, kBitField3Offset + kInt32Size, 0);
-  }
   RELAXED_WRITE_UINT32_FIELD(*this, kBitField3Offset, bits);
 }
 
 uint32_t Map::bit_field3() const {
   return RELAXED_READ_UINT32_FIELD(*this, kBitField3Offset);
+}
+
+void Map::clear_padding() {
+  if (FIELD_SIZE(kOptionalPaddingOffset) == 0) return;
+  DCHECK_EQ(4, FIELD_SIZE(kOptionalPaddingOffset));
+  memset(reinterpret_cast<void*>(address() + kOptionalPaddingOffset), 0,
+         FIELD_SIZE(kOptionalPaddingOffset));
 }
 
 LayoutDescriptor Map::GetLayoutDescriptor() const {
