@@ -559,7 +559,6 @@ class FrameSummary {
     int byte_offset_;
   };
 
-#undef FRAME_SUMMARY_FIELD
 #define FRAME_SUMMARY_CONS(kind, type, field, desc) \
   FrameSummary(type summ) : field(summ) {}  // NOLINT
   FRAME_SUMMARY_VARIANTS(FRAME_SUMMARY_CONS)
@@ -604,6 +603,7 @@ class FrameSummary {
     FrameSummaryBase base_;
     FRAME_SUMMARY_VARIANTS(FRAME_SUMMARY_FIELD)
   };
+#undef FRAME_SUMMARY_FIELD
 };
 
 class StandardFrame : public StackFrame {
