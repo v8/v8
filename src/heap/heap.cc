@@ -1489,7 +1489,6 @@ void Heap::StartIncrementalMarkingIfAllocationLimitIsReached(
 void Heap::StartIdleIncrementalMarking(
     GarbageCollectionReason gc_reason,
     const GCCallbackFlags gc_callback_flags) {
-  gc_idle_time_handler_->ResetNoProgressCounter();
   StartIncrementalMarking(kReduceMemoryFootprintMask, gc_reason,
                           gc_callback_flags);
 }
@@ -3189,11 +3188,11 @@ bool Heap::PerformIdleTimeAction(GCIdleTimeAction action,
                                  GCIdleTimeHeapState heap_state,
                                  double deadline_in_ms) {
   bool result = false;
-  switch (action.type) {
-    case DONE:
+  switch (action) {
+    case GCIdleTimeAction::kDone:
       result = true;
       break;
-    case DO_INCREMENTAL_STEP: {
+    case GCIdleTimeAction::kIncrementalStep: {
       incremental_marking()->AdvanceWithDeadline(
           deadline_in_ms, IncrementalMarking::NO_GC_VIA_STACK_GUARD,
           StepOrigin::kTask);
@@ -3202,15 +3201,13 @@ bool Heap::PerformIdleTimeAction(GCIdleTimeAction action,
       result = incremental_marking()->IsStopped();
       break;
     }
-    case DO_FULL_GC: {
+    case GCIdleTimeAction::kFullGC: {
       DCHECK_LT(0, contexts_disposed_);
       HistogramTimerScope scope(isolate_->counters()->gc_context());
       TRACE_EVENT0("v8", "V8.GCContext");
       CollectAllGarbage(kNoGCFlags, GarbageCollectionReason::kContextDisposal);
       break;
     }
-    case DO_NOTHING:
-      break;
   }
 
   return result;
@@ -3226,14 +3223,23 @@ void Heap::IdleNotificationEpilogue(GCIdleTimeAction action,
 
   contexts_disposed_ = 0;
 
-  if ((FLAG_trace_idle_notification && action.type > DO_NOTHING) ||
-      FLAG_trace_idle_notification_verbose) {
+  if (FLAG_trace_idle_notification) {
     isolate_->PrintWithTimestamp(
         "Idle notification: requested idle time %.2f ms, used idle time %.2f "
         "ms, deadline usage %.2f ms [",
         idle_time_in_ms, idle_time_in_ms - deadline_difference,
         deadline_difference);
-    action.Print();
+    switch (action) {
+      case GCIdleTimeAction::kDone:
+        PrintF("done");
+        break;
+      case GCIdleTimeAction::kIncrementalStep:
+        PrintF("incremental step");
+        break;
+      case GCIdleTimeAction::kFullGC:
+        PrintF("full GC");
+        break;
+    }
     PrintF("]");
     if (FLAG_trace_idle_notification_verbose) {
       PrintF("[");

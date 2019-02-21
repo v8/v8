@@ -58,7 +58,6 @@ class ArrayBufferCollector;
 class ArrayBufferTracker;
 class CodeLargeObjectSpace;
 class ConcurrentMarking;
-class GCIdleTimeAction;
 class GCIdleTimeHandler;
 class GCIdleTimeHeapState;
 class GCTracer;
@@ -144,6 +143,8 @@ enum class YoungGenerationHandling {
   // counters.h.
   // Also update src/tools/metrics/histograms/histograms.xml in chromium.
 };
+
+enum class GCIdleTimeAction : uint8_t;
 
 class AllocationResult {
  public:
