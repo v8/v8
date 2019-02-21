@@ -45,7 +45,7 @@ function test() {
   assertTrue(isOneByteString(str));
 
   var twoByteExternalWithOneByteData =
-      "AA" + dont_inline();
+      "AAAA" + dont_inline();
   externalizeString(twoByteExternalWithOneByteData, true /* force two-byte */);
   assertFalse(isOneByteString(twoByteExternalWithOneByteData));
 

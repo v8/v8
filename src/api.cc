@@ -6535,8 +6535,7 @@ bool v8::String::MakeExternal(
   CHECK(resource && resource->data());
 
   bool result = obj->MakeExternal(resource);
-  DCHECK(result);
-  DCHECK(obj->IsExternalString());
+  DCHECK_IMPLIES(result, obj->IsExternalString());
   return result;
 }
 

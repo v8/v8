@@ -233,6 +233,13 @@ bool String::SupportsExternalization() {
     return false;
   }
 
+#ifdef V8_COMPRESS_POINTERS
+  // Small strings may not be in-place externalizable.
+  if (this->Size() < ExternalString::kUncachedSize) return false;
+#else
+  DCHECK_LE(ExternalString::kUncachedSize, this->Size());
+#endif
+
   return !isolate->heap()->IsInGCPostProcessing();
 }
 

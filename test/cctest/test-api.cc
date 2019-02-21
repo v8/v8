@@ -624,6 +624,13 @@ TEST(MakingExternalStringConditions) {
   CcTest::CollectGarbage(i::NEW_SPACE);
 
   uint16_t* two_byte_string = AsciiToTwoByteString("s1");
+  Local<String> tiny_local_string =
+      String::NewFromTwoByte(env->GetIsolate(), two_byte_string,
+                             v8::NewStringType::kNormal)
+          .ToLocalChecked();
+  i::DeleteArray(two_byte_string);
+
+  two_byte_string = AsciiToTwoByteString("s1234");
   Local<String> local_string =
       String::NewFromTwoByte(env->GetIsolate(), two_byte_string,
                              v8::NewStringType::kNormal)
@@ -637,6 +644,9 @@ TEST(MakingExternalStringConditions) {
   CcTest::CollectGarbage(i::NEW_SPACE);  // in old gen now
   // Old space strings should be accepted.
   CHECK(local_string->CanMakeExternal());
+
+  // Tiny strings are not in-place externalizable.
+  CHECK_EQ(!COMPRESS_POINTERS_BOOL, tiny_local_string->CanMakeExternal());
 }
 
 
@@ -648,7 +658,8 @@ TEST(MakingExternalOneByteStringConditions) {
   CcTest::CollectGarbage(i::NEW_SPACE);
   CcTest::CollectGarbage(i::NEW_SPACE);
 
-  Local<String> local_string = v8_str("s1");
+  Local<String> tiny_local_string = v8_str("s");
+  Local<String> local_string = v8_str("s1234");
   // We should refuse to externalize new space strings.
   CHECK(!local_string->CanMakeExternal());
   // Trigger GCs so that the newly allocated string moves to old gen.
@@ -656,6 +667,9 @@ TEST(MakingExternalOneByteStringConditions) {
   CcTest::CollectGarbage(i::NEW_SPACE);  // in old gen now
   // Old space strings should be accepted.
   CHECK(local_string->CanMakeExternal());
+
+  // Tiny strings are not in-place externalizable.
+  CHECK_EQ(!COMPRESS_POINTERS_BOOL, tiny_local_string->CanMakeExternal());
 }
 
 
