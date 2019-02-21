@@ -2990,7 +2990,7 @@ void RegisterAllocator::Spill(LiveRange* range, SpillMode spill_mode) {
   TRACE("Spilling live range %d:%d mode %d\n", first->vreg(),
         range->relative_id(), spill_mode);
 
-  TRACE("Starting spill type is %d\n", first->spill_type());
+  TRACE("Starting spill type is %d\n", static_cast<int>(first->spill_type()));
   if (first->HasNoSpillType()) {
     TRACE("New spill range needed");
     data()->AssignSpillRangeToLiveRange(first, spill_mode);
@@ -3003,7 +3003,7 @@ void RegisterAllocator::Spill(LiveRange* range, SpillMode spill_mode) {
     TRACE("Upgrading\n");
     first->set_spill_type(TopLevelLiveRange::SpillType::kSpillRange);
   }
-  TRACE("Final spill type is %d\n", first->spill_type());
+  TRACE("Final spill type is %d\n", static_cast<int>(first->spill_type()));
   range->Spill();
 }
 
