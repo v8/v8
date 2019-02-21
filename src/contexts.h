@@ -538,6 +538,8 @@ class Context : public HeapObject {
 
   // Direct slot access.
   inline void set_scope_info(ScopeInfo scope_info);
+
+  inline Object unchecked_previous();
   inline Context previous();
   inline void set_previous(Context context);
 

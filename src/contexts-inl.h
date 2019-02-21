@@ -77,6 +77,8 @@ void Context::set_scope_info(ScopeInfo scope_info) {
   set(SCOPE_INFO_INDEX, scope_info);
 }
 
+Object Context::unchecked_previous() { return get(PREVIOUS_INDEX); }
+
 Context Context::previous() {
   Object result = get(PREVIOUS_INDEX);
   DCHECK(IsBootstrappingOrValidParentContext(result, *this));
