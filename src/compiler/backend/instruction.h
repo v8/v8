@@ -976,6 +976,11 @@ class RpoNumber final {
     return other.index_ == this->index_ + 1;
   }
 
+  RpoNumber Next() const {
+    DCHECK(IsValid());
+    return RpoNumber(index_ + 1);
+  }
+
   // Comparison operators.
   bool operator==(RpoNumber other) const { return index_ == other.index_; }
   bool operator!=(RpoNumber other) const { return index_ != other.index_; }
