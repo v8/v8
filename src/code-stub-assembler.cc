@@ -6742,7 +6742,7 @@ TNode<String> CodeStubAssembler::StringFromSingleCharCode(TNode<Int32T> code) {
     // cache already.
     Label if_entryisundefined(this, Label::kDeferred),
         if_entryisnotundefined(this);
-    Node* entry = UnsafeLoadFixedArrayElement(cache, code_index);
+    Node* entry = LoadFixedArrayElement(cache, code_index);
     Branch(IsUndefined(entry), &if_entryisundefined, &if_entryisnotundefined);
 
     BIND(&if_entryisundefined);
@@ -8414,8 +8414,7 @@ void CodeStubAssembler::NameDictionaryLookup(
     TNode<IntPtrT> index = EntryToIndex<Dictionary>(entry);
     *var_name_index = index;
 
-    TNode<HeapObject> current =
-        CAST(UnsafeLoadFixedArrayElement(dictionary, index));
+    TNode<HeapObject> current = CAST(LoadFixedArrayElement(dictionary, index));
     GotoIf(WordEqual(current, undefined), if_not_found);
     current = LoadName<Dictionary>(current);
     GotoIf(WordEqual(current, unique_name), if_found);
@@ -8526,7 +8525,7 @@ void CodeStubAssembler::NumberDictionaryLookup(
     TNode<IntPtrT> entry = var_entry->value();
 
     TNode<IntPtrT> index = EntryToIndex<NumberDictionary>(entry);
-    Node* current = UnsafeLoadFixedArrayElement(dictionary, index);
+    Node* current = LoadFixedArrayElement(dictionary, index);
     GotoIf(WordEqual(current, undefined), if_not_found);
     Label next_probe(this);
     {
@@ -9614,7 +9613,7 @@ void CodeStubAssembler::TryLookupElement(Node* object, Node* map,
 
     GotoIfNot(UintPtrLessThan(intptr_index, length), &if_oob);
 
-    TNode<Object> element = UnsafeLoadFixedArrayElement(elements, intptr_index);
+    TNode<Object> element = LoadFixedArrayElement(elements, intptr_index);
     TNode<Oddball> the_hole = TheHoleConstant();
     Branch(WordEqual(element, the_hole), if_not_found, if_found);
   }

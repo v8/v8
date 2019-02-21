@@ -1027,20 +1027,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                  CheckBounds::kDebugOnly);
   }
 
-  TNode<Object> LoadFixedArrayElement(
-      TNode<FixedArray> object, TNode<IntPtrT> index,
-      LoadSensitivity needs_poisoning,
-      CheckBounds check_bounds = CheckBounds::kAlways) {
+  TNode<Object> LoadFixedArrayElement(TNode<FixedArray> object,
+                                      TNode<IntPtrT> index,
+                                      LoadSensitivity needs_poisoning) {
     return LoadFixedArrayElement(object, index, 0, INTPTR_PARAMETERS,
-                                 needs_poisoning, check_bounds);
-  }
-  // This doesn't emit a bounds-check. As part of the security-performance
-  // tradeoff, only use it if it is performance critical.
-  TNode<Object> UnsafeLoadFixedArrayElement(TNode<FixedArray> object,
-                                            TNode<IntPtrT> index,
-                                            LoadSensitivity needs_poisoning) {
-    return LoadFixedArrayElement(object, index, needs_poisoning,
-                                 CheckBounds::kDebugOnly);
+                                 needs_poisoning);
   }
 
   TNode<Object> LoadFixedArrayElement(
@@ -2622,8 +2613,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   template <class Dictionary>
   TNode<Smi> GetCapacity(TNode<Dictionary> dictionary) {
-    return CAST(
-        UnsafeLoadFixedArrayElement(dictionary, Dictionary::kCapacityIndex));
+    return CAST(LoadFixedArrayElement(dictionary, Dictionary::kCapacityIndex));
   }
 
   template <class Dictionary>
