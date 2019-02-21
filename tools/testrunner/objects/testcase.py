@@ -53,6 +53,8 @@ MODULE_RESOURCES_PATTERN_1 = re.compile(
 MODULE_RESOURCES_PATTERN_2 = re.compile(
     r"(?:import|export).*from (?:'|\")([^'\"]+)(?:'|\")")
 
+TIMEOUT_LONG = "long"
+
 try:
   cmp             # Python 2
 except NameError:
@@ -203,6 +205,9 @@ class TestCase(object):
   def _get_files_params(self):
     return []
 
+  def _get_timeout_param(self):
+    return None
+
   def _get_random_seed_flags(self):
     return ['--random-seed=%d' % self.random_seed]
 
@@ -241,6 +246,8 @@ class TestCase(object):
       timeout *= 4
     if "--noenable-vfp3" in params:
       timeout *= 2
+    if self._get_timeout_param() == TIMEOUT_LONG:
+      timeout *= 10
 
     # TODO(majeski): make it slow outcome dependent.
     timeout *= 2

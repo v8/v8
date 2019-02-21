@@ -11,6 +11,7 @@ from testrunner.objects import testcase
 ANY_JS = ".any.js"
 WPT_ROOT = "/wasm/jsapi/"
 META_SCRIPT_REGEXP = re.compile(r"META:\s*script=(.*)")
+META_TIMEOUT_REGEXP = re.compile(r"META:\s*timeout=(.*)")
 
 
 class TestLoader(testsuite.JSTestLoader):
@@ -35,6 +36,19 @@ class TestSuite(testsuite.TestSuite):
 
 
 class TestCase(testcase.D8TestCase):
+  def _get_timeout_param(self):
+    source = self.get_source()
+    timeout_params = META_TIMEOUT_REGEXP.findall(source)
+    if not timeout_params:
+      return None
+
+    if timeout_params[0] in ["long"]:
+      return timeout_params[0]
+    else:
+      print("unknown timeout param %s in %s%s"
+            % (timeout_params[0], self.path, ANY_JS))
+      return None
+
   def _get_files_params(self):
     files = [os.path.join(self.suite.mjsunit_js),
              os.path.join(self.suite.root, "testharness.js")]
