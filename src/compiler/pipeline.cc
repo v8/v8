@@ -1608,7 +1608,7 @@ struct InstructionSelectionPhase {
             ? InstructionSelector::kEnableScheduling
             : InstructionSelector::kDisableScheduling,
         !data->isolate() || data->isolate()->serializer_enabled() ||
-                data->isolate()->ShouldLoadConstantsFromRootList()
+                data->isolate()->IsGeneratingEmbeddedBuiltins()
             ? InstructionSelector::kDisableRootsRelativeAddressing
             : InstructionSelector::kEnableRootsRelativeAddressing,
         data->info()->GetPoisoningMitigationLevel(),

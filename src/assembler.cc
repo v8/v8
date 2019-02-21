@@ -68,7 +68,7 @@ AssemblerOptions AssemblerOptions::Default(
   const bool serializer =
       isolate->serializer_enabled() || explicitly_support_serialization;
   const bool generating_embedded_builtin =
-      isolate->ShouldLoadConstantsFromRootList();
+      isolate->IsGeneratingEmbeddedBuiltins();
   options.record_reloc_info_for_serialization = serializer;
   options.enable_root_array_delta_access =
       !serializer && !generating_embedded_builtin;

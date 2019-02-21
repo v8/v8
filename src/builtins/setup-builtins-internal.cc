@@ -42,7 +42,7 @@ AssemblerOptions BuiltinAssemblerOptions(Isolate* isolate,
   CHECK(!options.isolate_independent_code);
   CHECK(!options.use_pc_relative_calls_and_jumps);
 
-  if (!isolate->ShouldLoadConstantsFromRootList() ||
+  if (!isolate->IsGeneratingEmbeddedBuiltins() ||
       !Builtins::IsIsolateIndependent(builtin_index)) {
     return options;
   }

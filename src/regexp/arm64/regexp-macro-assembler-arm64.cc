@@ -1347,7 +1347,7 @@ void RegExpMacroAssemblerARM64::CheckPosition(int cp_offset,
 // Private methods:
 
 void RegExpMacroAssemblerARM64::CallCheckStackGuardState(Register scratch) {
-  DCHECK(!isolate()->ShouldLoadConstantsFromRootList());
+  DCHECK(!isolate()->IsGeneratingEmbeddedBuiltins());
   DCHECK(!masm_->options().isolate_independent_code);
 
   // Allocate space on the stack to store the return address. The

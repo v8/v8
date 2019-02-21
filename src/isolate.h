@@ -1359,8 +1359,7 @@ class Isolate final : private HiddenFactory {
 
   // Off-heap builtins cannot embed constants within the code object itself,
   // and thus need to load them from the root list.
-  // TODO(jgruber): Rename to IsGeneratingEmbeddedBuiltins().
-  bool ShouldLoadConstantsFromRootList() const {
+  bool IsGeneratingEmbeddedBuiltins() const {
     return FLAG_embedded_builtins &&
            builtins_constants_table_builder() != nullptr;
   }

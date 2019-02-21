@@ -1070,7 +1070,7 @@ void RegExpMacroAssemblerS390::WriteStackPointerToRegister(int reg) {
 // Private methods:
 
 void RegExpMacroAssemblerS390::CallCheckStackGuardState(Register scratch) {
-  DCHECK(!isolate()->ShouldLoadConstantsFromRootList());
+  DCHECK(!isolate()->IsGeneratingEmbeddedBuiltins());
   DCHECK(!masm_->options().isolate_independent_code);
 
   static constexpr int num_arguments = 3;
