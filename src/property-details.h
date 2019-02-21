@@ -109,8 +109,7 @@ class Representation {
   }
 
   bool IsCompatibleForLoad(const Representation& other) const {
-    return (IsDouble() && other.IsDouble()) ||
-        (!IsDouble() && !other.IsDouble());
+    return IsDouble() == other.IsDouble();
   }
 
   bool IsCompatibleForStore(const Representation& other) const {
@@ -146,7 +145,6 @@ class Representation {
   bool IsSmiOrTagged() const { return IsSmi() || IsTagged(); }
   bool IsDouble() const { return kind_ == kDouble; }
   bool IsHeapObject() const { return kind_ == kHeapObject; }
-  bool IsSpecialization() const { return IsSmi() || IsDouble(); }
 
   const char* Mnemonic() const {
     switch (kind_) {
