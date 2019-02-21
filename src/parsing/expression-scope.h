@@ -56,7 +56,8 @@ class ExpressionScope {
         // with or catch scope. In those cases the proxy isn't guaranteed to
         // refer to the declared variable, so consider it unresolved.
         parser()->scope()->AddUnresolved(result);
-      } else if (var) {
+      } else {
+        DCHECK_NOT_NULL(var);
         result->BindTo(var);
       }
     }
@@ -327,9 +328,8 @@ class VariableDeclarationParsingScope : public ExpressionScope<Types> {
         //
         // This also handles marking of loop variables in for-in and for-of
         // loops, as determined by loop-nesting-depth.
-        if (V8_LIKELY(var)) {
-          var->set_maybe_assigned();
-        }
+        DCHECK_NOT_NULL(var);
+        var->set_maybe_assigned();
       }
     }
     return var;
