@@ -275,6 +275,10 @@ class Map : public HeapObject {
   //
   DECL_PRIMITIVE_ACCESSORS(bit_field3, uint32_t)
 
+  // Clear uninitialized padding space. This ensures that the snapshot content
+  // is deterministic. Depending on the V8 build mode there could be no padding.
+  V8_INLINE void clear_padding();
+
 // Bit positions for |bit_field3|.
 #define MAP_BIT_FIELD3_FIELDS(V, _)                               \
   V(EnumLengthBits, int, kDescriptorIndexBitCount, _)             \
@@ -823,29 +827,29 @@ class Map : public HeapObject {
   static const int kMaxPreAllocatedPropertyFields = 255;
 
   // Layout description.
-#define MAP_FIELDS(V)                                                     \
-  /* Raw data fields. */                                                  \
-  V(kInstanceSizeInWordsOffset, kUInt8Size)                               \
-  V(kInObjectPropertiesStartOrConstructorFunctionIndexOffset, kUInt8Size) \
-  V(kUsedOrUnusedInstanceSizeInWordsOffset, kUInt8Size)                   \
-  V(kVisitorIdOffset, kUInt8Size)                                         \
-  V(kInstanceTypeOffset, kUInt16Size)                                     \
-  V(kBitFieldOffset, kUInt8Size)                                          \
-  V(kBitField2Offset, kUInt8Size)                                         \
-  V(kBitField3Offset, kUInt32Size)                                        \
-  V(k64BitArchPaddingOffset,                                              \
-    kSystemPointerSize == kUInt32Size ? 0 : kUInt32Size)                  \
-  /* Pointer fields. */                                                   \
-  V(kPointerFieldsBeginOffset, 0)                                         \
-  V(kPrototypeOffset, kTaggedSize)                                        \
-  V(kConstructorOrBackPointerOffset, kTaggedSize)                         \
-  V(kTransitionsOrPrototypeInfoOffset, kTaggedSize)                       \
-  V(kDescriptorsOffset, kTaggedSize)                                      \
-  V(kLayoutDescriptorOffset, FLAG_unbox_double_fields ? kTaggedSize : 0)  \
-  V(kDependentCodeOffset, kTaggedSize)                                    \
-  V(kPrototypeValidityCellOffset, kTaggedSize)                            \
-  V(kPointerFieldsEndOffset, 0)                                           \
-  /* Total size. */                                                       \
+#define MAP_FIELDS(V)                                                       \
+  /* Raw data fields. */                                                    \
+  V(kInstanceSizeInWordsOffset, kUInt8Size)                                 \
+  V(kInObjectPropertiesStartOrConstructorFunctionIndexOffset, kUInt8Size)   \
+  V(kUsedOrUnusedInstanceSizeInWordsOffset, kUInt8Size)                     \
+  V(kVisitorIdOffset, kUInt8Size)                                           \
+  V(kInstanceTypeOffset, kUInt16Size)                                       \
+  V(kBitFieldOffset, kUInt8Size)                                            \
+  V(kBitField2Offset, kUInt8Size)                                           \
+  V(kBitField3Offset, kUInt32Size)                                          \
+  /* Adds padding to make tagged fields kTaggedSize-aligned. */             \
+  V(kOptionalPaddingOffset, OBJECT_POINTER_PADDING(kOptionalPaddingOffset)) \
+  /* Pointer fields. */                                                     \
+  V(kPointerFieldsBeginOffset, 0)                                           \
+  V(kPrototypeOffset, kTaggedSize)                                          \
+  V(kConstructorOrBackPointerOffset, kTaggedSize)                           \
+  V(kTransitionsOrPrototypeInfoOffset, kTaggedSize)                         \
+  V(kDescriptorsOffset, kTaggedSize)                                        \
+  V(kLayoutDescriptorOffset, FLAG_unbox_double_fields ? kTaggedSize : 0)    \
+  V(kDependentCodeOffset, kTaggedSize)                                      \
+  V(kPrototypeValidityCellOffset, kTaggedSize)                              \
+  V(kPointerFieldsEndOffset, 0)                                             \
+  /* Total size. */                                                         \
   V(kSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, MAP_FIELDS)
