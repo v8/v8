@@ -294,7 +294,7 @@ class Config(object):
       tests = ""
     else:
       tests = " ".join(self.tests)
-    return _Call("tools/run-tests.py --outdir=%s %s" %
+    return _Call(os.path.join("tools", "run-tests.py") + " --outdir=%s %s" %
                    (GetPath(self.arch, self.mode), tests))
 
 def GetTestBinary(argstring):
