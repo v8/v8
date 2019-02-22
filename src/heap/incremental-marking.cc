@@ -1201,6 +1201,7 @@ StepResult IncrementalMarking::V8Step(double max_step_size_in_ms,
     }
   }
   if (FLAG_concurrent_marking) {
+    marking_worklist()->ShareWorkIfGlobalPoolIsEmpty();
     heap_->concurrent_marking()->RescheduleTasksIfNeeded();
   }
 

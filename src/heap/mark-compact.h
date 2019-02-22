@@ -528,6 +528,12 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
       embedder_.Update(callback);
     }
 
+    void ShareWorkIfGlobalPoolIsEmpty() {
+      if (!shared_.IsLocalEmpty(kMainThread) && shared_.IsGlobalPoolEmpty()) {
+        shared_.FlushToGlobal(kMainThread);
+      }
+    }
+
     ConcurrentMarkingWorklist* shared() { return &shared_; }
     ConcurrentMarkingWorklist* on_hold() { return &on_hold_; }
     EmbedderTracingWorklist* embedder() { return &embedder_; }
