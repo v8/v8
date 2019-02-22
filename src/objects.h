@@ -258,6 +258,7 @@ class AccessorPair;
 class AccessCheckInfo;
 class AllocationSite;
 class ByteArray;
+class CachedTemplateObject;
 class Cell;
 class ConsString;
 class DependentCode;
@@ -335,6 +336,7 @@ class ZoneForwardList;
   V(BreakPointInfo)                            \
   V(ByteArray)                                 \
   V(BytecodeArray)                             \
+  V(CachedTemplateObject)                      \
   V(CallHandlerInfo)                           \
   V(Callable)                                  \
   V(Cell)                                      \

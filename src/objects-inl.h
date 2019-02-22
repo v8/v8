@@ -32,9 +32,9 @@
 #include "src/objects/oddball.h"
 #include "src/objects/regexp-match-info.h"
 #include "src/objects/scope-info.h"
+#include "src/objects/shared-function-info.h"
 #include "src/objects/slots-inl.h"
 #include "src/objects/smi-inl.h"
-#include "src/objects/template-objects.h"
 #include "src/objects/templates.h"
 #include "src/property-details.h"
 #include "src/property.h"
@@ -398,15 +398,12 @@ OBJECT_CONSTRUCTORS_IMPL(BigIntBase, HeapObject)
 OBJECT_CONSTRUCTORS_IMPL(BigInt, BigIntBase)
 OBJECT_CONSTRUCTORS_IMPL(FreshlyAllocatedBigInt, BigIntBase)
 
-OBJECT_CONSTRUCTORS_IMPL(TemplateObjectDescription, Tuple2)
-
 // ------------------------------------
 // Cast operations
 
 CAST_ACCESSOR(BigInt)
 CAST_ACCESSOR(RegExpMatchInfo)
 CAST_ACCESSOR(ScopeInfo)
-CAST_ACCESSOR(TemplateObjectDescription)
 
 bool Object::HasValidElements() {
   // Dictionary is covered under FixedArray.
@@ -837,10 +834,6 @@ Address HeapObject::GetFieldAddress(int field_offset) const {
   return FIELD_ADDR(*this, field_offset);
 }
 
-ACCESSORS(TemplateObjectDescription, raw_strings, FixedArray, kRawStringsOffset)
-ACCESSORS(TemplateObjectDescription, cooked_strings, FixedArray,
-          kCookedStringsOffset)
-
 // static
 Maybe<bool> Object::GreaterThan(Isolate* isolate, Handle<Object> x,
                                 Handle<Object> y) {
@@ -967,6 +960,10 @@ Object Object::GetSimpleHash(Object object) {
   }
   if (object->IsBigInt()) {
     uint32_t hash = BigInt::cast(object)->Hash();
+    return Smi::FromInt(hash & Smi::kMaxValue);
+  }
+  if (object->IsSharedFunctionInfo()) {
+    uint32_t hash = SharedFunctionInfo::cast(object)->Hash();
     return Smi::FromInt(hash & Smi::kMaxValue);
   }
   DCHECK(object->IsJSReceiver());

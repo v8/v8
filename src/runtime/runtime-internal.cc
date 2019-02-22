@@ -17,6 +17,7 @@
 #include "src/isolate-inl.h"
 #include "src/message-template.h"
 #include "src/objects/js-array-inl.h"
+#include "src/objects/template-objects-inl.h"
 #include "src/ostreams.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parsing.h"
@@ -671,12 +672,16 @@ RUNTIME_FUNCTION(Runtime_CreateAsyncFromSyncIterator) {
       Handle<JSReceiver>::cast(sync_iterator), next);
 }
 
-RUNTIME_FUNCTION(Runtime_CreateTemplateObject) {
+RUNTIME_FUNCTION(Runtime_GetTemplateObject) {
   HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
+  DCHECK_EQ(3, args.length());
   CONVERT_ARG_HANDLE_CHECKED(TemplateObjectDescription, description, 0);
+  CONVERT_ARG_HANDLE_CHECKED(SharedFunctionInfo, shared_info, 1);
+  CONVERT_SMI_ARG_CHECKED(slot_id, 2);
 
-  return *TemplateObjectDescription::CreateTemplateObject(isolate, description);
+  Handle<Context> native_context(isolate->context()->native_context(), isolate);
+  return *TemplateObjectDescription::GetTemplateObject(
+      isolate, native_context, description, shared_info, slot_id);
 }
 
 RUNTIME_FUNCTION(Runtime_ReportMessage) {

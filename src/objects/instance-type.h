@@ -415,6 +415,7 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
   V(CallHandlerInfo, CALL_HANDLER_INFO_TYPE)                                 \
   V(Cell, CELL_TYPE)                                                         \
   V(Code, CODE_TYPE)                                                         \
+  V(CachedTemplateObject, TUPLE3_TYPE)                                       \
   V(CodeDataContainer, CODE_DATA_CONTAINER_TYPE)                             \
   V(CoverageInfo, FIXED_ARRAY_TYPE)                                          \
   V(DescriptorArray, DESCRIPTOR_ARRAY_TYPE)                                  \

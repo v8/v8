@@ -4872,6 +4872,15 @@ Script Script::Iterator::Next() {
   return Script();
 }
 
+uint32_t SharedFunctionInfo::Hash() {
+  // Hash SharedFunctionInfo based on its start position and script id. Note: we
+  // don't use the function's literal id since getting that is slow for compiled
+  // funcitons.
+  int start_pos = StartPosition();
+  int script_id = script()->IsScript() ? Script::cast(script())->id() : 0;
+  return static_cast<uint32_t>(base::hash_combine(start_pos, script_id));
+}
+
 Code SharedFunctionInfo::GetCode() const {
   // ======
   // NOTE: This chain of checks MUST be kept in sync with the equivalent CSA

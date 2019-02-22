@@ -13795,11 +13795,4 @@ TNode<String> CodeStubAssembler::TaggedToDirectString(TNode<Object> value,
 }
 
 }  // namespace internal
-
-// TODO(pwong): Remove. This is a workaround for crbug.com/v8/8719
-namespace {}  // namespace
-
-// TODO(pwong): Remove. This is a workaround for crbug.com/v8/8719
-namespace {}  // namespace
-
 }  // namespace v8

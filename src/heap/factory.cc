@@ -46,6 +46,7 @@
 #include "src/objects/scope-info.h"
 #include "src/objects/stack-frame-info-inl.h"
 #include "src/objects/struct-inl.h"
+#include "src/objects/template-objects-inl.h"
 #include "src/transitions-inl.h"
 #include "src/unicode-cache.h"
 #include "src/unicode-inl.h"

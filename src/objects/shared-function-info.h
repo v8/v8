@@ -587,6 +587,9 @@ class SharedFunctionInfo : public HeapObject {
   static void EnsureSourcePositionsAvailable(
       Isolate* isolate, Handle<SharedFunctionInfo> shared_info);
 
+  // Hash based on function literal id and script id.
+  uint32_t Hash();
+
   inline bool construct_as_builtin() const;
 
   // Determines and sets the ConstructAsBuiltinBit in |flags|, based on the

@@ -2596,9 +2596,13 @@ IGNITION_HANDLER(GetTemplateObject, InterpreterAssembler) {
   BIND(&call_runtime);
   {
     Node* description = LoadConstantPoolEntryAtOperandIndex(0);
+    Node* slot_smi = SmiTag(slot);
+    Node* closure = LoadRegister(Register::function_closure());
+    Node* shared_info =
+        LoadObjectField(closure, JSFunction::kSharedFunctionInfoOffset);
     Node* context = GetContext();
-    Node* result =
-        CallRuntime(Runtime::kCreateTemplateObject, context, description);
+    Node* result = CallRuntime(Runtime::kGetTemplateObject, context,
+                               description, shared_info, slot_smi);
 
     Label end(this);
     GotoIf(IsUndefined(feedback_vector), &end);
