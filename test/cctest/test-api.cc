@@ -645,8 +645,10 @@ TEST(MakingExternalStringConditions) {
   // Old space strings should be accepted.
   CHECK(local_string->CanMakeExternal());
 
-  // Tiny strings are not in-place externalizable.
-  CHECK_EQ(!COMPRESS_POINTERS_BOOL, tiny_local_string->CanMakeExternal());
+  // Tiny strings are not in-place externalizable when pointer compression is
+  // enabled.
+  CHECK_EQ(i::kTaggedSize == i::kSystemPointerSize,
+           tiny_local_string->CanMakeExternal());
 }
 
 
@@ -668,8 +670,10 @@ TEST(MakingExternalOneByteStringConditions) {
   // Old space strings should be accepted.
   CHECK(local_string->CanMakeExternal());
 
-  // Tiny strings are not in-place externalizable.
-  CHECK_EQ(!COMPRESS_POINTERS_BOOL, tiny_local_string->CanMakeExternal());
+  // Tiny strings are not in-place externalizable when pointer compression is
+  // enabled.
+  CHECK_EQ(i::kTaggedSize == i::kSystemPointerSize,
+           tiny_local_string->CanMakeExternal());
 }
 
 
