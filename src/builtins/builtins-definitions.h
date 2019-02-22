@@ -1216,6 +1216,7 @@ namespace internal {
   TFC(WasmMemoryGrow, WasmMemoryGrow, 1)                                       \
   TFC(WasmRecordWrite, RecordWrite, 1)                                         \
   TFC(WasmStackGuard, NoContext, 1)                                            \
+  TFC(WasmStackOverflow, NoContext, 1)                                         \
   TFC(WasmToNumber, TypeConversion, 1)                                         \
   TFC(WasmThrow, WasmThrow, 1)                                                 \
   TFS(ThrowWasmTrapUnreachable)                                                \
@@ -1522,6 +1523,7 @@ namespace internal {
   V(WasmMemoryGrow)                      \
   V(WasmRecordWrite)                     \
   V(WasmStackGuard)                      \
+  V(WasmStackOverflow)                   \
   V(WasmToNumber)                        \
   V(WasmThrow)                           \
   V(DoubleToI)                           \

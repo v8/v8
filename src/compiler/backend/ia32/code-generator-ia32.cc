@@ -4227,10 +4227,9 @@ void CodeGenerator::AssembleConstructFrame() {
         __ pop(scratch);
         __ j(above_equal, &done);
       }
-      __ mov(ecx, FieldOperand(kWasmInstanceRegister,
-                               WasmInstanceObject::kCEntryStubOffset));
-      __ Move(esi, Smi::zero());
-      __ CallRuntimeWithCEntry(Runtime::kThrowWasmStackOverflow, ecx);
+
+      __ wasm_call(wasm::WasmCode::kWasmStackOverflow,
+                   RelocInfo::WASM_STUB_CALL);
       ReferenceMap* reference_map = new (zone()) ReferenceMap(zone());
       RecordSafepoint(reference_map, Safepoint::kSimple,
                       Safepoint::kNoLazyDeopt);

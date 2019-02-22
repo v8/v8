@@ -102,8 +102,6 @@ RUNTIME_FUNCTION(Runtime_ThrowWasmError) {
 RUNTIME_FUNCTION(Runtime_ThrowWasmStackOverflow) {
   SealHandleScope shs(isolate);
   DCHECK_LE(0, args.length());
-  DCHECK(isolate->context().is_null());
-  isolate->set_context(GetNativeContextFromWasmInstanceOnStackTop(isolate));
   return isolate->StackOverflow();
 }
 

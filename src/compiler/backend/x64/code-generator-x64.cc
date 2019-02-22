@@ -3720,11 +3720,9 @@ void CodeGenerator::AssembleConstructFrame() {
         __ cmpq(rsp, kScratchRegister);
         __ j(above_equal, &done);
       }
-      __ LoadTaggedPointerField(
-          rcx, FieldOperand(kWasmInstanceRegister,
-                            WasmInstanceObject::kCEntryStubOffset));
-      __ Move(rsi, Smi::zero());
-      __ CallRuntimeWithCEntry(Runtime::kThrowWasmStackOverflow, rcx);
+
+      __ near_call(wasm::WasmCode::kWasmStackOverflow,
+                   RelocInfo::WASM_STUB_CALL);
       ReferenceMap* reference_map = new (zone()) ReferenceMap(zone());
       RecordSafepoint(reference_map, Safepoint::kSimple,
                       Safepoint::kNoLazyDeopt);
