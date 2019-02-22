@@ -307,8 +307,7 @@ void MemoryAllocator::Unmapper::CancelAndWaitForPendingTasks() {
   }
 }
 
-void MemoryAllocator::Unmapper::PrepareForMarkCompact() {
-  CancelAndWaitForPendingTasks();
+void MemoryAllocator::Unmapper::PrepareForGC() {
   // Free non-regular chunks because they cannot be re-used.
   PerformFreeMemoryOnQueuedNonRegularChunks();
 }

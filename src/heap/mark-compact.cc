@@ -796,8 +796,6 @@ void MarkCompactCollector::Prepare() {
     heap()->incremental_marking()->Stop();
   }
 
-  heap()->memory_allocator()->unmapper()->PrepareForMarkCompact();
-
   if (!was_marked_incrementally_) {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_EMBEDDER_PROLOGUE);
     heap_->local_embedder_heap_tracer()->TracePrologue();

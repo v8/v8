@@ -1250,7 +1250,7 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
 
     V8_EXPORT_PRIVATE void FreeQueuedChunks();
     void CancelAndWaitForPendingTasks();
-    void PrepareForMarkCompact();
+    void PrepareForGC();
     void EnsureUnmappingCompleted();
     V8_EXPORT_PRIVATE void TearDown();
     size_t NumberOfCommittedChunks();

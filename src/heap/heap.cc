@@ -639,6 +639,7 @@ void Heap::GarbageCollectionPrologue() {
     ephemeron_retainer_.clear();
     retaining_root_.clear();
   }
+  memory_allocator()->unmapper()->PrepareForGC();
 }
 
 size_t Heap::SizeOfObjects() {
