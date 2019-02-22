@@ -82,7 +82,7 @@
     "https://build.chromium.org/p/client.v8.fyi": [
       {
         "excluded_builders" : [
-          "V8 Linux64 - node.js integration ng",
+          "V8 Linux64 - node.js integration",
           "V8 Linux64 debug - node.js baseline",
           "V8 Linux64 debug - node.js integration",
           "V8 Win64 - node.js baseline",
