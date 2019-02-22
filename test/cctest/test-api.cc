@@ -27668,7 +27668,7 @@ void AtomicsWaitCallbackCommon(v8::Isolate* isolate, Local<Value> sab,
     info.action = AtomicsWaitCallbackAction::StopAndThrowInSecondCall;
     info.ncalls = 0;
     CompileRun(
-        "int32arr[1] = 200;"
+        "setArrayElemAs(1, 200);"
         "wait(1, 200);");
     CHECK_EQ(info.ncalls, 2);
     CHECK(try_catch.HasCaught());
@@ -27686,7 +27686,7 @@ void AtomicsWaitCallbackCommon(v8::Isolate* isolate, Local<Value> sab,
     info.action = AtomicsWaitCallbackAction::StopFromThreadAndThrow;
     info.ncalls = 0;
     CompileRun(
-        "int32arr[1] = 0;"
+        "setArrayElemAs(1, 0);"
         "wait(0, 0);");
     CHECK_EQ(info.ncalls, 2);
     CHECK(try_catch.HasCaught());
@@ -27702,6 +27702,9 @@ TEST(AtomicsWaitCallback) {
   const char* init = R"(
       let sab = new SharedArrayBuffer(16);
       let int32arr = new Int32Array(sab, 4);
+      let setArrayElemAs = function(id, val) {
+        int32arr[id] = val;
+      };
       let wait = function(id, val, timeout) {
         if(arguments.length == 2) return Atomics.wait(int32arr, id, val);
         return Atomics.wait(int32arr, id, val, timeout);
@@ -27738,6 +27741,9 @@ TEST(WasmI32AtomicWaitCallback) {
 
   const char* init = R"(
       let int32arr = new Int32Array(sab, 4);
+      let setArrayElemAs = function(id, val) {
+        int32arr[id] = val;
+      };
       let wait = function(id, val, timeout) {
         if(arguments.length === 2)
           return func(id << 2, val, -1);
@@ -27771,9 +27777,10 @@ TEST(WasmI64AtomicWaitCallback) {
             .FromJust());
 
   const char* init = R"(
-      // offset 12 below ensures that int32arr[1] and wait(1..) point to the
-      // same address.
-      let int32arr = new Int32Array(sab, 12);
+      let int64arr = new BigInt64Array(sab, 8);
+      let setArrayElemAs = function(id, val) {
+        int64arr[id] = BigInt(val);
+      };
       let wait = function(id, val, timeout) {
         if(arguments.length === 2)
           return func(id << 3, val, -1);
