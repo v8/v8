@@ -405,6 +405,7 @@
   V(LoadMessage)                        \
   V(LoadTypedElement)                   \
   V(LoadDataViewElement)                \
+  V(LoadStackArgument)                  \
   V(StoreField)                         \
   V(StoreElement)                       \
   V(StoreMessage)                       \

@@ -283,6 +283,9 @@ class V8_EXPORT_PRIVATE AccessBuilder final
       ElementsKind kind,
       LoadSensitivity load_sensitivity = LoadSensitivity::kUnsafe);
 
+  // Provides access to stack arguments
+  static ElementAccess ForStackArgument();
+
   // Provides access to FixedDoubleArray elements.
   static ElementAccess ForFixedDoubleArrayElement();
 
