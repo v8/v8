@@ -467,11 +467,12 @@ class V8_EXPORT_PRIVATE LiveRange : public NON_EXPORTED_BASE(ZoneObject) {
   void VerifyIntervals() const;
 
   typedef BitField<bool, 0, 1> SpilledField;
-  // Bits (1,7] are used by TopLevelLiveRange.
+  // Bits (1,7[ are used by TopLevelLiveRange.
   typedef BitField<int32_t, 7, 6> AssignedRegisterField;
   typedef BitField<MachineRepresentation, 13, 8> RepresentationField;
   typedef BitField<bool, 21, 1> RecombineField;
   typedef BitField<uint8_t, 22, 6> ControlFlowRegisterHint;
+  // Bit 28 is used by TopLevelLiveRange.
 
   // Unique among children and splinters of the same virtual register.
   int relative_id_;
@@ -569,6 +570,8 @@ class V8_EXPORT_PRIVATE TopLevelLiveRange final : public LiveRange {
 
   bool IsFixed() const { return vreg_ < 0; }
 
+  bool IsDeferredFixed() const { return DeferredFixedField::decode(bits_); }
+  void set_deferred_fixed() { bits_ = DeferredFixedField::update(bits_, true); }
   bool is_phi() const { return IsPhiField::decode(bits_); }
   void set_is_phi(bool value) { bits_ = IsPhiField::update(bits_, value); }
 
@@ -778,6 +781,7 @@ class V8_EXPORT_PRIVATE TopLevelLiveRange final : public LiveRange {
   typedef BitField<bool, 3, 1> IsPhiField;
   typedef BitField<bool, 4, 1> IsNonLoopPhiField;
   typedef BitField<SpillType, 5, 2> SpillTypeField;
+  typedef BitField<bool, 28, 1> DeferredFixedField;
 
   int vreg_;
   int last_child_id_;
@@ -860,6 +864,8 @@ class RegisterAllocationData final : public ZoneObject {
   // Encodes whether a spill happens in deferred code (kSpillDeferred) or
   // regular code (kSpillAtDefinition).
   enum SpillMode { kSpillAtDefinition, kSpillDeferred };
+  static constexpr int kNumberOfFixedRangesPerRegister = 2;
+
   class PhiMapValue : public ZoneObject {
    public:
     PhiMapValue(PhiInstruction* phi, const InstructionBlock* block, Zone* zone);
@@ -1061,6 +1067,8 @@ class LiveRangeBuilder final : public ZoneObject {
 
  private:
   using SpillMode = RegisterAllocationData::SpillMode;
+  static constexpr int kNumberOfFixedRangesPerRegister =
+      RegisterAllocationData::kNumberOfFixedRangesPerRegister;
 
   RegisterAllocationData* data() const { return data_; }
   InstructionSequence* code() const { return data()->code(); }
@@ -1086,8 +1094,9 @@ class LiveRangeBuilder final : public ZoneObject {
 
   static int FixedLiveRangeID(int index) { return -index - 1; }
   int FixedFPLiveRangeID(int index, MachineRepresentation rep);
-  TopLevelLiveRange* FixedLiveRangeFor(int index);
-  TopLevelLiveRange* FixedFPLiveRangeFor(int index, MachineRepresentation rep);
+  TopLevelLiveRange* FixedLiveRangeFor(int index, SpillMode spill_mode);
+  TopLevelLiveRange* FixedFPLiveRangeFor(int index, MachineRepresentation rep,
+                                         SpillMode spill_mode);
 
   void MapPhiHint(InstructionOperand* operand, UsePosition* use_pos);
   void ResolvePhiHint(InstructionOperand* operand, UsePosition* use_pos);
@@ -1097,19 +1106,30 @@ class LiveRangeBuilder final : public ZoneObject {
   UsePosition* NewUsePosition(LifetimePosition pos) {
     return NewUsePosition(pos, nullptr, nullptr, UsePositionHintType::kNone);
   }
-  TopLevelLiveRange* LiveRangeFor(InstructionOperand* operand);
+  TopLevelLiveRange* LiveRangeFor(InstructionOperand* operand,
+                                  SpillMode spill_mode);
   // Helper methods for building intervals.
   UsePosition* Define(LifetimePosition position, InstructionOperand* operand,
-                      void* hint, UsePositionHintType hint_type);
-  void Define(LifetimePosition position, InstructionOperand* operand) {
-    Define(position, operand, nullptr, UsePositionHintType::kNone);
+                      void* hint, UsePositionHintType hint_type,
+                      SpillMode spill_mode);
+  void Define(LifetimePosition position, InstructionOperand* operand,
+              SpillMode spill_mode) {
+    Define(position, operand, nullptr, UsePositionHintType::kNone, spill_mode);
   }
   UsePosition* Use(LifetimePosition block_start, LifetimePosition position,
                    InstructionOperand* operand, void* hint,
-                   UsePositionHintType hint_type);
+                   UsePositionHintType hint_type, SpillMode spill_mode);
   void Use(LifetimePosition block_start, LifetimePosition position,
-           InstructionOperand* operand) {
-    Use(block_start, position, operand, nullptr, UsePositionHintType::kNone);
+           InstructionOperand* operand, SpillMode spill_mode) {
+    Use(block_start, position, operand, nullptr, UsePositionHintType::kNone,
+        spill_mode);
+  }
+  SpillMode SpillModeForBlock(const InstructionBlock* block) const {
+    if (FLAG_turbo_control_flow_aware_allocation) {
+      return block->IsDeferred() ? SpillMode::kSpillDeferred
+                                 : SpillMode::kSpillAtDefinition;
+    }
+    return SpillMode::kSpillAtDefinition;
   }
   RegisterAllocationData* const data_;
   ZoneMap<InstructionOperand*, UsePosition*> phi_hints_;
@@ -1245,8 +1265,10 @@ class LinearScanAllocator final : public RegisterAllocator {
   void ReloadLiveRanges(RangeWithRegisterSet& to_be_live,
                         LifetimePosition position);
 
+  void UpdateDeferredFixedRanges(SpillMode spill_mode, InstructionBlock* block);
   bool BlockIsDeferredOrImmediatePredecessorIsNotDeferred(
       const InstructionBlock* block);
+  bool HasNonDeferredPredecessor(InstructionBlock* block);
 
   struct LiveRangeOrdering {
     bool operator()(const LiveRange* a, const LiveRange* b) const {
