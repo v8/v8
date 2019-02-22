@@ -119,21 +119,23 @@ LexerResult Lexer::RunLexer(const std::string& input) {
   LineAndColumnTracker line_column_tracker;
 
   match_whitespace_(&pos);
+  line_column_tracker.Advance(token_start, pos);
   while (pos != end) {
-    line_column_tracker.Advance(token_start, pos);
     token_start = pos;
     Symbol* symbol = MatchToken(&pos, end);
+    InputPosition token_end = pos;
+    line_column_tracker.Advance(token_start, token_end);
     if (!symbol) {
       ReportError("Lexer Error: unknown token " +
                   StringLiteralQuote(std::string(
                       token_start, token_start + std::min<ptrdiff_t>(
                                                      end - token_start, 10))));
     }
-    line_column_tracker.Advance(token_start, pos);
     result.token_symbols.push_back(symbol);
     result.token_contents.push_back(
         {token_start, pos, line_column_tracker.ToSourcePosition()});
     match_whitespace_(&pos);
+    line_column_tracker.Advance(token_end, pos);
   }
 
   // Add an additional token position to simplify corner cases.
