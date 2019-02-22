@@ -88,10 +88,7 @@ uint32_t Name::Hash() {
   uint32_t field = hash_field();
   if (IsHashFieldComputed(field)) return field >> kHashShift;
   // Slow case: compute hash code and set it. Has to be a string.
-  // Also the string must be writable, because read-only strings will have their
-  // hash values precomputed.
-  return String::cast(*this)->ComputeAndSetHash(
-      Isolate::FromHeap(GetHeapFromWritableObject(*this)));
+  return String::cast(*this)->ComputeAndSetHash();
 }
 
 bool Name::IsInterestingSymbol() const {

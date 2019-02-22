@@ -1245,13 +1245,14 @@ bool String::IsTwoByteEqualTo(Vector<const uc16> str) {
   return CompareChars(content.ToUC16Vector().start(), str.start(), slen) == 0;
 }
 
-uint32_t String::ComputeAndSetHash(Isolate* isolate) {
+uint32_t String::ComputeAndSetHash() {
   DisallowHeapAllocation no_gc;
   // Should only be called if hash code has not yet been computed.
   DCHECK(!HasHashCode());
 
   // Store the hash code in the object.
-  uint32_t field = IteratingStringHasher::Hash(*this, HashSeed(isolate));
+  uint32_t field =
+      IteratingStringHasher::Hash(*this, HashSeed(GetReadOnlyRoots()));
   set_hash_field(field);
 
   // Check the hash code is there.

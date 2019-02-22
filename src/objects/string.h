@@ -450,7 +450,7 @@ class String : public Name {
   V8_EXPORT_PRIVATE bool SlowAsArrayIndex(uint32_t* index);
 
   // Compute and set the hash code.
-  uint32_t ComputeAndSetHash(Isolate* isolate);
+  uint32_t ComputeAndSetHash();
 
   OBJECT_CONSTRUCTORS(String, Name);
 };
