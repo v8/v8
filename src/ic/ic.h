@@ -50,6 +50,7 @@ class IC {
     state_ = RECOMPUTE_HANDLER;
   }
 
+  bool IsAnyHas() const { return IsKeyedHasIC(); }
   bool IsAnyLoad() const {
     return IsLoadIC() || IsLoadGlobalIC() || IsKeyedLoadIC();
   }
@@ -130,9 +131,10 @@ class IC {
   bool IsStoreIC() const { return IsStoreICKind(kind_); }
   bool IsStoreOwnIC() const { return IsStoreOwnICKind(kind_); }
   bool IsKeyedStoreIC() const { return IsKeyedStoreICKind(kind_); }
+  bool IsKeyedHasIC() const { return IsKeyedHasICKind(kind_); }
   bool is_keyed() const {
     return IsKeyedLoadIC() || IsKeyedStoreIC() ||
-           IsStoreInArrayLiteralICKind(kind_);
+           IsStoreInArrayLiteralICKind(kind_) || IsKeyedHasIC();
   }
   bool ShouldRecomputeHandler(Handle<String> name);
 
@@ -200,13 +202,12 @@ class IC {
   DISALLOW_IMPLICIT_CONSTRUCTORS(IC);
 };
 
-
 class LoadIC : public IC {
  public:
   LoadIC(Isolate* isolate, Handle<FeedbackVector> vector, FeedbackSlot slot,
          FeedbackSlotKind kind)
       : IC(isolate, vector, slot, kind) {
-    DCHECK(IsAnyLoad());
+    DCHECK(IsAnyLoad() || IsAnyHas());
   }
 
   static bool ShouldThrowReferenceError(FeedbackSlotKind kind) {
@@ -222,7 +223,8 @@ class LoadIC : public IC {
 
  protected:
   virtual Handle<Code> slow_stub() const {
-    return BUILTIN_CODE(isolate(), LoadIC_Slow);
+    return IsAnyHas() ? BUILTIN_CODE(isolate(), HasIC_Slow)
+                      : BUILTIN_CODE(isolate(), LoadIC_Slow);
   }
 
   // Update the inline cache and the global stub cache based on the
@@ -260,6 +262,9 @@ class KeyedLoadIC : public LoadIC {
                                                  Handle<Object> key);
 
  protected:
+  V8_WARN_UNUSED_RESULT MaybeHandle<Object> RuntimeLoad(Handle<Object> object,
+                                                        Handle<Object> key);
+
   // receiver is HeapObject because it could be a String or a JSObject
   void UpdateLoadElement(Handle<HeapObject> receiver,
                          KeyedAccessLoadMode load_mode);
@@ -279,7 +284,6 @@ class KeyedLoadIC : public LoadIC {
   // accesses.
   bool CanChangeToAllowOutOfBounds(Handle<Map> receiver_map);
 };
-
 
 class StoreIC : public IC {
  public:
@@ -331,9 +335,7 @@ class StoreGlobalIC : public StoreIC {
 
 enum KeyedStoreCheckMap { kDontCheckMap, kCheckMap };
 
-
 enum KeyedStoreIncrementLength { kDontIncrementLength, kIncrementLength };
-
 
 class KeyedStoreIC : public StoreIC {
  public:

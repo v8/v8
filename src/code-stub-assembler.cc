@@ -10123,8 +10123,9 @@ TNode<IntPtrT> CodeStubAssembler::TryToIntptr(Node* key, Label* miss) {
   return var_intptr_key.value();
 }
 
-Node* CodeStubAssembler::EmitKeyedSloppyArguments(Node* receiver, Node* key,
-                                                  Node* value, Label* bailout) {
+Node* CodeStubAssembler::EmitKeyedSloppyArguments(
+    Node* receiver, Node* key, Node* value, Label* bailout,
+    ArgumentsAccessMode access_mode) {
   // Mapped arguments are actual arguments. Unmapped arguments are values added
   // to the arguments object after it was created for the call. Mapped arguments
   // are stored in the context at indexes given by elements[key + 2]. Unmapped
@@ -10151,8 +10152,6 @@ Node* CodeStubAssembler::EmitKeyedSloppyArguments(Node* receiver, Node* key,
   // index into the context array given at elements[0]. Return the value at
   // context[t].
 
-  bool is_load = value == nullptr;
-
   GotoIfNot(TaggedIsSmi(key), bailout);
   key = SmiUntag(key);
   GotoIf(IntPtrLessThan(key, IntPtrConstant(0)), bailout);
@@ -10161,8 +10160,11 @@ Node* CodeStubAssembler::EmitKeyedSloppyArguments(Node* receiver, Node* key,
   TNode<IntPtrT> elements_length = LoadAndUntagFixedArrayBaseLength(elements);
 
   VARIABLE(var_result, MachineRepresentation::kTagged);
-  if (!is_load) {
+  if (access_mode == ArgumentsAccessMode::kStore) {
     var_result.Bind(value);
+  } else {
+    DCHECK(access_mode == ArgumentsAccessMode::kLoad ||
+           access_mode == ArgumentsAccessMode::kHas);
   }
   Label if_mapped(this), if_unmapped(this), end(this, &var_result);
   Node* intptr_two = IntPtrConstant(2);
@@ -10178,10 +10180,14 @@ Node* CodeStubAssembler::EmitKeyedSloppyArguments(Node* receiver, Node* key,
   {
     TNode<IntPtrT> mapped_index_intptr = SmiUntag(CAST(mapped_index));
     TNode<Context> the_context = CAST(LoadFixedArrayElement(elements, 0));
-    if (is_load) {
+    if (access_mode == ArgumentsAccessMode::kLoad) {
       Node* result = LoadContextElement(the_context, mapped_index_intptr);
       CSA_ASSERT(this, WordNotEqual(result, TheHoleConstant()));
       var_result.Bind(result);
+    } else if (access_mode == ArgumentsAccessMode::kHas) {
+      CSA_ASSERT(this, Word32BinaryNot(IsTheHole(LoadContextElement(
+                           the_context, mapped_index_intptr))));
+      var_result.Bind(TrueConstant());
     } else {
       StoreContextElement(the_context, mapped_index_intptr, value);
     }
@@ -10198,17 +10204,31 @@ Node* CodeStubAssembler::EmitKeyedSloppyArguments(Node* receiver, Node* key,
 
     TNode<IntPtrT> backing_store_length =
         LoadAndUntagFixedArrayBaseLength(backing_store);
-    GotoIf(UintPtrGreaterThanOrEqual(key, backing_store_length), bailout);
-
-    // The key falls into unmapped range.
-    if (is_load) {
+    if (access_mode == ArgumentsAccessMode::kHas) {
+      Label out_of_bounds(this);
+      GotoIf(UintPtrGreaterThanOrEqual(key, backing_store_length),
+             &out_of_bounds);
       Node* result = LoadFixedArrayElement(backing_store, key);
-      GotoIf(WordEqual(result, TheHoleConstant()), bailout);
-      var_result.Bind(result);
+      var_result.Bind(
+          SelectBooleanConstant(WordNotEqual(result, TheHoleConstant())));
+      Goto(&end);
+
+      BIND(&out_of_bounds);
+      var_result.Bind(FalseConstant());
+      Goto(&end);
     } else {
-      StoreFixedArrayElement(backing_store, key, value);
+      GotoIf(UintPtrGreaterThanOrEqual(key, backing_store_length), bailout);
+
+      // The key falls into unmapped range.
+      if (access_mode == ArgumentsAccessMode::kLoad) {
+        Node* result = LoadFixedArrayElement(backing_store, key);
+        GotoIf(WordEqual(result, TheHoleConstant()), bailout);
+        var_result.Bind(result);
+      } else {
+        StoreFixedArrayElement(backing_store, key, value);
+      }
+      Goto(&end);
     }
-    Goto(&end);
   }
 
   BIND(&end);
@@ -11012,63 +11032,63 @@ void CodeStubAssembler::BranchIfNumberRelationalComparison(
   TVARIABLE(Float64T, var_left_float);
   TVARIABLE(Float64T, var_right_float);
 
-  Branch(TaggedIsSmi(left),
-         [&] {
-           TNode<Smi> smi_left = CAST(left);
+  Branch(
+      TaggedIsSmi(left),
+      [&] {
+        TNode<Smi> smi_left = CAST(left);
 
-           Branch(TaggedIsSmi(right),
-                  [&] {
-                    TNode<Smi> smi_right = CAST(right);
+        Branch(
+            TaggedIsSmi(right),
+            [&] {
+              TNode<Smi> smi_right = CAST(right);
 
-                    // Both {left} and {right} are Smi, so just perform a fast
-                    // Smi comparison.
-                    switch (op) {
-                      case Operation::kEqual:
-                        BranchIfSmiEqual(smi_left, smi_right, if_true,
-                                         if_false);
-                        break;
-                      case Operation::kLessThan:
-                        BranchIfSmiLessThan(smi_left, smi_right, if_true,
-                                            if_false);
-                        break;
-                      case Operation::kLessThanOrEqual:
-                        BranchIfSmiLessThanOrEqual(smi_left, smi_right, if_true,
-                                                   if_false);
-                        break;
-                      case Operation::kGreaterThan:
-                        BranchIfSmiLessThan(smi_right, smi_left, if_true,
-                                            if_false);
-                        break;
-                      case Operation::kGreaterThanOrEqual:
-                        BranchIfSmiLessThanOrEqual(smi_right, smi_left, if_true,
-                                                   if_false);
-                        break;
-                      default:
-                        UNREACHABLE();
-                    }
-                  },
-                  [&] {
-                    CSA_ASSERT(this, IsHeapNumber(right));
-                    var_left_float = SmiToFloat64(smi_left);
-                    var_right_float = LoadHeapNumberValue(right);
-                    Goto(&do_float_comparison);
-                  });
-         },
-         [&] {
-           CSA_ASSERT(this, IsHeapNumber(left));
-           var_left_float = LoadHeapNumberValue(left);
+              // Both {left} and {right} are Smi, so just perform a fast
+              // Smi comparison.
+              switch (op) {
+                case Operation::kEqual:
+                  BranchIfSmiEqual(smi_left, smi_right, if_true, if_false);
+                  break;
+                case Operation::kLessThan:
+                  BranchIfSmiLessThan(smi_left, smi_right, if_true, if_false);
+                  break;
+                case Operation::kLessThanOrEqual:
+                  BranchIfSmiLessThanOrEqual(smi_left, smi_right, if_true,
+                                             if_false);
+                  break;
+                case Operation::kGreaterThan:
+                  BranchIfSmiLessThan(smi_right, smi_left, if_true, if_false);
+                  break;
+                case Operation::kGreaterThanOrEqual:
+                  BranchIfSmiLessThanOrEqual(smi_right, smi_left, if_true,
+                                             if_false);
+                  break;
+                default:
+                  UNREACHABLE();
+              }
+            },
+            [&] {
+              CSA_ASSERT(this, IsHeapNumber(right));
+              var_left_float = SmiToFloat64(smi_left);
+              var_right_float = LoadHeapNumberValue(right);
+              Goto(&do_float_comparison);
+            });
+      },
+      [&] {
+        CSA_ASSERT(this, IsHeapNumber(left));
+        var_left_float = LoadHeapNumberValue(left);
 
-           Branch(TaggedIsSmi(right),
-                  [&] {
-                    var_right_float = SmiToFloat64(right);
-                    Goto(&do_float_comparison);
-                  },
-                  [&] {
-                    CSA_ASSERT(this, IsHeapNumber(right));
-                    var_right_float = LoadHeapNumberValue(right);
-                    Goto(&do_float_comparison);
-                  });
-         });
+        Branch(
+            TaggedIsSmi(right),
+            [&] {
+              var_right_float = SmiToFloat64(right);
+              Goto(&do_float_comparison);
+            },
+            [&] {
+              CSA_ASSERT(this, IsHeapNumber(right));
+              var_right_float = LoadHeapNumberValue(right);
+              Goto(&do_float_comparison);
+            });
+      });
 
   BIND(&do_float_comparison);
   {
