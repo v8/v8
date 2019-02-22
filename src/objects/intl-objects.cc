@@ -553,7 +553,8 @@ std::string DefaultLocale(Isolate* isolate) {
   if (isolate->default_locale().empty()) {
     icu::Locale default_locale;
     // Translate ICU's fallback locale to a well-known locale.
-    if (strcmp(default_locale.getName(), "en_US_POSIX") == 0) {
+    if (strcmp(default_locale.getName(), "en_US_POSIX") == 0 ||
+        strcmp(default_locale.getName(), "c") == 0) {
       isolate->set_default_locale("en-US");
     } else {
       // Set the locale

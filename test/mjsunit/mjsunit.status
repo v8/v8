@@ -868,9 +868,10 @@
 ##############################################################################
 ['system == android', {
   # Tests consistently failing on Android.
-  # Unable to change locale on Android:
-  'icu-date-to-string': [FAIL],
-  'regress/regress-6288': [FAIL],
+  # Setting the locale with environment variables unavailable
+  'icu-date-to-string': [SKIP],
+  'icu-date-lord-howe': [SKIP],
+  'regress/regress-6288': [SKIP],
   # OOM:
   'regress/regress-748069': [FAIL],
   'regress/regress-752764': [FAIL],
