@@ -1008,12 +1008,21 @@ icu::UnicodeString ReplaceSkeleton(const icu::UnicodeString input,
   }
   for (int32_t i = 0; i < input.length(); i++) {
     switch (input[i]) {
+      // We need to skip 'a', 'b', 'B' here due to
+      // https://unicode-org.atlassian.net/browse/ICU-20437
       case 'a':
+        V8_FALLTHROUGH;
+      case 'b':
+        V8_FALLTHROUGH;
+      case 'B':
         // ignore
         break;
       case 'h':
+        V8_FALLTHROUGH;
       case 'H':
+        V8_FALLTHROUGH;
       case 'K':
+        V8_FALLTHROUGH;
       case 'k':
         result += to;
         break;
