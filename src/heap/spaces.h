@@ -690,6 +690,16 @@ class MemoryChunk {
 
   VirtualMemory* reserved_memory() { return &reservation_; }
 
+  template <AccessMode mode>
+  ConcurrentBitmap<mode>* marking_bitmap() const {
+    return reinterpret_cast<ConcurrentBitmap<mode>*>(marking_bitmap_);
+  }
+
+  template <AccessMode mode>
+  ConcurrentBitmap<mode>* young_generation_bitmap() const {
+    return reinterpret_cast<ConcurrentBitmap<mode>*>(young_generation_bitmap_);
+  }
+
   size_t size_;
   uintptr_t flags_;
 

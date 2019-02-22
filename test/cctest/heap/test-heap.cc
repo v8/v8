@@ -5818,7 +5818,8 @@ TEST(ContinuousLeftTrimFixedArrayInBlackArea) {
   Address start_address = array->address();
   Address end_address = start_address + array->Size();
   Page* page = Page::FromAddress(start_address);
-  IncrementalMarking::MarkingState* marking_state = marking->marking_state();
+  IncrementalMarking::NonAtomicMarkingState* marking_state =
+      marking->non_atomic_marking_state();
   CHECK(marking_state->IsBlack(*array));
   CHECK(marking_state->bitmap(page)->AllBitsSetInRange(
       page->AddressToMarkbitIndex(start_address),
@@ -5885,7 +5886,8 @@ TEST(ContinuousRightTrimFixedArrayInBlackArea) {
   Address start_address = array->address();
   Address end_address = start_address + array->Size();
   Page* page = Page::FromAddress(start_address);
-  IncrementalMarking::MarkingState* marking_state = marking->marking_state();
+  IncrementalMarking::NonAtomicMarkingState* marking_state =
+      marking->non_atomic_marking_state();
   CHECK(marking_state->IsBlack(*array));
 
   CHECK(marking_state->bitmap(page)->AllBitsSetInRange(

@@ -37,11 +37,11 @@ class ConcurrentMarkingState final
   explicit ConcurrentMarkingState(MemoryChunkDataMap* memory_chunk_data)
       : memory_chunk_data_(memory_chunk_data) {}
 
-  Bitmap* bitmap(const MemoryChunk* chunk) {
+  ConcurrentBitmap<AccessMode::ATOMIC>* bitmap(const MemoryChunk* chunk) {
     DCHECK_EQ(reinterpret_cast<intptr_t>(&chunk->marking_bitmap_) -
                   reinterpret_cast<intptr_t>(chunk),
               MemoryChunk::kMarkBitmapOffset);
-    return chunk->marking_bitmap_;
+    return chunk->marking_bitmap<AccessMode::ATOMIC>();
   }
 
   void IncrementLiveBytes(MemoryChunk* chunk, intptr_t by) {

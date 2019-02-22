@@ -64,7 +64,8 @@ class MarkingVerifier : public ObjectVisitor, public RootVisitor {
  protected:
   explicit MarkingVerifier(Heap* heap) : heap_(heap) {}
 
-  virtual Bitmap* bitmap(const MemoryChunk* chunk) = 0;
+  virtual ConcurrentBitmap<AccessMode::NON_ATOMIC>* bitmap(
+      const MemoryChunk* chunk) = 0;
 
   virtual void VerifyPointers(ObjectSlot start, ObjectSlot end) = 0;
   virtual void VerifyPointers(MaybeObjectSlot start, MaybeObjectSlot end) = 0;
@@ -181,7 +182,8 @@ class FullMarkingVerifier : public MarkingVerifier {
   }
 
  protected:
-  Bitmap* bitmap(const MemoryChunk* chunk) override {
+  ConcurrentBitmap<AccessMode::NON_ATOMIC>* bitmap(
+      const MemoryChunk* chunk) override {
     return marking_state_->bitmap(chunk);
   }
 
@@ -3774,7 +3776,8 @@ class YoungGenerationMarkingVerifier : public MarkingVerifier {
         marking_state_(
             heap->minor_mark_compact_collector()->non_atomic_marking_state()) {}
 
-  Bitmap* bitmap(const MemoryChunk* chunk) override {
+  ConcurrentBitmap<AccessMode::NON_ATOMIC>* bitmap(
+      const MemoryChunk* chunk) override {
     return marking_state_->bitmap(chunk);
   }
 
