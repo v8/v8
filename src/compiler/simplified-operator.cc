@@ -1139,6 +1139,28 @@ struct SimplifiedOperatorGlobalCache final {
   };
   LoadStackArgumentOperator kLoadStackArgument;
 
+  struct LoadMessageOperator final : public Operator {
+    LoadMessageOperator()
+        : Operator(                    // --
+              IrOpcode::kLoadMessage,  // opcode
+              Operator::kNoDeopt | Operator::kNoThrow |
+                  Operator::kNoWrite,  // flags
+              "LoadMessage",           // name
+              1, 1, 1, 1, 1, 0) {}     // counts
+  };
+  LoadMessageOperator kLoadMessage;
+
+  struct StoreMessageOperator final : public Operator {
+    StoreMessageOperator()
+        : Operator(                     // --
+              IrOpcode::kStoreMessage,  // opcode
+              Operator::kNoDeopt | Operator::kNoThrow |
+                  Operator::kNoRead,  // flags
+              "StoreMessage",         // name
+              2, 1, 1, 0, 1, 0) {}    // counts
+  };
+  StoreMessageOperator kStoreMessage;
+
 #define SPECULATIVE_NUMBER_BINOP(Name)                                      \
   template <NumberOperationHint kHint>                                      \
   struct Name##Operator final : public Operator1<NumberOperationHint> {     \
@@ -1723,17 +1745,11 @@ ACCESS_OP_LIST(ACCESS)
 #undef ACCESS
 
 const Operator* SimplifiedOperatorBuilder::LoadMessage() {
-  return new (zone())
-      Operator(IrOpcode::kLoadMessage,
-               Operator::kNoDeopt | Operator::kNoThrow | Operator::kNoWrite,
-               "LoadMessage", 1, 1, 1, 1, 1, 0);
+  return &cache_.kLoadMessage;
 }
 
 const Operator* SimplifiedOperatorBuilder::StoreMessage() {
-  return new (zone())
-      Operator(IrOpcode::kStoreMessage,
-               Operator::kNoDeopt | Operator::kNoThrow | Operator::kNoRead,
-               "StoreMessage", 2, 1, 1, 0, 1, 0);
+  return &cache_.kStoreMessage;
 }
 
 const Operator* SimplifiedOperatorBuilder::LoadStackArgument() {
