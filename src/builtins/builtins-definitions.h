@@ -350,26 +350,6 @@ namespace internal {
   TFS(CloneFastJSArray, kSource)                                               \
   TFS(CloneFastJSArrayFillingHoles, kSource)                                   \
   TFS(ExtractFastJSArray, kSource, kBegin, kCount)                             \
-  /* ES6 #sec-array.prototype.reduce */                                        \
-  TFS(ArrayReduceLoopContinuation, kReceiver, kCallbackFn, kThisArg,           \
-      kAccumulator, kObject, kInitialK, kLength, kTo)                          \
-  TFJ(ArrayReducePreLoopEagerDeoptContinuation, 2, kReceiver, kCallbackFn,     \
-      kLength)                                                                 \
-  TFJ(ArrayReduceLoopEagerDeoptContinuation, 4, kReceiver, kCallbackFn,        \
-      kInitialK, kLength, kAccumulator)                                        \
-  TFJ(ArrayReduceLoopLazyDeoptContinuation, 4, kReceiver, kCallbackFn,         \
-      kInitialK, kLength, kResult)                                             \
-  TFJ(ArrayReduce, SharedFunctionInfo::kDontAdaptArgumentsSentinel)            \
-  /* ES6 #sec-array.prototype.reduceRight */                                   \
-  TFS(ArrayReduceRightLoopContinuation, kReceiver, kCallbackFn, kThisArg,      \
-      kAccumulator, kObject, kInitialK, kLength, kTo)                          \
-  TFJ(ArrayReduceRightPreLoopEagerDeoptContinuation, 2, kReceiver,             \
-      kCallbackFn, kLength)                                                    \
-  TFJ(ArrayReduceRightLoopEagerDeoptContinuation, 4, kReceiver, kCallbackFn,   \
-      kInitialK, kLength, kAccumulator)                                        \
-  TFJ(ArrayReduceRightLoopLazyDeoptContinuation, 4, kReceiver, kCallbackFn,    \
-      kInitialK, kLength, kResult)                                             \
-  TFJ(ArrayReduceRight, SharedFunctionInfo::kDontAdaptArgumentsSentinel)       \
   /* ES6 #sec-array.prototype.entries */                                       \
   TFJ(ArrayPrototypeEntries, 0, kReceiver)                                     \
   /* ES6 #sec-array.prototype.find */                                          \

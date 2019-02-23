@@ -330,6 +330,8 @@ const kIteratorValueNotAnObject: constexpr MessageTemplate
     generates 'MessageTemplate::kIteratorValueNotAnObject';
 const kNotIterable: constexpr MessageTemplate
     generates 'MessageTemplate::kNotIterable';
+const kReduceNoInitial: constexpr MessageTemplate
+    generates 'MessageTemplate::kReduceNoInitial';
 const kFirstArgumentNotRegExp: constexpr MessageTemplate
     generates 'MessageTemplate::kFirstArgumentNotRegExp';
 
