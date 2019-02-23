@@ -1102,29 +1102,30 @@ void WebAssemblyMemory(const v8::FunctionCallbackInfo<v8::Value>& args) {
     if (is_shared_memory && maximum == -1) {
       thrower.TypeError(
           "If shared is true, maximum property should be defined.");
+      return;
     }
   }
 
-  i::SharedFlag shared_flag =
-      is_shared_memory ? i::SharedFlag::kShared : i::SharedFlag::kNotShared;
-  i::Handle<i::JSArrayBuffer> buffer;
-  size_t size = static_cast<size_t>(i::wasm::kWasmPageSize) *
-                static_cast<size_t>(initial);
-  if (!i::wasm::NewArrayBuffer(i_isolate, size, shared_flag)
-           .ToHandle(&buffer)) {
+  i::Handle<i::JSObject> memory_obj;
+  if (!i::WasmMemoryObject::New(i_isolate, static_cast<uint32_t>(initial),
+                                static_cast<uint32_t>(maximum),
+                                is_shared_memory)
+           .ToHandle(&memory_obj)) {
     thrower.RangeError("could not allocate memory");
     return;
   }
-  if (buffer->is_shared()) {
+  if (is_shared_memory) {
+    i::Handle<i::JSArrayBuffer> buffer(
+        i::Handle<i::WasmMemoryObject>::cast(memory_obj)->array_buffer(),
+        i_isolate);
     Maybe<bool> result =
         buffer->SetIntegrityLevel(buffer, i::FROZEN, i::kDontThrow);
     if (!result.FromJust()) {
       thrower.TypeError(
           "Status of setting SetIntegrityLevel of buffer is false.");
+      return;
     }
   }
-  i::Handle<i::JSObject> memory_obj = i::WasmMemoryObject::New(
-      i_isolate, buffer, static_cast<uint32_t>(maximum));
   args.GetReturnValue().Set(Utils::ToLocal(memory_obj));
 }
 

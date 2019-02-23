@@ -187,7 +187,8 @@ class InstanceBuilder {
   void InitGlobals();
 
   // Allocate memory for a module instance as a new JSArrayBuffer.
-  Handle<JSArrayBuffer> AllocateMemory(uint32_t num_pages);
+  Handle<JSArrayBuffer> AllocateMemory(uint32_t initial_pages,
+                                       uint32_t maximum_pages);
 
   bool NeedsWrappers() const;
 
@@ -280,7 +281,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     // even when the size is zero to prevent null-dereference issues
     // (e.g. https://crbug.com/769637).
     // Allocate memory if the initial size is more than 0 pages.
-    memory_ = AllocateMemory(initial_pages);
+    memory_ = AllocateMemory(initial_pages, module_->maximum_pages);
     if (memory_.is_null()) {
       // failed to allocate memory
       DCHECK(isolate_->has_pending_exception() || thrower_->error());
@@ -1213,18 +1214,25 @@ void InstanceBuilder::InitGlobals() {
 }
 
 // Allocate memory for a module instance as a new JSArrayBuffer.
-Handle<JSArrayBuffer> InstanceBuilder::AllocateMemory(uint32_t num_pages) {
-  if (num_pages > max_mem_pages()) {
+Handle<JSArrayBuffer> InstanceBuilder::AllocateMemory(uint32_t initial_pages,
+                                                      uint32_t maximum_pages) {
+  if (initial_pages > max_mem_pages()) {
     thrower_->RangeError("Out of memory: wasm memory too large");
     return Handle<JSArrayBuffer>::null();
   }
   const bool is_shared_memory = module_->has_shared_memory && enabled_.threads;
-  SharedFlag shared_flag =
-      is_shared_memory ? SharedFlag::kShared : SharedFlag::kNotShared;
   Handle<JSArrayBuffer> mem_buffer;
-  if (!NewArrayBuffer(isolate_, num_pages * kWasmPageSize, shared_flag)
-           .ToHandle(&mem_buffer)) {
-    thrower_->RangeError("Out of memory: wasm memory");
+  if (is_shared_memory) {
+    if (!NewSharedArrayBuffer(isolate_, initial_pages * kWasmPageSize,
+                              maximum_pages * kWasmPageSize)
+             .ToHandle(&mem_buffer)) {
+      thrower_->RangeError("Out of memory: wasm shared memory");
+    }
+  } else {
+    if (!NewArrayBuffer(isolate_, initial_pages * kWasmPageSize)
+             .ToHandle(&mem_buffer)) {
+      thrower_->RangeError("Out of memory: wasm memory");
+    }
   }
   return mem_buffer;
 }

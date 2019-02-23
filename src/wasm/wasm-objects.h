@@ -326,6 +326,10 @@ class WasmMemoryObject : public JSObject {
   V8_EXPORT_PRIVATE static Handle<WasmMemoryObject> New(
       Isolate* isolate, MaybeHandle<JSArrayBuffer> buffer, uint32_t maximum);
 
+  V8_EXPORT_PRIVATE static MaybeHandle<WasmMemoryObject> New(
+      Isolate* isolate, uint32_t initial, uint32_t maximum,
+      bool is_shared_memory);
+
   static int32_t Grow(Isolate*, Handle<WasmMemoryObject>, uint32_t pages);
 
   OBJECT_CONSTRUCTORS(WasmMemoryObject, JSObject);
