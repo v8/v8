@@ -16,9 +16,9 @@ vars = {
 
 deps = {
   'v8/build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'ba245a9302e5a090c53b3430a83a74507fe4f3d6',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '93f8c0e9ece76b63c02ba6b8980197fc66fce8bb',
   'v8/third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '36974ad871c99ded00255730b1d2b3216910d46d',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'd7f7a3eb92a43b9135bfb8672c9af0fa1c9bce9a',
   'v8/third_party/icu':
     Var('chromium_url') + '/chromium/deps/icu.git' + '@' + '960f195aa87acaec46e6104ec93a596da7ae0843',
   'v8/third_party/instrumented_libraries':
@@ -34,7 +34,7 @@ deps = {
   'v8/buildtools/third_party/libunwind/trunk':
     Var('chromium_url') + '/external/llvm.org/libunwind.git' + '@' + '69d9b84cca8354117b9fe9705a4430d789ee599b',
   'v8/base/trace_event/common':
-    Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + 'e31a1706337ccb9a658b37d29a018c81695c6518',
+    Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '936ba8a963284a6b3737cf2f0474a7131073abee',
   'v8/third_party/android_ndk': {
     'url': Var('chromium_url') + '/android_ndk.git' + '@' + '4e2cea441bfd43f0863d14f57b1e1844260b9884',
     'condition': 'checkout_android',
@@ -44,7 +44,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'v8/third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '76fb0631012622542645a82ac7765c74620743b8',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + 'e4abf4c59be62c98f05d62d9a5dd8418c6d92cdb',
     'condition': 'checkout_android',
   },
   'v8/third_party/colorama/src': {
@@ -112,7 +112,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'v8/test/wasm-js/data':
-    Var('chromium_url') + '/external/github.com/WebAssembly/spec.git' + '@' + '2e2e3a9e471d162ce317b6d1153e8ff8b9945218',
+    Var('chromium_url') + '/external/github.com/WebAssembly/spec.git' + '@' + '4da05403482dc149738f3d3eb21808451a4317fe',
 }
 
 recursedeps = [
