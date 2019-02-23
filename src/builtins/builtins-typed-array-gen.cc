@@ -44,41 +44,6 @@ TNode<Map> TypedArrayBuiltinsAssembler::LoadMapForType(
   return var_typed_map.value();
 }
 
-TNode<BoolT> TypedArrayBuiltinsAssembler::IsMockArrayBufferAllocatorFlag() {
-  TNode<Word32T> flag_value = UncheckedCast<Word32T>(Load(
-      MachineType::Uint8(),
-      ExternalConstant(
-          ExternalReference::address_of_mock_arraybuffer_allocator_flag())));
-  return Word32NotEqual(Word32And(flag_value, Int32Constant(0xFF)),
-                        Int32Constant(0));
-}
-
-// The byte_offset can be higher than Smi range, in which case to perform the
-// pointer arithmetic necessary to calculate external_pointer, converting
-// byte_offset to an intptr is more difficult. The max byte_offset is 8 * MaxSmi
-// on the particular platform. 32 bit platforms are self-limiting, because we
-// can't allocate an array bigger than our 32-bit arithmetic range anyway. 64
-// bit platforms could theoretically have an offset up to 2^35 - 1, so we may
-// need to convert the float heap number to an intptr.
-TNode<UintPtrT> TypedArrayBuiltinsAssembler::CalculateExternalPointer(
-    TNode<UintPtrT> backing_store, TNode<UintPtrT> byte_offset) {
-  TNode<UintPtrT> external_pointer = UintPtrAdd(backing_store, byte_offset);
-
-#ifdef DEBUG
-  // Assert no overflow has occurred. Only assert if the mock array buffer
-  // allocator is NOT used. When the mock array buffer is used, impossibly
-  // large allocations are allowed that would erroneously cause an overflow and
-  // this assertion to fail.
-  Label next(this);
-  GotoIf(IsMockArrayBufferAllocatorFlag(), &next);
-  CSA_ASSERT(this, UintPtrGreaterThanOrEqual(external_pointer, backing_store));
-  Goto(&next);
-  BIND(&next);
-#endif  // DEBUG
-
-  return external_pointer;
-}
-
 // Setup the TypedArray which is under construction.
 //  - Set the length.
 //  - Set the byte_offset.
@@ -100,33 +65,6 @@ void TypedArrayBuiltinsAssembler::SetupTypedArray(TNode<JSTypedArray> holder,
        offset < JSTypedArray::kSizeWithEmbedderFields; offset += kTaggedSize) {
     StoreObjectField(holder, offset, SmiConstant(0));
   }
-}
-
-// Attach an off-heap buffer to a TypedArray.
-void TypedArrayBuiltinsAssembler::AttachBuffer(TNode<JSTypedArray> holder,
-                                               TNode<JSArrayBuffer> buffer,
-                                               TNode<Map> map,
-                                               TNode<Smi> length,
-                                               TNode<UintPtrT> byte_offset) {
-  CSA_ASSERT(this, TaggedIsPositiveSmi(length));
-  StoreObjectField(holder, JSArrayBufferView::kBufferOffset, buffer);
-
-  Node* elements = Allocate(FixedTypedArrayBase::kHeaderSize);
-  StoreMapNoWriteBarrier(elements, map);
-  StoreObjectFieldNoWriteBarrier(elements, FixedArray::kLengthOffset, length);
-  StoreObjectFieldNoWriteBarrier(
-      elements, FixedTypedArrayBase::kBasePointerOffset, SmiConstant(0));
-
-  TNode<UintPtrT> backing_store =
-      LoadObjectField<UintPtrT>(buffer, JSArrayBuffer::kBackingStoreOffset);
-
-  TNode<UintPtrT> external_pointer =
-      CalculateExternalPointer(backing_store, byte_offset);
-  StoreObjectFieldNoWriteBarrier(
-      elements, FixedTypedArrayBase::kExternalPointerOffset, external_pointer,
-      MachineType::PointerRepresentation());
-
-  StoreObjectField(holder, JSObject::kElementsOffset, elements);
 }
 
 // Allocate a new ArrayBuffer and initialize it with empty properties and

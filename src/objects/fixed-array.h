@@ -590,15 +590,9 @@ class FixedTypedArrayBase : public FixedArrayBase {
   // Dispatched behavior.
   DECL_CAST(FixedTypedArrayBase)
 
-#define FIXED_TYPED_ARRAY_BASE_FIELDS(V)        \
-  V(kBasePointerOffset, kTaggedSize)            \
-  V(kExternalPointerOffset, kSystemPointerSize) \
-  /* Header size. */                            \
-  V(kHeaderSize, 0)
-
   DEFINE_FIELD_OFFSET_CONSTANTS(FixedArrayBase::kHeaderSize,
                                 FIXED_TYPED_ARRAY_BASE_FIELDS)
-#undef FIXED_TYPED_ARRAY_BASE_FIELDS
+  static const int kHeaderSize = kSize;
 
   STATIC_ASSERT(IsAligned(kHeaderSize, kDoubleAlignment));
 

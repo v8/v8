@@ -172,10 +172,17 @@ extern class JSBoundFunction extends JSObject {
 }
 
 type Callable = JSFunction | JSBoundFunction | JSProxy;
-type FixedTypedArrayBase extends FixedArrayBase
-    generates 'TNode<FixedTypedArrayBase>';
+
+extern class FixedTypedArrayBase extends FixedArrayBase {
+  base_pointer: Smi;
+  external_pointer: RawPtr;
+}
+extern operator '.length_intptr' macro LoadAndUntagFixedArrayBaseLength(
+    FixedArrayBase): intptr;
+
 type FixedTypedArray extends FixedTypedArrayBase
     generates 'TNode<FixedTypedArray>';
+
 extern class SloppyArgumentsElements extends FixedArray {}
 type NumberDictionary extends HeapObject
     generates 'TNode<NumberDictionary>';
@@ -220,7 +227,34 @@ extern class JSArrayBufferView extends JSObject {
   byte_length: uintptr;
 }
 
-extern class JSTypedArray extends JSArrayBufferView {}
+extern class JSTypedArray extends JSArrayBufferView {
+  AttachOffHeapBuffer(
+      buffer: JSArrayBuffer, map: Map, length: PositiveSmi,
+      byteOffset: uintptr): void {
+    const basePointer: Smi = 0;
+
+    // The max byteOffset is 8 * MaxSmi on the particular platform. 32 bit
+    // platforms are self-limiting, because we can't allocate an array bigger
+    // than our 32-bit arithmetic range anyway. 64 bit platforms could
+    // theoretically have an offset up to 2^35 - 1.
+    const backingStore = buffer.backing_store;
+    const externalPointer = backingStore + Convert<intptr>(byteOffset);
+
+    // Assert no overflow has occurred. Only assert if the mock array buffer
+    // allocator is NOT used. When the mock array buffer is used, impossibly
+    // large allocations are allowed that would erroneously cause an overflow
+    // and this assertion to fail.
+    assert(
+        IsMockArrayBufferAllocatorFlag() ||
+        Convert<uintptr>(externalPointer) >= Convert<uintptr>(backingStore));
+
+    this.buffer = buffer;
+    this.elements = new
+    FixedTypedArrayBase{map, length, basePointer, externalPointer};
+  }
+
+  length: Smi;
+}
 
 type JSDataView extends JSArrayBufferView generates 'TNode<JSDataView>';
 
@@ -517,6 +551,8 @@ extern runtime ThrowInvalidStringLength(Context): never;
 
 extern operator '==' macro WordEqual(RawPtr, RawPtr): bool;
 extern operator '!=' macro WordNotEqual(RawPtr, RawPtr): bool;
+extern operator '+' macro RawPtrAdd(RawPtr, intptr): RawPtr;
+extern operator '+' macro RawPtrAdd(intptr, RawPtr): RawPtr;
 
 extern operator '<' macro Int32LessThan(int32, int32): bool;
 extern operator '<' macro Uint32LessThan(uint32, uint32): bool;
@@ -1238,6 +1274,7 @@ extern macro IsArrayIteratorProtectorCellInvalid(): bool;
 extern macro IsArraySpeciesProtectorCellInvalid(): bool;
 extern macro IsTypedArraySpeciesProtectorCellInvalid(): bool;
 extern macro IsPromiseSpeciesProtectorCellInvalid(): bool;
+extern macro IsMockArrayBufferAllocatorFlag(): bool;
 
 extern operator '.data_ptr' macro TypedArrayBuiltinsAssembler::LoadDataPtr(
     JSTypedArray): RawPtr;
@@ -1246,11 +1283,8 @@ extern operator '.elements_kind' macro LoadMapElementsKind(Map): ElementsKind;
 extern operator '.elements_kind' macro LoadElementsKind(JSTypedArray):
     ElementsKind;
 
-extern operator '.length' macro LoadJSTypedArrayLength(JSTypedArray): Smi;
 extern operator '.length' macro LoadFastJSArrayLength(FastJSArray): Smi;
 
-extern operator '.length_intptr' macro LoadAndUntagFixedArrayBaseLength(
-    FixedArrayBase): intptr;
 extern operator '.objects[]' macro LoadFixedArrayElement(
     FixedArray, intptr): Object;
 extern operator '.objects[]' macro LoadFixedArrayElement(

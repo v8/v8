@@ -2205,6 +2205,15 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsRegExpSpeciesProtectorCellInvalid();
   TNode<BoolT> IsPromiseSpeciesProtectorCellInvalid();
 
+  TNode<BoolT> IsMockArrayBufferAllocatorFlag() {
+    TNode<Word32T> flag_value = UncheckedCast<Word32T>(Load(
+        MachineType::Uint8(),
+        ExternalConstant(
+            ExternalReference::address_of_mock_arraybuffer_allocator_flag())));
+    return Word32NotEqual(Word32And(flag_value, Int32Constant(0xFF)),
+                          Int32Constant(0));
+  }
+
   // True iff |object| is a Smi or a HeapNumber.
   TNode<BoolT> IsNumber(SloppyTNode<Object> object);
   // True iff |object| is a Smi or a HeapNumber or a BigInt.

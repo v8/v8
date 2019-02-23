@@ -1089,6 +1089,12 @@ class V8_EXPORT_PRIVATE CodeAssembler {
     return Unsigned(
         IntPtrSub(static_cast<Node*>(left), static_cast<Node*>(right)));
   }
+  TNode<RawPtrT> RawPtrAdd(TNode<RawPtrT> left, TNode<IntPtrT> right) {
+    return ReinterpretCast<RawPtrT>(IntPtrAdd(left, right));
+  }
+  TNode<RawPtrT> RawPtrAdd(TNode<IntPtrT> left, TNode<RawPtrT> right) {
+    return ReinterpretCast<RawPtrT>(IntPtrAdd(left, right));
+  }
 
   TNode<WordT> WordShl(SloppyTNode<WordT> value, int shift);
   TNode<WordT> WordShr(SloppyTNode<WordT> value, int shift);
