@@ -2310,6 +2310,7 @@ class InspectorFrontend final : public v8_inspector::V8Inspector::Channel {
 
   void Send(const v8_inspector::StringView& string) {
     v8::Isolate::AllowJavascriptExecutionScope allow_script(isolate_);
+    v8::HandleScope handle_scope(isolate_);
     int length = static_cast<int>(string.length());
     DCHECK_LT(length, v8::String::kMaxLength);
     Local<String> message =
@@ -2407,7 +2408,10 @@ class InspectorClient : public v8_inspector::V8InspectorClient {
     std::unique_ptr<uint16_t[]> buffer(new uint16_t[length]);
     message->Write(isolate, buffer.get(), 0, length);
     v8_inspector::StringView message_view(buffer.get(), length);
-    session->dispatchProtocolMessage(message_view);
+    {
+      v8::SealHandleScope seal_handle_scope(isolate);
+      session->dispatchProtocolMessage(message_view);
+    }
     args.GetReturnValue().Set(True(isolate));
   }
 
