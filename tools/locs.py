@@ -211,7 +211,8 @@ def SetupReportGroups():
                            "third_party": '\\.\\./\\.\\./third_party',
                            "gen": 'gen'}
 
-  report_groups = {**default_report_groups, **dict(ARGS['group'])}
+  report_groups = default_report_groups.copy()
+  report_groups.update(dict(ARGS['group']))
 
   if ARGS['only']:
     for only_arg in ARGS['only']:
