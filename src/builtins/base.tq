@@ -935,33 +935,6 @@ Cast<FastJSArray>(implicit context: Context)(o: HeapObject): FastJSArray
   return %RawDownCast<FastJSArray>(o);
 }
 
-struct FastJSArrayWitness {
-  constructor(array: FastJSArray) {
-    this.stable = this.unstable = array;
-    this.map = array.map;
-  }
-
-  Get(): FastJSArray {
-    return this.unstable;
-  }
-
-  Recheck() labels CastError {
-    if (this.stable.map != this.map) goto CastError;
-    // We don't need to check elements kind or whether the prototype
-    // has changed away from the default JSArray prototype, because
-    // if the map remains the same then those properties hold.
-    //
-    // However, we have to make sure there are no elements in the
-    // prototype chain.
-    if (IsNoElementsProtectorCellInvalid()) goto CastError;
-    this.unstable = %RawDownCast<FastJSArray>(this.stable);
-  }
-
-  stable: JSArray;
-  unstable: FastJSArray;
-  map: Map;
-}
-
 Cast<FastJSArrayForCopy>(implicit context: Context)(o: HeapObject):
     FastJSArrayForCopy
     labels CastError {
@@ -1501,6 +1474,47 @@ LoadElementNoHole<FixedDoubleArray>(implicit context: Context)(
   label Unexpected {
     unreachable;
   }
+}
+
+struct FastJSArrayWitness {
+  constructor(array: FastJSArray) {
+    this.stable = this.unstable = array;
+    this.map = array.map;
+    let kind = array.map.elements_kind;
+    this.hasDoubles = !IsElementsKindLessThanOrEqual(kind, HOLEY_ELEMENTS);
+  }
+
+  Get(): FastJSArray {
+    return this.unstable;
+  }
+
+  Recheck() labels CastError {
+    if (this.stable.map != this.map) goto CastError;
+    // We don't need to check elements kind or whether the prototype
+    // has changed away from the default JSArray prototype, because
+    // if the map remains the same then those properties hold.
+    //
+    // However, we have to make sure there are no elements in the
+    // prototype chain.
+    if (IsNoElementsProtectorCellInvalid()) goto CastError;
+    this.unstable = %RawDownCast<FastJSArray>(this.stable);
+  }
+
+  LoadElementNoHole(implicit context: Context)(k: Smi): Object
+      labels FoundHole {
+    if (this.hasDoubles) {
+      return LoadElementNoHole<FixedDoubleArray>(this.unstable, k)
+          otherwise FoundHole;
+    } else {
+      return LoadElementNoHole<FixedArray>(this.unstable, k)
+          otherwise FoundHole;
+    }
+  }
+
+  stable: JSArray;
+  unstable: FastJSArray;
+  map: Map;
+  hasDoubles: bool;
 }
 
 extern macro TransitionElementsKind(

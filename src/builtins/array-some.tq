@@ -83,50 +83,28 @@ namespace array {
     return False;
   }
 
-  transitioning macro
-  SomeVisitAllElements<FixedArrayType: type>(implicit context: Context)(
-      o: FastJSArray, len: Smi, callbackfn: Callable, thisArg: Object): Boolean
-      labels Bailout(Smi) {
-    let k: Smi = 0;
-    let fastO = FastJSArrayWitness{o};
-
-    // Build a fast loop over the smi array.
-    for (; k < len; k++) {
-      fastO.Recheck() otherwise goto Bailout(k);
-
-      // Ensure that we haven't walked beyond a possibly updated length.
-      if (k >= fastO.Get().length) goto Bailout(k);
-
-      try {
-        const value: Object = LoadElementNoHole<FixedArrayType>(fastO.Get(), k)
-            otherwise FoundHole;
-        const result: Object =
-            Call(context, callbackfn, thisArg, value, k, fastO.Get());
-        if (ToBoolean(result)) {
-          return True;
-        }
-      }
-      label FoundHole {}
-    }
-    return False;
-  }
-
   transitioning macro FastArraySome(implicit context: Context)(
       o: JSReceiver, len: Number, callbackfn: Callable, thisArg: Object): Object
       labels Bailout(Smi) {
     let k: Smi = 0;
     const smiLen = Cast<Smi>(len) otherwise goto Bailout(k);
     let fastO = Cast<FastJSArray>(o) otherwise goto Bailout(k);
-    const elementsKind: ElementsKind = fastO.map.elements_kind;
-    if (IsElementsKindLessThanOrEqual(elementsKind, HOLEY_ELEMENTS)) {
-      return SomeVisitAllElements<FixedArray>(
-          fastO, smiLen, callbackfn, thisArg)
-          otherwise Bailout;
-    }
+    let fastOW = FastJSArrayWitness{fastO};
 
-    assert(IsDoubleElementsKind(elementsKind));
-    return SomeVisitAllElements<FixedDoubleArray>(
-        fastO, smiLen, callbackfn, thisArg) otherwise Bailout;
+    // Build a fast loop over the smi array.
+    for (; k < smiLen; k++) {
+      fastOW.Recheck() otherwise goto Bailout(k);
+
+      // Ensure that we haven't walked beyond a possibly updated length.
+      if (k >= fastOW.Get().length) goto Bailout(k);
+      const value: Object = fastOW.LoadElementNoHole(k) otherwise continue;
+      const result: Object =
+          Call(context, callbackfn, thisArg, value, k, fastOW.Get());
+      if (ToBoolean(result)) {
+        return True;
+      }
+    }
+    return False;
   }
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.some
