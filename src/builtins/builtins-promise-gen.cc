@@ -479,12 +479,21 @@ Node* PromiseBuiltinsAssembler::TriggerPromiseReactions(
     VARIABLE(var_reversed, MachineRepresentation::kTagged,
              SmiConstant(Smi::zero()));
 
+    // As an additional safety net against misuse of the V8 Extras API, we
+    // sanity check the {reactions} to make sure that they are actually
+    // PromiseReaction instances and not actual JavaScript values (which
+    // would indicate that we're rejecting or resolving an already settled
+    // promise), see https://crbug.com/931640 for details on this.
+    TNode<Map> promise_reaction_map =
+        CAST(LoadRoot(RootIndex::kPromiseReactionMap));
+
     Label loop(this, {&var_current, &var_reversed}), done_loop(this);
     Goto(&loop);
     BIND(&loop);
     {
       Node* current = var_current.value();
       GotoIf(TaggedIsSmi(current), &done_loop);
+      CSA_CHECK(this, WordEqual(LoadMap(CAST(current)), promise_reaction_map));
       var_current.Bind(LoadObjectField(current, PromiseReaction::kNextOffset));
       StoreObjectField(current, PromiseReaction::kNextOffset,
                        var_reversed.value());
