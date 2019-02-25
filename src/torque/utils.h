@@ -270,8 +270,6 @@ class ToString {
   std::stringstream s_;
 };
 
-constexpr int kTaggedSize = sizeof(void*);
-
 static const char* const kBaseNamespaceName = "base";
 static const char* const kTestNamespaceName = "test";
 static const char* const kConstructMethodName = "constructor";

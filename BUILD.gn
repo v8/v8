@@ -1552,6 +1552,20 @@ v8_header_set("v8_headers") {
   ]
 }
 
+# This is split out to share basic headers with Torque.
+v8_header_set("v8_shared_internal_headers") {
+  visibility = [ ":*" ]  # Only targets in this file can depend on this.
+  configs = [ ":internal_config" ]
+
+  sources = [
+    "src/globals.h",
+  ]
+
+  deps = [
+    ":v8_headers",
+  ]
+}
+
 v8_source_set("v8_base") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
@@ -2030,7 +2044,6 @@ v8_source_set("v8_base") {
     "src/gdb-jit.h",
     "src/global-handles.cc",
     "src/global-handles.h",
-    "src/globals.h",
     "src/handler-table.cc",
     "src/handler-table.h",
     "src/handles-inl.h",
@@ -3011,6 +3024,7 @@ v8_source_set("v8_base") {
     ":v8_headers",
     ":v8_libbase",
     ":v8_libsampler",
+    ":v8_shared_internal_headers",
     ":v8_version",
     "src/inspector:inspector",
   ]
@@ -3121,6 +3135,7 @@ v8_source_set("torque_base") {
 
   deps = [
     ":v8_libbase",
+    ":v8_shared_internal_headers",
   ]
 
   configs = [ ":internal_config" ]
