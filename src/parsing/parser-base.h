@@ -1059,7 +1059,6 @@ class ParserBase {
   V8_INLINE ExpressionT ParseLeftHandSideExpression();
   ExpressionT ParseLeftHandSideContinuation(ExpressionT expression);
   ExpressionT ParseMemberWithPresentNewPrefixesExpression();
-  V8_INLINE ExpressionT ParseMemberWithNewPrefixesExpression();
   ExpressionT ParseFunctionExpression();
   V8_INLINE ExpressionT ParseMemberExpression();
   V8_INLINE ExpressionT
@@ -1705,6 +1704,9 @@ ParserBase<Impl>::ParsePrimaryExpression() {
   }
 
   switch (token) {
+    case Token::NEW:
+      return ParseMemberWithPresentNewPrefixesExpression();
+
     case Token::THIS: {
       Consume(Token::THIS);
       return impl()->ThisExpression();
@@ -3026,7 +3028,7 @@ ParserBase<Impl>::ParseLeftHandSideExpression() {
   // LeftHandSideExpression ::
   //   (NewExpression | MemberExpression) ...
 
-  ExpressionT result = ParseMemberWithNewPrefixesExpression();
+  ExpressionT result = ParseMemberExpression();
   if (!Token::IsPropertyOrCall(peek())) return result;
   return ParseLeftHandSideContinuation(result);
 }
@@ -3196,7 +3198,7 @@ ParserBase<Impl>::ParseMemberWithPresentNewPrefixesExpression() {
     result = ParseNewTargetExpression();
     return ParseMemberExpressionContinuation(result);
   } else {
-    result = ParseMemberWithNewPrefixesExpression();
+    result = ParseMemberExpression();
   }
   if (peek() == Token::LPAREN) {
     // NewExpression with arguments.
@@ -3217,13 +3219,6 @@ ParserBase<Impl>::ParseMemberWithPresentNewPrefixesExpression() {
   // NewExpression without arguments.
   ExpressionListT args(pointer_buffer());
   return factory()->NewCallNew(result, args, new_pos);
-}
-
-template <typename Impl>
-typename ParserBase<Impl>::ExpressionT
-ParserBase<Impl>::ParseMemberWithNewPrefixesExpression() {
-  return peek() == Token::NEW ? ParseMemberWithPresentNewPrefixesExpression()
-                              : ParseMemberExpression();
 }
 
 template <typename Impl>
