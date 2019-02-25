@@ -564,8 +564,13 @@ Handle<RegExpMatchInfo> RegExpImpl::SetLastMatchInfo(
   result->SetNumberOfCaptureRegisters(capture_register_count);
 
   if (*result != *last_match_info) {
-    DCHECK_EQ(*last_match_info, *isolate->regexp_last_match_info());
-    isolate->native_context()->set_regexp_last_match_info(*result);
+    if (*last_match_info == *isolate->regexp_last_match_info()) {
+      // This inner condition is only needed for special situations like the
+      // regexp fuzzer, where we pass our own custom RegExpMatchInfo to
+      // RegExpImpl::Exec; there actually want to bypass the Isolate's match
+      // info and execute the regexp without side effects.
+      isolate->native_context()->set_regexp_last_match_info(*result);
+    }
   }
 
   DisallowHeapAllocation no_allocation;
