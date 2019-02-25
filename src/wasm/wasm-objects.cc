@@ -16,6 +16,7 @@
 #include "src/objects/shared-function-info.h"
 #include "src/objects/struct-inl.h"
 #include "src/trap-handler/trap-handler.h"
+#include "src/vector.h"
 #include "src/wasm/jump-table-assembler.h"
 #include "src/wasm/module-compiler.h"
 #include "src/wasm/module-decoder.h"

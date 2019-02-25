@@ -12,6 +12,7 @@
 #include "src/globals.h"
 #include "src/objects-inl.h"
 #include "src/string-builder-inl.h"
+#include "src/vector.h"
 
 namespace v8 {
 namespace internal {

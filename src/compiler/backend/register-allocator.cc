@@ -11,6 +11,7 @@
 #include "src/base/small-vector.h"
 #include "src/compiler/linkage.h"
 #include "src/string-stream.h"
+#include "src/vector.h"
 
 namespace v8 {
 namespace internal {

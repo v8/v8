@@ -9,7 +9,8 @@
 #include <memory>
 
 #include "src/base/compiler-specific.h"
-#include "src/utils.h"
+#include "src/base/macros.h"
+#include "src/base/platform/platform.h"
 
 #include "src/globals.h"
 

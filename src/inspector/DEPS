@@ -5,6 +5,7 @@ include_rules = [
   "+src/base/compiler-specific.h",
   "+src/base/macros.h",
   "+src/base/logging.h",
+  "+src/base/v8-fallthrough.h",
   "+src/base/platform/platform.h",
   "+src/base/platform/mutex.h",
   "+src/conversions.h",

@@ -19,6 +19,7 @@
 #include "src/objects-inl.h"
 #include "src/ostreams.h"
 #include "src/runtime/runtime-utils.h"
+#include "src/vector.h"
 
 // Only build the simulator if not compiling for real ARM hardware.
 namespace v8 {

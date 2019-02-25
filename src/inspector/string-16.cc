@@ -12,6 +12,7 @@
 #include <string>
 
 #include "src/base/platform/platform.h"
+#include "src/base/v8-fallthrough.h"
 #include "src/conversions.h"
 
 namespace v8_inspector {

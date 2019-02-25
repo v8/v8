@@ -20,6 +20,7 @@
 #include "src/mips/constants-mips.h"
 #include "src/ostreams.h"
 #include "src/runtime/runtime-utils.h"
+#include "src/vector.h"
 
 namespace v8 {
 namespace internal {

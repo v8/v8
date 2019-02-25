@@ -18,6 +18,7 @@
 #include "src/ostreams.h"
 #include "src/snapshot/natives.h"
 #include "src/splay-tree-inl.h"
+#include "src/vector.h"
 #include "src/zone/zone-chunk-list.h"
 
 namespace v8 {

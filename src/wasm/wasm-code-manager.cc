@@ -18,6 +18,7 @@
 #include "src/objects-inl.h"
 #include "src/ostreams.h"
 #include "src/snapshot/embedded-data.h"
+#include "src/vector.h"
 #include "src/wasm/compilation-environment.h"
 #include "src/wasm/function-compiler.h"
 #include "src/wasm/jump-table-assembler.h"

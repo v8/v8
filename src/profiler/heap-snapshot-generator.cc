@@ -33,6 +33,7 @@
 #include "src/profiler/heap-snapshot-generator-inl.h"
 #include "src/prototype.h"
 #include "src/transitions-inl.h"
+#include "src/vector.h"
 #include "src/visitors.h"
 
 namespace v8 {

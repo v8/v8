@@ -11,6 +11,7 @@
 #include "src/objects-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/prototype.h"
+#include "src/vector.h"
 
 namespace v8 {
 namespace internal {
