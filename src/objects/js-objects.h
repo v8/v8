@@ -334,6 +334,8 @@ class JSObject : public JSReceiver {
   inline bool HasSloppyArgumentsElements();
   inline bool HasStringWrapperElements();
   inline bool HasDictionaryElements();
+  // Returns true if an object has elements of PACKED_ELEMENTS
+  inline bool HasPackedElements();
 
   inline bool HasFixedTypedArrayElements();
 

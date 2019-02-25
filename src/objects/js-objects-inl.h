@@ -788,6 +788,10 @@ bool JSObject::HasDictionaryElements() {
   return GetElementsKind() == DICTIONARY_ELEMENTS;
 }
 
+bool JSObject::HasPackedElements() {
+  return GetElementsKind() == PACKED_ELEMENTS;
+}
+
 bool JSObject::HasFastArgumentsElements() {
   return GetElementsKind() == FAST_SLOPPY_ARGUMENTS_ELEMENTS;
 }

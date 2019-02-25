@@ -463,6 +463,7 @@ namespace internal {
   F(GetWasmRecoveredTrapCount, 0, 1)          \
   F(GlobalPrint, 1, 1)                        \
   F(HasDictionaryElements, 1, 1)              \
+  F(HasPackedElements, 1, 1)                  \
   F(HasDoubleElements, 1, 1)                  \
   F(HasFastElements, 1, 1)                    \
   F(HasFastProperties, 1, 1)                  \
