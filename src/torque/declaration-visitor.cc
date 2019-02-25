@@ -3,6 +3,8 @@
 // found in the LICENSE file.
 
 #include "src/torque/declaration-visitor.h"
+
+#include "src/globals.h"
 #include "src/torque/ast.h"
 
 namespace v8 {
@@ -603,11 +605,12 @@ void DeclarationVisitor::FinalizeClassFieldsAndMethods(
       std::string machine_type;
       std::tie(field_size, size_string, machine_type) =
           field.GetFieldSizeInformation();
-      size_t aligned_offset = class_offset & ~(field_size - 1);
-      if (class_offset != aligned_offset) {
+      // Our allocations don't support alignments beyond kTaggedSize.
+      size_t alignment = std::min(size_t{kTaggedSize}, field_size);
+      if (class_offset % alignment != 0) {
         ReportError("field ", field_expression.name_and_type.name,
-                    " is not aligned to its size (", aligned_offset, " vs ",
-                    class_offset, " for field size ", field_size, ")");
+                    " at offset ", class_offset, " is not ", alignment,
+                    "-byte aligned.");
       }
       class_offset += field_size;
     }
