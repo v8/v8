@@ -576,6 +576,9 @@
   'test-regexp/MacroAssemblerNativeSuccess': [SKIP],
   'test-regexp/MacroAssemblerStackOverflow': [SKIP],
   'test-run-calls-to-external-references/*': [SKIP],
+
+  # Field representation tracking is disabled in jitless mode.
+  'test-field-type-tracking/*': [SKIP],
 }], # lite_mode or variant == jitless
 
 ##############################################################################
