@@ -1540,6 +1540,9 @@ enum class StubCallMode {
   kCallBuiltinPointer,
 };
 
+constexpr int kFunctionLiteralIdInvalid = -1;
+constexpr int kFunctionLiteralIdTopLevel = 0;
+
 }  // namespace internal
 }  // namespace v8
 

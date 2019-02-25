@@ -7,7 +7,6 @@
 
 #include "src/objects/shared-function-info.h"
 
-#include "src/ast/ast.h"
 #include "src/feedback-vector-inl.h"
 #include "src/handles-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
@@ -667,7 +666,7 @@ void UncompiledDataWithPreparseData::Initialize(
 }
 
 bool UncompiledData::has_function_literal_id() {
-  return function_literal_id() != FunctionLiteral::kIdTypeInvalid;
+  return function_literal_id() != kFunctionLiteralIdInvalid;
 }
 
 bool SharedFunctionInfo::HasWasmExportedFunctionData() const {

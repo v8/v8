@@ -684,7 +684,7 @@ void MapLiterals(const FunctionLiteralChanges& changes,
     DCHECK(literal->start_position() != kNoSourcePosition);
     DCHECK(literal->end_position() != kNoSourcePosition);
     std::pair<int, int> key =
-        literal->function_literal_id() == FunctionLiteral::kIdTypeTopLevel
+        literal->function_literal_id() == kFunctionLiteralIdTopLevel
             ? kTopLevelMarker
             : std::make_pair(literal->start_position(),
                              literal->end_position());
@@ -698,7 +698,7 @@ void MapLiterals(const FunctionLiteralChanges& changes,
     FunctionLiteral* literal = change_pair.first;
     const FunctionLiteralChange& change = change_pair.second;
     std::pair<int, int> key =
-        literal->function_literal_id() == FunctionLiteral::kIdTypeTopLevel
+        literal->function_literal_id() == kFunctionLiteralIdTopLevel
             ? kTopLevelMarker
             : std::make_pair(change.new_start_position,
                              change.new_end_position);

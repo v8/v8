@@ -2195,8 +2195,6 @@ class FunctionLiteral final : public Expression {
     kWrapped,
   };
 
-  enum IdType { kIdTypeInvalid = -1, kIdTypeTopLevel = 0 };
-
   enum ParameterFlag : uint8_t {
     kNoDuplicateParameters,
     kHasDuplicateParameters
@@ -2231,7 +2229,7 @@ class FunctionLiteral final : public Expression {
   }
   bool is_oneshot_iife() const { return OneshotIIFEBit::decode(bit_field_); }
   bool is_toplevel() const {
-    return function_literal_id() == FunctionLiteral::kIdTypeTopLevel;
+    return function_literal_id() == kFunctionLiteralIdTopLevel;
   }
   bool is_wrapped() const { return function_type() == kWrapped; }
   LanguageMode language_mode() const;
@@ -3203,7 +3201,7 @@ class AstNodeFactory final {
         FunctionLiteral::kAnonymousExpression,
         FunctionLiteral::kNoDuplicateParameters,
         FunctionLiteral::kShouldLazyCompile, 0, /* has_braces */ false,
-        FunctionLiteral::kIdTypeTopLevel);
+        kFunctionLiteralIdTopLevel);
   }
 
   ClassLiteral::Property* NewClassLiteralProperty(

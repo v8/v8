@@ -537,8 +537,8 @@ FunctionLiteral* Parser::DoParseProgram(Isolate* isolate, ParseInfo* info) {
 
   ParsingModeScope mode(this, allow_lazy_ ? PARSE_LAZILY : PARSE_EAGERLY);
   ResetFunctionLiteralId();
-  DCHECK(info->function_literal_id() == FunctionLiteral::kIdTypeTopLevel ||
-         info->function_literal_id() == FunctionLiteral::kIdTypeInvalid);
+  DCHECK(info->function_literal_id() == kFunctionLiteralIdTopLevel ||
+         info->function_literal_id() == kFunctionLiteralIdInvalid);
 
   FunctionLiteral* result = nullptr;
   {

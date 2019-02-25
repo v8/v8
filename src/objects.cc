@@ -4846,7 +4846,7 @@ Object Script::GetNameOrSourceURL() {
 
 MaybeHandle<SharedFunctionInfo> Script::FindSharedFunctionInfo(
     Isolate* isolate, const FunctionLiteral* fun) {
-  CHECK_NE(fun->function_literal_id(), FunctionLiteral::kIdTypeInvalid);
+  CHECK_NE(fun->function_literal_id(), kFunctionLiteralIdInvalid);
   // If this check fails, the problem is most probably the function id
   // renumbering done by AstFunctionLiteralIdReindexer; in particular, that
   // AstTraversalVisitor doesn't recurse properly in the construct which
@@ -5262,7 +5262,7 @@ int SharedFunctionInfo::FindIndexInScript(Isolate* isolate) const {
   DisallowHeapAllocation no_gc;
 
   Object script_obj = script();
-  if (!script_obj->IsScript()) return FunctionLiteral::kIdTypeInvalid;
+  if (!script_obj->IsScript()) return kFunctionLiteralIdInvalid;
 
   WeakFixedArray shared_info_list =
       Script::cast(script_obj)->shared_function_infos();
@@ -5277,7 +5277,7 @@ int SharedFunctionInfo::FindIndexInScript(Isolate* isolate) const {
     }
   }
 
-  return FunctionLiteral::kIdTypeInvalid;
+  return kFunctionLiteralIdInvalid;
 }
 
 
