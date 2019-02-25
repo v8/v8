@@ -11,7 +11,13 @@ This file emits the list of reasons why a particular build needs to be clobbered
 # for py2/py3 compatibility
 from __future__ import print_function
 
+import os
 import sys
+
+sys.path.insert(0, os.path.abspath(
+  os.path.join(os.path.dirname(__file__), '..', 'build')))
+
+import get_landmines as build_get_landmines
 
 
 def print_landmines():  # pylint: disable=invalid-name
@@ -41,6 +47,7 @@ def print_landmines():  # pylint: disable=invalid-name
   print('Clober again to fix windows build problems.')
   print('Clobber to possibly resolve failure on win-32 bot.')
   print('Clobber for http://crbug.com/668958.')
+  build_get_landmines.print_landmines()
   return 0
 
 
