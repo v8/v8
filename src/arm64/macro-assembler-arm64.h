@@ -1837,6 +1837,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // Compare the object in a register to a value and jump if they are not equal.
   void JumpIfNotRoot(const Register& obj, RootIndex index, Label* if_not_equal);
 
+  // Checks if value is in range [lower_limit, higher_limit] using a single
+  // comparison.
+  void JumpIfIsInRange(const Register& value, unsigned lower_limit,
+                       unsigned higher_limit, Label* on_in_range);
+
   // Compare the contents of a register with an operand, and branch to true,
   // false or fall through, depending on condition.
   void CompareAndSplit(const Register& lhs,

@@ -709,6 +709,12 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   void Cmp(Register dst, Smi src);
   void Cmp(Operand dst, Smi src);
 
+  // Checks if value is in range [lower_limit, higher_limit] using a single
+  // comparison.
+  void JumpIfIsInRange(Register value, unsigned lower_limit,
+                       unsigned higher_limit, Label* on_in_range,
+                       Label::Distance near_jump = Label::kFar);
+
   // Emit code to discard a non-negative number of pointer-sized elements
   // from the stack, clobbering only the rsp register.
   void Drop(int stack_elements);

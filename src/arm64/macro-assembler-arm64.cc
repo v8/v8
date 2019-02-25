@@ -2755,6 +2755,22 @@ void MacroAssembler::JumpIfNotRoot(const Register& obj, RootIndex index,
   B(ne, if_not_equal);
 }
 
+void MacroAssembler::JumpIfIsInRange(const Register& value,
+                                     unsigned lower_limit,
+                                     unsigned higher_limit,
+                                     Label* on_in_range) {
+  if (lower_limit != 0) {
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.AcquireW();
+    Sub(scratch, value, Operand(lower_limit));
+    CompareAndBranch(scratch, Operand(higher_limit - lower_limit), ls,
+                     on_in_range);
+  } else {
+    CompareAndBranch(value, Operand(higher_limit - lower_limit), ls,
+                     on_in_range);
+  }
+}
+
 void TurboAssembler::LoadTaggedPointerField(const Register& destination,
                                             const MemOperand& field_operand) {
 #ifdef V8_COMPRESS_POINTERS

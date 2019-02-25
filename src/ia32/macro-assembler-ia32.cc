@@ -130,6 +130,19 @@ void MacroAssembler::PushRoot(RootIndex index) {
   }
 }
 
+void MacroAssembler::JumpIfIsInRange(Register value, unsigned lower_limit,
+                                     unsigned higher_limit, Register scratch,
+                                     Label* on_in_range,
+                                     Label::Distance near_jump) {
+  if (lower_limit != 0) {
+    lea(scratch, Operand(value, 0u - lower_limit));
+    cmp(scratch, Immediate(higher_limit - lower_limit));
+  } else {
+    cmp(value, Immediate(higher_limit));
+  }
+  j(below_equal, on_in_range, near_jump);
+}
+
 Operand TurboAssembler::ExternalReferenceAsOperand(ExternalReference reference,
                                                    Register scratch) {
   // TODO(jgruber): Add support for enable_root_array_delta_access.

@@ -1390,6 +1390,18 @@ void MacroAssembler::Cmp(Operand dst, Handle<Object> source) {
   }
 }
 
+void MacroAssembler::JumpIfIsInRange(Register value, unsigned lower_limit,
+                                     unsigned higher_limit, Label* on_in_range,
+                                     Label::Distance near_jump) {
+  if (lower_limit != 0) {
+    leal(kScratchRegister, Operand(value, 0u - lower_limit));
+    cmpl(kScratchRegister, Immediate(higher_limit - lower_limit));
+  } else {
+    cmpl(value, Immediate(higher_limit));
+  }
+  j(below_equal, on_in_range, near_jump);
+}
+
 void TurboAssembler::Push(Handle<HeapObject> source) {
   Move(kScratchRegister, source);
   Push(kScratchRegister);

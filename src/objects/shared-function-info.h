@@ -656,27 +656,27 @@ class SharedFunctionInfo : public HeapObject {
   class BodyDescriptor;
 
 // Bit positions in |flags|.
-#define FLAGS_BIT_FIELDS(V, _)                           \
-  V(IsNativeBit, bool, 1, _)                             \
-  V(IsStrictBit, bool, 1, _)                             \
-  V(IsWrappedBit, bool, 1, _)                            \
-  V(IsClassConstructorBit, bool, 1, _)                   \
-  V(IsDerivedConstructorBit, bool, 1, _)                 \
-  V(FunctionKindBits, FunctionKind, 5, _)                \
-  V(HasDuplicateParametersBit, bool, 1, _)               \
-  V(AllowLazyCompilationBit, bool, 1, _)                 \
-  V(NeedsHomeObjectBit, bool, 1, _)                      \
-  V(IsDeclarationBit, bool, 1, _)                        \
-  V(IsAsmWasmBrokenBit, bool, 1, _)                      \
-  V(FunctionMapIndexBits, int, 5, _)                     \
-  V(DisabledOptimizationReasonBits, BailoutReason, 4, _) \
-  V(RequiresInstanceMembersInitializer, bool, 1, _)      \
-  V(ConstructAsBuiltinBit, bool, 1, _)                   \
-  V(IsAnonymousExpressionBit, bool, 1, _)                \
-  V(NameShouldPrintAsAnonymousBit, bool, 1, _)           \
-  V(HasReportedBinaryCoverageBit, bool, 1, _)            \
-  V(IsNamedExpressionBit, bool, 1, _)                    \
-  V(IsTopLevelBit, bool, 1, _)                           \
+#define FLAGS_BIT_FIELDS(V, _)                               \
+  /* Have FunctionKind first to make it cheaper to access */ \
+  V(FunctionKindBits, FunctionKind, 5, _)                    \
+  V(IsNativeBit, bool, 1, _)                                 \
+  V(IsStrictBit, bool, 1, _)                                 \
+  V(IsWrappedBit, bool, 1, _)                                \
+  V(IsClassConstructorBit, bool, 1, _)                       \
+  V(HasDuplicateParametersBit, bool, 1, _)                   \
+  V(AllowLazyCompilationBit, bool, 1, _)                     \
+  V(NeedsHomeObjectBit, bool, 1, _)                          \
+  V(IsDeclarationBit, bool, 1, _)                            \
+  V(IsAsmWasmBrokenBit, bool, 1, _)                          \
+  V(FunctionMapIndexBits, int, 5, _)                         \
+  V(DisabledOptimizationReasonBits, BailoutReason, 4, _)     \
+  V(RequiresInstanceMembersInitializer, bool, 1, _)          \
+  V(ConstructAsBuiltinBit, bool, 1, _)                       \
+  V(IsAnonymousExpressionBit, bool, 1, _)                    \
+  V(NameShouldPrintAsAnonymousBit, bool, 1, _)               \
+  V(HasReportedBinaryCoverageBit, bool, 1, _)                \
+  V(IsNamedExpressionBit, bool, 1, _)                        \
+  V(IsTopLevelBit, bool, 1, _)                               \
   V(IsOneshotIIFEBit, bool, 1, _)
   DEFINE_BIT_FIELDS(FLAGS_BIT_FIELDS)
 #undef FLAGS_BIT_FIELDS

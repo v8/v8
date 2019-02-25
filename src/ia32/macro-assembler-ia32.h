@@ -460,6 +460,13 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
     j(not_equal, if_not_equal, if_not_equal_distance);
   }
 
+  // Checks if value is in range [lower_limit, higher_limit] using a single
+  // comparison.
+  void JumpIfIsInRange(Register value, unsigned lower_limit,
+                       unsigned higher_limit, Register scratch,
+                       Label* on_in_range,
+                       Label::Distance near_jump = Label::kFar);
+
   // ---------------------------------------------------------------------------
   // GC Support
   // Notify the garbage collector that we wrote a pointer into an object.

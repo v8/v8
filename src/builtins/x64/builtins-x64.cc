@@ -198,9 +198,10 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
 
     __ LoadTaggedPointerField(
         rbx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
-    __ testl(FieldOperand(rbx, SharedFunctionInfo::kFlagsOffset),
-             Immediate(SharedFunctionInfo::IsDerivedConstructorBit::kMask));
-    __ j(not_zero, &not_create_implicit_receiver, Label::kNear);
+    __ movl(rbx, FieldOperand(rbx, SharedFunctionInfo::kFlagsOffset));
+    __ DecodeField<SharedFunctionInfo::FunctionKindBits>(rbx);
+    __ JumpIfIsInRange(rbx, kDefaultDerivedConstructor, kDerivedConstructor,
+                       &not_create_implicit_receiver, Label::kNear);
 
     // If not derived class constructor: Allocate the new receiver object.
     __ IncrementCounter(masm->isolate()->counters()->constructed_objects(), 1);

@@ -261,7 +261,6 @@ void SharedFunctionInfo::set_kind(FunctionKind kind) {
   int hints = flags();
   hints = FunctionKindBits::update(hints, kind);
   hints = IsClassConstructorBit::update(hints, IsClassConstructor(kind));
-  hints = IsDerivedConstructorBit::update(hints, IsDerivedConstructor(kind));
   set_flags(hints);
   UpdateFunctionMapIndex();
 }
