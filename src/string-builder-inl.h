@@ -103,7 +103,7 @@ class ReplacementStringBuilder {
   }
 
  private:
-  void AddElement(Object element);
+  void AddElement(Handle<Object> element);
   void EnsureCapacity(int elements);
 
   Heap* heap_;

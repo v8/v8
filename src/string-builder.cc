@@ -180,7 +180,7 @@ void ReplacementStringBuilder::EnsureCapacity(int elements) {
 void ReplacementStringBuilder::AddString(Handle<String> string) {
   int length = string->length();
   DCHECK_GT(length, 0);
-  AddElement(*string);
+  AddElement(string);
   if (!string->IsOneByteRepresentation()) {
     is_one_byte_ = false;
   }
@@ -221,10 +221,11 @@ MaybeHandle<String> ReplacementStringBuilder::ToString() {
   return joined_string;
 }
 
-void ReplacementStringBuilder::AddElement(Object element) {
+void ReplacementStringBuilder::AddElement(Handle<Object> element) {
   DCHECK(element->IsSmi() || element->IsString());
   EnsureCapacity(1);
-  array_builder_.Add(element);
+  DisallowHeapAllocation no_gc;
+  array_builder_.Add(*element);
 }
 
 IncrementalStringBuilder::IncrementalStringBuilder(Isolate* isolate)
