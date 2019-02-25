@@ -1054,6 +1054,8 @@ class ParserBase {
   ExpressionT ParseAwaitExpression();
   V8_INLINE ExpressionT ParseUnaryExpression();
   V8_INLINE ExpressionT ParsePostfixExpression();
+  V8_NOINLINE ExpressionT ParsePostfixContinuation(ExpressionT expression,
+                                                   int lhs_beg_pos);
   V8_INLINE ExpressionT ParseLeftHandSideExpression();
   ExpressionT ParseLeftHandSideContinuation(ExpressionT expression);
   ExpressionT ParseMemberWithPresentNewPrefixesExpression();
@@ -2993,24 +2995,29 @@ ParserBase<Impl>::ParsePostfixExpression() {
 
   int lhs_beg_pos = peek_position();
   ExpressionT expression = ParseLeftHandSideExpression();
-  if (!scanner()->HasLineTerminatorBeforeNext() && Token::IsCountOp(peek())) {
-    if (V8_UNLIKELY(!IsValidReferenceExpression(expression))) {
-      expression = RewriteInvalidReferenceExpression(
-          expression, lhs_beg_pos, end_position(),
-          MessageTemplate::kInvalidLhsInPostfixOp);
-    }
-    if (impl()->IsIdentifier(expression)) {
-      expression_scope()->MarkIdentifierAsAssigned();
-    }
-
-    Token::Value next = Next();
-    expression =
-        factory()->NewCountOperation(next,
-                                     false /* postfix */,
-                                     expression,
-                                     position());
+  if (V8_LIKELY(!Token::IsCountOp(peek()) ||
+                scanner()->HasLineTerminatorBeforeNext())) {
+    return expression;
   }
-  return expression;
+  return ParsePostfixContinuation(expression, lhs_beg_pos);
+}
+
+template <typename Impl>
+typename ParserBase<Impl>::ExpressionT
+ParserBase<Impl>::ParsePostfixContinuation(ExpressionT expression,
+                                           int lhs_beg_pos) {
+  if (V8_UNLIKELY(!IsValidReferenceExpression(expression))) {
+    expression = RewriteInvalidReferenceExpression(
+        expression, lhs_beg_pos, end_position(),
+        MessageTemplate::kInvalidLhsInPostfixOp);
+  }
+  if (impl()->IsIdentifier(expression)) {
+    expression_scope()->MarkIdentifierAsAssigned();
+  }
+
+  Token::Value next = Next();
+  return factory()->NewCountOperation(next, false /* postfix */, expression,
+                                      position());
 }
 
 template <typename Impl>
