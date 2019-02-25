@@ -1847,7 +1847,8 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
       Handle<SharedFunctionInfo> inner_result;
       if (CodeSerializer::Deserialize(isolate, cached_data, source,
                                       origin_options)
-              .ToHandle(&inner_result)) {
+              .ToHandle(&inner_result) &&
+          inner_result->is_compiled()) {
         // Promote to per-isolate compilation cache.
         is_compiled_scope = inner_result->is_compiled_scope();
         DCHECK(is_compiled_scope.is_compiled());
