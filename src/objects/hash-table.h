@@ -37,7 +37,7 @@ namespace internal {
 //     // Returns the hash value for key.
 //     static uint32_t Hash(Isolate* isolate, Key key);
 //     // Returns the hash value for object.
-//     static uint32_t HashForObject(Isolate* isolate, Object object);
+//     static uint32_t HashForObject(ReadOnlyRoots roots, Object object);
 //     // Convert key to an object.
 //     static inline Handle<Object> AsHandle(Isolate* isolate, Key key);
 //     // The prefix size indicates number of elements in the beginning
@@ -150,7 +150,7 @@ class HashTable : public HashTableBase {
   int FindEntry(Isolate* isolate, Key key);
 
   // Rehashes the table in-place.
-  void Rehash(Isolate* isolate);
+  void Rehash(ReadOnlyRoots roots);
 
   // Tells whether k is a real key.  The hole and undefined are not allowed
   // as keys and can be used to indicate missing or deleted elements.
@@ -233,13 +233,13 @@ class HashTable : public HashTableBase {
   // Returns _expected_ if one of entries given by the first _probe_ probes is
   // equal to  _expected_. Otherwise, returns the entry given by the probe
   // number _probe_.
-  uint32_t EntryForProbe(Isolate* isolate, Object k, int probe,
+  uint32_t EntryForProbe(ReadOnlyRoots roots, Object k, int probe,
                          uint32_t expected);
 
   void Swap(uint32_t entry1, uint32_t entry2, WriteBarrierMode mode);
 
   // Rehashes this hash-table into the new table.
-  void Rehash(Isolate* isolate, Derived new_table);
+  void Rehash(ReadOnlyRoots roots, Derived new_table);
 
   OBJECT_CONSTRUCTORS(HashTable, HashTableBase);
 };
@@ -271,7 +271,7 @@ class ObjectHashTableShape : public BaseShape<Handle<Object>> {
  public:
   static inline bool IsMatch(Handle<Object> key, Object other);
   static inline uint32_t Hash(Isolate* isolate, Handle<Object> key);
-  static inline uint32_t HashForObject(Isolate* isolate, Object object);
+  static inline uint32_t HashForObject(ReadOnlyRoots roots, Object object);
   static inline Handle<Object> AsHandle(Handle<Object> key);
   static const int kPrefixSize = 0;
   static const int kEntryValueIndex = 1;

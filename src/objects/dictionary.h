@@ -10,6 +10,7 @@
 #include "src/objects/hash-table.h"
 #include "src/objects/property-array.h"
 #include "src/objects/smi.h"
+#include "src/roots.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -114,7 +115,7 @@ class NameDictionaryShape : public BaseDictionaryShape<Handle<Name>> {
  public:
   static inline bool IsMatch(Handle<Name> key, Object other);
   static inline uint32_t Hash(Isolate* isolate, Handle<Name> key);
-  static inline uint32_t HashForObject(Isolate* isolate, Object object);
+  static inline uint32_t HashForObject(ReadOnlyRoots roots, Object object);
   static inline Handle<Object> AsHandle(Isolate* isolate, Handle<Name> key);
   static inline RootIndex GetMapRootIndex();
   static const int kPrefixSize = 2;
@@ -210,7 +211,7 @@ class NameDictionary
 class GlobalDictionaryShape : public NameDictionaryShape {
  public:
   static inline bool IsMatch(Handle<Name> key, Object other);
-  static inline uint32_t HashForObject(Isolate* isolate, Object object);
+  static inline uint32_t HashForObject(ReadOnlyRoots roots, Object object);
 
   static const int kEntrySize = 1;  // Overrides NameDictionaryShape::kEntrySize
 
@@ -250,7 +251,7 @@ class NumberDictionaryBaseShape : public BaseDictionaryShape<uint32_t> {
   static inline Handle<Object> AsHandle(Isolate* isolate, uint32_t key);
 
   static inline uint32_t Hash(Isolate* isolate, uint32_t key);
-  static inline uint32_t HashForObject(Isolate* isolate, Object object);
+  static inline uint32_t HashForObject(ReadOnlyRoots roots, Object object);
 };
 
 class NumberDictionaryShape : public NumberDictionaryBaseShape {

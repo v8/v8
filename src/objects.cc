@@ -2356,25 +2356,25 @@ bool HeapObject::CanBeRehashed() const {
   return false;
 }
 
-void HeapObject::RehashBasedOnMap(Isolate* isolate) {
+void HeapObject::RehashBasedOnMap(ReadOnlyRoots roots) {
   switch (map()->instance_type()) {
     case HASH_TABLE_TYPE:
       UNREACHABLE();
       break;
     case NAME_DICTIONARY_TYPE:
-      NameDictionary::cast(*this)->Rehash(isolate);
+      NameDictionary::cast(*this)->Rehash(roots);
       break;
     case GLOBAL_DICTIONARY_TYPE:
-      GlobalDictionary::cast(*this)->Rehash(isolate);
+      GlobalDictionary::cast(*this)->Rehash(roots);
       break;
     case NUMBER_DICTIONARY_TYPE:
-      NumberDictionary::cast(*this)->Rehash(isolate);
+      NumberDictionary::cast(*this)->Rehash(roots);
       break;
     case SIMPLE_NUMBER_DICTIONARY_TYPE:
-      SimpleNumberDictionary::cast(*this)->Rehash(isolate);
+      SimpleNumberDictionary::cast(*this)->Rehash(roots);
       break;
     case STRING_TABLE_TYPE:
-      StringTable::cast(*this)->Rehash(isolate);
+      StringTable::cast(*this)->Rehash(roots);
       break;
     case DESCRIPTOR_ARRAY_TYPE:
       DCHECK_LE(1, DescriptorArray::cast(*this)->number_of_descriptors());
@@ -6453,7 +6453,7 @@ Handle<Derived> HashTable<Derived, Shape>::NewInternal(
 }
 
 template <typename Derived, typename Shape>
-void HashTable<Derived, Shape>::Rehash(Isolate* isolate, Derived new_table) {
+void HashTable<Derived, Shape>::Rehash(ReadOnlyRoots roots, Derived new_table) {
   DisallowHeapAllocation no_gc;
   WriteBarrierMode mode = new_table->GetWriteBarrierMode(no_gc);
 
@@ -6466,12 +6466,11 @@ void HashTable<Derived, Shape>::Rehash(Isolate* isolate, Derived new_table) {
 
   // Rehash the elements.
   int capacity = this->Capacity();
-  ReadOnlyRoots roots(isolate);
   for (int i = 0; i < capacity; i++) {
     uint32_t from_index = EntryToIndex(i);
     Object k = this->get(from_index);
     if (!Shape::IsLive(roots, k)) continue;
-    uint32_t hash = Shape::HashForObject(isolate, k);
+    uint32_t hash = Shape::HashForObject(roots, k);
     uint32_t insertion_index =
         EntryToIndex(new_table->FindInsertionEntry(hash));
     for (int j = 0; j < Shape::kEntrySize; j++) {
@@ -6483,10 +6482,10 @@ void HashTable<Derived, Shape>::Rehash(Isolate* isolate, Derived new_table) {
 }
 
 template <typename Derived, typename Shape>
-uint32_t HashTable<Derived, Shape>::EntryForProbe(Isolate* isolate, Object k,
+uint32_t HashTable<Derived, Shape>::EntryForProbe(ReadOnlyRoots roots, Object k,
                                                   int probe,
                                                   uint32_t expected) {
-  uint32_t hash = Shape::HashForObject(isolate, k);
+  uint32_t hash = Shape::HashForObject(roots, k);
   uint32_t capacity = this->Capacity();
   uint32_t entry = FirstProbe(hash, capacity);
   for (int i = 1; i < probe; i++) {
@@ -6514,10 +6513,9 @@ void HashTable<Derived, Shape>::Swap(uint32_t entry1, uint32_t entry2,
 }
 
 template <typename Derived, typename Shape>
-void HashTable<Derived, Shape>::Rehash(Isolate* isolate) {
+void HashTable<Derived, Shape>::Rehash(ReadOnlyRoots roots) {
   DisallowHeapAllocation no_gc;
   WriteBarrierMode mode = GetWriteBarrierMode(no_gc);
-  ReadOnlyRoots roots(isolate);
   uint32_t capacity = Capacity();
   bool done = false;
   for (int probe = 1; !done; probe++) {
@@ -6527,11 +6525,11 @@ void HashTable<Derived, Shape>::Rehash(Isolate* isolate) {
     for (uint32_t current = 0; current < capacity; current++) {
       Object current_key = KeyAt(current);
       if (!Shape::IsLive(roots, current_key)) continue;
-      uint32_t target = EntryForProbe(isolate, current_key, probe, current);
+      uint32_t target = EntryForProbe(roots, current_key, probe, current);
       if (current == target) continue;
       Object target_key = KeyAt(target);
       if (!Shape::IsLive(roots, target_key) ||
-          EntryForProbe(isolate, target_key, probe, target) != target) {
+          EntryForProbe(roots, target_key, probe, target) != target) {
         // Put the current element into the correct position.
         Swap(current, target, mode);
         // The other element will be processed on the next iteration.
@@ -6569,7 +6567,7 @@ Handle<Derived> HashTable<Derived, Shape>::EnsureCapacity(
   Handle<Derived> new_table = HashTable::New(
       isolate, new_nof, should_pretenure ? TENURED : NOT_TENURED);
 
-  table->Rehash(isolate, *new_table);
+  table->Rehash(ReadOnlyRoots(isolate), *new_table);
   return new_table;
 }
 
@@ -6618,7 +6616,7 @@ Handle<Derived> HashTable<Derived, Shape>::Shrink(Isolate* isolate,
       HashTable::New(isolate, new_capacity, pretenure ? TENURED : NOT_TENURED,
                      USE_CUSTOM_MINIMUM_CAPACITY);
 
-  table->Rehash(isolate, *new_table);
+  table->Rehash(ReadOnlyRoots(isolate), *new_table);
   return new_table;
 }
 
@@ -7830,7 +7828,7 @@ Handle<Derived> ObjectHashTableBase<Derived, Shape>::Put(Isolate* isolate,
   // Rehash if more than 33% of the entries are deleted entries.
   // TODO(jochen): Consider to shrink the fixed array in place.
   if ((table->NumberOfDeletedElements() << 1) > table->NumberOfElements()) {
-    table->Rehash(isolate);
+    table->Rehash(roots);
   }
   // If we're out of luck, we didn't get a GC recently, and so rehashing
   // isn't enough to avoid a crash.
@@ -7842,7 +7840,7 @@ Handle<Derived> ObjectHashTableBase<Derived, Shape>::Put(Isolate* isolate,
         isolate->heap()->CollectAllGarbage(
             Heap::kNoGCFlags, GarbageCollectionReason::kFullHashtable);
       }
-      table->Rehash(isolate);
+      table->Rehash(roots);
     }
   }
 
@@ -8350,7 +8348,7 @@ BaseNameDictionary<GlobalDictionary, GlobalDictionaryShape>::Add(
     PropertyDetails, int*);
 
 template void HashTable<GlobalDictionary, GlobalDictionaryShape>::Rehash(
-    Isolate* isolate);
+    ReadOnlyRoots roots);
 
 template Handle<NameDictionary>
 BaseNameDictionary<NameDictionary, NameDictionaryShape>::EnsureCapacity(

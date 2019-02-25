@@ -171,7 +171,8 @@ uint32_t ObjectHashTableShape::Hash(Isolate* isolate, Handle<Object> key) {
   return Smi::ToInt(key->GetHash());
 }
 
-uint32_t ObjectHashTableShape::HashForObject(Isolate* isolate, Object other) {
+uint32_t ObjectHashTableShape::HashForObject(ReadOnlyRoots roots,
+                                             Object other) {
   return Smi::ToInt(other->GetHash());
 }
 

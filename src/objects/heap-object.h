@@ -6,6 +6,7 @@
 #define V8_OBJECTS_HEAP_OBJECT_H_
 
 #include "src/globals.h"
+#include "src/roots.h"
 
 #include "src/objects.h"
 
@@ -172,7 +173,7 @@ class HeapObject : public Object {
   bool CanBeRehashed() const;
 
   // Rehash the object based on the layout inferred from its map.
-  void RehashBasedOnMap(Isolate* isolate);
+  void RehashBasedOnMap(ReadOnlyRoots roots);
 
   // Layout description.
 #define HEAP_OBJECT_FIELDS(V) \

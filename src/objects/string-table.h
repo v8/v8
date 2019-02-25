@@ -39,7 +39,7 @@ class StringTableShape : public BaseShape<StringTableKey*> {
 
   static inline uint32_t Hash(Isolate* isolate, Key key) { return key->Hash(); }
 
-  static inline uint32_t HashForObject(Isolate* isolate, Object object);
+  static inline uint32_t HashForObject(ReadOnlyRoots roots, Object object);
 
   static inline Handle<Object> AsHandle(Isolate* isolate, Key key);
 
@@ -100,7 +100,7 @@ class StringSetShape : public BaseShape<String> {
  public:
   static inline bool IsMatch(String key, Object value);
   static inline uint32_t Hash(Isolate* isolate, String key);
-  static inline uint32_t HashForObject(Isolate* isolate, Object object);
+  static inline uint32_t HashForObject(ReadOnlyRoots roots, Object object);
 
   static const int kPrefixSize = 0;
   static const int kEntrySize = 1;
