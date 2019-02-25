@@ -1645,6 +1645,86 @@ TF_BUILTIN(TypedArrayPrototypeEvery, ArrayBuiltinsAssembler) {
       &ArrayBuiltinsAssembler::NullPostLoopAction);
 }
 
+TF_BUILTIN(ArrayReduceLoopContinuation, ArrayBuiltinsAssembler) {
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
+  Node* callbackfn = Parameter(Descriptor::kCallbackFn);
+  Node* this_arg = Parameter(Descriptor::kThisArg);
+  Node* accumulator = Parameter(Descriptor::kAccumulator);
+  TNode<JSReceiver> object = CAST(Parameter(Descriptor::kObject));
+  Node* initial_k = Parameter(Descriptor::kInitialK);
+  TNode<Number> len = CAST(Parameter(Descriptor::kLength));
+  Node* to = Parameter(Descriptor::kTo);
+
+  InitIteratingArrayBuiltinLoopContinuation(context, receiver, callbackfn,
+                                            this_arg, accumulator, object,
+                                            initial_k, len, to);
+
+  GenerateIteratingArrayBuiltinLoopContinuation(
+      &ArrayBuiltinsAssembler::ReduceProcessor,
+      &ArrayBuiltinsAssembler::ReducePostLoopAction,
+      MissingPropertyMode::kSkip);
+}
+
+TF_BUILTIN(ArrayReducePreLoopEagerDeoptContinuation, ArrayBuiltinsAssembler) {
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
+  Node* callbackfn = Parameter(Descriptor::kCallbackFn);
+  TNode<Number> len = CAST(Parameter(Descriptor::kLength));
+
+  // Simulate starting the loop at 0, but ensuring that the accumulator is
+  // the hole. The continuation stub will search for the initial non-hole
+  // element, rightly throwing an exception if not found.
+  Return(CallBuiltin(Builtins::kArrayReduceLoopContinuation, context, receiver,
+                     callbackfn, UndefinedConstant(), TheHoleConstant(),
+                     receiver, SmiConstant(0), len, UndefinedConstant()));
+}
+
+TF_BUILTIN(ArrayReduceLoopEagerDeoptContinuation, ArrayBuiltinsAssembler) {
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
+  Node* callbackfn = Parameter(Descriptor::kCallbackFn);
+  Node* accumulator = Parameter(Descriptor::kAccumulator);
+  Node* initial_k = Parameter(Descriptor::kInitialK);
+  TNode<Number> len = CAST(Parameter(Descriptor::kLength));
+
+  Return(CallBuiltin(Builtins::kArrayReduceLoopContinuation, context, receiver,
+                     callbackfn, UndefinedConstant(), accumulator, receiver,
+                     initial_k, len, UndefinedConstant()));
+}
+
+TF_BUILTIN(ArrayReduceLoopLazyDeoptContinuation, ArrayBuiltinsAssembler) {
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
+  Node* callbackfn = Parameter(Descriptor::kCallbackFn);
+  Node* initial_k = Parameter(Descriptor::kInitialK);
+  TNode<Number> len = CAST(Parameter(Descriptor::kLength));
+  Node* result = Parameter(Descriptor::kResult);
+
+  Return(CallBuiltin(Builtins::kArrayReduceLoopContinuation, context, receiver,
+                     callbackfn, UndefinedConstant(), result, receiver,
+                     initial_k, len, UndefinedConstant()));
+}
+
+TF_BUILTIN(ArrayReduce, ArrayBuiltinsAssembler) {
+  TNode<IntPtrT> argc =
+      ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
+  CodeStubArguments args(this, argc);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> receiver = args.GetReceiver();
+  Node* callbackfn = args.GetOptionalArgumentValue(0);
+  Node* initial_value = args.GetOptionalArgumentValue(1, TheHoleConstant());
+
+  InitIteratingArrayBuiltinBody(context, receiver, callbackfn, initial_value,
+                                argc);
+
+  GenerateIteratingArrayBuiltinBody(
+      "Array.prototype.reduce", &ArrayBuiltinsAssembler::ReduceResultGenerator,
+      &ArrayBuiltinsAssembler::ReduceProcessor,
+      &ArrayBuiltinsAssembler::ReducePostLoopAction,
+      Builtins::CallableFor(isolate(), Builtins::kArrayReduceLoopContinuation),
+      MissingPropertyMode::kSkip);
+}
 
 TF_BUILTIN(TypedArrayPrototypeReduce, ArrayBuiltinsAssembler) {
   TNode<IntPtrT> argc =
@@ -1663,6 +1743,91 @@ TF_BUILTIN(TypedArrayPrototypeReduce, ArrayBuiltinsAssembler) {
       &ArrayBuiltinsAssembler::ReduceResultGenerator,
       &ArrayBuiltinsAssembler::ReduceProcessor,
       &ArrayBuiltinsAssembler::ReducePostLoopAction);
+}
+
+TF_BUILTIN(ArrayReduceRightLoopContinuation, ArrayBuiltinsAssembler) {
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
+  Node* callbackfn = Parameter(Descriptor::kCallbackFn);
+  Node* this_arg = Parameter(Descriptor::kThisArg);
+  Node* accumulator = Parameter(Descriptor::kAccumulator);
+  TNode<JSReceiver> object = CAST(Parameter(Descriptor::kObject));
+  Node* initial_k = Parameter(Descriptor::kInitialK);
+  TNode<Number> len = CAST(Parameter(Descriptor::kLength));
+  Node* to = Parameter(Descriptor::kTo);
+
+  InitIteratingArrayBuiltinLoopContinuation(context, receiver, callbackfn,
+                                            this_arg, accumulator, object,
+                                            initial_k, len, to);
+
+  GenerateIteratingArrayBuiltinLoopContinuation(
+      &ArrayBuiltinsAssembler::ReduceProcessor,
+      &ArrayBuiltinsAssembler::ReducePostLoopAction, MissingPropertyMode::kSkip,
+      ForEachDirection::kReverse);
+}
+
+TF_BUILTIN(ArrayReduceRightPreLoopEagerDeoptContinuation,
+           ArrayBuiltinsAssembler) {
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
+  Node* callbackfn = Parameter(Descriptor::kCallbackFn);
+  TNode<Smi> len = CAST(Parameter(Descriptor::kLength));
+
+  // Simulate starting the loop at 0, but ensuring that the accumulator is
+  // the hole. The continuation stub will search for the initial non-hole
+  // element, rightly throwing an exception if not found.
+  Return(CallBuiltin(Builtins::kArrayReduceRightLoopContinuation, context,
+                     receiver, callbackfn, UndefinedConstant(),
+                     TheHoleConstant(), receiver, SmiSub(len, SmiConstant(1)),
+                     len, UndefinedConstant()));
+}
+
+TF_BUILTIN(ArrayReduceRightLoopEagerDeoptContinuation, ArrayBuiltinsAssembler) {
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
+  Node* callbackfn = Parameter(Descriptor::kCallbackFn);
+  Node* accumulator = Parameter(Descriptor::kAccumulator);
+  Node* initial_k = Parameter(Descriptor::kInitialK);
+  TNode<Number> len = CAST(Parameter(Descriptor::kLength));
+
+  Return(CallBuiltin(Builtins::kArrayReduceRightLoopContinuation, context,
+                     receiver, callbackfn, UndefinedConstant(), accumulator,
+                     receiver, initial_k, len, UndefinedConstant()));
+}
+
+TF_BUILTIN(ArrayReduceRightLoopLazyDeoptContinuation, ArrayBuiltinsAssembler) {
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
+  Node* callbackfn = Parameter(Descriptor::kCallbackFn);
+  Node* initial_k = Parameter(Descriptor::kInitialK);
+  TNode<Number> len = CAST(Parameter(Descriptor::kLength));
+  Node* result = Parameter(Descriptor::kResult);
+
+  Return(CallBuiltin(Builtins::kArrayReduceRightLoopContinuation, context,
+                     receiver, callbackfn, UndefinedConstant(), result,
+                     receiver, initial_k, len, UndefinedConstant()));
+}
+
+TF_BUILTIN(ArrayReduceRight, ArrayBuiltinsAssembler) {
+  TNode<IntPtrT> argc =
+      ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
+  CodeStubArguments args(this, argc);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> receiver = args.GetReceiver();
+  Node* callbackfn = args.GetOptionalArgumentValue(0);
+  Node* initial_value = args.GetOptionalArgumentValue(1, TheHoleConstant());
+
+  InitIteratingArrayBuiltinBody(context, receiver, callbackfn, initial_value,
+                                argc);
+
+  GenerateIteratingArrayBuiltinBody(
+      "Array.prototype.reduceRight",
+      &ArrayBuiltinsAssembler::ReduceResultGenerator,
+      &ArrayBuiltinsAssembler::ReduceProcessor,
+      &ArrayBuiltinsAssembler::ReducePostLoopAction,
+      Builtins::CallableFor(isolate(),
+                            Builtins::kArrayReduceRightLoopContinuation),
+      MissingPropertyMode::kSkip, ForEachDirection::kReverse);
 }
 
 TF_BUILTIN(TypedArrayPrototypeReduceRight, ArrayBuiltinsAssembler) {
