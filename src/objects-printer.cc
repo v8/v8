@@ -1419,6 +1419,9 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {  // NOLINT
 
   os << "\n - formal_parameter_count: "
      << shared()->internal_formal_parameter_count();
+  if (shared()->is_safe_to_skip_arguments_adaptor()) {
+    os << "\n - safe_to_skip_arguments_adaptor";
+  }
   os << "\n - kind: " << shared()->kind();
   os << "\n - context: " << Brief(context());
   os << "\n - code: " << Brief(code());
@@ -1475,6 +1478,9 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {  // NOLINT
   }
   os << "\n - function_map_index: " << function_map_index();
   os << "\n - formal_parameter_count: " << internal_formal_parameter_count();
+  if (is_safe_to_skip_arguments_adaptor()) {
+    os << "\n - safe_to_skip_arguments_adaptor";
+  }
   os << "\n - expected_nof_properties: " << expected_nof_properties();
   os << "\n - language_mode: " << language_mode();
   os << "\n - data: " << Brief(function_data());

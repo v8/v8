@@ -227,6 +227,9 @@ BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags, is_toplevel,
                     SharedFunctionInfo::IsTopLevelBit)
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags, is_oneshot_iife,
                     SharedFunctionInfo::IsOneshotIIFEBit)
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags,
+                    is_safe_to_skip_arguments_adaptor,
+                    SharedFunctionInfo::IsSafeToSkipArgumentsAdaptorBit)
 
 bool SharedFunctionInfo::optimization_disabled() const {
   return disable_optimization_reason() != BailoutReason::kNoReason;

@@ -413,6 +413,8 @@ void SetSharedFunctionFlagsFromLiteral(FunctionLiteral* literal,
   if (literal->dont_optimize_reason() != BailoutReason::kNoReason) {
     shared_info->DisableOptimization(literal->dont_optimize_reason());
   }
+  shared_info->set_is_safe_to_skip_arguments_adaptor(
+      literal->SafeToSkipArgumentsAdaptor());
 }
 
 CompilationJob::Status FinalizeUnoptimizedCompilationJob(

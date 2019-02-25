@@ -5378,6 +5378,8 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
     shared_info->set_length(lit->function_length());
     shared_info->set_has_duplicate_parameters(lit->has_duplicate_parameters());
     shared_info->SetExpectedNofPropertiesFromEstimate(lit);
+    shared_info->set_is_safe_to_skip_arguments_adaptor(
+        lit->SafeToSkipArgumentsAdaptor());
     DCHECK_NULL(lit->produced_preparse_data());
     // If we're about to eager compile, we'll have the function literal
     // available, so there's no need to wastefully allocate an uncompiled data.
@@ -5389,6 +5391,7 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
     // value after compiling, but avoid overwriting values set manually by the
     // bootstrapper.
     shared_info->set_length(SharedFunctionInfo::kInvalidLength);
+    shared_info->set_is_safe_to_skip_arguments_adaptor(false);
     ProducedPreparseData* scope_data = lit->produced_preparse_data();
     if (scope_data != nullptr) {
       Handle<PreparseData> preparse_data =

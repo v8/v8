@@ -526,7 +526,8 @@ class ScopeInfoRef : public HeapObjectRef {
   V(bool, HasBuiltinId)                     \
   V(BuiltinFunctionId, builtin_function_id) \
   V(bool, construct_as_builtin)             \
-  V(bool, HasBytecodeArray)
+  V(bool, HasBytecodeArray)                 \
+  V(bool, is_safe_to_skip_arguments_adaptor)
 
 class SharedFunctionInfoRef : public HeapObjectRef {
  public:
