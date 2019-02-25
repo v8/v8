@@ -209,8 +209,9 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
 
     __ LoadP(r6, FieldMemOperand(r3, JSFunction::kSharedFunctionInfoOffset));
     __ LoadlW(r6, FieldMemOperand(r6, SharedFunctionInfo::kFlagsOffset));
-    __ TestBitMask(r6, SharedFunctionInfo::IsDerivedConstructorBit::kMask, r0);
-    __ bne(&not_create_implicit_receiver);
+    __ DecodeField<SharedFunctionInfo::FunctionKindBits>(r6);
+    __ JumpIfIsInRange(r6, kDefaultDerivedConstructor, kDerivedConstructor,
+                       &not_create_implicit_receiver);
 
     // If not derived class constructor: Allocate the new receiver object.
     __ IncrementCounter(masm->isolate()->counters()->constructed_objects(), 1,

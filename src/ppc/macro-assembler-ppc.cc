@@ -1552,6 +1552,20 @@ void TurboAssembler::SubAndCheckForOverflow(Register dst, Register left,
   }
 }
 
+void MacroAssembler::JumpIfIsInRange(Register value, unsigned lower_limit,
+                                     unsigned higher_limit,
+                                     Label* on_in_range) {
+  Register scratch = r0;
+  if (lower_limit != 0) {
+    mov(scratch, Operand(lower_limit));
+    sub(scratch, value, scratch);
+    cmpli(scratch, Operand(higher_limit - lower_limit));
+  } else {
+    mov(scratch, Operand(higher_limit));
+    cmpl(value, scratch);
+  }
+  ble(on_in_range);
+}
 
 void MacroAssembler::TryDoubleToInt32Exact(Register result,
                                            DoubleRegister double_input,

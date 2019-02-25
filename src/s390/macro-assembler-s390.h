@@ -1074,6 +1074,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
     bne(if_not_equal);
   }
 
+  // Checks if value is in range [lower_limit, higher_limit] using a single
+  // comparison.
+  void JumpIfIsInRange(Register value, unsigned lower_limit,
+                       unsigned higher_limit, Label* on_in_range);
+
   // Try to convert a double to a signed 32-bit integer.
   // CR_EQ in cr7 is set and result assigned if the conversion is exact.
   void TryDoubleToInt32Exact(Register result, DoubleRegister double_input,

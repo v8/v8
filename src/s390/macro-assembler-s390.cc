@@ -1518,6 +1518,20 @@ void MacroAssembler::CompareRoot(Register obj, RootIndex index) {
   CmpP(obj, MemOperand(kRootRegister, RootRegisterOffsetForRootIndex(index)));
 }
 
+void MacroAssembler::JumpIfIsInRange(Register value, unsigned lower_limit,
+                                     unsigned higher_limit,
+                                     Label* on_in_range) {
+  if (lower_limit != 0) {
+    Register scratch = r0;
+    LoadRR(scratch, value);
+    slgfi(scratch, Operand(lower_limit));
+    CmpLogicalP(scratch, Operand(higher_limit - lower_limit));
+  } else {
+    CmpLogicalP(value, Operand(higher_limit));
+  }
+  ble(on_in_range);
+}
+
 void MacroAssembler::TryDoubleToInt32Exact(Register result,
                                            DoubleRegister double_input,
                                            Register scratch,
