@@ -1936,7 +1936,7 @@ Statement* Parser::DesugarLexicalBindingsInForStatement(
   //  }
 
   DCHECK_GT(for_info.bound_names.length(), 0);
-  ZonePtrList<Variable> temps(for_info.bound_names.length(), zone());
+  ScopedPtrList<Variable> temps(pointer_buffer());
 
   Block* outer_block =
       factory()->NewBlock(for_info.bound_names.length() + 4, false);
@@ -1957,7 +1957,7 @@ Statement* Parser::DesugarLexicalBindingsInForStatement(
     Statement* assignment_statement =
         factory()->NewExpressionStatement(assignment, kNoSourcePosition);
     outer_block->statements()->Add(assignment_statement, zone());
-    temps.Add(temp, zone());
+    temps.Add(temp);
   }
 
   Variable* first = nullptr;
@@ -1995,14 +1995,14 @@ Statement* Parser::DesugarLexicalBindingsInForStatement(
 
     Block* ignore_completion_block =
         factory()->NewBlock(for_info.bound_names.length() + 3, true);
-    ZonePtrList<Variable> inner_vars(for_info.bound_names.length(), zone());
+    ScopedPtrList<Variable> inner_vars(pointer_buffer());
     // For each let variable x:
     //    make statement: let/const x = temp_x.
     for (int i = 0; i < for_info.bound_names.length(); i++) {
       VariableProxy* proxy = DeclareBoundVariable(
           for_info.bound_names[i], for_info.parsing_result.descriptor.mode,
           kNoSourcePosition);
-      inner_vars.Add(proxy->var(), zone());
+      inner_vars.Add(proxy->var());
       VariableProxy* temp_proxy = factory()->NewVariableProxy(temps.at(i));
       Assignment* assignment = factory()->NewAssignment(
           Token::INIT, proxy, temp_proxy, kNoSourcePosition);
