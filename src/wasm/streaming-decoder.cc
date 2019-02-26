@@ -393,6 +393,14 @@ StreamingDecoder::DecodeSectionLength::NextWithValue(
     return base::make_unique<DecodeSectionID>(streaming->module_offset_);
   } else {
     if (section_id_ == SectionCode::kCodeSectionCode) {
+      // Explicitly check for multiple code sections as module decoder never
+      // sees the code section and hence cannot track this section.
+      if (streaming->code_section_processed_) {
+        // TODO(mstarzinger): This error message (and other in this class) is
+        // different for non-streaming decoding. Bring them in sync and test.
+        return streaming->Error("code section can only appear once");
+      }
+      streaming->code_section_processed_ = true;
       // We reached the code section. All functions of the code section are put
       // into the same SectionBuffer.
       return base::make_unique<DecodeNumberOfFunctions>(buf);

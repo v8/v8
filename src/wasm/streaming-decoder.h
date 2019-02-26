@@ -261,6 +261,7 @@ class V8_EXPORT_PRIVATE StreamingDecoder {
   std::unique_ptr<StreamingProcessor> processor_;
   std::unique_ptr<DecodingState> state_;
   std::vector<std::shared_ptr<SectionBuffer>> section_buffers_;
+  bool code_section_processed_ = false;
   uint32_t module_offset_ = 0;
   size_t total_size_ = 0;
 

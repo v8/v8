@@ -52,26 +52,12 @@ class MockStreamingProcessor : public StreamingProcessor {
   // Process all sections but the code section.
   bool ProcessSection(SectionCode section_code, Vector<const uint8_t> bytes,
                       uint32_t offset) override {
-    // Mock a simple processor that rejects non-consecutive section codes.
-    if (section_code != kUnknownSectionCode) {
-      if (section_code < next_section_) {
-        result_->error = WasmError(0, "section out of order");
-        return false;
-      }
-      next_section_ = section_code + 1;
-    }
     ++result_->num_sections;
     return true;
   }
 
   bool ProcessCodeSectionHeader(size_t num_functions, uint32_t offset,
                                 std::shared_ptr<WireBytesStorage>) override {
-    // Mock a simple processor that rejects non-consecutive section codes.
-    if (kCodeSectionCode < next_section_) {
-      result_->error = WasmError(0, "section out of order");
-      return false;
-    }
-    next_section_ = kCodeSectionCode + 1;
     return true;
   }
 
@@ -104,7 +90,6 @@ class MockStreamingProcessor : public StreamingProcessor {
 
  private:
   MockStreamingResult* const result_;
-  uint8_t next_section_ = kFirstSectionInModule;
 };
 
 class WasmStreamingDecoderTest : public ::testing::Test {
@@ -624,7 +609,7 @@ TEST_F(WasmStreamingDecoderTest, TwoCodeSections) {
       0x1,                   // Function Length
       0x0,                   // Function
   };
-  ExpectFailure(ArrayVector(data), "section out of order");
+  ExpectFailure(ArrayVector(data), "code section can only appear once");
 }
 
 TEST_F(WasmStreamingDecoderTest, UnknownSection) {
@@ -665,7 +650,7 @@ TEST_F(WasmStreamingDecoderTest, UnknownSectionSandwich) {
       0x1,                   // Function Length
       0x0,                   // Function
   };
-  ExpectFailure(ArrayVector(data), "section out of order");
+  ExpectFailure(ArrayVector(data), "code section can only appear once");
 }
 
 }  // namespace wasm
