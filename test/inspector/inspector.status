@@ -81,4 +81,9 @@
   'debugger/pause-on-oom': [SKIP],
 }],
 
+##############################################################################
+['variant == jitless and not embedded_builtins', {
+  '*': [SKIP],
+}], # variant == jitless and not embedded_builtins
+
 ]

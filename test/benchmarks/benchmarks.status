@@ -54,4 +54,9 @@
   'octane/splay': [SKIP],
   'octane/typescript': [SKIP],
 }],  # 'gc_fuzzer'
+
+##############################################################################
+['variant == jitless and not embedded_builtins', {
+  '*': [SKIP],
+}], # variant == jitless and not embedded_builtins
 ]
