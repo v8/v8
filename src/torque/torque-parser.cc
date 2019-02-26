@@ -29,44 +29,6 @@ struct TypeswitchCase {
   Statement* block;
 };
 
-enum class ParseResultHolderBase::TypeId {
-  kStdString,
-  kBool,
-  kStdVectorOfString,
-  kExpressionPtr,
-  kLocationExpressionPtr,
-  kStatementPtr,
-  kDeclarationPtr,
-  kTypeExpressionPtr,
-  kOptionalTypeExpressionPtr,
-  kLabelBlockPtr,
-  kOptionalLabelBlockPtr,
-  kNameAndTypeExpression,
-  kClassFieldExpression,
-  kStructFieldExpression,
-  kStdVectorOfNameAndTypeExpression,
-  kStdVectorOfClassFieldExpression,
-  kStdVectorOfStructFieldExpression,
-  kIncrementDecrementOperator,
-  kOptionalStdString,
-  kStdVectorOfStatementPtr,
-  kStdVectorOfDeclarationPtr,
-  kStdVectorOfExpressionPtr,
-  kExpressionWithSource,
-  kParameterList,
-  kRangeExpression,
-  kOptionalRangeExpression,
-  kTypeList,
-  kOptionalTypeList,
-  kLabelAndTypes,
-  kStdVectorOfLabelAndTypes,
-  kStdVectorOfLabelBlockPtr,
-  kOptionalStatementPtr,
-  kOptionalExpressionPtr,
-  kTypeswitchCase,
-  kStdVectorOfTypeswitchCase
-};
-
 template <>
 V8_EXPORT_PRIVATE const ParseResultTypeId ParseResultHolder<std::string>::id =
     ParseResultTypeId::kStdString;

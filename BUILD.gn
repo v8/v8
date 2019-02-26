@@ -3145,6 +3145,24 @@ v8_source_set("torque_base") {
   }
 }
 
+v8_source_set("torque_ls_base") {
+  sources = [
+    "src/torque/ls/json-parser.cc",
+    "src/torque/ls/json-parser.h",
+    "src/torque/ls/json.cc",
+    "src/torque/ls/json.h",
+  ]
+
+  deps = [
+    ":torque_base",
+  ]
+
+  configs = [ ":internal_config" ]
+  if (is_win && is_asan) {
+    remove_configs = [ "//build/config/sanitizers:default_sanitizer_flags" ]
+  }
+}
+
 v8_component("v8_libbase") {
   sources = [
     "src/base/adapters.h",
