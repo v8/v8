@@ -13,6 +13,7 @@ namespace internal {
 
 void FlushInstructionCache(void* start, size_t size) {
   if (size == 0) return;
+  if (FLAG_jitless) return;  // There's no executable memory to flush.
 
 #if defined(USE_SIMULATOR)
   base::MutexGuard lock_guard(Simulator::i_cache_mutex());
