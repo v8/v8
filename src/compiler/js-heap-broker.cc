@@ -1572,7 +1572,8 @@ JSHeapBroker::JSHeapBroker(Isolate* isolate, Zone* broker_zone)
       current_zone_(broker_zone),
       refs_(new (zone())
                 RefsMap(kMinimalRefsBucketCount, AddressMatcher(), zone())),
-      array_and_object_prototypes_(zone()) {
+      array_and_object_prototypes_(zone()),
+      feedback_(zone()) {
   // Note that this initialization of the refs_ pointer with the minimal
   // initial capacity is redundant in the normal use case (concurrent
   // compilation enabled, standard objects to be serialized), as the map
@@ -2754,6 +2755,66 @@ void JSBoundFunctionRef::Serialize() {
   if (broker()->mode() == JSHeapBroker::kDisabled) return;
   CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
   data()->AsJSBoundFunction()->Serialize(broker());
+}
+
+bool CanInlineElementAccess(Handle<Map> map) {
+  if (!map->IsJSObjectMap()) return false;
+  if (map->is_access_check_needed()) return false;
+  if (map->has_indexed_interceptor()) return false;
+  ElementsKind const elements_kind = map->elements_kind();
+  if (IsFastElementsKind(elements_kind)) return true;
+  if (IsFixedTypedArrayElementsKind(elements_kind) &&
+      elements_kind != BIGUINT64_ELEMENTS &&
+      elements_kind != BIGINT64_ELEMENTS) {
+    return true;
+  }
+  return false;
+}
+
+bool JSHeapBroker::HasFeedback(FeedbackNexus const& nexus) const {
+  return feedback_.find(nexus) != feedback_.end();
+}
+
+ProcessedFeedback& JSHeapBroker::GetOrCreateFeedback(
+    FeedbackNexus const& nexus) {
+  auto it = feedback_.find(nexus);
+  if (it != feedback_.end()) return it->second;
+  auto insertion = feedback_.insert({nexus, ProcessedFeedback(zone())});
+  CHECK(insertion.second);
+  return insertion.first->second;
+}
+
+void ProcessFeedbackMapsForElementAccess(Isolate* isolate,
+                                         MapHandles const& maps,
+                                         ProcessedFeedback* processed) {
+  DCHECK(processed->receiver_maps.empty());
+  DCHECK(processed->transitions.empty());
+
+  // Collect possible transition targets.
+  MapHandles possible_transition_targets;
+  possible_transition_targets.reserve(maps.size());
+  for (Handle<Map> map : maps) {
+    if (CanInlineElementAccess(map) &&
+        IsFastElementsKind(map->elements_kind()) &&
+        GetInitialFastElementsKind() != map->elements_kind()) {
+      possible_transition_targets.push_back(map);
+    }
+  }
+
+  // Separate the actual receiver maps and the possible transition sources.
+  for (Handle<Map> map : maps) {
+    // Don't generate elements kind transitions from stable maps.
+    Map transition_target = map->is_stable()
+                                ? Map()
+                                : map->FindElementsKindTransitionedMap(
+                                      isolate, possible_transition_targets);
+    if (transition_target.is_null()) {
+      processed->receiver_maps.push_back(map);
+    } else {
+      processed->transitions.emplace_back(map,
+                                          handle(transition_target, isolate));
+    }
+  }
 }
 
 #undef BIMODAL_ACCESSOR

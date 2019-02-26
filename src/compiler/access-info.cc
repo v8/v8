@@ -24,21 +24,6 @@ namespace compiler {
 
 namespace {
 
-bool CanInlineElementAccess(Handle<Map> map) {
-  if (!map->IsJSObjectMap()) return false;
-  if (map->is_access_check_needed()) return false;
-  if (map->has_indexed_interceptor()) return false;
-  ElementsKind const elements_kind = map->elements_kind();
-  if (IsFastElementsKind(elements_kind)) return true;
-  if (IsFixedTypedArrayElementsKind(elements_kind) &&
-      elements_kind != BIGUINT64_ELEMENTS &&
-      elements_kind != BIGINT64_ELEMENTS) {
-    return true;
-  }
-  return false;
-}
-
-
 bool CanInlinePropertyAccess(Handle<Map> map) {
   // We can inline property access to prototypes of all primitives, except
   // the special Oddball ones that have no wrapper counterparts (i.e. Null,
@@ -267,62 +252,49 @@ bool AccessInfoFactory::ComputeElementAccessInfo(
   return true;
 }
 
-typedef std::vector<std::pair<Handle<Map>, Handle<Map>>> TransitionList;
-
-namespace {
-void ProcessFeedbackMaps(Isolate* isolate, MapHandles const& maps,
-                         MapHandles* receiver_maps,
-                         TransitionList* transitions) {
-  DCHECK(receiver_maps->empty());
-  DCHECK(transitions->empty());
-
-  // Collect possible transition targets.
-  MapHandles possible_transition_targets;
-  possible_transition_targets.reserve(maps.size());
-  for (Handle<Map> map : maps) {
-    if (CanInlineElementAccess(map) &&
-        IsFastElementsKind(map->elements_kind()) &&
-        GetInitialFastElementsKind() != map->elements_kind()) {
-      possible_transition_targets.push_back(map);
-    }
-  }
-
-  // Separate the actual receiver maps and the possible transition sources.
-  for (Handle<Map> map : maps) {
-    // Don't generate elements kind transitions from stable maps.
-    Map transition_target = map->is_stable()
-                                ? Map()
-                                : map->FindElementsKindTransitionedMap(
-                                      isolate, possible_transition_targets);
-    if (transition_target.is_null()) {
-      receiver_maps->push_back(map);
-    } else {
-      transitions->emplace_back(map, handle(transition_target, isolate));
-    }
-  }
-}
-}  // namespace
-
 bool AccessInfoFactory::ComputeElementAccessInfos(
-    MapHandles const& maps, AccessMode access_mode,
+    FeedbackNexus nexus, MapHandles const& maps, AccessMode access_mode,
     ZoneVector<ElementAccessInfo>* access_infos) const {
+  ProcessedFeedback processed(broker()->zone());
+  ProcessFeedbackMapsForElementAccess(isolate(), maps, &processed);
+
+  if (FLAG_concurrent_inlining) {
+    if (broker()->HasFeedback(nexus)) {
+      // We have already processed the feedback for this nexus during
+      // serialization. Use that data instead of the data computed above.
+      ProcessedFeedback const& preprocessed =
+          broker()->GetOrCreateFeedback(nexus);
+      TRACE_BROKER(broker(),
+                   "ComputeElementAccessInfos: using preprocessed feedback "
+                       << "(slot " << nexus.slot() << " of "
+                       << Brief(*nexus.vector_handle()) << "; "
+                       << preprocessed.receiver_maps.size() << "/"
+                       << preprocessed.transitions.size() << " vs "
+                       << processed.receiver_maps.size() << "/"
+                       << processed.transitions.size() << ").\n");
+      processed.receiver_maps = preprocessed.receiver_maps;
+      processed.transitions = preprocessed.transitions;
+    } else {
+      TRACE_BROKER(broker(),
+                   "ComputeElementAccessInfos: missing preprocessed feedback "
+                       << "(slot " << nexus.slot() << " of "
+                       << Brief(*nexus.vector_handle()) << ").\n");
+    }
+  }
+
   if (access_mode == AccessMode::kLoad) {
     // For polymorphic loads of similar elements kinds (i.e. all tagged or all
     // double), always use the "worst case" code without a transition.  This is
     // much faster than transitioning the elements to the worst case, trading a
     // TransitionElementsKind for a CheckMaps, avoiding mutation of the array.
     ElementAccessInfo access_info;
-    if (ConsolidateElementLoad(maps, &access_info)) {
+    if (ConsolidateElementLoad(processed, &access_info)) {
       access_infos->push_back(access_info);
       return true;
     }
   }
 
-  MapHandles receiver_maps;
-  TransitionList transitions;
-  ProcessFeedbackMaps(isolate(), maps, &receiver_maps, &transitions);
-
-  for (Handle<Map> receiver_map : receiver_maps) {
+  for (Handle<Map> receiver_map : processed.receiver_maps) {
     // Compute the element access information.
     ElementAccessInfo access_info;
     if (!ComputeElementAccessInfo(receiver_map, access_mode, &access_info)) {
@@ -330,7 +302,7 @@ bool AccessInfoFactory::ComputeElementAccessInfos(
     }
 
     // Collect the possible transitions for the {receiver_map}.
-    for (auto transition : transitions) {
+    for (auto transition : processed.transitions) {
       if (transition.second.is_identical_to(receiver_map)) {
         access_info.AddTransitionSource(transition.first);
       }
@@ -633,11 +605,15 @@ Maybe<ElementsKind> GeneralizeElementsKind(ElementsKind this_kind,
 }  // namespace
 
 bool AccessInfoFactory::ConsolidateElementLoad(
-    MapHandles const& maps, ElementAccessInfo* access_info) const {
-  CHECK(!maps.empty());
-  InstanceType instance_type = maps.front()->instance_type();
-  ElementsKind elements_kind = maps.front()->elements_kind();
-  for (Handle<Map> map : maps) {
+    ProcessedFeedback const& processed, ElementAccessInfo* access_info) const {
+  CHECK(!processed.receiver_maps.empty());
+
+  // We want to look at each map but the maps are split across
+  // {processed.receiver_maps} and {processed.transitions}.
+
+  InstanceType instance_type = processed.receiver_maps.front()->instance_type();
+  ElementsKind elements_kind = processed.receiver_maps.front()->elements_kind();
+  auto processMap = [&](Handle<Map> map) {
     if (!CanInlineElementAccess(map) || map->instance_type() != instance_type) {
       return false;
     }
@@ -645,7 +621,22 @@ bool AccessInfoFactory::ConsolidateElementLoad(
              .To(&elements_kind)) {
       return false;
     }
+    return true;
+  };
+
+  for (Handle<Map> map : processed.receiver_maps) {
+    if (!processMap(map)) return false;
   }
+
+  MapHandles maps(processed.receiver_maps.begin(),
+                  processed.receiver_maps.end());
+  for (auto& pair : processed.transitions) {
+    if (!processMap(pair.first) || !processMap(pair.second)) return false;
+    maps.push_back(pair.first);
+    maps.push_back(pair.second);
+  }
+  // {maps} may now contain duplicate entries, but that shouldn't matter.
+
   *access_info = ElementAccessInfo(maps, elements_kind);
   return true;
 }

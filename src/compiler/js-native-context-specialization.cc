@@ -1500,9 +1500,9 @@ Reduction JSNativeContextSpecialization::ReduceElementAccessOnString(
 }
 
 Reduction JSNativeContextSpecialization::ReduceElementAccess(
-    Node* node, Node* index, Node* value, MapHandles const& receiver_maps,
-    AccessMode access_mode, KeyedAccessLoadMode load_mode,
-    KeyedAccessStoreMode store_mode) {
+    Node* node, Node* index, Node* value, FeedbackNexus const& nexus,
+    MapHandles const& receiver_maps, AccessMode access_mode,
+    KeyedAccessLoadMode load_mode, KeyedAccessStoreMode store_mode) {
   DCHECK(node->opcode() == IrOpcode::kJSLoadProperty ||
          node->opcode() == IrOpcode::kJSStoreProperty ||
          node->opcode() == IrOpcode::kJSStoreInArrayLiteral);
@@ -1520,8 +1520,8 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
   AccessInfoFactory access_info_factory(broker(), dependencies(),
                                         graph()->zone());
   ZoneVector<ElementAccessInfo> access_infos(zone());
-  if (!access_info_factory.ComputeElementAccessInfos(receiver_maps, access_mode,
-                                                     &access_infos)) {
+  if (!access_info_factory.ComputeElementAccessInfos(
+          nexus, receiver_maps, access_mode, &access_infos)) {
     return NoChange();
   }
 
@@ -1856,8 +1856,8 @@ Reduction JSNativeContextSpecialization::ReduceKeyedAccess(
   }
 
   // Try to lower the element access based on the {receiver_maps}.
-  return ReduceElementAccess(node, index, value, receiver_maps, access_mode,
-                             load_mode, store_mode);
+  return ReduceElementAccess(node, index, value, nexus, receiver_maps,
+                             access_mode, load_mode, store_mode);
 }
 
 Reduction JSNativeContextSpecialization::ReduceSoftDeoptimize(
@@ -2513,7 +2513,7 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreInArrayLiteral(
   if (nexus.ic_state() == MEGAMORPHIC) return NoChange();
 
   // Try to lower the element access based on the {receiver_maps}.
-  return ReduceElementAccess(node, index, value, receiver_maps,
+  return ReduceElementAccess(node, index, value, nexus, receiver_maps,
                              AccessMode::kStoreInLiteral, STANDARD_LOAD,
                              store_mode);
 }

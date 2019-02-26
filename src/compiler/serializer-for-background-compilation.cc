@@ -683,6 +683,59 @@ void SerializerForBackgroundCompilation::VisitConstructWithSpread(
   ProcessCallOrConstruct(callee, new_target, arguments, slot, true);
 }
 
+void SerializerForBackgroundCompilation::ProcessFeedbackForKeyedPropertyAccess(
+    BytecodeArrayIterator* iterator) {
+  interpreter::Bytecode bytecode = iterator->current_bytecode();
+  DCHECK(bytecode == interpreter::Bytecode::kLdaKeyedProperty ||
+         bytecode == interpreter::Bytecode::kStaKeyedProperty ||
+         bytecode == interpreter::Bytecode::kStaInArrayLiteral);
+
+  if (environment()->function().feedback_vector.is_null()) return;
+
+  FeedbackSlot slot = iterator->GetSlotOperand(
+      bytecode == interpreter::Bytecode::kLdaKeyedProperty ? 1 : 2);
+  if (slot.IsInvalid()) return;
+
+  FeedbackNexus nexus(environment()->function().feedback_vector, slot);
+  if (broker()->HasFeedback(nexus)) return;
+
+  Handle<Name> name(nexus.GetName(), broker()->isolate());
+  CHECK_IMPLIES(nexus.GetKeyType() == ELEMENT, name->is_null());
+  if (!name->is_null() || nexus.GetKeyType() == PROPERTY) {
+    CHECK_NE(bytecode, interpreter::Bytecode::kStaInArrayLiteral);
+    return;  // TODO(neis): Support named access.
+  }
+  if (nexus.ic_state() == MEGAMORPHIC) {
+    return;
+  }
+
+  ProcessedFeedback& processed = broker()->GetOrCreateFeedback(nexus);
+  MapHandles maps;
+  nexus.ExtractMaps(&maps);
+  ProcessFeedbackMapsForElementAccess(broker()->isolate(), maps, &processed);
+
+  // TODO(neis): Have something like MapRef::SerializeForElementStore() and call
+  // it for every receiver map in case of an element store.
+}
+
+void SerializerForBackgroundCompilation::VisitLdaKeyedProperty(
+    BytecodeArrayIterator* iterator) {
+  environment()->accumulator_hints().Clear();
+  ProcessFeedbackForKeyedPropertyAccess(iterator);
+}
+
+void SerializerForBackgroundCompilation::VisitStaKeyedProperty(
+    BytecodeArrayIterator* iterator) {
+  environment()->accumulator_hints().Clear();
+  ProcessFeedbackForKeyedPropertyAccess(iterator);
+}
+
+void SerializerForBackgroundCompilation::VisitStaInArrayLiteral(
+    BytecodeArrayIterator* iterator) {
+  environment()->accumulator_hints().Clear();
+  ProcessFeedbackForKeyedPropertyAccess(iterator);
+}
+
 #define DEFINE_CLEAR_ENVIRONMENT(name, ...)             \
   void SerializerForBackgroundCompilation::Visit##name( \
       BytecodeArrayIterator* iterator) {                \

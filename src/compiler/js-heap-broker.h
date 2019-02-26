@@ -8,6 +8,7 @@
 #include "src/base/compiler-specific.h"
 #include "src/base/optional.h"
 #include "src/compiler/refs-map.h"
+#include "src/feedback-vector.h"
 #include "src/function-kind.h"
 #include "src/globals.h"
 #include "src/handles.h"
@@ -615,9 +616,18 @@ class InternalizedStringRef : public StringRef {
   static const uint32_t kNotAnArrayIndex = -1;  // 2^32-1 is not a valid index.
 };
 
+struct ProcessedFeedback {
+  ZoneVector<Handle<Map>> receiver_maps;
+  ZoneVector<std::pair<Handle<Map>, Handle<Map>>> transitions;
+
+  explicit ProcessedFeedback(Zone* zone)
+      : receiver_maps(zone), transitions(zone) {}
+};
+
 class V8_EXPORT_PRIVATE JSHeapBroker : public NON_EXPORTED_BASE(ZoneObject) {
  public:
   JSHeapBroker(Isolate* isolate, Zone* broker_zone);
+
   void SetNativeContextRef();
   void SerializeStandardObjects();
 
@@ -644,8 +654,10 @@ class V8_EXPORT_PRIVATE JSHeapBroker : public NON_EXPORTED_BASE(ZoneObject) {
   // %ObjectPrototype%.
   bool IsArrayOrObjectPrototype(const JSObjectRef& object) const;
 
-  std::ostream& Trace();
+  bool HasFeedback(FeedbackNexus const& nexus) const;
+  ProcessedFeedback& GetOrCreateFeedback(FeedbackNexus const& nexus);
 
+  std::ostream& Trace();
   void IncrementTracingIndentation();
   void DecrementTracingIndentation();
 
@@ -656,6 +668,18 @@ class V8_EXPORT_PRIVATE JSHeapBroker : public NON_EXPORTED_BASE(ZoneObject) {
 
   void SerializeShareableObjects();
   void CollectArrayAndObjectPrototypes();
+
+  struct FeedbackNexusHash {
+    size_t operator()(FeedbackNexus const& nexus) const {
+      return base::hash_combine(nexus.vector_handle().location(), nexus.slot());
+    }
+  };
+  struct FeedbackNexusEqual {
+    bool operator()(FeedbackNexus const& lhs, FeedbackNexus const& rhs) const {
+      return lhs.vector_handle().equals(rhs.vector_handle()) &&
+             lhs.slot() == rhs.slot();
+    }
+  };
 
   Isolate* const isolate_;
   Zone* const broker_zone_;
@@ -669,6 +693,9 @@ class V8_EXPORT_PRIVATE JSHeapBroker : public NON_EXPORTED_BASE(ZoneObject) {
   StdoutStream trace_out_;
   unsigned trace_indentation_ = 0;
   PerIsolateCompilerCache* compiler_cache_;
+  ZoneUnorderedMap<FeedbackNexus, ProcessedFeedback, FeedbackNexusHash,
+                   FeedbackNexusEqual>
+      feedback_;
 
   static const size_t kMinimalRefsBucketCount = 8;     // must be power of 2
   static const size_t kInitialRefsBucketCount = 1024;  // must be power of 2
@@ -684,6 +711,13 @@ class V8_EXPORT_PRIVATE JSHeapBroker : public NON_EXPORTED_BASE(ZoneObject) {
 class Reduction;
 Reduction NoChangeBecauseOfMissingData(JSHeapBroker* broker,
                                        const char* function, int line);
+
+// Miscellaneous definitions that should be moved elsewhere once concurrent
+// compilation is finished.
+bool CanInlineElementAccess(Handle<Map> map);
+void ProcessFeedbackMapsForElementAccess(Isolate* isolate,
+                                         MapHandles const& maps,
+                                         ProcessedFeedback* processed);
 
 #define TRACE_BROKER(broker, x)                               \
   do {                                                        \

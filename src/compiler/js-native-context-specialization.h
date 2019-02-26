@@ -92,6 +92,7 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   Reduction ReduceJSToObject(Node* node);
 
   Reduction ReduceElementAccess(Node* node, Node* index, Node* value,
+                                FeedbackNexus const& nexus,
                                 MapHandles const& receiver_maps,
                                 AccessMode access_mode,
                                 KeyedAccessLoadMode load_mode,

@@ -8,6 +8,7 @@
 #include <iosfwd>
 
 #include "src/compiler/types.h"
+#include "src/feedback-vector.h"
 #include "src/field-index.h"
 #include "src/machine-type.h"
 #include "src/objects.h"
@@ -26,6 +27,7 @@ namespace compiler {
 class CompilationDependencies;
 class Type;
 class TypeCache;
+struct ProcessedFeedback;
 
 // Whether we are loading a property or storing to a property.
 // For a store during literal creation, do not walk up the prototype chain.
@@ -150,7 +152,7 @@ class AccessInfoFactory final {
   bool ComputeElementAccessInfo(Handle<Map> map, AccessMode access_mode,
                                 ElementAccessInfo* access_info) const;
   bool ComputeElementAccessInfos(
-      MapHandles const& maps, AccessMode access_mode,
+      FeedbackNexus nexus, MapHandles const& maps, AccessMode access_mode,
       ZoneVector<ElementAccessInfo>* access_infos) const;
 
   bool ComputePropertyAccessInfo(Handle<Map> map, Handle<Name> name,
@@ -164,7 +166,7 @@ class AccessInfoFactory final {
       ZoneVector<PropertyAccessInfo>* access_infos) const;
 
  private:
-  bool ConsolidateElementLoad(MapHandles const& maps,
+  bool ConsolidateElementLoad(ProcessedFeedback const& processed,
                               ElementAccessInfo* access_info) const;
   bool LookupSpecialFieldAccessor(Handle<Map> map, Handle<Name> name,
                                   PropertyAccessInfo* access_info) const;

@@ -57,7 +57,6 @@ namespace compiler {
   V(LdaGlobalInsideTypeof)          \
   V(LdaImmutableContextSlot)        \
   V(LdaImmutableCurrentContextSlot) \
-  V(LdaKeyedProperty)               \
   V(LdaNamedProperty)               \
   V(LdaNamedPropertyNoFeedback)
 
@@ -122,6 +121,7 @@ namespace compiler {
   V(ExtraWide)                     \
   V(Illegal)                       \
   V(LdaConstant)                   \
+  V(LdaKeyedProperty)              \
   V(LdaNull)                       \
   V(Ldar)                          \
   V(LdaSmi)                        \
@@ -130,6 +130,8 @@ namespace compiler {
   V(Mov)                           \
   V(Return)                        \
   V(StackCheck)                    \
+  V(StaInArrayLiteral)             \
+  V(StaKeyedProperty)              \
   V(Star)                          \
   V(Wide)                          \
   CLEAR_ENVIRONMENT_LIST(V)        \
@@ -240,6 +242,9 @@ class SerializerForBackgroundCompilation {
   Hints RunChildSerializer(CompilationSubject function,
                            base::Optional<Hints> new_target,
                            const HintsVector& arguments, bool with_spread);
+
+  void ProcessFeedbackForKeyedPropertyAccess(
+      interpreter::BytecodeArrayIterator* iterator);
 
   JSHeapBroker* broker() const { return broker_; }
   Zone* zone() const { return zone_; }
