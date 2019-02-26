@@ -4703,8 +4703,7 @@ bool Genesis::InstallNatives() {
 
   // Set up the extras utils object as a shared container between native
   // scripts and extras. (Extras consume things added there by native scripts.)
-  Handle<JSObject> extras_utils =
-      factory()->NewJSObject(isolate()->object_function());
+  Handle<JSObject> extras_utils = factory()->NewJSObjectWithNullProto();
   native_context()->set_extras_utils_object(*extras_utils);
 
   InstallInternalPackedArray(extras_utils, "InternalPackedArray");
@@ -5082,8 +5081,7 @@ bool Genesis::InstallNatives() {
 bool Genesis::InstallExtraNatives() {
   HandleScope scope(isolate());
 
-  Handle<JSObject> extras_binding =
-      factory()->NewJSObject(isolate()->object_function());
+  Handle<JSObject> extras_binding = factory()->NewJSObjectWithNullProto();
 
   // binding.isTraceCategoryEnabled(category)
   SimpleInstallFunction(isolate(), extras_binding, "isTraceCategoryEnabled",
