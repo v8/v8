@@ -29,7 +29,7 @@ class TypeCache;
 
 // Whether we are loading a property or storing to a property.
 // For a store during literal creation, do not walk up the prototype chain.
-enum class AccessMode { kLoad, kStore, kStoreInLiteral, kHas };
+enum class AccessMode { kLoad, kStore, kStoreInLiteral };
 
 std::ostream& operator<<(std::ostream&, AccessMode);
 

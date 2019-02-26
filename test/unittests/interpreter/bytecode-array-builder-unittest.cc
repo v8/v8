@@ -261,7 +261,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .CompareOperation(Token::Value::GTE, reg, 6)
       .CompareTypeOf(TestTypeOfFlags::LiteralFlag::kNumber)
       .CompareOperation(Token::Value::INSTANCEOF, reg, 7)
-      .CompareOperation(Token::Value::IN, reg, 8)
+      .CompareOperation(Token::Value::IN, reg)
       .CompareReference(reg)
       .CompareUndetectable()
       .CompareUndefined()

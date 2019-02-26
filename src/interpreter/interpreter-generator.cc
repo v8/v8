@@ -1876,22 +1876,16 @@ IGNITION_HANDLER(TestReferenceEqual, InterpreterAssembler) {
   Dispatch();
 }
 
-// TestIn <src> <feedback_slot>
+// TestIn <src>
 //
 // Test if the object referenced by the register operand is a property of the
 // object referenced by the accumulator.
 IGNITION_HANDLER(TestIn, InterpreterAssembler) {
-  Node* name = LoadRegisterAtOperandIndex(0);
+  Node* property = LoadRegisterAtOperandIndex(0);
   Node* object = GetAccumulator();
-  Node* raw_slot = BytecodeOperandIdx(1);
-  Node* smi_slot = SmiTag(raw_slot);
-  Node* feedback_vector = LoadFeedbackVectorUnchecked();
   Node* context = GetContext();
 
-  VARIABLE(var_result, MachineRepresentation::kTagged);
-  var_result.Bind(CallBuiltin(Builtins::kKeyedHasIC, context, object, name,
-                              smi_slot, feedback_vector));
-  SetAccumulator(var_result.value());
+  SetAccumulator(HasProperty(context, object, property, kHasProperty));
   Dispatch();
 }
 

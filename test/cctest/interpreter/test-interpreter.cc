@@ -2275,26 +2275,21 @@ TEST(InterpreterTestIn) {
   const char* properties[] = {"length", "fuzzle", "x", "0"};
   for (size_t i = 0; i < arraysize(properties); i++) {
     bool expected_value = (i == 0);
-    FeedbackVectorSpec feedback_spec(zone);
-    BytecodeArrayBuilder builder(zone, 1, 1, &feedback_spec);
+    BytecodeArrayBuilder builder(zone, 1, 1);
 
     Register r0(0);
     builder.LoadLiteral(ast_factory.GetOneByteString(properties[i]))
         .StoreAccumulatorInRegister(r0);
 
-    FeedbackSlot slot = feedback_spec.AddKeyedHasICSlot();
-    Handle<i::FeedbackMetadata> metadata =
-        NewFeedbackMetadata(isolate, &feedback_spec);
-
     size_t array_entry = builder.AllocateDeferredConstantPoolEntry();
     builder.SetDeferredConstantPoolEntry(array_entry, array);
     builder.LoadConstantPoolEntry(array_entry)
-        .CompareOperation(Token::Value::IN, r0, GetIndex(slot))
+        .CompareOperation(Token::Value::IN, r0)
         .Return();
 
     ast_factory.Internalize(isolate);
     Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
-    InterpreterTester tester(isolate, bytecode_array, metadata);
+    InterpreterTester tester(isolate, bytecode_array);
     auto callable = tester.GetCallable<>();
     Handle<Object> return_value = callable().ToHandleChecked();
     CHECK(return_value->IsBoolean());

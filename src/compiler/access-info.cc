@@ -63,8 +63,6 @@ std::ostream& operator<<(std::ostream& os, AccessMode access_mode) {
       return os << "Store";
     case AccessMode::kStoreInLiteral:
       return os << "StoreInLiteral";
-    case AccessMode::kHas:
-      return os << "Has";
   }
   UNREACHABLE();
 }
@@ -179,7 +177,6 @@ bool PropertyAccessInfo::Merge(PropertyAccessInfo const* that,
       if (this->field_index_.GetFieldAccessStubKey() ==
           that->field_index_.GetFieldAccessStubKey()) {
         switch (access_mode) {
-          case AccessMode::kHas:
           case AccessMode::kLoad: {
             if (this->field_representation_ != that->field_representation_) {
               if (!IsAnyTagged(this->field_representation_) ||
@@ -309,7 +306,7 @@ void ProcessFeedbackMaps(Isolate* isolate, MapHandles const& maps,
 bool AccessInfoFactory::ComputeElementAccessInfos(
     MapHandles const& maps, AccessMode access_mode,
     ZoneVector<ElementAccessInfo>* access_infos) const {
-  if (access_mode == AccessMode::kLoad || access_mode == AccessMode::kHas) {
+  if (access_mode == AccessMode::kLoad) {
     // For polymorphic loads of similar elements kinds (i.e. all tagged or all
     // double), always use the "worst case" code without a transition.  This is
     // much faster than transitioning the elements to the worst case, trading a
@@ -417,12 +414,6 @@ bool AccessInfoFactory::ComputeAccessorDescriptorAccessInfo(
         PropertyAccessInfo::ModuleExport(MapHandles{receiver_map}, cell);
     return true;
   }
-  if (access_mode == AccessMode::kHas) {
-    // HasProperty checks don't call getter/setters, existence is sufficient.
-    *access_info = PropertyAccessInfo::AccessorConstant(
-        MapHandles{receiver_map}, Handle<Object>(), holder);
-    return true;
-  }
   Handle<Object> accessors(descriptors->GetStrongValue(number), isolate());
   if (!accessors->IsAccessorPair()) return false;
   Handle<Object> accessor(access_mode == AccessMode::kLoad
@@ -465,13 +456,11 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
     PropertyAccessInfo* access_info) const {
   CHECK(name->IsUniqueName());
 
-  if (access_mode == AccessMode::kHas && !map->IsJSReceiverMap()) return false;
-
   // Check if it is safe to inline property access for the {map}.
   if (!CanInlinePropertyAccess(map)) return false;
 
   // We support fast inline cases for certain JSObject getters.
-  if ((access_mode == AccessMode::kLoad || access_mode == AccessMode::kHas) &&
+  if (access_mode == AccessMode::kLoad &&
       LookupSpecialFieldAccessor(map, name, access_info)) {
     return true;
   }

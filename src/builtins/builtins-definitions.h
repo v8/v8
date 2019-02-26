@@ -251,10 +251,6 @@ namespace internal {
   TFH(ElementsTransitionAndStore_GrowNoTransitionHandleCOW, StoreTransition)   \
   TFH(ElementsTransitionAndStore_NoTransitionIgnoreOOB, StoreTransition)       \
   TFH(ElementsTransitionAndStore_NoTransitionHandleCOW, StoreTransition)       \
-  TFH(KeyedHasIC_PolymorphicName, LoadWithVector)                              \
-  TFH(KeyedHasIC_SloppyArguments, LoadWithVector)                              \
-  TFH(HasIndexedInterceptorIC, LoadWithVector)                                 \
-  TFH(HasIC_Slow, LoadWithVector)                                              \
                                                                                \
   /* Microtask helpers */                                                      \
   TFS(EnqueueMicrotask, kMicrotask)                                            \
@@ -630,8 +626,6 @@ namespace internal {
   TFH(LoadGlobalICInsideTypeofTrampoline, LoadGlobal)                          \
   TFH(CloneObjectIC, CloneObjectWithVector)                                    \
   TFH(CloneObjectIC_Slow, CloneObjectWithVector)                               \
-  TFH(KeyedHasIC, LoadWithVector)                                              \
-  TFH(KeyedHasIC_Megamorphic, LoadWithVector)                                  \
                                                                                \
   /* IterableToList */                                                         \
   /* ES #sec-iterabletolist */                                                 \

@@ -40,7 +40,6 @@ enum class FeedbackSlotKind {
   kLoadGlobalNotInsideTypeof,
   kLoadGlobalInsideTypeof,
   kLoadKeyed,
-  kHasKeyed,
   kStoreGlobalStrict,
   kStoreNamedStrict,
   kStoreOwnNamed,
@@ -74,10 +73,6 @@ inline bool IsLoadGlobalICKind(FeedbackSlotKind kind) {
 
 inline bool IsKeyedLoadICKind(FeedbackSlotKind kind) {
   return kind == FeedbackSlotKind::kLoadKeyed;
-}
-
-inline bool IsKeyedHasICKind(FeedbackSlotKind kind) {
-  return kind == FeedbackSlotKind::kHasKeyed;
 }
 
 inline bool IsStoreGlobalICKind(FeedbackSlotKind kind) {
@@ -351,10 +346,6 @@ class V8_EXPORT_PRIVATE FeedbackVectorSpec {
 
   FeedbackSlot AddKeyedLoadICSlot() {
     return AddSlot(FeedbackSlotKind::kLoadKeyed);
-  }
-
-  FeedbackSlot AddKeyedHasICSlot() {
-    return AddSlot(FeedbackSlotKind::kHasKeyed);
   }
 
   FeedbackSlotKind GetStoreICSlot(LanguageMode language_mode) {

@@ -44,9 +44,6 @@ class AccessorAssembler : public CodeStubAssembler {
   void GenerateStoreGlobalICTrampoline();
   void GenerateCloneObjectIC();
   void GenerateCloneObjectIC_Slow();
-  void GenerateKeyedHasIC();
-  void GenerateKeyedHasIC_Megamorphic();
-  void GenerateKeyedHasIC_PolymorphicName();
 
   void GenerateLoadGlobalIC(TypeofMode typeof_mode);
   void GenerateLoadGlobalICTrampoline(TypeofMode typeof_mode);
@@ -108,7 +105,6 @@ class AccessorAssembler : public CodeStubAssembler {
     SloppyTNode<Object> value;
   };
 
-  enum class LoadAccessMode { kLoad, kHas };
   enum class ICMode { kNonGlobalIC, kGlobalIC };
   enum ElementSupport { kOnlyProperties, kSupportElements };
   void HandleStoreICHandlerCase(
@@ -157,10 +153,9 @@ class AccessorAssembler : public CodeStubAssembler {
 
   void LoadIC_Uninitialized(const LoadICParameters* p);
 
-  void KeyedLoadIC(const LoadICParameters* p, LoadAccessMode access_mode);
+  void KeyedLoadIC(const LoadICParameters* p);
   void KeyedLoadICGeneric(const LoadICParameters* p);
-  void KeyedLoadICPolymorphicName(const LoadICParameters* p,
-                                  LoadAccessMode access_mode);
+  void KeyedLoadICPolymorphicName(const LoadICParameters* p);
   void StoreIC(const StoreICParameters* p);
   void StoreGlobalIC(const StoreICParameters* p);
   void StoreGlobalIC_PropertyCellCase(Node* property_cell, Node* value,
@@ -185,22 +180,19 @@ class AccessorAssembler : public CodeStubAssembler {
       const LoadICParameters* p, TNode<Object> handler, Label* miss,
       ExitPoint* exit_point, ICMode ic_mode = ICMode::kNonGlobalIC,
       OnNonExistent on_nonexistent = OnNonExistent::kReturnUndefined,
-      ElementSupport support_elements = kOnlyProperties,
-      LoadAccessMode access_mode = LoadAccessMode::kLoad);
+      ElementSupport support_elements = kOnlyProperties);
 
   void HandleLoadICSmiHandlerCase(const LoadICParameters* p, Node* holder,
                                   SloppyTNode<Smi> smi_handler,
                                   SloppyTNode<Object> handler, Label* miss,
                                   ExitPoint* exit_point,
                                   OnNonExistent on_nonexistent,
-                                  ElementSupport support_elements,
-                                  LoadAccessMode access_mode);
+                                  ElementSupport support_elements);
 
   void HandleLoadICProtoHandler(const LoadICParameters* p, Node* handler,
                                 Variable* var_holder, Variable* var_smi_handler,
                                 Label* if_smi_handler, Label* miss,
-                                ExitPoint* exit_point, ICMode ic_mode,
-                                LoadAccessMode access_mode);
+                                ExitPoint* exit_point, ICMode ic_mode);
 
   void HandleLoadCallbackProperty(const LoadICParameters* p,
                                   TNode<JSObject> holder,
@@ -218,18 +210,6 @@ class AccessorAssembler : public CodeStubAssembler {
 
   void EmitAccessCheck(Node* expected_native_context, Node* context,
                        Node* receiver, Label* can_access, Label* miss);
-
-  void HandleLoadICSmiHandlerLoadNamedCase(
-      const LoadICParameters* p, Node* holder, TNode<IntPtrT> handler_kind,
-      TNode<WordT> handler_word, Label* rebox_double,
-      Variable* var_double_value, SloppyTNode<Object> handler, Label* miss,
-      ExitPoint* exit_point, OnNonExistent on_nonexistent,
-      ElementSupport support_elements);
-
-  void HandleLoadICSmiHandlerHasNamedCase(const LoadICParameters* p,
-                                          Node* holder,
-                                          TNode<IntPtrT> handler_kind,
-                                          Label* miss, ExitPoint* exit_point);
 
   // LoadGlobalIC implementation.
 
@@ -316,8 +296,7 @@ class AccessorAssembler : public CodeStubAssembler {
                        Label* if_hole, Label* rebox_double,
                        Variable* var_double_value,
                        Label* unimplemented_elements_kind, Label* out_of_bounds,
-                       Label* miss, ExitPoint* exit_point,
-                       LoadAccessMode access_mode = LoadAccessMode::kLoad);
+                       Label* miss, ExitPoint* exit_point);
   void NameDictionaryNegativeLookup(Node* object, SloppyTNode<Name> name,
                                     Label* miss);
   TNode<BoolT> IsPropertyDetailsConst(Node* details);

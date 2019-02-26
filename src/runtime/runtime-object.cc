@@ -53,30 +53,6 @@ MaybeHandle<Object> Runtime::GetObjectProperty(Isolate* isolate,
   return result;
 }
 
-MaybeHandle<Object> Runtime::HasProperty(Isolate* isolate,
-                                         Handle<Object> object,
-                                         Handle<Object> key) {
-  // Check that {object} is actually a receiver.
-  if (!object->IsJSReceiver()) {
-    THROW_NEW_ERROR(
-        isolate,
-        NewTypeError(MessageTemplate::kInvalidInOperatorUse, key, object),
-        Object);
-  }
-  Handle<JSReceiver> receiver = Handle<JSReceiver>::cast(object);
-
-  // Convert the {key} to a name.
-  Handle<Name> name;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, name, Object::ToName(isolate, key),
-                             Object);
-
-  // Lookup the {name} on {receiver}.
-  Maybe<bool> maybe = JSReceiver::HasProperty(receiver, name);
-  if (maybe.IsNothing()) return MaybeHandle<Object>();
-  return maybe.FromJust() ? ReadOnlyRoots(isolate).true_value_handle()
-                          : ReadOnlyRoots(isolate).false_value_handle();
-}
-
 namespace {
 
 bool DeleteObjectPropertyFast(Isolate* isolate, Handle<JSReceiver> receiver,

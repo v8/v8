@@ -2542,9 +2542,7 @@ void BytecodeGraphBuilder::VisitTestIn() {
   Node* object = environment()->LookupAccumulator();
   Node* key =
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
-  VectorSlotPair feedback =
-      CreateVectorSlotPair(bytecode_iterator().GetIndexOperand(1));
-  Node* node = NewNode(javascript()->HasProperty(feedback), object, key);
+  Node* node = NewNode(javascript()->HasProperty(), object, key);
   environment()->BindAccumulator(node, Environment::kAttachFrameState);
 }
 
