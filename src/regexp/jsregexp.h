@@ -10,6 +10,7 @@
 #include "src/objects/js-regexp.h"
 #include "src/regexp/regexp-ast.h"
 #include "src/regexp/regexp-macro-assembler.h"
+#include "src/zone/zone-splay-tree.h"
 
 namespace v8 {
 namespace internal {

@@ -11,6 +11,7 @@
 #include "src/ast/modules.h"
 #include "src/ast/variables.h"
 #include "src/bailout-reason.h"
+#include "src/base/threaded-list.h"
 #include "src/globals.h"
 #include "src/heap/factory.h"
 #include "src/isolate.h"

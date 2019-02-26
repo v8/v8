@@ -6,6 +6,7 @@
 #define V8_AST_VARIABLES_H_
 
 #include "src/ast/ast-value-factory.h"
+#include "src/base/threaded-list.h"
 #include "src/globals.h"
 #include "src/zone/zone.h"
 

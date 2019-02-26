@@ -8,6 +8,7 @@
 #include "src/globals.h"
 #include "src/handles.h"
 #include "src/maybe-handles.h"
+#include "src/vector.h"
 #include "src/zone/zone-chunk-list.h"
 #include "src/zone/zone-containers.h"
 
