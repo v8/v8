@@ -84,6 +84,8 @@ class V8_EXPORT_PRIVATE MicrotaskQueue {
   intptr_t size() const { return size_; }
   intptr_t start() const { return start_; }
 
+  Microtask get(intptr_t index) const;
+
   MicrotaskQueue* next() const { return next_; }
   MicrotaskQueue* prev() const { return prev_; }
 

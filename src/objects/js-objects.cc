@@ -522,6 +522,27 @@ MaybeHandle<NativeContext> JSReceiver::GetFunctionRealm(
   return JSObject::GetFunctionRealm(Handle<JSObject>::cast(receiver));
 }
 
+// static
+MaybeHandle<NativeContext> JSReceiver::GetContextForMicrotask(
+    Handle<JSReceiver> receiver) {
+  Isolate* isolate = receiver->GetIsolate();
+  while (receiver->IsJSBoundFunction() || receiver->IsJSProxy()) {
+    if (receiver->IsJSBoundFunction()) {
+      receiver = handle(
+          Handle<JSBoundFunction>::cast(receiver)->bound_target_function(),
+          isolate);
+    } else {
+      DCHECK(receiver->IsJSProxy());
+      Handle<Object> target(Handle<JSProxy>::cast(receiver)->target(), isolate);
+      if (!target->IsJSReceiver()) return MaybeHandle<NativeContext>();
+      receiver = Handle<JSReceiver>::cast(target);
+    }
+  }
+
+  if (!receiver->IsJSFunction()) return MaybeHandle<NativeContext>();
+  return handle(Handle<JSFunction>::cast(receiver)->native_context(), isolate);
+}
+
 Maybe<PropertyAttributes> JSReceiver::GetPropertyAttributes(
     LookupIterator* it) {
   for (; it->IsFound(); it->Next()) {

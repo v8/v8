@@ -19,6 +19,7 @@ namespace internal {
 enum InstanceType : uint16_t;
 class JSGlobalObject;
 class JSGlobalProxy;
+class NativeContext;
 
 // JSReceiver includes types on which properties can be defined, i.e.,
 // JSObject and JSProxy.
@@ -78,6 +79,8 @@ class JSReceiver : public HeapObject {
       Handle<JSReceiver> receiver, OrdinaryToPrimitiveHint hint);
 
   static MaybeHandle<NativeContext> GetFunctionRealm(
+      Handle<JSReceiver> receiver);
+  V8_EXPORT_PRIVATE static MaybeHandle<NativeContext> GetContextForMicrotask(
       Handle<JSReceiver> receiver);
 
   // Get the first non-hidden prototype.

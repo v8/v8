@@ -76,9 +76,10 @@ RUNTIME_FUNCTION(Runtime_EnqueueMicrotask) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
-  Handle<CallableTask> microtask =
-      isolate->factory()->NewCallableTask(function, isolate->native_context());
-  isolate->native_context()->microtask_queue()->EnqueueMicrotask(*microtask);
+
+  Handle<CallableTask> microtask = isolate->factory()->NewCallableTask(
+      function, handle(function->native_context(), isolate));
+  function->native_context()->microtask_queue()->EnqueueMicrotask(*microtask);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
