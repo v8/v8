@@ -89,6 +89,9 @@
       'V8 Linux64 TSAN - builder': 'release_x64_tsan',
       'V8 Linux - arm64 - sim - MSAN': 'release_simulate_arm64_msan',
       # Misc.
+      'V8 Linux gcc': 'release_x86_gcc',
+      'V8 Linux64 gcc - debug': 'debug_x64_gcc',
+      # TODO(machenbach): Remove after switching.
       'V8 Linux gcc 4.8': 'release_x86_gcc',
       'V8 Linux64 gcc 4.8 - debug': 'debug_x64_gcc',
       # FYI.
