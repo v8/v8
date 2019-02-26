@@ -585,7 +585,7 @@ class FixedTypedArrayBase : public FixedArrayBase {
   // [external_pointer]: Contains the offset between base_pointer and the start
   // of the data. If the base_pointer is a nullptr, the external_pointer
   // therefore points to the actual backing store.
-  DECL_ACCESSORS(external_pointer, void*)
+  DECL_PRIMITIVE_ACCESSORS(external_pointer, void*)
 
   // Dispatched behavior.
   DECL_CAST(FixedTypedArrayBase)
@@ -622,6 +622,14 @@ class FixedTypedArrayBase : public FixedArrayBase {
   inline int DataSize() const;
 
   inline size_t ByteLength() const;
+
+  static inline intptr_t ExternalPointerValueForOnHeapArray() {
+    return FixedTypedArrayBase::kDataOffset - kHeapObjectTag;
+  }
+
+  static inline void* ExternalPointerPtrForOnHeapArray() {
+    return reinterpret_cast<void*>(ExternalPointerValueForOnHeapArray());
+  }
 
  private:
   static inline int ElementSize(InstanceType type);

@@ -1845,7 +1845,7 @@ Handle<FixedTypedArrayBase> Factory::NewFixedTypedArrayWithExternalPointer(
   Handle<FixedTypedArrayBase> elements(FixedTypedArrayBase::cast(result),
                                        isolate());
   elements->set_base_pointer(Smi::kZero, SKIP_WRITE_BARRIER);
-  elements->set_external_pointer(external_pointer, SKIP_WRITE_BARRIER);
+  elements->set_external_pointer(external_pointer);
   elements->set_length(length);
   return elements;
 }
@@ -1868,9 +1868,7 @@ Handle<FixedTypedArrayBase> Factory::NewFixedTypedArray(
                                        isolate());
   elements->set_base_pointer(*elements, SKIP_WRITE_BARRIER);
   elements->set_external_pointer(
-      reinterpret_cast<void*>(
-          ExternalReference::fixed_typed_array_base_data_offset().address()),
-      SKIP_WRITE_BARRIER);
+      FixedTypedArrayBase::ExternalPointerPtrForOnHeapArray());
   elements->set_length(static_cast<int>(length));
   if (initialize) memset(elements->DataPtr(), 0, elements->DataSize());
   return elements;

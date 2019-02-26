@@ -790,11 +790,6 @@ ExternalReference ExternalReference::fast_c_call_caller_pc_address(
       isolate->isolate_data()->fast_c_call_caller_pc_address());
 }
 
-ExternalReference ExternalReference::fixed_typed_array_base_data_offset() {
-  return ExternalReference(reinterpret_cast<void*>(
-      FixedTypedArrayBase::kDataOffset - kHeapObjectTag));
-}
-
 FUNCTION_REFERENCE(call_enqueue_microtask_function,
                    MicrotaskQueue::CallEnqueueMicrotask)
 

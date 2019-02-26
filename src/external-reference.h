@@ -112,7 +112,6 @@ class StatsCounter;
   V(f64_acos_wrapper_function, "f64_acos_wrapper")                            \
   V(f64_asin_wrapper_function, "f64_asin_wrapper")                            \
   V(f64_mod_wrapper_function, "f64_mod_wrapper")                              \
-  V(fixed_typed_array_base_data_offset, "fixed_typed_array_base_data_offset") \
   V(get_date_field_function, "JSDate::GetField")                              \
   V(get_or_create_hash_raw, "get_or_create_hash_raw")                         \
   V(ieee754_acos_function, "base::ieee754::acos")                             \

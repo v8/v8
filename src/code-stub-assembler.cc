@@ -2007,11 +2007,10 @@ TNode<RawPtrT> CodeStubAssembler::LoadFixedTypedArrayOnHeapBackingStore(
   // heap allocated typed array buffer. On heap allocated buffer's backing
   // stores are a fixed offset from the pointer to a typed array's elements. See
   // TypedArrayBuiltinsAssembler::AllocateOnHeapElements().
-  static const intptr_t fta_base_data_offset =
-      FixedTypedArrayBase::kDataOffset - kHeapObjectTag;
-
-  TNode<WordT> backing_store = IntPtrAdd(BitcastTaggedToWord(typed_array),
-                                         IntPtrConstant(fta_base_data_offset));
+  TNode<WordT> backing_store =
+      IntPtrAdd(BitcastTaggedToWord(typed_array),
+                IntPtrConstant(
+                    FixedTypedArrayBase::ExternalPointerValueForOnHeapArray()));
 
 #ifdef DEBUG
   // Verify that this is an on heap backing store.

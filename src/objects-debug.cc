@@ -510,8 +510,8 @@ template <class Traits>
 void FixedTypedArray<Traits>::FixedTypedArrayVerify(Isolate* isolate) {
   CHECK(IsHeapObject() && map()->instance_type() == Traits::kInstanceType);
   if (base_pointer()->ptr() == ptr()) {
-    CHECK(reinterpret_cast<Address>(external_pointer()) ==
-          ExternalReference::fixed_typed_array_base_data_offset().address());
+    CHECK_EQ(reinterpret_cast<Address>(external_pointer()),
+             FixedTypedArrayBase::kDataOffset - kHeapObjectTag);
   } else {
     CHECK_EQ(base_pointer(), Smi::kZero);
   }

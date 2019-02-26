@@ -557,8 +557,7 @@ void* FixedTypedArrayBase::external_pointer() const {
   return reinterpret_cast<void*>(ptr);
 }
 
-void FixedTypedArrayBase::set_external_pointer(void* value,
-                                               WriteBarrierMode mode) {
+void FixedTypedArrayBase::set_external_pointer(void* value) {
   intptr_t ptr = reinterpret_cast<intptr_t>(value);
   WRITE_INTPTR_FIELD(*this, kExternalPointerOffset, ptr);
 }

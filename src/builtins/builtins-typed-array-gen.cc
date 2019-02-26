@@ -119,9 +119,6 @@ TNode<JSArrayBuffer> TypedArrayBuiltinsAssembler::AllocateEmptyOnHeapBuffer(
 
 TNode<FixedTypedArrayBase> TypedArrayBuiltinsAssembler::AllocateOnHeapElements(
     TNode<Map> map, TNode<IntPtrT> total_size, TNode<Number> length) {
-  static const intptr_t fta_base_data_offset =
-      FixedTypedArrayBase::kDataOffset - kHeapObjectTag;
-
   CSA_ASSERT(this, IntPtrGreaterThanOrEqual(total_size, IntPtrConstant(0)));
 
   // Allocate a FixedTypedArray and set the length, base pointer and external
@@ -141,10 +138,10 @@ TNode<FixedTypedArrayBase> TypedArrayBuiltinsAssembler::AllocateOnHeapElements(
   StoreObjectFieldNoWriteBarrier(elements, FixedArray::kLengthOffset, length);
   StoreObjectFieldNoWriteBarrier(
       elements, FixedTypedArrayBase::kBasePointerOffset, elements);
-  StoreObjectFieldNoWriteBarrier(elements,
-                                 FixedTypedArrayBase::kExternalPointerOffset,
-                                 IntPtrConstant(fta_base_data_offset),
-                                 MachineType::PointerRepresentation());
+  StoreObjectFieldNoWriteBarrier(
+      elements, FixedTypedArrayBase::kExternalPointerOffset,
+      IntPtrConstant(FixedTypedArrayBase::ExternalPointerValueForOnHeapArray()),
+      MachineType::PointerRepresentation());
   return CAST(elements);
 }
 
