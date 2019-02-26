@@ -1191,18 +1191,16 @@ class PreParser : public ParserBase<PreParser> {
       const PreParserExpression& function, VariableMode mode, VariableKind kind,
       int beg_pos, int end_pos, ZonePtrList<const AstRawString>* names) {
     DCHECK_NULL(names);
-    if (variable_name.string_ != nullptr) {
-      bool was_added;
-      Variable* var = DeclareVariableName(variable_name.string_, mode, scope(),
-                                          &was_added, beg_pos, kind);
-      if (kind == SLOPPY_BLOCK_FUNCTION_VARIABLE) {
-        Token::Value init =
-            loop_nesting_depth() > 0 ? Token::ASSIGN : Token::INIT;
-        SloppyBlockFunctionStatement* statement =
-            factory()->ast_node_factory()->NewSloppyBlockFunctionStatement(
-                end_pos, var, init);
-        GetDeclarationScope()->DeclareSloppyBlockFunction(statement);
-      }
+    bool was_added;
+    Variable* var = DeclareVariableName(variable_name.string_, mode, scope(),
+                                        &was_added, beg_pos, kind);
+    if (kind == SLOPPY_BLOCK_FUNCTION_VARIABLE) {
+      Token::Value init =
+          loop_nesting_depth() > 0 ? Token::ASSIGN : Token::INIT;
+      SloppyBlockFunctionStatement* statement =
+          factory()->ast_node_factory()->NewSloppyBlockFunctionStatement(
+              end_pos, var, init);
+      GetDeclarationScope()->DeclareSloppyBlockFunction(statement);
     }
     return Statement::Default();
   }
@@ -1213,17 +1211,15 @@ class PreParser : public ParserBase<PreParser> {
       int class_token_pos, int end_pos) {
     // Preparser shouldn't be used in contexts where we need to track the names.
     DCHECK_NULL(names);
-    if (variable_name.string_ != nullptr) {
-      bool was_added;
-      DeclareVariableName(variable_name.string_, VariableMode::kLet, scope(),
-                          &was_added);
-    }
+    bool was_added;
+    DeclareVariableName(variable_name.string_, VariableMode::kLet, scope(),
+                        &was_added);
     return PreParserStatement::Default();
   }
   V8_INLINE void DeclareClassVariable(const PreParserIdentifier& name,
                                       ClassInfo* class_info,
                                       int class_token_pos) {
-    if (name.string_ != nullptr) {
+    if (!IsNull(name)) {
       bool was_added;
       DeclareVariableName(name.string_, VariableMode::kConst, scope(),
                           &was_added);
@@ -1245,7 +1241,7 @@ class PreParser : public ParserBase<PreParser> {
           ClassFieldVariableName(ast_value_factory(),
                                  class_info->computed_field_count),
           VariableMode::kConst, scope(), &was_added);
-    } else if (is_private && property_name.string_ != nullptr) {
+    } else if (is_private) {
       bool was_added;
       DeclareVariableName(property_name.string_, VariableMode::kConst, scope(),
                           &was_added);
@@ -1525,7 +1521,9 @@ class PreParser : public ParserBase<PreParser> {
   }
 
   V8_INLINE PreParserIdentifier EmptyIdentifierString() const {
-    return PreParserIdentifier::Default();
+    PreParserIdentifier result = PreParserIdentifier::Default();
+    result.string_ = ast_value_factory()->empty_string();
+    return result;
   }
 
   // Producing data during the recursive descent.
@@ -1578,17 +1576,13 @@ class PreParser : public ParserBase<PreParser> {
   PreParserExpression ExpressionFromIdentifier(
       const PreParserIdentifier& name, int start_position,
       InferName infer = InferName::kYes) {
-    if (name.string_ != nullptr) {
-      expression_scope()->NewVariable(name.string_, start_position);
-    }
+    expression_scope()->NewVariable(name.string_, start_position);
     return PreParserExpression::FromIdentifier(name);
   }
 
   V8_INLINE void DeclareIdentifier(const PreParserIdentifier& name,
                                    int start_position) {
-    if (name.string_ != nullptr) {
-      expression_scope()->Declare(name.string_, start_position);
-    }
+    expression_scope()->Declare(name.string_, start_position);
   }
 
   V8_INLINE Variable* DeclareCatchVariableName(
