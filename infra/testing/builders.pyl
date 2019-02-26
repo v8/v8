@@ -71,6 +71,9 @@
     ],
   },
   'v8_linux_gcc_rel': {
+    'swarming_dimensions' : {
+      'os': 'Ubuntu-16.04',
+    },
     'tests': [
       {'name': 'v8testing'},
     ],
@@ -729,6 +732,9 @@
     ],
   },
   'V8 Linux gcc 4.8': {
+    'swarming_dimensions' : {
+      'os': 'Ubuntu-16.04',
+    },
     'tests': [
       {'name': 'v8testing'},
     ],
