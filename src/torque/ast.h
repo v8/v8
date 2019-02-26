@@ -87,6 +87,7 @@ namespace torque {
   AST_STATEMENT_NODE_KIND_LIST(V)       \
   AST_DECLARATION_NODE_KIND_LIST(V)     \
   AST_CALLABLE_NODE_KIND_LIST(V)        \
+  V(Identifier)                         \
   V(LabelBlock)
 
 struct AstNode {
@@ -193,6 +194,14 @@ class Ast {
 };
 
 static const char* const kThisParameterName = "this";
+
+// A Identifier is a string with a SourcePosition attached.
+struct Identifier : AstNode {
+  DEFINE_AST_NODE_LEAF_BOILERPLATE(Identifier)
+  Identifier(SourcePosition pos, std::string identifier)
+      : AstNode(kKind, pos), value(std::move(identifier)) {}
+  std::string value;
+};
 
 struct IdentifierExpression : LocationExpression {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(IdentifierExpression)
@@ -532,16 +541,16 @@ struct TailCallStatement : Statement {
 struct VarDeclarationStatement : Statement {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(VarDeclarationStatement)
   VarDeclarationStatement(
-      SourcePosition pos, bool const_qualified, std::string name,
+      SourcePosition pos, bool const_qualified, Identifier* name,
       base::Optional<TypeExpression*> type,
       base::Optional<Expression*> initializer = base::nullopt)
       : Statement(kKind, pos),
         const_qualified(const_qualified),
-        name(std::move(name)),
+        name(name),
         type(type),
         initializer(initializer) {}
   bool const_qualified;
-  std::string name;
+  Identifier* name;
   base::Optional<TypeExpression*> type;
   base::Optional<Expression*> initializer;
 };

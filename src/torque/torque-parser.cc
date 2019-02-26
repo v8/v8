@@ -61,6 +61,9 @@ template <>
 V8_EXPORT_PRIVATE const ParseResultTypeId ParseResultHolder<Expression*>::id =
     ParseResultTypeId::kExpressionPtr;
 template <>
+V8_EXPORT_PRIVATE const ParseResultTypeId ParseResultHolder<Identifier*>::id =
+    ParseResultTypeId::kIdentifierPtr;
+template <>
 V8_EXPORT_PRIVATE const ParseResultTypeId
     ParseResultHolder<LocationExpression*>::id =
         ParseResultTypeId::kLocationExpressionPtr;
@@ -750,7 +753,7 @@ base::Optional<ParseResult> MakeTypeswitchStatement(
   {
     CurrentSourcePosition::Scope current_source_position(expression->pos);
     current_block->statements.push_back(MakeNode<VarDeclarationStatement>(
-        true, "_value", base::nullopt, expression));
+        true, MakeNode<Identifier>("_value"), base::nullopt, expression));
   }
 
   TypeExpression* accumulated_types;
@@ -773,8 +776,8 @@ base::Optional<ParseResult> MakeTypeswitchStatement(
     }
     std::string name = "_case_value";
     if (cases[i].name) name = *cases[i].name;
-    case_block->statements.push_back(
-        MakeNode<VarDeclarationStatement>(true, name, cases[i].type, value));
+    case_block->statements.push_back(MakeNode<VarDeclarationStatement>(
+        true, MakeNode<Identifier>(name), cases[i].type, value));
     case_block->statements.push_back(cases[i].block);
     if (i < cases.size() - 1) {
       BlockStatement* next_block = MakeNode<BlockStatement>();
@@ -829,9 +832,9 @@ base::Optional<ParseResult> MakeVarDeclarationStatement(
   auto kind = child_results->NextAs<std::string>();
   bool const_qualified = kind == "const";
   if (!const_qualified) DCHECK_EQ("let", kind);
-  auto name = child_results->NextAs<std::string>();
-  if (!IsLowerCamelCase(name)) {
-    NamingConventionError("Variable", name, "lowerCamelCase");
+  auto name = child_results->NextAs<Identifier*>();
+  if (!IsLowerCamelCase(name->value)) {
+    NamingConventionError("Variable", name->value, "lowerCamelCase");
   }
 
   auto type = child_results->NextAs<base::Optional<TypeExpression*>>();
@@ -841,8 +844,8 @@ base::Optional<ParseResult> MakeVarDeclarationStatement(
   if (!initializer && !type) {
     ReportError("Declaration is missing a type.");
   }
-  Statement* result = MakeNode<VarDeclarationStatement>(
-      const_qualified, std::move(name), type, initializer);
+  Statement* result = MakeNode<VarDeclarationStatement>(const_qualified, name,
+                                                        type, initializer);
   return ParseResult{result};
 }
 
@@ -964,6 +967,12 @@ base::Optional<ParseResult> MakeExpressionWithSource(
   auto e = child_results->NextAs<Expression*>();
   return ParseResult{
       ExpressionWithSource{e, child_results->matched_input().ToString()}};
+}
+
+base::Optional<ParseResult> MakeIdentifier(ParseResultIterator* child_results) {
+  auto name = child_results->NextAs<std::string>();
+  Identifier* result = MakeNode<Identifier>(std::move(name));
+  return ParseResult{result};
 }
 
 base::Optional<ParseResult> MakeIdentifierExpression(
@@ -1208,6 +1217,9 @@ struct TorqueGrammar : Grammar {
 
   // Result: std::string
   Symbol identifier = {Rule({Pattern(MatchIdentifier)}, YieldMatchedInput)};
+
+  // Result: Identifier
+  Symbol name = {Rule({&identifier}, MakeIdentifier)};
 
   // Result: std::string
   Symbol intrinsicName = {
@@ -1504,13 +1516,13 @@ struct TorqueGrammar : Grammar {
 
   // Result: Statement*
   Symbol varDeclaration = {
-      Rule({OneOf({"let", "const"}), &identifier, optionalTypeSpecifier},
+      Rule({OneOf({"let", "const"}), &name, optionalTypeSpecifier},
            MakeVarDeclarationStatement)};
 
   // Result: Statement*
   Symbol varDeclarationWithInitialization = {
-      Rule({OneOf({"let", "const"}), &identifier, optionalTypeSpecifier,
-            Token("="), expression},
+      Rule({OneOf({"let", "const"}), &name, optionalTypeSpecifier, Token("="),
+            expression},
            MakeVarDeclarationStatement)};
 
   // Result: Statement*

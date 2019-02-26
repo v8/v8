@@ -571,7 +571,7 @@ const Type* ImplementationVisitor::Visit(
     TypeVector lowered_types = LowerType(*type);
     for (const Type* type : lowered_types) {
       assembler().Emit(PushUninitializedInstruction{TypeOracle::GetTopType(
-          "unitialized variable '" + stmt->name + "' of type " +
+          "unitialized variable '" + stmt->name->value + "' of type " +
               type->ToString() + " originally defined at " +
               PositionAsString(stmt->pos),
           type)});
@@ -579,7 +579,7 @@ const Type* ImplementationVisitor::Visit(
     init_result =
         VisitResult(*type, assembler().TopRange(lowered_types.size()));
   }
-  block_bindings->Add(stmt->name,
+  block_bindings->Add(stmt->name->value,
                       LocalValue{stmt->const_qualified, *init_result});
   return TypeOracle::GetVoidType();
 }
@@ -1121,7 +1121,7 @@ const Type* ImplementationVisitor::Visit(ForOfLoopStatement* stmt) {
       element_result = element_scope.Yield(result);
     }
     Binding<LocalValue> element_var_binding{&ValueBindingsManager::Get(),
-                                            stmt->var_declaration->name,
+                                            stmt->var_declaration->name->value,
                                             LocalValue{true, element_result}};
     Visit(stmt->body);
   }
