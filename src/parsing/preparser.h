@@ -1527,7 +1527,11 @@ class PreParser : public ParserBase<PreParser> {
   }
 
   // Producing data during the recursive descent.
-  PreParserIdentifier GetSymbol() const;
+  PreParserIdentifier GetSymbol() const {
+    return PreParserIdentifier::Default();
+  }
+
+  PreParserIdentifier GetIdentifier() const;
 
   V8_INLINE PreParserIdentifier GetNextSymbol() const {
     return PreParserIdentifier::Default();

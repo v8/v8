@@ -995,6 +995,8 @@ class ParserBase {
   // mode.
   IdentifierT ParseNonRestrictedIdentifier();
 
+  // This method should be used to ambiguously parse property names that can
+  // become destructuring identifiers.
   V8_INLINE IdentifierT ParsePropertyName();
 
   ExpressionT ParsePropertyOrPrivatePropertyName();
@@ -1482,7 +1484,7 @@ typename ParserBase<Impl>::IdentifierT
 ParserBase<Impl>::ParseAndClassifyIdentifier(Token::Value next) {
   DCHECK_EQ(scanner()->current_token(), next);
   if (V8_LIKELY(IsInRange(next, Token::IDENTIFIER, Token::ASYNC))) {
-    IdentifierT name = impl()->GetSymbol();
+    IdentifierT name = impl()->GetIdentifier();
     if (V8_UNLIKELY(impl()->IsArguments(name) &&
                     scope()->ShouldBanArguments())) {
       ReportMessage(MessageTemplate::kArgumentsDisallowedInInitializer);
@@ -1500,13 +1502,13 @@ ParserBase<Impl>::ParseAndClassifyIdentifier(Token::Value next) {
   if (next == Token::AWAIT) {
     expression_scope()->RecordAsyncArrowParametersError(
         scanner()->location(), MessageTemplate::kAwaitBindingIdentifier);
-    return impl()->GetSymbol();
+    return impl()->GetIdentifier();
   }
 
   DCHECK(Token::IsStrictReservedWord(next));
   expression_scope()->RecordStrictModeParameterError(
       scanner()->location(), MessageTemplate::kUnexpectedStrictReserved);
-  return impl()->GetSymbol();
+  return impl()->GetIdentifier();
 }
 
 template <class Impl>
@@ -1521,7 +1523,7 @@ typename ParserBase<Impl>::IdentifierT ParserBase<Impl>::ParseIdentifier(
     return impl()->EmptyIdentifierString();
   }
 
-  return impl()->GetSymbol();
+  return impl()->GetIdentifier();
 }
 
 template <typename Impl>
@@ -1541,7 +1543,7 @@ ParserBase<Impl>::ParseNonRestrictedIdentifier() {
 template <typename Impl>
 typename ParserBase<Impl>::IdentifierT ParserBase<Impl>::ParsePropertyName() {
   Token::Value next = Next();
-  if (V8_LIKELY(Token::IsPropertyName(next))) return impl()->GetSymbol();
+  if (V8_LIKELY(Token::IsPropertyName(next))) return impl()->GetIdentifier();
 
   ReportUnexpectedToken(next);
   return impl()->EmptyIdentifierString();
@@ -1574,7 +1576,7 @@ ParserBase<Impl>::ParsePropertyOrPrivatePropertyName() {
       ReportMessage(MessageTemplate::kInvalidPrivateFieldResolution);
     }
 
-    name = impl()->GetSymbol();
+    name = impl()->GetIdentifier();
     key = impl()->ExpressionFromIdentifier(name, pos, InferName::kNo);
   } else {
     ReportUnexpectedToken(next);
@@ -1964,7 +1966,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseProperty(
     Token::Value token = peek();
     if ((token != Token::MUL && prop_info->ParsePropertyKindFromToken(token)) ||
         scanner()->HasLineTerminatorBeforeNext()) {
-      prop_info->name = impl()->GetSymbol();
+      prop_info->name = impl()->GetIdentifier();
       impl()->PushLiteralName(prop_info->name);
       return factory()->NewStringLiteral(prop_info->name, position());
     }
@@ -1984,7 +1986,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseProperty(
       IsInRange(peek(), Token::GET, Token::SET)) {
     Token::Value token = Next();
     if (prop_info->ParsePropertyKindFromToken(peek())) {
-      prop_info->name = impl()->GetSymbol();
+      prop_info->name = impl()->GetIdentifier();
       impl()->PushLiteralName(prop_info->name);
       return factory()->NewStringLiteral(prop_info->name, position());
     }
@@ -2019,7 +2021,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseProperty(
       if (prop_info->kind == ParsePropertyKind::kNotSet) {
         prop_info->ParsePropertyKindFromToken(peek());
       }
-      prop_info->name = impl()->GetSymbol();
+      prop_info->name = impl()->GetIdentifier();
       if (V8_UNLIKELY(prop_info->position ==
                       PropertyPosition::kObjectLiteral)) {
         ReportUnexpectedToken(Token::PRIVATE_NAME);
@@ -2037,7 +2039,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseProperty(
 
     case Token::STRING:
       Consume(Token::STRING);
-      prop_info->name = impl()->GetSymbol();
+      prop_info->name = impl()->GetIdentifier();
       is_array_index = impl()->IsArrayIndex(prop_info->name, &index);
       break;
 
@@ -2130,13 +2132,13 @@ ParserBase<Impl>::ParseClassPropertyDefinition(ClassInfo* class_info,
     if (peek() == Token::LPAREN) {
       prop_info->kind = ParsePropertyKind::kMethod;
       // TODO(bakkot) specialize on 'static'
-      prop_info->name = impl()->GetSymbol();
+      prop_info->name = impl()->GetIdentifier();
       name_expression =
           factory()->NewStringLiteral(prop_info->name, position());
     } else if (peek() == Token::ASSIGN || peek() == Token::SEMICOLON ||
                peek() == Token::RBRACE) {
       // TODO(bakkot) specialize on 'static'
-      prop_info->name = impl()->GetSymbol();
+      prop_info->name = impl()->GetIdentifier();
       name_expression =
           factory()->NewStringLiteral(prop_info->name, position());
     } else {

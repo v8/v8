@@ -777,6 +777,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     return result;
   }
 
+  V8_INLINE const AstRawString* GetIdentifier() const { return GetSymbol(); }
+
   V8_INLINE const AstRawString* GetNextSymbol() const {
     return scanner()->NextSymbol(ast_value_factory());
   }
