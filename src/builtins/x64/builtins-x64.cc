@@ -1889,85 +1889,129 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   //  -- rdi : function (passed through to callee)
   // -----------------------------------
 
-  Label invoke, dont_adapt_arguments, stack_overflow, enough, too_few;
+  Label dont_adapt_arguments, stack_overflow, skip_adapt_arguments;
   __ cmpq(rbx, Immediate(SharedFunctionInfo::kDontAdaptArgumentsSentinel));
   __ j(equal, &dont_adapt_arguments);
-  __ cmpq(rax, rbx);
-  __ j(less, &too_few);
-
-  {  // Enough parameters: Actual >= expected.
-    __ bind(&enough);
-    EnterArgumentsAdaptorFrame(masm);
-    // The registers rcx and r8 will be modified. The register rbx is only read.
-    Generate_StackOverflowCheck(masm, rbx, rcx, &stack_overflow);
-
-    // Copy receiver and all expected arguments.
-    const int offset = StandardFrameConstants::kCallerSPOffset;
-    __ leaq(rax, Operand(rbp, rax, times_system_pointer_size, offset));
-    __ Set(r8, -1);  // account for receiver
-
-    Label copy;
-    __ bind(&copy);
-    __ incq(r8);
-    __ Push(Operand(rax, 0));
-    __ subq(rax, Immediate(kSystemPointerSize));
-    __ cmpq(r8, rbx);
-    __ j(less, &copy);
-    __ jmp(&invoke);
-  }
-
-  {  // Too few parameters: Actual < expected.
-    __ bind(&too_few);
-
-    EnterArgumentsAdaptorFrame(masm);
-    // The registers rcx and r8 will be modified. The register rbx is only read.
-    Generate_StackOverflowCheck(masm, rbx, rcx, &stack_overflow);
-
-    // Copy receiver and all actual arguments.
-    const int offset = StandardFrameConstants::kCallerSPOffset;
-    __ leaq(rdi, Operand(rbp, rax, times_system_pointer_size, offset));
-    __ Set(r8, -1);  // account for receiver
-
-    Label copy;
-    __ bind(&copy);
-    __ incq(r8);
-    __ Push(Operand(rdi, 0));
-    __ subq(rdi, Immediate(kSystemPointerSize));
-    __ cmpq(r8, rax);
-    __ j(less, &copy);
-
-    // Fill remaining expected arguments with undefined values.
-    Label fill;
-    __ LoadRoot(kScratchRegister, RootIndex::kUndefinedValue);
-    __ bind(&fill);
-    __ incq(r8);
-    __ Push(kScratchRegister);
-    __ cmpq(r8, rbx);
-    __ j(less, &fill);
-
-    // Restore function pointer.
-    __ movq(rdi, Operand(rbp, ArgumentsAdaptorFrameConstants::kFunctionOffset));
-  }
-
-  // Call the entry point.
-  __ bind(&invoke);
-  __ movq(rax, rbx);
-  // rax : expected number of arguments
-  // rdx : new target (passed through to callee)
-  // rdi : function (passed through to callee)
-  static_assert(kJavaScriptCallCodeStartRegister == rcx, "ABI mismatch");
-  __ LoadTaggedPointerField(rcx, FieldOperand(rdi, JSFunction::kCodeOffset));
-  __ CallCodeObject(rcx);
-
-  // Store offset of return address for deoptimizer.
-  masm->isolate()->heap()->SetArgumentsAdaptorDeoptPCOffset(masm->pc_offset());
-
-  // Leave frame and return.
-  LeaveArgumentsAdaptorFrame(masm);
-  __ ret(0);
+  __ LoadTaggedPointerField(
+      rcx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
+  __ testl(
+      FieldOperand(rcx, SharedFunctionInfo::kFlagsOffset),
+      Immediate(SharedFunctionInfo::IsSafeToSkipArgumentsAdaptorBit::kMask));
+  __ j(not_zero, &skip_adapt_arguments);
 
   // -------------------------------------------
-  // Dont adapt arguments.
+  // Adapt arguments.
+  // -------------------------------------------
+  {
+    EnterArgumentsAdaptorFrame(masm);
+    Generate_StackOverflowCheck(masm, rbx, rcx, &stack_overflow);
+
+    Label under_application, over_application, invoke;
+    __ cmpq(rax, rbx);
+    __ j(less, &under_application, Label::kNear);
+
+    // Enough parameters: Actual >= expected.
+    __ bind(&over_application);
+    {
+      // Copy receiver and all expected arguments.
+      const int offset = StandardFrameConstants::kCallerSPOffset;
+      __ leaq(r8, Operand(rbp, rax, times_system_pointer_size, offset));
+      __ Set(rax, -1);  // account for receiver
+
+      Label copy;
+      __ bind(&copy);
+      __ incq(rax);
+      __ Push(Operand(r8, 0));
+      __ subq(r8, Immediate(kSystemPointerSize));
+      __ cmpq(rax, rbx);
+      __ j(less, &copy);
+      __ jmp(&invoke, Label::kNear);
+    }
+
+    // Too few parameters: Actual < expected.
+    __ bind(&under_application);
+    {
+      // Copy receiver and all actual arguments.
+      const int offset = StandardFrameConstants::kCallerSPOffset;
+      __ leaq(r9, Operand(rbp, rax, times_system_pointer_size, offset));
+      __ Set(r8, -1);  // account for receiver
+
+      Label copy;
+      __ bind(&copy);
+      __ incq(r8);
+      __ Push(Operand(r9, 0));
+      __ subq(r9, Immediate(kSystemPointerSize));
+      __ cmpq(r8, rax);
+      __ j(less, &copy);
+
+      // Fill remaining expected arguments with undefined values.
+      Label fill;
+      __ LoadRoot(kScratchRegister, RootIndex::kUndefinedValue);
+      __ bind(&fill);
+      __ incq(rax);
+      __ Push(kScratchRegister);
+      __ cmpq(rax, rbx);
+      __ j(less, &fill);
+    }
+
+    // Call the entry point.
+    __ bind(&invoke);
+    // rax : expected number of arguments
+    // rdx : new target (passed through to callee)
+    // rdi : function (passed through to callee)
+    static_assert(kJavaScriptCallCodeStartRegister == rcx, "ABI mismatch");
+    __ LoadTaggedPointerField(rcx, FieldOperand(rdi, JSFunction::kCodeOffset));
+    __ CallCodeObject(rcx);
+
+    // Store offset of return address for deoptimizer.
+    masm->isolate()->heap()->SetArgumentsAdaptorDeoptPCOffset(
+        masm->pc_offset());
+
+    // Leave frame and return.
+    LeaveArgumentsAdaptorFrame(masm);
+    __ ret(0);
+  }
+
+  // -------------------------------------------
+  // Skip adapt arguments.
+  // -------------------------------------------
+  __ bind(&skip_adapt_arguments);
+  {
+    // The callee cannot observe the actual arguments, so it's safe to just
+    // pass the expected arguments by massaging the stack appropriately. See
+    // http://bit.ly/v8-faster-calls-with-arguments-mismatch for details.
+    Label under_application, over_application, invoke;
+    __ PopReturnAddressTo(rcx);
+    __ cmpq(rax, rbx);
+    __ j(less, &under_application, Label::kNear);
+
+    __ bind(&over_application);
+    {
+      // Remove superfluous parameters from the stack.
+      __ xchgq(rax, rbx);
+      __ subq(rbx, rax);
+      __ leaq(rsp, Operand(rsp, rbx, times_system_pointer_size, 0));
+      __ jmp(&invoke, Label::kNear);
+    }
+
+    __ bind(&under_application);
+    {
+      // Fill remaining expected arguments with undefined values.
+      Label fill;
+      __ LoadRoot(kScratchRegister, RootIndex::kUndefinedValue);
+      __ bind(&fill);
+      __ incq(rax);
+      __ Push(kScratchRegister);
+      __ cmpq(rax, rbx);
+      __ j(less, &fill);
+    }
+
+    __ bind(&invoke);
+    __ PushReturnAddressFrom(rcx);
+  }
+
+  // -------------------------------------------
+  // Don't adapt arguments.
   // -------------------------------------------
   __ bind(&dont_adapt_arguments);
   static_assert(kJavaScriptCallCodeStartRegister == rcx, "ABI mismatch");
