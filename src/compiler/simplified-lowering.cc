@@ -1041,7 +1041,8 @@ class RepresentationSelector {
                 MachineRepresentation::kTaggedPointer);
       if (lower()) DeferReplacement(node, node->InputAt(0));
     } else {
-      VisitUnop(node, UseInfo::CheckedHeapObjectAsTaggedPointer(),
+      VisitUnop(node,
+                UseInfo::CheckedHeapObjectAsTaggedPointer(VectorSlotPair()),
                 MachineRepresentation::kTaggedPointer);
     }
   }
@@ -2666,7 +2667,8 @@ class RepresentationSelector {
           VisitUnop(node, UseInfo::AnyTagged(),
                     MachineRepresentation::kTaggedPointer);
         } else {
-          VisitUnop(node, UseInfo::CheckedHeapObjectAsTaggedPointer(),
+          VisitUnop(node,
+                    UseInfo::CheckedHeapObjectAsTaggedPointer(VectorSlotPair()),
                     MachineRepresentation::kTaggedPointer);
         }
         if (lower()) DeferReplacement(node, node->InputAt(0));
@@ -2716,7 +2718,17 @@ class RepresentationSelector {
         return;
       }
       case IrOpcode::kCheckString: {
-        VisitCheck(node, Type::String(), lowering);
+        const CheckParameters& params = CheckParametersOf(node->op());
+        if (InputIs(node, Type::String())) {
+          VisitUnop(node, UseInfo::AnyTagged(),
+                    MachineRepresentation::kTaggedPointer);
+          if (lower()) DeferReplacement(node, node->InputAt(0));
+        } else {
+          VisitUnop(
+              node,
+              UseInfo::CheckedHeapObjectAsTaggedPointer(params.feedback()),
+              MachineRepresentation::kTaggedPointer);
+        }
         return;
       }
       case IrOpcode::kCheckSymbol: {
