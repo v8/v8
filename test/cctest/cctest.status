@@ -79,6 +79,7 @@
   'test-cpu-profiler/JsNativeJsRuntimeJsSample': [SKIP],
   'test-cpu-profiler/JsNativeJsRuntimeJsSampleMultiple': [SKIP],
   'test-cpu-profiler/JsNativeJsSample': [SKIP],
+  'test-cpu-profiler/HotDeoptNoFrameEntry': [SKIP],
   'test-cpu-profiler/SampleWhenFrameIsNotSetup': [SKIP],
   'test-sampler/LibSamplerCollectSample': [SKIP],
 
