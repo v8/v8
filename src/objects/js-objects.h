@@ -100,7 +100,8 @@ class JSReceiver : public HeapObject {
       bool use_set = true);
 
   // Implementation of [[HasProperty]], ECMA-262 5th edition, section 8.12.6.
-  V8_WARN_UNUSED_RESULT static Maybe<bool> HasProperty(LookupIterator* it);
+  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static Maybe<bool> HasProperty(
+      LookupIterator* it);
   V8_WARN_UNUSED_RESULT static inline Maybe<bool> HasProperty(
       Handle<JSReceiver> object, Handle<Name> name);
   V8_WARN_UNUSED_RESULT static inline Maybe<bool> HasElement(
