@@ -86,6 +86,9 @@
   # BUG(7202). The test is flaky.
   'test-cpu-profiler/NativeFrameStackTrace': [SKIP],
 
+  # BUG(7054)
+  'test-cpu-profiler/StaticCollectSampleAPI': [SKIP],
+
   # BUG(2340). Preprocessing stack traces is disabled at the moment.
   'test-heap/PreprocessStackTrace': [FAIL],
 
