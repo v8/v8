@@ -459,6 +459,10 @@ Handle<String> Object::NoSideEffectsToString(Isolate* isolate,
     // -- S y m b o l
     Handle<Symbol> symbol = Handle<Symbol>::cast(input);
 
+    if (symbol->is_private_name()) {
+      return Handle<String>(String::cast(symbol->name()), isolate);
+    }
+
     IncrementalStringBuilder builder(isolate);
     builder.AppendCString("Symbol(");
     if (symbol->name()->IsString()) {
@@ -8434,6 +8438,37 @@ void JSFinalizationGroup::Cleanup(
     // TODO(marja): (spec): Should the iterator be invalidated after the
     // function returns?
   }
+}
+
+MaybeHandle<FixedArray> JSReceiver::GetPrivateEntries(
+    Isolate* isolate, Handle<JSReceiver> receiver) {
+  PropertyFilter key_filter = static_cast<PropertyFilter>(PRIVATE_NAMES_ONLY);
+
+  Handle<FixedArray> keys;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, keys,
+      KeyAccumulator::GetKeys(receiver, KeyCollectionMode::kOwnOnly, key_filter,
+                              GetKeysConversion::kConvertToString),
+      MaybeHandle<FixedArray>());
+
+  Handle<FixedArray> entries =
+      isolate->factory()->NewFixedArray(keys->length() * 2);
+  int length = 0;
+
+  for (int i = 0; i < keys->length(); ++i) {
+    Handle<Object> obj_key = handle(keys->get(i), isolate);
+    Handle<Symbol> key(Symbol::cast(*obj_key), isolate);
+    CHECK(key->is_private_name());
+    Handle<Object> value;
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, value, Object::GetProperty(isolate, receiver, key),
+        MaybeHandle<FixedArray>());
+
+    entries->set(length++, *key);
+    entries->set(length++, *value);
+  }
+  DCHECK_EQ(length, entries->length());
+  return FixedArray::ShrinkOrEmpty(isolate, entries, length);
 }
 
 }  // namespace internal

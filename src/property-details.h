@@ -32,7 +32,6 @@ enum PropertyAttributes {
   // a non-existent property.
 };
 
-
 enum PropertyFilter {
   ALL_PROPERTIES = 0,
   ONLY_WRITABLE = 1,
@@ -41,6 +40,7 @@ enum PropertyFilter {
   SKIP_STRINGS = 8,
   SKIP_SYMBOLS = 16,
   ONLY_ALL_CAN_READ = 32,
+  PRIVATE_NAMES_ONLY = 64,
   ENUMERABLE_STRINGS = ONLY_ENUMERABLE | SKIP_SYMBOLS,
 };
 // Enable fast comparisons of PropertyAttributes against PropertyFilters.

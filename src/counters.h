@@ -727,6 +727,7 @@ class RuntimeCallTimer final {
   V(Date_New)                                              \
   V(Date_NumberValue)                                      \
   V(Debug_Call)                                            \
+  V(debug_GetPrivateFields)                                \
   V(Error_New)                                             \
   V(External_New)                                          \
   V(Float32Array_New)                                      \

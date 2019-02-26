@@ -271,6 +271,9 @@ class JSReceiver : public HeapObject {
 
   bool HasComplexElements();
 
+  V8_WARN_UNUSED_RESULT static MaybeHandle<FixedArray> GetPrivateEntries(
+      Isolate* isolate, Handle<JSReceiver> receiver);
+
   OBJECT_CONSTRUCTORS(JSReceiver, HeapObject);
 };
 

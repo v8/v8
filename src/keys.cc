@@ -69,12 +69,17 @@ void KeyAccumulator::AddKey(Object key, AddKeyConversion convert) {
 }
 
 void KeyAccumulator::AddKey(Handle<Object> key, AddKeyConversion convert) {
-  if (key->IsSymbol()) {
+  if (filter_ == PRIVATE_NAMES_ONLY) {
+    if (!key->IsSymbol()) return;
+    if (!Symbol::cast(*key)->is_private_name()) return;
+  } else if (key->IsSymbol()) {
     if (filter_ & SKIP_SYMBOLS) return;
-    if (Handle<Symbol>::cast(key)->is_private()) return;
+
+    if (Symbol::cast(*key)->is_private()) return;
   } else if (filter_ & SKIP_STRINGS) {
     return;
   }
+
   if (IsShadowed(key)) return;
   if (keys_.is_null()) {
     keys_ = OrderedHashSet::Allocate(isolate_, 16);
@@ -711,6 +716,23 @@ Maybe<bool> KeyAccumulator::CollectOwnPropertyNames(Handle<JSReceiver> receiver,
   return CollectInterceptorKeys(receiver, object, this, kNamed);
 }
 
+void KeyAccumulator::CollectPrivateNames(Handle<JSReceiver> receiver,
+                                         Handle<JSObject> object) {
+  if (object->HasFastProperties()) {
+    int limit = object->map()->NumberOfOwnDescriptors();
+    Handle<DescriptorArray> descs(object->map()->instance_descriptors(),
+                                  isolate_);
+    CollectOwnPropertyNamesInternal<false>(object, this, descs, 0, limit);
+  } else if (object->IsJSGlobalObject()) {
+    GlobalDictionary::CollectKeysTo(
+        handle(JSGlobalObject::cast(*object)->global_dictionary(), isolate_),
+        this);
+  } else {
+    NameDictionary::CollectKeysTo(
+        handle(object->property_dictionary(), isolate_), this);
+  }
+}
+
 Maybe<bool> KeyAccumulator::CollectAccessCheckInterceptorKeys(
     Handle<AccessCheckInfo> access_check_info, Handle<JSReceiver> receiver,
     Handle<JSObject> object) {
@@ -765,6 +787,11 @@ Maybe<bool> KeyAccumulator::CollectOwnKeys(Handle<JSReceiver> receiver,
     }
     filter_ = static_cast<PropertyFilter>(filter_ | ONLY_ALL_CAN_READ);
   }
+  if (filter_ & PRIVATE_NAMES_ONLY) {
+    CollectPrivateNames(receiver, object);
+    return Just(true);
+  }
+
   MAYBE_RETURN(CollectOwnElementIndices(receiver, object), Nothing<bool>());
   MAYBE_RETURN(CollectOwnPropertyNames(receiver, object), Nothing<bool>());
   return Just(true);
@@ -808,6 +835,12 @@ class NameComparator {
 Maybe<bool> KeyAccumulator::CollectOwnJSProxyKeys(Handle<JSReceiver> receiver,
                                                   Handle<JSProxy> proxy) {
   STACK_CHECK(isolate_, Nothing<bool>());
+  if (filter_ == PRIVATE_NAMES_ONLY) {
+    NameDictionary::CollectKeysTo(
+        handle(proxy->property_dictionary(), isolate_), this);
+    return Just(true);
+  }
+
   // 1. Let handler be the value of the [[ProxyHandler]] internal slot of O.
   Handle<Object> handler(proxy->handler(), isolate_);
   // 2. If handler is null, throw a TypeError exception.

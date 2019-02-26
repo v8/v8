@@ -412,8 +412,12 @@ bool Object::HasValidElements() {
 
 bool Object::FilterKey(PropertyFilter filter) {
   DCHECK(!IsPropertyCell());
-  if (IsSymbol()) {
+  if (filter == PRIVATE_NAMES_ONLY) {
+    if (!IsSymbol()) return true;
+    return !Symbol::cast(*this)->is_private_name();
+  } else if (IsSymbol()) {
     if (filter & SKIP_SYMBOLS) return true;
+
     if (Symbol::cast(*this)->is_private()) return true;
   } else {
     if (filter & SKIP_STRINGS) return true;

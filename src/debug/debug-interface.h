@@ -49,6 +49,13 @@ void ClearBreakOnNextFunctionCall(Isolate* isolate);
  */
 MaybeLocal<Array> GetInternalProperties(Isolate* isolate, Local<Value> value);
 
+/**
+ * Returns array of private fields specific to the value type. Result has
+ * the following format: [<name>, <value>,...,<name>, <value>]. Result array
+ * will be allocated in the current context.
+ */
+MaybeLocal<Array> GetPrivateFields(Local<Context> context, Local<Object> value);
+
 enum ExceptionBreakState {
   NoBreakOnException = 0,
   BreakOnUncaughtException = 1,
