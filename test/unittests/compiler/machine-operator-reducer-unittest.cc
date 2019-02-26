@@ -2227,7 +2227,7 @@ TEST_F(MachineOperatorReducerTest, Float64RoundDownWithConstant) {
     Reduction r = Reduce(graph()->NewNode(
         machine()->Float64RoundDown().placeholder(), Float64Constant(x)));
     ASSERT_TRUE(r.Changed());
-    EXPECT_THAT(r.replacement(), IsFloat64Constant(Floor(x)));
+    EXPECT_THAT(r.replacement(), IsFloat64Constant(std::floor(x)));
   }
 }
 

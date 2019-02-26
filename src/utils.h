@@ -220,14 +220,6 @@ T Nabs(T a) {
   return a < 0 ? a : -a;
 }
 
-// Floor(-0.0) == 0.0
-inline double Floor(double x) {
-#if V8_CC_MSVC
-  if (x == 0) return x;  // Fix for issue 3477.
-#endif
-  return std::floor(x);
-}
-
 inline double Modulo(double x, double y) {
 #if defined(V8_OS_WIN)
   // Workaround MS fmod bugs. ECMA-262 says:

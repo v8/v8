@@ -1461,7 +1461,7 @@ Reduction MachineOperatorReducer::ReduceFloat64RoundDown(Node* node) {
   DCHECK_EQ(IrOpcode::kFloat64RoundDown, node->opcode());
   Float64Matcher m(node->InputAt(0));
   if (m.HasValue()) {
-    return ReplaceFloat64(Floor(m.Value()));
+    return ReplaceFloat64(std::floor(m.Value()));
   }
   return NoChange();
 }
