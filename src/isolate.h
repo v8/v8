@@ -20,7 +20,7 @@
 #include "src/base/macros.h"
 #include "src/builtins/builtins.h"
 #include "src/contexts.h"
-#include "src/debug/debug-interface.h"
+#include "src/debug/interface-types.h"
 #include "src/execution.h"
 #include "src/futex-emulation.h"
 #include "src/globals.h"
@@ -50,6 +50,7 @@ class RandomNumberGenerator;
 
 namespace debug {
 class ConsoleDelegate;
+class AsyncEventDelegate;
 }
 
 namespace internal {
@@ -359,47 +360,47 @@ V8_EXPORT_PRIVATE void FreeCurrentEmbeddedBlob();
 
 typedef std::vector<HeapObject> DebugObjectCache;
 
-#define ISOLATE_INIT_LIST(V)                                                  \
-  /* Assembler state. */                                                      \
-  V(FatalErrorCallback, exception_behavior, nullptr)                          \
-  V(OOMErrorCallback, oom_behavior, nullptr)                                  \
-  V(LogEventCallback, event_logger, nullptr)                                  \
-  V(AllowCodeGenerationFromStringsCallback, allow_code_gen_callback, nullptr) \
-  V(AllowWasmCodeGenerationCallback, allow_wasm_code_gen_callback, nullptr)   \
-  V(ExtensionCallback, wasm_module_callback, &NoExtension)                    \
-  V(ExtensionCallback, wasm_instance_callback, &NoExtension)                  \
-  V(WasmStreamingCallback, wasm_streaming_callback, nullptr)                  \
-  V(WasmThreadsEnabledCallback, wasm_threads_enabled_callback, nullptr)       \
-  /* State for Relocatable. */                                                \
-  V(Relocatable*, relocatable_top, nullptr)                                   \
-  V(DebugObjectCache*, string_stream_debug_object_cache, nullptr)             \
-  V(Object, string_stream_current_security_token, Object())                   \
-  V(const intptr_t*, api_external_references, nullptr)                        \
-  V(AddressToIndexHashMap*, external_reference_map, nullptr)                  \
-  V(HeapObjectToIndexHashMap*, root_index_map, nullptr)                       \
-  V(MicrotaskQueue*, default_microtask_queue, nullptr)                        \
-  V(CompilationStatistics*, turbo_statistics, nullptr)                        \
-  V(CodeTracer*, code_tracer, nullptr)                                        \
-  V(uint32_t, per_isolate_assert_data, 0xFFFFFFFFu)                           \
-  V(PromiseRejectCallback, promise_reject_callback, nullptr)                  \
-  V(const v8::StartupData*, snapshot_blob, nullptr)                           \
-  V(int, code_and_metadata_size, 0)                                           \
-  V(int, bytecode_and_metadata_size, 0)                                       \
-  V(int, external_script_source_size, 0)                                      \
-  /* true if being profiled. Causes collection of extra compile info. */      \
-  V(bool, is_profiling, false)                                                \
-  /* true if a trace is being formatted through Error.prepareStackTrace. */   \
-  V(bool, formatting_stack_trace, false)                                      \
-  /* Perform side effect checks on function call and API callbacks. */        \
-  V(DebugInfo::ExecutionMode, debug_execution_mode, DebugInfo::kBreakpoints)  \
-  /* Current code coverage mode */                                            \
-  V(debug::Coverage::Mode, code_coverage_mode, debug::Coverage::kBestEffort)  \
-  V(debug::TypeProfile::Mode, type_profile_mode, debug::TypeProfile::kNone)   \
-  V(int, last_stack_frame_info_id, 0)                                         \
-  V(int, last_console_context_id, 0)                                          \
-  V(v8_inspector::V8Inspector*, inspector, nullptr)                           \
-  V(bool, next_v8_call_is_safe_for_termination, false)                        \
-  V(bool, only_terminate_in_safe_scope, false)                                \
+#define ISOLATE_INIT_LIST(V)                                                   \
+  /* Assembler state. */                                                       \
+  V(FatalErrorCallback, exception_behavior, nullptr)                           \
+  V(OOMErrorCallback, oom_behavior, nullptr)                                   \
+  V(LogEventCallback, event_logger, nullptr)                                   \
+  V(AllowCodeGenerationFromStringsCallback, allow_code_gen_callback, nullptr)  \
+  V(AllowWasmCodeGenerationCallback, allow_wasm_code_gen_callback, nullptr)    \
+  V(ExtensionCallback, wasm_module_callback, &NoExtension)                     \
+  V(ExtensionCallback, wasm_instance_callback, &NoExtension)                   \
+  V(WasmStreamingCallback, wasm_streaming_callback, nullptr)                   \
+  V(WasmThreadsEnabledCallback, wasm_threads_enabled_callback, nullptr)        \
+  /* State for Relocatable. */                                                 \
+  V(Relocatable*, relocatable_top, nullptr)                                    \
+  V(DebugObjectCache*, string_stream_debug_object_cache, nullptr)              \
+  V(Object, string_stream_current_security_token, Object())                    \
+  V(const intptr_t*, api_external_references, nullptr)                         \
+  V(AddressToIndexHashMap*, external_reference_map, nullptr)                   \
+  V(HeapObjectToIndexHashMap*, root_index_map, nullptr)                        \
+  V(MicrotaskQueue*, default_microtask_queue, nullptr)                         \
+  V(CompilationStatistics*, turbo_statistics, nullptr)                         \
+  V(CodeTracer*, code_tracer, nullptr)                                         \
+  V(uint32_t, per_isolate_assert_data, 0xFFFFFFFFu)                            \
+  V(PromiseRejectCallback, promise_reject_callback, nullptr)                   \
+  V(const v8::StartupData*, snapshot_blob, nullptr)                            \
+  V(int, code_and_metadata_size, 0)                                            \
+  V(int, bytecode_and_metadata_size, 0)                                        \
+  V(int, external_script_source_size, 0)                                       \
+  /* true if being profiled. Causes collection of extra compile info. */       \
+  V(bool, is_profiling, false)                                                 \
+  /* true if a trace is being formatted through Error.prepareStackTrace. */    \
+  V(bool, formatting_stack_trace, false)                                       \
+  /* Perform side effect checks on function call and API callbacks. */         \
+  V(DebugInfo::ExecutionMode, debug_execution_mode, DebugInfo::kBreakpoints)   \
+  /* Current code coverage mode */                                             \
+  V(debug::CoverageMode, code_coverage_mode, debug::CoverageMode::kBestEffort) \
+  V(debug::TypeProfileMode, type_profile_mode, debug::TypeProfileMode::kNone)  \
+  V(int, last_stack_frame_info_id, 0)                                          \
+  V(int, last_console_context_id, 0)                                           \
+  V(v8_inspector::V8Inspector*, inspector, nullptr)                            \
+  V(bool, next_v8_call_is_safe_for_termination, false)                         \
+  V(bool, only_terminate_in_safe_scope, false)                                 \
   V(bool, detailed_source_positions_for_profiling, FLAG_detailed_line_info)
 
 #define THREAD_LOCAL_TOP_ACCESSOR(type, name)                         \
@@ -1048,23 +1049,23 @@ class Isolate final : private HiddenFactory {
   bool NeedsDetailedOptimizedCodeLineInfo() const;
 
   bool is_best_effort_code_coverage() const {
-    return code_coverage_mode() == debug::Coverage::kBestEffort;
+    return code_coverage_mode() == debug::CoverageMode::kBestEffort;
   }
 
   bool is_precise_count_code_coverage() const {
-    return code_coverage_mode() == debug::Coverage::kPreciseCount;
+    return code_coverage_mode() == debug::CoverageMode::kPreciseCount;
   }
 
   bool is_precise_binary_code_coverage() const {
-    return code_coverage_mode() == debug::Coverage::kPreciseBinary;
+    return code_coverage_mode() == debug::CoverageMode::kPreciseBinary;
   }
 
   bool is_block_count_code_coverage() const {
-    return code_coverage_mode() == debug::Coverage::kBlockCount;
+    return code_coverage_mode() == debug::CoverageMode::kBlockCount;
   }
 
   bool is_block_binary_code_coverage() const {
-    return code_coverage_mode() == debug::Coverage::kBlockBinary;
+    return code_coverage_mode() == debug::CoverageMode::kBlockBinary;
   }
 
   bool is_block_code_coverage() const {
@@ -1072,7 +1073,7 @@ class Isolate final : private HiddenFactory {
   }
 
   bool is_collecting_type_profile() const {
-    return type_profile_mode() == debug::TypeProfile::kCollect;
+    return type_profile_mode() == debug::TypeProfileMode::kCollect;
   }
 
   // Collect feedback vectors with data for code coverage or type profile.

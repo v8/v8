@@ -7,7 +7,6 @@
 
 #include "include/v8-testing.h"
 #include "src/contexts.h"
-#include "src/debug/debug-interface.h"
 #include "src/detachable-vector.h"
 #include "src/heap/factory.h"
 #include "src/isolate.h"
@@ -27,6 +26,12 @@ namespace v8 {
 namespace internal {
 class JSArrayBufferView;
 }  // namespace internal
+
+namespace debug {
+class GeneratorObject;
+class Script;
+class WeakMap;
+}  // namespace debug
 
 // Constants used in the implementation of the API.  The most natural thing
 // would usually be to place these with the classes that use them, but

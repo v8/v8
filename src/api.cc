@@ -9811,7 +9811,7 @@ debug::Coverage debug::Coverage::CollectBestEffort(Isolate* isolate) {
       i::Coverage::CollectBestEffort(reinterpret_cast<i::Isolate*>(isolate)));
 }
 
-void debug::Coverage::SelectMode(Isolate* isolate, debug::Coverage::Mode mode) {
+void debug::Coverage::SelectMode(Isolate* isolate, debug::CoverageMode mode) {
   i::Coverage::SelectMode(reinterpret_cast<i::Isolate*>(isolate), mode);
 }
 
@@ -9851,7 +9851,7 @@ debug::TypeProfile debug::TypeProfile::Collect(Isolate* isolate) {
 }
 
 void debug::TypeProfile::SelectMode(Isolate* isolate,
-                                    debug::TypeProfile::Mode mode) {
+                                    debug::TypeProfileMode mode) {
   i::TypeProfile::SelectMode(reinterpret_cast<i::Isolate*>(isolate), mode);
 }
 

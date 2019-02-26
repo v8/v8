@@ -2960,7 +2960,7 @@ int Shell::RunMain(Isolate* isolate, int argc, char* argv[], bool last_run) {
   {
     SetWaitUntilDone(isolate, false);
     if (options.lcov_file) {
-      debug::Coverage::SelectMode(isolate, debug::Coverage::kBlockCount);
+      debug::Coverage::SelectMode(isolate, debug::CoverageMode::kBlockCount);
     }
     HandleScope scope(isolate);
     Local<Context> context = CreateEvaluationContext(isolate);

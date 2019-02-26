@@ -225,25 +225,6 @@ class V8_EXPORT_PRIVATE Coverage {
  public:
   MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(Coverage);
 
-  enum Mode {
-    // Make use of existing information in feedback vectors on the heap.
-    // Only return a yes/no result. Optimization and GC are not affected.
-    // Collecting best effort coverage does not reset counters.
-    kBestEffort,
-    // Disable optimization and prevent feedback vectors from being garbage
-    // collected in order to preserve precise invocation counts. Collecting
-    // precise count coverage resets counters to get incremental updates.
-    kPreciseCount,
-    // We are only interested in a yes/no result for the function. Optimization
-    // and GC can be allowed once a function has been invoked. Collecting
-    // precise binary coverage resets counters for incremental updates.
-    kPreciseBinary,
-    // Similar to the precise coverage modes but provides coverage at a
-    // lower granularity. Design doc: goo.gl/lA2swZ.
-    kBlockCount,
-    kBlockBinary,
-  };
-
   // Forward declarations.
   class ScriptData;
   class FunctionData;
@@ -310,7 +291,7 @@ class V8_EXPORT_PRIVATE Coverage {
   static Coverage CollectPrecise(Isolate* isolate);
   static Coverage CollectBestEffort(Isolate* isolate);
 
-  static void SelectMode(Isolate* isolate, Mode mode);
+  static void SelectMode(Isolate* isolate, CoverageMode mode);
 
   size_t ScriptCount() const;
   ScriptData GetScriptData(size_t i) const;
@@ -329,10 +310,6 @@ class V8_EXPORT_PRIVATE TypeProfile {
  public:
   MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(TypeProfile);
 
-  enum Mode {
-    kNone,
-    kCollect,
-  };
   class ScriptData;  // Forward declaration.
 
   class V8_EXPORT_PRIVATE Entry {
@@ -372,7 +349,7 @@ class V8_EXPORT_PRIVATE TypeProfile {
 
   static TypeProfile Collect(Isolate* isolate);
 
-  static void SelectMode(Isolate* isolate, Mode mode);
+  static void SelectMode(Isolate* isolate, TypeProfileMode mode);
 
   size_t ScriptCount() const;
   ScriptData GetScriptData(size_t i) const;
