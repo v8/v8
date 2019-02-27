@@ -9,6 +9,7 @@
 #include "src/objects-inl.h"
 #include "src/objects.h"
 #include "src/ostreams.h"
+#include "src/runtime/runtime.h"
 #include "src/snapshot/code-serializer.h"
 #include "src/snapshot/serializer-common.h"
 #include "src/utils.h"
@@ -241,15 +242,24 @@ class ExternalReferenceList {
               std::end(tags_ordered_by_address_), addr_by_tag_less_than);
   }
 
-#define COUNT_EXTERNAL_REFERENCE(name, desc) +1
-  static constexpr uint32_t kNumExternalReferences =
+#define COUNT_EXTERNAL_REFERENCE(name, ...) +1
+  static constexpr uint32_t kNumExternalReferencesList =
       EXTERNAL_REFERENCE_LIST(COUNT_EXTERNAL_REFERENCE);
+  static constexpr uint32_t kNumExternalReferencesIntrinsics =
+      FOR_EACH_INTRINSIC(COUNT_EXTERNAL_REFERENCE);
+  static constexpr uint32_t kNumExternalReferences =
+      kNumExternalReferencesList + kNumExternalReferencesIntrinsics;
 #undef COUNT_EXTERNAL_REFERENCE
 
-#define EXT_REF_ADDR(name, desc) ExternalReference::name().address(),
   Address external_reference_by_tag_[kNumExternalReferences] = {
-      EXTERNAL_REFERENCE_LIST(EXT_REF_ADDR)};
+#define EXT_REF_ADDR(name, desc) ExternalReference::name().address(),
+      EXTERNAL_REFERENCE_LIST(EXT_REF_ADDR)
 #undef EXT_REF_ADDR
+#define RUNTIME_ADDR(name, ...) \
+  ExternalReference::Create(Runtime::k##name).address(),
+          FOR_EACH_INTRINSIC(RUNTIME_ADDR)
+#undef RUNTIME_ADDR
+  };
   uint32_t tags_ordered_by_address_[kNumExternalReferences];
   DISALLOW_COPY_AND_ASSIGN(ExternalReferenceList);
 };
