@@ -462,7 +462,8 @@ void ScavengeVisitor::VisitEmbeddedPointer(Code host, RelocInfo* rinfo) {
 template <typename TSlot>
 void ScavengeVisitor::VisitHeapObjectImpl(TSlot slot, HeapObject heap_object) {
   if (Heap::InYoungGeneration(heap_object)) {
-    scavenger_->ScavengeObject(HeapObjectSlot(slot), heap_object);
+    using THeapObjectSlot = typename TSlot::THeapObjectSlot;
+    scavenger_->ScavengeObject(THeapObjectSlot(slot), heap_object);
   }
 }
 

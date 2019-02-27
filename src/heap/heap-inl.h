@@ -34,6 +34,7 @@
 #include "src/objects/property-cell.h"
 #include "src/objects/scope-info.h"
 #include "src/objects/script-inl.h"
+#include "src/objects/slots-inl.h"
 #include "src/objects/struct-inl.h"
 #include "src/profiler/heap-profiler.h"
 #include "src/string-hasher.h"
@@ -405,8 +406,7 @@ bool Heap::ShouldBePromoted(Address old_address) {
 
 void Heap::CopyBlock(Address dst, Address src, int byte_size) {
   DCHECK(IsAligned(byte_size, kTaggedSize));
-  STATIC_ASSERT(kTaggedSize == kSystemPointerSize);
-  CopyWords(dst, src, static_cast<size_t>(byte_size / kTaggedSize));
+  CopyTagged(dst, src, static_cast<size_t>(byte_size / kTaggedSize));
 }
 
 template <Heap::FindMementoMode mode>

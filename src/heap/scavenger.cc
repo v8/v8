@@ -137,6 +137,8 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
           HeapObject::cast(target)));
     } else if (record_slots_ && MarkCompactCollector::IsOnEvacuationCandidate(
                                     HeapObject::cast(target))) {
+      // We should never try to record off-heap slots.
+      DCHECK((std::is_same<THeapObjectSlot, HeapObjectSlot>::value));
       // We cannot call MarkCompactCollector::RecordSlot because that checks
       // that the host page is not in young generation, which does not hold
       // for pending large pages.

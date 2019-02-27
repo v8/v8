@@ -570,12 +570,11 @@ class MemoryChunk {
   // Some callers rely on the fact that this can operate on both
   // tagged and aligned object addresses.
   inline uint32_t AddressToMarkbitIndex(Address addr) const {
-    return static_cast<uint32_t>(addr - this->address()) >>
-           kSystemPointerSizeLog2;
+    return static_cast<uint32_t>(addr - this->address()) >> kTaggedSizeLog2;
   }
 
   inline Address MarkbitIndexToAddress(uint32_t index) const {
-    return this->address() + (index << kSystemPointerSizeLog2);
+    return this->address() + (index << kTaggedSizeLog2);
   }
 
   template <AccessMode access_mode = AccessMode::NON_ATOMIC>
