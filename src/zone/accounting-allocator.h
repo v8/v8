@@ -5,10 +5,10 @@
 #ifndef V8_ZONE_ACCOUNTING_ALLOCATOR_H_
 #define V8_ZONE_ACCOUNTING_ALLOCATOR_H_
 
+#include <atomic>
+
 #include "include/v8-platform.h"
 #include "include/v8.h"
-#include "src/base/atomic-utils.h"
-#include "src/base/atomicops.h"
 #include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/semaphore.h"
@@ -32,10 +32,17 @@ class V8_EXPORT_PRIVATE AccountingAllocator {
   // them if the pool is already full or memory pressure is high.
   virtual void ReturnSegment(Segment* memory);
 
-  size_t GetCurrentMemoryUsage() const;
-  size_t GetMaxMemoryUsage() const;
+  size_t GetCurrentMemoryUsage() const {
+    return current_memory_usage_.load(std::memory_order_relaxed);
+  }
 
-  size_t GetCurrentPoolSize() const;
+  size_t GetMaxMemoryUsage() const {
+    return max_memory_usage_.load(std::memory_order_relaxed);
+  }
+
+  size_t GetCurrentPoolSize() const {
+    return current_pool_size_.load(std::memory_order_relaxed);
+  }
 
   void MemoryPressureNotification(MemoryPressureLevel level);
   // Configures the zone segment pool size limits so the pool does not
@@ -77,11 +84,12 @@ class V8_EXPORT_PRIVATE AccountingAllocator {
 
   base::Mutex unused_segments_mutex_;
 
-  base::AtomicWord current_memory_usage_ = 0;
-  base::AtomicWord max_memory_usage_ = 0;
-  base::AtomicWord current_pool_size_ = 0;
+  std::atomic<size_t> current_memory_usage_{0};
+  std::atomic<size_t> max_memory_usage_{0};
+  std::atomic<size_t> current_pool_size_{0};
 
-  base::AtomicValue<MemoryPressureLevel> memory_pressure_level_;
+  std::atomic<MemoryPressureLevel> memory_pressure_level_{
+      MemoryPressureLevel::kNone};
 
   DISALLOW_COPY_AND_ASSIGN(AccountingAllocator);
 };

@@ -18,7 +18,6 @@ namespace internal {
 AccountingAllocator::AccountingAllocator() : unused_segments_mutex_() {
   static const size_t kDefaultBucketMaxSize = 5;
 
-  memory_pressure_level_.SetValue(MemoryPressureLevel::kNone);
   std::fill(unused_segments_heads_, unused_segments_heads_ + kNumberBuckets,
             nullptr);
   std::fill(unused_segments_sizes_, unused_segments_sizes_ + kNumberBuckets, 0);
@@ -30,7 +29,7 @@ AccountingAllocator::~AccountingAllocator() { ClearPool(); }
 
 void AccountingAllocator::MemoryPressureNotification(
     MemoryPressureLevel level) {
-  memory_pressure_level_.SetValue(level);
+  memory_pressure_level_.store(level);
 
   if (level != MemoryPressureLevel::kNone) {
     ClearPool();
@@ -86,11 +85,12 @@ Segment* AccountingAllocator::GetSegment(size_t bytes) {
 Segment* AccountingAllocator::AllocateSegment(size_t bytes) {
   void* memory = AllocWithRetry(bytes);
   if (memory != nullptr) {
-    base::AtomicWord current =
-        base::Relaxed_AtomicIncrement(&current_memory_usage_, bytes);
-    base::AtomicWord max = base::Relaxed_Load(&max_memory_usage_);
-    while (current > max) {
-      max = base::Relaxed_CompareAndSwap(&max_memory_usage_, max, current);
+    size_t current =
+        current_memory_usage_.fetch_add(bytes, std::memory_order_relaxed);
+    size_t max = max_memory_usage_.load(std::memory_order_relaxed);
+    while (current > max && !max_memory_usage_.compare_exchange_weak(
+                                max, current, std::memory_order_relaxed)) {
+      // {max} was updated by {compare_exchange_weak}; retry.
     }
   }
   return reinterpret_cast<Segment*>(memory);
@@ -99,7 +99,7 @@ Segment* AccountingAllocator::AllocateSegment(size_t bytes) {
 void AccountingAllocator::ReturnSegment(Segment* segment) {
   segment->ZapContents();
 
-  if (memory_pressure_level_.Value() != MemoryPressureLevel::kNone) {
+  if (memory_pressure_level_.load() != MemoryPressureLevel::kNone) {
     FreeSegment(segment);
   } else if (!AddSegmentToPool(segment)) {
     FreeSegment(segment);
@@ -107,22 +107,9 @@ void AccountingAllocator::ReturnSegment(Segment* segment) {
 }
 
 void AccountingAllocator::FreeSegment(Segment* memory) {
-  base::Relaxed_AtomicIncrement(&current_memory_usage_,
-                                -static_cast<base::AtomicWord>(memory->size()));
+  current_memory_usage_.fetch_sub(memory->size(), std::memory_order_relaxed);
   memory->ZapHeader();
   free(memory);
-}
-
-size_t AccountingAllocator::GetCurrentMemoryUsage() const {
-  return base::Relaxed_Load(&current_memory_usage_);
-}
-
-size_t AccountingAllocator::GetMaxMemoryUsage() const {
-  return base::Relaxed_Load(&max_memory_usage_);
-}
-
-size_t AccountingAllocator::GetCurrentPoolSize() const {
-  return base::Relaxed_Load(&current_pool_size_);
 }
 
 Segment* AccountingAllocator::GetSegmentFromPool(size_t requested_size) {
@@ -147,8 +134,7 @@ Segment* AccountingAllocator::GetSegmentFromPool(size_t requested_size) {
       segment->set_next(nullptr);
 
       unused_segments_sizes_[power]--;
-      base::Relaxed_AtomicIncrement(
-          &current_pool_size_, -static_cast<base::AtomicWord>(segment->size()));
+      current_pool_size_.fetch_sub(segment->size(), std::memory_order_relaxed);
     }
   }
 
@@ -181,7 +167,7 @@ bool AccountingAllocator::AddSegmentToPool(Segment* segment) {
 
     segment->set_next(unused_segments_heads_[power]);
     unused_segments_heads_[power] = segment;
-    base::Relaxed_AtomicIncrement(&current_pool_size_, size);
+    current_pool_size_.fetch_add(size, std::memory_order_relaxed);
     unused_segments_sizes_[power]++;
   }
 
