@@ -1354,17 +1354,24 @@ class ThreadImpl {
     CommitPc(pc);
   }
 
+  // Check if there is room for a function's activation.
+  void EnsureStackSpaceForCall(InterpreterCode* code) {
+    EnsureStackSpace(code->side_table->max_stack_height_ +
+                     code->locals.type_list.size());
+    DCHECK_GE(StackHeight(), code->function->sig->parameter_count());
+  }
+
   // Push a frame with arguments already on the stack.
   void PushFrame(InterpreterCode* code) {
     DCHECK_NOT_NULL(code);
     DCHECK_NOT_NULL(code->side_table);
-    EnsureStackSpace(code->side_table->max_stack_height_ +
-                     code->locals.type_list.size());
+    EnsureStackSpaceForCall(code);
 
     ++num_interpreted_calls_;
     size_t arity = code->function->sig->parameter_count();
     // The parameters will overlap the arguments already on the stack.
     DCHECK_GE(StackHeight(), arity);
+
     frames_.push_back({code, 0, StackHeight() - arity});
     frames_.back().pc = InitLocals(code);
     TRACE("  => PushFrame #%zu (#%u @%zu)\n", frames_.size() - 1,
@@ -1481,6 +1488,41 @@ class ThreadImpl {
     *pc = frames_.back().pc;
     *limit = target->end - target->start;
     decoder->Reset(target->start, target->end);
+    return true;
+  }
+
+  // Returns true if the tail call was successful, false if the stack check
+  // failed.
+  bool DoReturnCall(Decoder* decoder, InterpreterCode* target, pc_t* pc,
+                    pc_t* limit) V8_WARN_UNUSED_RESULT {
+    DCHECK_NOT_NULL(target);
+    DCHECK_NOT_NULL(target->side_table);
+    EnsureStackSpaceForCall(target);
+
+    ++num_interpreted_calls_;
+
+    Frame* top = &frames_.back();
+
+    // Drop everything except current parameters.
+    WasmValue* sp_dest = stack_.get() + top->sp;
+    size_t arity = target->function->sig->parameter_count();
+
+    DoStackTransfer(sp_dest, arity);
+
+    *limit = target->end - target->start;
+    decoder->Reset(target->start, target->end);
+
+    // Rebuild current frame to look like a call to callee.
+    top->code = target;
+    top->pc = 0;
+    top->sp = StackHeight() - arity;
+    top->pc = InitLocals(target);
+
+    *pc = top->pc;
+
+    TRACE("  => ReturnCall #%zu (#%u @%zu)\n", frames_.size() - 1,
+          target->function->func_index, top->pc);
+
     return true;
   }
 
@@ -2540,8 +2582,7 @@ class ThreadImpl {
             switch (result.type) {
               case ExternalCallResult::INTERNAL:
                 // The import is a function of this instance. Call it directly.
-                target = result.interpreter_code;
-                DCHECK(!target->function->imported);
+                DCHECK(!result.interpreter_code->function->imported);
                 break;
               case ExternalCallResult::INVALID_FUNC:
               case ExternalCallResult::SIGNATURE_MISMATCH:
@@ -2565,6 +2606,7 @@ class ThreadImpl {
           PAUSE_IF_BREAK_FLAG(AfterCall);
           continue;  // Do not bump pc.
         } break;
+
         case kExprCallIndirect: {
           CallIndirectImmediate<Decoder::kNoValidate> imm(&decoder,
                                                           code->at(pc));
@@ -2597,6 +2639,91 @@ class ThreadImpl {
               continue;  // Do not bump pc.
           }
         } break;
+
+        case kExprReturnCall: {
+          CallFunctionImmediate<Decoder::kNoValidate> imm(&decoder,
+                                                          code->at(pc));
+          InterpreterCode* target = codemap()->GetCode(imm.index);
+
+          if (!target->function->imported) {
+            // Enter internal found function.
+            if (!DoReturnCall(&decoder, target, &pc, &limit)) return;
+            code = target;
+            PAUSE_IF_BREAK_FLAG(AfterCall);
+
+            continue;  // Do not bump pc.
+          }
+          // Function is imported.
+          CommitPc(pc);
+          ExternalCallResult result =
+              CallImportedFunction(target->function->func_index);
+          switch (result.type) {
+            case ExternalCallResult::INTERNAL:
+              // Cannot import internal functions.
+            case ExternalCallResult::INVALID_FUNC:
+            case ExternalCallResult::SIGNATURE_MISMATCH:
+              // Direct calls are checked statically.
+              UNREACHABLE();
+            case ExternalCallResult::EXTERNAL_RETURNED:
+              len = 1 + imm.length;
+              break;
+            case ExternalCallResult::EXTERNAL_UNWOUND:
+              return;
+            case ExternalCallResult::EXTERNAL_CAUGHT:
+              ReloadFromFrameOnException(&decoder, &code, &pc, &limit);
+              continue;
+          }
+          size_t arity = code->function->sig->return_count();
+          if (!DoReturn(&decoder, &code, &pc, &limit, arity)) return;
+          PAUSE_IF_BREAK_FLAG(AfterReturn);
+          continue;
+        } break;
+
+        case kExprReturnCallIndirect: {
+          CallIndirectImmediate<Decoder::kNoValidate> imm(&decoder,
+                                                          code->at(pc));
+          uint32_t entry_index = Pop().to<uint32_t>();
+          // Assume only one table for now.
+          DCHECK_LE(module()->tables.size(), 1u);
+          CommitPc(pc);  // TODO(wasm): Be more disciplined about committing PC.
+
+          // TODO(wasm): Calling functions needs some refactoring to avoid
+          // multi-exit code like this.
+          ExternalCallResult result =
+              CallIndirectFunction(0, entry_index, imm.sig_index);
+          switch (result.type) {
+            case ExternalCallResult::INTERNAL: {
+              InterpreterCode* target = result.interpreter_code;
+
+              DCHECK(!target->function->imported);
+
+              // The function belongs to this instance. Enter it directly.
+              if (!DoReturnCall(&decoder, target, &pc, &limit)) return;
+              code = result.interpreter_code;
+              PAUSE_IF_BREAK_FLAG(AfterCall);
+              continue;  // Do not bump pc.
+            }
+            case ExternalCallResult::INVALID_FUNC:
+              return DoTrap(kTrapFuncInvalid, pc);
+            case ExternalCallResult::SIGNATURE_MISMATCH:
+              return DoTrap(kTrapFuncSigMismatch, pc);
+            case ExternalCallResult::EXTERNAL_RETURNED: {
+              len = 1 + imm.length;
+
+              size_t arity = code->function->sig->return_count();
+              if (!DoReturn(&decoder, &code, &pc, &limit, arity)) return;
+              PAUSE_IF_BREAK_FLAG(AfterCall);
+              break;
+            }
+            case ExternalCallResult::EXTERNAL_UNWOUND:
+              return;
+
+            case ExternalCallResult::EXTERNAL_CAUGHT:
+              ReloadFromFrameOnException(&decoder, &code, &pc, &limit);
+              break;
+          }
+        } break;
+
         case kExprGetGlobal: {
           GlobalIndexImmediate<Decoder::kNoValidate> imm(&decoder,
                                                          code->at(pc));
