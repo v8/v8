@@ -187,7 +187,7 @@ class CompactProgressIndicator(ProgressIndicator):
         print(self._templates['stdout'] % stdout)
       if len(stderr):
         print(self._templates['stderr'] % stderr)
-      print("Command: %s" % result.cmd)
+      print("Command: %s" % result.cmd.to_string(relative=True))
       if output.HasCrashed():
         print("exit code: %d" % output.exit_code)
         print("--- CRASHED ---")
