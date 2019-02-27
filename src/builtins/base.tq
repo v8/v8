@@ -1526,6 +1526,15 @@ struct FastJSArrayWitness {
     }
   }
 
+  LoadElementOrUndefined(implicit context: Context)(k: Smi): Object {
+    try {
+      return this.LoadElementNoHole(k) otherwise FoundHole;
+    }
+    label FoundHole {
+      return Undefined;
+    }
+  }
+
   stable: JSArray;
   unstable: FastJSArray;
   map: Map;

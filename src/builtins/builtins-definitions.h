@@ -352,27 +352,6 @@ namespace internal {
   TFS(ExtractFastJSArray, kSource, kBegin, kCount)                             \
   /* ES6 #sec-array.prototype.entries */                                       \
   TFJ(ArrayPrototypeEntries, 0, kReceiver)                                     \
-  /* ES6 #sec-array.prototype.find */                                          \
-  TFS(ArrayFindLoopContinuation, kReceiver, kCallbackFn, kThisArg, kArray,     \
-      kObject, kInitialK, kLength, kTo)                                        \
-  TFJ(ArrayFindLoopEagerDeoptContinuation, 4, kReceiver, kCallbackFn,          \
-      kThisArg, kInitialK, kLength)                                            \
-  TFJ(ArrayFindLoopLazyDeoptContinuation, 5, kReceiver, kCallbackFn, kThisArg, \
-      kInitialK, kLength, kResult)                                             \
-  TFJ(ArrayFindLoopAfterCallbackLazyDeoptContinuation, 6, kReceiver,           \
-      kCallbackFn, kThisArg, kInitialK, kLength, kFoundValue, kIsFound)        \
-  TFJ(ArrayPrototypeFind, SharedFunctionInfo::kDontAdaptArgumentsSentinel)     \
-  /* ES6 #sec-array.prototype.findIndex */                                     \
-  TFS(ArrayFindIndexLoopContinuation, kReceiver, kCallbackFn, kThisArg,        \
-      kArray, kObject, kInitialK, kLength, kTo)                                \
-  TFJ(ArrayFindIndexLoopEagerDeoptContinuation, 4, kReceiver, kCallbackFn,     \
-      kThisArg, kInitialK, kLength)                                            \
-  TFJ(ArrayFindIndexLoopLazyDeoptContinuation, 5, kReceiver, kCallbackFn,      \
-      kThisArg, kInitialK, kLength, kResult)                                   \
-  TFJ(ArrayFindIndexLoopAfterCallbackLazyDeoptContinuation, 6, kReceiver,      \
-      kCallbackFn, kThisArg, kInitialK, kLength, kFoundValue, kIsFound)        \
-  TFJ(ArrayPrototypeFindIndex,                                                 \
-      SharedFunctionInfo::kDontAdaptArgumentsSentinel)                         \
   /* ES6 #sec-array.prototype.keys */                                          \
   TFJ(ArrayPrototypeKeys, 0, kReceiver)                                        \
   /* ES6 #sec-array.prototype.values */                                        \
