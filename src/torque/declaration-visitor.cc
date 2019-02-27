@@ -246,7 +246,7 @@ void DeclarationVisitor::DeclareMethods(
     AggregateType* container_type, const std::vector<Declaration*>& methods) {
   // Declare the class' methods
   IdentifierExpression* constructor_this = MakeNode<IdentifierExpression>(
-      std::vector<std::string>{}, kThisParameterName);
+      std::vector<std::string>{}, MakeNode<Identifier>(kThisParameterName));
   AggregateType* constructor_this_type =
       container_type->IsStructType()
           ? container_type
@@ -261,7 +261,7 @@ void DeclarationVisitor::DeclareMethods(
     Signature signature = MakeSignature(method->signature.get());
     signature.parameter_names.insert(
         signature.parameter_names.begin() + signature.implicit_count,
-        kThisParameterName);
+        MakeNode<Identifier>(kThisParameterName));
     Statement* body = *(standard_declaration->body);
     std::string method_name(method->name);
     if (method->name == kConstructMethodName) {
@@ -304,21 +304,23 @@ void DeclarationVisitor::DeclareMethods(
   std::vector<Statement*> initializer_statements;
 
   size_t parameter_number = 0;
-  constructor_signature.parameter_names.push_back(kThisParameterName);
+  constructor_signature.parameter_names.push_back(
+      MakeNode<Identifier>(kThisParameterName));
   constructor_signature.parameter_types.types.push_back(constructor_this_type);
   std::vector<Expression*> super_arguments;
   for (auto current_type : hierarchy) {
     for (auto& f : current_type->fields()) {
       DCHECK(!f.index);
       std::string parameter_name("p" + std::to_string(parameter_number++));
-      constructor_signature.parameter_names.push_back(parameter_name);
+      constructor_signature.parameter_names.push_back(
+          MakeNode<Identifier>(parameter_name));
       constructor_signature.parameter_types.types.push_back(
           f.name_and_type.type);
       IdentifierExpression* value = MakeNode<IdentifierExpression>(
-          std::vector<std::string>{}, parameter_name);
+          std::vector<std::string>{}, MakeNode<Identifier>(parameter_name));
       if (container_type != current_type) {
         super_arguments.push_back(MakeNode<IdentifierExpression>(
-            std::vector<std::string>{}, parameter_name));
+            std::vector<std::string>{}, MakeNode<Identifier>(parameter_name)));
       } else {
         LocationExpression* location = MakeNode<FieldAccessExpression>(
             constructor_this, f.name_and_type.name);
@@ -331,7 +333,7 @@ void DeclarationVisitor::DeclareMethods(
 
   if (hierarchy.size() > 1) {
     IdentifierExpression* super_identifier = MakeNode<IdentifierExpression>(
-        std::vector<std::string>{}, kSuperMethodName);
+        std::vector<std::string>{}, MakeNode<Identifier>(kSuperMethodName));
     Statement* statement =
         MakeNode<ExpressionStatement>(MakeNode<CallMethodExpression>(
             constructor_this, super_identifier, super_arguments,
@@ -543,7 +545,7 @@ void DeclarationVisitor::FinalizeStructFieldsAndMethods(
     struct_type->RegisterField({field.name_and_type.type->pos,
                                 struct_type,
                                 base::nullopt,
-                                {field.name_and_type.name, field_type},
+                                {field.name_and_type.name->value, field_type},
                                 offset,
                                 false});
     offset += LoweredSlotCount(field_type);
@@ -583,7 +585,7 @@ void DeclarationVisitor::FinalizeClassFieldsAndMethods(
           {field_expression.name_and_type.type->pos,
            class_type,
            index_field,
-           {field_expression.name_and_type.name, field_type},
+           {field_expression.name_and_type.name->value, field_type},
            class_offset,
            field_expression.weak});
     } else {
@@ -597,7 +599,7 @@ void DeclarationVisitor::FinalizeClassFieldsAndMethods(
           {field_expression.name_and_type.type->pos,
            class_type,
            base::nullopt,
-           {field_expression.name_and_type.name, field_type},
+           {field_expression.name_and_type.name->value, field_type},
            class_offset,
            field_expression.weak});
       size_t field_size;
@@ -659,7 +661,7 @@ void DeclarationVisitor::FinalizeClassFieldsAndMethods(
     if (field.index) continue;
     CurrentSourcePosition::Scope position_activator(field.pos);
     IdentifierExpression* parameter =
-        MakeNode<IdentifierExpression>(std::string{"o"});
+        MakeNode<IdentifierExpression>(MakeNode<Identifier>(std::string{"o"}));
 
     // Load accessor
     std::string camel_field_name = CamelifyString(field.name_and_type.name);
@@ -667,7 +669,7 @@ void DeclarationVisitor::FinalizeClassFieldsAndMethods(
         "Load" + class_type->name() + camel_field_name;
     std::string load_operator_name = "." + field.name_and_type.name;
     Signature load_signature;
-    load_signature.parameter_names.push_back("o");
+    load_signature.parameter_names.push_back(MakeNode<Identifier>("o"));
     load_signature.parameter_types.types.push_back(class_type);
     load_signature.parameter_types.var_args = false;
     load_signature.return_type = field.name_and_type.type;
@@ -679,13 +681,13 @@ void DeclarationVisitor::FinalizeClassFieldsAndMethods(
 
     // Store accessor
     IdentifierExpression* value = MakeNode<IdentifierExpression>(
-        std::vector<std::string>{}, std::string{"v"});
+        std::vector<std::string>{}, MakeNode<Identifier>(std::string{"v"}));
     std::string store_macro_name =
         "Store" + class_type->name() + camel_field_name;
     std::string store_operator_name = "." + field.name_and_type.name + "=";
     Signature store_signature;
-    store_signature.parameter_names.push_back("o");
-    store_signature.parameter_names.push_back("v");
+    store_signature.parameter_names.push_back(MakeNode<Identifier>("o"));
+    store_signature.parameter_names.push_back(MakeNode<Identifier>("v"));
     store_signature.parameter_types.types.push_back(class_type);
     store_signature.parameter_types.types.push_back(field.name_and_type.type);
     store_signature.parameter_types.var_args = false;

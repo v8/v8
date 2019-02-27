@@ -18,8 +18,6 @@ namespace v8 {
 namespace internal {
 namespace torque {
 
-typedef std::vector<std::string> NameVector;
-
 std::string StringLiteralUnquote(const std::string& s);
 std::string StringLiteralQuote(const std::string& s);
 

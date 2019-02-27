@@ -166,6 +166,11 @@ class Binding : public T {
         previous_binding_(this) {
     std::swap(previous_binding_, manager_->current_bindings_[name]);
   }
+  template <class... Args>
+  Binding(BindingsManager<T>* manager, const Identifier* name, Args&&... args)
+      : Binding(manager, name->value, std::forward<Args>(args)...) {
+    declaration_position_ = name->pos;
+  }
   ~Binding() { manager_->current_bindings_[name_] = previous_binding_; }
 
   const std::string& name() const { return name_; }
@@ -184,16 +189,15 @@ class BlockBindings {
  public:
   explicit BlockBindings(BindingsManager<T>* manager) : manager_(manager) {}
   void Add(std::string name, T value) {
-    for (const auto& binding : bindings_) {
-      if (binding->name() == name) {
-        ReportError(
-            "redeclaration of name \"", name,
-            "\" in the same block is illegal, previous declaration at: ",
-            binding->declaration_position());
-      }
-    }
+    ReportErrorIfAlreadyBound(name);
     bindings_.push_back(base::make_unique<Binding<T>>(manager_, std::move(name),
                                                       std::move(value)));
+  }
+
+  void Add(const Identifier* name, T value) {
+    ReportErrorIfAlreadyBound(name->value);
+    bindings_.push_back(
+        base::make_unique<Binding<T>>(manager_, name, std::move(value)));
   }
 
   std::vector<Binding<T>*> bindings() const {
@@ -206,6 +210,17 @@ class BlockBindings {
   }
 
  private:
+  void ReportErrorIfAlreadyBound(const std::string& name) {
+    for (const auto& binding : bindings_) {
+      if (binding->name() == name) {
+        ReportError(
+            "redeclaration of name \"", name,
+            "\" in the same block is illegal, previous declaration at: ",
+            binding->declaration_position());
+      }
+    }
+  }
+
   BindingsManager<T>* manager_;
   std::vector<std::unique_ptr<Binding<T>>> bindings_;
 };

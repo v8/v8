@@ -207,17 +207,17 @@ struct IdentifierExpression : LocationExpression {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(IdentifierExpression)
   IdentifierExpression(SourcePosition pos,
                        std::vector<std::string> namespace_qualification,
-                       std::string name, std::vector<TypeExpression*> args = {})
+                       Identifier* name, std::vector<TypeExpression*> args = {})
       : LocationExpression(kKind, pos),
         namespace_qualification(std::move(namespace_qualification)),
-        name(std::move(name)),
+        name(name),
         generic_arguments(std::move(args)) {}
-  IdentifierExpression(SourcePosition pos, std::string name,
+  IdentifierExpression(SourcePosition pos, Identifier* name,
                        std::vector<TypeExpression*> args = {})
-      : IdentifierExpression(pos, {}, std::move(name), std::move(args)) {}
-  bool IsThis() const { return name == kThisParameterName; }
+      : IdentifierExpression(pos, {}, name, std::move(args)) {}
+  bool IsThis() const { return name->value == kThisParameterName; }
   std::vector<std::string> namespace_qualification;
-  std::string name;
+  Identifier* name;
   std::vector<TypeExpression*> generic_arguments;
 };
 
@@ -419,7 +419,7 @@ struct NewExpression : Expression {
 };
 
 struct ParameterList {
-  std::vector<std::string> names;
+  std::vector<Identifier*> names;
   std::vector<TypeExpression*> types;
   size_t implicit_count;
   bool has_varargs;
@@ -693,7 +693,7 @@ struct TypeAliasDeclaration : Declaration {
 };
 
 struct NameAndTypeExpression {
-  std::string name;
+  Identifier* name;
   TypeExpression* type;
 };
 

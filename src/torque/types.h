@@ -51,6 +51,7 @@ static const char* const CONST_INT32_TYPE_STRING = "constexpr int32";
 static const char* const CONST_FLOAT64_TYPE_STRING = "constexpr float64";
 
 class AggregateType;
+struct Identifier;
 class Macro;
 class Method;
 class StructType;
@@ -586,6 +587,8 @@ struct ParameterTypes {
 std::ostream& operator<<(std::ostream& os, const ParameterTypes& parameters);
 
 enum class ParameterMode { kProcessImplicit, kIgnoreImplicit };
+
+typedef std::vector<Identifier*> NameVector;
 
 struct Signature {
   Signature(NameVector n, base::Optional<std::string> arguments_variable,

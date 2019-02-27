@@ -251,7 +251,7 @@ VisitResult ImplementationVisitor::InlineMacro(
   size_t i = 0;
   for (auto arg : arguments) {
     if (this_reference && i == signature.implicit_count) i++;
-    const std::string& name = macro->parameter_names()[i++];
+    const Identifier* name = macro->parameter_names()[i++];
     parameter_bindings.Add(name, LocalValue{true, arg});
   }
 
@@ -368,7 +368,7 @@ void ImplementationVisitor::VisitMacroCommon(Macro* macro) {
 
   for (size_t i = 0; i < macro->signature().parameter_names.size(); ++i) {
     if (this_reference && i == macro->signature().implicit_count) continue;
-    const std::string& name = macro->parameter_names()[i];
+    const std::string& name = macro->parameter_names()[i]->value;
     std::string external_name = ExternalParameterName(name);
     const Type* type = macro->signature().types()[i];
 
@@ -449,7 +449,7 @@ std::string AddParameter(size_t i, Builtin* builtin,
                          Stack<std::string>* parameters,
                          Stack<const Type*>* parameter_types,
                          BlockBindings<LocalValue>* parameter_bindings) {
-  const std::string& name = builtin->signature().parameter_names[i];
+  const Identifier* name = builtin->signature().parameter_names[i];
   const Type* type = builtin->signature().types()[i];
   std::string external_name = "parameter" + std::to_string(i);
   parameters->Push(external_name);
@@ -512,7 +512,7 @@ void ImplementationVisitor::Visit(Builtin* builtin) {
 
   for (size_t i = 0; i < signature.parameter_names.size(); ++i) {
     if (i < first) continue;
-    const std::string& parameter_name = signature.parameter_names[i];
+    const std::string& parameter_name = signature.parameter_names[i]->value;
     const Type* type = signature.types()[i];
     std::string var = AddParameter(i, builtin, &parameters, &parameter_types,
                                    &parameter_bindings);
@@ -579,7 +579,7 @@ const Type* ImplementationVisitor::Visit(
     init_result =
         VisitResult(*type, assembler().TopRange(lowered_types.size()));
   }
-  block_bindings->Add(stmt->name->value,
+  block_bindings->Add(stmt->name,
                       LocalValue{stmt->const_qualified, *init_result});
   return TypeOracle::GetVoidType();
 }
@@ -1445,14 +1445,14 @@ void ImplementationVisitor::GenerateFunctionDeclaration(
   DCHECK_EQ(signature.types().size(), parameter_names.size());
   auto type_iterator = signature.types().begin();
   bool first = true;
-  for (const std::string& name : parameter_names) {
+  for (const Identifier* name : parameter_names) {
     if (!first) {
       o << ", ";
     }
     const Type* parameter_type = *type_iterator;
     const std::string& generated_type_name =
         parameter_type->GetGeneratedTypeName();
-    o << generated_type_name << " " << ExternalParameterName(name);
+    o << generated_type_name << " " << ExternalParameterName(name->value);
     type_iterator++;
     first = false;
   }
@@ -1760,14 +1760,14 @@ LocationReference ImplementationVisitor::GetLocationReference(
     IdentifierExpression* expr) {
   if (expr->namespace_qualification.empty()) {
     if (base::Optional<Binding<LocalValue>*> value =
-            TryLookupLocalValue(expr->name)) {
+            TryLookupLocalValue(expr->name->value)) {
       if (expr->generic_arguments.size() != 0) {
         ReportError("cannot have generic parameters on local name ",
                     expr->name);
       }
       if ((*value)->is_const) {
-        return LocationReference::Temporary((*value)->value,
-                                            "constant value " + expr->name);
+        return LocationReference::Temporary(
+            (*value)->value, "constant value " + expr->name->value);
       }
       return LocationReference::VariableAccess((*value)->value);
     }
@@ -1776,10 +1776,11 @@ LocationReference ImplementationVisitor::GetLocationReference(
   if (expr->IsThis()) {
     ReportError("\"this\" cannot be qualified");
   }
-  QualifiedName name = QualifiedName(expr->namespace_qualification, expr->name);
+  QualifiedName name =
+      QualifiedName(expr->namespace_qualification, expr->name->value);
   if (base::Optional<Builtin*> builtin = Declarations::TryLookupBuiltin(name)) {
     return LocationReference::Temporary(GetBuiltinCode(*builtin),
-                                        "builtin " + expr->name);
+                                        "builtin " + expr->name->value);
   }
   if (expr->generic_arguments.size() != 0) {
     Generic* generic = Declarations::LookupUniqueGeneric(name);
@@ -1788,7 +1789,7 @@ LocationReference ImplementationVisitor::GetLocationReference(
     if (Builtin* builtin = Builtin::DynamicCast(specialization)) {
       DCHECK(!builtin->IsExternal());
       return LocationReference::Temporary(GetBuiltinCode(builtin),
-                                          "builtin " + expr->name);
+                                          "builtin " + expr->name->value);
     } else {
       ReportError("cannot create function pointer for non-builtin ",
                   generic->name());
@@ -1801,18 +1802,18 @@ LocationReference ImplementationVisitor::GetLocationReference(
           VisitResult(constant->type(), constant->ExternalAssemblerName() +
                                             "(state_)." +
                                             constant->constant_name() + "()"),
-          "namespace constant " + expr->name);
+          "namespace constant " + expr->name->value);
     }
     assembler().Emit(NamespaceConstantInstruction{constant});
     StackRange stack_range =
         assembler().TopRange(LoweredSlotCount(constant->type()));
     return LocationReference::Temporary(
         VisitResult(constant->type(), stack_range),
-        "namespace constant " + expr->name);
+        "namespace constant " + expr->name->value);
   }
   ExternConstant* constant = ExternConstant::cast(value);
   return LocationReference::Temporary(constant->value(),
-                                      "extern value " + expr->name);
+                                      "extern value " + expr->name->value);
 }
 
 VisitResult ImplementationVisitor::GenerateFetchFromLocation(
@@ -1952,7 +1953,8 @@ VisitResult ImplementationVisitor::GenerateCall(
 
   size_t current = 0;
   for (; current < callable->signature().implicit_count; ++current) {
-    std::string implicit_name = callable->signature().parameter_names[current];
+    std::string implicit_name =
+        callable->signature().parameter_names[current]->value;
     base::Optional<Binding<LocalValue>*> val =
         TryLookupLocalValue(implicit_name);
     if (!val) {
@@ -2181,8 +2183,8 @@ VisitResult ImplementationVisitor::Visit(CallExpression* expr,
                                          bool is_tailcall) {
   StackScope scope(this);
   Arguments arguments;
-  QualifiedName name =
-      QualifiedName(expr->callee->namespace_qualification, expr->callee->name);
+  QualifiedName name = QualifiedName(expr->callee->namespace_qualification,
+                                     expr->callee->name->value);
   TypeVector specialization_types =
       GetTypeVector(expr->callee->generic_arguments);
   bool has_template_arguments = !specialization_types.empty();
@@ -2202,7 +2204,7 @@ VisitResult ImplementationVisitor::Visit(CallExpression* expr,
 VisitResult ImplementationVisitor::Visit(CallMethodExpression* expr) {
   StackScope scope(this);
   Arguments arguments;
-  std::string method_name = expr->method->name;
+  std::string method_name = expr->method->name->value;
   TypeVector specialization_types =
       GetTypeVector(expr->method->generic_arguments);
   LocationReference target = GetLocationReference(expr->target);
@@ -2543,7 +2545,7 @@ void ImplementationVisitor::GenerateBuiltinDefinitions(std::string& file_name) {
       int index = 0;
       for (const auto& parameter : builtin->parameter_names()) {
         if (index >= firstParameterIndex) {
-          new_contents_stream << ", k" << CamelifyString(parameter);
+          new_contents_stream << ", k" << CamelifyString(parameter->value);
         }
         index++;
       }
