@@ -266,8 +266,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // of that call in the instruction stream.
   inline static Address target_address_from_return_address(Address pc);
 
-  static void QuietNaN(HeapObject nan);
-
   // This sets the branch destination (which gets loaded at the call address).
   // This is for calls and branches within generated code.  The serializer
   // has already deserialized the lui/ori instructions etc.
