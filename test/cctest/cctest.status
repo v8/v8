@@ -80,6 +80,8 @@
   'test-cpu-profiler/JsNativeJsRuntimeJsSample': [SKIP],
   'test-cpu-profiler/JsNativeJsRuntimeJsSampleMultiple': [SKIP],
   'test-cpu-profiler/JsNativeJsSample': [SKIP],
+  'test-cpu-profiler/HotDeoptNoFrameEntry': [SKIP],
+  'test-cpu-profiler/SampleWhenFrameIsNotSetup': [SKIP],
   'test-sampler/LibSamplerCollectSample': [SKIP],
 
   # BUG(7202). The test is flaky.
@@ -145,15 +147,7 @@
   'test-api/LoadICFastApi_DirectCall_GCMoveStubWithProfiler': [SKIP],
 }],  # 'arch == arm64'
 
-['arch == arm and simulator_run', {
-  # crbug.com/v8/8917
-  'test-cpu-profiler/SampleWhenFrameIsNotSetup': [SKIP],
-}],  # 'arch == arm and simulator_run'
-
 ['arch == arm64 and simulator_run', {
-  # crbug.com/v8/8917
-  'test-cpu-profiler/HotDeoptNoFrameEntry': [SKIP],
-  'test-cpu-profiler/SampleWhenFrameIsNotSetup': [SKIP],
 
   # Pass but take too long with the simulator.
   'test-api/ExternalArrays': [PASS, SLOW],
