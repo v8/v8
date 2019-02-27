@@ -282,6 +282,8 @@ bool AccessInfoFactory::ComputeElementAccessInfos(
     }
   }
 
+  if (processed.receiver_maps.empty()) return false;
+
   if (access_mode == AccessMode::kLoad) {
     // For polymorphic loads of similar elements kinds (i.e. all tagged or all
     // double), always use the "worst case" code without a transition.  This is
