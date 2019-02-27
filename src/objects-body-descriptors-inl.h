@@ -757,7 +757,7 @@ class EmbedderDataArray::BodyDescriptor final : public BodyDescriptorBase {
  public:
   static bool IsValidSlot(Map map, HeapObject obj, int offset) {
 #ifdef V8_COMPRESS_POINTERS
-    STATIC_ASSERT(kEmbedderDataSlotSize == 2 * kSystemPointerSize);
+    STATIC_ASSERT(kEmbedderDataSlotSize == 2 * kTaggedSize);
     STATIC_ASSERT(base::bits::IsPowerOfTwo(kEmbedderDataSlotSize));
     return (offset < EmbedderDataArray::kHeaderSize) ||
            (((offset - EmbedderDataArray::kHeaderSize) &
@@ -775,7 +775,7 @@ class EmbedderDataArray::BodyDescriptor final : public BodyDescriptorBase {
   static inline void IterateBody(Map map, HeapObject obj, int object_size,
                                  ObjectVisitor* v) {
 #ifdef V8_COMPRESS_POINTERS
-    STATIC_ASSERT(kEmbedderDataSlotSize == 2 * kSystemPointerSize);
+    STATIC_ASSERT(kEmbedderDataSlotSize == 2 * kTaggedSize);
     // Iterate only tagged payload of the embedder slots and skip raw payload.
     for (int offset = EmbedderDataArray::OffsetOfElementAt(0) +
                       EmbedderDataSlot::kTaggedPayloadOffset;

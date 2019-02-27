@@ -2838,7 +2838,7 @@ TEST(InternalFieldsSubclassing) {
       if (in_object_only) {
         CHECK_LE(nof_properties, i_value->map()->GetInObjectProperties());
       } else {
-        CHECK_LE(kMaxNofProperties, i_value->map()->GetInObjectProperties());
+        CHECK_LE(i_value->map()->GetInObjectProperties(), kMaxNofProperties);
       }
 
       // Make Sure we get the precise property count.
@@ -2849,7 +2849,7 @@ TEST(InternalFieldsSubclassing) {
       if (in_object_only) {
         CHECK_EQ(nof_properties, i_value->map()->GetInObjectProperties());
       } else {
-        CHECK_LE(kMaxNofProperties, i_value->map()->GetInObjectProperties());
+        CHECK_LE(i_value->map()->GetInObjectProperties(), kMaxNofProperties);
       }
     }
   }

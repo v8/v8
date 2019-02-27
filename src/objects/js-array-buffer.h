@@ -210,10 +210,10 @@ class JSTypedArray : public JSArrayBufferView {
   DECL_VERIFIER(JSTypedArray)
 
 // Layout description.
-#define JS_TYPED_ARRAY_FIELDS(V)       \
-  /* Raw data fields. */               \
-  V(kLengthOffset, kSystemPointerSize) \
-  /* Header size. */                   \
+#define JS_TYPED_ARRAY_FIELDS(V) \
+  /* Raw data fields. */         \
+  V(kLengthOffset, kTaggedSize)  \
+  /* Header size. */             \
   V(kHeaderSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(JSArrayBufferView::kHeaderSize,

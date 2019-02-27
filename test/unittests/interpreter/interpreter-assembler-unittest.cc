@@ -459,8 +459,7 @@ TARGET_TEST_F(InterpreterAssemblerTest, LoadConstantPoolEntry) {
               MachineType::AnyTagged(), constant_pool_matcher,
               c::IsIntPtrAdd(
                   c::IsIntPtrConstant(FixedArray::kHeaderSize - kHeapObjectTag),
-                  c::IsWordShl(index,
-                               c::IsIntPtrConstant(kSystemPointerSizeLog2))),
+                  c::IsWordShl(index, c::IsIntPtrConstant(kTaggedSizeLog2))),
               LoadSensitivity::kCritical));
     }
   }

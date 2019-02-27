@@ -281,7 +281,7 @@ size_t Isolate::HashIsolateForEmbeddedBlob() {
                   Code::kFlagsOffsetEnd + 1);
     static constexpr int kStartOffset = Code::kSafepointTableOffsetOffset;
 
-    for (int j = kStartOffset; j < Code::kHeaderPaddingStart; j++) {
+    for (int j = kStartOffset; j < Code::kUnalignedHeaderSize; j++) {
       hash = base::hash_combine(hash, size_t{code_ptr[j]});
     }
   }

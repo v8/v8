@@ -183,10 +183,10 @@ const char* HeapEntry::TypeAsString() {
 HeapSnapshot::HeapSnapshot(HeapProfiler* profiler) : profiler_(profiler) {
   // It is very important to keep objects that form a heap snapshot
   // as small as possible. Check assumptions about data structure sizes.
-  STATIC_ASSERT((kTaggedSize == 4 && sizeof(HeapGraphEdge) == 12) ||
-                (kTaggedSize == 8 && sizeof(HeapGraphEdge) == 24));
-  STATIC_ASSERT((kTaggedSize == 4 && sizeof(HeapEntry) == 28) ||
-                (kTaggedSize == 8 && sizeof(HeapEntry) == 40));
+  STATIC_ASSERT((kSystemPointerSize == 4 && sizeof(HeapGraphEdge) == 12) ||
+                (kSystemPointerSize == 8 && sizeof(HeapGraphEdge) == 24));
+  STATIC_ASSERT((kSystemPointerSize == 4 && sizeof(HeapEntry) == 28) ||
+                (kSystemPointerSize == 8 && sizeof(HeapEntry) == 40));
   memset(&gc_subroot_entries_, 0, sizeof(gc_subroot_entries_));
 }
 

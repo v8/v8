@@ -468,14 +468,21 @@ void BytecodeArray::BytecodeArrayPrint(std::ostream& os) {  // NOLINT
 
 
 void FreeSpace::FreeSpacePrint(std::ostream& os) {  // NOLINT
-  os << "free space, size " << Size();
+  os << "free space, size " << Size() << "\n";
 }
 
 
 template <class Traits>
 void FixedTypedArray<Traits>::FixedTypedArrayPrint(
     std::ostream& os) {  // NOLINT
-  os << "fixed " << Traits::Designator();
+  PrintHeader(os, Traits::ArrayTypeName());
+  os << "\n - length: " << length() << "\n - base_pointer: ";
+  if (base_pointer().ptr() == kNullAddress) {
+    os << "<nullptr>";
+  } else {
+    os << Brief(base_pointer());
+  }
+  os << "\n - external_pointer: " << external_pointer() << "\n";
 }
 
 bool JSObject::PrintProperties(std::ostream& os) {  // NOLINT
@@ -1363,6 +1370,10 @@ void JSTypedArray::JSTypedArrayPrint(std::ostream& os) {  // NOLINT
   os << "\n - byte_offset: " << byte_offset();
   os << "\n - byte_length: " << byte_length();
   os << "\n - length: " << Brief(length());
+  if (!buffer()->IsJSArrayBuffer()) {
+    os << "\n <invalid buffer>\n";
+    return;
+  }
   if (WasDetached()) os << "\n - detached";
   JSObjectPrintBody(os, *this, !WasDetached());
 }
@@ -1380,6 +1391,10 @@ void JSDataView::JSDataViewPrint(std::ostream& os) {  // NOLINT
   os << "\n - buffer =" << Brief(buffer());
   os << "\n - byte_offset: " << byte_offset();
   os << "\n - byte_length: " << byte_length();
+  if (!buffer()->IsJSArrayBuffer()) {
+    os << "\n <invalid buffer>";
+    return;
+  }
   if (WasDetached()) os << "\n - detached";
   JSObjectPrintBody(os, *this, !WasDetached());
 }
@@ -1608,7 +1623,8 @@ void CodeDataContainer::CodeDataContainerPrint(std::ostream& os) {  // NOLINT
 }
 
 void Foreign::ForeignPrint(std::ostream& os) {  // NOLINT
-  os << "foreign address : " << reinterpret_cast<void*>(foreign_address());
+  PrintHeader(os, "Foreign");
+  os << "\n - foreign address : " << reinterpret_cast<void*>(foreign_address());
   os << "\n";
 }
 
@@ -2658,11 +2674,29 @@ void JSObject::PrintTransitions(std::ostream& os) {  // NOLINT
 }  // namespace internal
 }  // namespace v8
 
+namespace {
+
+inline i::Object GetObjectFromRaw(void* object) {
+  i::Address object_ptr = reinterpret_cast<i::Address>(object);
+#ifdef V8_COMPRESS_POINTERS
+  if (RoundDown<i::kPtrComprIsolateRootAlignment>(object_ptr) ==
+      i::kNullAddress) {
+    // Try to decompress pointer.
+    i::Isolate* isolate = i::Isolate::Current();
+    object_ptr = i::DecompressTaggedAny(isolate->isolate_root(),
+                                        static_cast<i::Tagged_t>(object_ptr));
+  }
+#endif
+  return i::Object(object_ptr);
+}
+
+}  // namespace
+
 //
 // The following functions are used by our gdb macros.
 //
 V8_EXPORT_PRIVATE extern void _v8_internal_Print_Object(void* object) {
-  i::Object(reinterpret_cast<i::Address>(object))->Print();
+  GetObjectFromRaw(object)->Print();
 }
 
 V8_EXPORT_PRIVATE extern void _v8_internal_Print_Code(void* object) {
@@ -2702,7 +2736,7 @@ V8_EXPORT_PRIVATE extern void _v8_internal_Print_Code(void* object) {
 
 V8_EXPORT_PRIVATE extern void _v8_internal_Print_LayoutDescriptor(
     void* object) {
-  i::Object o(reinterpret_cast<i::Address>(object));
+  i::Object o(GetObjectFromRaw(object));
   if (!o->IsLayoutDescriptor()) {
     printf("Please provide a layout descriptor\n");
   } else {
@@ -2716,7 +2750,7 @@ V8_EXPORT_PRIVATE extern void _v8_internal_Print_StackTrace() {
 }
 
 V8_EXPORT_PRIVATE extern void _v8_internal_Print_TransitionTree(void* object) {
-  i::Object o(reinterpret_cast<i::Address>(object));
+  i::Object o(GetObjectFromRaw(object));
   if (!o->IsMap()) {
     printf("Please provide a valid Map\n");
   } else {

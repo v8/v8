@@ -7607,10 +7607,8 @@ template <typename Dictionary>
 struct EnumIndexComparator {
   explicit EnumIndexComparator(Dictionary dict) : dict(dict) {}
   bool operator()(Tagged_t a, Tagged_t b) {
-    // TODO(ishell): revisit the code below
-    STATIC_ASSERT(kTaggedSize == kSystemPointerSize);
-    PropertyDetails da(dict->DetailsAt(Smi(a).value()));
-    PropertyDetails db(dict->DetailsAt(Smi(b).value()));
+    PropertyDetails da(dict->DetailsAt(Smi(static_cast<Address>(a)).value()));
+    PropertyDetails db(dict->DetailsAt(Smi(static_cast<Address>(b)).value()));
     return da.dictionary_index() < db.dictionary_index();
   }
   Dictionary dict;

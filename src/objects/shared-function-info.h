@@ -191,7 +191,7 @@ class UncompiledDataWithPreparseData : public UncompiledData {
 #undef UNCOMPILED_DATA_WITH_PREPARSE_DATA_FIELDS
 
   // Make sure the size is aligned
-  STATIC_ASSERT(kSize == POINTER_SIZE_ALIGN(kSize));
+  STATIC_ASSERT(IsAligned(kSize, kTaggedSize));
 
   typedef SubclassBodyDescriptor<
       UncompiledData::BodyDescriptor,

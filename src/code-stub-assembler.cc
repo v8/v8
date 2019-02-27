@@ -1236,18 +1236,19 @@ TNode<HeapObject> CodeStubAssembler::Allocate(TNode<IntPtrT> size_in_bytes,
       new_space
           ? ExternalReference::new_space_allocation_top_address(isolate())
           : ExternalReference::old_space_allocation_top_address(isolate()));
-  DCHECK_EQ(kTaggedSize,
+  DCHECK_EQ(kSystemPointerSize,
             ExternalReference::new_space_allocation_limit_address(isolate())
                     .address() -
                 ExternalReference::new_space_allocation_top_address(isolate())
                     .address());
-  DCHECK_EQ(kTaggedSize,
+  DCHECK_EQ(kSystemPointerSize,
             ExternalReference::old_space_allocation_limit_address(isolate())
                     .address() -
                 ExternalReference::old_space_allocation_top_address(isolate())
                     .address());
-  TNode<IntPtrT> limit_address = IntPtrAdd(
-      ReinterpretCast<IntPtrT>(top_address), IntPtrConstant(kTaggedSize));
+  TNode<IntPtrT> limit_address =
+      IntPtrAdd(ReinterpretCast<IntPtrT>(top_address),
+                IntPtrConstant(kSystemPointerSize));
 
   if (flags & kDoubleAlignment) {
     return AllocateRawDoubleAligned(size_in_bytes, flags,

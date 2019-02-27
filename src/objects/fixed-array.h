@@ -679,7 +679,7 @@ class FixedTypedArray : public FixedTypedArrayBase {
    public: /* NOLINT */                                                       \
     typedef elementType ElementType;                                          \
     static const InstanceType kInstanceType = FIXED_##TYPE##_ARRAY_TYPE;      \
-    static const char* Designator() { return #type " array"; }                \
+    static const char* ArrayTypeName() { return "Fixed" #Type "Array"; }      \
     static inline Handle<Object> ToHandle(Isolate* isolate,                   \
                                           elementType scalar);                \
     static inline elementType defaultValue();                                 \

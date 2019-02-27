@@ -223,8 +223,10 @@ void Code::WipeOutHeader() {
 }
 
 void Code::clear_padding() {
-  memset(reinterpret_cast<void*>(address() + kHeaderPaddingStart), 0,
-         kHeaderSize - kHeaderPaddingStart);
+  if (FIELD_SIZE(kOptionalPaddingOffset) != 0) {
+    memset(reinterpret_cast<void*>(address() + kOptionalPaddingOffset), 0,
+           FIELD_SIZE(kOptionalPaddingOffset));
+  }
   Address data_end =
       has_unwinding_info() ? unwinding_info_end() : raw_instruction_end();
   memset(reinterpret_cast<void*>(data_end), 0,

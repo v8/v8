@@ -220,7 +220,7 @@ class Code : public HeapObject {
   inline void WipeOutHeader();
 
   // Clear uninitialized padding space. This ensures that the snapshot content
-  // is deterministic.
+  // is deterministic. Depending on the V8 build mode there could be no padding.
   inline void clear_padding();
   // Initialize the flags field. Similar to clear_padding above this ensure that
   // the snapshot content is deterministic.
@@ -373,26 +373,27 @@ class Code : public HeapObject {
   class OptimizedCodeIterator;
 
   // Layout description.
-#define CODE_FIELDS(V)                                                   \
-  V(kRelocationInfoOffset, kTaggedSize)                                  \
-  V(kDeoptimizationDataOffset, kTaggedSize)                              \
-  V(kSourcePositionTableOffset, kTaggedSize)                             \
-  V(kCodeDataContainerOffset, kTaggedSize)                               \
-  /* Data or code not directly visited by GC directly starts here. */    \
-  /* The serializer needs to copy bytes starting from here verbatim. */  \
-  /* Objects embedded into code is visited via reloc info. */            \
-  V(kDataStart, 0)                                                       \
-  V(kInstructionSizeOffset, kIntSize)                                    \
-  V(kFlagsOffset, kIntSize)                                              \
-  V(kSafepointTableOffsetOffset, kIntSize)                               \
-  V(kHandlerTableOffsetOffset, kIntSize)                                 \
-  V(kConstantPoolOffsetOffset,                                           \
-    FLAG_enable_embedded_constant_pool ? kIntSize : 0)                   \
-  V(kCodeCommentsOffsetOffset, kIntSize)                                 \
-  V(kBuiltinIndexOffset, kIntSize)                                       \
-  /* Add padding to align the instruction start following right after */ \
-  /* the Code object header. */                                          \
-  V(kHeaderPaddingStart, CODE_POINTER_PADDING(kHeaderPaddingStart))      \
+#define CODE_FIELDS(V)                                                    \
+  V(kRelocationInfoOffset, kTaggedSize)                                   \
+  V(kDeoptimizationDataOffset, kTaggedSize)                               \
+  V(kSourcePositionTableOffset, kTaggedSize)                              \
+  V(kCodeDataContainerOffset, kTaggedSize)                                \
+  /* Data or code not directly visited by GC directly starts here. */     \
+  /* The serializer needs to copy bytes starting from here verbatim. */   \
+  /* Objects embedded into code is visited via reloc info. */             \
+  V(kDataStart, 0)                                                        \
+  V(kInstructionSizeOffset, kIntSize)                                     \
+  V(kFlagsOffset, kIntSize)                                               \
+  V(kSafepointTableOffsetOffset, kIntSize)                                \
+  V(kHandlerTableOffsetOffset, kIntSize)                                  \
+  V(kConstantPoolOffsetOffset,                                            \
+    FLAG_enable_embedded_constant_pool ? kIntSize : 0)                    \
+  V(kCodeCommentsOffsetOffset, kIntSize)                                  \
+  V(kBuiltinIndexOffset, kIntSize)                                        \
+  V(kUnalignedHeaderSize, 0)                                              \
+  /* Add padding to align the instruction start following right after */  \
+  /* the Code object header. */                                           \
+  V(kOptionalPaddingOffset, CODE_POINTER_PADDING(kOptionalPaddingOffset)) \
   V(kHeaderSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, CODE_FIELDS)
@@ -402,31 +403,24 @@ class Code : public HeapObject {
   // due to padding for code alignment.
 #if V8_TARGET_ARCH_ARM64
   static constexpr int kHeaderPaddingSize = 0;
-  STATIC_ASSERT(kHeaderSize - kHeaderPaddingStart == kHeaderPaddingSize);
 #elif V8_TARGET_ARCH_MIPS64
   static constexpr int kHeaderPaddingSize = 0;
-  STATIC_ASSERT(kHeaderSize - kHeaderPaddingStart == kHeaderPaddingSize);
 #elif V8_TARGET_ARCH_X64
   static constexpr int kHeaderPaddingSize = 0;
-  STATIC_ASSERT(kHeaderSize - kHeaderPaddingStart == kHeaderPaddingSize);
 #elif V8_TARGET_ARCH_ARM
   static constexpr int kHeaderPaddingSize = 20;
-  STATIC_ASSERT(kHeaderSize - kHeaderPaddingStart == kHeaderPaddingSize);
 #elif V8_TARGET_ARCH_IA32
   static constexpr int kHeaderPaddingSize = 20;
-  STATIC_ASSERT(kHeaderSize - kHeaderPaddingStart == kHeaderPaddingSize);
 #elif V8_TARGET_ARCH_MIPS
   static constexpr int kHeaderPaddingSize = 20;
-  STATIC_ASSERT(kHeaderSize - kHeaderPaddingStart == kHeaderPaddingSize);
 #elif V8_TARGET_ARCH_PPC64
-  // No static assert possible since padding size depends on the
-  // FLAG_enable_embedded_constant_pool runtime flag.
+  static constexpr int kHeaderPaddingSize = 0;
 #elif V8_TARGET_ARCH_S390X
   static constexpr int kHeaderPaddingSize = 0;
-  STATIC_ASSERT(kHeaderSize - kHeaderPaddingStart == kHeaderPaddingSize);
 #else
 #error Unknown architecture.
 #endif
+  STATIC_ASSERT(FIELD_SIZE(kOptionalPaddingOffset) == kHeaderPaddingSize);
 
   inline int GetUnwindingInfoSizeOffset() const;
 
