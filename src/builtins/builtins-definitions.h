@@ -1159,6 +1159,9 @@ namespace internal {
   /* ES6 #sec-%typedarray%.prototype.slice */                                  \
   TFJ(TypedArrayPrototypeSlice,                                                \
       SharedFunctionInfo::kDontAdaptArgumentsSentinel)                         \
+  /* ES6 %TypedArray%.prototype.subarray */                                    \
+  TFJ(TypedArrayPrototypeSubArray,                                             \
+      SharedFunctionInfo::kDontAdaptArgumentsSentinel)                         \
   /* ES6 #sec-get-%typedarray%.prototype-@@tostringtag */                      \
   TFJ(TypedArrayPrototypeToStringTag, 0, kReceiver)                            \
   /* ES6 %TypedArray%.prototype.every */                                       \

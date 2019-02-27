@@ -45,8 +45,6 @@ namespace typed_array {
       RawPtr, RawPtr, uintptr): void;
   extern macro TypedArrayBuiltinsAssembler::CallCMemset(
       RawPtr, intptr, uintptr): void;
-  extern macro TypedArrayBuiltinsAssembler::GetBuffer(
-      implicit context: Context)(JSTypedArray): JSArrayBuffer;
   extern macro TypedArrayBuiltinsAssembler::GetTypedArrayElementsInfo(
       JSTypedArray): TypedArrayElementsInfo;
   extern macro LoadFixedTypedArrayElementAsTagged(
