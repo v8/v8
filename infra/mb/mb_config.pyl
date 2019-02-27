@@ -89,8 +89,8 @@
       'V8 Linux64 TSAN - builder': 'release_x64_tsan',
       'V8 Linux - arm64 - sim - MSAN': 'release_simulate_arm64_msan',
       # Misc.
-      'V8 Linux gcc': 'release_x86_gcc',
-      'V8 Linux64 gcc - debug': 'debug_x64_gcc',
+      'V8 Linux gcc': 'release_x86_gcc_no_goma',
+      'V8 Linux64 gcc - debug': 'debug_x64_gcc_no_goma',
       # TODO(machenbach): Remove after switching.
       'V8 Linux gcc 4.8': 'release_x86_gcc',
       'V8 Linux64 gcc 4.8 - debug': 'debug_x64_gcc',
@@ -484,6 +484,9 @@
       'debug_bot', 'x64', 'fuchsia'],
     'debug_x64_gcc': [
       'debug_bot', 'x64', 'gcc'],
+    'debug_x64_gcc_no_goma': [
+      'debug', 'shared', 'v8_enable_slow_dchecks', 'v8_optimized_debug', 'x64',
+      'gcc', 'no_goma'],
     'debug_x64_header_includes': [
       'debug_bot', 'x64', 'v8_check_header_includes'],
     'debug_x64_jumbo': [
@@ -529,6 +532,8 @@
       'release_bot', 'x86', 'gcc'],
     'release_x86_gcc_minimal_symbols': [
       'release_bot', 'x86', 'gcc', 'minimal_symbols'],
+    'release_x86_gcc_no_goma': [
+      'release', 'static', 'x86', 'gcc', 'no_goma'],
     'release_x86_gcmole': [
       'release_bot', 'x86', 'gcmole'],
     'release_x86_gcmole_trybot': [
@@ -696,6 +701,10 @@
 
     'no_custom_libcxx': {
       'gn_args': 'use_custom_libcxx=false',
+    },
+
+    'no_goma': {
+      'gn_args': 'use_goma=false',
     },
 
     'no_sysroot': {
