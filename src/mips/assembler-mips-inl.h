@@ -123,16 +123,8 @@ Address Assembler::target_address_from_return_address(Address pc) {
 
 void Assembler::deserialization_set_special_target_at(
     Address instruction_payload, Code code, Address target) {
-  if (IsMipsArchVariant(kMips32r6)) {
-    // On R6 the address location is shifted by one instruction
-    set_target_address_at(
-        instruction_payload - (kInstructionsFor32BitConstant - 1) * kInstrSize,
-        !code.is_null() ? code->constant_pool() : kNullAddress, target);
-  } else {
-    set_target_address_at(
-        instruction_payload - kInstructionsFor32BitConstant * kInstrSize,
-        !code.is_null() ? code->constant_pool() : kNullAddress, target);
-  }
+  set_target_address_at(instruction_payload,
+      !code.is_null() ? code->constant_pool() : kNullAddress, target);
 }
 
 int Assembler::deserialization_special_target_size(
