@@ -2654,6 +2654,9 @@ void ImplementationVisitor::GenerateClassDefinitions(std::string& file_name) {
                          "\n\n";
 
   for (auto i : GlobalContext::GetClasses()) {
+    ClassType* type = i.second;
+    if (!type->IsExtern()) continue;
+
     // TODO(danno): Ideally (and we've got several core V8 dev's feedback
     // supporting this), Torque should generate the constants for the offsets
     // directly and not go through the existing layer of macros, which actually
@@ -2662,7 +2665,6 @@ void ImplementationVisitor::GenerateClassDefinitions(std::string& file_name) {
     new_contents_stream << "#define ";
     new_contents_stream << CapifyStringWithUnderscores(i.first)
                         << "_FIELDS(V) \\\n";
-    ClassType* type = i.second;
     std::vector<Field> fields = type->fields();
     FieldSectionType section = FieldSectionType::kNoSection;
     std::set<FieldSectionType> completed_sections;
