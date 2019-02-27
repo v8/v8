@@ -729,6 +729,9 @@ extern macro SmiMin(Smi, Smi): Smi;
 extern macro SmiMul(Smi, Smi): Number;
 extern macro SmiMod(Smi, Smi): Number;
 
+extern macro IntPtrMax(intptr, intptr): intptr;
+extern macro IntPtrMin(intptr, intptr): intptr;
+
 extern operator '!' macro ConstexprBoolNot(constexpr bool): constexpr bool;
 extern operator '!' macro Word32BinaryNot(bool): bool;
 extern operator '!' macro IsFalse(Boolean): bool;
@@ -1167,6 +1170,10 @@ Convert<intptr, uintptr>(ui: uintptr): intptr {
   assert(i >= 0);
   return i;
 }
+Convert<PositiveSmi, intptr>(i: intptr): PositiveSmi {
+  assert(IsValidPositiveSmi(i));
+  return %RawDownCast<PositiveSmi>(SmiTag(i));
+}
 Convert<int32, Smi>(s: Smi): int32 {
   return SmiToInt32(s);
 }
@@ -1252,6 +1259,8 @@ extern macro IsArraySpeciesProtectorCellInvalid(): bool;
 extern macro IsTypedArraySpeciesProtectorCellInvalid(): bool;
 extern macro IsPromiseSpeciesProtectorCellInvalid(): bool;
 extern macro IsMockArrayBufferAllocatorFlag(): bool;
+extern macro IsPrototypeTypedArrayPrototype(implicit context: Context)(Map):
+    bool;
 
 extern operator '.data_ptr' macro TypedArrayBuiltinsAssembler::LoadDataPtr(
     JSTypedArray): RawPtr;
@@ -1617,6 +1626,8 @@ extern macro AllocateSeqTwoByteString(implicit context: Context)(uint32):
     String;
 extern macro TryIntPtrAdd(intptr, intptr): intptr
     labels IfOverflow;
+extern macro ConvertToRelativeIndex(implicit context: Context)(
+    Object, intptr): intptr;
 
 extern builtin ObjectToString(Context, Object): Object;
 extern builtin StringRepeat(Context, String, Number): String;
