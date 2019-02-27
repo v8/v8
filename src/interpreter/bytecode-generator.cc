@@ -4850,15 +4850,15 @@ void BytecodeGenerator::VisitCompareOperation(CompareOperation* expr) {
     Register lhs = VisitForRegisterValue(expr->left());
     VisitForAccumulatorValue(expr->right());
     builder()->SetExpressionPosition(expr);
+    FeedbackSlot slot;
     if (expr->op() == Token::IN) {
-      builder()->CompareOperation(expr->op(), lhs);
+      slot = feedback_spec()->AddKeyedHasICSlot();
     } else if (expr->op() == Token::INSTANCEOF) {
-      FeedbackSlot slot = feedback_spec()->AddInstanceOfSlot();
-      builder()->CompareOperation(expr->op(), lhs, feedback_index(slot));
+      slot = feedback_spec()->AddInstanceOfSlot();
     } else {
-      FeedbackSlot slot = feedback_spec()->AddCompareICSlot();
-      builder()->CompareOperation(expr->op(), lhs, feedback_index(slot));
+      slot = feedback_spec()->AddCompareICSlot();
     }
+    builder()->CompareOperation(expr->op(), lhs, feedback_index(slot));
   }
   // Always returns a boolean value.
   execution_result()->SetResultIsBoolean();

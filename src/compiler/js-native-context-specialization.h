@@ -84,6 +84,7 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   Reduction ReduceJSStoreGlobal(Node* node);
   Reduction ReduceJSLoadNamed(Node* node);
   Reduction ReduceJSStoreNamed(Node* node);
+  Reduction ReduceJSHasProperty(Node* node);
   Reduction ReduceJSLoadProperty(Node* node);
   Reduction ReduceJSStoreProperty(Node* node);
   Reduction ReduceJSStoreNamedOwn(Node* node);
@@ -118,6 +119,7 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
                                Node* index, Handle<PropertyCell> property_cell);
   Reduction ReduceKeyedLoadFromHeapConstant(Node* node, Node* index,
                                             FeedbackNexus const& nexus,
+                                            AccessMode access_mode,
                                             KeyedAccessLoadMode load_mode);
   Reduction ReduceElementAccessOnString(Node* node, Node* index, Node* value,
                                         AccessMode access_mode,
@@ -169,6 +171,9 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
                                         ZoneVector<Node*>* if_exceptions,
                                         PropertyAccessInfo const& access_info,
                                         AccessMode access_mode);
+
+  ValueEffectControl BuildPropertyTest(Node* effect, Node* control,
+                                       PropertyAccessInfo const& access_info);
 
   // Helpers for accessor inlining.
   Node* InlinePropertyGetterCall(Node* receiver, Node* context,

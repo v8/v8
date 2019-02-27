@@ -575,7 +575,9 @@ namespace internal {
   F(StoreIC_Miss, 5, 1)                      \
   F(StoreInArrayLiteralIC_Slow, 5, 1)        \
   F(StorePropertyWithInterceptor, 5, 1)      \
-  F(CloneObjectIC_Miss, 4, 1)
+  F(CloneObjectIC_Miss, 4, 1)                \
+  F(KeyedHasIC_Miss, 4, 1)                   \
+  F(HasElementWithInterceptor, 2, 1)
 
 #define FOR_EACH_INTRINSIC_RETURN_OBJECT_IMPL(F, I) \
   FOR_EACH_INTRINSIC_ARRAY(F, I)                    \
@@ -709,6 +711,9 @@ class Runtime : public AllStatic {
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> GetObjectProperty(
       Isolate* isolate, Handle<Object> object, Handle<Object> key,
       bool* is_found_out = nullptr);
+
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> HasProperty(
+      Isolate* isolate, Handle<Object> object, Handle<Object> key);
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSArray> GetInternalProperties(
       Isolate* isolate, Handle<Object>);
