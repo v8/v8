@@ -14,6 +14,8 @@ namespace typed_array_createtypedarray {
       implicit context: Context)(JSTypedArray, uintptr): JSArrayBuffer;
   extern macro TypedArrayBuiltinsAssembler::AllocateOnHeapElements(
       Map, intptr, Number): FixedTypedArrayBase;
+  extern macro TypedArrayBuiltinsAssembler::GetDefaultConstructor(
+      implicit context: Context)(JSTypedArray): JSFunction;
   extern macro TypedArrayBuiltinsAssembler::IsSharedArrayBuffer(JSArrayBuffer):
       bool;
   extern macro TypedArrayBuiltinsAssembler::SetupTypedArray(
@@ -279,7 +281,7 @@ namespace typed_array_createtypedarray {
   // ES #sec-typedarray-constructors
   transitioning builtin CreateTypedArray(
       context: Context, target: JSFunction, newTarget: JSReceiver, arg1: Object,
-      arg2: Object, arg3: Object): Object {
+      arg2: Object, arg3: Object): JSTypedArray {
     assert(IsConstructor(target));
     // 4. Let O be ? AllocateTypedArray(constructorName, NewTarget,
     // "%TypedArrayPrototype%").
@@ -329,5 +331,43 @@ namespace typed_array_createtypedarray {
           array, arrayLike, length, elementsInfo, bufferConstructor);
     }
     return array;
+  }
+
+  transitioning macro TypedArraySpeciesCreate(implicit context: Context)(
+      methodName: constexpr string, numArgs: constexpr int31,
+      exemplar: JSTypedArray, arg0: Object, arg1: Object,
+      arg2: Object): JSTypedArray {
+    const defaultConstructor = GetDefaultConstructor(exemplar);
+
+    try {
+      if (!IsPrototypeTypedArrayPrototype(exemplar.map)) goto IfSlow;
+      if (IsTypedArraySpeciesProtectorCellInvalid()) goto IfSlow;
+
+      const typedArray = CreateTypedArray(
+          context, defaultConstructor, defaultConstructor, arg0, arg1, arg2);
+
+      // It is assumed that the CreateTypedArray builtin does not produce a
+      // typed array that fails ValidateTypedArray
+      assert(!IsDetachedBuffer(typedArray.buffer));
+
+      return typedArray;
+    }
+    label IfSlow deferred {
+      const constructor =
+          Cast<Constructor>(SpeciesConstructor(exemplar, defaultConstructor))
+          otherwise unreachable;
+
+      // TODO(pwong): Simplify and remove numArgs when varargs are supported in
+      // macros.
+      let newObj: Object = Undefined;
+      if constexpr (numArgs == 1) {
+        newObj = Construct(constructor, arg0);
+      } else {
+        assert(numArgs == 3);
+        newObj = Construct(constructor, arg0, arg1, arg2);
+      }
+
+      return typed_array::ValidateTypedArray(context, newObj, methodName);
+    }
   }
 }
