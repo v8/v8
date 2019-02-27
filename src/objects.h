@@ -273,6 +273,7 @@ class JSAsyncGeneratorObject;
 class JSGlobalProxy;
 class JSPromise;
 class JSProxy;
+class JSProxyRevocableResult;
 class KeyAccumulator;
 class LayoutDescriptor;
 class LookupIterator;

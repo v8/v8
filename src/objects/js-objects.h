@@ -832,17 +832,8 @@ class JSObject : public JSReceiver {
 class JSAccessorPropertyDescriptor : public JSObject {
  public:
   // Layout description.
-#define JS_ACCESSOR_PROPERTY_DESCRIPTOR_FIELDS(V) \
-  V(kGetOffset, kTaggedSize)                      \
-  V(kSetOffset, kTaggedSize)                      \
-  V(kEnumerableOffset, kTaggedSize)               \
-  V(kConfigurableOffset, kTaggedSize)             \
-  /* Total size. */                               \
-  V(kSize, 0)
-
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
-                                JS_ACCESSOR_PROPERTY_DESCRIPTOR_FIELDS)
-#undef JS_ACCESSOR_PROPERTY_DESCRIPTOR_FIELDS
+                                JSACCESSOR_PROPERTY_DESCRIPTOR_FIELDS)
 
   // Indices of in-object properties.
   static const int kGetIndex = 0;
@@ -1168,13 +1159,7 @@ class JSGlobalProxy : public JSObject {
   DECL_VERIFIER(JSGlobalProxy)
 
   // Layout description.
-#define JS_GLOBAL_PROXY_FIELDS(V)      \
-  V(kNativeContextOffset, kTaggedSize) \
-  /* Header size. */                   \
-  V(kSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_GLOBAL_PROXY_FIELDS)
-#undef JS_GLOBAL_PROXY_FIELDS
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JSGLOBAL_PROXY_FIELDS)
 
   OBJECT_CONSTRUCTORS(JSGlobalProxy, JSObject);
 };
@@ -1234,13 +1219,7 @@ class JSValue : public JSObject {
   DECL_VERIFIER(JSValue)
 
   // Layout description.
-#define JS_VALUE_FIELDS(V)     \
-  V(kValueOffset, kTaggedSize) \
-  /* Header size. */           \
-  V(kSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_VALUE_FIELDS)
-#undef JS_VALUE_FIELDS
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JSVALUE_FIELDS)
 
   OBJECT_CONSTRUCTORS(JSValue, JSObject);
 };

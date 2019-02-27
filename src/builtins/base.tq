@@ -87,7 +87,6 @@ extern class JSReceiver extends HeapObject {
 }
 
 type Constructor extends JSReceiver;
-type JSProxy extends JSReceiver generates 'TNode<JSProxy>';
 
 extern class JSObject extends JSReceiver { elements: FixedArrayBase; }
 
@@ -102,6 +101,20 @@ macro NewJSObject(implicit context: Context)(): JSObject {
       otherwise unreachable;
   return new JSObject{map, kEmptyFixedArray, kEmptyFixedArray};
 }
+
+extern class JSProxy extends JSReceiver {
+  target: Object;
+  handler: Object;
+}
+
+extern class JSProxyRevocableResult extends JSObject {
+  proxy: Object;
+  revoke: Object;
+}
+
+extern class JSGlobalProxy extends JSObject { native_context: Object; }
+
+extern class JSValue extends JSObject { value: Object; }
 
 extern class JSArgumentsObjectWithLength extends JSObject { length: Object; }
 
@@ -257,6 +270,15 @@ extern class JSTypedArray extends JSArrayBufferView {
 
   length: Smi;
 }
+
+extern class JSAccessorPropertyDescriptor extends JSObject {
+  get: Object;
+  set: Object;
+  enumerable: Object;
+  configurable: Object;
+}
+
+extern class JSCollection extends JSObject { table: Object; }
 
 type JSDataView extends JSArrayBufferView generates 'TNode<JSDataView>';
 
