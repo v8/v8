@@ -89,39 +89,41 @@ extern class JSReceiver extends HeapObject {
 type Constructor extends JSReceiver;
 type JSProxy extends JSReceiver generates 'TNode<JSProxy>';
 
-extern class JSObject extends JSReceiver {
-  constructor(
-      map: Map, properties: FixedArrayBase | Smi, elements: FixedArrayBase) {
-    super(map, properties);
-    this.elements = elements;
-  }
-  constructor(implicit context: Context)() {
-    const objectFunction: JSFunction = GetObjectFunction();
-    const map: Map = Cast<Map>(objectFunction.prototype_or_initial_map)
-        otherwise unreachable;
-    super(map, kEmptyFixedArray);
-    this.elements = kEmptyFixedArray;
-  }
-  elements: FixedArrayBase;
+extern class JSObject extends JSReceiver { elements: FixedArrayBase; }
+
+macro NewJSObject(
+    map: Map, properties: FixedArrayBase | Smi,
+    elements: FixedArrayBase): JSObject {
+  return new JSObject{map, properties, elements};
+}
+macro NewJSObject(implicit context: Context)(): JSObject {
+  const objectFunction: JSFunction = GetObjectFunction();
+  const map: Map = Cast<Map>(objectFunction.prototype_or_initial_map)
+      otherwise unreachable;
+  return new JSObject{map, kEmptyFixedArray, kEmptyFixedArray};
 }
 
 extern class JSArgumentsObjectWithLength extends JSObject { length: Object; }
 
 extern class JSArray extends JSObject {
-  constructor(implicit context: Context)() {
-    super(
-        GetFastPackedSmiElementsJSArrayMap(), kEmptyFixedArray,
-        kEmptyFixedArray);
-    this.length = 0;
-  }
-  constructor(implicit context: Context)(map: Map, elements: FixedArrayBase) {
-    super(map, kEmptyFixedArray, elements);
-    this.length = elements.length;
-  }
   IsEmpty(): bool {
     return this.length == 0;
   }
   length: Number;
+}
+
+macro NewJSArray(implicit context: Context)(
+    map: Map, elements: FixedArrayBase): JSArray {
+  return new JSArray{map, kEmptyFixedArray, elements, elements.length};
+}
+
+macro NewJSArray(implicit context: Context)(): JSArray {
+  return new JSArray{
+    GetFastPackedSmiElementsJSArrayMap(),
+    kEmptyFixedArray,
+    kEmptyFixedArray,
+    0
+  };
 }
 
 // A HeapObject with a JSArray map, and either fast packed elements, or fast
@@ -1492,13 +1494,6 @@ LoadElementNoHole<FixedDoubleArray>(implicit context: Context)(
 }
 
 struct FastJSArrayWitness {
-  constructor(array: FastJSArray) {
-    this.stable = this.unstable = array;
-    this.map = array.map;
-    let kind = array.map.elements_kind;
-    this.hasDoubles = !IsElementsKindLessThanOrEqual(kind, HOLEY_ELEMENTS);
-  }
-
   Get(): FastJSArray {
     return this.unstable;
   }
@@ -1539,6 +1534,16 @@ struct FastJSArrayWitness {
   unstable: FastJSArray;
   map: Map;
   hasDoubles: bool;
+}
+
+macro NewFastJSArrayWitness(array: FastJSArray): FastJSArrayWitness {
+  let kind = array.map.elements_kind;
+  return FastJSArrayWitness{
+    array,
+    array,
+    array.map,
+    !IsElementsKindLessThanOrEqual(kind, HOLEY_ELEMENTS)
+  };
 }
 
 extern macro TransitionElementsKind(

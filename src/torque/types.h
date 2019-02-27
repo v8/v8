@@ -428,7 +428,6 @@ class AggregateType : public Type {
   }
 
   void RegisterMethod(Method* method) { methods_.push_back(method); }
-  std::vector<Method*> Constructors() const;
   const std::vector<Method*>& Methods() const { return methods_; }
   std::vector<Method*> Methods(const std::string& name) const;
 
@@ -454,13 +453,6 @@ class StructType final : public AggregateType {
   std::string ToExplicitString() const override;
   std::string GetGeneratedTypeNameImpl() const override;
 
-  void SetDerivedFrom(const ClassType* derived_from) {
-    derived_from_ = derived_from;
-  }
-  base::Optional<const ClassType*> GetDerivedFrom() const {
-    return derived_from_;
-  }
-
  private:
   friend class TypeOracle;
   StructType(Namespace* nspace, const std::string& name)
@@ -469,8 +461,6 @@ class StructType final : public AggregateType {
   }
 
   const std::string& GetStructName() const { return name(); }
-
-  base::Optional<const ClassType*> derived_from_;
 };
 
 class ClassType final : public AggregateType {
@@ -483,13 +473,11 @@ class ClassType final : public AggregateType {
   bool IsTransient() const override { return transient_; }
   bool HasIndexedField() const override;
   size_t size() const { return size_; }
-  StructType* struct_type() const { return this_struct_; }
   const ClassType* GetSuperClass() const {
     if (parent() == nullptr) return nullptr;
     return parent()->IsClassType() ? ClassType::DynamicCast(parent()) : nullptr;
   }
   void SetSize(size_t size) { size_ = size; }
-  void SetThisStruct(StructType* this_struct) { this_struct_ = this_struct; }
   bool AllowInstantiation() const;
   const Field& RegisterField(Field field) override {
     if (field.index) {
@@ -503,7 +491,6 @@ class ClassType final : public AggregateType {
   ClassType(const Type* parent, Namespace* nspace, const std::string& name,
             bool is_extern, bool transient, const std::string& generates);
 
-  StructType* this_struct_;
   bool is_extern_;
   bool transient_;
   size_t size_;

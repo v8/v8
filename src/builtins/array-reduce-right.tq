@@ -110,7 +110,7 @@ namespace array {
       o: FastJSArray, len: Smi, callbackfn: Callable,
       initialAccumulator: Object): Object
       labels Bailout(Number, Object) {
-    let fastO = FastJSArrayWitness{o};
+    let fastO = NewFastJSArrayWitness(o);
     let accumulator = initialAccumulator;
 
     // Build a fast loop over the array.

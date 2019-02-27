@@ -24,74 +24,6 @@ namespace array {
   const kFastElementsAccessorId: Smi = 1;
 
   class SortState {
-    constructor(implicit context: Context)(
-        receiver: JSReceiver, comparefn: Undefined | Callable,
-        initialReceiverLength: Number, sortLength: Smi,
-        forceGeneric: constexpr bool) {
-      this.receiver = receiver;
-      this.userCmpFn = comparefn;
-      this.sortComparePtr =
-          comparefn != Undefined ? SortCompareUserFn : SortCompareDefault;
-      this.bailoutStatus = kSuccess;
-      const map = receiver.map;
-      this.initialReceiverMap = map;
-      this.initialReceiverLength = initialReceiverLength;
-
-      this.minGallop = kMinGallopWins;
-
-      this.workArray = AllocateZeroedFixedArray(Convert<intptr>(sortLength));
-      this.tempArray = kEmptyFixedArray;
-
-      this.pendingRunsSize = 0;
-      this.pendingRuns =
-          AllocateZeroedFixedArray(Convert<intptr>(kMaxMergePending));
-
-      try {
-        if constexpr (forceGeneric) {
-          goto Generic;
-        } else {
-          GotoIfForceSlowPath() otherwise Slow;
-          let a: FastJSArray = Cast<FastJSArray>(receiver) otherwise Slow;
-
-          const elementsKind: ElementsKind = map.elements_kind;
-          this.accessor = kFastElementsAccessorId;
-          if (IsDoubleElementsKind(elementsKind)) {
-            this.loadFn = Load<FastDoubleElements>;
-            this.storeFn = Store<FastDoubleElements>;
-            this.canUseSameAccessorFn = CanUseSameAccessor<FastDoubleElements>;
-          } else if (elementsKind == PACKED_SMI_ELEMENTS) {
-            this.loadFn = Load<FastPackedSmiElements>;
-            this.storeFn = Store<FastPackedSmiElements>;
-            this.canUseSameAccessorFn =
-                CanUseSameAccessor<FastPackedSmiElements>;
-          } else {
-            this.loadFn = Load<FastSmiOrObjectElements>;
-            this.storeFn = Store<FastSmiOrObjectElements>;
-            this.canUseSameAccessorFn =
-                CanUseSameAccessor<FastSmiOrObjectElements>;
-          }
-          return;
-        }
-      }
-      label Slow {
-        if (map.elements_kind == DICTIONARY_ELEMENTS && IsExtensibleMap(map) &&
-            !IsCustomElementsReceiverInstanceType(map.instance_type)) {
-          this.accessor = kFastElementsAccessorId;
-          this.loadFn = Load<DictionaryElements>;
-          this.storeFn = Store<DictionaryElements>;
-          this.canUseSameAccessorFn = CanUseSameAccessor<DictionaryElements>;
-        } else {
-          goto Generic;
-        }
-      }
-      label Generic {
-        this.accessor = kGenericElementsAccessorId;
-        this.loadFn = Load<GenericElementsAccessor>;
-        this.storeFn = Store<GenericElementsAccessor>;
-        this.canUseSameAccessorFn = CanUseSameAccessor<GenericElementsAccessor>;
-      }
-    }
-
     Compare(implicit context: Context)(x: Object, y: Object): Number {
       const sortCompare: CompareBuiltinFn = this.sortComparePtr;
       return sortCompare(context, this.userCmpFn, x, y);
@@ -165,6 +97,69 @@ namespace array {
     // A Smi constant describing which accessors to use. This is used
     // for reloading the right elements and for a sanity check.
     accessor: Smi;
+  }
+
+  macro NewSortState(implicit context: Context)(
+      receiver: JSReceiver, comparefn: Undefined | Callable,
+      initialReceiverLength: Number, sortLength: Smi,
+      forceGeneric: constexpr bool): SortState {
+    const sortComparePtr =
+        comparefn != Undefined ? SortCompareUserFn : SortCompareDefault;
+    const map = receiver.map;
+    let accessor = kGenericElementsAccessorId;
+    let loadFn = Load<GenericElementsAccessor>;
+    let storeFn = Store<GenericElementsAccessor>;
+    let canUseSameAccessorFn = CanUseSameAccessor<GenericElementsAccessor>;
+
+    try {
+      if constexpr (!forceGeneric) {
+        GotoIfForceSlowPath() otherwise Slow;
+        let a: FastJSArray = Cast<FastJSArray>(receiver) otherwise Slow;
+
+        const elementsKind: ElementsKind = map.elements_kind;
+        accessor = kFastElementsAccessorId;
+        if (IsDoubleElementsKind(elementsKind)) {
+          loadFn = Load<FastDoubleElements>;
+          storeFn = Store<FastDoubleElements>;
+          canUseSameAccessorFn = CanUseSameAccessor<FastDoubleElements>;
+        } else if (elementsKind == PACKED_SMI_ELEMENTS) {
+          loadFn = Load<FastPackedSmiElements>;
+          storeFn = Store<FastPackedSmiElements>;
+          canUseSameAccessorFn = CanUseSameAccessor<FastPackedSmiElements>;
+        } else {
+          loadFn = Load<FastSmiOrObjectElements>;
+          storeFn = Store<FastSmiOrObjectElements>;
+          canUseSameAccessorFn = CanUseSameAccessor<FastSmiOrObjectElements>;
+        }
+      }
+    }
+    label Slow {
+      if (map.elements_kind == DICTIONARY_ELEMENTS && IsExtensibleMap(map) &&
+          !IsCustomElementsReceiverInstanceType(map.instance_type)) {
+        accessor = kFastElementsAccessorId;
+        loadFn = Load<DictionaryElements>;
+        storeFn = Store<DictionaryElements>;
+        canUseSameAccessorFn = CanUseSameAccessor<DictionaryElements>;
+      }
+    }
+
+    return new SortState{
+      receiver,
+      map,
+      initialReceiverLength,
+      comparefn,
+      sortComparePtr,
+      loadFn,
+      storeFn,
+      canUseSameAccessorFn,
+      kSuccess,
+      kMinGallopWins,
+      0,
+      AllocateZeroedFixedArray(Convert<intptr>(kMaxMergePending)),
+      AllocateZeroedFixedArray(Convert<intptr>(sortLength)),
+      kEmptyFixedArray,
+      accessor
+    };
   }
 
   const kFailure: Smi = -1;
@@ -1368,13 +1363,9 @@ namespace array {
         // We were already on the slow path. This must not happen.
         unreachable;
       }
-      const newSortState: SortState = new SortState{
-        sortState.receiver,
-        sortState.userCmpFn,
-        sortState.initialReceiverLength,
-        sortState.workArray.length,
-        true
-      };
+      const newSortState: SortState = NewSortState(
+          sortState.receiver, sortState.userCmpFn,
+          sortState.initialReceiverLength, sortState.workArray.length, true);
       ArrayTimSort(context, newSortState, length);
     }
     return kSuccess;
@@ -1418,8 +1409,8 @@ namespace array {
 
     if (nofNonUndefined < 2) return receiver;
 
-    const sortState: SortState = new
-    SortState{obj, comparefn, len, nofNonUndefined, false};
+    const sortState: SortState =
+        NewSortState(obj, comparefn, len, nofNonUndefined, false);
     ArrayTimSort(context, sortState, nofNonUndefined);
 
     return receiver;

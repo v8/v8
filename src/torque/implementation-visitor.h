@@ -139,6 +139,10 @@ class LocationReference {
   LocationReference() = default;
 };
 
+struct InitializerResults {
+  std::vector<VisitResult> results;
+};
+
 template <class T>
 class Binding;
 
@@ -256,6 +260,17 @@ class ImplementationVisitor : public FileVisitor {
   VisitResult Visit(Expression* expr);
   const Type* Visit(Statement* stmt);
 
+  InitializerResults VisitInitializerResults(
+      const std::vector<Expression*>& expressions);
+
+  size_t InitializeAggregateHelper(
+      const AggregateType* aggregate_type, VisitResult allocate_result,
+      const InitializerResults& initializer_results);
+
+  void InitializeAggregate(const AggregateType* aggregate_type,
+                           VisitResult allocate_result,
+                           const InitializerResults& initializer_results);
+
   VisitResult TemporaryUninitializedStruct(const StructType* struct_type,
                                            const std::string& reason);
   VisitResult Visit(StructExpression* decl);
@@ -334,18 +349,12 @@ class ImplementationVisitor : public FileVisitor {
 
   void GenerateImplementation(const std::string& dir, Namespace* nspace);
 
-  struct ConstructorInfo {
-    int super_calls;
-  };
-
   DECLARE_CONTEXTUAL_VARIABLE(ValueBindingsManager,
                               BindingsManager<LocalValue>);
   DECLARE_CONTEXTUAL_VARIABLE(LabelBindingsManager,
                               BindingsManager<LocalLabel>);
   DECLARE_CONTEXTUAL_VARIABLE(CurrentCallable, Callable*);
   DECLARE_CONTEXTUAL_VARIABLE(CurrentReturnValue, base::Optional<VisitResult>);
-  DECLARE_CONTEXTUAL_VARIABLE(CurrentConstructorInfo,
-                              base::Optional<ConstructorInfo>);
 
   // A BindingsManagersScope has to be active for local bindings to be created.
   // Shadowing an existing BindingsManagersScope by creating a new one hides all
@@ -456,13 +465,6 @@ class ImplementationVisitor : public FileVisitor {
   Method* LookupMethod(const std::string& name, LocationReference target,
                        const Arguments& arguments,
                        const TypeVector& specialization_types);
-
-  Method* LookupConstructor(LocationReference target,
-                            const Arguments& arguments,
-                            const TypeVector& specialization_types) {
-    return LookupMethod(kConstructMethodName, target, arguments,
-                        specialization_types);
-  }
 
   const Type* GetCommonType(const Type* left, const Type* right);
 

@@ -248,20 +248,7 @@ base::Optional<ParseResult> MakeCall(ParseResultIterator* child_results) {
   auto args = child_results->NextAs<std::vector<Expression*>>();
   auto otherwise = child_results->NextAs<std::vector<Statement*>>();
   IdentifierExpression* target = IdentifierExpression::cast(callee);
-  if (target->name->value == kSuperMethodName) {
-    if (target->namespace_qualification.size() != 0) {
-      ReportError(
-          "\"super\" invocation cannot be used with namespace qualification");
-    }
-    target =
-        MakeNode<IdentifierExpression>(MakeNode<Identifier>(kSuperMethodName));
-    return ParseResult{MakeCall(target,
-                                MakeNode<IdentifierExpression>(
-                                    MakeNode<Identifier>(kThisParameterName)),
-                                args, otherwise)};
-  } else {
     return ParseResult{MakeCall(target, base::nullopt, args, otherwise)};
-  }
 }
 
 base::Optional<ParseResult> MakeMethodCall(ParseResultIterator* child_results) {
@@ -545,7 +532,7 @@ base::Optional<ParseResult> MakeMethodDeclaration(
   auto transitioning = child_results->NextAs<bool>();
   auto operator_name = child_results->NextAs<base::Optional<std::string>>();
   auto name = child_results->NextAs<std::string>();
-  if (name != kConstructMethodName && !IsUpperCamelCase(name)) {
+  if (!IsUpperCamelCase(name)) {
     NamingConventionError("Method", name, "UpperCamelCase");
   }
 

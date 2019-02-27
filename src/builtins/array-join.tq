@@ -152,17 +152,6 @@ namespace array_join {
   // The buffer is maintained and updated by Buffer.constructor, Buffer.Add(),
   // Buffer.AddSeparators().
   struct Buffer {
-    constructor(len: uintptr, sep: String) {
-      const cappedBufferSize: intptr = len > kMaxNewSpaceFixedArrayElements ?
-          kMaxNewSpaceFixedArrayElements :
-          Signed(len);
-      assert(cappedBufferSize > 0);
-      this.fixedArray = AllocateZeroedFixedArray(cappedBufferSize);
-      this.isOneByte = HasOnlyOneByteChars(sep.instanceType);
-      this.index = 0;
-      this.totalStringLength = 0;
-    }
-
     Add(implicit context: Context)(
         str: String, nofSeparators: intptr, separatorLength: intptr) {
       // Add separators if necessary (at the beginning or more than one)
@@ -223,6 +212,19 @@ namespace array_join {
     isOneByte: bool;
   }
 
+  macro NewBuffer(len: uintptr, sep: String): Buffer {
+    const cappedBufferSize: intptr = len > kMaxNewSpaceFixedArrayElements ?
+        kMaxNewSpaceFixedArrayElements :
+        Signed(len);
+    assert(cappedBufferSize > 0);
+    return Buffer{
+      AllocateZeroedFixedArray(cappedBufferSize),
+      0,
+      0,
+      HasOnlyOneByteChars(sep.instanceType)
+    };
+  }
+
   macro BufferJoin(implicit context: Context)(buffer: Buffer, sep: String):
       String {
     assert(IsValidPositiveSmi(buffer.totalStringLength));
@@ -265,7 +267,7 @@ namespace array_join {
     const separatorLength: intptr = sep.length;
     let nofSeparators: intptr = 0;
     let loadFn: LoadJoinElementFn = initialLoadFn;
-    let buffer: Buffer = Buffer{len, sep};
+    let buffer: Buffer = NewBuffer(len, sep);
 
     // 6. Let k be 0.
     let k: uintptr = 0;

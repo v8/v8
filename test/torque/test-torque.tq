@@ -727,7 +727,7 @@ namespace test {
   }
 
   macro TestNew(implicit context: Context)() {
-    const f: JSArray = new JSArray{};
+    const f: JSArray = NewJSArray();
     assert(f.IsEmpty());
     f.length = 0;
   }
@@ -749,19 +749,6 @@ namespace test {
     c: int32;
   }
 
-  struct TestCustomStructConstructor {
-    constructor(x: int32, y: Smi) {
-      this.a = x;
-      this.c = x;
-      this.b = y;
-      this.d = y;
-    }
-    a: int32;
-    b: Smi;
-    c: int32;
-    d: Smi;
-  }
-
   macro TestStructConstructor(implicit context: Context)() {
     // Test default constructor
     let a: TestOuter = TestOuter{5, TestInner{6, 7}, 8};
@@ -774,12 +761,6 @@ namespace test {
     a.b.SetX(2);
     assert(a.b.x == 2);
     assert(a.b.GetX() == 2);
-    // Test custom constructor
-    let w: TestCustomStructConstructor = TestCustomStructConstructor{1, 2};
-    assert(w.a == 1);
-    assert(w.b == 2);
-    assert(w.c == 1);
-    assert(w.d == 2);
   }
 
   extern class TestClassWithAllTypes extends JSObject {
@@ -820,10 +801,6 @@ namespace test {
   }
 
   class InternalClass {
-    constructor(x: Smi) {
-      this.a = x;
-      this.b = x + 1;
-    }
     Flip() labels NotASmi {
       const tmp = Cast<Smi>(this.b) otherwise NotASmi;
       this.b = this.a;
@@ -833,8 +810,12 @@ namespace test {
     b: Number;
   }
 
+  macro NewInternalClass(x: Smi): InternalClass {
+    return new InternalClass{x, x + 1};
+  }
+
   macro TestInternalClass(implicit context: Context)() {
-    const o = new InternalClass{5};
+    const o = NewInternalClass(5);
     o.Flip() otherwise unreachable;
     check(o.a == 6);
     check(o.b == 5);

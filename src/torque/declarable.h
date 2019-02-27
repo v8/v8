@@ -257,7 +257,6 @@ class Callable : public Scope {
   bool IsExternal() const { return !body_.has_value(); }
   virtual bool ShouldBeInlined() const { return false; }
   virtual bool ShouldGenerateExternalCode() const { return !ShouldBeInlined(); }
-  bool IsConstructor() const { return readable_name_ == kConstructMethodName; }
 
  protected:
   Callable(Declarable::Kind kind, std::string external_name,

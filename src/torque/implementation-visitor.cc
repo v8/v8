@@ -224,10 +224,6 @@ VisitResult ImplementationVisitor::InlineMacro(
   const Type* return_type = macro->signature().return_type;
   bool can_return = return_type != TypeOracle::GetNeverType();
 
-  CurrentConstructorInfo::Scope current_constructor;
-  if (macro->IsConstructor())
-    CurrentConstructorInfo::Get() = ConstructorInfo{0};
-
   BlockBindings<LocalValue> parameter_bindings(&ValueBindingsManager::Get());
   BlockBindings<LocalLabel> label_bindings(&LabelBindingsManager::Get());
   DCHECK_EQ(macro->signature().parameter_names.size(),
@@ -1244,6 +1240,61 @@ VisitResult ImplementationVisitor::Visit(StatementExpression* expr) {
   return VisitResult{Visit(expr->statement), assembler().TopRange(0)};
 }
 
+InitializerResults ImplementationVisitor::VisitInitializerResults(
+    const std::vector<Expression*>& expressions) {
+  InitializerResults result;
+  for (auto e : expressions) {
+    result.results.push_back(Visit(e));
+  }
+  return result;
+}
+
+size_t ImplementationVisitor::InitializeAggregateHelper(
+    const AggregateType* aggregate_type, VisitResult allocate_result,
+    const InitializerResults& initializer_results) {
+  const ClassType* current_class = ClassType::DynamicCast(aggregate_type);
+  size_t current = 0;
+  if (current_class) {
+    const ClassType* super = current_class->GetSuperClass();
+    if (super) {
+      current = InitializeAggregateHelper(super, allocate_result,
+                                          initializer_results);
+    }
+  }
+
+  for (auto f : aggregate_type->fields()) {
+    if (current == initializer_results.results.size()) {
+      ReportError("insufficient number of initializers for ",
+                  aggregate_type->name());
+    }
+    VisitResult current_value = initializer_results.results[current];
+    if (aggregate_type->IsClassType()) {
+      allocate_result.SetType(aggregate_type);
+      GenerateCopy(allocate_result);
+      GenerateImplicitConvert(f.name_and_type.type, current_value);
+      assembler().Emit(StoreObjectFieldInstruction(
+          ClassType::cast(aggregate_type), f.name_and_type.name));
+    } else {
+      LocationReference struct_field_ref = LocationReference::VariableAccess(
+          ProjectStructField(allocate_result, f.name_and_type.name));
+      GenerateAssignToLocation(struct_field_ref, current_value);
+    }
+    ++current;
+  }
+  return current;
+}
+
+void ImplementationVisitor::InitializeAggregate(
+    const AggregateType* aggregate_type, VisitResult allocate_result,
+    const InitializerResults& initializer_results) {
+  size_t consumed_initializers = InitializeAggregateHelper(
+      aggregate_type, allocate_result, initializer_results);
+  if (consumed_initializers != initializer_results.results.size()) {
+    ReportError("more initializers than fields present in ",
+                aggregate_type->name());
+  }
+}
+
 VisitResult ImplementationVisitor::Visit(NewExpression* expr) {
   StackScope stack_scope(this);
   const Type* type = Declarations::GetType(expr->type);
@@ -1259,32 +1310,18 @@ VisitResult ImplementationVisitor::Visit(NewExpression* expr) {
                 " cannot be allocated with new (it's used for testing)");
   }
 
-  // In order to ensure "atomicity" of object allocation, a class' constructors
-  // operate on a per-class internal struct rather than the class directly until
-  // the constructor has successfully completed and all class members are
-  // available. Create the appropriate unitialized struct and pass it to the
-  // matching class constructor with the arguments that were passed to new{}
-  StructType* class_this_struct = class_type->struct_type();
-  VisitResult unitialized_struct = TemporaryUninitializedStruct(
-      class_this_struct,
-      "it's not set in the constructor for class " + class_type->name());
-  Arguments constructor_arguments;
-  for (auto p : expr->parameters) {
-    constructor_arguments.parameters.push_back(Visit(p));
-  }
-  LocationReference unitialized_struct_ref =
-      LocationReference::VariableAccess(unitialized_struct);
-  Callable* callable =
-      LookupConstructor(unitialized_struct_ref, constructor_arguments, {});
-  GenerateCall(callable, unitialized_struct_ref, constructor_arguments,
-               {class_type}, false);
-  VisitResult new_struct_result = unitialized_struct;
+  InitializerResults initializer_results =
+      VisitInitializerResults(expr->parameters);
 
   // Output the code to generate an unitialized object of the class size in the
   // GC heap.
   VisitResult allocate_result;
   if (class_type->IsExtern()) {
-    VisitResult object_map = ProjectStructField(new_struct_result, "map");
+    if (initializer_results.results.size() == 0) {
+      ReportError(
+          "external classes initializers must have a map as first parameter");
+    }
+    VisitResult object_map = initializer_results.results[0];
     Arguments size_arguments;
     size_arguments.parameters.push_back(object_map);
     VisitResult object_size = GenerateCall("%GetAllocationBaseSize",
@@ -1303,37 +1340,7 @@ VisitResult ImplementationVisitor::Visit(NewExpression* expr) {
                                    {class_type}, false);
   }
 
-  // Fill in the fields of the newly allocated class by copying the values
-  // from the struct that was built by the constructor. So that the generaeted
-  // code is a bit more readable, assign the values from the first class
-  // member to the last, in order. To do this, first build a list of fields
-  // to assign to in reverse order by visiting the class heirarchy.
-  std::vector<std::pair<const Field*, VisitResult>> store_pairs;
-  const ClassType* current_class = class_type;
-  while (current_class != nullptr) {
-    auto& fields = current_class->fields();
-    for (auto i = fields.rbegin(); i != fields.rend(); ++i) {
-      store_pairs.push_back(std::make_pair(
-          &*i, ProjectStructField(new_struct_result, i->name_and_type.name)));
-    }
-    current_class = current_class->GetSuperClass();
-    if (current_class) {
-      new_struct_result = ProjectStructField(new_struct_result,
-                                             kConstructorStructSuperFieldName);
-    }
-  }
-
-  // Now that the reversed list of fields and the assignment VisitResults are
-  // available, emit the copies in reverse order of the reversed list to
-  // produce the class field assignments in the expected order.
-  for (auto i = store_pairs.rbegin(); i != store_pairs.rend(); ++i) {
-    assembler().Emit(
-        PeekInstruction(allocate_result.stack_range().begin(), class_type));
-    assembler().Emit(PeekInstruction(i->second.stack_range().begin(),
-                                     i->first->name_and_type.type));
-    assembler().Emit(
-        StoreObjectFieldInstruction(class_type, i->first->name_and_type.name));
-  }
+  InitializeAggregate(class_type, allocate_result, initializer_results);
 
   return stack_scope.Yield(allocate_result);
 }
@@ -1685,20 +1692,18 @@ VisitResult ImplementationVisitor::Visit(StructExpression* decl) {
     s << decl->name << " is not a struct but used like one ";
     ReportError(s.str());
   }
+
+  InitializerResults initialization_results =
+      ImplementationVisitor::VisitInitializerResults(decl->expressions);
+
   const StructType* struct_type = StructType::cast(raw_type);
   // Push unitialized 'this'
-  VisitResult uninitialized_struct = TemporaryUninitializedStruct(
-      struct_type,
-      "it's not set in the constructor for struct " + struct_type->name());
-  Arguments constructor_arguments;
-  for (auto p : decl->expressions) {
-    constructor_arguments.parameters.push_back(Visit(p));
-  }
-  LocationReference this_ref =
-      LocationReference::VariableAccess(uninitialized_struct);
-  Callable* callable = LookupConstructor(this_ref, constructor_arguments, {});
-  GenerateCall(callable, this_ref, constructor_arguments, {}, false);
-  return stack_scope.Yield(uninitialized_struct);
+  VisitResult result = TemporaryUninitializedStruct(
+      struct_type, "it's not initialized in the struct " + struct_type->name());
+
+  InitializeAggregate(struct_type, result, initialization_results);
+
+  return stack_scope.Yield(result);
 }
 
 LocationReference ImplementationVisitor::GetLocationReference(
@@ -2217,33 +2222,6 @@ VisitResult ImplementationVisitor::Visit(CallMethodExpression* expr) {
   if (!target_type) {
     ReportError("target of method call not a struct or class type");
   }
-  if (method_name == kConstructMethodName || method_name == kSuperMethodName) {
-    if (CurrentConstructorInfo::Get()) {
-      ConstructorInfo& info = *CurrentConstructorInfo::Get();
-      if (method_name == kSuperMethodName) {
-        if (info.super_calls != 0) {
-          ReportError("\"super\" can only be called once from a constructor");
-        }
-        ++info.super_calls;
-        DCHECK(target_type->IsStructType());
-        base::Optional<const ClassType*> derived_from =
-            StructType::cast(target_type)->GetDerivedFrom();
-        if (!derived_from) {
-          ReportError("\"super\" can only be called from class constructors");
-        }
-        if ((*derived_from)->GetSuperClass() == nullptr) {
-          ReportError(
-              "\"super\" can only be called in constructors for derived "
-              "classes");
-        }
-      } else {
-        ReportError("cannot call a constructor from a constructor");
-      }
-    } else {
-      ReportError(
-          "cannot call a constructor or \"super\" from a non-constructor");
-    }
-  }
   for (Expression* arg : expr->arguments) {
     arguments.parameters.push_back(Visit(arg));
   }
@@ -2252,19 +2230,7 @@ VisitResult ImplementationVisitor::Visit(CallMethodExpression* expr) {
   DCHECK_EQ(expr->method->namespace_qualification.size(), 0);
   QualifiedName qualified_name = QualifiedName(method_name);
   Callable* callable = nullptr;
-  if (method_name == kConstructMethodName) {
-    callable = LookupConstructor(target, arguments, {});
-  } else if (method_name == kSuperMethodName) {
-    LocationReference super_this =
-        LocationReference::VariableAccess(ProjectStructField(
-            target.GetVisitResult(), kConstructorStructSuperFieldName));
-    callable = LookupConstructor(super_this, arguments, {});
-    VisitResult super_result =
-        GenerateCall(callable, super_this, arguments, {}, false);
-    return scope.Yield(super_result);
-  } else {
     callable = LookupMethod(method_name, target, arguments, {});
-  }
   return scope.Yield(GenerateCall(callable, target, arguments, {}, false));
 }
 
@@ -2431,7 +2397,6 @@ DEFINE_CONTEXTUAL_VARIABLE(ImplementationVisitor::ValueBindingsManager)
 DEFINE_CONTEXTUAL_VARIABLE(ImplementationVisitor::LabelBindingsManager)
 DEFINE_CONTEXTUAL_VARIABLE(ImplementationVisitor::CurrentCallable)
 DEFINE_CONTEXTUAL_VARIABLE(ImplementationVisitor::CurrentReturnValue)
-DEFINE_CONTEXTUAL_VARIABLE(ImplementationVisitor::CurrentConstructorInfo)
 
 bool IsCompatibleSignature(const Signature& sig, const TypeVector& types,
                            size_t label_count) {
@@ -2486,7 +2451,6 @@ void ImplementationVisitor::VisitAllDeclarables() {
 }
 
 void ImplementationVisitor::Visit(Declarable* declarable) {
-  CurrentConstructorInfo::Scope current_constructor(base::nullopt);
   CurrentScope::Scope current_scope(declarable->ParentScope());
   CurrentSourcePosition::Scope current_source_position(declarable->pos());
   switch (declarable->kind()) {

@@ -100,10 +100,10 @@ namespace array_filter {
       thisArg: Object, a: JSArray) labels Bailout(Smi, Smi) {
     let k: Smi = 0;
     let to: Smi = 0;
-    let fastO =
-    FastJSArrayWitness{Cast<FastJSArray>(o) otherwise goto Bailout(k, to)};
-    let fastA =
-    FastJSArrayWitness{Cast<FastJSArray>(a) otherwise goto Bailout(k, to)};
+    const arrayO = Cast<FastJSArray>(o) otherwise goto Bailout(k, to);
+    let fastO = NewFastJSArrayWitness(arrayO);
+    const arrayA = Cast<FastJSArray>(a) otherwise goto Bailout(k, to);
+    let fastA = NewFastJSArrayWitness(arrayA);
 
     // Build a fast loop over the smi array.
     for (; k < len; k++) {

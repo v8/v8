@@ -91,15 +91,6 @@ namespace array_map {
   }
 
   struct Vector {
-    constructor(implicit context: Context)(length: Smi) {
-      this.fixedArray = length > 0 ?
-          AllocateFixedArrayWithHoles(
-              SmiUntag(length), kAllowLargeObjectAllocation) :
-          kEmptyFixedArray;
-      this.onlySmis = this.onlyNumbers = true;
-      this.skippedElements = false;
-    }
-
     ReportSkippedElement() {
       this.skippedElements = true;
     }
@@ -134,7 +125,7 @@ namespace array_map {
         // heap corruption.
         const elements: FixedDoubleArray = AllocateFixedDoubleArrayWithHoles(
             SmiUntag(length), kAllowLargeObjectAllocation);
-        a = new JSArray{map, this.fixedArray};
+        a = NewJSArray(map, this.fixedArray);
         for (let i: Smi = 0; i < validLength; i++) {
           typeswitch (this.fixedArray.objects[i]) {
             case (n: Number): {
@@ -148,7 +139,7 @@ namespace array_map {
         a.elements = elements;
       } else {
         // Simply install the given fixedArray in {vector}.
-        a = new JSArray{map, this.fixedArray};
+        a = NewJSArray(map, this.fixedArray);
       }
 
       // Paranoia. the FixedArray now "belongs" to JSArray {a}.
@@ -179,14 +170,22 @@ namespace array_map {
     skippedElements: bool;  // initially false.
   }
 
+  macro NewVector(implicit context: Context)(length: Smi): Vector {
+    const fixedArray = length > 0 ?
+        AllocateFixedArrayWithHoles(
+            SmiUntag(length), kAllowLargeObjectAllocation) :
+        kEmptyFixedArray;
+    return Vector{fixedArray, true, true, false};
+  }
+
   transitioning macro
   MapVisitAllElements<FixedArrayType: type>(implicit context: Context)(
       o: JSArray, len: Smi, callbackfn: Callable, thisArg: Object,
       vector: Vector): Vector labels Bailout(Vector, Smi) {
     let k: Smi = 0;
     let v: Vector = vector;
-    let fastO =
-    FastJSArrayWitness{Cast<FastJSArray>(o) otherwise goto Bailout(v, k)};
+    const array = Cast<FastJSArray>(o) otherwise goto Bailout(v, k);
+    let fastO = NewFastJSArrayWitness(array);
 
     // Build a fast loop over the smi array.
     // 7. Repeat, while k < len.
@@ -218,7 +217,7 @@ namespace array_map {
       labels Bailout(JSArray, Smi) {
     let k: Smi = 0;
     let fastO = Cast<FastJSArray>(o) otherwise unreachable;
-    let vector = Vector{len};
+    let vector = NewVector(len);
     const elementsKind: ElementsKind = fastO.map.elements_kind;
     try {
       if (IsElementsKindLessThanOrEqual(elementsKind, HOLEY_SMI_ELEMENTS)) {

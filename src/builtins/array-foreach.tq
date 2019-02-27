@@ -73,7 +73,7 @@ namespace array_foreach {
   Bailout(Smi) {
     let k: Smi = 0;
     let fastO =
-    FastJSArrayWitness{Cast<FastJSArray>(o) otherwise goto Bailout(k)};
+        NewFastJSArrayWitness(Cast<FastJSArray>(o) otherwise goto Bailout(k));
 
     // Build a fast loop over the smi array.
     for (; k < len; k++) {

@@ -279,10 +279,6 @@ std::vector<Method*> AggregateType::Methods(const std::string& name) const {
   return result;
 }
 
-std::vector<Method*> AggregateType::Constructors() const {
-  return Methods(kConstructMethodName);
-}
-
 std::string StructType::ToExplicitString() const {
   std::stringstream result;
   result << "struct " << name() << "{";
@@ -295,7 +291,6 @@ ClassType::ClassType(const Type* parent, Namespace* nspace,
                      const std::string& name, bool is_extern, bool transient,
                      const std::string& generates)
     : AggregateType(Kind::kClassType, parent, nspace, name),
-      this_struct_(nullptr),
       is_extern_(is_extern),
       transient_(transient),
       size_(0),
@@ -445,8 +440,7 @@ bool operator<(const Type& a, const Type& b) {
   return a.MangledName() < b.MangledName();
 }
 
-VisitResult ProjectStructField(const StructType* original_struct,
-                               VisitResult structure,
+VisitResult ProjectStructField(VisitResult structure,
                                const std::string& fieldname) {
   BottomOffset begin = structure.stack_range().begin();
 
@@ -461,38 +455,8 @@ VisitResult ProjectStructField(const StructType* original_struct,
     begin = end;
   }
 
-  if (fields.size() > 0 &&
-      fields[0].name_and_type.name == kConstructorStructSuperFieldName) {
-    structure = ProjectStructField(original_struct, structure,
-                                   kConstructorStructSuperFieldName);
-    return ProjectStructField(original_struct, structure, fieldname);
-  } else {
-    base::Optional<const ClassType*> class_type =
-        original_struct->GetDerivedFrom();
-    if (original_struct == type) {
-      if (class_type) {
-        ReportError("class '", (*class_type)->name(),
-                    "' doesn't contain a field '", fieldname, "'");
-      } else {
-        ReportError("struct '", original_struct->name(),
-                    "' doesn't contain a field '", fieldname, "'");
-      }
-    } else {
-      DCHECK(class_type);
-      ReportError(
-          "class '", (*class_type)->name(),
-          "' or one of its derived-from classes doesn't contain a field '",
-          fieldname, "'");
-    }
-  }
-}
-
-VisitResult ProjectStructField(VisitResult structure,
-                               const std::string& fieldname) {
-  DCHECK(structure.IsOnStack());
-  DCHECK(structure.type()->IsStructType());
-  const StructType* type = StructType::cast(structure.type());
-  return ProjectStructField(type, structure, fieldname);
+  ReportError("struct '", type->name(), "' doesn't contain a field '",
+              fieldname, "'");
 }
 
 namespace {
