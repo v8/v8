@@ -2261,9 +2261,8 @@ MaybeHandle<BigInt> BigInt::AsUintN(Isolate* isolate, uint64_t n,
   int needed_length = static_cast<int>((n + kDigitBits - 1) / kDigitBits);
   if (x->length() < needed_length) return x;
   int bits_in_top_digit = n % kDigitBits;
-  if (bits_in_top_digit == 0) {
-    if (x->length() == needed_length) return x;
-  } else {
+  if (x->length() == needed_length) {
+    if (bits_in_top_digit == 0) return x;
     digit_t top_digit = x->digit(needed_length - 1);
     if ((top_digit >> bits_in_top_digit) == 0) return x;
   }
