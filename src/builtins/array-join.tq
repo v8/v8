@@ -78,7 +78,7 @@ namespace array_join {
       return ToString_Inline(context, result);
     }
     label TypeError {
-      ThrowTypeError(context, kCalledNonCallable, prop);
+      ThrowTypeError(kCalledNonCallable, prop);
     }
   }
 
@@ -565,7 +565,7 @@ namespace array_join {
 
     // Only handle valid array lengths. Although the spec allows larger values,
     // this matches historical V8 behavior.
-    if (len > kMaxArrayIndex + 1) ThrowTypeError(context, kInvalidArrayLength);
+    if (len > kMaxArrayIndex + 1) ThrowTypeError(kInvalidArrayLength);
 
     return CycleProtectedArrayJoin<JSArray>(
         false, o, len, separator, Undefined, Undefined);
@@ -585,7 +585,7 @@ namespace array_join {
 
     // Only handle valid array lengths. Although the spec allows larger values,
     // this matches historical V8 behavior.
-    if (len > kMaxArrayIndex + 1) ThrowTypeError(context, kInvalidArrayLength);
+    if (len > kMaxArrayIndex + 1) ThrowTypeError(kInvalidArrayLength);
 
     return CycleProtectedArrayJoin<JSArray>(
         true, o, len, ',', locales, options);

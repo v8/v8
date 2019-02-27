@@ -100,7 +100,7 @@ namespace array {
     // If the accumulator is discovered with the sentinel hole value,
     // this means kPresent is false.
     if (accumulator == Hole) {
-      ThrowTypeError(context, kReduceNoInitial, 'Array.prototype.reduceRight');
+      ThrowTypeError(kReduceNoInitial, 'Array.prototype.reduceRight');
     }
     return accumulator;
   }
@@ -127,7 +127,7 @@ namespace array {
       }
     }
     if (accumulator == Hole) {
-      ThrowTypeError(context, kReduceNoInitial, 'Array.prototype.reduceRight');
+      ThrowTypeError(kReduceNoInitial, 'Array.prototype.reduceRight');
     }
     return accumulator;
   }
@@ -186,11 +186,10 @@ namespace array {
       }
     }
     label NoCallableError deferred {
-      ThrowTypeError(context, kCalledNonCallable, arguments[0]);
+      ThrowTypeError(kCalledNonCallable, arguments[0]);
     }
     label NullOrUndefinedError deferred {
-      ThrowTypeError(
-          context, kCalledOnNullOrUndefined, 'Array.prototype.reduceRight');
+      ThrowTypeError(kCalledOnNullOrUndefined, 'Array.prototype.reduceRight');
     }
   }
 }

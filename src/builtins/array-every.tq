@@ -142,11 +142,10 @@ namespace array {
       }
     }
     label TypeError deferred {
-      ThrowTypeError(context, kCalledNonCallable, arguments[0]);
+      ThrowTypeError(kCalledNonCallable, arguments[0]);
     }
     label NullOrUndefinedError deferred {
-      ThrowTypeError(
-          context, kCalledOnNullOrUndefined, 'Array.prototype.every');
+      ThrowTypeError(kCalledOnNullOrUndefined, 'Array.prototype.every');
     }
   }
 }

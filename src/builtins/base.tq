@@ -488,14 +488,18 @@ extern transitioning builtin HasProperty(implicit context: Context)(
 extern transitioning macro HasProperty_Inline(implicit context: Context)(
     JSReceiver, Object): Boolean;
 
-extern macro ThrowRangeError(Context, constexpr MessageTemplate): never;
-extern macro ThrowRangeError(Context, constexpr MessageTemplate, Object): never;
-extern macro ThrowTypeError(Context, constexpr MessageTemplate): never;
-extern macro ThrowTypeError(
-    Context, constexpr MessageTemplate, constexpr string): never;
-extern macro ThrowTypeError(Context, constexpr MessageTemplate, Object): never;
-extern macro ThrowTypeError(
-    Context, constexpr MessageTemplate, Object, Object, Object): never;
+extern macro ThrowRangeError(implicit context: Context)(
+    constexpr MessageTemplate): never;
+extern macro ThrowRangeError(implicit context: Context)(
+    constexpr MessageTemplate, Object): never;
+extern macro ThrowTypeError(implicit context: Context)(
+    constexpr MessageTemplate): never;
+extern macro ThrowTypeError(implicit context: Context)(
+    constexpr MessageTemplate, constexpr string): never;
+extern macro ThrowTypeError(implicit context: Context)(
+    constexpr MessageTemplate, Object): never;
+extern macro ThrowTypeError(implicit context: Context)(
+    constexpr MessageTemplate, Object, Object, Object): never;
 extern macro ArraySpeciesCreate(Context, Object, Number): JSReceiver;
 extern macro ArrayCreate(implicit context: Context)(Number): JSArray;
 extern macro BuildAppendJSArray(

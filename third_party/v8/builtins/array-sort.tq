@@ -301,7 +301,7 @@ namespace array {
       // as SetProperty would.
       const receiver = sortState.receiver;
       ThrowTypeError(
-          context, kStrictReadOnlyProperty, index, Typeof(receiver), receiver);
+          kStrictReadOnlyProperty, index, Typeof(receiver), receiver);
     }
     label Fail {
       return Failure(sortState);
@@ -1401,7 +1401,7 @@ namespace array {
     //    throw a TypeError exception.
     const comparefnObj: Object = arguments[0];
     const comparefn = Cast<(Undefined | Callable)>(comparefnObj) otherwise
-    ThrowTypeError(context, kBadSortComparisonFunction, comparefnObj);
+    ThrowTypeError(kBadSortComparisonFunction, comparefnObj);
 
     // 2. Let obj be ? ToObject(this value).
     const obj: JSReceiver = ToObject(context, receiver);

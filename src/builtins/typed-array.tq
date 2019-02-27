@@ -128,8 +128,7 @@ namespace typed_array {
 
     // b. If IsDetachedBuffer(buffer) is true, throw a TypeError exception.
     if (IsDetachedBuffer(array.buffer)) {
-      ThrowTypeError(
-          context, kDetachedOperation, '%TypedArray%.prototype.sort');
+      ThrowTypeError(kDetachedOperation, '%TypedArray%.prototype.sort');
     }
 
     // c. If v is NaN, return +0.
@@ -199,7 +198,7 @@ namespace typed_array {
     const comparefnObj: Object =
         arguments.length > 0 ? arguments[0] : Undefined;
     if (comparefnObj != Undefined && !TaggedIsCallable(comparefnObj)) {
-      ThrowTypeError(context, kBadSortComparisonFunction, comparefnObj);
+      ThrowTypeError(kBadSortComparisonFunction, comparefnObj);
     }
 
     // 2. Let obj be the this value.

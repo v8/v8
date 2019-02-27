@@ -36,7 +36,7 @@ namespace array_unshift {
     if (argCount > 0) {
       // a. If len + argCount > 2**53 - 1, throw a TypeError exception.
       if (length + argCount > kMaxSafeInteger) {
-        ThrowTypeError(context, kInvalidArrayLength);
+        ThrowTypeError(kInvalidArrayLength);
       }
 
       // b. Let k be len.

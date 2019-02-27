@@ -141,11 +141,10 @@ namespace array_foreach {
           o, callbackfn, thisArg, Undefined, o, k, len, Undefined);
     }
     label TypeError deferred {
-      ThrowTypeError(context, kCalledNonCallable, arguments[0]);
+      ThrowTypeError(kCalledNonCallable, arguments[0]);
     }
     label NullOrUndefinedError deferred {
-      ThrowTypeError(
-          context, kCalledOnNullOrUndefined, 'Array.prototype.forEach');
+      ThrowTypeError(kCalledOnNullOrUndefined, 'Array.prototype.forEach');
     }
   }
 }

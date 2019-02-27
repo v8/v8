@@ -34,8 +34,8 @@ namespace typed_array_createtypedarray {
       initialize: constexpr bool, typedArray: JSTypedArray, length: PositiveSmi,
       elementsInfo: typed_array::TypedArrayElementsInfo,
       bufferConstructor: JSReceiver): uintptr {
-    const byteLength = elementsInfo.CalculateByteLength(
-        length) otherwise ThrowRangeError(context, kInvalidArrayBufferLength);
+    const byteLength = elementsInfo.CalculateByteLength(length)
+        otherwise ThrowRangeError(kInvalidArrayBufferLength);
     const byteLengthNum = Convert<Number>(byteLength);
     const defaultConstructor = GetArrayBufferFunction();
 
@@ -93,7 +93,7 @@ namespace typed_array_createtypedarray {
     // representation (which uses Smis).
     // TODO(7881): support larger-than-smi typed array lengths
     const positiveLength: PositiveSmi = Cast<PositiveSmi>(convertedLength)
-        otherwise ThrowRangeError(context, kInvalidTypedArrayLength, length);
+        otherwise ThrowRangeError(kInvalidTypedArrayLength, length);
     const defaultConstructor: Constructor = GetArrayBufferFunction();
     const initialize: constexpr bool = true;
     TypedArrayInitialize(
@@ -109,7 +109,7 @@ namespace typed_array_createtypedarray {
       bufferConstructor: JSReceiver): void {
     // The caller has looked up length on arrayLike, which is observable.
     const length: PositiveSmi = ToSmiLength(initialLength)
-        otherwise ThrowRangeError(context, kInvalidTypedArrayLength, initialLength);
+        otherwise ThrowRangeError(kInvalidTypedArrayLength, initialLength);
     const initialize: constexpr bool = false;
     const byteLength = TypedArrayInitialize(
         initialize, typedArray, length, elementsInfo, bufferConstructor);
@@ -118,7 +118,7 @@ namespace typed_array_createtypedarray {
       const src: JSTypedArray = Cast<JSTypedArray>(arrayLike) otherwise IfSlow;
 
       if (IsDetachedBuffer(src.buffer)) {
-        ThrowTypeError(context, kDetachedOperation, 'Construct');
+        ThrowTypeError(kDetachedOperation, 'Construct');
 
       } else if (src.elements_kind != elementsInfo.kind) {
         goto IfSlow;
@@ -197,7 +197,7 @@ namespace typed_array_createtypedarray {
 
       // 9. If IsDetachedBuffer(buffer) is true, throw a TypeError exception.
       if (IsDetachedBuffer(buffer)) {
-        ThrowTypeError(context, kDetachedOperation, 'Construct');
+        ThrowTypeError(kDetachedOperation, 'Construct');
       }
 
       // 10. Let bufferByteLength be buffer.[[ArrayBufferByteLength]].
@@ -242,13 +242,13 @@ namespace typed_array_createtypedarray {
       ThrowInvalidTypedArrayAlignment(typedArray.map, problemString);
     }
     label IfInvalidByteLength deferred {
-      ThrowRangeError(context, kInvalidArrayBufferLength);
+      ThrowRangeError(kInvalidArrayBufferLength);
     }
     label IfInvalidLength deferred {
-      ThrowRangeError(context, kInvalidTypedArrayLength, length);
+      ThrowRangeError(kInvalidTypedArrayLength, length);
     }
     label IfInvalidOffset deferred {
-      ThrowRangeError(context, kInvalidOffset, byteOffset);
+      ThrowRangeError(kInvalidOffset, byteOffset);
     }
   }
 
@@ -260,7 +260,7 @@ namespace typed_array_createtypedarray {
       const iteratorMethod: Object =
           GetIteratorMethod(obj) otherwise IfIteratorUndefined;
       const iteratorFn: Callable = Cast<Callable>(iteratorMethod)
-          otherwise ThrowTypeError(context, kIteratorSymbolNonCallable);
+          otherwise ThrowTypeError(kIteratorSymbolNonCallable);
       ConstructByIterable(array, obj, iteratorFn, elementsInfo)
           otherwise IfConstructByArrayLike;
     }
@@ -271,7 +271,7 @@ namespace typed_array_createtypedarray {
       goto IfConstructByArrayLike(obj, length, GetArrayBufferFunction());
     }
     label IfInvalidLength(length: Object) {
-      ThrowRangeError(context, kInvalidTypedArrayLength, length);
+      ThrowRangeError(kInvalidTypedArrayLength, length);
     }
   }
 

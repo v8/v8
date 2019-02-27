@@ -41,8 +41,7 @@ namespace string {
     // 3. Let isRegExp be ? IsRegExp(searchString).
     // 4. If isRegExp is true, throw a TypeError exception.
     if (IsRegExp(searchString)) {
-      ThrowTypeError(
-          context, kFirstArgumentNotRegExp, 'String.prototype.endsWith');
+      ThrowTypeError(kFirstArgumentNotRegExp, 'String.prototype.endsWith');
     }
 
     // 5. Let searchStr be ? ToString(searchString).

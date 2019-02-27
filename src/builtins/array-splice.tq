@@ -398,7 +398,7 @@ namespace array_splice {
     //    Bailout exception.
     const newLength: Number = len + insertCount - actualDeleteCount;
     if (newLength > kMaxSafeInteger) {
-      ThrowTypeError(context, kInvalidArrayLength, start);
+      ThrowTypeError(kInvalidArrayLength, start);
     }
 
     try {
