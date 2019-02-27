@@ -4,6 +4,8 @@
 
 #include "src/inspector/string-util.h"
 
+#include <cmath>
+
 #include "src/base/platform/platform.h"
 #include "src/conversions.h"
 #include "src/inspector/protocol/Protocol.h"
