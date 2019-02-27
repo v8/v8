@@ -296,10 +296,14 @@ size_t Isolate::HashIsolateForEmbeddedBlob() {
 
 base::Thread::LocalStorageKey Isolate::isolate_key_;
 base::Thread::LocalStorageKey Isolate::per_isolate_thread_data_key_;
-base::Atomic32 Isolate::isolate_counter_ = 0;
 #if DEBUG
-base::Atomic32 Isolate::isolate_key_created_ = 0;
+std::atomic<bool> Isolate::isolate_key_created_{false};
 #endif
+
+namespace {
+// A global counter for all generated Isolates, might overflow.
+std::atomic<int> isolate_counter{0};
+}  // namespace
 
 Isolate::PerIsolateThreadData*
     Isolate::FindOrAllocatePerThreadDataForThisThread() {
@@ -352,7 +356,9 @@ Isolate::PerIsolateThreadData* Isolate::FindPerThreadDataForThread(
 void Isolate::InitializeOncePerProcess() {
   isolate_key_ = base::Thread::CreateThreadLocalKey();
 #if DEBUG
-  base::Relaxed_Store(&isolate_key_created_, 1);
+  bool expected = false;
+  DCHECK_EQ(true, isolate_key_created_.compare_exchange_strong(
+                      expected, true, std::memory_order_relaxed));
 #endif
   per_isolate_thread_data_key_ = base::Thread::CreateThreadLocalKey();
 }
@@ -2817,7 +2823,7 @@ void Isolate::Delete(Isolate* isolate) {
   // direct pointer. We don't use Enter/Exit here to avoid
   // initializing the thread data.
   PerIsolateThreadData* saved_data = isolate->CurrentPerIsolateThreadData();
-  DCHECK_EQ(base::Relaxed_Load(&isolate_key_created_), 1);
+  DCHECK_EQ(true, isolate_key_created_.load(std::memory_order_relaxed));
   Isolate* saved_isolate = reinterpret_cast<Isolate*>(
       base::Thread::GetThreadLocal(isolate->isolate_key_));
   SetIsolateThreadLocals(isolate, nullptr);
@@ -2846,7 +2852,7 @@ v8::PageAllocator* Isolate::page_allocator() {
 
 Isolate::Isolate(std::unique_ptr<i::IsolateAllocator> isolate_allocator)
     : isolate_allocator_(std::move(isolate_allocator)),
-      id_(base::Relaxed_AtomicIncrement(&isolate_counter_, 1)),
+      id_(isolate_counter.fetch_add(1, std::memory_order_relaxed)),
       stack_guard_(this),
       allocator_(FLAG_trace_zone_stats ? new VerboseAccountingAllocator(
                                              &heap_, 256 * KB, 128 * KB)
@@ -4497,12 +4503,12 @@ double Isolate::LoadStartTimeMs() {
 }
 
 void Isolate::SetRAILMode(RAILMode rail_mode) {
-  RAILMode old_rail_mode = rail_mode_.Value();
+  RAILMode old_rail_mode = rail_mode_.load();
   if (old_rail_mode != PERFORMANCE_LOAD && rail_mode == PERFORMANCE_LOAD) {
     base::MutexGuard guard(&rail_mutex_);
     load_start_time_ms_ = heap()->MonotonicallyIncreasingTimeInMs();
   }
-  rail_mode_.SetValue(rail_mode);
+  rail_mode_.store(rail_mode);
   if (old_rail_mode == PERFORMANCE_LOAD && rail_mode != PERFORMANCE_LOAD) {
     heap()->incremental_marking()->incremental_marking_job()->ScheduleTask(
         heap());

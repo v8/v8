@@ -16,7 +16,6 @@
 #include "include/v8-internal.h"
 #include "include/v8.h"
 #include "src/allocation.h"
-#include "src/base/atomicops.h"
 #include "src/base/macros.h"
 #include "src/builtins/builtins.h"
 #include "src/contexts.h"
@@ -499,7 +498,7 @@ class Isolate final : private HiddenFactory {
 
   // Returns the isolate inside which the current thread is running or nullptr.
   V8_INLINE static Isolate* TryGetCurrent() {
-    DCHECK_EQ(base::Relaxed_Load(&isolate_key_created_), 1);
+    DCHECK_EQ(true, isolate_key_created_.load(std::memory_order_relaxed));
     return reinterpret_cast<Isolate*>(
         base::Thread::GetExistingThreadLocal(isolate_key_));
   }
@@ -1248,7 +1247,7 @@ class Isolate final : private HiddenFactory {
   // compile dispatcher's queue.
   void AbortConcurrentOptimization(BlockingBehavior blocking_behavior);
 
-  int id() const { return static_cast<int>(id_); }
+  int id() const { return id_; }
 
   CompilationStatistics* GetTurboStatistics();
   CodeTracer* GetCodeTracer();
@@ -1450,7 +1449,7 @@ class Isolate final : private HiddenFactory {
 
   void SetRAILMode(RAILMode rail_mode);
 
-  RAILMode rail_mode() { return rail_mode_.Value(); }
+  RAILMode rail_mode() { return rail_mode_.load(); }
 
   double LoadStartTimeMs();
 
@@ -1548,11 +1547,8 @@ class Isolate final : private HiddenFactory {
   static base::Thread::LocalStorageKey per_isolate_thread_data_key_;
   static base::Thread::LocalStorageKey isolate_key_;
 
-  // A global counter for all generated Isolates, might overflow.
-  static base::Atomic32 isolate_counter_;
-
-#if DEBUG
-  static base::Atomic32 isolate_key_created_;
+#ifdef DEBUG
+  static std::atomic<bool> isolate_key_created_;
 #endif
 
   void Deinit();
@@ -1599,7 +1595,7 @@ class Isolate final : private HiddenFactory {
   std::unique_ptr<IsolateAllocator> isolate_allocator_;
   Heap heap_;
 
-  base::Atomic32 id_;
+  const int id_;
   EntryStackItem* entry_stack_ = nullptr;
   int stack_trace_nesting_level_ = 0;
   StringStream* incomplete_message_ = nullptr;
@@ -1641,7 +1637,7 @@ class Isolate final : private HiddenFactory {
   DateCache* date_cache_ = nullptr;
   base::RandomNumberGenerator* random_number_generator_ = nullptr;
   base::RandomNumberGenerator* fuzzer_rng_ = nullptr;
-  base::AtomicValue<RAILMode> rail_mode_;
+  std::atomic<RAILMode> rail_mode_;
   v8::Isolate::AtomicsWaitCallback atomics_wait_callback_ = nullptr;
   void* atomics_wait_callback_data_ = nullptr;
   PromiseHook promise_hook_ = nullptr;
