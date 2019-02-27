@@ -1841,7 +1841,7 @@ void Smi::SmiPrint(std::ostream& os) const {  // NOLINT
 
 
 void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
-  os << AsHex(this->ptr(), kSystemPointerHexDigits, true) << " ";
+  os << AsHex::Address(this->ptr()) << " ";
 
   if (IsString()) {
     HeapStringAllocator allocator;

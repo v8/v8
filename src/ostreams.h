@@ -121,6 +121,10 @@ struct AsHex {
   uint64_t value;
   uint8_t min_width;
   bool with_prefix;
+
+  static AsHex Address(Address a) {
+    return AsHex(a, kSystemPointerHexDigits, true);
+  }
 };
 
 // Output the given value as hex, separated in individual bytes.

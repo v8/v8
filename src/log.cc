@@ -1623,7 +1623,7 @@ void Logger::ICEvent(const char* type, bool keyed, Map map, Object key,
   Address pc = isolate_->GetAbstractPC(&line, &column);
   msg << type << kNext << reinterpret_cast<void*>(pc) << kNext << line << kNext
       << column << kNext << old_state << kNext << new_state << kNext
-      << reinterpret_cast<void*>(map.ptr()) << kNext;
+      << AsHex::Address(map.ptr()) << kNext;
   if (key->IsSmi()) {
     msg << Smi::ToInt(key);
   } else if (key->IsNumber()) {
@@ -1652,10 +1652,9 @@ void Logger::MapEvent(const char* type, Map from, Map to, const char* reason,
   }
   Log::MessageBuilder msg(log_);
   msg << "map" << kNext << type << kNext << timer_.Elapsed().InMicroseconds()
-      << kNext << reinterpret_cast<void*>(from.ptr()) << kNext
-      << reinterpret_cast<void*>(to.ptr()) << kNext
-      << reinterpret_cast<void*>(pc) << kNext << line << kNext << column
-      << kNext << reason << kNext;
+      << kNext << AsHex::Address(from.ptr()) << kNext
+      << AsHex::Address(to.ptr()) << kNext << AsHex::Address(pc) << kNext
+      << line << kNext << column << kNext << reason << kNext;
 
   if (!name_or_sfi.is_null()) {
     if (name_or_sfi->IsName()) {
@@ -1676,7 +1675,7 @@ void Logger::MapCreate(Map map) {
   DisallowHeapAllocation no_gc;
   Log::MessageBuilder msg(log_);
   msg << "map-create" << kNext << timer_.Elapsed().InMicroseconds() << kNext
-      << reinterpret_cast<void*>(map.ptr());
+      << AsHex::Address(map.ptr());
   msg.WriteToLogFile();
 }
 
@@ -1685,7 +1684,7 @@ void Logger::MapDetails(Map map) {
   DisallowHeapAllocation no_gc;
   Log::MessageBuilder msg(log_);
   msg << "map-details" << kNext << timer_.Elapsed().InMicroseconds() << kNext
-      << reinterpret_cast<void*>(map.ptr()) << kNext;
+      << AsHex::Address(map.ptr()) << kNext;
   if (FLAG_trace_maps_details) {
     std::ostringstream buffer;
     map->PrintMapDetails(buffer);
