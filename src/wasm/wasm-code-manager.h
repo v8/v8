@@ -463,9 +463,14 @@ class V8_EXPORT_PRIVATE NativeModule final {
   //////////////////////////////////////////////////////////////////////////////
   // Protected by {allocation_mutex_}:
 
-  // Holds all allocated code objects, is maintained to be in ascending order
-  // according to the codes instruction start address to allow lookups.
-  std::vector<std::unique_ptr<WasmCode>> owned_code_;
+  // Holds all allocated code objects. Mutable because it might get sorted in
+  // {Lookup()}.
+  mutable std::vector<std::unique_ptr<WasmCode>> owned_code_;
+
+  // Keep track of the portion of {owned_code_} that is sorted.
+  // Entries [0, owned_code_sorted_portion_) are known to be sorted.
+  // Mutable because it might get modified in {Lookup()}.
+  mutable size_t owned_code_sorted_portion_ = 0;
 
   std::unique_ptr<WasmCode* []> code_table_;
 

@@ -36,20 +36,6 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
-namespace {
-
-// Binary predicate to perform lookups in {NativeModule::owned_code_} with a
-// given address into a code object. Use with {std::upper_bound} for example.
-struct WasmCodeUniquePtrComparator {
-  bool operator()(Address pc, const std::unique_ptr<WasmCode>& code) const {
-    DCHECK_NE(kNullAddress, pc);
-    DCHECK_NOT_NULL(code);
-    return pc < code->instruction_start();
-  }
-};
-
-}  // namespace
-
 void DisjointAllocationPool::Merge(base::AddressRegion region) {
   auto dest_it = regions_.begin();
   auto dest_end = regions_.end();
@@ -463,20 +449,7 @@ WasmCode* NativeModule::AddOwnedCode(
         std::move(protected_instructions), std::move(reloc_info),
         std::move(source_position_table), kind, tier);
 
-    if (owned_code_.empty() ||
-        code->instruction_start() > owned_code_.back()->instruction_start()) {
-      // Common case.
-      owned_code_.emplace_back(code);
-    } else {
-      // Slow but unlikely case.
-      // TODO(mtrofin): We allocate in increasing address order, and
-      // even if we end up with segmented memory, we may end up only with a few
-      // large moves - if, for example, a new segment is below the current ones.
-      auto insert_before = std::upper_bound(
-          owned_code_.begin(), owned_code_.end(), code->instruction_start(),
-          WasmCodeUniquePtrComparator{});
-      owned_code_.emplace(insert_before, code);
-    }
+    owned_code_.emplace_back(code);
   }
   memcpy(reinterpret_cast<void*>(code->instruction_start()),
          instructions.start(), instructions.size());
@@ -891,13 +864,38 @@ void NativeModule::SetWireBytes(OwnedVector<const uint8_t> wire_bytes) {
 WasmCode* NativeModule::Lookup(Address pc) const {
   base::MutexGuard lock(&allocation_mutex_);
   if (owned_code_.empty()) return nullptr;
-  auto iter = std::upper_bound(owned_code_.begin(), owned_code_.end(), pc,
-                               WasmCodeUniquePtrComparator());
-  if (iter == owned_code_.begin()) return nullptr;
-  --iter;
-  WasmCode* candidate = iter->get();
-  DCHECK_NOT_NULL(candidate);
-  return candidate->contains(pc) ? candidate : nullptr;
+  // First update the sorted portion counter.
+  if (owned_code_sorted_portion_ == 0) ++owned_code_sorted_portion_;
+  while (owned_code_sorted_portion_ < owned_code_.size() &&
+         owned_code_[owned_code_sorted_portion_ - 1]->instruction_start() <=
+             owned_code_[owned_code_sorted_portion_]->instruction_start()) {
+    ++owned_code_sorted_portion_;
+  }
+  // Execute at most two rounds: First check whether the {pc} is within the
+  // sorted portion of {owned_code_}. If it's not, then sort the whole vector
+  // and retry.
+  while (true) {
+    auto iter =
+        std::upper_bound(owned_code_.begin(), owned_code_.end(), pc,
+                         [](Address pc, const std::unique_ptr<WasmCode>& code) {
+                           DCHECK_NE(kNullAddress, pc);
+                           DCHECK_NOT_NULL(code);
+                           return pc < code->instruction_start();
+                         });
+    if (iter != owned_code_.begin()) {
+      --iter;
+      WasmCode* candidate = iter->get();
+      DCHECK_NOT_NULL(candidate);
+      if (candidate->contains(pc)) return candidate;
+    }
+    if (owned_code_sorted_portion_ == owned_code_.size()) return nullptr;
+    std::sort(owned_code_.begin(), owned_code_.end(),
+              [](const std::unique_ptr<WasmCode>& code1,
+                 const std::unique_ptr<WasmCode>& code2) {
+                return code1->instruction_start() < code2->instruction_start();
+              });
+    owned_code_sorted_portion_ = owned_code_.size();
+  }
 }
 
 Address NativeModule::GetCallTargetForFunction(uint32_t func_index) const {
