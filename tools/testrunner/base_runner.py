@@ -183,6 +183,7 @@ class BuildConfig(object):
     self.dcheck_always_on = build_config['dcheck_always_on']
     self.gcov_coverage = build_config['is_gcov_coverage']
     self.is_android = build_config['is_android']
+    self.is_clang = build_config['is_clang']
     self.is_debug = build_config['is_debug']
     self.msan = build_config['is_msan']
     self.no_i18n = not build_config['v8_enable_i18n_support']
@@ -657,6 +658,7 @@ class BaseTestRunner(object):
       "gc_stress": False,
       "gcov_coverage": self.build_config.gcov_coverage,
       "isolates": options.isolates,
+      "is_clang": self.build_config.is_clang,
       "mips_arch_variant": mips_arch_variant,
       "mode": self.mode_options.status_mode
               if not self.build_config.dcheck_always_on

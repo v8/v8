@@ -110,6 +110,9 @@
   # BUG(v8:8739). Wasm interpreter does not create proper stack traces.
   'test-wasm-stack/RunWasmInterpreter_CollectDetailedWasmStack_WasmError': [SKIP],
 
+  # https://crbug.com/v8/8919
+  'test-platform/StackAlignment': [PASS, ['not is_clang', SKIP]],
+
   ############################################################################
   # Slow tests.
   'test-debug/CallFunctionInDebugger': [PASS, ['mode == debug', SLOW]],

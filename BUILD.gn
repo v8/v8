@@ -1190,6 +1190,7 @@ action("v8_dump_build_config") {
     "is_android=$is_android",
     "is_asan=$is_asan",
     "is_cfi=$is_cfi",
+    "is_clang=$is_clang",
     "is_component_build=$is_component_build",
     "is_debug=$v8_enable_debugging_features",
     "is_gcov_coverage=$is_gcov_coverage",
