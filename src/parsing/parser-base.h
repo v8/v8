@@ -1543,7 +1543,10 @@ ParserBase<Impl>::ParseNonRestrictedIdentifier() {
 template <typename Impl>
 typename ParserBase<Impl>::IdentifierT ParserBase<Impl>::ParsePropertyName() {
   Token::Value next = Next();
-  if (V8_LIKELY(Token::IsPropertyName(next))) return impl()->GetIdentifier();
+  if (V8_LIKELY(Token::IsPropertyName(next))) {
+    if (peek() == Token::COLON) return impl()->GetSymbol();
+    return impl()->GetIdentifier();
+  }
 
   ReportUnexpectedToken(next);
   return impl()->EmptyIdentifierString();
@@ -2039,7 +2042,8 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseProperty(
 
     case Token::STRING:
       Consume(Token::STRING);
-      prop_info->name = impl()->GetIdentifier();
+      prop_info->name = peek() == Token::COLON ? impl()->GetSymbol()
+                                               : impl()->GetIdentifier();
       is_array_index = impl()->IsArrayIndex(prop_info->name, &index);
       break;
 
@@ -2349,7 +2353,7 @@ ParserBase<Impl>::ParseObjectPropertyDefinition(ParsePropertyInfo* prop_info,
       DCHECK_EQ(function_flags, ParseFunctionFlag::kIsNormal);
 
       if (!prop_info->is_computed_name &&
-          impl()->IdentifierEquals(name, ast_value_factory()->proto_string())) {
+          scanner()->CurrentLiteralEquals("__proto__")) {
         if (*has_seen_proto) {
           expression_scope()->RecordExpressionError(
               scanner()->location(), MessageTemplate::kDuplicateProto);
@@ -4553,9 +4557,9 @@ void ParserBase<Impl>::ParseStatementList(StatementListT* body,
 
     Scanner::Location token_loc = scanner()->peek_location();
 
-    if (scanner()->NextLiteralEquals("use strict")) {
+    if (scanner()->NextLiteralExactlyEquals("use strict")) {
       use_strict = true;
-    } else if (scanner()->NextLiteralEquals("use asm")) {
+    } else if (scanner()->NextLiteralExactlyEquals("use asm")) {
       use_asm = true;
     }
 
