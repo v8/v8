@@ -574,6 +574,9 @@
 
   # Field representation tracking is disabled in jitless mode.
   'test-field-type-tracking/*': [SKIP],
+
+  # Instruction cache flushing is disabled in jitless mode.
+  'test-icache/*': [SKIP],
 }], # lite_mode or variant == jitless
 
 ##############################################################################
