@@ -660,6 +660,7 @@ class Heap {
   V8_INLINE void SetRootStringTable(StringTable value);
   V8_INLINE void SetRootNoScriptSharedFunctionInfos(Object value);
   V8_INLINE void SetMessageListeners(TemplateList value);
+  V8_INLINE void SetPendingOptimizeForTestBytecode(Object bytecode);
 
   // Set the stack limit in the roots table.  Some architectures generate
   // code that looks here, because it is faster than loading from the static

@@ -119,6 +119,11 @@ void Heap::SetMessageListeners(TemplateList value) {
   roots_table()[RootIndex::kMessageListeners] = value->ptr();
 }
 
+void Heap::SetPendingOptimizeForTestBytecode(Object bytecode) {
+  DCHECK(bytecode->IsBytecodeArray() || bytecode->IsUndefined(isolate()));
+  roots_table()[RootIndex::kPendingOptimizeForTestBytecode] = bytecode->ptr();
+}
+
 PagedSpace* Heap::paged_space(int idx) {
   DCHECK_NE(idx, LO_SPACE);
   DCHECK_NE(idx, NEW_SPACE);

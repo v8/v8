@@ -792,6 +792,7 @@ void Heap::CreateInitialObjects() {
   set_retaining_path_targets(roots.empty_weak_array_list());
 
   set_feedback_vectors_for_profiling_tools(roots.undefined_value());
+  set_pending_optimize_for_test_bytecode(roots.undefined_value());
 
   set_script_list(roots.empty_weak_array_list());
 

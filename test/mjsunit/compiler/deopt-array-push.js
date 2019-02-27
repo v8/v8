@@ -7,10 +7,12 @@
 (function test() {
   function foo(a) { a.push(a.length = 2); }
 
+  %PrepareFunctionForOptimization(foo);
   foo([1]);
   foo([1]);
   %OptimizeFunctionOnNextCall(foo);
   foo([1]);
+  %PrepareFunctionForOptimization(foo);
   %OptimizeFunctionOnNextCall(foo);
   foo([1]);
   assertOptimized(foo);
@@ -19,10 +21,12 @@
 (function testElementTypeCheckSmi() {
   function foo(a) { a.push('a'); }
 
+  %PrepareFunctionForOptimization(foo);
   foo([1]);
   foo([1]);
   %OptimizeFunctionOnNextCall(foo);
   foo([1]);
+  %PrepareFunctionForOptimization(foo);
   %OptimizeFunctionOnNextCall(foo);
   foo([1]);
   assertOptimized(foo);
@@ -31,10 +35,12 @@
 (function testElementTypeCheckDouble() {
   function foo(a) { a.push('a'); }
 
+  %PrepareFunctionForOptimization(foo);
   foo([0.3413312]);
   foo([0.3413312]);
   %OptimizeFunctionOnNextCall(foo);
   foo([0.3413312]);
+  %PrepareFunctionForOptimization(foo);
   %OptimizeFunctionOnNextCall(foo);
   foo([0.3413312]);
   assertOptimized(foo);
@@ -44,10 +50,12 @@
   %NeverOptimizeFunction(bar);
   function foo(a) { a.push(bar(a)); }
 
+  %PrepareFunctionForOptimization(foo);
   foo(["1"]);
   foo(["1"]);
   %OptimizeFunctionOnNextCall(foo);
   foo(["1"]);
+  %PrepareFunctionForOptimization(foo);
   %OptimizeFunctionOnNextCall(foo);
   foo(["1"]);
   assertOptimized(foo);
@@ -56,10 +64,12 @@
 (function test() {
   function foo(a) { a.push(a.length = 2); }
 
+  %PrepareFunctionForOptimization(foo);
   foo([0.34234]);
   foo([0.34234]);
   %OptimizeFunctionOnNextCall(foo);
   foo([0.34234]);
+  %PrepareFunctionForOptimization(foo);
   %OptimizeFunctionOnNextCall(foo);
   foo([0.34234]);
   assertOptimized(foo);
@@ -70,10 +80,12 @@
 
   function foo(a) { a.push(1); }
 
+  %PrepareFunctionForOptimization(foo);
   foo(new Array(N));
   foo(new Array(N));
   %OptimizeFunctionOnNextCall(foo);
   foo(new Array(N));
+  %PrepareFunctionForOptimization(foo);
   %OptimizeFunctionOnNextCall(foo);
   foo(new Array(N));
   assertOptimized(foo);
@@ -90,11 +102,18 @@
   }
   function foo(a) { a.push(0.23441233123); }
 
+
   // 1. Optimize foo to handle fast mode arrays.
+  %PrepareFunctionForOptimization(foo);
   foo(mkArray(kFastModeLength));
   foo(mkArray(kFastModeLength));
   %OptimizeFunctionOnNextCall(foo);
   foo(mkArray(kFastModeLength));
+  assertOptimized(foo);
+
+  // Prepare foo to be re-optimized, ensuring it's bytecode / feedback vector
+  // doesn't get flushed after deoptimization.
+  %PrepareFunctionForOptimization(foo);
 
   // 2. Given a slow mode array, foo will deopt.
   foo(mkArray(kSlowModeLength));

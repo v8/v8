@@ -22,7 +22,7 @@
 #include "src/debug/liveedit.h"
 #include "src/frames-inl.h"
 #include "src/globals.h"
-#include "src/heap/heap.h"
+#include "src/heap/heap-inl.h"
 #include "src/interpreter/interpreter.h"
 #include "src/isolate-inl.h"
 #include "src/log-inl.h"
@@ -756,6 +756,15 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
   if (isolate->debug()->needs_check_on_function_call()) {
     // Do not optimize when debugger needs to hook into every call.
     return MaybeHandle<Code>();
+  }
+
+  // If code was pending optimization for testing, delete remove the strong root
+  // that was preventing the bytecode from being flushed between marking and
+  // optimization.
+  if (isolate->heap()->pending_optimize_for_test_bytecode() ==
+      shared->GetBytecodeArray()) {
+    isolate->heap()->SetPendingOptimizeForTestBytecode(
+        ReadOnlyRoots(isolate).undefined_value());
   }
 
   Handle<Code> cached_code;

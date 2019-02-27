@@ -232,9 +232,6 @@
 
   # BUG(v8:8169)
   'external-backing-store-gc': [SKIP],
-
-  # https://crbug.com/v8/8781
-  'compiler/string-from-code-point': [PASS, FAIL],
 }],  # ALWAYS
 
 ['novfp3 == True', {
@@ -305,11 +302,6 @@
 
   # BUG(v8:4237)
   'regress/regress-3976': [SKIP],
-
-  # BUG(v8:8801): Bytecode flushing interacts poorly with assertOptimized
-  'regress/regress-7254': [SKIP],
-  'array-push5': [SKIP],
-  'compiler/deopt-array-push': [SKIP],
 
   # Slow tests.
   'array-constructor': [PASS, SLOW],
@@ -421,6 +413,7 @@
   'compiler/deopt-inlined-from-call': [SKIP],
   'compiler/deopt-numberoroddball-binop': [SKIP],
   'compiler/deopt-string-outofbounds': [SKIP],
+  'compiler/dont-flush-code-marked-for-opt': [SKIP],
   'compiler/increment-typefeedback': [SKIP],
   'compiler/inlined-array-pop-opt': [SKIP],
   'compiler/inlined-call': [SKIP],
