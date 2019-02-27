@@ -136,7 +136,7 @@ class PipelineData {
         JSGraph(isolate_, graph_, common_, javascript_, simplified_, machine_);
     broker_ = new (info_->zone()) JSHeapBroker(isolate_, info_->zone());
     dependencies_ =
-        new (info_->zone()) CompilationDependencies(isolate_, info_->zone());
+        new (info_->zone()) CompilationDependencies(broker_, info_->zone());
   }
 
   // For WebAssembly compile entry point.

@@ -219,11 +219,8 @@ Reduction JSNativeContextSpecialization::ReduceJSAsyncFunctionEnter(
   Node* frame_state = NodeProperties::GetFrameStateInput(node);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
-  if (!isolate()->IsPromiseHookProtectorIntact()) return NoChange();
 
-  // Install a code dependency on the promise hook protector cell.
-  dependencies()->DependOnProtector(
-      PropertyCellRef(broker(), factory()->promise_hook_protector()));
+  if (!dependencies()->DependOnPromiseHookProtector()) return NoChange();
 
   // Create the promise for the async function.
   Node* promise = effect =
@@ -252,11 +249,8 @@ Reduction JSNativeContextSpecialization::ReduceJSAsyncFunctionReject(
   Node* frame_state = NodeProperties::GetFrameStateInput(node);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
-  if (!isolate()->IsPromiseHookProtectorIntact()) return NoChange();
 
-  // Install a code dependency on the promise hook protector cell.
-  dependencies()->DependOnProtector(
-      PropertyCellRef(broker(), factory()->promise_hook_protector()));
+  if (!dependencies()->DependOnPromiseHookProtector()) return NoChange();
 
   // Load the promise from the {async_function_object}.
   Node* promise = effect = graph()->NewNode(
@@ -291,11 +285,8 @@ Reduction JSNativeContextSpecialization::ReduceJSAsyncFunctionResolve(
   Node* frame_state = NodeProperties::GetFrameStateInput(node);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
-  if (!isolate()->IsPromiseHookProtectorIntact()) return NoChange();
 
-  // Install a code dependency on the promise hook protector cell.
-  dependencies()->DependOnProtector(
-      PropertyCellRef(broker(), factory()->promise_hook_protector()));
+  if (!dependencies()->DependOnPromiseHookProtector()) return NoChange();
 
   // Load the promise from the {async_function_object}.
   Node* promise = effect = graph()->NewNode(
@@ -426,7 +417,7 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
     Handle<JSObject> holder;
     if (access_info.holder().ToHandle(&holder)) {
       dependencies()->DependOnStablePrototypeChains(
-          broker(), access_info.receiver_maps(), JSObjectRef(broker(), holder));
+          access_info.receiver_maps(), JSObjectRef(broker(), holder));
     }
 
     // Monomorphic property access.
@@ -481,7 +472,7 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
 
     if (found_on_proto) {
       dependencies()->DependOnStablePrototypeChains(
-          broker(), access_info.receiver_maps(), JSObjectRef(broker(), holder));
+          access_info.receiver_maps(), JSObjectRef(broker(), holder));
     }
 
     DCHECK(constant->IsCallable());
@@ -665,10 +656,6 @@ Reduction JSNativeContextSpecialization::ReduceJSPromiseResolve(Node* node) {
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
-  if (!isolate()->IsPromiseHookProtectorIntact()) {
-    return NoChange();
-  }
-
   // Check if the {constructor} is the %Promise% function.
   HeapObjectMatcher m(constructor);
   if (!m.HasValue() ||
@@ -688,9 +675,7 @@ Reduction JSNativeContextSpecialization::ReduceJSPromiseResolve(Node* node) {
     if (value_map->IsJSPromiseMap()) return NoChange();
   }
 
-  // Install a code dependency on the promise hook protector cell.
-  dependencies()->DependOnProtector(
-      PropertyCellRef(broker(), factory()->promise_hook_protector()));
+  if (!dependencies()->DependOnPromiseHookProtector()) return NoChange();
 
   // Create a %Promise% instance and resolve it with {value}.
   Node* promise = effect =
@@ -745,7 +730,7 @@ Reduction JSNativeContextSpecialization::ReduceJSResolvePromise(Node* node) {
   Handle<JSObject> holder;
   if (access_info.holder().ToHandle(&holder)) {
     dependencies()->DependOnStablePrototypeChains(
-        broker(), access_info.receiver_maps(), JSObjectRef(broker(), holder));
+        access_info.receiver_maps(), JSObjectRef(broker(), holder));
   }
 
   // Add stability dependencies on the {resolution_maps}.
@@ -2159,7 +2144,7 @@ JSNativeContextSpecialization::BuildPropertyLoad(
   PropertyAccessBuilder access_builder(jsgraph(), broker(), dependencies());
   if (access_info.holder().ToHandle(&holder)) {
     dependencies()->DependOnStablePrototypeChains(
-        broker(), access_info.receiver_maps(), JSObjectRef(broker(), holder));
+        access_info.receiver_maps(), JSObjectRef(broker(), holder));
   }
 
   // Generate the actual property access.
@@ -2218,7 +2203,7 @@ JSNativeContextSpecialization::BuildPropertyStore(
   if (access_info.holder().ToHandle(&holder)) {
     DCHECK_NE(AccessMode::kStoreInLiteral, access_mode);
     dependencies()->DependOnStablePrototypeChains(
-        broker(), access_info.receiver_maps(), JSObjectRef(broker(), holder));
+        access_info.receiver_maps(), JSObjectRef(broker(), holder));
   }
 
   DCHECK(!access_info.IsNotFound());
@@ -2636,12 +2621,7 @@ JSNativeContextSpecialization::BuildElementAccess(
     }
 
     // See if we can skip the detaching check.
-    if (isolate()->IsArrayBufferDetachingIntact()) {
-      // Add a code dependency so we are deoptimized in case an ArrayBuffer
-      // gets detached.
-      dependencies()->DependOnProtector(PropertyCellRef(
-          broker(), factory()->array_buffer_detaching_protector()));
-    } else {
+    if (!dependencies()->DependOnArrayBufferDetachingProtector()) {
       // Deopt if the {buffer} was detached.
       // Note: A detached buffer leads to megamorphic feedback.
       Node* buffer_bit_field = effect = graph()->NewNode(
@@ -3050,10 +3030,7 @@ Node* JSNativeContextSpecialization::BuildIndexedStringLoad(
     Node* receiver, Node* index, Node* length, Node** effect, Node** control,
     KeyedAccessLoadMode load_mode) {
   if (load_mode == LOAD_IGNORE_OUT_OF_BOUNDS &&
-      isolate()->IsNoElementsProtectorIntact()) {
-    dependencies()->DependOnProtector(
-        PropertyCellRef(broker(), factory()->no_elements_protector()));
-
+      dependencies()->DependOnNoElementsProtector()) {
     // Ensure that the {index} is a valid String length.
     index = *effect = graph()->NewNode(
         simplified()->CheckBounds(VectorSlotPair()), index,
@@ -3200,11 +3177,7 @@ bool JSNativeContextSpecialization::CanTreatHoleAsUndefined(
   }
 
   // Check if the array prototype chain is intact.
-  if (!isolate()->IsNoElementsProtectorIntact()) return false;
-
-  dependencies()->DependOnProtector(
-      PropertyCellRef(broker(), factory()->no_elements_protector()));
-  return true;
+  return dependencies()->DependOnNoElementsProtector();
 }
 
 namespace {

@@ -664,7 +664,7 @@ static void TestGeneralizeField(int detach_property_at_index,
   // Create new maps by generalizing representation of propX field.
   CanonicalHandleScope canonical(isolate);
   JSHeapBroker broker(isolate, &zone);
-  CompilationDependencies dependencies(isolate, &zone);
+  CompilationDependencies dependencies(&broker, &zone);
   MapRef map_ref(&broker, map);
   map_ref.SerializeOwnDescriptors();
   dependencies.DependOnFieldType(map_ref, property_index);
@@ -1041,7 +1041,7 @@ static void TestReconfigureDataFieldAttribute_GeneralizeField(
   Zone zone(isolate->allocator(), ZONE_NAME);
   CanonicalHandleScope canonical(isolate);
   JSHeapBroker broker(isolate, &zone);
-  CompilationDependencies dependencies(isolate, &zone);
+  CompilationDependencies dependencies(&broker, &zone);
   MapRef map_ref(&broker, map);
   map_ref.SerializeOwnDescriptors();
   dependencies.DependOnFieldType(map_ref, kSplitProp);
@@ -1128,7 +1128,7 @@ static void TestReconfigureDataFieldAttribute_GeneralizeFieldTrivial(
   Zone zone(isolate->allocator(), ZONE_NAME);
   CanonicalHandleScope canonical(isolate);
   JSHeapBroker broker(isolate, &zone);
-  CompilationDependencies dependencies(isolate, &zone);
+  CompilationDependencies dependencies(&broker, &zone);
   MapRef map_ref(&broker, map);
   map_ref.SerializeOwnDescriptors();
   dependencies.DependOnFieldType(map_ref, kSplitProp);
@@ -1813,7 +1813,7 @@ static void TestReconfigureElementsKind_GeneralizeField(
   Zone zone(isolate->allocator(), ZONE_NAME);
   CanonicalHandleScope canonical(isolate);
   JSHeapBroker broker(isolate, &zone);
-  CompilationDependencies dependencies(isolate, &zone);
+  CompilationDependencies dependencies(&broker, &zone);
   MapRef map_ref(&broker, map);
   map_ref.SerializeOwnDescriptors();
   dependencies.DependOnFieldType(map_ref, kDiffProp);
@@ -1911,7 +1911,7 @@ static void TestReconfigureElementsKind_GeneralizeFieldTrivial(
   Zone zone(isolate->allocator(), ZONE_NAME);
   CanonicalHandleScope canonical(isolate);
   JSHeapBroker broker(isolate, &zone);
-  CompilationDependencies dependencies(isolate, &zone);
+  CompilationDependencies dependencies(&broker, &zone);
   MapRef map_ref(&broker, map);
   map_ref.SerializeOwnDescriptors();
 

@@ -28,7 +28,7 @@ class SlackTrackingPrediction {
 // Collects and installs dependencies of the code that is being generated.
 class V8_EXPORT_PRIVATE CompilationDependencies : public ZoneObject {
  public:
-  CompilationDependencies(Isolate* isolate, Zone* zone);
+  CompilationDependencies(JSHeapBroker* broker, Zone* zone);
 
   V8_WARN_UNUSED_RESULT bool Commit(Handle<Code> code);
 
@@ -68,8 +68,18 @@ class V8_EXPORT_PRIVATE CompilationDependencies : public ZoneObject {
   // {IsReadOnly()} flag of {cell}'s {PropertyDetails}.
   void DependOnGlobalProperty(const PropertyCellRef& cell);
 
-  // Record the assumption that the protector remains valid.
-  void DependOnProtector(const PropertyCellRef& cell);
+  // Return the validity of the given protector and, if true, record the
+  // assumption that the protector remains valid.
+  bool DependOnProtector(const PropertyCellRef& cell);
+
+  // Convenience wrappers around {DependOnProtector}.
+  bool DependOnArrayBufferDetachingProtector();
+  bool DependOnArrayIteratorProtector();
+  bool DependOnArraySpeciesProtector();
+  bool DependOnNoElementsProtector();
+  bool DependOnPromiseHookProtector();
+  bool DependOnPromiseSpeciesProtector();
+  bool DependOnPromiseThenProtector();
 
   // Record the assumption that {site}'s {ElementsKind} doesn't change.
   void DependOnElementsKind(const AllocationSiteRef& site);
@@ -77,8 +87,7 @@ class V8_EXPORT_PRIVATE CompilationDependencies : public ZoneObject {
   // Depend on the stability of (the maps of) all prototypes of every class in
   // {receiver_type} up to (and including) the {holder}.
   void DependOnStablePrototypeChains(
-      JSHeapBroker* broker, std::vector<Handle<Map>> const& receiver_maps,
-      const JSObjectRef& holder);
+      std::vector<Handle<Map>> const& receiver_maps, const JSObjectRef& holder);
 
   // Like DependOnElementsKind but also applies to all nested allocation sites.
   void DependOnElementsKinds(const AllocationSiteRef& site);
@@ -98,9 +107,9 @@ class V8_EXPORT_PRIVATE CompilationDependencies : public ZoneObject {
   class Dependency;
 
  private:
-  Zone* zone_;
+  Zone* const zone_;
+  JSHeapBroker* const broker_;
   ZoneForwardList<Dependency*> dependencies_;
-  Isolate* isolate_;
 };
 
 }  // namespace compiler

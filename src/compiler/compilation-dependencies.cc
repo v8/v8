@@ -12,8 +12,9 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-CompilationDependencies::CompilationDependencies(Isolate* isolate, Zone* zone)
-    : zone_(zone), dependencies_(zone), isolate_(isolate) {}
+CompilationDependencies::CompilationDependencies(JSHeapBroker* broker,
+                                                 Zone* zone)
+    : zone_(zone), broker_(broker), dependencies_(zone) {}
 
 class CompilationDependencies::Dependency : public ZoneObject {
  public:
@@ -423,8 +424,46 @@ void CompilationDependencies::DependOnGlobalProperty(
                                GlobalPropertyDependency(cell, type, read_only));
 }
 
-void CompilationDependencies::DependOnProtector(const PropertyCellRef& cell) {
+bool CompilationDependencies::DependOnProtector(const PropertyCellRef& cell) {
+  if (cell.value().AsSmi() != Isolate::kProtectorValid) return false;
   dependencies_.push_front(new (zone_) ProtectorDependency(cell));
+  return true;
+}
+
+bool CompilationDependencies::DependOnArrayBufferDetachingProtector() {
+  return DependOnProtector(PropertyCellRef(
+      broker_,
+      broker_->isolate()->factory()->array_buffer_detaching_protector()));
+}
+
+bool CompilationDependencies::DependOnArrayIteratorProtector() {
+  return DependOnProtector(PropertyCellRef(
+      broker_, broker_->isolate()->factory()->array_iterator_protector()));
+}
+
+bool CompilationDependencies::DependOnArraySpeciesProtector() {
+  return DependOnProtector(PropertyCellRef(
+      broker_, broker_->isolate()->factory()->array_species_protector()));
+}
+
+bool CompilationDependencies::DependOnNoElementsProtector() {
+  return DependOnProtector(PropertyCellRef(
+      broker_, broker_->isolate()->factory()->no_elements_protector()));
+}
+
+bool CompilationDependencies::DependOnPromiseHookProtector() {
+  return DependOnProtector(PropertyCellRef(
+      broker_, broker_->isolate()->factory()->promise_hook_protector()));
+}
+
+bool CompilationDependencies::DependOnPromiseSpeciesProtector() {
+  return DependOnProtector(PropertyCellRef(
+      broker_, broker_->isolate()->factory()->promise_species_protector()));
+}
+
+bool CompilationDependencies::DependOnPromiseThenProtector() {
+  return DependOnProtector(PropertyCellRef(
+      broker_, broker_->isolate()->factory()->promise_then_protector()));
 }
 
 void CompilationDependencies::DependOnElementsKind(
@@ -474,7 +513,7 @@ bool CompilationDependencies::Commit(Handle<Code> code) {
   // these cases, because once the code gets executed it will do a stack check
   // that triggers its deoptimization.
   if (FLAG_stress_gc_during_compilation) {
-    isolate_->heap()->PreciseCollectAllGarbage(
+    broker_->isolate()->heap()->PreciseCollectAllGarbage(
         Heap::kNoGCFlags, GarbageCollectionReason::kTesting,
         kGCCallbackFlagForced);
   }
@@ -490,8 +529,7 @@ bool CompilationDependencies::Commit(Handle<Code> code) {
 
 namespace {
 // This function expects to never see a JSProxy.
-void DependOnStablePrototypeChain(JSHeapBroker* broker,
-                                  CompilationDependencies* deps, MapRef map,
+void DependOnStablePrototypeChain(CompilationDependencies* deps, MapRef map,
                                   const JSObjectRef& last_prototype) {
   while (true) {
     map.SerializePrototype();
@@ -504,19 +542,18 @@ void DependOnStablePrototypeChain(JSHeapBroker* broker,
 }  // namespace
 
 void CompilationDependencies::DependOnStablePrototypeChains(
-    JSHeapBroker* broker, std::vector<Handle<Map>> const& receiver_maps,
-    const JSObjectRef& holder) {
+    std::vector<Handle<Map>> const& receiver_maps, const JSObjectRef& holder) {
   // Determine actual holder and perform prototype chain checks.
   for (auto map : receiver_maps) {
-    MapRef receiver_map(broker, map);
+    MapRef receiver_map(broker_, map);
     if (receiver_map.IsPrimitiveMap()) {
       // Perform the implicit ToObject for primitives here.
       // Implemented according to ES6 section 7.3.2 GetV (V, P).
       base::Optional<JSFunctionRef> constructor =
-          broker->native_context().GetConstructorFunction(receiver_map);
+          broker_->native_context().GetConstructorFunction(receiver_map);
       if (constructor.has_value()) receiver_map = constructor->initial_map();
     }
-    DependOnStablePrototypeChain(broker, this, receiver_map, holder);
+    DependOnStablePrototypeChain(this, receiver_map, holder);
   }
 }
 

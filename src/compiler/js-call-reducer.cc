@@ -1070,10 +1070,7 @@ Reduction JSCallReducer::ReduceArrayForEach(
     return NoChange();
   }
 
-  // Install code dependencies on the {receiver} prototype maps and the
-  // global array protector cell.
-  dependencies()->DependOnProtector(
-      PropertyCellRef(broker(), factory()->no_elements_protector()));
+  if (!dependencies()->DependOnNoElementsProtector()) UNREACHABLE();
 
   // If we have unreliable maps, we need a map check.
   if (result == NodeProperties::kUnreliableReceiverMaps) {
@@ -1257,10 +1254,7 @@ Reduction JSCallReducer::ReduceArrayReduce(
     }
   };
 
-  // Install code dependencies on the {receiver} prototype maps and the
-  // global array protector cell.
-  dependencies()->DependOnProtector(
-      PropertyCellRef(broker(), factory()->no_elements_protector()));
+  if (!dependencies()->DependOnNoElementsProtector()) UNREACHABLE();
 
   // If we have unreliable maps, we need a map check.
   if (result == NodeProperties::kUnreliableReceiverMaps) {
@@ -1524,12 +1518,9 @@ Reduction JSCallReducer::ReduceArrayMap(Node* node,
   }
 
   if (IsHoleyElementsKind(kind)) {
-    dependencies()->DependOnProtector(
-        PropertyCellRef(broker(), factory()->no_elements_protector()));
+    if (!dependencies()->DependOnNoElementsProtector()) UNREACHABLE();
   }
-
-  dependencies()->DependOnProtector(
-      PropertyCellRef(broker(), factory()->array_species_protector()));
+  if (!dependencies()->DependOnArraySpeciesProtector()) UNREACHABLE();
 
   Node* array_constructor = jsgraph()->Constant(
       native_context().GetInitialJSArrayMap(kind).GetConstructor());
@@ -1727,12 +1718,9 @@ Reduction JSCallReducer::ReduceArrayFilter(
   const ElementsKind packed_kind = GetPackedElementsKind(kind);
 
   if (IsHoleyElementsKind(kind)) {
-    dependencies()->DependOnProtector(
-        PropertyCellRef(broker(), factory()->no_elements_protector()));
+    if (!dependencies()->DependOnNoElementsProtector()) UNREACHABLE();
   }
-
-  dependencies()->DependOnProtector(
-      PropertyCellRef(broker(), factory()->array_species_protector()));
+  if (!dependencies()->DependOnArraySpeciesProtector()) UNREACHABLE();
 
   MapRef initial_map = native_context().GetInitialJSArrayMap(packed_kind);
 
@@ -1995,10 +1983,7 @@ Reduction JSCallReducer::ReduceArrayFind(Node* node, ArrayFindVariant variant,
     return NoChange();
   }
 
-  // Install code dependencies on the {receiver} prototype maps and the
-  // global array protector cell.
-  dependencies()->DependOnProtector(
-      PropertyCellRef(broker(), factory()->no_elements_protector()));
+  if (!dependencies()->DependOnNoElementsProtector()) UNREACHABLE();
 
   // If we have unreliable maps, we need a map check.
   if (result == NodeProperties::kUnreliableReceiverMaps) {
@@ -2314,12 +2299,9 @@ Reduction JSCallReducer::ReduceArrayEvery(Node* node,
   }
 
   if (IsHoleyElementsKind(kind)) {
-    dependencies()->DependOnProtector(
-        PropertyCellRef(broker(), factory()->no_elements_protector()));
+    if (!dependencies()->DependOnNoElementsProtector()) UNREACHABLE();
   }
-
-  dependencies()->DependOnProtector(
-      PropertyCellRef(broker(), factory()->array_species_protector()));
+  if (!dependencies()->DependOnArraySpeciesProtector()) UNREACHABLE();
 
   // If we have unreliable maps, we need a map check.
   if (result == NodeProperties::kUnreliableReceiverMaps) {
@@ -2578,8 +2560,7 @@ Reduction JSCallReducer::ReduceArrayIndexOfIncludes(
   }
 
   if (IsHoleyElementsKind(kind)) {
-    dependencies()->DependOnProtector(
-        PropertyCellRef(broker(), factory()->no_elements_protector()));
+    if (!dependencies()->DependOnNoElementsProtector()) UNREACHABLE();
   }
 
   Callable const callable = search_variant == SearchVariant::kIndexOf
@@ -2664,12 +2645,9 @@ Reduction JSCallReducer::ReduceArraySome(Node* node,
   }
 
   if (IsHoleyElementsKind(kind)) {
-    dependencies()->DependOnProtector(
-        PropertyCellRef(broker(), factory()->no_elements_protector()));
+    if (!dependencies()->DependOnNoElementsProtector()) UNREACHABLE();
   }
-
-  dependencies()->DependOnProtector(
-      PropertyCellRef(broker(), factory()->array_species_protector()));
+  if (!dependencies()->DependOnArraySpeciesProtector()) UNREACHABLE();
 
   Node* k = jsgraph()->ZeroConstant();
 
@@ -3135,8 +3113,7 @@ Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
   // that no one messed with the %ArrayIteratorPrototype%.next method.
   if (node->opcode() == IrOpcode::kJSCallWithSpread ||
       node->opcode() == IrOpcode::kJSConstructWithSpread) {
-    dependencies()->DependOnProtector(
-        PropertyCellRef(broker(), factory()->array_iterator_protector()));
+    if (!dependencies()->DependOnArrayIteratorProtector()) UNREACHABLE();
   }
 
   // Remove the {arguments_list} input from the {node}.
@@ -4378,8 +4355,7 @@ Reduction JSCallReducer::ReduceArrayPrototypePush(Node* node) {
     return NoChange();
   }
 
-  dependencies()->DependOnProtector(
-      PropertyCellRef(broker(), factory()->no_elements_protector()));
+  if (!dependencies()->DependOnNoElementsProtector()) UNREACHABLE();
 
   // If the {receiver_maps} information is not reliable, we need
   // to check that the {receiver} still has one of these maps.
@@ -4483,8 +4459,7 @@ Reduction JSCallReducer::ReduceArrayPrototypePop(Node* node) {
     return NoChange();
   }
 
-  dependencies()->DependOnProtector(
-      PropertyCellRef(broker(), factory()->no_elements_protector()));
+  if (!dependencies()->DependOnNoElementsProtector()) UNREACHABLE();
 
   // If the {receiver_maps} information is not reliable, we need
   // to check that the {receiver} still has one of these maps.
@@ -4593,8 +4568,7 @@ Reduction JSCallReducer::ReduceArrayPrototypeShift(Node* node) {
     return NoChange();
   }
 
-  dependencies()->DependOnProtector(
-      PropertyCellRef(broker(), factory()->no_elements_protector()));
+  if (!dependencies()->DependOnNoElementsProtector()) UNREACHABLE();
 
   // If the {receiver_maps} information is not reliable, we need
   // to check that the {receiver} still has one of these maps.
@@ -4805,15 +4779,10 @@ Reduction JSCallReducer::ReduceArrayPrototypeSlice(Node* node) {
     }
   }
 
-  // Install code dependency on the Array[@@species] protector.
-  dependencies()->DependOnProtector(
-      PropertyCellRef(broker(), factory()->array_species_protector()));
-
-  // Install code dependency on the array protector for holey arrays.
   if (can_be_holey) {
-    dependencies()->DependOnProtector(
-        PropertyCellRef(broker(), factory()->no_elements_protector()));
+    if (!dependencies()->DependOnNoElementsProtector()) UNREACHABLE();
   }
+  if (!dependencies()->DependOnArraySpeciesProtector()) UNREACHABLE();
 
   // If we have unreliable maps, we need a map check, as there might be
   // side-effects caused by the evaluation of the {node}s parameters.
@@ -4966,8 +4935,7 @@ Reduction JSCallReducer::ReduceArrayIteratorPrototypeNext(Node* node) {
 
   // Install code dependency on the array protector for holey arrays.
   if (IsHoleyElementsKind(elements_kind)) {
-    dependencies()->DependOnProtector(
-        PropertyCellRef(broker(), factory()->no_elements_protector()));
+    if (!dependencies()->DependOnNoElementsProtector()) UNREACHABLE();
   }
 
   // Load the (current) {iterated_object} from the {iterator}.
@@ -4984,12 +4952,7 @@ Reduction JSCallReducer::ReduceArrayIteratorPrototypeNext(Node* node) {
 
   if (IsFixedTypedArrayElementsKind(elements_kind)) {
     // See if we can skip the detaching check.
-    if (isolate()->IsArrayBufferDetachingIntact()) {
-      // Add a code dependency so we are deoptimized in case an ArrayBuffer
-      // gets detached.
-      dependencies()->DependOnProtector(PropertyCellRef(
-          broker(), factory()->array_buffer_detaching_protector()));
-    } else {
+    if (!dependencies()->DependOnArrayBufferDetachingProtector()) {
       // Bail out if the {iterated_object}s JSArrayBuffer was detached.
       Node* buffer = effect = graph()->NewNode(
           simplified()->LoadField(AccessBuilder::ForJSArrayBufferViewBuffer()),
@@ -5525,13 +5488,11 @@ Reduction JSCallReducer::ReducePromiseConstructor(Node* node) {
   Node* control = NodeProperties::GetControlInput(node);
 
   if (!FLAG_experimental_inline_promise_constructor) return NoChange();
-  if (!isolate()->IsPromiseHookProtectorIntact()) return NoChange();
 
   // Only handle builtins Promises, not subclasses.
   if (target != new_target) return NoChange();
 
-  dependencies()->DependOnProtector(
-      PropertyCellRef(broker(), factory()->promise_hook_protector()));
+  if (!dependencies()->DependOnPromiseHookProtector()) return NoChange();
 
   SharedFunctionInfoRef promise_shared =
       native_context().promise_function().shared();
@@ -5683,10 +5644,7 @@ Reduction JSCallReducer::ReducePromiseInternalConstructor(Node* node) {
   Node* effect = NodeProperties::GetEffectInput(node);
 
   // Check that promises aren't being observed through (debug) hooks.
-  if (!isolate()->IsPromiseHookProtectorIntact()) return NoChange();
-
-  dependencies()->DependOnProtector(
-      PropertyCellRef(broker(), factory()->promise_hook_protector()));
+  if (!dependencies()->DependOnPromiseHookProtector()) return NoChange();
 
   // Create a new pending promise.
   Node* value = effect =
@@ -5755,12 +5713,6 @@ Reduction JSCallReducer::ReducePromisePrototypeCatch(Node* node) {
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
-  // Check that the Promise.then protector is intact. This protector guards
-  // that all JSPromise instances whose [[Prototype]] is the initial
-  // %PromisePrototype% yield the initial %PromisePrototype%.then method
-  // when looking up "then".
-  if (!isolate()->IsPromiseThenLookupChainIntact()) return NoChange();
-
   // Check if we know something about {receiver} already.
   ZoneHandleSet<Map> receiver_maps;
   NodeProperties::InferReceiverMapsResult result =
@@ -5781,8 +5733,11 @@ Reduction JSCallReducer::ReducePromisePrototypeCatch(Node* node) {
     }
   }
 
-  dependencies()->DependOnProtector(
-      PropertyCellRef(broker(), factory()->promise_then_protector()));
+  // Check that the Promise.then protector is intact. This protector guards
+  // that all JSPromise instances whose [[Prototype]] is the initial
+  // %PromisePrototype% yield the initial %PromisePrototype%.then method
+  // when looking up "then".
+  if (!dependencies()->DependOnPromiseThenProtector()) return NoChange();
 
   // If the {receiver_maps} aren't reliable, we need to repeat the
   // map check here, guarded by the CALL_IC.
@@ -5825,21 +5780,6 @@ Reduction JSCallReducer::ReducePromisePrototypeFinally(Node* node) {
     return NoChange();
   }
 
-  // Check that promises aren't being observed through (debug) hooks.
-  if (!isolate()->IsPromiseHookProtectorIntact()) return NoChange();
-
-  // Check that the Promise#then protector is intact. This protector guards
-  // that all JSPromise instances whose [[Prototype]] is the initial
-  // %PromisePrototype% yield the initial %PromisePrototype%.then method
-  // when looking up "then".
-  if (!isolate()->IsPromiseThenLookupChainIntact()) return NoChange();
-
-  // Also check that the @@species protector is intact, which guards the
-  // lookup of "constructor" on JSPromise instances, whoch [[Prototype]] is
-  // the initial %PromisePrototype%, and the Symbol.species lookup on the
-  // %PromisePrototype%.
-  if (!isolate()->IsPromiseSpeciesLookupChainIntact()) return NoChange();
-
   // Check if we know something about {receiver} already.
   ZoneHandleSet<Map> receiver_maps;
   NodeProperties::InferReceiverMapsResult result =
@@ -5860,12 +5800,20 @@ Reduction JSCallReducer::ReducePromisePrototypeFinally(Node* node) {
     }
   }
 
-  dependencies()->DependOnProtector(
-      PropertyCellRef(broker(), factory()->promise_hook_protector()));
-  dependencies()->DependOnProtector(
-      PropertyCellRef(broker(), factory()->promise_then_protector()));
-  dependencies()->DependOnProtector(
-      PropertyCellRef(broker(), factory()->promise_species_protector()));
+  // Check that promises aren't being observed through (debug) hooks.
+  if (!dependencies()->DependOnPromiseHookProtector()) return NoChange();
+
+  // Check that the Promise#then protector is intact. This protector guards
+  // that all JSPromise instances whose [[Prototype]] is the initial
+  // %PromisePrototype% yield the initial %PromisePrototype%.then method
+  // when looking up "then".
+  if (!dependencies()->DependOnPromiseThenProtector()) return NoChange();
+
+  // Also check that the @@species protector is intact, which guards the
+  // lookup of "constructor" on JSPromise instances, whoch [[Prototype]] is
+  // the initial %PromisePrototype%, and the Symbol.species lookup on the
+  // %PromisePrototype%.
+  if (!dependencies()->DependOnPromiseSpeciesProtector()) return NoChange();
 
   // If the {receiver_maps} aren't reliable, we need to repeat the
   // map check here, guarded by the CALL_IC.
@@ -5986,15 +5934,6 @@ Reduction JSCallReducer::ReducePromisePrototypeThen(Node* node) {
   Node* control = NodeProperties::GetControlInput(node);
   Node* frame_state = NodeProperties::GetFrameStateInput(node);
 
-  // Check that promises aren't being observed through (debug) hooks.
-  if (!isolate()->IsPromiseHookProtectorIntact()) return NoChange();
-
-  // Check if the @@species protector is intact. The @@species protector
-  // guards the "constructor" lookup on all JSPromise instances and the
-  // initial Promise.prototype, as well as the  Symbol.species lookup on
-  // the Promise constructor.
-  if (!isolate()->IsPromiseSpeciesLookupChainIntact()) return NoChange();
-
   // Check if we know something about {receiver} already.
   ZoneHandleSet<Map> receiver_maps;
   NodeProperties::InferReceiverMapsResult infer_receiver_maps_result =
@@ -6017,10 +5956,14 @@ Reduction JSCallReducer::ReducePromisePrototypeThen(Node* node) {
     }
   }
 
-  dependencies()->DependOnProtector(
-      PropertyCellRef(broker(), factory()->promise_hook_protector()));
-  dependencies()->DependOnProtector(
-      PropertyCellRef(broker(), factory()->promise_species_protector()));
+  // Check that promises aren't being observed through (debug) hooks.
+  if (!dependencies()->DependOnPromiseHookProtector()) return NoChange();
+
+  // Check if the @@species protector is intact. The @@species protector
+  // guards the "constructor" lookup on all JSPromise instances and the
+  // initial Promise.prototype, as well as the  Symbol.species lookup on
+  // the Promise constructor.
+  if (!dependencies()->DependOnPromiseSpeciesProtector()) return NoChange();
 
   // If the {receiver_maps} aren't reliable, we need to repeat the
   // map check here, guarded by the CALL_IC.
@@ -6711,12 +6654,7 @@ Reduction JSCallReducer::ReduceArrayBufferViewAccessor(
                                             receiver, effect, control);
 
     // See if we can skip the detaching check.
-    if (isolate()->IsArrayBufferDetachingIntact()) {
-      // Add a code dependency so we are deoptimized in case an ArrayBuffer
-      // gets detached.
-      dependencies()->DependOnProtector(PropertyCellRef(
-          broker(), factory()->array_buffer_detaching_protector()));
-    } else {
+    if (!dependencies()->DependOnArrayBufferDetachingProtector()) {
       // Check whether {receiver}s JSArrayBuffer was detached.
       Node* buffer = effect = graph()->NewNode(
           simplified()->LoadField(AccessBuilder::ForJSArrayBufferViewBuffer()),
@@ -6860,12 +6798,7 @@ Reduction JSCallReducer::ReduceDataViewAccess(Node* node, DataViewAccess access,
         simplified()->LoadField(AccessBuilder::ForJSArrayBufferViewBuffer()),
         receiver, effect, control);
 
-    if (isolate()->IsArrayBufferDetachingIntact()) {
-      // Add a code dependency so we are deoptimized in case an ArrayBuffer
-      // gets detached.
-      dependencies()->DependOnProtector(PropertyCellRef(
-          broker(), factory()->array_buffer_detaching_protector()));
-    } else {
+    if (!dependencies()->DependOnArrayBufferDetachingProtector()) {
       // Bail out if the {buffer} was detached.
       Node* buffer_bit_field = effect = graph()->NewNode(
           simplified()->LoadField(AccessBuilder::ForJSArrayBufferBitField()),
@@ -7079,7 +7012,7 @@ Reduction JSCallReducer::ReduceRegExpPrototypeTest(Node* node) {
 
     // Protect the prototype chain from changes.
     dependencies()->DependOnStablePrototypeChains(
-        broker(), ai_exec.receiver_maps(), JSObjectRef(broker(), holder));
+        ai_exec.receiver_maps(), JSObjectRef(broker(), holder));
 
     // Protect the exec method change in the holder.
     Handle<Object> exec_on_proto;
@@ -7102,7 +7035,7 @@ Reduction JSCallReducer::ReduceRegExpPrototypeTest(Node* node) {
   Handle<JSObject> holder;
   if (ai_exec.holder().ToHandle(&holder)) {
     dependencies()->DependOnStablePrototypeChains(
-        broker(), ai_exec.receiver_maps(), JSObjectRef(broker(), holder));
+        ai_exec.receiver_maps(), JSObjectRef(broker(), holder));
   }
 
   if (need_map_check) {
