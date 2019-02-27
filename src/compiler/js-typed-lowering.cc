@@ -1674,7 +1674,6 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
     // Compute flags for the call.
     CallDescriptor::Flags flags = CallDescriptor::kNeedsFrameState;
     Node* new_target = jsgraph()->UndefinedConstant();
-    Node* argument_count = jsgraph()->Constant(arity);
 
     if (NeedsArgumentAdaptorFrame(shared, arity)) {
       // Check if it's safe to skip the arguments adaptor for {shared},
@@ -1700,7 +1699,8 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
 
         // Patch {node} to a direct call.
         node->InsertInput(graph()->zone(), arity + 2, new_target);
-        node->InsertInput(graph()->zone(), arity + 3, argument_count);
+        node->InsertInput(graph()->zone(), arity + 3,
+                          jsgraph()->Constant(arity));
         NodeProperties::ChangeOp(node,
                                  common()->Call(Linkage::GetJSCallDescriptor(
                                      graph()->zone(), false, 1 + arity,
@@ -1711,7 +1711,7 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
         node->InsertInput(graph()->zone(), 0,
                           jsgraph()->HeapConstant(callable.code()));
         node->InsertInput(graph()->zone(), 2, new_target);
-        node->InsertInput(graph()->zone(), 3, argument_count);
+        node->InsertInput(graph()->zone(), 3, jsgraph()->Constant(arity));
         node->InsertInput(
             graph()->zone(), 4,
             jsgraph()->Constant(shared.internal_formal_parameter_count()));
@@ -1737,12 +1737,12 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
       Node* stub_code = jsgraph()->HeapConstant(callable.code());
       node->InsertInput(graph()->zone(), 0, stub_code);  // Code object.
       node->InsertInput(graph()->zone(), 2, new_target);
-      node->InsertInput(graph()->zone(), 3, argument_count);
+      node->InsertInput(graph()->zone(), 3, jsgraph()->Constant(arity));
       NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
     } else {
       // Patch {node} to a direct call.
       node->InsertInput(graph()->zone(), arity + 2, new_target);
-      node->InsertInput(graph()->zone(), arity + 3, argument_count);
+      node->InsertInput(graph()->zone(), arity + 3, jsgraph()->Constant(arity));
       NodeProperties::ChangeOp(node,
                                common()->Call(Linkage::GetJSCallDescriptor(
                                    graph()->zone(), false, 1 + arity,
