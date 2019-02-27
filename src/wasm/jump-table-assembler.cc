@@ -172,6 +172,10 @@ void JumpTableAssembler::EmitLazyCompileJumpSlot(uint32_t func_index,
   Jump(lazy_compile_target, RelocInfo::NONE);
 }
 
+void JumpTableAssembler::EmitRuntimeStubSlot(Address builtin_target) {
+  JumpToInstructionStream(builtin_target);
+}
+
 void JumpTableAssembler::EmitJumpSlot(Address target) {
   Jump(target, RelocInfo::NONE);
 }

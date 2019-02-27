@@ -1094,7 +1094,7 @@ inline FPUCondition ConditionToConditionCmpFPU(bool& predicate,
   UNREACHABLE();
 }
 
-};  // namespace liftoff
+}  // namespace liftoff
 
 void LiftoffAssembler::emit_f32_set_cond(Condition cond, Register dst,
                                          DoubleRegister lhs,

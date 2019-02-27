@@ -25,7 +25,7 @@ namespace v8 {
 namespace internal {
 
 DEFINE_LAZY_LEAKY_OBJECT_GETTER(Simulator::GlobalMonitor,
-                                Simulator::GlobalMonitor::Get);
+                                Simulator::GlobalMonitor::Get)
 
 // Util functions.
 inline bool HaveSameSign(int64_t a, int64_t b) { return ((a ^ b) >= 0); }
