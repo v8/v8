@@ -1245,21 +1245,7 @@ void AsyncCompileJob::CompileWrappers() {
 void AsyncCompileJob::FinishModule() {
   TRACE_COMPILE("(6) Finish module...\n");
   AsyncCompileSucceeded(module_object_);
-
-  size_t num_functions = native_module_->num_functions() -
-                         native_module_->num_imported_functions();
-  auto* compilation_state = Impl(native_module_->compilation_state());
-  if (compilation_state->compile_mode() == CompileMode::kRegular ||
-      num_functions == 0) {
-    // If we do not tier up, the async compile job is done here and
-    // can be deleted.
-    isolate_->wasm_engine()->RemoveCompileJob(this);
-    return;
-  }
-  DCHECK_EQ(CompileMode::kTiering, compilation_state->compile_mode());
-  if (compilation_state->baseline_compilation_finished()) {
-    isolate_->wasm_engine()->RemoveCompileJob(this);
-  }
+  isolate_->wasm_engine()->RemoveCompileJob(this);
 }
 
 AsyncStreamingProcessor::AsyncStreamingProcessor(AsyncCompileJob* job)
