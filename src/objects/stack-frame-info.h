@@ -36,21 +36,7 @@ class StackFrameInfo : public Struct {
   DECL_PRINTER(StackFrameInfo)
   DECL_VERIFIER(StackFrameInfo)
 
-  // Layout description.
-#define STACK_FRAME_INFO_FIELDS(V)             \
-  V(kLineNumberOffset, kTaggedSize)            \
-  V(kColumnNumberOffset, kTaggedSize)          \
-  V(kScriptIdOffset, kTaggedSize)              \
-  V(kScriptNameOffset, kTaggedSize)            \
-  V(kScriptNameOrSourceUrlOffset, kTaggedSize) \
-  V(kFunctionNameOffset, kTaggedSize)          \
-  V(kFlagOffset, kTaggedSize)                  \
-  V(kIdOffset, kTaggedSize)                    \
-  /* Total size. */                            \
-  V(kSize, 0)
-
   DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize, STACK_FRAME_INFO_FIELDS)
-#undef STACK_FRAME_INFO_FIELDS
 
  private:
   // Bit position in the flag, from least significant bit position.

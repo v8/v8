@@ -107,8 +107,8 @@ void ImplementationVisitor::EndNamespaceFile(Namespace* nspace) {
 
   header << " private:\n"
          << "  compiler::CodeAssemblerState* const state_;\n"
-         << "  compiler::CodeAssembler ca_;"
-         << "}; \n\n";
+         << "  compiler::CodeAssembler ca_;\n"
+         << "};\n\n";
   header << "}  // namespace internal\n"
          << "}  // namespace v8\n"
          << "\n";

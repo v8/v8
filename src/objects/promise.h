@@ -111,16 +111,7 @@ class PromiseCapability : public Struct {
   DECL_ACCESSORS(resolve, Object)
   DECL_ACCESSORS(reject, Object)
 
-// Layout description.
-#define PROMISE_CAPABILITY_FIELDS(V) \
-  V(kPromiseOffset, kTaggedSize)     \
-  V(kResolveOffset, kTaggedSize)     \
-  V(kRejectOffset, kTaggedSize)      \
-  /* Total size. */                  \
-  V(kSize, 0)
-
   DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize, PROMISE_CAPABILITY_FIELDS)
-#undef PROMISE_CAPABILITY_FIELDS
 
   // Dispatched behavior.
   DECL_CAST(PromiseCapability)
@@ -158,17 +149,7 @@ class PromiseReaction : public Struct {
   // a PromiseCapability (general case), or undefined (in case of await).
   DECL_ACCESSORS(promise_or_capability, HeapObject)
 
-// Layout description.
-#define PROMISE_REACTION_FIELDS(V)           \
-  V(kNextOffset, kTaggedSize)                \
-  V(kRejectHandlerOffset, kTaggedSize)       \
-  V(kFulfillHandlerOffset, kTaggedSize)      \
-  V(kPromiseOrCapabilityOffset, kTaggedSize) \
-  /* Total size. */                          \
-  V(kSize, 0)
-
   DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize, PROMISE_REACTION_FIELDS)
-#undef PROMISE_REACTION_FIELDS
 
   // Dispatched behavior.
   DECL_CAST(PromiseReaction)

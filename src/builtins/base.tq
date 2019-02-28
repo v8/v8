@@ -10,6 +10,10 @@
 #include 'src/objects.h'
 #include 'src/objects/arguments.h'
 #include 'src/objects/bigint.h'
+#include 'src/objects/js-generator.h'
+#include 'src/objects/js-promise.h'
+#include 'src/objects/module.h'
+#include 'src/objects/stack-frame-info.h'
 
 type Arguments constexpr 'CodeStubArguments*';
 type void;
@@ -20,6 +24,9 @@ type Smi extends Tagged generates 'TNode<Smi>' constexpr 'Smi';
 
 // A Smi that is greater than or equal to 0. See TaggedIsPositiveSmi.
 type PositiveSmi extends Smi;
+
+// The Smi value zero, which is often used as null for HeapObject types.
+type Zero extends PositiveSmi;
 
 extern class HeapObject extends Tagged { map: Map; }
 
@@ -58,6 +65,15 @@ type HeapNumber extends HeapObject generates 'TNode<HeapNumber>';
 type Number = Smi | HeapNumber;
 type BigInt extends HeapObject generates 'TNode<BigInt>';
 type Numeric = Number | BigInt;
+
+extern class Struct extends HeapObject {}
+
+extern class Tuple2 extends Struct {
+  value_1: Object;
+  value_2: Object;
+}
+
+extern class Tuple3 extends Tuple2 { value_3: Object; }
 
 // A direct string can be accessed directly through CSA without going into the
 // C++ runtime. See also: ToDirectStringAssembler.
@@ -298,6 +314,79 @@ type ToIntegerTruncationMode
 constexpr 'CodeStubAssembler::ToIntegerTruncationMode';
 type AllocationFlags constexpr 'AllocationFlags';
 
+extern class Foreign extends HeapObject { foreign_address: RawPtr; }
+
+extern class InterceptorInfo extends Struct {
+  getter: Foreign | Zero;
+  setter: Foreign | Zero;
+  query: Foreign | Zero;
+  descriptor: Foreign | Zero;
+  deleter: Foreign | Zero;
+  enumerator: Foreign | Zero;
+  definer: Foreign | Zero;
+  data: Object;
+  flags: Smi;
+}
+
+extern class AccessCheckInfo extends Struct {
+  callback: Foreign | Zero;
+  named_interceptor: InterceptorInfo | Zero;
+  indexed_interceptor: InterceptorInfo | Zero;
+  data: Object;
+}
+
+extern class ArrayBoilerplateDescription extends Struct {
+  flags: Smi;
+  constant_elements: FixedArrayBase;
+}
+
+extern class AliasedArgumentsEntry extends Struct { aliased_context_slot: Smi; }
+
+extern class Cell extends HeapObject { value: Object; }
+
+extern class DataHandler extends Struct {
+  smi_handler: Smi | Code;
+  validity_cell: Smi | Cell;
+  weak data_1: Object;
+  weak data_2: Object;
+  weak data_3: Object;
+}
+
+extern class JSPromise extends JSObject {
+  reactions_or_result: Object;
+  flags: Smi;
+}
+
+extern class Microtask extends Struct {}
+
+extern class CallbackTask extends Microtask {
+  callback: Foreign;
+  data: Foreign;
+}
+
+extern class CallableTask extends Microtask {
+  callable: JSReceiver;
+  context: Context;
+}
+
+extern class StackFrameInfo extends Struct {
+  line_number: Smi;
+  column_number: Smi;
+  script_id: Smi;
+  script_name: Object;
+  script_name_or_source_url: Object;
+  function_name: Object;
+  flag: Smi;
+  id: Smi;
+}
+
+extern class ClassPositions extends Struct {
+  start: Smi;
+  end: Smi;
+}
+
+extern class WasmExceptionTag extends Struct { index: Smi; }
+
 const kSmiTagSize: constexpr int31 generates 'kSmiTagSize';
 
 const NO_ELEMENTS: constexpr ElementsKind generates 'NO_ELEMENTS';
@@ -479,6 +568,36 @@ const INTPTR_PARAMETERS: constexpr ParameterMode
 
 const SKIP_WRITE_BARRIER:
     constexpr WriteBarrierMode generates 'SKIP_WRITE_BARRIER';
+
+extern class AsyncGeneratorRequest extends Struct {
+  next: AsyncGeneratorRequest | Undefined;
+  resume_mode: Smi;
+  value: Object;
+  promise: JSPromise;
+}
+
+extern class ModuleInfoEntry extends Struct {
+  export_name: String | Undefined;
+  local_name: String | Undefined;
+  import_name: String | Undefined;
+  module_request: Smi;
+  cell_index: Smi;
+  beg_pos: Smi;
+  end_pos: Smi;
+}
+
+extern class PromiseCapability extends Struct {
+  promise: JSReceiver | Undefined;
+  resolve: Object;
+  reject: Object;
+}
+
+extern class PromiseReaction extends Struct {
+  next: PromiseReaction | Zero;
+  reject_handler: Callable | Undefined;
+  fulfill_handler: Callable | Undefined;
+  promise_or_capability: JSPromise | PromiseCapability | Undefined;
+}
 
 extern macro Is64(): constexpr bool;
 

@@ -68,15 +68,8 @@ class ArrayBoilerplateDescription : public Struct {
   DECL_VERIFIER(ArrayBoilerplateDescription)
   void BriefPrintDetails(std::ostream& os);
 
-#define ARRAY_BOILERPLATE_DESCRIPTION_FIELDS(V) \
-  V(kFlagsOffset, kTaggedSize)                  \
-  V(kConstantElementsOffset, kTaggedSize)       \
-  /* Total size. */                             \
-  V(kSize, 0)
-
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
                                 ARRAY_BOILERPLATE_DESCRIPTION_FIELDS)
-#undef ARRAY_BOILERPLATE_DESCRIPTION_FIELDS
 
  private:
   DECL_INT_ACCESSORS(flags)

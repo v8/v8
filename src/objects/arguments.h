@@ -140,15 +140,8 @@ class AliasedArgumentsEntry : public Struct {
   DECL_PRINTER(AliasedArgumentsEntry)
   DECL_VERIFIER(AliasedArgumentsEntry)
 
-// Layout description.
-#define ALIASED_ARGUMENTS_FIELDS(V)   \
-  V(kAliasedContextSlot, kTaggedSize) \
-  /* Total size. */                   \
-  V(kSize, 0)
-
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
-                                ALIASED_ARGUMENTS_FIELDS)
-#undef ALIASED_ARGUMENTS_FIELDS
+                                ALIASED_ARGUMENTS_ENTRY_FIELDS)
 
   OBJECT_CONSTRUCTORS(AliasedArgumentsEntry, Struct);
 };

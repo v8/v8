@@ -692,7 +692,7 @@ void Map::DictionaryMapVerify(Isolate* isolate) {
 }
 
 void AliasedArgumentsEntry::AliasedArgumentsEntryVerify(Isolate* isolate) {
-  VerifySmiField(kAliasedContextSlot);
+  VerifySmiField(kAliasedContextSlotOffset);
 }
 
 void EmbedderDataArray::EmbedderDataArrayVerify(Isolate* isolate) {

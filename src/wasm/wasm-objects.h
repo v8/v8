@@ -758,14 +758,7 @@ class WasmExceptionTag : public Struct {
   DECL_PRINTER(WasmExceptionTag)
   DECL_VERIFIER(WasmExceptionTag)
 
-// Layout description.
-#define WASM_EXCEPTION_TAG_FIELDS(V) \
-  V(kIndexOffset, kTaggedSize)       \
-  /* Total size. */                  \
-  V(kSize, 0)
-
   DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize, WASM_EXCEPTION_TAG_FIELDS)
-#undef WASM_EXCEPTION_TAG_FIELDS
 
   OBJECT_CONSTRUCTORS(WasmExceptionTag, Struct);
 };
