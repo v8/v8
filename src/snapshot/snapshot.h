@@ -67,7 +67,6 @@ class Snapshot : public AllStatic {
   // ---------------- Helper methods ----------------
 
   static bool HasContextSnapshot(Isolate* isolate, size_t index);
-  static bool EmbedsScript(Isolate* isolate);
 
   // To be implemented by the snapshot source.
   static const v8::StartupData* DefaultSnapshotBlob();
