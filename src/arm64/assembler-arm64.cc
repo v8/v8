@@ -549,6 +549,7 @@ Assembler::~Assembler() {
   DCHECK_EQ(veneer_pool_blocked_nesting_, 0);
 }
 
+void Assembler::AbortedCodeGeneration() { constpool_.Clear(); }
 
 void Assembler::Reset() {
 #ifdef DEBUG

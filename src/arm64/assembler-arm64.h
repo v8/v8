@@ -262,9 +262,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   virtual ~Assembler();
 
-  virtual void AbortedCodeGeneration() {
-    constpool_.Clear();
-  }
+  virtual void AbortedCodeGeneration();
 
   // System functions ---------------------------------------------------------
   // Start generating code from the beginning of the buffer, discarding any code
