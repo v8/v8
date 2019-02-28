@@ -2428,111 +2428,159 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   //  -- r5 : new target (passed through to callee)
   // -----------------------------------
 
-  Label invoke, dont_adapt_arguments, stack_overflow;
-
-  Label enough, too_few;
+  Label dont_adapt_arguments, stack_overflow, skip_adapt_arguments;
   __ tmll(r4, Operand(SharedFunctionInfo::kDontAdaptArgumentsSentinel));
   __ b(Condition(1), &dont_adapt_arguments);
-  __ CmpLogicalP(r2, r4);
-  __ blt(&too_few);
+  __ LoadP(r6, FieldMemOperand(r3, JSFunction::kSharedFunctionInfoOffset));
+  __ LoadP(r6, FieldMemOperand(r6, SharedFunctionInfo::kFlagsOffset));
+  __ tmll(r6,
+          Operand(SharedFunctionInfo::IsSafeToSkipArgumentsAdaptorBit::kMask));
+  __ bne(&skip_adapt_arguments);
 
-  {  // Enough parameters: actual >= expected
-    __ bind(&enough);
-    EnterArgumentsAdaptorFrame(masm);
-    Generate_StackOverflowCheck(masm, r4, r7, &stack_overflow);
+  // -------------------------------------------
+  // Adapt arguments.
+  // -------------------------------------------
+  {
+    Label under_application, over_application, invoke;
+    __ CmpP(r2, r4);
+    __ blt(&under_application);
 
-    // Calculate copy start address into r2 and copy end address into r6.
-    // r2: actual number of arguments as a smi
-    // r3: function
-    // r4: expected number of arguments
-    // r5: new target (passed through to callee)
-    __ SmiToPtrArrayOffset(r2, r2);
-    __ AddP(r2, fp);
-    // adjust for return address and receiver
-    __ AddP(r2, r2, Operand(2 * kPointerSize));
-    __ ShiftLeftP(r6, r4, Operand(kPointerSizeLog2));
-    __ SubP(r6, r2, r6);
+    // Enough parameters: actual >= expected
+    __ bind(&over_application);
+    {
+      EnterArgumentsAdaptorFrame(masm);
+      Generate_StackOverflowCheck(masm, r4, r7, &stack_overflow);
 
-    // Copy the arguments (including the receiver) to the new stack frame.
-    // r2: copy start address
-    // r3: function
-    // r4: expected number of arguments
-    // r5: new target (passed through to callee)
-    // r6: copy end address
+      // Calculate copy start address into r2 and copy end address into r6.
+      // r2: actual number of arguments as a smi
+      // r3: function
+      // r4: expected number of arguments
+      // r5: new target (passed through to callee)
+      __ SmiToPtrArrayOffset(r2, r2);
+      __ AddP(r2, fp);
+      // adjust for return address and receiver
+      __ AddP(r2, r2, Operand(2 * kPointerSize));
+      __ ShiftLeftP(r6, r4, Operand(kPointerSizeLog2));
+      __ SubP(r6, r2, r6);
 
-    Label copy;
-    __ bind(&copy);
-    __ LoadP(r0, MemOperand(r2, 0));
-    __ push(r0);
-    __ CmpP(r2, r6);  // Compare before moving to next argument.
-    __ lay(r2, MemOperand(r2, -kPointerSize));
-    __ bne(&copy);
+      // Copy the arguments (including the receiver) to the new stack frame.
+      // r2: copy start address
+      // r3: function
+      // r4: expected number of arguments
+      // r5: new target (passed through to callee)
+      // r6: copy end address
 
-    __ b(&invoke);
+      Label copy;
+      __ bind(&copy);
+      __ LoadP(r0, MemOperand(r2, 0));
+      __ push(r0);
+      __ CmpP(r2, r6);  // Compare before moving to next argument.
+      __ lay(r2, MemOperand(r2, -kPointerSize));
+      __ bne(&copy);
+
+      __ b(&invoke);
+    }
+
+    // Too few parameters: Actual < expected
+    __ bind(&under_application);
+    {
+      EnterArgumentsAdaptorFrame(masm);
+      Generate_StackOverflowCheck(masm, r4, r7, &stack_overflow);
+
+      // Calculate copy start address into r0 and copy end address is fp.
+      // r2: actual number of arguments as a smi
+      // r3: function
+      // r4: expected number of arguments
+      // r5: new target (passed through to callee)
+      __ SmiToPtrArrayOffset(r2, r2);
+      __ lay(r2, MemOperand(r2, fp));
+
+      // Copy the arguments (including the receiver) to the new stack frame.
+      // r2: copy start address
+      // r3: function
+      // r4: expected number of arguments
+      // r5: new target (passed through to callee)
+      Label copy;
+      __ bind(&copy);
+      // Adjust load for return address and receiver.
+      __ LoadP(r0, MemOperand(r2, 2 * kPointerSize));
+      __ push(r0);
+      __ CmpP(r2, fp);  // Compare before moving to next argument.
+      __ lay(r2, MemOperand(r2, -kPointerSize));
+      __ bne(&copy);
+
+      // Fill the remaining expected arguments with undefined.
+      // r3: function
+      // r4: expected number of argumentus
+      __ LoadRoot(r0, RootIndex::kUndefinedValue);
+      __ ShiftLeftP(r6, r4, Operand(kPointerSizeLog2));
+      __ SubP(r6, fp, r6);
+      // Adjust for frame.
+      __ SubP(r6, r6,
+              Operand(ArgumentsAdaptorFrameConstants::kFixedFrameSizeFromFp +
+                      kPointerSize));
+
+      Label fill;
+      __ bind(&fill);
+      __ push(r0);
+      __ CmpP(sp, r6);
+      __ bne(&fill);
+    }
+
+    // Call the entry point.
+    __ bind(&invoke);
+    __ LoadRR(r2, r4);
+    // r2 : expected number of arguments
+    // r3 : function (passed through to callee)
+    // r5 : new target (passed through to callee)
+    static_assert(kJavaScriptCallCodeStartRegister == r4, "ABI mismatch");
+    __ LoadP(r4, FieldMemOperand(r3, JSFunction::kCodeOffset));
+    __ CallCodeObject(r4);
+
+    // Store offset of return address for deoptimizer.
+    masm->isolate()->heap()->SetArgumentsAdaptorDeoptPCOffset(
+        masm->pc_offset());
+
+    // Exit frame and return.
+    LeaveArgumentsAdaptorFrame(masm);
+    __ Ret();
   }
 
-  {  // Too few parameters: Actual < expected
-    __ bind(&too_few);
+  // -------------------------------------------
+  // Skip adapt arguments.
+  // -------------------------------------------
+  __ bind(&skip_adapt_arguments);
+  {
+    // The callee cannot observe the actual arguments, so it's safe to just
+    // pass the expected arguments by massaging the stack appropriately. See
+    // http://bit.ly/v8-faster-calls-with-arguments-mismatch for details.
+    Label under_application, over_application;
+    __ CmpP(r2, r4);
+    __ blt(&under_application);
 
-    EnterArgumentsAdaptorFrame(masm);
-    Generate_StackOverflowCheck(masm, r4, r7, &stack_overflow);
+    __ bind(&over_application);
+    {
+      // Remove superfluous parameters from the stack.
+      __ SubP(r6, r2, r4);
+      __ lgr(r2, r4);
+      __ ShiftLeftP(r6, r6, Operand(kPointerSizeLog2));
+      __ lay(sp, MemOperand(sp, r6));
+      __ b(&dont_adapt_arguments);
+    }
 
-    // Calculate copy start address into r0 and copy end address is fp.
-    // r2: actual number of arguments as a smi
-    // r3: function
-    // r4: expected number of arguments
-    // r5: new target (passed through to callee)
-    __ SmiToPtrArrayOffset(r2, r2);
-    __ lay(r2, MemOperand(r2, fp));
-
-    // Copy the arguments (including the receiver) to the new stack frame.
-    // r2: copy start address
-    // r3: function
-    // r4: expected number of arguments
-    // r5: new target (passed through to callee)
-    Label copy;
-    __ bind(&copy);
-    // Adjust load for return address and receiver.
-    __ LoadP(r0, MemOperand(r2, 2 * kPointerSize));
-    __ push(r0);
-    __ CmpP(r2, fp);  // Compare before moving to next argument.
-    __ lay(r2, MemOperand(r2, -kPointerSize));
-    __ bne(&copy);
-
-    // Fill the remaining expected arguments with undefined.
-    // r3: function
-    // r4: expected number of argumentus
-    __ LoadRoot(r0, RootIndex::kUndefinedValue);
-    __ ShiftLeftP(r6, r4, Operand(kPointerSizeLog2));
-    __ SubP(r6, fp, r6);
-    // Adjust for frame.
-    __ SubP(r6, r6,
-            Operand(ArgumentsAdaptorFrameConstants::kFixedFrameSizeFromFp +
-                    kPointerSize));
-
-    Label fill;
-    __ bind(&fill);
-    __ push(r0);
-    __ CmpP(sp, r6);
-    __ bne(&fill);
+    __ bind(&under_application);
+    {
+      // Fill remaining expected arguments with undefined values.
+      Label fill;
+      __ LoadRoot(r6, RootIndex::kUndefinedValue);
+      __ bind(&fill);
+      __ AddP(r2, r2, Operand(1));
+      __ push(r6);
+      __ CmpP(r2, r4);
+      __ blt(&fill);
+      __ b(&dont_adapt_arguments);
+    }
   }
-
-  // Call the entry point.
-  __ bind(&invoke);
-  __ LoadRR(r2, r4);
-  // r2 : expected number of arguments
-  // r3 : function (passed through to callee)
-  // r5 : new target (passed through to callee)
-  static_assert(kJavaScriptCallCodeStartRegister == r4, "ABI mismatch");
-  __ LoadP(r4, FieldMemOperand(r3, JSFunction::kCodeOffset));
-  __ CallCodeObject(r4);
-
-  // Store offset of return address for deoptimizer.
-  masm->isolate()->heap()->SetArgumentsAdaptorDeoptPCOffset(masm->pc_offset());
-
-  // Exit frame and return.
-  LeaveArgumentsAdaptorFrame(masm);
-  __ Ret();
 
   // -------------------------------------------
   // Dont adapt arguments.
