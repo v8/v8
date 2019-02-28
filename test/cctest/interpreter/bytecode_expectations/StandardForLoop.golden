@@ -374,7 +374,7 @@ snippet: "
 "
 frame size: 8
 parameter count: 1
-bytecode array length: 85
+bytecode array length: 81
 bytecodes: [
                 B(Mov), R(closure), R(3),
                 B(Mov), R(this), R(4),
@@ -400,7 +400,6 @@ bytecodes: [
                 B(Mov), R(0), R(4),
   /*   49 E> */ B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionResolve), R(4), U8(3),
   /*   67 S> */ B(Return),
-                B(Jump), U8(30),
                 B(Star), R(4),
                 B(CreateCatchContext), R(4), U8(0),
                 B(Star), R(3),
@@ -415,14 +414,12 @@ bytecodes: [
                 B(Mov), R(0), R(5),
                 B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionReject), R(5), U8(3),
   /*   67 S> */ B(Return),
-                B(LdaUndefined),
-  /*   67 S> */ B(Return),
 ]
 constant pool: [
   SCOPE_INFO_TYPE,
 ]
 handlers: [
-  [16, 53, 55],
+  [16, 53, 53],
 ]
 
 ---
@@ -434,7 +431,7 @@ snippet: "
 "
 frame size: 7
 parameter count: 1
-bytecode array length: 121
+bytecode array length: 117
 bytecodes: [
                 B(SwitchOnGeneratorState), R(0), U8(0), U8(1),
                 B(Mov), R(closure), R(2),
@@ -473,7 +470,6 @@ bytecodes: [
                 B(Mov), R(0), R(3),
   /*   49 E> */ B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionResolve), R(3), U8(3),
   /*   61 S> */ B(Return),
-                B(Jump), U8(30),
                 B(Star), R(3),
                 B(CreateCatchContext), R(3), U8(1),
                 B(Star), R(2),
@@ -488,14 +484,12 @@ bytecodes: [
                 B(Mov), R(0), R(4),
                 B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionReject), R(4), U8(3),
   /*   61 S> */ B(Return),
-                B(LdaUndefined),
-  /*   61 S> */ B(Return),
 ]
 constant pool: [
   Smi [46],
   SCOPE_INFO_TYPE,
 ]
 handlers: [
-  [20, 89, 91],
+  [20, 89, 89],
 ]
 

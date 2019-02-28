@@ -27,6 +27,7 @@ class Isolate;
 namespace interpreter {
 
 class BytecodeLabel;
+class BytecodeLoopHeader;
 class BytecodeNode;
 class BytecodeRegisterOptimizer;
 class BytecodeJumpTable;
@@ -397,13 +398,20 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   BytecodeArrayBuilder& ToNumber(int feedback_slot);
   BytecodeArrayBuilder& ToNumeric(int feedback_slot);
 
+  // Exception handling.
+  BytecodeArrayBuilder& MarkHandler(int handler_id,
+                                    HandlerTable::CatchPrediction will_catch);
+  BytecodeArrayBuilder& MarkTryBegin(int handler_id, Register context);
+  BytecodeArrayBuilder& MarkTryEnd(int handler_id);
+
   // Flow Control.
   BytecodeArrayBuilder& Bind(BytecodeLabel* label);
-  BytecodeArrayBuilder& Bind(const BytecodeLabel& target, BytecodeLabel* label);
+  BytecodeArrayBuilder& Bind(BytecodeLoopHeader* label);
   BytecodeArrayBuilder& Bind(BytecodeJumpTable* jump_table, int case_value);
 
   BytecodeArrayBuilder& Jump(BytecodeLabel* label);
-  BytecodeArrayBuilder& JumpLoop(BytecodeLabel* label, int loop_depth);
+  BytecodeArrayBuilder& JumpLoop(BytecodeLoopHeader* loop_header,
+                                 int loop_depth);
 
   BytecodeArrayBuilder& JumpIfTrue(ToBooleanMode mode, BytecodeLabel* label);
   BytecodeArrayBuilder& JumpIfFalse(ToBooleanMode mode, BytecodeLabel* label);
@@ -457,12 +465,6 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
                                                BytecodeJumpTable* jump_table);
   BytecodeArrayBuilder& ResumeGenerator(Register generator,
                                         RegisterList registers);
-
-  // Exception handling.
-  BytecodeArrayBuilder& MarkHandler(int handler_id,
-                                    HandlerTable::CatchPrediction will_catch);
-  BytecodeArrayBuilder& MarkTryBegin(int handler_id, Register context);
-  BytecodeArrayBuilder& MarkTryEnd(int handler_id);
 
   // Creates a new handler table entry and returns a {hander_id} identifying the
   // entry, so that it can be referenced by above exception handling support.
@@ -568,6 +570,8 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   BYTECODE_LIST(DECLARE_BYTECODE_OUTPUT)
 #undef DECLARE_OPERAND_TYPE_INFO
 
+  V8_INLINE void OutputJumpLoop(BytecodeLoopHeader* loop_header,
+                                int loop_depth);
   V8_INLINE void OutputSwitchOnSmiNoFeedback(BytecodeJumpTable* jump_table);
 
   bool RegisterIsValid(Register reg) const;
@@ -583,6 +587,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   // Write bytecode to bytecode array.
   void Write(BytecodeNode* node);
   void WriteJump(BytecodeNode* node, BytecodeLabel* label);
+  void WriteJumpLoop(BytecodeNode* node, BytecodeLoopHeader* loop_header);
   void WriteSwitch(BytecodeNode* node, BytecodeJumpTable* label);
 
   // Not implemented as the illegal bytecode is used inside internally
