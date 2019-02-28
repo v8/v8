@@ -277,11 +277,10 @@ Token::Value Scanner::SkipSingleLineComment() {
 
 Token::Value Scanner::SkipSourceURLComment() {
   TryToParseSourceURLComment();
-  while (c0_ != kEndOfInput && !unibrow::IsLineTerminator(c0_)) {
-    Advance();
+  if (unibrow::IsLineTerminator(c0_) || c0_ == kEndOfInput) {
+    return Token::WHITESPACE;
   }
-
-  return Token::WHITESPACE;
+  return SkipSingleLineComment();
 }
 
 void Scanner::TryToParseSourceURLComment() {
