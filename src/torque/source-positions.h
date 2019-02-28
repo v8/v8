@@ -17,6 +17,7 @@ class SourceId {
  public:
   static SourceId Invalid() { return SourceId(-1); }
   int operator==(const SourceId& s) const { return id_ == s.id_; }
+  bool operator<(const SourceId& s) const { return id_ < s.id_; }
 
  private:
   explicit SourceId(int id) : id_(id) {}
@@ -44,6 +45,14 @@ struct SourcePosition {
 
   bool CompareStartIgnoreColumn(const SourcePosition& pos) const {
     return start.line == pos.start.line && source == pos.source;
+  }
+
+  bool Contains(LineAndColumn pos) const {
+    if (pos.line < start.line || pos.line > end.line) return false;
+
+    if (pos.line == start.line && pos.column < start.column) return false;
+    if (pos.line == end.line && pos.column >= end.column) return false;
+    return true;
   }
 };
 

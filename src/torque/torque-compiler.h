@@ -17,9 +17,10 @@ namespace torque {
 struct TorqueCompilerOptions {
   std::string output_directory;
   bool verbose;
+  bool collect_language_server_data;
   bool abort_on_lint_errors;
 
-  static TorqueCompilerOptions Default() { return {"", false, false}; }
+  static TorqueCompilerOptions Default() { return {"", false, false, false}; }
 };
 
 void CompileTorque(std::vector<std::string> files,

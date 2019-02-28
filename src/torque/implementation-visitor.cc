@@ -9,6 +9,7 @@
 #include "src/torque/declaration-visitor.h"
 #include "src/torque/implementation-visitor.h"
 #include "src/torque/parameter-difference.h"
+#include "src/torque/server-data.h"
 
 namespace v8 {
 namespace internal {
@@ -1766,6 +1767,10 @@ LocationReference ImplementationVisitor::GetLocationReference(
   if (expr->namespace_qualification.empty()) {
     if (base::Optional<Binding<LocalValue>*> value =
             TryLookupLocalValue(expr->name->value)) {
+      if (GlobalContext::collect_language_server_data()) {
+        LanguageServerData::AddDefinition(expr->pos,
+                                          (*value)->declaration_position());
+      }
       if (expr->generic_arguments.size() != 0) {
         ReportError("cannot have generic parameters on local name ",
                     expr->name);
@@ -2201,6 +2206,12 @@ VisitResult ImplementationVisitor::Visit(CallExpression* expr,
     return scope.Yield(
         GeneratePointerCall(expr->callee, arguments, is_tailcall));
   } else {
+    if (GlobalContext::collect_language_server_data()) {
+      Callable* callable = LookupCallable(name, Declarations::Lookup(name),
+                                          arguments, specialization_types);
+      LanguageServerData::AddDefinition(expr->callee->name->pos,
+                                        callable->pos());
+    }
     return scope.Yield(
         GenerateCall(name, arguments, specialization_types, is_tailcall));
   }

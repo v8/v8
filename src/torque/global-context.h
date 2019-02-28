@@ -17,7 +17,10 @@ namespace torque {
 
 class GlobalContext : public ContextualClass<GlobalContext> {
  public:
-  explicit GlobalContext(Ast ast) : verbose_(false), ast_(std::move(ast)) {
+  explicit GlobalContext(Ast ast)
+      : verbose_(false),
+        collect_language_server_data_(false),
+        ast_(std::move(ast)) {
     CurrentScope::Scope current_scope(nullptr);
     CurrentSourcePosition::Scope current_source_position(
         SourcePosition{CurrentSourceFile::Get(), {-1, -1}, {-1, -1}});
@@ -63,10 +66,17 @@ class GlobalContext : public ContextualClass<GlobalContext> {
 
   static void SetVerbose() { Get().verbose_ = true; }
   static bool verbose() { return Get().verbose_; }
+  static void SetCollectLanguageServerData() {
+    Get().collect_language_server_data_ = true;
+  }
+  static bool collect_language_server_data() {
+    return Get().collect_language_server_data_;
+  }
   static Ast* ast() { return &Get().ast_; }
 
  private:
   bool verbose_;
+  bool collect_language_server_data_;
   Namespace* default_namespace_;
   Ast ast_;
   std::vector<std::unique_ptr<Declarable>> declarables_;

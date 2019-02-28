@@ -31,9 +31,7 @@ void ReadAndParseTorqueFile(const std::string& path) {
 
 void CompileTorque(std::vector<std::string> files,
                    TorqueCompilerOptions options) {
-  SourceFileMap::Scope source_file_map_scope;
-  CurrentSourceFile::Scope unknown_source_file_scope(
-      SourceFileMap::AddSource("<unknown>"));
+  CurrentSourceFile::Scope unknown_source_file_scope(SourceId::Invalid());
   CurrentAst::Scope ast_scope_;
   LintErrorStatus::Scope lint_error_status_scope_;
 
@@ -41,6 +39,9 @@ void CompileTorque(std::vector<std::string> files,
 
   GlobalContext::Scope global_context(std::move(CurrentAst::Get()));
   if (options.verbose) GlobalContext::SetVerbose();
+  if (options.collect_language_server_data) {
+    GlobalContext::SetCollectLanguageServerData();
+  }
   TypeOracle::Scope type_oracle;
 
   DeclarationVisitor declaration_visitor;
