@@ -357,7 +357,7 @@ V8_EXPORT_PRIVATE void FreeCurrentEmbeddedBlob();
   V(int, suffix_table, (kBMMaxShift + 1))                                      \
   ISOLATE_INIT_DEBUG_ARRAY_LIST(V)
 
-typedef std::vector<HeapObject> DebugObjectCache;
+using DebugObjectCache = std::vector<Handle<HeapObject>>;
 
 #define ISOLATE_INIT_LIST(V)                                                   \
   /* Assembler state. */                                                       \

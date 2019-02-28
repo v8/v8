@@ -1241,8 +1241,6 @@ static void PrintFrames(Isolate* isolate,
 }
 
 void Isolate::PrintStack(StringStream* accumulator, PrintStackMode mode) {
-  // The MentionedObjectCache is not GC-proof at the moment.
-  DisallowHeapAllocation no_gc;
   HandleScope scope(this);
   DCHECK(accumulator->IsMentionedObjectCacheClear(this));
 
