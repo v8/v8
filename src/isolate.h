@@ -84,6 +84,7 @@ class MaterializedObjectStore;
 class Microtask;
 class MicrotaskQueue;
 class OptimizingCompileDispatcher;
+class ReadOnlyDeserializer;
 class RegExpStack;
 class RootVisitor;
 class RuntimeProfiler;
@@ -518,7 +519,9 @@ class Isolate final : private HiddenFactory {
   void InitializeLoggingAndCounters();
   bool InitializeCounters();  // Returns false if already initialized.
 
-  bool Init(StartupDeserializer* des);
+  bool InitWithoutSnapshot();
+  bool InitWithSnapshot(ReadOnlyDeserializer* read_only_deserializer,
+                        StartupDeserializer* startup_deserializer);
 
   // True if at least one thread Enter'ed this isolate.
   bool IsInUse() { return entry_stack_ != nullptr; }
@@ -1349,10 +1352,6 @@ class Isolate final : private HiddenFactory {
   void AddDetachedContext(Handle<Context> context);
   void CheckDetachedContextsAfterGC();
 
-  std::vector<Object>* read_only_object_cache() {
-    return &read_only_object_cache_;
-  }
-
   std::vector<Object>* partial_snapshot_cache() {
     return &partial_snapshot_cache_;
   }
@@ -1497,6 +1496,9 @@ class Isolate final : private HiddenFactory {
  private:
   explicit Isolate(std::unique_ptr<IsolateAllocator> isolate_allocator);
   ~Isolate();
+
+  bool Init(ReadOnlyDeserializer* read_only_deserializer,
+            StartupDeserializer* startup_deserializer);
 
   void CheckIsolateLayout();
 
@@ -1751,7 +1753,6 @@ class Isolate final : private HiddenFactory {
 
   v8::Isolate::UseCounterCallback use_counter_callback_ = nullptr;
 
-  std::vector<Object> read_only_object_cache_;
   std::vector<Object> partial_snapshot_cache_;
 
   // Used during builtins compilation to build the builtins constants table,

@@ -37,6 +37,7 @@
 #include "src/frames-inl.h"
 #include "src/hash-seed-inl.h"
 #include "src/heap/heap-inl.h"
+#include "src/heap/read-only-heap.h"
 #include "src/ic/stub-cache.h"
 #include "src/interpreter/interpreter.h"
 #include "src/isolate-inl.h"
@@ -64,6 +65,7 @@
 #include "src/simulator.h"
 #include "src/snapshot/embedded-data.h"
 #include "src/snapshot/embedded-file-writer.h"
+#include "src/snapshot/read-only-deserializer.h"
 #include "src/snapshot/startup-deserializer.h"
 #include "src/string-stream.h"
 #include "src/tracing/tracing-category-observer.h"
@@ -3262,11 +3264,24 @@ void Isolate::TearDownEmbeddedBlob() {
   }
 }
 
-bool Isolate::Init(StartupDeserializer* des) {
+bool Isolate::InitWithoutSnapshot() { return Init(nullptr, nullptr); }
+
+bool Isolate::InitWithSnapshot(ReadOnlyDeserializer* read_only_deserializer,
+                               StartupDeserializer* startup_deserializer) {
+  DCHECK_NOT_NULL(read_only_deserializer);
+  DCHECK_NOT_NULL(startup_deserializer);
+  return Init(read_only_deserializer, startup_deserializer);
+}
+
+bool Isolate::Init(ReadOnlyDeserializer* read_only_deserializer,
+                   StartupDeserializer* startup_deserializer) {
   TRACE_ISOLATE(init);
+  const bool create_heap_objects = (read_only_deserializer == nullptr);
+  // We either have both or neither.
+  DCHECK_EQ(create_heap_objects, startup_deserializer == nullptr);
 
   base::ElapsedTimer timer;
-  if (des == nullptr && FLAG_profile_deserialization) timer.Start();
+  if (create_heap_objects && FLAG_profile_deserialization) timer.Start();
 
   time_millis_at_init_ = heap_.MonotonicallyIncreasingTimeInMs();
 
@@ -3320,7 +3335,8 @@ bool Isolate::Init(StartupDeserializer* des) {
 
   // SetUp the object heap.
   DCHECK(!heap_.HasBeenSetUp());
-  heap_.SetUp();
+  auto* read_only_heap = ReadOnlyHeap::GetOrCreateReadOnlyHeap(&heap_);
+  heap_.SetUp(read_only_heap);
 
   isolate_data_.external_reference_table()->Init(this);
 
@@ -3332,7 +3348,6 @@ bool Isolate::Init(StartupDeserializer* des) {
 
   deoptimizer_data_ = new DeoptimizerData(heap());
 
-  const bool create_heap_objects = (des == nullptr);
   if (setup_delegate_ == nullptr) {
     setup_delegate_ = new SetupIsolateDelegate(create_heap_objects);
   }
@@ -3404,7 +3419,10 @@ bool Isolate::Init(StartupDeserializer* des) {
     AlwaysAllocateScope always_allocate(this);
     CodeSpaceMemoryModificationScope modification_scope(&heap_);
 
-    if (!create_heap_objects) des->DeserializeInto(this);
+    if (!create_heap_objects) {
+      read_only_heap->MaybeDeserialize(this, read_only_deserializer);
+      startup_deserializer->DeserializeInto(this);
+    }
     load_stub_cache_->Initialize();
     store_stub_cache_->Initialize();
     interpreter_->Initialize();
@@ -3463,7 +3481,7 @@ bool Isolate::Init(StartupDeserializer* des) {
     ast_string_constants_ = new AstStringConstants(this, HashSeed(this));
   }
 
-  initialized_from_snapshot_ = (des != nullptr);
+  initialized_from_snapshot_ = !create_heap_objects;
 
   if (!FLAG_inline_new) heap_.DisableInlineAllocation();
 
@@ -3476,14 +3494,13 @@ bool Isolate::Init(StartupDeserializer* des) {
                                                sampling_flags);
   }
 
-  if (des == nullptr && FLAG_profile_deserialization) {
+  if (create_heap_objects && FLAG_profile_deserialization) {
     double ms = timer.Elapsed().InMillisecondsF();
     PrintF("[Initializing isolate from scratch took %0.3f ms]\n", ms);
   }
 
   return true;
 }
-
 
 void Isolate::Enter() {
   Isolate* current_isolate = nullptr;

@@ -1436,13 +1436,13 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
 
   Unmapper* unmapper() { return &unmapper_; }
 
- private:
-  void InitializeCodePageAllocator(v8::PageAllocator* page_allocator,
-                                   size_t requested);
-
   // PreFree logically frees the object, i.e., it takes care of the size
   // bookkeeping and calls the allocation callback.
   void PreFreeMemory(MemoryChunk* chunk);
+
+ private:
+  void InitializeCodePageAllocator(v8::PageAllocator* page_allocator,
+                                   size_t requested);
 
   // FreeMemory can be called concurrently when PreFree was executed before.
   void PerformFreeMemory(MemoryChunk* chunk);

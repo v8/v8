@@ -7,7 +7,6 @@
 #include "src/api.h"
 #include "src/assembler-inl.h"
 #include "src/heap/heap-inl.h"
-#include "src/snapshot/read-only-deserializer.h"
 #include "src/snapshot/snapshot.h"
 #include "src/v8threads.h"
 
@@ -16,10 +15,6 @@ namespace internal {
 
 void StartupDeserializer::DeserializeInto(Isolate* isolate) {
   Initialize(isolate);
-
-  ReadOnlyDeserializer read_only_deserializer(read_only_data_);
-  read_only_deserializer.SetRehashability(can_rehash());
-  read_only_deserializer.DeserializeInto(isolate);
 
   if (!allocator()->ReserveSpace()) {
     V8::FatalProcessOutOfMemory(isolate, "StartupDeserializer");
@@ -64,8 +59,7 @@ void StartupDeserializer::DeserializeInto(Isolate* isolate) {
   LogNewMapEvents();
 
   if (FLAG_rehash_snapshot && can_rehash()) {
-    isolate->heap()->InitializeHashSeed();
-    read_only_deserializer.RehashHeap();
+    // Hash seed was initalized in ReadOnlyDeserializer.
     Rehash();
   }
 }

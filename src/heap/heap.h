@@ -76,6 +76,7 @@ class ObjectIterator;
 class ObjectStats;
 class Page;
 class PagedSpace;
+class ReadOnlyHeap;
 class RootVisitor;
 class ScavengeJob;
 class Scavenger;
@@ -579,7 +580,7 @@ class Heap {
 
   // Prepares the heap, setting up memory areas that are needed in the isolate
   // without actually creating any objects.
-  void SetUp();
+  void SetUp(ReadOnlyHeap* ro_heap);
 
   // (Re-)Initialize hash seed from flag or RNG.
   void InitializeHashSeed();
@@ -624,6 +625,8 @@ class Heap {
   // ===========================================================================
   // Getters to other components. ==============================================
   // ===========================================================================
+
+  ReadOnlyHeap* read_only_heap() const { return read_only_heap_; }
 
   GCTracer* tracer() { return tracer_.get(); }
 
@@ -1787,6 +1790,8 @@ class Heap {
   // This separates maps in the retained_maps array that were created before
   // and after context disposal.
   int number_of_disposed_maps_ = 0;
+
+  ReadOnlyHeap* read_only_heap_ = nullptr;
 
   NewSpace* new_space_ = nullptr;
   OldSpace* old_space_ = nullptr;

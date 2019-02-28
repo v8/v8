@@ -584,7 +584,7 @@ SnapshotCreator::SnapshotCreator(Isolate* isolate,
     internal_isolate->set_snapshot_blob(blob);
     i::Snapshot::Initialize(internal_isolate);
   } else {
-    internal_isolate->Init(nullptr);
+    internal_isolate->InitWithoutSnapshot();
   }
   data_ = data;
 }
@@ -8209,7 +8209,7 @@ void Isolate::Initialize(Isolate* isolate,
     }
     base::ElapsedTimer timer;
     if (i::FLAG_profile_deserialization) timer.Start();
-    i_isolate->Init(nullptr);
+    i_isolate->InitWithoutSnapshot();
     if (i::FLAG_profile_deserialization) {
       double ms = timer.Elapsed().InMillisecondsF();
       i::PrintF("[Initializing isolate from scratch took %0.3f ms]\n", ms);

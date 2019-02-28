@@ -37,6 +37,7 @@
 #include "src/heap/object-stats.h"
 #include "src/heap/objects-visiting-inl.h"
 #include "src/heap/objects-visiting.h"
+#include "src/heap/read-only-heap.h"
 #include "src/heap/remembered-set.h"
 #include "src/heap/scavenge-job.h"
 #include "src/heap/scavenger-inl.h"
@@ -4493,7 +4494,7 @@ HeapObject Heap::AllocateRawCodeInLargeObjectSpace(int size) {
   return HeapObject();
 }
 
-void Heap::SetUp() {
+void Heap::SetUp(ReadOnlyHeap* ro_heap) {
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT
   allocation_timeout_ = NextAllocationTimeout();
 #endif
@@ -4505,6 +4506,9 @@ void Heap::SetUp() {
   // size) and old-space-size if set or the initial values of semispace_size_
   // and old_generation_size_ otherwise.
   if (!configured_) ConfigureHeapDefault();
+
+  DCHECK_NOT_NULL(ro_heap);
+  read_only_heap_ = ro_heap;
 
   mmap_region_base_ =
       reinterpret_cast<uintptr_t>(v8::internal::GetRandomMmapAddr()) &
@@ -4541,7 +4545,8 @@ void Heap::SetUp() {
     space_[i] = nullptr;
   }
 
-  space_[RO_SPACE] = read_only_space_ = new ReadOnlySpace(this);
+  space_[RO_SPACE] = read_only_space_ = ro_heap->read_only_space();
+  DCHECK_NOT_NULL(read_only_space_);
   space_[NEW_SPACE] = new_space_ =
       new NewSpace(this, memory_allocator_->data_page_allocator(),
                    initial_semispace_size_, max_semi_space_size_);
@@ -4818,7 +4823,9 @@ void Heap::TearDown() {
 
   tracer_.reset();
 
-  for (int i = FIRST_SPACE; i <= LAST_SPACE; i++) {
+  read_only_heap_->OnHeapTearDown();
+  space_[RO_SPACE] = read_only_space_ = nullptr;
+  for (int i = FIRST_MUTABLE_SPACE; i <= LAST_MUTABLE_SPACE; i++) {
     delete space_[i];
     space_[i] = nullptr;
   }

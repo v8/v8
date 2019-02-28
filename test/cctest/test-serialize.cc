@@ -51,6 +51,7 @@
 #include "src/snapshot/natives.h"
 #include "src/snapshot/partial-deserializer.h"
 #include "src/snapshot/partial-serializer.h"
+#include "src/snapshot/read-only-deserializer.h"
 #include "src/snapshot/read-only-serializer.h"
 #include "src/snapshot/snapshot.h"
 #include "src/snapshot/startup-deserializer.h"
@@ -92,7 +93,7 @@ class TestSerializer {
     v8::Isolate* v8_isolate = NewIsolate(kEnableSerializer, kGenerateHeap);
     v8::Isolate::Scope isolate_scope(v8_isolate);
     i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-    isolate->Init(nullptr);
+    isolate->Init(nullptr, nullptr);
     isolate->heap()->read_only_space()->ClearStringPaddingIfNeeded();
     return v8_isolate;
   }
@@ -100,13 +101,14 @@ class TestSerializer {
   static v8::Isolate* NewIsolateFromBlob(StartupBlobs& blobs) {
     SnapshotData startup_snapshot(blobs.startup);
     SnapshotData read_only_snapshot(blobs.read_only);
-    StartupDeserializer deserializer(&startup_snapshot, &read_only_snapshot);
+    ReadOnlyDeserializer read_only_deserializer(&read_only_snapshot);
+    StartupDeserializer startup_deserializer(&startup_snapshot);
     const bool kEnableSerializer = false;
     const bool kGenerateHeap = false;
     v8::Isolate* v8_isolate = NewIsolate(kEnableSerializer, kGenerateHeap);
     v8::Isolate::Scope isolate_scope(v8_isolate);
     i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-    isolate->Init(&deserializer);
+    isolate->Init(&read_only_deserializer, &startup_deserializer);
     return v8_isolate;
   }
 

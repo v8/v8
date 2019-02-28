@@ -7,6 +7,7 @@
 #include "src/assembler-inl.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
+#include "src/heap/read-only-heap.h"
 #include "src/interpreter/interpreter.h"
 #include "src/isolate.h"
 #include "src/log.h"
@@ -794,8 +795,9 @@ TSlot Deserializer::ReadDataCase(Isolate* isolate, TSlot current,
     hot_objects_.Add(heap_object);
   } else if (bytecode == kReadOnlyObjectCache) {
     int cache_index = source_.GetInt();
-    heap_object =
-        HeapObject::cast(isolate->read_only_object_cache()->at(cache_index));
+    heap_object = HeapObject::cast(
+        isolate->heap()->read_only_heap()->read_only_object_cache()->at(
+            cache_index));
     DCHECK(!Heap::InYoungGeneration(heap_object));
     emit_write_barrier = false;
   } else if (bytecode == kPartialSnapshotCache) {
