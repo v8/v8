@@ -85,7 +85,7 @@ void Zone::DeleteAll() {
   // Traverse the chained list of segments and return them all to the allocator.
   for (Segment* current = segment_head_; current;) {
     Segment* next = current->next();
-    size_t size = current->size();
+    size_t size = current->total_size();
 
     // Un-poison the segment content so we can re-use or zap it later.
     ASAN_UNPOISON_MEMORY_REGION(reinterpret_cast<void*>(current->start()),
@@ -106,8 +106,8 @@ void Zone::DeleteAll() {
 Segment* Zone::NewSegment(size_t requested_size) {
   Segment* result = allocator_->GetSegment(requested_size);
   if (result != nullptr) {
-    DCHECK_GE(result->size(), requested_size);
-    segment_bytes_allocated_ += result->size();
+    DCHECK_GE(result->total_size(), requested_size);
+    segment_bytes_allocated_ += result->total_size();
     result->set_zone(this);
     result->set_next(segment_head_);
     segment_head_ = result;
@@ -128,7 +128,7 @@ Address Zone::NewExpand(size_t size) {
   // except that we employ a maximum segment size when we delete. This
   // is to avoid excessive malloc() and free() overhead.
   Segment* head = segment_head_;
-  const size_t old_size = (head == nullptr) ? 0 : head->size();
+  const size_t old_size = head ? head->total_size() : 0;
   static const size_t kSegmentOverhead = sizeof(Segment) + kAlignmentInBytes;
   const size_t new_size_no_overhead = size + (old_size << 1);
   size_t new_size = kSegmentOverhead + new_size_no_overhead;

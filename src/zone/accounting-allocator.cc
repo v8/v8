@@ -74,28 +74,24 @@ void AccountingAllocator::ConfigureSegmentPool(const size_t max_pool_size) {
 
 Segment* AccountingAllocator::GetSegment(size_t bytes) {
   Segment* result = GetSegmentFromPool(bytes);
-  if (result == nullptr) {
-    result = AllocateSegment(bytes);
-    if (result != nullptr) {
-      result->Initialize(bytes);
-    }
-  }
+  if (result == nullptr) result = AllocateSegment(bytes);
 
   return result;
 }
 
 Segment* AccountingAllocator::AllocateSegment(size_t bytes) {
   void* memory = AllocWithRetry(bytes);
-  if (memory != nullptr) {
-    size_t current =
-        current_memory_usage_.fetch_add(bytes, std::memory_order_relaxed);
-    size_t max = max_memory_usage_.load(std::memory_order_relaxed);
-    while (current > max && !max_memory_usage_.compare_exchange_weak(
-                                max, current, std::memory_order_relaxed)) {
-      // {max} was updated by {compare_exchange_weak}; retry.
-    }
+  if (memory == nullptr) return nullptr;
+
+  size_t current =
+      current_memory_usage_.fetch_add(bytes, std::memory_order_relaxed);
+  size_t max = max_memory_usage_.load(std::memory_order_relaxed);
+  while (current > max && !max_memory_usage_.compare_exchange_weak(
+                              max, current, std::memory_order_relaxed)) {
+    // {max} was updated by {compare_exchange_weak}; retry.
   }
-  return reinterpret_cast<Segment*>(memory);
+  DCHECK_LE(sizeof(Segment), bytes);
+  return new (memory) Segment(bytes);
 }
 
 void AccountingAllocator::ReturnSegment(Segment* segment) {
@@ -109,7 +105,8 @@ void AccountingAllocator::ReturnSegment(Segment* segment) {
 }
 
 void AccountingAllocator::FreeSegment(Segment* memory) {
-  current_memory_usage_.fetch_sub(memory->size(), std::memory_order_relaxed);
+  current_memory_usage_.fetch_sub(memory->total_size(),
+                                  std::memory_order_relaxed);
   memory->ZapHeader();
   free(memory);
 }
@@ -139,16 +136,17 @@ Segment* AccountingAllocator::GetSegmentFromPool(size_t requested_size) {
     unused_segments_sizes_[power]--;
   }
 
-  current_pool_size_.fetch_sub(segment->size(), std::memory_order_relaxed);
+  current_pool_size_.fetch_sub(segment->total_size(),
+                               std::memory_order_relaxed);
   ASAN_UNPOISON_MEMORY_REGION(reinterpret_cast<void*>(segment->start()),
                               segment->capacity());
   MSAN_ALLOCATED_UNINITIALIZED_MEMORY(segment->start(), segment->capacity());
-  DCHECK_GE(segment->size(), requested_size);
+  DCHECK_GE(segment->total_size(), requested_size);
   return segment;
 }
 
 bool AccountingAllocator::AddSegmentToPool(Segment* segment) {
-  size_t size = segment->size();
+  size_t size = segment->total_size();
 
   if (size >= (1 << (kMaxSegmentSizePower + 1))) return false;
 
