@@ -11,6 +11,8 @@
 #endif
 
 #include "src/allocation.h"
+#include "src/asan.h"
+#include "src/msan.h"
 
 namespace v8 {
 namespace internal {
@@ -124,23 +126,24 @@ Segment* AccountingAllocator::GetSegmentFromPool(size_t requested_size) {
   power -= kMinSegmentSizePower;
 
   Segment* segment;
+
   {
     base::MutexGuard lock_guard(&unused_segments_mutex_);
 
     segment = unused_segments_heads_[power];
+    if (segment == nullptr) return nullptr;
 
-    if (segment != nullptr) {
-      unused_segments_heads_[power] = segment->next();
-      segment->set_next(nullptr);
+    unused_segments_heads_[power] = segment->next();
+    segment->set_next(nullptr);
 
-      unused_segments_sizes_[power]--;
-      current_pool_size_.fetch_sub(segment->size(), std::memory_order_relaxed);
-    }
+    unused_segments_sizes_[power]--;
   }
 
-  if (segment) {
-    DCHECK_GE(segment->size(), requested_size);
-  }
+  current_pool_size_.fetch_sub(segment->size(), std::memory_order_relaxed);
+  ASAN_UNPOISON_MEMORY_REGION(reinterpret_cast<void*>(segment->start()),
+                              segment->capacity());
+  MSAN_ALLOCATED_UNINITIALIZED_MEMORY(segment->start(), segment->capacity());
+  DCHECK_GE(segment->size(), requested_size);
   return segment;
 }
 
@@ -167,9 +170,14 @@ bool AccountingAllocator::AddSegmentToPool(Segment* segment) {
 
     segment->set_next(unused_segments_heads_[power]);
     unused_segments_heads_[power] = segment;
-    current_pool_size_.fetch_add(size, std::memory_order_relaxed);
     unused_segments_sizes_[power]++;
+    // Poisoning needs to happen while still holding the mutex to guarantee that
+    // it happens before the segment is taken from the pool again.
+    ASAN_POISON_MEMORY_REGION(reinterpret_cast<void*>(segment->start()),
+                              segment->capacity());
   }
+
+  current_pool_size_.fetch_add(size, std::memory_order_relaxed);
 
   return true;
 }
