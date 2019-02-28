@@ -455,9 +455,6 @@ bool Scanner::ScanEscape() {
   }
 
   switch (c) {
-    case '\'':  // fall through
-    case '"' :  // fall through
-    case '\\': break;
     case 'b' : c = '\b'; break;
     case 'f' : c = '\f'; break;
     case 'n' : c = '\n'; break;
