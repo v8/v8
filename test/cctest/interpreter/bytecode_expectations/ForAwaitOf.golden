@@ -16,7 +16,7 @@ snippet: "
 "
 frame size: 21
 parameter count: 1
-bytecode array length: 325
+bytecode array length: 329
 bytecodes: [
                 B(SwitchOnGeneratorState), R(0), U8(0), U8(2),
                 B(Mov), R(closure), R(4),
@@ -140,6 +140,7 @@ bytecodes: [
                 B(Mov), R(0), R(5),
                 B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionResolve), R(5), U8(3),
   /*   57 S> */ B(Return),
+                B(Jump), U8(30),
                 B(Star), R(5),
                 B(CreateCatchContext), R(5), U8(10),
                 B(Star), R(4),
@@ -153,6 +154,8 @@ bytecodes: [
                 B(Star), R(8),
                 B(Mov), R(0), R(6),
                 B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionReject), R(6), U8(3),
+  /*   57 S> */ B(Return),
+                B(LdaUndefined),
   /*   57 S> */ B(Return),
 ]
 constant pool: [
@@ -169,7 +172,7 @@ constant pool: [
   SCOPE_INFO_TYPE,
 ]
 handlers: [
-  [20, 297, 297],
+  [20, 297, 299],
   [77, 157, 165],
   [211, 260, 262],
 ]
@@ -183,7 +186,7 @@ snippet: "
 "
 frame size: 21
 parameter count: 1
-bytecode array length: 346
+bytecode array length: 350
 bytecodes: [
                 B(SwitchOnGeneratorState), R(0), U8(0), U8(2),
                 B(Mov), R(closure), R(4),
@@ -315,6 +318,7 @@ bytecodes: [
                 B(Mov), R(0), R(5),
                 B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionResolve), R(5), U8(3),
   /*   68 S> */ B(Return),
+                B(Jump), U8(30),
                 B(Star), R(5),
                 B(CreateCatchContext), R(5), U8(12),
                 B(Star), R(4),
@@ -328,6 +332,8 @@ bytecodes: [
                 B(Star), R(8),
                 B(Mov), R(0), R(6),
                 B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionReject), R(6), U8(3),
+  /*   68 S> */ B(Return),
+                B(LdaUndefined),
   /*   68 S> */ B(Return),
 ]
 constant pool: [
@@ -346,7 +352,7 @@ constant pool: [
   SCOPE_INFO_TYPE,
 ]
 handlers: [
-  [20, 318, 318],
+  [20, 318, 320],
   [77, 161, 169],
   [215, 264, 266],
 ]
@@ -363,7 +369,7 @@ snippet: "
 "
 frame size: 21
 parameter count: 1
-bytecode array length: 341
+bytecode array length: 345
 bytecodes: [
                 B(SwitchOnGeneratorState), R(0), U8(0), U8(2),
                 B(Mov), R(closure), R(4),
@@ -494,6 +500,7 @@ bytecodes: [
                 B(Mov), R(0), R(5),
                 B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionResolve), R(5), U8(3),
   /*  114 S> */ B(Return),
+                B(Jump), U8(30),
                 B(Star), R(5),
                 B(CreateCatchContext), R(5), U8(10),
                 B(Star), R(4),
@@ -507,6 +514,8 @@ bytecodes: [
                 B(Star), R(8),
                 B(Mov), R(0), R(6),
                 B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionReject), R(6), U8(3),
+  /*  114 S> */ B(Return),
+                B(LdaUndefined),
   /*  114 S> */ B(Return),
 ]
 constant pool: [
@@ -523,7 +532,7 @@ constant pool: [
   SCOPE_INFO_TYPE,
 ]
 handlers: [
-  [20, 313, 313],
+  [20, 313, 315],
   [77, 173, 181],
   [227, 276, 278],
 ]
@@ -538,7 +547,7 @@ snippet: "
 "
 frame size: 16
 parameter count: 1
-bytecode array length: 261
+bytecode array length: 265
 bytecodes: [
                 B(Mov), R(closure), R(2),
                 B(Mov), R(this), R(3),
@@ -638,6 +647,7 @@ bytecodes: [
                 B(Mov), R(0), R(3),
                 B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionResolve), R(3), U8(3),
   /*   96 S> */ B(Return),
+                B(Jump), U8(30),
                 B(Star), R(3),
                 B(CreateCatchContext), R(3), U8(11),
                 B(Star), R(2),
@@ -651,6 +661,8 @@ bytecodes: [
                 B(Star), R(6),
                 B(Mov), R(0), R(4),
                 B(InvokeIntrinsic), U8(Runtime::k_AsyncFunctionReject), R(4), U8(3),
+  /*   96 S> */ B(Return),
+                B(LdaUndefined),
   /*   96 S> */ B(Return),
 ]
 constant pool: [
@@ -668,7 +680,7 @@ constant pool: [
   SCOPE_INFO_TYPE,
 ]
 handlers: [
-  [16, 233, 233],
+  [16, 233, 235],
   [59, 112, 120],
   [166, 179, 181],
 ]

@@ -60,7 +60,6 @@ class V8_EXPORT_PRIVATE BytecodeRegisterOptimizer final
 
   // Materialize all live registers and flush equivalence sets.
   void Flush();
-  bool EnsureAllRegistersAreFlushed() const;
 
   // Prepares for |bytecode|.
   template <Bytecode bytecode, AccumulatorUse accumulator_use>
@@ -133,6 +132,8 @@ class V8_EXPORT_PRIVATE BytecodeRegisterOptimizer final
                            RegisterInfo* non_set_member);
 
   void PushToRegistersNeedingFlush(RegisterInfo* reg);
+  bool EnsureAllRegistersAreFlushed() const;
+
   // Methods for finding and creating metadata for each register.
   RegisterInfo* GetRegisterInfo(Register reg) {
     size_t index = GetRegisterInfoTableIndex(reg);
