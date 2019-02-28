@@ -1552,10 +1552,34 @@ struct FastJSArrayWitness {
     }
   }
 
+  EnsureArrayPushable() labels Failed {
+    EnsureArrayPushable(this.map) otherwise Failed;
+    this.arrayIsPushable = true;
+  }
+
+  Push(value: Object) labels Failed {
+    assert(this.arrayIsPushable);
+    if (this.hasDoubles) {
+      BuildAppendJSArray(HOLEY_DOUBLE_ELEMENTS, this.unstable, value)
+          otherwise Failed;
+    } else if (this.hasSmis) {
+      BuildAppendJSArray(HOLEY_SMI_ELEMENTS, this.unstable, value)
+          otherwise Failed;
+    } else {
+      assert(
+          this.map.elements_kind == HOLEY_ELEMENTS ||
+          this.map.elements_kind == PACKED_ELEMENTS);
+      BuildAppendJSArray(HOLEY_ELEMENTS, this.unstable, value)
+          otherwise Failed;
+    }
+  }
+
   stable: JSArray;
   unstable: FastJSArray;
   map: Map;
   hasDoubles: bool;
+  hasSmis: bool;
+  arrayIsPushable: bool;
 }
 
 macro NewFastJSArrayWitness(array: FastJSArray): FastJSArrayWitness {
@@ -1564,7 +1588,9 @@ macro NewFastJSArrayWitness(array: FastJSArray): FastJSArrayWitness {
     array,
     array,
     array.map,
-    !IsElementsKindLessThanOrEqual(kind, HOLEY_ELEMENTS)
+    !IsElementsKindLessThanOrEqual(kind, HOLEY_ELEMENTS),
+    IsElementsKindLessThanOrEqual(kind, HOLEY_SMI_ELEMENTS),
+    false
   };
 }
 

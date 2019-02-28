@@ -105,48 +105,33 @@ namespace array {
     return accumulator;
   }
 
-  transitioning macro
-  ReduceRightVisitAllElements<FixedArrayType: type>(implicit context: Context)(
-      o: FastJSArray, len: Smi, callbackfn: Callable,
+  transitioning macro FastArrayReduceRight(implicit context: Context)(
+      o: JSReceiver, len: Number, callbackfn: Callable,
       initialAccumulator: Object): Object
       labels Bailout(Number, Object) {
-    let fastO = NewFastJSArrayWitness(o);
     let accumulator = initialAccumulator;
+    const smiLen = Cast<Smi>(len) otherwise goto Bailout(len - 1, accumulator);
+    let fastO =
+        Cast<FastJSArray>(o) otherwise goto Bailout(len - 1, accumulator);
+    let fastOW = NewFastJSArrayWitness(fastO);
 
     // Build a fast loop over the array.
-    for (let k: Smi = len - 1; k >= 0; k--) {
-      fastO.Recheck() otherwise goto Bailout(k, accumulator);
+    for (let k: Smi = smiLen - 1; k >= 0; k--) {
+      fastOW.Recheck() otherwise goto Bailout(k, accumulator);
 
-      const value: Object = LoadElementNoHole<FixedArrayType>(fastO.Get(), k)
-          otherwise continue;
+      const value: Object = fastOW.LoadElementNoHole(k) otherwise continue;
       if (accumulator == Hole) {
         accumulator = value;
       } else {
         accumulator = Call(
-            context, callbackfn, Undefined, accumulator, value, k, fastO.Get());
+            context, callbackfn, Undefined, accumulator, value, k,
+            fastOW.Get());
       }
     }
     if (accumulator == Hole) {
       ThrowTypeError(kReduceNoInitial, 'Array.prototype.reduceRight');
     }
     return accumulator;
-  }
-
-  transitioning macro FastArrayReduceRight(implicit context: Context)(
-      o: JSReceiver, len: Number, callbackfn: Callable,
-      accumulator: Object): Object
-      labels Bailout(Number, Object) {
-    const k = len - 1;
-    const smiLen = Cast<Smi>(len) otherwise goto Bailout(k, accumulator);
-    let fastO = Cast<FastJSArray>(o) otherwise goto Bailout(k, accumulator);
-    const elementsKind: ElementsKind = fastO.map.elements_kind;
-    if (IsElementsKindGreaterThan(elementsKind, HOLEY_ELEMENTS)) {
-      return ReduceRightVisitAllElements<FixedDoubleArray>(
-          fastO, smiLen, callbackfn, accumulator) otherwise Bailout;
-    } else {
-      return ReduceRightVisitAllElements<FixedArray>(
-          fastO, smiLen, callbackfn, accumulator) otherwise Bailout;
-    }
   }
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.reduceRight

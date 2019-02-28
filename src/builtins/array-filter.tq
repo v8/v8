@@ -94,71 +94,40 @@ namespace array_filter {
     return array;
   }
 
-  transitioning macro
-  FilterVisitAllElements<FixedArrayType: type>(implicit context: Context)(
-      kind: constexpr ElementsKind, o: JSArray, len: Smi, callbackfn: Callable,
-      thisArg: Object, a: JSArray) labels Bailout(Smi, Smi) {
+  transitioning macro FastArrayFilter(implicit context: Context)(
+      fastO: FastJSArray, len: Smi, callbackfn: Callable, thisArg: Object,
+      output: FastJSArray) labels Bailout(Number, Number) {
     let k: Smi = 0;
     let to: Smi = 0;
-    const arrayO = Cast<FastJSArray>(o) otherwise goto Bailout(k, to);
-    let fastO = NewFastJSArrayWitness(arrayO);
-    const arrayA = Cast<FastJSArray>(a) otherwise goto Bailout(k, to);
-    let fastA = NewFastJSArrayWitness(arrayA);
+    let fastOW = NewFastJSArrayWitness(fastO);
+    let fastOutputW = NewFastJSArrayWitness(output);
 
-    // Build a fast loop over the smi array.
+    fastOutputW.EnsureArrayPushable() otherwise goto Bailout(k, to);
+
+    // Build a fast loop over the array.
     for (; k < len; k++) {
-      fastO.Recheck() otherwise goto Bailout(k, to);
+      fastOW.Recheck() otherwise goto Bailout(k, to);
 
       // Ensure that we haven't walked beyond a possibly updated length.
-      if (k >= fastO.Get().length) goto Bailout(k, to);
-      const value: Object = LoadElementNoHole<FixedArrayType>(fastO.Get(), k)
-          otherwise continue;
+      if (k >= fastOW.Get().length) goto Bailout(k, to);
+      const value: Object = fastOW.LoadElementNoHole(k) otherwise continue;
       const result: Object =
-          Call(context, callbackfn, thisArg, value, k, fastO.Get());
+          Call(context, callbackfn, thisArg, value, k, fastOW.Get());
       if (ToBoolean(result)) {
         try {
           // Since the call to {callbackfn} is observable, we can't
           // use the Bailout label until we've successfully stored.
           // Hence the {SlowStore} label.
-          fastA.Recheck() otherwise SlowStore;
-          if (fastA.Get().length != to) goto SlowStore;
-          BuildAppendJSArray(kind, fastA.Get(), value)
-              otherwise SlowStore;
+          fastOutputW.Recheck() otherwise SlowStore;
+          if (fastOutputW.Get().length != to) goto SlowStore;
+          fastOutputW.Push(value) otherwise SlowStore;
         }
         label SlowStore {
-          CreateDataProperty(a, to, value);
+          CreateDataProperty(fastOutputW.stable, to, value);
         }
         to = to + 1;
       }
     }
-  }
-
-  transitioning macro FastArrayFilter(implicit context: Context)(
-      o: JSReceiver, len: Number, callbackfn: Callable, thisArg: Object,
-      array: JSReceiver): Object
-      labels Bailout(Smi, Smi) {
-    let k: Smi = 0;
-    let to: Smi = 0;
-    const smiLen = Cast<Smi>(len) otherwise goto Bailout(k, to);
-    const fastArray = Cast<FastJSArray>(array) otherwise goto Bailout(k, to);
-    let fastO = Cast<FastJSArray>(o) otherwise goto Bailout(k, to);
-    EnsureArrayPushable(fastArray.map) otherwise goto Bailout(k, to);
-    const elementsKind: ElementsKind = fastO.map.elements_kind;
-    if (IsElementsKindLessThanOrEqual(elementsKind, HOLEY_SMI_ELEMENTS)) {
-      FilterVisitAllElements<FixedArray>(
-          HOLEY_SMI_ELEMENTS, fastO, smiLen, callbackfn, thisArg, fastArray)
-          otherwise Bailout;
-    } else if (IsElementsKindLessThanOrEqual(elementsKind, HOLEY_ELEMENTS)) {
-      FilterVisitAllElements<FixedArray>(
-          HOLEY_ELEMENTS, fastO, smiLen, callbackfn, thisArg, fastArray)
-          otherwise Bailout;
-    } else {
-      assert(IsDoubleElementsKind(elementsKind));
-      FilterVisitAllElements<FixedDoubleArray>(
-          HOLEY_DOUBLE_ELEMENTS, fastO, smiLen, callbackfn, thisArg, fastArray)
-          otherwise Bailout;
-    }
-    return array;
   }
 
   // This method creates a 0-length array with the ElementsKind of the
@@ -197,29 +166,35 @@ namespace array_filter {
 
       // 4. If thisArg is present, let T be thisArg; else let T be undefined.
       const thisArg: Object = arguments.length > 1 ? arguments[1] : Undefined;
-      let array: JSReceiver;
+      let output: JSReceiver;
 
       // Special cases.
       let k: Number = 0;
       let to: Number = 0;
       try {
-        array = FastFilterSpeciesCreate(o) otherwise SlowSpeciesCreate;
+        output = FastFilterSpeciesCreate(o) otherwise SlowSpeciesCreate;
 
         try {
-          return FastArrayFilter(o, len, callbackfn, thisArg, array)
+          const smiLen: Smi = Cast<Smi>(len) otherwise goto Bailout(k, to);
+          const fastOutput =
+              Cast<FastJSArray>(output) otherwise goto Bailout(k, to);
+          const fastO = Cast<FastJSArray>(o) otherwise goto Bailout(k, to);
+
+          FastArrayFilter(fastO, smiLen, callbackfn, thisArg, fastOutput)
               otherwise Bailout;
+          return output;
         }
-        label Bailout(kValue: Smi, toValue: Smi) deferred {
+        label Bailout(kValue: Number, toValue: Number) deferred {
           k = kValue;
           to = toValue;
         }
       }
       label SlowSpeciesCreate {
-        array = ArraySpeciesCreate(context, receiver, 0);
+        output = ArraySpeciesCreate(context, receiver, 0);
       }
 
       return ArrayFilterLoopContinuation(
-          o, callbackfn, thisArg, array, o, k, len, to);
+          o, callbackfn, thisArg, output, o, k, len, to);
     }
     label TypeError deferred {
       ThrowTypeError(kCalledNonCallable, arguments[0]);

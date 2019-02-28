@@ -22,7 +22,7 @@ namespace array_map {
 
     return ArrayMapLoopContinuation(
         jsreceiver, callbackfn, thisArg, outputArray, jsreceiver, numberK,
-        numberLength, Undefined);
+        numberLength);
   }
 
   transitioning javascript builtin
@@ -51,15 +51,13 @@ namespace array_map {
 
     return ArrayMapLoopContinuation(
         jsreceiver, callbackfn, thisArg, outputArray, jsreceiver, numberK,
-        numberLength, Undefined);
+        numberLength);
   }
 
   transitioning builtin ArrayMapLoopContinuation(implicit context: Context)(
       receiver: JSReceiver, callbackfn: Callable, thisArg: Object,
-      array: JSReceiver, o: JSReceiver, initialK: Number, length: Number,
-      initialTo: Object): Object {
-    // {initialTo} is ignored.
-
+      array: JSReceiver, o: JSReceiver, initialK: Number,
+      length: Number): Object {
     // 6. Let k be 0.
     // 7. Repeat, while k < len
     for (let k: Number = initialK; k < length; k++) {
@@ -178,66 +176,39 @@ namespace array_map {
     return Vector{fixedArray, true, true, false};
   }
 
-  transitioning macro
-  MapVisitAllElements<FixedArrayType: type>(implicit context: Context)(
-      o: JSArray, len: Smi, callbackfn: Callable, thisArg: Object,
-      vector: Vector): Vector labels Bailout(Vector, Smi) {
+  transitioning macro FastArrayMap(implicit context: Context)(
+      fastO: FastJSArray, len: Smi, callbackfn: Callable,
+      thisArg: Object): JSArray
+      labels Bailout(JSArray, Smi) {
     let k: Smi = 0;
-    let v: Vector = vector;
-    const array = Cast<FastJSArray>(o) otherwise goto Bailout(v, k);
-    let fastO = NewFastJSArrayWitness(array);
+    let fastOW = NewFastJSArrayWitness(fastO);
+    let vector = NewVector(len);
 
     // Build a fast loop over the smi array.
     // 7. Repeat, while k < len.
-    for (; k < len; k++) {
-      fastO.Recheck() otherwise goto Bailout(v, k);
-
-      // Ensure that we haven't walked beyond a possibly updated length.
-      if (k >= fastO.Get().length) goto Bailout(v, k);
-
-      try {
-        const value: Object = LoadElementNoHole<FixedArrayType>(fastO.Get(), k)
-            otherwise FoundHole;
-        const result: Object =
-            Call(context, callbackfn, thisArg, value, k, fastO.Get());
-        v.StoreResult(k, result);
-      }
-      label FoundHole {
-        // Our output array must necessarily be holey because of holes in
-        // the input array.
-        v.ReportSkippedElement();
-      }
-    }
-
-    return v;
-  }
-
-  transitioning macro FastArrayMap(implicit context: Context)(
-      o: JSReceiver, len: Smi, callbackfn: Callable, thisArg: Object): JSArray
-      labels Bailout(JSArray, Smi) {
-    let k: Smi = 0;
-    let fastO = Cast<FastJSArray>(o) otherwise unreachable;
-    let vector = NewVector(len);
-    const elementsKind: ElementsKind = fastO.map.elements_kind;
     try {
-      if (IsElementsKindLessThanOrEqual(elementsKind, HOLEY_SMI_ELEMENTS)) {
-        vector = MapVisitAllElements<FixedArray>(
-            fastO, len, callbackfn, thisArg, vector)
-            otherwise InnerBailout;
-      } else if (IsElementsKindLessThanOrEqual(elementsKind, HOLEY_ELEMENTS)) {
-        vector = MapVisitAllElements<FixedArray>(
-            fastO, len, callbackfn, thisArg, vector)
-            otherwise InnerBailout;
-      } else {
-        assert(IsDoubleElementsKind(elementsKind));
-        vector = MapVisitAllElements<FixedDoubleArray>(
-            fastO, len, callbackfn, thisArg, vector)
-            otherwise InnerBailout;
+      for (; k < len; k++) {
+        fastOW.Recheck() otherwise goto PrepareBailout(k);
+
+        // Ensure that we haven't walked beyond a possibly updated length.
+        if (k >= fastOW.Get().length) goto PrepareBailout(k);
+
+        try {
+          const value: Object = fastOW.LoadElementNoHole(k)
+              otherwise FoundHole;
+          const result: Object =
+              Call(context, callbackfn, thisArg, value, k, fastOW.Get());
+          vector.StoreResult(k, result);
+        }
+        label FoundHole {
+          // Our output array must necessarily be holey because of holes in
+          // the input array.
+          vector.ReportSkippedElement();
+        }
       }
     }
-    label InnerBailout(v: Vector, k: Smi) {
-      // Transform the Vector {v} into a JSArray and bail out.
-      let vector: Vector = v;
+    label PrepareBailout(k: Smi) deferred {
+      // Transform {vector} into a JSArray and bail out.
       goto Bailout(vector.CreateJSArray(k), k);
     }
 
@@ -298,8 +269,7 @@ namespace array_map {
         k = kValue;
       }
 
-      return ArrayMapLoopContinuation(
-          o, callbackfn, thisArg, array, o, k, len, Undefined);
+      return ArrayMapLoopContinuation(o, callbackfn, thisArg, array, o, k, len);
     }
     label TypeError deferred {
       ThrowTypeError(kCalledNonCallable, arguments[0]);

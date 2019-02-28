@@ -104,48 +104,33 @@ namespace array {
     return accumulator;
   }
 
-  transitioning macro
-  ReduceVisitAllElements<FixedArrayType: type>(implicit context: Context)(
-      o: FastJSArray, len: Smi, callbackfn: Callable,
+  transitioning macro FastArrayReduce(implicit context: Context)(
+      o: JSReceiver, len: Number, callbackfn: Callable,
       initialAccumulator: Object): Object
       labels Bailout(Number, Object) {
-    let fastO = NewFastJSArrayWitness(o);
+    const k = 0;
     let accumulator = initialAccumulator;
+    const smiLen = Cast<Smi>(len) otherwise goto Bailout(k, accumulator);
+    let fastO = Cast<FastJSArray>(o) otherwise goto Bailout(k, accumulator);
+    let fastOW = NewFastJSArrayWitness(fastO);
 
     // Build a fast loop over the array.
     for (let k: Smi = 0; k < len; k++) {
-      fastO.Recheck() otherwise goto Bailout(k, accumulator);
+      fastOW.Recheck() otherwise goto Bailout(k, accumulator);
 
-      const value: Object = LoadElementNoHole<FixedArrayType>(fastO.Get(), k)
-          otherwise continue;
+      const value: Object = fastOW.LoadElementNoHole(k) otherwise continue;
       if (accumulator == Hole) {
         accumulator = value;
       } else {
         accumulator = Call(
-            context, callbackfn, Undefined, accumulator, value, k, fastO.Get());
+            context, callbackfn, Undefined, accumulator, value, k,
+            fastOW.Get());
       }
     }
     if (accumulator == Hole) {
       ThrowTypeError(kReduceNoInitial, 'Array.prototype.reduce');
     }
     return accumulator;
-  }
-
-  transitioning macro FastArrayReduce(implicit context: Context)(
-      o: JSReceiver, len: Number, callbackfn: Callable,
-      accumulator: Object): Object
-      labels Bailout(Number, Object) {
-    const k = 0;
-    const smiLen = Cast<Smi>(len) otherwise goto Bailout(k, accumulator);
-    let fastO = Cast<FastJSArray>(o) otherwise goto Bailout(k, accumulator);
-    const elementsKind: ElementsKind = fastO.map.elements_kind;
-    if (IsElementsKindGreaterThan(elementsKind, HOLEY_ELEMENTS)) {
-      return ReduceVisitAllElements<FixedDoubleArray>(
-          fastO, smiLen, callbackfn, accumulator) otherwise Bailout;
-    } else {
-      return ReduceVisitAllElements<FixedArray>(
-          fastO, smiLen, callbackfn, accumulator) otherwise Bailout;
-    }
   }
 
   // https://tc39.github.io/ecma262/#sec-array.prototype.reduce
