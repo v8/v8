@@ -36,7 +36,7 @@ class V8_EXPORT_PRIVATE StreamingProcessor {
 
   // Process the start of the code section. Returns true if the processing
   // finished successfully and the decoding should continue.
-  virtual bool ProcessCodeSectionHeader(size_t num_functions, uint32_t offset,
+  virtual bool ProcessCodeSectionHeader(int num_functions, uint32_t offset,
                                         std::shared_ptr<WireBytesStorage>) = 0;
 
   // Process a function body. Returns true if the processing finished
@@ -227,7 +227,7 @@ class V8_EXPORT_PRIVATE StreamingDecoder {
     }
   }
 
-  void StartCodeSection(size_t num_functions,
+  void StartCodeSection(int num_functions,
                         std::shared_ptr<WireBytesStorage> wire_bytes_storage) {
     if (!ok()) return;
     // The offset passed to {ProcessCodeSectionHeader} is an error offset and

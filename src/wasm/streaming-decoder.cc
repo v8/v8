@@ -436,7 +436,9 @@ StreamingDecoder::DecodeNumberOfFunctions::NextWithValue(
     return base::make_unique<DecodeSectionID>(streaming->module_offset());
   }
 
-  streaming->StartCodeSection(value_, streaming->section_buffers_.back());
+  DCHECK_GE(kMaxInt, value_);
+  streaming->StartCodeSection(static_cast<int>(value_),
+                              streaming->section_buffers_.back());
   if (!streaming->ok()) return nullptr;
   return base::make_unique<DecodeFunctionLength>(
       section_buffer_, section_buffer_->payload_offset() + bytes_consumed_,

@@ -56,7 +56,7 @@ class MockStreamingProcessor : public StreamingProcessor {
     return true;
   }
 
-  bool ProcessCodeSectionHeader(size_t num_functions, uint32_t offset,
+  bool ProcessCodeSectionHeader(int num_functions, uint32_t offset,
                                 std::shared_ptr<WireBytesStorage>) override {
     return true;
   }

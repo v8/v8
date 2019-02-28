@@ -126,7 +126,7 @@ class CompilationStateImpl {
   // Set the number of compilations unit expected to be executed. Needs to be
   // set before {AddCompilationUnits} is run, which triggers background
   // compilation.
-  void SetNumberOfFunctionsToCompile(size_t num_functions);
+  void SetNumberOfFunctionsToCompile(int num_functions);
 
   // Add the callback function to be called on compilation events. Needs to be
   // set before {AddCompilationUnits} is run.
@@ -236,8 +236,8 @@ class CompilationStateImpl {
   // compiling.
   std::shared_ptr<WireBytesStorage> wire_bytes_storage_;
 
-  size_t outstanding_baseline_units_ = 0;
-  size_t outstanding_tiering_units_ = 0;
+  int outstanding_baseline_units_ = 0;
+  int outstanding_tiering_units_ = 0;
 
   // End of fields protected by {mutex_}.
   //////////////////////////////////////////////////////////////////////////////
@@ -502,8 +502,9 @@ void CompileInParallel(Isolate* isolate, NativeModule* native_module) {
 
   CompilationStateImpl* compilation_state =
       Impl(native_module->compilation_state());
-  uint32_t num_wasm_functions =
-      native_module->num_functions() - native_module->num_imported_functions();
+  DCHECK_GE(kMaxInt, native_module->module()->num_declared_functions);
+  int num_wasm_functions =
+      static_cast<int>(native_module->module()->num_declared_functions);
   compilation_state->SetNumberOfFunctionsToCompile(num_wasm_functions);
 
   // 1) The main thread allocates a compilation unit for each wasm function
@@ -805,7 +806,7 @@ class AsyncStreamingProcessor final : public StreamingProcessor {
   bool ProcessSection(SectionCode section_code, Vector<const uint8_t> bytes,
                       uint32_t offset) override;
 
-  bool ProcessCodeSectionHeader(size_t functions_count, uint32_t offset,
+  bool ProcessCodeSectionHeader(int functions_count, uint32_t offset,
                                 std::shared_ptr<WireBytesStorage>) override;
 
   bool ProcessFunctionBody(Vector<const uint8_t> bytes,
@@ -831,7 +832,7 @@ class AsyncStreamingProcessor final : public StreamingProcessor {
   ModuleDecoder decoder_;
   AsyncCompileJob* job_;
   std::unique_ptr<CompilationUnitBuilder> compilation_unit_builder_;
-  uint32_t next_function_ = 0;
+  int num_functions_ = 0;
 };
 
 std::shared_ptr<StreamingDecoder> AsyncCompileJob::CreateStreamingDecoder() {
@@ -1338,9 +1339,9 @@ bool AsyncStreamingProcessor::ProcessSection(SectionCode section_code,
 
 // Start the code section.
 bool AsyncStreamingProcessor::ProcessCodeSectionHeader(
-    size_t functions_count, uint32_t offset,
+    int functions_count, uint32_t offset,
     std::shared_ptr<WireBytesStorage> wire_bytes_storage) {
-  TRACE_STREAMING("Start the code section with %zu functions...\n",
+  TRACE_STREAMING("Start the code section with %d functions...\n",
                   functions_count);
   if (!decoder_.CheckFunctionsCount(static_cast<uint32_t>(functions_count),
                                     offset)) {
@@ -1368,14 +1369,14 @@ bool AsyncStreamingProcessor::ProcessCodeSectionHeader(
 // Process a function body.
 bool AsyncStreamingProcessor::ProcessFunctionBody(Vector<const uint8_t> bytes,
                                                   uint32_t offset) {
-  TRACE_STREAMING("Process function body %d ...\n", next_function_);
+  TRACE_STREAMING("Process function body %d ...\n", num_functions_);
 
   decoder_.DecodeFunctionBody(
-      next_function_, static_cast<uint32_t>(bytes.length()), offset, false);
+      num_functions_, static_cast<uint32_t>(bytes.length()), offset, false);
 
-  uint32_t index = next_function_ + decoder_.module()->num_imported_functions;
+  int index = num_functions_ + decoder_.module()->num_imported_functions;
   compilation_unit_builder_->AddUnit(index);
-  ++next_function_;
+  ++num_functions_;
   // This method always succeeds. The return value is necessary to comply with
   // the StreamingProcessor interface.
   return true;
@@ -1476,7 +1477,7 @@ void CompilationStateImpl::AbortCompilation() {
   callbacks_.clear();
 }
 
-void CompilationStateImpl::SetNumberOfFunctionsToCompile(size_t num_functions) {
+void CompilationStateImpl::SetNumberOfFunctionsToCompile(int num_functions) {
   DCHECK(!failed());
   base::MutexGuard guard(&mutex_);
   outstanding_baseline_units_ = num_functions;
