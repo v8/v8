@@ -5880,10 +5880,11 @@ struct InvokeBootstrapper<i::Context> {
       i::Isolate* isolate, i::MaybeHandle<i::JSGlobalProxy> maybe_global_proxy,
       v8::Local<v8::ObjectTemplate> global_proxy_template,
       v8::ExtensionConfiguration* extensions, size_t context_snapshot_index,
-      v8::DeserializeInternalFieldsCallback embedder_fields_deserializer) {
+      v8::DeserializeInternalFieldsCallback embedder_fields_deserializer,
+      v8::MicrotaskQueue* microtask_queue) {
     return isolate->bootstrapper()->CreateEnvironment(
         maybe_global_proxy, global_proxy_template, extensions,
-        context_snapshot_index, embedder_fields_deserializer);
+        context_snapshot_index, embedder_fields_deserializer, microtask_queue);
   }
 };
 
@@ -5893,7 +5894,8 @@ struct InvokeBootstrapper<i::JSGlobalProxy> {
       i::Isolate* isolate, i::MaybeHandle<i::JSGlobalProxy> maybe_global_proxy,
       v8::Local<v8::ObjectTemplate> global_proxy_template,
       v8::ExtensionConfiguration* extensions, size_t context_snapshot_index,
-      v8::DeserializeInternalFieldsCallback embedder_fields_deserializer) {
+      v8::DeserializeInternalFieldsCallback embedder_fields_deserializer,
+      v8::MicrotaskQueue* microtask_queue) {
     USE(extensions);
     USE(context_snapshot_index);
     return isolate->bootstrapper()->NewRemoteContext(maybe_global_proxy,
@@ -5906,7 +5908,8 @@ static i::Handle<ObjectType> CreateEnvironment(
     i::Isolate* isolate, v8::ExtensionConfiguration* extensions,
     v8::MaybeLocal<ObjectTemplate> maybe_global_template,
     v8::MaybeLocal<Value> maybe_global_proxy, size_t context_snapshot_index,
-    v8::DeserializeInternalFieldsCallback embedder_fields_deserializer) {
+    v8::DeserializeInternalFieldsCallback embedder_fields_deserializer,
+    v8::MicrotaskQueue* microtask_queue) {
   i::Handle<ObjectType> result;
 
   {
@@ -5982,9 +5985,9 @@ static i::Handle<ObjectType> CreateEnvironment(
     }
     // Create the environment.
     InvokeBootstrapper<ObjectType> invoke;
-    result =
-        invoke.Invoke(isolate, maybe_proxy, proxy_template, extensions,
-                      context_snapshot_index, embedder_fields_deserializer);
+    result = invoke.Invoke(isolate, maybe_proxy, proxy_template, extensions,
+                           context_snapshot_index, embedder_fields_deserializer,
+                           microtask_queue);
 
     // Restore the access check info and interceptors on the global template.
     if (!maybe_global_template.IsEmpty()) {
@@ -6010,7 +6013,8 @@ Local<Context> NewContext(
     v8::Isolate* external_isolate, v8::ExtensionConfiguration* extensions,
     v8::MaybeLocal<ObjectTemplate> global_template,
     v8::MaybeLocal<Value> global_object, size_t context_snapshot_index,
-    v8::DeserializeInternalFieldsCallback embedder_fields_deserializer) {
+    v8::DeserializeInternalFieldsCallback embedder_fields_deserializer,
+    v8::MicrotaskQueue* microtask_queue) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(external_isolate);
   // TODO(jkummerow): This is for crbug.com/713699. Remove it if it doesn't
   // fail.
@@ -6024,7 +6028,7 @@ Local<Context> NewContext(
   if (extensions == nullptr) extensions = &no_extensions;
   i::Handle<i::Context> env = CreateEnvironment<i::Context>(
       isolate, extensions, global_template, global_object,
-      context_snapshot_index, embedder_fields_deserializer);
+      context_snapshot_index, embedder_fields_deserializer, microtask_queue);
   if (env.is_null()) {
     if (isolate->has_pending_exception()) isolate->clear_pending_exception();
     return Local<Context>();
@@ -6036,15 +6040,18 @@ Local<Context> v8::Context::New(
     v8::Isolate* external_isolate, v8::ExtensionConfiguration* extensions,
     v8::MaybeLocal<ObjectTemplate> global_template,
     v8::MaybeLocal<Value> global_object,
-    DeserializeInternalFieldsCallback internal_fields_deserializer) {
+    DeserializeInternalFieldsCallback internal_fields_deserializer,
+    v8::MicrotaskQueue* microtask_queue) {
   return NewContext(external_isolate, extensions, global_template,
-                    global_object, 0, internal_fields_deserializer);
+                    global_object, 0, internal_fields_deserializer,
+                    microtask_queue);
 }
 
 MaybeLocal<Context> v8::Context::FromSnapshot(
     v8::Isolate* external_isolate, size_t context_snapshot_index,
     v8::DeserializeInternalFieldsCallback embedder_fields_deserializer,
-    v8::ExtensionConfiguration* extensions, MaybeLocal<Value> global_object) {
+    v8::ExtensionConfiguration* extensions, MaybeLocal<Value> global_object,
+    v8::MicrotaskQueue* microtask_queue) {
   size_t index_including_default_context = context_snapshot_index + 1;
   if (!i::Snapshot::HasContextSnapshot(
           reinterpret_cast<i::Isolate*>(external_isolate),
@@ -6053,7 +6060,7 @@ MaybeLocal<Context> v8::Context::FromSnapshot(
   }
   return NewContext(external_isolate, extensions, MaybeLocal<ObjectTemplate>(),
                     global_object, index_including_default_context,
-                    embedder_fields_deserializer);
+                    embedder_fields_deserializer, microtask_queue);
 }
 
 MaybeLocal<Object> v8::Context::NewRemoteContext(
@@ -6074,9 +6081,9 @@ MaybeLocal<Object> v8::Context::NewRemoteContext(
                   "v8::Context::NewRemoteContext",
                   "Global template needs to have access check handlers.");
   i::Handle<i::JSGlobalProxy> global_proxy =
-      CreateEnvironment<i::JSGlobalProxy>(isolate, nullptr, global_template,
-                                          global_object, 0,
-                                          DeserializeInternalFieldsCallback());
+      CreateEnvironment<i::JSGlobalProxy>(
+          isolate, nullptr, global_template, global_object, 0,
+          DeserializeInternalFieldsCallback(), nullptr);
   if (global_proxy.is_null()) {
     if (isolate->has_pending_exception()) isolate->clear_pending_exception();
     return MaybeLocal<Object>();
@@ -8546,15 +8553,11 @@ void Isolate::RunMicrotasks() {
 void Isolate::EnqueueMicrotask(Local<Function> v8_function) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   i::Handle<i::JSReceiver> function = Utils::OpenHandle(*v8_function);
-
   i::Handle<i::NativeContext> handler_context;
   if (!i::JSReceiver::GetContextForMicrotask(function).ToHandle(
           &handler_context))
     handler_context = isolate->native_context();
-
-  i::Handle<i::CallableTask> microtask =
-      isolate->factory()->NewCallableTask(function, handler_context);
-  handler_context->microtask_queue()->EnqueueMicrotask(*microtask);
+  handler_context->microtask_queue()->EnqueueMicrotask(this, v8_function);
 }
 
 void Isolate::EnqueueMicrotask(MicrotaskCallback callback, void* data) {
@@ -8579,12 +8582,21 @@ MicrotasksPolicy Isolate::GetMicrotasksPolicy() const {
   return isolate->default_microtask_queue()->microtasks_policy();
 }
 
+namespace {
+
+void MicrotasksCompletedCallbackAdapter(v8::Isolate* isolate, void* data) {
+  auto callback = reinterpret_cast<MicrotasksCompletedCallback>(data);
+  callback(isolate);
+}
+
+}  // namespace
 
 void Isolate::AddMicrotasksCompletedCallback(
     MicrotasksCompletedCallback callback) {
   DCHECK(callback);
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
-  isolate->default_microtask_queue()->AddMicrotasksCompletedCallback(callback);
+  isolate->default_microtask_queue()->AddMicrotasksCompletedCallback(
+      &MicrotasksCompletedCallbackAdapter, reinterpret_cast<void*>(callback));
 }
 
 
@@ -8592,7 +8604,7 @@ void Isolate::RemoveMicrotasksCompletedCallback(
     MicrotasksCompletedCallback callback) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   isolate->default_microtask_queue()->RemoveMicrotasksCompletedCallback(
-      callback);
+      &MicrotasksCompletedCallbackAdapter, reinterpret_cast<void*>(callback));
 }
 
 
@@ -8892,8 +8904,16 @@ void Isolate::SetAllowAtomicsWait(bool allow) {
 }
 
 MicrotasksScope::MicrotasksScope(Isolate* isolate, MicrotasksScope::Type type)
+    : MicrotasksScope(
+          isolate,
+          reinterpret_cast<i::Isolate*>(isolate)->default_microtask_queue(),
+          type) {}
+
+MicrotasksScope::MicrotasksScope(Isolate* isolate,
+                                 MicrotaskQueue* microtask_queue,
+                                 MicrotasksScope::Type type)
     : isolate_(reinterpret_cast<i::Isolate*>(isolate)),
-      microtask_queue_(isolate_->default_microtask_queue()),
+      microtask_queue_(static_cast<i::MicrotaskQueue*>(microtask_queue)),
       run_(type == MicrotasksScope::kRunMicrotasks) {
   if (run_) microtask_queue_->IncrementMicrotasksScopeDepth();
 #ifdef DEBUG
@@ -8913,25 +8933,22 @@ MicrotasksScope::~MicrotasksScope() {
 #endif
 }
 
-
-void MicrotasksScope::PerformCheckpoint(Isolate* v8Isolate) {
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8Isolate);
+void MicrotasksScope::PerformCheckpoint(Isolate* v8_isolate) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   auto* microtask_queue = isolate->default_microtask_queue();
-  if (!microtask_queue->GetMicrotasksScopeDepth() &&
-      !microtask_queue->HasMicrotasksSuppressions()) {
-    microtask_queue->RunMicrotasks(isolate);
-  }
+  microtask_queue->PerformCheckpoint(v8_isolate);
 }
 
-
-int MicrotasksScope::GetCurrentDepth(Isolate* v8Isolate) {
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8Isolate);
-  return isolate->default_microtask_queue()->GetMicrotasksScopeDepth();
+int MicrotasksScope::GetCurrentDepth(Isolate* v8_isolate) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  auto* microtask_queue = isolate->default_microtask_queue();
+  return microtask_queue->GetMicrotasksScopeDepth();
 }
 
-bool MicrotasksScope::IsRunningMicrotasks(Isolate* v8Isolate) {
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8Isolate);
-  return isolate->default_microtask_queue()->IsRunningMicrotasks();
+bool MicrotasksScope::IsRunningMicrotasks(Isolate* v8_isolate) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  auto* microtask_queue = isolate->default_microtask_queue();
+  return microtask_queue->IsRunningMicrotasks();
 }
 
 String::Utf8Value::Utf8Value(v8::Isolate* isolate, v8::Local<v8::Value> obj)

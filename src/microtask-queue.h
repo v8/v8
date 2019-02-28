@@ -21,7 +21,7 @@ class Microtask;
 class Object;
 class RootVisitor;
 
-class V8_EXPORT_PRIVATE MicrotaskQueue {
+class V8_EXPORT_PRIVATE MicrotaskQueue final : public v8::MicrotaskQueue {
  public:
   static void SetUpDefaultMicrotaskQueue(Isolate* isolate);
   static std::unique_ptr<MicrotaskQueue> New(Isolate* isolate);
@@ -35,7 +35,19 @@ class V8_EXPORT_PRIVATE MicrotaskQueue {
                                       intptr_t microtask_queue_pointer,
                                       Address raw_microtask);
 
+  // v8::MicrotaskQueue implementations.
+  void EnqueueMicrotask(v8::Isolate* isolate,
+                        v8::Local<Function> microtask) override;
+  void EnqueueMicrotask(v8::Isolate* isolate, v8::MicrotaskCallback callback,
+                        void* data) override;
+  void PerformCheckpoint(v8::Isolate* isolate) override;
+
   void EnqueueMicrotask(Microtask microtask);
+  void AddMicrotasksCompletedCallback(
+      MicrotasksCompletedCallbackWithData callback, void* data) override;
+  void RemoveMicrotasksCompletedCallback(
+      MicrotasksCompletedCallbackWithData callback, void* data) override;
+  bool IsRunningMicrotasks() const override { return is_running_microtasks_; }
 
   // Runs all queued Microtasks.
   // Returns -1 if the execution is terminating, otherwise, returns the number
@@ -78,7 +90,6 @@ class V8_EXPORT_PRIVATE MicrotaskQueue {
   void AddMicrotasksCompletedCallback(MicrotasksCompletedCallback callback);
   void RemoveMicrotasksCompletedCallback(MicrotasksCompletedCallback callback);
   void FireMicrotasksCompletedCallback(Isolate* isolate) const;
-  bool IsRunningMicrotasks() const { return is_running_microtasks_; }
 
   intptr_t capacity() const { return capacity_; }
   intptr_t size() const { return size_; }
@@ -128,7 +139,9 @@ class V8_EXPORT_PRIVATE MicrotaskQueue {
   v8::MicrotasksPolicy microtasks_policy_ = v8::MicrotasksPolicy::kAuto;
 
   bool is_running_microtasks_ = false;
-  std::vector<MicrotasksCompletedCallback> microtasks_completed_callbacks_;
+  using CallbackWithData =
+      std::pair<MicrotasksCompletedCallbackWithData, void*>;
+  std::vector<CallbackWithData> microtasks_completed_callbacks_;
 };
 
 }  // namespace internal

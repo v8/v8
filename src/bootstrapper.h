@@ -57,7 +57,8 @@ class Bootstrapper final {
       MaybeHandle<JSGlobalProxy> maybe_global_proxy,
       v8::Local<v8::ObjectTemplate> global_object_template,
       v8::ExtensionConfiguration* extensions, size_t context_snapshot_index,
-      v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer);
+      v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer,
+      v8::MicrotaskQueue* microtask_queue);
 
   Handle<JSGlobalProxy> NewRemoteContext(
       MaybeHandle<JSGlobalProxy> maybe_global_proxy,

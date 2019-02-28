@@ -7,7 +7,7 @@
 #include <stddef.h>
 #include <algorithm>
 
-#include "src/api.h"
+#include "src/api-inl.h"
 #include "src/base/logging.h"
 #include "src/handles-inl.h"
 #include "src/isolate.h"
@@ -77,6 +77,26 @@ Address MicrotaskQueue::CallEnqueueMicrotask(Isolate* isolate,
   return ReadOnlyRoots(isolate).undefined_value().ptr();
 }
 
+void MicrotaskQueue::EnqueueMicrotask(v8::Isolate* v8_isolate,
+                                      v8::Local<Function> function) {
+  Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
+  HandleScope scope(isolate);
+  Handle<CallableTask> microtask = isolate->factory()->NewCallableTask(
+      Utils::OpenHandle(*function), isolate->native_context());
+  EnqueueMicrotask(*microtask);
+}
+
+void MicrotaskQueue::EnqueueMicrotask(v8::Isolate* v8_isolate,
+                                      v8::MicrotaskCallback callback,
+                                      void* data) {
+  Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
+  HandleScope scope(isolate);
+  Handle<CallbackTask> microtask = isolate->factory()->NewCallbackTask(
+      isolate->factory()->NewForeign(reinterpret_cast<Address>(callback)),
+      isolate->factory()->NewForeign(reinterpret_cast<Address>(data)));
+  EnqueueMicrotask(*microtask);
+}
+
 void MicrotaskQueue::EnqueueMicrotask(Microtask microtask) {
   if (size_ == capacity_) {
     // Keep the capacity of |ring_buffer_| power of 2, so that the JIT
@@ -88,6 +108,14 @@ void MicrotaskQueue::EnqueueMicrotask(Microtask microtask) {
   DCHECK_LT(size_, capacity_);
   ring_buffer_[(start_ + size_) % capacity_] = microtask.ptr();
   ++size_;
+}
+
+void MicrotaskQueue::PerformCheckpoint(v8::Isolate* v8_isolate) {
+  if (!IsRunningMicrotasks() && !GetMicrotasksScopeDepth() &&
+      !HasMicrotasksSuppressions()) {
+    Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
+    RunMicrotasks(isolate);
+  }
 }
 
 namespace {
@@ -184,26 +212,29 @@ void MicrotaskQueue::IterateMicrotasks(RootVisitor* visitor) {
 }
 
 void MicrotaskQueue::AddMicrotasksCompletedCallback(
-    MicrotasksCompletedCallback callback) {
-  auto pos = std::find(microtasks_completed_callbacks_.begin(),
-                       microtasks_completed_callbacks_.end(), callback);
+    MicrotasksCompletedCallbackWithData callback, void* data) {
+  CallbackWithData callback_with_data(callback, data);
+  auto pos =
+      std::find(microtasks_completed_callbacks_.begin(),
+                microtasks_completed_callbacks_.end(), callback_with_data);
   if (pos != microtasks_completed_callbacks_.end()) return;
-  microtasks_completed_callbacks_.push_back(callback);
+  microtasks_completed_callbacks_.push_back(callback_with_data);
 }
 
 void MicrotaskQueue::RemoveMicrotasksCompletedCallback(
-    MicrotasksCompletedCallback callback) {
-  auto pos = std::find(microtasks_completed_callbacks_.begin(),
-                       microtasks_completed_callbacks_.end(), callback);
+    MicrotasksCompletedCallbackWithData callback, void* data) {
+  CallbackWithData callback_with_data(callback, data);
+  auto pos =
+      std::find(microtasks_completed_callbacks_.begin(),
+                microtasks_completed_callbacks_.end(), callback_with_data);
   if (pos == microtasks_completed_callbacks_.end()) return;
   microtasks_completed_callbacks_.erase(pos);
 }
 
 void MicrotaskQueue::FireMicrotasksCompletedCallback(Isolate* isolate) const {
-  std::vector<MicrotasksCompletedCallback> callbacks(
-      microtasks_completed_callbacks_);
+  std::vector<CallbackWithData> callbacks(microtasks_completed_callbacks_);
   for (auto& callback : callbacks) {
-    callback(reinterpret_cast<v8::Isolate*>(isolate));
+    callback.first(reinterpret_cast<v8::Isolate*>(isolate), callback.second);
   }
 }
 

@@ -21,6 +21,7 @@
 #include "src/heap/heap-inl.h"
 #include "src/isolate-inl.h"
 #include "src/math-random.h"
+#include "src/microtask-queue.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/arguments.h"
 #include "src/objects/builtin-function-id.h"
@@ -139,7 +140,8 @@ class Genesis {
   Genesis(Isolate* isolate, MaybeHandle<JSGlobalProxy> maybe_global_proxy,
           v8::Local<v8::ObjectTemplate> global_proxy_template,
           size_t context_snapshot_index,
-          v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer);
+          v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer,
+          v8::MicrotaskQueue* microtask_queue);
   Genesis(Isolate* isolate, MaybeHandle<JSGlobalProxy> maybe_global_proxy,
           v8::Local<v8::ObjectTemplate> global_proxy_template);
   ~Genesis() = default;
@@ -302,12 +304,14 @@ Handle<Context> Bootstrapper::CreateEnvironment(
     MaybeHandle<JSGlobalProxy> maybe_global_proxy,
     v8::Local<v8::ObjectTemplate> global_proxy_template,
     v8::ExtensionConfiguration* extensions, size_t context_snapshot_index,
-    v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer) {
+    v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer,
+    v8::MicrotaskQueue* microtask_queue) {
   HandleScope scope(isolate_);
   Handle<Context> env;
   {
     Genesis genesis(isolate_, maybe_global_proxy, global_proxy_template,
-                    context_snapshot_index, embedder_fields_deserializer);
+                    context_snapshot_index, embedder_fields_deserializer,
+                    microtask_queue);
     env = genesis.result();
     if (env.is_null() || !InstallExtensions(env, extensions)) {
       return Handle<Context>();
@@ -5504,7 +5508,8 @@ Genesis::Genesis(
     Isolate* isolate, MaybeHandle<JSGlobalProxy> maybe_global_proxy,
     v8::Local<v8::ObjectTemplate> global_proxy_template,
     size_t context_snapshot_index,
-    v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer)
+    v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer,
+    v8::MicrotaskQueue* microtask_queue)
     : isolate_(isolate), active_(isolate->bootstrapper()) {
   RuntimeCallTimerScope rcs_timer(isolate, RuntimeCallCounterId::kGenesis);
   result_ = Handle<Context>::null();
@@ -5600,7 +5605,9 @@ Genesis::Genesis(
     }
   }
 
-  native_context()->set_microtask_queue(isolate->default_microtask_queue());
+  native_context()->set_microtask_queue(
+      microtask_queue ? static_cast<MicrotaskQueue*>(microtask_queue)
+                      : isolate->default_microtask_queue());
 
   // Install experimental natives. Do not include them into the
   // snapshot as we should be able to turn them off at runtime. Re-installing
