@@ -47,7 +47,6 @@ BytecodeArrayBuilder::BytecodeArrayBuilder(
       bytecode_generated_(false),
       constant_array_builder_(zone),
       handler_table_builder_(zone),
-      return_seen_in_block_(false),
       parameter_count_(parameter_count),
       local_register_count_(locals_count),
       register_allocator_(fixed_register_count()),
@@ -82,7 +81,7 @@ Register BytecodeArrayBuilder::Local(int index) const {
 }
 
 Handle<BytecodeArray> BytecodeArrayBuilder::ToBytecodeArray(Isolate* isolate) {
-  DCHECK(return_seen_in_block_);
+  DCHECK(RemainderOfBlockIsDead());
   DCHECK(!bytecode_generated_);
   bytecode_generated_ = true;
 
@@ -339,7 +338,6 @@ class BytecodeNodeBuilder {
     DCHECK(Bytecodes::IsForwardJump(Bytecode::k##name));              \
     BytecodeNode node(Create##name##Node(operands...));               \
     WriteJump(&node, label);                                          \
-    LeaveBasicBlock();                                                \
   }
 BYTECODE_LIST(DEFINE_BYTECODE_OUTPUT)
 #undef DEFINE_BYTECODE_OUTPUT
@@ -356,7 +354,6 @@ void BytecodeArrayBuilder::OutputSwitchOnSmiNoFeedback(
       jump_table->constant_pool_index(), jump_table->size(),
       jump_table->case_value_base()));
   WriteSwitch(&node, jump_table);
-  LeaveBasicBlock();
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::BinaryOperation(Token::Value op,
@@ -1073,7 +1070,6 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::Bind(BytecodeLabel* label) {
   // expected registers are valid when jumping to this label.
   if (register_optimizer_) register_optimizer_->Flush();
   bytecode_array_writer_.BindLabel(label);
-  LeaveBasicBlock();
   return *this;
 }
 
@@ -1083,7 +1079,6 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::Bind(
   // registers are valid when jumping to the loop header.
   if (register_optimizer_) register_optimizer_->Flush();
   bytecode_array_writer_.BindLoopHeader(loop_header);
-  LeaveBasicBlock();
   return *this;
 }
 
@@ -1093,7 +1088,6 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::Bind(BytecodeJumpTable* jump_table,
   // all expected registers are valid when jumping to this location.
   if (register_optimizer_) register_optimizer_->Flush();
   bytecode_array_writer_.BindJumpTableEntry(jump_table, case_value);
-  LeaveBasicBlock();
   return *this;
 }
 
@@ -1278,7 +1272,6 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::Abort(AbortReason reason) {
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::Return() {
   OutputReturn();
-  return_seen_in_block_ = true;
   return *this;
 }
 

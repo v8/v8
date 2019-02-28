@@ -1093,7 +1093,7 @@ void BytecodeGenerator::GenerateBytecode(uintptr_t stack_limit) {
   }
 
   // Check that we are not falling off the end.
-  DCHECK(!builder()->RequiresImplicitReturn());
+  DCHECK(builder()->RemainderOfBlockIsDead());
 }
 
 void BytecodeGenerator::GenerateBytecodeBody() {
@@ -1153,7 +1153,7 @@ void BytecodeGenerator::GenerateBytecodeBody() {
 
   // Emit an implicit return instruction in case control flow can fall off the
   // end of the function without an explicit return being present on all paths.
-  if (builder()->RequiresImplicitReturn()) {
+  if (!builder()->RemainderOfBlockIsDead()) {
     builder()->LoadUndefined();
     BuildReturn();
   }

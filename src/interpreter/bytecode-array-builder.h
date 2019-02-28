@@ -521,7 +521,6 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
     }
   }
 
-  bool RequiresImplicitReturn() const { return !return_seen_in_block_; }
   bool RemainderOfBlockIsDead() const {
     return bytecode_array_writer_.RemainderOfBlockIsDead();
   }
@@ -598,8 +597,6 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   template <Bytecode bytecode, AccumulatorUse accumulator_use>
   void PrepareToOutputBytecode();
 
-  void LeaveBasicBlock() { return_seen_in_block_ = false; }
-
   BytecodeArrayWriter* bytecode_array_writer() {
     return &bytecode_array_writer_;
   }
@@ -618,7 +615,6 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   bool bytecode_generated_;
   ConstantArrayBuilder constant_array_builder_;
   HandlerTableBuilder handler_table_builder_;
-  bool return_seen_in_block_;
   int parameter_count_;
   int local_register_count_;
   BytecodeRegisterAllocator register_allocator_;
