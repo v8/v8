@@ -1108,7 +1108,7 @@ Reduction JSCallReducer::ReduceArrayForEach(
 
   Node* continue_test =
       graph()->NewNode(simplified()->NumberLessThan(), k, original_length);
-  Node* continue_branch = graph()->NewNode(common()->Branch(BranchHint::kTrue),
+  Node* continue_branch = graph()->NewNode(common()->Branch(BranchHint::kNone),
                                            continue_test, control);
 
   Node* if_true = graph()->NewNode(common()->IfTrue(), continue_branch);
@@ -1366,7 +1366,7 @@ Reduction JSCallReducer::ReduceArrayReduce(
           : graph()->NewNode(simplified()->NumberLessThanOrEqual(),
                              jsgraph()->ZeroConstant(), k);
 
-  Node* continue_branch = graph()->NewNode(common()->Branch(BranchHint::kTrue),
+  Node* continue_branch = graph()->NewNode(common()->Branch(BranchHint::kNone),
                                            continue_test, control);
 
   Node* if_true = graph()->NewNode(common()->IfTrue(), continue_branch);
@@ -1568,7 +1568,7 @@ Reduction JSCallReducer::ReduceArrayMap(Node* node,
 
   Node* continue_test =
       graph()->NewNode(simplified()->NumberLessThan(), k, original_length);
-  Node* continue_branch = graph()->NewNode(common()->Branch(BranchHint::kTrue),
+  Node* continue_branch = graph()->NewNode(common()->Branch(BranchHint::kNone),
                                            continue_test, control);
 
   Node* if_true = graph()->NewNode(common()->IfTrue(), continue_branch);
@@ -1787,7 +1787,7 @@ Reduction JSCallReducer::ReduceArrayFilter(
 
   Node* continue_test =
       graph()->NewNode(simplified()->NumberLessThan(), k, original_length);
-  Node* continue_branch = graph()->NewNode(common()->Branch(BranchHint::kTrue),
+  Node* continue_branch = graph()->NewNode(common()->Branch(BranchHint::kNone),
                                            continue_test, control);
 
   Node* if_true = graph()->NewNode(common()->IfTrue(), continue_branch);
@@ -2027,7 +2027,7 @@ Reduction JSCallReducer::ReduceArrayFind(Node* node, ArrayFindVariant variant,
     Node* continue_test =
         graph()->NewNode(simplified()->NumberLessThan(), k, original_length);
     Node* continue_branch = graph()->NewNode(
-        common()->Branch(BranchHint::kTrue), continue_test, control);
+        common()->Branch(BranchHint::kNone), continue_test, control);
     control = graph()->NewNode(common()->IfTrue(), continue_branch);
     if_false = graph()->NewNode(common()->IfFalse(), continue_branch);
   }
@@ -2348,7 +2348,7 @@ Reduction JSCallReducer::ReduceArrayEvery(Node* node,
 
   Node* continue_test =
       graph()->NewNode(simplified()->NumberLessThan(), k, original_length);
-  Node* continue_branch = graph()->NewNode(common()->Branch(BranchHint::kTrue),
+  Node* continue_branch = graph()->NewNode(common()->Branch(BranchHint::kNone),
                                            continue_test, control);
 
   Node* if_true = graph()->NewNode(common()->IfTrue(), continue_branch);
@@ -2699,7 +2699,7 @@ Reduction JSCallReducer::ReduceArraySome(Node* node,
 
   Node* continue_test =
       graph()->NewNode(simplified()->NumberLessThan(), k, original_length);
-  Node* continue_branch = graph()->NewNode(common()->Branch(BranchHint::kTrue),
+  Node* continue_branch = graph()->NewNode(common()->Branch(BranchHint::kNone),
                                            continue_test, control);
 
   Node* if_true = graph()->NewNode(common()->IfTrue(), continue_branch);
@@ -5011,7 +5011,7 @@ Reduction JSCallReducer::ReduceArrayIteratorPrototypeNext(Node* node) {
   // Check whether {index} is within the valid range for the {iterated_object}.
   Node* check = graph()->NewNode(simplified()->NumberLessThan(), index, length);
   Node* branch =
-      graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
+      graph()->NewNode(common()->Branch(BranchHint::kNone), check, control);
 
   Node* done_true;
   Node* value_true;
@@ -5353,7 +5353,7 @@ Reduction JSCallReducer::ReduceStringIteratorPrototypeNext(Node* node) {
     Node* check0 =
         graph()->NewNode(simplified()->NumberLessThan(), index, length);
     Node* branch0 =
-        graph()->NewNode(common()->Branch(BranchHint::kTrue), check0, control);
+        graph()->NewNode(common()->Branch(BranchHint::kNone), check0, control);
 
     Node* etrue0 = effect;
     Node* if_true0 = graph()->NewNode(common()->IfTrue(), branch0);
