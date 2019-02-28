@@ -1528,17 +1528,18 @@ TEST(InterpreterJumps) {
       NewFeedbackMetadata(isolate, &feedback_spec);
 
   Register reg(0), scratch(1);
-  BytecodeLabel label[3];
+  BytecodeLoopHeader loop_header;
+  BytecodeLabel label[2];
 
   builder.LoadLiteral(Smi::zero())
       .StoreAccumulatorInRegister(reg)
-      .Jump(&label[1]);
-  SetRegister(builder, reg, 1024, scratch).Bind(&label[0]);
-  IncrementRegister(builder, reg, 1, scratch, GetIndex(slot)).Jump(&label[2]);
-  SetRegister(builder, reg, 2048, scratch).Bind(&label[1]);
+      .Jump(&label[0]);
+  SetRegister(builder, reg, 1024, scratch).Bind(&loop_header);
+  IncrementRegister(builder, reg, 1, scratch, GetIndex(slot)).Jump(&label[1]);
+  SetRegister(builder, reg, 2048, scratch).Bind(&label[0]);
   IncrementRegister(builder, reg, 2, scratch, GetIndex(slot1))
-      .JumpLoop(&label[0], 0);
-  SetRegister(builder, reg, 4096, scratch).Bind(&label[2]);
+      .JumpLoop(&loop_header, 0);
+  SetRegister(builder, reg, 4096, scratch).Bind(&label[1]);
   IncrementRegister(builder, reg, 4, scratch, GetIndex(slot2))
       .LoadAccumulatorWithRegister(reg)
       .Return();
@@ -1667,6 +1668,8 @@ TEST(InterpreterJumpConstantWith16BitOperand) {
 
   builder.LoadLiteral(Smi::zero());
   builder.StoreAccumulatorInRegister(reg);
+  // Conditional jump to the fake label, to force both basic blocks to be live.
+  builder.JumpIfTrue(ToBooleanMode::kConvertToBoolean, &fake);
   // Consume all 8-bit operands
   for (int i = 1; i <= 256; i++) {
     builder.LoadLiteral(i + 0.5);
