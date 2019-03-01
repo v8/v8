@@ -1038,14 +1038,14 @@ void WebAssemblyTable(const v8::FunctionCallbackInfo<v8::Value>& args) {
   int64_t initial = 0;
   if (!GetRequiredIntegerProperty(isolate, &thrower, context, descriptor,
                                   v8_str(isolate, "initial"), &initial, 0,
-                                  i::FLAG_wasm_max_table_size)) {
+                                  i::wasm::max_table_init_entries())) {
     return;
   }
   // The descriptor's 'maximum'.
   int64_t maximum = -1;
   if (!GetOptionalIntegerProperty(isolate, &thrower, context, descriptor,
                                   v8_str(isolate, "maximum"), &maximum, initial,
-                                  i::wasm::kSpecMaxWasmTableSize)) {
+                                  i::wasm::max_table_init_entries())) {
     return;
   }
 

@@ -4479,9 +4479,9 @@ Node* WasmGraphBuilder::TableInit(uint32_t table_index,
   Node* args[] = {
       graph()->NewNode(mcgraph()->common()->NumberConstant(table_index)),
       graph()->NewNode(mcgraph()->common()->NumberConstant(elem_segment_index)),
-      BuildConvertUint32ToSmiWithSaturation(dst, wasm::kV8MaxWasmTableSize),
-      BuildConvertUint32ToSmiWithSaturation(src, wasm::kV8MaxWasmTableSize),
-      BuildConvertUint32ToSmiWithSaturation(size, wasm::kV8MaxWasmTableSize)};
+      BuildConvertUint32ToSmiWithSaturation(dst, FLAG_wasm_max_table_size),
+      BuildConvertUint32ToSmiWithSaturation(src, FLAG_wasm_max_table_size),
+      BuildConvertUint32ToSmiWithSaturation(size, FLAG_wasm_max_table_size)};
   Node* result =
       BuildCallToRuntime(Runtime::kWasmTableInit, args, arraysize(args));
 
@@ -4507,9 +4507,9 @@ Node* WasmGraphBuilder::TableCopy(uint32_t table_src_index,
   Node* args[] = {
       graph()->NewNode(mcgraph()->common()->NumberConstant(table_src_index)),
       graph()->NewNode(mcgraph()->common()->NumberConstant(table_dst_index)),
-      BuildConvertUint32ToSmiWithSaturation(dst, wasm::kV8MaxWasmTableSize),
-      BuildConvertUint32ToSmiWithSaturation(src, wasm::kV8MaxWasmTableSize),
-      BuildConvertUint32ToSmiWithSaturation(size, wasm::kV8MaxWasmTableSize)};
+      BuildConvertUint32ToSmiWithSaturation(dst, FLAG_wasm_max_table_size),
+      BuildConvertUint32ToSmiWithSaturation(src, FLAG_wasm_max_table_size),
+      BuildConvertUint32ToSmiWithSaturation(size, FLAG_wasm_max_table_size)};
   Node* result =
       BuildCallToRuntime(Runtime::kWasmTableCopy, args, arraysize(args));
 

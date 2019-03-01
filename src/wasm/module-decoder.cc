@@ -803,7 +803,7 @@ class ModuleDecoderImpl : public Decoder {
       }
 
       uint32_t num_elem =
-          consume_count("number of elements", kV8MaxWasmTableEntries);
+          consume_count("number of elements", max_table_init_entries());
       if (is_active) {
         module_->elem_segments.emplace_back(table_index, offset);
       } else {

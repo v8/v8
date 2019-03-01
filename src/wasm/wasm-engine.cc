@@ -548,6 +548,12 @@ uint32_t max_mem_pages() {
   return std::min(uint32_t{kV8MaxWasmMemoryPages}, FLAG_wasm_max_mem_pages);
 }
 
+// {max_table_init_entries} is declared in wasm-limits.h.
+uint32_t max_table_init_entries() {
+  return std::min(uint32_t{kV8MaxWasmTableInitEntries},
+                  FLAG_wasm_max_table_size);
+}
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8
