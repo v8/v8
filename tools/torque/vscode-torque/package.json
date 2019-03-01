@@ -1,7 +1,7 @@
 {
     "name": "vscode-torque",
-    "displayName": "Torque syntax support",
-    "description": "Basic Torque syntax highlighting support",
+    "displayName": "Torque language support",
+    "description": "Syntax highlighting and language server for the V8 Torque programming language",
     "version": "0.0.1",
     "publisher": "szuend",
     "engines": {
