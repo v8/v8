@@ -1152,17 +1152,8 @@ namespace internal {
   /* ES6 %TypedArray%.prototype.some */                                        \
   TFJ(TypedArrayPrototypeSome,                                                 \
       SharedFunctionInfo::kDontAdaptArgumentsSentinel)                         \
-  /* ES6 %TypedArray%.prototype.reduce */                                      \
-  TFJ(TypedArrayPrototypeReduce,                                               \
-      SharedFunctionInfo::kDontAdaptArgumentsSentinel)                         \
-  /* ES6 %TypedArray%.prototype.reduceRight */                                 \
-  TFJ(TypedArrayPrototypeReduceRight,                                          \
-      SharedFunctionInfo::kDontAdaptArgumentsSentinel)                         \
   /* ES6 %TypedArray%.prototype.map */                                         \
   TFJ(TypedArrayPrototypeMap, SharedFunctionInfo::kDontAdaptArgumentsSentinel) \
-  /* ES6 %TypedArray%.prototype.forEach */                                     \
-  TFJ(TypedArrayPrototypeForEach,                                              \
-      SharedFunctionInfo::kDontAdaptArgumentsSentinel)                         \
   /* ES6 %TypedArray%.of */                                                    \
   TFJ(TypedArrayOf, SharedFunctionInfo::kDontAdaptArgumentsSentinel)           \
   /* ES6 %TypedArray%.from */                                                  \

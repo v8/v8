@@ -60,16 +60,6 @@ Node* ArrayBuiltinsAssembler::FindProcessor(Node* k_value, Node* k) {
     return a();
   }
 
-  void ArrayBuiltinsAssembler::ForEachResultGenerator() {
-    a_.Bind(UndefinedConstant());
-  }
-
-  Node* ArrayBuiltinsAssembler::ForEachProcessor(Node* k_value, Node* k) {
-    CallJS(CodeFactory::Call(isolate()), context(), callbackfn(), this_arg(),
-           k_value, k, o());
-    return a();
-  }
-
   void ArrayBuiltinsAssembler::SomeResultGenerator() {
     a_.Bind(FalseConstant());
   }
@@ -98,33 +88,6 @@ Node* ArrayBuiltinsAssembler::FindProcessor(Node* k_value, Node* k) {
     ReturnFromBuiltin(FalseConstant());
     BIND(&true_continue);
     return a();
-  }
-
-  void ArrayBuiltinsAssembler::ReduceResultGenerator() {
-    return a_.Bind(this_arg());
-  }
-
-  Node* ArrayBuiltinsAssembler::ReduceProcessor(Node* k_value, Node* k) {
-    VARIABLE(result, MachineRepresentation::kTagged);
-    Label done(this, {&result}), initial(this);
-    GotoIf(WordEqual(a(), TheHoleConstant()), &initial);
-    result.Bind(CallJS(CodeFactory::Call(isolate()), context(), callbackfn(),
-                       UndefinedConstant(), a(), k_value, k, o()));
-    Goto(&done);
-
-    BIND(&initial);
-    result.Bind(k_value);
-    Goto(&done);
-
-    BIND(&done);
-    return result.value();
-  }
-
-  void ArrayBuiltinsAssembler::ReducePostLoopAction() {
-    Label ok(this);
-    GotoIf(WordNotEqual(a(), TheHoleConstant()), &ok);
-    ThrowTypeError(context(), MessageTemplate::kReduceNoInitial);
-    BIND(&ok);
   }
 
   void ArrayBuiltinsAssembler::TypedArrayMapResultGenerator() {
@@ -1121,23 +1084,6 @@ TF_BUILTIN(TypedArrayPrototypeFindIndex, ArrayBuiltinsAssembler) {
       &ArrayBuiltinsAssembler::NullPostLoopAction);
 }
 
-TF_BUILTIN(TypedArrayPrototypeForEach, ArrayBuiltinsAssembler) {
-  TNode<IntPtrT> argc =
-      ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
-  CodeStubArguments args(this, argc);
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  TNode<Object> receiver = args.GetReceiver();
-  Node* callbackfn = args.GetOptionalArgumentValue(0);
-  Node* this_arg = args.GetOptionalArgumentValue(1);
-
-  InitIteratingArrayBuiltinBody(context, receiver, callbackfn, this_arg, argc);
-
-  GenerateIteratingTypedArrayBuiltinBody(
-      "%TypedArray%.prototype.forEach",
-      &ArrayBuiltinsAssembler::ForEachResultGenerator,
-      &ArrayBuiltinsAssembler::ForEachProcessor,
-      &ArrayBuiltinsAssembler::NullPostLoopAction);
-}
 
 TF_BUILTIN(TypedArrayPrototypeSome, ArrayBuiltinsAssembler) {
   TNode<IntPtrT> argc =
@@ -1173,46 +1119,6 @@ TF_BUILTIN(TypedArrayPrototypeEvery, ArrayBuiltinsAssembler) {
       &ArrayBuiltinsAssembler::EveryResultGenerator,
       &ArrayBuiltinsAssembler::EveryProcessor,
       &ArrayBuiltinsAssembler::NullPostLoopAction);
-}
-
-
-TF_BUILTIN(TypedArrayPrototypeReduce, ArrayBuiltinsAssembler) {
-  TNode<IntPtrT> argc =
-      ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
-  CodeStubArguments args(this, argc);
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  TNode<Object> receiver = args.GetReceiver();
-  Node* callbackfn = args.GetOptionalArgumentValue(0);
-  Node* initial_value = args.GetOptionalArgumentValue(1, TheHoleConstant());
-
-  InitIteratingArrayBuiltinBody(context, receiver, callbackfn, initial_value,
-                                argc);
-
-  GenerateIteratingTypedArrayBuiltinBody(
-      "%TypedArray%.prototype.reduce",
-      &ArrayBuiltinsAssembler::ReduceResultGenerator,
-      &ArrayBuiltinsAssembler::ReduceProcessor,
-      &ArrayBuiltinsAssembler::ReducePostLoopAction);
-}
-
-TF_BUILTIN(TypedArrayPrototypeReduceRight, ArrayBuiltinsAssembler) {
-  TNode<IntPtrT> argc =
-      ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
-  CodeStubArguments args(this, argc);
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  TNode<Object> receiver = args.GetReceiver();
-  Node* callbackfn = args.GetOptionalArgumentValue(0);
-  Node* initial_value = args.GetOptionalArgumentValue(1, TheHoleConstant());
-
-  InitIteratingArrayBuiltinBody(context, receiver, callbackfn, initial_value,
-                                argc);
-
-  GenerateIteratingTypedArrayBuiltinBody(
-      "%TypedArray%.prototype.reduceRight",
-      &ArrayBuiltinsAssembler::ReduceResultGenerator,
-      &ArrayBuiltinsAssembler::ReduceProcessor,
-      &ArrayBuiltinsAssembler::ReducePostLoopAction,
-      ForEachDirection::kReverse);
 }
 
 TF_BUILTIN(TypedArrayPrototypeMap, ArrayBuiltinsAssembler) {

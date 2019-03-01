@@ -924,6 +924,7 @@ static bool TransitivelyCalledBuiltinHasNoSideEffect(Builtins::Name caller,
     case Builtins::kArraySomeLoopContinuation:
     case Builtins::kArrayTimSort:
     case Builtins::kCall_ReceiverIsAny:
+    case Builtins::kCall_ReceiverIsNullOrUndefined:
     case Builtins::kCallWithArrayLike:
     case Builtins::kCEntry_Return1_DontSaveFPRegs_ArgvOnStack_NoBuiltinExit:
     case Builtins::kCEntry_Return1_DontSaveFPRegs_ArgvOnStack_BuiltinExit:

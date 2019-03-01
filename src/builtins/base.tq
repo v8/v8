@@ -779,8 +779,6 @@ extern macro HeapObjectToJSDataView(HeapObject): JSDataView
     labels CastError;
 extern macro HeapObjectToJSArrayBuffer(HeapObject): JSArrayBuffer
     labels CastError;
-extern macro HeapObjectToJSTypedArray(HeapObject): JSTypedArray
-    labels CastError;
 extern macro TaggedToHeapObject(Object): HeapObject
     labels CastError;
 extern macro TaggedToSmi(Object): Smi
@@ -862,6 +860,12 @@ Cast<JSTypedArray>(o: HeapObject): JSTypedArray
     labels CastError {
   if (IsJSTypedArray(o)) return %RawDownCast<JSTypedArray>(o);
   goto CastError;
+}
+
+Cast<JSTypedArray>(implicit context: Context)(o: Object): JSTypedArray
+    labels CastError {
+  const heapObject = Cast<HeapObject>(o) otherwise CastError;
+  return Cast<JSTypedArray>(heapObject) otherwise CastError;
 }
 
 Cast<Callable>(o: HeapObject): Callable

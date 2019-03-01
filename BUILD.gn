@@ -925,6 +925,9 @@ torque_files = [
   "src/builtins/string-startswith.tq",
   "src/builtins/typed-array.tq",
   "src/builtins/typed-array-createtypedarray.tq",
+  "src/builtins/typed-array-foreach.tq",
+  "src/builtins/typed-array-reduce.tq",
+  "src/builtins/typed-array-reduceright.tq",
   "src/builtins/typed-array-subarray.tq",
   "test/torque/test-torque.tq",
   "third_party/v8/builtins/array-sort.tq",
@@ -956,6 +959,9 @@ torque_namespaces = [
   "test",
   "typed-array",
   "typed-array-createtypedarray",
+  "typed-array-foreach",
+  "typed-array-reduce",
+  "typed-array-reduceright",
   "typed-array-subarray",
 ]
 

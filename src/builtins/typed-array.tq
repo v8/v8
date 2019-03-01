@@ -70,6 +70,83 @@ namespace typed_array {
     return %RawDownCast<StoreFn>(o);
   }
 
+  // AttachedJSTypedArray guards that the array's buffer is not detached.
+  transient type AttachedJSTypedArray extends JSTypedArray;
+
+  macro EnsureAttached(array: JSTypedArray): AttachedJSTypedArray
+      labels Detached {
+    if (IsDetachedBuffer(array.buffer)) goto Detached;
+    return %RawDownCast<AttachedJSTypedArray>(array);
+  }
+
+  struct AttachedJSTypedArrayWitness {
+    Get(): AttachedJSTypedArray {
+      return this.unstable;
+    }
+
+    GetStable(): JSTypedArray {
+      return this.stable;
+    }
+
+    Recheck() labels Detached {
+      if (IsDetachedBuffer(this.stable.buffer)) goto Detached;
+      this.unstable = %RawDownCast<AttachedJSTypedArray>(this.stable);
+    }
+
+    Load(implicit context: Context)(k: Smi): Object {
+      const lf: LoadFn = this.loadfn;
+      return lf(context, this.unstable, k);
+    }
+
+    stable: JSTypedArray;
+    unstable: AttachedJSTypedArray;
+    loadfn: LoadFn;
+  }
+
+  macro NewAttachedJSTypedArrayWitness(array: AttachedJSTypedArray):
+      AttachedJSTypedArrayWitness {
+    const kind = array.elements_kind;
+    return AttachedJSTypedArrayWitness{
+      array,
+      array,
+      GetLoadFnForElementsKind(kind)
+    };
+  }
+
+  macro GetLoadFnForElementsKind(elementsKind: ElementsKind): LoadFn {
+    if (IsElementsKindGreaterThan(elementsKind, UINT32_ELEMENTS)) {
+      if (elementsKind == INT32_ELEMENTS) {
+        return LoadFixedElement<FixedInt32Array>;
+      } else if (elementsKind == FLOAT32_ELEMENTS) {
+        return LoadFixedElement<FixedFloat32Array>;
+      } else if (elementsKind == FLOAT64_ELEMENTS) {
+        return LoadFixedElement<FixedFloat64Array>;
+      } else if (elementsKind == UINT8_CLAMPED_ELEMENTS) {
+        return LoadFixedElement<FixedUint8ClampedArray>;
+      } else if (elementsKind == BIGUINT64_ELEMENTS) {
+        return LoadFixedElement<FixedBigUint64Array>;
+      } else if (elementsKind == BIGINT64_ELEMENTS) {
+        return LoadFixedElement<FixedBigInt64Array>;
+      } else {
+        unreachable;
+      }
+    } else {
+      if (elementsKind == UINT8_ELEMENTS) {
+        return LoadFixedElement<FixedUint8Array>;
+      } else if (elementsKind == INT8_ELEMENTS) {
+        return LoadFixedElement<FixedInt8Array>;
+      } else if (elementsKind == UINT16_ELEMENTS) {
+        return LoadFixedElement<FixedUint16Array>;
+      } else if (elementsKind == INT16_ELEMENTS) {
+        return LoadFixedElement<FixedInt16Array>;
+      } else if (elementsKind == UINT32_ELEMENTS) {
+        return LoadFixedElement<FixedUint32Array>;
+      } else {
+        unreachable;
+      }
+    }
+  }
+
   macro KindForArrayType<T: type>(): constexpr ElementsKind;
   KindForArrayType<FixedUint8Array>(): constexpr ElementsKind {
     return UINT8_ELEMENTS;
