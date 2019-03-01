@@ -3822,78 +3822,98 @@ CodeStubAssembler::AllocateUninitializedJSArrayWithElements(
   CHECK_EQ(allocation_flags & ~kAllowLargeObjectAllocation, 0);
   CSA_SLOW_ASSERT(this, TaggedIsPositiveSmi(length));
 
-  int base_size = JSArray::kSize;
-  if (allocation_site != nullptr) base_size += AllocationMemento::kSize;
-
-  const int elements_offset = base_size;
-
-  // Compute space for elements
-  base_size += FixedArray::kHeaderSize;
-  TNode<IntPtrT> size =
-      ElementOffsetFromIndex(capacity, kind, capacity_mode, base_size);
-
   TVARIABLE(JSArray, array);
   TVARIABLE(FixedArrayBase, elements);
 
-  Label out(this);
-
-  // For very large arrays in which the requested allocation exceeds the
-  // maximal size of a regular heap object, we cannot use the allocation
-  // folding trick. Instead, we first allocate the elements in large object
-  // space, and then allocate the JSArray (and possibly the allocation memento)
-  // in new space.
-  if (allocation_flags & kAllowLargeObjectAllocation) {
-    Label next(this);
-    GotoIf(IsRegularHeapObjectSize(size), &next);
-
-    CSA_CHECK(this, IsValidFastJSArrayCapacity(capacity, capacity_mode));
-
-    // Allocate and initialize the elements first. Full initialization is needed
-    // because the upcoming JSArray allocation could trigger GC.
-    elements =
-        AllocateFixedArray(kind, capacity, capacity_mode, allocation_flags);
-
-    if (IsDoubleElementsKind(kind)) {
-      FillFixedDoubleArrayWithZero(CAST(elements.value()),
-                                   ParameterToIntPtr(capacity, capacity_mode));
-    } else {
-      FillFixedArrayWithSmiZero(CAST(elements.value()),
-                                ParameterToIntPtr(capacity, capacity_mode));
-    }
-
-    // The JSArray and possibly allocation memento next. Note that
-    // allocation_flags are *not* passed on here and the resulting JSArray will
-    // always be in new space.
-    array =
-        AllocateJSArray(array_map, elements.value(), length, allocation_site);
-
-    Goto(&out);
-
-    BIND(&next);
+  if (IsIntPtrOrSmiConstantZero(capacity, capacity_mode)) {
+    TNode<FixedArrayBase> empty_array = EmptyFixedArrayConstant();
+    array = AllocateJSArray(array_map, empty_array, length, allocation_site);
+    return {array.value(), empty_array};
   }
 
-  // Fold all objects into a single new space allocation.
-  array =
-      AllocateUninitializedJSArray(array_map, length, allocation_site, size);
-  elements = UncheckedCast<FixedArrayBase>(
-      InnerAllocate(array.value(), elements_offset));
+  Label out(this), empty(this), nonempty(this);
 
-  StoreObjectFieldNoWriteBarrier(array.value(), JSObject::kElementsOffset,
-                                 elements.value());
+  Branch(SmiEqual(ParameterToTagged(capacity, capacity_mode), SmiConstant(0)),
+         &empty, &nonempty);
 
-  // Setup elements object.
-  STATIC_ASSERT(FixedArrayBase::kHeaderSize == 2 * kTaggedSize);
-  RootIndex elements_map_index = IsDoubleElementsKind(kind)
-                                     ? RootIndex::kFixedDoubleArrayMap
-                                     : RootIndex::kFixedArrayMap;
-  DCHECK(RootsTable::IsImmortalImmovable(elements_map_index));
-  StoreMapNoWriteBarrier(elements.value(), elements_map_index);
+  BIND(&empty);
+  {
+    TNode<FixedArrayBase> empty_array = EmptyFixedArrayConstant();
+    array = AllocateJSArray(array_map, empty_array, length, allocation_site);
+    elements = empty_array;
+    Goto(&out);
+  }
 
-  TNode<Smi> capacity_smi = ParameterToTagged(capacity, capacity_mode);
-  CSA_ASSERT(this, SmiGreaterThan(capacity_smi, SmiConstant(0)));
-  StoreObjectFieldNoWriteBarrier(elements.value(), FixedArray::kLengthOffset,
-                                 capacity_smi);
-  Goto(&out);
+  BIND(&nonempty);
+  {
+    int base_size = JSArray::kSize;
+    if (allocation_site != nullptr) base_size += AllocationMemento::kSize;
+
+    const int elements_offset = base_size;
+
+    // Compute space for elements
+    base_size += FixedArray::kHeaderSize;
+    TNode<IntPtrT> size =
+        ElementOffsetFromIndex(capacity, kind, capacity_mode, base_size);
+
+    // For very large arrays in which the requested allocation exceeds the
+    // maximal size of a regular heap object, we cannot use the allocation
+    // folding trick. Instead, we first allocate the elements in large object
+    // space, and then allocate the JSArray (and possibly the allocation
+    // memento) in new space.
+    if (allocation_flags & kAllowLargeObjectAllocation) {
+      Label next(this);
+      GotoIf(IsRegularHeapObjectSize(size), &next);
+
+      CSA_CHECK(this, IsValidFastJSArrayCapacity(capacity, capacity_mode));
+
+      // Allocate and initialize the elements first. Full initialization is
+      // needed because the upcoming JSArray allocation could trigger GC.
+      elements =
+          AllocateFixedArray(kind, capacity, capacity_mode, allocation_flags);
+
+      if (IsDoubleElementsKind(kind)) {
+        FillFixedDoubleArrayWithZero(CAST(elements.value()),
+                                    ParameterToIntPtr(capacity, capacity_mode));
+      } else {
+        FillFixedArrayWithSmiZero(CAST(elements.value()),
+                                  ParameterToIntPtr(capacity, capacity_mode));
+      }
+
+      // The JSArray and possibly allocation memento next. Note that
+      // allocation_flags are *not* passed on here and the resulting JSArray
+      // will always be in new space.
+      array =
+          AllocateJSArray(array_map, elements.value(), length, allocation_site);
+
+      Goto(&out);
+
+      BIND(&next);
+    }
+
+    // Fold all objects into a single new space allocation.
+    array =
+        AllocateUninitializedJSArray(array_map, length, allocation_site, size);
+    elements = UncheckedCast<FixedArrayBase>(
+        InnerAllocate(array.value(), elements_offset));
+
+    StoreObjectFieldNoWriteBarrier(array.value(), JSObject::kElementsOffset,
+                                  elements.value());
+
+    // Setup elements object.
+    STATIC_ASSERT(FixedArrayBase::kHeaderSize == 2 * kTaggedSize);
+    RootIndex elements_map_index = IsDoubleElementsKind(kind)
+                                      ? RootIndex::kFixedDoubleArrayMap
+                                      : RootIndex::kFixedArrayMap;
+    DCHECK(RootsTable::IsImmortalImmovable(elements_map_index));
+    StoreMapNoWriteBarrier(elements.value(), elements_map_index);
+
+    TNode<Smi> capacity_smi = ParameterToTagged(capacity, capacity_mode);
+    CSA_ASSERT(this, SmiGreaterThan(capacity_smi, SmiConstant(0)));
+    StoreObjectFieldNoWriteBarrier(elements.value(), FixedArray::kLengthOffset,
+                                  capacity_smi);
+    Goto(&out);
+  }
 
   BIND(&out);
   return {array.value(), elements.value()};
@@ -3929,63 +3949,25 @@ TNode<JSArray> CodeStubAssembler::AllocateJSArray(
 
   TNode<JSArray> array;
   TNode<FixedArrayBase> elements;
-  int capacity_as_constant;
 
-  if (IsIntPtrOrSmiConstantZero(capacity, capacity_mode)) {
-    // Array is empty. Use the shared empty fixed array instead of allocating a
-    // new one.
-    TNode<FixedArrayBase> empty_fixed_array =
-        CAST(LoadRoot(RootIndex::kEmptyFixedArray));
-    array =
-        AllocateJSArray(array_map, empty_fixed_array, length, allocation_site);
-  } else if (TryGetIntPtrOrSmiConstantValue(capacity, &capacity_as_constant,
-                                            capacity_mode)) {
-    CHECK_GT(capacity_as_constant, 0);
-    // Allocate both array and elements object, and initialize the JSArray.
-    std::tie(array, elements) = AllocateUninitializedJSArrayWithElements(
-        kind, array_map, length, allocation_site, capacity, capacity_mode,
-        allocation_flags);
-    // Fill in the elements with holes.
+  std::tie(array, elements) = AllocateUninitializedJSArrayWithElements(
+      kind, array_map, length, allocation_site, capacity, capacity_mode,
+      allocation_flags);
+
+  Label out(this), nonempty(this);
+
+    Branch(SmiEqual(ParameterToTagged(capacity, capacity_mode), SmiConstant(0)),
+          &out, &nonempty);
+
+  BIND(&nonempty);
+  {
     FillFixedArrayWithValue(kind, elements,
                             IntPtrOrSmiConstant(0, capacity_mode), capacity,
                             RootIndex::kTheHoleValue, capacity_mode);
-  } else {
-    Label out(this), empty(this), nonempty(this);
-    TVARIABLE(JSArray, var_array);
-
-    Branch(SmiEqual(ParameterToTagged(capacity, capacity_mode), SmiConstant(0)),
-           &empty, &nonempty);
-
-    BIND(&empty);
-    {
-      // Array is empty. Use the shared empty fixed array instead of allocating
-      // a new one.
-      TNode<FixedArrayBase> empty_fixed_array =
-          CAST(LoadRoot(RootIndex::kEmptyFixedArray));
-      var_array = AllocateJSArray(array_map, empty_fixed_array, length,
-                                  allocation_site);
-      Goto(&out);
-    }
-
-    BIND(&nonempty);
-    {
-      // Allocate both array and elements object, and initialize the JSArray.
-      TNode<JSArray> array;
-      std::tie(array, elements) = AllocateUninitializedJSArrayWithElements(
-          kind, array_map, length, allocation_site, capacity, capacity_mode,
-          allocation_flags);
-      var_array = array;
-      // Fill in the elements with holes.
-      FillFixedArrayWithValue(kind, elements,
-                              IntPtrOrSmiConstant(0, capacity_mode), capacity,
-                              RootIndex::kTheHoleValue, capacity_mode);
-      Goto(&out);
-    }
-
-    BIND(&out);
-    array = var_array.value();
+    Goto(&out);
   }
 
+  BIND(&out);
   return array;
 }
 
