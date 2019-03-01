@@ -980,6 +980,14 @@ static bool TransitivelyCalledBuiltinHasNoSideEffect(Builtins::Name caller,
         default:
           return false;
       }
+    case Builtins::kFastCreateDataProperty:
+      switch (caller) {
+        case Builtins::kArrayPrototypeSlice:
+        case Builtins::kArrayFilter:
+          return true;
+        default:
+          return false;
+      }
     case Builtins::kSetProperty:
       switch (caller) {
         case Builtins::kArrayPrototypeSlice:

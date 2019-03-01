@@ -44,7 +44,7 @@ namespace array_map {
     // continuation builtin.
 
     // iii. Perform ? CreateDataPropertyOrThrow(A, Pk, mappedValue).
-    CreateDataProperty(outputArray, numberK, result);
+    FastCreateDataProperty(outputArray, numberK, result);
 
     // 7d. Increase k by 1.
     numberK = numberK + 1;
@@ -78,7 +78,7 @@ namespace array_map {
             Call(context, callbackfn, thisArg, kValue, k, o);
 
         // iii. Perform ? CreateDataPropertyOrThrow(A, Pk, mapped_value).
-        CreateDataProperty(array, k, mappedValue);
+        FastCreateDataProperty(array, k, mappedValue);
       }
 
       // 7d. Increase k by 1. (done by the loop).

@@ -22,7 +22,7 @@ namespace object {
           // Symbol.toPrimitive, toString, and valueOf, which could
           // invalidate assumptions about the iterable.
           if (Is<JSReceiver>(pair.key)) goto IfSlow;
-          CreateDataProperty(result, pair.key, pair.value);
+          FastCreateDataProperty(result, pair.key, pair.value);
         }
         return result;
       }
@@ -55,7 +55,7 @@ namespace object {
               iterator::IteratorValue(step, fastIteratorResultMap);
           const pair: KeyValuePair =
               collections::LoadKeyValuePair(iteratorValue);
-          CreateDataProperty(result, pair.key, pair.value);
+          FastCreateDataProperty(result, pair.key, pair.value);
         }
         return result;
       } catch (e) deferred {

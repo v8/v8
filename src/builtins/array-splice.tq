@@ -197,7 +197,7 @@ namespace array_splice {
         const fromValue: Object = GetProperty(o, from);
 
         // ii. Perform ? CreateDataPropertyOrThrow(A, ! ToString(k), fromValue).
-        CreateDataProperty(a, k, fromValue);
+        FastCreateDataProperty(a, k, fromValue);
       }
 
       // d. Increment k by 1.

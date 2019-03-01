@@ -46,7 +46,7 @@ namespace array_filter {
     // the output array. After incrementing k and to, we can glide into the loop
     // continuation builtin.
     if (ToBoolean(result)) {
-      CreateDataProperty(outputArray, numberTo, valueK);
+      FastCreateDataProperty(outputArray, numberTo, valueK);
       numberTo = numberTo + 1;
     }
 
@@ -83,7 +83,7 @@ namespace array_filter {
         // iii. If selected is true, then...
         if (ToBoolean(result)) {
           // 1. Perform ? CreateDataPropertyOrThrow(A, ToString(to), kValue).
-          CreateDataProperty(array, to, kValue);
+          FastCreateDataProperty(array, to, kValue);
           // 2. Increase to by 1.
           to = to + 1;
         }
@@ -123,7 +123,7 @@ namespace array_filter {
           fastOutputW.Push(value) otherwise SlowStore;
         }
         label SlowStore {
-          CreateDataProperty(fastOutputW.stable, to, value);
+          FastCreateDataProperty(fastOutputW.stable, to, value);
         }
         to = to + 1;
       }

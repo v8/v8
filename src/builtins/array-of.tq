@@ -39,7 +39,7 @@ namespace array_of {
 
       // b. Let Pk be ! ToString(k).
       // c. Perform ? CreateDataPropertyOrThrow(A, Pk, kValue).
-      CreateDataProperty(a, k, kValue);
+      FastCreateDataProperty(a, k, kValue);
 
       // d. Increase k by 1.
       k++;

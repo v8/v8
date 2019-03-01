@@ -193,7 +193,7 @@ namespace array_slice {
         const kValue: Object = GetProperty(o, pK);
 
         // ii. Perform ? CreateDataPropertyOrThrow(A, ! ToString(n), kValue).
-        CreateDataProperty(a, n, kValue);
+        FastCreateDataProperty(a, n, kValue);
       }
 
       // d. Increase k by 1.
