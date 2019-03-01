@@ -10,23 +10,25 @@ namespace internal {
 namespace torque {
 namespace ls {
 
-#define JSON_STRING_ACCESSORS(name)                                            \
-  inline const std::string& name() const { return object().at(#name).string; } \
-  inline void set_##name(const std::string& str) {                             \
-    object()[#name] = From(str);                                               \
-  }                                                                            \
-  inline bool has_##name() const {                                             \
-    return object().find(#name) != object().end();                             \
+#define JSON_STRING_ACCESSORS(name)                \
+  inline const std::string& name() const {         \
+    return object().at(#name).ToString();          \
+  }                                                \
+  inline void set_##name(const std::string& str) { \
+    object()[#name] = JsonValue::From(str);        \
+  }                                                \
+  inline bool has_##name() const {                 \
+    return object().find(#name) != object().end(); \
   }
 
-#define JSON_BOOL_ACCESSORS(name)                              \
-  inline bool name() const { return object().at(#name).flag; } \
-  inline void set_##name(bool b) { object()[#name] = From(b); }
+#define JSON_BOOL_ACCESSORS(name)                                  \
+  inline bool name() const { return object().at(#name).ToBool(); } \
+  inline void set_##name(bool b) { object()[#name] = JsonValue::From(b); }
 
-#define JSON_INT_ACCESSORS(name)                                \
-  inline int name() const { return object().at(#name).number; } \
-  inline void set_##name(int n) {                               \
-    object()[#name] = From(static_cast<double>(n));             \
+#define JSON_INT_ACCESSORS(name)                                    \
+  inline int name() const { return object().at(#name).ToNumber(); } \
+  inline void set_##name(int n) {                                   \
+    object()[#name] = JsonValue::From(static_cast<double>(n));      \
   }
 
 #define JSON_OBJECT_ACCESSORS(type, name) \
@@ -46,7 +48,7 @@ namespace ls {
   inline std::size_t name##_size() { return GetArrayProperty(#name).size(); } \
   inline type name(size_t idx) {                                              \
     CHECK(idx < name##_size());                                               \
-    return type(*GetArrayProperty(#name)[idx].object);                        \
+    return type(GetArrayProperty(#name)[idx].ToObject());                     \
   }
 
 }  // namespace ls

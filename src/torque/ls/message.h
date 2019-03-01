@@ -28,7 +28,9 @@ class BaseJsonAccessor {
     return object().count(property) > 0;
   }
 
-  void SetNull(const std::string& property) { object()[property] = JsonNull(); }
+  void SetNull(const std::string& property) {
+    object()[property] = JsonValue::JsonNull();
+  }
 
   bool IsNull(const std::string& property) const {
     return HasProperty(property) &&
@@ -40,24 +42,24 @@ class BaseJsonAccessor {
   virtual JsonObject& object() = 0;
 
   JsonObject& GetObjectProperty(const std::string& property) {
-    if (!object()[property].object) {
-      object()[property] = From(JsonObject{});
+    if (!object()[property].IsObject()) {
+      object()[property] = JsonValue::From(JsonObject{});
     }
-    return *object()[property].object;
+    return object()[property].ToObject();
   }
 
   JsonArray& GetArrayProperty(const std::string& property) {
-    if (!object()[property].array) {
-      object()[property] = From(JsonArray{});
+    if (!object()[property].IsArray()) {
+      object()[property] = JsonValue::From(JsonArray{});
     }
-    return *object()[property].array;
+    return object()[property].ToArray();
   }
 
   JsonObject& AddObjectElementToArrayProperty(const std::string& property) {
     JsonArray& array = GetArrayProperty(property);
-    array.push_back(From(JsonObject{}));
+    array.push_back(JsonValue::From(JsonObject{}));
 
-    return *array.back().object;
+    return array.back().ToObject();
   }
 };
 
@@ -67,7 +69,7 @@ class BaseJsonAccessor {
 class Message : public BaseJsonAccessor {
  public:
   Message() {
-    value_ = From(JsonObject{});
+    value_ = JsonValue::From(JsonObject{});
     set_jsonrpc("2.0");
   }
   explicit Message(JsonValue& value) : value_(std::move(value)) {
@@ -79,8 +81,8 @@ class Message : public BaseJsonAccessor {
   JSON_STRING_ACCESSORS(jsonrpc)
 
  protected:
-  const JsonObject& object() const { return *value_.object; }
-  JsonObject& object() { return *value_.object; }
+  const JsonObject& object() const { return value_.ToObject(); }
+  JsonObject& object() { return value_.ToObject(); }
 
  private:
   JsonValue value_;

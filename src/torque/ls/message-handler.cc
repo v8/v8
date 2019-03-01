@@ -114,12 +114,13 @@ void HandleTorqueFileListNotification(TorqueFileListNotification notification) {
 
   std::vector<std::string>& files = TorqueFileList::Get();
   Logger::Log("[info] Initial file list:\n");
-  for (const auto& fileJson : *notification.params().object()["files"].array) {
-    CHECK_EQ(fileJson.tag, JsonValue::STRING);
+  for (const auto& fileJson :
+       notification.params().object()["files"].ToArray()) {
+    CHECK(fileJson.IsString());
     // We only consider file URIs (there shouldn't be anything else).
-    if (fileJson.string.rfind(kFileUriPrefix) != 0) continue;
+    if (fileJson.ToString().rfind(kFileUriPrefix) != 0) continue;
 
-    std::string file = fileJson.string.substr(kFileUriPrefixLength);
+    std::string file = fileJson.ToString().substr(kFileUriPrefixLength);
     files.push_back(file);
     Logger::Log("    ", file, "\n");
   }

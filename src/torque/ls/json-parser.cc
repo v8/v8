@@ -37,7 +37,7 @@ using JsonMember = std::pair<std::string, JsonValue>;
 template <bool value>
 base::Optional<ParseResult> MakeBoolLiteral(
     ParseResultIterator* child_results) {
-  return ParseResult{From(value)};
+  return ParseResult{JsonValue::From(value)};
 }
 
 base::Optional<ParseResult> MakeNullLiteral(
@@ -51,18 +51,18 @@ base::Optional<ParseResult> MakeNumberLiteral(
     ParseResultIterator* child_results) {
   auto number = child_results->NextAs<std::string>();
   double d = std::stod(number.c_str());
-  return ParseResult{From(d)};
+  return ParseResult{JsonValue::From(d)};
 }
 
 base::Optional<ParseResult> MakeStringLiteral(
     ParseResultIterator* child_results) {
   std::string literal = child_results->NextAs<std::string>();
-  return ParseResult{From(StringLiteralUnquote(literal))};
+  return ParseResult{JsonValue::From(StringLiteralUnquote(literal))};
 }
 
 base::Optional<ParseResult> MakeArray(ParseResultIterator* child_results) {
   JsonArray array = child_results->NextAs<JsonArray>();
-  return ParseResult{From(std::move(array))};
+  return ParseResult{JsonValue::From(std::move(array))};
 }
 
 base::Optional<ParseResult> MakeMember(ParseResultIterator* child_results) {
@@ -80,7 +80,7 @@ base::Optional<ParseResult> MakeObject(ParseResultIterator* child_results) {
   JsonObject object;
   for (auto& member : members) object.insert(std::move(member));
 
-  return ParseResult{From(std::move(object))};
+  return ParseResult{JsonValue::From(std::move(object))};
 }
 
 class JsonGrammar : public Grammar {
