@@ -13,6 +13,8 @@ namespace v8 {
 namespace internal {
 namespace torque {
 
+struct SourcePosition;
+
 class SourceId {
  public:
   static SourceId Invalid() { return SourceId(-1); }
