@@ -825,13 +825,13 @@ struct ExternalRuntimeDeclaration : CallableNode {
 
 struct ConstDeclaration : Declaration {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(ConstDeclaration)
-  ConstDeclaration(SourcePosition pos, std::string name, TypeExpression* type,
+  ConstDeclaration(SourcePosition pos, Identifier* name, TypeExpression* type,
                    Expression* expression)
       : Declaration(kKind, pos),
-        name(std::move(name)),
+        name(name),
         type(type),
         expression(expression) {}
-  std::string name;
+  Identifier* name;
   TypeExpression* type;
   Expression* expression;
 };
@@ -882,13 +882,13 @@ struct SpecializationDeclaration : Declaration {
 
 struct ExternConstDeclaration : Declaration {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(ExternConstDeclaration)
-  ExternConstDeclaration(SourcePosition pos, std::string name,
+  ExternConstDeclaration(SourcePosition pos, Identifier* name,
                          TypeExpression* type, std::string literal)
       : Declaration(kKind, pos),
-        name(std::move(name)),
+        name(name),
         type(type),
         literal(std::move(literal)) {}
-  std::string name;
+  Identifier* name;
   TypeExpression* type;
   std::string literal;
 };

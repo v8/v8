@@ -132,7 +132,7 @@ void CSAGenerator::EmitInstruction(
     out_ << results[0] << " = ";
   }
   out_ << instruction.constant->ExternalAssemblerName() << "(state_)."
-       << instruction.constant->constant_name() << "()";
+       << instruction.constant->name()->value << "()";
   if (type->IsStructType()) {
     out_ << ".Flatten();\n";
   } else {

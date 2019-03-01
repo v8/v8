@@ -480,25 +480,24 @@ base::Optional<ParseResult> MakeTorqueBuiltinDeclaration(
 
 base::Optional<ParseResult> MakeConstDeclaration(
     ParseResultIterator* child_results) {
-  auto name = child_results->NextAs<std::string>();
-  if (!IsValidNamespaceConstName(name)) {
-    NamingConventionError("Constant", name, "kUpperCamelCase");
+  auto name = child_results->NextAs<Identifier*>();
+  if (!IsValidNamespaceConstName(name->value)) {
+    NamingConventionError("Constant", name->value, "kUpperCamelCase");
   }
 
   auto type = child_results->NextAs<TypeExpression*>();
   auto expression = child_results->NextAs<Expression*>();
-  Declaration* result =
-      MakeNode<ConstDeclaration>(std::move(name), type, expression);
+  Declaration* result = MakeNode<ConstDeclaration>(name, type, expression);
   return ParseResult{result};
 }
 
 base::Optional<ParseResult> MakeExternConstDeclaration(
     ParseResultIterator* child_results) {
-  auto name = child_results->NextAs<std::string>();
+  auto name = child_results->NextAs<Identifier*>();
   auto type = child_results->NextAs<TypeExpression*>();
   auto literal = child_results->NextAs<std::string>();
-  Declaration* result = MakeNode<ExternConstDeclaration>(std::move(name), type,
-                                                         std::move(literal));
+  Declaration* result =
+      MakeNode<ExternConstDeclaration>(name, type, std::move(literal));
   return ParseResult{result};
 }
 
@@ -1584,10 +1583,10 @@ struct TorqueGrammar : Grammar {
 
   // Result: Declaration*
   Symbol declaration = {
-      Rule({Token("const"), &identifier, Token(":"), &type, Token("="),
-            expression, Token(";")},
+      Rule({Token("const"), &name, Token(":"), &type, Token("="), expression,
+            Token(";")},
            MakeConstDeclaration),
-      Rule({Token("const"), &identifier, Token(":"), &type, Token("generates"),
+      Rule({Token("const"), &name, Token(":"), &type, Token("generates"),
             &externalString, Token(";")},
            MakeExternConstDeclaration),
       Rule({CheckIf(Token("extern")), CheckIf(Token("transient")),

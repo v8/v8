@@ -120,9 +120,9 @@ class Declarations {
                                                  const Signature& signature,
                                                  bool transitioning);
 
-  static void DeclareExternConstant(const std::string& name, const Type* type,
+  static void DeclareExternConstant(Identifier* name, const Type* type,
                                     std::string value);
-  static NamespaceConstant* DeclareNamespaceConstant(const std::string& name,
+  static NamespaceConstant* DeclareNamespaceConstant(Identifier* name,
                                                      const Type* type,
                                                      Expression* body);
 

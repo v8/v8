@@ -275,18 +275,19 @@ RuntimeFunction* Declarations::DeclareRuntimeFunction(
                      new RuntimeFunction(name, signature, transitioning))));
 }
 
-void Declarations::DeclareExternConstant(const std::string& name,
-                                         const Type* type, std::string value) {
-  CheckAlreadyDeclared<Value>(name, "constant");
+void Declarations::DeclareExternConstant(Identifier* name, const Type* type,
+                                         std::string value) {
+  CheckAlreadyDeclared<Value>(name->value, "constant");
   ExternConstant* result = new ExternConstant(name, type, value);
-  Declare(name, std::unique_ptr<Declarable>(result));
+  Declare(name->value, std::unique_ptr<Declarable>(result));
 }
 
-NamespaceConstant* Declarations::DeclareNamespaceConstant(
-    const std::string& name, const Type* type, Expression* body) {
-  CheckAlreadyDeclared<Value>(name, "constant");
+NamespaceConstant* Declarations::DeclareNamespaceConstant(Identifier* name,
+                                                          const Type* type,
+                                                          Expression* body) {
+  CheckAlreadyDeclared<Value>(name->value, "constant");
   NamespaceConstant* result = new NamespaceConstant(name, type, body);
-  Declare(name, std::unique_ptr<Declarable>(result));
+  Declare(name->value, std::unique_ptr<Declarable>(result));
   return result;
 }
 

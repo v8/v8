@@ -184,7 +184,7 @@ inline Namespace* CurrentNamespace() {
 class Value : public Declarable {
  public:
   DECLARE_DECLARABLE_BOILERPLATE(Value, value)
-  const std::string& name() const { return name_; }
+  const Identifier* name() const { return name_; }
   virtual bool IsConst() const { return true; }
   VisitResult value() const { return *value_; }
   const Type* type() const { return type_; }
@@ -195,12 +195,12 @@ class Value : public Declarable {
   }
 
  protected:
-  Value(Kind kind, const Type* type, const std::string& name)
+  Value(Kind kind, const Type* type, Identifier* name)
       : Declarable(kind), type_(type), name_(name) {}
 
  private:
   const Type* type_;
-  std::string name_;
+  Identifier* name_;
   base::Optional<VisitResult> value_;
 };
 
@@ -208,7 +208,6 @@ class NamespaceConstant : public Value {
  public:
   DECLARE_DECLARABLE_BOILERPLATE(NamespaceConstant, constant)
 
-  const std::string& constant_name() const { return constant_name_; }
   Expression* body() { return body_; }
   std::string ExternalAssemblerName() const {
     return Namespace::cast(ParentScope())->ExternalName();
@@ -216,13 +215,11 @@ class NamespaceConstant : public Value {
 
  private:
   friend class Declarations;
-  explicit NamespaceConstant(std::string constant_name, const Type* type,
+  explicit NamespaceConstant(Identifier* constant_name, const Type* type,
                              Expression* body)
       : Value(Declarable::kNamespaceConstant, type, constant_name),
-        constant_name_(std::move(constant_name)),
         body_(body) {}
 
-  std::string constant_name_;
   Expression* body_;
 };
 
@@ -232,8 +229,8 @@ class ExternConstant : public Value {
 
  private:
   friend class Declarations;
-  explicit ExternConstant(std::string name, const Type* type, std::string value)
-      : Value(Declarable::kExternConstant, type, std::move(name)) {
+  explicit ExternConstant(Identifier* name, const Type* type, std::string value)
+      : Value(Declarable::kExternConstant, type, name) {
     set_value(VisitResult(type, std::move(value)));
   }
 };

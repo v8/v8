@@ -117,7 +117,7 @@ void ImplementationVisitor::EndNamespaceFile(Namespace* nspace) {
 
 void ImplementationVisitor::Visit(NamespaceConstant* decl) {
   Signature signature{{}, base::nullopt, {{}, false}, 0, decl->type(), {}};
-  const std::string& name = decl->name();
+  const std::string& name = decl->name()->value;
 
   BindingsManagersScope bindings_managers_scope;
 
@@ -1768,7 +1768,7 @@ LocationReference ImplementationVisitor::GetLocationReference(
     if (base::Optional<Binding<LocalValue>*> value =
             TryLookupLocalValue(expr->name->value)) {
       if (GlobalContext::collect_language_server_data()) {
-        LanguageServerData::AddDefinition(expr->pos,
+        LanguageServerData::AddDefinition(expr->name->pos,
                                           (*value)->declaration_position());
       }
       if (expr->generic_arguments.size() != 0) {
@@ -1789,6 +1789,9 @@ LocationReference ImplementationVisitor::GetLocationReference(
   QualifiedName name =
       QualifiedName(expr->namespace_qualification, expr->name->value);
   if (base::Optional<Builtin*> builtin = Declarations::TryLookupBuiltin(name)) {
+    if (GlobalContext::collect_language_server_data()) {
+      LanguageServerData::AddDefinition(expr->name->pos, (*builtin)->pos());
+    }
     return LocationReference::Temporary(GetBuiltinCode(*builtin),
                                         "builtin " + expr->name->value);
   }
@@ -1806,12 +1809,15 @@ LocationReference ImplementationVisitor::GetLocationReference(
     }
   }
   Value* value = Declarations::LookupValue(name);
+  if (GlobalContext::collect_language_server_data()) {
+    LanguageServerData::AddDefinition(expr->name->pos, value->name()->pos);
+  }
   if (auto* constant = NamespaceConstant::DynamicCast(value)) {
     if (constant->type()->IsConstexpr()) {
       return LocationReference::Temporary(
           VisitResult(constant->type(), constant->ExternalAssemblerName() +
                                             "(state_)." +
-                                            constant->constant_name() + "()"),
+                                            constant->name()->value + "()"),
           "namespace constant " + expr->name->value);
     }
     assembler().Emit(NamespaceConstantInstruction{constant});
