@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <algorithm>
 #include "src/torque/ls/message-handler.h"
 
 #include "src/torque/ls/globals.h"
