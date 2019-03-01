@@ -853,15 +853,15 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
 
       // either 0, 0exxx, 0Exxx, 0.xxx, a hex number, a binary number or
       // an octal number.
-      if (c0_ == 'x' || c0_ == 'X') {
+      if (AsciiAlphaToLower(c0_) == 'x') {
         AddLiteralCharAdvance();
         kind = HEX;
         if (!ScanHexDigits()) return Token::ILLEGAL;
-      } else if (c0_ == 'o' || c0_ == 'O') {
+      } else if (AsciiAlphaToLower(c0_) == 'o') {
         AddLiteralCharAdvance();
         kind = OCTAL;
         if (!ScanOctalDigits()) return Token::ILLEGAL;
-      } else if (c0_ == 'b' || c0_ == 'B') {
+      } else if (AsciiAlphaToLower(c0_) == 'b') {
         AddLiteralCharAdvance();
         kind = BINARY;
         if (!ScanBinaryDigits()) return Token::ILLEGAL;
@@ -883,14 +883,12 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
     }
 
     // Parse decimal digits and allow trailing fractional part.
-    if (kind == DECIMAL || kind == DECIMAL_WITH_LEADING_ZERO) {
+    if (IsDecimalNumberKind(kind)) {
       // This is an optimization for parsing Decimal numbers as Smi's.
       if (at_start) {
         uint64_t value = 0;
         // scan subsequent decimal digits
-        if (!ScanDecimalAsSmi(&value)) {
-          return Token::ILLEGAL;
-        }
+        if (!ScanDecimalAsSmi(&value)) return Token::ILLEGAL;
 
         if (next().literal_chars.one_byte_literal().length() <= 10 &&
             value <= Smi::kMaxValue && c0_ != '.' && !IsIdentifierStart(c0_)) {
@@ -917,8 +915,7 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
   }
 
   bool is_bigint = false;
-  if (c0_ == 'n' && !seen_period &&
-      (kind == DECIMAL || kind == HEX || kind == OCTAL || kind == BINARY)) {
+  if (c0_ == 'n' && !seen_period && IsValidBigIntKind(kind)) {
     // Check that the literal is within our limits for BigInt length.
     // For simplicity, use 4 bits per character to calculate the maximum
     // allowed literal length.
@@ -932,12 +929,11 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
 
     is_bigint = true;
     Advance();
-  } else if (c0_ == 'e' || c0_ == 'E') {
+  } else if (AsciiAlphaToLower(c0_) == 'e') {
     // scan exponent, if any
     DCHECK(kind != HEX);  // 'e'/'E' must be scanned as part of the hex number
 
-    if (!(kind == DECIMAL || kind == DECIMAL_WITH_LEADING_ZERO))
-      return Token::ILLEGAL;
+    if (!IsDecimalNumberKind(kind)) return Token::ILLEGAL;
 
     // scan exponent
     AddLiteralCharAdvance();

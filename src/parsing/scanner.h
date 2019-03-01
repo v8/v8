@@ -543,13 +543,21 @@ class Scanner {
   };
 
   enum NumberKind {
+    IMPLICIT_OCTAL,
     BINARY,
     OCTAL,
-    IMPLICIT_OCTAL,
     HEX,
     DECIMAL,
     DECIMAL_WITH_LEADING_ZERO
   };
+
+  inline bool IsValidBigIntKind(NumberKind kind) {
+    return IsInRange(kind, BINARY, DECIMAL);
+  }
+
+  inline bool IsDecimalNumberKind(NumberKind kind) {
+    return IsInRange(kind, DECIMAL, DECIMAL_WITH_LEADING_ZERO);
+  }
 
   static const int kCharacterLookaheadBufferSize = 1;
   static const int kMaxAscii = 127;
