@@ -6562,8 +6562,14 @@ class V8_EXPORT ResourceConstraints {
   void set_code_range_size(size_t limit_in_mb) {
     code_range_size_ = limit_in_mb;
   }
-  size_t max_zone_pool_size() const { return max_zone_pool_size_; }
-  void set_max_zone_pool_size(size_t bytes) { max_zone_pool_size_ = bytes; }
+  V8_DEPRECATE_SOON("Zone does not pool memory any more.",
+                    size_t max_zone_pool_size() const) {
+    return max_zone_pool_size_;
+  }
+  V8_DEPRECATE_SOON("Zone does not pool memory any more.",
+                    void set_max_zone_pool_size(size_t bytes)) {
+    max_zone_pool_size_ = bytes;
+  }
 
  private:
   // max_semi_space_size_ is in KB

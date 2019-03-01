@@ -101,17 +101,16 @@ void Zone::DeleteAll() {
   segment_head_ = nullptr;
 }
 
-// Creates a new segment, sets it size, and pushes it to the front
+// Creates a new segment, sets its size, and pushes it to the front
 // of the segment chain. Returns the new segment.
 Segment* Zone::NewSegment(size_t requested_size) {
-  Segment* result = allocator_->GetSegment(requested_size);
-  if (result != nullptr) {
-    DCHECK_GE(result->total_size(), requested_size);
-    segment_bytes_allocated_ += result->total_size();
-    result->set_zone(this);
-    result->set_next(segment_head_);
-    segment_head_ = result;
-  }
+  Segment* result = allocator_->AllocateSegment(requested_size);
+  if (!result) return nullptr;
+  DCHECK_GE(result->total_size(), requested_size);
+  segment_bytes_allocated_ += result->total_size();
+  result->set_zone(this);
+  result->set_next(segment_head_);
+  segment_head_ = result;
   return result;
 }
 
