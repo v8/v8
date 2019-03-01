@@ -723,7 +723,6 @@ class RuntimeCallTimer final {
   V(Context_New)                                           \
   V(Context_NewRemoteContext)                              \
   V(DataView_New)                                          \
-  V(Date_DateTimeConfigurationChangeNotification)          \
   V(Date_New)                                              \
   V(Date_NumberValue)                                      \
   V(Debug_Call)                                            \
@@ -743,6 +742,8 @@ class RuntimeCallTimer final {
   V(Int16Array_New)                                        \
   V(Int32Array_New)                                        \
   V(Int8Array_New)                                         \
+  V(Isolate_DateTimeConfigurationChangeNotification)       \
+  V(Isolate_LocaleConfigurationChangeNotification)         \
   V(JSON_Parse)                                            \
   V(JSON_Stringify)                                        \
   V(Map_AsArray)                                           \

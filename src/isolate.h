@@ -1101,6 +1101,8 @@ class Isolate final : private HiddenFactory {
 
   const std::string& default_locale() { return default_locale_; }
 
+  void ResetDefaultLocale() { default_locale_.clear(); }
+
   void set_default_locale(const std::string& locale) {
     DCHECK_EQ(default_locale_.length(), 0);
     default_locale_ = locale;

@@ -6768,29 +6768,21 @@ double v8::Date::ValueOf() const {
 
 // Assert that the static TimeZoneDetection cast in
 // DateTimeConfigurationChangeNotification is valid.
-#define TIME_ZONE_DETECTION_ASSERT_EQ(value)                  \
-  STATIC_ASSERT(                                              \
-      static_cast<int>(v8::Date::TimeZoneDetection::value) == \
-      static_cast<int>(base::TimezoneCache::TimeZoneDetection::value))
-TIME_ZONE_DETECTION_ASSERT_EQ(kSkip);
-TIME_ZONE_DETECTION_ASSERT_EQ(kRedetect);
+#define TIME_ZONE_DETECTION_ASSERT_EQ(value)                               \
+  STATIC_ASSERT(                                                           \
+      static_cast<int>(v8::Isolate::TimeZoneDetection::value) ==           \
+      static_cast<int>(base::TimezoneCache::TimeZoneDetection::value));    \
+  STATIC_ASSERT(static_cast<int>(v8::Isolate::TimeZoneDetection::value) == \
+                static_cast<int>(v8::Date::TimeZoneDetection::value));
+TIME_ZONE_DETECTION_ASSERT_EQ(kSkip)
+TIME_ZONE_DETECTION_ASSERT_EQ(kRedetect)
 #undef TIME_ZONE_DETECTION_ASSERT_EQ
 
+// static
 void v8::Date::DateTimeConfigurationChangeNotification(
     Isolate* isolate, TimeZoneDetection time_zone_detection) {
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  LOG_API(i_isolate, Date, DateTimeConfigurationChangeNotification);
-  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  i_isolate->date_cache()->ResetDateCache(
-      static_cast<base::TimezoneCache::TimeZoneDetection>(time_zone_detection));
-#ifdef V8_INTL_SUPPORT
-  i_isolate->clear_cached_icu_object(
-      i::Isolate::ICUObjectCacheType::kDefaultSimpleDateFormat);
-  i_isolate->clear_cached_icu_object(
-      i::Isolate::ICUObjectCacheType::kDefaultSimpleDateFormatForTime);
-  i_isolate->clear_cached_icu_object(
-      i::Isolate::ICUObjectCacheType::kDefaultSimpleDateFormatForDate);
-#endif  // V8_INTL_SUPPORT
+  isolate->DateTimeConfigurationChangeNotification(
+      static_cast<v8::Isolate::TimeZoneDetection>(time_zone_detection));
 }
 
 MaybeLocal<v8::RegExp> v8::RegExp::New(Local<Context> context,
@@ -8897,6 +8889,33 @@ void Isolate::VisitWeakHandles(PersistentHandleVisitor* visitor) {
 void Isolate::SetAllowAtomicsWait(bool allow) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   isolate->set_allow_atomics_wait(allow);
+}
+
+void v8::Isolate::DateTimeConfigurationChangeNotification(
+    TimeZoneDetection time_zone_detection) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
+  LOG_API(i_isolate, Isolate, DateTimeConfigurationChangeNotification);
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
+  i_isolate->date_cache()->ResetDateCache(
+      static_cast<base::TimezoneCache::TimeZoneDetection>(time_zone_detection));
+#ifdef V8_INTL_SUPPORT
+  i_isolate->clear_cached_icu_object(
+      i::Isolate::ICUObjectCacheType::kDefaultSimpleDateFormat);
+  i_isolate->clear_cached_icu_object(
+      i::Isolate::ICUObjectCacheType::kDefaultSimpleDateFormatForTime);
+  i_isolate->clear_cached_icu_object(
+      i::Isolate::ICUObjectCacheType::kDefaultSimpleDateFormatForDate);
+#endif  // V8_INTL_SUPPORT
+}
+
+void v8::Isolate::LocaleConfigurationChangeNotification() {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
+  LOG_API(i_isolate, Isolate, LocaleConfigurationChangeNotification);
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
+
+#ifdef V8_INTL_SUPPORT
+  i_isolate->ResetDefaultLocale();
+#endif  // V8_INTL_SUPPORT
 }
 
 MicrotasksScope::MicrotasksScope(Isolate* isolate, MicrotasksScope::Type type)

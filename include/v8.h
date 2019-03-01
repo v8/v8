@@ -5316,9 +5316,11 @@ class V8_EXPORT Date : public Object {
    * This API should not be called more than needed as it will
    * negatively impact the performance of date operations.
    */
-  static void DateTimeConfigurationChangeNotification(
-      Isolate* isolate,
-      TimeZoneDetection time_zone_detection = TimeZoneDetection::kSkip);
+  V8_DEPRECATE_SOON(
+      "Use Isolate::DateTimeConfigurationChangeNotification",
+      static void DateTimeConfigurationChangeNotification(
+          Isolate* isolate,
+          TimeZoneDetection time_zone_detection = TimeZoneDetection::kSkip));
 
  private:
   static void CheckCast(Value* obj);
@@ -8545,6 +8547,45 @@ class V8_EXPORT Isolate {
    * CreateParams::allow_atomics_wait.
    */
   void SetAllowAtomicsWait(bool allow);
+
+  /**
+   * Time zone redetection indicator for
+   * DateTimeConfigurationChangeNotification.
+   *
+   * kSkip indicates V8 that the notification should not trigger redetecting
+   * host time zone. kRedetect indicates V8 that host time zone should be
+   * redetected, and used to set the default time zone.
+   *
+   * The host time zone detection may require file system access or similar
+   * operations unlikely to be available inside a sandbox. If v8 is run inside a
+   * sandbox, the host time zone has to be detected outside the sandbox before
+   * calling DateTimeConfigurationChangeNotification function.
+   */
+  enum class TimeZoneDetection { kSkip, kRedetect };
+
+  /**
+   * Notification that the embedder has changed the time zone, daylight savings
+   * time or other date / time configuration parameters. V8 keeps a cache of
+   * various values used for date / time computation. This notification will
+   * reset those cached values for the current context so that date / time
+   * configuration changes would be reflected.
+   *
+   * This API should not be called more than needed as it will negatively impact
+   * the performance of date operations.
+   */
+  void DateTimeConfigurationChangeNotification(
+      TimeZoneDetection time_zone_detection = TimeZoneDetection::kSkip);
+
+  /**
+   * Notification that the embedder has changed the locale. V8 keeps a cache of
+   * various values used for locale computation. This notification will reset
+   * those cached values for the current context so that locale configuration
+   * changes would be reflected.
+   *
+   * This API should not be called more than needed as it will negatively impact
+   * the performance of locale operations.
+   */
+  void LocaleConfigurationChangeNotification();
 
   Isolate() = delete;
   ~Isolate() = delete;
