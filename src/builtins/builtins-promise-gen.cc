@@ -117,22 +117,23 @@ PromiseBuiltinsAssembler::CreatePromiseResolvingFunctions(
 void PromiseBuiltinsAssembler::ExtractHandlerContext(Node* handler,
                                                      Variable* var_context) {
   VARIABLE(var_handler, MachineRepresentation::kTagged, handler);
-  Label loop(this, &var_handler), done(this);
+  Label loop(this, &var_handler), done(this, Label::kDeferred);
   Goto(&loop);
   BIND(&loop);
   {
-    Label if_bound_function(this), if_proxy(this), if_function(this);
+    Label if_function(this), if_bound_function(this, Label::kDeferred),
+        if_proxy(this, Label::kDeferred);
     GotoIf(TaggedIsSmi(var_handler.value()), &done);
 
     int32_t case_values[] = {
+        JS_FUNCTION_TYPE,
         JS_BOUND_FUNCTION_TYPE,
         JS_PROXY_TYPE,
-        JS_FUNCTION_TYPE,
     };
     Label* case_labels[] = {
+        &if_function,
         &if_bound_function,
         &if_proxy,
-        &if_function,
     };
     static_assert(arraysize(case_values) == arraysize(case_labels), "");
     TNode<Map> handler_map = LoadMap(var_handler.value());
