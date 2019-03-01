@@ -4,7 +4,7 @@
 
 # Print tagged object.
 define job
-call _v8_internal_Print_Object((void*)($arg0))
+call (void) _v8_internal_Print_Object((void*)($arg0))
 end
 document job
 Print a v8 JavaScript object
@@ -13,7 +13,7 @@ end
 
 # Print content of v8::internal::Handle.
 define jh
-call _v8_internal_Print_Object(*((v8::internal::Object**)($arg0).location_))
+call (void) _v8_internal_Print_Object(*((v8::internal::Object**)($arg0).location_))
 end
 document jh
 Print content of a v8::internal::Handle
@@ -22,7 +22,7 @@ end
 
 # Print content of v8::Local handle.
 define jlh
-call _v8_internal_Print_Object(*((v8::internal::Object**)($arg0).val_))
+call (void) _v8_internal_Print_Object(*((v8::internal::Object**)($arg0).val_))
 end
 document jlh
 Print content of a v8::Local handle
@@ -31,7 +31,7 @@ end
 
 # Print Code objects containing given PC.
 define jco
-call _v8_internal_Print_Code((void*)($arg0))
+call (void) _v8_internal_Print_Code((void*)($arg0))
 end
 document jco
 Print a v8 Code object from an internal code address
@@ -40,7 +40,7 @@ end
 
 # Print LayoutDescriptor.
 define jld
-call _v8_internal_Print_LayoutDescriptor((void*)($arg0))
+call (void) _v8_internal_Print_LayoutDescriptor((void*)($arg0))
 end
 document jld
 Print a v8 LayoutDescriptor object
@@ -49,7 +49,7 @@ end
 
 # Print TransitionTree.
 define jtt
-call _v8_internal_Print_TransitionTree((void*)($arg0))
+call (void) _v8_internal_Print_TransitionTree((void*)($arg0))
 end
 document jtt
 Print the complete transition tree of the given v8 Map.
@@ -58,7 +58,7 @@ end
 
 # Print JavaScript stack trace.
 define jst
-call _v8_internal_Print_StackTrace()
+call (void) _v8_internal_Print_StackTrace()
 end
 document jst
 Print the current JavaScript stack trace
