@@ -68,7 +68,8 @@ class JSPromise : public JSObject {
   DECL_PRINTER(JSPromise)
   DECL_VERIFIER(JSPromise)
 
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JSPROMISE_FIELDS)
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
+                                TORQUE_GENERATED_JSPROMISE_FIELDS)
 
   static const int kSizeWithEmbedderFields =
       kSize + v8::Promise::kEmbedderFieldCount * kEmbedderDataSlotSize;

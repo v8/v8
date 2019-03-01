@@ -28,7 +28,8 @@ class Foreign : public HeapObject {
   DECL_PRINTER(Foreign)
   DECL_VERIFIER(Foreign)
 
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, FOREIGN_FIELDS)
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
+                                TORQUE_GENERATED_FOREIGN_FIELDS)
 
   STATIC_ASSERT(IsAligned(kForeignAddressOffset, kSystemPointerSize));
   STATIC_ASSERT(kForeignAddressOffset == Internals::kForeignAddressOffset);

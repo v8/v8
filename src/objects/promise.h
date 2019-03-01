@@ -111,7 +111,8 @@ class PromiseCapability : public Struct {
   DECL_ACCESSORS(resolve, Object)
   DECL_ACCESSORS(reject, Object)
 
-  DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize, PROMISE_CAPABILITY_FIELDS)
+  DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize,
+                                TORQUE_GENERATED_PROMISE_CAPABILITY_FIELDS)
 
   // Dispatched behavior.
   DECL_CAST(PromiseCapability)
@@ -149,7 +150,8 @@ class PromiseReaction : public Struct {
   // a PromiseCapability (general case), or undefined (in case of await).
   DECL_ACCESSORS(promise_or_capability, HeapObject)
 
-  DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize, PROMISE_REACTION_FIELDS)
+  DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize,
+                                TORQUE_GENERATED_PROMISE_REACTION_FIELDS)
 
   // Dispatched behavior.
   DECL_CAST(PromiseReaction)

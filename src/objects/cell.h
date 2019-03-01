@@ -29,7 +29,8 @@ class Cell : public HeapObject {
   DECL_PRINTER(Cell)
   DECL_VERIFIER(Cell)
 
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, CELL_FIELDS)
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
+                                TORQUE_GENERATED_CELL_FIELDS)
 
   typedef FixedBodyDescriptor<kValueOffset, kSize, kSize> BodyDescriptor;
 

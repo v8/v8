@@ -35,7 +35,8 @@ class DataHandler : public Struct {
   DECL_ACCESSORS(data2, MaybeObject)
   DECL_ACCESSORS(data3, MaybeObject)
 
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, DATA_HANDLER_FIELDS)
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
+                                TORQUE_GENERATED_DATA_HANDLER_FIELDS)
 
   static const int kSizeWithData0 = kData1Offset;
   static const int kSizeWithData1 = kData2Offset;

@@ -106,7 +106,8 @@ class JSProxy : public JSReceiver {
   static const int kMaxIterationLimit = 100 * 1024;
 
   // Layout description.
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSReceiver::kHeaderSize, JSPROXY_FIELDS)
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSReceiver::kHeaderSize,
+                                TORQUE_GENERATED_JSPROXY_FIELDS)
 
   // kTargetOffset aliases with the elements of JSObject. The fact that
   // JSProxy::target is a Javascript value which cannot be confused with an
@@ -132,8 +133,8 @@ class JSProxy : public JSReceiver {
 class JSProxyRevocableResult : public JSObject {
  public:
   // Layout description.
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
-                                JSPROXY_REVOCABLE_RESULT_FIELDS)
+  DEFINE_FIELD_OFFSET_CONSTANTS(
+      JSObject::kHeaderSize, TORQUE_GENERATED_JSPROXY_REVOCABLE_RESULT_FIELDS)
 
   // Indices of in-object properties.
   static const int kProxyIndex = 0;

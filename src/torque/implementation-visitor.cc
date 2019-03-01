@@ -166,7 +166,7 @@ void ImplementationVisitor::Visit(TypeAlias* alias) {
                    << class_name << " {\n";
       header_out() << "   public:\n";
       header_out() << "    DEFINE_FIELD_OFFSET_CONSTANTS(" << class_name
-                   << "::kSize, "
+                   << "::kSize, TORQUE_GENERATED_"
                    << CapifyStringWithUnderscores(class_type->name())
                    << "_FIELDS)\n";
       header_out() << "  };\n";
@@ -2247,7 +2247,7 @@ VisitResult ImplementationVisitor::Visit(CallMethodExpression* expr) {
   DCHECK_EQ(expr->method->namespace_qualification.size(), 0);
   QualifiedName qualified_name = QualifiedName(method_name);
   Callable* callable = nullptr;
-    callable = LookupMethod(method_name, target, arguments, {});
+  callable = LookupMethod(method_name, target, arguments, {});
   return scope.Yield(GenerateCall(callable, target, arguments, {}, false));
 }
 
@@ -2646,7 +2646,8 @@ void ImplementationVisitor::GenerateClassDefinitions(std::string& file_name) {
     // currently just serves to additionally obfuscate where these values come
     // from.
     new_contents_stream << "#define ";
-    new_contents_stream << CapifyStringWithUnderscores(i.first)
+    new_contents_stream << "TORQUE_GENERATED_"
+                        << CapifyStringWithUnderscores(i.first)
                         << "_FIELDS(V) \\\n";
     std::vector<Field> fields = type->fields();
     FieldSectionType section = FieldSectionType::kNoSection;

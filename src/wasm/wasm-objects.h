@@ -758,7 +758,8 @@ class WasmExceptionTag : public Struct {
   DECL_PRINTER(WasmExceptionTag)
   DECL_VERIFIER(WasmExceptionTag)
 
-  DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize, WASM_EXCEPTION_TAG_FIELDS)
+  DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize,
+                                TORQUE_GENERATED_WASM_EXCEPTION_TAG_FIELDS)
 
   OBJECT_CONSTRUCTORS(WasmExceptionTag, Struct);
 };

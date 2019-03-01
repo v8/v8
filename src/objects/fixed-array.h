@@ -99,7 +99,7 @@ class FixedArrayBase : public HeapObject {
 
   // Layout description.
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
-                                FIXED_ARRAY_BASE_FIELDS)
+                                TORQUE_GENERATED_FIXED_ARRAY_BASE_FIELDS)
 
   static const int kHeaderSize = kSize;
 
@@ -591,7 +591,7 @@ class FixedTypedArrayBase : public FixedArrayBase {
   DECL_CAST(FixedTypedArrayBase)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(FixedArrayBase::kHeaderSize,
-                                FIXED_TYPED_ARRAY_BASE_FIELDS)
+                                TORQUE_GENERATED_FIXED_TYPED_ARRAY_BASE_FIELDS)
   static const int kHeaderSize = kSize;
 
   STATIC_ASSERT(IsAligned(kHeaderSize, kDoubleAlignment));

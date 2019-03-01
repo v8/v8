@@ -39,8 +39,8 @@ class Tuple2 : public Struct {
   DECL_VERIFIER(Tuple2)
   void BriefPrintDetails(std::ostream& os);
 
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, TUPLE2_FIELDS)
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
+                                TORQUE_GENERATED_TUPLE2_FIELDS)
 
   OBJECT_CONSTRUCTORS(Tuple2, Struct);
 };
@@ -56,7 +56,7 @@ class Tuple3 : public Tuple2 {
   DECL_VERIFIER(Tuple3)
   void BriefPrintDetails(std::ostream& os);
 
-  DEFINE_FIELD_OFFSET_CONSTANTS(Tuple2::kSize, TUPLE3_FIELDS)
+  DEFINE_FIELD_OFFSET_CONSTANTS(Tuple2::kSize, TORQUE_GENERATED_TUPLE3_FIELDS)
 
   OBJECT_CONSTRUCTORS(Tuple3, Tuple2);
 };
@@ -118,7 +118,8 @@ class ClassPositions : public Struct {
   DECL_VERIFIER(ClassPositions)
   void BriefPrintDetails(std::ostream& os);
 
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, CLASS_POSITIONS_FIELDS)
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
+                                TORQUE_GENERATED_CLASS_POSITIONS_FIELDS)
 
   OBJECT_CONSTRUCTORS(ClassPositions, Struct);
 };

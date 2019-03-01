@@ -36,7 +36,8 @@ class StackFrameInfo : public Struct {
   DECL_PRINTER(StackFrameInfo)
   DECL_VERIFIER(StackFrameInfo)
 
-  DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize, STACK_FRAME_INFO_FIELDS)
+  DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize,
+                                TORQUE_GENERATED_STACK_FRAME_INFO_FIELDS)
 
  private:
   // Bit position in the flag, from least significant bit position.

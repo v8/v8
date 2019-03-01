@@ -660,7 +660,7 @@ class SharedFunctionInfo : public HeapObject {
   STATIC_ASSERT(kMaximumFunctionTokenOffset + 1 == kFunctionTokenOutOfRange);
 
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
-                                SHARED_FUNCTION_INFO_FIELDS)
+                                TORQUE_GENERATED_SHARED_FUNCTION_INFO_FIELDS)
 
   static const int kAlignedSize = POINTER_SIZE_ALIGN(kSize);
 
@@ -746,8 +746,9 @@ class SharedFunctionInfoWithID : public SharedFunctionInfo {
 
   DECL_CAST(SharedFunctionInfoWithID)
 
-  DEFINE_FIELD_OFFSET_CONSTANTS(SharedFunctionInfo::kSize,
-                                SHARED_FUNCTION_INFO_WITH_ID_FIELDS)
+  DEFINE_FIELD_OFFSET_CONSTANTS(
+      SharedFunctionInfo::kSize,
+      TORQUE_GENERATED_SHARED_FUNCTION_INFO_WITH_ID_FIELDS)
 
   static const int kAlignedSize = POINTER_SIZE_ALIGN(kSize);
 

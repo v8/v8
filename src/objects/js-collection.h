@@ -20,7 +20,8 @@ class JSCollection : public JSObject {
   DECL_ACCESSORS(table, Object)
 
   // Layout description.
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JSCOLLECTION_FIELDS)
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
+                                TORQUE_GENERATED_JSCOLLECTION_FIELDS)
 
   static const int kAddFunctionDescriptorIndex = 3;
 

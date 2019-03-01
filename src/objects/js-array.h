@@ -105,7 +105,8 @@ class JSArray : public JSObject {
   // Number of element slots to pre-allocate for an empty array.
   static const int kPreallocatedArrayElements = 4;
 
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JSARRAY_FIELDS)
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
+                                TORQUE_GENERATED_JSARRAY_FIELDS)
 
   static const int kLengthDescriptorIndex = 0;
 

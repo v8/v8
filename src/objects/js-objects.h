@@ -264,7 +264,8 @@ class JSReceiver : public HeapObject {
 
   static const int kHashMask = PropertyArray::HashField::kMask;
 
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, JSRECEIVER_FIELDS)
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
+                                TORQUE_GENERATED_JSRECEIVER_FIELDS)
   static const int kHeaderSize = kSize;
 
   bool HasProxyInPrototype(Isolate* isolate);
@@ -832,8 +833,9 @@ class JSObject : public JSReceiver {
 class JSAccessorPropertyDescriptor : public JSObject {
  public:
   // Layout description.
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
-                                JSACCESSOR_PROPERTY_DESCRIPTOR_FIELDS)
+  DEFINE_FIELD_OFFSET_CONSTANTS(
+      JSObject::kHeaderSize,
+      TORQUE_GENERATED_JSACCESSOR_PROPERTY_DESCRIPTOR_FIELDS)
 
   // Indices of in-object properties.
   static const int kGetIndex = 0;
@@ -936,7 +938,8 @@ class JSBoundFunction : public JSObject {
   static Handle<String> ToString(Handle<JSBoundFunction> function);
 
   // Layout description.
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JSBOUND_FUNCTION_FIELDS)
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
+                                TORQUE_GENERATED_JSBOUND_FUNCTION_FIELDS)
 
   OBJECT_CONSTRUCTORS(JSBoundFunction, JSObject);
 };
@@ -1126,7 +1129,8 @@ class JSFunction : public JSObject {
   // ES6 section 19.2.3.5 Function.prototype.toString ( ).
   static Handle<String> ToString(Handle<JSFunction> function);
 
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JSFUNCTION_FIELDS)
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
+                                TORQUE_GENERATED_JSFUNCTION_FIELDS)
 
   static constexpr int kSizeWithoutPrototype = kPrototypeOrInitialMapOffset;
   static constexpr int kSizeWithPrototype = kSize;
@@ -1159,7 +1163,8 @@ class JSGlobalProxy : public JSObject {
   DECL_VERIFIER(JSGlobalProxy)
 
   // Layout description.
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JSGLOBAL_PROXY_FIELDS)
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
+                                TORQUE_GENERATED_JSGLOBAL_PROXY_FIELDS)
 
   OBJECT_CONSTRUCTORS(JSGlobalProxy, JSObject);
 };
@@ -1219,7 +1224,8 @@ class JSValue : public JSObject {
   DECL_VERIFIER(JSValue)
 
   // Layout description.
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JSVALUE_FIELDS)
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
+                                TORQUE_GENERATED_JSVALUE_FIELDS)
 
   OBJECT_CONSTRUCTORS(JSValue, JSObject);
 };

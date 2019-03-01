@@ -127,7 +127,7 @@ class AccessCheckInfo : public Struct {
   static AccessCheckInfo Get(Isolate* isolate, Handle<JSObject> receiver);
 
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
-                                ACCESS_CHECK_INFO_FIELDS)
+                                TORQUE_GENERATED_ACCESS_CHECK_INFO_FIELDS)
 
   OBJECT_CONSTRUCTORS(AccessCheckInfo, Struct);
 };
@@ -158,7 +158,7 @@ class InterceptorInfo : public Struct {
   DECL_VERIFIER(InterceptorInfo)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
-                                INTERCEPTOR_INFO_FIELDS)
+                                TORQUE_GENERATED_INTERCEPTOR_INFO_FIELDS)
 
   static const int kCanInterceptSymbolsBit = 0;
   static const int kAllCanReadBit = 1;

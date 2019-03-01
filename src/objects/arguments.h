@@ -31,8 +31,9 @@ class JSArgumentsObject : public JSObject {
 class JSArgumentsObjectWithLength : public JSArgumentsObject {
  public:
   // Layout description.
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
-                                JSARGUMENTS_OBJECT_WITH_LENGTH_FIELDS)
+  DEFINE_FIELD_OFFSET_CONSTANTS(
+      JSObject::kHeaderSize,
+      TORQUE_GENERATED_JSARGUMENTS_OBJECT_WITH_LENGTH_FIELDS)
 
   // Indices of in-object properties.
   static const int kLengthIndex = 0;
@@ -141,7 +142,7 @@ class AliasedArgumentsEntry : public Struct {
   DECL_VERIFIER(AliasedArgumentsEntry)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
-                                ALIASED_ARGUMENTS_ENTRY_FIELDS)
+                                TORQUE_GENERATED_ALIASED_ARGUMENTS_ENTRY_FIELDS)
 
   OBJECT_CONSTRUCTORS(AliasedArgumentsEntry, Struct);
 };
