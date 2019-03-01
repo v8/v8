@@ -566,10 +566,12 @@ void Heap::DecrementExternalBackingStoreBytes(ExternalBackingStoreType type,
   base::CheckedDecrement(&backing_store_bytes_, amount);
 }
 
-AlwaysAllocateScope::AlwaysAllocateScope(Isolate* isolate)
-    : heap_(isolate->heap()) {
+AlwaysAllocateScope::AlwaysAllocateScope(Heap* heap) : heap_(heap) {
   heap_->always_allocate_scope_count_++;
 }
+
+AlwaysAllocateScope::AlwaysAllocateScope(Isolate* isolate)
+    : AlwaysAllocateScope(isolate->heap()) {}
 
 AlwaysAllocateScope::~AlwaysAllocateScope() {
   heap_->always_allocate_scope_count_--;

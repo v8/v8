@@ -2094,6 +2094,7 @@ class HeapStats {
 
 class AlwaysAllocateScope {
  public:
+  explicit inline AlwaysAllocateScope(Heap* heap);
   explicit inline AlwaysAllocateScope(Isolate* isolate);
   inline ~AlwaysAllocateScope();
 

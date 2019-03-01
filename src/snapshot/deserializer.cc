@@ -47,6 +47,7 @@ void Deserializer::Initialize(Isolate* isolate) {
   DCHECK_NULL(isolate_);
   DCHECK_NOT_NULL(isolate);
   isolate_ = isolate;
+  allocator()->Initialize(isolate->heap());
   DCHECK_NULL(external_reference_table_);
   external_reference_table_ = isolate->external_reference_table();
 #ifdef DEBUG

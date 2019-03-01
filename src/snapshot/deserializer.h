@@ -48,7 +48,6 @@ class Deserializer : public SerializerDeserializer {
         source_(data->Payload()),
         magic_number_(data->GetMagicNumber()),
         external_reference_table_(nullptr),
-        allocator_(this),
         deserializing_user_code_(deserializing_user_code),
         can_rehash_(false) {
     allocator()->DecodeReservation(data->Reservations());
