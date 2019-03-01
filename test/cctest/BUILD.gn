@@ -251,7 +251,7 @@ v8_source_set("cctest_sources") {
     "test-weakmaps.cc",
     "test-weaksets.cc",
     "torque/test-torque-ls-json.cc",
-    "torque/test-torque.cc",
+    "torque/test-torque-ls-message.cc",
     "trace-extension.cc",
     "trace-extension.h",
     "unicode-helpers.cc",

@@ -65,6 +65,12 @@ inline JsonValue From(JsonArray array) {
   return result;
 }
 
+inline JsonValue JsonNull() {
+  JsonValue result;
+  result.tag = JsonValue::IS_NULL;
+  return result;
+}
+
 std::string SerializeToString(const JsonValue& value);
 
 }  // namespace ls

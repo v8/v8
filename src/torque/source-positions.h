@@ -16,12 +16,14 @@ namespace torque {
 class SourceId {
  public:
   static SourceId Invalid() { return SourceId(-1); }
+  bool IsValid() const { return id_ != -1; }
   int operator==(const SourceId& s) const { return id_ == s.id_; }
   bool operator<(const SourceId& s) const { return id_ < s.id_; }
 
  private:
   explicit SourceId(int id) : id_(id) {}
   int id_;
+  friend struct SourcePosition;
   friend class SourceFileMap;
 };
 
@@ -69,6 +71,15 @@ class SourceFileMap : public ContextualClass<SourceFileMap> {
   static SourceId AddSource(std::string path) {
     Get().sources_.push_back(std::move(path));
     return SourceId(static_cast<int>(Get().sources_.size()) - 1);
+  }
+
+  static SourceId GetSourceId(const std::string& path) {
+    for (size_t i = 0; i < Get().sources_.size(); ++i) {
+      if (Get().sources_[i] == path) {
+        return SourceId(static_cast<int>(i));
+      }
+    }
+    return SourceId::Invalid();
   }
 
  private:

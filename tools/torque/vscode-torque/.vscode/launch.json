@@ -1,0 +1,16 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "extensionHost",
+            "request": "launch",
+            "name": "test:client",
+            "runtimeExecutable": "${execPath}",
+            "args": ["--extensionDevelopmentPath=${workspaceRoot}"],
+            "stopOnEntry": false,
+            "sourceMaps": true,
+            "outFiles": ["${workspaceRoot}/lib/test/**/*.js"],
+            "preLaunchTask": "watch:client"
+        }
+    ]
+}
