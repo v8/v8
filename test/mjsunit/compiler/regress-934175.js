@@ -9,6 +9,7 @@
   function opt(i){
     return ar[i] + (NaN ? 0 : '');
   }
+  %PrepareFunctionForOptimization(opt);
   ar[0] = 42;
   opt(1);
   %OptimizeFunctionOnNextCall(opt);
@@ -20,6 +21,7 @@
   function opt(i){
     return (NaN ? 0 : '') + ar[i];
   }
+  %PrepareFunctionForOptimization(opt);
   ar[0] = 42;
   opt(1);
   %OptimizeFunctionOnNextCall(opt);

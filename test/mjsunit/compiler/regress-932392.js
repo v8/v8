@@ -8,6 +8,7 @@ function opt(flag){
   ((flag||(Math.max(-0,0)))==0)
 }
 
+%PrepareFunctionForOptimization(opt);
 try{opt(false)}catch{}
 %OptimizeFunctionOnNextCall(opt)
 try{opt(false)}catch{}

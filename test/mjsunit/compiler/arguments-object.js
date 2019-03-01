@@ -10,10 +10,12 @@
   function g() { return arguments; }
   function f() { return g(1, 2, 3); }
 
+  %PrepareFunctionForOptimization(f);
   assertEquals(g(1, 2, 3), f());
   assertEquals(g(1, 2, 3), f());
   %OptimizeFunctionOnNextCall(f);
   assertEquals(g(1, 2, 3), f());
+  %PrepareFunctionForOptimization(g);
   %OptimizeFunctionOnNextCall(g);
   assertEquals(g(1, 2, 3), f());
 })();
@@ -25,10 +27,12 @@
   function g() { return arguments; }
   function f() { return g(1, 2, 3); }
 
+  %PrepareFunctionForOptimization(f);
   assertEquals(g(1, 2, 3), f());
   assertEquals(g(1, 2, 3), f());
   %OptimizeFunctionOnNextCall(f);
   assertEquals(g(1, 2, 3), f());
+  %PrepareFunctionForOptimization(g);
   %OptimizeFunctionOnNextCall(g);
   assertEquals(g(1, 2, 3), f());
 })();
@@ -40,10 +44,12 @@
   function g() { return eval("arguments"); }
   function f() { return g(1, 2, 3); }
 
+  %PrepareFunctionForOptimization(f);
   assertEquals(g(1, 2, 3), f());
   assertEquals(g(1, 2, 3), f());
   %OptimizeFunctionOnNextCall(f);
   assertEquals(g(1, 2, 3), f());
+  %PrepareFunctionForOptimization(g);
   %OptimizeFunctionOnNextCall(g);
   assertEquals(g(1, 2, 3), f());
 })();
@@ -56,9 +62,12 @@
   function g() { return eval("arguments"); }
   function f() { return g(1, 2, 3); }
 
+  %PrepareFunctionForOptimization(f);
   assertEquals(g(1, 2, 3), f());
   assertEquals(g(1, 2, 3), f());
   %OptimizeFunctionOnNextCall(f);
+  assertEquals(g(1, 2, 3), f());
+  %PrepareFunctionForOptimization(g);
   assertEquals(g(1, 2, 3), f());
   %OptimizeFunctionOnNextCall(g);
   assertEquals(g(1, 2, 3), f());
@@ -72,9 +81,12 @@
   function g() { return h(); }
   function f() { return g(1, 2, 3); }
 
+  %PrepareFunctionForOptimization(f);
   assertEquals(g(1, 2, 3), f());
   assertEquals(g(1, 2, 3), f());
   %OptimizeFunctionOnNextCall(f);
+  assertEquals(g(1, 2, 3), f());
+  %PrepareFunctionForOptimization(g);
   assertEquals(g(1, 2, 3), f());
   %OptimizeFunctionOnNextCall(g);
   assertEquals(g(1, 2, 3), f());
@@ -84,9 +96,12 @@
   function g() { return h(); }
   function f() { "use strict"; return g(1, 2, 3); }
 
+  %PrepareFunctionForOptimization(f);
   assertEquals(g(1, 2, 3), f());
   assertEquals(g(1, 2, 3), f());
   %OptimizeFunctionOnNextCall(f);
+  assertEquals(g(1, 2, 3), f());
+  %PrepareFunctionForOptimization(g);
   assertEquals(g(1, 2, 3), f());
   %OptimizeFunctionOnNextCall(g);
   assertEquals(g(1, 2, 3), f());
@@ -96,9 +111,12 @@
   function g() { return h(); }
   function f() { return g(1, 2, 3); }
 
+  %PrepareFunctionForOptimization(f);
   assertEquals(g(1, 2, 3), f());
   assertEquals(g(1, 2, 3), f());
   %OptimizeFunctionOnNextCall(f);
+  assertEquals(g(1, 2, 3), f());
+  %PrepareFunctionForOptimization(g);
   assertEquals(g(1, 2, 3), f());
   %OptimizeFunctionOnNextCall(g);
   assertEquals(g(1, 2, 3), f());
@@ -108,9 +126,12 @@
   function g() { return h(); }
   function f() { "use strict"; return g(1, 2, 3); }
 
+  %PrepareFunctionForOptimization(f);
   assertEquals(g(1, 2, 3), f());
   assertEquals(g(1, 2, 3), f());
   %OptimizeFunctionOnNextCall(f);
+  assertEquals(g(1, 2, 3), f());
+  %PrepareFunctionForOptimization(g);
   assertEquals(g(1, 2, 3), f());
   %OptimizeFunctionOnNextCall(g);
   assertEquals(g(1, 2, 3), f());
@@ -123,9 +144,12 @@
   function g() { return h(); }
   function f() { return g(1, 2, 3); }
 
+  %PrepareFunctionForOptimization(f);
   assertEquals(g(1, 2, 3), f());
   assertEquals(g(1, 2, 3), f());
   %OptimizeFunctionOnNextCall(f);
+  assertEquals(g(1, 2, 3), f());
+  %PrepareFunctionForOptimization(g);
   assertEquals(g(1, 2, 3), f());
   %OptimizeFunctionOnNextCall(g);
   assertEquals(g(1, 2, 3), f());
@@ -135,9 +159,12 @@
   function g() { return h(); }
   function f() { "use strict"; return g(1, 2, 3); }
 
+  %PrepareFunctionForOptimization(f);
   assertEquals(g(1, 2, 3), f());
   assertEquals(g(1, 2, 3), f());
   %OptimizeFunctionOnNextCall(f);
+  assertEquals(g(1, 2, 3), f());
+  %PrepareFunctionForOptimization(g);
   assertEquals(g(1, 2, 3), f());
   %OptimizeFunctionOnNextCall(g);
   assertEquals(g(1, 2, 3), f());

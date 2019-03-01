@@ -23,6 +23,7 @@ function f() {
 
 try { g(); } catch(e) {; }
 
+%PrepareFunctionForOptimization(f);
 f();
 %OptimizeFunctionOnNextCall(f);
 f();

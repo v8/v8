@@ -14,6 +14,7 @@ function opt(r, flag){
 }
 
 ar = [3.1];
+%PrepareFunctionForOptimization(opt);
 opt(ar,1);
 opt(ar,1);
 %OptimizeFunctionOnNextCall(opt);
