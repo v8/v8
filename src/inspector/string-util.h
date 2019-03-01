@@ -27,16 +27,6 @@ struct ProtocolMessage {
   std::vector<uint8_t> binary;
 };
 
-class StringUTF8Adapter {
- public:
-  explicit StringUTF8Adapter(const String& string) : string_(string.utf8()) {}
-  const char* Data() const { return string_.data(); }
-  size_t length() const { return string_.length(); }
-
- private:
-  std::string string_;
-};
-
 class StringUtil {
  public:
   static String substring(const String& s, size_t pos, size_t len) {
@@ -81,12 +71,17 @@ class StringUtil {
   static String fromUTF8(const uint8_t* data, size_t length) {
     return String16::fromUTF8(reinterpret_cast<const char*>(data), length);
   }
-  static void writeUTF8(const String& string, std::vector<uint8_t>* out) {
-    // TODO(pfeldman): get rid of the copy here.
-    std::string utf8 = string.utf8();
-    const uint8_t* data = reinterpret_cast<const uint8_t*>(utf8.data());
-    out->insert(out->end(), data, data + utf8.length());
+
+  static String fromUTF16(const uint16_t* data, size_t length) {
+    return String16(data, length);
   }
+
+  static const uint8_t* CharactersLatin1(const String& s) { return nullptr; }
+  static const uint8_t* CharactersUTF8(const String& s) { return nullptr; }
+  static const uint16_t* CharactersUTF16(const String& s) {
+    return s.characters16();
+  }
+  static size_t CharacterCount(const String& s) { return s.length(); }
 };
 
 // A read-only sequence of uninterpreted bytes with reference-counted storage.

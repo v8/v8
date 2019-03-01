@@ -130,15 +130,22 @@ std::unique_ptr<Value> parseValue(
     }
     case CBORTokenTag::STRING8: {
       span<uint8_t> str = tokenizer->GetString8();
-      std::unique_ptr<Value> value = StringValue::create(StringUtil::fromUTF8(str.data(), str.size()));
+      std::unique_ptr<Value> value =
+          StringValue::create(StringUtil::fromUTF8(str.data(), str.size()));
       tokenizer->Next();
       return value;
     }
-    case CBORTokenTag::STRING16:
-      // NOT SUPPORTED YET.
-      return nullptr;
+    case CBORTokenTag::STRING16: {
+      span<uint8_t> wire = tokenizer->GetString16WireRep();
+      DCHECK_EQ(wire.size() & 1, 0);
+      std::unique_ptr<Value> value = StringValue::create(StringUtil::fromUTF16(
+          reinterpret_cast<const uint16_t*>(wire.data()), wire.size() / 2));
+      tokenizer->Next();
+      return value;
+    }
     case CBORTokenTag::BINARY: {
       span<uint8_t> payload = tokenizer->GetBinary();
+      tokenizer->Next();
       return BinaryValue::create(Binary::fromSpan(payload.data(), payload.size()));
     }
     case CBORTokenTag::MAP_START:
@@ -168,8 +175,8 @@ std::unique_ptr<DictionaryValue> parseMap(
     String key;
     if (tokenizer->TokenTag() == CBORTokenTag::STRING8) {
       span<uint8_t> key_span = tokenizer->GetString8();
-      tokenizer->Next();
       key = StringUtil::fromUTF8(key_span.data(), key_span.size());
+      tokenizer->Next();
     } else if (tokenizer->TokenTag() == CBORTokenTag::STRING16) {
       return nullptr;  // STRING16 not supported yet.
     } else {
@@ -362,10 +369,37 @@ void StringValue::writeJSON(StringBuilder* output) const
     StringUtil::builderAppendQuotedString(*output, m_stringValue);
 }
 
+namespace {
+// This routine distinguishes between the current encoding for a given
+// string |s|, and calls encoding routines that will
+// - Ensure that all ASCII strings end up being encoded as UTF8 in
+//   the wire format - e.g., EncodeFromUTF16 will detect ASCII and
+//   do the (trivial) transcode to STRING8 on the wire, but if it's
+//   not ASCII it'll do STRING16.
+// - Select a format that's cheap to convert to. E.g., we don't
+//   have LATIN1 on the wire, so we call EncodeFromLatin1 which
+//   transcodes to UTF8 if needed.
+void EncodeString(const String& s, std::vector<uint8_t>* out) {
+  if (StringUtil::CharactersLatin1(s)) {
+    EncodeFromLatin1(span<uint8_t>(StringUtil::CharactersLatin1(s),
+                                   StringUtil::CharacterCount(s)),
+                     out);
+  } else if (StringUtil::CharactersUTF16(s)) {
+    EncodeFromUTF16(span<uint16_t>(StringUtil::CharactersUTF16(s),
+                                   StringUtil::CharacterCount(s)),
+                    out);
+  } else if (StringUtil::CharactersUTF8(s)) {
+    EncodeString8(span<uint8_t>(StringUtil::CharactersUTF8(s),
+                                StringUtil::CharacterCount(s)),
+                  out);
+  } else {
+    EncodeString8(span<uint8_t>(nullptr, 0), out);  // Empty string.
+  }
+}
+}  // namespace
+
 void StringValue::writeBinary(std::vector<uint8_t>* bytes) const {
-    StringUTF8Adapter utf8(m_stringValue);
-    EncodeString8(span<uint8_t>(reinterpret_cast<const uint8_t*>(utf8.Data()),
-                  utf8.length()), bytes);
+  EncodeString(m_stringValue, bytes);
 }
 
 std::unique_ptr<Value> StringValue::clone() const
@@ -556,9 +590,7 @@ void DictionaryValue::writeBinary(std::vector<uint8_t>* bytes) const {
         const String& key = m_order[i];
         Dictionary::const_iterator value = m_data.find(key);
         DCHECK(value != m_data.cend() && value->second);
-        StringUTF8Adapter utf8(key);
-        EncodeString8(span<uint8_t>(reinterpret_cast<const uint8_t*>(utf8.Data()),
-	                            utf8.length()), bytes);
+        EncodeString(key, bytes);
         value->second->writeBinary(bytes);
     }
     bytes->push_back(EncodeStop());

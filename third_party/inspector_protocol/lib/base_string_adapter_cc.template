@@ -136,7 +136,7 @@ std::unique_ptr<Value> StringUtil::parseMessage(
         reinterpret_cast<const uint8_t*>(message.data()),
         message.length());
   }
-  std::unique_ptr<base::Value> value = base::JSONReader::Read(message);
+  std::unique_ptr<base::Value> value = base::JSONReader::ReadDeprecated(message);
   return toProtocolValue(value.get(), 1000);
 }
 
@@ -183,6 +183,13 @@ std::string StringBuilder::toString() {
 
 void StringBuilder::reserveCapacity(size_t capacity) {
   string_.reserve(capacity);
+}
+
+// static
+String StringUtil::fromUTF16(const uint16_t* data, size_t length) {
+  std::string utf8;
+  base::UTF16ToUTF8(reinterpret_cast<const base::char16*>(data), length, &utf8);
+  return utf8;
 }
 
 Binary::Binary() : bytes_(new base::RefCountedBytes) {}

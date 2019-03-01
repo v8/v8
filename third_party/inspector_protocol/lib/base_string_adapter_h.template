@@ -32,16 +32,6 @@ class Value;
 using String = std::string;
 using ProtocolMessage = std::string;
 
-class {{config.lib.export_macro}} StringUTF8Adapter {
- public:
-  StringUTF8Adapter(const std::string& string) : string_(string) { }
-  const char* Data() const { return string_.data(); }
-  size_t length() const { return string_.length(); }
-
- private:
-  const std::string& string_;
-};
-
 class {{config.lib.export_macro}} StringBuilder {
  public:
   StringBuilder();
@@ -64,8 +54,12 @@ class {{config.lib.export_macro}} StringUtil {
   static String fromInteger(int number) { return base::NumberToString(number); }
   static String fromDouble(double number) {
     String s = base::NumberToString(number);
-    if (!s.empty() && s[0] == '.')
-      s = "0" + s;
+    if (!s.empty()) {  // .123 -> 0.123; -.123 -> -0.123 for valid JSON.
+      if (s[0] == '.')
+        s.insert(/*index=*/ 0, /*count=*/ 1, /*ch=*/ '0');
+      else if (s[0] == '-' && s.size() >= 2 && s[1] == '.')
+        s.insert(/*index=*/ 1, /*count=*/ 1, /*ch=*/ '0');
+    }
     return s;
   }
   static double toDouble(const char* s, size_t len, bool* ok) {
@@ -105,6 +99,15 @@ class {{config.lib.export_macro}} StringUtil {
   static String fromUTF8(const uint8_t* data, size_t length) {
     return std::string(reinterpret_cast<const char*>(data), length);
   }
+
+  static String fromUTF16(const uint16_t* data, size_t length);
+
+  static const uint8_t* CharactersLatin1(const String& s) { return nullptr; }
+  static const uint8_t* CharactersUTF8(const String& s) {
+    return reinterpret_cast<const uint8_t*>(s.data());
+  }
+  static const uint16_t* CharactersUTF16(const String& s) { return nullptr; }
+  static size_t CharacterCount(const String& s) { return s.size(); }
 };
 
 // A read-only sequence of uninterpreted bytes with reference-counted storage.
