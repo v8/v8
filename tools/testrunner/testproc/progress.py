@@ -215,7 +215,7 @@ class CompactProgressIndicator(ProgressIndicator):
     }
     status = self._truncate(status, 78)
     self._last_status_length = len(status)
-    print(status, end=' ')
+    print(status, end='')
     sys.stdout.flush()
 
   def _truncate(self, string, length):
@@ -241,7 +241,7 @@ class ColorProgressIndicator(CompactProgressIndicator):
     super(ColorProgressIndicator, self).__init__(templates)
 
   def _clear_line(self, last_length):
-    print("\033[1K\r", end=' ')
+    print("\033[1K\r", end='')
 
 
 class MonochromeProgressIndicator(CompactProgressIndicator):
@@ -255,7 +255,7 @@ class MonochromeProgressIndicator(CompactProgressIndicator):
     super(MonochromeProgressIndicator, self).__init__(templates)
 
   def _clear_line(self, last_length):
-    print(("\r" + (" " * last_length) + "\r"), end=' ')
+    print(("\r" + (" " * last_length) + "\r"), end='')
 
 
 class JsonTestProgressIndicator(ProgressIndicator):
