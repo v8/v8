@@ -270,7 +270,12 @@ class BaseTestRunner(object):
       self._setup_env()
       print(">>> Running tests for %s.%s" % (self.build_config.arch,
                                             self.mode_name))
-      return self._do_execute(tests, args, options)
+      exit_code = self._do_execute(tests, args, options)
+      if exit_code == utils.EXIT_CODE_FAILURES and options.json_test_results:
+        print("Force exit code 0 after failures. Json test results file "
+              "generated with failure information.")
+        exit_code = utils.EXIT_CODE_PASS
+      return exit_code
     except TestRunnerError:
       traceback.print_exc()
       return utils.EXIT_CODE_INTERNAL_ERROR

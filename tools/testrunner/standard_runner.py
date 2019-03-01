@@ -342,13 +342,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
         exit_code = utils.EXIT_CODE_NO_TESTS
 
       # Indicate if a SIGINT or SIGTERM happened.
-      exit_code = max(exit_code, sigproc.exit_code)
-
-      if exit_code == utils.EXIT_CODE_FAILURES and options.json_test_results:
-        print("Force exit code 0 after failures. Json test results file "
-              "generated with failure information.")
-        exit_code = utils.EXIT_CODE_PASS
-      return exit_code
+      return max(exit_code, sigproc.exit_code)
 
     def _create_predictable_filter(self):
       if not self.build_config.predictable:
