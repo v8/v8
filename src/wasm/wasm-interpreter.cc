@@ -3264,6 +3264,9 @@ class ThreadImpl {
           return {ExternalCallResult::SIGNATURE_MISMATCH};
         }
       }
+      if (code->function->imported) {
+        return CallImportedFunction(code->function->func_index);
+      }
       return {ExternalCallResult::INTERNAL, code};
     }
 
