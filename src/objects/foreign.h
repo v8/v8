@@ -31,7 +31,16 @@ class Foreign : public HeapObject {
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
                                 TORQUE_GENERATED_FOREIGN_FIELDS)
 
+#ifdef V8_COMPRESS_POINTERS
+  // TODO(ishell, v8:8875): When pointer compression is enabled the
+  // kForeignAddressOffset is only kTaggedSize aligned but we can keep using
+  // unaligned access since both x64 and arm64 architectures (where pointer
+  // compression is supported) allow unaligned access to full words.
+  STATIC_ASSERT(IsAligned(kForeignAddressOffset, kTaggedSize));
+#else
   STATIC_ASSERT(IsAligned(kForeignAddressOffset, kSystemPointerSize));
+#endif
+
   STATIC_ASSERT(kForeignAddressOffset == Internals::kForeignAddressOffset);
 
   class BodyDescriptor;

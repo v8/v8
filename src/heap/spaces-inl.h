@@ -517,6 +517,12 @@ AllocationResult NewSpace::AllocateRaw(int size_in_bytes,
              ? AllocateRawAligned(size_in_bytes, alignment)
              : AllocateRawUnaligned(size_in_bytes);
 #else
+#ifdef V8_COMPRESS_POINTERS
+  // TODO(ishell, v8:8875): Consider using aligned allocations once the
+  // allocation alignment inconsistency is fixed. For now we keep using
+  // unaligned access since both x64 and arm64 architectures (where pointer
+  // compression is supported) allow unaligned access to doubles and full words.
+#endif  // V8_COMPRESS_POINTERS
   return AllocateRawUnaligned(size_in_bytes);
 #endif
 }

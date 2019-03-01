@@ -269,16 +269,8 @@ int JSObject::GetHeaderSize(const Map map) {
 
 // static
 int JSObject::GetEmbedderFieldsStartOffset(const Map map) {
-  // Embedder fields are located after the header size rounded up to the
-  // kSystemPointerSize, whereas in-object properties are at the end of the
-  // object.
-  int header_size = GetHeaderSize(map);
-  if (kTaggedSize == kSystemPointerSize) {
-    DCHECK(IsAligned(header_size, kSystemPointerSize));
-    return header_size;
-  } else {
-    return RoundUp(header_size, kSystemPointerSize);
-  }
+  // Embedder fields are located after the object header.
+  return GetHeaderSize(map);
 }
 
 int JSObject::GetEmbedderFieldsStartOffset() {
@@ -289,12 +281,13 @@ int JSObject::GetEmbedderFieldsStartOffset() {
 int JSObject::GetEmbedderFieldCount(const Map map) {
   int instance_size = map->instance_size();
   if (instance_size == kVariableSizeSentinel) return 0;
-  // Embedder fields are located after the header size rounded up to the
-  // kSystemPointerSize, whereas in-object properties are at the end of the
-  // object. We don't have to round up the header size here because division by
-  // kEmbedderDataSlotSizeInTaggedSlots will swallow potential padding in case
-  // of (kTaggedSize != kSystemPointerSize) anyway.
-  return (((instance_size - GetHeaderSize(map)) >> kTaggedSizeLog2) -
+  // Embedder fields are located after the object header, whereas in-object
+  // properties are located at the end of the object. We don't have to round up
+  // the header size here because division by kEmbedderDataSlotSizeInTaggedSlots
+  // will swallow potential padding in case of (kTaggedSize !=
+  // kSystemPointerSize) anyway.
+  return (((instance_size - GetEmbedderFieldsStartOffset(map)) >>
+           kTaggedSizeLog2) -
           map->GetInObjectProperties()) /
          kEmbedderDataSlotSizeInTaggedSlots;
 }

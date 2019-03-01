@@ -823,6 +823,12 @@ WriteBarrierMode HeapObject::GetWriteBarrierMode(
 }
 
 AllocationAlignment HeapObject::RequiredAlignment(Map map) {
+#ifdef V8_COMPRESS_POINTERS
+  // TODO(ishell, v8:8875): Consider using aligned allocations once the
+  // allocation alignment inconsistency is fixed. For now we keep using
+  // unaligned access since both x64 and arm64 architectures (where pointer
+  // compression is supported) allow unaligned access to doubles and full words.
+#endif  // V8_COMPRESS_POINTERS
 #ifdef V8_HOST_ARCH_32_BIT
   int instance_type = map->instance_type();
   if (instance_type == FIXED_FLOAT64_ARRAY_TYPE ||

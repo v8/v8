@@ -83,11 +83,8 @@ void BodyDescriptorBase::IterateJSObjectBodyImpl(Map map, HeapObject obj,
     // There are embedder fields.
     IteratePointers(obj, start_offset, header_size, v);
     // Iterate only tagged payload of the embedder slots and skip raw payload.
-    int embedder_fields_offset = RoundUp(header_size, kSystemPointerSize);
-    DCHECK_EQ(embedder_fields_offset,
-              JSObject::GetEmbedderFieldsStartOffset(map));
-    for (int offset =
-             embedder_fields_offset + EmbedderDataSlot::kTaggedPayloadOffset;
+    DCHECK_EQ(header_size, JSObject::GetEmbedderFieldsStartOffset(map));
+    for (int offset = header_size + EmbedderDataSlot::kTaggedPayloadOffset;
          offset < inobject_fields_offset; offset += kEmbedderDataSlotSize) {
       IteratePointer(obj, offset, v);
     }

@@ -291,9 +291,18 @@ static void CopyDoubleToDoubleElements(FixedArrayBase from_base,
   Address from_address = from->address() + FixedDoubleArray::kHeaderSize;
   to_address += kDoubleSize * to_start;
   from_address += kDoubleSize * from_start;
+#ifdef V8_COMPRESS_POINTERS
+  // TODO(ishell, v8:8875): we use CopyTagged() in order to avoid unaligned
+  // access to double values in the arrays. This will no longed be necessary
+  // once the allocations alignment issue is fixed.
+  int words_per_double = (kDoubleSize / kTaggedSize);
+  CopyTagged(to_address, from_address,
+             static_cast<size_t>(words_per_double * copy_size));
+#else
   int words_per_double = (kDoubleSize / kSystemPointerSize);
   CopyWords(to_address, from_address,
             static_cast<size_t>(words_per_double * copy_size));
+#endif
 }
 
 static void CopySmiToDoubleElements(FixedArrayBase from_base,
@@ -459,8 +468,6 @@ static void SortIndices(
   AtomicSlot start(indices->GetFirstElementAddress());
   std::sort(start, start + sort_size,
             [isolate](Tagged_t elementA, Tagged_t elementB) {
-              // TODO(ishell): revisit the code below
-              STATIC_ASSERT(kTaggedSize == kSystemPointerSize);
 #ifdef V8_COMPRESS_POINTERS
               Object a(DecompressTaggedAny(isolate->isolate_root(), elementA));
               Object b(DecompressTaggedAny(isolate->isolate_root(), elementB));

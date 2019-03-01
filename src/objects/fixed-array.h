@@ -594,7 +594,15 @@ class FixedTypedArrayBase : public FixedArrayBase {
                                 TORQUE_GENERATED_FIXED_TYPED_ARRAY_BASE_FIELDS)
   static const int kHeaderSize = kSize;
 
+#ifdef V8_COMPRESS_POINTERS
+  // TODO(ishell, v8:8875): When pointer compression is enabled the kHeaderSize
+  // is only kTaggedSize aligned but we can keep using unaligned access since
+  // both x64 and arm64 architectures (where pointer compression supported)
+  // allow unaligned access to doubles.
+  STATIC_ASSERT(IsAligned(kHeaderSize, kTaggedSize));
+#else
   STATIC_ASSERT(IsAligned(kHeaderSize, kDoubleAlignment));
+#endif
 
   static const int kDataOffset = kHeaderSize;
 

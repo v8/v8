@@ -761,14 +761,10 @@ class JSObject : public JSReceiver {
                 PropertyArray::kMaxLength);
 
 // Layout description.
-#define JS_OBJECT_FIELDS(V)                              \
-  V(kElementsOffset, kTaggedSize)                        \
-  /* Header size. */                                     \
-  V(kHeaderSize, 0)                                      \
-  V(kOptionalEmbedderFieldPadding,                       \
-    POINTER_SIZE_PADDING(kOptionalEmbedderFieldPadding)) \
-  /* Header size aligned to kSystemPointerSize. */       \
-  V(kHeaderSizeForEmbedderFields, 0)
+#define JS_OBJECT_FIELDS(V)       \
+  V(kElementsOffset, kTaggedSize) \
+  /* Header size. */              \
+  V(kHeaderSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(JSReceiver::kHeaderSize, JS_OBJECT_FIELDS)
 #undef JS_OBJECT_FIELDS
@@ -778,14 +774,11 @@ class JSObject : public JSReceiver {
       (kMaxInstanceSize - kHeaderSize) >> kTaggedSizeLog2;
   STATIC_ASSERT(kMaxInObjectProperties <= kMaxNumberOfDescriptors);
 
-  STATIC_ASSERT(kHeaderSizeForEmbedderFields ==
-                Internals::kJSObjectHeaderSizeForEmbedderFields);
   static const int kMaxFirstInobjectPropertyOffset =
       (1 << kFirstInobjectPropertyOffsetBitCount) - 1;
   static const int kMaxEmbedderFields =
-      (kMaxFirstInobjectPropertyOffset - kHeaderSizeForEmbedderFields) /
-      kEmbedderDataSlotSize;
-  STATIC_ASSERT(kHeaderSizeForEmbedderFields +
+      (kMaxFirstInobjectPropertyOffset - kHeaderSize) / kEmbedderDataSlotSize;
+  STATIC_ASSERT(kHeaderSize +
                     kMaxEmbedderFields * kEmbedderDataSlotSizeInTaggedSlots <=
                 kMaxInstanceSize);
 

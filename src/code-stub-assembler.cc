@@ -1202,6 +1202,12 @@ TNode<HeapObject> CodeStubAssembler::AllocateRawDoubleAligned(
   return AllocateRaw(size_in_bytes, flags | kDoubleAlignment, top_address,
                      limit_address);
 #elif defined(V8_HOST_ARCH_64_BIT)
+#ifdef V8_COMPRESS_POINTERS
+  // TODO(ishell, v8:8875): Consider using aligned allocations once the
+  // allocation alignment inconsistency is fixed. For now we keep using
+  // unaligned access since both x64 and arm64 architectures (where pointer
+  // compression is supported) allow unaligned access to doubles and full words.
+#endif  // V8_COMPRESS_POINTERS
   // Allocation on 64 bit machine is naturally double aligned
   return AllocateRaw(size_in_bytes, flags & ~kDoubleAlignment, top_address,
                      limit_address);
@@ -4826,8 +4832,9 @@ void CodeStubAssembler::CopyFixedArrayElements(
       doubles_to_objects_conversion ||
       (barrier_mode == UPDATE_WRITE_BARRIER && IsObjectElementsKind(to_kind));
   bool element_offset_matches =
-      !needs_write_barrier && (Is64() || IsDoubleElementsKind(from_kind) ==
-                                             IsDoubleElementsKind(to_kind));
+      !needs_write_barrier &&
+      (kTaggedSize == kDoubleSize ||
+       IsDoubleElementsKind(from_kind) == IsDoubleElementsKind(to_kind));
   Node* double_hole =
       Is64() ? ReinterpretCast<UintPtrT>(Int64Constant(kHoleNanInt64))
              : ReinterpretCast<UintPtrT>(Int32Constant(kHoleNanLower32));

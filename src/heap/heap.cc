@@ -2447,13 +2447,20 @@ void Heap::VisitExternalResources(v8::ExternalResourceVisitor* visitor) {
   external_string_table_.IterateAll(&external_string_table_visitor);
 }
 
-STATIC_ASSERT((FixedDoubleArray::kHeaderSize & kDoubleAlignmentMask) ==
-              0);  // NOLINT
-STATIC_ASSERT((FixedTypedArrayBase::kDataOffset & kDoubleAlignmentMask) ==
-              0);  // NOLINT
+STATIC_ASSERT(IsAligned(FixedDoubleArray::kHeaderSize, kDoubleAlignment));
+
+#ifdef V8_COMPRESS_POINTERS
+// TODO(ishell, v8:8875): When pointer compression is enabled the kHeaderSize
+// is only kTaggedSize aligned but we can keep using unaligned access since
+// both x64 and arm64 architectures (where pointer compression supported)
+// allow unaligned access to doubles.
+STATIC_ASSERT(IsAligned(FixedTypedArrayBase::kDataOffset, kTaggedSize));
+#else
+STATIC_ASSERT(IsAligned(FixedTypedArrayBase::kDataOffset, kDoubleAlignment));
+#endif
+
 #ifdef V8_HOST_ARCH_32_BIT
-STATIC_ASSERT((HeapNumber::kValueOffset & kDoubleAlignmentMask) !=
-              0);  // NOLINT
+STATIC_ASSERT((HeapNumber::kValueOffset & kDoubleAlignmentMask) == kTaggedSize);
 #endif
 
 

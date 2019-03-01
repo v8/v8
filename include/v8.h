@@ -10323,8 +10323,7 @@ Local<Value> Object::GetInternalField(int index) {
   if (instance_type == I::kJSObjectType ||
       instance_type == I::kJSApiObjectType ||
       instance_type == I::kJSSpecialApiObjectType) {
-    int offset = I::kJSObjectHeaderSizeForEmbedderFields +
-                 (I::kEmbedderDataSlotSize * index);
+    int offset = I::kJSObjectHeaderSize + (I::kEmbedderDataSlotSize * index);
     A value = I::ReadTaggedAnyField(obj, offset);
     internal::Isolate* isolate =
         internal::IsolateFromNeverReadOnlySpaceObject(obj);
@@ -10347,8 +10346,7 @@ void* Object::GetAlignedPointerFromInternalField(int index) {
   if (V8_LIKELY(instance_type == I::kJSObjectType ||
                 instance_type == I::kJSApiObjectType ||
                 instance_type == I::kJSSpecialApiObjectType)) {
-    int offset = I::kJSObjectHeaderSizeForEmbedderFields +
-                 (I::kEmbedderDataSlotSize * index);
+    int offset = I::kJSObjectHeaderSize + (I::kEmbedderDataSlotSize * index);
     return I::ReadRawField<void*>(obj, offset);
   }
 #endif
