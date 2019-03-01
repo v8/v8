@@ -643,7 +643,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     if (expression->IsPropertyName()) {
       fni_.PushLiteralName(expression->AsLiteral()->AsRawPropertyName());
     } else {
-      fni_.PushLiteralName(ast_value_factory()->anonymous_function_string());
+      fni_.PushLiteralName(ast_value_factory()->computed_string());
     }
   }
 

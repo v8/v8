@@ -3107,8 +3107,7 @@ TEST(FuncNameInferrerBasic) {
   ExpectString("Ctor()", "Ctor.foo5");
   ExpectString("%FunctionGetInferredName(obj1.foo6)", "obj1.foo6");
   ExpectString("%FunctionGetInferredName(obj2.foo7)", "obj2.foo7");
-  ExpectString("%FunctionGetInferredName(obj3[1])",
-               "obj3.(anonymous function)");
+  ExpectString("%FunctionGetInferredName(obj3[1])", "obj3.<computed>");
   ExpectString("%FunctionGetInferredName(obj4[1])", "");
   ExpectString("%FunctionGetInferredName(obj5['foo9'])", "obj5.foo9");
   ExpectString("%FunctionGetInferredName(obj6.obj7.foo10)", "obj6.obj7.foo10");

@@ -202,6 +202,7 @@ class AstBigInt {
   F(await, "await")                             \
   F(bigint, "bigint")                           \
   F(boolean, "boolean")                         \
+  F(computed, "<computed>")                     \
   F(constructor, "constructor")                 \
   F(default, "default")                         \
   F(done, "done")                               \

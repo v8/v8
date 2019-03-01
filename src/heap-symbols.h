@@ -114,6 +114,7 @@
   V(_, buffer_string, "buffer")                                       \
   V(_, byte_length_string, "byteLength")                              \
   V(_, byte_offset_string, "byteOffset")                              \
+  V(_, CompileError_string, "CompileError")                           \
   V(_, call_string, "call")                                           \
   V(_, callee_string, "callee")                                       \
   V(_, caller_string, "caller")                                       \
@@ -121,11 +122,11 @@
   V(_, closure_string, "(closure)")                                   \
   V(_, code_string, "code")                                           \
   V(_, column_string, "column")                                       \
-  V(_, CompileError_string, "CompileError")                           \
+  V(_, computed_string, "<computed>")                                 \
   V(_, configurable_string, "configurable")                           \
+  V(_, conjunction_string, "conjunction")                             \
   V(_, construct_string, "construct")                                 \
   V(_, constructor_string, "constructor")                             \
-  V(_, conjunction_string, "conjunction")                             \
   V(_, create_string, "create")                                       \
   V(_, Date_string, "Date")                                           \
   V(_, date_to_string, "[object Date]")                               \
