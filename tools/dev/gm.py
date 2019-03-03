@@ -294,8 +294,9 @@ class Config(object):
       tests = ""
     else:
       tests = " ".join(self.tests)
-    return _Call(os.path.join("tools", "run-tests.py") + " --outdir=%s %s" %
-                   (GetPath(self.arch, self.mode), tests))
+    return _Call('"%s" ' % sys.executable +
+                 os.path.join("tools", "run-tests.py") +
+                 " --outdir=%s %s" % (GetPath(self.arch, self.mode), tests))
 
 def GetTestBinary(argstring):
   for suite in TESTSUITES_TARGETS:
