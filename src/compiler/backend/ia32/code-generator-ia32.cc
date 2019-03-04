@@ -1953,24 +1953,47 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kSSEF32x4Min: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      __ minps(i.OutputSimd128Register(), i.InputOperand(1));
+      // minps doesn't propagate NaN lanes in the first source. Compare this
+      // with itself to generate 1's in those lanes (quiet NaNs) and or them
+      // with the result of minps to simulate NaN propagation.
+      __ movaps(kScratchDoubleReg, i.InputSimd128Register(0));
+      __ cmpps(kScratchDoubleReg, kScratchDoubleReg, 0x4);
+      __ minps(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      __ orps(i.OutputSimd128Register(), kScratchDoubleReg);
+
       break;
     }
     case kAVXF32x4Min: {
       CpuFeatureScope avx_scope(tasm(), AVX);
+      // See comment above for minps and NaN propagation.
+      __ vcmpneqps(kScratchDoubleReg, i.InputSimd128Register(0),
+                   i.InputSimd128Register(0));  // Is NaN?
       __ vminps(i.OutputSimd128Register(), i.InputSimd128Register(0),
                 i.InputOperand(1));
+      __ vorps(i.OutputSimd128Register(), i.OutputSimd128Register(),
+               kScratchDoubleReg);  // re-NaN-imate.
       break;
     }
     case kSSEF32x4Max: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      __ maxps(i.OutputSimd128Register(), i.InputOperand(1));
+      // maxps doesn't propagate NaN lanes in the first source. Compare this
+      // with itself to generate 1's in those lanes (quiet NaNs) and or them
+      // with the result of maxps to simulate NaN propagation.
+      __ movaps(kScratchDoubleReg, i.InputSimd128Register(0));
+      __ cmpps(kScratchDoubleReg, kScratchDoubleReg, 0x4);
+      __ maxps(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      __ orps(i.OutputSimd128Register(), kScratchDoubleReg);
       break;
     }
     case kAVXF32x4Max: {
       CpuFeatureScope avx_scope(tasm(), AVX);
+      // See comment above for maxps and NaN propagation.
+      __ vcmpneqps(kScratchDoubleReg, i.InputSimd128Register(0),
+                   i.InputSimd128Register(0));
       __ vmaxps(i.OutputSimd128Register(), i.InputSimd128Register(0),
                 i.InputOperand(1));
+      __ vorps(i.OutputSimd128Register(), i.OutputSimd128Register(),
+               kScratchDoubleReg);
       break;
     }
     case kSSEF32x4Eq: {

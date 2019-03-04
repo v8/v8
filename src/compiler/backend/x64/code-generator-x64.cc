@@ -2302,12 +2302,24 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64F32x4Min: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      // minps doesn't propagate NaN lanes in the first source. Compare this
+      // with itself to generate 1's in those lanes (quiet NaNs) and or them
+      // with the result of minps to simulate NaN propagation.
+      __ movaps(kScratchDoubleReg, i.InputSimd128Register(0));
+      __ cmpps(kScratchDoubleReg, kScratchDoubleReg, 0x4);
       __ minps(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      __ orps(i.OutputSimd128Register(), kScratchDoubleReg);
       break;
     }
     case kX64F32x4Max: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      // maxps doesn't propagate NaN lanes in the first source. Compare this
+      // with itself to generate 1's in those lanes (quiet NaNs) and or them
+      // with the result of maxps to simulate NaN propagation.
+      __ movaps(kScratchDoubleReg, i.InputSimd128Register(0));
+      __ cmpps(kScratchDoubleReg, kScratchDoubleReg, 0x4);
       __ maxps(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      __ orps(i.OutputSimd128Register(), kScratchDoubleReg);
       break;
     }
     case kX64F32x4Eq: {

@@ -895,6 +895,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void maxps(XMMRegister dst, XMMRegister src) { maxps(dst, Operand(src)); }
 
   void cmpps(XMMRegister dst, Operand src, uint8_t cmp);
+  void cmpps(XMMRegister dst, XMMRegister src, uint8_t cmp) {
+    cmpps(dst, Operand(src), cmp);
+  }
 #define SSE_CMP_P(instr, imm8)                       \
   void instr##ps(XMMRegister dst, XMMRegister src) { \
     cmpps(dst, Operand(src), imm8);                  \
@@ -1497,6 +1500,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
 #define PACKED_OP_LIST(V) \
   V(and, 0x54)            \
+  V(or, 0x56)             \
   V(xor, 0x57)            \
   V(add, 0x58)            \
   V(mul, 0x59)            \
