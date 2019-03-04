@@ -406,10 +406,8 @@ namespace internal {
   F(FlattenString, 1, 1)                  \
   F(GetSubstitution, 5, 1)                \
   F(InternalizeString, 1, 1)              \
-  F(SparseJoinWithSeparator, 3, 1)        \
   F(StringAdd, 2, 1)                      \
   F(StringBuilderConcat, 3, 1)            \
-  F(StringBuilderJoin, 3, 1)              \
   F(StringCharCodeAt, 2, 1)               \
   F(StringEqual, 2, 1)                    \
   F(StringEscapeQuotes, 1, 1)             \
