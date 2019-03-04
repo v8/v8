@@ -793,9 +793,6 @@ class BytecodeArray : public FixedArrayBase {
   // bytecode, constant pool, source position table, and handler table.
   inline int SizeIncludingMetadata();
 
-  int SourcePosition(int offset);
-  int SourceStatementPosition(int offset);
-
   DECL_PRINTER(BytecodeArray)
   DECL_VERIFIER(BytecodeArray)
 
