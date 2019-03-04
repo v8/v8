@@ -8,6 +8,7 @@
 #include <map>
 #include <vector>
 
+#include "src/base/macros.h"
 #include "src/base/optional.h"
 #include "src/torque/source-positions.h"
 
@@ -28,10 +29,11 @@ class LanguageServerData : public ContextualClass<LanguageServerData> {
  public:
   LanguageServerData() = default;
 
-  static void AddDefinition(SourcePosition token, SourcePosition definition);
+  V8_EXPORT_PRIVATE static void AddDefinition(SourcePosition token,
+                                              SourcePosition definition);
 
-  static base::Optional<SourcePosition> FindDefinition(SourceId source,
-                                                       LineAndColumn pos);
+  V8_EXPORT_PRIVATE static base::Optional<SourcePosition> FindDefinition(
+      SourceId source, LineAndColumn pos);
 
  private:
   DefinitionsMap definitions_map_;

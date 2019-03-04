@@ -5,6 +5,7 @@
 #ifndef V8_TORQUE_LS_MESSAGE_HANDLER_H_
 #define V8_TORQUE_LS_MESSAGE_HANDLER_H_
 
+#include "src/base/macros.h"
 #include "src/torque/ls/json.h"
 
 namespace v8 {
@@ -16,7 +17,7 @@ namespace ls {
 // To allow unit testing, the "sending" function is configurable.
 using MessageWriter = void (*)(JsonValue& message);
 
-void HandleMessage(JsonValue& raw_message, MessageWriter);
+V8_EXPORT_PRIVATE void HandleMessage(JsonValue& raw_message, MessageWriter);
 
 }  // namespace ls
 }  // namespace torque

@@ -67,6 +67,7 @@ class SourceFileMap : public ContextualClass<SourceFileMap> {
  public:
   SourceFileMap() = default;
   static const std::string& GetSource(SourceId source) {
+    CHECK(source.IsValid());
     return Get().sources_[source.id_];
   }
 

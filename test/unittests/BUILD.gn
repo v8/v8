@@ -198,6 +198,8 @@ v8_source_set("unittests_sources") {
     "test-utils.cc",
     "test-utils.h",
     "torque/earley-parser-unittest.cc",
+    "torque/ls-json-unittest.cc",
+    "torque/ls-message-unittest.cc",
     "torque/torque-unittest.cc",
     "unicode-unittest.cc",
     "utils-unittest.cc",

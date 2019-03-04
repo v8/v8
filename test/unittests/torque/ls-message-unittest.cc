@@ -7,14 +7,14 @@
 #include "src/torque/ls/message.h"
 #include "src/torque/server-data.h"
 #include "src/torque/source-positions.h"
-#include "test/cctest/cctest.h"
+#include "test/unittests/test-utils.h"
 
 namespace v8 {
 namespace internal {
 namespace torque {
 namespace ls {
 
-TEST(InitializeRequest) {
+TEST(LanguageServerMessage, InitializeRequest) {
   InitializeRequest request;
   request.set_id(5);
   request.set_method("initialize");
@@ -25,32 +25,33 @@ TEST(InitializeRequest) {
 
     // Check that the response id matches up with the request id, and that
     // the language server signals its support for definitions.
-    CHECK_EQ(response.id(), 5);
-    CHECK_EQ(response.result().capabilities().definitionProvider(), true);
+    EXPECT_EQ(response.id(), 5);
+    EXPECT_EQ(response.result().capabilities().definitionProvider(), true);
   });
 }
 
-TEST(RegisterDynamicCapabilitiesAfterInitializedNotification) {
+TEST(LanguageServerMessage,
+     RegisterDynamicCapabilitiesAfterInitializedNotification) {
   Request<bool> notification;
   notification.set_method("initialized");
 
   HandleMessage(notification.GetJsonValue(), [](JsonValue& raw_request) {
     RegistrationRequest request(raw_request);
 
-    CHECK_EQ(request.method(), "client/registerCapability");
-    CHECK_EQ(request.params().registrations_size(), 1);
+    ASSERT_EQ(request.method(), "client/registerCapability");
+    ASSERT_EQ(request.params().registrations_size(), (size_t)1);
 
     Registration registration = request.params().registrations(0);
-    CHECK_EQ(registration.method(), "workspace/didChangeWatchedFiles");
+    ASSERT_EQ(registration.method(), "workspace/didChangeWatchedFiles");
 
     auto options =
         registration
             .registerOptions<DidChangeWatchedFilesRegistrationOptions>();
-    CHECK_EQ(options.watchers_size(), 1);
+    ASSERT_EQ(options.watchers_size(), (size_t)1);
   });
 }
 
-TEST(GotoDefinitionUnkownFile) {
+TEST(LanguageServerMessage, GotoDefinitionUnkownFile) {
   SourceFileMap::Scope source_file_map_scope;
 
   GotoDefinitionRequest request;
@@ -60,12 +61,12 @@ TEST(GotoDefinitionUnkownFile) {
 
   HandleMessage(request.GetJsonValue(), [](JsonValue& raw_response) {
     GotoDefinitionResponse response(raw_response);
-    CHECK_EQ(response.id(), 42);
-    CHECK(response.IsNull("result"));
+    EXPECT_EQ(response.id(), 42);
+    EXPECT_TRUE(response.IsNull("result"));
   });
 }
 
-TEST(GotoDefinition) {
+TEST(LanguageServerMessage, GotoDefinition) {
   SourceFileMap::Scope source_file_map_scope;
   SourceId test_id = SourceFileMap::AddSource("test.tq");
   SourceId definition_id = SourceFileMap::AddSource("base.tq");
@@ -84,8 +85,8 @@ TEST(GotoDefinition) {
 
   HandleMessage(request.GetJsonValue(), [](JsonValue& raw_response) {
     GotoDefinitionResponse response(raw_response);
-    CHECK_EQ(response.id(), 42);
-    CHECK(response.IsNull("result"));
+    EXPECT_EQ(response.id(), 42);
+    EXPECT_TRUE(response.IsNull("result"));
   });
 
   // Second, check a known defintion.
@@ -98,15 +99,15 @@ TEST(GotoDefinition) {
 
   HandleMessage(request.GetJsonValue(), [](JsonValue& raw_response) {
     GotoDefinitionResponse response(raw_response);
-    CHECK_EQ(response.id(), 43);
-    CHECK(!response.IsNull("result"));
+    EXPECT_EQ(response.id(), 43);
+    ASSERT_FALSE(response.IsNull("result"));
 
     Location location = response.result();
-    CHECK_EQ(location.uri(), "file://base.tq");
-    CHECK_EQ(location.range().start().line(), 4);
-    CHECK_EQ(location.range().start().character(), 1);
-    CHECK_EQ(location.range().end().line(), 4);
-    CHECK_EQ(location.range().end().character(), 5);
+    EXPECT_EQ(location.uri(), "file://base.tq");
+    EXPECT_EQ(location.range().start().line(), 4);
+    EXPECT_EQ(location.range().start().character(), 1);
+    EXPECT_EQ(location.range().end().line(), 4);
+    EXPECT_EQ(location.range().end().character(), 5);
   });
 }
 

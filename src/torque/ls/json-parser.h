@@ -5,6 +5,7 @@
 #ifndef V8_TORQUE_LS_JSON_PARSER_H_
 #define V8_TORQUE_LS_JSON_PARSER_H_
 
+#include "src/base/macros.h"
 #include "src/torque/ls/json.h"
 
 namespace v8 {
@@ -12,7 +13,7 @@ namespace internal {
 namespace torque {
 namespace ls {
 
-JsonValue ParseJson(const std::string& input);
+V8_EXPORT_PRIVATE JsonValue ParseJson(const std::string& input);
 
 }  // namespace ls
 }  // namespace torque

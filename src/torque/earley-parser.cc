@@ -126,6 +126,8 @@ LexerResult Lexer::RunLexer(const std::string& input) {
     InputPosition token_end = pos;
     line_column_tracker.Advance(token_start, token_end);
     if (!symbol) {
+      CurrentSourcePosition::Scope pos_scope(
+          line_column_tracker.ToSourcePosition());
       ReportError("Lexer Error: unknown token " +
                   StringLiteralQuote(std::string(
                       token_start, token_start + std::min<ptrdiff_t>(
