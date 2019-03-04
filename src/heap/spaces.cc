@@ -2914,10 +2914,11 @@ void FreeListCategory::RepairFreeList(Heap* heap) {
     // We can't use .is_null() here because *map_location returns an
     // Object (for which "is null" is not defined, as it would be
     // indistinguishable from "is Smi(0)"). Only HeapObject has "is_null()".
-    if (*map_location == Map()) {
+    if (map_location.contains_value(kNullAddress)) {
       map_location.store(ReadOnlyRoots(heap).free_space_map());
     } else {
-      DCHECK(*map_location == ReadOnlyRoots(heap).free_space_map());
+      DCHECK(map_location.contains_value(
+          ReadOnlyRoots(heap).free_space_map().ptr()));
     }
     n = n->next();
   }
@@ -3125,8 +3126,8 @@ size_t FreeListCategory::SumFreeList() {
   while (!cur.is_null()) {
     // We can't use "cur->map()" here because both cur's map and the
     // root can be null during bootstrapping.
-    DCHECK_EQ(*cur->map_slot(),
-              page()->heap()->isolate()->root(RootIndex::kFreeSpaceMap));
+    DCHECK(cur->map_slot().contains_value(
+        page()->heap()->isolate()->root(RootIndex::kFreeSpaceMap).ptr()));
     sum += cur->relaxed_read_size();
     cur = cur->next();
   }
