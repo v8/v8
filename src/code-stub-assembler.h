@@ -2141,7 +2141,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsNullOrUndefined(SloppyTNode<Object> object);
   TNode<BoolT> IsNumberDictionary(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsOneByteStringInstanceType(SloppyTNode<Int32T> instance_type);
-  TNode<BoolT> HasOnlyOneByteChars(TNode<Int32T> instance_type);
   TNode<BoolT> IsPrimitiveInstanceType(SloppyTNode<Int32T> instance_type);
   TNode<BoolT> IsPrivateSymbol(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsPromiseCapability(SloppyTNode<HeapObject> object);

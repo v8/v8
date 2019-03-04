@@ -162,7 +162,8 @@ namespace array_join {
           AddStringLength(this.totalStringLength, str.length);
       this.fixedArray =
           StoreAndGrowFixedArray(this.fixedArray, this.index++, str);
-      this.isOneByte = HasOnlyOneByteChars(str.instanceType) & this.isOneByte;
+      this.isOneByte =
+          IsOneByteStringInstanceType(str.instanceType) & this.isOneByte;
     }
 
     AddSeparators(implicit context: Context)(
@@ -221,7 +222,7 @@ namespace array_join {
       AllocateZeroedFixedArray(cappedBufferSize),
       0,
       0,
-      HasOnlyOneByteChars(sep.instanceType)
+      IsOneByteStringInstanceType(sep.instanceType)
     };
   }
 

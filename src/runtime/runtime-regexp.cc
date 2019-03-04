@@ -628,7 +628,8 @@ V8_WARN_UNUSED_RESULT static Object StringReplaceGlobalRegExpWithString(
 
   // Shortcut for simple non-regexp global replacements
   if (typeTag == JSRegExp::ATOM && simple_replace) {
-    if (subject->HasOnlyOneByteChars() && replacement->HasOnlyOneByteChars()) {
+    if (subject->IsOneByteRepresentation() &&
+        replacement->IsOneByteRepresentation()) {
       return StringReplaceGlobalAtomRegExpWithString<SeqOneByteString>(
           isolate, subject, regexp, replacement, last_match_info);
     } else {
@@ -1326,7 +1327,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<String> RegExpReplace(
                         String);
 
     if (replace->length() == 0) {
-      if (string->HasOnlyOneByteChars()) {
+      if (string->IsOneByteRepresentation()) {
         Object result =
             StringReplaceGlobalRegExpWithEmptyString<SeqOneByteString>(
                 isolate, string, regexp, last_match_info);

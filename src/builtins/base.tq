@@ -1802,7 +1802,7 @@ transitioning macro GetLengthProperty(implicit context: Context)(o: Object):
 }
 
 extern macro NumberToString(Number): String;
-extern macro HasOnlyOneByteChars(InstanceType): bool;
+extern macro IsOneByteStringInstanceType(InstanceType): bool;
 extern macro AllocateSeqOneByteString(implicit context: Context)(uint32):
     String;
 extern macro AllocateSeqTwoByteString(implicit context: Context)(uint32):

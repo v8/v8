@@ -88,7 +88,7 @@ int StringBuilderConcatLength(int special_length, FixedArray fixed_array,
       String element = String::cast(elt);
       int element_length = element->length();
       increment = element_length;
-      if (*one_byte && !element->HasOnlyOneByteChars()) {
+      if (*one_byte && !element->IsOneByteRepresentation()) {
         *one_byte = false;
       }
     } else {

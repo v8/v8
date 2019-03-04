@@ -87,7 +87,6 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
   // string.
   if (!GetIsolateFromWritableObject(*this, &isolate)) return false;
   Heap* heap = isolate->heap();
-  bool is_one_byte = this->IsOneByteRepresentation();
   bool is_internalized = this->IsInternalizedString();
   bool has_pointers = StringShape(*this).IsIndirect();
   if (has_pointers) {
@@ -103,26 +102,13 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
   ReadOnlyRoots roots(heap);
   if (size < ExternalString::kSize) {
     if (is_internalized) {
-      if (is_one_byte) {
-        new_map =
-            roots
-                .uncached_external_internalized_string_with_one_byte_data_map();
-      } else {
-        new_map = roots.uncached_external_internalized_string_map();
-      }
+      new_map = roots.uncached_external_internalized_string_map();
     } else {
-      new_map = is_one_byte
-                    ? roots.uncached_external_string_with_one_byte_data_map()
-                    : roots.uncached_external_string_map();
+      new_map = roots.uncached_external_string_map();
     }
   } else {
-    new_map =
-        is_internalized
-            ? (is_one_byte
-                   ? roots.external_internalized_string_with_one_byte_data_map()
-                   : roots.external_internalized_string_map())
-            : (is_one_byte ? roots.external_string_with_one_byte_data_map()
-                           : roots.external_string_map());
+    new_map = is_internalized ? roots.external_internalized_string_map()
+                              : roots.external_string_map();
   }
 
   // Byte size of the external String object.

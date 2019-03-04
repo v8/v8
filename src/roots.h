@@ -135,22 +135,14 @@ class RootVisitor;
   V(Map, sliced_string_map, SlicedStringMap)                                   \
   V(Map, sliced_one_byte_string_map, SlicedOneByteStringMap)                   \
   V(Map, external_string_map, ExternalStringMap)                               \
-  V(Map, external_string_with_one_byte_data_map,                               \
-    ExternalStringWithOneByteDataMap)                                          \
   V(Map, external_one_byte_string_map, ExternalOneByteStringMap)               \
   V(Map, uncached_external_string_map, UncachedExternalStringMap)              \
-  V(Map, uncached_external_string_with_one_byte_data_map,                      \
-    UncachedExternalStringWithOneByteDataMap)                                  \
   V(Map, internalized_string_map, InternalizedStringMap)                       \
   V(Map, external_internalized_string_map, ExternalInternalizedStringMap)      \
-  V(Map, external_internalized_string_with_one_byte_data_map,                  \
-    ExternalInternalizedStringWithOneByteDataMap)                              \
   V(Map, external_one_byte_internalized_string_map,                            \
     ExternalOneByteInternalizedStringMap)                                      \
   V(Map, uncached_external_internalized_string_map,                            \
     UncachedExternalInternalizedStringMap)                                     \
-  V(Map, uncached_external_internalized_string_with_one_byte_data_map,         \
-    UncachedExternalInternalizedStringWithOneByteDataMap)                      \
   V(Map, uncached_external_one_byte_internalized_string_map,                   \
     UncachedExternalOneByteInternalizedStringMap)                              \
   V(Map, uncached_external_one_byte_string_map,                                \

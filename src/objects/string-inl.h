@@ -81,11 +81,6 @@ bool StringShape::IsInternalized() {
          (kStringTag | kInternalizedTag);
 }
 
-bool StringShape::HasOnlyOneByteChars() {
-  return (type_ & kStringEncodingMask) == kOneByteStringTag ||
-         (type_ & kOneByteDataHintMask) == kOneByteDataHintTag;
-}
-
 bool StringShape::IsCons() {
   return (type_ & kStringRepresentationMask) == kConsStringTag;
 }
@@ -178,12 +173,6 @@ bool String::IsOneByteRepresentationUnderneath(String string) {
         string = string.GetUnderlying();
     }
   }
-}
-
-bool String::HasOnlyOneByteChars() {
-  uint32_t type = map()->instance_type();
-  return (type & kOneByteDataHintMask) == kOneByteDataHintTag ||
-         IsOneByteRepresentation();
 }
 
 uc32 FlatStringReader::Get(int index) {

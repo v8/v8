@@ -298,7 +298,7 @@ RUNTIME_FUNCTION(Runtime_StringBuilderConcat) {
   }
 
   int length;
-  bool one_byte = special->HasOnlyOneByteChars();
+  bool one_byte = special->IsOneByteRepresentation();
 
   {
     DisallowHeapAllocation no_gc;

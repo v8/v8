@@ -255,7 +255,7 @@ MaybeHandle<String> LocaleConvertCase(Isolate* isolate, Handle<String> s,
 // Called from TF builtins.
 String Intl::ConvertOneByteToLower(String src, String dst) {
   DCHECK_EQ(src->length(), dst->length());
-  DCHECK(src->HasOnlyOneByteChars());
+  DCHECK(src->IsOneByteRepresentation());
   DCHECK(src->IsFlat());
   DCHECK(dst->IsSeqOneByteString());
 
@@ -299,7 +299,7 @@ String Intl::ConvertOneByteToLower(String src, String dst) {
 }
 
 MaybeHandle<String> Intl::ConvertToLower(Isolate* isolate, Handle<String> s) {
-  if (!s->HasOnlyOneByteChars()) {
+  if (!s->IsOneByteRepresentation()) {
     // Use a slower implementation for strings with characters beyond U+00FF.
     return LocaleConvertCase(isolate, s, false, "");
   }
@@ -331,7 +331,7 @@ MaybeHandle<String> Intl::ConvertToLower(Isolate* isolate, Handle<String> s) {
 
 MaybeHandle<String> Intl::ConvertToUpper(Isolate* isolate, Handle<String> s) {
   int32_t length = s->length();
-  if (s->HasOnlyOneByteChars() && length > 0) {
+  if (s->IsOneByteRepresentation() && length > 0) {
     Handle<SeqOneByteString> result =
         isolate->factory()->NewRawOneByteString(length).ToHandleChecked();
 

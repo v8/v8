@@ -423,10 +423,8 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case EXTERNAL_INTERNALIZED_STRING_TYPE:
     case ONE_BYTE_INTERNALIZED_STRING_TYPE:
     case EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE:
-    case EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE:
     case UNCACHED_EXTERNAL_INTERNALIZED_STRING_TYPE:
     case UNCACHED_EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE:
-    case UNCACHED_EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE:
     case STRING_TYPE:
     case CONS_STRING_TYPE:
     case EXTERNAL_STRING_TYPE:
@@ -437,10 +435,8 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case EXTERNAL_ONE_BYTE_STRING_TYPE:
     case SLICED_ONE_BYTE_STRING_TYPE:
     case THIN_ONE_BYTE_STRING_TYPE:
-    case EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE:
     case UNCACHED_EXTERNAL_STRING_TYPE:
     case UNCACHED_EXTERNAL_ONE_BYTE_STRING_TYPE:
-    case UNCACHED_EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE:
     case SMALL_ORDERED_HASH_MAP_TYPE:
     case SMALL_ORDERED_HASH_SET_TYPE:
     case SMALL_ORDERED_NAME_DICTIONARY_TYPE:
@@ -1196,7 +1192,7 @@ void JSMessageObject::JSMessageObjectPrint(std::ostream& os) {  // NOLINT
 
 
 void String::StringPrint(std::ostream& os) {  // NOLINT
-  if (!HasOnlyOneByteChars()) {
+  if (!IsOneByteRepresentation()) {
     os << "u";
   }
   if (StringShape(*this).IsInternalized()) {

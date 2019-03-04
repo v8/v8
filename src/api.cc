@@ -5153,7 +5153,7 @@ int String::Length() const {
 
 bool String::IsOneByte() const {
   i::Handle<i::String> str = Utils::OpenHandle(this);
-  return str->HasOnlyOneByteChars();
+  return str->IsOneByteRepresentation();
 }
 
 
@@ -5266,7 +5266,7 @@ class ContainsOnlyOneByteHelper {
 
 bool String::ContainsOnlyOneByte() const {
   i::Handle<i::String> str = Utils::OpenHandle(this);
-  if (str->HasOnlyOneByteChars()) return true;
+  if (str->IsOneByteRepresentation()) return true;
   ContainsOnlyOneByteHelper helper;
   return helper.Check(*str);
 }

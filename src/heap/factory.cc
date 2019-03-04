@@ -991,14 +991,10 @@ MaybeHandle<Map> GetInternalizedStringMap(Factory* f, Handle<String> string) {
       return f->external_internalized_string_map();
     case EXTERNAL_ONE_BYTE_STRING_TYPE:
       return f->external_one_byte_internalized_string_map();
-    case EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE:
-      return f->external_internalized_string_with_one_byte_data_map();
     case UNCACHED_EXTERNAL_STRING_TYPE:
       return f->uncached_external_internalized_string_map();
     case UNCACHED_EXTERNAL_ONE_BYTE_STRING_TYPE:
       return f->uncached_external_one_byte_internalized_string_map();
-    case UNCACHED_EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE:
-      return f->uncached_external_internalized_string_with_one_byte_data_map();
     default:
       return MaybeHandle<Map>();  // No match found.
   }
@@ -1176,17 +1172,6 @@ MaybeHandle<String> Factory::NewConsString(Handle<String> left,
   bool left_is_one_byte = left->IsOneByteRepresentation();
   bool right_is_one_byte = right->IsOneByteRepresentation();
   bool is_one_byte = left_is_one_byte && right_is_one_byte;
-  bool is_one_byte_data_in_two_byte_string = false;
-  if (!is_one_byte) {
-    // At least one of the strings uses two-byte representation so we
-    // can't use the fast case code for uncached one-byte strings below, but
-    // we can try to save memory if all chars actually fit in one-byte.
-    is_one_byte_data_in_two_byte_string =
-        left->HasOnlyOneByteChars() && right->HasOnlyOneByteChars();
-    if (is_one_byte_data_in_two_byte_string) {
-      isolate()->counters()->string_add_runtime_ext_to_one_byte()->Increment();
-    }
-  }
 
   // If the resulting string is small make a flat string.
   if (length < ConsString::kMinLength) {
@@ -1215,16 +1200,11 @@ MaybeHandle<String> Factory::NewConsString(Handle<String> left,
       return result;
     }
 
-    return (is_one_byte_data_in_two_byte_string)
-               ? ConcatStringContent<uint8_t>(
-                     NewRawOneByteString(length).ToHandleChecked(), left, right)
-               : ConcatStringContent<uc16>(
-                     NewRawTwoByteString(length).ToHandleChecked(), left,
-                     right);
+    return ConcatStringContent<uc16>(
+        NewRawTwoByteString(length).ToHandleChecked(), left, right);
   }
 
-  bool one_byte = (is_one_byte || is_one_byte_data_in_two_byte_string);
-  return NewConsString(left, right, length, one_byte);
+  return NewConsString(left, right, length, is_one_byte);
 }
 
 Handle<String> Factory::NewConsString(Handle<String> left, Handle<String> right,
@@ -1339,12 +1319,9 @@ MaybeHandle<String> Factory::NewExternalStringFromOneByte(
   }
   if (length == 0) return empty_string();
 
-  Handle<Map> map;
-  if (!resource->IsCacheable()) {
-    map = uncached_external_one_byte_string_map();
-  } else {
-    map = external_one_byte_string_map();
-  }
+  Handle<Map> map = resource->IsCacheable()
+                        ? external_one_byte_string_map()
+                        : uncached_external_one_byte_string_map();
   Handle<ExternalOneByteString> external_string(
       ExternalOneByteString::cast(New(map, TENURED)), isolate());
   external_string->set_length(static_cast<int>(length));
@@ -1363,20 +1340,8 @@ MaybeHandle<String> Factory::NewExternalStringFromTwoByte(
   }
   if (length == 0) return empty_string();
 
-  // For small strings we check whether the resource contains only
-  // one byte characters.  If yes, we use a different string map.
-  static const size_t kOneByteCheckLengthLimit = 32;
-  bool is_one_byte =
-      length <= kOneByteCheckLengthLimit &&
-      String::IsOneByte(resource->data(), static_cast<int>(length));
-  Handle<Map> map;
-  if (!resource->IsCacheable()) {
-    map = is_one_byte ? uncached_external_string_with_one_byte_data_map()
-                      : uncached_external_string_map();
-  } else {
-    map = is_one_byte ? external_string_with_one_byte_data_map()
-                      : external_string_map();
-  }
+  Handle<Map> map = resource->IsCacheable() ? external_string_map()
+                                            : uncached_external_string_map();
   Handle<ExternalTwoByteString> external_string(
       ExternalTwoByteString::cast(New(map, TENURED)), isolate());
   external_string->set_length(static_cast<int>(length));

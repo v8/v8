@@ -1429,7 +1429,6 @@ class RuntimeCallTimerScope {
   SC(fast_new_closure_total, V8.FastNewClosureTotal)                           \
   SC(string_add_runtime, V8.StringAddRuntime)                                  \
   SC(string_add_native, V8.StringAddNative)                                    \
-  SC(string_add_runtime_ext_to_one_byte, V8.StringAddRuntimeExtToOneByte)      \
   SC(sub_string_runtime, V8.SubStringRuntime)                                  \
   SC(sub_string_native, V8.SubStringNative)                                    \
   SC(regexp_entry_runtime, V8.RegExpEntryRuntime)                              \

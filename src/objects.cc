@@ -4588,7 +4588,7 @@ void IteratingStringHasher::VisitConsString(ConsString cons_string) {
   // Slow case.
   const int max_length = String::kMaxHashCalcLength;
   int length = std::min(cons_string->length(), max_length);
-  if (cons_string->HasOnlyOneByteChars()) {
+  if (cons_string->IsOneByteRepresentation()) {
     uint8_t* buffer = new uint8_t[length];
     String::WriteToFlat(cons_string, buffer, 0, length);
     AddCharacters(buffer, length);
@@ -6889,7 +6889,7 @@ class StringTableNoAllocateKey : public StringTableKey {
   StringTableNoAllocateKey(String string, uint64_t seed)
       : StringTableKey(0), string_(string) {
     StringShape shape(string);
-    one_byte_ = shape.HasOnlyOneByteChars();
+    one_byte_ = shape.encoding_tag() == kOneByteStringTag;
     DCHECK(!shape.IsInternalized());
     DCHECK(!shape.IsThin());
     int length = string->length();

@@ -43,10 +43,8 @@ namespace internal {
   V(EXTERNAL_INTERNALIZED_STRING_TYPE)                             \
   V(ONE_BYTE_INTERNALIZED_STRING_TYPE)                             \
   V(EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE)                    \
-  V(EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE)          \
   V(UNCACHED_EXTERNAL_INTERNALIZED_STRING_TYPE)                    \
   V(UNCACHED_EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE)           \
-  V(UNCACHED_EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE) \
   V(STRING_TYPE)                                                   \
   V(CONS_STRING_TYPE)                                              \
   V(EXTERNAL_STRING_TYPE)                                          \
@@ -57,10 +55,8 @@ namespace internal {
   V(EXTERNAL_ONE_BYTE_STRING_TYPE)                                 \
   V(SLICED_ONE_BYTE_STRING_TYPE)                                   \
   V(THIN_ONE_BYTE_STRING_TYPE)                                     \
-  V(EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE)                       \
   V(UNCACHED_EXTERNAL_STRING_TYPE)                                 \
   V(UNCACHED_EXTERNAL_ONE_BYTE_STRING_TYPE)                        \
-  V(UNCACHED_EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE)              \
                                                                    \
   V(SYMBOL_TYPE)                                                   \
   V(HEAP_NUMBER_TYPE)                                              \
@@ -265,17 +261,11 @@ namespace internal {
     ExternalString)                                                            \
   V(EXTERNAL_ONE_BYTE_STRING_TYPE, ExternalOneByteString::kSize,               \
     external_one_byte_string, ExternalOneByteString)                           \
-  V(EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE, ExternalTwoByteString::kSize,     \
-    external_string_with_one_byte_data, ExternalStringWithOneByteData)         \
   V(UNCACHED_EXTERNAL_STRING_TYPE, ExternalTwoByteString::kUncachedSize,       \
     uncached_external_string, UncachedExternalString)                          \
   V(UNCACHED_EXTERNAL_ONE_BYTE_STRING_TYPE,                                    \
     ExternalOneByteString::kUncachedSize, uncached_external_one_byte_string,   \
     UncachedExternalOneByteString)                                             \
-  V(UNCACHED_EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE,                          \
-    ExternalTwoByteString::kUncachedSize,                                      \
-    uncached_external_string_with_one_byte_data,                               \
-    UncachedExternalStringWithOneByteData)                                     \
                                                                                \
   V(INTERNALIZED_STRING_TYPE, kVariableSizeSentinel, internalized_string,      \
     InternalizedString)                                                        \
@@ -285,10 +275,6 @@ namespace internal {
     external_internalized_string, ExternalInternalizedString)                  \
   V(EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE, ExternalOneByteString::kSize,  \
     external_one_byte_internalized_string, ExternalOneByteInternalizedString)  \
-  V(EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE,                      \
-    ExternalTwoByteString::kSize,                                              \
-    external_internalized_string_with_one_byte_data,                           \
-    ExternalInternalizedStringWithOneByteData)                                 \
   V(UNCACHED_EXTERNAL_INTERNALIZED_STRING_TYPE,                                \
     ExternalTwoByteString::kUncachedSize,                                      \
     uncached_external_internalized_string, UncachedExternalInternalizedString) \
@@ -296,10 +282,6 @@ namespace internal {
     ExternalOneByteString::kUncachedSize,                                      \
     uncached_external_one_byte_internalized_string,                            \
     UncachedExternalOneByteInternalizedString)                                 \
-  V(UNCACHED_EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE,             \
-    ExternalTwoByteString::kUncachedSize,                                      \
-    uncached_external_internalized_string_with_one_byte_data,                  \
-    UncachedExternalInternalizedStringWithOneByteData)                         \
   V(THIN_STRING_TYPE, ThinString::kSize, thin_string, ThinString)              \
   V(THIN_ONE_BYTE_STRING_TYPE, ThinString::kSize, thin_one_byte_string,        \
     ThinOneByteString)

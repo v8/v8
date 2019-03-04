@@ -3315,53 +3315,18 @@ TNode<String> CodeStubAssembler::AllocateConsString(TNode<Uint32T> length,
   Node* left_instance_type = LoadInstanceType(left);
   Node* right_instance_type = LoadInstanceType(right);
 
-  // Compute intersection and difference of instance types.
-  Node* anded_instance_types =
-      Word32And(left_instance_type, right_instance_type);
-  Node* xored_instance_types =
-      Word32Xor(left_instance_type, right_instance_type);
-
-  // We create a one-byte cons string if
-  // 1. both strings are one-byte, or
-  // 2. at least one of the strings is two-byte, but happens to contain only
-  //    one-byte characters.
-  // To do this, we check
-  // 1. if both strings are one-byte, or if the one-byte data hint is set in
-  //    both strings, or
-  // 2. if one of the strings has the one-byte data hint set and the other
-  //    string is one-byte.
+  // Determine the resulting ConsString map to use depending on whether
+  // any of {left} or {right} has two byte encoding.
   STATIC_ASSERT(kOneByteStringTag != 0);
-  STATIC_ASSERT(kOneByteDataHintTag != 0);
-  Label one_byte_map(this);
-  Label two_byte_map(this);
-  TVARIABLE(Map, result_map);
-  Label done(this, &result_map);
-  GotoIf(IsSetWord32(anded_instance_types,
-                     kStringEncodingMask | kOneByteDataHintTag),
-         &one_byte_map);
-  Branch(Word32NotEqual(Word32And(xored_instance_types,
-                                  Int32Constant(kStringEncodingMask |
-                                                kOneByteDataHintMask)),
-                        Int32Constant(kOneByteStringTag | kOneByteDataHintTag)),
-         &two_byte_map, &one_byte_map);
-
-  BIND(&one_byte_map);
-  {
-    Comment("One-byte ConsString");
-    result_map = CAST(LoadRoot(RootIndex::kConsOneByteStringMap));
-    Goto(&done);
-  }
-
-  BIND(&two_byte_map);
-  {
-    Comment("Two-byte ConsString");
-    result_map = CAST(LoadRoot(RootIndex::kConsStringMap));
-    Goto(&done);
-  }
-
-  BIND(&done);
+  STATIC_ASSERT(kTwoByteStringTag == 0);
+  Node* combined_instance_type =
+      Word32And(left_instance_type, right_instance_type);
+  TNode<Map> result_map = CAST(Select<Object>(
+      IsSetWord32(combined_instance_type, kStringEncodingMask),
+      [=] { return LoadRoot(RootIndex::kConsOneByteStringMap); },
+      [=] { return LoadRoot(RootIndex::kConsStringMap); }));
   Node* result = AllocateInNewSpace(ConsString::kSize);
-  StoreMapNoWriteBarrier(result, result_map.value());
+  StoreMapNoWriteBarrier(result, result_map);
   StoreObjectFieldNoWriteBarrier(result, ConsString::kLengthOffset, length,
                                  MachineRepresentation::kWord32);
   StoreObjectFieldNoWriteBarrier(result, ConsString::kHashFieldOffset,
@@ -6083,12 +6048,6 @@ TNode<BoolT> CodeStubAssembler::IsOneByteStringInstanceType(
   return Word32Equal(
       Word32And(instance_type, Int32Constant(kStringEncodingMask)),
       Int32Constant(kOneByteStringTag));
-}
-
-TNode<BoolT> CodeStubAssembler::HasOnlyOneByteChars(
-    TNode<Int32T> instance_type) {
-  CSA_ASSERT(this, IsStringInstanceType(instance_type));
-  return IsSetWord32(instance_type, kStringEncodingMask | kOneByteDataHintMask);
 }
 
 TNode<BoolT> CodeStubAssembler::IsSequentialStringInstanceType(
