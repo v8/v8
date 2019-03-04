@@ -285,13 +285,13 @@ void DeclarationVisitor::Visit(ClassDeclaration* decl) {
       const ClassType* super_class = ClassType::DynamicCast(super_type);
       if (!super_class) {
         ReportError(
-            "class \"", decl->name,
+            "class \"", decl->name->value,
             "\" must extend either Tagged or an already declared class");
       }
     }
 
     // The generates clause must create a TNode<>
-    std::string generates = decl->name;
+    std::string generates = decl->name->value;
     if (decl->generates) {
       generates = *decl->generates;
       if (generates.length() < 7 || generates.substr(0, 6) != "TNode<" ||
@@ -315,7 +315,7 @@ void DeclarationVisitor::Visit(ClassDeclaration* decl) {
                                            decl->name, decl->is_extern,
                                            decl->transient, "FixedArray");
   }
-  GlobalContext::RegisterClass(decl->name, new_class);
+  GlobalContext::RegisterClass(decl->name->value, new_class);
   class_declarations_.push_back(
       std::make_tuple(CurrentScope::Get(), decl, new_class));
 }
@@ -342,7 +342,12 @@ void DeclarationVisitor::Visit(TypeDeclaration* decl) {
     if (decl->transient) {
       ReportError("cannot declare a transient type that is also constexpr");
     }
-    std::string constexpr_name = CONSTEXPR_TYPE_PREFIX + decl->name;
+    // DeclareAbstractType expects an Identifier*. A new one is created from the
+    // declaration, and the SourcePosition copied from the original name.
+    Identifier* constexpr_name =
+        MakeNode<Identifier>(CONSTEXPR_TYPE_PREFIX + decl->name->value);
+    constexpr_name->pos = decl->name->pos;
+
     base::Optional<std::string> constexpr_extends;
     if (decl->extends)
       constexpr_extends = CONSTEXPR_TYPE_PREFIX + *decl->extends;
@@ -365,7 +370,7 @@ void DeclarationVisitor::DeclareSpecializedTypes(const SpecializationKey& key) {
   }
 
   for (auto type : key.specialized_types) {
-    std::string generic_type_name =
+    Identifier* generic_type_name =
         key.generic->declaration()->generic_parameters[i++];
     Declarations::DeclareType(generic_type_name, type, true);
   }

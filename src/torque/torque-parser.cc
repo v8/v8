@@ -15,7 +15,7 @@ namespace torque {
 DEFINE_CONTEXTUAL_VARIABLE(CurrentAst)
 
 using TypeList = std::vector<TypeExpression*>;
-using GenericParameters = std::vector<std::string>;
+using GenericParameters = std::vector<Identifier*>;
 
 struct ExpressionWithSource {
   Expression* expression;
@@ -162,6 +162,10 @@ template <>
 V8_EXPORT_PRIVATE const ParseResultTypeId
     ParseResultHolder<std::vector<TypeswitchCase>>::id =
         ParseResultTypeId::kStdVectorOfTypeswitchCase;
+template <>
+V8_EXPORT_PRIVATE const ParseResultTypeId
+    ParseResultHolder<std::vector<Identifier*>>::id =
+        ParseResultTypeId::kStdVectorOfIdentifierPtr;
 
 namespace {
 
@@ -173,9 +177,10 @@ base::Optional<ParseResult> AddGlobalDeclaration(
 }
 
 void LintGenericParameters(const GenericParameters& parameters) {
-  for (const std::string& parameter : parameters) {
-    if (!IsUpperCamelCase(parameter)) {
-      NamingConventionError("Generic parameter", parameter, "UpperCamelCase");
+  for (const Identifier* parameter : parameters) {
+    if (!IsUpperCamelCase(parameter->value)) {
+      NamingConventionError("Generic parameter", parameter->value,
+                            "UpperCamelCase");
     }
   }
 }
@@ -503,25 +508,25 @@ base::Optional<ParseResult> MakeExternConstDeclaration(
 
 base::Optional<ParseResult> MakeTypeAliasDeclaration(
     ParseResultIterator* child_results) {
-  auto name = child_results->NextAs<std::string>();
+  auto name = child_results->NextAs<Identifier*>();
   auto type = child_results->NextAs<TypeExpression*>();
-  Declaration* result = MakeNode<TypeAliasDeclaration>(std::move(name), type);
+  Declaration* result = MakeNode<TypeAliasDeclaration>(name, type);
   return ParseResult{result};
 }
 
 base::Optional<ParseResult> MakeTypeDeclaration(
     ParseResultIterator* child_results) {
   auto transient = child_results->NextAs<bool>();
-  auto name = child_results->NextAs<std::string>();
-  if (!IsValidTypeName(name)) {
-    NamingConventionError("Type", name, "UpperCamelCase");
+  auto name = child_results->NextAs<Identifier*>();
+  if (!IsValidTypeName(name->value)) {
+    NamingConventionError("Type", name->value, "UpperCamelCase");
   }
   auto extends = child_results->NextAs<base::Optional<std::string>>();
   auto generates = child_results->NextAs<base::Optional<std::string>>();
   auto constexpr_generates =
       child_results->NextAs<base::Optional<std::string>>();
   Declaration* result = MakeNode<TypeDeclaration>(
-      std::move(name), transient, std::move(extends), std::move(generates),
+      name, transient, std::move(extends), std::move(generates),
       std::move(constexpr_generates));
   return ParseResult{result};
 }
@@ -549,17 +554,17 @@ base::Optional<ParseResult> MakeClassDeclaration(
     ParseResultIterator* child_results) {
   auto is_extern = child_results->NextAs<bool>();
   auto transient = child_results->NextAs<bool>();
-  auto name = child_results->NextAs<std::string>();
-  if (!IsValidTypeName(name)) {
-    NamingConventionError("Type", name, "UpperCamelCase");
+  auto name = child_results->NextAs<Identifier*>();
+  if (!IsValidTypeName(name->value)) {
+    NamingConventionError("Type", name->value, "UpperCamelCase");
   }
   auto extends = child_results->NextAs<base::Optional<std::string>>();
   auto generates = child_results->NextAs<base::Optional<std::string>>();
   auto methods = child_results->NextAs<std::vector<Declaration*>>();
   auto fields = child_results->NextAs<std::vector<ClassFieldExpression>>();
   Declaration* result = MakeNode<ClassDeclaration>(
-      std::move(name), is_extern, transient, std::move(extends),
-      std::move(generates), std::move(methods), fields);
+      name, is_extern, transient, std::move(extends), std::move(generates),
+      std::move(methods), fields);
   return ParseResult{result};
 }
 
@@ -593,11 +598,11 @@ base::Optional<ParseResult> MakeSpecializationDeclaration(
 
 base::Optional<ParseResult> MakeStructDeclaration(
     ParseResultIterator* child_results) {
-  auto name = child_results->NextAs<std::string>();
+  auto name = child_results->NextAs<Identifier*>();
   auto methods = child_results->NextAs<std::vector<Declaration*>>();
   auto fields = child_results->NextAs<std::vector<StructFieldExpression>>();
-  Declaration* result = MakeNode<StructDeclaration>(
-      std::move(name), std::move(methods), std::move(fields));
+  Declaration* result =
+      MakeNode<StructDeclaration>(name, std::move(methods), std::move(fields));
   return ParseResult{result};
 }
 
@@ -1248,8 +1253,8 @@ struct TorqueGrammar : Grammar {
   // Result: GenericParameters
   Symbol genericParameters = {
       Rule({Token("<"),
-            List<std::string>(
-                Sequence({&identifier, Token(":"), Token("type")}), Token(",")),
+            List<Identifier*>(Sequence({&name, Token(":"), Token("type")}),
+                              Token(",")),
             Token(">")})};
 
   // Result: TypeList
@@ -1590,18 +1595,17 @@ struct TorqueGrammar : Grammar {
             &externalString, Token(";")},
            MakeExternConstDeclaration),
       Rule({CheckIf(Token("extern")), CheckIf(Token("transient")),
-            Token("class"), &identifier,
+            Token("class"), &name,
             Optional<std::string>(Sequence({Token("extends"), &identifier})),
             Optional<std::string>(
                 Sequence({Token("generates"), &externalString})),
             Token("{"), List<Declaration*>(&method),
             List<ClassFieldExpression>(&classField), Token("}")},
            MakeClassDeclaration),
-      Rule({Token("struct"), &identifier, Token("{"),
-            List<Declaration*>(&method),
+      Rule({Token("struct"), &name, Token("{"), List<Declaration*>(&method),
             List<StructFieldExpression>(&structField), Token("}")},
            MakeStructDeclaration),
-      Rule({CheckIf(Token("transient")), Token("type"), &identifier,
+      Rule({CheckIf(Token("transient")), Token("type"), &name,
             Optional<std::string>(Sequence({Token("extends"), &identifier})),
             Optional<std::string>(
                 Sequence({Token("generates"), &externalString})),
@@ -1609,7 +1613,7 @@ struct TorqueGrammar : Grammar {
                 Sequence({Token("constexpr"), &externalString})),
             Token(";")},
            MakeTypeDeclaration),
-      Rule({Token("type"), &identifier, Token("="), &type, Token(";")},
+      Rule({Token("type"), &name, Token("="), &type, Token(";")},
            MakeTypeAliasDeclaration),
       Rule({Token("intrinsic"), &intrinsicName,
             TryOrDefault<GenericParameters>(&genericParameters),

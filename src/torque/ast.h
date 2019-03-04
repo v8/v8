@@ -666,17 +666,17 @@ struct BlockStatement : Statement {
 
 struct TypeDeclaration : Declaration {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(TypeDeclaration)
-  TypeDeclaration(SourcePosition pos, std::string name, bool transient,
+  TypeDeclaration(SourcePosition pos, Identifier* name, bool transient,
                   base::Optional<std::string> extends,
                   base::Optional<std::string> generates,
                   base::Optional<std::string> constexpr_generates)
       : Declaration(kKind, pos),
-        name(std::move(name)),
+        name(name),
         transient(transient),
         extends(std::move(extends)),
         generates(std::move(generates)),
         constexpr_generates(std::move(constexpr_generates)) {}
-  std::string name;
+  Identifier* name;
   bool transient;
   base::Optional<std::string> extends;
   base::Optional<std::string> generates;
@@ -685,10 +685,10 @@ struct TypeDeclaration : Declaration {
 
 struct TypeAliasDeclaration : Declaration {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(TypeAliasDeclaration)
-  TypeAliasDeclaration(SourcePosition pos, std::string name,
+  TypeAliasDeclaration(SourcePosition pos, Identifier* name,
                        TypeExpression* type)
-      : Declaration(kKind, pos), name(std::move(name)), type(type) {}
-  std::string name;
+      : Declaration(kKind, pos), name(name), type(type) {}
+  Identifier* name;
   TypeExpression* type;
 };
 
@@ -848,14 +848,14 @@ struct StandardDeclaration : Declaration {
 struct GenericDeclaration : Declaration {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(GenericDeclaration)
   GenericDeclaration(SourcePosition pos, CallableNode* callable,
-                     std::vector<std::string> generic_parameters,
+                     std::vector<Identifier*> generic_parameters,
                      base::Optional<Statement*> body = base::nullopt)
       : Declaration(kKind, pos),
         callable(callable),
         generic_parameters(std::move(generic_parameters)),
         body(body) {}
   CallableNode* callable;
-  std::vector<std::string> generic_parameters;
+  std::vector<Identifier*> generic_parameters;
   base::Optional<Statement*> body;
 };
 
@@ -895,34 +895,34 @@ struct ExternConstDeclaration : Declaration {
 
 struct StructDeclaration : Declaration {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(StructDeclaration)
-  StructDeclaration(SourcePosition pos, std::string name,
+  StructDeclaration(SourcePosition pos, Identifier* name,
                     std::vector<Declaration*> methods,
                     std::vector<StructFieldExpression> fields)
       : Declaration(kKind, pos),
-        name(std::move(name)),
+        name(name),
         methods(std::move(methods)),
         fields(std::move(fields)) {}
-  std::string name;
+  Identifier* name;
   std::vector<Declaration*> methods;
   std::vector<StructFieldExpression> fields;
 };
 
 struct ClassDeclaration : Declaration {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(ClassDeclaration)
-  ClassDeclaration(SourcePosition pos, std::string name, bool is_extern,
+  ClassDeclaration(SourcePosition pos, Identifier* name, bool is_extern,
                    bool transient, base::Optional<std::string> super,
                    base::Optional<std::string> generates,
                    std::vector<Declaration*> methods,
                    std::vector<ClassFieldExpression> fields)
       : Declaration(kKind, pos),
-        name(std::move(name)),
+        name(name),
         is_extern(is_extern),
         transient(transient),
         super(std::move(super)),
         generates(std::move(generates)),
         methods(std::move(methods)),
         fields(std::move(fields)) {}
-  std::string name;
+  Identifier* name;
   bool is_extern;
   bool transient;
   base::Optional<std::string> super;

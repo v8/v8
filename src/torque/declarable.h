@@ -396,7 +396,7 @@ class Generic : public Declarable {
   DECLARE_DECLARABLE_BOILERPLATE(Generic, generic)
 
   GenericDeclaration* declaration() const { return declaration_; }
-  const std::vector<std::string> generic_parameters() const {
+  const std::vector<Identifier*> generic_parameters() const {
     return declaration()->generic_parameters;
   }
   const std::string& name() const { return name_; }
@@ -441,16 +441,23 @@ class TypeAlias : public Declarable {
 
   const Type* type() const { return type_; }
   bool IsRedeclaration() const { return redeclaration_; }
+  SourcePosition GetDeclarationPosition() const {
+    return declaration_position_;
+  }
 
  private:
   friend class Declarations;
-  explicit TypeAlias(const Type* type, bool redeclaration)
+  explicit TypeAlias(
+      const Type* type, bool redeclaration,
+      SourcePosition declaration_position = SourcePosition::Invalid())
       : Declarable(Declarable::kTypeAlias),
         type_(type),
-        redeclaration_(redeclaration) {}
+        redeclaration_(redeclaration),
+        declaration_position_(declaration_position) {}
 
   const Type* type_;
   bool redeclaration_;
+  const SourcePosition declaration_position_;
 };
 
 std::ostream& operator<<(std::ostream& os, const Callable& m);

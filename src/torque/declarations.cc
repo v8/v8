@@ -5,6 +5,7 @@
 #include "src/torque/declarations.h"
 #include "src/torque/declarable.h"
 #include "src/torque/global-context.h"
+#include "src/torque/server-data.h"
 #include "src/torque/type-oracle.h"
 
 namespace v8 {
@@ -59,10 +60,14 @@ std::vector<Declarable*> Declarations::LookupGlobalScope(
   return d;
 }
 
-const Type* Declarations::LookupType(const QualifiedName& name) {
+const TypeAlias* Declarations::LookupTypeAlias(const QualifiedName& name) {
   TypeAlias* declaration =
       EnsureUnique(FilterDeclarables<TypeAlias>(Lookup(name)), name, "type");
-  return declaration->type();
+  return declaration;
+}
+
+const Type* Declarations::LookupType(const QualifiedName& name) {
+  return LookupTypeAlias(name)->type();
 }
 
 const Type* Declarations::LookupType(std::string name) {
@@ -79,7 +84,13 @@ const Type* Declarations::GetType(TypeExpression* type_expression) {
   if (auto* basic = BasicTypeExpression::DynamicCast(type_expression)) {
     std::string name =
         (basic->is_constexpr ? CONSTEXPR_TYPE_PREFIX : "") + basic->name;
-    return LookupType(QualifiedName{basic->namespace_qualification, name});
+    const TypeAlias* alias =
+        LookupTypeAlias(QualifiedName{basic->namespace_qualification, name});
+    if (GlobalContext::collect_language_server_data()) {
+      LanguageServerData::AddDefinition(type_expression->pos,
+                                        alias->GetDeclarationPosition());
+    }
+    return alias->type();
   } else if (auto* union_type = UnionTypeExpression::cast(type_expression)) {
     return TypeOracle::GetUnionType(GetType(union_type->a),
                                     GetType(union_type->b));
@@ -147,10 +158,10 @@ Namespace* Declarations::DeclareNamespace(const std::string& name) {
 }
 
 const AbstractType* Declarations::DeclareAbstractType(
-    const std::string& name, bool transient, std::string generated,
+    const Identifier* name, bool transient, std::string generated,
     base::Optional<const AbstractType*> non_constexpr_version,
     const base::Optional<std::string>& parent) {
-  CheckAlreadyDeclared<TypeAlias>(name, "type");
+  CheckAlreadyDeclared<TypeAlias>(name->value, "type");
   const Type* parent_type = nullptr;
   if (parent) {
     parent_type = LookupType(QualifiedName{*parent});
@@ -159,29 +170,30 @@ const AbstractType* Declarations::DeclareAbstractType(
     generated = parent_type->GetGeneratedTNodeTypeName();
   }
   const AbstractType* type = TypeOracle::GetAbstractType(
-      parent_type, name, transient, generated, non_constexpr_version);
+      parent_type, name->value, transient, generated, non_constexpr_version);
   DeclareType(name, type, false);
   return type;
 }
 
-void Declarations::DeclareType(const std::string& name, const Type* type,
+void Declarations::DeclareType(const Identifier* name, const Type* type,
                                bool redeclaration) {
-  CheckAlreadyDeclared<TypeAlias>(name, "type");
-  Declare(name, std::unique_ptr<TypeAlias>(new TypeAlias(type, redeclaration)));
+  CheckAlreadyDeclared<TypeAlias>(name->value, "type");
+  Declare(name->value, std::unique_ptr<TypeAlias>(
+                           new TypeAlias(type, redeclaration, name->pos)));
 }
 
-StructType* Declarations::DeclareStruct(const std::string& name) {
-  StructType* new_type = TypeOracle::GetStructType(name);
+StructType* Declarations::DeclareStruct(const Identifier* name) {
+  StructType* new_type = TypeOracle::GetStructType(name->value);
   DeclareType(name, new_type, false);
   return new_type;
 }
 
 ClassType* Declarations::DeclareClass(const Type* super_type,
-                                      const std::string& name, bool is_extern,
+                                      const Identifier* name, bool is_extern,
                                       bool transient,
                                       const std::string& generates) {
-  ClassType* new_type = TypeOracle::GetClassType(super_type, name, is_extern,
-                                                 transient, generates);
+  ClassType* new_type = TypeOracle::GetClassType(
+      super_type, name->value, is_extern, transient, generates);
   DeclareType(name, new_type, false);
   return new_type;
 }

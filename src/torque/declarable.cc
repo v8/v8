@@ -56,7 +56,9 @@ std::ostream& operator<<(std::ostream& os, const RuntimeFunction& b) {
 
 std::ostream& operator<<(std::ostream& os, const Generic& g) {
   os << "generic " << g.name() << "<";
-  PrintCommaSeparatedList(os, g.declaration()->generic_parameters);
+  PrintCommaSeparatedList(
+      os, g.declaration()->generic_parameters,
+      [](const Identifier* identifier) { return identifier->value; });
   os << ">";
 
   return os;
@@ -64,7 +66,7 @@ std::ostream& operator<<(std::ostream& os, const Generic& g) {
 
 base::Optional<const Type*> Generic::InferTypeArgument(
     size_t i, const TypeVector& arguments) {
-  const std::string type_name = declaration()->generic_parameters[i];
+  const std::string type_name = declaration()->generic_parameters[i]->value;
   const std::vector<TypeExpression*>& parameters =
       declaration()->callable->signature->parameters.types;
   size_t j = declaration()->callable->signature->parameters.implicit_count;

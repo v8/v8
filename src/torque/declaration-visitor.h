@@ -52,7 +52,7 @@ class DeclarationVisitor : public FileVisitor {
 
   void Visit(TypeAliasDeclaration* decl) {
     const Type* type = Declarations::GetType(decl->type);
-    type->AddAlias(decl->name);
+    type->AddAlias(decl->name->value);
     Declarations::DeclareType(decl->name, type, true);
   }
 
