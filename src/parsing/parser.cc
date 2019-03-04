@@ -1173,7 +1173,7 @@ Statement* Parser::ParseExportDefault() {
       SetFunctionName(value, ast_value_factory()->default_string());
 
       const AstRawString* local_name =
-          ast_value_factory()->star_default_star_string();
+          ast_value_factory()->dot_default_string();
       local_names.Add(local_name, zone());
 
       // It's fine to declare this as VariableMode::kConst because the user has

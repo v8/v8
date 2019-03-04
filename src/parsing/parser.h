@@ -622,11 +622,10 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     return arg == nullptr || literal->AsRawString() == arg;
   }
 
-  V8_INLINE void GetDefaultStrings(
-      const AstRawString** default_string,
-      const AstRawString** star_default_star_string) {
+  V8_INLINE void GetDefaultStrings(const AstRawString** default_string,
+                                   const AstRawString** dot_default_string) {
     *default_string = ast_value_factory()->default_string();
-    *star_default_star_string = ast_value_factory()->star_default_star_string();
+    *dot_default_string = ast_value_factory()->dot_default_string();
   }
 
   // Functions for encapsulating the differences between parsing and preparsing;

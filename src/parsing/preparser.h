@@ -1360,7 +1360,7 @@ class PreParser : public ParserBase<PreParser> {
 
   V8_INLINE static void GetDefaultStrings(
       PreParserIdentifier* default_string,
-      PreParserIdentifier* star_default_star_string) {}
+      PreParserIdentifier* dot_default_string) {}
 
   // Functions for encapsulating the differences between parsing and preparsing;
   // operations interleaved with the recursive descent.

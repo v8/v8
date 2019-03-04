@@ -137,6 +137,7 @@
   V(_, display_name_string, "displayName")                            \
   V(_, done_string, "done")                                           \
   V(_, dot_catch_string, ".catch")                                    \
+  V(_, dot_default_string, ".default")                                \
   V(_, dot_for_string, ".for")                                        \
   V(_, dot_generator_object_string, ".generator_object")              \
   V(_, dot_iterator_string, ".iterator")                              \
@@ -258,7 +259,6 @@
   V(_, sourceText_string, "sourceText")                               \
   V(_, stack_string, "stack")                                         \
   V(_, stackTraceLimit_string, "stackTraceLimit")                     \
-  V(_, star_default_star_string, "*default*")                         \
   V(_, sticky_string, "sticky")                                       \
   V(_, String_string, "String")                                       \
   V(_, string_string, "string")                                       \
