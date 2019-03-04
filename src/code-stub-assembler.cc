@@ -3307,52 +3307,9 @@ TNode<String> CodeStubAssembler::AllocateSlicedTwoByteString(
                               offset);
 }
 
-TNode<String> CodeStubAssembler::AllocateConsString(RootIndex map_root_index,
-                                                    TNode<Uint32T> length,
-                                                    TNode<String> first,
-                                                    TNode<String> second,
-                                                    AllocationFlags flags) {
-  DCHECK(map_root_index == RootIndex::kConsOneByteStringMap ||
-         map_root_index == RootIndex::kConsStringMap);
-  Node* result = Allocate(ConsString::kSize, flags);
-  DCHECK(RootsTable::IsImmortalImmovable(map_root_index));
-  StoreMapNoWriteBarrier(result, map_root_index);
-  StoreObjectFieldNoWriteBarrier(result, ConsString::kLengthOffset, length,
-                                 MachineRepresentation::kWord32);
-  StoreObjectFieldNoWriteBarrier(result, ConsString::kHashFieldOffset,
-                                 Int32Constant(String::kEmptyHashField),
-                                 MachineRepresentation::kWord32);
-  bool const new_space = !(flags & kPretenured);
-  if (new_space) {
-    StoreObjectFieldNoWriteBarrier(result, ConsString::kFirstOffset, first,
-                                   MachineRepresentation::kTagged);
-    StoreObjectFieldNoWriteBarrier(result, ConsString::kSecondOffset, second,
-                                   MachineRepresentation::kTagged);
-  } else {
-    StoreObjectField(result, ConsString::kFirstOffset, first);
-    StoreObjectField(result, ConsString::kSecondOffset, second);
-  }
-  return CAST(result);
-}
-
-TNode<String> CodeStubAssembler::AllocateOneByteConsString(
-    TNode<Uint32T> length, TNode<String> first, TNode<String> second,
-    AllocationFlags flags) {
-  return AllocateConsString(RootIndex::kConsOneByteStringMap, length, first,
-                            second, flags);
-}
-
-TNode<String> CodeStubAssembler::AllocateTwoByteConsString(
-    TNode<Uint32T> length, TNode<String> first, TNode<String> second,
-    AllocationFlags flags) {
-  return AllocateConsString(RootIndex::kConsStringMap, length, first, second,
-                            flags);
-}
-
-TNode<String> CodeStubAssembler::NewConsString(TNode<Uint32T> length,
-                                               TNode<String> left,
-                                               TNode<String> right,
-                                               AllocationFlags flags) {
+TNode<String> CodeStubAssembler::AllocateConsString(TNode<Uint32T> length,
+                                                    TNode<String> left,
+                                                    TNode<String> right) {
   // Added string can be a cons string.
   Comment("Allocating ConsString");
   Node* left_instance_type = LoadInstanceType(left);
@@ -3377,8 +3334,8 @@ TNode<String> CodeStubAssembler::NewConsString(TNode<Uint32T> length,
   STATIC_ASSERT(kOneByteDataHintTag != 0);
   Label one_byte_map(this);
   Label two_byte_map(this);
-  TVARIABLE(String, result);
-  Label done(this, &result);
+  TVARIABLE(Map, result_map);
+  Label done(this, &result_map);
   GotoIf(IsSetWord32(anded_instance_types,
                      kStringEncodingMask | kOneByteDataHintTag),
          &one_byte_map);
@@ -3389,18 +3346,30 @@ TNode<String> CodeStubAssembler::NewConsString(TNode<Uint32T> length,
          &two_byte_map, &one_byte_map);
 
   BIND(&one_byte_map);
-  Comment("One-byte ConsString");
-  result = AllocateOneByteConsString(length, left, right, flags);
-  Goto(&done);
+  {
+    Comment("One-byte ConsString");
+    result_map = CAST(LoadRoot(RootIndex::kConsOneByteStringMap));
+    Goto(&done);
+  }
 
   BIND(&two_byte_map);
-  Comment("Two-byte ConsString");
-  result = AllocateTwoByteConsString(length, left, right, flags);
-  Goto(&done);
+  {
+    Comment("Two-byte ConsString");
+    result_map = CAST(LoadRoot(RootIndex::kConsStringMap));
+    Goto(&done);
+  }
 
   BIND(&done);
-
-  return result.value();
+  Node* result = AllocateInNewSpace(ConsString::kSize);
+  StoreMapNoWriteBarrier(result, result_map.value());
+  StoreObjectFieldNoWriteBarrier(result, ConsString::kLengthOffset, length,
+                                 MachineRepresentation::kWord32);
+  StoreObjectFieldNoWriteBarrier(result, ConsString::kHashFieldOffset,
+                                 Int32Constant(String::kEmptyHashField),
+                                 MachineRepresentation::kWord32);
+  StoreObjectFieldNoWriteBarrier(result, ConsString::kFirstOffset, left);
+  StoreObjectFieldNoWriteBarrier(result, ConsString::kSecondOffset, right);
+  return CAST(result);
 }
 
 TNode<NameDictionary> CodeStubAssembler::AllocateNameDictionary(
@@ -7197,8 +7166,7 @@ void CodeStubAssembler::MaybeDerefIndirectStrings(Variable* var_left,
 }
 
 TNode<String> CodeStubAssembler::StringAdd(Node* context, TNode<String> left,
-                                           TNode<String> right,
-                                           AllocationFlags flags) {
+                                           TNode<String> right) {
   TVARIABLE(String, result);
   Label check_right(this), runtime(this, Label::kDeferred), cons(this),
       done(this, &result), done_native(this, &result);
@@ -7234,7 +7202,7 @@ TNode<String> CodeStubAssembler::StringAdd(Node* context, TNode<String> left,
            &non_cons);
 
     result =
-        NewConsString(new_length, var_left.value(), var_right.value(), flags);
+        AllocateConsString(new_length, var_left.value(), var_right.value());
     Goto(&done_native);
 
     BIND(&non_cons);

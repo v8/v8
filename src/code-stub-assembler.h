@@ -1463,26 +1463,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                             TNode<String> parent,
                                             TNode<Smi> offset);
 
-  // Allocate a one-byte ConsString with the given length, first and second
-  // parts. |length| is expected to be tagged, and |first| and |second| are
-  // expected to be one-byte strings.
-  TNode<String> AllocateOneByteConsString(TNode<Uint32T> length,
-                                          TNode<String> first,
-                                          TNode<String> second,
-                                          AllocationFlags flags = kNone);
-  // Allocate a two-byte ConsString with the given length, first and second
-  // parts. |length| is expected to be tagged, and |first| and |second| are
-  // expected to be two-byte strings.
-  TNode<String> AllocateTwoByteConsString(TNode<Uint32T> length,
-                                          TNode<String> first,
-                                          TNode<String> second,
-                                          AllocationFlags flags = kNone);
-
   // Allocate an appropriate one- or two-byte ConsString with the first and
   // second parts specified by |left| and |right|.
-  TNode<String> NewConsString(TNode<Uint32T> length, TNode<String> left,
-                              TNode<String> right,
-                              AllocationFlags flags = kNone);
+  TNode<String> AllocateConsString(TNode<Uint32T> length, TNode<String> left,
+                                   TNode<String> right);
 
   TNode<NameDictionary> AllocateNameDictionary(int at_least_space_for);
   TNode<NameDictionary> AllocateNameDictionary(
@@ -2285,7 +2269,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   // Return a new string object produced by concatenating |first| with |second|.
   TNode<String> StringAdd(Node* context, TNode<String> first,
-                          TNode<String> second, AllocationFlags flags = kNone);
+                          TNode<String> second);
 
   // Check if |string| is an indirect (thin or flat cons) string type that can
   // be dereferenced by DerefIndirectString.
@@ -3425,10 +3409,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<String> AllocateSlicedString(RootIndex map_root_index,
                                      TNode<Uint32T> length,
                                      TNode<String> parent, TNode<Smi> offset);
-
-  TNode<String> AllocateConsString(RootIndex map_root_index,
-                                   TNode<Uint32T> length, TNode<String> first,
-                                   TNode<String> second, AllocationFlags flags);
 
   // Allocate a MutableHeapNumber without initializing its value.
   TNode<MutableHeapNumber> AllocateMutableHeapNumber();
