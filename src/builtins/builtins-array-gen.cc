@@ -15,6 +15,7 @@
 #include "src/objects/allocation-site-inl.h"
 #include "src/objects/arguments-inl.h"
 #include "src/objects/property-cell.h"
+#include "torque-generated/builtins-typed-array-createtypedarray-from-dsl-gen.h"
 
 namespace v8 {
 namespace internal {
@@ -96,9 +97,9 @@ Node* ArrayBuiltinsAssembler::FindProcessor(Node* k_value, Node* k) {
     TNode<Smi> length = CAST(len_);
     const char* method_name = "%TypedArray%.prototype.map";
 
-    TypedArrayBuiltinsAssembler typedarray_asm(state());
+    TypedArrayCreatetypedarrayBuiltinsFromDSLAssembler typedarray_asm(state());
     TNode<JSTypedArray> a = typedarray_asm.TypedArraySpeciesCreateByLength(
-        context(), original_array, length, method_name);
+        context(), method_name, original_array, length);
     // In the Spec and our current implementation, the length check is already
     // performed in TypedArraySpeciesCreate.
     CSA_ASSERT(this, SmiLessThanOrEqual(CAST(len_), LoadJSTypedArrayLength(a)));

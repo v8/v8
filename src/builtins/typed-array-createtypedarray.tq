@@ -370,4 +370,19 @@ namespace typed_array_createtypedarray {
       return typed_array::ValidateTypedArray(context, newObj, methodName);
     }
   }
+
+  transitioning macro TypedArraySpeciesCreateByLength(implicit context:
+                                                          Context)(
+      methodName: constexpr string, exemplar: JSTypedArray,
+      length: Smi): JSTypedArray {
+    assert(Is<PositiveSmi>(length));
+    const numArgs: constexpr int31 = 1;
+    const typedArray: JSTypedArray = TypedArraySpeciesCreate(
+        methodName, numArgs, exemplar, length, Undefined, Undefined);
+    if (typedArray.length < length) deferred {
+        ThrowTypeError(kTypedArrayTooShort);
+      }
+
+    return typedArray;
+  }
 }

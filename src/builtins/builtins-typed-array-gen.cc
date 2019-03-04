@@ -147,9 +147,9 @@ TNode<FixedTypedArrayBase> TypedArrayBuiltinsAssembler::AllocateOnHeapElements(
   return CAST(elements);
 }
 
-Node* TypedArrayBuiltinsAssembler::LoadDataPtr(Node* typed_array) {
-  CSA_ASSERT(this, IsJSTypedArray(typed_array));
-  Node* elements = LoadElements(typed_array);
+TNode<RawPtrT> TypedArrayBuiltinsAssembler::LoadDataPtr(
+    TNode<JSTypedArray> typed_array) {
+  TNode<FixedArrayBase> elements = LoadElements(typed_array);
   CSA_ASSERT(this, IsFixedTypedArray(elements));
   return LoadFixedTypedArrayBackingStore(CAST(elements));
 }
@@ -306,22 +306,6 @@ TNode<JSFunction> TypedArrayBuiltinsAssembler::GetDefaultConstructor(
       LoadContextElement(LoadNativeContext(context), context_slot.value()));
 }
 
-TNode<JSTypedArray>
-TypedArrayBuiltinsAssembler::TypedArraySpeciesCreateByLength(
-    TNode<Context> context, TNode<JSTypedArray> exemplar, TNode<Smi> len,
-    const char* method_name) {
-  CSA_ASSERT(this, TaggedIsPositiveSmi(len));
-
-  TypedArrayCreatetypedarrayBuiltinsFromDSLAssembler typedarray_asm(state());
-  const int31_t kNumArgs = 1;
-  TNode<JSTypedArray> new_typed_array = typedarray_asm.TypedArraySpeciesCreate(
-      context, method_name, kNumArgs, exemplar, len, UndefinedConstant(),
-      UndefinedConstant());
-
-  ThrowIfLengthLessThan(context, new_typed_array, len);
-  return new_typed_array;
-}
-
 TNode<JSTypedArray> TypedArrayBuiltinsAssembler::TypedArrayCreateByLength(
     TNode<Context> context, TNode<Object> constructor, TNode<Smi> len,
     const char* method_name) {
@@ -408,8 +392,8 @@ void TypedArrayBuiltinsAssembler::SetTypedArraySource(
 
   // Grab pointers and byte lengths we need later on.
 
-  TNode<IntPtrT> target_data_ptr = UncheckedCast<IntPtrT>(LoadDataPtr(target));
-  TNode<IntPtrT> source_data_ptr = UncheckedCast<IntPtrT>(LoadDataPtr(source));
+  TNode<RawPtrT> target_data_ptr = LoadDataPtr(target);
+  TNode<RawPtrT> source_data_ptr = LoadDataPtr(source);
 
   TNode<Word32T> source_el_kind = LoadElementsKind(source);
   TNode<Word32T> target_el_kind = LoadElementsKind(target);
@@ -434,9 +418,9 @@ void TypedArrayBuiltinsAssembler::SetTypedArraySource(
 
   BIND(&call_memmove);
   {
-    TNode<IntPtrT> target_start =
-        IntPtrAdd(target_data_ptr, IntPtrMul(offset, target_el_size));
-    CallCMemmove(target_start, source_data_ptr, source_byte_length);
+    TNode<RawPtrT> target_start =
+        RawPtrAdd(target_data_ptr, IntPtrMul(offset, target_el_size));
+    CallCMemmove(target_start, source_data_ptr, Unsigned(source_byte_length));
     Goto(&out);
   }
 
@@ -506,9 +490,9 @@ void TypedArrayBuiltinsAssembler::SetJSArraySource(
   BIND(&out);
 }
 
-void TypedArrayBuiltinsAssembler::CallCMemmove(TNode<IntPtrT> dest_ptr,
-                                               TNode<IntPtrT> src_ptr,
-                                               TNode<IntPtrT> byte_length) {
+void TypedArrayBuiltinsAssembler::CallCMemmove(TNode<RawPtrT> dest_ptr,
+                                               TNode<RawPtrT> src_ptr,
+                                               TNode<UintPtrT> byte_length) {
   TNode<ExternalReference> memmove =
       ExternalConstant(ExternalReference::libc_memmove_function());
   CallCFunction3(MachineType::AnyTagged(), MachineType::Pointer(),
@@ -696,118 +680,6 @@ TF_BUILTIN(TypedArrayPrototypeSet, TypedArrayBuiltinsAssembler) {
 
   BIND(&if_receiver_is_not_typedarray);
   ThrowTypeError(context, MessageTemplate::kNotTypedArray);
-}
-
-// ES %TypedArray%.prototype.slice
-TF_BUILTIN(TypedArrayPrototypeSlice, TypedArrayBuiltinsAssembler) {
-  const char* method_name = "%TypedArray%.prototype.slice";
-  Label call_c(this), call_memmove(this), if_count_is_not_zero(this),
-      if_bigint_mixed_types(this, Label::kDeferred);
-
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  CodeStubArguments args(
-      this,
-      ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount)));
-
-  TNode<Object> receiver = args.GetReceiver();
-  TNode<JSTypedArray> source =
-      ValidateTypedArray(context, receiver, method_name);
-
-  TNode<Smi> source_length = LoadJSTypedArrayLength(source);
-
-  // Convert start offset argument to integer, and calculate relative offset.
-  TNode<Object> start = args.GetOptionalArgumentValue(0, SmiConstant(0));
-  TNode<Smi> start_index =
-      SmiTag(ConvertToRelativeIndex(context, start, SmiUntag(source_length)));
-
-  // Convert end offset argument to integer, and calculate relative offset.
-  // If end offset is not given or undefined is given, set source_length to
-  // "end_index".
-  TNode<Object> end = args.GetOptionalArgumentValue(1, UndefinedConstant());
-  TNode<Smi> end_index =
-      Select<Smi>(IsUndefined(end), [=] { return source_length; },
-                  [=] {
-                    return SmiTag(ConvertToRelativeIndex(
-                        context, end, SmiUntag(source_length)));
-                  });
-
-  // Create a result array by invoking TypedArraySpeciesCreate.
-  TNode<Smi> count = SmiMax(SmiSub(end_index, start_index), SmiConstant(0));
-  TNode<JSTypedArray> result_array =
-      TypedArraySpeciesCreateByLength(context, source, count, method_name);
-
-  // If count is zero, return early.
-  GotoIf(SmiGreaterThan(count, SmiConstant(0)), &if_count_is_not_zero);
-  args.PopAndReturn(result_array);
-
-  BIND(&if_count_is_not_zero);
-  // Check the source array is detached or not. We don't need to check if the
-  // result array is detached or not since TypedArraySpeciesCreate checked it.
-  CSA_ASSERT(this, Word32BinaryNot(IsDetachedBuffer(LoadObjectField(
-                       result_array, JSTypedArray::kBufferOffset))));
-  TNode<JSArrayBuffer> receiver_buffer =
-      LoadJSArrayBufferViewBuffer(CAST(receiver));
-  ThrowIfArrayBufferIsDetached(context, receiver_buffer, method_name);
-
-  // result_array could be a different type from source or share the same
-  // buffer with the source because of custom species constructor.
-  // If the types of source and result array are the same and they are not
-  // sharing the same buffer, use memmove.
-  TNode<Word32T> source_el_kind = LoadElementsKind(source);
-  TNode<Word32T> target_el_kind = LoadElementsKind(result_array);
-  GotoIfNot(Word32Equal(source_el_kind, target_el_kind), &call_c);
-
-  TNode<Object> target_buffer =
-      LoadObjectField(result_array, JSTypedArray::kBufferOffset);
-  Branch(WordEqual(receiver_buffer, target_buffer), &call_c, &call_memmove);
-
-  BIND(&call_memmove);
-  {
-    GotoIfForceSlowPath(&call_c);
-
-    TNode<IntPtrT> target_data_ptr =
-        UncheckedCast<IntPtrT>(LoadDataPtr(result_array));
-    TNode<IntPtrT> source_data_ptr =
-        UncheckedCast<IntPtrT>(LoadDataPtr(source));
-
-    TNode<IntPtrT> source_el_size = GetTypedArrayElementSize(source_el_kind);
-    TNode<IntPtrT> source_start_bytes =
-        IntPtrMul(SmiToIntPtr(start_index), source_el_size);
-    TNode<IntPtrT> source_start =
-        IntPtrAdd(source_data_ptr, source_start_bytes);
-
-    TNode<IntPtrT> count_bytes = IntPtrMul(SmiToIntPtr(count), source_el_size);
-
-#ifdef DEBUG
-    TNode<UintPtrT> target_byte_length =
-        LoadJSArrayBufferViewByteLength(result_array);
-    CSA_ASSERT(this, UintPtrLessThanOrEqual(Unsigned(count_bytes),
-                                            target_byte_length));
-    TNode<UintPtrT> source_byte_length =
-        LoadJSArrayBufferViewByteLength(source);
-    TNode<UintPtrT> source_size_in_bytes =
-        UintPtrSub(source_byte_length, Unsigned(source_start_bytes));
-    CSA_ASSERT(this, UintPtrLessThanOrEqual(Unsigned(count_bytes),
-                                            source_size_in_bytes));
-#endif  // DEBUG
-
-    CallCMemmove(target_data_ptr, source_start, count_bytes);
-    args.PopAndReturn(result_array);
-  }
-
-  BIND(&call_c);
-  {
-    GotoIf(Word32NotEqual(IsBigInt64ElementsKind(source_el_kind),
-                          IsBigInt64ElementsKind(target_el_kind)),
-           &if_bigint_mixed_types);
-
-    CallCCopyTypedArrayElementsSlice(
-        source, result_array, SmiToIntPtr(start_index), SmiToIntPtr(end_index));
-    args.PopAndReturn(result_array);
-  }
-
-  BIND(&if_bigint_mixed_types);
-  ThrowTypeError(context, MessageTemplate::kBigIntMixedTypes);
 }
 
 // ES #sec-get-%typedarray%.prototype-@@tostringtag
@@ -1289,8 +1161,10 @@ TF_BUILTIN(TypedArrayPrototypeFilter, TypedArrayBuiltinsAssembler) {
   TNode<Smi> captured = LoadFastJSArrayLength(values_array);
 
   // 10. Let A be ? TypedArraySpeciesCreate(O, captured).
+  TypedArrayCreatetypedarrayBuiltinsFromDSLAssembler typedarray_asm(state());
   TNode<JSTypedArray> result_array =
-      TypedArraySpeciesCreateByLength(context, source, captured, method_name);
+      typedarray_asm.TypedArraySpeciesCreateByLength(context, method_name,
+                                                     source, captured);
 
   // 11. Let n be 0.
   // 12. For each element e of kept, do

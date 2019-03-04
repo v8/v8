@@ -24,10 +24,6 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
                                               TNode<JSTypedArray> exemplar,
                                               TArgs... args);
 
-  TNode<JSTypedArray> TypedArraySpeciesCreateByLength(
-      TNode<Context> context, TNode<JSTypedArray> exemplar, TNode<Smi> len,
-      const char* method_name);
-
   void GenerateTypedArrayPrototypeIterationMethod(TNode<Context> context,
                                                   TNode<Object> receiver,
                                                   const char* method_name,
@@ -52,7 +48,7 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
   TNode<BoolT> IsMockArrayBufferAllocatorFlag();
   TNode<UintPtrT> CalculateExternalPointer(TNode<UintPtrT> backing_store,
                                            TNode<UintPtrT> byte_offset);
-  Node* LoadDataPtr(Node* typed_array);
+  TNode<RawPtrT> LoadDataPtr(TNode<JSTypedArray> typed_array);
 
   // Returns true if kind is either UINT8_ELEMENTS or UINT8_CLAMPED_ELEMENTS.
   TNode<Word32T> IsUint8ElementsKind(TNode<Word32T> kind);
@@ -95,8 +91,8 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
                         TNode<JSTypedArray> target, TNode<IntPtrT> offset,
                         Label* call_runtime, Label* if_source_too_large);
 
-  void CallCMemmove(TNode<IntPtrT> dest_ptr, TNode<IntPtrT> src_ptr,
-                    TNode<IntPtrT> byte_length);
+  void CallCMemmove(TNode<RawPtrT> dest_ptr, TNode<RawPtrT> src_ptr,
+                    TNode<UintPtrT> byte_length);
 
   void CallCMemcpy(TNode<RawPtrT> dest_ptr, TNode<RawPtrT> src_ptr,
                    TNode<UintPtrT> byte_length);

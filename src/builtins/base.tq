@@ -481,6 +481,10 @@ const kReduceNoInitial: constexpr MessageTemplate
     generates 'MessageTemplate::kReduceNoInitial';
 const kFirstArgumentNotRegExp: constexpr MessageTemplate
     generates 'MessageTemplate::kFirstArgumentNotRegExp';
+const kBigIntMixedTypes: constexpr MessageTemplate
+    generates 'MessageTemplate::kBigIntMixedTypes';
+const kTypedArrayTooShort: constexpr MessageTemplate
+    generates 'MessageTemplate::kTypedArrayTooShort';
 
 const kMaxArrayIndex:
     constexpr uint32 generates 'JSArray::kMaxArrayIndex';
@@ -846,6 +850,8 @@ extern operator '|' macro Word32Or(int32, int32): int32;
 extern operator '|' macro Word32Or(uint32, uint32): uint32;
 extern operator '&' macro Word32And(bool, bool): bool;
 extern operator '|' macro Word32Or(bool, bool): bool;
+extern operator '==' macro Word32Equal(bool, bool): bool;
+extern operator '!=' macro Word32NotEqual(bool, bool): bool;
 
 extern operator '+' macro Float64Add(float64, float64): float64;
 
