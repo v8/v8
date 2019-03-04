@@ -38,7 +38,7 @@ function assertTable(obj, ...elems) {
   {
     let o = addFunctions(builder, kTableSize, true);
     builder.addPassiveElementSegment(
-       [o.f0.index, o.f1.index, o.f2.index, o.f3.index, o.f4.index]);
+       [o.f0.index, o.f1.index, o.f2.index, o.f3.index, o.f4.index, null]);
   }
 
   builder.addFunction("init0", sig_v_iii)
@@ -71,6 +71,10 @@ function assertTable(obj, ...elems) {
   assertTable(x.table, x.f0, x.f1, x.f2, x.f2, x.f3);
   x.init0(3, 3, 2);
   assertTable(x.table, x.f0, x.f1, x.f2, x.f3, x.f4);
+
+  // test writing null
+  x.init0(0, 5, 1);
+  assertTable(x.table, null, x.f1, x.f2, x.f3, x.f4);
 })();
 
 (function TestTableInitOob() {

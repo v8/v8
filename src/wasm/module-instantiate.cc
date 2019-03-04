@@ -1478,14 +1478,27 @@ bool LoadElemSegmentImpl(Isolate* isolate, Handle<WasmInstanceObject> instance,
                          JSToWasmWrapperCache* js_to_wasm_cache,
                          const WasmElemSegment& elem_segment, uint32_t dst,
                          uint32_t src, size_t count) {
+  // TODO(wasm): Move this functionality into wasm-objects, since it is used
+  // for both instantiation and in the implementation of the table.init
+  // instruction.
   if (!IsInBounds(dst, count, table_instance.table_size)) return false;
   if (!IsInBounds(src, count, elem_segment.entries.size())) return false;
 
   const WasmModule* module = instance->module();
   for (uint32_t i = 0; i < count; ++i) {
     uint32_t func_index = elem_segment.entries[src + i];
-    const WasmFunction* function = &module->functions[func_index];
     int entry_index = static_cast<int>(dst + i);
+
+    if (func_index == WasmElemSegment::kNullIndex) {
+      IndirectFunctionTableEntry(instance, entry_index).clear();
+      if (!table_instance.table_object.is_null()) {
+        WasmTableObject::Set(isolate, table_instance.table_object, entry_index,
+                             Handle<JSFunction>::null());
+      }
+      continue;
+    }
+
+    const WasmFunction* function = &module->functions[func_index];
 
     // Update the local dispatch table first.
     uint32_t sig_id = module->signature_ids[function->sig_index];

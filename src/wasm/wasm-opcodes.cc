@@ -107,6 +107,7 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_FLOAT_OP(CopySign, "copysign")
     CASE_REF_OP(Null, "null")
     CASE_REF_OP(IsNull, "is_null")
+    CASE_REF_OP(Func, "func")
     CASE_I32_OP(ConvertI64, "wrap/i64")
     CASE_CONVERT_OP(Convert, INT, F32, "f32", "trunc")
     CASE_CONVERT_OP(Convert, INT, F64, "f64", "trunc")

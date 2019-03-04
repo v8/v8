@@ -120,6 +120,10 @@ struct WasmElemSegment {
   // Construct a passive segment, which has no table index or offset.
   WasmElemSegment() : table_index(0), active(false) {}
 
+  // Used in the {entries} vector to represent a `ref.null` entry in a passive
+  // segment.
+  static const uint32_t kNullIndex = ~0u;
+
   uint32_t table_index;
   WasmInitExpr offset;
   std::vector<uint32_t> entries;

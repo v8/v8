@@ -794,6 +794,12 @@ class ModuleDecoderImpl : public Decoder {
                  table_index);
           break;
         }
+      } else {
+        ValueType type = consume_reference_type();
+        if (type != kWasmAnyFunc) {
+          error(pc_ - 1, "invalid element segment type");
+          break;
+        }
       }
 
       uint32_t num_elem =
@@ -806,12 +812,9 @@ class ModuleDecoderImpl : public Decoder {
 
       WasmElemSegment* init = &module_->elem_segments.back();
       for (uint32_t j = 0; j < num_elem; j++) {
-        WasmFunction* func = nullptr;
-        uint32_t index =
-            consume_func_index(module_.get(), &func, "element function index");
-        DCHECK_IMPLIES(ok(), func != nullptr);
-        if (!ok()) break;
-        DCHECK_EQ(index, func->func_index);
+        uint32_t index = is_active ? consume_element_func_index()
+                                   : consume_passive_element();
+        if (failed()) break;
         init->entries.push_back(index);
       }
     }
@@ -1606,6 +1609,37 @@ class ModuleDecoderImpl : public Decoder {
     if (read_offset) {
       *offset = consume_init_expr(module_.get(), kWasmI32);
     }
+  }
+
+  uint32_t consume_element_func_index() {
+    WasmFunction* func = nullptr;
+    uint32_t index =
+        consume_func_index(module_.get(), &func, "element function index");
+    if (failed()) return index;
+    DCHECK_NE(func, nullptr);
+    DCHECK_EQ(index, func->func_index);
+    DCHECK_NE(index, WasmElemSegment::kNullIndex);
+    return index;
+  }
+
+  uint32_t consume_passive_element() {
+    uint32_t index = WasmElemSegment::kNullIndex;
+    uint8_t opcode = consume_u8("element opcode");
+    if (failed()) return index;
+    switch (opcode) {
+      case kExprRefNull:
+        index = WasmElemSegment::kNullIndex;
+        break;
+      case kExprRefFunc:
+        index = consume_element_func_index();
+        if (failed()) return index;
+        break;
+      default:
+        error("invalid opcode in element");
+        break;
+    }
+    expect_u8("end opcode", kExprEnd);
+    return index;
   }
 };
 

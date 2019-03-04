@@ -215,11 +215,6 @@ let kExprGetGlobal = 0x23;
 let kExprSetGlobal = 0x24;
 let kExprGetTable = 0x25;
 let kExprSetTable = 0x26;
-let kExprI32Const = 0x41;
-let kExprI64Const = 0x42;
-let kExprF32Const = 0x43;
-let kExprF64Const = 0x44;
-let kExprRefNull = 0xd0;
 let kExprI32LoadMem = 0x28;
 let kExprI64LoadMem = 0x29;
 let kExprF32LoadMem = 0x2a;
@@ -245,6 +240,10 @@ let kExprI64StoreMem16 = 0x3d;
 let kExprI64StoreMem32 = 0x3e;
 let kExprMemorySize = 0x3f;
 let kExprMemoryGrow = 0x40;
+let kExprI32Const = 0x41;
+let kExprI64Const = 0x42;
+let kExprF32Const = 0x43;
+let kExprF64Const = 0x44;
 let kExprI32Eqz = 0x45;
 let kExprI32Eq = 0x46;
 let kExprI32Ne = 0x47;
@@ -279,7 +278,6 @@ let kExprF64Lt = 0x63;
 let kExprF64Gt = 0x64;
 let kExprF64Le = 0x65;
 let kExprF64Ge = 0x66;
-let kExprRefIsNull = 0xd1;
 let kExprI32Clz = 0x67;
 let kExprI32Ctz = 0x68;
 let kExprI32Popcnt = 0x69;
@@ -374,6 +372,9 @@ let kExprI32SExtendI16 = 0xc1;
 let kExprI64SExtendI8 = 0xc2;
 let kExprI64SExtendI16 = 0xc3;
 let kExprI64SExtendI32 = 0xc4;
+let kExprRefNull = 0xd0;
+let kExprRefIsNull = 0xd1;
+let kExprRefFunc = 0xd2;
 
 // Prefix opcodes
 let kNumericPrefix = 0xfc;
@@ -1101,6 +1102,7 @@ class WasmModuleBuilder {
 
         for (let init of inits) {
           if (init.is_active) {
+            // Active segment.
             section.emit_u8(0);  // table index / flags
             if (init.is_global) {
               section.emit_u8(kExprGetGlobal);
@@ -1109,12 +1111,25 @@ class WasmModuleBuilder {
             }
             section.emit_u32v(init.base);
             section.emit_u8(kExprEnd);
+            section.emit_u32v(init.array.length);
+            for (let index of init.array) {
+              section.emit_u32v(index);
+            }
           } else {
+            // Passive segment.
             section.emit_u8(kPassive);  // flags
-          }
-          section.emit_u32v(init.array.length);
-          for (let index of init.array) {
-            section.emit_u32v(index);
+            section.emit_u8(kWasmAnyFunc);
+            section.emit_u32v(init.array.length);
+            for (let index of init.array) {
+              if (index === null) {
+                section.emit_u8(kExprRefNull);
+                section.emit_u8(kExprEnd);
+              } else {
+                section.emit_u8(kExprRefFunc);
+                section.emit_u32v(index);
+                section.emit_u8(kExprEnd);
+              }
+            }
           }
         }
       });
