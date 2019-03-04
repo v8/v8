@@ -1187,13 +1187,13 @@ namespace internal {
   TFJ(WeakMapConstructor, SharedFunctionInfo::kDontAdaptArgumentsSentinel)     \
   TFS(WeakMapLookupHashIndex, kTable, kKey)                                    \
   TFJ(WeakMapGet, 1, kReceiver, kKey)                                          \
-  TFJ(WeakMapHas, 1, kReceiver, kKey)                                          \
+  TFJ(WeakMapPrototypeHas, 1, kReceiver, kKey)                                 \
   TFJ(WeakMapPrototypeSet, 2, kReceiver, kKey, kValue)                         \
   TFJ(WeakMapPrototypeDelete, 1, kReceiver, kKey)                              \
                                                                                \
   /* WeakSet */                                                                \
   TFJ(WeakSetConstructor, SharedFunctionInfo::kDontAdaptArgumentsSentinel)     \
-  TFJ(WeakSetHas, 1, kReceiver, kKey)                                          \
+  TFJ(WeakSetPrototypeHas, 1, kReceiver, kKey)                                 \
   TFJ(WeakSetPrototypeAdd, 1, kReceiver, kValue)                               \
   TFJ(WeakSetPrototypeDelete, 1, kReceiver, kValue)                            \
                                                                                \

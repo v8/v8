@@ -178,8 +178,8 @@ extern class SharedFunctionInfo extends HeapObject {
   script_or_debug_info: Script | DebugInfo;
   length: int16;
   formal_parameter_count: uint16;
-  expected_nof_properties: int8;
-  builtin_function_id: int8;
+  // Currently set to int16, can be set to int8 to save space.
+  expected_nof_properties: int16;
   function_token_offset: int16;
   flags: int32;
 }
