@@ -181,11 +181,6 @@
 }],  # variant == nooptimization and (arch == arm or arch == arm64) and simulator_run
 
 ##############################################################################
-# TODO(ahaas): Port multiple return values to ARM, MIPS, S390 and PPC
-['arch == s390 or arch == s390x or arch == ppc or arch == ppc64', {
-  'test-multiple-return/*': [SKIP],
-}],
-##############################################################################
 ['asan == True', {
   # Skip tests not suitable for ASAN.
   'test-assembler-x64/AssemblerX64XchglOperations': [SKIP],

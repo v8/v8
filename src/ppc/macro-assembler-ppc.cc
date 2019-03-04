@@ -2756,6 +2756,19 @@ void TurboAssembler::LoadDouble(DoubleRegister dst, const MemOperand& mem,
   }
 }
 
+void TurboAssembler::LoadFloat32(DoubleRegister dst, const MemOperand& mem,
+                                Register scratch) {
+  Register base = mem.ra();
+  int offset = mem.offset();
+
+  if (!is_int16(offset)) {
+    mov(scratch, Operand(offset));
+    lfsx(dst, MemOperand(base, scratch));
+  } else {
+    lfs(dst, mem);
+  }
+}
+
 void MacroAssembler::LoadDoubleU(DoubleRegister dst, const MemOperand& mem,
                                 Register scratch) {
   Register base = mem.ra();
