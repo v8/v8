@@ -1206,32 +1206,6 @@ void JavaScriptFrame::CollectFunctionAndOffsetForICStats(JSFunction function,
   }
 }
 
-void JavaScriptFrame::CollectTopFrameForICStats(Isolate* isolate) {
-  // constructor calls
-  DisallowHeapAllocation no_allocation;
-  JavaScriptFrameIterator it(isolate);
-  ICInfo& ic_info = ICStats::instance()->Current();
-  while (!it.done()) {
-    if (it.frame()->is_java_script()) {
-      JavaScriptFrame* frame = it.frame();
-      if (frame->IsConstructor()) ic_info.is_constructor = true;
-      JSFunction function = frame->function();
-      int code_offset = 0;
-      if (frame->is_interpreted()) {
-        InterpretedFrame* iframe = reinterpret_cast<InterpretedFrame*>(frame);
-        code_offset = iframe->GetBytecodeOffset();
-      } else {
-        Code code = frame->unchecked_code();
-        code_offset = static_cast<int>(frame->pc() - code->InstructionStart());
-      }
-      CollectFunctionAndOffsetForICStats(function, function->abstract_code(),
-                                         code_offset);
-      return;
-    }
-    it.Advance();
-  }
-}
-
 Object JavaScriptFrame::GetParameter(int index) const {
   return Object(Memory<Address>(GetParameterSlot(index)));
 }

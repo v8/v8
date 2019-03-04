@@ -757,7 +757,6 @@ class JavaScriptFrame : public StandardFrame {
   static void CollectFunctionAndOffsetForICStats(JSFunction function,
                                                  AbstractCode code,
                                                  int code_offset);
-  static void CollectTopFrameForICStats(Isolate* isolate);
 
  protected:
   inline explicit JavaScriptFrame(StackFrameIteratorBase* iterator);
