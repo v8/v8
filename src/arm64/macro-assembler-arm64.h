@@ -213,6 +213,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // Remove if not needed.
   void Move(Register dst, Smi src);
 
+  // Move src0 to dst0 and src1 to dst1, handling possible overlaps.
+  void MovePair(Register dst0, Register src0, Register dst1, Register src1);
+
   // Register swap. Note that the register operands should be distinct.
   void Swap(Register lhs, Register rhs);
   void Swap(VRegister lhs, VRegister rhs);

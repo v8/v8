@@ -4182,6 +4182,81 @@ TEST(vneg_64) {
   }
 }
 
+TEST(move_pair) {
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  auto f = AssembleCode<F_piiii>([](MacroAssembler& assm) {
+    RegList used_callee_saved =
+        r4.bit() | r5.bit() | r6.bit() | r7.bit() | r8.bit();
+    __ stm(db_w, sp, used_callee_saved);
+
+    // Save output register bank pointer to r8.
+    __ mov(r8, r0);
+
+    __ mov(r0, Operand(0xabababab));
+    __ mov(r1, Operand(0xbabababa));
+    __ mov(r2, Operand(0x12341234));
+    __ mov(r3, Operand(0x43214321));
+
+    // No overlap:
+    //  r4 <- r0
+    //  r5 <- r1
+    __ MovePair(r4, r0, r5, r1);
+
+    // Overlap but we can swap moves:
+    //  r2 <- r0
+    //  r6 <- r2
+    __ MovePair(r2, r0, r6, r2);
+
+    // Overlap but can be done:
+    //  r7 <- r3
+    //  r3 <- r0
+    __ MovePair(r7, r3, r3, r0);
+
+    // Swap.
+    //  r0 <- r1
+    //  r1 <- r0
+    __ MovePair(r0, r1, r1, r0);
+
+    // Fill the fake register bank.
+    __ str(r0, MemOperand(r8, 0 * kPointerSize));
+    __ str(r1, MemOperand(r8, 1 * kPointerSize));
+    __ str(r2, MemOperand(r8, 2 * kPointerSize));
+    __ str(r3, MemOperand(r8, 3 * kPointerSize));
+    __ str(r4, MemOperand(r8, 4 * kPointerSize));
+    __ str(r5, MemOperand(r8, 5 * kPointerSize));
+    __ str(r6, MemOperand(r8, 6 * kPointerSize));
+    __ str(r7, MemOperand(r8, 7 * kPointerSize));
+
+    __ ldm(ia_w, sp, used_callee_saved);
+  });
+
+  // Create a fake register bank.
+  uint32_t r[] = {0, 0, 0, 0, 0, 0, 0, 0};
+  f.Call(r, 0, 0, 0, 0);
+
+  //  r4 <- r0
+  //  r5 <- r1
+  CHECK_EQ(0xabababab, r[4]);
+  CHECK_EQ(0xbabababa, r[5]);
+
+  //  r2 <- r0
+  //  r6 <- r2
+  CHECK_EQ(0xabababab, r[2]);
+  CHECK_EQ(0x12341234, r[6]);
+
+  //  r7 <- r3
+  //  r3 <- r0
+  CHECK_EQ(0x43214321, r[7]);
+  CHECK_EQ(0xabababab, r[3]);
+
+  // r0 and r1 should be swapped.
+  CHECK_EQ(0xbabababa, r[0]);
+  CHECK_EQ(0xabababab, r[1]);
+}
+
+
 #undef __
 
 }  // namespace test_assembler_arm

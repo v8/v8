@@ -430,6 +430,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
       mov(dst, src, sbit, cond);
     }
   }
+  // Move src0 to dst0 and src1 to dst1, handling possible overlaps.
+  void MovePair(Register dst0, Register src0, Register dst1, Register src1);
+
   void Move(SwVfpRegister dst, SwVfpRegister src, Condition cond = al);
   void Move(DwVfpRegister dst, DwVfpRegister src, Condition cond = al);
   void Move(QwNeonRegister dst, QwNeonRegister src);

@@ -411,6 +411,60 @@ TEST(mov) {
   CHECK_EQUAL_64(0x000000000001FFE0UL, x27);
 }
 
+TEST(move_pair) {
+  INIT_V8();
+  SETUP();
+
+  START();
+  __ Mov(x0, 0xabababab);
+  __ Mov(x1, 0xbabababa);
+  __ Mov(x2, 0x12341234);
+  __ Mov(x3, 0x43214321);
+
+  // No overlap:
+  //  x4 <- x0
+  //  x5 <- x1
+  __ MovePair(x4, x0, x5, x1);
+
+  // Overlap but we can swap moves:
+  //  x2 <- x0
+  //  x6 <- x2
+  __ MovePair(x2, x0, x6, x2);
+
+  // Overlap but can be done:
+  //  x7 <- x3
+  //  x3 <- x0
+  __ MovePair(x7, x3, x3, x0);
+
+  // Swap.
+  //  x0 <- x1
+  //  x1 <- x0
+  __ MovePair(x0, x1, x1, x0);
+
+  END();
+
+  RUN();
+
+  //  x4 <- x0
+  //  x5 <- x1
+  CHECK_EQUAL_64(0xabababab, x4);
+  CHECK_EQUAL_64(0xbabababa, x5);
+
+  //  x2 <- x0
+  //  x6 <- x2
+  CHECK_EQUAL_64(0xabababab, x2);
+  CHECK_EQUAL_64(0x12341234, x6);
+
+  //  x7 <- x3
+  //  x3 <- x0
+  CHECK_EQUAL_64(0x43214321, x7);
+  CHECK_EQUAL_64(0xabababab, x3);
+
+  // x0 and x1 should be swapped.
+  CHECK_EQUAL_64(0xbabababa, x0);
+  CHECK_EQUAL_64(0xabababab, x1);
+}
+
 TEST(mov_imm_w) {
   INIT_V8();
   SETUP();

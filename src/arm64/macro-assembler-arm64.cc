@@ -1568,6 +1568,22 @@ void MacroAssembler::LoadObject(Register result, Handle<Object> object) {
 
 void TurboAssembler::Move(Register dst, Smi src) { Mov(dst, src); }
 
+void TurboAssembler::MovePair(Register dst0, Register src0, Register dst1,
+                              Register src1) {
+  DCHECK_NE(dst0, dst1);
+  if (dst0 != src1) {
+    Mov(dst0, src0);
+    Mov(dst1, src1);
+  } else if (dst1 != src0) {
+    // Swap the order of the moves to resolve the overlap.
+    Mov(dst1, src1);
+    Mov(dst0, src0);
+  } else {
+    // Worse case scenario, this is a swap.
+    Swap(dst0, src0);
+  }
+}
+
 void TurboAssembler::Swap(Register lhs, Register rhs) {
   DCHECK(lhs.IsSameSizeAndType(rhs));
   DCHECK(!lhs.Is(rhs));
@@ -3064,9 +3080,7 @@ void TurboAssembler::CallRecordWriteStub(
   Register fp_mode_parameter(
       descriptor.GetRegisterParameter(RecordWriteDescriptor::kFPMode));
 
-  Push(object, address);
-
-  Pop(slot_parameter, object_parameter);
+  MovePair(object_parameter, object, slot_parameter, address);
 
   Mov(remembered_set_parameter, Smi::FromEnum(remembered_set_action));
   Mov(fp_mode_parameter, Smi::FromEnum(fp_mode));
