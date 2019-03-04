@@ -5228,7 +5228,7 @@ bool SharedFunctionInfo::IsInlineable() {
   }
 
   // Built-in functions are handled by the JSCallReducer.
-  if (HasBuiltinId()) {
+  if (HasBuiltinFunctionId()) {
     TraceInlining(*this, "false (is a builtin)");
     return false;
   }

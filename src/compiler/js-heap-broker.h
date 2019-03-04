@@ -13,6 +13,7 @@
 #include "src/globals.h"
 #include "src/handles.h"
 #include "src/objects.h"
+#include "src/objects/builtin-function-id.h"
 #include "src/objects/instance-type.h"
 #include "src/ostreams.h"
 #include "src/zone/zone-containers.h"
@@ -522,7 +523,9 @@ class ScopeInfoRef : public HeapObjectRef {
   V(LanguageMode, language_mode)            \
   V(bool, native)                           \
   V(bool, HasBreakInfo)                     \
+  V(bool, HasBuiltinFunctionId)             \
   V(bool, HasBuiltinId)                     \
+  V(BuiltinFunctionId, builtin_function_id) \
   V(bool, construct_as_builtin)             \
   V(bool, HasBytecodeArray)                 \
   V(bool, is_safe_to_skip_arguments_adaptor)
