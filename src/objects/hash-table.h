@@ -176,13 +176,7 @@ class HashTable : public HashTableBase {
   // Don't shrink a HashTable below this capacity.
   static const int kMinShrinkCapacity = 16;
 
-  // Maximum length to create a regular HashTable (aka. non large object).
-#if V8_HOST_ARCH_PPC
-  // Reduced kMaxRegularCapacity due to reduced kMaxRegularHeapObjectSize
-  static const int kMaxRegularCapacity = 16384 / 2;
-#else
-  static const int kMaxRegularCapacity = 16384;
-#endif
+  static const int kMaxRegularCapacity = kMaxRegularHeapObjectSize / 32;
 
   // Returns the index for an entry (of the key)
   static constexpr inline int EntryToIndex(int entry) {

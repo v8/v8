@@ -236,13 +236,8 @@ constexpr int kExternalAllocationSoftLimit =
 // migrated from new space to large object space. Takes double alignment into
 // account.
 //
-// Current value: Page::kAllocatableMemory (on 32-bit arch) - 512 (slack).
-#ifdef V8_HOST_ARCH_PPC
-// Reduced kMaxRegularHeapObjectSize due to larger page size(64k) on ppc64le
-constexpr int kMaxRegularHeapObjectSize = 327680;
-#else
-constexpr int kMaxRegularHeapObjectSize = 507136;
-#endif
+// Current value: half of the page size.
+constexpr int kMaxRegularHeapObjectSize = (1 << (kPageSizeBits - 1));
 
 constexpr int kBitsPerByte = 8;
 constexpr int kBitsPerByteLog2 = 3;
