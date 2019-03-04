@@ -24,10 +24,10 @@ void SerializeToString(std::stringstream& str, const JsonValue& value) {
       str << StringLiteralQuote(value.ToString());
       break;
     case JsonValue::IS_NULL:
-      str << "\"null\"";
+      str << "null";
       break;
     case JsonValue::BOOL:
-      str << (value.ToBool() ? "\"true\"" : "\"false\"");
+      str << (value.ToBool() ? "true" : "false");
       break;
     case JsonValue::OBJECT: {
       str << "{";

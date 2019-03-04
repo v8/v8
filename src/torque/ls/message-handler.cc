@@ -54,7 +54,7 @@ void WriteMessage(JsonValue& message) {
   Logger::Log("[outgoing] ", content, "\n\n");
 
   std::cout << kContentLength << content.size() << "\r\n\r\n";
-  std::cout << content;
+  std::cout << content << std::flush;
 }
 
 namespace {
