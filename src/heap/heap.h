@@ -1422,6 +1422,10 @@ class Heap {
     }
   }
 
+  static bool IsRegularObjectAllocation(AllocationType type) {
+    return AllocationType::kYoung == type || AllocationType::kOld == type;
+  }
+
   static size_t DefaultGetExternallyAllocatedMemoryInBytesCallback() {
     return 0;
   }

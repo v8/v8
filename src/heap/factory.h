@@ -491,7 +491,7 @@ class V8_EXPORT_PRIVATE Factory {
 
   Handle<DescriptorArray> NewDescriptorArray(
       int number_of_entries, int slack = 0,
-      PretenureFlag pretenure = NOT_TENURED);
+      AllocationType type = AllocationType::kYoung);
   Handle<TransitionArray> NewTransitionArray(int number_of_transitions,
                                              int slack = 0);
 

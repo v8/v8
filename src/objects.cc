@@ -4148,11 +4148,11 @@ Handle<FrameArray> FrameArray::EnsureSpace(Isolate* isolate,
 Handle<DescriptorArray> DescriptorArray::Allocate(Isolate* isolate,
                                                   int nof_descriptors,
                                                   int slack,
-                                                  PretenureFlag pretenure) {
+                                                  AllocationType type) {
   return nof_descriptors + slack == 0
              ? isolate->factory()->empty_descriptor_array()
              : isolate->factory()->NewDescriptorArray(nof_descriptors, slack,
-                                                      pretenure);
+                                                      type);
 }
 
 void DescriptorArray::Initialize(EnumCache enum_cache,

@@ -1906,12 +1906,12 @@ Handle<PropertyCell> Factory::NewPropertyCell(Handle<Name> name,
 
 Handle<DescriptorArray> Factory::NewDescriptorArray(int number_of_descriptors,
                                                     int slack,
-                                                    PretenureFlag pretenure) {
+                                                    AllocationType type) {
+  DCHECK(Heap::IsRegularObjectAllocation(type));
   int number_of_all_descriptors = number_of_descriptors + slack;
   // Zero-length case must be handled outside.
   DCHECK_LT(0, number_of_all_descriptors);
   int size = DescriptorArray::SizeFor(number_of_all_descriptors);
-  AllocationType type = Heap::SelectType(Heap::SelectSpace(pretenure));
   HeapObject obj = isolate()->heap()->AllocateRawWithRetryOrFail(size, type);
   obj->set_map_after_allocation(*descriptor_array_map(), SKIP_WRITE_BARRIER);
   DescriptorArray array = DescriptorArray::cast(obj);
