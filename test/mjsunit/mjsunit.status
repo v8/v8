@@ -351,6 +351,7 @@
   'regress/regress-crbug-816961': [SKIP],
   'regress/wasm/*': [SKIP],
   'tools/compiler-trace-flags': [SKIP],
+  'regress/regress-8947': [SKIP],
   'wasm/*': [SKIP],
 
   # Other tests that use asm / wasm / optimized code.

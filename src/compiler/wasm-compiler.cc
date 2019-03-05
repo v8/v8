@@ -5541,13 +5541,16 @@ WasmImportCallKind GetWasmImportCallKind(Handle<JSReceiver> target,
                                          bool has_bigint_feature) {
   if (WasmExportedFunction::IsWasmExportedFunction(*target)) {
     auto imported_function = WasmExportedFunction::cast(*target);
-    wasm::FunctionSig* imported_sig =
-        imported_function->instance()
-            ->module()
-            ->functions[imported_function->function_index()]
-            .sig;
+    auto func_index = imported_function->function_index();
+    auto module = imported_function->instance()->module();
+    wasm::FunctionSig* imported_sig = module->functions[func_index].sig;
     if (*imported_sig != *expected_sig) {
       return WasmImportCallKind::kLinkError;
+    }
+    if (static_cast<uint32_t>(func_index) < module->num_imported_functions) {
+      // TODO(wasm): this redirects all imported-reexported functions
+      // through the call builtin. Fall through to JS function cases below?
+      return WasmImportCallKind::kUseCallBuiltin;
     }
     return WasmImportCallKind::kWasmToWasm;
   }
