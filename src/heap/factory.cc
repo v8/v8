@@ -132,8 +132,9 @@ void InitializeCode(Heap* heap, Handle<Code> code, int object_size,
 HeapObject Factory::AllocateRawWithImmortalMap(int size,
                                                PretenureFlag pretenure, Map map,
                                                AllocationAlignment alignment) {
-  HeapObject result = isolate()->heap()->AllocateRawWithRetryOrFail(
-      size, Heap::SelectSpace(pretenure), alignment);
+  AllocationType type = Heap::SelectType(Heap::SelectSpace(pretenure));
+  HeapObject result =
+      isolate()->heap()->AllocateRawWithRetryOrFail(size, type, alignment);
   result->set_map_after_allocation(map, SKIP_WRITE_BARRIER);
   return result;
 }
@@ -142,11 +143,11 @@ HeapObject Factory::AllocateRawWithAllocationSite(
     Handle<Map> map, PretenureFlag pretenure,
     Handle<AllocationSite> allocation_site) {
   DCHECK(map->instance_type() != MAP_TYPE);
+  AllocationType type = Heap::SelectType(Heap::SelectSpace(pretenure));
   int size = map->instance_size();
   if (!allocation_site.is_null()) size += AllocationMemento::kSize;
   AllocationSpace space = Heap::SelectSpace(pretenure);
-  HeapObject result =
-      isolate()->heap()->AllocateRawWithRetryOrFail(size, space);
+  HeapObject result = isolate()->heap()->AllocateRawWithRetryOrFail(size, type);
   WriteBarrierMode write_barrier_mode =
       space == NEW_SPACE ? SKIP_WRITE_BARRIER : UPDATE_WRITE_BARRIER;
   result->set_map_after_allocation(*map, write_barrier_mode);
@@ -169,9 +170,8 @@ void Factory::InitializeAllocationMemento(AllocationMemento memento,
 }
 
 HeapObject Factory::AllocateRawArray(int size, PretenureFlag pretenure) {
-  AllocationSpace space = Heap::SelectSpace(pretenure);
-  HeapObject result =
-      isolate()->heap()->AllocateRawWithRetryOrFail(size, space);
+  AllocationType type = Heap::SelectType(Heap::SelectSpace(pretenure));
+  HeapObject result = isolate()->heap()->AllocateRawWithRetryOrFail(size, type);
   if (size > kMaxRegularHeapObjectSize && FLAG_use_marking_progress_bar) {
     MemoryChunk* chunk = MemoryChunk::FromHeapObject(result);
     chunk->SetFlag<AccessMode::ATOMIC>(MemoryChunk::HAS_PROGRESS_BAR);
@@ -197,12 +197,12 @@ HeapObject Factory::AllocateRawWeakArrayList(int capacity,
 HeapObject Factory::New(Handle<Map> map, PretenureFlag pretenure) {
   DCHECK(map->instance_type() != MAP_TYPE);
   int size = map->instance_size();
-  AllocationSpace space = Heap::SelectSpace(pretenure);
-  HeapObject result =
-      isolate()->heap()->AllocateRawWithRetryOrFail(size, space);
+  AllocationType type = Heap::SelectType(Heap::SelectSpace(pretenure));
+  HeapObject result = isolate()->heap()->AllocateRawWithRetryOrFail(size, type);
   // New space objects are allocated white.
-  WriteBarrierMode write_barrier_mode =
-      space == NEW_SPACE ? SKIP_WRITE_BARRIER : UPDATE_WRITE_BARRIER;
+  WriteBarrierMode write_barrier_mode = type == AllocationType::kYoung
+                                            ? SKIP_WRITE_BARRIER
+                                            : UPDATE_WRITE_BARRIER;
   result->set_map_after_allocation(*map, write_barrier_mode);
   return result;
 }
@@ -211,7 +211,8 @@ Handle<HeapObject> Factory::NewFillerObject(int size, bool double_align,
                                             AllocationSpace space) {
   AllocationAlignment alignment = double_align ? kDoubleAligned : kWordAligned;
   Heap* heap = isolate()->heap();
-  HeapObject result = heap->AllocateRawWithRetryOrFail(size, space, alignment);
+  HeapObject result = heap->AllocateRawWithRetryOrFail(
+      size, Heap::SelectType(space), alignment);
 #ifdef DEBUG
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(result);
   DCHECK(chunk->owner()->identity() == space);
@@ -1910,8 +1911,8 @@ Handle<DescriptorArray> Factory::NewDescriptorArray(int number_of_descriptors,
   // Zero-length case must be handled outside.
   DCHECK_LT(0, number_of_all_descriptors);
   int size = DescriptorArray::SizeFor(number_of_all_descriptors);
-  AllocationSpace space = Heap::SelectSpace(pretenure);
-  HeapObject obj = isolate()->heap()->AllocateRawWithRetryOrFail(size, space);
+  AllocationType type = Heap::SelectType(Heap::SelectSpace(pretenure));
+  HeapObject obj = isolate()->heap()->AllocateRawWithRetryOrFail(size, type);
   obj->set_map_after_allocation(*descriptor_array_map(), SKIP_WRITE_BARRIER);
   DescriptorArray array = DescriptorArray::cast(obj);
   array->Initialize(*empty_enum_cache(), *undefined_value(),
@@ -1961,8 +1962,8 @@ Handle<Map> Factory::NewMap(InstanceType type, int instance_size,
                      !Map::CanHaveFastTransitionableElementsKind(type),
                  IsDictionaryElementsKind(elements_kind) ||
                      IsTerminalElementsKind(elements_kind));
-  HeapObject result =
-      isolate()->heap()->AllocateRawWithRetryOrFail(Map::kSize, MAP_SPACE);
+  HeapObject result = isolate()->heap()->AllocateRawWithRetryOrFail(
+      Map::kSize, AllocationType::kMap);
   result->set_map_after_allocation(*meta_map(), SKIP_WRITE_BARRIER);
   return handle(InitializeMap(Map::cast(result), type, instance_size,
                               elements_kind, inobject_properties),
@@ -2040,7 +2041,7 @@ Handle<JSObject> Factory::CopyJSObjectWithAllocationSite(
   int adjusted_object_size =
       site.is_null() ? object_size : object_size + AllocationMemento::kSize;
   HeapObject raw_clone = isolate()->heap()->AllocateRawWithRetryOrFail(
-      adjusted_object_size, NEW_SPACE);
+      adjusted_object_size, AllocationType::kYoung);
 
   DCHECK(Heap::InYoungGeneration(raw_clone));
   // Since we know the clone is allocated in new space, we can copy
@@ -2731,7 +2732,7 @@ MaybeHandle<Code> Factory::TryNewCode(
     Heap* heap = isolate()->heap();
     CodePageCollectionMemoryModificationScope code_allocation(heap);
     HeapObject result =
-        heap->AllocateRawWithLightRetry(object_size, CODE_SPACE);
+        heap->AllocateRawWithLightRetry(object_size, AllocationType::kCode);
 
     // Return an empty handle if we cannot allocate the code object.
     if (result.is_null()) return MaybeHandle<Code>();
@@ -2787,7 +2788,7 @@ Handle<Code> Factory::NewCode(
     Heap* heap = isolate()->heap();
     CodePageCollectionMemoryModificationScope code_allocation(heap);
     HeapObject result =
-        heap->AllocateRawWithRetryOrFail(object_size, CODE_SPACE);
+        heap->AllocateRawWithRetryOrFail(object_size, AllocationType::kCode);
     if (movability == kImmovable) {
       result = heap->EnsureImmovableCode(result, object_size);
     }
@@ -2872,7 +2873,8 @@ Handle<Code> Factory::CopyCode(Handle<Code> code) {
   {
     int obj_size = code->Size();
     CodePageCollectionMemoryModificationScope code_allocation(heap);
-    HeapObject result = heap->AllocateRawWithRetryOrFail(obj_size, CODE_SPACE);
+    HeapObject result =
+        heap->AllocateRawWithRetryOrFail(obj_size, AllocationType::kCode);
 
     // Copy code object.
     Address old_addr = code->address();

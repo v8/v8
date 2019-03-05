@@ -1714,23 +1714,23 @@ class Heap {
       int size_in_bytes, AllocationType type,
       AllocationAlignment aligment = kWordAligned);
 
-  // This method will try to perform an allocation of a given size in a given
-  // space. If the allocation fails, a regular full garbage collection is
-  // triggered and the allocation is retried. This is performed multiple times.
-  // If after that retry procedure the allocation still fails nullptr is
+  // This method will try to perform an allocation of a given size of a given
+  // AllocationType. If the allocation fails, a regular full garbage collection
+  // is triggered and the allocation is retried. This is performed multiple
+  // times. If after that retry procedure the allocation still fails nullptr is
   // returned.
   HeapObject AllocateRawWithLightRetry(
-      int size, AllocationSpace space,
+      int size, AllocationType type,
       AllocationAlignment alignment = kWordAligned);
 
-  // This method will try to perform an allocation of a given size in a given
-  // space. If the allocation fails, a regular full garbage collection is
-  // triggered and the allocation is retried. This is performed multiple times.
-  // If after that retry procedure the allocation still fails a "hammer"
+  // This method will try to perform an allocation of a given size of a given
+  // AllocationType. If the allocation fails, a regular full garbage collection
+  // is triggered and the allocation is retried. This is performed multiple
+  // times. If after that retry procedure the allocation still fails a "hammer"
   // garbage collection is triggered which tries to significantly reduce memory.
   // If the allocation still fails after that a fatal error is thrown.
   HeapObject AllocateRawWithRetryOrFail(
-      int size, AllocationSpace space,
+      int size, AllocationType type,
       AllocationAlignment alignment = kWordAligned);
   HeapObject AllocateRawCodeInLargeObjectSpace(int size);
 
