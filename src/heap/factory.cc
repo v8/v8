@@ -381,8 +381,9 @@ MaybeHandle<FixedArray> Factory::TryNewFixedArray(int length,
 
   int size = FixedArray::SizeFor(length);
   AllocationSpace space = Heap::SelectSpace(pretenure);
+  AllocationType type = Heap::SelectType(space);
   Heap* heap = isolate()->heap();
-  AllocationResult allocation = heap->AllocateRaw(size, space);
+  AllocationResult allocation = heap->AllocateRaw(size, type);
   HeapObject result;
   if (!allocation.To(&result)) return MaybeHandle<FixedArray>();
   if (size > kMaxRegularHeapObjectSize && FLAG_use_marking_progress_bar) {

@@ -4428,7 +4428,8 @@ HeapObject Heap::EnsureImmovableCode(HeapObject heap_object, int object_size) {
 HeapObject Heap::AllocateRawWithLightRetry(int size, AllocationSpace space,
                                            AllocationAlignment alignment) {
   HeapObject result;
-  AllocationResult alloc = AllocateRaw(size, space, alignment);
+  AllocationResult alloc =
+      AllocateRaw(size, Heap::SelectType(space), alignment);
   if (alloc.To(&result)) {
     DCHECK(result != ReadOnlyRoots(this).exception());
     return result;
@@ -4437,7 +4438,7 @@ HeapObject Heap::AllocateRawWithLightRetry(int size, AllocationSpace space,
   for (int i = 0; i < 2; i++) {
     CollectGarbage(alloc.RetrySpace(),
                    GarbageCollectionReason::kAllocationFailure);
-    alloc = AllocateRaw(size, space, alignment);
+    alloc = AllocateRaw(size, Heap::SelectType(space), alignment);
     if (alloc.To(&result)) {
       DCHECK(result != ReadOnlyRoots(this).exception());
       return result;
@@ -4456,7 +4457,7 @@ HeapObject Heap::AllocateRawWithRetryOrFail(int size, AllocationSpace space,
   CollectAllAvailableGarbage(GarbageCollectionReason::kLastResort);
   {
     AlwaysAllocateScope scope(isolate());
-    alloc = AllocateRaw(size, space, alignment);
+    alloc = AllocateRaw(size, Heap::SelectType(space), alignment);
   }
   if (alloc.To(&result)) {
     DCHECK(result != ReadOnlyRoots(this).exception());

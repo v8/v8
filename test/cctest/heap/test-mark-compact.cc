@@ -101,7 +101,7 @@ HEAP_TEST(NoPromotion) {
 AllocationResult HeapTester::AllocateMapForTest(Isolate* isolate) {
   Heap* heap = isolate->heap();
   HeapObject obj;
-  AllocationResult alloc = heap->AllocateRaw(Map::kSize, MAP_SPACE);
+  AllocationResult alloc = heap->AllocateRaw(Map::kSize, AllocationType::kMap);
   if (!alloc.To(&obj)) return alloc;
   obj->set_map_after_allocation(ReadOnlyRoots(heap).meta_map(),
                                 SKIP_WRITE_BARRIER);
@@ -119,7 +119,7 @@ AllocationResult HeapTester::AllocateFixedArrayForTest(
   AllocationSpace space = heap->SelectSpace(pretenure);
   HeapObject obj;
   {
-    AllocationResult result = heap->AllocateRaw(size, space);
+    AllocationResult result = heap->AllocateRaw(size, Heap::SelectType(space));
     if (!result.To(&obj)) return result;
   }
   obj->set_map_after_allocation(ReadOnlyRoots(heap).fixed_array_map(),

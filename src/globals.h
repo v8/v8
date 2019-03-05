@@ -666,6 +666,14 @@ enum AllocationSpace {
 constexpr int kSpaceTagSize = 4;
 STATIC_ASSERT(FIRST_SPACE == 0);
 
+enum class AllocationType {
+  kYoung,    // Regular object allocated in NEW_SPACE or NEW_LO_SPACE
+  kOld,      // Regular object allocated in OLD_SPACE or LO_SPACE
+  kCode,     // Code object allocated in CODE_SPACE or CODE_LO_SPACE
+  kMap,      // Map object allocated in MAP_SPACE
+  kReadOnly  // Object allocated in RO_SPACE
+};
+
 // TODO(ishell): review and rename kWordAligned to kTaggedAligned.
 enum AllocationAlignment { kWordAligned, kDoubleAligned, kDoubleUnaligned };
 

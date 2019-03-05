@@ -5367,7 +5367,8 @@ AllocationResult HeapTester::AllocateByteArrayForTest(Heap* heap, int length,
   AllocationSpace space = heap->SelectSpace(pretenure);
   HeapObject result;
   {
-    AllocationResult allocation = heap->AllocateRaw(size, space);
+    AllocationResult allocation =
+        heap->AllocateRaw(size, Heap::SelectType(space));
     if (!allocation.To(&result)) return allocation;
   }
 

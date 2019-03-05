@@ -1396,6 +1396,32 @@ class Heap {
     }
   }
 
+  // TODO(hpayer): Remove this translation function as soon as all code is
+  // converted to use AllocationType. Also remove PretenureFlag and use
+  // Allocation Type instead.
+  static AllocationType SelectType(AllocationSpace space) {
+    switch (space) {
+      case NEW_SPACE:
+        return AllocationType::kYoung;
+      case NEW_LO_SPACE:
+        return AllocationType::kYoung;
+      case OLD_SPACE:
+        return AllocationType::kOld;
+      case LO_SPACE:
+        return AllocationType::kOld;
+      case CODE_SPACE:
+        return AllocationType::kCode;
+      case CODE_LO_SPACE:
+        return AllocationType::kCode;
+      case MAP_SPACE:
+        return AllocationType::kMap;
+      case RO_SPACE:
+        return AllocationType::kReadOnly;
+      default:
+        UNREACHABLE();
+    }
+  }
+
   static size_t DefaultGetExternallyAllocatedMemoryInBytesCallback() {
     return 0;
   }
@@ -1685,7 +1711,7 @@ class Heap {
   // performed by the runtime and should not be bypassed (to extend this to
   // inlined allocations, use the Heap::DisableInlineAllocation() support).
   V8_WARN_UNUSED_RESULT inline AllocationResult AllocateRaw(
-      int size_in_bytes, AllocationSpace space,
+      int size_in_bytes, AllocationType type,
       AllocationAlignment aligment = kWordAligned);
 
   // This method will try to perform an allocation of a given size in a given

@@ -110,7 +110,8 @@ AllocationResult Heap::AllocateMap(InstanceType instance_type,
   // JSObjects have maps with a mutable prototype_validity_cell, so they cannot
   // go in RO_SPACE.
   AllocationResult allocation =
-      AllocateRaw(Map::kSize, is_js_object ? MAP_SPACE : RO_SPACE);
+      AllocateRaw(Map::kSize, is_js_object ? AllocationType::kMap
+                                           : AllocationType::kReadOnly);
   if (!allocation.To(&result)) return allocation;
 
   result->set_map_after_allocation(ReadOnlyRoots(this).meta_map(),
@@ -125,7 +126,8 @@ AllocationResult Heap::AllocateMap(InstanceType instance_type,
 AllocationResult Heap::AllocatePartialMap(InstanceType instance_type,
                                           int instance_size) {
   Object result;
-  AllocationResult allocation = AllocateRaw(Map::kSize, RO_SPACE);
+  AllocationResult allocation =
+      AllocateRaw(Map::kSize, AllocationType::kReadOnly);
   if (!allocation.To(&result)) return allocation;
   // Map::cast cannot be used due to uninitialized map field.
   Map map = Map::unchecked_cast(result);
@@ -172,7 +174,7 @@ AllocationResult Heap::Allocate(Map map, AllocationSpace space) {
   DCHECK(map->instance_type() != MAP_TYPE);
   int size = map->instance_size();
   HeapObject result;
-  AllocationResult allocation = AllocateRaw(size, space);
+  AllocationResult allocation = AllocateRaw(size, Heap::SelectType(space));
   if (!allocation.To(&result)) return allocation;
   // New space objects are allocated white.
   WriteBarrierMode write_barrier_mode =
@@ -187,7 +189,7 @@ AllocationResult Heap::AllocateEmptyFixedTypedArray(
 
   HeapObject object;
   AllocationResult allocation = AllocateRaw(
-      size, RO_SPACE,
+      size, AllocationType::kReadOnly,
       array_type == kExternalFloat64Array ? kDoubleAligned : kWordAligned);
   if (!allocation.To(&object)) return allocation;
 
@@ -243,7 +245,8 @@ bool Heap::CreateInitialMaps() {
 
   // Allocate the empty array.
   {
-    AllocationResult alloc = AllocateRaw(FixedArray::SizeFor(0), RO_SPACE);
+    AllocationResult alloc =
+        AllocateRaw(FixedArray::SizeFor(0), AllocationType::kReadOnly);
     if (!alloc.To(&obj)) return false;
     obj->set_map_after_allocation(roots.fixed_array_map(), SKIP_WRITE_BARRIER);
     FixedArray::cast(obj)->set_length(0);
@@ -251,7 +254,8 @@ bool Heap::CreateInitialMaps() {
   set_empty_fixed_array(FixedArray::cast(obj));
 
   {
-    AllocationResult alloc = AllocateRaw(WeakFixedArray::SizeFor(0), RO_SPACE);
+    AllocationResult alloc =
+        AllocateRaw(WeakFixedArray::SizeFor(0), AllocationType::kReadOnly);
     if (!alloc.To(&obj)) return false;
     obj->set_map_after_allocation(roots.weak_fixed_array_map(),
                                   SKIP_WRITE_BARRIER);
@@ -260,8 +264,8 @@ bool Heap::CreateInitialMaps() {
   set_empty_weak_fixed_array(WeakFixedArray::cast(obj));
 
   {
-    AllocationResult allocation =
-        AllocateRaw(WeakArrayList::SizeForCapacity(0), RO_SPACE);
+    AllocationResult allocation = AllocateRaw(WeakArrayList::SizeForCapacity(0),
+                                              AllocationType::kReadOnly);
     if (!allocation.To(&obj)) return false;
     obj->set_map_after_allocation(roots.weak_array_list_map(),
                                   SKIP_WRITE_BARRIER);
@@ -314,7 +318,7 @@ bool Heap::CreateInitialMaps() {
   // Allocate the empty descriptor array.
   {
     int size = DescriptorArray::SizeFor(0);
-    if (!AllocateRaw(size, RO_SPACE).To(&obj)) return false;
+    if (!AllocateRaw(size, AllocationType::kReadOnly).To(&obj)) return false;
     obj->set_map_after_allocation(roots.descriptor_array_map(),
                                   SKIP_WRITE_BARRIER);
     DescriptorArray array = DescriptorArray::cast(obj);
@@ -427,7 +431,7 @@ bool Heap::CreateInitialMaps() {
     {
       // The invalid_prototype_validity_cell is needed for JSObject maps.
       Smi value = Smi::FromInt(Map::kPrototypeChainInvalid);
-      AllocationResult alloc = AllocateRaw(Cell::kSize, OLD_SPACE);
+      AllocationResult alloc = AllocateRaw(Cell::kSize, AllocationType::kOld);
       if (!alloc.To(&obj)) return false;
       obj->set_map_after_allocation(roots.cell_map(), SKIP_WRITE_BARRIER);
       Cell::cast(obj)->set_value(value);
@@ -519,7 +523,8 @@ bool Heap::CreateInitialMaps() {
   }
 
   {
-    AllocationResult alloc = AllocateRaw(FixedArray::SizeFor(0), RO_SPACE);
+    AllocationResult alloc =
+        AllocateRaw(FixedArray::SizeFor(0), AllocationType::kReadOnly);
     if (!alloc.To(&obj)) return false;
     obj->set_map_after_allocation(roots.scope_info_map(), SKIP_WRITE_BARRIER);
     FixedArray::cast(obj)->set_length(0);
@@ -528,7 +533,8 @@ bool Heap::CreateInitialMaps() {
 
   {
     // Empty boilerplate needs a field for literal_flags
-    AllocationResult alloc = AllocateRaw(FixedArray::SizeFor(1), RO_SPACE);
+    AllocationResult alloc =
+        AllocateRaw(FixedArray::SizeFor(1), AllocationType::kReadOnly);
     if (!alloc.To(&obj)) return false;
     obj->set_map_after_allocation(roots.object_boilerplate_description_map(),
                                   SKIP_WRITE_BARRIER);
@@ -570,14 +576,16 @@ bool Heap::CreateInitialMaps() {
 
   // Empty arrays.
   {
-    if (!AllocateRaw(ByteArray::SizeFor(0), RO_SPACE).To(&obj)) return false;
+    if (!AllocateRaw(ByteArray::SizeFor(0), AllocationType::kReadOnly).To(&obj))
+      return false;
     obj->set_map_after_allocation(roots.byte_array_map(), SKIP_WRITE_BARRIER);
     ByteArray::cast(obj)->set_length(0);
     set_empty_byte_array(ByteArray::cast(obj));
   }
 
   {
-    if (!AllocateRaw(FixedArray::SizeFor(0), RO_SPACE).To(&obj)) {
+    if (!AllocateRaw(FixedArray::SizeFor(0), AllocationType::kReadOnly)
+             .To(&obj)) {
       return false;
     }
     obj->set_map_after_allocation(roots.property_array_map(),
