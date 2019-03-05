@@ -692,8 +692,6 @@ TEST(Nops) {
              MachineRepresentation::kWord16);
   r.CheckNop(MachineRepresentation::kBit, Type::Boolean(),
              MachineRepresentation::kWord32);
-  r.CheckNop(MachineRepresentation::kBit, Type::Boolean(),
-             MachineRepresentation::kWord64);
 }
 
 

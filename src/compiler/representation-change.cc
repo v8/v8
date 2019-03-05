@@ -643,7 +643,17 @@ Node* RepresentationChanger::GetFloat64RepresentationFor(
       op = machine()->ChangeUint32ToFloat64();
     }
   } else if (output_rep == MachineRepresentation::kBit) {
-    op = machine()->ChangeUint32ToFloat64();
+    CHECK(output_type.Is(Type::Boolean()));
+    if (use_info.truncation().IsUsedAsFloat64()) {
+      op = machine()->ChangeUint32ToFloat64();
+    } else {
+      CHECK_NE(use_info.type_check(), TypeCheckKind::kNone);
+      Node* unreachable =
+          InsertUnconditionalDeopt(use_node, DeoptimizeReason::kNotAHeapNumber);
+      return jsgraph()->graph()->NewNode(
+          jsgraph()->common()->DeadValue(MachineRepresentation::kFloat64),
+          unreachable);
+    }
   } else if (output_rep == MachineRepresentation::kTagged ||
              output_rep == MachineRepresentation::kTaggedSigned ||
              output_rep == MachineRepresentation::kTaggedPointer) {
@@ -984,7 +994,13 @@ Node* RepresentationChanger::GetWord64RepresentationFor(
     return jsgraph()->graph()->NewNode(
         jsgraph()->common()->DeadValue(MachineRepresentation::kWord64), node);
   } else if (output_rep == MachineRepresentation::kBit) {
-    return node;  // Sloppy comparison -> word64
+    CHECK(output_type.Is(Type::Boolean()));
+    CHECK_NE(use_info.type_check(), TypeCheckKind::kNone);
+    Node* unreachable =
+        InsertUnconditionalDeopt(use_node, DeoptimizeReason::kNotASmi);
+    return jsgraph()->graph()->NewNode(
+        jsgraph()->common()->DeadValue(MachineRepresentation::kWord64),
+        unreachable);
   } else if (IsWord(output_rep)) {
     if (output_type.Is(Type::Unsigned32())) {
       op = machine()->ChangeUint32ToUint64();
