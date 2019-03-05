@@ -846,18 +846,8 @@ class JSAccessorPropertyDescriptor : public JSObject {
 // FromPropertyDescriptor function for regular data properties.
 class JSDataPropertyDescriptor : public JSObject {
  public:
-  // Layout description.
-#define JS_DATA_PROPERTY_DESCRIPTOR_FIELDS(V) \
-  V(kValueOffset, kTaggedSize)                \
-  V(kWritableOffset, kTaggedSize)             \
-  V(kEnumerableOffset, kTaggedSize)           \
-  V(kConfigurableOffset, kTaggedSize)         \
-  /* Total size. */                           \
-  V(kSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
-                                JS_DATA_PROPERTY_DESCRIPTOR_FIELDS)
-#undef JS_DATA_PROPERTY_DESCRIPTOR_FIELDS
+  DEFINE_FIELD_OFFSET_CONSTANTS(
+      JSObject::kHeaderSize, TORQUE_GENERATED_JSDATA_PROPERTY_DESCRIPTOR_FIELDS)
 
   // Indices of in-object properties.
   static const int kValueIndex = 0;
@@ -1303,22 +1293,8 @@ class JSDate : public JSObject {
     kTimezoneOffset
   };
 
-  // Layout description.
-#define JS_DATE_FIELDS(V)           \
-  V(kValueOffset, kTaggedSize)      \
-  V(kYearOffset, kTaggedSize)       \
-  V(kMonthOffset, kTaggedSize)      \
-  V(kDayOffset, kTaggedSize)        \
-  V(kWeekdayOffset, kTaggedSize)    \
-  V(kHourOffset, kTaggedSize)       \
-  V(kMinOffset, kTaggedSize)        \
-  V(kSecOffset, kTaggedSize)        \
-  V(kCacheStampOffset, kTaggedSize) \
-  /* Header size. */                \
-  V(kSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_DATE_FIELDS)
-#undef JS_DATE_FIELDS
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
+                                TORQUE_GENERATED_JSDATE_FIELDS)
 
  private:
   inline Object DoGetField(FieldIndex index);
@@ -1428,16 +1404,8 @@ class JSAsyncFromSyncIterator : public JSObject {
   // subsequent "next" invocations.
   DECL_ACCESSORS(next, Object)
 
-  // Layout description.
-#define JS_ASYNC_FROM_SYNC_ITERATOR_FIELDS(V) \
-  V(kSyncIteratorOffset, kTaggedSize)         \
-  V(kNextOffset, kTaggedSize)                 \
-  /* Total size. */                           \
-  V(kSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
-                                JS_ASYNC_FROM_SYNC_ITERATOR_FIELDS)
-#undef JS_ASYNC_FROM_SYNC_ITERATOR_FIELDS
+  DEFINE_FIELD_OFFSET_CONSTANTS(
+      JSObject::kHeaderSize, TORQUE_GENERATED_JSASYNC_FROM_SYNC_ITERATOR_FIELDS)
 
   OBJECT_CONSTRUCTORS(JSAsyncFromSyncIterator, JSObject);
 };
@@ -1457,16 +1425,8 @@ class JSStringIterator : public JSObject {
   inline int index() const;
   inline void set_index(int value);
 
-  // Layout description.
-#define JS_STRING_ITERATOR_FIELDS(V) \
-  V(kStringOffset, kTaggedSize)      \
-  V(kNextIndexOffset, kTaggedSize)   \
-  /* Total size. */                  \
-  V(kSize, 0)
-
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
-                                JS_STRING_ITERATOR_FIELDS)
-#undef JS_STRING_ITERATOR_FIELDS
+                                TORQUE_GENERATED_JSSTRING_ITERATOR_FIELDS)
 
   OBJECT_CONSTRUCTORS(JSStringIterator, JSObject);
 };

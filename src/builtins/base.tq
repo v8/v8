@@ -66,6 +66,9 @@ type Number = Smi | HeapNumber;
 type BigInt extends HeapObject generates 'TNode<BigInt>';
 type Numeric = Number | BigInt;
 
+// The HeapNumber value NaN
+type NaN extends HeapNumber;
+
 extern class Struct extends HeapObject {}
 
 extern class Tuple2 extends Struct {
@@ -295,6 +298,35 @@ extern class JSAccessorPropertyDescriptor extends JSObject {
 }
 
 extern class JSCollection extends JSObject { table: Object; }
+
+extern class JSDate extends JSObject {
+  value: NumberOrUndefined;
+  year: Undefined | Smi | NaN;
+  month: Undefined | Smi | NaN;
+  day: Undefined | Smi | NaN;
+  weekday: Undefined | Smi | NaN;
+  hour: Undefined | Smi | NaN;
+  min: Undefined | Smi | NaN;
+  sec: Undefined | Smi | NaN;
+  cache_stamp: Undefined | Smi | NaN;
+}
+
+extern class JSAsyncFromSyncIterator extends JSObject {
+  sync_iterator: JSReceiver;
+  next: Object;
+}
+
+extern class JSStringIterator extends JSObject {
+  string: String;
+  next_index: Smi;
+}
+
+extern class JSDataPropertyDescriptor extends JSObject {
+  value: Object;
+  writable: Object;
+  enumerable: Object;
+  configurable: Object;
+}
 
 type JSDataView extends JSArrayBufferView generates 'TNode<JSDataView>';
 
