@@ -1081,7 +1081,7 @@ Name FeedbackNexus::GetName() const {
 }
 
 KeyedAccessLoadMode FeedbackNexus::GetKeyedAccessLoadMode() const {
-  DCHECK(IsKeyedLoadICKind(kind()));
+  DCHECK(IsKeyedLoadICKind(kind()) || IsKeyedHasICKind(kind()));
   MapHandles maps;
   MaybeObjectHandles handlers;
 

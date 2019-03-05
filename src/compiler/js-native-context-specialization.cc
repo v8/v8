@@ -1934,9 +1934,12 @@ Reduction JSNativeContextSpecialization::ReduceJSHasProperty(Node* node) {
   if (!p.feedback().IsValid()) return NoChange();
   FeedbackNexus nexus(p.feedback().vector(), p.feedback().slot());
 
+  // Extract the keyed access load mode from the keyed load IC.
+  KeyedAccessLoadMode load_mode = nexus.GetKeyedAccessLoadMode();
+
   // Try to lower the keyed access based on the {nexus}.
   return ReduceKeyedAccess(node, index, value, nexus, AccessMode::kHas,
-                           STANDARD_LOAD, STANDARD_STORE);
+                           load_mode, STANDARD_STORE);
 }
 
 Reduction JSNativeContextSpecialization::ReduceJSLoadPropertyWithEnumeratedKey(
