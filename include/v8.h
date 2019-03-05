@@ -6686,7 +6686,7 @@ typedef void (*HostInitializeImportMetaObjectCallback)(Local<Context> context,
  * first accessed. The return value will be used as the stack value. If this
  * callback is registed, the |Error.prepareStackTrace| API will be disabled.
  * |sites| is an array of call sites, specified in
- * https://github.com/v8/v8/wiki/Stack-Trace-API
+ * https://v8.dev/docs/stack-trace-api
  */
 typedef MaybeLocal<Value> (*PrepareStackTraceCallback)(Local<Context> context,
                                                        Local<Value> error,
