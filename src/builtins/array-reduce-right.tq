@@ -119,6 +119,9 @@ namespace array {
     for (let k: Smi = smiLen - 1; k >= 0; k--) {
       fastOW.Recheck() otherwise goto Bailout(k, accumulator);
 
+      // Ensure that we haven't walked beyond a possibly updated length.
+      if (k >= fastOW.Get().length) goto Bailout(k, accumulator);
+
       const value: Object = fastOW.LoadElementNoHole(k) otherwise continue;
       if (accumulator == Hole) {
         accumulator = value;
