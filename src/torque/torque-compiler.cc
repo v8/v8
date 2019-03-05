@@ -18,13 +18,31 @@ namespace torque {
 
 namespace {
 
+base::Optional<std::string> ReadFile(const std::string& path) {
+  std::ifstream file_stream(path);
+  if (!file_stream.good()) return base::nullopt;
+
+  return std::string{std::istreambuf_iterator<char>(file_stream),
+                     std::istreambuf_iterator<char>()};
+}
+
 void ReadAndParseTorqueFile(const std::string& path) {
   SourceId source_id = SourceFileMap::AddSource(path);
   CurrentSourceFile::Scope source_id_scope(source_id);
-  std::ifstream file_stream(path);
-  std::string file_content = {std::istreambuf_iterator<char>(file_stream),
-                              std::istreambuf_iterator<char>()};
-  ParseTorque(file_content);
+
+  // path might be either a normal file path or an encoded URI.
+  auto maybe_content = ReadFile(path);
+  if (!maybe_content) {
+    if (auto maybe_path = FileUriDecode(path)) {
+      maybe_content = ReadFile(*maybe_path);
+    }
+  }
+
+  if (!maybe_content) {
+    ReportErrorWithoutPosition("Cannot open file path/uri: ", path);
+  }
+
+  ParseTorque(*maybe_content);
 }
 
 }  // namespace

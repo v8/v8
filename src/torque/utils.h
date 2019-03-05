@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "src/base/functional.h"
+#include "src/base/optional.h"
 #include "src/torque/contextual.h"
 
 namespace v8 {
@@ -20,6 +21,11 @@ namespace torque {
 
 std::string StringLiteralUnquote(const std::string& s);
 std::string StringLiteralQuote(const std::string& s);
+
+// Decodes "file://" URIs into file paths which can then be used
+// with the standard stream API.
+V8_EXPORT_PRIVATE base::Optional<std::string> FileUriDecode(
+    const std::string& s);
 
 class LintErrorStatus : public ContextualClass<LintErrorStatus> {
  public:
@@ -45,12 +51,19 @@ bool IsSnakeCase(const std::string& s);
 bool IsValidNamespaceConstName(const std::string& s);
 bool IsValidTypeName(const std::string& s);
 
-[[noreturn]] void ReportErrorString(const std::string& error);
+[[noreturn]] void ReportErrorString(const std::string& error,
+                                    bool print_position);
 template <class... Args>
 [[noreturn]] void ReportError(Args&&... args) {
   std::stringstream s;
   USE((s << std::forward<Args>(args))...);
-  ReportErrorString(s.str());
+  ReportErrorString(s.str(), true);
+}
+template <class... Args>
+[[noreturn]] void ReportErrorWithoutPosition(Args&&... args) {
+  std::stringstream s;
+  USE((s << std::forward<Args>(args))...);
+  ReportErrorString(s.str(), false);
 }
 
 std::string CapifyStringWithUnderscores(const std::string& camellified_string);

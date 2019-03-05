@@ -25,9 +25,6 @@ namespace ls {
 static const char kContentLength[] = "Content-Length: ";
 static const size_t kContentLengthSize = sizeof(kContentLength) - 1;
 
-static const char kFileUriPrefix[] = "file://";
-static const int kFileUriPrefixLength = sizeof(kFileUriPrefix) - 1;
-
 JsonValue ReadMessage() {
   std::string line;
   std::getline(std::cin, line);
@@ -115,15 +112,17 @@ void HandleTorqueFileListNotification(TorqueFileListNotification notification) {
 
   std::vector<std::string>& files = TorqueFileList::Get();
   Logger::Log("[info] Initial file list:\n");
-  for (const auto& fileJson :
+  for (const auto& file_json :
        notification.params().object()["files"].ToArray()) {
-    CHECK(fileJson.IsString());
-    // We only consider file URIs (there shouldn't be anything else).
-    if (fileJson.ToString().rfind(kFileUriPrefix) != 0) continue;
+    CHECK(file_json.IsString());
 
-    std::string file = fileJson.ToString().substr(kFileUriPrefixLength);
-    files.push_back(file);
-    Logger::Log("    ", file, "\n");
+    // We only consider file URIs (there shouldn't be anything else).
+    // Internally we store the URI instead of the path, eliminating the need
+    // to encode it again.
+    if (auto maybe_path = FileUriDecode(file_json.ToString())) {
+      files.push_back(file_json.ToString());
+      Logger::Log("    ", *maybe_path, "\n");
+    }
   }
 
   // The Torque compiler expects to see some files first,
@@ -147,12 +146,11 @@ void HandleGotoDefinitionRequest(GotoDefinitionRequest request,
   GotoDefinitionResponse response;
   response.set_id(request.id());
 
-  std::string file = request.params().textDocument().uri();
-  CHECK_EQ(file.rfind(kFileUriPrefix), 0);
-  SourceId id = SourceFileMap::GetSourceId(file.substr(kFileUriPrefixLength));
+  SourceId id =
+      SourceFileMap::GetSourceId(request.params().textDocument().uri());
 
-  // If we do not know about the source file, send back an empty response,
-  // i.e. we did not find anything.
+  // Unknown source files cause an empty response which corresponds with
+  // the definition not beeing found.
   if (!id.IsValid()) {
     response.SetNull("result");
     writer(response.GetJsonValue());
@@ -166,7 +164,7 @@ void HandleGotoDefinitionRequest(GotoDefinitionRequest request,
     SourcePosition definition = *maybe_definition;
 
     std::string definition_file = SourceFileMap::GetSource(definition.source);
-    response.result().set_uri(kFileUriPrefix + definition_file);
+    response.result().set_uri(definition_file);
 
     Range range = response.result().range();
     range.start().set_line(definition.start.line);

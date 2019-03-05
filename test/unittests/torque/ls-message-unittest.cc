@@ -68,8 +68,8 @@ TEST(LanguageServerMessage, GotoDefinitionUnkownFile) {
 
 TEST(LanguageServerMessage, GotoDefinition) {
   SourceFileMap::Scope source_file_map_scope;
-  SourceId test_id = SourceFileMap::AddSource("test.tq");
-  SourceId definition_id = SourceFileMap::AddSource("base.tq");
+  SourceId test_id = SourceFileMap::AddSource("file://test.tq");
+  SourceId definition_id = SourceFileMap::AddSource("file://base.tq");
 
   LanguageServerData::Scope server_data_scope;
   LanguageServerData::AddDefinition({test_id, {1, 0}, {1, 10}},
