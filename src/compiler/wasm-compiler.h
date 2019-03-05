@@ -441,11 +441,16 @@ class WasmGraphBuilder {
   Node* BoundsCheckMem(uint8_t access_size, Node* index, uint32_t offset,
                        wasm::WasmCodePosition, EnforceBoundsCheck);
   // Check that the range [start, start + size) is in the range [0, max).
-  void BoundsCheckRange(Node* start, Node* size, Node* max,
-                        wasm::WasmCodePosition);
-  // BoundsCheckMemRange receives a uint32 {start} and {size} and returns
-  // a pointer into memory at that index, if it is in bounds.
-  Node* BoundsCheckMemRange(Node* start, Node* size, wasm::WasmCodePosition);
+  // Also updates *size with the valid range. Returns true if the range is
+  // partially out-of-bounds, traps if it is completely out-of-bounds.
+  Node* BoundsCheckRange(Node* start, Node** size, Node* max,
+                         wasm::WasmCodePosition);
+  // BoundsCheckMemRange receives a uint32 {start} and {size}, and checks if it
+  // is in bounds. Also updates *size with the valid range, and converts *start
+  // to a pointer into memory at that index. Returns true if the range is
+  // partially out-of-bounds, traps if it is completely out-of-bounds.
+  Node* BoundsCheckMemRange(Node** start, Node** size, wasm::WasmCodePosition);
+
   Node* CheckBoundsAndAlignment(uint8_t access_size, Node* index,
                                 uint32_t offset, wasm::WasmCodePosition);
 

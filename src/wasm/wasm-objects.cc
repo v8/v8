@@ -1442,9 +1442,9 @@ Address WasmInstanceObject::GetCallTarget(uint32_t func_index) {
 
 namespace {
 void CopyTableEntriesImpl(Handle<WasmInstanceObject> instance, uint32_t dst,
-                          uint32_t src, uint32_t count) {
+                          uint32_t src, uint32_t count, bool copy_backward) {
   DCHECK(IsInBounds(dst, count, instance->indirect_function_table_size()));
-  if (src < dst) {
+  if (copy_backward) {
     for (uint32_t i = count; i > 0; i--) {
       auto to_entry = IndirectFunctionTableEntry(instance, dst + i - 1);
       auto from_entry = IndirectFunctionTableEntry(instance, src + i - 1);
@@ -1471,14 +1471,21 @@ bool WasmInstanceObject::CopyTableEntries(Isolate* isolate,
   CHECK_EQ(0, table_src_index);
   CHECK_EQ(0, table_dst_index);
   auto max = instance->indirect_function_table_size();
-  if (!IsInBounds(dst, count, max)) return false;
-  if (!IsInBounds(src, count, max)) return false;
-  if (dst == src) return true;  // no-op
+  bool copy_backward = src < dst && dst - src < count;
+  bool ok = ClampToBounds(dst, &count, max);
+  // Use & instead of && so the clamp is not short-circuited.
+  ok &= ClampToBounds(src, &count, max);
+
+  // If performing a partial copy when copying backward, then the first access
+  // will be out-of-bounds, so no entries should be copied.
+  if (copy_backward && !ok) return ok;
+
+  if (dst == src || count == 0) return ok;  // no-op
 
   if (!instance->has_table_object()) {
     // No table object, only need to update this instance.
-    CopyTableEntriesImpl(instance, dst, src, count);
-    return true;
+    CopyTableEntriesImpl(instance, dst, src, count, copy_backward);
+    return ok;
   }
 
   Handle<WasmTableObject> table =
@@ -1491,12 +1498,12 @@ bool WasmInstanceObject::CopyTableEntries(Isolate* isolate,
         WasmInstanceObject::cast(
             dispatch_tables->get(i + kDispatchTableInstanceOffset)),
         isolate);
-    CopyTableEntriesImpl(target_instance, dst, src, count);
+    CopyTableEntriesImpl(target_instance, dst, src, count, copy_backward);
   }
 
   // Copy the function entries.
   Handle<FixedArray> functions(table->elements(), isolate);
-  if (src < dst) {
+  if (copy_backward) {
     for (uint32_t i = count; i > 0; i--) {
       functions->set(dst + i - 1, functions->get(src + i - 1));
     }
@@ -1505,7 +1512,7 @@ bool WasmInstanceObject::CopyTableEntries(Isolate* isolate,
       functions->set(dst + i, functions->get(src + i));
     }
   }
-  return true;
+  return ok;
 }
 
 // static

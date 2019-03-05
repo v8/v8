@@ -12,12 +12,12 @@ function addFunction(builder, k) {
   return m;
 }
 
-function addFunctions(builder, count, exportf = false) {
+function addFunctions(builder, count) {
   let o = {};
   for (var i = 0; i < count; i++) {
     let name = `f${i}`;
     o[name] = addFunction(builder, i);
-    if (exportf) o[name].exportAs(name);
+    o[name].exportAs(name);
   }
   return o;
 }
@@ -36,7 +36,7 @@ function assertTable(obj, ...elems) {
 
   builder.setTableBounds(kTableSize, kTableSize);
   {
-    let o = addFunctions(builder, kTableSize, true);
+    let o = addFunctions(builder, kTableSize);
     builder.addPassiveElementSegment(
        [o.f0.index, o.f1.index, o.f2.index, o.f3.index, o.f4.index, null]);
   }
@@ -55,6 +55,11 @@ function assertTable(obj, ...elems) {
   let x = instance.exports;
 
   assertTable(x.table, null, null, null, null, null);
+
+  // 0 count is ok in bounds, and at end of regions.
+  x.init0(0, 0, 0);
+  x.init0(kTableSize, 0, 0);
+  x.init0(0, kTableSize, 0);
 
   // test actual writes.
   x.init0(0, 0, 1);
@@ -104,6 +109,14 @@ function assertTable(obj, ...elems) {
   let x = instance.exports;
 
   assertTable(x.table, null, null, null, null, null);
+
+  // Write all values up to the out-of-bounds write.
+  assertThrows(() => x.init0(3, 0, 3));
+  assertTable(x.table, null, null, null, x.f0, x.f1);
+
+  // Write all values up to the out-of-bounds read.
+  assertThrows(() => x.init0(0, 3, 3));
+  assertTable(x.table, x.f3, x.f4, null, x.f0, x.f1);
 
   // 0-count is oob.
   assertThrows(() => x.init0(kTableSize+1, 0, 0));

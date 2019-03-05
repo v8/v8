@@ -71,7 +71,34 @@ function getMemoryInit(mem, segment_data) {
   memoryInit(0, 5, 5);
   assertBufferContents(u8a, [5, 6, 7, 8, 9, 0, 0, 0, 0, 0,
                              0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+
+  // Copy 0 bytes does nothing.
+  memoryInit(10, 1, 0);
+  assertBufferContents(u8a, [5, 6, 7, 8, 9, 0, 0, 0, 0, 0,
+                             0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+
+  // Copy 0 at end of memory region or data segment is OK.
+  memoryInit(kPageSize, 0, 0);
+  memoryInit(0, 10, 0);
 })();
+
+(function TestMemoryInitOutOfBoundsData() {
+  const mem = new WebAssembly.Memory({initial: 1});
+  const memoryInit = getMemoryInit(mem, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+
+  const u8a = new Uint8Array(mem.buffer);
+  const last5Bytes = new Uint8Array(mem.buffer, kPageSize - 5);
+
+  // Write all values up to the out-of-bounds write.
+  assertTraps(kTrapMemOutOfBounds, () => memoryInit(kPageSize - 5, 0, 6));
+  assertBufferContents(last5Bytes, [0, 1, 2, 3, 4]);
+
+  // Write all values up to the out-of-bounds read.
+  u8a.fill(0);
+  assertTraps(kTrapMemOutOfBounds, () => memoryInit(0, 5, 6));
+  assertBufferContents(u8a, [5, 6, 7, 8, 9]);
+})();
+
 
 (function TestMemoryInitOutOfBounds() {
   const mem = new WebAssembly.Memory({initial: 1});
@@ -90,6 +117,10 @@ function getMemoryInit(mem, segment_data) {
   assertTraps(kTrapMemOutOfBounds, () => memoryInit(1, 0, kPageSize));
   assertTraps(kTrapMemOutOfBounds, () => memoryInit(1000, 0, kPageSize));
   assertTraps(kTrapMemOutOfBounds, () => memoryInit(kPageSize, 0, 1));
+
+  // Copy 0 out-of-bounds fails.
+  assertTraps(kTrapMemOutOfBounds, () => memoryInit(kPageSize + 1, 0, 0));
+  assertTraps(kTrapMemOutOfBounds, () => memoryInit(0, kPageSize + 1, 0));
 
   // Make sure bounds aren't checked with 32-bit wrapping.
   assertTraps(kTrapMemOutOfBounds, () => memoryInit(1, 1, -1));
@@ -206,6 +237,10 @@ function getMemoryCopy(mem) {
   memoryCopy(10, 1, 0);
   assertBufferContents(u8a, [0, 11, 22, 33, 44, 55, 66, 77, 0, 0,
                              11, 22, 33, 44, 55, 66, 77]);
+
+  // Copy 0 at end of memory region is OK.
+  memoryCopy(kPageSize, 0, 0);
+  memoryCopy(0, kPageSize, 0);
 })();
 
 (function TestMemoryCopyOverlapping() {
@@ -226,6 +261,36 @@ function getMemoryCopy(mem) {
   assertBufferContents(u8a, [10, 20, 30, 20, 30]);
 })();
 
+(function TestMemoryCopyOutOfBoundsData() {
+  const mem = new WebAssembly.Memory({initial: 1});
+  const memoryCopy = getMemoryCopy(mem);
+
+  const u8a = new Uint8Array(mem.buffer);
+  const first5Bytes = new Uint8Array(mem.buffer, 0, 5);
+  const last5Bytes = new Uint8Array(mem.buffer, kPageSize - 5);
+  u8a.set([11, 22, 33, 44, 55, 66, 77, 88]);
+
+  // Write all values up to the out-of-bounds access.
+  assertTraps(kTrapMemOutOfBounds, () => memoryCopy(kPageSize - 5, 0, 6));
+  assertBufferContents(last5Bytes, [11, 22, 33, 44, 55]);
+
+  // Copy overlapping with destination < source. Copy will happen forwards, up
+  // to the out-of-bounds access.
+  u8a.fill(0);
+  last5Bytes.set([11, 22, 33, 44, 55]);
+  assertTraps(
+      kTrapMemOutOfBounds, () => memoryCopy(0, kPageSize - 5, kPageSize));
+  assertBufferContents(first5Bytes, [11, 22, 33, 44, 55]);
+
+  // Copy overlapping with source < destination. Copy would happen backwards,
+  // but the first byte to copy is out-of-bounds, so no data should be written.
+  u8a.fill(0);
+  first5Bytes.set([11, 22, 33, 44, 55]);
+  assertTraps(
+      kTrapMemOutOfBounds, () => memoryCopy(kPageSize - 5, 0, kPageSize));
+  assertBufferContents(last5Bytes, [0, 0, 0, 0, 0]);
+})();
+
 (function TestMemoryCopyOutOfBounds() {
   const mem = new WebAssembly.Memory({initial: 1});
   const memoryCopy = getMemoryCopy(mem);
@@ -241,6 +306,10 @@ function getMemoryCopy(mem) {
   assertTraps(kTrapMemOutOfBounds, () => memoryCopy(1, 0, kPageSize));
   assertTraps(kTrapMemOutOfBounds, () => memoryCopy(1000, 0, kPageSize));
   assertTraps(kTrapMemOutOfBounds, () => memoryCopy(kPageSize, 0, 1));
+
+  // Copy 0 out-of-bounds fails.
+  assertTraps(kTrapMemOutOfBounds, () => memoryCopy(kPageSize + 1, 0, 0));
+  assertTraps(kTrapMemOutOfBounds, () => memoryCopy(0, kPageSize + 1, 0));
 
   // Make sure bounds aren't checked with 32-bit wrapping.
   assertTraps(kTrapMemOutOfBounds, () => memoryCopy(1, 1, -1));
@@ -282,6 +351,9 @@ function getMemoryFill(mem) {
   // Fill 0 bytes does nothing.
   memoryFill(4, 66, 0);
   assertBufferContents(u8a, [0, 33, 33, 33, 66, 66, 66, 66]);
+
+  // Fill 0 at end of memory region is OK.
+  memoryFill(kPageSize, 66, 0);
 })();
 
 (function TestMemoryFillValueWrapsToByte() {
@@ -295,6 +367,17 @@ function getMemoryFill(mem) {
   assertBufferContents(u8a, [expected, expected, expected]);
 })();
 
+(function TestMemoryFillOutOfBoundsData() {
+  const mem = new WebAssembly.Memory({initial: 1});
+  const memoryFill = getMemoryFill(mem);
+  const v = 123;
+
+  // Write all values up to the out-of-bound access.
+  assertTraps(kTrapMemOutOfBounds, () => memoryFill(kPageSize - 5, v, 999));
+  const u8a = new Uint8Array(mem.buffer, kPageSize - 6);
+  assertBufferContents(u8a, [0, 123, 123, 123, 123, 123]);
+})();
+
 (function TestMemoryFillOutOfBounds() {
   const mem = new WebAssembly.Memory({initial: 1});
   const memoryFill = getMemoryFill(mem);
@@ -306,6 +389,9 @@ function getMemoryFill(mem) {
   assertTraps(kTrapMemOutOfBounds, () => memoryFill(1, v, kPageSize));
   assertTraps(kTrapMemOutOfBounds, () => memoryFill(1000, v, kPageSize));
   assertTraps(kTrapMemOutOfBounds, () => memoryFill(kPageSize, v, 1));
+
+  // Fill 0 out-of-bounds fails.
+  assertTraps(kTrapMemOutOfBounds, () => memoryFill(kPageSize + 1, v, 0));
 
   // Make sure bounds aren't checked with 32-bit wrapping.
   assertTraps(kTrapMemOutOfBounds, () => memoryFill(1, v, -1));

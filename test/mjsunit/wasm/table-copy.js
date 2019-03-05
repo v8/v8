@@ -24,7 +24,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
   let instance = builder.instantiate();
   let copy = instance.exports.copy;
-  for (let i = 0; i < kTableSize; i++) {
+  for (let i = 0; i <= kTableSize; i++) {
     copy(0, 0, i); // nop
     copy(0, i, kTableSize - i);
     copy(i, 0, kTableSize - i);
@@ -145,6 +145,54 @@ function assertCall(call, ...elems) {
   assertCall(call, 1, 2, 2, 3, 4);
   copy(3, 0, 2);
   assertCall(call, 1, 2, 2, 1, 2);
+})();
+
+(function TestTableCopyOobWrites() {
+  print(arguments.callee.name);
+
+  let builder = new WasmModuleBuilder();
+  let sig_v_iii = builder.addType(kSig_v_iii);
+  let kTableSize = 5;
+
+  builder.setTableBounds(kTableSize, kTableSize);
+
+  {
+    let o = addFunctions(builder, kTableSize);
+    builder.addElementSegment(0, false,
+       [o.f0.index, o.f1.index, o.f2.index]);
+  }
+
+  builder.addFunction("copy", sig_v_iii)
+    .addBody([
+      kExprGetLocal, 0,
+      kExprGetLocal, 1,
+      kExprGetLocal, 2,
+      kNumericPrefix, kExprTableCopy, kTableZero, kTableZero])
+    .exportAs("copy");
+
+  builder.addExportOfKind("table", kExternalTable, 0);
+
+  let instance = builder.instantiate();
+  let table = instance.exports.table;
+  let f0 = table.get(0), f1 = table.get(1), f2 = table.get(2);
+  let copy = instance.exports.copy;
+
+  // Non-overlapping, src < dst.
+  assertThrows(() => copy(3, 0, 3));
+  assertTable(table, f0, f1, f2, f0, f1);
+
+  // Non-overlapping, dst < src.
+  assertThrows(() => copy(0, 4, 2));
+  assertTable(table, f1, f1, f2, f0, f1);
+
+  // Overlapping, src < dst. This is required to copy backward, but the first
+  // access will be out-of-bounds, so nothing changes.
+  assertThrows(() => copy(3, 0, 99));
+  assertTable(table, f1, f1, f2, f0, f1);
+
+  // Overlapping, dst < src.
+  assertThrows(() => copy(0, 1, 99));
+  assertTable(table, f1, f2, f0, f1, f1);
 })();
 
 (function TestTableCopyOob1() {
