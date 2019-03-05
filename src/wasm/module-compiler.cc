@@ -646,25 +646,64 @@ class BackgroundCompileTask : public CancelableTask {
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"),
                  "BackgroundCompileTask::RunInternal");
 
-    // These fields are initialized before getting the first unit of work.
+    double deadline = MonotonicallyIncreasingTimeInMs() + 50.0;
+
+    // These fields are initialized in a {BackgroundCompileScope} before
+    // starting compilation.
     base::Optional<CompilationEnv> env;
     std::shared_ptr<WireBytesStorage> wire_bytes;
     std::shared_ptr<const WasmModule> module;
-
+    std::unique_ptr<WasmCompilationUnit> unit;
     WasmFeatures detected_features = kNoWasmFeatures;
-    double deadline = MonotonicallyIncreasingTimeInMs() + 50.0;
+
+    // Preparation (synchronized): Initialize the fields above and get the first
+    // compilation unit.
+    {
+      BackgroundCompileScope compile_scope(token_);
+      if (compile_scope.cancelled()) return;
+      env.emplace(compile_scope.native_module()->CreateCompilationEnv());
+      wire_bytes = compile_scope.compilation_state()->GetWireBytesStorage();
+      module = compile_scope.native_module()->shared_module();
+      unit = compile_scope.compilation_state()->GetNextCompilationUnit();
+      if (unit == nullptr) {
+        compile_scope.compilation_state()->OnBackgroundTaskStopped(
+            detected_features);
+        return;
+      }
+    }
+
+    bool compilation_failed = false;
     while (true) {
-      // Step 1 (synchronized): Get a WasmCompilationUnit, and initialize some
-      // fields if this is the first unit executed by this task.
-      std::unique_ptr<WasmCompilationUnit> unit;
+      // (asynchronous): Execute the compilation.
+
+      WasmCompilationResult result = unit->ExecuteCompilation(
+          &env.value(), wire_bytes, async_counters_.get(), &detected_features);
+
+      // (synchronized): Publish the compilation result and get the next unit.
       {
         BackgroundCompileScope compile_scope(token_);
         if (compile_scope.cancelled()) return;
-        if (!env.has_value()) {
-          env.emplace(compile_scope.native_module()->CreateCompilationEnv());
-          wire_bytes = compile_scope.compilation_state()->GetWireBytesStorage();
-          module = compile_scope.native_module()->shared_module();
+        WasmCode* code =
+            unit->Publish(std::move(result), compile_scope.native_module());
+        if (code == nullptr) {
+          // Compile error.
+          compile_scope.compilation_state()->OnBackgroundTaskStopped(
+              detected_features);
+          compilation_failed = true;
+          break;
         }
+
+        // Successfully finished one unit.
+        compile_scope.compilation_state()->OnFinishedUnit(
+            unit->requested_tier(), code);
+        if (deadline < MonotonicallyIncreasingTimeInMs()) {
+          compile_scope.compilation_state()->ReportDetectedFeatures(
+              detected_features);
+          compile_scope.compilation_state()->RestartBackgroundCompileTask();
+          return;
+        }
+
+        // Get next unit.
         unit = compile_scope.compilation_state()->GetNextCompilationUnit();
         if (unit == nullptr) {
           compile_scope.compilation_state()->OnBackgroundTaskStopped(
@@ -672,41 +711,11 @@ class BackgroundCompileTask : public CancelableTask {
           return;
         }
       }
-
-      // Step 2: Execute the compilation.
-
-      WasmCompilationResult result = unit->ExecuteCompilation(
-          &env.value(), wire_bytes, async_counters_.get(), &detected_features);
-
-      // Step 3 (synchronized): Publish the compilation result.
-      bool cancel_compilation = false;
-      {
-        BackgroundCompileScope compile_scope(token_);
-        if (compile_scope.cancelled()) return;
-        WasmCode* code =
-            unit->Publish(std::move(result), compile_scope.native_module());
-        if (code == nullptr) {
-          compile_scope.compilation_state()->OnBackgroundTaskStopped(
-              detected_features);
-          // Also, cancel all remaining compilation.
-          cancel_compilation = true;
-        } else {
-          compile_scope.compilation_state()->OnFinishedUnit(
-              unit->requested_tier(), code);
-          if (deadline < MonotonicallyIncreasingTimeInMs()) {
-            compile_scope.compilation_state()->ReportDetectedFeatures(
-                detected_features);
-            compile_scope.compilation_state()->RestartBackgroundCompileTask();
-            return;
-          }
-        }
-      }
-      if (cancel_compilation) {
-        token_->Cancel();
-        return;
-      }
     }
-    UNREACHABLE();  // Loop exits via explicit return.
+    // We only get here if compilation failed. Other exits return directly.
+    DCHECK(compilation_failed);
+    USE(compilation_failed);
+    token_->Cancel();
   }
 
  private:
