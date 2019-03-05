@@ -1435,6 +1435,8 @@ extern operator '.objects[]=' macro StoreFixedArrayElement(
 extern operator '.objects[]=' macro StoreFixedArrayElement(
     FixedArray, intptr, HeapObject): void;
 extern operator '.objects[]=' macro StoreFixedArrayElement(
+    FixedArray, intptr, Object): void;
+extern operator '.objects[]=' macro StoreFixedArrayElement(
     FixedArray, constexpr int31, Smi): void;
 extern operator '.objects[]=' macro StoreFixedArrayElement(
     FixedArray, constexpr int31, HeapObject): void;
@@ -1529,6 +1531,7 @@ extern macro CopyFixedArrayElements(
 
 extern macro AllocateJSArray(constexpr ElementsKind, Map, intptr, Smi): JSArray;
 extern macro AllocateJSArray(constexpr ElementsKind, Map, Smi, Smi): JSArray;
+extern macro AllocateJSArray(Map, FixedArrayBase, Smi): JSArray;
 extern macro AllocateJSObjectFromMap(Map): JSObject;
 
 extern macro LoadDoubleWithHoleCheck(FixedDoubleArray, Smi): float64
