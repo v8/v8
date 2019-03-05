@@ -151,26 +151,6 @@ bool Expression::IsAccessorFunctionDefinition() const {
   return IsFunctionLiteral() && IsAccessorFunction(AsFunctionLiteral()->kind());
 }
 
-bool Statement::IsJump() const {
-  switch (node_type()) {
-#define JUMP_NODE_LIST(V) \
-  V(Block)                \
-  V(ExpressionStatement)  \
-  V(ContinueStatement)    \
-  V(BreakStatement)       \
-  V(ReturnStatement)      \
-  V(IfStatement)
-#define GENERATE_CASE(Node) \
-  case k##Node:             \
-    return static_cast<const Node*>(this)->IsJump();
-    JUMP_NODE_LIST(GENERATE_CASE)
-#undef GENERATE_CASE
-#undef JUMP_NODE_LIST
-    default:
-      return false;
-  }
-}
-
 VariableProxy::VariableProxy(Variable* var, int start_position)
     : Expression(start_position, kVariableProxy),
       raw_name_(var->raw_name()),
