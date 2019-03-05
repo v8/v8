@@ -238,10 +238,11 @@ class Heap {
 #endif
 
   // Semi-space size needs to be a multiple of page size.
-  static const size_t kMinSemiSpaceSizeInKB =
-      1 * kPointerMultiplier * ((1 << kPageSizeBits) / KB);
-  static const size_t kMaxSemiSpaceSizeInKB =
-      16 * kPointerMultiplier * ((1 << kPageSizeBits) / KB);
+  static const size_t kMinSemiSpaceSizeInKB = 512 * kPointerMultiplier;
+  static const size_t kMaxSemiSpaceSizeInKB = 8192 * kPointerMultiplier;
+
+  STATIC_ASSERT(kMinSemiSpaceSizeInKB* KB % (1 << kPageSizeBits) == 0);
+  STATIC_ASSERT(kMaxSemiSpaceSizeInKB* KB % (1 << kPageSizeBits) == 0);
 
   static const int kTraceRingBufferSize = 512;
   static const int kStacktraceBufferSize = 512;
