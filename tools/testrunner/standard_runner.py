@@ -329,7 +329,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
       else:
         percentage = 0
 
-      print (('>>> %d base tests produced %d tests (%d%s)'
+      print (('>>> %d base tests produced %d (%d%s)'
              ' non-filtered tests') % (
           tests.test_count_estimate, results.total, percentage, '%'))
 
