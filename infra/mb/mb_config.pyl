@@ -434,7 +434,8 @@
     'release_x64_fuchsia_trybot': [
       'release_trybot', 'x64', 'fuchsia'],
     'release_x64_gcc_coverage': [
-      'release_bot', 'x64', 'coverage', 'gcc', 'no_custom_libcxx', 'no_sysroot'],
+      'release', 'static', 'x64', 'coverage', 'gcc', 'no_custom_libcxx',
+      'no_goma', 'no_sysroot'],
     'release_x64_internal': [
       'release_bot', 'x64', 'v8_snapshot_internal'],
     'release_x64_jumbo': [
