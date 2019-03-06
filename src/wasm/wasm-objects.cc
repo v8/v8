@@ -910,12 +910,30 @@ void WasmTableObject::ClearDispatchTables(Isolate* isolate,
 }
 
 namespace {
+bool AdjustBufferPermissions(Isolate* isolate, Handle<JSArrayBuffer> old_buffer,
+                             size_t new_size) {
+  if (new_size > old_buffer->allocation_length()) return false;
+  void* old_mem_start = old_buffer->backing_store();
+  size_t old_size = old_buffer->byte_length();
+  if (old_size != new_size) {
+    DCHECK_NOT_NULL(old_mem_start);
+    DCHECK_GE(new_size, old_size);
+    // If adjusting permissions fails, propagate error back to return
+    // failure to grow.
+    if (!i::SetPermissions(GetPlatformPageAllocator(), old_mem_start, new_size,
+                           PageAllocator::kReadWrite)) {
+      return false;
+    }
+    reinterpret_cast<v8::Isolate*>(isolate)
+        ->AdjustAmountOfExternalAllocatedMemory(new_size - old_size);
+  }
+  return true;
+}
+
 MaybeHandle<JSArrayBuffer> MemoryGrowBuffer(Isolate* isolate,
                                             Handle<JSArrayBuffer> old_buffer,
                                             size_t new_size) {
   CHECK_EQ(0, new_size % wasm::kWasmPageSize);
-  size_t old_size = old_buffer->byte_length();
-  void* old_mem_start = old_buffer->backing_store();
   // Reusing the backing store from externalized buffers causes problems with
   // Blink's array buffers. The connection between the two is lost, which can
   // lead to Blink not knowing about the other reference to the buffer and
@@ -932,10 +950,12 @@ MaybeHandle<JSArrayBuffer> MemoryGrowBuffer(Isolate* isolate,
     // If the old buffer had full guard regions, we can only safely use the new
     // buffer if it also has full guard regions. Otherwise, we'd have to
     // recompile all the instances using this memory to insert bounds checks.
+    void* old_mem_start = old_buffer->backing_store();
     if (memory_tracker->HasFullGuardRegions(old_mem_start) &&
         !memory_tracker->HasFullGuardRegions(new_buffer->backing_store())) {
       return {};
     }
+    size_t old_size = old_buffer->byte_length();
     if (old_size == 0) return new_buffer;
     memcpy(new_buffer->backing_store(), old_mem_start, old_size);
     DCHECK(old_buffer.is_null() || !old_buffer->is_shared());
@@ -943,18 +963,7 @@ MaybeHandle<JSArrayBuffer> MemoryGrowBuffer(Isolate* isolate,
     i::wasm::DetachMemoryBuffer(isolate, old_buffer, free_memory);
     return new_buffer;
   } else {
-    if (old_size != new_size) {
-      DCHECK_NOT_NULL(old_buffer->backing_store());
-      // If adjusting permissions fails, propagate error back to return
-      // failure to grow.
-      if (!i::SetPermissions(GetPlatformPageAllocator(), old_mem_start,
-                             new_size, PageAllocator::kReadWrite)) {
-        return {};
-      }
-      DCHECK_GE(new_size, old_size);
-      reinterpret_cast<v8::Isolate*>(isolate)
-          ->AdjustAmountOfExternalAllocatedMemory(new_size - old_size);
-    }
+    if (!AdjustBufferPermissions(isolate, old_buffer, new_size)) return {};
     // NOTE: We must allocate a new array buffer here because the spec
     // assumes that ArrayBuffers do not change size.
     void* backing_store = old_buffer->backing_store();
@@ -1074,15 +1083,32 @@ void WasmMemoryObject::AddInstance(Isolate* isolate,
   SetInstanceMemory(instance, buffer);
 }
 
+void WasmMemoryObject::update_instances(Isolate* isolate,
+                                        Handle<JSArrayBuffer> buffer) {
+  if (has_instances()) {
+    Handle<WeakArrayList> instances(this->instances(), isolate);
+    for (int i = 0; i < instances->length(); i++) {
+      MaybeObject elem = instances->Get(i);
+      HeapObject heap_object;
+      if (elem->GetHeapObjectIfWeak(&heap_object)) {
+        Handle<WasmInstanceObject> instance(
+            WasmInstanceObject::cast(heap_object), isolate);
+        SetInstanceMemory(instance, buffer);
+      } else {
+        DCHECK(elem->IsCleared());
+      }
+    }
+  }
+  set_array_buffer(*buffer);
+}
+
 // static
 int32_t WasmMemoryObject::Grow(Isolate* isolate,
                                Handle<WasmMemoryObject> memory_object,
                                uint32_t pages) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm"), "GrowMemory");
   Handle<JSArrayBuffer> old_buffer(memory_object->array_buffer(), isolate);
-  // TODO(gdeepti): Remove check for is_shared when Growing Shared memory
-  // is supported.
-  if (!old_buffer->is_growable() || old_buffer->is_shared()) return -1;
+  if (!old_buffer->is_growable()) return -1;
 
   // Checks for maximum memory size, compute new size.
   uint32_t maximum_pages = wasm::max_mem_pages();
@@ -1102,28 +1128,45 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
   size_t new_size =
       static_cast<size_t>(old_pages + pages) * wasm::kWasmPageSize;
 
-  // Grow the buffer.
+  // Memory is grown, but the memory objects and instances are not yet updated.
+  // Handle this in the interrupt handler so that it's safe for all the isolates
+  // that share this buffer to be updated safely.
   Handle<JSArrayBuffer> new_buffer;
-  if (!MemoryGrowBuffer(isolate, old_buffer, new_size).ToHandle(&new_buffer)) {
-    return -1;
-  }
-
-  // Update instances if any.
-  if (memory_object->has_instances()) {
-    Handle<WeakArrayList> instances(memory_object->instances(), isolate);
-    for (int i = 0; i < instances->length(); i++) {
-      MaybeObject elem = instances->Get(i);
-      HeapObject heap_object;
-      if (elem->GetHeapObjectIfWeak(&heap_object)) {
-        Handle<WasmInstanceObject> instance(
-            WasmInstanceObject::cast(heap_object), isolate);
-        SetInstanceMemory(instance, new_buffer);
-      } else {
-        DCHECK(elem->IsCleared());
-      }
+  if (old_buffer->is_shared()) {
+    // Adjust protections for the buffer.
+    if (!AdjustBufferPermissions(isolate, old_buffer, new_size)) {
+      return -1;
+    }
+    wasm::WasmMemoryTracker* const memory_tracker =
+        isolate->wasm_engine()->memory_tracker();
+    void* backing_store = old_buffer->backing_store();
+    if (memory_tracker->IsWasmSharedMemory(backing_store)) {
+      // This memory is shared between different isolates.
+      DCHECK(old_buffer->is_shared());
+      // Update pending grow state, and trigger a grow interrupt on all the
+      // isolates that share this buffer.
+      isolate->wasm_engine()->memory_tracker()->SetPendingUpdateOnGrow(
+          old_buffer, new_size);
+      // Handle interrupts for this isolate so that the instances with this
+      // isolate are updated.
+      isolate->stack_guard()->HandleInterrupts();
+      // Failure to allocate, or adjust pemissions already handled here, and
+      // updates to instances handled in the interrupt handler safe to return.
+      return static_cast<uint32_t>(old_size / wasm::kWasmPageSize);
+    }
+    // SharedArrayBuffer, but not shared across isolates. Setup a new buffer
+    // with updated permissions and update the instances.
+    new_buffer = wasm::SetupArrayBuffer(isolate, backing_store, new_size,
+                                        old_buffer->is_external());
+    memory_object->update_instances(isolate, new_buffer);
+  } else {
+    if (!MemoryGrowBuffer(isolate, old_buffer, new_size)
+             .ToHandle(&new_buffer)) {
+      return -1;
     }
   }
-  memory_object->set_array_buffer(*new_buffer);
+  // Update instances if any.
+  memory_object->update_instances(isolate, new_buffer);
   return static_cast<uint32_t>(old_size / wasm::kWasmPageSize);
 }
 

@@ -640,6 +640,12 @@ Object StackGuard::HandleInterrupts() {
     isolate_->heap()->HandleGCRequest();
   }
 
+  if (CheckAndClearInterrupt(GROW_SHARED_MEMORY)) {
+    TRACE_INTERRUPT("GROW_SHARED_MEMORY");
+    isolate_->wasm_engine()->memory_tracker()->UpdateSharedMemoryInstances(
+        isolate_);
+  }
+
   if (CheckAndClearInterrupt(TERMINATE_EXECUTION)) {
     TRACE_INTERRUPT("TERMINATE_EXECUTION");
     return isolate_->TerminateExecution();

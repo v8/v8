@@ -91,12 +91,13 @@ class V8_EXPORT_PRIVATE StackGuard final {
   // it has been set up.
   void ClearThread(const ExecutionAccess& lock);
 
-#define INTERRUPT_LIST(V)                       \
-  V(TERMINATE_EXECUTION, TerminateExecution, 0) \
-  V(GC_REQUEST, GC, 1)                          \
-  V(INSTALL_CODE, InstallCode, 2)               \
-  V(API_INTERRUPT, ApiInterrupt, 3)             \
-  V(DEOPT_MARKED_ALLOCATION_SITES, DeoptMarkedAllocationSites, 4)
+#define INTERRUPT_LIST(V)                                         \
+  V(TERMINATE_EXECUTION, TerminateExecution, 0)                   \
+  V(GC_REQUEST, GC, 1)                                            \
+  V(INSTALL_CODE, InstallCode, 2)                                 \
+  V(API_INTERRUPT, ApiInterrupt, 3)                               \
+  V(DEOPT_MARKED_ALLOCATION_SITES, DeoptMarkedAllocationSites, 4) \
+  V(GROW_SHARED_MEMORY, GrowSharedMemory, 5)
 
 #define V(NAME, Name, id)                                                    \
   inline bool Check##Name() { return CheckInterrupt(NAME); }                 \

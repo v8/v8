@@ -922,6 +922,9 @@ Maybe<bool> ValueSerializer::WriteWasmMemory(Handle<WasmMemoryObject> object) {
     return Nothing<bool>();
   }
 
+  isolate_->wasm_engine()->memory_tracker()->RegisterWasmMemoryAsShared(
+      object, isolate_);
+
   WriteTag(SerializationTag::kWasmMemoryTransfer);
   WriteZigZag<int32_t>(object->maximum_pages());
   return WriteJSReceiver(Handle<JSReceiver>(object->array_buffer(), isolate_));
@@ -1865,6 +1868,9 @@ MaybeHandle<WasmMemoryObject> ValueDeserializer::ReadWasmMemory() {
 
   Handle<WasmMemoryObject> result =
       WasmMemoryObject::New(isolate_, buffer, maximum_pages);
+
+  isolate_->wasm_engine()->memory_tracker()->RegisterWasmMemoryAsShared(
+      result, isolate_);
 
   AddObjectWithID(id, result);
   return result;
