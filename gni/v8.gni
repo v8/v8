@@ -31,6 +31,10 @@ declare_args() {
   # Support for backtrace_symbols on linux.
   v8_enable_backtrace = ""
 
+  # Enables full heap snapshots containing internals. Used for debugging memory
+  # on platform and embedder level.
+  v8_enable_full_heap_snapshots = false
+
   # Enable the snapshot feature, for fast context creation.
   # https://v8.dev/blog/custom-startup-snapshots
   # TODO(thakis): Make snapshots work in 64-bit win/cross builds,
