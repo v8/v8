@@ -691,7 +691,8 @@ bool IsTwoLetterLanguage(const std::string& locale) {
 
 bool IsDeprecatedLanguage(const std::string& locale) {
   //  Check if locale is one of the deprecated language tags:
-  return locale == "in" || locale == "iw" || locale == "ji" || locale == "jw";
+  return locale == "in" || locale == "iw" || locale == "ji" || locale == "jw" ||
+         locale == "mo";
 }
 
 // Reference:
