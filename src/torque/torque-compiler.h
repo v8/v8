@@ -19,12 +19,12 @@ struct TorqueCompilerOptions {
   bool verbose;
   bool collect_language_server_data;
   bool abort_on_lint_errors;
-
-  static TorqueCompilerOptions Default() { return {"", false, false, false}; }
 };
 
+V8_EXPORT_PRIVATE void CompileTorque(const std::string& source,
+                                     TorqueCompilerOptions options);
 void CompileTorque(std::vector<std::string> files,
-                   TorqueCompilerOptions = TorqueCompilerOptions::Default());
+                   TorqueCompilerOptions options);
 
 }  // namespace torque
 }  // namespace internal

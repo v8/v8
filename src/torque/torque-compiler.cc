@@ -45,16 +45,7 @@ void ReadAndParseTorqueFile(const std::string& path) {
   ParseTorque(*maybe_content);
 }
 
-}  // namespace
-
-void CompileTorque(std::vector<std::string> files,
-                   TorqueCompilerOptions options) {
-  CurrentSourceFile::Scope unknown_source_file_scope(SourceId::Invalid());
-  CurrentAst::Scope ast_scope_;
-  LintErrorStatus::Scope lint_error_status_scope_;
-
-  for (const auto& path : files) ReadAndParseTorqueFile(path);
-
+void CompileCurrentAst(TorqueCompilerOptions options) {
   GlobalContext::Scope global_context(std::move(CurrentAst::Get()));
   if (options.verbose) GlobalContext::SetVerbose();
   if (options.collect_language_server_data) {
@@ -90,6 +81,28 @@ void CompileTorque(std::vector<std::string> files,
   }
 
   if (LintErrorStatus::HasLintErrors()) std::abort();
+}
+
+}  // namespace
+
+void CompileTorque(const std::string& source, TorqueCompilerOptions options) {
+  CurrentSourceFile::Scope no_file_scope(SourceFileMap::AddSource("<torque>"));
+  CurrentAst::Scope ast_scope_;
+  LintErrorStatus::Scope lint_error_status_scope_;
+
+  ParseTorque(source);
+  CompileCurrentAst(options);
+}
+
+void CompileTorque(std::vector<std::string> files,
+                   TorqueCompilerOptions options) {
+  CurrentSourceFile::Scope unknown_source_file_scope(SourceId::Invalid());
+  CurrentAst::Scope ast_scope_;
+  LintErrorStatus::Scope lint_error_status_scope_;
+
+  for (const auto& path : files) ReadAndParseTorqueFile(path);
+
+  CompileCurrentAst(options);
 }
 
 }  // namespace torque

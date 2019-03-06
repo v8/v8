@@ -200,6 +200,7 @@ v8_source_set("unittests_sources") {
     "torque/earley-parser-unittest.cc",
     "torque/ls-json-unittest.cc",
     "torque/ls-message-unittest.cc",
+    "torque/ls-server-data-unittest.cc",
     "torque/torque-unittest.cc",
     "torque/torque-utils-unittest.cc",
     "unicode-unittest.cc",
