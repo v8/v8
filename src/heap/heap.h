@@ -29,6 +29,7 @@
 #include "src/objects/string-table.h"
 #include "src/roots.h"
 #include "src/visitors.h"
+#include "testing/gtest/include/gtest/gtest_prod.h"
 
 namespace v8 {
 

@@ -13,6 +13,7 @@
 #include "src/base/logging.h"
 #include "src/globals.h"
 #include "src/zone/accounting-allocator.h"
+#include "src/zone/zone-segment.h"
 
 #ifndef ZONE_NAME
 #define STRINGIFY(x) #x

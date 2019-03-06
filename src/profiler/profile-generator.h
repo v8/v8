@@ -16,6 +16,7 @@
 
 #include "include/v8-profiler.h"
 #include "src/allocation.h"
+#include "src/base/platform/time.h"
 #include "src/builtins/builtins.h"
 #include "src/code-events.h"
 #include "src/profiler/strings-storage.h"
