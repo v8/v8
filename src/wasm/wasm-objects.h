@@ -330,8 +330,6 @@ class WasmMemoryObject : public JSObject {
       Isolate* isolate, uint32_t initial, uint32_t maximum,
       bool is_shared_memory);
 
-  void update_instances(Isolate* isolate, Handle<JSArrayBuffer> buffer);
-
   static int32_t Grow(Isolate*, Handle<WasmMemoryObject>, uint32_t pages);
 
   OBJECT_CONSTRUCTORS(WasmMemoryObject, JSObject);

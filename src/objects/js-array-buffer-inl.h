@@ -77,7 +77,11 @@ void* JSArrayBuffer::allocation_base() const {
 }
 
 bool JSArrayBuffer::is_wasm_memory() const {
-  return IsWasmMemoryBit::decode(bit_field());
+  bool const is_wasm_memory = IsWasmMemoryBit::decode(bit_field());
+  DCHECK_EQ(is_wasm_memory,
+            GetIsolate()->wasm_engine()->memory_tracker()->IsWasmMemory(
+                backing_store()));
+  return is_wasm_memory;
 }
 
 void JSArrayBuffer::set_is_wasm_memory(bool is_wasm_memory) {

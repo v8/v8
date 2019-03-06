@@ -167,7 +167,6 @@ WasmMemoryTracker::~WasmMemoryTracker() {
   // is destroyed.
   DCHECK_EQ(reserved_address_space_, 0u);
   DCHECK_EQ(allocated_address_space_, 0u);
-  DCHECK(allocations_.empty());
 }
 
 void* WasmMemoryTracker::TryAllocateBackingStoreForTesting(
@@ -179,8 +178,7 @@ void* WasmMemoryTracker::TryAllocateBackingStoreForTesting(
 
 void WasmMemoryTracker::FreeBackingStoreForTesting(base::AddressRegion memory,
                                                    void* buffer_start) {
-  base::MutexGuard scope_lock(&mutex_);
-  ReleaseAllocation_Locked(nullptr, buffer_start);
+  ReleaseAllocation(nullptr, buffer_start);
   CHECK(FreePages(GetPlatformPageAllocator(),
                   reinterpret_cast<void*>(memory.begin()), memory.size()));
 }
@@ -221,24 +219,29 @@ void WasmMemoryTracker::RegisterAllocation(Isolate* isolate,
                                       buffer_start, buffer_length});
 }
 
-WasmMemoryTracker::AllocationData WasmMemoryTracker::ReleaseAllocation_Locked(
+WasmMemoryTracker::AllocationData WasmMemoryTracker::ReleaseAllocation(
     Isolate* isolate, const void* buffer_start) {
+  base::MutexGuard scope_lock(&mutex_);
+
   auto find_result = allocations_.find(buffer_start);
   CHECK_NE(find_result, allocations_.end());
 
-  size_t num_bytes = find_result->second.allocation_length;
-  DCHECK_LE(num_bytes, reserved_address_space_);
-  DCHECK_LE(num_bytes, allocated_address_space_);
-  reserved_address_space_ -= num_bytes;
-  allocated_address_space_ -= num_bytes;
-  // ReleaseAllocation might be called with a nullptr as isolate if the
-  // embedder is releasing the allocation and not a specific isolate. This
-  // happens if the allocation was shared between multiple isolates (threads).
-  if (isolate) AddAddressSpaceSample(isolate);
+  if (find_result != allocations_.end()) {
+    size_t num_bytes = find_result->second.allocation_length;
+    DCHECK_LE(num_bytes, reserved_address_space_);
+    DCHECK_LE(num_bytes, allocated_address_space_);
+    reserved_address_space_ -= num_bytes;
+    allocated_address_space_ -= num_bytes;
+    // ReleaseAllocation might be called with a nullptr as isolate if the
+    // embedder is releasing the allocation and not a specific isolate. This
+    // happens if the allocation was shared between multiple isolates (threads).
+    if (isolate) AddAddressSpaceSample(isolate);
 
-  AllocationData allocation_data = find_result->second;
-  allocations_.erase(find_result);
-  return allocation_data;
+    AllocationData allocation_data = find_result->second;
+    allocations_.erase(find_result);
+    return allocation_data;
+  }
+  UNREACHABLE();
 }
 
 const WasmMemoryTracker::AllocationData* WasmMemoryTracker::FindAllocationData(
@@ -254,13 +257,6 @@ const WasmMemoryTracker::AllocationData* WasmMemoryTracker::FindAllocationData(
 bool WasmMemoryTracker::IsWasmMemory(const void* buffer_start) {
   base::MutexGuard scope_lock(&mutex_);
   return allocations_.find(buffer_start) != allocations_.end();
-}
-
-bool WasmMemoryTracker::IsWasmSharedMemory(const void* buffer_start) {
-  base::MutexGuard scope_lock(&mutex_);
-  const auto& result = allocations_.find(buffer_start);
-  // Should be a wasm allocation, and registered as a shared allocation.
-  return (result != allocations_.end() && result->second.is_shared);
 }
 
 bool WasmMemoryTracker::HasFullGuardRegions(const void* buffer_start) {
@@ -280,289 +276,13 @@ bool WasmMemoryTracker::HasFullGuardRegions(const void* buffer_start) {
 
 bool WasmMemoryTracker::FreeMemoryIfIsWasmMemory(Isolate* isolate,
                                                  const void* buffer_start) {
-  base::MutexGuard scope_lock(&mutex_);
-  const auto& result = allocations_.find(buffer_start);
-  if (result == allocations_.end()) return false;
-  if (result->second.is_shared) {
-    // This is a shared WebAssembly.Memory allocation
-    FreeMemoryIfNotShared_Locked(isolate, buffer_start);
-    return true;
-  }
-  // This is a WebAssembly.Memory allocation
-  const AllocationData allocation =
-      ReleaseAllocation_Locked(isolate, buffer_start);
-  CHECK(FreePages(GetPlatformPageAllocator(), allocation.allocation_base,
-                  allocation.allocation_length));
-  return true;
-}
-
-void WasmMemoryTracker::RegisterWasmMemoryAsShared(
-    Handle<WasmMemoryObject> object, Isolate* isolate) {
-  const void* backing_store = object->array_buffer()->backing_store();
-  // TODO(V8:8810): This should be a DCHECK, currently some tests do not
-  // use a full WebAssembly.Memory, and fail on registering so return early.
-  if (!IsWasmMemory(backing_store)) return;
-  {
-    base::MutexGuard scope_lock(&mutex_);
-    // Register as shared allocation when it is post messaged. This happens only
-    // the first time a buffer is shared over Postmessage, and track all the
-    // memory objects that are associated with this backing store.
-    RegisterSharedWasmMemory_Locked(object, isolate);
-    // Add isolate to backing store mapping.
-    isolates_per_buffer_[backing_store].emplace(isolate);
-  }
-}
-
-void WasmMemoryTracker::SetPendingUpdateOnGrow(Handle<JSArrayBuffer> old_buffer,
-                                               size_t new_size) {
-  base::MutexGuard scope_lock(&mutex_);
-  // Keep track of the new size of the buffer associated with each backing
-  // store.
-  AddBufferToGrowMap_Locked(old_buffer, new_size);
-  // Request interrupt to GROW_SHARED_MEMORY to other isolates
-  TriggerSharedGrowInterruptOnAllIsolates_Locked(old_buffer);
-}
-
-void WasmMemoryTracker::UpdateSharedMemoryInstances(Isolate* isolate) {
-  base::MutexGuard scope_lock(&mutex_);
-  // For every buffer in the grow_entry_map_, update the size for all the
-  // memory objects associated with this isolate.
-  for (auto it = grow_update_map_.begin(); it != grow_update_map_.end();) {
-    UpdateSharedMemoryStateOnInterrupt_Locked(isolate, it->first, it->second);
-    // If all the isolates that share this buffer have hit a stack check, their
-    // memory objects are updated, and this grow entry can be erased.
-    if (AreAllIsolatesUpdated_Locked(it->first)) {
-      it = grow_update_map_.erase(it);
-    } else {
-      it++;
-    }
-  }
-}
-
-void WasmMemoryTracker::RegisterSharedWasmMemory_Locked(
-    Handle<WasmMemoryObject> object, Isolate* isolate) {
-  DCHECK(object->array_buffer()->is_shared());
-
-  void* backing_store = object->array_buffer()->backing_store();
-  // The allocation of a WasmMemoryObject should always be registered with the
-  // WasmMemoryTracker.
-  const auto& result = allocations_.find(backing_store);
-  if (result == allocations_.end()) return;
-
-  // Register the allocation as shared, if not alreadt marked as shared.
-  if (!result->second.is_shared) result->second.is_shared = true;
-
-  // Create persistent global handles for the memory objects that are shared
-  GlobalHandles* global_handles = isolate->global_handles();
-  object = global_handles->Create(*object);
-
-  // Add to memory_object_vector to track memory objects, instance objects
-  // that will need to be updated on a Grow call
-  result->second.memory_object_vector.push_back(
-      SharedMemoryObjectState(object, isolate));
-}
-
-void WasmMemoryTracker::AddBufferToGrowMap_Locked(
-    Handle<JSArrayBuffer> old_buffer, size_t new_size) {
-  void* backing_store = old_buffer->backing_store();
-  auto entry = grow_update_map_.find(old_buffer->backing_store());
-  if (entry == grow_update_map_.end()) {
-    // No pending grow for this backing store, add to map.
-    grow_update_map_.emplace(backing_store, new_size);
-    return;
-  }
-  // If grow on the same buffer is requested before the update is complete,
-  // the new_size should always be greater or equal to the old_size. Equal
-  // in the case that grow(0) is called, but new buffer handles are mandated
-  // by the Spec.
-  CHECK_LE(entry->second, new_size);
-  entry->second = new_size;
-  // Flush instances_updated everytime a new grow size needs to be updates
-  ClearUpdatedInstancesOnPendingGrow_Locked(backing_store);
-}
-
-void WasmMemoryTracker::TriggerSharedGrowInterruptOnAllIsolates_Locked(
-    Handle<JSArrayBuffer> old_buffer) {
-  // Request a GrowShareMemory interrupt on all the isolates that share
-  // the backing store.
-  const auto& isolates = isolates_per_buffer_.find(old_buffer->backing_store());
-  for (const auto& isolate : isolates->second) {
-    isolate->stack_guard()->RequestGrowSharedMemory();
-  }
-}
-
-void WasmMemoryTracker::UpdateSharedMemoryStateOnInterrupt_Locked(
-    Isolate* isolate, void* backing_store, size_t new_size) {
-  // Update objects only if there are memory objects that share this backing
-  // store, and this isolate is marked as one of the isolates that shares this
-  // buffer.
-  if (MemoryObjectsNeedUpdate_Locked(isolate, backing_store)) {
-    UpdateMemoryObjectsForIsolate_Locked(isolate, backing_store, new_size);
-    // As the memory objects are updated, add this isolate to a set of isolates
-    // that are updated on grow. This state is maintained to track if all the
-    // isolates that share the backing store have hit a StackCheck.
-    isolates_updated_on_grow_[backing_store].emplace(isolate);
-  }
-}
-
-bool WasmMemoryTracker::AreAllIsolatesUpdated_Locked(
-    const void* backing_store) {
-  const auto& buffer_isolates = isolates_per_buffer_.find(backing_store);
-  // No isolates share this buffer.
-  if (buffer_isolates == isolates_per_buffer_.end()) return true;
-  const auto& updated_isolates = isolates_updated_on_grow_.find(backing_store);
-  // Some isolates share the buffer, but no isolates have been updated yet.
-  if (updated_isolates == isolates_updated_on_grow_.end()) return false;
-  if (buffer_isolates->second == updated_isolates->second) {
-    // If all the isolates that share this backing_store have hit a stack check,
-    // and the memory objects have been updated, remove the entry from the
-    // updatemap, and return true.
-    isolates_updated_on_grow_.erase(backing_store);
-    return true;
-  }
-  return false;
-}
-
-void WasmMemoryTracker::ClearUpdatedInstancesOnPendingGrow_Locked(
-    const void* backing_store) {
-  // On multiple grows to the same buffer, the entries for that buffer should be
-  // flushed. This is done so that any consecutive grows to the same buffer will
-  // update all instances that share this buffer.
-  const auto& value = isolates_updated_on_grow_.find(backing_store);
-  if (value != isolates_updated_on_grow_.end()) {
-    value->second.clear();
-  }
-}
-
-void WasmMemoryTracker::UpdateMemoryObjectsForIsolate_Locked(
-    Isolate* isolate, void* backing_store, size_t new_size) {
-  const auto& result = allocations_.find(backing_store);
-  if (result == allocations_.end() || !result->second.is_shared) return;
-  for (const auto& memory_obj_state : result->second.memory_object_vector) {
-    DCHECK_NE(memory_obj_state.isolate, nullptr);
-    if (isolate == memory_obj_state.isolate) {
-      HandleScope scope(isolate);
-      Handle<WasmMemoryObject> memory_object = memory_obj_state.memory_object;
-      DCHECK(memory_object->IsWasmMemoryObject());
-      DCHECK(memory_object->array_buffer()->is_shared());
-      // Permissions adjusted, but create a new buffer with new size
-      // and old attributes. Buffer has already been allocated,
-      // just create a new buffer with same backing store.
-      bool is_external = memory_object->array_buffer()->is_external();
-      Handle<JSArrayBuffer> new_buffer = SetupArrayBuffer(
-          isolate, backing_store, new_size, is_external, SharedFlag::kShared);
-      memory_obj_state.memory_object->update_instances(isolate, new_buffer);
-    }
-  }
-}
-
-bool WasmMemoryTracker::MemoryObjectsNeedUpdate_Locked(
-    Isolate* isolate, const void* backing_store) {
-  // Return true if this buffer has memory_objects it needs to update.
-  const auto& result = allocations_.find(backing_store);
-  if (result == allocations_.end() || !result->second.is_shared) return false;
-  // Only update if the buffer has memory objects that need to be updated.
-  if (result->second.memory_object_vector.empty()) return false;
-  const auto& isolate_entry = isolates_per_buffer_.find(backing_store);
-  return (isolate_entry != isolates_per_buffer_.end() &&
-          isolate_entry->second.count(isolate) != 0);
-}
-
-void WasmMemoryTracker::FreeMemoryIfNotShared_Locked(
-    Isolate* isolate, const void* backing_store) {
-  RemoveSharedBufferState_Locked(isolate, backing_store);
-  if (CanFreeSharedMemory_Locked(backing_store)) {
-    const AllocationData allocation =
-        ReleaseAllocation_Locked(isolate, backing_store);
+  if (IsWasmMemory(buffer_start)) {
+    const AllocationData allocation = ReleaseAllocation(isolate, buffer_start);
     CHECK(FreePages(GetPlatformPageAllocator(), allocation.allocation_base,
                     allocation.allocation_length));
-  }
-}
-
-bool WasmMemoryTracker::CanFreeSharedMemory_Locked(const void* backing_store) {
-  const auto& value = isolates_per_buffer_.find(backing_store);
-  // If no isolates share this buffer, backing store can be freed.
-  // Erase the buffer entry.
-  if (value == isolates_per_buffer_.end()) return true;
-  if (value->second.empty()) {
-    // If no isolates share this buffer, the global handles to memory objects
-    // associated with this buffer should have been destroyed.
-    // DCHECK(shared_memory_map_.find(backing_store) ==
-    // shared_memory_map_.end());
     return true;
   }
   return false;
-}
-
-void WasmMemoryTracker::RemoveSharedBufferState_Locked(
-    Isolate* isolate, const void* backing_store) {
-  if (isolate != nullptr) {
-    DestroyMemoryObjectsAndRemoveIsolateEntry_Locked(isolate, backing_store);
-    RemoveIsolateFromBackingStore_Locked(isolate, backing_store);
-  } else {
-    // This happens for externalized contents cleanup shared memory state
-    // associated with this buffer across isolates.
-    DestroyMemoryObjectsAndRemoveIsolateEntry_Locked(backing_store);
-  }
-}
-
-void WasmMemoryTracker::DestroyMemoryObjectsAndRemoveIsolateEntry_Locked(
-    const void* backing_store) {
-  const auto& result = allocations_.find(backing_store);
-  CHECK(result != allocations_.end() && result->second.is_shared);
-  auto& object_vector = result->second.memory_object_vector;
-  if (object_vector.empty()) return;
-  for (const auto& mem_obj_state : object_vector) {
-    GlobalHandles::Destroy(mem_obj_state.memory_object.location());
-  }
-  object_vector.clear();
-  // Remove isolate from backing store map.
-  isolates_per_buffer_.erase(backing_store);
-}
-
-void WasmMemoryTracker::DestroyMemoryObjectsAndRemoveIsolateEntry_Locked(
-    Isolate* isolate, const void* backing_store) {
-  // This gets called when an internal handle to the ArrayBuffer should be
-  // freed, on heap tear down for that isolate, remove the memory objects
-  // that are associated with this buffer and isolate.
-  const auto& result = allocations_.find(backing_store);
-  CHECK(result != allocations_.end() && result->second.is_shared);
-  auto& object_vector = result->second.memory_object_vector;
-  if (object_vector.empty()) return;
-  for (auto it = object_vector.begin(); it != object_vector.end();) {
-    if (isolate == it->isolate) {
-      GlobalHandles::Destroy(it->memory_object.location());
-      it = object_vector.erase(it);
-    } else {
-      ++it;
-    }
-  }
-}
-
-void WasmMemoryTracker::RemoveIsolateFromBackingStore_Locked(
-    Isolate* isolate, const void* backing_store) {
-  const auto& isolates = isolates_per_buffer_.find(backing_store);
-  if (isolates == isolates_per_buffer_.end() || isolates->second.empty())
-    return;
-  isolates->second.erase(isolate);
-}
-
-void WasmMemoryTracker::DeleteSharedMemoryObjectsOnIsolate(Isolate* isolate) {
-  base::MutexGuard scope_lock(&mutex_);
-  // This is possible for buffers that are externalized, and their handles have
-  // been freed, the backing store wasn't released because externalized contents
-  // were using it.
-  if (isolates_per_buffer_.empty()) return;
-  for (auto& entry : isolates_per_buffer_) {
-    if (entry.second.find(isolate) == entry.second.end()) continue;
-    const void* backing_store = entry.first;
-    entry.second.erase(isolate);
-    DestroyMemoryObjectsAndRemoveIsolateEntry_Locked(isolate, backing_store);
-  }
-  for (auto& buffer_isolates : isolates_updated_on_grow_) {
-    auto& isolates = buffer_isolates.second;
-    isolates.erase(isolate);
-  }
 }
 
 void WasmMemoryTracker::AddAddressSpaceSample(Isolate* isolate) {

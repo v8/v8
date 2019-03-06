@@ -69,7 +69,11 @@ void JSArrayBuffer::FreeBackingStore(Isolate* isolate, Allocation allocation) {
   if (allocation.is_wasm_memory) {
     wasm::WasmMemoryTracker* memory_tracker =
         isolate->wasm_engine()->memory_tracker();
-    memory_tracker->FreeMemoryIfIsWasmMemory(isolate, allocation.backing_store);
+    if (!memory_tracker->FreeMemoryIfIsWasmMemory(isolate,
+                                                  allocation.backing_store)) {
+      CHECK(FreePages(GetPlatformPageAllocator(), allocation.allocation_base,
+                      allocation.length));
+    }
   } else {
     isolate->array_buffer_allocator()->Free(allocation.allocation_base,
                                             allocation.length);
