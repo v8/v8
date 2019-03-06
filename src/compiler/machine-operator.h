@@ -142,14 +142,13 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
     kWord64ReverseBits = 1u << 17,
     kInt32AbsWithOverflow = 1u << 20,
     kInt64AbsWithOverflow = 1u << 21,
-    kSpeculationFence = 1u << 22,
-    kAllOptionalOps =
-        kFloat32RoundDown | kFloat64RoundDown | kFloat32RoundUp |
-        kFloat64RoundUp | kFloat32RoundTruncate | kFloat64RoundTruncate |
-        kFloat64RoundTiesAway | kFloat32RoundTiesEven | kFloat64RoundTiesEven |
-        kWord32Ctz | kWord64Ctz | kWord32Popcnt | kWord64Popcnt |
-        kWord32ReverseBits | kWord64ReverseBits | kInt32AbsWithOverflow |
-        kInt64AbsWithOverflow | kSpeculationFence
+    kAllOptionalOps = kFloat32RoundDown | kFloat64RoundDown | kFloat32RoundUp |
+                      kFloat64RoundUp | kFloat32RoundTruncate |
+                      kFloat64RoundTruncate | kFloat64RoundTiesAway |
+                      kFloat32RoundTiesEven | kFloat64RoundTiesEven |
+                      kWord32Ctz | kWord64Ctz | kWord32Popcnt | kWord64Popcnt |
+                      kWord32ReverseBits | kWord64ReverseBits |
+                      kInt32AbsWithOverflow | kInt64AbsWithOverflow
   };
   typedef base::Flags<Flag, unsigned> Flags;
 
@@ -670,8 +669,6 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   // atomic-pair-compare-exchange [base + index], old_value_high, old_value_low,
   // new_value_high, new_value_low
   const Operator* Word32AtomicPairCompareExchange();
-
-  const OptionalOperator SpeculationFence();
 
   // Target machine word-size assumed by this builder.
   bool Is32() const { return word() == MachineRepresentation::kWord32; }

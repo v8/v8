@@ -935,8 +935,6 @@ void InstructionSelector::VisitWord32ReverseBytes(Node* node) {
        g.UseRegister(node->InputAt(0)));
 }
 
-void InstructionSelector::VisitSpeculationFence(Node* node) { UNREACHABLE(); }
-
 void InstructionSelector::VisitInt32Add(Node* node) {
   VisitBinop<Int32BinopMatcher>(this, node, kPPC_Add32, kInt16Imm);
 }

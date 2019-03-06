@@ -781,13 +781,6 @@ struct MachineOperatorGlobalCache {
   };
   Word64PoisonOnSpeculation kWord64PoisonOnSpeculation;
 
-  struct SpeculationFenceOperator : public Operator {
-    SpeculationFenceOperator()
-        : Operator(IrOpcode::kSpeculationFence, Operator::kNoThrow,
-                   "SpeculationFence", 0, 1, 1, 0, 1, 0) {}
-  };
-  SpeculationFenceOperator kSpeculationFence;
-
   struct DebugAbortOperator : public Operator {
     DebugAbortOperator()
         : Operator(IrOpcode::kDebugAbort, Operator::kNoThrow, "DebugAbort", 1,
@@ -1226,11 +1219,6 @@ const Operator* MachineOperatorBuilder::Word32PoisonOnSpeculation() {
 
 const Operator* MachineOperatorBuilder::Word64PoisonOnSpeculation() {
   return &cache_.kWord64PoisonOnSpeculation;
-}
-
-const OptionalOperator MachineOperatorBuilder::SpeculationFence() {
-  return OptionalOperator(flags_ & kSpeculationFence,
-                          &cache_.kSpeculationFence);
 }
 
 #define SIMD_LANE_OPS(Type, lane_count)                                     \

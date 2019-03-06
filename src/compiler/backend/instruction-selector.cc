@@ -1764,8 +1764,6 @@ void InstructionSelector::VisitNode(Node* node) {
       ATOMIC_CASE(Exchange)
       ATOMIC_CASE(CompareExchange)
 #undef ATOMIC_CASE
-    case IrOpcode::kSpeculationFence:
-      return VisitSpeculationFence(node);
     case IrOpcode::kProtectedLoad: {
       LoadRepresentation type = LoadRepresentationOf(node->op());
       MarkAsRepresentation(type.representation(), node);

@@ -696,7 +696,6 @@
   V(Word32AtomicPairXor)             \
   V(Word32AtomicPairExchange)        \
   V(Word32AtomicPairCompareExchange) \
-  V(SpeculationFence)                \
   V(SignExtendWord8ToInt32)          \
   V(SignExtendWord16ToInt32)         \
   V(SignExtendWord8ToInt64)          \

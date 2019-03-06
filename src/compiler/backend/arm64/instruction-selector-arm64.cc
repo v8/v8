@@ -1283,11 +1283,6 @@ void InstructionSelector::VisitWord32Popcnt(Node* node) { UNREACHABLE(); }
 
 void InstructionSelector::VisitWord64Popcnt(Node* node) { UNREACHABLE(); }
 
-void InstructionSelector::VisitSpeculationFence(Node* node) {
-  Arm64OperandGenerator g(this);
-  Emit(kArm64DsbIsb, g.NoOutput());
-}
-
 void InstructionSelector::VisitInt32Add(Node* node) {
   Arm64OperandGenerator g(this);
   Int32BinopMatcher m(node);
@@ -3272,8 +3267,7 @@ InstructionSelector::SupportedMachineOperatorFlags() {
          MachineOperatorBuilder::kInt32DivIsSafe |
          MachineOperatorBuilder::kUint32DivIsSafe |
          MachineOperatorBuilder::kWord32ReverseBits |
-         MachineOperatorBuilder::kWord64ReverseBits |
-         MachineOperatorBuilder::kSpeculationFence;
+         MachineOperatorBuilder::kWord64ReverseBits;
 }
 
 // static

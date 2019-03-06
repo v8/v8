@@ -1125,11 +1125,6 @@ void InstructionSelector::VisitWord32ReverseBytes(Node* node) {
 
 void InstructionSelector::VisitWord32Popcnt(Node* node) { UNREACHABLE(); }
 
-void InstructionSelector::VisitSpeculationFence(Node* node) {
-  ArmOperandGenerator g(this);
-  Emit(kArmDsbIsb, g.NoOutput());
-}
-
 void InstructionSelector::VisitInt32Add(Node* node) {
   ArmOperandGenerator g(this);
   Int32BinopMatcher m(node);
@@ -2694,8 +2689,7 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
 // static
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {
-  MachineOperatorBuilder::Flags flags =
-      MachineOperatorBuilder::kSpeculationFence;
+  MachineOperatorBuilder::Flags flags = MachineOperatorBuilder::kNoFlags;
   if (CpuFeatures::IsSupported(SUDIV)) {
     // The sdiv and udiv instructions correctly return 0 if the divisor is 0,
     // but the fall-back implementation does not.
