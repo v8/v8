@@ -1762,6 +1762,14 @@ Local<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
       String::NewFromUtf8(isolate, "waitUntilDone", NewStringType::kNormal)
           .ToLocalChecked(),
       FunctionTemplate::New(isolate, WaitUntilDone));
+  // Reliable access to quit functionality. The "quit" method function
+  // installed on the global object can be hidden with the --omit-quit flag
+  // (e.g. on asan bots).
+  test_template->Set(
+      String::NewFromUtf8(isolate, "quit", NewStringType::kNormal)
+          .ToLocalChecked(),
+      FunctionTemplate::New(isolate, Quit));
+
   global_template->Set(
       String::NewFromUtf8(isolate, "version", NewStringType::kNormal)
           .ToLocalChecked(),

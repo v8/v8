@@ -414,7 +414,9 @@ RUNTIME_FUNCTION(Runtime_GetOptimizationStatus) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1 || args.length() == 2);
   int status = 0;
-  if (FLAG_lite_mode) {
+  if (FLAG_lite_mode || FLAG_jitless) {
+    // Both jitless and lite modes cannot optimize. Unit tests should handle
+    // these the same way. In the future, the two flags may become synonyms.
     status |= static_cast<int>(OptimizationStatus::kLiteMode);
   }
   if (!isolate->use_optimizer()) {
