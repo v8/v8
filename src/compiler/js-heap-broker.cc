@@ -4,6 +4,10 @@
 
 #include "src/compiler/js-heap-broker.h"
 
+#ifdef ENABLE_SLOW_DCHECKS
+#include <algorithm>
+#endif
+
 #include "src/ast/modules.h"
 #include "src/bootstrapper.h"
 #include "src/boxed-float.h"
@@ -241,6 +245,7 @@ class JSTypedArrayData : public JSObjectData {
   void* elements_external_pointer() const { return elements_external_pointer_; }
 
   void Serialize(JSHeapBroker* broker);
+  bool serialized() const { return serialized_; }
 
   HeapObjectData* buffer() const { return buffer_; }
 
@@ -707,6 +712,10 @@ class MapData : public HeapObjectData {
     return prototype_;
   }
 
+  void SerializeForElementLoad(JSHeapBroker* broker);
+
+  void SerializeForElementStore(JSHeapBroker* broker);
+
  private:
   InstanceType const instance_type_;
   int const instance_size_;
@@ -734,6 +743,10 @@ class MapData : public HeapObjectData {
 
   bool serialized_prototype_ = false;
   ObjectData* prototype_ = nullptr;
+
+  bool serialized_for_element_load_ = false;
+
+  bool serialized_for_element_store_ = false;
 };
 
 AllocationSiteData::AllocationSiteData(JSHeapBroker* broker,
@@ -1904,6 +1917,68 @@ base::Optional<MapRef> MapRef::AsElementsKind(ElementsKind kind) const {
   return base::Optional<MapRef>();
 }
 
+void MapRef::SerializeForElementLoad() {
+  CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
+  data()->AsMap()->SerializeForElementLoad(broker());
+}
+
+void MapRef::SerializeForElementStore() {
+  CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
+  data()->AsMap()->SerializeForElementStore(broker());
+}
+
+namespace {
+// This helper function has two modes. If {prototype_maps} is nullptr, the
+// prototype chain is serialized as necessary to determine the result.
+// Otherwise, the heap is untouched and the encountered prototypes are pushed
+// onto {prototype_maps}.
+bool HasOnlyStablePrototypesWithFastElementsHelper(
+    JSHeapBroker* broker, MapRef const& map,
+    ZoneVector<MapRef>* prototype_maps) {
+  for (MapRef prototype_map = map;;) {
+    if (prototype_maps == nullptr) prototype_map.SerializePrototype();
+    prototype_map = prototype_map.prototype().AsHeapObject().map();
+    if (prototype_map.oddball_type() == OddballType::kNull) return true;
+    if (!map.prototype().IsJSObject() || !prototype_map.is_stable() ||
+        !IsFastElementsKind(prototype_map.elements_kind())) {
+      return false;
+    }
+    if (prototype_maps != nullptr) prototype_maps->push_back(prototype_map);
+  }
+}
+}  // namespace
+
+void MapData::SerializeForElementLoad(JSHeapBroker* broker) {
+  if (serialized_for_element_load_) return;
+  serialized_for_element_load_ = true;
+
+  TraceScope tracer(broker, this, "MapData::SerializeForElementLoad");
+  SerializePrototype(broker);
+}
+
+void MapData::SerializeForElementStore(JSHeapBroker* broker) {
+  if (serialized_for_element_store_) return;
+  serialized_for_element_store_ = true;
+
+  TraceScope tracer(broker, this, "MapData::SerializeForElementStore");
+  HasOnlyStablePrototypesWithFastElementsHelper(broker, MapRef(broker, this),
+                                                nullptr);
+}
+
+bool MapRef::HasOnlyStablePrototypesWithFastElements(
+    ZoneVector<MapRef>* prototype_maps) {
+  for (MapRef prototype_map = *this;;) {
+    if (prototype_maps == nullptr) prototype_map.SerializePrototype();
+    prototype_map = prototype_map.prototype().AsHeapObject().map();
+    if (prototype_map.oddball_type() == OddballType::kNull) return true;
+    if (!prototype().IsJSObject() || !prototype_map.is_stable() ||
+        !IsFastElementsKind(prototype_map.elements_kind())) {
+      return false;
+    }
+    if (prototype_maps != nullptr) prototype_maps->push_back(prototype_map);
+  }
+}
+
 bool MapRef::supports_fast_array_iteration() const {
   if (broker()->mode() == JSHeapBroker::kDisabled) {
     AllowHandleDereference allow_handle_dereference;
@@ -2272,10 +2347,14 @@ BIMODAL_ACCESSOR_B(Map, bit_field3, NumberOfOwnDescriptors,
                    Map::NumberOfOwnDescriptorsBits)
 BIMODAL_ACCESSOR_B(Map, bit_field3, has_hidden_prototype,
                    Map::HasHiddenPrototypeBit)
+BIMODAL_ACCESSOR_B(Map, bit_field3, is_migration_target,
+                   Map::IsMigrationTargetBit)
 BIMODAL_ACCESSOR_B(Map, bit_field, has_prototype_slot, Map::HasPrototypeSlotBit)
 BIMODAL_ACCESSOR_B(Map, bit_field, is_access_check_needed,
                    Map::IsAccessCheckNeededBit)
 BIMODAL_ACCESSOR_B(Map, bit_field, is_callable, Map::IsCallableBit)
+BIMODAL_ACCESSOR_B(Map, bit_field, has_indexed_interceptor,
+                   Map::HasIndexedInterceptorBit)
 BIMODAL_ACCESSOR_B(Map, bit_field, is_constructor, Map::IsConstructorBit)
 BIMODAL_ACCESSOR_B(Map, bit_field, is_undetectable, Map::IsUndetectableBit)
 BIMODAL_ACCESSOR_C(Map, int, instance_size)
@@ -2751,17 +2830,22 @@ void JSTypedArrayRef::Serialize() {
   data()->AsJSTypedArray()->Serialize(broker());
 }
 
+bool JSTypedArrayRef::serialized() const {
+  CHECK_NE(broker()->mode(), JSHeapBroker::kDisabled);
+  return data()->AsJSTypedArray()->serialized();
+}
+
 void JSBoundFunctionRef::Serialize() {
   if (broker()->mode() == JSHeapBroker::kDisabled) return;
   CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
   data()->AsJSBoundFunction()->Serialize(broker());
 }
 
-bool CanInlineElementAccess(Handle<Map> map) {
-  if (!map->IsJSObjectMap()) return false;
-  if (map->is_access_check_needed()) return false;
-  if (map->has_indexed_interceptor()) return false;
-  ElementsKind const elements_kind = map->elements_kind();
+bool CanInlineElementAccess(MapRef const& map) {
+  if (!map.IsJSObjectMap()) return false;
+  if (map.is_access_check_needed()) return false;
+  if (map.has_indexed_interceptor()) return false;
+  ElementsKind const elements_kind = map.elements_kind();
   if (IsFastElementsKind(elements_kind)) return true;
   if (IsFixedTypedArrayElementsKind(elements_kind) &&
       elements_kind != BIGUINT64_ELEMENTS &&
@@ -2771,30 +2855,68 @@ bool CanInlineElementAccess(Handle<Map> map) {
   return false;
 }
 
-bool JSHeapBroker::HasFeedback(FeedbackNexus const& nexus) const {
-  return feedback_.find(nexus) != feedback_.end();
+ProcessedFeedback::ProcessedFeedback(Zone* zone)
+    : receiver_maps(zone), transitions(zone) {}
+
+ProcessedFeedback::MapIterator::MapIterator(ProcessedFeedback const& processed,
+                                            JSHeapBroker* broker)
+    : processed_(processed), broker_(broker) {
+  CHECK_LT(processed.receiver_maps.size(),
+           std::numeric_limits<size_t>::max() - processed.transitions.size());
 }
 
-ProcessedFeedback& JSHeapBroker::GetOrCreateFeedback(
+bool ProcessedFeedback::MapIterator::done() const {
+  return index_ >=
+         processed_.receiver_maps.size() + processed_.transitions.size();
+}
+
+void ProcessedFeedback::MapIterator::advance() { index_++; }
+
+MapRef ProcessedFeedback::MapIterator::current() const {
+  CHECK(!done());
+  size_t receiver_maps_size = processed_.receiver_maps.size();
+  Handle<Map> map;
+  if (index_ < receiver_maps_size) {
+    map = processed_.receiver_maps[index_];
+  } else {
+    map = processed_.transitions[index_ - receiver_maps_size].first;
+  }
+  return MapRef(broker_, map);
+}
+
+ProcessedFeedback::MapIterator ProcessedFeedback::all_maps(
+    JSHeapBroker* broker) const {
+  return MapIterator(*this, broker);
+}
+
+ProcessedFeedback& JSHeapBroker::CreateEmptyFeedback(
     FeedbackNexus const& nexus) {
-  auto it = feedback_.find(nexus);
-  if (it != feedback_.end()) return it->second;
   auto insertion = feedback_.insert({nexus, ProcessedFeedback(zone())});
   CHECK(insertion.second);
   return insertion.first->second;
 }
 
-void ProcessFeedbackMapsForElementAccess(Isolate* isolate,
+bool JSHeapBroker::HasFeedback(FeedbackNexus const& nexus) const {
+  return feedback_.find(nexus) != feedback_.end();
+}
+
+ProcessedFeedback& JSHeapBroker::GetFeedback(FeedbackNexus const& nexus) {
+  auto it = feedback_.find(nexus);
+  CHECK_NE(it, feedback_.end());
+  return it->second;
+}
+
+void ProcessFeedbackMapsForElementAccess(JSHeapBroker* broker,
                                          MapHandles const& maps,
                                          ProcessedFeedback* processed) {
-  DCHECK(processed->receiver_maps.empty());
-  DCHECK(processed->transitions.empty());
+  CHECK(processed->receiver_maps.empty());
+  CHECK(processed->transitions.empty());
 
   // Collect possible transition targets.
   MapHandles possible_transition_targets;
   possible_transition_targets.reserve(maps.size());
   for (Handle<Map> map : maps) {
-    if (CanInlineElementAccess(map) &&
+    if (CanInlineElementAccess(MapRef(broker, map)) &&
         IsFastElementsKind(map->elements_kind()) &&
         GetInitialFastElementsKind() != map->elements_kind()) {
       possible_transition_targets.push_back(map);
@@ -2804,17 +2926,31 @@ void ProcessFeedbackMapsForElementAccess(Isolate* isolate,
   // Separate the actual receiver maps and the possible transition sources.
   for (Handle<Map> map : maps) {
     // Don't generate elements kind transitions from stable maps.
-    Map transition_target = map->is_stable()
-                                ? Map()
-                                : map->FindElementsKindTransitionedMap(
-                                      isolate, possible_transition_targets);
+    Map transition_target =
+        map->is_stable() ? Map()
+                         : map->FindElementsKindTransitionedMap(
+                               broker->isolate(), possible_transition_targets);
     if (transition_target.is_null()) {
       processed->receiver_maps.push_back(map);
     } else {
-      processed->transitions.emplace_back(map,
-                                          handle(transition_target, isolate));
+      processed->transitions.emplace_back(
+          map, handle(transition_target, broker->isolate()));
     }
   }
+
+#ifdef ENABLE_SLOW_DCHECKS
+  // No transition sources appear in {receiver_maps}.
+  // All transition targets appear in {receiver_maps}.
+  for (auto& transition : processed->transitions) {
+    USE(transition);
+    CHECK(std::none_of(
+        processed->receiver_maps.cbegin(), processed->receiver_maps.cend(),
+        [&](Handle<Map> map) { return map.equals(transition.first); }));
+    CHECK(std::any_of(
+        processed->receiver_maps.cbegin(), processed->receiver_maps.cend(),
+        [&](Handle<Map> map) { return map.equals(transition.second); }));
+  }
+#endif
 }
 
 #undef BIMODAL_ACCESSOR

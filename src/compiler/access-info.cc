@@ -249,8 +249,9 @@ bool AccessInfoFactory::ComputeElementAccessInfo(
     Handle<Map> map, AccessMode access_mode,
     ElementAccessInfo* access_info) const {
   // Check if it is safe to inline element access for the {map}.
-  if (!CanInlineElementAccess(map)) return false;
-  ElementsKind const elements_kind = map->elements_kind();
+  MapRef map_ref(broker(), map);
+  if (!CanInlineElementAccess(map_ref)) return false;
+  ElementsKind const elements_kind = map_ref.elements_kind();
   *access_info = ElementAccessInfo(MapHandles{map}, elements_kind);
   return true;
 }
@@ -259,30 +260,34 @@ bool AccessInfoFactory::ComputeElementAccessInfos(
     FeedbackNexus nexus, MapHandles const& maps, AccessMode access_mode,
     ZoneVector<ElementAccessInfo>* access_infos) const {
   ProcessedFeedback processed(broker()->zone());
-  ProcessFeedbackMapsForElementAccess(isolate(), maps, &processed);
 
   if (FLAG_concurrent_inlining) {
-    if (broker()->HasFeedback(nexus)) {
-      // We have already processed the feedback for this nexus during
-      // serialization. Use that data instead of the data computed above.
-      ProcessedFeedback const& preprocessed =
-          broker()->GetOrCreateFeedback(nexus);
-      TRACE_BROKER(broker(),
-                   "ComputeElementAccessInfos: using preprocessed feedback "
-                       << "(slot " << nexus.slot() << " of "
-                       << Brief(*nexus.vector_handle()) << "; "
-                       << preprocessed.receiver_maps.size() << "/"
-                       << preprocessed.transitions.size() << " vs "
-                       << processed.receiver_maps.size() << "/"
-                       << processed.transitions.size() << ").\n");
-      processed.receiver_maps = preprocessed.receiver_maps;
-      processed.transitions = preprocessed.transitions;
-    } else {
-      TRACE_BROKER(broker(),
-                   "ComputeElementAccessInfos: missing preprocessed feedback "
-                       << "(slot " << nexus.slot() << " of "
-                       << Brief(*nexus.vector_handle()) << ").\n");
-    }
+    // TODO(neis): When concurrent inlining is ready,
+    // - change the printing below to not look into the heap,
+    // - remove the call to ProcessFeedbackMapsForElementAccess,
+    // - remove the Allow* scopes,
+    AllowCodeDependencyChange dependency_change_;
+    AllowHandleAllocation handle_allocation_;
+    AllowHandleDereference handle_dereference_;
+    AllowHeapAllocation heap_allocation_;
+
+    // We have already processed the feedback for this nexus during
+    // serialization. Use that data! We still process the incoming {maps} (even
+    // though we don't use them) so that we can print a comparison.
+    ProcessFeedbackMapsForElementAccess(broker(), maps, &processed);
+    ProcessedFeedback const& preprocessed = broker()->GetFeedback(nexus);
+    TRACE_BROKER(broker(),
+                 "ComputeElementAccessInfos: using preprocessed feedback "
+                     << "(slot " << nexus.slot() << " of "
+                     << Brief(*nexus.vector_handle()) << "; "
+                     << preprocessed.receiver_maps.size() << "/"
+                     << preprocessed.transitions.size() << " vs "
+                     << processed.receiver_maps.size() << "/"
+                     << processed.transitions.size() << ").\n");
+    processed.receiver_maps = preprocessed.receiver_maps;
+    processed.transitions = preprocessed.transitions;
+  } else {
+    ProcessFeedbackMapsForElementAccess(broker(), maps, &processed);
   }
 
   if (processed.receiver_maps.empty()) return false;
@@ -308,7 +313,7 @@ bool AccessInfoFactory::ComputeElementAccessInfos(
 
     // Collect the possible transitions for the {receiver_map}.
     for (auto transition : processed.transitions) {
-      if (transition.second.is_identical_to(receiver_map)) {
+      if (transition.second.equals(receiver_map)) {
         access_info.AddTransitionSource(transition.first);
       }
     }
@@ -619,36 +624,22 @@ Maybe<ElementsKind> GeneralizeElementsKind(ElementsKind this_kind,
 
 bool AccessInfoFactory::ConsolidateElementLoad(
     ProcessedFeedback const& processed, ElementAccessInfo* access_info) const {
-  CHECK(!processed.receiver_maps.empty());
-
-  // We want to look at each map but the maps are split across
-  // {processed.receiver_maps} and {processed.transitions}.
-
-  InstanceType instance_type = processed.receiver_maps.front()->instance_type();
-  ElementsKind elements_kind = processed.receiver_maps.front()->elements_kind();
-  auto processMap = [&](Handle<Map> map) {
-    if (!CanInlineElementAccess(map) || map->instance_type() != instance_type) {
+  ProcessedFeedback::MapIterator it = processed.all_maps(broker());
+  MapRef first_map = it.current();
+  InstanceType instance_type = first_map.instance_type();
+  ElementsKind elements_kind = first_map.elements_kind();
+  MapHandles maps;
+  for (; !it.done(); it.advance()) {
+    MapRef map = it.current();
+    if (map.instance_type() != instance_type || !CanInlineElementAccess(map)) {
       return false;
     }
-    if (!GeneralizeElementsKind(elements_kind, map->elements_kind())
+    if (!GeneralizeElementsKind(elements_kind, map.elements_kind())
              .To(&elements_kind)) {
       return false;
     }
-    return true;
-  };
-
-  for (Handle<Map> map : processed.receiver_maps) {
-    if (!processMap(map)) return false;
+    maps.push_back(map.object());
   }
-
-  MapHandles maps(processed.receiver_maps.begin(),
-                  processed.receiver_maps.end());
-  for (auto& pair : processed.transitions) {
-    if (!processMap(pair.first) || !processMap(pair.second)) return false;
-    maps.push_back(pair.first);
-    maps.push_back(pair.second);
-  }
-  // {maps} may now contain duplicate entries, but that shouldn't matter.
 
   *access_info = ElementAccessInfo(maps, elements_kind);
   return true;

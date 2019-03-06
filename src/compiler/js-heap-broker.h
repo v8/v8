@@ -439,7 +439,9 @@ class MapRef : public HeapObjectRef {
   bool IsPrimitiveMap() const;
   bool is_undetectable() const;
   bool is_callable() const;
+  bool has_indexed_interceptor() const;
   bool has_hidden_prototype() const;
+  bool is_migration_target() const;
   bool supports_fast_array_iteration() const;
   bool supports_fast_array_resize() const;
 
@@ -448,13 +450,17 @@ class MapRef : public HeapObjectRef {
 #undef DEF_TESTER
 
   ObjectRef GetConstructor() const;
+  OddballType oddball_type() const;
+  base::Optional<MapRef> AsElementsKind(ElementsKind kind) const;
 
   void SerializePrototype();
   ObjectRef prototype() const;
 
-  OddballType oddball_type() const;
+  void SerializeForElementLoad();
 
-  base::Optional<MapRef> AsElementsKind(ElementsKind kind) const;
+  void SerializeForElementStore();
+  bool HasOnlyStablePrototypesWithFastElements(
+      ZoneVector<MapRef>* prototype_maps);
 
   // Concerning the underlying instance_descriptors:
   void SerializeOwnDescriptors();
@@ -573,6 +579,7 @@ class JSTypedArrayRef : public JSObjectRef {
   void* elements_external_pointer() const;
 
   void Serialize();
+  bool serialized() const;
 
   HeapObjectRef buffer() const;
 };
@@ -617,11 +624,32 @@ class InternalizedStringRef : public StringRef {
 };
 
 struct ProcessedFeedback {
+  explicit ProcessedFeedback(Zone* zone);
+
+  // No transition sources appear in {receiver_maps}.
+  // All transition targets appear in {receiver_maps}.
   ZoneVector<Handle<Map>> receiver_maps;
   ZoneVector<std::pair<Handle<Map>, Handle<Map>>> transitions;
 
-  explicit ProcessedFeedback(Zone* zone)
-      : receiver_maps(zone), transitions(zone) {}
+  class MapIterator {
+   public:
+    bool done() const;
+    void advance();
+    MapRef current() const;
+
+   private:
+    friend struct ProcessedFeedback;
+
+    explicit MapIterator(ProcessedFeedback const& processed,
+                         JSHeapBroker* broker);
+
+    ProcessedFeedback const& processed_;
+    JSHeapBroker* const broker_;
+    size_t index_ = 0;
+  };
+
+  // Iterator over all maps: first {receiver_maps}, then transition sources.
+  MapIterator all_maps(JSHeapBroker* broker) const;
 };
 
 class V8_EXPORT_PRIVATE JSHeapBroker : public NON_EXPORTED_BASE(ZoneObject) {
@@ -654,8 +682,9 @@ class V8_EXPORT_PRIVATE JSHeapBroker : public NON_EXPORTED_BASE(ZoneObject) {
   // %ObjectPrototype%.
   bool IsArrayOrObjectPrototype(const JSObjectRef& object) const;
 
+  ProcessedFeedback& CreateEmptyFeedback(FeedbackNexus const& nexus);
   bool HasFeedback(FeedbackNexus const& nexus) const;
-  ProcessedFeedback& GetOrCreateFeedback(FeedbackNexus const& nexus);
+  ProcessedFeedback& GetFeedback(FeedbackNexus const& nexus);
 
   std::ostream& Trace();
   void IncrementTracingIndentation();
@@ -671,7 +700,7 @@ class V8_EXPORT_PRIVATE JSHeapBroker : public NON_EXPORTED_BASE(ZoneObject) {
 
   struct FeedbackNexusHash {
     size_t operator()(FeedbackNexus const& nexus) const {
-      return base::hash_combine(nexus.vector_handle().location(), nexus.slot());
+      return base::hash_combine(nexus.vector_handle().address(), nexus.slot());
     }
   };
   struct FeedbackNexusEqual {
@@ -714,8 +743,8 @@ Reduction NoChangeBecauseOfMissingData(JSHeapBroker* broker,
 
 // Miscellaneous definitions that should be moved elsewhere once concurrent
 // compilation is finished.
-bool CanInlineElementAccess(Handle<Map> map);
-void ProcessFeedbackMapsForElementAccess(Isolate* isolate,
+bool CanInlineElementAccess(MapRef const& map);
+void ProcessFeedbackMapsForElementAccess(JSHeapBroker* broker,
                                          MapHandles const& maps,
                                          ProcessedFeedback* processed);
 

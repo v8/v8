@@ -6,6 +6,7 @@
 #define V8_COMPILER_SERIALIZER_FOR_BACKGROUND_COMPILATION_H_
 
 #include "src/base/optional.h"
+#include "src/compiler/access-info.h"
 #include "src/handles.h"
 #include "src/maybe-handles.h"
 #include "src/utils.h"
@@ -95,7 +96,6 @@ namespace compiler {
   V(TestGreaterThanOrEqual)      \
   V(TestReferenceEqual)          \
   V(TestInstanceOf)              \
-  V(TestIn)                      \
   V(TestUndetectable)            \
   V(TestNull)                    \
   V(TestUndefined)               \
@@ -134,6 +134,7 @@ namespace compiler {
   V(StaInArrayLiteral)             \
   V(StaKeyedProperty)              \
   V(Star)                          \
+  V(TestIn)                        \
   V(Wide)                          \
   CLEAR_ENVIRONMENT_LIST(V)        \
   CLEAR_ACCUMULATOR_LIST(V)        \
@@ -244,8 +245,8 @@ class SerializerForBackgroundCompilation {
                            base::Optional<Hints> new_target,
                            const HintsVector& arguments, bool with_spread);
 
-  void ProcessFeedbackForKeyedPropertyAccess(
-      interpreter::BytecodeArrayIterator* iterator);
+  void ProcessFeedbackForKeyedPropertyAccess(FeedbackSlot slot,
+                                             AccessMode mode);
 
   JSHeapBroker* broker() const { return broker_; }
   Zone* zone() const { return zone_; }

@@ -684,56 +684,79 @@ void SerializerForBackgroundCompilation::VisitConstructWithSpread(
 }
 
 void SerializerForBackgroundCompilation::ProcessFeedbackForKeyedPropertyAccess(
-    BytecodeArrayIterator* iterator) {
-  interpreter::Bytecode bytecode = iterator->current_bytecode();
-  DCHECK(bytecode == interpreter::Bytecode::kLdaKeyedProperty ||
-         bytecode == interpreter::Bytecode::kStaKeyedProperty ||
-         bytecode == interpreter::Bytecode::kStaInArrayLiteral);
-
-  if (environment()->function().feedback_vector.is_null()) return;
-
-  FeedbackSlot slot = iterator->GetSlotOperand(
-      bytecode == interpreter::Bytecode::kLdaKeyedProperty ? 1 : 2);
+    FeedbackSlot slot, AccessMode mode) {
   if (slot.IsInvalid()) return;
+  if (environment()->function().feedback_vector.is_null()) return;
 
   FeedbackNexus nexus(environment()->function().feedback_vector, slot);
   if (broker()->HasFeedback(nexus)) return;
 
-  Handle<Name> name(nexus.GetName(), broker()->isolate());
-  CHECK_IMPLIES(nexus.GetKeyType() == ELEMENT, name->is_null());
-  if (!name->is_null() || nexus.GetKeyType() == PROPERTY) {
-    CHECK_NE(bytecode, interpreter::Bytecode::kStaInArrayLiteral);
+  if (nexus.ic_state() == MEGAMORPHIC) return;
+
+  if (nexus.GetKeyType() == PROPERTY) {
+    CHECK_NE(mode, AccessMode::kStoreInLiteral);
     return;  // TODO(neis): Support named access.
   }
-  if (nexus.ic_state() == MEGAMORPHIC) {
-    return;
-  }
+  DCHECK_EQ(nexus.GetKeyType(), ELEMENT);
+  CHECK(nexus.GetName().is_null());
 
-  ProcessedFeedback& processed = broker()->GetOrCreateFeedback(nexus);
   MapHandles maps;
   nexus.ExtractMaps(&maps);
-  ProcessFeedbackMapsForElementAccess(broker()->isolate(), maps, &processed);
+  ProcessedFeedback& processed = broker()->CreateEmptyFeedback(nexus);
+  ProcessFeedbackMapsForElementAccess(broker(), maps, &processed);
 
-  // TODO(neis): Have something like MapRef::SerializeForElementStore() and call
-  // it for every receiver map in case of an element store.
+  for (ProcessedFeedback::MapIterator it = processed.all_maps(broker());
+       !it.done(); it.advance()) {
+    switch (mode) {
+      case AccessMode::kHas:
+      case AccessMode::kLoad:
+        it.current().SerializeForElementLoad();
+        break;
+      case AccessMode::kStore:
+        it.current().SerializeForElementStore();
+        break;
+      case AccessMode::kStoreInLiteral:
+        // This operation is fairly local and simple, nothing to serialize.
+        break;
+    }
+  }
 }
 
 void SerializerForBackgroundCompilation::VisitLdaKeyedProperty(
     BytecodeArrayIterator* iterator) {
+  FeedbackSlot slot = iterator->GetSlotOperand(1);
+  ProcessFeedbackForKeyedPropertyAccess(slot, AccessMode::kLoad);
   environment()->accumulator_hints().Clear();
-  ProcessFeedbackForKeyedPropertyAccess(iterator);
+}
+
+void SerializerForBackgroundCompilation::VisitTestIn(
+    BytecodeArrayIterator* iterator) {
+  FeedbackSlot slot = iterator->GetSlotOperand(1);
+  ProcessFeedbackForKeyedPropertyAccess(slot, AccessMode::kHas);
+  environment()->accumulator_hints().Clear();
 }
 
 void SerializerForBackgroundCompilation::VisitStaKeyedProperty(
     BytecodeArrayIterator* iterator) {
+  const Hints& receiver =
+      environment()->register_hints(iterator->GetRegisterOperand(0));
+  FeedbackSlot slot = iterator->GetSlotOperand(2);
+
+  ProcessFeedbackForKeyedPropertyAccess(slot, AccessMode::kStore);
+
+  // Process hints about constants.
+  for (Handle<Object> object : receiver.constants()) {
+    if (object->IsJSTypedArray()) JSTypedArrayRef(broker(), object).Serialize();
+  }
+
   environment()->accumulator_hints().Clear();
-  ProcessFeedbackForKeyedPropertyAccess(iterator);
 }
 
 void SerializerForBackgroundCompilation::VisitStaInArrayLiteral(
     BytecodeArrayIterator* iterator) {
+  FeedbackSlot slot = iterator->GetSlotOperand(2);
+  ProcessFeedbackForKeyedPropertyAccess(slot, AccessMode::kStoreInLiteral);
   environment()->accumulator_hints().Clear();
-  ProcessFeedbackForKeyedPropertyAccess(iterator);
 }
 
 #define DEFINE_CLEAR_ENVIRONMENT(name, ...)             \

@@ -32,11 +32,11 @@ class PropertyAccessBuilder {
 
   // Builds the appropriate string check if the maps are only string
   // maps.
-  bool TryBuildStringCheck(MapHandles const& maps, Node** receiver,
-                           Node** effect, Node* control);
+  bool TryBuildStringCheck(JSHeapBroker* broker, MapHandles const& maps,
+                           Node** receiver, Node** effect, Node* control);
   // Builds a number check if all maps are number maps.
-  bool TryBuildNumberCheck(MapHandles const& maps, Node** receiver,
-                           Node** effect, Node* control);
+  bool TryBuildNumberCheck(JSHeapBroker* broker, MapHandles const& maps,
+                           Node** receiver, Node** effect, Node* control);
 
   Node* BuildCheckHeapObject(Node* receiver, Node** effect, Node* control);
   void BuildCheckMaps(Node* receiver, Node** effect, Node* control,
@@ -71,7 +71,7 @@ class PropertyAccessBuilder {
   CompilationDependencies* dependencies_;
 };
 
-bool HasOnlyStringMaps(MapHandles const& maps);
+bool HasOnlyStringMaps(JSHeapBroker* broker, MapHandles const& maps);
 
 }  // namespace compiler
 }  // namespace internal

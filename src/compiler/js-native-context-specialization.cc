@@ -1168,9 +1168,11 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
     PropertyAccessInfo access_info = access_infos.front();
     // Try to build string check or number check if possible.
     // Otherwise build a map check.
-    if (!access_builder.TryBuildStringCheck(access_info.receiver_maps(),
+    if (!access_builder.TryBuildStringCheck(broker(),
+                                            access_info.receiver_maps(),
                                             &receiver, &effect, control) &&
-        !access_builder.TryBuildNumberCheck(access_info.receiver_maps(),
+        !access_builder.TryBuildNumberCheck(broker(),
+                                            access_info.receiver_maps(),
                                             &receiver, &effect, control)) {
       if (HasNumberMaps(broker(), access_info.receiver_maps())) {
         // We need to also let Smi {receiver}s through in this case, so
@@ -1310,7 +1312,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
         // {receiver} here to make sure that TurboFan knows that along this
         // path the {this_receiver} is a String. This is because we want
         // strict checking of types, for example for StringLength operators.
-        if (HasOnlyStringMaps(receiver_maps)) {
+        if (HasOnlyStringMaps(broker(), receiver_maps)) {
           this_receiver = this_effect =
               graph()->NewNode(common()->TypeGuard(Type::String()), receiver,
                                this_effect, this_control);
@@ -1499,10 +1501,25 @@ Reduction JSNativeContextSpecialization::ReduceElementAccessOnString(
   return Replace(value);
 }
 
+namespace {
+base::Optional<JSTypedArrayRef> GetTypedArrayConstant(JSHeapBroker* broker,
+                                                      Node* receiver) {
+  HeapObjectMatcher m(receiver);
+  if (!m.HasValue()) return base::nullopt;
+  ObjectRef object = m.Ref(broker);
+  if (!object.IsJSTypedArray()) return base::nullopt;
+  JSTypedArrayRef typed_array = object.AsJSTypedArray();
+  if (typed_array.is_on_heap()) return base::nullopt;
+  return typed_array;
+}
+}  // namespace
+
 Reduction JSNativeContextSpecialization::ReduceElementAccess(
     Node* node, Node* index, Node* value, FeedbackNexus const& nexus,
     MapHandles const& receiver_maps, AccessMode access_mode,
     KeyedAccessLoadMode load_mode, KeyedAccessStoreMode store_mode) {
+  DisallowHeapAccessIf no_heap_access(FLAG_concurrent_inlining);
+
   DCHECK(node->opcode() == IrOpcode::kJSLoadProperty ||
          node->opcode() == IrOpcode::kJSStoreProperty ||
          node->opcode() == IrOpcode::kJSStoreInArrayLiteral ||
@@ -1512,7 +1529,7 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
   Node* control = NodeProperties::GetControlInput(node);
   Node* frame_state = NodeProperties::FindFrameStateBefore(node);
 
-  if (HasOnlyStringMaps(receiver_maps)) {
+  if (HasOnlyStringMaps(broker(), receiver_maps)) {
     return ReduceElementAccessOnString(node, index, value, access_mode,
                                        load_mode);
   }
@@ -1539,33 +1556,24 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
     // TODO(turbofan): We could have a fast path here, that checks for the
     // common case of Array or Object prototype only and therefore avoids
     // the zone allocation of this vector.
-    ZoneVector<Handle<Map>> prototype_maps(zone());
+    ZoneVector<MapRef> prototype_maps(zone());
     for (ElementAccessInfo const& access_info : access_infos) {
-      for (Handle<Map> receiver_map : access_info.receiver_maps()) {
+      for (Handle<Map> map : access_info.receiver_maps()) {
+        MapRef receiver_map(broker(), map);
         // If the {receiver_map} has a prototype and its elements backing
         // store is either holey, or we have a potentially growing store,
         // then we need to check that all prototypes have stable maps with
         // fast elements (and we need to guard against changes to that below).
-        if (IsHoleyOrDictionaryElementsKind(receiver_map->elements_kind()) ||
-            IsGrowStoreMode(store_mode)) {
-          // Make sure all prototypes are stable and have fast elements.
-          for (Handle<Map> map = receiver_map;;) {
-            Handle<Object> map_prototype(map->prototype(), isolate());
-            if (map_prototype->IsNull(isolate())) break;
-            if (!map_prototype->IsJSObject()) return NoChange();
-            map =
-                handle(Handle<JSObject>::cast(map_prototype)->map(), isolate());
-            if (!map->is_stable()) return NoChange();
-            if (!IsFastElementsKind(map->elements_kind())) return NoChange();
-            prototype_maps.push_back(map);
-          }
+        if ((IsHoleyOrDictionaryElementsKind(receiver_map.elements_kind()) ||
+             IsGrowStoreMode(store_mode)) &&
+            !receiver_map.HasOnlyStablePrototypesWithFastElements(
+                &prototype_maps)) {
+          return NoChange();
         }
       }
     }
-
-    // Install dependencies on the relevant prototype maps.
-    for (Handle<Map> prototype_map : prototype_maps) {
-      dependencies()->DependOnStableMap(MapRef(broker(), prototype_map));
+    for (MapRef const& prototype_map : prototype_maps) {
+      dependencies()->DependOnStableMap(prototype_map);
     }
   } else if (access_mode == AccessMode::kHas) {
     // If we have any fast arrays, we need to check and depend on
@@ -1584,21 +1592,39 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
   PropertyAccessBuilder access_builder(jsgraph(), broker(), dependencies());
   receiver = access_builder.BuildCheckHeapObject(receiver, &effect, control);
 
+  // Check if we have the necessary data for building element accesses.
+  for (ElementAccessInfo const& access_info : access_infos) {
+    if (!IsFixedTypedArrayElementsKind(access_info.elements_kind())) continue;
+    base::Optional<JSTypedArrayRef> typed_array =
+        GetTypedArrayConstant(broker(), receiver);
+    if (typed_array.has_value()) {
+      if (!FLAG_concurrent_inlining) {
+        typed_array->Serialize();
+      } else if (!typed_array->serialized()) {
+        TRACE_BROKER(broker(),
+                     "ReduceElementAccess: missing data for typed array "
+                         << typed_array->object().address() << "\n");
+        return NoChange();
+      }
+    }
+  }
+
   // Check for the monomorphic case.
   if (access_infos.size() == 1) {
     ElementAccessInfo access_info = access_infos.front();
 
     // Perform possible elements kind transitions.
-    Handle<Map> const transition_target = access_info.receiver_maps().front();
-    for (auto transition_source : access_info.transition_sources()) {
+    MapRef transition_target(broker(), access_info.receiver_maps().front());
+    for (auto source : access_info.transition_sources()) {
       DCHECK_EQ(access_info.receiver_maps().size(), 1);
+      MapRef transition_source(broker(), source);
       effect = graph()->NewNode(
           simplified()->TransitionElementsKind(ElementsTransition(
-              IsSimpleMapChangeTransition(transition_source->elements_kind(),
-                                          transition_target->elements_kind())
+              IsSimpleMapChangeTransition(transition_source.elements_kind(),
+                                          transition_target.elements_kind())
                   ? ElementsTransition::kFastTransition
                   : ElementsTransition::kSlowTransition,
-              transition_source, transition_target)),
+              transition_source.object(), transition_target.object())),
           receiver, effect, control);
     }
 
@@ -1639,17 +1665,18 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
       Node* this_control = fallthrough_control;
 
       // Perform possible elements kind transitions.
-      Handle<Map> const transition_target = access_info.receiver_maps().front();
-      for (auto transition_source : access_info.transition_sources()) {
+      MapRef transition_target(broker(), access_info.receiver_maps().front());
+      for (auto source : access_info.transition_sources()) {
+        MapRef transition_source(broker(), source);
         DCHECK_EQ(access_info.receiver_maps().size(), 1);
         this_effect = graph()->NewNode(
             simplified()->TransitionElementsKind(ElementsTransition(
-                IsSimpleMapChangeTransition(transition_source->elements_kind(),
-                                            transition_target->elements_kind())
+                IsSimpleMapChangeTransition(transition_source.elements_kind(),
+                                            transition_target.elements_kind())
                     ? ElementsTransition::kFastTransition
                     : ElementsTransition::kSlowTransition,
-                transition_source, transition_target)),
-            receiver, this_effect, this_control);
+                transition_source.object(), transition_target.object())),
+            receiver, effect, control);
       }
 
       // Perform map check(s) on {receiver}.
@@ -2604,17 +2631,6 @@ ExternalArrayType GetArrayTypeFromElementsKind(ElementsKind kind) {
   UNREACHABLE();
 }
 
-base::Optional<JSTypedArrayRef> GetTypedArrayConstant(JSHeapBroker* broker,
-                                                      Node* receiver) {
-  HeapObjectMatcher m(receiver);
-  if (!m.HasValue()) return base::nullopt;
-  ObjectRef object = m.Ref(broker);
-  if (!object.IsJSTypedArray()) return base::nullopt;
-  JSTypedArrayRef typed_array = object.AsJSTypedArray();
-  if (typed_array.is_on_heap()) return base::nullopt;
-  return typed_array;
-}
-
 }  // namespace
 
 JSNativeContextSpecialization::ValueEffectControl
@@ -2633,12 +2649,11 @@ JSNativeContextSpecialization::BuildElementAccess(
     Node* base_pointer;
     Node* external_pointer;
 
-    // Check if we can constant-fold information about the {receiver} (i.e.
+    // Check if we can constant-fold information about the {receiver} (e.g.
     // for asm.js-like code patterns).
     base::Optional<JSTypedArrayRef> typed_array =
         GetTypedArrayConstant(broker(), receiver);
     if (typed_array.has_value()) {
-      typed_array->Serialize();
       buffer = jsgraph()->Constant(typed_array->buffer());
       length =
           jsgraph()->Constant(static_cast<double>(typed_array->length_value()));
@@ -3312,9 +3327,7 @@ bool JSNativeContextSpecialization::CanTreatHoleAsUndefined(
   // native contexts, as the global Array protector works isolate-wide).
   for (Handle<Map> map : receiver_maps) {
     MapRef receiver_map(broker(), map);
-    // TODO(neis): Remove SerializePrototype call once brokerization is
-    // complete.
-    receiver_map.SerializePrototype();
+    if (!FLAG_concurrent_inlining) receiver_map.SerializePrototype();
     ObjectRef receiver_prototype = receiver_map.prototype();
     if (!receiver_prototype.IsJSObject() ||
         !broker()->IsArrayOrObjectPrototype(receiver_prototype.AsJSObject())) {

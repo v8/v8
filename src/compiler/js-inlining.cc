@@ -453,10 +453,6 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
     SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate(), shared_info);
   }
 
-  // ----------------------------------------------------------------
-  // After this point, we've made a decision to inline this function.
-  // We shall not bailout from inlining if we got here.
-
   TRACE("Inlining %s into %s%s\n", shared_info->DebugName()->ToCString().get(),
         info_->shared_info()->DebugName()->ToCString().get(),
         (exception_target != nullptr) ? " (inside try-block)" : "");
@@ -470,12 +466,16 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
     SharedFunctionInfoRef sfi(broker(), shared_info);
     FeedbackVectorRef feedback(broker(), feedback_vector);
     if (!sfi.IsSerializedForCompilation(feedback)) {
-      TRACE_BROKER(broker(),
-                   "Would have missed opportunity to inline a function ("
-                       << Brief(*sfi.object()) << " with "
-                       << Brief(*feedback.object()) << ")");
+      TRACE_BROKER(broker(), "Missed opportunity to inline a function ("
+                                 << Brief(*sfi.object()) << " with "
+                                 << Brief(*feedback.object()) << ")");
+      return NoChange();
     }
   }
+
+  // ----------------------------------------------------------------
+  // After this point, we've made a decision to inline this function.
+  // We shall not bailout from inlining if we got here.
 
   Handle<BytecodeArray> bytecode_array =
       handle(shared_info->GetBytecodeArray(), isolate());
