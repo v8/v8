@@ -111,6 +111,16 @@ deps = {
       'condition': 'host_cpu != "s390"',
       'dep_type': 'cipd',
   },
+  'src/tools/clang/dsymutil': {
+    'packages': [
+      {
+        'package': 'chromium/llvm-build-tools/dsymutil',
+        'version': 'kykIT8m8YzNqqLP2xFGBTuo0ZtU9lom3BwiStWleyWkC',
+      }
+    ],
+    'condition': 'checkout_mac',
+    'dep_type': 'cipd',
+  },
   'v8/test/wasm-js/data':
     Var('chromium_url') + '/external/github.com/WebAssembly/spec.git' + '@' + '44dfa15cb87b1e9bef36e033ad5d2cdc4c2008fd',
 }
