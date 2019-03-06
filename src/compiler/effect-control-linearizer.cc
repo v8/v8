@@ -1281,10 +1281,7 @@ void EffectControlLinearizer::TruncateTaggedPointerToBit(
             &if_heapnumber);
 
   // Check if {value} is a BigInt.
-  Node* value_instance_type =
-      __ LoadField(AccessBuilder::ForMapInstanceType(), value_map);
-  __ GotoIf(__ Word32Equal(value_instance_type, __ Int32Constant(BIGINT_TYPE)),
-            &if_bigint);
+  __ GotoIf(__ WordEqual(value_map, __ BigIntMapConstant()), &if_bigint);
 
   // All other values that reach here are true.
   __ Goto(done, __ Int32Constant(1));
@@ -2478,10 +2475,7 @@ Node* EffectControlLinearizer::LowerObjectIsBigInt(Node* node) {
   Node* check = ObjectIsSmi(value);
   __ GotoIf(check, &if_smi);
   Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
-  Node* value_instance_type =
-      __ LoadField(AccessBuilder::ForMapInstanceType(), value_map);
-  Node* vfalse =
-      __ Word32Equal(value_instance_type, __ Uint32Constant(BIGINT_TYPE));
+  Node* vfalse = __ WordEqual(value_map, __ BigIntMapConstant());
   __ Goto(&done, vfalse);
 
   __ Bind(&if_smi);

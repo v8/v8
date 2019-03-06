@@ -92,6 +92,7 @@ namespace compiler {
   V(TrueConstant)                          \
   V(FalseConstant)                         \
   V(NullConstant)                          \
+  V(BigIntMapConstant)                     \
   V(BooleanMapConstant)                    \
   V(HeapNumberMapConstant)                 \
   V(NoContextConstant)                     \
