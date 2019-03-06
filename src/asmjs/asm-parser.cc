@@ -13,6 +13,7 @@
 #include "src/asmjs/asm-types.h"
 #include "src/base/optional.h"
 #include "src/base/overflowing-math.h"
+#include "src/conversions-inl.h"
 #include "src/flags.h"
 #include "src/parsing/scanner.h"
 #include "src/wasm/wasm-limits.h"
@@ -520,7 +521,7 @@ void AsmJsParser::ValidateModuleVarFromGlobal(VarInfo* info,
       dvalue = -dvalue;
     }
     DeclareGlobal(info, mutable_variable, AsmType::Float(), kWasmF32,
-                  WasmInitExpr(static_cast<float>(dvalue)));
+                  WasmInitExpr(DoubleToFloat32(dvalue)));
   } else if (CheckForUnsigned(&uvalue)) {
     dvalue = uvalue;
     if (negate) {
