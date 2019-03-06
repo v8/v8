@@ -367,7 +367,7 @@ void PlatformDependentEmbeddedFileWriter::DeclareLabel(const char* name) {
 
 void PlatformDependentEmbeddedFileWriter::SourceInfo(int fileid, int line) {
   // TODO(mvstanton): output source information for MSVC.
-  // It's syntax is #line <line> "<filename>"
+  // Its syntax is #line <line> "<filename>"
 }
 
 void PlatformDependentEmbeddedFileWriter::DeclareFunctionBegin(
@@ -471,6 +471,11 @@ void PlatformDependentEmbeddedFileWriter::DeclareLabel(const char* name) {
   fprintf(fp_, "%s%s\n", SYMBOL_PREFIX, name);
 }
 
+void PlatformDependentEmbeddedFileWriter::SourceInfo(int fileid, int line) {
+  // TODO(mvstanton): output source information for MSVC.
+  // Its syntax is #line <line> "<filename>"
+}
+
 void PlatformDependentEmbeddedFileWriter::DeclareFunctionBegin(
     const char* name) {
   fprintf(fp_, "%s%s FUNCTION\n", SYMBOL_PREFIX, name);
@@ -485,6 +490,9 @@ int PlatformDependentEmbeddedFileWriter::HexLiteral(uint64_t value) {
 }
 
 void PlatformDependentEmbeddedFileWriter::FilePrologue() {}
+
+void PlatformDependentEmbeddedFileWriter::DeclareExternalFilename(
+    int fileid, const char* filename) {}
 
 void PlatformDependentEmbeddedFileWriter::FileEpilogue() {
   fprintf(fp_, "  END\n");
