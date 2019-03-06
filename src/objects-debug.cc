@@ -1598,6 +1598,8 @@ void SmallOrderedNameDictionary::SmallOrderedNameDictionaryVerify(
 void JSRegExp::JSRegExpVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
   CHECK(data()->IsUndefined(isolate) || data()->IsFixedArray());
+  CHECK(source()->IsUndefined(isolate) || source()->IsString());
+  CHECK(flags()->IsUndefined() || flags()->IsSmi());
   switch (TypeTag()) {
     case JSRegExp::ATOM: {
       FixedArray arr = FixedArray::cast(data());

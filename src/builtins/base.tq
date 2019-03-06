@@ -12,6 +12,7 @@
 #include 'src/objects/bigint.h'
 #include 'src/objects/js-generator.h'
 #include 'src/objects/js-promise.h'
+#include 'src/objects/js-regexp-string-iterator.h'
 #include 'src/objects/module.h'
 #include 'src/objects/stack-frame-info.h'
 
@@ -93,6 +94,8 @@ extern class FixedArray extends FixedArrayBase { objects[length]: Object; }
 extern class FixedDoubleArray extends FixedArrayBase {
   floats[length]: float64;
 }
+
+extern class ByteArray extends FixedArrayBase {}
 
 // These intrinsics should never be called from Torque code. They're used
 // internally by the 'new' operator and only declared here because it's simpler
@@ -634,6 +637,42 @@ extern class PromiseReaction extends Struct {
   fulfill_handler: Callable | Undefined;
   promise_or_capability: JSPromise | PromiseCapability | Undefined;
 }
+
+extern class JSRegExp extends JSObject {
+  data: FixedArray | Undefined;
+  source: String | Undefined;
+  flags: Smi | Undefined;
+}
+
+extern class JSRegExpResult extends JSArray {
+  index: Object;
+  input: Object;
+  groups: Object;
+}
+
+extern class JSRegExpStringIterator extends JSObject {
+  iterating_reg_exp: Object;
+  iterated_string: String;
+  flags: Smi;
+}
+
+extern class AccessorInfo extends Struct {
+  name: Object;
+  flags: Smi;
+  expected_receiver_type: Object;
+  setter: Foreign | Zero;
+  getter: Foreign | Zero;
+  js_getter: Foreign | Zero;
+  data: Object;
+}
+
+extern class AccessorPair extends Struct {
+  getter: Object;
+  setter: Object;
+}
+
+extern class BreakPoint extends Tuple2 {}
+extern class BreakPointInfo extends Tuple2 {}
 
 extern macro Is64(): constexpr bool;
 
