@@ -489,9 +489,8 @@ Handle<ObjectBoilerplateDescription> Factory::NewObjectBoilerplateDescription(
 
 Handle<FixedArrayBase> Factory::NewFixedDoubleArray(int length,
                                                     PretenureFlag pretenure) {
-  DCHECK_LE(0, length);
   if (length == 0) return empty_fixed_array();
-  if (length > FixedDoubleArray::kMaxLength) {
+  if (length < 0 || length > FixedDoubleArray::kMaxLength) {
     isolate()->heap()->FatalProcessOutOfMemory("invalid array length");
   }
   int size = FixedDoubleArray::SizeFor(length);

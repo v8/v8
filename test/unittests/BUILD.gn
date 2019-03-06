@@ -189,6 +189,7 @@ v8_source_set("unittests_sources") {
     "parser/ast-value-unittest.cc",
     "parser/preparser-unittest.cc",
     "register-configuration-unittest.cc",
+    "regress/regress-crbug-938251-unittest.cc",
     "run-all-unittests.cc",
     "source-position-table-unittest.cc",
     "strings-storage-unittest.cc",
