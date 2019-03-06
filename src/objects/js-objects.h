@@ -1159,7 +1159,7 @@ class JSGlobalObject : public JSObject {
   DECL_ACCESSORS(native_context, NativeContext)
 
   // [global proxy]: the global proxy object of the context
-  DECL_ACCESSORS(global_proxy, JSObject)
+  DECL_ACCESSORS(global_proxy, JSGlobalProxy)
 
   // Gets global object properties.
   inline GlobalDictionary global_dictionary();

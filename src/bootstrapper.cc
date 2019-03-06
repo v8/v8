@@ -349,8 +349,7 @@ void Bootstrapper::DetachGlobal(Handle<Context> env) {
       env->GetErrorsThrown());
 
   ReadOnlyRoots roots(isolate_);
-  Handle<JSGlobalProxy> global_proxy(JSGlobalProxy::cast(env->global_proxy()),
-                                     isolate_);
+  Handle<JSGlobalProxy> global_proxy(env->global_proxy(), isolate_);
   global_proxy->set_native_context(roots.null_value());
   JSObject::ForceSetPrototype(global_proxy, isolate_->factory()->null_value());
   global_proxy->map()->SetConstructor(roots.null_value());
@@ -5306,10 +5305,8 @@ bool Genesis::InstallExtension(Isolate* isolate,
 
 bool Genesis::ConfigureGlobalObjects(
     v8::Local<v8::ObjectTemplate> global_proxy_template) {
-  Handle<JSObject> global_proxy(
-      JSObject::cast(native_context()->global_proxy()), isolate());
-  Handle<JSObject> global_object(
-      JSObject::cast(native_context()->global_object()), isolate());
+  Handle<JSObject> global_proxy(native_context()->global_proxy(), isolate());
+  Handle<JSObject> global_object(native_context()->global_object(), isolate());
 
   if (!global_proxy_template.IsEmpty()) {
     // Configure the global proxy object.

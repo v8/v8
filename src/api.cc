@@ -6077,16 +6077,14 @@ MaybeLocal<Object> v8::Context::NewRemoteContext(
   Utils::ApiCheck(access_check_info->named_interceptor() != i::Object(),
                   "v8::Context::NewRemoteContext",
                   "Global template needs to have access check handlers.");
-  i::Handle<i::JSGlobalProxy> global_proxy =
-      CreateEnvironment<i::JSGlobalProxy>(
-          isolate, nullptr, global_template, global_object, 0,
-          DeserializeInternalFieldsCallback(), nullptr);
+  i::Handle<i::JSObject> global_proxy = CreateEnvironment<i::JSGlobalProxy>(
+      isolate, nullptr, global_template, global_object, 0,
+      DeserializeInternalFieldsCallback(), nullptr);
   if (global_proxy.is_null()) {
     if (isolate->has_pending_exception()) isolate->clear_pending_exception();
     return MaybeLocal<Object>();
   }
-  return Utils::ToLocal(
-      scope.CloseAndEscape(i::Handle<i::JSObject>::cast(global_proxy)));
+  return Utils::ToLocal(scope.CloseAndEscape(global_proxy));
 }
 
 void v8::Context::SetSecurityToken(Local<Value> token) {

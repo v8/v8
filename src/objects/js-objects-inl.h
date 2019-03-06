@@ -458,7 +458,7 @@ ACCESSORS(JSBoundFunction, bound_arguments, FixedArray, kBoundArgumentsOffset)
 ACCESSORS(JSFunction, raw_feedback_cell, FeedbackCell, kFeedbackCellOffset)
 
 ACCESSORS(JSGlobalObject, native_context, NativeContext, kNativeContextOffset)
-ACCESSORS(JSGlobalObject, global_proxy, JSObject, kGlobalProxyOffset)
+ACCESSORS(JSGlobalObject, global_proxy, JSGlobalProxy, kGlobalProxyOffset)
 
 ACCESSORS(JSGlobalProxy, native_context, Object, kNativeContextOffset)
 
@@ -954,7 +954,7 @@ Maybe<PropertyAttributes> JSReceiver::GetOwnElementAttributes(
 }
 
 bool JSGlobalObject::IsDetached() {
-  return JSGlobalProxy::cast(global_proxy())->IsDetachedFrom(*this);
+  return global_proxy()->IsDetachedFrom(*this);
 }
 
 bool JSGlobalProxy::IsDetachedFrom(JSGlobalObject global) const {

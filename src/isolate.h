@@ -640,7 +640,7 @@ class Isolate final : private HiddenFactory {
   inline Handle<JSGlobalObject> global_object();
 
   // Returns the global proxy object of the current context.
-  inline Handle<JSObject> global_proxy();
+  inline Handle<JSGlobalProxy> global_proxy();
 
   static int ArchiveSpacePerThread() { return sizeof(ThreadLocalTop); }
   void FreeThreadResources() { thread_local_top()->Free(); }
