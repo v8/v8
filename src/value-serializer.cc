@@ -990,8 +990,7 @@ Maybe<bool> ValueSerializer::ThrowIfOutOfMemory() {
 
 void ValueSerializer::ThrowDataCloneError(MessageTemplate index,
                                           Handle<Object> arg0) {
-  Handle<String> message =
-      MessageFormatter::FormatMessage(isolate_, index, arg0);
+  Handle<String> message = MessageFormatter::Format(isolate_, index, arg0);
   if (delegate_) {
     delegate_->ThrowDataCloneError(Utils::ToLocal(message));
   } else {

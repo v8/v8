@@ -277,14 +277,12 @@ class MessageFormatter {
  public:
   static const char* TemplateString(MessageTemplate index);
 
-  static MaybeHandle<String> FormatMessage(Isolate* isolate,
-                                           MessageTemplate index,
-                                           Handle<String> arg0,
-                                           Handle<String> arg1,
-                                           Handle<String> arg2);
+  static MaybeHandle<String> Format(Isolate* isolate, MessageTemplate index,
+                                    Handle<String> arg0, Handle<String> arg1,
+                                    Handle<String> arg2);
 
-  static Handle<String> FormatMessage(Isolate* isolate, MessageTemplate index,
-                                      Handle<Object> arg);
+  static Handle<String> Format(Isolate* isolate, MessageTemplate index,
+                               Handle<Object> arg);
 };
 
 
