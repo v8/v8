@@ -1930,7 +1930,9 @@ void Logger::SetCodeEventHandler(uint32_t options,
   }
 
   if (event_handler) {
-    isolate_->wasm_engine()->EnableCodeLogging(isolate_);
+    if (isolate_->wasm_engine() != nullptr) {
+      isolate_->wasm_engine()->EnableCodeLogging(isolate_);
+    }
     jit_logger_.reset(new JitLogger(isolate_, event_handler));
     AddCodeEventListener(jit_logger_.get());
     if (options & kJitCodeEventEnumExisting) {
