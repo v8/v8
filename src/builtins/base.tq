@@ -331,6 +331,41 @@ extern class JSDataPropertyDescriptor extends JSObject {
   configurable: Object;
 }
 
+extern class TemplateInfo extends Struct {
+  tag: Object;
+  serial_number: Object;
+  number_of_properties: Smi;
+  property_list: Object;
+  property_accessors: Object;
+}
+
+extern class FunctionTemplateRareData extends Struct {
+  prototype_template: Object;
+  prototype_provider_template: Object;
+  parent_template: Object;
+  named_property_handler: Object;
+  indexed_property_handler: Object;
+  instance_template: Object;
+  instance_call_handler: Object;
+  access_check_info: Object;
+}
+
+extern class FunctionTemplateInfo extends TemplateInfo {
+  call_code: Object;
+  class_name: Object;
+  signature: Object;
+  function_template_rare_data: Object;
+  shared_function_info: Object;
+  flag: Smi;
+  length: Smi;
+  cached_property_name: Object;
+}
+
+extern class ObjectTemplateInfo extends TemplateInfo {
+  constructor: Object;
+  data: Object;
+}
+
 type JSDataView extends JSArrayBufferView generates 'TNode<JSDataView>';
 
 type InstanceType generates 'TNode<Int32T>' constexpr 'InstanceType';
