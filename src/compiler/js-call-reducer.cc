@@ -1510,18 +1510,15 @@ Reduction JSCallReducer::ReduceArrayMap(Node* node,
                                         &receiver_maps);
   if (result == NodeProperties::kNoReceiverMaps) return NoChange();
 
-  // Ensure that any changes to the Array species constructor cause deopt.
-  if (!isolate()->IsArraySpeciesLookupChainIntact()) return NoChange();
-
   ElementsKind kind;
   if (!CanInlineArrayIteratingBuiltin(broker(), receiver_maps, &kind)) {
     return NoChange();
   }
 
+  if (!dependencies()->DependOnArraySpeciesProtector()) return NoChange();
   if (IsHoleyElementsKind(kind)) {
     if (!dependencies()->DependOnNoElementsProtector()) UNREACHABLE();
   }
-  if (!dependencies()->DependOnArraySpeciesProtector()) UNREACHABLE();
 
   Node* array_constructor = jsgraph()->Constant(
       native_context().GetInitialJSArrayMap(kind).GetConstructor());
@@ -1707,9 +1704,6 @@ Reduction JSCallReducer::ReduceArrayFilter(
                                         &receiver_maps);
   if (result == NodeProperties::kNoReceiverMaps) return NoChange();
 
-  // And ensure that any changes to the Array species constructor cause deopt.
-  if (!isolate()->IsArraySpeciesLookupChainIntact()) return NoChange();
-
   ElementsKind kind;
   if (!CanInlineArrayIteratingBuiltin(broker(), receiver_maps, &kind)) {
     return NoChange();
@@ -1718,10 +1712,10 @@ Reduction JSCallReducer::ReduceArrayFilter(
   // The output array is packed (filter doesn't visit holes).
   const ElementsKind packed_kind = GetPackedElementsKind(kind);
 
+  if (!dependencies()->DependOnArraySpeciesProtector()) return NoChange();
   if (IsHoleyElementsKind(kind)) {
     if (!dependencies()->DependOnNoElementsProtector()) UNREACHABLE();
   }
-  if (!dependencies()->DependOnArraySpeciesProtector()) UNREACHABLE();
 
   MapRef initial_map = native_context().GetInitialJSArrayMap(packed_kind);
 
@@ -2291,18 +2285,15 @@ Reduction JSCallReducer::ReduceArrayEvery(Node* node,
                                         &receiver_maps);
   if (result == NodeProperties::kNoReceiverMaps) return NoChange();
 
-  // And ensure that any changes to the Array species constructor cause deopt.
-  if (!isolate()->IsArraySpeciesLookupChainIntact()) return NoChange();
-
   ElementsKind kind;
   if (!CanInlineArrayIteratingBuiltin(broker(), receiver_maps, &kind)) {
     return NoChange();
   }
 
+  if (!dependencies()->DependOnArraySpeciesProtector()) return NoChange();
   if (IsHoleyElementsKind(kind)) {
     if (!dependencies()->DependOnNoElementsProtector()) UNREACHABLE();
   }
-  if (!dependencies()->DependOnArraySpeciesProtector()) UNREACHABLE();
 
   // If we have unreliable maps, we need a map check.
   if (result == NodeProperties::kUnreliableReceiverMaps) {
@@ -2637,18 +2628,15 @@ Reduction JSCallReducer::ReduceArraySome(Node* node,
                                         &receiver_maps);
   if (result == NodeProperties::kNoReceiverMaps) return NoChange();
 
-  // And ensure that any changes to the Array species constructor cause deopt.
-  if (!isolate()->IsArraySpeciesLookupChainIntact()) return NoChange();
-
   ElementsKind kind;
   if (!CanInlineArrayIteratingBuiltin(broker(), receiver_maps, &kind)) {
     return NoChange();
   }
 
+  if (!dependencies()->DependOnArraySpeciesProtector()) return NoChange();
   if (IsHoleyElementsKind(kind)) {
     if (!dependencies()->DependOnNoElementsProtector()) UNREACHABLE();
   }
-  if (!dependencies()->DependOnArraySpeciesProtector()) UNREACHABLE();
 
   Node* k = jsgraph()->ZeroConstant();
 
@@ -3006,14 +2994,6 @@ Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
          node->opcode() == IrOpcode::kJSConstructWithArrayLike ||
          node->opcode() == IrOpcode::kJSConstructWithSpread);
 
-  // In case of a call/construct with spread, we need to
-  // ensure that it's safe to avoid the actual iteration.
-  if ((node->opcode() == IrOpcode::kJSCallWithSpread ||
-       node->opcode() == IrOpcode::kJSConstructWithSpread) &&
-      !isolate()->IsArrayIteratorLookupChainIntact()) {
-    return NoChange();
-  }
-
   // Check if {arguments_list} is an arguments object, and {node} is the only
   // value user of {arguments_list} (except for value uses in frame states).
   Node* arguments_list = NodeProperties::GetValueInput(node, arity);
@@ -3114,7 +3094,7 @@ Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
   // that no one messed with the %ArrayIteratorPrototype%.next method.
   if (node->opcode() == IrOpcode::kJSCallWithSpread ||
       node->opcode() == IrOpcode::kJSConstructWithSpread) {
-    if (!dependencies()->DependOnArrayIteratorProtector()) UNREACHABLE();
+    if (!dependencies()->DependOnArrayIteratorProtector()) return NoChange();
   }
 
   // Remove the {arguments_list} input from the {node}.
@@ -4764,9 +4744,6 @@ Reduction JSCallReducer::ReduceArrayPrototypeSlice(Node* node) {
                                         &receiver_maps);
   if (result == NodeProperties::kNoReceiverMaps) return NoChange();
 
-  // We cannot optimize unless the Array[@@species] lookup chain is intact.
-  if (!isolate()->IsArraySpeciesLookupChainIntact()) return NoChange();
-
   // Check that the maps are of JSArray (and more).
   // TODO(turbofan): Consider adding special case for the common pattern
   // `slice.call(arguments)`, for example jQuery makes heavy use of that.
@@ -4780,10 +4757,10 @@ Reduction JSCallReducer::ReduceArrayPrototypeSlice(Node* node) {
     }
   }
 
+  if (!dependencies()->DependOnArraySpeciesProtector()) return NoChange();
   if (can_be_holey) {
     if (!dependencies()->DependOnNoElementsProtector()) UNREACHABLE();
   }
-  if (!dependencies()->DependOnArraySpeciesProtector()) UNREACHABLE();
 
   // If we have unreliable maps, we need a map check, as there might be
   // side-effects caused by the evaluation of the {node}s parameters.
