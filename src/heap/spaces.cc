@@ -3255,9 +3255,11 @@ bool PagedSpace::RawSlowRefillLinearAllocationArea(int size_in_bytes) {
               static_cast<size_t>(size_in_bytes)))
         return true;
     }
-  } else if (is_local()) {
-    // Sweeping not in progress and we are on a {CompactionSpace}. This can
-    // only happen when we are evacuating for the young generation.
+  }
+
+  if (is_local()) {
+    // The main thread may have acquired all swept pages. Try to steal from
+    // it. This can only happen during young generation evacuation.
     PagedSpace* main_space = heap()->paged_space(identity());
     Page* page = main_space->RemovePageSafe(size_in_bytes);
     if (page != nullptr) {
