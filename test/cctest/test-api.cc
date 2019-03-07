@@ -27792,6 +27792,26 @@ TEST(WasmI64AtomicWaitCallback) {
 }  // namespace internal
 }  // namespace v8
 
+// TODO(mstarzinger): Move this into a test-api-wasm.cc file when this large
+// test file is being split up into chunks.
+TEST(WasmModuleObjectCompileFailure) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  {
+    v8::TryCatch try_catch(isolate);
+    uint8_t buffer[] = {0xDE, 0xAD, 0xBE, 0xEF};
+    v8::MemorySpan<const uint8_t> serialized_module;
+    v8::MemorySpan<const uint8_t> wire_bytes = {buffer, arraysize(buffer)};
+    v8::MaybeLocal<v8::WasmModuleObject> maybe_module =
+        v8::WasmModuleObject::DeserializeOrCompile(isolate, serialized_module,
+                                                   wire_bytes);
+    CHECK(maybe_module.IsEmpty());
+    CHECK(try_catch.HasCaught());
+  }
+}
+
 TEST(BigIntAPI) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();

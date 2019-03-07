@@ -7365,16 +7365,22 @@ MaybeLocal<WasmModuleObject> WasmModuleObject::Compile(Isolate* isolate,
                                                        const uint8_t* start,
                                                        size_t length) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  i::wasm::ErrorThrower thrower(i_isolate, "WasmModuleObject::Compile()");
   if (!i::wasm::IsWasmCodegenAllowed(i_isolate, i_isolate->native_context())) {
     return MaybeLocal<WasmModuleObject>();
   }
-  auto enabled_features = i::wasm::WasmFeaturesFromIsolate(i_isolate);
-  i::MaybeHandle<i::JSObject> maybe_compiled =
-      i_isolate->wasm_engine()->SyncCompile(
-          i_isolate, enabled_features, &thrower,
-          i::wasm::ModuleWireBytes(start, start + length));
-  if (maybe_compiled.is_null()) return MaybeLocal<WasmModuleObject>();
+  i::MaybeHandle<i::JSObject> maybe_compiled;
+  {
+    i::wasm::ErrorThrower thrower(i_isolate, "WasmModuleObject::Compile()");
+    auto enabled_features = i::wasm::WasmFeaturesFromIsolate(i_isolate);
+    maybe_compiled = i_isolate->wasm_engine()->SyncCompile(
+        i_isolate, enabled_features, &thrower,
+        i::wasm::ModuleWireBytes(start, start + length));
+  }
+  CHECK_EQ(maybe_compiled.is_null(), i_isolate->has_pending_exception());
+  if (maybe_compiled.is_null()) {
+    i_isolate->OptionalRescheduleException(false);
+    return MaybeLocal<WasmModuleObject>();
+  }
   return Local<WasmModuleObject>::Cast(
       Utils::ToLocal(maybe_compiled.ToHandleChecked()));
 }
