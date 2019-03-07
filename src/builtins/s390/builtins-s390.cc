@@ -2432,9 +2432,10 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   __ tmll(r4, Operand(SharedFunctionInfo::kDontAdaptArgumentsSentinel));
   __ b(Condition(1), &dont_adapt_arguments);
   __ LoadP(r6, FieldMemOperand(r3, JSFunction::kSharedFunctionInfoOffset));
-  __ LoadP(r6, FieldMemOperand(r6, SharedFunctionInfo::kFlagsOffset));
-  __ tmll(r6,
-          Operand(SharedFunctionInfo::IsSafeToSkipArgumentsAdaptorBit::kMask));
+  __ LoadlW(r6, FieldMemOperand(r6, SharedFunctionInfo::kFlagsOffset));
+  __ tmlh(r6,
+          Operand(SharedFunctionInfo::IsSafeToSkipArgumentsAdaptorBit::kMask >>
+                  16));
   __ bne(&skip_adapt_arguments);
 
   // -------------------------------------------
