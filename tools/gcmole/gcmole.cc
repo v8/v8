@@ -458,7 +458,9 @@ class CallProps {
   CallProps() : env_(NULL) { }
 
   void SetEffect(int arg, ExprEffect in) {
-    if (in.hasGC()) gc_.set(arg);
+    if (in.hasGC()) {
+      gc_.set(arg);
+    }
     if (in.hasRawDef()) raw_def_.set(arg);
     if (in.hasRawUse()) raw_use_.set(arg);
     if (in.env() != NULL) {
@@ -472,17 +474,24 @@ class CallProps {
 
   ExprEffect ComputeCumulativeEffect(bool result_is_raw) {
     ExprEffect out = ExprEffect::NoneWithEnv(env_);
-    if (gc_.any()) out.setGC();
+    if (gc_.any()) {
+      out.setGC();
+    }
     if (raw_use_.any()) out.setRawUse();
     if (result_is_raw) out.setRawDef();
     return out;
   }
 
   bool IsSafe() {
-    if (!gc_.any()) return true;
+    if (!gc_.any()) {
+      return true;
+    }
     std::bitset<kMaxNumberOfArguments> raw = (raw_def_ | raw_use_);
-    if (!raw.any()) return true;
-    return gc_.count() == 1 && !((raw ^ gc_).any());
+    if (!raw.any()) {
+      return true;
+    }
+    bool result = gc_.count() == 1 && !((raw ^ gc_).any());
+    return result;
   }
 
  private:
@@ -539,17 +548,18 @@ class FunctionAnalyzer {
   FunctionAnalyzer(clang::MangleContext* ctx,
                    clang::DeclarationName handle_decl_name,
                    clang::CXXRecordDecl* object_decl,
+                   clang::CXXRecordDecl* maybe_object_decl,
                    clang::CXXRecordDecl* smi_decl, clang::DiagnosticsEngine& d,
                    clang::SourceManager& sm, bool dead_vars_analysis)
       : ctx_(ctx),
         handle_decl_name_(handle_decl_name),
         object_decl_(object_decl),
+        maybe_object_decl_(maybe_object_decl),
         smi_decl_(smi_decl),
         d_(d),
         sm_(sm),
         block_(NULL),
         dead_vars_analysis_(dead_vars_analysis) {}
-
 
   // --------------------------------------------------------------------------
   // Expressions
@@ -574,6 +584,7 @@ class FunctionAnalyzer {
     VISIT(CharacterLiteral);
     VISIT(ChooseExpr);
     VISIT(CompoundLiteralExpr);
+    VISIT(ConstantExpr);
     VISIT(CXXBindTemporaryExpr);
     VISIT(CXXBoolLiteralExpr);
     VISIT(CXXConstructExpr);
@@ -598,9 +609,11 @@ class FunctionAnalyzer {
     VISIT(FloatingLiteral);
     VISIT(GNUNullExpr);
     VISIT(ImaginaryLiteral);
+    VISIT(ImplicitCastExpr);
     VISIT(ImplicitValueInitExpr);
     VISIT(InitListExpr);
     VISIT(IntegerLiteral);
+    VISIT(MaterializeTemporaryExpr);
     VISIT(MemberExpr);
     VISIT(OffsetOfExpr);
     VISIT(OpaqueValueExpr);
@@ -616,6 +629,7 @@ class FunctionAnalyzer {
     VISIT(SubstNonTypeTemplateParmPackExpr);
     VISIT(TypeTraitExpr);
     VISIT(UnaryOperator);
+    VISIT(UnaryExprOrTypeTraitExpr);
     VISIT(VAArgExpr);
 #undef VISIT
 
@@ -685,6 +699,7 @@ class FunctionAnalyzer {
           llvm::cast<clang::DeclRefExpr>(expr)->getDecl()->getNameAsString();
       return true;
     }
+
     return false;
   }
 
@@ -718,6 +733,10 @@ class FunctionAnalyzer {
     return VisitExpr(expr->getSubExpr(), env);
   }
 
+  DECL_VISIT_EXPR(MaterializeTemporaryExpr) {
+    return VisitExpr(expr->GetTemporaryExpr(), env);
+  }
+
   DECL_VISIT_EXPR(CXXConstructExpr) {
     return VisitArguments<>(expr, env);
   }
@@ -739,6 +758,12 @@ class FunctionAnalyzer {
   DECL_VISIT_EXPR(CXXThrowExpr) {
     return VisitExpr(expr->getSubExpr(), env);
   }
+
+  DECL_VISIT_EXPR(ImplicitCastExpr) {
+    return VisitExpr(expr->getSubExpr(), env);
+  }
+
+  DECL_VISIT_EXPR(ConstantExpr) { return VisitExpr(expr->getSubExpr(), env); }
 
   DECL_VISIT_EXPR(InitListExpr) {
     return Seq(expr, expr->getNumInits(), expr->getInits(), env);
@@ -776,6 +801,14 @@ class FunctionAnalyzer {
     return VisitExpr(expr->getSubExpr(), env);
   }
 
+  DECL_VISIT_EXPR(UnaryExprOrTypeTraitExpr) {
+    if (expr->isArgumentType()) {
+      return ExprEffect::None();
+    }
+
+    return VisitExpr(expr->getArgumentExpr(), env);
+  }
+
   DECL_VISIT_EXPR(CastExpr) {
     return VisitExpr(expr->getSubExpr(), env);
   }
@@ -796,7 +829,8 @@ class FunctionAnalyzer {
 
     if (!props.IsSafe()) ReportUnsafe(parent, BAD_EXPR_MSG);
 
-    return props.ComputeCumulativeEffect(IsRawPointerType(parent->getType()));
+    return props.ComputeCumulativeEffect(
+        RepresentsRawPointerType(parent->getType()));
   }
 
   ExprEffect Seq(clang::Stmt* parent,
@@ -816,7 +850,7 @@ class FunctionAnalyzer {
                  const clang::QualType& var_type,
                  const std::string& var_name,
                  const Environment& env) {
-    if (IsRawPointerType(var_type)) {
+    if (RepresentsRawPointerType(var_type)) {
       if (!env.IsAlive(var_name) && dead_vars_analysis_) {
         ReportUnsafe(parent, DEAD_VAR_MSG);
       }
@@ -840,7 +874,8 @@ class FunctionAnalyzer {
     CallProps props;
     VisitArguments<>(call, &props, env);
     if (!props.IsSafe()) ReportUnsafe(call, BAD_EXPR_MSG);
-    return props.ComputeCumulativeEffect(IsRawPointerType(call->getType()));
+    return props.ComputeCumulativeEffect(
+        RepresentsRawPointerType(call->getType()));
   }
 
   template<typename ExprType>
@@ -868,8 +903,8 @@ class FunctionAnalyzer {
 
     if (!props.IsSafe()) ReportUnsafe(call, BAD_EXPR_MSG);
 
-    ExprEffect out =
-        props.ComputeCumulativeEffect(IsRawPointerType(call->getType()));
+    ExprEffect out = props.ComputeCumulativeEffect(
+        RepresentsRawPointerType(call->getType()));
 
     clang::FunctionDecl* callee = call->getDirectCallee();
     if ((callee != NULL) && KnownToCauseGC(ctx_, callee)) {
@@ -1104,39 +1139,73 @@ class FunctionAnalyzer {
     }
   }
 
-  bool IsDerivedFrom(clang::CXXRecordDecl* record,
-                     clang::CXXRecordDecl* base) {
+  bool IsDerivedFrom(const clang::CXXRecordDecl* record,
+                     const clang::CXXRecordDecl* base) {
     return (record == base) || record->isDerivedFrom(base);
   }
 
-  bool IsRawPointerType(clang::QualType qtype) {
-    const clang::PointerType* type =
+  const clang::CXXRecordDecl* GetDefinitionOrNull(
+      const clang::CXXRecordDecl* record) {
+    if (record == NULL) {
+      return NULL;
+    }
+
+    if (!InV8Namespace(record)) return NULL;
+
+    if (!record->hasDefinition()) {
+      return NULL;
+    }
+
+    return record->getDefinition();
+  }
+
+  bool IsRawPointerType(const clang::PointerType* type, clang::QualType qtype) {
+    const clang::CXXRecordDecl* record = type->getPointeeCXXRecordDecl();
+
+    const clang::CXXRecordDecl* definition = GetDefinitionOrNull(record);
+    if (!definition) {
+      return false;
+    }
+
+    return !IsDerivedFrom(record, smi_decl_);
+  }
+
+  bool IsInternalPointerType(clang::QualType qtype) {
+    if (qtype.isNull()) {
+      return false;
+    }
+    if (qtype->isNullPtrType()) {
+      return true;
+    }
+
+    const clang::CXXRecordDecl* record = qtype->getAsCXXRecordDecl();
+
+    const clang::CXXRecordDecl* definition = GetDefinitionOrNull(record);
+    if (!definition) {
+      return false;
+    }
+
+    return IsDerivedFrom(record, object_decl_) ||
+           IsDerivedFrom(record, maybe_object_decl_);
+  }
+
+  // Returns weather the given type is a raw pointer or a wrapper around
+  // such. For V8 that means Object and MaybeObject instances.
+  bool RepresentsRawPointerType(clang::QualType qtype) {
+    const clang::PointerType* pointer_type =
         llvm::dyn_cast_or_null<clang::PointerType>(qtype.getTypePtrOrNull());
-    if (type == NULL) return false;
-
-    const clang::TagType* pointee =
-        ToTagType(type->getPointeeType().getTypePtr());
-    if (pointee == NULL) return false;
-
-    clang::CXXRecordDecl* record =
-        llvm::dyn_cast_or_null<clang::CXXRecordDecl>(pointee->getDecl());
-    if (record == NULL) return false;
-
-    if (!InV8Namespace(record)) return false;
-
-    if (!record->hasDefinition()) return false;
-
-    record = record->getDefinition();
-
-    return IsDerivedFrom(record, object_decl_) &&
-        !IsDerivedFrom(record, smi_decl_);
+    if (pointer_type != NULL) {
+      return IsRawPointerType(pointer_type, qtype);
+    } else {
+      return IsInternalPointerType(qtype);
+    }
   }
 
   Environment VisitDecl(clang::Decl* decl, const Environment& env) {
     if (clang::VarDecl* var = llvm::dyn_cast<clang::VarDecl>(decl)) {
       Environment out = var->hasInit() ? VisitStmt(var->getInit(), env) : env;
 
-      if (IsRawPointerType(var->getType())) {
+      if (RepresentsRawPointerType(var->getType())) {
         out = out.Define(var->getNameAsString());
       }
 
@@ -1201,6 +1270,7 @@ class FunctionAnalyzer {
   clang::MangleContext* ctx_;
   clang::DeclarationName handle_decl_name_;
   clang::CXXRecordDecl* object_decl_;
+  clang::CXXRecordDecl* maybe_object_decl_;
   clang::CXXRecordDecl* smi_decl_;
 
   clang::DiagnosticsEngine& d_;
@@ -1231,22 +1301,34 @@ class ProblemsFinder : public clang::ASTConsumer,
         r.ResolveNamespace("v8").ResolveNamespace("internal").
             Resolve<clang::CXXRecordDecl>("Object");
 
+    clang::CXXRecordDecl* maybe_object_decl =
+        r.ResolveNamespace("v8")
+            .ResolveNamespace("internal")
+            .Resolve<clang::CXXRecordDecl>("MaybeObject");
+
     clang::CXXRecordDecl* smi_decl =
         r.ResolveNamespace("v8").ResolveNamespace("internal").
             Resolve<clang::CXXRecordDecl>("Smi");
 
     if (object_decl != NULL) object_decl = object_decl->getDefinition();
 
+    if (maybe_object_decl != NULL)
+      maybe_object_decl = maybe_object_decl->getDefinition();
+
     if (smi_decl != NULL) smi_decl = smi_decl->getDefinition();
 
-    if (object_decl != NULL && smi_decl != NULL) {
+    if (object_decl != NULL && smi_decl != NULL && maybe_object_decl != NULL) {
       function_analyzer_ = new FunctionAnalyzer(
           clang::ItaniumMangleContext::create(ctx, d_), r.ResolveName("Handle"),
-          object_decl, smi_decl, d_, sm_, dead_vars_analysis_);
+          object_decl, maybe_object_decl, smi_decl, d_, sm_,
+          dead_vars_analysis_);
       TraverseDecl(ctx.getTranslationUnitDecl());
     } else {
       if (object_decl == NULL) {
         llvm::errs() << "Failed to resolve v8::internal::Object\n";
+      }
+      if (maybe_object_decl == NULL) {
+        llvm::errs() << "Failed to resolve v8::internal::MaybeObject\n";
       }
       if (smi_decl == NULL) {
         llvm::errs() << "Failed to resolve v8::internal::Smi\n";
@@ -1271,9 +1353,10 @@ class ProblemsFinder : public clang::ASTConsumer,
 template<typename ConsumerType>
 class Action : public clang::PluginASTAction {
  protected:
-  clang::ASTConsumer *CreateASTConsumer(clang::CompilerInstance &CI,
-                                        llvm::StringRef InFile) {
-    return new ConsumerType(CI.getDiagnostics(), CI.getSourceManager(), args_);
+  virtual std::unique_ptr<clang::ASTConsumer> CreateASTConsumer(
+      clang::CompilerInstance& CI, llvm::StringRef InFile) {
+    return std::unique_ptr<clang::ASTConsumer>(
+        new ConsumerType(CI.getDiagnostics(), CI.getSourceManager(), args_));
   }
 
   bool ParseArgs(const clang::CompilerInstance &CI,
