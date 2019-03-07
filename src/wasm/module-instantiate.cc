@@ -879,26 +879,41 @@ bool InstanceBuilder::ProcessImportedTable(Handle<WasmInstanceObject> instance,
   // Initialize the dispatch table with the (foreign) JS functions
   // that are already in the table.
   for (int i = 0; i < imported_table_size; ++i) {
+    // TODO(ahaas): Extract this code here into a function on WasmTableObject.
     Handle<Object> val(table_instance.js_functions->get(i), isolate_);
-    // TODO(mtrofin): this is the same logic as WasmTableObject::Set:
-    // insert in the local table a wrapper from the other module, and add
-    // a reference to the owning instance of the other module.
-    if (!val->IsJSFunction()) continue;
-    if (!WasmExportedFunction::IsWasmExportedFunction(*val)) {
+    Handle<WasmInstanceObject> target_instance;
+    int function_index;
+    FunctionSig* sig;
+    if (val->IsNull(isolate_)) {
+      continue;
+    } else if (WasmExportedFunction::IsWasmExportedFunction(*val)) {
+      auto target_func = Handle<WasmExportedFunction>::cast(val);
+      target_instance = handle(target_func->instance(), isolate_);
+      sig = target_func->sig();
+      function_index = target_func->function_index();
+    } else if (val->IsTuple2()) {
+      // {val} can be a {Tuple2} if no WasmExportedFunction has been
+      // constructed for the function yet, but the function exists.
+      auto tuple = Handle<Tuple2>::cast(val);
+      target_instance =
+          handle(WasmInstanceObject::cast(tuple->value1()), isolate_);
+      function_index = Smi::cast(tuple->value2()).value();
+      sig = target_instance->module_object()
+                ->module()
+                ->functions[function_index]
+                .sig;
+    } else {
       thrower_->LinkError("table import %d[%d] is not a wasm function",
                           import_index, i);
       return false;
     }
-    auto target_func = Handle<WasmExportedFunction>::cast(val);
-    Handle<WasmInstanceObject> target_instance =
-        handle(target_func->instance(), isolate_);
+
     // Look up the signature's canonical id. If there is no canonical
     // id, then the signature does not appear at all in this module,
     // so putting {-1} in the table will cause checks to always fail.
-    FunctionSig* sig = target_func->sig();
     IndirectFunctionTableEntry(instance, i)
         .Set(module_->signature_map.Find(*sig), target_instance,
-             target_func->function_index());
+             function_index);
   }
   return true;
 }
@@ -1485,6 +1500,33 @@ void InstanceBuilder::InitializeTables(Handle<WasmInstanceObject> instance) {
   }
 }
 
+namespace {
+Handle<WasmExportedFunction> CreateWasmExportedFunctionForAsm(
+    Isolate* isolate, Handle<WasmInstanceObject> instance,
+    const WasmModule* module, uint32_t func_index,
+    JSToWasmWrapperCache* js_to_wasm_cache) {
+  const WasmFunction* function = &module->functions[func_index];
+  DCHECK_EQ(module->origin, kAsmJsOrigin);
+
+  Handle<Code> wrapper_code = js_to_wasm_cache->GetOrCompileJSToWasmWrapper(
+      isolate, function->sig, function->imported);
+  auto module_object =
+      Handle<WasmModuleObject>(instance->module_object(), isolate);
+  WireBytesRef func_name_ref = module->LookupFunctionName(
+      ModuleWireBytes(module_object->native_module()->wire_bytes()),
+      func_index);
+  auto func_name = WasmModuleObject::ExtractUtf8StringFromModuleBytes(
+                       isolate, module_object, func_name_ref)
+                       .ToHandleChecked();
+  auto wasm_exported_function = WasmExportedFunction::New(
+      isolate, instance, func_name, func_index,
+      static_cast<int>(function->sig->parameter_count()), wrapper_code);
+  WasmInstanceObject::SetWasmExportedFunction(isolate, instance, func_index,
+                                              wasm_exported_function);
+  return wasm_exported_function;
+}
+}  // namespace
+
 bool LoadElemSegmentImpl(Isolate* isolate, Handle<WasmInstanceObject> instance,
                          const TableInstance& table_instance,
                          JSToWasmWrapperCache* js_to_wasm_cache,
@@ -1524,35 +1566,28 @@ bool LoadElemSegmentImpl(Isolate* isolate, Handle<WasmInstanceObject> instance,
           WasmInstanceObject::GetWasmExportedFunction(isolate, instance,
                                                       func_index);
       if (wasm_exported_function.is_null()) {
-        // No JSFunction entry yet exists for this function. Create one.
-        // TODO(titzer): We compile JS->wasm wrappers for functions are
-        // not exported but are in an exported table. This should be done
-        // at module compile time and cached instead.
-
-        Handle<Code> wrapper_code =
-            js_to_wasm_cache->GetOrCompileJSToWasmWrapper(
-                isolate, function->sig, function->imported);
-        MaybeHandle<String> func_name;
+        // No JSFunction entry yet exists for this function. Create a {Tuple2}
+        // holding the information to lazily allocate one (or eagerly allocate
+        // one for asm.js code).
         if (module->origin == kAsmJsOrigin) {
-          // For modules arising from asm.js, honor the names section.
-          auto module_object =
-              Handle<WasmModuleObject>(instance->module_object(), isolate);
-          WireBytesRef func_name_ref = module->LookupFunctionName(
-              ModuleWireBytes(module_object->native_module()->wire_bytes()),
-              func_index);
-          func_name = WasmModuleObject::ExtractUtf8StringFromModuleBytes(
-                          isolate, module_object, func_name_ref)
-                          .ToHandleChecked();
+          Handle<WasmExportedFunction> function =
+              CreateWasmExportedFunctionForAsm(isolate, instance, module,
+                                               func_index, js_to_wasm_cache);
+          table_instance.js_functions->set(entry_index, *function);
+        } else {
+          // TODO(ahaas): Handle all this Tuple2 stuff in a method of
+          // {WasmTableObject}.
+          // Put (instance, func_index) as a placeholder into the table_index.
+          // The {WasmExportedFunction} will be created lazily.
+          Handle<Tuple2> tuple = isolate->factory()->NewTuple2(
+              instance, Handle<Smi>(Smi::FromInt(func_index), isolate),
+              NOT_TENURED);
+          table_instance.js_functions->set(entry_index, *tuple);
         }
-        wasm_exported_function = WasmExportedFunction::New(
-            isolate, instance, func_name, func_index,
-            static_cast<int>(function->sig->parameter_count()), wrapper_code);
-        WasmInstanceObject::SetWasmExportedFunction(
-            isolate, instance, func_index,
-            wasm_exported_function.ToHandleChecked());
+      } else {
+        table_instance.js_functions->set(
+            entry_index, *wasm_exported_function.ToHandleChecked());
       }
-      table_instance.js_functions->set(
-          entry_index, *wasm_exported_function.ToHandleChecked());
       // UpdateDispatchTables() updates all other dispatch tables, since
       // we have not yet added the dispatch table we are currently building.
       WasmTableObject::UpdateDispatchTables(

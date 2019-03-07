@@ -282,6 +282,10 @@ class WasmTableObject : public JSObject {
   static void Set(Isolate* isolate, Handle<WasmTableObject> table,
                   uint32_t index, Handle<JSFunction> function);
 
+  static MaybeHandle<Object> Get(Isolate* isolate,
+                                 Handle<WasmTableObject> table,
+                                 int table_index);
+
   static void UpdateDispatchTables(Isolate* isolate,
                                    Handle<WasmTableObject> table,
                                    int table_index, wasm::FunctionSig* sig,

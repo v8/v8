@@ -870,6 +870,61 @@ void WasmTableObject::Set(Isolate* isolate, Handle<WasmTableObject> table,
   array->set(table_index, *function);
 }
 
+MaybeHandle<Object> WasmTableObject::Get(Isolate* isolate,
+                                         Handle<WasmTableObject> table,
+                                         int table_index) {
+  Handle<FixedArray> elements(table->elements(), isolate);
+  if (table_index >= elements->length()) {
+    isolate->Throw(*isolate->factory()->NewRangeError(
+        MessageTemplate::kWasmTrapFuncInvalid));
+    return MaybeHandle<Object>();
+  }
+  Handle<Object> element(elements->get(table_index), isolate);
+  if (WasmExportedFunction::IsWasmExportedFunction(*element)) {
+    return element;
+  }
+
+  if (element->IsNull(isolate)) {
+    return element;
+  }
+
+  // {element} is not a valid entry in the table. It has to be a placeholder
+  // for lazy initialization.
+  Handle<Tuple2> tuple = Handle<Tuple2>::cast(element);
+  auto instance = handle(WasmInstanceObject::cast(tuple->value1()), isolate);
+  int function_index = Smi::cast(tuple->value2()).value();
+
+  // Check if we already compiled a wrapper for the function but did not store
+  // it in the table slot yet.
+  MaybeHandle<Object> maybe_element =
+      WasmInstanceObject::GetWasmExportedFunction(isolate, instance,
+                                                  function_index);
+  if (maybe_element.ToHandle(&element)) {
+    elements->set(table_index, *element);
+    return element;
+  }
+
+  const WasmModule* module = instance->module_object()->module();
+  const WasmFunction& function = module->functions[function_index];
+  // Exported functions got their wrapper compiled during instantiation.
+  CHECK(!function.exported);
+  Handle<Code> wrapper_code =
+      compiler::CompileJSToWasmWrapper(isolate, function.sig, function.imported)
+          .ToHandleChecked();
+
+  MaybeHandle<String> function_name = WasmModuleObject::GetFunctionNameOrNull(
+      isolate, handle(instance->module_object(), isolate), function_index);
+
+  Handle<WasmExportedFunction> result = WasmExportedFunction::New(
+      isolate, instance, function_name, function_index,
+      static_cast<int>(function.sig->parameter_count()), wrapper_code);
+
+  elements->set(table_index, *result);
+  WasmInstanceObject::SetWasmExportedFunction(isolate, instance, function_index,
+                                              result);
+  return result;
+}
+
 void WasmTableObject::UpdateDispatchTables(
     Isolate* isolate, Handle<WasmTableObject> table, int table_index,
     wasm::FunctionSig* sig, Handle<WasmInstanceObject> target_instance,
