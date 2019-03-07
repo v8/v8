@@ -269,6 +269,7 @@ char LocaleIndependentAsciiToLower(char ch) {
 // or ho_cHi_minH -> Ho_Chi_Minh. It is locale-agnostic and only
 // deals with ASCII only characters.
 // 'of', 'au' and 'es' are special-cased and lowercased.
+// Also "Antarctica/DumontDUrville" is special case.
 // ICU's timezone parsing is case sensitive, but ECMAScript is case insensitive
 std::string ToTitleCaseTimezoneLocation(Isolate* isolate,
                                         const std::string& input) {
@@ -295,6 +296,10 @@ std::string ToTitleCaseTimezoneLocation(Isolate* isolate,
       // Invalid input
       return std::string();
     }
+  }
+  // Special case
+  if (title_cased == "Antarctica/Dumontdurville") {
+    return "Antarctica/DumontDUrville";
   }
   return title_cased;
 }
