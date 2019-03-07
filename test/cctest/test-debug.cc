@@ -4283,7 +4283,8 @@ UNINITIALIZED_TEST(LoadedAtStartupScripts) {
     LocalContext context(isolate);
 
     std::vector<i::Handle<i::Script>> scripts;
-    CompileWithOrigin(v8_str("function foo(){}"), v8_str("normal.js"));
+    CompileWithOrigin(v8_str("function foo(){}"), v8_str("normal.js"),
+                      v8_bool(false));
     std::unordered_map<int, int> count_by_type;
     {
       i::DisallowHeapAllocation no_gc;

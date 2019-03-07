@@ -1879,7 +1879,8 @@ TEST(IdleTime) {
 static void CheckFunctionDetails(v8::Isolate* isolate,
                                  const v8::CpuProfileNode* node,
                                  const char* name, const char* script_name,
-                                 int script_id, int line, int column) {
+                                 bool is_shared_cross_origin, int script_id,
+                                 int line, int column) {
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
   CHECK(v8_str(name)->Equals(context, node->GetFunctionName()).FromJust());
   CHECK_EQ(0, strcmp(name, node->GetFunctionNameStr()));
@@ -1891,7 +1892,6 @@ static void CheckFunctionDetails(v8::Isolate* isolate,
   CHECK_EQ(line, node->GetLineNumber());
   CHECK_EQ(column, node->GetColumnNumber());
 }
-
 
 TEST(FunctionDetails) {
   i::FLAG_allow_natives_syntax = true;
@@ -1905,14 +1905,14 @@ TEST(FunctionDetails) {
       "%NeverOptimizeFunction(bar);\n"
       "    function foo\n() { bar(); }\n"
       " function bar() { startProfiling(); }\n",
-      "script_a");
+      "script_a", false);
   script_a->Run(env).ToLocalChecked();
   v8::Local<v8::Script> script_b = CompileWithOrigin(
       "%NeverOptimizeFunction(baz);"
       "\n\n   function baz() { foo(); }\n"
       "\n\nbaz();\n"
       "stopProfiling();\n",
-      "script_b");
+      "script_b", true);
   script_b->Run(env).ToLocalChecked();
   const v8::CpuProfile* profile = i::ProfilerExtension::last_profile;
   const v8::CpuProfileNode* current = profile->GetTopDownRoot();
@@ -1926,16 +1926,16 @@ TEST(FunctionDetails) {
   //  1          bar 18 #5 no reason script_a:3
   const v8::CpuProfileNode* root = profile->GetTopDownRoot();
   const v8::CpuProfileNode* script = GetChild(env, root, "");
-  CheckFunctionDetails(env->GetIsolate(), script, "", "script_b",
+  CheckFunctionDetails(env->GetIsolate(), script, "", "script_b", true,
                        script_b->GetUnboundScript()->GetId(), 1, 1);
   const v8::CpuProfileNode* baz = GetChild(env, script, "baz");
-  CheckFunctionDetails(env->GetIsolate(), baz, "baz", "script_b",
+  CheckFunctionDetails(env->GetIsolate(), baz, "baz", "script_b", true,
                        script_b->GetUnboundScript()->GetId(), 3, 16);
   const v8::CpuProfileNode* foo = GetChild(env, baz, "foo");
-  CheckFunctionDetails(env->GetIsolate(), foo, "foo", "script_a",
+  CheckFunctionDetails(env->GetIsolate(), foo, "foo", "script_a", false,
                        script_a->GetUnboundScript()->GetId(), 4, 1);
   const v8::CpuProfileNode* bar = GetChild(env, foo, "bar");
-  CheckFunctionDetails(env->GetIsolate(), bar, "bar", "script_a",
+  CheckFunctionDetails(env->GetIsolate(), bar, "bar", "script_a", false,
                        script_a->GetUnboundScript()->GetId(), 5, 14);
 }
 
@@ -1960,7 +1960,7 @@ TEST(FunctionDetailsInlining) {
       "  return sum;\n"
       "}\n"
       "\n",
-      "script_b");
+      "script_b", true);
 
   v8::Local<v8::Script> script_a = CompileWithOrigin(
       "function alpha(p) {\n"
@@ -1985,7 +1985,7 @@ TEST(FunctionDetailsInlining) {
       "stopProfiling();\n"
       "\n"
       "\n",
-      "script_a");
+      "script_a", false);
 
   script_b->Run(env).ToLocalChecked();
   script_a->Run(env).ToLocalChecked();
@@ -2006,16 +2006,16 @@ TEST(FunctionDetailsInlining) {
 
   const v8::CpuProfileNode* root = profile->GetTopDownRoot();
   const v8::CpuProfileNode* script = GetChild(env, root, "");
-  CheckFunctionDetails(env->GetIsolate(), script, "", "script_a",
+  CheckFunctionDetails(env->GetIsolate(), script, "", "script_a", false,
                        script_a->GetUnboundScript()->GetId(), 1, 1);
   const v8::CpuProfileNode* alpha = FindChild(env, script, "alpha");
   // Return early if profiling didn't sample alpha.
   if (!alpha) return;
-  CheckFunctionDetails(env->GetIsolate(), alpha, "alpha", "script_a",
+  CheckFunctionDetails(env->GetIsolate(), alpha, "alpha", "script_a", false,
                        script_a->GetUnboundScript()->GetId(), 1, 15);
   const v8::CpuProfileNode* beta = FindChild(env, alpha, "beta");
   if (!beta) return;
-  CheckFunctionDetails(env->GetIsolate(), beta, "beta", "script_b",
+  CheckFunctionDetails(env->GetIsolate(), beta, "beta", "script_b", true,
                        script_b->GetUnboundScript()->GetId(), 1, 14);
 }
 

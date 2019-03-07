@@ -153,6 +153,12 @@ class V8_EXPORT CpuProfileNode {
   const char* GetScriptResourceNameStr() const;
 
   /**
+   * Return true if the script from where the function originates is flagged as
+   * being shared cross-origin.
+   */
+  bool IsScriptSharedCrossOrigin() const;
+
+  /**
    * Returns the number, 1-based, of the line where the function originates.
    * kNoLineNumberInfo if no line number information is available.
    */

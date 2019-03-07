@@ -9981,6 +9981,11 @@ const char* CpuProfileNode::GetScriptResourceNameStr() const {
   return node->entry()->resource_name();
 }
 
+bool CpuProfileNode::IsScriptSharedCrossOrigin() const {
+  const i::ProfileNode* node = reinterpret_cast<const i::ProfileNode*>(this);
+  return node->entry()->is_shared_cross_origin();
+}
+
 int CpuProfileNode::GetLineNumber() const {
   return reinterpret_cast<const i::ProfileNode*>(this)->line_number();
 }

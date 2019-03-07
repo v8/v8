@@ -4853,7 +4853,8 @@ THREADED_TEST(MessageHandler0) {
   CHECK(!message_received);
   LocalContext context;
   CcTest::isolate()->AddMessageListener(check_message_0, v8_num(5.76));
-  v8::Local<v8::Script> script = CompileWithOrigin("throw 'error'", "6.75");
+  v8::Local<v8::Script> script =
+      CompileWithOrigin("throw 'error'", "6.75", false);
   CHECK(script->Run(context.local()).IsEmpty());
   CHECK(message_received);
   // clear out the message listener
@@ -14303,7 +14304,7 @@ THREADED_TEST(TryCatchSourceInfo) {
   const char* resource_name;
   v8::Local<v8::Script> script;
   resource_name = "test.js";
-  script = CompileWithOrigin(source, resource_name);
+  script = CompileWithOrigin(source, resource_name, false);
   CheckTryCatchSourceInfo(script, resource_name, 0);
 
   resource_name = "test1.js";
@@ -14338,8 +14339,8 @@ THREADED_TEST(CompilationCache) {
   v8::HandleScope scope(context->GetIsolate());
   v8::Local<v8::String> source0 = v8_str("1234");
   v8::Local<v8::String> source1 = v8_str("1234");
-  v8::Local<v8::Script> script0 = CompileWithOrigin(source0, "test.js");
-  v8::Local<v8::Script> script1 = CompileWithOrigin(source1, "test.js");
+  v8::Local<v8::Script> script0 = CompileWithOrigin(source0, "test.js", false);
+  v8::Local<v8::Script> script1 = CompileWithOrigin(source1, "test.js", false);
   v8::Local<v8::Script> script2 = v8::Script::Compile(context.local(), source0)
                                       .ToLocalChecked();  // different origin
   CHECK_EQ(1234, script0->Run(context.local())
@@ -16755,7 +16756,7 @@ TEST(ErrorLevelWarning) {
   v8::HandleScope scope(isolate);
 
   const char* source = "fake = 1;";
-  v8::Local<v8::Script> lscript = CompileWithOrigin(source, "test");
+  v8::Local<v8::Script> lscript = CompileWithOrigin(source, "test", false);
   i::Handle<i::SharedFunctionInfo> obj = i::Handle<i::SharedFunctionInfo>::cast(
       v8::Utils::OpenHandle(*lscript->GetUnboundScript()));
   CHECK(obj->script()->IsScript());
@@ -17629,7 +17630,7 @@ TEST(ScriptIdInStackTrace) {
       "  AnalyzeScriptIdInStack();"
       "}\n"
       "foo();\n");
-  v8::Local<v8::Script> script = CompileWithOrigin(scriptSource, "test");
+  v8::Local<v8::Script> script = CompileWithOrigin(scriptSource, "test", false);
   script->Run(context.local()).ToLocalChecked();
   for (int i = 0; i < 2; i++) {
     CHECK_NE(scriptIdInStack[i], v8::Message::kNoScriptIdInfo);

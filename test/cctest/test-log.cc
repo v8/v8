@@ -313,7 +313,8 @@ TEST(Issue23768) {
       v8::String::NewFromUtf8(CcTest::isolate(), "issue-23768-test",
                               v8::NewStringType::kNormal)
           .ToLocalChecked();
-  v8::Local<v8::Script> evil_script = CompileWithOrigin(source, origin);
+  v8::Local<v8::Script> evil_script =
+      CompileWithOrigin(source, origin, v8_bool(false));
   CHECK(!evil_script.IsEmpty());
   CHECK(!evil_script->Run(env).IsEmpty());
   i::Handle<i::ExternalTwoByteString> i_source(
@@ -482,7 +483,7 @@ UNINITIALIZED_TEST(EquivalenceOfLoggingAndTraversal) {
                                 v8::NewStringType::kNormal, source.length())
             .ToLocalChecked();
     v8::TryCatch try_catch(isolate);
-    v8::Local<v8::Script> script = CompileWithOrigin(source_str, "");
+    v8::Local<v8::Script> script = CompileWithOrigin(source_str, "", false);
     if (script.IsEmpty()) {
       v8::String::Utf8Value exception(isolate, try_catch.Exception());
       FATAL("compile: %s\n", *exception);
