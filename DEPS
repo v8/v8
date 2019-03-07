@@ -111,7 +111,7 @@ deps = {
       'condition': 'host_cpu != "s390"',
       'dep_type': 'cipd',
   },
-  'src/tools/clang/dsymutil': {
+  'v8/tools/clang/dsymutil': {
     'packages': [
       {
         'package': 'chromium/llvm-build-tools/dsymutil',
