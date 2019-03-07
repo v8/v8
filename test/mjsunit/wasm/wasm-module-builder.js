@@ -101,7 +101,7 @@ let kWasmI32 = 0x7f;
 let kWasmI64 = 0x7e;
 let kWasmF32 = 0x7d;
 let kWasmF64 = 0x7c;
-let kWasmS128  = 0x7b;
+let kWasmS128 = 0x7b;
 let kWasmAnyRef = 0x6f;
 let kWasmAnyFunc = 0x70;
 let kWasmExceptRef = 0x68;
@@ -496,51 +496,74 @@ function assertTraps(trap, code) {
   assertThrows(code, WebAssembly.RuntimeError, kTrapMsgs[trap]);
 }
 
-class Binary extends Array {
+class Binary {
+  constructor() {
+    this.length = 0;
+    this.buffer = new Uint8Array(8192);
+  }
+
+  ensure_space(needed) {
+    if (this.buffer.length - this.length >= needed) return;
+    let new_capacity = this.buffer.length * 2;
+    while (new_capacity - this.length < needed) new_capacity *= 2;
+    let new_buffer = new Uint8Array(new_capacity);
+    new_buffer.set(this.buffer);
+    this.buffer = new_buffer;
+  }
+
+  trunc_buffer() {
+    return this.buffer = this.buffer.slice(0, this.length);
+  }
+
   emit_u8(val) {
-    this.push(val);
+    this.ensure_space(1);
+    this.buffer[this.length++] = val;
   }
 
   emit_u16(val) {
-    this.push(val & 0xff);
-    this.push((val >> 8) & 0xff);
+    this.ensure_space(2);
+    this.buffer[this.length++] = val;
+    this.buffer[this.length++] = val >> 8;
   }
 
   emit_u32(val) {
-    this.push(val & 0xff);
-    this.push((val >> 8) & 0xff);
-    this.push((val >> 16) & 0xff);
-    this.push((val >> 24) & 0xff);
+    this.ensure_space(4);
+    this.buffer[this.length++] = val;
+    this.buffer[this.length++] = val >> 8;
+    this.buffer[this.length++] = val >> 16;
+    this.buffer[this.length++] = val >> 24;
   }
 
   emit_u32v(val) {
+    this.ensure_space(5);
     while (true) {
       let v = val & 0xff;
       val = val >>> 7;
       if (val == 0) {
-        this.push(v);
+        this.buffer[this.length++] = v;
         break;
       }
-      this.push(v | 0x80);
+      this.buffer[this.length++] = v | 0x80;
     }
   }
 
   emit_u64v(val) {
+    this.ensure_space(10);
     while (true) {
       let v = val & 0xff;
       val = val >>> 7;
       if (val == 0) {
-        this.push(v);
+        this.buffer[this.length++] = v;
         break;
       }
-      this.push(v | 0x80);
+      this.buffer[this.length++] = v | 0x80;
     }
   }
 
   emit_bytes(data) {
-    for (let i = 0; i < data.length; i++) {
-      this.push(data[i] & 0xff);
-    }
+    this.ensure_space(data.length);
+    this.buffer.set(data, this.length);
+    this.length += data.length;
   }
 
   emit_string(string) {
@@ -561,8 +584,9 @@ class Binary extends Array {
   }
 
   emit_header() {
-    this.push(kWasmH0, kWasmH1, kWasmH2, kWasmH3,
-              kWasmV0, kWasmV1, kWasmV2, kWasmV3);
+    this.emit_bytes([
+      kWasmH0, kWasmH1, kWasmH2, kWasmH3, kWasmV0, kWasmV1, kWasmV2, kWasmV3
+    ]);
   }
 
   emit_section(section_code, content_generator) {
@@ -575,7 +599,7 @@ class Binary extends Array {
     this.emit_u32v(section.length);
     // Copy the temporary buffer.
     // Avoid spread because {section} can be huge.
-    for (let b of section) this.push(b);
+    this.emit_bytes(section.trunc_buffer());
   }
 }
 
@@ -719,17 +743,18 @@ class WasmModuleBuilder {
     for (var i = 0; i < name.length; i++) {
       result.emit_u8(name.charCodeAt(i));
     }
-    return result;
+    return result.trunc_buffer()
   }
 
   addCustomSection(name, bytes) {
     name = this.stringToBytes(name);
-    var length = new Binary();
-    length.emit_u32v(name.length + bytes.length);
-    var section = [0, ...length, ...name];
-    // Avoid spread because {bytes} can be huge.
-    for (var b of bytes) section.push(b);
-    this.explicit.push(section);
+    var section = new Binary();
+    section.ensure_space(1 + 5 + 5 + name.length + bytes.length);
+    section.emit_u8(0);
+    section.emit_u32v(name.length + bytes.length);
+    section.emit_bytes(name);
+    section.emit_bytes(bytes);
+    this.explicit.push(section.trunc_buffer());
   }
 
   addType(type) {
@@ -891,7 +916,7 @@ class WasmModuleBuilder {
     return this;
   }
 
-  toArray(debug = false) {
+  toUint8Array(debug = false) {
     let binary = new Binary;
     let wasm = this;
 
@@ -1185,8 +1210,9 @@ class WasmModuleBuilder {
             header.emit_u8(decl.type);
           }
 
+          section.ensure_space(5 + header.length + func.body.length);
           section.emit_u32v(header.length + func.body.length);
-          section.emit_bytes(header);
+          section.emit_bytes(header.trunc_buffer());
           section.emit_bytes(func.body);
         }
       });
@@ -1273,23 +1299,15 @@ class WasmModuleBuilder {
       });
     }
 
-    return binary;
+    return binary.trunc_buffer();
   }
 
   toBuffer(debug = false) {
-    let bytes = this.toArray(debug);
-    let buffer = new ArrayBuffer(bytes.length);
-    let view = new Uint8Array(buffer);
-    for (let i = 0; i < bytes.length; i++) {
-      let val = bytes[i];
-      if ((typeof val) == "string") val = val.charCodeAt(0);
-      view[i] = val | 0;
-    }
-    return buffer;
+    return this.toUint8Array(debug).buffer;
   }
 
-  toUint8Array(debug = false) {
-      return new Uint8Array(this.toBuffer(debug));
+  toArray(debug = false) {
+    return Array.from(this.toUint8Array(debug));
   }
 
   instantiate(ffi) {
