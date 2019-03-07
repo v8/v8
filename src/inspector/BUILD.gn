@@ -88,6 +88,7 @@ v8_source_set("inspector") {
 
   public_deps = [
     ":inspector_test_headers",
+    "../../:v8_libbase",
   ]
 
   configs = [ ":inspector_config" ]
