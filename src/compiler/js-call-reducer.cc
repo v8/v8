@@ -18,6 +18,7 @@
 #include "src/compiler/property-access-builder.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/type-cache.h"
+#include "src/counters.h"
 #include "src/feedback-vector-inl.h"
 #include "src/ic/call-optimization.h"
 #include "src/objects-inl.h"
@@ -3710,7 +3711,8 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
       break;
   }
 
-  if (!FLAG_runtime_stats && shared.object()->IsApiFunction()) {
+  if (!TracingFlags::is_runtime_stats_enabled() &&
+      shared.object()->IsApiFunction()) {
     return ReduceCallApiFunction(node, shared);
   }
   return NoChange();

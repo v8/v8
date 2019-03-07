@@ -23,6 +23,28 @@
 namespace v8 {
 namespace internal {
 
+// This struct contains a set of flags that can be modified from multiple
+// threads at runtime unlike the normal FLAG_-like flags which are not modified
+// after V8 instance is initialized.
+
+struct TracingFlags {
+  static V8_EXPORT_PRIVATE std::atomic_uint runtime_stats;
+  static V8_EXPORT_PRIVATE std::atomic_uint gc_stats;
+  static V8_EXPORT_PRIVATE std::atomic_uint ic_stats;
+
+  static bool is_runtime_stats_enabled() {
+    return runtime_stats.load(std::memory_order_relaxed) != 0;
+  }
+
+  static bool is_gc_stats_enabled() {
+    return gc_stats.load(std::memory_order_relaxed) != 0;
+  }
+
+  static bool is_ic_stats_enabled() {
+    return ic_stats.load(std::memory_order_relaxed) != 0;
+  }
+};
+
 // StatsCounters is an interface for plugging into external
 // counters for monitoring.  Counters can be looked up and
 // manipulated by name.
@@ -1132,7 +1154,8 @@ class WorkerThreadRuntimeCallStatsScope final {
 
 #define CHANGE_CURRENT_RUNTIME_COUNTER(runtime_call_stats, counter_id) \
   do {                                                                 \
-    if (V8_UNLIKELY(FLAG_runtime_stats) && runtime_call_stats) {       \
+    if (V8_UNLIKELY(TracingFlags::is_runtime_stats_enabled()) &&       \
+        runtime_call_stats) {                                          \
       runtime_call_stats->CorrectCurrentCounterId(counter_id);         \
     }                                                                  \
   } while (false)
@@ -1154,7 +1177,9 @@ class RuntimeCallTimerScope {
                                RuntimeCallCounterId counter_id);
   inline RuntimeCallTimerScope(RuntimeCallStats* stats,
                                RuntimeCallCounterId counter_id) {
-    if (V8_LIKELY(!FLAG_runtime_stats || stats == nullptr)) return;
+    if (V8_LIKELY(!TracingFlags::is_runtime_stats_enabled() ||
+                  stats == nullptr))
+      return;
     stats_ = stats;
     stats_->Enter(&timer_, counter_id);
   }
@@ -1672,7 +1697,7 @@ void HistogramTimer::Stop() {
 
 RuntimeCallTimerScope::RuntimeCallTimerScope(Isolate* isolate,
                                              RuntimeCallCounterId counter_id) {
-  if (V8_LIKELY(!FLAG_runtime_stats)) return;
+  if (V8_LIKELY(!TracingFlags::is_runtime_stats_enabled())) return;
   stats_ = isolate->counters()->runtime_call_stats();
   stats_->Enter(&timer_, counter_id);
 }

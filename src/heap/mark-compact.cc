@@ -1740,12 +1740,12 @@ void MarkCompactCollector::ProcessTopOptimizedFrame(ObjectVisitor* visitor) {
 }
 
 void MarkCompactCollector::RecordObjectStats() {
-  if (V8_UNLIKELY(FLAG_gc_stats)) {
+  if (V8_UNLIKELY(TracingFlags::is_gc_stats_enabled())) {
     heap()->CreateObjectStats();
     ObjectStatsCollector collector(heap(), heap()->live_object_stats_.get(),
                                    heap()->dead_object_stats_.get());
     collector.Collect();
-    if (V8_UNLIKELY(FLAG_gc_stats &
+    if (V8_UNLIKELY(TracingFlags::gc_stats.load(std::memory_order_relaxed) &
                     v8::tracing::TracingCategoryObserver::ENABLED_BY_TRACING)) {
       std::stringstream live, dead;
       heap()->live_object_stats_->Dump(live);

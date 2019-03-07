@@ -12,6 +12,7 @@
 #include "src/allocation.h"
 #include "src/base/functional.h"
 #include "src/base/platform/platform.h"
+#include "src/counters.h"
 #include "src/cpu-features.h"
 #include "src/memcopy.h"
 #include "src/ostreams.h"

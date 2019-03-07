@@ -9,6 +9,7 @@
 #include "src/accessors.h"
 #include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/type-cache.h"
+#include "src/counters.h"
 #include "src/field-index-inl.h"
 #include "src/field-type.h"
 #include "src/ic/call-optimization.h"
@@ -422,7 +423,7 @@ bool AccessInfoFactory::ComputeAccessorDescriptorAccessInfo(
     DCHECK_IMPLIES(lookup == CallOptimization::kHolderIsReceiver,
                    holder.is_null());
     DCHECK_IMPLIES(lookup == CallOptimization::kHolderFound, !holder.is_null());
-    if (V8_UNLIKELY(FLAG_runtime_stats)) return false;
+    if (V8_UNLIKELY(TracingFlags::is_runtime_stats_enabled())) return false;
   }
   if (access_mode == AccessMode::kLoad) {
     Handle<Name> cached_property_name;

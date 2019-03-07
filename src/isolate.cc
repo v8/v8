@@ -3596,7 +3596,7 @@ void Isolate::DumpAndResetStats() {
   if (FLAG_turbo_stats_wasm) {
     wasm_engine()->DumpAndResetTurboStatistics();
   }
-  if (V8_UNLIKELY(FLAG_runtime_stats ==
+  if (V8_UNLIKELY(TracingFlags::runtime_stats.load(std::memory_order_relaxed) ==
                   v8::tracing::TracingCategoryObserver::ENABLED_BY_NATIVE)) {
     counters()->worker_thread_runtime_call_stats()->AddToMainTable(
         counters()->runtime_call_stats());

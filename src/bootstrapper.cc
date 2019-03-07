@@ -5211,7 +5211,7 @@ bool Genesis::InstallExtensions(Isolate* isolate,
           InstallExtension(isolate, "v8/gc", &extension_states)) &&
          (!FLAG_expose_externalize_string ||
           InstallExtension(isolate, "v8/externalize", &extension_states)) &&
-         (!FLAG_gc_stats ||
+         (!TracingFlags::is_gc_stats_enabled() ||
           InstallExtension(isolate, "v8/statistics", &extension_states)) &&
          (!FLAG_expose_trigger_failure ||
           InstallExtension(isolate, "v8/trigger-failure", &extension_states)) &&

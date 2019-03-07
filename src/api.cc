@@ -8426,7 +8426,7 @@ size_t Isolate::NumberOfTrackedHeapObjectTypes() {
 bool Isolate::GetHeapObjectStatisticsAtLastGC(
     HeapObjectStatistics* object_statistics, size_t type_index) {
   if (!object_statistics) return false;
-  if (V8_LIKELY(!i::FLAG_gc_stats)) return false;
+  if (V8_LIKELY(!i::TracingFlags::is_gc_stats_enabled())) return false;
 
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   i::Heap* heap = isolate->heap();

@@ -426,7 +426,7 @@ ExternalReference::address_of_mock_arraybuffer_allocator_flag() {
 }
 
 ExternalReference ExternalReference::address_of_runtime_stats_flag() {
-  return ExternalReference(&FLAG_runtime_stats);
+  return ExternalReference(&TracingFlags::runtime_stats);
 }
 
 ExternalReference ExternalReference::address_of_one_half() {

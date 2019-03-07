@@ -3432,7 +3432,8 @@ int Shell::Main(int argc, char* argv[]) {
       base::SysInfo::AmountOfVirtualMemory());
 
   Shell::counter_map_ = new CounterMap();
-  if (i::FLAG_dump_counters || i::FLAG_dump_counters_nvp || i::FLAG_gc_stats) {
+  if (i::FLAG_dump_counters || i::FLAG_dump_counters_nvp ||
+      i::TracingFlags::is_gc_stats_enabled()) {
     create_params.counter_lookup_callback = LookupCounter;
     create_params.create_histogram_callback = CreateHistogram;
     create_params.add_histogram_sample_callback = AddHistogramSample;

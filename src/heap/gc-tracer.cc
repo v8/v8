@@ -38,7 +38,7 @@ GCTracer::Scope::Scope(GCTracer* tracer, ScopeId scope)
     : tracer_(tracer), scope_(scope) {
   start_time_ = tracer_->heap_->MonotonicallyIncreasingTimeInMs();
   // TODO(cbruni): remove once we fully moved to a trace-based system.
-  if (V8_LIKELY(!FLAG_runtime_stats)) return;
+  if (V8_LIKELY(!TracingFlags::is_runtime_stats_enabled())) return;
   runtime_stats_ = tracer_->heap_->isolate()->counters()->runtime_call_stats();
   runtime_stats_->Enter(&timer_, GCTracer::RCSCounterFromScope(scope));
 }
@@ -55,7 +55,7 @@ GCTracer::BackgroundScope::BackgroundScope(GCTracer* tracer, ScopeId scope)
     : tracer_(tracer), scope_(scope), runtime_stats_enabled_(false) {
   start_time_ = tracer_->heap_->MonotonicallyIncreasingTimeInMs();
   // TODO(cbruni): remove once we fully moved to a trace-based system.
-  if (V8_LIKELY(!base::AsAtomic32::Relaxed_Load(&FLAG_runtime_stats))) return;
+  if (V8_LIKELY(!TracingFlags::is_runtime_stats_enabled())) return;
   timer_.Start(&counter_, nullptr);
   runtime_stats_enabled_ = true;
 }
@@ -1083,7 +1083,7 @@ void GCTracer::FetchBackgroundCounters(int first_global_scope,
         background_counter_[first_background_scope + i].total_duration_ms;
     background_counter_[first_background_scope + i].total_duration_ms = 0;
   }
-  if (V8_LIKELY(!FLAG_runtime_stats)) return;
+  if (V8_LIKELY(!TracingFlags::is_runtime_stats_enabled())) return;
   RuntimeCallStats* runtime_stats =
       heap_->isolate()->counters()->runtime_call_stats();
   if (!runtime_stats) return;

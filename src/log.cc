@@ -1590,7 +1590,7 @@ void Logger::RuntimeCallTimerEvent() {
 
 void Logger::TickEvent(v8::TickSample* sample, bool overflow) {
   if (!log_->IsEnabled() || !FLAG_prof_cpp) return;
-  if (V8_UNLIKELY(FLAG_runtime_stats ==
+  if (V8_UNLIKELY(TracingFlags::runtime_stats.load(std::memory_order_relaxed) ==
                   v8::tracing::TracingCategoryObserver::ENABLED_BY_NATIVE)) {
     RuntimeCallTimerEvent();
   }

@@ -57,9 +57,9 @@ static base::TimeTicks RuntimeCallStatsTestNow() {
 class RuntimeCallStatsTest : public TestWithNativeContext {
  public:
   RuntimeCallStatsTest() {
-    base::AsAtomic32::Relaxed_Store(
-        &FLAG_runtime_stats,
-        v8::tracing::TracingCategoryObserver::ENABLED_BY_NATIVE);
+    TracingFlags::runtime_stats.store(
+        v8::tracing::TracingCategoryObserver::ENABLED_BY_NATIVE,
+        std::memory_order_relaxed);
     // We need to set {time_} to a non-zero value since it would otherwise
     // cause runtime call timers to think they are uninitialized.
     Sleep(1);
@@ -70,7 +70,7 @@ class RuntimeCallStatsTest : public TestWithNativeContext {
     // Disable RuntimeCallStats before tearing down the isolate to prevent
     // printing the tests table. Comment the following line for debugging
     // purposes.
-    base::AsAtomic32::Relaxed_Store(&FLAG_runtime_stats, 0);
+    TracingFlags::runtime_stats.store(0, std::memory_order_relaxed);
   }
 
   static void SetUpTestCase() {

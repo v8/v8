@@ -86,16 +86,15 @@ const char* GetModifier(KeyedAccessStoreMode mode) {
 }  // namespace
 
 void IC::TraceIC(const char* type, Handle<Object> name) {
-  if (FLAG_ic_stats) {
-    if (AddressIsDeoptimizedCode()) return;
-    State new_state = nexus()->ic_state();
-    TraceIC(type, name, state(), new_state);
-  }
+  if (V8_LIKELY(!TracingFlags::is_ic_stats_enabled())) return;
+  if (AddressIsDeoptimizedCode()) return;
+  State new_state = nexus()->ic_state();
+  TraceIC(type, name, state(), new_state);
 }
 
 void IC::TraceIC(const char* type, Handle<Object> name, State old_state,
                  State new_state) {
-  if (V8_LIKELY(!FLAG_ic_stats)) return;
+  if (V8_LIKELY(!TracingFlags::is_ic_stats_enabled())) return;
 
   Map map;
   if (!receiver_map().is_null()) {
@@ -113,7 +112,7 @@ void IC::TraceIC(const char* type, Handle<Object> name, State old_state,
 
   bool keyed_prefix = is_keyed() && !IsStoreInArrayLiteralICKind(kind());
 
-  if (!(FLAG_ic_stats &
+  if (!(TracingFlags::ic_stats.load(std::memory_order_relaxed) &
         v8::tracing::TracingCategoryObserver::ENABLED_BY_TRACING)) {
     LOG(isolate(), ICEvent(type, keyed_prefix, map, *name,
                            TransitionMarkFromState(old_state),
@@ -762,7 +761,7 @@ void IC::UpdateMegamorphicCache(Handle<Map> map, Handle<Name> name,
 
 void IC::TraceHandlerCacheHitStats(LookupIterator* lookup) {
   DCHECK_EQ(LookupIterator::ACCESSOR, lookup->state());
-  if (V8_LIKELY(!FLAG_runtime_stats)) return;
+  if (V8_LIKELY(!TracingFlags::is_runtime_stats_enabled())) return;
   if (IsAnyLoad() || IsAnyHas()) {
     TRACE_HANDLER_STATS(isolate(), LoadIC_HandlerCacheHit_Accessor);
   } else {
@@ -2755,7 +2754,7 @@ RUNTIME_FUNCTION(Runtime_StoreCallbackProperty) {
   Handle<Object> value = args.at(4);
   HandleScope scope(isolate);
 
-  if (V8_UNLIKELY(FLAG_runtime_stats)) {
+  if (V8_UNLIKELY(TracingFlags::is_runtime_stats_enabled())) {
     RETURN_RESULT_OR_FAILURE(
         isolate, Runtime::SetObjectProperty(isolate, receiver, name, value,
                                             StoreOrigin::kMaybeKeyed));

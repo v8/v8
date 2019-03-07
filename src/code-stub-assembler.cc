@@ -13255,6 +13255,7 @@ Node* CodeStubAssembler::IsDebugActive() {
 }
 
 TNode<BoolT> CodeStubAssembler::IsRuntimeCallStatsEnabled() {
+  STATIC_ASSERT(sizeof(TracingFlags::runtime_stats) == kInt32Size);
   TNode<Word32T> flag_value = UncheckedCast<Word32T>(Load(
       MachineType::Int32(),
       ExternalConstant(ExternalReference::address_of_runtime_stats_flag())));

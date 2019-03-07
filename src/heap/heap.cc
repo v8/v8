@@ -4579,7 +4579,7 @@ void Heap::SetUp(ReadOnlyHeap* ro_heap) {
   array_buffer_collector_.reset(new ArrayBufferCollector(this));
   gc_idle_time_handler_.reset(new GCIdleTimeHandler());
   memory_reducer_.reset(new MemoryReducer(this));
-  if (V8_UNLIKELY(FLAG_gc_stats)) {
+  if (V8_UNLIKELY(TracingFlags::is_gc_stats_enabled())) {
     live_object_stats_.reset(new ObjectStats(this));
     dead_object_stats_.reset(new ObjectStats(this));
   }
@@ -5661,7 +5661,7 @@ bool Heap::AllowedToBeMigrated(HeapObject obj, AllocationSpace dst) {
 }
 
 void Heap::CreateObjectStats() {
-  if (V8_LIKELY(FLAG_gc_stats == 0)) return;
+  if (V8_LIKELY(!TracingFlags::is_gc_stats_enabled())) return;
   if (!live_object_stats_) {
     live_object_stats_.reset(new ObjectStats(this));
   }

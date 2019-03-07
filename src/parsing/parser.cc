@@ -2416,7 +2416,8 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
         reinterpret_cast<const char*>(function_name->raw_data()),
         function_name->byte_length());
   }
-  if (V8_UNLIKELY(FLAG_runtime_stats) && did_preparse_successfully) {
+  if (V8_UNLIKELY(TracingFlags::is_runtime_stats_enabled()) &&
+      did_preparse_successfully) {
     const RuntimeCallCounterId counters[2] = {
         RuntimeCallCounterId::kPreParseBackgroundWithVariableResolution,
         RuntimeCallCounterId::kPreParseWithVariableResolution};

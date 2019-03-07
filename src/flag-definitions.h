@@ -66,6 +66,9 @@
 #define DEFINE_VALUE_IMPLICATION(whenflag, thenflag, value) \
   if (FLAG_##whenflag) FLAG_##thenflag = value;
 
+#define DEFINE_GENERIC_IMPLICATION(whenflag, statement) \
+  if (FLAG_##whenflag) statement;
+
 #define DEFINE_NEG_VALUE_IMPLICATION(whenflag, thenflag, value) \
   if (!FLAG_##whenflag) FLAG_##thenflag = value;
 
@@ -88,6 +91,10 @@
 
 #ifndef DEFINE_VALUE_IMPLICATION
 #define DEFINE_VALUE_IMPLICATION(whenflag, thenflag, value)
+#endif
+
+#ifndef DEFINE_GENERIC_IMPLICATION
+#define DEFINE_GENERIC_IMPLICATION(whenflag, statement)
 #endif
 
 #ifndef DEFINE_NEG_VALUE_IMPLICATION
@@ -757,8 +764,14 @@ DEFINE_BOOL(concurrent_array_buffer_freeing, true,
             "free array buffer allocations on a background thread")
 DEFINE_INT(gc_stats, 0, "Used by tracing internally to enable gc statistics")
 DEFINE_IMPLICATION(trace_gc_object_stats, track_gc_object_stats)
-DEFINE_VALUE_IMPLICATION(track_gc_object_stats, gc_stats, 1)
-DEFINE_VALUE_IMPLICATION(trace_gc_object_stats, gc_stats, 1)
+DEFINE_GENERIC_IMPLICATION(
+    track_gc_object_stats,
+    TracingFlags::gc_stats.store(
+        v8::tracing::TracingCategoryObserver::ENABLED_BY_NATIVE))
+DEFINE_GENERIC_IMPLICATION(
+    trace_gc_object_stats,
+    TracingFlags::gc_stats.store(
+        v8::tracing::TracingCategoryObserver::ENABLED_BY_NATIVE))
 DEFINE_NEG_IMPLICATION(trace_gc_object_stats, incremental_marking)
 DEFINE_NEG_IMPLICATION(track_retaining_path, incremental_marking)
 DEFINE_NEG_IMPLICATION(track_retaining_path, parallel_marking)
@@ -1004,8 +1017,9 @@ DEFINE_BOOL(use_idle_notification, true,
 DEFINE_BOOL(trace_ic, false,
             "trace inline cache state transitions for tools/ic-processor")
 DEFINE_IMPLICATION(trace_ic, log_code)
-DEFINE_INT(ic_stats, 0, "inline cache state transitions statistics")
-DEFINE_VALUE_IMPLICATION(trace_ic, ic_stats, 1)
+DEFINE_GENERIC_IMPLICATION(
+    trace_ic, TracingFlags::ic_stats.store(
+                  v8::tracing::TracingCategoryObserver::ENABLED_BY_NATIVE))
 DEFINE_BOOL_READONLY(track_constant_fields, true,
                      "enable constant field tracking")
 DEFINE_BOOL_READONLY(modify_map_inplace, true, "enable in-place map updates")
@@ -1094,9 +1108,10 @@ DEFINE_BOOL(
 
 // runtime.cc
 DEFINE_BOOL(runtime_call_stats, false, "report runtime call counts and times")
-DEFINE_INT(runtime_stats, 0,
-           "internal usage only for controlling runtime statistics")
-DEFINE_VALUE_IMPLICATION(runtime_call_stats, runtime_stats, 1)
+DEFINE_GENERIC_IMPLICATION(
+    runtime_call_stats,
+    TracingFlags::runtime_stats.store(
+        v8::tracing::TracingCategoryObserver::ENABLED_BY_NATIVE))
 
 // snapshot-common.cc
 #ifdef V8_EMBEDDED_BUILTINS
@@ -1528,6 +1543,7 @@ DEFINE_BOOL(lite_mode, V8_LITE_BOOL,
 #undef DEFINE_NEG_IMPLICATION
 #undef DEFINE_NEG_VALUE_IMPLICATION
 #undef DEFINE_VALUE_IMPLICATION
+#undef DEFINE_GENERIC_IMPLICATION
 #undef DEFINE_ALIAS_BOOL
 #undef DEFINE_ALIAS_INT
 #undef DEFINE_ALIAS_STRING
