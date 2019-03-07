@@ -519,9 +519,8 @@ namespace array {
   //
   // On entry, must have low <= start <= high, and that [low, start) is
   // already sorted. Pass start == low if you do not know!.
-  builtin BinaryInsertionSort(
-      context: Context, sortState: SortState, low: Smi, startArg: Smi,
-      high: Smi): Smi {
+  macro BinaryInsertionSort(implicit context: Context, sortState: SortState)(
+      low: Smi, startArg: Smi, high: Smi) {
     assert(low <= startArg && startArg <= high);
 
     const workArray = sortState.workArray;
@@ -565,7 +564,6 @@ namespace array {
       }
       workArray.objects[left] = pivot;
     }
-    return kSuccess;
   }
 
   // Return the length of the run beginning at low, in the range [low,
@@ -673,37 +671,32 @@ namespace array {
     }
     sortState.pendingRunsSize = stackSize - 1;
 
-    try {
-      // Where does b start in a? Elements in a before that can be ignored,
-      // because they are already in place.
-      const keyRight = workArray.objects[baseB];
-      const k: Smi = GallopRight(workArray, keyRight, baseA, lengthA, 0);
-      assert(k >= 0);
+    // Where does b start in a? Elements in a before that can be ignored,
+    // because they are already in place.
+    const keyRight = workArray.objects[baseB];
+    const k: Smi = GallopRight(workArray, keyRight, baseA, lengthA, 0);
+    assert(k >= 0);
 
-      baseA = baseA + k;
-      lengthA = lengthA - k;
-      if (lengthA == 0) return kSuccess;
-      assert(lengthA > 0);
+    baseA = baseA + k;
+    lengthA = lengthA - k;
+    if (lengthA == 0) return kSuccess;
+    assert(lengthA > 0);
 
-      // Where does a end in b? Elements in b after that can be ignored,
-      // because they are already in place.
-      const keyLeft = workArray.objects[baseA + lengthA - 1];
-      lengthB = GallopLeft(workArray, keyLeft, baseB, lengthB, lengthB - 1);
-      assert(lengthB >= 0);
-      if (lengthB == 0) return kSuccess;
+    // Where does a end in b? Elements in b after that can be ignored,
+    // because they are already in place.
+    const keyLeft = workArray.objects[baseA + lengthA - 1];
+    lengthB = GallopLeft(workArray, keyLeft, baseB, lengthB, lengthB - 1);
+    assert(lengthB >= 0);
+    if (lengthB == 0) return kSuccess;
 
-      // Merge what remains of the runs, using a temp array with
-      // min(lengthA, lengthB) elements.
-      if (lengthA <= lengthB) {
-        MergeLow(baseA, lengthA, baseB, lengthB) otherwise Bailout;
-      } else {
-        MergeHigh(baseA, lengthA, baseB, lengthB) otherwise Bailout;
-      }
-      return kSuccess;
+    // Merge what remains of the runs, using a temp array with
+    // min(lengthA, lengthB) elements.
+    if (lengthA <= lengthB) {
+      MergeLow(baseA, lengthA, baseB, lengthB);
+    } else {
+      MergeHigh(baseA, lengthA, baseB, lengthB);
     }
-    label Bailout {
-      return Failure(sortState);
-    }
+    return kSuccess;
   }
 
   // Locates the proper position of key in a sorted array; if the array
@@ -907,14 +900,6 @@ namespace array {
     return offset;
   }
 
-  // Copies a single element inside the array/object (NOT the tempArray).
-  macro CopyElement(implicit context: Context, sortState: SortState)(
-      load: LoadFn, store: StoreFn, from: Smi, to: Smi)
-      labels Bailout {
-    const element = CallLoad(load, from) otherwise Bailout;
-    CallStore(store, to, element) otherwise Bailout;
-  }
-
   // Merge the lengthA elements starting at baseA with the lengthB elements
   // starting at baseB in a stable way, in-place. lengthA and lengthB must
   // be > 0, and baseA + lengthA == baseB. Must also have that
@@ -922,8 +907,7 @@ namespace array {
   // that array[baseA + lengthA - 1] belongs at the end of the merge,
   // and should have lengthA <= lengthB.
   transitioning macro MergeLow(implicit context: Context, sortState: SortState)(
-      baseA: Smi, lengthAArg: Smi, baseB: Smi, lengthBArg: Smi)
-      labels Bailout {
+      baseA: Smi, lengthAArg: Smi, baseB: Smi, lengthBArg: Smi) {
     assert(0 < lengthAArg && 0 < lengthBArg);
     assert(0 <= baseA && 0 < baseB);
     assert(baseA + lengthAArg == baseB);
@@ -1054,8 +1038,7 @@ namespace array {
   transitioning macro MergeHigh(
       implicit context: Context,
       sortState:
-          SortState)(baseA: Smi, lengthAArg: Smi, baseB: Smi, lengthBArg: Smi)
-      labels Bailout {
+          SortState)(baseA: Smi, lengthAArg: Smi, baseB: Smi, lengthBArg: Smi) {
     assert(0 < lengthAArg && 0 < lengthBArg);
     assert(0 <= baseA && 0 < baseB);
     assert(baseA + lengthAArg == baseB);
@@ -1233,8 +1216,7 @@ namespace array {
   // TODO(szuend): Remove unnecessary loads. This macro was refactored to
   //               improve readability, introducing unnecessary loads in the
   //               process. Determine if all these extra loads are ok.
-  transitioning macro MergeCollapse(context: Context, sortState: SortState)
-      labels Bailout {
+  transitioning macro MergeCollapse(context: Context, sortState: SortState) {
     const pendingRuns: FixedArray = sortState.pendingRuns;
 
     // Reload the stack size because MergeAt might change it.
@@ -1262,8 +1244,7 @@ namespace array {
   // Regardless of invariants, merge all runs on the stack until only one
   // remains. This is used at the end of the mergesort.
   transitioning macro
-  MergeForceCollapse(context: Context, sortState: SortState)
-      labels Bailout {
+  MergeForceCollapse(context: Context, sortState: SortState) {
     let pendingRuns: FixedArray = sortState.pendingRuns;
 
     // Reload the stack size becuase MergeAt might change it.
@@ -1280,8 +1261,7 @@ namespace array {
   }
 
   transitioning macro
-  ArrayTimSortImpl(context: Context, sortState: SortState, length: Smi)
-      labels Bailout {
+  ArrayTimSortImpl(context: Context, sortState: SortState, length: Smi) {
     if (length < 2) return;
     let remaining: Smi = length;
 
@@ -1295,24 +1275,21 @@ namespace array {
       // If the run is short, extend it to min(minRunLength, remaining).
       if (currentRunLength < minRunLength) {
         const forcedRunLength: Smi = SmiMin(minRunLength, remaining);
-        BinaryInsertionSort(
-            context, sortState, low, low + currentRunLength,
-            low + forcedRunLength);
-        EnsureSuccess(sortState) otherwise Bailout;
+        BinaryInsertionSort(low, low + currentRunLength, low + forcedRunLength);
         currentRunLength = forcedRunLength;
       }
 
       // Push run onto pending-runs stack, and maybe merge.
       PushRun(sortState, low, currentRunLength);
 
-      MergeCollapse(context, sortState) otherwise Bailout;
+      MergeCollapse(context, sortState);
 
       // Advance to find next run.
       low = low + currentRunLength;
       remaining = remaining - currentRunLength;
     }
 
-    MergeForceCollapse(context, sortState) otherwise Bailout;
+    MergeForceCollapse(context, sortState);
     assert(GetPendingRunsSize(sortState) == 1);
     assert(GetPendingRunLength(sortState.pendingRuns, 0) == length);
   }
@@ -1349,7 +1326,7 @@ namespace array {
   ArrayTimSort(context: Context, sortState: SortState, length: Smi): Object {
     try {
       CopyReceiverElementsToWorkArray(length) otherwise Slow;
-      ArrayTimSortImpl(context, sortState, length) otherwise Slow;
+      ArrayTimSortImpl(context, sortState, length);
 
       // The comparison function or toString might have changed the
       // receiver, if that is the case, we switch to the slow path.
