@@ -300,8 +300,8 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(CreateObjectLiteralWithoutAllocationSite) \
   V(CreateRegExpLiteral)                      \
   /* Called from builtins */                  \
-  V(AllocateInNewSpace)                       \
-  V(AllocateInTargetSpace)                    \
+  V(AllocateInYoungGeneration)                \
+  V(AllocateInOldGeneration)                  \
   V(AllocateSeqOneByteString)                 \
   V(AllocateSeqTwoByteString)                 \
   V(ArrayIncludes_Slow)                       \
@@ -770,8 +770,8 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtins::Name id) {
     case Builtins::kRegExpConstructor:
     // Internal.
     case Builtins::kStrictPoisonPillThrower:
-    case Builtins::kAllocateInNewSpace:
-    case Builtins::kAllocateInOldSpace:
+    case Builtins::kAllocateInYoungGeneration:
+    case Builtins::kAllocateInOldGeneration:
       return DebugInfo::kHasNoSideEffect;
 
     // Set builtins.

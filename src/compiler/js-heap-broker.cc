@@ -1657,8 +1657,8 @@ void JSHeapBroker::SerializeShareableObjects() {
   Builtins* const b = isolate()->builtins();
   {
     Builtins::Name builtins[] = {
-        Builtins::kAllocateInNewSpace,
-        Builtins::kAllocateInOldSpace,
+        Builtins::kAllocateInYoungGeneration,
+        Builtins::kAllocateInOldGeneration,
         Builtins::kArgumentsAdaptorTrampoline,
         Builtins::kArrayConstructorImpl,
         Builtins::kCallFunctionForwardVarargs,

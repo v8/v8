@@ -102,8 +102,8 @@ namespace compiler {
   V(FixedArrayMapConstant)                 \
   V(FixedDoubleArrayMapConstant)           \
   V(ToNumberBuiltinConstant)               \
-  V(AllocateInNewSpaceStubConstant)        \
-  V(AllocateInOldSpaceStubConstant)
+  V(AllocateInYoungGenerationStubConstant) \
+  V(AllocateInOldGenerationStubConstant)
 
 class GraphAssembler;
 

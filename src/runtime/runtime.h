@@ -206,8 +206,8 @@ namespace internal {
 
 #define FOR_EACH_INTRINSIC_INTERNAL(F, I)            \
   F(AccessCheck, 1, 1)                               \
-  F(AllocateInNewSpace, 1, 1)                        \
-  F(AllocateInTargetSpace, 2, 1)                     \
+  F(AllocateInYoungGeneration, 1, 1)                 \
+  F(AllocateInOldGeneration, 2, 1)                   \
   F(AllocateSeqOneByteString, 1, 1)                  \
   F(AllocateSeqTwoByteString, 1, 1)                  \
   F(AllowDynamicFunction, 1, 1)                      \
@@ -762,7 +762,6 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, Runtime::FunctionId);
 // Constants used by interface to runtime functions.
 
 class AllocateDoubleAlignFlag : public BitField<bool, 0, 1> {};
-class AllocateTargetSpace : public BitField<AllocationSpace, 1, 3> {};
 
 class DeclareGlobalsEvalFlag : public BitField<bool, 0, 1> {};
 class DeclareGlobalsNativeFlag : public BitField<bool, 1, 1> {};

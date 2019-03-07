@@ -680,21 +680,20 @@ TF_BUILTIN(AdaptorWithBuiltinExitFrame, InternalBuiltinsAssembler) {
   GenerateAdaptorWithExitFrameType<Descriptor>(Builtins::BUILTIN_EXIT);
 }
 
-TF_BUILTIN(AllocateInNewSpace, CodeStubAssembler) {
+TF_BUILTIN(AllocateInYoungGeneration, CodeStubAssembler) {
   TNode<IntPtrT> requested_size =
       UncheckedCast<IntPtrT>(Parameter(Descriptor::kRequestedSize));
 
-  TailCallRuntime(Runtime::kAllocateInNewSpace, NoContextConstant(),
+  TailCallRuntime(Runtime::kAllocateInYoungGeneration, NoContextConstant(),
                   SmiFromIntPtr(requested_size));
 }
 
-TF_BUILTIN(AllocateInOldSpace, CodeStubAssembler) {
+TF_BUILTIN(AllocateInOldGeneration, CodeStubAssembler) {
   TNode<IntPtrT> requested_size =
       UncheckedCast<IntPtrT>(Parameter(Descriptor::kRequestedSize));
 
-  int flags = AllocateTargetSpace::encode(OLD_SPACE);
-  TailCallRuntime(Runtime::kAllocateInTargetSpace, NoContextConstant(),
-                  SmiFromIntPtr(requested_size), SmiConstant(flags));
+  TailCallRuntime(Runtime::kAllocateInOldGeneration, NoContextConstant(),
+                  SmiFromIntPtr(requested_size), SmiConstant(0));
 }
 
 TF_BUILTIN(Abort, CodeStubAssembler) {

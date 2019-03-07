@@ -274,10 +274,11 @@ void MemoryOptimizer::VisitAllocateRaw(Node* node,
 
       __ Bind(&call_runtime);
       {
-        Node* target =
-            pretenure == NOT_TENURED ? __ AllocateInNewSpaceStubConstant()
-                                     : __
-                                       AllocateInOldSpaceStubConstant();
+        Node* target = pretenure == NOT_TENURED
+                           ? __
+                             AllocateInYoungGenerationStubConstant()
+                           : __
+                             AllocateInOldGenerationStubConstant();
         if (!allocate_operator_.is_set()) {
           auto descriptor = AllocateDescriptor{};
           auto call_descriptor = Linkage::GetStubCallDescriptor(
@@ -332,9 +333,9 @@ void MemoryOptimizer::VisitAllocateRaw(Node* node,
 
     __ Bind(&call_runtime);
     Node* target =
-        pretenure == NOT_TENURED ? __ AllocateInNewSpaceStubConstant()
+        pretenure == NOT_TENURED ? __ AllocateInYoungGenerationStubConstant()
                                  : __
-                                   AllocateInOldSpaceStubConstant();
+                                   AllocateInOldGenerationStubConstant();
     if (!allocate_operator_.is_set()) {
       auto descriptor = AllocateDescriptor{};
       auto call_descriptor = Linkage::GetStubCallDescriptor(

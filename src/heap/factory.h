@@ -507,10 +507,10 @@ class V8_EXPORT_PRIVATE Factory {
   Map InitializeMap(Map map, InstanceType type, int instance_size,
                     ElementsKind elements_kind, int inobject_properties);
 
-  // Allocate a block of memory in the given space (filled with a filler).
-  // Used as a fall-back for generated code when the space is full.
+  // Allocate a block of memory of the given AllocationType (filled with a
+  // filler). Used as a fall-back for generated code when the space is full.
   Handle<HeapObject> NewFillerObject(int size, bool double_align,
-                                     AllocationSpace space);
+                                     AllocationType type);
 
   Handle<JSObject> NewFunctionPrototype(Handle<JSFunction> function);
 

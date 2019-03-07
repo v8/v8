@@ -208,15 +208,10 @@ HeapObject Factory::New(Handle<Map> map, PretenureFlag pretenure) {
 }
 
 Handle<HeapObject> Factory::NewFillerObject(int size, bool double_align,
-                                            AllocationSpace space) {
+                                            AllocationType type) {
   AllocationAlignment alignment = double_align ? kDoubleAligned : kWordAligned;
   Heap* heap = isolate()->heap();
-  HeapObject result = heap->AllocateRawWithRetryOrFail(
-      size, Heap::SelectType(space), alignment);
-#ifdef DEBUG
-  MemoryChunk* chunk = MemoryChunk::FromHeapObject(result);
-  DCHECK(chunk->owner()->identity() == space);
-#endif
+  HeapObject result = heap->AllocateRawWithRetryOrFail(size, type, alignment);
   heap->CreateFillerObjectAt(result->address(), size, ClearRecordedSlots::kNo);
   return Handle<HeapObject>(result, isolate());
 }

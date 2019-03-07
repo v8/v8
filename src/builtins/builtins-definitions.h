@@ -172,8 +172,8 @@ namespace internal {
   API(HandleApiCallAsConstructor)                                              \
                                                                                \
   /* Adapters for Turbofan into runtime */                                     \
-  TFC(AllocateInNewSpace, Allocate)                                            \
-  TFC(AllocateInOldSpace, Allocate)                                            \
+  TFC(AllocateInYoungGeneration, Allocate)                                     \
+  TFC(AllocateInOldGeneration, Allocate)                                       \
                                                                                \
   /* TurboFan support builtins */                                              \
   TFS(CopyFastSmiOrObjectElements, kObject)                                    \
