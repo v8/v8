@@ -151,10 +151,24 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
   const bool record_slots_;
 };
 
-static bool IsUnscavengedHeapObject(Heap* heap, FullObjectSlot p) {
-  return Heap::InFromPage(*p) &&
-         !HeapObject::cast(*p)->map_word().IsForwardingAddress();
+namespace {
+
+V8_INLINE bool IsUnscavengedHeapObject(Heap* heap, Object object) {
+  return Heap::InFromPage(object) &&
+         !HeapObject::cast(object)->map_word().IsForwardingAddress();
 }
+
+// Same as IsUnscavengedHeapObject() above but specialized for HeapObjects.
+V8_INLINE bool IsUnscavengedHeapObject(Heap* heap, HeapObject heap_object) {
+  return Heap::InFromPage(heap_object) &&
+         !heap_object->map_word().IsForwardingAddress();
+}
+
+bool IsUnscavengedHeapObjectSlot(Heap* heap, FullObjectSlot p) {
+  return IsUnscavengedHeapObject(heap, *p);
+}
+
+}  // namespace
 
 class ScavengeWeakObjectRetainer : public WeakObjectRetainer {
  public:
@@ -236,7 +250,7 @@ void ScavengerCollector::CollectGarbage() {
       TRACE_GC(heap_->tracer(),
                GCTracer::Scope::SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_PROCESS);
       isolate_->global_handles()->MarkYoungWeakUnmodifiedObjectsPending(
-          &IsUnscavengedHeapObject);
+          &IsUnscavengedHeapObjectSlot);
       isolate_->global_handles()->IterateYoungWeakUnmodifiedRootsForFinalizers(
           &root_scavenge_visitor);
       scavengers[kMainThreadId]->Process();
@@ -245,7 +259,7 @@ void ScavengerCollector::CollectGarbage() {
       DCHECK(promotion_list.IsEmpty());
       isolate_->global_handles()
           ->IterateYoungWeakUnmodifiedRootsForPhantomHandles(
-              &root_scavenge_visitor, &IsUnscavengedHeapObject);
+              &root_scavenge_visitor, &IsUnscavengedHeapObjectSlot);
     }
 
     {
@@ -457,12 +471,11 @@ void ScavengerCollector::ClearYoungEphemerons(
           table->RawFieldOfElementAt(EphemeronHashTable::EntryToIndex(i));
       Object key = *key_slot;
       if (key->IsHeapObject()) {
-        HeapObjectSlot key_slot_heap(key_slot);
-        if (IsUnscavengedHeapObject(heap_, key_slot)) {
+        if (IsUnscavengedHeapObject(heap_, HeapObject::cast(key))) {
           table->RemoveEntry(i);
         } else {
           HeapObject forwarded = ForwardingAddress(HeapObject::cast(key));
-          HeapObjectReference::Update(key_slot_heap, forwarded);
+          HeapObjectReference::Update(HeapObjectSlot(key_slot), forwarded);
         }
       }
     }
