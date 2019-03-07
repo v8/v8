@@ -3623,6 +3623,8 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
       return ReduceStringPrototypeIndexOf(node);
     case Builtins::kStringPrototypeCharAt:
       return ReduceStringPrototypeCharAt(node);
+    case Builtins::kStringPrototypeStartsWith:
+      return ReduceStringPrototypeStartsWith(node);
     case Builtins::kStringPrototypeCharCodeAt:
       return ReduceStringPrototypeStringAt(simplified()->StringCharCodeAt(),
                                            node);
@@ -5158,6 +5160,78 @@ Reduction JSCallReducer::ReduceStringPrototypeStringAt(
 
   ReplaceWithValue(node, value, effect, control);
   return Replace(value);
+}
+
+// ES section 21.1.3.20
+// String.prototype.startsWith ( searchString [ , position ] )
+Reduction JSCallReducer::ReduceStringPrototypeStartsWith(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
+  CallParameters const& p = CallParametersOf(node->op());
+  if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
+    return NoChange();
+  }
+
+  Node* string = NodeProperties::GetValueInput(node, 1);
+  Node* search_string = NodeProperties::GetValueInput(node, 2);
+  Node* position = node->op()->ValueInputCount() >= 4
+                       ? NodeProperties::GetValueInput(node, 3)
+                       : jsgraph()->ZeroConstant();
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+
+  HeapObjectMatcher m(search_string);
+  if (m.HasValue()) {
+    ObjectRef target_ref = m.Ref(broker());
+    if (target_ref.IsString()) {
+      StringRef str = target_ref.AsString();
+      if (str.length() == 1) {
+        // Ensure that the {string} is actually a String.
+        string = effect = graph()->NewNode(
+            simplified()->CheckString(p.feedback()), string, effect, control);
+
+        Node* string_length =
+            graph()->NewNode(simplified()->StringLength(), string);
+        Node* check =
+            graph()->NewNode(simplified()->NumberEqual(), string_length,
+                             jsgraph()->ZeroConstant());
+        Node* branch = graph()->NewNode(common()->Branch(BranchHint::kTrue),
+                                        check, control);
+
+        // Length of {string} is zero.
+        Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+        Node* etrue = effect;
+        Node* vtrue = jsgraph()->FalseConstant();
+
+        // Length of {string} is greater than zero.
+        Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+        Node* efalse = effect;
+        Node* vfalse;
+        {
+          Node* masked_position =
+              graph()->NewNode(simplified()->PoisonIndex(), position);
+          Node* string_first = efalse =
+              graph()->NewNode(simplified()->StringCharCodeAt(), string,
+                               masked_position, efalse, control);
+
+          Node* search_first = jsgraph()->Constant(str.GetFirstChar());
+          vfalse = graph()->NewNode(simplified()->NumberEqual(), string_first,
+                                    search_first);
+        }
+
+        control = graph()->NewNode(common()->Merge(2), if_true, if_false);
+        Node* value =
+            graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                             vtrue, vfalse, control);
+        effect =
+            graph()->NewNode(common()->EffectPhi(2), etrue, efalse, control);
+
+        ReplaceWithValue(node, value, effect, control);
+        return Replace(value);
+      }
+    }
+  }
+
+  return NoChange();
 }
 
 // ES section 21.1.3.1 String.prototype.charAt ( pos )
