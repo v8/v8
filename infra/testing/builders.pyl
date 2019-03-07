@@ -1425,22 +1425,6 @@
       },
       {
         'name': 'numfuzz',
-        'suffix': 'endurance',
-        'test_args': [
-          '--total-timeout-sec=1200',
-          '--combine-tests',
-          '--combine-min=10',
-          '--combine-max=30',
-          '--stress-delay-tasks=1',
-          '--stress-compaction=2',
-          '--stress-gc=6',
-          '--stress-marking=6',
-          '--stress-scavenge=4',
-          '--stress-thread-pool-size=1',
-        ],
-      },
-      {
-        'name': 'numfuzz',
         'suffix': 'delay',
         'test_args': ['--total-timeout-sec=2100', '--stress-delay-tasks=1']
       },
@@ -1484,23 +1468,6 @@
         'suffix': 'marking',
         'test_args': ['--total-timeout-sec=2100', '--stress-marking=1'],
         'shards': 2
-      },
-      {
-        'name': 'numfuzz',
-        'suffix': 'endurance',
-        'test_args': [
-          '--total-timeout-sec=1200',
-          '--combine-tests',
-          '--combine-min=30',
-          '--combine-max=50',
-          '--stress-delay-tasks=1',
-          '--stress-deopt=2',
-          '--stress-compaction=2',
-          '--stress-gc=6',
-          '--stress-marking=6',
-          '--stress-scavenge=4',
-          '--stress-thread-pool-size=1',
-        ],
       },
       {
         'name': 'numfuzz',
