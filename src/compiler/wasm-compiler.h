@@ -270,6 +270,11 @@ class WasmGraphBuilder {
   Node* CallIndirect(uint32_t index, Node** args, Node*** rets,
                      wasm::WasmCodePosition position);
 
+  Node* ReturnCall(uint32_t index, Node** args,
+                   wasm::WasmCodePosition position);
+  Node* ReturnCallIndirect(uint32_t index, Node** args,
+                           wasm::WasmCodePosition position);
+
   Node* Invert(Node* node);
 
   Node* GetGlobal(uint32_t index);
@@ -465,15 +470,28 @@ class WasmGraphBuilder {
   Node* MaskShiftCount32(Node* node);
   Node* MaskShiftCount64(Node* node);
 
+  enum IsReturnCall : bool { kReturnCall = true, kCallContinues = false };
+
   template <typename... Args>
   Node* BuildCCall(MachineSignature* sig, Node* function, Args... args);
+  Node* BuildCallNode(wasm::FunctionSig* sig, Node** args,
+                      wasm::WasmCodePosition position, Node* instance_node,
+                      const Operator* op);
+  Node* BuildIndirectCall(uint32_t sig_index, Node** args, Node*** rets,
+                          wasm::WasmCodePosition position,
+                          IsReturnCall continuation);
   Node* BuildWasmCall(wasm::FunctionSig* sig, Node** args, Node*** rets,
                       wasm::WasmCodePosition position, Node* instance_node,
                       UseRetpoline use_retpoline);
+  Node* BuildWasmReturnCall(wasm::FunctionSig* sig, Node** args,
+                            wasm::WasmCodePosition position,
+                            Node* instance_node, UseRetpoline use_retpoline);
   Node* BuildImportCall(wasm::FunctionSig* sig, Node** args, Node*** rets,
-                        wasm::WasmCodePosition position, int func_index);
+                        wasm::WasmCodePosition position, int func_index,
+                        IsReturnCall continuation);
   Node* BuildImportCall(wasm::FunctionSig* sig, Node** args, Node*** rets,
-                        wasm::WasmCodePosition position, Node* func_index);
+                        wasm::WasmCodePosition position, Node* func_index,
+                        IsReturnCall continuation);
 
   Node* BuildF32CopySign(Node* left, Node* right);
   Node* BuildF64CopySign(Node* left, Node* right);

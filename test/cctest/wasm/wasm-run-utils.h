@@ -407,6 +407,7 @@ class WasmRunnerBase : public HandleAndZoneScope {
   WasmFunctionWrapper wrapper_;
   bool compiled_ = false;
   bool possible_nondeterminism_ = false;
+  int32_t main_fn_index_ = 0;
 
  public:
   // This field has to be static. Otherwise, gcc complains about the use in
@@ -425,9 +426,13 @@ class WasmRunner : public WasmRunnerBase {
              LowerSimd lower_simd = kNoLowerSimd)
       : WasmRunnerBase(maybe_import, execution_tier, sizeof...(ParamTypes),
                        runtime_exception_support, lower_simd) {
-    NewFunction<ReturnType, ParamTypes...>(main_fn_name);
+    WasmFunctionCompiler& main_fn =
+        NewFunction<ReturnType, ParamTypes...>(main_fn_name);
+    // Non-zero if there is an import.
+    main_fn_index_ = main_fn.function_index();
+
     if (!interpret()) {
-      wrapper_.Init<ReturnType, ParamTypes...>(functions_[0]->descriptor());
+      wrapper_.Init<ReturnType, ParamTypes...>(main_fn.descriptor());
     }
   }
 
@@ -448,7 +453,7 @@ class WasmRunner : public WasmRunnerBase {
     };
     set_trap_callback_for_testing(trap_callback);
 
-    wrapper_.SetInnerCode(builder_.GetFunctionCode(0));
+    wrapper_.SetInnerCode(builder_.GetFunctionCode(main_fn_index_));
     wrapper_.SetInstance(builder_.instance_object());
     builder_.SetExecutable();
     Handle<Code> wrapper_code = wrapper_.GetWrapperCode();
@@ -520,9 +525,8 @@ class WasmRunner : public WasmRunnerBase {
 
   void CheckCallViaJS(double expected, ParamTypes... p) {
     Isolate* isolate = builder_.isolate();
-    uint32_t function_index = function()->func_index;
     Handle<Object> buffer[] = {isolate->factory()->NewNumber(p)...};
-    CheckCallViaJS(expected, function_index, buffer, sizeof...(p));
+    CheckCallViaJS(expected, function()->func_index, buffer, sizeof...(p));
   }
 
   Handle<Code> GetWrapperCode() { return wrapper_.GetWrapperCode(); }

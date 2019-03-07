@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "src/api-inl.h"
 #include "src/assembler-inl.h"
 #include "src/base/overflowing-math.h"
 #include "src/base/platform/elapsed-timer.h"
@@ -2323,6 +2324,257 @@ WASM_EXEC_TEST(Call_Float64Sub) {
         CHECK_EQ(expected, r.builder().ReadMemory(&memory[0]));
       }
     }
+  }
+}
+
+template <typename T>
+static T factorial(T v) {
+  T expected = 1;
+  for (T i = v; i > 1; i--) {
+    expected *= i;
+  }
+  return expected;
+}
+
+template <typename T>
+static T sum_1_to_n(T v) {
+  return v * (v + 1) / 2;
+}
+
+// We use unsigned arithmetic because of ubsan validation.
+WASM_EXEC_TEST(Regular_Factorial) {
+  WasmRunner<uint32_t, uint32_t> r(execution_tier);
+
+  WasmFunctionCompiler& fact_aux_fn =
+      r.NewFunction<uint32_t, uint32_t, uint32_t>("fact_aux");
+  BUILD(r, WASM_CALL_FUNCTION(fact_aux_fn.function_index(), WASM_GET_LOCAL(0),
+                              WASM_I32V(1)));
+
+  BUILD(fact_aux_fn,
+        WASM_IF_ELSE_I(
+            WASM_I32_LES(WASM_GET_LOCAL(0), WASM_I32V(1)), WASM_GET_LOCAL(1),
+            WASM_CALL_FUNCTION(
+                fact_aux_fn.function_index(),
+                WASM_I32_SUB(WASM_GET_LOCAL(0), WASM_I32V(1)),
+                WASM_I32_MUL(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)))));
+
+  uint32_t test_values[] = {1, 2, 5, 10, 20};
+
+  for (uint32_t v : test_values) {
+    CHECK_EQ(factorial(v), r.Call(v));
+  }
+}
+
+// Tail-recursive variation on factorial:
+// fact(N) => f(N,1).
+//
+// f(N,X) where N=<1 => X
+// f(N,X) => f(N-1,X*N).
+
+WASM_EXEC_TEST(ReturnCall_Factorial) {
+  EXPERIMENTAL_FLAG_SCOPE(return_call);
+  // Run in bounded amount of stack - 8kb.
+  FlagScope<int32_t> stack_size(&v8::internal::FLAG_stack_size, 8);
+
+  WasmRunner<uint32_t, uint32_t> r(execution_tier);
+
+  WasmFunctionCompiler& fact_aux_fn =
+      r.NewFunction<uint32_t, uint32_t, uint32_t>("fact_aux");
+  BUILD(r, WASM_RETURN_CALL_FUNCTION(fact_aux_fn.function_index(),
+                                     WASM_GET_LOCAL(0), WASM_I32V(1)));
+
+  BUILD(fact_aux_fn,
+        WASM_IF_ELSE_I(
+            WASM_I32_LES(WASM_GET_LOCAL(0), WASM_I32V(1)), WASM_GET_LOCAL(1),
+            WASM_RETURN_CALL_FUNCTION(
+                fact_aux_fn.function_index(),
+                WASM_I32_SUB(WASM_GET_LOCAL(0), WASM_I32V(1)),
+                WASM_I32_MUL(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)))));
+
+  uint32_t test_values[] = {1, 2, 5, 10, 20, 2000};
+
+  for (uint32_t v : test_values) {
+    CHECK_EQ(factorial<uint32_t>(v), r.Call(v));
+  }
+}
+
+// Mutually recursive factorial mixing it up
+// f(0,X)=>X
+// f(N,X) => g(X*N,N-1)
+// g(X,0) => X.
+// g(X,N) => f(N-1,X*N).
+
+WASM_EXEC_TEST(ReturnCall_MutualFactorial) {
+  EXPERIMENTAL_FLAG_SCOPE(return_call);
+  // Run in bounded amount of stack - 8kb.
+  FlagScope<int32_t> stack_size(&v8::internal::FLAG_stack_size, 8);
+
+  WasmRunner<uint32_t, uint32_t> r(execution_tier);
+
+  WasmFunctionCompiler& f_fn = r.NewFunction<uint32_t, uint32_t, uint32_t>("f");
+  WasmFunctionCompiler& g_fn = r.NewFunction<uint32_t, uint32_t, uint32_t>("g");
+
+  BUILD(r, WASM_RETURN_CALL_FUNCTION(f_fn.function_index(), WASM_GET_LOCAL(0),
+                                     WASM_I32V(1)));
+
+  BUILD(f_fn,
+        WASM_IF_ELSE_I(WASM_I32_LES(WASM_GET_LOCAL(0), WASM_I32V(1)),
+                       WASM_GET_LOCAL(1),
+                       WASM_RETURN_CALL_FUNCTION(
+                           g_fn.function_index(),
+                           WASM_I32_MUL(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)),
+                           WASM_I32_SUB(WASM_GET_LOCAL(0), WASM_I32V(1)))));
+
+  BUILD(g_fn,
+        WASM_IF_ELSE_I(
+            WASM_I32_LES(WASM_GET_LOCAL(1), WASM_I32V(1)), WASM_GET_LOCAL(0),
+            WASM_RETURN_CALL_FUNCTION(
+                f_fn.function_index(),
+                WASM_I32_SUB(WASM_GET_LOCAL(1), WASM_I32V(1)),
+                WASM_I32_MUL(WASM_GET_LOCAL(1), WASM_GET_LOCAL(0)))));
+
+  uint32_t test_values[] = {1, 2, 5, 10, 20, 2000};
+
+  for (uint32_t v : test_values) {
+    CHECK_EQ(factorial(v), r.Call(v));
+  }
+}
+
+// Indirect variant of factorial. Pass the function ID as an argument:
+// fact(N) => f(N,1,f).
+//
+// f(N,X,_) where N=<1 => X
+// f(N,X,F) => F(N-1,X*N,F).
+
+WASM_EXEC_TEST(ReturnCall_IndirectFactorial) {
+  EXPERIMENTAL_FLAG_SCOPE(return_call);
+  // Run in bounded amount of stack - 8kb.
+  FlagScope<int32_t> stack_size(&v8::internal::FLAG_stack_size, 8);
+
+  WasmRunner<uint32_t, uint32_t> r(execution_tier);
+
+  TestSignatures sigs;
+
+  WasmFunctionCompiler& f_ind_fn = r.NewFunction(sigs.i_iii(), "f_ind");
+  uint32_t sig_index = r.builder().AddSignature(sigs.i_iii());
+  f_ind_fn.SetSigIndex(sig_index);
+
+  // Function table.
+  uint16_t indirect_function_table[] = {
+      static_cast<uint16_t>(f_ind_fn.function_index())};
+  const int f_ind_index = 0;
+
+  r.builder().AddIndirectFunctionTable(indirect_function_table,
+                                       arraysize(indirect_function_table));
+  r.builder().PopulateIndirectFunctionTable();
+
+  BUILD(r,
+        WASM_RETURN_CALL_FUNCTION(f_ind_fn.function_index(), WASM_GET_LOCAL(0),
+                                  WASM_I32V(1), WASM_I32V(f_ind_index)));
+
+  BUILD(f_ind_fn,
+        WASM_IF_ELSE_I(WASM_I32_LES(WASM_GET_LOCAL(0), WASM_I32V(1)),
+                       WASM_GET_LOCAL(1),
+                       WASM_RETURN_CALL_INDIRECT(
+                           sig_index, WASM_GET_LOCAL(2),
+                           WASM_I32_SUB(WASM_GET_LOCAL(0), WASM_I32V(1)),
+                           WASM_I32_MUL(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)),
+                           WASM_GET_LOCAL(2))));
+
+  uint32_t test_values[] = {1, 2, 5, 10, 10000};
+
+  for (uint32_t v : test_values) {
+    CHECK_EQ(factorial(v), r.Call(v));
+  }
+}
+
+// This is 'more stable' (does not degenerate so quickly) than factorial
+// sum(N,k) where N<1 =>k.
+// sum(N,k) => sum(N-1,k+N).
+
+WASM_EXEC_TEST(ReturnCall_Sum) {
+  EXPERIMENTAL_FLAG_SCOPE(return_call);
+  // Run in bounded amount of stack - 8kb.
+  FlagScope<int32_t> stack_size(&v8::internal::FLAG_stack_size, 8);
+
+  WasmRunner<int32_t, int32_t> r(execution_tier);
+  TestSignatures sigs;
+
+  WasmFunctionCompiler& sum_aux_fn = r.NewFunction(sigs.i_ii(), "sum_aux");
+  BUILD(r, WASM_RETURN_CALL_FUNCTION(sum_aux_fn.function_index(),
+                                     WASM_GET_LOCAL(0), WASM_I32V(0)));
+
+  BUILD(sum_aux_fn,
+        WASM_IF_ELSE_I(
+            WASM_I32_LTS(WASM_GET_LOCAL(0), WASM_I32V(1)), WASM_GET_LOCAL(1),
+            WASM_RETURN_CALL_FUNCTION(
+                sum_aux_fn.function_index(),
+                WASM_I32_SUB(WASM_GET_LOCAL(0), WASM_I32V(1)),
+                WASM_I32_ADD(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)))));
+
+  int32_t test_values[] = {1, 2, 5, 10, 1000};
+
+  for (int32_t v : test_values) {
+    CHECK_EQ(sum_1_to_n(v), r.Call(v));
+  }
+}
+
+// 'Bouncing' mutual recursive sum with different #s of arguments
+// b1(N,k) where N<1 =>k.
+// b1(N,k) => b2(N-1,N,k+N).
+
+// b2(N,_,k) where N<1 =>k.
+// b2(N,l,k) => b3(N-1,N,l,k+N).
+
+// b3(N,_,_,k) where N<1 =>k.
+// b3(N,_,_,k) => b1(N-1,k+N).
+
+WASM_EXEC_TEST(ReturnCall_Bounce_Sum) {
+  EXPERIMENTAL_FLAG_SCOPE(return_call);
+  // Run in bounded amount of stack - 8kb.
+  FlagScope<int32_t> stack_size(&v8::internal::FLAG_stack_size, 8);
+
+  WasmRunner<int32_t, int32_t> r(execution_tier);
+  TestSignatures sigs;
+
+  WasmFunctionCompiler& b1_fn = r.NewFunction(sigs.i_ii(), "b1");
+  WasmFunctionCompiler& b2_fn = r.NewFunction(sigs.i_iii(), "b2");
+  WasmFunctionCompiler& b3_fn =
+      r.NewFunction<int32_t, int32_t, int32_t, int32_t, int32_t>("b3");
+
+  BUILD(r, WASM_RETURN_CALL_FUNCTION(b1_fn.function_index(), WASM_GET_LOCAL(0),
+                                     WASM_I32V(0)));
+
+  BUILD(
+      b1_fn,
+      WASM_IF_ELSE_I(
+          WASM_I32_LTS(WASM_GET_LOCAL(0), WASM_I32V(1)), WASM_GET_LOCAL(1),
+          WASM_RETURN_CALL_FUNCTION(
+              b2_fn.function_index(),
+              WASM_I32_SUB(WASM_GET_LOCAL(0), WASM_I32V(1)), WASM_GET_LOCAL(0),
+              WASM_I32_ADD(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)))));
+
+  BUILD(b2_fn,
+        WASM_IF_ELSE_I(
+            WASM_I32_LTS(WASM_GET_LOCAL(0), WASM_I32V(1)), WASM_GET_LOCAL(2),
+            WASM_RETURN_CALL_FUNCTION(
+                b3_fn.function_index(),
+                WASM_I32_SUB(WASM_GET_LOCAL(0), WASM_I32V(1)),
+                WASM_GET_LOCAL(0), WASM_GET_LOCAL(1),
+                WASM_I32_ADD(WASM_GET_LOCAL(0), WASM_GET_LOCAL(2)))));
+
+  BUILD(b3_fn,
+        WASM_IF_ELSE_I(
+            WASM_I32_LTS(WASM_GET_LOCAL(0), WASM_I32V(1)), WASM_GET_LOCAL(3),
+            WASM_RETURN_CALL_FUNCTION(
+                b1_fn.function_index(),
+                WASM_I32_SUB(WASM_GET_LOCAL(0), WASM_I32V(1)),
+                WASM_I32_ADD(WASM_GET_LOCAL(0), WASM_GET_LOCAL(3)))));
+
+  int32_t test_values[] = {1, 2, 5, 10, 1000};
+
+  for (int32_t v : test_values) {
+    CHECK_EQ(sum_1_to_n(v), r.Call(v));
   }
 }
 

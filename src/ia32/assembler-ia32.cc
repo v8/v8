@@ -1683,7 +1683,7 @@ void Assembler::jmp(Address entry, RelocInfo::Mode rmode) {
   EnsureSpace ensure_space(this);
   DCHECK(!RelocInfo::IsCodeTarget(rmode));
   EMIT(0xE9);
-  if (RelocInfo::IsRuntimeEntry(rmode)) {
+  if (RelocInfo::IsRuntimeEntry(rmode) || RelocInfo::IsWasmCall(rmode)) {
     emit(entry, rmode);
   } else {
     emit(entry - (reinterpret_cast<Address>(pc_) + sizeof(int32_t)), rmode);

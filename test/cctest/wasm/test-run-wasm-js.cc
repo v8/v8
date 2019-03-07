@@ -512,6 +512,64 @@ WASM_EXEC_TEST(Run_JSSelectAlign_10) {
   RunJSSelectAlignTest(execution_tier, 10, 10);
 }
 
+// Set up a test with an import, so we can return call it.
+// Create a javascript function that returns left or right arguments
+// depending on the value of the third argument
+// function (a,b,c){ if(c)return a; return b; }
+
+void RunPickerTest(ExecutionTier tier, bool indirect) {
+  EXPERIMENTAL_FLAG_SCOPE(return_call);
+  Isolate* isolate = CcTest::InitIsolateOnce();
+  HandleScope scope(isolate);
+  TestSignatures sigs;
+
+  const char* source = "(function(a,b,c) { if(c)return a; return b; })";
+  Handle<JSFunction> js_function =
+      Handle<JSFunction>::cast(v8::Utils::OpenHandle(
+          *v8::Local<v8::Function>::Cast(CompileRun(source))));
+
+  ManuallyImportedJSFunction import = {sigs.i_iii(), js_function};
+
+  WasmRunner<int32_t, int32_t> r(tier, &import);
+
+  const uint32_t js_index = 0;
+  const int32_t left = -2;
+  const int32_t right = 3;
+
+  WasmFunctionCompiler& rc_fn = r.NewFunction(sigs.i_i(), "rc");
+
+  if (indirect) {
+    r.builder().AddSignature(sigs.i_iii());
+    uint16_t indirect_function_table[] = {static_cast<uint16_t>(js_index)};
+
+    r.builder().AddIndirectFunctionTable(indirect_function_table,
+                                         arraysize(indirect_function_table));
+    r.builder().PopulateIndirectFunctionTable();
+
+    BUILD(rc_fn,
+          WASM_RETURN_CALL_INDIRECT(0, WASM_I32V(js_index), WASM_I32V(left),
+                                    WASM_I32V(right), WASM_GET_LOCAL(0)));
+  } else {
+    BUILD(rc_fn,
+          WASM_RETURN_CALL_FUNCTION(js_index, WASM_I32V(left), WASM_I32V(right),
+                                    WASM_GET_LOCAL(0)));
+  }
+
+  Handle<Object> args_left[] = {isolate->factory()->NewNumber(1)};
+  r.CheckCallViaJS(left, rc_fn.function_index(), args_left, 1);
+
+  Handle<Object> args_right[] = {isolate->factory()->NewNumber(0)};
+  r.CheckCallViaJS(right, rc_fn.function_index(), args_right, 1);
+}
+
+WASM_EXEC_TEST(Run_ReturnCallImportedFunction) {
+  RunPickerTest(execution_tier, false);
+}
+
+WASM_EXEC_TEST(Run_ReturnCallIndirectImportedFunction) {
+  RunPickerTest(execution_tier, true);
+}
+
 #undef ADD_CODE
 
 }  // namespace wasm

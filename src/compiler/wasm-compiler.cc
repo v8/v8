@@ -2599,11 +2599,9 @@ Node* WasmGraphBuilder::BuildCCall(MachineSignature* sig, Node* function,
   return SetEffect(graph()->NewNode(op, arraysize(call_args), call_args));
 }
 
-Node* WasmGraphBuilder::BuildWasmCall(wasm::FunctionSig* sig, Node** args,
-                                      Node*** rets,
+Node* WasmGraphBuilder::BuildCallNode(wasm::FunctionSig* sig, Node** args,
                                       wasm::WasmCodePosition position,
-                                      Node* instance_node,
-                                      UseRetpoline use_retpoline) {
+                                      Node* instance_node, const Operator* op) {
   if (instance_node == nullptr) {
     DCHECK_NOT_NULL(instance_node_);
     instance_node = instance_node_.get();
@@ -2624,12 +2622,22 @@ Node* WasmGraphBuilder::BuildWasmCall(wasm::FunctionSig* sig, Node** args,
   args[params + 2] = Effect();
   args[params + 3] = Control();
 
-  auto call_descriptor =
-      GetWasmCallDescriptor(mcgraph()->zone(), sig, use_retpoline);
-  const Operator* op = mcgraph()->common()->Call(call_descriptor);
   Node* call = SetEffect(graph()->NewNode(op, static_cast<int>(count), args));
   DCHECK(position == wasm::kNoCodePosition || position > 0);
   if (position > 0) SetSourcePosition(call, position);
+
+  return call;
+}
+
+Node* WasmGraphBuilder::BuildWasmCall(wasm::FunctionSig* sig, Node** args,
+                                      Node*** rets,
+                                      wasm::WasmCodePosition position,
+                                      Node* instance_node,
+                                      UseRetpoline use_retpoline) {
+  auto call_descriptor =
+      GetWasmCallDescriptor(mcgraph()->zone(), sig, use_retpoline);
+  const Operator* op = mcgraph()->common()->Call(call_descriptor);
+  Node* call = BuildCallNode(sig, args, position, instance_node, op);
 
   size_t ret_count = sig->return_count();
   if (ret_count == 0) return call;  // No return value.
@@ -2648,10 +2656,25 @@ Node* WasmGraphBuilder::BuildWasmCall(wasm::FunctionSig* sig, Node** args,
   return call;
 }
 
+Node* WasmGraphBuilder::BuildWasmReturnCall(wasm::FunctionSig* sig, Node** args,
+                                            wasm::WasmCodePosition position,
+                                            Node* instance_node,
+                                            UseRetpoline use_retpoline) {
+  auto call_descriptor =
+      GetWasmCallDescriptor(mcgraph()->zone(), sig, use_retpoline);
+  const Operator* op = mcgraph()->common()->TailCall(call_descriptor);
+  Node* call = BuildCallNode(sig, args, position, instance_node, op);
+
+  MergeControlToEnd(mcgraph(), call);
+
+  return call;
+}
+
 Node* WasmGraphBuilder::BuildImportCall(wasm::FunctionSig* sig, Node** args,
                                         Node*** rets,
                                         wasm::WasmCodePosition position,
-                                        int func_index) {
+                                        int func_index,
+                                        IsReturnCall continuation) {
   // Load the imported function refs array from the instance.
   Node* imported_function_refs =
       LOAD_INSTANCE_FIELD(ImportedFunctionRefs, MachineType::TaggedPointer());
@@ -2666,14 +2689,23 @@ Node* WasmGraphBuilder::BuildImportCall(wasm::FunctionSig* sig, Node** args,
       mcgraph()->Int32Constant(func_index * kSystemPointerSize), Effect(),
       Control()));
   args[0] = target_node;
-  return BuildWasmCall(sig, args, rets, position, ref_node,
-                       untrusted_code_mitigations_ ? kRetpoline : kNoRetpoline);
+  const UseRetpoline use_retpoline =
+      untrusted_code_mitigations_ ? kRetpoline : kNoRetpoline;
+
+  switch (continuation) {
+    case kCallContinues:
+      return BuildWasmCall(sig, args, rets, position, ref_node, use_retpoline);
+    case kReturnCall:
+      DCHECK_NULL(rets);
+      return BuildWasmReturnCall(sig, args, position, ref_node, use_retpoline);
+  }
 }
 
 Node* WasmGraphBuilder::BuildImportCall(wasm::FunctionSig* sig, Node** args,
                                         Node*** rets,
                                         wasm::WasmCodePosition position,
-                                        Node* func_index) {
+                                        Node* func_index,
+                                        IsReturnCall continuation) {
   // Load the imported function refs array from the instance.
   Node* imported_function_refs =
       LOAD_INSTANCE_FIELD(ImportedFunctionRefs, MachineType::TaggedPointer());
@@ -2708,8 +2740,16 @@ Node* WasmGraphBuilder::BuildImportCall(wasm::FunctionSig* sig, Node** args,
       mcgraph()->machine()->Load(MachineType::Pointer()), imported_targets,
       func_index_times_pointersize, Effect(), Control()));
   args[0] = target_node;
-  return BuildWasmCall(sig, args, rets, position, ref_node,
-                       untrusted_code_mitigations_ ? kRetpoline : kNoRetpoline);
+  const UseRetpoline use_retpoline =
+      untrusted_code_mitigations_ ? kRetpoline : kNoRetpoline;
+
+  switch (continuation) {
+    case kCallContinues:
+      return BuildWasmCall(sig, args, rets, position, ref_node, use_retpoline);
+    case kReturnCall:
+      DCHECK_NULL(rets);
+      return BuildWasmReturnCall(sig, args, position, ref_node, use_retpoline);
+  }
 }
 
 Node* WasmGraphBuilder::CallDirect(uint32_t index, Node** args, Node*** rets,
@@ -2719,7 +2759,7 @@ Node* WasmGraphBuilder::CallDirect(uint32_t index, Node** args, Node*** rets,
 
   if (env_ && index < env_->module->num_imported_functions) {
     // Call to an imported function.
-    return BuildImportCall(sig, args, rets, position, index);
+    return BuildImportCall(sig, args, rets, position, index, kCallContinues);
   }
 
   // A direct call to a wasm function defined in this module.
@@ -2733,6 +2773,13 @@ Node* WasmGraphBuilder::CallDirect(uint32_t index, Node** args, Node*** rets,
 Node* WasmGraphBuilder::CallIndirect(uint32_t sig_index, Node** args,
                                      Node*** rets,
                                      wasm::WasmCodePosition position) {
+  return BuildIndirectCall(sig_index, args, rets, position, kCallContinues);
+}
+
+Node* WasmGraphBuilder::BuildIndirectCall(uint32_t sig_index, Node** args,
+                                          Node*** rets,
+                                          wasm::WasmCodePosition position,
+                                          IsReturnCall continuation) {
   DCHECK_NOT_NULL(args[0]);
   DCHECK_NOT_NULL(env_);
 
@@ -2812,8 +2859,41 @@ Node* WasmGraphBuilder::CallIndirect(uint32_t sig_index, Node** args,
                        intptr_scaled_key, Effect(), Control()));
 
   args[0] = target;
-  return BuildWasmCall(sig, args, rets, position, target_instance,
-                       untrusted_code_mitigations_ ? kRetpoline : kNoRetpoline);
+  const UseRetpoline use_retpoline =
+      untrusted_code_mitigations_ ? kRetpoline : kNoRetpoline;
+
+  switch (continuation) {
+    case kCallContinues:
+      return BuildWasmCall(sig, args, rets, position, target_instance,
+                           use_retpoline);
+    case kReturnCall:
+      return BuildWasmReturnCall(sig, args, position, target_instance,
+                                 use_retpoline);
+  }
+}
+
+Node* WasmGraphBuilder::ReturnCall(uint32_t index, Node** args,
+                                   wasm::WasmCodePosition position) {
+  DCHECK_NULL(args[0]);
+  wasm::FunctionSig* sig = env_->module->functions[index].sig;
+
+  if (env_ && index < env_->module->num_imported_functions) {
+    // Return Call to an imported function.
+    return BuildImportCall(sig, args, nullptr, position, index, kReturnCall);
+  }
+
+  // A direct tail call to a wasm function defined in this module.
+  // Just encode the function index. This will be patched during code
+  // generation.
+  Address code = static_cast<Address>(index);
+  args[0] = mcgraph()->RelocatableIntPtrConstant(code, RelocInfo::WASM_CALL);
+
+  return BuildWasmReturnCall(sig, args, position, nullptr, kNoRetpoline);
+}
+
+Node* WasmGraphBuilder::ReturnCallIndirect(uint32_t sig_index, Node** args,
+                                           wasm::WasmCodePosition position) {
+  return BuildIndirectCall(sig_index, args, nullptr, position, kReturnCall);
 }
 
 Node* WasmGraphBuilder::BuildI32Rol(Node* left, Node* right) {
@@ -5118,7 +5198,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       // Load function index from {WasmExportedFunctionData}.
       Node* function_index =
           BuildLoadFunctionIndexFromExportedFunctionData(function_data);
-      BuildImportCall(sig_, args, &rets, wasm::kNoCodePosition, function_index);
+      BuildImportCall(sig_, args, &rets, wasm::kNoCodePosition, function_index,
+                      kCallContinues);
     } else {
       // Call to a wasm function defined in this module.
       // The call target is the jump table slot for that function.

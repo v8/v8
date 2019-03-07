@@ -408,7 +408,7 @@ class WasmGraphBuildingInterface {
   void ReturnCall(FullDecoder* decoder,
                   const CallFunctionImmediate<validate>& imm,
                   const Value args[]) {
-    UNIMPLEMENTED();
+    DoReturnCall(decoder, nullptr, imm.sig, imm.index, args);
   }
 
   void CallIndirect(FullDecoder* decoder, const Value& index,
@@ -420,7 +420,7 @@ class WasmGraphBuildingInterface {
   void ReturnCallIndirect(FullDecoder* decoder, const Value& index,
                           const CallIndirectImmediate<validate>& imm,
                           const Value args[]) {
-    UNIMPLEMENTED();
+    DoReturnCall(decoder, index.node, imm.sig, imm.sig_index, args);
   }
 
   void SimdOp(FullDecoder* decoder, WasmOpcode opcode, Vector<Value> args,
@@ -871,6 +871,21 @@ class WasmGraphBuildingInterface {
     // The invoked function could have used grow_memory, so we need to
     // reload mem_size and mem_start.
     LoadContextIntoSsa(ssa_env_);
+  }
+
+  void DoReturnCall(FullDecoder* decoder, TFNode* index_node, FunctionSig* sig,
+                    uint32_t index, const Value args[]) {
+    int param_count = static_cast<int>(sig->parameter_count());
+    TFNode** arg_nodes = builder_->Buffer(param_count + 1);
+    arg_nodes[0] = index_node;
+    for (int i = 0; i < param_count; ++i) {
+      arg_nodes[i + 1] = args[i].node;
+    }
+    if (index_node) {
+      BUILD(ReturnCallIndirect, index, arg_nodes, decoder->position());
+    } else {
+      BUILD(ReturnCall, index, arg_nodes, decoder->position());
+    }
   }
 };
 
