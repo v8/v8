@@ -131,10 +131,8 @@ ACCESSORS(SharedFunctionInfo, script_or_debug_info, Object,
 UINT16_ACCESSORS(SharedFunctionInfo, length, kLengthOffset)
 UINT16_ACCESSORS(SharedFunctionInfo, internal_formal_parameter_count,
                  kFormalParameterCountOffset)
-UINT8_ACCESSORS(SharedFunctionInfo, expected_nof_properties,
-                kExpectedNofPropertiesOffset)
-UINT8_ACCESSORS(SharedFunctionInfo, raw_builtin_function_id,
-                kBuiltinFunctionIdOffset)
+UINT16_ACCESSORS(SharedFunctionInfo, expected_nof_properties,
+                 kExpectedNofPropertiesOffset)
 UINT16_ACCESSORS(SharedFunctionInfo, raw_function_token_offset,
                  kFunctionTokenOffsetOffset)
 RELAXED_INT32_ACCESSORS(SharedFunctionInfo, flags, kFlagsOffset)
@@ -706,18 +704,6 @@ void SharedFunctionInfo::SetDebugInfo(DebugInfo debug_info) {
   DCHECK(!HasDebugInfo());
   DCHECK_EQ(debug_info->script(), script_or_debug_info());
   set_script_or_debug_info(debug_info);
-}
-
-bool SharedFunctionInfo::HasBuiltinFunctionId() {
-  return builtin_function_id() != BuiltinFunctionId::kInvalidBuiltinFunctionId;
-}
-
-BuiltinFunctionId SharedFunctionInfo::builtin_function_id() {
-  return static_cast<BuiltinFunctionId>(raw_builtin_function_id());
-}
-
-void SharedFunctionInfo::set_builtin_function_id(BuiltinFunctionId id) {
-  set_raw_builtin_function_id(static_cast<uint8_t>(id));
 }
 
 bool SharedFunctionInfo::HasInferredName() {

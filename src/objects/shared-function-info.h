@@ -8,7 +8,6 @@
 #include "src/bailout-reason.h"
 #include "src/function-kind.h"
 #include "src/objects.h"
-#include "src/objects/builtin-function-id.h"
 #include "src/objects/compressed-slots.h"
 #include "src/objects/script.h"
 #include "src/objects/slots.h"
@@ -324,7 +323,7 @@ class SharedFunctionInfo : public HeapObject {
 
   // [expected_nof_properties]: Expected number of properties for the
   // function. The value is only reliable when the function has been compiled.
-  DECL_UINT8_ACCESSORS(expected_nof_properties)
+  DECL_UINT16_ACCESSORS(expected_nof_properties)
 
   // [function data]: This field holds some additional data for function.
   // Currently it has one of:
@@ -357,11 +356,7 @@ class SharedFunctionInfo : public HeapObject {
   inline AsmWasmData asm_wasm_data() const;
   inline void set_asm_wasm_data(AsmWasmData data);
 
-  // A brief note to clear up possible confusion:
-  // builtin_id corresponds to the auto-generated
-  // Builtins::Name id, while builtin_function_id corresponds to
-  // BuiltinFunctionId (a manually maintained list of 'interesting' functions
-  // mainly used during optimization).
+  // builtin_id corresponds to the auto-generated Builtins::Name id.
   inline bool HasBuiltinId() const;
   inline int builtin_id() const;
   inline void set_builtin_id(int builtin_id);
@@ -380,18 +375,6 @@ class SharedFunctionInfo : public HeapObject {
   // Clear out pre-parsed scope data from UncompiledDataWithPreparseData,
   // turning it into UncompiledDataWithoutPreparseData.
   inline void ClearPreparseData();
-
-  // [raw_builtin_function_id]: The id of the built-in function this function
-  // represents, used during optimization to improve code generation.
-  // TODO(leszeks): Once there are no more JS builtins, this can be replaced
-  // by BuiltinId.
-  DECL_UINT8_ACCESSORS(raw_builtin_function_id)
-  inline bool HasBuiltinFunctionId();
-  inline BuiltinFunctionId builtin_function_id();
-  inline void set_builtin_function_id(BuiltinFunctionId id);
-  // Make sure BuiltinFunctionIds fit in a uint8_t
-  STATIC_ASSERT((std::is_same<std::underlying_type<BuiltinFunctionId>::type,
-                              uint8_t>::value));
 
   // The inferred_name is inferred from variable or property assignment of this
   // function. It is used to facilitate debugging and profiling of JavaScript
