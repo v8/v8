@@ -53,19 +53,8 @@ class PrototypeInfo : public Struct {
   DECL_PRINTER(PrototypeInfo)
   DECL_VERIFIER(PrototypeInfo)
 
-// Layout description.
-#define PROTOTYPE_INFO_FIELDS(V)           \
-  V(kJSModuleNamespaceOffset, kTaggedSize) \
-  V(kPrototypeUsersOffset, kTaggedSize)    \
-  V(kRegistrySlotOffset, kTaggedSize)      \
-  V(kValidityCellOffset, kTaggedSize)      \
-  V(kObjectCreateMapOffset, kTaggedSize)   \
-  V(kBitFieldOffset, kTaggedSize)          \
-  /* Total size. */                        \
-  V(kSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, PROTOTYPE_INFO_FIELDS)
-#undef PROTOTYPE_INFO_FIELDS
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
+                                TORQUE_GENERATED_PROTOTYPE_INFO_FIELDS)
 
   // Bit field usage.
   static const int kShouldBeFastBit = 0;

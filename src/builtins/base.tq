@@ -138,7 +138,13 @@ extern class JSGlobalProxy extends JSObject { native_context: Object; }
 
 extern class JSValue extends JSObject { value: Object; }
 
-extern class JSArgumentsObjectWithLength extends JSObject { length: Object; }
+extern class JSArgumentsObject extends JSObject {}
+extern class JSArgumentsObjectWithLength extends JSArgumentsObject {
+  length: Object;
+}
+extern class JSSloppyArgumentsObject extends JSArgumentsObjectWithLength {
+  callee: Object;
+}
 
 extern class JSArray extends JSObject {
   IsEmpty(): bool {
@@ -172,7 +178,43 @@ transient type FastJSArrayForCopy extends FastJSArray;
 transient type FastJSArrayWithNoCustomIteration extends FastJSArray;
 
 type NoSharedNameSentinel extends Smi;
-type Script extends HeapObject;
+
+type JSModuleNamespace extends JSObject;
+type WeakArrayList extends HeapObject;
+
+extern class JSWeakCollection extends JSObject { table: Object; }
+
+extern class JSCollectionIterator extends JSObject {
+  table: Object;
+  index: Object;
+}
+
+extern class PrototypeInfo extends Struct {
+  js_module_namespace: JSModuleNamespace | Undefined;
+  prototype_users: WeakArrayList | Zero;
+  registry_slot: Smi;
+  validity_cell: Object;
+  object_create_map: Smi | WeakArrayList;
+  bit_field: Smi;
+}
+
+extern class Script extends Struct {
+  source: Object;
+  name: Object;
+  line_offset: Smi;
+  column_offset: Smi;
+  context: Object;
+  script_type: Smi;
+  line_ends: Object;
+  id: Smi;
+  eval_from_shared_or_wrapped_arguments: Object;
+  eval_from_position: Smi;
+  shared_function_infos: Object;
+  flags: Smi;
+  source_url: Object;
+  source_mapping_url: Object;
+  host_defined_options: Object;
+}
 type DebugInfo extends HeapObject;
 
 type ScopeInfo extends Object generates 'TNode<ScopeInfo>';

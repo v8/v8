@@ -2040,6 +2040,12 @@ void Script::ScriptVerify(Isolate* isolate) {
           (maybe_object->GetHeapObjectIfStrong(&heap_object) &&
            heap_object->IsUndefined(isolate)));
   }
+  VerifySmiField(kIdOffset);
+  VerifySmiField(kLineOffsetOffset);
+  VerifySmiField(kColumnOffsetOffset);
+  VerifySmiField(kScriptTypeOffset);
+  VerifySmiField(kEvalFromPositionOffset);
+  VerifySmiField(kFlagsOffset);
 }
 
 void NormalizedMapCache::NormalizedMapCacheVerify(Isolate* isolate) {

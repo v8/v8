@@ -189,28 +189,8 @@ class Script : public Struct {
   DECL_PRINTER(Script)
   DECL_VERIFIER(Script)
 
-// Layout description.
-#define SCRIPTS_FIELDS(V)                                 \
-  V(kSourceOffset, kTaggedSize)                           \
-  V(kNameOffset, kTaggedSize)                             \
-  V(kLineOffsetOffset, kTaggedSize)                       \
-  V(kColumnOffsetOffset, kTaggedSize)                     \
-  V(kContextOffset, kTaggedSize)                          \
-  V(kTypeOffset, kTaggedSize)                             \
-  V(kLineEndsOffset, kTaggedSize)                         \
-  V(kIdOffset, kTaggedSize)                               \
-  V(kEvalFromSharedOrWrappedArgumentsOffset, kTaggedSize) \
-  V(kEvalFromPositionOffset, kTaggedSize)                 \
-  V(kSharedFunctionInfosOffset, kTaggedSize)              \
-  V(kFlagsOffset, kTaggedSize)                            \
-  V(kSourceUrlOffset, kTaggedSize)                        \
-  V(kSourceMappingUrlOffset, kTaggedSize)                 \
-  V(kHostDefinedOptionsOffset, kTaggedSize)               \
-  /* Total size. */                                       \
-  V(kSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, SCRIPTS_FIELDS)
-#undef SCRIPTS_FIELDS
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
+                                TORQUE_GENERATED_SCRIPT_FIELDS)
 
  private:
   // Bit positions in the flags field.

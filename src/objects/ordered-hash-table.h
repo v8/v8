@@ -811,16 +811,8 @@ class JSCollectionIterator : public JSObject {
 
   void JSCollectionIteratorPrint(std::ostream& os, const char* name);
 
-// Layout description.
-#define JS_COLLECTION_ITERATOR_FIELDS(V) \
-  V(kTableOffset, kTaggedSize)           \
-  V(kIndexOffset, kTaggedSize)           \
-  /* Header size. */                     \
-  V(kSize, 0)
-
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
-                                JS_COLLECTION_ITERATOR_FIELDS)
-#undef JS_COLLECTION_ITERATOR_FIELDS
+                                TORQUE_GENERATED_JSCOLLECTION_ITERATOR_FIELDS)
 
   OBJECT_CONSTRUCTORS(JSCollectionIterator, JSObject);
 };
