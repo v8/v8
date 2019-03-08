@@ -511,6 +511,10 @@ class Binary {
     return this.buffer = this.buffer.slice(0, this.length);
   }
 
+  reset() {
+    this.length = 0;
+  }
+
   emit_u8(val) {
     this.ensure_space(1);
     this.buffer[this.length++] = val;
@@ -1154,7 +1158,9 @@ class WasmModuleBuilder {
       if (debug) print("emitting code @ " + binary.length);
       binary.emit_section(kCodeSectionCode, section => {
         section.emit_u32v(wasm.functions.length);
+        let header = new Binary;
         for (let func of wasm.functions) {
+          header.reset();
           // Function body length will be patched later.
           let local_decls = [];
           for (let l of func.locals || []) {
@@ -1184,7 +1190,6 @@ class WasmModuleBuilder {
             }
           }
 
-          let header = new Binary;
           header.emit_u32v(local_decls.length);
           for (let decl of local_decls) {
             header.emit_u32v(decl.count);
