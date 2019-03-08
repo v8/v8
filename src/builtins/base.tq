@@ -536,7 +536,10 @@ const kFixedTypedArrayBaseHeaderSize: constexpr intptr
     generates 'FixedTypedArrayBase::kHeaderSize';
 const kObjectAlignmentMask: constexpr intptr
     generates 'kObjectAlignmentMask';
-
+const kMinAddedElementsCapacity:
+    constexpr int31 generates 'JSObject::kMinAddedElementsCapacity';
+const kMaxCopyElements:
+    constexpr int31 generates 'JSArray::kMaxCopyElements';
 const kMaxRegularHeapObjectSize: constexpr int31
     generates 'kMaxRegularHeapObjectSize';
 
@@ -1654,6 +1657,11 @@ extern builtin ExtractFastJSArray(Context, JSArray, Smi, Smi): JSArray;
 
 extern macro MoveElements(
     constexpr ElementsKind, FixedArrayBase, intptr, intptr, intptr): void;
+macro TorqueMoveElementsSmi(
+    elements: FixedArray, dstIndex: intptr, srcIndex: intptr,
+    count: intptr): void {
+  MoveElements(HOLEY_SMI_ELEMENTS, elements, dstIndex, srcIndex, count);
+}
 macro TorqueMoveElements(
     elements: FixedArray, dstIndex: intptr, srcIndex: intptr,
     count: intptr): void {
@@ -1753,9 +1761,15 @@ struct FastJSArrayWitness {
     }
   }
 
-  EnsureArrayPushable() labels Failed {
+  EnsureArrayPushable(implicit context: Context)() labels Failed {
     EnsureArrayPushable(this.map) otherwise Failed;
+    array::EnsureWriteableFastElements(this.unstable);
     this.arrayIsPushable = true;
+  }
+
+  ChangeLength(newLength: Smi) {
+    assert(this.arrayIsPushable);
+    this.unstable.length = newLength;
   }
 
   Push(value: Object) labels Failed {
@@ -1772,6 +1786,24 @@ struct FastJSArrayWitness {
           this.map.elements_kind == PACKED_ELEMENTS);
       BuildAppendJSArray(HOLEY_ELEMENTS, this.unstable, value)
           otherwise Failed;
+    }
+  }
+
+  MoveElements(dst: intptr, src: intptr, length: intptr) {
+    assert(this.arrayIsPushable);
+    if (this.hasDoubles) {
+      let elements: FixedDoubleArray =
+          Cast<FixedDoubleArray>(this.unstable.elements)
+          otherwise unreachable;
+      TorqueMoveElements(elements, dst, src, length);
+    } else {
+      let elements: FixedArray = Cast<FixedArray>(this.unstable.elements)
+          otherwise unreachable;
+      if (this.hasSmis) {
+        TorqueMoveElementsSmi(elements, dst, src, length);
+      } else {
+        TorqueMoveElements(elements, dst, src, length);
+      }
     }
   }
 
