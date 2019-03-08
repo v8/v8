@@ -1484,6 +1484,9 @@ Reduction JSNativeContextSpecialization::ReduceElementAccessOnString(
   // Strings are immutable in JavaScript.
   if (access_mode == AccessMode::kStore) return NoChange();
 
+  // `in` cannot be used on strings.
+  if (access_mode == AccessMode::kHas) return NoChange();
+
   // Ensure that the {receiver} is actually a String.
   receiver = effect = graph()->NewNode(
       simplified()->CheckString(VectorSlotPair()), receiver, effect, control);
@@ -1744,7 +1747,8 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
 Reduction JSNativeContextSpecialization::ReduceKeyedLoadFromHeapConstant(
     Node* node, Node* index, FeedbackNexus const& nexus, AccessMode access_mode,
     KeyedAccessLoadMode load_mode) {
-  DCHECK_EQ(node->opcode(), IrOpcode::kJSLoadProperty);
+  DCHECK(node->opcode() == IrOpcode::kJSLoadProperty ||
+         node->opcode() == IrOpcode::kJSHasProperty);
   Node* receiver = NodeProperties::GetValueInput(node, 0);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
@@ -1754,7 +1758,7 @@ Reduction JSNativeContextSpecialization::ReduceKeyedLoadFromHeapConstant(
   if (receiver_ref.map().oddball_type() == OddballType::kHole ||
       receiver_ref.map().oddball_type() == OddballType::kNull ||
       receiver_ref.map().oddball_type() == OddballType::kUndefined ||
-      (receiver_ref.map().IsString() && access_mode == AccessMode::kHas)) {
+      (receiver_ref.IsString() && access_mode == AccessMode::kHas)) {
     return NoChange();
   }
 
@@ -1846,7 +1850,7 @@ Reduction JSNativeContextSpecialization::ReduceKeyedAccess(
   Node* receiver = NodeProperties::GetValueInput(node, 0);
   Node* effect = NodeProperties::GetEffectInput(node);
 
-  if (access_mode == AccessMode::kLoad &&
+  if ((access_mode == AccessMode::kLoad || access_mode == AccessMode::kHas) &&
       receiver->opcode() == IrOpcode::kHeapConstant) {
     Reduction reduction = ReduceKeyedLoadFromHeapConstant(
         node, index, nexus, access_mode, load_mode);

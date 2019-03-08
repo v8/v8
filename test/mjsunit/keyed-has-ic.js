@@ -271,6 +271,7 @@ for (test in tests) {
 
   proto();
   proto();
+  %OptimizeFunctionOnNextCall(proto);
   proto();
 })();
 
@@ -280,6 +281,9 @@ for (test in tests) {
     0 in "string"
   };
 
+  assertThrows(test, TypeError);
+  assertThrows(test, TypeError);
+  %OptimizeFunctionOnNextCall(test);
   assertThrows(test, TypeError);
 })();
 
@@ -291,6 +295,7 @@ for (test in tests) {
 
   test.call("");
   test.call("");
+  %OptimizeFunctionOnNextCall(test);
   test.call("");
 })();
 
@@ -310,6 +315,10 @@ for (test in tests) {
   assertFalse(test(0));
   assertFalse(test(0,1));
   assertTrue(test(0,1,2));
+
+  %OptimizeFunctionOnNextCall(test);
+  assertFalse(test(0,1));
+  assertTrue(test(0,1,2));
 })();
 
 (function() {
@@ -320,6 +329,7 @@ for (test in tests) {
 
   assertFalse(test(1));
   assertFalse(test(1));
+  %OptimizeFunctionOnNextCall(test);
   assertFalse(test(1));
 })();
 
@@ -347,6 +357,8 @@ for (test in tests) {
 
   assertFalse(test(str, 0));
   assertFalse(test(str, 0));
+  %OptimizeFunctionOnNextCall(test);
+  assertFalse(test(str, 0));
 })();
 
 (function() {
@@ -362,6 +374,7 @@ for (test in tests) {
   var str = "string";
   assertFalse(test(str, "length"));
   assertFalse(test(str, "length"));
+  %OptimizeFunctionOnNextCall(test);
   assertFalse(test(str, "length"));
 })();
 
@@ -378,6 +391,7 @@ for (test in tests) {
   var str = "string";
   assertFalse(test(str, 0));
   assertFalse(test(str, 0));
+  %OptimizeFunctionOnNextCall(test);
   assertFalse(test(str, 0));
 })();
 
@@ -398,5 +412,26 @@ for (test in tests) {
   var str = "string";
   assertFalse(test(str, 0));
   assertFalse(test(str, 0));
+  %OptimizeFunctionOnNextCall(test);
   assertFalse(test(str, 0));
 })();
+
+const heap_constant_ary = [0,1,2,3];
+
+(function() {
+
+  function test() {
+    return 1 in heap_constant_ary;
+  }
+
+  assertTrue(test());
+  assertTrue(test());
+  %OptimizeFunctionOnNextCall(test);
+  assertTrue(test());
+
+  heap_constant_ary[1] = 2;
+  assertTrue(test());
+  %OptimizeFunctionOnNextCall(test);
+  assertTrue(test());
+
+})()
