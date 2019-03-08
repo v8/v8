@@ -486,14 +486,14 @@ int RegExpImpl::IrregexpExecRaw(Isolate* isolate, Handle<JSRegExp> regexp,
     Handle<ByteArray> byte_codes(IrregexpByteCode(*irregexp, is_one_byte),
                                  isolate);
 
-    IrregexpResult result = IrregexpInterpreter::Match(
+    IrregexpInterpreter::Result result = IrregexpInterpreter::Match(
         isolate, byte_codes, subject, raw_output, index);
-    if (result == RE_SUCCESS) {
+    if (result == IrregexpInterpreter::SUCCESS) {
       // Copy capture results to the start of the registers array.
       MemCopy(output, raw_output,
               number_of_capture_registers * sizeof(int32_t));
     }
-    if (result == RE_EXCEPTION) {
+    if (result == IrregexpInterpreter::EXCEPTION) {
       DCHECK(!isolate->has_pending_exception());
       isolate->StackOverflow();
     }
