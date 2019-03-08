@@ -65,6 +65,10 @@ V8_EXPORT_PRIVATE const ParseResultTypeId ParseResultHolder<Identifier*>::id =
     ParseResultTypeId::kIdentifierPtr;
 template <>
 V8_EXPORT_PRIVATE const ParseResultTypeId
+    ParseResultHolder<base::Optional<Identifier*>>::id =
+        ParseResultTypeId::kOptionalIdentifierPtr;
+template <>
+V8_EXPORT_PRIVATE const ParseResultTypeId
     ParseResultHolder<LocationExpression*>::id =
         ParseResultTypeId::kLocationExpressionPtr;
 template <>
@@ -521,13 +525,13 @@ base::Optional<ParseResult> MakeTypeDeclaration(
   if (!IsValidTypeName(name->value)) {
     NamingConventionError("Type", name->value, "UpperCamelCase");
   }
-  auto extends = child_results->NextAs<base::Optional<std::string>>();
+  auto extends = child_results->NextAs<base::Optional<Identifier*>>();
   auto generates = child_results->NextAs<base::Optional<std::string>>();
   auto constexpr_generates =
       child_results->NextAs<base::Optional<std::string>>();
-  Declaration* result = MakeNode<TypeDeclaration>(
-      name, transient, std::move(extends), std::move(generates),
-      std::move(constexpr_generates));
+  Declaration* result =
+      MakeNode<TypeDeclaration>(name, transient, extends, std::move(generates),
+                                std::move(constexpr_generates));
   return ParseResult{result};
 }
 
@@ -1604,7 +1608,7 @@ struct TorqueGrammar : Grammar {
             List<StructFieldExpression>(&structField), Token("}")},
            MakeStructDeclaration),
       Rule({CheckIf(Token("transient")), Token("type"), &name,
-            Optional<std::string>(Sequence({Token("extends"), &identifier})),
+            Optional<Identifier*>(Sequence({Token("extends"), &name})),
             Optional<std::string>(
                 Sequence({Token("generates"), &externalString})),
             Optional<std::string>(

@@ -52,6 +52,23 @@ TEST(LanguageServer, GotoTypeDefinition) {
   EXPECT_EQ(*maybe_position, (SourcePosition{id, {3, 5}, {3, 7}}));
 }
 
+TEST(LanguageServer, GotoTypeDefinitionExtends) {
+  const std::string source =
+      "type void;\n"
+      "type never;\n"
+      "type T1 generates 'TNode<T1>';\n"
+      "type T2 extends T1 generates 'TNode<T2>';";
+
+  TestCompiler compiler;
+  compiler.Compile(source);
+
+  // Find the definition for 'T1' of the extends clause on line 3.
+  const SourceId id = SourceFileMap::GetSourceId("<torque>");
+  auto maybe_position = LanguageServerData::FindDefinition(id, {3, 16});
+  ASSERT_TRUE(maybe_position.has_value());
+  EXPECT_EQ(*maybe_position, (SourcePosition{id, {2, 5}, {2, 7}}));
+}
+
 }  // namespace torque
 }  // namespace internal
 }  // namespace v8

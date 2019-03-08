@@ -348,9 +348,12 @@ void DeclarationVisitor::Visit(TypeDeclaration* decl) {
         MakeNode<Identifier>(CONSTEXPR_TYPE_PREFIX + decl->name->value);
     constexpr_name->pos = decl->name->pos;
 
-    base::Optional<std::string> constexpr_extends;
-    if (decl->extends)
-      constexpr_extends = CONSTEXPR_TYPE_PREFIX + *decl->extends;
+    base::Optional<Identifier*> constexpr_extends;
+    if (decl->extends) {
+      constexpr_extends =
+          MakeNode<Identifier>(CONSTEXPR_TYPE_PREFIX + (*decl->extends)->value);
+      (*constexpr_extends)->pos = (*decl->extends)->pos;
+    }
     Declarations::DeclareAbstractType(constexpr_name, false,
                                       *decl->constexpr_generates, type,
                                       constexpr_extends);

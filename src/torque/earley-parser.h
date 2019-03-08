@@ -45,6 +45,7 @@ enum class ParseResultHolderBase::TypeId {
   kStdVectorOfString,
   kExpressionPtr,
   kIdentifierPtr,
+  kOptionalIdentifierPtr,
   kLocationExpressionPtr,
   kStatementPtr,
   kDeclarationPtr,

@@ -77,7 +77,7 @@ class Declarations {
   static const AbstractType* DeclareAbstractType(
       const Identifier* name, bool transient, std::string generated,
       base::Optional<const AbstractType*> non_constexpr_version,
-      const base::Optional<std::string>& parent = {});
+      const base::Optional<Identifier*>& parent = {});
 
   static void DeclareType(const Identifier* name, const Type* type,
                           bool redeclaration);
