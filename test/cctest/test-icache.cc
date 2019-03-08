@@ -52,7 +52,6 @@ static void FloodWithInc(Isolate* isolate, TestingAssemblerBuffer* buffer) {
     __ Addu(v0, v0, Operand(1));
   }
 #elif V8_TARGET_ARCH_PPC
-  __ function_descriptor();
   for (int i = 0; i < kNumInstr; ++i) {
     __ addi(r3, r3, Operand(1));
   }
@@ -78,8 +77,6 @@ static void FloodWithNop(Isolate* isolate, TestingAssemblerBuffer* buffer) {
   __ mov(v0, a0);
 #elif V8_TARGET_ARCH_MIPS64
   __ mov(v0, a0);
-#elif V8_TARGET_ARCH_PPC
-  __ function_descriptor();
 #endif
   for (int i = 0; i < kNumInstr; ++i) {
     __ nop();
