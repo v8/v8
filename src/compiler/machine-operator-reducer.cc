@@ -173,8 +173,8 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       Int32BinopMatcher m(node);
       if (m.right().Is(0)) return Replace(m.left().node());  // x ror 0 => x
       if (m.IsFoldable()) {                                  // K ror K => K
-        return ReplaceInt32(
-            base::bits::RotateRight32(m.left().Value(), m.right().Value()));
+        return ReplaceInt32(base::bits::RotateRight32(m.left().Value(),
+                                                      m.right().Value() & 31));
       }
       break;
     }
