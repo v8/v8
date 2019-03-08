@@ -3,10 +3,10 @@
 // found in the LICENSE file.
 
 // Used for encoding f32 and double constants to bits.
-let __buffer = new ArrayBuffer(8);
-let byte_view = new Uint8Array(__buffer);
-let f32_view = new Float32Array(__buffer);
-let f64_view = new Float64Array(__buffer);
+let f32_view = new Float32Array(1);
+let f32_bytes_view = new Uint8Array(f32_view.buffer);
+let f64_view = new Float64Array(1);
+let f64_bytes_view = new Uint8Array(f64_view.buffer);
 
 // The bytes function receives one of
 //  - several arguments, each of which is either a number or a string of length
@@ -1047,22 +1047,12 @@ class WasmModuleBuilder {
             case kWasmF32:
               section.emit_u8(kExprF32Const);
               f32_view[0] = global.init;
-              section.emit_u8(byte_view[0]);
-              section.emit_u8(byte_view[1]);
-              section.emit_u8(byte_view[2]);
-              section.emit_u8(byte_view[3]);
+              section.emit_bytes(f32_bytes_view);
               break;
             case kWasmF64:
               section.emit_u8(kExprF64Const);
               f64_view[0] = global.init;
-              section.emit_u8(byte_view[0]);
-              section.emit_u8(byte_view[1]);
-              section.emit_u8(byte_view[2]);
-              section.emit_u8(byte_view[3]);
-              section.emit_u8(byte_view[4]);
-              section.emit_u8(byte_view[5]);
-              section.emit_u8(byte_view[6]);
-              section.emit_u8(byte_view[7]);
+              section.emit_bytes(f64_bytes_view);
               break;
             case kWasmAnyRef:
               section.emit_u8(kExprRefNull);
@@ -1337,11 +1327,17 @@ function wasmI32Const(val) {
 
 function wasmF32Const(f) {
   f32_view[0] = f;
-  return [kExprF32Const, byte_view[0], byte_view[1], byte_view[2], byte_view[3]];
+  return [
+    kExprF32Const, f32_bytes_view[0], f32_bytes_view[1], f32_bytes_view[2],
+    f32_bytes_view[3]
+  ];
 }
 
 function wasmF64Const(f) {
   f64_view[0] = f;
-  return [kExprF64Const, byte_view[0], byte_view[1], byte_view[2], byte_view[3],
-          byte_view[4], byte_view[5], byte_view[6], byte_view[7]];
+  return [
+    kExprF64Const, f64_bytes_view[0], f64_bytes_view[1], f64_bytes_view[2],
+    f64_bytes_view[3], f64_bytes_view[4], f64_bytes_view[5], f64_bytes_view[6],
+    f64_bytes_view[7]
+  ];
 }
