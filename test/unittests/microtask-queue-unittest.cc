@@ -32,16 +32,32 @@ void RunStdFunction(void* data) {
 template <typename TMixin>
 class WithFinalizationGroupMixin : public TMixin {
  public:
-  WithFinalizationGroupMixin() {
+  WithFinalizationGroupMixin() = default;
+  ~WithFinalizationGroupMixin() override = default;
+
+  static void SetUpTestCase() {
+    CHECK_NULL(save_flags_);
+    save_flags_ = new SaveFlags();
     FLAG_harmony_weak_refs = true;
     FLAG_expose_gc = true;
+    TMixin::SetUpTestCase();
+  }
+
+  static void TearDownTestCase() {
+    TMixin::TearDownTestCase();
+    CHECK_NOT_NULL(save_flags_);
+    delete save_flags_;
+    save_flags_ = nullptr;
   }
 
  private:
-  SaveFlags save_flags_;
+  static SaveFlags* save_flags_;
 
   DISALLOW_COPY_AND_ASSIGN(WithFinalizationGroupMixin);
 };
+
+template <typename TMixin>
+SaveFlags* WithFinalizationGroupMixin<TMixin>::save_flags_ = nullptr;
 
 using TestWithNativeContextAndFinalizationGroup =  //
     WithInternalIsolateMixin<                      //
