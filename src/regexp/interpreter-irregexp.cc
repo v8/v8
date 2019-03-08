@@ -173,6 +173,7 @@ static IrregexpInterpreter::Result RawMatch(Isolate* isolate,
         UNREACHABLE();
       BYTECODE(PUSH_CP)
         if (--backtrack_stack_space < 0) {
+          isolate->StackOverflow();
           return IrregexpInterpreter::EXCEPTION;
         }
         *backtrack_sp++ = current;
@@ -180,6 +181,7 @@ static IrregexpInterpreter::Result RawMatch(Isolate* isolate,
         break;
       BYTECODE(PUSH_BT)
         if (--backtrack_stack_space < 0) {
+          isolate->StackOverflow();
           return IrregexpInterpreter::EXCEPTION;
         }
         *backtrack_sp++ = Load32Aligned(pc + 4);
@@ -187,6 +189,7 @@ static IrregexpInterpreter::Result RawMatch(Isolate* isolate,
         break;
       BYTECODE(PUSH_REGISTER)
         if (--backtrack_stack_space < 0) {
+          isolate->StackOverflow();
           return IrregexpInterpreter::EXCEPTION;
         }
         *backtrack_sp++ = registers[insn >> BYTECODE_SHIFT];
