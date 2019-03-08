@@ -1120,12 +1120,6 @@ namespace internal {
   CPP(TypedArrayPrototypeCopyWithin)                                           \
   /* ES6 #sec-%typedarray%.prototype.fill */                                   \
   CPP(TypedArrayPrototypeFill)                                                 \
-  /* ES6 %TypedArray%.prototype.find */                                        \
-  TFJ(TypedArrayPrototypeFind,                                                 \
-      SharedFunctionInfo::kDontAdaptArgumentsSentinel)                         \
-  /* ES6 %TypedArray%.prototype.findIndex */                                   \
-  TFJ(TypedArrayPrototypeFindIndex,                                            \
-      SharedFunctionInfo::kDontAdaptArgumentsSentinel)                         \
   /* ES7 #sec-%typedarray%.prototype.includes */                               \
   CPP(TypedArrayPrototypeIncludes)                                             \
   /* ES6 #sec-%typedarray%.prototype.indexof */                                \
@@ -1138,12 +1132,6 @@ namespace internal {
   TFJ(TypedArrayPrototypeSet, SharedFunctionInfo::kDontAdaptArgumentsSentinel) \
   /* ES6 #sec-get-%typedarray%.prototype-@@tostringtag */                      \
   TFJ(TypedArrayPrototypeToStringTag, 0, kReceiver)                            \
-  /* ES6 %TypedArray%.prototype.every */                                       \
-  TFJ(TypedArrayPrototypeEvery,                                                \
-      SharedFunctionInfo::kDontAdaptArgumentsSentinel)                         \
-  /* ES6 %TypedArray%.prototype.some */                                        \
-  TFJ(TypedArrayPrototypeSome,                                                 \
-      SharedFunctionInfo::kDontAdaptArgumentsSentinel)                         \
   /* ES6 %TypedArray%.prototype.map */                                         \
   TFJ(TypedArrayPrototypeMap, SharedFunctionInfo::kDontAdaptArgumentsSentinel) \
   /* ES6 %TypedArray%.of */                                                    \
