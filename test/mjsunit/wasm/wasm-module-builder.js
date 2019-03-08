@@ -48,12 +48,8 @@ var kWasmV3 = 0;
 var kHeaderSize = 8;
 var kPageSize = 65536;
 var kSpecMaxPages = 65535;
-
-function bytesWithHeader(...input) {
-  const header =
-      [kWasmH0, kWasmH1, kWasmH2, kWasmH3, kWasmV0, kWasmV1, kWasmV2, kWasmV3];
-  return bytes(header + input);
-}
+var kMaxVarInt32Size = 5;
+var kMaxVarInt64Size = 10;
 
 let kDeclNoLocals = 0;
 
@@ -534,30 +530,26 @@ class Binary {
     this.buffer[this.length++] = val >> 24;
   }
 
-  emit_u32v(val) {
-    this.ensure_space(5);
-    while (true) {
+  emit_leb(val, max_len) {
+    this.ensure_space(max_len);
+    for (let i = 0; i < max_len; ++i) {
       let v = val & 0xff;
       val = val >>> 7;
       if (val == 0) {
         this.buffer[this.length++] = v;
-        break;
+        return;
       }
       this.buffer[this.length++] = v | 0x80;
     }
+    throw new Error("Leb value exceeds maximum length of " + max_len);
+  }
+
+  emit_u32v(val) {
+    this.emit_leb(val, kMaxVarInt32Size);
   }
 
   emit_u64v(val) {
-    this.ensure_space(10);
-    while (true) {
-      let v = val & 0xff;
-      val = val >>> 7;
-      if (val == 0) {
-        this.buffer[this.length++] = v;
-        break;
-      }
-      this.buffer[this.length++] = v | 0x80;
-    }
+    this.emit_leb(val, kMaxVarInt64Size);
   }
 
   emit_bytes(data) {
@@ -749,7 +741,6 @@ class WasmModuleBuilder {
   addCustomSection(name, bytes) {
     name = this.stringToBytes(name);
     var section = new Binary();
-    section.ensure_space(1 + 5 + 5 + name.length + bytes.length);
     section.emit_u8(0);
     section.emit_u32v(name.length + bytes.length);
     section.emit_bytes(name);
@@ -1200,7 +1191,6 @@ class WasmModuleBuilder {
             header.emit_u8(decl.type);
           }
 
-          section.ensure_space(5 + header.length + func.body.length);
           section.emit_u32v(header.length + func.body.length);
           section.emit_bytes(header.trunc_buffer());
           section.emit_bytes(func.body);
@@ -1301,7 +1291,7 @@ class WasmModuleBuilder {
   }
 
   instantiate(ffi) {
-    let module = new WebAssembly.Module(this.toBuffer());
+    let module = this.toModule();
     let instance = new WebAssembly.Instance(module, ffi);
     return instance;
   }
