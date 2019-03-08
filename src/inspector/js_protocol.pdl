@@ -1021,6 +1021,14 @@ domain Runtime
       # The value associated with the property.
       optional RemoteObject value
 
+  # Object private field descriptor.
+  experimental type PrivatePropertyDescriptor extends object
+    properties
+      # Private property name.
+      string name
+      # The value associated with the private property.
+      RemoteObject value
+
   # Represents function call argument. Either remote object id `objectId`, primitive `value`,
   # unserializable primitive value or neither of (for undefined) them should be specified.
   type CallArgument extends object
@@ -1262,6 +1270,8 @@ domain Runtime
       array of PropertyDescriptor result
       # Internal object properties (only of the element itself).
       optional array of InternalPropertyDescriptor internalProperties
+      # Object private properties.
+      experimental optional array of PrivatePropertyDescriptor privateProperties
       # Exception details.
       optional ExceptionDetails exceptionDetails
 
