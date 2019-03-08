@@ -342,6 +342,7 @@ class EphemeronHashTable
  public:
   DECL_CAST(EphemeronHashTable)
   DECL_PRINTER(EphemeronHashTable)
+  class BodyDescriptor;
 
  protected:
   friend class MarkCompactCollector;

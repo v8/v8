@@ -765,7 +765,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
   // Implements ephemeron semantics: Marks value if key is already reachable.
   // Returns true if value was actually marked.
-  bool VisitEphemeron(HeapObject key, HeapObject value);
+  bool ProcessEphemeron(HeapObject key, HeapObject value);
 
   // Marks ephemerons and drains marking worklist iteratively
   // until a fixpoint is reached.

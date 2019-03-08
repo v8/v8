@@ -1547,7 +1547,7 @@ bool MarkCompactCollector::ProcessEphemerons() {
   // Drain current_ephemerons and push ephemerons where key and value are still
   // unreachable into next_ephemerons.
   while (weak_objects_.current_ephemerons.Pop(kMainThread, &ephemeron)) {
-    if (VisitEphemeron(ephemeron.key, ephemeron.value)) {
+    if (ProcessEphemeron(ephemeron.key, ephemeron.value)) {
       ephemeron_marked = true;
     }
   }
@@ -1560,7 +1560,7 @@ bool MarkCompactCollector::ProcessEphemerons() {
   // before) and push ephemerons where key and value are still unreachable into
   // next_ephemerons.
   while (weak_objects_.discovered_ephemerons.Pop(kMainThread, &ephemeron)) {
-    if (VisitEphemeron(ephemeron.key, ephemeron.value)) {
+    if (ProcessEphemeron(ephemeron.key, ephemeron.value)) {
       ephemeron_marked = true;
     }
   }
@@ -1583,7 +1583,7 @@ void MarkCompactCollector::ProcessEphemeronsLinear() {
   weak_objects_.current_ephemerons.Swap(weak_objects_.next_ephemerons);
 
   while (weak_objects_.current_ephemerons.Pop(kMainThread, &ephemeron)) {
-    VisitEphemeron(ephemeron.key, ephemeron.value);
+    ProcessEphemeron(ephemeron.key, ephemeron.value);
 
     if (non_atomic_marking_state()->IsWhite(ephemeron.value)) {
       key_to_values.insert(std::make_pair(ephemeron.key, ephemeron.value));
@@ -1610,7 +1610,7 @@ void MarkCompactCollector::ProcessEphemeronsLinear() {
     }
 
     while (weak_objects_.discovered_ephemerons.Pop(kMainThread, &ephemeron)) {
-      VisitEphemeron(ephemeron.key, ephemeron.value);
+      ProcessEphemeron(ephemeron.key, ephemeron.value);
 
       if (non_atomic_marking_state()->IsWhite(ephemeron.value)) {
         key_to_values.insert(std::make_pair(ephemeron.key, ephemeron.value));
@@ -1696,7 +1696,7 @@ void MarkCompactCollector::ProcessMarkingWorklistInternal() {
   }
 }
 
-bool MarkCompactCollector::VisitEphemeron(HeapObject key, HeapObject value) {
+bool MarkCompactCollector::ProcessEphemeron(HeapObject key, HeapObject value) {
   if (marking_state()->IsBlackOrGrey(key)) {
     if (marking_state()->WhiteToGrey(value)) {
       marking_worklist()->Push(value);

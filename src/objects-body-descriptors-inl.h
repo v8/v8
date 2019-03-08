@@ -150,6 +150,16 @@ DISABLE_CFI_PERF void BodyDescriptorBase::IterateCustomWeakPointers(
 }
 
 template <typename ObjectVisitor>
+DISABLE_CFI_PERF void BodyDescriptorBase::IterateEphemeron(HeapObject obj,
+                                                           int index,
+                                                           int key_offset,
+                                                           int value_offset,
+                                                           ObjectVisitor* v) {
+  v->VisitEphemeron(obj, index, HeapObject::RawField(obj, key_offset),
+                    HeapObject::RawField(obj, value_offset));
+}
+
+template <typename ObjectVisitor>
 void BodyDescriptorBase::IterateCustomWeakPointer(HeapObject obj, int offset,
                                                   ObjectVisitor* v) {
   v->VisitCustomWeakPointer(obj, HeapObject::RawField(obj, offset));
@@ -831,10 +841,12 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3, T4 p4) {
     case NUMBER_DICTIONARY_TYPE:
     case SIMPLE_NUMBER_DICTIONARY_TYPE:
     case STRING_TABLE_TYPE:
-    case EPHEMERON_HASH_TABLE_TYPE:
     case SCOPE_INFO_TYPE:
     case SCRIPT_CONTEXT_TABLE_TYPE:
       return Op::template apply<FixedArray::BodyDescriptor>(p1, p2, p3, p4);
+    case EPHEMERON_HASH_TABLE_TYPE:
+      return Op::template apply<EphemeronHashTable::BodyDescriptor>(p1, p2, p3,
+                                                                    p4);
     case AWAIT_CONTEXT_TYPE:
     case BLOCK_CONTEXT_TYPE:
     case CATCH_CONTEXT_TYPE:
@@ -1048,6 +1060,34 @@ void HeapObject::IterateBodyFast(Map map, int object_size, ObjectVisitor* v) {
   BodyDescriptorApply<CallIterateBody, void>(map->instance_type(), map, *this,
                                              object_size, v);
 }
+
+class EphemeronHashTable::BodyDescriptor final : public BodyDescriptorBase {
+ public:
+  static bool IsValidSlot(Map map, HeapObject obj, int offset) {
+    return (offset >= EphemeronHashTable::kHeaderSize);
+  }
+
+  template <typename ObjectVisitor>
+  static inline void IterateBody(Map map, HeapObject obj, int object_size,
+                                 ObjectVisitor* v) {
+    int entries_start = EphemeronHashTable::kHeaderSize +
+                        EphemeronHashTable::kElementsStartIndex * kTaggedSize;
+    IteratePointers(obj, EphemeronHashTable::kHeaderSize, entries_start, v);
+    EphemeronHashTable table = EphemeronHashTable::unchecked_cast(obj);
+    int entries = table.Capacity();
+    for (int i = 0; i < entries; ++i) {
+      const int key_index = EphemeronHashTable::EntryToIndex(i);
+      const int value_index = EphemeronHashTable::EntryToValueIndex(i);
+      IterateEphemeron(obj, i, OffsetOfElementAt(key_index),
+                       OffsetOfElementAt(value_index), v);
+    }
+  }
+
+  static inline int SizeOf(Map map, HeapObject object) {
+    return object->SizeFromMap(map);
+  }
+};
+
 }  // namespace internal
 }  // namespace v8
 

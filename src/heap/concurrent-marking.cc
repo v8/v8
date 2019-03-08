@@ -508,7 +508,7 @@ class ConcurrentMarkingVisitor final
 
   // Implements ephemeron semantics: Marks value if key is already reachable.
   // Returns true if value was actually marked.
-  bool VisitEphemeron(HeapObject key, HeapObject value) {
+  bool ProcessEphemeron(HeapObject key, HeapObject value) {
     if (marking_state_.IsBlackOrGrey(key)) {
       if (marking_state_.WhiteToGrey(value)) {
         shared_.Push(value);
@@ -776,7 +776,7 @@ void ConcurrentMarking::Run(int task_id, TaskState* task_state) {
       Ephemeron ephemeron;
 
       while (weak_objects_->current_ephemerons.Pop(task_id, &ephemeron)) {
-        if (visitor.VisitEphemeron(ephemeron.key, ephemeron.value)) {
+        if (visitor.ProcessEphemeron(ephemeron.key, ephemeron.value)) {
           ephemeron_marked = true;
         }
       }
@@ -821,7 +821,7 @@ void ConcurrentMarking::Run(int task_id, TaskState* task_state) {
       Ephemeron ephemeron;
 
       while (weak_objects_->discovered_ephemerons.Pop(task_id, &ephemeron)) {
-        if (visitor.VisitEphemeron(ephemeron.key, ephemeron.value)) {
+        if (visitor.ProcessEphemeron(ephemeron.key, ephemeron.value)) {
           ephemeron_marked = true;
         }
       }
