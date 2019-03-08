@@ -89,15 +89,11 @@ TEST(VectorStructure) {
   {
     FeedbackVectorSpec spec(&zone);
     spec.AddForInSlot();
-    spec.AddCreateClosureSlot();
+    spec.AddFeedbackCellForCreateClosure();
     spec.AddForInSlot();
     vector = NewFeedbackVector(isolate, &spec);
     FeedbackVectorHelper helper(vector);
-    CHECK_EQ(1,
-             FeedbackMetadata::GetSlotSize(FeedbackSlotKind::kCreateClosure));
-    FeedbackSlot slot = helper.slot(1);
-    FeedbackCell cell =
-        FeedbackCell::cast(vector->Get(slot)->GetHeapObjectAssumeStrong());
+    FeedbackCell cell = *vector->GetClosureFeedbackCell(0);
     CHECK_EQ(cell->value(), *factory->undefined_value());
   }
 }

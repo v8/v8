@@ -161,12 +161,8 @@ Object DeclareGlobals(Isolate* isolate, Handle<FixedArray> declarations,
           isolate->factory()->no_feedback_cell();
       if (!feedback_vector.is_null()) {
         DCHECK(possibly_feedback_cell_slot->IsSmi());
-        FeedbackSlot feedback_cells_slot(
+        feedback_cell = feedback_vector->GetClosureFeedbackCell(
             Smi::ToInt(*possibly_feedback_cell_slot));
-        feedback_cell = Handle<FeedbackCell>(
-            FeedbackCell::cast(feedback_vector->Get(feedback_cells_slot)
-                                   ->GetHeapObjectAssumeStrong()),
-            isolate);
       }
       // Copy the function and update its context. Use it as value.
       Handle<SharedFunctionInfo> shared =

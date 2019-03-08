@@ -431,6 +431,8 @@ Handle<FeedbackVector> Factory::NewFeedbackVector(
   vector->set_invocation_count(0);
   vector->set_profiler_ticks(0);
   vector->set_deopt_count(0);
+  vector->set_closure_feedback_cell_array(*empty_fixed_array());
+
   // TODO(leszeks): Initialize based on the feedback metadata.
   MemsetTagged(ObjectSlot(vector->slots_start()), *undefined_value(), length);
   return vector;
@@ -516,6 +518,7 @@ Handle<FixedArrayBase> Factory::NewFixedDoubleArrayWithHoles(
 }
 
 Handle<FeedbackMetadata> Factory::NewFeedbackMetadata(int slot_count,
+                                                      int feedback_cell_count,
                                                       PretenureFlag tenure) {
   DCHECK_LE(0, slot_count);
   int size = FeedbackMetadata::SizeFor(slot_count);
@@ -523,6 +526,7 @@ Handle<FeedbackMetadata> Factory::NewFeedbackMetadata(int slot_count,
       AllocateRawWithImmortalMap(size, tenure, *feedback_metadata_map());
   Handle<FeedbackMetadata> data(FeedbackMetadata::cast(result), isolate());
   data->set_slot_count(slot_count);
+  data->set_closure_feedback_cell_count(feedback_cell_count);
 
   // Initialize the data section to 0.
   int data_size = size - FeedbackMetadata::kHeaderSize;

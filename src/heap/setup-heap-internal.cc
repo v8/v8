@@ -838,7 +838,7 @@ void Heap::CreateInitialObjects() {
 
   // Allocate the empty FeedbackMetadata.
   Handle<FeedbackMetadata> empty_feedback_metadata =
-      factory->NewFeedbackMetadata(0, TENURED_READ_ONLY);
+      factory->NewFeedbackMetadata(0, 0, TENURED_READ_ONLY);
   set_empty_feedback_metadata(*empty_feedback_metadata);
 
   // Allocate the empty script.

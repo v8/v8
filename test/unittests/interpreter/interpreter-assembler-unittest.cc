@@ -542,10 +542,12 @@ TARGET_TEST_F(InterpreterAssemblerTest, LoadFeedbackVector) {
     Matcher<Node*> load_vector_cell_matcher = m.IsLoad(
         MachineType::AnyTagged(), load_function_matcher,
         c::IsIntPtrConstant(JSFunction::kFeedbackCellOffset - kHeapObjectTag));
-    EXPECT_THAT(
-        feedback_vector,
+    Matcher<Node*> load_feedback_vector_matcher =
         m.IsLoad(MachineType::AnyTagged(), load_vector_cell_matcher,
-                 c::IsIntPtrConstant(Cell::kValueOffset - kHeapObjectTag)));
+                 c::IsIntPtrConstant(Cell::kValueOffset - kHeapObjectTag));
+    Matcher<Node*> merge_node =
+        i::compiler::IsPhi(_, _, load_feedback_vector_matcher, _);
+    EXPECT_THAT(feedback_vector, merge_node);
   }
 }
 

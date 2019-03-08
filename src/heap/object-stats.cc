@@ -616,6 +616,13 @@ void ObjectStatsCollectorImpl::RecordVirtualFeedbackVectorDetails(
 
   size_t calculated_size = 0;
 
+  // Log the feedback_cell array used for create closures.
+  RecordVirtualObjectStats(
+      vector, vector->closure_feedback_cell_array(),
+      ObjectStats::FEEDBACK_VECTOR_CREATE_CLOSURE_ARRAY_TYPE,
+      vector->closure_feedback_cell_array()->Size(),
+      ObjectStats::kNoOverAllocation);
+
   // Log the feedback vector's header (fixed fields).
   size_t header_size = vector->slots_start().address() - vector->address();
   stats_->RecordVirtualObjectStats(ObjectStats::FEEDBACK_VECTOR_HEADER_TYPE,

@@ -2633,10 +2633,9 @@ IGNITION_HANDLER(CreateClosure, InterpreterAssembler) {
 
   Label if_undefined(this), load_feedback_done(this);
   Variable feedback_cell(this, MachineRepresentation::kTagged);
-  Node* feedback_vector = LoadFeedbackVectorUnchecked();
-
-  GotoIf(IsUndefined(feedback_vector), &if_undefined);
-  feedback_cell.Bind(LoadFeedbackVectorSlot(feedback_vector, slot));
+  TNode<FixedArray> feedback_cell_array = LoadClosureFeedbackArray(
+      LoadRegister(Register::function_closure()), &if_undefined);
+  feedback_cell.Bind(LoadFixedArrayElement(feedback_cell_array, slot));
   Goto(&load_feedback_done);
 
   BIND(&if_undefined);

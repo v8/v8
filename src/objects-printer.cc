@@ -1162,7 +1162,6 @@ void FeedbackNexus::Print(std::ostream& os) {  // NOLINT
       os << "ForIn:" << GetForInFeedback();
       break;
     }
-    case FeedbackSlotKind::kCreateClosure:
     case FeedbackSlotKind::kLiteral:
     case FeedbackSlotKind::kTypeProfile:
       break;

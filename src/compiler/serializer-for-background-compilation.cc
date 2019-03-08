@@ -386,10 +386,10 @@ void SerializerForBackgroundCompilation::VisitCreateClosure(
       SharedFunctionInfo::cast(iterator->GetConstantForIndexOperand(0)),
       broker()->isolate());
 
-  FeedbackNexus nexus(environment()->function().feedback_vector,
-                      iterator->GetSlotOperand(1));
-  Handle<Object> cell_value(nexus.GetFeedbackCell()->value(),
-                            broker()->isolate());
+  Handle<FeedbackCell> feedback_cell =
+      environment()->function().feedback_vector->GetClosureFeedbackCell(
+          iterator->GetIndexOperand(1));
+  Handle<Object> cell_value(feedback_cell->value(), broker()->isolate());
 
   environment()->accumulator_hints().Clear();
   if (cell_value->IsFeedbackVector()) {

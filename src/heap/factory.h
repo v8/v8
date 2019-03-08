@@ -179,6 +179,7 @@ class V8_EXPORT_PRIVATE Factory {
 
   // Allocates a FeedbackMedata object and zeroes the data section.
   Handle<FeedbackMetadata> NewFeedbackMetadata(int slot_count,
+                                               int feedback_cell_count,
                                                PretenureFlag tenure = TENURED);
 
   Handle<FrameArray> NewFrameArray(int number_of_frames,

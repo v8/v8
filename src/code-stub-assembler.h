@@ -2851,6 +2851,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // a feedback vector associated with it.
   TNode<Object> LoadFeedbackVectorUnchecked(SloppyTNode<JSFunction> closure);
 
+  TNode<FixedArray> LoadClosureFeedbackArray(SloppyTNode<JSFunction> closure,
+                                             Label* if_undefined);
+
   // Update the type feedback vector.
   void UpdateFeedback(Node* feedback, Node* feedback_vector, Node* slot_id);
 

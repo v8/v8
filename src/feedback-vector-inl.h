@@ -31,6 +31,9 @@ CAST_ACCESSOR(FeedbackMetadata)
 
 INT32_ACCESSORS(FeedbackMetadata, slot_count, kSlotCountOffset)
 
+INT32_ACCESSORS(FeedbackMetadata, closure_feedback_cell_count,
+                kFeedbackCellCountOffset)
+
 int32_t FeedbackMetadata::synchronized_slot_count() const {
   return base::Acquire_Load(reinterpret_cast<const base::Atomic32*>(
       FIELD_ADDR(*this, kSlotCountOffset)));
@@ -61,7 +64,6 @@ int FeedbackMetadata::GetSlotSize(FeedbackSlotKind kind) {
     case FeedbackSlotKind::kCompareOp:
     case FeedbackSlotKind::kBinaryOp:
     case FeedbackSlotKind::kLiteral:
-    case FeedbackSlotKind::kCreateClosure:
     case FeedbackSlotKind::kTypeProfile:
       return 1;
 
@@ -94,6 +96,8 @@ int FeedbackMetadata::GetSlotSize(FeedbackSlotKind kind) {
 ACCESSORS(FeedbackVector, shared_function_info, SharedFunctionInfo,
           kSharedFunctionInfoOffset)
 WEAK_ACCESSORS(FeedbackVector, optimized_code_weak_or_smi, kOptimizedCodeOffset)
+ACCESSORS(FeedbackVector, closure_feedback_cell_array, FixedArray,
+          kClosureFeedbackCellArrayOffset)
 INT32_ACCESSORS(FeedbackVector, length, kLengthOffset)
 INT32_ACCESSORS(FeedbackVector, invocation_count, kInvocationCountOffset)
 INT32_ACCESSORS(FeedbackVector, profiler_ticks, kProfilerTicksOffset)
@@ -153,6 +157,12 @@ MaybeObject FeedbackVector::get(int index) const {
   DCHECK_LT(index, this->length());
   int offset = kFeedbackSlotsOffset + index * kTaggedSize;
   return RELAXED_READ_WEAK_FIELD(*this, offset);
+}
+
+Handle<FeedbackCell> FeedbackVector::GetClosureFeedbackCell(int index) const {
+  DCHECK_GE(index, 0);
+  FixedArray cell_array = closure_feedback_cell_array();
+  return handle(FeedbackCell::cast(cell_array.get(index)), GetIsolate());
 }
 
 void FeedbackVector::Set(FeedbackSlot slot, MaybeObject value,
@@ -337,7 +347,6 @@ void FeedbackVector::ComputeCounts(int* with_type_info, int* generic,
         total++;
         break;
       }
-      case FeedbackSlotKind::kCreateClosure:
       case FeedbackSlotKind::kLiteral:
       case FeedbackSlotKind::kCloneObject:
         break;

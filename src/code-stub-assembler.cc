@@ -9951,9 +9951,37 @@ TNode<Object> CodeStubAssembler::LoadFeedbackVectorUnchecked(
     SloppyTNode<JSFunction> closure) {
   TNode<FeedbackCell> feedback_cell =
       CAST(LoadObjectField(closure, JSFunction::kFeedbackCellOffset));
-  TNode<Object> maybe_vector =
-      LoadObjectField(feedback_cell, FeedbackCell::kValueOffset);
-  return maybe_vector;
+  TVARIABLE(Object, maybe_vector, UndefinedConstant());
+  Label done(this);
+
+  // If the closure doesn't have a feedback vector allocated yet, return
+  // undefined. We check the feedback cell's map instead of undefined because
+  // when there is no feedback vector, the feedback cell would contain an array
+  // of feedback cells.
+  GotoIf(IsNoFeedbackCellMap(LoadMap(feedback_cell)), &done);
+  maybe_vector = LoadObjectField(feedback_cell, FeedbackCell::kValueOffset);
+  Goto(&done);
+
+  BIND(&done);
+  return maybe_vector.value();
+}
+
+TNode<FixedArray> CodeStubAssembler::LoadClosureFeedbackArray(
+    SloppyTNode<JSFunction> closure, Label* if_undefined) {
+  TNode<FeedbackCell> feedback_cell =
+      CAST(LoadObjectField(closure, JSFunction::kFeedbackCellOffset));
+  TNode<HeapObject> feedback_cell_value =
+      CAST(LoadObjectField(feedback_cell, FeedbackCell::kValueOffset));
+  // TODO(mythria): Allocate feedback cell arrays in lite mode too. In lite
+  // mode, we want to allocate feedback vectors lazily. This requires that
+  // feedback cell arrays are allocated always.
+  GotoIf(IsUndefined(feedback_cell_value), if_undefined);
+
+  // Load FeedbackCellArray from feedback vector.
+  TNode<FeedbackVector> vector = CAST(feedback_cell_value);
+  TNode<FixedArray> feedback_cell_array = CAST(
+      LoadObjectField(vector, FeedbackVector::kClosureFeedbackCellArrayOffset));
+  return feedback_cell_array;
 }
 
 TNode<FeedbackVector> CodeStubAssembler::LoadFeedbackVectorForStub() {

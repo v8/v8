@@ -769,7 +769,7 @@ void NativeContext::NativeContextVerify(Isolate* isolate) {
 }
 
 void FeedbackMetadata::FeedbackMetadataVerify(Isolate* isolate) {
-  if (slot_count() == 0) {
+  if (slot_count() == 0 && closure_feedback_cell_count() == 0) {
     CHECK_EQ(ReadOnlyRoots(isolate).empty_feedback_metadata(), *this);
   } else {
     FeedbackMetadataIterator iter(*this);

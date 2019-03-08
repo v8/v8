@@ -1510,15 +1510,15 @@ void BytecodeGraphBuilder::VisitCreateClosure() {
       SharedFunctionInfo::cast(
           bytecode_iterator().GetConstantForIndexOperand(0)),
       isolate());
-  FeedbackSlot slot = bytecode_iterator().GetSlotOperand(1);
-  FeedbackNexus nexus(feedback_vector(), slot);
   PretenureFlag tenured =
       interpreter::CreateClosureFlags::PretenuredBit::decode(
           bytecode_iterator().GetFlagOperand(2))
           ? TENURED
           : NOT_TENURED;
   const Operator* op = javascript()->CreateClosure(
-      shared_info, nexus.GetFeedbackCell(),
+      shared_info,
+      feedback_vector()->GetClosureFeedbackCell(
+          bytecode_iterator().GetIndexOperand(1)),
       handle(jsgraph()->isolate()->builtins()->builtin(Builtins::kCompileLazy),
              isolate()),
       tenured);
