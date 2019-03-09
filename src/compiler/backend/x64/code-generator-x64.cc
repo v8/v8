@@ -2344,7 +2344,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64I32x4Splat: {
       XMMRegister dst = i.OutputSimd128Register();
-      __ movd(dst, i.InputRegister(0));
+      if (instr->InputAt(0)->IsRegister()) {
+        __ movd(dst, i.InputRegister(0));
+      } else {
+        __ movd(dst, i.InputOperand(0));
+      }
       __ pshufd(dst, dst, 0x0);
       break;
     }
@@ -2543,7 +2547,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64I16x8Splat: {
       XMMRegister dst = i.OutputSimd128Register();
-      __ movd(dst, i.InputRegister(0));
+      if (instr->InputAt(0)->IsRegister()) {
+        __ movd(dst, i.InputRegister(0));
+      } else {
+        __ movd(dst, i.InputOperand(0));
+      }
       __ pshuflw(dst, dst, 0x0);
       __ pshufd(dst, dst, 0x0);
       break;
@@ -2728,7 +2736,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64I8x16Splat: {
       CpuFeatureScope sse_scope(tasm(), SSSE3);
       XMMRegister dst = i.OutputSimd128Register();
-      __ movd(dst, i.InputRegister(0));
+      if (instr->InputAt(0)->IsRegister()) {
+        __ movd(dst, i.InputRegister(0));
+      } else {
+        __ movd(dst, i.InputOperand(0));
+      }
       __ xorps(kScratchDoubleReg, kScratchDoubleReg);
       __ pshufb(dst, kScratchDoubleReg);
       break;
