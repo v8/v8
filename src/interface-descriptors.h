@@ -78,7 +78,7 @@ namespace internal {
   V(TypeConversionStackParameter)     \
   V(Typeof)                           \
   V(Void)                             \
-  V(WasmAtomicWake)                   \
+  V(WasmAtomicNotify)                 \
   V(WasmI32AtomicWait)                \
   V(WasmI64AtomicWait)                \
   V(WasmMemoryGrow)                   \
@@ -1178,13 +1178,13 @@ class BigIntToI64Descriptor final : public CallInterfaceDescriptor {
   DECLARE_DESCRIPTOR(BigIntToI64Descriptor, CallInterfaceDescriptor)
 };
 
-class WasmAtomicWakeDescriptor final : public CallInterfaceDescriptor {
+class WasmAtomicNotifyDescriptor final : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS_NO_CONTEXT(kAddress, kCount)
   DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::Uint32(),  // result 1
                                     MachineType::Uint32(),  // kAddress
                                     MachineType::Uint32())  // kCount
-  DECLARE_DESCRIPTOR(WasmAtomicWakeDescriptor, CallInterfaceDescriptor)
+  DECLARE_DESCRIPTOR(WasmAtomicNotifyDescriptor, CallInterfaceDescriptor)
 };
 
 class WasmI32AtomicWaitDescriptor final : public CallInterfaceDescriptor {

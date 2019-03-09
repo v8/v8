@@ -387,7 +387,7 @@ let kExprElemDrop = 0x0d;
 let kExprTableCopy = 0x0e;
 
 // Atomic opcodes.
-let kExprAtomicWake = 0x00;
+let kExprAtomicNotify = 0x00;
 let kExprI32AtomicWait = 0x01;
 let kExprI64AtomicWait = 0x02;
 let kExprI32AtomicLoad = 0x10;

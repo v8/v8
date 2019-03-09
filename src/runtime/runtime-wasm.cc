@@ -264,7 +264,7 @@ Handle<JSArrayBuffer> getSharedArrayBuffer(Handle<WasmInstanceObject> instance,
   return array_buffer;
 }
 
-RUNTIME_FUNCTION(Runtime_WasmAtomicWake) {
+RUNTIME_FUNCTION(Runtime_WasmAtomicNotify) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
   CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);

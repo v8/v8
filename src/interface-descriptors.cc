@@ -364,7 +364,7 @@ void WasmThrowDescriptor::InitializePlatformSpecific(
   DefaultInitializePlatformSpecific(data, kParameterCount);
 }
 
-void WasmAtomicWakeDescriptor::InitializePlatformSpecific(
+void WasmAtomicNotifyDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   DefaultInitializePlatformSpecific(data, kParameterCount);
 }
