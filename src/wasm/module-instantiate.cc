@@ -47,13 +47,6 @@ uint32_t EvalUint32InitExpr(Handle<WasmInstanceObject> instance,
       UNREACHABLE();
   }
 }
-
-// Represents the initialized state of a table.
-struct TableInstance {
-  Handle<WasmTableObject> table_object;  // WebAssembly.Table instance
-  Handle<FixedArray> js_functions;       // JSFunctions exported
-  size_t table_size;
-};
 }  // namespace
 
 // A helper class to simplify instantiating a module from a module object.
@@ -87,7 +80,6 @@ class InstanceBuilder {
   MaybeHandle<JSArrayBuffer> memory_;
   Handle<JSArrayBuffer> untagged_globals_;
   Handle<FixedArray> tagged_globals_;
-  std::vector<TableInstance> table_instances_;
   std::vector<Handle<WasmExceptionObject>> exception_wrappers_;
   Handle<WasmExportedFunction> start_function_;
   JSToWasmWrapperCache js_to_wasm_cache_;
@@ -400,8 +392,6 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   }
   instance->set_tables(*tables);
 
-  table_instances_.resize(table_count);
-
   //--------------------------------------------------------------------------
   // Process the imports for the module.
   //--------------------------------------------------------------------------
@@ -456,9 +446,14 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   //--------------------------------------------------------------------------
   for (const WasmElemSegment& elem_segment : module_->elem_segments) {
     if (!elem_segment.active) continue;
-    DCHECK(elem_segment.table_index < table_instances_.size());
+    DCHECK_LT(elem_segment.table_index, table_count);
     uint32_t base = EvalUint32InitExpr(instance, elem_segment.offset);
-    size_t table_size = table_instances_[elem_segment.table_index].table_size;
+    // Because of imported tables, {table_size} has to come from the table
+    // object itself.
+    auto table_object = handle(WasmTableObject::cast(instance->tables()->get(
+                                   elem_segment.table_index)),
+                               isolate_);
+    size_t table_size = table_object->elements()->length();
     if (!IsInBounds(base, elem_segment.entries.size(), table_size)) {
       thrower_->LinkError("table initializer is out of bounds");
       return {};
@@ -840,13 +835,11 @@ bool InstanceBuilder::ProcessImportedTable(Handle<WasmInstanceObject> instance,
     return false;
   }
   const WasmTable& table = module_->tables[table_index];
-  TableInstance& table_instance = table_instances_[table_index];
-  table_instance.table_object = Handle<WasmTableObject>::cast(value);
-  instance->set_table_object(*table_instance.table_object);
-  table_instance.js_functions =
-      Handle<FixedArray>(table_instance.table_object->elements(), isolate_);
 
-  int imported_table_size = table_instance.js_functions->length();
+  instance->tables()->set(table_index, *value);
+  auto table_object = Handle<WasmTableObject>::cast(value);
+
+  int imported_table_size = table_object->elements().length();
   if (imported_table_size < static_cast<int>(table.initial_size)) {
     thrower_->LinkError("table import %d is smaller than initial %d, got %u",
                         import_index, table.initial_size, imported_table_size);
@@ -854,8 +847,7 @@ bool InstanceBuilder::ProcessImportedTable(Handle<WasmInstanceObject> instance,
   }
 
   if (table.has_maximum_size) {
-    int64_t imported_maximum_size =
-        table_instance.table_object->maximum_length()->Number();
+    int64_t imported_maximum_size = table_object->maximum_length()->Number();
     if (imported_maximum_size < 0) {
       thrower_->LinkError("table import %d has no maximum length, expected %d",
                           import_index, table.maximum_size);
@@ -874,13 +866,12 @@ bool InstanceBuilder::ProcessImportedTable(Handle<WasmInstanceObject> instance,
   if (!instance->has_indirect_function_table()) {
     WasmInstanceObject::EnsureIndirectFunctionTableWithMinimumSize(
         instance, imported_table_size);
-    table_instances_[table_index].table_size = imported_table_size;
   }
   // Initialize the dispatch table with the (foreign) JS functions
   // that are already in the table.
   for (int i = 0; i < imported_table_size; ++i) {
     // TODO(ahaas): Extract this code here into a function on WasmTableObject.
-    Handle<Object> val(table_instance.js_functions->get(i), isolate_);
+    Handle<Object> val(table_object->elements()->get(i), isolate_);
     Handle<WasmInstanceObject> target_instance;
     int function_index;
     FunctionSig* sig;
@@ -1266,11 +1257,8 @@ Handle<JSArrayBuffer> InstanceBuilder::AllocateMemory(uint32_t initial_pages,
 
 bool InstanceBuilder::NeedsWrappers() const {
   if (module_->num_exported_functions > 0) return true;
-  for (auto& table_instance : table_instances_) {
-    if (!table_instance.js_functions.is_null()) return true;
-  }
   for (auto& table : module_->tables) {
-    if (table.exported) return true;
+    if (table.type == kWasmAnyFunc) return true;
   }
   return false;
 }
@@ -1374,18 +1362,7 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
         break;
       }
       case kExternalTable: {
-        // Export a table as a WebAssembly.Table object.
-        TableInstance& table_instance = table_instances_[exp.index];
-        const WasmTable& table = module_->tables[exp.index];
-        if (table_instance.table_object.is_null()) {
-          uint32_t maximum = table.has_maximum_size ? table.maximum_size
-                                                    : FLAG_wasm_max_table_size;
-          table_instance.table_object =
-              WasmTableObject::New(isolate_, table.initial_size, maximum,
-                                   &table_instance.js_functions);
-        }
-        instance->set_table_object(*table_instance.table_object);
-        desc.set_value(table_instance.table_object);
+        desc.set_value(handle(instance->tables()->get(exp.index), isolate_));
         break;
       }
       case kExternalMemory: {
@@ -1495,7 +1472,6 @@ void InstanceBuilder::InitializeTables(Handle<WasmInstanceObject> instance) {
         table.type == kWasmAnyFunc) {
       WasmInstanceObject::EnsureIndirectFunctionTableWithMinimumSize(
           instance, table.initial_size);
-      table_instances_[index].table_size = table.initial_size;
     }
   }
 }
@@ -1528,14 +1504,15 @@ Handle<WasmExportedFunction> CreateWasmExportedFunctionForAsm(
 }  // namespace
 
 bool LoadElemSegmentImpl(Isolate* isolate, Handle<WasmInstanceObject> instance,
-                         const TableInstance& table_instance,
+                         Handle<WasmTableObject> table_object,
                          JSToWasmWrapperCache* js_to_wasm_cache,
                          const WasmElemSegment& elem_segment, uint32_t dst,
                          uint32_t src, size_t count) {
   // TODO(wasm): Move this functionality into wasm-objects, since it is used
   // for both instantiation and in the implementation of the table.init
   // instruction.
-  bool ok = ClampToBounds<size_t>(dst, &count, table_instance.table_size);
+  bool ok =
+      ClampToBounds<size_t>(dst, &count, table_object->elements()->length());
   // Use & instead of && so the clamp is not short-circuited.
   ok &= ClampToBounds<size_t>(src, &count, elem_segment.entries.size());
 
@@ -1546,10 +1523,8 @@ bool LoadElemSegmentImpl(Isolate* isolate, Handle<WasmInstanceObject> instance,
 
     if (func_index == WasmElemSegment::kNullIndex) {
       IndirectFunctionTableEntry(instance, entry_index).clear();
-      if (!table_instance.table_object.is_null()) {
-        WasmTableObject::Set(isolate, table_instance.table_object, entry_index,
-                             Handle<JSFunction>::null());
-      }
+      WasmTableObject::Set(isolate, table_object, entry_index,
+                           Handle<JSFunction>::null());
       continue;
     }
 
@@ -1560,40 +1535,35 @@ bool LoadElemSegmentImpl(Isolate* isolate, Handle<WasmInstanceObject> instance,
     IndirectFunctionTableEntry(instance, entry_index)
         .Set(sig_id, instance, func_index);
 
-    if (!table_instance.table_object.is_null()) {
-      // Update the table object's other dispatch tables.
-      MaybeHandle<WasmExportedFunction> wasm_exported_function =
-          WasmInstanceObject::GetWasmExportedFunction(isolate, instance,
-                                                      func_index);
-      if (wasm_exported_function.is_null()) {
-        // No JSFunction entry yet exists for this function. Create a {Tuple2}
-        // holding the information to lazily allocate one (or eagerly allocate
-        // one for asm.js code).
-        if (module->origin == kAsmJsOrigin) {
-          Handle<WasmExportedFunction> function =
-              CreateWasmExportedFunctionForAsm(isolate, instance, module,
-                                               func_index, js_to_wasm_cache);
-          table_instance.js_functions->set(entry_index, *function);
-        } else {
-          // TODO(ahaas): Handle all this Tuple2 stuff in a method of
-          // {WasmTableObject}.
-          // Put (instance, func_index) as a placeholder into the table_index.
-          // The {WasmExportedFunction} will be created lazily.
-          Handle<Tuple2> tuple = isolate->factory()->NewTuple2(
-              instance, Handle<Smi>(Smi::FromInt(func_index), isolate),
-              NOT_TENURED);
-          table_instance.js_functions->set(entry_index, *tuple);
-        }
+    // Update the table object's other dispatch tables.
+    MaybeHandle<WasmExportedFunction> wasm_exported_function =
+        WasmInstanceObject::GetWasmExportedFunction(isolate, instance,
+                                                    func_index);
+    if (wasm_exported_function.is_null()) {
+      // No JSFunction entry yet exists for this function. Create a {Tuple2}
+      // holding the information to lazily allocate one (or eagerly allocate
+      // one for asm.js code).
+      if (module->origin == kAsmJsOrigin) {
+        Handle<WasmExportedFunction> function =
+            CreateWasmExportedFunctionForAsm(isolate, instance, module,
+                                             func_index, js_to_wasm_cache);
+        table_object->elements()->set(entry_index, *function);
       } else {
-        table_instance.js_functions->set(
-            entry_index, *wasm_exported_function.ToHandleChecked());
+        // Put (instance, func_index) as a placeholder into the table_index.
+        // The {WasmExportedFunction} will be created lazily.
+        Handle<Tuple2> tuple = isolate->factory()->NewTuple2(
+            instance, Handle<Smi>(Smi::FromInt(func_index), isolate),
+            NOT_TENURED);
+        table_object->elements()->set(entry_index, *tuple);
       }
-      // UpdateDispatchTables() updates all other dispatch tables, since
-      // we have not yet added the dispatch table we are currently building.
-      WasmTableObject::UpdateDispatchTables(
-          isolate, table_instance.table_object, entry_index, function->sig,
-          instance, func_index);
+    } else {
+      table_object->elements()->set(entry_index,
+                                    *wasm_exported_function.ToHandleChecked());
     }
+    // UpdateDispatchTables() updates all other dispatch tables, since
+    // we have not yet added the dispatch table we are currently building.
+    WasmTableObject::UpdateDispatchTables(isolate, table_object, entry_index,
+                                          function->sig, instance, func_index);
   }
   return ok;
 }
@@ -1608,20 +1578,21 @@ void InstanceBuilder::LoadTableSegments(Handle<WasmInstanceObject> instance) {
     size_t count = elem_segment.entries.size();
 
     bool success = LoadElemSegmentImpl(
-        isolate_, instance, table_instances_[elem_segment.table_index],
+        isolate_, instance,
+        handle(WasmTableObject::cast(
+                   instance->tables()->get(elem_segment.table_index)),
+               isolate_),
         &js_to_wasm_cache_, elem_segment, dst, src, count);
     CHECK(success);
   }
 
   int table_count = static_cast<int>(module_->tables.size());
   for (int index = 0; index < table_count; ++index) {
-    TableInstance& table_instance = table_instances_[index];
+    auto table_object =
+        handle(WasmTableObject::cast(instance->tables()->get(index)), isolate_);
 
     // Add the new dispatch table at the end to avoid redundant lookups.
-    if (!table_instance.table_object.is_null()) {
-      WasmTableObject::AddDispatchTable(isolate_, table_instance.table_object,
-                                        instance, index);
-    }
+    WasmTableObject::AddDispatchTable(isolate_, table_object, instance, index);
   }
 }
 
@@ -1641,19 +1612,12 @@ bool LoadElemSegment(Isolate* isolate, Handle<WasmInstanceObject> instance,
                      uint32_t src, uint32_t count) {
   JSToWasmWrapperCache js_to_wasm_cache;
 
-  Handle<WasmTableObject> table_object;
-  Handle<FixedArray> js_functions;
-  if (instance->has_table_object()) {
-    table_object = Handle<WasmTableObject>(instance->table_object(), isolate);
-    js_functions = Handle<FixedArray>(table_object->elements(), isolate);
-  }
-
-  TableInstance table_instance = {table_object, js_functions,
-                                  instance->indirect_function_table_size()};
-
   auto& elem_segment = instance->module()->elem_segments[segment_index];
-  return LoadElemSegmentImpl(isolate, instance, table_instance,
-                             &js_to_wasm_cache, elem_segment, dst, src, count);
+  return LoadElemSegmentImpl(
+      isolate, instance,
+      handle(WasmTableObject::cast(instance->tables()->get(table_index)),
+             isolate),
+      &js_to_wasm_cache, elem_segment, dst, src, count);
 }
 
 }  // namespace wasm

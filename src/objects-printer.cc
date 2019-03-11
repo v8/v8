@@ -1831,8 +1831,8 @@ void WasmInstanceObject::WasmInstanceObjectPrint(std::ostream& os) {  // NOLINT
   if (has_debug_info()) {
     os << "\n - debug_info: " << Brief(debug_info());
   }
-  if (has_table_object()) {
-    os << "\n - table_object: " << Brief(table_object());
+  for (int i = 0; i < tables()->length(); i++) {
+    os << "\n - table " << i << ": " << Brief(tables()->get(i));
   }
   os << "\n - imported_function_refs: " << Brief(imported_function_refs());
   if (has_indirect_function_table_refs()) {

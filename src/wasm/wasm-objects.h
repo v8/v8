@@ -414,7 +414,6 @@ class WasmInstanceObject : public JSObject {
   DECL_OPTIONAL_ACCESSORS(tagged_globals_buffer, FixedArray)
   DECL_OPTIONAL_ACCESSORS(imported_mutable_globals_buffers, FixedArray)
   DECL_OPTIONAL_ACCESSORS(debug_info, WasmDebugInfo)
-  DECL_OPTIONAL_ACCESSORS(table_object, WasmTableObject)
   DECL_OPTIONAL_ACCESSORS(tables, FixedArray)
   DECL_ACCESSORS(imported_function_refs, FixedArray)
   DECL_OPTIONAL_ACCESSORS(indirect_function_table_refs, FixedArray)
@@ -461,7 +460,6 @@ class WasmInstanceObject : public JSObject {
   V(kTaggedGlobalsBufferOffset, kTaggedSize)                              \
   V(kImportedMutableGlobalsBuffersOffset, kTaggedSize)                    \
   V(kDebugInfoOffset, kTaggedSize)                                        \
-  V(kTableObjectOffset, kTaggedSize)                                      \
   V(kTablesOffset, kTaggedSize)                                           \
   V(kImportedFunctionRefsOffset, kTaggedSize)                             \
   V(kIndirectFunctionTableRefsOffset, kTaggedSize)                        \

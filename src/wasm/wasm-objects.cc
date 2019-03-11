@@ -1565,6 +1565,13 @@ bool WasmInstanceObject::CopyTableEntries(Isolate* isolate,
                                           uint32_t table_dst_index,
                                           uint32_t dst, uint32_t src,
                                           uint32_t count) {
+  if (static_cast<int>(table_dst_index) >= instance->tables()->length()) {
+    return false;
+  }
+  if (static_cast<int>(table_src_index) >= instance->tables()->length()) {
+    return false;
+  }
+
   // TODO(titzer): multiple tables in TableCopy
   CHECK_EQ(0, table_src_index);
   CHECK_EQ(0, table_dst_index);
@@ -1580,14 +1587,9 @@ bool WasmInstanceObject::CopyTableEntries(Isolate* isolate,
 
   if (dst == src || count == 0) return ok;  // no-op
 
-  if (!instance->has_table_object()) {
-    // No table object, only need to update this instance.
-    CopyTableEntriesImpl(instance, dst, src, count, copy_backward);
-    return ok;
-  }
-
-  Handle<WasmTableObject> table =
-      Handle<WasmTableObject>(instance->table_object(), isolate);
+  // TODO(titzer): multiple tables in TableCopy
+  auto table = handle(
+      WasmTableObject::cast(instance->tables()->get(table_src_index)), isolate);
   // Broadcast table copy operation to all instances that import this table.
   Handle<FixedArray> dispatch_tables(table->dispatch_tables(), isolate);
   for (int i = 0; i < dispatch_tables->length();
@@ -1600,14 +1602,18 @@ bool WasmInstanceObject::CopyTableEntries(Isolate* isolate,
   }
 
   // Copy the function entries.
-  Handle<FixedArray> functions(table->elements(), isolate);
+  auto dst_table = handle(
+      WasmTableObject::cast(instance->tables()->get(table_dst_index)), isolate);
+  auto src_table = handle(
+      WasmTableObject::cast(instance->tables()->get(table_src_index)), isolate);
   if (copy_backward) {
     for (uint32_t i = count; i > 0; i--) {
-      functions->set(dst + i - 1, functions->get(src + i - 1));
+      dst_table->elements()->set(dst + i - 1,
+                                 src_table->elements()->get(src + i - 1));
     }
   } else {
     for (uint32_t i = 0; i < count; i++) {
-      functions->set(dst + i, functions->get(src + i));
+      dst_table->elements()->set(dst + i, src_table->elements()->get(src + i));
     }
   }
   return ok;
