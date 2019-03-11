@@ -1336,7 +1336,7 @@ namespace array {
     label Slow deferred {
       sortState.ResetToGenericAccessor();
     }
-    
+
     CopyWorkArrayToReceiver(length);
     return kSuccess;
   }
