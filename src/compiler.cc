@@ -149,7 +149,7 @@ CompilationJob::Status UnoptimizedCompilationJob::ExecuteJob() {
 
 CompilationJob::Status UnoptimizedCompilationJob::FinalizeJob(
     Handle<SharedFunctionInfo> shared_info, Isolate* isolate) {
-  DCHECK(ThreadId::Current().Equals(isolate->thread_id()));
+  DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
   DisallowCodeDependencyChange no_dependency_change;
   DisallowJavascriptExecution no_js(isolate);
 
@@ -200,7 +200,7 @@ void UnoptimizedCompilationJob::RecordFunctionCompilation(
 // Implementation of OptimizedCompilationJob
 
 CompilationJob::Status OptimizedCompilationJob::PrepareJob(Isolate* isolate) {
-  DCHECK(ThreadId::Current().Equals(isolate->thread_id()));
+  DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
   DisallowJavascriptExecution no_js(isolate);
 
   if (FLAG_trace_opt && compilation_info()->IsOptimizing()) {
@@ -226,7 +226,7 @@ CompilationJob::Status OptimizedCompilationJob::ExecuteJob() {
 }
 
 CompilationJob::Status OptimizedCompilationJob::FinalizeJob(Isolate* isolate) {
-  DCHECK(ThreadId::Current().Equals(isolate->thread_id()));
+  DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
   DisallowJavascriptExecution no_js(isolate);
 
   // Delegate to the underlying implementation.
@@ -921,7 +921,7 @@ MaybeHandle<SharedFunctionInfo> CompileToplevel(
     IsCompiledScope* is_compiled_scope) {
   TimerEventScope<TimerEventCompileCode> top_level_timer(isolate);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileCode");
-  DCHECK(ThreadId::Current().Equals(isolate->thread_id()));
+  DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
 
   PostponeInterruptsScope postpone(isolate);
   DCHECK(!isolate->native_context().is_null());
@@ -1145,7 +1145,7 @@ bool Compiler::CollectSourcePositions(Isolate* isolate,
     return false;
 
   DCHECK(AllowCompilation::IsAllowed(isolate));
-  DCHECK(ThreadId::Current().Equals(isolate->thread_id()));
+  DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
   DCHECK(!isolate->has_pending_exception());
   VMState<BYTECODE_COMPILER> state(isolate);
   PostponeInterruptsScope postpone(isolate);
@@ -1222,7 +1222,7 @@ bool Compiler::Compile(Handle<SharedFunctionInfo> shared_info,
 
   Isolate* isolate = shared_info->GetIsolate();
   DCHECK(AllowCompilation::IsAllowed(isolate));
-  DCHECK(ThreadId::Current().Equals(isolate->thread_id()));
+  DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
   DCHECK(!isolate->has_pending_exception());
   DCHECK(!shared_info->HasBytecodeArray());
   VMState<BYTECODE_COMPILER> state(isolate);

@@ -36,7 +36,7 @@ uint32_t BuiltinsConstantsTableBuilder::AddObject(Handle<Object> object) {
             isolate_->heap()->builtins_constants_table());
 
   // Must be on the main thread.
-  DCHECK(ThreadId::Current().Equals(isolate_->thread_id()));
+  DCHECK_EQ(ThreadId::Current(), isolate_->thread_id());
 
   // Must be generating embedded builtin code.
   DCHECK(isolate_->IsGeneratingEmbeddedBuiltins());

@@ -489,8 +489,7 @@ void RuntimeCallStats::CorrectCurrentCounterId(
 }
 
 bool RuntimeCallStats::IsCalledOnTheSameThread() {
-  if (!thread_id_.Equals(ThreadId::Invalid()))
-    return thread_id_.Equals(ThreadId::Current());
+  if (thread_id_.IsValid()) return thread_id_ == ThreadId::Current();
   thread_id_ = ThreadId::Current();
   return true;
 }

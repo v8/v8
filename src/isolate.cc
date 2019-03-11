@@ -327,7 +327,8 @@ Isolate::PerIsolateThreadData*
 void Isolate::DiscardPerThreadDataForThisThread() {
   ThreadId thread_id = ThreadId::TryGetCurrent();
   if (thread_id.IsValid()) {
-    DCHECK(!thread_manager_->mutex_owner_.Equals(thread_id));
+    DCHECK_NE(thread_manager_->mutex_owner_.load(std::memory_order_relaxed),
+              thread_id);
     base::MutexGuard lock_guard(&thread_data_table_mutex_);
     PerIsolateThreadData* per_thread = thread_data_table_.Lookup(thread_id);
     if (per_thread) {
@@ -3498,8 +3499,8 @@ void Isolate::Enter() {
       DCHECK(Current() == this);
       DCHECK_NOT_NULL(entry_stack_);
       DCHECK(entry_stack_->previous_thread_data == nullptr ||
-             entry_stack_->previous_thread_data->thread_id().Equals(
-                 ThreadId::Current()));
+             entry_stack_->previous_thread_data->thread_id() ==
+                 ThreadId::Current());
       // Same thread re-enters the isolate, no need to re-init anything.
       entry_stack_->entry_count++;
       return;
@@ -3525,8 +3526,8 @@ void Isolate::Enter() {
 void Isolate::Exit() {
   DCHECK_NOT_NULL(entry_stack_);
   DCHECK(entry_stack_->previous_thread_data == nullptr ||
-         entry_stack_->previous_thread_data->thread_id().Equals(
-             ThreadId::Current()));
+         entry_stack_->previous_thread_data->thread_id() ==
+             ThreadId::Current());
 
   if (--entry_stack_->entry_count > 0) return;
 

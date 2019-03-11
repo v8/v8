@@ -448,7 +448,7 @@ class Isolate final : private HiddenFactory {
 #endif
 
     bool Matches(Isolate* isolate, ThreadId thread_id) const {
-      return isolate_ == isolate && thread_id_.Equals(thread_id);
+      return isolate_ == isolate && thread_id_ == thread_id;
     }
 
    private:
