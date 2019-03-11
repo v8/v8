@@ -355,12 +355,6 @@ void IncrementalMarking::StartMarking() {
 
   SetState(MARKING);
 
-  {
-    TRACE_GC(heap()->tracer(),
-             GCTracer::Scope::MC_INCREMENTAL_EMBEDDER_PROLOGUE);
-    heap_->local_embedder_heap_tracer()->TracePrologue();
-  }
-
   ActivateIncrementalWriteBarrier();
 
 // Marking bits are cleared by the sweeper.
@@ -385,6 +379,14 @@ void IncrementalMarking::StartMarking() {
   // Ready to start incremental marking.
   if (FLAG_trace_incremental_marking) {
     heap()->isolate()->PrintWithTimestamp("[IncrementalMarking] Running\n");
+  }
+
+  {
+    // TracePrologue may call back into V8 in corner cases, requiring that
+    // marking (including write barriers) is fully set up.
+    TRACE_GC(heap()->tracer(),
+             GCTracer::Scope::MC_INCREMENTAL_EMBEDDER_PROLOGUE);
+    heap_->local_embedder_heap_tracer()->TracePrologue();
   }
 }
 
