@@ -16,7 +16,7 @@ vars = {
 
 deps = {
   'v8/build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '8da04809022e696044180deaad8d4f3bf729788f',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '61c98e6a71d14c8e583436e9a222f4718f2ae528',
   'v8/third_party/depot_tools':
     Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '3485a263f4ab1f5e5576d0bd3b2633a37b8b217f',
   'v8/third_party/icu':
@@ -122,7 +122,7 @@ deps = {
     'dep_type': 'cipd',
   },
   'v8/test/wasm-js/data':
-    Var('chromium_url') + '/external/github.com/WebAssembly/spec.git' + '@' + 'b55286262bdea98f97b5911cc9684e3d4bf356b7',
+    Var('chromium_url') + '/external/github.com/WebAssembly/spec.git' + '@' + '299e68710d9b1884e6fa65c829fdfae8f1a6d9eb',
 }
 
 recursedeps = [
