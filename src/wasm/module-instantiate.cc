@@ -258,6 +258,12 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   auto initial_pages_counter = SELECT_WASM_COUNTER(
       isolate_->counters(), module_->origin, wasm, min_mem_pages_count);
   initial_pages_counter->AddSample(initial_pages);
+  if (module_->has_maximum_pages) {
+    DCHECK_EQ(kWasmOrigin, module_->origin);
+    auto max_pages_counter =
+        isolate_->counters()->wasm_wasm_max_mem_pages_count();
+    max_pages_counter->AddSample(module_->maximum_pages);
+  }
   // Asm.js has memory_ already set at this point, so we don't want to
   // overwrite it.
   if (memory_.is_null()) {
