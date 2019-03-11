@@ -453,6 +453,8 @@ WasmCode* NativeModule::AddOwnedCode(
   }
   memcpy(reinterpret_cast<void*>(code->instruction_start()),
          instructions.start(), instructions.size());
+  generated_code_size_.fetch_add(instructions.size(),
+                                 std::memory_order_relaxed);
 
   return code;
 }
@@ -1163,6 +1165,24 @@ bool NativeModule::SetExecutable(bool executable) {
   }
   is_executable_ = executable;
   return true;
+}
+
+void NativeModule::SampleCodeSize(
+    Counters* counters, NativeModule::CodeSamplingTime sampling_time) const {
+  size_t code_size = sampling_time == kSampling
+                         ? committed_code_space()
+                         : generated_code_size_.load(std::memory_order_relaxed);
+  int code_size_mb = static_cast<int>(code_size / MB);
+  Histogram* histogram = nullptr;
+  switch (sampling_time) {
+    case kAfterBaseline:
+      histogram = counters->wasm_module_code_size_mb_after_baseline();
+      break;
+    case kSampling:
+      histogram = counters->wasm_module_code_size_mb();
+      break;
+  }
+  histogram->AddSample(code_size_mb);
 }
 
 void WasmCodeManager::FreeNativeModule(NativeModule* native_module) {

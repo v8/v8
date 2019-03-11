@@ -438,14 +438,12 @@ void WasmEngine::AddIsolate(Isolate* isolate) {
   auto callback = [](v8::Isolate* v8_isolate, v8::GCType type,
                      v8::GCCallbackFlags flags, void* data) {
     Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
+    Counters* counters = isolate->counters();
     WasmEngine* engine = isolate->wasm_engine();
     base::MutexGuard lock(&engine->mutex_);
     DCHECK_EQ(1, engine->isolates_.count(isolate));
-    for (NativeModule* native_module :
-         engine->isolates_[isolate]->native_modules) {
-      int code_size =
-          static_cast<int>(native_module->committed_code_space() / MB);
-      isolate->counters()->wasm_module_code_size_mb()->AddSample(code_size);
+    for (auto* native_module : engine->isolates_[isolate]->native_modules) {
+      native_module->SampleCodeSize(counters, NativeModule::kSampling);
     }
   };
   isolate->heap()->AddGCEpilogueCallback(callback, v8::kGCTypeMarkSweepCompact,

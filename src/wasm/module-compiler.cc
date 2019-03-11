@@ -984,8 +984,8 @@ class AsyncCompileJob::CompilationStateCallback {
         break;
       case CompilationEvent::kFinishedTopTierCompilation:
         DCHECK_EQ(CompilationEvent::kFinishedBaselineCompilation, last_event_);
-        // This callback should not react to top tier finished callbacks, since
-        // the job might already be gone then.
+        // At this point, the job will already be gone, thus do not access it
+        // here.
         break;
       case CompilationEvent::kFailedCompilation: {
         DCHECK(!last_event_.has_value());
@@ -1252,6 +1252,10 @@ class AsyncCompileJob::CompileFinished : public CompileStep {
  private:
   void RunInForeground(AsyncCompileJob* job) override {
     TRACE_COMPILE("(3b) Compilation finished\n");
+    // Sample the generated code size when baseline compilation finished.
+    job->native_module_->SampleCodeSize(job->isolate_->counters(),
+                                        NativeModule::kAfterBaseline);
+    // Then finalize and publish the generated module.
     job->FinishCompile();
   }
 };

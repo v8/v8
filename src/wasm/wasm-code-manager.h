@@ -360,6 +360,10 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   const char* GetRuntimeStubName(Address runtime_stub_entry) const;
 
+  // Sample the current code size of this modules to the given counters.
+  enum CodeSamplingTime : int8_t { kAfterBaseline, kSampling };
+  void SampleCodeSize(Counters*, CodeSamplingTime) const;
+
  private:
   friend class WasmCode;
   friend class WasmCodeManager;
@@ -484,6 +488,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   WasmEngine* const engine_;
   std::atomic<size_t> committed_code_space_{0};
+  std::atomic<size_t> generated_code_size_{0};
   int modification_scope_depth_ = 0;
   bool can_request_more_memory_;
   UseTrapHandler use_trap_handler_ = kNoTrapHandler;
