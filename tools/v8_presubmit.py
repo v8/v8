@@ -366,7 +366,7 @@ class TorqueLintProcessor(CacheableSourceFileProcessor):
     return name.endswith('.tq')
 
   def GetPathsToSearch(self):
-    dirs = ['third_party', 'src']
+    dirs = ['third-party', 'src']
     test_dirs = ['torque']
     return dirs + [join('test', dir) for dir in test_dirs]
 
