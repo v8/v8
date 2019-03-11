@@ -56,8 +56,7 @@ V8_EXPORT_PRIVATE Handle<Script> CreateWasmScript(
     const std::string& source_map_url);
 
 // Triggered by the WasmCompileLazy builtin.
-// Returns the instruction start of the compiled code object.
-Address CompileLazy(Isolate*, NativeModule*, uint32_t func_index);
+void CompileLazy(Isolate*, NativeModule*, uint32_t func_index);
 
 // Encapsulates all the state and steps of an asynchronous compilation.
 // An asynchronous compile job consists of a number of tasks that are executed

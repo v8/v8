@@ -244,8 +244,10 @@ RUNTIME_FUNCTION(Runtime_WasmCompileLazy) {
   DCHECK_EQ(*instance, WasmCompileLazyFrame::cast(it.frame())->wasm_instance());
 #endif
 
-  Address entrypoint = wasm::CompileLazy(
-      isolate, instance->module_object()->native_module(), func_index);
+  auto* native_module = instance->module_object()->native_module();
+  wasm::CompileLazy(isolate, native_module, func_index);
+
+  Address entrypoint = native_module->GetCallTargetForFunction(func_index);
   return Object(entrypoint);
 }
 

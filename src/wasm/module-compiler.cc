@@ -318,9 +318,17 @@ std::unique_ptr<CompilationState> CompilationState::New(
 // End of PIMPL implementation of {CompilationState}.
 //////////////////////////////////////////////////////
 
-WasmCode* LazyCompileFunction(Isolate* isolate, NativeModule* native_module,
-                              int func_index) {
+void CompileLazy(Isolate* isolate, NativeModule* native_module,
+                 uint32_t func_index) {
+  Counters* counters = isolate->counters();
+  HistogramTimerScope lazy_time_scope(counters->wasm_lazy_compilation_time());
+
+  DCHECK(!native_module->lazy_compile_frozen());
+
   base::ElapsedTimer compilation_timer;
+
+  NativeModuleModificationScope native_module_modification_scope(native_module);
+
   DCHECK(!native_module->has_code(static_cast<uint32_t>(func_index)));
 
   compilation_timer.Start();
@@ -351,36 +359,20 @@ WasmCode* LazyCompileFunction(Isolate* isolate, NativeModule* native_module,
   // module creation time, and return a function that always traps here.
   CHECK(!native_module->compilation_state()->failed());
 
+  // The code we just produced should be the one that was requested.
+  DCHECK_EQ(func_index, code->index());
+
   if (WasmCode::ShouldBeLogged(isolate)) code->LogCode(isolate);
 
   int64_t func_size =
       static_cast<int64_t>(func->code.end_offset() - func->code.offset());
   int64_t compilation_time = compilation_timer.Elapsed().InMicroseconds();
 
-  auto counters = isolate->counters();
   counters->wasm_lazily_compiled_functions()->Increment();
 
   counters->wasm_lazy_compilation_throughput()->AddSample(
       compilation_time != 0 ? static_cast<int>(func_size / compilation_time)
                             : 0);
-
-  return code;
-}
-
-Address CompileLazy(Isolate* isolate, NativeModule* native_module,
-                    uint32_t func_index) {
-  HistogramTimerScope lazy_time_scope(
-      isolate->counters()->wasm_lazy_compilation_time());
-
-  DCHECK(!native_module->lazy_compile_frozen());
-
-  NativeModuleModificationScope native_module_modification_scope(native_module);
-
-  WasmCode* result = LazyCompileFunction(isolate, native_module, func_index);
-  DCHECK_NOT_NULL(result);
-  DCHECK_EQ(func_index, result->index());
-
-  return result->instruction_start();
 }
 
 namespace {
