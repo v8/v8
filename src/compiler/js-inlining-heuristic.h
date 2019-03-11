@@ -24,7 +24,8 @@ class JSInliningHeuristic final : public AdvancedReducer {
         candidates_(local_zone),
         seen_(local_zone),
         source_positions_(source_positions),
-        jsgraph_(jsgraph) {}
+        jsgraph_(jsgraph),
+        broker_(broker) {}
 
   const char* reducer_name() const override { return "JSInliningHeuristic"; }
 
@@ -84,6 +85,8 @@ class JSInliningHeuristic final : public AdvancedReducer {
   CommonOperatorBuilder* common() const;
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
+  // TODO(neis): Make heap broker a component of JSGraph?
+  JSHeapBroker* broker() const { return broker_; }
   Isolate* isolate() const { return jsgraph_->isolate(); }
   SimplifiedOperatorBuilder* simplified() const;
 
@@ -93,6 +96,7 @@ class JSInliningHeuristic final : public AdvancedReducer {
   ZoneSet<NodeId> seen_;
   SourcePositionTable* source_positions_;
   JSGraph* const jsgraph_;
+  JSHeapBroker* const broker_;
   int cumulative_count_ = 0;
 };
 

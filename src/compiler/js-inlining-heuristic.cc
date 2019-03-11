@@ -106,7 +106,8 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
         candidate.functions[i].is_null()
             ? candidate.shared_info
             : handle(candidate.functions[i]->shared(), isolate());
-    candidate.can_inline_function[i] = shared->IsInlineable();
+    SharedFunctionInfoRef sfi_ref(broker(), shared);
+    candidate.can_inline_function[i] = sfi_ref.IsInlineable();
     // Do not allow direct recursion i.e. f() -> f(). We still allow indirect
     // recurion like f() -> g() -> f(). The indirect recursion is helpful in
     // cases where f() is a small dispatch function that calls the appropriate
