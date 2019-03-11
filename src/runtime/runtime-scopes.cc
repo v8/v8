@@ -169,7 +169,7 @@ Object DeclareGlobals(Isolate* isolate, Handle<FixedArray> declarations,
           Handle<SharedFunctionInfo>::cast(initial_value);
       Handle<JSFunction> function =
           isolate->factory()->NewFunctionFromSharedFunctionInfo(
-              shared, context, feedback_cell, TENURED);
+              shared, context, feedback_cell, AllocationType::kOld);
       value = function;
     } else {
       value = isolate->factory()->undefined_value();
@@ -399,8 +399,8 @@ Handle<JSObject> NewSloppyArguments(Isolate* isolate, Handle<JSFunction> callee,
   if (argument_count > 0) {
     if (parameter_count > 0) {
       int mapped_count = Min(argument_count, parameter_count);
-      Handle<FixedArray> parameter_map =
-          isolate->factory()->NewFixedArray(mapped_count + 2, NOT_TENURED);
+      Handle<FixedArray> parameter_map = isolate->factory()->NewFixedArray(
+          mapped_count + 2, AllocationType::kYoung);
       parameter_map->set_map(
           ReadOnlyRoots(isolate).sloppy_arguments_elements_map());
       result->set_map(isolate->native_context()->fast_aliased_arguments_map());
@@ -409,8 +409,8 @@ Handle<JSObject> NewSloppyArguments(Isolate* isolate, Handle<JSFunction> callee,
       // Store the context and the arguments array at the beginning of the
       // parameter map.
       Handle<Context> context(isolate->context(), isolate);
-      Handle<FixedArray> arguments =
-          isolate->factory()->NewFixedArray(argument_count, NOT_TENURED);
+      Handle<FixedArray> arguments = isolate->factory()->NewFixedArray(
+          argument_count, AllocationType::kYoung);
       parameter_map->set(0, *context);
       parameter_map->set(1, *arguments);
 
@@ -445,8 +445,8 @@ Handle<JSObject> NewSloppyArguments(Isolate* isolate, Handle<JSFunction> callee,
     } else {
       // If there is no aliasing, the arguments object elements are not
       // special in any way.
-      Handle<FixedArray> elements =
-          isolate->factory()->NewFixedArray(argument_count, NOT_TENURED);
+      Handle<FixedArray> elements = isolate->factory()->NewFixedArray(
+          argument_count, AllocationType::kYoung);
       result->set_elements(*elements);
       for (int i = 0; i < argument_count; ++i) {
         elements->set(i, parameters[i]);
@@ -606,7 +606,7 @@ RUNTIME_FUNCTION(Runtime_NewClosure) {
   Handle<Context> context(isolate->context(), isolate);
   Handle<JSFunction> function =
       isolate->factory()->NewFunctionFromSharedFunctionInfo(
-          shared, context, feedback_cell, NOT_TENURED);
+          shared, context, feedback_cell, AllocationType::kYoung);
   return *function;
 }
 
@@ -620,7 +620,7 @@ RUNTIME_FUNCTION(Runtime_NewClosure_Tenured) {
   // directly to properties.
   Handle<JSFunction> function =
       isolate->factory()->NewFunctionFromSharedFunctionInfo(
-          shared, context, feedback_cell, TENURED);
+          shared, context, feedback_cell, AllocationType::kOld);
   return *function;
 }
 

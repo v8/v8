@@ -543,9 +543,9 @@ PodArray<T> PodArray<T>::cast(Object object) {
 // static
 template <class T>
 Handle<PodArray<T>> PodArray<T>::New(Isolate* isolate, int length,
-                                     PretenureFlag pretenure) {
+                                     AllocationType allocation) {
   return Handle<PodArray<T>>::cast(
-      isolate->factory()->NewByteArray(length * sizeof(T), pretenure));
+      isolate->factory()->NewByteArray(length * sizeof(T), allocation));
 }
 
 template <class T>

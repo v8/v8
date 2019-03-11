@@ -1926,7 +1926,8 @@ int32_t TranslationIterator::Next() {
 bool TranslationIterator::HasNext() const { return index_ < buffer_->length(); }
 
 Handle<ByteArray> TranslationBuffer::CreateByteArray(Factory* factory) {
-  Handle<ByteArray> result = factory->NewByteArray(CurrentIndex(), TENURED);
+  Handle<ByteArray> result =
+      factory->NewByteArray(CurrentIndex(), AllocationType::kOld);
   contents_.CopyTo(result->GetDataStartAddress());
   return result;
 }
@@ -2220,7 +2221,7 @@ Handle<FixedArray> MaterializedObjectStore::EnsureStackEntries(int length) {
   }
 
   Handle<FixedArray> new_array =
-      isolate()->factory()->NewFixedArray(new_length, TENURED);
+      isolate()->factory()->NewFixedArray(new_length, AllocationType::kOld);
   for (int i = 0; i < array->length(); i++) {
     new_array->set(i, array->get(i));
   }
@@ -3752,7 +3753,7 @@ Handle<ByteArray> TranslatedState::AllocateStorageFor(TranslatedValue* slot) {
   // It is important to allocate all the objects tenured so that the marker
   // does not visit them.
   Handle<ByteArray> object_storage =
-      isolate()->factory()->NewByteArray(allocate_size, TENURED);
+      isolate()->factory()->NewByteArray(allocate_size, AllocationType::kOld);
   for (int i = 0; i < object_storage->length(); i++) {
     object_storage->set(i, kStoreTagged);
   }
@@ -3949,7 +3950,7 @@ void TranslatedState::StoreMaterializedValuesAndDeopt(JavaScriptFrame* frame) {
   bool new_store = false;
   if (previously_materialized_objects.is_null()) {
     previously_materialized_objects =
-        isolate_->factory()->NewFixedArray(length, TENURED);
+        isolate_->factory()->NewFixedArray(length, AllocationType::kOld);
     for (int i = 0; i < length; i++) {
       previously_materialized_objects->set(i, *marker);
     }

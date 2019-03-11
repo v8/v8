@@ -953,7 +953,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 
   // Optimized memory operations that map to Turbofan simplified nodes.
   TNode<HeapObject> OptimizedAllocate(TNode<IntPtrT> size,
-                                      PretenureFlag pretenure);
+                                      AllocationType allocation);
   void OptimizedStoreField(MachineRepresentation rep, TNode<HeapObject> object,
                            int offset, Node* value,
                            WriteBarrierKind write_barrier);

@@ -320,8 +320,9 @@ void InstallBytecodeArray(Handle<BytecodeArray> bytecode_array,
   Handle<Code> code = isolate->factory()->CopyCode(Handle<Code>::cast(
       isolate->factory()->interpreter_entry_trampoline_for_profiling()));
 
-  Handle<InterpreterData> interpreter_data = Handle<InterpreterData>::cast(
-      isolate->factory()->NewStruct(INTERPRETER_DATA_TYPE, TENURED));
+  Handle<InterpreterData> interpreter_data =
+      Handle<InterpreterData>::cast(isolate->factory()->NewStruct(
+          INTERPRETER_DATA_TYPE, AllocationType::kOld));
 
   interpreter_data->set_bytecode_array(*bytecode_array);
   interpreter_data->set_interpreter_trampoline(*code);
@@ -1501,10 +1502,10 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
   if (eval_result.has_shared()) {
     if (eval_result.has_feedback_cell()) {
       result = isolate->factory()->NewFunctionFromSharedFunctionInfo(
-          shared_info, context, feedback_cell, NOT_TENURED);
+          shared_info, context, feedback_cell, AllocationType::kYoung);
     } else {
       result = isolate->factory()->NewFunctionFromSharedFunctionInfo(
-          shared_info, context, NOT_TENURED);
+          shared_info, context, AllocationType::kYoung);
       JSFunction::EnsureFeedbackVector(result);
       if (allow_eval_cache) {
         // Make sure to cache this result.
@@ -1516,7 +1517,7 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
     }
   } else {
     result = isolate->factory()->NewFunctionFromSharedFunctionInfo(
-        shared_info, context, NOT_TENURED);
+        shared_info, context, AllocationType::kYoung);
     JSFunction::EnsureFeedbackVector(result);
     if (allow_eval_cache) {
       // Add the SharedFunctionInfo and the LiteralsArray to the eval cache if
@@ -1979,8 +1980,8 @@ MaybeHandle<JSFunction> Compiler::GetWrappedFunction(
   }
   DCHECK(is_compiled_scope.is_compiled());
 
-  return isolate->factory()->NewFunctionFromSharedFunctionInfo(wrapped, context,
-                                                               NOT_TENURED);
+  return isolate->factory()->NewFunctionFromSharedFunctionInfo(
+      wrapped, context, AllocationType::kYoung);
 }
 
 MaybeHandle<SharedFunctionInfo>
@@ -2135,7 +2136,7 @@ bool Compiler::FinalizeOptimizedCompilationJob(OptimizedCompilationJob* job,
 }
 
 void Compiler::PostInstantiation(Handle<JSFunction> function,
-                                 PretenureFlag pretenure) {
+                                 AllocationType allocation) {
   Isolate* isolate = function->GetIsolate();
   Handle<SharedFunctionInfo> shared(function->shared(), isolate);
   IsCompiledScope is_compiled_scope(shared->is_compiled_scope());

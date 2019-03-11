@@ -114,7 +114,7 @@ MaybeHandle<Object> CreateDynamicFunction(Isolate* isolate,
 
     Handle<Context> context(function->context(), isolate);
     function = isolate->factory()->NewFunctionFromSharedFunctionInfo(
-        map, shared_info, context, NOT_TENURED);
+        map, shared_info, context, AllocationType::kYoung);
   }
   return function;
 }

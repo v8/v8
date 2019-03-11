@@ -533,26 +533,28 @@ NumberOperationParameters const& NumberOperationParametersOf(
 }
 
 size_t hash_value(AllocateParameters info) {
-  return base::hash_combine(info.type(), info.pretenure());
+  return base::hash_combine(info.type(),
+                            static_cast<int>(info.allocation_type()));
 }
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
                                            AllocateParameters info) {
-  return os << info.type() << ", " << info.pretenure();
+  return os << info.type() << ", " << info.allocation_type();
 }
 
 bool operator==(AllocateParameters const& lhs, AllocateParameters const& rhs) {
-  return lhs.pretenure() == rhs.pretenure() && lhs.type() == rhs.type();
+  return lhs.allocation_type() == rhs.allocation_type() &&
+         lhs.type() == rhs.type();
 }
 
-PretenureFlag PretenureFlagOf(const Operator* op) {
+AllocationType AllocationTypeOf(const Operator* op) {
   if (op->opcode() == IrOpcode::kNewDoubleElements ||
       op->opcode() == IrOpcode::kNewSmiOrObjectElements) {
-    return OpParameter<PretenureFlag>(op);
+    return OpParameter<AllocationType>(op);
   }
   DCHECK(op->opcode() == IrOpcode::kAllocate ||
          op->opcode() == IrOpcode::kAllocateRaw);
-  return OpParameter<AllocateParameters>(op).pretenure();
+  return OpParameter<AllocateParameters>(op).allocation_type();
 }
 
 Type AllocateTypeOf(const Operator* op) {
@@ -1598,23 +1600,23 @@ CheckIfParameters const& CheckIfParametersOf(Operator const* op) {
 }
 
 const Operator* SimplifiedOperatorBuilder::NewDoubleElements(
-    PretenureFlag pretenure) {
-  return new (zone()) Operator1<PretenureFlag>(  // --
-      IrOpcode::kNewDoubleElements,              // opcode
-      Operator::kEliminatable,                   // flags
-      "NewDoubleElements",                       // name
-      1, 1, 1, 1, 1, 0,                          // counts
-      pretenure);                                // parameter
+    AllocationType allocation) {
+  return new (zone()) Operator1<AllocationType>(  // --
+      IrOpcode::kNewDoubleElements,               // opcode
+      Operator::kEliminatable,                    // flags
+      "NewDoubleElements",                        // name
+      1, 1, 1, 1, 1, 0,                           // counts
+      allocation);                                // parameter
 }
 
 const Operator* SimplifiedOperatorBuilder::NewSmiOrObjectElements(
-    PretenureFlag pretenure) {
-  return new (zone()) Operator1<PretenureFlag>(  // --
-      IrOpcode::kNewSmiOrObjectElements,         // opcode
-      Operator::kEliminatable,                   // flags
-      "NewSmiOrObjectElements",                  // name
-      1, 1, 1, 1, 1, 0,                          // counts
-      pretenure);                                // parameter
+    AllocationType allocation) {
+  return new (zone()) Operator1<AllocationType>(  // --
+      IrOpcode::kNewSmiOrObjectElements,          // opcode
+      Operator::kEliminatable,                    // flags
+      "NewSmiOrObjectElements",                   // name
+      1, 1, 1, 1, 1, 0,                           // counts
+      allocation);                                // parameter
 }
 
 const Operator* SimplifiedOperatorBuilder::NewArgumentsElements(
@@ -1633,19 +1635,19 @@ int NewArgumentsElementsMappedCountOf(const Operator* op) {
 }
 
 const Operator* SimplifiedOperatorBuilder::Allocate(Type type,
-                                                    PretenureFlag pretenure) {
+                                                    AllocationType allocation) {
   return new (zone()) Operator1<AllocateParameters>(
       IrOpcode::kAllocate,
       Operator::kNoDeopt | Operator::kNoThrow | Operator::kNoWrite, "Allocate",
-      1, 1, 1, 1, 1, 0, AllocateParameters(type, pretenure));
+      1, 1, 1, 1, 1, 0, AllocateParameters(type, allocation));
 }
 
 const Operator* SimplifiedOperatorBuilder::AllocateRaw(
-    Type type, PretenureFlag pretenure) {
+    Type type, AllocationType allocation) {
   return new (zone()) Operator1<AllocateParameters>(
       IrOpcode::kAllocateRaw,
       Operator::kNoDeopt | Operator::kNoThrow | Operator::kNoWrite,
-      "AllocateRaw", 1, 1, 1, 1, 1, 1, AllocateParameters(type, pretenure));
+      "AllocateRaw", 1, 1, 1, 1, 1, 1, AllocateParameters(type, allocation));
 }
 
 const Operator* SimplifiedOperatorBuilder::StringCodePointAt(

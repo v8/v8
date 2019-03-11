@@ -124,10 +124,9 @@ class FixedArray : public FixedArrayBase {
   Handle<T> GetValueChecked(Isolate* isolate, int index) const;
 
   // Return a grown copy if the index is bigger than the array's length.
-  static Handle<FixedArray> SetAndGrow(Isolate* isolate,
-                                       Handle<FixedArray> array, int index,
-                                       Handle<Object> value,
-                                       PretenureFlag pretenure = NOT_TENURED);
+  static Handle<FixedArray> SetAndGrow(
+      Isolate* isolate, Handle<FixedArray> array, int index,
+      Handle<Object> value, AllocationType allocation = AllocationType::kYoung);
 
   // Setter that uses write barrier.
   inline void set(int index, Object value);
@@ -384,7 +383,7 @@ class WeakArrayList : public HeapObject {
 
   static Handle<WeakArrayList> EnsureSpace(
       Isolate* isolate, Handle<WeakArrayList> array, int length,
-      PretenureFlag pretenure = NOT_TENURED);
+      AllocationType allocation = AllocationType::kYoung);
 
   // Returns the number of non-cleaned weak references in the array.
   int CountLiveWeakReferences() const;
@@ -550,8 +549,9 @@ class ByteArray : public FixedArrayBase {
 template <class T>
 class PodArray : public ByteArray {
  public:
-  static Handle<PodArray<T>> New(Isolate* isolate, int length,
-                                 PretenureFlag pretenure = NOT_TENURED);
+  static Handle<PodArray<T>> New(
+      Isolate* isolate, int length,
+      AllocationType allocation = AllocationType::kYoung);
   void copy_out(int index, T* result) {
     ByteArray::copy_out(index * sizeof(T), reinterpret_cast<byte*>(result),
                         sizeof(T));

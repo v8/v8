@@ -85,7 +85,7 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
   // Give the compiler a chance to perform low-latency initialization tasks of
   // the given {function} on its instantiation. Note that only the runtime will
   // offer this chance, optimized closure instantiation will not call this.
-  static void PostInstantiation(Handle<JSFunction> function, PretenureFlag);
+  static void PostInstantiation(Handle<JSFunction> function, AllocationType);
 
   // Parser::Parse, then Compiler::Analyze.
   static bool ParseAndAnalyze(ParseInfo* parse_info,

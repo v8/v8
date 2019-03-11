@@ -393,7 +393,7 @@ class AllocationSiteRef : public HeapObjectRef {
   Handle<AllocationSite> object() const;
 
   bool PointsToLiteral() const;
-  PretenureFlag GetPretenureMode() const;
+  AllocationType GetAllocationType() const;
   ObjectRef nested_site() const;
 
   // {IsFastLiteral} determines whether the given array or object literal

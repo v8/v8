@@ -1239,9 +1239,8 @@ TNode<HeapObject> CodeStubAssembler::Allocate(TNode<IntPtrT> size_in_bytes,
     }
   }
   if (!(flags & kDoubleAlignment) && !(flags & kAllowLargeObjectAllocation)) {
-    return OptimizedAllocate(size_in_bytes, new_space
-                                                ? PretenureFlag::NOT_TENURED
-                                                : PretenureFlag::TENURED);
+    return OptimizedAllocate(size_in_bytes, new_space ? AllocationType::kYoung
+                                                      : AllocationType::kOld);
   }
   TNode<ExternalReference> top_address = ExternalConstant(
       new_space
@@ -13598,7 +13597,7 @@ void CodeStubAssembler::Print(const char* prefix, Node* tagged_value) {
     std::string formatted(prefix);
     formatted += ": ";
     Handle<String> string = isolate()->factory()->NewStringFromAsciiChecked(
-        formatted.c_str(), TENURED);
+        formatted.c_str(), AllocationType::kOld);
     CallRuntime(Runtime::kGlobalPrint, NoContextConstant(),
                 HeapConstant(string));
   }

@@ -568,7 +568,7 @@ Handle<JSArrayBuffer> SetupArrayBuffer(Isolate* isolate, void* backing_store,
                                        size_t size, bool is_external,
                                        SharedFlag shared) {
   Handle<JSArrayBuffer> buffer =
-      isolate->factory()->NewJSArrayBuffer(shared, TENURED);
+      isolate->factory()->NewJSArrayBuffer(shared, AllocationType::kOld);
   constexpr bool is_wasm_memory = true;
   JSArrayBuffer::Setup(buffer, isolate, is_external, backing_store, size,
                        shared, is_wasm_memory);

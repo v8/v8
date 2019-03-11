@@ -685,13 +685,33 @@ enum AllocationSpace {
 constexpr int kSpaceTagSize = 4;
 STATIC_ASSERT(FIRST_SPACE == 0);
 
-enum class AllocationType {
+enum class AllocationType : uint8_t {
   kYoung,    // Regular object allocated in NEW_SPACE or NEW_LO_SPACE
   kOld,      // Regular object allocated in OLD_SPACE or LO_SPACE
   kCode,     // Code object allocated in CODE_SPACE or CODE_LO_SPACE
   kMap,      // Map object allocated in MAP_SPACE
   kReadOnly  // Object allocated in RO_SPACE
 };
+
+inline size_t hash_value(AllocationType kind) {
+  return static_cast<uint8_t>(kind);
+}
+
+inline std::ostream& operator<<(std::ostream& os, AllocationType kind) {
+  switch (kind) {
+    case AllocationType::kYoung:
+      return os << "Young";
+    case AllocationType::kOld:
+      return os << "Old";
+    case AllocationType::kCode:
+      return os << "Code";
+    case AllocationType::kMap:
+      return os << "Map";
+    case AllocationType::kReadOnly:
+      return os << "ReadOnly";
+  }
+  UNREACHABLE();
+}
 
 // TODO(ishell): review and rename kWordAligned to kTaggedAligned.
 enum AllocationAlignment { kWordAligned, kDoubleAligned, kDoubleUnaligned };
@@ -720,24 +740,6 @@ inline std::ostream& operator<<(std::ostream& os, WriteBarrierKind kind) {
       return os << "PointerWriteBarrier";
     case kFullWriteBarrier:
       return os << "FullWriteBarrier";
-  }
-  UNREACHABLE();
-}
-
-// A flag that indicates whether objects should be pretenured when
-// allocated (allocated directly into either the old generation or read-only
-// space), or not (allocated in the young generation if the object size and type
-// allows).
-enum PretenureFlag { NOT_TENURED, TENURED, TENURED_READ_ONLY };
-
-inline std::ostream& operator<<(std::ostream& os, const PretenureFlag& flag) {
-  switch (flag) {
-    case NOT_TENURED:
-      return os << "NotTenured";
-    case TENURED:
-      return os << "Tenured";
-    case TENURED_READ_ONLY:
-      return os << "TenuredReadOnly";
   }
   UNREACHABLE();
 }

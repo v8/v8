@@ -727,7 +727,8 @@ StartupData SnapshotCreator::CreateBlob(
     // We need to store the global proxy size upfront in case we need the
     // bootstrapper to create a global proxy before we deserialize the context.
     i::Handle<i::FixedArray> global_proxy_sizes =
-        isolate->factory()->NewFixedArray(num_additional_contexts, i::TENURED);
+        isolate->factory()->NewFixedArray(num_additional_contexts,
+                                          i::AllocationType::kOld);
     for (int i = 0; i < num_additional_contexts; i++) {
       i::Handle<i::Context> context =
           v8::Utils::OpenHandle(*data->contexts_.Get(i));
@@ -746,7 +747,7 @@ StartupData SnapshotCreator::CreateBlob(
       i::GarbageCollectionReason::kSnapshotCreator);
   {
     i::HandleScope scope(isolate);
-    isolate->heap()->CompactWeakArrayLists(internal::TENURED);
+    isolate->heap()->CompactWeakArrayLists(internal::AllocationType::kOld);
   }
 
   isolate->heap()->read_only_space()->ClearStringPaddingIfNeeded();
@@ -1446,8 +1447,8 @@ static Local<FunctionTemplate> FunctionTemplateNew(
     v8::Local<Signature> signature, int length, bool do_not_cache,
     v8::Local<Private> cached_property_name = v8::Local<Private>(),
     SideEffectType side_effect_type = SideEffectType::kHasSideEffect) {
-  i::Handle<i::Struct> struct_obj =
-      isolate->factory()->NewStruct(i::FUNCTION_TEMPLATE_INFO_TYPE, i::TENURED);
+  i::Handle<i::Struct> struct_obj = isolate->factory()->NewStruct(
+      i::FUNCTION_TEMPLATE_INFO_TYPE, i::AllocationType::kOld);
   i::Handle<i::FunctionTemplateInfo> obj =
       i::Handle<i::FunctionTemplateInfo>::cast(struct_obj);
   InitializeFunctionTemplate(obj);
@@ -1684,8 +1685,8 @@ static Local<ObjectTemplate> ObjectTemplateNew(
     bool do_not_cache) {
   LOG_API(isolate, ObjectTemplate, New);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
-  i::Handle<i::Struct> struct_obj =
-      isolate->factory()->NewStruct(i::OBJECT_TEMPLATE_INFO_TYPE, i::TENURED);
+  i::Handle<i::Struct> struct_obj = isolate->factory()->NewStruct(
+      i::OBJECT_TEMPLATE_INFO_TYPE, i::AllocationType::kOld);
   i::Handle<i::ObjectTemplateInfo> obj =
       i::Handle<i::ObjectTemplateInfo>::cast(struct_obj);
   InitializeTemplate(obj, Consts::OBJECT_TEMPLATE);
@@ -1837,8 +1838,8 @@ static i::Handle<i::InterceptorInfo> CreateInterceptorInfo(
     i::Isolate* isolate, Getter getter, Setter setter, Query query,
     Descriptor descriptor, Deleter remover, Enumerator enumerator,
     Definer definer, Local<Value> data, PropertyHandlerFlags flags) {
-  auto obj = i::Handle<i::InterceptorInfo>::cast(
-      isolate->factory()->NewStruct(i::INTERCEPTOR_INFO_TYPE, i::TENURED));
+  auto obj = i::Handle<i::InterceptorInfo>::cast(isolate->factory()->NewStruct(
+      i::INTERCEPTOR_INFO_TYPE, i::AllocationType::kOld));
   obj->set_flags(0);
 
   if (getter != nullptr) SET_FIELD_WRAPPED(isolate, obj, set_getter, getter);
@@ -1938,8 +1939,8 @@ void ObjectTemplate::SetAccessCheckCallback(AccessCheckCallback callback,
   auto cons = EnsureConstructor(isolate, this);
   EnsureNotInstantiated(cons, "v8::ObjectTemplate::SetAccessCheckCallback");
 
-  i::Handle<i::Struct> struct_info =
-      isolate->factory()->NewStruct(i::ACCESS_CHECK_INFO_TYPE, i::TENURED);
+  i::Handle<i::Struct> struct_info = isolate->factory()->NewStruct(
+      i::ACCESS_CHECK_INFO_TYPE, i::AllocationType::kOld);
   i::Handle<i::AccessCheckInfo> info =
       i::Handle<i::AccessCheckInfo>::cast(struct_info);
 
@@ -1968,8 +1969,8 @@ void ObjectTemplate::SetAccessCheckCallbackAndHandler(
   EnsureNotInstantiated(
       cons, "v8::ObjectTemplate::SetAccessCheckCallbackWithHandler");
 
-  i::Handle<i::Struct> struct_info =
-      isolate->factory()->NewStruct(i::ACCESS_CHECK_INFO_TYPE, i::TENURED);
+  i::Handle<i::Struct> struct_info = isolate->factory()->NewStruct(
+      i::ACCESS_CHECK_INFO_TYPE, i::AllocationType::kOld);
   i::Handle<i::AccessCheckInfo> info =
       i::Handle<i::AccessCheckInfo>::cast(struct_info);
 

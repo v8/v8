@@ -1734,7 +1734,8 @@ Reduction JSCallReducer::ReduceArrayFilter(
   Node* a;  // Construct the output array.
   {
     AllocationBuilder ab(jsgraph(), effect, control);
-    ab.Allocate(initial_map.instance_size(), NOT_TENURED, Type::Array());
+    ab.Allocate(initial_map.instance_size(), AllocationType::kYoung,
+                Type::Array());
     ab.Store(AccessBuilder::ForMap(), initial_map);
     Node* empty_fixed_array = jsgraph()->EmptyFixedArrayConstant();
     ab.Store(AccessBuilder::ForJSObjectPropertiesOrHash(), empty_fixed_array);

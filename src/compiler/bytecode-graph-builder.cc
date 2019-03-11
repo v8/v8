@@ -1510,18 +1510,18 @@ void BytecodeGraphBuilder::VisitCreateClosure() {
       SharedFunctionInfo::cast(
           bytecode_iterator().GetConstantForIndexOperand(0)),
       isolate());
-  PretenureFlag tenured =
+  AllocationType allocation =
       interpreter::CreateClosureFlags::PretenuredBit::decode(
           bytecode_iterator().GetFlagOperand(2))
-          ? TENURED
-          : NOT_TENURED;
+          ? AllocationType::kOld
+          : AllocationType::kYoung;
   const Operator* op = javascript()->CreateClosure(
       shared_info,
       feedback_vector()->GetClosureFeedbackCell(
           bytecode_iterator().GetIndexOperand(1)),
       handle(jsgraph()->isolate()->builtins()->builtin(Builtins::kCompileLazy),
              isolate()),
-      tenured);
+      allocation);
   Node* closure = NewNode(op);
   environment()->BindAccumulator(closure);
 }

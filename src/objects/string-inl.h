@@ -303,13 +303,13 @@ bool String::Equals(Isolate* isolate, Handle<String> one, Handle<String> two) {
 }
 
 Handle<String> String::Flatten(Isolate* isolate, Handle<String> string,
-                               PretenureFlag pretenure) {
+                               AllocationType allocation) {
   if (string->IsConsString()) {
     Handle<ConsString> cons = Handle<ConsString>::cast(string);
     if (cons->IsFlat()) {
       string = handle(cons->first(), isolate);
     } else {
-      return SlowFlatten(isolate, cons, pretenure);
+      return SlowFlatten(isolate, cons, allocation);
     }
   }
   if (string->IsThinString()) {

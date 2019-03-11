@@ -327,8 +327,8 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
     Address pc = reinterpret_cast<Address>(buffer_start_) + request.offset();
     switch (request.kind()) {
       case HeapObjectRequest::kHeapNumber: {
-        Handle<HeapNumber> object =
-            isolate->factory()->NewHeapNumber(request.heap_number(), TENURED);
+        Handle<HeapNumber> object = isolate->factory()->NewHeapNumber(
+            request.heap_number(), AllocationType::kOld);
         WriteUnalignedValue(pc, object);
         break;
       }

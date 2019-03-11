@@ -232,8 +232,8 @@ Handle<WasmModuleObject> WasmModuleObject::New(
     Handle<Script> script, size_t code_size_estimate) {
   const WasmModule* module = native_module->module();
   int export_wrapper_size = static_cast<int>(module->num_exported_functions);
-  Handle<FixedArray> export_wrappers =
-      isolate->factory()->NewFixedArray(export_wrapper_size, TENURED);
+  Handle<FixedArray> export_wrappers = isolate->factory()->NewFixedArray(
+      export_wrapper_size, AllocationType::kOld);
   return New(isolate, std::move(native_module), script, export_wrappers,
              code_size_estimate);
 }
@@ -345,7 +345,8 @@ void WasmModuleObject::AddBreakpoint(Handle<WasmModuleObject> module_object,
   if (module_object->has_breakpoint_infos()) {
     breakpoint_infos = handle(module_object->breakpoint_infos(), isolate);
   } else {
-    breakpoint_infos = isolate->factory()->NewFixedArray(4, TENURED);
+    breakpoint_infos =
+        isolate->factory()->NewFixedArray(4, AllocationType::kOld);
     module_object->set_breakpoint_infos(*breakpoint_infos);
   }
 
@@ -369,7 +370,7 @@ void WasmModuleObject::AddBreakpoint(Handle<WasmModuleObject> module_object,
   Handle<FixedArray> new_breakpoint_infos = breakpoint_infos;
   if (need_realloc) {
     new_breakpoint_infos = isolate->factory()->NewFixedArray(
-        2 * breakpoint_infos->length(), TENURED);
+        2 * breakpoint_infos->length(), AllocationType::kOld);
     module_object->set_breakpoint_infos(*new_breakpoint_infos);
     // Copy over the entries [0, insert_pos).
     for (int i = 0; i < insert_pos; ++i)
@@ -472,7 +473,7 @@ Handle<ByteArray> GetDecodedAsmJsOffsetTable(
             1 + static_cast<uint64_t>(num_entries) * kOTESize * kIntSize);
   int total_size = 1 + num_entries * kOTESize * kIntSize;
   Handle<ByteArray> decoded_table =
-      isolate->factory()->NewByteArray(total_size, TENURED);
+      isolate->factory()->NewByteArray(total_size, AllocationType::kOld);
   decoded_table->set(total_size - 1, AsmJsTableType::Decoded);
   module_object->set_asm_js_offset_table(*decoded_table);
 
@@ -1064,7 +1065,7 @@ Handle<WasmMemoryObject> WasmMemoryObject::New(
   Handle<JSFunction> memory_ctor(
       isolate->native_context()->wasm_memory_constructor(), isolate);
   auto memory_obj = Handle<WasmMemoryObject>::cast(
-      isolate->factory()->NewJSObject(memory_ctor, TENURED));
+      isolate->factory()->NewJSObject(memory_ctor, AllocationType::kOld));
 
   Handle<JSArrayBuffer> buffer;
   if (!maybe_buffer.ToHandle(&buffer)) {
@@ -1240,7 +1241,8 @@ MaybeHandle<WasmGlobalObject> WasmGlobalObject::New(
     Handle<FixedArray> tagged_buffer;
     if (!maybe_tagged_buffer.ToHandle(&tagged_buffer)) {
       // If no buffer was provided, create one.
-      tagged_buffer = isolate->factory()->NewFixedArray(1, TENURED);
+      tagged_buffer =
+          isolate->factory()->NewFixedArray(1, AllocationType::kOld);
       CHECK_EQ(offset, 0);
     }
     global_obj->set_tagged_buffer(*tagged_buffer);
@@ -1250,8 +1252,8 @@ MaybeHandle<WasmGlobalObject> WasmGlobalObject::New(
     uint32_t type_size = wasm::ValueTypes::ElementSizeInBytes(type);
     if (!maybe_untagged_buffer.ToHandle(&untagged_buffer)) {
       // If no buffer was provided, create one long enough for the given type.
-      untagged_buffer =
-          isolate->factory()->NewJSArrayBuffer(SharedFlag::kNotShared, TENURED);
+      untagged_buffer = isolate->factory()->NewJSArrayBuffer(
+          SharedFlag::kNotShared, AllocationType::kOld);
 
       const bool initialize = true;
       if (!JSArrayBuffer::SetupAllocatingData(untagged_buffer, isolate,
@@ -1341,7 +1343,7 @@ void ImportedFunctionEntry::SetWasmToJs(
             wasm_to_js_wrapper->instructions().start());
   DCHECK_EQ(wasm::WasmCode::kWasmToJsWrapper, wasm_to_js_wrapper->kind());
   Handle<Tuple2> tuple =
-      isolate->factory()->NewTuple2(instance_, callable, TENURED);
+      isolate->factory()->NewTuple2(instance_, callable, AllocationType::kOld);
   instance_->imported_function_refs()->set(index_, *tuple);
   instance_->imported_function_targets()[index_] =
       wasm_to_js_wrapper->instruction_start();
@@ -1432,7 +1434,7 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
   Handle<JSFunction> instance_cons(
       isolate->native_context()->wasm_instance_constructor(), isolate);
   Handle<JSObject> instance_object =
-      isolate->factory()->NewJSObject(instance_cons, TENURED);
+      isolate->factory()->NewJSObject(instance_cons, AllocationType::kOld);
 
   Handle<WasmInstanceObject> instance(
       WasmInstanceObject::cast(*instance_object), isolate);
@@ -1668,7 +1670,7 @@ Handle<WasmExceptionObject> WasmExceptionObject::New(
   Handle<JSFunction> exception_cons(
       isolate->native_context()->wasm_exception_constructor(), isolate);
   Handle<JSObject> exception_object =
-      isolate->factory()->NewJSObject(exception_cons, TENURED);
+      isolate->factory()->NewJSObject(exception_cons, AllocationType::kOld);
   Handle<WasmExceptionObject> exception =
       Handle<WasmExceptionObject>::cast(exception_object);
 
@@ -1677,7 +1679,7 @@ Handle<WasmExceptionObject> WasmExceptionObject::New(
   DCHECK_LE(sig->parameter_count(), std::numeric_limits<int>::max());
   int sig_size = static_cast<int>(sig->parameter_count());
   Handle<PodArray<wasm::ValueType>> serialized_sig =
-      PodArray<wasm::ValueType>::New(isolate, sig_size, TENURED);
+      PodArray<wasm::ValueType>::New(isolate, sig_size, AllocationType::kOld);
   int index = 0;  // Index into the {PodArray} above.
   for (wasm::ValueType param : sig->parameters()) {
     serialized_sig->set(index++, param);
@@ -1833,7 +1835,7 @@ Handle<WasmExportedFunction> WasmExportedFunction::New(
   }
   Handle<WasmExportedFunctionData> function_data =
       Handle<WasmExportedFunctionData>::cast(isolate->factory()->NewStruct(
-          WASM_EXPORTED_FUNCTION_DATA_TYPE, TENURED));
+          WASM_EXPORTED_FUNCTION_DATA_TYPE, AllocationType::kOld));
   function_data->set_wrapper_code(*export_wrapper);
   function_data->set_instance(*instance);
   function_data->set_jump_table_offset(jump_table_offset);
@@ -1867,8 +1869,9 @@ wasm::FunctionSig* WasmExportedFunction::sig() {
 }
 
 Handle<WasmExceptionTag> WasmExceptionTag::New(Isolate* isolate, int index) {
-  Handle<WasmExceptionTag> result = Handle<WasmExceptionTag>::cast(
-      isolate->factory()->NewStruct(WASM_EXCEPTION_TAG_TYPE, TENURED));
+  Handle<WasmExceptionTag> result =
+      Handle<WasmExceptionTag>::cast(isolate->factory()->NewStruct(
+          WASM_EXCEPTION_TAG_TYPE, AllocationType::kOld));
   result->set_index(index);
   return result;
 }
@@ -1885,7 +1888,7 @@ Handle<AsmWasmData> AsmWasmData::New(
       Managed<wasm::NativeModule>::FromSharedPtr(isolate, memory_estimate,
                                                  std::move(native_module));
   Handle<AsmWasmData> result = Handle<AsmWasmData>::cast(
-      isolate->factory()->NewStruct(ASM_WASM_DATA_TYPE, TENURED));
+      isolate->factory()->NewStruct(ASM_WASM_DATA_TYPE, AllocationType::kOld));
   result->set_managed_native_module(*managed_native_module);
   result->set_export_wrappers(*export_wrappers);
   result->set_asm_js_offset_table(*asm_js_offset_table);

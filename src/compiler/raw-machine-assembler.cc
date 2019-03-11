@@ -69,8 +69,8 @@ Node* RawMachineAssembler::RelocatableIntPtrConstant(intptr_t value,
 }
 
 Node* RawMachineAssembler::OptimizedAllocate(Node* size,
-                                             PretenureFlag pretenure) {
-  return AddNode(simplified()->AllocateRaw(Type::Any(), pretenure), size);
+                                             AllocationType allocation) {
+  return AddNode(simplified()->AllocateRaw(Type::Any(), allocation), size);
 }
 
 Schedule* RawMachineAssembler::Export() {

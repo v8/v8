@@ -760,8 +760,8 @@ std::unique_ptr<NativeModule> CompileToNativeModule(
   if (thrower->error()) return {};
 
   // Compile JS->wasm wrappers for exported functions.
-  *export_wrappers_out =
-      isolate->factory()->NewFixedArray(export_wrapper_size, TENURED);
+  *export_wrappers_out = isolate->factory()->NewFixedArray(
+      export_wrapper_size, AllocationType::kOld);
   CompileJsToWasmWrappers(isolate, native_module->module(),
                           *export_wrappers_out);
 
@@ -928,7 +928,8 @@ void AsyncCompileJob::FinishCompile() {
   if (script->type() == Script::TYPE_WASM &&
       module_object_->module()->source_map_url.size() != 0) {
     MaybeHandle<String> src_map_str = isolate_->factory()->NewStringFromUtf8(
-        CStrVector(module_object_->module()->source_map_url.c_str()), TENURED);
+        CStrVector(module_object_->module()->source_map_url.c_str()),
+        AllocationType::kOld);
     script->set_source_mapping_url(*src_map_str.ToHandleChecked());
   }
   isolate_->debug()->OnAfterCompile(script);
@@ -1736,12 +1737,13 @@ Handle<Script> CreateWasmScript(Isolate* isolate,
   int name_chars = SNPrintF(ArrayVector(buffer), "wasm-%08x", hash);
   DCHECK(name_chars >= 0 && name_chars < kBufferSize);
   MaybeHandle<String> name_str = isolate->factory()->NewStringFromOneByte(
-      VectorOf(reinterpret_cast<uint8_t*>(buffer), name_chars), TENURED);
+      VectorOf(reinterpret_cast<uint8_t*>(buffer), name_chars),
+      AllocationType::kOld);
   script->set_name(*name_str.ToHandleChecked());
 
   if (source_map_url.size() != 0) {
     MaybeHandle<String> src_map_str = isolate->factory()->NewStringFromUtf8(
-        CStrVector(source_map_url.c_str()), TENURED);
+        CStrVector(source_map_url.c_str()), AllocationType::kOld);
     script->set_source_mapping_url(*src_map_str.ToHandleChecked());
   }
   return script;

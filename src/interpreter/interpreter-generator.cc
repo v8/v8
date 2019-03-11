@@ -2621,10 +2621,10 @@ IGNITION_HANDLER(GetTemplateObject, InterpreterAssembler) {
   }
 }
 
-// CreateClosure <index> <slot> <tenured>
+// CreateClosure <index> <slot> <flags>
 //
 // Creates a new closure for SharedFunctionInfo at position |index| in the
-// constant pool and with the PretenureFlag <tenured>.
+// constant pool and with pretenuring controlled by |flags|.
 IGNITION_HANDLER(CreateClosure, InterpreterAssembler) {
   Node* shared = LoadConstantPoolEntryAtOperandIndex(0);
   Node* flags = BytecodeOperandFlag(2);

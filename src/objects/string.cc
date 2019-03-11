@@ -23,7 +23,7 @@ namespace v8 {
 namespace internal {
 
 Handle<String> String::SlowFlatten(Isolate* isolate, Handle<ConsString> cons,
-                                   PretenureFlag pretenure) {
+                                   AllocationType allocation) {
   DCHECK_NE(cons->second()->length(), 0);
 
   // TurboFan can create cons strings with empty first parts.
@@ -40,19 +40,22 @@ Handle<String> String::SlowFlatten(Isolate* isolate, Handle<ConsString> cons,
 
   DCHECK(AllowHeapAllocation::IsAllowed());
   int length = cons->length();
-  PretenureFlag tenure = ObjectInYoungGeneration(*cons) ? pretenure : TENURED;
+  allocation =
+      ObjectInYoungGeneration(*cons) ? allocation : AllocationType::kOld;
   Handle<SeqString> result;
   if (cons->IsOneByteRepresentation()) {
-    Handle<SeqOneByteString> flat = isolate->factory()
-                                        ->NewRawOneByteString(length, tenure)
-                                        .ToHandleChecked();
+    Handle<SeqOneByteString> flat =
+        isolate->factory()
+            ->NewRawOneByteString(length, allocation)
+            .ToHandleChecked();
     DisallowHeapAllocation no_gc;
     WriteToFlat(*cons, flat->GetChars(no_gc), 0, length);
     result = flat;
   } else {
-    Handle<SeqTwoByteString> flat = isolate->factory()
-                                        ->NewRawTwoByteString(length, tenure)
-                                        .ToHandleChecked();
+    Handle<SeqTwoByteString> flat =
+        isolate->factory()
+            ->NewRawTwoByteString(length, allocation)
+            .ToHandleChecked();
     DisallowHeapAllocation no_gc;
     WriteToFlat(*cons, flat->GetChars(no_gc), 0, length);
     result = flat;

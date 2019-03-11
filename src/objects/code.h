@@ -906,7 +906,7 @@ class DeoptimizationData : public FixedArray {
 
   // Allocates a DeoptimizationData.
   static Handle<DeoptimizationData> New(Isolate* isolate, int deopt_entry_count,
-                                        PretenureFlag pretenure);
+                                        AllocationType allocation);
 
   // Return an empty DeoptimizationData.
   static Handle<DeoptimizationData> Empty(Isolate* isolate);

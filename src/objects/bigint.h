@@ -241,7 +241,7 @@ class V8_EXPORT_PRIVATE BigInt : public BigIntBase {
   static Handle<BigInt> Zero(Isolate* isolate);
   static MaybeHandle<FreshlyAllocatedBigInt> AllocateFor(
       Isolate* isolate, int radix, int charcount, ShouldThrow should_throw,
-      PretenureFlag pretenure);
+      AllocationType allocation);
   static void InplaceMultiplyAdd(Handle<FreshlyAllocatedBigInt> x,
                                  uintptr_t factor, uintptr_t summand);
   static Handle<BigInt> Finalize(Handle<FreshlyAllocatedBigInt> x, bool sign);
@@ -254,7 +254,7 @@ class V8_EXPORT_PRIVATE BigInt : public BigIntBase {
   void SerializeDigits(uint8_t* storage);
   V8_WARN_UNUSED_RESULT static MaybeHandle<BigInt> FromSerializedDigits(
       Isolate* isolate, uint32_t bitfield, Vector<const uint8_t> digits_storage,
-      PretenureFlag pretenure);
+      AllocationType allocation);
 
   OBJECT_CONSTRUCTORS(BigInt, BigIntBase);
 };

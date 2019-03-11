@@ -1295,8 +1295,8 @@ bool FunctionTemplateInfo::IsTemplateFor(Map map) {
 FunctionTemplateRareData FunctionTemplateInfo::AllocateFunctionTemplateRareData(
     Isolate* isolate, Handle<FunctionTemplateInfo> function_template_info) {
   DCHECK(function_template_info->rare_data()->IsUndefined(isolate));
-  Handle<Struct> struct_obj =
-      isolate->factory()->NewStruct(FUNCTION_TEMPLATE_RARE_DATA_TYPE, TENURED);
+  Handle<Struct> struct_obj = isolate->factory()->NewStruct(
+      FUNCTION_TEMPLATE_RARE_DATA_TYPE, AllocationType::kOld);
   Handle<FunctionTemplateRareData> rare_data =
       i::Handle<FunctionTemplateRareData>::cast(struct_obj);
   function_template_info->set_rare_data(*rare_data);
@@ -3806,7 +3806,7 @@ bool DescriptorArray::IsEqualUpTo(DescriptorArray desc, int nof_descriptors) {
 Handle<FixedArray> FixedArray::SetAndGrow(Isolate* isolate,
                                           Handle<FixedArray> array, int index,
                                           Handle<Object> value,
-                                          PretenureFlag pretenure) {
+                                          AllocationType allocation) {
   if (index < array->length()) {
     array->set(index, *value);
     return array;
@@ -3816,7 +3816,7 @@ Handle<FixedArray> FixedArray::SetAndGrow(Isolate* isolate,
     capacity = JSObject::NewElementsCapacity(capacity);
   } while (capacity <= index);
   Handle<FixedArray> new_array =
-      isolate->factory()->NewUninitializedFixedArray(capacity, pretenure);
+      isolate->factory()->NewUninitializedFixedArray(capacity, allocation);
   array->CopyTo(0, *new_array, 0, array->length());
   new_array->FillWithHoles(array->length(), new_array->length());
   new_array->set(index, *value);
@@ -3962,14 +3962,14 @@ bool WeakArrayList::IsFull() { return length() == capacity(); }
 Handle<WeakArrayList> WeakArrayList::EnsureSpace(Isolate* isolate,
                                                  Handle<WeakArrayList> array,
                                                  int length,
-                                                 PretenureFlag pretenure) {
+                                                 AllocationType allocation) {
   int capacity = array->capacity();
   if (capacity < length) {
     int new_capacity = length;
     new_capacity = new_capacity + Max(new_capacity / 2, 2);
     int grow_by = new_capacity - capacity;
-    array =
-        isolate->factory()->CopyWeakArrayListAndGrow(array, grow_by, pretenure);
+    array = isolate->factory()->CopyWeakArrayListAndGrow(array, grow_by,
+                                                         allocation);
   }
   return array;
 }
@@ -4053,7 +4053,7 @@ Handle<WeakArrayList> PrototypeUsers::Add(Isolate* isolate,
 
 WeakArrayList PrototypeUsers::Compact(Handle<WeakArrayList> array, Heap* heap,
                                       CompactionCallback callback,
-                                      PretenureFlag pretenure) {
+                                      AllocationType allocation) {
   if (array->length() == 0) {
     return *array;
   }
@@ -4065,7 +4065,7 @@ WeakArrayList PrototypeUsers::Compact(Handle<WeakArrayList> array, Heap* heap,
   Handle<WeakArrayList> new_array = WeakArrayList::EnsureSpace(
       heap->isolate(),
       handle(ReadOnlyRoots(heap).empty_weak_array_list(), heap->isolate()),
-      new_length, pretenure);
+      new_length, allocation);
   // Allocation might have caused GC and turned some of the elements into
   // cleared weak heap objects. Count the number of live objects again.
   int copy_to = kFirstIndex;
@@ -4148,11 +4148,11 @@ Handle<FrameArray> FrameArray::EnsureSpace(Isolate* isolate,
 Handle<DescriptorArray> DescriptorArray::Allocate(Isolate* isolate,
                                                   int nof_descriptors,
                                                   int slack,
-                                                  AllocationType type) {
+                                                  AllocationType allocation) {
   return nof_descriptors + slack == 0
              ? isolate->factory()->empty_descriptor_array()
              : isolate->factory()->NewDescriptorArray(nof_descriptors, slack,
-                                                      type);
+                                                      allocation);
 }
 
 void DescriptorArray::Initialize(EnumCache enum_cache,
@@ -5646,10 +5646,10 @@ void AllocationSite::ResetPretenureDecision() {
   set_memento_create_count(0);
 }
 
-PretenureFlag AllocationSite::GetPretenureMode() const {
+AllocationType AllocationSite::GetAllocationType() const {
   PretenureDecision mode = pretenure_decision();
   // Zombie objects "decide" to be untenured.
-  return mode == kTenure ? TENURED : NOT_TENURED;
+  return mode == kTenure ? AllocationType::kOld : AllocationType::kYoung;
 }
 
 bool AllocationSite::IsNested() {
@@ -6444,7 +6444,7 @@ void HashTable<Derived, Shape>::IterateElements(ObjectVisitor* v) {
 
 template <typename Derived, typename Shape>
 Handle<Derived> HashTable<Derived, Shape>::New(
-    Isolate* isolate, int at_least_space_for, PretenureFlag pretenure,
+    Isolate* isolate, int at_least_space_for, AllocationType allocation,
     MinimumCapacity capacity_option) {
   DCHECK_LE(0, at_least_space_for);
   DCHECK_IMPLIES(capacity_option == USE_CUSTOM_MINIMUM_CAPACITY,
@@ -6456,17 +6456,17 @@ Handle<Derived> HashTable<Derived, Shape>::New(
   if (capacity > HashTable::kMaxCapacity) {
     isolate->heap()->FatalProcessOutOfMemory("invalid table size");
   }
-  return NewInternal(isolate, capacity, pretenure);
+  return NewInternal(isolate, capacity, allocation);
 }
 
 template <typename Derived, typename Shape>
 Handle<Derived> HashTable<Derived, Shape>::NewInternal(
-    Isolate* isolate, int capacity, PretenureFlag pretenure) {
+    Isolate* isolate, int capacity, AllocationType allocation) {
   Factory* factory = isolate->factory();
   int length = EntryToIndex(capacity);
   RootIndex map_root_index = Shape::GetMapRootIndex();
   Handle<FixedArray> array =
-      factory->NewFixedArrayWithMap(map_root_index, length, pretenure);
+      factory->NewFixedArrayWithMap(map_root_index, length, allocation);
   Handle<Derived> table = Handle<Derived>::cast(array);
 
   table->SetNumberOfElements(0);
@@ -6577,18 +6577,19 @@ void HashTable<Derived, Shape>::Rehash(ReadOnlyRoots roots) {
 
 template <typename Derived, typename Shape>
 Handle<Derived> HashTable<Derived, Shape>::EnsureCapacity(
-    Isolate* isolate, Handle<Derived> table, int n, PretenureFlag pretenure) {
+    Isolate* isolate, Handle<Derived> table, int n, AllocationType allocation) {
   if (table->HasSufficientCapacityToAdd(n)) return table;
 
   int capacity = table->Capacity();
   int new_nof = table->NumberOfElements() + n;
 
   const int kMinCapacityForPretenure = 256;
-  bool should_pretenure =
-      pretenure == TENURED || ((capacity > kMinCapacityForPretenure) &&
-                               !Heap::InYoungGeneration(*table));
+  bool should_pretenure = allocation == AllocationType::kOld ||
+                          ((capacity > kMinCapacityForPretenure) &&
+                           !Heap::InYoungGeneration(*table));
   Handle<Derived> new_table = HashTable::New(
-      isolate, new_nof, should_pretenure ? TENURED : NOT_TENURED);
+      isolate, new_nof,
+      should_pretenure ? AllocationType::kOld : AllocationType::kYoung);
 
   table->Rehash(ReadOnlyRoots(isolate), *new_table);
   return new_table;
@@ -6636,7 +6637,8 @@ Handle<Derived> HashTable<Derived, Shape>::Shrink(Isolate* isolate,
   bool pretenure = (at_least_room_for > kMinCapacityForPretenure) &&
                    !Heap::InYoungGeneration(*table);
   Handle<Derived> new_table =
-      HashTable::New(isolate, new_capacity, pretenure ? TENURED : NOT_TENURED,
+      HashTable::New(isolate, new_capacity,
+                     pretenure ? AllocationType::kOld : AllocationType::kYoung,
                      USE_CUSTOM_MINIMUM_CAPACITY);
 
   table->Rehash(ReadOnlyRoots(isolate), *new_table);
@@ -7146,8 +7148,8 @@ void AddToFeedbackCellsMap(Handle<CompilationCacheTable> cache, int cache_entry,
   // object used to be a FixedArray here).
   DCHECK(!obj->IsFixedArray());
   if (!obj->IsWeakFixedArray() || WeakFixedArray::cast(obj)->length() == 0) {
-    new_literals_map =
-        isolate->factory()->NewWeakFixedArray(kLiteralInitialLength, TENURED);
+    new_literals_map = isolate->factory()->NewWeakFixedArray(
+        kLiteralInitialLength, AllocationType::kOld);
     entry = 0;
   } else {
     Handle<WeakFixedArray> old_literals_map(WeakFixedArray::cast(obj), isolate);
@@ -7173,7 +7175,7 @@ void AddToFeedbackCellsMap(Handle<CompilationCacheTable> cache, int cache_entry,
     if (entry < 0) {
       // Copy old optimized code map and append one new entry.
       new_literals_map = isolate->factory()->CopyWeakFixedArrayAndGrow(
-          old_literals_map, kLiteralEntryLength, TENURED);
+          old_literals_map, kLiteralEntryLength, AllocationType::kOld);
       entry = old_literals_map->length();
     }
   }
@@ -7392,11 +7394,11 @@ void CompilationCacheTable::Remove(Object value) {
 
 template <typename Derived, typename Shape>
 Handle<Derived> BaseNameDictionary<Derived, Shape>::New(
-    Isolate* isolate, int at_least_space_for, PretenureFlag pretenure,
+    Isolate* isolate, int at_least_space_for, AllocationType allocation,
     MinimumCapacity capacity_option) {
   DCHECK_LE(0, at_least_space_for);
   Handle<Derived> dict = Dictionary<Derived, Shape>::New(
-      isolate, at_least_space_for, pretenure, capacity_option);
+      isolate, at_least_space_for, allocation, capacity_option);
   dict->SetHash(PropertyArray::kNoHashSentinel);
   dict->SetNextEnumerationIndex(PropertyDetails::kInitialIndex);
   return dict;
@@ -8337,20 +8339,22 @@ template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
 
 template Handle<NameDictionary>
 BaseNameDictionary<NameDictionary, NameDictionaryShape>::New(
-    Isolate*, int n, PretenureFlag pretenure, MinimumCapacity capacity_option);
+    Isolate*, int n, AllocationType allocation,
+    MinimumCapacity capacity_option);
 
 template Handle<GlobalDictionary>
 BaseNameDictionary<GlobalDictionary, GlobalDictionaryShape>::New(
-    Isolate*, int n, PretenureFlag pretenure, MinimumCapacity capacity_option);
+    Isolate*, int n, AllocationType allocation,
+    MinimumCapacity capacity_option);
 
 template Handle<NameDictionary>
 HashTable<NameDictionary, NameDictionaryShape>::New(Isolate*, int,
-                                                    PretenureFlag,
+                                                    AllocationType,
                                                     MinimumCapacity);
 
 template Handle<ObjectHashSet>
 HashTable<ObjectHashSet, ObjectHashSetShape>::New(Isolate*, int n,
-                                                  PretenureFlag,
+                                                  AllocationType,
                                                   MinimumCapacity);
 
 template Handle<NameDictionary>
@@ -8416,7 +8420,7 @@ void JSFinalizationGroup::Cleanup(
           isolate);
       iterator = Handle<JSFinalizationGroupCleanupIterator>::cast(
           isolate->factory()->NewJSObjectFromMap(
-              cleanup_iterator_map, NOT_TENURED,
+              cleanup_iterator_map, AllocationType::kYoung,
               Handle<AllocationSite>::null()));
       iterator->set_finalization_group(*finalization_group);
     }

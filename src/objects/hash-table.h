@@ -138,7 +138,7 @@ class HashTable : public HashTableBase {
   // Returns a new HashTable object.
   V8_WARN_UNUSED_RESULT static Handle<Derived> New(
       Isolate* isolate, int at_least_space_for,
-      PretenureFlag pretenure = NOT_TENURED,
+      AllocationType allocation = AllocationType::kYoung,
       MinimumCapacity capacity_option = USE_DEFAULT_MINIMUM_CAPACITY);
 
   // Garbage collection support.
@@ -186,7 +186,7 @@ class HashTable : public HashTableBase {
   // Ensure enough space for n additional elements.
   V8_WARN_UNUSED_RESULT static Handle<Derived> EnsureCapacity(
       Isolate* isolate, Handle<Derived> table, int n,
-      PretenureFlag pretenure = NOT_TENURED);
+      AllocationType allocation = AllocationType::kYoung);
 
   // Returns true if this table has sufficient capacity for adding n elements.
   bool HasSufficientCapacityToAdd(int number_of_additional_elements);
@@ -195,7 +195,7 @@ class HashTable : public HashTableBase {
   friend class ObjectHashTable;
 
   V8_WARN_UNUSED_RESULT static Handle<Derived> NewInternal(
-      Isolate* isolate, int capacity, PretenureFlag pretenure);
+      Isolate* isolate, int capacity, AllocationType allocation);
 
   // Find the entry at which to insert element with the given key that
   // has the given hash value.

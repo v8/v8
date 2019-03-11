@@ -532,7 +532,7 @@ class Heap {
 
   size_t backing_store_bytes() const { return backing_store_bytes_; }
 
-  void CompactWeakArrayLists(PretenureFlag pretenure);
+  void CompactWeakArrayLists(AllocationType allocation);
 
   void AddRetainedMap(Handle<Map> map);
 
@@ -1383,48 +1383,9 @@ class Heap {
   Heap();
   ~Heap();
 
-  // Selects the proper allocation space based on the pretenuring decision.
-  static AllocationSpace SelectSpace(PretenureFlag pretenure) {
-    switch (pretenure) {
-      case TENURED_READ_ONLY:
-        return RO_SPACE;
-      case TENURED:
-        return OLD_SPACE;
-      case NOT_TENURED:
-        return NEW_SPACE;
-      default:
-        UNREACHABLE();
-    }
-  }
-
-  // TODO(hpayer): Remove this translation function as soon as all code is
-  // converted to use AllocationType. Also remove PretenureFlag and use
-  // Allocation Type instead.
-  static AllocationType SelectType(AllocationSpace space) {
-    switch (space) {
-      case NEW_SPACE:
-        return AllocationType::kYoung;
-      case NEW_LO_SPACE:
-        return AllocationType::kYoung;
-      case OLD_SPACE:
-        return AllocationType::kOld;
-      case LO_SPACE:
-        return AllocationType::kOld;
-      case CODE_SPACE:
-        return AllocationType::kCode;
-      case CODE_LO_SPACE:
-        return AllocationType::kCode;
-      case MAP_SPACE:
-        return AllocationType::kMap;
-      case RO_SPACE:
-        return AllocationType::kReadOnly;
-      default:
-        UNREACHABLE();
-    }
-  }
-
-  static bool IsRegularObjectAllocation(AllocationType type) {
-    return AllocationType::kYoung == type || AllocationType::kOld == type;
+  static bool IsRegularObjectAllocation(AllocationType allocation) {
+    return AllocationType::kYoung == allocation ||
+           AllocationType::kOld == allocation;
   }
 
   static size_t DefaultGetExternallyAllocatedMemoryInBytesCallback() {
@@ -1487,7 +1448,7 @@ class Heap {
 
   // Deopts all code that contains allocation instruction which are tenured or
   // not tenured. Moreover it clears the pretenuring allocation site statistics.
-  void ResetAllAllocationSitesDependentCode(PretenureFlag flag);
+  void ResetAllAllocationSitesDependentCode(AllocationType allocation);
 
   // Evaluates local pretenuring for the old space and calls
   // ResetAllTenuredAllocationSitesDependentCode if too many objects died in
@@ -1716,7 +1677,7 @@ class Heap {
   // performed by the runtime and should not be bypassed (to extend this to
   // inlined allocations, use the Heap::DisableInlineAllocation() support).
   V8_WARN_UNUSED_RESULT inline AllocationResult AllocateRaw(
-      int size_in_bytes, AllocationType type,
+      int size_in_bytes, AllocationType allocation,
       AllocationAlignment aligment = kWordAligned);
 
   // This method will try to perform an allocation of a given size of a given
@@ -1725,7 +1686,7 @@ class Heap {
   // times. If after that retry procedure the allocation still fails nullptr is
   // returned.
   HeapObject AllocateRawWithLightRetry(
-      int size, AllocationType type,
+      int size, AllocationType allocation,
       AllocationAlignment alignment = kWordAligned);
 
   // This method will try to perform an allocation of a given size of a given
@@ -1735,13 +1696,13 @@ class Heap {
   // garbage collection is triggered which tries to significantly reduce memory.
   // If the allocation still fails after that a fatal error is thrown.
   HeapObject AllocateRawWithRetryOrFail(
-      int size, AllocationType type,
+      int size, AllocationType allocation,
       AllocationAlignment alignment = kWordAligned);
   HeapObject AllocateRawCodeInLargeObjectSpace(int size);
 
   // Allocates a heap object based on the map.
   V8_WARN_UNUSED_RESULT AllocationResult Allocate(Map map,
-                                                  AllocationSpace space);
+                                                  AllocationType allocation);
 
   // Takes a code object and checks if it is on memory which is not subject to
   // compaction. This method will return a new code object on an immovable

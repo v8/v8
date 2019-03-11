@@ -2024,8 +2024,8 @@ MaybeHandle<JSObject> JSObject::New(Handle<JSFunction> constructor,
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, initial_map,
       JSFunction::GetDerivedMap(isolate, constructor, new_target), JSObject);
-  Handle<JSObject> result =
-      isolate->factory()->NewJSObjectFromMap(initial_map, NOT_TENURED, site);
+  Handle<JSObject> result = isolate->factory()->NewJSObjectFromMap(
+      initial_map, AllocationType::kYoung, site);
   if (initial_map->is_dictionary_map()) {
     Handle<NameDictionary> dictionary =
         NameDictionary::New(isolate, NameDictionary::kInitialCapacity);

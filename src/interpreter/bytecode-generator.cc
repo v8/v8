@@ -747,7 +747,7 @@ class BytecodeGenerator::GlobalDeclarationsBuilder final : public ZoneObject {
     DCHECK(has_constant_pool_entry_);
     int array_index = 0;
     Handle<FixedArray> data = isolate->factory()->NewFixedArray(
-        static_cast<int>(declarations_.size() * 4), TENURED);
+        static_cast<int>(declarations_.size() * 4), AllocationType::kOld);
     for (const Declaration& declaration : declarations_) {
       FunctionLiteral* func = declaration.func;
       Handle<Object> initial_value;
@@ -2169,7 +2169,8 @@ void BytecodeGenerator::VisitNativeFunctionLiteral(
     NativeFunctionLiteral* expr) {
   size_t entry = builder()->AllocateDeferredConstantPoolEntry();
   int index = feedback_spec()->AddFeedbackCellForCreateClosure();
-  builder()->CreateClosure(entry, index, NOT_TENURED);
+  uint8_t flags = CreateClosureFlags::Encode(false, false, false);
+  builder()->CreateClosure(entry, index, flags);
   native_function_literals_.push_back(std::make_pair(expr, entry));
 }
 

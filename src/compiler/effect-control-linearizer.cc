@@ -2422,8 +2422,8 @@ Node* EffectControlLinearizer::LowerCheckedTruncateTaggedToWord32(
 
 Node* EffectControlLinearizer::LowerAllocate(Node* node) {
   Node* size = node->InputAt(0);
-  PretenureFlag pretenure = PretenureFlagOf(node->op());
-  Node* new_node = __ Allocate(pretenure, size);
+  AllocationType allocation = AllocationTypeOf(node->op());
+  Node* new_node = __ Allocate(allocation, size);
   return new_node;
 }
 
@@ -3019,7 +3019,7 @@ Node* EffectControlLinearizer::LowerArgumentsFrame(Node* node) {
 }
 
 Node* EffectControlLinearizer::LowerNewDoubleElements(Node* node) {
-  PretenureFlag const pretenure = PretenureFlagOf(node->op());
+  AllocationType const allocation = AllocationTypeOf(node->op());
   Node* length = node->InputAt(0);
 
   auto done = __ MakeLabel(MachineRepresentation::kTaggedPointer);
@@ -3033,7 +3033,7 @@ Node* EffectControlLinearizer::LowerNewDoubleElements(Node* node) {
                   __ Int32Constant(FixedDoubleArray::kHeaderSize));
 
   // Allocate the result and initialize the header.
-  Node* result = __ Allocate(pretenure, size);
+  Node* result = __ Allocate(allocation, size);
   __ StoreField(AccessBuilder::ForMap(), result,
                 __ FixedDoubleArrayMapConstant());
   __ StoreField(AccessBuilder::ForFixedArrayLength(), result,
@@ -3070,7 +3070,7 @@ Node* EffectControlLinearizer::LowerNewDoubleElements(Node* node) {
 }
 
 Node* EffectControlLinearizer::LowerNewSmiOrObjectElements(Node* node) {
-  PretenureFlag const pretenure = PretenureFlagOf(node->op());
+  AllocationType const allocation = AllocationTypeOf(node->op());
   Node* length = node->InputAt(0);
 
   auto done = __ MakeLabel(MachineRepresentation::kTaggedPointer);
@@ -3084,7 +3084,7 @@ Node* EffectControlLinearizer::LowerNewSmiOrObjectElements(Node* node) {
                   __ Int32Constant(FixedArray::kHeaderSize));
 
   // Allocate the result and initialize the header.
-  Node* result = __ Allocate(pretenure, size);
+  Node* result = __ Allocate(allocation, size);
   __ StoreField(AccessBuilder::ForMap(), result, __ FixedArrayMapConstant());
   __ StoreField(AccessBuilder::ForFixedArrayLength(), result,
                 ChangeInt32ToSmi(length));
@@ -3169,7 +3169,8 @@ Node* EffectControlLinearizer::LowerNewConsString(Node* node) {
   Node* result_map = done.PhiAt(0);
 
   // Allocate the resulting ConsString.
-  Node* result = __ Allocate(NOT_TENURED, __ Int32Constant(ConsString::kSize));
+  Node* result =
+      __ Allocate(AllocationType::kYoung, __ Int32Constant(ConsString::kSize));
   __ StoreField(AccessBuilder::ForMap(), result, result_map);
   __ StoreField(AccessBuilder::ForNameHashField(), result,
                 __ Int32Constant(Name::kEmptyHashField));
@@ -3425,8 +3426,9 @@ Node* EffectControlLinearizer::LowerStringFromSingleCharCode(Node* node) {
     __ Bind(&cache_miss);
     {
       // Allocate a new SeqOneByteString for {code}.
-      Node* vtrue2 = __ Allocate(
-          NOT_TENURED, __ Int32Constant(SeqOneByteString::SizeFor(1)));
+      Node* vtrue2 =
+          __ Allocate(AllocationType::kYoung,
+                      __ Int32Constant(SeqOneByteString::SizeFor(1)));
       __ StoreField(AccessBuilder::ForMap(), vtrue2,
                     __ HeapConstant(factory()->one_byte_string_map()));
       __ StoreField(AccessBuilder::ForNameHashField(), vtrue2,
@@ -3449,7 +3451,7 @@ Node* EffectControlLinearizer::LowerStringFromSingleCharCode(Node* node) {
   __ Bind(&if_not_one_byte);
   {
     // Allocate a new SeqTwoByteString for {code}.
-    Node* vfalse1 = __ Allocate(NOT_TENURED,
+    Node* vfalse1 = __ Allocate(AllocationType::kYoung,
                                 __ Int32Constant(SeqTwoByteString::SizeFor(1)));
     __ StoreField(AccessBuilder::ForMap(), vfalse1,
                   __ HeapConstant(factory()->string_map()));
@@ -3549,8 +3551,9 @@ Node* EffectControlLinearizer::LowerStringFromSingleCodePoint(Node* node) {
       __ Bind(&cache_miss);
       {
         // Allocate a new SeqOneByteString for {code}.
-        Node* vtrue2 = __ Allocate(
-            NOT_TENURED, __ Int32Constant(SeqOneByteString::SizeFor(1)));
+        Node* vtrue2 =
+            __ Allocate(AllocationType::kYoung,
+                        __ Int32Constant(SeqOneByteString::SizeFor(1)));
         __ StoreField(AccessBuilder::ForMap(), vtrue2,
                       __ HeapConstant(factory()->one_byte_string_map()));
         __ StoreField(AccessBuilder::ForNameHashField(), vtrue2,
@@ -3573,8 +3576,9 @@ Node* EffectControlLinearizer::LowerStringFromSingleCodePoint(Node* node) {
     __ Bind(&if_not_one_byte);
     {
       // Allocate a new SeqTwoByteString for {code}.
-      Node* vfalse1 = __ Allocate(
-          NOT_TENURED, __ Int32Constant(SeqTwoByteString::SizeFor(1)));
+      Node* vfalse1 =
+          __ Allocate(AllocationType::kYoung,
+                      __ Int32Constant(SeqTwoByteString::SizeFor(1)));
       __ StoreField(AccessBuilder::ForMap(), vfalse1,
                     __ HeapConstant(factory()->string_map()));
       __ StoreField(AccessBuilder::ForNameHashField(), vfalse1,
@@ -3620,7 +3624,7 @@ Node* EffectControlLinearizer::LowerStringFromSingleCodePoint(Node* node) {
     }
 
     // Allocate a new SeqTwoByteString for {code}.
-    Node* vfalse0 = __ Allocate(NOT_TENURED,
+    Node* vfalse0 = __ Allocate(AllocationType::kYoung,
                                 __ Int32Constant(SeqTwoByteString::SizeFor(2)));
     __ StoreField(AccessBuilder::ForMap(), vfalse0,
                   __ HeapConstant(factory()->string_map()));
@@ -3850,7 +3854,8 @@ void EffectControlLinearizer::LowerCheckEqualsSymbol(Node* node,
 }
 
 Node* EffectControlLinearizer::AllocateHeapNumberWithValue(Node* value) {
-  Node* result = __ Allocate(NOT_TENURED, __ Int32Constant(HeapNumber::kSize));
+  Node* result =
+      __ Allocate(AllocationType::kYoung, __ Int32Constant(HeapNumber::kSize));
   __ StoreField(AccessBuilder::ForMap(), result, __ HeapNumberMapConstant());
   __ StoreField(AccessBuilder::ForHeapNumberValue(), result, value);
   return result;

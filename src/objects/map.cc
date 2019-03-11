@@ -2671,7 +2671,7 @@ Handle<Map> Map::TransitionToPrototype(Isolate* isolate, Handle<Map> map,
 
 Handle<NormalizedMapCache> NormalizedMapCache::New(Isolate* isolate) {
   Handle<WeakFixedArray> array(
-      isolate->factory()->NewWeakFixedArray(kEntries, TENURED));
+      isolate->factory()->NewWeakFixedArray(kEntries, AllocationType::kOld));
   return Handle<NormalizedMapCache>::cast(array);
 }
 

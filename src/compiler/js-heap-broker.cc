@@ -618,7 +618,7 @@ class AllocationSiteData : public HeapObjectData {
   void SerializeBoilerplate(JSHeapBroker* broker);
 
   bool PointsToLiteral() const { return PointsToLiteral_; }
-  PretenureFlag GetPretenureMode() const { return GetPretenureMode_; }
+  AllocationType GetAllocationType() const { return GetAllocationType_; }
   ObjectData* nested_site() const { return nested_site_; }
   bool IsFastLiteral() const { return IsFastLiteral_; }
   JSObjectData* boilerplate() const { return boilerplate_; }
@@ -629,7 +629,7 @@ class AllocationSiteData : public HeapObjectData {
 
  private:
   bool const PointsToLiteral_;
-  PretenureFlag const GetPretenureMode_;
+  AllocationType const GetAllocationType_;
   ObjectData* nested_site_ = nullptr;
   bool IsFastLiteral_ = false;
   JSObjectData* boilerplate_ = nullptr;
@@ -754,7 +754,7 @@ AllocationSiteData::AllocationSiteData(JSHeapBroker* broker,
                                        Handle<AllocationSite> object)
     : HeapObjectData(broker, storage, object),
       PointsToLiteral_(object->PointsToLiteral()),
-      GetPretenureMode_(object->GetPretenureMode()) {
+      GetAllocationType_(object->GetAllocationType()) {
   if (PointsToLiteral_) {
     IsFastLiteral_ = IsInlinableFastLiteral(
         handle(object->boilerplate(), broker->isolate()));
@@ -2307,7 +2307,7 @@ BIMODAL_ACCESSOR(AllocationSite, Object, nested_site)
 BIMODAL_ACCESSOR_C(AllocationSite, bool, CanInlineCall)
 BIMODAL_ACCESSOR_C(AllocationSite, bool, PointsToLiteral)
 BIMODAL_ACCESSOR_C(AllocationSite, ElementsKind, GetElementsKind)
-BIMODAL_ACCESSOR_C(AllocationSite, PretenureFlag, GetPretenureMode)
+BIMODAL_ACCESSOR_C(AllocationSite, AllocationType, GetAllocationType)
 
 BIMODAL_ACCESSOR_C(BytecodeArray, int, register_count)
 

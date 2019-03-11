@@ -159,7 +159,7 @@ class BaseNameDictionary : public Dictionary<Derived, Shape> {
   // Creates a new dictionary.
   V8_WARN_UNUSED_RESULT static Handle<Derived> New(
       Isolate* isolate, int at_least_space_for,
-      PretenureFlag pretenure = NOT_TENURED,
+      AllocationType allocation = AllocationType::kYoung,
       MinimumCapacity capacity_option = USE_DEFAULT_MINIMUM_CAPACITY);
 
   // Collect the keys into the given KeyAccumulator, in ascending chronological

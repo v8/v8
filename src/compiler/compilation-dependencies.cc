@@ -136,13 +136,14 @@ class PretenureModeDependency final
  public:
   // TODO(neis): Once the concurrent compiler frontend is always-on, we no
   // longer need to explicitly store the mode.
-  PretenureModeDependency(const AllocationSiteRef& site, PretenureFlag mode)
-      : site_(site), mode_(mode) {
-    DCHECK_EQ(mode_, site_.GetPretenureMode());
+  PretenureModeDependency(const AllocationSiteRef& site,
+                          AllocationType allocation)
+      : site_(site), allocation_(allocation) {
+    DCHECK_EQ(allocation, site_.GetAllocationType());
   }
 
   bool IsValid() const override {
-    return mode_ == site_.object()->GetPretenureMode();
+    return allocation_ == site_.object()->GetAllocationType();
   }
 
   void Install(const MaybeObjectHandle& code) override {
@@ -158,7 +159,7 @@ class PretenureModeDependency final
 
  private:
   AllocationSiteRef site_;
-  PretenureFlag mode_;
+  AllocationType allocation_;
 };
 
 class FieldTypeDependency final : public CompilationDependencies::Dependency {
@@ -376,11 +377,12 @@ void CompilationDependencies::DependOnTransition(const MapRef& target_map) {
   }
 }
 
-PretenureFlag CompilationDependencies::DependOnPretenureMode(
+AllocationType CompilationDependencies::DependOnPretenureMode(
     const AllocationSiteRef& site) {
-  PretenureFlag mode = site.GetPretenureMode();
-  dependencies_.push_front(new (zone_) PretenureModeDependency(site, mode));
-  return mode;
+  AllocationType allocation = site.GetAllocationType();
+  dependencies_.push_front(new (zone_)
+                               PretenureModeDependency(site, allocation));
+  return allocation;
 }
 
 PropertyConstness CompilationDependencies::DependOnFieldConstness(

@@ -45,21 +45,23 @@ class MemoryOptimizer final {
   // together.
   class AllocationGroup final : public ZoneObject {
    public:
-    AllocationGroup(Node* node, PretenureFlag pretenure, Zone* zone);
-    AllocationGroup(Node* node, PretenureFlag pretenure, Node* size,
+    AllocationGroup(Node* node, AllocationType allocation, Zone* zone);
+    AllocationGroup(Node* node, AllocationType allocation, Node* size,
                     Zone* zone);
     ~AllocationGroup() = default;
 
     void Add(Node* object);
     bool Contains(Node* object) const;
-    bool IsNewSpaceAllocation() const { return pretenure() == NOT_TENURED; }
+    bool IsYoungGenerationAllocation() const {
+      return allocation() == AllocationType::kYoung;
+    }
 
-    PretenureFlag pretenure() const { return pretenure_; }
+    AllocationType allocation() const { return allocation_; }
     Node* size() const { return size_; }
 
    private:
     ZoneSet<NodeId> node_ids_;
-    PretenureFlag const pretenure_;
+    AllocationType const allocation_;
     Node* const size_;
 
     DISALLOW_IMPLICIT_CONSTRUCTORS(AllocationGroup);
@@ -79,7 +81,7 @@ class MemoryOptimizer final {
       return new (zone) AllocationState(group, size, top);
     }
 
-    bool IsNewSpaceAllocation() const;
+    bool IsYoungGenerationAllocation() const;
 
     AllocationGroup* group() const { return group_; }
     Node* top() const { return top_; }

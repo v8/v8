@@ -781,7 +781,8 @@ Handle<PodArray<InliningPosition>> CreateInliningPositions(
   }
   Handle<PodArray<InliningPosition>> inl_positions =
       PodArray<InliningPosition>::New(
-          isolate, static_cast<int>(inlined_functions.size()), TENURED);
+          isolate, static_cast<int>(inlined_functions.size()),
+          AllocationType::kOld);
   for (size_t i = 0; i < inlined_functions.size(); ++i) {
     inl_positions->set(static_cast<int>(i), inlined_functions[i].position);
   }
@@ -797,7 +798,7 @@ Handle<DeoptimizationData> CodeGenerator::GenerateDeoptimizationData() {
     return DeoptimizationData::Empty(isolate());
   }
   Handle<DeoptimizationData> data =
-      DeoptimizationData::New(isolate(), deopt_count, TENURED);
+      DeoptimizationData::New(isolate(), deopt_count, AllocationType::kOld);
 
   Handle<ByteArray> translation_array =
       translations_.CreateByteArray(isolate()->factory());
@@ -814,7 +815,7 @@ Handle<DeoptimizationData> CodeGenerator::GenerateDeoptimizationData() {
   }
 
   Handle<FixedArray> literals = isolate()->factory()->NewFixedArray(
-      static_cast<int>(deoptimization_literals_.size()), TENURED);
+      static_cast<int>(deoptimization_literals_.size()), AllocationType::kOld);
   for (unsigned i = 0; i < deoptimization_literals_.size(); i++) {
     Handle<Object> object = deoptimization_literals_[i].Reify(isolate());
     literals->set(i, *object);

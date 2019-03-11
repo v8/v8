@@ -49,7 +49,7 @@ class V8_EXPORT_PRIVATE CompilationDependencies : public ZoneObject {
 
   // Return the pretenure mode of {site} and record the assumption that it does
   // not change.
-  PretenureFlag DependOnPretenureMode(const AllocationSiteRef& site);
+  AllocationType DependOnPretenureMode(const AllocationSiteRef& site);
 
   // Record the assumption that the field type of a field does not change. The
   // field is identified by the arguments.

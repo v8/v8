@@ -213,7 +213,8 @@ Handle<FeedbackVector> FeedbackVector::New(Isolate* isolate,
 
   const int slot_count = shared->feedback_metadata()->slot_count();
 
-  Handle<FeedbackVector> vector = factory->NewFeedbackVector(shared, TENURED);
+  Handle<FeedbackVector> vector =
+      factory->NewFeedbackVector(shared, AllocationType::kOld);
 
   DCHECK_EQ(vector->length(), slot_count);
 
@@ -230,8 +231,8 @@ Handle<FeedbackVector> FeedbackVector::New(Isolate* isolate,
   int num_closure_feedback_cells =
       shared->feedback_metadata()->closure_feedback_cell_count();
   if (num_closure_feedback_cells != 0) {
-    Handle<FixedArray> feedback_cell_array =
-        factory->NewFixedArray(num_closure_feedback_cells, TENURED);
+    Handle<FixedArray> feedback_cell_array = factory->NewFixedArray(
+        num_closure_feedback_cells, AllocationType::kOld);
     for (int i = 0; i < num_closure_feedback_cells; i++) {
       Handle<FeedbackCell> cell =
           factory->NewNoClosuresCell(factory->undefined_value());

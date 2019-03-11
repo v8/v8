@@ -173,7 +173,8 @@ TEST(Regress2060a) {
   {
     HandleScope scope(isolate);
     for (int i = 0; i < 32; i++) {
-      Handle<JSObject> object = factory->NewJSObject(function, TENURED);
+      Handle<JSObject> object =
+          factory->NewJSObject(function, AllocationType::kOld);
       CHECK(!Heap::InYoungGeneration(*object));
       CHECK(!first_page->Contains(object->address()));
       int32_t hash = key->GetOrCreateHash(isolate)->value();
@@ -211,7 +212,7 @@ TEST(Regress2060b) {
   // Fill up weak map with keys on an evacuation candidate.
   Handle<JSObject> keys[32];
   for (int i = 0; i < 32; i++) {
-    keys[i] = factory->NewJSObject(function, TENURED);
+    keys[i] = factory->NewJSObject(function, AllocationType::kOld);
     CHECK(!Heap::InYoungGeneration(*keys[i]));
     CHECK(!first_page->Contains(keys[i]->address()));
   }

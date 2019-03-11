@@ -84,11 +84,14 @@ void SourceCodeCache::Add(Isolate* isolate, Vector<const char> name,
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
   int length = cache_->length();
-  Handle<FixedArray> new_array = factory->NewFixedArray(length + 2, TENURED);
+  Handle<FixedArray> new_array =
+      factory->NewFixedArray(length + 2, AllocationType::kOld);
   cache_->CopyTo(0, *new_array, 0, cache_->length());
   cache_ = *new_array;
   Handle<String> str =
-      factory->NewStringFromOneByte(Vector<const uint8_t>::cast(name), TENURED)
+      factory
+          ->NewStringFromOneByte(Vector<const uint8_t>::cast(name),
+                                 AllocationType::kOld)
           .ToHandleChecked();
   DCHECK(!str.is_null());
   cache_->set(length, *str);
@@ -813,21 +816,21 @@ Handle<Map> CreateNonConstructorMap(Isolate* isolate, Handle<Map> source_map,
 
 void Genesis::CreateIteratorMaps(Handle<JSFunction> empty) {
   // Create iterator-related meta-objects.
-  Handle<JSObject> iterator_prototype =
-      factory()->NewJSObject(isolate()->object_function(), TENURED);
+  Handle<JSObject> iterator_prototype = factory()->NewJSObject(
+      isolate()->object_function(), AllocationType::kOld);
 
   InstallFunctionAtSymbol(isolate(), iterator_prototype,
                           factory()->iterator_symbol(), "[Symbol.iterator]",
                           Builtins::kReturnReceiver, 0, true);
   native_context()->set_initial_iterator_prototype(*iterator_prototype);
 
-  Handle<JSObject> generator_object_prototype =
-      factory()->NewJSObject(isolate()->object_function(), TENURED);
+  Handle<JSObject> generator_object_prototype = factory()->NewJSObject(
+      isolate()->object_function(), AllocationType::kOld);
   native_context()->set_initial_generator_prototype(
       *generator_object_prototype);
   JSObject::ForceSetPrototype(generator_object_prototype, iterator_prototype);
-  Handle<JSObject> generator_function_prototype =
-      factory()->NewJSObject(isolate()->object_function(), TENURED);
+  Handle<JSObject> generator_function_prototype = factory()->NewJSObject(
+      isolate()->object_function(), AllocationType::kOld);
   JSObject::ForceSetPrototype(generator_function_prototype, empty);
 
   InstallToStringTag(isolate(), generator_function_prototype,
@@ -896,8 +899,8 @@ void Genesis::CreateIteratorMaps(Handle<JSFunction> empty) {
 void Genesis::CreateAsyncIteratorMaps(Handle<JSFunction> empty) {
   // %AsyncIteratorPrototype%
   // proposal-async-iteration/#sec-asynciteratorprototype
-  Handle<JSObject> async_iterator_prototype =
-      factory()->NewJSObject(isolate()->object_function(), TENURED);
+  Handle<JSObject> async_iterator_prototype = factory()->NewJSObject(
+      isolate()->object_function(), AllocationType::kOld);
 
   InstallFunctionAtSymbol(
       isolate(), async_iterator_prototype, factory()->async_iterator_symbol(),
@@ -905,8 +908,8 @@ void Genesis::CreateAsyncIteratorMaps(Handle<JSFunction> empty) {
 
   // %AsyncFromSyncIteratorPrototype%
   // proposal-async-iteration/#sec-%asyncfromsynciteratorprototype%-object
-  Handle<JSObject> async_from_sync_iterator_prototype =
-      factory()->NewJSObject(isolate()->object_function(), TENURED);
+  Handle<JSObject> async_from_sync_iterator_prototype = factory()->NewJSObject(
+      isolate()->object_function(), AllocationType::kOld);
   SimpleInstallFunction(isolate(), async_from_sync_iterator_prototype, "next",
                         Builtins::kAsyncFromSyncIteratorPrototypeNext, 1, true);
   SimpleInstallFunction(isolate(), async_from_sync_iterator_prototype, "return",
@@ -930,10 +933,10 @@ void Genesis::CreateAsyncIteratorMaps(Handle<JSFunction> empty) {
       *async_from_sync_iterator_map);
 
   // Async Generators
-  Handle<JSObject> async_generator_object_prototype =
-      factory()->NewJSObject(isolate()->object_function(), TENURED);
-  Handle<JSObject> async_generator_function_prototype =
-      factory()->NewJSObject(isolate()->object_function(), TENURED);
+  Handle<JSObject> async_generator_object_prototype = factory()->NewJSObject(
+      isolate()->object_function(), AllocationType::kOld);
+  Handle<JSObject> async_generator_function_prototype = factory()->NewJSObject(
+      isolate()->object_function(), AllocationType::kOld);
 
   // %AsyncGenerator% / %AsyncGeneratorFunction%.prototype
   JSObject::ForceSetPrototype(async_generator_function_prototype, empty);
@@ -1008,8 +1011,8 @@ void Genesis::CreateAsyncIteratorMaps(Handle<JSFunction> empty) {
 
 void Genesis::CreateAsyncFunctionMaps(Handle<JSFunction> empty) {
   // %AsyncFunctionPrototype% intrinsic
-  Handle<JSObject> async_function_prototype =
-      factory()->NewJSObject(isolate()->object_function(), TENURED);
+  Handle<JSObject> async_function_prototype = factory()->NewJSObject(
+      isolate()->object_function(), AllocationType::kOld);
   JSObject::ForceSetPrototype(async_function_prototype, empty);
 
   InstallToStringTag(isolate(), async_function_prototype, "AsyncFunction");
@@ -1642,8 +1645,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     // The %ArrayPrototype% has TERMINAL_FAST_ELEMENTS_KIND in order to ensure
     // that constant functions stay constant after turning prototype to setup
     // mode and back when constant field tracking is enabled.
-    Handle<JSArray> proto =
-        factory->NewJSArray(0, TERMINAL_FAST_ELEMENTS_KIND, TENURED);
+    Handle<JSArray> proto = factory->NewJSArray(0, TERMINAL_FAST_ELEMENTS_KIND,
+                                                AllocationType::kOld);
     JSFunction::SetPrototype(array_function, proto);
     native_context()->set_initial_array_prototype(*proto);
 
@@ -1761,7 +1764,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         native_context()->initial_iterator_prototype(), isolate());
 
     Handle<JSObject> array_iterator_prototype =
-        factory->NewJSObject(isolate_->object_function(), TENURED);
+        factory->NewJSObject(isolate_->object_function(), AllocationType::kOld);
     JSObject::ForceSetPrototype(array_iterator_prototype, iterator_prototype);
 
     InstallToStringTag(isolate_, array_iterator_prototype,
@@ -1793,8 +1796,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                                      Context::NUMBER_FUNCTION_INDEX);
 
     // Create the %NumberPrototype%
-    Handle<JSValue> prototype =
-        Handle<JSValue>::cast(factory->NewJSObject(number_fun, TENURED));
+    Handle<JSValue> prototype = Handle<JSValue>::cast(
+        factory->NewJSObject(number_fun, AllocationType::kOld));
     prototype->set_value(Smi::kZero);
     JSFunction::SetPrototype(number_fun, prototype);
 
@@ -1876,8 +1879,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                                      Context::BOOLEAN_FUNCTION_INDEX);
 
     // Create the %BooleanPrototype%
-    Handle<JSValue> prototype =
-        Handle<JSValue>::cast(factory->NewJSObject(boolean_fun, TENURED));
+    Handle<JSValue> prototype = Handle<JSValue>::cast(
+        factory->NewJSObject(boolean_fun, AllocationType::kOld));
     prototype->set_value(ReadOnlyRoots(isolate_).false_value());
     JSFunction::SetPrototype(boolean_fun, prototype);
 
@@ -1928,8 +1931,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           false);
 
     // Create the %StringPrototype%
-    Handle<JSValue> prototype =
-        Handle<JSValue>::cast(factory->NewJSObject(string_fun, TENURED));
+    Handle<JSValue> prototype = Handle<JSValue>::cast(
+        factory->NewJSObject(string_fun, AllocationType::kOld));
     prototype->set_value(ReadOnlyRoots(isolate_).empty_string());
     JSFunction::SetPrototype(string_fun, prototype);
     native_context()->set_initial_string_prototype(*prototype);
@@ -2066,7 +2069,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         native_context()->initial_iterator_prototype(), isolate());
 
     Handle<JSObject> string_iterator_prototype =
-        factory->NewJSObject(isolate_->object_function(), TENURED);
+        factory->NewJSObject(isolate_->object_function(), AllocationType::kOld);
     JSObject::ForceSetPrototype(string_iterator_prototype, iterator_prototype);
 
     InstallToStringTag(isolate_, string_iterator_prototype, "String Iterator");
@@ -2657,7 +2660,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
   {  // -- J S O N
     Handle<JSObject> json_object =
-        factory->NewJSObject(isolate_->object_function(), TENURED);
+        factory->NewJSObject(isolate_->object_function(), AllocationType::kOld);
     JSObject::AddProperty(isolate_, global, "JSON", json_object, DONT_ENUM);
     SimpleInstallFunction(isolate_, json_object, "parse", Builtins::kJsonParse,
                           2, false);
@@ -2668,7 +2671,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
   {  // -- M a t h
     Handle<JSObject> math =
-        factory->NewJSObject(isolate_->object_function(), TENURED);
+        factory->NewJSObject(isolate_->object_function(), AllocationType::kOld);
     JSObject::AddProperty(isolate_, global, "Math", math, DONT_ENUM);
     SimpleInstallFunction(isolate_, math, "abs", Builtins::kMathAbs, 1, true);
     SimpleInstallFunction(isolate_, math, "acos", Builtins::kMathAcos, 1, true);
@@ -2752,7 +2755,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     Handle<JSObject> empty = factory->NewJSObject(isolate_->object_function());
     JSFunction::SetPrototype(cons, empty);
 
-    Handle<JSObject> console = factory->NewJSObject(cons, TENURED);
+    Handle<JSObject> console = factory->NewJSObject(cons, AllocationType::kOld);
     DCHECK(console->IsJSObject());
     JSObject::AddProperty(isolate_, global, name, console, DONT_ENUM);
     SimpleInstallFunction(isolate_, console, "debug", Builtins::kConsoleDebug,
@@ -2807,7 +2810,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 #ifdef V8_INTL_SUPPORT
   {  // -- I n t l
     Handle<JSObject> intl =
-        factory->NewJSObject(isolate_->object_function(), TENURED);
+        factory->NewJSObject(isolate_->object_function(), AllocationType::kOld);
     JSObject::AddProperty(isolate_, global, "Intl", intl, DONT_ENUM);
 
     SimpleInstallFunction(isolate(), intl, "getCanonicalLocales",
@@ -3047,7 +3050,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
   {  // -- A t o m i c s
     Handle<JSObject> atomics_object =
-        factory->NewJSObject(isolate_->object_function(), TENURED);
+        factory->NewJSObject(isolate_->object_function(), AllocationType::kOld);
     native_context()->set_atomics_object(*atomics_object);
 
     SimpleInstallFunction(isolate_, atomics_object, "load",
@@ -3551,7 +3554,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   {  // -- R e f l e c t
     Handle<String> reflect_string = factory->InternalizeUtf8String("Reflect");
     Handle<JSObject> reflect =
-        factory->NewJSObject(isolate_->object_function(), TENURED);
+        factory->NewJSObject(isolate_->object_function(), AllocationType::kOld);
     JSObject::AddProperty(isolate_, global, reflect_string, reflect, DONT_ENUM);
 
     Handle<JSFunction> define_property =
@@ -3967,7 +3970,7 @@ void Genesis::InitializeIteratorFunctions() {
   {  // -- S e t I t e r a t o r
     // Setup %SetIteratorPrototype%.
     Handle<JSObject> prototype =
-        factory->NewJSObject(isolate->object_function(), TENURED);
+        factory->NewJSObject(isolate->object_function(), AllocationType::kOld);
     JSObject::ForceSetPrototype(prototype, iterator_prototype);
 
     InstallToStringTag(isolate, prototype, factory->SetIterator_string());
@@ -3997,7 +4000,7 @@ void Genesis::InitializeIteratorFunctions() {
   {  // -- M a p I t e r a t o r
     // Setup %MapIteratorPrototype%.
     Handle<JSObject> prototype =
-        factory->NewJSObject(isolate->object_function(), TENURED);
+        factory->NewJSObject(isolate->object_function(), AllocationType::kOld);
     JSObject::ForceSetPrototype(prototype, iterator_prototype);
 
     InstallToStringTag(isolate, prototype, factory->MapIterator_string());
@@ -4218,8 +4221,8 @@ void Genesis::InitializeGlobal_harmony_string_matchall() {
     Handle<JSObject> iterator_prototype(
         native_context()->initial_iterator_prototype(), isolate());
 
-    Handle<JSObject> regexp_string_iterator_prototype =
-        factory()->NewJSObject(isolate()->object_function(), TENURED);
+    Handle<JSObject> regexp_string_iterator_prototype = factory()->NewJSObject(
+        isolate()->object_function(), AllocationType::kOld);
     JSObject::ForceSetPrototype(regexp_string_iterator_prototype,
                                 iterator_prototype);
 
@@ -4257,8 +4260,8 @@ void Genesis::InitializeGlobal_harmony_weak_refs() {
     // Create %FinalizationGroupPrototype%
     Handle<String> finalization_group_name =
         factory->NewStringFromStaticChars("FinalizationGroup");
-    Handle<JSObject> finalization_group_prototype =
-        factory->NewJSObject(isolate()->object_function(), TENURED);
+    Handle<JSObject> finalization_group_prototype = factory->NewJSObject(
+        isolate()->object_function(), AllocationType::kOld);
 
     // Create %FinalizationGroup%
     Handle<JSFunction> finalization_group_fun = CreateFunction(
@@ -4297,8 +4300,8 @@ void Genesis::InitializeGlobal_harmony_weak_refs() {
     DCHECK(weak_ref_map->IsJSObjectMap());
     native_context()->set_js_weak_ref_map(*weak_ref_map);
 
-    Handle<JSObject> weak_ref_prototype =
-        factory->NewJSObject(isolate()->object_function(), TENURED);
+    Handle<JSObject> weak_ref_prototype = factory->NewJSObject(
+        isolate()->object_function(), AllocationType::kOld);
     Map::SetPrototype(isolate(), weak_ref_map, weak_ref_prototype);
 
     InstallToStringTag(isolate(), weak_ref_prototype,
@@ -4330,8 +4333,8 @@ void Genesis::InitializeGlobal_harmony_weak_refs() {
     Handle<JSObject> iterator_prototype(
         native_context()->initial_iterator_prototype(), isolate());
 
-    Handle<JSObject> cleanup_iterator_prototype =
-        factory->NewJSObject(isolate()->object_function(), TENURED);
+    Handle<JSObject> cleanup_iterator_prototype = factory->NewJSObject(
+        isolate()->object_function(), AllocationType::kOld);
     JSObject::ForceSetPrototype(cleanup_iterator_prototype, iterator_prototype);
 
     InstallToStringTag(isolate(), cleanup_iterator_prototype,
@@ -4443,8 +4446,8 @@ void Genesis::InitializeGlobal_harmony_intl_segmenter() {
     Handle<JSObject> iterator_prototype(
         native_context()->initial_iterator_prototype(), isolate());
 
-    Handle<JSObject> prototype =
-        factory()->NewJSObject(isolate()->object_function(), TENURED);
+    Handle<JSObject> prototype = factory()->NewJSObject(
+        isolate()->object_function(), AllocationType::kOld);
     JSObject::ForceSetPrototype(prototype, iterator_prototype);
 
     InstallToStringTag(isolate(), prototype,
@@ -4495,8 +4498,8 @@ Handle<JSFunction> Genesis::CreateArrayBuffer(
     Handle<String> name, ArrayBufferKind array_buffer_kind) {
   // Create the %ArrayBufferPrototype%
   // Setup the {prototype} with the given {name} for @@toStringTag.
-  Handle<JSObject> prototype =
-      factory()->NewJSObject(isolate()->object_function(), TENURED);
+  Handle<JSObject> prototype = factory()->NewJSObject(
+      isolate()->object_function(), AllocationType::kOld);
   InstallToStringTag(isolate(), prototype, name);
 
   // Allocate the constructor with the given {prototype}.
@@ -4558,8 +4561,8 @@ void Genesis::InstallInternalPackedArray(Handle<JSObject> target,
   // doesn't inherit from Object.prototype.
   // To be used only for internal work by builtins. Instances
   // must not be leaked to user code.
-  Handle<JSObject> prototype =
-      factory()->NewJSObject(isolate()->object_function(), TENURED);
+  Handle<JSObject> prototype = factory()->NewJSObject(
+      isolate()->object_function(), AllocationType::kOld);
   Handle<JSFunction> array_function =
       InstallFunction(isolate(), target, name, JS_ARRAY_TYPE, JSArray::kSize, 0,
                       prototype, Builtins::kInternalArrayConstructor);
@@ -4671,8 +4674,8 @@ bool Genesis::InstallNatives() {
     // Builtin function for OpaqueReference -- a JSValue-based object,
     // that keeps its field isolated from JavaScript code. It may store
     // objects, that JavaScript code may not access.
-    Handle<JSObject> prototype =
-        factory()->NewJSObject(isolate()->object_function(), TENURED);
+    Handle<JSObject> prototype = factory()->NewJSObject(
+        isolate()->object_function(), AllocationType::kOld);
     Handle<JSFunction> opaque_reference_fun =
         CreateFunction(isolate(), factory()->empty_string(), JS_VALUE_TYPE,
                        JSValue::kSize, 0, prototype, Builtins::kIllegal);

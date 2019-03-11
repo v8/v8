@@ -189,8 +189,9 @@ class String : public Name {
   // Degenerate cons strings are handled specially by the garbage
   // collector (see IsShortcutCandidate).
 
-  static inline Handle<String> Flatten(Isolate* isolate, Handle<String> string,
-                                       PretenureFlag pretenure = NOT_TENURED);
+  static inline Handle<String> Flatten(
+      Isolate* isolate, Handle<String> string,
+      AllocationType allocation = AllocationType::kYoung);
 
   // Tries to return the content of a flat string as a structure holding either
   // a flat vector of char or of uc16.
@@ -432,7 +433,7 @@ class String : public Name {
   friend class InternalizedStringKey;
 
   static Handle<String> SlowFlatten(Isolate* isolate, Handle<ConsString> cons,
-                                    PretenureFlag tenure);
+                                    AllocationType allocation);
 
   // Slow case of String::Equals.  This implementation works on any strings
   // but it is most efficient on strings that are almost flat.

@@ -1723,7 +1723,8 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
       name, isolate->strict_function_map(), LanguageMode::kStrict);
   Handle<JSFunction> cons = factory->NewFunction(args);
   JSFunction::SetPrototype(cons, isolate->initial_object_prototype());
-  Handle<JSObject> webassembly = factory->NewJSObject(cons, TENURED);
+  Handle<JSObject> webassembly =
+      factory->NewJSObject(cons, AllocationType::kOld);
 
   PropertyAttributes ro_attributes =
       static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY);

@@ -339,8 +339,8 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
       thrower_->RangeError("Out of memory: wasm globals");
       return {};
     }
-    untagged_globals_ =
-        isolate_->factory()->NewJSArrayBuffer(SharedFlag::kNotShared, TENURED);
+    untagged_globals_ = isolate_->factory()->NewJSArrayBuffer(
+        SharedFlag::kNotShared, AllocationType::kOld);
     constexpr bool is_external = false;
     constexpr bool is_wasm_memory = false;
     JSArrayBuffer::Setup(untagged_globals_, isolate_, is_external,
@@ -370,7 +370,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     // more than required if multiple globals are imported from the same
     // module.
     Handle<FixedArray> buffers_array = isolate_->factory()->NewFixedArray(
-        module_->num_imported_mutable_globals, TENURED);
+        module_->num_imported_mutable_globals, AllocationType::kOld);
     instance->set_imported_mutable_globals_buffers(*buffers_array);
   }
 
@@ -379,8 +379,8 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   //--------------------------------------------------------------------------
   int exceptions_count = static_cast<int>(module_->exceptions.size());
   if (exceptions_count > 0) {
-    Handle<FixedArray> exception_table =
-        isolate_->factory()->NewFixedArray(exceptions_count, TENURED);
+    Handle<FixedArray> exception_table = isolate_->factory()->NewFixedArray(
+        exceptions_count, AllocationType::kOld);
     instance->set_exceptions_table(*exception_table);
     exception_wrappers_.resize(exceptions_count);
   }
@@ -1559,7 +1559,7 @@ bool LoadElemSegmentImpl(Isolate* isolate, Handle<WasmInstanceObject> instance,
         // The {WasmExportedFunction} will be created lazily.
         Handle<Tuple2> tuple = isolate->factory()->NewTuple2(
             instance, Handle<Smi>(Smi::FromInt(func_index), isolate),
-            NOT_TENURED);
+            AllocationType::kYoung);
         table_object->elements()->set(entry_index, *tuple);
       }
     } else {

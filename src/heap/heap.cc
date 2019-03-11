@@ -843,7 +843,7 @@ void Heap::ProcessPretenuringFeedback() {
         if (DigestPretenuringFeedback(isolate_, site, maximum_size_scavenge)) {
           trigger_deoptimization = true;
         }
-        if (site->GetPretenureMode() == TENURED) {
+        if (site->GetAllocationType() == AllocationType::kOld) {
           tenure_decisions++;
         } else {
           dont_tenure_decisions++;
@@ -2380,13 +2380,13 @@ void Heap::ForeachAllocationSite(
   }
 }
 
-void Heap::ResetAllAllocationSitesDependentCode(PretenureFlag flag) {
+void Heap::ResetAllAllocationSitesDependentCode(AllocationType allocation) {
   DisallowHeapAllocation no_allocation_scope;
   bool marked = false;
 
   ForeachAllocationSite(allocation_sites_list(),
-                        [&marked, flag, this](AllocationSite site) {
-                          if (site->GetPretenureMode() == flag) {
+                        [&marked, allocation, this](AllocationSite site) {
+                          if (site->GetAllocationType() == allocation) {
                             site->ResetPretenureDecision();
                             site->set_deopt_dependent_code(true);
                             marked = true;
@@ -2396,7 +2396,6 @@ void Heap::ResetAllAllocationSitesDependentCode(PretenureFlag flag) {
                         });
   if (marked) isolate_->stack_guard()->RequestDeoptMarkedAllocationSites();
 }
-
 
 void Heap::EvaluateOldSpaceLocalPretenuring(
     uint64_t size_of_objects_before_gc) {
@@ -2410,7 +2409,7 @@ void Heap::EvaluateOldSpaceLocalPretenuring(
     // allocation sites may be the cause for that. We have to deopt all
     // dependent code registered in the allocation sites to re-evaluate
     // our pretenuring decisions.
-    ResetAllAllocationSitesDependentCode(TENURED);
+    ResetAllAllocationSitesDependentCode(AllocationType::kOld);
     if (FLAG_trace_pretenuring) {
       PrintF(
           "Deopt all allocation sites dependent code due to low survival "
@@ -4425,10 +4424,10 @@ HeapObject Heap::EnsureImmovableCode(HeapObject heap_object, int object_size) {
   return heap_object;
 }
 
-HeapObject Heap::AllocateRawWithLightRetry(int size, AllocationType type,
+HeapObject Heap::AllocateRawWithLightRetry(int size, AllocationType allocation,
                                            AllocationAlignment alignment) {
   HeapObject result;
-  AllocationResult alloc = AllocateRaw(size, type, alignment);
+  AllocationResult alloc = AllocateRaw(size, allocation, alignment);
   if (alloc.To(&result)) {
     DCHECK(result != ReadOnlyRoots(this).exception());
     return result;
@@ -4437,7 +4436,7 @@ HeapObject Heap::AllocateRawWithLightRetry(int size, AllocationType type,
   for (int i = 0; i < 2; i++) {
     CollectGarbage(alloc.RetrySpace(),
                    GarbageCollectionReason::kAllocationFailure);
-    alloc = AllocateRaw(size, type, alignment);
+    alloc = AllocateRaw(size, allocation, alignment);
     if (alloc.To(&result)) {
       DCHECK(result != ReadOnlyRoots(this).exception());
       return result;
@@ -4446,17 +4445,17 @@ HeapObject Heap::AllocateRawWithLightRetry(int size, AllocationType type,
   return HeapObject();
 }
 
-HeapObject Heap::AllocateRawWithRetryOrFail(int size, AllocationType type,
+HeapObject Heap::AllocateRawWithRetryOrFail(int size, AllocationType allocation,
                                             AllocationAlignment alignment) {
   AllocationResult alloc;
-  HeapObject result = AllocateRawWithLightRetry(size, type, alignment);
+  HeapObject result = AllocateRawWithLightRetry(size, allocation, alignment);
   if (!result.is_null()) return result;
 
   isolate()->counters()->gc_last_resort_from_handles()->Increment();
   CollectAllAvailableGarbage(GarbageCollectionReason::kLastResort);
   {
     AlwaysAllocateScope scope(isolate());
-    alloc = AllocateRaw(size, type, alignment);
+    alloc = AllocateRaw(size, allocation, alignment);
   }
   if (alloc.To(&result)) {
     DCHECK(result != ReadOnlyRoots(this).exception());
@@ -4901,7 +4900,7 @@ void Heap::RemoveGCEpilogueCallback(v8::Isolate::GCCallbackWithData callback,
 namespace {
 Handle<WeakArrayList> CompactWeakArrayList(Heap* heap,
                                            Handle<WeakArrayList> array,
-                                           PretenureFlag pretenure) {
+                                           AllocationType allocation) {
   if (array->length() == 0) {
     return array;
   }
@@ -4913,7 +4912,7 @@ Handle<WeakArrayList> CompactWeakArrayList(Heap* heap,
   Handle<WeakArrayList> new_array = WeakArrayList::EnsureSpace(
       heap->isolate(),
       handle(ReadOnlyRoots(heap).empty_weak_array_list(), heap->isolate()),
-      new_length, pretenure);
+      new_length, allocation);
   // Allocation might have caused GC and turned some of the elements into
   // cleared weak heap objects. Count the number of live references again and
   // fill in the new array.
@@ -4929,7 +4928,7 @@ Handle<WeakArrayList> CompactWeakArrayList(Heap* heap,
 
 }  // anonymous namespace
 
-void Heap::CompactWeakArrayLists(PretenureFlag pretenure) {
+void Heap::CompactWeakArrayLists(AllocationType allocation) {
   // Find known PrototypeUsers and compact them.
   std::vector<Handle<PrototypeInfo>> prototype_infos;
   {
@@ -4946,24 +4945,25 @@ void Heap::CompactWeakArrayLists(PretenureFlag pretenure) {
   for (auto& prototype_info : prototype_infos) {
     Handle<WeakArrayList> array(
         WeakArrayList::cast(prototype_info->prototype_users()), isolate());
-    DCHECK_IMPLIES(pretenure == TENURED,
+    DCHECK_IMPLIES(allocation == AllocationType::kOld,
                    InOldSpace(*array) ||
                        *array == ReadOnlyRoots(this).empty_weak_array_list());
     WeakArrayList new_array = PrototypeUsers::Compact(
-        array, this, JSObject::PrototypeRegistryCompactionCallback, pretenure);
+        array, this, JSObject::PrototypeRegistryCompactionCallback, allocation);
     prototype_info->set_prototype_users(new_array);
   }
 
   // Find known WeakArrayLists and compact them.
   Handle<WeakArrayList> scripts(script_list(), isolate());
-  DCHECK_IMPLIES(pretenure == TENURED, InOldSpace(*scripts));
-  scripts = CompactWeakArrayList(this, scripts, pretenure);
+  DCHECK_IMPLIES(allocation == AllocationType::kOld, InOldSpace(*scripts));
+  scripts = CompactWeakArrayList(this, scripts, allocation);
   set_script_list(*scripts);
 
   Handle<WeakArrayList> no_script_list(noscript_shared_function_infos(),
                                        isolate());
-  DCHECK_IMPLIES(pretenure == TENURED, InOldSpace(*no_script_list));
-  no_script_list = CompactWeakArrayList(this, no_script_list, pretenure);
+  DCHECK_IMPLIES(allocation == AllocationType::kOld,
+                 InOldSpace(*no_script_list));
+  no_script_list = CompactWeakArrayList(this, no_script_list, allocation);
   set_noscript_shared_function_infos(*no_script_list);
 }
 

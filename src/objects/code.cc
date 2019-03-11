@@ -376,9 +376,9 @@ Code Code::OptimizedCodeIterator::Next() {
 
 Handle<DeoptimizationData> DeoptimizationData::New(Isolate* isolate,
                                                    int deopt_entry_count,
-                                                   PretenureFlag pretenure) {
+                                                   AllocationType allocation) {
   return Handle<DeoptimizationData>::cast(isolate->factory()->NewFixedArray(
-      LengthFor(deopt_entry_count), pretenure));
+      LengthFor(deopt_entry_count), allocation));
 }
 
 Handle<DeoptimizationData> DeoptimizationData::Empty(Isolate* isolate) {
@@ -965,8 +965,9 @@ Handle<DependentCode> DependentCode::New(Isolate* isolate,
                                          DependencyGroup group,
                                          const MaybeObjectHandle& object,
                                          Handle<DependentCode> next) {
-  Handle<DependentCode> result = Handle<DependentCode>::cast(
-      isolate->factory()->NewWeakFixedArray(kCodesStartIndex + 1, TENURED));
+  Handle<DependentCode> result =
+      Handle<DependentCode>::cast(isolate->factory()->NewWeakFixedArray(
+          kCodesStartIndex + 1, AllocationType::kOld));
   result->set_next_link(*next);
   result->set_flags(GroupField::encode(group) | CountField::encode(1));
   result->set_object_at(0, *object);
@@ -979,7 +980,8 @@ Handle<DependentCode> DependentCode::EnsureSpace(
   int capacity = kCodesStartIndex + DependentCode::Grow(entries->count());
   int grow_by = capacity - entries->length();
   return Handle<DependentCode>::cast(
-      isolate->factory()->CopyWeakFixedArrayAndGrow(entries, grow_by, TENURED));
+      isolate->factory()->CopyWeakFixedArrayAndGrow(entries, grow_by,
+                                                    AllocationType::kOld));
 }
 
 bool DependentCode::Compact() {

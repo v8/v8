@@ -479,15 +479,15 @@ bool IsRestLengthOf(const Operator* op) V8_WARN_UNUSED_RESULT;
 
 class AllocateParameters {
  public:
-  AllocateParameters(Type type, PretenureFlag pretenure)
-      : type_(type), pretenure_(pretenure) {}
+  AllocateParameters(Type type, AllocationType allocation_type)
+      : type_(type), allocation_type_(allocation_type) {}
 
   Type type() const { return type_; }
-  PretenureFlag pretenure() const { return pretenure_; }
+  AllocationType allocation_type() const { return allocation_type_; }
 
  private:
   Type type_;
-  PretenureFlag pretenure_;
+  AllocationType allocation_type_;
 };
 
 bool IsCheckedWithFeedback(const Operator* op);
@@ -498,7 +498,7 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, AllocateParameters);
 
 bool operator==(AllocateParameters const&, AllocateParameters const&);
 
-PretenureFlag PretenureFlagOf(const Operator* op) V8_WARN_UNUSED_RESULT;
+AllocationType AllocationTypeOf(const Operator* op) V8_WARN_UNUSED_RESULT;
 
 Type AllocateTypeOf(const Operator* op) V8_WARN_UNUSED_RESULT;
 
@@ -754,8 +754,8 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* ArgumentsLength(int formal_parameter_count,
                                   bool is_rest_length);
 
-  const Operator* NewDoubleElements(PretenureFlag);
-  const Operator* NewSmiOrObjectElements(PretenureFlag);
+  const Operator* NewDoubleElements(AllocationType);
+  const Operator* NewSmiOrObjectElements(AllocationType);
 
   // new-arguments-elements arguments-frame, arguments-length
   const Operator* NewArgumentsElements(int mapped_count);
@@ -773,8 +773,10 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   // transition-elements-kind object, from-map, to-map
   const Operator* TransitionElementsKind(ElementsTransition transition);
 
-  const Operator* Allocate(Type type, PretenureFlag pretenure = NOT_TENURED);
-  const Operator* AllocateRaw(Type type, PretenureFlag pretenure = NOT_TENURED);
+  const Operator* Allocate(Type type,
+                           AllocationType allocation = AllocationType::kYoung);
+  const Operator* AllocateRaw(
+      Type type, AllocationType allocation = AllocationType::kYoung);
 
   const Operator* LoadFieldByIndex();
   const Operator* LoadField(FieldAccess const&);

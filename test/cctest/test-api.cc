@@ -18252,7 +18252,7 @@ static void CreateGarbageInOldSpace() {
   v8::HandleScope scope(CcTest::isolate());
   i::AlwaysAllocateScope always_allocate(CcTest::i_isolate());
   for (int i = 0; i < 1000; i++) {
-    factory->NewFixedArray(1000, i::TENURED);
+    factory->NewFixedArray(1000, i::AllocationType::kOld);
   }
 }
 
@@ -18403,7 +18403,8 @@ TEST(GetHeapSpaceStatistics) {
   // Force allocation in LO_SPACE so that every space has non-zero size.
   v8::internal::Isolate* i_isolate =
       reinterpret_cast<v8::internal::Isolate*>(isolate);
-  auto unused = i_isolate->factory()->TryNewFixedArray(512 * 1024, i::TENURED);
+  auto unused = i_isolate->factory()->TryNewFixedArray(512 * 1024,
+                                                       i::AllocationType::kOld);
   USE(unused);
 
   isolate->GetHeapStatistics(&heap_statistics);

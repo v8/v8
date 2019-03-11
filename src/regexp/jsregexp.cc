@@ -1793,7 +1793,7 @@ static void EmitUseLookupTable(
   }
   Factory* factory = masm->isolate()->factory();
   // TODO(erikcorry): Cache these.
-  Handle<ByteArray> ba = factory->NewByteArray(kSize, TENURED);
+  Handle<ByteArray> ba = factory->NewByteArray(kSize, AllocationType::kOld);
   for (int i = 0; i < kSize; i++) {
     ba->set(i, templ[i]);
   }
@@ -3746,7 +3746,8 @@ void BoyerMooreLookahead::EmitSkipInstructions(RegExpMacroAssembler* masm) {
   }
 
   Factory* factory = masm->isolate()->factory();
-  Handle<ByteArray> boolean_skip_table = factory->NewByteArray(kSize, TENURED);
+  Handle<ByteArray> boolean_skip_table =
+      factory->NewByteArray(kSize, AllocationType::kOld);
   int skip_distance = GetSkipTable(
       min_lookahead, max_lookahead, boolean_skip_table);
   DCHECK_NE(0, skip_distance);

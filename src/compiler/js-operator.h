@@ -568,22 +568,22 @@ class CreateClosureParameters final {
  public:
   CreateClosureParameters(Handle<SharedFunctionInfo> shared_info,
                           Handle<FeedbackCell> feedback_cell, Handle<Code> code,
-                          PretenureFlag pretenure)
+                          AllocationType allocation)
       : shared_info_(shared_info),
         feedback_cell_(feedback_cell),
         code_(code),
-        pretenure_(pretenure) {}
+        allocation_(allocation) {}
 
   Handle<SharedFunctionInfo> shared_info() const { return shared_info_; }
   Handle<FeedbackCell> feedback_cell() const { return feedback_cell_; }
   Handle<Code> code() const { return code_; }
-  PretenureFlag pretenure() const { return pretenure_; }
+  AllocationType allocation() const { return allocation_; }
 
  private:
   Handle<SharedFunctionInfo> const shared_info_;
   Handle<FeedbackCell> const feedback_cell_;
   Handle<Code> const code_;
-  PretenureFlag const pretenure_;
+  AllocationType const allocation_;
 };
 
 bool operator==(CreateClosureParameters const&, CreateClosureParameters const&);
@@ -722,10 +722,10 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* CreateAsyncFunctionObject(int register_count);
   const Operator* CreateCollectionIterator(CollectionKind, IterationKind);
   const Operator* CreateBoundFunction(size_t arity, Handle<Map> map);
-  const Operator* CreateClosure(Handle<SharedFunctionInfo> shared_info,
-                                Handle<FeedbackCell> feedback_cell,
-                                Handle<Code> code,
-                                PretenureFlag pretenure = NOT_TENURED);
+  const Operator* CreateClosure(
+      Handle<SharedFunctionInfo> shared_info,
+      Handle<FeedbackCell> feedback_cell, Handle<Code> code,
+      AllocationType allocation = AllocationType::kYoung);
   const Operator* CreateIterResultObject();
   const Operator* CreateStringIterator();
   const Operator* CreateKeyValueArray();

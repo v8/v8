@@ -94,7 +94,7 @@ void BuiltinsConstantsTableBuilder::Finalize() {
   if (map_.size() == 0) return;
 
   Handle<FixedArray> table =
-      isolate_->factory()->NewFixedArray(map_.size(), TENURED);
+      isolate_->factory()->NewFixedArray(map_.size(), AllocationType::kOld);
 
   Builtins* builtins = isolate_->builtins();
   ConstantsMap::IteratableScope it_scope(&map_);

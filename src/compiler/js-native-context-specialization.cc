@@ -2357,7 +2357,8 @@ JSNativeContextSpecialization::BuildPropertyStore(
           if (access_info.HasTransitionMap()) {
             // Allocate a MutableHeapNumber for the new property.
             AllocationBuilder a(jsgraph(), effect, control);
-            a.Allocate(HeapNumber::kSize, NOT_TENURED, Type::OtherInternal());
+            a.Allocate(HeapNumber::kSize, AllocationType::kYoung,
+                       Type::OtherInternal());
             a.Store(AccessBuilder::ForMap(),
                     factory()->mutable_heap_number_map());
             a.Store(AccessBuilder::ForHeapNumberValue(), value);
@@ -3304,7 +3305,7 @@ Node* JSNativeContextSpecialization::BuildExtendPropertiesBackingStore(
 
   // Allocate and initialize the new properties.
   AllocationBuilder a(jsgraph(), effect, control);
-  a.Allocate(PropertyArray::SizeFor(new_length), NOT_TENURED,
+  a.Allocate(PropertyArray::SizeFor(new_length), AllocationType::kYoung,
              Type::OtherInternal());
   a.Store(AccessBuilder::ForMap(), jsgraph()->PropertyArrayMapConstant());
   a.Store(AccessBuilder::ForPropertyArrayLengthAndHash(), new_length_and_hash);

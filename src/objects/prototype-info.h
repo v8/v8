@@ -82,9 +82,9 @@ class PrototypeUsers : public WeakArrayList {
   // must not cause GC.
   typedef void (*CompactionCallback)(HeapObject object, int from_index,
                                      int to_index);
-  static WeakArrayList Compact(Handle<WeakArrayList> array, Heap* heap,
-                               CompactionCallback callback,
-                               PretenureFlag pretenure = NOT_TENURED);
+  static WeakArrayList Compact(
+      Handle<WeakArrayList> array, Heap* heap, CompactionCallback callback,
+      AllocationType allocation = AllocationType::kYoung);
 
 #ifdef VERIFY_HEAP
   static void Verify(WeakArrayList array);

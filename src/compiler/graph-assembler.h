@@ -220,7 +220,7 @@ class GraphAssembler {
   Node* ToNumber(Node* value);
   Node* BitcastWordToTagged(Node* value);
   Node* BitcastTaggedToWord(Node* value);
-  Node* Allocate(PretenureFlag pretenure, Node* size);
+  Node* Allocate(AllocationType allocation, Node* size);
   Node* LoadField(FieldAccess const&, Node* object);
   Node* LoadElement(ElementAccess const&, Node* object, Node* index);
   Node* StoreField(FieldAccess const&, Node* object, Node* value);

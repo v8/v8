@@ -196,8 +196,9 @@ class OrderedHashTable : public FixedArray {
 
  protected:
   // Returns an OrderedHashTable with a capacity of at least |capacity|.
-  static Handle<Derived> Allocate(Isolate* isolate, int capacity,
-                                  PretenureFlag pretenure = NOT_TENURED);
+  static Handle<Derived> Allocate(
+      Isolate* isolate, int capacity,
+      AllocationType allocation = AllocationType::kYoung);
   static Handle<Derived> Rehash(Isolate* isolate, Handle<Derived> table,
                                 int new_capacity);
 
@@ -241,8 +242,9 @@ class OrderedHashSet : public OrderedHashTable<OrderedHashSet, 1> {
   static Handle<OrderedHashSet> Rehash(Isolate* isolate,
                                        Handle<OrderedHashSet> table,
                                        int new_capacity);
-  static Handle<OrderedHashSet> Allocate(Isolate* isolate, int capacity,
-                                         PretenureFlag pretenure = NOT_TENURED);
+  static Handle<OrderedHashSet> Allocate(
+      Isolate* isolate, int capacity,
+      AllocationType allocation = AllocationType::kYoung);
   static HeapObject GetEmpty(ReadOnlyRoots ro_roots);
   static inline RootIndex GetMapRootIndex();
   static inline bool Is(Handle<HeapObject> table);
@@ -261,8 +263,9 @@ class OrderedHashMap : public OrderedHashTable<OrderedHashMap, 2> {
                                     Handle<OrderedHashMap> table,
                                     Handle<Object> key, Handle<Object> value);
 
-  static Handle<OrderedHashMap> Allocate(Isolate* isolate, int capacity,
-                                         PretenureFlag pretenure = NOT_TENURED);
+  static Handle<OrderedHashMap> Allocate(
+      Isolate* isolate, int capacity,
+      AllocationType allocation = AllocationType::kYoung);
   static Handle<OrderedHashMap> Rehash(Isolate* isolate,
                                        Handle<OrderedHashMap> table,
                                        int new_capacity);
@@ -341,8 +344,9 @@ class SmallOrderedHashTable : public HeapObject {
 
   void Initialize(Isolate* isolate, int capacity);
 
-  static Handle<Derived> Allocate(Isolate* isolate, int capacity,
-                                  PretenureFlag pretenure = NOT_TENURED);
+  static Handle<Derived> Allocate(
+      Isolate* isolate, int capacity,
+      AllocationType allocation = AllocationType::kYoung);
 
   // Returns a true if the OrderedHashTable contains the key
   bool HasKey(Isolate* isolate, Handle<Object> key);
@@ -676,7 +680,8 @@ class OrderedNameDictionary
       Isolate* isolate, Handle<OrderedNameDictionary> table, int entry);
 
   static Handle<OrderedNameDictionary> Allocate(
-      Isolate* isolate, int capacity, PretenureFlag pretenure = NOT_TENURED);
+      Isolate* isolate, int capacity,
+      AllocationType allocation = AllocationType::kYoung);
 
   static Handle<OrderedNameDictionary> Rehash(
       Isolate* isolate, Handle<OrderedNameDictionary> table, int new_capacity);

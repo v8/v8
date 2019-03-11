@@ -211,10 +211,11 @@ Object RemoveArrayHoles(Isolate* isolate, Handle<JSReceiver> receiver,
     Handle<Map> new_map =
         JSObject::GetElementsTransitionMap(object, HOLEY_ELEMENTS);
 
-    PretenureFlag tenure =
-        ObjectInYoungGeneration(*object) ? NOT_TENURED : TENURED;
+    AllocationType allocation = ObjectInYoungGeneration(*object)
+                                    ? AllocationType::kYoung
+                                    : AllocationType::kOld;
     Handle<FixedArray> fast_elements =
-        isolate->factory()->NewFixedArray(dict->NumberOfElements(), tenure);
+        isolate->factory()->NewFixedArray(dict->NumberOfElements(), allocation);
     dict->CopyValuesTo(*fast_elements);
 
     JSObject::SetMapAndElements(object, new_map, fast_elements);
@@ -619,8 +620,8 @@ RUNTIME_FUNCTION(Runtime_NewArray) {
     allocation_site = site;
   }
 
-  Handle<JSArray> array = Handle<JSArray>::cast(
-      factory->NewJSObjectFromMap(initial_map, NOT_TENURED, allocation_site));
+  Handle<JSArray> array = Handle<JSArray>::cast(factory->NewJSObjectFromMap(
+      initial_map, AllocationType::kYoung, allocation_site));
 
   factory->NewJSArrayStorage(array, 0, 0, DONT_INITIALIZE_ARRAY_ELEMENTS);
 
