@@ -370,11 +370,6 @@ void JSInliner::DetermineCallContext(
   UNREACHABLE();
 }
 
-Reduction JSInliner::Reduce(Node* node) {
-  if (!IrOpcode::IsInlineeOpcode(node->opcode())) return NoChange();
-  return ReduceJSCall(node);
-}
-
 Handle<Context> JSInliner::native_context() const {
   return handle(info_->native_context(), isolate());
 }
