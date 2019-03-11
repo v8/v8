@@ -1159,7 +1159,7 @@ class FunctionAnalyzer {
     return record->getDefinition();
   }
 
-  bool IsRawPointerType(const clang::PointerType* type, clang::QualType qtype) {
+  bool IsRawPointerType(const clang::PointerType* type) {
     const clang::CXXRecordDecl* record = type->getPointeeCXXRecordDecl();
 
     const clang::CXXRecordDecl* definition = GetDefinitionOrNull(record);
@@ -1167,7 +1167,12 @@ class FunctionAnalyzer {
       return false;
     }
 
-    return !IsDerivedFrom(record, smi_decl_);
+    // TODO(mstarzinger): Unify the common parts of {IsRawPointerType} and
+    // {IsInternalPointerType} once gcmole is up and running again.
+    bool result = (IsDerivedFrom(record, object_decl_) &&
+                   !IsDerivedFrom(record, smi_decl_)) ||
+                  IsDerivedFrom(record, maybe_object_decl_);
+    return result;
   }
 
   bool IsInternalPointerType(clang::QualType qtype) {
@@ -1185,8 +1190,12 @@ class FunctionAnalyzer {
       return false;
     }
 
-    return IsDerivedFrom(record, object_decl_) ||
-           IsDerivedFrom(record, maybe_object_decl_);
+    // TODO(mstarzinger): Unify the common parts of {IsRawPointerType} and
+    // {IsInternalPointerType} once gcmole is up and running again.
+    bool result = (IsDerivedFrom(record, object_decl_) &&
+                   !IsDerivedFrom(record, smi_decl_)) ||
+                  IsDerivedFrom(record, maybe_object_decl_);
+    return result;
   }
 
   // Returns weather the given type is a raw pointer or a wrapper around
@@ -1195,7 +1204,7 @@ class FunctionAnalyzer {
     const clang::PointerType* pointer_type =
         llvm::dyn_cast_or_null<clang::PointerType>(qtype.getTypePtrOrNull());
     if (pointer_type != NULL) {
-      return IsRawPointerType(pointer_type, qtype);
+      return IsRawPointerType(pointer_type);
     } else {
       return IsInternalPointerType(qtype);
     }
