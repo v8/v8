@@ -14,15 +14,6 @@
 // https://github.com/python/cpython/blob/master/Objects/listsort.txt
 
 namespace array {
-  // All accessors bail to the GenericElementsAccessor if assumptions checked
-  // by "CanUseSameAccessor<>" are violated:
-  //  Generic <- FastPackedSmi
-  //          <- FastSmiOrObject
-  //          <- FastDouble
-  //          <- Dictionary
-  const kGenericElementsAccessorId: Smi = 0;
-  const kFastElementsAccessorId: Smi = 1;
-
   class SortState {
     Compare(implicit context: Context)(x: Object, y: Object): Number {
       const sortCompare: CompareBuiltinFn = this.sortComparePtr;
@@ -38,6 +29,12 @@ namespace array {
               this.initialReceiverLength)) {
         goto Bailout;
       }
+    }
+
+    ResetToGenericAccessor() {
+      this.loadFn = Load<GenericElementsAccessor>;
+      this.storeFn = Store<GenericElementsAccessor>;
+      this.bailoutStatus = kSuccess;
     }
 
     // The receiver of the Array.p.sort call.
@@ -93,10 +90,6 @@ namespace array {
 
     // Pointer to the temporary array.
     tempArray: FixedArray;
-
-    // A Smi constant describing which accessors to use. This is used
-    // for reloading the right elements and for a sanity check.
-    accessor: Smi;
   }
 
   macro NewSortState(implicit context: Context)(
@@ -106,7 +99,6 @@ namespace array {
     const sortComparePtr =
         comparefn != Undefined ? SortCompareUserFn : SortCompareDefault;
     const map = receiver.map;
-    let accessor = kGenericElementsAccessorId;
     let loadFn = Load<GenericElementsAccessor>;
     let storeFn = Store<GenericElementsAccessor>;
     let canUseSameAccessorFn = CanUseSameAccessor<GenericElementsAccessor>;
@@ -117,7 +109,6 @@ namespace array {
         let a: FastJSArray = Cast<FastJSArray>(receiver) otherwise Slow;
 
         const elementsKind: ElementsKind = map.elements_kind;
-        accessor = kFastElementsAccessorId;
         if (IsDoubleElementsKind(elementsKind)) {
           loadFn = Load<FastDoubleElements>;
           storeFn = Store<FastDoubleElements>;
@@ -136,7 +127,6 @@ namespace array {
     label Slow {
       if (map.elements_kind == DICTIONARY_ELEMENTS && IsExtensibleMap(map) &&
           !IsCustomElementsReceiverInstanceType(map.instance_type)) {
-        accessor = kFastElementsAccessorId;
         loadFn = Load<DictionaryElements>;
         storeFn = Store<DictionaryElements>;
         canUseSameAccessorFn = CanUseSameAccessor<DictionaryElements>;
@@ -157,8 +147,7 @@ namespace array {
       0,
       AllocateZeroedFixedArray(Convert<intptr>(kMaxMergePending)),
       AllocateZeroedFixedArray(Convert<intptr>(sortLength)),
-      kEmptyFixedArray,
-      accessor
+      kEmptyFixedArray
     };
   }
 
@@ -1296,55 +1285,59 @@ namespace array {
 
   transitioning macro
   CopyReceiverElementsToWorkArray(
-      implicit context: Context, sortState: SortState)(length: Smi)
-      labels Bailout {
+      implicit context: Context, sortState: SortState)(length: Smi) {
     // TODO(szuend): Investigate if we can use COW arrays or a memcpy + range
     //               barrier to speed this step up.
-    const loadFn = sortState.loadFn;
+    let loadFn = sortState.loadFn;
     const workArray = sortState.workArray;
 
     for (let i: Smi = 0; i < length; ++i) {
-      workArray.objects[i] = CallLoad(loadFn, i) otherwise Bailout;
+      try {
+        workArray.objects[i] = CallLoad(loadFn, i) otherwise Bailout;
+      }
+      label Bailout deferred {
+        sortState.ResetToGenericAccessor();
+        loadFn = sortState.loadFn;
+        workArray.objects[i] = CallLoad(loadFn, i) otherwise unreachable;
+      }
     }
   }
 
   transitioning macro
   CopyWorkArrayToReceiver(implicit context: Context, sortState: SortState)(
-      length: Smi)
-      labels Bailout {
+      length: Smi) {
     // TODO(szuend): Build fast-path that simply installs the work array as the
     // new backing store where applicable.
-    const storeFn = sortState.storeFn;
+    let storeFn = sortState.storeFn;
     const workArray = sortState.workArray;
 
     for (let i: Smi = 0; i < length; ++i) {
-      CallStore(storeFn, i, workArray.objects[i]) otherwise Bailout;
+      try {
+        CallStore(storeFn, i, workArray.objects[i]) otherwise Bailout;
+      }
+      label Bailout deferred {
+        sortState.ResetToGenericAccessor();
+        storeFn = sortState.storeFn;
+        CallStore(storeFn, i, workArray.objects[i]) otherwise unreachable;
+      }
     }
   }
 
   transitioning builtin
   ArrayTimSort(context: Context, sortState: SortState, length: Smi): Object {
-    try {
-      CopyReceiverElementsToWorkArray(length) otherwise Slow;
-      ArrayTimSortImpl(context, sortState, length);
+    CopyReceiverElementsToWorkArray(length);
+    ArrayTimSortImpl(context, sortState, length);
 
+    try {
       // The comparison function or toString might have changed the
       // receiver, if that is the case, we switch to the slow path.
-      // TODO(szuend): Introduce "special" slow path that only copies,
-      //               but skips the whole re-sorting.
       sortState.CheckAccessor() otherwise Slow;
-      CopyWorkArrayToReceiver(length) otherwise Slow;
     }
-    label Slow {
-      if (sortState.accessor == kGenericElementsAccessorId) {
-        // We were already on the slow path. This must not happen.
-        unreachable;
-      }
-      const newSortState: SortState = NewSortState(
-          sortState.receiver, sortState.userCmpFn,
-          sortState.initialReceiverLength, sortState.workArray.length, true);
-      ArrayTimSort(context, newSortState, length);
+    label Slow deferred {
+      sortState.ResetToGenericAccessor();
     }
+    
+    CopyWorkArrayToReceiver(length);
     return kSuccess;
   }
 
