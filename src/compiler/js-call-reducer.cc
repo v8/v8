@@ -7070,15 +7070,14 @@ Reduction JSCallReducer::ReduceRegExpPrototypeTest(Node* node) {
 
     // Protect the exec method change in the holder.
     Handle<Object> exec_on_proto;
-    Handle<Map> holder_map(holder->map(), isolate());
-    Handle<DescriptorArray> descriptors(holder_map->instance_descriptors(),
-                                        isolate());
+    MapRef holder_map(broker(), handle(holder->map(), isolate()));
+    Handle<DescriptorArray> descriptors(
+        holder_map.object()->instance_descriptors(), isolate());
     int descriptor_index =
-        descriptors->Search(*(factory()->exec_string()), *holder_map);
+        descriptors->Search(*(factory()->exec_string()), *holder_map.object());
     CHECK_NE(descriptor_index, DescriptorArray::kNotFound);
-
-    dependencies()->DependOnFieldType(MapRef(broker(), holder_map),
-                                      descriptor_index);
+    holder_map.SerializeOwnDescriptors();
+    dependencies()->DependOnFieldType(holder_map, descriptor_index);
   } else {
     return NoChange();
   }
