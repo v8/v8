@@ -1029,8 +1029,10 @@ Map Map::TryUpdateSlow(Isolate* isolate, Map old_map) {
                  .SearchSpecial(info.integrity_level_symbol);
   }
 
-  DCHECK_EQ(old_map->elements_kind(), result->elements_kind());
-  DCHECK_EQ(old_map->instance_type(), result->instance_type());
+  DCHECK_IMPLIES(!result.is_null(),
+                 old_map->elements_kind() == result->elements_kind());
+  DCHECK_IMPLIES(!result.is_null(),
+                 old_map->instance_type() == result->instance_type());
   return result;
 }
 
