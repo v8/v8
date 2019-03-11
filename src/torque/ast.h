@@ -360,12 +360,10 @@ struct ElementAccessExpression : LocationExpression {
 struct FieldAccessExpression : LocationExpression {
   DEFINE_AST_NODE_LEAF_BOILERPLATE(FieldAccessExpression)
   FieldAccessExpression(SourcePosition pos, Expression* object,
-                        std::string field)
-      : LocationExpression(kKind, pos),
-        object(object),
-        field(std::move(field)) {}
+                        Identifier* field)
+      : LocationExpression(kKind, pos), object(object), field(field) {}
   Expression* object;
-  std::string field;
+  Identifier* field;
 };
 
 struct AssignmentExpression : Expression {

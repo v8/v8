@@ -988,9 +988,8 @@ base::Optional<ParseResult> MakeIdentifierExpression(
 base::Optional<ParseResult> MakeFieldAccessExpression(
     ParseResultIterator* child_results) {
   auto object = child_results->NextAs<Expression*>();
-  auto field = child_results->NextAs<std::string>();
-  LocationExpression* result =
-      MakeNode<FieldAccessExpression>(object, std::move(field));
+  auto field = child_results->NextAs<Identifier*>();
+  LocationExpression* result = MakeNode<FieldAccessExpression>(object, field);
   return ParseResult{result};
 }
 
@@ -1366,8 +1365,7 @@ struct TorqueGrammar : Grammar {
   // Result: LocationExpression*
   Symbol locationExpression = {
       Rule({&identifierExpression}),
-      Rule({&primaryExpression, Token("."), &identifier},
-           MakeFieldAccessExpression),
+      Rule({&primaryExpression, Token("."), &name}, MakeFieldAccessExpression),
       Rule({&primaryExpression, Token("["), expression, Token("]")},
            MakeElementAccessExpression)};
 

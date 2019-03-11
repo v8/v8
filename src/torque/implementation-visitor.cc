@@ -1728,26 +1728,39 @@ LocationReference ImplementationVisitor::GetLocationReference(
   LocationReference reference = GetLocationReference(expr->object);
   if (reference.IsVariableAccess() &&
       reference.variable().type()->IsStructType()) {
+    if (GlobalContext::collect_language_server_data()) {
+      const StructType* type = StructType::cast(reference.variable().type());
+      const Field& field = type->LookupField(expr->field->value);
+      LanguageServerData::AddDefinition(expr->field->pos, field.pos);
+    }
     return LocationReference::VariableAccess(
-        ProjectStructField(reference.variable(), expr->field));
+        ProjectStructField(reference.variable(), expr->field->value));
   }
   if (reference.IsTemporary() && reference.temporary().type()->IsStructType()) {
+    if (GlobalContext::collect_language_server_data()) {
+      const StructType* type = StructType::cast(reference.temporary().type());
+      const Field& field = type->LookupField(expr->field->value);
+      LanguageServerData::AddDefinition(expr->field->pos, field.pos);
+    }
     return LocationReference::Temporary(
-        ProjectStructField(reference.temporary(), expr->field),
+        ProjectStructField(reference.temporary(), expr->field->value),
         reference.temporary_description());
   }
   VisitResult object_result = GenerateFetchFromLocation(reference);
   if (const ClassType* class_type =
           ClassType::DynamicCast(object_result.type())) {
-    if (class_type->HasField(expr->field)) {
-      const Field& field = (class_type->LookupField(expr->field));
+    if (class_type->HasField(expr->field->value)) {
+      const Field& field = (class_type->LookupField(expr->field->value));
+      if (GlobalContext::collect_language_server_data()) {
+        LanguageServerData::AddDefinition(expr->field->pos, field.pos);
+      }
       if (field.index) {
         return LocationReference::IndexedFieldAccess(object_result,
-                                                     expr->field);
+                                                     expr->field->value);
       }
     }
   }
-  return LocationReference::FieldAccess(object_result, expr->field);
+  return LocationReference::FieldAccess(object_result, expr->field->value);
 }
 
 LocationReference ImplementationVisitor::GetLocationReference(
