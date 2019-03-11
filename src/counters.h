@@ -1297,8 +1297,6 @@ class RuntimeCallTimerScope {
   HT(asm_wasm_translation_time, V8.AsmWasmTranslationMicroSeconds, 1000000,    \
      MICROSECOND)                                                              \
   HT(wasm_lazy_compilation_time, V8.WasmLazyCompilationMicroSeconds, 1000000,  \
-     MICROSECOND)                                                              \
-  HT(wasm_execution_time, V8.WasmExecutionTimeMicroSeconds, 10000000,          \
      MICROSECOND)
 
 #define TIMED_HISTOGRAM_LIST(HT)                                               \
