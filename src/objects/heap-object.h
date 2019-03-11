@@ -16,6 +16,8 @@
 namespace v8 {
 namespace internal {
 
+class Heap;
+
 // HeapObject is the superclass for all classes describing heap allocated
 // objects.
 class HeapObject : public Object {
@@ -173,7 +175,7 @@ class HeapObject : public Object {
   bool CanBeRehashed() const;
 
   // Rehash the object based on the layout inferred from its map.
-  void RehashBasedOnMap(ReadOnlyRoots roots);
+  void RehashBasedOnMap(Heap* heap);
 
   // Layout description.
 #define HEAP_OBJECT_FIELDS(V) \

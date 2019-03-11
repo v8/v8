@@ -19,6 +19,8 @@ void ReadOnlyHeap::MaybeDeserialize(Isolate* isolate,
   des->DeserializeInto(isolate);
 }
 
+void ReadOnlyHeap::NotifySetupComplete() { read_only_space_->MarkAsReadOnly(); }
+
 void ReadOnlyHeap::OnHeapTearDown() {
   delete read_only_space_;
   delete this;

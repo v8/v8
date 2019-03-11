@@ -24,6 +24,9 @@ class ReadOnlyHeap {
   // If necessary, deserialize read-only objects and set up read-only object
   // cache.
   void MaybeDeserialize(Isolate* isolate, ReadOnlyDeserializer* des);
+  // Notify read-only heap that all read-only space objects have been
+  // initialized and will not be written to.
+  void NotifySetupComplete();
   // Frees ReadOnlySpace and itself when sharing is disabled. No-op otherwise.
   // Read-only data should not be used within the current isolate after this is
   // called.

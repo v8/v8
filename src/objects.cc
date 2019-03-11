@@ -2360,7 +2360,8 @@ bool HeapObject::CanBeRehashed() const {
   return false;
 }
 
-void HeapObject::RehashBasedOnMap(ReadOnlyRoots roots) {
+void HeapObject::RehashBasedOnMap(Heap* heap) {
+  ReadOnlyRoots roots(heap);
   switch (map()->instance_type()) {
     case HASH_TABLE_TYPE:
       UNREACHABLE();
@@ -2396,8 +2397,14 @@ void HeapObject::RehashBasedOnMap(ReadOnlyRoots roots) {
     case SMALL_ORDERED_NAME_DICTIONARY_TYPE:
       DCHECK_EQ(0, SmallOrderedNameDictionary::cast(*this)->NumberOfElements());
       break;
-    default:
+    case ONE_BYTE_INTERNALIZED_STRING_TYPE:
+    case INTERNALIZED_STRING_TYPE:
+      // Rare case, rehash read-only space strings before they are sealed.
+      DCHECK(heap->InReadOnlySpace(*this));
+      String::cast(*this)->Hash();
       break;
+    default:
+      UNREACHABLE();
   }
 }
 

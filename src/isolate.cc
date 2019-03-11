@@ -3408,7 +3408,10 @@ bool Isolate::Init(ReadOnlyDeserializer* read_only_deserializer,
 
     if (!create_heap_objects) {
       read_only_heap->MaybeDeserialize(this, read_only_deserializer);
+      read_only_heap->NotifySetupComplete();
       startup_deserializer->DeserializeInto(this);
+    } else {
+      read_only_heap->NotifySetupComplete();
     }
     load_stub_cache_->Initialize();
     store_stub_cache_->Initialize();

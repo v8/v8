@@ -64,8 +64,7 @@ void Deserializer::Initialize(Isolate* isolate) {
 
 void Deserializer::Rehash() {
   DCHECK(can_rehash() || deserializing_user_code());
-  for (HeapObject item : to_rehash_)
-    item->RehashBasedOnMap(ReadOnlyRoots(isolate()));
+  for (HeapObject item : to_rehash_) item->RehashBasedOnMap(isolate_->heap());
 }
 
 Deserializer::~Deserializer() {
@@ -180,6 +179,11 @@ HeapObject Deserializer::PostProcessNewObject(HeapObject obj, int space) {
       // Uninitialize hash field as we need to recompute the hash.
       String string = String::cast(obj);
       string->set_hash_field(String::kEmptyHashField);
+      // Rehash strings before read-only space is sealed. Strings outside
+      // read-only space are rehashed lazily. (e.g. when rehashing dictionaries)
+      if (space == RO_SPACE) {
+        to_rehash_.push_back(obj);
+      }
     } else if (obj->NeedsRehashing()) {
       to_rehash_.push_back(obj);
     }
