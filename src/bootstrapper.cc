@@ -2841,8 +2841,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                             Builtins::kDateTimeFormatPrototypeFormatToParts, 1,
                             false);
 
-      SimpleInstallGetter(isolate_, prototype,
-                          factory->InternalizeUtf8String("format"),
+      SimpleInstallGetter(isolate_, prototype, factory->format_string(),
                           Builtins::kDateTimeFormatPrototypeFormat, false);
     }
 
@@ -2873,8 +2872,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
       SimpleInstallFunction(isolate_, prototype, "formatToParts",
                             Builtins::kNumberFormatPrototypeFormatToParts, 1,
                             false);
-      SimpleInstallGetter(isolate_, prototype,
-                          factory->InternalizeUtf8String("format"),
+      SimpleInstallGetter(isolate_, prototype, factory->format_string(),
                           Builtins::kNumberFormatPrototypeFormatNumber, false);
     }
 
@@ -2899,8 +2897,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                             Builtins::kCollatorPrototypeResolvedOptions, 0,
                             false);
 
-      SimpleInstallGetter(isolate_, prototype,
-                          factory->InternalizeUtf8String("compare"),
+      SimpleInstallGetter(isolate_, prototype, factory->compare_string(),
                           Builtins::kCollatorPrototypeCompare, false);
     }
 
@@ -2924,24 +2921,19 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                             Builtins::kV8BreakIteratorPrototypeResolvedOptions,
                             0, false);
 
-      SimpleInstallGetter(isolate_, prototype,
-                          factory->InternalizeUtf8String("adoptText"),
+      SimpleInstallGetter(isolate_, prototype, factory->adoptText_string(),
                           Builtins::kV8BreakIteratorPrototypeAdoptText, false);
 
-      SimpleInstallGetter(isolate_, prototype,
-                          factory->InternalizeUtf8String("first"),
+      SimpleInstallGetter(isolate_, prototype, factory->first_string(),
                           Builtins::kV8BreakIteratorPrototypeFirst, false);
 
-      SimpleInstallGetter(isolate_, prototype,
-                          factory->InternalizeUtf8String("next"),
+      SimpleInstallGetter(isolate_, prototype, factory->next_string(),
                           Builtins::kV8BreakIteratorPrototypeNext, false);
 
-      SimpleInstallGetter(isolate_, prototype,
-                          factory->InternalizeUtf8String("current"),
+      SimpleInstallGetter(isolate_, prototype, factory->current_string(),
                           Builtins::kV8BreakIteratorPrototypeCurrent, false);
 
-      SimpleInstallGetter(isolate_, prototype,
-                          factory->InternalizeUtf8String("breakType"),
+      SimpleInstallGetter(isolate_, prototype, factory->breakType_string(),
                           Builtins::kV8BreakIteratorPrototypeBreakType, false);
     }
 
@@ -4390,36 +4382,26 @@ void Genesis::InitializeGlobal_harmony_locale() {
   SimpleInstallFunction(isolate(), prototype, "minimize",
                         Builtins::kLocalePrototypeMinimize, 0, false);
   // Base locale getters.
-  SimpleInstallGetter(isolate(), prototype,
-                      factory()->InternalizeUtf8String("language"),
+  SimpleInstallGetter(isolate(), prototype, factory()->language_string(),
                       Builtins::kLocalePrototypeLanguage, true);
-  SimpleInstallGetter(isolate(), prototype,
-                      factory()->InternalizeUtf8String("script"),
+  SimpleInstallGetter(isolate(), prototype, factory()->script_string(),
                       Builtins::kLocalePrototypeScript, true);
-  SimpleInstallGetter(isolate(), prototype,
-                      factory()->InternalizeUtf8String("region"),
+  SimpleInstallGetter(isolate(), prototype, factory()->region_string(),
                       Builtins::kLocalePrototypeRegion, true);
-  SimpleInstallGetter(isolate(), prototype,
-                      factory()->InternalizeUtf8String("baseName"),
+  SimpleInstallGetter(isolate(), prototype, factory()->baseName_string(),
                       Builtins::kLocalePrototypeBaseName, true);
   // Unicode extension getters.
-  SimpleInstallGetter(isolate(), prototype,
-                      factory()->InternalizeUtf8String("calendar"),
+  SimpleInstallGetter(isolate(), prototype, factory()->calendar_string(),
                       Builtins::kLocalePrototypeCalendar, true);
-  SimpleInstallGetter(isolate(), prototype,
-                      factory()->InternalizeUtf8String("caseFirst"),
+  SimpleInstallGetter(isolate(), prototype, factory()->caseFirst_string(),
                       Builtins::kLocalePrototypeCaseFirst, true);
-  SimpleInstallGetter(isolate(), prototype,
-                      factory()->InternalizeUtf8String("collation"),
+  SimpleInstallGetter(isolate(), prototype, factory()->collation_string(),
                       Builtins::kLocalePrototypeCollation, true);
-  SimpleInstallGetter(isolate(), prototype,
-                      factory()->InternalizeUtf8String("hourCycle"),
+  SimpleInstallGetter(isolate(), prototype, factory()->hourCycle_string(),
                       Builtins::kLocalePrototypeHourCycle, true);
-  SimpleInstallGetter(isolate(), prototype,
-                      factory()->InternalizeUtf8String("numeric"),
+  SimpleInstallGetter(isolate(), prototype, factory()->numeric_string(),
                       Builtins::kLocalePrototypeNumeric, true);
-  SimpleInstallGetter(isolate(), prototype,
-                      factory()->InternalizeUtf8String("numberingSystem"),
+  SimpleInstallGetter(isolate(), prototype, factory()->numberingSystem_string(),
                       Builtins::kLocalePrototypeNumberingSystem, true);
 }
 
@@ -4479,19 +4461,16 @@ void Genesis::InitializeGlobal_harmony_intl_segmenter() {
                           Builtins::kSegmentIteratorPrototypePreceding, 0,
                           false);
 
-    SimpleInstallGetter(isolate(), prototype,
-                        factory()->InternalizeUtf8String("index"),
+    SimpleInstallGetter(isolate(), prototype, factory()->index_string(),
                         Builtins::kSegmentIteratorPrototypeIndex, false);
 
-    SimpleInstallGetter(isolate(), prototype,
-                        factory()->InternalizeUtf8String("breakType"),
+    SimpleInstallGetter(isolate(), prototype, factory()->breakType_string(),
                         Builtins::kSegmentIteratorPrototypeBreakType, false);
 
     // Setup SegmentIterator constructor.
     Handle<String> name_string =
-        Name::ToFunctionName(
-            isolate(),
-            isolate()->factory()->InternalizeUtf8String("SegmentIterator"))
+        Name::ToFunctionName(isolate(),
+                             isolate()->factory()->SegmentIterator_string())
             .ToHandleChecked();
     Handle<JSFunction> segment_iterator_fun = CreateFunction(
         isolate(), name_string, JS_INTL_SEGMENT_ITERATOR_TYPE,
