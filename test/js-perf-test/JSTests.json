@@ -1461,6 +1461,24 @@
       "tests": [
         {"name": "NumberToString"}
       ]
+    },
+    {
+      "name": "StackTrace",
+      "path": ["StackTrace"],
+      "main": "run.js",
+      "flags": ["--allow-natives-syntax"],
+      "resources": ["capture.js", "serialize.js"],
+      "results_regexp": "^%s\\-StackTrace\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Simple-Capture-Error"},
+        {"name": "Custom-Capture-Error"},
+        {"name": "Inline-Capture-Error"},
+        {"name": "Recursive-Capture-Error"},
+        {"name": "Simple-Serialize-Error.stack"},
+        {"name": "Custom-Serialize-Error.stack"},
+        {"name": "Inline-Serialize-Error.stack"},
+        {"name": "Recursive-Serialize-Error.stack"}
+      ]
     }
   ]
 }
