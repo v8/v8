@@ -5,11 +5,12 @@
 #ifndef V8_WASM_WASM_CODE_MANAGER_H_
 #define V8_WASM_WASM_CODE_MANAGER_H_
 
-#include <functional>
+#include <atomic>
 #include <list>
 #include <map>
-#include <unordered_map>
-#include <unordered_set>
+#include <memory>
+#include <utility>
+#include <vector>
 
 #include "src/base/macros.h"
 #include "src/builtins/builtins-definitions.h"
