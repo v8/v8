@@ -214,7 +214,10 @@ void WasmMemoryTracker::RegisterAllocation(Isolate* isolate,
   base::MutexGuard scope_lock(&mutex_);
 
   allocated_address_space_ += allocation_length;
-  AddAddressSpaceSample(isolate);
+  // Report address space usage in MiB so the full range fits in an int on all
+  // platforms.
+  isolate->counters()->wasm_address_space_usage_mb()->AddSample(
+      static_cast<int>(allocated_address_space_ / MB));
 
   allocations_.emplace(buffer_start,
                        AllocationData{allocation_base, allocation_length,
@@ -231,10 +234,6 @@ WasmMemoryTracker::AllocationData WasmMemoryTracker::ReleaseAllocation_Locked(
   DCHECK_LE(num_bytes, allocated_address_space_);
   reserved_address_space_ -= num_bytes;
   allocated_address_space_ -= num_bytes;
-  // ReleaseAllocation might be called with a nullptr as isolate if the
-  // embedder is releasing the allocation and not a specific isolate. This
-  // happens if the allocation was shared between multiple isolates (threads).
-  if (isolate) AddAddressSpaceSample(isolate);
 
   AllocationData allocation_data = find_result->second;
   allocations_.erase(find_result);
@@ -563,13 +562,6 @@ void WasmMemoryTracker::DeleteSharedMemoryObjectsOnIsolate(Isolate* isolate) {
     auto& isolates = buffer_isolates.second;
     isolates.erase(isolate);
   }
-}
-
-void WasmMemoryTracker::AddAddressSpaceSample(Isolate* isolate) {
-  // Report address space usage in MiB so the full range fits in an int on all
-  // platforms.
-  isolate->counters()->wasm_address_space_usage_mb()->AddSample(
-      static_cast<int>(allocated_address_space_ >> 20));
 }
 
 Handle<JSArrayBuffer> SetupArrayBuffer(Isolate* isolate, void* backing_store,

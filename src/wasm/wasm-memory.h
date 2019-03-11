@@ -214,7 +214,6 @@ class WasmMemoryTracker {
   AllocationData ReleaseAllocation_Locked(Isolate* isolate,
                                           const void* buffer_start);
 
-  void AddAddressSpaceSample(Isolate* isolate);
   // Clients use a two-part process. First they "reserve" the address space,
   // which signifies an intent to actually allocate it. This determines whether
   // doing the allocation would put us over our limit. Once there is a
