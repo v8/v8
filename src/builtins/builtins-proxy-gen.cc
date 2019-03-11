@@ -738,11 +738,18 @@ void ProxiesCodeStubAssembler::CheckHasTrapResult(Node* context, Node* target,
   VARIABLE(var_details, MachineRepresentation::kWord32);
   VARIABLE(var_raw_value, MachineRepresentation::kTagged);
 
-  Label if_found_value(this, Label::kDeferred),
+  Label if_unique_name(this), if_found_value(this, Label::kDeferred),
       throw_non_configurable(this, Label::kDeferred),
       throw_non_extensible(this, Label::kDeferred);
 
+  // If the name is a unique name, bailout to the runtime.
+  VARIABLE(var_index, MachineType::PointerRepresentation(), IntPtrConstant(0));
+  VARIABLE(var_name, MachineRepresentation::kTagged);
+  TryToName(name, if_bailout, &var_index, &if_unique_name, &var_name,
+            if_bailout);
+
   // 9.a. Let targetDesc be ? target.[[GetOwnProperty]](P).
+  BIND(&if_unique_name);
   Node* instance_type = LoadInstanceType(target);
   TryGetOwnProperty(context, target, target, target_map, instance_type, name,
                     &if_found_value, &var_value, &var_details, &var_raw_value,
