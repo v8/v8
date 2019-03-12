@@ -75,8 +75,7 @@ int GetByteWidth(MachineRepresentation rep) {
     case MachineRepresentation::kTaggedSigned:
     case MachineRepresentation::kTaggedPointer:
     case MachineRepresentation::kTagged:
-      // TODO(ishell): kTaggedSize once half size locations are supported.
-      return kSystemPointerSize;
+      return kTaggedSize;
     case MachineRepresentation::kWord64:
     case MachineRepresentation::kFloat64:
       return kDoubleSize;
