@@ -249,7 +249,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
       OwnedVector<trap_handler::ProtectedInstructionData>
           protected_instructions,
       OwnedVector<const byte> reloc_info,
-      OwnedVector<const byte> source_position_table, WasmCode::Tier tier);
+      OwnedVector<const byte> source_position_table, WasmCode::Kind kind,
+      WasmCode::Tier tier);
 
   // Adds anonymous code for testing purposes.
   WasmCode* AddCodeForTesting(Handle<Code> code);

@@ -681,13 +681,14 @@ WasmCode* NativeModule::AddDeserializedCode(
     size_t code_comments_offset, size_t unpadded_binary_size,
     OwnedVector<trap_handler::ProtectedInstructionData> protected_instructions,
     OwnedVector<const byte> reloc_info,
-    OwnedVector<const byte> source_position_table, WasmCode::Tier tier) {
+    OwnedVector<const byte> source_position_table, WasmCode::Kind kind,
+    WasmCode::Tier tier) {
   WasmCode* code = AddOwnedCode(
       index, instructions, stack_slots, tagged_parameter_slots,
       safepoint_table_offset, handler_table_offset, constant_pool_offset,
       code_comments_offset, unpadded_binary_size,
       std::move(protected_instructions), std::move(reloc_info),
-      std::move(source_position_table), WasmCode::kFunction, tier);
+      std::move(source_position_table), kind, tier);
 
   if (!code->protected_instructions_.is_empty()) {
     code->RegisterTrapHandlerData();
@@ -740,13 +741,15 @@ void NativeModule::InstallCode(WasmCode* code) {
   DCHECK_LT(code->index(), num_functions());
   DCHECK_LE(module_->num_imported_functions, code->index());
 
-  // Update code table, except for interpreter entries.
-  if (code->kind() != WasmCode::kInterpreterEntry) {
-    code_table_[code->index() - module_->num_imported_functions] = code;
+  // Update code table, except for interpreter entries that would overwrite
+  // existing code.
+  uint32_t slot_idx = code->index() - module_->num_imported_functions;
+  if (code->kind() != WasmCode::kInterpreterEntry ||
+      code_table_[slot_idx] == nullptr) {
+    code_table_[slot_idx] = code;
   }
 
   // Patch jump table.
-  uint32_t slot_idx = code->index() - module_->num_imported_functions;
   JumpTableAssembler::PatchJumpTableSlot(jump_table_->instruction_start(),
                                          slot_idx, code->instruction_start(),
                                          WasmCode::kFlushICache);

@@ -504,18 +504,6 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   // Set all breakpoints that were set on the shared module.
   WasmModuleObject::SetBreakpointsOnNewInstance(module_object_, instance);
 
-  if (FLAG_wasm_interpret_all && module_->origin == kWasmOrigin) {
-    Handle<WasmDebugInfo> debug_info =
-        WasmInstanceObject::GetOrCreateDebugInfo(instance);
-    std::vector<int> func_indexes;
-    for (int func_index = num_imported_functions,
-             num_wasm_functions = static_cast<int>(module_->functions.size());
-         func_index < num_wasm_functions; ++func_index) {
-      func_indexes.push_back(func_index);
-    }
-    WasmDebugInfo::RedirectToInterpreter(debug_info, VectorOf(func_indexes));
-  }
-
   //--------------------------------------------------------------------------
   // Create a wrapper for the start function.
   //--------------------------------------------------------------------------

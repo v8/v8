@@ -593,7 +593,6 @@ void WasmDebugInfo::RedirectToInterpreter(Handle<WasmDebugInfo> debug_info,
         std::move(result.source_positions), wasm::WasmCode::kInterpreterEntry,
         wasm::WasmCode::kOther);
     DCHECK_NOT_NULL(wasm_code);
-
     native_module->PublishInterpreterEntry(wasm_code, func_index);
 
     Handle<Foreign> foreign_holder = isolate->factory()->NewForeign(

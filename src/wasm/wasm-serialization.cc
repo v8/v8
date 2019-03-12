@@ -188,19 +188,20 @@ constexpr size_t kHeaderSize =
     sizeof(uint32_t);   // imported functions (index of first wasm function)
 
 constexpr size_t kCodeHeaderSize =
-    sizeof(size_t) +         // size of code section
-    sizeof(size_t) +         // offset of constant pool
-    sizeof(size_t) +         // offset of safepoint table
-    sizeof(size_t) +         // offset of handler table
-    sizeof(size_t) +         // offset of code comments
-    sizeof(size_t) +         // unpadded binary size
-    sizeof(uint32_t) +       // stack slots
-    sizeof(uint32_t) +       // tagged parameter slots
-    sizeof(size_t) +         // code size
-    sizeof(size_t) +         // reloc size
-    sizeof(size_t) +         // source positions size
-    sizeof(size_t) +         // protected instructions size
-    sizeof(WasmCode::Tier);  // tier
+    sizeof(size_t) +          // size of code section
+    sizeof(size_t) +          // offset of constant pool
+    sizeof(size_t) +          // offset of safepoint table
+    sizeof(size_t) +          // offset of handler table
+    sizeof(size_t) +          // offset of code comments
+    sizeof(size_t) +          // unpadded binary size
+    sizeof(uint32_t) +        // stack slots
+    sizeof(uint32_t) +        // tagged parameter slots
+    sizeof(size_t) +          // code size
+    sizeof(size_t) +          // reloc size
+    sizeof(size_t) +          // source positions size
+    sizeof(size_t) +          // protected instructions size
+    sizeof(WasmCode::Kind) +  // code kind
+    sizeof(WasmCode::Tier);   // tier
 
 // A List of all isolate-independent external references. This is used to create
 // a tag from the Address of an external reference and vice versa.
@@ -307,7 +308,8 @@ NativeModuleSerializer::NativeModuleSerializer(
 
 size_t NativeModuleSerializer::MeasureCode(const WasmCode* code) const {
   if (code == nullptr) return sizeof(size_t);
-  DCHECK_EQ(WasmCode::kFunction, code->kind());
+  DCHECK(code->kind() == WasmCode::kFunction ||
+         code->kind() == WasmCode::kInterpreterEntry);
   return kCodeHeaderSize + code->instructions().size() +
          code->reloc_info().size() + code->source_positions().size() +
          code->protected_instructions().size() *
@@ -335,7 +337,8 @@ void NativeModuleSerializer::WriteCode(const WasmCode* code, Writer* writer) {
     writer->Write(size_t{0});
     return;
   }
-  DCHECK_EQ(WasmCode::kFunction, code->kind());
+  DCHECK(code->kind() == WasmCode::kFunction ||
+         code->kind() == WasmCode::kInterpreterEntry);
   // Write the size of the entire code section, followed by the code header.
   writer->Write(MeasureCode(code));
   writer->Write(code->constant_pool_offset());
@@ -349,6 +352,7 @@ void NativeModuleSerializer::WriteCode(const WasmCode* code, Writer* writer) {
   writer->Write(code->reloc_info().size());
   writer->Write(code->source_positions().size());
   writer->Write(code->protected_instructions().size());
+  writer->Write(code->kind());
   writer->Write(code->tier());
 
   // Get a pointer to the destination buffer, to hold relocated code.
@@ -511,6 +515,7 @@ bool NativeModuleDeserializer::ReadCode(uint32_t fn_index, Reader* reader) {
   size_t reloc_size = reader->Read<size_t>();
   size_t source_position_size = reader->Read<size_t>();
   size_t protected_instructions_size = reader->Read<size_t>();
+  WasmCode::Kind kind = reader->Read<WasmCode::Kind>();
   WasmCode::Tier tier = reader->Read<WasmCode::Tier>();
 
   Vector<const byte> code_buffer = {reader->current_location(), code_size};
@@ -530,7 +535,7 @@ bool NativeModuleDeserializer::ReadCode(uint32_t fn_index, Reader* reader) {
       safepoint_table_offset, handler_table_offset, constant_pool_offset,
       code_comment_offset, unpadded_binary_size,
       std::move(protected_instructions), std::move(reloc_info),
-      std::move(source_pos), tier);
+      std::move(source_pos), kind, tier);
 
   // Relocate the code.
   int mask = RelocInfo::ModeMask(RelocInfo::WASM_CALL) |

@@ -117,9 +117,14 @@ std::unique_ptr<WasmInstructionBuffer> WasmInstructionBuffer::New() {
 // static
 ExecutionTier WasmCompilationUnit::GetDefaultExecutionTier(
     const WasmModule* module) {
-  return FLAG_liftoff && module->origin == kWasmOrigin
-             ? ExecutionTier::kBaseline
-             : ExecutionTier::kOptimized;
+  if (module->origin == kWasmOrigin) {
+    if (FLAG_wasm_interpret_all) {
+      return ExecutionTier::kInterpreter;
+    } else if (FLAG_liftoff) {
+      return ExecutionTier::kBaseline;
+    }
+  }
+  return ExecutionTier::kOptimized;
 }
 
 WasmCompilationUnit::WasmCompilationUnit(WasmEngine* wasm_engine, int index,
