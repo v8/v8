@@ -1260,13 +1260,13 @@ class RuntimeCallTimerScope {
   HR(wasm_address_space_usage_mb, V8.WasmAddressSpaceUsageMiB, 0, 1 << 20,     \
      128)                                                                      \
   /* code size of live modules, collected on GC */                             \
-  HR(wasm_module_code_size_mb, V8.WasmModuleCodeSizeMiB, 0, 1024, 32)          \
+  HR(wasm_module_code_size_mb, V8.WasmModuleCodeSizeMiB, 0, 1024, 64)          \
   /* code size of modules after baseline compilation */                        \
   HR(wasm_module_code_size_mb_after_baseline,                                  \
-     V8.WasmModuleCodeSizeBaselineMiB, 0, 1024, 32)                            \
+     V8.WasmModuleCodeSizeBaselineMiB, 0, 1024, 64)                            \
   /* code size of modules after top-tier compilation */                        \
   HR(wasm_module_code_size_mb_after_top_tier, V8.WasmModuleCodeSizeTopTierMiB, \
-     0, 1024, 32)
+     0, 1024, 64)
 
 #define HISTOGRAM_TIMER_LIST(HT)                                               \
   /* Garbage collection timers. */                                             \
