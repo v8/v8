@@ -20,8 +20,8 @@ namespace internal {
 const uint32_t kIsNotStringMask = 0xffc0;
 const uint32_t kStringTag = 0x0;
 
-// Bit 5 indicates that the object is an internalized string (if set) or not.
-// Bit 7 has to be clear as well.
+// Bit 5 indicates that the object is an internalized string (if not set) or
+// not (if set). Bit 7 has to be clear as well.
 const uint32_t kIsNotInternalizedMask = 0x20;
 const uint32_t kNotInternalizedTag = 0x20;
 const uint32_t kInternalizedTag = 0x0;

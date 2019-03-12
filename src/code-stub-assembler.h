@@ -2172,6 +2172,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsString(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsSymbolInstanceType(SloppyTNode<Int32T> instance_type);
   TNode<BoolT> IsSymbol(SloppyTNode<HeapObject> object);
+  TNode<BoolT> IsInternalizedStringInstanceType(TNode<Int32T> instance_type);
+  TNode<BoolT> IsUniqueName(TNode<HeapObject> object);
+  TNode<BoolT> IsUniqueNameNoIndex(TNode<HeapObject> object);
   TNode<BoolT> IsUndetectableMap(SloppyTNode<Map> map);
   TNode<BoolT> IsNotWeakFixedArraySubclass(SloppyTNode<HeapObject> object);
   TNode<BoolT> IsZeroOrContext(SloppyTNode<Object> object);
@@ -2500,6 +2503,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Various building blocks for stubs doing property lookups.
 
   // |if_notinternalized| is optional; |if_bailout| will be used by default.
+  // Note: If |key| does not yet have a hash, |if_notinternalized| will be taken
+  // even if |key| is an array index. |if_keyisunique| will never
+  // be taken for array indices.
   void TryToName(Node* key, Label* if_keyisindex, Variable* var_index,
                  Label* if_keyisunique, Variable* var_unique, Label* if_bailout,
                  Label* if_notinternalized = nullptr);
@@ -2687,7 +2693,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   enum GetOwnPropertyMode { kCallJSGetter, kReturnAccessorPair };
   // Tries to get {object}'s own {unique_name} property value. If the property
   // is an accessor then it also calls a getter. If the property is a double
-  // field it re-wraps value in an immutable heap number.
+  // field it re-wraps value in an immutable heap number. {unique_name} must be
+  // a unique name (Symbol or InternalizedString) that is not an array index.
   void TryGetOwnProperty(Node* context, Node* receiver, Node* object, Node* map,
                          Node* instance_type, Node* unique_name,
                          Label* if_found, Variable* var_value,

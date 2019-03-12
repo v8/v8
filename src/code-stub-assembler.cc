@@ -6343,6 +6343,34 @@ TNode<BoolT> CodeStubAssembler::IsSymbol(SloppyTNode<HeapObject> object) {
   return IsSymbolMap(LoadMap(object));
 }
 
+TNode<BoolT> CodeStubAssembler::IsInternalizedStringInstanceType(
+    TNode<Int32T> instance_type) {
+  STATIC_ASSERT(kNotInternalizedTag != 0);
+  return Word32Equal(
+      Word32And(instance_type,
+                Int32Constant(kIsNotStringMask | kIsNotInternalizedMask)),
+      Int32Constant(kStringTag | kInternalizedTag));
+}
+
+TNode<BoolT> CodeStubAssembler::IsUniqueName(TNode<HeapObject> object) {
+  TNode<Int32T> instance_type = LoadInstanceType(object);
+  return Select<BoolT>(
+      IsInternalizedStringInstanceType(instance_type),
+      [=] { return Int32TrueConstant(); },
+      [=] { return IsSymbolInstanceType(instance_type); });
+}
+
+TNode<BoolT> CodeStubAssembler::IsUniqueNameNoIndex(TNode<HeapObject> object) {
+  TNode<Int32T> instance_type = LoadInstanceType(object);
+  return Select<BoolT>(
+      IsInternalizedStringInstanceType(instance_type),
+      [=] {
+        return IsSetWord32(LoadNameHashField(CAST(object)),
+                           Name::kIsNotArrayIndexMask);
+      },
+      [=] { return IsSymbolInstanceType(instance_type); });
+}
+
 TNode<BoolT> CodeStubAssembler::IsBigIntInstanceType(
     SloppyTNode<Int32T> instance_type) {
   return InstanceTypeEqual(instance_type, BIGINT_TYPE);
@@ -8350,6 +8378,7 @@ void CodeStubAssembler::NameDictionaryLookup(
   DCHECK_IMPLIES(mode == kFindInsertionIndex,
                  inlined_probes == 0 && if_found == nullptr);
   Comment("NameDictionaryLookup");
+  CSA_ASSERT(this, IsUniqueName(unique_name));
 
   TNode<IntPtrT> capacity = SmiUntag(GetCapacity<Dictionary>(dictionary));
   TNode<WordT> mask = IntPtrSub(capacity, IntPtrConstant(1));
@@ -8666,6 +8695,7 @@ void CodeStubAssembler::LookupLinear(TNode<Name> unique_name,
                     std::is_base_of<DescriptorArray, Array>::value,
                 "T must be a descendant of FixedArray or a WeakFixedArray");
   Comment("LookupLinear");
+  CSA_ASSERT(this, IsUniqueName(unique_name));
   TNode<IntPtrT> first_inclusive = IntPtrConstant(Array::ToKeyIndex(0));
   TNode<IntPtrT> factor = IntPtrConstant(Array::kEntrySize);
   TNode<IntPtrT> last_exclusive = IntPtrAdd(
@@ -9076,6 +9106,7 @@ void CodeStubAssembler::TryLookupPropertyInSimpleObject(
     TVariable<HeapObject>* var_meta_storage, TVariable<IntPtrT>* var_name_index,
     Label* if_not_found) {
   CSA_ASSERT(this, IsSimpleObjectMap(map));
+  CSA_ASSERT(this, IsUniqueNameNoIndex(unique_name));
 
   TNode<Uint32T> bit_field3 = LoadMapBitField3(map);
   Label if_isfastmap(this), if_isslowmap(this);
@@ -9138,6 +9169,7 @@ void CodeStubAssembler::TryHasOwnProperty(Node* object, Node* map,
                                           Label* if_not_found,
                                           Label* if_bailout) {
   Comment("TryHasOwnProperty");
+  CSA_ASSERT(this, IsUniqueNameNoIndex(CAST(unique_name)));
   TVARIABLE(HeapObject, var_meta_storage);
   TVARIABLE(IntPtrT, var_name_index);
 
@@ -9436,6 +9468,7 @@ void CodeStubAssembler::TryGetOwnProperty(
     Label* if_bailout, GetOwnPropertyMode mode) {
   DCHECK_EQ(MachineRepresentation::kTagged, var_value->rep());
   Comment("TryGetOwnProperty");
+  CSA_ASSERT(this, IsUniqueNameNoIndex(CAST(unique_name)));
 
   TVARIABLE(HeapObject, var_meta_storage);
   TVARIABLE(IntPtrT, var_entry);
