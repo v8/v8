@@ -435,14 +435,11 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
   }
 
   IsCompiledScope is_compiled_scope(shared_info->is_compiled_scope());
-  if (!is_compiled_scope.is_compiled() &&
-      !Compiler::Compile(shared_info, Compiler::CLEAR_EXCEPTION,
-                         &is_compiled_scope)) {
-    TRACE("Not inlining %s into %s because bytecode generation failed\n",
-          shared_info->DebugName()->ToCString().get(),
-          info_->shared_info()->DebugName()->ToCString().get());
-    return NoChange();
-  }
+  // JSInliningHeuristic should have already filtered candidates without
+  // a BytecodeArray by calling SharedFunctionInfo::IsInlineable. For the ones
+  // passing the check, a reference to the bytecode was retained to make sure
+  // it never gets flushed, so the following check should always hold true.
+  CHECK(is_compiled_scope.is_compiled());
 
   if (info_->is_source_positions_enabled()) {
     SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate(), shared_info);
