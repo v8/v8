@@ -149,6 +149,14 @@ class BacktrackStack {
 
 namespace {
 
+IrregexpInterpreter::Result StackOverflow(Isolate* isolate) {
+  // We abort interpreter execution after the stack overflow is thrown, and thus
+  // allow allocation here despite the outer DisallowHeapAllocationScope.
+  AllowHeapAllocation yes_gc;
+  isolate->StackOverflow();
+  return IrregexpInterpreter::EXCEPTION;
+}
+
 // Runs all pending interrupts. Callers must update unhandlified object
 // references after this function completes.
 IrregexpInterpreter::Result HandleInterrupts(Isolate* isolate,
@@ -158,9 +166,7 @@ IrregexpInterpreter::Result HandleInterrupts(Isolate* isolate,
   StackLimitCheck check(isolate);
   if (check.JsHasOverflowed()) {
     // A real stack overflow.
-    AllowHeapAllocation yes_gc;
-    isolate->StackOverflow();
-    return IrregexpInterpreter::EXCEPTION;
+    return StackOverflow(isolate);
   }
 
   const bool was_one_byte =
@@ -236,24 +242,21 @@ IrregexpInterpreter::Result RawMatch(Isolate* isolate,
         UNREACHABLE();
       BYTECODE(PUSH_CP)
         if (--backtrack_stack_space < 0) {
-          isolate->StackOverflow();
-          return IrregexpInterpreter::EXCEPTION;
+          return StackOverflow(isolate);
         }
         *backtrack_sp++ = current;
         pc += BC_PUSH_CP_LENGTH;
         break;
       BYTECODE(PUSH_BT)
         if (--backtrack_stack_space < 0) {
-          isolate->StackOverflow();
-          return IrregexpInterpreter::EXCEPTION;
+          return StackOverflow(isolate);
         }
         *backtrack_sp++ = Load32Aligned(pc + 4);
         pc += BC_PUSH_BT_LENGTH;
         break;
       BYTECODE(PUSH_REGISTER)
         if (--backtrack_stack_space < 0) {
-          isolate->StackOverflow();
-          return IrregexpInterpreter::EXCEPTION;
+          return StackOverflow(isolate);
         }
         *backtrack_sp++ = registers[insn >> BYTECODE_SHIFT];
         pc += BC_PUSH_REGISTER_LENGTH;
@@ -665,7 +668,13 @@ IrregexpInterpreter::Result IrregexpInterpreter::Match(
     Handle<String> subject_string, int* registers, int start_position) {
   DCHECK(subject_string->IsFlat());
 
+  // Note: Heap allocation *is* allowed in two situations:
+  // 1. When creating & throwing a stack overflow exception. The interpreter
+  //    aborts afterwards, and thus possible-moved objects are never used.
+  // 2. When handling interrupts. We manually relocate unhandlified references
+  //    after interrupts have run.
   DisallowHeapAllocation no_gc;
+
   uc16 previous_char = '\n';
   String::FlatContent subject_content = subject_string->GetFlatContent(no_gc);
   if (subject_content.IsOneByte()) {
