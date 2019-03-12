@@ -1024,10 +1024,26 @@ class JSFunction : public JSObject {
   // the JSFunction's bytecode being flushed.
   DECL_ACCESSORS(raw_feedback_cell, FeedbackCell)
 
-  // feedback_vector() can be used once the function is compiled.
+  // Functions related to feedback vector. feedback_vector() can be used once
+  // the function has feedback vectors allocated. feedback vectors may not be
+  // available after compile when lazily allocating feedback vectors.
   inline FeedbackVector feedback_vector() const;
   inline bool has_feedback_vector() const;
   static void EnsureFeedbackVector(Handle<JSFunction> function);
+
+  // Functions related to clousre feedback cell array that holds feedback cells
+  // used to create closures from this function. We allocate closure feedback
+  // cell arrays after compile, when we want to allocate feedback vectors
+  // lazily.
+  inline bool has_closure_feedback_cell_array() const;
+  inline FixedArray closure_feedback_cell_array() const;
+  static void EnsureClosureFeedbackCellArray(Handle<JSFunction> function);
+
+  // Initializes the feedback cell of |function|. In lite mode, this would be
+  // initialized to the closure feedback cell array that holds the feedback
+  // cells for create closure calls from this function. In the regular mode,
+  // this allocates feedback vector.
+  static void InitializeFeedbackCell(Handle<JSFunction> function);
 
   // Unconditionally clear the type feedback vector.
   void ClearTypeFeedbackInfo();

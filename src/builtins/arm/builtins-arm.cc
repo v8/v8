@@ -73,15 +73,11 @@ void Builtins::Generate_InternalArrayConstructor(MacroAssembler* masm) {
 static void GenerateTailCallToReturnedCode(MacroAssembler* masm,
                                            Runtime::FunctionId function_id) {
   // ----------- S t a t e -------------
-  //  -- r0 : argument count (preserved for callee)
   //  -- r1 : target function (preserved for callee)
   //  -- r3 : new target (preserved for callee)
   // -----------------------------------
   {
     FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
-    // Push the number of arguments to the callee.
-    __ SmiTag(r0);
-    __ push(r0);
     // Push a copy of the target function and the new target.
     __ push(r1);
     __ push(r3);
@@ -94,8 +90,6 @@ static void GenerateTailCallToReturnedCode(MacroAssembler* masm,
     // Restore target function and new target.
     __ pop(r3);
     __ pop(r1);
-    __ pop(r0);
-    __ SmiUntag(r0, r0);
   }
   static_assert(kJavaScriptCallCodeStartRegister == r2, "ABI mismatch");
   __ JumpCodeObject(r2);
@@ -880,13 +874,11 @@ static void MaybeTailCallOptimizedCodeSlot(MacroAssembler* masm,
                                            Register scratch1, Register scratch2,
                                            Register scratch3) {
   // ----------- S t a t e -------------
-  //  -- r0 : argument count (preserved for callee if needed, and caller)
   //  -- r3 : new target (preserved for callee if needed, and caller)
   //  -- r1 : target function (preserved for callee if needed, and caller)
   //  -- feedback vector (preserved for caller if needed)
   // -----------------------------------
-  DCHECK(
-      !AreAliased(feedback_vector, r0, r1, r3, scratch1, scratch2, scratch3));
+  DCHECK(!AreAliased(feedback_vector, r1, r3, scratch1, scratch2, scratch3));
 
   Label optimized_code_slot_is_weak_ref, fallthrough;
 
@@ -1071,8 +1063,10 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   Label push_stack_frame;
   // Check if feedback vector is valid. If valid, check for optimized code
   // and update invocation count. Otherwise, setup the stack frame.
-  __ CompareRoot(feedback_vector, RootIndex::kUndefinedValue);
-  __ b(eq, &push_stack_frame);
+  __ ldr(r4, FieldMemOperand(feedback_vector, HeapObject::kMapOffset));
+  __ ldrh(r4, FieldMemOperand(r4, Map::kInstanceTypeOffset));
+  __ cmp(r4, Operand(FEEDBACK_VECTOR_TYPE));
+  __ b(ne, &push_stack_frame);
 
   // Read off the optimized code slot in the feedback vector, and if there
   // is optimized code or an optimization marker, call that instead.

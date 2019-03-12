@@ -134,10 +134,22 @@ Object DeclareGlobal(
 }
 
 Object DeclareGlobals(Isolate* isolate, Handle<FixedArray> declarations,
-                      int flags, Handle<FeedbackVector> feedback_vector) {
+                      int flags, Handle<JSFunction> closure) {
   HandleScope scope(isolate);
   Handle<JSGlobalObject> global(isolate->global_object());
   Handle<Context> context(isolate->context(), isolate);
+
+  Handle<FeedbackVector> feedback_vector = Handle<FeedbackVector>::null();
+  Handle<FixedArray> closure_feedback_cell_array = Handle<FixedArray>::null();
+  if (closure->has_feedback_vector()) {
+    feedback_vector =
+        Handle<FeedbackVector>(closure->feedback_vector(), isolate);
+    closure_feedback_cell_array = Handle<FixedArray>(
+        feedback_vector->closure_feedback_cell_array(), isolate);
+  } else {
+    closure_feedback_cell_array =
+        Handle<FixedArray>(closure->closure_feedback_cell_array(), isolate);
+  }
 
   // Traverse the name/value pairs and set the properties.
   int length = declarations->length();
@@ -154,16 +166,11 @@ Object DeclareGlobals(Isolate* isolate, Handle<FixedArray> declarations,
 
     Handle<Object> value;
     if (is_function) {
-      // If feedback vector was not allocated for this function, then we don't
-      // have any information about number of closures. Use NoFeedbackCell to
-      // indicate that.
-      Handle<FeedbackCell> feedback_cell =
-          isolate->factory()->no_feedback_cell();
-      if (!feedback_vector.is_null()) {
-        DCHECK(possibly_feedback_cell_slot->IsSmi());
-        feedback_cell = feedback_vector->GetClosureFeedbackCell(
-            Smi::ToInt(*possibly_feedback_cell_slot));
-      }
+      DCHECK(possibly_feedback_cell_slot->IsSmi());
+      Handle<FeedbackCell> feedback_cell = Handle<FeedbackCell>(
+          FeedbackCell::cast(closure_feedback_cell_array->get(
+              Smi::ToInt(*possibly_feedback_cell_slot))),
+          isolate);
       // Copy the function and update its context. Use it as value.
       Handle<SharedFunctionInfo> shared =
           Handle<SharedFunctionInfo>::cast(initial_value);
@@ -205,12 +212,7 @@ RUNTIME_FUNCTION(Runtime_DeclareGlobals) {
   CONVERT_SMI_ARG_CHECKED(flags, 1);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, closure, 2);
 
-  Handle<FeedbackVector> feedback_vector = Handle<FeedbackVector>();
-  if (closure->has_feedback_vector()) {
-    feedback_vector =
-        Handle<FeedbackVector>(closure->feedback_vector(), isolate);
-  }
-  return DeclareGlobals(isolate, declarations, flags, feedback_vector);
+  return DeclareGlobals(isolate, declarations, flags, closure);
 }
 
 namespace {

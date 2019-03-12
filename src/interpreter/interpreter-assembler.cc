@@ -668,14 +668,9 @@ Node* InterpreterAssembler::LoadAndUntagConstantPoolEntryAtOperandIndex(
   return SmiUntag(LoadConstantPoolEntryAtOperandIndex(operand_index));
 }
 
-TNode<FeedbackVector> InterpreterAssembler::LoadFeedbackVector() {
+TNode<HeapObject> InterpreterAssembler::LoadFeedbackVector() {
   TNode<JSFunction> function = CAST(LoadRegister(Register::function_closure()));
   return CodeStubAssembler::LoadFeedbackVector(function);
-}
-
-Node* InterpreterAssembler::LoadFeedbackVectorUnchecked() {
-  TNode<JSFunction> function = CAST(LoadRegister(Register::function_closure()));
-  return CodeStubAssembler::LoadFeedbackVectorUnchecked(function);
 }
 
 void InterpreterAssembler::CallPrologue() {
@@ -1787,7 +1782,7 @@ void InterpreterAssembler::ToNumberOrNumeric(Object::Conversion mode) {
 
   // Record the type feedback collected for {object}.
   Node* slot_index = BytecodeOperandIdx(0);
-  Node* maybe_feedback_vector = LoadFeedbackVectorUnchecked();
+  Node* maybe_feedback_vector = LoadFeedbackVector();
 
   UpdateFeedback(var_type_feedback.value(), maybe_feedback_vector, slot_index);
 

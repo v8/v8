@@ -207,8 +207,9 @@ FeedbackSlot FeedbackVector::GetTypeProfileSlot() const {
 }
 
 // static
-Handle<FeedbackVector> FeedbackVector::New(Isolate* isolate,
-                                           Handle<SharedFunctionInfo> shared) {
+Handle<FeedbackVector> FeedbackVector::New(
+    Isolate* isolate, Handle<SharedFunctionInfo> shared,
+    Handle<FixedArray> closure_feedback_cell_array) {
   Factory* factory = isolate->factory();
 
   const int slot_count = shared->feedback_metadata()->slot_count();
@@ -228,18 +229,7 @@ Handle<FeedbackVector> FeedbackVector::New(Isolate* isolate,
   DCHECK_EQ(vector->profiler_ticks(), 0);
   DCHECK_EQ(vector->deopt_count(), 0);
 
-  int num_closure_feedback_cells =
-      shared->feedback_metadata()->closure_feedback_cell_count();
-  if (num_closure_feedback_cells != 0) {
-    Handle<FixedArray> feedback_cell_array = factory->NewFixedArray(
-        num_closure_feedback_cells, AllocationType::kOld);
-    for (int i = 0; i < num_closure_feedback_cells; i++) {
-      Handle<FeedbackCell> cell =
-          factory->NewNoClosuresCell(factory->undefined_value());
-      feedback_cell_array->set(i, *cell);
-    }
-    vector->set_closure_feedback_cell_array(*feedback_cell_array);
-  }
+  vector->set_closure_feedback_cell_array(*closure_feedback_cell_array);
 
   // Ensure we can skip the write barrier
   Handle<Object> uninitialized_sentinel = UninitializedSentinel(isolate);
@@ -305,6 +295,27 @@ Handle<FeedbackVector> FeedbackVector::New(Isolate* isolate,
     AddToVectorsForProfilingTools(isolate, result);
   }
   return result;
+}
+
+// static
+Handle<FixedArray> FeedbackVector::NewClosureFeedbackCellArray(
+    Isolate* isolate, Handle<SharedFunctionInfo> shared) {
+  Factory* factory = isolate->factory();
+
+  int num_feedback_cells =
+      shared->feedback_metadata()->closure_feedback_cell_count();
+  if (num_feedback_cells == 0) {
+    return factory->empty_fixed_array();
+  }
+
+  Handle<FixedArray> feedback_cell_array =
+      factory->NewFixedArray(num_feedback_cells, AllocationType::kOld);
+  for (int i = 0; i < num_feedback_cells; i++) {
+    Handle<FeedbackCell> cell =
+        factory->NewNoClosuresCell(factory->undefined_value());
+    feedback_cell_array->set(i, *cell);
+  }
+  return feedback_cell_array;
 }
 
 // static

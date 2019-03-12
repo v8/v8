@@ -9937,28 +9937,25 @@ TNode<BoolT> CodeStubAssembler::IsOffsetInBounds(SloppyTNode<IntPtrT> offset,
   return IntPtrLessThanOrEqual(offset, last_offset);
 }
 
-TNode<FeedbackVector> CodeStubAssembler::LoadFeedbackVector(
-    SloppyTNode<JSFunction> closure, Label* if_undefined) {
-  TNode<Object> maybe_vector = LoadFeedbackVectorUnchecked(closure);
-  if (if_undefined) {
-    GotoIf(IsUndefined(maybe_vector), if_undefined);
-  }
-  return CAST(maybe_vector);
-}
-
-TNode<Object> CodeStubAssembler::LoadFeedbackVectorUnchecked(
+TNode<HeapObject> CodeStubAssembler::LoadFeedbackCellValue(
     SloppyTNode<JSFunction> closure) {
   TNode<FeedbackCell> feedback_cell =
       CAST(LoadObjectField(closure, JSFunction::kFeedbackCellOffset));
-  TVARIABLE(Object, maybe_vector, UndefinedConstant());
+  return CAST(LoadObjectField(feedback_cell, FeedbackCell::kValueOffset));
+}
+
+TNode<HeapObject> CodeStubAssembler::LoadFeedbackVector(
+    SloppyTNode<JSFunction> closure) {
+  TVARIABLE(HeapObject, maybe_vector, LoadFeedbackCellValue(closure));
   Label done(this);
 
   // If the closure doesn't have a feedback vector allocated yet, return
-  // undefined. We check the feedback cell's map instead of undefined because
-  // when there is no feedback vector, the feedback cell would contain an array
-  // of feedback cells.
-  GotoIf(IsNoFeedbackCellMap(LoadMap(feedback_cell)), &done);
-  maybe_vector = LoadObjectField(feedback_cell, FeedbackCell::kValueOffset);
+  // undefined. FeedbackCell can contain Undefined / FixedArray (for lazy
+  // allocations) / FeedbackVector.
+  GotoIf(IsFeedbackVector(maybe_vector.value()), &done);
+
+  // In all other cases return Undefined.
+  maybe_vector = UndefinedConstant();
   Goto(&done);
 
   BIND(&done);
@@ -9966,27 +9963,28 @@ TNode<Object> CodeStubAssembler::LoadFeedbackVectorUnchecked(
 }
 
 TNode<FixedArray> CodeStubAssembler::LoadClosureFeedbackArray(
-    SloppyTNode<JSFunction> closure, Label* if_undefined) {
-  TNode<FeedbackCell> feedback_cell =
-      CAST(LoadObjectField(closure, JSFunction::kFeedbackCellOffset));
-  TNode<HeapObject> feedback_cell_value =
-      CAST(LoadObjectField(feedback_cell, FeedbackCell::kValueOffset));
-  // TODO(mythria): Allocate feedback cell arrays in lite mode too. In lite
-  // mode, we want to allocate feedback vectors lazily. This requires that
-  // feedback cell arrays are allocated always.
-  GotoIf(IsUndefined(feedback_cell_value), if_undefined);
+    SloppyTNode<JSFunction> closure) {
+  TVARIABLE(HeapObject, feedback_cell_array, LoadFeedbackCellValue(closure));
+  Label end(this);
+
+  // When feedback vectors are not yet allocated feedback cell contains a
+  // an array of feedback cells used by create closures.
+  GotoIf(IsFixedArray(feedback_cell_array.value()), &end);
 
   // Load FeedbackCellArray from feedback vector.
-  TNode<FeedbackVector> vector = CAST(feedback_cell_value);
-  TNode<FixedArray> feedback_cell_array = CAST(
+  TNode<FeedbackVector> vector = CAST(feedback_cell_array.value());
+  feedback_cell_array = CAST(
       LoadObjectField(vector, FeedbackVector::kClosureFeedbackCellArrayOffset));
-  return feedback_cell_array;
+  Goto(&end);
+
+  BIND(&end);
+  return CAST(feedback_cell_array.value());
 }
 
 TNode<FeedbackVector> CodeStubAssembler::LoadFeedbackVectorForStub() {
   TNode<JSFunction> function =
       CAST(LoadFromParentFrame(JavaScriptFrameConstants::kFunctionOffset));
-  return LoadFeedbackVector(function);
+  return CAST(LoadFeedbackVector(function));
 }
 
 void CodeStubAssembler::UpdateFeedback(Node* feedback, Node* maybe_vector,

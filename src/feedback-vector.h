@@ -236,6 +236,10 @@ class FeedbackVector : public HeapObject {
   FeedbackSlot GetTypeProfileSlot() const;
 
   V8_EXPORT_PRIVATE static Handle<FeedbackVector> New(
+      Isolate* isolate, Handle<SharedFunctionInfo> shared,
+      Handle<FixedArray> closure_feedback_cell_array);
+
+  V8_EXPORT_PRIVATE static Handle<FixedArray> NewClosureFeedbackCellArray(
       Isolate* isolate, Handle<SharedFunctionInfo> shared);
 
 #define DEFINE_SLOT_KIND_PREDICATE(Name) \

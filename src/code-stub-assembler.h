@@ -73,7 +73,6 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(MutableHeapNumberMap, mutable_heap_number_map, MutableHeapNumberMap)       \
   V(NanValue, nan_value, Nan)                                                  \
   V(NoClosuresCellMap, no_closures_cell_map, NoClosuresCellMap)                \
-  V(NoFeedbackCellMap, no_feedback_cell_map, NoFeedbackCellMap)                \
   V(NullValue, null_value, Null)                                               \
   V(OneClosureCellMap, one_closure_cell_map, OneClosureCellMap)                \
   V(PreparseDataMap, preparse_data_map, PreparseDataMap)                       \
@@ -2842,17 +2841,19 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Load type feedback vector from the stub caller's frame.
   TNode<FeedbackVector> LoadFeedbackVectorForStub();
 
-  // Load type feedback vector for the given closure.
-  TNode<FeedbackVector> LoadFeedbackVector(SloppyTNode<JSFunction> closure,
-                                           Label* if_undefined = nullptr);
+  // Load the value from closure's feedback cell.
+  TNode<HeapObject> LoadFeedbackCellValue(SloppyTNode<JSFunction> closure);
 
   // Load the object from feedback vector cell for the given closure.
   // The returned object could be undefined if the closure does not have
   // a feedback vector associated with it.
-  TNode<Object> LoadFeedbackVectorUnchecked(SloppyTNode<JSFunction> closure);
+  TNode<HeapObject> LoadFeedbackVector(SloppyTNode<JSFunction> closure);
 
-  TNode<FixedArray> LoadClosureFeedbackArray(SloppyTNode<JSFunction> closure,
-                                             Label* if_undefined);
+  // Load the ClosureFeedbackCellArray that contains the feedback cells
+  // used when creating closures from this function. This array could be
+  // directly hanging off the FeedbackCell when there is no feedback vector
+  // or available from the feedback vector's header.
+  TNode<FixedArray> LoadClosureFeedbackArray(SloppyTNode<JSFunction> closure);
 
   // Update the type feedback vector.
   void UpdateFeedback(Node* feedback, Node* feedback_vector, Node* slot_id);

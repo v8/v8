@@ -467,6 +467,11 @@ FeedbackVector JSFunction::feedback_vector() const {
   return FeedbackVector::cast(raw_feedback_cell()->value());
 }
 
+FixedArray JSFunction::closure_feedback_cell_array() const {
+  DCHECK(has_closure_feedback_cell_array());
+  return FixedArray::cast(raw_feedback_cell()->value());
+}
+
 // Code objects that are marked for deoptimization are not considered to be
 // optimized. This is because the JSFunction might have been already
 // deoptimized but its code() still needs to be unlinked, which will happen on
@@ -584,7 +589,14 @@ void JSFunction::SetOptimizationMarker(OptimizationMarker marker) {
 
 bool JSFunction::has_feedback_vector() const {
   return shared()->is_compiled() &&
-         !raw_feedback_cell()->value()->IsUndefined();
+         !raw_feedback_cell()->value()->IsUndefined() &&
+         raw_feedback_cell()->value()->IsFeedbackVector();
+}
+
+bool JSFunction::has_closure_feedback_cell_array() const {
+  return shared()->is_compiled() &&
+         !raw_feedback_cell()->value()->IsUndefined() &&
+         raw_feedback_cell()->value()->IsFixedArray();
 }
 
 Context JSFunction::context() {

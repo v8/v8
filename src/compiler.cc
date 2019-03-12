@@ -361,16 +361,10 @@ void InstallUnoptimizedCode(UnoptimizedCompilationInfo* compilation_info,
 
     InstallBytecodeArray(compilation_info->bytecode_array(), shared_info,
                          parse_info, isolate);
-    if (FLAG_lite_mode) {
-      // Clear the feedback metadata field. In lite mode we don't need feedback
-      // metadata since we never allocate feedback vectors.
-      shared_info->set_raw_outer_scope_info_or_feedback_metadata(
-          ReadOnlyRoots(isolate).undefined_value());
-    } else {
-      Handle<FeedbackMetadata> feedback_metadata = FeedbackMetadata::New(
-          isolate, compilation_info->feedback_vector_spec());
-      shared_info->set_feedback_metadata(*feedback_metadata);
-    }
+
+    Handle<FeedbackMetadata> feedback_metadata = FeedbackMetadata::New(
+        isolate, compilation_info->feedback_vector_spec());
+    shared_info->set_feedback_metadata(*feedback_metadata);
   } else {
     DCHECK(compilation_info->has_asm_wasm_data());
     shared_info->set_asm_wasm_data(*compilation_info->asm_wasm_data());
@@ -1311,8 +1305,8 @@ bool Compiler::Compile(Handle<JSFunction> function, ClearExceptionFlag flag,
   DCHECK(is_compiled_scope->is_compiled());
   Handle<Code> code = handle(shared_info->GetCode(), isolate);
 
-  // Allocate FeedbackVector for the JSFunction.
-  JSFunction::EnsureFeedbackVector(function);
+  // Initialize the feedback cell for this JSFunction.
+  JSFunction::InitializeFeedbackCell(function);
 
   // Optimize now if --always-opt is enabled.
   if (FLAG_always_opt && !function->shared()->HasAsmWasmData()) {
@@ -1506,7 +1500,7 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
     } else {
       result = isolate->factory()->NewFunctionFromSharedFunctionInfo(
           shared_info, context, AllocationType::kYoung);
-      JSFunction::EnsureFeedbackVector(result);
+      JSFunction::InitializeFeedbackCell(result);
       if (allow_eval_cache) {
         // Make sure to cache this result.
         Handle<FeedbackCell> new_feedback_cell(result->raw_feedback_cell(),
@@ -1518,7 +1512,7 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
   } else {
     result = isolate->factory()->NewFunctionFromSharedFunctionInfo(
         shared_info, context, AllocationType::kYoung);
-    JSFunction::EnsureFeedbackVector(result);
+    JSFunction::InitializeFeedbackCell(result);
     if (allow_eval_cache) {
       // Add the SharedFunctionInfo and the LiteralsArray to the eval cache if
       // we didn't retrieve from there.
@@ -2144,7 +2138,7 @@ void Compiler::PostInstantiation(Handle<JSFunction> function,
   // If code is compiled to bytecode (i.e., isn't asm.js), then allocate a
   // feedback and check for optimized code.
   if (is_compiled_scope.is_compiled() && shared->HasBytecodeArray()) {
-    JSFunction::EnsureFeedbackVector(function);
+    JSFunction::InitializeFeedbackCell(function);
 
     Code code = function->has_feedback_vector()
                     ? function->feedback_vector()->optimized_code()
@@ -2159,6 +2153,7 @@ void Compiler::PostInstantiation(Handle<JSFunction> function,
     if (FLAG_always_opt && shared->allows_lazy_compilation() &&
         !shared->optimization_disabled() && !function->IsOptimized() &&
         !function->HasOptimizedCode()) {
+      JSFunction::EnsureFeedbackVector(function);
       function->MarkForOptimization(ConcurrencyMode::kNotConcurrent);
     }
   }

@@ -496,11 +496,13 @@ void FeedbackCell::FeedbackCellVerify(Isolate* isolate) {
   CHECK(IsFeedbackCell());
 
   VerifyHeapPointer(isolate, value());
-  CHECK(value()->IsUndefined(isolate) || value()->IsFeedbackVector());
+  CHECK(value()->IsUndefined(isolate) || value()->IsFeedbackVector() ||
+        value()->IsFixedArray());
 }
 
 void FeedbackVector::FeedbackVectorVerify(Isolate* isolate) {
   CHECK(IsFeedbackVector());
+  CHECK(closure_feedback_cell_array()->IsFixedArray());
   MaybeObject code = optimized_code_weak_or_smi();
   MaybeObject::VerifyMaybeObjectPointer(isolate, code);
   CHECK(code->IsSmi() || code->IsWeakOrCleared());

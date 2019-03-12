@@ -47,15 +47,11 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm, Address address,
 static void GenerateTailCallToReturnedCode(MacroAssembler* masm,
                                            Runtime::FunctionId function_id) {
   // ----------- S t a t e -------------
-  //  -- rax : argument count (preserved for callee)
   //  -- rdx : new target (preserved for callee)
   //  -- rdi : target function (preserved for callee)
   // -----------------------------------
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
-    // Push the number of arguments to the callee.
-    __ SmiTag(rax, rax);
-    __ Push(rax);
     // Push a copy of the target function and the new target.
     __ Push(rdi);
     __ Push(rdx);
@@ -68,8 +64,6 @@ static void GenerateTailCallToReturnedCode(MacroAssembler* masm,
     // Restore target function and new target.
     __ Pop(rdx);
     __ Pop(rdi);
-    __ Pop(rax);
-    __ SmiUntag(rax, rax);
   }
   static_assert(kJavaScriptCallCodeStartRegister == rcx, "ABI mismatch");
   __ JumpCodeObject(rcx);
@@ -891,13 +885,11 @@ static void MaybeTailCallOptimizedCodeSlot(MacroAssembler* masm,
                                            Register scratch1, Register scratch2,
                                            Register scratch3) {
   // ----------- S t a t e -------------
-  //  -- rax : argument count (preserved for callee if needed, and caller)
   //  -- rdx : new target (preserved for callee if needed, and caller)
   //  -- rdi : target function (preserved for callee if needed, and caller)
   //  -- feedback vector (preserved for caller if needed)
   // -----------------------------------
-  DCHECK(!AreAliased(feedback_vector, rax, rdx, rdi, scratch1, scratch2,
-                     scratch3));
+  DCHECK(!AreAliased(feedback_vector, rdx, rdi, scratch1, scratch2, scratch3));
 
   Label optimized_code_slot_is_weak_ref, fallthrough;
 
@@ -1086,7 +1078,10 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   Label push_stack_frame;
   // Check if feedback vector is valid. If valid, check for optimized code
   // and update invocation count. Otherwise, setup the stack frame.
-  __ JumpIfRoot(feedback_vector, RootIndex::kUndefinedValue, &push_stack_frame);
+  __ LoadTaggedPointerField(
+      rcx, FieldOperand(feedback_vector, HeapObject::kMapOffset));
+  __ CmpInstanceType(rcx, FEEDBACK_VECTOR_TYPE);
+  __ j(not_equal, &push_stack_frame);
 
   // Read off the optimized code slot in the feedback vector, and if there
   // is optimized code or an optimization marker, call that instead.
