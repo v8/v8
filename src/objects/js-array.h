@@ -174,16 +174,8 @@ class JSArrayIterator : public JSObject {
   inline IterationKind kind() const;
   inline void set_kind(IterationKind kind);
 
-  // Layout description.
-#define JS_ARRAY_ITERATOR_FIELDS(V)     \
-  V(kIteratedObjectOffset, kTaggedSize) \
-  V(kNextIndexOffset, kTaggedSize)      \
-  V(kKindOffset, kTaggedSize)           \
-  /* Header size. */                    \
-  V(kSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_ARRAY_ITERATOR_FIELDS)
-#undef JS_ARRAY_ITERATOR_FIELDS
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
+                                TORQUE_GENERATED_JSARRAY_ITERATOR_FIELDS)
 
   OBJECT_CONSTRUCTORS(JSArrayIterator, JSObject);
 };

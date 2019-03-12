@@ -146,6 +146,12 @@ extern class JSSloppyArgumentsObject extends JSArgumentsObjectWithLength {
   callee: Object;
 }
 
+extern class JSArrayIterator extends JSObject {
+  iterated_object: JSReceiver;
+  next_index: Number;
+  kind: Smi;
+}
+
 extern class JSArray extends JSObject {
   IsEmpty(): bool {
     return this.length == 0;
@@ -218,6 +224,12 @@ extern class Script extends Struct {
 type DebugInfo extends HeapObject;
 
 type ScopeInfo extends Object generates 'TNode<ScopeInfo>';
+
+extern class PreparseData extends HeapObject {
+  // TODO(v8:8983): Add declaration for variable-sized region.
+  data_length: int32;
+  inner_length: int32;
+}
 
 extern class SharedFunctionInfo extends HeapObject {
   weak function_data: Object;

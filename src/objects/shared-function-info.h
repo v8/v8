@@ -70,16 +70,9 @@ class PreparseData : public HeapObject {
   DECL_PRINTER(PreparseData)
   DECL_VERIFIER(PreparseData)
 
-// Layout description.
-#define PREPARSE_DATA_FIELDS(V)     \
-  V(kDataLengthOffset, kInt32Size)  \
-  V(kInnerLengthOffset, kInt32Size) \
-  /* Header size. */                \
-  V(kDataStartOffset, 0)            \
-  V(kHeaderSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, PREPARSE_DATA_FIELDS)
-#undef PREPARSE_DATA_FIELDS
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
+                                TORQUE_GENERATED_PREPARSE_DATA_FIELDS)
+  static const int kDataStartOffset = kSize;
 
   class BodyDescriptor;
 
