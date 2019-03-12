@@ -2160,16 +2160,21 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
 }
 
 // static
-wasm::WasmCode* Pipeline::GenerateCodeForWasmNativeStub(
+wasm::WasmCompilationResult Pipeline::GenerateCodeForWasmNativeStub(
     wasm::WasmEngine* wasm_engine, CallDescriptor* call_descriptor,
     MachineGraph* mcgraph, Code::Kind kind, int wasm_kind,
     const char* debug_name, const AssemblerOptions& options,
-    wasm::NativeModule* native_module, SourcePositionTable* source_positions) {
+    SourcePositionTable* source_positions) {
   Graph* graph = mcgraph->graph();
   OptimizedCompilationInfo info(CStrVector(debug_name), graph->zone(), kind);
   // Construct a pipeline for scheduling and code generation.
   ZoneStats zone_stats(wasm_engine->allocator());
   NodeOriginTable* node_positions = new (graph->zone()) NodeOriginTable(graph);
+  // {instruction_buffer} must live longer than {PipelineData}, since
+  // {PipelineData} will reference the {instruction_buffer} via the
+  // {AssemblerBuffer} of the {Assembler} contained in the {CodeGenerator}.
+  std::unique_ptr<wasm::WasmInstructionBuffer> instruction_buffer =
+      wasm::WasmInstructionBuffer::New();
   PipelineData data(&zone_stats, wasm_engine, &info, mcgraph, nullptr,
                     source_positions, node_positions, options);
   std::unique_ptr<PipelineStatistics> pipeline_statistics;
@@ -2205,22 +2210,21 @@ wasm::WasmCode* Pipeline::GenerateCodeForWasmNativeStub(
   pipeline.ComputeScheduledGraph();
 
   Linkage linkage(call_descriptor);
-  if (!pipeline.SelectInstructions(&linkage)) return nullptr;
-  pipeline.AssembleCode(&linkage);
+  CHECK(pipeline.SelectInstructions(&linkage));
+  pipeline.AssembleCode(&linkage, instruction_buffer->CreateView());
 
   CodeGenerator* code_generator = pipeline.code_generator();
-  CodeDesc code_desc;
+  wasm::WasmCompilationResult result;
   code_generator->tasm()->GetCode(
-      nullptr, &code_desc, code_generator->safepoint_table_builder(),
+      nullptr, &result.code_desc, code_generator->safepoint_table_builder(),
       static_cast<int>(code_generator->GetHandlerTableOffset()));
+  result.instr_buffer = instruction_buffer->ReleaseBuffer();
+  result.source_positions = code_generator->GetSourcePositionTable();
+  result.protected_instructions = code_generator->GetProtectedInstructions();
+  result.frame_slot_count = code_generator->frame()->GetTotalFrameSlotCount();
+  result.tagged_parameter_slots = call_descriptor->GetTaggedParameterSlots();
 
-  wasm::WasmCode* code = native_module->AddCode(
-      wasm::WasmCode::kAnonymousFuncIndex, code_desc,
-      code_generator->frame()->GetTotalFrameSlotCount(),
-      call_descriptor->GetTaggedParameterSlots(),
-      code_generator->GetProtectedInstructions(),
-      code_generator->GetSourcePositionTable(),
-      static_cast<wasm::WasmCode::Kind>(wasm_kind), wasm::WasmCode::kOther);
+  DCHECK(result.succeeded());
 
   if (info.trace_turbo_json_enabled()) {
     TurboJsonFile json_of(&info, std::ios_base::app);
@@ -2228,9 +2232,9 @@ wasm::WasmCode* Pipeline::GenerateCodeForWasmNativeStub(
 #ifdef ENABLE_DISASSEMBLER
     std::stringstream disassembler_stream;
     Disassembler::Decode(
-        nullptr, &disassembler_stream, code->instructions().start(),
-        code->instructions().start() + code->safepoint_table_offset(),
-        CodeReference(code));
+        nullptr, &disassembler_stream, result.code_desc.buffer,
+        result.code_desc.buffer + result.code_desc.safepoint_table_offset,
+        CodeReference(&result.code_desc));
     for (auto const c : disassembler_stream.str()) {
       json_of << AsEscapedUC16ForJSON(c);
     }
@@ -2247,7 +2251,7 @@ wasm::WasmCode* Pipeline::GenerateCodeForWasmNativeStub(
        << " using Turbofan" << std::endl;
   }
 
-  return code;
+  return result;
 }
 
 // static
@@ -2474,7 +2478,7 @@ void Pipeline::GenerateCodeForWasmFunction(
     std::stringstream disassembler_stream;
     Disassembler::Decode(
         nullptr, &disassembler_stream, result->code_desc.buffer,
-        result->code_desc.buffer + result->code_desc.instr_size,
+        result->code_desc.buffer + result->code_desc.safepoint_table_offset,
         CodeReference(&result->code_desc));
     for (auto const c : disassembler_stream.str()) {
       json_of << AsEscapedUC16ForJSON(c);

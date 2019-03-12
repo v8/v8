@@ -22,7 +22,7 @@ class RegisterConfiguration;
 namespace wasm {
 struct FunctionBody;
 class NativeModule;
-class WasmCode;
+struct WasmCompilationResult;
 class WasmEngine;
 struct WasmModule;
 }  // namespace wasm
@@ -54,11 +54,10 @@ class Pipeline : public AllStatic {
       int function_index);
 
   // Run the pipeline on a machine graph and generate code.
-  static wasm::WasmCode* GenerateCodeForWasmNativeStub(
+  static wasm::WasmCompilationResult GenerateCodeForWasmNativeStub(
       wasm::WasmEngine* wasm_engine, CallDescriptor* call_descriptor,
       MachineGraph* mcgraph, Code::Kind kind, int wasm_kind,
       const char* debug_name, const AssemblerOptions& assembler_options,
-      wasm::NativeModule* native_module,
       SourcePositionTable* source_positions = nullptr);
 
   // Run the pipeline on a machine graph and generate code.

@@ -16,7 +16,7 @@ class WasmInstanceObject;
 
 namespace wasm {
 
-// forward declarations.
+// Forward declarations.
 struct ModuleWireBytes;
 struct WasmFunction;
 struct WasmModule;

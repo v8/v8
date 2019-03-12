@@ -69,9 +69,25 @@ class TurbofanWasmCompilationUnit {
   DISALLOW_COPY_AND_ASSIGN(TurbofanWasmCompilationUnit);
 };
 
-// Calls to WASM imports are handled in several different ways, depending
-// on the type of the target function/callable and whether the signature
-// matches the argument arity.
+class InterpreterCompilationUnit final {
+ public:
+  explicit InterpreterCompilationUnit(wasm::WasmCompilationUnit* wasm_unit)
+      : wasm_unit_(wasm_unit) {}
+
+  wasm::WasmCompilationResult ExecuteCompilation(wasm::CompilationEnv*,
+                                                 const wasm::FunctionBody&,
+                                                 Counters*,
+                                                 wasm::WasmFeatures* detected);
+
+ private:
+  wasm::WasmCompilationUnit* const wasm_unit_;
+
+  DISALLOW_COPY_AND_ASSIGN(InterpreterCompilationUnit);
+};
+
+// Calls to WASM imports are handled in several different ways, depending on the
+// type of the target function/callable and whether the signature matches the
+// argument arity.
 enum class WasmImportCallKind : uint8_t {
   kLinkError,                      // static WASM->WASM type error
   kRuntimeTypeError,               // runtime WASM->JS type error
@@ -129,10 +145,9 @@ V8_EXPORT_PRIVATE MaybeHandle<Code> CompileJSToWasmWrapper(Isolate*,
 
 // Compiles a stub that redirects a call to a wasm function to the wasm
 // interpreter. It's ABI compatible with the compiled wasm function.
-wasm::WasmCode* CompileWasmInterpreterEntry(wasm::WasmEngine*,
-                                            wasm::NativeModule*,
-                                            uint32_t func_index,
-                                            wasm::FunctionSig*);
+wasm::WasmCompilationResult CompileWasmInterpreterEntry(
+    wasm::WasmEngine*, const wasm::WasmFeatures& enabled_features,
+    uint32_t func_index, wasm::FunctionSig*);
 
 enum CWasmEntryParameters {
   kCodeEntry,

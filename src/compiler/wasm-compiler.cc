@@ -41,7 +41,7 @@
 #include "src/tracing/trace-event.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/vector.h"
-#include "src/wasm/function-body-decoder.h"
+#include "src/wasm/function-body-decoder-impl.h"
 #include "src/wasm/function-compiler.h"
 #include "src/wasm/graph-builder-interface.h"
 #include "src/wasm/jump-table-assembler.h"
@@ -5813,22 +5813,22 @@ wasm::WasmCode* CompileWasmMathIntrinsic(wasm::WasmEngine* wasm_engine,
   builder.set_instance_node(builder.Param(wasm::kWasmInstanceParameterIndex));
 
   // Generate either a unop or a binop.
-  Node* result = nullptr;
+  Node* node = nullptr;
   const char* debug_name = "WasmMathIntrinsic";
   auto opcode = GetMathIntrinsicOpcode(kind, &debug_name);
   switch (sig->parameter_count()) {
     case 1:
-      result = builder.Unop(opcode, builder.Param(1));
+      node = builder.Unop(opcode, builder.Param(1));
       break;
     case 2:
-      result = builder.Binop(opcode, builder.Param(1), builder.Param(2));
+      node = builder.Binop(opcode, builder.Param(1), builder.Param(2));
       break;
     default:
       UNREACHABLE();
       break;
   }
 
-  builder.Return(result);
+  builder.Return(node);
 
   // Run the compiler pipeline to generate machine code.
   auto call_descriptor = GetWasmCallDescriptor(&zone, sig);
@@ -5836,10 +5836,16 @@ wasm::WasmCode* CompileWasmMathIntrinsic(wasm::WasmEngine* wasm_engine,
     call_descriptor = GetI32WasmCallDescriptor(&zone, call_descriptor);
   }
 
-  wasm::WasmCode* wasm_code = Pipeline::GenerateCodeForWasmNativeStub(
+  wasm::WasmCompilationResult result = Pipeline::GenerateCodeForWasmNativeStub(
       wasm_engine, call_descriptor, mcgraph, Code::WASM_FUNCTION,
       wasm::WasmCode::kFunction, debug_name, WasmStubAssemblerOptions(),
-      native_module, source_positions);
+      source_positions);
+  wasm::WasmCode* wasm_code = native_module->AddCode(
+      wasm::WasmCode::kAnonymousFuncIndex, result.code_desc,
+      result.frame_slot_count, result.tagged_parameter_slots,
+      std::move(result.protected_instructions),
+      std::move(result.source_positions), wasm::WasmCode::kFunction,
+      wasm::WasmCode::kOther);
   CHECK_NOT_NULL(wasm_code);
   // TODO(titzer): add counters for math intrinsic code size / allocation
 
@@ -5897,19 +5903,25 @@ wasm::WasmCode* CompileWasmImportCallWrapper(wasm::WasmEngine* wasm_engine,
   if (machine.Is32()) {
     incoming = GetI32WasmCallDescriptor(&zone, incoming);
   }
-  wasm::WasmCode* wasm_code = Pipeline::GenerateCodeForWasmNativeStub(
+  wasm::WasmCompilationResult result = Pipeline::GenerateCodeForWasmNativeStub(
       wasm_engine, incoming, &jsgraph, Code::WASM_TO_JS_FUNCTION,
       wasm::WasmCode::kWasmToJsWrapper, func_name, WasmStubAssemblerOptions(),
-      native_module, source_position_table);
+      source_position_table);
+  wasm::WasmCode* wasm_code = native_module->AddCode(
+      wasm::WasmCode::kAnonymousFuncIndex, result.code_desc,
+      result.frame_slot_count, result.tagged_parameter_slots,
+      std::move(result.protected_instructions),
+      std::move(result.source_positions), wasm::WasmCode::kWasmToJsWrapper,
+      wasm::WasmCode::kOther);
+
   CHECK_NOT_NULL(wasm_code);
 
   return wasm_code;
 }
 
-wasm::WasmCode* CompileWasmInterpreterEntry(wasm::WasmEngine* wasm_engine,
-                                            wasm::NativeModule* native_module,
-                                            uint32_t func_index,
-                                            wasm::FunctionSig* sig) {
+wasm::WasmCompilationResult CompileWasmInterpreterEntry(
+    wasm::WasmEngine* wasm_engine, const wasm::WasmFeatures& enabled_features,
+    uint32_t func_index, wasm::FunctionSig* sig) {
   //----------------------------------------------------------------------------
   // Create the Graph
   //----------------------------------------------------------------------------
@@ -5927,7 +5939,7 @@ wasm::WasmCode* CompileWasmInterpreterEntry(wasm::WasmEngine* wasm_engine,
 
   WasmWrapperGraphBuilder builder(&zone, &jsgraph, sig, nullptr,
                                   StubCallMode::kCallWasmRuntimeStub,
-                                  native_module->enabled_features());
+                                  enabled_features);
   builder.set_control_ptr(&control);
   builder.set_effect_ptr(&effect);
   builder.BuildWasmInterpreterEntry(func_index);
@@ -5942,13 +5954,12 @@ wasm::WasmCode* CompileWasmInterpreterEntry(wasm::WasmEngine* wasm_engine,
   func_name.Truncate(
       SNPrintF(func_name, "wasm-interpreter-entry#%d", func_index));
 
-  wasm::WasmCode* wasm_code = Pipeline::GenerateCodeForWasmNativeStub(
+  wasm::WasmCompilationResult result = Pipeline::GenerateCodeForWasmNativeStub(
       wasm_engine, incoming, &jsgraph, Code::WASM_INTERPRETER_ENTRY,
       wasm::WasmCode::kInterpreterEntry, func_name.start(),
-      WasmStubAssemblerOptions(), native_module);
-  CHECK_NOT_NULL(wasm_code);
+      WasmStubAssemblerOptions());
 
-  return wasm_code;
+  return result;
 }
 
 MaybeHandle<Code> CompileCWasmEntry(Isolate* isolate, wasm::FunctionSig* sig) {
@@ -6140,6 +6151,26 @@ wasm::WasmCompilationResult TurbofanWasmCompilationUnit::ExecuteCompilation(
   counters->wasm_compile_function_peak_memory_bytes()->AddSample(
       static_cast<int>(mcgraph->graph()->zone()->allocation_size()));
   return std::move(*info.ReleaseWasmCompilationResult());
+}
+
+wasm::WasmCompilationResult InterpreterCompilationUnit::ExecuteCompilation(
+    wasm::CompilationEnv* env, const wasm::FunctionBody& func_body,
+    Counters* counters, wasm::WasmFeatures* detected) {
+  Zone zone(wasm_unit_->wasm_engine_->allocator(), ZONE_NAME);
+  const wasm::WasmModule* module = env ? env->module : nullptr;
+  wasm::WasmFullDecoder<wasm::Decoder::kValidate, wasm::EmptyInterface> decoder(
+      &zone, module, env->enabled_features, detected, func_body);
+  decoder.Decode();
+  if (decoder.failed()) {
+    return wasm::WasmCompilationResult{decoder.error()};
+  }
+
+  wasm::WasmCompilationResult result = CompileWasmInterpreterEntry(
+      wasm_unit_->wasm_engine_, env->enabled_features, wasm_unit_->func_index_,
+      func_body.sig);
+  DCHECK(result.succeeded());
+
+  return result;
 }
 
 namespace {

@@ -150,8 +150,15 @@ Handle<JSFunction> TestingModuleBuilder::WrapCode(uint32_t index) {
     // Patch the jump table to call the interpreter for this function. This is
     // only needed for functions with a wrapper. Other functions never get
     // called through the jump table.
-    wasm::WasmCode* wasm_new_code = compiler::CompileWasmInterpreterEntry(
-        isolate_->wasm_engine(), native_module_, index, sig);
+    wasm::WasmCompilationResult result = compiler::CompileWasmInterpreterEntry(
+        isolate_->wasm_engine(), native_module_->enabled_features(), index,
+        sig);
+    wasm::WasmCode* wasm_new_code = native_module_->AddCode(
+        wasm::WasmCode::kAnonymousFuncIndex, result.code_desc,
+        result.frame_slot_count, result.tagged_parameter_slots,
+        std::move(result.protected_instructions),
+        std::move(result.source_positions), wasm::WasmCode::kInterpreterEntry,
+        wasm::WasmCode::kOther);
     native_module_->PublishInterpreterEntry(wasm_new_code, index);
   }
   return ret;
