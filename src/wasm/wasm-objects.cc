@@ -849,6 +849,14 @@ void WasmTableObject::Grow(Isolate* isolate, uint32_t count) {
   }
 }
 
+bool WasmTableObject::IsInBounds(Isolate* isolate,
+                                 Handle<WasmTableObject> table,
+                                 uint32_t entry_index) {
+  return (entry_index <
+              static_cast<uint32_t>(std::numeric_limits<int>::max()) &&
+          static_cast<int>(entry_index) < table->elements()->length());
+}
+
 void WasmTableObject::Set(Isolate* isolate, Handle<WasmTableObject> table,
                           uint32_t table_index, Handle<JSFunction> function) {
   Handle<FixedArray> array(table->elements(), isolate);
@@ -871,16 +879,16 @@ void WasmTableObject::Set(Isolate* isolate, Handle<WasmTableObject> table,
   array->set(table_index, *function);
 }
 
-MaybeHandle<Object> WasmTableObject::Get(Isolate* isolate,
-                                         Handle<WasmTableObject> table,
-                                         int table_index) {
+Handle<Object> WasmTableObject::Get(Isolate* isolate,
+                                    Handle<WasmTableObject> table,
+                                    uint32_t index) {
   Handle<FixedArray> elements(table->elements(), isolate);
-  if (table_index >= elements->length()) {
-    isolate->Throw(*isolate->factory()->NewRangeError(
-        MessageTemplate::kWasmTrapFuncInvalid));
-    return MaybeHandle<Object>();
-  }
-  Handle<Object> element(elements->get(table_index), isolate);
+  DCHECK(IsInBounds(isolate, table, index));
+
+  // The FixedArray is addressed with int's.
+  int entry_index = static_cast<int>(index);
+
+  Handle<Object> element(elements->get(entry_index), isolate);
   if (WasmExportedFunction::IsWasmExportedFunction(*element)) {
     return element;
   }
@@ -901,7 +909,7 @@ MaybeHandle<Object> WasmTableObject::Get(Isolate* isolate,
       WasmInstanceObject::GetWasmExportedFunction(isolate, instance,
                                                   function_index);
   if (maybe_element.ToHandle(&element)) {
-    elements->set(table_index, *element);
+    elements->set(entry_index, *element);
     return element;
   }
 
@@ -920,7 +928,7 @@ MaybeHandle<Object> WasmTableObject::Get(Isolate* isolate,
       isolate, instance, function_name, function_index,
       static_cast<int>(function.sig->parameter_count()), wrapper_code);
 
-  elements->set(table_index, *result);
+  elements->set(entry_index, *result);
   WasmInstanceObject::SetWasmExportedFunction(isolate, instance, function_index,
                                               result);
   return result;

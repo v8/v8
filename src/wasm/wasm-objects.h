@@ -279,12 +279,14 @@ class WasmTableObject : public JSObject {
                                Handle<WasmInstanceObject> instance,
                                int table_index);
 
+  static bool IsInBounds(Isolate* isolate, Handle<WasmTableObject> table,
+                         uint32_t entry_index);
+
   static void Set(Isolate* isolate, Handle<WasmTableObject> table,
                   uint32_t index, Handle<JSFunction> function);
 
-  static MaybeHandle<Object> Get(Isolate* isolate,
-                                 Handle<WasmTableObject> table,
-                                 int table_index);
+  static Handle<Object> Get(Isolate* isolate, Handle<WasmTableObject> table,
+                            uint32_t index);
 
   static void UpdateDispatchTables(Isolate* isolate,
                                    Handle<WasmTableObject> table,

@@ -1378,20 +1378,16 @@ void WebAssemblyTableGet(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (!EnforceUint32("Argument 0", args[0], context, &thrower, &index)) {
     return;
   }
-
-  i::MaybeHandle<i::Object> maybe_result =
-      i::WasmTableObject::Get(i_isolate, receiver, index);
-
-  if (maybe_result.is_null()) {
-    // No result was produced, which means that an exception should have been
-    // thrown. We can just return in that case, the ScheduledErrorThrower will
-    // take care of transforming the exception into a scheduled exception.
-    CHECK(i_isolate->has_pending_exception());
+  if (!i::WasmTableObject::IsInBounds(i_isolate, receiver, index)) {
+    thrower.RangeError("invalid index %u into function table", index);
     return;
   }
 
+  i::Handle<i::Object> result =
+      i::WasmTableObject::Get(i_isolate, receiver, index);
+
   v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
-  return_value.Set(Utils::ToLocal(maybe_result.ToHandleChecked()));
+  return_value.Set(Utils::ToLocal(result));
 }
 
 // WebAssembly.Table.set(num, JSFunction)
