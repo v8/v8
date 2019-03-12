@@ -176,18 +176,24 @@ Local<String> v8_str(Isolate* isolate, const char* str) {
   return Utils::ToLocal(v8_str(reinterpret_cast<i::Isolate*>(isolate), str));
 }
 
-i::MaybeHandle<i::WasmModuleObject> GetFirstArgumentAsModule(
-    const v8::FunctionCallbackInfo<v8::Value>& args, ErrorThrower* thrower) {
-  i::Handle<i::Object> arg0 = Utils::OpenHandle(*args[0]);
-  if (!arg0->IsWasmModuleObject()) {
-    thrower->TypeError("Argument 0 must be a WebAssembly.Module");
-    return {};
+#define GET_FIRST_ARGUMENT_AS(Type)                                  \
+  i::MaybeHandle<i::Wasm##Type##Object> GetFirstArgumentAs##Type(    \
+      const v8::FunctionCallbackInfo<v8::Value>& args,               \
+      ErrorThrower* thrower) {                                       \
+    i::Handle<i::Object> arg0 = Utils::OpenHandle(*args[0]);         \
+    if (!arg0->IsWasm##Type##Object()) {                             \
+      thrower->TypeError("Argument 0 must be a WebAssembly." #Type); \
+      return {};                                                     \
+    }                                                                \
+    Local<Object> obj = Local<Object>::Cast(args[0]);                \
+    return i::Handle<i::Wasm##Type##Object>::cast(                   \
+        v8::Utils::OpenHandle(*obj));                                \
   }
 
-  Local<Object> module_obj = Local<Object>::Cast(args[0]);
-  return i::Handle<i::WasmModuleObject>::cast(
-      v8::Utils::OpenHandle(*module_obj));
-}
+GET_FIRST_ARGUMENT_AS(Module)
+GET_FIRST_ARGUMENT_AS(Memory)
+
+#undef GET_FIRST_ARGUMENT_AS
 
 i::wasm::ModuleWireBytes GetFirstArgumentAsBytes(
     const v8::FunctionCallbackInfo<v8::Value>& args, ErrorThrower* thrower,
@@ -1495,6 +1501,45 @@ void WebAssemblyMemoryGetBuffer(
   return_value.Set(Utils::ToLocal(buffer));
 }
 
+// WebAssembly.Memory.type(WebAssembly.Memory) -> MemoryType
+void WebAssemblyMemoryGetType(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  v8::Isolate* isolate = args.GetIsolate();
+  HandleScope scope(isolate);
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  ScheduledErrorThrower thrower(i_isolate, "WebAssembly.Memory.type()");
+
+  auto maybe_memory = GetFirstArgumentAsMemory(args, &thrower);
+  if (thrower.error()) return;
+  i::Handle<i::WasmMemoryObject> memory = maybe_memory.ToHandleChecked();
+  v8::Local<v8::Object> ret = v8::Object::New(isolate);
+  i::Handle<i::JSArrayBuffer> buffer(memory->array_buffer(), i_isolate);
+
+  size_t curr_size = buffer->byte_length() / i::wasm::kWasmPageSize;
+  DCHECK_LE(curr_size, std::numeric_limits<uint32_t>::max());
+  if (!ret->CreateDataProperty(isolate->GetCurrentContext(),
+                               v8_str(isolate, "minimum"),
+                               v8::Integer::NewFromUnsigned(
+                                   isolate, static_cast<uint32_t>(curr_size)))
+           .IsJust()) {
+    return;
+  }
+
+  if (memory->has_maximum_pages()) {
+    uint64_t max_size = memory->maximum_pages();
+    DCHECK_LE(max_size, std::numeric_limits<uint32_t>::max());
+    if (!ret->CreateDataProperty(isolate->GetCurrentContext(),
+                                 v8_str(isolate, "maximum"),
+                                 v8::Integer::NewFromUnsigned(
+                                     isolate, static_cast<uint32_t>(max_size)))
+             .IsJust()) {
+      return;
+    }
+  }
+
+  v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
+  return_value.Set(ret);
+}
+
 void WebAssemblyGlobalGetValueCommon(
     const v8::FunctionCallbackInfo<v8::Value>& args, const char* name) {
   v8::Isolate* isolate = args.GetIsolate();
@@ -1779,6 +1824,10 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
                         factory->to_string_tag_symbol(),
                         v8_str(isolate, "WebAssembly.Instance"), ro_attributes);
 
+  // The context is not set up completely yet. That's why we cannot use
+  // {WasmFeaturesFromIsolate} and have to use {WasmFeaturesFromFlags} instead.
+  auto enabled_features = i::wasm::WasmFeaturesFromFlags();
+
   // Setup Table
   Handle<JSFunction> table_constructor =
       InstallConstructorFunc(isolate, webassembly, "Table", WebAssemblyTable);
@@ -1810,12 +1859,12 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
   JSFunction::SetInitialMap(memory_constructor, memory_map, memory_proto);
   InstallFunc(isolate, memory_proto, "grow", WebAssemblyMemoryGrow, 1);
   InstallGetter(isolate, memory_proto, "buffer", WebAssemblyMemoryGetBuffer);
+  if (enabled_features.type_reflection) {
+    InstallFunc(isolate, memory_constructor, "type", WebAssemblyMemoryGetType,
+                1);
+  }
   JSObject::AddProperty(isolate, memory_proto, factory->to_string_tag_symbol(),
                         v8_str(isolate, "WebAssembly.Memory"), ro_attributes);
-
-  // The context is not set up completely yet. That's why we cannot use
-  // {WasmFeaturesFromIsolate} and have to use {WasmFeaturesFromFlags} instead.
-  auto enabled_features = i::wasm::WasmFeaturesFromFlags();
 
   // Setup Global
   Handle<JSFunction> global_constructor =

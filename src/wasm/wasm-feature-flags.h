@@ -25,6 +25,8 @@
   SEPARATOR                                                            \
   V(bulk_memory, "bulk memory opcodes", false)                         \
   SEPARATOR                                                            \
-  V(return_call, "return call opcodes", false)
+  V(return_call, "return call opcodes", false)                         \
+  SEPARATOR                                                            \
+  V(type_reflection, "wasm type reflection in JS", false)
 
 #endif  // V8_WASM_WASM_FEATURE_FLAGS_H_
