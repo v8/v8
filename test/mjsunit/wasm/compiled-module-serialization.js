@@ -76,9 +76,10 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function DeserializeInvalidObject() {
   print(arguments.callee.name);
-  var invalid_buffer = new ArrayBuffer(10);
+  const invalid_buffer = new ArrayBuffer(10);
+  const invalid_buffer_view = new Uint8Array(10);
 
-  module = %DeserializeWasmModule(invalid_buffer, invalid_buffer);
+  module = %DeserializeWasmModule(invalid_buffer, invalid_buffer_view);
   assertEquals(module, undefined);
 })();
 

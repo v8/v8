@@ -58,6 +58,9 @@ bool IsWasmCompileAllowed(v8::Isolate* isolate, v8::Local<v8::Value> value,
   return (is_async && ctrls.AllowAnySizeForAsync) ||
          (value->IsArrayBuffer() &&
           v8::Local<v8::ArrayBuffer>::Cast(value)->ByteLength() <=
+              ctrls.MaxWasmBufferSize) ||
+         (value->IsArrayBufferView() &&
+          v8::Local<v8::ArrayBufferView>::Cast(value)->ByteLength() <=
               ctrls.MaxWasmBufferSize);
 }
 
@@ -1063,17 +1066,23 @@ RUNTIME_FUNCTION(Runtime_DeserializeWasmModule) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSArrayBuffer, buffer, 0);
-  CONVERT_ARG_HANDLE_CHECKED(JSArrayBuffer, wire_bytes, 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, wire_bytes, 1);
+  CHECK(!buffer->was_detached());
+  CHECK(!wire_bytes->WasDetached());
+
+  Handle<JSArrayBuffer> wire_bytes_buffer = wire_bytes->GetBuffer();
+  Vector<const uint8_t> wire_bytes_vec{
+      reinterpret_cast<const uint8_t*>(wire_bytes_buffer->backing_store()) +
+          wire_bytes->byte_offset(),
+      wire_bytes->byte_length()};
+  Vector<uint8_t> buffer_vec{
+      reinterpret_cast<uint8_t*>(buffer->backing_store()),
+      buffer->byte_length()};
 
   // Note that {wasm::DeserializeNativeModule} will allocate. We assume the
   // JSArrayBuffer backing store doesn't get relocated.
   MaybeHandle<WasmModuleObject> maybe_module_object =
-      wasm::DeserializeNativeModule(
-          isolate,
-          {reinterpret_cast<uint8_t*>(buffer->backing_store()),
-           buffer->byte_length()},
-          {reinterpret_cast<uint8_t*>(wire_bytes->backing_store()),
-           wire_bytes->byte_length()});
+      wasm::DeserializeNativeModule(isolate, buffer_vec, wire_bytes_vec);
   Handle<WasmModuleObject> module_object;
   if (!maybe_module_object.ToHandle(&module_object)) {
     return ReadOnlyRoots(isolate).undefined_value();
