@@ -37,7 +37,7 @@ class NativeModule;
 class WasmCode;
 struct WasmModule;
 
-std::unique_ptr<NativeModule> CompileToNativeModule(
+std::shared_ptr<NativeModule> CompileToNativeModule(
     Isolate* isolate, const WasmFeatures& enabled, ErrorThrower* thrower,
     std::shared_ptr<const WasmModule> module, const ModuleWireBytes& wire_bytes,
     Handle<FixedArray>* export_wrappers_out);

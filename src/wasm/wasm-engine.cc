@@ -140,7 +140,7 @@ MaybeHandle<AsmWasmData> WasmEngine::SyncCompileTranslatedAsmJs(
   // Transfer ownership of the WasmModule to the {Managed<WasmModule>} generated
   // in {CompileToNativeModule}.
   Handle<FixedArray> export_wrappers;
-  std::unique_ptr<NativeModule> native_module =
+  std::shared_ptr<NativeModule> native_module =
       CompileToNativeModule(isolate, kAsmjsWasmFeatures, thrower,
                             std::move(result).value(), bytes, &export_wrappers);
   if (!native_module) return {};
@@ -188,7 +188,7 @@ MaybeHandle<WasmModuleObject> WasmEngine::SyncCompile(
   // Transfer ownership of the WasmModule to the {Managed<WasmModule>} generated
   // in {CompileToModuleObject}.
   Handle<FixedArray> export_wrappers;
-  std::unique_ptr<NativeModule> native_module =
+  std::shared_ptr<NativeModule> native_module =
       CompileToNativeModule(isolate, enabled, thrower,
                             std::move(result).value(), bytes, &export_wrappers);
   if (!native_module) return {};
@@ -487,10 +487,10 @@ void WasmEngine::EnableCodeLogging(Isolate* isolate) {
   it->second->log_codes = true;
 }
 
-std::unique_ptr<NativeModule> WasmEngine::NewNativeModule(
+std::shared_ptr<NativeModule> WasmEngine::NewNativeModule(
     Isolate* isolate, const WasmFeatures& enabled, size_t code_size_estimate,
     bool can_request_more, std::shared_ptr<const WasmModule> module) {
-  std::unique_ptr<NativeModule> native_module =
+  std::shared_ptr<NativeModule> native_module =
       code_manager_.NewNativeModule(this, isolate, enabled, code_size_estimate,
                                     can_request_more, std::move(module));
   base::MutexGuard lock(&mutex_);

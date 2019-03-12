@@ -371,10 +371,12 @@ class V8_EXPORT_PRIVATE NativeModule final {
   friend class WasmCodeManager;
   friend class NativeModuleModificationScope;
 
+  // Private constructor, called via {WasmCodeManager::NewNativeModule()}.
   NativeModule(WasmEngine* engine, const WasmFeatures& enabled_features,
                bool can_request_more, VirtualMemory code_space,
                std::shared_ptr<const WasmModule> module,
-               std::shared_ptr<Counters> async_counters);
+               std::shared_ptr<Counters> async_counters,
+               std::shared_ptr<NativeModule>* shared_this);
 
   WasmCode* AddAnonymousCode(Handle<Code>, WasmCode::Kind kind,
                              const char* name = nullptr);
@@ -518,7 +520,7 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
   friend class NativeModule;
   friend class WasmEngine;
 
-  std::unique_ptr<NativeModule> NewNativeModule(
+  std::shared_ptr<NativeModule> NewNativeModule(
       WasmEngine* engine, Isolate* isolate,
       const WasmFeatures& enabled_features, size_t code_size_estimate,
       bool can_request_more, std::shared_ptr<const WasmModule> module);

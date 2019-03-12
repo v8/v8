@@ -368,11 +368,10 @@ WasmCode::~WasmCode() {
 NativeModule::NativeModule(WasmEngine* engine, const WasmFeatures& enabled,
                            bool can_request_more, VirtualMemory code_space,
                            std::shared_ptr<const WasmModule> module,
-                           std::shared_ptr<Counters> async_counters)
+                           std::shared_ptr<Counters> async_counters,
+                           std::shared_ptr<NativeModule>* shared_this)
     : enabled_features_(enabled),
       module_(std::move(module)),
-      compilation_state_(
-          CompilationState::New(this, std::move(async_counters))),
       import_wrapper_cache_(std::unique_ptr<WasmImportWrapperCache>(
           new WasmImportWrapperCache(this))),
       free_code_space_(code_space.region()),
@@ -380,6 +379,13 @@ NativeModule::NativeModule(WasmEngine* engine, const WasmFeatures& enabled,
       can_request_more_memory_(can_request_more),
       use_trap_handler_(trap_handler::IsTrapHandlerEnabled() ? kUseTrapHandler
                                                              : kNoTrapHandler) {
+  // We receive a pointer to an empty {std::shared_ptr}, and install ourselve
+  // there.
+  DCHECK_NOT_NULL(shared_this);
+  DCHECK_NULL(*shared_this);
+  shared_this->reset(this);
+  compilation_state_ =
+      CompilationState::New(*shared_this, std::move(async_counters));
   DCHECK_NOT_NULL(module_);
   owned_code_space_.emplace_back(std::move(code_space));
   owned_code_.reserve(num_functions());
@@ -1075,7 +1081,7 @@ size_t WasmCodeManager::EstimateNativeModuleNonCodeSize(
   return wasm_module_estimate + native_module_estimate;
 }
 
-std::unique_ptr<NativeModule> WasmCodeManager::NewNativeModule(
+std::shared_ptr<NativeModule> WasmCodeManager::NewNativeModule(
     WasmEngine* engine, Isolate* isolate, const WasmFeatures& enabled,
     size_t code_size_estimate, bool can_request_more,
     std::shared_ptr<const WasmModule> module) {
@@ -1111,9 +1117,11 @@ std::unique_ptr<NativeModule> WasmCodeManager::NewNativeModule(
   Address start = code_space.address();
   size_t size = code_space.size();
   Address end = code_space.end();
-  std::unique_ptr<NativeModule> ret(
-      new NativeModule(engine, enabled, can_request_more, std::move(code_space),
-                       std::move(module), isolate->async_counters()));
+  std::shared_ptr<NativeModule> ret;
+  new NativeModule(engine, enabled, can_request_more, std::move(code_space),
+                   std::move(module), isolate->async_counters(), &ret);
+  // The constructor initialized the shared_ptr.
+  DCHECK_NOT_NULL(ret);
   TRACE_HEAP("New NativeModule %p: Mem: %" PRIuPTR ",+%zu\n", ret.get(), start,
              size);
   base::MutexGuard lock(&native_modules_mutex_);

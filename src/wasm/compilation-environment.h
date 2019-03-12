@@ -126,8 +126,11 @@ class CompilationState {
   friend class WasmCompilationUnit;
   CompilationState() = delete;
 
-  static std::unique_ptr<CompilationState> New(NativeModule*,
-                                               std::shared_ptr<Counters>);
+  // The CompilationState keeps a {std::weak_ptr} back to the {NativeModule}
+  // such that it can keep it alive (by regaining a {std::shared_ptr}) in
+  // certain scopes.
+  static std::unique_ptr<CompilationState> New(
+      const std::shared_ptr<NativeModule>&, std::shared_ptr<Counters>);
 };
 
 }  // namespace wasm

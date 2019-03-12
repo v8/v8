@@ -159,7 +159,7 @@ class WasmCodeManagerTest : public TestWithContext,
   static constexpr uint32_t kJumpTableSize = RoundUp<kCodeAlignment>(
       JumpTableAssembler::SizeForNumberOfSlots(kNumFunctions));
 
-  using NativeModulePtr = std::unique_ptr<NativeModule>;
+  using NativeModulePtr = std::shared_ptr<NativeModule>;
 
   NativeModulePtr AllocModule(size_t size, ModuleStyle style) {
     std::shared_ptr<WasmModule> module(new WasmModule);

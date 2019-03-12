@@ -61,22 +61,23 @@ enum class CompileMode : uint8_t { kRegular, kTiering };
 // on background compile jobs.
 class BackgroundCompileToken {
  public:
-  explicit BackgroundCompileToken(NativeModule* native_module)
+  explicit BackgroundCompileToken(
+      const std::shared_ptr<NativeModule>& native_module)
       : native_module_(native_module) {}
 
   void Cancel() {
     base::SharedMutexGuard<base::kExclusive> mutex_guard(&mutex_);
-    native_module_ = nullptr;
+    native_module_.reset();
   }
 
  private:
   friend class BackgroundCompileScope;
   base::SharedMutex mutex_;
-  NativeModule* native_module_;
+  std::weak_ptr<NativeModule> native_module_;
 
-  NativeModule* StartScope() {
+  std::shared_ptr<NativeModule> StartScope() {
     mutex_.LockShared();
-    return native_module_;
+    return native_module_.lock();
   }
 
   void ExitScope() { mutex_.UnlockShared(); }
@@ -99,14 +100,15 @@ class BackgroundCompileScope {
 
   NativeModule* native_module() {
     DCHECK(!cancelled());
-    return native_module_;
+    return native_module_.get();
   }
 
   inline CompilationStateImpl* compilation_state();
 
  private:
   BackgroundCompileToken* const token_;
-  NativeModule* const native_module_;
+  // Keep the native module alive while in this scope.
+  std::shared_ptr<NativeModule> const native_module_;
 };
 
 // The {CompilationStateImpl} keeps track of the compilation state of the
@@ -116,7 +118,8 @@ class BackgroundCompileScope {
 // It's public interface {CompilationState} lives in compilation-environment.h.
 class CompilationStateImpl {
  public:
-  CompilationStateImpl(NativeModule*, std::shared_ptr<Counters> async_counters);
+  CompilationStateImpl(const std::shared_ptr<NativeModule>& native_module,
+                       std::shared_ptr<Counters> async_counters);
   ~CompilationStateImpl();
 
   // Cancel all background compilation and wait for all tasks to finish. Call
@@ -310,7 +313,8 @@ void CompilationState::OnFinishedUnit(ExecutionTier tier, WasmCode* code) {
 
 // static
 std::unique_ptr<CompilationState> CompilationState::New(
-    NativeModule* native_module, std::shared_ptr<Counters> async_counters) {
+    const std::shared_ptr<NativeModule>& native_module,
+    std::shared_ptr<Counters> async_counters) {
   return std::unique_ptr<CompilationState>(reinterpret_cast<CompilationState*>(
       new CompilationStateImpl(native_module, std::move(async_counters))));
 }
@@ -726,7 +730,7 @@ class BackgroundCompileTask : public CancelableTask {
 
 }  // namespace
 
-std::unique_ptr<NativeModule> CompileToNativeModule(
+std::shared_ptr<NativeModule> CompileToNativeModule(
     Isolate* isolate, const WasmFeatures& enabled, ErrorThrower* thrower,
     std::shared_ptr<const WasmModule> module, const ModuleWireBytes& wire_bytes,
     Handle<FixedArray>* export_wrappers_out) {
@@ -1485,8 +1489,9 @@ bool AsyncStreamingProcessor::Deserialize(Vector<const uint8_t> module_bytes,
 }
 
 CompilationStateImpl::CompilationStateImpl(
-    NativeModule* native_module, std::shared_ptr<Counters> async_counters)
-    : native_module_(native_module),
+    const std::shared_ptr<NativeModule>& native_module,
+    std::shared_ptr<Counters> async_counters)
+    : native_module_(native_module.get()),
       background_compile_token_(
           std::make_shared<BackgroundCompileToken>(native_module)),
       compile_mode_(FLAG_wasm_tier_up &&
