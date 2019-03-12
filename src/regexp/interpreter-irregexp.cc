@@ -147,13 +147,76 @@ class BacktrackStack {
   DISALLOW_COPY_AND_ASSIGN(BacktrackStack);
 };
 
+namespace {
+
+// Runs all pending interrupts. Callers must update unhandlified object
+// references after this function completes.
+IrregexpInterpreter::Result HandleInterrupts(Isolate* isolate,
+                                             Handle<String> subject_string) {
+  DisallowHeapAllocation no_gc;
+
+  StackLimitCheck check(isolate);
+  if (check.JsHasOverflowed()) {
+    // A real stack overflow.
+    AllowHeapAllocation yes_gc;
+    isolate->StackOverflow();
+    return IrregexpInterpreter::EXCEPTION;
+  }
+
+  const bool was_one_byte =
+      String::IsOneByteRepresentationUnderneath(*subject_string);
+
+  Object result;
+  {
+    AllowHeapAllocation yes_gc;
+    result = isolate->stack_guard()->HandleInterrupts();
+  }
+
+  if (result->IsException(isolate)) {
+    return IrregexpInterpreter::EXCEPTION;
+  }
+
+  // If we changed between a LATIN1 and a UC16 string, we need to restart
+  // regexp matching with the appropriate template instantiation of RawMatch.
+  if (String::IsOneByteRepresentationUnderneath(*subject_string) !=
+      was_one_byte) {
+    return IrregexpInterpreter::RETRY;
+  }
+
+  return IrregexpInterpreter::SUCCESS;
+}
+
 template <typename Char>
-static IrregexpInterpreter::Result RawMatch(Isolate* isolate,
-                                            const byte* code_base,
-                                            Vector<const Char> subject,
-                                            int* registers, int current,
-                                            uint32_t current_char) {
-  const byte* pc = code_base;
+void UpdateCodeAndSubjectReferences(Isolate* isolate,
+                                    Handle<ByteArray> code_array,
+                                    Handle<String> subject_string,
+                                    const byte** code_base_out,
+                                    const byte** pc_out,
+                                    Vector<const Char>* subject_string_out) {
+  DisallowHeapAllocation no_gc;
+
+  if (*code_base_out != code_array->GetDataStartAddress()) {
+    const intptr_t pc_offset = *pc_out - *code_base_out;
+    DCHECK_GT(pc_offset, 0);
+    *code_base_out = code_array->GetDataStartAddress();
+    *pc_out = *code_base_out + pc_offset;
+  }
+
+  DCHECK(subject_string->IsFlat());
+  *subject_string_out = subject_string->GetCharVector<Char>(no_gc);
+}
+
+template <typename Char>
+IrregexpInterpreter::Result RawMatch(Isolate* isolate,
+                                     Handle<ByteArray> code_array,
+                                     Handle<String> subject_string,
+                                     Vector<const Char> subject, int* registers,
+                                     int current, uint32_t current_char) {
+  DisallowHeapAllocation no_gc;
+
+  const byte* pc = code_array->GetDataStartAddress();
+  const byte* code_base = pc;
+
   // BacktrackStack ensures that the memory allocated for the backtracking stack
   // is returned to the system or cached if there is no stack being cached at
   // the moment.
@@ -228,12 +291,21 @@ static IrregexpInterpreter::Result RawMatch(Isolate* isolate,
         current = *backtrack_sp;
         pc += BC_POP_CP_LENGTH;
         break;
-      BYTECODE(POP_BT)
+        // clang-format off
+      BYTECODE(POP_BT) {
+        IrregexpInterpreter::Result return_code = HandleInterrupts(
+            isolate, subject_string);
+        if (return_code != IrregexpInterpreter::SUCCESS) return return_code;
+
+        UpdateCodeAndSubjectReferences(isolate, code_array, subject_string,
+            &code_base, &pc, &subject);
+
         backtrack_stack_space++;
         --backtrack_sp;
         pc = code_base + *backtrack_sp;
         break;
-      BYTECODE(POP_REGISTER)
+      }
+      BYTECODE(POP_REGISTER)  // clang-format on
         backtrack_stack_space++;
         --backtrack_sp;
         registers[insn >> BYTECODE_SHIFT] = *backtrack_sp;
@@ -585,34 +657,28 @@ static IrregexpInterpreter::Result RawMatch(Isolate* isolate,
   }
 }
 
+}  // namespace
+
+// static
 IrregexpInterpreter::Result IrregexpInterpreter::Match(
-    Isolate* isolate, Handle<ByteArray> code_array, Handle<String> subject,
-    int* registers, int start_position) {
-  DCHECK(subject->IsFlat());
+    Isolate* isolate, Handle<ByteArray> code_array,
+    Handle<String> subject_string, int* registers, int start_position) {
+  DCHECK(subject_string->IsFlat());
 
   DisallowHeapAllocation no_gc;
-  const byte* code_base = code_array->GetDataStartAddress();
   uc16 previous_char = '\n';
-  String::FlatContent subject_content = subject->GetFlatContent(no_gc);
+  String::FlatContent subject_content = subject_string->GetFlatContent(no_gc);
   if (subject_content.IsOneByte()) {
     Vector<const uint8_t> subject_vector = subject_content.ToOneByteVector();
     if (start_position != 0) previous_char = subject_vector[start_position - 1];
-    return RawMatch(isolate,
-                    code_base,
-                    subject_vector,
-                    registers,
-                    start_position,
-                    previous_char);
+    return RawMatch(isolate, code_array, subject_string, subject_vector,
+                    registers, start_position, previous_char);
   } else {
     DCHECK(subject_content.IsTwoByte());
     Vector<const uc16> subject_vector = subject_content.ToUC16Vector();
     if (start_position != 0) previous_char = subject_vector[start_position - 1];
-    return RawMatch(isolate,
-                    code_base,
-                    subject_vector,
-                    registers,
-                    start_position,
-                    previous_char);
+    return RawMatch(isolate, code_array, subject_string, subject_vector,
+                    registers, start_position, previous_char);
   }
 }
 

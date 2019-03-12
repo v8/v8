@@ -413,12 +413,6 @@
 }],  # variant == stress_background_compile
 
 ##############################################################################
-['variant == interpreted_regexp', {
-  # Times out: https://crbug.com/v8/8678
-  'test-api/RegExpInterruption': [SKIP],
-}],  # variant == interpreted_regexp
-
-##############################################################################
 ['variant == no_wasm_traps', {
   'test-accessors/*': [SKIP],
   'test-api-interceptors/*': [SKIP],
@@ -503,7 +497,6 @@
   # Tests that generate code at runtime.
   'codegen-tester/*': [SKIP],
   'test-accessor-assembler/*': [SKIP],
-  'test-api/RegExpInterruption': [SKIP],
   'test-assembler-*': [SKIP],
   'test-basic-block-profiler/*': [SKIP],
   'test-branch-combine/*': [SKIP],

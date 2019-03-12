@@ -15102,81 +15102,6 @@ TEST(CompileExternalTwoByteSource) {
   }
 }
 
-struct RegExpInterruptionData {
-  v8::base::Atomic32 loop_count;
-  UC16VectorResource* string_resource;
-  v8::Persistent<v8::String> string;
-} regexp_interruption_data;
-
-
-class RegExpInterruptionThread : public v8::base::Thread {
- public:
-  explicit RegExpInterruptionThread(v8::Isolate* isolate)
-      : Thread(Options("TimeoutThread")), isolate_(isolate) {}
-
-  void Run() override {
-    for (v8::base::Relaxed_Store(&regexp_interruption_data.loop_count, 0);
-         v8::base::Relaxed_Load(&regexp_interruption_data.loop_count) < 7;
-         v8::base::Relaxed_AtomicIncrement(&regexp_interruption_data.loop_count,
-                                           1)) {
-      // Wait a bit before requesting GC.
-      v8::base::OS::Sleep(v8::base::TimeDelta::FromMilliseconds(50));
-      reinterpret_cast<i::Isolate*>(isolate_)->stack_guard()->RequestGC();
-    }
-    // Wait a bit before terminating.
-    v8::base::OS::Sleep(v8::base::TimeDelta::FromMilliseconds(50));
-    isolate_->TerminateExecution();
-  }
-
- private:
-  v8::Isolate* isolate_;
-};
-
-
-void RunBeforeGC(v8::Isolate* isolate, v8::GCType type,
-                 v8::GCCallbackFlags flags) {
-  if (v8::base::Relaxed_Load(&regexp_interruption_data.loop_count) != 2) {
-    return;
-  }
-  v8::HandleScope scope(isolate);
-  v8::Local<v8::String> string = v8::Local<v8::String>::New(
-      CcTest::isolate(), regexp_interruption_data.string);
-  string->MakeExternal(regexp_interruption_data.string_resource);
-}
-
-
-// Test that RegExp execution can be interrupted.  Specifically, we test
-// * interrupting with GC
-// * turn the subject string from one-byte internal to two-byte external string
-// * force termination
-TEST(RegExpInterruption) {
-  LocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
-
-  RegExpInterruptionThread timeout_thread(env->GetIsolate());
-
-  env->GetIsolate()->AddGCPrologueCallback(RunBeforeGC);
-  static const char* one_byte_content = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
-  i::uc16* uc16_content = AsciiToTwoByteString(one_byte_content);
-  v8::Local<v8::String> string = v8_str(one_byte_content);
-
-  env->Global()->Set(env.local(), v8_str("a"), string).FromJust();
-  regexp_interruption_data.string.Reset(env->GetIsolate(), string);
-  regexp_interruption_data.string_resource = new UC16VectorResource(
-      i::Vector<const i::uc16>(uc16_content, i::StrLength(one_byte_content)));
-
-  v8::TryCatch try_catch(env->GetIsolate());
-  timeout_thread.Start();
-
-  CompileRun("/((a*)*)*b/.exec(a)");
-  CHECK(try_catch.HasTerminated());
-
-  timeout_thread.Join();
-
-  regexp_interruption_data.string.Reset();
-  i::DeleteArray(uc16_content);
-}
-
 // Test that we cannot set a property on the global object if there
 // is a read-only property in the prototype chain.
 TEST(ReadOnlyPropertyInGlobalProto) {
@@ -22841,6 +22766,179 @@ TEST(AccessCheckThrows) {
   // Reset the failed access check callback so it does not influence
   // the other tests.
   isolate->SetFailedAccessCheckCallbackFunction(nullptr);
+}
+
+namespace {
+
+const char kOneByteSubjectString[] = {
+    'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a',
+    'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a',
+    'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', '\0'};
+const uint16_t kTwoByteSubjectString[] = {
+    'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a',
+    'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a',
+    'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', 'a', '\0'};
+
+const int kSubjectStringLength = arraysize(kOneByteSubjectString) - 1;
+STATIC_ASSERT(arraysize(kOneByteSubjectString) ==
+              arraysize(kTwoByteSubjectString));
+
+OneByteVectorResource one_byte_string_resource(
+    i::Vector<const char>(&kOneByteSubjectString[0], kSubjectStringLength));
+UC16VectorResource two_byte_string_resource(
+    i::Vector<const i::uc16>(&kTwoByteSubjectString[0], kSubjectStringLength));
+
+class RegExpInterruptTest {
+ public:
+  RegExpInterruptTest()
+      : i_thread(this),
+        env_(),
+        isolate_(env_->GetIsolate()),
+        sem_(0),
+        ran_test_body_(false),
+        ran_to_completion_(false) {}
+
+  void RunTest(v8::InterruptCallback test_body_fn) {
+    v8::HandleScope handle_scope(isolate_);
+
+    i_thread.SetTestBody(test_body_fn);
+    i_thread.Start();
+
+    TestBody();
+
+    i_thread.Join();
+  }
+
+  static void CollectAllGarbage(v8::Isolate* isolate, void* data) {
+    i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+    i_isolate->heap()->PreciseCollectAllGarbage(
+        i::Heap::kNoGCFlags, i::GarbageCollectionReason::kRuntime);
+  }
+
+  static void MakeSubjectOneByteExternal(v8::Isolate* isolate, void* data) {
+    auto instance = reinterpret_cast<RegExpInterruptTest*>(data);
+
+    v8::HandleScope scope(isolate);
+    v8::Local<v8::String> string =
+        v8::Local<v8::String>::New(isolate, instance->string_handle_);
+    CHECK(string->CanMakeExternal());
+    string->MakeExternal(&one_byte_string_resource);
+  }
+
+  static void MakeSubjectTwoByteExternal(v8::Isolate* isolate, void* data) {
+    auto instance = reinterpret_cast<RegExpInterruptTest*>(data);
+
+    v8::HandleScope scope(isolate);
+    v8::Local<v8::String> string =
+        v8::Local<v8::String>::New(isolate, instance->string_handle_);
+    CHECK(string->CanMakeExternal());
+    string->MakeExternal(&two_byte_string_resource);
+  }
+
+ private:
+  static void SignalSemaphore(v8::Isolate* isolate, void* data) {
+    reinterpret_cast<RegExpInterruptTest*>(data)->sem_.Signal();
+  }
+
+  void CreateTestStrings() {
+    i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate_);
+
+    // The string must be in old space to support externalization.
+    i::Handle<i::String> i_string =
+        i_isolate->factory()->NewStringFromAsciiChecked(
+            &kOneByteSubjectString[0], i::AllocationType::kOld);
+    v8::Local<v8::String> string = v8::Utils::ToLocal(i_string);
+
+    env_->Global()->Set(env_.local(), v8_str("a"), string).FromJust();
+
+    string_handle_.Reset(env_->GetIsolate(), string);
+  }
+
+  void TestBody() {
+    CHECK(!ran_test_body_.load());
+    CHECK(!ran_to_completion_.load());
+
+    CreateTestStrings();
+
+    v8::TryCatch try_catch(env_->GetIsolate());
+
+    isolate_->RequestInterrupt(&SignalSemaphore, this);
+    CompileRun("/((a*)*)*b/.exec(a)");
+
+    CHECK(try_catch.HasTerminated());
+    CHECK(ran_test_body_.load());
+    CHECK(ran_to_completion_.load());
+  }
+
+  class InterruptThread : public v8::base::Thread {
+   public:
+    explicit InterruptThread(RegExpInterruptTest* test)
+        : Thread(Options("RegExpInterruptTest")), test_(test) {}
+
+    void Run() override {
+      CHECK_NOT_NULL(test_body_fn_);
+
+      // Wait for JS execution to start.
+      test_->sem_.Wait();
+
+      // Sleep for a bit to allow irregexp execution to start up, then run the
+      // test body.
+      v8::base::OS::Sleep(v8::base::TimeDelta::FromMilliseconds(50));
+      test_->isolate_->RequestInterrupt(&RunTestBody, test_);
+      test_->isolate_->RequestInterrupt(&SignalSemaphore, test_);
+
+      // Wait for the scheduled interrupt to signal.
+      test_->sem_.Wait();
+
+      // Sleep again to resume irregexp execution, then terminate.
+      v8::base::OS::Sleep(v8::base::TimeDelta::FromMilliseconds(50));
+      test_->ran_to_completion_.store(true);
+      test_->isolate_->TerminateExecution();
+    }
+
+    static void RunTestBody(v8::Isolate* isolate, void* data) {
+      auto instance = reinterpret_cast<RegExpInterruptTest*>(data);
+      instance->i_thread.test_body_fn_(isolate, data);
+      instance->ran_test_body_.store(true);
+    }
+
+    void SetTestBody(v8::InterruptCallback callback) {
+      test_body_fn_ = callback;
+    }
+
+   private:
+    v8::InterruptCallback test_body_fn_;
+    RegExpInterruptTest* test_;
+  };
+
+  InterruptThread i_thread;
+
+  LocalContext env_;
+  v8::Isolate* isolate_;
+  v8::base::Semaphore sem_;  // Coordinates between main and interrupt threads.
+
+  v8::Persistent<v8::String> string_handle_;
+
+  std::atomic<bool> ran_test_body_;
+  std::atomic<bool> ran_to_completion_;
+};
+
+}  // namespace
+
+TEST(RegExpInterruptAndCollectAllGarbage) {
+  i::FLAG_always_compact = true;  // Move all movable objects on GC.
+  RegExpInterruptTest test;
+  test.RunTest(RegExpInterruptTest::CollectAllGarbage);
+}
+
+TEST(RegExpInterruptAndMakeSubjectOneByteExternal) {
+  RegExpInterruptTest test;
+  test.RunTest(RegExpInterruptTest::MakeSubjectOneByteExternal);
+}
+
+TEST(RegExpInterruptAndMakeSubjectTwoByteExternal) {
+  RegExpInterruptTest test;
+  test.RunTest(RegExpInterruptTest::MakeSubjectTwoByteExternal);
 }
 
 class RequestInterruptTestBase {

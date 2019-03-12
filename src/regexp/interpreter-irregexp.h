@@ -19,8 +19,9 @@ class IrregexpInterpreter {
   STATIC_ASSERT(FAILURE == static_cast<int>(RegExpImpl::RE_FAILURE));
   STATIC_ASSERT(SUCCESS == static_cast<int>(RegExpImpl::RE_SUCCESS));
 
+  // The caller is responsible for initializing registers before each call.
   static Result Match(Isolate* isolate, Handle<ByteArray> code_array,
-                      Handle<String> subject, int* registers,
+                      Handle<String> subject_string, int* registers,
                       int start_position);
 };
 

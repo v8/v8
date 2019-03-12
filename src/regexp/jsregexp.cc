@@ -477,26 +477,40 @@ int RegExpImpl::IrregexpExecRaw(Isolate* isolate, Handle<JSRegExp> regexp,
     int number_of_capture_registers =
         (IrregexpNumberOfCaptures(*irregexp) + 1) * 2;
     int32_t* raw_output = &output[number_of_capture_registers];
-    // We do not touch the actual capture result registers until we know there
-    // has been a match so that we can use those capture results to set the
-    // last match info.
-    for (int i = number_of_capture_registers - 1; i >= 0; i--) {
-      raw_output[i] = -1;
-    }
-    Handle<ByteArray> byte_codes(IrregexpByteCode(*irregexp, is_one_byte),
-                                 isolate);
 
-    IrregexpInterpreter::Result result = IrregexpInterpreter::Match(
-        isolate, byte_codes, subject, raw_output, index);
-    DCHECK_IMPLIES(result == IrregexpInterpreter::EXCEPTION,
-                   isolate->has_pending_exception());
+    do {
+      // We do not touch the actual capture result registers until we know there
+      // has been a match so that we can use those capture results to set the
+      // last match info.
+      for (int i = number_of_capture_registers - 1; i >= 0; i--) {
+        raw_output[i] = -1;
+      }
+      Handle<ByteArray> byte_codes(IrregexpByteCode(*irregexp, is_one_byte),
+                                   isolate);
 
-    if (result == IrregexpInterpreter::SUCCESS) {
-      // Copy capture results to the start of the registers array.
-      MemCopy(output, raw_output,
-              number_of_capture_registers * sizeof(int32_t));
-    }
-    return result;
+      IrregexpInterpreter::Result result = IrregexpInterpreter::Match(
+          isolate, byte_codes, subject, raw_output, index);
+      DCHECK_IMPLIES(result == IrregexpInterpreter::EXCEPTION,
+                     isolate->has_pending_exception());
+
+      switch (result) {
+        case IrregexpInterpreter::SUCCESS:
+          // Copy capture results to the start of the registers array.
+          MemCopy(output, raw_output,
+                  number_of_capture_registers * sizeof(int32_t));
+          return result;
+        case IrregexpInterpreter::EXCEPTION:
+        case IrregexpInterpreter::FAILURE:
+          return result;
+        case IrregexpInterpreter::RETRY:
+          // The string has changed representation, and we must restart the
+          // match.
+          is_one_byte = String::IsOneByteRepresentationUnderneath(*subject);
+          EnsureCompiledIrregexp(isolate, regexp, subject, is_one_byte);
+          break;
+      }
+    } while (true);
+    UNREACHABLE();
   }
 }
 
