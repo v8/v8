@@ -1027,6 +1027,7 @@ void WebAssemblyTable(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
   Local<Context> context = isolate->GetCurrentContext();
   Local<v8::Object> descriptor = Local<Object>::Cast(args[0]);
+  i::wasm::ValueType type;
   // The descriptor's 'element'.
   {
     v8::MaybeLocal<v8::Value> maybe =
@@ -1035,7 +1036,13 @@ void WebAssemblyTable(const v8::FunctionCallbackInfo<v8::Value>& args) {
     if (!maybe.ToLocal(&value)) return;
     v8::Local<v8::String> string;
     if (!value->ToString(context).ToLocal(&string)) return;
-    if (!string->StringEquals(v8_str(isolate, "anyfunc"))) {
+    auto enabled_features = i::wasm::WasmFeaturesFromFlags();
+    if (string->StringEquals(v8_str(isolate, "anyfunc"))) {
+      type = i::wasm::kWasmAnyFunc;
+    } else if (enabled_features.anyref &&
+               string->StringEquals(v8_str(isolate, "anyref"))) {
+      type = i::wasm::kWasmAnyRef;
+    } else {
       thrower.TypeError("Descriptor property 'element' must be 'anyfunc'");
       return;
     }
@@ -1057,7 +1064,7 @@ void WebAssemblyTable(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
   i::Handle<i::FixedArray> fixed_array;
   i::Handle<i::JSObject> table_obj =
-      i::WasmTableObject::New(i_isolate, static_cast<uint32_t>(initial),
+      i::WasmTableObject::New(i_isolate, type, static_cast<uint32_t>(initial),
                               static_cast<uint32_t>(maximum), &fixed_array);
   v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
   return_value.Set(Utils::ToLocal(table_obj));
@@ -1403,31 +1410,24 @@ void WebAssemblyTableSet(const v8::FunctionCallbackInfo<v8::Value>& args) {
   HandleScope scope(isolate);
   ScheduledErrorThrower thrower(i_isolate, "WebAssembly.Table.set()");
   Local<Context> context = isolate->GetCurrentContext();
-  EXTRACT_THIS(receiver, WasmTableObject);
+  EXTRACT_THIS(table_object, WasmTableObject);
 
   // Parameter 0.
   uint32_t index;
   if (!EnforceUint32("Argument 0", args[0], context, &thrower, &index)) {
     return;
   }
+  if (!i::WasmTableObject::IsInBounds(i_isolate, table_object, index)) {
+    thrower.RangeError("invalid index %u into function table", index);
+    return;
+  }
 
-  // Parameter 1.
-  i::Handle<i::Object> value = Utils::OpenHandle(*args[1]);
-  if (!value->IsNull(i_isolate) &&
-      !i::WasmExportedFunction::IsWasmExportedFunction(*value)) {
+  i::Handle<i::Object> element = Utils::OpenHandle(*args[1]);
+  if (!i::WasmTableObject::IsValidElement(i_isolate, table_object, element)) {
     thrower.TypeError("Argument 1 must be null or a WebAssembly function");
     return;
   }
-
-  if (index >= static_cast<uint64_t>(receiver->elements()->length())) {
-    thrower.RangeError("index out of bounds");
-    return;
-  }
-
-  i::WasmTableObject::Set(i_isolate, receiver, index,
-                          value->IsNull(i_isolate)
-                              ? i::Handle<i::JSFunction>::null()
-                              : i::Handle<i::JSFunction>::cast(value));
+  i::WasmTableObject::Set(i_isolate, table_object, index, element);
 }
 
 // WebAssembly.Memory.grow(num) -> num

@@ -258,23 +258,26 @@ class WasmTableObject : public JSObject {
   // TODO(titzer): introduce DECL_I64_ACCESSORS macro
   DECL_ACCESSORS(maximum_length, Object)
   DECL_ACCESSORS(dispatch_tables, FixedArray)
+  DECL_INT_ACCESSORS(raw_type)
 
 // Layout description.
 #define WASM_TABLE_OBJECT_FIELDS(V)     \
   V(kElementsOffset, kTaggedSize)       \
   V(kMaximumLengthOffset, kTaggedSize)  \
   V(kDispatchTablesOffset, kTaggedSize) \
+  V(kRawTypeOffset, kTaggedSize)        \
   V(kSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, WASM_TABLE_OBJECT_FIELDS)
 #undef WASM_TABLE_OBJECT_FIELDS
 
   inline uint32_t current_length();
+  inline wasm::ValueType type();
   void Grow(Isolate* isolate, uint32_t count);
 
-  static Handle<WasmTableObject> New(Isolate* isolate, uint32_t initial,
-                                     uint32_t maximum,
-                                     Handle<FixedArray>* js_functions);
+  static Handle<WasmTableObject> New(Isolate* isolate, wasm::ValueType type,
+                                     uint32_t initial, uint32_t maximum,
+                                     Handle<FixedArray>* elements);
   static void AddDispatchTable(Isolate* isolate, Handle<WasmTableObject> table,
                                Handle<WasmInstanceObject> instance,
                                int table_index);
@@ -282,8 +285,11 @@ class WasmTableObject : public JSObject {
   static bool IsInBounds(Isolate* isolate, Handle<WasmTableObject> table,
                          uint32_t entry_index);
 
+  static bool IsValidElement(Isolate* isolate, Handle<WasmTableObject> table,
+                             Handle<Object> entry);
+
   static void Set(Isolate* isolate, Handle<WasmTableObject> table,
-                  uint32_t index, Handle<JSFunction> function);
+                  uint32_t index, Handle<Object> element);
 
   static Handle<Object> Get(Isolate* isolate, Handle<WasmTableObject> table,
                             uint32_t index);
@@ -296,6 +302,22 @@ class WasmTableObject : public JSObject {
 
   static void ClearDispatchTables(Isolate* isolate,
                                   Handle<WasmTableObject> table, int index);
+
+  static void SetFunctionTablePlaceholder(Isolate* isolate,
+                                          Handle<WasmTableObject> table,
+                                          int entry_index,
+                                          Handle<WasmInstanceObject> instance,
+                                          int func_index);
+
+  // This function reads the content of a function table entry and returns it
+  // through the out parameters {is_valid}, {is_null}, {instance}, and
+  // {function_index}.
+  static void GetFunctionTableEntry(Isolate* isolate,
+                                    Handle<WasmTableObject> table,
+                                    int entry_index, bool* is_valid,
+                                    bool* is_null,
+                                    MaybeHandle<WasmInstanceObject>* instance,
+                                    int* function_index);
 
   OBJECT_CONSTRUCTORS(WasmTableObject, JSObject);
 };

@@ -108,6 +108,7 @@ bool WasmModuleObject::is_asm_js() {
 ACCESSORS(WasmTableObject, elements, FixedArray, kElementsOffset)
 ACCESSORS(WasmTableObject, maximum_length, Object, kMaximumLengthOffset)
 ACCESSORS(WasmTableObject, dispatch_tables, FixedArray, kDispatchTablesOffset)
+SMI_ACCESSORS(WasmTableObject, raw_type, kRawTypeOffset)
 
 // WasmMemoryObject
 ACCESSORS(WasmMemoryObject, array_buffer, JSArrayBuffer, kArrayBufferOffset)
@@ -300,6 +301,10 @@ OPTIONAL_ACCESSORS(WasmDebugInfo, c_wasm_entry_map, Managed<wasm::SignatureMap>,
 #undef PRIMITIVE_ACCESSORS
 
 uint32_t WasmTableObject::current_length() { return elements()->length(); }
+
+wasm::ValueType WasmTableObject::type() {
+  return static_cast<wasm::ValueType>(raw_type());
+}
 
 bool WasmMemoryObject::has_maximum_pages() { return maximum_pages() >= 0; }
 

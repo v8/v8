@@ -21,6 +21,7 @@
 #include "src/wasm/module-compiler.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/module-instantiate.h"
+#include "src/wasm/value-type.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-limits.h"
@@ -777,9 +778,10 @@ bool WasmModuleObject::GetPositionInfo(uint32_t position,
   return true;
 }
 
-Handle<WasmTableObject> WasmTableObject::New(Isolate* isolate, uint32_t initial,
-                                             uint32_t maximum,
-                                             Handle<FixedArray>* js_functions) {
+Handle<WasmTableObject> WasmTableObject::New(Isolate* isolate,
+                                             wasm::ValueType type,
+                                             uint32_t initial, uint32_t maximum,
+                                             Handle<FixedArray>* elements) {
   Handle<JSFunction> table_ctor(
       isolate->native_context()->wasm_table_constructor(), isolate);
   auto table_obj = Handle<WasmTableObject>::cast(
@@ -790,13 +792,15 @@ Handle<WasmTableObject> WasmTableObject::New(Isolate* isolate, uint32_t initial,
   for (int i = 0; i < static_cast<int>(initial); ++i) {
     backing_store->set(i, null);
   }
+
+  table_obj->set_raw_type(static_cast<int>(type));
   table_obj->set_elements(*backing_store);
   Handle<Object> max = isolate->factory()->NewNumberFromUint(maximum);
   table_obj->set_maximum_length(*max);
 
   table_obj->set_dispatch_tables(ReadOnlyRoots(isolate).empty_fixed_array());
-  if (js_functions != nullptr) {
-    *js_functions = backing_store;
+  if (elements != nullptr) {
+    *elements = backing_store;
   }
   return Handle<WasmTableObject>::cast(table_obj);
 }
@@ -857,16 +861,38 @@ bool WasmTableObject::IsInBounds(Isolate* isolate,
           static_cast<int>(entry_index) < table->elements()->length());
 }
 
+bool WasmTableObject::IsValidElement(Isolate* isolate,
+                                     Handle<WasmTableObject> table,
+                                     Handle<Object> element) {
+  // Anyref tables take everything.
+  if (table->type() == wasm::kWasmAnyRef) return true;
+  // Anyfunc tables can store {null} or {WasmExportedFunction} objects.
+  if (element->IsNull(isolate)) return true;
+  return WasmExportedFunction::IsWasmExportedFunction(*element);
+}
+
 void WasmTableObject::Set(Isolate* isolate, Handle<WasmTableObject> table,
-                          uint32_t table_index, Handle<JSFunction> function) {
-  Handle<FixedArray> array(table->elements(), isolate);
-  if (function.is_null()) {
-    ClearDispatchTables(isolate, table, table_index);  // Degenerate case.
-    array->set(table_index, ReadOnlyRoots(isolate).null_value());
+                          uint32_t index, Handle<Object> element) {
+  // Callers need to perform bounds checks, type check, and error handling.
+  DCHECK(IsInBounds(isolate, table, index));
+  DCHECK(IsValidElement(isolate, table, element));
+
+  Handle<FixedArray> elements(table->elements(), isolate);
+  // The FixedArray is addressed with int's.
+  int table_index = static_cast<int>(index);
+  if (table->type() == wasm::kWasmAnyRef) {
+    elements->set(table_index, *element);
     return;
   }
 
-  auto exported_function = Handle<WasmExportedFunction>::cast(function);
+  if (element->IsNull(isolate)) {
+    ClearDispatchTables(isolate, table, table_index);  // Degenerate case.
+    elements->set(table_index, ReadOnlyRoots(isolate).null_value());
+    return;
+  }
+
+  DCHECK(WasmExportedFunction::IsWasmExportedFunction(*element));
+  auto exported_function = Handle<WasmExportedFunction>::cast(element);
   Handle<WasmInstanceObject> target_instance(exported_function->instance(),
                                              isolate);
   int func_index = exported_function->function_index();
@@ -876,19 +902,25 @@ void WasmTableObject::Set(Isolate* isolate, Handle<WasmTableObject> table,
   UpdateDispatchTables(isolate, table, table_index, wasm_function->sig,
                        handle(exported_function->instance(), isolate),
                        func_index);
-  array->set(table_index, *function);
+  elements->set(table_index, *element);
 }
 
 Handle<Object> WasmTableObject::Get(Isolate* isolate,
                                     Handle<WasmTableObject> table,
                                     uint32_t index) {
   Handle<FixedArray> elements(table->elements(), isolate);
+  // Callers need to perform bounds checks and error handling.
   DCHECK(IsInBounds(isolate, table, index));
 
   // The FixedArray is addressed with int's.
   int entry_index = static_cast<int>(index);
 
   Handle<Object> element(elements->get(entry_index), isolate);
+
+  // First we handle the easy anyref table case.
+  if (table->type() == wasm::kWasmAnyRef) return element;
+
+  // Now we handle the anyfunc case.
   if (WasmExportedFunction::IsWasmExportedFunction(*element)) {
     return element;
   }
@@ -971,6 +1003,44 @@ void WasmTableObject::ClearDispatchTables(Isolate* isolate,
     DCHECK_LT(index, target_instance->indirect_function_table_size());
     IndirectFunctionTableEntry(target_instance, index).clear();
   }
+}
+
+void WasmTableObject::SetFunctionTablePlaceholder(
+    Isolate* isolate, Handle<WasmTableObject> table, int entry_index,
+    Handle<WasmInstanceObject> instance, int func_index) {
+  // Put (instance, func_index) as a Tuple2 into the table_index.
+  // The {WasmExportedFunction} will be created lazily.
+  Handle<Tuple2> tuple = isolate->factory()->NewTuple2(
+      instance, Handle<Smi>(Smi::FromInt(func_index), isolate),
+      AllocationType::kYoung);
+  table->elements()->set(entry_index, *tuple);
+}
+
+void WasmTableObject::GetFunctionTableEntry(
+    Isolate* isolate, Handle<WasmTableObject> table, int entry_index,
+    bool* is_valid, bool* is_null, MaybeHandle<WasmInstanceObject>* instance,
+    int* function_index) {
+  DCHECK_EQ(table->type(), wasm::kWasmAnyFunc);
+  DCHECK_LT(entry_index, table->elements()->length());
+  // We initialize {is_valid} with {true}. We may change it later.
+  *is_valid = true;
+  Handle<Object> element(table->elements()->get(entry_index), isolate);
+
+  *is_null = element->IsNull(isolate);
+  if (*is_null) return;
+
+  if (WasmExportedFunction::IsWasmExportedFunction(*element)) {
+    auto target_func = Handle<WasmExportedFunction>::cast(element);
+    *instance = handle(target_func->instance(), isolate);
+    *function_index = target_func->function_index();
+    return;
+  } else if (element->IsTuple2()) {
+    auto tuple = Handle<Tuple2>::cast(element);
+    *instance = handle(WasmInstanceObject::cast(tuple->value1()), isolate);
+    *function_index = Smi::cast(tuple->value2()).value();
+    return;
+  }
+  *is_valid = false;
 }
 
 namespace {

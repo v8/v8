@@ -393,7 +393,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   for (int i = module_->num_imported_tables; i < table_count; i++) {
     const WasmTable& table = module_->tables[i];
     Handle<WasmTableObject> table_obj = WasmTableObject::New(
-        isolate_, table.initial_size, table.maximum_size, nullptr);
+        isolate_, table.type, table.initial_size, table.maximum_size, nullptr);
     tables->set(i, *table_obj);
   }
   instance->set_tables(*tables);
@@ -864,34 +864,26 @@ bool InstanceBuilder::ProcessImportedTable(Handle<WasmInstanceObject> instance,
   // Initialize the dispatch table with the (foreign) JS functions
   // that are already in the table.
   for (int i = 0; i < imported_table_size; ++i) {
-    // TODO(ahaas): Extract this code here into a function on WasmTableObject.
-    Handle<Object> val(table_object->elements()->get(i), isolate_);
-    Handle<WasmInstanceObject> target_instance;
+    bool is_valid;
+    bool is_null;
+    MaybeHandle<WasmInstanceObject> maybe_target_instance;
     int function_index;
-    FunctionSig* sig;
-    if (val->IsNull(isolate_)) {
-      continue;
-    } else if (WasmExportedFunction::IsWasmExportedFunction(*val)) {
-      auto target_func = Handle<WasmExportedFunction>::cast(val);
-      target_instance = handle(target_func->instance(), isolate_);
-      sig = target_func->sig();
-      function_index = target_func->function_index();
-    } else if (val->IsTuple2()) {
-      // {val} can be a {Tuple2} if no WasmExportedFunction has been
-      // constructed for the function yet, but the function exists.
-      auto tuple = Handle<Tuple2>::cast(val);
-      target_instance =
-          handle(WasmInstanceObject::cast(tuple->value1()), isolate_);
-      function_index = Smi::cast(tuple->value2()).value();
-      sig = target_instance->module_object()
-                ->module()
-                ->functions[function_index]
-                .sig;
-    } else {
+    WasmTableObject::GetFunctionTableEntry(isolate_, table_object, i, &is_valid,
+                                           &is_null, &maybe_target_instance,
+                                           &function_index);
+    if (!is_valid) {
       thrower_->LinkError("table import %d[%d] is not a wasm function",
                           import_index, i);
       return false;
     }
+    if (is_null) continue;
+
+    Handle<WasmInstanceObject> target_instance =
+        maybe_target_instance.ToHandleChecked();
+    FunctionSig* sig = target_instance->module_object()
+                           ->module()
+                           ->functions[function_index]
+                           .sig;
 
     // Look up the signature's canonical id. If there is no canonical
     // id, then the signature does not appear at all in this module,
@@ -1518,7 +1510,7 @@ bool LoadElemSegmentImpl(Isolate* isolate, Handle<WasmInstanceObject> instance,
     if (func_index == WasmElemSegment::kNullIndex) {
       IndirectFunctionTableEntry(instance, entry_index).clear();
       WasmTableObject::Set(isolate, table_object, entry_index,
-                           Handle<JSFunction>::null());
+                           isolate->factory()->null_value());
       continue;
     }
 
@@ -1543,12 +1535,8 @@ bool LoadElemSegmentImpl(Isolate* isolate, Handle<WasmInstanceObject> instance,
                                              func_index, js_to_wasm_cache);
         table_object->elements()->set(entry_index, *function);
       } else {
-        // Put (instance, func_index) as a placeholder into the table_index.
-        // The {WasmExportedFunction} will be created lazily.
-        Handle<Tuple2> tuple = isolate->factory()->NewTuple2(
-            instance, Handle<Smi>(Smi::FromInt(func_index), isolate),
-            AllocationType::kYoung);
-        table_object->elements()->set(entry_index, *tuple);
+        WasmTableObject::SetFunctionTablePlaceholder(
+            isolate, table_object, entry_index, instance, func_index);
       }
     } else {
       table_object->elements()->set(entry_index,
