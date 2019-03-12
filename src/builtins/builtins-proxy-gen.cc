@@ -744,7 +744,6 @@ void ProxiesCodeStubAssembler::CheckHasTrapResult(Node* context, Node* target,
       throw_non_extensible(this, Label::kDeferred);
 
   // 9.a. Let targetDesc be ? target.[[GetOwnProperty]](P).
-  Print(name);
   GotoIfNot(IsUniqueNameNoIndex(CAST(name)), if_bailout);
   Node* instance_type = LoadInstanceType(target);
   TryGetOwnProperty(context, target, target, target_map, instance_type, name,
