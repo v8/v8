@@ -196,6 +196,11 @@ Node* RepresentationChanger::GetRepresentationFor(
              use_info.type_check() == TypeCheckKind::kSigned64);
       return GetWord64RepresentationFor(node, output_rep, output_type, use_node,
                                         use_info);
+    // TODO(solanes): Create the code for the compressed values
+    case MachineRepresentation::kCompressedSigned:
+    case MachineRepresentation::kCompressedPointer:
+    case MachineRepresentation::kCompressed:
+      UNREACHABLE();
     case MachineRepresentation::kSimd128:
     case MachineRepresentation::kNone:
       return node;

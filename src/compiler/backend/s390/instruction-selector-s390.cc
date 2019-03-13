@@ -315,6 +315,9 @@ ArchOpcode SelectLoadOpcode(Node* node) {
 #else
     case MachineRepresentation::kWord64:  // Fall through.
 #endif
+    case MachineRepresentation::kCompressedSigned:   // Fall through.
+    case MachineRepresentation::kCompressedPointer:  // Fall through.
+    case MachineRepresentation::kCompressed:         // Fall through.
     case MachineRepresentation::kSimd128:  // Fall through.
     case MachineRepresentation::kNone:
     default:
@@ -775,9 +778,12 @@ static void VisitGeneralStore(
         opcode = kS390_StoreWord16;
         break;
 #if !V8_TARGET_ARCH_S390X
-      case MachineRepresentation::kTaggedSigned:   // Fall through.
-      case MachineRepresentation::kTaggedPointer:  // Fall through.
-      case MachineRepresentation::kTagged:         // Fall through.
+      case MachineRepresentation::kTaggedSigned:       // Fall through.
+      case MachineRepresentation::kTaggedPointer:      // Fall through.
+      case MachineRepresentation::kTagged:             // Fall through.
+      case MachineRepresentation::kCompressedSigned:   // Fall through.
+      case MachineRepresentation::kCompressedPointer:  // Fall through.
+      case MachineRepresentation::kCompressed:         // Fall through.
 #endif
       case MachineRepresentation::kWord32:
         opcode = kS390_StoreWord32;
@@ -787,9 +793,12 @@ static void VisitGeneralStore(
         }
         break;
 #if V8_TARGET_ARCH_S390X
-      case MachineRepresentation::kTaggedSigned:   // Fall through.
-      case MachineRepresentation::kTaggedPointer:  // Fall through.
-      case MachineRepresentation::kTagged:         // Fall through.
+      case MachineRepresentation::kTaggedSigned:       // Fall through.
+      case MachineRepresentation::kTaggedPointer:      // Fall through.
+      case MachineRepresentation::kTagged:             // Fall through.
+      case MachineRepresentation::kCompressedSigned:   // Fall through.
+      case MachineRepresentation::kCompressedPointer:  // Fall through.
+      case MachineRepresentation::kCompressed:         // Fall through.
       case MachineRepresentation::kWord64:
         opcode = kS390_StoreWord64;
         if (m.IsWord64ReverseBytes()) {

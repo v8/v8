@@ -2449,6 +2449,10 @@ JSNativeContextSpecialization::BuildPropertyStore(
       case MachineRepresentation::kWord64:
       case MachineRepresentation::kFloat32:
       case MachineRepresentation::kSimd128:
+      // TODO(solanes): Create the code for the compressed values
+      case MachineRepresentation::kCompressedSigned:
+      case MachineRepresentation::kCompressedPointer:
+      case MachineRepresentation::kCompressed:
         UNREACHABLE();
         break;
     }

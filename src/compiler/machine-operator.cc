@@ -380,7 +380,10 @@ MachineType AtomicOpType(Operator const* op) {
   V(Pointer)                 \
   V(TaggedSigned)            \
   V(TaggedPointer)           \
-  V(AnyTagged)
+  V(AnyTagged)               \
+  V(CompressedSigned)        \
+  V(CompressedPointer)       \
+  V(AnyCompressed)
 
 #define MACHINE_REPRESENTATION_LIST(V) \
   V(kFloat32)                          \
@@ -392,7 +395,10 @@ MachineType AtomicOpType(Operator const* op) {
   V(kWord64)                           \
   V(kTaggedSigned)                     \
   V(kTaggedPointer)                    \
-  V(kTagged)
+  V(kTagged)                           \
+  V(kCompressedSigned)                 \
+  V(kCompressedPointer)                \
+  V(kCompressed)
 
 #define ATOMIC_U32_TYPE_LIST(V) \
   V(Uint8)                      \

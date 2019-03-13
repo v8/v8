@@ -144,6 +144,10 @@ UseInfo TruncatingUseInfoFromRepresentation(MachineRepresentation rep) {
       return UseInfo::Word64();
     case MachineRepresentation::kBit:
       return UseInfo::Bool();
+      // TODO(solanes): Create the code for the compressed values
+    case MachineRepresentation::kCompressedSigned:
+    case MachineRepresentation::kCompressedPointer:
+    case MachineRepresentation::kCompressed:
     case MachineRepresentation::kSimd128:
     case MachineRepresentation::kNone:
       break;

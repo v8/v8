@@ -309,7 +309,10 @@ void InstructionSelector::VisitLoad(Node* node) {
     case MachineRepresentation::kSimd128:
       opcode = kMipsMsaLd;
       break;
-    case MachineRepresentation::kWord64:  // Fall through.
+    case MachineRepresentation::kCompressedSigned:   // Fall through.
+    case MachineRepresentation::kCompressedPointer:  // Fall through.
+    case MachineRepresentation::kCompressed:         // Fall through.
+    case MachineRepresentation::kWord64:             // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
       return;
@@ -402,7 +405,10 @@ void InstructionSelector::VisitStore(Node* node) {
       case MachineRepresentation::kSimd128:
         opcode = kMipsMsaSt;
         break;
-      case MachineRepresentation::kWord64:  // Fall through.
+      case MachineRepresentation::kCompressedSigned:   // Fall through.
+      case MachineRepresentation::kCompressedPointer:  // Fall through.
+      case MachineRepresentation::kCompressed:         // Fall through.
+      case MachineRepresentation::kWord64:             // Fall through.
       case MachineRepresentation::kNone:
         UNREACHABLE();
         return;
@@ -1348,7 +1354,10 @@ void InstructionSelector::VisitUnalignedLoad(Node* node) {
     case MachineRepresentation::kSimd128:
       opcode = kMipsMsaLd;
       break;
-    case MachineRepresentation::kWord64:  // Fall through.
+    case MachineRepresentation::kCompressedSigned:   // Fall through.
+    case MachineRepresentation::kCompressedPointer:  // Fall through.
+    case MachineRepresentation::kCompressed:         // Fall through.
+    case MachineRepresentation::kWord64:             // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
       return;
@@ -1400,7 +1409,10 @@ void InstructionSelector::VisitUnalignedStore(Node* node) {
     case MachineRepresentation::kSimd128:
       opcode = kMipsMsaSt;
       break;
-    case MachineRepresentation::kWord64:  // Fall through.
+    case MachineRepresentation::kCompressedSigned:   // Fall through.
+    case MachineRepresentation::kCompressedPointer:  // Fall through.
+    case MachineRepresentation::kCompressed:         // Fall through.
+    case MachineRepresentation::kWord64:             // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
       return;

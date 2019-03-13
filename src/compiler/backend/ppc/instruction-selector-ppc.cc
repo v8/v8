@@ -209,6 +209,9 @@ void InstructionSelector::VisitLoad(Node* node) {
       opcode = kPPC_LoadWord64;
       mode = kInt16Imm_4ByteAligned;
       break;
+    case MachineRepresentation::kCompressedSigned:   // Fall through.
+    case MachineRepresentation::kCompressedPointer:  // Fall through.
+    case MachineRepresentation::kCompressed:         // Fall through.
     case MachineRepresentation::kSimd128:  // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
@@ -343,6 +346,9 @@ void InstructionSelector::VisitStore(Node* node) {
 #else
       case MachineRepresentation::kWord64:  // Fall through.
 #endif
+      case MachineRepresentation::kCompressedSigned:   // Fall through.
+      case MachineRepresentation::kCompressedPointer:  // Fall through.
+      case MachineRepresentation::kCompressed:         // Fall through.
       case MachineRepresentation::kSimd128:  // Fall through.
       case MachineRepresentation::kNone:
         UNREACHABLE();

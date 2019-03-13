@@ -633,7 +633,18 @@ void InstructionSelector::VisitLoad(Node* node) {
       opcode = kArm64LdrDecompressAnyTagged;
       immediate_mode = kLoadStoreImm32;
       break;
+    case MachineRepresentation::kCompressedSigned:
+    case MachineRepresentation::kCompressedPointer:
+    case MachineRepresentation::kCompressed:
+      opcode = kArm64LdrW;
+      immediate_mode = kLoadStoreImm32;
+      break;
 #else
+    case MachineRepresentation::kCompressedSigned:   // Fall through.
+    case MachineRepresentation::kCompressedPointer:  // Fall through.
+    case MachineRepresentation::kCompressed:
+      UNREACHABLE();
+      return;
     case MachineRepresentation::kTaggedSigned:   // Fall through.
     case MachineRepresentation::kTaggedPointer:  // Fall through.
     case MachineRepresentation::kTagged:         // Fall through.
@@ -748,7 +759,18 @@ void InstructionSelector::VisitStore(Node* node) {
         opcode = kArm64StrCompressTagged;
         immediate_mode = kLoadStoreImm32;
         break;
+      case MachineRepresentation::kCompressedSigned:
+      case MachineRepresentation::kCompressedPointer:
+      case MachineRepresentation::kCompressed:
+        opcode = kArm64StrW;
+        immediate_mode = kLoadStoreImm32;
+        break;
 #else
+      case MachineRepresentation::kCompressedSigned:   // Fall through.
+      case MachineRepresentation::kCompressedPointer:  // Fall through.
+      case MachineRepresentation::kCompressed:
+        UNREACHABLE();
+        return;
       case MachineRepresentation::kTaggedSigned:   // Fall through.
       case MachineRepresentation::kTaggedPointer:  // Fall through.
       case MachineRepresentation::kTagged:         // Fall through.

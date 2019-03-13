@@ -242,15 +242,30 @@ ArchOpcode GetLoadOpcode(LoadRepresentation load_rep) {
       break;
 #ifdef V8_COMPRESS_POINTERS
     case MachineRepresentation::kTaggedSigned:
-      return kX64MovqDecompressTaggedSigned;
+      opcode = kX64MovqDecompressTaggedSigned;
+      break;
     case MachineRepresentation::kTaggedPointer:
-      return kX64MovqDecompressTaggedPointer;
+      opcode = kX64MovqDecompressTaggedPointer;
+      break;
     case MachineRepresentation::kTagged:
-      return kX64MovqDecompressAnyTagged;
+      opcode = kX64MovqDecompressAnyTagged;
+      break;
+    case MachineRepresentation::kCompressedSigned:   // Fall through.
+    case MachineRepresentation::kCompressedPointer:  // Fall through.
+    case MachineRepresentation::kCompressed:
+      opcode = kX64Movl;
+      break;
 #else
+    case MachineRepresentation::kCompressedSigned:   // Fall through.
+    case MachineRepresentation::kCompressedPointer:  // Fall through.
+    case MachineRepresentation::kCompressed:
+      UNREACHABLE();
+      break;
     case MachineRepresentation::kTaggedSigned:   // Fall through.
     case MachineRepresentation::kTaggedPointer:  // Fall through.
-    case MachineRepresentation::kTagged:         // Fall through.
+    case MachineRepresentation::kTagged:
+      opcode = kX64Movq;
+      break;
 #endif
     case MachineRepresentation::kWord64:
       opcode = kX64Movq;
@@ -283,11 +298,25 @@ ArchOpcode GetStoreOpcode(StoreRepresentation store_rep) {
     case MachineRepresentation::kWord32:
       return kX64Movl;
       break;
+#ifdef V8_COMPRESS_POINTERS
     case MachineRepresentation::kTaggedSigned:   // Fall through.
     case MachineRepresentation::kTaggedPointer:  // Fall through.
-    case MachineRepresentation::kTagged:         // Fall through.
-#ifdef V8_COMPRESS_POINTERS
+    case MachineRepresentation::kTagged:
       return kX64MovqCompressTagged;
+    case MachineRepresentation::kCompressedSigned:   // Fall through.
+    case MachineRepresentation::kCompressedPointer:  // Fall through.
+    case MachineRepresentation::kCompressed:
+      return kX64Movl;
+#else
+    case MachineRepresentation::kCompressedSigned:   // Fall through.
+    case MachineRepresentation::kCompressedPointer:  // Fall through.
+    case MachineRepresentation::kCompressed:
+      UNREACHABLE();
+    case MachineRepresentation::kTaggedSigned:   // Fall through.
+    case MachineRepresentation::kTaggedPointer:  // Fall through.
+    case MachineRepresentation::kTagged:
+      return kX64Movq;
+      break;
 #endif
     case MachineRepresentation::kWord64:
       return kX64Movq;
@@ -567,6 +596,8 @@ bool TryMergeTruncateInt64ToInt32IntoLoad(InstructionSelector* selector,
       case MachineRepresentation::kWord64:
       case MachineRepresentation::kTaggedSigned:
       case MachineRepresentation::kTagged:
+      case MachineRepresentation::kCompressedSigned:  // Fall through.
+      case MachineRepresentation::kCompressed:        // Fall through.
         opcode = kX64Movl;
         break;
       default:

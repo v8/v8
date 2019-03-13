@@ -75,6 +75,9 @@ int GetByteWidth(MachineRepresentation rep) {
     case MachineRepresentation::kTaggedSigned:
     case MachineRepresentation::kTaggedPointer:
     case MachineRepresentation::kTagged:
+    case MachineRepresentation::kCompressedSigned:
+    case MachineRepresentation::kCompressedPointer:
+    case MachineRepresentation::kCompressed:
       return kTaggedSize;
     case MachineRepresentation::kWord64:
     case MachineRepresentation::kFloat64:
