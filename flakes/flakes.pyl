@@ -64,7 +64,7 @@
     "extra_args": [],
     "isolated_name": "bot_default",
     "num_shards": 8,
-    "repetitions": 5000,
+    "repetitions": 3000,
     "swarming_dimensions": [
       "cpu:x86-64",
       "gpu:none",
@@ -73,7 +73,7 @@
     ],
     "test_name": "cctest/test-cpu-profiler/FunctionCallSample",
     "timeout_sec": 60,
-    "total_timeout_sec": 120,
+    "total_timeout_sec": 0,
     "variant": "interpreted_regexp",
   },
 ]
