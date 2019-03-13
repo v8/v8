@@ -169,6 +169,10 @@ class ExpressionScope {
     AsArrowHeadParsingScope()->RecordNonSimpleParameter();
   }
 
+  bool IsCertainlyDeclaration() const {
+    return IsInRange(type_, kParameterDeclaration, kLexicalDeclaration);
+  }
+
  protected:
   enum ScopeType : uint8_t {
     // Expression or assignment target.
@@ -222,9 +226,6 @@ class ExpressionScope {
   bool CanBeDeclaration() const {
     return IsInRange(type_, kMaybeArrowParameterDeclaration,
                      kLexicalDeclaration);
-  }
-  bool IsCertainlyDeclaration() const {
-    return IsInRange(type_, kParameterDeclaration, kLexicalDeclaration);
   }
   bool IsVariableDeclaration() const {
     return IsInRange(type_, kVarDeclaration, kLexicalDeclaration);
