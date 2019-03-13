@@ -62,7 +62,7 @@ function assertTable(obj, ...elems) {
 
   {
     let o = addFunctions(builder, kTableSize);
-    builder.addElementSegment(0, false,
+    builder.addElementSegment(0, 0, false,
        [o.f0.index, o.f1.index, o.f2.index, o.f3.index, o.f4.index]);
   }
 
@@ -116,7 +116,7 @@ function assertCall(call, ...elems) {
 
   {
     let o = addFunctions(builder, 5);
-    builder.addElementSegment(0, false,
+    builder.addElementSegment(0, 0, false,
        [o.f0.index, o.f1.index, o.f2.index, o.f3.index, o.f4.index]);
   }
 
@@ -158,7 +158,7 @@ function assertCall(call, ...elems) {
 
   {
     let o = addFunctions(builder, kTableSize);
-    builder.addElementSegment(0, false,
+    builder.addElementSegment(0, 0, false,
        [o.f0.index, o.f1.index, o.f2.index]);
   }
 

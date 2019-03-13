@@ -409,7 +409,7 @@ function getMemoryFill(mem) {
 (function TestElemDropActive() {
   const builder = new WasmModuleBuilder();
   builder.setTableBounds(5, 5);
-  builder.addElementSegment(0, false, [0, 0, 0]);
+  builder.addElementSegment(0, 0, false, [0, 0, 0]);
   builder.addFunction('drop', kSig_v_v)
       .addBody([
         kNumericPrefix, kExprElemDrop,

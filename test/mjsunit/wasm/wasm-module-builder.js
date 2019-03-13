@@ -863,11 +863,11 @@ class WasmModuleBuilder {
     this.exports.push({name: name, kind: kExternalMemory, index: 0});
   }
 
-  addElementSegment(base, is_global, array, is_import = false) {
+  addElementSegment(table, base, is_global, array, is_import = false) {
     if (this.tables.length + this.num_imported_tables == 0) {
       this.addTable(kWasmAnyFunc, 0);
     }
-    this.element_segments.push({base: base, is_global: is_global,
+    this.element_segments.push({table: table, base: base, is_global: is_global,
                                     array: array, is_active: true});
     if (!is_global) {
       var length = base + array.length;
@@ -895,7 +895,7 @@ class WasmModuleBuilder {
     if (this.tables.length == 0) {
       this.addTable(kWasmAnyFunc, 0);
     }
-    return this.addElementSegment(this.tables[0].initial_size, false, array);
+    return this.addElementSegment(0, this.tables[0].initial_size, false, array);
   }
 
   setTableBounds(min, max = undefined) {
@@ -1113,7 +1113,10 @@ class WasmModuleBuilder {
         for (let init of inits) {
           if (init.is_active) {
             // Active segment.
-            section.emit_u8(0);  // table index / flags
+            // TODO(ahaas): Adjust the encoding of != 0 table indices once
+            // the anyref proposal and the bulk-memory-operations proposal
+            // agree on it.
+            section.emit_u32v(init.table);  // table index / flags
             if (init.is_global) {
               section.emit_u8(kExprGetGlobal);
             } else {
