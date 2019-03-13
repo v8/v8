@@ -4172,18 +4172,20 @@ TNode<FixedArray> CodeStubAssembler::ExtractToFixedArray(
 
   BIND(&new_space_check);
   {
-    bool handle_old_space = true;
-    if (extract_flags & ExtractFixedArrayFlag::kNewSpaceAllocationOnly) {
-      handle_old_space = false;
-      CSA_ASSERT(this, Word32BinaryNot(FixedArraySizeDoesntFitInNewSpace(
-                           count, FixedArray::kHeaderSize, parameter_mode)));
-    } else {
-      int constant_count;
-      handle_old_space =
-          !TryGetIntPtrOrSmiConstantValue(count, &constant_count,
-                                          parameter_mode) ||
-          (constant_count >
-           FixedArray::GetMaxLengthForNewSpaceAllocation(PACKED_ELEMENTS));
+    bool handle_old_space = !FLAG_young_generation_large_objects;
+    if (handle_old_space) {
+      if (extract_flags & ExtractFixedArrayFlag::kNewSpaceAllocationOnly) {
+        handle_old_space = false;
+        CSA_ASSERT(this, Word32BinaryNot(FixedArraySizeDoesntFitInNewSpace(
+                             count, FixedArray::kHeaderSize, parameter_mode)));
+      } else {
+        int constant_count;
+        handle_old_space =
+            !TryGetIntPtrOrSmiConstantValue(count, &constant_count,
+                                            parameter_mode) ||
+            (constant_count >
+             FixedArray::GetMaxLengthForNewSpaceAllocation(PACKED_ELEMENTS));
+      }
     }
 
     Label old_space(this, Label::kDeferred);
@@ -4192,14 +4194,28 @@ TNode<FixedArray> CodeStubAssembler::ExtractToFixedArray(
           capacity, &old_space, FixedArray::kHeaderSize, parameter_mode);
     }
 
-    Comment("Copy FixedArray new space");
+    Comment("Copy FixedArray in young generation");
     // We use PACKED_ELEMENTS to tell AllocateFixedArray and
     // CopyFixedArrayElements that we want a FixedArray.
     const ElementsKind to_kind = PACKED_ELEMENTS;
     TNode<FixedArrayBase> to_elements =
-        AllocateFixedArray(to_kind, capacity, parameter_mode,
-                           AllocationFlag::kNone, var_target_map.value());
+        AllocateFixedArray(to_kind, capacity, parameter_mode, allocation_flags,
+                           var_target_map.value());
     var_result.Bind(to_elements);
+
+#ifdef DEBUG
+    TNode<IntPtrT> object_word = BitcastTaggedToWord(to_elements);
+    TNode<IntPtrT> object_page = PageFromAddress(object_word);
+    TNode<IntPtrT> page_flags =
+        UncheckedCast<IntPtrT>(Load(MachineType::IntPtr(), object_page,
+                                    IntPtrConstant(Page::kFlagsOffset)));
+    CSA_ASSERT(
+        this,
+        WordNotEqual(
+            WordAnd(page_flags,
+                    IntPtrConstant(MemoryChunk::kIsInYoungGenerationMask)),
+            IntPtrConstant(0)));
+#endif
 
     if (convert_holes == HoleConversionMode::kDontConvert &&
         !IsDoubleElementsKind(from_kind)) {
@@ -4223,7 +4239,7 @@ TNode<FixedArray> CodeStubAssembler::ExtractToFixedArray(
     if (handle_old_space) {
       BIND(&old_space);
       {
-        Comment("Copy FixedArray old space");
+        Comment("Copy FixedArray in old generation");
         Label copy_one_by_one(this);
 
         // Try to use memcpy if we don't need to convert holes to undefined.
