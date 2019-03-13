@@ -546,13 +546,11 @@ static std::string THIS ("this");
 class FunctionAnalyzer {
  public:
   FunctionAnalyzer(clang::MangleContext* ctx,
-                   clang::DeclarationName handle_decl_name,
                    clang::CXXRecordDecl* object_decl,
                    clang::CXXRecordDecl* maybe_object_decl,
                    clang::CXXRecordDecl* smi_decl, clang::DiagnosticsEngine& d,
                    clang::SourceManager& sm, bool dead_vars_analysis)
       : ctx_(ctx),
-        handle_decl_name_(handle_decl_name),
         object_decl_(object_decl),
         maybe_object_decl_(maybe_object_decl),
         smi_decl_(smi_decl),
@@ -716,14 +714,6 @@ class FunctionAnalyzer {
       case clang::BO_LOr:
         return ExprEffect::Merge(VisitExpr(lhs, env), VisitExpr(rhs, env));
 
-      case clang::BO_Assign: {
-        std::string var_name;
-        if (IsRawPointerVar(lhs, &var_name)) {
-          return VisitExpr(rhs, env).Define(var_name);
-        }
-        return Par(expr, 2, exprs, env);
-      }
-
       default:
         return Par(expr, 2, exprs, env);
     }
@@ -786,11 +776,11 @@ class FunctionAnalyzer {
   }
 
   DECL_VISIT_EXPR(UnaryOperator) {
-    // TODO We are treating all expressions that look like &raw_pointer_var
-    //      as definitions of raw_pointer_var. This should be changed to
-    //      recognize less generic pattern:
+    // TODO(mstarzinger): We are treating all expressions that look like
+    // {&raw_pointer_var} as definitions of {raw_pointer_var}. This should be
+    // changed to recognize less generic pattern:
     //
-    //         if (maybe_object->ToObject(&obj)) return maybe_object;
+    //   if (maybe_object->ToObject(&obj)) return maybe_object;
     //
     if (expr->getOpcode() == clang::UO_AddrOf) {
       std::string var_name;
@@ -899,7 +889,20 @@ class FunctionAnalyzer {
       props.SetEffect(0, VisitExpr(receiver, env));
     }
 
-    VisitArguments<>(call, &props, env);
+    std::string var_name;
+    clang::CXXOperatorCallExpr* opcall =
+        llvm::dyn_cast_or_null<clang::CXXOperatorCallExpr>(call);
+    if (opcall != NULL && opcall->isAssignmentOp() &&
+        IsRawPointerVar(opcall->getArg(0), &var_name)) {
+      // TODO(mstarzinger): We are treating all assignment operator calls with
+      // the left hand side looking like {raw_pointer_var} as safe independent
+      // of the concrete assignment operator implementation. This should be
+      // changed to be more narrow only if the assignment operator of the base
+      // {Object} or {HeapObject} class was used, which we know to be safe.
+      props.SetEffect(1, VisitExpr(call->getArg(1), env).Define(var_name));
+    } else {
+      VisitArguments<>(call, &props, env);
+    }
 
     if (!props.IsSafe()) ReportUnsafe(call, BAD_EXPR_MSG);
 
@@ -1220,7 +1223,7 @@ class FunctionAnalyzer {
 
       return out;
     }
-    // TODO: handle other declarations?
+    // TODO(mstarzinger): handle other declarations?
     return env;
   }
 
@@ -1277,7 +1280,6 @@ class FunctionAnalyzer {
 
 
   clang::MangleContext* ctx_;
-  clang::DeclarationName handle_decl_name_;
   clang::CXXRecordDecl* object_decl_;
   clang::CXXRecordDecl* maybe_object_decl_;
   clang::CXXRecordDecl* smi_decl_;
@@ -1328,9 +1330,8 @@ class ProblemsFinder : public clang::ASTConsumer,
 
     if (object_decl != NULL && smi_decl != NULL && maybe_object_decl != NULL) {
       function_analyzer_ = new FunctionAnalyzer(
-          clang::ItaniumMangleContext::create(ctx, d_), r.ResolveName("Handle"),
-          object_decl, maybe_object_decl, smi_decl, d_, sm_,
-          dead_vars_analysis_);
+          clang::ItaniumMangleContext::create(ctx, d_), object_decl,
+          maybe_object_decl, smi_decl, d_, sm_, dead_vars_analysis_);
       TraverseDecl(ctx.getTranslationUnitDecl());
     } else {
       if (object_decl == NULL) {

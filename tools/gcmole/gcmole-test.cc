@@ -44,6 +44,11 @@ class SomeObject : public Object {
  public:
   void Method(Object a) { a->Print(); }
 
+  SomeObject& operator=(const Object& b) {
+    this->Print();
+    return *this;
+  }
+
   DECL_CAST(SomeObject)
 
   OBJECT_CONSTRUCTORS(SomeObject, Object);
@@ -54,6 +59,12 @@ void TestMethodCall(Isolate* isolate) {
   Handle<SomeObject> so = handle(obj, isolate);
   Handle<JSObject> obj1 = isolate->factory()->NewJSObjectWithNullProto();
   so->Method(*CauseGC(obj1, isolate));
+}
+
+void TestOperatorCall(Isolate* isolate) {
+  SomeObject obj;
+  Handle<JSObject> obj1 = isolate->factory()->NewJSObjectWithNullProto();
+  obj = *CauseGC(obj1, isolate);
 }
 
 }  // namespace internal
