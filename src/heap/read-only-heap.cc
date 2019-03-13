@@ -5,21 +5,24 @@
 #include "src/heap/read-only-heap.h"
 
 #include "src/heap/spaces.h"
+#include "src/snapshot/read-only-deserializer.h"
 
 namespace v8 {
 namespace internal {
 
 // static
-ReadOnlyHeap* ReadOnlyHeap::GetOrCreateReadOnlyHeap(Heap* heap) {
-  return new ReadOnlyHeap(new ReadOnlySpace(heap));
+void ReadOnlyHeap::SetUp(Isolate* isolate, ReadOnlyDeserializer* des) {
+  auto* ro_heap = new ReadOnlyHeap(new ReadOnlySpace(isolate->heap()));
+  isolate->heap()->SetUpFromReadOnlyHeap(ro_heap);
+  if (des != nullptr) {
+    des->DeserializeInto(isolate);
+    ro_heap->read_only_space_->MarkAsReadOnly();
+  }
 }
 
-void ReadOnlyHeap::MaybeDeserialize(Isolate* isolate,
-                                    ReadOnlyDeserializer* des) {
-  des->DeserializeInto(isolate);
+void ReadOnlyHeap::OnCreateHeapObjectsComplete() {
+  read_only_space_->MarkAsReadOnly();
 }
-
-void ReadOnlyHeap::NotifySetupComplete() { read_only_space_->MarkAsReadOnly(); }
 
 void ReadOnlyHeap::OnHeapTearDown() {
   delete read_only_space_;

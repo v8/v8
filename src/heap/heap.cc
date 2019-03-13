@@ -4500,7 +4500,7 @@ HeapObject Heap::AllocateRawCodeInLargeObjectSpace(int size) {
   return HeapObject();
 }
 
-void Heap::SetUp(ReadOnlyHeap* ro_heap) {
+void Heap::SetUp() {
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT
   allocation_timeout_ = NextAllocationTimeout();
 #endif
@@ -4512,9 +4512,6 @@ void Heap::SetUp(ReadOnlyHeap* ro_heap) {
   // size) and old-space-size if set or the initial values of semispace_size_
   // and old_generation_size_ otherwise.
   if (!configured_) ConfigureHeapDefault();
-
-  DCHECK_NOT_NULL(ro_heap);
-  read_only_heap_ = ro_heap;
 
   mmap_region_base_ =
       reinterpret_cast<uintptr_t>(v8::internal::GetRandomMmapAddr()) &
@@ -4550,8 +4547,17 @@ void Heap::SetUp(ReadOnlyHeap* ro_heap) {
   for (int i = FIRST_SPACE; i <= LAST_SPACE; i++) {
     space_[i] = nullptr;
   }
+}
 
+void Heap::SetUpFromReadOnlyHeap(ReadOnlyHeap* ro_heap) {
+  DCHECK_NULL(read_only_space_);
+  DCHECK_NOT_NULL(ro_heap);
+  read_only_heap_ = ro_heap;
   space_[RO_SPACE] = read_only_space_ = ro_heap->read_only_space();
+}
+
+void Heap::SetUpSpaces() {
+  // Ensure SetUpFromReadOnlySpace has been ran.
   DCHECK_NOT_NULL(read_only_space_);
   space_[NEW_SPACE] = new_space_ =
       new NewSpace(this, memory_allocator_->data_page_allocator(),

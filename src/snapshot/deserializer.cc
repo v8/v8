@@ -48,14 +48,18 @@ void Deserializer::Initialize(Isolate* isolate) {
   DCHECK_NOT_NULL(isolate);
   isolate_ = isolate;
   allocator()->Initialize(isolate->heap());
-  DCHECK_NULL(external_reference_table_);
-  external_reference_table_ = isolate->external_reference_table();
+
 #ifdef DEBUG
-  // Count the number of external references registered through the API.
-  num_api_references_ = 0;
-  if (isolate_->api_external_references() != nullptr) {
-    while (isolate_->api_external_references()[num_api_references_] != 0) {
-      num_api_references_++;
+  // The read-only deserializer is run by read-only heap set-up before the heap
+  // is fully set up. External reference table relies on a few parts of this
+  // set-up (like old-space), so it may be uninitialized at this point.
+  if (isolate->isolate_data()->external_reference_table()->is_initialized()) {
+    // Count the number of external references registered through the API.
+    num_api_references_ = 0;
+    if (isolate_->api_external_references() != nullptr) {
+      while (isolate_->api_external_references()[num_api_references_] != 0) {
+        num_api_references_++;
+      }
     }
   }
 #endif  // DEBUG
@@ -771,7 +775,7 @@ bool Deserializer::ReadData(TSlot current, TSlot limit, int source_space,
 
 Address Deserializer::ReadExternalReferenceCase() {
   uint32_t reference_id = static_cast<uint32_t>(source_.GetInt());
-  return external_reference_table_->address(reference_id);
+  return isolate_->external_reference_table()->address(reference_id);
 }
 
 template <typename TSlot, SerializerDeserializer::Bytecode bytecode,

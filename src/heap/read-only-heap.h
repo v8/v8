@@ -15,22 +15,22 @@ namespace v8 {
 namespace internal {
 
 class ReadOnlySpace;
+class ReadOnlyDeserializer;
 
 // This class transparently manages read-only space, roots and cache creation
 // and destruction. Eventually this will allow sharing these artifacts between
 // isolates.
-class ReadOnlyHeap {
+class ReadOnlyHeap final {
  public:
-  static ReadOnlyHeap* GetOrCreateReadOnlyHeap(Heap* heap);
-  // If necessary, deserialize read-only objects and set up read-only object
-  // cache.
-  void MaybeDeserialize(Isolate* isolate, ReadOnlyDeserializer* des);
-  // Notify read-only heap that all read-only space objects have been
-  // initialized and will not be written to.
-  void NotifySetupComplete();
-  // Frees ReadOnlySpace and itself when sharing is disabled. No-op otherwise.
-  // Read-only data should not be used within the current isolate after this is
-  // called.
+  // If necessary create read-only heap and initialize its artifacts (if the
+  // deserializer is provided).
+  // TODO(goszczycki): Ideally we'd create this without needing a heap.
+  static void SetUp(Isolate* isolate, ReadOnlyDeserializer* des);
+  // Indicate that all read-only space objects have been created and will not
+  // be written to.
+  void OnCreateHeapObjectsComplete();
+  // Indicate that the current isolate no longer requires the read-only heap and
+  // it may be safely disposed of.
   void OnHeapTearDown();
 
   // Returns whether the object resides in the read-only space.

@@ -3334,8 +3334,9 @@ bool Isolate::Init(ReadOnlyDeserializer* read_only_deserializer,
 
   // SetUp the object heap.
   DCHECK(!heap_.HasBeenSetUp());
-  auto* read_only_heap = ReadOnlyHeap::GetOrCreateReadOnlyHeap(&heap_);
-  heap_.SetUp(read_only_heap);
+  heap_.SetUp();
+  ReadOnlyHeap::SetUp(this, read_only_deserializer);
+  heap_.SetUpSpaces();
 
   isolate_data_.external_reference_table()->Init(this);
 
@@ -3419,11 +3420,9 @@ bool Isolate::Init(ReadOnlyDeserializer* read_only_deserializer,
     CodeSpaceMemoryModificationScope modification_scope(&heap_);
 
     if (!create_heap_objects) {
-      read_only_heap->MaybeDeserialize(this, read_only_deserializer);
-      read_only_heap->NotifySetupComplete();
       startup_deserializer->DeserializeInto(this);
     } else {
-      read_only_heap->NotifySetupComplete();
+      heap_.read_only_heap()->OnCreateHeapObjectsComplete();
     }
     load_stub_cache_->Initialize();
     store_stub_cache_->Initialize();

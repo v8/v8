@@ -580,9 +580,14 @@ class Heap {
                      size_t code_range_size_in_mb);
   void ConfigureHeapDefault();
 
-  // Prepares the heap, setting up memory areas that are needed in the isolate
-  // without actually creating any objects.
-  void SetUp(ReadOnlyHeap* ro_heap);
+  // Prepares the heap, setting up for deserialization.
+  void SetUp();
+
+  // Sets read-only heap and space.
+  void SetUpFromReadOnlyHeap(ReadOnlyHeap* ro_heap);
+
+  // Sets up the heap memory without creating any objects.
+  void SetUpSpaces();
 
   // (Re-)Initialize hash seed from flag or RNG.
   void InitializeHashSeed();

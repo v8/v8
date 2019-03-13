@@ -47,7 +47,6 @@ class Deserializer : public SerializerDeserializer {
       : isolate_(nullptr),
         source_(data->Payload()),
         magic_number_(data->GetMagicNumber()),
-        external_reference_table_(nullptr),
         deserializing_user_code_(deserializing_user_code),
         can_rehash_(false) {
     allocator()->DecodeReservation(data->Reservations());
@@ -159,8 +158,6 @@ class Deserializer : public SerializerDeserializer {
 
   SnapshotByteSource source_;
   uint32_t magic_number_;
-
-  ExternalReferenceTable* external_reference_table_;
 
   std::vector<Map> new_maps_;
   std::vector<AllocationSite> new_allocation_sites_;
