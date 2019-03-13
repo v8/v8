@@ -6,6 +6,7 @@
 
 #include "src/assembler-inl.h"
 #include "src/heap/heap-inl.h"  // For Space::identity().
+#include "src/heap/read-only-heap.h"
 #include "src/interpreter/interpreter.h"
 #include "src/objects/code.h"
 #include "src/objects/js-array-buffer-inl.h"
@@ -540,7 +541,7 @@ void Serializer::ObjectSerializer::Serialize() {
   if (object_->IsExternalString()) {
     SerializeExternalString();
     return;
-  } else if (!serializer_->isolate()->heap()->InReadOnlySpace(object_)) {
+  } else if (!ReadOnlyHeap::Contains(object_)) {
     // Only clear padding for strings outside RO_SPACE. RO_SPACE should have
     // been cleared elsewhere.
     if (object_->IsSeqOneByteString()) {

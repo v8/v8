@@ -7,6 +7,7 @@
 
 #include "src/base/macros.h"
 #include "src/heap/heap.h"
+#include "src/objects.h"
 #include "src/roots.h"
 #include "src/snapshot/read-only-deserializer.h"
 
@@ -31,6 +32,9 @@ class ReadOnlyHeap {
   // Read-only data should not be used within the current isolate after this is
   // called.
   void OnHeapTearDown();
+
+  // Returns whether the object resides in the read-only space.
+  static bool Contains(Object object);
 
   std::vector<Object>* read_only_object_cache() {
     return &read_only_object_cache_;

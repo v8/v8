@@ -39,6 +39,7 @@
 #include "src/debug/debug.h"
 #include "src/hash-seed-inl.h"
 #include "src/heap/heap-inl.h"
+#include "src/heap/read-only-heap.h"
 #include "src/heap/spaces.h"
 #include "src/interpreter/interpreter.h"
 #include "src/macro-assembler-inl.h"
@@ -856,8 +857,7 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobStringNotInternalized) {
     i::String str = *v8::Utils::OpenHandle(*result.As<v8::String>());
     CHECK_EQ(std::string(str->ToCString().get()), "A");
     CHECK(!str.IsInternalizedString());
-    CHECK(
-        !reinterpret_cast<i::Isolate*>(isolate1)->heap()->InReadOnlySpace(str));
+    CHECK(!i::ReadOnlyHeap::Contains(str));
   }
   isolate1->Dispose();
   delete[] data1.data;  // We can dispose of the snapshot blob now.

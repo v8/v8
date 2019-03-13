@@ -39,6 +39,7 @@
 #include "src/function-kind.h"
 #include "src/globals.h"
 #include "src/heap/heap-inl.h"
+#include "src/heap/read-only-heap.h"
 #include "src/ic/ic.h"
 #include "src/identity-map.h"
 #include "src/isolate-inl.h"
@@ -2360,8 +2361,7 @@ bool HeapObject::CanBeRehashed() const {
   return false;
 }
 
-void HeapObject::RehashBasedOnMap(Heap* heap) {
-  ReadOnlyRoots roots(heap);
+void HeapObject::RehashBasedOnMap(ReadOnlyRoots roots) {
   switch (map()->instance_type()) {
     case HASH_TABLE_TYPE:
       UNREACHABLE();
@@ -2400,7 +2400,7 @@ void HeapObject::RehashBasedOnMap(Heap* heap) {
     case ONE_BYTE_INTERNALIZED_STRING_TYPE:
     case INTERNALIZED_STRING_TYPE:
       // Rare case, rehash read-only space strings before they are sealed.
-      DCHECK(heap->InReadOnlySpace(*this));
+      DCHECK(ReadOnlyHeap::Contains(*this));
       String::cast(*this)->Hash();
       break;
     default:

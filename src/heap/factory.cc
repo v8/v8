@@ -18,6 +18,7 @@
 #include "src/heap/heap-inl.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/mark-compact-inl.h"
+#include "src/heap/read-only-heap.h"
 #include "src/ic/handler-configuration-inl.h"
 #include "src/interpreter/interpreter.h"
 #include "src/isolate-inl.h"
@@ -1980,7 +1981,7 @@ Map Factory::InitializeMap(Map map, InstanceType type, int instance_size,
   map->set_constructor_or_backpointer(*null_value(), SKIP_WRITE_BARRIER);
   map->set_instance_size(instance_size);
   if (map->IsJSObjectMap()) {
-    DCHECK(!isolate()->heap()->InReadOnlySpace(map));
+    DCHECK(!ReadOnlyHeap::Contains(map));
     map->SetInObjectPropertiesStartInWords(instance_size / kTaggedSize -
                                            inobject_properties);
     DCHECK_EQ(map->GetInObjectProperties(), inobject_properties);

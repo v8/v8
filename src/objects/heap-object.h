@@ -175,7 +175,7 @@ class HeapObject : public Object {
   bool CanBeRehashed() const;
 
   // Rehash the object based on the layout inferred from its map.
-  void RehashBasedOnMap(Heap* heap);
+  void RehashBasedOnMap(ReadOnlyRoots root);
 
   // Layout description.
 #define HEAP_OBJECT_FIELDS(V) \

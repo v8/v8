@@ -376,10 +376,6 @@ bool Heap::InToPage(HeapObject heap_object) {
 
 bool Heap::InOldSpace(Object object) { return old_space_->Contains(object); }
 
-bool Heap::InReadOnlySpace(Object object) {
-  return read_only_space_->Contains(object);
-}
-
 // static
 Heap* Heap::FromWritableHeapObject(const HeapObject obj) {
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(obj);

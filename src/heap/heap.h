@@ -929,9 +929,6 @@ class Heap {
   // Returns whether the object resides in old space.
   inline bool InOldSpace(Object object);
 
-  // Returns whether the object resides in read-only space.
-  inline bool InReadOnlySpace(Object object);
-
   // Checks whether an address/object in the heap (including auxiliary
   // area and unused area).
   bool Contains(HeapObject value);

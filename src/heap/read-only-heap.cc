@@ -26,5 +26,10 @@ void ReadOnlyHeap::OnHeapTearDown() {
   delete this;
 }
 
+// static
+bool ReadOnlyHeap::Contains(Object object) {
+  return Page::FromAddress(object.ptr())->owner()->identity() == RO_SPACE;
+}
+
 }  // namespace internal
 }  // namespace v8

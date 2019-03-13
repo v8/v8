@@ -3640,14 +3640,14 @@ class VerifyReadOnlyPointersVisitor : public VerifyPointersVisitor {
   void VerifyPointers(HeapObject host, MaybeObjectSlot start,
                       MaybeObjectSlot end) override {
     if (!host.is_null()) {
-      CHECK(heap_->InReadOnlySpace(host->map()));
+      CHECK(ReadOnlyHeap::Contains(host->map()));
     }
     VerifyPointersVisitor::VerifyPointers(host, start, end);
 
     for (MaybeObjectSlot current = start; current < end; ++current) {
       HeapObject heap_object;
       if ((*current)->GetHeapObject(&heap_object)) {
-        CHECK(heap_->InReadOnlySpace(heap_object));
+        CHECK(ReadOnlyHeap::Contains(heap_object));
       }
     }
   }
@@ -3780,7 +3780,7 @@ void CollectSlots(MemoryChunk* chunk, Address start, Address end,
 
 void Heap::VerifyRememberedSetFor(HeapObject object) {
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
-  DCHECK_IMPLIES(chunk->mutex() == nullptr, InReadOnlySpace(object));
+  DCHECK_IMPLIES(chunk->mutex() == nullptr, ReadOnlyHeap::Contains(object));
   // In RO_SPACE chunk->mutex() may be nullptr, so just ignore it.
   base::LockGuard<base::Mutex, base::NullBehavior::kIgnoreIfNull> lock_guard(
       chunk->mutex());
