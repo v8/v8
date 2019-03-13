@@ -1049,7 +1049,6 @@ int TurboAssembler::LeaveFrame(StackFrame::Type type, int stack_adjustment) {
 //
 //  SP -> previousSP
 //        LK reserved
-//        code
 //        sp_on_exit (for debug?)
 // oldSP->prev SP
 //        LK
@@ -1064,7 +1063,6 @@ int TurboAssembler::LeaveFrame(StackFrame::Type type, int stack_adjustment) {
 // r14
 // oldFP <- newFP
 // SP
-// Code
 // Floats
 // gaps
 // Args
@@ -1085,14 +1083,12 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space,
   CleanseP(r14);
   Load(r1, Operand(StackFrame::TypeToMarker(frame_type)));
   PushCommonFrame(r1);
-  // Reserve room for saved entry sp and code object.
+  // Reserve room for saved entry sp.
   lay(sp, MemOperand(fp, -ExitFrameConstants::kFixedFrameSizeFromFp));
 
   if (emit_debug_code()) {
     StoreP(MemOperand(fp, ExitFrameConstants::kSPOffset), Operand::Zero(), r1);
   }
-  Move(r1, CodeObject());
-  StoreP(r1, MemOperand(fp, ExitFrameConstants::kCodeOffset));
 
   // Save the frame pointer and the context in top.
   Move(r1, ExternalReference::Create(IsolateAddressId::kCEntryFPAddress,

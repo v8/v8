@@ -2585,14 +2585,10 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, const Register& scratch,
   Mov(fp, sp);
   Mov(scratch, StackFrame::TypeToMarker(frame_type));
   Push(scratch, xzr);
-  Mov(scratch, CodeObject());
-  Push(scratch, padreg);
   //          fp[8]: CallerPC (lr)
   //    fp -> fp[0]: CallerFP (old fp)
   //          fp[-8]: STUB marker
-  //          fp[-16]: Space reserved for SPOffset.
-  //          fp[-24]: CodeObject()
-  //    sp -> fp[-32]: padding
+  //    sp -> fp[-16]: Space reserved for SPOffset.
   STATIC_ASSERT((2 * kSystemPointerSize) ==
                 ExitFrameConstants::kCallerSPOffset);
   STATIC_ASSERT((1 * kSystemPointerSize) ==
@@ -2600,9 +2596,6 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, const Register& scratch,
   STATIC_ASSERT((0 * kSystemPointerSize) ==
                 ExitFrameConstants::kCallerFPOffset);
   STATIC_ASSERT((-2 * kSystemPointerSize) == ExitFrameConstants::kSPOffset);
-  STATIC_ASSERT((-3 * kSystemPointerSize) == ExitFrameConstants::kCodeOffset);
-  STATIC_ASSERT((-4 * kSystemPointerSize) ==
-                ExitFrameConstants::kPaddingOffset);
 
   // Save the frame pointer and context pointer in the top frame.
   Mov(scratch,
@@ -2612,7 +2605,7 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, const Register& scratch,
       ExternalReference::Create(IsolateAddressId::kContextAddress, isolate()));
   Str(cp, MemOperand(scratch));
 
-  STATIC_ASSERT((-4 * kSystemPointerSize) ==
+  STATIC_ASSERT((-2 * kSystemPointerSize) ==
                 ExitFrameConstants::kLastExitFrameField);
   if (save_doubles) {
     ExitFramePreserveFPRegs();
@@ -2629,8 +2622,7 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, const Register& scratch,
   //   fp -> fp[0]: CallerFP (old fp)
   //         fp[-8]: STUB marker
   //         fp[-16]: Space reserved for SPOffset.
-  //         fp[-24]: CodeObject()
-  //         fp[-24 - fp_size]: Saved doubles (if save_doubles is true).
+  //         fp[-16 - fp_size]: Saved doubles (if save_doubles is true).
   //         sp[8]: Extra space reserved for caller (if extra_space != 0).
   //   sp -> sp[0]: Space reserved for the return address.
 

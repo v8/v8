@@ -2422,12 +2422,10 @@ void MacroAssembler::EnterExitFramePrologue(bool save_rax,
   pushq(rbp);
   movq(rbp, rsp);
 
-  // Reserve room for entry stack pointer and push the code object.
+  // Reserve room for entry stack pointer.
   Push(Immediate(StackFrame::TypeToMarker(frame_type)));
   DCHECK_EQ(-2 * kSystemPointerSize, ExitFrameConstants::kSPOffset);
   Push(Immediate(0));  // Saved entry sp, patched before call.
-  Move(kScratchRegister, CodeObject(), RelocInfo::EMBEDDED_OBJECT);
-  Push(kScratchRegister);  // Accessed from ExitFrame::code_slot.
 
   // Save the frame pointer and the context in top.
   if (save_rax) {

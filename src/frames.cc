@@ -614,14 +614,7 @@ Code ConstructEntryFrame::unchecked_code() const {
   return isolate()->heap()->builtin(Builtins::kJSConstructEntry);
 }
 
-Address& ExitFrame::code_slot() const {
-  const int offset = ExitFrameConstants::kCodeOffset;
-  return Memory<Address>(fp() + offset);
-}
-
-Code ExitFrame::unchecked_code() const {
-  return Code::unchecked_cast(Object(code_slot()));
-}
+Code ExitFrame::unchecked_code() const { UNREACHABLE(); }
 
 void ExitFrame::ComputeCallerState(State* state) const {
   // Set up the caller state.
@@ -641,7 +634,6 @@ void ExitFrame::Iterate(RootVisitor* v) const {
   // The arguments are traversed as part of the expression stack of
   // the calling frame.
   IteratePc(v, pc_address(), constant_pool_address(), LookupCode());
-  v->VisitRootPointer(Root::kTop, nullptr, FullObjectSlot(&code_slot()));
 }
 
 

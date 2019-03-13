@@ -810,13 +810,10 @@ void MacroAssembler::EnterExitFramePrologue(StackFrame::Type frame_type,
   push(ebp);
   mov(ebp, esp);
 
-  // Reserve room for entry stack pointer and push the code object.
+  // Reserve room for entry stack pointer.
   push(Immediate(StackFrame::TypeToMarker(frame_type)));
   DCHECK_EQ(-2 * kSystemPointerSize, ExitFrameConstants::kSPOffset);
   push(Immediate(0));  // Saved entry sp, patched before call.
-  DCHECK_EQ(-3 * kSystemPointerSize, ExitFrameConstants::kCodeOffset);
-  Move(scratch, CodeObject());
-  push(scratch);  // Accessed from ExitFrame::code_slot.
 
   STATIC_ASSERT(edx == kRuntimeCallFunctionRegister);
   STATIC_ASSERT(esi == kContextRegister);

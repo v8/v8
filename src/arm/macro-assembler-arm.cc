@@ -1308,14 +1308,12 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space,
   DCHECK_EQ(0 * kPointerSize, ExitFrameConstants::kCallerFPOffset);
   mov(scratch, Operand(StackFrame::TypeToMarker(frame_type)));
   PushCommonFrame(scratch);
-  // Reserve room for saved entry sp and code object.
+  // Reserve room for saved entry sp.
   sub(sp, fp, Operand(ExitFrameConstants::kFixedFrameSizeFromFp));
   if (emit_debug_code()) {
     mov(scratch, Operand::Zero());
     str(scratch, MemOperand(fp, ExitFrameConstants::kSPOffset));
   }
-  Move(scratch, CodeObject());
-  str(scratch, MemOperand(fp, ExitFrameConstants::kCodeOffset));
 
   // Save the frame pointer and the context in top.
   Move(scratch, ExternalReference::Create(IsolateAddressId::kCEntryFPAddress,

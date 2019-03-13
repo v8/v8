@@ -384,8 +384,6 @@ class ExitFrame: public StackFrame {
 
   Code unchecked_code() const override;
 
-  Address& code_slot() const;
-
   // Garbage collection support.
   void Iterate(RootVisitor* v) const override;
 
