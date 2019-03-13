@@ -575,8 +575,7 @@ class FrameArrayBuilder {
   enum FrameFilterMode { ALL, CURRENT_SECURITY_CONTEXT };
 
   FrameArrayBuilder(Isolate* isolate, FrameSkipMode mode, int limit,
-                    Handle<Object> caller,
-                    FrameFilterMode filter_mode = CURRENT_SECURITY_CONTEXT)
+                    Handle<Object> caller, FrameFilterMode filter_mode)
       : isolate_(isolate),
         mode_(mode),
         limit_(limit),
@@ -959,20 +958,35 @@ void CaptureAsyncStackTrace(Isolate* isolate, Handle<JSPromise> promise,
   }
 }
 
-Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
-                                                FrameSkipMode mode,
-                                                Handle<Object> caller) {
-  DisallowJavascriptExecution no_js(this);
+namespace {
 
+struct CaptureStackTraceOptions {
   int limit;
-  if (!GetStackTraceLimit(this, &limit)) return factory()->undefined_value();
+  // 'filter_mode' and 'skip_mode' are somewhat orthogonal. 'filter_mode'
+  // specifies whether to capture all frames, or just frames in the same
+  // security context. While 'skip_mode' allows skipping the first frame.
+  FrameSkipMode skip_mode;
+  FrameArrayBuilder::FrameFilterMode filter_mode;
 
-  FrameArrayBuilder builder(this, mode, limit, caller);
+  bool capture_builtin_exit_frames;
+  bool capture_only_frames_subject_to_debugging;
+  bool async_stack_trace;
+
+  enum CaptureResult { RAW_FRAME_ARRAY, STACK_TRACE_FRAME_ARRAY };
+  CaptureResult capture_result;
+};
+
+Handle<Object> CaptureStackTrace(Isolate* isolate, Handle<Object> caller,
+                                 CaptureStackTraceOptions options) {
+  DisallowJavascriptExecution no_js(isolate);
+
+  FrameArrayBuilder builder(isolate, options.skip_mode, options.limit, caller,
+                            options.filter_mode);
 
   // Build the regular stack trace, and remember the last relevant
   // frame ID and inlined index (for the async stack trace handling
   // below, which starts from this last frame).
-  for (StackFrameIterator it(this); !it.done() && !builder.full();
+  for (StackFrameIterator it(isolate); !it.done() && !builder.full();
        it.Advance()) {
     StackFrame* const frame = it.frame();
     switch (frame->type()) {
@@ -989,6 +1003,11 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
         StandardFrame::cast(frame)->Summarize(&frames);
         for (size_t i = frames.size(); i-- != 0 && !builder.full();) {
           const auto& summary = frames[i];
+          if (options.capture_only_frames_subject_to_debugging &&
+              !summary.is_subject_to_debugging()) {
+            continue;
+          }
+
           if (summary.IsJavaScript()) {
             //=========================================================
             // Handle a JavaScript frame.
@@ -1013,6 +1032,8 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
       }
 
       case StackFrame::BUILTIN_EXIT:
+        if (!options.capture_builtin_exit_frames) continue;
+
         // BuiltinExitFrames are not standard frames, so they do not have
         // Summarize(). However, they may have one JS frame worth showing.
         builder.AppendBuiltinExitFrame(BuiltinExitFrame::cast(frame));
@@ -1026,41 +1047,42 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
   // If --async-stack-traces are enabled and the "current microtask" is a
   // PromiseReactionJobTask, we try to enrich the stack trace with async
   // frames.
-  if (FLAG_async_stack_traces) {
-    Handle<Object> current_microtask = factory()->current_microtask();
+  if (options.async_stack_trace) {
+    Handle<Object> current_microtask = isolate->factory()->current_microtask();
     if (current_microtask->IsPromiseReactionJobTask()) {
       Handle<PromiseReactionJobTask> promise_reaction_job_task =
           Handle<PromiseReactionJobTask>::cast(current_microtask);
       // Check if the {reaction} has one of the known async function or
       // async generator continuations as its fulfill handler.
-      if (IsBuiltinFunction(this, promise_reaction_job_task->handler(),
+      if (IsBuiltinFunction(isolate, promise_reaction_job_task->handler(),
                             Builtins::kAsyncFunctionAwaitResolveClosure) ||
-          IsBuiltinFunction(this, promise_reaction_job_task->handler(),
+          IsBuiltinFunction(isolate, promise_reaction_job_task->handler(),
                             Builtins::kAsyncGeneratorAwaitResolveClosure) ||
-          IsBuiltinFunction(this, promise_reaction_job_task->handler(),
+          IsBuiltinFunction(isolate, promise_reaction_job_task->handler(),
                             Builtins::kAsyncGeneratorYieldResolveClosure)) {
         // Now peak into the handlers' AwaitContext to get to
         // the JSGeneratorObject for the async function.
         Handle<Context> context(
             JSFunction::cast(promise_reaction_job_task->handler())->context(),
-            this);
+            isolate);
         Handle<JSGeneratorObject> generator_object(
-            JSGeneratorObject::cast(context->extension()), this);
+            JSGeneratorObject::cast(context->extension()), isolate);
         if (generator_object->is_executing()) {
           if (generator_object->IsJSAsyncFunctionObject()) {
             Handle<JSAsyncFunctionObject> async_function_object =
                 Handle<JSAsyncFunctionObject>::cast(generator_object);
-            Handle<JSPromise> promise(async_function_object->promise(), this);
-            CaptureAsyncStackTrace(this, promise, &builder);
+            Handle<JSPromise> promise(async_function_object->promise(),
+                                      isolate);
+            CaptureAsyncStackTrace(isolate, promise, &builder);
           } else {
             Handle<JSAsyncGeneratorObject> async_generator_object =
                 Handle<JSAsyncGeneratorObject>::cast(generator_object);
             Handle<AsyncGeneratorRequest> async_generator_request(
                 AsyncGeneratorRequest::cast(async_generator_object->queue()),
-                this);
+                isolate);
             Handle<JSPromise> promise(
-                JSPromise::cast(async_generator_request->promise()), this);
-            CaptureAsyncStackTrace(this, promise, &builder);
+                JSPromise::cast(async_generator_request->promise()), isolate);
+            CaptureAsyncStackTrace(isolate, promise, &builder);
           }
         }
       } else {
@@ -1069,18 +1091,41 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
         // find an async frame if we follow along the chain of promises on
         // the {promise_reaction_job_task}.
         Handle<HeapObject> promise_or_capability(
-            promise_reaction_job_task->promise_or_capability(), this);
+            promise_reaction_job_task->promise_or_capability(), isolate);
         if (promise_or_capability->IsJSPromise()) {
           Handle<JSPromise> promise =
               Handle<JSPromise>::cast(promise_or_capability);
-          CaptureAsyncStackTrace(this, promise, &builder);
+          CaptureAsyncStackTrace(isolate, promise, &builder);
         }
       }
     }
   }
 
   // TODO(yangguo): Queue this structured stack trace for preprocessing on GC.
-  return factory()->NewJSArrayWithElements(builder.GetElements());
+  if (options.capture_result == CaptureStackTraceOptions::RAW_FRAME_ARRAY) {
+    return isolate->factory()->NewJSArrayWithElements(builder.GetElements());
+  }
+  return builder.GetElementsAsStackTraceFrameArray();
+}
+
+}  // namespace
+
+Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
+                                                FrameSkipMode mode,
+                                                Handle<Object> caller) {
+  int limit;
+  if (!GetStackTraceLimit(this, &limit)) return factory()->undefined_value();
+
+  CaptureStackTraceOptions options;
+  options.limit = limit;
+  options.skip_mode = mode;
+  options.capture_builtin_exit_frames = true;
+  options.async_stack_trace = FLAG_async_stack_traces;
+  options.filter_mode = FrameArrayBuilder::CURRENT_SECURITY_CONTEXT;
+  options.capture_only_frames_subject_to_debugging = false;
+  options.capture_result = CaptureStackTraceOptions::RAW_FRAME_ARRAY;
+
+  return CaptureStackTrace(this, caller, options);
 }
 
 MaybeHandle<JSReceiver> Isolate::CaptureAndSetDetailedStackTrace(
@@ -1160,55 +1205,22 @@ Address Isolate::GetAbstractPC(int* line, int* column) {
 }
 
 Handle<FixedArray> Isolate::CaptureCurrentStackTrace(
-    int frame_limit, StackTrace::StackTraceOptions options) {
-  DisallowJavascriptExecution no_js(this);
-
-  // Ensure no negative values.
-  int limit = Max(frame_limit, 0);
-  FrameArrayBuilder::FrameFilterMode filter_mode =
-      (options & StackTrace::kExposeFramesAcrossSecurityOrigins)
+    int frame_limit, StackTrace::StackTraceOptions stack_trace_options) {
+  CaptureStackTraceOptions options;
+  options.limit = Max(frame_limit, 0);  // Ensure no negative values.
+  options.skip_mode = SKIP_NONE;
+  options.capture_builtin_exit_frames = false;
+  options.async_stack_trace = false;
+  options.filter_mode =
+      (stack_trace_options & StackTrace::kExposeFramesAcrossSecurityOrigins)
           ? FrameArrayBuilder::ALL
           : FrameArrayBuilder::CURRENT_SECURITY_CONTEXT;
-  FrameArrayBuilder builder(this, SKIP_NONE, limit,
-                            factory()->undefined_value(), filter_mode);
+  options.capture_only_frames_subject_to_debugging = true;
+  options.capture_result = CaptureStackTraceOptions::STACK_TRACE_FRAME_ARRAY;
 
-  for (StackTraceFrameIterator it(this); !it.done() && !builder.full();
-       it.Advance()) {
-    StandardFrame* frame = it.frame();
-    // Set initial size to the maximum inlining level + 1 for the outermost
-    // function.
-    std::vector<FrameSummary> frames;
-    frame->Summarize(&frames);
-    for (size_t i = frames.size(); i != 0 && !builder.full(); i--) {
-      FrameSummary& frame = frames[i - 1];
-      if (!frame.is_subject_to_debugging()) continue;
-
-      if (frame.IsJavaScript()) {
-        //=========================================================
-        // Handle a JavaScript frame.
-        //=========================================================
-        auto const& java_script = frame.AsJavaScript();
-        builder.AppendJavaScriptFrame(java_script);
-      } else if (frame.IsWasmCompiled()) {
-        //=========================================================
-        // Handle a WASM compiled frame.
-        //=========================================================
-        auto const& wasm_compiled = frame.AsWasmCompiled();
-        builder.AppendWasmCompiledFrame(wasm_compiled);
-      } else if (frame.IsWasmInterpreted()) {
-        //=========================================================
-        // Handle a WASM interpreted frame.
-        //=========================================================
-        auto const& wasm_interpreted = frame.AsWasmInterpreted();
-        builder.AppendWasmInterpretedFrame(wasm_interpreted);
-      }
-    }
-  }
-
-  // TODO(yangguo): Queue this structured stack trace for preprocessing on GC.
-  return builder.GetElementsAsStackTraceFrameArray();
+  return Handle<FixedArray>::cast(
+      CaptureStackTrace(this, factory()->undefined_value(), options));
 }
-
 
 void Isolate::PrintStack(FILE* out, PrintStackMode mode) {
   if (stack_trace_nesting_level_ == 0) {
