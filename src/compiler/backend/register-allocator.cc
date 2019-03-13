@@ -3314,7 +3314,14 @@ void LinearScanAllocator::ComputeStateFromManyPredecessors(
     size_t count;
     int used_registers[RegisterConfiguration::kMaxRegisters];
   };
-  ZoneMap<TopLevelLiveRange*, Vote> counts(data()->allocation_zone());
+  struct TopLevelLiveRangeComparator {
+    bool operator()(const TopLevelLiveRange* lhs,
+                    const TopLevelLiveRange* rhs) const {
+      return lhs->vreg() < rhs->vreg();
+    }
+  };
+  ZoneMap<TopLevelLiveRange*, Vote, TopLevelLiveRangeComparator> counts(
+      data()->allocation_zone());
   int deferred_blocks = 0;
   for (RpoNumber pred : current_block->predecessors()) {
     if (!ConsiderBlockForControlFlow(current_block, pred)) {
