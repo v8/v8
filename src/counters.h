@@ -1269,6 +1269,7 @@ class RuntimeCallTimerScope {
      0, 1024, 64)
 
 #define HISTOGRAM_TIMER_LIST(HT)                                               \
+  /* Timer histograms, not thread safe: HT(name, caption, max, unit) */        \
   /* Garbage collection timers. */                                             \
   HT(gc_context, V8.GCContext, 10000,                                          \
      MILLISECOND) /* GC context cleanup time */                                \
@@ -1300,6 +1301,7 @@ class RuntimeCallTimerScope {
      MICROSECOND)
 
 #define TIMED_HISTOGRAM_LIST(HT)                                               \
+  /* Timer histograms, thread safe: HT(name, caption, max, unit) */            \
   /* Garbage collection timers. */                                             \
   HT(gc_compactor, V8.GCCompactor, 10000, MILLISECOND)                         \
   HT(gc_compactor_background, V8.GCCompactorBackground, 10000, MILLISECOND)    \
