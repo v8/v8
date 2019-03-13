@@ -222,6 +222,47 @@ uint32_t TestingModuleBuilder::AddException(FunctionSig* sig) {
   return index;
 }
 
+uint32_t TestingModuleBuilder::AddPassiveDataSegment(Vector<const byte> bytes) {
+  uint32_t index = static_cast<uint32_t>(test_module_->data_segments.size());
+  DCHECK_EQ(index, test_module_->data_segments.size());
+  DCHECK_EQ(index, data_segment_starts_.size());
+  DCHECK_EQ(index, data_segment_sizes_.size());
+  DCHECK_EQ(index, dropped_data_segments_.size());
+
+  // Add a passive data segment. This isn't used by function compilation, but
+  // but it keeps the index in sync. The data segment's source will not be
+  // correct, since we don't store data in the module wire bytes.
+  test_module_->data_segments.emplace_back();
+
+  // The num_declared_data_segments (from the DataCount section) is used
+  // to validate the segment index, during function compilation.
+  test_module_->num_declared_data_segments = index + 1;
+
+  Address old_data_address =
+      reinterpret_cast<Address>(data_segment_data_.data());
+  size_t old_data_size = data_segment_data_.size();
+  data_segment_data_.resize(old_data_size + bytes.length());
+  Address new_data_address =
+      reinterpret_cast<Address>(data_segment_data_.data());
+
+  memcpy(data_segment_data_.data() + old_data_size, bytes.start(),
+         bytes.length());
+
+  // The data_segment_data_ offset may have moved, so update all the starts.
+  for (Address& start : data_segment_starts_) {
+    start += new_data_address - old_data_address;
+  }
+  data_segment_starts_.push_back(new_data_address + old_data_size);
+  data_segment_sizes_.push_back(bytes.length());
+  dropped_data_segments_.push_back(0);
+
+  // The vector pointers may have moved, so update the instance object.
+  instance_object_->set_data_segment_starts(data_segment_starts_.data());
+  instance_object_->set_data_segment_sizes(data_segment_sizes_.data());
+  instance_object_->set_dropped_data_segments(dropped_data_segments_.data());
+  return index;
+}
+
 CompilationEnv TestingModuleBuilder::CreateCompilationEnv() {
   return {
       test_module_ptr_,

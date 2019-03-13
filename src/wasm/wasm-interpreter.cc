@@ -1540,6 +1540,13 @@ class ThreadImpl {
     sp_ = dest + arity;
   }
 
+  inline Address EffectiveAddress(uint32_t index) {
+    // Compute the effective address of the access, making sure to condition
+    // the index even in the in-bounds case.
+    return reinterpret_cast<Address>(instance_object_->memory_start()) +
+           (index & instance_object_->memory_mask());
+  }
+
   template <typename mtype>
   inline Address BoundsCheckMem(uint32_t offset, uint32_t index) {
     uint32_t effective_index = offset + index;
@@ -1550,10 +1557,15 @@ class ThreadImpl {
                     instance_object_->memory_size())) {
       return kNullAddress;  // oob
     }
-    // Compute the effective address of the access, making sure to condition
-    // the index even in the in-bounds case.
-    return reinterpret_cast<Address>(instance_object_->memory_start()) +
-           (effective_index & instance_object_->memory_mask());
+    return EffectiveAddress(effective_index);
+  }
+
+  inline bool BoundsCheckMemRange(uint32_t index, uint32_t* size,
+                                  Address* out_address) {
+    bool ok = ClampToBounds(
+        index, size, static_cast<uint32_t>(instance_object_->memory_size()));
+    *out_address = EffectiveAddress(index);
+    return ok;
   }
 
   template <typename ctype, typename mtype>
@@ -1609,6 +1621,15 @@ class ThreadImpl {
     return true;
   }
 
+  bool CheckDataSegmentIsPassiveAndNotDropped(uint32_t index, pc_t pc) {
+    DCHECK_LT(index, module()->num_declared_data_segments);
+    if (instance_object_->dropped_data_segments()[index]) {
+      DoTrap(kTrapDataSegmentDropped, pc);
+      return false;
+    }
+    return true;
+  }
+
   template <typename type, typename op_type>
   bool ExtractAtomicOpParams(Decoder* decoder, InterpreterCode* code,
                              Address& address, pc_t pc, int& len,
@@ -1654,6 +1675,74 @@ class ThreadImpl {
       case kExprI64UConvertSatF64:
         Push(WasmValue(ExecuteI64UConvertSatF64(Pop().to<double>())));
         return true;
+      case kExprMemoryInit: {
+        MemoryInitImmediate<Decoder::kNoValidate> imm(decoder, code->at(pc));
+        DCHECK_LT(imm.data_segment_index, module()->num_declared_data_segments);
+        len += imm.length;
+        if (!CheckDataSegmentIsPassiveAndNotDropped(imm.data_segment_index,
+                                                    pc)) {
+          return false;
+        }
+        auto size = Pop().to<uint32_t>();
+        auto src = Pop().to<uint32_t>();
+        auto dst = Pop().to<uint32_t>();
+        Address dst_addr;
+        bool ok = BoundsCheckMemRange(dst, &size, &dst_addr);
+        auto src_max =
+            instance_object_->data_segment_sizes()[imm.data_segment_index];
+        // Use & instead of && so the clamp is not short-circuited.
+        ok &= ClampToBounds(src, &size, src_max);
+        Address src_addr =
+            instance_object_->data_segment_starts()[imm.data_segment_index] +
+            src;
+        memory_copy_wrapper(dst_addr, src_addr, size);
+        if (!ok) DoTrap(kTrapMemOutOfBounds, pc);
+        return ok;
+      }
+      case kExprDataDrop: {
+        DataDropImmediate<Decoder::kNoValidate> imm(decoder, code->at(pc));
+        len += imm.length;
+        if (!CheckDataSegmentIsPassiveAndNotDropped(imm.index, pc)) {
+          return false;
+        }
+        instance_object_->dropped_data_segments()[imm.index] = 1;
+        return true;
+      }
+      case kExprMemoryCopy: {
+        MemoryCopyImmediate<Decoder::kNoValidate> imm(decoder, code->at(pc));
+        auto size = Pop().to<uint32_t>();
+        auto src = Pop().to<uint32_t>();
+        auto dst = Pop().to<uint32_t>();
+        Address dst_addr;
+        bool copy_backward = src < dst && dst - src < size;
+        bool ok = BoundsCheckMemRange(dst, &size, &dst_addr);
+        // Trap without copying any bytes if we are copying backward and the
+        // copy is partially out-of-bounds. We only need to check that the dst
+        // region is out-of-bounds, because we know that {src < dst}, so the src
+        // region is always out of bounds if the dst region is.
+        if (ok || !copy_backward) {
+          Address src_addr;
+          // Use & instead of && so the bounds check is not short-circuited.
+          ok &= BoundsCheckMemRange(src, &size, &src_addr);
+          memory_copy_wrapper(dst_addr, src_addr, size);
+        }
+        if (!ok) DoTrap(kTrapMemOutOfBounds, pc);
+        len += imm.length;
+        return ok;
+      }
+      case kExprMemoryFill: {
+        MemoryIndexImmediate<Decoder::kNoValidate> imm(decoder,
+                                                       code->at(pc + 1));
+        auto size = Pop().to<uint32_t>();
+        auto value = Pop().to<uint32_t>();
+        auto dst = Pop().to<uint32_t>();
+        Address dst_addr;
+        bool ok = BoundsCheckMemRange(dst, &size, &dst_addr);
+        memory_fill_wrapper(dst_addr, value, size);
+        if (!ok) DoTrap(kTrapMemOutOfBounds, pc);
+        len += imm.length;
+        return ok;
+      }
       default:
         FATAL("Unknown or unimplemented opcode #%d:%s", code->start[pc],
               OpcodeName(code->start[pc]));

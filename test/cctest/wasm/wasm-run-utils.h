@@ -116,6 +116,8 @@ class TestingModuleBuilder {
     return static_cast<byte>(size - 1);
   }
 
+  uint32_t mem_size() { return mem_size_; }
+
   template <typename T>
   T* raw_mem_start() {
     DCHECK(mem_start_);
@@ -188,6 +190,8 @@ class TestingModuleBuilder {
 
   uint32_t AddException(FunctionSig* sig);
 
+  uint32_t AddPassiveDataSegment(Vector<const byte> bytes);
+
   WasmFunction* GetFunctionAt(int index) {
     return &test_module_->functions[index];
   }
@@ -231,6 +235,12 @@ class TestingModuleBuilder {
   NativeModule* native_module_ = nullptr;
   RuntimeExceptionSupport runtime_exception_support_;
   LowerSimd lower_simd_;
+
+  // Data segment arrays that are normally allocated on the instance.
+  std::vector<byte> data_segment_data_;
+  std::vector<Address> data_segment_starts_;
+  std::vector<uint32_t> data_segment_sizes_;
+  std::vector<byte> dropped_data_segments_;
 
   const WasmGlobal* AddGlobal(ValueType type);
 
