@@ -224,9 +224,6 @@
   # BUG(v8:4642).
   'test-lockers/LockAndUnlockDifferentIsolates': [PASS, NO_VARIANTS],
 
-  # BUG(v8:2999,v8:4751).
-  'test-cpu-profiler/FunctionCallSample': [SKIP],
-
   # BUG(5920): Flaky crash.
   'test-serialize/PartialSerializerContext': [PASS, ['arch == x64 and mode == debug', SKIP]],
 }],  # 'system == windows'
