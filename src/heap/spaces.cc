@@ -3305,6 +3305,12 @@ void ReadOnlyPage::MakeHeaderRelocatable() {
   }
 }
 
+void ReadOnlySpace::Forget() {
+  for (Page* p : *this) {
+    heap()->memory_allocator()->PreFreeMemory(p);
+  }
+}
+
 void ReadOnlySpace::SetPermissionsForPages(PageAllocator::Permission access) {
   MemoryAllocator* memory_allocator = heap()->memory_allocator();
   for (Page* p : *this) {

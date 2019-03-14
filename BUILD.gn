@@ -171,6 +171,9 @@ declare_args() {
   # setting the "check_v8_header_includes" gclient variable to run a
   # specific hook).
   v8_check_header_includes = false
+
+  # Enable sharing read-only space across isolates.
+  v8_enable_shared_ro_heap = false
 }
 
 # We reuse the snapshot toolchain for building torque and other generators to
@@ -213,6 +216,9 @@ assert(!v8_enable_lite_mode || v8_enable_embedded_builtins,
        "Lite mode requires embedded builtins")
 assert(!v8_enable_lite_mode || v8_use_snapshot,
        "Lite mode requires a snapshot build")
+
+assert(v8_use_snapshot || !v8_enable_shared_ro_heap,
+       "Nosnapshot builds are not supported with shared read-only heap enabled")
 
 v8_random_seed = "314159265"
 v8_toolset_for_shell = "host"
@@ -403,6 +409,9 @@ config("features") {
   }
   if (v8_use_siphash) {
     defines += [ "V8_USE_SIPHASH" ]
+  }
+  if (v8_enable_shared_ro_heap) {
+    defines += [ "V8_SHARED_RO_HEAP" ]
   }
 }
 

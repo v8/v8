@@ -497,6 +497,7 @@ class RootsTable {
   friend class Isolate;
   friend class Heap;
   friend class Factory;
+  friend class ReadOnlyHeap;
   friend class ReadOnlyRoots;
   friend class RootsSerializer;
 };

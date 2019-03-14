@@ -74,7 +74,6 @@ enum : uint8_t {
   ONCE_STATE_DONE = 2
 };
 
-typedef void (*NoArgFunction)();
 typedef void (*PointerArgFunction)(void* arg);
 
 template <typename T>
@@ -85,12 +84,11 @@ struct OneArgFunction {
 V8_BASE_EXPORT void CallOnceImpl(OnceType* once,
                                  std::function<void()> init_func);
 
-inline void CallOnce(OnceType* once, NoArgFunction init_func) {
+inline void CallOnce(OnceType* once, std::function<void()> init_func) {
   if (once->load(std::memory_order_acquire) != ONCE_STATE_DONE) {
     CallOnceImpl(once, init_func);
   }
 }
-
 
 template <typename Arg>
 inline void CallOnce(OnceType* once,

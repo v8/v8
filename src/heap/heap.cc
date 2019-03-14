@@ -3550,14 +3550,21 @@ const char* Heap::GarbageCollectionReasonToString(
 }
 
 bool Heap::Contains(HeapObject value) {
+  // Check RO_SPACE first because IsOutsideAllocatedSpace cannot account for a
+  // shared RO_SPACE.
+  // TODO(goszczycki): Exclude read-only space. Use ReadOnlyHeap::Contains where
+  // appropriate.
+  if (read_only_space_ != nullptr && read_only_space_->Contains(value)) {
+    return true;
+  }
   if (memory_allocator()->IsOutsideAllocatedSpace(value->address())) {
     return false;
   }
   return HasBeenSetUp() &&
          (new_space_->ToSpaceContains(value) || old_space_->Contains(value) ||
           code_space_->Contains(value) || map_space_->Contains(value) ||
-          lo_space_->Contains(value) || read_only_space_->Contains(value) ||
-          code_lo_space_->Contains(value) || new_lo_space_->Contains(value));
+          lo_space_->Contains(value) || code_lo_space_->Contains(value) ||
+          new_lo_space_->Contains(value));
 }
 
 bool Heap::InSpace(HeapObject value, AllocationSpace space) {
@@ -4550,8 +4557,9 @@ void Heap::SetUp() {
 }
 
 void Heap::SetUpFromReadOnlyHeap(ReadOnlyHeap* ro_heap) {
-  DCHECK_NULL(read_only_space_);
   DCHECK_NOT_NULL(ro_heap);
+  DCHECK_IMPLIES(read_only_space_ != nullptr,
+                 read_only_space_ == ro_heap->read_only_space());
   read_only_heap_ = ro_heap;
   space_[RO_SPACE] = read_only_space_ = ro_heap->read_only_space();
 }

@@ -2992,6 +2992,9 @@ class ReadOnlySpace : public PagedSpace {
 
   void ClearStringPaddingIfNeeded();
   void MarkAsReadOnly();
+  // Make the heap forget the space for memory bookkeeping purposes
+  // (e.g. prevent space's memory from registering as leaked).
+  void Forget();
 
   // During boot the free_space_map is created, and afterwards we may need
   // to write it into the free list nodes that were already created.
