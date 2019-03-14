@@ -690,7 +690,8 @@ MaybeHandle<MutableBigInt> MutableBigInt::BitwiseAnd(Isolate* isolate,
     // Assume that x is the positive BigInt.
     if (x->sign()) std::swap(x, y);
     // x & (-y) == x & ~(y-1) == x &~ (y-1)
-    return AbsoluteAndNot(isolate, x, AbsoluteSubOne(isolate, y));
+    Handle<MutableBigInt> y_1 = AbsoluteSubOne(isolate, y);
+    return AbsoluteAndNot(isolate, x, y_1);
   }
 }
 
