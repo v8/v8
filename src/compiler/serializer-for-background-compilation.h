@@ -55,8 +55,6 @@ namespace compiler {
   V(CreateUnmappedArguments)        \
   V(LdaContextSlot)                 \
   V(LdaCurrentContextSlot)          \
-  V(LdaGlobal)                      \
-  V(LdaGlobalInsideTypeof)          \
   V(LdaImmutableContextSlot)        \
   V(LdaImmutableCurrentContextSlot) \
   V(LdaNamedProperty)               \
@@ -104,42 +102,47 @@ namespace compiler {
   V(ThrowSuperNotCalledIfHole)   \
   V(ThrowSuperAlreadyCalledIfNotHole)
 
-#define SUPPORTED_BYTECODE_LIST(V) \
-  V(CallAnyReceiver)               \
-  V(CallNoFeedback)                \
-  V(CallProperty)                  \
-  V(CallProperty0)                 \
-  V(CallProperty1)                 \
-  V(CallProperty2)                 \
-  V(CallUndefinedReceiver)         \
-  V(CallUndefinedReceiver0)        \
-  V(CallUndefinedReceiver1)        \
-  V(CallUndefinedReceiver2)        \
-  V(CallWithSpread)                \
-  V(Construct)                     \
-  V(ConstructWithSpread)           \
-  V(CreateClosure)                 \
-  V(ExtraWide)                     \
-  V(Illegal)                       \
-  V(LdaConstant)                   \
-  V(LdaKeyedProperty)              \
-  V(LdaNull)                       \
-  V(Ldar)                          \
-  V(LdaSmi)                        \
-  V(LdaUndefined)                  \
-  V(LdaZero)                       \
-  V(Mov)                           \
-  V(Return)                        \
-  V(StackCheck)                    \
-  V(StaInArrayLiteral)             \
-  V(StaKeyedProperty)              \
-  V(Star)                          \
-  V(TestIn)                        \
-  V(Wide)                          \
-  CLEAR_ENVIRONMENT_LIST(V)        \
-  CLEAR_ACCUMULATOR_LIST(V)        \
-  CONDITIONAL_JUMPS_LIST(V)        \
-  UNCONDITIONAL_JUMPS_LIST(V)      \
+#define SUPPORTED_BYTECODE_LIST(V)   \
+  V(CallAnyReceiver)                 \
+  V(CallNoFeedback)                  \
+  V(CallProperty)                    \
+  V(CallProperty0)                   \
+  V(CallProperty1)                   \
+  V(CallProperty2)                   \
+  V(CallUndefinedReceiver)           \
+  V(CallUndefinedReceiver0)          \
+  V(CallUndefinedReceiver1)          \
+  V(CallUndefinedReceiver2)          \
+  V(CallWithSpread)                  \
+  V(Construct)                       \
+  V(ConstructWithSpread)             \
+  V(CreateClosure)                   \
+  V(ExtraWide)                       \
+  V(Illegal)                         \
+  V(LdaConstant)                     \
+  V(LdaGlobal)                       \
+  V(LdaGlobalInsideTypeof)           \
+  V(LdaKeyedProperty)                \
+  V(LdaLookupGlobalSlot)             \
+  V(LdaLookupGlobalSlotInsideTypeof) \
+  V(LdaNull)                         \
+  V(Ldar)                            \
+  V(LdaSmi)                          \
+  V(LdaUndefined)                    \
+  V(LdaZero)                         \
+  V(Mov)                             \
+  V(Return)                          \
+  V(StackCheck)                      \
+  V(StaGlobal)                       \
+  V(StaInArrayLiteral)               \
+  V(StaKeyedProperty)                \
+  V(Star)                            \
+  V(TestIn)                          \
+  V(Wide)                            \
+  CLEAR_ENVIRONMENT_LIST(V)          \
+  CLEAR_ACCUMULATOR_LIST(V)          \
+  CONDITIONAL_JUMPS_LIST(V)          \
+  UNCONDITIONAL_JUMPS_LIST(V)        \
   INGORED_BYTECODE_LIST(V)
 
 class JSHeapBroker;
@@ -245,6 +248,7 @@ class SerializerForBackgroundCompilation {
                            base::Optional<Hints> new_target,
                            const HintsVector& arguments, bool with_spread);
 
+  void ProcessFeedbackForGlobalAccess(FeedbackSlot slot);
   void ProcessFeedbackForKeyedPropertyAccess(FeedbackSlot slot,
                                              AccessMode mode);
 

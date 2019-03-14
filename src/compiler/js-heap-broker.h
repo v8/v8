@@ -21,6 +21,7 @@ namespace v8 {
 namespace internal {
 
 class BytecodeArray;
+class VectorSlotPair;
 class FixedDoubleArray;
 class HeapNumber;
 class InternalizedString;
@@ -186,6 +187,8 @@ class PropertyCellRef : public HeapObjectRef {
   Handle<PropertyCell> object() const;
 
   PropertyDetails property_details() const;
+
+  void Serialize();
   ObjectRef value() const;
 };
 
@@ -622,8 +625,40 @@ class InternalizedStringRef : public StringRef {
   static const uint32_t kNotAnArrayIndex = -1;  // 2^32-1 is not a valid index.
 };
 
-struct ProcessedFeedback {
-  explicit ProcessedFeedback(Zone* zone);
+class ProcessedFeedback : public ZoneObject {
+ public:
+  enum Kind { kElementAccess, kGlobalAccess };
+  Kind kind() const { return kind_; }
+
+ protected:
+  explicit ProcessedFeedback(Kind kind) : kind_(kind) {}
+
+ private:
+  Kind const kind_;
+};
+
+class GlobalAccessFeedback : public ProcessedFeedback {
+ public:
+  explicit GlobalAccessFeedback(PropertyCellRef cell);
+  GlobalAccessFeedback(ContextRef script_context, int slot_index,
+                       bool immutable);
+
+  bool IsPropertyCell() const;
+  PropertyCellRef property_cell() const;
+
+  bool IsScriptContextSlot() const { return !IsPropertyCell(); }
+  ContextRef script_context() const;
+  int slot_index() const;
+  bool immutable() const;
+
+ private:
+  ObjectRef const cell_or_context_;
+  int const index_and_immutable_;
+};
+
+class ElementAccessFeedback : public ProcessedFeedback {
+ public:
+  explicit ElementAccessFeedback(Zone* zone);
 
   // No transition sources appear in {receiver_maps}.
   // All transition targets appear in {receiver_maps}.
@@ -637,18 +672,41 @@ struct ProcessedFeedback {
     MapRef current() const;
 
    private:
-    friend struct ProcessedFeedback;
+    friend class ElementAccessFeedback;
 
-    explicit MapIterator(ProcessedFeedback const& processed,
+    explicit MapIterator(ElementAccessFeedback const& processed,
                          JSHeapBroker* broker);
 
-    ProcessedFeedback const& processed_;
+    ElementAccessFeedback const& processed_;
     JSHeapBroker* const broker_;
     size_t index_ = 0;
   };
 
   // Iterator over all maps: first {receiver_maps}, then transition sources.
   MapIterator all_maps(JSHeapBroker* broker) const;
+};
+
+struct FeedbackSource {
+  FeedbackSource(Handle<FeedbackVector> vector_, FeedbackSlot slot_)
+      : vector(vector_), slot(slot_) {}
+  explicit FeedbackSource(FeedbackNexus const& nexus);
+  explicit FeedbackSource(VectorSlotPair const& pair);
+
+  Handle<FeedbackVector> const vector;
+  FeedbackSlot const slot;
+
+  struct Hash {
+    size_t operator()(FeedbackSource const& source) const {
+      return base::hash_combine(source.vector.address(), source.slot);
+    }
+  };
+
+  struct Equal {
+    bool operator()(FeedbackSource const& lhs,
+                    FeedbackSource const& rhs) const {
+      return lhs.vector.equals(rhs.vector) && lhs.slot == rhs.slot;
+    }
+  };
 };
 
 class V8_EXPORT_PRIVATE JSHeapBroker : public NON_EXPORTED_BASE(ZoneObject) {
@@ -681,9 +739,24 @@ class V8_EXPORT_PRIVATE JSHeapBroker : public NON_EXPORTED_BASE(ZoneObject) {
   // %ObjectPrototype%.
   bool IsArrayOrObjectPrototype(const JSObjectRef& object) const;
 
-  ProcessedFeedback& CreateEmptyFeedback(FeedbackNexus const& nexus);
-  bool HasFeedback(FeedbackNexus const& nexus) const;
-  ProcessedFeedback& GetFeedback(FeedbackNexus const& nexus);
+  bool HasFeedback(FeedbackSource const& source) const;
+  // The processed {feedback} can be {nullptr}, indicating that the original
+  // feedback didn't contain information relevant for Turbofan.
+  void SetFeedback(FeedbackSource const& source,
+                   ProcessedFeedback const* feedback);
+  ProcessedFeedback const* GetFeedback(FeedbackSource const& source) const;
+
+  // Convenience wrappers around GetFeedback.
+  ElementAccessFeedback const* GetElementAccessFeedback(
+      FeedbackSource const& source) const;
+  GlobalAccessFeedback const* GetGlobalAccessFeedback(
+      FeedbackSource const& source) const;
+
+  // TODO(neis): Move these into serializer when we're always in the background.
+  ElementAccessFeedback const* ProcessFeedbackMapsForElementAccess(
+      MapHandles const& maps);
+  GlobalAccessFeedback const* ProcessFeedbackForGlobalAccess(
+      FeedbackSource const& source);
 
   std::ostream& Trace();
   void IncrementTracingIndentation();
@@ -697,18 +770,6 @@ class V8_EXPORT_PRIVATE JSHeapBroker : public NON_EXPORTED_BASE(ZoneObject) {
   void SerializeShareableObjects();
   void CollectArrayAndObjectPrototypes();
 
-  struct FeedbackNexusHash {
-    size_t operator()(FeedbackNexus const& nexus) const {
-      return base::hash_combine(nexus.vector_handle().address(), nexus.slot());
-    }
-  };
-  struct FeedbackNexusEqual {
-    bool operator()(FeedbackNexus const& lhs, FeedbackNexus const& rhs) const {
-      return lhs.vector_handle().equals(rhs.vector_handle()) &&
-             lhs.slot() == rhs.slot();
-    }
-  };
-
   Isolate* const isolate_;
   Zone* const broker_zone_;
   Zone* current_zone_;
@@ -721,8 +782,8 @@ class V8_EXPORT_PRIVATE JSHeapBroker : public NON_EXPORTED_BASE(ZoneObject) {
   StdoutStream trace_out_;
   unsigned trace_indentation_ = 0;
   PerIsolateCompilerCache* compiler_cache_;
-  ZoneUnorderedMap<FeedbackNexus, ProcessedFeedback, FeedbackNexusHash,
-                   FeedbackNexusEqual>
+  ZoneUnorderedMap<FeedbackSource, ProcessedFeedback const*,
+                   FeedbackSource::Hash, FeedbackSource::Equal>
       feedback_;
 
   static const size_t kMinimalRefsBucketCount = 8;     // must be power of 2
@@ -743,9 +804,6 @@ Reduction NoChangeBecauseOfMissingData(JSHeapBroker* broker,
 // Miscellaneous definitions that should be moved elsewhere once concurrent
 // compilation is finished.
 bool CanInlineElementAccess(MapRef const& map);
-void ProcessFeedbackMapsForElementAccess(JSHeapBroker* broker,
-                                         MapHandles const& maps,
-                                         ProcessedFeedback* processed);
 
 #define TRACE_BROKER(broker, x)                               \
   do {                                                        \

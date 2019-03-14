@@ -24,6 +24,7 @@
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/module-inl.h"
 #include "src/utils.h"
+#include "src/vector-slot-pair.h"
 
 namespace v8 {
 namespace internal {
@@ -2841,6 +2842,12 @@ void JSBoundFunctionRef::Serialize() {
   data()->AsJSBoundFunction()->Serialize(broker());
 }
 
+void PropertyCellRef::Serialize() {
+  if (broker()->mode() == JSHeapBroker::kDisabled) return;
+  CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
+  data()->AsPropertyCell()->Serialize(broker());
+}
+
 bool CanInlineElementAccess(MapRef const& map) {
   if (!map.IsJSObjectMap()) return false;
   if (map.is_access_check_needed()) return false;
@@ -2855,24 +2862,62 @@ bool CanInlineElementAccess(MapRef const& map) {
   return false;
 }
 
-ProcessedFeedback::ProcessedFeedback(Zone* zone)
-    : receiver_maps(zone), transitions(zone) {}
+GlobalAccessFeedback::GlobalAccessFeedback(PropertyCellRef cell)
+    : ProcessedFeedback(kGlobalAccess),
+      cell_or_context_(cell),
+      index_and_immutable_(0 /* doesn't matter */) {}
 
-ProcessedFeedback::MapIterator::MapIterator(ProcessedFeedback const& processed,
-                                            JSHeapBroker* broker)
+GlobalAccessFeedback::GlobalAccessFeedback(ContextRef script_context,
+                                           int slot_index, bool immutable)
+    : ProcessedFeedback(kGlobalAccess),
+      cell_or_context_(script_context),
+      index_and_immutable_(FeedbackNexus::SlotIndexBits::encode(slot_index) |
+                           FeedbackNexus::ImmutabilityBit::encode(immutable)) {
+  DCHECK_EQ(this->slot_index(), slot_index);
+  DCHECK_EQ(this->immutable(), immutable);
+}
+
+bool GlobalAccessFeedback::IsPropertyCell() const {
+  return cell_or_context_.IsPropertyCell();
+}
+PropertyCellRef GlobalAccessFeedback::property_cell() const {
+  DCHECK(IsPropertyCell());
+  return cell_or_context_.AsPropertyCell();
+}
+
+ContextRef GlobalAccessFeedback::script_context() const {
+  DCHECK(IsScriptContextSlot());
+  return cell_or_context_.AsContext();
+}
+int GlobalAccessFeedback::slot_index() const {
+  CHECK(IsScriptContextSlot());
+  return FeedbackNexus::SlotIndexBits::decode(index_and_immutable_);
+}
+bool GlobalAccessFeedback::immutable() const {
+  CHECK(IsScriptContextSlot());
+  return FeedbackNexus::ImmutabilityBit::decode(index_and_immutable_);
+}
+
+ElementAccessFeedback::ElementAccessFeedback(Zone* zone)
+    : ProcessedFeedback(kElementAccess),
+      receiver_maps(zone),
+      transitions(zone) {}
+
+ElementAccessFeedback::MapIterator::MapIterator(
+    ElementAccessFeedback const& processed, JSHeapBroker* broker)
     : processed_(processed), broker_(broker) {
   CHECK_LT(processed.receiver_maps.size(),
            std::numeric_limits<size_t>::max() - processed.transitions.size());
 }
 
-bool ProcessedFeedback::MapIterator::done() const {
+bool ElementAccessFeedback::MapIterator::done() const {
   return index_ >=
          processed_.receiver_maps.size() + processed_.transitions.size();
 }
 
-void ProcessedFeedback::MapIterator::advance() { index_++; }
+void ElementAccessFeedback::MapIterator::advance() { index_++; }
 
-MapRef ProcessedFeedback::MapIterator::current() const {
+MapRef ElementAccessFeedback::MapIterator::current() const {
   CHECK(!done());
   size_t receiver_maps_size = processed_.receiver_maps.size();
   Handle<Map> map;
@@ -2884,73 +2929,140 @@ MapRef ProcessedFeedback::MapIterator::current() const {
   return MapRef(broker_, map);
 }
 
-ProcessedFeedback::MapIterator ProcessedFeedback::all_maps(
+ElementAccessFeedback::MapIterator ElementAccessFeedback::all_maps(
     JSHeapBroker* broker) const {
   return MapIterator(*this, broker);
 }
 
-ProcessedFeedback& JSHeapBroker::CreateEmptyFeedback(
-    FeedbackNexus const& nexus) {
-  auto insertion = feedback_.insert({nexus, ProcessedFeedback(zone())});
+FeedbackSource::FeedbackSource(FeedbackNexus const& nexus)
+    : vector(nexus.vector_handle()), slot(nexus.slot()) {}
+
+FeedbackSource::FeedbackSource(VectorSlotPair const& pair)
+    : vector(pair.vector()), slot(pair.slot()) {}
+
+void JSHeapBroker::SetFeedback(FeedbackSource const& source,
+                               ProcessedFeedback const* feedback) {
+  auto insertion = feedback_.insert({source, feedback});
   CHECK(insertion.second);
-  return insertion.first->second;
 }
 
-bool JSHeapBroker::HasFeedback(FeedbackNexus const& nexus) const {
-  return feedback_.find(nexus) != feedback_.end();
+bool JSHeapBroker::HasFeedback(FeedbackSource const& source) const {
+  return feedback_.find(source) != feedback_.end();
 }
 
-ProcessedFeedback& JSHeapBroker::GetFeedback(FeedbackNexus const& nexus) {
-  auto it = feedback_.find(nexus);
+ProcessedFeedback const* JSHeapBroker::GetFeedback(
+    FeedbackSource const& source) const {
+  auto it = feedback_.find(source);
   CHECK_NE(it, feedback_.end());
   return it->second;
 }
 
-void ProcessFeedbackMapsForElementAccess(JSHeapBroker* broker,
-                                         MapHandles const& maps,
-                                         ProcessedFeedback* processed) {
-  CHECK(processed->receiver_maps.empty());
-  CHECK(processed->transitions.empty());
+ElementAccessFeedback const* JSHeapBroker::GetElementAccessFeedback(
+    FeedbackSource const& source) const {
+  ProcessedFeedback const* feedback = GetFeedback(source);
+  if (feedback == nullptr) return nullptr;
+  CHECK_EQ(feedback->kind(), ProcessedFeedback::kElementAccess);
+  return static_cast<ElementAccessFeedback const*>(feedback);
+}
 
+GlobalAccessFeedback const* JSHeapBroker::GetGlobalAccessFeedback(
+    FeedbackSource const& source) const {
+  ProcessedFeedback const* feedback = GetFeedback(source);
+  if (feedback == nullptr) return nullptr;
+  CHECK_EQ(feedback->kind(), ProcessedFeedback::kGlobalAccess);
+  return static_cast<GlobalAccessFeedback const*>(feedback);
+}
+
+ElementAccessFeedback const* JSHeapBroker::ProcessFeedbackMapsForElementAccess(
+    MapHandles const& maps) {
   // Collect possible transition targets.
   MapHandles possible_transition_targets;
   possible_transition_targets.reserve(maps.size());
   for (Handle<Map> map : maps) {
-    if (CanInlineElementAccess(MapRef(broker, map)) &&
+    if (CanInlineElementAccess(MapRef(this, map)) &&
         IsFastElementsKind(map->elements_kind()) &&
         GetInitialFastElementsKind() != map->elements_kind()) {
       possible_transition_targets.push_back(map);
     }
   }
 
+  if (maps.empty()) return nullptr;
+
+  ElementAccessFeedback* result = new (zone()) ElementAccessFeedback(zone());
+
   // Separate the actual receiver maps and the possible transition sources.
   for (Handle<Map> map : maps) {
     // Don't generate elements kind transitions from stable maps.
-    Map transition_target =
-        map->is_stable() ? Map()
-                         : map->FindElementsKindTransitionedMap(
-                               broker->isolate(), possible_transition_targets);
+    Map transition_target = map->is_stable()
+                                ? Map()
+                                : map->FindElementsKindTransitionedMap(
+                                      isolate(), possible_transition_targets);
     if (transition_target.is_null()) {
-      processed->receiver_maps.push_back(map);
+      result->receiver_maps.push_back(map);
     } else {
-      processed->transitions.emplace_back(
-          map, handle(transition_target, broker->isolate()));
+      result->transitions.emplace_back(map,
+                                       handle(transition_target, isolate()));
     }
   }
 
 #ifdef ENABLE_SLOW_DCHECKS
   // No transition sources appear in {receiver_maps}.
   // All transition targets appear in {receiver_maps}.
-  for (auto& transition : processed->transitions) {
-    USE(transition);
+  for (auto& transition : result->transitions) {
     CHECK(std::none_of(
-        processed->receiver_maps.cbegin(), processed->receiver_maps.cend(),
+        result->receiver_maps.cbegin(), result->receiver_maps.cend(),
         [&](Handle<Map> map) { return map.equals(transition.first); }));
     CHECK(std::any_of(
-        processed->receiver_maps.cbegin(), processed->receiver_maps.cend(),
+        result->receiver_maps.cbegin(), result->receiver_maps.cend(),
         [&](Handle<Map> map) { return map.equals(transition.second); }));
   }
 #endif
+  CHECK(!result->receiver_maps.empty());
+
+  return result;
+}
+
+GlobalAccessFeedback const* JSHeapBroker::ProcessFeedbackForGlobalAccess(
+    FeedbackSource const& source) {
+  FeedbackNexus nexus(source.vector, source.slot);
+  DCHECK(nexus.kind() == FeedbackSlotKind::kLoadGlobalInsideTypeof ||
+         nexus.kind() == FeedbackSlotKind::kLoadGlobalNotInsideTypeof ||
+         nexus.kind() == FeedbackSlotKind::kStoreGlobalSloppy ||
+         nexus.kind() == FeedbackSlotKind::kStoreGlobalStrict);
+  if (nexus.ic_state() != MONOMORPHIC || nexus.GetFeedback()->IsCleared()) {
+    return nullptr;
+  }
+
+  Handle<Object> feedback_value(nexus.GetFeedback()->GetHeapObjectOrSmi(),
+                                isolate());
+
+  if (feedback_value->IsSmi()) {
+    // The wanted name belongs to a script-scope variable and the feedback tells
+    // us where to find its value.
+    int number = feedback_value->Number();
+    int const script_context_index =
+        FeedbackNexus::ContextIndexBits::decode(number);
+    int const context_slot_index = FeedbackNexus::SlotIndexBits::decode(number);
+    bool const immutable = FeedbackNexus::ImmutabilityBit::decode(number);
+    Handle<Context> context = ScriptContextTable::GetContext(
+        isolate(), native_context().script_context_table().object(),
+        script_context_index);
+    {
+      ObjectRef contents(this,
+                         handle(context->get(context_slot_index), isolate()));
+      CHECK(!contents.equals(
+          ObjectRef(this, isolate()->factory()->the_hole_value())));
+    }
+    return new (zone()) GlobalAccessFeedback(ContextRef(this, context),
+                                             context_slot_index, immutable);
+  }
+
+  CHECK(feedback_value->IsPropertyCell());
+  // The wanted name belongs (or did belong) to a property on the global
+  // object and the feedback is the cell holding its value.
+  PropertyCellRef cell(this, Handle<PropertyCell>::cast(feedback_value));
+  cell.Serialize();
+  return new (zone()) GlobalAccessFeedback(cell);
 }
 
 #undef BIMODAL_ACCESSOR

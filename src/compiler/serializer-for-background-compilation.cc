@@ -683,13 +683,59 @@ void SerializerForBackgroundCompilation::VisitConstructWithSpread(
   ProcessCallOrConstruct(callee, new_target, arguments, slot, true);
 }
 
+void SerializerForBackgroundCompilation::ProcessFeedbackForGlobalAccess(
+    FeedbackSlot slot) {
+  if (slot.IsInvalid()) return;
+  if (environment()->function().feedback_vector.is_null()) return;
+  FeedbackSource source(environment()->function().feedback_vector, slot);
+  if (!broker()->HasFeedback(source)) {
+    broker()->SetFeedback(source,
+                          broker()->ProcessFeedbackForGlobalAccess(source));
+  }
+  // TODO(neis, mvstanton): In the case of an immutable script context slot, we
+  // must also serialize that slot such that ContextRef::get can retrieve the
+  // value.
+}
+
+void SerializerForBackgroundCompilation::VisitLdaGlobal(
+    BytecodeArrayIterator* iterator) {
+  FeedbackSlot slot = iterator->GetSlotOperand(1);
+  ProcessFeedbackForGlobalAccess(slot);
+  // TODO(neis, mvstanton): In the case of an immutable script context slot, add
+  // the value as constant hint here and below
+  environment()->accumulator_hints().Clear();
+}
+
+void SerializerForBackgroundCompilation::VisitLdaGlobalInsideTypeof(
+    BytecodeArrayIterator* iterator) {
+  VisitLdaGlobal(iterator);
+}
+
+void SerializerForBackgroundCompilation::VisitLdaLookupGlobalSlot(
+    BytecodeArrayIterator* iterator) {
+  VisitLdaGlobal(iterator);
+}
+
+void SerializerForBackgroundCompilation::VisitLdaLookupGlobalSlotInsideTypeof(
+    BytecodeArrayIterator* iterator) {
+  VisitLdaGlobal(iterator);
+}
+
+void SerializerForBackgroundCompilation::VisitStaGlobal(
+    BytecodeArrayIterator* iterator) {
+  FeedbackSlot slot = iterator->GetSlotOperand(1);
+  ProcessFeedbackForGlobalAccess(slot);
+}
+
+// Note: We never use the same feeedback slot for multiple access modes.
 void SerializerForBackgroundCompilation::ProcessFeedbackForKeyedPropertyAccess(
     FeedbackSlot slot, AccessMode mode) {
   if (slot.IsInvalid()) return;
   if (environment()->function().feedback_vector.is_null()) return;
 
   FeedbackNexus nexus(environment()->function().feedback_vector, slot);
-  if (broker()->HasFeedback(nexus)) return;
+  FeedbackSource source(nexus);
+  if (broker()->HasFeedback(source)) return;
 
   if (nexus.ic_state() == MEGAMORPHIC) return;
 
@@ -702,10 +748,12 @@ void SerializerForBackgroundCompilation::ProcessFeedbackForKeyedPropertyAccess(
 
   MapHandles maps;
   nexus.ExtractMaps(&maps);
-  ProcessedFeedback& processed = broker()->CreateEmptyFeedback(nexus);
-  ProcessFeedbackMapsForElementAccess(broker(), maps, &processed);
+  ElementAccessFeedback const* processed =
+      broker()->ProcessFeedbackMapsForElementAccess(maps);
+  broker()->SetFeedback(source, processed);
+  if (processed == nullptr) return;
 
-  for (ProcessedFeedback::MapIterator it = processed.all_maps(broker());
+  for (ElementAccessFeedback::MapIterator it = processed->all_maps(broker());
        !it.done(); it.advance()) {
     switch (mode) {
       case AccessMode::kHas:

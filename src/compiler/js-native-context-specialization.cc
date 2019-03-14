@@ -791,24 +791,27 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
   it.TryLookupCachedProperty();
   if (it.state() != LookupIterator::DATA) return NoChange();
   if (!it.GetHolder<JSObject>()->IsJSGlobalObject()) return NoChange();
-  Handle<PropertyCell> property_cell = it.GetPropertyCell();
+  PropertyCellRef property_cell(broker(), it.GetPropertyCell());
+  property_cell.Serialize();
   return ReduceGlobalAccess(node, receiver, value, name, access_mode, index,
                             property_cell);
 }
 
 Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
     Node* node, Node* receiver, Node* value, Handle<Name> name,
-    AccessMode access_mode, Node* index, Handle<PropertyCell> property_cell) {
+    AccessMode access_mode, Node* index, PropertyCellRef const& property_cell) {
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
-  Handle<Object> property_cell_value(property_cell->value(), isolate());
-  if (property_cell_value.is_identical_to(factory()->the_hole_value())) {
+  ObjectRef property_cell_value = property_cell.value();
+  if (property_cell_value.IsHeapObject() &&
+      property_cell_value.AsHeapObject().map().oddball_type() ==
+          OddballType::kHole) {
     // The property cell is no longer valid.
     return NoChange();
   }
 
-  PropertyDetails property_details = property_cell->property_details();
+  PropertyDetails property_details = property_cell.property_details();
   PropertyCellType property_cell_type = property_details.cell_type();
   DCHECK_EQ(kData, property_details.kind());
 
@@ -823,8 +826,8 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
     } else if (property_cell_type == PropertyCellType::kConstantType) {
       // There's also no fast-path to store to a global cell which pretended
       // to be stable, but is no longer stable now.
-      if (property_cell_value->IsHeapObject() &&
-          !Handle<HeapObject>::cast(property_cell_value)->map()->is_stable()) {
+      if (property_cell_value.IsHeapObject() &&
+          !property_cell_value.AsHeapObject().map().is_stable()) {
         return NoChange();
       }
     }
@@ -866,8 +869,7 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
       // can be deleted or reconfigured to an accessor property).
       if (property_details.cell_type() != PropertyCellType::kMutable ||
           property_details.IsConfigurable()) {
-        dependencies()->DependOnGlobalProperty(
-            PropertyCellRef(broker(), property_cell));
+        dependencies()->DependOnGlobalProperty(property_cell);
       }
 
       // Load from constant/undefined global property can be constant-folded.
@@ -876,8 +878,9 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
         value = access_mode == AccessMode::kHas
                     ? jsgraph()->TrueConstant()
                     : jsgraph()->Constant(property_cell_value);
-        CHECK(
-            !property_cell_value.is_identical_to(factory()->the_hole_value()));
+        DCHECK(!property_cell_value.IsHeapObject() ||
+               property_cell_value.AsHeapObject().map().oddball_type() !=
+                   OddballType::kHole);
       } else {
         DCHECK_NE(AccessMode::kHas, access_mode);
 
@@ -887,16 +890,15 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
         MachineRepresentation representation = MachineRepresentation::kTagged;
         if (property_details.cell_type() == PropertyCellType::kConstantType) {
           // Compute proper type based on the current value in the cell.
-          if (property_cell_value->IsSmi()) {
+          if (property_cell_value.IsSmi()) {
             property_cell_value_type = Type::SignedSmall();
             representation = MachineRepresentation::kTaggedSigned;
-          } else if (property_cell_value->IsNumber()) {
+          } else if (property_cell_value.IsHeapNumber()) {
             property_cell_value_type = Type::Number();
             representation = MachineRepresentation::kTaggedPointer;
           } else {
-            MapRef property_cell_value_map(
-                broker(), handle(HeapObject::cast(*property_cell_value)->map(),
-                                 isolate()));
+            MapRef property_cell_value_map =
+                property_cell_value.AsHeapObject().map();
             property_cell_value_type = Type::For(property_cell_value_map);
             representation = MachineRepresentation::kTaggedPointer;
 
@@ -912,7 +914,7 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
         value = effect = graph()->NewNode(
             simplified()->LoadField(ForPropertyCellValue(
                 representation, property_cell_value_type, map, name)),
-            jsgraph()->HeapConstant(property_cell), effect, control);
+            jsgraph()->Constant(property_cell), effect, control);
       }
     }
   } else {
@@ -926,8 +928,7 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
       case PropertyCellType::kConstant: {
         // Record a code dependency on the cell, and just deoptimize if the new
         // value doesn't match the previous value stored inside the cell.
-        dependencies()->DependOnGlobalProperty(
-            PropertyCellRef(broker(), property_cell));
+        dependencies()->DependOnGlobalProperty(property_cell);
         Node* check =
             graph()->NewNode(simplified()->ReferenceEqual(), value,
                              jsgraph()->Constant(property_cell_value));
@@ -940,29 +941,26 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
         // Record a code dependency on the cell, and just deoptimize if the new
         // values' type doesn't match the type of the previous value in the
         // cell.
-        dependencies()->DependOnGlobalProperty(
-            PropertyCellRef(broker(), property_cell));
+        dependencies()->DependOnGlobalProperty(property_cell);
         Type property_cell_value_type;
         MachineRepresentation representation = MachineRepresentation::kTagged;
-        if (property_cell_value->IsHeapObject()) {
+        if (property_cell_value.IsHeapObject()) {
           // We cannot do anything if the {property_cell_value}s map is no
           // longer stable.
-          Handle<Map> property_cell_value_map(
-              Handle<HeapObject>::cast(property_cell_value)->map(), isolate());
-          DCHECK(property_cell_value_map->is_stable());
-          dependencies()->DependOnStableMap(
-              MapRef(broker(), property_cell_value_map));
+          MapRef property_cell_value_map =
+              property_cell_value.AsHeapObject().map();
+          dependencies()->DependOnStableMap(property_cell_value_map);
 
           // Check that the {value} is a HeapObject.
           value = effect = graph()->NewNode(simplified()->CheckHeapObject(),
                                             value, effect, control);
 
           // Check {value} map against the {property_cell} map.
-          effect =
-              graph()->NewNode(simplified()->CheckMaps(
-                                   CheckMapsFlag::kNone,
-                                   ZoneHandleSet<Map>(property_cell_value_map)),
-                               value, effect, control);
+          effect = graph()->NewNode(
+              simplified()->CheckMaps(
+                  CheckMapsFlag::kNone,
+                  ZoneHandleSet<Map>(property_cell_value_map.object())),
+              value, effect, control);
           property_cell_value_type = Type::OtherInternal();
           representation = MachineRepresentation::kTaggedPointer;
         } else {
@@ -975,20 +973,19 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
         effect = graph()->NewNode(simplified()->StoreField(ForPropertyCellValue(
                                       representation, property_cell_value_type,
                                       MaybeHandle<Map>(), name)),
-                                  jsgraph()->HeapConstant(property_cell), value,
+                                  jsgraph()->Constant(property_cell), value,
                                   effect, control);
         break;
       }
       case PropertyCellType::kMutable: {
         // Record a code dependency on the cell, and just deoptimize if the
         // property ever becomes read-only.
-        dependencies()->DependOnGlobalProperty(
-            PropertyCellRef(broker(), property_cell));
+        dependencies()->DependOnGlobalProperty(property_cell);
         effect = graph()->NewNode(
             simplified()->StoreField(ForPropertyCellValue(
                 MachineRepresentation::kTagged, Type::NonInternal(),
                 MaybeHandle<Map>(), name)),
-            jsgraph()->HeapConstant(property_cell), value, effect, control);
+            jsgraph()->Constant(property_cell), value, effect, control);
         break;
       }
     }
@@ -1000,104 +997,83 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
 
 Reduction JSNativeContextSpecialization::ReduceJSLoadGlobal(Node* node) {
   DCHECK_EQ(IrOpcode::kJSLoadGlobal, node->opcode());
-  Node* effect = NodeProperties::GetEffectInput(node);
+  DisallowHeapAccessIf no_heap_acess(FLAG_concurrent_inlining);
 
   LoadGlobalParameters const& p = LoadGlobalParametersOf(node->op());
   if (!p.feedback().IsValid()) return NoChange();
-  FeedbackNexus nexus(p.feedback().vector(), p.feedback().slot());
+  FeedbackSource source(p.feedback());
 
-  DCHECK(nexus.kind() == FeedbackSlotKind::kLoadGlobalInsideTypeof ||
-         nexus.kind() == FeedbackSlotKind::kLoadGlobalNotInsideTypeof);
-  if (nexus.ic_state() != MONOMORPHIC || nexus.GetFeedback()->IsCleared()) {
-    return NoChange();
+  GlobalAccessFeedback const* processed;
+  if (FLAG_concurrent_inlining) {
+    processed = broker()->GetGlobalAccessFeedback(source);
+    TRACE_BROKER(broker(), "ReduceJSLoadGlobal: using preprocessed feedback "
+                               << "(slot " << p.feedback().slot()
+                               << " of feedback vector handle "
+                               << p.feedback().vector().address() << ").\n");
+  } else {
+    processed = broker()->ProcessFeedbackForGlobalAccess(source);
   }
-  Handle<Object> feedback(nexus.GetFeedback()->GetHeapObjectOrSmi(), isolate());
 
-  if (feedback->IsSmi()) {
-    // The wanted name belongs to a script-scope variable and the feedback tells
-    // us where to find its value.
+  if (processed == nullptr) return NoChange();
 
-    int number = feedback->Number();
-    int const script_context_index =
-        FeedbackNexus::ContextIndexBits::decode(number);
-    int const context_slot_index = FeedbackNexus::SlotIndexBits::decode(number);
-    bool const immutable = FeedbackNexus::ImmutabilityBit::decode(number);
-    Handle<Context> context = ScriptContextTable::GetContext(
-        isolate(), native_context().script_context_table().object(),
-        script_context_index);
-
-    {
-      ObjectRef contents(broker(),
-                         handle(context->get(context_slot_index), isolate()));
-      CHECK(!contents.equals(ObjectRef(broker(), factory()->the_hole_value())));
-    }
-
-    Node* context_constant = jsgraph()->Constant(context);
-    Node* value = effect = graph()->NewNode(
-        javascript()->LoadContext(0, context_slot_index, immutable),
-        context_constant, effect);
+  if (processed->IsScriptContextSlot()) {
+    Node* effect = NodeProperties::GetEffectInput(node);
+    Node* script_context = jsgraph()->Constant(processed->script_context());
+    Node* value = effect =
+        graph()->NewNode(javascript()->LoadContext(0, processed->slot_index(),
+                                                   processed->immutable()),
+                         script_context, effect);
     ReplaceWithValue(node, value, effect);
     return Replace(value);
   }
 
-  CHECK(feedback->IsPropertyCell());
-  // The wanted name belongs (or did belong) to a property on the global object
-  // and the feedback is the cell holding its value.
+  CHECK(processed->IsPropertyCell());
   return ReduceGlobalAccess(node, nullptr, nullptr, p.name(), AccessMode::kLoad,
-                            nullptr, Handle<PropertyCell>::cast(feedback));
+                            nullptr, processed->property_cell());
 }
 
 Reduction JSNativeContextSpecialization::ReduceJSStoreGlobal(Node* node) {
   DCHECK_EQ(IrOpcode::kJSStoreGlobal, node->opcode());
+  DisallowHeapAccessIf no_heap_acess(FLAG_concurrent_inlining);
+
   Node* value = NodeProperties::GetValueInput(node, 0);
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
 
   StoreGlobalParameters const& p = StoreGlobalParametersOf(node->op());
   if (!p.feedback().IsValid()) return NoChange();
-  FeedbackNexus nexus(p.feedback().vector(), p.feedback().slot());
+  FeedbackSource source(p.feedback());
 
-  DCHECK(nexus.kind() == FeedbackSlotKind::kStoreGlobalSloppy ||
-         nexus.kind() == FeedbackSlotKind::kStoreGlobalStrict);
-  if (nexus.ic_state() != MONOMORPHIC || nexus.GetFeedback()->IsCleared()) {
-    return NoChange();
+  GlobalAccessFeedback const* processed;
+  if (FLAG_concurrent_inlining) {
+    processed = broker()->GetGlobalAccessFeedback(source);
+    TRACE_BROKER(broker(), "ReduceJSStoreGlobal: using preprocessed feedback "
+                               << "(slot " << p.feedback().slot()
+                               << " of feedback vector handle "
+                               << p.feedback().vector().address() << ").\n");
+  } else {
+    processed = broker()->ProcessFeedbackForGlobalAccess(source);
   }
-  Handle<Object> feedback(nexus.GetFeedback()->GetHeapObjectOrSmi(), isolate());
 
-  if (feedback->IsSmi()) {
-    // The wanted name belongs to a script-scope variable and the feedback tells
-    // us where to find its value.
+  if (processed == nullptr) return NoChange();
 
-    int const script_context_index =
-        FeedbackNexus::ContextIndexBits::decode(feedback->Number());
-    int const context_slot_index =
-        FeedbackNexus::SlotIndexBits::decode(feedback->Number());
-    bool const immutable =
-        FeedbackNexus::ImmutabilityBit::decode(feedback->Number());
-    Handle<Context> context = ScriptContextTable::GetContext(
-        isolate(), native_context().script_context_table().object(),
-        script_context_index);
-
-    if (immutable) return NoChange();
-
-    {
-      ObjectRef contents(broker(),
-                         handle(context->get(context_slot_index), isolate()));
-      CHECK(!contents.equals(ObjectRef(broker(), factory()->the_hole_value())));
-    }
-
-    Node* context_constant = jsgraph()->Constant(context);
-    effect = graph()->NewNode(javascript()->StoreContext(0, context_slot_index),
-                              value, context_constant, effect, control);
+  if (processed->IsScriptContextSlot()) {
+    if (processed->immutable()) return NoChange();
+    Node* effect = NodeProperties::GetEffectInput(node);
+    Node* control = NodeProperties::GetControlInput(node);
+    Node* script_context = jsgraph()->Constant(processed->script_context());
+    effect =
+        graph()->NewNode(javascript()->StoreContext(0, processed->slot_index()),
+                         value, script_context, effect, control);
     ReplaceWithValue(node, value, effect, control);
     return Replace(value);
   }
 
-  CHECK(feedback->IsPropertyCell());
-  // The wanted name belongs (or did belong) to a property on the global object
-  // and the feedback is the cell holding its value.
-  return ReduceGlobalAccess(node, nullptr, value, p.name(), AccessMode::kStore,
-                            nullptr, Handle<PropertyCell>::cast(feedback));
+  if (processed->IsPropertyCell()) {
+    return ReduceGlobalAccess(node, nullptr, value, p.name(),
+                              AccessMode::kStore, nullptr,
+                              processed->property_cell());
+  }
+
+  UNREACHABLE();
 }
 
 Reduction JSNativeContextSpecialization::ReduceNamedAccess(

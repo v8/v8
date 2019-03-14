@@ -25,9 +25,9 @@ namespace compiler {
 
 // Forward declarations.
 class CompilationDependencies;
+class ElementAccessFeedback;
 class Type;
 class TypeCache;
-struct ProcessedFeedback;
 
 // Whether we are loading a property or storing to a property.
 // For a store during literal creation, do not walk up the prototype chain.
@@ -166,7 +166,7 @@ class AccessInfoFactory final {
       ZoneVector<PropertyAccessInfo>* access_infos) const;
 
  private:
-  bool ConsolidateElementLoad(ProcessedFeedback const& processed,
+  bool ConsolidateElementLoad(ElementAccessFeedback const& processed,
                               ElementAccessInfo* access_info) const;
   bool LookupSpecialFieldAccessor(Handle<Map> map, Handle<Name> name,
                                   PropertyAccessInfo* access_info) const;

@@ -116,7 +116,8 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
                                Node* index = nullptr);
   Reduction ReduceGlobalAccess(Node* node, Node* receiver, Node* value,
                                Handle<Name> name, AccessMode access_mode,
-                               Node* index, Handle<PropertyCell> property_cell);
+                               Node* index,
+                               PropertyCellRef const& property_cell);
   Reduction ReduceKeyedLoadFromHeapConstant(Node* node, Node* index,
                                             FeedbackNexus const& nexus,
                                             AccessMode access_mode,
