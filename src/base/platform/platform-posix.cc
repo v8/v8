@@ -43,7 +43,7 @@
 #include "src/base/utils/random-number-generator.h"
 
 #ifdef V8_FAST_TLS_SUPPORTED
-#include "src/base/atomicops.h"
+#include <atomic>
 #endif
 
 #if V8_OS_MACOSX
@@ -815,7 +815,7 @@ static pthread_key_t LocalKeyToPthreadKey(Thread::LocalStorageKey local_key) {
 
 #ifdef V8_FAST_TLS_SUPPORTED
 
-static Atomic32 tls_base_offset_initialized = 0;
+static std::atomic<bool> tls_base_offset_initialized{false};
 intptr_t kMacTlsBaseOffset = 0;
 
 // It's safe to do the initialization more that once, but it has to be
@@ -851,7 +851,7 @@ static void InitializeTlsBaseOffset() {
     kMacTlsBaseOffset = 0;
   }
 
-  Release_Store(&tls_base_offset_initialized, 1);
+  tls_base_offset_initialized.store(true, std::memory_order_release);
 }
 
 
@@ -871,7 +871,7 @@ static void CheckFastTls(Thread::LocalStorageKey key) {
 Thread::LocalStorageKey Thread::CreateThreadLocalKey() {
 #ifdef V8_FAST_TLS_SUPPORTED
   bool check_fast_tls = false;
-  if (tls_base_offset_initialized == 0) {
+  if (!tls_base_offset_initialized.load(std::memory_order_acquire)) {
     check_fast_tls = true;
     InitializeTlsBaseOffset();
   }
