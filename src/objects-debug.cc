@@ -737,6 +737,7 @@ void PropertyArray::PropertyArrayVerify(Isolate* isolate) {
     Object e = get(i);
     Object::VerifyPointer(isolate, e);
   }
+  VerifySmiField(kLengthAndHashOffset);
 }
 
 void FixedDoubleArray::FixedDoubleArrayVerify(Isolate* isolate) {
@@ -1197,6 +1198,8 @@ void Oddball::OddballVerify(Isolate* isolate) {
   } else {
     UNREACHABLE();
   }
+  CHECK(to_string()->IsString());
+  CHECK(type_of()->IsString());
 }
 
 void Cell::CellVerify(Isolate* isolate) {

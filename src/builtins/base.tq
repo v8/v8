@@ -60,7 +60,13 @@ type Code extends AbstractCode generates 'TNode<Code>';
 type BuiltinPtr extends Smi generates 'TNode<BuiltinPtr>';
 type Context extends HeapObject generates 'TNode<Context>';
 type NativeContext extends Context;
-type Oddball extends HeapObject generates 'TNode<Oddball>';
+extern class Oddball extends HeapObject {
+  to_number_raw: float64;
+  to_string: String;
+  to_number: Number;
+  type_of: String;
+  kind: Smi;
+}
 type HeapNumber extends HeapObject generates 'TNode<HeapNumber>';
 type Number = Smi | HeapNumber;
 type BigInt extends HeapObject generates 'TNode<BigInt>';
@@ -455,6 +461,8 @@ extern class ObjectTemplateInfo extends TemplateInfo {
   constructor: Object;
   data: Object;
 }
+
+extern class PropertyArray extends HeapObject { length_and_hash: Smi; }
 
 type JSDataView extends JSArrayBufferView generates 'TNode<JSDataView>';
 

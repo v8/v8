@@ -6,6 +6,7 @@
 #define V8_OBJECTS_ODDBALL_H_
 
 #include "src/objects/heap-object.h"
+#include "torque-generated/class-definitions-from-dsl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -47,22 +48,11 @@ class Oddball : public HeapObject {
                          const char* to_string, Handle<Object> to_number,
                          const char* type_of, byte kind);
 
-  // Layout description.
-#define ODDBALL_FIELDS(V)                  \
-  V(kToNumberRawOffset, kDoubleSize)       \
-  /* Tagged fields. */                     \
-  V(kTaggedFieldsStartOffset, 0)           \
-  V(kToStringOffset, kTaggedSize)          \
-  V(kToNumberOffset, kTaggedSize)          \
-  V(kTypeOfOffset, kTaggedSize)            \
-  V(kTaggedFieldsEndOffset, 0)             \
-  /* Raw data but still encoded as Smi. */ \
-  V(kKindOffset, kTaggedSize)              \
-  /* Total size. */                        \
-  V(kSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, ODDBALL_FIELDS)
-#undef ODDBALL_FIELDS
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
+                                TORQUE_GENERATED_ODDBALL_FIELDS)
+  // TODO(v8:8989): [torque] Support marker constants.
+  static const int kTaggedFieldsStartOffset = kToStringOffset;
+  static const int kTaggedFieldsEndOffset = kKindOffset;
 
   static const byte kFalse = 0;
   static const byte kTrue = 1;
