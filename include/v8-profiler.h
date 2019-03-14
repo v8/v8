@@ -330,6 +330,15 @@ class V8_EXPORT CpuProfiler {
   void SetSamplingInterval(int us);
 
   /**
+   * Sets whether or not the profiler should prioritize consistency of sample
+   * periodicity on Windows. Disabling this can greatly reduce CPU usage, but
+   * may result in greater variance in sample timings from the platform's
+   * scheduler. Defaults to enabled. This method must be called when there are
+   * no profiles being recorded.
+   */
+  void SetUsePreciseSampling(bool);
+
+  /**
    * Starts collecting CPU profile. Title may be an empty string. It
    * is allowed to have several profiles being collected at
    * once. Attempts to start collecting several profiles with the same

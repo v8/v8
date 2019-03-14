@@ -82,7 +82,8 @@ TEST(StartStop) {
   ProfileGenerator generator(&profiles);
   std::unique_ptr<ProfilerEventsProcessor> processor(
       new SamplingEventsProcessor(isolate, &generator,
-                                  v8::base::TimeDelta::FromMicroseconds(100)));
+                                  v8::base::TimeDelta::FromMicroseconds(100),
+                                  true));
   processor->Start();
   processor->StopSynchronously();
 }
@@ -164,7 +165,7 @@ TEST(CodeEvents) {
   CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate);
   ProfileGenerator* generator = new ProfileGenerator(profiles);
   ProfilerEventsProcessor* processor = new SamplingEventsProcessor(
-      isolate, generator, v8::base::TimeDelta::FromMicroseconds(100));
+      isolate, generator, v8::base::TimeDelta::FromMicroseconds(100), true);
   processor->Start();
   ProfilerListener profiler_listener(isolate, processor);
   isolate->logger()->AddCodeEventListener(&profiler_listener);
@@ -222,9 +223,9 @@ TEST(TickEvents) {
 
   CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate);
   ProfileGenerator* generator = new ProfileGenerator(profiles);
-  ProfilerEventsProcessor* processor =
-      new SamplingEventsProcessor(CcTest::i_isolate(), generator,
-                                  v8::base::TimeDelta::FromMicroseconds(100));
+  ProfilerEventsProcessor* processor = new SamplingEventsProcessor(
+      CcTest::i_isolate(), generator,
+      v8::base::TimeDelta::FromMicroseconds(100), true);
   CpuProfiler profiler(isolate, profiles, generator, processor);
   profiles->StartProfiling("", false);
   processor->Start();
@@ -291,9 +292,9 @@ TEST(Issue1398) {
 
   CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate);
   ProfileGenerator* generator = new ProfileGenerator(profiles);
-  ProfilerEventsProcessor* processor =
-      new SamplingEventsProcessor(CcTest::i_isolate(), generator,
-                                  v8::base::TimeDelta::FromMicroseconds(100));
+  ProfilerEventsProcessor* processor = new SamplingEventsProcessor(
+      CcTest::i_isolate(), generator,
+      v8::base::TimeDelta::FromMicroseconds(100), true);
   CpuProfiler profiler(isolate, profiles, generator, processor);
   profiles->StartProfiling("", false);
   processor->Start();
@@ -1149,9 +1150,9 @@ static void TickLines(bool optimize) {
 
   CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate);
   ProfileGenerator* generator = new ProfileGenerator(profiles);
-  ProfilerEventsProcessor* processor =
-      new SamplingEventsProcessor(CcTest::i_isolate(), generator,
-                                  v8::base::TimeDelta::FromMicroseconds(100));
+  ProfilerEventsProcessor* processor = new SamplingEventsProcessor(
+      CcTest::i_isolate(), generator,
+      v8::base::TimeDelta::FromMicroseconds(100), true);
   CpuProfiler profiler(isolate, profiles, generator, processor);
   profiles->StartProfiling("", false);
   // TODO(delphick): Stop using the CpuProfiler internals here: This forces
@@ -2831,6 +2832,29 @@ TEST(FastStopProfiling) {
   double duration = platform->CurrentClockTimeMillis() - start;
 
   CHECK_LT(duration, kWaitThreshold.InMillisecondsF());
+}
+
+TEST(LowPrecisionSamplingStartStopInternal) {
+  i::Isolate* isolate = CcTest::i_isolate();
+  CpuProfilesCollection profiles(isolate);
+  ProfileGenerator generator(&profiles);
+  std::unique_ptr<ProfilerEventsProcessor> processor(
+      new SamplingEventsProcessor(isolate, &generator,
+                                  v8::base::TimeDelta::FromMicroseconds(100),
+                                  false));
+  processor->Start();
+  processor->StopSynchronously();
+}
+
+TEST(LowPrecisionSamplingStartStopPublic) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  v8::CpuProfiler* cpu_profiler = v8::CpuProfiler::New(env->GetIsolate());
+  cpu_profiler->SetUsePreciseSampling(false);
+  v8::Local<v8::String> profile_name = v8_str("");
+  cpu_profiler->StartProfiling(profile_name, true);
+  cpu_profiler->StopProfiling(profile_name);
+  cpu_profiler->Dispose();
 }
 
 enum class EntryCountMode { kAll, kOnlyInlined };

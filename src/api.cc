@@ -10140,6 +10140,11 @@ void CpuProfiler::SetSamplingInterval(int us) {
       base::TimeDelta::FromMicroseconds(us));
 }
 
+void CpuProfiler::SetUsePreciseSampling(bool use_precise_sampling) {
+  reinterpret_cast<i::CpuProfiler*>(this)->set_use_precise_sampling(
+      use_precise_sampling);
+}
+
 void CpuProfiler::CollectSample() {
   reinterpret_cast<i::CpuProfiler*>(this)->CollectSample();
 }

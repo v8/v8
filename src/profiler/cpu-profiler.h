@@ -179,7 +179,7 @@ class V8_EXPORT_PRIVATE SamplingEventsProcessor
     : public ProfilerEventsProcessor {
  public:
   SamplingEventsProcessor(Isolate* isolate, ProfileGenerator* generator,
-                          base::TimeDelta period);
+                          base::TimeDelta period, bool use_precise_sampling);
   ~SamplingEventsProcessor() override;
 
   // SamplingCircularQueue has stricter alignment requirements than a normal new
@@ -210,6 +210,8 @@ class V8_EXPORT_PRIVATE SamplingEventsProcessor
                         kTickSampleQueueLength> ticks_buffer_;
   std::unique_ptr<sampler::Sampler> sampler_;
   const base::TimeDelta period_;  // Samples & code events processing period.
+  const bool use_precise_sampling_;  // Whether or not busy-waiting is used for
+                                     // low sampling intervals on Windows.
 };
 
 class V8_EXPORT_PRIVATE CpuProfiler {
@@ -227,6 +229,7 @@ class V8_EXPORT_PRIVATE CpuProfiler {
   typedef v8::CpuProfilingMode ProfilingMode;
 
   void set_sampling_interval(base::TimeDelta value);
+  void set_use_precise_sampling(bool);
   void CollectSample();
   void StartProfiling(const char* title, bool record_samples = false,
                       ProfilingMode mode = ProfilingMode::kLeafNodeLineNumbers);
@@ -258,6 +261,7 @@ class V8_EXPORT_PRIVATE CpuProfiler {
 
   Isolate* const isolate_;
   base::TimeDelta sampling_interval_;
+  bool use_precise_sampling_ = true;
   std::unique_ptr<CpuProfilesCollection> profiles_;
   std::unique_ptr<ProfileGenerator> generator_;
   std::unique_ptr<ProfilerEventsProcessor> processor_;
