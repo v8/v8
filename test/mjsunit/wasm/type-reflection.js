@@ -10,10 +10,13 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   ["abc", 123, {}].forEach(function(invalidInput) {
     assertThrows(
       () => WebAssembly.Memory.type(invalidInput), TypeError,
-      "WebAssembly.Memory.type(): Argument 0 must be a WebAssembly.Memory");
+        "WebAssembly.Memory.type(): Argument 0 must be a WebAssembly.Memory");
     assertThrows(
       () => WebAssembly.Table.type(invalidInput), TypeError,
         "WebAssembly.Table.type(): Argument 0 must be a WebAssembly.Table");
+    assertThrows(
+      () => WebAssembly.Global.type(invalidInput), TypeError,
+        "WebAssembly.Global.type(): Argument 0 must be a WebAssembly.Global");
   });
 
   assertThrows(
@@ -26,6 +29,11 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
     () => WebAssembly.Table.type(
       new WebAssembly.Memory({initial:1})), TypeError,
       "WebAssembly.Table.type(): Argument 0 must be a WebAssembly.Table");
+
+  assertThrows(
+    () => WebAssembly.Global.type(
+      new WebAssembly.Memory({initial:1})), TypeError,
+      "WebAssembly.Global.type(): Argument 0 must be a WebAssembly.Global");
 })();
 
 (function TestMemoryType() {
@@ -55,4 +63,36 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals(15, type.maximum);
   assertEquals("anyfunc", type.element);
   assertEquals(3, Object.getOwnPropertyNames(type).length);
+})();
+
+(function TestGlobalType() {
+  let global = new WebAssembly.Global({value: "i32", mutable: true});
+  let type = WebAssembly.Global.type(global);
+  assertEquals("i32", type.value);
+  assertEquals(true, type.mutable);
+  assertEquals(2, Object.getOwnPropertyNames(type).length);
+
+  global = new WebAssembly.Global({value: "i32"});
+  type = WebAssembly.Global.type(global);
+  assertEquals("i32", type.value);
+  assertEquals(false, type.mutable);
+  assertEquals(2, Object.getOwnPropertyNames(type).length);
+
+  global = new WebAssembly.Global({value: "i64"});
+  type = WebAssembly.Global.type(global);
+  assertEquals("i64", type.value);
+  assertEquals(false, type.mutable);
+  assertEquals(2, Object.getOwnPropertyNames(type).length);
+
+  global = new WebAssembly.Global({value: "f32"});
+  type = WebAssembly.Global.type(global);
+  assertEquals("f32", type.value);
+  assertEquals(false, type.mutable);
+  assertEquals(2, Object.getOwnPropertyNames(type).length);
+
+  global = new WebAssembly.Global({value: "f64"});
+  type = WebAssembly.Global.type(global);
+  assertEquals("f64", type.value);
+  assertEquals(false, type.mutable);
+  assertEquals(2, Object.getOwnPropertyNames(type).length);
 })();

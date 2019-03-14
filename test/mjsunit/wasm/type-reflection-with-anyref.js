@@ -20,3 +20,17 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals("anyref", type.element);
   assertEquals(3, Object.getOwnPropertyNames(type).length);
 })();
+
+(function TestGlobalType() {
+  let global = new WebAssembly.Global({value: "anyref", mutable: true});
+  let type = WebAssembly.Global.type(global);
+  assertEquals("anyref", type.value);
+  assertEquals(true, type.mutable);
+  assertEquals(2, Object.getOwnPropertyNames(type).length);
+
+  global = new WebAssembly.Global({value: "anyref"});
+  type = WebAssembly.Global.type(global);
+  assertEquals("anyref", type.value);
+  assertEquals(false, type.mutable);
+  assertEquals(2, Object.getOwnPropertyNames(type).length);
+})();

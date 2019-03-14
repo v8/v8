@@ -193,6 +193,7 @@ Local<String> v8_str(Isolate* isolate, const char* str) {
 GET_FIRST_ARGUMENT_AS(Module)
 GET_FIRST_ARGUMENT_AS(Memory)
 GET_FIRST_ARGUMENT_AS(Table)
+GET_FIRST_ARGUMENT_AS(Global)
 
 #undef GET_FIRST_ARGUMENT_AS
 
@@ -1710,6 +1711,60 @@ void WebAssemblyGlobalSetValue(
   }
 }
 
+// WebAssembly.Global.type(WebAssembly.Global) -> GlobalType
+void WebAssemblyGlobalGetType(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  v8::Isolate* isolate = args.GetIsolate();
+  HandleScope scope(isolate);
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  ScheduledErrorThrower thrower(i_isolate, "WebAssembly.Global.type()");
+
+  auto maybe_global = GetFirstArgumentAsGlobal(args, &thrower);
+  if (thrower.error()) return;
+  i::Handle<i::WasmGlobalObject> global = maybe_global.ToHandleChecked();
+  v8::Local<v8::Object> ret = v8::Object::New(isolate);
+
+  if (!ret->CreateDataProperty(isolate->GetCurrentContext(),
+                               v8_str(isolate, "mutable"),
+                               v8::Boolean::New(isolate, global->is_mutable()))
+           .IsJust()) {
+    return;
+  }
+
+  Local<String> type;
+  switch (global->type()) {
+    case i::wasm::kWasmI32: {
+      type = v8_str(isolate, "i32");
+      break;
+    }
+    case i::wasm::kWasmI64: {
+      type = v8_str(isolate, "i64");
+      break;
+    }
+    case i::wasm::kWasmF32: {
+      type = v8_str(isolate, "f32");
+      break;
+    }
+    case i::wasm::kWasmF64: {
+      type = v8_str(isolate, "f64");
+      break;
+    }
+    case i::wasm::kWasmAnyRef: {
+      type = v8_str(isolate, "anyref");
+      break;
+    }
+    default:
+      UNREACHABLE();
+  }
+  if (!ret->CreateDataProperty(isolate->GetCurrentContext(),
+                               v8_str(isolate, "value"), type)
+           .IsJust()) {
+    return;
+  }
+
+  v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
+  return_value.Set(ret);
+}
+
 }  // namespace
 
 // TODO(titzer): we use the API to create the function template because the
@@ -1945,6 +2000,10 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
   InstallFunc(isolate, global_proto, "valueOf", WebAssemblyGlobalValueOf, 0);
   InstallGetterSetter(isolate, global_proto, "value", WebAssemblyGlobalGetValue,
                       WebAssemblyGlobalSetValue);
+  if (enabled_features.type_reflection) {
+    InstallFunc(isolate, global_constructor, "type", WebAssemblyGlobalGetType,
+                1);
+  }
   JSObject::AddProperty(isolate, global_proto, factory->to_string_tag_symbol(),
                         v8_str(isolate, "WebAssembly.Global"), ro_attributes);
 
