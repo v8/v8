@@ -114,6 +114,10 @@ namespace wasm {
 class WasmEngine;
 }
 
+namespace win64_unwindinfo {
+class BuiltinUnwindInfo;
+}
+
 #define RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate) \
   do {                                                 \
     Isolate* __isolate__ = (isolate);                  \
@@ -1441,6 +1445,12 @@ class Isolate final : private HiddenFactory {
   // replaced with trampolines. Those source positions are used to
   // annotate the builtin blob with debugging information.
   void PrepareBuiltinSourcePositionMap();
+
+#if defined(V8_OS_WIN_X64)
+  void SetBuiltinUnwindData(
+      int builtin_index,
+      const win64_unwindinfo::BuiltinUnwindInfo& unwinding_info);
+#endif
 
   void SetPrepareStackTraceCallback(PrepareStackTraceCallback callback);
   MaybeHandle<Object> RunPrepareStackTraceCallback(Handle<Context>,

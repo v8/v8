@@ -7166,6 +7166,13 @@ enum JitCodeEventOptions {
  */
 typedef void (*JitCodeEventHandler)(const JitCodeEvent* event);
 
+/**
+ * Callback function passed to SetUnhandledExceptionCallback.
+ */
+#if defined(V8_OS_WIN_X64)
+typedef int (*UnhandledExceptionCallback)(
+    _EXCEPTION_POINTERS* exception_pointers);
+#endif
 
 /**
  * Interface for iterating through all external resources in the heap.
@@ -8380,13 +8387,13 @@ class V8_EXPORT Isolate {
   /**
    * Returns a memory range that can potentially contain jitted code. Code for
    * V8's 'builtins' will not be in this range if embedded builtins is enabled.
-   * Instead, see GetEmbeddedCodeRange.
    *
    * On Win64, embedders are advised to install function table callbacks for
    * these ranges, as default SEH won't be able to unwind through jitted code.
-   *
    * The first page of the code range is reserved for the embedder and is
-   * committed, writable, and executable.
+   * committed, writable, and executable, to be used to store unwind data, as
+   * documented in
+   * https://docs.microsoft.com/en-us/cpp/build/exception-handling-x64.
    *
    * Might be empty on other platforms.
    *
@@ -8785,6 +8792,20 @@ class V8_EXPORT V8 {
    * handler or rely on the embedder's.
    */
   static bool EnableWebAssemblyTrapHandler(bool use_v8_signal_handler);
+
+#if defined(V8_OS_WIN_X64)
+  /**
+   * On Win64, by default V8 does not emit unwinding data for jitted code,
+   * which means the OS cannot walk the stack frames and the system Structured
+   * Exception Handling (SEH) cannot unwind through V8-generated code:
+   * https://code.google.com/p/v8/issues/detail?id=3598.
+   *
+   * This function allows embedders to register a custom exception handler for
+   * exceptions in V8-generated code.
+   */
+  static void SetUnhandledExceptionCallback(
+      UnhandledExceptionCallback unhandled_exception_callback);
+#endif
 
  private:
   V8();

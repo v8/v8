@@ -116,10 +116,14 @@
 #endif
 
 #if V8_OS_WIN
+#include <versionhelpers.h>
 #include <windows.h>
 #include "include/v8-wasm-trap-handler-win.h"
 #include "src/trap-handler/handler-inside-win.h"
-#endif
+#if V8_TARGET_ARCH_X64
+#include "src/unwinding-info-win64.h"
+#endif  // V8_TARGET_ARCH_X64
+#endif  // V8_OS_WIN
 
 namespace v8 {
 
@@ -5786,6 +5790,14 @@ bool TryHandleWebAssemblyTrapWindows(EXCEPTION_POINTERS* exception) {
 bool V8::EnableWebAssemblyTrapHandler(bool use_v8_signal_handler) {
   return v8::internal::trap_handler::EnableTrapHandler(use_v8_signal_handler);
 }
+
+#if defined(V8_OS_WIN_X64)
+void V8::SetUnhandledExceptionCallback(
+    UnhandledExceptionCallback unhandled_exception_callback) {
+  v8::internal::win64_unwindinfo::SetUnhandledExceptionCallback(
+      unhandled_exception_callback);
+}
+#endif
 
 void v8::V8::SetEntropySource(EntropySource entropy_source) {
   base::RandomNumberGenerator::SetEntropySource(entropy_source);

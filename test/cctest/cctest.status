@@ -450,6 +450,12 @@
 }],
 
 ##############################################################################
+# Windows stack unwinding is only supported on x64.
+['arch != x64 or system != windows', {
+  'test-stack-unwinding-x64/*': [SKIP]
+}],
+
+##############################################################################
 ['lite_mode or variant == jitless', {
 
   # TODO(8394): First execution events don't work in lite_mode. Enable this after
