@@ -2004,12 +2004,12 @@ WasmCompilationResult LiftoffCompilationUnit::ExecuteCompilation(
   LiftoffCompiler* compiler = &decoder.interface();
   if (decoder.failed()) {
     compiler->OnFirstError(&decoder);
-    return WasmCompilationResult{decoder.error()};
+    return WasmCompilationResult{};
   }
   if (!compiler->ok()) {
     // Liftoff compilation failed.
     counters->liftoff_unsupported_functions()->Increment();
-    return WasmCompilationResult{WasmError{0, "Liftoff bailout"}};
+    return WasmCompilationResult{};
   }
 
   counters->liftoff_compiled_functions()->Increment();

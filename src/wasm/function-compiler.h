@@ -51,12 +51,7 @@ struct WasmCompilationResult {
  public:
   MOVE_ONLY_WITH_DEFAULT_CONSTRUCTORS(WasmCompilationResult);
 
-  explicit WasmCompilationResult(WasmError error) : error(std::move(error)) {}
-
-  bool succeeded() const {
-    DCHECK_EQ(code_desc.buffer != nullptr, error.empty());
-    return error.empty();
-  }
+  bool succeeded() const { return code_desc.buffer != nullptr; }
   operator bool() const { return succeeded(); }
 
   CodeDesc code_desc;
@@ -65,8 +60,6 @@ struct WasmCompilationResult {
   uint32_t tagged_parameter_slots = 0;
   OwnedVector<byte> source_positions;
   OwnedVector<trap_handler::ProtectedInstructionData> protected_instructions;
-
-  WasmError error;
 };
 
 class WasmCompilationUnit final {

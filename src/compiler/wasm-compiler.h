@@ -55,8 +55,7 @@ class TurbofanWasmCompilationUnit {
                                  wasm::WasmFeatures* detected,
                                  double* decode_ms, MachineGraph* mcgraph,
                                  NodeOriginTable* node_origins,
-                                 SourcePositionTable* source_positions,
-                                 wasm::WasmError* error_out);
+                                 SourcePositionTable* source_positions);
 
   wasm::WasmCompilationResult ExecuteCompilation(wasm::CompilationEnv*,
                                                  const wasm::FunctionBody&,

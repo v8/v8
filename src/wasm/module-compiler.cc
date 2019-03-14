@@ -120,7 +120,6 @@ class CompilationStateImpl {
  public:
   CompilationStateImpl(const std::shared_ptr<NativeModule>& native_module,
                        std::shared_ptr<Counters> async_counters);
-  ~CompilationStateImpl();
 
   // Cancel all background compilation and wait for all tasks to finish. Call
   // this before destructing this object.
@@ -150,10 +149,10 @@ class CompilationStateImpl {
   void RestartBackgroundCompileTask();
   void RestartBackgroundTasks();
 
-  void SetError(uint32_t func_index, const WasmError& error);
+  void SetError();
 
   bool failed() const {
-    return compile_error_.load(std::memory_order_relaxed) != nullptr;
+    return compile_failed_.load(std::memory_order_relaxed);
   }
 
   bool baseline_compilation_finished() const {
@@ -165,27 +164,6 @@ class CompilationStateImpl {
 
   CompileMode compile_mode() const { return compile_mode_; }
   WasmFeatures* detected_features() { return &detected_features_; }
-
-  // Call {GetCompileError} from foreground threads only, since we access
-  // NativeModule::wire_bytes, which is set from the foreground thread once the
-  // stream has finished.
-  WasmError GetCompileError() {
-    CompilationError* error = compile_error_.load(std::memory_order_acquire);
-    DCHECK_NOT_NULL(error);
-    std::ostringstream error_msg;
-    error_msg << "Compiling wasm function \"";
-    wasm::ModuleWireBytes wire_bytes(native_module_->wire_bytes());
-    wasm::WireBytesRef name_ref = native_module_->module()->LookupFunctionName(
-        wire_bytes, error->func_index);
-    if (name_ref.is_set()) {
-      wasm::WasmName name = wire_bytes.GetNameOrNull(name_ref);
-      error_msg.write(name.start(), name.length());
-    } else {
-      error_msg << "wasm-function[" << error->func_index << "]";
-    }
-    error_msg << "\" failed: " << error->error.message();
-    return WasmError{error->error.offset(), error_msg.str()};
-  }
 
   void SetWireBytesStorage(
       std::shared_ptr<WireBytesStorage> wire_bytes_storage) {
@@ -200,22 +178,14 @@ class CompilationStateImpl {
   }
 
  private:
-  struct CompilationError {
-    uint32_t const func_index;
-    WasmError const error;
-    CompilationError(uint32_t func_index, WasmError error)
-        : func_index(func_index), error(std::move(error)) {}
-  };
-
   NativeModule* const native_module_;
   const std::shared_ptr<BackgroundCompileToken> background_compile_token_;
   const CompileMode compile_mode_;
   const std::shared_ptr<Counters> async_counters_;
 
-  // Compilation error, atomically updated, but at most once (nullptr -> error).
-  // Uses acquire-release semantics (acquire on load, release on update).
-  // For checking whether an error is set, relaxed semantics can be used.
-  std::atomic<CompilationError*> compile_error_{nullptr};
+  // Compilation error, atomically updated. This flag can be updated and read
+  // using relaxed semantics.
+  std::atomic<bool> compile_failed_{false};
 
   // This mutex protects all information of this {CompilationStateImpl} which is
   // being accessed concurrently.
@@ -287,9 +257,7 @@ CompilationState::~CompilationState() { Impl(this)->~CompilationStateImpl(); }
 
 void CompilationState::AbortCompilation() { Impl(this)->AbortCompilation(); }
 
-void CompilationState::SetError(uint32_t func_index, const WasmError& error) {
-  Impl(this)->SetError(func_index, error);
-}
+void CompilationState::SetError() { Impl(this)->SetError(); }
 
 void CompilationState::SetWireBytesStorage(
     std::shared_ptr<WireBytesStorage> wire_bytes_storage) {
@@ -538,10 +506,7 @@ void CompileInParallel(Isolate* isolate, NativeModule* native_module) {
   compilation_state->PublishDetectedFeatures(isolate, detected_features);
 }
 
-void CompileSequentially(Isolate* isolate, NativeModule* native_module,
-                         ErrorThrower* thrower) {
-  DCHECK(!thrower->error());
-
+void CompileSequentially(Isolate* isolate, NativeModule* native_module) {
   ModuleWireBytes wire_bytes(native_module->wire_bytes());
   const WasmModule* module = native_module->module();
   WasmFeatures detected = kNoWasmFeatures;
@@ -554,10 +519,7 @@ void CompileSequentially(Isolate* isolate, NativeModule* native_module,
     // Compile the function.
     WasmCompilationUnit::CompileWasmFunction(isolate, native_module, &detected,
                                              &func, tier);
-    if (comp_state->failed()) {
-      thrower->CompileFailed(comp_state->GetCompileError());
-      break;
-    }
+    if (comp_state->failed()) break;
   }
   UpdateFeatureUseCounts(isolate, detected);
 }
@@ -566,16 +528,15 @@ void ValidateSequentially(Isolate* isolate, NativeModule* native_module,
                           ErrorThrower* thrower) {
   DCHECK(!thrower->error());
 
-  ModuleWireBytes wire_bytes(native_module->wire_bytes());
+  ModuleWireBytes wire_bytes{native_module->wire_bytes()};
   const WasmModule* module = native_module->module();
   uint32_t start = module->num_imported_functions;
   uint32_t end = start + module->num_declared_functions;
   for (uint32_t i = start; i < end; ++i) {
-    const WasmFunction& func = module->functions[i];
+    const WasmFunction* func = &module->functions[i];
 
-    const byte* base = wire_bytes.start();
-    FunctionBody body{func.sig, func.code.offset(), base + func.code.offset(),
-                      base + func.code.end_offset()};
+    Vector<const uint8_t> code = wire_bytes.GetFunctionBytes(func);
+    FunctionBody body{func->sig, func->code.offset(), code.start(), code.end()};
     DecodeResult result;
     {
       auto time_counter = SELECT_WASM_COUNTER(
@@ -588,11 +549,18 @@ void ValidateSequentially(Isolate* isolate, NativeModule* native_module,
                               &detected, body);
     }
     if (result.failed()) {
-      TruncatedUserString<> name(wire_bytes.GetNameOrNull(&func, module));
-      thrower->CompileError("Compiling function #%d:%.*s failed: %s @+%u", i,
-                            name.length(), name.start(),
-                            result.error().message().c_str(),
-                            result.error().offset());
+      WasmName name = wire_bytes.GetNameOrNull(func, module);
+      if (name.start() == nullptr) {
+        thrower->CompileError("Compiling function #%d failed: %s @+%u", i,
+                              result.error().message().c_str(),
+                              result.error().offset());
+      } else {
+        TruncatedUserString<> name(wire_bytes.GetNameOrNull(func, module));
+        thrower->CompileError("Compiling function #%d:\"%.*s\" failed: %s @+%u",
+                              i, name.length(), name.start(),
+                              result.error().message().c_str(),
+                              result.error().offset());
+      }
       break;
     }
   }
@@ -627,11 +595,12 @@ void CompileNativeModule(Isolate* isolate, ErrorThrower* thrower,
     if (compile_parallel) {
       CompileInParallel(isolate, native_module);
     } else {
-      CompileSequentially(isolate, native_module, thrower);
+      CompileSequentially(isolate, native_module);
     }
     auto* compilation_state = Impl(native_module->compilation_state());
     if (compilation_state->failed()) {
-      thrower->CompileFailed(compilation_state->GetCompileError());
+      ValidateSequentially(isolate, native_module, thrower);
+      CHECK(thrower->error());
     }
   }
 }
@@ -953,9 +922,19 @@ void AsyncCompileJob::FinishCompile() {
   FinishModule();
 }
 
-void AsyncCompileJob::AsyncCompileFailed(const WasmError& error) {
+void AsyncCompileJob::DecodeFailed(const WasmError& error) {
   ErrorThrower thrower(isolate_, "WebAssembly.compile()");
   thrower.CompileFailed(error);
+  // {job} keeps the {this} pointer alive.
+  std::shared_ptr<AsyncCompileJob> job =
+      isolate_->wasm_engine()->RemoveCompileJob(this);
+  resolver_->OnCompilationFailed(thrower.Reify());
+}
+
+void AsyncCompileJob::AsyncCompileFailed() {
+  ErrorThrower thrower(isolate_, "WebAssembly.compile()");
+  ValidateSequentially(isolate_, native_module_.get(), &thrower);
+  DCHECK(thrower.error());
   // {job} keeps the {this} pointer alive.
   std::shared_ptr<AsyncCompileJob> job =
       isolate_->wasm_engine()->RemoveCompileJob(this);
@@ -986,7 +965,9 @@ class AsyncCompileJob::CompilationStateCallback {
         break;
       case CompilationEvent::kFailedCompilation: {
         DCHECK(!last_event_.has_value());
-        job_->DoSync<CompileFailed>();
+        if (job_->DecrementAndCheckFinisherCount()) {
+          job_->DoSync<CompileFailed>();
+        }
         break;
       }
       default:
@@ -1173,8 +1154,8 @@ class AsyncCompileJob::DecodeFail : public CompileStep {
 
   void RunInForeground(AsyncCompileJob* job) override {
     TRACE_COMPILE("(1b) Decoding failed.\n");
-    // {job_} is deleted in AsyncCompileFailed, therefore the {return}.
-    return job->AsyncCompileFailed(error_);
+    // {job_} is deleted in DecodeFailed, therefore the {return}.
+    return job->DecodeFailed(error_);
   }
 };
 
@@ -1234,11 +1215,10 @@ class AsyncCompileJob::CompileFailed : public CompileStep {
  private:
   void RunInForeground(AsyncCompileJob* job) override {
     TRACE_COMPILE("(3a) Compilation failed\n");
+    DCHECK(job->native_module_->compilation_state()->failed());
 
-    WasmError error =
-        Impl(job->native_module_->compilation_state())->GetCompileError();
     // {job_} is deleted in AsyncCompileFailed, therefore the {return}.
-    return job->AsyncCompileFailed(error);
+    return job->AsyncCompileFailed();
   }
 };
 
@@ -1271,6 +1251,7 @@ class AsyncCompileJob::CompileFinished : public CompileStep {
  private:
   void RunInForeground(AsyncCompileJob* job) override {
     TRACE_COMPILE("(3b) Compilation finished\n");
+    DCHECK(!job->native_module_->compilation_state()->failed());
     // Sample the generated code size when baseline compilation finished.
     job->native_module_->SampleCodeSize(job->isolate_->counters(),
                                         NativeModule::kAfterBaseline);
@@ -1452,7 +1433,11 @@ void AsyncStreamingProcessor::OnFinishedStream(OwnedVector<uint8_t> bytes) {
   job_->wire_bytes_ = ModuleWireBytes(bytes.as_vector());
   job_->native_module_->SetWireBytes(std::move(bytes));
   if (needs_finish) {
-    job_->FinishCompile();
+    if (job_->native_module_->compilation_state()->failed()) {
+      job_->AsyncCompileFailed();
+    } else {
+      job_->FinishCompile();
+    }
   }
 }
 
@@ -1502,11 +1487,6 @@ CompilationStateImpl::CompilationStateImpl(
       max_background_tasks_(std::max(
           1, std::min(FLAG_wasm_num_compilation_tasks,
                       V8::GetCurrentPlatform()->NumberOfWorkerThreads()))) {}
-
-CompilationStateImpl::~CompilationStateImpl() {
-  CompilationError* error = compile_error_.load(std::memory_order_acquire);
-  if (error != nullptr) delete error;
-}
 
 void CompilationStateImpl::AbortCompilation() {
   background_compile_token_->Cancel();
@@ -1683,19 +1663,13 @@ void CompilationStateImpl::RestartBackgroundTasks() {
   }
 }
 
-void CompilationStateImpl::SetError(uint32_t func_index,
-                                    const WasmError& error) {
-  DCHECK(error.has_error());
-  std::unique_ptr<CompilationError> compile_error =
-      base::make_unique<CompilationError>(func_index, error);
-  CompilationError* expected = nullptr;
-  bool set = compile_error_.compare_exchange_strong(
-      expected, compile_error.get(), std::memory_order_acq_rel);
-  // Ignore all but the first error. If the previous value is not nullptr, just
-  // return (and free the allocated error).
-  if (!set) return;
-  // If set successfully, give up ownership.
-  compile_error.release();
+void CompilationStateImpl::SetError() {
+  bool expected = false;
+  if (!compile_failed_.compare_exchange_strong(expected, true,
+                                               std::memory_order_relaxed)) {
+    return;  // Already failed before.
+  }
+
   base::MutexGuard callbacks_guard(&callbacks_mutex_);
   for (auto& callback : callbacks_) {
     callback(CompilationEvent::kFailedCompilation);

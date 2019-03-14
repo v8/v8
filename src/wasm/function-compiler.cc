@@ -195,8 +195,7 @@ WasmCompilationResult WasmCompilationUnit::ExecuteCompilation(
 WasmCode* WasmCompilationUnit::Publish(WasmCompilationResult result,
                                        NativeModule* native_module) {
   if (!result.succeeded()) {
-    native_module->compilation_state()->SetError(func_index_,
-                                                 std::move(result.error));
+    native_module->compilation_state()->SetError();
     return nullptr;
   }
 

@@ -109,7 +109,7 @@ class CompilationState {
 
   void AbortCompilation();
 
-  void SetError(uint32_t func_index, const WasmError& error);
+  void SetError();
 
   void SetWireBytesStorage(std::shared_ptr<WireBytesStorage>);
 

@@ -6020,8 +6020,7 @@ TurbofanWasmCompilationUnit::~TurbofanWasmCompilationUnit() = default;
 bool TurbofanWasmCompilationUnit::BuildGraphForWasmFunction(
     wasm::CompilationEnv* env, const wasm::FunctionBody& func_body,
     wasm::WasmFeatures* detected, double* decode_ms, MachineGraph* mcgraph,
-    NodeOriginTable* node_origins, SourcePositionTable* source_positions,
-    wasm::WasmError* error_out) {
+    NodeOriginTable* node_origins, SourcePositionTable* source_positions) {
   base::ElapsedTimer decode_timer;
   if (FLAG_trace_wasm_decode_time) {
     decode_timer.Start();
@@ -6039,7 +6038,6 @@ bool TurbofanWasmCompilationUnit::BuildGraphForWasmFunction(
                      << graph_construction_result.error().message()
                      << std::endl;
     }
-    *error_out = graph_construction_result.error();
     return false;
   }
 
@@ -6111,11 +6109,9 @@ wasm::WasmCompilationResult TurbofanWasmCompilationUnit::ExecuteCompilation(
                                       : nullptr;
   SourcePositionTable* source_positions =
       new (mcgraph->zone()) SourcePositionTable(mcgraph->graph());
-  wasm::WasmError error;
   if (!BuildGraphForWasmFunction(env, func_body, detected, &decode_ms, mcgraph,
-                                 node_origins, source_positions, &error)) {
-    DCHECK(!error.empty());
-    return wasm::WasmCompilationResult{std::move(error)};
+                                 node_origins, source_positions)) {
+    return wasm::WasmCompilationResult{};
   }
 
   if (node_origins) {
@@ -6161,9 +6157,7 @@ wasm::WasmCompilationResult InterpreterCompilationUnit::ExecuteCompilation(
   wasm::WasmFullDecoder<wasm::Decoder::kValidate, wasm::EmptyInterface> decoder(
       &zone, module, env->enabled_features, detected, func_body);
   decoder.Decode();
-  if (decoder.failed()) {
-    return wasm::WasmCompilationResult{decoder.error()};
-  }
+  if (decoder.failed()) return wasm::WasmCompilationResult{};
 
   wasm::WasmCompilationResult result = CompileWasmInterpreterEntry(
       wasm_unit_->wasm_engine_, env->enabled_features, wasm_unit_->func_index_,

@@ -109,7 +109,8 @@ class AsyncCompileJob {
 
   void FinishCompile();
 
-  void AsyncCompileFailed(const WasmError&);
+  void DecodeFailed(const WasmError&);
+  void AsyncCompileFailed();
 
   void AsyncCompileSucceeded(Handle<WasmModuleObject> result);
 
@@ -154,7 +155,7 @@ class AsyncCompileJob {
   // Copy of the module wire bytes, moved into the {native_module_} on its
   // creation.
   std::unique_ptr<byte[]> bytes_copy_;
-  // Reference to the wire bytes (hold in {bytes_copy_} or as part of
+  // Reference to the wire bytes (held in {bytes_copy_} or as part of
   // {native_module_}).
   ModuleWireBytes wire_bytes_;
   Handle<Context> native_context_;
