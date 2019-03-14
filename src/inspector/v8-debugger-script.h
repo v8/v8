@@ -39,7 +39,7 @@
 
 namespace v8_inspector {
 
-// Forward declaration.
+class V8DebuggerAgentImpl;
 class V8InspectorClient;
 class WasmTranslation;
 
@@ -47,7 +47,7 @@ class V8DebuggerScript {
  public:
   static std::unique_ptr<V8DebuggerScript> Create(
       v8::Isolate* isolate, v8::Local<v8::debug::Script> script,
-      bool isLiveEdit, V8InspectorClient* client);
+      bool isLiveEdit, V8DebuggerAgentImpl* agent, V8InspectorClient* client);
   static std::unique_ptr<V8DebuggerScript> CreateWasm(
       v8::Isolate* isolate, WasmTranslation* wasmTranslation,
       v8::Local<v8::debug::WasmScript> underlyingScript, String16 id,
