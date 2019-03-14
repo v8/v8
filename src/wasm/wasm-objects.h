@@ -276,8 +276,10 @@ class WasmTableObject : public JSObject {
   void Grow(Isolate* isolate, uint32_t count);
 
   static Handle<WasmTableObject> New(Isolate* isolate, wasm::ValueType type,
-                                     uint32_t initial, uint32_t maximum,
+                                     uint32_t initial, bool has_maximum,
+                                     uint32_t maximum,
                                      Handle<FixedArray>* elements);
+
   static void AddDispatchTable(Isolate* isolate, Handle<WasmTableObject> table,
                                Handle<WasmInstanceObject> instance,
                                int table_index);

@@ -780,7 +780,8 @@ bool WasmModuleObject::GetPositionInfo(uint32_t position,
 
 Handle<WasmTableObject> WasmTableObject::New(Isolate* isolate,
                                              wasm::ValueType type,
-                                             uint32_t initial, uint32_t maximum,
+                                             uint32_t initial, bool has_maximum,
+                                             uint32_t maximum,
                                              Handle<FixedArray>* elements) {
   Handle<JSFunction> table_ctor(
       isolate->native_context()->wasm_table_constructor(), isolate);
@@ -795,7 +796,12 @@ Handle<WasmTableObject> WasmTableObject::New(Isolate* isolate,
 
   table_obj->set_raw_type(static_cast<int>(type));
   table_obj->set_elements(*backing_store);
-  Handle<Object> max = isolate->factory()->NewNumberFromUint(maximum);
+  Handle<Object> max;
+  if (has_maximum) {
+    max = isolate->factory()->NewNumberFromUint(maximum);
+  } else {
+    max = isolate->factory()->undefined_value();
+  }
   table_obj->set_maximum_length(*max);
 
   table_obj->set_dispatch_tables(ReadOnlyRoots(isolate).empty_fixed_array());

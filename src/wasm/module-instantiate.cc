@@ -393,7 +393,8 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   for (int i = module_->num_imported_tables; i < table_count; i++) {
     const WasmTable& table = module_->tables[i];
     Handle<WasmTableObject> table_obj = WasmTableObject::New(
-        isolate_, table.type, table.initial_size, table.maximum_size, nullptr);
+        isolate_, table.type, table.initial_size, table.has_maximum_size,
+        table.maximum_size, nullptr);
     tables->set(i, *table_obj);
   }
   instance->set_tables(*tables);
@@ -841,6 +842,11 @@ bool InstanceBuilder::ProcessImportedTable(Handle<WasmInstanceObject> instance,
   }
 
   if (table.has_maximum_size) {
+    if (table_object->maximum_length()->IsUndefined(isolate_)) {
+      thrower_->LinkError("table import %d has no maximum length, expected %d",
+                          import_index, table.maximum_size);
+      return false;
+    }
     int64_t imported_maximum_size = table_object->maximum_length()->Number();
     if (imported_maximum_size < 0) {
       thrower_->LinkError("table import %d has no maximum length, expected %d",

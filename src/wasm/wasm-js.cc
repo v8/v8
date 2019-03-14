@@ -192,6 +192,7 @@ Local<String> v8_str(Isolate* isolate, const char* str) {
 
 GET_FIRST_ARGUMENT_AS(Module)
 GET_FIRST_ARGUMENT_AS(Memory)
+GET_FIRST_ARGUMENT_AS(Table)
 
 #undef GET_FIRST_ARGUMENT_AS
 
@@ -992,8 +993,9 @@ bool GetRequiredIntegerProperty(v8::Isolate* isolate, ErrorThrower* thrower,
 bool GetOptionalIntegerProperty(v8::Isolate* isolate, ErrorThrower* thrower,
                                 Local<Context> context,
                                 Local<v8::Object> object,
-                                Local<String> property, int64_t* result,
-                                int64_t lower_bound, uint64_t upper_bound) {
+                                Local<String> property, bool* has_property,
+                                int64_t* result, int64_t lower_bound,
+                                uint64_t upper_bound) {
   v8::Local<v8::Value> value;
   if (!object->Get(context, property).ToLocal(&value)) {
     return false;
@@ -1002,9 +1004,11 @@ bool GetOptionalIntegerProperty(v8::Isolate* isolate, ErrorThrower* thrower,
   // Web IDL: dictionary presence
   // https://heycam.github.io/webidl/#dfn-present
   if (value->IsUndefined()) {
+    if (has_property != nullptr) *has_property = false;
     return true;
   }
 
+  if (has_property != nullptr) *has_property = true;
   i::Handle<i::String> property_name = v8::Utils::OpenHandle(*property);
 
   return GetIntegerProperty(isolate, thrower, context, value, property_name,
@@ -1056,16 +1060,17 @@ void WebAssemblyTable(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
   // The descriptor's 'maximum'.
   int64_t maximum = -1;
-  if (!GetOptionalIntegerProperty(isolate, &thrower, context, descriptor,
-                                  v8_str(isolate, "maximum"), &maximum, initial,
-                                  i::wasm::max_table_init_entries())) {
+  bool has_maximum = true;
+  if (!GetOptionalIntegerProperty(
+          isolate, &thrower, context, descriptor, v8_str(isolate, "maximum"),
+          &has_maximum, &maximum, initial, i::wasm::max_table_init_entries())) {
     return;
   }
 
   i::Handle<i::FixedArray> fixed_array;
-  i::Handle<i::JSObject> table_obj =
-      i::WasmTableObject::New(i_isolate, type, static_cast<uint32_t>(initial),
-                              static_cast<uint32_t>(maximum), &fixed_array);
+  i::Handle<i::JSObject> table_obj = i::WasmTableObject::New(
+      i_isolate, type, static_cast<uint32_t>(initial), has_maximum,
+      static_cast<uint32_t>(maximum), &fixed_array);
   v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
   return_value.Set(Utils::ToLocal(table_obj));
 }
@@ -1095,8 +1100,8 @@ void WebAssemblyMemory(const v8::FunctionCallbackInfo<v8::Value>& args) {
   // The descriptor's 'maximum'.
   int64_t maximum = -1;
   if (!GetOptionalIntegerProperty(isolate, &thrower, context, descriptor,
-                                  v8_str(isolate, "maximum"), &maximum, initial,
-                                  i::wasm::kSpecMaxWasmMemoryPages)) {
+                                  v8_str(isolate, "maximum"), nullptr, &maximum,
+                                  initial, i::wasm::kSpecMaxWasmMemoryPages)) {
     return;
   }
 
@@ -1345,7 +1350,9 @@ void WebAssemblyTableGrow(const v8::FunctionCallbackInfo<v8::Value>& args) {
   i::Handle<i::FixedArray> old_array(receiver->elements(), i_isolate);
   uint32_t old_size = static_cast<uint32_t>(old_array->length());
 
-  uint64_t max_size64 = receiver->maximum_length()->Number();
+  uint64_t max_size64 = receiver->maximum_length().IsUndefined(i_isolate)
+                            ? i::FLAG_wasm_max_table_size
+                            : receiver->maximum_length()->Number();
   if (max_size64 > i::FLAG_wasm_max_table_size) {
     max_size64 = i::FLAG_wasm_max_table_size;
   }
@@ -1428,6 +1435,61 @@ void WebAssemblyTableSet(const v8::FunctionCallbackInfo<v8::Value>& args) {
     return;
   }
   i::WasmTableObject::Set(i_isolate, table_object, index, element);
+}
+
+// WebAssembly.Table.type(WebAssembly.Table) -> TableType
+void WebAssemblyTableGetType(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  v8::Isolate* isolate = args.GetIsolate();
+  HandleScope scope(isolate);
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  ScheduledErrorThrower thrower(i_isolate, "WebAssembly.Table.type()");
+
+  auto maybe_table = GetFirstArgumentAsTable(args, &thrower);
+  if (thrower.error()) return;
+  i::Handle<i::WasmTableObject> table = maybe_table.ToHandleChecked();
+  v8::Local<v8::Object> ret = v8::Object::New(isolate);
+
+  Local<String> element;
+  auto enabled_features = i::wasm::WasmFeaturesFromFlags();
+  if (table->type() == i::wasm::ValueType::kWasmAnyFunc) {
+    element = v8_str(isolate, "anyfunc");
+  } else if (enabled_features.anyref &&
+             table->type() == i::wasm::ValueType::kWasmAnyRef) {
+    element = v8_str(isolate, "anyref");
+  } else {
+    UNREACHABLE();
+  }
+  // TODO(aseemgarg): update anyfunc to funcref
+  if (!ret->CreateDataProperty(isolate->GetCurrentContext(),
+                               v8_str(isolate, "element"), element)
+           .IsJust()) {
+    return;
+  }
+
+  uint32_t curr_size = table->current_length();
+  DCHECK_LE(curr_size, std::numeric_limits<uint32_t>::max());
+  if (!ret->CreateDataProperty(isolate->GetCurrentContext(),
+                               v8_str(isolate, "minimum"),
+                               v8::Integer::NewFromUnsigned(
+                                   isolate, static_cast<uint32_t>(curr_size)))
+           .IsJust()) {
+    return;
+  }
+
+  if (!table->maximum_length()->IsUndefined()) {
+    uint64_t max_size = table->maximum_length()->Number();
+    DCHECK_LE(max_size, std::numeric_limits<uint32_t>::max());
+    if (!ret->CreateDataProperty(isolate->GetCurrentContext(),
+                                 v8_str(isolate, "maximum"),
+                                 v8::Integer::NewFromUnsigned(
+                                     isolate, static_cast<uint32_t>(max_size)))
+             .IsJust()) {
+      return;
+    }
+  }
+
+  v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
+  return_value.Set(ret);
 }
 
 // WebAssembly.Memory.grow(num) -> num
@@ -1843,6 +1905,9 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
   InstallFunc(isolate, table_proto, "grow", WebAssemblyTableGrow, 1);
   InstallFunc(isolate, table_proto, "get", WebAssemblyTableGet, 1);
   InstallFunc(isolate, table_proto, "set", WebAssemblyTableSet, 2);
+  if (enabled_features.type_reflection) {
+    InstallFunc(isolate, table_constructor, "type", WebAssemblyTableGetType, 1);
+  }
   JSObject::AddProperty(isolate, table_proto, factory->to_string_tag_symbol(),
                         v8_str(isolate, "WebAssembly.Table"), ro_attributes);
 
