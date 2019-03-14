@@ -37,6 +37,23 @@ namespace compiler {
 // Modes for ArchStoreWithWriteBarrier below.
 enum class RecordWriteMode { kValueIsMap, kValueIsPointer, kValueIsAny };
 
+inline RecordWriteMode WriteBarrierKindToRecordWriteMode(
+    WriteBarrierKind write_barrier_kind) {
+  switch (write_barrier_kind) {
+    case kMapWriteBarrier:
+      return RecordWriteMode::kValueIsMap;
+    case kPointerWriteBarrier:
+      return RecordWriteMode::kValueIsPointer;
+    case kFullWriteBarrier:
+      return RecordWriteMode::kValueIsAny;
+    case kNoWriteBarrier:
+    // Should not be passed as argument.
+    default:
+      break;
+  }
+  UNREACHABLE();
+}
+
 // Target-specific opcodes that specify which assembly sequence to emit.
 // Most opcodes specify a single instruction.
 #define COMMON_ARCH_OPCODE_LIST(V)        \
