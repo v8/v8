@@ -71,7 +71,21 @@ can be ignored.
 
 If any errors were found driver exits with non-zero status.
 
-TROUBLESHOOTING ------------------------
+PACKAGING ---------------------------------------------------------------------
+
+gcmole is deployed on V8's buildbot infrastructure to run it as part of the
+continuous integration. A pre-built package of gcmole together with Clang is
+hosted on Google Cloud Storage for this purpose. To update this package to a
+newer version, use the provided packaging script:
+
+    $ ./tools/gcmole/package.sh
+
+This will create a new "tools/gcmole/gcmole-tools.tar.gz" package with the
+corresponding SHA1 sum suitable to be used for this purpose. It assumes that
+Clang was built in "third_party/llvm+clang-build" (e.g. by the bootstrapping
+script "bootstrap.sh" mentioned above).
+
+TROUBLESHOOTING ---------------------------------------------------------------
 
 gcmole is tighly coupled with the AST structure that Clang produces. Therefore
 when upgrading to a newer Clang version, it might start producing bogus output
