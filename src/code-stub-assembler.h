@@ -2030,8 +2030,13 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Type conversions.
   // Throws a TypeError for {method_name} if {value} is not coercible to Object,
   // or returns the {value} converted to a String otherwise.
-  TNode<String> ToThisString(Node* context, Node* value,
-                             char const* method_name);
+  TNode<String> ToThisString(TNode<Context> context, TNode<Object> value,
+                             TNode<String> method_name);
+  TNode<String> ToThisString(TNode<Context> context, TNode<Object> value,
+                             char const* method_name) {
+    return ToThisString(context, value, StringConstant(method_name));
+  }
+
   // Throws a TypeError for {method_name} if {value} is neither of the given
   // {primitive_type} nor a JSValue wrapping a value of {primitive_type}, or
   // returns the {value} (or wrapped value) otherwise.

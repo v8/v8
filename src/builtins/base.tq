@@ -821,6 +821,7 @@ extern macro ToSmiIndex(implicit context: Context)(Object): PositiveSmi
 extern macro ToSmiLength(implicit context: Context)(Object): PositiveSmi
     labels IfRangeError;
 extern macro ToString_Inline(Context, Object): String;
+extern macro ToThisString(implicit context: Context)(Object, String): String;
 extern transitioning macro GetProperty(implicit context: Context)(
     Object, Object): Object;
 extern transitioning builtin SetProperty(implicit context: Context)(
@@ -1091,6 +1092,13 @@ extern operator '.length_smi' macro LoadStringLengthAsSmi(String): Smi;
 extern operator '.length' macro GetArgumentsLength(constexpr Arguments): intptr;
 extern operator '[]' macro GetArgumentValue(
     constexpr Arguments, intptr): Object;
+
+extern builtin StringAdd_CheckNone(implicit context: Context)(
+    String, String): String;
+operator '+' macro StringAdd(implicit context: Context)(
+    a: String, b: String): String {
+  return StringAdd_CheckNone(a, b);
+}
 
 extern macro TaggedIsSmi(Object): bool;
 extern macro TaggedIsNotSmi(Object): bool;

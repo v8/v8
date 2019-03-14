@@ -68,7 +68,7 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
       StringAtAccessor;
 
   void GenerateStringAt(const char* method_name, TNode<Context> context,
-                        Node* receiver, TNode<Object> maybe_position,
+                        TNode<Object> receiver, TNode<Object> maybe_position,
                         TNode<Object> default_return,
                         const StringAtAccessor& accessor);
 

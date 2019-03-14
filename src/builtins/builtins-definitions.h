@@ -997,14 +997,6 @@ namespace internal {
   CPP(StringFromCodePoint)                                                     \
   /* ES6 #sec-string.fromcharcode */                                           \
   TFJ(StringFromCharCode, SharedFunctionInfo::kDontAdaptArgumentsSentinel)     \
-  /* ES6 #sec-string.prototype.anchor */                                       \
-  TFJ(StringPrototypeAnchor, 1, kReceiver, kValue)                             \
-  /* ES6 #sec-string.prototype.big */                                          \
-  TFJ(StringPrototypeBig, 0, kReceiver)                                        \
-  /* ES6 #sec-string.prototype.blink */                                        \
-  TFJ(StringPrototypeBlink, 0, kReceiver)                                      \
-  /* ES6 #sec-string.prototype.bold */                                         \
-  TFJ(StringPrototypeBold, 0, kReceiver)                                       \
   /* ES6 #sec-string.prototype.charat */                                       \
   TFJ(StringPrototypeCharAt, 1, kReceiver, kPosition)                          \
   /* ES6 #sec-string.prototype.charcodeat */                                   \
@@ -1013,23 +1005,13 @@ namespace internal {
   TFJ(StringPrototypeCodePointAt, 1, kReceiver, kPosition)                     \
   /* ES6 #sec-string.prototype.concat */                                       \
   TFJ(StringPrototypeConcat, SharedFunctionInfo::kDontAdaptArgumentsSentinel)  \
-  /* ES6 #sec-string.prototype.fontcolor */                                    \
-  TFJ(StringPrototypeFontcolor, 1, kReceiver, kValue)                          \
-  /* ES6 #sec-string.prototype.fontsize */                                     \
-  TFJ(StringPrototypeFontsize, 1, kReceiver, kValue)                           \
-  /* ES6 #sec-string.prototype.fixed */                                        \
-  TFJ(StringPrototypeFixed, 0, kReceiver)                                      \
   /* ES6 #sec-string.prototype.includes */                                     \
   TFJ(StringPrototypeIncludes,                                                 \
       SharedFunctionInfo::kDontAdaptArgumentsSentinel)                         \
   /* ES6 #sec-string.prototype.indexof */                                      \
   TFJ(StringPrototypeIndexOf, SharedFunctionInfo::kDontAdaptArgumentsSentinel) \
-  /* ES6 #sec-string.prototype.italics */                                      \
-  TFJ(StringPrototypeItalics, 0, kReceiver)                                    \
   /* ES6 #sec-string.prototype.lastindexof */                                  \
   CPP(StringPrototypeLastIndexOf)                                              \
-  /* ES6 #sec-string.prototype.link */                                         \
-  TFJ(StringPrototypeLink, 1, kReceiver, kValue)                               \
   /* ES6 #sec-string.prototype.match */                                        \
   TFJ(StringPrototypeMatch, 1, kReceiver, kRegexp)                             \
   /* ES #sec-string.prototype.matchAll */                                      \
@@ -1049,21 +1031,13 @@ namespace internal {
   TFJ(StringPrototypeSearch, 1, kReceiver, kRegexp)                            \
   /* ES6 #sec-string.prototype.slice */                                        \
   TFJ(StringPrototypeSlice, SharedFunctionInfo::kDontAdaptArgumentsSentinel)   \
-  /* ES6 #sec-string.prototype.small */                                        \
-  TFJ(StringPrototypeSmall, 0, kReceiver)                                      \
   /* ES6 #sec-string.prototype.split */                                        \
   TFJ(StringPrototypeSplit, SharedFunctionInfo::kDontAdaptArgumentsSentinel)   \
-  /* ES6 #sec-string.prototype.strike */                                       \
-  TFJ(StringPrototypeStrike, 0, kReceiver)                                     \
-  /* ES6 #sec-string.prototype.sub */                                          \
-  TFJ(StringPrototypeSub, 0, kReceiver)                                        \
   /* ES6 #sec-string.prototype.substr */                                       \
   TFJ(StringPrototypeSubstr, SharedFunctionInfo::kDontAdaptArgumentsSentinel)  \
   /* ES6 #sec-string.prototype.substring */                                    \
   TFJ(StringPrototypeSubstring,                                                \
       SharedFunctionInfo::kDontAdaptArgumentsSentinel)                         \
-  /* ES6 #sec-string.prototype.sup */                                          \
-  TFJ(StringPrototypeSup, 0, kReceiver)                                        \
   /* ES6 #sec-string.prototype.tostring */                                     \
   TFJ(StringPrototypeToString, 0, kReceiver)                                   \
   TFJ(StringPrototypeTrim, SharedFunctionInfo::kDontAdaptArgumentsSentinel)    \

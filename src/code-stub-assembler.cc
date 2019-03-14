@@ -5554,8 +5554,9 @@ TNode<Number> CodeStubAssembler::ChangeUintPtrToTagged(TNode<UintPtrT> value) {
   return var_result.value();
 }
 
-TNode<String> CodeStubAssembler::ToThisString(Node* context, Node* value,
-                                              char const* method_name) {
+TNode<String> CodeStubAssembler::ToThisString(TNode<Context> context,
+                                              TNode<Object> value,
+                                              TNode<String> method_name) {
   VARIABLE(var_value, MachineRepresentation::kTagged, value);
 
   // Check if the {value} is a Smi or a HeapObject.
@@ -5565,7 +5566,7 @@ TNode<String> CodeStubAssembler::ToThisString(Node* context, Node* value,
   BIND(&if_valueisnotsmi);
   {
     // Load the instance type of the {value}.
-    Node* value_instance_type = LoadInstanceType(value);
+    Node* value_instance_type = LoadInstanceType(CAST(value));
 
     // Check if the {value} is already String.
     Label if_valueisnotstring(this, Label::kDeferred);

@@ -131,10 +131,10 @@ TF_BUILTIN(StringToLowerCaseIntl, IntlBuiltinsAssembler) {
 }
 
 TF_BUILTIN(StringPrototypeToLowerCaseIntl, IntlBuiltinsAssembler) {
-  Node* const maybe_string = Parameter(Descriptor::kReceiver);
-  Node* const context = Parameter(Descriptor::kContext);
+  TNode<Object> maybe_string = CAST(Parameter(Descriptor::kReceiver));
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
-  Node* const string =
+  TNode<String> string =
       ToThisString(context, maybe_string, "String.prototype.toLowerCase");
 
   Return(CallBuiltin(Builtins::kStringToLowerCaseIntl, context, string));
