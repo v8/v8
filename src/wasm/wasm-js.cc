@@ -967,30 +967,6 @@ bool GetIntegerProperty(v8::Isolate* isolate, ErrorThrower* thrower,
   return true;
 }
 
-bool GetRequiredIntegerProperty(v8::Isolate* isolate, ErrorThrower* thrower,
-                                Local<Context> context,
-                                Local<v8::Object> object,
-                                Local<String> property, int64_t* result,
-                                int64_t lower_bound, uint64_t upper_bound) {
-  v8::Local<v8::Value> value;
-  if (!object->Get(context, property).ToLocal(&value)) {
-    return false;
-  }
-
-  i::Handle<i::String> property_name = v8::Utils::OpenHandle(*property);
-
-  // Web IDL: dictionary presence
-  // https://heycam.github.io/webidl/#dfn-present
-  if (value->IsUndefined()) {
-    thrower->TypeError("Property '%s' is required",
-                       property_name->ToCString().get());
-    return false;
-  }
-
-  return GetIntegerProperty(isolate, thrower, context, value, property_name,
-                            result, lower_bound, upper_bound);
-}
-
 bool GetOptionalIntegerProperty(v8::Isolate* isolate, ErrorThrower* thrower,
                                 Local<Context> context,
                                 Local<v8::Object> object,
@@ -1014,6 +990,36 @@ bool GetOptionalIntegerProperty(v8::Isolate* isolate, ErrorThrower* thrower,
 
   return GetIntegerProperty(isolate, thrower, context, value, property_name,
                             result, lower_bound, upper_bound);
+}
+
+// Fetch 'initial' or 'minimum' property from object. If both are provided,
+// 'initial' is used.
+// TODO(aseemgarg): change behavior when the following bug is resolved:
+// https://github.com/WebAssembly/js-types/issues/6
+bool GetInitialOrMinimumProperty(v8::Isolate* isolate, ErrorThrower* thrower,
+                                 Local<Context> context,
+                                 Local<v8::Object> object, int64_t* result,
+                                 int64_t lower_bound, uint64_t upper_bound) {
+  bool has_initial = false;
+  if (!GetOptionalIntegerProperty(isolate, thrower, context, object,
+                                  v8_str(isolate, "initial"), &has_initial,
+                                  result, lower_bound, upper_bound)) {
+    return false;
+  }
+  auto enabled_features = i::wasm::WasmFeaturesFromFlags();
+  if (!has_initial && enabled_features.type_reflection) {
+    if (!GetOptionalIntegerProperty(isolate, thrower, context, object,
+                                    v8_str(isolate, "minimum"), &has_initial,
+                                    result, lower_bound, upper_bound)) {
+      return false;
+    }
+  }
+  if (!has_initial) {
+    // TODO(aseemgarg): update error message when the spec issue is resolved.
+    thrower->TypeError("Property 'initial' is required");
+    return false;
+  }
+  return true;
 }
 
 // new WebAssembly.Table(args) -> WebAssembly.Table
@@ -1052,11 +1058,11 @@ void WebAssemblyTable(const v8::FunctionCallbackInfo<v8::Value>& args) {
       return;
     }
   }
-  // The descriptor's 'initial'.
+
   int64_t initial = 0;
-  if (!GetRequiredIntegerProperty(isolate, &thrower, context, descriptor,
-                                  v8_str(isolate, "initial"), &initial, 0,
-                                  i::wasm::max_table_init_entries())) {
+  if (!GetInitialOrMinimumProperty(isolate, &thrower, context, descriptor,
+                                   &initial, 0,
+                                   i::wasm::max_table_init_entries())) {
     return;
   }
   // The descriptor's 'maximum'.
@@ -1091,11 +1097,10 @@ void WebAssemblyMemory(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
   Local<Context> context = isolate->GetCurrentContext();
   Local<v8::Object> descriptor = Local<Object>::Cast(args[0]);
-  // The descriptor's 'initial'.
+
   int64_t initial = 0;
-  if (!GetRequiredIntegerProperty(isolate, &thrower, context, descriptor,
-                                  v8_str(isolate, "initial"), &initial, 0,
-                                  i::wasm::max_mem_pages())) {
+  if (!GetInitialOrMinimumProperty(isolate, &thrower, context, descriptor,
+                                   &initial, 0, i::wasm::max_mem_pages())) {
     return;
   }
   // The descriptor's 'maximum'.

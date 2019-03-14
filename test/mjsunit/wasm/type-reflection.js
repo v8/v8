@@ -96,3 +96,64 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals(false, type.mutable);
   assertEquals(2, Object.getOwnPropertyNames(type).length);
 })();
+
+(function TestMemoryConstructorWithMinimum() {
+  let mem = new WebAssembly.Memory({minimum: 1});
+  assertTrue(mem instanceof WebAssembly.Memory);
+  let type = WebAssembly.Memory.type(mem);
+  assertEquals(1, type.minimum);
+  assertEquals(1, Object.getOwnPropertyNames(type).length);
+
+  mem = new WebAssembly.Memory({minimum: 1, maximum: 5});
+  assertTrue(mem instanceof WebAssembly.Memory);
+  type = WebAssembly.Memory.type(mem);
+  assertEquals(1, type.minimum);
+  assertEquals(5, type.maximum);
+  assertEquals(2, Object.getOwnPropertyNames(type).length);
+
+  mem = new WebAssembly.Memory({minimum: 1, initial: 2});
+  assertTrue(mem instanceof WebAssembly.Memory);
+  type = WebAssembly.Memory.type(mem);
+  assertEquals(2, type.minimum);
+  assertEquals(1, Object.getOwnPropertyNames(type).length);
+
+  mem = new WebAssembly.Memory({minimum: 1, initial: 2, maximum: 5});
+  assertTrue(mem instanceof WebAssembly.Memory);
+  type = WebAssembly.Memory.type(mem);
+  assertEquals(2, type.minimum);
+  assertEquals(5, type.maximum);
+  assertEquals(2, Object.getOwnPropertyNames(type).length);
+})();
+
+(function TestTableConstructorWithMinimum() {
+  let table = new WebAssembly.Table({minimum: 1, element: 'anyfunc'});
+  assertTrue(table instanceof WebAssembly.Table);
+  let type = WebAssembly.Table.type(table);
+  assertEquals(1, type.minimum);
+  assertEquals('anyfunc', type.element);
+  assertEquals(2, Object.getOwnPropertyNames(type).length);
+
+  table = new WebAssembly.Table({minimum: 1, element: 'anyfunc', maximum: 5});
+  assertTrue(table instanceof WebAssembly.Table);
+  type = WebAssembly.Table.type(table);
+  assertEquals(1, type.minimum);
+  assertEquals(5, type.maximum);
+  assertEquals('anyfunc', type.element);
+  assertEquals(3, Object.getOwnPropertyNames(type).length);
+
+  table = new WebAssembly.Table({minimum: 1, initial: 2, element: 'anyfunc'});
+  assertTrue(table instanceof WebAssembly.Table);
+  type = WebAssembly.Table.type(table);
+  assertEquals(2, type.minimum);
+  assertEquals('anyfunc', type.element);
+  assertEquals(2, Object.getOwnPropertyNames(type).length);
+
+  table = new WebAssembly.Table({minimum: 1, initial: 2, element: 'anyfunc',
+                                 maximum: 5});
+  assertTrue(table instanceof WebAssembly.Table);
+  type = WebAssembly.Table.type(table);
+  assertEquals(2, type.minimum);
+  assertEquals(5, type.maximum);
+  assertEquals('anyfunc', type.element);
+  assertEquals(3, Object.getOwnPropertyNames(type).length);
+})();
