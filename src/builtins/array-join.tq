@@ -159,7 +159,7 @@ namespace array_join {
       this.AddSeparators(nofSeparators, separatorLength, writeSeparators);
 
       this.totalStringLength =
-          AddStringLength(this.totalStringLength, str.length);
+          AddStringLength(this.totalStringLength, str.length_intptr);
       this.fixedArray =
           StoreAndGrowFixedArray(this.fixedArray, this.index++, str);
       this.isOneByte =
@@ -265,7 +265,7 @@ namespace array_join {
       initialLoadFn: LoadJoinElementFn): String {
     const initialMap: Map = receiver.map;
     const len: uintptr = Convert<uintptr>(lengthNumber);
-    const separatorLength: intptr = sep.length;
+    const separatorLength: intptr = sep.length_intptr;
     let nofSeparators: intptr = 0;
     let loadFn: LoadJoinElementFn = initialLoadFn;
     let buffer: Buffer = NewBuffer(len, sep);

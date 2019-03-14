@@ -60,12 +60,48 @@ type Code extends AbstractCode generates 'TNode<Code>';
 type BuiltinPtr extends Smi generates 'TNode<BuiltinPtr>';
 type Context extends HeapObject generates 'TNode<Context>';
 type NativeContext extends Context;
-type String extends HeapObject generates 'TNode<String>';
 type Oddball extends HeapObject generates 'TNode<Oddball>';
 type HeapNumber extends HeapObject generates 'TNode<HeapNumber>';
 type Number = Smi | HeapNumber;
 type BigInt extends HeapObject generates 'TNode<BigInt>';
 type Numeric = Number | BigInt;
+
+extern class Name extends HeapObject { hash_field: int32; }
+
+extern class Symbol extends Name {
+  flags: int32;
+  name: Object;
+}
+
+// abstract
+extern class String extends Name { length: uint32; }
+
+extern class ConsString extends String {
+  first: String;
+  second: String;
+}
+
+extern class ExternalString extends String {
+  resource: RawPtr;
+  resource_data: RawPtr;
+}
+
+extern class ExternalOneByteString extends ExternalString {}
+extern class ExternalTwoByteString extends ExternalString {}
+
+extern class InternalizedString extends String {}
+
+// TODO(v8:8983): Add declaration for variable-sized region.
+extern class SeqString extends String {}
+extern class SeqOneByteString extends SeqString {}
+extern class SeqTwoByteString extends SeqString {}
+
+extern class SlicedString extends String {
+  parent: String;
+  offset: Smi;
+}
+
+extern class ThinString extends String { actual: String; }
 
 // The HeapNumber value NaN
 type NaN extends HeapNumber;
@@ -1049,7 +1085,7 @@ extern operator '!' macro IsFalse(Boolean): bool;
 extern operator '.instanceType' macro LoadInstanceType(HeapObject):
     InstanceType;
 
-extern operator '.length' macro LoadStringLengthAsWord(String): intptr;
+extern operator '.length_intptr' macro LoadStringLengthAsWord(String): intptr;
 extern operator '.length_smi' macro LoadStringLengthAsSmi(String): Smi;
 
 extern operator '.length' macro GetArgumentsLength(constexpr Arguments): intptr;

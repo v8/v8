@@ -325,9 +325,10 @@ class String : public Name {
 
   inline bool IsFlat();
 
-  // Layout description.
-  static const int kLengthOffset = Name::kHeaderSize;
-  static const int kHeaderSize = kLengthOffset + kInt32Size;
+  DEFINE_FIELD_OFFSET_CONSTANTS(Name::kHeaderSize,
+                                TORQUE_GENERATED_STRING_FIELDS)
+
+  static const int kHeaderSize = kSize;
 
   // Max char codes.
   static const int32_t kMaxOneByteCharCode = unibrow::Latin1::kMaxChar;
@@ -602,15 +603,8 @@ class ConsString : public String {
 
   DECL_CAST(ConsString)
 
-  // Layout description.
-#define CONS_STRING_FIELDS(V)   \
-  V(kFirstOffset, kTaggedSize)  \
-  V(kSecondOffset, kTaggedSize) \
-  /* Total size. */             \
-  V(kSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(String::kHeaderSize, CONS_STRING_FIELDS)
-#undef CONS_STRING_FIELDS
+  DEFINE_FIELD_OFFSET_CONSTANTS(String::kHeaderSize,
+                                TORQUE_GENERATED_CONS_STRING_FIELDS)
 
   // Minimum length for a cons string.
   static const int kMinLength = 13;
@@ -642,14 +636,8 @@ class ThinString : public String {
   DECL_CAST(ThinString)
   DECL_VERIFIER(ThinString)
 
-  // Layout description.
-#define THIN_STRING_FIELDS(V)   \
-  V(kActualOffset, kTaggedSize) \
-  /* Total size. */             \
-  V(kSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(String::kHeaderSize, THIN_STRING_FIELDS)
-#undef THIN_STRING_FIELDS
+  DEFINE_FIELD_OFFSET_CONSTANTS(String::kHeaderSize,
+                                TORQUE_GENERATED_THIN_STRING_FIELDS)
 
   typedef FixedBodyDescriptor<kActualOffset, kSize, kSize> BodyDescriptor;
 
@@ -681,15 +669,8 @@ class SlicedString : public String {
 
   DECL_CAST(SlicedString)
 
-  // Layout description.
-#define SLICED_STRING_FIELDS(V) \
-  V(kParentOffset, kTaggedSize) \
-  V(kOffsetOffset, kTaggedSize) \
-  /* Total size. */             \
-  V(kSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(String::kHeaderSize, SLICED_STRING_FIELDS)
-#undef SLICED_STRING_FIELDS
+  DEFINE_FIELD_OFFSET_CONSTANTS(String::kHeaderSize,
+                                TORQUE_GENERATED_SLICED_STRING_FIELDS)
 
   // Minimum length for a sliced string.
   static const int kMinLength = 13;
@@ -714,17 +695,12 @@ class ExternalString : public String {
  public:
   DECL_CAST(ExternalString)
 
-  // Layout description.
-#define EXTERNAL_STRING_FIELDS(V)            \
-  V(kResourceOffset, kSystemPointerSize)     \
-  /* Size of uncached external strings. */   \
-  V(kUncachedSize, 0)                        \
-  V(kResourceDataOffset, kSystemPointerSize) \
-  /* Total size. */                          \
-  V(kSize, 0)
+  DEFINE_FIELD_OFFSET_CONSTANTS(String::kHeaderSize,
+                                TORQUE_GENERATED_EXTERNAL_STRING_FIELDS)
 
-  DEFINE_FIELD_OFFSET_CONSTANTS(String::kHeaderSize, EXTERNAL_STRING_FIELDS)
-#undef EXTERNAL_STRING_FIELDS
+  // Size of uncached external strings.
+  static const int kUncachedSize =
+      kResourceOffset + FIELD_SIZE(kResourceOffset);
 
   // Return whether the external string data pointer is not cached.
   inline bool is_uncached() const;
