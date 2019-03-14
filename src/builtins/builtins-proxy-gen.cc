@@ -636,6 +636,7 @@ void ProxiesCodeStubAssembler::CheckGetSetTrapResult(
 
   Label if_found_value(this), check_in_runtime(this, Label::kDeferred);
 
+  GotoIfNot(IsUniqueNameNoIndex(CAST(name)), &check_in_runtime);
   Node* instance_type = LoadInstanceType(target);
   TryGetOwnProperty(context, target, target, map, instance_type, name,
                     &if_found_value, &var_value, &var_details, &var_raw_value,
@@ -743,6 +744,7 @@ void ProxiesCodeStubAssembler::CheckHasTrapResult(Node* context, Node* target,
       throw_non_extensible(this, Label::kDeferred);
 
   // 9.a. Let targetDesc be ? target.[[GetOwnProperty]](P).
+  GotoIfNot(IsUniqueNameNoIndex(CAST(name)), if_bailout);
   Node* instance_type = LoadInstanceType(target);
   TryGetOwnProperty(context, target, target, target_map, instance_type, name,
                     &if_found_value, &var_value, &var_details, &var_raw_value,
