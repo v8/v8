@@ -305,7 +305,6 @@ struct CallIndirectImmediate {
   inline CallIndirectImmediate(Decoder* decoder, const byte* pc) {
     uint32_t len = 0;
     sig_index = decoder->read_u32v<validate>(pc + 1, &len, "signature index");
-    if (!VALIDATE(decoder->ok())) return;
     table_index = decoder->read_u8<validate>(pc + 1 + len, "table index");
     if (!VALIDATE(table_index == 0)) {
       decoder->errorf(pc + 1 + len, "expected table index 0, found %u",
@@ -416,7 +415,6 @@ struct MemoryAccessImmediate {
                       "actual alignment is %u",
                       max_alignment, alignment);
     }
-    if (!VALIDATE(decoder->ok())) return;
     uint32_t offset_length;
     offset = decoder->read_u32v<validate>(pc + 1 + alignment_length,
                                           &offset_length, "offset");
@@ -454,7 +452,6 @@ struct Simd8x16ShuffleImmediate {
   inline Simd8x16ShuffleImmediate(Decoder* decoder, const byte* pc) {
     for (uint32_t i = 0; i < kSimd128Size; ++i) {
       shuffle[i] = decoder->read_u8<validate>(pc + 2 + i, "shuffle");
-      if (!VALIDATE(decoder->ok())) return;
     }
   }
 };
@@ -469,7 +466,6 @@ struct MemoryInitImmediate {
     uint32_t len = 0;
     data_segment_index =
         decoder->read_i32v<validate>(pc + 2, &len, "data segment index");
-    if (!VALIDATE(decoder->ok())) return;
     memory = MemoryIndexImmediate<validate>(decoder, pc + 1 + len);
     length = len + memory.length;
   }
@@ -493,10 +489,8 @@ struct MemoryCopyImmediate {
 
   inline MemoryCopyImmediate(Decoder* decoder, const byte* pc) {
     memory_src = MemoryIndexImmediate<validate>(decoder, pc + 1);
-    if (!VALIDATE(decoder->ok())) return;
     memory_dst =
         MemoryIndexImmediate<validate>(decoder, pc + 1 + memory_src.length);
-    if (!VALIDATE(decoder->ok())) return;
     length = memory_src.length + memory_dst.length;
   }
 };
@@ -511,7 +505,6 @@ struct TableInitImmediate {
     uint32_t len = 0;
     elem_segment_index =
         decoder->read_i32v<validate>(pc + 2, &len, "elem segment index");
-    if (!VALIDATE(decoder->ok())) return;
     table = TableIndexImmediate<validate>(decoder, pc + 1 + len);
     length = len + table.length;
   }
@@ -535,10 +528,8 @@ struct TableCopyImmediate {
 
   inline TableCopyImmediate(Decoder* decoder, const byte* pc) {
     table_src = TableIndexImmediate<validate>(decoder, pc + 1);
-    if (!VALIDATE(decoder->ok())) return;
     table_dst =
         TableIndexImmediate<validate>(decoder, pc + 1 + table_src.length);
-    if (!VALIDATE(decoder->ok())) return;
     length = table_src.length + table_dst.length;
   }
 };
@@ -768,7 +759,7 @@ class WasmDecoder : public Decoder {
     if (decoder->failed()) return false;
 
     TRACE("local decls count: %u\n", entries);
-    while (entries-- > 0 && VALIDATE(decoder->ok()) && decoder->more()) {
+    while (entries-- > 0 && decoder->more()) {
       uint32_t count = decoder->consume_u32v("local count");
       if (decoder->failed()) return false;
 
@@ -1068,7 +1059,7 @@ class WasmDecoder : public Decoder {
 
   inline bool Complete(BlockTypeImmediate<validate>& imm) {
     if (imm.type != kWasmVar) return true;
-    if (!VALIDATE((module_ && imm.sig_index < module_->signatures.size()))) {
+    if (!VALIDATE(module_ && imm.sig_index < module_->signatures.size())) {
       return false;
     }
     imm.sig = module_->signatures[imm.sig_index];
@@ -1206,7 +1197,6 @@ class WasmDecoder : public Decoder {
 
       case kExprBrOnExn: {
         BranchDepthImmediate<validate> imm_br(decoder, pc);
-        if (!VALIDATE(decoder->ok())) return 1 + imm_br.length;
         ExceptionIndexImmediate<validate> imm_idx(decoder, pc + imm_br.length);
         return 1 + imm_br.length + imm_idx.length;
       }
@@ -1245,7 +1235,6 @@ class WasmDecoder : public Decoder {
       case kNumericPrefix: {
         byte numeric_index =
             decoder->read_u8<validate>(pc + 1, "numeric_index");
-        if (!VALIDATE(decoder->ok())) return 2;
         WasmOpcode opcode =
             static_cast<WasmOpcode>(kNumericPrefix << 8 | numeric_index);
         switch (opcode) {
@@ -1293,7 +1282,6 @@ class WasmDecoder : public Decoder {
       }
       case kSimdPrefix: {
         byte simd_index = decoder->read_u8<validate>(pc + 1, "simd_index");
-        if (!VALIDATE(decoder->ok())) return 2;
         WasmOpcode opcode =
             static_cast<WasmOpcode>(kSimdPrefix << 8 | simd_index);
         switch (opcode) {
@@ -1322,7 +1310,6 @@ class WasmDecoder : public Decoder {
       }
       case kAtomicPrefix: {
         byte atomic_index = decoder->read_u8<validate>(pc + 1, "atomic_index");
-        if (!VALIDATE(decoder->ok())) return 2;
         WasmOpcode opcode =
             static_cast<WasmOpcode>(kAtomicPrefix << 8 | atomic_index);
         switch (opcode) {
