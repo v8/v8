@@ -2691,6 +2691,10 @@ inline i::Object GetObjectFromRaw(void* object) {
 //
 // The following functions are used by our gdb macros.
 //
+V8_EXPORT_PRIVATE extern i::Object _v8_internal_Get_Object(void* object) {
+  return GetObjectFromRaw(object);
+}
+
 V8_EXPORT_PRIVATE extern void _v8_internal_Print_Object(void* object) {
   GetObjectFromRaw(object)->Print();
 }

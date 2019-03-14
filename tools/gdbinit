@@ -163,3 +163,17 @@ def dcheck_stop_handler(event):
 
 gdb.events.stop.connect(dcheck_stop_handler)
 end
+
+# Install a $job function which returns an Object given a tagged pointer.
+# Use with print or call, casting as needed, e.g.
+#
+#   gdb$ p (v8::internal::SharedFunctionInfo)$job(0x31412531)
+python
+class Job(gdb.Function):
+  def __init__(self):
+    super(Job,self).__init__("job")
+  def invoke(self, address):
+    # TODO(leszeks): Detect the type of the object and cast it.
+    return gdb.parse_and_eval("_v8_internal_Get_Object")(address)
+Job()
+end
