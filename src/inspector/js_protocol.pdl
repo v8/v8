@@ -165,6 +165,10 @@ domain Debugger
   # Enables debugger for the given page. Clients should not assume that the debugging has been
   # enabled until the result for this command is received.
   command enable
+    parameters
+      # The maximum size in bytes of collected scripts (not referenced by other heap objects)
+      # the debugger can hold. Puts no limit if paramter is omitted.
+      experimental optional number maxScriptsCacheSize
     returns
       # Unique identifier of the debugger.
       experimental Runtime.UniqueDebuggerId debuggerId
