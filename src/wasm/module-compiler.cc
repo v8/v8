@@ -969,14 +969,7 @@ class AsyncCompileJob::CompilationStateCallback {
       case CompilationEvent::kFinishedBaselineCompilation:
         DCHECK(!last_event_.has_value());
         if (job_->DecrementAndCheckFinisherCount()) {
-          AsyncCompileJob* job = job_;
-          job->foreground_task_runner_->PostTask(
-              MakeCancelableTask(job->isolate_, [job] {
-                HandleScope scope(job->isolate_);
-                SaveAndSwitchContext saved_context(job->isolate_,
-                                                   *job->native_context_);
-                job->FinishCompile();
-              }));
+          job_->DoSync<CompileFinished>();
         }
         break;
       case CompilationEvent::kFinishedTopTierCompilation:
@@ -986,22 +979,7 @@ class AsyncCompileJob::CompilationStateCallback {
         break;
       case CompilationEvent::kFailedCompilation: {
         DCHECK(!last_event_.has_value());
-        // Tier-up compilation should not fail if baseline compilation
-        // did not fail.
-        DCHECK(!Impl(job_->native_module_->compilation_state())
-                    ->baseline_compilation_finished());
-
-        AsyncCompileJob* job = job_;
-        job->foreground_task_runner_->PostTask(
-            MakeCancelableTask(job->isolate_, [job] {
-              HandleScope scope(job->isolate_);
-              SaveAndSwitchContext saved_context(job->isolate_,
-                                                 *job->native_context_);
-              WasmError error = Impl(job->native_module_->compilation_state())
-                                    ->GetCompileError();
-              return job->AsyncCompileFailed(error);
-            }));
-
+        job_->DoSync<CompileFailed>();
         break;
       }
       default:
@@ -1239,6 +1217,32 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
       InitializeCompilationUnits(job->native_module_.get(),
                                  job->isolate()->wasm_engine());
     }
+  }
+};
+
+//==========================================================================
+// Step 3a (sync): Compilation failed.
+//==========================================================================
+class AsyncCompileJob::CompileFailed : public CompileStep {
+ private:
+  void RunInForeground(AsyncCompileJob* job) override {
+    TRACE_COMPILE("(3a) Compilation failed\n");
+
+    WasmError error =
+        Impl(job->native_module_->compilation_state())->GetCompileError();
+    // {job_} is deleted in AsyncCompileFailed, therefore the {return}.
+    return job->AsyncCompileFailed(error);
+  }
+};
+
+//==========================================================================
+// Step 3b (sync): Compilation finished.
+//==========================================================================
+class AsyncCompileJob::CompileFinished : public CompileStep {
+ private:
+  void RunInForeground(AsyncCompileJob* job) override {
+    TRACE_COMPILE("(3b) Compilation finished\n");
+    job->FinishCompile();
   }
 };
 
