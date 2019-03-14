@@ -1,8 +1,0 @@
-Checks that inspector collects old collected scripts.
-
-Generate 5 scripts 1MB each
-Generate 30 more scripts 1MB each
-Check that latest script is still available
-Last script length: 500009
-Check that an earlier script is not available
-Script is not found: true
