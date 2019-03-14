@@ -500,7 +500,7 @@ FunctionLiteral* Parser::ParseProgram(Isolate* isolate, ParseInfo* info) {
                         Scope::DeserializationMode::kIncludingVariables);
 
   scanner_.Initialize();
-  if (FLAG_harmony_hashbang && !info->is_eval()) {
+  if (FLAG_harmony_hashbang) {
     scanner_.SkipHashBang();
   }
   FunctionLiteral* result = DoParseProgram(isolate, info);

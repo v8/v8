@@ -551,31 +551,6 @@
   'language/expressions/prefix-increment/eval': [SKIP],
   'language/expressions/prefix-increment/eval-nostrict': [SKIP],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=8850
-  'language/comments/hashbang/escaped-bang-041': [SKIP],
-  'language/comments/hashbang/escaped-bang-u0021': [SKIP],
-  'language/comments/hashbang/escaped-bang-u21': [SKIP],
-  'language/comments/hashbang/escaped-bang-x21': [SKIP],
-  'language/comments/hashbang/escaped-hash-043': [SKIP],
-  'language/comments/hashbang/escaped-hash-u0023': [SKIP],
-  'language/comments/hashbang/escaped-hash-u23': [SKIP],
-  'language/comments/hashbang/escaped-hash-x23': [SKIP],
-  'language/comments/hashbang/escaped-hashbang': [SKIP],
-  'language/comments/hashbang/eval': [SKIP],
-  'language/comments/hashbang/eval-indirect': [SKIP],
-  'language/comments/hashbang/module': [SKIP],
-  'language/comments/hashbang/multi-line-comment': [SKIP],
-  'language/comments/hashbang/no-line-separator': [SKIP],
-  'language/comments/hashbang/not-empty': [SKIP],
-  'language/comments/hashbang/preceding-directive-prologue': [SKIP],
-  'language/comments/hashbang/preceding-directive-prologue-sc': [SKIP],
-  'language/comments/hashbang/preceding-empty-statement': [SKIP],
-  'language/comments/hashbang/preceding-hashbang': [SKIP],
-  'language/comments/hashbang/preceding-line-comment': [SKIP],
-  'language/comments/hashbang/preceding-multi-line-comment': [SKIP],
-  'language/comments/hashbang/preceding-whitespace': [SKIP],
-  'language/comments/hashbang/use-strict': [SKIP],
-
   ######################## NEEDS INVESTIGATION ###########################
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7833
