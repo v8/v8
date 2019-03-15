@@ -2075,8 +2075,8 @@ void MarkCompactCollector::ClearOldBytecodeCandidates() {
 
     // Now record the slot, which has either been updated to an uncompiled data,
     // or is the BytecodeArray which is still alive.
-    ObjectSlot slot = HeapObject::RawField(
-        flushing_candidate, SharedFunctionInfo::kFunctionDataOffset);
+    ObjectSlot slot =
+        flushing_candidate.RawField(SharedFunctionInfo::kFunctionDataOffset);
     RecordSlot(flushing_candidate, slot, HeapObject::cast(*slot));
   }
 }
@@ -2292,8 +2292,7 @@ void MarkCompactCollector::ClearJSWeakRefs() {
       weak_ref->set_target(ReadOnlyRoots(isolate()).undefined_value());
     } else {
       // The value of the JSWeakRef is alive.
-      ObjectSlot slot =
-          HeapObject::RawField(weak_ref, JSWeakRef::kTargetOffset);
+      ObjectSlot slot = weak_ref.RawField(JSWeakRef::kTargetOffset);
       RecordSlot(weak_ref, slot, target);
     }
   }
@@ -2327,8 +2326,7 @@ void MarkCompactCollector::ClearJSWeakRefs() {
       DCHECK(finalization_group->scheduled_for_cleanup());
     } else {
       // The value of the WeakCell is alive.
-      ObjectSlot slot =
-          HeapObject::RawField(weak_cell, WeakCell::kTargetOffset);
+      ObjectSlot slot = weak_cell.RawField(WeakCell::kTargetOffset);
       RecordSlot(weak_cell, slot, HeapObject::cast(*slot));
     }
   }

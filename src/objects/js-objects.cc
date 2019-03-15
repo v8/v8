@@ -2811,12 +2811,10 @@ void MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map) {
           index, MutableHeapNumber::cast(value)->value_as_bits());
       if (i < old_number_of_fields && !old_map->IsUnboxedDoubleField(index)) {
         // Transition from tagged to untagged slot.
-        heap->ClearRecordedSlot(*object,
-                                HeapObject::RawField(*object, index.offset()));
+        heap->ClearRecordedSlot(*object, object->RawField(index.offset()));
       } else {
 #ifdef DEBUG
-        heap->VerifyClearedSlot(*object,
-                                HeapObject::RawField(*object, index.offset()));
+        heap->VerifyClearedSlot(*object, object->RawField(index.offset()));
 #endif
       }
     } else {

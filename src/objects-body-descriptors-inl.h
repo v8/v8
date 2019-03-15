@@ -119,34 +119,33 @@ DISABLE_CFI_PERF void BodyDescriptorBase::IteratePointers(HeapObject obj,
                                                           int start_offset,
                                                           int end_offset,
                                                           ObjectVisitor* v) {
-  v->VisitPointers(obj, HeapObject::RawField(obj, start_offset),
-                   HeapObject::RawField(obj, end_offset));
+  v->VisitPointers(obj, obj.RawField(start_offset), obj.RawField(end_offset));
 }
 
 template <typename ObjectVisitor>
 void BodyDescriptorBase::IteratePointer(HeapObject obj, int offset,
                                         ObjectVisitor* v) {
-  v->VisitPointer(obj, HeapObject::RawField(obj, offset));
+  v->VisitPointer(obj, obj.RawField(offset));
 }
 
 template <typename ObjectVisitor>
 DISABLE_CFI_PERF void BodyDescriptorBase::IterateMaybeWeakPointers(
     HeapObject obj, int start_offset, int end_offset, ObjectVisitor* v) {
-  v->VisitPointers(obj, HeapObject::RawMaybeWeakField(obj, start_offset),
-                   HeapObject::RawMaybeWeakField(obj, end_offset));
+  v->VisitPointers(obj, obj.RawMaybeWeakField(start_offset),
+                   obj.RawMaybeWeakField(end_offset));
 }
 
 template <typename ObjectVisitor>
 void BodyDescriptorBase::IterateMaybeWeakPointer(HeapObject obj, int offset,
                                                  ObjectVisitor* v) {
-  v->VisitPointer(obj, HeapObject::RawMaybeWeakField(obj, offset));
+  v->VisitPointer(obj, obj.RawMaybeWeakField(offset));
 }
 
 template <typename ObjectVisitor>
 DISABLE_CFI_PERF void BodyDescriptorBase::IterateCustomWeakPointers(
     HeapObject obj, int start_offset, int end_offset, ObjectVisitor* v) {
-  v->VisitCustomWeakPointers(obj, HeapObject::RawField(obj, start_offset),
-                             HeapObject::RawField(obj, end_offset));
+  v->VisitCustomWeakPointers(obj, obj.RawField(start_offset),
+                             obj.RawField(end_offset));
 }
 
 template <typename ObjectVisitor>
@@ -155,14 +154,14 @@ DISABLE_CFI_PERF void BodyDescriptorBase::IterateEphemeron(HeapObject obj,
                                                            int key_offset,
                                                            int value_offset,
                                                            ObjectVisitor* v) {
-  v->VisitEphemeron(obj, index, HeapObject::RawField(obj, key_offset),
-                    HeapObject::RawField(obj, value_offset));
+  v->VisitEphemeron(obj, index, obj.RawField(key_offset),
+                    obj.RawField(value_offset));
 }
 
 template <typename ObjectVisitor>
 void BodyDescriptorBase::IterateCustomWeakPointer(HeapObject obj, int offset,
                                                   ObjectVisitor* v) {
-  v->VisitCustomWeakPointer(obj, HeapObject::RawField(obj, offset));
+  v->VisitCustomWeakPointer(obj, obj.RawField(offset));
 }
 
 class JSObject::BodyDescriptor final : public BodyDescriptorBase {
@@ -555,9 +554,8 @@ class Foreign::BodyDescriptor final : public BodyDescriptorBase {
   static inline void IterateBody(Map map, HeapObject obj, int object_size,
                                  ObjectVisitor* v) {
     v->VisitExternalReference(
-        Foreign::cast(obj),
-        reinterpret_cast<Address*>(
-            HeapObject::RawField(obj, kForeignAddressOffset).address()));
+        Foreign::cast(obj), reinterpret_cast<Address*>(
+                                obj.RawField(kForeignAddressOffset).address()));
   }
 
   static inline int SizeOf(Map map, HeapObject object) { return kSize; }

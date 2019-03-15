@@ -228,8 +228,7 @@ class ConcurrentMarkingVisitor final
       if (marking_state_.IsBlackOrGrey(target)) {
         // Record the slot inside the JSWeakRef, since the
         // VisitJSObjectSubclass above didn't visit it.
-        ObjectSlot slot =
-            HeapObject::RawField(weak_ref, JSWeakRef::kTargetOffset);
+        ObjectSlot slot = weak_ref.RawField(JSWeakRef::kTargetOffset);
         MarkCompactCollector::RecordSlot(weak_ref, slot, target);
       } else {
         // JSWeakRef points to a potentially dead object. We have to process
@@ -251,8 +250,7 @@ class ConcurrentMarkingVisitor final
       if (marking_state_.IsBlackOrGrey(target)) {
         // Record the slot inside the WeakCell, since the IterateBody above
         // didn't visit it.
-        ObjectSlot slot =
-            HeapObject::RawField(weak_cell, WeakCell::kTargetOffset);
+        ObjectSlot slot = weak_cell.RawField(WeakCell::kTargetOffset);
         MarkCompactCollector::RecordSlot(weak_cell, slot, target);
       } else {
         // WeakCell points to a potentially dead object. We have to process
@@ -331,8 +329,7 @@ class ConcurrentMarkingVisitor final
         Max(FixedArray::BodyDescriptor::kStartOffset, chunk->progress_bar());
     int end = Min(size, start + kProgressBarScanningChunk);
     if (start < end) {
-      VisitPointers(object, HeapObject::RawField(object, start),
-                    HeapObject::RawField(object, end));
+      VisitPointers(object, object.RawField(start), object.RawField(end));
       chunk->set_progress_bar(end);
       if (end < size) {
         // The object can be pushed back onto the marking worklist only after

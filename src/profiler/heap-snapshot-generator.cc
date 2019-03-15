@@ -657,9 +657,8 @@ class IndexedReferencesExtractor : public ObjectVisitor {
                              HeapEntry* parent)
       : generator_(generator),
         parent_obj_(parent_obj),
-        parent_start_(HeapObject::RawMaybeWeakField(parent_obj_, 0)),
-        parent_end_(
-            HeapObject::RawMaybeWeakField(parent_obj_, parent_obj_->Size())),
+        parent_start_(parent_obj_.RawMaybeWeakField(0)),
+        parent_end_(parent_obj_.RawMaybeWeakField(parent_obj_->Size())),
         parent_(parent),
         next_index_(0) {}
   void VisitPointers(HeapObject host, ObjectSlot start,

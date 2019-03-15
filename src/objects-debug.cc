@@ -463,6 +463,7 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
   }
 }
 
+// static
 void HeapObject::VerifyHeapPointer(Isolate* isolate, Object p) {
   CHECK(p->IsHeapObject());
   HeapObject ho = HeapObject::cast(p);

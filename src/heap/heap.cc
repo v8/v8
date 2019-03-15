@@ -2721,9 +2721,9 @@ FixedArrayBase Heap::LeftTrimFixedArray(FixedArrayBase object,
       FixedArrayBase::cast(HeapObject::FromAddress(new_start));
 
   // Remove recorded slots for the new map and length offset.
-  ClearRecordedSlot(new_object, HeapObject::RawField(new_object, 0));
-  ClearRecordedSlot(new_object, HeapObject::RawField(
-                                    new_object, FixedArrayBase::kLengthOffset));
+  ClearRecordedSlot(new_object, new_object.RawField(0));
+  ClearRecordedSlot(new_object,
+                    new_object.RawField(FixedArrayBase::kLengthOffset));
 
   // Handle invalidated old-to-old slots.
   if (incremental_marking()->IsCompacting() &&
@@ -2737,7 +2737,7 @@ FixedArrayBase Heap::LeftTrimFixedArray(FixedArrayBase object,
     // we need pointer granularity writes to avoid race with the concurrent
     // marking.
     if (filler->Size() > FreeSpace::kSize) {
-      MemsetTagged(HeapObject::RawField(filler, FreeSpace::kSize),
+      MemsetTagged(filler.RawField(FreeSpace::kSize),
                    ReadOnlyRoots(this).undefined_value(),
                    (filler->Size() - FreeSpace::kSize) / kTaggedSize);
     }

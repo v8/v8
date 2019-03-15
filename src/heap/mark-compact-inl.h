@@ -90,8 +90,7 @@ int MarkingVisitor<fixed_array_mode, retaining_path_mode, MarkingState>::
     collector_->AddBytecodeFlushingCandidate(shared_info);
   } else {
     VisitPointer(shared_info,
-                 HeapObject::RawField(shared_info,
-                                      SharedFunctionInfo::kFunctionDataOffset));
+                 shared_info.RawField(SharedFunctionInfo::kFunctionDataOffset));
   }
   return size;
 }
@@ -249,8 +248,7 @@ int MarkingVisitor<fixed_array_mode, retaining_path_mode,
     if (marking_state()->IsBlackOrGrey(target)) {
       // Record the slot inside the JSWeakRef, since the IterateBody below
       // won't visit it.
-      ObjectSlot slot =
-          HeapObject::RawField(weak_ref, JSWeakRef::kTargetOffset);
+      ObjectSlot slot = weak_ref.RawField(JSWeakRef::kTargetOffset);
       collector_->RecordSlot(weak_ref, slot, target);
     } else {
       // JSWeakRef points to a potentially dead object. We have to process
@@ -272,8 +270,7 @@ int MarkingVisitor<fixed_array_mode, retaining_path_mode,
     if (marking_state()->IsBlackOrGrey(target)) {
       // Record the slot inside the WeakCell, since the IterateBody below
       // won't visit it.
-      ObjectSlot slot =
-          HeapObject::RawField(weak_cell, WeakCell::kTargetOffset);
+      ObjectSlot slot = weak_cell.RawField(WeakCell::kTargetOffset);
       collector_->RecordSlot(weak_cell, slot, target);
     } else {
       // WeakCell points to a potentially dead object. We have to process
@@ -404,8 +401,7 @@ int MarkingVisitor<fixed_array_mode, retaining_path_mode, MarkingState>::
         Max(FixedArray::BodyDescriptor::kStartOffset, chunk->progress_bar());
     int end = Min(size, start + kProgressBarScanningChunk);
     if (start < end) {
-      VisitPointers(object, HeapObject::RawField(object, start),
-                    HeapObject::RawField(object, end));
+      VisitPointers(object, object.RawField(start), object.RawField(end));
       chunk->set_progress_bar(end);
       if (end < size) {
         DCHECK(marking_state()->IsBlack(object));

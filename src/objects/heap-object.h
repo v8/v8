@@ -131,9 +131,7 @@ class HeapObject : public Object {
   // Does not invoke write barrier, so should only be assigned to
   // during marking GC.
   inline ObjectSlot RawField(int byte_offset) const;
-  static inline ObjectSlot RawField(const HeapObject obj, int offset);
   inline MaybeObjectSlot RawMaybeWeakField(int byte_offset) const;
-  static inline MaybeObjectSlot RawMaybeWeakField(HeapObject obj, int offset);
 
   DECL_CAST(HeapObject)
 

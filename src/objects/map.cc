@@ -1517,12 +1517,9 @@ Handle<Map> Map::Normalize(Isolate* isolate, Handle<Map> fast_map,
                   MaybeObject::FromObject(Smi::kZero));
         STATIC_ASSERT(kDescriptorsOffset ==
                       kTransitionsOrPrototypeInfoOffset + kTaggedSize);
-        DCHECK_EQ(
-            0,
-            memcmp(
-                HeapObject::RawField(*fresh, kDescriptorsOffset).ToVoidPtr(),
-                HeapObject::RawField(*new_map, kDescriptorsOffset).ToVoidPtr(),
-                kDependentCodeOffset - kDescriptorsOffset));
+        DCHECK_EQ(0, memcmp(fresh->RawField(kDescriptorsOffset).ToVoidPtr(),
+                            new_map->RawField(kDescriptorsOffset).ToVoidPtr(),
+                            kDependentCodeOffset - kDescriptorsOffset));
       } else {
         DCHECK_EQ(0, memcmp(reinterpret_cast<void*>(fresh->address()),
                             reinterpret_cast<void*>(new_map->address()),
