@@ -27,10 +27,11 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-# This script will build libgcmole.so. Building a recent clang needs a
-# recent GCC, so if you explicitly want to use e.g. GCC 4.8, use:
-#
-#    CC=gcc-4.8 CPP=cpp-4.8 CXX=g++-4.8 CXXFLAGS=-static-libstdc++ CXXCPP=cpp-4.8 ./bootstrap.sh
+# This script will build libgcmole.so as well as a corresponding recent
+# version of Clang and LLVM. The Clang will be built with the locally
+# installed compiler and statically link against the local libstdc++ so
+# that the resulting binary is easier transferable between different
+# environments.
 
 CLANG_RELEASE=8.0
 
@@ -102,7 +103,8 @@ if [ ! -e "${BUILD_DIR}" ]; then
   mkdir "${BUILD_DIR}"
 fi
 cd "${BUILD_DIR}"
-cmake -DCMAKE_BUILD_TYPE=Release -DLLVM_ENABLE_PROJECTS=clang "${LLVM_DIR}"
+cmake -DCMAKE_CXX_FLAGS="-static-libstdc++" -DLLVM_ENABLE_TERMINFO=OFF \
+    -DCMAKE_BUILD_TYPE=Release -DLLVM_ENABLE_PROJECTS=clang "${LLVM_DIR}"
 MACOSX_DEPLOYMENT_TARGET=10.5 make -j"${NUM_JOBS}"
 
 # Strip the clang binary.
