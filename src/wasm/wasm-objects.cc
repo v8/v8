@@ -1303,8 +1303,9 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
     }
     // SharedArrayBuffer, but not shared across isolates. Setup a new buffer
     // with updated permissions and update the instances.
-    new_buffer = wasm::SetupArrayBuffer(isolate, backing_store, new_size,
-                                        old_buffer->is_external());
+    new_buffer =
+        wasm::SetupArrayBuffer(isolate, backing_store, new_size,
+                               old_buffer->is_external(), SharedFlag::kShared);
     memory_object->update_instances(isolate, new_buffer);
   } else {
     if (!MemoryGrowBuffer(isolate, old_buffer, new_size)
