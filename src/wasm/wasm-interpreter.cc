@@ -2344,8 +2344,8 @@ class ThreadImpl {
     // stack actually lies in zone memory.
     const size_t stack_size_limit = FLAG_stack_size * KB;
     // Sum up the value stack size and the control stack size.
-    const size_t current_stack_size =
-        (sp_ - stack_.get()) + frames_.size() * sizeof(Frame);
+    const size_t current_stack_size = (sp_ - stack_.get()) * sizeof(*sp_) +
+                                      frames_.size() * sizeof(frames_[0]);
     if (V8_LIKELY(current_stack_size <= stack_size_limit)) {
       return true;
     }
