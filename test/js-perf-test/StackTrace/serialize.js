@@ -71,9 +71,11 @@ function SerializeStack() {
     // Trigger serialization by accessing Error.stack.
     %FlattenString(errorsCreatedBySetup[counter++].stack);
   } else {
-    // The counter is reset after hitting the end, although
-    // Error.stack is cached at this point.
-    counter = 0;
+    // All errors are serialized. The stack trace string is now cached, so
+    // re-iterating the array is a simple property lookup. Instead,
+    // a simple Error object is created and serialized, otherwise the benchmark
+    // result would fluctuate heavily if it reaches the end.
+    %FlattenString(new Error().stack);
   }
 }
 
