@@ -2876,8 +2876,7 @@ JSNativeContextSpecialization::BuildElementAccess(
       index = effect = graph()->NewNode(
           simplified()->CheckBounds(VectorSlotPair()), index,
           jsgraph()->Constant(Smi::kMaxValue), effect, control);
-    } else if (access_mode != AccessMode::kHas ||
-               load_mode != LOAD_IGNORE_OUT_OF_BOUNDS) {
+    } else {
       // Check that the {index} is in the valid range for the {receiver}.
       index = effect =
           graph()->NewNode(simplified()->CheckBounds(VectorSlotPair()), index,
