@@ -206,6 +206,9 @@ class V8_EXPORT CpuProfileNode {
   /** Retrieves a child node by index. */
   const CpuProfileNode* GetChild(int index) const;
 
+  /** Retrieves the ancestor node, or null if the root. */
+  const CpuProfileNode* GetParent() const;
+
   /** Retrieves deopt infos for the node. */
   const std::vector<CpuProfileDeoptInfo>& GetDeoptInfos() const;
 

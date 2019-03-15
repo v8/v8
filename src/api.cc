@@ -10038,6 +10038,11 @@ const CpuProfileNode* CpuProfileNode::GetChild(int index) const {
   return reinterpret_cast<const CpuProfileNode*>(child);
 }
 
+const CpuProfileNode* CpuProfileNode::GetParent() const {
+  const i::ProfileNode* parent =
+      reinterpret_cast<const i::ProfileNode*>(this)->parent();
+  return reinterpret_cast<const CpuProfileNode*>(parent);
+}
 
 const std::vector<CpuProfileDeoptInfo>& CpuProfileNode::GetDeoptInfos() const {
   const i::ProfileNode* node = reinterpret_cast<const i::ProfileNode*>(this);
