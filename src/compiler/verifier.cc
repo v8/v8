@@ -1745,6 +1745,12 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kBitcastWordToTaggedSigned:
     case IrOpcode::kChangeInt32ToInt64:
     case IrOpcode::kChangeUint32ToUint64:
+    case IrOpcode::kChangeTaggedToCompressed:
+    case IrOpcode::kChangeTaggedPointerToCompressedPointer:
+    case IrOpcode::kChangeTaggedSignedToCompressedSigned:
+    case IrOpcode::kChangeCompressedToTagged:
+    case IrOpcode::kChangeCompressedPointerToTaggedPointer:
+    case IrOpcode::kChangeCompressedSignedToTaggedSigned:
     case IrOpcode::kChangeInt32ToFloat64:
     case IrOpcode::kChangeInt64ToFloat64:
     case IrOpcode::kChangeUint32ToFloat64:
