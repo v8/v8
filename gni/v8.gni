@@ -37,9 +37,10 @@ declare_args() {
 
   # Enable the snapshot feature, for fast context creation.
   # https://v8.dev/blog/custom-startup-snapshots
-  # TODO(thakis): Make snapshots work in 64-bit win/cross builds,
-  # https://803591
-  v8_use_snapshot = !(is_win && host_os != "win" && target_cpu == "x64")
+  # TODO(thakis): Make snapshots work in 64-bit win/cross builds
+  # (https://crbug.com/803591) and 32-bit win/cross builds
+  # (https://crbug.com/942347)
+  v8_use_snapshot = !is_win || host_os == "win"
 
   # Enable several snapshots side-by-side (e.g. default and for trusted code).
   v8_use_multi_snapshots = false
