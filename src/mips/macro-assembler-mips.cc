@@ -4821,13 +4821,13 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space,
 
   // Save registers and reserve room for saved entry sp.
   addiu(sp, sp, -2 * kPointerSize - ExitFrameConstants::kFixedFrameSizeFromFp);
-  sw(ra, MemOperand(sp, 4 * kPointerSize));
-  sw(fp, MemOperand(sp, 3 * kPointerSize));
+  sw(ra, MemOperand(sp, 3 * kPointerSize));
+  sw(fp, MemOperand(sp, 2 * kPointerSize));
   {
     UseScratchRegisterScope temps(this);
     Register scratch = temps.Acquire();
     li(scratch, Operand(StackFrame::TypeToMarker(frame_type)));
-    sw(scratch, MemOperand(sp, 2 * kPointerSize));
+    sw(scratch, MemOperand(sp, 1 * kPointerSize));
   }
   // Set up new frame pointer.
   addiu(fp, sp, ExitFrameConstants::kFixedFrameSizeFromFp);
