@@ -122,7 +122,7 @@ deps = {
     'dep_type': 'cipd',
   },
   'v8/test/wasm-js/data':
-    Var('chromium_url') + '/external/github.com/WebAssembly/spec.git' + '@' + 'a2b5691cf102f3927e782fe5446f9b53dda6b39f',
+    Var('chromium_url') + '/external/github.com/WebAssembly/spec.git' + '@' + '2f5d8e761b67325c6dd3501b56b603199264572b',
 }
 
 recursedeps = [
