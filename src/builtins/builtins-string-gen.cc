@@ -107,10 +107,13 @@ Node* StringBuiltinsAssembler::CallSearchStringRaw(Node* const subject_ptr,
   MachineType type_ptr = MachineType::Pointer();
   MachineType type_intptr = MachineType::IntPtr();
 
-  Node* const result = CallCFunction6(
-      type_intptr, type_ptr, type_ptr, type_intptr, type_ptr, type_intptr,
-      type_intptr, function_addr, isolate_ptr, subject_ptr, subject_length,
-      search_ptr, search_length, start_position);
+  Node* const result = CallCFunction(
+      function_addr, type_intptr, std::make_pair(type_ptr, isolate_ptr),
+      std::make_pair(type_ptr, subject_ptr),
+      std::make_pair(type_intptr, subject_length),
+      std::make_pair(type_ptr, search_ptr),
+      std::make_pair(type_intptr, search_length),
+      std::make_pair(type_intptr, start_position));
 
   return result;
 }
@@ -867,9 +870,10 @@ void StringBuiltinsAssembler::StringIndexOf(
       Node* const memchr =
           ExternalConstant(ExternalReference::libc_memchr_function());
       Node* const result_address =
-          CallCFunction3(MachineType::Pointer(), MachineType::Pointer(),
-                         MachineType::IntPtr(), MachineType::UintPtr(), memchr,
-                         string_addr, search_byte, search_length);
+          CallCFunction(memchr, MachineType::Pointer(),
+                        std::make_pair(MachineType::Pointer(), string_addr),
+                        std::make_pair(MachineType::IntPtr(), search_byte),
+                        std::make_pair(MachineType::UintPtr(), search_length));
       GotoIf(WordEqual(result_address, int_zero), &return_minus_1);
       Node* const result_index =
           IntPtrAdd(IntPtrSub(result_address, string_addr), start_position);

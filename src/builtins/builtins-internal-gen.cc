@@ -282,15 +282,17 @@ class RecordWriteCodeStubAssembler : public CodeStubAssembler {
     Branch(ShouldSkipFPRegs(mode), &dont_save_fp, &save_fp);
     BIND(&dont_save_fp);
     {
-      CallCFunction1WithCallerSavedRegisters(return_type, arg0_type, function,
-                                             arg0, kDontSaveFPRegs);
+      CallCFunctionWithCallerSavedRegisters(function, return_type,
+                                            kDontSaveFPRegs,
+                                            std::make_pair(arg0_type, arg0));
       Goto(next);
     }
 
     BIND(&save_fp);
     {
-      CallCFunction1WithCallerSavedRegisters(return_type, arg0_type, function,
-                                             arg0, kSaveFPRegs);
+      CallCFunctionWithCallerSavedRegisters(function, return_type,
+                                            kSaveFPRegs,
+                                            std::make_pair(arg0_type, arg0));
       Goto(next);
     }
   }
@@ -303,17 +305,18 @@ class RecordWriteCodeStubAssembler : public CodeStubAssembler {
     Branch(ShouldSkipFPRegs(mode), &dont_save_fp, &save_fp);
     BIND(&dont_save_fp);
     {
-      CallCFunction3WithCallerSavedRegisters(return_type, arg0_type, arg1_type,
-                                             arg2_type, function, arg0, arg1,
-                                             arg2, kDontSaveFPRegs);
+      CallCFunctionWithCallerSavedRegisters(
+          function, return_type, kDontSaveFPRegs,
+          std::make_pair(arg0_type, arg0), std::make_pair(arg1_type, arg1),
+          std::make_pair(arg2_type, arg2));
       Goto(next);
     }
 
     BIND(&save_fp);
     {
-      CallCFunction3WithCallerSavedRegisters(return_type, arg0_type, arg1_type,
-                                             arg2_type, function, arg0, arg1,
-                                             arg2, kSaveFPRegs);
+      CallCFunctionWithCallerSavedRegisters(
+          function, return_type, kSaveFPRegs, std::make_pair(arg0_type, arg0),
+          std::make_pair(arg1_type, arg1), std::make_pair(arg2_type, arg2));
       Goto(next);
     }
   }

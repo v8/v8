@@ -62,7 +62,7 @@ static int sum3(int a0, int a1, int a2) { return a0 + a1 + a2; }
 
 }  // namespace
 
-TEST(CallCFunction9) {
+TEST(CallCFunction) {
   Isolate* isolate(CcTest::InitIsolateOnce());
 
   const int kNumParams = 0;
@@ -75,13 +75,17 @@ TEST(CallCFunction9) {
 
     MachineType type_intptr = MachineType::IntPtr();
 
-    Node* const result = m.CallCFunction9(
-        type_intptr, type_intptr, type_intptr, type_intptr, type_intptr,
-        type_intptr, type_intptr, type_intptr, type_intptr, type_intptr,
-        fun_constant, m.IntPtrConstant(0), m.IntPtrConstant(1),
-        m.IntPtrConstant(2), m.IntPtrConstant(3), m.IntPtrConstant(4),
-        m.IntPtrConstant(5), m.IntPtrConstant(6), m.IntPtrConstant(7),
-        m.IntPtrConstant(8));
+    Node* const result =
+        m.CallCFunction(fun_constant, type_intptr,
+                        std::make_pair(type_intptr, m.IntPtrConstant(0)),
+                        std::make_pair(type_intptr, m.IntPtrConstant(1)),
+                        std::make_pair(type_intptr, m.IntPtrConstant(2)),
+                        std::make_pair(type_intptr, m.IntPtrConstant(3)),
+                        std::make_pair(type_intptr, m.IntPtrConstant(4)),
+                        std::make_pair(type_intptr, m.IntPtrConstant(5)),
+                        std::make_pair(type_intptr, m.IntPtrConstant(6)),
+                        std::make_pair(type_intptr, m.IntPtrConstant(7)),
+                        std::make_pair(type_intptr, m.IntPtrConstant(8)));
     m.Return(m.SmiTag(result));
   }
 
@@ -91,7 +95,7 @@ TEST(CallCFunction9) {
   CHECK_EQ(36, Handle<Smi>::cast(result)->value());
 }
 
-TEST(CallCFunction3WithCallerSavedRegisters) {
+TEST(CallCFunctionWithCallerSavedRegisters) {
   Isolate* isolate(CcTest::InitIsolateOnce());
 
   const int kNumParams = 0;
@@ -104,10 +108,11 @@ TEST(CallCFunction3WithCallerSavedRegisters) {
 
     MachineType type_intptr = MachineType::IntPtr();
 
-    Node* const result = m.CallCFunction3WithCallerSavedRegisters(
-        type_intptr, type_intptr, type_intptr, type_intptr, fun_constant,
-        m.IntPtrConstant(0), m.IntPtrConstant(1), m.IntPtrConstant(2),
-        kSaveFPRegs);
+    Node* const result = m.CallCFunctionWithCallerSavedRegisters(
+        fun_constant, type_intptr, kSaveFPRegs,
+        std::make_pair(type_intptr, m.IntPtrConstant(0)),
+        std::make_pair(type_intptr, m.IntPtrConstant(1)),
+        std::make_pair(type_intptr, m.IntPtrConstant(2)));
     m.Return(m.SmiTag(result));
   }
 

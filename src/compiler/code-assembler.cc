@@ -1364,87 +1364,18 @@ Node* CodeAssembler::CallCFunctionN(Signature<MachineType>* signature,
   return raw_assembler()->CallN(call_descriptor, input_count, inputs);
 }
 
-Node* CodeAssembler::CallCFunction1(MachineType return_type,
-                                    MachineType arg0_type, Node* function,
-                                    Node* arg0) {
-  return raw_assembler()->CallCFunction1(return_type, arg0_type, function,
-                                         arg0);
+Node* CodeAssembler::CallCFunction(
+    Node* function, MachineType return_type,
+    std::initializer_list<CodeAssembler::CFunctionArg> args) {
+  return raw_assembler()->CallCFunction(function, return_type, args);
 }
 
-Node* CodeAssembler::CallCFunction1WithCallerSavedRegisters(
-    MachineType return_type, MachineType arg0_type, Node* function, Node* arg0,
-    SaveFPRegsMode mode) {
+Node* CodeAssembler::CallCFunctionWithCallerSavedRegisters(
+    Node* function, MachineType return_type, SaveFPRegsMode mode,
+    std::initializer_list<CodeAssembler::CFunctionArg> args) {
   DCHECK(return_type.LessThanOrEqualPointerSize());
-  return raw_assembler()->CallCFunction1WithCallerSavedRegisters(
-      return_type, arg0_type, function, arg0, mode);
-}
-
-Node* CodeAssembler::CallCFunction2(MachineType return_type,
-                                    MachineType arg0_type,
-                                    MachineType arg1_type, Node* function,
-                                    Node* arg0, Node* arg1) {
-  return raw_assembler()->CallCFunction2(return_type, arg0_type, arg1_type,
-                                         function, arg0, arg1);
-}
-
-Node* CodeAssembler::CallCFunction3(MachineType return_type,
-                                    MachineType arg0_type,
-                                    MachineType arg1_type,
-                                    MachineType arg2_type, Node* function,
-                                    Node* arg0, Node* arg1, Node* arg2) {
-  return raw_assembler()->CallCFunction3(return_type, arg0_type, arg1_type,
-                                         arg2_type, function, arg0, arg1, arg2);
-}
-
-Node* CodeAssembler::CallCFunction3WithCallerSavedRegisters(
-    MachineType return_type, MachineType arg0_type, MachineType arg1_type,
-    MachineType arg2_type, Node* function, Node* arg0, Node* arg1, Node* arg2,
-    SaveFPRegsMode mode) {
-  DCHECK(return_type.LessThanOrEqualPointerSize());
-  return raw_assembler()->CallCFunction3WithCallerSavedRegisters(
-      return_type, arg0_type, arg1_type, arg2_type, function, arg0, arg1, arg2,
-      mode);
-}
-
-Node* CodeAssembler::CallCFunction4(
-    MachineType return_type, MachineType arg0_type, MachineType arg1_type,
-    MachineType arg2_type, MachineType arg3_type, Node* function, Node* arg0,
-    Node* arg1, Node* arg2, Node* arg3) {
-  return raw_assembler()->CallCFunction4(return_type, arg0_type, arg1_type,
-                                         arg2_type, arg3_type, function, arg0,
-                                         arg1, arg2, arg3);
-}
-
-Node* CodeAssembler::CallCFunction5(
-    MachineType return_type, MachineType arg0_type, MachineType arg1_type,
-    MachineType arg2_type, MachineType arg3_type, MachineType arg4_type,
-    Node* function, Node* arg0, Node* arg1, Node* arg2, Node* arg3,
-    Node* arg4) {
-  return raw_assembler()->CallCFunction5(
-      return_type, arg0_type, arg1_type, arg2_type, arg3_type, arg4_type,
-      function, arg0, arg1, arg2, arg3, arg4);
-}
-
-Node* CodeAssembler::CallCFunction6(
-    MachineType return_type, MachineType arg0_type, MachineType arg1_type,
-    MachineType arg2_type, MachineType arg3_type, MachineType arg4_type,
-    MachineType arg5_type, Node* function, Node* arg0, Node* arg1, Node* arg2,
-    Node* arg3, Node* arg4, Node* arg5) {
-  return raw_assembler()->CallCFunction6(
-      return_type, arg0_type, arg1_type, arg2_type, arg3_type, arg4_type,
-      arg5_type, function, arg0, arg1, arg2, arg3, arg4, arg5);
-}
-
-Node* CodeAssembler::CallCFunction9(
-    MachineType return_type, MachineType arg0_type, MachineType arg1_type,
-    MachineType arg2_type, MachineType arg3_type, MachineType arg4_type,
-    MachineType arg5_type, MachineType arg6_type, MachineType arg7_type,
-    MachineType arg8_type, Node* function, Node* arg0, Node* arg1, Node* arg2,
-    Node* arg3, Node* arg4, Node* arg5, Node* arg6, Node* arg7, Node* arg8) {
-  return raw_assembler()->CallCFunction9(
-      return_type, arg0_type, arg1_type, arg2_type, arg3_type, arg4_type,
-      arg5_type, arg6_type, arg7_type, arg8_type, function, arg0, arg1, arg2,
-      arg3, arg4, arg5, arg6, arg7, arg8);
+  return raw_assembler()->CallCFunctionWithCallerSavedRegisters(
+      function, return_type, mode, args);
 }
 
 void CodeAssembler::Goto(Label* label) {

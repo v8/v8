@@ -113,8 +113,9 @@ TF_BUILTIN(StringToLowerCaseIntl, IntlBuiltinsAssembler) {
 
     MachineType type_tagged = MachineType::AnyTagged();
 
-    Node* const result = CallCFunction2(type_tagged, type_tagged, type_tagged,
-                                        function_addr, src, dst);
+    Node* const result = CallCFunction(function_addr, type_tagged,
+                                       std::make_pair(type_tagged, src),
+                                       std::make_pair(type_tagged, dst));
 
     Return(result);
   }

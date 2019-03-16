@@ -7,6 +7,7 @@
 
 #include <map>
 #include <memory>
+#include <initializer_list>
 
 // Clients of this interface shouldn't depend on lots of compiler internals.
 // Do not include anything from src/compiler here!
@@ -29,6 +30,7 @@
 #include "src/objects/oddball.h"
 #include "src/runtime/runtime.h"
 #include "src/source-position.h"
+#include "src/type-traits.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
@@ -700,13 +702,14 @@ class V8_EXPORT_PRIVATE CodeAssembler {
         }
         Node* function = code_assembler_->ExternalConstant(
             ExternalReference::check_object_type());
-        code_assembler_->CallCFunction3(
-            MachineType::AnyTagged(), MachineType::AnyTagged(),
-            MachineType::TaggedSigned(), MachineType::AnyTagged(), function,
-            node_,
-            code_assembler_->SmiConstant(
-                static_cast<int>(ObjectTypeOf<A>::value)),
-            code_assembler_->StringConstant(location_));
+        code_assembler_->CallCFunction(
+            function, MachineType::AnyTagged(),
+            std::make_pair(MachineType::AnyTagged(), node_),
+            std::make_pair(MachineType::TaggedSigned(),
+                           code_assembler_->SmiConstant(
+                               static_cast<int>(ObjectTypeOf<A>::value))),
+            std::make_pair(MachineType::AnyTagged(),
+                           code_assembler_->StringConstant(location_)));
       }
 #endif
       return TNode<A>::UncheckedCast(node_);
@@ -1327,64 +1330,30 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   Node* CallCFunctionN(Signature<MachineType>* signature, int input_count,
                        Node* const* inputs);
 
-  // Call to a C function with one argument.
-  Node* CallCFunction1(MachineType return_type, MachineType arg0_type,
-                       Node* function, Node* arg0);
+  // Type representing C function argument with type info.
+  using CFunctionArg = std::pair<MachineType, Node*>;
 
-  // Call to a C function with one argument, while saving/restoring caller
-  // registers except the register used for return value.
-  Node* CallCFunction1WithCallerSavedRegisters(MachineType return_type,
-                                               MachineType arg0_type,
-                                               Node* function, Node* arg0,
-                                               SaveFPRegsMode mode);
+  // Call to a C function.
+  template <class... CArgs>
+  Node* CallCFunction(Node* function, MachineType return_type, CArgs... cargs) {
+    static_assert(v8::internal::conjunction<
+                      std::is_convertible<CArgs, CFunctionArg>...>::value,
+                  "invalid argument types");
+    return CallCFunction(function, return_type, {cargs...});
+  }
 
-  // Call to a C function with two arguments.
-  Node* CallCFunction2(MachineType return_type, MachineType arg0_type,
-                       MachineType arg1_type, Node* function, Node* arg0,
-                       Node* arg1);
-
-  // Call to a C function with three arguments.
-  Node* CallCFunction3(MachineType return_type, MachineType arg0_type,
-                       MachineType arg1_type, MachineType arg2_type,
-                       Node* function, Node* arg0, Node* arg1, Node* arg2);
-
-  // Call to a C function with three arguments, while saving/restoring caller
-  // registers except the register used for return value.
-  Node* CallCFunction3WithCallerSavedRegisters(
-      MachineType return_type, MachineType arg0_type, MachineType arg1_type,
-      MachineType arg2_type, Node* function, Node* arg0, Node* arg1, Node* arg2,
-      SaveFPRegsMode mode);
-
-  // Call to a C function with four arguments.
-  Node* CallCFunction4(MachineType return_type, MachineType arg0_type,
-                       MachineType arg1_type, MachineType arg2_type,
-                       MachineType arg3_type, Node* function, Node* arg0,
-                       Node* arg1, Node* arg2, Node* arg3);
-
-  // Call to a C function with five arguments.
-  Node* CallCFunction5(MachineType return_type, MachineType arg0_type,
-                       MachineType arg1_type, MachineType arg2_type,
-                       MachineType arg3_type, MachineType arg4_type,
-                       Node* function, Node* arg0, Node* arg1, Node* arg2,
-                       Node* arg3, Node* arg4);
-
-  // Call to a C function with six arguments.
-  Node* CallCFunction6(MachineType return_type, MachineType arg0_type,
-                       MachineType arg1_type, MachineType arg2_type,
-                       MachineType arg3_type, MachineType arg4_type,
-                       MachineType arg5_type, Node* function, Node* arg0,
-                       Node* arg1, Node* arg2, Node* arg3, Node* arg4,
-                       Node* arg5);
-
-  // Call to a C function with nine arguments.
-  Node* CallCFunction9(MachineType return_type, MachineType arg0_type,
-                       MachineType arg1_type, MachineType arg2_type,
-                       MachineType arg3_type, MachineType arg4_type,
-                       MachineType arg5_type, MachineType arg6_type,
-                       MachineType arg7_type, MachineType arg8_type,
-                       Node* function, Node* arg0, Node* arg1, Node* arg2,
-                       Node* arg3, Node* arg4, Node* arg5, Node* arg6,
-                       Node* arg7, Node* arg8);
+  // Call to a C function, while saving/restoring caller registers.
+  template <class... CArgs>
+  Node* CallCFunctionWithCallerSavedRegisters(Node* function,
+                                              MachineType return_type,
+                                              SaveFPRegsMode mode,
+                                              CArgs... cargs) {
+    static_assert(v8::internal::conjunction<
+                      std::is_convertible<CArgs, CFunctionArg>...>::value,
+                  "invalid argument types");
+    return CallCFunctionWithCallerSavedRegisters(function, return_type, mode,
+                                                 {cargs...});
+  }
 
   // Exception handling support.
   void GotoIfException(Node* node, Label* if_exception,
@@ -1417,6 +1386,13 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 
  private:
   void HandleException(Node* result);
+
+  Node* CallCFunction(Node* function, MachineType return_type,
+                      std::initializer_list<CFunctionArg> args);
+
+  Node* CallCFunctionWithCallerSavedRegisters(
+      Node* function, MachineType return_type, SaveFPRegsMode mode,
+      std::initializer_list<CFunctionArg> args);
 
   TNode<Object> CallRuntimeImpl(Runtime::FunctionId function,
                                 TNode<Object> context,

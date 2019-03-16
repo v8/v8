@@ -930,9 +930,10 @@ TNode<Smi> CodeStubAssembler::SmiLexicographicCompare(TNode<Smi> x,
       ExternalConstant(ExternalReference::smi_lexicographic_compare_function());
   TNode<ExternalReference> isolate_ptr =
       ExternalConstant(ExternalReference::isolate_address(isolate()));
-  return CAST(CallCFunction3(MachineType::AnyTagged(), MachineType::Pointer(),
-                             MachineType::AnyTagged(), MachineType::AnyTagged(),
-                             smi_lexicographic_compare, isolate_ptr, x, y));
+  return CAST(CallCFunction(smi_lexicographic_compare, MachineType::AnyTagged(),
+                            std::make_pair(MachineType::Pointer(), isolate_ptr),
+                            std::make_pair(MachineType::AnyTagged(), x),
+                            std::make_pair(MachineType::AnyTagged(), y)));
 }
 
 TNode<Int32T> CodeStubAssembler::TruncateIntPtrToInt32(
@@ -3554,10 +3555,11 @@ TNode<CollectionType> CodeStubAssembler::AllocateSmallOrderedHashTable(
 
   // Initialize the HashTable part.
   Node* memset = ExternalConstant(ExternalReference::libc_memset_function());
-  CallCFunction3(MachineType::AnyTagged(), MachineType::Pointer(),
-                 MachineType::IntPtr(), MachineType::UintPtr(), memset,
-                 hash_table_start_address, IntPtrConstant(0xFF),
-                 hash_table_and_chain_table_size);
+  CallCFunction(
+      memset, MachineType::AnyTagged(),
+      std::make_pair(MachineType::Pointer(), hash_table_start_address),
+      std::make_pair(MachineType::IntPtr(), IntPtrConstant(0xFF)),
+      std::make_pair(MachineType::UintPtr(), hash_table_and_chain_table_size));
 
   // Initialize the DataTable part.
   TNode<HeapObject> filler = TheHoleConstant();
@@ -4620,9 +4622,10 @@ void CodeStubAssembler::FillFixedArrayWithSmiZero(TNode<FixedArray> array,
   TNode<ExternalReference> memset =
       ExternalConstant(ExternalReference::libc_memset_function());
   STATIC_ASSERT(kSizetSize == kIntptrSize);
-  CallCFunction3(MachineType::Pointer(), MachineType::Pointer(),
-                 MachineType::IntPtr(), MachineType::UintPtr(), memset,
-                 backing_store, IntPtrConstant(0), byte_length);
+  CallCFunction(memset, MachineType::Pointer(),
+                std::make_pair(MachineType::Pointer(), backing_store),
+                std::make_pair(MachineType::IntPtr(), IntPtrConstant(0)),
+                std::make_pair(MachineType::UintPtr(), byte_length));
 }
 
 void CodeStubAssembler::FillFixedDoubleArrayWithZero(
@@ -4641,9 +4644,10 @@ void CodeStubAssembler::FillFixedDoubleArrayWithZero(
   TNode<ExternalReference> memset =
       ExternalConstant(ExternalReference::libc_memset_function());
   STATIC_ASSERT(kSizetSize == kIntptrSize);
-  CallCFunction3(MachineType::Pointer(), MachineType::Pointer(),
-                 MachineType::IntPtr(), MachineType::UintPtr(), memset,
-                 backing_store, IntPtrConstant(0), byte_length);
+  CallCFunction(memset, MachineType::Pointer(),
+                std::make_pair(MachineType::Pointer(), backing_store),
+                std::make_pair(MachineType::IntPtr(), IntPtrConstant(0)),
+                std::make_pair(MachineType::UintPtr(), byte_length));
 }
 
 void CodeStubAssembler::JumpIfPointersFromHereAreInteresting(
@@ -4701,9 +4705,10 @@ void CodeStubAssembler::MoveElements(ElementsKind kind,
                                        fa_base_data_offset));
   TNode<ExternalReference> memmove =
       ExternalConstant(ExternalReference::libc_memmove_function());
-  CallCFunction3(MachineType::Pointer(), MachineType::Pointer(),
-                 MachineType::Pointer(), MachineType::UintPtr(), memmove,
-                 target_data_ptr, source_data_ptr, source_byte_length);
+  CallCFunction(memmove, MachineType::Pointer(),
+                std::make_pair(MachineType::Pointer(), target_data_ptr),
+                std::make_pair(MachineType::Pointer(), source_data_ptr),
+                std::make_pair(MachineType::UintPtr(), source_byte_length));
 
   if (needs_barrier_check) {
     Goto(&finished);
@@ -4793,9 +4798,10 @@ void CodeStubAssembler::CopyElements(ElementsKind kind,
       IntPtrAdd(dst_elements_intptr, dst_offset_start);
   TNode<ExternalReference> memcpy =
       ExternalConstant(ExternalReference::libc_memcpy_function());
-  CallCFunction3(MachineType::Pointer(), MachineType::Pointer(),
-                 MachineType::Pointer(), MachineType::UintPtr(), memcpy,
-                 dst_data_ptr, source_data_ptr, source_byte_length);
+  CallCFunction(memcpy, MachineType::Pointer(),
+                std::make_pair(MachineType::Pointer(), dst_data_ptr),
+                std::make_pair(MachineType::Pointer(), source_data_ptr),
+                std::make_pair(MachineType::UintPtr(), source_byte_length));
 
   if (needs_barrier_check) {
     Goto(&finished);
@@ -8251,8 +8257,9 @@ void CodeStubAssembler::TryInternalizeString(
   Node* const isolate_ptr =
       ExternalConstant(ExternalReference::isolate_address(isolate()));
   Node* result =
-      CallCFunction2(MachineType::AnyTagged(), MachineType::Pointer(),
-                     MachineType::AnyTagged(), function, isolate_ptr, string);
+      CallCFunction(function, MachineType::AnyTagged(),
+                    std::make_pair(MachineType::Pointer(), isolate_ptr),
+                    std::make_pair(MachineType::AnyTagged(), string));
   Label internalized(this);
   GotoIf(TaggedIsNotSmi(result), &internalized);
   Node* word_result = SmiUntag(result);
@@ -8521,9 +8528,9 @@ Node* CodeStubAssembler::ComputeSeededHash(Node* key) {
   MachineType type_ptr = MachineType::Pointer();
   MachineType type_uint32 = MachineType::Uint32();
 
-  Node* const result =
-      CallCFunction2(type_uint32, type_ptr, type_uint32, function_addr,
-                     isolate_ptr, TruncateIntPtrToInt32(key));
+  Node* const result = CallCFunction(
+      function_addr, type_uint32, std::make_pair(type_ptr, isolate_ptr),
+      std::make_pair(type_uint32, TruncateIntPtrToInt32(key)));
   return result;
 }
 

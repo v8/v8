@@ -538,10 +538,12 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
         IntPtrAdd(BitcastTaggedToWord(code),
                   IntPtrConstant(Code::kHeaderSize - kHeapObjectTag)));
 
-    TNode<Int32T> result = UncheckedCast<Int32T>(CallCFunction9(
-        retval_type, arg0_type, arg1_type, arg2_type, arg3_type, arg4_type,
-        arg5_type, arg6_type, arg7_type, arg8_type, code_entry, arg0, arg1,
-        arg2, arg3, arg4, arg5, arg6, arg7, arg8));
+    TNode<Int32T> result = UncheckedCast<Int32T>(CallCFunction(
+        code_entry, retval_type, std::make_pair(arg0_type, arg0),
+        std::make_pair(arg1_type, arg1), std::make_pair(arg2_type, arg2),
+        std::make_pair(arg3_type, arg3), std::make_pair(arg4_type, arg4),
+        std::make_pair(arg5_type, arg5), std::make_pair(arg6_type, arg6),
+        std::make_pair(arg7_type, arg7), std::make_pair(arg8_type, arg8)));
 
     // Check the result.
     // We expect exactly one result since we force the called regexp to behave

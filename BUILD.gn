@@ -2718,6 +2718,7 @@ v8_source_set("v8_base") {
     "src/turbo-assembler.h",
     "src/type-hints.cc",
     "src/type-hints.h",
+    "src/type-traits.h",
     "src/unicode-cache.h",
     "src/unicode-decoder.cc",
     "src/unicode-decoder.h",

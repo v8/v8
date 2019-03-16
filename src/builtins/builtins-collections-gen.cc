@@ -760,8 +760,9 @@ Node* CollectionsBuiltinsAssembler::CallGetOrCreateHashRaw(Node* const key) {
   MachineType type_ptr = MachineType::Pointer();
   MachineType type_tagged = MachineType::AnyTagged();
 
-  Node* const result = CallCFunction2(type_tagged, type_ptr, type_tagged,
-                                      function_addr, isolate_ptr, key);
+  Node* const result = CallCFunction(function_addr, type_tagged,
+                                     std::make_pair(type_ptr, isolate_ptr),
+                                     std::make_pair(type_tagged, key));
 
   return result;
 }
@@ -775,8 +776,10 @@ Node* CollectionsBuiltinsAssembler::CallGetHashRaw(Node* const key) {
   MachineType type_ptr = MachineType::Pointer();
   MachineType type_tagged = MachineType::AnyTagged();
 
-  Node* const result = CallCFunction2(type_tagged, type_ptr, type_tagged,
-                                      function_addr, isolate_ptr, key);
+  Node* const result = CallCFunction(function_addr, type_tagged,
+                                     std::make_pair(type_ptr, isolate_ptr),
+                                     std::make_pair(type_tagged, key));
+
   return SmiUntag(result);
 }
 
@@ -2391,8 +2394,9 @@ TNode<Smi> WeakCollectionsBuiltinsAssembler::CreateIdentityHash(
   MachineType type_ptr = MachineType::Pointer();
   MachineType type_tagged = MachineType::AnyTagged();
 
-  return CAST(CallCFunction2(type_tagged, type_ptr, type_tagged, function_addr,
-                             isolate_ptr, key));
+  return CAST(CallCFunction(function_addr, type_tagged,
+                            std::make_pair(type_ptr, isolate_ptr),
+                            std::make_pair(type_tagged, key)));
 }
 
 TNode<IntPtrT> WeakCollectionsBuiltinsAssembler::EntryMask(

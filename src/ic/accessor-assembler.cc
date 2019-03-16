@@ -2118,8 +2118,8 @@ void AccessorAssembler::InvalidateValidityCellIfPrototype(Node* map,
 
     Node* function = ExternalConstant(
         ExternalReference::invalidate_prototype_chains_function());
-    CallCFunction1(MachineType::AnyTagged(), MachineType::AnyTagged(), function,
-                   map);
+    CallCFunction(function, MachineType::AnyTagged(),
+                  std::make_pair(MachineType::AnyTagged(), map));
     Goto(&cont);
   }
   BIND(&cont);
@@ -2879,9 +2879,10 @@ void AccessorAssembler::KeyedLoadIC(const LoadICParameters* p,
           ExternalReference::try_internalize_string_function());
       Node* const isolate_ptr =
           ExternalConstant(ExternalReference::isolate_address(isolate()));
-      var_name.Bind(CallCFunction2(
-          MachineType::AnyTagged(), MachineType::Pointer(),
-          MachineType::AnyTagged(), function, isolate_ptr, name));
+      var_name.Bind(
+          CallCFunction(function, MachineType::AnyTagged(),
+                        std::make_pair(MachineType::Pointer(), isolate_ptr),
+                        std::make_pair(MachineType::AnyTagged(), name)));
       Goto(&if_internalized);
     }
 

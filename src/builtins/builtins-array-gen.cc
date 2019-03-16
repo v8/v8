@@ -112,9 +112,10 @@ ArrayBuiltinsAssembler::ArrayBuiltinsAssembler(
     TNode<ExternalReference> memset =
         ExternalConstant(ExternalReference::libc_memset_function());
     STATIC_ASSERT(kSizetSize == kIntptrSize);
-    CallCFunction3(MachineType::Pointer(), MachineType::Pointer(),
-                   MachineType::IntPtr(), MachineType::UintPtr(), memset,
-                   backing_store, IntPtrConstant(0), byte_length);
+    CallCFunction(memset, MachineType::Pointer(),
+                  std::make_pair(MachineType::Pointer(), backing_store),
+                  std::make_pair(MachineType::IntPtr(), IntPtrConstant(0)),
+                  std::make_pair(MachineType::UintPtr(), byte_length));
   }
 
   void ArrayBuiltinsAssembler::ReturnFromBuiltin(Node* value) {
