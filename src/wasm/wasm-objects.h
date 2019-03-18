@@ -298,7 +298,7 @@ class WasmTableObject : public JSObject {
 
   static void UpdateDispatchTables(Isolate* isolate,
                                    Handle<WasmTableObject> table,
-                                   int table_index, wasm::FunctionSig* sig,
+                                   int entry_index, wasm::FunctionSig* sig,
                                    Handle<WasmInstanceObject> target_instance,
                                    int target_func_index);
 

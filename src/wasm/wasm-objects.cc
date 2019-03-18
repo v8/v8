@@ -885,15 +885,15 @@ void WasmTableObject::Set(Isolate* isolate, Handle<WasmTableObject> table,
 
   Handle<FixedArray> elements(table->elements(), isolate);
   // The FixedArray is addressed with int's.
-  int table_index = static_cast<int>(index);
+  int entry_index = static_cast<int>(index);
   if (table->type() == wasm::kWasmAnyRef) {
-    elements->set(table_index, *element);
+    elements->set(entry_index, *element);
     return;
   }
 
   if (element->IsNull(isolate)) {
-    ClearDispatchTables(isolate, table, table_index);  // Degenerate case.
-    elements->set(table_index, ReadOnlyRoots(isolate).null_value());
+    ClearDispatchTables(isolate, table, entry_index);  // Degenerate case.
+    elements->set(entry_index, ReadOnlyRoots(isolate).null_value());
     return;
   }
 
@@ -905,10 +905,10 @@ void WasmTableObject::Set(Isolate* isolate, Handle<WasmTableObject> table,
   auto* wasm_function = &target_instance->module()->functions[func_index];
   DCHECK_NOT_NULL(wasm_function);
   DCHECK_NOT_NULL(wasm_function->sig);
-  UpdateDispatchTables(isolate, table, table_index, wasm_function->sig,
+  UpdateDispatchTables(isolate, table, entry_index, wasm_function->sig,
                        handle(exported_function->instance(), isolate),
                        func_index);
-  elements->set(table_index, *element);
+  elements->set(entry_index, *element);
 }
 
 Handle<Object> WasmTableObject::Get(Isolate* isolate,
@@ -973,7 +973,7 @@ Handle<Object> WasmTableObject::Get(Isolate* isolate,
 }
 
 void WasmTableObject::UpdateDispatchTables(
-    Isolate* isolate, Handle<WasmTableObject> table, int table_index,
+    Isolate* isolate, Handle<WasmTableObject> table, int entry_index,
     wasm::FunctionSig* sig, Handle<WasmInstanceObject> target_instance,
     int target_func_index) {
   // We simply need to update the IFTs for each instance that imports
@@ -983,6 +983,13 @@ void WasmTableObject::UpdateDispatchTables(
 
   for (int i = 0; i < dispatch_tables->length();
        i += kDispatchTableNumElements) {
+    int table_index =
+        Smi::cast(dispatch_tables->get(i + kDispatchTableIndexOffset))->value();
+    if (table_index > 0) {
+      // Only table 0 has a dispatch table in the instance at the moment.
+      // TODO(ahaas): Introduce dispatch tables for the other tables as well.
+      continue;
+    }
     Handle<WasmInstanceObject> instance(
         WasmInstanceObject::cast(
             dispatch_tables->get(i + kDispatchTableInstanceOffset)),
@@ -990,7 +997,7 @@ void WasmTableObject::UpdateDispatchTables(
     // Note that {SignatureMap::Find} may return {-1} if the signature is
     // not found; it will simply never match any check.
     auto sig_id = instance->module()->signature_map.Find(*sig);
-    IndirectFunctionTableEntry(instance, table_index)
+    IndirectFunctionTableEntry(instance, entry_index)
         .Set(sig_id, target_instance, target_func_index);
   }
 }

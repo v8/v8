@@ -156,6 +156,7 @@ let kSig_v_a = makeSig([kWasmAnyFunc], []);
 let kSig_v_rr = makeSig([kWasmAnyRef, kWasmAnyRef], []);
 let kSig_r_v = makeSig([], [kWasmAnyRef]);
 let kSig_a_v = makeSig([], [kWasmAnyFunc]);
+let kSig_a_i = makeSig([kWasmI32], [kWasmAnyFunc]);
 
 function makeSig(params, results) {
   return {params: params, results: results};

@@ -542,6 +542,8 @@ namespace internal {
   F(WasmStackGuard, 0, 1)             \
   F(WasmThrowCreate, 2, 1)            \
   F(WasmThrowTypeError, 0, 1)         \
+  F(WasmFunctionTableGet, 3, 1)       \
+  F(WasmFunctionTableSet, 4, 1)       \
   F(WasmTableInit, 5, 1)              \
   F(WasmTableCopy, 5, 1)              \
   F(WasmIsValidAnyFuncValue, 1, 1)    \

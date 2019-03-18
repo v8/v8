@@ -3357,25 +3357,66 @@ void WasmGraphBuilder::GetTableBaseAndOffset(uint32_t table_index, Node* index,
 
 Node* WasmGraphBuilder::GetTable(uint32_t table_index, Node* index,
                                  wasm::WasmCodePosition position) {
-  Node* base = nullptr;
-  Node* offset = nullptr;
-  GetTableBaseAndOffset(table_index, index, position, &base, &offset);
-  return SetEffect(
-      graph()->NewNode(mcgraph()->machine()->Load(MachineType::AnyTagged()),
-                       base, offset, Effect(), Control()));
+  if (env_->module->tables[table_index].type == wasm::kWasmAnyRef) {
+    Node* base = nullptr;
+    Node* offset = nullptr;
+    GetTableBaseAndOffset(table_index, index, position, &base, &offset);
+    return SetEffect(
+        graph()->NewNode(mcgraph()->machine()->Load(MachineType::AnyTagged()),
+                         base, offset, Effect(), Control()));
+  }
+  // We access anyfunc tables through runtime calls.
+  WasmTableGetDescriptor interface_descriptor;
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
+      mcgraph()->zone(),                              // zone
+      interface_descriptor,                           // descriptor
+      interface_descriptor.GetStackParameterCount(),  // stack parameter count
+      CallDescriptor::kNoFlags,                       // flags
+      Operator::kNoProperties,                        // properties
+      StubCallMode::kCallWasmRuntimeStub);            // stub call mode
+  // A direct call to a wasm runtime stub defined in this module.
+  // Just encode the stub index. This will be patched at relocation.
+  Node* call_target = mcgraph()->RelocatableIntPtrConstant(
+      wasm::WasmCode::kWasmTableGet, RelocInfo::WASM_STUB_CALL);
+
+  return SetEffect(SetControl(graph()->NewNode(
+      mcgraph()->common()->Call(call_descriptor), call_target,
+      graph()->NewNode(mcgraph()->common()->NumberConstant(table_index)), index,
+      Effect(), Control())));
 }
 
 Node* WasmGraphBuilder::SetTable(uint32_t table_index, Node* index, Node* val,
                                  wasm::WasmCodePosition position) {
-  Node* base = nullptr;
-  Node* offset = nullptr;
-  GetTableBaseAndOffset(table_index, index, position, &base, &offset);
+  if (env_->module->tables[table_index].type == wasm::kWasmAnyRef) {
+    Node* base = nullptr;
+    Node* offset = nullptr;
+    GetTableBaseAndOffset(table_index, index, position, &base, &offset);
 
-  const Operator* op = mcgraph()->machine()->Store(
-      StoreRepresentation(MachineRepresentation::kTagged, kFullWriteBarrier));
+    const Operator* op = mcgraph()->machine()->Store(
+        StoreRepresentation(MachineRepresentation::kTagged, kFullWriteBarrier));
 
-  Node* store = graph()->NewNode(op, base, offset, val, Effect(), Control());
-  return SetEffect(store);
+    Node* store = graph()->NewNode(op, base, offset, val, Effect(), Control());
+    return SetEffect(store);
+  } else {
+    // We access anyfunc tables through runtime calls.
+    WasmTableSetDescriptor interface_descriptor;
+    auto call_descriptor = Linkage::GetStubCallDescriptor(
+        mcgraph()->zone(),                              // zone
+        interface_descriptor,                           // descriptor
+        interface_descriptor.GetStackParameterCount(),  // stack parameter count
+        CallDescriptor::kNoFlags,                       // flags
+        Operator::kNoProperties,                        // properties
+        StubCallMode::kCallWasmRuntimeStub);            // stub call mode
+    // A direct call to a wasm runtime stub defined in this module.
+    // Just encode the stub index. This will be patched at relocation.
+    Node* call_target = mcgraph()->RelocatableIntPtrConstant(
+        wasm::WasmCode::kWasmTableSet, RelocInfo::WASM_STUB_CALL);
+
+    return SetEffect(SetControl(graph()->NewNode(
+        mcgraph()->common()->Call(call_descriptor), call_target,
+        graph()->NewNode(mcgraph()->common()->NumberConstant(table_index)),
+        index, val, Effect(), Control())));
+  }
 }
 
 Node* WasmGraphBuilder::CheckBoundsAndAlignment(

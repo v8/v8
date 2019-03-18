@@ -54,6 +54,11 @@ class ClearThreadInWasmScope {
   }
 };
 
+Object ThrowWasmError(Isolate* isolate, MessageTemplate message) {
+  HandleScope scope(isolate);
+  Handle<Object> error_obj = isolate->factory()->NewWasmRuntimeError(message);
+  return isolate->Throw(*error_obj);
+}
 }  // namespace
 
 RUNTIME_FUNCTION(Runtime_WasmIsValidAnyFuncValue) {
@@ -89,14 +94,10 @@ RUNTIME_FUNCTION(Runtime_WasmMemoryGrow) {
 }
 
 RUNTIME_FUNCTION(Runtime_ThrowWasmError) {
+  ClearThreadInWasmScope clear_wasm_flag;
   DCHECK_EQ(1, args.length());
   CONVERT_SMI_ARG_CHECKED(message_id, 0);
-  ClearThreadInWasmScope clear_wasm_flag;
-
-  HandleScope scope(isolate);
-  Handle<Object> error_obj = isolate->factory()->NewWasmRuntimeError(
-      MessageTemplateFromInt(message_id));
-  return isolate->Throw(*error_obj);
+  return ThrowWasmError(isolate, MessageTemplateFromInt(message_id));
 }
 
 RUNTIME_FUNCTION(Runtime_ThrowWasmStackOverflow) {
@@ -328,6 +329,49 @@ Object ThrowTableOutOfBounds(Isolate* isolate,
   return isolate->Throw(*error_obj);
 }
 }  // namespace
+
+RUNTIME_FUNCTION(Runtime_WasmFunctionTableGet) {
+  // This runtime function is always being called from wasm code.
+  ClearThreadInWasmScope flag_scope;
+
+  HandleScope scope(isolate);
+  DCHECK_EQ(3, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
+  CONVERT_UINT32_ARG_CHECKED(table_index, 1);
+  CONVERT_UINT32_ARG_CHECKED(entry_index, 2);
+  DCHECK_LT(table_index, instance->tables()->length());
+  auto table = handle(
+      WasmTableObject::cast(instance->tables()->get(table_index)), isolate);
+
+  if (!WasmTableObject::IsInBounds(isolate, table, entry_index)) {
+    return ThrowWasmError(isolate, MessageTemplate::kWasmTrapTableOutOfBounds);
+  }
+
+  return *WasmTableObject::Get(isolate, table, entry_index);
+}
+
+RUNTIME_FUNCTION(Runtime_WasmFunctionTableSet) {
+  // This runtime function is always being called from wasm code.
+  ClearThreadInWasmScope flag_scope;
+
+  HandleScope scope(isolate);
+  DCHECK_EQ(4, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
+  CONVERT_UINT32_ARG_CHECKED(table_index, 1);
+  CONVERT_UINT32_ARG_CHECKED(entry_index, 2);
+  CONVERT_ARG_CHECKED(Object, element_raw, 3);
+  // TODO(mstarzinger): Manually box because parameters are not visited yet.
+  Handle<Object> element(element_raw, isolate);
+  DCHECK_LT(table_index, instance->tables()->length());
+  auto table = handle(
+      WasmTableObject::cast(instance->tables()->get(table_index)), isolate);
+
+  if (!WasmTableObject::IsInBounds(isolate, table, entry_index)) {
+    return ThrowWasmError(isolate, MessageTemplate::kWasmTrapTableOutOfBounds);
+  }
+  WasmTableObject::Set(isolate, table, entry_index, element);
+  return ReadOnlyRoots(isolate).undefined_value();
+}
 
 RUNTIME_FUNCTION(Runtime_WasmTableInit) {
   HandleScope scope(isolate);

@@ -226,6 +226,58 @@ TF_BUILTIN(WasmMemoryGrow, WasmBuiltinsAssembler) {
   ReturnRaw(Int32Constant(-1));
 }
 
+TF_BUILTIN(WasmTableGet, WasmBuiltinsAssembler) {
+  TNode<Int32T> entry_index =
+      UncheckedCast<Int32T>(Parameter(Descriptor::kEntryIndex));
+  TNode<Object> instance = LoadInstanceFromFrame();
+  TNode<Code> centry = LoadCEntryFromInstance(instance);
+  TNode<Object> context = LoadContextFromInstance(instance);
+  Label entry_index_out_of_range(this, Label::kDeferred);
+
+  TNode<BoolT> entry_index_fits_in_smi =
+      IsValidPositiveSmi(ChangeInt32ToIntPtr(entry_index));
+  GotoIfNot(entry_index_fits_in_smi, &entry_index_out_of_range);
+
+  TNode<Smi> entry_index_smi = SmiFromInt32(entry_index);
+  TNode<Smi> table_index_smi =
+      UncheckedCast<Smi>(Parameter(Descriptor::kTableIndex));
+
+  TailCallRuntimeWithCEntry(Runtime::kWasmFunctionTableGet, centry, context,
+                            instance, table_index_smi, entry_index_smi);
+
+  BIND(&entry_index_out_of_range);
+  MessageTemplate message_id =
+      wasm::WasmOpcodes::TrapReasonToMessageId(wasm::kTrapTableOutOfBounds);
+  TailCallRuntimeWithCEntry(Runtime::kThrowWasmError, centry, context,
+                            SmiConstant(static_cast<int>(message_id)));
+}
+
+TF_BUILTIN(WasmTableSet, WasmBuiltinsAssembler) {
+  TNode<Int32T> entry_index =
+      UncheckedCast<Int32T>(Parameter(Descriptor::kEntryIndex));
+  TNode<Object> instance = LoadInstanceFromFrame();
+  TNode<Code> centry = LoadCEntryFromInstance(instance);
+  TNode<Object> context = LoadContextFromInstance(instance);
+  Label entry_index_out_of_range(this, Label::kDeferred);
+
+  TNode<BoolT> entry_index_fits_in_smi =
+      IsValidPositiveSmi(ChangeInt32ToIntPtr(entry_index));
+  GotoIfNot(entry_index_fits_in_smi, &entry_index_out_of_range);
+
+  TNode<Smi> entry_index_smi = SmiFromInt32(entry_index);
+  TNode<Smi> table_index_smi =
+      UncheckedCast<Smi>(Parameter(Descriptor::kTableIndex));
+  TNode<Object> value = UncheckedCast<Object>(Parameter(Descriptor::kValue));
+  TailCallRuntimeWithCEntry(Runtime::kWasmFunctionTableSet, centry, context,
+                            instance, table_index_smi, entry_index_smi, value);
+
+  BIND(&entry_index_out_of_range);
+  MessageTemplate message_id =
+      wasm::WasmOpcodes::TrapReasonToMessageId(wasm::kTrapTableOutOfBounds);
+  TailCallRuntimeWithCEntry(Runtime::kThrowWasmError, centry, context,
+                            SmiConstant(static_cast<int>(message_id)));
+}
+
 TF_BUILTIN(BigIntToWasmI64, WasmBuiltinsAssembler) {
   if (!Is64()) {
     Unreachable();

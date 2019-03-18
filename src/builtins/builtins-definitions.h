@@ -1121,6 +1121,8 @@ namespace internal {
   TFC(WasmI64AtomicWait, WasmI64AtomicWait)                                    \
   TFC(WasmCallJavaScript, CallTrampoline)                                      \
   TFC(WasmMemoryGrow, WasmMemoryGrow)                                          \
+  TFC(WasmTableGet, WasmTableGet)                                              \
+  TFC(WasmTableSet, WasmTableSet)                                              \
   TFC(WasmRecordWrite, RecordWrite)                                            \
   TFC(WasmStackGuard, NoContext)                                               \
   TFC(WasmStackOverflow, NoContext)                                            \
@@ -1428,6 +1430,8 @@ namespace internal {
   V(WasmI64AtomicWait)                   \
   V(WasmCallJavaScript)                  \
   V(WasmMemoryGrow)                      \
+  V(WasmTableGet)                        \
+  V(WasmTableSet)                        \
   V(WasmRecordWrite)                     \
   V(WasmStackGuard)                      \
   V(WasmStackOverflow)                   \

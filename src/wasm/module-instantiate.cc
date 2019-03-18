@@ -1576,11 +1576,14 @@ void InstanceBuilder::LoadTableSegments(Handle<WasmInstanceObject> instance) {
 
   int table_count = static_cast<int>(module_->tables.size());
   for (int index = 0; index < table_count; ++index) {
-    auto table_object =
-        handle(WasmTableObject::cast(instance->tables()->get(index)), isolate_);
+    if (module_->tables[index].type == kWasmAnyFunc) {
+      auto table_object = handle(
+          WasmTableObject::cast(instance->tables()->get(index)), isolate_);
 
-    // Add the new dispatch table at the end to avoid redundant lookups.
-    WasmTableObject::AddDispatchTable(isolate_, table_object, instance, index);
+      // Add the new dispatch table at the end to avoid redundant lookups.
+      WasmTableObject::AddDispatchTable(isolate_, table_object, instance,
+                                        index);
+    }
   }
 }
 
