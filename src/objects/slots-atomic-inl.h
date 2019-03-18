@@ -23,7 +23,7 @@ namespace internal {
 //               // Decompress a and b if necessary.
 //               return my_comparison(a, b);
 //             });
-// Note how the comparator operates on Address values, representing the raw
+// Note how the comparator operates on Tagged_t values, representing the raw
 // data found at the given heap location, so you probably want to construct
 // an Object from it.
 class AtomicSlot : public SlotBase<AtomicSlot, Tagged_t> {

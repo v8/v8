@@ -125,15 +125,21 @@ RUNTIME_FUNCTION(Runtime_TypedArraySortFast) {
   Handle<FixedTypedArrayBase> elements(
       FixedTypedArrayBase::cast(array->elements()), isolate);
   switch (array->type()) {
-#define TYPED_ARRAY_SORT(Type, type, TYPE, ctype)           \
-  case kExternal##Type##Array: {                            \
-    ctype* data = static_cast<ctype*>(elements->DataPtr()); \
-    if (kExternal##Type##Array == kExternalFloat64Array ||  \
-        kExternal##Type##Array == kExternalFloat32Array)    \
-      std::sort(data, data + length, CompareNum<ctype>);    \
-    else                                                    \
-      std::sort(data, data + length);                       \
-    break;                                                  \
+#define TYPED_ARRAY_SORT(Type, type, TYPE, ctype)                        \
+  case kExternal##Type##Array: {                                         \
+    ctype* data = static_cast<ctype*>(elements->DataPtr());              \
+    if (COMPRESS_POINTERS_BOOL &&                                        \
+        kExternal##Type##Array == kExternalFloat64Array) {               \
+      /* TODO(ishell, v8:8875): See UnalignedSlot<T> for details. */     \
+      std::sort(UnalignedSlot<ctype>(data),                              \
+                UnalignedSlot<ctype>(data + length), CompareNum<ctype>); \
+    } else if (kExternal##Type##Array == kExternalFloat64Array ||        \
+               kExternal##Type##Array == kExternalFloat32Array) {        \
+      std::sort(data, data + length, CompareNum<ctype>);                 \
+    } else {                                                             \
+      std::sort(data, data + length);                                    \
+    }                                                                    \
+    break;                                                               \
   }
 
     TYPED_ARRAYS(TYPED_ARRAY_SORT)
