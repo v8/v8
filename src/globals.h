@@ -769,7 +769,6 @@ enum VisitMode {
 enum NativesFlag {
   NOT_NATIVES_CODE,
   EXTENSION_CODE,
-  NATIVES_CODE,
   INSPECTOR_CODE
 };
 

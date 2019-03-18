@@ -1886,8 +1886,7 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
       DCHECK(is_compiled_scope.is_compiled());
       compilation_cache->PutScript(source, isolate->native_context(),
                                    language_mode, result);
-    } else if (maybe_result.is_null() && natives != EXTENSION_CODE &&
-               natives != NATIVES_CODE) {
+    } else if (maybe_result.is_null() && natives != EXTENSION_CODE) {
       isolate->ReportPendingMessages();
     }
   }

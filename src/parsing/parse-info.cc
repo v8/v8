@@ -180,9 +180,6 @@ Handle<Script> ParseInfo::CreateScript(Isolate* isolate, Handle<String> source,
     Script::InitLineEnds(script);
   }
   switch (natives) {
-    case NATIVES_CODE:
-      script->set_type(Script::TYPE_NATIVE);
-      break;
     case EXTENSION_CODE:
       script->set_type(Script::TYPE_EXTENSION);
       break;
