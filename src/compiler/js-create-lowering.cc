@@ -41,16 +41,6 @@ Node* GetArgumentsFrameState(Node* frame_state) {
              : frame_state;
 }
 
-// Checks whether allocation using the given target and new.target can be
-// inlined.
-bool IsAllocationInlineable(const JSFunctionRef& target,
-                            const JSFunctionRef& new_target) {
-  CHECK_IMPLIES(new_target.has_initial_map(),
-                !new_target.initial_map().is_dictionary_map());
-  return new_target.has_initial_map() &&
-         new_target.initial_map().GetConstructor().equals(target);
-}
-
 // When initializing arrays, we'll unfold the loop if the number of
 // elements is known to be of this type.
 const int kElementLoopUnrollLimit = 16;
@@ -117,48 +107,32 @@ Reduction JSCreateLowering::Reduce(Node* node) {
 
 Reduction JSCreateLowering::ReduceJSCreate(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCreate, node->opcode());
-  Node* const target = NodeProperties::GetValueInput(node, 0);
-  Type const target_type = NodeProperties::GetType(target);
   Node* const new_target = NodeProperties::GetValueInput(node, 1);
-  Type const new_target_type = NodeProperties::GetType(new_target);
   Node* const effect = NodeProperties::GetEffectInput(node);
   Node* const control = NodeProperties::GetControlInput(node);
-  // Extract constructor and original constructor function.
-  if (!target_type.IsHeapConstant() || !new_target_type.IsHeapConstant() ||
-      !target_type.AsHeapConstant()->Ref().IsJSFunction() ||
-      !new_target_type.AsHeapConstant()->Ref().IsJSFunction()) {
-    return NoChange();
-  }
 
-  JSFunctionRef constructor =
-      target_type.AsHeapConstant()->Ref().AsJSFunction();
-  if (!constructor.map().is_constructor()) return NoChange();
+  base::Optional<MapRef> initial_map =
+      NodeProperties::GetJSCreateMap(broker(), node);
+  if (!initial_map.has_value()) return NoChange();
+
   JSFunctionRef original_constructor =
-      new_target_type.AsHeapConstant()->Ref().AsJSFunction();
-  if (!original_constructor.map().is_constructor()) return NoChange();
-
-  // Check if we can inline the allocation.
-  if (!IsAllocationInlineable(constructor, original_constructor)) {
-    return NoChange();
-  }
-
+      HeapObjectMatcher(new_target).Ref(broker()).AsJSFunction();
   SlackTrackingPrediction slack_tracking_prediction =
       dependencies()->DependOnInitialMapInstanceSizePrediction(
           original_constructor);
-  MapRef initial_map = original_constructor.initial_map();
 
   // Emit code to allocate the JSObject instance for the
   // {original_constructor}.
   AllocationBuilder a(jsgraph(), effect, control);
   a.Allocate(slack_tracking_prediction.instance_size());
-  a.Store(AccessBuilder::ForMap(), initial_map);
+  a.Store(AccessBuilder::ForMap(), *initial_map);
   a.Store(AccessBuilder::ForJSObjectPropertiesOrHash(),
           jsgraph()->EmptyFixedArrayConstant());
   a.Store(AccessBuilder::ForJSObjectElements(),
           jsgraph()->EmptyFixedArrayConstant());
   for (int i = 0; i < slack_tracking_prediction.inobject_property_count();
        ++i) {
-    a.Store(AccessBuilder::ForJSObjectInObjectProperty(initial_map, i),
+    a.Store(AccessBuilder::ForJSObjectInObjectProperty(*initial_map, i),
             jsgraph()->UndefinedConstant());
   }
 
@@ -640,124 +614,108 @@ Reduction JSCreateLowering::ReduceJSCreateArray(Node* node) {
     }
   }
   AllocationType allocation = AllocationType::kYoung;
-  JSFunctionRef constructor = native_context().array_function();
-  Node* target = NodeProperties::GetValueInput(node, 0);
+
+  base::Optional<MapRef> initial_map =
+      NodeProperties::GetJSCreateMap(broker(), node);
+  if (!initial_map.has_value()) return NoChange();
+
   Node* new_target = NodeProperties::GetValueInput(node, 1);
-  Type new_target_type = (target == new_target)
-                             ? Type::HeapConstant(constructor, zone())
-                             : NodeProperties::GetType(new_target);
+  JSFunctionRef original_constructor =
+      HeapObjectMatcher(new_target).Ref(broker()).AsJSFunction();
+  SlackTrackingPrediction slack_tracking_prediction =
+      dependencies()->DependOnInitialMapInstanceSizePrediction(
+          original_constructor);
 
-  // Extract original constructor function.
-  if (new_target_type.IsHeapConstant() &&
-      new_target_type.AsHeapConstant()->Ref().IsJSFunction()) {
-    JSFunctionRef original_constructor =
-        new_target_type.AsHeapConstant()->Ref().AsJSFunction();
-    DCHECK(constructor.map().is_constructor());
-    DCHECK(original_constructor.map().is_constructor());
+  // Tells whether we are protected by either the {site} or a
+  // protector cell to do certain speculative optimizations.
+  bool can_inline_call = false;
 
-    // Check if we can inline the allocation.
-    if (IsAllocationInlineable(constructor, original_constructor)) {
-      SlackTrackingPrediction slack_tracking_prediction =
-          dependencies()->DependOnInitialMapInstanceSizePrediction(
-              original_constructor);
-      MapRef initial_map = original_constructor.initial_map();
+  // Check if we have a feedback {site} on the {node}.
+  ElementsKind elements_kind = initial_map->elements_kind();
+  if (site_ref) {
+    elements_kind = site_ref->GetElementsKind();
+    can_inline_call = site_ref->CanInlineCall();
+    allocation = dependencies()->DependOnPretenureMode(*site_ref);
+    dependencies()->DependOnElementsKind(*site_ref);
+  } else {
+    CellRef array_constructor_protector(
+        broker(), factory()->array_constructor_protector());
+    can_inline_call =
+        array_constructor_protector.value().AsSmi() == Isolate::kProtectorValid;
+  }
 
-      // Tells whether we are protected by either the {site} or a
-      // protector cell to do certain speculative optimizations.
-      bool can_inline_call = false;
-
-      // Check if we have a feedback {site} on the {node}.
-      ElementsKind elements_kind = initial_map.elements_kind();
-      if (site_ref) {
-        elements_kind = site_ref->GetElementsKind();
-        can_inline_call = site_ref->CanInlineCall();
-        allocation = dependencies()->DependOnPretenureMode(*site_ref);
-        dependencies()->DependOnElementsKind(*site_ref);
-      } else {
-        CellRef array_constructor_protector(
-            broker(), factory()->array_constructor_protector());
-        can_inline_call = array_constructor_protector.value().AsSmi() ==
-                          Isolate::kProtectorValid;
-      }
-
-      if (arity == 0) {
-        Node* length = jsgraph()->ZeroConstant();
-        int capacity = JSArray::kPreallocatedArrayElements;
-        return ReduceNewArray(node, length, capacity, initial_map,
-                              elements_kind, allocation,
-                              slack_tracking_prediction);
-      } else if (arity == 1) {
-        Node* length = NodeProperties::GetValueInput(node, 2);
-        Type length_type = NodeProperties::GetType(length);
-        if (!length_type.Maybe(Type::Number())) {
-          // Handle the single argument case, where we know that the value
-          // cannot be a valid Array length.
-          elements_kind = GetMoreGeneralElementsKind(
-              elements_kind, IsHoleyElementsKind(elements_kind)
-                                 ? HOLEY_ELEMENTS
-                                 : PACKED_ELEMENTS);
-          return ReduceNewArray(node, std::vector<Node*>{length}, initial_map,
-                                elements_kind, allocation,
-                                slack_tracking_prediction);
-        }
-        if (length_type.Is(Type::SignedSmall()) && length_type.Min() >= 0 &&
-            length_type.Max() <= kElementLoopUnrollLimit &&
-            length_type.Min() == length_type.Max()) {
-          int capacity = static_cast<int>(length_type.Max());
-          return ReduceNewArray(node, length, capacity, initial_map,
-                                elements_kind, allocation,
-                                slack_tracking_prediction);
-        }
-        if (length_type.Maybe(Type::UnsignedSmall()) && can_inline_call) {
-          return ReduceNewArray(node, length, initial_map, elements_kind,
-                                allocation, slack_tracking_prediction);
-        }
-      } else if (arity <= JSArray::kInitialMaxFastElementArray) {
-        // Gather the values to store into the newly created array.
-        bool values_all_smis = true, values_all_numbers = true,
-             values_any_nonnumber = false;
-        std::vector<Node*> values;
-        values.reserve(p.arity());
-        for (int i = 0; i < arity; ++i) {
-          Node* value = NodeProperties::GetValueInput(node, 2 + i);
-          Type value_type = NodeProperties::GetType(value);
-          if (!value_type.Is(Type::SignedSmall())) {
-            values_all_smis = false;
-          }
-          if (!value_type.Is(Type::Number())) {
-            values_all_numbers = false;
-          }
-          if (!value_type.Maybe(Type::Number())) {
-            values_any_nonnumber = true;
-          }
-          values.push_back(value);
-        }
-
-        // Try to figure out the ideal elements kind statically.
-        if (values_all_smis) {
-          // Smis can be stored with any elements kind.
-        } else if (values_all_numbers) {
-          elements_kind = GetMoreGeneralElementsKind(
-              elements_kind, IsHoleyElementsKind(elements_kind)
-                                 ? HOLEY_DOUBLE_ELEMENTS
-                                 : PACKED_DOUBLE_ELEMENTS);
-        } else if (values_any_nonnumber) {
-          elements_kind = GetMoreGeneralElementsKind(
-              elements_kind, IsHoleyElementsKind(elements_kind)
-                                 ? HOLEY_ELEMENTS
-                                 : PACKED_ELEMENTS);
-        } else if (!can_inline_call) {
-          // We have some crazy combination of types for the {values} where
-          // there's no clear decision on the elements kind statically. And
-          // we don't have a protection against deoptimization loops for the
-          // checks that are introduced in the call to ReduceNewArray, so
-          // we cannot inline this invocation of the Array constructor here.
-          return NoChange();
-        }
-        return ReduceNewArray(node, values, initial_map, elements_kind,
-                              allocation, slack_tracking_prediction);
-      }
+  if (arity == 0) {
+    Node* length = jsgraph()->ZeroConstant();
+    int capacity = JSArray::kPreallocatedArrayElements;
+    return ReduceNewArray(node, length, capacity, *initial_map, elements_kind,
+                          allocation, slack_tracking_prediction);
+  } else if (arity == 1) {
+    Node* length = NodeProperties::GetValueInput(node, 2);
+    Type length_type = NodeProperties::GetType(length);
+    if (!length_type.Maybe(Type::Number())) {
+      // Handle the single argument case, where we know that the value
+      // cannot be a valid Array length.
+      elements_kind = GetMoreGeneralElementsKind(
+          elements_kind, IsHoleyElementsKind(elements_kind) ? HOLEY_ELEMENTS
+                                                            : PACKED_ELEMENTS);
+      return ReduceNewArray(node, std::vector<Node*>{length}, *initial_map,
+                            elements_kind, allocation,
+                            slack_tracking_prediction);
     }
+    if (length_type.Is(Type::SignedSmall()) && length_type.Min() >= 0 &&
+        length_type.Max() <= kElementLoopUnrollLimit &&
+        length_type.Min() == length_type.Max()) {
+      int capacity = static_cast<int>(length_type.Max());
+      return ReduceNewArray(node, length, capacity, *initial_map, elements_kind,
+                            allocation, slack_tracking_prediction);
+    }
+    if (length_type.Maybe(Type::UnsignedSmall()) && can_inline_call) {
+      return ReduceNewArray(node, length, *initial_map, elements_kind,
+                            allocation, slack_tracking_prediction);
+    }
+  } else if (arity <= JSArray::kInitialMaxFastElementArray) {
+    // Gather the values to store into the newly created array.
+    bool values_all_smis = true, values_all_numbers = true,
+         values_any_nonnumber = false;
+    std::vector<Node*> values;
+    values.reserve(p.arity());
+    for (int i = 0; i < arity; ++i) {
+      Node* value = NodeProperties::GetValueInput(node, 2 + i);
+      Type value_type = NodeProperties::GetType(value);
+      if (!value_type.Is(Type::SignedSmall())) {
+        values_all_smis = false;
+      }
+      if (!value_type.Is(Type::Number())) {
+        values_all_numbers = false;
+      }
+      if (!value_type.Maybe(Type::Number())) {
+        values_any_nonnumber = true;
+      }
+      values.push_back(value);
+    }
+
+    // Try to figure out the ideal elements kind statically.
+    if (values_all_smis) {
+      // Smis can be stored with any elements kind.
+    } else if (values_all_numbers) {
+      elements_kind = GetMoreGeneralElementsKind(
+          elements_kind, IsHoleyElementsKind(elements_kind)
+                             ? HOLEY_DOUBLE_ELEMENTS
+                             : PACKED_DOUBLE_ELEMENTS);
+    } else if (values_any_nonnumber) {
+      elements_kind = GetMoreGeneralElementsKind(
+          elements_kind, IsHoleyElementsKind(elements_kind) ? HOLEY_ELEMENTS
+                                                            : PACKED_ELEMENTS);
+    } else if (!can_inline_call) {
+      // We have some crazy combination of types for the {values} where
+      // there's no clear decision on the elements kind statically. And
+      // we don't have a protection against deoptimization loops for the
+      // checks that are introduced in the call to ReduceNewArray, so
+      // we cannot inline this invocation of the Array constructor here.
+      return NoChange();
+    }
+    return ReduceNewArray(node, values, *initial_map, elements_kind, allocation,
+                          slack_tracking_prediction);
   }
   return NoChange();
 }

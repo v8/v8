@@ -362,6 +362,30 @@ bool NodeProperties::IsSame(Node* a, Node* b) {
 }
 
 // static
+base::Optional<MapRef> NodeProperties::GetJSCreateMap(JSHeapBroker* broker,
+                                                      Node* receiver) {
+  DCHECK(receiver->opcode() == IrOpcode::kJSCreate ||
+         receiver->opcode() == IrOpcode::kJSCreateArray);
+  HeapObjectMatcher mtarget(GetValueInput(receiver, 0));
+  HeapObjectMatcher mnewtarget(GetValueInput(receiver, 1));
+  if (mtarget.HasValue() && mnewtarget.HasValue() &&
+      mnewtarget.Ref(broker).IsJSFunction()) {
+    ObjectRef target = mtarget.Ref(broker);
+    JSFunctionRef newtarget = mnewtarget.Ref(broker).AsJSFunction();
+    if (newtarget.map().has_prototype_slot() && newtarget.has_initial_map()) {
+      if (broker->mode() == JSHeapBroker::kSerializing) newtarget.Serialize();
+      MapRef initial_map = newtarget.initial_map();
+      if (initial_map.GetConstructor().equals(target)) {
+        DCHECK(target.AsJSFunction().map().is_constructor());
+        DCHECK(newtarget.map().is_constructor());
+        return initial_map;
+      }
+    }
+  }
+  return base::nullopt;
+}
+
+// static
 NodeProperties::InferReceiverMapsResult NodeProperties::InferReceiverMaps(
     JSHeapBroker* broker, Node* receiver, Node* effect,
     ZoneHandleSet<Map>* maps_return) {
@@ -406,21 +430,10 @@ NodeProperties::InferReceiverMapsResult NodeProperties::InferReceiverMaps(
       }
       case IrOpcode::kJSCreate: {
         if (IsSame(receiver, effect)) {
-          HeapObjectMatcher mtarget(GetValueInput(effect, 0));
-          HeapObjectMatcher mnewtarget(GetValueInput(effect, 1));
-          if (mtarget.HasValue() && mnewtarget.HasValue() &&
-              mnewtarget.Ref(broker).IsJSFunction()) {
-            JSFunctionRef original_constructor =
-                mnewtarget.Ref(broker).AsJSFunction();
-            if (original_constructor.map().has_prototype_slot() &&
-                original_constructor.has_initial_map()) {
-              original_constructor.Serialize();
-              MapRef initial_map = original_constructor.initial_map();
-              if (initial_map.GetConstructor().equals(mtarget.Ref(broker))) {
-                *maps_return = ZoneHandleSet<Map>(initial_map.object());
-                return result;
-              }
-            }
+          base::Optional<MapRef> initial_map = GetJSCreateMap(broker, receiver);
+          if (initial_map.has_value()) {
+            *maps_return = ZoneHandleSet<Map>(initial_map->object());
+            return result;
           }
           // We reached the allocation of the {receiver}.
           return kNoReceiverMaps;

@@ -3360,15 +3360,15 @@ bool JSNativeContextSpecialization::ExtractReceiverMaps(
   // Try to extract some maps from the {nexus}.
   if (nexus.ExtractMaps(receiver_maps) != 0) {
     // Try to filter impossible candidates based on inferred root map.
-    Handle<Map> receiver_map;
-    if (InferReceiverRootMap(receiver).ToHandle(&receiver_map)) {
-      DCHECK(!receiver_map->is_abandoned_prototype_map());
+    Handle<Map> root_map;
+    if (InferReceiverRootMap(receiver).ToHandle(&root_map)) {
+      DCHECK(!root_map->is_abandoned_prototype_map());
       Isolate* isolate = this->isolate();
       receiver_maps->erase(
           std::remove_if(receiver_maps->begin(), receiver_maps->end(),
-                         [receiver_map, isolate](const Handle<Map>& map) {
+                         [root_map, isolate](Handle<Map> map) {
                            return map->is_abandoned_prototype_map() ||
-                                  map->FindRootMap(isolate) != *receiver_map;
+                                  map->FindRootMap(isolate) != *root_map;
                          }),
           receiver_maps->end());
     }
@@ -3410,18 +3410,12 @@ MaybeHandle<Map> JSNativeContextSpecialization::InferReceiverRootMap(
   if (m.HasValue()) {
     return handle(m.Value()->map()->FindRootMap(isolate()), isolate());
   } else if (m.IsJSCreate()) {
-    HeapObjectMatcher mtarget(m.InputAt(0));
-    HeapObjectMatcher mnewtarget(m.InputAt(1));
-    if (mtarget.HasValue() && mnewtarget.HasValue()) {
-      Handle<JSFunction> constructor =
-          Handle<JSFunction>::cast(mtarget.Value());
-      if (constructor->has_initial_map()) {
-        Handle<Map> initial_map(constructor->initial_map(), isolate());
-        if (initial_map->constructor_or_backpointer() == *mnewtarget.Value()) {
-          DCHECK_EQ(*initial_map, initial_map->FindRootMap(isolate()));
-          return initial_map;
-        }
-      }
+    base::Optional<MapRef> initial_map =
+        NodeProperties::GetJSCreateMap(broker(), receiver);
+    if (initial_map.has_value()) {
+      DCHECK_EQ(*initial_map->object(),
+                initial_map->object()->FindRootMap(isolate()));
+      return initial_map->object();
     }
   }
   return MaybeHandle<Map>();
