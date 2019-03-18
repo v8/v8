@@ -138,8 +138,7 @@ class ModuleDecoder {
   bool ok();
 
   // Translates the unknown section that decoder is pointing to to an extended
-  // SectionCode if the unknown section is known to decoder. Currently this only
-  // handles the name section.
+  // SectionCode if the unknown section is known to decoder.
   // The decoder is expected to point after the section lenght and just before
   // the identifier string of the unknown section.
   // If a SectionCode other than kUnknownSectionCode is returned, the decoder

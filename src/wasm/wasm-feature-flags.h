@@ -27,6 +27,7 @@
   SEPARATOR                                                           \
   V(return_call, "return call opcodes", false)                        \
   SEPARATOR                                                           \
-  V(type_reflection, "wasm type reflection in JS", false)
-
+  V(type_reflection, "wasm type reflection in JS", false)             \
+  SEPARATOR                                                           \
+  V(compilation_hints, "compilation hints section", false)
 #endif  // V8_WASM_WASM_FEATURE_FLAGS_H_
