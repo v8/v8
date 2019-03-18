@@ -289,6 +289,7 @@ class PipelineData {
   Zone* codegen_zone() const { return codegen_zone_; }
   InstructionSequence* sequence() const { return sequence_; }
   Frame* frame() const { return frame_; }
+  std::vector<Handle<Map>>* embedded_maps() { return &embedded_maps_; }
 
   Zone* register_allocation_zone() const { return register_allocation_zone_; }
   RegisterAllocationData* register_allocation_data() const {
@@ -490,6 +491,10 @@ class PipelineData {
   CompilationDependencies* dependencies_ = nullptr;
   JSHeapBroker* broker_ = nullptr;
   Frame* frame_ = nullptr;
+
+  // embedded_maps_ keeps track of maps we've embedded as Uint32 constants.
+  // We do this in order to notify the garbage collector at code-gen time.
+  std::vector<Handle<Map>> embedded_maps_;
 
   // All objects in the following group of fields are allocated in
   // register_allocation_zone_. They are all set to nullptr when the zone is
@@ -985,7 +990,7 @@ PipelineCompilationJob::Status PipelineCompilationJob::FinalizeJobImpl(
 void PipelineCompilationJob::RegisterWeakObjectsInOptimizedCode(
     Handle<Code> code, Isolate* isolate) {
   DCHECK(code->is_optimized_code());
-  std::vector<Handle<Map>> maps;
+  std::vector<Handle<Map>> retained_maps;
   {
     DisallowHeapAllocation no_gc;
     int const mode_mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
@@ -996,14 +1001,23 @@ void PipelineCompilationJob::RegisterWeakObjectsInOptimizedCode(
         Handle<HeapObject> object(HeapObject::cast(it.rinfo()->target_object()),
                                   isolate);
         if (object->IsMap()) {
-          maps.push_back(Handle<Map>::cast(object));
+          retained_maps.push_back(Handle<Map>::cast(object));
         }
       }
     }
   }
-  for (Handle<Map> map : maps) {
+
+  for (Handle<Map> map : retained_maps) {
     isolate->heap()->AddRetainedMap(map);
   }
+
+  // Additionally, gather embedded maps if we have any.
+  for (Handle<Map> map : *data_.embedded_maps()) {
+    if (code->IsWeakObjectInOptimizedCode(*map)) {
+      isolate->heap()->AddRetainedMap(map);
+    }
+  }
+
   code->set_can_have_weak_objects(true);
 }
 
@@ -1378,7 +1392,7 @@ struct EffectControlLinearizationPhase {
       // - introduce effect phis and rewire effects to get SSA again.
       EffectControlLinearizer linearizer(
           data->jsgraph(), schedule, temp_zone, data->source_positions(),
-          data->node_origins(), mask_array_index);
+          data->node_origins(), mask_array_index, data->embedded_maps());
       linearizer.Run();
     }
     {

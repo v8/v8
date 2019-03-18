@@ -5,7 +5,6 @@
 #ifndef V8_PTR_COMPR_INL_H_
 #define V8_PTR_COMPR_INL_H_
 
-#if V8_TARGET_ARCH_64_BIT
 
 #include "include/v8-internal.h"
 #include "src/ptr-compr.h"
@@ -13,6 +12,7 @@
 namespace v8 {
 namespace internal {
 
+#if V8_TARGET_ARCH_64_BIT
 // Compresses full-pointer representation of a tagged value to on-heap
 // representation.
 V8_INLINE Tagged_t CompressTagged(Address tagged) {
@@ -58,9 +58,12 @@ STATIC_ASSERT(kPtrComprIsolateRootAlignment ==
 
 #endif  // V8_COMPRESS_POINTERS
 
-}  // namespace internal
-}  // namespace v8
+#else
+
+V8_INLINE Tagged_t CompressTagged(Address tagged) { UNREACHABLE(); }
 
 #endif  // V8_TARGET_ARCH_64_BIT
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_PTR_COMPR_INL_H_

@@ -18,14 +18,22 @@
 #include "src/objects/heap-number.h"
 #include "src/objects/oddball.h"
 
+#include "src/ptr-compr-inl.h"
+
 namespace v8 {
 namespace internal {
 namespace compiler {
 
+namespace {
+bool UsingCompressedPointers() { return kTaggedSize < kSystemPointerSize; }
+
+}  // namespace
+
 EffectControlLinearizer::EffectControlLinearizer(
     JSGraph* js_graph, Schedule* schedule, Zone* temp_zone,
     SourcePositionTable* source_positions, NodeOriginTable* node_origins,
-    MaskArrayIndexEnable mask_array_index)
+    MaskArrayIndexEnable mask_array_index,
+    std::vector<Handle<Map>>* embedded_maps)
     : js_graph_(js_graph),
       schedule_(schedule),
       temp_zone_(temp_zone),
@@ -33,7 +41,8 @@ EffectControlLinearizer::EffectControlLinearizer(
       source_positions_(source_positions),
       node_origins_(node_origins),
       graph_assembler_(js_graph, nullptr, nullptr, temp_zone),
-      frame_state_zapper_(nullptr) {}
+      frame_state_zapper_(nullptr),
+      embedded_maps_(embedded_maps) {}
 
 Graph* EffectControlLinearizer::graph() const { return js_graph_->graph(); }
 CommonOperatorBuilder* EffectControlLinearizer::common() const {
@@ -1524,11 +1533,27 @@ void EffectControlLinearizer::LowerCheckMaps(Node* node, Node* frame_state) {
     auto done = __ MakeLabel();
 
     // Load the current map of the {value}.
-    Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
+    Node* value_map =
+        UsingCompressedPointers()
+            ? __ LoadField(AccessBuilder::ForCompressedMap(), value)
+            : __ LoadField(AccessBuilder::ForMap(), value);
 
     for (size_t i = 0; i < map_count; ++i) {
-      Node* map = __ HeapConstant(maps[i]);
-      Node* check = __ WordEqual(value_map, map);
+      Node* check;
+
+      if (UsingCompressedPointers()) {
+        // We need the dereference scope to embed the map pointer value as an
+        // int32. We don't visit the pointer.
+        AllowHandleDereference allow_map_dereference;
+        int32_t int32Map = static_cast<int32_t>(CompressTagged(maps[i]->ptr()));
+        Node* map = __ Int32Constant(int32Map);
+        check = __ Word32Equal(value_map, map);
+        this->embedded_maps()->push_back(maps[i]);
+      } else {
+        Node* map = __ HeapConstant(maps[i]);
+        check = __ WordEqual(value_map, map);
+      }
+
       if (i == map_count - 1) {
         __ DeoptimizeIfNot(DeoptimizeReason::kWrongMap, p.feedback(), check,
                            frame_state, IsSafetyCheck::kCriticalSafetyCheck);
@@ -1551,11 +1576,26 @@ Node* EffectControlLinearizer::LowerCompareMaps(Node* node) {
   auto done = __ MakeLabel(MachineRepresentation::kBit);
 
   // Load the current map of the {value}.
-  Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
+  Node* value_map = UsingCompressedPointers()
+                        ? __ LoadField(AccessBuilder::ForCompressedMap(), value)
+                        : __ LoadField(AccessBuilder::ForMap(), value);
 
   for (size_t i = 0; i < map_count; ++i) {
-    Node* map = __ HeapConstant(maps[i]);
-    Node* check = __ WordEqual(value_map, map);
+    Node* check;
+
+    if (UsingCompressedPointers()) {
+      // We need the dereference scope to embed the map pointer value as an
+      // int32. We don't visit the pointer.
+      AllowHandleDereference allow_map_dereference;
+      int32_t int32Map = static_cast<int32_t>(CompressTagged(maps[i]->ptr()));
+      Node* map = __ Int32Constant(int32Map);
+      check = __ Word32Equal(value_map, map);
+      this->embedded_maps()->push_back(maps[i]);
+    } else {
+      Node* map = __ HeapConstant(maps[i]);
+      check = __ WordEqual(value_map, map);
+    }
+
     auto next_map = __ MakeLabel();
     auto passed = __ MakeLabel();
     __ Branch(check, &passed, &next_map, IsSafetyCheck::kCriticalSafetyCheck);
