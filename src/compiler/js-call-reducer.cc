@@ -5191,8 +5191,6 @@ Reduction JSCallReducer::ReduceStringPrototypeStartsWith(Node* node) {
         // Ensure that the {string} is actually a String.
         string = effect = graph()->NewNode(
             simplified()->CheckString(p.feedback()), string, effect, control);
-        position = effect = graph()->NewNode(
-            simplified()->CheckSmi(p.feedback()), position, effect, control);
 
         Node* string_length =
             graph()->NewNode(simplified()->StringLength(), string);
