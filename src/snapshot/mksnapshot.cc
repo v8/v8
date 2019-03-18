@@ -275,7 +275,9 @@ int main(int argc, char** argv) {
 
     i::EmbeddedFileWriter embedded_writer;
     embedded_writer.SetEmbeddedFile(i::FLAG_embedded_src);
-    embedded_writer.SetEmbeddedVariant(i::FLAG_embedded_variant);
+    if (i::FLAG_embedded_variant != nullptr) {
+      embedded_writer.SetEmbeddedVariant(i::FLAG_embedded_variant);
+    }
 
     std::unique_ptr<char> embed_script(
         GetExtraCode(argc >= 2 ? argv[1] : nullptr, "embedding"));
