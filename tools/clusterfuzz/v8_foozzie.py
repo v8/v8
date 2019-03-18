@@ -105,7 +105,7 @@ SANITY_CHECKS = os.path.join(BASE_PATH, 'v8_sanity_checks.js')
 
 FLAGS = ['--abort_on_stack_or_string_length_overflow', '--expose-gc',
          '--allow-natives-syntax', '--invoke-weak-callbacks', '--omit-quit',
-         '--es-staging', '--wasm-num-compilation-tasks=0',
+         '--es-staging', '--no-wasm-async-compilation',
          '--suppress-asm-messages']
 
 SUPPORTED_ARCHS = ['ia32', 'x64', 'arm', 'arm64']
