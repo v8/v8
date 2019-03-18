@@ -1199,7 +1199,7 @@ inline uint32_t ObjectHash(Address address) {
 // to a more generic type when we combine feedback.
 //
 //   kSignedSmall -> kSignedSmallInputs -> kNumber  -> kNumberOrOddball -> kAny
-//                                                     kString          -> kAny
+//                   kConsString                    -> kString          -> kAny
 //                                                     kBigInt          -> kAny
 //
 // Technically we wouldn't need the separation between the kNumber and the
@@ -1216,9 +1216,12 @@ class BinaryOperationFeedback {
     kSignedSmallInputs = 0x3,
     kNumber = 0x7,
     kNumberOrOddball = 0xF,
-    kString = 0x10,
-    kBigInt = 0x20,
-    kAny = 0x7F
+    kConsOneByteString = 0x10,
+    kConsTwoByteString = 0x20,
+    kConsString = kConsOneByteString | kConsTwoByteString,
+    kString = 0x70,
+    kBigInt = 0x100,
+    kAny = 0x3FF
   };
 };
 

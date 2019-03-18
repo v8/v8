@@ -865,7 +865,8 @@ Handle<SeqOneByteString> Factory::AllocateRawOneByteInternalizedString(
       length == 0,
       isolate()->roots_table()[RootIndex::kempty_string] == kNullAddress);
 
-  Map map = *one_byte_internalized_string_map();
+  Map map =
+      length == 0 ? *empty_string_map() : *one_byte_internalized_string_map();
   int size = SeqOneByteString::SizeFor(length);
   HeapObject result =
       AllocateRawWithImmortalMap(size,
@@ -1217,6 +1218,8 @@ MaybeHandle<String> Factory::NewConsString(Handle<String> left,
 
 Handle<String> Factory::NewConsString(Handle<String> left, Handle<String> right,
                                       int length, bool one_byte) {
+  DCHECK_GT(left->length(), 0);
+  DCHECK_GT(right->length(), 0);
   DCHECK(!left->IsThinString());
   DCHECK(!right->IsThinString());
   DCHECK_GE(length, ConsString::kMinLength);

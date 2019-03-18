@@ -64,6 +64,9 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
   Node* LowerChangeTaggedToTaggedSigned(Node* node);
   Node* LowerPoisonIndex(Node* node);
   Node* LowerCheckInternalizedString(Node* node, Node* frame_state);
+  Node* LowerCheckNonEmptyOneByteString(Node* node, Node* frame_state);
+  Node* LowerCheckNonEmptyTwoByteString(Node* node, Node* frame_state);
+  Node* LowerCheckNonEmptyString(Node* node, Node* frame_state);
   void LowerCheckMaps(Node* node, Node* frame_state);
   Node* LowerCompareMaps(Node* node);
   Node* LowerCheckNumber(Node* node, Node* frame_state);
@@ -133,6 +136,8 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
   Node* LowerNewDoubleElements(Node* node);
   Node* LowerNewSmiOrObjectElements(Node* node);
   Node* LowerNewArgumentsElements(Node* node);
+  Node* LowerNewConsOneByteString(Node* node);
+  Node* LowerNewConsTwoByteString(Node* node);
   Node* LowerNewConsString(Node* node);
   Node* LowerSameValue(Node* node);
   Node* LowerDeadValue(Node* node);
@@ -188,6 +193,7 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
   Maybe<Node*> LowerFloat64RoundTruncate(Node* node);
 
   Node* AllocateHeapNumberWithValue(Node* node);
+  Node* AllocateConsString(Node* map, Node* length, Node* first, Node* second);
   Node* BuildCheckedFloat64ToInt32(CheckForMinusZeroMode mode,
                                    const VectorSlotPair& feedback, Node* value,
                                    Node* frame_state);
