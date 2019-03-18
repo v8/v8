@@ -156,6 +156,9 @@ class FixedArray : public FixedArrayBase {
   inline void MoveElements(Heap* heap, int dst_index, int src_index, int len,
                            WriteBarrierMode mode);
 
+  inline void CopyElements(Heap* heap, int dst_index, FixedArray src,
+                           int src_index, int len, WriteBarrierMode mode);
+
   inline void FillWithHoles(int from, int to);
 
   // Shrink the array and insert filler objects. {new_length} must be > 0.

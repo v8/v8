@@ -208,6 +208,12 @@ void FixedArray::MoveElements(Heap* heap, int dst_index, int src_index, int len,
   heap->MoveElements(*this, dst_index, src_index, len, mode);
 }
 
+void FixedArray::CopyElements(Heap* heap, int dst_index, FixedArray src,
+                              int src_index, int len, WriteBarrierMode mode) {
+  DisallowHeapAllocation no_gc;
+  heap->CopyElements(*this, src, dst_index, src_index, len, mode);
+}
+
 // Perform a binary search in a fixed array.
 template <SearchMode search_mode, typename T>
 int BinarySearch(T* array, Name name, int valid_entries,

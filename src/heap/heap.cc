@@ -1499,7 +1499,7 @@ void Heap::MoveElements(FixedArray array, int dst_index, int src_index, int len,
                         WriteBarrierMode mode) {
   if (len == 0) return;
 
-  DCHECK(array->map() != ReadOnlyRoots(this).fixed_cow_array_map());
+  DCHECK_NE(array->map(), ReadOnlyRoots(this).fixed_cow_array_map());
   ObjectSlot dst = array->RawFieldOfElementAt(dst_index);
   ObjectSlot src = array->RawFieldOfElementAt(src_index);
   if (FLAG_concurrent_marking && incremental_marking()->IsMarking()) {
@@ -1524,6 +1524,20 @@ void Heap::MoveElements(FixedArray array, int dst_index, int src_index, int len,
   }
   if (mode == SKIP_WRITE_BARRIER) return;
   FIXED_ARRAY_ELEMENTS_WRITE_BARRIER(this, array, dst_index, len);
+}
+
+void Heap::CopyElements(FixedArray dst, FixedArray src, int dst_index,
+                        int src_index, int len, WriteBarrierMode mode) {
+  DCHECK_NE(dst, src);
+  if (len == 0) return;
+
+  DCHECK_NE(dst->map(), ReadOnlyRoots(this).fixed_cow_array_map());
+  ObjectSlot dst_slot = dst->RawFieldOfElementAt(dst_index);
+  ObjectSlot src_slot = src->RawFieldOfElementAt(src_index);
+  MemMove(dst_slot.ToVoidPtr(), src_slot.ToVoidPtr(), len * kTaggedSize);
+
+  if (mode == SKIP_WRITE_BARRIER) return;
+  FIXED_ARRAY_ELEMENTS_WRITE_BARRIER(this, dst, dst_index, len);
 }
 
 #ifdef VERIFY_HEAP

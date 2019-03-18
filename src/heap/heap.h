@@ -365,6 +365,10 @@ class Heap {
   void MoveElements(FixedArray array, int dst_index, int src_index, int len,
                     WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
+  // Copy len elements from src_index of src array to dst_index of dst array.
+  void CopyElements(FixedArray dst, FixedArray src, int dst_index,
+                    int src_index, int len, WriteBarrierMode mode);
+
   // Initialize a filler object to keep the ability to iterate over the heap
   // when introducing gaps within pages. If slots could have been recorded in
   // the freed area, then pass ClearRecordedSlots::kYes as the mode. Otherwise,
