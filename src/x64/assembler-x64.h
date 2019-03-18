@@ -1070,6 +1070,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // SSE 4.1 instruction
   void insertps(XMMRegister dst, XMMRegister src, byte imm8);
+  void insertps(XMMRegister dst, Operand src, byte imm8);
   void extractps(Register dst, XMMRegister src, byte imm8);
   void pextrb(Register dst, XMMRegister src, int8_t imm8);
   void pextrb(Operand dst, XMMRegister src, int8_t imm8);

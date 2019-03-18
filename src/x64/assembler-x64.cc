@@ -3244,6 +3244,19 @@ void Assembler::insertps(XMMRegister dst, XMMRegister src, byte imm8) {
   emit(imm8);
 }
 
+void Assembler::insertps(XMMRegister dst, Operand src, byte imm8) {
+  DCHECK(CpuFeatures::IsSupported(SSE4_1));
+  DCHECK(is_uint8(imm8));
+  EnsureSpace ensure_space(this);
+  emit(0x66);
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0x3A);
+  emit(0x21);
+  emit_sse_operand(dst, src);
+  emit(imm8);
+}
+
 void Assembler::movsd(Operand dst, XMMRegister src) {
   DCHECK(!IsEnabled(AVX));
   EnsureSpace ensure_space(this);

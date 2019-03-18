@@ -2221,7 +2221,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // The insertps instruction uses imm8[5:4] to indicate the lane
       // that needs to be replaced.
       byte select = i.InputInt8(1) << 4 & 0x30;
-      __ insertps(i.OutputSimd128Register(), i.InputDoubleRegister(2), select);
+      if (instr->InputAt(2)->IsFPRegister()) {
+        __ insertps(i.OutputSimd128Register(), i.InputDoubleRegister(2),
+                    select);
+      } else {
+        __ insertps(i.OutputSimd128Register(), i.InputOperand(2), select);
+      }
       break;
     }
     case kX64F32x4SConvertI32x4: {
