@@ -798,27 +798,29 @@
 
   # Fails allocation on tsan.
   'es6/classes': [PASS, ['tsan', SKIP]],
+  'regress/regress-779407': [PASS, ['tsan', SKIP]],
 
   # Tests that fail some assertions due to checking internal state sensitive
-  # to GC. We mark PASS,FAIL to not skip those tests on the endurance fuzzer.
-  'array-literal-feedback': [PASS, FAIL],
-  'compiler/dataview-neutered': [PASS, FAIL],
-  'compiler/native-context-specialization-hole-check': [PASS, FAIL],
-  'elements-transition-hoisting': [PASS, FAIL],
-  'es6/collections-constructor-custom-iterator': [PASS, FAIL],
-  'ignition/throw-if-not-hole': [PASS, FAIL],
-  'keyed-load-with-symbol-key': [PASS, FAIL],
-  'object-seal': [PASS, FAIL],
-  'regress/regress-3709': [PASS, FAIL],
-  'regress/regress-385565': [PASS, FAIL],
-  'regress/regress-6948': [PASS, FAIL],
-  'regress/regress-7014-1': [PASS, FAIL],
-  'regress/regress-7014-2': [PASS, FAIL],
-  'regress/regress-7510': [PASS, FAIL],
-  'regress/regress-crbug-882233-2': [PASS, FAIL],
-  'regress/regress-trap-allocation-memento': [PASS, FAIL],
-  'regress/regress-unlink-closures-on-deopt': [PASS, FAIL],
-  'shared-function-tier-up-turbo': [PASS, FAIL],
+  # to GC.
+  'array-literal-feedback': [SKIP],
+  'compiler/dataview-neutered': [SKIP],
+  'compiler/native-context-specialization-hole-check': [SKIP],
+  'elements-transition-hoisting': [SKIP],
+  'es6/collections-constructor-custom-iterator': [SKIP],
+  'ignition/throw-if-not-hole': [SKIP],
+  'keyed-load-with-symbol-key': [SKIP],
+  'object-seal': [SKIP],
+  'regress/regress-3709': [SKIP],
+  'regress/regress-385565': [SKIP],
+  'regress/regress-6948': [SKIP],
+  'regress/regress-6991': [SKIP],
+  'regress/regress-7014-1': [SKIP],
+  'regress/regress-7014-2': [SKIP],
+  'regress/regress-7510': [SKIP],
+  'regress/regress-crbug-882233-2': [SKIP],
+  'regress/regress-trap-allocation-memento': [SKIP],
+  'regress/regress-unlink-closures-on-deopt': [SKIP],
+  'shared-function-tier-up-turbo': [SKIP],
 }],  # 'gc_fuzzer'
 
 ##############################################################################
