@@ -676,11 +676,6 @@ config("toolchain") {
   # Chromium uses a hand-picked subset of UBSan coverage. We want everything.
   if (is_ubsan) {
     cflags += [ "-fsanitize=undefined" ]
-    if (v8_enable_pointer_compression) {
-      # ... except alignment checks when using pointer compression, as it can
-      # lead to unaligned pointer accesses.
-      cflags += [ "-fno-sanitize=alignment" ]
-    }
   }
 }
 
