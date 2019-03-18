@@ -152,10 +152,10 @@ WASM_EXEC_TEST(Run_IndirectCallJSFunction) {
                                    WASM_I32V(right), WASM_GET_LOCAL(0)));
 
   Handle<Object> args_left[] = {isolate->factory()->NewNumber(1)};
-  r.CheckCallViaJS(left, rc_fn.function_index(), args_left, 1);
+  r.CheckCallApplyViaJS(left, rc_fn.function_index(), args_left, 1);
 
   Handle<Object> args_right[] = {isolate->factory()->NewNumber(0)};
-  r.CheckCallViaJS(right, rc_fn.function_index(), args_right, 1);
+  r.CheckCallApplyViaJS(right, rc_fn.function_index(), args_right, 1);
 }
 
 void RunJSSelectTest(ExecutionTier tier, int which) {
@@ -189,7 +189,7 @@ void RunJSSelectTest(ExecutionTier tier, int which) {
     }
 
     double expected = inputs.arg_d(which);
-    r.CheckCallViaJS(expected, t.function_index(), nullptr, 0);
+    r.CheckCallApplyViaJS(expected, t.function_index(), nullptr, 0);
   }
 }
 
@@ -259,7 +259,7 @@ void RunWASMSelectTest(ExecutionTier tier, int which) {
     };
 
     double expected = inputs.arg_d(which);
-    r.CheckCallViaJS(expected, t.function_index(), args, kMaxParams);
+    r.CheckCallApplyViaJS(expected, t.function_index(), args, kMaxParams);
   }
 }
 
@@ -331,7 +331,7 @@ void RunWASMSelectAlignTest(ExecutionTier tier, int num_args, int num_params) {
 
     double nan = std::numeric_limits<double>::quiet_NaN();
     double expected = which < num_args ? inputs.arg_d(which) : nan;
-    r.CheckCallViaJS(expected, t.function_index(), args, num_args);
+    r.CheckCallApplyViaJS(expected, t.function_index(), args, num_args);
   }
 }
 
@@ -446,7 +446,7 @@ void RunJSSelectAlignTest(ExecutionTier tier, int num_args, int num_params) {
 
     double nan = std::numeric_limits<double>::quiet_NaN();
     double expected = which < num_args ? inputs.arg_d(which) : nan;
-    r.CheckCallViaJS(expected, t.function_index(), args, num_args);
+    r.CheckCallApplyViaJS(expected, t.function_index(), args, num_args);
   }
 }
 
@@ -556,10 +556,10 @@ void RunPickerTest(ExecutionTier tier, bool indirect) {
   }
 
   Handle<Object> args_left[] = {isolate->factory()->NewNumber(1)};
-  r.CheckCallViaJS(left, rc_fn.function_index(), args_left, 1);
+  r.CheckCallApplyViaJS(left, rc_fn.function_index(), args_left, 1);
 
   Handle<Object> args_right[] = {isolate->factory()->NewNumber(0)};
-  r.CheckCallViaJS(right, rc_fn.function_index(), args_right, 1);
+  r.CheckCallApplyViaJS(right, rc_fn.function_index(), args_right, 1);
 }
 
 WASM_EXEC_TEST(Run_ReturnCallImportedFunction) {

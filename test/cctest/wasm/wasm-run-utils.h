@@ -505,8 +505,8 @@ class WasmRunner : public WasmRunnerBase {
     }
   }
 
-  void CheckCallViaJS(double expected, uint32_t function_index,
-                      Handle<Object>* buffer, int count) {
+  void CheckCallApplyViaJS(double expected, uint32_t function_index,
+                           Handle<Object>* buffer, int count) {
     Isolate* isolate = builder_.isolate();
     if (jsfuncs_.size() <= function_index) {
       jsfuncs_.resize(function_index + 1);
@@ -536,7 +536,7 @@ class WasmRunner : public WasmRunnerBase {
   void CheckCallViaJS(double expected, ParamTypes... p) {
     Isolate* isolate = builder_.isolate();
     Handle<Object> buffer[] = {isolate->factory()->NewNumber(p)...};
-    CheckCallViaJS(expected, function()->func_index, buffer, sizeof...(p));
+    CheckCallApplyViaJS(expected, function()->func_index, buffer, sizeof...(p));
   }
 
   Handle<Code> GetWrapperCode() { return wrapper_.GetWrapperCode(); }
