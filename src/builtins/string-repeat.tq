@@ -1,0 +1,26 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+namespace string_repeat {
+  builtin StringRepeat(implicit context: Context)(string: String, count: Smi):
+      String {
+    assert(count >= 0);
+    assert(string != kEmptyString);
+
+    let result: String = kEmptyString;
+    let powerOfTwoRepeats: String = string;
+    let n: intptr = Convert<intptr>(count);
+
+    while (true) {
+      if ((n & 1) == 1) result = result + powerOfTwoRepeats;
+
+      n = n >> 1;
+      if (n == 0) break;
+
+      powerOfTwoRepeats = powerOfTwoRepeats + powerOfTwoRepeats;
+    }
+
+    return result;
+  }
+}

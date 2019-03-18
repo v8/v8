@@ -1227,54 +1227,6 @@ TF_BUILTIN(StringPrototypeRepeat, StringBuiltinsAssembler) {
   }
 }
 
-// Helper with less checks
-TF_BUILTIN(StringRepeat, StringBuiltinsAssembler) {
-  Node* const context = Parameter(Descriptor::kContext);
-  Node* const string = Parameter(Descriptor::kString);
-  TNode<Smi> const count = CAST(Parameter(Descriptor::kCount));
-
-  CSA_ASSERT(this, IsString(string));
-  CSA_ASSERT(this, Word32BinaryNot(IsEmptyString(string)));
-  CSA_ASSERT(this, TaggedIsPositiveSmi(count));
-
-  // The string is repeated with the following algorithm:
-  //   let n = count;
-  //   let power_of_two_repeats = string;
-  //   let result = "";
-  //   while (true) {
-  //     if (n & 1) result += s;
-  //     n >>= 1;
-  //     if (n === 0) return result;
-  //     power_of_two_repeats += power_of_two_repeats;
-  //   }
-  VARIABLE(var_result, MachineRepresentation::kTagged, EmptyStringConstant());
-  VARIABLE(var_temp, MachineRepresentation::kTagged, string);
-  TVARIABLE(Smi, var_count, count);
-
-  Label loop(this, {&var_count, &var_result, &var_temp}), return_result(this);
-  Goto(&loop);
-  BIND(&loop);
-  {
-    {
-      Label next(this);
-      GotoIfNot(SmiToInt32(SmiAnd(var_count.value(), SmiConstant(1))), &next);
-      var_result.Bind(CallBuiltin(Builtins::kStringAdd_CheckNone, context,
-                                  var_result.value(), var_temp.value()));
-      Goto(&next);
-      BIND(&next);
-    }
-
-    var_count = SmiShr(var_count.value(), 1);
-    GotoIf(SmiEqual(var_count.value(), SmiConstant(0)), &return_result);
-    var_temp.Bind(CallBuiltin(Builtins::kStringAdd_CheckNone, context,
-                              var_temp.value(), var_temp.value()));
-    Goto(&loop);
-  }
-
-  BIND(&return_result);
-  Return(var_result.value());
-}
-
 // ES6 #sec-string.prototype.replace
 TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
   Label out(this);
