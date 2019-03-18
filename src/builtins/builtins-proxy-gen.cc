@@ -246,40 +246,6 @@ TF_BUILTIN(ProxyRevocable, ProxiesCodeStubAssembler) {
   ThrowTypeError(context, MessageTemplate::kProxyHandlerOrTargetRevoked);
 }
 
-// Proxy Revocation Functions
-// https://tc39.github.io/ecma262/#sec-proxy-revocation-functions
-TF_BUILTIN(ProxyRevoke, ProxiesCodeStubAssembler) {
-  Node* const context = Parameter(Descriptor::kContext);
-
-  // 1. Let p be F.[[RevocableProxy]].
-  Node* const proxy_slot = IntPtrConstant(kProxySlot);
-  Node* const proxy = LoadContextElement(context, proxy_slot);
-
-  Label revoke_called(this);
-
-  // 2. If p is null, ...
-  GotoIf(IsNull(proxy), &revoke_called);
-
-  // 3. Set F.[[RevocableProxy]] to null.
-  StoreContextElement(context, proxy_slot, NullConstant());
-
-  // 4. Assert: p is a Proxy object.
-  CSA_ASSERT(this, IsJSProxy(proxy));
-
-  // 5. Set p.[[ProxyTarget]] to null.
-  StoreObjectField(proxy, JSProxy::kTargetOffset, NullConstant());
-
-  // 6. Set p.[[ProxyHandler]] to null.
-  StoreObjectField(proxy, JSProxy::kHandlerOffset, NullConstant());
-
-  // 7. Return undefined.
-  Return(UndefinedConstant());
-
-  BIND(&revoke_called);
-  // 2. ... return undefined.
-  Return(UndefinedConstant());
-}
-
 TF_BUILTIN(CallProxy, ProxiesCodeStubAssembler) {
   Node* argc = Parameter(Descriptor::kActualArgumentsCount);
   Node* argc_ptr = ChangeInt32ToIntPtr(argc);

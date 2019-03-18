@@ -359,6 +359,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return CAST(heap_object);
   }
 
+  TNode<JSProxy> HeapObjectToJSProxy(TNode<HeapObject> heap_object,
+                                     Label* fail) {
+    GotoIfNot(IsJSProxy(heap_object), fail);
+    return CAST(heap_object);
+  }
+
   TNode<JSReceiver> HeapObjectToCallable(TNode<HeapObject> heap_object,
                                          Label* fail) {
     GotoIfNot(IsCallable(heap_object), fail);
