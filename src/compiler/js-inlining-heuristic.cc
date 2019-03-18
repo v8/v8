@@ -96,7 +96,7 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
     return NoChange();
   }
 
-  bool can_inline = false, small_inline = true;
+  bool can_inline = false, force_inline_small = true;
   candidate.total_size = 0;
   Node* frame_state = NodeProperties::GetFrameStateInput(node);
   FrameStateInfo const& frame_info = FrameStateInfoOf(frame_state->op());
@@ -128,8 +128,9 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
       can_inline = true;
       candidate.total_size += bytecode->length();
     }
+    // We don't force inline small functions if any of them is not inlineable
     if (!IsSmallInlineFunction(bytecode)) {
-      small_inline = false;
+      force_inline_small = false;
     }
   }
   if (!can_inline) return NoChange();
@@ -164,8 +165,8 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
   }
 
   // Forcibly inline small functions here. In the case of polymorphic inlining
-  // small_inline is set only when all functions are small.
-  if (small_inline &&
+  // force_inline_small is set only when all functions are small.
+  if (force_inline_small &&
       cumulative_count_ < FLAG_max_inlined_bytecode_size_absolute) {
     TRACE("Inlining small function(s) at call site #%d:%s\n", node->id(),
           node->op()->mnemonic());
@@ -660,15 +661,18 @@ Reduction JSInliningHeuristic::InlineCandidate(Candidate const& candidate,
   // Inline the individual, cloned call sites.
   for (int i = 0; i < num_calls; ++i) {
     Node* node = calls[i];
-    if (small_function ||
-        (candidate.can_inline_function[i] &&
+    if (candidate.can_inline_function[i] &&
+        (small_function ||
          cumulative_count_ < FLAG_max_inlined_bytecode_size_cumulative)) {
       Reduction const reduction = inliner_.ReduceJSCall(node);
       if (reduction.Changed()) {
         // Killing the call node is not strictly necessary, but it is safer to
         // make sure we do not resurrect the node.
         node->Kill();
-        cumulative_count_ += candidate.bytecode[i]->length();
+        // Small functions don't count towards the budget.
+        if (!small_function) {
+          cumulative_count_ += candidate.bytecode[i]->length();
+        }
       }
     }
   }
