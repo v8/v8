@@ -117,8 +117,8 @@ ValueType TypeOf(const WasmModule* module, const WasmInitExpr& expr) {
       return kWasmF32;
     case WasmInitExpr::kF64Const:
       return kWasmF64;
-    case WasmInitExpr::kAnyRefConst:
-      return kWasmAnyRef;
+    case WasmInitExpr::kRefNullConst:
+      return kWasmNullRef;
     default:
       UNREACHABLE();
   }
@@ -1169,7 +1169,7 @@ class ModuleDecoderImpl : public Decoder {
                ValueTypes::TypeName(module->globals[other_index].type));
       }
     } else {
-      if (global->type != TypeOf(module, global->init)) {
+      if (!ValueTypes::IsSubType(global->type, TypeOf(module, global->init))) {
         errorf(pos, "type error in global initialization, expected %s, got %s",
                ValueTypes::TypeName(global->type),
                ValueTypes::TypeName(TypeOf(module, global->init)));
@@ -1185,7 +1185,7 @@ class ModuleDecoderImpl : public Decoder {
     for (WasmGlobal& global : module->globals) {
       if (global.mutability && global.imported) {
         global.index = num_imported_mutable_globals++;
-      } else if (global.type == ValueType::kWasmAnyRef) {
+      } else if (ValueTypes::IsReferenceType(global.type)) {
         global.offset = tagged_offset;
         // All entries in the tagged_globals_buffer have size 1.
         tagged_offset++;
@@ -1435,7 +1435,7 @@ class ModuleDecoderImpl : public Decoder {
       }
       case kExprRefNull: {
         if (enabled_features_.anyref) {
-          expr.kind = WasmInitExpr::kAnyRefConst;
+          expr.kind = WasmInitExpr::kRefNullConst;
           len = 0;
           break;
         }

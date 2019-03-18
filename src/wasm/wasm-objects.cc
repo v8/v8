@@ -1327,7 +1327,7 @@ MaybeHandle<WasmGlobalObject> WasmGlobalObject::New(
   auto global_obj = Handle<WasmGlobalObject>::cast(
       isolate->factory()->NewJSObject(global_ctor));
 
-  if (type == wasm::kWasmAnyRef) {
+  if (wasm::ValueTypes::IsReferenceType(type)) {
     DCHECK(maybe_untagged_buffer.is_null());
     Handle<FixedArray> tagged_buffer;
     if (!maybe_tagged_buffer.ToHandle(&tagged_buffer)) {

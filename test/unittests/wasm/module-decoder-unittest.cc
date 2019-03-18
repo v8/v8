@@ -284,7 +284,7 @@ TEST_F(WasmModuleVerifyTest, AnyRefGlobal) {
 
     EXPECT_EQ(kWasmAnyRef, global->type);
     EXPECT_FALSE(global->mutability);
-    EXPECT_EQ(WasmInitExpr::kAnyRefConst, global->init.kind);
+    EXPECT_EQ(WasmInitExpr::kRefNullConst, global->init.kind);
   }
 }
 
@@ -2119,7 +2119,7 @@ TEST_F(WasmInitExprDecodeTest, InitExpr_AnyRef) {
   WASM_FEATURE_SCOPE(anyref);
   static const byte data[] = {kExprRefNull, kExprEnd};
   WasmInitExpr expr = DecodeInitExpr(data, data + sizeof(data));
-  EXPECT_EQ(WasmInitExpr::kAnyRefConst, expr.kind);
+  EXPECT_EQ(WasmInitExpr::kRefNullConst, expr.kind);
 }
 
 TEST_F(WasmInitExprDecodeTest, InitExpr_illegal) {

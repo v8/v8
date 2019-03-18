@@ -3251,7 +3251,7 @@ Node* WasmGraphBuilder::BuildCallToRuntime(Runtime::FunctionId f,
 
 Node* WasmGraphBuilder::GetGlobal(uint32_t index) {
   const wasm::WasmGlobal& global = env_->module->globals[index];
-  if (global.type == wasm::ValueType::kWasmAnyRef) {
+  if (wasm::ValueTypes::IsReferenceType(global.type)) {
     if (global.mutability && global.imported) {
       Node* base = nullptr;
       Node* offset = nullptr;
@@ -3282,7 +3282,7 @@ Node* WasmGraphBuilder::GetGlobal(uint32_t index) {
 
 Node* WasmGraphBuilder::SetGlobal(uint32_t index, Node* val) {
   const wasm::WasmGlobal& global = env_->module->globals[index];
-  if (global.type == wasm::ValueType::kWasmAnyRef) {
+  if (wasm::ValueTypes::IsReferenceType(global.type)) {
     if (global.mutability && global.imported) {
       Node* base = nullptr;
       Node* offset = nullptr;

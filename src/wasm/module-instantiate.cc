@@ -552,7 +552,6 @@ MaybeHandle<Object> InstanceBuilder::LookupImport(uint32_t index,
   // We pre-validated in the js-api layer that the ffi object is present, and
   // a JSObject, if the module has imports.
   DCHECK(!ffi_.is_null());
-
   // Look up the module first.
   MaybeHandle<Object> result = Object::GetPropertyOrElement(
       isolate_, ffi_.ToHandleChecked(), module_name);
@@ -972,7 +971,7 @@ bool InstanceBuilder::ProcessImportedWasmGlobalObject(
     DCHECK_LT(global.index, module_->num_imported_mutable_globals);
     Handle<Object> buffer;
     Address address_or_offset;
-    if (global.type == kWasmAnyRef) {
+    if (ValueTypes::IsReferenceType(global.type)) {
       static_assert(sizeof(global_object->offset()) <= sizeof(Address),
                     "The offset into the globals buffer does not fit into "
                     "the imported_mutable_globals array");
@@ -1050,7 +1049,18 @@ bool InstanceBuilder::ProcessImportedGlobal(Handle<WasmInstanceObject> instance,
     return false;
   }
 
-  if (global.type == ValueType::kWasmAnyRef) {
+  if (ValueTypes::IsReferenceType(global.type)) {
+    // There shouldn't be any null-ref globals.
+    DCHECK_NE(ValueType::kWasmNullRef, global.type);
+    if (global.type == ValueType::kWasmAnyFunc) {
+      if (!value->IsNull(isolate_) &&
+          !WasmExportedFunction::IsWasmExportedFunction(*value)) {
+        ReportLinkError(
+            "imported anyfunc global must be null or an exported function",
+            import_index, module_name, import_name);
+        return false;
+      }
+    }
     WriteGlobalAnyRef(global, value);
     return true;
   }
@@ -1183,7 +1193,7 @@ void InstanceBuilder::InitGlobals() {
         WriteLittleEndianValue<double>(GetRawGlobalPtr<double>(global),
                                        global.init.val.f64_const);
         break;
-      case WasmInitExpr::kAnyRefConst:
+      case WasmInitExpr::kRefNullConst:
         DCHECK(enabled_.anyref);
         if (global.imported) break;  // We already initialized imported globals.
 
@@ -1375,7 +1385,7 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
         if (global.mutability && global.imported) {
           Handle<FixedArray> buffers_array(
               instance->imported_mutable_globals_buffers(), isolate_);
-          if (global.type == kWasmAnyRef) {
+          if (ValueTypes::IsReferenceType(global.type)) {
             tagged_buffer = buffers_array->GetValueChecked<FixedArray>(
                 isolate_, global.index);
             // For anyref globals we store the relative offset in the
@@ -1398,7 +1408,7 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
             offset = static_cast<uint32_t>(global_addr - backing_store);
           }
         } else {
-          if (global.type == kWasmAnyRef) {
+          if (ValueTypes::IsReferenceType(global.type)) {
             tagged_buffer = handle(instance->tagged_globals_buffer(), isolate_);
           } else {
             untagged_buffer =

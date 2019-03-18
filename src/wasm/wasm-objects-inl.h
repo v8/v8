@@ -151,8 +151,9 @@ double WasmGlobalObject::GetF64() {
   return ReadLittleEndianValue<double>(address());
 }
 
-Handle<Object> WasmGlobalObject::GetAnyRef() {
-  DCHECK_EQ(type(), wasm::kWasmAnyRef);
+Handle<Object> WasmGlobalObject::GetRef() {
+  // We use this getter also for anyfunc.
+  DCHECK(wasm::ValueTypes::IsReferenceType(type()));
   return handle(tagged_buffer()->get(offset()), GetIsolate());
 }
 
@@ -175,6 +176,16 @@ void WasmGlobalObject::SetF64(double value) {
 void WasmGlobalObject::SetAnyRef(Handle<Object> value) {
   DCHECK_EQ(type(), wasm::kWasmAnyRef);
   tagged_buffer()->set(offset(), *value);
+}
+
+bool WasmGlobalObject::SetAnyFunc(Isolate* isolate, Handle<Object> value) {
+  DCHECK_EQ(type(), wasm::kWasmAnyFunc);
+  if (!value->IsNull(isolate) &&
+      !WasmExportedFunction::IsWasmExportedFunction(*value)) {
+    return false;
+  }
+  tagged_buffer()->set(offset(), *value);
+  return true;
 }
 
 // WasmInstanceObject

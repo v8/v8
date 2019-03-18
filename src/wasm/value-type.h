@@ -178,6 +178,21 @@ class StoreType {
 // A collection of ValueType-related static methods.
 class V8_EXPORT_PRIVATE ValueTypes {
  public:
+  static inline bool IsSubType(ValueType expected, ValueType actual) {
+    return (expected == actual) ||
+           (expected == kWasmAnyRef && actual == kWasmNullRef) ||
+           (expected == kWasmAnyRef && actual == kWasmAnyFunc) ||
+           (expected == kWasmAnyFunc && actual == kWasmNullRef);
+  }
+
+  static inline bool IsReferenceType(ValueType type) {
+    // This function assumes at the moment that it is never called with
+    // {kWasmNullRef}. If this assumption is wrong, it should be added to the
+    // result calculation below.
+    DCHECK_NE(type, kWasmNullRef);
+    return type == kWasmAnyRef || type == kWasmAnyFunc;
+  }
+
   static byte MemSize(MachineType type) {
     return 1 << i::ElementSizeLog2Of(type.representation());
   }

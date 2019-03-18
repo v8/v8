@@ -609,7 +609,7 @@ struct WasmInitExpr {
     kI64Const,
     kF32Const,
     kF64Const,
-    kAnyRefConst,
+    kRefNullConst,
   } kind;
 
   union {
