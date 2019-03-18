@@ -268,7 +268,7 @@ class TestSuite(object):
 
   def __initialize_test_count_estimation(self):
     # Retrieves a single test to initialize the test generator.
-    next(iter(self.ListTests()))
+    next(iter(self.ListTests()), None)
 
   def __calculate_test_count(self):
     self.__initialize_test_count_estimation()
