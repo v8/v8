@@ -1948,7 +1948,7 @@ class V8_EXPORT_PRIVATE FreeList {
   static const size_t kTinyListMax = 0x1f * kTaggedSize;
   static const size_t kSmallListMax = 0xff * kTaggedSize;
   static const size_t kMediumListMax = 0x7ff * kTaggedSize;
-  static const size_t kLargeListMax = 0x1fff * kTaggedSize;
+  static const size_t kLargeListMax = 0x2fff * kTaggedSize;
   static const size_t kTinyAllocationMax = kTiniestListMax;
   static const size_t kSmallAllocationMax = kTinyListMax;
   static const size_t kMediumAllocationMax = kSmallListMax;
