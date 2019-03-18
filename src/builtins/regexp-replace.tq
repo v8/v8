@@ -1,0 +1,53 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+namespace regexp_replace {
+
+  extern transitioning builtin
+  RegExpReplace(implicit context: Context)(JSRegExp, String, Object): Object;
+  extern transitioning runtime
+  RegExpReplaceRT(Context, JSReceiver, String, Object): String;
+
+  transitioning javascript builtin RegExpPrototypeReplace(
+      context: Context, receiver: Object, ...arguments): Object {
+    const methodName: constexpr string = 'RegExp.prototype.@@replace';
+
+    // RegExpPrototypeReplace is a bit of a beast - a summary of dispatch logic:
+    //
+    // if (!IsFastRegExp(receiver)) CallRuntime(RegExpReplace)
+    // if (IsCallable(replace)) {
+    //   if (IsGlobal(receiver)) {
+    //     // Called 'fast-path' but contains several runtime calls.
+    //     ReplaceGlobalCallableFastPath()
+    //   } else {
+    //     CallRuntime(StringReplaceNonGlobalRegExpWithFunction)
+    //   }
+    // } else {
+    //   if (replace.contains("$")) {
+    //     CallRuntime(RegExpReplace)
+    //   } else {
+    //     ReplaceSimpleStringFastPath()
+    //   }
+    // }
+
+    const string: Object = arguments[0];
+    const replaceValue: Object = arguments[1];
+
+    // Let rx be the this value.
+    // If Type(rx) is not Object, throw a TypeError exception.
+    const rx = Cast<JSReceiver>(receiver)
+        otherwise ThrowTypeError(kIncompatibleMethodReceiver, methodName);
+
+    // Let S be ? ToString(string).
+    const s = ToString_Inline(context, string);
+
+    // Fast-path checks: 1. Is the {receiver} an unmodified JSRegExp instance?
+    if (regexp::BranchIfFastRegExp(context, rx)) {
+      return RegExpReplace(UnsafeCast<JSRegExp>(rx), s, replaceValue);
+    } else {
+      return RegExpReplaceRT(context, rx, s, replaceValue);
+    }
+  }
+
+}

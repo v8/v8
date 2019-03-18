@@ -369,7 +369,7 @@ namespace internal {
   F(RegExpExec, 4, 1)                               \
   F(RegExpExecMultiple, 4, 1)                       \
   F(RegExpInitializeAndCompile, 3, 1)               \
-  F(RegExpReplace, 3, 1)                            \
+  F(RegExpReplaceRT, 3, 1)                          \
   F(RegExpSplit, 3, 1)                              \
   F(StringReplaceNonGlobalRegExpWithFunction, 3, 1) \
   F(StringSplit, 3, 1)

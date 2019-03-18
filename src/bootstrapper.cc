@@ -4210,11 +4210,12 @@ void Genesis::InitializeGlobal_harmony_string_matchall() {
     InstallFunctionAtSymbol(isolate(), regexp_prototype,
                             factory()->match_all_symbol(), "[Symbol.matchAll]",
                             Builtins::kRegExpPrototypeMatchAll, 1, true);
+    DCHECK_EQ(JSRegExp::kSymbolMatchAllFunctionDescriptorIndex,
+              regexp_prototype->map()->LastAdded());
+
     Handle<Map> regexp_prototype_map(regexp_prototype->map(), isolate());
     Map::SetShouldBeFastPrototypeMap(regexp_prototype_map, true, isolate());
     native_context()->set_regexp_prototype_map(*regexp_prototype_map);
-    DCHECK_EQ(JSRegExp::kSymbolMatchAllFunctionDescriptorIndex,
-              regexp_prototype->map()->LastAdded());
   }
 
   {  // --- R e g E x p S t r i n g  I t e r a t o r ---

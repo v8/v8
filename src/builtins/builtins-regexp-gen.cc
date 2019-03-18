@@ -3032,63 +3032,8 @@ TF_BUILTIN(RegExpReplace, RegExpBuiltinsAssembler) {
   }
 
   BIND(&runtime);
-  Return(CallRuntime(Runtime::kRegExpReplace, context, regexp, string,
+  Return(CallRuntime(Runtime::kRegExpReplaceRT, context, regexp, string,
                      replace_value));
-}
-
-// ES#sec-regexp.prototype-@@replace
-// RegExp.prototype [ @@replace ] ( string, replaceValue )
-TF_BUILTIN(RegExpPrototypeReplace, RegExpBuiltinsAssembler) {
-  const int kStringArg = 0;
-  const int kReplaceValueArg = 1;
-
-  TNode<IntPtrT> argc =
-      ChangeInt32ToIntPtr(Parameter(Descriptor::kJSActualArgumentsCount));
-  CodeStubArguments args(this, argc);
-
-  TNode<Object> maybe_receiver = args.GetReceiver();
-  TNode<Object> maybe_string = args.GetOptionalArgumentValue(kStringArg);
-  TNode<Object> replace_value = args.GetOptionalArgumentValue(kReplaceValueArg);
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-
-  // RegExpPrototypeReplace is a bit of a beast - a summary of dispatch logic:
-  //
-  // if (!IsFastRegExp(receiver)) CallRuntime(RegExpReplace)
-  // if (IsCallable(replace)) {
-  //   if (IsGlobal(receiver)) {
-  //     // Called 'fast-path' but contains several runtime calls.
-  //     ReplaceGlobalCallableFastPath()
-  //   } else {
-  //     CallRuntime(StringReplaceNonGlobalRegExpWithFunction)
-  //   }
-  // } else {
-  //   if (replace.contains("$")) {
-  //     CallRuntime(RegExpReplace)
-  //   } else {
-  //     ReplaceSimpleStringFastPath()
-  //   }
-  // }
-
-  // Ensure {maybe_receiver} is a JSReceiver.
-  ThrowIfNotJSReceiver(context, maybe_receiver,
-                       MessageTemplate::kIncompatibleMethodReceiver,
-                       "RegExp.prototype.@@replace");
-  Node* const receiver = maybe_receiver;
-
-  // Convert {maybe_string} to a String.
-  TNode<String> const string = ToString_Inline(context, maybe_string);
-
-  // Fast-path checks: 1. Is the {receiver} an unmodified JSRegExp instance?
-  Label stub(this), runtime(this, Label::kDeferred);
-  BranchIfFastRegExp(context, receiver, &stub, &runtime);
-
-  BIND(&stub);
-  args.PopAndReturn(CallBuiltin(Builtins::kRegExpReplace, context, receiver,
-                                string, replace_value));
-
-  BIND(&runtime);
-  args.PopAndReturn(CallRuntime(Runtime::kRegExpReplace, context, receiver,
-                                string, replace_value));
 }
 
 class RegExpStringIteratorAssembler : public RegExpBuiltinsAssembler {

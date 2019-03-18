@@ -1684,7 +1684,7 @@ RUNTIME_FUNCTION(Runtime_RegExpSplit) {
 // Slow path for:
 // ES#sec-regexp.prototype-@@replace
 // RegExp.prototype [ @@replace ] ( string, replaceValue )
-RUNTIME_FUNCTION(Runtime_RegExpReplace) {
+RUNTIME_FUNCTION(Runtime_RegExpReplaceRT) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
 

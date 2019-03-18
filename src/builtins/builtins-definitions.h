@@ -935,8 +935,6 @@ namespace internal {
   TFJ(RegExpPrototypeUnicodeGetter, 0, kReceiver)                              \
   CPP(RegExpRightContextGetter)                                                \
                                                                                \
-  /* ES #sec-regexp.prototype-@@replace */                                     \
-  TFJ(RegExpPrototypeReplace, SharedFunctionInfo::kDontAdaptArgumentsSentinel) \
   /* ES #sec-regexp.prototype-@@split */                                       \
   TFJ(RegExpPrototypeSplit, SharedFunctionInfo::kDontAdaptArgumentsSentinel)   \
   /* RegExp helpers */                                                         \

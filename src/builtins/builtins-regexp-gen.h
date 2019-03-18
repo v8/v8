@@ -32,7 +32,6 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
 
   TNode<BoolT> IsRegExp(TNode<Context> context, TNode<Object> maybe_receiver);
 
- protected:
   TNode<Smi> SmiZero();
   TNode<IntPtrT> IntPtrZero();
 

@@ -1310,6 +1310,12 @@ Cast<HeapNumber>(o: HeapObject): HeapNumber
   goto CastError;
 }
 
+Cast<JSRegExp>(o: HeapObject): JSRegExp
+    labels CastError {
+  if (IsJSRegExp(o)) return %RawDownCast<JSRegExp>(o);
+  goto CastError;
+}
+
 Cast<Map>(implicit context: Context)(o: HeapObject): Map
     labels CastError {
   if (IsMap(o)) return %RawDownCast<Map>(o);
@@ -2019,6 +2025,7 @@ extern macro IsCallable(HeapObject): bool;
 extern macro IsConstructor(HeapObject): bool;
 extern macro IsJSArray(HeapObject): bool;
 extern macro IsJSProxy(HeapObject): bool;
+extern macro IsJSRegExp(HeapObject): bool;
 extern macro IsMap(HeapObject): bool;
 extern macro IsJSFunction(HeapObject): bool;
 extern macro IsJSObject(HeapObject): bool;
