@@ -419,21 +419,7 @@ void TurboAssembler::CallRecordWriteStub(
   // Prepare argument registers for calling RecordWrite
   // slot_parameter   <= address
   // object_parameter <= object
-  if (slot_parameter != object) {
-    // Normal case
-    Move(slot_parameter, address);
-    Move(object_parameter, object);
-  } else if (object_parameter != address) {
-    // Only slot_parameter and object are the same register
-    // object_parameter <= object
-    // slot_parameter   <= address
-    Move(object_parameter, object);
-    Move(slot_parameter, address);
-  } else {
-    // slot_parameter   \/ address
-    // object_parameter /\ object
-    xchgq(slot_parameter, object_parameter);
-  }
+  MovePair(slot_parameter, address, object_parameter, object);
 
   Smi smi_rsa = Smi::FromEnum(remembered_set_action);
   Smi smi_fm = Smi::FromEnum(fp_mode);
@@ -1294,6 +1280,25 @@ void TurboAssembler::Push(Smi source) {
 void TurboAssembler::Move(Register dst, Register src) {
   if (dst != src) {
     movq(dst, src);
+  }
+}
+
+void TurboAssembler::MovePair(Register dst0, Register src0, Register dst1,
+                              Register src1) {
+  if (dst0 != src1) {
+    // Normal case: Writing to dst0 does not destroy src1.
+    Move(dst0, src0);
+    Move(dst1, src1);
+  } else if (dst1 != src0) {
+    // Only dst0 and src1 are the same register,
+    // but writing to dst1 does not destroy src0.
+    Move(dst1, src1);
+    Move(dst0, src0);
+  } else {
+    // dst0 == src1, and dst1 == src0, a swap is required:
+    // dst0 \/ src0
+    // dst1 /\ src1
+    xchgq(dst0, dst1);
   }
 }
 

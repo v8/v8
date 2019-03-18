@@ -319,6 +319,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
     movq(dst, Immediate64(ptr, rmode));
   }
 
+  // Move src0 to dst0 and src1 to dst1, handling possible overlaps.
+  void MovePair(Register dst0, Register src0, Register dst1, Register src1);
+
   void MoveStringConstant(Register result, const StringConstantBase* string,
                           RelocInfo::Mode rmode = RelocInfo::EMBEDDED_OBJECT);
 
