@@ -994,64 +994,6 @@ RUNTIME_FUNCTION(Runtime_CopyDataPropertiesWithExcludedProperties) {
   return *target;
 }
 
-namespace {
-
-inline void TrySetNative(Handle<Object> maybe_func) {
-  if (!maybe_func->IsJSFunction()) return;
-  JSFunction::cast(*maybe_func)->shared()->set_native(true);
-}
-
-inline void TrySetNativeAndLength(Handle<Object> maybe_func, int length) {
-  if (!maybe_func->IsJSFunction()) return;
-  SharedFunctionInfo shared = JSFunction::cast(*maybe_func)->shared();
-  shared->set_native(true);
-  if (length >= 0) {
-    shared->set_length(length);
-  }
-}
-
-}  // namespace
-
-RUNTIME_FUNCTION(Runtime_DefineMethodsInternal) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(3, args.length());
-  CHECK(isolate->bootstrapper()->IsActive());
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, target, 0);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, source_class, 1);
-  CONVERT_SMI_ARG_CHECKED(length, 2);
-
-  DCHECK(source_class->prototype()->IsJSObject());
-  Handle<JSObject> source(JSObject::cast(source_class->prototype()), isolate);
-
-  Handle<FixedArray> keys;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, keys,
-      KeyAccumulator::GetKeys(source, KeyCollectionMode::kOwnOnly,
-                              ALL_PROPERTIES,
-                              GetKeysConversion::kConvertToString));
-
-  for (int i = 0; i < keys->length(); ++i) {
-    Handle<Name> key = Handle<Name>::cast(FixedArray::get(*keys, i, isolate));
-    if (*key == ReadOnlyRoots(isolate).constructor_string()) continue;
-
-    PropertyDescriptor descriptor;
-    Maybe<bool> did_get_descriptor =
-        JSReceiver::GetOwnPropertyDescriptor(isolate, source, key, &descriptor);
-    CHECK(did_get_descriptor.FromJust());
-    if (descriptor.has_value()) {
-      TrySetNativeAndLength(descriptor.value(), length);
-    } else {
-      if (descriptor.has_get()) TrySetNative(descriptor.get());
-      if (descriptor.has_set()) TrySetNative(descriptor.set());
-    }
-
-    Maybe<bool> success = JSReceiver::DefineOwnProperty(
-        isolate, target, key, &descriptor, Just(kDontThrow));
-    CHECK(success.FromJust());
-  }
-  return ReadOnlyRoots(isolate).undefined_value();
-}
-
 RUNTIME_FUNCTION(Runtime_DefineSetterPropertyUnchecked) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());

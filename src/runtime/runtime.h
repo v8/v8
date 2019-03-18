@@ -292,7 +292,6 @@ namespace internal {
   F(DefineAccessorPropertyUnchecked, 5, 1)                      \
   F(DefineDataPropertyInLiteral, 6, 1)                          \
   F(DefineGetterPropertyUnchecked, 4, 1)                        \
-  F(DefineMethodsInternal, 3, 1)                                \
   F(DefineSetterPropertyUnchecked, 4, 1)                        \
   F(DeleteProperty, 3, 1)                                       \
   F(GetFunctionName, 1, 1)                                      \
