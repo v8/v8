@@ -72,6 +72,11 @@
 #define DEFINE_NEG_VALUE_IMPLICATION(whenflag, thenflag, value) \
   if (!FLAG_##whenflag) FLAG_##thenflag = value;
 
+// We apply a generic macro to the flags.
+#elif defined(FLAG_MODE_APPLY)
+
+#define FLAG_FULL FLAG_MODE_APPLY
+
 #else
 #error No mode supplied when including flags.defs
 #endif
@@ -114,6 +119,10 @@ struct MaybeBoolFlag {
   }
   bool has_value;
   bool value;
+
+  bool operator!=(const MaybeBoolFlag& other) const {
+    return has_value != other.has_value || value != other.value;
+  }
 };
 #endif
 
@@ -1558,5 +1567,6 @@ DEFINE_BOOL(lite_mode, V8_LITE_BOOL,
 #undef FLAG_MODE_DEFINE_DEFAULTS
 #undef FLAG_MODE_META
 #undef FLAG_MODE_DEFINE_IMPLICATIONS
+#undef FLAG_MODE_APPLY
 
 #undef COMMA

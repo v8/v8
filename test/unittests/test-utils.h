@@ -309,7 +309,9 @@ class SaveFlags {
   ~SaveFlags();
 
  private:
-  std::vector<const char*>* non_default_flags_;
+#define FLAG_MODE_APPLY(ftype, ctype, nam, def, cmt) ctype SAVED_##nam;
+#include "src/flag-definitions.h"  // NOLINT
+#undef FLAG_MODE_APPLY
 
   DISALLOW_COPY_AND_ASSIGN(SaveFlags);
 };
