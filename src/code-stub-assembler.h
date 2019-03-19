@@ -3323,11 +3323,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   typedef std::function<void(TNode<IntPtrT> descriptor_key_index)>
       ForEachDescriptorBodyFunction;
 
-  void DescriptorArrayForEach(VariableList& variable_list,
-                              TNode<Uint32T> start_descriptor,
-                              TNode<Uint32T> end_descriptor,
-                              const ForEachDescriptorBodyFunction& body);
-
   // Descriptor array accessors based on key_index, which is equal to
   // DescriptorArray::ToKeyIndex(descriptor).
   TNode<Name> LoadKeyByKeyIndex(TNode<DescriptorArray> container,
