@@ -2237,6 +2237,7 @@ wasm::WasmCompilationResult Pipeline::GenerateCodeForWasmNativeStub(
   result.protected_instructions = code_generator->GetProtectedInstructions();
   result.frame_slot_count = code_generator->frame()->GetTotalFrameSlotCount();
   result.tagged_parameter_slots = call_descriptor->GetTaggedParameterSlots();
+  result.result_tier = wasm::ExecutionTier::kOptimized;
 
   DCHECK(result.succeeded());
 
@@ -2484,6 +2485,7 @@ void Pipeline::GenerateCodeForWasmFunction(
   result->tagged_parameter_slots = call_descriptor->GetTaggedParameterSlots();
   result->source_positions = code_generator->GetSourcePositionTable();
   result->protected_instructions = code_generator->GetProtectedInstructions();
+  result->result_tier = wasm::ExecutionTier::kOptimized;
 
   if (data.info()->trace_turbo_json_enabled()) {
     TurboJsonFile json_of(data.info(), std::ios_base::app);

@@ -60,17 +60,15 @@ struct WasmCompilationResult {
   uint32_t tagged_parameter_slots = 0;
   OwnedVector<byte> source_positions;
   OwnedVector<trap_handler::ProtectedInstructionData> protected_instructions;
+  int func_index;
+  ExecutionTier requested_tier;
+  ExecutionTier result_tier;
 };
 
 class WasmCompilationUnit final {
  public:
   static ExecutionTier GetDefaultExecutionTier(const WasmModule*);
 
-  // If constructing from a background thread, pass in a Counters*, and ensure
-  // that the Counters live at least as long as this compilation unit (which
-  // typically means to hold a std::shared_ptr<Counters>).
-  // If used exclusively from a foreground thread, Isolate::counters() may be
-  // used by callers to pass Counters.
   WasmCompilationUnit(WasmEngine*, int index, ExecutionTier);
 
   ~WasmCompilationUnit();
@@ -79,10 +77,7 @@ class WasmCompilationUnit final {
       CompilationEnv*, const std::shared_ptr<WireBytesStorage>&, Counters*,
       WasmFeatures* detected);
 
-  WasmCode* Publish(WasmCompilationResult, NativeModule*);
-
-  ExecutionTier requested_tier() const { return requested_tier_; }
-  ExecutionTier executed_tier() const { return executed_tier_; }
+  ExecutionTier tier() const { return tier_; }
 
   static void CompileWasmFunction(Isolate*, NativeModule*,
                                   WasmFeatures* detected, const WasmFunction*,
@@ -95,8 +90,7 @@ class WasmCompilationUnit final {
 
   WasmEngine* const wasm_engine_;
   const int func_index_;
-  ExecutionTier requested_tier_;
-  ExecutionTier executed_tier_;
+  ExecutionTier tier_;
 
   // LiftoffCompilationUnit, set if {tier_ == kLiftoff}.
   std::unique_ptr<LiftoffCompilationUnit> liftoff_unit_;

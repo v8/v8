@@ -322,7 +322,7 @@ void CompileLazy(Isolate* isolate, NativeModule* native_module,
       &env, native_module->compilation_state()->GetWireBytesStorage(),
       isolate->counters(),
       Impl(native_module->compilation_state())->detected_features());
-  WasmCode* code = unit.Publish(std::move(result), native_module);
+  WasmCode* code = native_module->AddCompiledCode(std::move(result));
 
   // During lazy compilation, we should never get compilation errors. The module
   // was verified before starting execution with lazy compilation.
@@ -437,8 +437,8 @@ bool FetchAndExecuteCompilationUnit(CompilationEnv* env,
   WasmCompilationResult result = unit->ExecuteCompilation(
       env, compilation_state->GetWireBytesStorage(), counters, detected);
 
-  WasmCode* code = unit->Publish(std::move(result), native_module);
-  compilation_state->OnFinishedUnit(unit->requested_tier(), code);
+  WasmCode* code = native_module->AddCompiledCode(std::move(result));
+  compilation_state->OnFinishedUnit(result.requested_tier, code);
 
   return true;
 }
@@ -658,7 +658,7 @@ class BackgroundCompileTask : public CancelableTask {
         BackgroundCompileScope compile_scope(token_);
         if (compile_scope.cancelled()) return;
         WasmCode* code =
-            unit->Publish(std::move(result), compile_scope.native_module());
+            compile_scope.native_module()->AddCompiledCode(std::move(result));
         if (code == nullptr) {
           // Compile error.
           compile_scope.compilation_state()->OnBackgroundTaskStopped(
@@ -668,8 +668,8 @@ class BackgroundCompileTask : public CancelableTask {
         }
 
         // Successfully finished one unit.
-        compile_scope.compilation_state()->OnFinishedUnit(
-            unit->requested_tier(), code);
+        compile_scope.compilation_state()->OnFinishedUnit(result.requested_tier,
+                                                          code);
         if (deadline < MonotonicallyIncreasingTimeInMs()) {
           compile_scope.compilation_state()->ReportDetectedFeatures(
               detected_features);
@@ -1518,8 +1518,7 @@ void CompilationStateImpl::AddCompilationUnits(
 
     if (compile_mode_ == CompileMode::kTiering) {
       DCHECK_EQ(baseline_units.size(), tiering_units.size());
-      DCHECK_EQ(tiering_units.back()->requested_tier(),
-                ExecutionTier::kOptimized);
+      DCHECK_EQ(tiering_units.back()->tier(), ExecutionTier::kOptimized);
       tiering_compilation_units_.insert(
           tiering_compilation_units_.end(),
           std::make_move_iterator(tiering_units.begin()),

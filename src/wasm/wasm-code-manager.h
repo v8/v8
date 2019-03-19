@@ -32,6 +32,7 @@ namespace wasm {
 
 class NativeModule;
 class WasmCodeManager;
+struct WasmCompilationResult;
 class WasmEngine;
 class WasmMemoryTracker;
 class WasmImportWrapperCache;
@@ -365,6 +366,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // Sample the current code size of this modules to the given counters.
   enum CodeSamplingTime : int8_t { kAfterBaseline, kAfterTopTier, kSampling };
   void SampleCodeSize(Counters*, CodeSamplingTime) const;
+
+  WasmCode* AddCompiledCode(WasmCompilationResult);
 
  private:
   friend class WasmCode;

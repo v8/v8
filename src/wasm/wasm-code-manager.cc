@@ -1199,6 +1199,44 @@ void NativeModule::SampleCodeSize(
   histogram->AddSample(code_size_mb);
 }
 
+namespace {
+WasmCode::Tier GetCodeTierForExecutionTier(ExecutionTier tier) {
+  switch (tier) {
+    case ExecutionTier::kInterpreter:
+      return WasmCode::Tier::kOther;
+    case ExecutionTier::kBaseline:
+      return WasmCode::Tier::kLiftoff;
+    case ExecutionTier::kOptimized:
+      return WasmCode::Tier::kTurbofan;
+  }
+}
+
+WasmCode::Kind GetCodeKindForExecutionTier(ExecutionTier tier) {
+  switch (tier) {
+    case ExecutionTier::kInterpreter:
+      return WasmCode::Kind::kInterpreterEntry;
+    case ExecutionTier::kBaseline:
+    case ExecutionTier::kOptimized:
+      return WasmCode::Kind::kFunction;
+  }
+}
+}  // namespace
+
+WasmCode* NativeModule::AddCompiledCode(WasmCompilationResult result) {
+  if (!result.succeeded()) {
+    compilation_state_->SetError();
+    return nullptr;
+  }
+
+  DCHECK_EQ(result.code_desc.buffer, result.instr_buffer.get());
+  return AddCode(result.func_index, result.code_desc, result.frame_slot_count,
+                 result.tagged_parameter_slots,
+                 std::move(result.protected_instructions),
+                 std::move(result.source_positions),
+                 GetCodeKindForExecutionTier(result.result_tier),
+                 GetCodeTierForExecutionTier(result.result_tier));
+}
+
 void WasmCodeManager::FreeNativeModule(NativeModule* native_module) {
   base::MutexGuard lock(&native_modules_mutex_);
   TRACE_HEAP("Freeing NativeModule %p\n", native_module);
