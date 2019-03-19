@@ -651,11 +651,7 @@ std::ostream& operator<<(std::ostream& os,
   const InstructionSequence* code = printable_block.code_;
 
   os << "B" << block->rpo_number();
-  if (block->ao_number().IsValid()) {
-    os << ": AO#" << block->ao_number();
-  } else {
-    os << ": AO#?";
-  }
+  os << ": AO#" << block->ao_number();
   if (block->IsDeferred()) os << " (deferred)";
   if (!block->needs_frame()) os << " (no frame)";
   if (block->must_construct_frame()) os << " (construct frame)";
