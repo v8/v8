@@ -1192,6 +1192,7 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
     v8::Local<v8::String> string;
     if (!value->ToString(context).ToLocal(&string)) return;
 
+    auto enabled_features = i::wasm::WasmFeaturesFromIsolate(i_isolate);
     if (string->StringEquals(v8_str(isolate, "i32"))) {
       type = i::wasm::kWasmI32;
     } else if (string->StringEquals(v8_str(isolate, "f32"))) {
@@ -1200,9 +1201,11 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
       type = i::wasm::kWasmI64;
     } else if (string->StringEquals(v8_str(isolate, "f64"))) {
       type = i::wasm::kWasmF64;
-    } else if (string->StringEquals(v8_str(isolate, "anyref"))) {
+    } else if (enabled_features.anyref &&
+               string->StringEquals(v8_str(isolate, "anyref"))) {
       type = i::wasm::kWasmAnyRef;
-    } else if (string->StringEquals(v8_str(isolate, "anyfunc"))) {
+    } else if (enabled_features.anyref &&
+               string->StringEquals(v8_str(isolate, "anyfunc"))) {
       type = i::wasm::kWasmAnyFunc;
     } else {
       thrower.TypeError(
