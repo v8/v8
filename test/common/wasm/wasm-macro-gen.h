@@ -682,4 +682,19 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
 #define WASM_I64_SIGN_EXT_I16(x) x, kExprI64SExtendI16
 #define WASM_I64_SIGN_EXT_I32(x) x, kExprI64SExtendI32
 
+//------------------------------------------------------------------------------
+// Compilation Hints.
+//------------------------------------------------------------------------------
+#define COMPILE_STRATEGY_DEFAULT (0x00)
+#define COMPILE_STRATEGY_LAZY (0x01)
+#define COMPILE_STRATEGY_EAGER (0x02)
+#define FIRST_TIER_DEFAULT (0x00 << 2)
+#define FIRST_TIER_INTERPRETER (0x01 << 2)
+#define FIRST_TIER_BASELINE (0x02 << 2)
+#define FIRST_TIER_OPTIMIZED (0x03 << 2)
+#define SECOND_TIER_DEFAULT (0x00 << 4)
+#define SECOND_TIER_INTERPRETER (0x01 << 4)
+#define SECOND_TIER_BASELINE (0x02 << 4)
+#define SECOND_TIER_OPTIMIZED (0x03 << 4)
+
 #endif  // V8_WASM_MACRO_GEN_H_

@@ -74,6 +74,11 @@ struct CheckLEB1 : std::integral_constant<size_t, num> {
           ADD_COUNT('s', 'o', 'u', 'r', 'c', 'e', 'M', 'a', 'p', 'p', 'i', \
                     'n', 'g', 'U', 'R', 'L'),                              \
           ADD_COUNT(__VA_ARGS__))
+#define SECTION_COMPILATION_HINTS(...)                                     \
+  SECTION(Unknown,                                                         \
+          ADD_COUNT('c', 'o', 'm', 'p', 'i', 'l', 'a', 't', 'i', 'o', 'n', \
+                    'H', 'i', 'n', 't', 's'),                              \
+          ADD_COUNT(__VA_ARGS__))
 
 #define FAIL_IF_NO_EXPERIMENTAL_EH(data)                                 \
   do {                                                                   \
@@ -1307,6 +1312,42 @@ TEST_F(WasmModuleVerifyTest, MultipleTablesWithFlag) {
   EXPECT_EQ(kWasmAnyRef, result.value()->tables[1].type);
 }
 
+TEST_F(WasmModuleVerifyTest, TieringCompilationHints) {
+  WASM_FEATURE_SCOPE(compilation_hints);
+  static const byte data[] = {
+      SIGNATURES_SECTION(1, SIG_ENTRY_v_v),
+      FUNCTION_SIGNATURES_SECTION(3, 0, 0, 0),
+      SECTION_COMPILATION_HINTS(
+          FIRST_TIER_INTERPRETER | SECOND_TIER_BASELINE,
+          FIRST_TIER_BASELINE | SECOND_TIER_OPTIMIZED,
+          FIRST_TIER_INTERPRETER | SECOND_TIER_INTERPRETER),
+      SECTION(Code, ENTRY_COUNT(3), NOP_BODY, NOP_BODY, NOP_BODY),
+  };
+
+  ModuleResult result = DecodeModule(data, data + sizeof(data));
+  EXPECT_OK(result);
+
+  EXPECT_EQ(3u, result.value()->compilation_hints.size());
+  EXPECT_EQ(WasmCompilationHintStrategy::kDefault,
+            result.value()->compilation_hints[0].strategy);
+  EXPECT_EQ(WasmCompilationHintTier::kInterpreter,
+            result.value()->compilation_hints[0].first_tier);
+  EXPECT_EQ(WasmCompilationHintTier::kBaseline,
+            result.value()->compilation_hints[0].second_tier);
+  EXPECT_EQ(WasmCompilationHintStrategy::kDefault,
+            result.value()->compilation_hints[1].strategy);
+  EXPECT_EQ(WasmCompilationHintTier::kBaseline,
+            result.value()->compilation_hints[1].first_tier);
+  EXPECT_EQ(WasmCompilationHintTier::kOptimized,
+            result.value()->compilation_hints[1].second_tier);
+  EXPECT_EQ(WasmCompilationHintStrategy::kDefault,
+            result.value()->compilation_hints[2].strategy);
+  EXPECT_EQ(WasmCompilationHintTier::kInterpreter,
+            result.value()->compilation_hints[2].first_tier);
+  EXPECT_EQ(WasmCompilationHintTier::kInterpreter,
+            result.value()->compilation_hints[2].second_tier);
+}
+
 class WasmSignatureDecodeTest : public TestWithZone {
  public:
   WasmFeatures enabled_features_;
@@ -2414,6 +2455,7 @@ TEST_F(WasmModuleVerifyTest, DataCountSegmentCount_omitted) {
 #undef SECTION_NAMES
 #undef EMPTY_NAMES_SECTION
 #undef SECTION_SRC_MAP
+#undef SECTION_COMPILATION_HINTS
 #undef FAIL_IF_NO_EXPERIMENTAL_EH
 #undef X1
 #undef X2
