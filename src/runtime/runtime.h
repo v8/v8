@@ -174,8 +174,7 @@ namespace internal {
   F(FunctionGetScriptSourcePosition, 1, 1) \
   F(FunctionGetSourceCode, 1, 1)           \
   F(FunctionIsAPIFunction, 1, 1)           \
-  F(IsFunction, 1, 1)                      \
-  F(SetNativeFlag, 1, 1)
+  F(IsFunction, 1, 1)
 
 #define FOR_EACH_INTRINSIC_GENERATOR(F, I)    \
   I(AsyncFunctionAwaitCaught, 2, 1)           \
