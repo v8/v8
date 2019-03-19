@@ -1540,6 +1540,13 @@ Reduction JSCallReducer::ReduceArrayMap(Node* node,
       simplified()->LoadField(AccessBuilder::ForJSArrayLength(kind)), receiver,
       effect, control);
 
+  // If the array length >= kMaxFastArrayLength, then CreateArray
+  // will create a dictionary. We should deopt in this case, and make sure
+  // not to attempt inlining again.
+  original_length = effect = graph()->NewNode(
+      simplified()->CheckBounds(p.feedback()), original_length,
+      jsgraph()->Constant(JSArray::kMaxFastArrayLength), effect, control);
+
   // Even though {JSCreateArray} is not marked as {kNoThrow}, we can elide the
   // exceptional projections because it cannot throw with the given parameters.
   Node* a = control = effect = graph()->NewNode(
