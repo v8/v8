@@ -444,15 +444,21 @@ class PosixMemoryMappedFile final : public OS::MemoryMappedFile {
 
 
 // static
-OS::MemoryMappedFile* OS::MemoryMappedFile::open(const char* name) {
+OS::MemoryMappedFile* OS::MemoryMappedFile::open(const char* name,
+                                                 FileMode mode) {
   if (FILE* file = fopen(name, "r+")) {
     if (fseek(file, 0, SEEK_END) == 0) {
       long size = ftell(file);  // NOLINT(runtime/int)
       if (size == 0) return new PosixMemoryMappedFile(file, nullptr, 0);
       if (size > 0) {
+        int prot = PROT_READ;
+        int flags = MAP_PRIVATE;
+        if (mode == FileMode::kReadWrite) {
+          prot |= PROT_WRITE;
+          flags = MAP_SHARED;
+        }
         void* const memory =
-            mmap(OS::GetRandomMmapAddr(), size, PROT_READ | PROT_WRITE,
-                 MAP_SHARED, fileno(file), 0);
+            mmap(OS::GetRandomMmapAddr(), size, prot, flags, fileno(file), 0);
         if (memory != MAP_FAILED) {
           return new PosixMemoryMappedFile(file, memory, size);
         }
@@ -462,7 +468,6 @@ OS::MemoryMappedFile* OS::MemoryMappedFile::open(const char* name) {
   }
   return nullptr;
 }
-
 
 // static
 OS::MemoryMappedFile* OS::MemoryMappedFile::create(const char* name,

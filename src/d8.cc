@@ -2254,7 +2254,8 @@ void Shell::ReadBuffer(const v8::FunctionCallbackInfo<v8::Value>& args) {
 // Reads a file into a v8 string.
 Local<String> Shell::ReadFile(Isolate* isolate, const char* name) {
   std::unique_ptr<base::OS::MemoryMappedFile> file(
-      base::OS::MemoryMappedFile::open(name));
+      base::OS::MemoryMappedFile::open(
+          name, base::OS::MemoryMappedFile::FileMode::kReadOnly));
   if (!file) return Local<String>();
 
   int size = static_cast<int>(file->size());
