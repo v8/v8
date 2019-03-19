@@ -896,7 +896,8 @@ std::unique_ptr<icu::SimpleDateFormat> CreateICUDateFormat(
   // has to be discussed. Revisit once the spec is clarified/revised.
   icu::UnicodeString pattern;
   UErrorCode status = U_ZERO_ERROR;
-  pattern = generator.getBestPattern(skeleton, status);
+  pattern = generator.getBestPattern(skeleton, UDATPG_MATCH_HOUR_FIELD_LENGTH,
+                                     status);
   CHECK(U_SUCCESS(status));
 
   // Make formatter from skeleton. Calendar and numbering system are added
