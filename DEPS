@@ -38,7 +38,7 @@ deps = {
       }
     ],
     'dep_type': 'cipd',
-    'condition': 'checkout_linux',
+    'condition': 'host_os == "linux"',
   },
   'v8/buildtools/mac': {
     'packages': [
@@ -48,7 +48,7 @@ deps = {
       }
     ],
     'dep_type': 'cipd',
-    'condition': 'checkout_mac',
+    'condition': 'host_os == "mac"',
   },
   'v8/buildtools/third_party/libc++/trunk':
     Var('chromium_url') + '/chromium/llvm-project/libcxx.git' + '@' + 'a50f5035629b7621e92acef968403f71b7d48553',
@@ -64,7 +64,7 @@ deps = {
       }
     ],
     'dep_type': 'cipd',
-    'condition': 'checkout_win',
+    'condition': 'host_os == "win"',
   },
   'v8/base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '936ba8a963284a6b3737cf2f0474a7131073abee',
