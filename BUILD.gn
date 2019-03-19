@@ -3428,6 +3428,8 @@ v8_component("v8_libplatform") {
     "src/libplatform/default-platform.h",
     "src/libplatform/default-worker-threads-task-runner.cc",
     "src/libplatform/default-worker-threads-task-runner.h",
+    "src/libplatform/delayed-task-queue.cc",
+    "src/libplatform/delayed-task-queue.h",
     "src/libplatform/task-queue.cc",
     "src/libplatform/task-queue.h",
     "src/libplatform/tracing/trace-buffer.cc",
