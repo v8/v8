@@ -109,6 +109,8 @@ class StatsCounter;
     "copy_typed_array_elements_to_typed_array")                               \
   V(cpu_features, "cpu_features")                                             \
   V(delete_handle_scope_extensions, "HandleScope::DeleteExtensions")          \
+  V(ephemeron_key_write_barrier_function,                                     \
+    "Heap::EphemeronKeyWriteBarrierFromCode")                                 \
   V(f64_acos_wrapper_function, "f64_acos_wrapper")                            \
   V(f64_asin_wrapper_function, "f64_asin_wrapper")                            \
   V(f64_mod_wrapper_function, "f64_mod_wrapper")                              \

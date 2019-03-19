@@ -943,6 +943,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   // Store value to raw memory location.
   Node* Store(Node* base, Node* value);
   Node* Store(Node* base, Node* offset, Node* value);
+  Node* StoreEphemeronKey(Node* base, Node* offset, Node* value);
   Node* StoreNoWriteBarrier(MachineRepresentation rep, Node* base, Node* value);
   Node* StoreNoWriteBarrier(MachineRepresentation rep, Node* base, Node* offset,
                             Node* value);

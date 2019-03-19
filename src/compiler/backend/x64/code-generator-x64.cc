@@ -258,7 +258,9 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     SaveFPRegsMode const save_fp_mode =
         frame()->DidAllocateDoubleRegisters() ? kSaveFPRegs : kDontSaveFPRegs;
 
-    if (stub_mode_ == StubCallMode::kCallWasmRuntimeStub) {
+    if (mode_ == RecordWriteMode::kValueIsEphemeronKey) {
+      __ CallEphemeronKeyBarrier(object_, scratch1_, save_fp_mode);
+    } else if (stub_mode_ == StubCallMode::kCallWasmRuntimeStub) {
       // A direct call to a wasm runtime stub defined in this module.
       // Just encode the stub index. This will be patched when the code
       // is added to the native module and copied into wasm code space.

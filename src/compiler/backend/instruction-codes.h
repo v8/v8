@@ -35,7 +35,12 @@ namespace internal {
 namespace compiler {
 
 // Modes for ArchStoreWithWriteBarrier below.
-enum class RecordWriteMode { kValueIsMap, kValueIsPointer, kValueIsAny };
+enum class RecordWriteMode {
+  kValueIsMap,
+  kValueIsPointer,
+  kValueIsEphemeronKey,
+  kValueIsAny,
+};
 
 inline RecordWriteMode WriteBarrierKindToRecordWriteMode(
     WriteBarrierKind write_barrier_kind) {
@@ -44,6 +49,8 @@ inline RecordWriteMode WriteBarrierKindToRecordWriteMode(
       return RecordWriteMode::kValueIsMap;
     case kPointerWriteBarrier:
       return RecordWriteMode::kValueIsPointer;
+    case kEphemeronKeyWriteBarrier:
+      return RecordWriteMode::kValueIsEphemeronKey;
     case kFullWriteBarrier:
       return RecordWriteMode::kValueIsAny;
     case kNoWriteBarrier:

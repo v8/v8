@@ -3755,6 +3755,11 @@ class SlotVerifyingVisitor : public ObjectVisitor {
     }
   }
 
+ protected:
+  bool InUntypedSet(ObjectSlot slot) {
+    return untyped_->count(slot.address()) > 0;
+  }
+
  private:
   bool InTypedSet(SlotType type, Address slot) {
     return typed_->count(std::make_pair(type, slot)) > 0;
@@ -3766,8 +3771,10 @@ class SlotVerifyingVisitor : public ObjectVisitor {
 class OldToNewSlotVerifyingVisitor : public SlotVerifyingVisitor {
  public:
   OldToNewSlotVerifyingVisitor(std::set<Address>* untyped,
-                               std::set<std::pair<SlotType, Address>>* typed)
-      : SlotVerifyingVisitor(untyped, typed) {}
+                               std::set<std::pair<SlotType, Address>>* typed,
+                               EphemeronRememberedSet* ephemeron_remembered_set)
+      : SlotVerifyingVisitor(untyped, typed),
+        ephemeron_remembered_set_(ephemeron_remembered_set) {}
 
   bool ShouldHaveBeenRecorded(HeapObject host, MaybeObject target) override {
     DCHECK_IMPLIES(target->IsStrongOrWeak() && Heap::InYoungGeneration(target),
@@ -3775,6 +3782,30 @@ class OldToNewSlotVerifyingVisitor : public SlotVerifyingVisitor {
     return target->IsStrongOrWeak() && Heap::InYoungGeneration(target) &&
            !Heap::InYoungGeneration(host);
   }
+
+  void VisitEphemeron(HeapObject host, int index, ObjectSlot key,
+                      ObjectSlot target) override {
+    VisitPointer(host, target);
+    if (FLAG_minor_mc) {
+      VisitPointer(host, target);
+    } else {
+      // Keys are handled separately and should never appear in this set.
+      CHECK(!InUntypedSet(key));
+      Object k = *key;
+      if (!ObjectInYoungGeneration(host) && ObjectInYoungGeneration(k)) {
+        EphemeronHashTable table = EphemeronHashTable::cast(host);
+        auto it = ephemeron_remembered_set_->find(table);
+        CHECK(it != ephemeron_remembered_set_->end());
+        int slot_index =
+            EphemeronHashTable::SlotToIndex(table.address(), key.address());
+        int entry = EphemeronHashTable::IndexToEntry(slot_index);
+        CHECK(it->second.find(entry) != it->second.end());
+      }
+    }
+  }
+
+ private:
+  EphemeronRememberedSet* ephemeron_remembered_set_;
 };
 
 template <RememberedSetType direction>
@@ -3812,7 +3843,8 @@ void Heap::VerifyRememberedSetFor(HeapObject object) {
   if (!InYoungGeneration(object)) {
     store_buffer()->MoveAllEntriesToRememberedSet();
     CollectSlots<OLD_TO_NEW>(chunk, start, end, &old_to_new, &typed_old_to_new);
-    OldToNewSlotVerifyingVisitor visitor(&old_to_new, &typed_old_to_new);
+    OldToNewSlotVerifyingVisitor visitor(&old_to_new, &typed_old_to_new,
+                                         &this->ephemeron_remembered_set_);
     object->IterateBody(&visitor);
   }
   // TODO(ulan): Add old to old slot set verification once all weak objects
@@ -5789,6 +5821,27 @@ void Heap::GenerationalBarrierSlow(HeapObject object, Address slot,
                                    HeapObject value) {
   Heap* heap = Heap::FromWritableHeapObject(object);
   heap->store_buffer()->InsertEntry(slot);
+}
+
+void Heap::RecordEphemeronKeyWrite(EphemeronHashTable table, Address slot) {
+  DCHECK(ObjectInYoungGeneration(HeapObjectSlot(slot).ToHeapObject()));
+  int slot_index = EphemeronHashTable::SlotToIndex(table.address(), slot);
+  int entry = EphemeronHashTable::IndexToEntry(slot_index);
+  auto it =
+      ephemeron_remembered_set_.insert({table, std::unordered_set<int>()});
+  it.first->second.insert(entry);
+}
+
+void Heap::EphemeronKeyWriteBarrierFromCode(Address raw_object,
+                                            Address key_slot_address,
+                                            Isolate* isolate) {
+  EphemeronHashTable table = EphemeronHashTable::cast(Object(raw_object));
+  if (!ObjectInYoungGeneration(table)) {
+    isolate->heap()->RecordEphemeronKeyWrite(table, key_slot_address);
+  }
+  MaybeObjectSlot key_slot(key_slot_address);
+  isolate->heap()->incremental_marking()->RecordMaybeWeakWrite(table, key_slot,
+                                                               *key_slot);
 }
 
 void Heap::GenerationalBarrierForElementsSlow(Heap* heap, FixedArray array,

@@ -2781,7 +2781,8 @@ void CodeStubAssembler::StoreFixedArrayOrPropertyArrayElement(
       this, Word32Or(IsFixedArraySubclass(object), IsPropertyArray(object)));
   CSA_SLOW_ASSERT(this, MatchesParameterMode(index_node, parameter_mode));
   DCHECK(barrier_mode == SKIP_WRITE_BARRIER ||
-         barrier_mode == UPDATE_WRITE_BARRIER);
+         barrier_mode == UPDATE_WRITE_BARRIER ||
+         barrier_mode == UPDATE_EPHEMERON_KEY_WRITE_BARRIER);
   DCHECK(IsAligned(additional_offset, kTaggedSize));
   STATIC_ASSERT(static_cast<int>(FixedArray::kHeaderSize) ==
                 static_cast<int>(PropertyArray::kHeaderSize));
@@ -2814,6 +2815,8 @@ void CodeStubAssembler::StoreFixedArrayOrPropertyArrayElement(
           FixedArray::kHeaderSize));
   if (barrier_mode == SKIP_WRITE_BARRIER) {
     StoreNoWriteBarrier(MachineRepresentation::kTagged, object, offset, value);
+  } else if (barrier_mode == UPDATE_EPHEMERON_KEY_WRITE_BARRIER) {
+    StoreEphemeronKey(object, offset, value);
   } else {
     Store(object, offset, value);
   }

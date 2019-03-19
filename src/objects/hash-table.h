@@ -183,6 +183,16 @@ class HashTable : public HashTableBase {
     return (entry * kEntrySize) + kElementsStartIndex;
   }
 
+  // Returns the index for an entry (of the key)
+  static constexpr inline int IndexToEntry(int index) {
+    return (index - kElementsStartIndex) / kEntrySize;
+  }
+
+  // Returns the index for a slot address in the object.
+  static constexpr inline int SlotToIndex(Address object, Address slot) {
+    return static_cast<int>((slot - object - kHeaderSize) / kTaggedSize);
+  }
+
   // Ensure enough space for n additional elements.
   V8_WARN_UNUSED_RESULT static Handle<Derived> EnsureCapacity(
       Isolate* isolate, Handle<Derived> table, int n,
@@ -204,6 +214,9 @@ class HashTable : public HashTableBase {
   // Attempt to shrink hash table after removal of key.
   V8_WARN_UNUSED_RESULT static Handle<Derived> Shrink(
       Isolate* isolate, Handle<Derived> table, int additionalCapacity = 0);
+
+  inline void set_key(int index, Object value);
+  inline void set_key(int index, Object value, WriteBarrierMode mode);
 
  private:
   // Ensure that kMaxRegularCapacity yields a non-large object dictionary.
@@ -347,6 +360,10 @@ class EphemeronHashTable
  protected:
   friend class MarkCompactCollector;
   friend class ScavengerCollector;
+  friend class HashTable<EphemeronHashTable, EphemeronHashTableShape>;
+  friend class ObjectHashTableBase<EphemeronHashTable, EphemeronHashTableShape>;
+  inline void set_key(int index, Object value);
+  inline void set_key(int index, Object value, WriteBarrierMode mode);
 
   OBJECT_CONSTRUCTORS(
       EphemeronHashTable,

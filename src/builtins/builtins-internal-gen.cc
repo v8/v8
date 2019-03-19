@@ -449,6 +449,25 @@ TF_BUILTIN(RecordWrite, RecordWriteCodeStubAssembler) {
   Return(TrueConstant());
 }
 
+TF_BUILTIN(EphemeronKeyBarrier, RecordWriteCodeStubAssembler) {
+  Label exit(this);
+
+  Node* function = ExternalConstant(
+      ExternalReference::ephemeron_key_write_barrier_function());
+  Node* isolate_constant =
+      ExternalConstant(ExternalReference::isolate_address(isolate()));
+  Node* address = Parameter(Descriptor::kSlotAddress);
+  Node* object = BitcastTaggedToWord(Parameter(Descriptor::kObject));
+  Node* fp_mode = Parameter(Descriptor::kFPMode);
+  CallCFunction3WithCallerSavedRegistersMode(
+      MachineType::Int32(), MachineType::Pointer(), MachineType::Pointer(),
+      MachineType::Pointer(), function, object, address, isolate_constant,
+      fp_mode, &exit);
+
+  BIND(&exit);
+  Return(TrueConstant());
+}
+
 class DeletePropertyBaseAssembler : public AccessorAssembler {
  public:
   explicit DeletePropertyBaseAssembler(compiler::CodeAssemblerState* state)

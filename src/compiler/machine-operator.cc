@@ -535,61 +535,68 @@ struct MachineOperatorGlobalCache {
   STACK_SLOT_CACHED_SIZES_ALIGNMENTS_LIST(STACKSLOT)
 #undef STACKSLOT
 
-#define STORE(Type)                                                            \
-  struct Store##Type##Operator : public Operator1<StoreRepresentation> {       \
-    explicit Store##Type##Operator(WriteBarrierKind write_barrier_kind)        \
-        : Operator1<StoreRepresentation>(                                      \
-              IrOpcode::kStore,                                                \
-              Operator::kNoDeopt | Operator::kNoRead | Operator::kNoThrow,     \
-              "Store", 3, 1, 1, 0, 1, 0,                                       \
-              StoreRepresentation(MachineRepresentation::Type,                 \
-                                  write_barrier_kind)) {}                      \
-  };                                                                           \
-  struct Store##Type##NoWriteBarrier##Operator final                           \
-      : public Store##Type##Operator {                                         \
-    Store##Type##NoWriteBarrier##Operator()                                    \
-        : Store##Type##Operator(kNoWriteBarrier) {}                            \
-  };                                                                           \
-  struct Store##Type##MapWriteBarrier##Operator final                          \
-      : public Store##Type##Operator {                                         \
-    Store##Type##MapWriteBarrier##Operator()                                   \
-        : Store##Type##Operator(kMapWriteBarrier) {}                           \
-  };                                                                           \
-  struct Store##Type##PointerWriteBarrier##Operator final                      \
-      : public Store##Type##Operator {                                         \
-    Store##Type##PointerWriteBarrier##Operator()                               \
-        : Store##Type##Operator(kPointerWriteBarrier) {}                       \
-  };                                                                           \
-  struct Store##Type##FullWriteBarrier##Operator final                         \
-      : public Store##Type##Operator {                                         \
-    Store##Type##FullWriteBarrier##Operator()                                  \
-        : Store##Type##Operator(kFullWriteBarrier) {}                          \
-  };                                                                           \
-  struct UnalignedStore##Type##Operator final                                  \
-      : public Operator1<UnalignedStoreRepresentation> {                       \
-    UnalignedStore##Type##Operator()                                           \
-        : Operator1<UnalignedStoreRepresentation>(                             \
-              IrOpcode::kUnalignedStore,                                       \
-              Operator::kNoDeopt | Operator::kNoRead | Operator::kNoThrow,     \
-              "UnalignedStore", 3, 1, 1, 0, 1, 0,                              \
-              MachineRepresentation::Type) {}                                  \
-  };                                                                           \
-  struct ProtectedStore##Type##Operator                                        \
-      : public Operator1<StoreRepresentation> {                                \
-    explicit ProtectedStore##Type##Operator()                                  \
-        : Operator1<StoreRepresentation>(                                      \
-              IrOpcode::kProtectedStore,                                       \
-              Operator::kNoDeopt | Operator::kNoRead | Operator::kNoThrow,     \
-              "Store", 3, 1, 1, 0, 1, 0,                                       \
-              StoreRepresentation(MachineRepresentation::Type,                 \
-                                  kNoWriteBarrier)) {}                         \
-  };                                                                           \
-  Store##Type##NoWriteBarrier##Operator kStore##Type##NoWriteBarrier;          \
-  Store##Type##MapWriteBarrier##Operator kStore##Type##MapWriteBarrier;        \
-  Store##Type##PointerWriteBarrier##Operator                                   \
-      kStore##Type##PointerWriteBarrier;                                       \
-  Store##Type##FullWriteBarrier##Operator kStore##Type##FullWriteBarrier;      \
-  UnalignedStore##Type##Operator kUnalignedStore##Type;                        \
+#define STORE(Type)                                                        \
+  struct Store##Type##Operator : public Operator1<StoreRepresentation> {   \
+    explicit Store##Type##Operator(WriteBarrierKind write_barrier_kind)    \
+        : Operator1<StoreRepresentation>(                                  \
+              IrOpcode::kStore,                                            \
+              Operator::kNoDeopt | Operator::kNoRead | Operator::kNoThrow, \
+              "Store", 3, 1, 1, 0, 1, 0,                                   \
+              StoreRepresentation(MachineRepresentation::Type,             \
+                                  write_barrier_kind)) {}                  \
+  };                                                                       \
+  struct Store##Type##NoWriteBarrier##Operator final                       \
+      : public Store##Type##Operator {                                     \
+    Store##Type##NoWriteBarrier##Operator()                                \
+        : Store##Type##Operator(kNoWriteBarrier) {}                        \
+  };                                                                       \
+  struct Store##Type##MapWriteBarrier##Operator final                      \
+      : public Store##Type##Operator {                                     \
+    Store##Type##MapWriteBarrier##Operator()                               \
+        : Store##Type##Operator(kMapWriteBarrier) {}                       \
+  };                                                                       \
+  struct Store##Type##PointerWriteBarrier##Operator final                  \
+      : public Store##Type##Operator {                                     \
+    Store##Type##PointerWriteBarrier##Operator()                           \
+        : Store##Type##Operator(kPointerWriteBarrier) {}                   \
+  };                                                                       \
+  struct Store##Type##EphemeronKeyWriteBarrier##Operator final             \
+      : public Store##Type##Operator {                                     \
+    Store##Type##EphemeronKeyWriteBarrier##Operator()                      \
+        : Store##Type##Operator(kEphemeronKeyWriteBarrier) {}              \
+  };                                                                       \
+  struct Store##Type##FullWriteBarrier##Operator final                     \
+      : public Store##Type##Operator {                                     \
+    Store##Type##FullWriteBarrier##Operator()                              \
+        : Store##Type##Operator(kFullWriteBarrier) {}                      \
+  };                                                                       \
+  struct UnalignedStore##Type##Operator final                              \
+      : public Operator1<UnalignedStoreRepresentation> {                   \
+    UnalignedStore##Type##Operator()                                       \
+        : Operator1<UnalignedStoreRepresentation>(                         \
+              IrOpcode::kUnalignedStore,                                   \
+              Operator::kNoDeopt | Operator::kNoRead | Operator::kNoThrow, \
+              "UnalignedStore", 3, 1, 1, 0, 1, 0,                          \
+              MachineRepresentation::Type) {}                              \
+  };                                                                       \
+  struct ProtectedStore##Type##Operator                                    \
+      : public Operator1<StoreRepresentation> {                            \
+    explicit ProtectedStore##Type##Operator()                              \
+        : Operator1<StoreRepresentation>(                                  \
+              IrOpcode::kProtectedStore,                                   \
+              Operator::kNoDeopt | Operator::kNoRead | Operator::kNoThrow, \
+              "Store", 3, 1, 1, 0, 1, 0,                                   \
+              StoreRepresentation(MachineRepresentation::Type,             \
+                                  kNoWriteBarrier)) {}                     \
+  };                                                                       \
+  Store##Type##NoWriteBarrier##Operator kStore##Type##NoWriteBarrier;      \
+  Store##Type##MapWriteBarrier##Operator kStore##Type##MapWriteBarrier;    \
+  Store##Type##PointerWriteBarrier##Operator                               \
+      kStore##Type##PointerWriteBarrier;                                   \
+  Store##Type##EphemeronKeyWriteBarrier##Operator                          \
+      kStore##Type##EphemeronKeyWriteBarrier;                              \
+  Store##Type##FullWriteBarrier##Operator kStore##Type##FullWriteBarrier;  \
+  UnalignedStore##Type##Operator kUnalignedStore##Type;                    \
   ProtectedStore##Type##Operator kProtectedStore##Type;
   MACHINE_REPRESENTATION_LIST(STORE)
 #undef STORE
@@ -933,18 +940,20 @@ const Operator* MachineOperatorBuilder::StackSlot(MachineRepresentation rep,
 
 const Operator* MachineOperatorBuilder::Store(StoreRepresentation store_rep) {
   switch (store_rep.representation()) {
-#define STORE(kRep)                                         \
-  case MachineRepresentation::kRep:                         \
-    switch (store_rep.write_barrier_kind()) {               \
-      case kNoWriteBarrier:                                 \
-        return &cache_.k##Store##kRep##NoWriteBarrier;      \
-      case kMapWriteBarrier:                                \
-        return &cache_.k##Store##kRep##MapWriteBarrier;     \
-      case kPointerWriteBarrier:                            \
-        return &cache_.k##Store##kRep##PointerWriteBarrier; \
-      case kFullWriteBarrier:                               \
-        return &cache_.k##Store##kRep##FullWriteBarrier;    \
-    }                                                       \
+#define STORE(kRep)                                              \
+  case MachineRepresentation::kRep:                              \
+    switch (store_rep.write_barrier_kind()) {                    \
+      case kNoWriteBarrier:                                      \
+        return &cache_.k##Store##kRep##NoWriteBarrier;           \
+      case kMapWriteBarrier:                                     \
+        return &cache_.k##Store##kRep##MapWriteBarrier;          \
+      case kPointerWriteBarrier:                                 \
+        return &cache_.k##Store##kRep##PointerWriteBarrier;      \
+      case kEphemeronKeyWriteBarrier:                            \
+        return &cache_.k##Store##kRep##EphemeronKeyWriteBarrier; \
+      case kFullWriteBarrier:                                    \
+        return &cache_.k##Store##kRep##FullWriteBarrier;         \
+    }                                                            \
     break;
     MACHINE_REPRESENTATION_LIST(STORE)
 #undef STORE
