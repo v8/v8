@@ -76,8 +76,7 @@ void BodyDescriptorBase::IterateJSObjectBodyImpl(Map map, HeapObject obj,
   int inobject_fields_offset = map->GetInObjectPropertyOffset(0);
   // We are always requested to process header and embedder fields.
   DCHECK_LE(inobject_fields_offset, end_offset);
-  // Embedder fields are located between header rouned up to the system pointer
-  // size and inobject properties.
+  // Embedder fields are located between header and inobject properties.
   if (header_size < inobject_fields_offset) {
     // There are embedder fields.
     IteratePointers(obj, start_offset, header_size, v);

@@ -54,7 +54,11 @@ SYNCHRONIZED_ACCESSORS_CHECKED(Map, layout_descriptor, LayoutDescriptor,
 WEAK_ACCESSORS(Map, raw_transitions, kTransitionsOrPrototypeInfoOffset)
 
 // |bit_field| fields.
-BIT_FIELD_ACCESSORS(Map, bit_field, has_non_instance_prototype,
+// Concurrent access to |has_prototype_slot| and |has_non_instance_prototype|
+// is explicitly whitelisted here. The former is never modified after the map
+// is setup but it's being read by concurrent marker when pointer compression
+// is enabled. The latter bit can be modified on a live objects.
+BIT_FIELD_ACCESSORS(Map, relaxed_bit_field, has_non_instance_prototype,
                     Map::HasNonInstancePrototypeBit)
 BIT_FIELD_ACCESSORS(Map, bit_field, is_callable, Map::IsCallableBit)
 BIT_FIELD_ACCESSORS(Map, bit_field, has_named_interceptor,
@@ -65,7 +69,7 @@ BIT_FIELD_ACCESSORS(Map, bit_field, is_undetectable, Map::IsUndetectableBit)
 BIT_FIELD_ACCESSORS(Map, bit_field, is_access_check_needed,
                     Map::IsAccessCheckNeededBit)
 BIT_FIELD_ACCESSORS(Map, bit_field, is_constructor, Map::IsConstructorBit)
-BIT_FIELD_ACCESSORS(Map, bit_field, has_prototype_slot,
+BIT_FIELD_ACCESSORS(Map, relaxed_bit_field, has_prototype_slot,
                     Map::HasPrototypeSlotBit)
 
 // |bit_field2| fields.
@@ -420,6 +424,14 @@ byte Map::bit_field() const { return READ_BYTE_FIELD(*this, kBitFieldOffset); }
 
 void Map::set_bit_field(byte value) {
   WRITE_BYTE_FIELD(*this, kBitFieldOffset, value);
+}
+
+byte Map::relaxed_bit_field() const {
+  return RELAXED_READ_BYTE_FIELD(*this, kBitFieldOffset);
+}
+
+void Map::set_relaxed_bit_field(byte value) {
+  RELAXED_WRITE_BYTE_FIELD(*this, kBitFieldOffset, value);
 }
 
 byte Map::bit_field2() const {

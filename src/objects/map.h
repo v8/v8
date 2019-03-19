@@ -240,6 +240,8 @@ class Map : public HeapObject {
   // Bit field.
   //
   DECL_PRIMITIVE_ACCESSORS(bit_field, byte)
+  // Atomic accessors, used for whitelisting legitimate concurrent accesses.
+  DECL_PRIMITIVE_ACCESSORS(relaxed_bit_field, byte)
 
 // Bit positions for |bit_field|.
 #define MAP_BIT_FIELD_FIELDS(V, _)          \
