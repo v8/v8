@@ -164,7 +164,7 @@ double WasmGlobalObject::GetF64() {
 }
 
 Handle<Object> WasmGlobalObject::GetRef() {
-  // We use this getter also for anyfunc.
+  // We use this getter for anyref, anyfunc, and except_ref.
   DCHECK(wasm::ValueTypes::IsReferenceType(type()));
   return handle(tagged_buffer()->get(offset()), GetIsolate());
 }
@@ -186,7 +186,8 @@ void WasmGlobalObject::SetF64(double value) {
 }
 
 void WasmGlobalObject::SetAnyRef(Handle<Object> value) {
-  DCHECK_EQ(type(), wasm::kWasmAnyRef);
+  // We use this getter anyref and except_ref.
+  DCHECK(type() == wasm::kWasmAnyRef || type() == wasm::kWasmExceptRef);
   tagged_buffer()->set(offset(), *value);
 }
 

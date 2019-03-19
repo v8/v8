@@ -1313,7 +1313,7 @@ void WebAssemblyException(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   HandleScope scope(isolate);
-  ScheduledErrorThrower thrower(i_isolate, "WebAssembly.Excepion()");
+  ScheduledErrorThrower thrower(i_isolate, "WebAssembly.Exception()");
   thrower.TypeError("WebAssembly.Exception cannot be called");
 }
 
@@ -1657,6 +1657,7 @@ void WebAssemblyGlobalGetValueCommon(
       break;
     case i::wasm::kWasmAnyRef:
     case i::wasm::kWasmAnyFunc:
+    case i::wasm::kWasmExceptRef:
       return_value.Set(Utils::ToLocal(receiver->GetRef()));
       break;
     default:
@@ -1724,7 +1725,8 @@ void WebAssemblyGlobalSetValue(
       receiver->SetF64(f64_value);
       break;
     }
-    case i::wasm::kWasmAnyRef: {
+    case i::wasm::kWasmAnyRef:
+    case i::wasm::kWasmExceptRef: {
       receiver->SetAnyRef(Utils::OpenHandle(*args[0]));
       break;
     }

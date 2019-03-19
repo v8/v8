@@ -5042,8 +5042,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
   Node* FromJS(Node* node, Node* js_context, wasm::ValueType type) {
     DCHECK_NE(wasm::kWasmStmt, type);
 
-    // The parameter is of type AnyRef, we take it as is.
-    if (type == wasm::kWasmAnyRef) {
+    // The parameter is of type anyref or except_ref, we take it as is.
+    if (type == wasm::kWasmAnyRef || type == wasm::kWasmExceptRef) {
       return node;
     }
 

@@ -153,6 +153,7 @@ let kSig_a_a = makeSig([kWasmAnyFunc], [kWasmAnyFunc]);
 let kSig_i_r = makeSig([kWasmAnyRef], [kWasmI32]);
 let kSig_v_r = makeSig([kWasmAnyRef], []);
 let kSig_v_a = makeSig([kWasmAnyFunc], []);
+let kSig_v_e = makeSig([kWasmExceptRef], []);
 let kSig_v_rr = makeSig([kWasmAnyRef, kWasmAnyRef], []);
 let kSig_v_aa = makeSig([kWasmAnyFunc, kWasmAnyFunc], []);
 let kSig_r_v = makeSig([], [kWasmAnyRef]);
