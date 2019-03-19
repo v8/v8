@@ -527,6 +527,25 @@ extern class DataHandler extends Struct {
   weak data_3: Object;
 }
 
+extern class JSGeneratorObject extends JSObject {
+  function: JSFunction;
+  context: Context;
+  receiver: Object;
+  input_or_debug_pos: Object;
+  resume_mode: Smi;
+  continuation: Smi;
+  parameters_and_registers: FixedArray;
+}
+
+extern class JSAsyncFunctionObject extends JSGeneratorObject {
+  promise: JSPromise;
+}
+
+extern class JSAsyncGeneratorObject extends JSGeneratorObject {
+  queue: HeapObject;
+  is_awaiting: Smi;
+}
+
 extern class JSPromise extends JSObject {
   reactions_or_result: Object;
   flags: Smi;
