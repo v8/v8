@@ -446,7 +446,8 @@ class PosixMemoryMappedFile final : public OS::MemoryMappedFile {
 // static
 OS::MemoryMappedFile* OS::MemoryMappedFile::open(const char* name,
                                                  FileMode mode) {
-  if (FILE* file = fopen(name, "r+")) {
+  const char* fopen_mode = (mode == FileMode::kReadOnly) ? "r" : "r+";
+  if (FILE* file = fopen(name, fopen_mode)) {
     if (fseek(file, 0, SEEK_END) == 0) {
       long size = ftell(file);  // NOLINT(runtime/int)
       if (size == 0) return new PosixMemoryMappedFile(file, nullptr, 0);
