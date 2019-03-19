@@ -182,7 +182,12 @@ class V8_EXPORT_PRIVATE ValueTypes {
     return (expected == actual) ||
            (expected == kWasmAnyRef && actual == kWasmNullRef) ||
            (expected == kWasmAnyRef && actual == kWasmAnyFunc) ||
-           (expected == kWasmAnyFunc && actual == kWasmNullRef);
+           (expected == kWasmAnyRef && actual == kWasmExceptRef) ||
+           (expected == kWasmAnyFunc && actual == kWasmNullRef) ||
+           // TODO(mstarzinger): For now we treat "null_ref" as a sub-type of
+           // "except_ref", which is correct but might change. See here:
+           // https://github.com/WebAssembly/exception-handling/issues/55
+           (expected == kWasmExceptRef && actual == kWasmNullRef);
   }
 
   static inline bool IsReferenceType(ValueType type) {
@@ -190,7 +195,8 @@ class V8_EXPORT_PRIVATE ValueTypes {
     // {kWasmNullRef}. If this assumption is wrong, it should be added to the
     // result calculation below.
     DCHECK_NE(type, kWasmNullRef);
-    return type == kWasmAnyRef || type == kWasmAnyFunc;
+    return type == kWasmAnyRef || type == kWasmAnyFunc ||
+           type == kWasmExceptRef;
   }
 
   static byte MemSize(MachineType type) {

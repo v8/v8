@@ -1194,7 +1194,7 @@ void InstanceBuilder::InitGlobals() {
                                        global.init.val.f64_const);
         break;
       case WasmInitExpr::kRefNullConst:
-        DCHECK(enabled_.anyref);
+        DCHECK(enabled_.anyref || enabled_.eh);
         if (global.imported) break;  // We already initialized imported globals.
 
         tagged_globals_->set(global.offset,

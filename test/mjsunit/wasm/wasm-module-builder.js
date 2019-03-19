@@ -158,6 +158,7 @@ let kSig_v_aa = makeSig([kWasmAnyFunc, kWasmAnyFunc], []);
 let kSig_r_v = makeSig([], [kWasmAnyRef]);
 let kSig_a_v = makeSig([], [kWasmAnyFunc]);
 let kSig_a_i = makeSig([kWasmI32], [kWasmAnyFunc]);
+let kSig_e_v = makeSig([], [kWasmExceptRef]);
 
 function makeSig(params, results) {
   return {params: params, results: results};
@@ -1078,6 +1079,7 @@ class WasmModuleBuilder {
               break;
             case kWasmAnyRef:
             case kWasmAnyFunc:
+            case kWasmExceptRef:
               section.emit_u8(kExprRefNull);
               break;
             }

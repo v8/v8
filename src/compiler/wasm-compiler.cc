@@ -4988,6 +4988,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         return BuildChangeFloat64ToTagged(node);
       case wasm::kWasmAnyRef:
       case wasm::kWasmAnyFunc:
+      case wasm::kWasmExceptRef:
         return node;
       default:
         UNREACHABLE();

@@ -1533,7 +1533,7 @@ class ModuleDecoderImpl : public Decoder {
         break;
       }
       case kExprRefNull: {
-        if (enabled_features_.anyref) {
+        if (enabled_features_.anyref || enabled_features_.eh) {
           expr.kind = WasmInitExpr::kRefNullConst;
           len = 0;
           break;
@@ -1589,6 +1589,9 @@ class ModuleDecoderImpl : public Decoder {
               break;
             case kLocalAnyRef:
               if (enabled_features_.anyref) return kWasmAnyRef;
+              break;
+            case kLocalExceptRef:
+              if (enabled_features_.eh) return kWasmExceptRef;
               break;
             default:
               break;
