@@ -2973,13 +2973,13 @@ class TypedElementsAccessor
     DisallowHeapAllocation no_gc;
     BackingStore elements = BackingStore::cast(receiver->elements());
     ctype* data = static_cast<ctype*>(elements->DataPtr());
-#ifdef V8_COMPRESS_POINTERS
-    // TODO(ishell, v8:8875): See UnalignedSlot<T> for details.
-    std::fill(UnalignedSlot<ctype>(data + start),
-              UnalignedSlot<ctype>(data + end), value);
-#else
-    std::fill(data + start, data + end, value);
-#endif
+    if (COMPRESS_POINTERS_BOOL && alignof(ctype) > kTaggedSize) {
+      // TODO(ishell, v8:8875): See UnalignedSlot<T> for details.
+      std::fill(UnalignedSlot<ctype>(data + start),
+                UnalignedSlot<ctype>(data + end), value);
+    } else {
+      std::fill(data + start, data + end, value);
+    }
     return *array;
   }
 
@@ -3152,12 +3152,13 @@ class TypedElementsAccessor
     if (len == 0) return;
 
     ctype* data = static_cast<ctype*>(elements->DataPtr());
-#ifdef V8_COMPRESS_POINTERS
-    // TODO(ishell, v8:8875): See UnalignedSlot<T> for details.
-    std::reverse(UnalignedSlot<ctype>(data), UnalignedSlot<ctype>(data + len));
-#else
-    std::reverse(data, data + len);
-#endif
+    if (COMPRESS_POINTERS_BOOL && alignof(ctype) > kTaggedSize) {
+      // TODO(ishell, v8:8875): See UnalignedSlot<T> for details.
+      std::reverse(UnalignedSlot<ctype>(data),
+                   UnalignedSlot<ctype>(data + len));
+    } else {
+      std::reverse(data, data + len);
+    }
   }
 
   static Handle<FixedArray> CreateListFromArrayLikeImpl(Isolate* isolate,
