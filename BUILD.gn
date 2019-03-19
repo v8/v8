@@ -3581,6 +3581,8 @@ if (v8_use_snapshot && current_toolchain == v8_snapshot_toolchain) {
 
     if (target_os == "fuchsia") {
       defines = [ "V8_TARGET_OS_FUCHSIA" ]
+    } else if (target_os == "win") {
+      defines = [ "V8_TARGET_OS_WIN" ]
     }
   }
 }

@@ -41,7 +41,7 @@ namespace internal {
 
 // Name mangling.
 // Symbols are prefixed with an underscore on 32-bit architectures.
-#if defined(V8_OS_WIN) && !defined(V8_TARGET_ARCH_X64) && \
+#if defined(V8_TARGET_OS_WIN) && !defined(V8_TARGET_ARCH_X64) && \
     !defined(V8_TARGET_ARCH_ARM64)
 #define SYMBOL_PREFIX "_"
 #else
@@ -65,7 +65,7 @@ DataDirective PointerSizeDirective() {
 }  // namespace
 
 const char* DirectiveAsString(DataDirective directive) {
-#if defined(V8_OS_WIN) && defined(V8_ASSEMBLER_IS_MASM)
+#if defined(V8_TARGET_OS_WIN) && defined(V8_ASSEMBLER_IS_MASM)
   switch (directive) {
     case kByte:
       return "BYTE";
@@ -76,7 +76,7 @@ const char* DirectiveAsString(DataDirective directive) {
     default:
       UNREACHABLE();
   }
-#elif defined(V8_OS_WIN) && defined(V8_ASSEMBLER_IS_MARMASM)
+#elif defined(V8_TARGET_OS_WIN) && defined(V8_ASSEMBLER_IS_MARMASM)
   switch (directive) {
     case kByte:
       return "DCB";
@@ -432,10 +432,10 @@ int PlatformDependentEmbeddedFileWriter::IndentedDataDirective(
   return fprintf(fp_, "  %s ", DirectiveAsString(directive));
 }
 
-// V8_OS_WIN (MSVC)
+// V8_TARGET_OS_WIN (MSVC)
 // -----------------------------------------------------------------------------
 
-#elif defined(V8_OS_WIN) && defined(V8_ASSEMBLER_IS_MASM)
+#elif defined(V8_TARGET_OS_WIN) && defined(V8_ASSEMBLER_IS_MASM)
 
 // For MSVC builds we emit assembly in MASM syntax.
 // See https://docs.microsoft.com/en-us/cpp/assembler/masm/directives-reference.
@@ -566,7 +566,7 @@ int PlatformDependentEmbeddedFileWriter::IndentedDataDirective(
 
 #undef V8_ASSEMBLER_IS_MASM
 
-#elif defined(V8_OS_WIN) && defined(V8_ASSEMBLER_IS_MARMASM)
+#elif defined(V8_TARGET_OS_WIN) && defined(V8_ASSEMBLER_IS_MARMASM)
 
 // The the AARCH64 ABI requires instructions be 4-byte-aligned and Windows does
 // not have a stricter alignment requirement (see the TEXTAREA macro of
@@ -692,7 +692,7 @@ void PlatformDependentEmbeddedFileWriter::SectionData() {
 }
 
 void PlatformDependentEmbeddedFileWriter::SectionRoData() {
-#if defined(V8_OS_WIN)
+#if defined(V8_TARGET_OS_WIN)
   fprintf(fp_, ".section .rdata\n");
 #else
   fprintf(fp_, ".section .rodata\n");
@@ -779,7 +779,7 @@ void PlatformDependentEmbeddedFileWriter::DeclareFunctionBegin(
     const char* name) {
   DeclareLabel(name);
 
-#if defined(V8_OS_WIN)
+#if defined(V8_TARGET_OS_WIN)
 #if defined(V8_TARGET_ARCH_ARM64)
   // Windows ARM64 assembly is in GAS syntax, but ".type" is invalid directive
   // in PE/COFF for Windows.
