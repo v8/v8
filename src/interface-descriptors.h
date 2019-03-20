@@ -28,7 +28,7 @@ namespace internal {
   V(ArraySingleArgumentConstructor)   \
   V(AsyncFunctionStackParameter)      \
   V(BigIntToI64)                      \
-  V(BigIntToWasmI64)                  \
+  V(I64ToBigInt)                      \
   V(BinaryOp)                         \
   V(CallForwardVarargs)               \
   V(CallFunctionTemplate)             \
@@ -1183,11 +1183,11 @@ class WasmThrowDescriptor final : public CallInterfaceDescriptor {
   DECLARE_DESCRIPTOR(WasmThrowDescriptor, CallInterfaceDescriptor)
 };
 
-class BigIntToWasmI64Descriptor final : public CallInterfaceDescriptor {
+class I64ToBigIntDescriptor final : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS_NO_CONTEXT(kArgument)
   DEFINE_PARAMETER_TYPES(MachineType::Int64())  // kArgument
-  DECLARE_DESCRIPTOR(BigIntToWasmI64Descriptor, CallInterfaceDescriptor)
+  DECLARE_DESCRIPTOR(I64ToBigIntDescriptor, CallInterfaceDescriptor)
 };
 
 class BigIntToI64Descriptor final : public CallInterfaceDescriptor {

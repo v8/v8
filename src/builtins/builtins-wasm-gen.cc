@@ -278,7 +278,7 @@ TF_BUILTIN(WasmTableSet, WasmBuiltinsAssembler) {
                             SmiConstant(static_cast<int>(message_id)));
 }
 
-TF_BUILTIN(BigIntToWasmI64, WasmBuiltinsAssembler) {
+TF_BUILTIN(WasmI64ToBigInt, WasmBuiltinsAssembler) {
   if (!Is64()) {
     Unreachable();
     return;
@@ -288,8 +288,7 @@ TF_BUILTIN(BigIntToWasmI64, WasmBuiltinsAssembler) {
   TNode<IntPtrT> argument =
       UncheckedCast<IntPtrT>(Parameter(Descriptor::kArgument));
 
-  TailCallStub(BigIntToWasmI64Descriptor(), target, NoContextConstant(),
-               argument);
+  TailCallStub(I64ToBigIntDescriptor(), target, NoContextConstant(), argument);
 }
 
 TF_BUILTIN(WasmBigIntToI64, WasmBuiltinsAssembler) {

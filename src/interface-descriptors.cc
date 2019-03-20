@@ -407,7 +407,7 @@ void RunMicrotasksDescriptor::InitializePlatformSpecific(
   DefaultInitializePlatformSpecific(data, kParameterCount);
 }
 
-void BigIntToWasmI64Descriptor::InitializePlatformSpecific(
+void I64ToBigIntDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   DefaultInitializePlatformSpecific(data, kParameterCount);
 }

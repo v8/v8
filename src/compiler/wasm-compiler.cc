@@ -5057,7 +5057,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
   }
 
   Node* BuildChangeInt64ToBigInt(Node* input) {
-    BigIntToWasmI64Descriptor interface_descriptor;
+    I64ToBigIntDescriptor interface_descriptor;
 
     auto call_descriptor = Linkage::GetStubCallDescriptor(
         mcgraph()->zone(),                              // zone
@@ -5070,7 +5070,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     Node* target =
         (stub_mode_ == StubCallMode::kCallWasmRuntimeStub)
             ? mcgraph()->RelocatableIntPtrConstant(
-                  wasm::WasmCode::kBigIntToWasmI64, RelocInfo::WASM_STUB_CALL)
+                  wasm::WasmCode::kWasmI64ToBigInt, RelocInfo::WASM_STUB_CALL)
             : jsgraph()->HeapConstant(BUILTIN_CODE(isolate_, I64ToBigInt));
 
     return SetEffect(
