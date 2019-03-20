@@ -407,8 +407,7 @@ class MemoryChunk {
   static const int kPageSize = 1 << kPageSizeBits;
 
   // Maximum number of nested code memory modification scopes.
-  // TODO(6792,mstarzinger): Drop to 3 or lower once WebAssembly is off heap.
-  static const int kMaxWriteUnprotectCounter = 4;
+  static const int kMaxWriteUnprotectCounter = 3;
 
   static Address BaseAddress(Address a) { return a & ~kAlignmentMask; }
 
