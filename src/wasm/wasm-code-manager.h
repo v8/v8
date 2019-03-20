@@ -245,6 +245,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // the code table and patching the jump table. It returns a raw pointer to the
   // given {WasmCode} object.
   WasmCode* PublishCode(std::unique_ptr<WasmCode>);
+  // Hold the {allocation_mutex_} when calling {PublishCodeLocked}.
+  WasmCode* PublishCodeLocked(std::unique_ptr<WasmCode>);
 
   WasmCode* AddDeserializedCode(
       uint32_t index, Vector<const byte> instructions, uint32_t stack_slots,
@@ -367,6 +369,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   void SampleCodeSize(Counters*, CodeSamplingTime) const;
 
   WasmCode* AddCompiledCode(WasmCompilationResult);
+  std::vector<WasmCode*> AddCompiledCode(Vector<WasmCompilationResult>);
 
  private:
   friend class WasmCode;
@@ -379,6 +382,14 @@ class V8_EXPORT_PRIVATE NativeModule final {
                std::shared_ptr<const WasmModule> module,
                std::shared_ptr<Counters> async_counters,
                std::shared_ptr<NativeModule>* shared_this);
+
+  std::unique_ptr<WasmCode> AddCodeWithCodeSpace(
+      uint32_t index, const CodeDesc& desc, uint32_t stack_slots,
+      uint32_t tagged_parameter_slots,
+      OwnedVector<trap_handler::ProtectedInstructionData>
+          protected_instructions,
+      OwnedVector<const byte> source_position_table, WasmCode::Kind kind,
+      WasmCode::Tier tier, Vector<uint8_t> code_space);
 
   // Add and publish anonymous code.
   WasmCode* AddAndPublishAnonymousCode(Handle<Code>, WasmCode::Kind kind,

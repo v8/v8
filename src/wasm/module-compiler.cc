@@ -695,18 +695,46 @@ class BackgroundCompileTask : public CancelableTask {
       }
     }
 
+    std::vector<WasmCompilationResult> results_to_publish;
+
+    auto publish_results =
+        [&results_to_publish](BackgroundCompileScope* compile_scope) {
+          if (results_to_publish.empty()) return;
+          // TODO(clemensh): Refactor {OnFinishedUnit} and remove this.
+          std::vector<ExecutionTier> requested_tiers;
+          requested_tiers.reserve(results_to_publish.size());
+          for (auto& result : results_to_publish) {
+            requested_tiers.push_back(result.requested_tier);
+          }
+
+          std::vector<WasmCode*> generated_code =
+              compile_scope->native_module()->AddCompiledCode(
+                  VectorOf(results_to_publish));
+          results_to_publish.clear();
+
+          // Account for the finished compilation units.
+          // TODO(clemensh): This takes a lock on each invokation. Only do this
+          // once and pass accumulated counts.
+          DCHECK_EQ(generated_code.size(), requested_tiers.size());
+          for (size_t i = 0; i < generated_code.size(); ++i) {
+            compile_scope->compilation_state()->OnFinishedUnit(
+                requested_tiers[i], generated_code[i]);
+          }
+        };
+
     bool compilation_failed = false;
     while (true) {
       // (asynchronous): Execute the compilation.
 
       WasmCompilationResult result = unit->ExecuteCompilation(
           &env.value(), wire_bytes, async_counters_.get(), &detected_features);
+      results_to_publish.emplace_back(std::move(result));
 
       // (synchronized): Publish the compilation result and get the next unit.
       {
         BackgroundCompileScope compile_scope(token_);
         if (compile_scope.cancelled()) return;
-        if (!result.succeeded()) {
+        if (!results_to_publish.back().succeeded()) {
           // Compile error.
           compile_scope.compilation_state()->SetError();
           compile_scope.compilation_state()->OnBackgroundTaskStopped(
@@ -714,14 +742,13 @@ class BackgroundCompileTask : public CancelableTask {
           compilation_failed = true;
           break;
         }
-        WasmCode* code =
-            compile_scope.native_module()->AddCompiledCode(std::move(result));
-        DCHECK_NOT_NULL(code);
+        // Publish TurboFan units immediately to reduce peak memory consumption.
+        if (result.requested_tier == ExecutionTier::kOptimized) {
+          publish_results(&compile_scope);
+        }
 
-        // Successfully finished one unit.
-        compile_scope.compilation_state()->OnFinishedUnit(result.requested_tier,
-                                                          code);
         if (deadline < MonotonicallyIncreasingTimeInMs()) {
+          publish_results(&compile_scope);
           compile_scope.compilation_state()->ReportDetectedFeatures(
               detected_features);
           compile_scope.compilation_state()->RestartBackgroundCompileTask();
@@ -731,6 +758,7 @@ class BackgroundCompileTask : public CancelableTask {
         // Get next unit.
         unit = compile_scope.compilation_state()->GetNextCompilationUnit();
         if (unit == nullptr) {
+          publish_results(&compile_scope);
           compile_scope.compilation_state()->OnBackgroundTaskStopped(
               detected_features);
           return;
