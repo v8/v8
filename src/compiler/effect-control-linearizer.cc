@@ -25,7 +25,7 @@ namespace internal {
 namespace compiler {
 
 namespace {
-bool UsingCompressedPointers() { return kTaggedSize < kSystemPointerSize; }
+bool UsingCompressedPointers() { return false; }
 
 }  // namespace
 
