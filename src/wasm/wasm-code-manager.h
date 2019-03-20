@@ -428,7 +428,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
     if (!interpreter_redirections_) {
       interpreter_redirections_.reset(
           new uint8_t[RoundUp<kBitsPerByte>(module_->num_declared_functions) /
-                      kBitsPerByte]);
+                      kBitsPerByte]{});
     }
     uint32_t bitset_idx = func_index - module_->num_imported_functions;
     uint8_t& byte = interpreter_redirections_[bitset_idx / kBitsPerByte];
