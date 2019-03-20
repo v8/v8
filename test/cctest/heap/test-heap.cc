@@ -5563,8 +5563,8 @@ TEST(Regress598319) {
     marking->V8Step(kSmallStepSizeInMs,
                     i::IncrementalMarking::NO_GC_VIA_STACK_GUARD,
                     StepOrigin::kV8);
-    if (page->IsFlagSet(Page::HAS_PROGRESS_BAR) && page->progress_bar() > 0) {
-      CHECK_NE(page->progress_bar(), arr.get()->Size());
+    if (page->IsFlagSet(Page::HAS_PROGRESS_BAR) && page->ProgressBar() > 0) {
+      CHECK_NE(page->ProgressBar(), arr.get()->Size());
       {
         // Shift by 1, effectively moving one white object across the progress
         // bar, meaning that we will miss marking it.

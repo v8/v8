@@ -379,7 +379,7 @@ class MemoryChunk {
       + kSystemPointerSize      // Address area_start_
       + kSystemPointerSize      // Address area_end_
       + kSystemPointerSize      // Address owner_
-      + kIntptrSize             // intptr_t progress_bar_
+      + kSizetSize              // size_t progress_bar_
       + kIntptrSize             // intptr_t live_byte_count_
       + kSystemPointerSize * NUMBER_OF_REMEMBERED_SET_TYPES  // SlotSet* array
       + kSystemPointerSize *
@@ -541,19 +541,20 @@ class MemoryChunk {
 
   Address HighWaterMark() { return address() + high_water_mark_; }
 
-  int progress_bar() {
+  size_t ProgressBar() {
     DCHECK(IsFlagSet<AccessMode::ATOMIC>(HAS_PROGRESS_BAR));
-    return static_cast<int>(progress_bar_.load(std::memory_order_relaxed));
+    return progress_bar_.load(std::memory_order_acquire);
   }
 
-  void set_progress_bar(int progress_bar) {
+  bool TrySetProgressBar(size_t old_value, size_t new_value) {
     DCHECK(IsFlagSet<AccessMode::ATOMIC>(HAS_PROGRESS_BAR));
-    progress_bar_.store(progress_bar, std::memory_order_relaxed);
+    return progress_bar_.compare_exchange_strong(old_value, new_value,
+                                                 std::memory_order_acq_rel);
   }
 
   void ResetProgressBar() {
     if (IsFlagSet(MemoryChunk::HAS_PROGRESS_BAR)) {
-      set_progress_bar(0);
+      progress_bar_.store(0, std::memory_order_release);
     }
   }
 
@@ -724,7 +725,7 @@ class MemoryChunk {
 
   // Used by the incremental marker to keep track of the scanning progress in
   // large objects that have a progress bar and are scanned in increments.
-  std::atomic<intptr_t> progress_bar_;
+  std::atomic<size_t> progress_bar_;
 
   // Count of bytes marked black on page.
   intptr_t live_byte_count_;

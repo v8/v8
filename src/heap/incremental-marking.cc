@@ -58,7 +58,6 @@ IncrementalMarking::IncrementalMarking(
       scheduled_bytes_to_mark_(0),
       schedule_update_time_ms_(0),
       bytes_marked_concurrently_(0),
-      unscanned_bytes_of_large_object_(0),
       is_compacting_(false),
       should_hurry_(false),
       was_activated_(false),
@@ -736,7 +735,8 @@ void IncrementalMarking::RevisitObject(HeapObject obj) {
   DCHECK(IsMarking());
   DCHECK(marking_state()->IsBlack(obj));
   Page* page = Page::FromHeapObject(obj);
-  if (page->owner()->identity() == LO_SPACE) {
+  if (page->owner()->identity() == LO_SPACE ||
+      page->owner()->identity() == NEW_LO_SPACE) {
     page->ResetProgressBar();
   }
   Map map = obj->map();
@@ -770,9 +770,7 @@ intptr_t IncrementalMarking::ProcessMarkingWorklist(
       DCHECK(!marking_state()->IsImpossible(obj));
       continue;
     }
-    unscanned_bytes_of_large_object_ = 0;
-    int size = VisitObject(obj->map(), obj);
-    bytes_processed += size - unscanned_bytes_of_large_object_;
+    bytes_processed += VisitObject(obj->map(), obj);
   }
   return bytes_processed;
 }
