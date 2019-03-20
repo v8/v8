@@ -1064,10 +1064,10 @@ static void MaybeTailCallOptimizedCodeSlot(MacroAssembler* masm,
         scratch2,
         FieldMemOperand(optimized_code_entry, Code::kCodeDataContainerOffset));
     __ Ldr(
-        scratch2,
+        scratch2.W(),
         FieldMemOperand(scratch2, CodeDataContainer::kKindSpecificFlagsOffset));
-    __ TestAndBranchIfAnySet(scratch2, 1 << Code::kMarkedForDeoptimizationBit,
-                             &found_deoptimized_code);
+    __ Tbnz(scratch2.W(), Code::kMarkedForDeoptimizationBit,
+            &found_deoptimized_code);
 
     // Optimized code is good, get it into the closure and link the closure into
     // the optimized functions list, then tail call the optimized code.
