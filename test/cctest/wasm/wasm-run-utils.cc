@@ -171,6 +171,7 @@ void TestingModuleBuilder::AddIndirectFunctionTable(
   table.initial_size = table_size;
   table.maximum_size = table_size;
   table.has_maximum_size = true;
+  table.type = kWasmAnyFunc;
   for (uint32_t i = 0; i < table_size; ++i) {
     table.values.push_back(function_indexes[i]);
   }

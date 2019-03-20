@@ -281,13 +281,13 @@ class WasmGraphBuilder {
 
   Node* CallDirect(uint32_t index, Node** args, Node*** rets,
                    wasm::WasmCodePosition position);
-  Node* CallIndirect(uint32_t index, Node** args, Node*** rets,
-                     wasm::WasmCodePosition position);
+  Node* CallIndirect(uint32_t table_index, uint32_t sig_index, Node** args,
+                     Node*** rets, wasm::WasmCodePosition position);
 
   Node* ReturnCall(uint32_t index, Node** args,
                    wasm::WasmCodePosition position);
-  Node* ReturnCallIndirect(uint32_t index, Node** args,
-                           wasm::WasmCodePosition position);
+  Node* ReturnCallIndirect(uint32_t table_index, uint32_t sig_index,
+                           Node** args, wasm::WasmCodePosition position);
 
   Node* Invert(Node* node);
 
@@ -343,6 +343,10 @@ class WasmGraphBuilder {
 
   void GetBaseAndOffsetForImportedMutableAnyRefGlobal(
       const wasm::WasmGlobal& global, Node** base, Node** offset);
+
+  void BoundsCheckTable(uint32_t table_index, Node* index,
+                        wasm::WasmCodePosition position,
+                        wasm::TrapReason trap_reason, Node** base_node);
 
   void GetTableBaseAndOffset(uint32_t table_index, Node* index,
                              wasm::WasmCodePosition position, Node** base_node,
@@ -491,8 +495,12 @@ class WasmGraphBuilder {
   Node* BuildCallNode(wasm::FunctionSig* sig, Node** args,
                       wasm::WasmCodePosition position, Node* instance_node,
                       const Operator* op);
+  // Special implementation for CallIndirect for table 0.
   Node* BuildIndirectCall(uint32_t sig_index, Node** args, Node*** rets,
                           wasm::WasmCodePosition position,
+                          IsReturnCall continuation);
+  Node* BuildIndirectCall(uint32_t table_index, uint32_t sig_index, Node** args,
+                          Node*** rets, wasm::WasmCodePosition position,
                           IsReturnCall continuation);
   Node* BuildWasmCall(wasm::FunctionSig* sig, Node** args, Node*** rets,
                       wasm::WasmCodePosition position, Node* instance_node,

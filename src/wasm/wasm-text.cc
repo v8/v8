@@ -143,7 +143,8 @@ void PrintWasmText(const WasmModule* module, const ModuleWireBytes& wire_bytes,
         break;
       }
       case kExprCallIndirect: {
-        CallIndirectImmediate<Decoder::kNoValidate> imm(&i, i.pc());
+        CallIndirectImmediate<Decoder::kNoValidate> imm(kAllWasmFeatures, &i,
+                                                        i.pc());
         DCHECK_EQ(0, imm.table_index);
         os << "call_indirect " << imm.sig_index;
         break;
