@@ -276,10 +276,6 @@ class Heap {
   // given alignment.
   static int GetFillToAlign(Address address, AllocationAlignment alignment);
 
-  // Returns the size of the initial area of a code-range, which is marked
-  // writable and reserved to contain unwind information.
-  static size_t GetCodeRangeReservedAreaSize();
-
   void FatalProcessOutOfMemory(const char* location);
 
   // Checks whether the space is valid.
