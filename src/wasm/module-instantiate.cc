@@ -6,7 +6,6 @@
 
 #include "src/asmjs/asm-js.h"
 #include "src/conversions-inl.h"
-#include "src/heap/heap-inl.h"  // For CodeSpaceMemoryModificationScope.
 #include "src/property-descriptor.h"
 #include "src/utils.h"
 #include "src/wasm/js-to-wasm-wrapper-cache-inl.h"
@@ -241,8 +240,6 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   SanitizeImports();
   if (thrower_->error()) return {};
 
-  // TODO(6792): No longer needed once WebAssembly code is off heap.
-  CodeSpaceMemoryModificationScope modification_scope(isolate_->heap());
   // From here on, we expect the build pipeline to run without exiting to JS.
   DisallowJavascriptExecution no_js(isolate_);
   // Record build time into correct bucket, then build instance.
