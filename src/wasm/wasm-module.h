@@ -103,8 +103,6 @@ struct WasmTable {
   uint32_t initial_size = 0;      // initial table size.
   uint32_t maximum_size = 0;      // maximum table size.
   bool has_maximum_size = false;  // true if there is a maximum size.
-  // TODO(titzer): Move this to WasmInstance. Needed by interpreter only.
-  std::vector<int32_t> values;  // function table, -1 indicating invalid.
   bool imported = false;        // true if imported.
   bool exported = false;        // true if exported.
 };

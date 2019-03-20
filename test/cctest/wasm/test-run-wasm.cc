@@ -2466,7 +2466,6 @@ WASM_EXEC_TEST(ReturnCall_IndirectFactorial) {
 
   r.builder().AddIndirectFunctionTable(indirect_function_table,
                                        arraysize(indirect_function_table));
-  r.builder().PopulateIndirectFunctionTable();
 
   BUILD(r,
         WASM_RETURN_CALL_FUNCTION(f_ind_fn.function_index(), WASM_GET_LOCAL(0),
@@ -2906,7 +2905,6 @@ WASM_EXEC_TEST(SimpleCallIndirect) {
       static_cast<uint16_t>(t2.function_index())};
   r.builder().AddIndirectFunctionTable(indirect_function_table,
                                        arraysize(indirect_function_table));
-  r.builder().PopulateIndirectFunctionTable();
 
   // Build the caller function.
   BUILD(r, WASM_CALL_INDIRECT2(1, WASM_GET_LOCAL(0), WASM_I32V_2(66),
@@ -2940,7 +2938,6 @@ WASM_EXEC_TEST(MultipleCallIndirect) {
       static_cast<uint16_t>(t2.function_index())};
   r.builder().AddIndirectFunctionTable(indirect_function_table,
                                        arraysize(indirect_function_table));
-  r.builder().PopulateIndirectFunctionTable();
 
   // Build the caller function.
   BUILD(r, WASM_I32_ADD(
@@ -3012,7 +3009,6 @@ WASM_EXEC_TEST(CallIndirect_canonical) {
 
   r.builder().AddIndirectFunctionTable(indirect_function_table,
                                        arraysize(indirect_function_table));
-  r.builder().PopulateIndirectFunctionTable();
 
   // Build the caller function.
   BUILD(r, WASM_CALL_INDIRECT2(1, WASM_GET_LOCAL(0), WASM_I32V_2(77),

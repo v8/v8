@@ -184,8 +184,6 @@ class TestingModuleBuilder {
   void AddIndirectFunctionTable(const uint16_t* function_indexes,
                                 uint32_t table_size);
 
-  void PopulateIndirectFunctionTable();
-
   uint32_t AddBytes(Vector<const byte> bytes);
 
   uint32_t AddException(FunctionSig* sig);

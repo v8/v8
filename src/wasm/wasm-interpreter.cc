@@ -966,9 +966,6 @@ class CodeMap {
   Zone* zone_;
   const WasmModule* module_;
   ZoneVector<InterpreterCode> interpreter_code_;
-  // TODO(wasm): Remove this testing wart. It is needed because interpreter
-  // entry stubs are not generated in testing the interpreter in cctests.
-  bool call_indirect_through_module_ = false;
 
  public:
   CodeMap(const WasmModule* module, const uint8_t* module_start, Zone* zone)
@@ -986,12 +983,6 @@ class CodeMap {
     }
   }
 
-  bool call_indirect_through_module() { return call_indirect_through_module_; }
-
-  void set_call_indirect_through_module(bool val) {
-    call_indirect_through_module_ = val;
-  }
-
   const WasmModule* module() const { return module_; }
 
   InterpreterCode* GetCode(const WasmFunction* function) {
@@ -1003,36 +994,6 @@ class CodeMap {
   InterpreterCode* GetCode(uint32_t function_index) {
     DCHECK_LT(function_index, interpreter_code_.size());
     return Preprocess(&interpreter_code_[function_index]);
-  }
-
-  InterpreterCode* GetIndirectCode(uint32_t table_index, uint32_t entry_index) {
-    uint32_t saved_index;
-    USE(saved_index);
-    if (table_index >= module_->tables.size()) return nullptr;
-    // Mask table index for SSCA mitigation.
-    saved_index = table_index;
-    table_index &= static_cast<int32_t>((table_index - module_->tables.size()) &
-                                        ~static_cast<int32_t>(table_index)) >>
-                   31;
-    DCHECK_EQ(table_index, saved_index);
-    const WasmTable* table = &module_->tables[table_index];
-    if (entry_index >= table->values.size()) return nullptr;
-    // Mask entry_index for SSCA mitigation.
-    saved_index = entry_index;
-    entry_index &= static_cast<int32_t>((entry_index - table->values.size()) &
-                                        ~static_cast<int32_t>(entry_index)) >>
-                   31;
-    DCHECK_EQ(entry_index, saved_index);
-    uint32_t index = table->values[entry_index];
-    if (index >= interpreter_code_.size()) return nullptr;
-    // Mask index for SSCA mitigation.
-    saved_index = index;
-    index &= static_cast<int32_t>((index - interpreter_code_.size()) &
-                                  ~static_cast<int32_t>(index)) >>
-             31;
-    DCHECK_EQ(index, saved_index);
-
-    return GetCode(index);
   }
 
   InterpreterCode* Preprocess(InterpreterCode* code) {
@@ -3337,28 +3298,6 @@ class ThreadImpl {
   ExternalCallResult CallIndirectFunction(uint32_t table_index,
                                           uint32_t entry_index,
                                           uint32_t sig_index) {
-    if (codemap()->call_indirect_through_module()) {
-      // Rely on the information stored in the WasmModule.
-      InterpreterCode* code =
-          codemap()->GetIndirectCode(table_index, entry_index);
-      if (!code) return {ExternalCallResult::INVALID_FUNC};
-      if (code->function->sig_index != sig_index) {
-        // If not an exact match, we have to do a canonical check.
-        int function_canonical_id =
-            module()->signature_ids[code->function->sig_index];
-        int expected_canonical_id = module()->signature_ids[sig_index];
-        DCHECK_EQ(function_canonical_id,
-                  module()->signature_map.Find(*code->function->sig));
-        if (function_canonical_id != expected_canonical_id) {
-          return {ExternalCallResult::SIGNATURE_MISMATCH};
-        }
-      }
-      if (code->function->imported) {
-        return CallImportedFunction(code->function->func_index);
-      }
-      return {ExternalCallResult::INTERNAL, code};
-    }
-
     Isolate* isolate = instance_object_->GetIsolate();
     uint32_t expected_sig_id = module()->signature_ids[sig_index];
     DCHECK_EQ(expected_sig_id,
@@ -3656,10 +3595,6 @@ void WasmInterpreter::SetFunctionCodeForTesting(const WasmFunction* function,
                                                 const byte* start,
                                                 const byte* end) {
   internals_->codemap_.SetFunctionCode(function, start, end);
-}
-
-void WasmInterpreter::SetCallIndirectTestMode() {
-  internals_->codemap_.set_call_indirect_through_module(true);
 }
 
 ControlTransferMap WasmInterpreter::ComputeControlTransfersForTesting(

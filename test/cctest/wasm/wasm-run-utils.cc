@@ -120,6 +120,16 @@ uint32_t TestingModuleBuilder::AddFunction(FunctionSig* sig, const char* name,
   }
   if (interpreter_) {
     interpreter_->AddFunctionForTesting(&test_module_->functions.back());
+    // Patch the jump table to call the interpreter for this function.
+    wasm::WasmCompilationResult result = compiler::CompileWasmInterpreterEntry(
+        isolate_->wasm_engine(), native_module_->enabled_features(), index,
+        sig);
+    std::unique_ptr<wasm::WasmCode> code = native_module_->AddCode(
+        index, result.code_desc, result.frame_slot_count,
+        result.tagged_parameter_slots, std::move(result.protected_instructions),
+        std::move(result.source_positions), wasm::WasmCode::kInterpreterEntry,
+        wasm::WasmCode::kOther);
+    native_module_->PublishCode(std::move(code));
   }
   DCHECK_LT(index, kMaxFunctions);  // limited for testing.
   return index;
@@ -145,51 +155,24 @@ Handle<JSFunction> TestingModuleBuilder::WrapCode(uint32_t index) {
   old_arr->CopyTo(0, *new_arr, 0, old_arr->length());
   new_arr->set(old_arr->length(), *ret_code);
   module_object->set_export_wrappers(*new_arr);
-
-  if (interpreter_) {
-    // Patch the jump table to call the interpreter for this function. This is
-    // only needed for functions with a wrapper. Other functions never get
-    // called through the jump table.
-    wasm::WasmCompilationResult result = compiler::CompileWasmInterpreterEntry(
-        isolate_->wasm_engine(), native_module_->enabled_features(), index,
-        sig);
-    std::unique_ptr<wasm::WasmCode> code = native_module_->AddCode(
-        index, result.code_desc, result.frame_slot_count,
-        result.tagged_parameter_slots, std::move(result.protected_instructions),
-        std::move(result.source_positions), wasm::WasmCode::kInterpreterEntry,
-        wasm::WasmCode::kOther);
-    native_module_->PublishCode(std::move(code));
-  }
   return ret;
 }
 
 void TestingModuleBuilder::AddIndirectFunctionTable(
     const uint16_t* function_indexes, uint32_t table_size) {
+  auto instance = instance_object();
   test_module_->tables.emplace_back();
   WasmTable& table = test_module_->tables.back();
   table.initial_size = table_size;
   table.maximum_size = table_size;
   table.has_maximum_size = true;
-  for (uint32_t i = 0; i < table_size; ++i) {
-    table.values.push_back(function_indexes[i]);
-  }
   WasmInstanceObject::EnsureIndirectFunctionTableWithMinimumSize(
       instance_object(), table_size);
-}
-
-void TestingModuleBuilder::PopulateIndirectFunctionTable() {
-  if (interpret()) return;
-  auto instance = instance_object();
-  uint32_t num_tables = 1;  // TODO(titzer): multiple tables.
-  for (uint32_t i = 0; i < num_tables; i++) {
-    WasmTable& table = test_module_->tables[i];
-    int table_size = static_cast<int>(instance->indirect_function_table_size());
-    for (int j = 0; j < table_size; j++) {
-      WasmFunction& function = test_module_->functions[table.values[j]];
-      int sig_id = test_module_->signature_map.Find(*function.sig);
-      IndirectFunctionTableEntry(instance, j)
-          .Set(sig_id, instance, function.func_index);
-    }
+  for (uint32_t i = 0; i < table_size; ++i) {
+    WasmFunction& function = test_module_->functions[function_indexes[i]];
+    int sig_id = test_module_->signature_map.Find(*function.sig);
+    IndirectFunctionTableEntry(instance, i)
+        .Set(sig_id, instance, function.func_index);
   }
 }
 

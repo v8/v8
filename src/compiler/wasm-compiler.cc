@@ -5479,13 +5479,10 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     }
 
     // The return value is also passed via this buffer:
-    DCHECK_GE(wasm::kV8MaxWasmFunctionReturns, sig_->return_count());
-    // TODO(wasm): Handle multi-value returns.
-    DCHECK_EQ(1, wasm::kV8MaxWasmFunctionReturns);
-    int return_size_bytes =
-        sig_->return_count() == 0
-            ? 0
-            : wasm::ValueTypes::ElementSizeInBytes(sig_->GetReturn());
+    int return_size_bytes = 0;
+    for (wasm::ValueType type : sig_->returns()) {
+      return_size_bytes += wasm::ValueTypes::ElementSizeInBytes(type);
+    }
 
     // Get a stack slot for the arguments.
     Node* arg_buffer =
@@ -5515,17 +5512,22 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
                        arraysize(parameters));
 
     // Read back the return value.
-    if (sig_->return_count() == 0) {
+    DCHECK_LT(sig_->return_count(), wasm::kV8MaxWasmFunctionMultiReturns);
+    unsigned return_count = static_cast<unsigned>(sig_->return_count());
+    if (return_count == 0) {
       Return(Int32Constant(0));
     } else {
-      // TODO(wasm): Implement multi-return.
-      DCHECK_EQ(1, sig_->return_count());
-      MachineType load_rep =
-          wasm::ValueTypes::MachineTypeFor(sig_->GetReturn());
-      Node* val = SetEffect(
-          graph()->NewNode(mcgraph()->machine()->Load(load_rep), arg_buffer,
-                           Int32Constant(0), Effect(), Control()));
-      Return(val);
+      Node** returns = Buffer(return_count);
+      offset = 0;
+      for (size_t i = 0; i < return_count; ++i) {
+        wasm::ValueType type = sig_->GetReturn(i);
+        Node* val = SetEffect(graph()->NewNode(
+            mcgraph()->machine()->Load(wasm::ValueTypes::MachineTypeFor(type)),
+            arg_buffer, Int32Constant(offset), Effect(), Control()));
+        returns[i] = val;
+        offset += wasm::ValueTypes::ElementSizeInBytes(type);
+      }
+      Return(return_count, returns);
     }
 
     if (ContainsInt64(sig_)) LowerInt64();

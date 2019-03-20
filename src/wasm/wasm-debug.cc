@@ -545,9 +545,7 @@ wasm::WasmInterpreter* WasmDebugInfo::SetupForTesting(
   auto interp_handle = Managed<wasm::InterpreterHandle>::Allocate(
       isolate, interpreter_size, isolate, debug_info);
   debug_info->set_interpreter_handle(*interp_handle);
-  auto ret = interp_handle->raw()->interpreter();
-  ret->SetCallIndirectTestMode();
-  return ret;
+  return interp_handle->raw()->interpreter();
 }
 
 void WasmDebugInfo::SetBreakpoint(Handle<WasmDebugInfo> debug_info,

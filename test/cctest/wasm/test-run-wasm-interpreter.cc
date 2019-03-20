@@ -228,7 +228,6 @@ TEST(Run_Wasm_returnCallIndirectFactorial) {
 
   r.builder().AddIndirectFunctionTable(indirect_function_table,
                                        arraysize(indirect_function_table));
-  r.builder().PopulateIndirectFunctionTable();
 
   BUILD(r, WASM_RETURN_CALL_INDIRECT(0, WASM_I32V(0), WASM_GET_LOCAL(0),
                                      WASM_I32V(1)));
