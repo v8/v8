@@ -482,8 +482,12 @@ bool FetchAndExecuteCompilationUnit(CompilationEnv* env,
   WasmCompilationResult result = unit->ExecuteCompilation(
       env, compilation_state->GetWireBytesStorage(), counters, detected);
 
-  WasmCode* code = native_module->AddCompiledCode(std::move(result));
-  compilation_state->OnFinishedUnit(result.requested_tier, code);
+  if (result.succeeded()) {
+    WasmCode* code = native_module->AddCompiledCode(std::move(result));
+    compilation_state->OnFinishedUnit(result.requested_tier, code);
+  } else {
+    compilation_state->SetError();
+  }
 
   return true;
 }
@@ -702,15 +706,17 @@ class BackgroundCompileTask : public CancelableTask {
       {
         BackgroundCompileScope compile_scope(token_);
         if (compile_scope.cancelled()) return;
-        WasmCode* code =
-            compile_scope.native_module()->AddCompiledCode(std::move(result));
-        if (code == nullptr) {
+        if (!result.succeeded()) {
           // Compile error.
+          compile_scope.compilation_state()->SetError();
           compile_scope.compilation_state()->OnBackgroundTaskStopped(
               detected_features);
           compilation_failed = true;
           break;
         }
+        WasmCode* code =
+            compile_scope.native_module()->AddCompiledCode(std::move(result));
+        DCHECK_NOT_NULL(code);
 
         // Successfully finished one unit.
         compile_scope.compilation_state()->OnFinishedUnit(result.requested_tier,

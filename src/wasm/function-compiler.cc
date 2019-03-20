@@ -230,7 +230,11 @@ void WasmCompilationUnit::CompileWasmFunction(Isolate* isolate,
   WasmCompilationResult result = unit.ExecuteCompilation(
       &env, native_module->compilation_state()->GetWireBytesStorage(),
       isolate->counters(), detected);
-  native_module->AddCompiledCode(std::move(result));
+  if (result.succeeded()) {
+    native_module->AddCompiledCode(std::move(result));
+  } else {
+    native_module->compilation_state()->SetError();
+  }
 }
 
 }  // namespace wasm

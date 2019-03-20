@@ -232,14 +232,19 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   // {AddCode} is thread safe w.r.t. other calls to {AddCode} or methods adding
   // code below, i.e. it can be called concurrently from background threads.
-  // {AddCode} also makes the code available to the system by entering it into
-  // the code table and patching the jump table.
-  WasmCode* AddCode(uint32_t index, const CodeDesc& desc, uint32_t stack_slots,
-                    uint32_t tagged_parameter_slots,
-                    OwnedVector<trap_handler::ProtectedInstructionData>
-                        protected_instructions,
-                    OwnedVector<const byte> source_position_table,
-                    WasmCode::Kind kind, WasmCode::Tier tier);
+  // The returned code still needs to be published via {PublishCode}.
+  std::unique_ptr<WasmCode> AddCode(
+      uint32_t index, const CodeDesc& desc, uint32_t stack_slots,
+      uint32_t tagged_parameter_slots,
+      OwnedVector<trap_handler::ProtectedInstructionData>
+          protected_instructions,
+      OwnedVector<const byte> source_position_table, WasmCode::Kind kind,
+      WasmCode::Tier tier);
+
+  // {PublishCode} makes the code available to the system by entering it into
+  // the code table and patching the jump table. It returns a raw pointer to the
+  // given {WasmCode} object.
+  WasmCode* PublishCode(std::unique_ptr<WasmCode>);
 
   WasmCode* AddDeserializedCode(
       uint32_t index, Vector<const byte> instructions, uint32_t stack_slots,
@@ -264,11 +269,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // stub table. It must be called exactly once per native module before adding
   // other WasmCode so that runtime stub ids can be resolved during relocation.
   void SetRuntimeStubs(Isolate* isolate);
-
-  // Switch a function to an interpreter entry wrapper. When adding interpreter
-  // wrappers, we do not insert them in the code_table, however, we let them
-  // self-identify as the {index} function.
-  void PublishInterpreterEntry(WasmCode* code, uint32_t index);
 
   // Creates a snapshot of the current state of the code table. This is useful
   // to get a consistent view of the table (e.g. used by the serializer).
@@ -380,31 +380,13 @@ class V8_EXPORT_PRIVATE NativeModule final {
                std::shared_ptr<Counters> async_counters,
                std::shared_ptr<NativeModule>* shared_this);
 
-  WasmCode* AddAnonymousCode(Handle<Code>, WasmCode::Kind kind,
-                             const char* name = nullptr);
+  // Add and publish anonymous code.
+  WasmCode* AddAndPublishAnonymousCode(Handle<Code>, WasmCode::Kind kind,
+                                       const char* name = nullptr);
   // Allocate code space. Returns a valid buffer or fails with OOM (crash).
   Vector<byte> AllocateForCode(size_t size);
 
-  // Primitive for adding code to the native module. All code added to a native
-  // module is owned by that module. Various callers get to decide on how the
-  // code is obtained (CodeDesc vs, as a point in time, Code), the kind,
-  // whether it has an index or is anonymous, etc.
-  WasmCode* AddOwnedCode(uint32_t index, Vector<const byte> instructions,
-                         uint32_t stack_slots, uint32_t tagged_parameter_slots,
-                         size_t safepoint_table_offset,
-                         size_t handler_table_offset,
-                         size_t constant_pool_offset,
-                         size_t code_comments_offset,
-                         size_t unpadded_binary_size,
-                         OwnedVector<trap_handler::ProtectedInstructionData>,
-                         OwnedVector<const byte> reloc_info,
-                         OwnedVector<const byte> source_position_table,
-                         WasmCode::Kind, WasmCode::Tier);
-
   WasmCode* CreateEmptyJumpTable(uint32_t jump_table_size);
-
-  // Hold the {allocation_mutex_} when calling this method.
-  void InstallCode(WasmCode* code);
 
   Vector<WasmCode*> code_table() const {
     return {code_table_.get(), module_->num_declared_functions};

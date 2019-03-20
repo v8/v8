@@ -583,20 +583,16 @@ void WasmDebugInfo::RedirectToInterpreter(Handle<WasmDebugInfo> debug_info,
     wasm::WasmCompilationResult result = compiler::CompileWasmInterpreterEntry(
         isolate->wasm_engine(), native_module->enabled_features(), func_index,
         module->functions[func_index].sig);
-    // The interpreter entry is added with {kAnonymousFuncIndex} so that it will
-    // not replace existing code in the code table, only the jump table is
-    // redirected by {PublishInterpreterEntry}.
-    wasm::WasmCode* wasm_code = native_module->AddCode(
-        wasm::WasmCode::kAnonymousFuncIndex, result.code_desc,
-        result.frame_slot_count, result.tagged_parameter_slots,
-        std::move(result.protected_instructions),
+    std::unique_ptr<wasm::WasmCode> wasm_code = native_module->AddCode(
+        func_index, result.code_desc, result.frame_slot_count,
+        result.tagged_parameter_slots, std::move(result.protected_instructions),
         std::move(result.source_positions), wasm::WasmCode::kInterpreterEntry,
         wasm::WasmCode::kOther);
-    DCHECK_NOT_NULL(wasm_code);
-    native_module->PublishInterpreterEntry(wasm_code, func_index);
+    Address instruction_start = wasm_code->instruction_start();
+    native_module->PublishCode(std::move(wasm_code));
 
-    Handle<Foreign> foreign_holder = isolate->factory()->NewForeign(
-        wasm_code->instruction_start(), AllocationType::kOld);
+    Handle<Foreign> foreign_holder =
+        isolate->factory()->NewForeign(instruction_start, AllocationType::kOld);
     interpreted_functions->set(func_index, *foreign_holder);
   }
 }

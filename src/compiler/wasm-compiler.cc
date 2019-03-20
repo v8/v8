@@ -5882,16 +5882,14 @@ wasm::WasmCode* CompileWasmMathIntrinsic(wasm::WasmEngine* wasm_engine,
       wasm_engine, call_descriptor, mcgraph, Code::WASM_FUNCTION,
       wasm::WasmCode::kFunction, debug_name, WasmStubAssemblerOptions(),
       source_positions);
-  wasm::WasmCode* wasm_code = native_module->AddCode(
+  std::unique_ptr<wasm::WasmCode> wasm_code = native_module->AddCode(
       wasm::WasmCode::kAnonymousFuncIndex, result.code_desc,
       result.frame_slot_count, result.tagged_parameter_slots,
       std::move(result.protected_instructions),
       std::move(result.source_positions), wasm::WasmCode::kFunction,
       wasm::WasmCode::kOther);
-  CHECK_NOT_NULL(wasm_code);
   // TODO(titzer): add counters for math intrinsic code size / allocation
-
-  return wasm_code;
+  return native_module->PublishCode(std::move(wasm_code));
 }
 
 wasm::WasmCode* CompileWasmImportCallWrapper(wasm::WasmEngine* wasm_engine,
@@ -5949,16 +5947,13 @@ wasm::WasmCode* CompileWasmImportCallWrapper(wasm::WasmEngine* wasm_engine,
       wasm_engine, incoming, &jsgraph, Code::WASM_TO_JS_FUNCTION,
       wasm::WasmCode::kWasmToJsWrapper, func_name, WasmStubAssemblerOptions(),
       source_position_table);
-  wasm::WasmCode* wasm_code = native_module->AddCode(
+  std::unique_ptr<wasm::WasmCode> wasm_code = native_module->AddCode(
       wasm::WasmCode::kAnonymousFuncIndex, result.code_desc,
       result.frame_slot_count, result.tagged_parameter_slots,
       std::move(result.protected_instructions),
       std::move(result.source_positions), wasm::WasmCode::kWasmToJsWrapper,
       wasm::WasmCode::kOther);
-
-  CHECK_NOT_NULL(wasm_code);
-
-  return wasm_code;
+  return native_module->PublishCode(std::move(wasm_code));
 }
 
 wasm::WasmCompilationResult CompileWasmInterpreterEntry(

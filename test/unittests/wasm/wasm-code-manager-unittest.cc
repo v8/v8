@@ -175,8 +175,9 @@ class WasmCodeManagerTest : public TestWithContext,
     std::unique_ptr<byte[]> exec_buff(new byte[size]);
     desc.buffer = exec_buff.get();
     desc.instr_size = static_cast<int>(size);
-    return native_module->AddCode(index, desc, 0, 0, {}, OwnedVector<byte>(),
-                                  WasmCode::kFunction, WasmCode::kOther);
+    std::unique_ptr<WasmCode> code = native_module->AddCode(
+        index, desc, 0, 0, {}, {}, WasmCode::kFunction, WasmCode::kOther);
+    return native_module->PublishCode(std::move(code));
   }
 
   size_t page() const { return AllocatePageSize(); }

@@ -153,13 +153,12 @@ Handle<JSFunction> TestingModuleBuilder::WrapCode(uint32_t index) {
     wasm::WasmCompilationResult result = compiler::CompileWasmInterpreterEntry(
         isolate_->wasm_engine(), native_module_->enabled_features(), index,
         sig);
-    wasm::WasmCode* wasm_new_code = native_module_->AddCode(
-        wasm::WasmCode::kAnonymousFuncIndex, result.code_desc,
-        result.frame_slot_count, result.tagged_parameter_slots,
-        std::move(result.protected_instructions),
+    std::unique_ptr<wasm::WasmCode> code = native_module_->AddCode(
+        index, result.code_desc, result.frame_slot_count,
+        result.tagged_parameter_slots, std::move(result.protected_instructions),
         std::move(result.source_positions), wasm::WasmCode::kInterpreterEntry,
         wasm::WasmCode::kOther);
-    native_module_->PublishInterpreterEntry(wasm_new_code, index);
+    native_module_->PublishCode(std::move(code));
   }
   return ret;
 }
