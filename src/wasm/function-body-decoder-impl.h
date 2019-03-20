@@ -302,12 +302,11 @@ struct CallIndirectImmediate {
   uint32_t sig_index;
   FunctionSig* sig = nullptr;
   uint32_t length = 0;
-  inline CallIndirectImmediate(const WasmFeatures enabled, Decoder* decoder,
-                               const byte* pc) {
+  inline CallIndirectImmediate(Decoder* decoder, const byte* pc) {
     uint32_t len = 0;
     sig_index = decoder->read_u32v<validate>(pc + 1, &len, "signature index");
     table_index = decoder->read_u8<validate>(pc + 1 + len, "table index");
-    if (!VALIDATE(table_index == 0 || enabled.anyref)) {
+    if (!VALIDATE(table_index == 0)) {
       decoder->errorf(pc + 1 + len, "expected table index 0, found %u",
                       table_index);
     }
@@ -953,14 +952,8 @@ class WasmDecoder : public Decoder {
   }
 
   inline bool Validate(const byte* pc, CallIndirectImmediate<validate>& imm) {
-    if (!VALIDATE(module_ != nullptr &&
-                  imm.table_index < module_->tables.size())) {
+    if (!VALIDATE(module_ != nullptr && !module_->tables.empty())) {
       error("function table has to exist to execute call_indirect");
-      return false;
-    }
-    if (!VALIDATE(module_ != nullptr &&
-                  module_->tables[imm.table_index].type == kWasmAnyFunc)) {
-      error("table of call_indirect must be of type anyfunc");
       return false;
     }
     if (!Complete(pc, imm)) {
@@ -1185,7 +1178,7 @@ class WasmDecoder : public Decoder {
       }
       case kExprCallIndirect:
       case kExprReturnCallIndirect: {
-        CallIndirectImmediate<validate> imm(kAllWasmFeatures, decoder, pc);
+        CallIndirectImmediate<validate> imm(decoder, pc);
         return 1 + imm.length;
       }
 
@@ -1380,7 +1373,7 @@ class WasmDecoder : public Decoder {
         return {imm.sig->parameter_count(), imm.sig->return_count()};
       }
       case kExprCallIndirect: {
-        CallIndirectImmediate<validate> imm(this->enabled_, this, pc);
+        CallIndirectImmediate<validate> imm(this, pc);
         CHECK(Complete(pc, imm));
         // Indirect calls pop an additional argument for the table index.
         return {imm.sig->parameter_count() + 1,
@@ -2154,7 +2147,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           break;
         }
         case kExprCallIndirect: {
-          CallIndirectImmediate<validate> imm(this->enabled_, this, this->pc_);
+          CallIndirectImmediate<validate> imm(this, this->pc_);
           len = 1 + imm.length;
           if (!this->Validate(this->pc_, imm)) break;
           auto index = Pop(0, kWasmI32);
@@ -2183,7 +2176,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         }
         case kExprReturnCallIndirect: {
           CHECK_PROTOTYPE_OPCODE(return_call);
-          CallIndirectImmediate<validate> imm(this->enabled_, this, this->pc_);
+          CallIndirectImmediate<validate> imm(this, this->pc_);
           len = 1 + imm.length;
           if (!this->Validate(this->pc_, imm)) break;
           if (!this->CanReturnCall(imm.sig)) {

@@ -1445,8 +1445,7 @@ class ThreadImpl {
         return pc + 1 + imm.length;
       }
       case kExprCallIndirect: {
-        CallIndirectImmediate<Decoder::kNoValidate> imm(kAllWasmFeatures,
-                                                        decoder, code->at(pc));
+        CallIndirectImmediate<Decoder::kNoValidate> imm(decoder, code->at(pc));
         return pc + 1 + imm.length;
       }
       default:
@@ -2391,32 +2390,32 @@ class ThreadImpl {
     // Encode the exception values on the operand stack into the exception
     // package allocated above. This encoding has to be in sync with other
     // backends so that exceptions can be passed between them.
-    const WasmExceptionSig* sig = exception->sig;
+    const wasm::WasmExceptionSig* sig = exception->sig;
     uint32_t encoded_index = 0;
     for (size_t i = 0; i < sig->parameter_count(); ++i) {
       WasmValue value = sp_[i - sig->parameter_count()];
       switch (sig->GetParam(i)) {
-        case kWasmI32: {
+        case wasm::kWasmI32: {
           uint32_t u32 = value.to_u32();
           EncodeI32ExceptionValue(encoded_values, &encoded_index, u32);
           break;
         }
-        case kWasmF32: {
+        case wasm::kWasmF32: {
           uint32_t f32 = value.to_f32_boxed().get_bits();
           EncodeI32ExceptionValue(encoded_values, &encoded_index, f32);
           break;
         }
-        case kWasmI64: {
+        case wasm::kWasmI64: {
           uint64_t u64 = value.to_u64();
           EncodeI64ExceptionValue(encoded_values, &encoded_index, u64);
           break;
         }
-        case kWasmF64: {
+        case wasm::kWasmF64: {
           uint64_t f64 = value.to_f64_boxed().get_bits();
           EncodeI64ExceptionValue(encoded_values, &encoded_index, f64);
           break;
         }
-        case kWasmAnyRef:
+        case wasm::kWasmAnyRef:
           UNIMPLEMENTED();
           break;
         default:
@@ -2698,8 +2697,8 @@ class ThreadImpl {
         } break;
 
         case kExprCallIndirect: {
-          CallIndirectImmediate<Decoder::kNoValidate> imm(
-              kAllWasmFeatures, &decoder, code->at(pc));
+          CallIndirectImmediate<Decoder::kNoValidate> imm(&decoder,
+                                                          code->at(pc));
           uint32_t entry_index = Pop().to<uint32_t>();
           // Assume only one table for now.
           DCHECK_LE(module()->tables.size(), 1u);
@@ -2770,8 +2769,8 @@ class ThreadImpl {
         } break;
 
         case kExprReturnCallIndirect: {
-          CallIndirectImmediate<Decoder::kNoValidate> imm(
-              kAllWasmFeatures, &decoder, code->at(pc));
+          CallIndirectImmediate<Decoder::kNoValidate> imm(&decoder,
+                                                          code->at(pc));
           uint32_t entry_index = Pop().to<uint32_t>();
           // Assume only one table for now.
           DCHECK_LE(module()->tables.size(), 1u);
@@ -3187,7 +3186,8 @@ class ThreadImpl {
                                               const WasmCode* code,
                                               FunctionSig* sig) {
     int num_args = static_cast<int>(sig->parameter_count());
-    WasmFeatures enabled_features = WasmFeaturesFromIsolate(isolate);
+    wasm::WasmFeatures enabled_features =
+        wasm::WasmFeaturesFromIsolate(isolate);
 
     if (code->kind() == WasmCode::kWasmToJsWrapper &&
         !IsJSCompatibleSignature(sig, enabled_features.bigint)) {

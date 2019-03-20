@@ -402,27 +402,25 @@ class WasmGraphBuildingInterface {
   void CallDirect(FullDecoder* decoder,
                   const CallFunctionImmediate<validate>& imm,
                   const Value args[], Value returns[]) {
-    DoCall(decoder, 0, nullptr, imm.sig, imm.index, args, returns);
+    DoCall(decoder, nullptr, imm.sig, imm.index, args, returns);
   }
 
   void ReturnCall(FullDecoder* decoder,
                   const CallFunctionImmediate<validate>& imm,
                   const Value args[]) {
-    DoReturnCall(decoder, 0, nullptr, imm.sig, imm.index, args);
+    DoReturnCall(decoder, nullptr, imm.sig, imm.index, args);
   }
 
   void CallIndirect(FullDecoder* decoder, const Value& index,
                     const CallIndirectImmediate<validate>& imm,
                     const Value args[], Value returns[]) {
-    DoCall(decoder, imm.table_index, index.node, imm.sig, imm.sig_index, args,
-           returns);
+    DoCall(decoder, index.node, imm.sig, imm.sig_index, args, returns);
   }
 
   void ReturnCallIndirect(FullDecoder* decoder, const Value& index,
                           const CallIndirectImmediate<validate>& imm,
                           const Value args[]) {
-    DoReturnCall(decoder, imm.table_index, index.node, imm.sig, imm.sig_index,
-                 args);
+    DoReturnCall(decoder, index.node, imm.sig, imm.sig_index, args);
   }
 
   void SimdOp(FullDecoder* decoder, WasmOpcode opcode, Vector<Value> args,
@@ -852,9 +850,8 @@ class WasmGraphBuildingInterface {
     return result;
   }
 
-  void DoCall(FullDecoder* decoder, uint32_t table_index, TFNode* index_node,
-              FunctionSig* sig, uint32_t sig_index, const Value args[],
-              Value returns[]) {
+  void DoCall(FullDecoder* decoder, TFNode* index_node, FunctionSig* sig,
+              uint32_t index, const Value args[], Value returns[]) {
     int param_count = static_cast<int>(sig->parameter_count());
     TFNode** arg_nodes = builder_->Buffer(param_count + 1);
     TFNode** return_nodes = nullptr;
@@ -863,11 +860,9 @@ class WasmGraphBuildingInterface {
       arg_nodes[i + 1] = args[i].node;
     }
     if (index_node) {
-      BUILD(CallIndirect, table_index, sig_index, arg_nodes, &return_nodes,
-            decoder->position());
+      BUILD(CallIndirect, index, arg_nodes, &return_nodes, decoder->position());
     } else {
-      BUILD(CallDirect, sig_index, arg_nodes, &return_nodes,
-            decoder->position());
+      BUILD(CallDirect, index, arg_nodes, &return_nodes, decoder->position());
     }
     int return_count = static_cast<int>(sig->return_count());
     for (int i = 0; i < return_count; ++i) {
@@ -878,20 +873,18 @@ class WasmGraphBuildingInterface {
     LoadContextIntoSsa(ssa_env_);
   }
 
-  void DoReturnCall(FullDecoder* decoder, uint32_t table_index,
-                    TFNode* index_node, FunctionSig* sig, uint32_t sig_index,
-                    const Value args[]) {
-    int arg_count = static_cast<int>(sig->parameter_count());
-    TFNode** arg_nodes = builder_->Buffer(arg_count + 1);
+  void DoReturnCall(FullDecoder* decoder, TFNode* index_node, FunctionSig* sig,
+                    uint32_t index, const Value args[]) {
+    int param_count = static_cast<int>(sig->parameter_count());
+    TFNode** arg_nodes = builder_->Buffer(param_count + 1);
     arg_nodes[0] = index_node;
-    for (int i = 0; i < arg_count; ++i) {
+    for (int i = 0; i < param_count; ++i) {
       arg_nodes[i + 1] = args[i].node;
     }
     if (index_node) {
-      BUILD(ReturnCallIndirect, table_index, sig_index, arg_nodes,
-            decoder->position());
+      BUILD(ReturnCallIndirect, index, arg_nodes, decoder->position());
     } else {
-      BUILD(ReturnCall, sig_index, arg_nodes, decoder->position());
+      BUILD(ReturnCall, index, arg_nodes, decoder->position());
     }
   }
 };
@@ -899,7 +892,8 @@ class WasmGraphBuildingInterface {
 }  // namespace
 
 DecodeResult BuildTFGraph(AccountingAllocator* allocator,
-                          const WasmFeatures& enabled, const WasmModule* module,
+                          const WasmFeatures& enabled,
+                          const wasm::WasmModule* module,
                           compiler::WasmGraphBuilder* builder,
                           WasmFeatures* detected, const FunctionBody& body,
                           compiler::NodeOriginTable* node_origins) {
