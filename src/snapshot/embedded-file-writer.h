@@ -43,7 +43,7 @@ class PlatformDependentEmbeddedFileWriter final {
 
   void DeclareLabel(const char* name);
 
-  void SourceInfo(int fileid, int line);
+  void SourceInfo(int fileid, const char* filename, int line);
   void DeclareFunctionBegin(const char* name);
   void DeclareFunctionEnd(const char* name);
 
@@ -237,6 +237,8 @@ class EmbeddedFileWriter : public EmbeddedFileWriterInterface {
       if (i == next_offset) {
         // Write source directive.
         w->SourceInfo(positions.source_position().ExternalFileId(),
+                      GetExternallyCompiledFilename(
+                          positions.source_position().ExternalFileId()),
                       positions.source_position().ExternalLine());
         positions.Advance();
         next_offset = static_cast<uint32_t>(
@@ -298,16 +300,13 @@ class EmbeddedFileWriter : public EmbeddedFileWriterInterface {
 #define V8_COMPILER_IS_MSVC
 #endif
 
-#if defined(V8_COMPILER_IS_MSVC) || defined(V8_OS_AIX)
+#if defined(V8_COMPILER_IS_MSVC)
   // Windows MASM doesn't have an .octa directive, use QWORDs instead.
   // Note: MASM *really* does not like large data streams. It takes over 5
   // minutes to assemble the ~350K lines of embedded.S produced when using
   // BYTE directives in a debug build. QWORD produces roughly 120KLOC and
   // reduces assembly time to ~40 seconds. Still terrible, but much better
   // than before. See also: https://crbug.com/v8/8475.
-
-  // GCC MASM on Aix doesn't have an .octa directive, use .llong instead.
-
   static constexpr DataDirective kByteChunkDirective = kQuad;
   static constexpr int kByteChunkSize = 8;
 
@@ -316,6 +315,19 @@ class EmbeddedFileWriter : public EmbeddedFileWriterInterface {
     const uint64_t* quad_ptr = reinterpret_cast<const uint64_t*>(data);
     return current_line_length + w->HexLiteral(*quad_ptr);
   }
+
+#elif defined(V8_OS_AIX)
+  // PPC uses a fixed 4 byte instruction set, using .long
+  // to prevent any unnecessary padding.
+  static constexpr DataDirective kByteChunkDirective = kLong;
+  static constexpr int kByteChunkSize = 4;
+
+  static int WriteByteChunk(PlatformDependentEmbeddedFileWriter* w,
+                            int current_line_length, const uint8_t* data) {
+    const uint32_t* long_ptr = reinterpret_cast<const uint32_t*>(data);
+    return current_line_length + w->HexLiteral(*long_ptr);
+  }
+
 #else  // defined(V8_COMPILER_IS_MSVC) || defined(V8_OS_AIX)
   static constexpr DataDirective kByteChunkDirective = kOcta;
   static constexpr int kByteChunkSize = 16;

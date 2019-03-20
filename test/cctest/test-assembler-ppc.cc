@@ -55,8 +55,6 @@ TEST(0) {
 
   Assembler assm(AssemblerOptions{});
 
-  __ function_descriptor();
-
   __ add(r3, r3, r4);
   __ blr();
 
@@ -82,8 +80,6 @@ TEST(1) {
 
   Assembler assm(AssemblerOptions{});
   Label L, C;
-
-  __ function_descriptor();
 
   __ mr(r4, r3);
   __ li(r3, Operand::Zero());
@@ -119,8 +115,6 @@ TEST(2) {
 
   Assembler assm(AssemblerOptions{});
   Label L, C;
-
-  __ function_descriptor();
 
   __ mr(r4, r3);
   __ li(r3, Operand(1));
@@ -175,8 +169,6 @@ TEST(3) {
   T t;
 
   Assembler assm(AssemblerOptions{});
-
-  __ function_descriptor();
 
 // build a frame
 #if V8_TARGET_ARCH_PPC64

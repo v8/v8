@@ -187,7 +187,9 @@ void PlatformDependentEmbeddedFileWriter::DeclareLabel(const char* name) {
   fprintf(fp_, "_%s:\n", name);
 }
 
-void PlatformDependentEmbeddedFileWriter::SourceInfo(int fileid, int line) {
+void PlatformDependentEmbeddedFileWriter::SourceInfo(int fileid,
+                                                     const char* filename,
+                                                     int line) {
   fprintf(fp_, ".loc %d %d\n", fileid, line);
 }
 
@@ -277,8 +279,10 @@ void PlatformDependentEmbeddedFileWriter::DeclareLabel(const char* name) {
   fprintf(fp_, "%s:\n", name);
 }
 
-void PlatformDependentEmbeddedFileWriter::SourceInfo(int fileid, int line) {
-  fprintf(fp_, ".loc %d %d\n", fileid, line);
+void PlatformDependentEmbeddedFileWriter::SourceInfo(int fileid,
+                                                     const char* filename,
+                                                     int line) {
+  fprintf(fp_, ".xline %d, \"%s\"\n", line, filename);
 }
 
 void PlatformDependentEmbeddedFileWriter::DeclareFunctionBegin(
@@ -303,7 +307,9 @@ void PlatformDependentEmbeddedFileWriter::FilePrologue() {}
 
 void PlatformDependentEmbeddedFileWriter::DeclareExternalFilename(
     int fileid, const char* filename) {
-  fprintf(fp_, ".file %d \"%s\"\n", fileid, filename);
+  // File name cannot be declared with an identifier on AIX.
+  // We use the SourceInfo method to emit debug info in
+  //.xline <line-number> <file-name> format.
 }
 
 void PlatformDependentEmbeddedFileWriter::FileEpilogue() {}
@@ -371,7 +377,9 @@ void PlatformDependentEmbeddedFileWriter::DeclareLabel(const char* name) {
           DirectiveAsString(kByte));
 }
 
-void PlatformDependentEmbeddedFileWriter::SourceInfo(int fileid, int line) {
+void PlatformDependentEmbeddedFileWriter::SourceInfo(int fileid,
+                                                     const char* filename,
+                                                     int line) {
   // TODO(mvstanton): output source information for MSVC.
   // Its syntax is #line <line> "<filename>"
 }
@@ -477,7 +485,9 @@ void PlatformDependentEmbeddedFileWriter::DeclareLabel(const char* name) {
   fprintf(fp_, "%s%s\n", SYMBOL_PREFIX, name);
 }
 
-void PlatformDependentEmbeddedFileWriter::SourceInfo(int fileid, int line) {
+void PlatformDependentEmbeddedFileWriter::SourceInfo(int fileid,
+                                                     const char* filename,
+                                                     int line) {
   // TODO(mvstanton): output source information for MSVC.
   // Its syntax is #line <line> "<filename>"
 }
@@ -582,7 +592,9 @@ void PlatformDependentEmbeddedFileWriter::DeclareLabel(const char* name) {
   fprintf(fp_, "%s%s:\n", SYMBOL_PREFIX, name);
 }
 
-void PlatformDependentEmbeddedFileWriter::SourceInfo(int fileid, int line) {
+void PlatformDependentEmbeddedFileWriter::SourceInfo(int fileid,
+                                                     const char* filename,
+                                                     int line) {
   fprintf(fp_, ".loc %d %d\n", fileid, line);
 }
 
