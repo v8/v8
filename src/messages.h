@@ -24,6 +24,7 @@ class WasmCode;
 // Forward declarations.
 class AbstractCode;
 class FrameArray;
+class IncrementalStringBuilder;
 class JSMessageObject;
 class LookupIterator;
 class SharedFunctionInfo;
@@ -83,7 +84,8 @@ class StackFrameBase {
   virtual bool IsConstructor() = 0;
   virtual bool IsStrict() const = 0;
 
-  virtual MaybeHandle<String> ToString() = 0;
+  MaybeHandle<String> ToString();
+  virtual void ToString(IncrementalStringBuilder& builder) = 0;
 
   // Used to signal that the requested field is unknown.
   static const int kNone = -1;
@@ -127,7 +129,7 @@ class JSStackFrame : public StackFrameBase {
   bool IsConstructor() override { return is_constructor_; }
   bool IsStrict() const override { return is_strict_; }
 
-  MaybeHandle<String> ToString() override;
+  void ToString(IncrementalStringBuilder& builder) override;
 
  private:
   JSStackFrame() = default;
@@ -176,7 +178,7 @@ class WasmStackFrame : public StackFrameBase {
   bool IsStrict() const override { return false; }
   bool IsInterpreted() const { return code_ == nullptr; }
 
-  MaybeHandle<String> ToString() override;
+  void ToString(IncrementalStringBuilder& builder) override;
 
  protected:
   Handle<Object> Null() const;
@@ -211,7 +213,7 @@ class AsmJsWasmStackFrame : public WasmStackFrame {
   int GetLineNumber() override;
   int GetColumnNumber() override;
 
-  MaybeHandle<String> ToString() override;
+  void ToString(IncrementalStringBuilder& builder) override;
 
  private:
   friend class FrameArrayIterator;

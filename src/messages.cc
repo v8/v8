@@ -304,6 +304,12 @@ bool StackFrameBase::IsEval() {
          GetScript()->compilation_type() == Script::COMPILATION_TYPE_EVAL;
 }
 
+MaybeHandle<String> StackFrameBase::ToString() {
+  IncrementalStringBuilder builder(isolate_);
+  ToString(builder);
+  return builder.Finish();
+}
+
 void JSStackFrame::FromFrameArray(Isolate* isolate, Handle<FrameArray> array,
                                   int frame_ix) {
   DCHECK(!array->IsWasmFrame(frame_ix));
@@ -616,9 +622,7 @@ void AppendMethodCall(Isolate* isolate, JSStackFrame* call_site,
 
 }  // namespace
 
-MaybeHandle<String> JSStackFrame::ToString() {
-  IncrementalStringBuilder builder(isolate_);
-
+void JSStackFrame::ToString(IncrementalStringBuilder& builder) {
   Handle<Object> function_name = GetFunctionName();
 
   const bool is_toplevel = IsToplevel();
@@ -638,7 +642,7 @@ MaybeHandle<String> JSStackFrame::ToString() {
         handle(Smi::FromInt(offset_), isolate_), isolate_);
     builder.AppendString(index_string);
     builder.AppendCString(")");
-    return builder.Finish();
+    return;
   }
   if (is_method_call) {
     AppendMethodCall(isolate_, this, &builder);
@@ -653,14 +657,14 @@ MaybeHandle<String> JSStackFrame::ToString() {
     builder.AppendString(Handle<String>::cast(function_name));
   } else {
     AppendFileLocation(isolate_, this, &builder);
-    return builder.Finish();
+    return;
   }
 
   builder.AppendCString(" (");
   AppendFileLocation(isolate_, this, &builder);
   builder.AppendCString(")");
 
-  return builder.Finish();
+  return;
 }
 
 int JSStackFrame::GetPosition() const { return code_->SourcePosition(offset_); }
@@ -710,9 +714,7 @@ Handle<Object> WasmStackFrame::GetFunctionName() {
   return name;
 }
 
-MaybeHandle<String> WasmStackFrame::ToString() {
-  IncrementalStringBuilder builder(isolate_);
-
+void WasmStackFrame::ToString(IncrementalStringBuilder& builder) {
   Handle<WasmModuleObject> module_object(wasm_instance_->module_object(),
                                          isolate_);
   MaybeHandle<String> module_name =
@@ -744,7 +746,7 @@ MaybeHandle<String> WasmStackFrame::ToString() {
 
   if (has_name) builder.AppendCString(")");
 
-  return builder.Finish();
+  return;
 }
 
 int WasmStackFrame::GetPosition() const {
@@ -821,12 +823,10 @@ int AsmJsWasmStackFrame::GetColumnNumber() {
   return Script::GetColumnNumber(script, GetPosition()) + 1;
 }
 
-MaybeHandle<String> AsmJsWasmStackFrame::ToString() {
+void AsmJsWasmStackFrame::ToString(IncrementalStringBuilder& builder) {
   // The string should look exactly as the respective javascript frame string.
-  // Keep this method in line to JSStackFrame::ToString().
-
-  IncrementalStringBuilder builder(isolate_);
-
+  // Keep this method in line to
+  // JSStackFrame::ToString(IncrementalStringBuilder&).
   Handle<Object> function_name = GetFunctionName();
 
   if (IsNonEmptyString(function_name)) {
@@ -838,7 +838,7 @@ MaybeHandle<String> AsmJsWasmStackFrame::ToString() {
 
   if (IsNonEmptyString(function_name)) builder.AppendCString(")");
 
-  return builder.Finish();
+  return;
 }
 
 FrameArrayIterator::FrameArrayIterator(Isolate* isolate,
@@ -1049,31 +1049,29 @@ MaybeHandle<Object> ErrorUtils::FormatStackTrace(Isolate* isolate,
     builder.AppendCString("\n    at ");
 
     StackFrameBase* frame = it.Frame();
-    MaybeHandle<String> maybe_frame_string = frame->ToString();
-    if (maybe_frame_string.is_null()) {
-      // CallSite.toString threw. Try to return a string representation of the
-      // thrown exception instead.
+    frame->ToString(builder);
+    if (isolate->has_pending_exception()) {
+      // CallSite.toString threw. Parts of the current frame might have been
+      // stringified already regardless. Still, try to append a string
+      // representation of the thrown exception.
 
-      DCHECK(isolate->has_pending_exception());
       Handle<Object> pending_exception =
           handle(isolate->pending_exception(), isolate);
       isolate->clear_pending_exception();
       isolate->set_external_caught_exception(false);
 
-      maybe_frame_string = ErrorUtils::ToString(isolate, pending_exception);
-      if (maybe_frame_string.is_null()) {
+      MaybeHandle<String> exception_string =
+          ErrorUtils::ToString(isolate, pending_exception);
+      if (exception_string.is_null()) {
         // Formatting the thrown exception threw again, give up.
 
         builder.AppendCString("<error>");
       } else {
         // Formatted thrown exception successfully, append it.
         builder.AppendCString("<error: ");
-        builder.AppendString(maybe_frame_string.ToHandleChecked());
+        builder.AppendString(exception_string.ToHandleChecked());
         builder.AppendCString("<error>");
       }
-    } else {
-      // CallSite.toString completed without throwing.
-      builder.AppendString(maybe_frame_string.ToHandleChecked());
     }
   }
 

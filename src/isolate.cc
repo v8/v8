@@ -67,6 +67,7 @@
 #include "src/snapshot/embedded-file-writer.h"
 #include "src/snapshot/read-only-deserializer.h"
 #include "src/snapshot/startup-deserializer.h"
+#include "src/string-builder-inl.h"
 #include "src/string-stream.h"
 #include "src/tracing/tracing-category-observer.h"
 #include "src/trap-handler/trap-handler.h"
@@ -2000,6 +2001,7 @@ Object Isolate::PromoteScheduledException() {
 }
 
 void Isolate::PrintCurrentStackTrace(FILE* out) {
+  IncrementalStringBuilder builder(this);
   for (StackTraceFrameIterator it(this); !it.done(); it.Advance()) {
     if (!it.is_javascript()) continue;
 
@@ -2020,13 +2022,16 @@ void Isolate::PrintCurrentStackTrace(FILE* out) {
       offset = static_cast<int>(frame->pc() - code->InstructionStart());
     }
 
+    // To preserve backwards compatiblity, only append a newline when
+    // the current stringified frame actually has characters.
+    const int old_length = builder.Length();
     JSStackFrame site(this, receiver, function, code, offset);
-    Handle<String> line = site.ToString().ToHandleChecked();
-    if (line->length() > 0) {
-      line->PrintOn(out);
-      PrintF(out, "\n");
-    }
+    site.ToString(builder);
+    if (old_length != builder.Length()) builder.AppendCharacter('\n');
   }
+
+  Handle<String> stack_trace = builder.Finish().ToHandleChecked();
+  stack_trace->PrintOn(out);
 }
 
 bool Isolate::ComputeLocation(MessageLocation* target) {
