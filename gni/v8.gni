@@ -31,8 +31,12 @@ declare_args() {
   # Support for backtrace_symbols on linux.
   v8_enable_backtrace = ""
 
-  # Enables full heap snapshots containing internals. Used for debugging memory
+  # Enables raw heap snapshots containing internals. Used for debugging memory
   # on platform and embedder level.
+  v8_enable_raw_heap_snapshots = false
+
+  # See v8_enable_raw_heap_snapshots.
+  # TODO(mlippautz): Remove after adjusting Blink embedder code.
   v8_enable_full_heap_snapshots = false
 
   # Enable the snapshot feature, for fast context creation.

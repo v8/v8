@@ -345,6 +345,9 @@ config("features") {
   }
   defines +=
       [ "V8_TYPED_ARRAY_MAX_SIZE_IN_HEAP=${v8_typed_array_max_size_in_heap}" ]
+  if (v8_enable_raw_heap_snapshots) {
+    defines += [ "V8_ENABLE_RAW_HEAP_SNAPSHOTS" ]
+  }
   if (v8_enable_future) {
     defines += [ "V8_ENABLE_FUTURE" ]
   }

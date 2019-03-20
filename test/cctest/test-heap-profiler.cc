@@ -1672,11 +1672,11 @@ TEST(HeapSnapshotRetainedObjectInfo) {
   CHECK(ValidateSnapshot(snapshot));
 
   const v8::HeapGraphNode* native_group_aaa =
-      GetNode(snapshot->GetRoot(), v8::HeapGraphNode::kNative, "aaa-group");
-  CHECK(native_group_aaa);
+      GetNode(snapshot->GetRoot(), v8::HeapGraphNode::kSynthetic, "aaa-group");
+  CHECK_NOT_NULL(native_group_aaa);
   const v8::HeapGraphNode* native_group_ccc =
-      GetNode(snapshot->GetRoot(), v8::HeapGraphNode::kNative, "ccc-group");
-  CHECK(native_group_ccc);
+      GetNode(snapshot->GetRoot(), v8::HeapGraphNode::kSynthetic, "ccc-group");
+  CHECK_NOT_NULL(native_group_ccc);
 
   const v8::HeapGraphNode* n_AAA =
       GetNode(native_group_aaa, v8::HeapGraphNode::kString, "AAA");

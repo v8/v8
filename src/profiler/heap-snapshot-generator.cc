@@ -1681,6 +1681,10 @@ void V8HeapExplorer::SetGcSubrootReference(Root root, const char* description,
         edge_type, description, child_entry, names_);
   }
 
+  // For full heap snapshots we do not emit user roots but rather rely on
+  // regular GC roots to retain objects.
+  if (FLAG_raw_heap_snapshots) return;
+
   // Add a shortcut to JS global object reference at snapshot root.
   // That allows the user to easily find global objects. They are
   // also used as starting points in distance calculations.
@@ -1837,7 +1841,7 @@ const char* EmbedderGraphNodeName(StringsStorage* names,
 }
 
 HeapEntry::Type EmbedderGraphNodeType(EmbedderGraphImpl::Node* node) {
-  return HeapEntry::kNative;
+  return node->IsRootNode() ? HeapEntry::kSynthetic : HeapEntry::kNative;
 }
 
 // Merges the names of an embedder node and its wrapper node.

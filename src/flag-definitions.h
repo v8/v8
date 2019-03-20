@@ -292,6 +292,12 @@ HARMONY_SHIPPING(FLAG_SHIPPING_FEATURES)
 DEFINE_BOOL(icu_timezone_data, true, "get information about timezones from ICU")
 #endif
 
+#ifdef V8_ENABLE_RAW_HEAP_SNAPSHOTS
+#define V8_ENABLE_RAW_HEAP_SNAPSHOTS_BOOL true
+#else
+#define V8_ENABLE_RAW_HEAP_SNAPSHOTS_BOOL false
+#endif  // V8_ENABLE_RAW_HEAP_SNAPSHOTS
+
 #ifdef V8_LITE_MODE
 #define V8_LITE_BOOL true
 #else
@@ -1535,6 +1541,9 @@ DEFINE_BOOL(enable_embedded_constant_pool, V8_EMBEDDED_CONSTANT_POOL,
 DEFINE_BOOL(unbox_double_fields, V8_DOUBLE_FIELDS_UNBOXING,
             "enable in-object double fields unboxing (64-bit only)")
 DEFINE_IMPLICATION(unbox_double_fields, track_double_fields)
+
+DEFINE_BOOL(raw_heap_snapshots, V8_ENABLE_RAW_HEAP_SNAPSHOTS_BOOL,
+            "enable raw heap snapshots contain garbage collection internals")
 
 DEFINE_BOOL(lite_mode, V8_LITE_BOOL,
             "enables trade-off of performance for memory savings "
