@@ -353,7 +353,6 @@
   'regress/regress-crbug-772056': [SKIP],
   'regress/regress-crbug-816961': [SKIP],
   'regress/wasm/*': [SKIP],
-  'tools/compiler-trace-flags': [SKIP],
   'regress/regress-8947': [SKIP],
   'wasm/*': [SKIP],
 
@@ -385,6 +384,10 @@
   'regress/regress-crbug-721835': [SKIP],
   'regress/regress-crbug-759327': [SKIP],
   'regress/regress-crbug-898974': [SKIP],
+
+  # These tests check that we can trace the compiler.
+  'tools/compiler-trace-flags': [SKIP],
+  'tools/compiler-trace-flags-wasm': [SKIP]
 }],  # 'lite_mode or variant == jitless'
 
 ##############################################################################
