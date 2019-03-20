@@ -502,8 +502,9 @@ WasmCode* NativeModule::AddAndPublishAnonymousCode(Handle<Code> code,
   // we do not apply the on-heap reloc info to the off-heap instructions.
   const size_t relocation_size =
       code->is_off_heap_trampoline() ? 0 : code->relocation_size();
-  OwnedVector<byte> reloc_info = OwnedVector<byte>::New(relocation_size);
+  OwnedVector<byte> reloc_info;
   if (relocation_size > 0) {
+    reloc_info = OwnedVector<byte>::New(relocation_size);
     memcpy(reloc_info.start(), code->relocation_start(), relocation_size);
   }
   Handle<ByteArray> source_pos_table(code->SourcePositionTable(),
@@ -532,32 +533,19 @@ WasmCode* NativeModule::AddAndPublishAnonymousCode(Handle<Code> code,
   const size_t code_comments_offset =
       static_cast<size_t>(code->code_comments_offset());
 
-  Vector<uint8_t> code_space = AllocateForCode(instructions.size());
-  memcpy(code_space.begin(), instructions.start(), instructions.size());
-  std::unique_ptr<WasmCode> new_code{new WasmCode{
-      this,                                     // native_module
-      WasmCode::kAnonymousFuncIndex,            // index
-      code_space,                               // instructions
-      stack_slots,                              // stack_slots
-      0,                                        // tagged_parameter_slots
-      safepoint_table_offset,                   // safepoint_table_offset
-      handler_table_offset,                     // handler_table_offset
-      constant_pool_offset,                     // constant_pool_offset
-      code_comments_offset,                     // code_comments_offset
-      instructions.size(),                      // unpadded_binary_size
-      OwnedVector<ProtectedInstructionData>{},  // protected_instructions
-      std::move(reloc_info),                    // reloc_info
-      std::move(source_pos),                    // source positions
-      kind,                                     // kind
-      WasmCode::kOther}};                       // tier
+  Vector<uint8_t> dst_code_bytes = AllocateForCode(instructions.size());
+  memcpy(dst_code_bytes.begin(), instructions.start(), instructions.size());
 
   // Apply the relocation delta by iterating over the RelocInfo.
-  intptr_t delta = new_code->instruction_start() - code->InstructionStart();
+  intptr_t delta = reinterpret_cast<Address>(dst_code_bytes.begin()) -
+                   code->InstructionStart();
   int mode_mask = RelocInfo::kApplyMask |
                   RelocInfo::ModeMask(RelocInfo::WASM_STUB_CALL);
+  Address constant_pool_start =
+      reinterpret_cast<Address>(dst_code_bytes.begin()) + constant_pool_offset;
   RelocIterator orig_it(*code, mode_mask);
-  for (RelocIterator it(new_code->instructions(), new_code->reloc_info(),
-                        new_code->constant_pool(), mode_mask);
+  for (RelocIterator it(dst_code_bytes, reloc_info.as_vector(),
+                        constant_pool_start, mode_mask);
        !it.done(); it.next(), orig_it.next()) {
     RelocInfo::Mode mode = it.rinfo()->rmode();
     if (RelocInfo::IsWasmStubCall(mode)) {
@@ -572,8 +560,24 @@ WasmCode* NativeModule::AddAndPublishAnonymousCode(Handle<Code> code,
   }
 
   // Flush the i-cache after relocation.
-  FlushInstructionCache(new_code->instructions().start(),
-                        new_code->instructions().size());
+  FlushInstructionCache(dst_code_bytes.start(), dst_code_bytes.size());
+
+  std::unique_ptr<WasmCode> new_code{new WasmCode{
+      this,                                     // native_module
+      WasmCode::kAnonymousFuncIndex,            // index
+      dst_code_bytes,                           // instructions
+      stack_slots,                              // stack_slots
+      0,                                        // tagged_parameter_slots
+      safepoint_table_offset,                   // safepoint_table_offset
+      handler_table_offset,                     // handler_table_offset
+      constant_pool_offset,                     // constant_pool_offset
+      code_comments_offset,                     // code_comments_offset
+      instructions.size(),                      // unpadded_binary_size
+      OwnedVector<ProtectedInstructionData>{},  // protected_instructions
+      std::move(reloc_info),                    // reloc_info
+      std::move(source_pos),                    // source positions
+      kind,                                     // kind
+      WasmCode::kOther}};                       // tier
   new_code->MaybePrint(name);
   new_code->Validate();
 
@@ -597,7 +601,7 @@ std::unique_ptr<WasmCode> NativeModule::AddCodeWithCodeSpace(
     uint32_t tagged_parameter_slots,
     OwnedVector<ProtectedInstructionData> protected_instructions,
     OwnedVector<const byte> source_position_table, WasmCode::Kind kind,
-    WasmCode::Tier tier, Vector<uint8_t> code_space) {
+    WasmCode::Tier tier, Vector<uint8_t> dst_code_bytes) {
   OwnedVector<byte> reloc_info;
   if (desc.reloc_size > 0) {
     reloc_info = OwnedVector<byte>::New(desc.reloc_size);
@@ -618,21 +622,18 @@ std::unique_ptr<WasmCode> NativeModule::AddCodeWithCodeSpace(
       static_cast<size_t>(desc.code_comments_offset);
   const size_t instr_size = static_cast<size_t>(desc.instr_size);
 
-  memcpy(code_space.begin(), desc.buffer, static_cast<size_t>(desc.instr_size));
-
-  std::unique_ptr<WasmCode> code{new WasmCode{
-      this, index, code_space, stack_slots, tagged_parameter_slots,
-      safepoint_table_offset, handler_table_offset, constant_pool_offset,
-      code_comments_offset, instr_size, std::move(protected_instructions),
-      std::move(reloc_info), std::move(source_position_table), kind, tier}};
+  memcpy(dst_code_bytes.begin(), desc.buffer,
+         static_cast<size_t>(desc.instr_size));
 
   // Apply the relocation delta by iterating over the RelocInfo.
-  intptr_t delta = code->instructions().start() - desc.buffer;
+  intptr_t delta = dst_code_bytes.begin() - desc.buffer;
   int mode_mask = RelocInfo::kApplyMask |
                   RelocInfo::ModeMask(RelocInfo::WASM_CALL) |
                   RelocInfo::ModeMask(RelocInfo::WASM_STUB_CALL);
-  for (RelocIterator it(code->instructions(), code->reloc_info(),
-                        code->constant_pool(), mode_mask);
+  Address constant_pool_start =
+      reinterpret_cast<Address>(dst_code_bytes.begin()) + constant_pool_offset;
+  for (RelocIterator it(dst_code_bytes, reloc_info.as_vector(),
+                        constant_pool_start, mode_mask);
        !it.done(); it.next()) {
     RelocInfo::Mode mode = it.rinfo()->rmode();
     if (RelocInfo::IsWasmCall(mode)) {
@@ -651,8 +652,13 @@ std::unique_ptr<WasmCode> NativeModule::AddCodeWithCodeSpace(
   }
 
   // Flush the i-cache after relocation.
-  FlushInstructionCache(code->instructions().start(),
-                        code->instructions().size());
+  FlushInstructionCache(dst_code_bytes.start(), dst_code_bytes.size());
+
+  std::unique_ptr<WasmCode> code{new WasmCode{
+      this, index, dst_code_bytes, stack_slots, tagged_parameter_slots,
+      safepoint_table_offset, handler_table_offset, constant_pool_offset,
+      code_comments_offset, instr_size, std::move(protected_instructions),
+      std::move(reloc_info), std::move(source_position_table), kind, tier}};
   code->MaybePrint();
   code->Validate();
 
@@ -705,11 +711,11 @@ WasmCode* NativeModule::AddDeserializedCode(
     OwnedVector<const byte> reloc_info,
     OwnedVector<const byte> source_position_table, WasmCode::Kind kind,
     WasmCode::Tier tier) {
-  Vector<uint8_t> code_space = AllocateForCode(instructions.size());
-  memcpy(code_space.begin(), instructions.start(), instructions.size());
+  Vector<uint8_t> dst_code_bytes = AllocateForCode(instructions.size());
+  memcpy(dst_code_bytes.begin(), instructions.start(), instructions.size());
 
   std::unique_ptr<WasmCode> code{new WasmCode{
-      this, index, code_space, stack_slots, tagged_parameter_slots,
+      this, index, dst_code_bytes, stack_slots, tagged_parameter_slots,
       safepoint_table_offset, handler_table_offset, constant_pool_offset,
       code_comments_offset, unpadded_binary_size,
       std::move(protected_instructions), std::move(reloc_info),
