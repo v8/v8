@@ -626,7 +626,7 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
   NativeModule* native_module = module_object->native_module();
 
   if (FLAG_wasm_lazy_compilation) {
-    native_module->SetLazyBuiltin(BUILTIN_CODE(isolate, WasmCompileLazy));
+    native_module->SetLazyBuiltin();
   }
   NativeModuleDeserializer deserializer(native_module);
 

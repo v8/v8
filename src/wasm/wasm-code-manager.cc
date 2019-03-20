@@ -349,8 +349,6 @@ const char* GetWasmCodeKindAsString(WasmCode::Kind kind) {
       return "wasm function";
     case WasmCode::kWasmToJsWrapper:
       return "wasm-to-js";
-    case WasmCode::kLazyStub:
-      return "lazy-compile";
     case WasmCode::kRuntimeStub:
       return "runtime-stub";
     case WasmCode::kInterpreterEntry:
@@ -486,12 +484,11 @@ WasmCode* NativeModule::AddCodeForTesting(Handle<Code> code) {
   return ret;
 }
 
-void NativeModule::SetLazyBuiltin(Handle<Code> code) {
+void NativeModule::SetLazyBuiltin() {
   uint32_t num_wasm_functions = module_->num_declared_functions;
   if (num_wasm_functions == 0) return;
-  WasmCode* lazy_builtin = AddAnonymousCode(code, WasmCode::kLazyStub);
   // Fill the jump table with jumps to the lazy compile stub.
-  Address lazy_compile_target = lazy_builtin->instruction_start();
+  Address lazy_compile_target = runtime_stub_entry(WasmCode::kWasmCompileLazy);
   for (uint32_t i = 0; i < num_wasm_functions; ++i) {
     JumpTableAssembler::EmitLazyCompileJumpSlot(
         jump_table_->instruction_start(), i,

@@ -76,7 +76,6 @@ class V8_EXPORT_PRIVATE WasmCode final {
   enum Kind {
     kFunction,
     kWasmToJsWrapper,
-    kLazyStub,
     kRuntimeStub,
     kInterpreterEntry,
     kJumpTable
@@ -256,10 +255,10 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // Adds anonymous code for testing purposes.
   WasmCode* AddCodeForTesting(Handle<Code> code);
 
-  // When starting lazy compilation, provide the WasmLazyCompile builtin by
-  // calling SetLazyBuiltin. It will be copied into this NativeModule and the
-  // jump table will be populated with that copy.
-  void SetLazyBuiltin(Handle<Code> code);
+  // Use this to start lazy compilation for the entire module. It will use the
+  // existing {WasmCode::kWasmCompileLazy} runtime stub and populate the jump
+  // table with trampolines to that runtime stub.
+  void SetLazyBuiltin();
 
   // Initializes all runtime stubs by setting up entry addresses in the runtime
   // stub table. It must be called exactly once per native module before adding

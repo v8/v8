@@ -1422,6 +1422,7 @@ namespace internal {
 // elements of the list coincide with {compiler::TrapId}, order matters.
 #define WASM_RUNTIME_STUB_LIST(V, VTRAP) \
   FOREACH_WASM_TRAPREASON(VTRAP)         \
+  V(WasmCompileLazy)                     \
   V(WasmAllocateHeapNumber)              \
   V(WasmAtomicNotify)                    \
   V(WasmI32AtomicWait)                   \

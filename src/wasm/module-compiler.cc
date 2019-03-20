@@ -628,7 +628,7 @@ void CompileNativeModule(Isolate* isolate, ErrorThrower* thrower,
       if (thrower->error()) return;
     }
 
-    native_module->SetLazyBuiltin(BUILTIN_CODE(isolate, WasmCompileLazy));
+    native_module->SetLazyBuiltin();
   } else {
     size_t funcs_to_compile =
         wasm_module->functions.size() - wasm_module->num_imported_functions;
