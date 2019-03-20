@@ -417,6 +417,7 @@ namespace internal {
   T(MalformedRegExp, "Invalid regular expression: /%/: %")                     \
   T(MalformedRegExpFlags, "Invalid regular expression flags")                  \
   T(ModuleExportUndefined, "Export '%' is not defined in module")              \
+  T(MissingFunctionName, "Function statements require a function name")        \
   T(HtmlCommentInModule, "HTML comments are not allowed in modules")           \
   T(MultipleDefaultsInSwitch,                                                  \
     "More than one default clause in switch statement")                        \

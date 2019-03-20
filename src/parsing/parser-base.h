@@ -3737,9 +3737,14 @@ ParserBase<Impl>::ParseHoistableDeclaration(
   IdentifierT name;
   FunctionNameValidity name_validity;
   IdentifierT variable_name;
-  if (default_export && peek() == Token::LPAREN) {
-    impl()->GetDefaultStrings(&name, &variable_name);
-    name_validity = kSkipFunctionNameCheck;
+  if (peek() == Token::LPAREN) {
+    if (default_export) {
+      impl()->GetDefaultStrings(&name, &variable_name);
+      name_validity = kSkipFunctionNameCheck;
+    } else {
+      ReportMessage(MessageTemplate::kMissingFunctionName);
+      return impl()->NullStatement();
+    }
   } else {
     bool is_strict_reserved = Token::IsStrictReservedWord(peek());
     name = ParseIdentifier();
