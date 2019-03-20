@@ -76,6 +76,10 @@ deps = {
     'url': Var('chromium_url') + '/android_tools.git' + '@' + '347a7c8078a009e98995985b7ab6ec6b35696dea',
     'condition': 'checkout_android',
   },
+  'v8/third_party/android_sdk': {
+    'url': Var('chromium_url') + '/android_tools.git' + '@' + '347a7c8078a009e98995985b7ab6ec6b35696dea',
+    'condition': 'checkout_android',
+  },
   'v8/third_party/catapult': {
     'url': Var('chromium_url') + '/catapult.git' + '@' + '4e9bccd7a0cf184bba38950b2d9c499366b7488b',
     'condition': 'checkout_android',
