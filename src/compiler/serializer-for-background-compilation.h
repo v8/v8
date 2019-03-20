@@ -248,7 +248,7 @@ class SerializerForBackgroundCompilation {
                            base::Optional<Hints> new_target,
                            const HintsVector& arguments, bool with_spread);
 
-  void ProcessFeedbackForGlobalAccess(FeedbackSlot slot);
+  GlobalAccessFeedback const* ProcessFeedbackForGlobalAccess(FeedbackSlot slot);
   void ProcessFeedbackForKeyedPropertyAccess(FeedbackSlot slot,
                                              AccessMode mode);
 

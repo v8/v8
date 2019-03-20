@@ -286,8 +286,10 @@ class ContextRef : public HeapObjectRef {
   using HeapObjectRef::HeapObjectRef;
   Handle<Context> object() const;
 
-  void Serialize();
+  void SerializeContextChain();
   ContextRef previous() const;
+
+  void SerializeSlot(int index);
   ObjectRef get(int index) const;
 };
 
@@ -650,6 +652,8 @@ class GlobalAccessFeedback : public ProcessedFeedback {
   ContextRef script_context() const;
   int slot_index() const;
   bool immutable() const;
+
+  base::Optional<ObjectRef> GetConstantValue() const;
 
  private:
   ObjectRef const cell_or_context_;

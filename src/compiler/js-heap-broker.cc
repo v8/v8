@@ -406,35 +406,53 @@ class ContextData : public HeapObjectData {
  public:
   ContextData(JSHeapBroker* broker, ObjectData** storage,
               Handle<Context> object);
-  void Serialize(JSHeapBroker* broker);
+  void SerializeContextChain(JSHeapBroker* broker);
 
   ContextData* previous() const {
-    CHECK(serialized_);
+    CHECK(serialized_context_chain_);
     return previous_;
   }
 
+  void SerializeSlot(JSHeapBroker* broker, int index);
+
+  ObjectData* GetSlot(int index) {
+    auto search = slots_.find(index);
+    CHECK(search != slots_.end());
+    return search->second;
+  }
+
  private:
-  bool serialized_ = false;
+  ZoneMap<int, ObjectData*> slots_;
+  bool serialized_context_chain_ = false;
   ContextData* previous_ = nullptr;
 };
 
 ContextData::ContextData(JSHeapBroker* broker, ObjectData** storage,
                          Handle<Context> object)
-    : HeapObjectData(broker, storage, object) {}
+    : HeapObjectData(broker, storage, object), slots_(broker->zone()) {}
 
-void ContextData::Serialize(JSHeapBroker* broker) {
-  if (serialized_) return;
-  serialized_ = true;
+void ContextData::SerializeContextChain(JSHeapBroker* broker) {
+  if (serialized_context_chain_) return;
+  serialized_context_chain_ = true;
 
-  TraceScope tracer(broker, this, "ContextData::Serialize");
+  TraceScope tracer(broker, this, "ContextData::SerializeContextChain");
   Handle<Context> context = Handle<Context>::cast(object());
 
   DCHECK_NULL(previous_);
   // Context::previous DCHECK-fails when called on the native context.
   if (!context->IsNativeContext()) {
     previous_ = broker->GetOrCreateData(context->previous())->AsContext();
-    previous_->Serialize(broker);
+    previous_->SerializeContextChain(broker);
   }
+}
+
+void ContextData::SerializeSlot(JSHeapBroker* broker, int index) {
+  TraceScope tracer(broker, this, "ContextData::SerializeSlot");
+  TRACE(broker, "Serializing script context slot " << index << ".");
+  Handle<Context> context = Handle<Context>::cast(object());
+  CHECK(index >= 0 && index < context->length());
+  ObjectData* odata = broker->GetOrCreateData(context->get(index));
+  slots_.insert(std::make_pair(index, odata));
 }
 
 class NativeContextData : public ContextData {
@@ -1574,10 +1592,13 @@ ContextRef ContextRef::previous() const {
 
 // Not needed for TypedLowering.
 ObjectRef ContextRef::get(int index) const {
-  AllowHandleAllocation handle_allocation;
-  AllowHandleDereference handle_dereference;
-  Handle<Object> value(object()->get(index), broker()->isolate());
-  return ObjectRef(broker(), value);
+  if (broker()->mode() == JSHeapBroker::kDisabled) {
+    AllowHandleAllocation handle_allocation;
+    AllowHandleDereference handle_dereference;
+    Handle<Object> value(object()->get(index), broker()->isolate());
+    return ObjectRef(broker(), value);
+  }
+  return ObjectRef(broker(), data()->AsContext()->GetSlot(index));
 }
 
 JSHeapBroker::JSHeapBroker(Isolate* isolate, Zone* broker_zone)
@@ -2813,10 +2834,16 @@ void ModuleRef::Serialize() {
   data()->AsModule()->Serialize(broker());
 }
 
-void ContextRef::Serialize() {
+void ContextRef::SerializeContextChain() {
   if (broker()->mode() == JSHeapBroker::kDisabled) return;
   CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
-  data()->AsContext()->Serialize(broker());
+  data()->AsContext()->SerializeContextChain(broker());
+}
+
+void ContextRef::SerializeSlot(int index) {
+  if (broker()->mode() == JSHeapBroker::kDisabled) return;
+  CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
+  data()->AsContext()->SerializeSlot(broker(), index);
 }
 
 void NativeContextRef::Serialize() {
@@ -2896,6 +2923,15 @@ int GlobalAccessFeedback::slot_index() const {
 bool GlobalAccessFeedback::immutable() const {
   CHECK(IsScriptContextSlot());
   return FeedbackNexus::ImmutabilityBit::decode(index_and_immutable_);
+}
+
+base::Optional<ObjectRef> GlobalAccessFeedback::GetConstantValue() const {
+  if (IsScriptContextSlot() && immutable()) {
+    // Return the value of this global variable if it's guaranteed to be
+    // constant.
+    return script_context().get(slot_index());
+  }
+  return {};
 }
 
 ElementAccessFeedback::ElementAccessFeedback(Zone* zone)
@@ -3053,8 +3089,12 @@ GlobalAccessFeedback const* JSHeapBroker::ProcessFeedbackForGlobalAccess(
       CHECK(!contents.equals(
           ObjectRef(this, isolate()->factory()->the_hole_value())));
     }
-    return new (zone()) GlobalAccessFeedback(ContextRef(this, context),
-                                             context_slot_index, immutable);
+    ContextRef context_ref(this, context);
+    if (immutable) {
+      context_ref.SerializeSlot(context_slot_index);
+    }
+    return new (zone())
+        GlobalAccessFeedback(context_ref, context_slot_index, immutable);
   }
 
   CHECK(feedback_value->IsPropertyCell());

@@ -683,27 +683,33 @@ void SerializerForBackgroundCompilation::VisitConstructWithSpread(
   ProcessCallOrConstruct(callee, new_target, arguments, slot, true);
 }
 
-void SerializerForBackgroundCompilation::ProcessFeedbackForGlobalAccess(
+GlobalAccessFeedback const*
+SerializerForBackgroundCompilation::ProcessFeedbackForGlobalAccess(
     FeedbackSlot slot) {
-  if (slot.IsInvalid()) return;
-  if (environment()->function().feedback_vector.is_null()) return;
+  if (slot.IsInvalid()) return nullptr;
+  if (environment()->function().feedback_vector.is_null()) return nullptr;
   FeedbackSource source(environment()->function().feedback_vector, slot);
   if (!broker()->HasFeedback(source)) {
-    broker()->SetFeedback(source,
-                          broker()->ProcessFeedbackForGlobalAccess(source));
+    const GlobalAccessFeedback* feedback =
+        broker()->ProcessFeedbackForGlobalAccess(source);
+    broker()->SetFeedback(source, feedback);
+    return feedback;
   }
-  // TODO(neis, mvstanton): In the case of an immutable script context slot, we
-  // must also serialize that slot such that ContextRef::get can retrieve the
-  // value.
+  return nullptr;
 }
 
 void SerializerForBackgroundCompilation::VisitLdaGlobal(
     BytecodeArrayIterator* iterator) {
   FeedbackSlot slot = iterator->GetSlotOperand(1);
-  ProcessFeedbackForGlobalAccess(slot);
-  // TODO(neis, mvstanton): In the case of an immutable script context slot, add
-  // the value as constant hint here and below
   environment()->accumulator_hints().Clear();
+  GlobalAccessFeedback const* feedback = ProcessFeedbackForGlobalAccess(slot);
+  if (feedback != nullptr) {
+    // We may be able to contribute to accumulator constant hints.
+    base::Optional<ObjectRef> value = feedback->GetConstantValue();
+    if (value.has_value()) {
+      environment()->accumulator_hints().AddConstant(value->object());
+    }
+  }
 }
 
 void SerializerForBackgroundCompilation::VisitLdaGlobalInsideTypeof(
