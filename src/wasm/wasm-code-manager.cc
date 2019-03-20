@@ -735,7 +735,7 @@ WasmCode* NativeModule::CreateEmptyJumpTable(uint32_t jump_table_size) {
   // Only call this if we really need a jump table.
   DCHECK_LT(0, jump_table_size);
   Vector<uint8_t> code_space = AllocateForCode(jump_table_size);
-  memset(code_space.begin(), 0, code_space.size());
+  ZapCode(reinterpret_cast<Address>(code_space.begin()), code_space.size());
   std::unique_ptr<WasmCode> code{new WasmCode{
       this,                                     // native_module
       WasmCode::kAnonymousFuncIndex,            // index
