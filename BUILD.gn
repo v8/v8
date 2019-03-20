@@ -3406,6 +3406,8 @@ v8_component("v8_libbase") {
       "ws2_32.lib",
     ]
 
+    ldflags = [ "/DELAYLOAD:shlwapi.dll" ]
+
     data_deps += [ "//build/win:runtime_libs" ]
   }
 
