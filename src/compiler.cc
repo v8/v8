@@ -781,6 +781,11 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
   function->feedback_vector()->set_profiler_ticks(0);
 
   VMState<COMPILER> state(isolate);
+  TimerEventScope<TimerEventOptimizeCode> optimize_code_timer(isolate);
+  RuntimeCallTimerScope runtimeTimer(isolate,
+                                     RuntimeCallCounterId::kOptimizeCode);
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.OptimizeCode");
+
   DCHECK(!isolate->has_pending_exception());
   PostponeInterruptsScope postpone(isolate);
   bool has_script = shared->script()->IsScript();
@@ -805,11 +810,6 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
     compilation_info->AbortOptimization(BailoutReason::kOptimizationDisabled);
     return MaybeHandle<Code>();
   }
-
-  TimerEventScope<TimerEventOptimizeCode> optimize_code_timer(isolate);
-  RuntimeCallTimerScope runtimeTimer(isolate,
-                                     RuntimeCallCounterId::kOptimizeCode);
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.OptimizeCode");
 
   // In case of concurrent recompilation, all handles below this point will be
   // allocated in a deferred handle scope that is detached and handed off to
