@@ -86,6 +86,13 @@ void OptimizedCompilationInfo::ConfigureFlags() {
     default:
       break;
   }
+
+  if (FLAG_turbo_control_flow_aware_allocation) {
+    MarkAsTurboControlFlowAwareAllocation();
+  }
+  if (FLAG_turbo_preprocess_ranges) {
+    MarkAsTurboPreprocessRanges();
+  }
 }
 
 OptimizedCompilationInfo::~OptimizedCompilationInfo() {
