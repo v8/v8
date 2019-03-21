@@ -520,8 +520,15 @@ void RunF32x4BinOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
         float actual = ReadLittleEndianValue<float>(&g[i]);
         if (std::isnan(expected)) {
           CHECK(std::isnan(actual));
+          // Finally, check that NaN outputs are canonical. The sign bit is
+          // allowed to be non-deterministic.
+          uint32_t expected_bits = bit_cast<uint32_t>(expected) & ~0x80000000;
+          uint32_t actual_bits = bit_cast<uint32_t>(actual) & ~0x80000000;
+          CHECK_EQ(expected_bits, actual_bits);
         } else {
           CHECK_EQ(expected, actual);
+          // The sign of 0's must match.
+          CHECK_EQ(std::signbit(expected), std::signbit(actual));
         }
       }
     }

@@ -1952,48 +1952,73 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kSSEF32x4Min: {
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      // minps doesn't propagate NaN lanes in the first source. Compare this
-      // with itself to generate 1's in those lanes (quiet NaNs) and or them
-      // with the result of minps to simulate NaN propagation.
-      __ movaps(kScratchDoubleReg, i.InputSimd128Register(0));
-      __ cmpps(kScratchDoubleReg, kScratchDoubleReg, 0x4);
-      __ minps(i.OutputSimd128Register(), i.InputSimd128Register(1));
-      __ orps(i.OutputSimd128Register(), kScratchDoubleReg);
-
+      XMMRegister src1 = i.InputSimd128Register(1),
+                  dst = i.OutputSimd128Register();
+      DCHECK_EQ(dst, i.InputSimd128Register(0));
+      // The minps instruction doesn't propagate NaNs and +0's in its first
+      // operand. Perform minps in both orders, merge the resuls, and adjust.
+      __ movaps(kScratchDoubleReg, src1);
+      __ minps(kScratchDoubleReg, dst);
+      __ minps(dst, src1);
+      // propagate -0's and NaNs, which may be non-canonical.
+      __ orps(dst, kScratchDoubleReg);
+      // Canonicalize NaNs by clearing the payload. Sign is non-deterministic.
+      __ movaps(kScratchDoubleReg, dst);
+      __ cmpps(dst, dst, 4);
+      __ psrld(dst, 10);
+      __ andnps(dst, kScratchDoubleReg);
       break;
     }
     case kAVXF32x4Min: {
       CpuFeatureScope avx_scope(tasm(), AVX);
-      // See comment above for minps and NaN propagation.
-      __ vcmpneqps(kScratchDoubleReg, i.InputSimd128Register(0),
-                   i.InputSimd128Register(0));  // Is NaN?
-      __ vminps(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                i.InputOperand(1));
-      __ vorps(i.OutputSimd128Register(), i.OutputSimd128Register(),
-               kScratchDoubleReg);  // re-NaN-imate.
+      XMMRegister dst = i.OutputSimd128Register();
+      Operand src1 = i.InputOperand(1);
+      // See comment above for correction of minps.
+      __ movups(kScratchDoubleReg, src1);
+      __ vminps(kScratchDoubleReg, kScratchDoubleReg, dst);
+      __ vminps(dst, dst, src1);
+      __ vorps(dst, dst, kScratchDoubleReg);
+      __ vcmpneqps(kScratchDoubleReg, dst, dst);
+      __ vpsrld(kScratchDoubleReg, kScratchDoubleReg, 10);
+      __ vandnps(dst, kScratchDoubleReg, dst);
       break;
     }
     case kSSEF32x4Max: {
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      // maxps doesn't propagate NaN lanes in the first source. Compare this
-      // with itself to generate 1's in those lanes (quiet NaNs) and or them
-      // with the result of maxps to simulate NaN propagation.
-      __ movaps(kScratchDoubleReg, i.InputSimd128Register(0));
-      __ cmpps(kScratchDoubleReg, kScratchDoubleReg, 0x4);
-      __ maxps(i.OutputSimd128Register(), i.InputSimd128Register(1));
-      __ orps(i.OutputSimd128Register(), kScratchDoubleReg);
+      XMMRegister src1 = i.InputSimd128Register(1),
+                  dst = i.OutputSimd128Register();
+      DCHECK_EQ(dst, i.InputSimd128Register(0));
+      // The maxps instruction doesn't propagate NaNs and +0's in its first
+      // operand. Perform maxps in both orders, merge the resuls, and adjust.
+      __ movaps(kScratchDoubleReg, src1);
+      __ maxps(kScratchDoubleReg, dst);
+      __ maxps(dst, src1);
+      // Find discrepancies.
+      __ xorps(kScratchDoubleReg, dst);
+      // Propagate NaNs, which may be non-canonical.
+      __ orps(dst, kScratchDoubleReg);
+      // Propagate sign discrepancy. NaNs and correct lanes are preserved.
+      __ subps(dst, kScratchDoubleReg);
+      // Canonicalize NaNs by clearing the payload. Sign is non-deterministic.
+      __ movaps(kScratchDoubleReg, dst);
+      __ cmpps(dst, dst, 4);
+      __ psrld(dst, 10);
+      __ andnps(dst, kScratchDoubleReg);
       break;
     }
     case kAVXF32x4Max: {
       CpuFeatureScope avx_scope(tasm(), AVX);
-      // See comment above for maxps and NaN propagation.
-      __ vcmpneqps(kScratchDoubleReg, i.InputSimd128Register(0),
-                   i.InputSimd128Register(0));
-      __ vmaxps(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                i.InputOperand(1));
-      __ vorps(i.OutputSimd128Register(), i.OutputSimd128Register(),
-               kScratchDoubleReg);
+      XMMRegister dst = i.OutputSimd128Register();
+      Operand src1 = i.InputOperand(1);
+      // See comment above for correction of maxps.
+      __ movaps(kScratchDoubleReg, src1);
+      __ vmaxps(kScratchDoubleReg, kScratchDoubleReg, dst);
+      __ vmaxps(dst, dst, src1);
+      __ vxorps(kScratchDoubleReg, kScratchDoubleReg, dst);
+      __ vorps(dst, dst, kScratchDoubleReg);
+      __ vsubps(dst, dst, kScratchDoubleReg);
+      __ vcmpneqps(kScratchDoubleReg, dst, dst);
+      __ vpsrld(kScratchDoubleReg, kScratchDoubleReg, 10);
+      __ vandnps(dst, kScratchDoubleReg, dst);
       break;
     }
     case kSSEF32x4Eq: {

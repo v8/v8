@@ -399,6 +399,8 @@ TEST(DisasmIa320) {
     // logic operation
     __ andps(xmm0, xmm1);
     __ andps(xmm0, Operand(ebx, ecx, times_4, 10000));
+    __ andnps(xmm0, xmm1);
+    __ andnps(xmm0, Operand(ebx, ecx, times_4, 10000));
     __ orps(xmm0, xmm1);
     __ orps(xmm0, Operand(ebx, ecx, times_4, 10000));
     __ xorps(xmm0, xmm1);
@@ -619,6 +621,8 @@ TEST(DisasmIa320) {
 
       __ vandps(xmm0, xmm1, xmm2);
       __ vandps(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
+      __ vandnps(xmm0, xmm1, xmm2);
+      __ vandnps(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
       __ vxorps(xmm0, xmm1, xmm2);
       __ vxorps(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
       __ vaddps(xmm0, xmm1, xmm2);

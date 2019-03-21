@@ -147,6 +147,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_OP(Addsd, addsd)
   AVX_OP(Mulsd, mulsd)
   AVX_OP(Andps, andps)
+  AVX_OP(Andnps, andnps)
   AVX_OP(Andpd, andpd)
   AVX_OP(Orpd, orpd)
   AVX_OP(Cmpeqps, cmpeqps)

@@ -2280,6 +2280,13 @@ void Assembler::andps(XMMRegister dst, Operand src) {
   emit_sse_operand(dst, src);
 }
 
+void Assembler::andnps(XMMRegister dst, Operand src) {
+  EnsureSpace ensure_space(this);
+  EMIT(0x0F);
+  EMIT(0x55);
+  emit_sse_operand(dst, src);
+}
+
 void Assembler::orps(XMMRegister dst, Operand src) {
   EnsureSpace ensure_space(this);
   EMIT(0x0F);
@@ -2468,18 +2475,10 @@ void Assembler::cmpltsd(XMMRegister dst, XMMRegister src) {
   EMIT(1);  // LT == 1
 }
 
-
-void Assembler::movaps(XMMRegister dst, XMMRegister src) {
+void Assembler::movaps(XMMRegister dst, Operand src) {
   EnsureSpace ensure_space(this);
   EMIT(0x0F);
   EMIT(0x28);
-  emit_sse_operand(dst, src);
-}
-
-void Assembler::movups(XMMRegister dst, XMMRegister src) {
-  EnsureSpace ensure_space(this);
-  EMIT(0x0F);
-  EMIT(0x10);
   emit_sse_operand(dst, src);
 }
 

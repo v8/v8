@@ -2829,6 +2829,21 @@ void Assembler::andps(XMMRegister dst, Operand src) {
   emit_sse_operand(dst, src);
 }
 
+void Assembler::andnps(XMMRegister dst, XMMRegister src) {
+  EnsureSpace ensure_space(this);
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0x55);
+  emit_sse_operand(dst, src);
+}
+
+void Assembler::andnps(XMMRegister dst, Operand src) {
+  EnsureSpace ensure_space(this);
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0x55);
+  emit_sse_operand(dst, src);
+}
 
 void Assembler::orps(XMMRegister dst, XMMRegister src) {
   EnsureSpace ensure_space(this);

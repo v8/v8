@@ -19,6 +19,7 @@
 #include "src/objects-inl.h"
 #include "src/ostreams.h"
 #include "src/runtime/runtime-utils.h"
+#include "src/utils.h"
 #include "src/vector.h"
 
 // Only build the simulator if not compiling for real ARM hardware.
@@ -4181,10 +4182,8 @@ void CompareGreater(Simulator* simulator, int Vd, int Vm, int Vn, bool ge) {
 }
 
 float MinMax(float a, float b, bool is_min) {
-  if (std::isnan(a) || std::isnan(b)) return NAN;
-  return is_min ? fmin(a, b) : fmax(a, b);
+  return is_min ? JSMin(a, b) : JSMax(a, b);
 }
-
 template <typename T>
 T MinMax(T a, T b, bool is_min) {
   return is_min ? std::min(a, b) : std::max(a, b);

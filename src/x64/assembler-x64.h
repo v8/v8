@@ -872,6 +872,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   void andps(XMMRegister dst, XMMRegister src);
   void andps(XMMRegister dst, Operand src);
+  void andnps(XMMRegister dst, XMMRegister src);
+  void andnps(XMMRegister dst, Operand src);
   void orps(XMMRegister dst, XMMRegister src);
   void orps(XMMRegister dst, Operand src);
   void xorps(XMMRegister dst, XMMRegister src);
@@ -1320,6 +1322,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   AVX_SP_3(vmin, 0x5d)
   AVX_SP_3(vmax, 0x5f)
   AVX_P_3(vand, 0x54)
+  AVX_P_3(vandn, 0x55)
   AVX_P_3(vor, 0x56)
   AVX_P_3(vxor, 0x57)
   AVX_3(vcvtsd2ss, 0x5a, vsd)

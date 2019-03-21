@@ -282,6 +282,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   AVX_OP3_XO(Punpckhbw, punpckhbw)
   AVX_OP3_XO(Pxor, pxor)
   AVX_OP3_XO(Andps, andps)
+  AVX_OP3_XO(Andnps, andnps)
   AVX_OP3_XO(Andpd, andpd)
   AVX_OP3_XO(Xorps, xorps)
   AVX_OP3_XO(Xorpd, xorpd)

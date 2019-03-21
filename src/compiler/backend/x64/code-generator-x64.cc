@@ -2347,25 +2347,43 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64F32x4Min: {
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      // minps doesn't propagate NaN lanes in the first source. Compare this
-      // with itself to generate 1's in those lanes (quiet NaNs) and or them
-      // with the result of minps to simulate NaN propagation.
-      __ movaps(kScratchDoubleReg, i.InputSimd128Register(0));
-      __ cmpps(kScratchDoubleReg, kScratchDoubleReg, 0x4);
-      __ minps(i.OutputSimd128Register(), i.InputSimd128Register(1));
-      __ orps(i.OutputSimd128Register(), kScratchDoubleReg);
+      XMMRegister src1 = i.InputSimd128Register(1),
+                  dst = i.OutputSimd128Register();
+      DCHECK_EQ(dst, i.InputSimd128Register(0));
+      // The minps instruction doesn't propagate NaNs and +0's in its first
+      // operand. Perform minps in both orders, merge the resuls, and adjust.
+      __ movaps(kScratchDoubleReg, src1);
+      __ minps(kScratchDoubleReg, dst);
+      __ minps(dst, src1);
+      // propagate -0's and NaNs, which may be non-canonical.
+      __ orps(dst, kScratchDoubleReg);
+      // Canonicalize NaNs by clearing the payload. Sign is non-deterministic.
+      __ movaps(kScratchDoubleReg, dst);
+      __ cmpps(dst, dst, 4);
+      __ psrld(dst, 10);
+      __ andnps(dst, kScratchDoubleReg);
       break;
     }
     case kX64F32x4Max: {
-      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      // maxps doesn't propagate NaN lanes in the first source. Compare this
-      // with itself to generate 1's in those lanes (quiet NaNs) and or them
-      // with the result of maxps to simulate NaN propagation.
-      __ movaps(kScratchDoubleReg, i.InputSimd128Register(0));
-      __ cmpps(kScratchDoubleReg, kScratchDoubleReg, 0x4);
-      __ maxps(i.OutputSimd128Register(), i.InputSimd128Register(1));
-      __ orps(i.OutputSimd128Register(), kScratchDoubleReg);
+      XMMRegister src1 = i.InputSimd128Register(1),
+                  dst = i.OutputSimd128Register();
+      DCHECK_EQ(dst, i.InputSimd128Register(0));
+      // The maxps instruction doesn't propagate NaNs and +0's in its first
+      // operand. Perform maxps in both orders, merge the resuls, and adjust.
+      __ movaps(kScratchDoubleReg, src1);
+      __ maxps(kScratchDoubleReg, dst);
+      __ maxps(dst, src1);
+      // Find discrepancies.
+      __ xorps(kScratchDoubleReg, dst);
+      // Propagate NaNs, which may be non-canonical.
+      __ orps(dst, kScratchDoubleReg);
+      // Propagate sign discrepancy. NaNs and correct lanes are preserved.
+      __ subps(dst, kScratchDoubleReg);
+      // Canonicalize NaNs by clearing the payload. Sign is non-deterministic.
+      __ movaps(kScratchDoubleReg, dst);
+      __ cmpps(dst, dst, 4);
+      __ psrld(dst, 10);
+      __ andnps(dst, kScratchDoubleReg);
       break;
     }
     case kX64F32x4Eq: {
