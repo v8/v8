@@ -1736,6 +1736,9 @@ class LiftoffCompiler {
     if (imm.sig->return_count() > 1) {
       return unsupported(decoder, "multi-return");
     }
+    if (imm.table_index != 0) {
+      return unsupported(decoder, "table index != 0");
+    }
     if (imm.sig->return_count() == 1 &&
         !CheckSupportedType(decoder, kSupportedTypes, imm.sig->GetReturn(0),
                             "return")) {

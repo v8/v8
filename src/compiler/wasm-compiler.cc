@@ -2770,10 +2770,14 @@ Node* WasmGraphBuilder::CallDirect(uint32_t index, Node** args, Node*** rets,
   return BuildWasmCall(sig, args, rets, position, nullptr, kNoRetpoline);
 }
 
-Node* WasmGraphBuilder::CallIndirect(uint32_t sig_index, Node** args,
-                                     Node*** rets,
+Node* WasmGraphBuilder::CallIndirect(uint32_t table_index, uint32_t sig_index,
+                                     Node** args, Node*** rets,
                                      wasm::WasmCodePosition position) {
-  return BuildIndirectCall(sig_index, args, rets, position, kCallContinues);
+  if (table_index == 0) {
+    return BuildIndirectCall(sig_index, args, rets, position, kCallContinues);
+  }
+  return BuildIndirectCall(table_index, sig_index, args, rets, position,
+                           kCallContinues);
 }
 
 Node* WasmGraphBuilder::BuildIndirectCall(uint32_t sig_index, Node** args,
@@ -2872,6 +2876,48 @@ Node* WasmGraphBuilder::BuildIndirectCall(uint32_t sig_index, Node** args,
   }
 }
 
+Node* WasmGraphBuilder::BuildIndirectCall(uint32_t table_index,
+                                          uint32_t sig_index, Node** args,
+                                          Node*** rets,
+                                          wasm::WasmCodePosition position,
+                                          IsReturnCall continuation) {
+  DCHECK_NOT_NULL(args[0]);
+  Node* entry_index = args[0];
+  DCHECK_NOT_NULL(env_);
+  BoundsCheckTable(table_index, entry_index, position, wasm::kTrapFuncInvalid,
+                   nullptr);
+
+  DCHECK(Smi::IsValid(table_index));
+  DCHECK(Smi::IsValid(sig_index));
+  Node* runtime_args[]{
+      graph()->NewNode(mcgraph()->common()->NumberConstant(table_index)),
+      BuildChangeUint31ToSmi(entry_index),
+      graph()->NewNode(mcgraph()->common()->NumberConstant(sig_index))};
+
+  Node* target_instance = BuildCallToRuntime(
+      Runtime::kWasmIndirectCallCheckSignatureAndGetTargetInstance,
+      runtime_args, arraysize(runtime_args));
+
+  // We reuse the runtime_args array here, even though we only need the first
+  // two arguments.
+  Node* call_target = BuildCallToRuntime(
+      Runtime::kWasmIndirectCallGetTargetAddress, runtime_args, 2);
+
+  wasm::FunctionSig* sig = env_->module->signatures[sig_index];
+  args[0] = call_target;
+  const UseRetpoline use_retpoline =
+      untrusted_code_mitigations_ ? kRetpoline : kNoRetpoline;
+
+  switch (continuation) {
+    case kCallContinues:
+      return BuildWasmCall(sig, args, rets, position, target_instance,
+                           use_retpoline);
+    case kReturnCall:
+      return BuildWasmReturnCall(sig, args, position, target_instance,
+                                 use_retpoline);
+  }
+}
+
 Node* WasmGraphBuilder::ReturnCall(uint32_t index, Node** args,
                                    wasm::WasmCodePosition position) {
   DCHECK_NULL(args[0]);
@@ -2891,9 +2937,14 @@ Node* WasmGraphBuilder::ReturnCall(uint32_t index, Node** args,
   return BuildWasmReturnCall(sig, args, position, nullptr, kNoRetpoline);
 }
 
-Node* WasmGraphBuilder::ReturnCallIndirect(uint32_t sig_index, Node** args,
+Node* WasmGraphBuilder::ReturnCallIndirect(uint32_t table_index,
+                                           uint32_t sig_index, Node** args,
                                            wasm::WasmCodePosition position) {
-  return BuildIndirectCall(sig_index, args, nullptr, position, kReturnCall);
+  if (table_index == 0) {
+    return BuildIndirectCall(sig_index, args, nullptr, position, kReturnCall);
+  }
+  return BuildIndirectCall(table_index, sig_index, args, nullptr, position,
+                           kReturnCall);
 }
 
 Node* WasmGraphBuilder::BuildI32Rol(Node* left, Node* right) {
@@ -3315,10 +3366,10 @@ Node* WasmGraphBuilder::SetGlobal(uint32_t index, Node* val) {
       graph()->NewNode(op, base, offset, val, Effect(), Control()));
 }
 
-void WasmGraphBuilder::GetTableBaseAndOffset(uint32_t table_index, Node* index,
-                                             wasm::WasmCodePosition position,
-                                             Node** base_node,
-                                             Node** offset_node) {
+void WasmGraphBuilder::BoundsCheckTable(uint32_t table_index, Node* entry_index,
+                                        wasm::WasmCodePosition position,
+                                        wasm::TrapReason trap_reason,
+                                        Node** base_node) {
   Node* tables = LOAD_INSTANCE_FIELD(Tables, MachineType::TaggedPointer());
   Node* table = LOAD_FIXED_ARRAY_SLOT_ANY(tables, table_index);
 
@@ -3337,22 +3388,32 @@ void WasmGraphBuilder::GetTableBaseAndOffset(uint32_t table_index, Node* index,
   storage_size = BuildChangeSmiToInt32(storage_size);
   // Bounds check against the table size.
   Node* in_bounds = graph()->NewNode(mcgraph()->machine()->Uint32LessThan(),
-                                     index, storage_size);
-  TrapIfFalse(wasm::kTrapTableOutOfBounds, in_bounds, position);
+                                     entry_index, storage_size);
+  TrapIfFalse(trap_reason, in_bounds, position);
 
+  if (base_node) {
+    *base_node = storage;
+  }
+}
+
+void WasmGraphBuilder::GetTableBaseAndOffset(uint32_t table_index,
+                                             Node* entry_index,
+                                             wasm::WasmCodePosition position,
+                                             Node** base_node,
+                                             Node** offset_node) {
+  BoundsCheckTable(table_index, entry_index, position,
+                   wasm::kTrapTableOutOfBounds, base_node);
   // From the index, calculate the actual offset in the FixeArray. This
   // is kHeaderSize + (index * kTaggedSize). kHeaderSize can be acquired with
   // wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(0).
-  Node* index_times_tagged_size =
-      graph()->NewNode(mcgraph()->machine()->IntMul(), Uint32ToUintptr(index),
-                       mcgraph()->Int32Constant(kTaggedSize));
+  Node* index_times_tagged_size = graph()->NewNode(
+      mcgraph()->machine()->IntMul(), Uint32ToUintptr(entry_index),
+      mcgraph()->Int32Constant(kTaggedSize));
 
   *offset_node = graph()->NewNode(
       mcgraph()->machine()->IntAdd(), index_times_tagged_size,
       mcgraph()->IntPtrConstant(
           wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(0)));
-
-  *base_node = storage;
 }
 
 Node* WasmGraphBuilder::GetTable(uint32_t table_index, Node* index,
