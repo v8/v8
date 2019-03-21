@@ -721,11 +721,11 @@ ACCESSORS(JSDate, min, Object, kMinOffset)
 ACCESSORS(JSDate, sec, Object, kSecOffset)
 
 MessageTemplate JSMessageObject::type() const {
-  Object value = READ_FIELD(*this, kTypeOffset);
+  Object value = READ_FIELD(*this, kMessageTypeOffset);
   return MessageTemplateFromInt(Smi::ToInt(value));
 }
 void JSMessageObject::set_type(MessageTemplate value) {
-  WRITE_FIELD(*this, kTypeOffset, Smi::FromInt(static_cast<int>(value)));
+  WRITE_FIELD(*this, kMessageTypeOffset, Smi::FromInt(static_cast<int>(value)));
 }
 ACCESSORS(JSMessageObject, argument, Object, kArgumentsOffset)
 ACCESSORS(JSMessageObject, script, Script, kScriptOffset)

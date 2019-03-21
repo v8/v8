@@ -1372,24 +1372,10 @@ class JSMessageObject : public JSObject {
   DECL_PRINTER(JSMessageObject)
   DECL_VERIFIER(JSMessageObject)
 
-  // Layout description.
-#define JS_MESSAGE_FIELDS(V)                         \
-  /* Tagged fields. */                               \
-  V(kTypeOffset, kTaggedSize)                        \
-  V(kArgumentsOffset, kTaggedSize)                   \
-  V(kScriptOffset, kTaggedSize)                      \
-  V(kStackFramesOffset, kTaggedSize)                 \
-  V(kPointerFieldsEndOffset, 0)                      \
-  /* Raw data fields. */                             \
-  /* TODO(ishell): store as int32 instead of Smi. */ \
-  V(kStartPositionOffset, kTaggedSize)               \
-  V(kEndPositionOffset, kTaggedSize)                 \
-  V(kErrorLevelOffset, kTaggedSize)                  \
-  /* Total size. */                                  \
-  V(kSize, 0)
-
-  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, JS_MESSAGE_FIELDS)
-#undef JS_MESSAGE_FIELDS
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
+                                TORQUE_GENERATED_JSMESSAGE_OBJECT_FIELDS)
+  // TODO(v8:8989): [torque] Support marker constants.
+  static const int kPointerFieldsEndOffset = kStartPositionOffset;
 
   typedef FixedBodyDescriptor<HeapObject::kMapOffset, kPointerFieldsEndOffset,
                               kSize>

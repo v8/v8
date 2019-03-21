@@ -231,10 +231,25 @@ type JSModuleNamespace extends JSObject;
 type WeakArrayList extends HeapObject;
 
 extern class JSWeakCollection extends JSObject { table: Object; }
+extern class JSWeekSet extends JSWeakCollection {}
+extern class JSWeekMap extends JSWeakCollection {}
 
 extern class JSCollectionIterator extends JSObject {
   table: Object;
   index: Object;
+}
+
+extern class JSMessageObject extends JSObject {
+  // Tagged fields.
+  message_type: Smi;
+  arguments: Object;
+  script: Script;
+  stack_frames: Object;
+  // Raw data fields.
+  // TODO(ishell): store as int32 instead of Smi.
+  start_position: Smi;
+  end_position: Smi;
+  error_level: Smi;
 }
 
 extern class PrototypeInfo extends Struct {
@@ -264,6 +279,8 @@ extern class Script extends Struct {
   host_defined_options: Object;
 }
 type DebugInfo extends HeapObject;
+
+extern class EmbedderDataArray extends HeapObject { length: Smi; }
 
 type ScopeInfo extends Object generates 'TNode<ScopeInfo>';
 
@@ -404,6 +421,8 @@ extern class JSAccessorPropertyDescriptor extends JSObject {
 }
 
 extern class JSCollection extends JSObject { table: Object; }
+extern class JSSet extends JSCollection {}
+extern class JSMap extends JSCollection {}
 
 extern class JSDate extends JSObject {
   value: NumberOrUndefined;

@@ -705,6 +705,7 @@ void EmbedderDataArray::EmbedderDataArrayVerify(Isolate* isolate) {
     Object e = slot.load_tagged();
     Object::VerifyPointer(isolate, e);
   }
+  VerifySmiField(kLengthOffset);
 }
 
 void FixedArray::FixedArrayVerify(Isolate* isolate) {
@@ -993,6 +994,10 @@ void JSMessageObject::JSMessageObjectVerify(Isolate* isolate) {
   VerifyObjectField(isolate, kArgumentsOffset);
   VerifyObjectField(isolate, kScriptOffset);
   VerifyObjectField(isolate, kStackFramesOffset);
+  VerifySmiField(kMessageTypeOffset);
+  VerifySmiField(kStartPositionOffset);
+  VerifySmiField(kEndPositionOffset);
+  VerifySmiField(kErrorLevelOffset);
 }
 
 void String::StringVerify(Isolate* isolate) {
