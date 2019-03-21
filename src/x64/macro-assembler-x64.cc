@@ -307,17 +307,24 @@ void TurboAssembler::DecompressAnyTagged(Register destination,
   DCHECK(!AreAliased(destination, scratch));
   RecordComment("[ DecompressAnyTagged");
   movsxlq(destination, field_operand);
-  // Branchlessly compute |masked_root|:
-  // masked_root = HAS_SMI_TAG(destination) ? 0 : kRootRegister;
-  STATIC_ASSERT((kSmiTagSize == 1) && (kSmiTag < 32));
-  Register masked_root = scratch;
-  movl(masked_root, destination);
-  andl(masked_root, Immediate(kSmiTagMask));
-  negq(masked_root);
-  andq(masked_root, kRootRegister);
-  // Now this add operation will either leave the value unchanged if it is a smi
-  // or add the isolate root if it is a heap object.
-  addq(destination, masked_root);
+  if (kUseBranchlessPtrDecompression) {
+    // Branchlessly compute |masked_root|:
+    // masked_root = HAS_SMI_TAG(destination) ? 0 : kRootRegister;
+    STATIC_ASSERT((kSmiTagSize == 1) && (kSmiTag < 32));
+    Register masked_root = scratch;
+    movl(masked_root, destination);
+    andl(masked_root, Immediate(kSmiTagMask));
+    negq(masked_root);
+    andq(masked_root, kRootRegister);
+    // Now this add operation will either leave the value unchanged if it is
+    // a smi or add the isolate root if it is a heap object.
+    addq(destination, masked_root);
+  } else {
+    Label done;
+    JumpIfSmi(destination, &done);
+    addq(destination, kRootRegister);
+    bind(&done);
+  }
   RecordComment("]");
 }
 

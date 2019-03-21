@@ -42,10 +42,16 @@ V8_INLINE Address DecompressTaggedAny(Address on_heap_addr,
   // Current compression scheme requires |raw_value| to be sign-extended
   // from int32_t to intptr_t.
   intptr_t value = static_cast<intptr_t>(static_cast<int32_t>(raw_value));
-  // |root_mask| is 0 if the |value| was a smi or -1 otherwise.
-  Address root_mask = static_cast<Address>(-(value & kSmiTagMask));
-  Address root_or_zero = root_mask & GetRootFromOnHeapAddress(on_heap_addr);
-  return root_or_zero + static_cast<Address>(value);
+  if (kUseBranchlessPtrDecompression) {
+    // |root_mask| is 0 if the |value| was a smi or -1 otherwise.
+    Address root_mask = static_cast<Address>(-(value & kSmiTagMask));
+    Address root_or_zero = root_mask & GetRootFromOnHeapAddress(on_heap_addr);
+    return root_or_zero + static_cast<Address>(value);
+  } else {
+    return HAS_SMI_TAG(value) ? static_cast<Address>(value)
+                              : (GetRootFromOnHeapAddress(on_heap_addr) +
+                                 static_cast<Address>(value));
+  }
 }
 
 #ifdef V8_COMPRESS_POINTERS

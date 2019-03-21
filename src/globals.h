@@ -225,6 +225,10 @@ using AtomicTagged_t = base::AtomicWord;
 
 #endif  // V8_COMPRESS_POINTERS
 
+// Defines whether the branchless or branchful implementation of pointer
+// decompression should be used.
+constexpr bool kUseBranchlessPtrDecompression = true;
+
 STATIC_ASSERT(kTaggedSize == (1 << kTaggedSizeLog2));
 
 using AsAtomicTagged = base::AsAtomicPointerImpl<AtomicTagged_t>;
