@@ -35,10 +35,6 @@ declare_args() {
   # on platform and embedder level.
   v8_enable_raw_heap_snapshots = false
 
-  # See v8_enable_raw_heap_snapshots.
-  # TODO(mlippautz): Remove after adjusting Blink embedder code.
-  v8_enable_full_heap_snapshots = false
-
   # Enable the snapshot feature, for fast context creation.
   # https://v8.dev/blog/custom-startup-snapshots
   # TODO(thakis): Make snapshots work in 64-bit win/cross builds,
