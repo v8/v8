@@ -181,6 +181,8 @@ class TestingModuleBuilder {
   // Wrap the code so it can be called as a JS function.
   Handle<JSFunction> WrapCode(uint32_t index);
 
+  // If function_indexes is {nullptr}, the contents of the table will be
+  // initialized with null functions.
   void AddIndirectFunctionTable(const uint16_t* function_indexes,
                                 uint32_t table_size);
 
@@ -515,15 +517,19 @@ class WasmRunner : public WasmRunnerBase {
     Handle<JSFunction> jsfunc = jsfuncs_[function_index];
     Handle<Object> global(isolate->context()->global_object(), isolate);
     MaybeHandle<Object> retval =
-        Execution::Call(isolate, jsfunc, global, count, buffer);
+        Execution::TryCall(isolate, jsfunc, global, count, buffer,
+                           Execution::MessageHandling::kReport, nullptr);
 
-    CHECK(!retval.is_null());
-    Handle<Object> result = retval.ToHandleChecked();
-    if (result->IsSmi()) {
-      CHECK_EQ(expected, Smi::ToInt(*result));
+    if (retval.is_null()) {
+      CHECK_EQ(expected, static_cast<double>(0xDEADBEEF));
     } else {
-      CHECK(result->IsHeapNumber());
-      CHECK_DOUBLE_EQ(expected, HeapNumber::cast(*result)->value());
+      Handle<Object> result = retval.ToHandleChecked();
+      if (result->IsSmi()) {
+        CHECK_EQ(expected, Smi::ToInt(*result));
+      } else {
+        CHECK(result->IsHeapNumber());
+        CHECK_DOUBLE_EQ(expected, HeapNumber::cast(*result)->value());
+      }
     }
 
     if (builder_.interpret()) {

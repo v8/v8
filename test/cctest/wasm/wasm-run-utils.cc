@@ -40,6 +40,8 @@ TestingModuleBuilder::TestingModuleBuilder(
   }
 
   instance_object_ = InitInstanceObject();
+  Handle<FixedArray> tables(isolate_->factory()->NewFixedArray(0));
+  instance_object_->set_tables(*tables);
 
   if (maybe_import) {
     // Manually compile an import wrapper and insert it into the instance.
@@ -161,6 +163,7 @@ Handle<JSFunction> TestingModuleBuilder::WrapCode(uint32_t index) {
 void TestingModuleBuilder::AddIndirectFunctionTable(
     const uint16_t* function_indexes, uint32_t table_size) {
   auto instance = instance_object();
+  uint32_t table_index = static_cast<uint32_t>(test_module_->tables.size());
   test_module_->tables.emplace_back();
   WasmTable& table = test_module_->tables.back();
   table.initial_size = table_size;
@@ -169,12 +172,29 @@ void TestingModuleBuilder::AddIndirectFunctionTable(
   table.type = kWasmAnyFunc;
   WasmInstanceObject::EnsureIndirectFunctionTableWithMinimumSize(
       instance_object(), table_size);
-  for (uint32_t i = 0; i < table_size; ++i) {
-    WasmFunction& function = test_module_->functions[function_indexes[i]];
-    int sig_id = test_module_->signature_map.Find(*function.sig);
-    IndirectFunctionTableEntry(instance, i)
-        .Set(sig_id, instance, function.func_index);
+  Handle<WasmTableObject> table_obj =
+      WasmTableObject::New(isolate_, table.type, table.initial_size,
+                           table.has_maximum_size, table.maximum_size, nullptr);
+
+  WasmTableObject::AddDispatchTable(isolate_, table_obj, instance_object_,
+                                    table_index);
+
+  if (function_indexes) {
+    for (uint32_t i = 0; i < table_size; ++i) {
+      WasmFunction& function = test_module_->functions[function_indexes[i]];
+      int sig_id = test_module_->signature_map.Find(*function.sig);
+      IndirectFunctionTableEntry(instance, i)
+          .Set(sig_id, instance, function.func_index);
+      WasmTableObject::SetFunctionTablePlaceholder(
+          isolate_, table_obj, i, instance_object_, function_indexes[i]);
+    }
   }
+
+  Handle<FixedArray> old_tables(instance_object_->tables(), isolate_);
+  Handle<FixedArray> new_tables = isolate_->factory()->CopyFixedArrayAndGrow(
+      old_tables, old_tables->length() + 1);
+  new_tables->set(old_tables->length(), *table_obj);
+  instance_object_->set_tables(*new_tables);
 }
 
 uint32_t TestingModuleBuilder::AddBytes(Vector<const byte> bytes) {

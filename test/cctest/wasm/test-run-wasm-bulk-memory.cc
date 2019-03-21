@@ -4,6 +4,7 @@
 
 #include "test/cctest/cctest.h"
 #include "test/cctest/wasm/wasm-run-utils.h"
+#include "test/common/wasm/test-signatures.h"
 #include "test/common/wasm/wasm-macro-gen.h"
 
 namespace v8 {
@@ -348,6 +349,222 @@ WASM_EXEC_TEST(DataDropThenMemoryInit) {
         kExprI32Const, 0);
 
   CHECK_EQ(0xDEADBEEF, r.Call());
+}
+
+WASM_EXEC_TEST(TableCopyInbounds) {
+  EXPERIMENTAL_FLAG_SCOPE(bulk_memory);
+  WasmRunner<uint32_t, uint32_t, uint32_t, uint32_t> r(execution_tier);
+  const uint32_t kTableSize = 5;
+  r.builder().AddIndirectFunctionTable(nullptr, kTableSize);
+  BUILD(
+      r,
+      WASM_TABLE_COPY(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1), WASM_GET_LOCAL(2)),
+      kExprI32Const, 0);
+
+  for (uint32_t i = 0; i <= kTableSize; ++i) {
+    r.CheckCallViaJS(0, 0, 0, i);  // nop
+    r.CheckCallViaJS(0, 0, i, kTableSize - i);
+    r.CheckCallViaJS(0, i, 0, kTableSize - i);
+  }
+}
+
+namespace {
+template <typename... Args>
+void CheckTable(Isolate* isolate, Handle<WasmTableObject> table, Args... args) {
+  uint32_t args_length = static_cast<uint32_t>(sizeof...(args));
+  CHECK_EQ(table->current_length(), args_length);
+  Handle<Object> handles[] = {args...};
+  for (uint32_t i = 0; i < args_length; ++i) {
+    CHECK(WasmTableObject::Get(isolate, table, i).is_identical_to(handles[i]));
+  }
+}
+
+template <typename WasmRunner, typename... Args>
+void CheckTableCall(Isolate* isolate, Handle<WasmTableObject> table,
+                    WasmRunner& r, uint32_t function_index, Args... args) {
+  uint32_t args_length = static_cast<uint32_t>(sizeof...(args));
+  CHECK_EQ(table->current_length(), args_length);
+  double expected[] = {args...};
+  for (uint32_t i = 0; i < args_length; ++i) {
+    Handle<Object> buffer[] = {isolate->factory()->NewNumber(i)};
+    r.CheckCallApplyViaJS(expected[i], function_index, buffer, 1);
+  }
+}
+}  // namespace
+
+WASM_EXEC_TEST(TableCopyElems) {
+  EXPERIMENTAL_FLAG_SCOPE(bulk_memory);
+  Isolate* isolate = CcTest::InitIsolateOnce();
+  HandleScope scope(isolate);
+  TestSignatures sigs;
+  WasmRunner<uint32_t, uint32_t, uint32_t, uint32_t> r(execution_tier);
+  const uint32_t kTableSize = 5;
+  uint16_t function_indexes[kTableSize];
+  const uint32_t sig_index = r.builder().AddSignature(sigs.i_v());
+
+  for (uint32_t i = 0; i < kTableSize; ++i) {
+    WasmFunctionCompiler& fn = r.NewFunction(sigs.i_v(), "f");
+    BUILD(fn, WASM_I32V_1(i));
+    fn.SetSigIndex(sig_index);
+    function_indexes[i] = fn.function_index();
+  }
+
+  r.builder().AddIndirectFunctionTable(function_indexes, kTableSize);
+
+  BUILD(
+      r,
+      WASM_TABLE_COPY(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1), WASM_GET_LOCAL(2)),
+      kExprI32Const, 0);
+
+  auto table = handle(
+      WasmTableObject::cast(r.builder().instance_object()->tables().get(0)),
+      isolate);
+  auto f0 = WasmTableObject::Get(isolate, table, 0);
+  auto f1 = WasmTableObject::Get(isolate, table, 1);
+  auto f2 = WasmTableObject::Get(isolate, table, 2);
+  auto f3 = WasmTableObject::Get(isolate, table, 3);
+  auto f4 = WasmTableObject::Get(isolate, table, 4);
+
+  CheckTable(isolate, table, f0, f1, f2, f3, f4);
+  r.CheckCallViaJS(0, 0, 1, 1);
+  CheckTable(isolate, table, f1, f1, f2, f3, f4);
+  r.CheckCallViaJS(0, 0, 1, 2);
+  CheckTable(isolate, table, f1, f2, f2, f3, f4);
+  r.CheckCallViaJS(0, 3, 0, 2);
+  CheckTable(isolate, table, f1, f2, f2, f1, f2);
+  r.CheckCallViaJS(0, 1, 0, 2);
+  CheckTable(isolate, table, f1, f1, f2, f1, f2);
+}
+
+WASM_EXEC_TEST(TableCopyCalls) {
+  EXPERIMENTAL_FLAG_SCOPE(bulk_memory);
+  Isolate* isolate = CcTest::InitIsolateOnce();
+  HandleScope scope(isolate);
+  TestSignatures sigs;
+  WasmRunner<uint32_t, uint32_t, uint32_t, uint32_t> r(execution_tier);
+  const uint32_t kTableSize = 5;
+  uint16_t function_indexes[kTableSize];
+  const uint32_t sig_index = r.builder().AddSignature(sigs.i_v());
+
+  for (uint32_t i = 0; i < kTableSize; ++i) {
+    WasmFunctionCompiler& fn = r.NewFunction(sigs.i_v(), "f");
+    BUILD(fn, WASM_I32V_1(i));
+    fn.SetSigIndex(sig_index);
+    function_indexes[i] = fn.function_index();
+  }
+
+  r.builder().AddIndirectFunctionTable(function_indexes, kTableSize);
+
+  WasmFunctionCompiler& call = r.NewFunction(sigs.i_i(), "call");
+  BUILD(call, WASM_CALL_INDIRECT0(sig_index, WASM_GET_LOCAL(0)));
+  const uint32_t call_index = call.function_index();
+
+  BUILD(
+      r,
+      WASM_TABLE_COPY(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1), WASM_GET_LOCAL(2)),
+      kExprI32Const, 0);
+
+  auto table = handle(
+      WasmTableObject::cast(r.builder().instance_object()->tables().get(0)),
+      isolate);
+
+  CheckTableCall(isolate, table, r, call_index, 0, 1, 2, 3, 4);
+  r.CheckCallViaJS(0, 0, 1, 1);
+  CheckTableCall(isolate, table, r, call_index, 1, 1, 2, 3, 4);
+  r.CheckCallViaJS(0, 0, 1, 2);
+  CheckTableCall(isolate, table, r, call_index, 1, 2, 2, 3, 4);
+  r.CheckCallViaJS(0, 3, 0, 2);
+  CheckTableCall(isolate, table, r, call_index, 1, 2, 2, 1, 2);
+}
+
+WASM_EXEC_TEST(TableCopyOobWrites) {
+  EXPERIMENTAL_FLAG_SCOPE(bulk_memory);
+  Isolate* isolate = CcTest::InitIsolateOnce();
+  HandleScope scope(isolate);
+  TestSignatures sigs;
+  WasmRunner<uint32_t, uint32_t, uint32_t, uint32_t> r(execution_tier);
+  const uint32_t kTableSize = 5;
+  uint16_t function_indexes[kTableSize];
+  const uint32_t sig_index = r.builder().AddSignature(sigs.i_v());
+
+  for (uint32_t i = 0; i < kTableSize; ++i) {
+    WasmFunctionCompiler& fn = r.NewFunction(sigs.i_v(), "f");
+    BUILD(fn, WASM_I32V_1(i));
+    fn.SetSigIndex(sig_index);
+    function_indexes[i] = fn.function_index();
+  }
+
+  r.builder().AddIndirectFunctionTable(function_indexes, kTableSize);
+
+  BUILD(
+      r,
+      WASM_TABLE_COPY(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1), WASM_GET_LOCAL(2)),
+      kExprI32Const, 0);
+
+  auto table = handle(
+      WasmTableObject::cast(r.builder().instance_object()->tables().get(0)),
+      isolate);
+  auto f0 = WasmTableObject::Get(isolate, table, 0);
+  auto f1 = WasmTableObject::Get(isolate, table, 1);
+  auto f2 = WasmTableObject::Get(isolate, table, 2);
+  auto f3 = WasmTableObject::Get(isolate, table, 3);
+  auto f4 = WasmTableObject::Get(isolate, table, 4);
+
+  CheckTable(isolate, table, f0, f1, f2, f3, f4);
+
+  // Non-overlapping, src < dst.
+  r.CheckCallViaJS(0xDEADBEEF, 3, 0, 3);
+  CheckTable(isolate, table, f0, f1, f2, f0, f1);
+
+  // Non-overlapping, dst < src.
+  r.CheckCallViaJS(0xDEADBEEF, 0, 4, 2);
+  CheckTable(isolate, table, f1, f1, f2, f0, f1);
+
+  // Overlapping, src < dst. This is required to copy backward, but the first
+  // access will be out-of-bounds, so nothing changes.
+  r.CheckCallViaJS(0xDEADBEEF, 3, 0, 99);
+  CheckTable(isolate, table, f1, f1, f2, f0, f1);
+
+  // Overlapping, dst < src.
+  r.CheckCallViaJS(0xDEADBEEF, 0, 1, 99);
+  CheckTable(isolate, table, f1, f2, f0, f1, f1);
+}
+
+WASM_EXEC_TEST(TableCopyOob1) {
+  EXPERIMENTAL_FLAG_SCOPE(bulk_memory);
+  WasmRunner<uint32_t, uint32_t, uint32_t, uint32_t> r(execution_tier);
+  const uint32_t kTableSize = 5;
+
+  r.builder().AddIndirectFunctionTable(nullptr, kTableSize);
+
+  BUILD(
+      r,
+      WASM_TABLE_COPY(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1), WASM_GET_LOCAL(2)),
+      kExprI32Const, 0);
+
+  r.CheckCallViaJS(0, 0, 0, 1);           // nop
+  r.CheckCallViaJS(0, 0, 0, kTableSize);  // nop
+  r.CheckCallViaJS(0xDEADBEEF, 0, 0, kTableSize + 1);
+  r.CheckCallViaJS(0xDEADBEEF, 1, 0, kTableSize);
+  r.CheckCallViaJS(0xDEADBEEF, 0, 1, kTableSize);
+
+  {
+    const uint32_t big = 1000000;
+    r.CheckCallViaJS(0xDEADBEEF, big, 0, 0);
+    r.CheckCallViaJS(0xDEADBEEF, 0, big, 0);
+  }
+
+  for (uint32_t big = 4294967295; big > 1000; big >>= 1) {
+    r.CheckCallViaJS(0xDEADBEEF, big, 0, 1);
+    r.CheckCallViaJS(0xDEADBEEF, 0, big, 1);
+    r.CheckCallViaJS(0xDEADBEEF, 0, 0, big);
+  }
+
+  for (uint32_t big = -1000; big != 0; big <<= 1) {
+    r.CheckCallViaJS(0xDEADBEEF, big, 0, 1);
+    r.CheckCallViaJS(0xDEADBEEF, 0, big, 1);
+    r.CheckCallViaJS(0xDEADBEEF, 0, 0, big);
+  }
 }
 
 }  // namespace test_run_wasm_bulk_memory

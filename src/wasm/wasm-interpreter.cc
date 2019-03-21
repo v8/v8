@@ -1705,6 +1705,18 @@ class ThreadImpl {
         len += imm.length;
         return ok;
       }
+      case kExprTableCopy: {
+        TableCopyImmediate<Decoder::kNoValidate> imm(decoder, code->at(pc));
+        auto size = Pop().to<uint32_t>();
+        auto src = Pop().to<uint32_t>();
+        auto dst = Pop().to<uint32_t>();
+        bool ok = WasmInstanceObject::CopyTableEntries(
+            instance_object_->GetIsolate(), instance_object_,
+            imm.table_dst.index, imm.table_src.index, dst, src, size);
+        if (!ok) DoTrap(kTrapTableOutOfBounds, pc);
+        len += imm.length;
+        return ok;
+      }
       default:
         FATAL("Unknown or unimplemented opcode #%d:%s", code->start[pc],
               OpcodeName(code->start[pc]));
