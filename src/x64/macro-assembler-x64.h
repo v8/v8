@@ -484,7 +484,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // When pointer compression is enabled, uses |scratch| to decompress the
   // value.
   void LoadAnyTaggedField(Register destination, Operand field_operand,
-                          Register scratch);
+                          Register scratch = kScratchRegister);
 
   // Loads a field containing a HeapObject, decompresses it if necessary and
   // pushes full pointer to the stack. When pointer compression is enabled,
@@ -509,7 +509,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void DecompressTaggedSigned(Register destination, Operand field_operand);
   void DecompressTaggedPointer(Register destination, Operand field_operand);
   void DecompressAnyTagged(Register destination, Operand field_operand,
-                           Register scratch);
+                           Register scratch = kScratchRegister);
 
  protected:
   static const int kSmiShift = kSmiTagSize + kSmiShiftSize;

@@ -351,12 +351,6 @@ void InstructionSelector::VisitLoad(Node* node) {
   X64OperandGenerator g(this);
 
   ArchOpcode opcode = GetLoadOpcode(load_rep);
-  size_t temp_count = 0;
-  InstructionOperand temps[1];
-  if (COMPRESS_POINTERS_BOOL && opcode == kX64MovqDecompressAnyTagged) {
-    temps[temp_count++] = g.TempRegister();
-  }
-  DCHECK_LE(temp_count, arraysize(temps));
   InstructionOperand outputs[] = {g.DefineAsRegister(node)};
   InstructionOperand inputs[3];
   size_t input_count = 0;
@@ -369,7 +363,7 @@ void InstructionSelector::VisitLoad(Node* node) {
     CHECK_NE(poisoning_level_, PoisoningMitigationLevel::kDontPoison);
     code |= MiscField::encode(kMemoryAccessPoisoned);
   }
-  Emit(code, 1, outputs, input_count, inputs, temp_count, temps);
+  Emit(code, 1, outputs, input_count, inputs);
 }
 
 void InstructionSelector::VisitPoisonedLoad(Node* node) { VisitLoad(node); }

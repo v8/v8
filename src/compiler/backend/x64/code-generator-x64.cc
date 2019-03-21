@@ -1937,8 +1937,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64MovqDecompressAnyTagged: {
       CHECK(instr->HasOutput());
-      __ DecompressAnyTagged(i.OutputRegister(), i.MemoryOperand(),
-                             i.TempRegister(0));
+      __ DecompressAnyTagged(i.OutputRegister(), i.MemoryOperand());
       break;
     }
     case kX64MovqCompressTagged: {
