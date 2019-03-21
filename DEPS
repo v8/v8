@@ -153,6 +153,8 @@ deps = {
               'version': Var('android_sdk_tools-lint_version'),
           },
       ],
+      'condition': 'checkout_android',
+      'dep_type': 'cipd',
   },
   'v8/third_party/catapult': {
     'url': Var('chromium_url') + '/catapult.git' + '@' + '4e9bccd7a0cf184bba38950b2d9c499366b7488b',
