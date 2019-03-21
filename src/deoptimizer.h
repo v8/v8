@@ -429,27 +429,6 @@ class Deoptimizer : public Malloced {
   static int ComputeSourcePositionFromBytecodeArray(SharedFunctionInfo shared,
                                                     BailoutId node_id);
 
-  struct JumpTableEntry : public ZoneObject {
-    inline JumpTableEntry(Address entry, const DeoptInfo& deopt_info,
-                          DeoptimizeKind kind, bool frame)
-        : label(),
-          address(entry),
-          deopt_info(deopt_info),
-          deopt_kind(kind),
-          needs_frame(frame) {}
-
-    bool IsEquivalentTo(const JumpTableEntry& other) const {
-      return address == other.address && deopt_kind == other.deopt_kind &&
-             needs_frame == other.needs_frame;
-    }
-
-    Label label;
-    Address address;
-    DeoptInfo deopt_info;
-    DeoptimizeKind deopt_kind;
-    bool needs_frame;
-  };
-
   static const char* MessageFor(DeoptimizeKind kind);
 
   int output_count() const { return output_count_; }
