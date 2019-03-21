@@ -397,6 +397,53 @@ TEST(RunWord64Popcnt) {
   CHECK_EQ(22, m.Call(uint64_t(0xE00DC103E00DC103)));
   CHECK_EQ(18, m.Call(uint64_t(0x000DC107000DC107)));
 }
+
+#ifdef V8_COMPRESS_POINTERS
+TEST(CompressDecompressTaggedAnyPointer) {
+  RawMachineAssemblerTester<void*> m;
+
+  Handle<HeapNumber> value = m.isolate()->factory()->NewHeapNumber(11.2);
+  Node* node = m.HeapConstant(value);
+  m.Return(m.ChangeCompressedToTagged(m.ChangeTaggedToCompressed(node)));
+
+  HeapObject result =
+      HeapObject::cast(Object(reinterpret_cast<Address>(m.Call())));
+  CHECK_EQ(result, *value);
+}
+
+TEST(CompressDecompressTaggedAnySigned) {
+  RawMachineAssemblerTester<int64_t> m;
+  Smi smi = Smi::FromInt(123);
+  int64_t smiPointer = static_cast<int64_t>(smi.ptr());
+  Node* node = m.Int64Constant(smiPointer);
+  m.Return(m.ChangeCompressedToTagged(m.ChangeTaggedToCompressed(node)));
+  CHECK_EQ(smiPointer, m.Call());
+}
+
+TEST(CompressDecompressTaggedPointer) {
+  RawMachineAssemblerTester<void*> m;
+
+  Handle<HeapNumber> value = m.isolate()->factory()->NewHeapNumber(11.2);
+  Node* node = m.HeapConstant(value);
+  m.Return(m.ChangeCompressedPointerToTaggedPointer(
+      m.ChangeTaggedPointerToCompressedPointer(node)));
+
+  HeapObject result =
+      HeapObject::cast(Object(reinterpret_cast<Address>(m.Call())));
+  CHECK_EQ(result, *value);
+}
+
+TEST(CompressDecompressTaggedSigned) {
+  RawMachineAssemblerTester<int64_t> m;
+  Smi smi = Smi::FromInt(123);
+  int64_t smiPointer = static_cast<int64_t>(smi.ptr());
+  Node* node = m.Int64Constant(smiPointer);
+  m.Return(m.ChangeCompressedSignedToTaggedSigned(
+      m.ChangeTaggedSignedToCompressedSigned(node)));
+  CHECK_EQ(smiPointer, m.Call());
+}
+#endif  // V8_COMPRESS_POINTERS
+
 #endif  // V8_TARGET_ARCH_64_BIT
 
 

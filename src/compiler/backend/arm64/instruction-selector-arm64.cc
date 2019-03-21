@@ -1657,6 +1657,46 @@ void InstructionSelector::VisitChangeUint32ToUint64(Node* node) {
   Emit(kArm64Mov32, g.DefineAsRegister(node), g.UseRegister(value));
 }
 
+void InstructionSelector::VisitChangeTaggedToCompressed(Node* node) {
+  Arm64OperandGenerator g(this);
+  Node* value = node->InputAt(0);
+  Emit(kArm64CompressAny, g.DefineAsRegister(node), g.Use(value));
+}
+
+void InstructionSelector::VisitChangeTaggedPointerToCompressedPointer(
+    Node* node) {
+  Arm64OperandGenerator g(this);
+  Node* value = node->InputAt(0);
+  Emit(kArm64CompressPointer, g.DefineAsRegister(node), g.Use(value));
+}
+
+void InstructionSelector::VisitChangeTaggedSignedToCompressedSigned(
+    Node* node) {
+  Arm64OperandGenerator g(this);
+  Node* value = node->InputAt(0);
+  Emit(kArm64CompressSigned, g.DefineAsRegister(node), g.Use(value));
+}
+
+void InstructionSelector::VisitChangeCompressedToTagged(Node* node) {
+  Arm64OperandGenerator g(this);
+  Node* const value = node->InputAt(0);
+  Emit(kArm64DecompressAny, g.DefineAsRegister(node), g.Use(value));
+}
+
+void InstructionSelector::VisitChangeCompressedPointerToTaggedPointer(
+    Node* node) {
+  Arm64OperandGenerator g(this);
+  Node* const value = node->InputAt(0);
+  Emit(kArm64DecompressPointer, g.DefineAsRegister(node), g.Use(value));
+}
+
+void InstructionSelector::VisitChangeCompressedSignedToTaggedSigned(
+    Node* node) {
+  Arm64OperandGenerator g(this);
+  Node* const value = node->InputAt(0);
+  Emit(kArm64DecompressSigned, g.DefineAsRegister(node), g.Use(value));
+}
+
 void InstructionSelector::VisitTruncateInt64ToInt32(Node* node) {
   Arm64OperandGenerator g(this);
   Node* value = node->InputAt(0);

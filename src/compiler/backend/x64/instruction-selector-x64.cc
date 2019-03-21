@@ -1265,6 +1265,46 @@ void InstructionSelector::VisitChangeUint32ToUint64(Node* node) {
   Emit(kX64Movl, g.DefineAsRegister(node), g.Use(value));
 }
 
+void InstructionSelector::VisitChangeTaggedToCompressed(Node* node) {
+  X64OperandGenerator g(this);
+  Node* value = node->InputAt(0);
+  Emit(kX64CompressAny, g.DefineAsRegister(node), g.Use(value));
+}
+
+void InstructionSelector::VisitChangeTaggedPointerToCompressedPointer(
+    Node* node) {
+  X64OperandGenerator g(this);
+  Node* value = node->InputAt(0);
+  Emit(kX64CompressPointer, g.DefineAsRegister(node), g.Use(value));
+}
+
+void InstructionSelector::VisitChangeTaggedSignedToCompressedSigned(
+    Node* node) {
+  X64OperandGenerator g(this);
+  Node* value = node->InputAt(0);
+  Emit(kX64CompressSigned, g.DefineAsRegister(node), g.Use(value));
+}
+
+void InstructionSelector::VisitChangeCompressedToTagged(Node* node) {
+  X64OperandGenerator g(this);
+  Node* const value = node->InputAt(0);
+  Emit(kX64DecompressAny, g.DefineAsRegister(node), g.Use(value));
+}
+
+void InstructionSelector::VisitChangeCompressedPointerToTaggedPointer(
+    Node* node) {
+  X64OperandGenerator g(this);
+  Node* const value = node->InputAt(0);
+  Emit(kX64DecompressPointer, g.DefineAsRegister(node), g.Use(value));
+}
+
+void InstructionSelector::VisitChangeCompressedSignedToTaggedSigned(
+    Node* node) {
+  X64OperandGenerator g(this);
+  Node* const value = node->InputAt(0);
+  Emit(kX64DecompressSigned, g.DefineAsRegister(node), g.Use(value));
+}
+
 namespace {
 
 void VisitRO(InstructionSelector* selector, Node* node,

@@ -703,6 +703,24 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   Node* ChangeUint32ToUint64(Node* a) {
     return AddNode(machine()->ChangeUint32ToUint64(), a);
   }
+  Node* ChangeTaggedToCompressed(Node* a) {
+    return AddNode(machine()->ChangeTaggedToCompressed(), a);
+  }
+  Node* ChangeTaggedPointerToCompressedPointer(Node* a) {
+    return AddNode(machine()->ChangeTaggedPointerToCompressedPointer(), a);
+  }
+  Node* ChangeTaggedSignedToCompressedSigned(Node* a) {
+    return AddNode(machine()->ChangeTaggedSignedToCompressedSigned(), a);
+  }
+  Node* ChangeCompressedToTagged(Node* a) {
+    return AddNode(machine()->ChangeCompressedToTagged(), a);
+  }
+  Node* ChangeCompressedPointerToTaggedPointer(Node* a) {
+    return AddNode(machine()->ChangeCompressedPointerToTaggedPointer(), a);
+  }
+  Node* ChangeCompressedSignedToTaggedSigned(Node* a) {
+    return AddNode(machine()->ChangeCompressedSignedToTaggedSigned(), a);
+  }
   Node* TruncateFloat64ToFloat32(Node* a) {
     return AddNode(machine()->TruncateFloat64ToFloat32(), a);
   }

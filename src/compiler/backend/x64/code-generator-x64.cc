@@ -1951,6 +1951,48 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     }
+    case kX64DecompressSigned: {
+      CHECK(instr->HasOutput());
+      __ movsxlq(i.OutputRegister(), i.InputRegister(0));
+      break;
+    }
+    case kX64DecompressPointer: {
+      CHECK(instr->HasOutput());
+      __ movsxlq(i.OutputRegister(), i.InputRegister(0));
+      __ addq(i.OutputRegister(), kRootRegister);
+      break;
+    }
+    case kX64DecompressAny: {
+      CHECK(instr->HasOutput());
+      __ movsxlq(i.OutputRegister(), i.InputRegister(0));
+      // TODO(solanes): Do branchful compute?
+      // Branchlessly compute |masked_root|:
+      STATIC_ASSERT((kSmiTagSize == 1) && (kSmiTag < 32));
+      Register masked_root = kScratchRegister;
+      __ movl(masked_root, i.OutputRegister());
+      __ andl(masked_root, Immediate(kSmiTagMask));
+      __ negq(masked_root);
+      __ andq(masked_root, kRootRegister);
+      // Now this add operation will either leave the value unchanged if it is a
+      // smi or add the isolate root if it is a heap object.
+      __ addq(i.OutputRegister(), masked_root);
+      break;
+    }
+    // TODO(solanes): Combine into one Compress? They seem to be identical.
+    // TODO(solanes): We might get away with doing a no-op in these three cases.
+    // The movl instruction is the conservative way for the moment.
+    case kX64CompressSigned: {
+      __ movl(i.OutputRegister(), i.InputRegister(0));
+      break;
+    }
+    case kX64CompressPointer: {
+      __ movl(i.OutputRegister(), i.InputRegister(0));
+      break;
+    }
+    case kX64CompressAny: {
+      __ movl(i.OutputRegister(), i.InputRegister(0));
+      break;
+    }
     case kX64Movq:
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, i, __ pc_offset());
       if (instr->HasOutput()) {
