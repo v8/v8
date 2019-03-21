@@ -3400,12 +3400,9 @@ v8_component("v8_libbase") {
 
     libs = [
       "dbghelp.lib",
-      "shlwapi.lib",
       "winmm.lib",
       "ws2_32.lib",
     ]
-
-    ldflags = [ "/DELAYLOAD:shlwapi.dll" ]
 
     data_deps += [ "//build/win:runtime_libs" ]
   }
