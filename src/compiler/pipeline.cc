@@ -401,12 +401,11 @@ class PipelineData {
   }
 
   void InitializeRegisterAllocationData(const RegisterConfiguration* config,
-                                        CallDescriptor* call_descriptor,
-                                        RegisterAllocationFlags flags) {
+                                        CallDescriptor* call_descriptor) {
     DCHECK_NULL(register_allocation_data_);
     register_allocation_data_ = new (register_allocation_zone())
         RegisterAllocationData(config, register_allocation_zone(), frame(),
-                               sequence(), flags, debug_name());
+                               sequence(), debug_name());
   }
 
   void InitializeOsrHelper() {
@@ -914,12 +913,6 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl(
   }
   if (FLAG_inline_accessors) {
     compilation_info()->MarkAsAccessorInliningEnabled();
-  }
-  if (FLAG_turbo_control_flow_aware_allocation) {
-    compilation_info()->MarkAsTurboControlFlowAwareAllocation();
-  }
-  if (FLAG_turbo_preprocess_ranges) {
-    compilation_info()->MarkAsTurboPreprocessRanges();
   }
 
   // This is the bottleneck for computing and setting poisoning level in the
@@ -2529,12 +2522,6 @@ bool Pipeline::AllocateRegistersForTesting(const RegisterConfiguration* config,
                                            bool run_verifier) {
   OptimizedCompilationInfo info(ArrayVector("testing"), sequence->zone(),
                                 Code::STUB);
-  if (FLAG_turbo_control_flow_aware_allocation) {
-    info.MarkAsTurboControlFlowAwareAllocation();
-  }
-  if (FLAG_turbo_preprocess_ranges) {
-    info.MarkAsTurboPreprocessRanges();
-  }
   ZoneStats zone_stats(sequence->isolate()->allocator());
   PipelineData data(&zone_stats, &info, sequence->isolate(), sequence);
   data.InitializeFrameData(nullptr);
@@ -2875,14 +2862,7 @@ void PipelineImpl::AllocateRegisters(const RegisterConfiguration* config,
   data_->sequence()->ValidateDeferredBlockExitPaths();
 #endif
 
-  RegisterAllocationFlags flags;
-  if (data->info()->is_turbo_control_flow_aware_allocation()) {
-    flags |= RegisterAllocationFlag::kTurboControlFlowAwareAllocation;
-  }
-  if (data->info()->is_turbo_preprocess_ranges()) {
-    flags |= RegisterAllocationFlag::kTurboPreprocessRanges;
-  }
-  data->InitializeRegisterAllocationData(config, call_descriptor, flags);
+  data->InitializeRegisterAllocationData(config, call_descriptor);
   if (info()->is_osr()) data->osr_helper()->SetupFrame(data->frame());
 
   Run<MeetRegisterConstraintsPhase>();
@@ -2903,7 +2883,7 @@ void PipelineImpl::AllocateRegisters(const RegisterConfiguration* config,
                                        data->register_allocation_data());
   }
 
-  if (info()->is_turbo_preprocess_ranges()) {
+  if (FLAG_turbo_preprocess_ranges) {
     Run<SplinterLiveRangesPhase>();
     if (info()->trace_turbo_json_enabled() &&
         !data->MayHaveUnverifiableGraph()) {
@@ -2919,7 +2899,7 @@ void PipelineImpl::AllocateRegisters(const RegisterConfiguration* config,
     Run<AllocateFPRegistersPhase<LinearScanAllocator>>();
   }
 
-  if (info()->is_turbo_preprocess_ranges()) {
+  if (FLAG_turbo_preprocess_ranges) {
     Run<MergeSplintersPhase>();
   }
 

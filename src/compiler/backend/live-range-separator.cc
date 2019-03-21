@@ -162,7 +162,6 @@ void LiveRangeMerger::MarkRangesSpilledInDeferredBlocks() {
       }
     }
     if (child == nullptr) {
-      DCHECK(!data()->is_turbo_control_flow_aware_allocation());
       top->TreatAsSpilledInDeferredBlock(data()->allocation_zone(),
                                          code->InstructionBlockCount());
     }
