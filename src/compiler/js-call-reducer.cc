@@ -2564,6 +2564,14 @@ Reduction JSCallReducer::ReduceArrayIndexOfIncludes(
     if (!dependencies()->DependOnNoElementsProtector()) UNREACHABLE();
   }
 
+  // If we have unreliable maps, we need a map check.
+  if (result == NodeProperties::kUnreliableReceiverMaps) {
+    effect =
+        graph()->NewNode(simplified()->CheckMaps(CheckMapsFlag::kNone,
+                                                 receiver_maps, p.feedback()),
+                         receiver, effect, control);
+  }
+
   Callable const callable = search_variant == SearchVariant::kIndexOf
                                 ? GetCallableForArrayIndexOf(kind, isolate())
                                 : GetCallableForArrayIncludes(kind, isolate());
