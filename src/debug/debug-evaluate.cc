@@ -215,7 +215,6 @@ DebugEvaluate::ContextBuilder::ContextBuilder(Isolate* isolate,
   }
 }
 
-
 void DebugEvaluate::ContextBuilder::UpdateValues() {
   scope_iterator_.Restart();
   for (ContextChainElement& element : context_chain_) {
@@ -504,6 +503,7 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtins::Name id) {
     case Builtins::kObjectPrototypeIsPrototypeOf:
     case Builtins::kObjectPrototypePropertyIsEnumerable:
     case Builtins::kObjectPrototypeToString:
+    case Builtins::kObjectPrototypeToLocaleString:
     // Array builtins.
     case Builtins::kArrayIsArray:
     case Builtins::kArrayConstructor:
@@ -546,12 +546,14 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtins::Name id) {
     case Builtins::kTypedArrayPrototypeFind:
     case Builtins::kTypedArrayPrototypeFindIndex:
     case Builtins::kTypedArrayPrototypeIncludes:
+    case Builtins::kTypedArrayPrototypeJoin:
     case Builtins::kTypedArrayPrototypeIndexOf:
     case Builtins::kTypedArrayPrototypeLastIndexOf:
     case Builtins::kTypedArrayPrototypeSlice:
     case Builtins::kTypedArrayPrototypeSubArray:
     case Builtins::kTypedArrayPrototypeEvery:
     case Builtins::kTypedArrayPrototypeSome:
+    case Builtins::kTypedArrayPrototypeToLocaleString:
     case Builtins::kTypedArrayPrototypeFilter:
     case Builtins::kTypedArrayPrototypeMap:
     case Builtins::kTypedArrayPrototypeReduce:
@@ -609,6 +611,11 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtins::Name id) {
     case Builtins::kDatePrototypeToISOString:
     case Builtins::kDatePrototypeToUTCString:
     case Builtins::kDatePrototypeToString:
+#ifdef V8_INTL_SUPPORT
+    case Builtins::kDatePrototypeToLocaleString:
+    case Builtins::kDatePrototypeToLocaleDateString:
+    case Builtins::kDatePrototypeToLocaleTimeString:
+#endif
     case Builtins::kDatePrototypeToTimeString:
     case Builtins::kDatePrototypeToJson:
     case Builtins::kDatePrototypeToPrimitive:
@@ -674,6 +681,7 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtins::Name id) {
     case Builtins::kNumberPrototypeToFixed:
     case Builtins::kNumberPrototypeToPrecision:
     case Builtins::kNumberPrototypeToString:
+    case Builtins::kNumberPrototypeToLocaleString:
     case Builtins::kNumberPrototypeValueOf:
     // BigInt builtins.
     case Builtins::kBigIntConstructor:
@@ -977,6 +985,8 @@ static bool TransitivelyCalledBuiltinHasNoSideEffect(Builtins::Name caller,
       switch (caller) {
         case Builtins::kArrayPrototypeJoin:
         case Builtins::kArrayPrototypeToLocaleString:
+        case Builtins::kTypedArrayPrototypeJoin:
+        case Builtins::kTypedArrayPrototypeToLocaleString:
           return true;
         default:
           return false;
