@@ -459,6 +459,9 @@ class BitSetComputer {
 // Size of the field defined by DEFINE_FIELD_OFFSET_CONSTANTS
 #define FIELD_SIZE(Name) (Name##End + 1 - Name)
 
+// Compare two offsets with static cast
+#define STATIC_ASSERT_FIELD_OFFSETS_EQUAL(Offset1, Offset2) \
+  STATIC_ASSERT(static_cast<int>(Offset1) == Offset2)
 // ----------------------------------------------------------------------------
 // Hash function.
 

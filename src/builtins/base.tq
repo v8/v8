@@ -10,6 +10,7 @@
 #include 'src/objects.h'
 #include 'src/objects/arguments.h'
 #include 'src/objects/bigint.h'
+#include 'src/objects/free-space.h'
 #include 'src/objects/js-generator.h'
 #include 'src/objects/js-promise.h'
 #include 'src/objects/js-regexp-string-iterator.h'
@@ -67,7 +68,7 @@ extern class Oddball extends HeapObject {
   type_of: String;
   kind: Smi;
 }
-type HeapNumber extends HeapObject generates 'TNode<HeapNumber>';
+extern class HeapNumber extends HeapObject { value: float64; }
 type Number = Smi | HeapNumber;
 type BigInt extends HeapObject generates 'TNode<BigInt>';
 type Numeric = Number | BigInt;
@@ -336,6 +337,11 @@ type FixedTypedArray extends FixedTypedArrayBase
 extern class SloppyArgumentsElements extends FixedArray {}
 type NumberDictionary extends HeapObject
     generates 'TNode<NumberDictionary>';
+
+extern class FreeSpace extends HeapObject {
+  size: Smi;
+  next: FreeSpace;
+}
 
 // %RawDownCast should *never* be used anywhere in Torque code except for
 // in Torque-based UnsafeCast operators preceeded by an appropriate
@@ -1422,7 +1428,6 @@ extern macro SmiFromInt32(int32): Smi;
 extern macro SmiUntag(Smi): intptr;
 extern macro SmiToInt32(Smi): int32;
 extern macro RoundIntPtrToFloat64(intptr): float64;
-extern macro LoadHeapNumberValue(HeapNumber): float64;
 extern macro ChangeFloat32ToFloat64(float32): float64;
 extern macro ChangeNumberToFloat64(Number): float64;
 extern macro ChangeFloat64ToUintPtr(float64): uintptr;

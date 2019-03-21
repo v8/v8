@@ -10436,7 +10436,8 @@ Node* CodeStubAssembler::PrepareValueForWriteToTypedArray(
   // same layout as the HeapNumber for the HeapNumber::value field. This
   // way we can also properly optimize stores of oddballs to typed arrays.
   GotoIf(IsHeapNumber(var_input.value()), &if_heapnumber_or_oddball);
-  STATIC_ASSERT(HeapNumber::kValueOffset == Oddball::kToNumberRawOffset);
+  STATIC_ASSERT_FIELD_OFFSETS_EQUAL(HeapNumber::kValueOffset,
+                                    Oddball::kToNumberRawOffset);
   Branch(HasInstanceType(var_input.value(), ODDBALL_TYPE),
          &if_heapnumber_or_oddball, &convert);
 

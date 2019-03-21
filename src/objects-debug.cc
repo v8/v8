@@ -492,7 +492,10 @@ void BytecodeArray::BytecodeArrayVerify(Isolate* isolate) {
   VerifyHeapPointer(isolate, constant_pool());
 }
 
-void FreeSpace::FreeSpaceVerify(Isolate* isolate) { CHECK(IsFreeSpace()); }
+void FreeSpace::FreeSpaceVerify(Isolate* isolate) {
+  CHECK(IsFreeSpace());
+  VerifySmiField(kSizeOffset);
+}
 
 void FeedbackCell::FeedbackCellVerify(Isolate* isolate) {
   CHECK(IsFeedbackCell());

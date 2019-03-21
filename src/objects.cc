@@ -4645,7 +4645,8 @@ Handle<Object> CacheInitialJSArrayMaps(Handle<Context> native_context,
   return initial_map;
 }
 
-STATIC_ASSERT(Oddball::kToNumberRawOffset == HeapNumber::kValueOffset);
+STATIC_ASSERT_FIELD_OFFSETS_EQUAL(HeapNumber::kValueOffset,
+                                  Oddball::kToNumberRawOffset);
 
 void Oddball::Initialize(Isolate* isolate, Handle<Oddball> oddball,
                          const char* to_string, Handle<Object> to_number,
