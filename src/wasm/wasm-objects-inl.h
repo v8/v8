@@ -97,8 +97,8 @@ OPTIONAL_ACCESSORS(WasmModuleObject, breakpoint_infos, FixedArray,
 wasm::NativeModule* WasmModuleObject::native_module() const {
   return managed_native_module()->raw();
 }
-std::shared_ptr<wasm::NativeModule> WasmModuleObject::shared_native_module()
-    const {
+const std::shared_ptr<wasm::NativeModule>&
+WasmModuleObject::shared_native_module() const {
   return managed_native_module()->get();
 }
 const wasm::WasmModule* WasmModuleObject::module() const {

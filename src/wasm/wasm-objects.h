@@ -118,7 +118,8 @@ class WasmModuleObject : public JSObject {
   DECL_OPTIONAL_ACCESSORS(asm_js_offset_table, ByteArray)
   DECL_OPTIONAL_ACCESSORS(breakpoint_infos, FixedArray)
   inline wasm::NativeModule* native_module() const;
-  inline std::shared_ptr<wasm::NativeModule> shared_native_module() const;
+  inline const std::shared_ptr<wasm::NativeModule>& shared_native_module()
+      const;
   inline const wasm::WasmModule* module() const;
   inline void reset_breakpoint_infos();
 
