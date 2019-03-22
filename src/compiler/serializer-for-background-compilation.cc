@@ -320,8 +320,44 @@ void SerializerForBackgroundCompilation::VisitExtraWide(
   UNREACHABLE();
 }
 
-void SerializerForBackgroundCompilation::VisitStackCheck(
-    BytecodeArrayIterator* iterator) {}
+void SerializerForBackgroundCompilation::VisitGetSuperConstructor(
+    BytecodeArrayIterator* iterator) {
+  interpreter::Register dst = iterator->GetRegisterOperand(0);
+  environment()->register_hints(dst).Clear();
+
+  for (auto constant : environment()->accumulator_hints().constants()) {
+    // For JSNativeContextSpecialization::ReduceJSGetSuperConstructor.
+    if (!constant->IsJSFunction()) continue;
+    MapRef map(broker(),
+               handle(HeapObject::cast(*constant)->map(), broker()->isolate()));
+    map.SerializePrototype();
+    ObjectRef proto = map.prototype();
+    if (proto.IsHeapObject() && proto.AsHeapObject().map().is_constructor()) {
+      environment()->register_hints(dst).AddConstant(proto.object());
+    }
+  }
+}
+
+void SerializerForBackgroundCompilation::VisitLdaTrue(
+    BytecodeArrayIterator* iterator) {
+  environment()->accumulator_hints().Clear();
+  environment()->accumulator_hints().AddConstant(
+      broker()->isolate()->factory()->true_value());
+}
+
+void SerializerForBackgroundCompilation::VisitLdaFalse(
+    BytecodeArrayIterator* iterator) {
+  environment()->accumulator_hints().Clear();
+  environment()->accumulator_hints().AddConstant(
+      broker()->isolate()->factory()->false_value());
+}
+
+void SerializerForBackgroundCompilation::VisitLdaTheHole(
+    BytecodeArrayIterator* iterator) {
+  environment()->accumulator_hints().Clear();
+  environment()->accumulator_hints().AddConstant(
+      broker()->isolate()->factory()->the_hole_value());
+}
 
 void SerializerForBackgroundCompilation::VisitLdaUndefined(
     BytecodeArrayIterator* iterator) {

@@ -461,6 +461,7 @@ class MapRef : public HeapObjectRef {
   base::Optional<MapRef> AsElementsKind(ElementsKind kind) const;
 
   void SerializePrototype();
+  bool serialized_prototype() const;
   ObjectRef prototype() const;
 
   void SerializeForElementLoad();

@@ -83,25 +83,26 @@ namespace compiler {
   V(JumpIfUndefined)              \
   V(JumpIfUndefinedConstant)
 
-#define INGORED_BYTECODE_LIST(V) \
-  V(CallNoFeedback)              \
-  V(LdaNamedPropertyNoFeedback)  \
-  V(StaNamedPropertyNoFeedback)  \
-  V(TestEqual)                   \
-  V(TestEqualStrict)             \
-  V(TestLessThan)                \
-  V(TestGreaterThan)             \
-  V(TestLessThanOrEqual)         \
-  V(TestGreaterThanOrEqual)      \
-  V(TestReferenceEqual)          \
-  V(TestInstanceOf)              \
-  V(TestUndetectable)            \
-  V(TestNull)                    \
-  V(TestUndefined)               \
-  V(TestTypeOf)                  \
-  V(ThrowReferenceErrorIfHole)   \
-  V(ThrowSuperNotCalledIfHole)   \
-  V(ThrowSuperAlreadyCalledIfNotHole)
+#define INGORED_BYTECODE_LIST(V)      \
+  V(CallNoFeedback)                   \
+  V(LdaNamedPropertyNoFeedback)       \
+  V(StackCheck)                       \
+  V(StaNamedPropertyNoFeedback)       \
+  V(TestEqual)                        \
+  V(TestEqualStrict)                  \
+  V(TestGreaterThan)                  \
+  V(TestGreaterThanOrEqual)           \
+  V(TestInstanceOf)                   \
+  V(TestLessThan)                     \
+  V(TestLessThanOrEqual)              \
+  V(TestNull)                         \
+  V(TestReferenceEqual)               \
+  V(TestTypeOf)                       \
+  V(TestUndefined)                    \
+  V(TestUndetectable)                 \
+  V(ThrowReferenceErrorIfHole)        \
+  V(ThrowSuperAlreadyCalledIfNotHole) \
+  V(ThrowSuperNotCalledIfHole)
 
 #define SUPPORTED_BYTECODE_LIST(V)   \
   V(CallAnyReceiver)                 \
@@ -118,7 +119,9 @@ namespace compiler {
   V(ConstructWithSpread)             \
   V(CreateClosure)                   \
   V(ExtraWide)                       \
+  V(GetSuperConstructor)             \
   V(Illegal)                         \
+  V(LdaFalse)                        \
   V(LdaConstant)                     \
   V(LdaGlobal)                       \
   V(LdaGlobalInsideTypeof)           \
@@ -129,11 +132,12 @@ namespace compiler {
   V(LdaNull)                         \
   V(Ldar)                            \
   V(LdaSmi)                          \
+  V(LdaTheHole)                      \
+  V(LdaTrue)                         \
   V(LdaUndefined)                    \
   V(LdaZero)                         \
   V(Mov)                             \
   V(Return)                          \
-  V(StackCheck)                      \
   V(StaGlobal)                       \
   V(StaInArrayLiteral)               \
   V(StaKeyedProperty)                \

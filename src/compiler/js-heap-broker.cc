@@ -729,6 +729,7 @@ class MapData : public HeapObjectData {
   }
 
   void SerializePrototype(JSHeapBroker* broker);
+  bool serialized_prototype() const { return serialized_prototype_; }
   ObjectData* prototype() const {
     CHECK(serialized_prototype_);
     return prototype_;
@@ -2896,6 +2897,11 @@ void MapRef::SerializePrototype() {
   if (broker()->mode() == JSHeapBroker::kDisabled) return;
   CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
   data()->AsMap()->SerializePrototype(broker());
+}
+
+bool MapRef::serialized_prototype() const {
+  CHECK_NE(broker()->mode(), JSHeapBroker::kDisabled);
+  return data()->AsMap()->serialized_prototype();
 }
 
 void ModuleRef::Serialize() {

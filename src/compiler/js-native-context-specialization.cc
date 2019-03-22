@@ -353,8 +353,13 @@ Reduction JSNativeContextSpecialization::ReduceJSGetSuperConstructor(
   if (!m.HasValue()) return NoChange();
   JSFunctionRef function = m.Ref(broker()).AsJSFunction();
   MapRef function_map = function.map();
-  // TODO(neis): Remove SerializePrototype call once brokerization is complete.
-  function_map.SerializePrototype();
+  if (!FLAG_concurrent_inlining) {
+    function_map.SerializePrototype();
+  } else if (!function_map.serialized_prototype()) {
+    TRACE_BROKER(broker(), "ReduceJSGetSuperConstructor: missing data for map "
+                               << function_map.object().address() << "\n");
+    return NoChange();
+  }
   ObjectRef function_prototype = function_map.prototype();
 
   // We can constant-fold the super constructor access if the
