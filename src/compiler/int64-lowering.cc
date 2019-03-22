@@ -284,16 +284,16 @@ void Int64Lowering::LowerNode(Node* node) {
     }
     case IrOpcode::kParameter: {
       DCHECK_EQ(1, node->InputCount());
-      int paramCount = static_cast<int>(signature()->parameter_count());
+      int param_count = static_cast<int>(signature()->parameter_count());
       // Only exchange the node if the parameter count actually changed. We do
       // not even have to do the default lowering because the the start node,
       // the only input of a parameter node, only changes if the parameter count
       // changes.
-      if (GetParameterCountAfterLowering(signature()) != paramCount) {
+      if (GetParameterCountAfterLowering(signature()) != param_count) {
         int old_index = ParameterIndexOf(node->op());
         // Prevent special lowering of wasm's instance or JS
         // context/closure parameters.
-        if (old_index <= 0 || old_index > paramCount) {
+        if (old_index <= 0 || old_index > param_count) {
           DefaultLowering(node);
           break;
         }
