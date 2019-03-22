@@ -56,15 +56,15 @@ vars = {
 
 deps = {
   'v8/build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '9dba2d4b1088837a6f3a361acc97d93b3fb31a0d',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'c52372fe5b59139d4c39c7ec6b169374922ad8d5',
   'v8/third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'cf9613f166a2f3a7a6a52cff8ae5282aac45f3d9',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '33bd5822245c5b1ace318f3a5340a983889d07c7',
   'v8/third_party/icu':
     Var('chromium_url') + '/chromium/deps/icu.git' + '@' + 'b10cc9f714e6da621c94de0f1e6090c176f876ae',
   'v8/third_party/instrumented_libraries':
     Var('chromium_url') + '/chromium/src/third_party/instrumented_libraries.git' + '@' + 'a959e4f0cb643003f2d75d179cede449979e3e77',
   'v8/buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'a2a4845768fae5737355b27b428313014b2c9f91',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '735271f8700a15dd69c0d2d1fee3ac8e9eec4351',
   'v8/buildtools/clang_format/script':
     Var('chromium_url') + '/chromium/llvm-project/cfe/tools/clang-format.git' + '@' + '96636aa0e9f047f17447f2d45a094d0b59ed7917',
   'v8/buildtools/linux64': {
@@ -88,7 +88,7 @@ deps = {
     'condition': 'host_os == "mac"',
   },
   'v8/buildtools/third_party/libc++/trunk':
-    Var('chromium_url') + '/chromium/llvm-project/libcxx.git' + '@' + 'a50f5035629b7621e92acef968403f71b7d48553',
+    Var('chromium_url') + '/chromium/llvm-project/libcxx.git' + '@' + '4daecde1d737da594173591db71e543a3e2d51d8',
   'v8/buildtools/third_party/libc++abi/trunk':
     Var('chromium_url') + '/chromium/llvm-project/libcxxabi.git' + '@' + '0d529660e32d77d9111912d73f2c74fc5fa2a858',
   'v8/buildtools/third_party/libunwind/trunk':
@@ -104,7 +104,7 @@ deps = {
     'condition': 'host_os == "win"',
   },
   'v8/base/trace_event/common':
-    Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '936ba8a963284a6b3737cf2f0474a7131073abee',
+    Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + 'c7664bb7d2665191611ea0f89ea0a585b127b6dd',
   'v8/third_party/android_ndk': {
     'url': Var('chromium_url') + '/android_ndk.git' + '@' + '4e2cea441bfd43f0863d14f57b1e1844260b9884',
     'condition': 'checkout_android',
@@ -157,7 +157,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'v8/third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'bf564e0beff1b674b28666f8d1932a1687bf59c9',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '2f1832aff38dc3475514b0364f5d27117f6cc8a5',
     'condition': 'checkout_android',
   },
   'v8/third_party/colorama/src': {
@@ -228,7 +228,7 @@ deps = {
     'packages': [
       {
         'package': 'chromium/llvm-build-tools/dsymutil',
-        'version': 'kykIT8m8YzNqqLP2xFGBTuo0ZtU9lom3BwiStWleyWkC',
+        'version': 'OWlhXkmj18li3yhJk59Kmjbc5KdgLh56TwCd1qBdzlIC',
       }
     ],
     'condition': 'checkout_mac',
