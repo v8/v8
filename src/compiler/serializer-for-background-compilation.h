@@ -48,17 +48,15 @@ namespace compiler {
   V(SwitchOnGeneratorState)       \
   V(Throw)
 
-#define CLEAR_ACCUMULATOR_LIST(V)   \
-  V(CreateEmptyObjectLiteral)       \
-  V(CreateMappedArguments)          \
-  V(CreateRestParameter)            \
-  V(CreateUnmappedArguments)        \
-  V(LdaContextSlot)                 \
-  V(LdaCurrentContextSlot)          \
-  V(LdaImmutableContextSlot)        \
-  V(LdaImmutableCurrentContextSlot) \
-  V(LdaNamedProperty)               \
-  V(LdaNamedPropertyNoFeedback)
+#define CLEAR_ACCUMULATOR_LIST(V) \
+  V(CreateEmptyObjectLiteral)     \
+  V(CreateMappedArguments)        \
+  V(CreateRestParameter)          \
+  V(CreateUnmappedArguments)      \
+  V(LdaContextSlot)               \
+  V(LdaCurrentContextSlot)        \
+  V(LdaImmutableContextSlot)      \
+  V(LdaImmutableCurrentContextSlot)
 
 #define UNCONDITIONAL_JUMPS_LIST(V) \
   V(Jump)                           \
@@ -86,6 +84,8 @@ namespace compiler {
   V(JumpIfUndefinedConstant)
 
 #define INGORED_BYTECODE_LIST(V) \
+  V(LdaNamedPropertyNoFeedback)  \
+  V(StaNamedPropertyNoFeedback)  \
   V(TestEqual)                   \
   V(TestEqualStrict)             \
   V(TestLessThan)                \
@@ -125,6 +125,7 @@ namespace compiler {
   V(LdaKeyedProperty)                \
   V(LdaLookupGlobalSlot)             \
   V(LdaLookupGlobalSlotInsideTypeof) \
+  V(LdaNamedProperty)                \
   V(LdaNull)                         \
   V(Ldar)                            \
   V(LdaSmi)                          \
@@ -136,6 +137,7 @@ namespace compiler {
   V(StaGlobal)                       \
   V(StaInArrayLiteral)               \
   V(StaKeyedProperty)                \
+  V(StaNamedProperty)                \
   V(Star)                            \
   V(TestIn)                          \
   V(Wide)                            \
@@ -243,6 +245,8 @@ class SerializerForBackgroundCompilation {
                           bool with_spread = false);
   void ProcessJump(interpreter::BytecodeArrayIterator* iterator);
   void MergeAfterJump(interpreter::BytecodeArrayIterator* iterator);
+  void ProcessNamedPropertyAccess(Hints const& receiver, NameRef const& name,
+                                  FeedbackSlot slot);
 
   Hints RunChildSerializer(CompilationSubject function,
                            base::Optional<Hints> new_target,
@@ -251,6 +255,9 @@ class SerializerForBackgroundCompilation {
   GlobalAccessFeedback const* ProcessFeedbackForGlobalAccess(FeedbackSlot slot);
   void ProcessFeedbackForKeyedPropertyAccess(FeedbackSlot slot,
                                              AccessMode mode);
+  void ProcessFeedbackForNamedPropertyAccess(FeedbackSlot slot,
+                                             NameRef const& name);
+  void ProcessMapForNamedPropertyAccess(MapRef const& map, NameRef const& name);
 
   JSHeapBroker* broker() const { return broker_; }
   Zone* zone() const { return zone_; }

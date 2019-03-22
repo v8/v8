@@ -785,16 +785,12 @@ FieldAccess ForPropertyCellValue(MachineRepresentation representation,
 Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
     Node* node, Node* receiver, Node* value, Handle<Name> name,
     AccessMode access_mode, Node* index) {
-  // Lookup on the global object. We only deal with own data properties
-  // of the global object here (represented as PropertyCell).
-  LookupIterator it(isolate(), global_object(), name, LookupIterator::OWN);
-  it.TryLookupCachedProperty();
-  if (it.state() != LookupIterator::DATA) return NoChange();
-  if (!it.GetHolder<JSObject>()->IsJSGlobalObject()) return NoChange();
-  PropertyCellRef property_cell(broker(), it.GetPropertyCell());
-  property_cell.Serialize();
-  return ReduceGlobalAccess(node, receiver, value, name, access_mode, index,
-                            property_cell);
+  NameRef name_ref(broker(), name);
+  base::Optional<PropertyCellRef> cell =
+      native_context().global_proxy_object().GetPropertyCell(name_ref);
+  return cell.has_value() ? ReduceGlobalAccess(node, receiver, value, name,
+                                               access_mode, index, *cell)
+                          : NoChange();
 }
 
 Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
@@ -1095,16 +1091,10 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
   // native contexts' global proxy, and turn that into a direct access
   // to the current native contexts' global object instead.
   if (receiver_maps.size() == 1) {
-    Handle<Map> receiver_map = receiver_maps.front();
-    if (receiver_map->IsJSGlobalProxyMap()) {
-      Object maybe_constructor = receiver_map->GetConstructor();
-      // Detached global proxies have |null| as their constructor.
-      if (maybe_constructor->IsJSFunction() &&
-          JSFunction::cast(maybe_constructor)->native_context() ==
-              *native_context().object()) {
-        return ReduceGlobalAccess(node, receiver, value, name, access_mode,
-                                  index);
-      }
+    MapRef receiver_map(broker(), receiver_maps.front());
+    if (receiver_map.IsMapOfCurrentGlobalProxy()) {
+      return ReduceGlobalAccess(node, receiver, value, name, access_mode,
+                                index);
     }
   }
 
@@ -1358,7 +1348,8 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccessFromNexus(
 
   // Check if we are accessing the current native contexts' global proxy.
   HeapObjectMatcher m(receiver);
-  if (m.HasValue() && m.Value().is_identical_to(global_proxy())) {
+  if (m.HasValue() &&
+      m.Ref(broker()).equals(native_context().global_proxy_object())) {
     // Optimize accesses to the current native contexts' global proxy.
     return ReduceGlobalAccess(node, nullptr, value, name, access_mode);
   }

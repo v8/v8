@@ -705,7 +705,7 @@ void SerializerForBackgroundCompilation::VisitLdaGlobal(
   GlobalAccessFeedback const* feedback = ProcessFeedbackForGlobalAccess(slot);
   if (feedback != nullptr) {
     // We may be able to contribute to accumulator constant hints.
-    base::Optional<ObjectRef> value = feedback->GetConstantValue();
+    base::Optional<ObjectRef> value = feedback->GetConstantHint();
     if (value.has_value()) {
       environment()->accumulator_hints().AddConstant(value->object());
     }
@@ -733,7 +733,22 @@ void SerializerForBackgroundCompilation::VisitStaGlobal(
   ProcessFeedbackForGlobalAccess(slot);
 }
 
-// Note: We never use the same feeedback slot for multiple access modes.
+namespace {
+template <class MapContainer>
+MapHandles GetRelevantReceiverMaps(Isolate* isolate, MapContainer const& maps) {
+  MapHandles result;
+  for (Handle<Map> map : maps) {
+    if (Map::TryUpdate(isolate, map).ToHandle(&map) &&
+        !map->is_abandoned_prototype_map()) {
+      DCHECK(!map->is_deprecated());
+      result.push_back(map);
+    }
+  }
+  return result;
+}
+}  // namespace
+
+// Note: We never use the same feedback slot for multiple access modes.
 void SerializerForBackgroundCompilation::ProcessFeedbackForKeyedPropertyAccess(
     FeedbackSlot slot, AccessMode mode) {
   if (slot.IsInvalid()) return;
@@ -742,8 +757,6 @@ void SerializerForBackgroundCompilation::ProcessFeedbackForKeyedPropertyAccess(
   FeedbackNexus nexus(environment()->function().feedback_vector, slot);
   FeedbackSource source(nexus);
   if (broker()->HasFeedback(source)) return;
-
-  if (nexus.ic_state() == MEGAMORPHIC) return;
 
   if (nexus.GetKeyType() == PROPERTY) {
     CHECK_NE(mode, AccessMode::kStoreInLiteral);
@@ -755,7 +768,8 @@ void SerializerForBackgroundCompilation::ProcessFeedbackForKeyedPropertyAccess(
   MapHandles maps;
   nexus.ExtractMaps(&maps);
   ElementAccessFeedback const* processed =
-      broker()->ProcessFeedbackMapsForElementAccess(maps);
+      broker()->ProcessFeedbackMapsForElementAccess(
+          GetRelevantReceiverMaps(broker()->isolate(), maps));
   broker()->SetFeedback(source, processed);
   if (processed == nullptr) return;
 
@@ -776,11 +790,77 @@ void SerializerForBackgroundCompilation::ProcessFeedbackForKeyedPropertyAccess(
   }
 }
 
+void SerializerForBackgroundCompilation::ProcessMapForNamedPropertyAccess(
+    MapRef const& map, NameRef const& name) {
+  // For JSNativeContextSpecialization::ReduceNamedAccess.
+  if (map.IsMapOfCurrentGlobalProxy()) {
+    broker()->native_context().global_proxy_object().GetPropertyCell(name,
+                                                                     true);
+  }
+}
+
+// Note: We never use the same feedback slot for multiple names.
+void SerializerForBackgroundCompilation::ProcessFeedbackForNamedPropertyAccess(
+    FeedbackSlot slot, NameRef const& name) {
+  if (slot.IsInvalid()) return;
+  if (environment()->function().feedback_vector.is_null()) return;
+
+  FeedbackNexus nexus(environment()->function().feedback_vector, slot);
+  FeedbackSource source(nexus);
+  if (broker()->HasFeedback(source)) return;
+
+  MapHandles maps;
+  nexus.ExtractMaps(&maps);
+  for (Handle<Map> map : GetRelevantReceiverMaps(broker()->isolate(), maps)) {
+    ProcessMapForNamedPropertyAccess(MapRef(broker(), map), name);
+  }
+
+  // NamedProperty support is still WIP. For now we don't have any actual data
+  // to store, so use nullptr to at least record that we processed the feedback.
+  broker()->SetFeedback(source, nullptr);
+}
+
 void SerializerForBackgroundCompilation::VisitLdaKeyedProperty(
     BytecodeArrayIterator* iterator) {
   FeedbackSlot slot = iterator->GetSlotOperand(1);
   ProcessFeedbackForKeyedPropertyAccess(slot, AccessMode::kLoad);
   environment()->accumulator_hints().Clear();
+}
+
+void SerializerForBackgroundCompilation::ProcessNamedPropertyAccess(
+    Hints const& receiver, NameRef const& name, FeedbackSlot slot) {
+  if (!slot.IsInvalid()) ProcessFeedbackForNamedPropertyAccess(slot, name);
+
+  for (Handle<Map> map :
+       GetRelevantReceiverMaps(broker()->isolate(), receiver.maps())) {
+    ProcessMapForNamedPropertyAccess(MapRef(broker(), map), name);
+  }
+
+  JSGlobalProxyRef global_proxy =
+      broker()->native_context().global_proxy_object();
+  for (Handle<Object> object : receiver.constants()) {
+    // For JSNativeContextSpecialization::ReduceNamedAccessFromNexus.
+    if (object.equals(global_proxy.object())) {
+      global_proxy.GetPropertyCell(name, true);
+    }
+  }
+
+  environment()->accumulator_hints().Clear();
+}
+
+void SerializerForBackgroundCompilation::VisitLdaNamedProperty(
+    BytecodeArrayIterator* iterator) {
+  Hints const& receiver =
+      environment()->register_hints(iterator->GetRegisterOperand(0));
+  Handle<Name> name(Name::cast(iterator->GetConstantForIndexOperand(1)),
+                    broker()->isolate());
+  FeedbackSlot slot = iterator->GetSlotOperand(2);
+  ProcessNamedPropertyAccess(receiver, NameRef(broker(), name), slot);
+}
+
+void SerializerForBackgroundCompilation::VisitStaNamedProperty(
+    BytecodeArrayIterator* iterator) {
+  VisitLdaNamedProperty(iterator);
 }
 
 void SerializerForBackgroundCompilation::VisitTestIn(
@@ -798,8 +878,8 @@ void SerializerForBackgroundCompilation::VisitStaKeyedProperty(
 
   ProcessFeedbackForKeyedPropertyAccess(slot, AccessMode::kStore);
 
-  // Process hints about constants.
   for (Handle<Object> object : receiver.constants()) {
+    // For JSNativeContextSpecialization::ReduceElementAccess.
     if (object->IsJSTypedArray()) JSTypedArrayRef(broker(), object).Serialize();
   }
 

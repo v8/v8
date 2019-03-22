@@ -132,6 +132,8 @@ class ObjectRef {
   ObjectData* data_;  // Should be used only by object() getters.
 
  private:
+  friend class JSGlobalProxyRef;
+  friend class JSGlobalProxyData;
   JSHeapBroker* broker_;
 };
 
@@ -448,6 +450,7 @@ class MapRef : public HeapObjectRef {
   bool is_migration_target() const;
   bool supports_fast_array_iteration() const;
   bool supports_fast_array_resize() const;
+  bool IsMapOfCurrentGlobalProxy() const;
 
 #define DEF_TESTER(Type, ...) bool Is##Type##Map() const;
   INSTANCE_TYPE_CHECKERS(DEF_TESTER)
@@ -610,6 +613,16 @@ class JSGlobalProxyRef : public JSObjectRef {
  public:
   using JSObjectRef::JSObjectRef;
   Handle<JSGlobalProxy> object() const;
+
+  // If {serialize} is false:
+  //   If the property is known to exist as a property cell (on the global
+  //   object), return that property cell. Otherwise (not known to exist as a
+  //   property cell or known not to exist as a property cell) return nothing.
+  // If {serialize} is true:
+  //   Like above but potentially access the heap and serialize the necessary
+  //   information.
+  base::Optional<PropertyCellRef> GetPropertyCell(NameRef const& name,
+                                                  bool serialize = false) const;
 };
 
 class CodeRef : public HeapObjectRef {
@@ -653,7 +666,7 @@ class GlobalAccessFeedback : public ProcessedFeedback {
   int slot_index() const;
   bool immutable() const;
 
-  base::Optional<ObjectRef> GetConstantValue() const;
+  base::Optional<ObjectRef> GetConstantHint() const;
 
  private:
   ObjectRef const cell_or_context_;

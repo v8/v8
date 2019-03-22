@@ -702,6 +702,9 @@ class MapData : public HeapObjectData {
   bool supports_fast_array_resize() const {
     return supports_fast_array_resize_;
   }
+  bool IsMapOfCurrentGlobalProxy() const {
+    return is_map_of_current_global_proxy_;
+  }
 
   // Extra information.
 
@@ -750,6 +753,7 @@ class MapData : public HeapObjectData {
   int const unused_property_fields_;
   bool const supports_fast_array_iteration_;
   bool const supports_fast_array_resize_;
+  bool const is_map_of_current_global_proxy_;
 
   bool serialized_elements_kind_generalizations_ = false;
   ZoneVector<MapData*> elements_kind_generalizations_;
@@ -865,6 +869,8 @@ MapData::MapData(JSHeapBroker* broker, ObjectData** storage, Handle<Map> object)
           SupportsFastArrayIteration(broker->isolate(), object)),
       supports_fast_array_resize_(
           SupportsFastArrayResize(broker->isolate(), object)),
+      is_map_of_current_global_proxy_(
+          object->IsMapOfGlobalProxy(broker->isolate()->native_context())),
       elements_kind_generalizations_(broker->zone()) {}
 
 JSFunctionData::JSFunctionData(JSHeapBroker* broker, ObjectData** storage,
@@ -1328,9 +1334,64 @@ void CellData::Serialize(JSHeapBroker* broker) {
 class JSGlobalProxyData : public JSObjectData {
  public:
   JSGlobalProxyData(JSHeapBroker* broker, ObjectData** storage,
-                    Handle<JSGlobalProxy> object)
-      : JSObjectData(broker, storage, object) {}
+                    Handle<JSGlobalProxy> object);
+
+  PropertyCellData* GetPropertyCell(JSHeapBroker* broker, NameData* name,
+                                    bool serialize);
+
+ private:
+  // Properties that either
+  // (1) are known to exist as property cells on the global object, or
+  // (2) are known not to (possibly they don't exist at all).
+  // In case (2), the second pair component is nullptr.
+  ZoneVector<std::pair<NameData*, PropertyCellData*>> properties_;
 };
+
+JSGlobalProxyData::JSGlobalProxyData(JSHeapBroker* broker, ObjectData** storage,
+                                     Handle<JSGlobalProxy> object)
+    : JSObjectData(broker, storage, object), properties_(broker->zone()) {}
+
+base::Optional<PropertyCellRef> GetPropertyCellFromHeap(JSHeapBroker* broker,
+                                                        Handle<Name> name) {
+  LookupIterator it(broker->isolate(),
+                    handle(broker->native_context().object()->global_object(),
+                           broker->isolate()),
+                    name, LookupIterator::OWN);
+  it.TryLookupCachedProperty();
+  if (it.state() == LookupIterator::DATA &&
+      it.GetHolder<JSObject>()->IsJSGlobalObject()) {
+    return PropertyCellRef(broker, it.GetPropertyCell());
+  }
+  return base::nullopt;
+}
+
+PropertyCellData* JSGlobalProxyData::GetPropertyCell(JSHeapBroker* broker,
+                                                     NameData* name,
+                                                     bool serialize) {
+  CHECK_NOT_NULL(name);
+  for (auto const& p : properties_) {
+    if (p.first == name) return p.second;
+  }
+
+  if (!serialize) {
+    AllowHandleAllocation handle_allocation_;
+    AllowHandleDereference handle_dereference_;
+    AllowHeapAllocation heap_allocation_;
+    TRACE(broker, "GetPropertyCell: missing knowledge about global property "
+                      << Brief(*name->object()) << "\n");
+    return nullptr;
+  }
+
+  PropertyCellData* result = nullptr;
+  base::Optional<PropertyCellRef> cell =
+      GetPropertyCellFromHeap(broker, Handle<Name>::cast(name->object()));
+  if (cell.has_value()) {
+    cell->Serialize();
+    result = cell->data()->AsPropertyCell();
+  }
+  properties_.push_back({name, result});
+  return result;
+}
 
 class CodeData : public HeapObjectData {
  public:
@@ -2017,6 +2078,15 @@ bool MapRef::supports_fast_array_resize() const {
     return SupportsFastArrayResize(broker()->isolate(), object());
   }
   return data()->AsMap()->supports_fast_array_resize();
+}
+
+bool MapRef::IsMapOfCurrentGlobalProxy() const {
+  if (broker()->mode() == JSHeapBroker::kDisabled) {
+    AllowHandleDereference allow_handle_dereference;
+    AllowHandleAllocation handle_allocation;
+    return object()->IsMapOfGlobalProxy(broker()->isolate()->native_context());
+  }
+  return data()->AsMap()->IsMapOfCurrentGlobalProxy();
 }
 
 int JSFunctionRef::InitialMapInstanceSizeWithMinSlack() const {
@@ -2875,6 +2945,18 @@ void PropertyCellRef::Serialize() {
   data()->AsPropertyCell()->Serialize(broker());
 }
 
+base::Optional<PropertyCellRef> JSGlobalProxyRef::GetPropertyCell(
+    NameRef const& name, bool serialize) const {
+  if (broker()->mode() == JSHeapBroker::kDisabled) {
+    return GetPropertyCellFromHeap(broker(), name.object());
+  }
+  PropertyCellData* property_cell_data =
+      data()->AsJSGlobalProxy()->GetPropertyCell(
+          broker(), name.data()->AsName(), serialize);
+  if (property_cell_data == nullptr) return base::nullopt;
+  return PropertyCellRef(broker(), property_cell_data);
+}
+
 bool CanInlineElementAccess(MapRef const& map) {
   if (!map.IsJSObjectMap()) return false;
   if (map.is_access_check_needed()) return false;
@@ -2911,7 +2993,6 @@ PropertyCellRef GlobalAccessFeedback::property_cell() const {
   DCHECK(IsPropertyCell());
   return cell_or_context_.AsPropertyCell();
 }
-
 ContextRef GlobalAccessFeedback::script_context() const {
   DCHECK(IsScriptContextSlot());
   return cell_or_context_.AsContext();
@@ -2925,11 +3006,11 @@ bool GlobalAccessFeedback::immutable() const {
   return FeedbackNexus::ImmutabilityBit::decode(index_and_immutable_);
 }
 
-base::Optional<ObjectRef> GlobalAccessFeedback::GetConstantValue() const {
-  if (IsScriptContextSlot() && immutable()) {
-    // Return the value of this global variable if it's guaranteed to be
-    // constant.
-    return script_context().get(slot_index());
+base::Optional<ObjectRef> GlobalAccessFeedback::GetConstantHint() const {
+  if (IsScriptContextSlot()) {
+    if (immutable()) return script_context().get(slot_index());
+  } else {
+    return property_cell().value();
   }
   return {};
 }
