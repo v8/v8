@@ -453,11 +453,6 @@ void SerializerForBackgroundCompilation::VisitCallAnyReceiver(
   ProcessCallVarArgs(iterator, ConvertReceiverMode::kAny);
 }
 
-void SerializerForBackgroundCompilation::VisitCallNoFeedback(
-    BytecodeArrayIterator* iterator) {
-  ProcessCallVarArgs(iterator, ConvertReceiverMode::kNullOrUndefined);
-}
-
 void SerializerForBackgroundCompilation::VisitCallProperty(
     BytecodeArrayIterator* iterator) {
   ProcessCallVarArgs(iterator, ConvertReceiverMode::kNullOrUndefined);
@@ -601,10 +596,7 @@ void SerializerForBackgroundCompilation::ProcessCallVarArgs(
       environment()->register_hints(iterator->GetRegisterOperand(0));
   interpreter::Register first_reg = iterator->GetRegisterOperand(1);
   int reg_count = static_cast<int>(iterator->GetRegisterCountOperand(2));
-  FeedbackSlot slot;
-  if (iterator->current_bytecode() != interpreter::Bytecode::kCallNoFeedback) {
-    slot = iterator->GetSlotOperand(3);
-  }
+  FeedbackSlot slot = iterator->GetSlotOperand(3);
 
   HintsVector arguments(zone());
   // The receiver is either given in the first register or it is implicitly

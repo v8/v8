@@ -84,6 +84,7 @@ namespace compiler {
   V(JumpIfUndefinedConstant)
 
 #define INGORED_BYTECODE_LIST(V) \
+  V(CallNoFeedback)              \
   V(LdaNamedPropertyNoFeedback)  \
   V(StaNamedPropertyNoFeedback)  \
   V(TestEqual)                   \
@@ -104,7 +105,6 @@ namespace compiler {
 
 #define SUPPORTED_BYTECODE_LIST(V)   \
   V(CallAnyReceiver)                 \
-  V(CallNoFeedback)                  \
   V(CallProperty)                    \
   V(CallProperty0)                   \
   V(CallProperty1)                   \
