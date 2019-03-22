@@ -4355,6 +4355,37 @@ void Genesis::InitializeGlobal_harmony_weak_refs() {
 }
 
 #ifdef V8_INTL_SUPPORT
+
+void Genesis::InitializeGlobal_harmony_intl_date_format_range() {
+  if (!FLAG_harmony_intl_date_format_range) return;
+
+  Handle<JSObject> intl = Handle<JSObject>::cast(
+      JSReceiver::GetProperty(
+          isolate(),
+          Handle<JSReceiver>(native_context()->global_object(), isolate()),
+          factory()->InternalizeUtf8String("Intl"))
+          .ToHandleChecked());
+
+  Handle<JSObject> date_time_format_object = Handle<JSObject>::cast(
+      JSReceiver::GetProperty(
+          isolate(), Handle<JSReceiver>(JSReceiver::cast(*intl), isolate()),
+          factory()->InternalizeUtf8String("DateTimeFormat"))
+          .ToHandleChecked());
+
+  Handle<JSFunction> date_time_format_constructor =
+      Handle<JSFunction>(JSFunction::cast(*date_time_format_object), isolate());
+
+  Handle<JSObject> prototype(
+      JSObject::cast(date_time_format_constructor->prototype()), isolate_);
+
+  SimpleInstallFunction(isolate_, prototype, "formatRange",
+                        Builtins::kDateTimeFormatPrototypeFormatRange, 2,
+                        false);
+  SimpleInstallFunction(isolate_, prototype, "formatRangeToParts",
+                        Builtins::kDateTimeFormatPrototypeFormatRangeToParts, 2,
+                        false);
+}
+
 void Genesis::InitializeGlobal_harmony_locale() {
   if (!FLAG_harmony_locale) return;
 

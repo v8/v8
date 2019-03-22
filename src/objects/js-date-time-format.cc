@@ -19,7 +19,9 @@
 #include "src/objects/js-date-time-format-inl.h"
 
 #include "unicode/calendar.h"
+#include "unicode/dtitvfmt.h"
 #include "unicode/dtptngen.h"
+#include "unicode/fieldpos.h"
 #include "unicode/gregocal.h"
 #include "unicode/smpdtfmt.h"
 #include "unicode/unistr.h"
@@ -951,6 +953,16 @@ std::unique_ptr<icu::SimpleDateFormat> CreateICUDateFormatFromCache(
       cache.Pointer()->Create(icu_locale, skeleton, generator));
 }
 
+std::unique_ptr<icu::DateIntervalFormat> CreateICUDateIntervalFormat(
+    const icu::Locale& icu_locale, const icu::UnicodeString& skeleton) {
+  UErrorCode status = U_ZERO_ERROR;
+  std::unique_ptr<icu::DateIntervalFormat> date_interval_format(
+      icu::DateIntervalFormat::createInstance(skeleton, icu_locale, status));
+  if (U_FAILURE(status)) return std::unique_ptr<icu::DateIntervalFormat>();
+  CHECK_NOT_NULL(date_interval_format.get());
+  return date_interval_format;
+}
+
 Intl::HourCycle HourCycleFromPattern(const icu::UnicodeString pattern) {
   bool in_quote = false;
   for (int32_t i = 0; i < pattern.length(); i++) {
@@ -1083,6 +1095,18 @@ std::unique_ptr<icu::SimpleDateFormat> DateTimeStylePattern(
 
   return CreateICUDateFormatFromCache(icu_locale, ReplaceSkeleton(skeleton, hc),
                                       generator);
+}
+
+icu::UnicodeString SkeletonFromDateFormat(
+    const icu::SimpleDateFormat& icu_date_format) {
+  icu::UnicodeString pattern;
+  pattern = icu_date_format.toPattern(pattern);
+
+  UErrorCode status = U_ZERO_ERROR;
+  icu::UnicodeString skeleton =
+      icu::DateTimePatternGenerator::staticGetSkeleton(pattern, status);
+  CHECK(U_SUCCESS(status));
+  return skeleton;
 }
 
 class DateTimePatternGeneratorCache {
@@ -1267,6 +1291,7 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::Initialize(
   DateTimeStyle date_style = DateTimeStyle::kUndefined;
   DateTimeStyle time_style = DateTimeStyle::kUndefined;
   std::unique_ptr<icu::SimpleDateFormat> icu_date_format;
+  std::unique_ptr<icu::DateIntervalFormat> icu_date_interval_format;
 
   if (FLAG_harmony_intl_datetime_style) {
     // 28. Let dateStyle be ? GetOption(options, "dateStyle", "string", «
@@ -1309,6 +1334,10 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::Initialize(
         time_style != DateTimeStyle::kUndefined) {
       icu_date_format = DateTimeStylePattern(date_style, time_style, icu_locale,
                                              hc, *generator);
+      if (FLAG_harmony_intl_date_format_range) {
+        icu_date_interval_format = CreateICUDateIntervalFormat(
+            icu_locale, SkeletonFromDateFormat(*icu_date_format));
+      }
     }
   }
   // 33. Else,
@@ -1362,6 +1391,10 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::Initialize(
         FATAL("Failed to create ICU date format, are ICU data files missing?");
       }
     }
+    if (FLAG_harmony_intl_date_format_range) {
+      icu_date_interval_format =
+          CreateICUDateIntervalFormat(icu_locale, skeleton_ustr);
+    }
 
     // g. If dateTimeFormat.[[Hour]] is not undefined, then
     if (!has_hour_option) {
@@ -1410,6 +1443,12 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::Initialize(
       Managed<icu::SimpleDateFormat>::FromUniquePtr(isolate, 0,
                                                     std::move(icu_date_format));
   date_time_format->set_icu_simple_date_format(*managed_format);
+  if (FLAG_harmony_intl_date_format_range) {
+    Handle<Managed<icu::DateIntervalFormat>> managed_interval_format =
+        Managed<icu::DateIntervalFormat>::FromUniquePtr(
+            isolate, 0, std::move(icu_date_interval_format));
+    date_time_format->set_icu_date_interval_format(*managed_interval_format);
+  }
 
   return date_time_format;
 }
@@ -1468,7 +1507,7 @@ Handle<String> IcuDateFieldIdToDateType(int32_t field_id, Isolate* isolate) {
 
 }  // namespace
 
-MaybeHandle<Object> JSDateTimeFormat::FormatToParts(
+MaybeHandle<JSArray> JSDateTimeFormat::FormatToParts(
     Isolate* isolate, Handle<JSDateTimeFormat> date_time_format,
     double date_value) {
   Factory* factory = isolate->factory();
@@ -1482,7 +1521,7 @@ MaybeHandle<Object> JSDateTimeFormat::FormatToParts(
   UErrorCode status = U_ZERO_ERROR;
   format->format(date_value, formatted, &fp_iter, status);
   if (U_FAILURE(status)) {
-    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError), Object);
+    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError), JSArray);
   }
 
   Handle<JSArray> result = factory->NewJSArray(0);
@@ -1500,14 +1539,14 @@ MaybeHandle<Object> JSDateTimeFormat::FormatToParts(
       ASSIGN_RETURN_ON_EXCEPTION(
           isolate, substring,
           Intl::ToString(isolate, formatted, previous_end_pos, begin_pos),
-          Object);
+          JSArray);
       Intl::AddElement(isolate, result, index,
                        IcuDateFieldIdToDateType(-1, isolate), substring);
       ++index;
     }
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, substring,
-        Intl::ToString(isolate, formatted, begin_pos, end_pos), Object);
+        Intl::ToString(isolate, formatted, begin_pos, end_pos), JSArray);
     Intl::AddElement(isolate, result, index,
                      IcuDateFieldIdToDateType(fp.getField(), isolate),
                      substring);
@@ -1517,7 +1556,7 @@ MaybeHandle<Object> JSDateTimeFormat::FormatToParts(
   if (previous_end_pos < length) {
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, substring,
-        Intl::ToString(isolate, formatted, previous_end_pos, length), Object);
+        Intl::ToString(isolate, formatted, previous_end_pos, length), JSArray);
     Intl::AddElement(isolate, result, index,
                      IcuDateFieldIdToDateType(-1, isolate), substring);
   }
@@ -1544,6 +1583,77 @@ Handle<String> JSDateTimeFormat::HourCycleAsString() const {
     default:
       UNREACHABLE();
   }
+}
+
+MaybeHandle<String> JSDateTimeFormat::FormatRange(
+    Isolate* isolate, Handle<JSDateTimeFormat> date_time_format, double x,
+    double y) {
+  // TODO(ftang): Merge the following with FormatRangeToParts after
+  // the landing of ICU64 to make it cleaner.
+
+  // #sec-partitiondatetimerangepattern
+  // 1. Let x be TimeClip(x).
+  x = DateCache::TimeClip(x);
+  // 2. If x is NaN, throw a RangeError exception.
+  if (std::isnan(x)) {
+    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kInvalidTimeValue),
+                    String);
+  }
+  // 3. Let y be TimeClip(y).
+  y = DateCache::TimeClip(y);
+  // 4. If y is NaN, throw a RangeError exception.
+  if (std::isnan(y)) {
+    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kInvalidTimeValue),
+                    String);
+  }
+
+  icu::DateIntervalFormat* date_interval_format =
+      date_time_format->icu_date_interval_format()->raw();
+  CHECK_NOT_NULL(date_interval_format);
+  icu::DateInterval interval(x, y);
+
+  icu::UnicodeString result;
+  icu::FieldPosition fpos;
+  UErrorCode status = U_ZERO_ERROR;
+  date_interval_format->format(&interval, result, fpos, status);
+  CHECK(U_SUCCESS(status));
+
+  return Intl::ToString(isolate, result);
+}
+
+MaybeHandle<JSArray> JSDateTimeFormat::FormatRangeToParts(
+    Isolate* isolate, Handle<JSDateTimeFormat> date_time_format, double x,
+    double y) {
+  // TODO(ftang): Merge the following with FormatRangeToParts after
+  // the landing of ICU64 to make it cleaner.
+
+  // #sec-partitiondatetimerangepattern
+  // 1. Let x be TimeClip(x).
+  x = DateCache::TimeClip(x);
+  // 2. If x is NaN, throw a RangeError exception.
+  if (std::isnan(x)) {
+    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kInvalidTimeValue),
+                    JSArray);
+  }
+  // 3. Let y be TimeClip(y).
+  y = DateCache::TimeClip(y);
+  // 4. If y is NaN, throw a RangeError exception.
+  if (std::isnan(y)) {
+    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kInvalidTimeValue),
+                    JSArray);
+  }
+
+  icu::DateIntervalFormat* date_interval_format =
+      date_time_format->icu_date_interval_format()->raw();
+  CHECK_NOT_NULL(date_interval_format);
+  Factory* factory = isolate->factory();
+  Handle<JSArray> result = factory->NewJSArray(0);
+
+  // TODO(ftang) To be implemented after ICU64 landed that support
+  // DateIntervalFormat::formatToValue() and FormattedDateInterval.
+
+  JSObject::ValidateElements(*result);
+  return result;
 }
 
 }  // namespace internal

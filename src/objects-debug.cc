@@ -2151,6 +2151,7 @@ void JSDateTimeFormat::JSDateTimeFormatVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
   VerifyObjectField(isolate, kICULocaleOffset);
   VerifyObjectField(isolate, kICUSimpleDateFormatOffset);
+  VerifyObjectField(isolate, kICUDateIntervalFormatOffset);
   VerifyObjectField(isolate, kBoundFormatOffset);
   VerifyObjectField(isolate, kFlagsOffset);
 }
