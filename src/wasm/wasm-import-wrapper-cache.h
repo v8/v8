@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_WASM_WASM_IMPORT_WRAPPER_CACHE_INL_H_
-#define V8_WASM_WASM_IMPORT_WRAPPER_CACHE_INL_H_
+#ifndef V8_WASM_WASM_IMPORT_WRAPPER_CACHE_H_
+#define V8_WASM_WASM_IMPORT_WRAPPER_CACHE_H_
 
 #include "src/compiler/wasm-compiler.h"
 #include "src/counters.h"
@@ -49,4 +49,4 @@ class WasmImportWrapperCache {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_WASM_WASM_IMPORT_WRAPPER_CACHE_INL_H_
+#endif  // V8_WASM_WASM_IMPORT_WRAPPER_CACHE_H_

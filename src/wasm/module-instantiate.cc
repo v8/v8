@@ -8,9 +8,9 @@
 #include "src/conversions-inl.h"
 #include "src/property-descriptor.h"
 #include "src/utils.h"
-#include "src/wasm/js-to-wasm-wrapper-cache-inl.h"
+#include "src/wasm/js-to-wasm-wrapper-cache.h"
 #include "src/wasm/module-compiler.h"
-#include "src/wasm/wasm-import-wrapper-cache-inl.h"
+#include "src/wasm/wasm-import-wrapper-cache.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects-inl.h"
 
