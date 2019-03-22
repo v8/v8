@@ -17,6 +17,28 @@
 
 [
   {
+    "bisect_buildername": "V8 Clusterfuzz Linux64 TSAN - release builder",
+    "bisect_mastername": "client.v8.clusterfuzz",
+    "bug_url": "https://crbug.com/v8/9032",
+    "build_config": "Release",
+    "extra_args": [
+      "--random-gc-stress",
+    ],
+    "isolated_name": "d8_default",
+    "num_shards": 2,
+    "repetitions": 5000,
+    "swarming_dimensions": [
+      "cpu:x86-64",
+      "gpu:none",
+      "os:Ubuntu-14.04",
+      "pool:Chrome",
+    ],
+    "test_name": "mjsunit/array-reduce",
+    "timeout_sec": 60,
+    "total_timeout_sec": 120,
+    "variant": "stress_incremental_marking",
+  },
+  {
     "bisect_buildername": "V8 Linux64 - debug builder",
     "bisect_mastername": "client.v8",
     "bug_url": "https://crbug.com/v8/9030",
