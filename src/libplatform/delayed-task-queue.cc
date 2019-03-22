@@ -47,10 +47,11 @@ std::unique_ptr<Task> DelayedTaskQueue::GetNext() {
   base::MutexGuard guard(&lock_);
   for (;;) {
     // Move delayed tasks that have hit their deadline to the main queue.
-    std::unique_ptr<Task> task = PopTaskFromDelayedQueue();
+    double now = MonotonicallyIncreasingTime();
+    std::unique_ptr<Task> task = PopTaskFromDelayedQueue(now);
     while (task) {
       task_queue_.push(std::move(task));
-      task = PopTaskFromDelayedQueue();
+      task = PopTaskFromDelayedQueue(now);
     }
     if (!task_queue_.empty()) {
       std::unique_ptr<Task> result = std::move(task_queue_.front());
@@ -65,7 +66,6 @@ std::unique_ptr<Task> DelayedTaskQueue::GetNext() {
 
     if (task_queue_.empty() && !delayed_task_queue_.empty()) {
       // Wait for the next delayed task or a newly posted task.
-      double now = MonotonicallyIncreasingTime();
       double wait_in_seconds = delayed_task_queue_.begin()->first - now;
       base::TimeDelta wait_delta = base::TimeDelta::FromMicroseconds(
           base::TimeConstants::kMicrosecondsPerSecond * wait_in_seconds);
@@ -82,11 +82,9 @@ std::unique_ptr<Task> DelayedTaskQueue::GetNext() {
 }
 
 // Gets the next task from the delayed queue for which the deadline has passed
-// according to |time_function_|. Returns nullptr if no such task exists.
-std::unique_ptr<Task> DelayedTaskQueue::PopTaskFromDelayedQueue() {
+// according to |now|. Returns nullptr if no such task exists.
+std::unique_ptr<Task> DelayedTaskQueue::PopTaskFromDelayedQueue(double now) {
   if (delayed_task_queue_.empty()) return nullptr;
-
-  double now = MonotonicallyIncreasingTime();
 
   auto it = delayed_task_queue_.begin();
   if (it->first > now) return nullptr;

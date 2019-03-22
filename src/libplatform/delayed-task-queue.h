@@ -50,7 +50,7 @@ class V8_PLATFORM_EXPORT DelayedTaskQueue {
   void Terminate();
 
  private:
-  std::unique_ptr<Task> PopTaskFromDelayedQueue();
+  std::unique_ptr<Task> PopTaskFromDelayedQueue(double now);
 
   base::ConditionVariable queues_condition_var_;
   base::Mutex lock_;
