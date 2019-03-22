@@ -582,6 +582,7 @@ extern class ClassPositions extends Struct {
 extern class WasmExceptionTag extends Struct { index: Smi; }
 
 const kSmiTagSize: constexpr int31 generates 'kSmiTagSize';
+const V8_INFINITY: constexpr float64 generates 'V8_INFINITY';
 
 const NO_ELEMENTS: constexpr ElementsKind generates 'NO_ELEMENTS';
 
@@ -679,6 +680,8 @@ const kBigIntMixedTypes: constexpr MessageTemplate
     generates 'MessageTemplate::kBigIntMixedTypes';
 const kTypedArrayTooShort: constexpr MessageTemplate
     generates 'MessageTemplate::kTypedArrayTooShort';
+const kInvalidCountValue: constexpr MessageTemplate
+    generates 'MessageTemplate::kInvalidCountValue';
 
 const kMaxArrayIndex:
     constexpr uint32 generates 'JSArray::kMaxArrayIndex';
@@ -995,6 +998,7 @@ extern operator '~' macro ConstexprWordNot(constexpr uintptr):
 extern operator '==' macro Float64Equal(float64, float64): bool;
 extern operator '!=' macro Float64NotEqual(float64, float64): bool;
 extern operator '>' macro Float64GreaterThan(float64, float64): bool;
+extern operator '<' macro Float64LessThan(float64, float64): bool;
 
 extern macro BranchIfNumberEqual(Number, Number): never
     labels Taken, NotTaken;
@@ -1121,6 +1125,7 @@ extern operator '.instanceType' macro LoadInstanceType(HeapObject):
     InstanceType;
 
 extern operator '.length_intptr' macro LoadStringLengthAsWord(String): intptr;
+extern operator '.length_uint32' macro LoadStringLengthAsWord32(String): uint32;
 extern operator '.length_smi' macro LoadStringLengthAsSmi(String): Smi;
 
 extern operator '.length' macro GetArgumentsLength(constexpr Arguments): intptr;
@@ -2027,6 +2032,7 @@ extern macro IsDetachedBuffer(JSArrayBuffer): bool;
 extern macro IsHeapNumber(HeapObject): bool;
 extern macro IsFixedArray(HeapObject): bool;
 extern macro IsNumber(Object): bool;
+extern macro IsNumberNormalized(Number): bool;
 extern macro IsJSArrayMap(Map): bool;
 extern macro IsExtensibleMap(Map): bool;
 extern macro IsCustomElementsReceiverInstanceType(int32): bool;

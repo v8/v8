@@ -3,6 +3,8 @@
 // found in the LICENSE file.
 
 namespace string_repeat {
+  const kBuiltinName: constexpr string = 'String.prototype.repeat';
+
   builtin StringRepeat(implicit context: Context)(string: String, count: Smi):
       String {
     assert(count >= 0);
@@ -22,5 +24,54 @@ namespace string_repeat {
     }
 
     return result;
+  }
+
+  // https://tc39.github.io/ecma262/#sec-string.prototype.repeat
+  javascript builtin StringPrototypeRepeat(
+      context: Context, receiver: Object, count: Object): String {
+    // 1. Let O be ? RequireObjectCoercible(this value).
+    // 2. Let S be ? ToString(O).
+    const s: String = ToThisString(receiver, kBuiltinName);
+
+    try {
+      // 3. Let n be ? ToInteger(count).
+      typeswitch (ToInteger_Inline(context, count, kTruncateMinusZero)) {
+        case (n: Smi): {
+          // 4. If n < 0, throw a RangeError exception.
+          if (n < 0) goto InvalidCount;
+
+          // 6. If n is 0, return the empty String.
+          if (n == 0 || s.length_uint32 == 0) goto EmptyString;
+
+          if (n > kStringMaxLength) goto InvalidStringLength;
+
+          // 7. Return the String value that is made from n copies of S appended
+          // together.
+          return StringRepeat(s, n);
+        }
+        case (heapNum: HeapNumber): deferred {
+          assert(IsNumberNormalized(heapNum));
+          const n = LoadHeapNumberValue(heapNum);
+
+          // 4. If n < 0, throw a RangeError exception.
+          // 5. If n is +∞, throw a RangeError exception.
+          if (n == V8_INFINITY || n < 0.0) goto InvalidCount;
+
+          // 6. If n is 0, return the empty String.
+          if (s.length_uint32 == 0) goto EmptyString;
+
+          goto InvalidStringLength;
+        }
+      }
+    }
+    label EmptyString {
+      return kEmptyString;
+    }
+    label InvalidCount deferred {
+      ThrowRangeError(kInvalidCountValue, count);
+    }
+    label InvalidStringLength deferred {
+      ThrowInvalidStringLength(context);
+    }
   }
 }

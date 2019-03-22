@@ -1021,8 +1021,6 @@ namespace internal {
   /* ES6 #sec-string.prototype.padStart */                                     \
   TFJ(StringPrototypePadStart,                                                 \
       SharedFunctionInfo::kDontAdaptArgumentsSentinel)                         \
-  /* ES6 #sec-string.prototype.repeat */                                       \
-  TFJ(StringPrototypeRepeat, 1, kReceiver, kCount)                             \
   /* ES6 #sec-string.prototype.replace */                                      \
   TFJ(StringPrototypeReplace, 2, kReceiver, kSearch, kReplace)                 \
   /* ES6 #sec-string.prototype.search */                                       \
