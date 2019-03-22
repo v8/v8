@@ -533,6 +533,36 @@ void WebAssemblyCompile(const v8::FunctionCallbackInfo<v8::Value>& args) {
                                          std::move(resolver), bytes, is_shared);
 }
 
+void WasmStreamingCallbackForTesting(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  v8::Isolate* isolate = args.GetIsolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+
+  HandleScope scope(isolate);
+  ScheduledErrorThrower thrower(i_isolate, "WebAssembly.compile()");
+
+  std::shared_ptr<v8::WasmStreaming> streaming =
+      v8::WasmStreaming::Unpack(args.GetIsolate(), args.Data());
+
+  bool is_shared = false;
+  i::wasm::ModuleWireBytes bytes =
+      GetFirstArgumentAsBytes(args, &thrower, &is_shared);
+  if (thrower.error()) {
+    streaming->Abort(Utils::ToLocal(thrower.Reify()));
+    return;
+  }
+  streaming->OnBytesReceived(bytes.start(), bytes.length());
+  streaming->Finish();
+  CHECK(!thrower.error());
+}
+
+void WasmStreamingPromiseFailedCallback(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  std::shared_ptr<v8::WasmStreaming> streaming =
+      v8::WasmStreaming::Unpack(args.GetIsolate(), args.Data());
+  streaming->Abort(args[0]);
+}
+
 // WebAssembly.compileStreaming(Promise<Response>) -> Promise
 void WebAssemblyCompileStreaming(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
@@ -571,6 +601,10 @@ void WebAssemblyCompileStreaming(
       v8::Function, compile_callback,
       v8::Function::New(context, i_isolate->wasm_streaming_callback(),
                         Utils::ToLocal(i::Handle<i::Object>::cast(data)), 1));
+  ASSIGN(
+      v8::Function, reject_callback,
+      v8::Function::New(context, WasmStreamingPromiseFailedCallback,
+                        Utils::ToLocal(i::Handle<i::Object>::cast(data)), 1));
 
   // The parameter may be of type {Response} or of type {Promise<Response>}.
   // Treat either case of parameter as Promise.resolve(parameter)
@@ -584,7 +618,8 @@ void WebAssemblyCompileStreaming(
   // We do not have any use of the result here. The {compile_callback} will
   // start streaming compilation, which will eventually resolve the promise we
   // set as result value.
-  USE(input_resolver->GetPromise()->Then(context, compile_callback));
+  USE(input_resolver->GetPromise()->Then(context, compile_callback,
+                                         reject_callback));
 }
 
 // WebAssembly.validate(bytes) -> bool
@@ -845,6 +880,10 @@ void WebAssemblyInstantiateStreaming(
       v8::Function, compile_callback,
       v8::Function::New(context, i_isolate->wasm_streaming_callback(),
                         Utils::ToLocal(i::Handle<i::Object>::cast(data)), 1));
+  ASSIGN(
+      v8::Function, reject_callback,
+      v8::Function::New(context, WasmStreamingPromiseFailedCallback,
+                        Utils::ToLocal(i::Handle<i::Object>::cast(data)), 1));
 
   // The parameter may be of type {Response} or of type {Promise<Response>}.
   // Treat either case of parameter as Promise.resolve(parameter)
@@ -858,7 +897,8 @@ void WebAssemblyInstantiateStreaming(
   // We do not have any use of the result here. The {compile_callback} will
   // start streaming compilation, which will eventually resolve the promise we
   // set as result value.
-  USE(input_resolver->GetPromise()->Then(context, compile_callback));
+  USE(input_resolver->GetPromise()->Then(context, compile_callback,
+                                         reject_callback));
 }
 
 // WebAssembly.instantiate(module, imports) -> WebAssembly.Instance
@@ -1926,6 +1966,10 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
   InstallFunc(isolate, webassembly, "compile", WebAssemblyCompile, 1);
   InstallFunc(isolate, webassembly, "validate", WebAssemblyValidate, 1);
   InstallFunc(isolate, webassembly, "instantiate", WebAssemblyInstantiate, 1);
+
+  if (FLAG_wasm_test_streaming) {
+    isolate->set_wasm_streaming_callback(WasmStreamingCallbackForTesting);
+  }
 
   if (isolate->wasm_streaming_callback() != nullptr) {
     InstallFunc(isolate, webassembly, "compileStreaming",
