@@ -83,9 +83,6 @@ Handle<JSObject> JSNumberFormat::ResolvedOptions(
   icu::NumberFormat* number_format =
       number_format_holder->icu_number_format()->raw();
   CHECK_NOT_NULL(number_format);
-  icu::DecimalFormat* decimal_format =
-      static_cast<icu::DecimalFormat*>(number_format);
-  CHECK_NOT_NULL(decimal_format);
 
   Handle<String> locale =
       Handle<String>(number_format_holder->locale(), isolate);
@@ -159,6 +156,11 @@ Handle<JSObject> JSNumberFormat::ResolvedOptions(
           factory->NewNumberFromInt(number_format->getMaximumFractionDigits()),
           Just(kDontThrow))
           .FromJust());
+  CHECK(number_format->getDynamicClassID() ==
+        icu::DecimalFormat::getStaticClassID());
+  icu::DecimalFormat* decimal_format =
+      static_cast<icu::DecimalFormat*>(number_format);
+  CHECK_NOT_NULL(decimal_format);
   if (decimal_format->areSignificantDigitsUsed()) {
     CHECK(JSReceiver::CreateDataProperty(
               isolate, options, factory->minimumSignificantDigits_string(),
@@ -335,22 +337,52 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::Initialize(
 
   UErrorCode status = U_ZERO_ERROR;
   std::unique_ptr<icu::NumberFormat> icu_number_format;
+  icu::Locale no_extension_locale(r.icu_locale.getBaseName());
   if (style == Style::DECIMAL) {
     icu_number_format.reset(
         icu::NumberFormat::createInstance(r.icu_locale, status));
+    // If the subclass is not DecimalFormat, fallback to no extension
+    // because other subclass has not support the format() with
+    // FieldPositionIterator yet.
+    if (U_FAILURE(status) || icu_number_format.get() == nullptr ||
+        icu_number_format->getDynamicClassID() !=
+            icu::DecimalFormat::getStaticClassID()) {
+      status = U_ZERO_ERROR;
+      icu_number_format.reset(
+          icu::NumberFormat::createInstance(no_extension_locale, status));
+    }
   } else if (style == Style::PERCENT) {
     icu_number_format.reset(
         icu::NumberFormat::createPercentInstance(r.icu_locale, status));
+    // If the subclass is not DecimalFormat, fallback to no extension
+    // because other subclass has not support the format() with
+    // FieldPositionIterator yet.
+    if (U_FAILURE(status) || icu_number_format.get() == nullptr ||
+        icu_number_format->getDynamicClassID() !=
+            icu::DecimalFormat::getStaticClassID()) {
+      status = U_ZERO_ERROR;
+      icu_number_format.reset(icu::NumberFormat::createPercentInstance(
+          no_extension_locale, status));
+    }
   } else {
     DCHECK_EQ(style, Style::CURRENCY);
     icu_number_format.reset(
         icu::NumberFormat::createInstance(r.icu_locale, format_style, status));
+    // If the subclass is not DecimalFormat, fallback to no extension
+    // because other subclass has not support the format() with
+    // FieldPositionIterator yet.
+    if (U_FAILURE(status) || icu_number_format.get() == nullptr ||
+        icu_number_format->getDynamicClassID() !=
+            icu::DecimalFormat::getStaticClassID()) {
+      status = U_ZERO_ERROR;
+      icu_number_format.reset(icu::NumberFormat::createInstance(
+          no_extension_locale, format_style, status));
+    }
   }
 
   if (U_FAILURE(status) || icu_number_format.get() == nullptr) {
     status = U_ZERO_ERROR;
     // Remove extensions and try again.
-    icu::Locale no_extension_locale(r.icu_locale.getBaseName());
     icu_number_format.reset(
         icu::NumberFormat::createInstance(no_extension_locale, status));
 
@@ -360,6 +392,8 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::Initialize(
   }
   DCHECK(U_SUCCESS(status));
   CHECK_NOT_NULL(icu_number_format.get());
+  CHECK(icu_number_format->getDynamicClassID() ==
+        icu::DecimalFormat::getStaticClassID());
   if (style == Style::CURRENCY) {
     // 19. If style is "currency", set  numberFormat.[[CurrencyDisplay]] to
     // currencyDisplay.
@@ -396,6 +430,8 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::Initialize(
   }
   // 22. Perform ? SetNumberFormatDigitOptions(numberFormat, options,
   // mnfdDefault, mxfdDefault).
+  CHECK(icu_number_format->getDynamicClassID() ==
+        icu::DecimalFormat::getStaticClassID());
   icu::DecimalFormat* icu_decimal_format =
       static_cast<icu::DecimalFormat*>(icu_number_format.get());
   Maybe<bool> maybe_set_number_for_digit_options =
