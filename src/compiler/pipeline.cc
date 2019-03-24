@@ -92,7 +92,7 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-// Turbofan can only handle 2^16 control inputs. Since each control flow split
+// TurboFan can only handle 2^16 control inputs. Since each control flow split
 // requires at least two bytes (jump and offset), we limit the bytecode size
 // to 128K bytes.
 const int kMaxBytecodeSizeForTurbofan = 128 * 1024;
@@ -1927,7 +1927,7 @@ bool PipelineImpl::CreateGraph() {
     OFStream os(tracing_scope.file());
     os << "---------------------------------------------------\n"
        << "Begin compiling method " << info()->GetDebugName().get()
-       << " using Turbofan" << std::endl;
+       << " using TurboFan" << std::endl;
   }
   if (info()->trace_turbo_json_enabled()) {
     TurboCfgFile tcf(isolate());
@@ -2129,7 +2129,7 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
     CodeTracer::Scope tracing_scope(data.GetCodeTracer());
     OFStream os(tracing_scope.file());
     os << "---------------------------------------------------\n"
-       << "Begin compiling " << debug_name << " using Turbofan" << std::endl;
+       << "Begin compiling " << debug_name << " using TurboFan" << std::endl;
     if (info.trace_turbo_json_enabled()) {
       TurboJsonFile json_of(&info, std::ios_base::trunc);
       json_of << "{\"function\" : ";
@@ -2206,7 +2206,7 @@ wasm::WasmCompilationResult Pipeline::GenerateCodeForWasmNativeStub(
     OFStream os(tracing_scope.file());
     os << "---------------------------------------------------\n"
        << "Begin compiling method " << info.GetDebugName().get()
-       << " using Turbofan" << std::endl;
+       << " using TurboFan" << std::endl;
   }
 
   if (info.trace_turbo_graph_enabled()) {  // Simple textual RPO.
@@ -2264,7 +2264,7 @@ wasm::WasmCompilationResult Pipeline::GenerateCodeForWasmNativeStub(
     OFStream os(tracing_scope.file());
     os << "---------------------------------------------------\n"
        << "Finished compiling method " << info.GetDebugName().get()
-       << " using Turbofan" << std::endl;
+       << " using TurboFan" << std::endl;
   }
 
   return result;
@@ -2296,7 +2296,7 @@ MaybeHandle<Code> Pipeline::GenerateCodeForWasmHeapStub(
     OFStream os(tracing_scope.file());
     os << "---------------------------------------------------\n"
        << "Begin compiling method " << info.GetDebugName().get()
-       << " using Turbofan" << std::endl;
+       << " using TurboFan" << std::endl;
   }
 
   if (info.trace_turbo_graph_enabled()) {  // Simple textual RPO.
@@ -2427,7 +2427,7 @@ void Pipeline::GenerateCodeForWasmFunction(
     OFStream os(tracing_scope.file());
     os << "---------------------------------------------------\n"
        << "Begin compiling method " << data.info()->GetDebugName().get()
-       << " using Turbofan" << std::endl;
+       << " using TurboFan" << std::endl;
   }
 
   pipeline.RunPrintAndVerify("Machine", true);
@@ -2511,7 +2511,7 @@ void Pipeline::GenerateCodeForWasmFunction(
     OFStream os(tracing_scope.file());
     os << "---------------------------------------------------\n"
        << "Finished compiling method " << data.info()->GetDebugName().get()
-       << " using Turbofan" << std::endl;
+       << " using TurboFan" << std::endl;
   }
 
   DCHECK(result->succeeded());
@@ -2794,7 +2794,7 @@ MaybeHandle<Code> PipelineImpl::FinalizeCode(bool retire_broker) {
     OFStream os(tracing_scope.file());
     os << "---------------------------------------------------\n"
        << "Finished compiling method " << info()->GetDebugName().get()
-       << " using Turbofan" << std::endl;
+       << " using TurboFan" << std::endl;
   }
   return code;
 }
