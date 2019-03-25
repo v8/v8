@@ -231,8 +231,8 @@ type JSModuleNamespace extends JSObject;
 type WeakArrayList extends HeapObject;
 
 extern class JSWeakCollection extends JSObject { table: Object; }
-extern class JSWeekSet extends JSWeakCollection {}
-extern class JSWeekMap extends JSWeakCollection {}
+extern class JSWeakSet extends JSWeakCollection {}
+extern class JSWeakMap extends JSWeakCollection {}
 
 extern class JSCollectionIterator extends JSObject {
   table: Object;
