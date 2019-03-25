@@ -36,9 +36,6 @@ static const int kOSRBytecodeSizeAllowancePerTick = 48;
 // the very first time it is seen on the stack.
 static const int kMaxBytecodeSizeForEarlyOpt = 90;
 
-// Certain functions are simply too big to be worth optimizing.
-static const int kMaxBytecodeSizeForOpt = 60 * KB;
-
 #define OPTIMIZATION_REASON_LIST(V)                            \
   V(DoNotOptimize, "do not optimize")                          \
   V(HotAndStable, "hot and stable")                            \
@@ -188,10 +185,6 @@ bool RuntimeProfiler::MaybeOSR(JSFunction function, InterpretedFrame* frame) {
 OptimizationReason RuntimeProfiler::ShouldOptimize(JSFunction function,
                                                    BytecodeArray bytecode) {
   int ticks = function->feedback_vector()->profiler_ticks();
-  if (bytecode->length() > kMaxBytecodeSizeForOpt) {
-    return OptimizationReason::kDoNotOptimize;
-  }
-
   int ticks_for_optimization =
       kProfilerTicksBeforeOptimization +
       (bytecode->length() / kBytecodeSizeAllowancePerTick);

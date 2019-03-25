@@ -95,8 +95,8 @@ namespace compiler {
 
 // TurboFan can only handle 2^16 control inputs. Since each control flow split
 // requires at least two bytes (jump and offset), we limit the bytecode size
-// to 128K bytes.
-const int kMaxBytecodeSizeForTurbofan = 128 * 1024;
+// to 60KiB bytes.
+const int kMaxBytecodeSizeForTurbofan = 60 * KB;
 
 class PipelineData {
  public:
