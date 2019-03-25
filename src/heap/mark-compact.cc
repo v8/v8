@@ -506,7 +506,9 @@ void MarkCompactCollector::CollectGarbage() {
   RecordObjectStats();
 
   StartSweepSpaces();
+
   Evacuate();
+
   Finish();
 }
 
@@ -1084,11 +1086,8 @@ class MarkCompactWeakObjectRetainer : public WeakObjectRetainer {
 
 class RecordMigratedSlotVisitor : public ObjectVisitor {
  public:
-  explicit RecordMigratedSlotVisitor(
-      MarkCompactCollector* collector,
-      EphemeronRememberedSet* ephemeron_remembered_set)
-      : collector_(collector),
-        ephemeron_remembered_set_(ephemeron_remembered_set) {}
+  explicit RecordMigratedSlotVisitor(MarkCompactCollector* collector)
+      : collector_(collector) {}
 
   inline void VisitPointer(HeapObject host, ObjectSlot p) final {
     DCHECK(!HasWeakHeapObjectTag(*p));
@@ -1112,23 +1111,6 @@ class RecordMigratedSlotVisitor : public ObjectVisitor {
     while (start < end) {
       VisitPointer(host, start);
       ++start;
-    }
-  }
-
-  inline void VisitEphemeron(HeapObject host, int index, ObjectSlot key,
-                             ObjectSlot value) override {
-    DCHECK(host->IsEphemeronHashTable());
-    DCHECK(!Heap::InYoungGeneration(host));
-
-    VisitPointer(host, value);
-
-    if (ephemeron_remembered_set_ && Heap::InYoungGeneration(*key)) {
-      auto table = EphemeronHashTable::unchecked_cast(host);
-      auto insert_result =
-          ephemeron_remembered_set_->insert({table, std::unordered_set<int>()});
-      insert_result.first->second.insert(index);
-    } else {
-      VisitPointer(host, key);
     }
   }
 
@@ -1175,7 +1157,6 @@ class RecordMigratedSlotVisitor : public ObjectVisitor {
   }
 
   MarkCompactCollector* collector_;
-  EphemeronRememberedSet* ephemeron_remembered_set_;
 };
 
 class MigrationObserver {
@@ -1474,8 +1455,7 @@ class EvacuateRecordOnlyVisitor final : public HeapObjectVisitor {
   explicit EvacuateRecordOnlyVisitor(Heap* heap) : heap_(heap) {}
 
   inline bool Visit(HeapObject object, int size) override {
-    RecordMigratedSlotVisitor visitor(heap_->mark_compact_collector(),
-                                      &heap_->ephemeron_remembered_set_);
+    RecordMigratedSlotVisitor visitor(heap_->mark_compact_collector());
     object->IterateBodyFast(&visitor);
     return true;
   }
@@ -2273,14 +2253,6 @@ void MarkCompactCollector::ClearWeakCollections() {
       }
     }
   }
-  for (auto it = heap_->ephemeron_remembered_set_.begin();
-       it != heap_->ephemeron_remembered_set_.end();) {
-    if (!non_atomic_marking_state()->IsBlackOrGrey(it->first)) {
-      it = heap_->ephemeron_remembered_set_.erase(it);
-    } else {
-      ++it;
-    }
-  }
 }
 
 void MarkCompactCollector::ClearWeakReferences() {
@@ -2789,36 +2761,16 @@ void Evacuator::Finalize() {
 
 class FullEvacuator : public Evacuator {
  public:
-  explicit FullEvacuator(MarkCompactCollector* collector)
-      : Evacuator(collector->heap(), &record_visitor_),
-        record_visitor_(collector, &ephemeron_remembered_set_),
-        collector_(collector) {}
+  FullEvacuator(MarkCompactCollector* collector,
+                RecordMigratedSlotVisitor* record_visitor)
+      : Evacuator(collector->heap(), record_visitor), collector_(collector) {}
 
   GCTracer::BackgroundScope::ScopeId GetBackgroundTracingScope() override {
     return GCTracer::BackgroundScope::MC_BACKGROUND_EVACUATE_COPY;
   }
 
-  inline void Finalize() {
-    Evacuator::Finalize();
-
-    for (auto it = ephemeron_remembered_set_.begin();
-         it != ephemeron_remembered_set_.end(); ++it) {
-      auto insert_result =
-          heap()->ephemeron_remembered_set_.insert({it->first, it->second});
-      if (!insert_result.second) {
-        // Insertion didn't happen, there was already an item.
-        auto set = insert_result.first->second;
-        for (int entry : it->second) {
-          set.insert(entry);
-        }
-      }
-    }
-  }
-
  protected:
   void RawEvacuatePage(MemoryChunk* chunk, intptr_t* live_bytes) override;
-  EphemeronRememberedSet ephemeron_remembered_set_;
-  RecordMigratedSlotVisitor record_visitor_;
 
   MarkCompactCollector* collector_;
 };
@@ -2905,6 +2857,7 @@ class PageEvacuationTask : public ItemParallelJob::Task {
 template <class Evacuator, class Collector>
 void MarkCompactCollectorBase::CreateAndExecuteEvacuationTasks(
     Collector* collector, ItemParallelJob* job,
+    RecordMigratedSlotVisitor* record_visitor,
     MigrationObserver* migration_observer, const intptr_t live_bytes) {
   // Used for trace summary.
   double compaction_speed = 0;
@@ -2919,7 +2872,7 @@ void MarkCompactCollectorBase::CreateAndExecuteEvacuationTasks(
       NumberOfParallelCompactionTasks(job->NumberOfItems());
   Evacuator** evacuators = new Evacuator*[wanted_num_tasks];
   for (int i = 0; i < wanted_num_tasks; i++) {
-    evacuators[i] = new Evacuator(collector);
+    evacuators[i] = new Evacuator(collector, record_visitor);
     if (profiling) evacuators[i]->AddObserver(&profiling_observer);
     if (migration_observer != nullptr)
       evacuators[i]->AddObserver(migration_observer);
@@ -3001,8 +2954,9 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
 
   if (evacuation_job.NumberOfItems() == 0) return;
 
-  CreateAndExecuteEvacuationTasks<FullEvacuator>(this, &evacuation_job, nullptr,
-                                                 live_bytes);
+  RecordMigratedSlotVisitor record_visitor(this);
+  CreateAndExecuteEvacuationTasks<FullEvacuator>(
+      this, &evacuation_job, &record_visitor, nullptr, live_bytes);
   PostProcessEvacuationCandidates();
 }
 
@@ -3546,57 +3500,6 @@ int MarkCompactCollector::CollectOldSpaceArrayBufferTrackerItems(
   return pages;
 }
 
-class EphemeronTableUpdatingItem : public UpdatingItem {
- public:
-  enum EvacuationState { kRegular, kAborted };
-
-  explicit EphemeronTableUpdatingItem(Heap* heap) : heap_(heap) {}
-  ~EphemeronTableUpdatingItem() override = default;
-
-  void Process() override {
-    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
-                 "EphemeronTableUpdatingItem::Process");
-
-    for (auto it = heap_->ephemeron_remembered_set_.begin();
-         it != heap_->ephemeron_remembered_set_.end();) {
-      EphemeronHashTable table = it->first;
-      auto& indices = it->second;
-      if (table.map_word().IsForwardingAddress()) {
-        // The table has moved, and RecordMigratedSlotVisitor::VisitEphemeron
-        // inserts entries for the moved table into ephemeron_remembered_set_.
-        it = heap_->ephemeron_remembered_set_.erase(it);
-        continue;
-      }
-      DCHECK(table.map().IsMap());
-      DCHECK(table.Object::IsEphemeronHashTable());
-      for (auto iti = indices.begin(); iti != indices.end();) {
-        // EphemeronHashTable keys must be heap objects.
-        HeapObjectSlot key_slot(
-            table->RawFieldOfElementAt(EphemeronHashTable::EntryToIndex(*iti)));
-        HeapObject key = key_slot.ToHeapObject();
-        MapWord map_word = key->map_word();
-        if (map_word.IsForwardingAddress()) {
-          key = map_word.ToForwardingAddress();
-          key_slot.StoreHeapObject(key);
-        }
-        if (!heap_->InYoungGeneration(key)) {
-          iti = indices.erase(iti);
-        } else {
-          ++iti;
-        }
-      }
-      if (indices.size() == 0) {
-        it = heap_->ephemeron_remembered_set_.erase(it);
-      } else {
-        ++it;
-      }
-    }
-  }
-
- private:
-  Heap* const heap_;
-};
-
 void MarkCompactCollector::UpdatePointersAfterEvacuation() {
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_EVACUATE_UPDATE_POINTERS);
 
@@ -3629,16 +3532,12 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
             : NumberOfParallelPointerUpdateTasks(remembered_set_pages,
                                                  old_to_new_slots_);
     const int to_space_tasks = CollectToSpaceUpdatingItems(&updating_job);
-    const int num_ephemeron_table_updating_tasks = 1;
-    const int num_tasks =
-        Max(to_space_tasks,
-            remembered_set_tasks + num_ephemeron_table_updating_tasks);
+    const int num_tasks = Max(to_space_tasks, remembered_set_tasks);
     for (int i = 0; i < num_tasks; i++) {
       updating_job.AddTask(new PointersUpdatingTask(
           isolate(),
           GCTracer::BackgroundScope::MC_BACKGROUND_EVACUATE_UPDATE_POINTERS));
     }
-    updating_job.AddItem(new EphemeronTableUpdatingItem(heap()));
     updating_job.Run();
   }
 
@@ -4126,7 +4025,7 @@ class YoungGenerationRecordMigratedSlotVisitor final
  public:
   explicit YoungGenerationRecordMigratedSlotVisitor(
       MarkCompactCollector* collector)
-      : RecordMigratedSlotVisitor(collector, nullptr) {}
+      : RecordMigratedSlotVisitor(collector) {}
 
   void VisitCodeTarget(Code host, RelocInfo* rinfo) final { UNREACHABLE(); }
   void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) final {
@@ -4750,10 +4649,9 @@ namespace {
 
 class YoungGenerationEvacuator : public Evacuator {
  public:
-  explicit YoungGenerationEvacuator(MinorMarkCompactCollector* collector)
-      : Evacuator(collector->heap(), &record_visitor_),
-        record_visitor_(collector->heap()->mark_compact_collector()),
-        collector_(collector) {}
+  YoungGenerationEvacuator(MinorMarkCompactCollector* collector,
+                           RecordMigratedSlotVisitor* record_visitor)
+      : Evacuator(collector->heap(), record_visitor), collector_(collector) {}
 
   GCTracer::BackgroundScope::ScopeId GetBackgroundTracingScope() override {
     return GCTracer::BackgroundScope::MINOR_MC_BACKGROUND_EVACUATE_COPY;
@@ -4762,7 +4660,6 @@ class YoungGenerationEvacuator : public Evacuator {
  protected:
   void RawEvacuatePage(MemoryChunk* chunk, intptr_t* live_bytes) override;
 
-  YoungGenerationRecordMigratedSlotVisitor record_visitor_;
   MinorMarkCompactCollector* collector_;
 };
 
@@ -4868,8 +4765,10 @@ void MinorMarkCompactCollector::EvacuatePagesInParallel() {
 
   YoungGenerationMigrationObserver observer(heap(),
                                             heap()->mark_compact_collector());
+  YoungGenerationRecordMigratedSlotVisitor record_visitor(
+      heap()->mark_compact_collector());
   CreateAndExecuteEvacuationTasks<YoungGenerationEvacuator>(
-      this, &evacuation_job, &observer, live_bytes);
+      this, &evacuation_job, &record_visitor, &observer, live_bytes);
 }
 
 int MinorMarkCompactCollector::CollectNewSpaceArrayBufferTrackerItems(

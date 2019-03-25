@@ -6509,8 +6509,7 @@ void HashTable<Derived, Shape>::Rehash(ReadOnlyRoots roots, Derived new_table) {
     uint32_t hash = Shape::HashForObject(roots, k);
     uint32_t insertion_index =
         EntryToIndex(new_table->FindInsertionEntry(hash));
-    new_table->set_key(insertion_index, get(from_index), mode);
-    for (int j = 1; j < Shape::kEntrySize; j++) {
+    for (int j = 0; j < Shape::kEntrySize; j++) {
       new_table->set(insertion_index + j, get(from_index + j), mode);
     }
   }
@@ -6538,16 +6537,13 @@ void HashTable<Derived, Shape>::Swap(uint32_t entry1, uint32_t entry2,
   int index1 = EntryToIndex(entry1);
   int index2 = EntryToIndex(entry2);
   Object temp[Shape::kEntrySize];
-  Derived* self = static_cast<Derived*>(this);
   for (int j = 0; j < Shape::kEntrySize; j++) {
     temp[j] = get(index1 + j);
   }
-  self->set_key(index1, get(index2), mode);
-  for (int j = 1; j < Shape::kEntrySize; j++) {
+  for (int j = 0; j < Shape::kEntrySize; j++) {
     set(index1 + j, get(index2 + j), mode);
   }
-  self->set_key(index2, temp[0], mode);
-  for (int j = 1; j < Shape::kEntrySize; j++) {
+  for (int j = 0; j < Shape::kEntrySize; j++) {
     set(index2 + j, temp[j], mode);
   }
 }
@@ -6583,12 +6579,10 @@ void HashTable<Derived, Shape>::Rehash(ReadOnlyRoots roots) {
   }
   // Wipe deleted entries.
   Object the_hole = roots.the_hole_value();
-  HeapObject undefined = roots.undefined_value();
-  Derived* self = static_cast<Derived*>(this);
+  Object undefined = roots.undefined_value();
   for (uint32_t current = 0; current < capacity; current++) {
     if (KeyAt(current) == the_hole) {
-      self->set_key(EntryToIndex(current) + kEntryKeyIndex, undefined,
-                    SKIP_WRITE_BARRIER);
+      set(EntryToIndex(current) + kEntryKeyIndex, undefined);
     }
   }
   SetNumberOfDeletedElements(0);
@@ -6677,6 +6671,7 @@ uint32_t HashTable<Derived, Shape>::FindInsertionEntry(uint32_t hash) {
   }
   return entry;
 }
+
 
 // This class is used for looking up two character strings in the string table.
 // If we don't have a hit we don't want to waste much time so we unroll the
@@ -7862,7 +7857,7 @@ Handle<Derived> ObjectHashTableBase<Derived, Shape>::Put(Isolate* isolate,
 
   // Key is already in table, just overwrite value.
   if (entry != kNotFound) {
-    table->set(Derived::EntryToValueIndex(entry), *value);
+    table->set(Derived::EntryToIndex(entry) + 1, *value);
     return table;
   }
 
@@ -7927,16 +7922,15 @@ Handle<Derived> ObjectHashTableBase<Derived, Shape>::Remove(
 template <typename Derived, typename Shape>
 void ObjectHashTableBase<Derived, Shape>::AddEntry(int entry, Object key,
                                                    Object value) {
-  Derived* self = static_cast<Derived*>(this);
-  self->set_key(Derived::EntryToIndex(entry), key);
-  self->set(Derived::EntryToValueIndex(entry), value);
-  self->ElementAdded();
+  this->set(Derived::EntryToIndex(entry), key);
+  this->set(Derived::EntryToIndex(entry) + 1, value);
+  this->ElementAdded();
 }
 
 template <typename Derived, typename Shape>
 void ObjectHashTableBase<Derived, Shape>::RemoveEntry(int entry) {
   this->set_the_hole(Derived::EntryToIndex(entry));
-  this->set_the_hole(Derived::EntryToValueIndex(entry));
+  this->set_the_hole(Derived::EntryToIndex(entry) + 1);
   this->ElementRemoved();
 }
 

@@ -48,7 +48,6 @@ class ScavengerCollector {
 
   void ProcessWeakReferences(EphemeronTableList* ephemeron_table_list);
   void ClearYoungEphemerons(EphemeronTableList* ephemeron_table_list);
-  void ClearOldEphemerons();
   void HandleSurvivingNewLargeObjects();
 
   Isolate* const isolate_;
@@ -202,7 +201,6 @@ class Scavenger {
                                                       int object_size);
 
   void IterateAndScavengePromotedObject(HeapObject target, Map map, int size);
-  void RememberPromotedEphemeron(EphemeronHashTable table, int index);
 
   ScavengerCollector* const collector_;
   Heap* const heap_;
@@ -214,8 +212,6 @@ class Scavenger {
   size_t promoted_size_;
   LocalAllocator allocator_;
   SurvivingNewLargeObjectsMap surviving_new_large_objects_;
-
-  EphemeronRememberedSet ephemeron_remembered_set_;
   const bool is_logging_;
   const bool is_incremental_marking_;
   const bool is_compacting_;
