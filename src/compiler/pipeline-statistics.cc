@@ -18,9 +18,9 @@ namespace compiler {
 namespace {
 
 // We log detailed phase information about the pipeline
-// in both the v8.compile and the v8.wasm categories.
-const char kTraceCategory[] =                    // --
-    TRACE_DISABLED_BY_DEFAULT("v8.compile") ","  // --
+// in both the v8.turbofan and the v8.wasm categories.
+const char kTraceCategory[] =                     // --
+    TRACE_DISABLED_BY_DEFAULT("v8.turbofan") ","  // --
     TRACE_DISABLED_BY_DEFAULT("v8.wasm");
 
 }  // namespace

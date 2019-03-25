@@ -796,7 +796,7 @@ PipelineStatistics* CreatePipelineStatistics(Handle<Script> script,
   PipelineStatistics* pipeline_statistics = nullptr;
 
   bool tracing_enabled;
-  TRACE_EVENT_CATEGORY_GROUP_ENABLED(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+  TRACE_EVENT_CATEGORY_GROUP_ENABLED(TRACE_DISABLED_BY_DEFAULT("v8.turbofan"),
                                      &tracing_enabled);
   if (tracing_enabled || FLAG_turbo_stats || FLAG_turbo_stats_nvp) {
     pipeline_statistics =
