@@ -39,6 +39,8 @@
         {"name": "Set-Iterator"},
         {"name": "WeakMap"},
         {"name": "WeakMap-Constructor"},
+        {"name": "WeakMapSetGet-Large"},
+        {"name": "WeakMapSet-Huge"},
         {"name": "WeakSet"},
         {"name": "WeakSet-Constructor"}
       ]
