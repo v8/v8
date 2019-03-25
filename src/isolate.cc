@@ -2104,15 +2104,18 @@ bool Isolate::ComputeLocationFromStackTrace(MessageLocation* target,
       Handle<WasmInstanceObject> instance(elements->WasmInstance(i), this);
       uint32_t func_index =
           static_cast<uint32_t>(elements->WasmFunctionIndex(i)->value());
-      wasm::WasmCode* wasm_code = reinterpret_cast<wasm::WasmCode*>(
-          elements->WasmCodeObject(i)->foreign_address());
       int code_offset = elements->Offset(i)->value();
       bool is_at_number_conversion =
           elements->IsAsmJsWasmFrame(i) &&
           elements->Flags(i)->value() & FrameArray::kAsmJsAtNumberConversion;
+      // WasmCode* held alive by the {GlobalWasmCodeRef}.
+      wasm::WasmCode* code =
+          Managed<wasm::GlobalWasmCodeRef>::cast(elements->WasmCodeObject(i))
+              ->get()
+              ->code();
       int byte_offset =
           FrameSummary::WasmCompiledFrameSummary::GetWasmSourcePosition(
-              wasm_code, code_offset);
+              code, code_offset);
       int pos = WasmModuleObject::GetSourcePosition(
           handle(instance->module_object(), this), func_index, byte_offset,
           is_at_number_conversion);

@@ -4131,11 +4131,15 @@ Handle<FrameArray> FrameArray::AppendWasmFrame(
   const int new_length = LengthFor(frame_count + 1);
   Handle<FrameArray> array = EnsureSpace(isolate, in, new_length);
   // The {code} will be {nullptr} for interpreted wasm frames.
-  Handle<Foreign> code_foreign =
-      isolate->factory()->NewForeign(reinterpret_cast<Address>(code));
+  Handle<Object> code_ref = isolate->factory()->undefined_value();
+  if (code) {
+    auto native_module = wasm_instance->module_object()->shared_native_module();
+    code_ref = Managed<wasm::GlobalWasmCodeRef>::Allocate(
+        isolate, 0, code, std::move(native_module));
+  }
   array->SetWasmInstance(frame_count, *wasm_instance);
   array->SetWasmFunctionIndex(frame_count, Smi::FromInt(wasm_function_index));
-  array->SetWasmCodeObject(frame_count, *code_foreign);
+  array->SetWasmCodeObject(frame_count, *code_ref);
   array->SetOffset(frame_count, Smi::FromInt(offset));
   array->SetFlags(frame_count, Smi::FromInt(flags));
   array->set(kFrameCountIndex, Smi::FromInt(frame_count + 1));

@@ -690,8 +690,10 @@ void WasmStackFrame::FromFrameArray(Isolate* isolate, Handle<FrameArray> array,
   if (array->IsWasmInterpretedFrame(frame_ix)) {
     code_ = nullptr;
   } else {
-    code_ = reinterpret_cast<wasm::WasmCode*>(
-        array->WasmCodeObject(frame_ix)->foreign_address());
+    // The {WasmCode*} is held alive by the {GlobalWasmCodeRef}.
+    auto global_wasm_code_ref =
+        Managed<wasm::GlobalWasmCodeRef>::cast(array->WasmCodeObject(frame_ix));
+    code_ = global_wasm_code_ref->get()->code();
   }
   offset_ = array->Offset(frame_ix)->value();
 }

@@ -620,6 +620,31 @@ class V8_EXPORT_PRIVATE WasmCodeRefScope {
   DISALLOW_COPY_AND_ASSIGN(WasmCodeRefScope);
 };
 
+// Similarly to a global handle, a {GlobalWasmCodeRef} stores a single
+// ref-counted pointer to a {WasmCode} object.
+class GlobalWasmCodeRef {
+ public:
+  explicit GlobalWasmCodeRef(WasmCode* code,
+                             std::shared_ptr<NativeModule> native_module)
+      : code_(code), native_module_(std::move(native_module)) {
+    code_->IncRef();
+  }
+
+  ~GlobalWasmCodeRef() {
+    if (code_->DecRef()) code_->native_module()->FreeCode(VectorOf(&code_, 1));
+  }
+
+  // Get a pointer to the contained {WasmCode} object. This is only guaranteed
+  // to exist as long as this {GlobalWasmCodeRef} exists.
+  WasmCode* code() const { return code_; }
+
+ private:
+  WasmCode* const code_;
+  // Also keep the {NativeModule} alive.
+  const std::shared_ptr<NativeModule> native_module_;
+  DISALLOW_COPY_AND_ASSIGN(GlobalWasmCodeRef);
+};
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8
