@@ -3040,16 +3040,12 @@ void WasmGraphBuilder::InitInstanceCache(
   DCHECK_NOT_NULL(instance_node_);
 
   // Load the memory start.
-  instance_cache->mem_start = SetEffect(graph()->NewNode(
-      mcgraph()->machine()->Load(MachineType::UintPtr()), instance_node_.get(),
-      mcgraph()->Int32Constant(WASM_INSTANCE_OBJECT_OFFSET(MemoryStart)),
-      Effect(), Control()));
+  instance_cache->mem_start =
+      LOAD_INSTANCE_FIELD(MemoryStart, MachineType::UintPtr());
 
   // Load the memory size.
-  instance_cache->mem_size = SetEffect(graph()->NewNode(
-      mcgraph()->machine()->Load(MachineType::UintPtr()), instance_node_.get(),
-      mcgraph()->Int32Constant(WASM_INSTANCE_OBJECT_OFFSET(MemorySize)),
-      Effect(), Control()));
+  instance_cache->mem_size =
+      LOAD_INSTANCE_FIELD(MemorySize, MachineType::UintPtr());
 
   if (untrusted_code_mitigations_) {
     // Load the memory mask.
