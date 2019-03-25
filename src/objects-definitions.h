@@ -129,6 +129,7 @@ namespace internal {
                                                          \
   V(FIXED_ARRAY_TYPE)                                    \
   V(OBJECT_BOILERPLATE_DESCRIPTION_TYPE)                 \
+  V(CLOSURE_FEEDBACK_CELL_ARRAY_TYPE)                    \
   V(HASH_TABLE_TYPE)                                     \
   V(ORDERED_HASH_MAP_TYPE)                               \
   V(ORDERED_HASH_SET_TYPE)                               \

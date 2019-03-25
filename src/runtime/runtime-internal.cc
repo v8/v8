@@ -13,6 +13,7 @@
 #include "src/conversions.h"
 #include "src/counters.h"
 #include "src/debug/debug.h"
+#include "src/feedback-vector-inl.h"
 #include "src/frames-inl.h"
 #include "src/isolate-inl.h"
 #include "src/message-template.h"
@@ -269,6 +270,25 @@ RUNTIME_FUNCTION(Runtime_StackGuard) {
   }
 
   return isolate->stack_guard()->HandleInterrupts();
+}
+
+RUNTIME_FUNCTION(Runtime_BytecodeBudgetInterrupt) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
+  if (!function->has_feedback_vector()) {
+    JSFunction::EnsureFeedbackVector(function);
+    // Also initialize the invocation count here. This is only really needed for
+    // OSR. When we OSR functions with lazy feedback allocation we want to have
+    // a non zero invocation count so we can inline functions.
+    function->feedback_vector()->set_invocation_count(1);
+    return ReadOnlyRoots(isolate).undefined_value();
+  }
+  // Handle interrupts.
+  {
+    SealHandleScope shs(isolate);
+    return isolate->stack_guard()->HandleInterrupts();
+  }
 }
 
 RUNTIME_FUNCTION(Runtime_Interrupt) {

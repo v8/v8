@@ -157,6 +157,7 @@ TEST(VectorICMetadata) {
 TEST(VectorCallICStates) {
   if (!i::FLAG_use_ic) return;
   if (i::FLAG_always_opt) return;
+  FLAG_allow_natives_syntax = true;
 
   CcTest::InitializeVM();
   LocalContext context;
@@ -164,7 +165,8 @@ TEST(VectorCallICStates) {
   Isolate* isolate = CcTest::i_isolate();
   // Make sure function f has a call that uses a type feedback slot.
   CompileRun(
-      "function foo() { return 17; }"
+      "function foo() { return 17; };"
+      "%EnsureFeedbackVectorForFunction(f);"
       "function f(a) { a(); } f(foo);");
   Handle<JSFunction> f = GetFunction("f");
   // There should be one IC.
@@ -185,6 +187,7 @@ TEST(VectorCallICStates) {
 TEST(VectorCallFeedback) {
   if (!i::FLAG_use_ic) return;
   if (i::FLAG_always_opt) return;
+  FLAG_allow_natives_syntax = true;
 
   CcTest::InitializeVM();
   LocalContext context;
@@ -193,6 +196,7 @@ TEST(VectorCallFeedback) {
   // Make sure function f has a call that uses a type feedback slot.
   CompileRun(
       "function foo() { return 17; }"
+      "%EnsureFeedbackVectorForFunction(f);"
       "function f(a) { a(); } f(foo);");
   Handle<JSFunction> f = GetFunction("f");
   Handle<JSFunction> foo = GetFunction("foo");
@@ -215,13 +219,17 @@ TEST(VectorCallFeedback) {
 TEST(VectorCallFeedbackForArray) {
   if (!i::FLAG_use_ic) return;
   if (i::FLAG_always_opt) return;
+  FLAG_allow_natives_syntax = true;
 
   CcTest::InitializeVM();
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
   Isolate* isolate = CcTest::i_isolate();
   // Make sure function f has a call that uses a type feedback slot.
-  CompileRun("function f(a) { a(); } f(Array);");
+  CompileRun(
+      "function f(a) { a(); };"
+      "%EnsureFeedbackVectorForFunction(f);"
+      "f(Array);");
   Handle<JSFunction> f = GetFunction("f");
   // There should be one IC.
   Handle<FeedbackVector> feedback_vector =
@@ -252,6 +260,8 @@ size_t GetFeedbackVectorLength(Isolate* isolate, const char* src,
 TEST(OneShotCallICSlotCount) {
   if (!i::FLAG_use_ic) return;
   if (i::FLAG_always_opt) return;
+  if (i::FLAG_lazy_feedback_allocation) return;
+  FLAG_allow_natives_syntax = true;
 
   CcTest::InitializeVM();
   LocalContext context;
@@ -306,6 +316,7 @@ TEST(OneShotCallICSlotCount) {
 TEST(VectorCallCounts) {
   if (!i::FLAG_use_ic) return;
   if (i::FLAG_always_opt) return;
+  FLAG_allow_natives_syntax = true;
 
   CcTest::InitializeVM();
   LocalContext context;
@@ -315,6 +326,7 @@ TEST(VectorCallCounts) {
   // Make sure function f has a call that uses a type feedback slot.
   CompileRun(
       "function foo() { return 17; }"
+      "%EnsureFeedbackVectorForFunction(f);"
       "function f(a) { a(); } f(foo);");
   Handle<JSFunction> f = GetFunction("f");
   // There should be one IC.
@@ -337,6 +349,7 @@ TEST(VectorCallCounts) {
 TEST(VectorConstructCounts) {
   if (!i::FLAG_use_ic) return;
   if (i::FLAG_always_opt) return;
+  FLAG_allow_natives_syntax = true;
 
   CcTest::InitializeVM();
   LocalContext context;
@@ -346,6 +359,7 @@ TEST(VectorConstructCounts) {
   // Make sure function f has a call that uses a type feedback slot.
   CompileRun(
       "function Foo() {}"
+      "%EnsureFeedbackVectorForFunction(f);"
       "function f(a) { new a(); } f(Foo);");
   Handle<JSFunction> f = GetFunction("f");
   Handle<FeedbackVector> feedback_vector =
@@ -370,6 +384,7 @@ TEST(VectorConstructCounts) {
 TEST(VectorSpeculationMode) {
   if (!i::FLAG_use_ic) return;
   if (i::FLAG_always_opt) return;
+  FLAG_allow_natives_syntax = true;
 
   CcTest::InitializeVM();
   LocalContext context;
@@ -379,6 +394,7 @@ TEST(VectorSpeculationMode) {
   // Make sure function f has a call that uses a type feedback slot.
   CompileRun(
       "function Foo() {}"
+      "%EnsureFeedbackVectorForFunction(f);"
       "function f(a) { new a(); } f(Foo);");
   Handle<JSFunction> f = GetFunction("f");
   Handle<FeedbackVector> feedback_vector =
@@ -404,6 +420,7 @@ TEST(VectorSpeculationMode) {
 TEST(VectorLoadICStates) {
   if (!i::FLAG_use_ic) return;
   if (i::FLAG_always_opt) return;
+  FLAG_allow_natives_syntax = true;
 
   CcTest::InitializeVM();
   LocalContext context;
@@ -413,6 +430,7 @@ TEST(VectorLoadICStates) {
   // Make sure function f has a call that uses a type feedback slot.
   CompileRun(
       "var o = { foo: 3 };"
+      "%EnsureFeedbackVectorForFunction(f);"
       "function f(a) { return a.foo; } f(o);");
   Handle<JSFunction> f = GetFunction("f");
   // There should be one IC.
@@ -459,6 +477,7 @@ TEST(VectorLoadICStates) {
 TEST(VectorLoadGlobalICSlotSharing) {
   if (!i::FLAG_use_ic) return;
   if (i::FLAG_always_opt) return;
+  FLAG_allow_natives_syntax = true;
 
   CcTest::InitializeVM();
   LocalContext context;
@@ -474,6 +493,7 @@ TEST(VectorLoadGlobalICSlotSharing) {
       "  var y = typeof o;"
       "  return o , typeof o, x , y, o;"
       "}"
+      "%EnsureFeedbackVectorForFunction(f);"
       "f();");
   Handle<JSFunction> f = GetFunction("f");
   // There should be two IC slots for {o} references outside and inside
@@ -494,6 +514,7 @@ TEST(VectorLoadGlobalICSlotSharing) {
 TEST(VectorLoadICOnSmi) {
   if (!i::FLAG_use_ic) return;
   if (i::FLAG_always_opt) return;
+  FLAG_allow_natives_syntax = true;
 
   CcTest::InitializeVM();
   LocalContext context;
@@ -504,6 +525,7 @@ TEST(VectorLoadICOnSmi) {
   // Make sure function f has a call that uses a type feedback slot.
   CompileRun(
       "var o = { foo: 3 };"
+      "%EnsureFeedbackVectorForFunction(f);"
       "function f(a) { return a.foo; } f(o);");
   Handle<JSFunction> f = GetFunction("f");
   // There should be one IC.
@@ -554,6 +576,7 @@ TEST(VectorLoadICOnSmi) {
 TEST(ReferenceContextAllocatesNoSlots) {
   if (!i::FLAG_use_ic) return;
   if (i::FLAG_always_opt) return;
+  FLAG_allow_natives_syntax = true;
 
   CcTest::InitializeVM();
   LocalContext context;
@@ -567,6 +590,7 @@ TEST(ReferenceContextAllocatesNoSlots) {
         "  y = a;"
         "  return y;"
         "}"
+        "%EnsureFeedbackVectorForFunction(testvar);"
         "a = 3;"
         "testvar({});");
 
@@ -588,6 +612,7 @@ TEST(ReferenceContextAllocatesNoSlots) {
         "  'use strict';"
         "  x.blue = a;"
         "}"
+        "%EnsureFeedbackVectorForFunction(testprop);"
         "testprop({ blue: 3 });");
 
     Handle<JSFunction> f = GetFunction("testprop");
@@ -606,6 +631,7 @@ TEST(ReferenceContextAllocatesNoSlots) {
         "  x().blue = a;"
         "  return x().blue;"
         "}"
+        "%EnsureFeedbackVectorForFunction(testpropfunc);"
         "function makeresult() { return { blue: 3 }; }"
         "testpropfunc(makeresult);");
 
@@ -629,6 +655,7 @@ TEST(ReferenceContextAllocatesNoSlots) {
         "  x[0] = a;"
         "  return x[0];"
         "}"
+        "%EnsureFeedbackVectorForFunction(testkeyedprop);"
         "testkeyedprop([0, 1, 2]);");
 
     Handle<JSFunction> f = GetFunction("testkeyedprop");
@@ -650,6 +677,7 @@ TEST(ReferenceContextAllocatesNoSlots) {
         "  x[0] = a;"
         "  return x[0];"
         "}"
+        "%EnsureFeedbackVectorForFunction(testkeyedprop);"
         "testkeyedprop([0, 1, 2]);");
 
     Handle<JSFunction> f = GetFunction("testkeyedprop");
@@ -671,6 +699,7 @@ TEST(ReferenceContextAllocatesNoSlots) {
         "  x.old = x.young = x.in_between = a;"
         "  return x.old + x.young;"
         "}"
+        "%EnsureFeedbackVectorForFunction(testcompound);"
         "testcompound({ old: 3, young: 3, in_between: 3 });");
 
     Handle<JSFunction> f = GetFunction("testcompound");
@@ -694,6 +723,7 @@ TEST(ReferenceContextAllocatesNoSlots) {
 TEST(VectorStoreICBasic) {
   if (!i::FLAG_use_ic) return;
   if (i::FLAG_always_opt) return;
+  FLAG_allow_natives_syntax = true;
 
   CcTest::InitializeVM();
   LocalContext context;
@@ -702,7 +732,8 @@ TEST(VectorStoreICBasic) {
   CompileRun(
       "function f(a) {"
       "  a.foo = 5;"
-      "}"
+      "};"
+      "%EnsureFeedbackVectorForFunction(f);"
       "var a = { foo: 3 };"
       "f(a);"
       "f(a);"
@@ -720,6 +751,7 @@ TEST(VectorStoreICBasic) {
 TEST(StoreOwnIC) {
   if (!i::FLAG_use_ic) return;
   if (i::FLAG_always_opt) return;
+  FLAG_allow_natives_syntax = true;
 
   CcTest::InitializeVM();
   LocalContext context;
@@ -729,6 +761,7 @@ TEST(StoreOwnIC) {
       "function f(v) {"
       "  return {a: 0, b: v, c: 0};"
       "}"
+      "%EnsureFeedbackVectorForFunction(f);"
       "f(1);"
       "f(2);"
       "f(3);");

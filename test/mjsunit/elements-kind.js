@@ -174,20 +174,25 @@ function make_array() {
   return eval(make_array_string());
 }
 
+%EnsureFeedbackVectorForFunction(construct_smis);
 function construct_smis() {
   var a = make_array();
   a[0] = 0;  // Send the COW array map to the steak house.
   assertKind(elements_kind.fast_smi_only, a);
   return a;
 }
+
   %NeverOptimizeFunction(construct_doubles);
+%EnsureFeedbackVectorForFunction(construct_doubles);
 function construct_doubles() {
   var a = construct_smis();
   a[0] = 1.5;
   assertKind(elements_kind.fast_double, a);
   return a;
 }
+
   %NeverOptimizeFunction(construct_objects);
+%EnsureFeedbackVectorForFunction(construct_objects);
 function construct_objects() {
   var a = construct_smis();
   a[0] = "one";
@@ -196,6 +201,7 @@ function construct_objects() {
 }
 
 // Test crankshafted transition SMI->DOUBLE.
+  %EnsureFeedbackVectorForFunction(convert_to_double);
   %NeverOptimizeFunction(convert_to_double);
 function convert_to_double(array) {
   array[1] = 2.5;
@@ -208,6 +214,7 @@ for (var i = 0; i < 3; i++) convert_to_double(smis);
 smis = construct_smis();
 convert_to_double(smis);
 // Test crankshafted transitions SMI->FAST and DOUBLE->FAST.
+  %EnsureFeedbackVectorForFunction(convert_to_fast);
   %NeverOptimizeFunction(convert_to_fast);
 function convert_to_fast(array) {
   array[1] = "two";
@@ -225,7 +232,8 @@ convert_to_fast(smis);
 convert_to_fast(doubles);
 // Test transition chain SMI->DOUBLE->FAST (crankshafted function will
 // transition to FAST directly).
-  %NeverOptimizeFunction(convert_mixed);
+%EnsureFeedbackVectorForFunction(convert_mixed);
+%NeverOptimizeFunction(convert_mixed);
 function convert_mixed(array, value, kind) {
   array[1] = value;
   assertKind(kind, array);
@@ -267,6 +275,7 @@ function crankshaft_test() {
   var c = [get(1), get(2), get(3.5)];
   assertKind(elements_kind.fast_double, c);
 }
+%PrepareFunctionForOptimization(crankshaft_test);
 for (var i = 0; i < 3; i++) {
   crankshaft_test();
 }

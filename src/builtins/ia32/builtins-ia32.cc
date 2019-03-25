@@ -1014,10 +1014,15 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
         AbortReason::kFunctionDataShouldBeBytecodeArrayOnInterpreterEntry);
   }
 
-  // Reset code age.
-  __ mov_b(FieldOperand(kInterpreterBytecodeArrayRegister,
-                        BytecodeArray::kBytecodeAgeOffset),
-           Immediate(BytecodeArray::kNoAgeBytecodeAge));
+  // Reset code age and the OSR arming. The OSR field and BytecodeAgeOffset are
+  // 8-bit fields next to each other, so we could just optimize by writing a
+  // 16-bit. These static asserts guard our assumption is valid.
+  STATIC_ASSERT(BytecodeArray::kBytecodeAgeOffset ==
+                BytecodeArray::kOSRNestingLevelOffset + kCharSize);
+  STATIC_ASSERT(BytecodeArray::kNoAgeBytecodeAge == 0);
+  __ mov_w(FieldOperand(kInterpreterBytecodeArrayRegister,
+                        BytecodeArray::kOSRNestingLevelOffset),
+           Immediate(0));
 
   // Push bytecode array.
   __ push(kInterpreterBytecodeArrayRegister);

@@ -1253,48 +1253,73 @@ Node* InterpreterAssembler::CallRuntimeN(Node* function_id, Node* context,
 void InterpreterAssembler::UpdateInterruptBudget(Node* weight, bool backward) {
   Comment("[ UpdateInterruptBudget");
 
-  Node* budget_offset =
-      IntPtrConstant(BytecodeArray::kInterruptBudgetOffset - kHeapObjectTag);
-
   // Assert that the weight is positive (negative weights should be implemented
   // as backward updates).
   CSA_ASSERT(this, Int32GreaterThanOrEqual(weight, Int32Constant(0)));
 
-  // Update budget by |weight| and check if it reaches zero.
-  Variable new_budget(this, MachineRepresentation::kWord32);
-  Node* old_budget =
-      Load(MachineType::Int32(), BytecodeArrayTaggedPointer(), budget_offset);
+  Label load_budget_from_bytecode(this), load_budget_done(this);
+  TNode<JSFunction> function = CAST(LoadRegister(Register::function_closure()));
+  TNode<HeapObject> feedback_cell_value = LoadFeedbackCellValue(function);
+  Node* budget_offset =
+      IntPtrConstant(BytecodeArray::kInterruptBudgetOffset - kHeapObjectTag);
+  TVARIABLE(Int32T, old_budget);
+  // TODO(mythria): We should use the interrupt budget on the feedback vector
+  // for updating runtime profiler ticks as well. That would avoid having two
+  // different places where we track interrupt budget.
+  GotoIf(IsFeedbackVector(feedback_cell_value), &load_budget_from_bytecode);
+  TNode<FixedArray> closure_feedback_cell_array = CAST(feedback_cell_value);
+  TNode<Smi> old_budget_smi = CAST(
+      LoadFixedArrayElement(closure_feedback_cell_array,
+                            ClosureFeedbackCellArray::kInterruptBudgetIndex));
+  old_budget = SmiToInt32(old_budget_smi);
+  Goto(&load_budget_done);
+
+  BIND(&load_budget_from_bytecode);
+  old_budget = UncheckedCast<Int32T>(
+      Load(MachineType::Int32(), BytecodeArrayTaggedPointer(), budget_offset));
+  Goto(&load_budget_done);
+
+  BIND(&load_budget_done);
   // Make sure we include the current bytecode in the budget calculation.
-  Node* budget_after_bytecode =
-      Int32Sub(old_budget, Int32Constant(CurrentBytecodeSize()));
+  TNode<Int32T> budget_after_bytecode = Signed(
+      Int32Sub(old_budget.value(), Int32Constant(CurrentBytecodeSize())));
 
+  TVARIABLE(Int32T, new_budget);
   if (backward) {
-    new_budget.Bind(Int32Sub(budget_after_bytecode, weight));
-
+    // Update budget by |weight| and check if it reaches zero.
+    new_budget = Signed(Int32Sub(budget_after_bytecode, weight));
     Node* condition =
         Int32GreaterThanOrEqual(new_budget.value(), Int32Constant(0));
-    Label ok(this), interrupt_check(this, Label::kDeferred);
+    Label ok(this), interrupt_check(this);
     Branch(condition, &ok, &interrupt_check);
 
-    // Perform interrupt and reset budget.
     BIND(&interrupt_check);
-    {
-      CallRuntime(Runtime::kInterrupt, GetContext());
-      new_budget.Bind(Int32Constant(Interpreter::InterruptBudget()));
-      Goto(&ok);
-    }
+    CallRuntime(Runtime::kBytecodeBudgetInterrupt, GetContext(), function);
+    new_budget = Int32Constant(Interpreter::InterruptBudget());
+    Goto(&ok);
 
     BIND(&ok);
   } else {
     // For a forward jump, we know we only increase the interrupt budget, so
     // no need to check if it's below zero.
-    new_budget.Bind(Int32Add(budget_after_bytecode, weight));
+    new_budget = Signed(Int32Add(budget_after_bytecode, weight));
   }
 
   // Update budget.
+  Label update_budget_in_bytecode(this), end(this);
+  GotoIf(IsFeedbackVector(feedback_cell_value), &update_budget_in_bytecode);
+  StoreFixedArrayElement(closure_feedback_cell_array,
+                         ClosureFeedbackCellArray::kInterruptBudgetIndex,
+                         SmiFromInt32(new_budget.value()), SKIP_WRITE_BARRIER);
+  Goto(&end);
+
+  BIND(&update_budget_in_bytecode);
   StoreNoWriteBarrier(MachineRepresentation::kWord32,
                       BytecodeArrayTaggedPointer(), budget_offset,
                       new_budget.value());
+  Goto(&end);
+
+  BIND(&end);
   Comment("] UpdateInterruptBudget");
 }
 

@@ -197,6 +197,9 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case FEEDBACK_CELL_TYPE:
       FeedbackCell::cast(*this)->FeedbackCellPrint(os);
       break;
+    case CLOSURE_FEEDBACK_CELL_ARRAY_TYPE:
+      ClosureFeedbackCellArray::cast(*this)->ClosureFeedbackCellArrayPrint(os);
+      break;
     case FEEDBACK_VECTOR_TYPE:
       FeedbackVector::cast(*this)->FeedbackVectorPrint(os);
       break;
@@ -1084,6 +1087,10 @@ void FeedbackMetadata::FeedbackMetadataPrint(std::ostream& os) {
     os << "\n Slot " << slot << " " << kind;
   }
   os << "\n";
+}
+
+void ClosureFeedbackCellArray::ClosureFeedbackCellArrayPrint(std::ostream& os) {
+  PrintFixedArrayWithHeader(os, *this, "ClosureFeedbackCellArray");
 }
 
 void FeedbackVector::FeedbackVectorPrint(std::ostream& os) {  // NOLINT

@@ -418,8 +418,25 @@ Handle<FixedArray> Factory::NewUninitializedFixedArray(
                                  *undefined_value(), allocation);
 }
 
+Handle<ClosureFeedbackCellArray> Factory::NewClosureFeedbackCellArray(
+    int num_slots, AllocationType allocation) {
+  int length = ClosureFeedbackCellArray::kFeedbackCellStartIndex + num_slots;
+  Handle<ClosureFeedbackCellArray> feedback_cell_array =
+      NewFixedArrayWithMap<ClosureFeedbackCellArray>(
+          RootIndex::kClosureFeedbackCellArrayMap, length, allocation);
+
+  // Initialize header fields
+  feedback_cell_array->set_interrupt_budget(
+      FLAG_budget_for_feedback_vector_allocation);
+  DCHECK_EQ(ClosureFeedbackCellArray::kFeedbackCellStartIndex, 1);
+
+  return feedback_cell_array;
+}
+
 Handle<FeedbackVector> Factory::NewFeedbackVector(
-    Handle<SharedFunctionInfo> shared, AllocationType allocation) {
+    Handle<SharedFunctionInfo> shared,
+    Handle<ClosureFeedbackCellArray> closure_feedback_cell_array,
+    AllocationType allocation) {
   int length = shared->feedback_metadata()->slot_count();
   DCHECK_LE(0, length);
   int size = FeedbackVector::SizeFor(length);
@@ -435,7 +452,7 @@ Handle<FeedbackVector> Factory::NewFeedbackVector(
   vector->set_invocation_count(0);
   vector->set_profiler_ticks(0);
   vector->set_deopt_count(0);
-  vector->set_closure_feedback_cell_array(*empty_fixed_array());
+  vector->set_closure_feedback_cell_array(*closure_feedback_cell_array);
 
   // TODO(leszeks): Initialize based on the feedback metadata.
   MemsetTagged(ObjectSlot(vector->slots_start()), *undefined_value(), length);

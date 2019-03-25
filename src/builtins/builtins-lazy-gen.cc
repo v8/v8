@@ -134,7 +134,8 @@ void LazyBuiltinsAssembler::CompileLazy(TNode<JSFunction> function) {
 
   Label use_sfi_code(this);
   // If there is no feedback, don't check for optimized code.
-  GotoIf(IsFixedArray(feedback_cell_value), &use_sfi_code);
+  GotoIf(HasInstanceType(feedback_cell_value, CLOSURE_FEEDBACK_CELL_ARRAY_TYPE),
+         &use_sfi_code);
 
   // If it isn't undefined or fixed array it must be a feedback vector.
   CSA_ASSERT(this, IsFeedbackVector(feedback_cell_value));

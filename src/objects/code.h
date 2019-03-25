@@ -830,6 +830,11 @@ class BytecodeArray : public FixedArrayBase {
                                 BYTECODE_ARRAY_FIELDS)
 #undef BYTECODE_ARRAY_FIELDS
 
+  // InterpreterEntryTrampoline expects these fields to be next to each other
+  // and writes a 16-bit value to reset them.
+  STATIC_ASSERT(BytecodeArray::kBytecodeAgeOffset ==
+                kOSRNestingLevelOffset + kCharSize);
+
   // Maximal memory consumption for a single BytecodeArray.
   static const int kMaxSize = 512 * MB;
   // Maximal length of a single BytecodeArray.

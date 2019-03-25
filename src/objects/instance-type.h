@@ -195,6 +195,7 @@ enum InstanceType : uint16_t {
   // FixedArrays.
   FIXED_ARRAY_TYPE,  // FIRST_FIXED_ARRAY_TYPE
   OBJECT_BOILERPLATE_DESCRIPTION_TYPE,
+  CLOSURE_FEEDBACK_CELL_ARRAY_TYPE,
   HASH_TABLE_TYPE,        // FIRST_HASH_TABLE_TYPE
   ORDERED_HASH_MAP_TYPE,  // FIRST_DICTIONARY_TYPE
   ORDERED_HASH_SET_TYPE,
@@ -408,6 +409,7 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
   V(CachedTemplateObject, TUPLE3_TYPE)                                       \
   V(CodeDataContainer, CODE_DATA_CONTAINER_TYPE)                             \
   V(CoverageInfo, FIXED_ARRAY_TYPE)                                          \
+  V(ClosureFeedbackCellArray, CLOSURE_FEEDBACK_CELL_ARRAY_TYPE)              \
   V(DescriptorArray, DESCRIPTOR_ARRAY_TYPE)                                  \
   V(EmbedderDataArray, EMBEDDER_DATA_ARRAY_TYPE)                             \
   V(EphemeronHashTable, EPHEMERON_HASH_TABLE_TYPE)                           \

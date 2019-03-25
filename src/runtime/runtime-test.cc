@@ -299,6 +299,39 @@ RUNTIME_FUNCTION(Runtime_OptimizeFunctionOnNextCall) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
+namespace {
+
+bool EnsureFeedbackVector(Handle<JSFunction> function) {
+  // Check function allows lazy compilation.
+  if (!function->shared()->allows_lazy_compilation()) {
+    return false;
+  }
+
+  // If function isn't compiled, compile it now.
+  IsCompiledScope is_compiled_scope(function->shared()->is_compiled_scope());
+  if (!is_compiled_scope.is_compiled() &&
+      !Compiler::Compile(function, Compiler::CLEAR_EXCEPTION,
+                         &is_compiled_scope)) {
+    return false;
+  }
+
+  // Ensure function has a feedback vector to hold type feedback for
+  // optimization.
+  JSFunction::EnsureFeedbackVector(function);
+  return true;
+}
+
+}  // namespace
+
+RUNTIME_FUNCTION(Runtime_EnsureFeedbackVectorForFunction) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
+
+  EnsureFeedbackVector(function);
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
 RUNTIME_FUNCTION(Runtime_PrepareFunctionForOptimization) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
@@ -307,22 +340,9 @@ RUNTIME_FUNCTION(Runtime_PrepareFunctionForOptimization) {
   // Only one function should be prepared for optimization at a time
   CHECK(isolate->heap()->pending_optimize_for_test_bytecode()->IsUndefined());
 
-  // Check function allows lazy compilation.
-  if (!function->shared()->allows_lazy_compilation()) {
+  if (!EnsureFeedbackVector(function)) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
-
-  // If function isn't compiled, compile it now.
-  IsCompiledScope is_compiled_scope(function->shared()->is_compiled_scope());
-  if (!is_compiled_scope.is_compiled() &&
-      !Compiler::Compile(function, Compiler::CLEAR_EXCEPTION,
-                         &is_compiled_scope)) {
-    return ReadOnlyRoots(isolate).undefined_value();
-  }
-
-  // Ensure function has a feedback vector to hold type feedback for
-  // optimization.
-  JSFunction::EnsureFeedbackVector(function);
 
   // If optimization is disabled for the function, return without making it
   // pending optimize for test.

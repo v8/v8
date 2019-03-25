@@ -35,8 +35,8 @@ class RedundancyEliminationTest : public GraphTest {
         isolate()->factory()->NewSharedFunctionInfoForBuiltin(
             isolate()->factory()->empty_string(), Builtins::kIllegal);
     shared->set_raw_outer_scope_info_or_feedback_metadata(*metadata);
-    Handle<FixedArray> closure_feedback_cell_array =
-        FeedbackVector::NewClosureFeedbackCellArray(isolate(), shared);
+    Handle<ClosureFeedbackCellArray> closure_feedback_cell_array =
+        ClosureFeedbackCellArray::New(isolate(), shared);
     Handle<FeedbackVector> feedback_vector =
         FeedbackVector::New(isolate(), shared, closure_feedback_cell_array);
     vector_slot_pairs_.push_back(VectorSlotPair());

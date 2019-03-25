@@ -108,8 +108,8 @@ class JSCallReducerTest : public TypedGraphTest {
     // Set the raw feedback metadata to circumvent checks that we are not
     // overwriting existing metadata.
     shared->set_raw_outer_scope_info_or_feedback_metadata(*metadata);
-    Handle<FixedArray> closure_feedback_cell_array =
-        FeedbackVector::NewClosureFeedbackCellArray(isolate(), shared);
+    Handle<ClosureFeedbackCellArray> closure_feedback_cell_array =
+        ClosureFeedbackCellArray::New(isolate(), shared);
     Handle<FeedbackVector> vector =
         FeedbackVector::New(isolate(), shared, closure_feedback_cell_array);
     VectorSlotPair feedback(vector, FeedbackSlot(0), UNINITIALIZED);

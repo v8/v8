@@ -3224,6 +3224,7 @@ TEST(IncrementalMarkingPreservesMonomorphicCallIC) {
   if (!FLAG_use_ic) return;
   if (!FLAG_incremental_marking) return;
   if (FLAG_always_opt) return;
+  FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Value> fun1, fun2;
@@ -3241,7 +3242,9 @@ TEST(IncrementalMarkingPreservesMonomorphicCallIC) {
   // Prepare function f that contains type feedback for the two closures.
   CHECK(CcTest::global()->Set(ctx, v8_str("fun1"), fun1).FromJust());
   CHECK(CcTest::global()->Set(ctx, v8_str("fun2"), fun2).FromJust());
-  CompileRun("function f(a, b) { a(); b(); } f(fun1, fun2);");
+  CompileRun(
+      "function f(a, b) { a(); b(); } %EnsureFeedbackVectorForFunction(f); "
+      "f(fun1, fun2);");
 
   Handle<JSFunction> f = Handle<JSFunction>::cast(
       v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
@@ -3276,9 +3279,9 @@ static void CheckVectorIC(Handle<JSFunction> f, int slot_index,
 }
 
 TEST(IncrementalMarkingPreservesMonomorphicConstructor) {
-  if (FLAG_lite_mode) return;
   if (!FLAG_incremental_marking) return;
   if (FLAG_always_opt) return;
+  FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> ctx = CcTest::isolate()->GetCurrentContext();
@@ -3286,7 +3289,9 @@ TEST(IncrementalMarkingPreservesMonomorphicConstructor) {
   // originating from the same native context.
   CompileRun(
       "function fun() { this.x = 1; };"
-      "function f(o) { return new o(); } f(fun); f(fun);");
+      "function f(o) { return new o(); }"
+      "%EnsureFeedbackVectorForFunction(f);"
+      "f(fun); f(fun);");
   Handle<JSFunction> f = Handle<JSFunction>::cast(
       v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
           CcTest::global()->Get(ctx, v8_str("f")).ToLocalChecked())));
@@ -3304,13 +3309,16 @@ TEST(IncrementalMarkingPreservesMonomorphicIC) {
   if (!FLAG_use_ic) return;
   if (!FLAG_incremental_marking) return;
   if (FLAG_always_opt) return;
+  FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> ctx = CcTest::isolate()->GetCurrentContext();
   // Prepare function f that contains a monomorphic IC for object
   // originating from the same native context.
-  CompileRun("function fun() { this.x = 1; }; var obj = new fun();"
-             "function f(o) { return o.x; } f(obj); f(obj);");
+  CompileRun(
+      "function fun() { this.x = 1; }; var obj = new fun();"
+      "%EnsureFeedbackVectorForFunction(f);"
+      "function f(o) { return o.x; } f(obj); f(obj);");
   Handle<JSFunction> f = Handle<JSFunction>::cast(
       v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
           CcTest::global()->Get(ctx, v8_str("f")).ToLocalChecked())));
@@ -3327,6 +3335,7 @@ TEST(IncrementalMarkingPreservesPolymorphicIC) {
   if (!FLAG_use_ic) return;
   if (!FLAG_incremental_marking) return;
   if (FLAG_always_opt) return;
+  FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Value> obj1, obj2;
@@ -3348,7 +3357,10 @@ TEST(IncrementalMarkingPreservesPolymorphicIC) {
   // originating from two different native contexts.
   CHECK(CcTest::global()->Set(ctx, v8_str("obj1"), obj1).FromJust());
   CHECK(CcTest::global()->Set(ctx, v8_str("obj2"), obj2).FromJust());
-  CompileRun("function f(o) { return o.x; } f(obj1); f(obj1); f(obj2);");
+  CompileRun(
+      "function f(o) { return o.x; }; "
+      "%EnsureFeedbackVectorForFunction(f);"
+      "f(obj1); f(obj1); f(obj2);");
   Handle<JSFunction> f = Handle<JSFunction>::cast(
       v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
           CcTest::global()->Get(ctx, v8_str("f")).ToLocalChecked())));
@@ -3366,6 +3378,7 @@ TEST(ContextDisposeDoesntClearPolymorphicIC) {
   if (!FLAG_use_ic) return;
   if (!FLAG_incremental_marking) return;
   if (FLAG_always_opt) return;
+  FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Value> obj1, obj2;
@@ -3387,7 +3400,10 @@ TEST(ContextDisposeDoesntClearPolymorphicIC) {
   // originating from two different native contexts.
   CHECK(CcTest::global()->Set(ctx, v8_str("obj1"), obj1).FromJust());
   CHECK(CcTest::global()->Set(ctx, v8_str("obj2"), obj2).FromJust());
-  CompileRun("function f(o) { return o.x; } f(obj1); f(obj1); f(obj2);");
+  CompileRun(
+      "function f(o) { return o.x; }; "
+      "%EnsureFeedbackVectorForFunction(f);"
+      "f(obj1); f(obj1); f(obj2);");
   Handle<JSFunction> f = Handle<JSFunction>::cast(
       v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
           CcTest::global()->Get(ctx, v8_str("f")).ToLocalChecked())));
@@ -4481,6 +4497,7 @@ TEST(WeakFunctionInConstructor) {
 void CheckWeakness(const char* source) {
   FLAG_stress_compaction = false;
   FLAG_stress_incremental_marking = false;
+  FLAG_allow_natives_syntax = true;
   CcTest::InitializeVM();
   v8::Isolate* isolate = CcTest::isolate();
   LocalContext env;
@@ -4503,17 +4520,19 @@ void CheckWeakness(const char* source) {
 // Each of the following "weak IC" tests creates an IC that embeds a map with
 // the prototype pointing to _proto_ and checks that the _proto_ dies on GC.
 TEST(WeakMapInMonomorphicLoadIC) {
-  CheckWeakness("function loadIC(obj) {"
-                "  return obj.name;"
-                "}"
-                " (function() {"
-                "   var proto = {'name' : 'weak'};"
-                "   var obj = Object.create(proto);"
-                "   loadIC(obj);"
-                "   loadIC(obj);"
-                "   loadIC(obj);"
-                "   return proto;"
-                " })();");
+  CheckWeakness(
+      "function loadIC(obj) {"
+      "  return obj.name;"
+      "}"
+      "%EnsureFeedbackVectorForFunction(loadIC);"
+      " (function() {"
+      "   var proto = {'name' : 'weak'};"
+      "   var obj = Object.create(proto);"
+      "   loadIC(obj);"
+      "   loadIC(obj);"
+      "   loadIC(obj);"
+      "   return proto;"
+      " })();");
 }
 
 
@@ -4522,6 +4541,7 @@ TEST(WeakMapInPolymorphicLoadIC) {
       "function loadIC(obj) {"
       "  return obj.name;"
       "}"
+      "%EnsureFeedbackVectorForFunction(loadIC);"
       " (function() {"
       "   var proto = {'name' : 'weak'};"
       "   var obj = Object.create(proto);"
@@ -4537,17 +4557,19 @@ TEST(WeakMapInPolymorphicLoadIC) {
 
 
 TEST(WeakMapInMonomorphicKeyedLoadIC) {
-  CheckWeakness("function keyedLoadIC(obj, field) {"
-                "  return obj[field];"
-                "}"
-                " (function() {"
-                "   var proto = {'name' : 'weak'};"
-                "   var obj = Object.create(proto);"
-                "   keyedLoadIC(obj, 'name');"
-                "   keyedLoadIC(obj, 'name');"
-                "   keyedLoadIC(obj, 'name');"
-                "   return proto;"
-                " })();");
+  CheckWeakness(
+      "function keyedLoadIC(obj, field) {"
+      "  return obj[field];"
+      "}"
+      "%EnsureFeedbackVectorForFunction(keyedLoadIC);"
+      " (function() {"
+      "   var proto = {'name' : 'weak'};"
+      "   var obj = Object.create(proto);"
+      "   keyedLoadIC(obj, 'name');"
+      "   keyedLoadIC(obj, 'name');"
+      "   keyedLoadIC(obj, 'name');"
+      "   return proto;"
+      " })();");
 }
 
 
@@ -4556,6 +4578,7 @@ TEST(WeakMapInPolymorphicKeyedLoadIC) {
       "function keyedLoadIC(obj, field) {"
       "  return obj[field];"
       "}"
+      "%EnsureFeedbackVectorForFunction(keyedLoadIC);"
       " (function() {"
       "   var proto = {'name' : 'weak'};"
       "   var obj = Object.create(proto);"
@@ -4571,17 +4594,19 @@ TEST(WeakMapInPolymorphicKeyedLoadIC) {
 
 
 TEST(WeakMapInMonomorphicStoreIC) {
-  CheckWeakness("function storeIC(obj, value) {"
-                "  obj.name = value;"
-                "}"
-                " (function() {"
-                "   var proto = {'name' : 'weak'};"
-                "   var obj = Object.create(proto);"
-                "   storeIC(obj, 'x');"
-                "   storeIC(obj, 'x');"
-                "   storeIC(obj, 'x');"
-                "   return proto;"
-                " })();");
+  CheckWeakness(
+      "function storeIC(obj, value) {"
+      "  obj.name = value;"
+      "}"
+      "%EnsureFeedbackVectorForFunction(storeIC);"
+      " (function() {"
+      "   var proto = {'name' : 'weak'};"
+      "   var obj = Object.create(proto);"
+      "   storeIC(obj, 'x');"
+      "   storeIC(obj, 'x');"
+      "   storeIC(obj, 'x');"
+      "   return proto;"
+      " })();");
 }
 
 
@@ -4590,6 +4615,7 @@ TEST(WeakMapInPolymorphicStoreIC) {
       "function storeIC(obj, value) {"
       "  obj.name = value;"
       "}"
+      "%EnsureFeedbackVectorForFunction(storeIC);"
       " (function() {"
       "   var proto = {'name' : 'weak'};"
       "   var obj = Object.create(proto);"
@@ -4605,17 +4631,19 @@ TEST(WeakMapInPolymorphicStoreIC) {
 
 
 TEST(WeakMapInMonomorphicKeyedStoreIC) {
-  CheckWeakness("function keyedStoreIC(obj, field, value) {"
-                "  obj[field] = value;"
-                "}"
-                " (function() {"
-                "   var proto = {'name' : 'weak'};"
-                "   var obj = Object.create(proto);"
-                "   keyedStoreIC(obj, 'x');"
-                "   keyedStoreIC(obj, 'x');"
-                "   keyedStoreIC(obj, 'x');"
-                "   return proto;"
-                " })();");
+  CheckWeakness(
+      "function keyedStoreIC(obj, field, value) {"
+      "  obj[field] = value;"
+      "}"
+      "%EnsureFeedbackVectorForFunction(keyedStoreIC);"
+      " (function() {"
+      "   var proto = {'name' : 'weak'};"
+      "   var obj = Object.create(proto);"
+      "   keyedStoreIC(obj, 'x');"
+      "   keyedStoreIC(obj, 'x');"
+      "   keyedStoreIC(obj, 'x');"
+      "   return proto;"
+      " })();");
 }
 
 
@@ -4624,6 +4652,7 @@ TEST(WeakMapInPolymorphicKeyedStoreIC) {
       "function keyedStoreIC(obj, field, value) {"
       "  obj[field] = value;"
       "}"
+      "%EnsureFeedbackVectorForFunction(keyedStoreIC);"
       " (function() {"
       "   var proto = {'name' : 'weak'};"
       "   var obj = Object.create(proto);"
@@ -4639,17 +4668,20 @@ TEST(WeakMapInPolymorphicKeyedStoreIC) {
 
 
 TEST(WeakMapInMonomorphicCompareNilIC) {
-  CheckWeakness("function compareNilIC(obj) {"
-                "  return obj == null;"
-                "}"
-                " (function() {"
-                "   var proto = {'name' : 'weak'};"
-                "   var obj = Object.create(proto);"
-                "   compareNilIC(obj);"
-                "   compareNilIC(obj);"
-                "   compareNilIC(obj);"
-                "   return proto;"
-                " })();");
+  FLAG_allow_natives_syntax = true;
+  CheckWeakness(
+      "function compareNilIC(obj) {"
+      "  return obj == null;"
+      "}"
+      "%EnsureFeedbackVectorForFunction(compareNilIC);"
+      " (function() {"
+      "   var proto = {'name' : 'weak'};"
+      "   var obj = Object.create(proto);"
+      "   compareNilIC(obj);"
+      "   compareNilIC(obj);"
+      "   compareNilIC(obj);"
+      "   return proto;"
+      " })();");
 }
 
 
@@ -4676,10 +4708,12 @@ TEST(MonomorphicStaysMonomorphicAfterGC) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   v8::HandleScope scope(CcTest::isolate());
+  FLAG_allow_natives_syntax = true;
   CompileRun(
       "function loadIC(obj) {"
       "  return obj.name;"
       "}"
+      "%EnsureFeedbackVectorForFunction(loadIC);"
       "function testIC() {"
       "  var proto = {'name' : 'weak'};"
       "  var obj = Object.create(proto);"
@@ -4710,10 +4744,12 @@ TEST(PolymorphicStaysPolymorphicAfterGC) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   v8::HandleScope scope(CcTest::isolate());
+  FLAG_allow_natives_syntax = true;
   CompileRun(
       "function loadIC(obj) {"
       "  return obj.name;"
       "}"
+      "%EnsureFeedbackVectorForFunction(loadIC);"
       "function testIC() {"
       "  var proto = {'name' : 'weak'};"
       "  var obj = Object.create(proto);"

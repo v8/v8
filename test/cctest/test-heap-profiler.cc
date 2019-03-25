@@ -3908,7 +3908,10 @@ TEST(WeakReference) {
   i::Handle<i::SharedFunctionInfo> shared_function =
       i::Handle<i::SharedFunctionInfo>(i::JSFunction::cast(*obj)->shared(),
                                        i_isolate);
-  i::Handle<i::FeedbackVector> fv = factory->NewFeedbackVector(shared_function);
+  i::Handle<i::ClosureFeedbackCellArray> feedback_cell_array =
+      i::ClosureFeedbackCellArray::New(i_isolate, shared_function);
+  i::Handle<i::FeedbackVector> fv =
+      factory->NewFeedbackVector(shared_function, feedback_cell_array);
 
   // Create a Code.
   i::Assembler assm(i::AssemblerOptions{});

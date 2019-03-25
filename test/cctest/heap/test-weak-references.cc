@@ -29,8 +29,10 @@ Handle<FeedbackVector> CreateFeedbackVectorForTest(
   Handle<Object> obj = v8::Utils::OpenHandle(*script);
   Handle<SharedFunctionInfo> shared_function =
       Handle<SharedFunctionInfo>(JSFunction::cast(*obj)->shared(), i_isolate);
-  Handle<FeedbackVector> fv =
-      factory->NewFeedbackVector(shared_function, allocation);
+  Handle<ClosureFeedbackCellArray> closure_cell_array =
+      ClosureFeedbackCellArray::New(i_isolate, shared_function);
+  Handle<FeedbackVector> fv = factory->NewFeedbackVector(
+      shared_function, closure_cell_array, allocation);
   return fv;
 }
 

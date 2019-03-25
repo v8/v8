@@ -156,10 +156,16 @@ class V8_EXPORT_PRIVATE Factory {
   Handle<FixedArray> NewUninitializedFixedArray(
       int length, AllocationType allocation = AllocationType::kYoung);
 
+  // Allocates a closure feedback cell array whose feedback cells are
+  // initialized with undefined values.
+  Handle<ClosureFeedbackCellArray> NewClosureFeedbackCellArray(
+      int num_slots, AllocationType allocation = AllocationType::kYoung);
+
   // Allocates a feedback vector whose slots are initialized with undefined
   // values.
   Handle<FeedbackVector> NewFeedbackVector(
       Handle<SharedFunctionInfo> shared,
+      Handle<ClosureFeedbackCellArray> closure_feedback_cell_array,
       AllocationType allocation = AllocationType::kYoung);
 
   // Allocates a clean embedder data array with given capacity.

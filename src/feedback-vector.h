@@ -144,6 +144,33 @@ typedef std::vector<MaybeObjectHandle> MaybeObjectHandles;
 
 class FeedbackMetadata;
 
+// ClosureFeedbackCellArray is a FixedArray that contains feedback cells used
+// when creating closures from a function. Along with the feedback
+// cells, the first slot (slot 0) is used to hold a budget to measure the
+// hotness of the function. This is created once the function is compiled and is
+// either held by the feedback vector (if allocated) or by the FeedbackCell of
+// the closure.
+class ClosureFeedbackCellArray : public FixedArray {
+ public:
+  NEVER_READ_ONLY_SPACE
+
+  DECL_CAST(ClosureFeedbackCellArray)
+
+  V8_EXPORT_PRIVATE static Handle<ClosureFeedbackCellArray> New(
+      Isolate* isolate, Handle<SharedFunctionInfo> shared);
+  inline Handle<FeedbackCell> GetFeedbackCell(int index);
+
+  DECL_INT_ACCESSORS(interrupt_budget)
+
+  DECL_VERIFIER(ClosureFeedbackCellArray)
+  DECL_PRINTER(ClosureFeedbackCellArray)
+
+  enum { kInterruptBudgetIndex, kFeedbackCellStartIndex };
+
+ private:
+  OBJECT_CONSTRUCTORS(ClosureFeedbackCellArray, FixedArray);
+};
+
 // A FeedbackVector has a fixed header with:
 //  - shared function info (which includes feedback metadata)
 //  - invocation count
@@ -171,7 +198,7 @@ class FeedbackVector : public HeapObject {
 
   // [feedback_cell_array]: The FixedArray to hold the feedback cells for any
   // closures created by this function.
-  DECL_ACCESSORS(closure_feedback_cell_array, FixedArray)
+  DECL_ACCESSORS(closure_feedback_cell_array, ClosureFeedbackCellArray)
 
   // [length]: The length of the feedback vector (not including the header, i.e.
   // the number of feedback slots).
@@ -234,10 +261,7 @@ class FeedbackVector : public HeapObject {
 
   V8_EXPORT_PRIVATE static Handle<FeedbackVector> New(
       Isolate* isolate, Handle<SharedFunctionInfo> shared,
-      Handle<FixedArray> closure_feedback_cell_array);
-
-  V8_EXPORT_PRIVATE static Handle<FixedArray> NewClosureFeedbackCellArray(
-      Isolate* isolate, Handle<SharedFunctionInfo> shared);
+      Handle<ClosureFeedbackCellArray> closure_feedback_cell_array);
 
 #define DEFINE_SLOT_KIND_PREDICATE(Name) \
   bool Name(FeedbackSlot slot) const { return Name##Kind(GetKind(slot)); }

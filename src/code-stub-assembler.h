@@ -2872,7 +2872,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // used when creating closures from this function. This array could be
   // directly hanging off the FeedbackCell when there is no feedback vector
   // or available from the feedback vector's header.
-  TNode<FixedArray> LoadClosureFeedbackArray(SloppyTNode<JSFunction> closure);
+  TNode<ClosureFeedbackCellArray> LoadClosureFeedbackArray(
+      SloppyTNode<JSFunction> closure);
 
   // Update the type feedback vector.
   void UpdateFeedback(Node* feedback, Node* feedback_vector, Node* slot_id);

@@ -370,6 +370,11 @@ DEFINE_INT(interrupt_budget, 144 * KB,
 #undef FLAG
 #define FLAG FLAG_FULL
 
+DEFINE_INT(budget_for_feedback_vector_allocation, 2 * KB,
+           "The budget in amount of bytecode executed by a function before we "
+           "decide to allocate feedback vectors")
+DEFINE_BOOL(lazy_feedback_allocation, false, "Allocate feedback vectors lazily")
+
 // Flags for Ignition.
 DEFINE_BOOL(ignition_elide_noneffectful_bytecodes, true,
             "elide bytecodes which won't have any external effect")
@@ -1230,7 +1235,7 @@ DEFINE_NEG_IMPLICATION(jitless, wasm_lazy_compilation)
 DEFINE_BOOL(opt, !V8_LITE_BOOL, "use adaptive optimizations")
 
 // Enable use of inline caches to optimize object access operations.
-DEFINE_BOOL(use_ic, !V8_LITE_BOOL, "use inline caching")
+DEFINE_BOOL(use_ic, true, "use inline caching")
 
 // Favor memory over execution speed.
 DEFINE_BOOL(optimize_for_size, V8_LITE_BOOL,
@@ -1543,6 +1548,7 @@ DEFINE_BOOL(raw_heap_snapshots, V8_ENABLE_RAW_HEAP_SNAPSHOTS_BOOL,
 DEFINE_BOOL(lite_mode, V8_LITE_BOOL,
             "enables trade-off of performance for memory savings "
             "(Lite mode only)")
+DEFINE_IMPLICATION(lite_mode, lazy_feedback_allocation)
 
 // Cleanup...
 #undef FLAG_FULL

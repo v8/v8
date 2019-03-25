@@ -140,15 +140,16 @@ Object DeclareGlobals(Isolate* isolate, Handle<FixedArray> declarations,
   Handle<Context> context(isolate->context(), isolate);
 
   Handle<FeedbackVector> feedback_vector = Handle<FeedbackVector>::null();
-  Handle<FixedArray> closure_feedback_cell_array = Handle<FixedArray>::null();
+  Handle<ClosureFeedbackCellArray> closure_feedback_cell_array =
+      Handle<ClosureFeedbackCellArray>::null();
   if (closure->has_feedback_vector()) {
     feedback_vector =
         Handle<FeedbackVector>(closure->feedback_vector(), isolate);
-    closure_feedback_cell_array = Handle<FixedArray>(
+    closure_feedback_cell_array = Handle<ClosureFeedbackCellArray>(
         feedback_vector->closure_feedback_cell_array(), isolate);
   } else {
-    closure_feedback_cell_array =
-        Handle<FixedArray>(closure->closure_feedback_cell_array(), isolate);
+    closure_feedback_cell_array = Handle<ClosureFeedbackCellArray>(
+        closure->closure_feedback_cell_array(), isolate);
   }
 
   // Traverse the name/value pairs and set the properties.
@@ -167,10 +168,9 @@ Object DeclareGlobals(Isolate* isolate, Handle<FixedArray> declarations,
     Handle<Object> value;
     if (is_function) {
       DCHECK(possibly_feedback_cell_slot->IsSmi());
-      Handle<FeedbackCell> feedback_cell = Handle<FeedbackCell>(
-          FeedbackCell::cast(closure_feedback_cell_array->get(
-              Smi::ToInt(*possibly_feedback_cell_slot))),
-          isolate);
+      Handle<FeedbackCell> feedback_cell =
+          closure_feedback_cell_array->GetFeedbackCell(
+              Smi::ToInt(*possibly_feedback_cell_slot));
       // Copy the function and update its context. Use it as value.
       Handle<SharedFunctionInfo> shared =
           Handle<SharedFunctionInfo>::cast(initial_value);

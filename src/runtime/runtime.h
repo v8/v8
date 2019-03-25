@@ -219,6 +219,7 @@ namespace internal {
   F(GetTemplateObject, 3, 1)                         \
   F(IncrementUseCounter, 1, 1)                       \
   F(Interrupt, 0, 1)                                 \
+  F(BytecodeBudgetInterrupt, 1, 1)                   \
   F(NewReferenceError, 2, 1)                         \
   F(NewSyntaxError, 2, 1)                            \
   F(NewTypeError, 2, 1)                              \
@@ -494,6 +495,7 @@ namespace internal {
   F(NotifyContextDisposed, 0, 1)              \
   F(OptimizeFunctionOnNextCall, -1, 1)        \
   F(OptimizeOsr, -1, 1)                       \
+  F(EnsureFeedbackVectorForFunction, 1, 1)    \
   F(PrepareFunctionForOptimization, 1, 1)     \
   F(PrintWithNameForAssert, 2, 1)             \
   F(RedirectToWasmInterpreter, 2, 1)          \

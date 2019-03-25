@@ -10045,14 +10045,16 @@ TNode<HeapObject> CodeStubAssembler::LoadFeedbackVector(
   return maybe_vector.value();
 }
 
-TNode<FixedArray> CodeStubAssembler::LoadClosureFeedbackArray(
+TNode<ClosureFeedbackCellArray> CodeStubAssembler::LoadClosureFeedbackArray(
     SloppyTNode<JSFunction> closure) {
   TVARIABLE(HeapObject, feedback_cell_array, LoadFeedbackCellValue(closure));
   Label end(this);
 
   // When feedback vectors are not yet allocated feedback cell contains a
   // an array of feedback cells used by create closures.
-  GotoIf(IsFixedArray(feedback_cell_array.value()), &end);
+  GotoIf(HasInstanceType(feedback_cell_array.value(),
+                         CLOSURE_FEEDBACK_CELL_ARRAY_TYPE),
+         &end);
 
   // Load FeedbackCellArray from feedback vector.
   TNode<FeedbackVector> vector = CAST(feedback_cell_array.value());

@@ -467,9 +467,9 @@ FeedbackVector JSFunction::feedback_vector() const {
   return FeedbackVector::cast(raw_feedback_cell()->value());
 }
 
-FixedArray JSFunction::closure_feedback_cell_array() const {
+ClosureFeedbackCellArray JSFunction::closure_feedback_cell_array() const {
   DCHECK(has_closure_feedback_cell_array());
-  return FixedArray::cast(raw_feedback_cell()->value());
+  return ClosureFeedbackCellArray::cast(raw_feedback_cell()->value());
 }
 
 // Code objects that are marked for deoptimization are not considered to be
@@ -589,14 +589,12 @@ void JSFunction::SetOptimizationMarker(OptimizationMarker marker) {
 
 bool JSFunction::has_feedback_vector() const {
   return shared()->is_compiled() &&
-         !raw_feedback_cell()->value()->IsUndefined() &&
          raw_feedback_cell()->value()->IsFeedbackVector();
 }
 
 bool JSFunction::has_closure_feedback_cell_array() const {
   return shared()->is_compiled() &&
-         !raw_feedback_cell()->value()->IsUndefined() &&
-         raw_feedback_cell()->value()->IsFixedArray();
+         raw_feedback_cell()->value()->IsClosureFeedbackCellArray();
 }
 
 Context JSFunction::context() {

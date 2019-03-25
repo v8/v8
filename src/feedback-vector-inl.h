@@ -23,11 +23,14 @@ namespace internal {
 
 OBJECT_CONSTRUCTORS_IMPL(FeedbackVector, HeapObject)
 OBJECT_CONSTRUCTORS_IMPL(FeedbackMetadata, HeapObject)
+OBJECT_CONSTRUCTORS_IMPL(ClosureFeedbackCellArray, FixedArray)
 
 NEVER_READ_ONLY_SPACE_IMPL(FeedbackVector)
+NEVER_READ_ONLY_SPACE_IMPL(ClosureFeedbackCellArray)
 
 CAST_ACCESSOR(FeedbackVector)
 CAST_ACCESSOR(FeedbackMetadata)
+CAST_ACCESSOR(ClosureFeedbackCellArray)
 
 INT32_ACCESSORS(FeedbackMetadata, slot_count, kSlotCountOffset)
 
@@ -93,10 +96,17 @@ int FeedbackMetadata::GetSlotSize(FeedbackSlotKind kind) {
   return 1;
 }
 
+SMI_ACCESSORS(ClosureFeedbackCellArray, interrupt_budget,
+              FixedArray::OffsetOfElementAt(kInterruptBudgetIndex))
+Handle<FeedbackCell> ClosureFeedbackCellArray::GetFeedbackCell(int index) {
+  return handle(FeedbackCell::cast(get(index + kFeedbackCellStartIndex)),
+                GetIsolate());
+}
+
 ACCESSORS(FeedbackVector, shared_function_info, SharedFunctionInfo,
           kSharedFunctionInfoOffset)
 WEAK_ACCESSORS(FeedbackVector, optimized_code_weak_or_smi, kOptimizedCodeOffset)
-ACCESSORS(FeedbackVector, closure_feedback_cell_array, FixedArray,
+ACCESSORS(FeedbackVector, closure_feedback_cell_array, ClosureFeedbackCellArray,
           kClosureFeedbackCellArrayOffset)
 INT32_ACCESSORS(FeedbackVector, length, kLengthOffset)
 INT32_ACCESSORS(FeedbackVector, invocation_count, kInvocationCountOffset)
@@ -161,8 +171,9 @@ MaybeObject FeedbackVector::get(int index) const {
 
 Handle<FeedbackCell> FeedbackVector::GetClosureFeedbackCell(int index) const {
   DCHECK_GE(index, 0);
-  FixedArray cell_array = closure_feedback_cell_array();
-  return handle(FeedbackCell::cast(cell_array.get(index)), GetIsolate());
+  ClosureFeedbackCellArray cell_array =
+      ClosureFeedbackCellArray::cast(closure_feedback_cell_array());
+  return cell_array->GetFeedbackCell(index);
 }
 
 void FeedbackVector::Set(FeedbackSlot slot, MaybeObject value,

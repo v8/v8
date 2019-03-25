@@ -1036,7 +1036,7 @@ class JSFunction : public JSObject {
   // cell arrays after compile, when we want to allocate feedback vectors
   // lazily.
   inline bool has_closure_feedback_cell_array() const;
-  inline FixedArray closure_feedback_cell_array() const;
+  inline ClosureFeedbackCellArray closure_feedback_cell_array() const;
   static void EnsureClosureFeedbackCellArray(Handle<JSFunction> function);
 
   // Initializes the feedback cell of |function|. In lite mode, this would be
