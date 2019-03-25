@@ -320,6 +320,9 @@ int AsmJsParser::FindContinueLabelDepth(AsmJsScanner::token_t label) {
   int count = 0;
   for (auto it = block_stack_.rbegin(); it != block_stack_.rend();
        ++it, ++count) {
+    // A 'continue' statement targets ...
+    //  - The innermost {kLoop} block if no label is given.
+    //  - The matching {kLoop} block (when a label is provided).
     if (it->kind == BlockKind::kLoop &&
         (label == kTokenNone || it->label == label)) {
       return count;
@@ -332,8 +335,12 @@ int AsmJsParser::FindBreakLabelDepth(AsmJsScanner::token_t label) {
   int count = 0;
   for (auto it = block_stack_.rbegin(); it != block_stack_.rend();
        ++it, ++count) {
-    if (it->kind == BlockKind::kRegular &&
-        (label == kTokenNone || it->label == label)) {
+    // A 'break' statement targets ...
+    //  - The innermost {kRegular} block if no label is given.
+    //  - The matching {kRegular} or {kNamed} block (when a label is provided).
+    if ((it->kind == BlockKind::kRegular &&
+         (label == kTokenNone || it->label == label)) ||
+        (it->kind == BlockKind::kNamed && it->label == label)) {
       return count;
     }
   }
@@ -1042,7 +1049,8 @@ void AsmJsParser::ValidateStatement() {
 void AsmJsParser::Block() {
   bool can_break_to_block = pending_label_ != 0;
   if (can_break_to_block) {
-    Begin(pending_label_);
+    BareBegin(BlockKind::kNamed, pending_label_);
+    current_function_builder_->EmitWithU8(kExprBlock, kLocalVoid);
   }
   pending_label_ = 0;
   EXPECT_TOKEN('{');
@@ -1084,8 +1092,8 @@ void AsmJsParser::IfStatement() {
   EXPECT_TOKEN('(');
   RECURSE(Expression(AsmType::Int()));
   EXPECT_TOKEN(')');
+  BareBegin(BlockKind::kOther);
   current_function_builder_->EmitWithU8(kExprIf, kLocalVoid);
-  BareBegin();
   RECURSE(ValidateStatement());
   if (Check(TOK(else))) {
     current_function_builder_->Emit(kExprElse);

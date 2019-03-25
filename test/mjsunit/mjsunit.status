@@ -370,6 +370,7 @@
   'regress/regress-6700': [SKIP],
   'regress/regress-6838-2': [SKIP],
   'regress/regress-6838-3': [SKIP],
+  'regress/regress-9022': [SKIP],
   'regress/regress-crbug-934138': [SKIP],
 
   # Timeouts in lite / jitless mode.
