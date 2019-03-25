@@ -83,6 +83,7 @@
 #include "src/ostreams.h"
 #include "src/parsing/parse-info.h"
 #include "src/register-configuration.h"
+#include "src/tracing/trace-event.h"
 #include "src/utils.h"
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/function-compiler.h"
@@ -119,7 +120,7 @@ class PipelineData {
         register_allocation_zone_scope_(zone_stats_, ZONE_NAME),
         register_allocation_zone_(register_allocation_zone_scope_.zone()),
         assembler_options_(AssemblerOptions::Default(isolate)) {
-    PhaseScope scope(pipeline_statistics, "init pipeline data");
+    PhaseScope scope(pipeline_statistics, "V8.TFInitPipelineData");
     graph_ = new (graph_zone_) Graph(graph_zone_);
     source_positions_ = new (graph_zone_) SourcePositionTable(graph_);
     node_origins_ = info->trace_turbo_json_enabled()
@@ -775,9 +776,7 @@ void AddReducer(PipelineData* data, GraphReducer* graph_reducer,
 class PipelineRunScope {
  public:
   PipelineRunScope(PipelineData* data, const char* phase_name)
-      : phase_scope_(
-            phase_name == nullptr ? nullptr : data->pipeline_statistics(),
-            phase_name),
+      : phase_scope_(data->pipeline_statistics(), phase_name),
         zone_scope_(data->zone_stats(), ZONE_NAME),
         origin_scope_(data->node_origins(), phase_name) {}
 
@@ -795,10 +794,13 @@ PipelineStatistics* CreatePipelineStatistics(Handle<Script> script,
                                              ZoneStats* zone_stats) {
   PipelineStatistics* pipeline_statistics = nullptr;
 
-  if (FLAG_turbo_stats || FLAG_turbo_stats_nvp) {
+  bool tracing_enabled;
+  TRACE_EVENT_CATEGORY_GROUP_ENABLED(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+                                     &tracing_enabled);
+  if (tracing_enabled || FLAG_turbo_stats || FLAG_turbo_stats_nvp) {
     pipeline_statistics =
         new PipelineStatistics(info, isolate->GetTurboStatistics(), zone_stats);
-    pipeline_statistics->BeginPhaseKind("initializing");
+    pipeline_statistics->BeginPhaseKind("V8.TFInitializing");
   }
 
   if (info->trace_turbo_json_enabled()) {
@@ -818,10 +820,13 @@ PipelineStatistics* CreatePipelineStatistics(
     ZoneStats* zone_stats) {
   PipelineStatistics* pipeline_statistics = nullptr;
 
-  if (FLAG_turbo_stats_wasm) {
+  bool tracing_enabled;
+  TRACE_EVENT_CATEGORY_GROUP_ENABLED(TRACE_DISABLED_BY_DEFAULT("v8.wasm"),
+                                     &tracing_enabled);
+  if (tracing_enabled || FLAG_turbo_stats_wasm) {
     pipeline_statistics = new PipelineStatistics(
         info, wasm_engine->GetOrCreateTurboStatistics(), zone_stats);
-    pipeline_statistics->BeginPhaseKind("initializing");
+    pipeline_statistics->BeginPhaseKind("V8.WasmInitializing");
   }
 
   if (info->trace_turbo_json_enabled()) {
@@ -1030,7 +1035,7 @@ void PipelineImpl::Run(Args&&... args) {
 }
 
 struct GraphBuilderPhase {
-  static const char* phase_name() { return "bytecode graph builder"; }
+  static const char* phase_name() { return "V8.TFBytecodeGraphBuilder"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
     JSTypeHintLowering::Flags flags = JSTypeHintLowering::kNoFlags;
@@ -1077,7 +1082,7 @@ Maybe<OuterContext> ChooseSpecializationContext(
 }  // anonymous namespace
 
 struct InliningPhase {
-  static const char* phase_name() { return "inlining"; }
+  static const char* phase_name() { return "V8.TFInlining"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
     Isolate* isolate = data->isolate();
@@ -1136,7 +1141,7 @@ struct InliningPhase {
 
 
 struct TyperPhase {
-  static const char* phase_name() { return "typer"; }
+  static const char* phase_name() { return "V8.TFTyper"; }
 
   void Run(PipelineData* data, Zone* temp_zone, Typer* typer) {
     NodeVector roots(temp_zone);
@@ -1154,7 +1159,7 @@ struct TyperPhase {
 };
 
 struct UntyperPhase {
-  static const char* phase_name() { return "untyper"; }
+  static const char* phase_name() { return "V8.TFUntyper"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
     class RemoveTypeReducer final : public Reducer {
@@ -1184,7 +1189,7 @@ struct UntyperPhase {
 };
 
 struct SerializeStandardObjectsPhase {
-  static const char* phase_name() { return "serialize standard objects"; }
+  static const char* phase_name() { return "V8.TFSerializeStandardObjects"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
     data->broker()->SerializeStandardObjects();
@@ -1192,7 +1197,7 @@ struct SerializeStandardObjectsPhase {
 };
 
 struct CopyMetadataForConcurrentCompilePhase {
-  static const char* phase_name() { return "serialize metadata"; }
+  static const char* phase_name() { return "V8.TFSerializeMetadata"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
     GraphReducer graph_reducer(temp_zone, data->graph(),
@@ -1212,7 +1217,7 @@ struct CopyMetadataForConcurrentCompilePhase {
 // here. Also all the calls to Serialize* methods that are currently sprinkled
 // over inlining will move here as well.
 struct SerializationPhase {
-  static const char* phase_name() { return "serialize bytecode"; }
+  static const char* phase_name() { return "V8.TFSerializeBytecode"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
     SerializerForBackgroundCompilation serializer(data->broker(), temp_zone,
@@ -1222,7 +1227,7 @@ struct SerializationPhase {
 };
 
 struct TypedLoweringPhase {
-  static const char* phase_name() { return "typed lowering"; }
+  static const char* phase_name() { return "V8.TFTypedLowering"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
     GraphReducer graph_reducer(temp_zone, data->graph(),
@@ -1258,7 +1263,7 @@ struct TypedLoweringPhase {
 
 
 struct EscapeAnalysisPhase {
-  static const char* phase_name() { return "escape analysis"; }
+  static const char* phase_name() { return "V8.TFEscapeAnalysis"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
     EscapeAnalysis escape_analysis(data->jsgraph(), temp_zone);
@@ -1275,7 +1280,7 @@ struct EscapeAnalysisPhase {
 };
 
 struct SimplifiedLoweringPhase {
-  static const char* phase_name() { return "simplified lowering"; }
+  static const char* phase_name() { return "V8.TFSimplifiedLowering"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
     SimplifiedLowering lowering(data->jsgraph(), data->broker(), temp_zone,
@@ -1286,7 +1291,7 @@ struct SimplifiedLoweringPhase {
 };
 
 struct LoopPeelingPhase {
-  static const char* phase_name() { return "loop peeling"; }
+  static const char* phase_name() { return "V8.TFLoopPeeling"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
     GraphTrimmer trimmer(temp_zone, data->graph());
@@ -1303,7 +1308,7 @@ struct LoopPeelingPhase {
 };
 
 struct LoopExitEliminationPhase {
-  static const char* phase_name() { return "loop exit elimination"; }
+  static const char* phase_name() { return "V8.TFLoopExitElimination"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
     LoopPeeler::EliminateLoopExits(data->graph(), temp_zone);
@@ -1311,7 +1316,7 @@ struct LoopExitEliminationPhase {
 };
 
 struct GenericLoweringPhase {
-  static const char* phase_name() { return "generic lowering"; }
+  static const char* phase_name() { return "V8.TFGenericLowering"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
     GraphReducer graph_reducer(temp_zone, data->graph(),
@@ -1323,7 +1328,7 @@ struct GenericLoweringPhase {
 };
 
 struct EarlyOptimizationPhase {
-  static const char* phase_name() { return "early optimization"; }
+  static const char* phase_name() { return "V8.TFEarlyOptimization"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
     GraphReducer graph_reducer(temp_zone, data->graph(),
@@ -1349,7 +1354,7 @@ struct EarlyOptimizationPhase {
 };
 
 struct ControlFlowOptimizationPhase {
-  static const char* phase_name() { return "control flow optimization"; }
+  static const char* phase_name() { return "V8.TFControlFlowOptimization"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
     ControlFlowOptimizer optimizer(data->graph(), data->common(),
@@ -1359,7 +1364,7 @@ struct ControlFlowOptimizationPhase {
 };
 
 struct EffectControlLinearizationPhase {
-  static const char* phase_name() { return "effect linearization"; }
+  static const char* phase_name() { return "V8.TFEffectLinearization"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
     {
@@ -1417,7 +1422,7 @@ struct EffectControlLinearizationPhase {
 };
 
 struct StoreStoreEliminationPhase {
-  static const char* phase_name() { return "store-store elimination"; }
+  static const char* phase_name() { return "V8.TFStoreStoreElimination"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
     GraphTrimmer trimmer(temp_zone, data->graph());
@@ -1430,7 +1435,7 @@ struct StoreStoreEliminationPhase {
 };
 
 struct LoadEliminationPhase {
-  static const char* phase_name() { return "load elimination"; }
+  static const char* phase_name() { return "V8.TFLoadElimination"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
     GraphReducer graph_reducer(temp_zone, data->graph(),
@@ -1468,7 +1473,7 @@ struct LoadEliminationPhase {
 };
 
 struct MemoryOptimizationPhase {
-  static const char* phase_name() { return "memory optimization"; }
+  static const char* phase_name() { return "V8.TFMemoryOptimization"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
     // The memory optimizer requires the graphs to be trimmed, so trim now.
@@ -1488,7 +1493,7 @@ struct MemoryOptimizationPhase {
 };
 
 struct LateOptimizationPhase {
-  static const char* phase_name() { return "late optimization"; }
+  static const char* phase_name() { return "V8.TFLateOptimization"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
     GraphReducer graph_reducer(temp_zone, data->graph(),
@@ -1515,7 +1520,7 @@ struct LateOptimizationPhase {
 };
 
 struct CsaOptimizationPhase {
-  static const char* phase_name() { return "csa optimization"; }
+  static const char* phase_name() { return "V8.CSAOptimization"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
     GraphReducer graph_reducer(temp_zone, data->graph(),
@@ -1537,7 +1542,7 @@ struct CsaOptimizationPhase {
 };
 
 struct EarlyGraphTrimmingPhase {
-  static const char* phase_name() { return "early trimming"; }
+  static const char* phase_name() { return "V8.TFEarlyTrimming"; }
   void Run(PipelineData* data, Zone* temp_zone) {
     GraphTrimmer trimmer(temp_zone, data->graph());
     NodeVector roots(temp_zone);
@@ -1548,7 +1553,7 @@ struct EarlyGraphTrimmingPhase {
 
 
 struct LateGraphTrimmingPhase {
-  static const char* phase_name() { return "late graph trimming"; }
+  static const char* phase_name() { return "V8.TFLateGraphTrimming"; }
   void Run(PipelineData* data, Zone* temp_zone) {
     GraphTrimmer trimmer(temp_zone, data->graph());
     NodeVector roots(temp_zone);
@@ -1561,7 +1566,7 @@ struct LateGraphTrimmingPhase {
 
 
 struct ComputeSchedulePhase {
-  static const char* phase_name() { return "scheduling"; }
+  static const char* phase_name() { return "V8.TFScheduling"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
     Schedule* schedule = Scheduler::ComputeSchedule(
@@ -1606,7 +1611,7 @@ std::ostream& operator<<(std::ostream& out, const InstructionRangesAsJSON& s) {
 }
 
 struct InstructionSelectionPhase {
-  static const char* phase_name() { return "select instructions"; }
+  static const char* phase_name() { return "V8.TFSelectInstructions"; }
 
   void Run(PipelineData* data, Zone* temp_zone, Linkage* linkage) {
     InstructionSelector selector(
@@ -1646,7 +1651,7 @@ struct InstructionSelectionPhase {
 
 
 struct MeetRegisterConstraintsPhase {
-  static const char* phase_name() { return "meet register constraints"; }
+  static const char* phase_name() { return "V8.TFMeetRegisterConstraints"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
     ConstraintBuilder builder(data->register_allocation_data());
@@ -1656,7 +1661,7 @@ struct MeetRegisterConstraintsPhase {
 
 
 struct ResolvePhisPhase {
-  static const char* phase_name() { return "resolve phis"; }
+  static const char* phase_name() { return "V8.TFResolvePhis"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
     ConstraintBuilder builder(data->register_allocation_data());
@@ -1666,7 +1671,7 @@ struct ResolvePhisPhase {
 
 
 struct BuildLiveRangesPhase {
-  static const char* phase_name() { return "build live ranges"; }
+  static const char* phase_name() { return "V8.TFBuildLiveRanges"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
     LiveRangeBuilder builder(data->register_allocation_data(), temp_zone);
@@ -1675,7 +1680,7 @@ struct BuildLiveRangesPhase {
 };
 
 struct BuildBundlesPhase {
-  static const char* phase_name() { return "build live range bundles"; }
+  static const char* phase_name() { return "V8.TFBuildLiveRangeBundles"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
     BundleBuilder builder(data->register_allocation_data());
@@ -1684,7 +1689,7 @@ struct BuildBundlesPhase {
 };
 
 struct SplinterLiveRangesPhase {
-  static const char* phase_name() { return "splinter live ranges"; }
+  static const char* phase_name() { return "V8.TFSplinterLiveRanges"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
     LiveRangeSeparator live_range_splinterer(data->register_allocation_data(),
@@ -1696,7 +1701,7 @@ struct SplinterLiveRangesPhase {
 
 template <typename RegAllocator>
 struct AllocateGeneralRegistersPhase {
-  static const char* phase_name() { return "allocate general registers"; }
+  static const char* phase_name() { return "V8.TFAllocateGeneralRegisters"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
     RegAllocator allocator(data->register_allocation_data(), GENERAL_REGISTERS,
@@ -1707,7 +1712,7 @@ struct AllocateGeneralRegistersPhase {
 
 template <typename RegAllocator>
 struct AllocateFPRegistersPhase {
-  static const char* phase_name() { return "allocate f.p. registers"; }
+  static const char* phase_name() { return "V8.TFAllocateFPRegisters"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
     RegAllocator allocator(data->register_allocation_data(), FP_REGISTERS,
@@ -1718,7 +1723,7 @@ struct AllocateFPRegistersPhase {
 
 
 struct MergeSplintersPhase {
-  static const char* phase_name() { return "merge splintered ranges"; }
+  static const char* phase_name() { return "V8.TFMergeSplinteredRanges"; }
   void Run(PipelineData* pipeline_data, Zone* temp_zone) {
     RegisterAllocationData* data = pipeline_data->register_allocation_data();
     LiveRangeMerger live_range_merger(data, temp_zone);
@@ -1728,7 +1733,7 @@ struct MergeSplintersPhase {
 
 
 struct LocateSpillSlotsPhase {
-  static const char* phase_name() { return "locate spill slots"; }
+  static const char* phase_name() { return "V8.TFLocateSpillSlots"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
     SpillSlotLocator locator(data->register_allocation_data());
@@ -1737,7 +1742,7 @@ struct LocateSpillSlotsPhase {
 };
 
 struct DecideSpillingModePhase {
-  static const char* phase_name() { return "decide spilling mode"; }
+  static const char* phase_name() { return "V8.TFDecideSpillingMode"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
     OperandAssigner assigner(data->register_allocation_data());
@@ -1746,7 +1751,7 @@ struct DecideSpillingModePhase {
 };
 
 struct AssignSpillSlotsPhase {
-  static const char* phase_name() { return "assign spill slots"; }
+  static const char* phase_name() { return "V8.TFAssignSpillSlots"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
     OperandAssigner assigner(data->register_allocation_data());
@@ -1756,7 +1761,7 @@ struct AssignSpillSlotsPhase {
 
 
 struct CommitAssignmentPhase {
-  static const char* phase_name() { return "commit assignment"; }
+  static const char* phase_name() { return "V8.TFCommitAssignment"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
     OperandAssigner assigner(data->register_allocation_data());
@@ -1766,7 +1771,7 @@ struct CommitAssignmentPhase {
 
 
 struct PopulateReferenceMapsPhase {
-  static const char* phase_name() { return "populate pointer maps"; }
+  static const char* phase_name() { return "V8.TFPopulatePointerMaps"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
     ReferenceMapPopulator populator(data->register_allocation_data());
@@ -1776,7 +1781,7 @@ struct PopulateReferenceMapsPhase {
 
 
 struct ConnectRangesPhase {
-  static const char* phase_name() { return "connect ranges"; }
+  static const char* phase_name() { return "V8.TFConnectRanges"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
     LiveRangeConnector connector(data->register_allocation_data());
@@ -1786,7 +1791,7 @@ struct ConnectRangesPhase {
 
 
 struct ResolveControlFlowPhase {
-  static const char* phase_name() { return "resolve control flow"; }
+  static const char* phase_name() { return "V8.TFResolveControlFlow"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
     LiveRangeConnector connector(data->register_allocation_data());
@@ -1796,7 +1801,7 @@ struct ResolveControlFlowPhase {
 
 
 struct OptimizeMovesPhase {
-  static const char* phase_name() { return "optimize moves"; }
+  static const char* phase_name() { return "V8.TFOptimizeMoves"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
     MoveOptimizer move_optimizer(temp_zone, data->sequence());
@@ -1806,7 +1811,7 @@ struct OptimizeMovesPhase {
 
 
 struct FrameElisionPhase {
-  static const char* phase_name() { return "frame elision"; }
+  static const char* phase_name() { return "V8.TFFrameElision"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
     FrameElider(data->sequence()).Run();
@@ -1815,7 +1820,7 @@ struct FrameElisionPhase {
 
 
 struct JumpThreadingPhase {
-  static const char* phase_name() { return "jump threading"; }
+  static const char* phase_name() { return "V8.TFJumpThreading"; }
 
   void Run(PipelineData* data, Zone* temp_zone, bool frame_at_start) {
     ZoneVector<RpoNumber> result(temp_zone);
@@ -1827,7 +1832,7 @@ struct JumpThreadingPhase {
 };
 
 struct AssembleCodePhase {
-  static const char* phase_name() { return "assemble code"; }
+  static const char* phase_name() { return "V8.TFAssembleCode"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
     data->code_generator()->AssembleCode();
@@ -1835,7 +1840,7 @@ struct AssembleCodePhase {
 };
 
 struct FinalizeCodePhase {
-  static const char* phase_name() { return "finalize code"; }
+  static const char* phase_name() { return "V8.TFFinalizeCode"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
     data->set_code(data->code_generator()->FinalizeCode());
@@ -1919,7 +1924,7 @@ void PipelineImpl::RunPrintAndVerify(const char* phase, bool untyped) {
 bool PipelineImpl::CreateGraph() {
   PipelineData* data = this->data_;
 
-  data->BeginPhaseKind("graph creation");
+  data->BeginPhaseKind("V8.TFGraphCreation");
 
   if (info()->trace_turbo_json_enabled() ||
       info()->trace_turbo_graph_enabled()) {
@@ -1998,7 +2003,7 @@ bool PipelineImpl::CreateGraph() {
 bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
   PipelineData* data = this->data_;
 
-  data->BeginPhaseKind("lowering");
+  data->BeginPhaseKind("V8.TFLowering");
 
   // Type the graph and keep the Typer running such that new nodes get
   // automatically typed when they are created.
@@ -2054,7 +2059,7 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
   Run<GenericLoweringPhase>();
   RunPrintAndVerify(GenericLoweringPhase::phase_name(), true);
 
-  data->BeginPhaseKind("block building");
+  data->BeginPhaseKind("V8.TFBlockBuilding");
 
   // Run early optimization pass.
   Run<EarlyOptimizationPhase>();
@@ -2120,7 +2125,7 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
   if (FLAG_turbo_stats || FLAG_turbo_stats_nvp) {
     pipeline_statistics.reset(new PipelineStatistics(
         &info, isolate->GetTurboStatistics(), &zone_stats));
-    pipeline_statistics->BeginPhaseKind("stub codegen");
+    pipeline_statistics->BeginPhaseKind("V8.TFStubCodegen");
   }
 
   PipelineImpl pipeline(&data);
@@ -2138,7 +2143,7 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
                               Handle<SharedFunctionInfo>());
       json_of << ",\n\"phases\":[";
     }
-    pipeline.Run<PrintGraphPhase>("Machine");
+    pipeline.Run<PrintGraphPhase>("V8.TFMachineCode");
   }
 
   // Optimize memory access and allocation operations.
@@ -2196,7 +2201,7 @@ wasm::WasmCompilationResult Pipeline::GenerateCodeForWasmNativeStub(
   if (FLAG_turbo_stats || FLAG_turbo_stats_nvp) {
     pipeline_statistics.reset(new PipelineStatistics(
         &info, wasm_engine->GetOrCreateTurboStatistics(), &zone_stats));
-    pipeline_statistics->BeginPhaseKind("wasm stub codegen");
+    pipeline_statistics->BeginPhaseKind("V8.WasmStubCodegen");
   }
 
   PipelineImpl pipeline(&data);
@@ -2221,7 +2226,7 @@ wasm::WasmCompilationResult Pipeline::GenerateCodeForWasmNativeStub(
             << "\", \"source\":\"\",\n\"phases\":[";
   }
 
-  pipeline.RunPrintAndVerify("machine", true);
+  pipeline.RunPrintAndVerify("V8.WasmNativeStubMachineCode", true);
   pipeline.ComputeScheduledGraph();
 
   Linkage linkage(call_descriptor);
@@ -2285,7 +2290,7 @@ MaybeHandle<Code> Pipeline::GenerateCodeForWasmHeapStub(
   if (FLAG_turbo_stats || FLAG_turbo_stats_nvp) {
     pipeline_statistics.reset(new PipelineStatistics(
         &info, isolate->GetTurboStatistics(), &zone_stats));
-    pipeline_statistics->BeginPhaseKind("wasm stub codegen");
+    pipeline_statistics->BeginPhaseKind("V8.WasmStubCodegen");
   }
 
   PipelineImpl pipeline(&data);
@@ -2311,7 +2316,7 @@ MaybeHandle<Code> Pipeline::GenerateCodeForWasmHeapStub(
             << "\", \"source\":\"\",\n\"phases\":[";
   }
 
-  pipeline.RunPrintAndVerify("machine", true);
+  pipeline.RunPrintAndVerify("V8.WasmMachineCode", true);
   pipeline.ComputeScheduledGraph();
 
   Handle<Code> code;
@@ -2365,7 +2370,7 @@ MaybeHandle<Code> Pipeline::GenerateCodeForTesting(
   if (FLAG_turbo_stats || FLAG_turbo_stats_nvp) {
     pipeline_statistics.reset(new PipelineStatistics(
         info, isolate->GetTurboStatistics(), &zone_stats));
-    pipeline_statistics->BeginPhaseKind("test codegen");
+    pipeline_statistics->BeginPhaseKind("V8.TFTestCodegen");
   }
 
   PipelineImpl pipeline(&data);
@@ -2376,7 +2381,7 @@ MaybeHandle<Code> Pipeline::GenerateCodeForTesting(
             << "\", \"source\":\"\",\n\"phases\":[";
   }
   // TODO(rossberg): Should this really be untyped?
-  pipeline.RunPrintAndVerify("machine", true);
+  pipeline.RunPrintAndVerify("V8.TFMachineCode", true);
 
   // Ensure we have a schedule.
   if (data.schedule() == nullptr) {
@@ -2430,15 +2435,15 @@ void Pipeline::GenerateCodeForWasmFunction(
        << " using TurboFan" << std::endl;
   }
 
-  pipeline.RunPrintAndVerify("Machine", true);
+  pipeline.RunPrintAndVerify("V8.WasmMachineCode", true);
 
-  data.BeginPhaseKind("wasm optimization");
+  data.BeginPhaseKind("V8.WasmOptimization");
   const bool is_asm_js = module->origin == wasm::kAsmJsOrigin;
   if (FLAG_turbo_splitting && !is_asm_js) {
     data.info()->MarkAsSplittingEnabled();
   }
   if (FLAG_wasm_opt || is_asm_js) {
-    PipelineRunScope scope(&data, "wasm full optimization");
+    PipelineRunScope scope(&data, "V8.WasmFullOptimization");
     GraphReducer graph_reducer(scope.zone(), data.graph(),
                                data.mcgraph()->Dead());
     DeadCodeElimination dead_code_elimination(&graph_reducer, data.graph(),
@@ -2456,14 +2461,14 @@ void Pipeline::GenerateCodeForWasmFunction(
     AddReducer(&data, &graph_reducer, &value_numbering);
     graph_reducer.ReduceGraph();
   } else {
-    PipelineRunScope scope(&data, "wasm base optimization");
+    PipelineRunScope scope(&data, "V8.WasmBaseOptimization");
     GraphReducer graph_reducer(scope.zone(), data.graph(),
                                data.mcgraph()->Dead());
     ValueNumberingReducer value_numbering(scope.zone(), data.graph()->zone());
     AddReducer(&data, &graph_reducer, &value_numbering);
     graph_reducer.ReduceGraph();
   }
-  pipeline.RunPrintAndVerify("wasm optimization", true);
+  pipeline.RunPrintAndVerify("V8.WasmOptimization", true);
 
   if (data.node_origins()) {
     data.node_origins()->RemoveDecorator();
@@ -2622,7 +2627,7 @@ bool PipelineImpl::SelectInstructions(Linkage* linkage) {
 
   data->DeleteGraphZone();
 
-  data->BeginPhaseKind("register allocation");
+  data->BeginPhaseKind("V8.TFRegisterAllocation");
 
   bool run_verifier = FLAG_turbo_verify_allocation;
 
@@ -2713,7 +2718,7 @@ std::ostream& operator<<(std::ostream& out, const InstructionStartsAsJSON& s) {
 void PipelineImpl::AssembleCode(Linkage* linkage,
                                 std::unique_ptr<AssemblerBuffer> buffer) {
   PipelineData* data = this->data_;
-  data->BeginPhaseKind("code generation");
+  data->BeginPhaseKind("V8.TFCodeGeneration");
   data->InitializeCodeGenerator(linkage, std::move(buffer));
 
   Run<AssembleCodePhase>();
@@ -2725,6 +2730,7 @@ void PipelineImpl::AssembleCode(Linkage* linkage,
     json_of << "},\n";
   }
   data->DeleteInstructionZone();
+  data->EndPhaseKind();
 }
 
 struct BlockStartsAsJSON {
