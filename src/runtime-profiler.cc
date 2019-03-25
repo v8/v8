@@ -13,6 +13,7 @@
 #include "src/frames-inl.h"
 #include "src/global-handles.h"
 #include "src/interpreter/interpreter.h"
+#include "src/tracing/trace-event.h"
 
 namespace v8 {
 namespace internal {
@@ -222,6 +223,8 @@ void RuntimeProfiler::MarkCandidatesForOptimization() {
   if (!isolate_->use_optimizer()) return;
 
   DisallowHeapAllocation no_gc;
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+               "V8.MarkCandidatesForOptimization");
 
   // Run through the JavaScript frames and collect them. If we already
   // have a sample of the function, we mark it for optimizations

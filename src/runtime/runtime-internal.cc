@@ -260,6 +260,7 @@ RUNTIME_FUNCTION(Runtime_ThrowApplyNonFunction) {
 RUNTIME_FUNCTION(Runtime_StackGuard) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(0, args.length());
+  TRACE_EVENT0("v8.execute", "V8.StackGuard");
 
   // First check if this is a real stack overflow.
   StackLimitCheck check(isolate);
@@ -273,6 +274,7 @@ RUNTIME_FUNCTION(Runtime_StackGuard) {
 RUNTIME_FUNCTION(Runtime_Interrupt) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(0, args.length());
+  TRACE_EVENT0("v8.execute", "V8.Interrupt");
   return isolate->stack_guard()->HandleInterrupts();
 }
 
