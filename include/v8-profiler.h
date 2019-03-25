@@ -48,7 +48,7 @@ template class V8_EXPORT std::vector<v8::CpuProfileDeoptInfo>;
 namespace v8 {
 
 // TickSample captures the information collected for each sample.
-struct TickSample {
+struct V8_EXPORT TickSample {
   // Internal profiling (with --prof + tools/$OS-tick-processor) wants to
   // include the runtime function we're calling. Externally exposed tick
   // samples don't care.
