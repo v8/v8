@@ -9,6 +9,7 @@
 #include <list>
 #include <map>
 #include <memory>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -146,6 +147,19 @@ class V8_EXPORT_PRIVATE WasmCode final {
 
   ~WasmCode();
 
+  void IncRef() {
+    int old_val = ref_count_.fetch_add(1, std::memory_order_relaxed);
+    DCHECK_LE(1, old_val);
+    DCHECK_GT(kMaxInt, old_val);
+    USE(old_val);
+  }
+
+  V8_WARN_UNUSED_RESULT bool DecRef() {
+    int old_count = ref_count_.fetch_sub(1, std::memory_order_relaxed);
+    DCHECK_LE(1, old_count);
+    return old_count == 1;
+  }
+
   enum FlushICache : bool { kFlushICache = true, kNoFlushICache = false };
 
   static constexpr uint32_t kAnonymousFuncIndex = 0xffffffff;
@@ -215,6 +229,18 @@ class V8_EXPORT_PRIVATE WasmCode final {
   intptr_t trap_handler_index_ = -1;
   OwnedVector<trap_handler::ProtectedInstructionData> protected_instructions_;
   Tier tier_;
+
+  // WasmCode is ref counted. Counters are held by:
+  //   1) The jump table.
+  //   2) Function tables.
+  //   3) {WasmCodeRefScope}s.
+  //   4) Threads currently executing this code.
+  // If a decrement of (1) or (2) would drop the ref count to 0, that code
+  // becomes a candidate for garbage collection. At that point, we add
+  // ref counts for (4) *before* decrementing the counter to ensure the code
+  // stays alive as long as it's being used. Once the ref count drops to zero,
+  // the code object is deleted and the memory for the machine code is freed.
+  std::atomic<int> ref_count_{1};
 
   DISALLOW_COPY_AND_ASSIGN(WasmCode);
 };
@@ -370,6 +396,11 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   WasmCode* AddCompiledCode(WasmCompilationResult);
   std::vector<WasmCode*> AddCompiledCode(Vector<WasmCompilationResult>);
+
+  // Free a set of functions of this module. Uncommits whole pages if possible.
+  // The given vector must be ordered by the instruction start address, and all
+  // {WasmCode} objects must not be used any more.
+  void FreeCode(Vector<WasmCode* const>);
 
  private:
   friend class WasmCode;
@@ -568,6 +599,25 @@ class NativeModuleModificationScope final {
 
  private:
   NativeModule* native_module_;
+};
+
+// {WasmCodeRefScope}s form a perfect stack. New {WasmCode} pointers generated
+// by e.g. creating new code or looking up code by its address are added to the
+// top-most {WasmCodeRefScope}.
+class V8_EXPORT_PRIVATE WasmCodeRefScope {
+ public:
+  WasmCodeRefScope();
+  ~WasmCodeRefScope();
+
+  // Register a {WasmCode} reference in the current {WasmCodeRefScope}. Fails if
+  // there is no current scope.
+  static void AddRef(WasmCode*);
+
+ private:
+  WasmCodeRefScope* const previous_scope_;
+  std::unordered_set<WasmCode*> code_ptrs_;
+
+  DISALLOW_COPY_AND_ASSIGN(WasmCodeRefScope);
 };
 
 }  // namespace wasm

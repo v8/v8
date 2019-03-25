@@ -1271,6 +1271,10 @@ std::vector<WasmCode*> NativeModule::AddCompiledCode(
   return returned_code;
 }
 
+void NativeModule::FreeCode(Vector<WasmCode* const> codes) {
+  // TODO(clemensh): Implement.
+}
+
 void WasmCodeManager::FreeNativeModule(NativeModule* native_module) {
   base::MutexGuard lock(&native_modules_mutex_);
   TRACE_HEAP("Freeing NativeModule %p\n", native_module);
@@ -1334,6 +1338,66 @@ NativeModuleModificationScope::~NativeModuleModificationScope() {
     bool success = native_module_->SetExecutable(true);
     CHECK(success);
   }
+}
+
+namespace {
+thread_local WasmCodeRefScope* current_code_refs_scope = nullptr;
+
+// Receives a vector by value which is modified in this function.
+void DecrementRefCount(std::vector<WasmCode*> code_vec) {
+  // Decrement the ref counter of all given code objects. Keep the ones whose
+  // ref count drops to zero.
+  auto remaining_elements_it = code_vec.begin();
+  for (auto it = code_vec.begin(), end = code_vec.end(); it != end; ++it) {
+    if ((*it)->DecRef()) *remaining_elements_it++ = *it;
+  }
+  code_vec.resize(remaining_elements_it - code_vec.begin());
+
+  // Sort the vector by NativeModule, then by instruction start.
+  std::sort(code_vec.begin(), code_vec.end(),
+            [](const WasmCode* a, const WasmCode* b) {
+              return a->native_module() == b->native_module()
+                         ? a->instruction_start() < b->instruction_start()
+                         : a->native_module() < b->native_module();
+            });
+  // For each native module, free all its code objects at once.
+  auto range_begin = code_vec.begin();
+  while (range_begin != code_vec.end()) {
+    NativeModule* native_module = (*range_begin)->native_module();
+    auto range_end = range_begin + 1;
+    while (range_end < code_vec.end() &&
+           (*range_end)->native_module() == native_module) {
+      ++range_end;
+    }
+    size_t range_size = static_cast<size_t>(range_end - range_begin);
+    Vector<WasmCode*> code_vec{&*range_begin, range_size};
+    native_module->FreeCode(code_vec);
+    range_begin = range_end;
+  }
+}
+
+}  // namespace
+
+WasmCodeRefScope::WasmCodeRefScope()
+    : previous_scope_(current_code_refs_scope) {
+  current_code_refs_scope = this;
+}
+
+WasmCodeRefScope::~WasmCodeRefScope() {
+  DCHECK_EQ(this, current_code_refs_scope);
+  current_code_refs_scope = previous_scope_;
+  DecrementRefCount({code_ptrs_.begin(), code_ptrs_.end()});
+}
+
+// static
+void WasmCodeRefScope::AddRef(WasmCode* code) {
+  WasmCodeRefScope* current_scope = current_code_refs_scope;
+  // TODO(clemensh): Remove early return, activate DCHECK instead.
+  // DCHECK_NOT_NULL(current_scope);
+  if (!current_scope) return;
+  auto entry = current_scope->code_ptrs_.insert(code);
+  // If we added a new entry, increment the ref counter.
+  if (entry.second) code->IncRef();
 }
 
 }  // namespace wasm
