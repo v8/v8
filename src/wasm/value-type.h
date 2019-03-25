@@ -249,6 +249,8 @@ class V8_EXPORT_PRIVATE ValueTypes {
         return kLocalS128;
       case kWasmAnyRef:
         return kLocalAnyRef;
+      case kWasmAnyFunc:
+        return kLocalAnyFunc;
       case kWasmExceptRef:
         return kLocalExceptRef;
       case kWasmStmt:
