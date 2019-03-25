@@ -2237,9 +2237,9 @@ class ThreadImpl {
                   true)
 #undef PACK_CASE
       case kExprS128Select: {
+        int4 bool_val = Pop().to_s128().to_i32x4();
         int4 v2 = Pop().to_s128().to_i32x4();
         int4 v1 = Pop().to_s128().to_i32x4();
-        int4 bool_val = Pop().to_s128().to_i32x4();
         int4 res;
         for (size_t i = 0; i < 4; ++i) {
           res.val[i] = v2.val[i] ^ ((v1.val[i] ^ v2.val[i]) & bool_val.val[i]);
@@ -2283,21 +2283,26 @@ class ThreadImpl {
         Push(WasmValue(Simd128(res)));
         return true;
       }
+      case kExprS1x4AnyTrue:
+      case kExprS1x8AnyTrue:
+      case kExprS1x16AnyTrue: {
+        int4 s = Pop().to_s128().to_i32x4();
+        bool res = s.val[0] | s.val[1] | s.val[2] | s.val[3];
+        Push(WasmValue((res)));
+        return true;
+      }
 #define REDUCTION_CASE(op, name, stype, count, operation) \
   case kExpr##op: {                                       \
     stype s = Pop().to_s128().to_##name();                \
-    int32_t res = s.val[0];                               \
-    for (size_t i = 1; i < count; ++i) {                  \
-      res = res operation static_cast<int32_t>(s.val[i]); \
+    bool res = true;                                      \
+    for (size_t i = 0; i < count; ++i) {                  \
+      res = res & static_cast<bool>(s.val[i]);            \
     }                                                     \
     Push(WasmValue(res));                                 \
     return true;                                          \
   }
-        REDUCTION_CASE(S1x4AnyTrue, i32x4, int4, 4, |)
         REDUCTION_CASE(S1x4AllTrue, i32x4, int4, 4, &)
-        REDUCTION_CASE(S1x8AnyTrue, i16x8, int8, 8, |)
         REDUCTION_CASE(S1x8AllTrue, i16x8, int8, 8, &)
-        REDUCTION_CASE(S1x16AnyTrue, i8x16, int16, 16, |)
         REDUCTION_CASE(S1x16AllTrue, i8x16, int16, 16, &)
 #undef REDUCTION_CASE
       default:
