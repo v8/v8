@@ -3141,6 +3141,14 @@ class ThreadImpl {
         case kWasmF64:
           PrintF("f64:%lf", val.to<double>());
           break;
+        case kWasmS128: {
+          // This defaults to tracing all S128 values as i32x4 values for now,
+          // when there is more state to know what type of values are on the
+          // stack, the right format should be printed here.
+          int4 s = val.to_s128().to_i32x4();
+          PrintF("i32x4:%d %d %d %d", s.val[0], s.val[1], s.val[2], s.val[3]);
+          break;
+        }
         case kWasmStmt:
           PrintF("void");
           break;
