@@ -157,9 +157,6 @@ class FeedbackVector : public HeapObject {
 
   DECL_CAST(FeedbackVector)
 
-  inline void ComputeCounts(int* with_type_info, int* generic,
-                            int* vector_ic_count);
-
   inline bool is_empty() const;
 
   inline FeedbackMetadata metadata() const;

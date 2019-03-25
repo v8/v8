@@ -687,8 +687,6 @@ DEFINE_NEG_IMPLICATION(wasm_interpret_all, wasm_tier_up)
 
 // Profiler flags.
 DEFINE_INT(frame_count, 1, "number of stack frames inspected by the profiler")
-DEFINE_INT(type_info_threshold, 25,
-           "percentage of ICs that must have type info to allow optimization")
 
 DEFINE_INT(stress_sampling_allocation_profiler, 0,
            "Enables sampling allocation profiler with X as a sample interval")

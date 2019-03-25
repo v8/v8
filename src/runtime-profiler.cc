@@ -67,36 +67,12 @@ RuntimeProfiler::RuntimeProfiler(Isolate* isolate)
       any_ic_changed_(false) {
 }
 
-static void GetICCounts(JSFunction function, int* ic_with_type_info_count,
-                        int* ic_generic_count, int* ic_total_count,
-                        int* type_info_percentage, int* generic_percentage) {
-  FeedbackVector vector = function->feedback_vector();
-  vector->ComputeCounts(ic_with_type_info_count, ic_generic_count,
-                        ic_total_count);
-
-  if (*ic_total_count > 0) {
-    *type_info_percentage = 100 * *ic_with_type_info_count / *ic_total_count;
-    *generic_percentage = 100 * *ic_generic_count / *ic_total_count;
-  } else {
-    *type_info_percentage = 100;  // Compared against lower bound.
-    *generic_percentage = 0;      // Compared against upper bound.
-  }
-}
-
 static void TraceRecompile(JSFunction function, const char* reason,
                            const char* type) {
   if (FLAG_trace_opt) {
     PrintF("[marking ");
     function->ShortPrint();
     PrintF(" for %s recompilation, reason: %s", type, reason);
-    if (FLAG_type_info_threshold > 0) {
-      int typeinfo, generic, total, type_percentage, generic_percentage;
-      GetICCounts(function, &typeinfo, &generic, &total, &type_percentage,
-                  &generic_percentage);
-      PrintF(", ICs with typeinfo: %d/%d (%d%%)", typeinfo, total,
-             type_percentage);
-      PrintF(", generic ICs: %d/%d (%d%%)", generic, total, generic_percentage);
-    }
     PrintF("]\n");
   }
 }
