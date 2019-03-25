@@ -47,7 +47,7 @@ enum CategoryGroupEnabledFlags {
 // By default, trace IDs are eventually converted to a single 64-bit number. Use
 // this macro to add a scope string.
 #define TRACE_ID_WITH_SCOPE(scope, id) \
-  trace_event_internal::TraceID::WithScope(scope, id)
+  v8::internal::tracing::TraceID::WithScope(scope, id)
 
 #define INTERNAL_TRACE_EVENT_CATEGORY_GROUP_ENABLED_FOR_RECORDING_MODE() \
   TRACE_EVENT_API_LOAD_CATEGORY_GROUP_ENABLED() &                        \
