@@ -199,6 +199,15 @@ Node* PropertyAccessBuilder::TryBuildLoadConstantDataField(
   // Optimize immutable property loads.
   HeapObjectMatcher m(receiver);
   if (m.HasValue() && m.Value()->IsJSObject()) {
+    // Make sure the actual map of the receiver is among the maps in
+    // {access_info}.
+    Handle<Map> receiver_map = handle(m.Value()->map(), isolate());
+    if (std::find_if(access_info.receiver_maps().begin(),
+                     access_info.receiver_maps().end(), [&](Handle<Map> map) {
+                       return map.address() == receiver_map.address();
+                     }) == access_info.receiver_maps().end()) {
+      return nullptr;
+    }
     // TODO(ishell): Use something simpler like
     //
     // Handle<Object> value =
