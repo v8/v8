@@ -3072,13 +3072,19 @@ int TranslatedState::CreateNextTranslatedValue(
         return translated_value.GetChildrenCount();
       }
       intptr_t value = registers->GetRegister(input_reg);
+#if defined(V8_COMPRESS_POINTERS)
+      Address uncompressed_value = DecompressTaggedAny(
+          isolate()->isolate_root(), static_cast<uint32_t>(value));
+#else
+      Address uncompressed_value = value;
+#endif
       if (trace_file != nullptr) {
-        PrintF(trace_file, V8PRIxPTR_FMT " ; %s ", value,
+        PrintF(trace_file, V8PRIxPTR_FMT " ; %s ", uncompressed_value,
                converter.NameOfCPURegister(input_reg));
-        Object(value)->ShortPrint(trace_file);
+        Object(uncompressed_value)->ShortPrint(trace_file);
       }
       TranslatedValue translated_value =
-          TranslatedValue::NewTagged(this, Object(value));
+          TranslatedValue::NewTagged(this, Object(uncompressed_value));
       frame.Add(translated_value);
       return translated_value.GetChildrenCount();
     }
@@ -3194,13 +3200,20 @@ int TranslatedState::CreateNextTranslatedValue(
       int slot_offset =
           OptimizedFrame::StackSlotOffsetRelativeToFp(iterator->Next());
       intptr_t value = *(reinterpret_cast<intptr_t*>(fp + slot_offset));
+#if defined(V8_COMPRESS_POINTERS)
+      Address uncompressed_value = DecompressTaggedAny(
+          isolate()->isolate_root(), static_cast<uint32_t>(value));
+#else
+      Address uncompressed_value = value;
+#endif
       if (trace_file != nullptr) {
-        PrintF(trace_file, V8PRIxPTR_FMT " ;  [fp %c %3d]  ", value,
-               slot_offset < 0 ? '-' : '+', std::abs(slot_offset));
-        Object(value)->ShortPrint(trace_file);
+        PrintF(trace_file, V8PRIxPTR_FMT " ;  [fp %c %3d]  ",
+               uncompressed_value, slot_offset < 0 ? '-' : '+',
+               std::abs(slot_offset));
+        Object(uncompressed_value)->ShortPrint(trace_file);
       }
       TranslatedValue translated_value =
-          TranslatedValue::NewTagged(this, Object(value));
+          TranslatedValue::NewTagged(this, Object(uncompressed_value));
       frame.Add(translated_value);
       return translated_value.GetChildrenCount();
     }

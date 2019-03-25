@@ -1093,7 +1093,12 @@ void CodeGenerator::AddTranslationForOperand(Translation* translation,
     } else if (type == MachineType::Int64()) {
       translation->StoreInt64StackSlot(LocationOperand::cast(op)->index());
     } else {
-      CHECK_EQ(MachineRepresentation::kTagged, type.representation());
+#if defined(V8_COMPRESS_POINTERS)
+      CHECK(MachineRepresentation::kTagged == type.representation() ||
+            MachineRepresentation::kCompressed == type.representation());
+#else
+      CHECK(MachineRepresentation::kTagged == type.representation());
+#endif
       translation->StoreStackSlot(LocationOperand::cast(op)->index());
     }
   } else if (op->IsFPStackSlot()) {
@@ -1116,7 +1121,12 @@ void CodeGenerator::AddTranslationForOperand(Translation* translation,
     } else if (type == MachineType::Int64()) {
       translation->StoreInt64Register(converter.ToRegister(op));
     } else {
-      CHECK_EQ(MachineRepresentation::kTagged, type.representation());
+#if defined(V8_COMPRESS_POINTERS)
+      CHECK(MachineRepresentation::kTagged == type.representation() ||
+            MachineRepresentation::kCompressed == type.representation());
+#else
+      CHECK(MachineRepresentation::kTagged == type.representation());
+#endif
       translation->StoreRegister(converter.ToRegister(op));
     }
   } else if (op->IsFPRegister()) {
