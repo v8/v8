@@ -29,6 +29,9 @@
 #include "src/objects/js-array-inl.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/struct-inl.h"
+#ifdef V8_TRACE_FEEDBACK_UPDATES
+#include "src/ostreams.h"
+#endif  // V8_TRACE_FEEDBACK_UPDATES
 #include "src/prototype.h"
 #include "src/runtime-profiler.h"
 #include "src/runtime/runtime-utils.h"
