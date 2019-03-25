@@ -4878,6 +4878,37 @@ MaybeHandle<SharedFunctionInfo> Script::FindSharedFunctionInfo(
   return handle(SharedFunctionInfo::cast(heap_object), isolate);
 }
 
+std::unique_ptr<v8::tracing::TracedValue> Script::ToTracedValue() {
+  auto value = v8::tracing::TracedValue::Create();
+  if (name()->IsString()) {
+    value->SetString("name", String::cast(name())->ToCString());
+  }
+  value->SetInteger("lineOffset", line_offset());
+  value->SetInteger("columnOffset", column_offset());
+  if (source_mapping_url()->IsString()) {
+    value->SetString("sourceMappingURL",
+                     String::cast(source_mapping_url())->ToCString());
+  }
+  if (source()->IsString()) {
+    value->SetString("source", String::cast(source())->ToCString());
+  }
+  return value;
+}
+
+// static
+const char* Script::kTraceScope = "v8::internal::Script";
+
+uint64_t Script::TraceID() const { return id(); }
+
+std::unique_ptr<v8::tracing::TracedValue> Script::TraceIDRef() const {
+  auto value = v8::tracing::TracedValue::Create();
+  std::ostringstream ost;
+  ost << "0x" << std::hex << TraceID();
+  value->SetString("id_ref", ost.str());
+  value->SetString("scope", kTraceScope);
+  return value;
+}
+
 Script::Iterator::Iterator(Isolate* isolate)
     : iterator_(isolate->heap()->script_list()) {}
 
@@ -4896,6 +4927,66 @@ uint32_t SharedFunctionInfo::Hash() {
   int start_pos = StartPosition();
   int script_id = script()->IsScript() ? Script::cast(script())->id() : 0;
   return static_cast<uint32_t>(base::hash_combine(start_pos, script_id));
+}
+
+std::unique_ptr<v8::tracing::TracedValue> SharedFunctionInfo::ToTracedValue() {
+  auto value = v8::tracing::TracedValue::Create();
+  if (HasSharedName()) {
+    value->SetString("name", Name()->ToCString());
+  }
+  if (HasInferredName()) {
+    value->SetString("inferredName", inferred_name()->ToCString());
+  }
+  if (is_toplevel()) {
+    value->SetBoolean("isToplevel", true);
+  }
+  value->SetInteger("formalParameterCount", internal_formal_parameter_count());
+  value->SetString("languageMode", LanguageMode2String(language_mode()));
+  value->SetString("kind", FunctionKind2String(kind()));
+  if (script()->IsScript()) {
+    value->SetValue("script", Script::cast(script())->TraceIDRef());
+    value->BeginDictionary("sourcePosition");
+    Script::PositionInfo info;
+    if (Script::cast(script())->GetPositionInfo(StartPosition(), &info,
+                                                Script::WITH_OFFSET)) {
+      value->SetInteger("line", info.line + 1);
+      value->SetInteger("column", info.column + 1);
+    }
+    value->EndDictionary();
+  }
+  return value;
+}
+
+// static
+const char* SharedFunctionInfo::kTraceScope =
+    "v8::internal::SharedFunctionInfo";
+
+uint64_t SharedFunctionInfo::TraceID() const {
+  // TODO(bmeurer): We use a combination of Script ID and function literal
+  // ID (within the Script) to uniquely identify SharedFunctionInfos. This
+  // can add significant overhead, and we should probably find a better way
+  // to uniquely identify SharedFunctionInfos over time.
+  Script script = Script::cast(this->script());
+  WeakFixedArray script_functions = script->shared_function_infos();
+  for (int i = 0; i < script_functions->length(); ++i) {
+    HeapObject script_function;
+    if (script_functions->Get(i).GetHeapObjectIfWeak(&script_function) &&
+        script_function->address() == address()) {
+      return (static_cast<uint64_t>(script->id() + 1) << 32) |
+             (static_cast<uint64_t>(i));
+    }
+  }
+  UNREACHABLE();
+}
+
+std::unique_ptr<v8::tracing::TracedValue> SharedFunctionInfo::TraceIDRef()
+    const {
+  auto value = v8::tracing::TracedValue::Create();
+  std::ostringstream ost;
+  ost << "0x" << std::hex << TraceID();
+  value->SetString("id_ref", ost.str());
+  value->SetString("scope", kTraceScope);
+  return value;
 }
 
 Code SharedFunctionInfo::GetCode() const {

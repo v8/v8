@@ -1683,6 +1683,9 @@ Handle<Script> Factory::NewScriptWithId(Handle<String> source, int script_id,
                                     MaybeObjectHandle::Weak(script));
   heap->set_script_list(*scripts);
   LOG(isolate(), ScriptEvent(Logger::ScriptEventType::kCreate, script_id));
+  TRACE_EVENT_OBJECT_CREATED_WITH_ID(
+      TRACE_DISABLED_BY_DEFAULT("v8.compile"), "Script",
+      TRACE_ID_WITH_SCOPE(Script::kTraceScope, script_id));
   return script;
 }
 
@@ -3590,6 +3593,13 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForLiteral(
   SharedFunctionInfo::InitFromFunctionLiteral(shared, literal, is_toplevel);
   SharedFunctionInfo::SetScript(shared, script, literal->function_literal_id(),
                                 false);
+  TRACE_EVENT_OBJECT_CREATED_WITH_ID(
+      TRACE_DISABLED_BY_DEFAULT("v8.compile"), "SharedFunctionInfo",
+      TRACE_ID_WITH_SCOPE(SharedFunctionInfo::kTraceScope, shared->TraceID()));
+  TRACE_EVENT_OBJECT_SNAPSHOT_WITH_ID(
+      TRACE_DISABLED_BY_DEFAULT("v8.compile"), "SharedFunctionInfo",
+      TRACE_ID_WITH_SCOPE(SharedFunctionInfo::kTraceScope, shared->TraceID()),
+      shared->ToTracedValue());
   return shared;
 }
 

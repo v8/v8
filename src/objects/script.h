@@ -13,6 +13,11 @@
 #include "src/objects/object-macros.h"
 
 namespace v8 {
+
+namespace tracing {
+class TracedValue;
+}
+
 namespace internal {
 
 // Script describes a script which has been added to the VM.
@@ -173,6 +178,18 @@ class Script : public Struct {
   // that matches the function literal.  Return empty handle if not found.
   MaybeHandle<SharedFunctionInfo> FindSharedFunctionInfo(
       Isolate* isolate, const FunctionLiteral* fun);
+
+  // Returns the Script in a format tracing can support.
+  std::unique_ptr<v8::tracing::TracedValue> ToTracedValue();
+
+  // The tracing scope for Script objects.
+  static const char* kTraceScope;
+
+  // Returns the unique TraceID for this Script (within the kTraceScope).
+  uint64_t TraceID() const;
+
+  // Returns the unique trace ID reference for this Script.
+  std::unique_ptr<v8::tracing::TracedValue> TraceIDRef() const;
 
   // Iterate over all script objects on the heap.
   class Iterator {

@@ -1472,6 +1472,10 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
       }
     }
     script->set_eval_from_position(eval_position);
+    TRACE_EVENT_OBJECT_SNAPSHOT_WITH_ID(
+        TRACE_DISABLED_BY_DEFAULT("v8.compile"), "Script",
+        TRACE_ID_WITH_SCOPE(Script::kTraceScope, script->id()),
+        script->ToTracedValue());
 
     parse_info.set_eval();
     parse_info.set_language_mode(language_mode);
@@ -1795,6 +1799,10 @@ Handle<Script> NewScript(Isolate* isolate, ParseInfo* parse_info,
     script->set_host_defined_options(*host_defined_options);
   }
   LOG(isolate, ScriptDetails(*script));
+  TRACE_EVENT_OBJECT_SNAPSHOT_WITH_ID(
+      TRACE_DISABLED_BY_DEFAULT("v8.compile"), "Script",
+      TRACE_ID_WITH_SCOPE(Script::kTraceScope, script->id()),
+      script->ToTracedValue());
   return script;
 }
 

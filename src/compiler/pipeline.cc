@@ -84,6 +84,7 @@
 #include "src/parsing/parse-info.h"
 #include "src/register-configuration.h"
 #include "src/tracing/trace-event.h"
+#include "src/tracing/traced-value.h"
 #include "src/utils.h"
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/function-compiler.h"
@@ -862,24 +863,8 @@ class PipelineCompilationJob final : public OptimizedCompilationJob {
  public:
   PipelineCompilationJob(Isolate* isolate,
                          Handle<SharedFunctionInfo> shared_info,
-                         Handle<JSFunction> function)
-      // Note that the OptimizedCompilationInfo is not initialized at the time
-      // we pass it to the CompilationJob constructor, but it is not
-      // dereferenced there.
-      : OptimizedCompilationJob(
-            function->GetIsolate()->stack_guard()->real_climit(),
-            &compilation_info_, "TurboFan"),
-        zone_(function->GetIsolate()->allocator(), ZONE_NAME),
-        zone_stats_(function->GetIsolate()->allocator()),
-        compilation_info_(&zone_, function->GetIsolate(), shared_info,
-                          function),
-        pipeline_statistics_(CreatePipelineStatistics(
-            handle(Script::cast(shared_info->script()), isolate),
-            compilation_info(), function->GetIsolate(), &zone_stats_)),
-        data_(&zone_stats_, function->GetIsolate(), compilation_info(),
-              pipeline_statistics_.get()),
-        pipeline_(&data_),
-        linkage_(nullptr) {}
+                         Handle<JSFunction> function);
+  ~PipelineCompilationJob();
 
  protected:
   Status PrepareJobImpl(Isolate* isolate) final;
@@ -901,8 +886,43 @@ class PipelineCompilationJob final : public OptimizedCompilationJob {
   DISALLOW_COPY_AND_ASSIGN(PipelineCompilationJob);
 };
 
+PipelineCompilationJob::PipelineCompilationJob(
+    Isolate* isolate, Handle<SharedFunctionInfo> shared_info,
+    Handle<JSFunction> function)
+    // Note that the OptimizedCompilationInfo is not initialized at the time
+    // we pass it to the CompilationJob constructor, but it is not
+    // dereferenced there.
+    : OptimizedCompilationJob(
+          function->GetIsolate()->stack_guard()->real_climit(),
+          &compilation_info_, "TurboFan"),
+      zone_(function->GetIsolate()->allocator(), ZONE_NAME),
+      zone_stats_(function->GetIsolate()->allocator()),
+      compilation_info_(&zone_, function->GetIsolate(), shared_info, function),
+      pipeline_statistics_(CreatePipelineStatistics(
+          handle(Script::cast(shared_info->script()), isolate),
+          compilation_info(), function->GetIsolate(), &zone_stats_)),
+      data_(&zone_stats_, function->GetIsolate(), compilation_info(),
+            pipeline_statistics_.get()),
+      pipeline_(&data_),
+      linkage_(nullptr) {
+  TRACE_EVENT_WITH_FLOW1(
+      TRACE_DISABLED_BY_DEFAULT("v8.compile"), "v8.optimizingCompile.start",
+      this, TRACE_EVENT_FLAG_FLOW_OUT, "function", shared_info->TraceIDRef());
+}
+
+PipelineCompilationJob::~PipelineCompilationJob() {
+  TRACE_EVENT_WITH_FLOW1(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+                         "v8.optimizingCompile.end", this,
+                         TRACE_EVENT_FLAG_FLOW_IN, "compilationInfo",
+                         compilation_info()->ToTracedValue());
+}
+
 PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl(
     Isolate* isolate) {
+  TRACE_EVENT_WITH_FLOW1(
+      TRACE_DISABLED_BY_DEFAULT("v8.compile"), "v8.optimizingCompile.prepare",
+      this, TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT, "function",
+      compilation_info()->shared_info()->TraceIDRef());
   if (compilation_info()->bytecode_array()->length() >
       kMaxBytecodeSizeForTurbofan) {
     return AbortOptimization(BailoutReason::kFunctionTooBig);
@@ -968,6 +988,10 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl(
 }
 
 PipelineCompilationJob::Status PipelineCompilationJob::ExecuteJobImpl() {
+  TRACE_EVENT_WITH_FLOW1(
+      TRACE_DISABLED_BY_DEFAULT("v8.compile"), "v8.optimizingCompile.execute",
+      this, TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT, "function",
+      compilation_info()->shared_info()->TraceIDRef());
   if (!pipeline_.OptimizeGraph(linkage_)) return FAILED;
   pipeline_.AssembleCode(linkage_);
   return SUCCEEDED;
@@ -975,6 +999,10 @@ PipelineCompilationJob::Status PipelineCompilationJob::ExecuteJobImpl() {
 
 PipelineCompilationJob::Status PipelineCompilationJob::FinalizeJobImpl(
     Isolate* isolate) {
+  TRACE_EVENT_WITH_FLOW1(
+      TRACE_DISABLED_BY_DEFAULT("v8.compile"), "v8.optimizingCompile.finalize",
+      this, TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT, "function",
+      compilation_info()->shared_info()->TraceIDRef());
   MaybeHandle<Code> maybe_code = pipeline_.FinalizeCode();
   Handle<Code> code;
   if (!maybe_code.ToHandle(&code)) {

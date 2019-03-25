@@ -334,14 +334,18 @@ inline size_t hash_value(LanguageMode mode) {
   return static_cast<size_t>(mode);
 }
 
-inline std::ostream& operator<<(std::ostream& os, const LanguageMode& mode) {
+inline const char* LanguageMode2String(LanguageMode mode) {
   switch (mode) {
     case LanguageMode::kSloppy:
-      return os << "sloppy";
+      return "sloppy";
     case LanguageMode::kStrict:
-      return os << "strict";
+      return "strict";
   }
   UNREACHABLE();
+}
+
+inline std::ostream& operator<<(std::ostream& os, LanguageMode mode) {
+  return os << LanguageMode2String(mode);
 }
 
 inline bool is_sloppy(LanguageMode language_mode) {

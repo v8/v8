@@ -20,6 +20,11 @@
 #include "src/objects/object-macros.h"
 
 namespace v8 {
+
+namespace tracing {
+class TracedValue;
+}
+
 namespace internal {
 
 class AsmWasmData;
@@ -595,6 +600,21 @@ class SharedFunctionInfo : public HeapObject {
 #ifdef OBJECT_PRINT
   void PrintSourceCode(std::ostream& os);
 #endif
+
+  // Returns the SharedFunctionInfo in a format tracing can support.
+  std::unique_ptr<v8::tracing::TracedValue> ToTracedValue();
+
+  // The tracing scope for SharedFunctionInfo objects.
+  static const char* kTraceScope;
+
+  // Returns the unique TraceID for this SharedFunctionInfo (within the
+  // kTraceScope, works only for functions that have a Script and start/end
+  // position).
+  uint64_t TraceID() const;
+
+  // Returns the unique trace ID reference for this SharedFunctionInfo
+  // (based on the |TraceID()| above).
+  std::unique_ptr<v8::tracing::TracedValue> TraceIDRef() const;
 
   // Iterate over all shared function infos in a given script.
   class ScriptIterator {

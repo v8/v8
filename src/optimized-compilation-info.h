@@ -17,6 +17,11 @@
 #include "src/vector.h"
 
 namespace v8 {
+
+namespace tracing {
+class TracedValue;
+}
+
 namespace internal {
 
 class DeferredHandles;
@@ -225,19 +230,15 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
 
   void ReopenHandlesInNewHandleScope(Isolate* isolate);
 
-  void AbortOptimization(BailoutReason reason) {
-    DCHECK_NE(reason, BailoutReason::kNoReason);
-    if (bailout_reason_ == BailoutReason::kNoReason) bailout_reason_ = reason;
-    SetFlag(kDisableFutureOptimization);
-  }
+  void AbortOptimization(BailoutReason reason);
 
-  void RetryOptimization(BailoutReason reason) {
-    DCHECK_NE(reason, BailoutReason::kNoReason);
-    if (GetFlag(kDisableFutureOptimization)) return;
-    bailout_reason_ = reason;
-  }
+  void RetryOptimization(BailoutReason reason);
 
   BailoutReason bailout_reason() const { return bailout_reason_; }
+
+  bool is_disable_future_optimization() const {
+    return GetFlag(kDisableFutureOptimization);
+  }
 
   int optimization_id() const {
     DCHECK(IsOptimizing());
@@ -277,6 +278,8 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
   void set_trace_turbo_filename(std::unique_ptr<char[]> filename) {
     trace_turbo_filename_ = std::move(filename);
   }
+
+  std::unique_ptr<v8::tracing::TracedValue> ToTracedValue();
 
  private:
   OptimizedCompilationInfo(Code::Kind code_kind, Zone* zone);
