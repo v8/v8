@@ -479,7 +479,25 @@ class WasmInstanceObject : public JSObject {
 
 // Layout description.
 #define WASM_INSTANCE_OBJECT_FIELDS(V)                                    \
-  /* Tagged values. */                                                    \
+  /* Often-accessed fields go first to minimize generated code size. */   \
+  V(kMemoryStartOffset, kSystemPointerSize)                               \
+  V(kMemorySizeOffset, kSizetSize)                                        \
+  V(kMemoryMaskOffset, kSizetSize)                                        \
+  V(kStackLimitAddressOffset, kSystemPointerSize)                         \
+  V(kImportedFunctionRefsOffset, kTaggedSize)                             \
+  V(kImportedFunctionTargetsOffset, kSystemPointerSize)                   \
+  V(kIndirectFunctionTableRefsOffset, kTaggedSize)                        \
+  V(kIndirectFunctionTableTargetsOffset, kSystemPointerSize)              \
+  V(kIndirectFunctionTableSigIdsOffset, kSystemPointerSize)               \
+  V(kIndirectFunctionTableSizeOffset, kUInt32Size)                        \
+  /* Optional padding to align system pointer size fields */              \
+  V(kOptionalPaddingOffset, POINTER_SIZE_PADDING(kOptionalPaddingOffset)) \
+  V(kGlobalsStartOffset, kSystemPointerSize)                              \
+  V(kImportedMutableGlobalsOffset, kSystemPointerSize)                    \
+  V(kUndefinedValueOffset, kTaggedSize)                                   \
+  V(kIsolateRootOffset, kSystemPointerSize)                               \
+  V(kJumpTableStartOffset, kSystemPointerSize)                            \
+  /* End of often-accessed fields. */                                     \
   V(kModuleObjectOffset, kTaggedSize)                                     \
   V(kExportsObjectOffset, kTaggedSize)                                    \
   V(kNativeContextOffset, kTaggedSize)                                    \
@@ -489,30 +507,12 @@ class WasmInstanceObject : public JSObject {
   V(kImportedMutableGlobalsBuffersOffset, kTaggedSize)                    \
   V(kDebugInfoOffset, kTaggedSize)                                        \
   V(kTablesOffset, kTaggedSize)                                           \
-  V(kImportedFunctionRefsOffset, kTaggedSize)                             \
-  V(kIndirectFunctionTableRefsOffset, kTaggedSize)                        \
   V(kManagedNativeAllocationsOffset, kTaggedSize)                         \
   V(kExceptionsTableOffset, kTaggedSize)                                  \
-  V(kUndefinedValueOffset, kTaggedSize)                                   \
   V(kNullValueOffset, kTaggedSize)                                        \
   V(kCEntryStubOffset, kTaggedSize)                                       \
   V(kWasmExportedFunctionsOffset, kTaggedSize)                            \
-  /* Raw data. */                                                         \
-  V(kIndirectFunctionTableSizeOffset, kUInt32Size)                        \
-  /* Optional padding to align system pointer size fields */              \
-  V(kOptionalPaddingOffset, POINTER_SIZE_PADDING(kOptionalPaddingOffset)) \
-  V(kMemoryStartOffset, kSystemPointerSize)                               \
-  V(kMemorySizeOffset, kSizetSize)                                        \
-  V(kMemoryMaskOffset, kSizetSize)                                        \
-  V(kIsolateRootOffset, kSystemPointerSize)                               \
-  V(kStackLimitAddressOffset, kSystemPointerSize)                         \
   V(kRealStackLimitAddressOffset, kSystemPointerSize)                     \
-  V(kImportedFunctionTargetsOffset, kSystemPointerSize)                   \
-  V(kGlobalsStartOffset, kSystemPointerSize)                              \
-  V(kImportedMutableGlobalsOffset, kSystemPointerSize)                    \
-  V(kIndirectFunctionTableSigIdsOffset, kSystemPointerSize)               \
-  V(kIndirectFunctionTableTargetsOffset, kSystemPointerSize)              \
-  V(kJumpTableStartOffset, kSystemPointerSize)                            \
   V(kDataSegmentStartsOffset, kSystemPointerSize)                         \
   V(kDataSegmentSizesOffset, kSystemPointerSize)                          \
   V(kDroppedDataSegmentsOffset, kSystemPointerSize)                       \
@@ -530,6 +530,9 @@ class WasmInstanceObject : public JSObject {
 #undef WASM_INSTANCE_OBJECT_FIELDS
 
   static constexpr uint16_t kTaggedFieldOffsets[] = {
+      kImportedFunctionRefsOffset,
+      kIndirectFunctionTableRefsOffset,
+      kUndefinedValueOffset,
       kModuleObjectOffset,
       kExportsObjectOffset,
       kNativeContextOffset,
@@ -539,11 +542,8 @@ class WasmInstanceObject : public JSObject {
       kImportedMutableGlobalsBuffersOffset,
       kDebugInfoOffset,
       kTablesOffset,
-      kImportedFunctionRefsOffset,
-      kIndirectFunctionTableRefsOffset,
       kManagedNativeAllocationsOffset,
       kExceptionsTableOffset,
-      kUndefinedValueOffset,
       kNullValueOffset,
       kCEntryStubOffset,
       kWasmExportedFunctionsOffset};
