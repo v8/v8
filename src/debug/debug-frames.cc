@@ -19,6 +19,7 @@ FrameInspector::FrameInspector(StandardFrame* frame, int inlined_frame_index,
       isolate_(isolate) {
   // Extract the relevant information from the frame summary and discard it.
   FrameSummary summary = FrameSummary::Get(frame, inlined_frame_index);
+  summary.EnsureSourcePositionsAvailable();
 
   is_constructor_ = summary.is_constructor();
   source_position_ = summary.SourcePosition();

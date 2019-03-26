@@ -1154,6 +1154,11 @@ static void TickLines(bool optimize) {
                                   v8::base::TimeDelta::FromMicroseconds(100));
   CpuProfiler profiler(isolate, profiles, generator, processor);
   profiles->StartProfiling("", false);
+  // TODO(delphick): Stop using the CpuProfiler internals here: This forces
+  // LogCompiledFunctions so that source positions are collected everywhere.
+  // This would normally happen automatically with CpuProfiler::StartProfiling
+  // but doesn't because it's constructed with a generator and a processor.
+  isolate->logger()->LogCompiledFunctions();
   processor->Start();
   ProfilerListener profiler_listener(isolate, processor);
 

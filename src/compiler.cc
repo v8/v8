@@ -1132,12 +1132,22 @@ bool Compiler::CollectSourcePositions(Isolate* isolate,
   DCHECK(shared_info->HasBytecodeArray());
   DCHECK(!shared_info->GetBytecodeArray()->HasSourcePositionTable());
 
+  // Collecting source positions requires allocating a new source position
+  // table.
+  DCHECK(AllowHeapAllocation::IsAllowed());
+
+  Handle<BytecodeArray> bytecode =
+      handle(shared_info->GetBytecodeArray(), isolate);
+
   // TODO(v8:8510): Push the CLEAR_EXCEPTION flag or something like it down into
   // the parser so it aborts without setting a pending exception, which then
   // gets thrown. This would avoid the situation where potentially we'd reparse
   // several times (running out of stack each time) before hitting this limit.
-  if (GetCurrentStackPosition() < isolate->stack_guard()->real_climit())
+  if (GetCurrentStackPosition() < isolate->stack_guard()->real_climit()) {
+    // Stack is already exhausted.
+    bytecode->SetSourcePositionsFailedToCollect();
     return false;
+  }
 
   DCHECK(AllowCompilation::IsAllowed(isolate));
   DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
@@ -1158,6 +1168,8 @@ bool Compiler::CollectSourcePositions(Isolate* isolate,
 
   // Parse and update ParseInfo with the results.
   if (!parsing::ParseAny(&parse_info, shared_info, isolate)) {
+    // Parsing failed probably as a result of stack exhaustion.
+    bytecode->SetSourcePositionsFailedToCollect();
     return FailWithPendingException(
         isolate, &parse_info, Compiler::ClearExceptionFlag::CLEAR_EXCEPTION);
   }
@@ -1170,6 +1182,8 @@ bool Compiler::CollectSourcePositions(Isolate* isolate,
       GenerateUnoptimizedCode(&parse_info, isolate->allocator(),
                               &inner_function_jobs));
   if (!outer_function_job) {
+    // Recompiling failed probably as a result of stack exhaustion.
+    bytecode->SetSourcePositionsFailedToCollect();
     return FailWithPendingException(
         isolate, &parse_info, Compiler::ClearExceptionFlag::CLEAR_EXCEPTION);
   }
@@ -1194,14 +1208,20 @@ bool Compiler::CollectSourcePositions(Isolate* isolate,
   }
 
   // Update the source position table on the original bytecode.
-  Handle<BytecodeArray> bytecode =
-      handle(shared_info->GetBytecodeArray(), isolate);
   DCHECK(bytecode->IsBytecodeEqual(
       *outer_function_job->compilation_info()->bytecode_array()));
   DCHECK(outer_function_job->compilation_info()->has_bytecode_array());
-  bytecode->set_source_position_table(outer_function_job->compilation_info()
-                                          ->bytecode_array()
-                                          ->SourcePositionTable());
+  ByteArray source_position_table = outer_function_job->compilation_info()
+                                        ->bytecode_array()
+                                        ->SourcePositionTable();
+  bytecode->set_source_position_table(source_position_table);
+  // If debugging, make sure that instrumented bytecode has the source position
+  // table set on it as well.
+  if (shared_info->HasDebugInfo() &&
+      shared_info->GetDebugInfo()->HasInstrumentedBytecodeArray()) {
+    shared_info->GetDebugBytecodeArray()->set_source_position_table(
+        source_position_table);
+  }
 
   DCHECK(!isolate->has_pending_exception());
   DCHECK(shared_info->is_compiled_scope().is_compiled());

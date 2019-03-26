@@ -205,18 +205,6 @@ Object EvalFromFunctionName(Isolate* isolate, Handle<Script> script) {
   return shared->inferred_name();
 }
 
-Object EvalFromScript(Isolate* isolate, Handle<Script> script) {
-  if (!script->has_eval_from_shared()) {
-    return ReadOnlyRoots(isolate).undefined_value();
-  }
-
-  Handle<SharedFunctionInfo> eval_from_shared(script->eval_from_shared(),
-                                              isolate);
-  return eval_from_shared->script()->IsScript()
-             ? eval_from_shared->script()
-             : ReadOnlyRoots(isolate).undefined_value();
-}
-
 MaybeHandle<String> FormatEvalOrigin(Isolate* isolate, Handle<Script> script) {
   Handle<Object> sourceURL(script->GetNameOrSourceURL(), isolate);
   if (!sourceURL->IsUndefined(isolate)) {
@@ -239,44 +227,49 @@ MaybeHandle<String> FormatEvalOrigin(Isolate* isolate, Handle<Script> script) {
     builder.AppendCString("<anonymous>");
   }
 
-  Handle<Object> eval_from_script_obj =
-      handle(EvalFromScript(isolate, script), isolate);
-  if (eval_from_script_obj->IsScript()) {
-    Handle<Script> eval_from_script =
-        Handle<Script>::cast(eval_from_script_obj);
-    builder.AppendCString(" (");
-    if (eval_from_script->compilation_type() == Script::COMPILATION_TYPE_EVAL) {
-      // Eval script originated from another eval.
-      Handle<String> str;
-      ASSIGN_RETURN_ON_EXCEPTION(
-          isolate, str, FormatEvalOrigin(isolate, eval_from_script), String);
-      builder.AppendString(str);
-    } else {
-      DCHECK(eval_from_script->compilation_type() !=
-             Script::COMPILATION_TYPE_EVAL);
-      // eval script originated from "real" source.
-      Handle<Object> name_obj = handle(eval_from_script->name(), isolate);
-      if (eval_from_script->name()->IsString()) {
-        builder.AppendString(Handle<String>::cast(name_obj));
-
-        Script::PositionInfo info;
-        if (Script::GetPositionInfo(eval_from_script, script->GetEvalPosition(),
-                                    &info, Script::NO_OFFSET)) {
-          builder.AppendCString(":");
-
-          Handle<String> str = isolate->factory()->NumberToString(
-              handle(Smi::FromInt(info.line + 1), isolate));
-          builder.AppendString(str);
-
-          builder.AppendCString(":");
-
-          str = isolate->factory()->NumberToString(
-              handle(Smi::FromInt(info.column + 1), isolate));
-          builder.AppendString(str);
-        }
+  if (script->has_eval_from_shared()) {
+    Handle<SharedFunctionInfo> eval_from_shared(script->eval_from_shared(),
+                                                isolate);
+    if (eval_from_shared->script()->IsScript()) {
+      Handle<Script> eval_from_script =
+          handle(Script::cast(eval_from_shared->script()), isolate);
+      builder.AppendCString(" (");
+      if (eval_from_script->compilation_type() ==
+          Script::COMPILATION_TYPE_EVAL) {
+        // Eval script originated from another eval.
+        Handle<String> str;
+        ASSIGN_RETURN_ON_EXCEPTION(
+            isolate, str, FormatEvalOrigin(isolate, eval_from_script), String);
+        builder.AppendString(str);
       } else {
-        DCHECK(!eval_from_script->name()->IsString());
-        builder.AppendCString("unknown source");
+        DCHECK(eval_from_script->compilation_type() !=
+               Script::COMPILATION_TYPE_EVAL);
+        // eval script originated from "real" source.
+        Handle<Object> name_obj = handle(eval_from_script->name(), isolate);
+        if (eval_from_script->name()->IsString()) {
+          builder.AppendString(Handle<String>::cast(name_obj));
+
+          Script::PositionInfo info;
+
+          if (Script::GetPositionInfo(eval_from_script,
+                                      Script::GetEvalPosition(isolate, script),
+                                      &info, Script::NO_OFFSET)) {
+            builder.AppendCString(":");
+
+            Handle<String> str = isolate->factory()->NumberToString(
+                handle(Smi::FromInt(info.line + 1), isolate));
+            builder.AppendString(str);
+
+            builder.AppendCString(":");
+
+            str = isolate->factory()->NumberToString(
+                handle(Smi::FromInt(info.column + 1), isolate));
+            builder.AppendString(str);
+          }
+        } else {
+          DCHECK(!eval_from_script->name()->IsString());
+          builder.AppendCString("unknown source");
+        }
       }
     }
     builder.AppendCString(")");
@@ -667,7 +660,11 @@ void JSStackFrame::ToString(IncrementalStringBuilder& builder) {
   return;
 }
 
-int JSStackFrame::GetPosition() const { return code_->SourcePosition(offset_); }
+int JSStackFrame::GetPosition() const {
+  Handle<SharedFunctionInfo> shared = handle(function_->shared(), isolate_);
+  SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate_, shared);
+  return code_->SourcePosition(offset_);
+}
 
 bool JSStackFrame::HasScript() const {
   return function_->shared()->script()->IsScript();

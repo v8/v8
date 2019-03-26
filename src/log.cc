@@ -2061,6 +2061,7 @@ void ExistingCodeLogger::LogCompiledFunctions() {
   // During iteration, there can be heap allocation due to
   // GetScriptLineNumber call.
   for (int i = 0; i < compiled_funcs_count; ++i) {
+    SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate_, sfis[i]);
     if (sfis[i]->function_data()->IsInterpreterData()) {
       LogExistingFunction(
           sfis[i],

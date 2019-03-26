@@ -133,7 +133,7 @@ class Script : public Struct {
   Object GetNameOrSourceURL();
 
   // Retrieve source position from where eval was called.
-  int GetEvalPosition();
+  static int GetEvalPosition(Isolate* isolate, Handle<Script> script);
 
   // Check if the script contains any Asm modules.
   bool ContainsAsmModule();

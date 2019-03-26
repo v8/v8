@@ -66,7 +66,7 @@ UnoptimizedCompilationInfo::SourcePositionRecordingMode() const {
   // compiled, e.g. class member initializer functions.
   return !literal_->AllowsLazyCompilation()
              ? SourcePositionTableBuilder::RECORD_SOURCE_POSITIONS
-             : SourcePositionTableBuilder::OMIT_SOURCE_POSITIONS;
+             : SourcePositionTableBuilder::LAZY_SOURCE_POSITIONS;
 }
 
 }  // namespace internal

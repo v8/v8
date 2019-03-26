@@ -1003,11 +1003,12 @@ Handle<Object> CaptureStackTrace(Isolate* isolate, Handle<Object> caller,
         std::vector<FrameSummary> frames;
         StandardFrame::cast(frame)->Summarize(&frames);
         for (size_t i = frames.size(); i-- != 0 && !builder.full();) {
-          const auto& summary = frames[i];
+          auto& summary = frames[i];
           if (options.capture_only_frames_subject_to_debugging &&
               !summary.is_subject_to_debugging()) {
             continue;
           }
+          summary.EnsureSourcePositionsAvailable();
 
           if (summary.IsJavaScript()) {
             //=========================================================
@@ -1181,6 +1182,9 @@ Address Isolate::GetAbstractPC(int* line, int* column) {
   }
   JavaScriptFrame* frame = it.frame();
   DCHECK(!frame->is_builtin());
+
+  Handle<SharedFunctionInfo> shared = handle(frame->function()->shared(), this);
+  SharedFunctionInfo::EnsureSourcePositionsAvailable(this, shared);
   int position = frame->position();
 
   Object maybe_script = frame->function()->shared()->script();
@@ -2044,6 +2048,7 @@ bool Isolate::ComputeLocation(MessageLocation* target) {
   std::vector<FrameSummary> frames;
   frame->Summarize(&frames);
   FrameSummary& summary = frames.back();
+  summary.EnsureSourcePositionsAvailable();
   int pos = summary.SourcePosition();
   Handle<SharedFunctionInfo> shared;
   Handle<Object> script = summary.script();
@@ -2131,6 +2136,8 @@ bool Isolate::ComputeLocationFromStackTrace(MessageLocation* target,
     Object script = fun->shared()->script();
     if (script->IsScript() &&
         !(Script::cast(script)->source()->IsUndefined(this))) {
+      Handle<SharedFunctionInfo> shared = handle(fun->shared(), this);
+      SharedFunctionInfo::EnsureSourcePositionsAvailable(this, shared);
       AbstractCode abstract_code = elements->Code(i);
       const int code_offset = elements->Offset(i)->value();
       const int pos = abstract_code->SourcePosition(code_offset);

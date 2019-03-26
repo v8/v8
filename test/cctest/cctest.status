@@ -552,8 +552,6 @@
 ##############################################################################
 ['lite_mode', {
   # TODO(v8:8510): Tests that currently fail with lazy source positions.
-  'test-cpu-profiler/TickLinesBaseline': [SKIP],
-  'test-cpu-profiler/TickLinesOptimized': [SKIP],
   'test-cpu-profiler/Inlining2': [SKIP],
 
   # TODO(mythria): Code logging tests that currently fail with lazy feedback

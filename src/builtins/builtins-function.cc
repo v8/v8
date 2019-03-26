@@ -150,7 +150,7 @@ BUILTIN(AsyncFunctionConstructor) {
   Handle<JSFunction> func = Handle<JSFunction>::cast(maybe_func);
   Handle<Script> script =
       handle(Script::cast(func->shared()->script()), isolate);
-  int position = script->GetEvalPosition();
+  int position = Script::GetEvalPosition(isolate, script);
   USE(position);
 
   return *func;
@@ -169,7 +169,7 @@ BUILTIN(AsyncGeneratorFunctionConstructor) {
   Handle<JSFunction> func = Handle<JSFunction>::cast(maybe_func);
   Handle<Script> script =
       handle(Script::cast(func->shared()->script()), isolate);
-  int position = script->GetEvalPosition();
+  int position = Script::GetEvalPosition(isolate, script);
   USE(position);
 
   return *func;

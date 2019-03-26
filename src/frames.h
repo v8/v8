@@ -482,6 +482,8 @@ class FrameSummary {
                            int code_offset, bool is_constructor,
                            FixedArray parameters);
 
+    void EnsureSourcePositionsAvailable();
+
     Handle<Object> receiver() const { return receiver_; }
     Handle<JSFunction> function() const { return function_; }
     Handle<AbstractCode> abstract_code() const { return abstract_code_; }
@@ -568,6 +570,8 @@ class FrameSummary {
   static FrameSummary GetBottom(const StandardFrame* frame);
   static FrameSummary GetSingle(const StandardFrame* frame);
   static FrameSummary Get(const StandardFrame* frame, int index);
+
+  void EnsureSourcePositionsAvailable();
 
   // Dispatched accessors.
   Handle<Object> receiver() const;

@@ -162,12 +162,14 @@ template <typename Code>
 void SetStackFrameCacheCommon(Isolate* isolate, Handle<Code> code,
                               Handle<SimpleNumberDictionary> cache) {
   Handle<Object> maybe_table(code->source_position_table(), isolate);
+  if (maybe_table->IsException(isolate)) return;
   if (maybe_table->IsSourcePositionTableWithFrameCache()) {
     Handle<SourcePositionTableWithFrameCache>::cast(maybe_table)
         ->set_stack_frame_cache(*cache);
     return;
   }
-  DCHECK(maybe_table->IsUndefined() || maybe_table->IsByteArray());
+  DCHECK(!maybe_table->IsUndefined(isolate));
+  DCHECK(maybe_table->IsByteArray());
   Handle<ByteArray> table(Handle<ByteArray>::cast(maybe_table));
   Handle<SourcePositionTableWithFrameCache> table_with_cache =
       isolate->factory()->NewSourcePositionTableWithFrameCache(table, cache);
@@ -211,10 +213,14 @@ void AbstractCode::DropStackFrameCache() {
 }
 
 int AbstractCode::SourcePosition(int offset) {
+  Object maybe_table = source_position_table();
+  if (maybe_table->IsException()) return kNoSourcePosition;
+
+  ByteArray source_position_table = ByteArray::cast(maybe_table);
   int position = 0;
   // Subtract one because the current PC is one instruction after the call site.
   if (IsCode()) offset--;
-  for (SourcePositionTableIterator iterator(source_position_table());
+  for (SourcePositionTableIterator iterator(source_position_table);
        !iterator.done() && iterator.code_offset() <= offset;
        iterator.Advance()) {
     position = iterator.source_position().ScriptOffset();
@@ -708,7 +714,8 @@ void Code::Disassemble(const char* name, std::ostream& os, Address current_pc) {
 
   {
     SourcePositionTableIterator it(
-        SourcePositionTable(), SourcePositionTableIterator::kJavaScriptOnly);
+        SourcePositionTableIfCollected(),
+        SourcePositionTableIterator::kJavaScriptOnly);
     if (!it.done()) {
       os << "Source positions:\n pc offset  position\n";
       for (; !it.done(); it.Advance()) {
@@ -721,7 +728,7 @@ void Code::Disassemble(const char* name, std::ostream& os, Address current_pc) {
   }
 
   {
-    SourcePositionTableIterator it(SourcePositionTable(),
+    SourcePositionTableIterator it(SourcePositionTableIfCollected(),
                                    SourcePositionTableIterator::kExternalOnly);
     if (!it.done()) {
       os << "External Source positions:\n pc offset  fileid  line\n";
@@ -804,7 +811,8 @@ void BytecodeArray::Disassemble(std::ostream& os) {
   os << "Frame size " << frame_size() << "\n";
 
   Address base_address = GetFirstBytecodeAddress();
-  SourcePositionTableIterator source_positions(SourcePositionTable());
+  SourcePositionTableIterator source_positions(
+      SourcePositionTableIfCollected());
 
   // Storage for backing the handle passed to the iterator. This handle won't be
   // updated by the gc, but that's ok because we've disallowed GCs anyway.
