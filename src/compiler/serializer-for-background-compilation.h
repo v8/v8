@@ -83,7 +83,7 @@ namespace compiler {
   V(JumpIfUndefined)              \
   V(JumpIfUndefinedConstant)
 
-#define INGORED_BYTECODE_LIST(V)      \
+#define IGNORED_BYTECODE_LIST(V)      \
   V(CallNoFeedback)                   \
   V(LdaNamedPropertyNoFeedback)       \
   V(StackCheck)                       \
@@ -149,7 +149,7 @@ namespace compiler {
   CLEAR_ACCUMULATOR_LIST(V)          \
   CONDITIONAL_JUMPS_LIST(V)          \
   UNCONDITIONAL_JUMPS_LIST(V)        \
-  INGORED_BYTECODE_LIST(V)
+  IGNORED_BYTECODE_LIST(V)
 
 class JSHeapBroker;
 

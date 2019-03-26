@@ -957,7 +957,7 @@ UNCONDITIONAL_JUMPS_LIST(DEFINE_UNCONDITIONAL_JUMP)
 #define DEFINE_IGNORE(name, ...)                        \
   void SerializerForBackgroundCompilation::Visit##name( \
       BytecodeArrayIterator* iterator) {}
-INGORED_BYTECODE_LIST(DEFINE_IGNORE)
+IGNORED_BYTECODE_LIST(DEFINE_IGNORE)
 #undef DEFINE_IGNORE
 
 }  // namespace compiler
