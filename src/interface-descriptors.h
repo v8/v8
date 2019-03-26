@@ -46,7 +46,6 @@ namespace internal {
   V(ConstructWithSpread)              \
   V(ContextOnly)                      \
   V(CppBuiltinAdaptor)                \
-  V(EphemeronKeyBarrier)              \
   V(FastNewFunctionContext)           \
   V(FastNewObject)                    \
   V(FrameDropperTrampoline)           \
@@ -727,16 +726,6 @@ class RecordWriteDescriptor final : public CallInterfaceDescriptor {
                          MachineType::TaggedSigned())   // kFPMode
 
   DECLARE_DESCRIPTOR(RecordWriteDescriptor, CallInterfaceDescriptor)
-};
-
-class EphemeronKeyBarrierDescriptor final : public CallInterfaceDescriptor {
- public:
-  DEFINE_PARAMETERS_NO_CONTEXT(kObject, kSlotAddress, kFPMode)
-  DEFINE_PARAMETER_TYPES(MachineType::TaggedPointer(),  // kObject
-                         MachineType::Pointer(),        // kSlotAddress
-                         MachineType::TaggedSigned())   // kFPMode
-
-  DECLARE_DESCRIPTOR(EphemeronKeyBarrierDescriptor, CallInterfaceDescriptor)
 };
 
 class TypeConversionDescriptor final : public CallInterfaceDescriptor {
