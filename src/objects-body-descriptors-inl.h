@@ -5,8 +5,11 @@
 #ifndef V8_OBJECTS_BODY_DESCRIPTORS_INL_H_
 #define V8_OBJECTS_BODY_DESCRIPTORS_INL_H_
 
-#include "src/feedback-vector.h"
 #include "src/objects-body-descriptors.h"
+
+#include <algorithm>
+
+#include "src/feedback-vector.h"
 #include "src/objects/cell.h"
 #include "src/objects/data-handler.h"
 #include "src/objects/foreign-inl.h"
@@ -658,15 +661,25 @@ class SeqTwoByteString::BodyDescriptor final : public BodyDescriptorBase {
 class WasmInstanceObject::BodyDescriptor final : public BodyDescriptorBase {
  public:
   static bool IsValidSlot(Map map, HeapObject obj, int offset) {
-    if (offset < kMemoryStartOffset) return true;
-    if (offset < kModuleObjectOffset) return false;
+    SLOW_DCHECK(std::is_sorted(std::begin(kTaggedFieldOffsets),
+                               std::end(kTaggedFieldOffsets)));
+    STATIC_ASSERT(sizeof(*kTaggedFieldOffsets) == sizeof(uint16_t));
+    if (offset < int{8 * sizeof(*kTaggedFieldOffsets)} &&
+        std::binary_search(std::begin(kTaggedFieldOffsets),
+                           std::end(kTaggedFieldOffsets),
+                           static_cast<uint16_t>(offset))) {
+      return true;
+    }
     return IsValidJSObjectSlotImpl(map, obj, offset);
   }
 
   template <typename ObjectVisitor>
   static inline void IterateBody(Map map, HeapObject obj, int object_size,
                                  ObjectVisitor* v) {
-    IteratePointers(obj, kPropertiesOrHashOffset, kEndOfTaggedFieldsOffset, v);
+    IteratePointer(obj, kPropertiesOrHashOffset, v);
+    for (uint16_t offset : kTaggedFieldOffsets) {
+      IteratePointer(obj, offset, v);
+    }
     IterateJSObjectBodyImpl(map, obj, kSize, object_size, v);
   }
 

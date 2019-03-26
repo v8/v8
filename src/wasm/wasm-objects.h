@@ -497,12 +497,10 @@ class WasmInstanceObject : public JSObject {
   V(kNullValueOffset, kTaggedSize)                                        \
   V(kCEntryStubOffset, kTaggedSize)                                       \
   V(kWasmExportedFunctionsOffset, kTaggedSize)                            \
-  V(kEndOfTaggedFieldsOffset, 0)                                          \
   /* Raw data. */                                                         \
   V(kIndirectFunctionTableSizeOffset, kUInt32Size)                        \
   /* Optional padding to align system pointer size fields */              \
   V(kOptionalPaddingOffset, POINTER_SIZE_PADDING(kOptionalPaddingOffset)) \
-  V(kFirstSystemPointerFieldOffset, 0)                                    \
   V(kMemoryStartOffset, kSystemPointerSize)                               \
   V(kMemorySizeOffset, kSizetSize)                                        \
   V(kMemoryMaskOffset, kSizetSize)                                        \
@@ -524,10 +522,31 @@ class WasmInstanceObject : public JSObject {
 
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
                                 WASM_INSTANCE_OBJECT_FIELDS)
+  STATIC_ASSERT(IsAligned(kSize, kTaggedSize));
+#define ASSERT_FIELD_ALIGNED(offset, size) \
+  STATIC_ASSERT(size == 0 || IsAligned(offset, size));
+  WASM_INSTANCE_OBJECT_FIELDS(ASSERT_FIELD_ALIGNED)
+#undef ASSERT_FIELD_ALIGNED
 #undef WASM_INSTANCE_OBJECT_FIELDS
 
-  STATIC_ASSERT(IsAligned(kFirstSystemPointerFieldOffset, kSystemPointerSize));
-  STATIC_ASSERT(IsAligned(kSize, kTaggedSize));
+  static constexpr uint16_t kTaggedFieldOffsets[] = {
+      kModuleObjectOffset,
+      kExportsObjectOffset,
+      kNativeContextOffset,
+      kMemoryObjectOffset,
+      kUntaggedGlobalsBufferOffset,
+      kTaggedGlobalsBufferOffset,
+      kImportedMutableGlobalsBuffersOffset,
+      kDebugInfoOffset,
+      kTablesOffset,
+      kImportedFunctionRefsOffset,
+      kIndirectFunctionTableRefsOffset,
+      kManagedNativeAllocationsOffset,
+      kExceptionsTableOffset,
+      kUndefinedValueOffset,
+      kNullValueOffset,
+      kCEntryStubOffset,
+      kWasmExportedFunctionsOffset};
 
   V8_EXPORT_PRIVATE const wasm::WasmModule* module();
 

@@ -1473,6 +1473,10 @@ Address ImportedFunctionEntry::target() {
   return instance_->imported_function_targets()[index_];
 }
 
+// static
+constexpr uint16_t WasmInstanceObject::kTaggedFieldOffsets[];
+
+// static
 bool WasmInstanceObject::EnsureIndirectFunctionTableWithMinimumSize(
     Handle<WasmInstanceObject> instance, uint32_t minimum_size) {
   uint32_t old_size = instance->indirect_function_table_size();
