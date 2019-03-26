@@ -2107,15 +2107,12 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
     RunPrintAndVerify(ControlFlowOptimizationPhase::phase_name(), true);
   }
 
+  Run<LateOptimizationPhase>();
+  RunPrintAndVerify(LateOptimizationPhase::phase_name(), true);
+
   // Optimize memory access and allocation operations.
   Run<MemoryOptimizationPhase>();
-  // TODO(jarin, rossberg): Remove UNTYPED once machine typing works.
   RunPrintAndVerify(MemoryOptimizationPhase::phase_name(), true);
-
-  // Lower changes that have been inserted before.
-  Run<LateOptimizationPhase>();
-  // TODO(jarin, rossberg): Remove UNTYPED once machine typing works.
-  RunPrintAndVerify(LateOptimizationPhase::phase_name(), true);
 
   data->source_positions()->RemoveDecorator();
   if (data->info()->trace_turbo_json_enabled()) {
