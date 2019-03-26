@@ -266,15 +266,6 @@ uint32_t TestingModuleBuilder::AddPassiveDataSegment(Vector<const byte> bytes) {
   return index;
 }
 
-uint32_t TestingModuleBuilder::AddPassiveElementSegment(
-    const std::vector<uint32_t>& entries) {
-  uint32_t index = static_cast<uint32_t>(test_module_->elem_segments.size());
-  test_module_->elem_segments.emplace_back();
-  auto& elem_segment = test_module_->elem_segments.back();
-  elem_segment.entries = entries;
-  return index;
-}
-
 CompilationEnv TestingModuleBuilder::CreateCompilationEnv() {
   return {
       test_module_ptr_,

@@ -191,7 +191,6 @@ class TestingModuleBuilder {
   uint32_t AddException(FunctionSig* sig);
 
   uint32_t AddPassiveDataSegment(Vector<const byte> bytes);
-  uint32_t AddPassiveElementSegment(const std::vector<uint32_t>& entries);
 
   WasmFunction* GetFunctionAt(int index) {
     return &test_module_->functions[index];
@@ -451,21 +450,18 @@ class WasmRunner : public WasmRunnerBase {
       : WasmRunner(execution_tier, nullptr, "main", kNoRuntimeExceptionSupport,
                    lower_simd) {}
 
-  void SetUpTrapCallback() {
-    WasmRunnerBase::trap_happened = false;
-    auto trap_callback = []() -> void {
-      WasmRunnerBase::trap_happened = true;
-      set_trap_callback_for_testing(nullptr);
-    };
-    set_trap_callback_for_testing(trap_callback);
-  }
-
   ReturnType Call(ParamTypes... p) {
     DCHECK(compiled_);
     if (interpret()) return CallInterpreter(p...);
 
     ReturnType return_value = static_cast<ReturnType>(0xDEADBEEFDEADBEEF);
-    SetUpTrapCallback();
+    WasmRunnerBase::trap_happened = false;
+
+    auto trap_callback = []() -> void {
+      WasmRunnerBase::trap_happened = true;
+      set_trap_callback_for_testing(nullptr);
+    };
+    set_trap_callback_for_testing(trap_callback);
 
     wrapper_.SetInnerCode(builder_.GetFunctionCode(main_fn_index_));
     wrapper_.SetInstance(builder_.instance_object());
@@ -512,7 +508,6 @@ class WasmRunner : public WasmRunnerBase {
   void CheckCallApplyViaJS(double expected, uint32_t function_index,
                            Handle<Object>* buffer, int count) {
     Isolate* isolate = builder_.isolate();
-    SetUpTrapCallback();
     if (jsfuncs_.size() <= function_index) {
       jsfuncs_.resize(function_index + 1);
     }
@@ -525,7 +520,7 @@ class WasmRunner : public WasmRunnerBase {
         Execution::TryCall(isolate, jsfunc, global, count, buffer,
                            Execution::MessageHandling::kReport, nullptr);
 
-    if (retval.is_null() || WasmRunnerBase::trap_happened) {
+    if (retval.is_null()) {
       CHECK_EQ(expected, static_cast<double>(0xDEADBEEF));
     } else {
       Handle<Object> result = retval.ToHandleChecked();
