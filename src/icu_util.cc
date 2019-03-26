@@ -5,7 +5,7 @@
 #include "src/icu_util.h"
 
 #if defined(_WIN32)
-#include <windows.h>
+#include "src/base/win32-headers.h"
 #endif
 
 #if defined(V8_INTL_SUPPORT)
