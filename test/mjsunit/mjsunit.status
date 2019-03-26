@@ -864,7 +864,7 @@
 }],  # 'predictable == True'
 
 ##############################################################################
-['simulator_run and (arch == ppc or arch == ppc64 or arch == s390 or arch == s390x)', {
+['simulator_run and (arch in [ppc64, s390x])', {
 
   # take too long with the simulator.
   'regress/regress-1132': [SKIP],
@@ -876,7 +876,7 @@
   'whitespaces': [PASS, SLOW],
   'wasm/atomics-stress': [SKIP],
   'wasm/atomics64-stress': [SKIP],
-}],  # 'simulator_run and (arch == ppc or arch == ppc64 or arch == s390 or arch == s390x)'
+}],  # 'simulator_run and (arch in [ppc64, s390x])'
 
 ##############################################################################
 ['arch == ppc64', {
@@ -885,6 +885,12 @@
   'big-array-literal': [SKIP],
   'regress/regress-353551': [SKIP],
 }],  # 'arch == ppc64'
+
+##############################################################################
+['arch == s390x', {
+  # stack overflow
+  'regress/regress-crbug-178790': [PASS, ['mode == debug', SKIP]],
+}],  # 'arch == s390x'
 
 ##############################################################################
 ['variant == stress', {
