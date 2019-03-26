@@ -1705,6 +1705,18 @@ class ThreadImpl {
         len += imm.length;
         return ok;
       }
+      case kExprTableInit: {
+        TableInitImmediate<Decoder::kNoValidate> imm(decoder, code->at(pc));
+        auto size = Pop().to<uint32_t>();
+        auto src = Pop().to<uint32_t>();
+        auto dst = Pop().to<uint32_t>();
+        bool ok = WasmInstanceObject::InitTableEntries(
+            instance_object_->GetIsolate(), instance_object_, imm.table.index,
+            imm.elem_segment_index, dst, src, size);
+        if (!ok) DoTrap(kTrapTableOutOfBounds, pc);
+        len += imm.length;
+        return ok;
+      }
       case kExprTableCopy: {
         TableCopyImmediate<Decoder::kNoValidate> imm(decoder, code->at(pc));
         auto size = Pop().to<uint32_t>();

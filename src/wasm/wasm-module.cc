@@ -27,6 +27,9 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
+// static
+const uint32_t WasmElemSegment::kNullIndex;
+
 WireBytesRef WasmModule::LookupFunctionName(const ModuleWireBytes& wire_bytes,
                                             uint32_t function_index) const {
   if (!function_names) {
