@@ -18,7 +18,6 @@
 #include "src/objects/dictionary.h"
 #include "src/objects/js-array.h"
 #include "src/objects/js-regexp.h"
-#include "src/objects/ordered-hash-table.h"
 #include "src/objects/string.h"
 
 namespace v8 {
@@ -200,13 +199,13 @@ class V8_EXPORT_PRIVATE Factory {
   Handle<OrderedNameDictionary> NewOrderedNameDictionary();
 
   Handle<SmallOrderedHashSet> NewSmallOrderedHashSet(
-      int capacity = SmallOrderedHashSet::kMinCapacity,
+      int capacity = kSmallOrderedHashSetMinCapacity,
       AllocationType allocation = AllocationType::kYoung);
   Handle<SmallOrderedHashMap> NewSmallOrderedHashMap(
-      int capacity = SmallOrderedHashMap::kMinCapacity,
+      int capacity = kSmallOrderedHashMapMinCapacity,
       AllocationType allocation = AllocationType::kYoung);
   Handle<SmallOrderedNameDictionary> NewSmallOrderedNameDictionary(
-      int capacity = SmallOrderedHashMap::kMinCapacity,
+      int capacity = kSmallOrderedHashMapMinCapacity,
       AllocationType allocation = AllocationType::kYoung);
 
   // Create a new PrototypeInfo struct.

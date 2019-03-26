@@ -595,6 +595,9 @@ class SmallOrderedHashSet : public SmallOrderedHashTable<SmallOrderedHashSet> {
                       SmallOrderedHashTable<SmallOrderedHashSet>);
 };
 
+STATIC_ASSERT(kSmallOrderedHashSetMinCapacity ==
+              SmallOrderedHashSet::kMinCapacity);
+
 class SmallOrderedHashMap : public SmallOrderedHashTable<SmallOrderedHashMap> {
  public:
   DECL_CAST(SmallOrderedHashMap)
@@ -624,6 +627,9 @@ class SmallOrderedHashMap : public SmallOrderedHashTable<SmallOrderedHashMap> {
   OBJECT_CONSTRUCTORS(SmallOrderedHashMap,
                       SmallOrderedHashTable<SmallOrderedHashMap>);
 };
+
+STATIC_ASSERT(kSmallOrderedHashMapMinCapacity ==
+              SmallOrderedHashMap::kMinCapacity);
 
 // TODO(gsathya): Rename this to OrderedHashTable, after we rename
 // OrderedHashTable to LargeOrderedHashTable. Also set up a

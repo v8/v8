@@ -17,6 +17,7 @@
 #include "src/heap/factory-inl.h"
 #include "src/objects/heap-number.h"
 #include "src/objects/oddball.h"
+#include "src/objects/ordered-hash-table.h"
 
 #include "src/ptr-compr-inl.h"
 

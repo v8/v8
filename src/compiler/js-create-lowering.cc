@@ -25,6 +25,7 @@
 #include "src/objects/js-generator.h"
 #include "src/objects/js-promise.h"
 #include "src/objects/js-regexp-inl.h"
+#include "src/objects/ordered-hash-table.h"
 
 namespace v8 {
 namespace internal {
