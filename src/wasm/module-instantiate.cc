@@ -8,7 +8,6 @@
 #include "src/conversions-inl.h"
 #include "src/property-descriptor.h"
 #include "src/utils.h"
-#include "src/wasm/js-to-wasm-wrapper-cache.h"
 #include "src/wasm/module-compiler.h"
 #include "src/wasm/wasm-import-wrapper-cache.h"
 #include "src/wasm/wasm-module.h"
@@ -81,7 +80,6 @@ class InstanceBuilder {
   Handle<FixedArray> tagged_globals_;
   std::vector<Handle<WasmExceptionObject>> exception_wrappers_;
   Handle<WasmExportedFunction> start_function_;
-  JSToWasmWrapperCache js_to_wasm_cache_;
   std::vector<SanitizedImport> sanitized_imports_;
 
   UseTrapHandler use_trap_handler() const {
@@ -508,8 +506,9 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   if (module_->start_function_index >= 0) {
     int start_index = module_->start_function_index;
     auto& function = module_->functions[start_index];
-    Handle<Code> wrapper_code = js_to_wasm_cache_.GetOrCompileJSToWasmWrapper(
-        isolate_, function.sig, function.imported);
+    Handle<Code> wrapper_code = compiler::CompileJSToWasmWrapper(
+                                    isolate_, function.sig, function.imported)
+                                    .ToHandleChecked();
     // TODO(clemensh): Don't generate an exported function for the start
     // function. Use CWasmEntry instead.
     start_function_ = WasmExportedFunction::New(
@@ -1471,36 +1470,8 @@ void InstanceBuilder::InitializeTables(Handle<WasmInstanceObject> instance) {
   }
 }
 
-namespace {
-Handle<WasmExportedFunction> CreateWasmExportedFunctionForAsm(
-    Isolate* isolate, Handle<WasmInstanceObject> instance,
-    const WasmModule* module, uint32_t func_index,
-    JSToWasmWrapperCache* js_to_wasm_cache) {
-  const WasmFunction* function = &module->functions[func_index];
-  DCHECK_EQ(module->origin, kAsmJsOrigin);
-
-  Handle<Code> wrapper_code = js_to_wasm_cache->GetOrCompileJSToWasmWrapper(
-      isolate, function->sig, function->imported);
-  auto module_object =
-      Handle<WasmModuleObject>(instance->module_object(), isolate);
-  WireBytesRef func_name_ref = module->LookupFunctionName(
-      ModuleWireBytes(module_object->native_module()->wire_bytes()),
-      func_index);
-  auto func_name = WasmModuleObject::ExtractUtf8StringFromModuleBytes(
-                       isolate, module_object, func_name_ref)
-                       .ToHandleChecked();
-  auto wasm_exported_function = WasmExportedFunction::New(
-      isolate, instance, func_name, func_index,
-      static_cast<int>(function->sig->parameter_count()), wrapper_code);
-  WasmInstanceObject::SetWasmExportedFunction(isolate, instance, func_index,
-                                              wasm_exported_function);
-  return wasm_exported_function;
-}
-}  // namespace
-
 bool LoadElemSegmentImpl(Isolate* isolate, Handle<WasmInstanceObject> instance,
                          Handle<WasmTableObject> table_object,
-                         JSToWasmWrapperCache* js_to_wasm_cache,
                          const WasmElemSegment& elem_segment, uint32_t dst,
                          uint32_t src, size_t count) {
   // TODO(wasm): Move this functionality into wasm-objects, since it is used
@@ -1536,17 +1507,9 @@ bool LoadElemSegmentImpl(Isolate* isolate, Handle<WasmInstanceObject> instance,
                                                     func_index);
     if (wasm_exported_function.is_null()) {
       // No JSFunction entry yet exists for this function. Create a {Tuple2}
-      // holding the information to lazily allocate one (or eagerly allocate
-      // one for asm.js code).
-      if (module->origin == kAsmJsOrigin) {
-        Handle<WasmExportedFunction> function =
-            CreateWasmExportedFunctionForAsm(isolate, instance, module,
-                                             func_index, js_to_wasm_cache);
-        table_object->elements()->set(entry_index, *function);
-      } else {
-        WasmTableObject::SetFunctionTablePlaceholder(
-            isolate, table_object, entry_index, instance, func_index);
-      }
+      // holding the information to lazily allocate one.
+      WasmTableObject::SetFunctionTablePlaceholder(
+          isolate, table_object, entry_index, instance, func_index);
     } else {
       table_object->elements()->set(entry_index,
                                     *wasm_exported_function.ToHandleChecked());
@@ -1573,7 +1536,7 @@ void InstanceBuilder::LoadTableSegments(Handle<WasmInstanceObject> instance) {
         handle(WasmTableObject::cast(
                    instance->tables()->get(elem_segment.table_index)),
                isolate_),
-        &js_to_wasm_cache_, elem_segment, dst, src, count);
+        elem_segment, dst, src, count);
     CHECK(success);
   }
 
@@ -1604,14 +1567,12 @@ void InstanceBuilder::InitializeExceptions(
 bool LoadElemSegment(Isolate* isolate, Handle<WasmInstanceObject> instance,
                      uint32_t table_index, uint32_t segment_index, uint32_t dst,
                      uint32_t src, uint32_t count) {
-  JSToWasmWrapperCache js_to_wasm_cache;
-
   auto& elem_segment = instance->module()->elem_segments[segment_index];
   return LoadElemSegmentImpl(
       isolate, instance,
       handle(WasmTableObject::cast(instance->tables()->get(table_index)),
              isolate),
-      &js_to_wasm_cache, elem_segment, dst, src, count);
+      elem_segment, dst, src, count);
 }
 
 }  // namespace wasm
