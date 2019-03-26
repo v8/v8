@@ -2356,10 +2356,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ minps(kScratchDoubleReg, dst);
       __ minps(dst, src1);
       // propagate -0's and NaNs, which may be non-canonical.
-      __ orps(dst, kScratchDoubleReg);
-      // Canonicalize NaNs by clearing the payload. Sign is non-deterministic.
-      __ movaps(kScratchDoubleReg, dst);
-      __ cmpps(dst, dst, 4);
+      __ orps(kScratchDoubleReg, dst);
+      // Canonicalize NaNs by quieting and clearing the payload.
+      __ cmpps(dst, kScratchDoubleReg, 3);
+      __ orps(kScratchDoubleReg, dst);
       __ psrld(dst, 10);
       __ andnps(dst, kScratchDoubleReg);
       break;
@@ -2374,14 +2374,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ maxps(kScratchDoubleReg, dst);
       __ maxps(dst, src1);
       // Find discrepancies.
-      __ xorps(kScratchDoubleReg, dst);
+      __ xorps(dst, kScratchDoubleReg);
       // Propagate NaNs, which may be non-canonical.
-      __ orps(dst, kScratchDoubleReg);
-      // Propagate sign discrepancy. NaNs and correct lanes are preserved.
-      __ subps(dst, kScratchDoubleReg);
+      __ orps(kScratchDoubleReg, dst);
+      // Propagate sign discrepancy and (subtle) quiet NaNs.
+      __ subps(kScratchDoubleReg, dst);
       // Canonicalize NaNs by clearing the payload. Sign is non-deterministic.
-      __ movaps(kScratchDoubleReg, dst);
-      __ cmpps(dst, dst, 4);
+      __ cmpps(dst, kScratchDoubleReg, 3);
       __ psrld(dst, 10);
       __ andnps(dst, kScratchDoubleReg);
       break;

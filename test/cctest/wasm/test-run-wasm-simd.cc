@@ -442,9 +442,70 @@ WASM_SIMD_COMPILED_TEST(F32x4ConvertI32x4) {
   }
 }
 
+bool IsSameNan(float expected, float actual) {
+  // Sign is non-deterministic.
+  uint32_t expected_bits = bit_cast<uint32_t>(expected) & ~0x80000000;
+  uint32_t actual_bits = bit_cast<uint32_t>(actual) & ~0x80000000;
+  // Some implementations convert signaling NaNs to quiet NaNs.
+  return (expected_bits == actual_bits) ||
+         ((expected_bits | 0x00400000) == actual_bits);
+}
+
+bool IsCanonical(float actual) {
+  uint32_t actual_bits = bit_cast<uint32_t>(actual);
+  // Canonical NaN has quiet bit and no payload.
+  return (actual_bits & 0xFFC00000) == actual_bits;
+}
+
+void CheckFloatResult(float x, float y, float expected, float actual,
+                      bool exact = true) {
+  if (std::isnan(expected)) {
+    CHECK(std::isnan(actual));
+    if (std::isnan(x) && IsSameNan(x, actual)) return;
+    if (std::isnan(y) && IsSameNan(y, actual)) return;
+    if (IsSameNan(expected, actual)) return;
+    if (IsCanonical(actual)) return;
+    // This is expected to assert; it's useful for debugging.
+    CHECK_EQ(bit_cast<uint32_t>(expected), bit_cast<uint32_t>(actual));
+  } else {
+    if (exact) {
+      CHECK_EQ(expected, actual);
+      // The sign of 0's must match.
+      CHECK_EQ(std::signbit(expected), std::signbit(actual));
+      return;
+    }
+    // Otherwise, perform an approximate equality test. First check for
+    // equality to handle +/-Infinity where approximate equality doesn't work.
+    if (expected == actual) return;
+
+    // 1% error allows all platforms to pass easily.
+    constexpr float kApproximationError = 0.01f;
+    float abs_error = std::abs(expected) * kApproximationError,
+          min = expected - abs_error, max = expected + abs_error;
+    CHECK_LE(min, actual);
+    CHECK_GE(max, actual);
+  }
+}
+
+// Test some values not included in the float inputs from value_helper. These
+// tests are useful for opcodes that are synthesized during code gen, like Min
+// and Max on ia32 and x64.
+static constexpr uint32_t nan_test_array[] = {
+    // Bit patterns of quiet NaNs and signaling NaNs, with or without
+    // additional payload.
+    0x7FC00000, 0xFFC00000, 0x7FFFFFFF, 0x7F800000, 0xFF800000, 0x7F876543,
+    0xFF876543,
+    // Both Infinities.
+    0x7F800000, 0xFF800000,
+    // Some "normal" numbers, 1 and -1.
+    0x3F800000, 0xBF800000};
+
+#define FOR_FLOAT32_NAN_INPUTS(i) \
+  for (size_t i = 0; i < arraysize(nan_test_array); ++i)
+
 void RunF32x4UnOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
                       WasmOpcode opcode, FloatUnOp expected_op,
-                      bool approximate = false) {
+                      bool exact = true) {
   WasmRunner<int32_t, float> r(execution_tier, lower_simd);
   // Global to hold output.
   float* g = r.builder().AddGlobal<float>(kWasmS128);
@@ -458,25 +519,26 @@ void RunF32x4UnOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
   FOR_FLOAT32_INPUTS(x) {
     if (!PlatformCanRepresent(x)) continue;
     // Extreme values have larger errors so skip them for approximation tests.
-    if (approximate && IsExtreme(x)) continue;
+    if (!exact && IsExtreme(x)) continue;
     float expected = expected_op(x);
     if (!PlatformCanRepresent(expected)) continue;
     r.Call(x);
     for (int i = 0; i < 4; i++) {
       float actual = ReadLittleEndianValue<float>(&g[i]);
-      if (std::isnan(expected)) {
-        CHECK(std::isnan(actual));
-      } else {
-        // First check for equality, to handle +/-Inf, since min and max would
-        // be NaNs in those cases.
-        if (expected == actual) continue;
-        // 1% error allows all platforms to pass easily.
-        constexpr float kApproximationError = 0.01f;
-        float abs_error = std::abs(expected) * kApproximationError,
-              min = expected - abs_error, max = expected + abs_error;
-        CHECK_LE(min, actual);
-        CHECK_GE(max, actual);
-      }
+      CheckFloatResult(x, x, expected, actual, exact);
+    }
+  }
+
+  FOR_FLOAT32_NAN_INPUTS(x) {
+    if (!PlatformCanRepresent(x)) continue;
+    // Extreme values have larger errors so skip them for approximation tests.
+    if (!exact && IsExtreme(x)) continue;
+    float expected = expected_op(x);
+    if (!PlatformCanRepresent(expected)) continue;
+    r.Call(x);
+    for (int i = 0; i < 4; i++) {
+      float actual = ReadLittleEndianValue<float>(&g[i]);
+      CheckFloatResult(x, x, expected, actual, exact);
     }
   }
 }
@@ -490,12 +552,12 @@ WASM_SIMD_TEST(F32x4Neg) {
 
 WASM_SIMD_TEST(F32x4RecipApprox) {
   RunF32x4UnOpTest(execution_tier, lower_simd, kExprF32x4RecipApprox,
-                   base::Recip, true /* approximate */);
+                   base::Recip, false /* !exact */);
 }
 
 WASM_SIMD_TEST(F32x4RecipSqrtApprox) {
   RunF32x4UnOpTest(execution_tier, lower_simd, kExprF32x4RecipSqrtApprox,
-                   base::RecipSqrt, true /* approximate */);
+                   base::RecipSqrt, false /* !exact */);
 }
 
 void RunF32x4BinOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
@@ -522,22 +584,29 @@ void RunF32x4BinOpTest(ExecutionTier execution_tier, LowerSimd lower_simd,
       r.Call(x, y);
       for (int i = 0; i < 4; i++) {
         float actual = ReadLittleEndianValue<float>(&g[i]);
-        if (std::isnan(expected)) {
-          CHECK(std::isnan(actual));
-          // Finally, check that NaN outputs are canonical. The sign bit is
-          // allowed to be non-deterministic.
-          uint32_t expected_bits = bit_cast<uint32_t>(expected) & ~0x80000000;
-          uint32_t actual_bits = bit_cast<uint32_t>(actual) & ~0x80000000;
-          CHECK_EQ(expected_bits, actual_bits);
-        } else {
-          CHECK_EQ(expected, actual);
-          // The sign of 0's must match.
-          CHECK_EQ(std::signbit(expected), std::signbit(actual));
-        }
+        CheckFloatResult(x, y, expected, actual, true /* exact */);
+      }
+    }
+  }
+
+  FOR_FLOAT32_NAN_INPUTS(i) {
+    float x = bit_cast<float>(nan_test_array[i]);
+    if (!PlatformCanRepresent(x)) continue;
+    FOR_FLOAT32_NAN_INPUTS(j) {
+      float y = bit_cast<float>(nan_test_array[j]);
+      if (!PlatformCanRepresent(y)) continue;
+      float expected = expected_op(x, y);
+      if (!PlatformCanRepresent(expected)) continue;
+      r.Call(x, y);
+      for (int i = 0; i < 4; i++) {
+        float actual = ReadLittleEndianValue<float>(&g[i]);
+        CheckFloatResult(x, y, expected, actual, true /* exact */);
       }
     }
   }
 }
+
+#undef FOR_FLOAT32_NAN_INPUTS
 
 WASM_SIMD_TEST(F32x4Add) {
   RunF32x4BinOpTest(execution_tier, lower_simd, kExprF32x4Add, Add);
