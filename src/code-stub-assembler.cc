@@ -2831,7 +2831,9 @@ void CodeStubAssembler::StoreFixedDoubleArrayElement(
       ElementOffsetFromIndex(index_node, PACKED_DOUBLE_ELEMENTS, parameter_mode,
                              FixedArray::kHeaderSize - kHeapObjectTag);
   MachineRepresentation rep = MachineRepresentation::kFloat64;
-  StoreNoWriteBarrier(rep, object, offset, value);
+  // Make sure we do not store signalling NaNs into double arrays.
+  TNode<Float64T> value_silenced = Float64SilenceNaN(value);
+  StoreNoWriteBarrier(rep, object, offset, value_silenced);
 }
 
 void CodeStubAssembler::StoreFeedbackVectorSlot(Node* object,
@@ -2985,7 +2987,9 @@ void CodeStubAssembler::TryStoreArrayElement(ElementsKind kind,
   } else if (IsDoubleElementsKind(kind)) {
     GotoIfNotNumber(value, bailout);
   }
-  if (IsDoubleElementsKind(kind)) value = ChangeNumberToFloat64(value);
+  if (IsDoubleElementsKind(kind)) {
+    value = ChangeNumberToFloat64(value);
+  }
   StoreElement(elements, kind, index, value, mode);
 }
 
@@ -10345,9 +10349,8 @@ void CodeStubAssembler::StoreElement(Node* elements, ElementsKind kind,
     StoreNoWriteBarrier(rep, elements, offset, value);
     return;
   } else if (IsDoubleElementsKind(kind)) {
-    // Make sure we do not store signalling NaNs into double arrays.
-    TNode<Float64T> value_silenced = Float64SilenceNaN(value);
-    StoreFixedDoubleArrayElement(CAST(elements), index, value_silenced, mode);
+    TNode<Float64T> value_float64 = UncheckedCast<Float64T>(value);
+    StoreFixedDoubleArrayElement(CAST(elements), index, value_float64, mode);
   } else {
     WriteBarrierMode barrier_mode =
         IsSmiElementsKind(kind) ? SKIP_WRITE_BARRIER : UPDATE_WRITE_BARRIER;
