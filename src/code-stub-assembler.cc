@@ -9923,6 +9923,8 @@ Node* CodeStubAssembler::OrdinaryHasInstance(Node* context, Node* callable,
   VARIABLE(var_result, MachineRepresentation::kTagged);
   Label return_runtime(this, Label::kDeferred), return_result(this);
 
+  GotoIfForceSlowPath(&return_runtime);
+
   // Goto runtime if {object} is a Smi.
   GotoIf(TaggedIsSmi(object), &return_runtime);
 
@@ -9944,26 +9946,28 @@ Node* CodeStubAssembler::OrdinaryHasInstance(Node* context, Node* callable,
   Node* callable_prototype =
       LoadObjectField(callable, JSFunction::kPrototypeOrInitialMapOffset);
   {
-    Label callable_prototype_valid(this);
+    Label no_initial_map(this), walk_prototype_chain(this);
     VARIABLE(var_callable_prototype, MachineRepresentation::kTagged,
              callable_prototype);
 
-    // Resolve the "prototype" if the {callable} has an initial map.  Afterwards
-    // the {callable_prototype} will be either the JSReceiver prototype object
-    // or the hole value, which means that no instances of the {callable} were
-    // created so far and hence we should return false.
-    Node* callable_prototype_instance_type =
-        LoadInstanceType(callable_prototype);
-    GotoIfNot(InstanceTypeEqual(callable_prototype_instance_type, MAP_TYPE),
-              &callable_prototype_valid);
+    // Resolve the "prototype" if the {callable} has an initial map.
+    GotoIfNot(IsMap(callable_prototype), &no_initial_map);
     var_callable_prototype.Bind(
         LoadObjectField(callable_prototype, Map::kPrototypeOffset));
-    Goto(&callable_prototype_valid);
-    BIND(&callable_prototype_valid);
+    Goto(&walk_prototype_chain);
+
+    BIND(&no_initial_map);
+    // {callable_prototype} is the hole if the "prototype" property hasn't been
+    // requested so far.
+    Branch(WordEqual(callable_prototype, TheHoleConstant()), &return_runtime,
+           &walk_prototype_chain);
+
+    BIND(&walk_prototype_chain);
     callable_prototype = var_callable_prototype.value();
   }
 
   // Loop through the prototype chain looking for the {callable} prototype.
+  CSA_ASSERT(this, IsJSReceiver(callable_prototype));
   var_result.Bind(HasInPrototypeChain(context, object, callable_prototype));
   Goto(&return_result);
 
