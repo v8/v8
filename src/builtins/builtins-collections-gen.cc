@@ -12,6 +12,7 @@
 #include "src/heap/heap-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/js-collection.h"
+#include "src/objects/ordered-hash-table.h"
 #include "torque-generated/builtins-base-from-dsl-gen.h"
 #include "torque-generated/builtins-collections-from-dsl-gen.h"
 
