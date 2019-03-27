@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --expose-gc --nostress-opt --typed-array-max-size-in-heap=2048
+// Flags: --allow-natives-syntax --expose-gc --nostress-opt
 
 var elements_kind = {
   fast_smi_only             :  'fast smi only elements',
@@ -202,7 +202,6 @@ function construct_objects() {
 
 // Test crankshafted transition SMI->DOUBLE.
   %EnsureFeedbackVectorForFunction(convert_to_double);
-  %NeverOptimizeFunction(convert_to_double);
 function convert_to_double(array) {
   array[1] = 2.5;
   assertKind(elements_kind.fast_double, array);
@@ -215,7 +214,6 @@ smis = construct_smis();
 convert_to_double(smis);
 // Test crankshafted transitions SMI->FAST and DOUBLE->FAST.
   %EnsureFeedbackVectorForFunction(convert_to_fast);
-  %NeverOptimizeFunction(convert_to_fast);
 function convert_to_fast(array) {
   array[1] = "two";
   assertKind(elements_kind.fast, array);
@@ -233,7 +231,6 @@ convert_to_fast(doubles);
 // Test transition chain SMI->DOUBLE->FAST (crankshafted function will
 // transition to FAST directly).
 %EnsureFeedbackVectorForFunction(convert_mixed);
-%NeverOptimizeFunction(convert_mixed);
 function convert_mixed(array, value, kind) {
   array[1] = value;
   assertKind(kind, array);
