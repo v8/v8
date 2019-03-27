@@ -23,7 +23,7 @@ class CodeEventObserver {
   virtual ~CodeEventObserver() = default;
 };
 
-class ProfilerListener : public CodeEventListener {
+class V8_EXPORT_PRIVATE ProfilerListener : public CodeEventListener {
  public:
   ProfilerListener(Isolate*, CodeEventObserver*);
   ~ProfilerListener() override;

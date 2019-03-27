@@ -132,7 +132,8 @@ class CodeEventsContainer {
 
 // This class implements both the profile events processor thread and
 // methods called by event producers: VM and stack sampler threads.
-class ProfilerEventsProcessor : public base::Thread, public CodeEventObserver {
+class V8_EXPORT_PRIVATE ProfilerEventsProcessor : public base::Thread,
+                                                  public CodeEventObserver {
  public:
   virtual ~ProfilerEventsProcessor();
 
@@ -174,7 +175,8 @@ class ProfilerEventsProcessor : public base::Thread, public CodeEventObserver {
   Isolate* isolate_;
 };
 
-class SamplingEventsProcessor : public ProfilerEventsProcessor {
+class V8_EXPORT_PRIVATE SamplingEventsProcessor
+    : public ProfilerEventsProcessor {
  public:
   SamplingEventsProcessor(Isolate* isolate, ProfileGenerator* generator,
                           base::TimeDelta period);
@@ -210,7 +212,7 @@ class SamplingEventsProcessor : public ProfilerEventsProcessor {
   const base::TimeDelta period_;  // Samples & code events processing period.
 };
 
-class CpuProfiler {
+class V8_EXPORT_PRIVATE CpuProfiler {
  public:
   explicit CpuProfiler(Isolate* isolate);
 

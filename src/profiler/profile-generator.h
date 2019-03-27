@@ -29,7 +29,7 @@ struct TickSample;
 
 // Provides a mapping from the offsets within generated code or a bytecode array
 // to the source line and inlining id.
-class SourcePositionTable : public Malloced {
+class V8_EXPORT_PRIVATE SourcePositionTable : public Malloced {
  public:
   SourcePositionTable() = default;
 
@@ -144,16 +144,16 @@ class CodeEntry {
   }
 
   static const char* const kWasmResourceNamePrefix;
-  static const char* const kEmptyResourceName;
+  V8_EXPORT_PRIVATE static const char* const kEmptyResourceName;
   static const char* const kEmptyBailoutReason;
   static const char* const kNoDeoptReason;
 
-  static const char* const kProgramEntryName;
-  static const char* const kIdleEntryName;
+  V8_EXPORT_PRIVATE static const char* const kProgramEntryName;
+  V8_EXPORT_PRIVATE static const char* const kIdleEntryName;
   static const char* const kGarbageCollectorEntryName;
   // Used to represent frames for which we have no reliable way to
   // detect function.
-  static const char* const kUnresolvedFunctionName;
+  V8_EXPORT_PRIVATE static const char* const kUnresolvedFunctionName;
 
   V8_INLINE static CodeEntry* program_entry() {
     return kProgramEntry.Pointer();
@@ -231,7 +231,7 @@ typedef std::vector<CodeEntryAndLineNumber> ProfileStackTrace;
 
 class ProfileTree;
 
-class ProfileNode {
+class V8_EXPORT_PRIVATE ProfileNode {
  public:
   inline ProfileNode(ProfileTree* tree, CodeEntry* entry, ProfileNode* parent,
                      int line_number = 0);
@@ -298,7 +298,7 @@ class ProfileNode {
   DISALLOW_COPY_AND_ASSIGN(ProfileNode);
 };
 
-class ProfileTree {
+class V8_EXPORT_PRIVATE ProfileTree {
  public:
   explicit ProfileTree(Isolate* isolate);
   ~ProfileTree();
@@ -379,7 +379,7 @@ class CpuProfile {
 
   void UpdateTicksScale();
 
-  void Print();
+  V8_EXPORT_PRIVATE void Print();
 
  private:
   void StreamPendingTraceEvents();
@@ -400,7 +400,7 @@ class CpuProfile {
   DISALLOW_COPY_AND_ASSIGN(CpuProfile);
 };
 
-class CodeMap {
+class V8_EXPORT_PRIVATE CodeMap {
  public:
   CodeMap();
   ~CodeMap();
@@ -436,7 +436,7 @@ class CodeMap {
   DISALLOW_COPY_AND_ASSIGN(CodeMap);
 };
 
-class CpuProfilesCollection {
+class V8_EXPORT_PRIVATE CpuProfilesCollection {
  public:
   explicit CpuProfilesCollection(Isolate* isolate);
 
@@ -473,7 +473,7 @@ class CpuProfilesCollection {
   DISALLOW_COPY_AND_ASSIGN(CpuProfilesCollection);
 };
 
-class ProfileGenerator {
+class V8_EXPORT_PRIVATE ProfileGenerator {
  public:
   explicit ProfileGenerator(CpuProfilesCollection* profiles);
 
