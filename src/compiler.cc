@@ -756,10 +756,15 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
   // If code was pending optimization for testing, delete remove the strong root
   // that was preventing the bytecode from being flushed between marking and
   // optimization.
-  if (isolate->heap()->pending_optimize_for_test_bytecode() ==
-      shared->GetBytecodeArray()) {
-    isolate->heap()->SetPendingOptimizeForTestBytecode(
-        ReadOnlyRoots(isolate).undefined_value());
+  if (!isolate->heap()->pending_optimize_for_test_bytecode()->IsUndefined()) {
+    Handle<ObjectHashTable> table =
+        handle(ObjectHashTable::cast(
+                   isolate->heap()->pending_optimize_for_test_bytecode()),
+               isolate);
+    bool was_present;
+    table = table->Remove(isolate, table, handle(function->shared(), isolate),
+                          &was_present);
+    isolate->heap()->SetPendingOptimizeForTestBytecode(*table);
   }
 
   Handle<Code> cached_code;

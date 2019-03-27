@@ -233,6 +233,15 @@ RUNTIME_FUNCTION(Runtime_OptimizeFunctionOnNextCall) {
   }
   Handle<JSFunction> function = Handle<JSFunction>::cast(function_object);
 
+  // Check we called PrepareFunctionForOptimization and hold the bytecode
+  // array to prevent it from getting flushed.
+  // TODO(mythria): Enable this check once we add PrepareForOptimization in all
+  // tests before calling OptimizeFunctionOnNextCall.
+  // CHECK(!ObjectHashTable::cast(
+  //          isolate->heap()->pending_optimize_for_test_bytecode())
+  //          ->Lookup(handle(function->shared(), isolate))
+  //          ->IsTheHole());
+
   // The following conditions were lifted (in part) from the DCHECK inside
   // JSFunction::MarkForOptimization().
 
@@ -337,9 +346,6 @@ RUNTIME_FUNCTION(Runtime_PrepareFunctionForOptimization) {
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
 
-  // Only one function should be prepared for optimization at a time
-  CHECK(isolate->heap()->pending_optimize_for_test_bytecode()->IsUndefined());
-
   if (!EnsureFeedbackVector(function)) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
@@ -367,8 +373,16 @@ RUNTIME_FUNCTION(Runtime_PrepareFunctionForOptimization) {
 
   // Hold onto the bytecode array between marking and optimization to ensure
   // it's not flushed.
-  isolate->heap()->SetPendingOptimizeForTestBytecode(
-      function->shared()->GetBytecodeArray());
+  Handle<ObjectHashTable> table =
+      isolate->heap()->pending_optimize_for_test_bytecode()->IsUndefined()
+          ? ObjectHashTable::New(isolate, 1)
+          : handle(ObjectHashTable::cast(
+                       isolate->heap()->pending_optimize_for_test_bytecode()),
+                   isolate);
+  table = ObjectHashTable::Put(
+      table, handle(function->shared(), isolate),
+      handle(function->shared()->GetBytecodeArray(), isolate));
+  isolate->heap()->SetPendingOptimizeForTestBytecode(*table);
 
   return ReadOnlyRoots(isolate).undefined_value();
 }
