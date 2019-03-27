@@ -91,6 +91,12 @@ declare_args() {
   # Enable code comments for builtins in the snapshot (impacts performance).
   v8_enable_snapshot_code_comments = false
 
+  # Enable native counters from the snapshot (impacts performance, sets
+  # -dV8_SNAPSHOT_NATIVE_CODE_COUNTERS).
+  # This option will generate extra code in the snapshot to increment counters,
+  # as per the --native-code-counters flag.
+  v8_enable_snapshot_native_code_counters = ""
+
   # Enable code-generation-time checking of types in the CodeStubAssembler.
   v8_enable_verify_csa = false
 
@@ -207,6 +213,9 @@ if (v8_enable_v8_checks == "") {
 if (v8_check_microtasks_scopes_consistency == "") {
   v8_check_microtasks_scopes_consistency =
       v8_enable_debugging_features || dcheck_always_on
+}
+if (v8_enable_snapshot_native_code_counters == "") {
+  v8_enable_snapshot_native_code_counters = v8_enable_debugging_features
 }
 
 assert(v8_current_cpu != "x86" || !v8_untrusted_code_mitigations,
@@ -394,6 +403,9 @@ config("features") {
   }
   if (v8_use_snapshot) {
     defines += [ "V8_USE_SNAPSHOT" ]
+    if (v8_enable_snapshot_native_code_counters) {
+      defines += [ "V8_SNAPSHOT_NATIVE_CODE_COUNTERS" ]
+    }
   }
   if (v8_use_external_startup_data) {
     defines += [ "V8_USE_EXTERNAL_STARTUP_DATA" ]
@@ -1178,6 +1190,14 @@ template("run_mksnapshot") {
 
     if (v8_enable_snapshot_code_comments) {
       args += [ "--code-comments" ]
+    }
+
+    if (v8_enable_snapshot_native_code_counters) {
+      args += [ "--native-code-counters" ]
+    } else {
+      # --native-code-counters is the default in debug mode so make sure we can
+      # unset it.
+      args += [ "--no-native-code-counters" ]
     }
 
     if (v8_enable_fast_mksnapshot) {
@@ -1998,6 +2018,7 @@ v8_source_set("v8_base") {
     "src/conversions-inl.h",
     "src/conversions.cc",
     "src/conversions.h",
+    "src/counters-definitions.h",
     "src/counters-inl.h",
     "src/counters.cc",
     "src/counters.h",

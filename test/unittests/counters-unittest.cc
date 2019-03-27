@@ -148,6 +148,38 @@ class NativeTimeScope {
   }
 };
 
+class SnapshotNativeCounterTest : public TestWithNativeContextAndCounters {
+ public:
+  SnapshotNativeCounterTest() {}
+
+  bool SupportsNativeCounters() const {
+#ifdef V8_USE_SNAPSHOT
+#ifdef V8_SNAPSHOT_NATIVE_CODE_COUNTERS
+    return true;
+#else
+    return false;
+#endif  // V8_SNAPSHOT_NATIVE_CODE_COUNTERS
+#else
+    // If we do not have a snapshot then we rely on the runtime option.
+    return internal::FLAG_native_code_counters;
+#endif  // V8_USE_SNAPSHOT
+  }
+
+#define SC(name, caption)                                        \
+  int name() {                                                   \
+    CHECK(isolate()->counters()->name()->Enabled());             \
+    return *isolate()->counters()->name()->GetInternalPointer(); \
+  }
+  STATS_COUNTER_NATIVE_CODE_LIST(SC)
+#undef SC
+
+  void PrintAll() {
+#define SC(name, caption) PrintF(#caption " = %d\n", name());
+    STATS_COUNTER_NATIVE_CODE_LIST(SC)
+#undef SC
+  }
+};
+
 }  // namespace
 
 
@@ -763,6 +795,30 @@ TEST_F(RuntimeCallStatsTest, ApiGetter) {
   EXPECT_EQ(kCustomCallbackTime * 4010, counter2()->time().InMicroseconds());
 
   PrintStats();
+}
+
+TEST_F(SnapshotNativeCounterTest, StringAddNative) {
+  RunJS("let s = 'hello, ' + 'world!'");
+
+  if (SupportsNativeCounters()) {
+    EXPECT_NE(0, string_add_native());
+  } else {
+    EXPECT_EQ(0, string_add_native());
+  }
+
+  PrintAll();
+}
+
+TEST_F(SnapshotNativeCounterTest, SubStringNative) {
+  RunJS("'hello, world!'.substring(6);");
+
+  if (SupportsNativeCounters()) {
+    EXPECT_NE(0, sub_string_native());
+  } else {
+    EXPECT_EQ(0, sub_string_native());
+  }
+
+  PrintAll();
 }
 
 }  // namespace internal

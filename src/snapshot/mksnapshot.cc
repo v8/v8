@@ -5,6 +5,7 @@
 #include <errno.h>
 #include <signal.h>
 #include <stdio.h>
+#include <iomanip>
 
 #include "include/libplatform/libplatform.h"
 #include "src/assembler-arch.h"
@@ -246,6 +247,9 @@ void WriteEmbeddedFile(i::EmbeddedFileWriter* writer) {
 }
 }  // namespace
 
+typedef std::map<std::string, int> CounterMap;
+CounterMap* counter_map_;
+
 int main(int argc, char** argv) {
   v8::base::EnsureConsoleOutput();
 
@@ -287,7 +291,20 @@ int main(int argc, char** argv) {
     i::DisableEmbeddedBlobRefcounting();
     v8::StartupData blob;
     {
+      counter_map_ = new CounterMap();
       v8::Isolate* isolate = v8::Isolate::Allocate();
+      // If --native-code-counters is on then we enable all counters to make
+      // sure we generate code to increment them from the snapshot.
+      if (i::FLAG_native_code_counters || i::FLAG_dump_counters ||
+          i::FLAG_dump_counters_nvp) {
+        isolate->SetCounterFunction([](const char* name) -> int* {
+          auto map_entry = counter_map_->find(name);
+          if (map_entry == counter_map_->end()) {
+            counter_map_->emplace(name, 0);
+          }
+          return &counter_map_->at(name);
+        });
+      }
       if (i::FLAG_embedded_builtins) {
         // Set code range such that relative jumps for builtins to
         // builtin calls in the snapshot are possible.
@@ -307,6 +324,37 @@ int main(int argc, char** argv) {
         WriteEmbeddedFile(&embedded_writer);
       }
       blob = CreateSnapshotDataBlob(&snapshot_creator, embed_script.get());
+      if (i::FLAG_dump_counters || i::FLAG_dump_counters_nvp) {
+        if (i::FLAG_dump_counters_nvp) {
+          // Dump counters as name-value pairs.
+          for (auto entry : *counter_map_) {
+            std::string key = entry.first;
+            int counter = entry.second;
+            std::cout << "\"" << key << "\"=" << counter << "\n";
+          }
+        } else {
+          // Dump counters in formatted boxes.
+          constexpr int kNameBoxSize = 64;
+          constexpr int kValueBoxSize = 13;
+          std::cout << "+" << std::string(kNameBoxSize, '-') << "+"
+                    << std::string(kValueBoxSize, '-') << "+\n";
+          std::cout << "| Name" << std::string(kNameBoxSize - 5, ' ')
+                    << "| Value" << std::string(kValueBoxSize - 6, ' ')
+                    << "|\n";
+          std::cout << "+" << std::string(kNameBoxSize, '-') << "+"
+                    << std::string(kValueBoxSize, '-') << "+\n";
+          for (auto entry : *counter_map_) {
+            std::string key = entry.first;
+            int counter = entry.second;
+            std::cout << "| " << std::setw(kNameBoxSize - 2) << std::left << key
+                      << " | " << std::setw(kValueBoxSize - 2) << std::right
+                      << counter << " |\n";
+          }
+          std::cout << "+" << std::string(kNameBoxSize, '-') << "+"
+                    << std::string(kValueBoxSize, '-') << "+\n";
+        }
+      }
+      delete counter_map_;
     }
 
     if (warmup_script) {
