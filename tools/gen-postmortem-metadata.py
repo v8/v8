@@ -393,12 +393,14 @@ def load_objects_from_file(objfilename, checktypes):
                         typestr += line;
                         continue;
 
-                match = re.match('class (\w[^:]*)(: public (\w[^{]*))?\s*{\s*',
-                    line);
+                match = re.match(r'class(?:\s+V8_EXPORT(?:_PRIVATE)?)?'
+                                 r'\s+(\w[^:]*)'
+                                 r'(?:: public (\w[^{]*))?\s*{\s*',
+                                 line);
 
                 if (match):
                         klass = match.group(1).strip();
-                        pklass = match.group(3);
+                        pklass = match.group(2);
                         if (pklass):
                                 pklass = pklass.strip();
                         klasses[klass] = { 'parent': pklass };
