@@ -273,7 +273,7 @@ class UseInfo {
 // Contains logic related to changing the representation of values for constants
 // and other nodes, as well as lowering Simplified->Machine operators.
 // Eagerly folds any representation changes for constants.
-class RepresentationChanger final {
+class V8_EXPORT_PRIVATE RepresentationChanger final {
  public:
   RepresentationChanger(JSGraph* jsgraph, Isolate* isolate);
 

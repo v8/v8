@@ -86,7 +86,7 @@ class DeoptimizationLiteral {
 };
 
 // Generates native code for a sequence of instructions.
-class CodeGenerator final : public GapResolver::Assembler {
+class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
  public:
   explicit CodeGenerator(Zone* codegen_zone, Frame* frame, Linkage* linkage,
                          InstructionSequence* instructions,

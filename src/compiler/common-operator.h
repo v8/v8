@@ -438,7 +438,8 @@ V8_EXPORT_PRIVATE IfValueParameters const& IfValueParametersOf(
 const FrameStateInfo& FrameStateInfoOf(const Operator* op)
     V8_WARN_UNUSED_RESULT;
 
-Handle<HeapObject> HeapConstantOf(const Operator* op) V8_WARN_UNUSED_RESULT;
+V8_EXPORT_PRIVATE Handle<HeapObject> HeapConstantOf(const Operator* op)
+    V8_WARN_UNUSED_RESULT;
 
 const StringConstantBase* StringConstantBaseOf(const Operator* op)
     V8_WARN_UNUSED_RESULT;

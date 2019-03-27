@@ -446,7 +446,8 @@ bool operator!=(PropertyAccess const&, PropertyAccess const&);
 
 size_t hash_value(PropertyAccess const&);
 
-std::ostream& operator<<(std::ostream&, PropertyAccess const&);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&,
+                                           PropertyAccess const&);
 
 PropertyAccess const& PropertyAccessOf(const Operator* op);
 

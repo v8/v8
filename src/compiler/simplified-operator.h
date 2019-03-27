@@ -306,10 +306,11 @@ class CheckMinusZeroParameters {
   VectorSlotPair feedback_;
 };
 
-const CheckMinusZeroParameters& CheckMinusZeroParametersOf(const Operator* op)
-    V8_WARN_UNUSED_RESULT;
+V8_EXPORT_PRIVATE const CheckMinusZeroParameters& CheckMinusZeroParametersOf(
+    const Operator* op) V8_WARN_UNUSED_RESULT;
 
-std::ostream& operator<<(std::ostream&, const CheckMinusZeroParameters& params);
+V8_EXPORT_PRIVATE std::ostream& operator<<(
+    std::ostream&, const CheckMinusZeroParameters& params);
 
 size_t hash_value(const CheckMinusZeroParameters& params);
 

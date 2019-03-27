@@ -82,7 +82,7 @@ class Pipeline : public AllStatic {
   // Run the pipeline on JavaScript bytecode and generate code.
   // If requested, hands out the heap broker, which is allocated
   // in {info}'s zone.
-  static MaybeHandle<Code> GenerateCodeForTesting(
+  V8_EXPORT_PRIVATE static MaybeHandle<Code> GenerateCodeForTesting(
       OptimizedCompilationInfo* info, Isolate* isolate,
       JSHeapBroker** out_broker = nullptr);
 

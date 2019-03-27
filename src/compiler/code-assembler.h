@@ -1464,7 +1464,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   DISALLOW_COPY_AND_ASSIGN(CodeAssembler);
 };
 
-class CodeAssemblerVariable {
+class V8_EXPORT_PRIVATE CodeAssemblerVariable {
  public:
   explicit CodeAssemblerVariable(CodeAssembler* assembler,
                                  MachineRepresentation rep);
@@ -1534,7 +1534,7 @@ class TypedCodeAssemblerVariable : public CodeAssemblerVariable {
   using CodeAssemblerVariable::Bind;
 };
 
-class CodeAssemblerLabel {
+class V8_EXPORT_PRIVATE CodeAssemblerLabel {
  public:
   enum Type { kDeferred, kNonDeferred };
 
@@ -1714,7 +1714,7 @@ class V8_EXPORT_PRIVATE CodeAssemblerState {
   DISALLOW_COPY_AND_ASSIGN(CodeAssemblerState);
 };
 
-class CodeAssemblerScopedExceptionHandler {
+class V8_EXPORT_PRIVATE CodeAssemblerScopedExceptionHandler {
  public:
   CodeAssemblerScopedExceptionHandler(
       CodeAssembler* assembler, CodeAssemblerExceptionHandlerLabel* label);

@@ -96,7 +96,7 @@ class PerIsolateCompilerCache;
 HEAP_BROKER_OBJECT_LIST(FORWARD_DECL)
 #undef FORWARD_DECL
 
-class ObjectRef {
+class V8_EXPORT_PRIVATE ObjectRef {
  public:
   ObjectRef(JSHeapBroker* broker, Handle<Object> object);
   ObjectRef(JSHeapBroker* broker, ObjectData* data)
@@ -232,7 +232,7 @@ class JSBoundFunctionRef : public JSObjectRef {
   FixedArrayRef bound_arguments() const;
 };
 
-class JSFunctionRef : public JSObjectRef {
+class V8_EXPORT_PRIVATE JSFunctionRef : public JSObjectRef {
  public:
   using JSObjectRef::JSObjectRef;
   Handle<JSFunction> object() const;
@@ -416,7 +416,7 @@ class AllocationSiteRef : public HeapObjectRef {
   bool CanInlineCall() const;
 };
 
-class MapRef : public HeapObjectRef {
+class V8_EXPORT_PRIVATE MapRef : public HeapObjectRef {
  public:
   using HeapObjectRef::HeapObjectRef;
   Handle<Map> object() const;
@@ -543,7 +543,7 @@ class ScopeInfoRef : public HeapObjectRef {
   V(bool, is_safe_to_skip_arguments_adaptor) \
   V(bool, IsInlineable)
 
-class SharedFunctionInfoRef : public HeapObjectRef {
+class V8_EXPORT_PRIVATE SharedFunctionInfoRef : public HeapObjectRef {
  public:
   using HeapObjectRef::HeapObjectRef;
   Handle<SharedFunctionInfo> object() const;

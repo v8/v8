@@ -148,8 +148,8 @@ class V8_EXPORT_PRIVATE Operator : public NON_EXPORTED_BASE(ZoneObject) {
 
 DEFINE_OPERATORS_FOR_FLAGS(Operator::Properties)
 
-std::ostream& operator<<(std::ostream& os, const Operator& op);
-
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           const Operator& op);
 
 // Default equality function for below Operator1<*> class.
 template <typename T>

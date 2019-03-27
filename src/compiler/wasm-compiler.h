@@ -125,16 +125,14 @@ enum class WasmImportCallKind : uint8_t {
   kUseCallBuiltin
 };
 
-WasmImportCallKind GetWasmImportCallKind(Handle<JSReceiver> callable,
-                                         wasm::FunctionSig* sig,
-                                         bool has_bigint_feature);
+V8_EXPORT_PRIVATE WasmImportCallKind
+GetWasmImportCallKind(Handle<JSReceiver> callable, wasm::FunctionSig* sig,
+                      bool has_bigint_feature);
 
 // Compiles an import call wrapper, which allows WASM to call imports.
-wasm::WasmCode* CompileWasmImportCallWrapper(wasm::WasmEngine*,
-                                             wasm::NativeModule*,
-                                             WasmImportCallKind,
-                                             wasm::FunctionSig*,
-                                             bool source_positions);
+V8_EXPORT_PRIVATE wasm::WasmCode* CompileWasmImportCallWrapper(
+    wasm::WasmEngine*, wasm::NativeModule*, WasmImportCallKind,
+    wasm::FunctionSig*, bool source_positions);
 
 // Creates a code object calling a wasm function with the given signature,
 // callable from JS.
@@ -144,7 +142,7 @@ V8_EXPORT_PRIVATE MaybeHandle<Code> CompileJSToWasmWrapper(Isolate*,
 
 // Compiles a stub that redirects a call to a wasm function to the wasm
 // interpreter. It's ABI compatible with the compiled wasm function.
-wasm::WasmCompilationResult CompileWasmInterpreterEntry(
+V8_EXPORT_PRIVATE wasm::WasmCompilationResult CompileWasmInterpreterEntry(
     wasm::WasmEngine*, const wasm::WasmFeatures& enabled_features,
     uint32_t func_index, wasm::FunctionSig*);
 
@@ -188,9 +186,9 @@ class WasmGraphBuilder {
     kNoExtraCallableParam = false
   };
 
-  WasmGraphBuilder(wasm::CompilationEnv* env, Zone* zone, MachineGraph* mcgraph,
-                   wasm::FunctionSig* sig,
-                   compiler::SourcePositionTable* spt = nullptr);
+  V8_EXPORT_PRIVATE WasmGraphBuilder(
+      wasm::CompilationEnv* env, Zone* zone, MachineGraph* mcgraph,
+      wasm::FunctionSig* sig, compiler::SourcePositionTable* spt = nullptr);
 
   Node** Buffer(size_t count) {
     if (count > cur_bufsize_) {
@@ -367,9 +365,9 @@ class WasmGraphBuilder {
 
   wasm::FunctionSig* GetFunctionSignature() { return sig_; }
 
-  void LowerInt64();
+  V8_EXPORT_PRIVATE void LowerInt64();
 
-  void SimdScalarLoweringForTesting();
+  V8_EXPORT_PRIVATE void SimdScalarLoweringForTesting();
 
   void SetSourcePosition(Node* node, wasm::WasmCodePosition position);
 
