@@ -808,6 +808,9 @@ void AsmJsParser::ValidateFunction() {
   // End function
   current_function_builder_->Emit(kExprEnd);
 
+  if (current_function_builder_->GetPosition() > kV8MaxWasmFunctionSize) {
+    FAIL("Size of function body exceeds internal limit");
+  }
   // Record (or validate) function type.
   AsmType* function_type = AsmType::Function(zone(), return_type_);
   for (auto t : params) {

@@ -135,7 +135,12 @@ MaybeHandle<AsmWasmData> WasmEngine::SyncCompileTranslatedAsmJs(
   ModuleResult result =
       DecodeWasmModule(kAsmjsWasmFeatures, bytes.start(), bytes.end(), false,
                        kAsmJsOrigin, isolate->counters(), allocator());
-  CHECK(!result.failed());
+  if (result.failed()) {
+    // This happens once in a while when we have missed some limit check
+    // in the asm parser. Output an error message to help diagnose, but crash.
+    std::cout << result.error().message();
+    UNREACHABLE();
+  }
 
   // Transfer ownership of the WasmModule to the {Managed<WasmModule>} generated
   // in {CompileToNativeModule}.
