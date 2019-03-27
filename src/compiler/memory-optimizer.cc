@@ -75,30 +75,10 @@ bool MemoryOptimizer::AllocationState::IsYoungGenerationAllocation() const {
   return group() && group()->IsYoungGenerationAllocation();
 }
 
-void MemoryOptimizer::VisitNode(Node* node, AllocationState const* state) {
-  DCHECK(!node->IsDead());
-  DCHECK_LT(0, node->op()->EffectInputCount());
+namespace {
+
+bool CanAllocate(const Node* node) {
   switch (node->opcode()) {
-    case IrOpcode::kAllocate:
-      // Allocate nodes were purged from the graph in effect-control
-      // linearization.
-      UNREACHABLE();
-    case IrOpcode::kAllocateRaw:
-      return VisitAllocateRaw(node, state);
-    case IrOpcode::kCall:
-      return VisitCall(node, state);
-    case IrOpcode::kCallWithCallerSavedRegisters:
-      return VisitCallWithCallerSavedRegisters(node, state);
-    case IrOpcode::kLoadElement:
-      return VisitLoadElement(node, state);
-    case IrOpcode::kLoadField:
-      return VisitLoadField(node, state);
-    case IrOpcode::kStoreElement:
-      return VisitStoreElement(node, state);
-    case IrOpcode::kStoreField:
-      return VisitStoreField(node, state);
-    case IrOpcode::kStore:
-      return VisitStore(node, state);
     case IrOpcode::kBitcastTaggedToWord:
     case IrOpcode::kBitcastWordToTagged:
     case IrOpcode::kComment:
@@ -108,10 +88,14 @@ void MemoryOptimizer::VisitNode(Node* node, AllocationState const* state) {
     case IrOpcode::kDeoptimizeUnless:
     case IrOpcode::kIfException:
     case IrOpcode::kLoad:
+    case IrOpcode::kLoadElement:
+    case IrOpcode::kLoadField:
     case IrOpcode::kPoisonedLoad:
     case IrOpcode::kProtectedLoad:
     case IrOpcode::kProtectedStore:
     case IrOpcode::kRetain:
+    case IrOpcode::kStoreElement:
+    case IrOpcode::kStoreField:
     case IrOpcode::kTaggedPoisonOnSpeculation:
     case IrOpcode::kUnalignedLoad:
     case IrOpcode::kUnalignedStore:
@@ -146,10 +130,83 @@ void MemoryOptimizer::VisitNode(Node* node, AllocationState const* state) {
     case IrOpcode::kWord64AtomicSub:
     case IrOpcode::kWord64AtomicXor:
     case IrOpcode::kWord64PoisonOnSpeculation:
-      // These operations cannot trigger GC.
-      return VisitOtherEffect(node, state);
+      return false;
+
+    case IrOpcode::kCall:
+    case IrOpcode::kCallWithCallerSavedRegisters:
+      return !(CallDescriptorOf(node->op())->flags() &
+               CallDescriptor::kNoAllocate);
+
+    case IrOpcode::kStore:
+      // Store is not safe because it could be part of CSA's bump pointer
+      // allocation(?).
+      return true;
+
     default:
       break;
+  }
+  return true;
+}
+
+bool CanLoopAllocate(Node* loop_effect_phi, Zone* temp_zone) {
+  Node* const control = NodeProperties::GetControlInput(loop_effect_phi);
+
+  ZoneQueue<Node*> queue(temp_zone);
+  ZoneSet<Node*> visited(temp_zone);
+  visited.insert(loop_effect_phi);
+
+  // Start the effect chain walk from the loop back edges.
+  for (int i = 1; i < control->InputCount(); ++i) {
+    queue.push(loop_effect_phi->InputAt(i));
+  }
+
+  while (!queue.empty()) {
+    Node* const current = queue.front();
+    queue.pop();
+    if (visited.find(current) == visited.end()) {
+      visited.insert(current);
+
+      if (CanAllocate(current)) return true;
+
+      for (int i = 0; i < current->op()->EffectInputCount(); ++i) {
+        queue.push(NodeProperties::GetEffectInput(current, i));
+      }
+    }
+  }
+  return false;
+}
+
+}  // namespace
+
+void MemoryOptimizer::VisitNode(Node* node, AllocationState const* state) {
+  DCHECK(!node->IsDead());
+  DCHECK_LT(0, node->op()->EffectInputCount());
+  switch (node->opcode()) {
+    case IrOpcode::kAllocate:
+      // Allocate nodes were purged from the graph in effect-control
+      // linearization.
+      UNREACHABLE();
+    case IrOpcode::kAllocateRaw:
+      return VisitAllocateRaw(node, state);
+    case IrOpcode::kCall:
+      return VisitCall(node, state);
+    case IrOpcode::kCallWithCallerSavedRegisters:
+      return VisitCallWithCallerSavedRegisters(node, state);
+    case IrOpcode::kLoadElement:
+      return VisitLoadElement(node, state);
+    case IrOpcode::kLoadField:
+      return VisitLoadField(node, state);
+    case IrOpcode::kStoreElement:
+      return VisitStoreElement(node, state);
+    case IrOpcode::kStoreField:
+      return VisitStoreField(node, state);
+    case IrOpcode::kStore:
+      return VisitStore(node, state);
+    default:
+      if (!CanAllocate(node)) {
+        // These operations cannot trigger GC.
+        return VisitOtherEffect(node, state);
+      }
   }
   DCHECK_EQ(0, node->op()->EffectOutputCount());
 }
@@ -538,8 +595,19 @@ void MemoryOptimizer::EnqueueMerge(Node* node, int index,
   DCHECK_LT(0, input_count);
   Node* const control = node->InputAt(input_count);
   if (control->opcode() == IrOpcode::kLoop) {
-    // For loops we always start with an empty state at the beginning.
-    if (index == 0) EnqueueUses(node, empty_state());
+    if (index == 0) {
+      if (CanLoopAllocate(node, zone())) {
+        // If the loop can allocate,  we start with an empty state at the
+        // beginning.
+        EnqueueUses(node, empty_state());
+      } else {
+        // If the loop cannot allocate, we can just propagate the state from
+        // before the loop.
+        EnqueueUses(node, state);
+      }
+    } else {
+      // Do not revisit backedges.
+    }
   } else {
     DCHECK_EQ(IrOpcode::kMerge, control->opcode());
     // Check if we already know about this pending merge.
