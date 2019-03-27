@@ -6145,17 +6145,31 @@ Handle<Object> JSPromise::TriggerPromiseReactions(Isolate* isolate,
 
     Handle<NativeContext> handler_context;
 
+    Handle<HeapObject> primary_handler;
+    Handle<HeapObject> secondary_handler;
+    if (type == PromiseReaction::kFulfill) {
+      primary_handler = handle(reaction->fulfill_handler(), isolate);
+      secondary_handler = handle(reaction->reject_handler(), isolate);
+    } else {
+      primary_handler = handle(reaction->reject_handler(), isolate);
+      secondary_handler = handle(reaction->fulfill_handler(), isolate);
+    }
+
+    if (primary_handler->IsJSReceiver()) {
+      JSReceiver::GetContextForMicrotask(
+          Handle<JSReceiver>::cast(primary_handler))
+          .ToHandle(&handler_context);
+    }
+    if (handler_context.is_null() && secondary_handler->IsJSReceiver()) {
+      JSReceiver::GetContextForMicrotask(
+          Handle<JSReceiver>::cast(secondary_handler))
+          .ToHandle(&handler_context);
+    }
+    if (handler_context.is_null()) handler_context = isolate->native_context();
+
     STATIC_ASSERT(static_cast<int>(PromiseReaction::kSize) ==
                   static_cast<int>(PromiseReactionJobTask::kSize));
     if (type == PromiseReaction::kFulfill) {
-      Handle<HeapObject> handler = handle(reaction->fulfill_handler(), isolate);
-      if (handler->IsJSReceiver()) {
-        JSReceiver::GetContextForMicrotask(Handle<JSReceiver>::cast(handler))
-            .ToHandle(&handler_context);
-      }
-      if (handler_context.is_null())
-        handler_context = isolate->native_context();
-
       task->synchronized_set_map(
           ReadOnlyRoots(isolate).promise_fulfill_reaction_job_task_map());
       Handle<PromiseFulfillReactionJobTask>::cast(task)->set_argument(
@@ -6171,19 +6185,13 @@ Handle<Object> JSPromise::TriggerPromiseReactions(Isolate* isolate,
               PromiseFulfillReactionJobTask::kPromiseOrCapabilityOffset));
     } else {
       DisallowHeapAllocation no_gc;
-      Handle<HeapObject> handler = handle(reaction->reject_handler(), isolate);
-      if (handler->IsJSReceiver()) {
-        JSReceiver::GetContextForMicrotask(Handle<JSReceiver>::cast(handler))
-            .ToHandle(&handler_context);
-      }
-      if (handler_context.is_null())
-        handler_context = isolate->native_context();
       task->synchronized_set_map(
           ReadOnlyRoots(isolate).promise_reject_reaction_job_task_map());
       Handle<PromiseRejectReactionJobTask>::cast(task)->set_argument(*argument);
       Handle<PromiseRejectReactionJobTask>::cast(task)->set_context(
           *handler_context);
-      Handle<PromiseRejectReactionJobTask>::cast(task)->set_handler(*handler);
+      Handle<PromiseRejectReactionJobTask>::cast(task)->set_handler(
+          *primary_handler);
       STATIC_ASSERT(
           static_cast<int>(PromiseReaction::kPromiseOrCapabilityOffset) ==
           static_cast<int>(

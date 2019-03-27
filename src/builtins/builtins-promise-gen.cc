@@ -417,6 +417,8 @@ void PromiseBuiltinsAssembler::PerformPromiseThen(
   {
     VARIABLE(var_map, MachineRepresentation::kTagged);
     VARIABLE(var_handler, MachineRepresentation::kTagged);
+    VARIABLE(var_handler_context, MachineRepresentation::kTagged,
+             UndefinedConstant());
     Label if_fulfilled(this), if_rejected(this, Label::kDeferred),
         enqueue(this);
     Branch(IsPromiseStatus(status, v8::Promise::kFulfilled), &if_fulfilled,
@@ -426,6 +428,17 @@ void PromiseBuiltinsAssembler::PerformPromiseThen(
     {
       var_map.Bind(LoadRoot(RootIndex::kPromiseFulfillReactionJobTaskMap));
       var_handler.Bind(on_fulfilled);
+
+      Label use_fallback(this, Label::kDeferred), done(this);
+      ExtractHandlerContext(on_fulfilled, &var_handler_context);
+      Branch(IsUndefined(var_handler_context.value()), &use_fallback, &done);
+
+      BIND(&use_fallback);
+      var_handler_context.Bind(context);
+      ExtractHandlerContext(on_rejected, &var_handler_context);
+      Goto(&done);
+
+      BIND(&done);
       Goto(&enqueue);
     }
 
@@ -434,6 +447,17 @@ void PromiseBuiltinsAssembler::PerformPromiseThen(
       CSA_ASSERT(this, IsPromiseStatus(status, v8::Promise::kRejected));
       var_map.Bind(LoadRoot(RootIndex::kPromiseRejectReactionJobTaskMap));
       var_handler.Bind(on_rejected);
+
+      Label use_fallback(this, Label::kDeferred), done(this);
+      ExtractHandlerContext(on_rejected, &var_handler_context);
+      Branch(IsUndefined(var_handler_context.value()), &use_fallback, &done);
+
+      BIND(&use_fallback);
+      var_handler_context.Bind(context);
+      ExtractHandlerContext(on_fulfilled, &var_handler_context);
+      Goto(&done);
+      BIND(&done);
+
       GotoIf(PromiseHasHandler(promise), &enqueue);
       CallRuntime(Runtime::kPromiseRevokeReject, context, promise);
       Goto(&enqueue);
@@ -441,9 +465,6 @@ void PromiseBuiltinsAssembler::PerformPromiseThen(
 
     BIND(&enqueue);
     {
-      VARIABLE(var_handler_context, MachineRepresentation::kTagged, context);
-      ExtractHandlerContext(var_handler.value(), &var_handler_context);
-
       Node* argument =
           LoadObjectField(promise, JSPromise::kReactionsOrResultOffset);
       Node* microtask = AllocatePromiseReactionJobTask(
@@ -585,7 +606,36 @@ Node* PromiseBuiltinsAssembler::TriggerPromiseReactions(
       GotoIf(TaggedIsSmi(current), &done_loop);
       var_current.Bind(LoadObjectField(current, PromiseReaction::kNextOffset));
 
-      VARIABLE(var_context, MachineRepresentation::kTagged, context);
+      VARIABLE(var_context, MachineRepresentation::kTagged,
+               UndefinedConstant());
+
+      Node* primary_handler;
+      Node* secondary_handler;
+      if (type == PromiseReaction::kFulfill) {
+        primary_handler =
+            LoadObjectField(current, PromiseReaction::kFulfillHandlerOffset);
+        secondary_handler =
+            LoadObjectField(current, PromiseReaction::kRejectHandlerOffset);
+      } else {
+        primary_handler =
+            LoadObjectField(current, PromiseReaction::kRejectHandlerOffset);
+        secondary_handler =
+            LoadObjectField(current, PromiseReaction::kFulfillHandlerOffset);
+      }
+
+      {
+        Label use_fallback(this, Label::kDeferred), done(this);
+        ExtractHandlerContext(primary_handler, &var_context);
+        Branch(IsUndefined(var_context.value()), &use_fallback, &done);
+
+        BIND(&use_fallback);
+        var_context.Bind(context);
+        ExtractHandlerContext(secondary_handler, &var_context);
+        CSA_ASSERT(this, IsNotUndefined(var_context.value()));
+        Goto(&done);
+
+        BIND(&done);
+      }
 
       // Morph {current} from a PromiseReaction into a PromiseReactionJobTask
       // and schedule that on the microtask queue. We try to minimize the number
@@ -593,9 +643,6 @@ Node* PromiseBuiltinsAssembler::TriggerPromiseReactions(
       STATIC_ASSERT(static_cast<int>(PromiseReaction::kSize) ==
                     static_cast<int>(PromiseReactionJobTask::kSize));
       if (type == PromiseReaction::kFulfill) {
-        Node* handler =
-            LoadObjectField(current, PromiseReaction::kFulfillHandlerOffset);
-        ExtractHandlerContext(handler, &var_context);
         StoreMapNoWriteBarrier(current,
                                RootIndex::kPromiseFulfillReactionJobTaskMap);
         StoreObjectField(current, PromiseReactionJobTask::kArgumentOffset,
@@ -610,9 +657,6 @@ Node* PromiseBuiltinsAssembler::TriggerPromiseReactions(
             static_cast<int>(
                 PromiseReactionJobTask::kPromiseOrCapabilityOffset));
       } else {
-        Node* handler =
-            LoadObjectField(current, PromiseReaction::kRejectHandlerOffset);
-        ExtractHandlerContext(handler, &var_context);
         StoreMapNoWriteBarrier(current,
                                RootIndex::kPromiseRejectReactionJobTaskMap);
         StoreObjectField(current, PromiseReactionJobTask::kArgumentOffset,
@@ -620,7 +664,7 @@ Node* PromiseBuiltinsAssembler::TriggerPromiseReactions(
         StoreObjectField(current, PromiseReactionJobTask::kContextOffset,
                          var_context.value());
         StoreObjectField(current, PromiseReactionJobTask::kHandlerOffset,
-                         handler);
+                         primary_handler);
         STATIC_ASSERT(
             static_cast<int>(PromiseReaction::kPromiseOrCapabilityOffset) ==
             static_cast<int>(
