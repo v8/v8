@@ -34,7 +34,7 @@ class Object;
 #endif
 
 // A Deserializer reads a snapshot and reconstructs the Object graph it defines.
-class Deserializer : public SerializerDeserializer {
+class V8_EXPORT_PRIVATE Deserializer : public SerializerDeserializer {
  public:
   ~Deserializer() override;
 
