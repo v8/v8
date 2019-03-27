@@ -1819,7 +1819,7 @@ void WasmExceptionTag::WasmExceptionTagPrint(std::ostream& os) {  // NOLINT
 }
 
 void WasmInstanceObject::WasmInstanceObjectPrint(std::ostream& os) {  // NOLINT
-  PrintHeader(os, "WasmInstanceObject");
+  JSObjectPrintHeader(os, *this, "WasmInstanceObject");
   os << "\n - module_object: " << Brief(module_object());
   os << "\n - exports_object: " << Brief(exports_object());
   os << "\n - native_context: " << Brief(native_context());
@@ -1864,6 +1864,7 @@ void WasmInstanceObject::WasmInstanceObjectPrint(std::ostream& os) {  // NOLINT
      << static_cast<void*>(indirect_function_table_sig_ids());
   os << "\n - indirect_function_table_targets: "
      << static_cast<void*>(indirect_function_table_targets());
+  JSObjectPrintBody(os, *this);
   os << "\n";
 }
 
