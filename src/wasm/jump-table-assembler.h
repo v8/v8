@@ -27,7 +27,7 @@ namespace wasm {
 //
 // The above illustrates jump table lines {Li} containing slots {Si} with each
 // line containing {n} slots and some padding {x} for alignment purposes.
-class JumpTableAssembler : public MacroAssembler {
+class V8_EXPORT_PRIVATE JumpTableAssembler : public MacroAssembler {
  public:
   // Translate an offset into the continuous jump table to a jump table index.
   static uint32_t SlotOffsetToIndex(uint32_t slot_offset) {

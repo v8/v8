@@ -98,8 +98,7 @@ class WasmMemoryTracker {
   // Decreases the amount of reserved address space.
   void ReleaseReservation(size_t num_bytes);
 
-
-  bool IsWasmMemory(const void* buffer_start);
+  V8_EXPORT_PRIVATE bool IsWasmMemory(const void* buffer_start);
 
   bool IsWasmSharedMemory(const void* buffer_start);
 
@@ -109,7 +108,8 @@ class WasmMemoryTracker {
 
   // Returns a pointer to a Wasm buffer's allocation data, or nullptr if the
   // buffer is not tracked.
-  const AllocationData* FindAllocationData(const void* buffer_start);
+  V8_EXPORT_PRIVATE const AllocationData* FindAllocationData(
+      const void* buffer_start);
 
   // Checks if a buffer points to a Wasm memory and if so does any necessary
   // work to reclaim the buffer. If this function returns false, the caller must
@@ -266,21 +266,23 @@ class WasmMemoryTracker {
 // Attempts to allocate an array buffer with guard regions suitable for trap
 // handling. If address space is not available, it will return a buffer with
 // mini-guards that will require bounds checks.
-MaybeHandle<JSArrayBuffer> NewArrayBuffer(Isolate*, size_t size);
+V8_EXPORT_PRIVATE MaybeHandle<JSArrayBuffer> NewArrayBuffer(Isolate*,
+                                                            size_t size);
 
 // Attempts to allocate a SharedArrayBuffer with guard regions suitable for
 // trap handling. If address space is not available, it will try to reserve
 // up to the maximum for that memory. If all else fails, it will return a
 // buffer with mini-guards of initial size.
-MaybeHandle<JSArrayBuffer> NewSharedArrayBuffer(Isolate*, size_t initial_size,
-                                                size_t max_size);
+V8_EXPORT_PRIVATE MaybeHandle<JSArrayBuffer> NewSharedArrayBuffer(
+    Isolate*, size_t initial_size, size_t max_size);
 
 Handle<JSArrayBuffer> SetupArrayBuffer(
     Isolate*, void* backing_store, size_t size, bool is_external,
     SharedFlag shared = SharedFlag::kNotShared);
 
-void DetachMemoryBuffer(Isolate* isolate, Handle<JSArrayBuffer> buffer,
-                        bool free_memory);
+V8_EXPORT_PRIVATE void DetachMemoryBuffer(Isolate* isolate,
+                                          Handle<JSArrayBuffer> buffer,
+                                          bool free_memory);
 
 }  // namespace wasm
 }  // namespace internal

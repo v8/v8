@@ -65,7 +65,7 @@ struct WasmCompilationResult {
   ExecutionTier result_tier;
 };
 
-class WasmCompilationUnit final {
+class V8_EXPORT_PRIVATE WasmCompilationUnit final {
  public:
   static ExecutionTier GetDefaultExecutionTier(const WasmModule*);
 

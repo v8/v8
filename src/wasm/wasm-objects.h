@@ -61,8 +61,9 @@ class IndirectFunctionTableEntry {
   inline IndirectFunctionTableEntry(Handle<WasmInstanceObject>, int index);
 
   void clear();
-  void Set(int sig_id, Handle<WasmInstanceObject> target_instance,
-           int target_func_index);
+  V8_EXPORT_PRIVATE void Set(int sig_id,
+                             Handle<WasmInstanceObject> target_instance,
+                             int target_func_index);
 
   void CopyFrom(const IndirectFunctionTableEntry& that);
 
@@ -91,8 +92,8 @@ class ImportedFunctionEntry {
 
   // Initialize this entry as a WASM to JS call. This accepts the isolate as a
   // parameter, since it must allocate a tuple.
-  void SetWasmToJs(Isolate*, Handle<JSReceiver> callable,
-                   const wasm::WasmCode* wasm_to_js_wrapper);
+  V8_EXPORT_PRIVATE void SetWasmToJs(Isolate*, Handle<JSReceiver> callable,
+                                     const wasm::WasmCode* wasm_to_js_wrapper);
   // Initialize this entry as a WASM to WASM call.
   void SetWasmToWasm(WasmInstanceObject target_instance, Address call_target);
 
@@ -142,7 +143,7 @@ class WasmModuleObject : public JSObject {
 #undef WASM_MODULE_OBJECT_FIELDS
 
   // Creates a new {WasmModuleObject} with a new {NativeModule} underneath.
-  static Handle<WasmModuleObject> New(
+  V8_EXPORT_PRIVATE static Handle<WasmModuleObject> New(
       Isolate* isolate, const wasm::WasmFeatures& enabled,
       std::shared_ptr<const wasm::WasmModule> module,
       OwnedVector<const uint8_t> wire_bytes, Handle<Script> script,
@@ -150,10 +151,10 @@ class WasmModuleObject : public JSObject {
 
   // Creates a new {WasmModuleObject} for an existing {NativeModule} that is
   // reference counted and might be shared between multiple Isolates.
-  static Handle<WasmModuleObject> New(
+  V8_EXPORT_PRIVATE static Handle<WasmModuleObject> New(
       Isolate* isolate, std::shared_ptr<wasm::NativeModule> native_module,
       Handle<Script> script, size_t code_size_estimate);
-  static Handle<WasmModuleObject> New(
+  V8_EXPORT_PRIVATE static Handle<WasmModuleObject> New(
       Isolate* isolate, std::shared_ptr<wasm::NativeModule> native_module,
       Handle<Script> script, Handle<FixedArray> export_wrappers,
       size_t code_size_estimate);
@@ -164,8 +165,9 @@ class WasmModuleObject : public JSObject {
   // location inside the same function.
   // If it points outside a function, or behind the last breakable location,
   // this function returns false and does not set any breakpoint.
-  static bool SetBreakPoint(Handle<WasmModuleObject>, int* position,
-                            Handle<BreakPoint> break_point);
+  V8_EXPORT_PRIVATE static bool SetBreakPoint(Handle<WasmModuleObject>,
+                                              int* position,
+                                              Handle<BreakPoint> break_point);
 
   // Check whether this module was generated from asm.js source.
   inline bool is_asm_js();
@@ -225,7 +227,7 @@ class WasmModuleObject : public JSObject {
   // entries, mapping wasm byte offsets to line and column in the disassembly.
   // The list is guaranteed to be ordered by the byte_offset.
   // Returns an empty string and empty vector if the function index is invalid.
-  debug::WasmDisassembly DisassembleFunction(int func_index);
+  V8_EXPORT_PRIVATE debug::WasmDisassembly DisassembleFunction(int func_index);
 
   // Extract a portion of the wire bytes as UTF-8 string.
   // Returns a null handle if the respective bytes do not form a valid UTF-8
@@ -237,9 +239,9 @@ class WasmModuleObject : public JSObject {
       wasm::WireBytesRef ref);
 
   // Get a list of all possible breakpoints within a given range of this module.
-  bool GetPossibleBreakpoints(const debug::Location& start,
-                              const debug::Location& end,
-                              std::vector<debug::BreakLocation>* locations);
+  V8_EXPORT_PRIVATE bool GetPossibleBreakpoints(
+      const debug::Location& start, const debug::Location& end,
+      std::vector<debug::BreakLocation>* locations);
 
   // Return an empty handle if no breakpoint is hit at that location, or a
   // FixedArray with all hit breakpoint objects.
@@ -251,7 +253,7 @@ class WasmModuleObject : public JSObject {
 };
 
 // Representation of a WebAssembly.Table JavaScript-level object.
-class WasmTableObject : public JSObject {
+class V8_EXPORT_PRIVATE WasmTableObject : public JSObject {
  public:
   DECL_CAST(WasmTableObject)
 
@@ -346,8 +348,9 @@ class WasmMemoryObject : public JSObject {
 #undef WASM_MEMORY_OBJECT_FIELDS
 
   // Add an instance to the internal (weak) list.
-  static void AddInstance(Isolate* isolate, Handle<WasmMemoryObject> memory,
-                          Handle<WasmInstanceObject> object);
+  V8_EXPORT_PRIVATE static void AddInstance(Isolate* isolate,
+                                            Handle<WasmMemoryObject> memory,
+                                            Handle<WasmInstanceObject> object);
   inline bool has_maximum_pages();
 
   // Return whether the underlying backing store has guard regions large enough
@@ -363,7 +366,8 @@ class WasmMemoryObject : public JSObject {
 
   void update_instances(Isolate* isolate, Handle<JSArrayBuffer> buffer);
 
-  static int32_t Grow(Isolate*, Handle<WasmMemoryObject>, uint32_t pages);
+  V8_EXPORT_PRIVATE static int32_t Grow(Isolate*, Handle<WasmMemoryObject>,
+                                        uint32_t pages);
 
   OBJECT_CONSTRUCTORS(WasmMemoryObject, JSObject);
 };
@@ -550,18 +554,20 @@ class WasmInstanceObject : public JSObject {
 
   V8_EXPORT_PRIVATE const wasm::WasmModule* module();
 
-  static bool EnsureIndirectFunctionTableWithMinimumSize(
+  V8_EXPORT_PRIVATE static bool EnsureIndirectFunctionTableWithMinimumSize(
       Handle<WasmInstanceObject> instance, uint32_t minimum_size);
 
   bool has_indirect_function_table();
 
-  void SetRawMemory(byte* mem_start, size_t mem_size);
+  V8_EXPORT_PRIVATE void SetRawMemory(byte* mem_start, size_t mem_size);
 
   // Get the debug info associated with the given wasm object.
   // If no debug info exists yet, it is created automatically.
-  static Handle<WasmDebugInfo> GetOrCreateDebugInfo(Handle<WasmInstanceObject>);
+  V8_EXPORT_PRIVATE static Handle<WasmDebugInfo> GetOrCreateDebugInfo(
+      Handle<WasmInstanceObject>);
 
-  static Handle<WasmInstanceObject> New(Isolate*, Handle<WasmModuleObject>);
+  V8_EXPORT_PRIVATE static Handle<WasmInstanceObject> New(
+      Isolate*, Handle<WasmModuleObject>);
 
   Address GetCallTarget(uint32_t func_index);
 
@@ -656,11 +662,10 @@ class WasmExportedFunction : public JSFunction {
 
   V8_EXPORT_PRIVATE static bool IsWasmExportedFunction(Object object);
 
-  static Handle<WasmExportedFunction> New(Isolate* isolate,
-                                          Handle<WasmInstanceObject> instance,
-                                          MaybeHandle<String> maybe_name,
-                                          int func_index, int arity,
-                                          Handle<Code> export_wrapper);
+  V8_EXPORT_PRIVATE static Handle<WasmExportedFunction> New(
+      Isolate* isolate, Handle<WasmInstanceObject> instance,
+      MaybeHandle<String> maybe_name, int func_index, int arity,
+      Handle<Code> export_wrapper);
 
   Address GetWasmCallTarget();
 
@@ -742,12 +747,13 @@ class WasmDebugInfo : public Struct {
   // Set a breakpoint in the given function at the given byte offset within that
   // function. This will redirect all future calls to this function to the
   // interpreter and will always pause at the given offset.
-  static void SetBreakpoint(Handle<WasmDebugInfo>, int func_index, int offset);
+  V8_EXPORT_PRIVATE static void SetBreakpoint(Handle<WasmDebugInfo>,
+                                              int func_index, int offset);
 
   // Make a set of functions always execute in the interpreter without setting
   // breakpoints.
-  static void RedirectToInterpreter(Handle<WasmDebugInfo>,
-                                    Vector<int> func_indexes);
+  V8_EXPORT_PRIVATE static void RedirectToInterpreter(Handle<WasmDebugInfo>,
+                                                      Vector<int> func_indexes);
 
   void PrepareStep(StepAction);
 
@@ -766,11 +772,12 @@ class WasmDebugInfo : public Struct {
   std::vector<std::pair<uint32_t, int>> GetInterpretedStack(
       Address frame_pointer);
 
+  V8_EXPORT_PRIVATE
   std::unique_ptr<wasm::InterpretedFrame, wasm::InterpretedFrameDeleter>
   GetInterpretedFrame(Address frame_pointer, int frame_index);
 
   // Returns the number of calls / function frames executed in the interpreter.
-  uint64_t NumInterpretedCalls();
+  V8_EXPORT_PRIVATE uint64_t NumInterpretedCalls();
 
   // Get scope details for a specific interpreted frame.
   // Both of these methods return a JSArrays (for the global scope and local
@@ -786,8 +793,8 @@ class WasmDebugInfo : public Struct {
                                               Address frame_pointer,
                                               int frame_index);
 
-  static Handle<JSFunction> GetCWasmEntry(Handle<WasmDebugInfo>,
-                                          wasm::FunctionSig*);
+  V8_EXPORT_PRIVATE static Handle<JSFunction> GetCWasmEntry(
+      Handle<WasmDebugInfo>, wasm::FunctionSig*);
 
   OBJECT_CONSTRUCTORS(WasmDebugInfo, Struct);
 };
@@ -798,7 +805,8 @@ class WasmDebugInfo : public Struct {
 //  - {WasmInstanceObject::exceptions_table}: List of tags used by an instance.
 class WasmExceptionTag : public Struct {
  public:
-  static Handle<WasmExceptionTag> New(Isolate* isolate, int index);
+  V8_EXPORT_PRIVATE static Handle<WasmExceptionTag> New(Isolate* isolate,
+                                                        int index);
 
   // Note that this index is only useful for debugging purposes and it is not
   // unique across modules. The GC however does not allow objects without at

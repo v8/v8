@@ -113,7 +113,8 @@ class CompilationState {
 
   void SetWireBytesStorage(std::shared_ptr<WireBytesStorage>);
 
-  std::shared_ptr<WireBytesStorage> GetWireBytesStorage() const;
+  V8_EXPORT_PRIVATE std::shared_ptr<WireBytesStorage> GetWireBytesStorage()
+      const;
 
   void AddCallback(callback_t);
 

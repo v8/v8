@@ -471,12 +471,12 @@ class WasmRunner : public WasmRunnerBase {
                                          wrapper_code, wrapper_.signature());
     int32_t result;
     {
-      trap_handler::SetThreadInWasm();
+      SetThreadInWasmFlag();
 
       result = runner.Call(static_cast<void*>(&p)...,
                            static_cast<void*>(&return_value));
 
-      trap_handler::ClearThreadInWasm();
+      ClearThreadInWasmFlag();
     }
     CHECK_EQ(WASM_WRAPPER_RETURN_VALUE, result);
     return WasmRunnerBase::trap_happened
@@ -546,6 +546,15 @@ class WasmRunner : public WasmRunnerBase {
   Handle<Code> GetWrapperCode() { return wrapper_.GetWrapperCode(); }
 
  private:
+  void SetThreadInWasmFlag() {
+    *reinterpret_cast<int*>(trap_handler::GetThreadInWasmThreadLocalAddress()) =
+        true;
+  }
+
+  void ClearThreadInWasmFlag() {
+    *reinterpret_cast<int*>(trap_handler::GetThreadInWasmThreadLocalAddress()) =
+        false;
+  }
   std::vector<Handle<JSFunction>> jsfuncs_;
 };
 
