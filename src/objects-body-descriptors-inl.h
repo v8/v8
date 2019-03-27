@@ -677,7 +677,7 @@ class WasmInstanceObject::BodyDescriptor final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(Map map, HeapObject obj, int object_size,
                                  ObjectVisitor* v) {
-    IteratePointer(obj, kPropertiesOrHashOffset, v);
+    IteratePointers(obj, kPropertiesOrHashOffset, JSObject::kHeaderSize, v);
     for (uint16_t offset : kTaggedFieldOffsets) {
       IteratePointer(obj, offset, v);
     }
