@@ -42,7 +42,7 @@ JsonValue ReadMessage() {
 
   Logger::Log("[incoming] ", content, "\n\n");
 
-  return ParseJson(content);
+  return ParseJson(content).value;
 }
 
 void WriteMessage(JsonValue& message) {

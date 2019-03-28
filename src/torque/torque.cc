@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/torque/source-positions.h"
 #include "src/torque/torque-compiler.h"
 
 namespace v8 {
@@ -36,7 +37,13 @@ int WrappedMain(int argc, const char** argv) {
   options.collect_language_server_data = false;
   options.abort_on_lint_errors = true;
 
-  CompileTorque(files, options);
+  TorqueCompilerResult result = CompileTorque(files, options);
+  if (result.error) {
+    TorqueError& error = *result.error;
+    if (error.position) std::cerr << PositionAsString(*error.position) << ": ";
+    std::cerr << "Torque error: " << error.message << "\n";
+    v8::base::OS::Abort();
+  }
 
   return 0;
 }
