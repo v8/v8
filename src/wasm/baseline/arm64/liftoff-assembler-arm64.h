@@ -580,6 +580,15 @@ void LiftoffAssembler::emit_i32_remu(Register dst, Register lhs, Register rhs,
   Msub(dst_w, scratch, rhs_w, lhs_w);
 }
 
+void LiftoffAssembler::emit_i64_add(LiftoffRegister dst, LiftoffRegister lhs,
+                                    int32_t imm) {
+  Add(dst.gp().X(), lhs.gp().X(), Immediate(imm));
+}
+
+void LiftoffAssembler::emit_i32_add(Register dst, Register lhs, int32_t imm) {
+  Add(dst.W(), lhs.W(), Immediate(imm));
+}
+
 bool LiftoffAssembler::emit_i64_divs(LiftoffRegister dst, LiftoffRegister lhs,
                                      LiftoffRegister rhs,
                                      Label* trap_div_by_zero,
