@@ -653,6 +653,8 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* ChangeTaggedToUint32();
   const Operator* ChangeTaggedToFloat64();
   const Operator* ChangeTaggedToTaggedSigned();
+  const Operator* ChangeCompressedToTaggedSigned();
+  const Operator* ChangeTaggedToCompressedSigned();
   const Operator* ChangeInt31ToTaggedSigned();
   const Operator* ChangeInt32ToTagged();
   const Operator* ChangeInt64ToTagged();
@@ -713,6 +715,14 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
                                        const VectorSlotPair& feedback);
   const Operator* CheckedTaggedToTaggedPointer(const VectorSlotPair& feedback);
   const Operator* CheckedTaggedToTaggedSigned(const VectorSlotPair& feedback);
+  const Operator* CheckedCompressedToTaggedPointer(
+      const VectorSlotPair& feedback);
+  const Operator* CheckedCompressedToTaggedSigned(
+      const VectorSlotPair& feedback);
+  const Operator* CheckedTaggedToCompressedPointer(
+      const VectorSlotPair& feedback);
+  const Operator* CheckedTaggedToCompressedSigned(
+      const VectorSlotPair& feedback);
   const Operator* CheckedTruncateTaggedToWord32(CheckTaggedInputMode,
                                                 const VectorSlotPair& feedback);
   const Operator* CheckedUint32Div();

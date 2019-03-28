@@ -672,6 +672,12 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kChangeTaggedToTaggedSigned:
       result = LowerChangeTaggedToTaggedSigned(node);
       break;
+    case IrOpcode::kChangeCompressedToTaggedSigned:
+      result = LowerChangeCompressedToTaggedSigned(node);
+      break;
+    case IrOpcode::kChangeTaggedToCompressedSigned:
+      result = LowerChangeTaggedToCompressedSigned(node);
+      break;
     case IrOpcode::kTruncateTaggedToBit:
       result = LowerTruncateTaggedToBit(node);
       break;
@@ -795,6 +801,18 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       break;
     case IrOpcode::kCheckedTaggedToTaggedPointer:
       result = LowerCheckedTaggedToTaggedPointer(node, frame_state);
+      break;
+    case IrOpcode::kCheckedCompressedToTaggedSigned:
+      result = LowerCheckedCompressedToTaggedSigned(node, frame_state);
+      break;
+    case IrOpcode::kCheckedCompressedToTaggedPointer:
+      result = LowerCheckedCompressedToTaggedPointer(node, frame_state);
+      break;
+    case IrOpcode::kCheckedTaggedToCompressedSigned:
+      result = LowerCheckedTaggedToCompressedSigned(node, frame_state);
+      break;
+    case IrOpcode::kCheckedTaggedToCompressedPointer:
+      result = LowerCheckedTaggedToCompressedPointer(node, frame_state);
       break;
     case IrOpcode::kTruncateTaggedToWord32:
       result = LowerTruncateTaggedToWord32(node);
@@ -1442,6 +1460,50 @@ Node* EffectControlLinearizer::LowerChangeTaggedToTaggedSigned(Node* node) {
   Node* vfalse = __ LoadField(AccessBuilder::ForHeapNumberValue(), value);
   vfalse = __ ChangeFloat64ToInt32(vfalse);
   vfalse = ChangeInt32ToSmi(vfalse);
+  __ Goto(&done, vfalse);
+
+  __ Bind(&done);
+  return done.PhiAt(0);
+}
+
+Node* EffectControlLinearizer::LowerChangeCompressedToTaggedSigned(Node* node) {
+  Node* value = node->InputAt(0);
+
+  auto if_not_smi = __ MakeDeferredLabel();
+  auto done = __ MakeLabel(MachineRepresentation::kWord32);
+
+  Node* check = ObjectIsSmi(value);
+  __ GotoIfNot(check, &if_not_smi);
+  __ Goto(&done, __ ChangeCompressedSignedToTaggedSigned(value));
+
+  __ Bind(&if_not_smi);
+  STATIC_ASSERT(HeapNumber::kValueOffset == Oddball::kToNumberRawOffset);
+  Node* vfalse = __ LoadField(AccessBuilder::ForHeapNumberValue(),
+                              __ ChangeCompressedToTagged(value));
+  vfalse = __ ChangeFloat64ToInt32(vfalse);
+  vfalse = ChangeInt32ToSmi(vfalse);
+  __ Goto(&done, vfalse);
+
+  __ Bind(&done);
+  return done.PhiAt(0);
+}
+
+Node* EffectControlLinearizer::LowerChangeTaggedToCompressedSigned(Node* node) {
+  Node* value = node->InputAt(0);
+
+  auto if_not_smi = __ MakeDeferredLabel();
+  auto done = __ MakeLabel(MachineRepresentation::kWord32);
+
+  Node* check = ObjectIsSmi(value);
+  __ GotoIfNot(check, &if_not_smi);
+  __ Goto(&done, __ ChangeTaggedSignedToCompressedSigned(value));
+
+  __ Bind(&if_not_smi);
+  STATIC_ASSERT(HeapNumber::kValueOffset == Oddball::kToNumberRawOffset);
+  Node* vfalse = __ LoadField(AccessBuilder::ForHeapNumberValue(), value);
+  vfalse = __ ChangeFloat64ToInt32(vfalse);
+  vfalse = ChangeInt32ToSmi(vfalse);
+  vfalse = __ ChangeTaggedSignedToCompressedSigned(vfalse);
   __ Goto(&done, vfalse);
 
   __ Bind(&done);
@@ -2484,6 +2546,52 @@ Node* EffectControlLinearizer::LowerCheckedTaggedToTaggedPointer(
   __ DeoptimizeIf(DeoptimizeReason::kSmi, params.feedback(), check,
                   frame_state);
   return value;
+}
+
+Node* EffectControlLinearizer::LowerCheckedCompressedToTaggedSigned(
+    Node* node, Node* frame_state) {
+  Node* value = node->InputAt(0);
+  const CheckParameters& params = CheckParametersOf(node->op());
+
+  Node* check = ObjectIsSmi(value);
+  __ DeoptimizeIfNot(DeoptimizeReason::kNotASmi, params.feedback(), check,
+                     frame_state);
+
+  return __ ChangeCompressedSignedToTaggedSigned(value);
+}
+
+Node* EffectControlLinearizer::LowerCheckedCompressedToTaggedPointer(
+    Node* node, Node* frame_state) {
+  Node* value = node->InputAt(0);
+  const CheckParameters& params = CheckParametersOf(node->op());
+
+  Node* check = ObjectIsSmi(value);
+  __ DeoptimizeIf(DeoptimizeReason::kSmi, params.feedback(), check,
+                  frame_state);
+  return __ ChangeCompressedPointerToTaggedPointer(value);
+}
+
+Node* EffectControlLinearizer::LowerCheckedTaggedToCompressedSigned(
+    Node* node, Node* frame_state) {
+  Node* value = node->InputAt(0);
+  const CheckParameters& params = CheckParametersOf(node->op());
+
+  Node* check = ObjectIsSmi(value);
+  __ DeoptimizeIfNot(DeoptimizeReason::kNotASmi, params.feedback(), check,
+                     frame_state);
+
+  return __ ChangeTaggedSignedToCompressedSigned(value);
+}
+
+Node* EffectControlLinearizer::LowerCheckedTaggedToCompressedPointer(
+    Node* node, Node* frame_state) {
+  Node* value = node->InputAt(0);
+  const CheckParameters& params = CheckParametersOf(node->op());
+
+  Node* check = ObjectIsSmi(value);
+  __ DeoptimizeIf(DeoptimizeReason::kSmi, params.feedback(), check,
+                  frame_state);
+  return __ ChangeTaggedPointerToCompressedPointer(value);
 }
 
 Node* EffectControlLinearizer::LowerTruncateTaggedToWord32(Node* node) {

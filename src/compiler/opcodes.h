@@ -237,6 +237,8 @@
   V(ChangeTaggedToUint32)            \
   V(ChangeTaggedToFloat64)           \
   V(ChangeTaggedToTaggedSigned)      \
+  V(ChangeCompressedToTaggedSigned)  \
+  V(ChangeTaggedToCompressedSigned)  \
   V(ChangeInt31ToTaggedSigned)       \
   V(ChangeInt32ToTagged)             \
   V(ChangeInt64ToTagged)             \
@@ -276,7 +278,11 @@
   V(CheckedTaggedToFloat64)           \
   V(CheckedTaggedToInt64)             \
   V(CheckedTaggedToTaggedSigned)      \
-  V(CheckedTaggedToTaggedPointer)
+  V(CheckedTaggedToTaggedPointer)     \
+  V(CheckedCompressedToTaggedSigned)  \
+  V(CheckedCompressedToTaggedPointer) \
+  V(CheckedTaggedToCompressedSigned)  \
+  V(CheckedTaggedToCompressedPointer)
 
 #define SIMPLIFIED_COMPARE_BINOP_LIST(V) \
   V(NumberEqual)                         \

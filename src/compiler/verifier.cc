@@ -1339,7 +1339,9 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       // CheckTypeIs(node, to));
       break;
     }
-    case IrOpcode::kChangeTaggedToTaggedSigned:
+    case IrOpcode::kChangeTaggedToTaggedSigned:      // Fall through.
+    case IrOpcode::kChangeCompressedToTaggedSigned:  // Fall through.
+    case IrOpcode::kChangeTaggedToCompressedSigned:
       break;
     case IrOpcode::kTruncateTaggedToFloat64: {
       // NumberOrUndefined /\ Tagged -> Number /\ UntaggedFloat64
@@ -1518,6 +1520,10 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kCheckedTaggedToFloat64:
     case IrOpcode::kCheckedTaggedToTaggedSigned:
     case IrOpcode::kCheckedTaggedToTaggedPointer:
+    case IrOpcode::kCheckedCompressedToTaggedSigned:
+    case IrOpcode::kCheckedCompressedToTaggedPointer:
+    case IrOpcode::kCheckedTaggedToCompressedSigned:
+    case IrOpcode::kCheckedTaggedToCompressedPointer:
     case IrOpcode::kCheckedTruncateTaggedToWord32:
       break;
 

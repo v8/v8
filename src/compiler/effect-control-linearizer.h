@@ -62,6 +62,8 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
   Node* LowerChangeTaggedToUint32(Node* node);
   Node* LowerChangeTaggedToInt64(Node* node);
   Node* LowerChangeTaggedToTaggedSigned(Node* node);
+  Node* LowerChangeCompressedToTaggedSigned(Node* node);
+  Node* LowerChangeTaggedToCompressedSigned(Node* node);
   Node* LowerPoisonIndex(Node* node);
   Node* LowerCheckInternalizedString(Node* node, Node* frame_state);
   Node* LowerCheckNonEmptyOneByteString(Node* node, Node* frame_state);
@@ -99,6 +101,10 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
   Node* LowerCheckedTaggedToFloat64(Node* node, Node* frame_state);
   Node* LowerCheckedTaggedToTaggedSigned(Node* node, Node* frame_state);
   Node* LowerCheckedTaggedToTaggedPointer(Node* node, Node* frame_state);
+  Node* LowerCheckedCompressedToTaggedSigned(Node* node, Node* frame_state);
+  Node* LowerCheckedCompressedToTaggedPointer(Node* node, Node* frame_state);
+  Node* LowerCheckedTaggedToCompressedSigned(Node* node, Node* frame_state);
+  Node* LowerCheckedTaggedToCompressedPointer(Node* node, Node* frame_state);
   Node* LowerChangeTaggedToFloat64(Node* node);
   void TruncateTaggedPointerToBit(Node* node, GraphAssemblerLabel<1>* done);
   Node* LowerTruncateTaggedToBit(Node* node);

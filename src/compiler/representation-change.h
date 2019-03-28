@@ -322,6 +322,17 @@ class V8_EXPORT_PRIVATE RepresentationChanger final {
                                           UseInfo use_info);
   Node* GetTaggedRepresentationFor(Node* node, MachineRepresentation output_rep,
                                    Type output_type, Truncation truncation);
+  Node* GetCompressedSignedRepresentationFor(Node* node,
+                                             MachineRepresentation output_rep,
+                                             Type output_type, Node* use_node,
+                                             UseInfo use_info);
+  Node* GetCompressedPointerRepresentationFor(Node* node,
+                                              MachineRepresentation output_rep,
+                                              Type output_type, Node* use_node,
+                                              UseInfo use_info);
+  Node* GetCompressedRepresentationFor(Node* node,
+                                       MachineRepresentation output_rep,
+                                       Type output_type, Truncation truncation);
   Node* GetFloat32RepresentationFor(Node* node,
                                     MachineRepresentation output_rep,
                                     Type output_type, Truncation truncation);
