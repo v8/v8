@@ -3136,26 +3136,24 @@ Node* EffectControlLinearizer::LowerNewDoubleElements(Node* node) {
   Node* length = node->InputAt(0);
 
   auto done = __ MakeLabel(MachineRepresentation::kTaggedPointer);
-  Node* zero_length = __ Word32Equal(length, __ Int32Constant(0));
+  Node* zero_length = __ WordEqual(length, __ IntPtrConstant(0));
   __ GotoIf(zero_length, &done,
             jsgraph()->HeapConstant(factory()->empty_fixed_array()));
 
   // Compute the effective size of the backing store.
-  Node* size =
-      __ Int32Add(__ Word32Shl(length, __ Int32Constant(kDoubleSizeLog2)),
-                  __ Int32Constant(FixedDoubleArray::kHeaderSize));
+  Node* size = __ IntAdd(__ WordShl(length, __ IntPtrConstant(kDoubleSizeLog2)),
+                         __ IntPtrConstant(FixedDoubleArray::kHeaderSize));
 
   // Allocate the result and initialize the header.
   Node* result = __ Allocate(allocation, size);
   __ StoreField(AccessBuilder::ForMap(), result,
                 __ FixedDoubleArrayMapConstant());
   __ StoreField(AccessBuilder::ForFixedArrayLength(), result,
-                ChangeInt32ToSmi(length));
+                ChangeIntPtrToSmi(length));
 
   // Initialize the backing store with holes.
   STATIC_ASSERT_FIELD_OFFSETS_EQUAL(HeapNumber::kValueOffset,
                                     Oddball::kToNumberRawOffset);
-  Node* limit = ChangeUint32ToUintPtr(length);
   Node* the_hole =
       __ LoadField(AccessBuilder::ForHeapNumberValue(), __ TheHoleConstant());
   auto loop = __ MakeLoopLabel(MachineType::PointerRepresentation());
@@ -3164,15 +3162,13 @@ Node* EffectControlLinearizer::LowerNewDoubleElements(Node* node) {
   {
     // Check if we've initialized everything.
     Node* index = loop.PhiAt(0);
-    Node* check = __ UintLessThan(index, limit);
+    Node* check = __ UintLessThan(index, length);
     __ GotoIfNot(check, &done, result);
 
-    // Storing "the_hole" doesn't need a write barrier.
-    StoreRepresentation rep(MachineRepresentation::kFloat64, kNoWriteBarrier);
-    Node* offset = __ IntAdd(
-        __ WordShl(index, __ IntPtrConstant(kDoubleSizeLog2)),
-        __ IntPtrConstant(FixedDoubleArray::kHeaderSize - kHeapObjectTag));
-    __ Store(rep, result, offset, the_hole);
+    ElementAccess const access = {kTaggedBase, FixedDoubleArray::kHeaderSize,
+                                  Type::NumberOrHole(), MachineType::Float64(),
+                                  kNoWriteBarrier};
+    __ StoreElement(access, result, index, the_hole);
 
     // Advance the {index}.
     index = __ IntAdd(index, __ IntPtrConstant(1));
@@ -3188,23 +3184,21 @@ Node* EffectControlLinearizer::LowerNewSmiOrObjectElements(Node* node) {
   Node* length = node->InputAt(0);
 
   auto done = __ MakeLabel(MachineRepresentation::kTaggedPointer);
-  Node* zero_length = __ Word32Equal(length, __ Int32Constant(0));
+  Node* zero_length = __ WordEqual(length, __ IntPtrConstant(0));
   __ GotoIf(zero_length, &done,
             jsgraph()->HeapConstant(factory()->empty_fixed_array()));
 
   // Compute the effective size of the backing store.
-  Node* size =
-      __ Int32Add(__ Word32Shl(length, __ Int32Constant(kTaggedSizeLog2)),
-                  __ Int32Constant(FixedArray::kHeaderSize));
+  Node* size = __ IntAdd(__ WordShl(length, __ IntPtrConstant(kTaggedSizeLog2)),
+                         __ IntPtrConstant(FixedArray::kHeaderSize));
 
   // Allocate the result and initialize the header.
   Node* result = __ Allocate(allocation, size);
   __ StoreField(AccessBuilder::ForMap(), result, __ FixedArrayMapConstant());
   __ StoreField(AccessBuilder::ForFixedArrayLength(), result,
-                ChangeInt32ToSmi(length));
+                ChangeIntPtrToSmi(length));
 
   // Initialize the backing store with holes.
-  Node* limit = ChangeUint32ToUintPtr(length);
   Node* the_hole = __ TheHoleConstant();
   auto loop = __ MakeLoopLabel(MachineType::PointerRepresentation());
   __ Goto(&loop, __ IntPtrConstant(0));
@@ -3212,15 +3206,14 @@ Node* EffectControlLinearizer::LowerNewSmiOrObjectElements(Node* node) {
   {
     // Check if we've initialized everything.
     Node* index = loop.PhiAt(0);
-    Node* check = __ UintLessThan(index, limit);
+    Node* check = __ UintLessThan(index, length);
     __ GotoIfNot(check, &done, result);
 
     // Storing "the_hole" doesn't need a write barrier.
-    StoreRepresentation rep(MachineRepresentation::kTagged, kNoWriteBarrier);
-    Node* offset =
-        __ IntAdd(__ WordShl(index, __ IntPtrConstant(kTaggedSizeLog2)),
-                  __ IntPtrConstant(FixedArray::kHeaderSize - kHeapObjectTag));
-    __ Store(rep, result, offset, the_hole);
+    ElementAccess const access = {kTaggedBase, FixedArray::kHeaderSize,
+                                  Type::Any(), MachineType::AnyTagged(),
+                                  kNoWriteBarrier};
+    __ StoreElement(access, result, index, the_hole);
 
     // Advance the {index}.
     index = __ IntAdd(index, __ IntPtrConstant(1));
@@ -3307,7 +3300,7 @@ Node* EffectControlLinearizer::LowerNewConsString(Node* node) {
 Node* EffectControlLinearizer::AllocateConsString(Node* map, Node* length,
                                                   Node* first, Node* second) {
   Node* result =
-      __ Allocate(AllocationType::kYoung, __ Int32Constant(ConsString::kSize));
+      __ Allocate(AllocationType::kYoung, __ IntPtrConstant(ConsString::kSize));
   __ StoreField(AccessBuilder::ForMap(), result, map);
   __ StoreField(AccessBuilder::ForNameHashField(), result,
                 __ Int32Constant(Name::kEmptyHashField));
@@ -3565,7 +3558,7 @@ Node* EffectControlLinearizer::LowerStringFromSingleCharCode(Node* node) {
       // Allocate a new SeqOneByteString for {code}.
       Node* vtrue2 =
           __ Allocate(AllocationType::kYoung,
-                      __ Int32Constant(SeqOneByteString::SizeFor(1)));
+                      __ IntPtrConstant(SeqOneByteString::SizeFor(1)));
       __ StoreField(AccessBuilder::ForMap(), vtrue2,
                     __ HeapConstant(factory()->one_byte_string_map()));
       __ StoreField(AccessBuilder::ForNameHashField(), vtrue2,
@@ -3588,8 +3581,9 @@ Node* EffectControlLinearizer::LowerStringFromSingleCharCode(Node* node) {
   __ Bind(&if_not_one_byte);
   {
     // Allocate a new SeqTwoByteString for {code}.
-    Node* vfalse1 = __ Allocate(AllocationType::kYoung,
-                                __ Int32Constant(SeqTwoByteString::SizeFor(1)));
+    Node* vfalse1 =
+        __ Allocate(AllocationType::kYoung,
+                    __ IntPtrConstant(SeqTwoByteString::SizeFor(1)));
     __ StoreField(AccessBuilder::ForMap(), vfalse1,
                   __ HeapConstant(factory()->string_map()));
     __ StoreField(AccessBuilder::ForNameHashField(), vfalse1,
@@ -3690,7 +3684,7 @@ Node* EffectControlLinearizer::LowerStringFromSingleCodePoint(Node* node) {
         // Allocate a new SeqOneByteString for {code}.
         Node* vtrue2 =
             __ Allocate(AllocationType::kYoung,
-                        __ Int32Constant(SeqOneByteString::SizeFor(1)));
+                        __ IntPtrConstant(SeqOneByteString::SizeFor(1)));
         __ StoreField(AccessBuilder::ForMap(), vtrue2,
                       __ HeapConstant(factory()->one_byte_string_map()));
         __ StoreField(AccessBuilder::ForNameHashField(), vtrue2,
@@ -3715,7 +3709,7 @@ Node* EffectControlLinearizer::LowerStringFromSingleCodePoint(Node* node) {
       // Allocate a new SeqTwoByteString for {code}.
       Node* vfalse1 =
           __ Allocate(AllocationType::kYoung,
-                      __ Int32Constant(SeqTwoByteString::SizeFor(1)));
+                      __ IntPtrConstant(SeqTwoByteString::SizeFor(1)));
       __ StoreField(AccessBuilder::ForMap(), vfalse1,
                     __ HeapConstant(factory()->string_map()));
       __ StoreField(AccessBuilder::ForNameHashField(), vfalse1,
@@ -3761,8 +3755,9 @@ Node* EffectControlLinearizer::LowerStringFromSingleCodePoint(Node* node) {
     }
 
     // Allocate a new SeqTwoByteString for {code}.
-    Node* vfalse0 = __ Allocate(AllocationType::kYoung,
-                                __ Int32Constant(SeqTwoByteString::SizeFor(2)));
+    Node* vfalse0 =
+        __ Allocate(AllocationType::kYoung,
+                    __ IntPtrConstant(SeqTwoByteString::SizeFor(2)));
     __ StoreField(AccessBuilder::ForMap(), vfalse0,
                   __ HeapConstant(factory()->string_map()));
     __ StoreField(AccessBuilder::ForNameHashField(), vfalse0,
@@ -3992,7 +3987,7 @@ void EffectControlLinearizer::LowerCheckEqualsSymbol(Node* node,
 
 Node* EffectControlLinearizer::AllocateHeapNumberWithValue(Node* value) {
   Node* result =
-      __ Allocate(AllocationType::kYoung, __ Int32Constant(HeapNumber::kSize));
+      __ Allocate(AllocationType::kYoung, __ IntPtrConstant(HeapNumber::kSize));
   __ StoreField(AccessBuilder::ForMap(), result, __ HeapNumberMapConstant());
   __ StoreField(AccessBuilder::ForHeapNumberValue(), result, value);
   return result;
