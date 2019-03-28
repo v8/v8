@@ -15,11 +15,13 @@
 
 namespace v8 {
 
-IsolateWrapper::IsolateWrapper(bool enforce_pointer_compression)
+IsolateWrapper::IsolateWrapper(CounterLookupCallback counter_lookup_callback,
+                               bool enforce_pointer_compression)
     : array_buffer_allocator_(
           v8::ArrayBuffer::Allocator::NewDefaultAllocator()) {
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = array_buffer_allocator_;
+  create_params.counter_lookup_callback = counter_lookup_callback;
   if (enforce_pointer_compression) {
     isolate_ = reinterpret_cast<v8::Isolate*>(
         i::Isolate::New(i::IsolateAllocationMode::kInV8Heap));
@@ -40,6 +42,22 @@ IsolateWrapper::~IsolateWrapper() {
 
 // static
 v8::IsolateWrapper* SharedIsolateHolder::isolate_wrapper_ = nullptr;
+
+// static
+int* SharedIsolateAndCountersHolder::LookupCounter(const char* name) {
+  DCHECK_NOT_NULL(counter_map_);
+  auto map_entry = counter_map_->find(name);
+  if (map_entry == counter_map_->end()) {
+    counter_map_->emplace(name, 0);
+  }
+  return &counter_map_->at(name);
+}
+
+// static
+v8::IsolateWrapper* SharedIsolateAndCountersHolder::isolate_wrapper_ = nullptr;
+
+// static
+CounterMap* SharedIsolateAndCountersHolder::counter_map_ = nullptr;
 
 namespace internal {
 

@@ -228,7 +228,9 @@ Counters::Counters(Isolate* isolate)
     const char* caption;
   } kStatsCounters[] = {
 #define SC(name, caption) {&Counters::name##_, "c:" #caption},
-      STATS_COUNTER_LIST_1(SC) STATS_COUNTER_LIST_2(SC)
+  STATS_COUNTER_LIST_1(SC)
+  STATS_COUNTER_LIST_2(SC)
+  STATS_COUNTER_NATIVE_CODE_LIST(SC)
 #undef SC
 #define SC(name)                                             \
   {&Counters::count_of_##name##_, "c:" "V8.CountOf_" #name}, \
@@ -262,10 +264,8 @@ void Counters::ResetCounterFunction(CounterLookupCallback f) {
 #define SC(name, caption) name##_.Reset();
   STATS_COUNTER_LIST_1(SC)
   STATS_COUNTER_LIST_2(SC)
-#undef SC
-
-#define SC(name, caption) name##_.Reset();
   STATS_COUNTER_TS_LIST(SC)
+  STATS_COUNTER_NATIVE_CODE_LIST(SC)
 #undef SC
 
 #define SC(name)              \

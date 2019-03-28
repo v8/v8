@@ -59,21 +59,7 @@ class CounterCollection {
   Counter counters_[kMaxCounters];
 };
 
-struct CStringHasher {
-  std::size_t operator()(const char* name) const {
-    size_t h = 0;
-    size_t c;
-    while ((c = *name++) != 0) {
-      h += h << 5;
-      h += c;
-    }
-    return h;
-  }
-};
-
-typedef std::unordered_map<const char*, Counter*, CStringHasher,
-                           i::StringEquals>
-    CounterMap;
+typedef std::unordered_map<std::string, Counter*> CounterMap;
 
 class SourceGroup {
  public:

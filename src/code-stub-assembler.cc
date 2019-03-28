@@ -8143,6 +8143,9 @@ void CodeStubAssembler::IncrementCounter(StatsCounter* counter, int delta) {
   if (FLAG_native_code_counters && counter->Enabled()) {
     Node* counter_address =
         ExternalConstant(ExternalReference::Create(counter));
+    // This operation has to be exactly 32-bit wide in case the external
+    // reference table redirects the counter to a uint32_t dummy_stats_counter_
+    // field.
     Node* value = Load(MachineType::Int32(), counter_address);
     value = Int32Add(value, Int32Constant(delta));
     StoreNoWriteBarrier(MachineRepresentation::kWord32, counter_address, value);
@@ -8154,6 +8157,9 @@ void CodeStubAssembler::DecrementCounter(StatsCounter* counter, int delta) {
   if (FLAG_native_code_counters && counter->Enabled()) {
     Node* counter_address =
         ExternalConstant(ExternalReference::Create(counter));
+    // This operation has to be exactly 32-bit wide in case the external
+    // reference table redirects the counter to a uint32_t dummy_stats_counter_
+    // field.
     Node* value = Load(MachineType::Int32(), counter_address);
     value = Int32Sub(value, Int32Constant(delta));
     StoreNoWriteBarrier(MachineRepresentation::kWord32, counter_address, value);
