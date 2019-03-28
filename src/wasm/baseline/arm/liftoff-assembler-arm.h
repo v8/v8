@@ -139,26 +139,6 @@ inline void I64Binop(LiftoffAssembler* assm, LiftoffRegister dst,
   }
 }
 
-template <void (Assembler::*op)(Register, Register, const Operand&, SBit,
-                                Condition),
-          void (Assembler::*op_with_carry)(Register, Register, const Operand&,
-                                           SBit, Condition)>
-inline void I64BinopI(LiftoffAssembler* assm, LiftoffRegister dst,
-                      LiftoffRegister lhs, int32_t imm) {
-  UseScratchRegisterScope temps(assm);
-  Register scratch = dst.low_gp();
-  bool can_use_dst = dst.low_gp() != lhs.high_gp();
-  if (!can_use_dst) {
-    scratch = temps.Acquire();
-  }
-  (assm->*op)(scratch, lhs.low_gp(), Operand(imm), SetCC, al);
-  // Top half of the immediate is 0.
-  (assm->*op_with_carry)(dst.high_gp(), lhs.high_gp(), Operand(0), LeaveCC, al);
-  if (!can_use_dst) {
-    assm->mov(dst.low_gp(), scratch);
-  }
-}
-
 template <void (TurboAssembler::*op)(Register, Register, Register, Register,
                                      Register),
           bool is_left_shift>
@@ -678,10 +658,6 @@ FP64_UNOP(f64_sqrt, vsqrt)
 #undef FP64_UNOP
 #undef FP64_BINOP
 
-void LiftoffAssembler::emit_i32_add(Register dst, Register lhs, int32_t imm) {
-  add(dst, lhs, Operand(imm));
-}
-
 bool LiftoffAssembler::emit_i32_clz(Register dst, Register src) {
   clz(dst, src);
   return true;
@@ -812,11 +788,6 @@ void LiftoffAssembler::emit_i32_shr(Register dst, Register src, int amount) {
 void LiftoffAssembler::emit_i64_add(LiftoffRegister dst, LiftoffRegister lhs,
                                     LiftoffRegister rhs) {
   liftoff::I64Binop<&Assembler::add, &Assembler::adc>(this, dst, lhs, rhs);
-}
-
-void LiftoffAssembler::emit_i64_add(LiftoffRegister dst, LiftoffRegister lhs,
-                                    int32_t imm) {
-  liftoff::I64BinopI<&Assembler::add, &Assembler::adc>(this, dst, lhs, imm);
 }
 
 void LiftoffAssembler::emit_i64_sub(LiftoffRegister dst, LiftoffRegister lhs,

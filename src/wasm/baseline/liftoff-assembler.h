@@ -389,7 +389,6 @@ class LiftoffAssembler : public TurboAssembler {
 
   // i32 binops.
   inline void emit_i32_add(Register dst, Register lhs, Register rhs);
-  inline void emit_i32_add(Register dst, Register lhs, int32_t imm);
   inline void emit_i32_sub(Register dst, Register lhs, Register rhs);
   inline void emit_i32_mul(Register dst, Register lhs, Register rhs);
   inline void emit_i32_divs(Register dst, Register lhs, Register rhs,
@@ -420,8 +419,6 @@ class LiftoffAssembler : public TurboAssembler {
   // i64 binops.
   inline void emit_i64_add(LiftoffRegister dst, LiftoffRegister lhs,
                            LiftoffRegister rhs);
-  inline void emit_i64_add(LiftoffRegister dst, LiftoffRegister lhs,
-                           int32_t imm);
   inline void emit_i64_sub(LiftoffRegister dst, LiftoffRegister lhs,
                            LiftoffRegister rhs);
   inline void emit_i64_mul(LiftoffRegister dst, LiftoffRegister lhs,
@@ -481,14 +478,6 @@ class LiftoffAssembler : public TurboAssembler {
       emit_i64_shr(LiftoffRegister(dst), LiftoffRegister(src), amount);
     } else {
       emit_i32_shr(dst, src, amount);
-    }
-  }
-
-  inline void emit_ptrsize_add(Register dst, Register lhs, int32_t imm) {
-    if (kSystemPointerSize == 8) {
-      emit_i64_add(LiftoffRegister(dst), LiftoffRegister(lhs), imm);
-    } else {
-      emit_i32_add(dst, lhs, imm);
     }
   }
 
