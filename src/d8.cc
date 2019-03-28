@@ -9,7 +9,6 @@
 
 #include <algorithm>
 #include <fstream>
-#include <iomanip>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -1979,6 +1978,16 @@ Local<Context> Shell::CreateEvaluationContext(Isolate* isolate) {
   return handle_scope.Escape(context);
 }
 
+struct CounterAndKey {
+  Counter* counter;
+  const char* key;
+};
+
+
+inline bool operator<(const CounterAndKey& lhs, const CounterAndKey& rhs) {
+  return strcmp(lhs.key, rhs.key) < 0;
+}
+
 void Shell::WriteIgnitionDispatchCountersFile(v8::Isolate* isolate) {
   HandleScope handle_scope(isolate);
   Local<Context> context = Context::New(isolate);
@@ -2092,52 +2101,54 @@ void Shell::OnExit(v8::Isolate* isolate) {
   isolate->Dispose();
 
   if (i::FLAG_dump_counters || i::FLAG_dump_counters_nvp) {
-    std::vector<std::pair<std::string, Counter*>> counters(
-        counter_map_->begin(), counter_map_->end());
-    std::sort(counters.begin(), counters.end());
+    const int number_of_counters = static_cast<int>(counter_map_->size());
+    CounterAndKey* counters = new CounterAndKey[number_of_counters];
+    int j = 0;
+    for (auto map_entry : *counter_map_) {
+      counters[j].counter = map_entry.second;
+      counters[j].key = map_entry.first;
+      j++;
+    }
+    std::sort(counters, counters + number_of_counters);
 
     if (i::FLAG_dump_counters_nvp) {
       // Dump counters as name-value pairs.
-      for (auto pair : counters) {
-        std::string key = pair.first;
-        Counter* counter = pair.second;
+      for (j = 0; j < number_of_counters; j++) {
+        Counter* counter = counters[j].counter;
+        const char* key = counters[j].key;
         if (counter->is_histogram()) {
-          std::cout << "\"c:" << key << "\"=" << counter->count() << "\n";
-          std::cout << "\"t:" << key << "\"=" << counter->sample_total()
-                    << "\n";
+          printf("\"c:%s\"=%i\n", key, counter->count());
+          printf("\"t:%s\"=%i\n", key, counter->sample_total());
         } else {
-          std::cout << "\"" << key << "\"=" << counter->count() << "\n";
+          printf("\"%s\"=%i\n", key, counter->count());
         }
       }
     } else {
       // Dump counters in formatted boxes.
-      constexpr int kNameBoxSize = 64;
-      constexpr int kValueBoxSize = 13;
-      std::cout << "+" << std::string(kNameBoxSize, '-') << "+"
-                << std::string(kValueBoxSize, '-') << "+\n";
-      std::cout << "| Name" << std::string(kNameBoxSize - 5, ' ') << "| Value"
-                << std::string(kValueBoxSize - 6, ' ') << "|\n";
-      std::cout << "+" << std::string(kNameBoxSize, '-') << "+"
-                << std::string(kValueBoxSize, '-') << "+\n";
-      for (auto pair : counters) {
-        std::string key = pair.first;
-        Counter* counter = pair.second;
+      printf(
+          "+----------------------------------------------------------------+"
+          "-------------+\n");
+      printf(
+          "| Name                                                           |"
+          " Value       |\n");
+      printf(
+          "+----------------------------------------------------------------+"
+          "-------------+\n");
+      for (j = 0; j < number_of_counters; j++) {
+        Counter* counter = counters[j].counter;
+        const char* key = counters[j].key;
         if (counter->is_histogram()) {
-          std::cout << "| c:" << std::setw(kNameBoxSize - 4) << std::left << key
-                    << " | " << std::setw(kValueBoxSize - 2) << std::right
-                    << counter->count() << " |\n";
-          std::cout << "| t:" << std::setw(kNameBoxSize - 4) << std::left << key
-                    << " | " << std::setw(kValueBoxSize - 2) << std::right
-                    << counter->sample_total() << " |\n";
+          printf("| c:%-60s | %11i |\n", key, counter->count());
+          printf("| t:%-60s | %11i |\n", key, counter->sample_total());
         } else {
-          std::cout << "| " << std::setw(kNameBoxSize - 2) << std::left << key
-                    << " | " << std::setw(kValueBoxSize - 2) << std::right
-                    << counter->count() << " |\n";
+          printf("| %-62s | %11i |\n", key, counter->count());
         }
       }
-      std::cout << "+" << std::string(kNameBoxSize, '-') << "+"
-                << std::string(kValueBoxSize, '-') << "+\n";
+      printf(
+          "+----------------------------------------------------------------+"
+          "-------------+\n");
     }
+    delete [] counters;
   }
 
   delete counters_file_;

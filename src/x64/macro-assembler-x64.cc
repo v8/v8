@@ -2119,9 +2119,6 @@ void MacroAssembler::IncrementCounter(StatsCounter* counter, int value) {
   if (FLAG_native_code_counters && counter->Enabled()) {
     Operand counter_operand =
         ExternalReferenceAsOperand(ExternalReference::Create(counter));
-    // This operation has to be exactly 32-bit wide in case the external
-    // reference table redirects the counter to a uint32_t dummy_stats_counter_
-    // field.
     if (value == 1) {
       incl(counter_operand);
     } else {
@@ -2136,9 +2133,6 @@ void MacroAssembler::DecrementCounter(StatsCounter* counter, int value) {
   if (FLAG_native_code_counters && counter->Enabled()) {
     Operand counter_operand =
         ExternalReferenceAsOperand(ExternalReference::Create(counter));
-    // This operation has to be exactly 32-bit wide in case the external
-    // reference table redirects the counter to a uint32_t dummy_stats_counter_
-    // field.
     if (value == 1) {
       decl(counter_operand);
     } else {

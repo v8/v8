@@ -1714,9 +1714,6 @@ void MacroAssembler::IncrementCounter(StatsCounter* counter, int value,
                                       Register scratch1, Register scratch2) {
   DCHECK_GT(value, 0);
   if (FLAG_native_code_counters && counter->Enabled()) {
-    // This operation has to be exactly 32-bit wide in case the external
-    // reference table redirects the counter to a uint32_t dummy_stats_counter_
-    // field.
     Move(scratch2, ExternalReference::Create(counter));
     lwz(scratch1, MemOperand(scratch2));
     addi(scratch1, scratch1, Operand(value));
@@ -1729,9 +1726,6 @@ void MacroAssembler::DecrementCounter(StatsCounter* counter, int value,
                                       Register scratch1, Register scratch2) {
   DCHECK_GT(value, 0);
   if (FLAG_native_code_counters && counter->Enabled()) {
-    // This operation has to be exactly 32-bit wide in case the external
-    // reference table redirects the counter to a uint32_t dummy_stats_counter_
-    // field.
     Move(scratch2, ExternalReference::Create(counter));
     lwz(scratch1, MemOperand(scratch2));
     subi(scratch1, scratch1, Operand(value));

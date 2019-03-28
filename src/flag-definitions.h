@@ -1047,7 +1047,8 @@ DEFINE_BOOL_READONLY(fast_map_update, false,
 DEFINE_INT(max_polymorphic_map_count, 4,
            "maximum number of maps to track in POLYMORPHIC state")
 
-DEFINE_BOOL(native_code_counters, DEBUG_BOOL,
+// macro-assembler-ia32.cc
+DEFINE_BOOL(native_code_counters, false,
             "generate extra code for manipulating stats counters")
 
 // objects.cc

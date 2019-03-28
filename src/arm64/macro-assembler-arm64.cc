@@ -2684,9 +2684,6 @@ void MacroAssembler::IncrementCounter(StatsCounter* counter, int value,
                                       Register scratch1, Register scratch2) {
   DCHECK_NE(value, 0);
   if (FLAG_native_code_counters && counter->Enabled()) {
-    // This operation has to be exactly 32-bit wide in case the external
-    // reference table redirects the counter to a uint32_t dummy_stats_counter_
-    // field.
     Mov(scratch2, ExternalReference::Create(counter));
     Ldr(scratch1.W(), MemOperand(scratch2));
     Add(scratch1.W(), scratch1.W(), value);
