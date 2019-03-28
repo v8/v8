@@ -5,6 +5,7 @@
 vars = {
   'checkout_instrumented_libraries': False,
   'chromium_url': 'https://chromium.googlesource.com',
+  'android_url': 'https://android.googlesource.com',
   'download_gcmole': False,
   'download_jsfunfuzz': False,
   'download_mips_toolchain': False,
@@ -236,8 +237,11 @@ deps = {
   },
   'v8/test/wasm-js/data':
     Var('chromium_url') + '/external/github.com/WebAssembly/spec.git' + '@' + '4406612ae0f6c3c4e7791eb13704e9fb7440819a',
+  'v8/third_party/perfetto':
+    Var('android_url') + '/platform/external/perfetto.git' + '@' + 'b66b4e0b328bcb1af62701cd76b1475ebf06a438',
+  'v8/third_party/protobuf':
+    Var('chromium_url') + '/external/github.com/google/protobuf'+ '@' + 'bdeb215cab2985195325fcd5e70c3fa751f46e0f',
 }
-
 recursedeps = [
   'v8/third_party/android_tools',
 ]
