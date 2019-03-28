@@ -3225,13 +3225,9 @@ v8_source_set("torque_base") {
     ":v8_shared_internal_headers",
   ]
 
-  configs = [
-    ":internal_config",
-    "//build/config/compiler:exceptions",
-  ]
-  remove_configs = [ "//build/config/compiler:no_exceptions" ]
+  configs = [ ":internal_config" ]
   if (is_win && is_asan) {
-    remove_configs += [ "//build/config/sanitizers:default_sanitizer_flags" ]
+    remove_configs = [ "//build/config/sanitizers:default_sanitizer_flags" ]
   }
 }
 
@@ -3253,13 +3249,9 @@ v8_source_set("torque_ls_base") {
     ":torque_base",
   ]
 
-  configs = [
-    ":internal_config",
-    "//build/config/compiler:exceptions",
-  ]
-  remove_configs = [ "//build/config/compiler:no_exceptions" ]
+  configs = [ ":internal_config" ]
   if (is_win && is_asan) {
-    remove_configs += [ "//build/config/sanitizers:default_sanitizer_flags" ]
+    remove_configs = [ "//build/config/sanitizers:default_sanitizer_flags" ]
   }
 }
 
