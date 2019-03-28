@@ -406,8 +406,22 @@ for (test in tests) {
   }
 
   var ary = [0,1,2,3];
-  assertTrue(test(ary, 1));
-  assertTrue(test(ary, 1));
+  function testArray(ary) {
+    assertTrue(test(ary, 1));
+    assertTrue(test(ary, 1));
+  }
+  testArray(ary);
+  // Non-extensible
+  var b =  Object.preventExtensions(ary);
+  testArray(b);
+
+  // Sealed
+  var c =  Object.seal(ary);
+  testArray(c);
+
+  // Frozen
+  var d =  Object.freeze(ary);
+  testArray(d);
 
   var str = "string";
   assertFalse(test(str, 0));
@@ -418,7 +432,7 @@ for (test in tests) {
 
 const heap_constant_ary = [0,1,2,3];
 
-(function() {
+function testHeapConstantArray(heap_constant_ary) {
 
   function test() {
     return 1 in heap_constant_ary;
@@ -433,5 +447,17 @@ const heap_constant_ary = [0,1,2,3];
   assertTrue(test());
   %OptimizeFunctionOnNextCall(test);
   assertTrue(test());
+}
+testHeapConstantArray(heap_constant_ary);
 
-})()
+// Non-extensible
+var b =  Object.preventExtensions(heap_constant_ary);
+testHeapConstantArray(b);
+
+// Sealed
+var c =  Object.seal(heap_constant_ary);
+testHeapConstantArray(c);
+
+// Frozen
+var d =  Object.freeze(heap_constant_ary);
+testHeapConstantArray(d);
