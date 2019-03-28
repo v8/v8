@@ -2342,7 +2342,8 @@ void WeakCollectionsBuiltinsAssembler::AddEntry(
     TNode<Object> key, TNode<Object> value, TNode<IntPtrT> number_of_elements) {
   // See EphemeronHashTable::AddEntry().
   TNode<IntPtrT> value_index = ValueIndexFromKeyIndex(key_index);
-  UnsafeStoreFixedArrayElement(table, key_index, key);
+  UnsafeStoreFixedArrayElement(table, key_index, key,
+                               UPDATE_EPHEMERON_KEY_WRITE_BARRIER);
   UnsafeStoreFixedArrayElement(table, value_index, value);
 
   // See HashTableBase::ElementAdded().

@@ -193,9 +193,9 @@ class PropertyDescriptorObject;
 enum WriteBarrierMode {
   SKIP_WRITE_BARRIER,
   UPDATE_WEAK_WRITE_BARRIER,
+  UPDATE_EPHEMERON_KEY_WRITE_BARRIER,
   UPDATE_WRITE_BARRIER
 };
-
 
 // PropertyNormalizationMode is used to specify whether to keep
 // inobject properties when normalizing properties of a JSObject.

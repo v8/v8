@@ -273,10 +273,10 @@ class MarkCompactCollectorBase {
       MemoryChunk* chunk, RememberedSetUpdatingMode updating_mode) = 0;
 
   template <class Evacuator, class Collector>
-  void CreateAndExecuteEvacuationTasks(
-      Collector* collector, ItemParallelJob* job,
-      RecordMigratedSlotVisitor* record_visitor,
-      MigrationObserver* migration_observer, const intptr_t live_bytes);
+  void CreateAndExecuteEvacuationTasks(Collector* collector,
+                                       ItemParallelJob* job,
+                                       MigrationObserver* migration_observer,
+                                       const intptr_t live_bytes);
 
   // Returns whether this page should be moved according to heuristics.
   bool ShouldMovePage(Page* p, intptr_t live_bytes);

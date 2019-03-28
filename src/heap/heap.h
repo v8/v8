@@ -199,8 +199,16 @@ struct CommentStatistic {
 };
 #endif
 
+using EphemeronRememberedSet =
+    std::unordered_map<EphemeronHashTable, std::unordered_set<int>,
+                       Object::Hasher>;
+
 class Heap {
  public:
+  // Stores ephemeron entries where the EphemeronHashTable is in old-space,
+  // and the key of the entry is in new-space. Such keys do not appear in the
+  // usual OLD_TO_NEW remembered set.
+  EphemeronRememberedSet ephemeron_remembered_set_;
   enum FindMementoMode { kForRuntime, kForGC };
 
   enum HeapState {
@@ -343,6 +351,10 @@ class Heap {
   V8_EXPORT_PRIVATE static void GenerationalBarrierSlow(HeapObject object,
                                                         Address slot,
                                                         HeapObject value);
+  V8_EXPORT_PRIVATE void RecordEphemeronKeyWrite(EphemeronHashTable table,
+                                                 Address key_slot);
+  V8_EXPORT_PRIVATE static void EphemeronKeyWriteBarrierFromCode(
+      Address raw_object, Address address, Isolate* isolate);
   V8_EXPORT_PRIVATE static void GenerationalBarrierForElementsSlow(
       Heap* heap, FixedArray array, int offset, int length);
   V8_EXPORT_PRIVATE static void GenerationalBarrierForCodeSlow(
