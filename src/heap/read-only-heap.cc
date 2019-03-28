@@ -73,7 +73,7 @@ void ReadOnlyHeap::OnHeapTearDown() {
 }
 
 // static
-bool ReadOnlyHeap::Contains(Object object) {
+bool ReadOnlyHeap::Contains(HeapObject object) {
   return Page::FromAddress(object.ptr())->owner()->identity() == RO_SPACE;
 }
 
