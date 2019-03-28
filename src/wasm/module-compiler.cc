@@ -336,15 +336,13 @@ void CompileLazy(Isolate* isolate, NativeModule* native_module,
 
   if (WasmCode::ShouldBeLogged(isolate)) code->LogCode(isolate);
 
-  int64_t func_size =
-      static_cast<int64_t>(func->code.end_offset() - func->code.offset());
-  int64_t compilation_time = compilation_timer.Elapsed().InMicroseconds();
+  double func_kb = 1e-3 * func->code.length();
+  double compilation_seconds = compilation_timer.Elapsed().InSecondsF();
 
   counters->wasm_lazily_compiled_functions()->Increment();
 
-  counters->wasm_lazy_compilation_throughput()->AddSample(
-      compilation_time != 0 ? static_cast<int>(func_size / compilation_time)
-                            : 0);
+  int throughput_sample = static_cast<int>(func_kb / compilation_seconds);
+  counters->wasm_lazy_compilation_throughput()->AddSample(throughput_sample);
 }
 
 namespace {
