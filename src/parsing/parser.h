@@ -137,36 +137,36 @@ struct ParserFormalParameters : FormalParametersBase {
 
 template <>
 struct ParserTypes<Parser> {
-  typedef ParserBase<Parser> Base;
-  typedef Parser Impl;
+  using Base = ParserBase<Parser>;
+  using Impl = Parser;
 
   // Return types for traversing functions.
-  typedef v8::internal::Block* Block;
-  typedef v8::internal::BreakableStatement* BreakableStatement;
-  typedef ClassLiteral::Property* ClassLiteralProperty;
-  typedef ZonePtrList<ClassLiteral::Property>* ClassPropertyList;
-  typedef v8::internal::Expression* Expression;
-  typedef ScopedPtrList<v8::internal::Expression> ExpressionList;
-  typedef ParserFormalParameters FormalParameters;
-  typedef v8::internal::ForStatement* ForStatement;
-  typedef v8::internal::FunctionLiteral* FunctionLiteral;
-  typedef const AstRawString* Identifier;
-  typedef v8::internal::IterationStatement* IterationStatement;
-  typedef ObjectLiteral::Property* ObjectLiteralProperty;
-  typedef ScopedPtrList<v8::internal::ObjectLiteralProperty> ObjectPropertyList;
-  typedef v8::internal::Statement* Statement;
-  typedef ScopedPtrList<v8::internal::Statement> StatementList;
-  typedef v8::internal::Suspend* Suspend;
+  using Block = v8::internal::Block*;
+  using BreakableStatement = v8::internal::BreakableStatement*;
+  using ClassLiteralProperty = ClassLiteral::Property*;
+  using ClassPropertyList = ZonePtrList<ClassLiteral::Property>*;
+  using Expression = v8::internal::Expression*;
+  using ExpressionList = ScopedPtrList<v8::internal::Expression>;
+  using FormalParameters = ParserFormalParameters;
+  using ForStatement = v8::internal::ForStatement*;
+  using FunctionLiteral = v8::internal::FunctionLiteral*;
+  using Identifier = const AstRawString*;
+  using IterationStatement = v8::internal::IterationStatement*;
+  using ObjectLiteralProperty = ObjectLiteral::Property*;
+  using ObjectPropertyList = ScopedPtrList<v8::internal::ObjectLiteralProperty>;
+  using Statement = v8::internal::Statement*;
+  using StatementList = ScopedPtrList<v8::internal::Statement>;
+  using Suspend = v8::internal::Suspend*;
 
   // For constructing objects returned by the traversing functions.
-  typedef AstNodeFactory Factory;
+  using Factory = AstNodeFactory;
 
   // Other implementation-specific functions.
-  typedef v8::internal::FuncNameInferrer FuncNameInferrer;
-  typedef v8::internal::SourceRange SourceRange;
-  typedef v8::internal::SourceRangeScope SourceRangeScope;
-  typedef ParserTarget Target;
-  typedef ParserTargetScope TargetScope;
+  using FuncNameInferrer = v8::internal::FuncNameInferrer;
+  using SourceRange = v8::internal::SourceRange;
+  using SourceRangeScope = v8::internal::SourceRangeScope;
+  using Target = ParserTarget;
+  using TargetScope = ParserTargetScope;
 };
 
 class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
@@ -496,7 +496,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     int pos_;
   };
 
-  typedef TemplateLiteral* TemplateLiteralState;
+  using TemplateLiteralState = TemplateLiteral*;
 
   TemplateLiteralState OpenTemplateLiteral(int pos);
   // "should_cook" means that the span can be "cooked": in tagged template

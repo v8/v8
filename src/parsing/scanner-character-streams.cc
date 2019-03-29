@@ -54,14 +54,14 @@ struct CharTraits;
 
 template <>
 struct CharTraits<uint8_t> {
-  typedef SeqOneByteString String;
-  typedef ExternalOneByteString ExternalString;
+  using String = SeqOneByteString;
+  using ExternalString = ExternalOneByteString;
 };
 
 template <>
 struct CharTraits<uint16_t> {
-  typedef SeqTwoByteString String;
-  typedef ExternalTwoByteString ExternalString;
+  using String = SeqTwoByteString;
+  using ExternalString = ExternalTwoByteString;
 };
 
 template <typename Char>
@@ -79,7 +79,7 @@ struct Range {
 template <typename Char>
 class OnHeapStream {
  public:
-  typedef typename CharTraits<Char>::String String;
+  using String = typename CharTraits<Char>::String;
 
   OnHeapStream(Handle<String> string, size_t start_offset, size_t end)
       : string_(string), start_offset_(start_offset), length_(end) {}
@@ -109,7 +109,7 @@ class OnHeapStream {
 // ExternalTwoByteString.
 template <typename Char>
 class ExternalStringStream {
-  typedef typename CharTraits<Char>::ExternalString ExternalString;
+  using ExternalString = typename CharTraits<Char>::ExternalString;
 
  public:
   ExternalStringStream(ExternalString string, size_t start_offset,

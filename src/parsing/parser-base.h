@@ -49,7 +49,7 @@ enum class ParseFunctionFlag : uint8_t {
   kIsAsync = 1 << 1
 };
 
-typedef base::Flags<ParseFunctionFlag> ParseFunctionFlags;
+using ParseFunctionFlags = base::Flags<ParseFunctionFlag>;
 
 struct FormalParametersBase {
   explicit FormalParametersBase(DeclarationScope* scope) : scope(scope) {}
@@ -195,44 +195,44 @@ template <typename Impl>
 class ParserBase {
  public:
   // Shorten type names defined by ParserTypes<Impl>.
-  typedef ParserTypes<Impl> Types;
-  typedef typename v8::internal::ExpressionScope<Types> ExpressionScope;
-  typedef typename v8::internal::ExpressionParsingScope<Types>
-      ExpressionParsingScope;
-  typedef typename v8::internal::AccumulationScope<Types> AccumulationScope;
-  typedef typename v8::internal::ArrowHeadParsingScope<Types>
-      ArrowHeadParsingScope;
-  typedef typename v8::internal::VariableDeclarationParsingScope<Types>
-      VariableDeclarationParsingScope;
-  typedef typename v8::internal::ParameterDeclarationParsingScope<Types>
-      ParameterDeclarationParsingScope;
+  using Types = ParserTypes<Impl>;
+  using ExpressionScope = typename v8::internal::ExpressionScope<Types>;
+  using ExpressionParsingScope =
+      typename v8::internal::ExpressionParsingScope<Types>;
+  using AccumulationScope = typename v8::internal::AccumulationScope<Types>;
+  using ArrowHeadParsingScope =
+      typename v8::internal::ArrowHeadParsingScope<Types>;
+  using VariableDeclarationParsingScope =
+      typename v8::internal::VariableDeclarationParsingScope<Types>;
+  using ParameterDeclarationParsingScope =
+      typename v8::internal::ParameterDeclarationParsingScope<Types>;
 
   // Return types for traversing functions.
-  typedef typename Types::Block BlockT;
-  typedef typename Types::BreakableStatement BreakableStatementT;
-  typedef typename Types::ClassLiteralProperty ClassLiteralPropertyT;
-  typedef typename Types::ClassPropertyList ClassPropertyListT;
-  typedef typename Types::Expression ExpressionT;
-  typedef typename Types::ExpressionList ExpressionListT;
-  typedef typename Types::FormalParameters FormalParametersT;
-  typedef typename Types::ForStatement ForStatementT;
-  typedef typename Types::FunctionLiteral FunctionLiteralT;
-  typedef typename Types::Identifier IdentifierT;
-  typedef typename Types::IterationStatement IterationStatementT;
-  typedef typename Types::ObjectLiteralProperty ObjectLiteralPropertyT;
-  typedef typename Types::ObjectPropertyList ObjectPropertyListT;
-  typedef typename Types::Statement StatementT;
-  typedef typename Types::StatementList StatementListT;
-  typedef typename Types::Suspend SuspendExpressionT;
+  using BlockT = typename Types::Block;
+  using BreakableStatementT = typename Types::BreakableStatement;
+  using ClassLiteralPropertyT = typename Types::ClassLiteralProperty;
+  using ClassPropertyListT = typename Types::ClassPropertyList;
+  using ExpressionT = typename Types::Expression;
+  using ExpressionListT = typename Types::ExpressionList;
+  using FormalParametersT = typename Types::FormalParameters;
+  using ForStatementT = typename Types::ForStatement;
+  using FunctionLiteralT = typename Types::FunctionLiteral;
+  using IdentifierT = typename Types::Identifier;
+  using IterationStatementT = typename Types::IterationStatement;
+  using ObjectLiteralPropertyT = typename Types::ObjectLiteralProperty;
+  using ObjectPropertyListT = typename Types::ObjectPropertyList;
+  using StatementT = typename Types::Statement;
+  using StatementListT = typename Types::StatementList;
+  using SuspendExpressionT = typename Types::Suspend;
   // For constructing objects returned by the traversing functions.
-  typedef typename Types::Factory FactoryT;
+  using FactoryT = typename Types::Factory;
   // Other implementation-specific tasks.
-  typedef typename Types::FuncNameInferrer FuncNameInferrer;
-  typedef typename Types::FuncNameInferrer::State FuncNameInferrerState;
-  typedef typename Types::SourceRange SourceRange;
-  typedef typename Types::SourceRangeScope SourceRangeScope;
-  typedef typename Types::Target TargetT;
-  typedef typename Types::TargetScope TargetScopeT;
+  using FuncNameInferrer = typename Types::FuncNameInferrer;
+  using FuncNameInferrerState = typename Types::FuncNameInferrer::State;
+  using SourceRange = typename Types::SourceRange;
+  using SourceRangeScope = typename Types::SourceRangeScope;
+  using TargetT = typename Types::Target;
+  using TargetScopeT = typename Types::TargetScope;
 
   // All implementation-specific methods must be called through this.
   Impl* impl() { return static_cast<Impl*>(this); }

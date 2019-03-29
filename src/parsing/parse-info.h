@@ -236,8 +236,8 @@ class V8_EXPORT_PRIVATE ParseInfo {
     void Enqueue(ParseInfo* outer_parse_info, const AstRawString* function_name,
                  FunctionLiteral* literal);
 
-    typedef std::forward_list<std::pair<FunctionLiteral*, uintptr_t>>::iterator
-        EnqueuedJobsIterator;
+    using EnqueuedJobsIterator =
+        std::forward_list<std::pair<FunctionLiteral*, uintptr_t>>::iterator;
 
     EnqueuedJobsIterator begin() { return enqueued_jobs_.begin(); }
     EnqueuedJobsIterator end() { return enqueued_jobs_.end(); }

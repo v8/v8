@@ -41,8 +41,8 @@ class VariableProxy;
 template <typename Types>
 class ExpressionScope {
  public:
-  typedef typename Types::Impl ParserT;
-  typedef typename Types::Expression ExpressionT;
+  using ParserT = typename Types::Impl;
+  using ExpressionT = typename Types::Expression;
 
   VariableProxy* NewVariable(const AstRawString* name,
                              int pos = kNoSourcePosition) {
@@ -281,9 +281,9 @@ class ExpressionScope {
 template <typename Types>
 class VariableDeclarationParsingScope : public ExpressionScope<Types> {
  public:
-  typedef typename Types::Impl ParserT;
-  typedef class ExpressionScope<Types> ExpressionScopeT;
-  typedef typename ExpressionScopeT::ScopeType ScopeType;
+  using ParserT = typename Types::Impl;
+  using ExpressionScopeT = ExpressionScope<Types>;
+  using ScopeType = typename ExpressionScopeT::ScopeType;
 
   VariableDeclarationParsingScope(ParserT* parser, VariableMode mode,
                                   ZonePtrList<const AstRawString>* names)
@@ -351,9 +351,9 @@ class VariableDeclarationParsingScope : public ExpressionScope<Types> {
 template <typename Types>
 class ParameterDeclarationParsingScope : public ExpressionScope<Types> {
  public:
-  typedef typename Types::Impl ParserT;
-  typedef class ExpressionScope<Types> ExpressionScopeT;
-  typedef typename ExpressionScopeT::ScopeType ScopeType;
+  using ParserT = typename Types::Impl;
+  using ExpressionScopeT = ExpressionScope<Types>;
+  using ScopeType = typename ExpressionScopeT::ScopeType;
 
   explicit ParameterDeclarationParsingScope(ParserT* parser)
       : ExpressionScopeT(parser, ExpressionScopeT::kParameterDeclaration) {}
@@ -391,10 +391,10 @@ class ParameterDeclarationParsingScope : public ExpressionScope<Types> {
 template <typename Types>
 class ExpressionParsingScope : public ExpressionScope<Types> {
  public:
-  typedef typename Types::Impl ParserT;
-  typedef typename Types::Expression ExpressionT;
-  typedef class ExpressionScope<Types> ExpressionScopeT;
-  typedef typename ExpressionScopeT::ScopeType ScopeType;
+  using ParserT = typename Types::Impl;
+  using ExpressionT = typename Types::Expression;
+  using ExpressionScopeT = ExpressionScope<Types>;
+  using ScopeType = typename ExpressionScopeT::ScopeType;
 
   ExpressionParsingScope(ParserT* parser,
                          ScopeType type = ExpressionScopeT::kExpression)
@@ -563,7 +563,7 @@ class ExpressionParsingScope : public ExpressionScope<Types> {
 template <typename Types>
 class AccumulationScope {
  public:
-  typedef typename Types::Impl ParserT;
+  using ParserT = typename Types::Impl;
 
   static const int kNumberOfErrors =
       ExpressionParsingScope<Types>::kNumberOfErrors;
@@ -644,8 +644,8 @@ class AccumulationScope {
 template <typename Types>
 class ArrowHeadParsingScope : public ExpressionParsingScope<Types> {
  public:
-  typedef typename Types::Impl ParserT;
-  typedef typename ExpressionScope<Types>::ScopeType ScopeType;
+  using ParserT = typename Types::Impl;
+  using ScopeType = typename ExpressionScope<Types>::ScopeType;
 
   ArrowHeadParsingScope(ParserT* parser, FunctionKind kind)
       : ExpressionParsingScope<Types>(

@@ -346,23 +346,23 @@ class PreParserExpression {
       : code_(expression_code) {}
 
   // The first three bits are for the Type.
-  typedef BitField<Type, 0, 3> TypeField;
+  using TypeField = BitField<Type, 0, 3>;
 
   // The high order bit applies only to nodes which would inherit from the
   // Expression ASTNode --- This is by necessity, due to the fact that
   // Expression nodes may be represented as multiple Types, not exclusively
   // through kExpression.
   // TODO(caitp, adamk): clean up PreParserExpression bitfields.
-  typedef BitField<bool, TypeField::kNext, 1> IsParenthesizedField;
+  using IsParenthesizedField = BitField<bool, TypeField::kNext, 1>;
 
   // The rest of the bits are interpreted depending on the value
   // of the Type field, so they can share the storage.
-  typedef BitField<ExpressionType, IsParenthesizedField::kNext, 4>
-      ExpressionTypeField;
-  typedef BitField<PreParserIdentifier::Type, IsParenthesizedField::kNext, 8>
-      IdentifierTypeField;
-  typedef BitField<bool, IsParenthesizedField::kNext, 1>
-      HasCoverInitializedNameField;
+  using ExpressionTypeField =
+      BitField<ExpressionType, IsParenthesizedField::kNext, 4>;
+  using IdentifierTypeField =
+      BitField<PreParserIdentifier::Type, IsParenthesizedField::kNext, 8>;
+  using HasCoverInitializedNameField =
+      BitField<bool, IsParenthesizedField::kNext, 1>;
 
   uint32_t code_;
   friend class PreParser;
@@ -873,36 +873,36 @@ class PreParserPropertyList {};
 
 template <>
 struct ParserTypes<PreParser> {
-  typedef ParserBase<PreParser> Base;
-  typedef PreParser Impl;
+  using Base = ParserBase<PreParser>;
+  using Impl = PreParser;
 
   // Return types for traversing functions.
-  typedef PreParserExpression ClassLiteralProperty;
-  typedef PreParserExpression Expression;
-  typedef PreParserExpression FunctionLiteral;
-  typedef PreParserExpression ObjectLiteralProperty;
-  typedef PreParserExpression Suspend;
-  typedef PreParserExpressionList ExpressionList;
-  typedef PreParserExpressionList ObjectPropertyList;
-  typedef PreParserFormalParameters FormalParameters;
-  typedef PreParserIdentifier Identifier;
-  typedef PreParserPropertyList ClassPropertyList;
-  typedef PreParserScopedStatementList StatementList;
-  typedef PreParserBlock Block;
-  typedef PreParserStatement BreakableStatement;
-  typedef PreParserStatement ForStatement;
-  typedef PreParserStatement IterationStatement;
-  typedef PreParserStatement Statement;
+  using ClassLiteralProperty = PreParserExpression;
+  using Expression = PreParserExpression;
+  using FunctionLiteral = PreParserExpression;
+  using ObjectLiteralProperty = PreParserExpression;
+  using Suspend = PreParserExpression;
+  using ExpressionList = PreParserExpressionList;
+  using ObjectPropertyList = PreParserExpressionList;
+  using FormalParameters = PreParserFormalParameters;
+  using Identifier = PreParserIdentifier;
+  using ClassPropertyList = PreParserPropertyList;
+  using StatementList = PreParserScopedStatementList;
+  using Block = PreParserBlock;
+  using BreakableStatement = PreParserStatement;
+  using ForStatement = PreParserStatement;
+  using IterationStatement = PreParserStatement;
+  using Statement = PreParserStatement;
 
   // For constructing objects returned by the traversing functions.
-  typedef PreParserFactory Factory;
+  using Factory = PreParserFactory;
 
   // Other implementation-specific tasks.
-  typedef PreParserFuncNameInferrer FuncNameInferrer;
-  typedef PreParserSourceRange SourceRange;
-  typedef PreParserSourceRangeScope SourceRangeScope;
-  typedef PreParserTarget Target;
-  typedef PreParserTargetScope TargetScope;
+  using FuncNameInferrer = PreParserFuncNameInferrer;
+  using SourceRange = PreParserSourceRange;
+  using SourceRangeScope = PreParserSourceRangeScope;
+  using Target = PreParserTarget;
+  using TargetScope = PreParserTargetScope;
 };
 
 
@@ -922,9 +922,9 @@ class PreParser : public ParserBase<PreParser> {
   friend class ParserBase<PreParser>;
 
  public:
-  typedef PreParserIdentifier Identifier;
-  typedef PreParserExpression Expression;
-  typedef PreParserStatement Statement;
+  using Identifier = PreParserIdentifier;
+  using Expression = PreParserExpression;
+  using Statement = PreParserStatement;
 
   enum PreParseResult {
     kPreParseStackOverflow,
