@@ -514,8 +514,7 @@
     'debug_x86_vtunejit': [
       'debug_bot', 'x86', 'v8_enable_vtunejit'],
     'full_debug_x86': [
-      'debug', 'x86', 'goma', 'static', 'v8_enable_slow_dchecks',
-      'v8_full_debug'],
+      'debug', 'x86', 'goma', 'v8_enable_slow_dchecks', 'v8_full_debug'],
 
     # Release configs for x86.
     'release_x86': [
