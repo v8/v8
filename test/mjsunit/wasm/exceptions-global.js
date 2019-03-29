@@ -136,3 +136,19 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   let exception2 = mutable_global.value = "an even fancier exception";
   assertThrowsEquals(() => instance.exports.rethrow_except_ref(), exception2);
 })();*/
+
+// Test custom initialization index for a global "except_ref" variable.
+(function TestGlobalExceptRefInitIndex() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let g1_index = builder.addImportedGlobal("m", "exn", kWasmExceptRef);
+  let g2 = builder.addGlobal(kWasmExceptRef);
+  g2.init_index = g1_index;  // Initialize {g2} to equal {g1}.
+  builder.addFunction('push_and_return_except_ref', kSig_e_v)
+      .addBody([kExprGetGlobal, g2.index])
+      .exportFunc();
+  let exception = { x: "my fancy exception" };
+  let instance = builder.instantiate({ "m": { "exn": exception }});
+
+  assertSame(exception, instance.exports.push_and_return_except_ref());
+})();

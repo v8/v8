@@ -1199,25 +1199,21 @@ void InstanceBuilder::InitGlobals() {
                              SKIP_WRITE_BARRIER);
         break;
       case WasmInitExpr::kGlobalIndex: {
-        if (global.type == ValueType::kWasmAnyRef) {
-          DCHECK(enabled_.anyref);
-          int other_offset =
-              module_->globals[global.init.val.global_index].offset;
-
-          tagged_globals_->set(global.offset,
-                               tagged_globals_->get(other_offset),
-                               SKIP_WRITE_BARRIER);
-        }
         // Initialize with another global.
         uint32_t new_offset = global.offset;
         uint32_t old_offset =
             module_->globals[global.init.val.global_index].offset;
         TRACE("init [globals+%u] = [globals+%d]\n", global.offset, old_offset);
-        size_t size = (global.type == kWasmI64 || global.type == kWasmF64)
-                          ? sizeof(double)
-                          : sizeof(int32_t);
-        memcpy(raw_buffer_ptr(untagged_globals_, new_offset),
-               raw_buffer_ptr(untagged_globals_, old_offset), size);
+        if (ValueTypes::IsReferenceType(global.type)) {
+          DCHECK(enabled_.anyref || enabled_.eh);
+          tagged_globals_->set(new_offset, tagged_globals_->get(old_offset));
+        } else {
+          size_t size = (global.type == kWasmI64 || global.type == kWasmF64)
+                            ? sizeof(double)
+                            : sizeof(int32_t);
+          memcpy(raw_buffer_ptr(untagged_globals_, new_offset),
+                 raw_buffer_ptr(untagged_globals_, old_offset), size);
+        }
         break;
       }
       case WasmInitExpr::kNone:
