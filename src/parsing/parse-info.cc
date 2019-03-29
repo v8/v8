@@ -231,7 +231,6 @@ void ParseInfo::set_script(Handle<Script> script) {
   DCHECK(script_id_ == -1 || script_id_ == script->id());
   script_id_ = script->id();
 
-  set_native(script->type() == Script::TYPE_NATIVE);
   set_eval(script->compilation_type() == Script::COMPILATION_TYPE_EVAL);
   set_module(script->origin_options().IsModule());
   DCHECK(!(is_eval() && is_module()));

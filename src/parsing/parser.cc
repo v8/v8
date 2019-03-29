@@ -420,9 +420,8 @@ Parser::Parser(ParseInfo* info)
                                      ? FunctionLiteral::kShouldLazyCompile
                                      : FunctionLiteral::kShouldEagerCompile);
   allow_lazy_ = info->allow_lazy_compile() && info->allow_lazy_parsing() &&
-                !info->is_native() && info->extension() == nullptr &&
-                can_compile_lazily;
-  set_allow_natives(info->allow_natives_syntax() || info->is_native());
+                info->extension() == nullptr && can_compile_lazily;
+  set_allow_natives(info->allow_natives_syntax());
   set_allow_harmony_public_fields(info->allow_harmony_public_fields());
   set_allow_harmony_static_fields(info->allow_harmony_static_fields());
   set_allow_harmony_dynamic_import(info->allow_harmony_dynamic_import());

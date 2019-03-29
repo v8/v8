@@ -521,7 +521,7 @@ bool DeclarationScope::Analyze(ParseInfo* info) {
   if (!scope->AllocateVariables(info)) return false;
 
 #ifdef DEBUG
-  if (info->is_native() ? FLAG_print_builtin_scopes : FLAG_print_scopes) {
+  if (FLAG_print_scopes) {
     PrintF("Global scope:\n");
     scope->Print();
   }
@@ -1941,27 +1941,6 @@ void UpdateNeedsHoleCheck(Variable* var, VariableProxy* proxy, Scope* scope) {
 }  // anonymous namespace
 
 void Scope::ResolveTo(ParseInfo* info, VariableProxy* proxy, Variable* var) {
-#ifdef DEBUG
-  if (info->is_native()) {
-    // To avoid polluting the global object in native scripts
-    //  - Variables must not be allocated to the global scope.
-    DCHECK_NOT_NULL(outer_scope());
-    //  - Variables must be bound locally or unallocated.
-    if (var->IsGlobalObjectProperty()) {
-      // The following variable name may be minified. If so, disable
-      // minification in js2c.py for better output.
-      Handle<String> name = proxy->raw_name()->string();
-      FATAL("Unbound variable: '%s' in native script.",
-            name->ToCString().get());
-    }
-    VariableLocation location = var->location();
-    DCHECK(location == VariableLocation::LOCAL ||
-           location == VariableLocation::CONTEXT ||
-           location == VariableLocation::PARAMETER ||
-           location == VariableLocation::UNALLOCATED);
-  }
-#endif
-
   DCHECK_NOT_NULL(var);
   UpdateNeedsHoleCheck(var, proxy, this);
   proxy->BindTo(var);

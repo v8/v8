@@ -184,10 +184,8 @@ Object DeclareGlobals(Isolate* isolate, Handle<FixedArray> declarations,
 
     // Compute the property attributes. According to ECMA-262,
     // the property must be non-configurable except in eval.
-    bool is_native = DeclareGlobalsNativeFlag::decode(flags);
     bool is_eval = DeclareGlobalsEvalFlag::decode(flags);
     int attr = NONE;
-    if (is_function && is_native) attr |= READ_ONLY;
     if (!is_eval) attr |= DONT_DELETE;
 
     // ES#sec-globaldeclarationinstantiation 5.d:

@@ -768,7 +768,6 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, Runtime::FunctionId);
 class AllocateDoubleAlignFlag : public BitField<bool, 0, 1> {};
 
 class DeclareGlobalsEvalFlag : public BitField<bool, 0, 1> {};
-class DeclareGlobalsNativeFlag : public BitField<bool, 1, 1> {};
 
 // A set of bits returned by Runtime_GetOptimizationStatus.
 // These bits must be in sync with bits defined in test/mjsunit/mjsunit.js

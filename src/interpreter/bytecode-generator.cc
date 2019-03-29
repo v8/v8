@@ -1367,8 +1367,7 @@ void BytecodeGenerator::VisitDeclarations(Declaration::List* declarations) {
 
   globals_builder()->set_constant_pool_entry(
       builder()->AllocateDeferredConstantPoolEntry());
-  int encoded_flags = DeclareGlobalsEvalFlag::encode(info()->is_eval()) |
-                      DeclareGlobalsNativeFlag::encode(info()->is_native());
+  int encoded_flags = DeclareGlobalsEvalFlag::encode(info()->is_eval());
 
   // Emit code to declare globals.
   RegisterList args = register_allocator()->NewRegisterList(3);
