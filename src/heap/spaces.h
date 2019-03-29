@@ -1596,12 +1596,12 @@ class PageIteratorImpl
   PAGE_TYPE* p_;
 };
 
-typedef PageIteratorImpl<Page> PageIterator;
-typedef PageIteratorImpl<LargePage> LargePageIterator;
+using PageIterator = PageIteratorImpl<Page>;
+using LargePageIterator = PageIteratorImpl<LargePage>;
 
 class PageRange {
  public:
-  typedef PageIterator iterator;
+  using iterator = PageIterator;
   PageRange(Page* begin, Page* end) : begin_(begin), end_(end) {}
   explicit PageRange(Page* page) : PageRange(page, page->next_page()) {}
   inline PageRange(Address start, Address limit);
@@ -2112,7 +2112,7 @@ class SpaceWithLinearArea : public Space {
 class V8_EXPORT_PRIVATE PagedSpace
     : NON_EXPORTED_BASE(public SpaceWithLinearArea) {
  public:
-  typedef PageIterator iterator;
+  using iterator = PageIterator;
 
   static const size_t kCompactionMemoryWanted = 500 * KB;
 
@@ -2423,7 +2423,7 @@ enum SemiSpaceId { kFromSpace = 0, kToSpace = 1 };
 // space as a marking stack when tracing live objects.
 class SemiSpace : public Space {
  public:
-  typedef PageIterator iterator;
+  using iterator = PageIterator;
 
   static void Swap(SemiSpace* from, SemiSpace* to);
 
@@ -2617,7 +2617,7 @@ class SemiSpaceIterator : public ObjectIterator {
 
 class NewSpace : public SpaceWithLinearArea {
  public:
-  typedef PageIterator iterator;
+  using iterator = PageIterator;
 
   NewSpace(Heap* heap, v8::PageAllocator* page_allocator,
            size_t initial_semispace_capacity, size_t max_semispace_capacity);
@@ -3019,7 +3019,7 @@ class ReadOnlySpace : public PagedSpace {
 
 class LargeObjectSpace : public Space {
  public:
-  typedef LargePageIterator iterator;
+  using iterator = LargePageIterator;
 
   explicit LargeObjectSpace(Heap* heap);
   LargeObjectSpace(Heap* heap, AllocationSpace id);

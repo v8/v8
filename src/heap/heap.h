@@ -34,7 +34,7 @@
 namespace v8 {
 
 namespace debug {
-typedef void (*OutOfMemoryCallback)(void* data);
+using OutOfMemoryCallback = void (*)(void* data);
 }  // namespace debug
 
 namespace internal {
@@ -225,7 +225,7 @@ class Heap {
     Address start;
     Address end;
   };
-  typedef std::vector<Chunk> Reservation;
+  using Reservation = std::vector<Chunk>;
 
   static const int kInitalOldGenerationLimitFactor = 2;
 
@@ -748,8 +748,8 @@ class Heap {
   // completes incremental marking in order to free external resources.
   void ReportExternalMemoryPressure();
 
-  typedef v8::Isolate::GetExternallyAllocatedMemoryInBytesCallback
-      GetExternallyAllocatedMemoryInBytesCallback;
+  using GetExternallyAllocatedMemoryInBytesCallback =
+      v8::Isolate::GetExternallyAllocatedMemoryInBytesCallback;
 
   void SetGetExternallyAllocatedMemoryInBytesCallback(
       GetExternallyAllocatedMemoryInBytesCallback callback) {
@@ -1290,8 +1290,8 @@ class Heap {
  private:
   class SkipStoreBufferScope;
 
-  typedef String (*ExternalStringTableUpdaterCallback)(Heap* heap,
-                                                       FullObjectSlot pointer);
+  using ExternalStringTableUpdaterCallback = String (*)(Heap* heap,
+                                                        FullObjectSlot pointer);
 
   // External strings table is a place where all external strings are
   // registered.  We need to keep track of such strings to properly

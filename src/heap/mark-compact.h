@@ -414,7 +414,7 @@ struct Ephemeron {
   HeapObject value;
 };
 
-typedef Worklist<Ephemeron, 64> EphemeronWorklist;
+using EphemeronWorklist = Worklist<Ephemeron, 64>;
 
 // Weak objects encountered during marking.
 struct WeakObjects {
@@ -923,9 +923,8 @@ class MarkingVisitor final
           int,
           MarkingVisitor<fixed_array_mode, retaining_path_mode, MarkingState>> {
  public:
-  typedef HeapVisitor<
-      int, MarkingVisitor<fixed_array_mode, retaining_path_mode, MarkingState>>
-      Parent;
+  using Parent = HeapVisitor<
+      int, MarkingVisitor<fixed_array_mode, retaining_path_mode, MarkingState>>;
 
   V8_INLINE MarkingVisitor(MarkCompactCollector* collector,
                            MarkingState* marking_state);

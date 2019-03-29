@@ -14,7 +14,7 @@
 
 namespace {
 
-typedef i::LocalArrayBufferTracker LocalTracker;
+using LocalTracker = i::LocalArrayBufferTracker;
 
 bool IsTracked(i::JSArrayBuffer buf) {
   return i::ArrayBufferTracker::IsTracked(buf);
