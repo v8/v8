@@ -34,8 +34,8 @@ namespace interpreter {
 namespace {
 
 using compiler::Node;
-typedef CodeStubAssembler::Label Label;
-typedef CodeStubAssembler::Variable Variable;
+using Label = CodeStubAssembler::Label;
+using Variable = CodeStubAssembler::Variable;
 
 #define IGNITION_HANDLER(Name, BaseAssembler)                         \
   class Name##Assembler : public BaseAssembler {                      \
@@ -824,11 +824,9 @@ class InterpreterBinaryOpAssembler : public InterpreterAssembler {
                                OperandScale operand_scale)
       : InterpreterAssembler(state, bytecode, operand_scale) {}
 
-  typedef Node* (BinaryOpAssembler::*BinaryOpGenerator)(Node* context,
-                                                        Node* left, Node* right,
-                                                        Node* slot,
-                                                        Node* vector,
-                                                        bool lhs_is_smi);
+  using BinaryOpGenerator =
+      Node* (BinaryOpAssembler::*)(Node* context, Node* left, Node* right,
+                                   Node* slot, Node* vector, bool lhs_is_smi);
 
   void BinaryOpWithFeedback(BinaryOpGenerator generator) {
     Node* lhs = LoadRegisterAtOperandIndex(0);

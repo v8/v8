@@ -876,7 +876,7 @@ class BytecodeGenerator::FeedbackSlotCache : public ZoneObject {
   }
 
  private:
-  typedef std::tuple<SlotKind, int, const void*> Key;
+  using Key = std::tuple<SlotKind, int, const void*>;
 
   void PutImpl(SlotKind slot_kind, int index, const void* node,
                int slot_index) {
