@@ -811,6 +811,7 @@
   'compiler/native-context-specialization-hole-check': [SKIP],
   'elements-transition-hoisting': [SKIP],
   'es6/collections-constructor-custom-iterator': [SKIP],
+  'field-type-tracking': [SKIP],
   'ignition/throw-if-not-hole': [SKIP],
   'keyed-load-with-symbol-key': [SKIP],
   'object-seal': [SKIP],
