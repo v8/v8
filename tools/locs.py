@@ -131,6 +131,12 @@ def GenerateCompileCommandsAndBuild(build_dir, compile_commands_file, out):
     print("Error: Specified build dir {} is not a directory.".format(
         build_dir), file=sys.stderr)
     exit(1)
+
+  autoninja = "autoninja -C {}".format(build_dir)
+  if subprocess.call(autoninja, shell=True, stdout=out) != 0:
+    print("Error: Building {} failed.".format(build_dir), file=sys.stderr)
+    exit(1)
+
   compile_commands_file = "{}/compile_commands.json".format(build_dir)
 
   print("Generating compile commands in {}.".format(
@@ -140,23 +146,18 @@ def GenerateCompileCommandsAndBuild(build_dir, compile_commands_file, out):
       build_dir, compile_commands_file)
   if subprocess.call(ninja, shell=True, stdout=out) != 0:
     print("Error: Cound not generate {} for {}.".format(
-      compile_commands_file, build_dir), file=sys.stderr)
-    exit(1)
-
-  autoninja = "autoninja -C {} v8_generated_cc_files".format(build_dir)
-  if subprocess.call(autoninja, shell=True, stdout=out) != 0:
-    print("Error: Building target 'v8_generated_cc_files'"
-      " failed for {}.".format(build_dir), file=sys.stderr)
+        compile_commands_file, build_dir), file=sys.stderr)
     exit(1)
 
   return compile_commands_file
 
-def fmt_bytes(bytes):
-  if bytes > 1024*1024*1024:
-    return int(bytes / (1024*1024)), "MB"
-  elif bytes > 1024*1024:
-    return int(bytes / (1024)), "kB"
-  return int(bytes), " B"
+
+def fmt_bytes(num_bytes):
+  if num_bytes > 1024*1024*1024:
+    return int(num_bytes / (1024*1024)), "MB"
+  elif num_bytes > 1024*1024:
+    return int(num_bytes / (1024)), "kB"
+  return int(num_bytes), " B"
 
 
 class CompilationData:
@@ -175,13 +176,15 @@ class CompilationData:
     return "{:>9,} LoC ({:>7,} {}) to {:>12,} LoC ({:>7,} {}) ({:>5.0f}x)".format(
         self.loc, in_bytes, in_unit, self.expanded, exp_bytes, exp_unit, self.ratio())
 
+
 class File(CompilationData):
-  def __init__(self, file, loc, in_bytes, expanded, expanded_bytes):
+  def __init__(self, file, target, loc, in_bytes, expanded, expanded_bytes):
     super().__init__(loc, in_bytes, expanded, expanded_bytes)
     self.file = file
+    self.target = target
 
   def to_string(self):
-    return "{} {}".format(super().to_string(), self.file)
+    return "{} {} {}".format(super().to_string(), self.file, self.target)
 
 
 class Group(CompilationData):
@@ -253,8 +256,8 @@ class Results:
         is_tracked = True
     return is_tracked
 
-  def recordFile(self, filename, loc, in_bytes, expanded, expanded_bytes):
-    unit = File(filename, loc, in_bytes, expanded, expanded_bytes)
+  def recordFile(self, filename, targetname, loc, in_bytes, expanded, expanded_bytes):
+    unit = File(filename, targetname, loc, in_bytes, expanded, expanded_bytes)
     self.units[filename] = unit
     for group in self.groups.values():
       group.account(unit)
@@ -274,7 +277,7 @@ class Results:
 class LocsEncoder(json.JSONEncoder):
   def default(self, o):
     if isinstance(o, File):
-      return {"file": o.file, "loc": o.loc, "in_bytes": o.in_bytes,
+      return {"file": o.file, "target": o.target, "loc": o.loc, "in_bytes": o.in_bytes,
               "expanded": o.expanded, "expanded_bytes": o.expanded_bytes}
     if isinstance(o, Group):
       return {"name": o.name, "loc": o.loc, "in_bytes": o.in_bytes,
@@ -290,7 +293,8 @@ class StatusLine:
 
   def print(self, statusline, end="\r", file=sys.stdout):
     self.max_width = max(self.max_width, len(statusline))
-    print("{0:<{1}}".format(statusline, self.max_width), end=end, file=file, flush=True)
+    print("{0:<{1}}".format(statusline, self.max_width),
+          end=end, file=file, flush=True)
 
 
 class CommandSplitter:
@@ -299,13 +303,12 @@ class CommandSplitter:
         "([^\\s]*\\s+)?(?P<clangcmd>[^\\s]*clang.*)"
         " -c (?P<infile>.*) -o (?P<outfile>.*)")
 
-  def process(self, compilation_unit, temp_file_name):
+  def process(self, compilation_unit):
     cmd = self.cmd_pattern.match(compilation_unit['command'])
-    outfilename = cmd.group('outfile') + ".cc"
+    outfilename = cmd.group('outfile')
     infilename = cmd.group('infile')
     infile = Path(compilation_unit['directory']).joinpath(infilename)
-    outfile = Path(str(temp_file_name)).joinpath(outfilename)
-    return [cmd.group('clangcmd'), infilename, infile, outfile]
+    return (cmd.group('clangcmd'), infilename, infile, outfilename)
 
 
 def Main():
@@ -336,29 +339,30 @@ def Main():
     for i, key in enumerate(data):
       if not result.track(key['file']):
         continue
-      status.print("[{}/{}] Counting LoCs of {}".format(i, len(data), key['file']),
-        file=out)
-      clangcmd, infilename, infile, outfile = cmd_splitter.process(key, temp)
-      outfile.parent.mkdir(parents=True, exist_ok=True)
+      message = "[{}/{}] Counting LoCs of {}".format(i, len(data), key['file'])
+      status.print(message, file=out)
+      clangcmd, infilename, infile, outfilename = cmd_splitter.process(key)
       if infile.is_file():
         clangcmd = clangcmd + " -E -P " + \
             str(infile) + " -o /dev/stdout | sed '/^\\s*$/d' | wc -lc"
         loccmd = ("cat {}  | sed '\\;^\\s*//;d' | sed '\\;^/\\*;d'"
-                  " | sed '/^\\*/d' | sed '/^\\s*$/d' | wc -lc").format(
-            infile)
+                  " | sed '/^\\*/d' | sed '/^\\s*$/d' | wc -lc")
+        loccmd = loccmd.format(infile)
         runcmd = " {} ; {}".format(clangcmd, loccmd)
         if ARGS['echocmd']:
           print(runcmd)
-        p = subprocess.Popen(
+        process = subprocess.Popen(
             runcmd, shell=True, cwd=key['directory'], stdout=subprocess.PIPE)
-        processes.append({'process': p, 'infile': infilename})
+        processes.append({'process': process, 'infile': infilename,
+                          'outfile': outfilename})
 
     for i, p in enumerate(processes):
       status.print("[{}/{}] Summing up {}".format(
           i, len(processes), p['infile']), file=out)
-      output, err = p['process'].communicate()
+      output, _ = p['process'].communicate()
       expanded, expanded_bytes, loc, in_bytes = list(map(int, output.split()))
-      result.recordFile(p['infile'], loc, in_bytes, expanded, expanded_bytes)
+      result.recordFile(p['infile'], p['outfile'], loc,
+                        in_bytes, expanded, expanded_bytes)
 
     end = time.time()
     if ARGS['json']:
