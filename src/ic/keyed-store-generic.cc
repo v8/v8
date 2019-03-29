@@ -1014,7 +1014,7 @@ void KeyedStoreGenericAssembler::KeyedStoreGeneric(
 }
 
 void KeyedStoreGenericAssembler::KeyedStoreGeneric() {
-  typedef StoreDescriptor Descriptor;
+  using Descriptor = StoreDescriptor;
 
   TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
   TNode<Object> name = CAST(Parameter(Descriptor::kName));
@@ -1033,7 +1033,7 @@ void KeyedStoreGenericAssembler::SetProperty(TNode<Context> context,
 }
 
 void KeyedStoreGenericAssembler::StoreIC_Uninitialized() {
-  typedef StoreWithVectorDescriptor Descriptor;
+  using Descriptor = StoreWithVectorDescriptor;
 
   Node* receiver = Parameter(Descriptor::kReceiver);
   Node* name = Parameter(Descriptor::kName);
