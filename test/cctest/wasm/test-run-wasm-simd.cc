@@ -19,21 +19,21 @@ namespace test_run_wasm_simd {
 
 namespace {
 
-typedef float (*FloatUnOp)(float);
-typedef float (*FloatBinOp)(float, float);
-typedef int (*FloatCompareOp)(float, float);
-typedef int32_t (*Int32UnOp)(int32_t);
-typedef int32_t (*Int32BinOp)(int32_t, int32_t);
-typedef int (*Int32CompareOp)(int32_t, int32_t);
-typedef int32_t (*Int32ShiftOp)(int32_t, int);
-typedef int16_t (*Int16UnOp)(int16_t);
-typedef int16_t (*Int16BinOp)(int16_t, int16_t);
-typedef int (*Int16CompareOp)(int16_t, int16_t);
-typedef int16_t (*Int16ShiftOp)(int16_t, int);
-typedef int8_t (*Int8UnOp)(int8_t);
-typedef int8_t (*Int8BinOp)(int8_t, int8_t);
-typedef int (*Int8CompareOp)(int8_t, int8_t);
-typedef int8_t (*Int8ShiftOp)(int8_t, int);
+using FloatUnOp = float (*)(float);
+using FloatBinOp = float (*)(float, float);
+using FloatCompareOp = int (*)(float, float);
+using Int32UnOp = int32_t (*)(int32_t);
+using Int32BinOp = int32_t (*)(int32_t, int32_t);
+using Int32CompareOp = int (*)(int32_t, int32_t);
+using Int32ShiftOp = int32_t (*)(int32_t, int);
+using Int16UnOp = int16_t (*)(int16_t);
+using Int16BinOp = int16_t (*)(int16_t, int16_t);
+using Int16CompareOp = int (*)(int16_t, int16_t);
+using Int16ShiftOp = int16_t (*)(int16_t, int);
+using Int8UnOp = int8_t (*)(int8_t);
+using Int8BinOp = int8_t (*)(int8_t, int8_t);
+using Int8CompareOp = int (*)(int8_t, int8_t);
+using Int8ShiftOp = int8_t (*)(int8_t, int);
 
 #define WASM_SIMD_TEST(name)                                          \
   void RunWasm_##name##_Impl(LowerSimd lower_simd,                    \

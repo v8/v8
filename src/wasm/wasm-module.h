@@ -72,7 +72,7 @@ struct WasmGlobal {
 
 // Note: An exception signature only uses the params portion of a
 // function signature.
-typedef FunctionSig WasmExceptionSig;
+using WasmExceptionSig = FunctionSig;
 
 // Static representation of a wasm exception type.
 struct WasmException {

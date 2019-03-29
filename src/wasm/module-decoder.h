@@ -27,18 +27,18 @@ inline bool IsValidSectionCode(uint8_t byte) {
 
 const char* SectionName(SectionCode code);
 
-typedef Result<std::shared_ptr<WasmModule>> ModuleResult;
-typedef Result<std::unique_ptr<WasmFunction>> FunctionResult;
-typedef std::vector<std::pair<int, int>> FunctionOffsets;
-typedef Result<FunctionOffsets> FunctionOffsetsResult;
+using ModuleResult = Result<std::shared_ptr<WasmModule>>;
+using FunctionResult = Result<std::unique_ptr<WasmFunction>>;
+using FunctionOffsets = std::vector<std::pair<int, int>>;
+using FunctionOffsetsResult = Result<FunctionOffsets>;
 
 struct AsmJsOffsetEntry {
   int byte_offset;
   int source_position_call;
   int source_position_number_conversion;
 };
-typedef std::vector<std::vector<AsmJsOffsetEntry>> AsmJsOffsets;
-typedef Result<AsmJsOffsets> AsmJsOffsetsResult;
+using AsmJsOffsets = std::vector<std::vector<AsmJsOffsetEntry>>;
+using AsmJsOffsetsResult = Result<AsmJsOffsets>;
 
 struct LocalName {
   int local_index;

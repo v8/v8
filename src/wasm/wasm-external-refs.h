@@ -71,7 +71,7 @@ void memory_copy_wrapper(Address dst, Address src, uint32_t size);
 
 void memory_fill_wrapper(Address dst, uint32_t value, uint32_t size);
 
-typedef void (*WasmTrapCallbackForTesting)();
+using WasmTrapCallbackForTesting = void (*)();
 
 V8_EXPORT_PRIVATE void set_trap_callback_for_testing(
     WasmTrapCallbackForTesting callback);

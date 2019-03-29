@@ -37,8 +37,8 @@ enum class TrapId : uint32_t;
 namespace wasm {
 struct DecodeStruct;
 // Expose {Node} and {Graph} opaquely as {wasm::TFNode} and {wasm::TFGraph}.
-typedef compiler::Node TFNode;
-typedef compiler::MachineGraph TFGraph;
+using TFNode = compiler::Node;
+using TFGraph = compiler::MachineGraph;
 class WasmCode;
 struct WasmFeatures;
 }  // namespace wasm

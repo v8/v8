@@ -57,7 +57,7 @@ static const WasmOpcode kInt32BinopOpcodes[] = {
 
 class FunctionBodyDecoderTest : public TestWithZone {
  public:
-  typedef std::pair<uint32_t, ValueType> LocalsDecl;
+  using LocalsDecl = std::pair<uint32_t, ValueType>;
   // All features are disabled by default and must be activated with
   // a WASM_FEATURE_SCOPE in individual tests.
   WasmFeatures enabled_features_;
@@ -3384,7 +3384,7 @@ TEST_F(WasmOpcodeLengthTest, SimdExpressions) {
   ExpectLength(2, kSimdPrefix, 0xFF);
 }
 
-typedef ZoneVector<ValueType> TypesOfLocals;
+using TypesOfLocals = ZoneVector<ValueType>;
 
 class LocalDeclDecoderTest : public TestWithZone {
  public:

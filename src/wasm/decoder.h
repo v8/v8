@@ -341,7 +341,7 @@ class Decoder {
       DCHECK_LT(pc, end_);
       b = *pc;
       TRACE_IF(trace, "%02x ", b);
-      typedef typename std::make_unsigned<IntType>::type Unsigned;
+      using Unsigned = typename std::make_unsigned<IntType>::type;
       result = result |
                (static_cast<Unsigned>(static_cast<IntType>(b) & 0x7f) << shift);
     }
