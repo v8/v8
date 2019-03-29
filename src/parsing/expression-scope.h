@@ -459,8 +459,8 @@ class ExpressionParsingScope : public ExpressionScope<Types> {
       ExpressionScopeT::Report(Scanner::Location(begin, end),
                                MessageTemplate::kInvalidDestructuringTarget);
     }
-    for (int i = 0; i < variable_list_.length(); i++) {
-      variable_list_.at(i)->set_is_assigned();
+    for (VariableProxy* proxy : variable_list_) {
+      proxy->set_is_assigned();
     }
   }
 
@@ -666,8 +666,8 @@ class ArrowHeadParsingScope : public ExpressionParsingScope<Types> {
     // references.
     this->parser()->next_arrow_function_info_.ClearStrictParameterError();
     ExpressionParsingScope<Types>::ValidateExpression();
-    for (int i = 0; i < this->variable_list()->length(); i++) {
-      this->parser()->scope()->AddUnresolved(this->variable_list()->at(i));
+    for (VariableProxy* proxy : *this->variable_list()) {
+      this->parser()->scope()->AddUnresolved(proxy);
     }
   }
 
@@ -684,8 +684,7 @@ class ArrowHeadParsingScope : public ExpressionParsingScope<Types> {
     VariableKind kind = PARAMETER_VARIABLE;
     VariableMode mode =
         has_simple_parameter_list_ ? VariableMode::kVar : VariableMode::kLet;
-    for (int i = 0; i < this->variable_list()->length(); i++) {
-      VariableProxy* proxy = this->variable_list()->at(i);
+    for (VariableProxy* proxy : *this->variable_list()) {
       bool was_added;
       this->parser()->DeclareAndBindVariable(
           proxy, kind, mode, Variable::DefaultInitializationFlag(mode), result,

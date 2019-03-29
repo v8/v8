@@ -1131,8 +1131,7 @@ void Parser::ParseImportDeclaration() {
     if (named_imports->length() == 0) {
       module()->AddEmptyImport(module_specifier, specifier_loc);
     } else {
-      for (int i = 0; i < named_imports->length(); ++i) {
-        const NamedImport* import = named_imports->at(i);
+      for (const NamedImport* import : *named_imports) {
         module()->AddImport(import->import_name, import->local_name,
                             module_specifier, import->location, specifier_loc,
                             zone());
@@ -1351,8 +1350,8 @@ Statement* Parser::ParseExportDeclaration() {
   loc.end_pos = scanner()->location().end_pos;
 
   ModuleDescriptor* descriptor = module();
-  for (int i = 0; i < names.length(); ++i) {
-    descriptor->AddExport(names[i], names[i], loc, zone());
+  for (const AstRawString* name : names) {
+    descriptor->AddExport(name, name, loc, zone());
   }
 
   return result;
@@ -1888,12 +1887,12 @@ Block* Parser::CreateForEachStatementTDZ(Block* init_block,
 
     init_block = factory()->NewBlock(1, false);
 
-    for (int i = 0; i < for_info.bound_names.length(); ++i) {
+    for (const AstRawString* bound_name : for_info.bound_names) {
       // TODO(adamk): This needs to be some sort of special
       // INTERNAL variable that's invisible to the debugger
       // but visible to everything else.
       VariableProxy* tdz_proxy = DeclareBoundVariable(
-          for_info.bound_names[i], VariableMode::kLet, kNoSourcePosition);
+          bound_name, VariableMode::kLet, kNoSourcePosition);
       tdz_proxy->var()->set_initializer_position(position());
     }
   }
@@ -1953,8 +1952,8 @@ Statement* Parser::DesugarLexicalBindingsInForStatement(
 
   // For each lexical variable x:
   //   make statement: temp_x = x.
-  for (int i = 0; i < for_info.bound_names.length(); i++) {
-    VariableProxy* proxy = NewUnresolved(for_info.bound_names[i]);
+  for (const AstRawString* bound_name : for_info.bound_names) {
+    VariableProxy* proxy = NewUnresolved(bound_name);
     Variable* temp = NewTemporary(temp_name);
     VariableProxy* temp_proxy = factory()->NewVariableProxy(temp);
     Assignment* assignment = factory()->NewAssignment(Token::ASSIGN, temp_proxy,
@@ -2697,15 +2696,14 @@ void Parser::ParseFunction(
       // For a function implicitly wrapped in function header and footer, the
       // function arguments are provided separately to the source, and are
       // declared directly here.
-      int arguments_length = arguments_for_wrapped_function->length();
-      for (int i = 0; i < arguments_length; i++) {
+      for (const AstRawString* arg : *arguments_for_wrapped_function) {
         const bool is_rest = false;
-        Expression* argument = ExpressionFromIdentifier(
-            arguments_for_wrapped_function->at(i), kNoSourcePosition);
+        Expression* argument = ExpressionFromIdentifier(arg, kNoSourcePosition);
         AddFormalParameter(&formals, argument, NullExpression(),
                            kNoSourcePosition, is_rest);
       }
-      DCHECK_EQ(arguments_length, formals.num_parameters());
+      DCHECK_EQ(arguments_for_wrapped_function->length(),
+                formals.num_parameters());
       DeclareFormalParameters(&formals);
     } else {
       // For a regular function, the function arguments are parsed from source.

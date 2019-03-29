@@ -431,7 +431,7 @@ bool BufferedUtf16CharacterStream::ReadBlock() {
 //
 // This implementation is fairly complex, since data arrives in chunks which
 // may 'cut' arbitrarily into utf-8 characters. Also, seeking to a given
-// character position is tricky because the byte position cannot be dericed
+// character position is tricky because the byte position cannot be derived
 // from the character position.
 //
 // TODO(verwaest): Decode utf8 chunks into utf16 chunks on the blink side
@@ -444,7 +444,7 @@ class Utf8ExternalStreamingStream : public BufferedUtf16CharacterStream {
       : current_({0, {0, 0, 0, unibrow::Utf8::State::kAccept}}),
         source_stream_(source_stream) {}
   ~Utf8ExternalStreamingStream() final {
-    for (size_t i = 0; i < chunks_.size(); i++) delete[] chunks_[i].data;
+    for (const Chunk& chunk : chunks_) delete[] chunk.data;
   }
 
   bool can_access_heap() const final { return false; }
