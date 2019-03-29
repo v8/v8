@@ -2337,6 +2337,84 @@ WASM_SIMD_TEST(BitSelect) {
   DCHECK_EQ(0x01020304, r.Call(0xFFFFFFFF));
 }
 
+void RunI8x16MixedRelationalOpTest(ExecutionTier execution_tier,
+                                   LowerSimd lower_simd, WasmOpcode opcode,
+                                   Int8BinOp expected_op) {
+  WasmRunner<int32_t, int32_t, int32_t> r(execution_tier, lower_simd);
+  byte value1 = 0, value2 = 1;
+  byte temp1 = r.AllocateLocal(kWasmS128);
+  byte temp2 = r.AllocateLocal(kWasmS128);
+  byte temp3 = r.AllocateLocal(kWasmS128);
+  BUILD(r, WASM_SET_LOCAL(temp1, WASM_SIMD_I8x16_SPLAT(WASM_GET_LOCAL(value1))),
+        WASM_SET_LOCAL(temp2, WASM_SIMD_I16x8_SPLAT(WASM_GET_LOCAL(value2))),
+        WASM_SET_LOCAL(temp3, WASM_SIMD_BINOP(opcode, WASM_GET_LOCAL(temp1),
+                                              WASM_GET_LOCAL(temp2))),
+        WASM_SIMD_I8x16_EXTRACT_LANE(0, WASM_GET_LOCAL(temp3)));
+
+  DCHECK_EQ(expected_op(0xff, static_cast<uint8_t>(0x7fff)),
+            r.Call(0xff, 0x7fff));
+  DCHECK_EQ(expected_op(0xfe, static_cast<uint8_t>(0x7fff)),
+            r.Call(0xfe, 0x7fff));
+  DCHECK_EQ(expected_op(0xff, static_cast<uint8_t>(0x7ffe)),
+            r.Call(0xff, 0x7ffe));
+}
+
+WASM_SIMD_TEST_NO_LOWERING(I8x16LeUMixed) {
+  RunI8x16MixedRelationalOpTest(execution_tier, lower_simd, kExprI8x16LeU,
+                                UnsignedLessEqual);
+}
+WASM_SIMD_TEST_NO_LOWERING(I8x16LtUMixed) {
+  RunI8x16MixedRelationalOpTest(execution_tier, lower_simd, kExprI8x16LtU,
+                                UnsignedLess);
+}
+WASM_SIMD_TEST_NO_LOWERING(I8x16GeUMixed) {
+  RunI8x16MixedRelationalOpTest(execution_tier, lower_simd, kExprI8x16GeU,
+                                UnsignedGreaterEqual);
+}
+WASM_SIMD_TEST_NO_LOWERING(I8x16GtUMixed) {
+  RunI8x16MixedRelationalOpTest(execution_tier, lower_simd, kExprI8x16GtU,
+                                UnsignedGreater);
+}
+
+void RunI16x8MixedRelationalOpTest(ExecutionTier execution_tier,
+                                   LowerSimd lower_simd, WasmOpcode opcode,
+                                   Int16BinOp expected_op) {
+  WasmRunner<int32_t, int32_t, int32_t> r(execution_tier, lower_simd);
+  byte value1 = 0, value2 = 1;
+  byte temp1 = r.AllocateLocal(kWasmS128);
+  byte temp2 = r.AllocateLocal(kWasmS128);
+  byte temp3 = r.AllocateLocal(kWasmS128);
+  BUILD(r, WASM_SET_LOCAL(temp1, WASM_SIMD_I16x8_SPLAT(WASM_GET_LOCAL(value1))),
+        WASM_SET_LOCAL(temp2, WASM_SIMD_I32x4_SPLAT(WASM_GET_LOCAL(value2))),
+        WASM_SET_LOCAL(temp3, WASM_SIMD_BINOP(opcode, WASM_GET_LOCAL(temp1),
+                                              WASM_GET_LOCAL(temp2))),
+        WASM_SIMD_I16x8_EXTRACT_LANE(0, WASM_GET_LOCAL(temp3)));
+
+  DCHECK_EQ(expected_op(0xffff, static_cast<uint16_t>(0x7fffffff)),
+            r.Call(0xffff, 0x7fffffff));
+  DCHECK_EQ(expected_op(0xfeff, static_cast<uint16_t>(0x7fffffff)),
+            r.Call(0xfeff, 0x7fffffff));
+  DCHECK_EQ(expected_op(0xffff, static_cast<uint16_t>(0x7ffffeff)),
+            r.Call(0xffff, 0x7ffffeff));
+}
+
+WASM_SIMD_TEST_NO_LOWERING(I16x8LeUMixed) {
+  RunI16x8MixedRelationalOpTest(execution_tier, lower_simd, kExprI16x8LeU,
+                                UnsignedLessEqual);
+}
+WASM_SIMD_TEST_NO_LOWERING(I16x8LtUMixed) {
+  RunI16x8MixedRelationalOpTest(execution_tier, lower_simd, kExprI16x8LtU,
+                                UnsignedLess);
+}
+WASM_SIMD_TEST_NO_LOWERING(I16x8GeUMixed) {
+  RunI16x8MixedRelationalOpTest(execution_tier, lower_simd, kExprI16x8GeU,
+                                UnsignedGreaterEqual);
+}
+WASM_SIMD_TEST_NO_LOWERING(I16x8GtUMixed) {
+  RunI16x8MixedRelationalOpTest(execution_tier, lower_simd, kExprI16x8GtU,
+                                UnsignedGreater);
+}
+
 #undef WASM_SIMD_TEST
 #undef WASM_SIMD_CHECK_LANE
 #undef TO_BYTE

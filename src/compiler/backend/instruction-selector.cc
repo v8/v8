@@ -2003,7 +2003,7 @@ void InstructionSelector::VisitNode(Node* node) {
     case IrOpcode::kI8x16GtU:
       return MarkAsSimd128(node), VisitI8x16GtU(node);
     case IrOpcode::kI8x16GeU:
-      return MarkAsSimd128(node), VisitI16x8GeU(node);
+      return MarkAsSimd128(node), VisitI8x16GeU(node);
     case IrOpcode::kS128Zero:
       return MarkAsSimd128(node), VisitS128Zero(node);
     case IrOpcode::kS128And:
