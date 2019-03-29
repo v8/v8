@@ -319,6 +319,10 @@ inline bool CanBeCompressedPointer(MachineRepresentation rep) {
          rep == MachineRepresentation::kCompressedPointer;
 }
 
+inline bool CanBeTaggedOrCompressedPointer(MachineRepresentation rep) {
+  return CanBeTaggedPointer(rep) || CanBeCompressedPointer(rep);
+}
+
 inline bool CanBeCompressedSigned(MachineRepresentation rep) {
   return rep == MachineRepresentation::kCompressed ||
          rep == MachineRepresentation::kCompressedSigned;

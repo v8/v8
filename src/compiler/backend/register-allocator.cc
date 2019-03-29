@@ -4772,7 +4772,7 @@ void ReferenceMapPopulator::PopulateReferenceMaps() {
         spill_operand = range->GetSpillRangeOperand();
       }
       DCHECK(spill_operand.IsStackSlot());
-      DCHECK(CanBeTaggedPointer(
+      DCHECK(CanBeTaggedOrCompressedPointer(
           AllocatedOperand::cast(spill_operand).representation()));
     }
 
@@ -4835,7 +4835,7 @@ void ReferenceMapPopulator::PopulateReferenceMaps() {
             safe_point);
         InstructionOperand operand = cur->GetAssignedOperand();
         DCHECK(!operand.IsStackSlot());
-        DCHECK(CanBeTaggedPointer(
+        DCHECK(CanBeTaggedOrCompressedPointer(
             AllocatedOperand::cast(operand).representation()));
         map->RecordReference(AllocatedOperand::cast(operand));
       }

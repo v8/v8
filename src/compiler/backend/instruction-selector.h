@@ -539,6 +539,9 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   void MarkAsReference(Node* node) {
     MarkAsRepresentation(MachineRepresentation::kTagged, node);
   }
+  void MarkAsCompressed(Node* node) {
+    MarkAsRepresentation(MachineRepresentation::kCompressed, node);
+  }
 
   // Inform the register allocation of the representation of the unallocated
   // operand {op}.

@@ -1493,7 +1493,7 @@ class V8_EXPORT_PRIVATE InstructionSequence final
   void MarkAsRepresentation(MachineRepresentation rep, int virtual_register);
 
   bool IsReference(int virtual_register) const {
-    return CanBeTaggedPointer(GetRepresentation(virtual_register));
+    return CanBeTaggedOrCompressedPointer(GetRepresentation(virtual_register));
   }
   bool IsFP(int virtual_register) const {
     return IsFloatingPoint(GetRepresentation(virtual_register));

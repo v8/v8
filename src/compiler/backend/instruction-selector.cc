@@ -1518,17 +1518,17 @@ void InstructionSelector::VisitNode(Node* node) {
     case IrOpcode::kChangeUint32ToUint64:
       return MarkAsWord64(node), VisitChangeUint32ToUint64(node);
     case IrOpcode::kChangeTaggedToCompressed:
-      return MarkAsWord32(node), VisitChangeTaggedToCompressed(node);
+      return MarkAsCompressed(node), VisitChangeTaggedToCompressed(node);
     case IrOpcode::kChangeTaggedPointerToCompressedPointer:
-      return MarkAsWord32(node),
+      return MarkAsCompressed(node),
              VisitChangeTaggedPointerToCompressedPointer(node);
     case IrOpcode::kChangeTaggedSignedToCompressedSigned:
       return MarkAsWord32(node),
              VisitChangeTaggedSignedToCompressedSigned(node);
     case IrOpcode::kChangeCompressedToTagged:
-      return MarkAsWord64(node), VisitChangeCompressedToTagged(node);
+      return MarkAsReference(node), VisitChangeCompressedToTagged(node);
     case IrOpcode::kChangeCompressedPointerToTaggedPointer:
-      return MarkAsWord64(node),
+      return MarkAsReference(node),
              VisitChangeCompressedPointerToTaggedPointer(node);
     case IrOpcode::kChangeCompressedSignedToTaggedSigned:
       return MarkAsWord64(node),
