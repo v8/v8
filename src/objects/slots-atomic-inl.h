@@ -71,11 +71,11 @@ class AtomicSlot : public SlotBase<AtomicSlot, Tagged_t> {
 
   // The rest of this class follows C++'s "RandomAccessIterator" requirements.
   // Most of the heavy lifting is inherited from SlotBase.
-  typedef int difference_type;
-  typedef Tagged_t value_type;
-  typedef Reference reference;
-  typedef void* pointer;  // Must be present, but should not be used.
-  typedef std::random_access_iterator_tag iterator_category;
+  using difference_type = int;
+  using value_type = Tagged_t;
+  using reference = Reference;
+  using pointer = void*;  // Must be present, but should not be used.
+  using iterator_category = std::random_access_iterator_tag;
 
   AtomicSlot() : SlotBase(kNullAddress) {}
   explicit AtomicSlot(Address address) : SlotBase(address) {}

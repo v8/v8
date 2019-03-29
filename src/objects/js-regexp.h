@@ -56,7 +56,7 @@ class JSRegExp : public JSObject {
     // Update FlagCount when adding new flags.
     kInvalid = 1 << FlagShiftBit::kInvalid,  // Not included in FlagCount.
   };
-  typedef base::Flags<Flag> Flags;
+  using Flags = base::Flags<Flag>;
   static constexpr int FlagCount() { return 6; }
 
   static int FlagShiftBits(Flag flag) {

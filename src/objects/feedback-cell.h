@@ -38,7 +38,7 @@ class FeedbackCell : public Struct {
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, FEEDBACK_CELL_FIELDS)
 #undef FEEDBACK_CELL_FIELDS
 
-  typedef FixedBodyDescriptor<kValueOffset, kSize, kSize> BodyDescriptor;
+  using BodyDescriptor = FixedBodyDescriptor<kValueOffset, kSize, kSize>;
 
   OBJECT_CONSTRUCTORS(FeedbackCell, Struct);
 };

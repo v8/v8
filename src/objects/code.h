@@ -34,7 +34,7 @@ class Code : public HeapObject {
   NEVER_READ_ONLY_SPACE
   // Opaque data type for encapsulating code flags like kind, inline
   // cache state, and arguments count.
-  typedef uint32_t Flags;
+  using Flags = uint32_t;
 
 #define CODE_KIND_LIST(V)   \
   V(OPTIMIZED_FUNCTION)     \

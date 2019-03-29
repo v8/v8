@@ -15,8 +15,8 @@
 
 namespace v8 {
 namespace internal {
-typedef FlexibleWeakBodyDescriptor<HeapObject::kHeaderSize>
-    WeakArrayBodyDescriptor;
+using WeakArrayBodyDescriptor =
+    FlexibleWeakBodyDescriptor<HeapObject::kHeaderSize>;
 
 #define FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(V)    \
   V(BYTECODE_ARRAY_CONSTANT_POOL_SUB_TYPE)       \
@@ -198,7 +198,7 @@ class FixedArray : public FixedArrayBase {
   DECL_PRINTER(FixedArray)
   DECL_VERIFIER(FixedArray)
 
-  typedef FlexibleBodyDescriptor<kHeaderSize> BodyDescriptor;
+  using BodyDescriptor = FlexibleBodyDescriptor<kHeaderSize>;
 
  protected:
   // Set operation on FixedArray without using write barriers. Can
@@ -298,7 +298,7 @@ class WeakFixedArray : public HeapObject {
   DECL_PRINTER(WeakFixedArray)
   DECL_VERIFIER(WeakFixedArray)
 
-  typedef WeakArrayBodyDescriptor BodyDescriptor;
+  using BodyDescriptor = WeakArrayBodyDescriptor;
 
   // Layout description.
 #define WEAK_FIXED_ARRAY_FIELDS(V) \
@@ -379,7 +379,7 @@ class WeakArrayList : public HeapObject {
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, WEAK_ARRAY_LIST_FIELDS)
 #undef WEAK_ARRAY_LIST_FIELDS
 
-  typedef WeakArrayBodyDescriptor BodyDescriptor;
+  using BodyDescriptor = WeakArrayBodyDescriptor;
 
   static const int kMaxCapacity =
       (FixedArray::kMaxSize - kHeaderSize) / kTaggedSize;
@@ -652,7 +652,7 @@ class FixedTypedArrayBase : public FixedArrayBase {
 template <class Traits>
 class FixedTypedArray : public FixedTypedArrayBase {
  public:
-  typedef typename Traits::ElementType ElementType;
+  using ElementType = typename Traits::ElementType;
   static const InstanceType kInstanceType = Traits::kInstanceType;
 
   DECL_CAST(FixedTypedArray<Traits>)
@@ -687,7 +687,7 @@ class FixedTypedArray : public FixedTypedArrayBase {
   STATIC_ASSERT(sizeof(elementType) <= FixedTypedArrayBase::kMaxElementSize); \
   class Type##ArrayTraits {                                                   \
    public: /* NOLINT */                                                       \
-    typedef elementType ElementType;                                          \
+    using ElementType = elementType;                                          \
     static const InstanceType kInstanceType = FIXED_##TYPE##_ARRAY_TYPE;      \
     static const char* ArrayTypeName() { return "Fixed" #Type "Array"; }      \
     static inline Handle<Object> ToHandle(Isolate* isolate,                   \
@@ -695,7 +695,7 @@ class FixedTypedArray : public FixedTypedArrayBase {
     static inline elementType defaultValue();                                 \
   };                                                                          \
                                                                               \
-  typedef FixedTypedArray<Type##ArrayTraits> Fixed##Type##Array;
+  using Fixed##Type##Array = FixedTypedArray<Type##ArrayTraits>;
 
 TYPED_ARRAYS(FIXED_TYPED_ARRAY_TRAITS)
 

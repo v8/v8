@@ -750,11 +750,11 @@ SubStringRange::SubStringRange(String string,
 
 class SubStringRange::iterator final {
  public:
-  typedef std::forward_iterator_tag iterator_category;
-  typedef int difference_type;
-  typedef uc16 value_type;
-  typedef uc16* pointer;
-  typedef uc16& reference;
+  using iterator_category = std::forward_iterator_tag;
+  using difference_type = int;
+  using value_type = uc16;
+  using pointer = uc16*;
+  using reference = uc16&;
 
   iterator(const iterator& other) = default;
 

@@ -70,7 +70,7 @@ class BigIntBase : public HeapObject {
   friend class ::v8::internal::BigInt;  // MSVC wants full namespace.
   friend class MutableBigInt;
 
-  typedef uintptr_t digit_t;
+  using digit_t = uintptr_t;
   static const int kDigitSize = sizeof(digit_t);
   // kMaxLength definition assumes this:
   STATIC_ASSERT(kDigitSize == kSystemPointerSize);

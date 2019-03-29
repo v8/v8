@@ -171,7 +171,7 @@ class DescriptorArray : public HeapObject {
   inline ObjectSlot GetKeySlot(int descriptor);
   inline MaybeObjectSlot GetValueSlot(int descriptor);
 
-  typedef FlexibleWeakBodyDescriptor<kPointersStartOffset> BodyDescriptor;
+  using BodyDescriptor = FlexibleWeakBodyDescriptor<kPointersStartOffset>;
 
   // Layout of descriptor.
   // Naming is consistent with Dictionary classes for easy templating.

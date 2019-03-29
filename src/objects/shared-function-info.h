@@ -132,9 +132,8 @@ class UncompiledData : public HeapObject {
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, UNCOMPILED_DATA_FIELDS)
 #undef UNCOMPILED_DATA_FIELDS
 
-  typedef FixedBodyDescriptor<kStartOfPointerFieldsOffset,
-                              kEndOfTaggedFieldsOffset, kSize>
-      BodyDescriptor;
+  using BodyDescriptor = FixedBodyDescriptor<kStartOfPointerFieldsOffset,
+                                             kEndOfTaggedFieldsOffset, kSize>;
 
   // Clear uninitialized padding space.
   inline void clear_padding();
@@ -154,7 +153,7 @@ class UncompiledDataWithoutPreparseData : public UncompiledData {
   static const int kSize = UncompiledData::kSize;
 
   // No extra fields compared to UncompiledData.
-  typedef UncompiledData::BodyDescriptor BodyDescriptor;
+  using BodyDescriptor = UncompiledData::BodyDescriptor;
 
   OBJECT_CONSTRUCTORS(UncompiledDataWithoutPreparseData, UncompiledData);
 };
@@ -193,11 +192,10 @@ class UncompiledDataWithPreparseData : public UncompiledData {
   // Make sure the size is aligned
   STATIC_ASSERT(IsAligned(kSize, kTaggedSize));
 
-  typedef SubclassBodyDescriptor<
+  using BodyDescriptor = SubclassBodyDescriptor<
       UncompiledData::BodyDescriptor,
       FixedBodyDescriptor<kStartOfPointerFieldsOffset, kEndOfTaggedFieldsOffset,
-                          kSize>>
-      BodyDescriptor;
+                          kSize>>;
 
   OBJECT_CONSTRUCTORS(UncompiledDataWithPreparseData, UncompiledData);
 };

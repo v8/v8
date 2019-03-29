@@ -226,11 +226,11 @@ class UnalignedSlot : public SlotBase<UnalignedSlot<T>, T, 1> {
 
   // The rest of this class follows C++'s "RandomAccessIterator" requirements.
   // Most of the heavy lifting is inherited from SlotBase.
-  typedef int difference_type;
-  typedef T value_type;
-  typedef Reference reference;
-  typedef T* pointer;
-  typedef std::random_access_iterator_tag iterator_category;
+  using difference_type = int;
+  using value_type = T;
+  using reference = Reference;
+  using pointer = T*;
+  using iterator_category = std::random_access_iterator_tag;
 
   UnalignedSlot() : SlotBase<UnalignedSlot<T>, T, 1>(kNullAddress) {}
   explicit UnalignedSlot(Address address)

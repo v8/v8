@@ -178,7 +178,7 @@ class JSReceiver : public HeapObject {
   V8_WARN_UNUSED_RESULT static Maybe<bool> GetOwnPropertyDescriptor(
       LookupIterator* it, PropertyDescriptor* desc);
 
-  typedef PropertyAttributes IntegrityLevel;
+  using IntegrityLevel = PropertyAttributes;
 
   // ES6 7.3.14 (when passed kDontThrow)
   // 'level' must be SEALED or FROZEN.
@@ -1377,9 +1377,8 @@ class JSMessageObject : public JSObject {
   // TODO(v8:8989): [torque] Support marker constants.
   static const int kPointerFieldsEndOffset = kStartPositionOffset;
 
-  typedef FixedBodyDescriptor<HeapObject::kMapOffset, kPointerFieldsEndOffset,
-                              kSize>
-      BodyDescriptor;
+  using BodyDescriptor = FixedBodyDescriptor<HeapObject::kMapOffset,
+                                             kPointerFieldsEndOffset, kSize>;
 
   OBJECT_CONSTRUCTORS(JSMessageObject, JSObject);
 };

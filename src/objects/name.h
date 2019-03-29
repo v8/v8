@@ -191,7 +191,7 @@ class Symbol : public Name {
   DEFINE_BIT_FIELDS(FLAGS_BIT_FIELDS)
 #undef FLAGS_BIT_FIELDS
 
-  typedef FixedBodyDescriptor<kNameOffset, kSize, kSize> BodyDescriptor;
+  using BodyDescriptor = FixedBodyDescriptor<kNameOffset, kSize, kSize>;
 
   void SymbolShortPrint(std::ostream& os);
 

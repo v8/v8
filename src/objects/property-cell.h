@@ -68,7 +68,7 @@ class PropertyCell : public HeapObject {
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, PROPERTY_CELL_FIELDS)
 #undef PROPERTY_CELL_FIELDS
 
-  typedef FixedBodyDescriptor<kNameOffset, kSize, kSize> BodyDescriptor;
+  using BodyDescriptor = FixedBodyDescriptor<kNameOffset, kSize, kSize>;
 
   OBJECT_CONSTRUCTORS(PropertyCell, HeapObject);
 };

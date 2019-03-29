@@ -989,7 +989,7 @@ MaybeHandle<String> String::GetSubstitution(Isolate* isolate, Match* match,
         break;
       }
       case '<': {  // $<name> - named capture
-        typedef String::Match::CaptureState CaptureState;
+        using CaptureState = String::Match::CaptureState;
 
         if (!match->HasNamedCaptures()) {
           builder.AppendCharacter('$');

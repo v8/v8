@@ -80,8 +80,8 @@ class PrototypeUsers : public WeakArrayList {
   // The callback is called when a weak pointer to HeapObject "object" is moved
   // from index "from_index" to index "to_index" during compaction. The callback
   // must not cause GC.
-  typedef void (*CompactionCallback)(HeapObject object, int from_index,
-                                     int to_index);
+  using CompactionCallback = void (*)(HeapObject object, int from_index,
+                                      int to_index);
   static WeakArrayList Compact(
       Handle<WeakArrayList> array, Heap* heap, CompactionCallback callback,
       AllocationType allocation = AllocationType::kYoung);

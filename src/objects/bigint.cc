@@ -2486,11 +2486,11 @@ uint64_t BigInt::AsUint64(bool* lossless) {
 
 #if V8_TARGET_ARCH_32_BIT
 #define HAVE_TWODIGIT_T 1
-typedef uint64_t twodigit_t;
+using twodigit_t = uint64_t;
 #elif defined(__SIZEOF_INT128__)
 // Both Clang and GCC support this on x64.
 #define HAVE_TWODIGIT_T 1
-typedef __uint128_t twodigit_t;
+using twodigit_t = __uint128_t;
 #endif
 
 // {carry} must point to an initialized digit_t and will either be incremented

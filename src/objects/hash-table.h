@@ -56,7 +56,7 @@ namespace internal {
 template <typename KeyT>
 class BaseShape {
  public:
-  typedef KeyT Key;
+  using Key = KeyT;
   static inline RootIndex GetMapRootIndex();
   static const bool kNeedsHoleCheck = true;
   static Object Unwrap(Object key) { return key; }
@@ -132,8 +132,8 @@ class V8_EXPORT_PRIVATE HashTableBase : public NON_EXPORTED_BASE(FixedArray) {
 template <typename Derived, typename Shape>
 class HashTable : public HashTableBase {
  public:
-  typedef Shape ShapeT;
-  typedef typename Shape::Key Key;
+  using ShapeT = Shape;
+  using Key = typename Shape::Key;
 
   // Returns a new HashTable object.
   V8_WARN_UNUSED_RESULT static Handle<Derived> New(

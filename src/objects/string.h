@@ -609,7 +609,7 @@ class ConsString : public String {
   // Minimum length for a cons string.
   static const int kMinLength = 13;
 
-  typedef FixedBodyDescriptor<kFirstOffset, kSize, kSize> BodyDescriptor;
+  using BodyDescriptor = FixedBodyDescriptor<kFirstOffset, kSize, kSize>;
 
   DECL_VERIFIER(ConsString)
 
@@ -639,7 +639,7 @@ class ThinString : public String {
   DEFINE_FIELD_OFFSET_CONSTANTS(String::kHeaderSize,
                                 TORQUE_GENERATED_THIN_STRING_FIELDS)
 
-  typedef FixedBodyDescriptor<kActualOffset, kSize, kSize> BodyDescriptor;
+  using BodyDescriptor = FixedBodyDescriptor<kActualOffset, kSize, kSize>;
 
   OBJECT_CONSTRUCTORS(ThinString, String);
 };
@@ -675,7 +675,7 @@ class SlicedString : public String {
   // Minimum length for a sliced string.
   static const int kMinLength = 13;
 
-  typedef FixedBodyDescriptor<kParentOffset, kSize, kSize> BodyDescriptor;
+  using BodyDescriptor = FixedBodyDescriptor<kParentOffset, kSize, kSize>;
 
   DECL_VERIFIER(SlicedString)
 
@@ -727,7 +727,7 @@ class ExternalOneByteString : public ExternalString {
  public:
   static const bool kHasOneByteEncoding = true;
 
-  typedef v8::String::ExternalOneByteStringResource Resource;
+  using Resource = v8::String::ExternalOneByteStringResource;
 
   // The underlying resource.
   inline const Resource* resource();
@@ -762,7 +762,7 @@ class ExternalTwoByteString : public ExternalString {
  public:
   static const bool kHasOneByteEncoding = false;
 
-  typedef v8::String::ExternalStringResource Resource;
+  using Resource = v8::String::ExternalStringResource;
 
   // The underlying string resource.
   inline const Resource* resource();

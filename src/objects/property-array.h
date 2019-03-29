@@ -53,7 +53,7 @@ class PropertyArray : public HeapObject {
   static const int kHeaderSize = kSize;
 
   // Garbage collection support.
-  typedef FlexibleBodyDescriptor<kHeaderSize> BodyDescriptor;
+  using BodyDescriptor = FlexibleBodyDescriptor<kHeaderSize>;
 
   static const int kLengthFieldSize = 10;
   class LengthField : public BitField<int, 0, kLengthFieldSize> {};

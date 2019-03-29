@@ -71,7 +71,7 @@ namespace {
 
 inline int EncodeComputedEntry(ClassBoilerplate::ValueKind value_kind,
                                unsigned key_index) {
-  typedef ClassBoilerplate::ComputedEntryFlags Flags;
+  using Flags = ClassBoilerplate::ComputedEntryFlags;
   int flags = Flags::ValueKindBits::encode(value_kind) |
               Flags::KeyIndexBits::encode(key_index);
   return flags;

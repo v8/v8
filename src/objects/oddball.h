@@ -68,9 +68,8 @@ class Oddball : public HeapObject {
   static const byte kStaleRegister = 10;
   static const byte kSelfReferenceMarker = 10;
 
-  typedef FixedBodyDescriptor<kTaggedFieldsStartOffset, kTaggedFieldsEndOffset,
-                              kSize>
-      BodyDescriptor;
+  using BodyDescriptor = FixedBodyDescriptor<kTaggedFieldsStartOffset,
+                                             kTaggedFieldsEndOffset, kSize>;
 
   STATIC_ASSERT(kKindOffset == Internals::kOddballKindOffset);
   STATIC_ASSERT(kNull == Internals::kNullOddballKind);

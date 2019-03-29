@@ -116,7 +116,7 @@ class JSWeakCollection : public JSObject {
   class BodyDescriptorImpl;
 
   // Visit the whole object.
-  typedef BodyDescriptorImpl BodyDescriptor;
+  using BodyDescriptor = BodyDescriptorImpl;
 
   OBJECT_CONSTRUCTORS(JSWeakCollection, JSObject);
 };

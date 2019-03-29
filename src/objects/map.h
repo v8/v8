@@ -93,7 +93,7 @@ enum class ObjectFields {
   kMaybePointers,
 };
 
-typedef std::vector<Handle<Map>> MapHandles;
+using MapHandles = std::vector<Handle<Map>>;
 
 // All heap objects have a Map that describes their structure.
 //  A Map contains information about:

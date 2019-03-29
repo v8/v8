@@ -336,11 +336,11 @@ template <class Derived>
 class SmallOrderedHashTable : public HeapObject {
  public:
   // Offset points to a relative location in the table
-  typedef int Offset;
+  using Offset = int;
 
   // ByteIndex points to a index in the table that needs to be
   // converted to an Offset.
-  typedef int ByteIndex;
+  using ByteIndex = int;
 
   void Initialize(Isolate* isolate, int capacity);
 
@@ -638,7 +638,7 @@ STATIC_ASSERT(kSmallOrderedHashMapMinCapacity ==
 template <class SmallTable, class LargeTable>
 class OrderedHashTableHandler {
  public:
-  typedef int Entry;
+  using Entry = int;
 
   static Handle<HeapObject> Allocate(Isolate* isolate, int capacity);
   static bool Delete(Handle<HeapObject> table, Handle<Object> key);

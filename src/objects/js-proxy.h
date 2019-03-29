@@ -117,8 +117,8 @@ class JSProxy : public JSReceiver {
   STATIC_ASSERT(static_cast<int>(JSObject::kElementsOffset) ==
                 static_cast<int>(JSProxy::kTargetOffset));
 
-  typedef FixedBodyDescriptor<JSReceiver::kPropertiesOrHashOffset, kSize, kSize>
-      BodyDescriptor;
+  using BodyDescriptor =
+      FixedBodyDescriptor<JSReceiver::kPropertiesOrHashOffset, kSize, kSize>;
 
   static Maybe<bool> SetPrivateSymbol(Isolate* isolate, Handle<JSProxy> proxy,
                                       Handle<Symbol> private_name,
