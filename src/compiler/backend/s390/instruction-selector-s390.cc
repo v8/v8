@@ -36,7 +36,7 @@ enum class OperandMode : uint32_t {
   kArithmeticCommonMode = kAllowRM | kAllowRI
 };
 
-typedef base::Flags<OperandMode, uint32_t> OperandModes;
+using OperandModes = base::Flags<OperandMode, uint32_t>;
 DEFINE_OPERATORS_FOR_FLAGS(OperandModes)
 OperandModes immediateModeMask =
     OperandMode::kShift32Imm | OperandMode::kShift64Imm |

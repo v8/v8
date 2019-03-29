@@ -32,7 +32,7 @@ namespace compiler {
 // meaningful to the operator itself.
 class V8_EXPORT_PRIVATE Operator : public NON_EXPORTED_BASE(ZoneObject) {
  public:
-  typedef uint16_t Opcode;
+  using Opcode = uint16_t;
 
   // Properties inform the operator-independent optimizer about legal
   // transformations for nodes that have this operator.
@@ -57,7 +57,7 @@ class V8_EXPORT_PRIVATE Operator : public NON_EXPORTED_BASE(ZoneObject) {
   V(Commutative)                  \
   V(Associative) V(Idempotent) V(NoRead) V(NoWrite) V(NoThrow) V(NoDeopt)
 
-  typedef base::Flags<Property, uint8_t> Properties;
+  using Properties = base::Flags<Property, uint8_t>;
   enum class PrintVerbosity { kVerbose, kSilent };
 
   // Constructor.

@@ -363,9 +363,9 @@ class RawMachineAssembler;
 class RawMachineLabel;
 class SourcePositionTable;
 
-typedef ZoneVector<CodeAssemblerVariable*> CodeAssemblerVariableList;
+using CodeAssemblerVariableList = ZoneVector<CodeAssemblerVariable*>;
 
-typedef std::function<void()> CodeAssemblerCallback;
+using CodeAssemblerCallback = std::function<void()>;
 
 template <class T, class U>
 struct is_subtype {
@@ -1650,8 +1650,8 @@ class CodeAssemblerParameterizedLabel
   }
 };
 
-typedef CodeAssemblerParameterizedLabel<Object>
-    CodeAssemblerExceptionHandlerLabel;
+using CodeAssemblerExceptionHandlerLabel =
+    CodeAssemblerParameterizedLabel<Object>;
 
 class V8_EXPORT_PRIVATE CodeAssemblerState {
  public:
@@ -1706,7 +1706,7 @@ class V8_EXPORT_PRIVATE CodeAssemblerState {
   CodeAssemblerCallback call_prologue_;
   CodeAssemblerCallback call_epilogue_;
   std::vector<CodeAssemblerExceptionHandlerLabel*> exception_handler_labels_;
-  typedef uint32_t VariableId;
+  using VariableId = uint32_t;
   VariableId next_variable_id_ = 0;
 
   VariableId NextVariableId() { return next_variable_id_++; }
@@ -1738,9 +1738,9 @@ class CodeAssemblerScopedExceptionHandler {
 }  // namespace compiler
 
 #if defined(V8_HOST_ARCH_32_BIT)
-typedef Smi BInt;
+using BInt = Smi;
 #elif defined(V8_HOST_ARCH_64_BIT)
-typedef IntPtrT BInt;
+using BInt = IntPtrT;
 #else
 #error Unknown architecture.
 #endif

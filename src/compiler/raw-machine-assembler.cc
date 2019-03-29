@@ -512,7 +512,7 @@ void RawMachineAssembler::Return(Node* v1, Node* v2, Node* v3, Node* v4) {
 }
 
 void RawMachineAssembler::Return(int count, Node* vs[]) {
-  typedef Node* Node_ptr;
+  using Node_ptr = Node*;
   Node** values = new Node_ptr[count + 1];
   values[0] = Int32Constant(0);
   for (int i = 0; i < count; ++i) values[i + 1] = vs[i];

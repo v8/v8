@@ -148,7 +148,7 @@ class HeapObjectType {
  public:
   enum Flag : uint8_t { kUndetectable = 1 << 0, kCallable = 1 << 1 };
 
-  typedef base::Flags<Flag> Flags;
+  using Flags = base::Flags<Flag>;
 
   HeapObjectType(InstanceType instance_type, Flags flags,
                  OddballType oddball_type)

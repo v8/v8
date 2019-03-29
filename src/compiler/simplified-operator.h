@@ -321,7 +321,7 @@ enum class CheckMapsFlag : uint8_t {
   kNone = 0u,
   kTryMigrateInstance = 1u << 0,  // Try instance migration.
 };
-typedef base::Flags<CheckMapsFlag> CheckMapsFlags;
+using CheckMapsFlags = base::Flags<CheckMapsFlag>;
 
 DEFINE_OPERATORS_FOR_FLAGS(CheckMapsFlags)
 

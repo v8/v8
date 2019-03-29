@@ -178,7 +178,7 @@ enum class RegisterAllocationFlag : unsigned {
   kTurboPreprocessRanges = 1 << 1
 };
 
-typedef base::Flags<RegisterAllocationFlag> RegisterAllocationFlags;
+using RegisterAllocationFlags = base::Flags<RegisterAllocationFlag>;
 
 class SpillRange;
 class LiveRange;
@@ -224,15 +224,15 @@ class RegisterAllocationData final : public ZoneObject {
     ZoneVector<InstructionOperand*> incoming_operands_;
     int assigned_register_;
   };
-  typedef ZoneMap<int, PhiMapValue*> PhiMap;
+  using PhiMap = ZoneMap<int, PhiMapValue*>;
 
   struct DelayedReference {
     ReferenceMap* map;
     InstructionOperand* operand;
   };
-  typedef ZoneVector<DelayedReference> DelayedReferences;
-  typedef ZoneVector<std::pair<TopLevelLiveRange*, int>>
-      RangesWithPreassignedSlots;
+  using DelayedReferences = ZoneVector<DelayedReference>;
+  using RangesWithPreassignedSlots =
+      ZoneVector<std::pair<TopLevelLiveRange*, int>>;
 
   RegisterAllocationData(const RegisterConfiguration* config,
                          Zone* allocation_zone, Frame* frame,
@@ -469,10 +469,10 @@ class V8_EXPORT_PRIVATE UsePosition final
   static UsePositionHintType HintTypeForOperand(const InstructionOperand& op);
 
  private:
-  typedef BitField<UsePositionType, 0, 2> TypeField;
-  typedef BitField<UsePositionHintType, 2, 3> HintTypeField;
-  typedef BitField<bool, 5, 1> RegisterBeneficialField;
-  typedef BitField<int32_t, 6, 6> AssignedRegisterField;
+  using TypeField = BitField<UsePositionType, 0, 2>;
+  using HintTypeField = BitField<UsePositionHintType, 2, 3>;
+  using RegisterBeneficialField = BitField<bool, 5, 1>;
+  using AssignedRegisterField = BitField<int32_t, 6, 6>;
 
   InstructionOperand* const operand_;
   void* hint_;
@@ -652,12 +652,12 @@ class V8_EXPORT_PRIVATE LiveRange : public NON_EXPORTED_BASE(ZoneObject) {
   void VerifyPositions() const;
   void VerifyIntervals() const;
 
-  typedef BitField<bool, 0, 1> SpilledField;
+  using SpilledField = BitField<bool, 0, 1>;
   // Bits (1,7[ are used by TopLevelLiveRange.
-  typedef BitField<int32_t, 7, 6> AssignedRegisterField;
-  typedef BitField<MachineRepresentation, 13, 8> RepresentationField;
-  typedef BitField<bool, 21, 1> RecombineField;
-  typedef BitField<uint8_t, 22, 6> ControlFlowRegisterHint;
+  using AssignedRegisterField = BitField<int32_t, 7, 6>;
+  using RepresentationField = BitField<MachineRepresentation, 13, 8>;
+  using RecombineField = BitField<bool, 21, 1>;
+  using ControlFlowRegisterHint = BitField<uint8_t, 22, 6>;
   // Bit 28 is used by TopLevelLiveRange.
 
   // Unique among children and splinters of the same virtual register.
@@ -964,11 +964,11 @@ class V8_EXPORT_PRIVATE TopLevelLiveRange final : public LiveRange {
   friend class LiveRange;
   void SetSplinteredFrom(TopLevelLiveRange* splinter_parent);
 
-  typedef BitField<SlotUseKind, 1, 2> HasSlotUseField;
-  typedef BitField<bool, 3, 1> IsPhiField;
-  typedef BitField<bool, 4, 1> IsNonLoopPhiField;
-  typedef BitField<SpillType, 5, 2> SpillTypeField;
-  typedef BitField<bool, 28, 1> DeferredFixedField;
+  using HasSlotUseField = BitField<SlotUseKind, 1, 2>;
+  using IsPhiField = BitField<bool, 3, 1>;
+  using IsNonLoopPhiField = BitField<bool, 4, 1>;
+  using SpillTypeField = BitField<SpillType, 5, 2>;
+  using DeferredFixedField = BitField<bool, 28, 1>;
 
   int vreg_;
   int last_child_id_;

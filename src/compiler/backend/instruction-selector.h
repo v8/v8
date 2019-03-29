@@ -555,7 +555,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
     kCallFixedTargetRegister = 1u << 3,
     kAllowCallThroughSlot = 1u << 4
   };
-  typedef base::Flags<CallBufferFlag> CallBufferFlags;
+  using CallBufferFlags = base::Flags<CallBufferFlag>;
 
   // Initialize the call buffer with the InstructionOperands, nodes, etc,
   // corresponding

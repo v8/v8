@@ -23,7 +23,7 @@ class Operator;
 
 // NodeIds are identifying numbers for nodes that can be used to index auxiliary
 // out-of-line data associated with each node.
-typedef uint32_t NodeId;
+using NodeId = uint32_t;
 
 // Lowers all simplified memory access and allocation related nodes (i.e.
 // Allocate, LoadField, StoreField and friends) to machine operators.
@@ -102,7 +102,7 @@ class MemoryOptimizer final {
   };
 
   // An array of allocation states used to collect states on merges.
-  typedef ZoneVector<AllocationState const*> AllocationStates;
+  using AllocationStates = ZoneVector<AllocationState const*>;
 
   // We thread through tokens to represent the current state on a given effect
   // path through the graph.

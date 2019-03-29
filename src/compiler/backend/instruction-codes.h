@@ -250,17 +250,17 @@ enum MemoryAccessMode {
 // what code to emit for an instruction in the code generator. It is not
 // interesting to the register allocator, as the inputs and flags on the
 // instructions specify everything of interest.
-typedef int32_t InstructionCode;
+using InstructionCode = int32_t;
 
 // Helpers for encoding / decoding InstructionCode into the fields needed
 // for code generation. We encode the instruction, addressing mode, and flags
 // continuation into a single InstructionCode which is stored as part of
 // the instruction.
-typedef BitField<ArchOpcode, 0, 9> ArchOpcodeField;
-typedef BitField<AddressingMode, 9, 5> AddressingModeField;
-typedef BitField<FlagsMode, 14, 3> FlagsModeField;
-typedef BitField<FlagsCondition, 17, 5> FlagsConditionField;
-typedef BitField<int, 22, 10> MiscField;
+using ArchOpcodeField = BitField<ArchOpcode, 0, 9>;
+using AddressingModeField = BitField<AddressingMode, 9, 5>;
+using FlagsModeField = BitField<FlagsMode, 14, 3>;
+using FlagsConditionField = BitField<FlagsCondition, 17, 5>;
+using MiscField = BitField<int, 22, 10>;
 
 }  // namespace compiler
 }  // namespace internal

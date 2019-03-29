@@ -48,7 +48,7 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
     kAccessorInliningEnabled = 1u << 0,
     kBailoutOnUninitialized = 1u << 1
   };
-  typedef base::Flags<Flag> Flags;
+  using Flags = base::Flags<Flag>;
 
   JSNativeContextSpecialization(Editor* editor, JSGraph* jsgraph,
                                 JSHeapBroker* broker, Flags flags,

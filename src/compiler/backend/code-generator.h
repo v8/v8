@@ -262,7 +262,7 @@ class CodeGenerator final : public GapResolver::Assembler {
     kScalarPush = kRegisterPush | kStackSlotPush
   };
 
-  typedef base::Flags<PushTypeFlag> PushTypeFlags;
+  using PushTypeFlags = base::Flags<PushTypeFlag>;
 
   static bool IsValidPush(InstructionOperand source, PushTypeFlags push_type);
 

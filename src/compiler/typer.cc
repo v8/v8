@@ -237,8 +237,8 @@ class Typer::Visitor : public Reducer {
     return weakened_nodes_.find(node_id) != weakened_nodes_.end();
   }
 
-  typedef Type (*UnaryTyperFun)(Type, Typer* t);
-  typedef Type (*BinaryTyperFun)(Type, Type, Typer* t);
+  using UnaryTyperFun = Type (*)(Type, Typer* t);
+  using BinaryTyperFun = Type (*)(Type, Type, Typer* t);
 
   Type TypeUnaryOp(Node* node, UnaryTyperFun);
   Type TypeBinaryOp(Node* node, BinaryTyperFun);
@@ -251,7 +251,7 @@ class Typer::Visitor : public Reducer {
     kComparisonFalse = 2,
     kComparisonUndefined = 4
   };
-  typedef base::Flags<ComparisonOutcomeFlags> ComparisonOutcome;
+  using ComparisonOutcome = base::Flags<ComparisonOutcomeFlags>;
 
   static ComparisonOutcome Invert(ComparisonOutcome, Typer*);
   static Type FalsifyUndefined(ComparisonOutcome, Typer*);

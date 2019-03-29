@@ -44,7 +44,7 @@ class OptionalOperator final {
 
 
 // A Load needs a MachineType.
-typedef MachineType LoadRepresentation;
+using LoadRepresentation = MachineType;
 
 V8_EXPORT_PRIVATE LoadRepresentation LoadRepresentationOf(Operator const*)
     V8_WARN_UNUSED_RESULT;
@@ -77,7 +77,7 @@ V8_EXPORT_PRIVATE StoreRepresentation const& StoreRepresentationOf(
     Operator const*) V8_WARN_UNUSED_RESULT;
 
 // An UnalignedStore needs a MachineType.
-typedef MachineRepresentation UnalignedStoreRepresentation;
+using UnalignedStoreRepresentation = MachineRepresentation;
 
 UnalignedStoreRepresentation const& UnalignedStoreRepresentationOf(
     Operator const*) V8_WARN_UNUSED_RESULT;
@@ -150,7 +150,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
                       kWord32ReverseBits | kWord64ReverseBits |
                       kInt32AbsWithOverflow | kInt64AbsWithOverflow
   };
-  typedef base::Flags<Flag, unsigned> Flags;
+  using Flags = base::Flags<Flag, unsigned>;
 
   class AlignmentRequirements {
    public:

@@ -65,7 +65,7 @@ class JSInliningHeuristic final : public AdvancedReducer {
   };
 
   // Candidates are kept in a sorted set of unique candidates.
-  typedef ZoneSet<Candidate, CandidateCompare> Candidates;
+  using Candidates = ZoneSet<Candidate, CandidateCompare>;
 
   // Dumps candidates to console.
   void PrintCandidates();

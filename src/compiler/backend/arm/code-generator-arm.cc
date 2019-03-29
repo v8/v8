@@ -265,8 +265,8 @@ class OutOfLineFloatMin final : public OutOfLineCode {
   T const left_;
   T const right_;
 };
-typedef OutOfLineFloatMin<SwVfpRegister> OutOfLineFloat32Min;
-typedef OutOfLineFloatMin<DwVfpRegister> OutOfLineFloat64Min;
+using OutOfLineFloat32Min = OutOfLineFloatMin<SwVfpRegister>;
+using OutOfLineFloat64Min = OutOfLineFloatMin<DwVfpRegister>;
 
 template <typename T>
 class OutOfLineFloatMax final : public OutOfLineCode {
@@ -281,8 +281,8 @@ class OutOfLineFloatMax final : public OutOfLineCode {
   T const left_;
   T const right_;
 };
-typedef OutOfLineFloatMax<SwVfpRegister> OutOfLineFloat32Max;
-typedef OutOfLineFloatMax<DwVfpRegister> OutOfLineFloat64Max;
+using OutOfLineFloat32Max = OutOfLineFloatMax<SwVfpRegister>;
+using OutOfLineFloat64Max = OutOfLineFloatMax<DwVfpRegister>;
 
 Condition FlagsConditionToCondition(FlagsCondition condition) {
   switch (condition) {

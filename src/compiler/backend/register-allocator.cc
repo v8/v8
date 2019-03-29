@@ -232,7 +232,7 @@ class LiveRangeFinder {
   DISALLOW_COPY_AND_ASSIGN(LiveRangeFinder);
 };
 
-typedef std::pair<ParallelMove*, InstructionOperand> DelayedInsertionMapKey;
+using DelayedInsertionMapKey = std::pair<ParallelMove*, InstructionOperand>;
 
 struct DelayedInsertionMapCompare {
   bool operator()(const DelayedInsertionMapKey& a,
@@ -244,9 +244,8 @@ struct DelayedInsertionMapCompare {
   }
 };
 
-typedef ZoneMap<DelayedInsertionMapKey, InstructionOperand,
-                DelayedInsertionMapCompare>
-    DelayedInsertionMap;
+using DelayedInsertionMap = ZoneMap<DelayedInsertionMapKey, InstructionOperand,
+                                    DelayedInsertionMapCompare>;
 
 UsePosition::UsePosition(LifetimePosition pos, InstructionOperand* operand,
                          void* hint, UsePositionHintType hint_type)

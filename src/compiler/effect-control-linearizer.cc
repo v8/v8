@@ -77,8 +77,8 @@ class BlockEffectControlMap {
   }
 
  private:
-  typedef std::pair<int32_t, int32_t> Key;
-  typedef ZoneMap<Key, BlockEffectControlData> Map;
+  using Key = std::pair<int32_t, int32_t>;
+  using Map = ZoneMap<Key, BlockEffectControlData>;
 
   Map map_;
 };

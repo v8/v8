@@ -188,9 +188,9 @@ class CompilationSubject {
   MaybeHandle<JSFunction> closure_;
 };
 
-typedef ZoneSet<Handle<Object>, HandleComparator<Object>> ConstantsSet;
-typedef ZoneSet<Handle<Map>, HandleComparator<Map>> MapsSet;
-typedef ZoneSet<FunctionBlueprint> BlueprintsSet;
+using ConstantsSet = ZoneSet<Handle<Object>, HandleComparator<Object>>;
+using MapsSet = ZoneSet<Handle<Map>, HandleComparator<Map>>;
+using BlueprintsSet = ZoneSet<FunctionBlueprint>;
 
 class Hints {
  public:
@@ -215,7 +215,7 @@ class Hints {
   BlueprintsSet function_blueprints_;
 };
 
-typedef ZoneVector<Hints> HintsVector;
+using HintsVector = ZoneVector<Hints>;
 
 // The SerializerForBackgroundCompilation makes sure that the relevant function
 // data such as bytecode, SharedFunctionInfo and FeedbackVector, used by later
