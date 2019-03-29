@@ -258,8 +258,8 @@ class DispatchTable : public ZoneObject {
 
   class Config {
    public:
-    typedef uc32 Key;
-    typedef Entry Value;
+    using Key = uc32;
+    using Value = Entry;
     static const uc32 kNoKey;
     static const Entry NoValue() { return Value(); }
     static inline int Compare(uc32 a, uc32 b) {

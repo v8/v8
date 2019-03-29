@@ -1660,14 +1660,9 @@ static bool ShortCutEmitCharacterPair(RegExpMacroAssembler* macro_assembler,
   return false;
 }
 
-
-typedef bool EmitCharacterFunction(Isolate* isolate,
-                                   RegExpCompiler* compiler,
-                                   uc16 c,
-                                   Label* on_failure,
-                                   int cp_offset,
-                                   bool check,
-                                   bool preloaded);
+using EmitCharacterFunction = bool(Isolate* isolate, RegExpCompiler* compiler,
+                                   uc16 c, Label* on_failure, int cp_offset,
+                                   bool check, bool preloaded);
 
 // Only emits letters (things that have case).  Only used for case independent
 // matches.

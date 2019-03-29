@@ -303,7 +303,7 @@ class RegExpCharacterClass final : public RegExpTree {
     NEGATED = 1 << 0,
     CONTAINS_SPLIT_SURROGATE = 1 << 1,
   };
-  typedef base::Flags<Flag> CharacterClassFlags;
+  using CharacterClassFlags = base::Flags<Flag>;
 
   RegExpCharacterClass(
       Zone* zone, ZoneList<CharacterRange>* ranges, JSRegExp::Flags flags,
