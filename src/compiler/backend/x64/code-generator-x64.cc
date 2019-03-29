@@ -1953,18 +1953,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64DecompressSigned: {
       CHECK(instr->HasOutput());
-      __ movsxlq(i.OutputRegister(), i.InputRegister(0));
+      ASSEMBLE_MOVX(movsxlq);
       break;
     }
     case kX64DecompressPointer: {
       CHECK(instr->HasOutput());
-      __ movsxlq(i.OutputRegister(), i.InputRegister(0));
+      ASSEMBLE_MOVX(movsxlq);
       __ addq(i.OutputRegister(), kRootRegister);
       break;
     }
     case kX64DecompressAny: {
       CHECK(instr->HasOutput());
-      __ movsxlq(i.OutputRegister(), i.InputRegister(0));
+      ASSEMBLE_MOVX(movsxlq);
       // TODO(solanes): Do branchful compute?
       // Branchlessly compute |masked_root|:
       STATIC_ASSERT((kSmiTagSize == 1) && (kSmiTag < 32));
@@ -1982,15 +1982,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     // TODO(solanes): We might get away with doing a no-op in these three cases.
     // The movl instruction is the conservative way for the moment.
     case kX64CompressSigned: {
-      __ movl(i.OutputRegister(), i.InputRegister(0));
+      ASSEMBLE_MOVX(movl);
       break;
     }
     case kX64CompressPointer: {
-      __ movl(i.OutputRegister(), i.InputRegister(0));
+      ASSEMBLE_MOVX(movl);
       break;
     }
     case kX64CompressAny: {
-      __ movl(i.OutputRegister(), i.InputRegister(0));
+      ASSEMBLE_MOVX(movl);
       break;
     }
     case kX64Movq:
