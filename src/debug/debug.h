@@ -449,7 +449,7 @@ class V8_EXPORT_PRIVATE Debug {
   void ClearAllDebuggerHints();
 
   // Wraps logic for clearing and maybe freeing all debug infos.
-  typedef std::function<void(Handle<DebugInfo>)> DebugInfoClearFunction;
+  using DebugInfoClearFunction = std::function<void(Handle<DebugInfo>)>;
   void ClearAllDebugInfos(const DebugInfoClearFunction& clear_function);
 
   void FindDebugInfo(Handle<DebugInfo> debug_info, DebugInfoListNode** prev,

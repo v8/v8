@@ -374,8 +374,8 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
 }
 
 bool BytecodeHasNoSideEffect(interpreter::Bytecode bytecode) {
-  typedef interpreter::Bytecode Bytecode;
-  typedef interpreter::Bytecodes Bytecodes;
+  using interpreter::Bytecode;
+  using interpreter::Bytecodes;
   if (Bytecodes::IsWithoutExternalSideEffects(bytecode)) return true;
   if (Bytecodes::IsCallOrConstruct(bytecode)) return true;
   if (Bytecodes::IsJumpIfToBoolean(bytecode)) return true;
@@ -824,7 +824,7 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtins::Name id) {
 }
 
 bool BytecodeRequiresRuntimeCheck(interpreter::Bytecode bytecode) {
-  typedef interpreter::Bytecode Bytecode;
+  using interpreter::Bytecode;
   switch (bytecode) {
     case Bytecode::kStaNamedProperty:
     case Bytecode::kStaNamedPropertyNoFeedback:
