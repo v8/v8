@@ -12,7 +12,7 @@ vars = {
   'check_v8_header_includes': False,
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:b85982b3cb9b3971173f77c7575b53b3ac00e774',
+  'gn_version': 'git_revision:0790d3043387c762a6bacb1ae0a9ebe883188ab2',
 
   # luci-go CIPD package version.
   'luci_go': 'git_revision:25958d48e89e980e2a97daeddc977fb5e2e1fb8c',
@@ -57,15 +57,15 @@ vars = {
 
 deps = {
   'v8/build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'a525b65ef9bb356deb0d45bdeda56b9faf09d544',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '99a60dd78784080598f0f2b19b90ad909c161d3d',
   'v8/third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '803c869254f3a998e16c012b022b39996cc5d934',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '8d3ba46327207c40e66b4ec818cec077f0ac08cf',
   'v8/third_party/icu':
     Var('chromium_url') + '/chromium/deps/icu.git' + '@' + 'b10cc9f714e6da621c94de0f1e6090c176f876ae',
   'v8/third_party/instrumented_libraries':
     Var('chromium_url') + '/chromium/src/third_party/instrumented_libraries.git' + '@' + 'a959e4f0cb643003f2d75d179cede449979e3e77',
   'v8/buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'eda23acabd9a73b6ddadcdd626c05a85d93d31dd',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '459baaf66bee809f6eb288e0215cf524f4d2429a',
   'v8/buildtools/clang_format/script':
     Var('chromium_url') + '/chromium/llvm-project/cfe/tools/clang-format.git' + '@' + '96636aa0e9f047f17447f2d45a094d0b59ed7917',
   'v8/buildtools/linux64': {
@@ -105,7 +105,7 @@ deps = {
     'condition': 'host_os == "win"',
   },
   'v8/base/trace_event/common':
-    Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + 'c7664bb7d2665191611ea0f89ea0a585b127b6dd',
+    Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + 'c69a8ff37f50e1f22fee4af252cf00960ca06c2b',
   'v8/third_party/android_ndk': {
     'url': Var('chromium_url') + '/android_ndk.git' + '@' + '4e2cea441bfd43f0863d14f57b1e1844260b9884',
     'condition': 'checkout_android',
@@ -158,7 +158,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'v8/third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'aab7e3179a015b87e63144b716bf41f205734800',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '5b63b1f34a1b0536d67af70214035459c276f588',
     'condition': 'checkout_android',
   },
   'v8/third_party/colorama/src': {
@@ -238,7 +238,7 @@ deps = {
   'v8/test/wasm-js/data':
     Var('chromium_url') + '/external/github.com/WebAssembly/spec.git' + '@' + '4406612ae0f6c3c4e7791eb13704e9fb7440819a',
   'v8/third_party/perfetto':
-    Var('android_url') + '/platform/external/perfetto.git' + '@' + '40cc34176c09edf1539a5b3993bc5d983d36851f',
+    Var('android_url') + '/platform/external/perfetto.git' + '@' + '21a33afeef568f72668acf77668a32307a363d6e',
   'v8/third_party/protobuf':
     Var('chromium_url') + '/external/github.com/google/protobuf'+ '@' + 'b68a347f56137b4b1a746e8c7438495a6ac1bd91',
 }
