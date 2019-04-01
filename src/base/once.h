@@ -74,11 +74,11 @@ enum : uint8_t {
   ONCE_STATE_DONE = 2
 };
 
-typedef void (*PointerArgFunction)(void* arg);
+using PointerArgFunction = void (*)(void* arg);
 
 template <typename T>
 struct OneArgFunction {
-  typedef void (*type)(T);
+  using type = void (*)(T);
 };
 
 V8_BASE_EXPORT void CallOnceImpl(OnceType* once,

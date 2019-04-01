@@ -47,7 +47,7 @@ namespace internal {
 template <typename T>
 class CheckedNumeric {
  public:
-  typedef T type;
+  using type = T;
 
   CheckedNumeric() = default;
 
@@ -200,7 +200,7 @@ class CheckedNumeric {
   template <typename T>                                                       \
   CheckedNumeric<typename ArithmeticPromotion<T>::type> operator OP(          \
       const CheckedNumeric<T>& lhs, const CheckedNumeric<T>& rhs) {           \
-    typedef typename ArithmeticPromotion<T>::type Promotion;                  \
+    using Promotion = typename ArithmeticPromotion<T>::type;                  \
     /* Floating point always takes the fast path */                           \
     if (std::numeric_limits<T>::is_iec559)                                    \
       return CheckedNumeric<T>(lhs.ValueUnsafe() OP rhs.ValueUnsafe());       \
@@ -209,9 +209,9 @@ class CheckedNumeric {
           lhs.ValueUnsafe() OP rhs.ValueUnsafe(),                             \
           GetRangeConstraint(rhs.validity() | lhs.validity()));               \
     RangeConstraint validity = RANGE_VALID;                                   \
-    T result = Checked##NAME(static_cast<Promotion>(lhs.ValueUnsafe()),       \
-                             static_cast<Promotion>(rhs.ValueUnsafe()),       \
-                             &validity);                                      \
+    T result =                                                                \
+        Checked##NAME(static_cast<Promotion>(lhs.ValueUnsafe()),              \
+                      static_cast<Promotion>(rhs.ValueUnsafe()), &validity);  \
     return CheckedNumeric<Promotion>(                                         \
         result,                                                               \
         GetRangeConstraint(validity | lhs.validity() | rhs.validity()));      \
@@ -227,7 +227,7 @@ class CheckedNumeric {
   template <typename T, typename Src>                                         \
   CheckedNumeric<typename ArithmeticPromotion<T, Src>::type> operator OP(     \
       const CheckedNumeric<Src>& lhs, const CheckedNumeric<T>& rhs) {         \
-    typedef typename ArithmeticPromotion<T, Src>::type Promotion;             \
+    using Promotion = typename ArithmeticPromotion<T, Src>::type;             \
     if (IsIntegerArithmeticSafe<Promotion, T, Src>::value)                    \
       return CheckedNumeric<Promotion>(                                       \
           lhs.ValueUnsafe() OP rhs.ValueUnsafe(),                             \
@@ -239,7 +239,7 @@ class CheckedNumeric {
   template <typename T, typename Src>                                         \
   CheckedNumeric<typename ArithmeticPromotion<T, Src>::type> operator OP(     \
       const CheckedNumeric<T>& lhs, Src rhs) {                                \
-    typedef typename ArithmeticPromotion<T, Src>::type Promotion;             \
+    using Promotion = typename ArithmeticPromotion<T, Src>::type;             \
     if (IsIntegerArithmeticSafe<Promotion, T, Src>::value)                    \
       return CheckedNumeric<Promotion>(lhs.ValueUnsafe() OP rhs,              \
                                        lhs.validity());                       \
@@ -250,7 +250,7 @@ class CheckedNumeric {
   template <typename T, typename Src>                                         \
   CheckedNumeric<typename ArithmeticPromotion<T, Src>::type> operator OP(     \
       Src lhs, const CheckedNumeric<T>& rhs) {                                \
-    typedef typename ArithmeticPromotion<T, Src>::type Promotion;             \
+    using Promotion = typename ArithmeticPromotion<T, Src>::type;             \
     if (IsIntegerArithmeticSafe<Promotion, T, Src>::value)                    \
       return CheckedNumeric<Promotion>(lhs OP rhs.ValueUnsafe(),              \
                                        rhs.validity());                       \

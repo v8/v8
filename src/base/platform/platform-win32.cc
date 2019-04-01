@@ -1072,58 +1072,44 @@ Win32MemoryMappedFile::~Win32MemoryMappedFile() {
 // DbgHelp isn't supported on MinGW yet
 #ifndef __MINGW32__
 // DbgHelp.h functions.
-typedef BOOL (__stdcall *DLL_FUNC_TYPE(SymInitialize))(IN HANDLE hProcess,
-                                                       IN PSTR UserSearchPath,
-                                                       IN BOOL fInvadeProcess);
-typedef DWORD (__stdcall *DLL_FUNC_TYPE(SymGetOptions))(VOID);
-typedef DWORD (__stdcall *DLL_FUNC_TYPE(SymSetOptions))(IN DWORD SymOptions);
-typedef BOOL (__stdcall *DLL_FUNC_TYPE(SymGetSearchPath))(
-    IN HANDLE hProcess,
-    OUT PSTR SearchPath,
-    IN DWORD SearchPathLength);
-typedef DWORD64 (__stdcall *DLL_FUNC_TYPE(SymLoadModule64))(
-    IN HANDLE hProcess,
-    IN HANDLE hFile,
-    IN PSTR ImageName,
-    IN PSTR ModuleName,
-    IN DWORD64 BaseOfDll,
-    IN DWORD SizeOfDll);
-typedef BOOL (__stdcall *DLL_FUNC_TYPE(StackWalk64))(
-    DWORD MachineType,
-    HANDLE hProcess,
-    HANDLE hThread,
-    LPSTACKFRAME64 StackFrame,
-    PVOID ContextRecord,
+using DLL_FUNC_TYPE(SymInitialize) = BOOL(__stdcall*)(IN HANDLE hProcess,
+                                                      IN PSTR UserSearchPath,
+                                                      IN BOOL fInvadeProcess);
+using DLL_FUNC_TYPE(SymGetOptions) = DWORD(__stdcall*)(VOID);
+using DLL_FUNC_TYPE(SymSetOptions) = DWORD(__stdcall*)(IN DWORD SymOptions);
+using DLL_FUNC_TYPE(SymGetSearchPath) = BOOL(__stdcall*)(
+    IN HANDLE hProcess, OUT PSTR SearchPath, IN DWORD SearchPathLength);
+using DLL_FUNC_TYPE(SymLoadModule64) = DWORD64(__stdcall*)(
+    IN HANDLE hProcess, IN HANDLE hFile, IN PSTR ImageName, IN PSTR ModuleName,
+    IN DWORD64 BaseOfDll, IN DWORD SizeOfDll);
+using DLL_FUNC_TYPE(StackWalk64) = BOOL(__stdcall*)(
+    DWORD MachineType, HANDLE hProcess, HANDLE hThread,
+    LPSTACKFRAME64 StackFrame, PVOID ContextRecord,
     PREAD_PROCESS_MEMORY_ROUTINE64 ReadMemoryRoutine,
     PFUNCTION_TABLE_ACCESS_ROUTINE64 FunctionTableAccessRoutine,
     PGET_MODULE_BASE_ROUTINE64 GetModuleBaseRoutine,
     PTRANSLATE_ADDRESS_ROUTINE64 TranslateAddress);
-typedef BOOL (__stdcall *DLL_FUNC_TYPE(SymGetSymFromAddr64))(
-    IN HANDLE hProcess,
-    IN DWORD64 qwAddr,
-    OUT PDWORD64 pdwDisplacement,
+using DLL_FUNC_TYPE(SymGetSymFromAddr64) = BOOL(__stdcall*)(
+    IN HANDLE hProcess, IN DWORD64 qwAddr, OUT PDWORD64 pdwDisplacement,
     OUT PIMAGEHLP_SYMBOL64 Symbol);
-typedef BOOL (__stdcall *DLL_FUNC_TYPE(SymGetLineFromAddr64))(
-    IN HANDLE hProcess,
-    IN DWORD64 qwAddr,
-    OUT PDWORD pdwDisplacement,
-    OUT PIMAGEHLP_LINE64 Line64);
+using DLL_FUNC_TYPE(SymGetLineFromAddr64) =
+    BOOL(__stdcall*)(IN HANDLE hProcess, IN DWORD64 qwAddr,
+                     OUT PDWORD pdwDisplacement, OUT PIMAGEHLP_LINE64 Line64);
 // DbgHelp.h typedefs. Implementation found in dbghelp.dll.
-typedef PVOID (__stdcall *DLL_FUNC_TYPE(SymFunctionTableAccess64))(
+using DLL_FUNC_TYPE(SymFunctionTableAccess64) = PVOID(__stdcall*)(
     HANDLE hProcess,
     DWORD64 AddrBase);  // DbgHelp.h typedef PFUNCTION_TABLE_ACCESS_ROUTINE64
-typedef DWORD64 (__stdcall *DLL_FUNC_TYPE(SymGetModuleBase64))(
+using DLL_FUNC_TYPE(SymGetModuleBase64) = DWORD64(__stdcall*)(
     HANDLE hProcess,
     DWORD64 AddrBase);  // DbgHelp.h typedef PGET_MODULE_BASE_ROUTINE64
 
 // TlHelp32.h functions.
-typedef HANDLE (__stdcall *DLL_FUNC_TYPE(CreateToolhelp32Snapshot))(
-    DWORD dwFlags,
-    DWORD th32ProcessID);
-typedef BOOL (__stdcall *DLL_FUNC_TYPE(Module32FirstW))(HANDLE hSnapshot,
-                                                        LPMODULEENTRY32W lpme);
-typedef BOOL (__stdcall *DLL_FUNC_TYPE(Module32NextW))(HANDLE hSnapshot,
+using DLL_FUNC_TYPE(CreateToolhelp32Snapshot) =
+    HANDLE(__stdcall*)(DWORD dwFlags, DWORD th32ProcessID);
+using DLL_FUNC_TYPE(Module32FirstW) = BOOL(__stdcall*)(HANDLE hSnapshot,
                                                        LPMODULEENTRY32W lpme);
+using DLL_FUNC_TYPE(Module32NextW) = BOOL(__stdcall*)(HANDLE hSnapshot,
+                                                      LPMODULEENTRY32W lpme);
 
 #undef IN
 #undef VOID

@@ -311,7 +311,7 @@ inline void EnsureConsoleOutput() {
 class V8_BASE_EXPORT Thread {
  public:
   // Opaque data type for thread-local storage keys.
-  typedef int32_t LocalStorageKey;
+  using LocalStorageKey = int32_t;
 
   class Options {
    public:

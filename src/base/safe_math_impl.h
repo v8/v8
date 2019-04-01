@@ -27,14 +27,14 @@ namespace internal {
 template<class T, T v>
 struct integral_constant {
   static const T value = v;
-  typedef T value_type;
-  typedef integral_constant<T, v> type;
+  using value_type = T;
+  using type = integral_constant<T, v>;
 };
 
 template <class T, T v> const T integral_constant<T, v>::value;
 
-typedef integral_constant<bool, true> true_type;
-typedef integral_constant<bool, false> false_type;
+using true_type = integral_constant<bool, true>;
+using false_type = integral_constant<bool, false>;
 
 template <class T, class U> struct is_same : public false_type {};
 template <class T> struct is_same<T, T> : true_type {};
@@ -42,8 +42,10 @@ template <class T> struct is_same<T, T> : true_type {};
 template<bool B, class T = void>
 struct enable_if {};
 
-template<class T>
-struct enable_if<true, T> { typedef T type; };
+template <class T>
+struct enable_if<true, T> {
+  using type = T;
+};
 
 // </template_util.h>
 
@@ -57,35 +59,35 @@ template <size_t Size, bool IsSigned>
 struct IntegerForSizeAndSign;
 template <>
 struct IntegerForSizeAndSign<1, true> {
-  typedef int8_t type;
+  using type = int8_t;
 };
 template <>
 struct IntegerForSizeAndSign<1, false> {
-  typedef uint8_t type;
+  using type = uint8_t;
 };
 template <>
 struct IntegerForSizeAndSign<2, true> {
-  typedef int16_t type;
+  using type = int16_t;
 };
 template <>
 struct IntegerForSizeAndSign<2, false> {
-  typedef uint16_t type;
+  using type = uint16_t;
 };
 template <>
 struct IntegerForSizeAndSign<4, true> {
-  typedef int32_t type;
+  using type = int32_t;
 };
 template <>
 struct IntegerForSizeAndSign<4, false> {
-  typedef uint32_t type;
+  using type = uint32_t;
 };
 template <>
 struct IntegerForSizeAndSign<8, true> {
-  typedef int64_t type;
+  using type = int64_t;
 };
 template <>
 struct IntegerForSizeAndSign<8, false> {
-  typedef uint64_t type;
+  using type = uint64_t;
 };
 
 // WARNING: We have no IntegerForSizeAndSign<16, *>. If we ever add one to
@@ -94,25 +96,25 @@ struct IntegerForSizeAndSign<8, false> {
 
 template <typename Integer>
 struct UnsignedIntegerForSize {
-  typedef typename enable_if<
+  using type = typename enable_if<
       std::numeric_limits<Integer>::is_integer,
-      typename IntegerForSizeAndSign<sizeof(Integer), false>::type>::type type;
+      typename IntegerForSizeAndSign<sizeof(Integer), false>::type>::type;
 };
 
 template <typename Integer>
 struct SignedIntegerForSize {
-  typedef typename enable_if<
+  using type = typename enable_if<
       std::numeric_limits<Integer>::is_integer,
-      typename IntegerForSizeAndSign<sizeof(Integer), true>::type>::type type;
+      typename IntegerForSizeAndSign<sizeof(Integer), true>::type>::type;
 };
 
 template <typename Integer>
 struct TwiceWiderInteger {
-  typedef typename enable_if<
+  using type = typename enable_if<
       std::numeric_limits<Integer>::is_integer,
       typename IntegerForSizeAndSign<
           sizeof(Integer) * 2,
-          std::numeric_limits<Integer>::is_signed>::type>::type type;
+          std::numeric_limits<Integer>::is_signed>::type>::type;
 };
 
 template <typename Integer>
@@ -145,7 +147,7 @@ typename enable_if<std::numeric_limits<T>::is_integer, T>::type
 CheckedAdd(T x, T y, RangeConstraint* validity) {
   // Since the value of x+y is undefined if we have a signed type, we compute
   // it using the unsigned type of the same size.
-  typedef typename UnsignedIntegerForSize<T>::type UnsignedDst;
+  using UnsignedDst = typename UnsignedIntegerForSize<T>::type;
   UnsignedDst ux = static_cast<UnsignedDst>(x);
   UnsignedDst uy = static_cast<UnsignedDst>(y);
   UnsignedDst uresult = ux + uy;
@@ -168,7 +170,7 @@ typename enable_if<std::numeric_limits<T>::is_integer, T>::type
 CheckedSub(T x, T y, RangeConstraint* validity) {
   // Since the value of x+y is undefined if we have a signed type, we compute
   // it using the unsigned type of the same size.
-  typedef typename UnsignedIntegerForSize<T>::type UnsignedDst;
+  using UnsignedDst = typename UnsignedIntegerForSize<T>::type;
   UnsignedDst ux = static_cast<UnsignedDst>(x);
   UnsignedDst uy = static_cast<UnsignedDst>(y);
   UnsignedDst uresult = ux - uy;
@@ -195,7 +197,7 @@ typename enable_if<
     std::numeric_limits<T>::is_integer && sizeof(T) * 2 <= sizeof(uintmax_t),
     T>::type
 CheckedMul(T x, T y, RangeConstraint* validity) {
-  typedef typename TwiceWiderInteger<T>::type IntermediateType;
+  using IntermediateType = typename TwiceWiderInteger<T>::type;
   IntermediateType tmp =
       static_cast<IntermediateType>(x) * static_cast<IntermediateType>(y);
   *validity = DstRangeRelationToSrcRange<T>(tmp);
@@ -496,17 +498,17 @@ struct ArithmeticPromotion;
 
 template <typename Lhs, typename Rhs>
 struct ArithmeticPromotion<Lhs, Rhs, LEFT_PROMOTION> {
-  typedef Lhs type;
+  using type = Lhs;
 };
 
 template <typename Lhs, typename Rhs>
 struct ArithmeticPromotion<Lhs, Rhs, RIGHT_PROMOTION> {
-  typedef Rhs type;
+  using type = Rhs;
 };
 
 template <typename Lhs, typename Rhs>
 struct ArithmeticPromotion<Lhs, Rhs, DEFAULT_PROMOTION> {
-  typedef int type;
+  using type = int;
 };
 
 // We can statically check if operations on the provided types can wrap, so we
