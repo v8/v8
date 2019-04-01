@@ -807,6 +807,7 @@
   # Tests that fail some assertions due to checking internal state sensitive
   # to GC.
   'array-literal-feedback': [SKIP],
+  'compiler/array-slice-clone': [SKIP],
   'compiler/dataview-neutered': [SKIP],
   'compiler/native-context-specialization-hole-check': [SKIP],
   'elements-transition-hoisting': [SKIP],
