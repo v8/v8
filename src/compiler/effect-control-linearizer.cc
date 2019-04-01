@@ -1782,8 +1782,8 @@ Node* EffectControlLinearizer::LowerCheckNonEmptyString(Node* node,
 
   // The empty string "" is canonicalized.
   Node* check = __ WordEqual(value, __ EmptyStringConstant());
-  __ DeoptimizeIfNot(DeoptimizeReason::kWrongInstanceType, VectorSlotPair(),
-                     check, frame_state);
+  __ DeoptimizeIf(DeoptimizeReason::kWrongInstanceType, VectorSlotPair(), check,
+                  frame_state);
 
   return value;
 }
