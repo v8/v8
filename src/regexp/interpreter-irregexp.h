@@ -12,7 +12,7 @@
 namespace v8 {
 namespace internal {
 
-class IrregexpInterpreter {
+class V8_EXPORT_PRIVATE IrregexpInterpreter {
  public:
   enum Result { RETRY = -2, EXCEPTION = -1, FAILURE = 0, SUCCESS = 1 };
   STATIC_ASSERT(EXCEPTION == static_cast<int>(RegExpImpl::RE_EXCEPTION));
@@ -24,7 +24,6 @@ class IrregexpInterpreter {
                       Handle<String> subject_string, int* registers,
                       int start_position);
 };
-
 
 }  // namespace internal
 }  // namespace v8
