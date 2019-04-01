@@ -57,7 +57,7 @@ vars = {
 
 deps = {
   'v8/build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '524030d844da02acfd3cd744db5d8e21e4b56946',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'a72af28e1c85da995fc8ed81e098253283629feb',
   'v8/third_party/depot_tools':
     Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '8d3ba46327207c40e66b4ec818cec077f0ac08cf',
   'v8/third_party/icu':
@@ -206,7 +206,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'v8/tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'adc6ac450cea4f39ec778437696afbcd163d2a93',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '82dbc02fe15cd9b2cd868f73e8ffdc62398f3ffe',
   'v8/tools/luci-go': {
       'packages': [
         {
