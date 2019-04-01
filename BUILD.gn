@@ -3305,8 +3305,6 @@ v8_component("v8_libbase") {
     "src/base/ring-buffer.h",
     "src/base/safe_conversions.h",
     "src/base/safe_conversions_impl.h",
-    "src/base/safe_math.h",
-    "src/base/safe_math_impl.h",
     "src/base/small-vector.h",
     "src/base/sys-info.cc",
     "src/base/sys-info.h",

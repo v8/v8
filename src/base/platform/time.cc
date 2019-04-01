@@ -39,13 +39,23 @@ int64_t ComputeThreadTicks() {
       &thread_info_count);
   CHECK_EQ(kr, KERN_SUCCESS);
 
-  v8::base::CheckedNumeric<int64_t> absolute_micros(
-      thread_info_data.user_time.seconds +
-      thread_info_data.system_time.seconds);
-  absolute_micros *= v8::base::Time::kMicrosecondsPerSecond;
-  absolute_micros += (thread_info_data.user_time.microseconds +
-                      thread_info_data.system_time.microseconds);
-  return absolute_micros.ValueOrDie();
+  // We can add the seconds into a {int64_t} without overflow.
+  CHECK_LE(thread_info_data.user_time.seconds,
+           std::numeric_limits<int64_t>::max() -
+               thread_info_data.system_time.seconds);
+  int64_t seconds =
+      thread_info_data.user_time.seconds + thread_info_data.system_time.seconds;
+  // Multiplying the seconds by {kMicrosecondsPerSecond}, and adding something
+  // in [0, 2 * kMicrosecondsPerSecond) must result in a valid {int64_t}.
+  static constexpr int64_t kSecondsLimit =
+      (std::numeric_limits<int64_t>::max() /
+       v8::base::Time::kMicrosecondsPerSecond) -
+      2;
+  CHECK_GT(kSecondsLimit, seconds);
+  int64_t micros = seconds * v8::base::Time::kMicrosecondsPerSecond;
+  micros += (thread_info_data.user_time.microseconds +
+             thread_info_data.system_time.microseconds);
+  return micros;
 }
 #elif V8_OS_POSIX
 // Helper function to get results from clock_gettime() and convert to a
@@ -69,8 +79,14 @@ V8_INLINE int64_t ClockNow(clockid_t clk_id) {
   if (clock_gettime(clk_id, &ts) != 0) {
     UNREACHABLE();
   }
-  v8::base::internal::CheckedNumeric<int64_t> result(ts.tv_sec);
-  result *= v8::base::Time::kMicrosecondsPerSecond;
+  // Multiplying the seconds by {kMicrosecondsPerSecond}, and adding something
+  // in [0, kMicrosecondsPerSecond) must result in a valid {int64_t}.
+  static constexpr int64_t kSecondsLimit =
+      (std::numeric_limits<int64_t>::max() /
+       v8::base::Time::kMicrosecondsPerSecond) -
+      1;
+  CHECK_GT(kSecondsLimit, ts.tv_sec);
+  int64_t result = int64_t{ts.tv_sec} * v8::base::Time::kMicrosecondsPerSecond;
 #if defined(V8_OS_AIX)
   if (clk_id == CLOCK_THREAD_CPUTIME_ID) {
     result += (tc.stime / v8::base::Time::kNanosecondsPerMicrosecond);
@@ -80,7 +96,7 @@ V8_INLINE int64_t ClockNow(clockid_t clk_id) {
 #else
   result += (ts.tv_nsec / v8::base::Time::kNanosecondsPerMicrosecond);
 #endif
-  return result.ValueOrDie();
+  return result;
 #else  // Monotonic clock not supported.
   return 0;
 #endif
