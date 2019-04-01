@@ -419,12 +419,8 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
     // takes over, but that requires the constructor to be callable.
     if (!receiver_map->is_callable()) return NoChange();
 
-    // Determine actual holder and perform prototype chain checks.
-    Handle<JSObject> holder;
-    if (access_info.holder().ToHandle(&holder)) {
-      dependencies()->DependOnStablePrototypeChains(
-          access_info.receiver_maps(), JSObjectRef(broker(), holder));
-    }
+    dependencies()->DependOnStablePrototypeChains(access_info.receiver_maps(),
+                                                  kStartAtPrototype);
 
     // Monomorphic property access.
     constructor =
@@ -478,7 +474,8 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
 
     if (found_on_proto) {
       dependencies()->DependOnStablePrototypeChains(
-          access_info.receiver_maps(), JSObjectRef(broker(), holder));
+          access_info.receiver_maps(), kStartAtPrototype,
+          JSObjectRef(broker(), holder));
     }
 
     DCHECK(constant->IsCallable());
@@ -535,8 +532,9 @@ JSNativeContextSpecialization::InferHasInPrototypeChain(
                                         &receiver_maps);
   if (result == NodeProperties::kNoReceiverMaps) return kMayBeInPrototypeChain;
 
-  // Check if either all or none of the {receiver_maps} have the given
-  // {prototype} in their prototype chain.
+  // Try to determine either that all of the {receiver_maps} have the given
+  // {prototype} in their chain, or that none do. If we can't tell, return
+  // kMayBeInPrototypeChain.
   bool all = true;
   bool none = true;
   for (size_t i = 0; i < receiver_maps.size(); ++i) {
@@ -544,22 +542,17 @@ JSNativeContextSpecialization::InferHasInPrototypeChain(
     if (receiver_map->instance_type() <= LAST_SPECIAL_RECEIVER_TYPE) {
       return kMayBeInPrototypeChain;
     }
-    if (result == NodeProperties::kUnreliableReceiverMaps) {
-      // In case of an unreliable {result} we need to ensure that all
-      // {receiver_maps} are stable, because otherwise we cannot trust
-      // the {receiver_maps} information, since arbitrary side-effects
-      // may have happened.
-      if (!receiver_map->is_stable()) {
-        return kMayBeInPrototypeChain;
-      }
+    if (result == NodeProperties::kUnreliableReceiverMaps &&
+        !receiver_map->is_stable()) {
+      return kMayBeInPrototypeChain;
     }
-    for (PrototypeIterator j(isolate(), receiver_map);; j.Advance()) {
-      if (j.IsAtEnd()) {
+    for (PrototypeIterator it(isolate(), receiver_map);; it.Advance()) {
+      if (it.IsAtEnd()) {
         all = false;
         break;
       }
-      Handle<HeapObject> const current =
-          PrototypeIterator::GetCurrent<HeapObject>(j);
+      Handle<HeapObject> current =
+          PrototypeIterator::GetCurrent<HeapObject>(it);
       if (current.is_identical_to(prototype)) {
         none = false;
         break;
@@ -571,10 +564,23 @@ JSNativeContextSpecialization::InferHasInPrototypeChain(
     }
   }
   DCHECK_IMPLIES(all, !none);
+  if (!all && !none) return kMayBeInPrototypeChain;
 
-  if (all) return kIsInPrototypeChain;
-  if (none) return kIsNotInPrototypeChain;
-  return kMayBeInPrototypeChain;
+  {
+    base::Optional<JSObjectRef> last_prototype;
+    if (all) {
+      // We don't need to protect the full chain if we found the prototype.
+      last_prototype.emplace(broker(), Handle<JSObject>::cast(prototype));
+    }
+    WhereToStart start = result == NodeProperties::kUnreliableReceiverMaps
+                             ? kStartAtReceiver
+                             : kStartAtPrototype;
+    dependencies()->DependOnStablePrototypeChains(receiver_maps, start,
+                                                  last_prototype);
+  }
+
+  DCHECK_EQ(all, !none);
+  return all ? kIsInPrototypeChain : kIsNotInPrototypeChain;
 }
 
 Reduction JSNativeContextSpecialization::ReduceJSHasInPrototypeChain(
@@ -732,19 +738,10 @@ Reduction JSNativeContextSpecialization::ReduceJSResolvePromise(Node* node) {
   if (!access_info.IsNotFound()) return NoChange();
   PropertyAccessBuilder access_builder(jsgraph(), broker(), dependencies());
 
-  // Add proper dependencies on the {resolution}s [[Prototype]]s.
-  Handle<JSObject> holder;
-  if (access_info.holder().ToHandle(&holder)) {
-    dependencies()->DependOnStablePrototypeChains(
-        access_info.receiver_maps(), JSObjectRef(broker(), holder));
-  }
-
-  // Add stability dependencies on the {resolution_maps}.
-  if (result == NodeProperties::kUnreliableReceiverMaps) {
-    for (Handle<Map> resolution_map : resolution_maps) {
-      dependencies()->DependOnStableMap(MapRef(broker(), resolution_map));
-    }
-  }
+  dependencies()->DependOnStablePrototypeChains(
+      access_info.receiver_maps(),
+      result == NodeProperties::kUnreliableReceiverMaps ? kStartAtReceiver
+                                                        : kStartAtPrototype);
 
   // Simply fulfill the {promise} with the {resolution}.
   Node* value = effect =
@@ -2198,7 +2195,8 @@ JSNativeContextSpecialization::BuildPropertyLoad(
   PropertyAccessBuilder access_builder(jsgraph(), broker(), dependencies());
   if (access_info.holder().ToHandle(&holder)) {
     dependencies()->DependOnStablePrototypeChains(
-        access_info.receiver_maps(), JSObjectRef(broker(), holder));
+        access_info.receiver_maps(), kStartAtPrototype,
+        JSObjectRef(broker(), holder));
   }
 
   // Generate the actual property access.
@@ -2234,7 +2232,8 @@ JSNativeContextSpecialization::BuildPropertyTest(
   Handle<JSObject> holder;
   if (access_info.holder().ToHandle(&holder)) {
     dependencies()->DependOnStablePrototypeChains(
-        access_info.receiver_maps(), JSObjectRef(broker(), holder));
+        access_info.receiver_maps(), kStartAtPrototype,
+        JSObjectRef(broker(), holder));
   }
 
   Node* value = access_info.IsNotFound() ? jsgraph()->FalseConstant()
@@ -2275,7 +2274,8 @@ JSNativeContextSpecialization::BuildPropertyStore(
   if (access_info.holder().ToHandle(&holder)) {
     DCHECK_NE(AccessMode::kStoreInLiteral, access_mode);
     dependencies()->DependOnStablePrototypeChains(
-        access_info.receiver_maps(), JSObjectRef(broker(), holder));
+        access_info.receiver_maps(), kStartAtPrototype,
+        JSObjectRef(broker(), holder));
   }
 
   DCHECK(!access_info.IsNotFound());

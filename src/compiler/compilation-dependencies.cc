@@ -7,6 +7,7 @@
 #include "src/handles-inl.h"
 #include "src/objects-inl.h"
 #include "src/objects/allocation-site-inl.h"
+#include "src/zone/zone-handle-set.h"
 
 namespace v8 {
 namespace internal {
@@ -532,19 +533,25 @@ bool CompilationDependencies::Commit(Handle<Code> code) {
 namespace {
 // This function expects to never see a JSProxy.
 void DependOnStablePrototypeChain(CompilationDependencies* deps, MapRef map,
-                                  const JSObjectRef& last_prototype) {
+                                  base::Optional<JSObjectRef> last_prototype) {
   while (true) {
     map.SerializePrototype();
-    JSObjectRef proto = map.prototype().AsJSObject();
+    HeapObjectRef proto = map.prototype();
+    if (!proto.IsJSObject()) {
+      CHECK_EQ(proto.map().oddball_type(), OddballType::kNull);
+      break;
+    }
     map = proto.map();
     deps->DependOnStableMap(map);
-    if (proto.equals(last_prototype)) break;
+    if (last_prototype.has_value() && proto.equals(*last_prototype)) break;
   }
 }
 }  // namespace
 
+template <class MapContainer>
 void CompilationDependencies::DependOnStablePrototypeChains(
-    std::vector<Handle<Map>> const& receiver_maps, const JSObjectRef& holder) {
+    MapContainer const& receiver_maps, WhereToStart start,
+    base::Optional<JSObjectRef> last_prototype) {
   // Determine actual holder and perform prototype chain checks.
   for (auto map : receiver_maps) {
     MapRef receiver_map(broker_, map);
@@ -555,9 +562,16 @@ void CompilationDependencies::DependOnStablePrototypeChains(
           broker_->native_context().GetConstructorFunction(receiver_map);
       if (constructor.has_value()) receiver_map = constructor->initial_map();
     }
-    DependOnStablePrototypeChain(this, receiver_map, holder);
+    if (start == kStartAtReceiver) DependOnStableMap(receiver_map);
+    DependOnStablePrototypeChain(this, receiver_map, last_prototype);
   }
 }
+template void CompilationDependencies::DependOnStablePrototypeChains(
+    MapHandles const& receiver_maps, WhereToStart start,
+    base::Optional<JSObjectRef> last_prototype);
+template void CompilationDependencies::DependOnStablePrototypeChains(
+    ZoneHandleSet<Map> const& receiver_maps, WhereToStart start,
+    base::Optional<JSObjectRef> last_prototype);
 
 void CompilationDependencies::DependOnElementsKinds(
     const AllocationSiteRef& site) {

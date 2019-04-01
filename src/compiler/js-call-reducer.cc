@@ -6913,10 +6913,6 @@ Reduction JSCallReducer::ReduceRegExpPrototypeTest(Node* node) {
       return NoChange();
     }
 
-    // Protect the prototype chain from changes.
-    dependencies()->DependOnStablePrototypeChains(
-        ai_exec.receiver_maps(), JSObjectRef(broker(), holder));
-
     // Protect the exec method change in the holder.
     Handle<Object> exec_on_proto;
     MapRef holder_map(broker(), handle(holder->map(), isolate()));
@@ -6937,7 +6933,8 @@ Reduction JSCallReducer::ReduceRegExpPrototypeTest(Node* node) {
   Handle<JSObject> holder;
   if (ai_exec.holder().ToHandle(&holder)) {
     dependencies()->DependOnStablePrototypeChains(
-        ai_exec.receiver_maps(), JSObjectRef(broker(), holder));
+        ai_exec.receiver_maps(), kStartAtPrototype,
+        JSObjectRef(broker(), holder));
   }
 
   effect = InsertMapChecksIfUnreliableReceiverMaps(
