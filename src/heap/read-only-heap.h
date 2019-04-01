@@ -36,7 +36,7 @@ class ReadOnlyHeap final {
   void OnHeapTearDown();
 
   // Returns whether the object resides in the read-only space.
-  static bool Contains(HeapObject object);
+  V8_EXPORT_PRIVATE static bool Contains(HeapObject object);
 
   std::vector<Object>* read_only_object_cache() {
     return &read_only_object_cache_;

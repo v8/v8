@@ -629,7 +629,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   // Ensures that sweeping is finished.
   //
   // Note: Can only be called safely from main thread.
-  void EnsureSweepingCompleted();
+  V8_EXPORT_PRIVATE void EnsureSweepingCompleted();
 
   // Checks if sweeping is in progress right now on any space.
   bool sweeping_in_progress() const { return sweeper_->sweeping_in_progress(); }

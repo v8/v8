@@ -1057,8 +1057,9 @@ class NewFunctionArgs final {
   static NewFunctionArgs ForWasm(
       Handle<String> name,
       Handle<WasmExportedFunctionData> exported_function_data, Handle<Map> map);
-  static NewFunctionArgs ForBuiltin(Handle<String> name, Handle<Map> map,
-                                    int builtin_id);
+  V8_EXPORT_PRIVATE static NewFunctionArgs ForBuiltin(Handle<String> name,
+                                                      Handle<Map> map,
+                                                      int builtin_id);
   static NewFunctionArgs ForFunctionWithoutCode(Handle<String> name,
                                                 Handle<Map> map,
                                                 LanguageMode language_mode);

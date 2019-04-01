@@ -271,10 +271,12 @@ class Heap {
 
   // Calculates the maximum amount of filler that could be required by the
   // given alignment.
-  static int GetMaximumFillToAlign(AllocationAlignment alignment);
+  V8_EXPORT_PRIVATE static int GetMaximumFillToAlign(
+      AllocationAlignment alignment);
   // Calculates the actual amount of filler required for a given address at the
   // given alignment.
-  static int GetFillToAlign(Address address, AllocationAlignment alignment);
+  V8_EXPORT_PRIVATE static int GetFillToAlign(Address address,
+                                              AllocationAlignment alignment);
 
   void FatalProcessOutOfMemory(const char* location);
 
@@ -391,17 +393,19 @@ class Heap {
 
   // Trim the given array from the left. Note that this relocates the object
   // start and hence is only valid if there is only a single reference to it.
-  FixedArrayBase LeftTrimFixedArray(FixedArrayBase obj, int elements_to_trim);
+  V8_EXPORT_PRIVATE FixedArrayBase LeftTrimFixedArray(FixedArrayBase obj,
+                                                      int elements_to_trim);
 
   // Trim the given array from the right.
-  void RightTrimFixedArray(FixedArrayBase obj, int elements_to_trim);
+  V8_EXPORT_PRIVATE void RightTrimFixedArray(FixedArrayBase obj,
+                                             int elements_to_trim);
   void RightTrimWeakFixedArray(WeakFixedArray obj, int elements_to_trim);
 
   // Converts the given boolean condition to JavaScript boolean value.
   inline Oddball ToBoolean(bool condition);
 
   // Notify the heap that a context has been disposed.
-  int NotifyContextDisposed(bool dependant_context);
+  V8_EXPORT_PRIVATE int NotifyContextDisposed(bool dependant_context);
 
   void set_native_contexts_list(Object object) {
     native_contexts_list_ = object;
@@ -453,7 +457,7 @@ class Heap {
   }
 
   void UnprotectAndRegisterMemoryChunk(MemoryChunk* chunk);
-  void UnprotectAndRegisterMemoryChunk(HeapObject object);
+  V8_EXPORT_PRIVATE void UnprotectAndRegisterMemoryChunk(HeapObject object);
   void UnregisterUnprotectedMemoryChunk(MemoryChunk* chunk);
   V8_EXPORT_PRIVATE void ProtectUnprotectedMemoryChunks();
 
@@ -493,16 +497,18 @@ class Heap {
   bool IdleNotification(double deadline_in_seconds);
   bool IdleNotification(int idle_time_in_ms);
 
-  void MemoryPressureNotification(MemoryPressureLevel level,
-                                  bool is_isolate_locked);
+  V8_EXPORT_PRIVATE void MemoryPressureNotification(MemoryPressureLevel level,
+                                                    bool is_isolate_locked);
   void CheckMemoryPressure();
 
-  void AddNearHeapLimitCallback(v8::NearHeapLimitCallback, void* data);
-  void RemoveNearHeapLimitCallback(v8::NearHeapLimitCallback callback,
-                                   size_t heap_limit);
-  void AutomaticallyRestoreInitialHeapLimit(double threshold_percent);
+  V8_EXPORT_PRIVATE void AddNearHeapLimitCallback(v8::NearHeapLimitCallback,
+                                                  void* data);
+  V8_EXPORT_PRIVATE void RemoveNearHeapLimitCallback(
+      v8::NearHeapLimitCallback callback, size_t heap_limit);
+  V8_EXPORT_PRIVATE void AutomaticallyRestoreInitialHeapLimit(
+      double threshold_percent);
 
-  double MonotonicallyIncreasingTimeInMs();
+  V8_EXPORT_PRIVATE double MonotonicallyIncreasingTimeInMs();
 
   void RecordStats(HeapStats* stats, bool take_snapshot = false);
 
@@ -538,7 +544,7 @@ class Heap {
 
   void CompactWeakArrayLists(AllocationType allocation);
 
-  void AddRetainedMap(Handle<Map> map);
+  V8_EXPORT_PRIVATE void AddRetainedMap(Handle<Map> map);
 
   // This event is triggered after successful allocation of a new object made
   // by runtime. Allocations of target space for object evacuation do not
@@ -558,7 +564,7 @@ class Heap {
 
   void ActivateMemoryReducerIfNeeded();
 
-  bool ShouldOptimizeForMemoryUsage();
+  V8_EXPORT_PRIVATE bool ShouldOptimizeForMemoryUsage();
 
   bool HighMemoryPressure() {
     return memory_pressure_level_ != MemoryPressureLevel::kNone;
@@ -704,7 +710,7 @@ class Heap {
       std::function<void(HeapObject object, ObjectSlot slot, Object target)>
           gc_notify_updated_slot);
 
-  void AddKeepDuringJobTarget(Handle<JSReceiver> target);
+  V8_EXPORT_PRIVATE void AddKeepDuringJobTarget(Handle<JSReceiver> target);
   void ClearKeepDuringJobSet();
 
   // ===========================================================================
@@ -715,8 +721,8 @@ class Heap {
   bool inline_allocation_disabled() { return inline_allocation_disabled_; }
 
   // Switch whether inline bump-pointer allocation should be used.
-  void EnableInlineAllocation();
-  void DisableInlineAllocation();
+  V8_EXPORT_PRIVATE void EnableInlineAllocation();
+  V8_EXPORT_PRIVATE void DisableInlineAllocation();
 
   // ===========================================================================
   // Methods triggering GCs. ===================================================
@@ -735,12 +741,13 @@ class Heap {
       const GCCallbackFlags gc_callback_flags = kNoGCCallbackFlags);
 
   // Last hope GC, should try to squeeze as much as possible.
-  void CollectAllAvailableGarbage(GarbageCollectionReason gc_reason);
+  V8_EXPORT_PRIVATE void CollectAllAvailableGarbage(
+      GarbageCollectionReason gc_reason);
 
   // Precise garbage collection that potentially finalizes already running
   // incremental marking before performing an atomic garbage collection.
   // Only use if absolutely necessary or in tests to avoid floating garbage!
-  void PreciseCollectAllGarbage(
+  V8_EXPORT_PRIVATE void PreciseCollectAllGarbage(
       int flags, GarbageCollectionReason gc_reason,
       const GCCallbackFlags gc_callback_flags = kNoGCCallbackFlags);
 
@@ -763,7 +770,7 @@ class Heap {
   // Builtins. =================================================================
   // ===========================================================================
 
-  Code builtin(int index);
+  V8_EXPORT_PRIVATE Code builtin(int index);
   Address builtin_address(int index);
   void set_builtin(int index, Code builtin);
 
@@ -823,13 +830,13 @@ class Heap {
 
   // Start incremental marking and ensure that idle time handler can perform
   // incremental steps.
-  void StartIdleIncrementalMarking(
+  V8_EXPORT_PRIVATE void StartIdleIncrementalMarking(
       GarbageCollectionReason gc_reason,
       GCCallbackFlags gc_callback_flags = GCCallbackFlags::kNoGCCallbackFlags);
 
   // Starts incremental marking assuming incremental marking is currently
   // stopped.
-  void StartIncrementalMarking(
+  V8_EXPORT_PRIVATE void StartIncrementalMarking(
       int gc_flags, GarbageCollectionReason gc_reason,
       GCCallbackFlags gc_callback_flags = GCCallbackFlags::kNoGCCallbackFlags);
 
@@ -865,7 +872,8 @@ class Heap {
   // This function checks that either
   // - the map transition is safe,
   // - or it was communicated to GC using NotifyObjectLayoutChange.
-  void VerifyObjectLayoutChange(HeapObject object, Map new_map);
+  V8_EXPORT_PRIVATE void VerifyObjectLayoutChange(HeapObject object,
+                                                  Map new_map);
 #endif
 
   // ===========================================================================
@@ -910,8 +918,8 @@ class Heap {
 
   // Called when a string's resource is changed. The size of the payload is sent
   // as argument of the method.
-  void UpdateExternalString(String string, size_t old_payload,
-                            size_t new_payload);
+  V8_EXPORT_PRIVATE void UpdateExternalString(String string, size_t old_payload,
+                                              size_t new_payload);
 
   // Finalizes an external string by deleting the associated external
   // data and clearing the resource pointer.
@@ -940,11 +948,11 @@ class Heap {
 
   // Checks whether an address/object in the heap (including auxiliary
   // area and unused area).
-  bool Contains(HeapObject value);
+  V8_EXPORT_PRIVATE bool Contains(HeapObject value);
 
   // Checks whether an address/object in a space.
   // Currently used by tests, serialization and heap verification only.
-  bool InSpace(HeapObject value, AllocationSpace space);
+  V8_EXPORT_PRIVATE bool InSpace(HeapObject value, AllocationSpace space);
 
   // Slow methods that can be used for verification as they can also be used
   // with off-heap Addresses.
@@ -989,7 +997,7 @@ class Heap {
   // ===========================================================================
 
   // Returns the maximum amount of memory reserved for the heap.
-  size_t MaxReserved();
+  V8_EXPORT_PRIVATE size_t MaxReserved();
   size_t MaxSemiSpaceSize() { return max_semi_space_size_; }
   size_t InitialSemiSpaceSize() { return initial_semispace_size_; }
   size_t MaxOldGenerationSize() { return max_old_generation_size_; }
@@ -1017,7 +1025,7 @@ class Heap {
   size_t Capacity();
 
   // Returns the capacity of the old generation.
-  size_t OldGenerationCapacity();
+  V8_EXPORT_PRIVATE size_t OldGenerationCapacity();
 
   // Returns the amount of memory currently held alive by the unmapper.
   size_t CommittedMemoryOfUnmapper();
@@ -1047,7 +1055,7 @@ class Heap {
   size_t Available();
 
   // Returns of size of all objects residing in the heap.
-  size_t SizeOfObjects();
+  V8_EXPORT_PRIVATE size_t SizeOfObjects();
 
   void UpdateSurvivalStatistics(int start_new_space_size);
 
@@ -1131,7 +1139,7 @@ class Heap {
 
   // Returns the size of objects residing in non-new spaces.
   // Excludes external memory held by those objects.
-  size_t OldGenerationSizeOfObjects();
+  V8_EXPORT_PRIVATE size_t OldGenerationSizeOfObjects();
 
   // ===========================================================================
   // Prologue/epilogue callback methods.========================================
@@ -1155,8 +1163,8 @@ class Heap {
   // ===========================================================================
 
   // Creates a filler object and returns a heap object immediately after it.
-  V8_WARN_UNUSED_RESULT HeapObject PrecedeWithFiller(HeapObject object,
-                                                     int filler_size);
+  V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT HeapObject
+  PrecedeWithFiller(HeapObject object, int filler_size);
 
   // Creates a filler object if needed for alignment and returns a heap object
   // immediately after it. If any space is left after the returned object,
@@ -1243,7 +1251,7 @@ class Heap {
 // =============================================================================
 #ifdef VERIFY_HEAP
   // Verify the heap is in its normal state before or after a GC.
-  void Verify();
+  V8_EXPORT_PRIVATE void Verify();
   void VerifyRememberedSetFor(HeapObject object);
 #endif
 
@@ -1444,13 +1452,14 @@ class Heap {
   void EnsureFromSpaceIsCommitted();
 
   // Uncommit unused semi space.
-  bool UncommitFromSpace();
+  V8_EXPORT_PRIVATE bool UncommitFromSpace();
 
   // Fill in bogus values in from space
   void ZapFromSpace();
 
   // Zaps the memory of a code object.
-  void ZapCodeObject(Address start_address, int size_in_bytes);
+  V8_EXPORT_PRIVATE void ZapCodeObject(Address start_address,
+                                       int size_in_bytes);
 
   // Deopts all code that contains allocation instruction which are tenured or
   // not tenured. Moreover it clears the pretenuring allocation site statistics.
@@ -1640,7 +1649,7 @@ class Heap {
 
   bool always_allocate() { return always_allocate_scope_count_ != 0; }
 
-  bool CanExpandOldGeneration(size_t size);
+  V8_EXPORT_PRIVATE bool CanExpandOldGeneration(size_t size);
 
   bool ShouldExpandOldGenerationOnSlowAllocation();
 
@@ -1740,7 +1749,7 @@ class Heap {
   void PrintRetainingPath(HeapObject object, RetainingPathOption option);
 
 #ifdef DEBUG
-  void IncrementObjectCounters();
+  V8_EXPORT_PRIVATE void IncrementObjectCounters();
 #endif  // DEBUG
 
   // The amount of memory that has been freed concurrently.
@@ -1815,7 +1824,7 @@ class Heap {
   int gc_post_processing_depth_ = 0;
 
   // Returns the amount of external memory registered since last global gc.
-  uint64_t PromotedExternalMemorySize();
+  V8_EXPORT_PRIVATE uint64_t PromotedExternalMemorySize();
 
   // How many "runtime allocations" happened.
   uint32_t allocations_count_ = 0;
@@ -2054,7 +2063,6 @@ class Heap {
   DISALLOW_COPY_AND_ASSIGN(Heap);
 };
 
-
 class HeapStats {
  public:
   static const int kStartMarker = 0xDECADE00;
@@ -2224,7 +2232,7 @@ class SpaceIterator : public Malloced {
 // nodes filtering uses GC marks, it can't be used during MS/MC GC
 // phases. Also, it is forbidden to interrupt iteration in this mode,
 // as this will leave heap objects marked (and thus, unusable).
-class HeapIterator {
+class V8_EXPORT_PRIVATE HeapIterator {
  public:
   enum HeapObjectsFiltering { kNoFiltering, kFilterUnreachable };
 

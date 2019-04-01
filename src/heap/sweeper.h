@@ -96,7 +96,7 @@ class Sweeper {
   // and the main thread can sweep lazily, but the background sweeper tasks
   // are not running yet.
   void StartSweeping();
-  void StartSweeperTasks();
+  V8_EXPORT_PRIVATE void StartSweeperTasks();
   void EnsureCompleted();
   bool AreSweeperTasksRunning();
 

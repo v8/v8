@@ -53,7 +53,7 @@ class ArrayBufferTracker : public AllStatic {
   static bool ProcessBuffers(Page* page, ProcessingMode mode);
 
   // Returns whether a buffer is currently tracked.
-  static bool IsTracked(JSArrayBuffer buffer);
+  V8_EXPORT_PRIVATE static bool IsTracked(JSArrayBuffer buffer);
 
   // Tears down the tracker and frees up all registered array buffers.
   static void TearDown(Heap* heap);

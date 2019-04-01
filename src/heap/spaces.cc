@@ -1327,8 +1327,8 @@ static SlotSet* AllocateAndInitializeSlotSet(size_t size, Address page_start) {
   return slot_set;
 }
 
-template SlotSet* MemoryChunk::AllocateSlotSet<OLD_TO_NEW>();
-template SlotSet* MemoryChunk::AllocateSlotSet<OLD_TO_OLD>();
+template V8_EXPORT_PRIVATE SlotSet* MemoryChunk::AllocateSlotSet<OLD_TO_NEW>();
+template V8_EXPORT_PRIVATE SlotSet* MemoryChunk::AllocateSlotSet<OLD_TO_OLD>();
 
 template <RememberedSetType type>
 SlotSet* MemoryChunk::AllocateSlotSet() {
