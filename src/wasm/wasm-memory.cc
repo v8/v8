@@ -37,6 +37,23 @@ size_t GetAllocationLength(uint32_t size, bool require_full_guard_regions) {
   }
 }
 
+bool RunWithGCAndRetry(const std::function<bool()>& fn, Heap* heap,
+                       bool* did_retry) {
+  // Try up to three times; getting rid of dead JSArrayBuffer allocations might
+  // require two GCs because the first GC maybe incremental and may have
+  // floating garbage.
+  static constexpr int kAllocationRetries = 2;
+
+  for (int trial = 0;; ++trial) {
+    if (fn()) return true;
+    // {fn} failed. If {kAllocationRetries} is reached, fail.
+    *did_retry = true;
+    if (trial == kAllocationRetries) return false;
+    // Otherwise, collect garbage and retry.
+    heap->MemoryPressureNotification(MemoryPressureLevel::kCritical, true);
+  }
+}
+
 void* TryAllocateBackingStore(WasmMemoryTracker* memory_tracker, Heap* heap,
                               size_t size, size_t max_size,
                               void** allocation_base,
@@ -49,22 +66,18 @@ void* TryAllocateBackingStore(WasmMemoryTracker* memory_tracker, Heap* heap,
 #endif
   // Let the WasmMemoryTracker know we are going to reserve a bunch of
   // address space.
-  // Try up to three times; getting rid of dead JSArrayBuffer allocations might
-  // require two GCs because the first GC maybe incremental and may have
-  // floating garbage.
-  static constexpr int kAllocationRetries = 2;
   // TODO(7881): do not use static_cast<uint32_t>() here
   uint32_t reservation_size =
       static_cast<uint32_t>((max_size > size) ? max_size : size);
-  // TODO(8898): Cleanup the allocation retry flow
   bool did_retry = false;
-  for (int trial = 0;; ++trial) {
-    // For guard regions, we always allocate the largest possible offset into
-    // the heap, so the addressable memory after the guard page can be made
-    // inaccessible.
+
+  auto reserve_memory_space = [&] {
+    // For guard regions, we always allocate the largest possible offset
+    // into the heap, so the addressable memory after the guard page can
+    // be made inaccessible.
     //
-    // To protect against 32-bit integer overflow issues, we also protect the
-    // 2GiB before the valid part of the memory buffer.
+    // To protect against 32-bit integer overflow issues, we also
+    // protect the 2GiB before the valid part of the memory buffer.
     *allocation_length =
         GetAllocationLength(reservation_size, require_full_guard_regions);
     DCHECK_GE(*allocation_length, size);
@@ -72,24 +85,21 @@ void* TryAllocateBackingStore(WasmMemoryTracker* memory_tracker, Heap* heap,
 
     auto limit = require_full_guard_regions ? WasmMemoryTracker::kSoftLimit
                                             : WasmMemoryTracker::kHardLimit;
-    if (memory_tracker->ReserveAddressSpace(*allocation_length, limit)) break;
+    return memory_tracker->ReserveAddressSpace(*allocation_length, limit);
+  };
+  if (!RunWithGCAndRetry(reserve_memory_space, heap, &did_retry)) {
+    // Reset reservation_size to initial size so that at least the initial size
+    // can be allocated if maximum size reservation is not possible.
+    reservation_size = static_cast<uint32_t>(size);
 
-    did_retry = true;
-    // After first and second GC: retry.
-    if (trial == kAllocationRetries) {
-      // Always reset reservation_size to initial size so that at least the
-      // initial size can be allocated if maximum size reservation is not
-      // possible.
-      reservation_size = static_cast<uint32_t>(size);
-
-      // If we fail to allocate guard regions and the fallback is enabled, then
-      // retry without full guard regions.
-      if (require_full_guard_regions && FLAG_wasm_trap_handler_fallback) {
-        require_full_guard_regions = false;
-        --trial;  // one more try.
-        continue;
-      }
-
+    // If we fail to allocate guard regions and the fallback is enabled, then
+    // retry without full guard regions.
+    bool fail = true;
+    if (require_full_guard_regions && FLAG_wasm_trap_handler_fallback) {
+      require_full_guard_regions = false;
+      fail = !RunWithGCAndRetry(reserve_memory_space, heap, &did_retry);
+    }
+    if (fail) {
       // We are over the address space limit. Fail.
       //
       // When running under the correctness fuzzer (i.e.
@@ -103,40 +113,37 @@ void* TryAllocateBackingStore(WasmMemoryTracker* memory_tracker, Heap* heap,
           heap->isolate(), AllocationStatus::kAddressSpaceLimitReachedFailure);
       return nullptr;
     }
-    // Collect garbage and retry.
-    heap->MemoryPressureNotification(MemoryPressureLevel::kCritical, true);
   }
 
   // The Reserve makes the whole region inaccessible by default.
   DCHECK_NULL(*allocation_base);
-  for (int trial = 0;; ++trial) {
+  auto allocate_pages = [&] {
     *allocation_base =
         AllocatePages(GetPlatformPageAllocator(), nullptr, *allocation_length,
                       kWasmPageSize, PageAllocator::kNoAccess);
-    if (*allocation_base != nullptr) break;
-    if (trial == kAllocationRetries) {
-      memory_tracker->ReleaseReservation(*allocation_length);
-      AddAllocationStatusSample(heap->isolate(),
-                                AllocationStatus::kOtherFailure);
-      return nullptr;
-    }
-    heap->MemoryPressureNotification(MemoryPressureLevel::kCritical, true);
+    return *allocation_base != nullptr;
+  };
+  if (!RunWithGCAndRetry(allocate_pages, heap, &did_retry)) {
+    memory_tracker->ReleaseReservation(*allocation_length);
+    AddAllocationStatusSample(heap->isolate(), AllocationStatus::kOtherFailure);
+    return nullptr;
   }
+
   byte* memory = reinterpret_cast<byte*>(*allocation_base);
   if (require_full_guard_regions) {
     memory += kNegativeGuardSize;
   }
 
   // Make the part we care about accessible.
-  if (size > 0) {
-    bool result =
-        SetPermissions(GetPlatformPageAllocator(), memory,
-                       RoundUp(size, kWasmPageSize), PageAllocator::kReadWrite);
-    // SetPermissions commits the extra memory, which may put us over the
-    // process memory limit. If so, report this as an OOM.
-    if (!result) {
-      V8::FatalProcessOutOfMemory(nullptr, "TryAllocateBackingStore");
-    }
+  auto commit_memory = [&] {
+    return size == 0 || SetPermissions(GetPlatformPageAllocator(), memory,
+                                       RoundUp(size, kWasmPageSize),
+                                       PageAllocator::kReadWrite);
+  };
+  // SetPermissions commits the extra memory, which may put us over the
+  // process memory limit. If so, report this as an OOM.
+  if (!RunWithGCAndRetry(commit_memory, heap, &did_retry)) {
+    V8::FatalProcessOutOfMemory(nullptr, "TryAllocateBackingStore");
   }
 
   memory_tracker->RegisterAllocation(heap->isolate(), *allocation_base,
