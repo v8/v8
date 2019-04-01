@@ -34,7 +34,7 @@ class JSProxy : public JSReceiver {
   static void Revoke(Handle<JSProxy> proxy);
 
   // ES6 9.5.1
-  static MaybeHandle<Object> GetPrototype(Handle<JSProxy> receiver);
+  static MaybeHandle<HeapObject> GetPrototype(Handle<JSProxy> receiver);
 
   // ES6 9.5.2
   V8_WARN_UNUSED_RESULT static Maybe<bool> SetPrototype(

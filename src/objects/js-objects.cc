@@ -2998,7 +2998,7 @@ void JSObject::MigrateToMap(Handle<JSObject> object, Handle<Map> new_map,
 }
 
 void JSObject::ForceSetPrototype(Handle<JSObject> object,
-                                 Handle<Object> proto) {
+                                 Handle<HeapObject> proto) {
   // object.__proto__ = proto;
   Handle<Map> old_map = Handle<Map>(object->map(), object->GetIsolate());
   Handle<Map> new_map =
@@ -4467,7 +4467,8 @@ Maybe<bool> JSObject::SetPrototype(Handle<JSObject> object,
 
   isolate->UpdateNoElementsProtectorOnSetPrototype(real_receiver);
 
-  Handle<Map> new_map = Map::TransitionToPrototype(isolate, map, value);
+  Handle<Map> new_map =
+      Map::TransitionToPrototype(isolate, map, Handle<HeapObject>::cast(value));
   DCHECK(new_map->prototype() == *value);
   JSObject::MigrateToMap(real_receiver, new_map);
 
@@ -5084,7 +5085,7 @@ void JSFunction::SetPrototype(Handle<JSFunction> function,
 }
 
 void JSFunction::SetInitialMap(Handle<JSFunction> function, Handle<Map> map,
-                               Handle<Object> prototype) {
+                               Handle<HeapObject> prototype) {
   if (map->prototype() != *prototype)
     Map::SetPrototype(function->GetIsolate(), map, prototype);
   function->set_prototype_or_initial_map(*map);
@@ -5125,7 +5126,7 @@ void JSFunction::EnsureHasInitialMap(Handle<JSFunction> function) {
                                                inobject_properties);
 
   // Fetch or allocate prototype.
-  Handle<Object> prototype;
+  Handle<HeapObject> prototype;
   if (function->has_instance_prototype()) {
     prototype = handle(function->instance_prototype(), isolate);
   } else {
@@ -5281,7 +5282,7 @@ bool FastInitializeDerivedMap(Isolate* isolate, Handle<JSFunction> new_target,
       Map::CopyInitialMap(isolate, constructor_initial_map, instance_size,
                           in_object_properties, unused_property_fields);
   map->set_new_target_is_base(false);
-  Handle<Object> prototype(new_target->instance_prototype(), isolate);
+  Handle<HeapObject> prototype(new_target->instance_prototype(), isolate);
   JSFunction::SetInitialMap(new_target, map, prototype);
   DCHECK(new_target->instance_prototype()->IsJSReceiver());
   map->SetConstructor(*constructor);
@@ -5360,7 +5361,7 @@ MaybeHandle<Map> JSFunction::GetDerivedMap(Isolate* isolate,
   map->set_new_target_is_base(false);
   CHECK(prototype->IsJSReceiver());
   if (map->prototype() != *prototype)
-    Map::SetPrototype(isolate, map, prototype);
+    Map::SetPrototype(isolate, map, Handle<HeapObject>::cast(prototype));
   map->SetConstructor(*constructor);
   return map;
 }

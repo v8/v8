@@ -558,10 +558,10 @@ class Map : public HeapObject {
   DECL_BOOLEAN_ACCESSORS(is_access_check_needed)
 
   // [prototype]: implicit prototype object.
-  DECL_ACCESSORS(prototype, Object)
+  DECL_ACCESSORS(prototype, HeapObject)
   // TODO(jkummerow): make set_prototype private.
   static void SetPrototype(Isolate* isolate, Handle<Map> map,
-                           Handle<Object> prototype,
+                           Handle<HeapObject> prototype,
                            bool enable_prototype_setup_mode = true);
 
   // [constructor]: points back to the function or FunctionTemplateInfo
@@ -821,7 +821,7 @@ class Map : public HeapObject {
   }
 
   static Handle<Map> TransitionToPrototype(Isolate* isolate, Handle<Map> map,
-                                           Handle<Object> prototype);
+                                           Handle<HeapObject> prototype);
 
   static Handle<Map> TransitionToImmutableProto(Isolate* isolate,
                                                 Handle<Map> map);

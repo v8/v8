@@ -492,8 +492,9 @@ MaybeHandle<JSFunction> InstantiateFunction(Isolate* isolate,
       ASSIGN_RETURN_ON_EXCEPTION(isolate, parent_prototype,
                                  GetInstancePrototype(isolate, parent),
                                  JSFunction);
+      CHECK(parent_prototype->IsHeapObject());
       JSObject::ForceSetPrototype(Handle<JSObject>::cast(prototype),
-                                  parent_prototype);
+                                  Handle<HeapObject>::cast(parent_prototype));
     }
   }
   InstanceType function_type =

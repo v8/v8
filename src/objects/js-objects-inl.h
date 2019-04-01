@@ -80,14 +80,14 @@ Handle<Object> JSReceiver::GetDataProperty(Handle<JSReceiver> object,
   return GetDataProperty(&it);
 }
 
-MaybeHandle<Object> JSReceiver::GetPrototype(Isolate* isolate,
-                                             Handle<JSReceiver> receiver) {
+MaybeHandle<HeapObject> JSReceiver::GetPrototype(Isolate* isolate,
+                                                 Handle<JSReceiver> receiver) {
   // We don't expect access checks to be needed on JSProxy objects.
   DCHECK(!receiver->IsAccessCheckNeeded() || receiver->IsJSObject());
   PrototypeIterator iter(isolate, receiver, kStartAtReceiver,
                          PrototypeIterator::END_AT_NON_HIDDEN);
   do {
-    if (!iter.AdvanceFollowingProxies()) return MaybeHandle<Object>();
+    if (!iter.AdvanceFollowingProxies()) return MaybeHandle<HeapObject>();
   } while (!iter.IsAtEnd());
   return PrototypeIterator::GetCurrent(iter);
 }
@@ -650,12 +650,12 @@ bool JSFunction::PrototypeRequiresRuntimeLookup() {
   return !has_prototype_property() || map()->has_non_instance_prototype();
 }
 
-Object JSFunction::instance_prototype() {
+HeapObject JSFunction::instance_prototype() {
   DCHECK(has_instance_prototype());
   if (has_initial_map()) return initial_map()->prototype();
   // When there is no initial map and the prototype is a JSReceiver, the
   // initial map field is used for the prototype field.
-  return prototype_or_initial_map();
+  return HeapObject::cast(prototype_or_initial_map());
 }
 
 Object JSFunction::prototype() {

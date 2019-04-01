@@ -564,9 +564,11 @@ bool Map::IsPrimitiveMap() const {
   return instance_type() <= LAST_PRIMITIVE_TYPE;
 }
 
-Object Map::prototype() const { return READ_FIELD(*this, kPrototypeOffset); }
+HeapObject Map::prototype() const {
+  return HeapObject::cast(READ_FIELD(*this, kPrototypeOffset));
+}
 
-void Map::set_prototype(Object value, WriteBarrierMode mode) {
+void Map::set_prototype(HeapObject value, WriteBarrierMode mode) {
   DCHECK(value->IsNull() || value->IsJSReceiver());
   WRITE_FIELD(*this, kPrototypeOffset, value);
   CONDITIONAL_WRITE_BARRIER(*this, kPrototypeOffset, value, mode);

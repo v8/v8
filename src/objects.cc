@@ -1327,11 +1327,11 @@ Handle<TemplateList> TemplateList::Add(Isolate* isolate,
 
 // ES6 9.5.1
 // static
-MaybeHandle<Object> JSProxy::GetPrototype(Handle<JSProxy> proxy) {
+MaybeHandle<HeapObject> JSProxy::GetPrototype(Handle<JSProxy> proxy) {
   Isolate* isolate = proxy->GetIsolate();
   Handle<String> trap_name = isolate->factory()->getPrototypeOf_string();
 
-  STACK_CHECK(isolate, MaybeHandle<Object>());
+  STACK_CHECK(isolate, MaybeHandle<HeapObject>());
 
   // 1. Let handler be the value of the [[ProxyHandler]] internal slot.
   // 2. If handler is null, throw a TypeError exception.
@@ -1340,7 +1340,7 @@ MaybeHandle<Object> JSProxy::GetPrototype(Handle<JSProxy> proxy) {
   if (proxy->IsRevoked()) {
     THROW_NEW_ERROR(isolate,
                     NewTypeError(MessageTemplate::kProxyRevoked, trap_name),
-                    Object);
+                    HeapObject);
   }
   Handle<JSReceiver> target(JSReceiver::cast(proxy->target()), isolate);
   Handle<JSReceiver> handler(JSReceiver::cast(proxy->handler()), isolate);
@@ -1348,7 +1348,7 @@ MaybeHandle<Object> JSProxy::GetPrototype(Handle<JSProxy> proxy) {
   // 5. Let trap be ? GetMethod(handler, "getPrototypeOf").
   Handle<Object> trap;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, trap,
-                             Object::GetMethod(handler, trap_name), Object);
+                             Object::GetMethod(handler, trap_name), HeapObject);
   // 6. If trap is undefined, then return target.[[GetPrototypeOf]]().
   if (trap->IsUndefined(isolate)) {
     return JSReceiver::GetPrototype(isolate, target);
@@ -1358,31 +1358,33 @@ MaybeHandle<Object> JSProxy::GetPrototype(Handle<JSProxy> proxy) {
   Handle<Object> handler_proto;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, handler_proto,
-      Execution::Call(isolate, trap, handler, arraysize(argv), argv), Object);
+      Execution::Call(isolate, trap, handler, arraysize(argv), argv),
+      HeapObject);
   // 8. If Type(handlerProto) is neither Object nor Null, throw a TypeError.
   if (!(handler_proto->IsJSReceiver() || handler_proto->IsNull(isolate))) {
     THROW_NEW_ERROR(isolate,
                     NewTypeError(MessageTemplate::kProxyGetPrototypeOfInvalid),
-                    Object);
+                    HeapObject);
   }
   // 9. Let extensibleTarget be ? IsExtensible(target).
   Maybe<bool> is_extensible = JSReceiver::IsExtensible(target);
-  MAYBE_RETURN_NULL(is_extensible);
+  MAYBE_RETURN(is_extensible, MaybeHandle<HeapObject>());
   // 10. If extensibleTarget is true, return handlerProto.
-  if (is_extensible.FromJust()) return handler_proto;
+  if (is_extensible.FromJust()) return Handle<HeapObject>::cast(handler_proto);
   // 11. Let targetProto be ? target.[[GetPrototypeOf]]().
-  Handle<Object> target_proto;
+  Handle<HeapObject> target_proto;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, target_proto,
-                             JSReceiver::GetPrototype(isolate, target), Object);
+                             JSReceiver::GetPrototype(isolate, target),
+                             HeapObject);
   // 12. If SameValue(handlerProto, targetProto) is false, throw a TypeError.
   if (!handler_proto->SameValue(*target_proto)) {
     THROW_NEW_ERROR(
         isolate,
         NewTypeError(MessageTemplate::kProxyGetPrototypeOfNonExtensible),
-        Object);
+        HeapObject);
   }
   // 13. Return handlerProto.
-  return handler_proto;
+  return Handle<HeapObject>::cast(handler_proto);
 }
 
 MaybeHandle<Object> Object::GetPropertyWithAccessor(LookupIterator* it) {

@@ -84,8 +84,8 @@ class JSReceiver : public HeapObject {
       Handle<JSReceiver> receiver);
 
   // Get the first non-hidden prototype.
-  static inline MaybeHandle<Object> GetPrototype(Isolate* isolate,
-                                                 Handle<JSReceiver> receiver);
+  static inline MaybeHandle<HeapObject> GetPrototype(
+      Isolate* isolate, Handle<JSReceiver> receiver);
 
   V8_WARN_UNUSED_RESULT static Maybe<bool> HasInPrototypeChain(
       Isolate* isolate, Handle<JSReceiver> object, Handle<Object> proto);
@@ -604,7 +604,8 @@ class JSObject : public JSReceiver {
 
   // Forces a prototype without any of the checks that the regular SetPrototype
   // would do.
-  static void ForceSetPrototype(Handle<JSObject> object, Handle<Object> proto);
+  static void ForceSetPrototype(Handle<JSObject> object,
+                                Handle<HeapObject> proto);
 
   // Convert the object to use the canonical dictionary
   // representation. If the object is expected to have additional properties
@@ -1057,7 +1058,7 @@ class JSFunction : public JSObject {
   // The initial map for an object created by this constructor.
   inline Map initial_map();
   static void SetInitialMap(Handle<JSFunction> function, Handle<Map> map,
-                            Handle<Object> prototype);
+                            Handle<HeapObject> prototype);
   inline bool has_initial_map();
   static void EnsureHasInitialMap(Handle<JSFunction> function);
 
@@ -1075,7 +1076,7 @@ class JSFunction : public JSObject {
   inline bool has_prototype();
   inline bool has_instance_prototype();
   inline Object prototype();
-  inline Object instance_prototype();
+  inline HeapObject instance_prototype();
   inline bool has_prototype_property();
   inline bool PrototypeRequiresRuntimeLookup();
   static void SetPrototype(Handle<JSFunction> function, Handle<Object> value);

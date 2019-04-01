@@ -2541,7 +2541,7 @@ Handle<JSFunction> Factory::NewFunction(const NewFunctionArgs& args) {
     // TODO(littledan): Why do we have this is_generator test when
     // NewFunctionPrototype already handles finding an appropriately
     // shared prototype?
-    Handle<Object> prototype = args.maybe_prototype_.ToHandleChecked();
+    Handle<HeapObject> prototype = args.maybe_prototype_.ToHandleChecked();
     if (!IsResumableFunction(result->shared()->kind())) {
       if (prototype->IsTheHole(isolate())) {
         prototype = NewFunctionPrototype(result);
@@ -3112,7 +3112,7 @@ Handle<JSObject> Factory::NewSlowJSObjectFromMap(Handle<Map> map, int capacity,
 }
 
 Handle<JSObject> Factory::NewSlowJSObjectWithPropertiesAndElements(
-    Handle<Object> prototype, Handle<NameDictionary> properties,
+    Handle<HeapObject> prototype, Handle<NameDictionary> properties,
     Handle<FixedArrayBase> elements, AllocationType allocation) {
   Handle<Map> object_map = isolate()->slow_object_with_object_prototype_map();
   if (object_map->prototype() != *prototype) {
@@ -3498,7 +3498,7 @@ MaybeHandle<JSBoundFunction> Factory::NewJSBoundFunction(
   }
 
   // Determine the prototype of the {target_function}.
-  Handle<Object> prototype;
+  Handle<HeapObject> prototype;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate(), prototype,
       JSReceiver::GetPrototype(isolate(), target_function), JSBoundFunction);
@@ -4421,7 +4421,7 @@ NewFunctionArgs NewFunctionArgs::ForFunctionWithoutCode(
 
 // static
 NewFunctionArgs NewFunctionArgs::ForBuiltinWithPrototype(
-    Handle<String> name, Handle<Object> prototype, InstanceType type,
+    Handle<String> name, Handle<HeapObject> prototype, InstanceType type,
     int instance_size, int inobject_properties, int builtin_id,
     MutableMode prototype_mutability) {
   DCHECK(Builtins::IsBuiltinId(builtin_id));

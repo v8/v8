@@ -1479,7 +1479,7 @@ Handle<Map> Map::RawCopy(Isolate* isolate, Handle<Map> map, int instance_size,
   Handle<Map> result = isolate->factory()->NewMap(
       map->instance_type(), instance_size, TERMINAL_FAST_ELEMENTS_KIND,
       inobject_properties);
-  Handle<Object> prototype(map->prototype(), isolate);
+  Handle<HeapObject> prototype(map->prototype(), isolate);
   Map::SetPrototype(isolate, result, prototype);
   result->set_constructor_or_backpointer(map->GetConstructor());
   result->set_bit_field(map->bit_field());
@@ -2187,7 +2187,7 @@ Handle<Map> Map::TransitionToDataProperty(Isolate* isolate, Handle<Map> map,
       result = Map::Normalize(isolate, initial_map, CLEAR_INOBJECT_PROPERTIES,
                               reason);
       initial_map->DeprecateTransitionTree(isolate);
-      Handle<Object> prototype(result->prototype(), isolate);
+      Handle<HeapObject> prototype(result->prototype(), isolate);
       JSFunction::SetInitialMap(constructor, result, prototype);
 
       // Deoptimize all code that embeds the previous initial map.
@@ -2630,7 +2630,7 @@ bool Map::IsPrototypeChainInvalidated(Map map) {
 
 // static
 void Map::SetPrototype(Isolate* isolate, Handle<Map> map,
-                       Handle<Object> prototype,
+                       Handle<HeapObject> prototype,
                        bool enable_prototype_setup_mode) {
   RuntimeCallTimerScope stats_scope(isolate, *map,
                                     RuntimeCallCounterId::kMap_SetPrototype);
@@ -2652,6 +2652,8 @@ void Map::SetPrototype(Isolate* isolate, Handle<Map> map,
           FunctionTemplateInfo::cast(maybe_constructor)->hidden_prototype() ||
           prototype->IsJSGlobalObject();
     }
+  } else {
+    DCHECK(prototype->IsNull(isolate) || prototype->IsJSProxy());
   }
   map->set_has_hidden_prototype(is_hidden);
 
@@ -2667,7 +2669,7 @@ void Map::StartInobjectSlackTracking() {
 }
 
 Handle<Map> Map::TransitionToPrototype(Isolate* isolate, Handle<Map> map,
-                                       Handle<Object> prototype) {
+                                       Handle<HeapObject> prototype) {
   Handle<Map> new_map =
       TransitionsAccessor(isolate, map).GetPrototypeTransition(prototype);
   if (new_map.is_null()) {

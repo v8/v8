@@ -386,7 +386,7 @@ V8_NOINLINE Handle<SharedFunctionInfo> SimpleCreateBuiltinSharedFunctionInfo(
 
 V8_NOINLINE Handle<JSFunction> CreateFunction(
     Isolate* isolate, Handle<String> name, InstanceType type, int instance_size,
-    int inobject_properties, Handle<Object> prototype,
+    int inobject_properties, Handle<HeapObject> prototype,
     Builtins::Name builtin_id) {
   Handle<JSFunction> result;
 
@@ -407,7 +407,7 @@ V8_NOINLINE Handle<JSFunction> CreateFunction(
 
 V8_NOINLINE Handle<JSFunction> CreateFunction(
     Isolate* isolate, const char* name, InstanceType type, int instance_size,
-    int inobject_properties, Handle<Object> prototype,
+    int inobject_properties, Handle<HeapObject> prototype,
     Builtins::Name builtin_id) {
   return CreateFunction(
       isolate, isolate->factory()->InternalizeUtf8String(name), type,
@@ -417,7 +417,7 @@ V8_NOINLINE Handle<JSFunction> CreateFunction(
 V8_NOINLINE Handle<JSFunction> InstallFunction(
     Isolate* isolate, Handle<JSObject> target, Handle<String> name,
     InstanceType type, int instance_size, int inobject_properties,
-    Handle<Object> prototype, Builtins::Name call) {
+    Handle<HeapObject> prototype, Builtins::Name call) {
   Handle<JSFunction> function = CreateFunction(
       isolate, name, type, instance_size, inobject_properties, prototype, call);
   JSObject::AddProperty(isolate, target, name, function, DONT_ENUM);
@@ -427,7 +427,7 @@ V8_NOINLINE Handle<JSFunction> InstallFunction(
 V8_NOINLINE Handle<JSFunction> InstallFunction(
     Isolate* isolate, Handle<JSObject> target, const char* name,
     InstanceType type, int instance_size, int inobject_properties,
-    Handle<Object> prototype, Builtins::Name call) {
+    Handle<HeapObject> prototype, Builtins::Name call) {
   return InstallFunction(isolate, target,
                          isolate->factory()->InternalizeUtf8String(name), type,
                          instance_size, inobject_properties, prototype, call);
@@ -5383,7 +5383,7 @@ void Genesis::TransferObject(Handle<JSObject> from, Handle<JSObject> to) {
   TransferIndexedProperties(from, to);
 
   // Transfer the prototype (new map is needed).
-  Handle<Object> proto(from->map()->prototype(), isolate());
+  Handle<HeapObject> proto(from->map()->prototype(), isolate());
   JSObject::ForceSetPrototype(to, proto);
 }
 

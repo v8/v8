@@ -6627,7 +6627,7 @@ Local<v8::Object> v8::Object::New(Isolate* isolate,
   }
   i::Handle<i::JSObject> obj =
       i_isolate->factory()->NewSlowJSObjectWithPropertiesAndElements(
-          proto, properties, elements);
+          i::Handle<i::HeapObject>::cast(proto), properties, elements);
   return Utils::ToLocal(obj);
 }
 
