@@ -2519,6 +2519,10 @@ int Heap::GetFillToAlign(Address address, AllocationAlignment alignment) {
   return 0;
 }
 
+size_t Heap::GetCodeRangeReservedAreaSize() {
+  return kReservedCodeRangePages * MemoryAllocator::GetCommitPageSize();
+}
+
 HeapObject Heap::PrecedeWithFiller(HeapObject object, int filler_size) {
   CreateFillerObjectAt(object->address(), filler_size, ClearRecordedSlots::kNo);
   return HeapObject::FromAddress(object->address() + filler_size);

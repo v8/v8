@@ -433,6 +433,12 @@ Assembler::Assembler(const AssemblerOptions& options,
   if (CpuFeatures::IsSupported(SSE4_1)) {
     EnableCpuFeature(SSSE3);
   }
+
+#if defined(V8_OS_WIN_X64)
+  if (options.collect_win64_unwind_info) {
+    xdata_encoder_ = std::make_unique<win64_unwindinfo::XdataEncoder>(*this);
+  }
+#endif
 }
 
 void Assembler::GetCode(Isolate* isolate, CodeDesc* desc,
@@ -495,6 +501,14 @@ void Assembler::FinalizeJumpOptimizationInfo() {
     }
   }
 }
+
+#if defined(V8_OS_WIN_X64)
+win64_unwindinfo::BuiltinUnwindInfo Assembler::GetUnwindInfo() const {
+  DCHECK(options().collect_win64_unwind_info);
+  DCHECK_NOT_NULL(xdata_encoder_);
+  return xdata_encoder_->unwinding_info();
+}
+#endif
 
 void Assembler::Align(int m) {
   DCHECK(base::bits::IsPowerOfTwo(m));
@@ -1750,6 +1764,12 @@ void Assembler::emit_mov(Register dst, Register src, int size) {
     emit(0x8B);
     emit_modrm(dst, src);
   }
+
+#if defined(V8_OS_WIN_X64)
+  if (xdata_encoder_ && dst == rbp && src == rsp) {
+    xdata_encoder_->onMovRbpRsp();
+  }
+#endif
 }
 
 void Assembler::emit_mov(Operand dst, Register src, int size) {
@@ -2154,6 +2174,12 @@ void Assembler::pushq(Register src) {
   EnsureSpace ensure_space(this);
   emit_optional_rex_32(src);
   emit(0x50 | src.low_bits());
+
+#if defined(V8_OS_WIN_X64)
+  if (xdata_encoder_ && src == rbp) {
+    xdata_encoder_->onPushRbp();
+  }
+#endif
 }
 
 void Assembler::pushq(Operand src) {

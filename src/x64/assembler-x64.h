@@ -47,6 +47,9 @@
 #include "src/x64/constants-x64.h"
 #include "src/x64/register-x64.h"
 #include "src/x64/sse-instr.h"
+#if defined(V8_OS_WIN_X64)
+#include "src/unwinding-info-win64.h"
+#endif
 
 namespace v8 {
 namespace internal {
@@ -1780,6 +1783,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   byte byte_at(int pos) { return buffer_start_[pos]; }
   void set_byte_at(int pos, byte value) { buffer_start_[pos] = value; }
 
+#if defined(V8_OS_WIN_X64)
+  win64_unwindinfo::BuiltinUnwindInfo GetUnwindInfo() const;
+#endif
+
  protected:
   // Call near indirect
   void call(Operand operand);
@@ -2250,6 +2257,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   ConstPool constpool_;
 
   friend class ConstPool;
+
+#if defined(V8_OS_WIN_X64)
+  std::unique_ptr<win64_unwindinfo::XdataEncoder> xdata_encoder_;
+#endif
 };
 
 

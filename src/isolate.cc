@@ -85,6 +85,10 @@
 #include "unicode/uobject.h"
 #endif  // V8_INTL_SUPPORT
 
+#if defined(V8_OS_WIN_X64)
+#include "src/unwinding-info-win64.h"
+#endif
+
 extern "C" const uint8_t* v8_Default_embedded_blob_;
 extern "C" uint32_t v8_Default_embedded_blob_size_;
 
@@ -2949,6 +2953,16 @@ void Isolate::Deinit() {
     heap_profiler()->StopSamplingHeapProfiler();
   }
 
+#if defined(V8_OS_WIN_X64)
+  if (win64_unwindinfo::CanRegisterUnwindInfoForNonABICompliantCodeRange() &&
+      heap()->memory_allocator()) {
+    const base::AddressRegion& code_range =
+        heap()->memory_allocator()->code_range();
+    void* start = reinterpret_cast<void*>(code_range.begin());
+    win64_unwindinfo::UnregisterNonABICompliantCodeRange(start);
+  }
+#endif
+
   debug()->Unload();
 
   wasm_engine()->DeleteCompileJobsOnIsolate(this);
@@ -3518,6 +3532,16 @@ bool Isolate::Init(ReadOnlyDeserializer* read_only_deserializer,
     heap_profiler()->StartSamplingHeapProfiler(sample_interval, stack_depth,
                                                sampling_flags);
   }
+
+#if defined(V8_OS_WIN_X64)
+  if (win64_unwindinfo::CanRegisterUnwindInfoForNonABICompliantCodeRange()) {
+    const base::AddressRegion& code_range =
+        heap()->memory_allocator()->code_range();
+    void* start = reinterpret_cast<void*>(code_range.begin());
+    size_t size_in_bytes = code_range.size();
+    win64_unwindinfo::RegisterNonABICompliantCodeRange(start, size_in_bytes);
+  }
+#endif
 
   if (create_heap_objects && FLAG_profile_deserialization) {
     double ms = timer.Elapsed().InMillisecondsF();
@@ -4326,6 +4350,16 @@ void Isolate::PrepareBuiltinSourcePositionMap() {
         this->builtins());
   }
 }
+
+#if defined(V8_OS_WIN_X64)
+void Isolate::SetBuiltinUnwindData(
+    int builtin_index,
+    const win64_unwindinfo::BuiltinUnwindInfo& unwinding_info) {
+  if (embedded_file_writer_ != nullptr) {
+    embedded_file_writer_->SetBuiltinUnwindData(builtin_index, unwinding_info);
+  }
+}
+#endif
 
 void Isolate::SetPrepareStackTraceCallback(PrepareStackTraceCallback callback) {
   prepare_stack_trace_callback_ = callback;

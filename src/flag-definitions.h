@@ -1412,6 +1412,9 @@ DEFINE_STRING(redirect_code_traces_to, nullptr,
 DEFINE_BOOL(print_opt_source, false,
             "print source code of optimized and inlined functions")
 
+DEFINE_BOOL(win64_unwinding_info, false,
+            "Enable unwinding info for Windows/x64 (experimental).")
+
 #ifdef V8_TARGET_ARCH_ARM
 // Unsupported on arm. See https://crbug.com/v8/8713.
 DEFINE_BOOL_READONLY(

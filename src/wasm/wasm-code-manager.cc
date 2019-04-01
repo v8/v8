@@ -27,6 +27,10 @@
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-objects.h"
 
+#if defined(V8_OS_WIN_X64)
+#include "src/unwinding-info-win64.h"
+#endif
+
 #define TRACE_HEAP(...)                                   \
   do {                                                    \
     if (FLAG_trace_wasm_native_heap) PrintF(__VA_ARGS__); \
@@ -390,6 +394,17 @@ NativeModule::NativeModule(WasmEngine* engine, const WasmFeatures& enabled,
   DCHECK_NOT_NULL(module_);
   owned_code_space_.emplace_back(std::move(code_space));
   owned_code_.reserve(num_functions());
+
+#if defined(V8_OS_WIN_X64)
+  // On some platforms, specifically Win64, we need to reserve some pages at
+  // the beginning of an executable space.
+  // See src/heap/spaces.cc, MemoryAllocator::InitializeCodePageAllocator() and
+  // https://cs.chromium.org/chromium/src/components/crash/content/app/crashpad_win.cc?rcl=fd680447881449fba2edcf0589320e7253719212&l=204
+  // for details.
+  if (win64_unwindinfo::CanRegisterUnwindInfoForNonABICompliantCodeRange()) {
+    AllocateForCode(Heap::GetCodeRangeReservedAreaSize());
+  }
+#endif
 
   uint32_t num_wasm_functions = module_->num_declared_functions;
   if (num_wasm_functions > 0) {
@@ -1198,6 +1213,14 @@ std::shared_ptr<NativeModule> WasmCodeManager::NewNativeModule(
   DCHECK_NOT_NULL(ret);
   TRACE_HEAP("New NativeModule %p: Mem: %" PRIuPTR ",+%zu\n", ret.get(), start,
              size);
+
+#if defined(V8_OS_WIN_X64)
+  if (win64_unwindinfo::CanRegisterUnwindInfoForNonABICompliantCodeRange()) {
+    win64_unwindinfo::RegisterNonABICompliantCodeRange(
+        reinterpret_cast<void*>(start), size);
+  }
+#endif
+
   base::MutexGuard lock(&native_modules_mutex_);
   lookup_map_.insert(std::make_pair(start, std::make_pair(end, ret.get())));
   return ret;
@@ -1329,6 +1352,14 @@ void WasmCodeManager::FreeNativeModule(NativeModule* native_module) {
     DCHECK(code_space.IsReserved());
     TRACE_HEAP("VMem Release: %" PRIxPTR ":%" PRIxPTR " (%zu)\n",
                code_space.address(), code_space.end(), code_space.size());
+
+#if defined(V8_OS_WIN_X64)
+    if (win64_unwindinfo::CanRegisterUnwindInfoForNonABICompliantCodeRange()) {
+      win64_unwindinfo::UnregisterNonABICompliantCodeRange(
+          reinterpret_cast<void*>(code_space.address()));
+    }
+#endif
+
     lookup_map_.erase(code_space.address());
     memory_tracker_->ReleaseReservation(code_space.size());
     code_space.Free();

@@ -166,6 +166,10 @@ struct V8_EXPORT_PRIVATE AssemblerOptions {
   // this flag, the code range must be small enough to fit all offsets into
   // the instruction immediates.
   bool use_pc_relative_calls_and_jumps = false;
+  // Enables the collection of information useful for the generation of unwind
+  // info. This is useful in some platform (Win64) where the unwind info depends
+  // on a function prologue/epilogue.
+  bool collect_win64_unwind_info = false;
 
   // Constructs V8-agnostic set of options from current state.
   AssemblerOptions EnableV8AgnosticCode() const;
