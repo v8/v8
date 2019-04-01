@@ -243,7 +243,7 @@ class V8_EXPORT_PRIVATE JSFunctionRef : public JSObjectRef {
   bool PrototypeRequiresRuntimeLookup() const;
 
   void Serialize();
-  bool IsSerializedForCompilation() const;
+  bool serialized() const;
 
   // The following are available only after calling Serialize().
   ObjectRef prototype() const;
@@ -253,6 +253,8 @@ class V8_EXPORT_PRIVATE JSFunctionRef : public JSObjectRef {
   SharedFunctionInfoRef shared() const;
   FeedbackVectorRef feedback_vector() const;
   int InitialMapInstanceSizeWithMinSlack() const;
+
+  bool IsSerializedForCompilation() const;
 };
 
 class JSRegExpRef : public JSObjectRef {

@@ -856,7 +856,8 @@ void SerializerForBackgroundCompilation::VisitLdaKeyedProperty(
 }
 
 void SerializerForBackgroundCompilation::ProcessNamedPropertyAccess(
-    Hints const& receiver, NameRef const& name, FeedbackSlot slot) {
+    Hints const& receiver, NameRef const& name, FeedbackSlot slot,
+    AccessMode mode) {
   if (!slot.IsInvalid()) ProcessFeedbackForNamedPropertyAccess(slot, name);
 
   for (Handle<Map> map :
@@ -866,29 +867,42 @@ void SerializerForBackgroundCompilation::ProcessNamedPropertyAccess(
 
   JSGlobalProxyRef global_proxy =
       broker()->native_context().global_proxy_object();
-  for (Handle<Object> object : receiver.constants()) {
+
+  for (Handle<Object> hint : receiver.constants()) {
+    ObjectRef object(broker(), hint);
     // For JSNativeContextSpecialization::ReduceNamedAccessFromNexus.
-    if (object.equals(global_proxy.object())) {
+    if (object.equals(global_proxy)) {
       global_proxy.GetPropertyCell(name, true);
+    }
+    // For JSNativeContextSpecialization::ReduceJSLoadNamed.
+    if (mode == AccessMode::kLoad && object.IsJSFunction() &&
+        name.equals(ObjectRef(
+            broker(), broker()->isolate()->factory()->prototype_string()))) {
+      object.AsJSFunction().Serialize();
     }
   }
 
   environment()->accumulator_hints().Clear();
 }
 
-void SerializerForBackgroundCompilation::VisitLdaNamedProperty(
-    BytecodeArrayIterator* iterator) {
+void SerializerForBackgroundCompilation::ProcessNamedPropertyAccess(
+    BytecodeArrayIterator* iterator, AccessMode mode) {
   Hints const& receiver =
       environment()->register_hints(iterator->GetRegisterOperand(0));
   Handle<Name> name(Name::cast(iterator->GetConstantForIndexOperand(1)),
                     broker()->isolate());
   FeedbackSlot slot = iterator->GetSlotOperand(2);
-  ProcessNamedPropertyAccess(receiver, NameRef(broker(), name), slot);
+  ProcessNamedPropertyAccess(receiver, NameRef(broker(), name), slot, mode);
+}
+
+void SerializerForBackgroundCompilation::VisitLdaNamedProperty(
+    BytecodeArrayIterator* iterator) {
+  ProcessNamedPropertyAccess(iterator, AccessMode::kLoad);
 }
 
 void SerializerForBackgroundCompilation::VisitStaNamedProperty(
     BytecodeArrayIterator* iterator) {
-  VisitLdaNamedProperty(iterator);
+  ProcessNamedPropertyAccess(iterator, AccessMode::kStore);
 }
 
 void SerializerForBackgroundCompilation::VisitTestIn(

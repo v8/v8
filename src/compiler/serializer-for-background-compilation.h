@@ -247,14 +247,14 @@ class SerializerForBackgroundCompilation {
   void ProcessCallVarArgs(interpreter::BytecodeArrayIterator* iterator,
                           ConvertReceiverMode receiver_mode,
                           bool with_spread = false);
+
   void ProcessJump(interpreter::BytecodeArrayIterator* iterator);
   void MergeAfterJump(interpreter::BytecodeArrayIterator* iterator);
-  void ProcessNamedPropertyAccess(Hints const& receiver, NameRef const& name,
-                                  FeedbackSlot slot);
 
-  Hints RunChildSerializer(CompilationSubject function,
-                           base::Optional<Hints> new_target,
-                           const HintsVector& arguments, bool with_spread);
+  void ProcessNamedPropertyAccess(interpreter::BytecodeArrayIterator* iterator,
+                                  AccessMode mode);
+  void ProcessNamedPropertyAccess(Hints const& receiver, NameRef const& name,
+                                  FeedbackSlot slot, AccessMode mode);
 
   GlobalAccessFeedback const* ProcessFeedbackForGlobalAccess(FeedbackSlot slot);
   void ProcessFeedbackForKeyedPropertyAccess(FeedbackSlot slot,
@@ -262,6 +262,10 @@ class SerializerForBackgroundCompilation {
   void ProcessFeedbackForNamedPropertyAccess(FeedbackSlot slot,
                                              NameRef const& name);
   void ProcessMapForNamedPropertyAccess(MapRef const& map, NameRef const& name);
+
+  Hints RunChildSerializer(CompilationSubject function,
+                           base::Optional<Hints> new_target,
+                           const HintsVector& arguments, bool with_spread);
 
   JSHeapBroker* broker() const { return broker_; }
   Zone* zone() const { return zone_; }

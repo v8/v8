@@ -1384,9 +1384,13 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadNamed(Node* node) {
         name.equals(ObjectRef(broker(), factory()->prototype_string()))) {
       // Optimize "prototype" property of functions.
       JSFunctionRef function = object.AsJSFunction();
-      // TODO(neis): This is a temporary hack needed because the copy reducer
-      // runs only after this pass.
-      function.Serialize();
+      if (!FLAG_concurrent_inlining) {
+        function.Serialize();
+      } else if (!function.serialized()) {
+        TRACE_BROKER(broker(), "ReduceJSLoadNamed: missing data for function "
+                                   << function.object().address() << "\n");
+        return NoChange();
+      }
       // TODO(neis): Remove the has_prototype_slot condition once the broker is
       // always enabled.
       if (!function.map().has_prototype_slot() || !function.has_prototype() ||

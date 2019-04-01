@@ -325,6 +325,7 @@ class JSFunctionData : public JSObjectData {
   }
 
   void Serialize(JSHeapBroker* broker);
+  bool serialized() const { return serialized_; }
 
   ContextData* context() const { return context_; }
   NativeContextData* native_context() const { return native_context_; }
@@ -2862,6 +2863,11 @@ void JSFunctionRef::Serialize() {
   if (broker()->mode() == JSHeapBroker::kDisabled) return;
   CHECK_EQ(broker()->mode(), JSHeapBroker::kSerializing);
   data()->AsJSFunction()->Serialize(broker());
+}
+
+bool JSFunctionRef::serialized() const {
+  CHECK_NE(broker()->mode(), JSHeapBroker::kDisabled);
+  return data()->AsJSFunction()->serialized();
 }
 
 bool JSFunctionRef::IsSerializedForCompilation() const {
