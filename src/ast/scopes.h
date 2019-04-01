@@ -31,7 +31,7 @@ class StringSet;
 class VariableProxy;
 
 // A hash map to support fast variable declaration and lookup.
-class VariableMap: public ZoneHashMap {
+class VariableMap : public ZoneHashMap {
  public:
   explicit VariableMap(Zone* zone);
 
@@ -40,7 +40,7 @@ class VariableMap: public ZoneHashMap {
                     InitializationFlag initialization_flag,
                     MaybeAssignedFlag maybe_assigned_flag, bool* was_added);
 
-  Variable* Lookup(const AstRawString* name);
+  V8_EXPORT_PRIVATE Variable* Lookup(const AstRawString* name);
   void Remove(Variable* var);
   void Add(Zone* zone, Variable* var);
 };

@@ -228,7 +228,7 @@ class Expression : public AstNode {
   bool IsSmiLiteral() const;
 
   // True iff the expression is a literal represented as a number.
-  bool IsNumberLiteral() const;
+  V8_EXPORT_PRIVATE bool IsNumberLiteral() const;
 
   // True iff the expression is a string literal.
   bool IsStringLiteral() const;
@@ -2233,7 +2233,7 @@ class FunctionLiteral final : public Expression {
     return function_literal_id() == kFunctionLiteralIdTopLevel;
   }
   bool is_wrapped() const { return function_type() == kWrapped; }
-  LanguageMode language_mode() const;
+  V8_EXPORT_PRIVATE LanguageMode language_mode() const;
 
   static bool NeedsHomeObject(Expression* expr);
 
@@ -2300,7 +2300,7 @@ class FunctionLiteral final : public Expression {
   // function will be called immediately:
   // - (function() { ... })();
   // - var x = function() { ... }();
-  bool ShouldEagerCompile() const;
+  V8_EXPORT_PRIVATE bool ShouldEagerCompile() const;
   V8_EXPORT_PRIVATE void SetShouldEagerCompile();
 
   FunctionType function_type() const {

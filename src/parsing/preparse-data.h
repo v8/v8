@@ -89,8 +89,8 @@ struct PreparseByteDataConstants {
       4 * kVarint32MaxSize + 1 * kUint8Size;
 };
 
-class PreparseDataBuilder : public ZoneObject,
-                            public PreparseByteDataConstants {
+class V8_EXPORT_PRIVATE PreparseDataBuilder : public ZoneObject,
+                                              public PreparseByteDataConstants {
  public:
   // Create a PreparseDataBuilder object which will collect data as we
   // parse.
@@ -125,7 +125,8 @@ class PreparseDataBuilder : public ZoneObject,
     DISALLOW_COPY_AND_ASSIGN(DataGatheringScope);
   };
 
-  class ByteData : public ZoneObject, public PreparseByteDataConstants {
+  class V8_EXPORT_PRIVATE ByteData : public ZoneObject,
+                                     public PreparseByteDataConstants {
    public:
     ByteData()
         : byte_data_(nullptr), index_(0), free_quarters_in_last_byte_(0) {}
@@ -271,8 +272,8 @@ class ConsumedPreparseData {
  public:
   // Creates a ConsumedPreparseData representing the data of an on-heap
   // PreparseData |data|.
-  static std::unique_ptr<ConsumedPreparseData> For(Isolate* isolate,
-                                                   Handle<PreparseData> data);
+  V8_EXPORT_PRIVATE static std::unique_ptr<ConsumedPreparseData> For(
+      Isolate* isolate, Handle<PreparseData> data);
 
   // Creates a ConsumedPreparseData representing the data of an off-heap
   // ZonePreparseData |data|.
