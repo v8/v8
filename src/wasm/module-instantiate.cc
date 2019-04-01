@@ -6,7 +6,9 @@
 
 #include "src/asmjs/asm-js.h"
 #include "src/conversions-inl.h"
+#include "src/counters.h"
 #include "src/property-descriptor.h"
+#include "src/tracing/trace-event.h"
 #include "src/utils.h"
 #include "src/wasm/module-compiler.h"
 #include "src/wasm/wasm-import-wrapper-cache.h"

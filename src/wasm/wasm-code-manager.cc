@@ -10,6 +10,7 @@
 #include "src/base/adapters.h"
 #include "src/base/macros.h"
 #include "src/base/platform/platform.h"
+#include "src/counters.h"
 #include "src/disassembler.h"
 #include "src/globals.h"
 #include "src/log.h"
@@ -367,6 +368,22 @@ WasmCode::~WasmCode() {
     CHECK_LT(trap_handler_index(),
              static_cast<size_t>(std::numeric_limits<int>::max()));
     trap_handler::ReleaseHandlerData(static_cast<int>(trap_handler_index()));
+  }
+}
+
+void WasmCode::DecrementRefCount(Vector<WasmCode*> code_vec) {
+  // Decrement the ref counter of all given code objects. Keep the ones whose
+  // ref count drops to zero.
+  std::unordered_map<NativeModule*, std::vector<WasmCode*>> dead_code;
+  for (WasmCode* code : code_vec) {
+    if (code->DecRef()) dead_code[code->native_module()].push_back(code);
+  }
+
+  // For each native module, free all its code objects at once.
+  for (auto& dead_code_entry : dead_code) {
+    NativeModule* native_module = dead_code_entry.first;
+    Vector<WasmCode*> code_vec = VectorOf(dead_code_entry.second);
+    native_module->FreeCode(code_vec);
   }
 }
 
@@ -1053,6 +1070,10 @@ NativeModule::~NativeModule() {
   // NativeModule or freeing anything.
   compilation_state_->AbortCompilation();
   engine_->FreeNativeModule(this);
+  // Free the import wrapper cache before releasing the {WasmCode} objects in
+  // {owned_code_}. The destructor of {WasmImportWrapperCache} still needs to
+  // decrease reference counts on the {WasmCode} objects.
+  import_wrapper_cache_.reset();
 }
 
 WasmCodeManager::WasmCodeManager(WasmMemoryTracker* memory_tracker,
@@ -1420,40 +1441,6 @@ NativeModuleModificationScope::~NativeModuleModificationScope() {
 
 namespace {
 thread_local WasmCodeRefScope* current_code_refs_scope = nullptr;
-
-// Receives a vector by value which is modified in this function.
-void DecrementRefCount(std::vector<WasmCode*> code_vec) {
-  // Decrement the ref counter of all given code objects. Keep the ones whose
-  // ref count drops to zero.
-  auto remaining_elements_it = code_vec.begin();
-  for (auto it = code_vec.begin(), end = code_vec.end(); it != end; ++it) {
-    if ((*it)->DecRef()) *remaining_elements_it++ = *it;
-  }
-  code_vec.resize(remaining_elements_it - code_vec.begin());
-
-  // Sort the vector by NativeModule, then by instruction start.
-  std::sort(code_vec.begin(), code_vec.end(),
-            [](const WasmCode* a, const WasmCode* b) {
-              return a->native_module() == b->native_module()
-                         ? a->instruction_start() < b->instruction_start()
-                         : a->native_module() < b->native_module();
-            });
-  // For each native module, free all its code objects at once.
-  auto range_begin = code_vec.begin();
-  while (range_begin != code_vec.end()) {
-    NativeModule* native_module = (*range_begin)->native_module();
-    auto range_end = range_begin + 1;
-    while (range_end < code_vec.end() &&
-           (*range_end)->native_module() == native_module) {
-      ++range_end;
-    }
-    size_t range_size = static_cast<size_t>(range_end - range_begin);
-    Vector<WasmCode*> code_vec{&*range_begin, range_size};
-    native_module->FreeCode(code_vec);
-    range_begin = range_end;
-  }
-}
-
 }  // namespace
 
 WasmCodeRefScope::WasmCodeRefScope()
@@ -1464,7 +1451,10 @@ WasmCodeRefScope::WasmCodeRefScope()
 WasmCodeRefScope::~WasmCodeRefScope() {
   DCHECK_EQ(this, current_code_refs_scope);
   current_code_refs_scope = previous_scope_;
-  DecrementRefCount({code_ptrs_.begin(), code_ptrs_.end()});
+  std::vector<WasmCode*> code_ptrs;
+  code_ptrs.reserve(code_ptrs_.size());
+  code_ptrs.assign(code_ptrs_.begin(), code_ptrs_.end());
+  WasmCode::DecrementRefCount(VectorOf(code_ptrs));
 }
 
 // static

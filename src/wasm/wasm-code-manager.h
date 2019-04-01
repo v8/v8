@@ -167,6 +167,10 @@ class V8_EXPORT_PRIVATE WasmCode final {
     return old_count == 1;
   }
 
+  // Decrement the ref count on set of {WasmCode} objects, potentially belonging
+  // to different {NativeModule}s.
+  static void DecrementRefCount(Vector<WasmCode*>);
+
   enum FlushICache : bool { kFlushICache = true, kNoFlushICache = false };
 
   static constexpr uint32_t kAnonymousFuncIndex = 0xffffffff;

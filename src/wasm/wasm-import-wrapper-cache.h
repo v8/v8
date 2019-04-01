@@ -5,40 +5,35 @@
 #ifndef V8_WASM_WASM_IMPORT_WRAPPER_CACHE_H_
 #define V8_WASM_WASM_IMPORT_WRAPPER_CACHE_H_
 
+#include "src/base/platform/mutex.h"
 #include "src/compiler/wasm-compiler.h"
-#include "src/counters.h"
-#include "src/wasm/value-type.h"
-#include "src/wasm/wasm-code-manager.h"
 
 namespace v8 {
 namespace internal {
+
+class Counters;
+
 namespace wasm {
+
+class WasmCode;
+class WasmEngine;
+
+using FunctionSig = Signature<ValueType>;
 
 // Implements a cache for import wrappers.
 class WasmImportWrapperCache {
  public:
+  ~WasmImportWrapperCache();
+
   WasmCode* GetOrCompile(WasmEngine* wasm_engine, Counters* counters,
-                         compiler::WasmImportCallKind kind, FunctionSig* sig) {
-    base::MutexGuard lock(&mutex_);
-    CacheKey key(static_cast<uint8_t>(kind), *sig);
-    WasmCode*& cached = entry_map_[key];
-    if (cached == nullptr) {
-      // TODO(wasm): no need to hold the lock while compiling an import wrapper.
-      bool source_positions = native_module_->module()->origin == kAsmJsOrigin;
-      cached = compiler::CompileWasmImportCallWrapper(
-          wasm_engine, native_module_, kind, sig, source_positions);
-      counters->wasm_generated_code_size()->Increment(
-          cached->instructions().length());
-      counters->wasm_reloc_size()->Increment(cached->reloc_info().length());
-    }
-    return cached;
-  }
+                         compiler::WasmImportCallKind kind, FunctionSig* sig);
 
  private:
   friend class NativeModule;
+  using CacheKey = std::pair<uint8_t, FunctionSig>;
+
   mutable base::Mutex mutex_;
   NativeModule* native_module_;
-  using CacheKey = std::pair<uint8_t, FunctionSig>;
   std::unordered_map<CacheKey, WasmCode*, base::hash<CacheKey>> entry_map_;
 
   explicit WasmImportWrapperCache(NativeModule* native_module)
