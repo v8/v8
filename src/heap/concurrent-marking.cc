@@ -93,7 +93,11 @@ class ConcurrentMarkingVisitor final
         task_id_(task_id),
         embedder_tracing_enabled_(embedder_tracing_enabled),
         mark_compact_epoch_(mark_compact_epoch),
-        is_forced_gc_(is_forced_gc) {}
+        is_forced_gc_(is_forced_gc) {
+    // It is not safe to access flags from concurrent marking visitor. So
+    // set the bytecode flush mode based on the flags here
+    bytecode_flush_mode_ = Heap::GetBytecodeFlushMode();
+  }
 
   template <typename T>
   static V8_INLINE T Cast(HeapObject object) {
@@ -379,7 +383,7 @@ class ConcurrentMarkingVisitor final
 
     // If the SharedFunctionInfo has old bytecode, mark it as flushable,
     // otherwise visit the function data field strongly.
-    if (shared_info->ShouldFlushBytecode()) {
+    if (shared_info->ShouldFlushBytecode(bytecode_flush_mode_)) {
       weak_objects_->bytecode_flushing_candidates.Push(task_id_, shared_info);
     } else {
       VisitPointer(shared_info, shared_info->RawField(
@@ -403,7 +407,8 @@ class ConcurrentMarkingVisitor final
     int size = VisitJSObjectSubclass(map, object);
 
     // Check if the JSFunction needs reset due to bytecode being flushed.
-    if (object->NeedsResetDueToFlushedBytecode()) {
+    if (bytecode_flush_mode_ == BytecodeFlushMode::kDoNotFlushBytecode &&
+        object->NeedsResetDueToFlushedBytecode()) {
       weak_objects_->flushed_js_functions.Push(task_id_, object);
     }
 
@@ -688,6 +693,7 @@ class ConcurrentMarkingVisitor final
   bool embedder_tracing_enabled_;
   const unsigned mark_compact_epoch_;
   bool is_forced_gc_;
+  BytecodeFlushMode bytecode_flush_mode_;
 };
 
 // Strings can change maps due to conversion to thin string or external strings.

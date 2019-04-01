@@ -678,8 +678,6 @@ bool JSFunction::is_compiled() const {
 }
 
 bool JSFunction::NeedsResetDueToFlushedBytecode() {
-  if (!FLAG_flush_bytecode) return false;
-
   // Do a raw read for shared and code fields here since this function may be
   // called on a concurrent thread and the JSFunction might not be fully
   // initialized yet.
@@ -697,7 +695,7 @@ bool JSFunction::NeedsResetDueToFlushedBytecode() {
 }
 
 void JSFunction::ResetIfBytecodeFlushed() {
-  if (NeedsResetDueToFlushedBytecode()) {
+  if (FLAG_flush_bytecode && NeedsResetDueToFlushedBytecode()) {
     // Bytecode was flushed and function is now uncompiled, reset JSFunction
     // by setting code to CompileLazy and clearing the feedback vector.
     set_code(GetIsolate()->builtins()->builtin(i::Builtins::kCompileLazy));

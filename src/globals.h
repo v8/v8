@@ -773,6 +773,12 @@ enum VisitMode {
   VISIT_FOR_SERIALIZATION,
 };
 
+enum class BytecodeFlushMode {
+  kDoNotFlushBytecode,
+  kFlushBytecode,
+  kStressFlushBytecode,
+};
+
 // Flag indicating whether code is built into the VM (one of the natives files).
 enum NativesFlag {
   NOT_NATIVES_CODE,

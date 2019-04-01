@@ -86,7 +86,7 @@ int MarkingVisitor<fixed_array_mode, retaining_path_mode, MarkingState>::
 
   // If the SharedFunctionInfo has old bytecode, mark it as flushable,
   // otherwise visit the function data field strongly.
-  if (shared_info->ShouldFlushBytecode()) {
+  if (shared_info->ShouldFlushBytecode(Heap::GetBytecodeFlushMode())) {
     collector_->AddBytecodeFlushingCandidate(shared_info);
   } else {
     VisitPointer(shared_info,
