@@ -1349,7 +1349,7 @@ struct GenericLoweringPhase {
   void Run(PipelineData* data, Zone* temp_zone) {
     GraphReducer graph_reducer(temp_zone, data->graph(),
                                data->jsgraph()->Dead());
-    JSGenericLowering generic_lowering(data->jsgraph());
+    JSGenericLowering generic_lowering(data->jsgraph(), &graph_reducer);
     AddReducer(data, &graph_reducer, &generic_lowering);
     graph_reducer.ReduceGraph();
   }

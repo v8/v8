@@ -825,7 +825,7 @@ const Operator* JSOperatorBuilder::StoreInArrayLiteral(
       IrOpcode::kJSStoreInArrayLiteral,
       Operator::kNoThrow,       // opcode
       "JSStoreInArrayLiteral",  // name
-      3, 1, 1, 0, 1, 0,         // counts
+      3, 1, 1, 0, 1, 1,         // counts
       parameters);              // parameter
 }
 
