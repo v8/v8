@@ -503,12 +503,7 @@ bool NativeModuleDeserializer::ReadHeader(Reader* reader) {
 
 bool NativeModuleDeserializer::ReadCode(uint32_t fn_index, Reader* reader) {
   size_t code_section_size = reader->Read<size_t>();
-  if (code_section_size == 0) {
-    DCHECK(FLAG_wasm_lazy_compilation ||
-           native_module_->enabled_features().compilation_hints);
-    native_module_->UseLazyStub(fn_index);
-    return true;
-  }
+  if (code_section_size == 0) return true;
   size_t constant_pool_offset = reader->Read<size_t>();
   size_t safepoint_table_offset = reader->Read<size_t>();
   size_t handler_table_offset = reader->Read<size_t>();
@@ -630,8 +625,9 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
       std::move(wire_bytes_copy), script, Handle<ByteArray>::null());
   NativeModule* native_module = module_object->native_module();
 
-  native_module->set_lazy_compilation(FLAG_wasm_lazy_compilation);
-
+  if (FLAG_wasm_lazy_compilation) {
+    native_module->SetLazyBuiltin();
+  }
   NativeModuleDeserializer deserializer(native_module);
 
   Reader reader(data + kVersionSize);
