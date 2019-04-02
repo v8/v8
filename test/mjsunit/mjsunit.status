@@ -810,6 +810,7 @@
   'compiler/array-slice-clone': [SKIP],
   'compiler/dataview-neutered': [SKIP],
   'compiler/native-context-specialization-hole-check': [SKIP],
+  'compiler/regress-5320': [SKIP],
   'elements-transition-hoisting': [SKIP],
   'es6/collections-constructor-custom-iterator': [SKIP],
   'field-type-tracking': [SKIP],
