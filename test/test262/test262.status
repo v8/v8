@@ -457,6 +457,13 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=7472
   'intl402/NumberFormat/currency-digits': [FAIL],
 
+  # https://bugs.chromium.org/p/chromium/issues/detail?id=943348
+  'intl402/ListFormat/prototype/format/en-us-short': [FAIL],
+  'intl402/ListFormat/prototype/formatToParts/en-us-short': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=9040
+  'intl402/ListFormat/constructor/constructor/options-style-valid': [FAIL],
+
   # https://bugs.chromium.org/p/v8/issues/detail?id=7831
   'language/statements/generators/generator-created-after-decl-inst': [FAIL],
   'language/expressions/generators/generator-created-after-decl-inst': [FAIL],
@@ -610,6 +617,10 @@
   'built-ins/RegExp/property-escapes/generated/XID_Continue': [FAIL],
   'built-ins/RegExp/property-escapes/generated/XID_Start': [FAIL],
 
+  # https://bugs.chromium.org/p/v8/issues/detail?id=9081
+  'built-ins/Date/prototype/toUTCString/negative-year': [FAIL],
+  'built-ins/Date/prototype/toString/negative-year': [FAIL],
+  'built-ins/Date/prototype/toDateString/negative-year': [FAIL],
   ######################## NEEDS INVESTIGATION ###########################
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7833
