@@ -297,6 +297,18 @@ struct BranchDepthImmediate {
 };
 
 template <Decoder::ValidateFlag validate>
+struct BranchOnExceptionImmediate {
+  BranchDepthImmediate<validate> depth;
+  ExceptionIndexImmediate<validate> index;
+  uint32_t length = 0;
+  inline BranchOnExceptionImmediate(Decoder* decoder, const byte* pc)
+      : depth(BranchDepthImmediate<validate>(decoder, pc)),
+        index(ExceptionIndexImmediate<validate>(decoder, pc + depth.length)) {
+    length = depth.length + index.length;
+  }
+};
+
+template <Decoder::ValidateFlag validate>
 struct CallIndirectImmediate {
   uint32_t table_index;
   uint32_t sig_index;
@@ -1203,9 +1215,8 @@ class WasmDecoder : public Decoder {
       }
 
       case kExprBrOnExn: {
-        BranchDepthImmediate<validate> imm_br(decoder, pc);
-        ExceptionIndexImmediate<validate> imm_idx(decoder, pc + imm_br.length);
-        return 1 + imm_br.length + imm_idx.length;
+        BranchOnExceptionImmediate<validate> imm(decoder, pc);
+        return 1 + imm.length;
       }
 
       case kExprSetLocal:
@@ -1736,14 +1747,12 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         }
         case kExprBrOnExn: {
           CHECK_PROTOTYPE_OPCODE(eh);
-          BranchDepthImmediate<validate> imm_br(this, this->pc_);
-          if (!this->Validate(this->pc_, imm_br, control_.size())) break;
-          ExceptionIndexImmediate<validate> imm_idx(this,
-                                                    this->pc_ + imm_br.length);
-          if (!this->Validate(this->pc_ + imm_br.length, imm_idx)) break;
-          Control* c = control_at(imm_br.depth);
+          BranchOnExceptionImmediate<validate> imm(this, this->pc_);
+          if (!this->Validate(this->pc_, imm.depth, control_.size())) break;
+          if (!this->Validate(this->pc_ + imm.depth.length, imm.index)) break;
+          Control* c = control_at(imm.depth.depth);
           auto exception = Pop(0, kWasmExceptRef);
-          const WasmExceptionSig* sig = imm_idx.exception->sig;
+          const WasmExceptionSig* sig = imm.index.exception->sig;
           size_t value_count = sig->parameter_count();
           // TODO(mstarzinger): This operand stack mutation is an ugly hack to
           // make both type checking here as well as environment merging in the
@@ -1753,11 +1762,11 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           Vector<Value> values(stack_.data() + c->stack_depth, value_count);
           if (!TypeCheckBranch(c)) break;
           if (control_.back().reachable()) {
-            CALL_INTERFACE(BrOnException, exception, imm_idx, imm_br.depth,
+            CALL_INTERFACE(BrOnException, exception, imm.index, imm.depth.depth,
                            values);
             c->br_merge()->reached = true;
           }
-          len = 1 + imm_br.length + imm_idx.length;
+          len = 1 + imm.length;
           for (size_t i = 0; i < value_count; ++i) Pop();
           auto* pexception = Push(kWasmExceptRef);
           *pexception = exception;

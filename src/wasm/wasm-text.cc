@@ -120,11 +120,9 @@ void PrintWasmText(const WasmModule* module, const ModuleWireBytes& wire_bytes,
         break;
       }
       case kExprBrOnExn: {
-        BranchDepthImmediate<Decoder::kNoValidate> imm_br(&i, i.pc());
-        ExceptionIndexImmediate<Decoder::kNoValidate> imm_idx(
-            &i, i.pc() + imm_br.length);
-        os << WasmOpcodes::OpcodeName(opcode) << ' ' << imm_br.depth << ' '
-           << imm_idx.index;
+        BranchOnExceptionImmediate<Decoder::kNoValidate> imm(&i, i.pc());
+        os << WasmOpcodes::OpcodeName(opcode) << ' ' << imm.depth.depth << ' '
+           << imm.index.index;
         break;
       }
       case kExprElse:
