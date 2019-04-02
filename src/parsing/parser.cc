@@ -347,7 +347,12 @@ Expression* Parser::NewV8Intrinsic(const AstRawString* name,
     GetClosureScope()->ForceEagerCompilation();
   }
 
-  DCHECK(name->is_one_byte());
+  if (!name->is_one_byte()) {
+    // There are no two-byte named intrinsics.
+    ReportMessage(MessageTemplate::kNotDefined, name);
+    return FailureExpression();
+  }
+
   const Runtime::Function* function =
       Runtime::FunctionForName(name->raw_data(), name->length());
 
