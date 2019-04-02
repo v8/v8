@@ -101,8 +101,20 @@ v8_add_configs = [
   v8_path_prefix + ":toolchain",
 ]
 
-v8_remove_configs += [ "//build/config/compiler:default_optimization" ]
-v8_add_configs += [ v8_path_prefix + ":default_optimization" ]
+if (is_debug && !v8_optimized_debug) {
+  v8_remove_configs += [ "//build/config/compiler:default_optimization" ]
+  v8_add_configs += [ "//build/config/compiler:no_optimize" ]
+} else {
+  v8_remove_configs += [ "//build/config/compiler:default_optimization" ]
+
+  # TODO(crbug.com/621335) Rework this so that we don't have the confusion
+  # between "optimize_speed" and "optimize_max".
+  if (((is_posix && !is_android) || is_fuchsia) && !using_sanitizer) {
+    v8_add_configs += [ "//build/config/compiler:optimize_speed" ]
+  } else {
+    v8_add_configs += [ "//build/config/compiler:optimize_max" ]
+  }
+}
 
 if (v8_code_coverage && !is_clang) {
   v8_add_configs += [
@@ -144,21 +156,21 @@ template("v8_source_set") {
                              "configs",
                              "remove_configs",
                            ])
-    configs -= v8_remove_configs
-    configs += v8_add_configs
     if (defined(invoker.remove_configs)) {
       configs -= invoker.remove_configs
     }
     configs += invoker.configs
+    configs -= v8_remove_configs
+    configs += v8_add_configs
   }
 }
 
 template("v8_header_set") {
   jumbo_source_set(target_name) {
     forward_variables_from(invoker, "*", [ "configs" ])
+    configs += invoker.configs
     configs -= v8_remove_configs
     configs += v8_add_configs
-    configs += invoker.configs
   }
 }
 
@@ -170,12 +182,12 @@ template("v8_executable") {
                              "configs",
                              "remove_configs",
                            ])
-    configs -= v8_remove_configs
-    configs += v8_add_configs
     if (defined(invoker.remove_configs)) {
       configs -= invoker.remove_configs
     }
     configs += invoker.configs
+    configs -= v8_remove_configs
+    configs += v8_add_configs
     if (is_linux) {
       # For enabling ASLR.
       ldflags = [ "-pie" ]
@@ -198,9 +210,9 @@ template("v8_executable") {
 template("v8_component") {
   component(target_name) {
     forward_variables_from(invoker, "*", [ "configs" ])
+    configs += invoker.configs
     configs -= v8_remove_configs
     configs += v8_add_configs
-    configs += invoker.configs
   }
 }
 
@@ -208,9 +220,9 @@ template("v8_static_library") {
   static_library(target_name) {
     complete_static_lib = true
     forward_variables_from(invoker, "*", [ "configs" ])
+    configs += invoker.configs
     configs -= v8_remove_configs
     configs -= [ "//build/config/compiler:thin_archive" ]
     configs += v8_add_configs
-    configs += invoker.configs
   }
 }

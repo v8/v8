@@ -701,32 +701,6 @@ config("toolchain") {
   }
 }
 
-config("default_optimization") {
-  if (is_debug && !v8_optimized_debug) {
-    configs = [ "//build/config/compiler:no_optimize" ]
-  } else {
-    # TODO(crbug.com/621335) Rework this so that we don't have the confusion
-    # between "optimize_speed" and "optimize_max".
-    if (((is_posix && !is_android) || is_fuchsia) && !using_sanitizer) {
-      configs = [ "//build/config/compiler:optimize_speed" ]
-    } else {
-      configs = [ "//build/config/compiler:optimize_max" ]
-    }
-  }
-}
-
-# For code that is only run a few times during the build, C++ optimizations
-# are a waste of time.
-config("unoptimized_initializer") {
-  configs = [ ":internal_config" ]
-  if (using_sanitizer) {
-    # Some sanitizers rely on optimizations.
-    configs += [ ":default_optimization" ]
-  } else {
-    configs += [ "//build/config/compiler:no_optimize" ]
-  }
-}
-
 # Configs for code coverage with gcov. Separate configs for cflags and ldflags
 # to selectively influde cflags in non-test targets only.
 config("v8_gcov_coverage_cflags") {
@@ -1083,8 +1057,7 @@ v8_source_set("torque_generated_initializers") {
     ]
   }
 
-  remove_configs = [ v8_path_prefix + ":default_optimization" ]
-  configs = [ ":unoptimized_initializer" ]
+  configs = [ ":internal_config" ]
 }
 
 action("generate_bytecode_builtins_list") {
@@ -1569,8 +1542,7 @@ v8_source_set("v8_initializers") {
     sources -= [ "src/builtins/builtins-intl-gen.cc" ]
   }
 
-  remove_configs = [ v8_path_prefix + ":default_optimization" ]
-  configs = [ ":unoptimized_initializer" ]
+  configs = [ ":internal_config" ]
 }
 
 v8_source_set("v8_init") {
