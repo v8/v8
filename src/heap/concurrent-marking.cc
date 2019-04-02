@@ -407,7 +407,7 @@ class ConcurrentMarkingVisitor final
     int size = VisitJSObjectSubclass(map, object);
 
     // Check if the JSFunction needs reset due to bytecode being flushed.
-    if (bytecode_flush_mode_ == BytecodeFlushMode::kDoNotFlushBytecode &&
+    if (bytecode_flush_mode_ != BytecodeFlushMode::kDoNotFlushBytecode &&
         object->NeedsResetDueToFlushedBytecode()) {
       weak_objects_->flushed_js_functions.Push(task_id_, object);
     }
