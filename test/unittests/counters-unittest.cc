@@ -821,5 +821,17 @@ TEST_F(SnapshotNativeCounterTest, SubStringNative) {
   PrintAll();
 }
 
+TEST_F(SnapshotNativeCounterTest, WriteBarrier) {
+  RunJS("let o = {a: 42};");
+
+  if (SupportsNativeCounters()) {
+    EXPECT_NE(0, write_barriers());
+  } else {
+    EXPECT_EQ(0, write_barriers());
+  }
+
+  PrintAll();
+}
+
 }  // namespace internal
 }  // namespace v8

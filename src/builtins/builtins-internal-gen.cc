@@ -6,6 +6,7 @@
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
 #include "src/code-stub-assembler.h"
+#include "src/counters.h"
 #include "src/heap/heap-inl.h"  // crbug.com/v8/8499
 #include "src/ic/accessor-assembler.h"
 #include "src/ic/keyed-store-generic.h"
@@ -446,6 +447,7 @@ TF_BUILTIN(RecordWrite, RecordWriteCodeStubAssembler) {
   }
 
   BIND(&exit);
+  IncrementCounter(isolate()->counters()->write_barriers(), 1);
   Return(TrueConstant());
 }
 
@@ -465,6 +467,7 @@ TF_BUILTIN(EphemeronKeyBarrier, RecordWriteCodeStubAssembler) {
       fp_mode, &exit);
 
   BIND(&exit);
+  IncrementCounter(isolate()->counters()->write_barriers(), 1);
   Return(TrueConstant());
 }
 

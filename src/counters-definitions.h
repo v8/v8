@@ -302,10 +302,6 @@ namespace internal {
   SC(soft_deopts_requested, V8.SoftDeoptsRequested)                            \
   SC(soft_deopts_inserted, V8.SoftDeoptsInserted)                              \
   SC(soft_deopts_executed, V8.SoftDeoptsExecuted)                              \
-  /* Number of write barriers in generated code. */                            \
-  /* TODO: This isn't functional at the moment, we should teach the */         \
-  /* compiler about this counter.  */                                          \
-  SC(write_barriers_static, V8.WriteBarriersStatic)                            \
   SC(new_space_bytes_available, V8.MemoryNewSpaceBytesAvailable)               \
   SC(new_space_bytes_committed, V8.MemoryNewSpaceBytesCommitted)               \
   SC(new_space_bytes_used, V8.MemoryNewSpaceBytesUsed)                         \
@@ -337,7 +333,7 @@ namespace internal {
 // a separate list to be able to relocate them.
 #define STATS_COUNTER_NATIVE_CODE_LIST(SC)                         \
   /* Number of write barriers executed at runtime. */              \
-  SC(write_barriers_dynamic, V8.WriteBarriersDynamic)              \
+  SC(write_barriers, V8.WriteBarriers)                             \
   SC(constructed_objects, V8.ConstructedObjects)                   \
   SC(fast_new_closure_total, V8.FastNewClosureTotal)               \
   SC(regexp_entry_native, V8.RegExpEntryNative)                    \
