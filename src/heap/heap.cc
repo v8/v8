@@ -5856,12 +5856,15 @@ void Heap::EphemeronKeyWriteBarrierFromCode(Address raw_object,
                                             Address key_slot_address,
                                             Isolate* isolate) {
   EphemeronHashTable table = EphemeronHashTable::cast(Object(raw_object));
-  if (!ObjectInYoungGeneration(table)) {
+  MaybeObjectSlot key_slot(key_slot_address);
+  MaybeObject maybe_key = *key_slot;
+  HeapObject key;
+  if (!maybe_key.GetHeapObject(&key)) return;
+  if (!ObjectInYoungGeneration(table) && ObjectInYoungGeneration(key)) {
     isolate->heap()->RecordEphemeronKeyWrite(table, key_slot_address);
   }
-  MaybeObjectSlot key_slot(key_slot_address);
   isolate->heap()->incremental_marking()->RecordMaybeWeakWrite(table, key_slot,
-                                                               *key_slot);
+                                                               maybe_key);
 }
 
 void Heap::GenerationalBarrierForElementsSlow(Heap* heap, FixedArray array,
